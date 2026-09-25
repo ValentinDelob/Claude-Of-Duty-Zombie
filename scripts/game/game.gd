@@ -14,6 +14,8 @@ const MAP_SCRIPTS := {
 
 var map_def: MapDef
 var map_data: MapData
+## Navigation des zombies (serveur uniquement).
+var nav: NavGrid
 var players: Dictionary = {}  # peer_id -> Player
 var local_player: Player
 
@@ -50,6 +52,8 @@ func _ready() -> void:
 func _load_map(map_id: String) -> void:
 	map_def = load(MAP_SCRIPTS[map_id]).new()
 	map_data = MapData.parse(map_def.rows)
+	if multiplayer.is_server():
+		nav = NavGrid.new(map_data)
 	var builder := MapBuilder.new(map_data)
 	builder.materials = WorldLook.map_materials()
 	builder.build(world)
@@ -141,11 +145,12 @@ func _unhandled_input(event: InputEvent) -> void:
 # --------------------------------------------------------------------------
 
 const DEBUG_MAX_ZOMBIES := 4
+var debug_spawning := true
 var _debug_spawn_accum := 0.0
 
 
 func _process(delta: float) -> void:
-	if not multiplayer.is_server() or not GameState.is_in_game() or players.is_empty():
+	if not debug_spawning or not multiplayer.is_server() or not GameState.is_in_game() or players.is_empty():
 		return
 	_debug_spawn_accum += delta
 	if _debug_spawn_accum < 3.0:

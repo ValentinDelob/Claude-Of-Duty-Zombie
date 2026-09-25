@@ -48,6 +48,8 @@ func _run() -> void:
 
 func _process(delta: float) -> void:
 	if _sampling:
+		if delta > 0.025:
+			print("[prof] image lente %.1f ms à t=%.2f" % [delta * 1000.0, Time.get_ticks_msec() / 1000.0])
 		_fps_samples.append(1.0 / maxf(delta, 0.0001))
 		_frame_ms_max = maxf(_frame_ms_max, delta * 1000.0)
 

@@ -14,6 +14,10 @@ const HEIGHT := 1.75
 const EMERGE_TIME := 1.4
 const INTERP_DELAY := 0.12
 const HITBOX_LAYER := 1 << 3
+const ATTACK_RANGE := 1.25
+const ATTACK_TIME := 0.9
+## En dessous de cette distance, poursuite directe si la ligne de vue est dégagée.
+const DIRECT_RANGE := 12.0
 
 var id := 0
 var variant := 0
@@ -23,6 +27,14 @@ var state: State = State.EMERGE
 var yaw := 0.0
 var health := 150
 var max_health := 150
+var speed_mult := 1.0
+var target: Player
+
+var _path := PackedVector3Array()
+var _path_i := 0
+var _repath_t := 0.0
+var _stuck_t := 0.0
+var _stuck_pos := Vector3.ZERO
 
 ## Animation (lue sur toutes les machines).
 var anim_speed := 0.0      # vitesse horizontale actuelle (m/s)
@@ -126,6 +138,8 @@ func _physics_process(delta: float) -> void:
 				_set_state(State.CHASE)
 		State.CHASE:
 			_chase(delta)
+		State.ATTACK:
+			_attack(delta)
 		State.DEAD:
 			return
 	if not is_on_floor():
@@ -137,15 +151,43 @@ func _physics_process(delta: float) -> void:
 	anim_speed = Vector2(velocity.x, velocity.z).length()
 
 
-## Poursuite directe du joueur le plus proche (remplacée par la navigation).
+## Poursuite : ligne droite si le joueur est visible et proche, sinon chemin
+## A* recalculé régulièrement. Séparation entre zombies pour éviter les amas.
 func _chase(delta: float) -> void:
-	var target := _nearest_player()
+	var game := Game.instance
+	if game == null or game.nav == null:
+		return
+	_repath_t -= delta
+	if _repath_t <= 0.0 or target == null or not is_instance_valid(target):
+		target = _nearest_player()
 	var desired := Vector3.ZERO
 	if target:
-		var to := target.global_position - global_position
+		var tpos := target.global_position
+		var to := tpos - global_position
 		to.y = 0.0
-		if to.length() > 1.1:
-			desired = to.normalized() * SPEEDS[speed_class]
+		var dist := to.length()
+		if dist < ATTACK_RANGE:
+			_start_attack()
+			return
+		var dir := Vector3.ZERO
+		if dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, tpos):
+			dir = to / dist
+			_path.clear()
+		else:
+			if _repath_t <= 0.0 or _path_i >= _path.size():
+				_path = game.nav.find_path(global_position, tpos)
+				_path_i = 0
+				_repath_t = randf_range(0.35, 0.7)
+			while _path_i < _path.size() and _flat_dist(_path[_path_i]) < 0.45:
+				_path_i += 1
+			if _path_i < _path.size():
+				var wp := _path[_path_i] - global_position
+				wp.y = 0.0
+				dir = wp.normalized()
+		if _repath_t <= 0.0:
+			_repath_t = randf_range(0.35, 0.7)
+		desired = (dir + _separation() * 0.9).normalized() * SPEEDS[speed_class] * speed_mult
+		_check_stuck(delta)
 	var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(desired, 12.0 * delta)
 	velocity.x = horiz.x
 	velocity.z = horiz.z
@@ -153,6 +195,57 @@ func _chase(delta: float) -> void:
 		# Le modèle regarde vers +Z.
 		yaw = lerp_angle(yaw, atan2(horiz.x, horiz.z), 1.0 - exp(-delta * 8.0))
 	rotation.y = yaw
+
+
+func _flat_dist(p: Vector3) -> float:
+	return Vector2(p.x - global_position.x, p.z - global_position.z).length()
+
+
+## Répulsion douce des zombies voisins.
+func _separation() -> Vector3:
+	var push := Vector3.ZERO
+	var mgr := get_parent() as ZombieManager
+	if mgr == null:
+		return push
+	for other: Zombie in mgr.alive:
+		if other == self:
+			continue
+		var d := global_position - other.global_position
+		d.y = 0.0
+		var l2 := d.length_squared()
+		if l2 < 0.8 and l2 > 0.0001:
+			push += d / l2 * 0.25
+	return push.limit_length(1.0)
+
+
+## Coincé (contre un autre zombie, un angle...) : recalcul immédiat du chemin.
+func _check_stuck(delta: float) -> void:
+	_stuck_t += delta
+	if _stuck_t < 1.2:
+		return
+	if global_position.distance_to(_stuck_pos) < 0.3:
+		_repath_t = 0.0
+		velocity += Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * 2.0
+	_stuck_pos = global_position
+	_stuck_t = 0.0
+
+
+func _start_attack() -> void:
+	_set_state(State.ATTACK)
+	velocity.x = 0.0
+	velocity.z = 0.0
+	play_attack()
+
+
+func _attack(delta: float) -> void:
+	velocity.x = move_toward(velocity.x, 0.0, 20.0 * delta)
+	velocity.z = move_toward(velocity.z, 0.0, 20.0 * delta)
+	if target and is_instance_valid(target):
+		var to := target.global_position - global_position
+		yaw = lerp_angle(yaw, atan2(to.x, to.z), 1.0 - exp(-delta * 10.0))
+		rotation.y = yaw
+	if _state_time >= ATTACK_TIME:
+		_set_state(State.CHASE)
 
 
 func _nearest_player() -> Player:
@@ -209,6 +302,8 @@ func _interpolate() -> void:
 	var new_state: State = code & 7
 	speed_class = (code >> 3) & 3
 	if new_state != state and state != State.DEAD:
+		if new_state == State.ATTACK:
+			play_attack()
 		state = new_state
 		_state_time = 0.0
 

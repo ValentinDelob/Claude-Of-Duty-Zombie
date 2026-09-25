@@ -16,6 +16,8 @@ signal zombie_spawned(z: Zombie)
 signal zombie_removed(zid: int)
 
 var zombies: Dictionary = {}  # id -> Zombie
+## Zombies vivants (liste tenue à jour, sans allocation pour les parcours).
+var alive: Array[Zombie] = []
 var _next_id := 1
 var _snap_accum := 0.0
 var _rng := RandomNumberGenerator.new()
@@ -26,11 +28,7 @@ func _ready() -> void:
 
 
 func alive_count() -> int:
-	var n := 0
-	for z in zombies.values():
-		if z.is_alive():
-			n += 1
-	return n
+	return alive.size()
 
 
 func get_zombie(zid: int) -> Zombie:
@@ -75,10 +73,7 @@ func _physics_process(delta: float) -> void:
 
 func build_snapshot() -> PackedByteArray:
 	var buf := PackedByteArray()
-	var list := []
-	for z in zombies.values():
-		if z.is_alive():
-			list.append(z)
+	var list := alive
 	buf.resize(2 + list.size() * BYTES_PER_ZOMBIE)
 	buf.encode_u16(0, list.size())
 	var o := 2
@@ -109,6 +104,7 @@ func _cl_spawn(zid: int, pos: Vector3, yaw: float, variant: int, speed_class: in
 	z.global_position = pos
 	z.rotation.y = yaw
 	zombies[zid] = z
+	alive.append(z)
 	zombie_spawned.emit(z)
 
 
@@ -118,6 +114,7 @@ func _cl_despawn(zid: int) -> void:
 	if z == null:
 		return
 	zombies.erase(zid)
+	alive.erase(z)
 	z.queue_free()
 	zombie_removed.emit(zid)
 

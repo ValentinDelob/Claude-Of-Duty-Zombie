@@ -8,6 +8,7 @@ func test_snapshot_roundtrip() -> void:
 	z.setup(42, 7, 2, true)
 	mgr.add_child(z)
 	mgr.zombies[42] = z
+	mgr.alive.append(z)
 	z.global_position = Vector3(12.34, -0.5, 56.78)
 	z.yaw = 1.5
 	z.state = Zombie.State.CHASE
