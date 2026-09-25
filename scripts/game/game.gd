@@ -40,6 +40,9 @@ var local_player: Player
 var spawner: Spawner
 var props: PropBuilder
 var doors: Dictionary = {}  # id -> Door
+## Courant rétabli ? (répliqué par PowerSwitch)
+var power_on := false
+signal power_changed(on: bool)
 @onready var hud: Hud = $HUD
 
 
@@ -81,6 +84,7 @@ func _load_map(map_id: String) -> void:
 	WorldLook.setup_environment(world)
 	_build_doors()
 	_build_wall_buys()
+	_build_power()
 	print("[Game] carte « %s » construite (%dx%d)" % [map_def.display_name, map_data.width, map_data.height])
 
 
@@ -281,3 +285,24 @@ func _build_wall_buys() -> void:
 			wb.setup(marker, c, map_def.wall_buys[marker], map_data)
 			root.add_child(wb)
 			interact.register(wb)
+
+
+func _build_power() -> void:
+	var cells: Array = map_data.markers.get("G", [])
+	if cells.is_empty():
+		# Carte sans générateur : le courant est là dès le départ.
+		props.power.apply_immediate(true)
+		set_power(true)
+		return
+	props.power.apply_immediate(false)
+	var sw := PowerSwitch.new()
+	sw.setup(cells[0], map_data)
+	world.add_child(sw)
+	interact.register(sw)
+
+
+func set_power(on: bool) -> void:
+	if power_on == on:
+		return
+	power_on = on
+	power_changed.emit(on)

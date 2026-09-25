@@ -371,3 +371,30 @@ func gen_door_open() -> void:
 	s.mix(b, _clank(160.0, 0.5, 1.0), 1.7, 1.2)
 	s.mix(b, s.env_exp(s.lowpass(s.noise(0.5), 300.0), 0.002, 0.12), 1.7, 1.0)
 	_save("door_open", s.finish(s.reverb(b, 0.8, 0.3, 1.0), 0.85))
+
+
+func gen_lever() -> void:
+	var b := _clank(300.0, 0.25, 1.0)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.3), 500.0), 0.002, 0.06), 0.0, 0.8)
+	_save("lever", s.finish(s.reverb(b, 0.6, 0.2, 0.5), 0.8))
+
+
+func gen_power_on() -> void:
+	# Coup sourd, arc électrique, puis ronronnement qui monte (turbine).
+	var dur := 5.0
+	var b := s.env_exp(s.sweep(0.8, 80.0, 35.0), 0.002, 0.3)
+	var arc := s.env_exp(s.highpass(s.noise(0.6), 3000.0), 0.001, 0.12)
+	for i in arc.size():
+		arc[i] *= 1.0 if s.rng.randf() < 0.3 else 0.2
+	s.mix(b, arc, 0.05, 0.6)
+	var hum := s.sweep(dur - 0.5, 30.0, 60.0, "saw")
+	s.mix(hum, s.sweep(dur - 0.5, 60.0, 120.0), 0.0, 0.5)
+	hum = s.env_adsr(s.lowpass(hum, 500.0), 1.5, 0.5, 0.8, 1.2)
+	s.mix(b, hum, 0.4, 0.8)
+	_save("power_on", s.finish(s.reverb(b, 0.9, 0.3, 1.5), 0.9, 0.2))
+
+
+func gen_lamp_on() -> void:
+	var b := s.env_exp(s.bandpass(s.noise(0.2), 2500.0, 2.0), 0.001, 0.02)
+	s.mix(b, s.env_adsr(s.tone(0.4, 120.0, "square"), 0.01, 0.05, 0.3, 0.2), 0.02, 0.15)
+	_save("lamp_on", s.finish(b, 0.5))

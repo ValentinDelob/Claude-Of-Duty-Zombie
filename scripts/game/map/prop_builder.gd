@@ -13,6 +13,7 @@ var _tools: Dictionary = {}
 var _body: StaticBody3D
 var _box_meshes: Dictionary = {}
 var flicker: LightFlicker
+var power: PowerGrid
 
 
 func _init(map_data: MapData, map_def: MapDef) -> void:
@@ -36,6 +37,10 @@ func build(parent: Node3D) -> void:
 	flicker = LightFlicker.new()
 	flicker.name = "LightFlicker"
 	root.add_child(flicker)
+	power = PowerGrid.new()
+	power.name = "PowerGrid"
+	power.setup(flicker)
+	root.add_child(power)
 
 	for c in data.markers.get("C", []):
 		_crate(c)
@@ -255,4 +260,5 @@ func _lamps() -> void:
 		root.add_child(light)
 		if _h(c, 9) < 0.22:
 			flicker.add(light)
+		power.add(light)
 		i += 1

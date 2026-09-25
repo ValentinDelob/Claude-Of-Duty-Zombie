@@ -36,3 +36,10 @@ func _process(delta: float) -> void:
 				_timer[i] = _rng.randf_range(0.04, 0.3) if _rng.randf() < 0.5 else _rng.randf_range(1.0, 5.0)
 		var e := _base[i] * master
 		_lights[i].light_energy = e if _state[i] == 1 else e * 0.08
+
+
+## Met à jour l'énergie de référence d'une lampe (changement de courant).
+func set_base(light: OmniLight3D, energy: float) -> void:
+	var i := _lights.find(light)
+	if i >= 0:
+		_base[i] = energy

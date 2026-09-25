@@ -284,6 +284,21 @@ func round_changed(n: int, starting: bool) -> void:
 	_round.set_round(n, starting)
 
 
+## Grand bandeau temporaire au centre (événement de la partie).
+func show_banner(text: String, duration := 3.5) -> void:
+	_center_msg.text = text
+	_center_msg.add_theme_font_size_override("font_size", 46)
+	_center_msg.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_property(_center_msg, "modulate:a", 1.0, 0.6)
+	tw.tween_interval(duration)
+	tw.tween_property(_center_msg, "modulate:a", 0.0, 1.2)
+	tw.tween_callback(func():
+		_center_msg.text = ""
+		_center_msg.modulate.a = 1.0
+		_center_msg.add_theme_font_size_override("font_size", 72))
+
+
 ## Message bref (refus d'achat...).
 func flash_message(text: String) -> void:
 	_flash.text = text
