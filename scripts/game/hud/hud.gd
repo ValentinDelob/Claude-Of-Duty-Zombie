@@ -21,6 +21,9 @@ var _center_sub: Label
 var _fade: ColorRect
 var _heart_t := 0.0
 var _scores: ScorePanel
+var _prompt: Label
+var _flash: Label
+var _flash_t := 0.0
 var _round: RoundCounter
 
 
@@ -97,6 +100,19 @@ func _ready() -> void:
 	_hint.size = Vector2(600, 40)
 	add_child(_hint)
 
+	_prompt = UiStyle.label("", 24, UiStyle.BONE)
+	_prompt.set_anchors_preset(Control.PRESET_CENTER)
+	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prompt.position = Vector2(-400, 110)
+	_prompt.size = Vector2(800, 40)
+	add_child(_prompt)
+	_flash = UiStyle.label("", 22, UiStyle.BLOOD_BRIGHT)
+	_flash.set_anchors_preset(Control.PRESET_CENTER)
+	_flash.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_flash.position = Vector2(-400, 150)
+	_flash.size = Vector2(800, 40)
+	add_child(_flash)
+
 	_fade = ColorRect.new()
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fade.color = Color(0, 0, 0, 0)
@@ -166,6 +182,13 @@ func _process(delta: float) -> void:
 	_crosshair.spread = 0.0 if player.aiming else (18.0 if Vector2(player.velocity.x, player.velocity.z).length() > 1.0 else 10.0)
 	_crosshair.visible = not player.sprinting and not player.aiming and (pd == null or pd.life != PlayerData.Life.DEAD)
 	_crosshair.queue_redraw()
+	var focus := game.interact.focused
+	_prompt.text = focus.prompt(player.peer_id) if focus else ""
+	if _flash_t > 0.0:
+		_flash_t -= delta
+		_flash.modulate.a = clampf(_flash_t, 0.0, 1.0)
+		if _flash_t <= 0.0:
+			_flash.text = ""
 	var wc := player.weapons
 	if wc:
 		var w := wc.current()
@@ -259,3 +282,9 @@ class DamageIndicator extends Control:
 
 func round_changed(n: int, starting: bool) -> void:
 	_round.set_round(n, starting)
+
+
+## Message bref (refus d'achat...).
+func flash_message(text: String) -> void:
+	_flash.text = text
+	_flash_t = 1.8

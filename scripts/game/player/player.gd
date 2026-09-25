@@ -156,6 +156,8 @@ func _local_physics(delta: float) -> void:
 	_update_camera_effects(delta)
 	if weapons:
 		weapons.tick(delta)
+	if Game.instance and Game.instance.interact:
+		Game.instance.interact.local_tick(self)
 
 	_send_accum += delta
 	if _send_accum >= 1.0 / NET_SEND_RATE:

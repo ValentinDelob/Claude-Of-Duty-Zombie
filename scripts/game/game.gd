@@ -36,6 +36,7 @@ var local_player: Player
 @onready var zombies: ZombieManager = $Zombies
 @onready var points: Points = $Points
 @onready var rounds: RoundManager = $Rounds
+@onready var interact: InteractionSystem = $Interact
 var spawner: Spawner
 var props: PropBuilder
 var doors: Dictionary = {}  # id -> Door
@@ -266,3 +267,4 @@ func _build_doors() -> void:
 			d.setup(id, group, map_def.doors[id].cost, map_data)
 			root.add_child(d)
 			doors[id] = d
+			interact.register(d)

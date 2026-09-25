@@ -342,3 +342,32 @@ func gen_ambience_bunker() -> void:
 	for v in b:
 		m = maxf(m, absf(v))
 	_save("ambience_bunker", s.gain(b, 0.6 / m), true)
+
+
+# ---------------------------------------------------------------- interactions
+
+func gen_purchase() -> void:
+	# Loquet métallique + petite cloche fêlée : achat validé.
+	var b := _clank(700.0, 0.08)
+	s.mix(b, _bell(1.2, 880.0), 0.05, 0.7)
+	s.mix(b, _bell(1.2, 1318.5), 0.14, 0.4)
+	_save("purchase", s.finish(s.reverb(b, 0.6, 0.25, 0.6), 0.75))
+
+
+func gen_denied() -> void:
+	var b := s.env_adsr(s.lowpass(s.tone(0.35, 110.0, "square"), 900.0), 0.005, 0.05, 0.8, 0.08)
+	s.mix(b, s.env_adsr(s.lowpass(s.tone(0.35, 116.0, "square"), 900.0), 0.005, 0.05, 0.8, 0.08), 0.0, 0.8)
+	_save("denied", s.finish(b, 0.5))
+
+
+func gen_door_open() -> void:
+	# Grondement de moteur, raclement métallique, choc final.
+	var dur := 2.2
+	var b := s.env_adsr(s.lowpass(s.tone(dur, 55.0, "saw"), 250.0), 0.2, 0.3, 0.8, 0.4)
+	var scrape := s.env_adsr(s.bandpass(s.noise(dur), 1800.0, 3.0), 0.3, 0.3, 0.6, 0.5)
+	for i in scrape.size():
+		scrape[i] *= 0.6 + 0.4 * sin(TAU * i / (Synth.RATE * 0.11))
+	s.mix(b, scrape, 0.0, 0.4)
+	s.mix(b, _clank(160.0, 0.5, 1.0), 1.7, 1.2)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.5), 300.0), 0.002, 0.12), 1.7, 1.0)
+	_save("door_open", s.finish(s.reverb(b, 0.8, 0.3, 1.0), 0.85))
