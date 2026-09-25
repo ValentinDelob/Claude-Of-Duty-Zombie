@@ -61,6 +61,7 @@ var sprint_duration_bonus := 0.0
 var speed_multiplier := 1.0
 ## Ignoré par les zombies (téléportation, cinématique...).
 var untargetable := false
+var revive_target: ReviveTarget
 var _flinch := Vector2.ZERO
 
 var head: Node3D
@@ -150,7 +151,7 @@ func _physics_process(delta: float) -> void:
 		_local_physics(delta)
 	else:
 		_remote_interpolate()
-		visual.animate(delta, _remote_speed, pitch, _net_flags, false, dead)
+		visual.animate(delta, _remote_speed, pitch, _net_flags, downed, dead)
 
 
 # --------------------------------------------------------------------------
@@ -416,3 +417,34 @@ func set_dead(is_dead: bool) -> void:
 			weapons.view.visible = true
 		visual.rotation.x = 0.0
 		visual.position.y = 0.0
+
+
+var _down_marker: Label3D
+
+
+## À terre (toutes les machines) : on rampe, caméra basse, repère « À TERRE »
+## visible par les coéquipiers à travers les murs.
+func set_downed(is_down: bool) -> void:
+	downed = is_down
+	untargetable = is_down or dead
+	if is_local:
+		var tw := create_tween()
+		tw.tween_property(camera, "rotation:z", 0.18 if is_down else 0.0, 0.6)
+		return
+	if is_down and _down_marker == null:
+		_down_marker = Label3D.new()
+		_down_marker.text = "✚ À TERRE"
+		_down_marker.font = UiStyle.font("impact")
+		_down_marker.font_size = 48
+		_down_marker.pixel_size = 0.004
+		_down_marker.outline_size = 12
+		_down_marker.modulate = Color(1.0, 0.25, 0.15)
+		_down_marker.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_down_marker.no_depth_test = true
+		_down_marker.fixed_size = true
+		_down_marker.pixel_size = 0.0009
+		_down_marker.position.y = 1.2
+		add_child(_down_marker)
+	if _down_marker:
+		_down_marker.visible = is_down
+	name_tag.visible = not is_down

@@ -26,6 +26,7 @@ var _flash: Label
 var _flash_t := 0.0
 var _round: RoundCounter
 var _perk_icons: PerkIcons
+var _downed: DownedOverlay
 
 
 func _ready() -> void:
@@ -118,6 +119,12 @@ func _ready() -> void:
 	_flash.position = Vector2(-400, 150)
 	_flash.size = Vector2(800, 40)
 	add_child(_flash)
+
+	_downed = DownedOverlay.new()
+	# Ancrages posés AVANT l'ajout : sous un CanvasLayer, les poser après
+	# conserve une taille nulle.
+	_downed.setup(game)
+	add_child(_downed)
 
 	_fade = ColorRect.new()
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)

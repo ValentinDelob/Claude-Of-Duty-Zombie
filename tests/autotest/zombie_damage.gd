@@ -75,10 +75,10 @@ func run() -> void:
 	await until(func(): return pd.health == 100, 6.0, "régénération")
 	at.check(pd.health == 100, "santé régénérée")
 
-	# 6. Deux coups sans répit : mort, puis GAME OVER (solo).
+	# 6. Deux coups sans répit : à terre, et en solo sans LAZARUS : GAME OVER.
 	z = await H.dummy_zombie(self, origin + Vector3(1.0, 0, 0))
-	await until(func(): return pd.life == PlayerData.Life.DEAD, 6.0, "mort du joueur")
-	at.check(pd.life == PlayerData.Life.DEAD, "le joueur meurt après deux coups")
+	await until(func(): return pd.life == PlayerData.Life.DOWNED, 6.0, "joueur à terre")
+	at.check(pd.life == PlayerData.Life.DOWNED, "le joueur tombe à terre après deux coups")
 	await until(func(): return GameState.state == GameState.State.GAME_OVER, 2.0, "état GAME_OVER")
 	await seconds(1.3)
 	await at.screenshot("game_over")

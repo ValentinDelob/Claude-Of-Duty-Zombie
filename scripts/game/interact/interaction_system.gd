@@ -26,6 +26,14 @@ func register(obj: Interactable) -> void:
 	obj.system = self
 
 
+func unregister(obj: Interactable) -> void:
+	objects.erase(obj.interact_id)
+	if focused == obj:
+		focused = null
+	if _holding == obj:
+		_holding = null
+
+
 func get_obj(id: String) -> Interactable:
 	return objects.get(id)
 
@@ -48,7 +56,7 @@ func local_tick(p: Player) -> void:
 
 func _find_focus(p: Player) -> Interactable:
 	var pd := game.session.get_data(p.peer_id)
-	if pd == null or pd.life == PlayerData.Life.DEAD:
+	if pd == null or pd.life != PlayerData.Life.ALIVE:
 		return null
 	var eye := p.eye_position()
 	var fwd := p.aim_direction()
@@ -85,7 +93,7 @@ func srv_interact(id: String) -> void:
 	var obj: Interactable = objects.get(id)
 	var p: Player = game.players.get(pid)
 	var pd := game.session.get_data(pid)
-	if obj == null or p == null or pd == null or pd.life == PlayerData.Life.DEAD:
+	if obj == null or p == null or pd == null or pd.life != PlayerData.Life.ALIVE:
 		return
 	if p.global_position.distance_to(obj.interact_point()) > obj.interact_range + MAX_SERVER_DISTANCE:
 		print("[Interact] %d trop loin de %s" % [pid, id])

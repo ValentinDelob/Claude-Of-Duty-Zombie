@@ -90,6 +90,9 @@ func load_settings() -> void:
 
 
 func save_settings() -> void:
+	# Les tests automatisés ne doivent jamais écraser les réglages du joueur.
+	if _cmdline_has_prefix("--autotest="):
+		return
 	var cfg := ConfigFile.new()
 	cfg.set_value("player", "name", player_name)
 	cfg.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
@@ -127,3 +130,10 @@ func _set_bus_volume(bus: String, linear: float) -> void:
 
 static func _cmdline_has(flag: String) -> bool:
 	return flag in OS.get_cmdline_user_args() or flag in OS.get_cmdline_args()
+
+
+static func _cmdline_has_prefix(prefix: String) -> bool:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with(prefix):
+			return true
+	return false

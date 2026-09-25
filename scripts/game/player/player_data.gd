@@ -21,6 +21,8 @@ var life: Life = Life.ALIVE
 var weapons: Array = []
 var slot := 0
 var perks: PackedStringArray = []
+## Armes mises de côté pendant que le joueur est à terre (serveur).
+var saved_weapons: Array = []
 
 
 func _init(id := 0) -> void:

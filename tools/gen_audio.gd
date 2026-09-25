@@ -611,3 +611,22 @@ func gen_ui_error() -> void:
 	var b := s.env_adsr(s.lowpass(s.tone(0.6, 82.0, "saw"), 600.0), 0.01, 0.1, 0.7, 0.3)
 	s.mix(b, s.env_adsr(s.lowpass(s.tone(0.6, 87.0, "saw"), 600.0), 0.01, 0.1, 0.7, 0.3), 0.0, 0.8)
 	_save("ui_error", s.finish(s.reverb(b, 0.7, 0.3, 0.8), 0.7))
+
+
+# ---------------------------------------------------------------- à terre / réanimation
+
+func gen_player_down() -> void:
+	# Chute lourde, râle, cloche funèbre lointaine.
+	var b := s.env_exp(s.lowpass(s.noise(0.5), 400.0), 0.003, 0.1)
+	s.mix(b, _growl(0.6, 150.0, 90.0, [650.0, 1000.0], 0.4), 0.05, 0.8)
+	s.mix(b, _bell(3.0, 146.8), 0.2, 0.7)
+	_save("player_down", s.finish(s.reverb(b, 0.9, 0.35, 1.5), 0.85))
+
+
+func gen_revive() -> void:
+	# Inspiration brusque + accord qui se résout vers le haut.
+	var breath := s.env_adsr(s.bandpass(s.noise(0.5), 1800.0, 1.2), 0.2, 0.1, 0.5, 0.2)
+	var b := s.gain(breath, 0.7)
+	for f in [220.0, 277.2, 329.6, 440.0]:
+		s.mix(b, s.env_adsr(s.tone(1.4, f, "tri"), 0.3, 0.3, 0.5, 0.6), 0.2, 0.18)
+	_save("revive", s.finish(s.reverb(b, 0.8, 0.3, 1.0), 0.75))

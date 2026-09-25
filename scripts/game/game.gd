@@ -38,6 +38,7 @@ var local_player: Player
 @onready var rounds: RoundManager = $Rounds
 @onready var interact: InteractionSystem = $Interact
 @onready var perks: PerkSystem = $Perks
+@onready var downed: DownedSystem = $Downed
 var spawner: Spawner
 var props: PropBuilder
 var doors: Dictionary = {}  # id -> Door
@@ -136,6 +137,11 @@ func _spawn_player(pid: int, pos: Vector3) -> void:
 	var p := Player.new()
 	p.setup(pid, pid == multiplayer.get_unique_id())
 	players_root.add_child(p)
+	var rt := ReviveTarget.new()
+	rt.setup(pid)
+	interact.register(rt)
+	p.add_child(rt)
+	p.revive_target = rt
 	p.teleport_to(pos, PI)
 	players[pid] = p
 	if p.is_local:
@@ -156,11 +162,16 @@ func _on_player_left(pid: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _cl_remove_player(pid: int) -> void:
+	if players.has(pid) and players[pid].revive_target:
+		interact.unregister(players[pid].revive_target)
 	if players.has(pid):
 		players[pid].queue_free()
 		players.erase(pid)
 	session.remove(pid)
 	combat.forget_player(pid)
+	if multiplayer.is_server():
+		downed.forget(pid)
+		check_game_over.call_deferred()
 
 
 func _on_session_ended(reason: String) -> void:
@@ -195,13 +206,17 @@ func _unhandled_input(event: InputEvent) -> void:
 const GAME_OVER_DELAY := 9.0
 
 
-## Serveur : un joueur est tombé à 0 PV.
+## Serveur : un joueur est tombé à 0 PV : il passe à terre (DOWNED).
 func _on_player_fell(pid: int) -> void:
+	downed.srv_down(pid)
+
+
+## Serveur : mort définitive (saignement terminé...). Retour à la manche suivante.
+func kill_player(pid: int) -> void:
 	var pd := session.get_data(pid)
 	if pd == null:
 		return
 	pd.life = PlayerData.Life.DEAD
-	pd.downs += 1
 	perks.srv_clear(pid)
 	session.sync_stats(pid)
 	_cl_player_died.rpc(pid)
@@ -213,7 +228,7 @@ func check_game_over() -> void:
 	if not multiplayer.is_server() or GameState.state == GameState.State.GAME_OVER:
 		return
 	for pd: PlayerData in session.data.values():
-		if pd.life == PlayerData.Life.ALIVE:
+		if pd.life == PlayerData.Life.ALIVE or downed.will_self_revive(pd.peer_id):
 			return
 	print("[Game] tous les joueurs sont tombés : GAME OVER")
 	_cl_game_over.rpc(game_over_summary())

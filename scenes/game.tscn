@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/game/hud/hud.gd" id="2"]
@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/game/rounds/round_manager.gd" id="8"]
 [ext_resource type="Script" path="res://scripts/game/interact/interaction_system.gd" id="9"]
 [ext_resource type="Script" path="res://scripts/game/perks/perk_system.gd" id="10"]
+[ext_resource type="Script" path="res://scripts/game/downed_system.gd" id="11"]
 
 [node name="Game" type="Node3D"]
 script = ExtResource("1")
@@ -31,6 +32,9 @@ script = ExtResource("9")
 
 [node name="Perks" type="Node" parent="."]
 script = ExtResource("10")
+
+[node name="Downed" type="Node" parent="."]
+script = ExtResource("11")
 
 [node name="World" type="Node3D" parent="."]
 

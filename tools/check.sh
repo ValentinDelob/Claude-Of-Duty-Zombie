@@ -10,6 +10,8 @@ cd "$(dirname "$0")/.."
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
 FAIL=0
+FAST=0
+[ "$1" = "--fast" ] && FAST=1
 # Tous les scénarios de tests/autotest/ (hors fichiers utilitaires).
 ALL=$(ls tests/autotest/*.gd | xargs -n1 basename | sed 's/\.gd$//' | grep -vE '^(scenario|helpers|mp_.*)$' | tr '\n' ' ')
 SCENARIOS=${SCENARIOS:-$ALL}
@@ -27,7 +29,7 @@ echo "== tests unitaires"
 grep -E "\[FAIL\]|^\s+- |TESTS:|SCRIPT ERROR" "$OUT/unit.log"
 if grep -qE "SCRIPT ERROR|ERROR:" "$OUT/unit.log"; then FAIL=1; grep -E "ERROR" "$OUT/unit.log" | head; fi
 
-if [ "$1" != "--fast" ]; then
+if [ $FAST -eq 0 ]; then
   echo "== test réseau"
   sh tools/net_smoke.sh > "$OUT/net.log" 2>&1 || { FAIL=1; cat "$OUT/net.log"; }
   tail -1 "$OUT/net.log"
@@ -57,7 +59,7 @@ while [ $# -gt 0 ]; do
 done
 
 # Tests multijoueur (paires hôte/client dans deux fenêtres).
-if [ "$1" != "--fast" ] && [ -z "$SCENARIOS_ONLY" ]; then
+if [ $FAST -eq 0 ]; then
   for H in tests/autotest/mp_*_host.gd; do
     [ -f "$H" ] || continue
     N=$(basename "$H" | sed 's/^mp_//; s/_host.gd$//')
