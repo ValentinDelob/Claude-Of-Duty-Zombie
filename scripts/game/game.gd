@@ -25,6 +25,7 @@ var local_player: Player
 @onready var session: Session = $Session
 @onready var combat: Combat = $Combat
 @onready var zombies: ZombieManager = $Zombies
+@onready var points: Points = $Points
 @onready var hud: Hud = $HUD
 
 

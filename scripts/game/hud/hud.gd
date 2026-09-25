@@ -20,6 +20,7 @@ var _center_msg: Label
 var _center_sub: Label
 var _fade: ColorRect
 var _heart_t := 0.0
+var _scores: ScorePanel
 
 
 func _ready() -> void:
@@ -51,6 +52,14 @@ func _ready() -> void:
 	_debug = UiStyle.label("", 13, Color(1, 1, 1, 0.5), "mono")
 	_debug.position = Vector2(8, 6)
 	add_child(_debug)
+
+	_scores = ScorePanel.new()
+	_scores.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_scores.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_scores.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_scores.offset_right = -36
+	_scores.offset_bottom = -118
+	add_child(_scores)
 
 	var ammo_box := VBoxContainer.new()
 	ammo_box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -103,6 +112,7 @@ func _ready() -> void:
 
 func bind_player(p: Player) -> void:
 	player = p
+	_scores.bind(game.session)
 
 
 ## Marqueur de touche : blanc = touché (prédit localement), rouge = tué (serveur).
