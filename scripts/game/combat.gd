@@ -128,14 +128,14 @@ func _validate_fire(pid: int, slot: int, origin: Vector3) -> String:
 	return ""
 
 
-## Multiplicateur de cadence (atout de cadence plus tard).
-func game_rate_mult(_pid: int) -> float:
-	return 1.0
+## Multiplicateur de cadence (atout TWIN SHOT).
+func game_rate_mult(pid: int) -> float:
+	return PerkDB.fire_rate_mult(session.get_data(pid))
 
 
-## Multiplicateur de dégâts d'un joueur (atouts, pièges...).
-func damage_mult(_pid: int) -> float:
-	return 1.0
+## Multiplicateur de dégâts d'un joueur (atouts).
+func damage_mult(pid: int) -> float:
+	return PerkDB.damage_mult(session.get_data(pid))
 
 
 ## Valide et applique les touches. Retourne les points de sang à afficher chez
@@ -328,8 +328,8 @@ func srv_reload(slot: int) -> void:
 	_cl_reload_fx.rpc(pid)
 
 
-func reload_time(_pid: int, w: Dictionary) -> float:
-	return WeaponDB.stats(w.id, w.pap).reload
+func reload_time(pid: int, w: Dictionary) -> float:
+	return WeaponDB.stats(w.id, w.pap).reload * PerkDB.reload_mult(session.get_data(pid))
 
 
 func _finish_reload(pid: int, slot: int) -> void:
@@ -407,7 +407,7 @@ func _regenerate(delta: float, t: float) -> void:
 		var pd: PlayerData = session.data[pid]
 		if pd.life != PlayerData.Life.ALIVE or pd.health >= pd.max_health:
 			continue
-		if t - _last_hurt.get(pid, 0.0) < REGEN_DELAY:
+		if t - _last_hurt.get(pid, 0.0) < REGEN_DELAY * PerkDB.regen_delay_mult(pd):
 			continue
 		pd.health = mini(pd.health + int(ceil(REGEN_RATE * delta)), pd.max_health)
 		if do_sync or pd.health >= pd.max_health:

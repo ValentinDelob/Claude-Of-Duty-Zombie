@@ -398,3 +398,55 @@ func gen_lamp_on() -> void:
 	var b := s.env_exp(s.bandpass(s.noise(0.2), 2500.0, 2.0), 0.001, 0.02)
 	s.mix(b, s.env_adsr(s.tone(0.4, 120.0, "square"), 0.01, 0.05, 0.3, 0.2), 0.02, 0.15)
 	_save("lamp_on", s.finish(b, 0.5))
+
+
+# ---------------------------------------------------------------- atouts
+
+## Petite ritournelle « orgue de barbarie » désaccordée. notes : [demi-tons, durée]
+func _jingle(notes: Array, root: float, tempo: float, wave: String) -> PackedFloat32Array:
+	var b := s.buf(0.1)
+	var t := 0.0
+	for n in notes:
+		var f: float = root * pow(2.0, float(n[0]) / 12.0) * (1.0 + s.rng.randf_range(-0.006, 0.006))
+		var d: float = n[1] * tempo
+		if n[0] > -99:
+			var v := s.env_adsr(s.tone(d + 0.3, f, wave), 0.01, 0.08, 0.5, 0.25)
+			s.mix(v, s.env_exp(s.tone(d + 0.3, f * 2.0), 0.005, 0.1), 0.0, 0.25)
+			s.mix(b, v, t, 0.4)
+		t += d
+	# Basse d'accompagnement.
+	var bass := s.env_adsr(s.lowpass(s.tone(t + 0.3, root / 2.0, "tri"), 400.0), 0.05, 0.2, 0.5, 0.4)
+	s.mix(b, bass, 0.0, 0.3)
+	b = s.bitcrush(s.lowpass(b, 5000.0), 10)
+	return s.finish(s.reverb(b, 0.6, 0.25, 0.8), 0.75)
+
+
+func gen_jingle_titan() -> void:
+	_save("jingle_titan", _jingle([[0, 1], [0, 0.5], [3, 0.5], [7, 1], [5, 0.5], [3, 0.5], [0, 2]], 196.0, 0.22, "saw"))
+
+
+func gen_jingle_rapid() -> void:
+	_save("jingle_rapid", _jingle([[0, 0.5], [4, 0.5], [7, 0.5], [12, 0.5], [7, 0.5], [4, 0.5], [0, 0.5], [12, 1.5]], 293.7, 0.15, "square"))
+
+
+func gen_jingle_twin() -> void:
+	_save("jingle_twin", _jingle([[0, 0.5], [0, 0.5], [5, 1], [5, 0.5], [5, 0.5], [9, 1], [7, 0.5], [5, 0.5], [0, 2]], 261.6, 0.18, "tri"))
+
+
+func gen_jingle_lazarus() -> void:
+	_save("jingle_lazarus", _jingle([[7, 1], [5, 0.5], [4, 0.5], [2, 1], [0, 1], [-5, 1], [0, 2]], 329.6, 0.24, "tri"))
+
+
+func gen_jingle_stride() -> void:
+	_save("jingle_stride", _jingle([[0, 0.5], [2, 0.5], [4, 0.5], [5, 0.5], [7, 1], [9, 0.5], [7, 0.5], [12, 2]], 246.9, 0.17, "saw"))
+
+
+func gen_perk_drink() -> void:
+	# Capsule, gorgées, bouteille jetée.
+	var b := _clank(2200.0, 0.05, 0.4)
+	for k in 3:
+		var gulp := s.env_exp(s.lowpass(s.sweep(0.18, 300.0, 160.0), 900.0), 0.01, 0.06)
+		s.mix(b, gulp, 0.35 + k * 0.28, 0.9)
+	s.mix(b, _clank(1200.0, 0.2, 0.6), 1.5, 0.8)
+	s.mix(b, _clank(1500.0, 0.15, 0.4), 1.62, 0.5)
+	_save("perk_drink", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.8))

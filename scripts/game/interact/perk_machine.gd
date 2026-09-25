@@ -1,0 +1,141 @@
+class_name PerkMachine
+extends Interactable
+## Distributeur d'atout. S'allume avec le courant (sauf Lazarus), joue sa
+## ritournelle de temps en temps. Achat validé par le serveur.
+
+var perk_id := ""
+var _normal := Vector3.FORWARD
+var _sign_mat: StandardMaterial3D
+var _light: OmniLight3D
+var _jingle_t := 0.0
+var _lit := false
+
+
+func setup(marker: String, cell: Vector2i, perk: String, data: MapData) -> void:
+	perk_id = perk
+	interact_id = "perk_" + marker
+	name = "Perk_" + perk
+	_normal = MapDef.wall_normal(data, cell)
+	position = MapData.cell_to_world(cell) + _normal * 0.08
+	interact_range = 2.0
+	_jingle_t = 20.0 + fposmod(float(cell.x * 7 + cell.y * 13), 40.0)
+
+
+func _ready() -> void:
+	look_at(global_position - _normal, Vector3.UP)
+	rotate_object_local(Vector3.UP, PI)
+	var col := PerkDB.color(perk_id)
+	var body_mat := StandardMaterial3D.new()
+	body_mat.albedo_color = col.darkened(0.55)
+	body_mat.roughness = 0.5
+	body_mat.metallic = 0.3
+	_part(Vector3(1.0, 2.05, 0.78), Vector3(0, 1.025, 0), body_mat)
+	_part(Vector3(1.04, 0.12, 0.82), Vector3(0, 2.1, 0), WorldLook.surface("steel"))
+	_part(Vector3(1.04, 0.12, 0.82), Vector3(0, 0.06, 0), WorldLook.surface("steel"))
+	# Panneau lumineux + fente de distribution.
+	_sign_mat = StandardMaterial3D.new()
+	_sign_mat.albedo_color = col
+	_sign_mat.emission_enabled = true
+	_sign_mat.emission = col
+	_sign_mat.emission_energy_multiplier = 0.0
+	_part(Vector3(0.84, 0.5, 0.04), Vector3(0, 1.62, 0.39), _sign_mat)
+	_part(Vector3(0.5, 0.18, 0.04), Vector3(0, 0.55, 0.39), WorldLook.surface("steel"))
+	# Bouteille géante décorative sur le côté.
+	var bottle := MeshInstance3D.new()
+	var bm := CylinderMesh.new()
+	bm.top_radius = 0.05
+	bm.bottom_radius = 0.11
+	bm.height = 0.42
+	bm.radial_segments = 8
+	bottle.mesh = bm
+	bottle.material_override = _sign_mat
+	bottle.position = Vector3(0.33, 2.38, 0.1)
+	add_child(bottle)
+	var label := Label3D.new()
+	label.text = PerkDB.display_name(perk_id)
+	label.font = UiStyle.font("impact")
+	label.font_size = 64
+	label.pixel_size = 0.0035
+	label.modulate = Color(0.95, 0.9, 0.8)
+	label.outline_modulate = Color(0, 0, 0)
+	label.outline_size = 12
+	label.position = Vector3(0, 1.62, 0.42)
+	add_child(label)
+	_light = OmniLight3D.new()
+	_light.light_color = col
+	_light.omni_range = 4.5
+	_light.light_energy = 0.0
+	_light.position = Vector3(0, 1.7, 0.9)
+	add_child(_light)
+	system.game.power_changed.connect(func(_on): _refresh())
+	_refresh()
+
+
+func _part(size: Vector3, pos: Vector3, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var b := BoxMesh.new()
+	b.size = size
+	mi.mesh = b
+	mi.position = pos
+	mi.material_override = mat
+	add_child(mi)
+
+
+func powered() -> bool:
+	return not PerkDB.needs_power(perk_id) or system.game.power_on
+
+
+func _refresh() -> void:
+	_lit = powered()
+	_sign_mat.emission_energy_multiplier = 2.2 if _lit else 0.05
+	_light.light_energy = 1.3 if _lit else 0.0
+
+
+func _process(delta: float) -> void:
+	if not _lit:
+		return
+	_jingle_t -= delta
+	if _jingle_t <= 0.0:
+		_jingle_t = randf_range(45.0, 90.0)
+		Audio.play_3d("jingle_" + perk_id, global_position + Vector3.UP * 1.5, -8.0, 0.0, 1)
+
+
+func interact_point() -> Vector3:
+	return global_position - _normal * 0.7 + Vector3.UP * 1.2
+
+
+func prompt(pid: int) -> String:
+	var pd := system.game.session.get_data(pid)
+	if pd == null or pd.has_perk(perk_id):
+		return ""
+	if not powered():
+		return "Le courant doit être rétabli"
+	if pd.perks.size() >= PerkDB.MAX_PERKS:
+		return "Vous ne pouvez pas boire plus de %d atouts" % PerkDB.MAX_PERKS
+	return "[F] Boire %s %s — %s" % [PerkDB.display_name(perk_id), Interactable.cost_text(_cost()), PerkDB.PERKS[perk_id].desc]
+
+
+func can_interact(pid: int) -> bool:
+	return prompt(pid) != ""
+
+
+func _cost() -> int:
+	return PerkDB.cost(perk_id, Net.mode == Net.Mode.SOLO)
+
+
+func srv_use(pid: int) -> void:
+	var game := system.game
+	var pd := game.session.get_data(pid)
+	if pd == null or pd.life != PlayerData.Life.ALIVE or pd.has_perk(perk_id):
+		return
+	if not powered():
+		system.deny(pid, "Pas de courant")
+		return
+	if pd.perks.size() >= PerkDB.MAX_PERKS:
+		system.deny(pid, "Trop d'atouts")
+		return
+	if not game.session.try_spend(pid, _cost()):
+		system.deny(pid, "Pas assez de points")
+		return
+	system.purchase_fx(self)
+	game.perks.srv_grant(pid, perk_id)

@@ -26,6 +26,9 @@ var _switch_dur := 0.5
 var _switch_cb: Callable
 var _switch_mid_done := false
 var _melee_t := -1.0
+var _drink_t := -1.0
+var _drink_dur := 2.0
+var _bottle: MeshInstance3D
 var _flash_mesh: MeshInstance3D
 var _flash_light: OmniLight3D
 var _flash_t := 0.0
@@ -159,6 +162,19 @@ func update(delta: float, p: Player) -> void:
 		rot += Vector3(-0.6, 0.0, 0.0) * k2
 		if _switch_t >= 1.0:
 			_switch_t = -1.0
+	# Boisson : l'arme descend hors champ, la bouteille monte à la bouche.
+	if _drink_t >= 0.0:
+		_drink_t += delta / _drink_dur
+		var kd := sin(clampf(_drink_t, 0.0, 1.0) * PI)
+		pos += Vector3(0.0, -0.5, 0.1) * minf(kd * 2.0, 1.0)
+		rot += Vector3(-0.8, 0.0, 0.0) * minf(kd * 2.0, 1.0)
+		_bottle.visible = _drink_t > 0.1 and _drink_t < 0.9
+		var lift := sin(clampf((_drink_t - 0.1) / 0.8, 0.0, 1.0) * PI)
+		_bottle.position = Vector3(0.02, -0.28 + lift * 0.17, -0.3 + lift * 0.06)
+		_bottle.rotation = Vector3(0.5 + lift * 1.1, 0.0, 0.1)
+		if _drink_t >= 1.0:
+			_drink_t = -1.0
+			_bottle.visible = false
 	# Coup de couteau : l'arme s'écarte, le bras frappe.
 	var melee_k := 0.0
 	if _melee_t >= 0.0:
@@ -280,3 +296,31 @@ static func _flash_texture() -> Texture2D:
 			img.set_pixel(x, y, Color(1, 1, 1, a))
 	_flash_tex = ImageTexture.create_from_image(img)
 	return _flash_tex
+
+
+func start_drink(color: Color, duration: float) -> void:
+	if _bottle == null:
+		_bottle = MeshInstance3D.new()
+		var cm := CylinderMesh.new()
+		cm.top_radius = 0.018
+		cm.bottom_radius = 0.035
+		cm.height = 0.2
+		cm.radial_segments = 8
+		_bottle.mesh = cm
+		_bottle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(_bottle)
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://assets/shaders/weapon.gdshader")
+	m.set_shader_parameter("albedo", color)
+	m.set_shader_parameter("emission", color)
+	m.set_shader_parameter("emission_energy", 1.5)
+	m.set_shader_parameter("viewmodel", 1.0)
+	m.set_shader_parameter("roughness", 0.2)
+	_bottle.material_override = m
+	_bottle.visible = false
+	_drink_t = 0.0
+	_drink_dur = duration
+
+
+func is_drinking() -> bool:
+	return _drink_t >= 0.0

@@ -29,6 +29,7 @@ var _switch_end := -1.0
 var _melee_ready := 0.0
 var _recoil_debt := 0.0
 var _trigger_released := true
+var _drink_end := -1.0
 
 
 func setup(p: Player, game: Game) -> void:
@@ -104,7 +105,7 @@ func tick(delta: float) -> void:
 		w.reserve -= take
 		ammo_changed.emit()
 
-	var busy := _reload_end > 0.0 or t < _switch_end or t < _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3
+	var busy := _reload_end > 0.0 or t < _switch_end or t < _drink_end or t < _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3
 	var dead := false
 	var pd := session.get_data(player.peer_id)
 	if pd:
@@ -243,3 +244,11 @@ func _melee() -> void:
 	view.start_melee()
 	Audio.play_2d("weapon_switch", -8.0, 0.2)
 	combat.srv_melee.rpc_id(1, player.camera.global_position, player.aim_direction())
+
+
+## Boisson d'un atout : l'arme est baissée, une bouteille apparaît.
+func drink(color: Color, duration: float) -> void:
+	_drink_end = now() + duration
+	_reload_end = -1.0
+	view.cancel_reload()
+	view.start_drink(color, duration)

@@ -25,6 +25,7 @@ var _prompt: Label
 var _flash: Label
 var _flash_t := 0.0
 var _round: RoundCounter
+var _perk_icons: PerkIcons
 
 
 func _ready() -> void:
@@ -62,6 +63,11 @@ func _ready() -> void:
 	_round.position = Vector2(34, -140)
 	_round.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	add_child(_round)
+
+	_perk_icons = PerkIcons.new()
+	_perk_icons.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_perk_icons.position = Vector2(36, -196)
+	add_child(_perk_icons)
 
 	_scores = ScorePanel.new()
 	_scores.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -136,6 +142,16 @@ func _ready() -> void:
 func bind_player(p: Player) -> void:
 	player = p
 	_scores.bind(game.session)
+	game.session.stats_changed.connect(_on_stats_changed)
+
+
+func _on_stats_changed(pid: int) -> void:
+	if player == null or pid != player.peer_id:
+		return
+	var pd := game.session.get_data(pid)
+	if pd:
+		_perk_icons.set_perks(pd.perks)
+		game.perks.apply_local_effects(player)
 
 
 ## Marqueur de touche : blanc = touché (prédit localement), rouge = tué (serveur).

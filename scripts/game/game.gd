@@ -37,6 +37,7 @@ var local_player: Player
 @onready var points: Points = $Points
 @onready var rounds: RoundManager = $Rounds
 @onready var interact: InteractionSystem = $Interact
+@onready var perks: PerkSystem = $Perks
 var spawner: Spawner
 var props: PropBuilder
 var doors: Dictionary = {}  # id -> Door
@@ -85,6 +86,7 @@ func _load_map(map_id: String) -> void:
 	_build_doors()
 	_build_wall_buys()
 	_build_power()
+	_build_perk_machines()
 	print("[Game] carte « %s » construite (%dx%d)" % [map_def.display_name, map_data.width, map_data.height])
 
 
@@ -185,6 +187,7 @@ func _on_player_fell(pid: int) -> void:
 		return
 	pd.life = PlayerData.Life.DEAD
 	pd.downs += 1
+	perks.srv_clear(pid)
 	session.sync_stats(pid)
 	_cl_player_died.rpc(pid)
 	check_game_over()
@@ -306,3 +309,15 @@ func set_power(on: bool) -> void:
 		return
 	power_on = on
 	power_changed.emit(on)
+
+
+func _build_perk_machines() -> void:
+	var root := Node3D.new()
+	root.name = "PerkMachines"
+	world.add_child(root)
+	for marker in map_def.perks:
+		for c in map_data.markers.get(marker, []):
+			var m := PerkMachine.new()
+			m.setup(marker, c, map_def.perks[marker], map_data)
+			interact.register(m)
+			root.add_child(m)
