@@ -137,18 +137,23 @@ signal all_loaded
 var loaded_peers: Dictionary = {}
 
 
-## Serveur : ordonne à tout le monde de charger la partie.
-func start_match() -> void:
+## Carte de la partie en cours (choisie par le serveur).
+var current_map := ""
+
+
+## Serveur : ordonne à tout le monde de charger la partie sur `map_id`.
+func start_match(map_id: String) -> void:
 	if not multiplayer.is_server():
 		return
 	match_started = true
 	loaded_peers.clear()
-	_cl_load_game.rpc()
+	_cl_load_game.rpc(map_id)
 
 
 @rpc("authority", "call_local", "reliable")
-func _cl_load_game() -> void:
+func _cl_load_game(map_id: String) -> void:
 	match_started = true
+	current_map = map_id
 	GameState.set_state(GameState.State.LOADING)
 	get_tree().change_scene_to_file(GAME_SCENE)
 

@@ -1,0 +1,258 @@
+class_name PropBuilder
+extends RefCounted
+## Décor de la carte : caisses, barils, lits, paillasses, générateur,
+## tuyauteries, lampes grillagées (dont certaines clignotent), flaques de sang.
+##
+## Les meshes statiques sont fusionnés par matériau (SurfaceTool.append_from) :
+## quelques draw calls pour tout le décor. Déterministe (même rendu partout).
+
+var data: MapData
+var def: MapDef
+var root: Node3D
+var _tools: Dictionary = {}
+var _body: StaticBody3D
+var _box_meshes: Dictionary = {}
+var flicker: LightFlicker
+
+
+func _init(map_data: MapData, map_def: MapDef) -> void:
+	data = map_data
+	def = map_def
+
+
+static func _h(c: Vector2i, salt := 0) -> float:
+	return fposmod(sin(c.x * 12.9898 + c.y * 78.233 + salt * 37.719) * 43758.5453, 1.0)
+
+
+func build(parent: Node3D) -> void:
+	root = Node3D.new()
+	root.name = "Props"
+	parent.add_child(root)
+	_body = StaticBody3D.new()
+	_body.name = "PropCollision"
+	_body.collision_layer = 1
+	_body.collision_mask = 0
+	root.add_child(_body)
+	flicker = LightFlicker.new()
+	flicker.name = "LightFlicker"
+	root.add_child(flicker)
+
+	for c in data.markers.get("C", []):
+		_crate(c)
+	for c in data.markers.get("O", []):
+		_barrel(c)
+	for g in MapDef.group_cells(data.markers.get("I", [])):
+		_bed(g)
+	for g in MapDef.group_cells(data.markers.get("N", [])):
+		_bench(g)
+	for g in MapDef.group_cells(data.markers.get("Y", [])):
+		_generator(g)
+	for c in data.markers.get(",", []):
+		_blood(c)
+	_pipes()
+	_lamps()
+
+	for key in _tools:
+		var mi := MeshInstance3D.new()
+		mi.name = "Props_" + key
+		mi.mesh = (_tools[key] as SurfaceTool).commit()
+		# Suffixe « #ns » : ne projette pas d'ombre (lampes : sinon l'abat-jour
+		# dessine un disque noir au plafond).
+		mi.material_override = _material(key.get_slice("#", 0))
+		if key.ends_with("#ns"):
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
+
+
+func _material(key: String) -> Material:
+	match key:
+		"glow_green":
+			return _emissive(Color(0.3, 1.0, 0.4), 2.5)
+		"glow_red":
+			return _emissive(Color(1.0, 0.1, 0.05), 3.0)
+		"bulb":
+			return _emissive(Color(1.0, 0.72, 0.42), 4.0)
+	return WorldLook.surface(key)
+
+
+static func _emissive(c: Color, e: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c * 0.3
+	m.emission_enabled = true
+	m.emission = c
+	m.emission_energy_multiplier = e
+	return m
+
+
+# --------------------------------------------------------------------------
+# Primitives fusionnées
+# --------------------------------------------------------------------------
+
+func _add(key: String, mesh: Mesh, xf: Transform3D) -> void:
+	if not _tools.has(key):
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		_tools[key] = st
+	(_tools[key] as SurfaceTool).append_from(mesh, 0, xf)
+
+
+func _box(key: String, size: Vector3, pos: Vector3, rot_y := 0.0, collide := false) -> void:
+	var skey := var_to_str(size)
+	if not _box_meshes.has(skey):
+		var b := BoxMesh.new()
+		b.size = size
+		_box_meshes[skey] = b
+	var xf := Transform3D(Basis(Vector3.UP, rot_y), pos)
+	_add(key, _box_meshes[skey], xf)
+	if collide:
+		var cs := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = size
+		cs.shape = shape
+		cs.transform = xf
+		_body.add_child(cs)
+
+
+func _cyl(key: String, radius: float, height: float, xf: Transform3D, collide := false, segments := 10) -> void:
+	var c := CylinderMesh.new()
+	c.top_radius = radius
+	c.bottom_radius = radius
+	c.height = height
+	c.radial_segments = segments
+	c.rings = 1
+	_add(key, c, xf)
+	if collide:
+		var cs := CollisionShape3D.new()
+		var shape := CylinderShape3D.new()
+		shape.radius = radius
+		shape.height = height
+		cs.shape = shape
+		cs.transform = xf
+		_body.add_child(cs)
+
+
+# --------------------------------------------------------------------------
+# Objets
+# --------------------------------------------------------------------------
+
+func _crate(c: Vector2i) -> void:
+	var base := MapData.cell_to_world(c)
+	var rot := (_h(c) - 0.5) * 0.3
+	_box("crate", Vector3(0.92, 0.9, 0.92), base + Vector3(0, 0.45, 0), rot, true)
+	# Lattes de renfort.
+	for s in [-1, 1]:
+		_box("steel", Vector3(0.94, 0.06, 0.06), base + Vector3(0, 0.45 + s * 0.3, 0.44).rotated(Vector3.UP, rot), rot)
+	if _h(c, 1) > 0.55:
+		var rot2 := rot + (_h(c, 2) - 0.5) * 0.8
+		_box("crate", Vector3(0.7, 0.62, 0.7), base + Vector3(0, 1.21, 0), rot2, true)
+
+
+func _barrel(c: Vector2i) -> void:
+	var base := MapData.cell_to_world(c)
+	_cyl("barrel", 0.32, 0.95, Transform3D(Basis.IDENTITY, base + Vector3(0, 0.475, 0)), true)
+	for y in [0.2, 0.75]:
+		_cyl("steel", 0.335, 0.05, Transform3D(Basis.IDENTITY, base + Vector3(0, y, 0)))
+
+
+func _bed(g: Array) -> void:
+	var center := MapData.cells_center(g)
+	var along_z: bool = g.size() > 1 and g[0].x == g[1].x
+	var rot := 0.0 if along_z else PI * 0.5
+	var len := g.size() * MapData.CELL
+	_box("steel", Vector3(0.9, 0.08, len - 0.1), center + Vector3(0, 0.42, 0), rot, true)
+	_box("fabric", Vector3(0.82, 0.14, len - 0.25), center + Vector3(0, 0.53, 0), rot)
+	for sx in [-0.4, 0.4]:
+		for sz in [-(len * 0.5 - 0.1), len * 0.5 - 0.1]:
+			_box("steel", Vector3(0.05, 0.45, 0.05), center + Vector3(sx, 0.22, sz).rotated(Vector3.UP, rot), rot)
+	_box("steel", Vector3(0.9, 0.5, 0.05), center + Vector3(0, 0.7, -(len * 0.5 - 0.05)).rotated(Vector3.UP, rot), rot)
+
+
+func _bench(g: Array) -> void:
+	var center := MapData.cells_center(g)
+	var along_x: bool = g.size() > 1 and g[0].y == g[1].y
+	var rot := PI * 0.5 if along_x else 0.0
+	var len := g.size() * MapData.CELL
+	_box("steel", Vector3(0.95, 0.06, len - 0.05), center + Vector3(0, 0.9, 0), rot, true)
+	_box("steel", Vector3(0.85, 0.7, len - 0.3), center + Vector3(0, 0.45, 0), rot, true)
+	# Verrerie de laboratoire (certaines fioles luisent encore).
+	for k in g.size() * 2:
+		var cell: Vector2i = g[k % g.size()]
+		var off := Vector3((_h(cell, k) - 0.5) * 0.7, 0, (_h(cell, k + 7) - 0.5) * 0.8)
+		var hgt := 0.12 + _h(cell, k + 3) * 0.2
+		var key := "glow_green" if _h(cell, k + 11) > 0.6 else "steel"
+		_cyl(key, 0.035 + _h(cell, k + 5) * 0.03, hgt, Transform3D(Basis.IDENTITY, MapData.cell_to_world(cell) + off + Vector3(0, 0.93 + hgt * 0.5, 0)), false, 6)
+
+
+func _generator(g: Array) -> void:
+	var center := MapData.cells_center(g)
+	_box("door", Vector3(1.9, 1.7, 1.9), center + Vector3(0, 0.85, 0), 0.0, true)
+	_box("steel", Vector3(2.0, 0.12, 2.0), center + Vector3(0, 1.76, 0))
+	for s in [-0.55, 0.55]:
+		_cyl("barrel", 0.28, 1.2, Transform3D(Basis.IDENTITY, center + Vector3(s, 2.4, 0)), false)
+	_box("glow_red", Vector3(0.5, 0.2, 0.02), center + Vector3(0, 1.3, 0.96))
+	_cyl("steel", 0.12, 1.4, Transform3D(Basis.IDENTITY, center + Vector3(0.7, 2.5, 0.7)))
+
+
+func _blood(c: Vector2i) -> void:
+	var d := Decal.new()
+	d.texture_albedo = Fx.blood_splat_texture(int(_h(c) * 4.0))
+	d.modulate = Color(0.5, 0.02, 0.02)
+	d.size = Vector3(1.6 + _h(c, 1), 0.5, 1.6 + _h(c, 2))
+	d.position = MapData.cell_to_world(c, 0.1)
+	d.rotation.y = _h(c, 3) * TAU
+	d.cull_mask = 1
+	root.add_child(d)
+
+
+## Tuyauteries le long des murs des zones industrielles.
+func _pipes() -> void:
+	var h := MapBuilder.WALL_HEIGHT
+	for y in data.height:
+		for x in data.width:
+			var c := Vector2i(x, y)
+			if not data.is_floor(c) or not (data.zone_at(c) in def.pipe_zones):
+				continue
+			for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
+				if not data.is_wall(c + d):
+					continue
+				var center := MapData.cell_to_world(c)
+				var wall_off := Vector3(d.x, 0, d.y) * 0.34
+				# Orientation : le tuyau longe le mur.
+				var basis := Basis(Vector3.FORWARD, PI * 0.5) if d.y != 0 else Basis(Vector3.RIGHT, PI * 0.5)
+				_cyl("steel", 0.07, 1.0, Transform3D(basis, center + wall_off + Vector3(0, h - 0.25, 0)), false, 8)
+				_cyl("barrel", 0.045, 1.0, Transform3D(basis, center + wall_off * 0.92 + Vector3(0, h - 0.45, 0)), false, 6)
+				if (x + y) % 4 == 0:
+					_cyl("steel", 0.095, 0.08, Transform3D(basis, center + wall_off + Vector3(0, h - 0.25, 0)), false, 8)
+
+
+## Lampes grillagées au plafond. Une sur cinq grésille ; ombres sur une sur trois.
+func _lamps() -> void:
+	var i := 0
+	for c in data.markers.get("L", []):
+		var pos := MapData.cell_to_world(c, MapBuilder.WALL_HEIGHT)
+		# Tige, abat-jour conique et ampoule.
+		_cyl("steel#ns", 0.015, 0.25, Transform3D(Basis.IDENTITY, pos + Vector3(0, -0.12, 0)), false, 4)
+		var shade := CylinderMesh.new()
+		shade.top_radius = 0.07
+		shade.bottom_radius = 0.24
+		shade.height = 0.14
+		shade.radial_segments = 10
+		shade.rings = 1
+		_add("steel#ns", shade, Transform3D(Basis.IDENTITY, pos + Vector3(0, -0.3, 0)))
+		_cyl("bulb#ns", 0.06, 0.12, Transform3D(Basis.IDENTITY, pos + Vector3(0, -0.4, 0)), false, 8)
+		var light := OmniLight3D.new()
+		light.name = "Lamp%d" % i
+		light.position = pos + Vector3(0, -0.5, 0)
+		light.light_color = Color(1.0, 0.74, 0.5)
+		light.light_energy = 1.7
+		light.omni_range = 8.5
+		light.omni_attenuation = 1.3
+		light.shadow_enabled = i % 3 == 0
+		light.distance_fade_enabled = true
+		light.distance_fade_begin = 28.0
+		light.distance_fade_length = 6.0
+		light.distance_fade_shadow = 16.0
+		root.add_child(light)
+		if _h(c, 9) < 0.22:
+			flicker.add(light)
+		i += 1

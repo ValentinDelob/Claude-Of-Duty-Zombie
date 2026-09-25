@@ -4,72 +4,82 @@ extends RefCounted
 ## Centralisé ici pour pouvoir ajuster l'ambiance (et les réglages de qualité)
 ## sans toucher au gameplay.
 
+const SURFACE := preload("res://assets/shaders/surface.gdshader")
+
+## clé -> [motif, couleur A, couleur B, échelle, crasse, rugosité, métal]
+const SURFACES := {
+	"floor": [0, Color(0.24, 0.23, 0.21), Color(0.1, 0.1, 0.1), 0.8, 0.6, 0.95, 0.0],
+	"wall": [4, Color(0.36, 0.35, 0.32), Color(0.2, 0.25, 0.21), 1.0, 0.5, 0.9, 0.0],
+	"ceiling": [6, Color(0.12, 0.12, 0.12), Color(0.05, 0.05, 0.05), 1.0, 0.4, 1.0, 0.0],
+	"concrete": [0, Color(0.25, 0.24, 0.22), Color(0.1, 0.1, 0.1), 0.8, 0.65, 0.95, 0.0],
+	"concrete_dark": [0, Color(0.17, 0.17, 0.16), Color(0.08, 0.08, 0.08), 0.8, 0.7, 0.95, 0.0],
+	"tiles": [1, Color(0.5, 0.5, 0.46), Color(0.12, 0.11, 0.1), 1.0, 0.7, 0.5, 0.0],
+	"wood": [2, Color(0.24, 0.15, 0.09), Color(0.05, 0.03, 0.02), 1.0, 0.6, 0.85, 0.0],
+	"metal": [3, Color(0.2, 0.21, 0.22), Color(0.24, 0.15, 0.09), 1.0, 0.5, 0.6, 0.5],
+	"stone": [5, Color(0.12, 0.1, 0.1), Color(0.05, 0.04, 0.04), 1.0, 0.3, 0.9, 0.0],
+	"wall_green": [4, Color(0.38, 0.36, 0.31), Color(0.16, 0.24, 0.19), 1.0, 0.6, 0.9, 0.0],
+	"wall_cell": [4, Color(0.3, 0.3, 0.29), Color(0.13, 0.16, 0.2), 1.0, 0.75, 0.9, 0.0],
+	"wall_lab": [1, Color(0.52, 0.53, 0.5), Color(0.18, 0.18, 0.17), 1.0, 0.65, 0.45, 0.0],
+	"wall_rust": [3, Color(0.21, 0.21, 0.22), Color(0.27, 0.15, 0.08), 1.0, 0.55, 0.65, 0.5],
+	"wall_concrete": [0, Color(0.27, 0.26, 0.24), Color(0.1, 0.1, 0.1), 0.7, 0.6, 0.95, 0.0],
+	"wall_ritual": [5, Color(0.14, 0.11, 0.1), Color(0.05, 0.04, 0.04), 1.0, 0.3, 0.9, 0.0],
+	# Décor
+	"crate": [2, Color(0.3, 0.2, 0.11), Color(0.08, 0.05, 0.03), 1.3, 0.4, 0.9, 0.0],
+	"barrel": [3, Color(0.28, 0.08, 0.05), Color(0.3, 0.14, 0.06), 2.0, 0.4, 0.6, 0.4],
+	"steel": [3, Color(0.25, 0.26, 0.27), Color(0.28, 0.16, 0.09), 2.0, 0.3, 0.5, 0.6],
+	"fabric": [0, Color(0.36, 0.33, 0.27), Color(0.1, 0.1, 0.1), 3.0, 0.9, 1.0, 0.0],
+	"door": [3, Color(0.22, 0.23, 0.22), Color(0.3, 0.15, 0.07), 1.4, 0.5, 0.55, 0.6],
+}
+
+static var _cache: Dictionary = {}
+
+
+static func surface(key: String) -> ShaderMaterial:
+	if _cache.has(key):
+		return _cache[key]
+	var s: Array = SURFACES.get(key, SURFACES.wall)
+	var m := ShaderMaterial.new()
+	m.shader = SURFACE
+	m.set_shader_parameter("pattern", s[0])
+	m.set_shader_parameter("color_a", s[1])
+	m.set_shader_parameter("color_b", s[2])
+	m.set_shader_parameter("scale", s[3])
+	m.set_shader_parameter("grime", s[4])
+	m.set_shader_parameter("roughness_base", s[5])
+	m.set_shader_parameter("metallic_base", s[6])
+	if key == "stone" or key == "wall_ritual":
+		m.set_shader_parameter("glow", 1.6)
+	_cache[key] = m
+	return m
+
 
 static func map_materials() -> Dictionary:
-	return {
-		"floor": _mat(Color(0.23, 0.22, 0.2), 0.95),
-		"wall": _mat(Color(0.33, 0.32, 0.3), 0.9),
-		"ceiling": _mat(Color(0.12, 0.12, 0.12), 1.0),
-	}
-
-
-static func _mat(c: Color, rough: float) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = c
-	m.roughness = rough
-	return m
+	var d := {}
+	for key in SURFACES:
+		d[key] = surface(key)
+	return d
 
 
 static func setup_environment(parent: Node3D) -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.01, 0.01, 0.012)
+	env.background_color = Color(0.0, 0.0, 0.0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.32, 0.34, 0.4)
-	env.ambient_light_energy = 0.35
+	env.ambient_light_color = Color(0.3, 0.33, 0.4)
+	env.ambient_light_energy = 0.22
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.0
+	env.tonemap_exposure = 1.05
 	env.glow_enabled = true
-	env.glow_intensity = 0.6
+	env.glow_intensity = 0.7
 	env.glow_bloom = 0.0
-	env.glow_hdr_threshold = 1.3
+	env.glow_hdr_threshold = 1.2
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.05, 0.05, 0.06)
-	env.fog_density = 0.035
+	env.fog_light_color = Color(0.04, 0.04, 0.05)
+	env.fog_density = 0.045
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 0.78
+	env.adjustment_contrast = 1.08
 	var we := WorldEnvironment.new()
 	we.name = "WorldEnvironment"
 	we.environment = env
 	parent.add_child(we)
-
-
-## Lampes de plafond sur les marqueurs 'L'.
-static func place_lamps(parent: Node3D, data: MapData) -> void:
-	var root := Node3D.new()
-	root.name = "Lamps"
-	parent.add_child(root)
-	var bulb_mat := StandardMaterial3D.new()
-	bulb_mat.emission_enabled = true
-	bulb_mat.emission = Color(1.0, 0.75, 0.45)
-	bulb_mat.emission_energy_multiplier = 3.0
-	bulb_mat.albedo_color = Color(1, 0.8, 0.5)
-	var bulb_mesh := SphereMesh.new()
-	bulb_mesh.radius = 0.09
-	bulb_mesh.height = 0.18
-	var i := 0
-	for c in data.markers.get("L", []):
-		var light := OmniLight3D.new()
-		light.name = "Lamp%d" % i
-		light.position = MapData.cell_to_world(c, MapBuilder.WALL_HEIGHT - 0.35)
-		light.light_color = Color(1.0, 0.78, 0.55)
-		light.light_energy = 1.6
-		light.omni_range = 8.0
-		light.omni_attenuation = 1.2
-		# Ombres sur une lampe sur deux seulement (budget GTX 1050).
-		light.shadow_enabled = i % 2 == 0
-		root.add_child(light)
-		var bulb := MeshInstance3D.new()
-		bulb.mesh = bulb_mesh
-		bulb.material_override = bulb_mat
-		bulb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		light.add_child(bulb)
-		i += 1

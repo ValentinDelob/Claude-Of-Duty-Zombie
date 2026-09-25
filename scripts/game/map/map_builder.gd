@@ -2,50 +2,70 @@ class_name MapBuilder
 extends RefCounted
 ## Construit la géométrie (rendu + collisions) d'une MapData.
 ##
-## Le rendu est regroupé en quelques ArrayMesh (un par matériau) : peu de draw
-## calls, ce qui compte pour la cible GTX 1050. Les collisions sont des boîtes
-## fusionnées (rectangles gloutons).
+## Le rendu est regroupé en un ArrayMesh par matériau (sol/murs de chaque
+## zone) : peu de draw calls, ce qui compte pour la cible GTX 1050. Les
+## collisions sont des boîtes fusionnées (rectangles gloutons).
 
 const WALL_HEIGHT := 3.2
 const DIRS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 var data: MapData
+var def: MapDef
 var wall_height := WALL_HEIGHT
-## Matériaux ("floor", "wall", "ceiling"), fournis par l'appelant.
+## Matériaux par clé (voir WorldLook.map_materials()).
 var materials: Dictionary = {}
 
 
-func _init(map_data: MapData) -> void:
+func _init(map_data: MapData, map_def: MapDef = null) -> void:
 	data = map_data
+	def = map_def
+
+
+func _floor_key(c: Vector2i) -> String:
+	if def:
+		var zm: Array = def.zone_materials.get(data.zone_at(c), [])
+		if zm.size() > 0:
+			return zm[0]
+	return "floor"
+
+
+func _wall_key(floor_cell: Vector2i) -> String:
+	if def:
+		var zm: Array = def.zone_materials.get(data.zone_at(floor_cell), [])
+		if zm.size() > 1:
+			return zm[1]
+	return "wall"
 
 
 func build(parent: Node3D) -> void:
 	var geo := Node3D.new()
 	geo.name = "Geometry"
 	parent.add_child(geo)
-	_add_mesh(geo, "Floor", _build_floor_mesh(0.0, false), materials.get("floor"))
-	_add_mesh(geo, "Ceiling", _build_floor_mesh(wall_height, true), materials.get("ceiling"))
-	_add_mesh(geo, "Walls", _build_wall_mesh(), materials.get("wall"))
+	var tools := {}  # clé matériau -> SurfaceTool
+	_build_floors(tools)
+	_build_walls(tools)
+	for key in tools:
+		var st: SurfaceTool = tools[key]
+		st.generate_tangents()
+		var mi := MeshInstance3D.new()
+		mi.name = "Mesh_" + key
+		mi.mesh = st.commit()
+		mi.material_override = materials.get(key, materials.get("wall"))
+		geo.add_child(mi)
 	_build_collisions(parent)
 
 
-func _add_mesh(parent: Node3D, n: String, mesh: Mesh, mat: Material) -> void:
-	if mesh == null:
-		return
-	var mi := MeshInstance3D.new()
-	mi.name = n
-	mi.mesh = mesh
-	if mat:
-		mi.material_override = mat
-	parent.add_child(mi)
+func _tool(tools: Dictionary, key: String) -> SurfaceTool:
+	if not tools.has(key):
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		tools[key] = st
+	return tools[key]
 
 
-## Sol (ou plafond si `down`) : une quad par cellule de sol.
-func _build_floor_mesh(y: float, down: bool) -> Mesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var n := Vector3.DOWN if down else Vector3.UP
-	var count := 0
+## Sol et plafond : une quad par cellule de sol.
+func _build_floors(tools: Dictionary) -> void:
+	var y := wall_height
 	for cy in data.height:
 		for cx in data.width:
 			var c := Vector2i(cx, cy)
@@ -55,68 +75,44 @@ func _build_floor_mesh(y: float, down: bool) -> Mesh:
 			var z0 := cy * MapData.CELL
 			var x1 := x0 + MapData.CELL
 			var z1 := z0 + MapData.CELL
-			var a := Vector3(x0, y, z0)
-			var b := Vector3(x1, y, z0)
-			var cc := Vector3(x1, y, z1)
-			var d := Vector3(x0, y, z1)
-			if down:
-				_quad(st, a, b, cc, d, n, 0.5)
-			else:
-				_quad(st, d, cc, b, a, n, 0.5)
-			count += 1
-	if count == 0:
-		return null
-	st.generate_tangents()
-	return st.commit()
+			_quad(_tool(tools, _floor_key(c)), Vector3(x0, 0, z1), Vector3(x1, 0, z1), Vector3(x1, 0, z0), Vector3(x0, 0, z0), Vector3.UP)
+			_quad(_tool(tools, "ceiling"), Vector3(x0, y, z0), Vector3(x1, y, z0), Vector3(x1, y, z1), Vector3(x0, y, z1), Vector3.DOWN)
 
 
 ## Murs : une face verticale pour chaque côté de mur qui touche du sol.
-func _build_wall_mesh() -> Mesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+func _build_walls(tools: Dictionary) -> void:
 	var h := wall_height
-	var count := 0
 	for cy in data.height:
 		for cx in data.width:
 			var c := Vector2i(cx, cy)
 			if not data.is_wall(c):
 				continue
 			for d in DIRS:
-				if not data.is_floor(c + d):
+				var fc: Vector2i = c + d
+				if not data.is_floor(fc):
 					continue
+				var st := _tool(tools, _wall_key(fc))
 				var x0 := cx * MapData.CELL
 				var z0 := cy * MapData.CELL
 				var x1 := x0 + MapData.CELL
 				var z1 := z0 + MapData.CELL
 				var n := Vector3(d.x, 0, d.y)
-				# Face tournée vers le sol voisin (ordre anti-horaire vu de face).
 				match d:
 					Vector2i(1, 0):
-						_quad(st, Vector3(x1, 0, z1), Vector3(x1, 0, z0), Vector3(x1, h, z0), Vector3(x1, h, z1), n, 0.5, true)
+						_quad(st, Vector3(x1, 0, z1), Vector3(x1, 0, z0), Vector3(x1, h, z0), Vector3(x1, h, z1), n)
 					Vector2i(-1, 0):
-						_quad(st, Vector3(x0, 0, z0), Vector3(x0, 0, z1), Vector3(x0, h, z1), Vector3(x0, h, z0), n, 0.5, true)
+						_quad(st, Vector3(x0, 0, z0), Vector3(x0, 0, z1), Vector3(x0, h, z1), Vector3(x0, h, z0), n)
 					Vector2i(0, 1):
-						_quad(st, Vector3(x0, 0, z1), Vector3(x1, 0, z1), Vector3(x1, h, z1), Vector3(x0, h, z1), n, 0.5, true)
+						_quad(st, Vector3(x0, 0, z1), Vector3(x1, 0, z1), Vector3(x1, h, z1), Vector3(x0, h, z1), n)
 					Vector2i(0, -1):
-						_quad(st, Vector3(x1, 0, z0), Vector3(x0, 0, z0), Vector3(x0, h, z0), Vector3(x1, h, z0), n, 0.5, true)
-				count += 1
-	if count == 0:
-		return null
-	st.generate_tangents()
-	return st.commit()
+						_quad(st, Vector3(x1, 0, z0), Vector3(x0, 0, z0), Vector3(x0, h, z0), Vector3(x1, h, z0), n)
 
 
 ## Ajoute une quad (a,b,c,d dans le sens anti-horaire vu depuis la normale).
-## UV en coordonnées monde pour un tuilage continu.
-func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, uv_scale: float, vertical := false) -> void:
+## Les UV ne servent qu'aux tangentes : les shaders travaillent en coordonnées monde.
+func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3) -> void:
 	var pts := [a, b, c, d]
-	var uvs := []
-	for p in pts:
-		if vertical:
-			var along: float = p.x + p.z
-			uvs.append(Vector2(along, -p.y) * uv_scale)
-		else:
-			uvs.append(Vector2(p.x, p.z) * uv_scale)
+	var uvs := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
 	for i in [0, 2, 1, 0, 3, 2]:
 		st.set_normal(n)
 		st.set_uv(uvs[i])

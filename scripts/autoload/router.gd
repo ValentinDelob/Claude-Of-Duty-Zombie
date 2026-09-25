@@ -7,9 +7,9 @@ const MENU_SCENE := "res://scenes/main_menu.tscn"
 var pending_message := ""
 
 
-func start_solo() -> void:
+func start_solo(map_id := "") -> void:
 	Net.start_solo(Settings.player_name)
-	Net.start_match()
+	Net.start_match(map_id if map_id != "" else Game.requested_map())
 
 
 ## Quitte la session en cours et revient au menu principal.

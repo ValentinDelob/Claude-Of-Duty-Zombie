@@ -1,14 +1,80 @@
 class_name MapDef
 extends RefCounted
 ## Description d'une carte : grille ASCII + signification des marqueurs.
-## Les marqueurs communs :
-##   'P' point d'apparition des joueurs
-##   'L' lampe au plafond
+##
+## Marqueurs communs (posés sur du sol, zone déduite des voisins) :
+##   P apparition joueur      Z apparition zombie     L lampe
+##   1-9 portes (payantes)    X emplacement de la boîte mystère
+##   R U V ... achats muraux (voir wall_buys)   Q J S D M atouts (voir perks)
+##   G interrupteur du courant   E zone du piège électrique   H levier du piège
+##   T plateforme du téléporteur   F sortie du téléporteur   K Pack-a-Punch
+##   Décor bloquant : C caisse  O baril  I lit  N paillasse  Y générateur
+##   Décor : , flaque de sang
+
+const BLOCKING_PROPS := "COINY"
 
 var id := "map"
 var display_name := "Carte"
 var rows: PackedStringArray = []
+var zone_names: Dictionary = {}
+## "1" -> {"cost": 750}
+var doors: Dictionary = {}
+## marqueur -> id d'arme
+var wall_buys: Dictionary = {}
+## marqueur -> id d'atout
+var perks: Dictionary = {}
+## Index de l'emplacement de départ de la boîte mystère (ordre des X).
+var box_start := 0
+## zone -> [matériau du sol, matériau des murs]
+var zone_materials: Dictionary = {}
+## Zones dont les murs portent des tuyauteries.
+var pipe_zones: Array = []
 
 
 func player_spawn_marker() -> String:
 	return "P"
+
+
+func zone_display_name(zone: String) -> String:
+	return zone_names.get(zone, zone.to_upper())
+
+
+## Cellules bloquantes au départ (décor + portes fermées).
+static func blocking_cells(data: MapData, def: MapDef) -> Array:
+	var out := []
+	for key in data.markers:
+		if BLOCKING_PROPS.contains(key) or def.doors.has(key):
+			out.append_array(data.markers[key])
+	return out
+
+
+## Regroupe des cellules adjacentes (4-connexité) : une porte de 2 cases, une
+## plateforme 2x2... Retourne Array[Array[Vector2i]].
+static func group_cells(cells: Array) -> Array:
+	var left := {}
+	for c in cells:
+		left[c] = true
+	var groups := []
+	while not left.is_empty():
+		var start: Vector2i = left.keys()[0]
+		var group := []
+		var stack := [start]
+		left.erase(start)
+		while not stack.is_empty():
+			var c: Vector2i = stack.pop_back()
+			group.append(c)
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if left.has(c + d):
+					left.erase(c + d)
+					stack.append(c + d)
+		groups.append(group)
+	return groups
+
+
+## Direction (unitaire, dans le plan) vers le mur le plus proche d'une cellule :
+## les objets muraux (atouts, achats) sont plaqués contre ce mur.
+static func wall_normal(data: MapData, c: Vector2i) -> Vector3:
+	for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
+		if data.is_wall(c + d):
+			return Vector3(d.x, 0, d.y)
+	return Vector3(0, 0, -1)

@@ -9,8 +9,17 @@ extends Node3D
 static var instance: Game
 
 const MAP_SCRIPTS := {
+	"bunker_k7": "res://scripts/game/map/maps/bunker_k7.gd",
 	"test_arena": "res://scripts/game/map/maps/test_arena.gd",
 }
+const DEFAULT_MAP := "bunker_k7"
+
+## Carte à charger (les tests peuvent imposer l'arène avec --map=test_arena).
+static func requested_map() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--map="):
+			return a.substr(6)
+	return DEFAULT_MAP
 
 var map_def: MapDef
 var map_data: MapData
@@ -28,6 +37,8 @@ var local_player: Player
 @onready var points: Points = $Points
 @onready var rounds: RoundManager = $Rounds
 var spawner: Spawner
+var props: PropBuilder
+var doors: Dictionary = {}  # id -> Door
 @onready var hud: Hud = $HUD
 
 
@@ -44,7 +55,7 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	if GameState.state == GameState.State.MAIN_MENU:
 		GameState.set_state(GameState.State.LOADING)
-	_load_map("test_arena")
+	_load_map(Net.current_map if MAP_SCRIPTS.has(Net.current_map) else requested_map())
 	Net.player_left.connect(_on_player_left)
 	Net.session_ended.connect(_on_session_ended)
 	if multiplayer.is_server():
@@ -59,12 +70,15 @@ func _load_map(map_id: String) -> void:
 	map_data = MapData.parse(map_def.rows)
 	if multiplayer.is_server():
 		nav = NavGrid.new(map_data)
+		nav.set_blocked(MapDef.blocking_cells(map_data, map_def), true)
 		spawner = Spawner.new(self)
-	var builder := MapBuilder.new(map_data)
+	var builder := MapBuilder.new(map_data, map_def)
 	builder.materials = WorldLook.map_materials()
 	builder.build(world)
+	props = PropBuilder.new(map_data, map_def)
+	props.build(world)
 	WorldLook.setup_environment(world)
-	WorldLook.place_lamps(world, map_data)
+	_build_doors()
 	print("[Game] carte « %s » construite (%dx%d)" % [map_def.display_name, map_data.width, map_data.height])
 
 
@@ -240,3 +254,15 @@ func _cl_respawn(pid: int, pos: Vector3) -> void:
 		p.teleport_to(pos)
 		p._eye_height = Player.EYE_HEIGHT
 		hud.show_center("", "", 0.0)
+
+
+func _build_doors() -> void:
+	var root := Node3D.new()
+	root.name = "Doors"
+	world.add_child(root)
+	for id in map_def.doors:
+		for group in MapDef.group_cells(map_data.markers.get(id, [])):
+			var d := Door.new()
+			d.setup(id, group, map_def.doors[id].cost, map_data)
+			root.add_child(d)
+			doors[id] = d
