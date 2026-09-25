@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/game.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/game/hud/hud.gd" id="2"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/game/fx/fx.gd" id="5"]
 [ext_resource type="Script" path="res://scripts/game/zombies/zombie_manager.gd" id="6"]
 [ext_resource type="Script" path="res://scripts/game/points.gd" id="7"]
+[ext_resource type="Script" path="res://scripts/game/rounds/round_manager.gd" id="8"]
 
 [node name="Game" type="Node3D"]
 script = ExtResource("1")
@@ -19,6 +20,9 @@ script = ExtResource("4")
 
 [node name="Points" type="Node" parent="."]
 script = ExtResource("7")
+
+[node name="Rounds" type="Node" parent="."]
+script = ExtResource("8")
 
 [node name="World" type="Node3D" parent="."]
 

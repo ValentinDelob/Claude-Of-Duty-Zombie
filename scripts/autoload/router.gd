@@ -21,6 +21,7 @@ func back_to_menu(reason := "") -> void:
 	Net.leave()
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Audio.stop_music(1.0)
 	get_tree().change_scene_to_file.call_deferred(MENU_SCENE)
 	if GameState.state == GameState.State.DISCONNECTING:
 		GameState.set_state(GameState.State.MAIN_MENU)

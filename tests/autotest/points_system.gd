@@ -10,7 +10,7 @@ func run() -> void:
 	if p == null:
 		return
 	var game := Game.instance
-	game.debug_spawning = false
+	game.rounds.paused = true
 	game.combat.debug_invulnerable = true
 	await H.clear_zombies(self)
 	var pd := game.session.local_data()

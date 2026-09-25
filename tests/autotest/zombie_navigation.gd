@@ -28,7 +28,7 @@ func run() -> void:
 	if p == null:
 		return
 	game = Game.instance
-	game.debug_spawning = false
+	game.rounds.paused = true
 	game.combat.debug_invulnerable = true
 	await reach_test(Vector2i(16, 11), Vector2i(16, 7), 14.0, "contourne la salle fermée jusqu'à son entrée")
 	await reach_test(Vector2i(12, 17), Vector2i(2, 1), 16.0, "traverse l'arène jusqu'à la petite salle")

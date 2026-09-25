@@ -258,3 +258,87 @@ func gen_heartbeat() -> void:
 		var beat := s.env_exp(s.sweep(0.2, 70.0, 40.0), 0.005, 0.06)
 		s.mix(b, beat, at, 1.0 if at == 0.0 else 0.7)
 	_save("heartbeat", s.finish(s.lowpass(b, 300.0), 0.8))
+
+
+# ---------------------------------------------------------------- musique / ambiance
+
+## Nappe de cuivres sombres : scies désaccordées, filtrées, attaque lente.
+func _brass(seconds: float, freqs: Array, attack: float, cutoff: float) -> PackedFloat32Array:
+	var b := s.buf(seconds)
+	for f in freqs:
+		for det in [-0.004, 0.0, 0.005]:
+			var v := s.tone(seconds, f * (1.0 + det), "saw")
+			s.mix(b, v, 0.0, 0.18)
+	b = s.lowpass_sweep(b, cutoff * 0.3, cutoff)
+	b = s.env_adsr(b, attack, 0.4, 0.7, seconds * 0.35)
+	return b
+
+
+## Cloche / glas (partiels inharmoniques).
+func _bell(seconds: float, f: float) -> PackedFloat32Array:
+	var b := s.buf(seconds)
+	for pr in [[1.0, 1.0], [2.0, 0.6], [2.76, 0.45], [5.4, 0.25], [8.9, 0.12]]:
+		s.mix(b, s.env_exp(s.tone(seconds, f * pr[0]), 0.002, seconds / (pr[0] * 0.6)), 0.0, pr[1] * 0.3)
+	return b
+
+
+func _timpani(f: float) -> PackedFloat32Array:
+	var b := s.env_exp(s.sweep(1.2, f * 1.3, f), 0.003, 0.35)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.3), 400.0), 0.001, 0.05), 0.0, 0.6)
+	return b
+
+
+func gen_round_start() -> void:
+	# Accord mineur grave qui enfle, glas et timbales.
+	var b := _brass(4.5, [55.0, 65.4, 82.4, 110.0], 1.2, 1400.0)
+	s.mix(b, _timpani(55.0), 0.0, 1.2)
+	s.mix(b, _timpani(55.0), 0.35, 0.9)
+	s.mix(b, _bell(4.0, 220.0), 0.1, 1.0)
+	s.mix(b, _bell(4.0, 207.6), 1.4, 0.8)
+	b = s.reverb(b, 0.9, 0.35, 2.5)
+	_save("round_start", s.finish(b, 0.9, 0.3))
+
+
+func gen_round_end() -> void:
+	# Mélodie descendante de boîte à musique désaccordée, sur un bourdon.
+	var b := s.buf(5.0)
+	var notes := [659.3, 622.3, 523.3, 493.9, 440.0, 415.3]
+	for i in notes.size():
+		var n := s.env_exp(s.tone(1.5, notes[i] * (1.0 + s.rng.randf_range(-0.008, 0.008)), "tri"), 0.004, 0.45)
+		s.mix(n, s.env_exp(s.tone(1.5, notes[i] * 2.01), 0.004, 0.2), 0.0, 0.3)
+		s.mix(b, n, i * 0.42, 0.5)
+	var drone := s.env_adsr(s.lowpass(s.tone(5.0, 55.0, "saw"), 300.0), 0.5, 1.0, 0.6, 2.0)
+	s.mix(b, drone, 0.0, 0.5)
+	b = s.reverb(b, 0.9, 0.4, 2.5)
+	_save("round_end", s.finish(b, 0.8, 0.3))
+
+
+func gen_ambience_bunker() -> void:
+	# Boucle de 20 s : bourdon grave, souffle de ventilation, grincements lointains.
+	var dur := 20.0
+	var b := s.lowpass(s.brown_noise(dur), 180.0)
+	b = s.gain(b, 0.6)
+	var hum := s.tone(dur, 50.0)
+	s.mix(hum, s.tone(dur, 100.0), 0.0, 0.3)
+	s.mix(b, hum, 0.0, 0.05)
+	var air := s.bandpass(s.noise(dur), 700.0, 0.7)
+	for i in air.size():
+		air[i] *= 0.5 + 0.5 * sin(TAU * i / (Synth.RATE * 5.0))
+	s.mix(b, air, 0.0, 0.08)
+	for k in 5:
+		var creak := s.env_adsr(s.bandpass(s.sweep(1.2, s.rng.randf_range(300.0, 500.0), s.rng.randf_range(200.0, 280.0), "saw"), 900.0, 6.0), 0.3, 0.3, 0.6, 0.4)
+		s.mix(b, creak, s.rng.randf_range(1.0, dur - 2.0), 0.12)
+	for k in 4:
+		s.mix(b, _clank(s.rng.randf_range(200.0, 400.0), 0.3), s.rng.randf_range(1.0, dur - 1.5), 0.15)
+	b = s.reverb(b, 0.95, 0.4, 0.1)
+	b.resize(int(dur * Synth.RATE))
+	# Fondu de bouclage.
+	var f := int(0.5 * Synth.RATE)
+	for i in f:
+		var t := float(i) / f
+		b[i] = b[i] * t + b[b.size() - f + i] * (1.0 - t)
+	b.resize(b.size() - f)
+	var m := 0.0001
+	for v in b:
+		m = maxf(m, absf(v))
+	_save("ambience_bunker", s.gain(b, 0.6 / m), true)

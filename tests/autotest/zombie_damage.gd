@@ -13,7 +13,7 @@ func run() -> void:
 	if p == null:
 		return
 	game = Game.instance
-	game.debug_spawning = false
+	game.rounds.paused = true
 	await H.clear_zombies(self)
 	var origin := MapData.cell_to_world(Vector2i(4, 7), 0.05)
 	p.teleport_to(origin, -PI * 0.5)

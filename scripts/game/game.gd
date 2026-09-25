@@ -26,6 +26,8 @@ var local_player: Player
 @onready var combat: Combat = $Combat
 @onready var zombies: ZombieManager = $Zombies
 @onready var points: Points = $Points
+@onready var rounds: RoundManager = $Rounds
+var spawner: Spawner
 @onready var hud: Hud = $HUD
 
 
@@ -48,6 +50,7 @@ func _ready() -> void:
 	if multiplayer.is_server():
 		Net.all_loaded.connect(_on_all_loaded)
 		combat.player_fell.connect(_on_player_fell)
+	Audio.play_music("ambience_bunker", -6.0, 3.0)
 	Net.report_loaded()
 
 
@@ -56,6 +59,7 @@ func _load_map(map_id: String) -> void:
 	map_data = MapData.parse(map_def.rows)
 	if multiplayer.is_server():
 		nav = NavGrid.new(map_data)
+		spawner = Spawner.new(self)
 	var builder := MapBuilder.new(map_data)
 	builder.materials = WorldLook.map_materials()
 	builder.build(world)
@@ -86,6 +90,9 @@ func _cl_begin_match(roster: Dictionary) -> void:
 		_spawn_player(pid, pos)
 	GameState.set_state(GameState.State.PLAYING)
 	capture_mouse(true)
+	if multiplayer.is_server():
+		session.sync_all()
+		rounds.start_game()
 
 
 func _spawn_player(pid: int, pos: Vector3) -> void:
@@ -142,27 +149,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		capture_mouse(true)
 
 
-# --------------------------------------------------------------------------
-# Apparition provisoire des zombies (remplacée par le système de manches)
-# --------------------------------------------------------------------------
-
-const DEBUG_MAX_ZOMBIES := 4
-var debug_spawning := true
-var _debug_spawn_accum := 0.0
-
-
-func _process(delta: float) -> void:
-	if not debug_spawning or not multiplayer.is_server() or not GameState.is_in_game() or players.is_empty():
-		return
-	_debug_spawn_accum += delta
-	if _debug_spawn_accum < 3.0:
-		return
-	_debug_spawn_accum = 0.0
-	var spots: Array = map_data.markers.get("Z", [])
-	if spots.is_empty() or zombies.alive_count() >= DEBUG_MAX_ZOMBIES:
-		return
-	var c: Vector2i = spots[randi() % spots.size()]
-	zombies.spawn(MapData.cell_to_world(c, 0.0), randi() % 2, 150)
 
 
 # --------------------------------------------------------------------------
@@ -224,3 +210,33 @@ func _cl_game_over(summary: String) -> void:
 
 func _leave_after_game_over(summary: String) -> void:
 	Router.back_to_menu("Partie terminée — " + summary)
+
+
+## Serveur : les joueurs morts reviennent au début de chaque manche (pistolet
+## de départ, points conservés).
+func respawn_dead_players() -> void:
+	var spawns: Array = map_data.markers.get(map_def.player_spawn_marker(), [])
+	for pid in session.data:
+		var pd: PlayerData = session.data[pid]
+		if pd.life != PlayerData.Life.DEAD:
+			continue
+		pd.life = PlayerData.Life.ALIVE
+		pd.health = pd.max_health
+		pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
+		pd.slot = 0
+		session.sync_stats(pid)
+		session.sync_inventory(pid)
+		var c: Vector2i = spawns[Net.player_slot(pid) % spawns.size()]
+		_cl_respawn.rpc(pid, MapData.cell_to_world(c, 0.05))
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_respawn(pid: int, pos: Vector3) -> void:
+	var p: Player = players.get(pid)
+	if p == null:
+		return
+	p.set_dead(false)
+	if p.is_local:
+		p.teleport_to(pos)
+		p._eye_height = Player.EYE_HEIGHT
+		hud.show_center("", "", 0.0)

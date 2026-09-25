@@ -21,6 +21,7 @@ var _center_sub: Label
 var _fade: ColorRect
 var _heart_t := 0.0
 var _scores: ScorePanel
+var _round: RoundCounter
 
 
 func _ready() -> void:
@@ -52,6 +53,12 @@ func _ready() -> void:
 	_debug = UiStyle.label("", 13, Color(1, 1, 1, 0.5), "mono")
 	_debug.position = Vector2(8, 6)
 	add_child(_debug)
+
+	_round = RoundCounter.new()
+	_round.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_round.position = Vector2(34, -140)
+	_round.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	add_child(_round)
 
 	_scores = ScorePanel.new()
 	_scores.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -248,3 +255,7 @@ class DamageIndicator extends Control:
 		var base := c + dir * r
 		var col := Color(0.75, 0.05, 0.03, clampf(_t, 0.0, 0.8))
 		draw_colored_polygon(PackedVector2Array([tip, base + side, base - side]), col)
+
+
+func round_changed(n: int, starting: bool) -> void:
+	_round.set_round(n, starting)
