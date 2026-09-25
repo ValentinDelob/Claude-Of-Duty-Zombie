@@ -166,9 +166,13 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 	var muzzle := view.muzzle_global()
 	Audio.play_2d(s.sound, -1.0, 0.05)
 	view.fire_kick(s.recoil)
+	var tracer_col := Color(1.0, 0.45, 0.1, 1.0) if s.get("tracer", "") == "ray" else Color(1.0, 0.8, 0.5, 0.7)
+	var ray_end: Vector3 = impacts[0] if impacts.size() >= 2 else (hits[0][3] if not hits.is_empty() else origin + fwd * 40.0)
+	if s.get("tracer", "") == "ray":
+		fx.tracer(muzzle, ray_end, tracer_col, 0.12)
 	for i in range(0, impacts.size() - 1, 2):
-		if i < 6 or randf() < 0.3:
-			fx.tracer(muzzle, impacts[i])
+		if s.get("tracer", "") != "ray" and (i < 6 or randf() < 0.3):
+			fx.tracer(muzzle, impacts[i], tracer_col)
 		fx.impact(impacts[i], impacts[i + 1], i == 0)
 	var kick := deg_to_rad(float(s.recoil)) * (0.55 if view.ads > 0.5 else 0.8)
 	player.pitch += kick

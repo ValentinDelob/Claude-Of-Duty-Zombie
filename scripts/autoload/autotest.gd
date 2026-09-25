@@ -136,9 +136,9 @@ func finish() -> void:
 	# Libère la scène et coupe les sons avant de quitter : sortie propre, sans
 	# ressources encore référencées.
 	Net.leave()
+	Audio.stop_all()
 	if get_tree().current_scene:
 		get_tree().current_scene.queue_free()
-	Audio.stop_all()
 	for i in 3:
 		await get_tree().process_frame
 	get_tree().quit(1 if _failed else 0)

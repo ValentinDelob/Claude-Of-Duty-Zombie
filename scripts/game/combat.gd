@@ -206,7 +206,8 @@ func _apply_splash(pid: int, w: Dictionary, impacts: PackedVector3Array, hits: A
 		return
 	var r: float = s.splash_radius
 	for z: Zombie in game.zombies.alive.duplicate():
-		var d := z.global_position.distance_to(center)
+		# Distance au centre du corps (et non aux pieds).
+		var d := (z.global_position + Vector3.UP * 0.9).distance_to(center)
 		if d <= r:
 			var k := 1.0 - d / r * 0.5
 			damage_zombie(z.id, int(float(s.splash_damage) * k * damage_mult(pid)), pid, false, (z.global_position - center).normalized(), HitKind.SPLASH)

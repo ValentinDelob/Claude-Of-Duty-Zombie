@@ -450,3 +450,56 @@ func gen_perk_drink() -> void:
 	s.mix(b, _clank(1200.0, 0.2, 0.6), 1.5, 0.8)
 	s.mix(b, _clank(1500.0, 0.15, 0.4), 1.62, 0.5)
 	_save("perk_drink", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.8))
+
+
+# ---------------------------------------------------------------- boîte mystère
+
+func gen_box_open() -> void:
+	# Grincement de charnière + choc du couvercle.
+	var creak := s.env_adsr(s.bandpass(s.sweep(0.7, 420.0, 260.0, "saw"), 900.0, 5.0), 0.05, 0.2, 0.7, 0.2)
+	var b := s.gain(creak, 0.6)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.3), 700.0), 0.002, 0.05), 0.65, 0.9)
+	_save("box_open", s.finish(s.reverb(b, 0.6, 0.2, 0.5), 0.75))
+
+
+func gen_box_music() -> void:
+	# Boîte à musique qui ralentit et se désaccorde (4 s).
+	var notes := [12, 7, 3, 7, 12, 15, 14, 10, 7, 10, 14, 12, 8, 3, 0]
+	var b := s.buf(4.5)
+	var t := 0.0
+	for i in notes.size():
+		var k := float(i) / notes.size()
+		var f: float = 523.25 * pow(2.0, notes[i] / 12.0) * (1.0 - k * 0.04)
+		var n := s.env_exp(s.tone(0.8, f, "tri"), 0.003, 0.25)
+		s.mix(n, s.env_exp(s.tone(0.8, f * 3.0), 0.002, 0.08), 0.0, 0.2)
+		s.mix(b, n, t, 0.5)
+		t += lerpf(0.18, 0.38, k * k)
+	_save("box_music", s.finish(s.reverb(b, 0.7, 0.3, 1.0), 0.7))
+
+
+func gen_box_skull() -> void:
+	# Ricanement démoniaque : « ha ha ha » graves et saturés.
+	var b := s.buf(0.1)
+	for k in 5:
+		var ha := _growl(0.22, 140.0 - k * 12.0, 110.0 - k * 10.0, [750.0, 1150.0], 0.7)
+		s.mix(b, ha, 0.05 + k * 0.26, 1.0 - k * 0.1)
+	var drone := s.env_adsr(s.lowpass(s.tone(2.2, 41.0, "saw"), 200.0), 0.1, 0.5, 0.7, 0.8)
+	s.mix(b, drone, 0.0, 0.6)
+	_save("box_skull", s.finish(s.reverb(b, 0.9, 0.35, 1.5), 0.9))
+
+
+func gen_box_fly() -> void:
+	var b := s.env_adsr(s.bandpass(s.noise(1.6), 700.0, 1.2), 0.3, 0.4, 0.7, 0.6)
+	b = s.lowpass_sweep(b, 400.0, 3000.0)
+	s.mix(b, s.env_exp(s.sweep(1.2, 200.0, 900.0, "saw"), 0.2, 0.5), 0.0, 0.15)
+	_save("box_fly", s.finish(s.reverb(b, 0.8, 0.3, 1.0), 0.75))
+
+
+func gen_ray_fire() -> void:
+	# Tir d'énergie : glissando descendant, harmoniques, grésillement.
+	var b := s.env_exp(s.sweep(0.5, 2400.0, 180.0, "square"), 0.001, 0.12)
+	s.mix(b, s.env_exp(s.sweep(0.5, 1200.0, 90.0, "saw"), 0.001, 0.15), 0.0, 0.6)
+	var fizz := s.env_exp(s.highpass(s.noise(0.3), 4000.0), 0.001, 0.05)
+	s.mix(b, fizz, 0.0, 0.4)
+	b = s.lowpass(b, 6000.0)
+	_save("ray_fire", s.finish(s.reverb(b, 0.6, 0.25, 0.6), 0.85))

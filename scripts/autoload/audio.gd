@@ -20,6 +20,7 @@ var _music_b: AudioStreamPlayer
 var _music_name := ""
 ## Limite le nombre de lectures simultanées d'un même son (ex. 20 zombies qui grognent).
 var _recent: Dictionary = {}
+var _shutdown := false
 
 
 func _ready() -> void:
@@ -47,6 +48,8 @@ func _ready() -> void:
 
 
 func get_stream(sound: String) -> AudioStream:
+	if _shutdown:
+		return null
 	if _cache.has(sound):
 		return _cache[sound]
 	var path := DIR + sound + ".wav"
@@ -125,15 +128,19 @@ func stop_music(fade := 1.5) -> void:
 	play_music("", 0.0, fade)
 
 
-## Coupe immédiatement tous les sons (sortie du jeu, fin d'autotest).
+## Coupe immédiatement tous les sons (sortie du jeu, fin d'autotest) et
+## refuse toute nouvelle lecture : plus aucune ressource audio n'est
+## référencée à la fermeture.
 func stop_all() -> void:
+	_shutdown = true
 	for p in _pool_3d:
 		p.stop()
 		p.stream = null
 	for p in _pool_2d:
 		p.stop()
 		p.stream = null
-	_music.stop()
-	_music_b.stop()
+	for m in [_music, _music_b]:
+		m.stop()
+		m.stream = null
 	_music_name = ""
 	_cache.clear()

@@ -22,7 +22,7 @@ func _ready() -> void:
 	box.add_child(solo)
 	var quit := Button.new()
 	quit.text = "QUITTER"
-	quit.pressed.connect(get_tree().quit)
+	quit.pressed.connect(Router.quit_game)
 	box.add_child(quit)
 	box.position -= box.get_combined_minimum_size() * 0.5
 	if Router.pending_message != "":

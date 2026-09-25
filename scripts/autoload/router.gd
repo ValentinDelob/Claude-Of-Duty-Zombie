@@ -25,3 +25,10 @@ func back_to_menu(reason := "") -> void:
 	get_tree().change_scene_to_file.call_deferred(MENU_SCENE)
 	if GameState.state == GameState.State.DISCONNECTING:
 		GameState.set_state(GameState.State.MAIN_MENU)
+
+
+## Quitte le jeu proprement (session, sons) : aucune ressource orpheline.
+func quit_game() -> void:
+	Net.leave()
+	Audio.stop_all()
+	get_tree().quit.call_deferred()

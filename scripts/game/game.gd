@@ -93,6 +93,7 @@ func _load_map(map_id: String) -> void:
 	_build_wall_buys()
 	_build_power()
 	_build_perk_machines()
+	_build_mystery_box()
 	print("[Game] carte « %s » construite (%dx%d)" % [map_def.display_name, map_data.width, map_data.height])
 
 
@@ -328,3 +329,19 @@ func _build_perk_machines() -> void:
 			m.setup(marker, c, map_def.perks[marker], map_data)
 			interact.register(m)
 			root.add_child(m)
+
+
+func _build_mystery_box() -> void:
+	var cells: Array = map_data.markers.get("X", [])
+	if cells.is_empty():
+		return
+	var root := Node3D.new()
+	root.name = "Box"
+	world.add_child(root)
+	var box := MysteryBox.new()
+	box.setup(cells, map_def.box_start, map_data)
+	interact.register(box)
+	root.add_child(box)
+	if nav:
+		for c in cells:
+			nav.set_blocked(MysteryBox.spot_cells(c, map_data), true)
