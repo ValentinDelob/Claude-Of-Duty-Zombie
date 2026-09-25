@@ -124,6 +124,56 @@ func join(address: String, join_port: int, player_name: String) -> Error:
 	return OK
 
 
+# --------------------------------------------------------------------------
+# Lancement de partie et barrière de chargement
+# --------------------------------------------------------------------------
+
+const GAME_SCENE := "res://scenes/game.tscn"
+
+## Serveur : tous les joueurs ont fini de charger la carte.
+signal all_loaded
+
+## peers ayant signalé la fin de leur chargement (serveur uniquement).
+var loaded_peers: Dictionary = {}
+
+
+## Serveur : ordonne à tout le monde de charger la partie.
+func start_match() -> void:
+	if not multiplayer.is_server():
+		return
+	match_started = true
+	loaded_peers.clear()
+	_cl_load_game.rpc()
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_load_game() -> void:
+	match_started = true
+	GameState.set_state(GameState.State.LOADING)
+	get_tree().change_scene_to_file(GAME_SCENE)
+
+
+## Appelé par chaque machine quand sa scène de jeu est prête.
+func report_loaded() -> void:
+	_srv_loaded.rpc_id(1)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func _srv_loaded() -> void:
+	if not multiplayer.is_server():
+		return
+	loaded_peers[multiplayer.get_remote_sender_id()] = true
+	if is_everyone_loaded():
+		all_loaded.emit()
+
+
+func is_everyone_loaded() -> bool:
+	for id in players:
+		if not loaded_peers.has(id):
+			return false
+	return true
+
+
 ## Quitte proprement la session (depuis n'importe quel mode).
 func leave() -> void:
 	if mode == Mode.NONE:
@@ -283,8 +333,12 @@ func _on_peer_disconnected(id: int) -> void:
 	if multiplayer.is_server() and players.has(id):
 		print("[Net] %s a quitté la partie" % players[id].name)
 		players.erase(id)
+		loaded_peers.erase(id)
 		_cl_players.rpc(players)
 		player_left.emit(id)
+		# Un joueur qui part pendant le chargement ne doit pas bloquer les autres.
+		if match_started and not loaded_peers.is_empty() and is_everyone_loaded():
+			all_loaded.emit()
 
 
 func _on_connection_failed() -> void:
@@ -321,6 +375,7 @@ func _reset_peer() -> void:
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	mode = Mode.NONE
 	players = {}
+	loaded_peers = {}
 	match_started = false
 	_handshake_done = false
 

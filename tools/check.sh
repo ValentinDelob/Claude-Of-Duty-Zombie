@@ -3,12 +3,14 @@
 #   1. import / parse de tout le projet
 #   2. tests unitaires
 #   3. test réseau multi-processus
-#   4. lancement réel du jeu (fenêtré) + scénario auto éventuel, recherche d'erreurs
-# Usage : sh tools/check.sh [--fast]   (--fast : saute le test réseau)
+#   4. lancement réel du jeu (fenêtré) avec chaque scénario d'autotest
+# Usage : sh tools/check.sh [--fast]      (--fast : saute le test réseau)
+#         SCENARIOS="boot fps_controller" sh tools/check.sh
 cd "$(dirname "$0")/.."
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
 FAIL=0
+SCENARIOS=${SCENARIOS:-"boot fps_controller"}
 
 echo "== import"
 "$GODOT" --headless --path . --import > "$OUT/import.log" 2>&1
@@ -24,12 +26,14 @@ if [ "$1" != "--fast" ]; then
   tail -1 "$OUT/net.log"
 fi
 
-echo "== lancement du jeu"
-"$GODOT" --path . --windowed --resolution 1280x720 -- --autotest=boot > "$OUT/run.log" 2>&1
-RC=$?
-grep -E "\[autotest\]|\[perf\]" "$OUT/run.log"
-if grep -E "SCRIPT ERROR|ERROR:" "$OUT/run.log"; then FAIL=1; fi
-[ $RC -ne 0 ] && { echo "code de sortie du jeu : $RC"; FAIL=1; }
+for S in $SCENARIOS; do
+  echo "== scénario $S"
+  "$GODOT" --path . --windowed --resolution 1280x720 -- --autotest=$S > "$OUT/run_$S.log" 2>&1
+  RC=$?
+  grep -E "\[autotest\] (ECHEC|fin)|\[perf\]" "$OUT/run_$S.log"
+  if grep -E "SCRIPT ERROR|ERROR:" "$OUT/run_$S.log"; then FAIL=1; fi
+  [ $RC -ne 0 ] && { echo "code de sortie : $RC"; FAIL=1; }
+done
 
 [ $FAIL -eq 0 ] && echo "== CHECK OK" || echo "== CHECK ECHEC"
 exit $FAIL
