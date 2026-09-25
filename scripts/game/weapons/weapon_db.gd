@@ -20,6 +20,7 @@ const WEAPONS := {
 		"slot_class": "rifle", "damage": 110, "head_mult": 2.5, "rpm": 360, "auto": false,
 		"mag": 8, "reserve": 96, "reload": 1.8, "pellets": 1, "spread_hip": 2.2, "spread_ads": 0.1,
 		"range": 45.0, "penetration": 2, "recoil": 2.2, "ads_zoom": 0.75,
+		"wall_cost": 500,
 		"sound": "rifle_fire", "model": "carbine",
 		"pap": {"damage": 260, "mag": 15, "reserve": 150, "auto": true, "rpm": 420, "penetration": 3},
 	},
@@ -28,6 +29,7 @@ const WEAPONS := {
 		"slot_class": "smg", "damage": 55, "head_mult": 2.0, "rpm": 780, "auto": true,
 		"mag": 30, "reserve": 150, "reload": 2.2, "pellets": 1, "spread_hip": 3.0, "spread_ads": 0.6,
 		"range": 18.0, "penetration": 1, "recoil": 0.9, "ads_zoom": 0.85,
+		"wall_cost": 1000,
 		"sound": "smg_fire", "model": "smg",
 		"pap": {"damage": 150, "mag": 45, "reserve": 270, "rpm": 850, "penetration": 2},
 	},
@@ -36,6 +38,7 @@ const WEAPONS := {
 		"slot_class": "shotgun", "damage": 70, "head_mult": 1.5, "rpm": 75, "auto": false,
 		"mag": 6, "reserve": 42, "reload": 2.8, "pellets": 8, "spread_hip": 6.5, "spread_ads": 4.0,
 		"range": 8.0, "penetration": 1, "recoil": 5.0, "ads_zoom": 0.9,
+		"wall_cost": 1500,
 		"sound": "shotgun_fire", "model": "shotgun",
 		"pap": {"damage": 180, "mag": 10, "reserve": 70, "rpm": 110, "penetration": 2},
 	},
@@ -121,3 +124,42 @@ static func falloff(id: String, pap: bool, distance: float) -> float:
 static func new_instance(id: String, pap := false) -> Dictionary:
 	var s := stats(id, pap)
 	return {"id": id, "pap": pap, "mag": s.mag, "reserve": s.reserve}
+
+
+## Prix d'achat mural (0 si l'arme ne s'achète pas au mur).
+static func wall_cost(id: String) -> int:
+	return int(WEAPONS.get(id, {}).get("wall_cost", 0))
+
+
+## Prix des munitions au mur : moitié prix, 4500 si l'arme est améliorée.
+static func ammo_cost(id: String, pap: bool) -> int:
+	return 4500 if pap else wall_cost(id) / 2
+
+
+## Serveur : donne une arme à un joueur (remplace l'arme en main si les
+## emplacements sont pleins). Retourne l'emplacement de la nouvelle arme.
+static func give(pd: PlayerData, id: String, pap := false) -> int:
+	var existing := pd.has_weapon(id)
+	if existing >= 0:
+		pd.weapons[existing] = new_instance(id, pap)
+		pd.slot = existing
+		return existing
+	if pd.weapons.size() < MAX_SLOTS:
+		pd.weapons.append(new_instance(id, pap))
+		pd.slot = pd.weapons.size() - 1
+	else:
+		pd.weapons[pd.slot] = new_instance(id, pap)
+	return pd.slot
+
+
+## Serveur : remplit chargeur et réserve de l'arme `slot`.
+static func refill(pd: PlayerData, slot: int) -> void:
+	var w: Dictionary = pd.weapons[slot]
+	var s := stats(w.id, w.pap)
+	w.mag = s.mag
+	w.reserve = s.reserve
+
+
+static func is_full(w: Dictionary) -> bool:
+	var s := stats(w.id, w.pap)
+	return w.mag >= s.mag and w.reserve >= s.reserve

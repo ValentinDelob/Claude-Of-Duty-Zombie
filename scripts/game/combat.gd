@@ -367,6 +367,11 @@ func _cl_reload_fx(pid: int) -> void:
 		Audio.play_3d("mag_out", p.global_position + Vector3.UP, -4.0)
 
 
+## Serveur : annule un rechargement en cours (changement d'arme, achat...).
+func cancel_reload(pid: int) -> void:
+	_reload_end.erase(pid)
+
+
 func is_reloading(pid: int) -> bool:
 	return _reload_end.has(pid)
 

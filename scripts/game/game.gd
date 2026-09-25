@@ -80,6 +80,7 @@ func _load_map(map_id: String) -> void:
 	props.build(world)
 	WorldLook.setup_environment(world)
 	_build_doors()
+	_build_wall_buys()
 	print("[Game] carte « %s » construite (%dx%d)" % [map_def.display_name, map_data.width, map_data.height])
 
 
@@ -268,3 +269,15 @@ func _build_doors() -> void:
 			root.add_child(d)
 			doors[id] = d
 			interact.register(d)
+
+
+func _build_wall_buys() -> void:
+	var root := Node3D.new()
+	root.name = "WallBuys"
+	world.add_child(root)
+	for marker in map_def.wall_buys:
+		for c in map_data.markers.get(marker, []):
+			var wb := WallBuy.new()
+			wb.setup(marker, c, map_def.wall_buys[marker], map_data)
+			root.add_child(wb)
+			interact.register(wb)
