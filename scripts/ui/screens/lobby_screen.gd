@@ -43,7 +43,7 @@ func enter(args := {}) -> void:
 	col.add_child(_status)
 	var quit := button("QUITTER", back)
 	col.add_child(quit)
-	(_start if _start else quit).grab_focus.call_deferred()
+	focus_later((_start if _start else quit))
 	Net.players_changed.connect(_refresh)
 	Net.player_left.connect(_on_left)
 	_refresh()

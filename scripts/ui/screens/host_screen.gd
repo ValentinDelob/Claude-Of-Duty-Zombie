@@ -33,7 +33,7 @@ func enter(_args := {}) -> void:
 	var create := button("CRÉER LA PARTIE", _create)
 	col.add_child(create)
 	col.add_child(button("RETOUR", back))
-	create.grab_focus.call_deferred()
+	focus_later(create)
 
 
 func _set_max(v: int) -> void:

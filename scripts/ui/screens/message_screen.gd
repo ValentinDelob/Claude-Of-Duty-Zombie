@@ -19,7 +19,7 @@ func enter(args := {}) -> void:
 	col.add_child(text("", 10))
 	var b := button("RETOUR", back)
 	col.add_child(b)
-	b.grab_focus.call_deferred()
+	focus_later(b)
 	Audio.play_ui("ui_error", -4.0)
 
 

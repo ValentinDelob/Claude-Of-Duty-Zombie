@@ -1,24 +1,51 @@
 extends MenuScreen
-## Écran principal : SOLO / MULTIJOUEUR / QUITTER.
+## Écran principal : SOLO / MULTIJOUEUR / OPTIONS / CRÉDITS / QUITTER.
 
 var _first: Button
+var _col: VBoxContainer
 
 
 func enter(_args := {}) -> void:
-	var col := vbox(6)
-	col.position = Vector2(110, 0)
-	col.set_anchors_preset(Control.PRESET_CENTER_LEFT)
-	col.offset_left = 110
-	col.offset_top = -150
-	add_child(col)
-	var t := title("CALL OF CLAUDE ZOMBIE", 58)
-	col.add_child(t)
-	col.add_child(text("", 12))
-	_first = button("SOLO", func(): Router.start_solo())
-	col.add_child(_first)
-	col.add_child(button("MULTIJOUEUR", func(): menu.show_screen("multiplayer")))
-	col.add_child(button("QUITTER", Router.quit_game))
-	_first.grab_focus.call_deferred()
+	_col = vbox(2)
+	_col.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	_col.offset_left = 96
+	_col.offset_top = -170
+	add_child(_col)
+	_col.add_child(title("CALL OF CLAUDE ZOMBIE", 58))
+	_col.add_child(text("", 16))
+	_first = button("SOLO", _solo, "Survivre seul face aux hordes. Combien de manches tiendrez-vous ?")
+	_col.add_child(_first)
+	_col.add_child(button("MULTIJOUEUR", func(): menu.show_screen("multiplayer"), "Coopération de 2 à %d survivants, par adresse IP." % Net.MAX_SUPPORTED_PLAYERS))
+	_col.add_child(button("OPTIONS", func(): menu.show_screen("options"), "Commandes, affichage, son."))
+	_col.add_child(button("CRÉDITS", func(): menu.show_screen("credits"), "Ceux qui ont bâti ce bunker."))
+	_col.add_child(button("QUITTER", _quit, "Retour à la surface."))
+	focus_later(_first)
+
+
+func _solo() -> void:
+	if _lock():
+		menu.fade_to_black(0.9, func(): Router.start_solo())
+
+
+func _quit() -> void:
+	if _lock():
+		menu.fade_to_black(0.6, Router.quit_game)
+
+
+var _leaving := false
+
+
+## Plus aucune action possible pendant le fondu final. Faux si déjà verrouillé.
+func _lock() -> bool:
+	if _leaving:
+		return false
+	_leaving = true
+	for c in _col.get_children():
+		if c is Button:
+			c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			if not c.has_focus():
+				c.disabled = true
+	return true
 
 
 func back() -> void:

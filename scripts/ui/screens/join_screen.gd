@@ -31,7 +31,7 @@ func enter(_args := {}) -> void:
 	col.add_child(button("RETOUR", back))
 	_ip.text_submitted.connect(func(_t): _join())
 	_port.text_submitted.connect(func(_t): _join())
-	join.grab_focus.call_deferred()
+	focus_later(join)
 
 
 func _join() -> void:

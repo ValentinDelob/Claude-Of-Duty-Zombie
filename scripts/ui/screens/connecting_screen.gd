@@ -18,7 +18,7 @@ func enter(args := {}) -> void:
 	col.add_child(_dots)
 	var cancel := button("ANNULER", back)
 	col.add_child(cancel)
-	cancel.grab_focus.call_deferred()
+	focus_later(cancel)
 	GameState.set_state(GameState.State.CONNECTING)
 	if Net.join(args.ip, args.port, Settings.player_name) != OK:
 		return  # l'erreur est déjà signalée par Net.connection_error

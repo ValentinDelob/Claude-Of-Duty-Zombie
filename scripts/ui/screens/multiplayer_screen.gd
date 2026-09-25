@@ -10,11 +10,11 @@ func enter(_args := {}) -> void:
 	col.add_child(title("MULTIJOUEUR", 48))
 	col.add_child(text("Coopération de 2 à %d joueurs, par adresse IP." % Net.MAX_SUPPORTED_PLAYERS, 18, UiStyle.DIM))
 	col.add_child(text("", 10))
-	var host := button("HÉBERGER UNE PARTIE", func(): menu.show_screen("host"))
+	var host := button("HÉBERGER UNE PARTIE", func(): menu.show_screen("host"), "Ouvrir un salon : les autres vous rejoignent avec votre adresse IP.")
 	col.add_child(host)
-	col.add_child(button("REJOINDRE UNE PARTIE", func(): menu.show_screen("join")))
+	col.add_child(button("REJOINDRE UNE PARTIE", func(): menu.show_screen("join"), "Entrer l'adresse IP et le port de l'hôte."))
 	col.add_child(button("RETOUR", back))
-	host.grab_focus.call_deferred()
+	focus_later(host)
 
 
 func back() -> void:
