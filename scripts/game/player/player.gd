@@ -361,11 +361,21 @@ func net_flags() -> int:
 # Visuel provisoire (remplacé par le modèle low-poly plus tard)
 # --------------------------------------------------------------------------
 
+static var _placeholder_mat: StandardMaterial3D
+
+
+## Matériau partagé (créé une seule fois, préchauffé pendant le chargement).
+static func placeholder_material() -> StandardMaterial3D:
+	if _placeholder_mat == null:
+		_placeholder_mat = StandardMaterial3D.new()
+		_placeholder_mat.albedo_color = Color(0.25, 0.28, 0.2)
+	return _placeholder_mat
+
+
 func _build_placeholder_body() -> Node3D:
 	var root := Node3D.new()
 	root.name = "Visual"
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.25, 0.28, 0.2)
+	var mat := placeholder_material()
 	var torso := MeshInstance3D.new()
 	var cap := CapsuleMesh.new()
 	cap.radius = RADIUS

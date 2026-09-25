@@ -67,6 +67,12 @@ func _ready() -> void:
 		Net.all_loaded.connect(_on_all_loaded)
 		combat.player_fell.connect(_on_player_fell)
 	Audio.play_music("ambience_bunker", -6.0, 3.0)
+	hud.show_loading(map_def.display_name)
+	var spawns: Array = map_data.markers.get(map_def.player_spawn_marker(), [])
+	var warm_at := MapData.cell_to_world(spawns[0]) if not spawns.is_empty() else Vector3(2, 0, 2)
+	var t0 := Time.get_ticks_msec()
+	await Warmup.run(self, warm_at)
+	print("[Game] préchauffage des shaders : %d ms" % (Time.get_ticks_msec() - t0))
 	Net.report_loaded()
 
 
@@ -112,6 +118,7 @@ func _cl_begin_match(roster: Dictionary) -> void:
 		_spawn_player(pid, pos)
 	GameState.set_state(GameState.State.PLAYING)
 	capture_mouse(true)
+	hud.hide_loading()
 	if multiplayer.is_server():
 		session.sync_all()
 		rounds.start_game()

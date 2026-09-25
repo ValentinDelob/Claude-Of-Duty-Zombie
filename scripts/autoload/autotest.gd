@@ -13,6 +13,7 @@ var _fps_samples: PackedFloat32Array = []
 var _frame_ms_max := 0.0
 var _sampling := false
 var _failed := false
+var _t_pre := 0
 
 
 func _ready() -> void:
@@ -23,6 +24,12 @@ func _ready() -> void:
 		set_process(false)
 		return
 	active = true
+	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
+	RenderingServer.frame_pre_draw.connect(func(): _t_pre = Time.get_ticks_usec())
+	RenderingServer.frame_post_draw.connect(func():
+		var d := Time.get_ticks_usec() - _t_pre
+		if d > 15000 and _sampling:
+			print("[prof] rendu de l'image : %.1f ms" % (d / 1000.0)))
 	# Mesure la capacité réelle du GPU, pas la fréquence de l'écran.
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -58,7 +65,8 @@ func _run() -> void:
 func _process(delta: float) -> void:
 	if _sampling:
 		if delta > 0.025:
-			print("[prof] image lente %.1f ms à t=%.2f" % [delta * 1000.0, Time.get_ticks_msec() / 1000.0])
+			var vp := get_viewport().get_viewport_rid()
+			print("[prof] image lente %.1f ms à t=%.2f : process %.1f ms, physique %.1f ms, rendu CPU %.1f ms, GPU %.1f ms, nav %.1f" % [delta * 1000.0, Time.get_ticks_msec() / 1000.0, Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, RenderingServer.viewport_get_measured_render_time_cpu(vp), RenderingServer.viewport_get_measured_render_time_gpu(vp), Performance.get_monitor(Performance.TIME_NAVIGATION_PROCESS) * 1000.0])
 		_fps_samples.append(1.0 / maxf(delta, 0.0001))
 		_frame_ms_max = maxf(_frame_ms_max, delta * 1000.0)
 

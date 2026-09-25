@@ -319,3 +319,45 @@ func show_banner(text: String, duration := 3.5) -> void:
 func flash_message(text: String) -> void:
 	_flash.text = text
 	_flash_t = 1.8
+
+
+# --------------------------------------------------------------------------
+# Écran de chargement
+# --------------------------------------------------------------------------
+
+var _loading: Control
+
+
+func show_loading(map_name: String) -> void:
+	if _loading:
+		return
+	_loading = Control.new()
+	_loading.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_loading.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_loading)
+	var bg := ColorRect.new()
+	bg.color = Color(0.0, 0.0, 0.0)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_loading.add_child(bg)
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_loading.add_child(box)
+	var title := UiStyle.label(map_name, 64, UiStyle.BLOOD, "title")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
+	var sub := UiStyle.label("CHARGEMENT...", 20, UiStyle.DIM)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+
+
+func hide_loading() -> void:
+	if _loading == null:
+		return
+	var l := _loading
+	_loading = null
+	var tw := create_tween()
+	tw.tween_property(l, "modulate:a", 0.0, 1.2)
+	tw.tween_callback(l.queue_free)
