@@ -40,7 +40,7 @@ func run() -> void:
 	at.begin_perf()
 	await seconds(3.0)
 	var fps: float = at.end_perf("24 zombies")
-	at.check(fps > 120.0, "perf avec 24 zombies (%.0f fps)" % fps)
+	at.check_perf(fps, 150.0, "24 zombies")
 	p.yaw = 0.0
 	await seconds(0.2)
 	await at.screenshot("horde")

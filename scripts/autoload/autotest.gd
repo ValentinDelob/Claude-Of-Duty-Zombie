@@ -134,3 +134,15 @@ func finish() -> void:
 	for i in 3:
 		await get_tree().process_frame
 	get_tree().quit(1 if _failed else 0)
+
+
+## Vérification de performance. En exécution parallèle (check.sh lance
+## plusieurs jeux à la fois, AUTOTEST_PARALLEL=1), un seuil manqué n'est qu'un
+## avertissement : les mesures fiables sont faites par tools/perf.sh.
+func check_perf(fps: float, minimum: float, label: String) -> void:
+	if fps >= minimum:
+		print("[autotest] OK   perf %s (%.0f fps >= %.0f)" % [label, fps, minimum])
+	elif OS.get_environment("AUTOTEST_PARALLEL") == "1":
+		print("[autotest] AVERTISSEMENT perf %s (%.0f fps < %.0f, exécution parallèle)" % [label, fps, minimum])
+	else:
+		fail("perf %s (%.0f fps < %.0f)" % [label, fps, minimum])

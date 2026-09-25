@@ -78,5 +78,5 @@ func run() -> void:
 	at.begin_perf()
 	await seconds(2.0)
 	var fps: float = at.end_perf("arène")
-	at.check(fps > 100.0, "perf arène (%.0f fps)" % fps)
+	at.check_perf(fps, 150.0, "arène")
 	await at.screenshot("overview")

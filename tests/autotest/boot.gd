@@ -7,6 +7,6 @@ func run() -> void:
 	at.begin_perf()
 	await seconds(1.5)
 	var fps: float = at.end_perf("menu")
-	at.check(fps > 60.0, "FPS raisonnables au menu (%.0f)" % fps)
+	at.check_perf(fps, 150.0, "menu")
 	at.check(GameState.state == GameState.State.MAIN_MENU, "état MAIN_MENU")
 	await at.screenshot("menu")

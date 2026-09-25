@@ -43,7 +43,7 @@ while [ $# -gt 0 ]; do
   i=0
   while [ $# -gt 0 ] && [ $i -lt $PARALLEL ]; do
     S=$1; shift
-    "$GODOT" --path . --windowed --resolution 1280x720 -- --autotest=$S > "$OUT/run_$S.log" 2>&1 &
+    AUTOTEST_PARALLEL=1 "$GODOT" --path . --windowed --resolution 1280x720 -- --autotest=$S > "$OUT/run_$S.log" 2>&1 &
     PIDS="$PIDS $!"
     BATCH="$BATCH $S"
     i=$((i + 1))

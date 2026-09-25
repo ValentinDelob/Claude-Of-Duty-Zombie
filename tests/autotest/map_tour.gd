@@ -52,4 +52,4 @@ func run() -> void:
 		await seconds(1.0)
 		worst = minf(worst, at.end_perf(v[0]))
 		await at.screenshot(v[0])
-	at.check(worst > 120.0, "perf minimale sur la carte : %.0f fps" % worst)
+	at.check_perf(worst, 150.0, "pire vue de la carte")
