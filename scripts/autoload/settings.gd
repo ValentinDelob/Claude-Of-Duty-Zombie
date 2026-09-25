@@ -33,8 +33,8 @@ const DEFAULT_BINDINGS := {
 	"interact": [KEY_F, KEY_E],
 	"reload": [KEY_R],
 	"melee": [KEY_V],
-	"switch_weapon": [KEY_TAB, KEY_1],
-	"scoreboard": [KEY_ALT],
+	"switch_weapon": [KEY_1, KEY_2],
+	"scoreboard": [KEY_TAB],
 	"pause": [KEY_ESCAPE],
 }
 const MOUSE_BINDINGS := {

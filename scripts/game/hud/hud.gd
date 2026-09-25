@@ -27,11 +27,14 @@ var _flash_t := 0.0
 var _round: RoundCounter
 var _perk_icons: PerkIcons
 var _downed: DownedOverlay
+var scoreboard: Scoreboard
+var pause_menu: PauseMenu
 
 
 func _ready() -> void:
 	layer = 10
 	game = get_parent()
+	_build_pause_menu.call_deferred()
 
 	_vignette = ColorRect.new()
 	_vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -126,6 +129,10 @@ func _ready() -> void:
 	_downed.setup(game)
 	add_child(_downed)
 
+	scoreboard = Scoreboard.new()
+	scoreboard.setup(game)
+	add_child(scoreboard)
+
 	_fade = ColorRect.new()
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fade.color = Color(0, 0, 0, 0)
@@ -184,6 +191,7 @@ func show_center(title: String, sub := "", fade_alpha := 0.0) -> void:
 
 
 func _process(delta: float) -> void:
+	_scoreboard_tick()
 	_debug.text = "%d FPS" % Engine.get_frames_per_second()
 	if player == null:
 		return
@@ -384,3 +392,54 @@ func teleport_flash() -> void:
 	var tw := r.create_tween()
 	tw.tween_property(r, "color:a", 0.0, 0.9).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(r.queue_free)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause") and GameState.is_in_game():
+		if pause_menu.visible:
+			pause_menu.close()
+		else:
+			pause_menu.open()
+		get_viewport().set_input_as_handled()
+
+
+## Toujours au premier plan : créé en dernier.
+func _build_pause_menu() -> void:
+	pause_menu = PauseMenu.new()
+	pause_menu.setup(game)
+	add_child(pause_menu)
+
+
+func _scoreboard_tick() -> void:
+	if GameState.state == GameState.State.GAME_OVER:
+		return
+	var show := Input.is_action_pressed("scoreboard") and not pause_menu.visible
+	if show and not scoreboard.visible:
+		scoreboard.refresh()
+	scoreboard.visible = show
+
+
+## Fin de partie : tableau récapitulatif.
+func show_game_over_table(title_text: String) -> void:
+	scoreboard.refresh(title_text)
+	scoreboard.visible = true
+	scoreboard.offset_top = 100
+	scoreboard.offset_bottom = 390
+
+
+var _spectate_label: Label
+
+
+func set_spectating(player_name: String) -> void:
+	if _spectate_label == null:
+		_spectate_label = UiStyle.label("", 22, UiStyle.BONE)
+		_spectate_label.anchor_left = 0.5
+		_spectate_label.anchor_right = 0.5
+		_spectate_label.offset_left = -400
+		_spectate_label.offset_right = 400
+		_spectate_label.offset_top = 70
+		_spectate_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		add_child(_spectate_label)
+	_spectate_label.text = ("SPECTATEUR — %s   ([Tir] joueur suivant — retour à la prochaine manche)" % player_name) if player_name != "" else ""
+	if player_name != "":
+		show_center("", "", 0.0)

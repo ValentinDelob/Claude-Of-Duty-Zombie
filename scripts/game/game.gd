@@ -190,10 +190,9 @@ func capture_mouse(on: bool) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause"):
-		capture_mouse(Input.mouse_mode != Input.MOUSE_MODE_CAPTURED)
-	elif event is InputEventMouseButton and event.pressed and GameState.is_in_game() \
-			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+	# Le menu pause est géré par le HUD ; un clic recapture la souris.
+	if event is InputEventMouseButton and event.pressed and GameState.is_in_game() \
+			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not hud.pause_menu.visible:
 		capture_mouse(true)
 
 
@@ -255,6 +254,8 @@ func _cl_game_over(summary: String) -> void:
 	if GameState.state != GameState.State.GAME_OVER:
 		GameState.set_state(GameState.State.GAME_OVER)
 	hud.show_center("GAME OVER", summary, 0.6)
+	hud.show_game_over_table("VOUS AVEZ SURVÉCU %d MANCHE%s" % [rounds.round_n, "S" if rounds.round_n > 1 else ""])
+	capture_mouse(false)
 	Audio.play_2d("heartbeat", 0.0, 0.0)
 	# Le serveur part en dernier pour que les clients ne voient pas « connexion perdue ».
 	var delay := GAME_OVER_DELAY + (0.8 if multiplayer.is_server() else 0.0)
@@ -434,3 +435,41 @@ func _refresh_remote_weapon(pid: int) -> void:
 		return
 	var w := pd.current_weapon()
 	p.visual.set_weapon(w.get("id", ""), w.get("pap", false))
+
+
+# --------------------------------------------------------------------------
+# Spectateur (joueur mort en multijoueur)
+# --------------------------------------------------------------------------
+
+var spectating: Player
+var _spectate_index := 0
+
+
+func _process(_delta: float) -> void:
+	_update_spectator()
+
+
+func _update_spectator() -> void:
+	if local_player == null:
+		return
+	var pd := session.local_data()
+	var is_dead := pd != null and pd.life == PlayerData.Life.DEAD and GameState.state != GameState.State.GAME_OVER
+	var others: Array = []
+	for p: Player in players.values():
+		if not p.is_local:
+			var opd := session.get_data(p.peer_id)
+			if opd and opd.life != PlayerData.Life.DEAD:
+				others.append(p)
+	if not is_dead or others.is_empty():
+		if spectating:
+			spectating = null
+			local_player.camera.make_current()
+			hud.set_spectating("")
+		return
+	if Input.is_action_just_pressed("fire"):
+		_spectate_index += 1
+	var target: Player = others[_spectate_index % others.size()]
+	if target != spectating:
+		spectating = target
+		target.camera.make_current()
+		hud.set_spectating(Net.player_name(target.peer_id))
