@@ -534,3 +534,24 @@ func gen_pap_ready() -> void:
 	s.mix(b, _choir(2.5, [220.0, 277.2, 329.6]), 0.0, 0.9)
 	s.mix(b, _timpani(55.0), 0.0, 1.0)
 	_save("pap_ready", s.finish(s.reverb(b, 0.9, 0.35, 1.8), 0.9, 0.3))
+
+
+# ---------------------------------------------------------------- téléporteur
+
+func gen_tele_charge() -> void:
+	# Montée de tension (3 s) : sifflement qui grimpe, bourdonnement, arcs.
+	var b := s.env_adsr(s.sweep(3.1, 80.0, 900.0, "saw"), 0.2, 0.3, 0.9, 0.1)
+	b = s.lowpass_sweep(b, 300.0, 5000.0)
+	s.mix(b, s.env_adsr(s.sweep(3.1, 400.0, 3200.0), 0.5, 0.3, 0.6, 0.1), 0.0, 0.3)
+	var arcs := s.highpass(s.noise(3.1), 3000.0)
+	for i in arcs.size():
+		arcs[i] *= 1.0 if s.rng.randf() < 0.12 * (float(i) / arcs.size()) else 0.0
+	s.mix(b, arcs, 0.0, 0.5)
+	_save("tele_charge", s.finish(s.reverb(b, 0.7, 0.25, 0.6), 0.85))
+
+
+func gen_tele_warp() -> void:
+	var b := s.env_exp(s.sweep(1.0, 1500.0, 40.0, "saw"), 0.002, 0.3)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(1.0), 1200.0), 0.002, 0.25), 0.0, 0.8)
+	s.mix(b, _timpani(45.0), 0.05, 1.0)
+	_save("tele_warp", s.finish(s.reverb(b, 0.9, 0.35, 1.2), 0.9))

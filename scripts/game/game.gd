@@ -43,6 +43,7 @@ var props: PropBuilder
 var doors: Dictionary = {}  # id -> Door
 ## Courant rétabli ? (répliqué par PowerSwitch)
 var power_on := false
+var teleporter: Teleporter
 signal power_changed(on: bool)
 @onready var hud: Hud = $HUD
 
@@ -95,6 +96,7 @@ func _load_map(map_id: String) -> void:
 	_build_perk_machines()
 	_build_mystery_box()
 	_build_pack_a_punch()
+	_build_teleporter()
 	print("[Game] carte « %s » construite (%dx%d)" % [map_def.display_name, map_data.width, map_data.height])
 
 
@@ -358,3 +360,37 @@ func _build_pack_a_punch() -> void:
 	world.add_child(pap)
 	if nav:
 		nav.set_blocked(MysteryBox.spot_cells(cells[0], map_data), true)
+
+
+func _build_teleporter() -> void:
+	var pad: Array = map_data.markers.get("T", [])
+	var exit: Array = map_data.markers.get("F", [])
+	if pad.is_empty() or exit.is_empty():
+		return
+	teleporter = Teleporter.new()
+	teleporter.setup(pad, exit[0])
+	interact.register(teleporter)
+	world.add_child(teleporter)
+
+
+## Serveur : téléporte un joueur (son client le déplace : autorité de mouvement).
+func teleport_player(pid: int, pos: Vector3, outbound: bool) -> void:
+	if multiplayer.is_server():
+		_cl_teleport.rpc(pid, pos, outbound)
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_teleport(pid: int, pos: Vector3, outbound: bool) -> void:
+	var p: Player = players.get(pid)
+	if p == null:
+		return
+	Audio.play_3d("tele_warp", p.global_position + Vector3.UP, 0.0, 0.0)
+	fx_root.explosion_light(p.global_position + Vector3.UP, Color(1.0, 0.7, 0.4))
+	if p.is_local:
+		p.teleport_to(pos)
+		hud.teleport_flash()
+		if outbound:
+			hud.show_banner("SALLE DU RITUEL", 1.5)
+	else:
+		p._snapshots.clear()
+		p.global_position = pos

@@ -237,6 +237,15 @@ static func blood_splat_texture(variant: int) -> Texture2D:
 	return tex
 
 
+## Flash lumineux coloré (téléportation...).
+func explosion_light(pos: Vector3, color: Color) -> void:
+	_flash.global_position = pos
+	_flash.light_color = color
+	_flash.omni_range = 8.0
+	_flash_t = 0.25
+	sparks.burst(pos, Vector3.UP, 20, 4.0, 1.0, 0.6, Color(color.r, color.g, color.b, 0.9))
+
+
 ## Explosion (arme spéciale, pièges...).
 func explosion(pos: Vector3, radius: float) -> void:
 	sparks.burst(pos, Vector3.UP, 26, 7.0, 1.0, 0.6, Color(1.0, 0.5, 0.15, 0.9), 1.6)

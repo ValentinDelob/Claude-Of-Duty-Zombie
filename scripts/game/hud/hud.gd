@@ -223,6 +223,10 @@ func _process(delta: float) -> void:
 				_hint.text = "[R] RECHARGER"
 			else:
 				_hint.text = ""
+	# Compte à rebours dans la salle du rituel (prioritaire).
+	var tp := game.teleporter
+	if tp and tp.state == Teleporter.State.ACTIVE and game.map_data.zone_at(MapData.world_to_cell(player.global_position)) == "p":
+		_hint.text = "RETOUR DANS %d s" % tp.seconds_left()
 
 
 class Crosshair extends Control:
@@ -361,3 +365,15 @@ func hide_loading() -> void:
 	var tw := create_tween()
 	tw.tween_property(l, "modulate:a", 0.0, 1.2)
 	tw.tween_callback(l.queue_free)
+
+
+## Éclair blanc de téléportation.
+func teleport_flash() -> void:
+	var r := ColorRect.new()
+	r.color = Color(1.0, 0.92, 0.8, 0.95)
+	r.set_anchors_preset(Control.PRESET_FULL_RECT)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(r)
+	var tw := r.create_tween()
+	tw.tween_property(r, "color:a", 0.0, 0.9).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(r.queue_free)
