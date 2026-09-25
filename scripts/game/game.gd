@@ -19,7 +19,9 @@ var local_player: Player
 
 @onready var world: Node3D = $World
 @onready var players_root: Node3D = $Players
-@onready var fx_root: Node3D = $Fx
+@onready var fx_root: Fx = $Fx
+@onready var session: Session = $Session
+@onready var combat: Combat = $Combat
 @onready var hud: Hud = $HUD
 
 
@@ -70,6 +72,8 @@ func _on_all_loaded() -> void:
 func _cl_begin_match(roster: Dictionary) -> void:
 	var spawns: Array = map_data.markers.get(map_def.player_spawn_marker(), [])
 	for pid in roster:
+		session.create(pid)
+	for pid in roster:
 		var slot: int = roster[pid].slot
 		var pos := MapData.cell_to_world(spawns[slot % spawns.size()], 0.05) if not spawns.is_empty() else Vector3(2, 0.1, 2)
 		_spawn_player(pid, pos)
@@ -87,6 +91,10 @@ func _spawn_player(pid: int, pos: Vector3) -> void:
 	players[pid] = p
 	if p.is_local:
 		local_player = p
+		p.weapons = WeaponController.new()
+		p.weapons.name = "Weapons"
+		p.add_child(p.weapons)
+		p.weapons.setup(p, self)
 		hud.bind_player(p)
 	print("[Game] joueur %s (%d) apparu%s" % [Net.player_name(pid), pid, " (local)" if p.is_local else ""])
 
@@ -100,6 +108,8 @@ func _cl_remove_player(pid: int) -> void:
 	if players.has(pid):
 		players[pid].queue_free()
 		players.erase(pid)
+	session.remove(pid)
+	combat.forget_player(pid)
 
 
 func _on_session_ended(reason: String) -> void:

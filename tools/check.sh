@@ -10,11 +10,17 @@ cd "$(dirname "$0")/.."
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
 FAIL=0
-SCENARIOS=${SCENARIOS:-"boot fps_controller"}
+# Tous les scénarios de tests/autotest/ (hors fichiers utilitaires).
+ALL=$(ls tests/autotest/*.gd | xargs -n1 basename | sed 's/\.gd$//' | grep -vE '^(scenario|helpers)$' | tr '\n' ' ')
+SCENARIOS=${SCENARIOS:-$ALL}
 
 echo "== import"
 "$GODOT" --headless --path . --import > "$OUT/import.log" 2>&1
 if grep -E "SCRIPT ERROR|Parse Error|ERROR:" "$OUT/import.log"; then FAIL=1; fi
+
+echo "== compilation des scripts"
+"$GODOT" --headless --path . -s res://tests/parse_all.gd > "$OUT/parse.log" 2>&1 || { FAIL=1; grep -E "ERREUR|ERROR" "$OUT/parse.log"; }
+grep "PARSE:" "$OUT/parse.log"
 
 echo "== tests unitaires"
 "$GODOT" --headless --path . res://tests/test_runner.tscn > "$OUT/unit.log" 2>&1 || FAIL=1

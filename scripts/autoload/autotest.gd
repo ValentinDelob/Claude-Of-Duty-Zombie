@@ -103,6 +103,20 @@ func fail(msg: String) -> void:
 	print("[autotest] ECHEC " + msg)
 
 
+var _finishing := false
+
+
 func finish() -> void:
+	if _finishing:
+		return
+	_finishing = true
 	print("[autotest] fin : %s" % ("ECHEC" if _failed else "SUCCES"))
+	# Libère la scène et coupe les sons avant de quitter : sortie propre, sans
+	# ressources encore référencées.
+	Net.leave()
+	if get_tree().current_scene:
+		get_tree().current_scene.queue_free()
+	Audio.stop_all()
+	for i in 3:
+		await get_tree().process_frame
 	get_tree().quit(1 if _failed else 0)

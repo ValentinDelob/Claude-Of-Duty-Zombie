@@ -31,7 +31,8 @@ static func setup_environment(parent: Node3D) -> void:
 	env.tonemap_exposure = 1.0
 	env.glow_enabled = true
 	env.glow_intensity = 0.6
-	env.glow_bloom = 0.05
+	env.glow_bloom = 0.0
+	env.glow_hdr_threshold = 1.3
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.05, 0.05, 0.06)
 	env.fog_density = 0.035

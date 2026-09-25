@@ -47,6 +47,8 @@ var is_local := false
 var bot_controlled := false
 var input := PlayerInput.new()
 var input_enabled := true
+## Armes (joueur local uniquement).
+var weapons: WeaponController
 
 var yaw := 0.0
 var pitch := 0.0
@@ -144,6 +146,8 @@ func _local_physics(delta: float) -> void:
 	_update_stance(delta)
 	_move(delta)
 	_update_camera_effects(delta)
+	if weapons:
+		weapons.tick(delta)
 
 	_send_accum += delta
 	if _send_accum >= 1.0 / NET_SEND_RATE:

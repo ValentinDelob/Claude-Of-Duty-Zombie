@@ -23,6 +23,7 @@ GameState="*res://scripts/autoload/game_state.gd"
 Settings="*res://scripts/autoload/settings.gd"
 Net="*res://scripts/autoload/net.gd"
 Router="*res://scripts/autoload/router.gd"
+Audio="*res://scripts/autoload/audio.gd"
 Autotest="*res://scripts/autoload/autotest.gd"
 
 [display]
