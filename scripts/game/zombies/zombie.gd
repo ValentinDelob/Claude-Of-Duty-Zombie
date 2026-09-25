@@ -41,6 +41,9 @@ var _stuck_pos := Vector3.ZERO
 var _attack_hit_done := false
 var _groan_t := 0.0
 var _headless := false
+var _low_move_t := 0.0
+var _stuck_sample_t := 0.0
+var _stuck_sample_pos := Vector3.ZERO
 
 ## Animation (lue sur toutes les machines).
 var anim_speed := 0.0      # vitesse horizontale actuelle (m/s)
@@ -155,6 +158,15 @@ func _physics_process(delta: float) -> void:
 	if state != State.EMERGE:
 		move_and_slide()
 	anim_speed = Vector2(velocity.x, velocity.z).length()
+	# Mesure de blocage sur des fenêtres d'une seconde (déplacement réel).
+	_stuck_sample_t += delta
+	if _stuck_sample_t >= 1.0:
+		if state == State.CHASE and global_position.distance_to(_stuck_sample_pos) < 0.6:
+			_low_move_t += _stuck_sample_t
+		else:
+			_low_move_t = 0.0
+		_stuck_sample_t = 0.0
+		_stuck_sample_pos = global_position
 
 
 ## Poursuite : ligne droite si le joueur est visible et proche, sinon chemin
@@ -481,3 +493,8 @@ func _process_death(delta: float) -> void:
 	if _death_t > DISSOLVE_DELAY:
 		mesh.set_instance_shader_parameter("dissolve", clampf((_death_t - DISSOLVE_DELAY) / DISSOLVE_TIME, 0.0, 1.0))
 		mesh.set_instance_shader_parameter("eye_glow", 0.0)
+
+
+## Temps passé quasi immobile en poursuite (serveur) : sert au recyclage.
+func stuck_time() -> float:
+	return _low_move_t

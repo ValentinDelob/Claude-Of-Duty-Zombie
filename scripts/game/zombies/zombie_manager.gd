@@ -118,6 +118,9 @@ func _cl_spawn(zid: int, pos: Vector3, yaw: float, variant: int, speed_class: in
 	zombies[zid] = z
 	alive.append(z)
 	zombie_spawned.emit(z)
+	if Game.instance:
+		Game.instance.fx_root.dirt_burst(pos)
+	Audio.play_3d("emerge", pos, -3.0, 0.1, 3)
 
 
 @rpc("authority", "call_local", "reliable")

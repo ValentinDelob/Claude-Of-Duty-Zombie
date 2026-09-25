@@ -245,3 +245,10 @@ func explosion(pos: Vector3, radius: float) -> void:
 	_flash.omni_range = radius * 4.0
 	_flash_t = 0.12
 	Audio.play_3d("shotgun_fire", pos, 2.0, 0.2)
+
+
+## Terre projetée quand un zombie sort du sol.
+func dirt_burst(pos: Vector3) -> void:
+	dust.burst(pos + Vector3.UP * 0.1, Vector3.UP, 10, 1.4, 0.8, 1.6, Color(0.22, 0.17, 0.12, 0.6), 2.0)
+	blood.burst(pos + Vector3.UP * 0.05, Vector3.UP, 14, 3.5, 0.7, 0.9, Color(0.16, 0.12, 0.08, 1.0), 1.2)
+	blood_decal(pos + Vector3.UP * 0.1, Vector3.UP, 0.7)

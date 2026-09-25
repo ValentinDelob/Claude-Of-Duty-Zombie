@@ -23,6 +23,7 @@ var _timer := 0.0
 var _spawn_accum := 0.0
 var _rng := RandomNumberGenerator.new()
 var _started := false
+var _recycle_accum := 0.0
 
 
 func _ready() -> void:
@@ -59,6 +60,10 @@ func _process(delta: float) -> void:
 				_begin_round(round_n + 1)
 		Phase.ACTIVE:
 			_spawn_tick(delta)
+			_recycle_accum += delta
+			if _recycle_accum >= 1.0:
+				to_spawn += game.spawner.recycle(_recycle_accum)
+				_recycle_accum = 0.0
 			if to_spawn <= 0 and game.zombies.alive_count() == 0:
 				_end_round()
 

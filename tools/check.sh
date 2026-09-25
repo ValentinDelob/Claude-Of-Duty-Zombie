@@ -33,13 +33,27 @@ if [ "$1" != "--fast" ]; then
   tail -1 "$OUT/net.log"
 fi
 
-for S in $SCENARIOS; do
-  echo "== scénario $S"
-  "$GODOT" --path . --windowed --resolution 1280x720 -- --autotest=$S > "$OUT/run_$S.log" 2>&1
-  RC=$?
-  grep -E "\[autotest\] (ECHEC|fin)|\[perf\]" "$OUT/run_$S.log"
-  if grep -E "SCRIPT ERROR|ERROR:" "$OUT/run_$S.log"; then FAIL=1; fi
-  [ $RC -ne 0 ] && { echo "code de sortie : $RC"; FAIL=1; }
+# Scénarios lancés par lots de PARALLEL fenêtres simultanées (les mesures de
+# perf sont donc pessimistes : plusieurs jeux partagent le GPU).
+PARALLEL=${PARALLEL:-3}
+set -- $SCENARIOS
+while [ $# -gt 0 ]; do
+  PIDS=""
+  BATCH=""
+  i=0
+  while [ $# -gt 0 ] && [ $i -lt $PARALLEL ]; do
+    S=$1; shift
+    "$GODOT" --path . --windowed --resolution 1280x720 -- --autotest=$S > "$OUT/run_$S.log" 2>&1 &
+    PIDS="$PIDS $!"
+    BATCH="$BATCH $S"
+    i=$((i + 1))
+  done
+  for P in $PIDS; do wait $P || { FAIL=1; echo "un scénario a échoué (pid $P)"; }; done
+  for S in $BATCH; do
+    echo "== scénario $S"
+    grep -E "\[autotest\] (ECHEC|fin)|\[perf\]" "$OUT/run_$S.log"
+    if grep -E "SCRIPT ERROR|ERROR:" "$OUT/run_$S.log"; then FAIL=1; fi
+  done
 done
 
 [ $FAIL -eq 0 ] && echo "== CHECK OK" || echo "== CHECK ECHEC"
