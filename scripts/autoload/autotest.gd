@@ -27,6 +27,10 @@ func _ready() -> void:
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	print("[autotest] scénario « %s »" % scenario_name)
+	# Chien de garde global (au cas où le scénario lui-même planterait).
+	get_tree().create_timer(300.0, true, false, true).timeout.connect(func():
+		fail("chien de garde global")
+		finish())
 	_run.call_deferred()
 
 
@@ -36,7 +40,12 @@ func _run() -> void:
 		fail("scénario introuvable : " + path)
 		finish()
 		return
-	var sc: AutotestScenario = load(path).new()
+	var script: GDScript = load(path)
+	if script == null or not script.can_instantiate():
+		fail("le scénario ne compile pas : " + path)
+		finish()
+		return
+	var sc: AutotestScenario = script.new()
 	sc.at = self
 	# Filet de sécurité : un scénario bloqué ne doit jamais geler la CI.
 	get_tree().create_timer(sc.timeout_sec, true, false, true).timeout.connect(func():

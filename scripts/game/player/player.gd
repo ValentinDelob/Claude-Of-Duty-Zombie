@@ -59,6 +59,9 @@ var downed := false
 var stamina := SPRINT_DURATION
 var sprint_duration_bonus := 0.0
 var speed_multiplier := 1.0
+## Ignoré par les zombies (téléportation, cinématique...).
+var untargetable := false
+var _flinch := Vector2.ZERO
 
 var head: Node3D
 var camera: Camera3D
@@ -134,6 +137,11 @@ func _physics_process(delta: float) -> void:
 # --------------------------------------------------------------------------
 
 func _local_physics(delta: float) -> void:
+	if not input_enabled:
+		input = PlayerInput.new()
+		_move(delta)
+		_update_camera_effects(delta)
+		return
 	if not bot_controlled:
 		if input_enabled and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 			input.read_devices()
@@ -264,6 +272,8 @@ func _update_camera_effects(delta: float) -> void:
 	else:
 		_bob_t = lerpf(_bob_t, 0.0, delta * 4.0)
 	head.position = Vector3(bob_offset.x, _eye_height + bob_offset.y, 0.0)
+	_flinch = _flinch.lerp(Vector2.ZERO, 1.0 - exp(-delta * 9.0))
+	camera.rotation = Vector3(_flinch.y, 0.0, _flinch.x)
 	var base_fov := Settings.fov
 	var target_fov := base_fov
 	if aiming:
@@ -370,3 +380,33 @@ func _build_placeholder_body() -> Node3D:
 	headm.material_override = mat
 	root.add_child(headm)
 	return root
+
+
+## Secousse de caméra quand on est frappé (joueur local).
+func flinch(from: Vector3) -> void:
+	var to := (from - global_position)
+	var side := signf(to.dot(global_transform.basis.x))
+	_flinch = Vector2(side * 0.06, 0.05)
+
+
+## Mort du joueur (toutes les machines) : plus de contrôle, caméra au sol.
+func set_dead(dead: bool) -> void:
+	input_enabled = not dead
+	untargetable = dead
+	if dead:
+		input = PlayerInput.new()
+		velocity = Vector3.ZERO
+		var tw := create_tween().set_parallel(true)
+		tw.tween_property(self, "_eye_height", 0.25, 0.9).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+		tw.tween_property(camera, "rotation:z", 0.9, 0.9)
+		if weapons:
+			weapons.view.visible = false
+		if not is_local:
+			visual.rotation.x = -PI * 0.5
+			visual.position.y = 0.3
+	else:
+		camera.rotation = Vector3.ZERO
+		if weapons:
+			weapons.view.visible = true
+		visual.rotation.x = 0.0
+		visual.position.y = 0.0

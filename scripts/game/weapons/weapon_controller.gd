@@ -192,8 +192,9 @@ func _trace(origin: Vector3, dir: Vector3, pen: int, impacts: PackedVector3Array
 			return
 		var col: Object = r.collider
 		if col is Area3D and col.has_meta("zombie_id"):
-			hits.append([int(col.get_meta("zombie_id")), int(col.get_meta("zone", 0)), origin.distance_to(r.position)])
+			hits.append([int(col.get_meta("zombie_id")), int(col.get_meta("zone", 0)), origin.distance_to(r.position), r.position])
 			fx.blood_hit(r.position, dir, 0.6)
+			Game.instance.hud.hit_marker(false, int(col.get_meta("zone", 0)) == 1)
 			exclude.append(r.rid)
 			# Les autres hitboxes du même zombie ne comptent pas deux fois.
 			for sib in col.get_parent().get_children():

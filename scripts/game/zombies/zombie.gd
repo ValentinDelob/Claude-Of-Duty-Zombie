@@ -18,6 +18,9 @@ const ATTACK_RANGE := 1.25
 const ATTACK_TIME := 0.9
 ## En dessous de cette distance, poursuite directe si la ligne de vue est dégagée.
 const DIRECT_RANGE := 12.0
+const ATTACK_HIT_TIME := 0.42
+const DISSOLVE_DELAY := 2.4
+const DISSOLVE_TIME := 1.4
 
 var id := 0
 var variant := 0
@@ -35,6 +38,9 @@ var _path_i := 0
 var _repath_t := 0.0
 var _stuck_t := 0.0
 var _stuck_pos := Vector3.ZERO
+var _attack_hit_done := false
+var _groan_t := 0.0
+var _headless := false
 
 ## Animation (lue sur toutes les machines).
 var anim_speed := 0.0      # vitesse horizontale actuelle (m/s)
@@ -158,7 +164,7 @@ func _chase(delta: float) -> void:
 	if game == null or game.nav == null:
 		return
 	_repath_t -= delta
-	if _repath_t <= 0.0 or target == null or not is_instance_valid(target):
+	if _repath_t <= 0.0 or target == null or not is_instance_valid(target) or not _is_target_valid(target):
 		target = _nearest_player()
 	var desired := Vector3.ZERO
 	if target:
@@ -232,6 +238,7 @@ func _check_stuck(delta: float) -> void:
 
 func _start_attack() -> void:
 	_set_state(State.ATTACK)
+	_attack_hit_done = false
 	velocity.x = 0.0
 	velocity.z = 0.0
 	play_attack()
@@ -244,8 +251,20 @@ func _attack(delta: float) -> void:
 		var to := target.global_position - global_position
 		yaw = lerp_angle(yaw, atan2(to.x, to.z), 1.0 - exp(-delta * 10.0))
 		rotation.y = yaw
+	if not _attack_hit_done and _state_time >= ATTACK_HIT_TIME:
+		_attack_hit_done = true
+		if target and is_instance_valid(target) and _is_target_valid(target):
+			var d := target.global_position - global_position
+			d.y = 0.0
+			if d.length() < ATTACK_RANGE + 0.45:
+				Game.instance.combat.damage_player(target.peer_id, Combat.ZOMBIE_DAMAGE, global_position + Vector3.UP * 1.2)
 	if _state_time >= ATTACK_TIME:
 		_set_state(State.CHASE)
+
+
+func _is_target_valid(p: Player) -> bool:
+	var pd := Game.instance.session.get_data(p.peer_id)
+	return pd != null and pd.life == PlayerData.Life.ALIVE and not p.untargetable
 
 
 func _nearest_player() -> Player:
@@ -253,7 +272,9 @@ func _nearest_player() -> Player:
 	var best_d := INF
 	if Game.instance == null:
 		return null
-	for p in Game.instance.players.values():
+	for p: Player in Game.instance.players.values():
+		if not _is_target_valid(p):
+			continue
 		var d: float = p.global_position.distance_squared_to(global_position)
 		if d < best_d:
 			best_d = d
@@ -313,10 +334,13 @@ func _interpolate() -> void:
 # --------------------------------------------------------------------------
 
 func _process(delta: float) -> void:
-	if not server_side and state != State.DEAD:
+	if state == State.DEAD:
+		_process_death(delta)
+		return
+	if not server_side:
 		_interpolate()
-	if server_side == false:
 		_state_time += delta
+	_groan(delta)
 	_update_pose(delta)
 	if _flash > 0.0:
 		_flash = maxf(_flash - delta * 6.0, 0.0)
@@ -329,6 +353,38 @@ func flash_hit() -> void:
 
 func play_attack() -> void:
 	_attack_t = 0.0
+	Audio.play_3d("zombie_attack_%d" % (1 + randi() % 3), global_position + Vector3.UP * 1.5, 0.0, 0.1, 3)
+
+
+func head_position() -> Vector3:
+	return hit_head.global_position
+
+
+## Mort (toutes les machines). `dir` : direction du coup fatal.
+func die(dir: Vector3, headshot: bool) -> void:
+	if state == State.DEAD:
+		return
+	state = State.DEAD
+	_state_time = 0.0
+	_death_t = 0.0
+	var fwd := Vector3(sin(yaw), 0.0, cos(yaw))
+	_death_dir = 1.0 if fwd.dot(dir) > 0.0 else -1.0
+	collision_layer = 0
+	collision_mask = 1
+	hit_body.collision_layer = 0
+	hit_head.collision_layer = 0
+	velocity = Vector3.ZERO
+	set_physics_process(false)
+	_snapshots.clear()
+	if headshot:
+		_headless = true
+		skel.set_bone_pose_scale(bones.head, Vector3.ONE * 0.001)
+		var neck := skel.global_transform * skel.get_bone_global_pose(bones.neck).origin
+		var fx: Fx = Game.instance.fx_root
+		fx.blood_hit(neck, Vector3.UP, 3.0)
+		Audio.play_3d("headshot", neck, 0.0, 0.08)
+	else:
+		Audio.play_3d("zombie_death_%d" % (1 + randi() % 3), global_position + Vector3.UP * 1.4, -2.0, 0.1, 3)
 
 
 func _q(x: float, y := 0.0, z := 0.0) -> Quaternion:
@@ -389,3 +445,39 @@ func _update_pose(delta: float) -> void:
 	skel.set_bone_pose_rotation(bones.arm_r, _q(arm_r, 0.0, 0.15))
 	skel.set_bone_pose_rotation(bones.forearm_l, _q(fore + c * 0.1))
 	skel.set_bone_pose_rotation(bones.forearm_r, _q(fore - c * 0.1))
+
+
+## Grognements d'ambiance (cosmétique, non synchronisé).
+func _groan(delta: float) -> void:
+	_groan_t -= delta
+	if _groan_t > 0.0:
+		return
+	_groan_t = randf_range(3.5, 9.0)
+	if state == State.EMERGE:
+		Audio.play_3d("emerge", global_position, -4.0, 0.1, 2)
+		return
+	var sound := "zombie_sprint_%d" % (1 + randi() % 2) if speed_class >= 2 else "zombie_groan_%d" % (1 + randi() % 5)
+	Audio.play_3d(sound, global_position + Vector3.UP * 1.5, -5.0, 0.12, 3)
+
+
+## Chute, puis dissolution. Le nœud est libéré par ZombieManager (despawn).
+func _process_death(delta: float) -> void:
+	var before := _death_t
+	_death_t += delta
+	var k := ease(clampf(_death_t / 0.65, 0.0, 1.0), 0.4)
+	skel.rotation.x = _death_dir * k * PI * 0.47
+	skel.position.y = -k * 0.08
+	# Membres qui retombent mollement.
+	for b in ["arm_l", "arm_r"]:
+		var q := skel.get_bone_pose_rotation(bones[b])
+		skel.set_bone_pose_rotation(bones[b], q.slerp(_q(-0.4 * _death_dir), minf(delta * 5.0, 1.0)))
+	for b in ["thigh_l", "thigh_r", "shin_l", "shin_r", "spine", "chest"]:
+		var q2 := skel.get_bone_pose_rotation(bones[b])
+		skel.set_bone_pose_rotation(bones[b], q2.slerp(Quaternion.IDENTITY, minf(delta * 4.0, 1.0)))
+	if before < 0.6 and _death_t >= 0.6:
+		Audio.play_3d("body_fall", global_position, -6.0, 0.1, 3)
+		if Game.instance:
+			Game.instance.fx_root.blood_decal(global_position + Vector3.UP * 0.1 + Vector3(sin(yaw), 0, cos(yaw)) * _death_dir * 0.8, Vector3.UP, randf_range(0.8, 1.4))
+	if _death_t > DISSOLVE_DELAY:
+		mesh.set_instance_shader_parameter("dissolve", clampf((_death_t - DISSOLVE_DELAY) / DISSOLVE_TIME, 0.0, 1.0))
+		mesh.set_instance_shader_parameter("eye_glow", 0.0)

@@ -7,6 +7,7 @@ func run() -> void:
 		return
 	var game := Game.instance
 	var zm := game.zombies
+	game.combat.debug_invulnerable = true
 	p.teleport_to(MapData.cell_to_world(Vector2i(12, 3), 0.05), 0.0)
 	await until(func(): return zm.zombies.size() > 0, 6.0, "premier zombie")
 	var z: Zombie = zm.zombies.values()[0]

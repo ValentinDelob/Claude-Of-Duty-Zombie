@@ -46,6 +46,7 @@ func _ready() -> void:
 	Net.session_ended.connect(_on_session_ended)
 	if multiplayer.is_server():
 		Net.all_loaded.connect(_on_all_loaded)
+		combat.player_fell.connect(_on_player_fell)
 	Net.report_loaded()
 
 
@@ -161,3 +162,64 @@ func _process(delta: float) -> void:
 		return
 	var c: Vector2i = spots[randi() % spots.size()]
 	zombies.spawn(MapData.cell_to_world(c, 0.0), randi() % 2, 150)
+
+
+# --------------------------------------------------------------------------
+# Mort des joueurs et fin de partie
+# --------------------------------------------------------------------------
+
+const GAME_OVER_DELAY := 9.0
+
+
+## Serveur : un joueur est tombé à 0 PV.
+func _on_player_fell(pid: int) -> void:
+	var pd := session.get_data(pid)
+	if pd == null:
+		return
+	pd.life = PlayerData.Life.DEAD
+	pd.downs += 1
+	session.sync_stats(pid)
+	_cl_player_died.rpc(pid)
+	check_game_over()
+
+
+## Serveur : fin de partie si plus aucun joueur n'est debout.
+func check_game_over() -> void:
+	if not multiplayer.is_server() or GameState.state == GameState.State.GAME_OVER:
+		return
+	for pd: PlayerData in session.data.values():
+		if pd.life == PlayerData.Life.ALIVE:
+			return
+	print("[Game] tous les joueurs sont tombés : GAME OVER")
+	_cl_game_over.rpc(game_over_summary())
+
+
+func game_over_summary() -> String:
+	var kills := 0
+	for pd: PlayerData in session.data.values():
+		kills += pd.kills
+	return "%d zombies abattus" % kills
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_player_died(pid: int) -> void:
+	var p: Player = players.get(pid)
+	if p:
+		p.set_dead(true)
+	if pid == multiplayer.get_unique_id():
+		hud.show_center("VOUS ÊTES MORT", "", 0.35)
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_game_over(summary: String) -> void:
+	if GameState.state != GameState.State.GAME_OVER:
+		GameState.set_state(GameState.State.GAME_OVER)
+	hud.show_center("GAME OVER", summary, 0.6)
+	Audio.play_2d("heartbeat", 0.0, 0.0)
+	# Le serveur part en dernier pour que les clients ne voient pas « connexion perdue ».
+	var delay := GAME_OVER_DELAY + (0.8 if multiplayer.is_server() else 0.0)
+	get_tree().create_timer(delay).timeout.connect(_leave_after_game_over.bind(summary))
+
+
+func _leave_after_game_over(summary: String) -> void:
+	Router.back_to_menu("Partie terminée — " + summary)

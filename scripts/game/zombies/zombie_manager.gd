@@ -14,6 +14,7 @@ const Y_OFFSET := 20.0
 
 signal zombie_spawned(z: Zombie)
 signal zombie_removed(zid: int)
+signal zombie_killed(zid: int)
 
 var zombies: Dictionary = {}  # id -> Zombie
 ## Zombies vivants (liste tenue à jour, sans allocation pour les parcours).
@@ -53,6 +54,17 @@ func spawn(pos: Vector3, speed_class: int, health: int) -> int:
 		z.health = health
 		z.max_health = health
 	return zid
+
+
+## Serveur : tue un zombie (dégâts déjà validés par Combat).
+func kill(zid: int, headshot: bool, dir: Vector3, _gib := false) -> void:
+	var z: Zombie = zombies.get(zid)
+	if not multiplayer.is_server() or z == null or not z.is_alive():
+		return
+	_cl_die.rpc(zid, headshot, dir)
+	zombie_killed.emit(zid)
+	# Le corps reste le temps de la chute et de la dissolution.
+	get_tree().create_timer(Zombie.DISSOLVE_DELAY + Zombie.DISSOLVE_TIME + 0.3).timeout.connect(despawn.bind(zid))
 
 
 func despawn(zid: int) -> void:
@@ -106,6 +118,15 @@ func _cl_spawn(zid: int, pos: Vector3, yaw: float, variant: int, speed_class: in
 	zombies[zid] = z
 	alive.append(z)
 	zombie_spawned.emit(z)
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_die(zid: int, headshot: bool, dir: Vector3) -> void:
+	var z: Zombie = zombies.get(zid)
+	if z == null:
+		return
+	alive.erase(z)
+	z.die(dir, headshot)
 
 
 @rpc("authority", "call_local", "reliable")

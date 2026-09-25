@@ -235,3 +235,13 @@ static func blood_splat_texture(variant: int) -> Texture2D:
 	var tex := ImageTexture.create_from_image(img)
 	_tex_cache[key] = tex
 	return tex
+
+
+## Explosion (arme spéciale, pièges...).
+func explosion(pos: Vector3, radius: float) -> void:
+	sparks.burst(pos, Vector3.UP, 26, 7.0, 1.0, 0.6, Color(1.0, 0.5, 0.15, 0.9), 1.6)
+	dust.burst(pos, Vector3.UP, 12, 2.0, 1.0, 1.4, Color(0.3, 0.28, 0.25, 0.5), 2.5)
+	_flash.global_position = pos + Vector3.UP * 0.5
+	_flash.omni_range = radius * 4.0
+	_flash_t = 0.12
+	Audio.play_3d("shotgun_fire", pos, 2.0, 0.2)
