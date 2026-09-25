@@ -583,3 +583,31 @@ func gen_zap() -> void:
 		b[i] *= 1.0 if (i / 300) % 2 == 0 else 0.3
 	s.mix(b, s.env_exp(s.sweep(0.3, 900.0, 100.0, "square"), 0.001, 0.08), 0.0, 0.4)
 	_save("zap", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.8))
+
+
+# ---------------------------------------------------------------- interface
+
+func gen_ui_move() -> void:
+	# Cliquetis de relais + souffle radio.
+	var b := s.env_exp(s.bandpass(s.noise(0.08), 2800.0, 4.0), 0.0005, 0.01)
+	s.mix(b, s.env_exp(s.tone(0.08, 180.0, "square"), 0.001, 0.015), 0.0, 0.15)
+	_save("ui_move", s.finish(s.reverb(b, 0.4, 0.2, 0.3), 0.5))
+
+
+func gen_ui_select() -> void:
+	# Coup sourd métallique + queue grave.
+	var b := _clank(220.0, 0.2, 0.8)
+	s.mix(b, s.env_exp(s.sweep(0.5, 90.0, 45.0), 0.002, 0.18), 0.0, 1.0)
+	_save("ui_select", s.finish(s.reverb(b, 0.8, 0.35, 1.0), 0.85))
+
+
+func gen_ui_back() -> void:
+	var b := s.env_exp(s.sweep(0.25, 400.0, 150.0, "tri"), 0.002, 0.06)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.1), 1500.0, 2.0), 0.001, 0.02), 0.0, 0.4)
+	_save("ui_back", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.6))
+
+
+func gen_ui_error() -> void:
+	var b := s.env_adsr(s.lowpass(s.tone(0.6, 82.0, "saw"), 600.0), 0.01, 0.1, 0.7, 0.3)
+	s.mix(b, s.env_adsr(s.lowpass(s.tone(0.6, 87.0, "saw"), 600.0), 0.01, 0.1, 0.7, 0.3), 0.0, 0.8)
+	_save("ui_error", s.finish(s.reverb(b, 0.7, 0.3, 0.8), 0.7))

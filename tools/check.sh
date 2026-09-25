@@ -11,7 +11,7 @@ GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
 FAIL=0
 # Tous les scénarios de tests/autotest/ (hors fichiers utilitaires).
-ALL=$(ls tests/autotest/*.gd | xargs -n1 basename | sed 's/\.gd$//' | grep -vE '^(scenario|helpers)$' | tr '\n' ' ')
+ALL=$(ls tests/autotest/*.gd | xargs -n1 basename | sed 's/\.gd$//' | grep -vE '^(scenario|helpers|mp_.*)$' | tr '\n' ' ')
 SCENARIOS=${SCENARIOS:-$ALL}
 
 echo "== import"
@@ -55,6 +55,17 @@ while [ $# -gt 0 ]; do
     if grep -E "SCRIPT ERROR|ERROR:" "$OUT/run_$S.log"; then FAIL=1; fi
   done
 done
+
+# Tests multijoueur (paires hôte/client dans deux fenêtres).
+if [ "$1" != "--fast" ] && [ -z "$SCENARIOS_ONLY" ]; then
+  for H in tests/autotest/mp_*_host.gd; do
+    [ -f "$H" ] || continue
+    N=$(basename "$H" | sed 's/^mp_//; s/_host.gd$//')
+    echo "== multijoueur $N"
+    sh tools/mp_test.sh "$N" > "$OUT/mp_$N.log" 2>&1 || { FAIL=1; cat "$OUT/mp_$N.log"; }
+    grep -E "fin :" "$OUT/mp_$N.log"
+  done
+fi
 
 [ $FAIL -eq 0 ] && echo "== CHECK OK" || echo "== CHECK ECHEC"
 exit $FAIL

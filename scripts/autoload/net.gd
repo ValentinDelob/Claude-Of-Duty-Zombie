@@ -221,16 +221,21 @@ static func local_ipv4_addresses() -> PackedStringArray:
 	for a in IP.get_local_addresses():
 		if is_valid_ipv4(a) and not a.begins_with("127.") and not a.begins_with("169.254."):
 			out.append(a)
-	# Les réseaux privés classiques en premier.
-	var priv := PackedStringArray()
-	var other := PackedStringArray()
-	for a in out:
-		if a.begins_with("192.168.") or a.begins_with("10.") or _is_172_private(a):
-			priv.append(a)
-		else:
-			other.append(a)
-	priv.append_array(other)
-	return priv
+	# Box domestique (192.168.x) d'abord, puis 10.x, puis 172.16-31 (souvent
+	# des cartes virtuelles : WSL, Hyper-V, VPN), puis le reste.
+	var ranked := PackedStringArray()
+	for pass_i in 4:
+		for a in out:
+			var rank := 3
+			if a.begins_with("192.168."):
+				rank = 0
+			elif a.begins_with("10."):
+				rank = 1
+			elif _is_172_private(a):
+				rank = 2
+			if rank == pass_i:
+				ranked.append(a)
+	return ranked
 
 
 static func is_valid_ipv4(address: String) -> bool:
