@@ -17,10 +17,30 @@ run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+GameState="*res://scripts/autoload/game_state.gd"
+Settings="*res://scripts/autoload/settings.gd"
+Net="*res://scripts/autoload/net.gd"
+Autotest="*res://scripts/autoload/autotest.gd"
+
 [display]
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
+
+[layer_names]
+
+3d_physics/layer_1="world"
+3d_physics/layer_2="players"
+3d_physics/layer_3="zombies"
+3d_physics/layer_4="hitboxes"
+3d_physics/layer_5="interactables"
+3d_physics/layer_6="triggers"
+
+[physics]
+
+common/physics_ticks_per_second=60
 
 [rendering]
 
