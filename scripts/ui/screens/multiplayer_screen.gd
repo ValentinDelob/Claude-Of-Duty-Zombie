@@ -12,8 +12,7 @@ func enter(_args := {}) -> void:
 	col.add_child(text("", 10))
 	var host := button("HÉBERGER UNE PARTIE", func(): menu.show_screen("host"))
 	col.add_child(host)
-	if menu.SCREENS.has("join"):
-		col.add_child(button("REJOINDRE UNE PARTIE", func(): menu.show_screen("join")))
+	col.add_child(button("REJOINDRE UNE PARTIE", func(): menu.show_screen("join")))
 	col.add_child(button("RETOUR", back))
 	host.grab_focus.call_deferred()
 

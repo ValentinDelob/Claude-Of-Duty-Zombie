@@ -8,6 +8,8 @@ const SCREENS := {
 	"multiplayer": "res://scripts/ui/screens/multiplayer_screen.gd",
 	"host": "res://scripts/ui/screens/host_screen.gd",
 	"lobby": "res://scripts/ui/screens/lobby_screen.gd",
+	"join": "res://scripts/ui/screens/join_screen.gd",
+	"connecting": "res://scripts/ui/screens/connecting_screen.gd",
 	"message": "res://scripts/ui/screens/message_screen.gd",
 }
 
@@ -75,7 +77,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_connection_error(t: String, m: String) -> void:
 	if GameState.state == GameState.State.CONNECTING:
 		GameState.set_state(GameState.State.MAIN_MENU)
-	show_message(t, m, "multiplayer")
+	show_message(t, m, "join" if current_name == "connecting" else "multiplayer")
 
 
 func _on_session_ended(reason: String) -> void:
