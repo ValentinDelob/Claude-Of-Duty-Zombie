@@ -555,3 +555,31 @@ func gen_tele_warp() -> void:
 	s.mix(b, s.env_exp(s.lowpass(s.noise(1.0), 1200.0), 0.002, 0.25), 0.0, 0.8)
 	s.mix(b, _timpani(45.0), 0.05, 1.0)
 	_save("tele_warp", s.finish(s.reverb(b, 0.9, 0.35, 1.2), 0.9))
+
+
+# ---------------------------------------------------------------- piège
+
+func gen_trap_hum() -> void:
+	# Boucle de 2 s : bourdonnement 50 Hz saturé + crépitements.
+	var dur := 2.0
+	var b := s.tone(dur, 50.0, "square")
+	s.mix(b, s.tone(dur, 100.0, "saw"), 0.0, 0.5)
+	b = s.drive(s.lowpass(b, 1200.0), 3.0)
+	b = s.gain(b, 0.5)
+	var crackle := s.highpass(s.noise(dur), 2500.0)
+	for i in crackle.size():
+		crackle[i] *= 1.0 if s.rng.randf() < 0.04 else 0.05
+	s.mix(b, crackle, 0.0, 0.6)
+	var m := 0.0001
+	for v in b:
+		m = maxf(m, absf(v))
+	b.resize(int(dur * Synth.RATE))
+	_save("trap_hum", s.gain(b, 0.7 / m), true)
+
+
+func gen_zap() -> void:
+	var b := s.env_exp(s.highpass(s.noise(0.4), 2000.0), 0.001, 0.08)
+	for i in b.size():
+		b[i] *= 1.0 if (i / 300) % 2 == 0 else 0.3
+	s.mix(b, s.env_exp(s.sweep(0.3, 900.0, 100.0, "square"), 0.001, 0.08), 0.0, 0.4)
+	_save("zap", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.8))

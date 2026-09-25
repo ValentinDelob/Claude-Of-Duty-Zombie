@@ -97,6 +97,7 @@ func _load_map(map_id: String) -> void:
 	_build_mystery_box()
 	_build_pack_a_punch()
 	_build_teleporter()
+	_build_traps()
 	print("[Game] carte « %s » construite (%dx%d)" % [map_def.display_name, map_data.width, map_data.height])
 
 
@@ -394,3 +395,14 @@ func _cl_teleport(pid: int, pos: Vector3, outbound: bool) -> void:
 	else:
 		p._snapshots.clear()
 		p.global_position = pos
+
+
+func _build_traps() -> void:
+	var lever: Array = map_data.markers.get("H", [])
+	var cells: Array = map_data.markers.get("E", [])
+	if lever.is_empty() or cells.is_empty():
+		return
+	var trap := ElectricTrap.new()
+	trap.setup(lever[0], cells, map_data)
+	interact.register(trap)
+	world.add_child(trap)
