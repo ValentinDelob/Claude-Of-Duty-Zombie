@@ -33,7 +33,7 @@ func run() -> void:
 	for id in game.doors:
 		game.doors[id].srv_open()
 	box = game.interact.get_obj("box")
-	at.check(box != null and box.location == 1, "boîte au laboratoire au départ")
+	at.check(box != null and box.location == 1, "boîte au quai au départ (emplacement 1)")
 	await face_box()
 	at.check(game.hud._prompt.text.contains("950"), "invite : %s" % game.hud._prompt.text)
 	await press()

@@ -503,3 +503,34 @@ func gen_ray_fire() -> void:
 	s.mix(b, fizz, 0.0, 0.4)
 	b = s.lowpass(b, 6000.0)
 	_save("ray_fire", s.finish(s.reverb(b, 0.6, 0.25, 0.6), 0.85))
+
+
+# ---------------------------------------------------------------- Pack-a-Punch
+
+## Chœur sombre : voyelles « aah » sur un accord (pulsations de voix).
+func _choir(seconds: float, freqs: Array) -> PackedFloat32Array:
+	var b := s.buf(seconds)
+	for f in freqs:
+		var v := _growl(seconds, f, f, [700.0, 1100.0], 0.05)
+		s.mix(b, v, 0.0, 0.25)
+	return s.env_adsr(s.lowpass(b, 2500.0), seconds * 0.3, 0.3, 0.8, seconds * 0.3)
+
+
+func gen_pap_forge() -> void:
+	# Machinerie : martèlement, arcs électriques, chœur qui monte (4 s).
+	var dur := 4.0
+	var b := _choir(dur, [110.0, 130.8, 164.8])
+	for k in 8:
+		s.mix(b, _clank(180.0 + s.rng.randf() * 80.0, 0.25, 1.0), 0.2 + k * 0.45, 0.7)
+	var arc := s.env_adsr(s.highpass(s.noise(dur), 3500.0), 0.5, 0.5, 0.4, 0.5)
+	for i in arc.size():
+		arc[i] *= 1.0 if (i / 900) % 3 == 0 else 0.1
+	s.mix(b, arc, 0.0, 0.25)
+	_save("pap_forge", s.finish(s.reverb(b, 0.9, 0.35, 1.5), 0.9, 0.2))
+
+
+func gen_pap_ready() -> void:
+	var b := _bell(3.0, 110.0)
+	s.mix(b, _choir(2.5, [220.0, 277.2, 329.6]), 0.0, 0.9)
+	s.mix(b, _timpani(55.0), 0.0, 1.0)
+	_save("pap_ready", s.finish(s.reverb(b, 0.9, 0.35, 1.8), 0.9, 0.3))

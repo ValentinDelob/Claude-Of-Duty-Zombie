@@ -94,6 +94,7 @@ func _load_map(map_id: String) -> void:
 	_build_power()
 	_build_perk_machines()
 	_build_mystery_box()
+	_build_pack_a_punch()
 	print("[Game] carte « %s » construite (%dx%d)" % [map_def.display_name, map_data.width, map_data.height])
 
 
@@ -345,3 +346,15 @@ func _build_mystery_box() -> void:
 	if nav:
 		for c in cells:
 			nav.set_blocked(MysteryBox.spot_cells(c, map_data), true)
+
+
+func _build_pack_a_punch() -> void:
+	var cells: Array = map_data.markers.get("K", [])
+	if cells.is_empty():
+		return
+	var pap := PackAPunch.new()
+	pap.setup(cells[0], map_data)
+	interact.register(pap)
+	world.add_child(pap)
+	if nav:
+		nav.set_blocked(MysteryBox.spot_cells(cells[0], map_data), true)

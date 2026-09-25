@@ -70,7 +70,7 @@ func _throttled(sound: String, max_per_100ms: int) -> bool:
 	return entry[1] > max_per_100ms
 
 
-func play_3d(sound: String, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.06, max_per_100ms := 6) -> void:
+func play_3d(sound: String, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.06, max_per_100ms := 6, pitch := 1.0) -> void:
 	var st := get_stream(sound)
 	if st == null or _throttled(sound, max_per_100ms):
 		return
@@ -79,12 +79,12 @@ func play_3d(sound: String, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.06
 	p.stream = st
 	p.global_position = pos
 	p.volume_db = volume_db
-	p.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
+	p.pitch_scale = pitch * (1.0 + randf_range(-pitch_jitter, pitch_jitter))
 	p.play()
 
 
 ## Son non spatialisé (arme du joueur local, interface...).
-func play_2d(sound: String, volume_db := 0.0, pitch_jitter := 0.04, bus := "SFX") -> void:
+func play_2d(sound: String, volume_db := 0.0, pitch_jitter := 0.04, bus := "SFX", pitch := 1.0) -> void:
 	var st := get_stream(sound)
 	if st == null or _throttled(sound, 8):
 		return
@@ -93,7 +93,7 @@ func play_2d(sound: String, volume_db := 0.0, pitch_jitter := 0.04, bus := "SFX"
 	p.stream = st
 	p.bus = bus
 	p.volume_db = volume_db
-	p.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
+	p.pitch_scale = pitch * (1.0 + randf_range(-pitch_jitter, pitch_jitter))
 	p.play()
 
 

@@ -243,7 +243,7 @@ func _cl_shot_fx(pid: int, weapon_id: String, pap: bool, origin: Vector3, impact
 		return
 	var fx: Fx = game.fx_root
 	var s := WeaponDB.stats(weapon_id, pap)
-	Audio.play_3d(s.sound, origin, 0.0, 0.05, 8)
+	Audio.play_3d(s.sound, origin, 0.0, 0.05, 8, s.get("sound_pitch", 0.8 if pap else 1.0))
 	fx.muzzle_flash(origin)
 	for i in range(0, impacts.size() - 1, 2):
 		fx.tracer(origin, impacts[i])

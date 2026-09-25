@@ -23,8 +23,10 @@ float hash3(vec3 p) {
 
 void vertex() {
 	obj_pos = VERTEX;
+	// POSITION doit être écrit dans TOUS les cas : dès qu'un shader l'écrit,
+	// Godot n'applique plus la projection par défaut.
+	POSITION = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	if (viewmodel > 0.5) {
-		POSITION = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 		POSITION.z = mix(POSITION.z, POSITION.w, 0.92);
 	}
 }

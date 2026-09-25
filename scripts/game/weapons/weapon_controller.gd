@@ -55,7 +55,10 @@ func _on_inventory_changed(pid: int) -> void:
 	weapons = pd.weapons.duplicate(true)
 	slot = pd.slot
 	var w := current()
+	# Mains vides (arme déposée dans le Pack-a-Punch...).
+	view.visible = not w.is_empty()
 	if w.is_empty():
+		ammo_changed.emit()
 		return
 	if w.id != old_id or w.pap != old_pap:
 		if old_id == "":
@@ -164,7 +167,7 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 
 	# Effets locaux immédiats
 	var muzzle := view.muzzle_global()
-	Audio.play_2d(s.sound, -1.0, 0.05)
+	Audio.play_2d(s.sound, -1.0, 0.05, "SFX", s.get("sound_pitch", 0.8 if w.pap else 1.0))
 	view.fire_kick(s.recoil)
 	var tracer_col := Color(1.0, 0.45, 0.1, 1.0) if s.get("tracer", "") == "ray" else Color(1.0, 0.8, 0.5, 0.7)
 	var ray_end: Vector3 = impacts[0] if impacts.size() >= 2 else (hits[0][3] if not hits.is_empty() else origin + fwd * 40.0)
