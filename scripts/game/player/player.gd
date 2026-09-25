@@ -65,7 +65,12 @@ var _flinch := Vector2.ZERO
 
 var head: Node3D
 var camera: Camera3D
-var visual: Node3D
+var visual: PlayerModel
+var name_tag: Label3D
+var dead := false
+var _remote_speed := 0.0
+var _last_remote_pos := Vector3.ZERO
+var _remote_step := 0.0
 var _collision: CollisionShape3D
 var _capsule: CapsuleShape3D
 var _eye_height := EYE_HEIGHT
@@ -108,12 +113,27 @@ func _ready() -> void:
 	camera.fov = Settings.fov
 	head.add_child(camera)
 
-	visual = _build_placeholder_body()
+	visual = PlayerModel.new()
+	visual.name = "Visual"
+	visual.build(ScorePanel.slot_color(Net.player_slot(peer_id)))
 	add_child(visual)
+	name_tag = Label3D.new()
+	name_tag.text = Net.player_name(peer_id)
+	name_tag.font = UiStyle.font("impact")
+	name_tag.font_size = 40
+	name_tag.pixel_size = 0.0035
+	name_tag.outline_size = 10
+	name_tag.modulate = ScorePanel.slot_color(Net.player_slot(peer_id))
+	name_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	name_tag.fixed_size = false
+	name_tag.position.y = 2.15
+	add_child(name_tag)
 
 	if is_local:
 		camera.current = true
 		visual.visible = false
+		name_tag.visible = false
+		footstep.connect(func(): Audio.play_2d("footstep_%d" % (1 + randi() % 4), -14.0, 0.1))
 	else:
 		camera.current = false
 
@@ -130,6 +150,7 @@ func _physics_process(delta: float) -> void:
 		_local_physics(delta)
 	else:
 		_remote_interpolate()
+		visual.animate(delta, _remote_speed, pitch, _net_flags, false, dead)
 
 
 # --------------------------------------------------------------------------
@@ -351,47 +372,20 @@ func _apply_remote(pos: Vector3, r_yaw: float, r_pitch: float, flags: int) -> vo
 	sprinting = flags & FLAG_SPRINT != 0
 	aiming = flags & FLAG_AIM != 0
 	head.position.y = CROUCH_EYE_HEIGHT if crouching else EYE_HEIGHT
+	# Vitesse estimée (animation, pas) à partir des positions interpolées.
+	var dt := get_physics_process_delta_time()
+	var moved := Vector2(pos.x - _last_remote_pos.x, pos.z - _last_remote_pos.z).length()
+	_last_remote_pos = pos
+	if moved < 3.0:
+		_remote_speed = lerpf(_remote_speed, moved / dt, 0.25)
+		_remote_step += moved
+		if _remote_step > (2.7 if sprinting else 2.2) and flags & FLAG_GROUNDED != 0:
+			_remote_step = 0.0
+			Audio.play_3d("footstep_%d" % (1 + randi() % 4), pos, -8.0, 0.1, 6)
 
 
 func net_flags() -> int:
 	return _net_flags
-
-
-# --------------------------------------------------------------------------
-# Visuel provisoire (remplacé par le modèle low-poly plus tard)
-# --------------------------------------------------------------------------
-
-static var _placeholder_mat: StandardMaterial3D
-
-
-## Matériau partagé (créé une seule fois, préchauffé pendant le chargement).
-static func placeholder_material() -> StandardMaterial3D:
-	if _placeholder_mat == null:
-		_placeholder_mat = StandardMaterial3D.new()
-		_placeholder_mat.albedo_color = Color(0.25, 0.28, 0.2)
-	return _placeholder_mat
-
-
-func _build_placeholder_body() -> Node3D:
-	var root := Node3D.new()
-	root.name = "Visual"
-	var mat := placeholder_material()
-	var torso := MeshInstance3D.new()
-	var cap := CapsuleMesh.new()
-	cap.radius = RADIUS
-	cap.height = STAND_HEIGHT - 0.3
-	torso.mesh = cap
-	torso.position.y = (STAND_HEIGHT - 0.3) * 0.5
-	torso.material_override = mat
-	root.add_child(torso)
-	var headm := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.28, 0.3, 0.3)
-	headm.mesh = box
-	headm.position.y = STAND_HEIGHT - 0.2
-	headm.material_override = mat
-	root.add_child(headm)
-	return root
 
 
 ## Secousse de caméra quand on est frappé (joueur local).
@@ -402,10 +396,10 @@ func flinch(from: Vector3) -> void:
 
 
 ## Mort du joueur (toutes les machines) : plus de contrôle, caméra au sol.
-func set_dead(dead: bool) -> void:
-	input_enabled = not dead
-	untargetable = dead
-	if dead:
+func set_dead(is_dead: bool) -> void:
+	input_enabled = not is_dead
+	untargetable = is_dead
+	if is_dead:
 		input = PlayerInput.new()
 		velocity = Vector3.ZERO
 		var tw := create_tween().set_parallel(true)

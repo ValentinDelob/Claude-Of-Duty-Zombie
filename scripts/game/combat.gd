@@ -36,6 +36,8 @@ signal shot_rejected(pid: int, reason: String)
 signal zombie_damaged(pid: int, zid: int, damage: int, killed: bool, headshot: bool, kind: HitKind)
 ## Serveur : un joueur a atteint 0 PV.
 signal player_fell(pid: int)
+## Toutes les machines : un autre joueur a tiré (effets reçus du serveur).
+signal remote_shot(pid: int)
 
 var game: Game
 var session: Session
@@ -243,6 +245,10 @@ func _cl_shot_fx(pid: int, weapon_id: String, pap: bool, origin: Vector3, impact
 		return
 	var fx: Fx = game.fx_root
 	var s := WeaponDB.stats(weapon_id, pap)
+	var shooter: Player = game.players.get(pid)
+	if shooter:
+		shooter.visual.fire_kick()
+	remote_shot.emit(pid)
 	Audio.play_3d(s.sound, origin, 0.0, 0.05, 8, s.get("sound_pitch", 0.8 if pap else 1.0))
 	fx.muzzle_flash(origin)
 	for i in range(0, impacts.size() - 1, 2):

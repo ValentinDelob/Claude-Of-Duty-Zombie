@@ -48,11 +48,11 @@ func _run(game: Game) -> void:
 		stage.add_child(mw)
 		x += 0.3
 	# Matériaux créés à l'apparition des joueurs.
-	var body := MeshInstance3D.new()
-	body.mesh = CapsuleMesh.new()
-	body.material_override = Player.placeholder_material()
-	body.position = Vector3(1.0, -0.5, 0)
+	var body := PlayerModel.new()
+	body.build(Color.RED)
+	body.position = Vector3(1.0, -1.2, -0.5)
 	stage.add_child(body)
+	body.set_weapon("assault", false)
 	# Effets.
 	var fx := game.fx_root
 	var p := stage.global_position

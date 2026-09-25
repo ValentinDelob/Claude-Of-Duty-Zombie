@@ -64,6 +64,7 @@ func _ready() -> void:
 	_load_map(Net.current_map if MAP_SCRIPTS.has(Net.current_map) else requested_map())
 	Net.player_left.connect(_on_player_left)
 	Net.session_ended.connect(_on_session_ended)
+	session.inventory_changed.connect(_refresh_remote_weapon)
 	if multiplayer.is_server():
 		Net.all_loaded.connect(_on_all_loaded)
 		combat.player_fell.connect(_on_player_fell)
@@ -144,6 +145,8 @@ func _spawn_player(pid: int, pos: Vector3) -> void:
 		p.add_child(p.weapons)
 		p.weapons.setup(p, self)
 		hud.bind_player(p)
+	if not p.is_local:
+		_refresh_remote_weapon(pid)
 	print("[Game] joueur %s (%d) apparu%s" % [Net.player_name(pid), pid, " (local)" if p.is_local else ""])
 
 
@@ -406,3 +409,13 @@ func _build_traps() -> void:
 	trap.setup(lever[0], cells, map_data)
 	interact.register(trap)
 	world.add_child(trap)
+
+
+## Arme tenue par un joueur distant (modèle 3e personne).
+func _refresh_remote_weapon(pid: int) -> void:
+	var p: Player = players.get(pid)
+	var pd := session.get_data(pid)
+	if p == null or p.is_local or pd == null:
+		return
+	var w := pd.current_weapon()
+	p.visual.set_weapon(w.get("id", ""), w.get("pap", false))

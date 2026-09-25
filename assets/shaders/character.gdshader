@@ -8,6 +8,7 @@ uniform vec4 emission_color : source_color = vec4(1.0, 0.55, 0.1, 1.0);
 uniform float emission_energy = 4.0;
 uniform float grime = 0.35;
 uniform float roughness = 0.85;
+uniform float stain_amount = 0.7;
 instance uniform float hit_flash = 0.0;
 instance uniform float dissolve = 0.0;
 instance uniform float eye_glow = 1.0;
@@ -46,7 +47,7 @@ void fragment() {
 	vec3 col = COLOR.rgb * (1.0 - grime + grime * n * 1.4);
 	// Taches sombres (sang séché / saleté).
 	float stain = smoothstep(0.62, 0.72, vnoise(local_pos * 6.0 + 11.0));
-	col = mix(col, col * vec3(0.35, 0.08, 0.06), stain * 0.7);
+	col = mix(col, col * vec3(0.35, 0.08, 0.06), stain * stain_amount);
 	float emissive = 1.0 - COLOR.a;
 	ALBEDO = mix(col, vec3(1.0, 0.2, 0.15), hit_flash * 0.6);
 	ROUGHNESS = roughness;

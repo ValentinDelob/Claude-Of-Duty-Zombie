@@ -78,8 +78,10 @@ static func _box(st: SurfaceTool, bone_xf: Transform3D, size: Vector3, center: V
 	]
 	var bones := PackedInt32Array([bone, 0, 0, 0])
 	var weights := PackedFloat32Array([1.0, 0.0, 0.0, 0.0])
-	# Couleur : RGB = albédo, A = masque d'émission (1 = pas d'émission).
-	var col := Color(color.r, color.g, color.b, 1.0 - emissive)
+	# Couleur : RGB = albédo (converti en linéaire : les couleurs sont pensées
+	# en sRGB), A = masque d'émission (1 = pas d'émission).
+	var lin := color.srgb_to_linear()
+	var col := Color(lin.r, lin.g, lin.b, 1.0 - emissive)
 	for f in faces:
 		var n: Vector3 = f[0]
 		var u: Vector3 = f[1]
