@@ -24,3 +24,6 @@ desktop.ini
 
 # Sorties de tests locales
 /tests/_out/
+
+# Outils locaux (worktrees des agents, réglages)
+.claude/

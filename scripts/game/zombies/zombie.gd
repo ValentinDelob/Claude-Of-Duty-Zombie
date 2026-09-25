@@ -55,6 +55,7 @@ var _death_dir := 1.0
 var _flash := 0.0
 var _head_tilt := 0.0
 var _snapshots: Array = []
+var _last_vel := Vector3.ZERO
 
 var skel: Skeleton3D
 var mesh: MeshInstance3D
@@ -304,6 +305,12 @@ func _set_state(s: State) -> void:
 # --------------------------------------------------------------------------
 
 func push_snapshot(t: float, pos: Vector3, net_yaw: float, code: int) -> void:
+	if not _snapshots.is_empty():
+		var prev: Array = _snapshots[_snapshots.size() - 1]
+		var dt: float = t - prev[0]
+		if dt > 0.001:
+			_last_vel = (pos - prev[1]) / dt
+			_last_vel.y = 0.0
 	_snapshots.append([t, pos, net_yaw, code])
 	if _snapshots.size() > 12:
 		_snapshots.pop_front()
@@ -318,6 +325,10 @@ func _interpolate() -> void:
 	var a: Array = _snapshots[0]
 	var pos: Vector3 = a[1]
 	var ny: float = a[2]
+	if _snapshots.size() == 1 and render_t > a[0] and _last_vel != Vector3.ZERO:
+		# Paquet en retard : on prolonge brièvement le dernier mouvement connu
+		# au lieu de figer le zombie (max 0,25 s).
+		pos = a[1] + _last_vel * minf(render_t - a[0], 0.25)
 	if _snapshots.size() >= 2 and render_t > a[0]:
 		var b: Array = _snapshots[1]
 		var t := clampf((render_t - a[0]) / maxf(b[0] - a[0], 0.001), 0.0, 1.0)
