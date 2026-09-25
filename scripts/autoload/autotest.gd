@@ -82,7 +82,10 @@ func end_perf(label: String) -> float:
 func screenshot(shot_name: String) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	await RenderingServer.frame_post_draw
+	# Deux images pour être sûr que la vue est à jour (frame_post_draw peut ne
+	# jamais arriver si la fenêtre est masquée).
+	await get_tree().process_frame
+	await get_tree().process_frame
 	var img := get_viewport().get_texture().get_image()
 	var dir := ProjectSettings.globalize_path("res://tests/_out/shots")
 	DirAccess.make_dir_recursive_absolute(dir)

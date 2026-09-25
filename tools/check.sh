@@ -25,6 +25,7 @@ grep "PARSE:" "$OUT/parse.log"
 echo "== tests unitaires"
 "$GODOT" --headless --path . res://tests/test_runner.tscn > "$OUT/unit.log" 2>&1 || FAIL=1
 grep -E "\[FAIL\]|^\s+- |TESTS:|SCRIPT ERROR" "$OUT/unit.log"
+if grep -qE "SCRIPT ERROR|ERROR:" "$OUT/unit.log"; then FAIL=1; grep -E "ERROR" "$OUT/unit.log" | head; fi
 
 if [ "$1" != "--fast" ]; then
   echo "== test réseau"

@@ -22,6 +22,7 @@ var local_player: Player
 @onready var fx_root: Fx = $Fx
 @onready var session: Session = $Session
 @onready var combat: Combat = $Combat
+@onready var zombies: ZombieManager = $Zombies
 @onready var hud: Hud = $HUD
 
 
@@ -133,3 +134,25 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.pressed and GameState.is_in_game() \
 			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		capture_mouse(true)
+
+
+# --------------------------------------------------------------------------
+# Apparition provisoire des zombies (remplacée par le système de manches)
+# --------------------------------------------------------------------------
+
+const DEBUG_MAX_ZOMBIES := 4
+var _debug_spawn_accum := 0.0
+
+
+func _process(delta: float) -> void:
+	if not multiplayer.is_server() or not GameState.is_in_game() or players.is_empty():
+		return
+	_debug_spawn_accum += delta
+	if _debug_spawn_accum < 3.0:
+		return
+	_debug_spawn_accum = 0.0
+	var spots: Array = map_data.markers.get("Z", [])
+	if spots.is_empty() or zombies.alive_count() >= DEBUG_MAX_ZOMBIES:
+		return
+	var c: Vector2i = spots[randi() % spots.size()]
+	zombies.spawn(MapData.cell_to_world(c, 0.0), randi() % 2, 150)
