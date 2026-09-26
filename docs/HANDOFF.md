@@ -196,8 +196,11 @@ puis reprends §6 puis §4 dans l'ordre en respectant §0 et §2.
 Arrêt le 26/09/2026 vers 22 h (machine précédente : i7-7700, GTX 1070).
 - main poussé sur GitHub ; dernière release de code **v0.1.89** (« perf: optimize
   rendering after the visual rework ») ; `sh tools/check.sh` passait sur ce
-  commit (CHECK OK, `PARALLEL=2`) ; la release suivante (v0.1.90) ne contient
-  que cette mise à jour de la documentation.
+  commit (CHECK OK, `PARALLEL=2`). Les commits de documentation qui suivent
+  sont poussés sans release (même code que v0.1.89).
+- Test instable restant repéré au dernier check : powerups, « nouvelle
+  manche : le bonus dû tombe » (échec ponctuel sous charge) : à rendre robuste
+  en premier (attendre l'événement plutôt qu'un délai fixe).
 - Aucun agent en cours, aucun travail non poussé : tout est sur main.
 - Prochaine étape conseillée : §4.1 (re-mesure des fps GPU libre avec
   `sh tools/perf.sh`, puis derniers gains de MEDIUM), puis §4.2 (R4 suite :
