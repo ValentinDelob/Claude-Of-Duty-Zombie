@@ -236,12 +236,12 @@ func hip_shots(n: int) -> Array:
 	var spread := 0.0
 	var kick := 0.0
 	var on_fire := func():
-		_kick = rad_to_deg(p.pitch - _pitch0)
+		_kick = p.weapons.feel.last_kick_deg
 	p.weapons.fired.connect(on_fire)
 	for i in n:
 		p.pitch = 0.0
 		p.yaw = -PI * 0.5
-		p.weapons._recoil_debt = 0.0
+		p.weapons.feel.reset()
 		_pitch0 = p.pitch
 		await seconds(0.05)
 		_pitch0 = p.pitch

@@ -45,6 +45,13 @@ void fragment() {
 		emi += pap_color.rgb * m * (0.8 + 0.4 * sin(TIME * 4.0));
 		rough = 0.35;
 	}
+	if (viewmodel > 0.5) {
+		// Lumière d'appoint de la vue FPS (comme les armes de BO1) : les faces
+		// tournées vers l'œil restent lisibles même dos aux lampes (visée).
+		float facing = clamp(NORMAL.z, 0.0, 1.0);
+		float top = clamp(NORMAL.y, 0.0, 1.0);
+		emi += (col * 0.32 + vec3(0.013, 0.012, 0.011)) * (0.25 + 0.5 * facing + 0.2 * top);
+	}
 	ALBEDO = col;
 	ROUGHNESS = rough;
 	METALLIC = metallic;

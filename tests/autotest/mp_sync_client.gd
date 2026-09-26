@@ -17,6 +17,21 @@ func run() -> void:
 	at.check(host.name_tag.text == "Hote", "étiquette de nom : %s" % host.name_tag.text)
 	var shots := [0]
 	game.combat.remote_shot.connect(func(pid): if pid == 1: shots[0] += 1)
+	# Traçante de l'hôte : part de la bouche de l'arme de son soldat (vérifiée
+	# à la fin de l'image, une fois l'effet créé) ; capture pendant le vol.
+	var tracer_err := [-1.0]
+	var check_tracer := func():
+		var fx: Fx = game.fx_root
+		var i := (fx._tracer_i - 1 + Fx.MAX_TRACERS) % Fx.MAX_TRACERS
+		var wm: Node3D = host.visual.weapon_model
+		if wm == null or not fx._tracers[i].visible:
+			return
+		var muzzle := wm.to_global(WeaponModels.anchor(WeaponDB.stats(host.visual.weapon_key.split("_")[0]).model, "muzzle"))
+		var e := fx._tr_from[i].distance_to(muzzle)
+		if tracer_err[0] < 0.0:
+			at.screenshot("host_tracer")
+		tracer_err[0] = e if tracer_err[0] < 0.0 else minf(tracer_err[0], e)
+	game.combat.remote_shot.connect(func(pid): if pid == 1: check_tracer.call_deferred())
 	var saw_crouch := [false]
 	p.teleport_to(MapData.cell_to_world(Vector2i(4, 9), 0.05))
 	var t := 0.0
@@ -32,6 +47,7 @@ func run() -> void:
 			await at.screenshot("host_view")
 	at.check(host.global_position.x > 7.0, "déplacement de l'hôte reçu (%s)" % host.global_position)
 	at.check(shots[0] >= 4, "tirs de l'hôte reçus : %d/5" % shots[0])
+	at.check(tracer_err[0] >= 0.0 and tracer_err[0] < 0.05, "traçante de l'hôte partie de la bouche de son arme (%.3f m)" % tracer_err[0])
 	at.check(saw_crouch[0], "accroupi de l'hôte visible")
 	at.check(host.visual.weapon_key == "m14_false", "arme de l'hôte mise à jour : %s" % host.visual.weapon_key)
 	# Le client part vers (20, 12).

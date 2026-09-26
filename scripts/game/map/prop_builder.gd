@@ -144,6 +144,8 @@ func _box(key: String, size: Vector3, pos: Vector3, rot_y := 0.0, collide := fal
 		shape.size = size
 		cs.shape = shape
 		cs.transform = xf
+		# Matériau touché par les balles (effet d'impact, Fx.surface_of).
+		cs.set_meta("surface", key)
 		_body.add_child(cs)
 
 
@@ -162,6 +164,7 @@ func _cyl(key: String, radius: float, height: float, xf: Transform3D, collide :=
 		shape.height = height
 		cs.shape = shape
 		cs.transform = xf
+		cs.set_meta("surface", key)
 		_body.add_child(cs)
 
 

@@ -223,7 +223,7 @@ func _local_physics(delta: float) -> void:
 func _apply_look() -> void:
 	var sens := Settings.mouse_sensitivity * 0.01
 	if aiming:
-		sens *= 0.6
+		sens *= weapons.ads_look_mult() if weapons else 0.6
 	yaw -= input.look.x * sens
 	var dy := input.look.y * sens
 	pitch -= -dy if Settings.invert_y else dy
@@ -431,14 +431,15 @@ func _update_camera_effects(delta: float) -> void:
 		_bob_t = lerpf(_bob_t, 0.0, delta * 4.0)
 	head.position = Vector3(bob_offset.x, _eye_height + bob_offset.y, 0.0)
 	_flinch = _flinch.lerp(Vector2.ZERO, 1.0 - exp(-delta * 9.0))
-	camera.rotation = Vector3(_flinch.y, 0.0, _flinch.x)
+	var sway := weapons.aim_offset() if weapons else Vector2.ZERO
+	camera.rotation = Vector3(_flinch.y + sway.x, sway.y, _flinch.x)
 	var base_fov := Settings.fov
 	var target_fov := base_fov
 	if aiming:
 		target_fov = base_fov * 0.72
 	elif sprinting:
 		target_fov = base_fov * 1.06
-	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-delta * 14.0))
+	camera.fov = weapons.camera_fov(base_fov, target_fov, camera.fov, delta) if weapons else lerpf(camera.fov, target_fov, 1.0 - exp(-delta * 14.0))
 
 
 func _compute_flags() -> int:

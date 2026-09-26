@@ -7,16 +7,36 @@ extends Node3D
 const HIP_POS := Vector3(0.18, -0.2, -0.4)
 const SPRINT_POS := Vector3(0.12, -0.24, -0.3)
 const SPRINT_ROT := Vector3(-0.35, 0.9, 0.25)
-const ADS_DEPTH := 0.3
+
+## Flamme de bouche par famille (WeaponDB "flash") : [taille du cœur (m),
+## longueur des pointes (m), largeur des pointes (m), énergie de la lumière].
+const FLASH := {
+	"pistol": [0.05, 0.1, 0.045, 1.6],
+	"smg": [0.05, 0.12, 0.04, 1.5],
+	"rifle": [0.07, 0.18, 0.06, 2.2],
+	"shotgun": [0.1, 0.22, 0.1, 3.0],
+	"sniper": [0.09, 0.26, 0.08, 3.0],
+	"launcher": [0.08, 0.1, 0.09, 2.0],
+}
 
 var model_id := ""
 var pap := false
 var model: Node3D
 var arms: Node3D
 var ads := 0.0
+## Durée de la mise en joue de l'arme en main (WeaponDB "ads_time").
+var ads_time := 0.2
+## Écran de lunette affiché (WeaponController) : le modèle est masqué.
+var scoped := false
+## Recul du modèle : ressort de recul (m) et ressort de montée du canon (rad).
 var _kick := 0.0
 var _kick_vel := 0.0
 var _kick_rot := 0.0
+var _kick_rot_vel := 0.0
+var _kick_roll := 0.0
+var _kick_back := 0.012
+var _kick_climb := 0.03
+var _rear_parts: Array[MeshInstance3D] = []
 var _sway := Vector2.ZERO
 var _sprint := 0.0
 var _reload_t := -1.0
@@ -44,9 +64,13 @@ const MELEE_KEYS := [
 var _drink_t := -1.0
 var _drink_dur := 2.0
 var _bottle: MeshInstance3D
+## Flamme de bouche : cœur face caméra + deux pointes croisées le long du canon.
+var _flash_rig: Node3D
 var _flash_mesh: MeshInstance3D
+var _flash_side: MeshInstance3D
 var _flash_light: OmniLight3D
 var _flash_t := 0.0
+var _flash_energy := 1.8
 var _bob := 0.0
 ## Arme baissée hors champ (lancer de grenade, voir ThrowController) : 0..1.
 var lowered := 0.0
@@ -56,26 +80,28 @@ var _lower := 0.0
 func _ready() -> void:
 	arms = _build_knife()
 	add_child(arms)
+	_flash_rig = Node3D.new()
+	_flash_rig.name = "MuzzleFlash"
+	_flash_rig.visible = false
+	add_child(_flash_rig)
 	_flash_mesh = MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(0.16, 0.16)
+	q.size = Vector2.ONE
 	_flash_mesh.mesh = q
-	var fm := StandardMaterial3D.new()
-	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	fm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	fm.albedo_texture = _flash_texture()
-	fm.albedo_color = Color(1.0, 0.75, 0.4)
-	fm.no_depth_test = true
-	fm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	_flash_mesh.material_override = fm
+	_flash_mesh.material_override = flash_material(_flash_texture(), true)
 	_flash_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_flash_mesh.visible = false
-	add_child(_flash_mesh)
+	_flash_rig.add_child(_flash_mesh)
+	# Pointes : deux quads croisés couchés le long de l'axe du canon.
+	_flash_side = MeshInstance3D.new()
+	_flash_side.mesh = prong_mesh()
+	_flash_side.material_override = flash_material(prong_texture(), false)
+	_flash_side.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_flash_rig.add_child(_flash_side)
 	_flash_light = OmniLight3D.new()
 	_flash_light.light_color = Color(1.0, 0.7, 0.4)
-	_flash_light.omni_range = 5.0
+	_flash_light.omni_range = 6.0
 	_flash_light.light_energy = 0.0
+	_flash_light.shadow_enabled = false
 	add_child(_flash_light)
 
 
@@ -89,9 +115,16 @@ func set_weapon(id: String, is_pap: bool) -> void:
 	if model:
 		model.queue_free()
 	model = WeaponModels.build(mid, true, is_pap)
+	# Pièces nettement en arrière du cran (crosse, plaque de couche) : sous la
+	# joue en visée, elles ne doivent pas boucher le bas de l'écran.
+	_rear_parts.clear()
+	var rear_z := maxf(WeaponModels.anchor(mid, "sight").z + 0.06, 0.12)
+	for c in model.get_children():
+		if c is MeshInstance3D and (c as MeshInstance3D).position.z > rear_z:
+			_rear_parts.append(c)
 	model.add_child(_build_arms(mid))
 	add_child(model)
-	_flash_mesh.position = WeaponModels.anchor(mid, "muzzle")
+	ads_time = maxf(float(s.get("ads_time", 0.2)), 0.05)
 
 
 func muzzle_global() -> Vector3:
@@ -100,12 +133,60 @@ func muzzle_global() -> Vector3:
 	return model.to_global(WeaponModels.anchor(model_id, "muzzle"))
 
 
-func fire_kick(strength: float) -> void:
-	_kick_vel += strength * 0.9
-	_kick_rot += strength * 0.035
-	_flash_t = 0.045
-	_flash_mesh.rotation.z = randf() * TAU
-	_flash_mesh.scale = Vector3.ONE * randf_range(0.8, 1.3)
+## Pose de visée (repère de la caméra) : la ligne de mire cran -> guidon du
+## modèle est posée EXACTEMENT sur l'axe -Z de la caméra (celui des balles),
+## le cran à "ads".z m de l'œil. Retourne [position, tangage (rad)].
+static func ads_pose(mid: String) -> Array:
+	var sight := WeaponModels.anchor(mid, "sight")
+	var front := WeaponModels.anchor(mid, "front")
+	var d := front - sight
+	# Rotation autour de X qui couche la ligne de mire sur -Z.
+	var pitch := atan(d.y / d.z) if absf(d.z) > 0.001 else 0.0
+	var b := Basis(Vector3.RIGHT, pitch)
+	var eye := WeaponModels.anchor(mid, "ads").z
+	return [Vector3(0, 0, -eye) - b * sight, pitch]
+
+
+## Tir : recul du modèle (recul + montée du canon, ressorts), flamme de bouche
+## de la famille, lumière brève, fumée, douille éjectée (sauf si `eject` est
+## faux : armes à réarmement manuel, la douille sort au réarmement).
+func fire(s: Dictionary, fx: Fx, p: Player, eject := true) -> void:
+	var r := float(s.recoil)
+	# Impulsions normalisées (crête ~1) ; amplitudes selon le recul de l'arme.
+	_kick_vel += 32.0
+	_kick_rot_vel += 23.0
+	_kick_roll += randf_range(-1.0, 1.0) * clampf(r * 0.006, 0.0, 0.04)
+	_kick_back = clampf(0.012 + r * 0.004, 0.012, 0.05)
+	_kick_climb = clampf(0.02 + r * 0.01, 0.02, 0.1)
+	var fl: Array = FLASH.get(String(s.get("flash", "rifle")), [])
+	if model == null:
+		return
+	var muzzle := muzzle_global()
+	if not fl.is_empty():
+		_flash_t = 0.05
+		_flash_energy = fl[3]
+		var k := randf_range(0.8, 1.25) * (0.6 if ads > 0.5 else 1.0)
+		_flash_mesh.scale = Vector3.ONE * fl[0] * 1.8 * k
+		(_flash_mesh.material_override as StandardMaterial3D).albedo_texture = flash_variant(randi() % 4)
+		_flash_mesh.rotation = Vector3(0, 0, randf() * TAU)
+		_flash_side.scale = Vector3(fl[2], fl[2], fl[1]) * k
+		_flash_side.rotation.z = randf() * TAU
+		if fx:
+			fx.smoke(muzzle, -global_transform.basis.z, 2 if s.get("flash", "") == "shotgun" else 1)
+	if eject and fx:
+		eject_shell(fx, p, String(s.get("shell", "")))
+
+
+## Douille éjectée par la fenêtre d'éjection, vers la droite et le haut.
+func eject_shell(fx: Fx, p: Player, kind: String) -> void:
+	if kind == "" or model == null or fx == null or scoped:
+		return
+	var b := global_transform.basis
+	var pos := model.to_global(WeaponModels.anchor(model_id, "eject"))
+	var vel := b * Vector3(randf_range(1.4, 2.2), randf_range(1.2, 1.9), randf_range(-0.1, 0.5))
+	if p:
+		vel += p.velocity
+	fx.eject_shell(pos, vel, kind)
 
 
 func start_reload(duration: float) -> void:
@@ -160,12 +241,14 @@ func update(delta: float, p: Player) -> void:
 		return
 	# Visée
 	var want_ads := 1.0 if p.aiming and _reload_t < 0.0 and _switch_t < 0.0 else 0.0
-	ads = move_toward(ads, want_ads, delta * 6.0)
+	ads = move_toward(ads, want_ads, delta / ads_time)
 	_sprint = move_toward(_sprint, 1.0 if p.sprinting else 0.0, delta * 5.0)
-	# Ressort du recul
+	# Ressorts du recul : l'arme recule et le canon monte, puis tout revient.
 	_kick_vel += (-_kick * 180.0 - _kick_vel * 22.0) * delta
-	_kick += _kick_vel * delta
-	_kick_rot = lerpf(_kick_rot, 0.0, 1.0 - exp(-delta * 12.0))
+	_kick = clampf(_kick + _kick_vel * delta, -1.0, 2.5)
+	_kick_rot_vel += (-_kick_rot * 120.0 - _kick_rot_vel * 16.0) * delta
+	_kick_rot = clampf(_kick_rot + _kick_rot_vel * delta, -1.0, 2.5)
+	_kick_roll = lerpf(_kick_roll, 0.0, 1.0 - exp(-delta * 10.0))
 	# Balancement (inertie du regard)
 	var look := p.input.look * 0.0006
 	_sway = _sway.lerp(Vector2(-look.x, look.y).limit_length(0.06), 1.0 - exp(-delta * 10.0))
@@ -175,16 +258,17 @@ func update(delta: float, p: Player) -> void:
 		_bob += delta * speed * (1.6 if p.sprinting else 2.0)
 	var bob_amp := (0.012 if not p.sprinting else 0.03) * (1.0 - ads * 0.85) * clampf(speed / 4.0, 0.0, 1.5)
 
-	var sight := WeaponModels.anchor(model_id, "sight")
-	var ads_pos := Vector3(-sight.x, -sight.y, -ADS_DEPTH - sight.z)
-	var pos := (HIP_POS + WeaponModels.anchor(model_id, "hold")).lerp(ads_pos, ads)
+	# Visée : la ligne de mire se pose sur l'axe de la caméra (ads_pose).
+	var aim_pose := ads_pose(model_id)
+	var ak := ads * ads * (3.0 - 2.0 * ads)
+	var pos: Vector3 = (HIP_POS + WeaponModels.anchor(model_id, "hold")).lerp(aim_pose[0], ak)
 	pos = pos.lerp(SPRINT_POS, _sprint)
 	pos += Vector3(sin(_bob) * bob_amp, -absf(cos(_bob)) * bob_amp, 0.0)
-	pos += Vector3(_sway.x, _sway.y, 0.0) * (1.0 - ads * 0.7)
-	pos.z += _kick * 0.06
-	var rot := Vector3(_kick_rot * (1.0 - ads * 0.6), 0.0, 0.0)
+	pos += Vector3(_sway.x, _sway.y, 0.0) * (1.0 - ak * 0.7)
+	pos.z += _kick * _kick_back * (1.0 - ak * 0.4)
+	var rot := Vector3(float(aim_pose[1]) * ak + _kick_rot * _kick_climb * (1.0 - ak * 0.55), 0.0, _kick_roll * (1.0 - ak * 0.5))
 	rot += SPRINT_ROT * _sprint
-	rot.z += -_sway.x * 1.5
+	rot.z += -_sway.x * 1.5 * (1.0 - ak)
 	# Plongeon : l'arme bascule sur le côté pendant le vol.
 	_dive = move_toward(_dive, 1.0 if p.diving else 0.0, delta * 7.0)
 	pos += Vector3(-0.03, -0.07, 0.05) * _dive
@@ -261,16 +345,21 @@ func update(delta: float, p: Player) -> void:
 
 	model.position = pos
 	model.rotation = rot
+	# Lunette : l'écran de lunette (HUD) remplace l'arme.
+	model.visible = not scoped
+	for rp in _rear_parts:
+		rp.visible = ak < 0.75
 
-	# Flash
+	# Flamme de bouche : suit la bouche du canon (position et axe du modèle).
 	if _flash_t > 0.0:
 		_flash_t -= delta
-		_flash_mesh.visible = true
-		_flash_mesh.position = model.position + WeaponModels.anchor(model_id, "muzzle").rotated(Vector3.RIGHT, rot.x)
-		_flash_light.position = _flash_mesh.position
-		_flash_light.light_energy = 1.8
+		var mt := model.transform
+		_flash_rig.transform = Transform3D(mt.basis.orthonormalized(), mt * WeaponModels.anchor(model_id, "muzzle"))
+		_flash_rig.visible = not scoped
+		_flash_light.position = _flash_rig.position + mt.basis * Vector3(0, 0, -0.1)
+		_flash_light.light_energy = _flash_energy * clampf(_flash_t / 0.05, 0.0, 1.0)
 	else:
-		_flash_mesh.visible = false
+		_flash_rig.visible = false
 		_flash_light.light_energy = 0.0
 
 
@@ -367,24 +456,107 @@ static func pickup_pose(t: float) -> Array:
 
 
 static var _flash_tex: Texture2D
+static var _prong_tex: Texture2D
+static var _prong_mesh: ArrayMesh
+
+
+## Matériau additif non éclairé de la flamme de bouche.
+static func flash_material(tex: Texture2D, billboard: bool) -> StandardMaterial3D:
+	var fm := StandardMaterial3D.new()
+	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	fm.albedo_texture = tex
+	fm.albedo_color = Color(1.0, 0.9, 0.75)
+	fm.no_depth_test = true
+	fm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if billboard:
+		fm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		fm.billboard_keep_scale = true
+	return fm
+
+
+## Deux quads croisés (plans XZ et YZ) de z = 0 à z = -1, largeur 1.
+static func prong_mesh() -> ArrayMesh:
+	if _prong_mesh:
+		return _prong_mesh
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for axis in [Vector3.RIGHT, Vector3.UP]:
+		var a: Vector3 = axis * 0.5
+		var quad := [[-a, Vector2(0, 0)], [a, Vector2(1, 0)], [a + Vector3(0, 0, -1), Vector2(1, 1)], [-a + Vector3(0, 0, -1), Vector2(0, 1)]]
+		for i in [0, 1, 2, 0, 2, 3]:
+			st.set_uv(quad[i][1])
+			st.add_vertex(quad[i][0])
+	_prong_mesh = st.commit()
+	return _prong_mesh
+
+
+## Pointe de flamme : large et vive à la bouche (v = 0), effilée au bout.
+static func prong_texture() -> Texture2D:
+	if _prong_tex:
+		return _prong_tex
+	var w := 32
+	var h := 64
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			var v := float(y) / (h - 1)
+			var u := absf((x + 0.5) / w * 2.0 - 1.0)
+			var half := lerpf(0.9, 0.05, pow(v, 0.7))
+			var a := clampf((half - u) / maxf(half, 0.01), 0.0, 1.0) * (1.0 - v * 0.85)
+			img.set_pixel(x, y, Color(1, 0.9 - v * 0.3, 0.75 - v * 0.5, a * a))
+	_prong_tex = ImageTexture.create_from_image(img)
+	return _prong_tex
 
 
 static func _flash_texture() -> Texture2D:
 	if _flash_tex:
 		return _flash_tex
-	var n := 64
+	_flash_tex = flash_variant(0)
+	return _flash_tex
+
+
+static var _flash_variants: Array[Texture2D] = []
+
+
+## Flamme vue de face, variante `v` (0..3) : cœur blanc-jaune, pétales
+## irréguliers orangés (longueurs et largeurs aléatoires), bord doux.
+static func flash_variant(v: int) -> Texture2D:
+	while _flash_variants.size() < 4:
+		_flash_variants.append(_make_flash(_flash_variants.size()))
+	return _flash_variants[v % 4]
+
+
+static func _make_flash(seed_v: int) -> Texture2D:
+	var n := 96
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 911 + seed_v * 17
+	var petals := rng.randi_range(4, 6)
+	var lens := []
+	var phases := []
+	for k in petals:
+		lens.append(rng.randf_range(0.55, 1.0))
+		phases.append(TAU * (k + rng.randf_range(-0.2, 0.2)) / petals)
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
 	for y in n:
 		for x in n:
 			var p := Vector2(x - n * 0.5 + 0.5, y - n * 0.5 + 0.5) / (n * 0.5)
 			var r := p.length()
 			var ang := p.angle()
-			var star := pow(absf(cos(ang * 3.0)), 12.0) * clampf(1.0 - r, 0.0, 1.0)
-			var core := clampf(1.0 - r * 2.2, 0.0, 1.0)
-			var a := clampf(star + core, 0.0, 1.0)
-			img.set_pixel(x, y, Color(1, 1, 1, a))
-	_flash_tex = ImageTexture.create_from_image(img)
-	return _flash_tex
+			var petal := 0.0
+			for k in petals:
+				var da := absf(wrapf(ang - float(phases[k]), -PI, PI))
+				var width := 0.34 * (1.0 - r / float(lens[k]))
+				if width > 0.0:
+					petal = maxf(petal, clampf(1.0 - da / width, 0.0, 1.0) * (1.0 - r / float(lens[k])))
+			var core := clampf(1.0 - r * 3.2, 0.0, 1.0)
+			var glow := clampf(1.0 - r * 1.6, 0.0, 1.0) * 0.35
+			var a := clampf(core + petal * 0.9 + glow, 0.0, 1.0)
+			# Blanc-jaune au centre, orange vers l'extérieur.
+			var hot := clampf(1.0 - r * 1.8, 0.0, 1.0)
+			img.set_pixel(x, y, Color(1.0, lerpf(0.55, 0.95, hot), lerpf(0.2, 0.8, hot), a))
+	return ImageTexture.create_from_image(img)
 
 
 func start_drink(color: Color, duration: float) -> void:

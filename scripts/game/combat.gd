@@ -368,17 +368,30 @@ func _cl_shot_fx(pid: int, weapon_id: String, pap: bool, origin: Vector3, impact
 		shooter.visual.fire_kick()
 	remote_shot.emit(pid)
 	Audio.play_3d(s.sound, origin, 0.0, 0.05, 8, s.get("sound_pitch", 0.8 if pap else 1.0))
-	fx.muzzle_flash(origin)
+	# Les effets partent de la bouche de l'arme du soldat (pas de ses yeux).
+	var muzzle := origin
+	if shooter and shooter.visual and shooter.visual.weapon_model and shooter.visual.weapon_model.is_visible_in_tree():
+		muzzle = shooter.visual.weapon_model.to_global(WeaponModels.anchor(s.model, "muzzle"))
+	var aim := (impacts[0] - origin).normalized() if impacts.size() >= 2 else Vector3.ZERO
+	if s.get("flash", "rifle") != "none":
+		fx.muzzle_flash(muzzle, aim)
 	if s.has("blast_range") and impacts.size() >= 2:
-		ThunderBlast.play_fx(fx, origin, impacts[1], pap, s.blast_range)
+		ThunderBlast.play_fx(fx, muzzle, impacts[1], pap, s.blast_range)
 		return
 	if s.has("projectile_speed") and impacts.size() >= 2:
-		ProjectileFx.launch(fx, origin, impacts[0], s.projectile_speed, s.get("tracer", "grenade"), pap)
+		ProjectileFx.launch(fx, muzzle, impacts[0], s.projectile_speed, s.get("tracer", "grenade"), pap)
 		return
+	var ray: bool = s.get("tracer", "") == "ray"
+	var n := 0
 	for i in range(0, impacts.size() - 1, 2):
-		fx.tracer(origin, impacts[i])
-		fx.impact(impacts[i], impacts[i + 1], i == 0)
+		if n < 3:
+			fx.tracer(muzzle, impacts[i], Fx.TRACER_RAY if ray else Fx.TRACER_COLOR, 0.12 if ray else 0.0)
+		n += 1
+		fx.impact(impacts[i], impacts[i + 1], i == 0, fx.surface_at(impacts[i], impacts[i + 1]))
 	for bp in blood_points:
+		if n < 3:
+			fx.tracer(muzzle, bp, Fx.TRACER_RAY if ray else Fx.TRACER_COLOR, 0.12 if ray else 0.0)
+		n += 1
 		fx.blood_hit(bp, (bp - origin).normalized(), 0.7)
 
 

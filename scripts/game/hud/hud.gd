@@ -6,6 +6,8 @@ extends CanvasLayer
 var player: Player
 var game: Game
 var _crosshair: Crosshair
+## Écran de lunette (L96A1, Dragunov, AUG, G11).
+var scope: ScopeOverlay
 var _hitmarker: HitMarker
 var _debug: Label
 var _ammo: Label
@@ -45,6 +47,12 @@ func _ready() -> void:
 	_vignette_mat.shader = preload("res://assets/shaders/hurt_vignette.gdshader")
 	_vignette.material = _vignette_mat
 	add_child(_vignette)
+
+	# Écran de lunette (sous le reste du HUD).
+	scope = ScopeOverlay.new()
+	scope.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(scope)
+	move_child(scope, _vignette.get_index())
 
 	_damage_dir = DamageIndicator.new()
 	_damage_dir.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -218,8 +226,11 @@ func _process(delta: float) -> void:
 	if hurt > 0.45 and pd.life == PlayerData.Life.ALIVE and floorf(_heart_t) != floorf(prev_beat):
 		Audio.play_2d("heartbeat", -6.0, 0.0)
 
-	_crosshair.spread = 0.0 if player.aiming else (18.0 if Vector2(player.velocity.x, player.velocity.z).length() > 1.0 else 10.0)
+	# Réticule dynamique : son écart est la dispersion réelle du prochain tir.
+	var wcx := player.weapons
+	_crosshair.spread = maxf(WeaponDB.spread_to_px(wcx.spread_deg(), player.camera.fov, _crosshair.size.y), 3.0) if wcx else 10.0
 	_crosshair.visible = not player.sprinting and not player.aiming and (pd == null or pd.life != PlayerData.Life.DEAD)
+	scope.refresh(player, delta)
 	_crosshair.queue_redraw()
 	var focus := game.interact.focused
 	_prompt.text = focus.prompt(player.peer_id) if focus else ""

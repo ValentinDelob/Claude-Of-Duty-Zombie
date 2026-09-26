@@ -65,6 +65,7 @@ curl, puis traitement) : `godot --headless --path . -s res://tools/audio/sfx_imp
 | Sauter / S'accroupir / Sprint | Espace / Ctrl ou C / Maj |
 | S'allonger / Plonger | maintenir Ctrl ou C à l'arrêt / Ctrl ou C en sprintant |
 | Tirer / Viser | Clic gauche / Clic droit |
+| Retenir sa respiration (lunette du L96A1, de la Dragunov) | Maj (maintenu, 4 s au plus) |
 | Recharger / Couteau (fente si un zombie visé est à ~3 m) | R / V |
 | Grenade (maintenir = cuire, relâcher = lancer) / SINGE-TAMBOUR | G / Q (touches physiques) |
 | Changer d'arme | 1, 2, molette |

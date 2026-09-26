@@ -18,39 +18,64 @@ extends RefCounted
 ##   blast_range / blast_angle  onde de choc en cône (portée en m, ouverture totale
 ##               en degrés) : chaque zombie du cône en vue est projeté et tué (ThunderBlast)
 ##   unique      arme merveille : un seul exemplaire à la fois dans la partie (boîte)
+##
+## Sensation de tir (lue par WeaponController / ViewModel, côté client) :
+##   spread_hip  dispersion à la hanche à l'arrêt (°, demi-angle du cône)
+##   spread_move dispersion ajoutée en marchant (° à pleine vitesse, x2 en l'air)
+##   bloom       ouverture du réticule par coup tiré (°), refermée en ~0,3 s
+##   spread_ads  dispersion en visée (0 : la balle part exactement sur la ligne de mire)
+##   recoil      montée du canon par coup (°), appliquée progressivement (~0,1 s)
+##   recoil_side écart latéral aléatoire par coup (± °)
+##   recoil_recover part de la montée rendue automatiquement après le tir (0..1)
+##   ads_zoom    champ de vision en visée (x champ normal) ; ads_time durée de mise en joue (s)
+##   scope       "sniper" (écran de lunette plein écran) ou "optic" (lunette courte) ;
+##               scope_fov champ de vision dans la lunette (°)
+##   flash       flamme de bouche : pistol|smg|rifle|shotgun|sniper|launcher|none
+##   shell       douille éjectée : pistol|rifle|shotgun ("" : aucune ; au réarmement si "cycle")
 
 ## Valeurs communes par famille d'arme.
 const CLASSES := {
-	"pistol": {"head_mult": 3.0, "auto": false, "pellets": 1, "spread_hip": 1.4, "spread_ads": 0.25,
-		"range": 25.0, "penetration": 1, "recoil": 1.8, "ads_zoom": 0.85, "move_mult": 1.0,
-		"sound": "pistol_fire", "reload_kind": "mag"},
-	"revolver": {"head_mult": 2.0, "auto": false, "pellets": 1, "spread_hip": 1.8, "spread_ads": 0.15,
-		"range": 30.0, "penetration": 3, "recoil": 4.5, "ads_zoom": 0.8, "move_mult": 1.0,
-		"sound": "revolver_fire", "reload_kind": "cylinder"},
-	"smg": {"head_mult": 2.0, "auto": true, "pellets": 1, "spread_hip": 3.0, "spread_ads": 0.7,
-		"range": 18.0, "penetration": 1, "recoil": 0.9, "ads_zoom": 0.85, "move_mult": 1.0,
-		"sound": "smg_fire", "reload_kind": "mag"},
-	"rifle": {"head_mult": 2.5, "auto": true, "pellets": 1, "spread_hip": 2.6, "spread_ads": 0.3,
-		"range": 35.0, "penetration": 2, "recoil": 1.2, "ads_zoom": 0.75, "move_mult": 0.95,
-		"sound": "rifle_fire", "reload_kind": "mag"},
-	"lmg": {"head_mult": 2.0, "auto": true, "pellets": 1, "spread_hip": 3.8, "spread_ads": 0.7,
-		"range": 35.0, "penetration": 3, "recoil": 1.3, "ads_zoom": 0.8, "move_mult": 0.875,
-		"sound": "lmg_fire", "reload_kind": "belt"},
-	"shotgun": {"head_mult": 1.5, "auto": false, "pellets": 8, "spread_hip": 6.5, "spread_ads": 4.0,
-		"range": 8.0, "penetration": 1, "recoil": 5.0, "ads_zoom": 0.9, "move_mult": 1.0,
-		"sound": "shotgun_fire", "reload_kind": "shells"},
-	"sniper": {"head_mult": 3.0, "auto": false, "pellets": 1, "spread_hip": 7.0, "spread_ads": 0.0,
-		"range": 80.0, "penetration": 5, "recoil": 6.0, "ads_zoom": 0.35, "move_mult": 0.95,
-		"sound": "sniper_fire", "reload_kind": "bolt"},
-	"launcher": {"head_mult": 1.0, "auto": false, "pellets": 1, "spread_hip": 1.5, "spread_ads": 0.3,
-		"range": 60.0, "penetration": 1, "recoil": 4.5, "ads_zoom": 0.8, "move_mult": 0.95,
-		"sound": "launcher_fire", "reload_kind": "shells", "tracer": "grenade"},
-	"rocket": {"head_mult": 1.0, "auto": false, "pellets": 1, "spread_hip": 1.2, "spread_ads": 0.2,
-		"range": 80.0, "penetration": 1, "recoil": 6.0, "ads_zoom": 0.75, "move_mult": 0.9,
-		"sound": "rocket_fire", "reload_kind": "rocket", "tracer": "rocket"},
-	"wonder": {"head_mult": 1.0, "auto": false, "pellets": 1, "spread_hip": 0.8, "spread_ads": 0.2,
-		"range": 60.0, "penetration": 1, "recoil": 1.5, "ads_zoom": 0.85, "move_mult": 1.0,
-		"sound": "ray_fire", "reload_kind": "mag", "tracer": "ray"},
+	"pistol": {"head_mult": 3.0, "auto": false, "pellets": 1, "spread_hip": 1.6, "spread_move": 1.6,
+		"bloom": 0.6, "spread_ads": 0.0, "range": 25.0, "penetration": 1, "recoil": 1.8, "recoil_side": 0.5,
+		"recoil_recover": 0.75, "ads_zoom": 0.85, "ads_time": 0.15, "move_mult": 1.0,
+		"sound": "pistol_fire", "reload_kind": "mag", "flash": "pistol", "shell": "pistol"},
+	"revolver": {"head_mult": 2.0, "auto": false, "pellets": 1, "spread_hip": 1.8, "spread_move": 1.8,
+		"bloom": 1.2, "spread_ads": 0.0, "range": 30.0, "penetration": 3, "recoil": 4.5, "recoil_side": 0.9,
+		"recoil_recover": 0.7, "ads_zoom": 0.8, "ads_time": 0.18, "move_mult": 1.0,
+		"sound": "revolver_fire", "reload_kind": "cylinder", "flash": "pistol", "shell": ""},
+	"smg": {"head_mult": 2.0, "auto": true, "pellets": 1, "spread_hip": 3.0, "spread_move": 1.5,
+		"bloom": 0.3, "spread_ads": 0.0, "range": 18.0, "penetration": 1, "recoil": 0.9, "recoil_side": 0.45,
+		"recoil_recover": 0.55, "ads_zoom": 0.85, "ads_time": 0.18, "move_mult": 1.0,
+		"sound": "smg_fire", "reload_kind": "mag", "flash": "smg", "shell": "pistol"},
+	"rifle": {"head_mult": 2.5, "auto": true, "pellets": 1, "spread_hip": 2.6, "spread_move": 1.8,
+		"bloom": 0.35, "spread_ads": 0.0, "range": 35.0, "penetration": 2, "recoil": 1.2, "recoil_side": 0.45,
+		"recoil_recover": 0.55, "ads_zoom": 0.75, "ads_time": 0.22, "move_mult": 0.95,
+		"sound": "rifle_fire", "reload_kind": "mag", "flash": "rifle", "shell": "rifle"},
+	"lmg": {"head_mult": 2.0, "auto": true, "pellets": 1, "spread_hip": 3.8, "spread_move": 2.2,
+		"bloom": 0.3, "spread_ads": 0.0, "range": 35.0, "penetration": 3, "recoil": 1.3, "recoil_side": 0.6,
+		"recoil_recover": 0.5, "ads_zoom": 0.8, "ads_time": 0.35, "move_mult": 0.875,
+		"sound": "lmg_fire", "reload_kind": "belt", "flash": "rifle", "shell": "rifle"},
+	"shotgun": {"head_mult": 1.5, "auto": false, "pellets": 8, "spread_hip": 6.5, "spread_move": 1.5,
+		"bloom": 1.0, "spread_ads": 4.0, "range": 8.0, "penetration": 1, "recoil": 5.0, "recoil_side": 1.0,
+		"recoil_recover": 0.7, "ads_zoom": 0.9, "ads_time": 0.2, "move_mult": 1.0,
+		"sound": "shotgun_fire", "reload_kind": "shells", "flash": "shotgun", "shell": "shotgun"},
+	"sniper": {"head_mult": 3.0, "auto": false, "pellets": 1, "spread_hip": 7.0, "spread_move": 3.0,
+		"bloom": 2.0, "spread_ads": 0.0, "range": 80.0, "penetration": 5, "recoil": 6.0, "recoil_side": 0.8,
+		"recoil_recover": 0.65, "ads_zoom": 0.35, "ads_time": 0.32, "move_mult": 0.95,
+		"scope": "sniper", "scope_fov": 12.0,
+		"sound": "sniper_fire", "reload_kind": "bolt", "flash": "sniper", "shell": "rifle"},
+	"launcher": {"head_mult": 1.0, "auto": false, "pellets": 1, "spread_hip": 1.5, "spread_move": 1.0,
+		"bloom": 0.5, "spread_ads": 0.0, "range": 60.0, "penetration": 1, "recoil": 4.5, "recoil_side": 0.8,
+		"recoil_recover": 0.7, "ads_zoom": 0.8, "ads_time": 0.25, "move_mult": 0.95,
+		"sound": "launcher_fire", "reload_kind": "shells", "tracer": "grenade", "flash": "launcher", "shell": ""},
+	"rocket": {"head_mult": 1.0, "auto": false, "pellets": 1, "spread_hip": 1.2, "spread_move": 1.0,
+		"bloom": 0.5, "spread_ads": 0.0, "range": 80.0, "penetration": 1, "recoil": 6.0, "recoil_side": 0.8,
+		"recoil_recover": 0.7, "ads_zoom": 0.75, "ads_time": 0.3, "move_mult": 0.9,
+		"sound": "rocket_fire", "reload_kind": "rocket", "tracer": "rocket", "flash": "launcher", "shell": ""},
+	"wonder": {"head_mult": 1.0, "auto": false, "pellets": 1, "spread_hip": 0.8, "spread_move": 0.8,
+		"bloom": 0.3, "spread_ads": 0.0, "range": 60.0, "penetration": 1, "recoil": 1.5, "recoil_side": 0.4,
+		"recoil_recover": 0.7, "ads_zoom": 0.85, "ads_time": 0.2, "move_mult": 1.0,
+		"sound": "ray_fire", "reload_kind": "mag", "tracer": "ray", "flash": "none", "shell": ""},
 }
 
 const WEAPONS := {
@@ -68,7 +93,7 @@ const WEAPONS := {
 		"pap": {"damage": 130, "reserve": 60, "burn_dps": 250, "burn_time": 2.0, "penetration": 2}},
 	"m14": {"name": "M14", "pap_name": "M14 VIEILLE GARDE", "class": "rifle", "sound": "m14_fire",
 		"damage": 105, "rpm": 380, "auto": false, "mag": 8, "reserve": 96, "reload": 1.9,
-		"spread_hip": 2.2, "spread_ads": 0.1, "range": 45.0, "recoil": 2.2, "wall_cost": 500,
+		"spread_hip": 2.2, "range": 45.0, "recoil": 2.2, "wall_cost": 500,
 		"pap": {"damage": 250, "mag": 15, "reserve": 150, "auto": true, "rpm": 450, "penetration": 3}},
 	"mp5k": {"name": "MP5K", "pap_name": "MP5K FRELON", "class": "smg",
 		"damage": 70, "rpm": 800, "mag": 30, "reserve": 120, "reload": 2.1, "wall_cost": 1000,
@@ -78,20 +103,20 @@ const WEAPONS := {
 		"pap": {"damage": 150, "mag": 32, "reserve": 256, "penetration": 2}},
 	"pm63": {"name": "PM63", "pap_name": "PM63 CHIENS JUMEAUX", "class": "smg", "sound": "pm63_fire",
 		"damage": 70, "rpm": 1000, "mag": 20, "reserve": 100, "reload": 1.9,
-		"spread_hip": 3.5, "spread_ads": 1.0, "range": 15.0, "wall_cost": 1000,
+		"spread_hip": 3.5, "range": 15.0, "wall_cost": 1000,
 		# Amélioré : une arme dans chaque main (chargeur doublé).
 		"pap": {"damage": 140, "mag": 40, "reserve": 200, "rpm": 1050, "penetration": 2}},
 	"mp40": {"name": "MP40", "pap_name": "MP40 VIEUX LOUP", "class": "smg", "sound": "mp40_fire",
 		"damage": 90, "rpm": 550, "mag": 32, "reserve": 192, "reload": 2.3,
-		"spread_hip": 2.6, "spread_ads": 0.5, "range": 20.0, "wall_cost": 1000,
+		"spread_hip": 2.6, "range": 20.0, "wall_cost": 1000,
 		"pap": {"damage": 180, "mag": 64, "reserve": 192, "rpm": 600, "penetration": 2}},
 	"ak74u": {"name": "AK74u", "pap_name": "AK74u TOUNDRA", "class": "smg", "sound": "ak74u_fire",
 		"damage": 100, "rpm": 780, "mag": 20, "reserve": 160, "reload": 2.2,
-		"spread_hip": 2.6, "spread_ads": 0.5, "range": 25.0, "penetration": 2, "recoil": 1.1, "wall_cost": 1200,
+		"spread_hip": 2.6, "range": 25.0, "penetration": 2, "recoil": 1.1, "wall_cost": 1200,
 		"pap": {"damage": 180, "mag": 40, "reserve": 280, "penetration": 3}},
 	"m16": {"name": "M16", "pap_name": "M16 CENTURION", "class": "rifle",
 		"damage": 110, "rpm": 900, "auto": false, "burst": 3, "burst_delay": 0.22,
-		"mag": 30, "reserve": 120, "reload": 2.2, "spread_hip": 2.0, "spread_ads": 0.2, "range": 40.0,
+		"mag": 30, "reserve": 120, "reload": 2.2, "spread_hip": 2.0, "range": 40.0,
 		"sound": "burst_fire", "wall_cost": 1200,
 		"pap": {"damage": 220, "reserve": 270, "rpm": 1000, "penetration": 3}},
 	"stakeout": {"name": "STAKEOUT", "pap_name": "STAKEOUT EMBUSCADE", "class": "shotgun",
@@ -118,11 +143,11 @@ const WEAPONS := {
 		"pap": {"damage": 240, "mag": 40, "reserve": 360, "penetration": 3}},
 	"aug": {"name": "AUG", "pap_name": "AUG SENTINELLE", "class": "rifle", "sound": "aug_fire",
 		"damage": 130, "rpm": 700, "mag": 30, "reserve": 270, "reload": 2.8,
-		"spread_ads": 0.1, "ads_zoom": 0.6, "box": 1.0,
+		"ads_zoom": 0.55, "scope": "optic", "box": 1.0,
 		"pap": {"damage": 260, "mag": 60, "reserve": 360, "penetration": 3}},
 	"g11": {"name": "G11", "pap_name": "G11 DYNAMO", "class": "rifle", "sound": "g11_fire",
 		"damage": 110, "rpm": 1800, "auto": false, "burst": 3, "burst_delay": 0.3,
-		"mag": 48, "reserve": 192, "reload": 2.6, "spread_ads": 0.1, "ads_zoom": 0.6,
+		"mag": 48, "reserve": 192, "reload": 2.6, "ads_zoom": 0.55, "scope": "optic",
 		"box": 1.0,
 		"pap": {"damage": 220, "mag": 64, "reserve": 384, "penetration": 3}},
 	"fnfal": {"name": "FN FAL", "pap_name": "FN FAL ÉCLIPSE", "class": "rifle", "sound": "fnfal_fire",
@@ -143,11 +168,11 @@ const WEAPONS := {
 		"pap": {"damage": 140, "mag": 12, "reserve": 72, "penetration": 2}},
 	"dragunov": {"name": "DRAGUNOV", "pap_name": "DRAGUNOV TSAR", "class": "sniper", "sound": "dragunov_fire",
 		"damage": 800, "head_mult": 2.5, "rpm": 200, "mag": 10, "reserve": 40, "reload": 3.2,
-		"reload_kind": "mag", "recoil": 4.0, "box": 1.0,
+		"reload_kind": "mag", "recoil": 4.0, "scope_fov": 15.0, "box": 1.0,
 		"pap": {"damage": 2000, "mag": 15, "reserve": 60, "penetration": 8}},
 	"l96a1": {"name": "L96A1", "pap_name": "L96A1 VEUVE NOIRE", "class": "sniper",
 		"damage": 1000, "rpm": 45, "mag": 5, "reserve": 50, "reload": 3.6, "penetration": 6,
-		"ads_zoom": 0.3, "box": 1.0, "cycle": "bolt",
+		"scope_fov": 10.0, "box": 1.0, "cycle": "bolt",
 		"pap": {"damage": 3000, "mag": 8, "reserve": 64, "rpm": 60, "penetration": 10}},
 	"china_lake": {"name": "CHINA LAKE", "pap_name": "CHINA LAKE DRAGON DE JADE", "class": "launcher",
 		"damage": 150, "rpm": 60, "mag": 2, "reserve": 20, "reload": 3.2,
@@ -167,7 +192,7 @@ const WEAPONS := {
 	# Les dégâts ne servent qu'à l'affichage : le coup tue toujours.
 	"thunder": {"name": "TONNERRE-7", "pap_name": "OURAGAN-77", "class": "wonder",
 		"damage": 100000, "rpm": 80, "mag": 2, "reserve": 12, "reload": 3.8, "reload_kind": "thunder",
-		"blast_range": 20.0, "blast_angle": 60.0, "range": 20.0, "spread_hip": 0.0, "spread_ads": 0.0,
+		"blast_range": 20.0, "blast_angle": 60.0, "range": 20.0, "spread_hip": 0.0, "spread_move": 0.0, "bloom": 0.0, "spread_ads": 0.0,
 		"recoil": 9.0, "move_mult": 0.9, "sound": "thunder_fire", "tracer": "thunder",
 		"unique": true, "box": 0.35,
 		"pap": {"mag": 4, "reserve": 24, "sound_pitch": 0.85}},
@@ -250,6 +275,34 @@ static func falloff(id: String, pap: bool, distance: float) -> float:
 	if distance <= r:
 		return 1.0
 	return clampf(1.0 - 0.5 * (distance - r) / r, 0.5, 1.0)
+
+
+## Dispersion (demi-angle du cône, en °) d'un tir. `ads` : avancement de la
+## mise en joue (0..1, précision pleine en fin de mouvement), `move_k` :
+## vitesse / vitesse de marche (2 en l'air), `stance_mult` : accroupi / allongé,
+## `bloom` : ouverture due aux tirs récents, `hip_mult` : atouts (hanche seule).
+static func spread_deg(s: Dictionary, ads: float, move_k: float, stance_mult: float, bloom: float, hip_mult := 1.0) -> float:
+	var hip := (float(s.spread_hip) + float(s.get("spread_move", 0.0)) * move_k) * stance_mult + bloom
+	hip *= hip_mult
+	var k := clampf((ads - 0.3) / 0.7, 0.0, 1.0)
+	return lerpf(hip, float(s.spread_ads), k * k * (3.0 - 2.0 * k))
+
+
+## Ouverture maximale due aux tirs (°).
+static func bloom_max(s: Dictionary) -> float:
+	return float(s.spread_hip) * 1.2 + float(s.get("bloom", 0.0)) * 2.0
+
+
+## Demi-écart à l'écran (px) d'un cône de `deg` degrés, pour une caméra de
+## champ vertical `fov_deg` et une image de `screen_h` pixels de haut :
+## le réticule du HUD montre exactement la dispersion réelle.
+static func spread_to_px(deg: float, fov_deg: float, screen_h: float) -> float:
+	return tan(deg_to_rad(deg)) / tan(deg_to_rad(fov_deg) * 0.5) * screen_h * 0.5
+
+
+## Arme à lunette : "sniper" (écran de lunette), "optic" (lunette courte), "" sinon.
+static func scope_kind(s: Dictionary) -> String:
+	return String(s.get("scope", ""))
 
 
 ## Nouvelle instance d'arme (état d'inventaire sérialisable).

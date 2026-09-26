@@ -178,6 +178,33 @@ précédent.
   première personne : `ThrowController` / `ThrowView` (arme baissée par
   `ViewModel.lowered`).
 
+## Tir, visée et recul (`scripts/game/weapons/`)
+
+- **Une seule vérité** : les balles sont des rayons partis de la caméra
+  (`WeaponController._fire`, centre du réticule) ; elles touchent exactement ce
+  que montre le réticule ou la ligne de mire. Traçante, flamme, fumée, lumière
+  partent ensuite de la bouche réelle du modèle (`ViewModel.muzzle_global`) et
+  convergent vers les points d'impact réels. Chez les coéquipiers
+  (`Combat._cl_shot_fx`), les effets partent de la bouche de l'arme du soldat.
+- **Visée** : chaque modèle (`WeaponModels`) a un cran / œilleton (`sight`) et
+  un guidon (`front`) à la même hauteur ; `ViewModel.ads_pose` pose cette ligne
+  sur l'axe de la caméra (`ads`.z : distance de l'œil). Précision totale en
+  visée (sauf fusils à pompe), champ `ads_zoom`, durée `ads_time`. Vérifié par
+  `tests/autotest/weapon_aim.gd` (±2 px, impact à ±3 cm à 20 m pour chaque arme).
+- **Lunettes** : `scope` = `sniper` (L96A1, Dragunov : écran de lunette
+  `ScopeOverlay` + `scope.gdshader`, zoom `scope_fov`, balancement, [Maj]
+  pour retenir sa respiration) ou `optic` (AUG, G11 : lunette courte).
+- **Sensation** (`ShotFeel`, client seul) : dispersion dynamique (déplacement,
+  bloom ; le réticule du HUD dessine le vrai cône via `WeaponDB.spread_to_px`),
+  recul appliqué progressivement (~0,1 s) avec retour partiel automatique
+  (`recoil_recover`), multiplicateurs d'atouts (`hip_spread_mult`,
+  `recoil_mult`). Crochets dans `Player` : champ de vision
+  (`camera_fov`), sensibilité (`ads_look_mult`), décalage de visée
+  (`aim_offset`).
+- **Effets** (`Fx`) : traçantes en vol (pool), flammes par famille (`flash`),
+  douilles éjectées (pool, rebonds, tintement), impacts selon la surface
+  (`Fx.surface_of` : méta `surface` des formes du décor, type d'objet).
+
 ## Arme merveille TONNERRE-7 (`scripts/game/weapons/thunder_blast.gd`)
 
 - Façon Thundergun de Kino : 2 coups, réserve 12 (OURAGAN-77 amélioré : 4 / 24),

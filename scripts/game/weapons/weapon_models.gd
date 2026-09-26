@@ -10,6 +10,12 @@ extends RefCounted
 ##   forme : "box" ou "cyl" (cylindre orienté selon Z, taille.x = rayon, taille.z = longueur)
 ##   rotation : float (degrés autour de X) ou Vector3 (angles d'Euler en degrés)
 ## et les points remarquables (bouche du canon, visée, poignée, main d'appui).
+##
+## Organes de visée : l'ancre "sight" (cran de mire, œilleton, oculaire) et
+## l'ancre "front" (guidon, objectif) sont TOUJOURS à la même hauteur : la
+## ligne de mire est parallèle à l'axe -Z du modèle. En visée, ViewModel pose
+## cette ligne exactement sur l'axe de la caméra (celui des balles), l'œil à
+## "ads".z mètres derrière le cran. "eject" : fenêtre d'éjection des douilles.
 
 const MATERIALS := {
 	"metal": [Color(0.16, 0.16, 0.17), 0.45, 0.8],
@@ -216,7 +222,17 @@ static func build(model_id: String, viewmodel: bool, pap := false) -> Node3D:
 
 
 static func anchor(model_id: String, point: String) -> Vector3:
-	return spec(model_id).anchors.get(point, Vector3.ZERO)
+	var a: Dictionary = spec(model_id).anchors
+	if a.has(point):
+		return a[point]
+	match point:
+		"front":
+			return a.get("sight", Vector3.ZERO) + Vector3(0, 0, -0.3)
+		"ads":
+			return Vector3(0, 0, 0.3)
+		"eject":
+			return a.get("sight", Vector3.ZERO) + Vector3(0.02, -0.02, -0.05)
+	return Vector3.ZERO
 
 
 ## Milieu de l'arme sur son axe (de la bouche du canon à la crosse) : sert à
@@ -278,6 +294,38 @@ static func _pistol_grip(parts: Array, mat: String, z := 0.05, ang := -14.0) -> 
 	_b(parts, Vector3(0.008, 0.008, 0.06), Vector3(0, -0.04, z - 0.06), "metal_dark")
 
 
+## Cran de mire : socle plein puis deux oreilles dont le sommet est sur la
+## ligne de mire `line` (l'encoche laisse voir le guidon).
+static func _notch(parts: Array, z: float, base_y: float, line: float, w := 0.026, notch := 0.009, mat := "metal_dark") -> void:
+	var ear_h := 0.007
+	var body_h := maxf(line - ear_h - base_y, 0.002)
+	_b(parts, Vector3(w, body_h, 0.01), Vector3(0, line - ear_h - body_h * 0.5, z), mat)
+	var ear_w := (w - notch) * 0.5
+	for sx in [-1.0, 1.0]:
+		_b(parts, Vector3(ear_w, ear_h, 0.01), Vector3(sx * (notch + ear_w) * 0.5, line - ear_h * 0.5, z), mat)
+
+
+## Guidon : lame dont la pointe est exactement sur la ligne de mire.
+## `hood` : oreilles de protection de part et d'autre (AK, M16).
+static func _post(parts: Array, z: float, base_y: float, line: float, w := 0.005, hood := false, mat := "metal_dark") -> void:
+	var h := maxf(line - base_y, 0.004)
+	_b(parts, Vector3(w, h, 0.008), Vector3(0, line - h * 0.5, z), mat)
+	if hood:
+		for sx in [-1.0, 1.0]:
+			_b(parts, Vector3(0.004, h + 0.006, 0.012), Vector3(sx * 0.012, line + 0.006 - (h + 0.006) * 0.5, z), mat)
+		_b(parts, Vector3(0.028, 0.006, 0.014), Vector3(0, line - h + 0.003, z), mat)
+
+
+## Œilleton (dioptre) : anneau carré percé, centré sur la ligne de mire.
+static func _aperture(parts: Array, z: float, base_y: float, line: float, hole := 0.009, outer := 0.026, mat := "metal_dark") -> void:
+	var bar := (outer - hole) * 0.5
+	_b(parts, Vector3(outer, bar, 0.008), Vector3(0, line + (hole + bar) * 0.5, z), mat)
+	var low_h := maxf(line - hole * 0.5 - base_y, bar)
+	_b(parts, Vector3(outer, low_h, 0.008), Vector3(0, line - hole * 0.5 - low_h * 0.5, z), mat)
+	for sx in [-1.0, 1.0]:
+		_b(parts, Vector3(bar, hole, 0.008), Vector3(sx * (hole + bar) * 0.5, line, z), mat)
+
+
 # ==========================================================================
 # Archétypes
 # ==========================================================================
@@ -294,13 +342,18 @@ static func _pistol(p: Dictionary) -> Dictionary:
 	if ext > 0.0:
 		_b(parts, Vector3(0.026, ext, 0.036), Vector3(0, -0.108 - ext * 0.5, 0.034), "metal_dark", -12.0)
 	_c(parts, 0.009, 0.03, Vector3(0, 0.035, front + 0.01), "metal_dark")
-	_b(parts, Vector3(0.006, 0.012, 0.01), Vector3(0, 0.035 + h * 0.5 + 0.005, front + 0.02), "metal_dark")
-	_b(parts, Vector3(0.024, 0.012, 0.01), Vector3(0, 0.035 + h * 0.5 + 0.005, 0.02), "metal_dark")
+	# Guidon et cran de mire sur la même ligne.
+	var slide_top := 0.035 + h * 0.5
+	var line := slide_top + 0.009
+	_post(parts, front + 0.02, slide_top, line, 0.005)
+	_notch(parts, 0.02, slide_top, line, 0.026, 0.009)
 	_b(parts, Vector3(0.012, 0.02, 0.03), Vector3(0, -0.018, -0.02), "metal_dark")
 	# Chien
 	_b(parts, Vector3(0.01, 0.018, 0.012), Vector3(0, 0.05, 0.04), "metal_dark", -30.0)
 	return {"parts": parts, "anchors": {
-		"muzzle": Vector3(0, 0.035, front - 0.005), "sight": Vector3(0, 0.035 + h * 0.5 + 0.011, 0.02),
+		"muzzle": Vector3(0, 0.035, front - 0.005), "sight": Vector3(0, line, 0.02),
+		"front": Vector3(0, line, front + 0.02), "ads": Vector3(0, 0, 0.4),
+		"eject": Vector3(0.018, slide_top - 0.004, -0.04),
 		"grip": Vector3(0, -0.06, 0.03), "support": Vector3(-0.02, -0.07, 0.02)}}
 
 
@@ -313,12 +366,16 @@ static func _revolver(p: Dictionary) -> Dictionary:
 	_c(parts, 0.011, bl, Vector3(0, 0.045, -0.055 - bl * 0.5), "metal")
 	_b(parts, Vector3(0.018, 0.018, bl), Vector3(0, 0.03, -0.055 - bl * 0.5), "metal")
 	_b(parts, Vector3(0.01, 0.012, bl + 0.04), Vector3(0, 0.061, -0.04 - bl * 0.5), "metal_dark")
-	_b(parts, Vector3(0.006, 0.014, 0.012), Vector3(0, 0.072, -0.05 - bl), "metal_dark")
+	# Guidon à rampe au bout de la bande, cran de mire sur le haut de la carcasse.
+	var line := 0.079
+	_post(parts, -0.05 - bl, 0.067, line, 0.005)
+	_notch(parts, 0.0, 0.055, line, 0.024, 0.009)
 	_b(parts, Vector3(0.034, 0.12, 0.05), Vector3(0, -0.05, 0.04), "wood", -22.0)
 	_b(parts, Vector3(0.008, 0.008, 0.05), Vector3(0, -0.02, -0.02), "metal_dark")
 	_b(parts, Vector3(0.012, 0.022, 0.014), Vector3(0, 0.06, 0.035), "metal_dark", -35.0)
 	return {"parts": parts, "anchors": {
-		"muzzle": Vector3(0, 0.045, -0.06 - bl), "sight": Vector3(0, 0.08, 0.03),
+		"muzzle": Vector3(0, 0.045, -0.06 - bl), "sight": Vector3(0, line, 0.0),
+		"front": Vector3(0, line, -0.05 - bl), "ads": Vector3(0, 0, 0.4),
 		"grip": Vector3(0, -0.065, 0.05), "support": Vector3(-0.02, -0.08, 0.04)}}
 
 
@@ -381,9 +438,6 @@ static func _long(p: Dictionary) -> Dictionary:
 			muzzle_z -= 0.07
 	if p.get("barrel_hook", false):
 		_b(parts, Vector3(0.012, 0.035, 0.03), Vector3(0, bottom - 0.005, front - 0.03), "metal_dark")
-	if p.get("front_post", false):
-		# Guidon triangulaire façon M16.
-		_b(parts, Vector3(0.012, 0.06, 0.02), Vector3(0, y + 0.035, front - bl * 0.3), "polymer", -15.0)
 	# Chargeur
 	var mag: Array = p.get("mag", ["none"])
 	var mz: float = mag[1] if mag.size() > 1 else 0.0
@@ -468,22 +522,33 @@ static func _long(p: Dictionary) -> Dictionary:
 	if bullpup:
 		# Plaque de couche au bout du boîtier.
 		_b(parts, Vector3(rw + 0.006, rh + 0.03, 0.03), Vector3(0, y - 0.012, rb + 0.01), "polymer")
-	# Dessus : organes de visée.
-	var sight := Vector3(0, top + 0.012, rb - 0.03)
+	# Dessus : organes de visée. `line` : hauteur de la ligne de mire ;
+	# `rear_z` / `front_z` : cran (ou œilleton, oculaire) et guidon (objectif).
+	var line := top + 0.024
+	var rear_z := rb - 0.04
+	var front_z := muzzle_z + 0.03
+	var eye := 0.3
 	match p.get("top", "iron"):
 		"iron":
-			_b(parts, Vector3(0.024, 0.014, 0.012), Vector3(0, top + 0.007, rb - 0.04), "metal_dark")
-			_b(parts, Vector3(0.006, 0.024, 0.01), Vector3(0, by + br + 0.012, muzzle_z + 0.03), "metal_dark")
-			sight = Vector3(0, top + 0.014, rb - 0.04)
+			_notch(parts, rear_z, top, line)
+			_post(parts, front_z, by + br, line, 0.005, true)
 		"ak":
-			_b(parts, Vector3(0.03, 0.012, 0.05), Vector3(0, top + 0.006, rf + 0.05), "metal_dark")
-			_b(parts, Vector3(0.024, 0.03, 0.014), Vector3(0, by + 0.02, muzzle_z + 0.09), "metal_dark")
-			_b(parts, Vector3(0.05, 0.02, rb - rf - 0.08), Vector3(0, top + 0.004, (rf + rb) * 0.5 + 0.04), rm)
-			sight = Vector3(0, top + 0.016, rf + 0.05)
+			# Hausse à planchette à l'avant du boîtier, couvercle de culasse.
+			rear_z = rf + 0.05
+			line = top + 0.03
+			front_z = muzzle_z + 0.09
+			_b(parts, Vector3(rw * 0.8, 0.014, rb - rf - 0.08), Vector3(0, top + 0.004, (rf + rb) * 0.5 + 0.04), rm)
+			_notch(parts, rear_z, top, line, 0.032, 0.01)
+			_post(parts, front_z, by + br, line, 0.005, true)
+			eye = 0.34
 		"drum_sight":
-			_c(parts, 0.012, 0.02, Vector3(0, top + 0.012, rb - 0.03), "metal_dark")
-			_b(parts, Vector3(0.008, 0.028, 0.012), Vector3(0, top + 0.012, rf + 0.02), "metal_dark")
-			sight = Vector3(0, top + 0.024, rb - 0.03)
+			# MP5K : tambour de dioptre à l'arrière, guidon à tunnel.
+			line = top + 0.024
+			rear_z = rb - 0.03
+			front_z = rf + 0.02
+			_aperture(parts, rear_z, top, line, 0.01, 0.022)
+			_post(parts, front_z, top, line, 0.005, true)
+			eye = 0.16
 		"handle", "handle_low":
 			var hh := 0.04 if p.top == "handle" else 0.022
 			var hz0 := rb - 0.03
@@ -491,13 +556,29 @@ static func _long(p: Dictionary) -> Dictionary:
 			_b(parts, Vector3(0.022, 0.016, hz0 - hz1 + 0.03), Vector3(0, top + hh, (hz0 + hz1) * 0.5), rm)
 			_b(parts, Vector3(0.018, hh, 0.02), Vector3(0, top + hh * 0.5, hz1), rm)
 			_b(parts, Vector3(0.018, hh, 0.02), Vector3(0, top + hh * 0.5, hz0), rm)
-			sight = Vector3(0, top + hh + 0.012, hz0)
+			# Œilleton sur l'arrière de la poignée de transport.
+			line = top + hh + 0.022
+			rear_z = hz0
+			_aperture(parts, rear_z, top + hh + 0.008, line, 0.011, 0.02)
+			# Guidon (triangulaire sur M16) : embase sur le canon, lame jusqu'à la ligne.
+			var tri: bool = p.get("front_post", false)
+			front_z = front - bl * 0.3 if tri else muzzle_z + 0.04
+			var base_h := maxf(line - 0.014 - by, 0.01)
+			_b(parts, Vector3(0.012, base_h, 0.02), Vector3(0, line - 0.014 - base_h * 0.5, front_z), "polymer" if tri else "metal_dark")
+			_post(parts, front_z, line - 0.014, line, 0.005, true)
+			eye = 0.15
 		"famas":
 			# Longue poignée de transport de la bouche à l'arrière.
-			_b(parts, Vector3(0.022, 0.018, rb - rf - 0.02), Vector3(0, top + 0.06, (rf + rb) * 0.5 - 0.02), "polymer")
+			var bar_y := top + 0.06
+			_b(parts, Vector3(0.022, 0.018, rb - rf - 0.02), Vector3(0, bar_y, (rf + rb) * 0.5 - 0.02), "polymer")
 			_b(parts, Vector3(0.02, 0.06, 0.03), Vector3(0, top + 0.03, rf + 0.03), "polymer", 20.0)
 			_b(parts, Vector3(0.02, 0.06, 0.03), Vector3(0, top + 0.03, rb - 0.06), "polymer")
-			sight = Vector3(0, top + 0.08, rb - 0.06)
+			line = bar_y + 0.024
+			rear_z = rb - 0.06
+			front_z = rf + 0.03
+			_aperture(parts, rear_z, bar_y + 0.009, line, 0.011, 0.02)
+			_post(parts, front_z, bar_y + 0.009, line, 0.005, true)
+			eye = 0.15
 		"scope", "scope_short":
 			var slen := 0.3 if p.top == "scope" else 0.18
 			var sy := top + 0.045
@@ -506,17 +587,26 @@ static func _long(p: Dictionary) -> Dictionary:
 			_c(parts, 0.027, 0.05, Vector3(0, sy, sz - slen * 0.5 + 0.02), "metal_dark")
 			_c(parts, 0.024, 0.04, Vector3(0, sy, sz + slen * 0.5 - 0.02), "metal_dark")
 			_c(parts, 0.018, 0.005, Vector3(0, sy, sz + slen * 0.5), "glass")
+			_c(parts, 0.024, 0.005, Vector3(0, sy, sz - slen * 0.5), "glass")
 			_b(parts, Vector3(0.012, 0.035, 0.02), Vector3(0, top + 0.018, sz - slen * 0.25), "metal_dark")
 			_b(parts, Vector3(0.012, 0.035, 0.02), Vector3(0, top + 0.018, sz + slen * 0.25), "metal_dark")
-			sight = Vector3(0, sy, sz + slen * 0.5)
+			line = sy
+			rear_z = sz + slen * 0.5
+			front_z = sz - slen * 0.5
+			eye = 0.07
 		"g11":
 			# Poignée-lunette sur toute la longueur.
 			_b(parts, Vector3(0.03, 0.03, 0.34), Vector3(0, top + 0.035, (rf + rb) * 0.5), "polymer")
 			_b(parts, Vector3(0.03, 0.035, 0.03), Vector3(0, top + 0.015, rf + 0.1), "polymer")
 			_c(parts, 0.012, 0.006, Vector3(0, top + 0.035, (rf + rb) * 0.5 + 0.17), "glass")
-			sight = Vector3(0, top + 0.035, (rf + rb) * 0.5 + 0.17)
+			line = top + 0.035
+			rear_z = (rf + rb) * 0.5 + 0.17
+			front_z = (rf + rb) * 0.5 - 0.17
+			eye = 0.07
 	return {"parts": parts, "anchors": {
-		"muzzle": Vector3(0, by, muzzle_z), "sight": sight,
+		"muzzle": Vector3(0, by, muzzle_z), "sight": Vector3(0, line, rear_z),
+		"front": Vector3(0, line, front_z), "ads": Vector3(0, 0, eye),
+		"eject": Vector3(rw * 0.5 + 0.004, y + 0.012, rb - 0.1 if bullpup else rf * 0.35 + rb * 0.65),
 		"grip": Vector3(0, -0.06, gz), "support": support,
 		# Bullpup : l'arme est tenue plus en avant (crosse à l'épaule).
 		"hold": Vector3(0, 0, -0.14) if bullpup else Vector3.ZERO}}
@@ -551,7 +641,11 @@ static func _shotgun(p: Dictionary) -> Dictionary:
 		if p.get("shroud", false):
 			_b(parts, Vector3(0.042, 0.02, L * 0.6), Vector3(0, y + 0.035, -0.1 - L * 0.4), "metal_dark")
 		muzzle_y = y + 0.015
-	_b(parts, Vector3(0.012, 0.012, 0.012), Vector3(0, muzzle_y + 0.022, front + 0.04), "brass")
+	# Bille de guidon au bout du canon (ou de la bande) : ligne de mire au ras
+	# du boîtier et de la bande.
+	var rib_top := y + 0.043 if barrels == 2 else (y + 0.045 if p.get("shroud", false) else y + 0.032)
+	var line := maxf(rib_top, y + 0.035) + 0.008
+	_post(parts, front + 0.03, rib_top, line, 0.009, false, "brass")
 	# Crosse et poignée
 	match p.get("stock", "none"):
 		"wood_light", "wood":
@@ -564,9 +658,10 @@ static func _shotgun(p: Dictionary) -> Dictionary:
 		_pistol_grip(parts, p.grip, 0.09, -18.0)
 	else:
 		_b(parts, Vector3(0.008, 0.008, 0.06), Vector3(0, -0.02, 0.02), "metal_dark")
-	var sight := Vector3(0, y + 0.05, 0.0)
 	return {"parts": parts, "anchors": {
-		"muzzle": Vector3(0, muzzle_y, front), "sight": sight,
+		"muzzle": Vector3(0, muzzle_y, front), "sight": Vector3(0, line, 0.05),
+		"front": Vector3(0, line, front + 0.03), "ads": Vector3(0, 0, 0.3),
+		"eject": Vector3(0.027, y + 0.01, -0.03),
 		"grip": Vector3(0, -0.05, 0.1), "support": Vector3(0, y - 0.05, -0.3)}}
 
 
@@ -579,13 +674,16 @@ static func _launcher() -> Dictionary:
 	_c(parts, 0.036, 0.04, Vector3(0, y + 0.01, -0.5), "metal")
 	_c(parts, 0.028, 0.34, Vector3(0, y - 0.05, -0.25), "metal")
 	_b(parts, Vector3(0.07, 0.06, 0.16), Vector3(0, y - 0.05, -0.28), "wood")
-	_b(parts, Vector3(0.012, 0.08, 0.02), Vector3(0, y + 0.08, -0.08), "metal_worn", -10.0)
-	_b(parts, Vector3(0.03, 0.01, 0.02), Vector3(0, y + 0.115, -0.09), "metal_worn")
+	# Hausse à échelle (cran) sur le boîtier, guidon haut au bout du tube.
+	var line := y + 0.1
+	_notch(parts, -0.09, y + 0.04, line, 0.03, 0.01, "metal_worn")
+	_post(parts, -0.49, y + 0.042, line, 0.006, true)
 	_b(parts, Vector3(0.05, 0.1, 0.3), Vector3(0, y - 0.045, 0.24), "wood", 6.0)
 	_b(parts, Vector3(0.05, 0.12, 0.025), Vector3(0, y - 0.065, 0.39), "wood_dark", 6.0)
 	_pistol_grip(parts, "wood_dark", 0.06, -16.0)
 	return {"parts": parts, "anchors": {
-		"muzzle": Vector3(0, y + 0.01, -0.52), "sight": Vector3(0, y + 0.12, -0.09),
+		"muzzle": Vector3(0, y + 0.01, -0.52), "sight": Vector3(0, line, -0.09),
+		"front": Vector3(0, line, -0.49), "ads": Vector3(0, 0, 0.28),
 		"grip": Vector3(0, -0.06, 0.06), "support": Vector3(0, y - 0.08, -0.28)}}
 
 
@@ -598,12 +696,18 @@ static func _rocket() -> Dictionary:
 	_c(parts, 0.043, 0.05, Vector3(0, y, 0.28), "olive")
 	_c(parts, 0.03, 0.01, Vector3(0, y, 0.31), "metal_dark")
 	_b(parts, Vector3(0.05, 0.03, 0.12), Vector3(0, y + 0.045, -0.02), "olive")
-	_b(parts, Vector3(0.03, 0.05, 0.006), Vector3(0, y + 0.07, 0.06), "metal_dark")
-	_b(parts, Vector3(0.03, 0.05, 0.006), Vector3(0, y + 0.07, -0.44), "metal_dark")
+	# Œilleton arrière et réticule avant (cadre + lame) relevés.
+	var line := y + 0.075
+	_aperture(parts, 0.06, y + 0.042, line, 0.01, 0.03)
+	for sx in [-1.0, 1.0]:
+		_b(parts, Vector3(0.004, 0.05, 0.006), Vector3(sx * 0.016, y + 0.067, -0.44), "metal_dark")
+	_b(parts, Vector3(0.036, 0.004, 0.006), Vector3(0, y + 0.092, -0.44), "metal_dark")
+	_post(parts, -0.44, y + 0.042, line, 0.004)
 	_b(parts, Vector3(0.03, 0.08, 0.04), Vector3(0, y - 0.07, 0.02), "polymer", 10.0)
 	_b(parts, Vector3(0.012, 0.008, 0.9), Vector3(0.036, y + 0.02, -0.15), "tan")
 	return {"parts": parts, "anchors": {
-		"muzzle": Vector3(0, y, -0.61), "sight": Vector3(0, y + 0.09, 0.06),
+		"muzzle": Vector3(0, y, -0.61), "sight": Vector3(0, line, 0.06),
+		"front": Vector3(0, line, -0.44), "ads": Vector3(0, 0, 0.17),
 		"grip": Vector3(0, -0.04, 0.03), "support": Vector3(-0.02, y - 0.05, -0.25)}}
 
 
@@ -617,7 +721,8 @@ static func _ray() -> Dictionary:
 	_c(parts, 0.012, 0.12, Vector3(0.04, 0.04, -0.06), "glow")
 	_c(parts, 0.012, 0.12, Vector3(-0.04, 0.04, -0.06), "glow")
 	return {"parts": parts, "anchors": {
-		"muzzle": Vector3(0, 0.04, -0.3), "sight": Vector3(0, 0.1, 0.0),
+		"muzzle": Vector3(0, 0.04, -0.3), "sight": Vector3(0, 0.13, 0.02),
+		"front": Vector3(0, 0.13, -0.14), "ads": Vector3(0, 0, 0.32),
 		"grip": Vector3(0, -0.06, 0.04), "support": Vector3(-0.02, -0.07, 0.03)}}
 
 
@@ -661,7 +766,8 @@ static func _thunder() -> Dictionary:
 	_pistol_grip(parts, "wood_dark", 0.07, -16.0)
 	_b(parts, Vector3(0.032, 0.09, 0.036), Vector3(0, y - 0.115, -0.2), "wood_dark", 8.0)
 	return {"parts": parts, "anchors": {
-		"muzzle": Vector3(0, y, -0.39), "sight": Vector3(0, y + 0.13, -0.02),
+		"muzzle": Vector3(0, y, -0.39), "sight": Vector3(0, y + 0.125, 0.0),
+		"front": Vector3(0, y + 0.125, -0.2), "ads": Vector3(0, 0, 0.36),
 		"grip": Vector3(0, -0.06, 0.08), "support": Vector3(0, y - 0.14, -0.2)}}
 
 

@@ -93,7 +93,11 @@ func _run(game: Game) -> void:
 	fx.blood_hit(p, Vector3.FORWARD, 1.0)
 	fx.dirt_burst(p + Vector3.DOWN * 1.2)
 	fx.tracer(p + Vector3.LEFT, p + Vector3.RIGHT)
-	fx.muzzle_flash(p)
+	fx.muzzle_flash(p, Vector3.FORWARD)
+	fx.impact(p, Vector3.BACK, false, "metal")
+	fx.impact(p, Vector3.BACK, false, "wood")
+	fx.eject_shell(p, Vector3.UP, "rifle")
+	fx.eject_shell(p, Vector3.UP, "shotgun")
 	ProjectileFx.launch(fx, p + Vector3.LEFT, p + Vector3.RIGHT, 8.0, "rocket", false)
 	ProjectileFx.launch(fx, p + Vector3.LEFT, p + Vector3.RIGHT, 8.0, "grenade", true)
 	for i in FRAMES:

@@ -27,7 +27,6 @@ var _next_fire := 0.0
 var _reload_end := -1.0
 var _switch_end := -1.0
 var _melee_ready := 0.0
-var _recoil_debt := 0.0
 var _trigger_released := true
 var _drink_end := -1.0
 ## Couteau de mêlée tenu (KnifeDB) et fin de l'animation de récupération.
@@ -43,6 +42,13 @@ var throws: ThrowController
 var deadeye := DeadeyeAim.new()
 ## Dispersion (degrés) du dernier tir (tests).
 var last_spread_deg := 0.0
+## Dispersion dynamique, recul progressif, balancement de la lunette.
+var feel := ShotFeel.new()
+## Visée dans la lunette (écran de lunette affiché, modèle masqué).
+var scoped := false
+## Points d'arrivée des balles du dernier tir (tests) :
+## [position, normale, id du zombie touché ou -1].
+var last_impacts: Array = []
 
 ## Sons de rechargement par mécanisme : [fraction de la durée, son].
 const RELOAD_SOUNDS := {
@@ -104,6 +110,7 @@ func _on_inventory_changed(pid: int) -> void:
 			Audio.play_2d("weapon_switch", -6.0)
 		_reload_end = -1.0
 		_burst_left = 0
+		feel.reset()
 		view.cancel_reload()
 	ammo_changed.emit()
 
@@ -182,13 +189,59 @@ func tick(delta: float) -> void:
 		if w.mag == 0 and w.reserve > 0 and _reload_end < 0.0 and t >= _next_fire and not busy:
 			_try_reload(w, s)
 
-	# Récupération partielle du recul.
-	if _recoil_debt > 0.0:
-		var back := minf(_recoil_debt, delta * 4.0 * maxf(_recoil_debt, 0.02))
-		_recoil_debt -= back
-		player.pitch -= back
+	# Lunette : l'écran de lunette remplace le modèle en fin de mise en joue.
+	var was_scoped := scoped
+	scoped = WeaponDB.scope_kind(s) != "" and player.aiming and view.ads >= 0.92 and not dead and not busy
+	if scoped and not was_scoped:
+		Audio.play_2d("slide", -12.0, 0.03, "SFX", 1.35)
+	# Dispersion, recul progressif et retour, balancement dans la lunette.
+	feel.update(delta, player, s, view.ads, scoped and WeaponDB.scope_kind(s) == "sniper", inp.sprint, hip_spread_mult(), t)
 	deadeye.tick(self, delta)
+	view.scoped = scoped
 	view.update(delta, player)
+
+
+## Multiplicateur de dispersion à la hanche (atouts : DEADEYE DRAM).
+func hip_spread_mult() -> float:
+	return PerkDB.hip_spread_mult(session.get_data(player.peer_id))
+
+
+## Multiplicateur de recul (atouts : DEADEYE DRAM).
+func recoil_mult() -> float:
+	return PerkDB.recoil_mult(session.get_data(player.peer_id))
+
+
+## Dispersion courante (°) : celle du prochain tir, dessinée par le réticule.
+func spread_deg() -> float:
+	return feel.spread
+
+
+## Décalage de la visée (tangage, lacet ; rad) que Player ajoute à la caméra
+## (balancement de la lunette) : les balles suivent la caméra, donc le réticule.
+func aim_offset() -> Vector2:
+	return feel.aim_offset
+
+
+## Champ de vision de la caméra (crochet de Player) : champ de visée de
+## l'arme (ads_zoom), zoom de la lunette (scope_fov, immédiat) sinon `target`.
+func camera_fov(base_fov: float, target: float, fov_now: float, delta: float) -> float:
+	var s := current_stats()
+	if scoped and s.has("scope_fov"):
+		return float(s.scope_fov)
+	if player.aiming and not s.is_empty():
+		var k := clampf(view.ads, 0.0, 1.0)
+		target = lerpf(base_fov, base_fov * float(s.ads_zoom), k * k * (3.0 - 2.0 * k))
+		if scoped:
+			return target
+	return lerpf(fov_now, target, 1.0 - exp(-delta * 14.0))
+
+
+## Sensibilité de la souris en visée (crochet de Player) : proportionnelle au
+## zoom dans la lunette, pour garder le même ressenti.
+func ads_look_mult() -> float:
+	if scoped:
+		return 0.6 * tan(deg_to_rad(player.camera.fov) * 0.5) / tan(deg_to_rad(Settings.fov * float(current_stats().ads_zoom)) * 0.5)
+	return 0.6
 
 
 func _fire(w: Dictionary, s: Dictionary) -> void:
@@ -203,67 +256,65 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 		if _burst_left <= 0 or w.mag <= 0:
 			_burst_left = 0
 			_next_fire += float(s.get("burst_delay", 0.2))
-	# Fusil à pompe / à verrou : bruit du mécanisme entre deux coups.
+	# Fusil à pompe / à verrou : bruit du mécanisme entre deux coups, douille
+	# éjectée au réarmement.
 	var cycle: String = s.get("cycle", "")
 	if cycle != "" and w.mag > 0:
-		get_tree().create_timer(interval * 0.4).timeout.connect(func(): Audio.play_2d(cycle, -4.0))
+		get_tree().create_timer(interval * 0.4).timeout.connect(func():
+			Audio.play_2d(cycle, -4.0)
+			view.eject_shell(fx, player, String(s.get("shell", ""))))
 
+	# UNE seule vérité : le rayon de la caméra (centre du réticule, ligne de
+	# mire en visée) décide de ce qui est touché. Les effets partent ensuite de
+	# la bouche réelle du modèle et convergent vers ces points d'impact.
 	var origin := player.camera.global_position
 	var fwd := player.aim_direction()
-	var ppd := session.get_data(player.peer_id)
-	var spread_deg: float = lerpf(s.spread_hip * PerkDB.hip_spread_mult(ppd), s.spread_ads, view.ads)
-	var speed := Vector2(player.velocity.x, player.velocity.z).length()
-	if speed > 1.0:
-		spread_deg *= 1.4
-	if player.prone:
-		spread_deg *= 0.6
-	elif player.crouching:
-		spread_deg *= 0.75
-	last_spread_deg = spread_deg
+	var spread := feel.spread
+	last_spread_deg = spread
 	var impacts := PackedVector3Array()
 	var hits: Array = []
+	last_impacts = []
 	var blast: bool = s.has("blast_range")
 	# Onde de choc (TONNERRE-7) : pas de balle, le serveur calcule le cône.
 	for i in (0 if blast else int(s.pellets)):
-		var dir := _spread_dir(fwd, spread_deg)
-		_trace(origin, dir, int(s.penetration), impacts, hits)
+		var dir := _spread_dir(fwd, spread)
+		last_impacts.append(_trace(origin, dir, int(s.penetration), impacts, hits))
 
 	# Effets locaux immédiats
-	var muzzle := view.muzzle_global()
+	var muzzle: Vector3 = view.muzzle_global()
 	Audio.play_2d(s.sound, -1.0, 0.05, "SFX", s.get("sound_pitch", 0.8 if w.pap else 1.0))
-	view.fire_kick(s.recoil)
+	view.fire(s, fx, player, cycle == "")
+	feel.on_shot(s, view.ads, recoil_mult(), t)
 	if blast:
 		ThunderBlast.play_fx(fx, muzzle, fwd, w.pap, s.blast_range)
-		var bkick := deg_to_rad(float(s.recoil))
-		player.pitch += bkick
-		_recoil_debt += bkick * 0.7
 		combat.srv_fire.rpc_id(1, slot, origin, fwd, impacts, hits)
 		fired.emit()
 		ammo_changed.emit()
 		return
-	var tracer_col := Color(1.0, 0.45, 0.1, 1.0) if s.get("tracer", "") == "ray" else Color(1.0, 0.8, 0.5, 0.7)
-	var ray_end: Vector3 = impacts[0] if impacts.size() >= 2 else (hits[0][3] if not hits.is_empty() else origin + fwd * 40.0)
+	var ray_end: Vector3 = last_impacts[0][0]
+	var kind: String = s.get("tracer", "")
 	if s.has("projectile_speed"):
 		# Grenade / roquette : projectile visible, l'explosion vient du serveur.
 		ProjectileFx.launch(fx, muzzle, ray_end, s.projectile_speed, s.get("tracer", "grenade"), w.pap)
 	else:
-		if s.get("tracer", "") == "ray":
-			fx.tracer(muzzle, ray_end, tracer_col, 0.12)
-		for i in range(0, impacts.size() - 1, 2):
-			if s.get("tracer", "") != "ray" and (i < 6 or randf() < 0.3):
-				fx.tracer(muzzle, impacts[i], tracer_col)
-			fx.impact(impacts[i], impacts[i + 1], i == 0)
-	var kick := deg_to_rad(float(s.recoil)) * (0.55 if view.ads > 0.5 else 0.8) * PerkDB.recoil_mult(ppd)
-	player.pitch += kick
-	player.yaw += deg_to_rad(randf_range(-0.3, 0.3) * float(s.recoil)) * PerkDB.recoil_mult(ppd)
-	_recoil_debt += kick * 0.6
+		if kind == "ray":
+			fx.tracer(muzzle, ray_end, Fx.TRACER_RAY, 0.12)
+		for i in last_impacts.size():
+			var e: Array = last_impacts[i]
+			# Traçante de la bouche au point touché (3 plombs au plus).
+			if kind != "ray" and i < 3:
+				fx.tracer(muzzle, e[0])
+			if e[2] < 0 and e[1] != Vector3.ZERO:
+				fx.impact(e[0], e[1], i == 0, e[3])
 	combat.srv_fire.rpc_id(1, slot, origin, fwd, impacts, hits)
 	fired.emit()
 	ammo_changed.emit()
 
 
-## Lancer de rayon avec pénétration : traverse jusqu'à `pen` zombies, s'arrête au décor.
-func _trace(origin: Vector3, dir: Vector3, pen: int, impacts: PackedVector3Array, hits: Array) -> void:
+## Lancer de rayon avec pénétration : traverse jusqu'à `pen` zombies, s'arrête
+## au décor. Retourne le point d'arrivée [position, normale (nulle si rien
+## n'est touché), id du dernier zombie touché ou -1, surface].
+func _trace(origin: Vector3, dir: Vector3, pen: int, impacts: PackedVector3Array, hits: Array) -> Array:
 	var space := player.get_world_3d().direct_space_state
 	var from := origin
 	var exclude: Array[RID] = [player.get_rid()]
@@ -273,10 +324,11 @@ func _trace(origin: Vector3, dir: Vector3, pen: int, impacts: PackedVector3Array
 		q.collide_with_areas = true
 		var r := space.intersect_ray(q)
 		if r.is_empty():
-			return
+			break
 		var col: Object = r.collider
 		if col is Area3D and col.has_meta("zombie_id"):
-			hits.append([int(col.get_meta("zombie_id")), int(col.get_meta("zone", 0)), origin.distance_to(r.position), r.position])
+			var zid := int(col.get_meta("zombie_id"))
+			hits.append([zid, int(col.get_meta("zone", 0)), origin.distance_to(r.position), r.position])
 			fx.blood_hit(r.position, dir, 0.6)
 			Game.instance.hud.hit_marker(false, int(col.get_meta("zone", 0)) == 1)
 			exclude.append(r.rid)
@@ -286,12 +338,13 @@ func _trace(origin: Vector3, dir: Vector3, pen: int, impacts: PackedVector3Array
 					exclude.append(sib.get_rid())
 			remaining -= 1
 			if remaining <= 0:
-				return
+				return [r.position, -dir, zid, "flesh"]
 			from = r.position + dir * 0.01
 		else:
 			impacts.append(r.position)
 			impacts.append(r.normal)
-			return
+			return [r.position, r.normal, -1, Fx.surface_of(col, int(r.get("shape", 0)))]
+	return [origin + dir * RAY_LENGTH, Vector3.ZERO, -1, ""]
 
 
 static func _spread_dir(fwd: Vector3, spread_deg: float) -> Vector3:
