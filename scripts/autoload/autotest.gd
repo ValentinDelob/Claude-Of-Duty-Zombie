@@ -55,9 +55,20 @@ func _run() -> void:
 	var sc: AutotestScenario = script.new()
 	sc.at = self
 	# Filet de sécurité : un scénario bloqué ne doit jamais geler la CI.
-	get_tree().create_timer(sc.timeout_sec, true, false, true).timeout.connect(func():
-		fail("timeout du scénario (%ds)" % sc.timeout_sec)
-		finish())
+	# Vérifié chaque seconde : les scénarios fixent `timeout_sec` au début de
+	# run(), APRÈS la création du minuteur (un minuteur fixe plafonnait donc
+	# tous les scénarios à la valeur par défaut de 60 s).
+	var t0 := Time.get_ticks_msec()
+	var watchdog := Timer.new()
+	watchdog.wait_time = 1.0
+	watchdog.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(watchdog)
+	watchdog.timeout.connect(func():
+		if (Time.get_ticks_msec() - t0) / 1000.0 >= sc.timeout_sec:
+			watchdog.stop()
+			fail("timeout du scénario (%ds)" % sc.timeout_sec)
+			finish())
+	watchdog.start()
 	await sc.run()
 	finish()
 
