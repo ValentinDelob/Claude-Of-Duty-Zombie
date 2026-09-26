@@ -21,6 +21,8 @@ var sfx_volume := 0.9
 var fullscreen := false
 var vsync := true
 var quality: Quality = Quality.MEDIUM
+## Intensité du grain de film en jeu (0 = désactivé, 1 = maximum).
+var film_grain := 0.5
 var last_ip := "127.0.0.1"
 var last_port := 7777
 ## Dernière carte choisie (sélection solo, salon de l'hôte).
@@ -103,6 +105,7 @@ func load_settings() -> void:
 	fullscreen = cfg.get_value("video", "fullscreen", fullscreen)
 	vsync = cfg.get_value("video", "vsync", vsync)
 	quality = cfg.get_value("video", "quality", quality)
+	film_grain = cfg.get_value("video", "film_grain", film_grain)
 	master_volume = cfg.get_value("audio", "master", master_volume)
 	music_volume = cfg.get_value("audio", "music", music_volume)
 	sfx_volume = cfg.get_value("audio", "sfx", sfx_volume)
@@ -120,6 +123,7 @@ func save_settings() -> void:
 	cfg.set_value("video", "fullscreen", fullscreen)
 	cfg.set_value("video", "vsync", vsync)
 	cfg.set_value("video", "quality", quality)
+	cfg.set_value("video", "film_grain", film_grain)
 	cfg.set_value("audio", "master", master_volume)
 	cfg.set_value("audio", "music", music_volume)
 	cfg.set_value("audio", "sfx", sfx_volume)

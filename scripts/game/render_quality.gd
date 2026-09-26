@@ -10,7 +10,9 @@ extends Node
 ##   - lampes de la carte (groupe LAMP_GROUP) : proportion à ombres portées,
 ##     distances de fondu de la lumière et de l'ombre ;
 ##   - ombres positionnelles : taille de l'atlas, filtre (PCF) ;
-##   - environnement : glow (et sa qualité), SSAO ;
+##   - environnement : glow (et sa qualité), SSAO, brume volumétrique ;
+##   - post-traitement FilmPost (groupe GROUP) : variante lisant l'écran
+##     (aberration chromatique) ou variante LOW multiplicative ;
 ##   - viewport : résolution 3D (scaling_3d_scale), MSAA ;
 ##   - décalques (groupe DECAL_GROUP) : distance de fondu ;
 ##   - particules : densité (ParticlePool.density) ;
@@ -43,6 +45,10 @@ const PRESETS := [
 		"decal_fade": 14.0,
 		"decals": 0.5,              # part des décalques d'impact / de sang
 		"particles": 0.5,           # densité des gerbes de particules
+		"volumetric_fog": false,    # brume volumétrique (halos des lampes)
+		"fog_volume": [64, 48],     # résolution de la brume (xy, profondeur)
+		"post_screen": false,       # post-traitement lisant l'écran (aberration)
+		"aberration": 0.0,
 	},
 	# MEDIUM (défaut) — le rendu de référence.
 	{
@@ -61,6 +67,10 @@ const PRESETS := [
 		"decal_fade": 24.0,
 		"decals": 1.0,
 		"particles": 1.0,
+		"volumetric_fog": true,
+		"fog_volume": [64, 48],
+		"post_screen": true,
+		"aberration": 0.003,
 	},
 	# HIGH — ombres sur 2 lampes sur 3, plus douces et visibles plus loin,
 	# SSAO léger, glow à suréchantillonnage bicubique, MSAA 2x.
@@ -80,6 +90,10 @@ const PRESETS := [
 		"decal_fade": 32.0,
 		"decals": 1.0,
 		"particles": 1.0,
+		"volumetric_fog": true,
+		"fog_volume": [96, 64],
+		"post_screen": true,
+		"aberration": 0.0035,
 	},
 ]
 
@@ -142,6 +156,12 @@ func _apply_environment(q: Dictionary) -> void:
 		return
 	environment.glow_enabled = q.glow
 	environment.ssao_enabled = q.ssao
+	# Brume volumétrique : halos et faisceaux des lampes (réglages de la
+	# brume elle-même dans WorldLook.setup_environment).
+	environment.volumetric_fog_enabled = q.volumetric_fog
+	if q.volumetric_fog:
+		RenderingServer.environment_set_volumetric_fog_volume_size(q.fog_volume[0], q.fog_volume[1])
+		RenderingServer.environment_set_volumetric_fog_filter_active(true)
 	if q.ssao:
 		# SSAO discret : assombrit les coins et le pied des caisses, sans halo.
 		environment.ssao_radius = 0.8

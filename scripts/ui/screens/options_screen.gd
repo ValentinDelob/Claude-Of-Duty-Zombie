@@ -49,6 +49,9 @@ func enter(_args := {}) -> void:
 	_add("vsync", MenuOptionRow.make_toggle("SYNCHRO VERTICALE", Settings.vsync), "Supprime les déchirures d'image (peut ajouter un peu de latence).")
 	_add("quality", MenuOptionRow.make_choice("QUALITÉ GRAPHIQUE", PackedStringArray(QUALITY_NAMES), int(Settings.quality)),
 			"Basse : cartes graphiques modestes. Haute : ombres et effets complets.")
+	_add("film_grain", MenuOptionRow.make_range("GRAIN DE FILM", Settings.film_grain, 0.0, 1.0, 0.1,
+			func(v): return "DÉSACTIVÉ" if v < 0.05 else "%d %%" % int(round(v * 100.0))),
+			"Grain de pellicule en jeu, comme dans Black Ops (0 : image nette).")
 
 	_section("AUDIO")
 	var pct := func(v): return "%d %%" % int(round(v * 100.0))

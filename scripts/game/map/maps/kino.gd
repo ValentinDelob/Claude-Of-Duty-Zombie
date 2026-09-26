@@ -80,6 +80,9 @@ func _init() -> void:
 		"fog_color": Color(0.11, 0.085, 0.07),
 		"fog_density": 0.017,
 		"saturation": 0.85,
+		"grade": TheaterLook.GRADE,
+		"volumetric_albedo": TheaterLook.DUST_ALBEDO,
+		"volumetric_density": TheaterLook.DUST_DENSITY,
 	}
 	rows = PackedStringArray([
 		"                                                                        ",

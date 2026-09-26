@@ -6,6 +6,20 @@ extends RefCounted
 
 const POSTERS := 4
 
+## Étalonnage de KINO (surcharge de WorldLook.GRADE_DEFAULT) : dans BO1, le
+## théâtre est plus chaud que les bunkers (velours rouge, dorures, ampoules
+## jaunes) mais ses recoins restent froids, bleu-vert ; noirs un peu moins
+## denses pour garder la salle lisible.
+const GRADE := {
+	"shadow_tint": Color(0.84, 0.98, 1.08),
+	"highlight_tint": Color(1.06, 1.0, 0.9),
+	"toe": 1.22,
+	"desat": 0.16,
+}
+## Poussière en suspension du théâtre : brume volumétrique légèrement ocre.
+const DUST_ALBEDO := Color(0.84, 0.8, 0.74)
+const DUST_DENSITY := 0.005
+
 const SCREEN_SHADER := """
 shader_type spatial;
 render_mode cull_back;

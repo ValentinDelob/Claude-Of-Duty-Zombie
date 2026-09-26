@@ -92,6 +92,15 @@ précédent.
 | SSAO / MSAA | non / non | non / non | léger / 2x |
 | Résolution 3D | 85 % (bilinéaire) | 100 % | 100 % |
 | Décalques / particules | 50 % / 50 % | 100 % | 100 % |
+| Brume volumétrique | non | 64x64x48 | 96x96x64 |
+| Post-traitement (`FilmPost`) | multiplicatif (grain, vignette) | lecture d'écran + aberration | idem |
+
+- **Direction artistique BO1** (voir `docs/ART_DIRECTION.md`) : étalonnage par table
+  3D procédurale (`WorldLook.grade_lut`, surchargée par carte via `look.grade`),
+  bloom large sur les sources, brume volumétrique fine, `FilmPost` (CanvasLayer 5,
+  sous le HUD) pour le grain (option `Settings.film_grain`), le vignettage et
+  l'aberration. Coût mesuré (GTX 1070, 720p, `visual_look`) : brume ≈ 0,3-0,4 ms,
+  post-traitement ≈ 0,1 ms, étalonnage inclus dans la passe de tonemap.
 
 - Coûts GPU mesurés (salle de garde, 24 zombies, A2000, ~3,5 ms par image) : glow
   ≈ 1,0 ms (poste n° 1), résolution 3D 85 % ≈ −1,0 ms, ombres des 8 lampes
