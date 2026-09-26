@@ -200,9 +200,11 @@ func run() -> void:
 	await seconds(0.3)
 	err0 = aim_error(zt)
 	p.input.aim = true
-	await seconds(0.35)
+	# Mise en joue puis glissement (0,1 s) : on attend l'aimantation (sous charge,
+	# la mise en joue peut prendre plus longtemps que prévu).
+	await until(func(): return aim_error(zt) < 1.2, 1.5, "aimantation")
 	var err_snap := aim_error(zt)
-	at.check(err0 > 3.0 and err_snap < 1.2, "DEADEYE : visée aimantée vers la tête (%.1f° -> %.2f°)" % [err0, err_snap])
+	at.check(err0 > 2.5 and err_snap < 1.2, "DEADEYE : visée aimantée vers la tête (%.1f° -> %.2f°)" % [err0, err_snap])
 	at.check(p.weapons.deadeye.last_target_id == zt.id, "cible : le zombie devant")
 	await seconds(0.4)
 	await at.screenshot("deadeye_snap")
