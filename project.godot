@@ -47,3 +47,10 @@ common/physics_ticks_per_second=60
 [rendering]
 
 anti_aliasing/quality/msaa_3d=0
+
+[shader_globals]
+
+vm_fov_scale={
+"type": "float",
+"value": 1.0
+}

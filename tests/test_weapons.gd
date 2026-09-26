@@ -114,9 +114,20 @@ func test_models_and_anchors() -> void:
 		for a in ["muzzle", "sight", "grip", "support"]:
 			assert_true(sp.anchors.has(a), "%s : point %s" % [id, a])
 		assert_true(sp.anchors.muzzle.z < -0.15, "%s : bouche du canon devant" % id)
+		# Pièces fusionnées : un maillage par matériau (quelques appels de dessin).
+		var mats := {}
+		for part in sp.parts:
+			mats[part[3]] = true
 		var m := WeaponModels.build(mid, false)
-		assert_eq(m.get_child_count(), sp.parts.size())
+		assert_eq(m.get_child_count(), mats.size(), "%s : un maillage par matériau" % id)
 		m.free()
+		# Vue FPS : un nœud par groupe mobile, chargeur amovible s'il existe.
+		var vm := WeaponModels.build(mid, true)
+		assert_true(vm.get_node_or_null("body") != null, "%s : carcasse FPS" % id)
+		for part in sp.parts:
+			if part.size() > 5 and part[5] != "":
+				assert_true(vm.get_node_or_null(String(part[5])) != null, "%s : groupe %s" % [id, part[5]])
+		vm.free()
 	# Silhouettes distinctes : les armes longues sont plus longues que les pistolets.
 	assert_true(WeaponModels.anchor("m1911", "muzzle").z > WeaponModels.anchor("m14", "muzzle").z)
 	assert_true(WeaponModels.anchor("mp5k", "muzzle").z > WeaponModels.anchor("l96a1", "muzzle").z)

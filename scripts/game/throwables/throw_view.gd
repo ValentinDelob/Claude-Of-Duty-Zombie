@@ -17,16 +17,15 @@ var _pin: Node3D
 var _kind := 0
 var _pos := HIDDEN
 var _rot := Vector3.ZERO
+## Tenue des mains construites (ViewHands.STYLES).
+var _style := 0
 
 
 func _ready() -> void:
 	_hand = Node3D.new()
 	add_child(_hand)
-	var sleeve := Throwable.mat(Color(0.13, 0.14, 0.1), 0.9, 0.0, true)
-	var glove := Throwable.mat(Color(0.07, 0.06, 0.05), 0.85, 0.0, true)
 	# Avant-bras vers le bas-droite de l'écran, main refermée sur l'objet.
-	_limb(_hand, Vector3(0.0, -0.04, 0.03), Vector3(0.05, -0.14, 0.16), 0.062, sleeve)
-	_limb(_hand, Vector3(0.0, -0.03, 0.035), Vector3(0.0, -0.06, -0.01), 0.06, glove)
+	_hand.add_child(ViewHands.throw_hand(maxi(ViewModel.style, 0), false))
 	for k in [ThrowableRules.Kind.FRAG, ThrowableRules.Kind.MONKEY]:
 		var o := Throwable.build_model(k, true)
 		o.position = Vector3(0.0, 0.0, 0.0) if k == ThrowableRules.Kind.FRAG else Vector3(0.0, -0.06, 0.0)
@@ -39,8 +38,7 @@ func _ready() -> void:
 	# Main gauche (arrache la goupille / remonte la clé du singe).
 	_left = Node3D.new()
 	add_child(_left)
-	_limb(_left, Vector3(0.0, 0.0, 0.03), Vector3(-0.12, -0.26, 0.3), 0.07, sleeve)
-	_limb(_left, Vector3(0.0, 0.0, 0.03), Vector3(0.0, -0.03, -0.02), 0.055, glove)
+	_left.add_child(ViewHands.throw_hand(maxi(ViewModel.style, 0), true))
 	_left.visible = false
 	visible = false
 
@@ -59,6 +57,15 @@ func _limb(parent: Node3D, a: Vector3, b: Vector3, thickness: float, m: Material
 
 ## Nouveau lancer : objet dans la main, goupille en place.
 func begin(kind: int) -> void:
+	# Mains à la tenue du joueur (connue après la première image).
+	var st := maxi(ViewModel.style, 0)
+	if st != _style:
+		_style = st
+		for pair in [[_hand, false], [_left, true]]:
+			var old: Node = pair[0].get_node_or_null("ThrowHand")
+			if old:
+				old.free()
+			pair[0].add_child(ViewHands.throw_hand(st, pair[1]))
 	_kind = kind
 	for k in _objects:
 		_objects[k].visible = k == kind
@@ -112,6 +119,9 @@ func pose(delta: float, phase: int, k: float, danger: float) -> void:
 	_hand.rotation = _rot
 	_left.visible = left_k > 0.02
 	_left.position = Vector3(-0.2, -0.5, -0.3).lerp(Vector3(0.1, -0.15, -0.38), left_k)
+	# Champ de vision propre à l'arme (ViewModel) : profondeur compensée pour
+	# garder la même image.
+	scale = Vector3(1.0, 1.0, ViewModel.fov_k)
 	if phase == ThrowController.Phase.IDLE and _pos.distance_to(HIDDEN) < 0.02:
 		visible = false
 

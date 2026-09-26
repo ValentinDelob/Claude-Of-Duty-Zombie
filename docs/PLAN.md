@@ -74,7 +74,7 @@ Nacht der Untoten ; HUD, lumière, étalonnage), puis par lots :
 - [x] **Zombies** : silhouettes humaines crédibles (uniformes allemands
   déchirés, peau, yeux jaunes lumineux), variété, animations (marche traînante,
   course, sprint, attaque, arrachage de planches, émergence, rampants).
-- [ ] **Modèles d'armes** à la première personne plus détaillés et fidèles,
+- [x] **Modèles d'armes** à la première personne plus détaillés et fidèles,
   mains/gants, animations de rechargement.
 - [ ] **Décors et matériaux** : textures plus riches (béton, bois, métal,
   papier peint), accessoires, éclairage de chaque zone ; machines d'atouts,

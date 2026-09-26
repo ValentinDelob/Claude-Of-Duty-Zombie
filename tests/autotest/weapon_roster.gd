@@ -108,7 +108,7 @@ func run() -> void:
 		print("[roster] %s à %.1f s (%d fps)" % [id, Time.get_ticks_msec() / 1000.0, Engine.get_frames_per_second()])
 		if not await equip(id):
 			continue
-		at.check(p.weapons.view.model_id == s.model and p.weapons.view.model.get_child_count() > 4, "%s : modèle FPS (%d pièces)" % [id, p.weapons.view.model.get_child_count()])
+		at.check(p.weapons.view.model_id == s.model and WeaponModels.spec(s.model).parts.size() > 8, "%s : modèle FPS (%d pièces)" % [id, WeaponModels.spec(s.model).parts.size()])
 		await at.screenshot("fps_" + id)
 		var before: int = pd.current_weapon().mag
 		var v0: int = validated[0]

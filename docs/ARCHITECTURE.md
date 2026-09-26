@@ -213,6 +213,18 @@ précédent.
 - **Effets** (`Fx`) : traçantes en vol (pool), flammes par famille (`flash`),
   douilles éjectées (pool, rebonds, tintement), impacts selon la surface
   (`Fx.surface_of` : méta `surface` des formes du décor, type d'objet).
+- **Modèles et vue FPS** : `WeaponMesh` (primitives arrondies : profils
+  extrudés chanfreinés, révolutions, capsules) fusionnées en UN maillage par
+  matériau et par pièce mobile (`mag`, `slide`, `pump`, `barrels`, `cyl`,
+  `rear`) ; géométrie des armes et des mains (`ViewHands`, pièces partagées
+  placées par transformations) calculée en tâche de fond au chargement
+  (`WeaponModels.precompute_async`, appelée par `Warmup`), maillages créés au
+  premier affichage. L'arme est dessinée avec son propre champ de vision
+  (`ViewModel.VIEW_FOV`, 51,3° = cg_fov 65 de BO1 ; 72° en visée) : le shader
+  multiplie x, y du clip par `vm_fov_scale` (global de shader) ; les effets
+  partent du point apparent (`ViewModel.apparent`). L'axe optique ne bouge
+  pas : l'alignement de visée ne dépend pas de ce champ. Rechargements animés
+  par mécanisme (`ViewModel._reload_anim`), vérifiés par `weapon_view`.
 
 ## Arme merveille TONNERRE-7 (`scripts/game/weapons/thunder_blast.gd`)
 

@@ -22,6 +22,9 @@ static func run(game: Game, at: Vector3) -> void:
 
 
 func _run(game: Game) -> void:
+	# Géométrie des armes et des mains calculée en tâche de fond (sans
+	# rallonger le chargement) : pas de saccade au premier changement d'arme.
+	WeaponModels.precompute_async(Net.player_slot(multiplayer.get_unique_id()))
 	_cam = Camera3D.new()
 	_cam.position = Vector3(0, 1.6, 0)
 	_cam.far = 60.0
@@ -48,8 +51,7 @@ func _run(game: Game) -> void:
 	# Un petit cube par matériau et variante suffit (même shader pour toutes
 	# les armes) : inutile de construire les ~30 modèles de l'arsenal.
 	var x := -1.0
-	var cube := BoxMesh.new()
-	cube.size = Vector3.ONE * 0.05
+	var cube := WeaponModels.warmup_mesh()
 	for key in WeaponModels.MATERIALS:
 		var k := 0
 		for variant in [[true, false], [true, true], [false, false], [false, true]]:

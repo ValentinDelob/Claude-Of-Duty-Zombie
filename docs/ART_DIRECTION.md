@@ -172,3 +172,70 @@ concerne.
   terre » (effet d'écran).
 - Détail limité par le low-poly procédural (pas de textures peintes, visages
   simplifiés).
+
+## Armes à la première personne et mains
+
+### Ce qui caractérise BO1
+- **Champ de vision de l'arme** : BO1 dessine l'arme avec le `cg_fov` par
+  défaut de 65° (horizontal en 4:3, soit ~51° verticalement). L'arme reste
+  « loin » de l'œil et peu déformée : pas d'effet grand-angle sur la crosse,
+  le bas de l'écran reste dégagé. Le décalage `cg_gun_x/y/z` place l'arme en
+  bas à droite, légèrement tournée vers le réticule.
+- **Hanche** : on voit le dessus et le flanc gauche de l'arme, la bouche du
+  canon vers le centre de l'écran, la crosse sort par le coin inférieur
+  droit. Les pistolets sont tenus à deux mains, plus près et plus haut.
+- **Visée** : cran et guidon parfaitement centrés ; la carcasse occupe le bas
+  de l'écran sans le boucher (armes à lunette : écran de lunette plein).
+- **Formes** : pas un seul bloc brut. Canons ronds étagés, cache-flammes à
+  lamelles, chambre conique de l'AK74u, garde-mains ronds nervurés (M16),
+  bois arrondi (AK74u, M14, Olympia), chargeurs courbes (AK74u, Galil,
+  MP5K, Dragunov), tambour nervuré (RPK), glissière aux stries arrière
+  (M1911), barillet cannelé (Python), lunettes à objectif évasé.
+- **Matériaux** : acier bronzé presque noir aux arêtes usées qui laissent
+  voir le métal nu, phosphatation grise sur les armes américaines, noyer
+  vernis rougeâtre veiné (M14, Olympia), bakélite, polymère mat, laiton des
+  douilles. Contraste fort : reflets nets sur le métal, bois chaud.
+- **Mains** : chaque personnage de Kino a ses mains (d'après les fichiers
+  de modding : bras de prisonnier américain pour Dempsey, de bagnard de
+  Vorkouta pour Nikolaï, de soldat nord-vietnamien pour Takeo, de
+  combinaison de protection pour Richtofen). Doigts refermés sur la
+  poignée, index sur la détente, pouce par-dessus ; la main gauche
+  soutient le garde-main (doigts remontant sur le flanc, pouce le long de
+  l'autre) ou tient la poignée avant ; manches visibles jusqu'au bord de
+  l'écran.
+- **Animations** : sortie (l'arme remonte du bas à droite en pivotant) et
+  rangement ; rechargement réaliste (l'arme bascule, la main gauche
+  retire le chargeur, en rapporte un neuf, l'enfonce d'un coup sec, arme la
+  culasse si le chargeur était vide) ; cartouche par cartouche pour les
+  fusils à pompe et le China Lake (coup de pompe final) ; canons basculés de
+  l'Olympia ; barillet sorti du Python ; pompe à chaque tir (Stakeout,
+  SPAS-12) ; verrou du L96 ; glissière qui recule à chaque tir et reste
+  ouverte chargeur vide (pistolets) ; sprint : arme basse, tournée et
+  inclinée, grand balancement en huit.
+
+### Mise en œuvre (Call of Claude Zombie)
+- `WeaponMesh` : primitives arrondies (profil extrudé chanfreiné, révolution,
+  capsule), fusionnées en un maillage par matériau et par pièce mobile,
+  construites une fois et mises en cache. Couleur de sommet = donnée
+  (arêtes usées, variation par pièce).
+- `WeaponModels` : archétypes détaillés, groupes mobiles `mag`, `slide`,
+  `pump`, `barrels`, `cyl` et leurs pivots ; ancres de visée inchangées
+  (alignement testé à ±2 px par `weapon_aim`).
+- `ViewHands` : mains, doigts en phalanges, avant-bras et manches ; quatre
+  tenues selon l'emplacement du joueur (manches kaki retroussées et mains
+  nues, veste matelassée et mitaines, veste olive, combinaison jaunâtre et
+  gants de caoutchouc noir).
+- `ViewModel` : champ de vision de l'arme 51,3° à la hanche (72° en visée,
+  pour que la carcasse ne bouche pas l'écran), appliqué par
+  `weapon.gdshader` (`vm_fov_scale`) ; les effets (flamme, douilles,
+  traçantes) partent du point où l'on VOIT la bouche du canon.
+- `weapon.gdshader` : usure des arêtes, veinage et vernis du bois, trame des
+  manches, liseré de contre-jour et lumière d'appoint de la vue FPS.
+
+### Écarts restants avec BO1
+- Pas de textures peintes (gravures, marquages, quadrillage des plaquettes) :
+  le détail vient de la géométrie et du bruit procédural.
+- Mains stylisées (doigts en capsules), sans rides ni ongles.
+- Les animations sont procédurales (courbes) et non capturées : pas de
+  léger dépassement ou d'hésitation humaine, et une seule chorégraphie
+  « chargeur » partagée par les armes à chargeur.
