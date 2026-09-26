@@ -63,7 +63,9 @@ var _repath_t := 0.0
 var _stuck_t := 0.0
 var _stuck_pos := Vector3.ZERO
 var _attack_hit_done := false
-var _groan_t := 0.0
+var _groan_t := randf_range(ZombieVoice.FIRST_DELAY.x, ZombieVoice.FIRST_DELAY.y)
+var _last_vocal := 0
+var _step_i := 0
 var _headless := false
 var _low_move_t := 0.0
 var _stuck_sample_t := 0.0
@@ -522,6 +524,7 @@ func _process(delta: float) -> void:
 	if _mgr == null or _pose_accum >= _mgr.pose_step(global_position):
 		_update_pose(_pose_accum)
 		_pose_accum = 0.0
+		_footstep()
 	if _flash > 0.0:
 		_flash = maxf(_flash - delta * 6.0, 0.0)
 		mesh.set_instance_shader_parameter("hit_flash", _flash)
@@ -533,7 +536,8 @@ func flash_hit() -> void:
 
 func play_attack() -> void:
 	_attack_t = 0.0
-	Audio.play_3d("zombie_attack_%d" % (1 + randi() % 3), global_position + Vector3.UP * 1.5, 0.0, 0.1, 3)
+	Audio.play_3d("zombie_attack_%d" % (1 + randi() % ZombieVoice.ATTACKS), global_position + Vector3.UP * 1.5, 0.0, 0.08, 3, 1.0, ZombieVoice.GROUP)
+	_groan_t = maxf(_groan_t, 1.5)
 
 
 func head_position() -> Vector3:
@@ -570,7 +574,7 @@ func die(dir: Vector3, headshot: bool) -> void:
 		ZombieGibs.head_pop(self, neck, dir)
 		Audio.play_3d("headshot", neck, 0.0, 0.08)
 	else:
-		Audio.play_3d("zombie_death_%d" % (1 + randi() % 3), global_position + Vector3.UP * 1.4, -2.0, 0.1, 3)
+		Audio.play_3d("zombie_death_%d" % (1 + randi() % ZombieVoice.DEATHS), global_position + Vector3.UP * 1.4, -1.0, 0.08, 3, 1.0, ZombieVoice.GROUP)
 
 
 ## Mort projetée (onde de choc du TONNERRE-7) : le corps s'envole à la vitesse
@@ -676,12 +680,28 @@ func _groan(delta: float) -> void:
 	_groan_t -= delta
 	if _groan_t > 0.0:
 		return
-	_groan_t = randf_range(3.5, 9.0)
+	_groan_t = ZombieVoice.interval(speed_class, randf())
 	if state == State.EMERGE:
 		Audio.play_3d("emerge", global_position, -4.0, 0.1, 2)
 		return
-	var sound := "zombie_sprint_%d" % (1 + randi() % 2) if speed_class >= 2 else "zombie_groan_%d" % (1 + randi() % 5)
-	Audio.play_3d(sound, global_position + Vector3.UP * 1.5, -5.0, 0.12, 3)
+	_last_vocal = ZombieVoice.pick(ZombieVoice.vocal_count(speed_class), _last_vocal, randi())
+	Audio.play_3d(ZombieVoice.vocal_name(speed_class, _last_vocal), global_position + Vector3.UP * 1.5,
+		-3.0, 0.06, 3, 1.0, ZombieVoice.GROUP)
+
+
+## Pas traînants (de près seulement), un par demi-cycle de marche.
+func _footstep() -> void:
+	var step := int(floor(_phase / PI))
+	if step == _step_i:
+		return
+	_step_i = step
+	if state == State.DEAD or state == State.EMERGE or anim_speed < 0.3:
+		return
+	var ear: Variant = Audio.listener_position()
+	if ear == null or global_position.distance_to(ear) > ZombieVoice.STEP_RANGE:
+		return
+	Audio.play_3d("zombie_step_%d" % (1 + randi() % ZombieVoice.STEPS), global_position + Vector3.UP * 0.05,
+		-9.0 if speed_class < 2 else -6.0, 0.1, 6, 1.0, ZombieVoice.STEP_GROUP)
 
 
 ## Chute, puis dissolution. Le nœud est libéré par ZombieManager (despawn).

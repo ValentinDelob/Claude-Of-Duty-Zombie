@@ -21,6 +21,15 @@ var _music_name := ""
 ## Limite le nombre de lectures simultanées d'un même son (ex. 20 zombies qui grognent).
 var _recent: Dictionary = {}
 var _shutdown := false
+## Groupes de voix 3D à polyphonie limitée (vocalises et pas des zombies) :
+## au-delà, la voix la plus lointaine est remplacée si le nouveau son est
+## plus proche de l'auditeur, sinon le nouveau son est ignoré.
+const VOICE_LIMITS := {"zombie": 7, "zombie_step": 4}
+## Distance maximale d'audibilité des sons 3D (m).
+const MAX_DISTANCE := 45.0
+var _group_of: Dictionary = {}  # AudioStreamPlayer3D -> groupe
+## Nombre de lectures 3D par son depuis le lancement (diagnostic, autotests).
+var played: Dictionary = {}
 
 
 func _ready() -> void:
@@ -29,7 +38,7 @@ func _ready() -> void:
 		var p := AudioStreamPlayer3D.new()
 		p.bus = "SFX"
 		p.unit_size = 6.0
-		p.max_distance = 45.0
+		p.max_distance = MAX_DISTANCE
 		p.attenuation_filter_cutoff_hz = 6000.0
 		p.attenuation_filter_db = -18.0
 		add_child(p)
@@ -70,17 +79,68 @@ func _throttled(sound: String, max_per_100ms: int) -> bool:
 	return entry[1] > max_per_100ms
 
 
-func play_3d(sound: String, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.06, max_per_100ms := 6, pitch := 1.0) -> void:
+func play_3d(sound: String, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.06, max_per_100ms := 6, pitch := 1.0, group := "") -> void:
 	var st := get_stream(sound)
 	if st == null or _throttled(sound, max_per_100ms):
 		return
-	var p := _pool_3d[_next_3d]
-	_next_3d = (_next_3d + 1) % POOL_3D
+	var p: AudioStreamPlayer3D
+	if group != "":
+		p = _group_voice(group, pos)
+		if p == null:
+			return
+	else:
+		p = _pool_3d[_next_3d]
+		_next_3d = (_next_3d + 1) % POOL_3D
+	_group_of[p] = group
 	p.stream = st
 	p.global_position = pos
 	p.volume_db = volume_db
 	p.pitch_scale = pitch * (1.0 + randf_range(-pitch_jitter, pitch_jitter))
 	p.play()
+	played[sound] = int(played.get(sound, 0)) + 1
+
+
+## Position de l'auditeur (caméra active), ou null sans caméra 3D.
+func listener_position() -> Variant:
+	var cam := get_viewport().get_camera_3d() if get_viewport() else null
+	return cam.global_position if cam else null
+
+
+## Lecteur pour un son d'un groupe à polyphonie limitée (VOICE_LIMITS), ou
+## null si le son est inaudible (trop loin) ou moins prioritaire que les
+## voix en cours du groupe (priorité à la proximité).
+func _group_voice(group: String, pos: Vector3) -> AudioStreamPlayer3D:
+	var ear: Variant = listener_position()
+	var d := 0.0 if ear == null else pos.distance_to(ear)
+	if d > MAX_DISTANCE:
+		return null
+	var count := 0
+	var farthest: AudioStreamPlayer3D = null
+	var far_d := -1.0
+	for q in _pool_3d:
+		if q.playing and _group_of.get(q, "") == group:
+			count += 1
+			var qd := 0.0 if ear == null else q.global_position.distance_to(ear)
+			if qd > far_d:
+				far_d = qd
+				farthest = q
+	if count < int(VOICE_LIMITS.get(group, 8)):
+		var p := _pool_3d[_next_3d]
+		_next_3d = (_next_3d + 1) % POOL_3D
+		return p
+	if farthest != null and d < far_d:
+		farthest.stop()
+		return farthest
+	return null
+
+
+## Nombre de voix en cours d'un groupe (tests).
+func group_playing(group: String) -> int:
+	var n := 0
+	for q in _pool_3d:
+		if q.playing and _group_of.get(q, "") == group:
+			n += 1
+	return n
 
 
 ## Son non spatialisé (arme du joueur local, interface...).
@@ -144,3 +204,4 @@ func stop_all() -> void:
 		m.stream = null
 	_music_name = ""
 	_cache.clear()
+	_group_of.clear()

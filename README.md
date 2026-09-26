@@ -2,8 +2,11 @@
 
 FPS coopératif de survie aux zombies, low-poly et horrifique, réalisé avec
 **Godot 4.7.2** (GDScript, rendu Forward+). Solo ou coop réseau (hôte / client
-par adresse IP, 2 à 8 joueurs). Tous les graphismes et tous les sons sont
-**procéduraux** : aucun asset externe.
+par adresse IP, 2 à 8 joueurs). Tous les graphismes sont **procéduraux**
+(aucune image externe). Les sons d'armes, d'impacts, de barricades et les voix
+des zombies sont des enregistrements **libres de droits (CC0)** retravaillés
+(liste, auteurs et licences : [docs/ASSETS.md](docs/ASSETS.md)) ; musiques,
+ambiances, annonces et interface restent synthétisées par du code.
 
 Cartes (SOLO ouvre l'écran de sélection ; en multijoueur, l'hôte choisit dans
 le salon ; le dernier choix est mémorisé) :
@@ -38,8 +41,10 @@ tous les zombies avant d'exploser. Arme merveille TONNERRE-7 (boîte mystère, r
 2. Première fois : `godot --headless --path . --import`
 3. Jouer : `godot --path .` (ou ouvrir le projet dans l'éditeur et F5).
 
-Les sons sont déjà générés dans `assets/audio/`. Pour les régénérer :
-`godot --headless --path . -s res://tools/gen_audio.gd`.
+Les sons sont déjà dans `assets/audio/`. Pour régénérer les sons procéduraux :
+`godot --headless --path . -s res://tools/gen_audio.gd` (les sons importés
+sont ignorés). Pour réimporter les sons CC0 (téléchargement des sources avec
+curl, puis traitement) : `godot --headless --path . -s res://tools/audio/sfx_import.gd`.
 
 ## Builds Windows (.exe)
 

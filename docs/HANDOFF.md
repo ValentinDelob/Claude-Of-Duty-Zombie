@@ -74,7 +74,10 @@ spectateur, départ/perte de l'hôte), préchauffage des shaders, menu principal
 complet (OPTIONS, CRÉDITS) avec ambiance horreur militaire (fond 3D, logo
 original, post-traitement, musique), presets de qualité LOW/MEDIUM/HIGH
 (RenderQuality, `--quality=low` en ligne de commande), README.
-Sons et graphismes 100 % procéduraux : tools/gen_audio.gd, tools/gen_audio_menu.gd.
+Graphismes 100 % procéduraux. Sons : armes, impacts, barricades et voix des
+zombies = enregistrements CC0 importés par tools/audio/sfx_import.gd (recettes
+tools/audio/sfx_recipes.gd, crédits docs/ASSETS.md) ; le reste est synthétisé
+par tools/gen_audio.gd (qui ignore les sons importés) et tools/gen_audio_menu.gd.
 
 ## 4. Reste à faire (dans cet ordre)
 1. Intégrer la branche `perf/zombies-net` (commit 56441a7 « perf: optimize

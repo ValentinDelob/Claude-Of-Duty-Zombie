@@ -17,13 +17,28 @@ func _initialize() -> void:
 			gens[m.name.substr(4)] = m.name
 	print("Génération audio :")
 	for key in gens:
+		# Sons remplacés par des enregistrements libres de droits (CC0) :
+		# jamais réécrasés ici, voir tools/audio/sfx_import.gd et docs/ASSETS.md.
+		# (Séries numérotées : filtrées une à une dans _save.)
+		if SfxRecipes.RECIPES.has(key):
+			if key in only:
+				print("  %s : remplacé par un son CC0 (sfx_import.gd), ignoré" % key)
+			continue
 		if only.is_empty() or key in only:
 			s = Synth.new(hash(key))
 			call(gens[key])
 	quit()
 
 
+## Liste d'exclusion : tout son qui a une recette dans SfxRecipes.RECIPES
+## (enregistrement CC0 importé) n'est jamais réécrit par ce générateur.
+static func replaced(n: String) -> bool:
+	return SfxRecipes.RECIPES.has(n)
+
+
 func _save(n: String, b: PackedFloat32Array, loop := false) -> void:
+	if replaced(n):
+		return
 	s.save(b, OUT + n + ".wav", loop)
 
 
