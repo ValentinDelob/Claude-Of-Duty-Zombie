@@ -50,7 +50,9 @@ func run() -> void:
 	node = pw.nodes.values()[0]
 	p.teleport_to(node.global_position + Vector3.UP * 0.05)
 	var dm := PowerupRules.DEATH_MACHINE_WEAPON
-	ok = await until(func(): return p.weapons.current().get("id", "") == dm, 10.0, "minigun en main")
+	# L'arme (inventaire) et le minuteur du bonus arrivent par deux messages
+	# distincts : on attend les deux.
+	ok = await until(func(): return p.weapons.current().get("id", "") == dm and pw.has_death_machine(p.peer_id), 10.0, "minigun en main")
 	at.check(ok and pw.has_death_machine(p.peer_id), "faucheuse : minigun du client")
 	p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
 	ok = await until(func(): return game.zombies.alive.size() >= 1, 20.0, "zombie à faucher")
