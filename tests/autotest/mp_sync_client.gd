@@ -20,7 +20,9 @@ func run() -> void:
 	var saw_crouch := [false]
 	p.teleport_to(MapData.cell_to_world(Vector2i(4, 9), 0.05))
 	var t := 0.0
-	while t < 12.0:
+	# Fenêtre d'observation : jusqu'à ce que tout soit vu (au plus 25 s, la
+	# séquence de l'hôte peut être décalée quand la machine est chargée).
+	while t < 25.0 and not (t > 7.2 and host.global_position.x > 7.0 and shots[0] >= 5 and saw_crouch[0] and host.visual.weapon_key == "m14_false"):
 		AutotestHelpers.aim_at(p, host.global_position + Vector3.UP * 1.2)
 		if host.crouching:
 			saw_crouch[0] = true
