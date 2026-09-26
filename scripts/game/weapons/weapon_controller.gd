@@ -37,6 +37,8 @@ var _pickup_end := -1.0
 var lunging := false
 ## Coups restant à tirer dans la rafale en cours (M16, G11...).
 var _burst_left := 0
+## Grenades et SINGE-TAMBOUR (dégoupillage, cuisson, lancer).
+var throws: ThrowController
 
 ## Sons de rechargement par mécanisme : [fraction de la durée, son].
 const RELOAD_SOUNDS := {
@@ -57,6 +59,10 @@ func setup(p: Player, game: Game) -> void:
 	view = ViewModel.new()
 	view.name = "ViewModel"
 	p.camera.add_child(view)
+	throws = ThrowController.new()
+	throws.name = "Throws"
+	add_child(throws)
+	throws.setup(self, game)
 	session.inventory_changed.connect(_on_inventory_changed)
 	_on_inventory_changed(p.peer_id)
 
@@ -115,6 +121,7 @@ func is_reloading() -> bool:
 func tick(delta: float) -> void:
 	var w := current()
 	var t := now()
+	throws.tick(delta)
 	if w.is_empty():
 		return
 	var s := current_stats()
@@ -128,7 +135,8 @@ func tick(delta: float) -> void:
 		w.reserve -= take
 		ammo_changed.emit()
 
-	var busy := _reload_end > 0.0 or t < _switch_end or t < _drink_end or t < _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3 or t < _pickup_end
+	var busy := _reload_end > 0.0 or t < _switch_end or t < _drink_end or t < _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3 or t < _pickup_end \
+		or throws.busy()
 	var dead := false
 	var pd := session.get_data(player.peer_id)
 	if pd:
@@ -148,7 +156,7 @@ func tick(delta: float) -> void:
 			combat.srv_switch.rpc_id(1, (slot + 1) % weapons.size())
 		elif inp.reload and not busy:
 			_try_reload(w, s)
-		elif inp.melee and t >= _melee_ready and t >= _pickup_end:
+		elif inp.melee and t >= _melee_ready and t >= _pickup_end and not throws.busy():
 			_melee()
 		elif inp.fire and not busy and not player.sprinting:
 			var want: bool = s.auto or _trigger_released
@@ -374,6 +382,21 @@ func _on_knife_changed(id: String) -> void:
 
 func is_picking_up_knife() -> bool:
 	return now() < _pickup_end
+
+
+## Coup de couteau, fente ou récupération du couteau en cours : pas de lancer
+## de grenade pendant ce temps (ThrowController).
+func is_knifing() -> bool:
+	var t := now()
+	return t < _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3 or t < _pickup_end
+
+
+## Lancer de grenade : le rechargement en cours est abandonné (comme BO1 ;
+## le serveur l'annule aussi, voir ThrowableSystem.srv_cook).
+func cancel_reload_local() -> void:
+	_reload_end = -1.0
+	_burst_left = 0
+	view.cancel_reload()
 
 
 ## Boisson d'un atout : l'arme est baissée, une bouteille apparaît.

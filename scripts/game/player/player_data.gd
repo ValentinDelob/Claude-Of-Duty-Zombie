@@ -25,6 +25,11 @@ var knife := KnifeDB.DEFAULT
 var perks: PackedStringArray = []
 ## Armes mises de côté pendant que le joueur est à terre (serveur).
 var saved_weapons: Array = []
+## Grenades à fragmentation (2 au départ, +2 par manche, 4 au plus) et
+## SINGE-TAMBOUR (arme tactique de la boîte mystère). Voir ThrowableRules.
+var grenades := ThrowableRules.FRAG_START
+var monkeys := 0
+var has_monkeys := false
 
 
 func _init(id := 0) -> void:
@@ -65,7 +70,7 @@ func apply_inventory(d: Dictionary) -> void:
 func stats_dict() -> Dictionary:
 	return {"points": points, "kills": kills, "headshots": headshots, "downs": downs,
 		"revives": revives, "health": health, "max_health": max_health, "life": life,
-		"perks": perks}
+		"perks": perks, "grenades": grenades, "monkeys": monkeys, "has_monkeys": has_monkeys}
 
 
 func apply_stats(d: Dictionary) -> void:
@@ -78,3 +83,6 @@ func apply_stats(d: Dictionary) -> void:
 	max_health = d.get("max_health", max_health)
 	life = d.get("life", life)
 	perks = d.get("perks", perks)
+	grenades = d.get("grenades", grenades)
+	monkeys = d.get("monkeys", monkeys)
+	has_monkeys = d.get("has_monkeys", has_monkeys)

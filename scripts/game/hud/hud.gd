@@ -99,6 +99,8 @@ func _ready() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_END
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ammo_box.add_child(row)
+	# Grenades et singes, à gauche des munitions (BO1).
+	row.add_child(ThrowableIcons.new(game))
 	_ammo = UiStyle.label("0", 44, UiStyle.BONE, "impact")
 	row.add_child(_ammo)
 	_reserve = UiStyle.label("/ 0", 24, UiStyle.DIM, "impact")

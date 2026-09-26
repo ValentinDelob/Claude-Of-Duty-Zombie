@@ -6,6 +6,7 @@ extends RefCounted
 ##   P apparition joueur      Z apparition zombie     L lampe
 ##   1-9 portes (payantes)    X emplacement de la boîte mystère
 ##   R U V % ... achats muraux, armes ou couteaux (voir wall_buys)   Q J S D M atouts (voir perks)
+##   * achat mural de grenades (250, voir GrenadeBuy)
 ##   G interrupteur du courant   E zone du piège électrique   H levier du piège
 ##   T plateforme du téléporteur   F sortie du téléporteur   K Pack-a-Punch
 ##   Décor bloquant : C caisse  O baril  I lit  N paillasse  Y générateur

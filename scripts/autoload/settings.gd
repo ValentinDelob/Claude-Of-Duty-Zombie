@@ -37,6 +37,8 @@ const DEFAULT_BINDINGS := {
 	"interact": [KEY_F, KEY_E],
 	"reload": [KEY_R],
 	"melee": [KEY_V],
+	"grenade": [KEY_G],
+	"tactical": [KEY_Q],
 	"switch_weapon": [KEY_1, KEY_2],
 	"scoreboard": [KEY_TAB],
 	"pause": [KEY_ESCAPE],

@@ -180,6 +180,9 @@ func apply(type: String, _pid: int, pos: Vector3) -> void:
 ## Réserve pleine pour toutes les armes de tous les joueurs (y compris celles
 ## mises de côté par un joueur à terre).
 func _max_ammo() -> void:
+	# Grenades à 4 et SINGE-TAMBOUR à 3 (BO1).
+	if game.throwables:
+		game.throwables.srv_refill_all()
 	for pid in game.session.data:
 		var pd: PlayerData = game.session.data[pid]
 		for list in [pd.weapons, pd.saved_weapons]:

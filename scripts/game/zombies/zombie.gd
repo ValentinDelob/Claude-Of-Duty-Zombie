@@ -42,6 +42,8 @@ var health := 150
 var max_health := 150
 var speed_mult := 1.0
 var target: Player
+## Serveur : attiré par un SINGE-TAMBOUR (ThrowableSystem.lure_for).
+var lured := false
 ## Fenêtre à franchir avant d'entrer dans la zone (null : déjà dedans).
 var barricade: Barricade
 ## Serveur : progression de l'arrachage de la planche en cours.
@@ -196,7 +198,7 @@ func _physics_process(delta: float) -> void:
 	# Mesure de blocage sur des fenêtres d'une seconde (déplacement réel).
 	_stuck_sample_t += delta
 	if _stuck_sample_t >= 1.0:
-		if state == State.CHASE and global_position.distance_to(_stuck_sample_pos) < 0.6:
+		if state == State.CHASE and not lured and global_position.distance_to(_stuck_sample_pos) < 0.6:
 			_low_move_t += _stuck_sample_t
 		else:
 			_low_move_t = 0.0
@@ -211,6 +213,12 @@ func _chase(delta: float) -> void:
 	if game == null or game.nav == null:
 		return
 	_repath_t -= delta
+	# SINGE-TAMBOUR : un leurre actif passe avant tous les joueurs.
+	var lure: Vector3 = game.throwables.lure_for(self) if game.throwables else Vector3.INF
+	lured = lure != Vector3.INF
+	if lured:
+		_chase_lure(lure, delta)
+		return
 	if _repath_t <= 0.0 or target == null or not is_instance_valid(target) or not _is_target_valid(target):
 		target = _nearest_player()
 	var desired := Vector3.ZERO
@@ -247,6 +255,40 @@ func _chase(delta: float) -> void:
 	if horiz.length() > 0.1:
 		# Le modèle regarde vers +Z.
 		yaw = lerp_angle(yaw, atan2(horiz.x, horiz.z), 1.0 - exp(-delta * 8.0))
+	rotation.y = yaw
+
+
+## Serveur : marche vers le SINGE-TAMBOUR (chemin A*) puis l'encercle.
+func _chase_lure(pos: Vector3, delta: float) -> void:
+	var game := Game.instance
+	var to := pos - global_position
+	to.y = 0.0
+	var dist := to.length()
+	var dir := Vector3.ZERO
+	if dist > ThrowableRules.LURE_STOP:
+		if dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, pos):
+			dir = to / dist
+			_path.clear()
+		else:
+			if _repath_t <= 0.0 or _path_i >= _path.size():
+				_path = game.nav.find_path(global_position, pos)
+				_path_i = 0
+				_repath_t = randf_range(0.35, 0.7)
+			while _path_i < _path.size() and _flat_dist(_path[_path_i]) < 0.45:
+				_path_i += 1
+			if _path_i < _path.size():
+				var wp := _path[_path_i] - global_position
+				wp.y = 0.0
+				dir = wp.normalized()
+	if _repath_t <= 0.0:
+		_repath_t = randf_range(0.35, 0.7)
+	var desired: Vector3 = (dir + _separation() * 0.9).limit_length(1.0) * SPEEDS[speed_class] * speed_mult
+	var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(desired, 12.0 * delta)
+	velocity.x = horiz.x
+	velocity.z = horiz.z
+	# Tourné vers le singe.
+	if dist > 0.05:
+		yaw = lerp_angle(yaw, atan2(to.x, to.z), 1.0 - exp(-delta * 8.0))
 	rotation.y = yaw
 
 

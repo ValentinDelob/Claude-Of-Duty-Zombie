@@ -267,6 +267,31 @@ static func _splash_center(impacts: PackedVector3Array, hits: Array) -> Vector3:
 	return Vector3.INF
 
 
+## Serveur : explosion d'un objet lancé (grenade, SINGE-TAMBOUR) : dégâts de
+## zone décroissants aux zombies en vue du centre (pas à travers les murs),
+## dégâts réduits au seul lanceur (pas de tir ami, comme BO1).
+func explosion(pid: int, center: Vector3, radius: float, damage: int, self_damage: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var space := game.get_world_3d().direct_space_state
+	var eye := center + Vector3.UP * 0.25
+	var mult := damage_mult(pid) if pid > 0 else 1.0
+	for z: Zombie in game.zombies.alive.duplicate():
+		var body := z.global_position + Vector3.UP * 0.9
+		var d := body.distance_to(center)
+		if d > radius:
+			continue
+		var q := PhysicsRayQueryParameters3D.create(eye, body, 1)
+		if not space.intersect_ray(q).is_empty():
+			continue
+		damage_zombie(z.id, int(ThrowableRules.splash(damage, radius, d) * mult), pid, false, (z.global_position - center).normalized(), HitKind.SPLASH)
+	var p: Player = game.players.get(pid)
+	if p and self_damage > 0:
+		var ds := (p.global_position + Vector3.UP * 0.9).distance_to(center)
+		if ds <= radius:
+			damage_player(pid, ThrowableRules.splash(self_damage, radius, ds), center)
+
+
 ## Serveur : inflige des dégâts à un zombie. Point d'entrée unique pour toutes
 ## les sources (balles, couteau, pièges...).
 func damage_zombie(zid: int, dmg: int, pid: int, headshot: bool, dir: Vector3, kind: HitKind) -> void:

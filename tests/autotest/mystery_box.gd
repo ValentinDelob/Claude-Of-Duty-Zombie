@@ -46,12 +46,14 @@ func run() -> void:
 	await seconds(2.0)
 	await at.screenshot("rolling")
 	await until(func(): return box.state == MysteryBox.State.READY, 4.0, "arme prête")
-	at.check(WeaponDB.exists(box.weapon) and box.weapon != "m1911" and WeaponDB.box_pool().has(box.weapon), "arme tirée : %s" % box.weapon)
+	var monkey := box.weapon == ThrowableRules.MONKEY_ID
+	at.check(monkey or (WeaponDB.exists(box.weapon) and box.weapon != "m1911" and WeaponDB.box_pool().has(box.weapon)), "arme tirée : %s" % box.weapon)
 	await seconds(0.4)
 	await at.screenshot("ready")
 	var got := box.weapon
 	await press()
-	at.check(pd.has_weapon(got) >= 0 and box.state == MysteryBox.State.IDLE, "%s pris par l'acheteur" % got)
+	var taken := (pd.has_monkeys and pd.monkeys == ThrowableRules.MONKEY_MAX) if monkey else pd.has_weapon(got) >= 0
+	at.check(taken and box.state == MysteryBox.State.IDLE, "%s pris par l'acheteur" % got)
 
 	# Jamais une arme déjà possédée.
 	var dup := 0
@@ -85,6 +87,20 @@ func run() -> void:
 	at.check(dead == 3, "tir de CLAUDE-RAY : %d/3 zombies tués par l'explosion" % dead)
 	await at.screenshot("ray")
 	await H.clear_zombies(self)
+
+	# SINGE-TAMBOUR forcé : 3 singes (arme tactique), armes inchangées.
+	await face_box()
+	pd.has_monkeys = false
+	pd.monkeys = 0
+	box.force_result = ThrowableRules.MONKEY_ID
+	await press()
+	await until(func(): return box.state == MysteryBox.State.READY, 6.0, "singe prêt")
+	await seconds(0.4)
+	await at.screenshot("monkey")
+	at.check(game.hud._prompt.text.contains(ThrowableRules.MONKEY_NAME), "invite : %s" % game.hud._prompt.text)
+	await press()
+	at.check(pd.has_monkeys and pd.monkeys == ThrowableRules.MONKEY_MAX and pd.current_weapon().id == "ray",
+		"3 singes pris (%d), arme en main inchangée" % pd.monkeys)
 
 	# Crâne : remboursement et déménagement.
 	await face_box()

@@ -1084,3 +1084,91 @@ func gen_dog_round_music() -> void:
 		s.mix(b, _bell(3.0, 196.0 * (1.0 if k == 0 else 1.06)), k * beat * 8.0, 0.4)
 	b = s.reverb(b, 0.9, 0.3, 1.2)
 	_save("dog_round_music", _seamless(b, dur, 0.7), true)
+
+
+# ---------------------------------------------------------------- grenades / singe
+
+func gen_grenade_pin() -> void:
+	# Goupille arrachée : tintement de l'anneau, puis la cuillère qui claque.
+	var b := _clank(2600.0, 0.05, 0.4)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.06), 5200.0, 3.0), 0.001, 0.02), 0.03, 0.5)
+	s.mix(b, _clank(1500.0, 0.06, 0.5), 0.16, 0.8)
+	_save("grenade_pin", s.finish(s.reverb(b, 0.3, 0.12, 0.2), 0.7))
+
+
+func gen_grenade_throw() -> void:
+	# Souffle du bras (whoosh court).
+	var b := s.env_adsr(s.bandpass(s.noise(0.3), 900.0, 0.8), 0.06, 0.1, 0.5, 0.12)
+	s.mix(b, s.env_adsr(s.lowpass_sweep(s.noise(0.3), 2500.0, 600.0), 0.04, 0.08, 0.4, 0.1), 0.0, 0.6)
+	_save("grenade_throw", s.finish(b, 0.5))
+
+
+func gen_grenade_bounce() -> void:
+	# Petit corps métallique lourd qui heurte le béton.
+	var b := s.env_exp(s.lowpass(s.noise(0.1), 1800.0), 0.0005, 0.02)
+	s.mix(b, _clank(720.0, 0.06, 0.3), 0.0, 1.0)
+	s.mix(b, s.env_exp(s.tone(0.1, 180.0), 0.0005, 0.03), 0.0, 0.6)
+	_save("grenade_bounce", s.finish(s.reverb(b, 0.35, 0.12, 0.25), 0.65))
+
+
+func gen_monkey_bounce() -> void:
+	# Jouet de fer-blanc qui cogne le sol (les cymbales tintent).
+	var b := s.env_exp(s.lowpass(s.noise(0.1), 1500.0), 0.0005, 0.02)
+	s.mix(b, _cymbal(0.25, 0.4), 0.0, 0.5)
+	_save("monkey_bounce", s.finish(s.reverb(b, 0.3, 0.1, 0.2), 0.6))
+
+
+func gen_frag_explode() -> void:
+	# Grenade : détonation sèche et violente, souffle, éclats qui retombent.
+	var b := s.env_exp(s.highpass(s.noise(0.02), 1800.0), 0.0003, 0.006)
+	s.mix(b, s.env_exp(s.lowpass_sweep(s.noise(1.2), 4200.0, 180.0), 0.001, 0.22), 0.0, 1.1)
+	s.mix(b, s.env_exp(s.sweep(0.9, 110.0, 32.0), 0.001, 0.3), 0.0, 1.5)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(1.8), 300.0), 0.03, 0.55), 0.03, 0.7)
+	for k in 7:
+		s.mix(b, s.env_exp(s.bandpass(s.noise(0.05), 2500.0 + k * 350.0, 3.0), 0.0005, 0.02), 0.25 + k * 0.11 + s.rng.randf() * 0.05, 0.12)
+	b = s.drive(b, 3.5)
+	_save("frag_explode", s.finish(s.reverb(b, 0.95, 0.32, 1.4), 0.98))
+
+
+func gen_monkey_wind() -> void:
+	# Remontage du ressort du singe (cliquetis de la clé).
+	var b := s.buf(0.5)
+	for k in 6:
+		s.mix(b, _clank(3000.0 + (k % 2) * 500.0, 0.02, 0.3), k * 0.07, 0.6)
+	_save("monkey_wind", s.finish(b, 0.5))
+
+
+## Cymbale de laiton : bruit aigu et partiels métalliques inharmoniques.
+func _cymbal(seconds: float, decay: float) -> PackedFloat32Array:
+	var b := s.env_exp(s.highpass(s.noise(seconds), 4500.0), 0.0005, decay)
+	for pr in [1.0, 1.47, 2.09, 2.56, 3.71]:
+		s.mix(b, s.env_exp(s.tone(seconds, 1180.0 * pr, "square"), 0.0005, decay * 0.5), 0.0, 0.05)
+	return s.bandpass(b, 6500.0, 0.5)
+
+
+func gen_monkey_music() -> void:
+	# SINGE-TAMBOUR : air de fête foraine à 135 bpm (orgue de barbarie
+	# désaccordé, basse « oum-pa ») et un coup de cymbales à chaque temps,
+	# pendant 8 s ; la dernière mesure ralentit comme un ressort qui se détend.
+	var beat := 60.0 / 135.0
+	var b := s.buf(8.0 + 0.6)
+	var melody := [7, 9, 11, 12, 11, 9, 7, 4, 5, 7, 9, 7, 5, 4, 2, 0,
+		7, 9, 11, 12, 14, 12, 11, 9, 7, 11, 14, 12, 11, 9, 7, 0]
+	var n := int(8.0 / beat)
+	var t := 0.0
+	for i in n:
+		var slow := 1.0 + maxf(0.0, float(i - (n - 4))) * 0.12
+		# Cymbales.
+		s.mix(b, _cymbal(0.4, 0.14), t, 0.55)
+		# Basse oum-pa.
+		var bass: float = 98.0 if (i / 2) % 2 == 0 else 73.4
+		s.mix(b, s.env_exp(s.tone(beat, bass if i % 2 == 0 else bass * 1.5, "tri"), 0.004, 0.12), t, 0.35)
+		# Mélodie (croches).
+		for h in 2:
+			var note: int = melody[(i * 2 + h) % melody.size()]
+			var f: float = 523.25 * pow(2.0, note / 12.0) * (1.0 - 0.02 * float(i) / n)
+			var v := s.env_exp(s.tone(beat * 0.6, f, "square"), 0.003, 0.09)
+			s.mix(v, s.env_exp(s.tone(beat * 0.6, f * 1.006, "saw"), 0.003, 0.07), 0.0, 0.5)
+			s.mix(b, s.lowpass(v, 3200.0), t + h * beat * 0.5 * slow, 0.16)
+		t += beat * slow
+	_save("monkey_music", s.finish(s.reverb(b, 0.6, 0.22, 0.6), 0.8))

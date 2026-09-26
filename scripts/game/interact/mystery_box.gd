@@ -181,7 +181,7 @@ func prompt(pid: int) -> String:
 			return "[F] Boîte mystère %s" % Interactable.cost_text(cost())
 		State.READY:
 			if pid == owner_pid and not skull:
-				return "[F] Prendre %s" % WeaponDB.display_name(weapon)
+				return "[F] Prendre %s" % (ThrowableRules.MONKEY_NAME if weapon == ThrowableRules.MONKEY_ID else WeaponDB.display_name(weapon))
 	return ""
 
 
@@ -206,9 +206,13 @@ func srv_use(pid: int) -> void:
 		State.READY:
 			if pid != owner_pid or skull:
 				return
-			WeaponDB.give(pd, weapon)
-			game.combat.cancel_reload(pid)
-			game.session.sync_inventory(pid)
+			if weapon == ThrowableRules.MONKEY_ID:
+				# SINGE-TAMBOUR : arme tactique (touche dédiée), pas un emplacement.
+				game.throwables.srv_give_monkeys(pid)
+			else:
+				WeaponDB.give(pd, weapon)
+				game.combat.cancel_reload(pid)
+				game.session.sync_inventory(pid)
 			_close()
 
 
@@ -239,6 +243,10 @@ static func pick_weapon(pd: PlayerData, rng: RandomNumberGenerator) -> String:
 			continue
 		pool.append(id)
 		weights.append(box[id])
+	# SINGE-TAMBOUR (jamais si le joueur en a déjà).
+	if pd == null or not pd.has_monkeys:
+		pool.append(ThrowableRules.MONKEY_ID)
+		weights.append(ThrowableRules.MONKEY_BOX_WEIGHT)
 	if pool.is_empty():
 		return ""
 	var total := 0.0
@@ -351,7 +359,7 @@ func _animate(delta: float) -> void:
 		_display.position.y = 0.4 + progress * 0.75
 		if _cycle_t <= 0.0:
 			_cycle_t = lerpf(0.07, 0.35, progress * progress)
-			var ids := WeaponDB.box_pool().keys()
+			var ids := WeaponDB.box_pool().keys() + [ThrowableRules.MONKEY_ID]
 			_show_model(ids[randi() % ids.size()])
 	if _display_model:
 		_display.rotation.y += delta * (1.5 if state == State.READY else 0.0)
@@ -361,6 +369,12 @@ func _show_model(id: String) -> void:
 	if _display_model:
 		_display_model.queue_free()
 		_display_model = null
+	if id == ThrowableRules.MONKEY_ID:
+		_display_model = Throwable.build_model(ThrowableRules.Kind.MONKEY, false)
+		_display_model.scale = Vector3.ONE * 2.6
+		_display_model.position.y = -0.25
+		_display.add_child(_display_model)
+		return
 	if id == "" or not WeaponDB.exists(id):
 		return
 	_display_model = WeaponModels.build(WeaponDB.stats(id).model, false)

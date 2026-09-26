@@ -13,7 +13,9 @@ et réanimation. Fenêtres barricadées (15) : les zombies arrachent les
 6 planches puis enjambent ; maintenir [F] pour reconstruire (+10 par planche,
 500 points au plus par manche). Couteau à la BO1 (150 dégâts, fente vers le
 zombie visé) et COUTEAU DE CHASSE au mur du quai (3000 : un coup jusqu'à la
-manche 12).
+manche 12). Grenades à fragmentation ([G] : 2 au départ, +2 par manche, 4 au
+plus, achat mural à 250) et SINGE-TAMBOUR ([Q], boîte mystère) qui attire
+tous les zombies avant d'exploser.
 
 ## Lancer le jeu
 
@@ -44,6 +46,7 @@ Les sons sont déjà générés dans `assets/audio/`. Pour les régénérer :
 | S'allonger / Plonger | maintenir Ctrl ou C à l'arrêt / Ctrl ou C en sprintant |
 | Tirer / Viser | Clic gauche / Clic droit |
 | Recharger / Couteau (fente si un zombie visé est à ~3 m) | R / V |
+| Grenade (maintenir = cuire, relâcher = lancer) / SINGE-TAMBOUR | G / Q (touches physiques) |
 | Changer d'arme | 1, 2, molette |
 | Interagir (acheter, réanimer : maintenir) | F ou E |
 | Tableau des scores | Tab (maintenu) |

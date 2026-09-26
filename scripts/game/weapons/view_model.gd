@@ -48,6 +48,9 @@ var _flash_mesh: MeshInstance3D
 var _flash_light: OmniLight3D
 var _flash_t := 0.0
 var _bob := 0.0
+## Arme baissée hors champ (lancer de grenade, voir ThrowController) : 0..1.
+var lowered := 0.0
+var _lower := 0.0
 
 
 func _ready() -> void:
@@ -248,6 +251,13 @@ func update(delta: float, p: Player) -> void:
 		arms.rotation = pose[1]
 		if _pickup_t >= 1.0:
 			_pickup_t = -1.0
+
+	# Lancer de grenade : l'arme descend sous l'écran.
+	_lower = move_toward(_lower, lowered, delta * 6.0)
+	if _lower > 0.0:
+		var kl := ease(_lower, -1.8)
+		pos += Vector3(0.04, -0.42, 0.12) * kl
+		rot += Vector3(-0.7, 0.2, 0.0) * kl
 
 	model.position = pos
 	model.rotation = rot

@@ -135,3 +135,24 @@ précédent.
   +4/+5, coupée en autotest sauf `debug_force_next`), apparitions par la foudre
   près du joueur le moins chassé, ambiance (brouillard `WorldLook`, musique,
   compteur qui clignote). Règles pures : `DogRules`.
+
+## Grenades et SINGE-TAMBOUR (`scripts/game/throwables/`)
+
+- `ThrowableSystem` (`/root/Game/Throwables`) : le client annonce le
+  dégoupillage (`srv_cook`, réserve décomptée) puis le lancer (`srv_throw`).
+  Le serveur crée l'objet (`Throwable` : trajectoire balistique, rebonds par
+  lancers de rayons sur le décor et les zombies, roulement), gère la mèche de
+  4 s (grenade cuite trop longtemps : explosion dans la main), l'arrêt du singe
+  et l'explosion (`Combat.explosion` : dégâts de zone décroissants, pas à
+  travers les murs, dégâts réduits au seul lanceur, kills à 50 points).
+  `_cl_spawn` diffuse position et vitesse initiales : chaque client simule la
+  même trajectoire ; le lanceur l'affiche dès le lâcher (objet prédit rattaché
+  ensuite au numéro du serveur). Règles pures : `ThrowableRules`.
+- Réserve dans `PlayerData` (`grenades`, `monkeys`, `has_monkeys`), répliquée
+  avec les statistiques : +2 grenades à chaque manche (4 au plus), achat mural
+  `GrenadeBuy` (marqueur `*`, 250), MUNITIONS MAX (grenades à 4, singes à 3).
+- Singe posé : `ThrowableSystem.lure_for(zombie)` renvoie sa position, que
+  `Zombie._chase` suit à la place des joueurs pendant 8 s (les chiens
+  l'ignorent). Entrées : actions `grenade` [G] et `tactical` [Q] ; geste à la
+  première personne : `ThrowController` / `ThrowView` (arme baissée par
+  `ViewModel.lowered`).

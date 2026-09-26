@@ -16,6 +16,8 @@ var interact := false           # maintenu
 var interact_pressed := false
 var melee := false
 var switch_weapon := false
+var grenade := false             # maintenu : dégoupiller / cuire, relâcher = lancer
+var tactical := false            # maintenu : SINGE-TAMBOUR
 
 
 func clear_edges() -> void:
@@ -40,6 +42,8 @@ func read_devices() -> void:
 	fire = Input.is_action_pressed("fire")
 	aim = Input.is_action_pressed("aim")
 	interact = Input.is_action_pressed("interact")
+	grenade = Input.is_action_pressed("grenade")
+	tactical = Input.is_action_pressed("tactical")
 	if Input.is_action_just_pressed("jump"):
 		jump = true
 	if Input.is_action_just_pressed("fire"):

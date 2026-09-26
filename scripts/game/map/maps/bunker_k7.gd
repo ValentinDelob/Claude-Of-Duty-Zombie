@@ -75,7 +75,7 @@ func _init() -> void:
 		" #aaaLaaaaaaaLaaaa#aa#bbb#    ####ccccNNNNccccNNNNcccc#eeeYYeee#",
 		" #aaaaaaaaaaaa,aaaWaZ#bZb#    #cc#cccccccccccccccccccc#eeeeeCLe#",
 		" #aaaaaaaaaaaaaaaa#aa#####    #ZcWccccLccccccccccLcccc#Zeeeeeee#",
-		" #aZaaaaaaaaRaaaaa####        #cc#ccccccccc,cccccccccM####W#####",
+		" #aZaaaaa*aaRaaaaa####        #cc#ccccccccc,cccccccccM####W#####",
 		" #####W########W###           ####cccccccccccccccccccc# #eee#   ",
 		"    #aaa#    #aaa#               #ZcccccccccXccccccccc# #eZe#   ",
 		"    #aZa#    #aZa#               #######W########W##### #####   ",

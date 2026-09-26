@@ -49,6 +49,8 @@ var teleporter: Teleporter
 var powerups: PowerupSystem
 ## Fenêtres barricadées (marqueurs W).
 var barricades: BarricadeSystem
+## Grenades et SINGE-TAMBOUR (chemin réseau : /root/Game/Throwables).
+var throwables: ThrowableSystem
 signal power_changed(on: bool)
 @onready var hud: Hud = $HUD
 
@@ -70,6 +72,9 @@ func _ready() -> void:
 	powerups = PowerupSystem.new()
 	powerups.name = "Powerups"
 	add_child(powerups)
+	throwables = ThrowableSystem.new()
+	throwables.name = "Throwables"
+	add_child(throwables)
 	Net.player_left.connect(_on_player_left)
 	Net.session_ended.connect(_on_session_ended)
 	session.inventory_changed.connect(_refresh_remote_weapon)
