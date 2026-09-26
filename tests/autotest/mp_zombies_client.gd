@@ -21,14 +21,16 @@ func run() -> void:
 	await seconds(Zombie.EMERGE_TIME + 0.6)
 	await at.screenshot("zombies")
 	var t := 0.0
-	while game.zombies.alive_count() > 0 and t < 30.0:
+	# Seulement les 3 cibles : le 4e zombie (envoyé ensuite par l'hôte) doit
+	# pouvoir frapper le client.
+	while game.zombies.alive_count() > 0 and pd.kills < 3 and t < 30.0:
 		var z: Zombie = game.zombies.alive[0]
 		AutotestHelpers.aim_at(p, z.head_position())
 		await AutotestHelpers.shoot(self, p, 0.2)
 		if p.weapons.current().mag == 0:
 			await seconds(1.8)
 		t += 0.25
-	at.check(game.zombies.alive_count() == 0, "zombies abattus côté client")
+	at.check(pd.kills == 3, "zombies abattus côté client")
 	await seconds(0.5)
 	at.check(pd.points > 500 and pd.kills == 3, "points reçus du serveur : %d (tués %d)" % [pd.points, pd.kills])
 	ok = await until(func(): return pd.health < pd.max_health, 20.0, "coup reçu")
