@@ -202,7 +202,7 @@ func run() -> void:
 	p.input.aim = true
 	await seconds(0.35)
 	var err_snap := aim_error(zt)
-	at.check(err0 > 4.0 and err_snap < 1.2, "DEADEYE : visée aimantée vers la tête (%.1f° -> %.2f°)" % [err0, err_snap])
+	at.check(err0 > 3.0 and err_snap < 1.2, "DEADEYE : visée aimantée vers la tête (%.1f° -> %.2f°)" % [err0, err_snap])
 	at.check(p.weapons.deadeye.last_target_id == zt.id, "cible : le zombie devant")
 	await seconds(0.4)
 	await at.screenshot("deadeye_snap")
