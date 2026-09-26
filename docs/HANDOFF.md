@@ -124,17 +124,24 @@ Livré et publié (dernière release : voir `gh release list`) :
   vignettage, brume volumétrique), HUD BO1 (manche peinte), zombies refaits
   (6 archétypes, animations), armes FPS détaillées + mains, FOV d'arme séparé.
 - Dossier de combat (statistiques), menu principal, options (dont grain).
-PERF (GTX 1070, 1080p, GPU libre, 26/09) : LOW 240-272 fps, MEDIUM 130-166
-(24 zombies : 130), HIGH 86-92. GTX 1070 ≈ 3,5x GTX 1050 : il faut ~210 fps
-ici en MEDIUM pour tenir 60 fps sur GTX 1050 (cible). Un agent a commencé
-l'optimisation : voir §4.1.
+PERF (GTX 1070, 1080p). Avant optimisation (GPU libre) : LOW 240-272 fps,
+MEDIUM 130-166 (24 zombies : 130), HIGH 86-92. Après « perf: optimize rendering
+after the visual rework » (temps GPU de la pire vue) : MEDIUM 5,4 -> 4,5 ms
+(~195-200 fps estimés, cible ~210 = 60 fps sur GTX 1050), 24 zombies au contact
+6,1 -> 5,0 ms (~55-57 fps sur GTX 1050, limité aussi par le CPU : physique
+~3 ms/pas), HIGH 511 -> 296 draw calls. Préréglage automatique au premier
+lancement (scripts/game/quality_probe.gd). Coûts par poste :
+`sh tools/perf.sh perf_costs` ; détail dans docs/ARCHITECTURE.md. Les fps réels
+sur machine libre restent à re-mesurer (`sh tools/perf.sh`).
 
 ## 4. Reste à faire (dans cet ordre ; détail dans docs/PLAN.md)
-1. PERF après la refonte visuelle (voir l'état de l'agent d'optimisation
-   ci-dessous, §6) : mesurer poste par poste (brume volumétrique, film_post,
-   glow, zombie.gdshader, armes FPS, HUD, draw calls avec 24 zombies),
-   optimiser sans perte visible, préréglage auto selon la carte graphique au
-   premier lancement ; MEDIUM >= ~210 fps ici (60 fps GTX 1050).
+1. PERF (fin) : re-mesurer les fps réels GPU libre (`sh tools/perf.sh boot
+   map_tour kino_tour zombie_stress visual_look`, puis QUALITY=low/high) ;
+   gagner les derniers ~0,4 ms de MEDIUM (postes restants : éclairage des
+   lampes ~1,7 ms, glow ~0,6 ms, arme FPS ~0,3 ms qui peut utiliser le bruit
+   précalculé NoiseLattice, post-traitement) ; réduire le coût CPU de la
+   physique des zombies au contact (~3 ms/pas avec 24 zombies) ; vérifier le
+   préréglage automatique sur d'autres cartes graphiques.
 2. R4 suite : décors et matériaux plus riches par zone, machines d'atouts,
    boîte mystère, Pack-a-Punch, téléporteur au style BO1 ; menu principal et
    écran de chargement au style BO1 ; HUD à l'échelle de la résolution

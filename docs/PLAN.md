@@ -5,7 +5,7 @@ correspond à un commit poussé et à une release GitHub (`.exe`).
 
 ## En cours
 
-- [ ] Optimiser le rendu après la refonte visuelle : mesures GPU libre
+- [~] Optimiser le rendu après la refonte visuelle (fait en partie, voir HANDOFF §4.1) : mesures GPU libre
   (GTX 1070, 1080p, 26/09) : LOW 240-272 fps, MEDIUM 130-166 fps (24 zombies :
   130), HIGH 86-92 fps. GTX 1070 ≈ 3,5x GTX 1050 : MEDIUM ≈ 40 fps sur la
   cible, LOW ≈ 70 fps. Objectif : MEDIUM >= 60 fps sur GTX 1050.
