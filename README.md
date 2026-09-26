@@ -102,12 +102,11 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
 
 ## État d'avancement
 
-Commits de fonctionnalités jusqu'au gameplay multijoueur complet. Travaux en
-cours au moment de ce README (branches d'agents ou à reprendre) :
-- menu principal complet (OPTIONS, CRÉDITS) et ambiance « horreur militaire »
-  du menu ;
-- presets de qualité graphique et optimisation du rendu ;
-- optimisation du système de zombies et du réseau ;
-- finitions visuelles ;
-- `tests/autotest/long_endurance.gd` : investigation en cours (voir l'en-tête
-  du fichier).
+Clone de Black Ops 1 Zombies en cours ; chaque fonctionnalité est publiée en
+release GitHub (.exe). Livré : règles BO1 (manches, points, atouts), deux
+cartes (BUNKER K-7, KINO), fenêtres barricadées, arsenal BO1 et Pack-a-Punch,
+armes merveilles, grenades et singe, bonus (dont FAUCHEUSE et Liquidation),
+chiens de l'enfer, rampants et démembrement, 7 atouts, sons CC0, refonte
+visuelle BO1 (étalonnage, HUD, zombies, armes et mains), réseau optimisé.
+Liste de tâches vivante et reste à faire : [docs/PLAN.md](docs/PLAN.md) ;
+reprise sur une autre machine : [docs/HANDOFF.md](docs/HANDOFF.md).

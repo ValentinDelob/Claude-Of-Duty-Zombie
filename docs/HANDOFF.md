@@ -1,132 +1,189 @@
 # Reprise du travail — prompt à redonner à Claude
 
-Copier tout le bloc ci-dessous dans une nouvelle session Claude Code ouverte à
-la racine du dépôt cloné, puis coller à la suite le cahier des charges
-d'origine (sections 45 à 69).
+Copier TOUT le bloc ci-dessous dans une nouvelle session Claude Code ouverte à
+la racine du dépôt cloné (`git clone git@github.com:ValentinDelob/Claude-Of-Duty-Zombie.git`).
 
 ```text
-Tu reprends le développement de « Call of Claude Zombie », un FPS coop zombies
-low-poly horrifique en Godot 4.7.2 (GDScript, Forward+), dépôt GitHub
-git@github.com:ValentinDelob/Claude-Of-Duty-Zombie.git (branche main). Tout le
-texte du jeu, les commentaires et les messages de commit sont en FRANÇAIS.
+Tu reprends le développement de « Call of Claude Zombie », un CLONE de
+Call of Duty: Black Ops 1 — mode Zombies, en Godot 4.7.2 (GDScript, Forward+).
+Dépôt GitHub : ValentinDelob/Claude-Of-Duty-Zombie, branche main. Tout le texte
+du jeu, les commentaires et les messages de commit sont en FRANÇAIS.
 
-OBJECTIF DE L'UTILISATEUR : faire un CLONE de Call of Duty: Black Ops 1 —
-mode Zombies. Chaque décision (gameplay, rythme des manches, économie de
-points, prix, armes, atouts, boîte mystère, Pack-a-Punch, téléporteur, pièges,
-comportement des zombies, HUD, sons, menus, ambiance) doit viser à reproduire
-au plus près l'expérience et les sensations de BO1 Zombies (Kino der Toten,
-Five, Ascension...). En cas de doute, fais comme BO1. Seule réserve, issue du
-cahier des charges (section 45) : ne pas copier directement le logo Call of
-Duty ni les assets graphiques de Black Ops (identité visuelle originale, noms
-d'atouts/armes originaux déjà en place).
+## 0. Objectif et demandes de l'utilisateur (à respecter en permanence)
+- Reproduire au plus près BO1 Zombies (Kino der Toten, Five, Ascension) :
+  menu, gameplay, rythme des manches, économie de points, prix, armes, atouts,
+  boîte mystère, Pack-a-Punch, téléporteur, pièges, zombies, HUD, sons,
+  ambiance. En cas de doute : fais comme BO1. Le « ressenti » compte autant
+  que les tests : l'utilisateur joue chaque release et juge la fidélité.
+- Réserve (cahier des charges) : ne pas copier le logo Call of Duty ni les
+  assets graphiques d'Activision (textures, modèles, sons extraits du jeu).
+  Noms d'atouts et d'armes merveilles ORIGINAUX (déjà en place) ; noms d'armes
+  réelles autorisés (M1911, MP40, M14...).
+- Sons : l'utilisateur AUTORISE les sons libres de droits (CC0, licence vérifiée
+  pour chaque fichier, crédités dans docs/ASSETS.md et dans les CRÉDITS du
+  jeu) quand le procédural est moins bon. Graphismes : procéduraux ou libres
+  de droits ; images de référence de BO1 autorisées UNIQUEMENT comme modèle,
+  stockées dans docs/reference/ (ignoré par git, jamais publiées).
+- CHAQUE commit est poussé sur GitHub ET publié en release GitHub avec un
+  .exe Windows (et copie locale dans build/) pour que l'utilisateur et ses
+  amis testent chaque fonctionnalité.
+- Les fenêtres de jeu des tests ne doivent JAMAIS voler le focus de
+  l'utilisateur (il travaille sur la même machine) : passe toujours par les
+  outils ci-dessous (override.cfg temporaire no_focus).
+- Utilise autant d'agents que nécessaire pour aller vite (voir §3), mais la
+  machine est limitée (i7-7700 4c/8t, GTX 1070, 16 Go, disque presque plein).
 
-Le
-cahier des charges d'origine (sections 45 à 69 : menu Black Ops, solo,
-multijoueur host/join IP, architecture serveur autoritaire, downed, GameState,
-lobby, règles Git strictes, perf GTX 1050) est collé à la suite de ce message :
-il reste la référence.
+## 1. Mise en place sur une nouvelle machine (Windows)
+- Godot 4.7.2 : `winget install --id GodotEngine.GodotEngine -e` (vérifie avec
+  `winget show GodotEngine.GodotEngine` qu'aucune version plus récente n'est
+  sortie ; si oui, demande à l'utilisateur avant de changer de version).
+  Wrapper Git Bash `~/bin/godot` :
+    #!/bin/sh
+    exec "$LOCALAPPDATA/Microsoft/WinGet/Packages/GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_win64_console.exe" "$@"
+- Modèles d'export (nécessaires au .exe), SEULEMENT Windows (le paquet complet
+  fait 1,3 Go) :
+    mkdir -p "$APPDATA/Godot/export_templates/4.7.2.stable" && cd "$TEMP" &&
+    curl -L -o tpl.tpz https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz &&
+    unzip -o -q tpl.tpz 'templates/windows_*x86_64*' 'templates/version.txt' 'templates/icudt_godot.dat' -d tplx &&
+    cp tplx/templates/* "$APPDATA/Godot/export_templates/4.7.2.stable/" && rm -rf tplx tpl.tpz
+- GitHub CLI : `winget install --id GitHub.cli -e`, wrapper `~/bin/gh` vers
+  "/c/Program Files/GitHub CLI/gh.exe", puis `gh auth status` (si non connecté,
+  demande à l'utilisateur de lancer `gh auth login` lui-même ; clé SSH ou
+  `gh auth setup-git` pour pousser).
+- `godot --headless --path . --import` (enregistre les class_name ; à refaire
+  après tout nouveau fichier avec class_name ou tout reset de worktree).
+- Lis README.md, docs/ARCHITECTURE.md, docs/PLAN.md (liste de tâches vivante),
+  docs/ART_DIRECTION.md, docs/ASSETS.md et ce fichier.
+- Vérifie que tout passe : `sh tools/check.sh` (~35-45 min).
 
-## 1. Mise en place sur cette machine
-- Installer Godot 4.7.2 standard : `winget install GodotEngine.GodotEngine`.
-  Créer un wrapper bash `~/bin/godot` qui lance
-  `$LOCALAPPDATA/Microsoft/WinGet/Packages/GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe/Godot_v4.7.2-stable_win64_console.exe "$@"`.
-- `git pull`, puis `godot --headless --path . --import` (enregistre les
-  class_name ; à refaire après tout nouveau fichier avec class_name).
-- Lis README.md, docs/ARCHITECTURE.md et ce fichier (docs/HANDOFF.md).
-
-## 2. Règles de travail (imposées par l'utilisateur, à respecter)
+## 2. Méthode de travail (imposée)
 - Chaque fonctionnalité : analyse -> plan -> implémentation -> lancement du
-  jeu -> test réel -> logs -> corrections -> commit. Jamais « ça devrait
-  marcher ».
-- Commit atomique et fonctionnel, messages feat:/fix:/perf:/refactor:/docs:/
-  test: + puces en français + ligne finale
+  jeu -> test réel + captures (tests/_out/shots/, REGARDE-LES) -> logs ->
+  corrections -> commit. Jamais « ça devrait marcher ».
+- Commits atomiques : `feat:` / `fix:` / `perf:` / `test:` / `docs:` / `build:`
+  + titre court en anglais comme l'historique, puces en français, ligne finale
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
-- Commits UNIQUEMENT via `sh tools/commit.sh fichier_message.txt` : il lance
-  `sh tools/check.sh` (import, compilation de tous les scripts, tests unitaires,
-  test réseau, tous les scénarios tests/autotest/*.gd en fenêtres parallèles,
-  tests multijoueur hôte/client) et ne committe que si tout passe (~30 min).
-  Ne jamais chaîner un commit après un `grep` (le code de retour serait faux).
-- Push sur main autorisé pour le moment (demande de l'utilisateur).
-- Perf fiable : `sh tools/perf.sh [scénarios]` (1080p, un jeu à la fois) ;
-  ~150 fps sur la RTX A2000 de dev ≈ 60 fps sur GTX 1050. En parallèle
-  (check.sh), un seuil de perf manqué n'est qu'un avertissement.
-- L'utilisateur autorise jusqu'à 5 agents simultanés (worktrees isolés
-  `.claude/worktrees/`, ignorés par git). Garde les fichiers cœur de gameplay
-  (game.gd, combat.gd, player.gd, hud.gd) pour toi ; donne aux agents des
-  périmètres disjoints ; interdis-leur `taskkill /IM Godot…` (ça tue les jeux
-  des autres) ; intègre leurs commits par cherry-pick sur main puis refais un
-  check complet avant de pousser.
-- Scénario isolé : `godot --path . --windowed -- --autotest=<nom>` ; captures
-  dans tests/_out/shots/ (regarde-les pour juger le rendu). Test multijoueur :
-  `sh tools/mp_test.sh <nom>` (mp_<nom>_host.gd + mp_<nom>_client.gd).
+- Livraison : `sh tools/ship.sh message.txt` = check complet -> commit ->
+  push main -> `tools/release.sh` (export du .exe avec le numéro de build
+  v<majeur.mineur>.<nombre de commits>, vérification du .exe exporté par le
+  scénario boot, release GitHub avec notes = tous les commits depuis la
+  précédente). Si des commits sont déjà faits (intégration d'agents) :
+  `sh tools/check.sh` puis `git push origin main` puis `sh tools/release.sh`.
+  Ne jamais chaîner un commit après un `grep` (code de retour faux).
+- Outils sans vol de focus : `sh tools/scenario.sh <nom>` (un scénario),
+  `sh tools/mp_test.sh <nom>` (hôte + client), `sh tools/check.sh`,
+  `sh tools/perf.sh [scénarios]` (1080p, un jeu à la fois, `QUALITY=low|medium|high`).
+  NE LANCE JAMAIS `godot --path . -- --autotest=...` directement.
+- Plusieurs copies en parallèle : `AUTOTEST_PORT_OFFSET=<n>` décale les ports
+  des tests réseau ; `PARALLEL=2 sh tools/check.sh` réduit la charge.
+- Agents (outil Agent, `isolation: worktree`, en arrière-plan) :
+  * Brief commun à leur donner (règles ci-dessus + « analyse, test réel,
+    captures, un commit atomique dans ta worktree, pas de push, pas de
+    release, pas de `taskkill /IM Godot` (tue seulement tes PID), au plus
+    2 fenêtres de jeu à la fois, décalage de ports unique, `sh tools/scenario.sh`,
+    ne lance pas check.sh complet »), plus une mission précise avec les
+    valeurs BO1 et un périmètre de fichiers disjoint des autres agents.
+  * Intégration : essai de cherry-pick dans une worktree d'intégration
+    (ex. `.claude/worktrees/lead`) sur la tête de main ; conflits le plus
+    souvent additifs (garder les deux côtés) ; si le conflit est de fond,
+    demander à l'agent (SendMessage) de rebaser lui-même sur la nouvelle
+    tête. Puis cherry-pick sur main, check complet, push, release.
+  * ATTENTION au répertoire courant : une commande `cd` dans une worktree
+    puis une autre sans `cd` s'exécute dans le dépôt principal ; toujours
+    préfixer par `cd <chemin absolu> &&`.
+  * Supprimer les worktrees terminées (`git worktree remove --force`) : le
+    disque C: est presque plein.
+- Tests instables sous charge : chaque fois qu'un test échoue, distinguer
+  un vrai défaut (à corriger dans le jeu) d'un test dépendant du temps
+  (fenêtre fixe, marge trop faible, action trop tôt). Corriger le test en
+  attendant l'événement (`until(...)`) plutôt qu'avec des délais fixes.
 
-## 3. État actuel (main poussé, commit 2f12381 « perf: optimize rendering »)
-Fait et testé : fondations réseau (ENet host/client, solo = OfflineMultiplayerPeer,
-même code), GameState, contrôleur FPS, armes (WeaponDB, prédiction client,
-validation serveur), zombies (squelette procédural skinné, IA A* AStarGrid2D,
-instantanés 15 Hz), dégâts, points, manches, apparitions par zones, carte
-BUNKER K-7 (7 zones, shaders procéduraux), portes payantes, achats muraux,
-courant, 5 atouts originaux, boîte mystère (CLAUDE-RAY), Pack-a-Punch,
-téléporteur, piège électrique, salon multijoueur, connexion par IP avec erreurs
-lisibles, synchro joueurs (soldats low-poly animés, noms) et zombies, état À
-TERRE + réanimation, gameplay multijoueur (pause, tableau des scores Tab,
-spectateur, départ/perte de l'hôte), préchauffage des shaders, menu principal
-complet (OPTIONS, CRÉDITS) avec ambiance horreur militaire (fond 3D, logo
-original, post-traitement, musique), presets de qualité LOW/MEDIUM/HIGH
-(RenderQuality, `--quality=low` en ligne de commande), README.
-Graphismes 100 % procéduraux. Sons : bruitages (armes, impacts, grenades,
-chiens, joueur, barricades, voix des zombies) = enregistrements CC0 importés
-par tools/audio/sfx_import.gd (recettes tools/audio/sfx_recipes.gd, crédits
-docs/ASSETS.md) ; musiques, ritournelles, annonces et interface sont
-synthétisées par tools/gen_audio.gd (qui ignore les sons importés) et
-tools/gen_audio_menu.gd. Tous les sons sont mis à l'intensité perçue (LUFS)
-de leur catégorie (tools/audio/sfx_loudness.gd) : un nouveau son doit entrer
-dans une catégorie, sinon tests/test_audio.gd échoue.
+## 3. État actuel (voir docs/PLAN.md pour le détail et les releases)
+Livré et publié (dernière release : voir `gh release list`) :
+- Réseau host/client ENet (solo = même code), serveur autoritaire, instantanés
+  delta (NetCodec, ~2 Ko/s par client), poignée de main avec version de build.
+- Règles BO1 : manches (_zombiemode.gsc : nombre, santé, vitesse, délai),
+  points, atouts (sans limite, Quick Revive solo 3 fois), à terre/réanimation.
+- Deux cartes : BUNKER K-7 et KINO (théâtre inspiré de Kino der Toten :
+  téléporteur relié au poste central, Pack-a-Punch qui sort de la scène),
+  sélection de carte (solo et salon), fenêtres barricadées (6 planches,
+  rythme BO1 ~1,9 s par planche), portes, courant, pièges électriques.
+- Arsenal BO1 complet (M1911 de départ, 9 armes murales, 17 armes de boîte,
+  Pack-a-Punch avec noms originaux), CLAUDE-RAY, TONNERRE-7 (Thundergun),
+  grenades (G) et SINGE-TAMBOUR (Q), couteau avec fente, couteau de chasse
+  (Bowie), plongeon ; tir droit (réticule = impact), visée alignée par arme
+  (test weapon_aim à 0 px), lunettes des fusils de précision, recul BO1,
+  effets à la bouche du canon, douilles, impacts par matière.
+- Bonus : Munitions max, Mort instantanée, Double points, Nuke, Charpentier,
+  Liquidation (boîtes à tous les emplacements), FAUCHEUSE (Death Machine).
+- Manches de chiens de l'enfer, rampants et démembrement (hitboxes
+  d'avant-bras), 7 atouts dont NOVA FLOP (PhD) et DEADEYE DRAM (Deadshot).
+- Sons CC0 (armes, zombies, chiens, grenades, impacts, joueur) nivelés en
+  intensité perçue (LUFS) ; musiques/ritournelles originales synthétisées.
+- Refonte visuelle R4 (partie 1) : étalonnage et post-traitement BO1 (grain,
+  vignettage, brume volumétrique), HUD BO1 (manche peinte), zombies refaits
+  (6 archétypes, animations), armes FPS détaillées + mains, FOV d'arme séparé.
+- Dossier de combat (statistiques), menu principal, options (dont grain).
+PERF (GTX 1070, 1080p, GPU libre, 26/09) : LOW 240-272 fps, MEDIUM 130-166
+(24 zombies : 130), HIGH 86-92. GTX 1070 ≈ 3,5x GTX 1050 : il faut ~210 fps
+ici en MEDIUM pour tenir 60 fps sur GTX 1050 (cible). Un agent a commencé
+l'optimisation : voir §4.1.
 
-## 4. Reste à faire (dans cet ordre)
-1. Intégrer la branche `perf/zombies-net` (commit 56441a7 « perf: optimize
-   zombie system », poussée sur GitHub, testée seule mais PAS encore avec le
-   main actuel) : `git cherry-pick 56441a7` sur main, `sh tools/check.sh`,
-   `sh tools/perf.sh zombie_stress`, push. Attention : les zombies sont
-   désormais en mode « flottant » à y = 0 (cartes plates uniquement) ; toute
-   modification de cellules de navigation doit passer par NavGrid.set_blocked.
-2. « perf: optimize networking » (pas commencé) : mesurer la bande passante
-   (statistiques ENet) pendant un test mp avec 24 zombies et des tirs ;
-   instantanés de zombies en delta + rafraîchissement complet périodique ;
-   état des joueurs envoyé seulement s'il change (keep-alive) ; regrouper les
-   effets de tir ; objectif < 10 Ko/s par client ; documenter dans
-   docs/ARCHITECTURE.md.
-3. Refaire `sh tools/perf.sh` GPU libre (les mesures ont été faites avec
-   d'autres jeux sur le GPU) : menu (boot, seuil 150 fps, était à ~104-146 sous
-   charge ; leviers : MENU_3D_SCALE dans main_menu.gd, glow, ombre de la lampe),
-   MEDIUM/HIGH de RenderQuality (réévaluer le MSAA 2x de HIGH).
-4. tests/autotest/long_endurance.gd (exclu de check.sh, préfixe long_) : le
-   bot joue les manches 1 à 5 ; problème NON RÉSOLU : vers le début de la
-   manche 3, la coroutine du scénario cesse d'être reprise (ni les minuteurs
-   SceneTree ni process_frame ne la relancent), alors que le jeu continue ;
-   reproduit même sans tir du bot ; `debug_jump_to(3)` isolé fonctionne.
-   Trouver la cause (vérifier aussi qu'il ne s'agit pas d'un vrai blocage du
-   jeu), puis vérifier les fuites mémoire sur la durée.
-5. « polish: improve visual effects » : finitions (sang, impacts, lumières des
-   machines, barricades de fenêtres éventuelles, taille des étiquettes de nom,
-   pose « à terre » des coéquipiers, préchauffage par preset de qualité).
-6. Mettre à jour README (état d'avancement) et docs/ARCHITECTURE.md.
+## 4. Reste à faire (dans cet ordre ; détail dans docs/PLAN.md)
+1. PERF après la refonte visuelle (voir l'état de l'agent d'optimisation
+   ci-dessous, §6) : mesurer poste par poste (brume volumétrique, film_post,
+   glow, zombie.gdshader, armes FPS, HUD, draw calls avec 24 zombies),
+   optimiser sans perte visible, préréglage auto selon la carte graphique au
+   premier lancement ; MEDIUM >= ~210 fps ici (60 fps GTX 1050).
+2. R4 suite : décors et matériaux plus riches par zone, machines d'atouts,
+   boîte mystère, Pack-a-Punch, téléporteur au style BO1 ; menu principal et
+   écran de chargement au style BO1 ; HUD à l'échelle de la résolution
+   (aujourd'hui en pixels 1280x720) ; lampes « courant coupé » (actuellement
+   rouges) faibles et neutres comme BO1 ; occlusion des sons derrière les murs.
+3. R5 — KINO V2 : reproduction à l'identique de Kino der Toten d'après des
+   images de référence (plan, chaque salle) rangées dans docs/reference/kino/ ;
+   préalable technique : navigation multi-niveaux (escaliers, balcon, foyer à
+   l'étage) en sortant les zombies du mode « flottant » y = 0.
+4. Écarts BO1 connus à reprendre : annonceur (voix procédurale), zone de
+   renversement du TONNERRE-7, arme merveille unique, M16 amélioré sans
+   lance-grenades, vol des zombies non physique, pas d'animations de tir des
+   coéquipiers pour les lancers, pas de ragdoll.
+5. Garder README (état d'avancement), docs/ARCHITECTURE.md et docs/PLAN.md à
+   jour à chaque livraison.
 
 ## 5. Pièges déjà rencontrés (ne pas les refaire)
 - Shader spatial : si POSITION est écrit dans une branche, l'écrire dans TOUS
-  les cas (sinon les meshes deviennent invisibles).
-- Control enfant d'un CanvasLayer : poser les ancrages AVANT add_child (sinon
-  taille nulle).
-- Couleurs de sommets des personnages : convertir sRGB -> linéaire.
-- save_to_wav n'écrit pas de boucle : régler edit/loop_mode=2 dans le .import.
-- Pendant les autotests, les réglages sont lus/écrits dans
-  user://settings_autotest.cfg (jamais les réglages du joueur).
-- Les RPC : requêtes client->serveur en @rpc("any_peer","call_local") +
-  rpc_id(1) ; diffusions en @rpc("authority","call_local") ; le serveur ne fait
-  jamais confiance au client pour dégâts, points, achats, portes, manches.
-- Sortie propre : Audio.stop_all() / Router.quit_game() (sinon ressources
-  orphelines signalées à la fermeture).
+  les cas. Control enfant d'un CanvasLayer : ancrages AVANT add_child.
+  Couleurs de sommets : sRGB -> linéaire. save_to_wav n'écrit pas de boucle :
+  edit/loop_mode=2 dans le .import.
+- RPC : requêtes client->serveur `@rpc("any_peer","call_local")` + rpc_id(1) ;
+  diffusions `@rpc("authority","call_local")` ; le serveur ne fait jamais
+  confiance au client (dégâts, points, achats, portes, manches).
+- Autotests : réglages dans user://settings_autotest.cfg ; le délai d'un
+  scénario (timeout_sec) est vérifié chaque seconde (il était figé à 60 s) ;
+  les manches de chiens et les bonus aléatoires sont coupés en autotest.
+- Zombies en mode flottant (y = 0, cartes plates) ; cellules de navigation
+  uniquement via NavGrid.set_blocked ; corps non solide pendant l'émergence.
+- Marqueurs de carte déjà pris : W fenêtres, % Bowie, * grenades, ( ) NOVA FLOP
+  et DEADEYE DRAM, + ! $ & A B achats muraux du bunker ; sur KINO aussi
+  B < > / @ ? (décors). Vérifie avant d'en ajouter un.
+- Godot 4.7 réécrit default_bus_layout.tres à l'import (uid) : committer le
+  changement, sinon release.sh refuse l'arbre modifié.
+- Tests unitaires : libérer (free()) tout nœud construit, sinon « leaked at
+  exit » fait échouer check.sh.
+- Heredocs bash avec apostrophes et perl -0pi : préférer l'outil d'édition de
+  fichiers pour les remplacements délicats.
+- La FAUCHEUSE et les explosions peuvent rendre un zombie rampant : dans les
+  tests, viser `z.hit_body.global_position`, pas une hauteur fixe.
 
-Commence par la mise en place (§1), vérifie que `sh tools/check.sh` passe sur
-main, puis attaque le §4 point par point en respectant les règles du §2.
+## 6. Travail en cours au moment de l'arrêt
+(voir la section « État à l'arrêt » ci-dessous, mise à jour juste avant
+l'extinction de la machine précédente)
+
+Commence par la mise en place (§1), vérifie `sh tools/check.sh` sur main,
+puis reprends §6 puis §4 dans l'ordre en respectant §0 et §2.
 ```
+
+## État à l'arrêt
+
+(complété à la fin de la session)
