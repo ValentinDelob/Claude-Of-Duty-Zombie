@@ -13,8 +13,12 @@ const ROUND_CAP := 500
 ## Secondes de maintien de [F] par planche reposée (RAPID FIZZ : 2x plus vite).
 const REPAIR_TIME := 0.75
 ## Secondes pour qu'un zombie arrache une planche (marcheur / coureur).
-const TEAR_TIME := 1.0
-const TEAR_TIME_FAST := 0.8
+## BO1 : l'animation d'arrachage d'une planche dure environ 2 s ; un zombie seul
+## met une dizaine de secondes à ouvrir une fenêtre de 6 planches.
+const TEAR_TIME := 1.9
+const TEAR_TIME_FAST := 1.5
+## Pause aléatoire max entre deux planches (le zombie se ré-agrippe).
+const TEAR_PAUSE_MAX := 0.4
 ## Durée du passage de la fenêtre (enjambement).
 const VAULT_TIME := 1.1
 

@@ -22,6 +22,8 @@ const DEATH_LIMBS := ["thigh_l", "thigh_r", "shin_l", "shin_r", "spine", "chest"
 const RADIUS := 0.3
 const HEIGHT := 1.75
 const EMERGE_TIME := 1.4
+## Couche physique « zombies ».
+const BODY_LAYER := 1 << 2
 const INTERP_DELAY := 0.12
 const HITBOX_LAYER := 1 << 3
 const ATTACK_RANGE := 1.25
@@ -96,7 +98,7 @@ func setup(zid: int, zvariant: int, zspeed: int, is_server: bool) -> void:
 
 func _ready() -> void:
 	_mgr = get_parent() as ZombieManager
-	collision_layer = 1 << 2
+	_update_solidity()
 	collision_mask = 1 | (1 << 1) | (1 << 2) | Barricade.BARRIER_LAYER  # monde, joueurs, zombies, fenêtres
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
@@ -421,6 +423,15 @@ func _nearest_player() -> Player:
 func _set_state(s: State) -> void:
 	state = s
 	_state_time = 0.0
+	_update_solidity()
+
+
+## Pendant l'émergence, le corps n'est pas solide : un joueur debout sur le
+## point d'apparition n'est ni poussé ni soulevé (les hitboxes restent actives).
+func _update_solidity() -> void:
+	if state == State.DEAD:
+		return
+	collision_layer = 0 if state == State.EMERGE else BODY_LAYER
 
 
 # --------------------------------------------------------------------------
@@ -473,6 +484,7 @@ func _interpolate() -> void:
 			play_attack()
 		state = new_state
 		_state_time = 0.0
+		_update_solidity()
 
 
 # --------------------------------------------------------------------------

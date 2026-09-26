@@ -86,7 +86,7 @@ func run() -> void:
 	var z := game.zombies.get_zombie(zid)
 	at.check(z.state == Zombie.State.BARRIER and z.barricade == w, "zombie de fenêtre : pas d'émergence, il vise sa fenêtre")
 	var t0 := Time.get_ticks_msec()
-	var ok: bool = await until(func(): return w.planks() == 3, 12.0, "3 planches arrachées")
+	var ok: bool = await until(func(): return w.planks() == 3, 20.0, "3 planches arrachées")
 	var escaped := false
 	if ok:
 		H.aim_at(p, w.global_position + Vector3.UP * 1.3)
@@ -94,9 +94,9 @@ func run() -> void:
 	ok = await until(func():
 		if w.is_inside(z.global_position) and z.state == Zombie.State.BARRIER:
 			escaped = true
-		return w.planks() == 0, 10.0, "toutes les planches arrachées")
+		return w.planks() == 0, 15.0, "toutes les planches arrachées")
 	var tear_s := (Time.get_ticks_msec() - t0) / 1000.0
-	at.check(ok, "le zombie arrache les 6 planches une par une (%.1f s)" % tear_s)
+	at.check(ok and tear_s >= 9.0, "le zombie arrache les 6 planches une par une, au rythme de BO1 (%.1f s)" % tear_s)
 	at.check(not escaped, "tant qu'il reste une planche, le zombie reste dehors")
 	ok = await until(func(): return z.state == Zombie.State.VAULT, 3.0, "enjambement")
 	at.check(ok, "le zombie enjambe la fenêtre")

@@ -330,3 +330,11 @@ func _update_pose(delta: float) -> void:
 	skel.set_bone_pose_rotation(bones.forearm_r, _q(maxf(0.0, cos(ph + 0.35)) * 0.9 * move_k))
 	skel.set_bone_pose_rotation(bones.shin_l, _q(-maxf(0.0, cos(ph + PI)) * 0.8 * move_k))
 	skel.set_bone_pose_rotation(bones.shin_r, _q(-maxf(0.0, cos(ph + PI + 0.35)) * 0.8 * move_k))
+
+
+## Le chien reste non solide tant que la foudre ne l'a pas révélé.
+func _update_solidity() -> void:
+	if not _revealed:
+		collision_layer = 0
+		return
+	super()

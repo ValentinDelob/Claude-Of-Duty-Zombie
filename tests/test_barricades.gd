@@ -21,6 +21,7 @@ func test_repair_speed() -> void:
 	assert_near(BarricadeRules.repair_interval(1.0), BarricadeRules.REPAIR_TIME)
 	assert_near(BarricadeRules.repair_interval(0.5), BarricadeRules.REPAIR_TIME * 0.5, 0.001, "RAPID FIZZ : 2x plus vite")
 	assert_true(BarricadeRules.tear_interval(3) < BarricadeRules.tear_interval(0), "les coureurs arrachent plus vite")
+	assert_true(BarricadeRules.tear_interval(0) * BarricadeRules.PLANKS >= 10.0, "BO1 : une dizaine de secondes pour ouvrir une fenêtre")
 
 
 func test_plank_order() -> void:

@@ -425,7 +425,7 @@ func srv_zombie_barrier(z: Zombie, delta: float) -> void:
 		else:
 			z.tear_t += delta
 			if z.tear_t >= BarricadeRules.tear_interval(z.speed_class):
-				z.tear_t = 0.0
+				z.tear_t = -randf() * BarricadeRules.TEAR_PAUSE_MAX
 				srv_tear()
 		# Petit recentrage sur le point d'arrachage.
 		desired = to * 2.0
