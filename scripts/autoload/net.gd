@@ -118,6 +118,7 @@ func join(address: String, join_port: int, player_name: String) -> Error:
 	port = join_port
 	players = {}
 	_handshake_done = false
+	lobby_map = ""
 	_pending_name = _clean_name(player_name)
 	_connect_timer.start(CONNECT_TIMEOUT_SEC)
 	print("[Net] connexion à %s:%d..." % [address, join_port])
@@ -139,6 +140,24 @@ var loaded_peers: Dictionary = {}
 
 ## Carte de la partie en cours (choisie par le serveur).
 var current_map := ""
+
+
+## Carte choisie par l'hôte dans le salon (affichée aux clients).
+var lobby_map := ""
+signal lobby_map_changed(map_id: String)
+
+
+## Serveur (salon) : annonce la carte choisie à tous les joueurs.
+func set_lobby_map(map_id: String) -> void:
+	if multiplayer.multiplayer_peer == null or not multiplayer.is_server():
+		return
+	_cl_lobby_map.rpc(map_id)
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_lobby_map(map_id: String) -> void:
+	lobby_map = map_id
+	lobby_map_changed.emit(map_id)
 
 
 ## Serveur : ordonne à tout le monde de charger la partie sur `map_id`.
@@ -318,6 +337,7 @@ func _cl_welcome(server_max_players: int) -> void:
 func _cl_rejected(reason: String) -> void:
 	_connect_timer.stop()
 	_handshake_done = false
+	lobby_map = ""
 	var peer_was := mode
 	_reset_peer()
 	if peer_was == Mode.CLIENT:
@@ -388,6 +408,7 @@ func _reset_peer() -> void:
 	loaded_peers = {}
 	match_started = false
 	_handshake_done = false
+	lobby_map = ""
 
 
 # --------------------------------------------------------------------------

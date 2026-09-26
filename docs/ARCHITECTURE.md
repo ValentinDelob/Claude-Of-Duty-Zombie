@@ -118,6 +118,27 @@ précédent.
   (*) mesures HIGH prises avec un peu de concurrence GPU. HIGH vise des cartes plus
   puissantes (GTX 1060 et plus).
 
+## Cartes
+
+- Une carte = un script `MapDef` (`scripts/game/map/maps/*.gd`) : grille ASCII
+  (marqueurs documentés dans `map_def.gd`) + options. Enregistrement :
+  `Game.MAP_SCRIPTS` ; cartes proposées dans les menus : `Game.MENU_MAPS`.
+  Choix : écran `map_select` (SOLO), ligne CARTE du salon (hôte, annoncée aux
+  clients par `Net.set_lobby_map`), mémorisé dans `Settings.last_map` ;
+  `--map=<id>` en ligne de commande l'emporte (tests).
+- Options utiles (KINO) : `zone_heights` (salles hautes ; portes et fenêtres
+  restent à 3,2 m, linteaux automatiques), `open_links` (zones ouvertes sans
+  porte : leurs apparitions s'activent ensemble), `box_starts` (départ
+  aléatoire de la boîte), `teleporter_link` (plateforme + poste central A à
+  relier avant chaque voyage), `pap_revealed_by_teleporter` (Pack-a-Punch
+  caché jusqu'au premier voyage), `stage_zone`, `balcony_zone`, `look`
+  (ambiance), `music`. Plusieurs pièges : chaque levier H commande le bloc de
+  cases E le plus proche.
+- Décor de théâtre (PropBuilder + `TheaterLook`) : fauteuils fusionnés par
+  matériau (une collision par rangée + barrière joueurs/zombies que les balles
+  traversent), rideaux, écran animé et faisceau du projecteur (liés au
+  courant par `PowerGrid.add_hook`), lustres et appliques (lampes de la carte).
+
 ## Tests
 
 - `sh tools/check.sh` : import, tests unitaires, test réseau multi-processus, lancement

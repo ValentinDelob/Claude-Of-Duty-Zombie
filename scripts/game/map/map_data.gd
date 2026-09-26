@@ -46,9 +46,31 @@ static func parse(rows: PackedStringArray) -> MapData:
 					m.markers[key] = []
 				m.markers[key].append(Vector2i(x, y))
 	# Les marqueurs sont du sol : on leur attribue la zone voisine majoritaire.
+	# Un marqueur entouré d'autres marqueurs (centre d'un bloc de piège 3x3...)
+	# hérite ensuite, de proche en proche, de la zone de ses voisins résolus.
+	var pending: Array[Vector2i] = []
 	for key in m.markers:
 		for cell in m.markers[key]:
-			m.zones[cell.y * m.width + cell.x] = m._neighbour_zone(cell)
+			var z := m._neighbour_zone(cell)
+			m.zones[cell.y * m.width + cell.x] = z
+			if z == 0:
+				pending.append(cell)
+	while not pending.is_empty():
+		var left: Array[Vector2i] = []
+		var solved := {}
+		for cell in pending:
+			var z := m._neighbour_zone(cell, true)
+			if z == 0:
+				left.append(cell)
+			else:
+				solved[cell] = z
+		for cell in solved:
+			m.zones[cell.y * m.width + cell.x] = solved[cell]
+		if solved.is_empty():
+			for cell in left:
+				m.zones[cell.y * m.width + cell.x] = 97
+			break
+		pending = left
 	return m
 
 
@@ -96,7 +118,9 @@ static func cells_center(list: Array, y := 0.0) -> Vector3:
 	return acc / maxf(list.size(), 1)
 
 
-func _neighbour_zone(c: Vector2i) -> int:
+## Zone majoritaire des 8 voisins (lettres de sol ; avec `resolved`, aussi les
+## zones déjà attribuées aux marqueurs voisins). 0 si aucune.
+func _neighbour_zone(c: Vector2i, resolved := false) -> int:
 	var counts := {}
 	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
 			Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]:
@@ -109,8 +133,12 @@ func _neighbour_zone(c: Vector2i) -> int:
 			z = 97
 		elif v >= 97 and v <= 122:
 			z = v
+		elif resolved and v != 32 and v != 35:
+			z = zones[n.y * width + n.x]
 		if z != 0:
 			counts[z] = counts.get(z, 0) + 1
+	if counts.is_empty():
+		return 0
 	var best := 97
 	var best_n := -1
 	for z in counts:

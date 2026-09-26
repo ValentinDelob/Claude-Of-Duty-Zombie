@@ -1,5 +1,5 @@
 extends MenuScreen
-## Écran principal : SOLO / MULTIJOUEUR / OPTIONS / DOSSIER DE COMBAT / CRÉDITS /
+## Écran principal : SOLO (sélection de carte) / MULTIJOUEUR / OPTIONS / DOSSIER DE COMBAT / CRÉDITS /
 ## QUITTER.
 
 var _first: Button
@@ -26,9 +26,10 @@ func enter(_args := {}) -> void:
 	focus_later(_first)
 
 
+## SOLO : choix de la carte d'abord (comme Black Ops), qui lance la partie.
 func _solo() -> void:
-	if _lock():
-		menu.launch(func(): Router.start_solo())
+	if not _leaving:
+		menu.show_screen("map_select")
 
 
 func _quit() -> void:

@@ -30,9 +30,9 @@ var _lights: Array[OmniLight3D] = []
 var _hum: AudioStreamPlayer3D
 
 
-func setup(lever_cell: Vector2i, cells: Array, data: MapData) -> void:
-	interact_id = "trap"
-	name = "ElectricTrap"
+func setup(lever_cell: Vector2i, cells: Array, data: MapData, id := "trap") -> void:
+	interact_id = id
+	name = "ElectricTrap" if id == "trap" else "ElectricTrap_" + id
 	for c in cells:
 		trap_cells[c] = true
 	_normal = MapDef.wall_normal(data, lever_cell)

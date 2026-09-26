@@ -4,6 +4,8 @@ shader_type spatial;
 // géométrie et aucun étirement.
 //   pattern 0 béton · 1 carrelage · 2 planches · 3 tôle rivetée
 //           4 mur peint deux tons · 5 pierre rituelle · 6 plafond à dalles
+//           7 moquette · 8 boiserie + papier peint · 9 briques
+//           10 velours plissé · 11 pavés
 render_mode cull_back;
 
 uniform int pattern = 0;
@@ -120,6 +122,67 @@ void fragment() {
 		vec2 f = fract(uv / 1.2);
 		float joint = step(0.96, max(f.x, f.y));
 		col = color_a.rgb * (0.8 + base_noise * 0.4) * (1.0 - joint * 0.6);
+	} else if (pattern == 7) {
+		// Moquette de théâtre : trame fine, losanges d'une autre teinte, usure.
+		vec2 d = uv / 0.9;
+		vec2 dd = abs(fract(vec2(d.x + d.y, d.x - d.y) * 0.5) - 0.5);
+		float motif = step(max(dd.x, dd.y), 0.08) + step(abs(max(dd.x, dd.y) - 0.3), 0.025);
+		float weave = noise2(uv * 60.0) * 0.12;
+		col = mix(color_a.rgb, color_b.rgb, clamp(motif, 0.0, 1.0)) * (0.9 + weave + base_noise * 0.15);
+		float worn = smoothstep(0.55, 0.8, fbm(uv * 0.35 + 3.0));
+		col = mix(col, col * vec3(0.55, 0.5, 0.45), worn * 0.7);
+		rough = 1.0;
+	} else if (pattern == 8) {
+		// Boiserie (lambris jusqu'à paint_height) et papier peint damassé au-dessus.
+		float edge = paint_height;
+		if (wpos.y < edge) {
+			vec2 p = vec2(uv.x / 0.9, wpos.y / edge);
+			vec2 f = fract(p);
+			float frame = step(0.9, f.x) + step(f.x, 0.1) + step(0.88, p.y) + step(p.y, 0.08);
+			float grain = noise2(vec2(uv.x * 3.0, wpos.y * 40.0));
+			col = color_b.rgb * (0.8 + grain * 0.35) * (1.0 - clamp(frame, 0.0, 1.0) * 0.35);
+			rough = 0.55;
+		} else {
+			vec2 p = vec2(uv.x / 0.5, (wpos.y - edge) / 0.7);
+			vec2 f = fract(p) - 0.5;
+			float dam = smoothstep(0.26, 0.22, length(f * vec2(1.0, 1.6))) * (0.5 + 0.5 * sin(atan(f.y, f.x) * 6.0));
+			float stripe = step(0.46, abs(f.x));
+			col = color_a.rgb * (0.85 + base_noise * 0.25) * (1.0 + dam * 0.35 - stripe * 0.2);
+			// Papier décollé par endroits (plâtre dessous).
+			float peel = smoothstep(0.74, 0.8, fbm(uv * 1.1 + 17.0));
+			col = mix(col, vec3(0.16, 0.14, 0.12) * (0.8 + base_noise * 0.3), peel);
+			// Moulure dorée à la limite.
+			float mould = 1.0 - smoothstep(0.0, 0.05, abs(wpos.y - edge - 0.03));
+			col = mix(col, vec3(0.45, 0.33, 0.14), mould);
+			metal = mould * 0.6;
+			rough = mix(0.9, 0.4, mould);
+		}
+	} else if (pattern == 9) {
+		// Briques 22 x 7 cm (ruelle), joints de mortier, briques noircies.
+		vec2 b = uv / vec2(0.24, 0.08);
+		b.x += step(1.0, mod(floor(b.y), 2.0)) * 0.5;
+		vec2 f = fract(b);
+		float joint = step(0.9, f.x) + step(0.82, f.y);
+		float tint = hash2(floor(b));
+		col = color_a.rgb * (0.7 + tint * 0.45) * (0.9 + base_noise * 0.2);
+		col = mix(col, color_b.rgb, clamp(joint, 0.0, 1.0));
+		col *= 1.0 - step(0.9, hash2(floor(b) + 7.1)) * 0.45;
+	} else if (pattern == 10) {
+		// Velours plissé (rideaux, fauteuils) : plis verticaux et lustre.
+		float fold = 0.5 + 0.5 * sin(uv.x * 14.0 + noise2(vec2(uv.x * 2.0, uv.y * 0.3)) * 2.0);
+		col = mix(color_b.rgb, color_a.rgb, fold) * (0.85 + base_noise * 0.25);
+		rough = 0.8;
+	} else if (pattern == 11) {
+		// Pavés de la ruelle : blocs arrondis, joints boueux, flaques.
+		vec2 b = uv / vec2(0.3, 0.22);
+		b.x += step(1.0, mod(floor(b.y), 2.0)) * 0.5;
+		vec2 f = abs(fract(b) - 0.5);
+		float joint = smoothstep(0.36, 0.48, max(f.x, f.y));
+		col = color_a.rgb * (0.7 + hash2(floor(b)) * 0.5);
+		col = mix(col, color_b.rgb, joint);
+		float puddle = smoothstep(0.6, 0.7, fbm(uv * 0.5 + 11.0));
+		rough = mix(mix(0.8, 1.0, joint), 0.12, puddle);
+		col = mix(col, col * 0.55, puddle);
 	} else {
 		// Béton brut : marbrures, fissures, taches.
 		col = color_a.rgb * (0.75 + base_noise * 0.5);

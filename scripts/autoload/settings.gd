@@ -23,6 +23,8 @@ var vsync := true
 var quality: Quality = Quality.MEDIUM
 var last_ip := "127.0.0.1"
 var last_port := 7777
+## Dernière carte choisie (sélection solo, salon de l'hôte).
+var last_map := "bunker_k7"
 
 ## Actions -> touches par défaut (clavier AZERTY et QWERTY : on mappe par
 ## keycode physique pour que ZQSD/WASD tombe au même endroit).
@@ -106,6 +108,7 @@ func load_settings() -> void:
 	sfx_volume = cfg.get_value("audio", "sfx", sfx_volume)
 	last_ip = cfg.get_value("network", "last_ip", last_ip)
 	last_port = cfg.get_value("network", "last_port", last_port)
+	last_map = cfg.get_value("game", "last_map", last_map)
 
 
 func save_settings() -> void:
@@ -122,6 +125,7 @@ func save_settings() -> void:
 	cfg.set_value("audio", "sfx", sfx_volume)
 	cfg.set_value("network", "last_ip", last_ip)
 	cfg.set_value("network", "last_port", last_port)
+	cfg.set_value("game", "last_map", last_map)
 	cfg.save(path)
 
 

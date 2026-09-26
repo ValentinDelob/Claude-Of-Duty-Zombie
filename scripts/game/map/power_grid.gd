@@ -14,11 +14,19 @@ const CASCADE_SPEED := 14.0  # m/s
 var _lights: Array[OmniLight3D] = []
 var _base: PackedFloat32Array = []
 var _flicker: LightFlicker
+## Décor lié au courant (écran de cinéma, faisceau du projecteur...) :
+## Callable(on: bool), appelés à chaque changement.
+var _hooks: Array[Callable] = []
 var powered := false
 
 
 func setup(flicker: LightFlicker) -> void:
 	_flicker = flicker
+
+
+func add_hook(cb: Callable) -> void:
+	_hooks.append(cb)
+	cb.call(powered)
 
 
 func add(light: OmniLight3D) -> void:
@@ -31,6 +39,8 @@ func apply_immediate(on: bool) -> void:
 	powered = on
 	for i in _lights.size():
 		_set_light(i, on)
+	for h in _hooks:
+		h.call(on)
 	if _flicker:
 		_flicker.master = 1.0
 
@@ -38,6 +48,8 @@ func apply_immediate(on: bool) -> void:
 ## Rallumage en cascade depuis `origin`.
 func power_on_from(origin: Vector3) -> void:
 	powered = true
+	for h in _hooks:
+		h.call(true)
 	for i in _lights.size():
 		var l := _lights[i]
 		var delay := l.global_position.distance_to(origin) / CASCADE_SPEED

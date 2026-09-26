@@ -44,6 +44,15 @@ func _wall_key(floor_cell: Vector2i) -> String:
 	return "wall"
 
 
+## Troisième matériau de zone (facultatif) : le plafond.
+func _ceiling_key(c: Vector2i) -> String:
+	if def:
+		var zm: Array = def.zone_materials.get(data.zone_at(c), [])
+		if zm.size() > 2:
+			return zm[2]
+	return "ceiling"
+
+
 func build(parent: Node3D) -> void:
 	var geo := Node3D.new()
 	geo.name = "Geometry"
@@ -76,9 +85,13 @@ func _tool(tools: Dictionary, key: String, c: Vector2i, flat := false) -> Surfac
 	return tools[tkey]
 
 
+## Hauteur sous plafond d'une cellule (MapDef.zone_heights).
+func _height(c: Vector2i) -> float:
+	return def.cell_height(data, c) if def and not def.zone_heights.is_empty() else wall_height
+
+
 ## Sol et plafond : une quad par cellule de sol.
 func _build_floors(tools: Dictionary) -> void:
-	var y := wall_height
 	for cy in data.height:
 		for cx in data.width:
 			var c := Vector2i(cx, cy)
@@ -88,37 +101,48 @@ func _build_floors(tools: Dictionary) -> void:
 			var z0 := cy * MapData.CELL
 			var x1 := x0 + MapData.CELL
 			var z1 := z0 + MapData.CELL
+			var y := _height(c)
 			_quad(_tool(tools, _floor_key(c), c, true), Vector3(x0, 0, z1), Vector3(x1, 0, z1), Vector3(x1, 0, z0), Vector3(x0, 0, z0), Vector3.UP)
-			_quad(_tool(tools, "ceiling", c, true), Vector3(x0, y, z0), Vector3(x1, y, z0), Vector3(x1, y, z1), Vector3(x0, y, z1), Vector3.DOWN)
+			_quad(_tool(tools, _ceiling_key(c), c, true),Vector3(x0, y, z0), Vector3(x1, y, z0), Vector3(x1, y, z1), Vector3(x0, y, z1), Vector3.DOWN)
 
 
 ## Murs : une face verticale pour chaque côté de mur qui touche du sol.
 func _build_walls(tools: Dictionary) -> void:
-	var h := wall_height
+	var tall := def != null and not def.zone_heights.is_empty()
 	for cy in data.height:
 		for cx in data.width:
 			var c := Vector2i(cx, cy)
-			if not data.is_wall(c):
-				continue
-			for d in DIRS:
-				var fc: Vector2i = c + d
-				if not data.is_floor(fc):
-					continue
-				var st := _tool(tools, _wall_key(fc), c)
-				var x0 := cx * MapData.CELL
-				var z0 := cy * MapData.CELL
-				var x1 := x0 + MapData.CELL
-				var z1 := z0 + MapData.CELL
-				var n := Vector3(d.x, 0, d.y)
-				match d:
-					Vector2i(1, 0):
-						_quad(st, Vector3(x1, 0, z1), Vector3(x1, 0, z0), Vector3(x1, h, z0), Vector3(x1, h, z1), n)
-					Vector2i(-1, 0):
-						_quad(st, Vector3(x0, 0, z0), Vector3(x0, 0, z1), Vector3(x0, h, z1), Vector3(x0, h, z0), n)
-					Vector2i(0, 1):
-						_quad(st, Vector3(x0, 0, z1), Vector3(x1, 0, z1), Vector3(x1, h, z1), Vector3(x0, h, z1), n)
-					Vector2i(0, -1):
-						_quad(st, Vector3(x1, 0, z0), Vector3(x0, 0, z0), Vector3(x0, h, z0), Vector3(x1, h, z0), n)
+			if data.is_wall(c):
+				for d in DIRS:
+					var fc: Vector2i = c + d
+					if data.is_floor(fc):
+						_face(_tool(tools, _wall_key(fc), c), c, d, 0.0, _height(fc))
+			elif tall and data.is_floor(c):
+				# Linteau : plafond plus haut chez le voisin (porte ou fenêtre
+				# d'une salle haute) -> pan de mur au-dessus de la cellule basse.
+				var hc := _height(c)
+				for d in DIRS:
+					var n: Vector2i = c + d
+					if data.is_floor(n) and _height(n) > hc + 0.01:
+						_face(_tool(tools, _wall_key(n), c), c, d, hc, _height(n))
+
+
+## Face verticale sur le côté `d` de la cellule `c`, de y0 à y1, tournée vers `d`.
+func _face(st: SurfaceTool, c: Vector2i, d: Vector2i, y0: float, y1: float) -> void:
+	var x0 := c.x * MapData.CELL
+	var z0 := c.y * MapData.CELL
+	var x1 := x0 + MapData.CELL
+	var z1 := z0 + MapData.CELL
+	var n := Vector3(d.x, 0, d.y)
+	match d:
+		Vector2i(1, 0):
+			_quad(st, Vector3(x1, y0, z1), Vector3(x1, y0, z0), Vector3(x1, y1, z0), Vector3(x1, y1, z1), n)
+		Vector2i(-1, 0):
+			_quad(st, Vector3(x0, y0, z0), Vector3(x0, y0, z1), Vector3(x0, y1, z1), Vector3(x0, y1, z0), n)
+		Vector2i(0, 1):
+			_quad(st, Vector3(x0, y0, z1), Vector3(x1, y0, z1), Vector3(x1, y1, z1), Vector3(x0, y1, z1), n)
+		Vector2i(0, -1):
+			_quad(st, Vector3(x1, y0, z0), Vector3(x0, y0, z0), Vector3(x0, y1, z0), Vector3(x1, y1, z0), n)
 
 
 ## Ajoute une quad (a,b,c,d dans le sens anti-horaire vu depuis la normale).
@@ -138,20 +162,38 @@ func _build_collisions(parent: Node3D) -> void:
 	body.collision_layer = 1
 	body.collision_mask = 0
 	parent.add_child(body)
+	var top := def.max_height() if def else wall_height
 	var rects := data.greedy_rects(func(c): return data.is_wall(c))
 	for r in rects:
 		var cs := CollisionShape3D.new()
 		var box := BoxShape3D.new()
-		box.size = Vector3(r.size.x * MapData.CELL, wall_height + 2.0, r.size.y * MapData.CELL)
+		box.size = Vector3(r.size.x * MapData.CELL, top + 2.0, r.size.y * MapData.CELL)
 		cs.shape = box
-		cs.position = Vector3((r.position.x + r.size.x * 0.5) * MapData.CELL, wall_height * 0.5, (r.position.y + r.size.y * 0.5) * MapData.CELL)
+		cs.position = Vector3((r.position.x + r.size.x * 0.5) * MapData.CELL, top * 0.5, (r.position.y + r.size.y * 0.5) * MapData.CELL)
 		body.add_child(cs)
 	# Sol et plafond : deux grandes dalles couvrant toute la carte.
 	var size := Vector3(data.width * MapData.CELL, 1.0, data.height * MapData.CELL)
-	for y in [-0.5, wall_height + 0.5]:
+	var uniform := def == null or def.zone_heights.is_empty()
+	for y in ([-0.5, wall_height + 0.5] if uniform else [-0.5]):
 		var cs := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = size
 		cs.shape = box
 		cs.position = Vector3(size.x * 0.5, y, size.z * 0.5)
 		body.add_child(cs)
+	if uniform:
+		return
+	# Salles hautes : une dalle de plafond par hauteur (rectangles gloutons).
+	var heights := {}
+	for cy in data.height:
+		for cx in data.width:
+			var c := Vector2i(cx, cy)
+			heights[snappedf(_height(c) if data.is_floor(c) else wall_height, 0.01)] = true
+	for h: float in heights:
+		for r in data.greedy_rects(func(c): return snappedf(_height(c) if data.is_floor(c) else wall_height, 0.01) == h):
+			var cs := CollisionShape3D.new()
+			var box := BoxShape3D.new()
+			box.size = Vector3(r.size.x * MapData.CELL, 1.0, r.size.y * MapData.CELL)
+			cs.shape = box
+			cs.position = Vector3((r.position.x + r.size.x * 0.5) * MapData.CELL, h + 0.5, (r.position.y + r.size.y * 0.5) * MapData.CELL)
+			body.add_child(cs)

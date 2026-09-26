@@ -5,7 +5,19 @@ FPS coopératif de survie aux zombies, low-poly et horrifique, réalisé avec
 par adresse IP, 2 à 8 joueurs). Tous les graphismes et tous les sons sont
 **procéduraux** : aucun asset externe.
 
-Carte : **BUNKER K-7** — salle de garde, couloir des cellules (piège électrique),
+Cartes (SOLO ouvre l'écran de sélection ; en multijoueur, l'hôte choisit dans
+le salon ; le dernier choix est mémorisé) :
+
+**KINO** — théâtre abandonné inspiré de Kino der Toten : hall d'entrée à
+galerie (poste central du téléporteur, M-14 et fusil à pompe au mur), foyer,
+loges et allée (deux pièges électriques dans les passages étroits), salle des
+machines (courant), salle de théâtre (fauteuils, scène, rideaux, écran qui
+projette un film une fois le courant rétabli), cabine de projection. Comme à
+Kino : activer la plateforme de la scène puis la relier au poste central avant
+chaque voyage ; le premier voyage fait surgir le Pack-a-Punch sur la scène.
+Boîte mystère : 5 emplacements, départ tiré au sort parmi 3.
+
+**BUNKER K-7** — salle de garde, couloir des cellules (piège électrique),
 laboratoire, dortoir, générateur, quai du téléporteur et salle du rituel
 (Pack-a-Punch). Manches, points, portes payantes, courant, achats muraux,
 5 atouts, boîte mystère, Pack-a-Punch, téléporteur, pièges, état « à terre »

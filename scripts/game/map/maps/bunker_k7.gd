@@ -13,6 +13,7 @@ extends MapDef
 func _init() -> void:
 	id = "bunker_k7"
 	display_name = "BUNKER K-7"
+	description = "Installation militaire et laboratoire abandonnés. Le générateur est mort, les expériences non."
 	zone_names = {
 		"a": "Salle de garde", "b": "Couloir des cellules", "c": "Laboratoire",
 		"d": "Dortoir", "e": "Générateur", "f": "Quai", "p": "Salle du rituel",

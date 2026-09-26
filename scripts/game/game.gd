@@ -11,15 +11,19 @@ static var instance: Game
 const MAP_SCRIPTS := {
 	"bunker_k7": "res://scripts/game/map/maps/bunker_k7.gd",
 	"test_arena": "res://scripts/game/map/maps/test_arena.gd",
+	"kino": "res://scripts/game/map/maps/kino.gd",
 }
 const DEFAULT_MAP := "bunker_k7"
+## Cartes proposées dans les menus (sélection solo, salon de l'hôte).
+const MENU_MAPS := ["bunker_k7", "kino"]
 
-## Carte à charger (les tests peuvent imposer l'arène avec --map=test_arena).
+## Carte à charger (les tests peuvent imposer l'arène avec --map=test_arena),
+## sinon la dernière carte choisie dans le menu (Settings.last_map).
 static func requested_map() -> String:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--map="):
 			return a.substr(6)
-	return DEFAULT_MAP
+	return Settings.last_map if MAP_SCRIPTS.has(Settings.last_map) else DEFAULT_MAP
 
 var map_def: MapDef
 var map_data: MapData
@@ -81,7 +85,7 @@ func _ready() -> void:
 	if multiplayer.is_server():
 		Net.all_loaded.connect(_on_all_loaded)
 		combat.player_fell.connect(_on_player_fell)
-	Audio.play_music("ambience_bunker", -6.0, 3.0)
+	Audio.play_music(map_def.music, -6.0, 3.0)
 	hud.show_loading(map_def.display_name)
 	var spawns: Array = map_data.markers.get(map_def.player_spawn_marker(), [])
 	var warm_at := MapData.cell_to_world(spawns[0]) if not spawns.is_empty() else Vector3(2, 0, 2)
@@ -103,7 +107,7 @@ func _load_map(map_id: String) -> void:
 	builder.build(world)
 	props = PropBuilder.new(map_data, map_def)
 	props.build(world)
-	WorldLook.setup_environment(world)
+	WorldLook.setup_environment(world, map_def.look)
 	_build_doors()
 	_build_wall_buys()
 	_build_power()
@@ -124,6 +128,9 @@ func _on_all_loaded() -> void:
 	if not multiplayer.is_server() or not players.is_empty():
 		return
 	print("[Game] tout le monde a chargé, lancement")
+	var box := interact.get_obj("box") as MysteryBox
+	if box and not map_def.box_starts.is_empty():
+		box.srv_random_start(map_def.box_starts)
 	_cl_begin_match.rpc(Net.players)
 
 
@@ -402,14 +409,7 @@ func _build_pack_a_punch() -> void:
 
 
 func _build_teleporter() -> void:
-	var pad: Array = map_data.markers.get("T", [])
-	var exit: Array = map_data.markers.get("F", [])
-	if pad.is_empty() or exit.is_empty():
-		return
-	teleporter = Teleporter.new()
-	teleporter.setup(pad, exit[0])
-	interact.register(teleporter)
-	world.add_child(teleporter)
+	teleporter = Teleporter.build(self)
 
 
 ## Serveur : téléporte un joueur (son client le déplace : autorité de mouvement).
@@ -429,21 +429,31 @@ func _cl_teleport(pid: int, pos: Vector3, outbound: bool) -> void:
 		p.teleport_to(pos)
 		hud.teleport_flash()
 		if outbound:
-			hud.show_banner("SALLE DU RITUEL", 1.5)
+			hud.show_banner(map_def.teleport_banner, 1.5)
 	else:
 		p._snapshots.clear()
 		p.global_position = pos
 
 
 func _build_traps() -> void:
-	var lever: Array = map_data.markers.get("H", [])
-	var cells: Array = map_data.markers.get("E", [])
-	if lever.is_empty() or cells.is_empty():
-		return
-	var trap := ElectricTrap.new()
-	trap.setup(lever[0], cells, map_data)
-	interact.register(trap)
-	world.add_child(trap)
+	# Chaque levier H commande le bloc de cases E le plus proche (KINO : deux
+	# pièges ; le premier garde l'identifiant « trap »).
+	var groups := MapDef.group_cells(map_data.markers.get("E", []))
+	var levers: Array = map_data.markers.get("H", [])
+	for i in levers.size():
+		var best := -1
+		var best_d := INF
+		for g in groups.size():
+			var d := MapData.cells_center(groups[g]).distance_to(MapData.cell_to_world(levers[i]))
+			if d < best_d:
+				best_d = d
+				best = g
+		if best < 0:
+			return
+		var trap := ElectricTrap.new()
+		trap.setup(levers[i], groups[best], map_data, "trap" if i == 0 else "trap_%d" % (i + 1))
+		interact.register(trap)
+		world.add_child(trap)
 
 
 func _build_barricades() -> void:

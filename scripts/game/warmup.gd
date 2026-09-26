@@ -74,6 +74,18 @@ func _run(game: Game) -> void:
 		pm.add_child(PowerupModels.halo(0.6))
 		stage.add_child(pm)
 		px += 0.36
+	# Matériaux propres au décor de la carte, hors de la salle de départ
+	# (écran de cinéma, faisceau du projecteur...).
+	var qx := -0.9
+	for mat: Material in game.props.warmup_materials:
+		var q := MeshInstance3D.new()
+		var qm := QuadMesh.new()
+		qm.size = Vector2(0.2, 0.2)
+		q.mesh = qm
+		q.material_override = mat
+		q.position = Vector3(qx, 0.8, 0.2)
+		stage.add_child(q)
+		qx += 0.25
 	# Effets.
 	var fx := game.fx_root
 	var p := stage.global_position

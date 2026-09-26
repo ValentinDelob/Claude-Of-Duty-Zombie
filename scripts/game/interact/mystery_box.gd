@@ -142,6 +142,17 @@ func _collider(size: Vector3) -> StaticBody3D:
 	return body
 
 
+## Serveur, avant le début de la partie : emplacement de départ tiré au sort
+## parmi `choices` (index des X), comme à Kino der Toten.
+func srv_random_start(choices: Array) -> void:
+	var valid := choices.filter(func(i): return i >= 0 and i < spots.size())
+	if valid.is_empty():
+		return
+	_move_to(valid[_rng.randi() % valid.size()])
+	print("[Box] départ : emplacement %d" % location)
+	broadcast_state()
+
+
 ## Prix courant (bonus LIQUIDATION : 10 points).
 func cost() -> int:
 	return PowerupRules.FIRE_SALE_COST if fire_sale else COST

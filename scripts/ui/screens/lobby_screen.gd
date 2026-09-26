@@ -6,6 +6,10 @@ var is_host := false
 var _list: VBoxContainer
 var _start: Button
 var _status: Label
+## Hôte : carte choisie (Settings.last_map) et sa ligne ◄ ►.
+var map_id := ""
+var map_row: MenuOptionRow
+var _map_label: Label
 
 
 func enter(args := {}) -> void:
@@ -37,8 +41,21 @@ func enter(args := {}) -> void:
 		if ips.size() > 1:
 			inner.add_child(text("(autres : %s)" % ", ".join(ips.slice(1)), 16, UiStyle.DIM))
 		inner.add_child(text("PORT : %d" % Net.port, 24, UiStyle.GOLD))
+		# Choix de la carte (mémorisé, annoncé aux clients).
+		var names := PackedStringArray()
+		for id in Game.MENU_MAPS:
+			names.append(MapPreview.map_def(id).display_name)
+		map_id = Settings.last_map if Settings.last_map in Game.MENU_MAPS else Game.MENU_MAPS[0]
+		map_row = MenuOptionRow.make_choice("CARTE", names, Game.MENU_MAPS.find(map_id))
+		map_row.value_changed.connect(_on_map_changed)
+		map_row.focus_entered.connect(func(): menu.set_hint("◄ ► : carte de la partie."))
+		col.add_child(map_row)
 		_start = button("DÉMARRER", _on_start)
 		col.add_child(_start)
+	else:
+		_map_label = text("CARTE : %s" % _map_name(Net.lobby_map), 22, UiStyle.GOLD)
+		col.add_child(_map_label)
+		Net.lobby_map_changed.connect(_on_lobby_map)
 	_status = text("" if is_host else "En attente du lancement...", 20, UiStyle.DIM)
 	col.add_child(_status)
 	var quit := button("QUITTER", back)
@@ -49,7 +66,26 @@ func enter(args := {}) -> void:
 	_refresh()
 
 
+func _map_name(id: String) -> String:
+	var def := MapPreview.map_def(id)
+	return def.display_name if def else "..."
+
+
+func _on_map_changed(v: float) -> void:
+	map_id = Game.MENU_MAPS[clampi(int(v), 0, Game.MENU_MAPS.size() - 1)]
+	Settings.last_map = map_id
+	Settings.save_settings()
+	Net.set_lobby_map(map_id)
+
+
+func _on_lobby_map(id: String) -> void:
+	if _map_label:
+		_map_label.text = "CARTE : %s" % _map_name(id)
+
+
 func exit() -> void:
+	if Net.lobby_map_changed.is_connected(_on_lobby_map):
+		Net.lobby_map_changed.disconnect(_on_lobby_map)
 	if Net.players_changed.is_connected(_refresh):
 		Net.players_changed.disconnect(_refresh)
 	if Net.player_left.is_connected(_on_left):
@@ -78,6 +114,8 @@ func _refresh() -> void:
 		_list.add_child(line)
 	if _start:
 		_status.text = "%d/%d joueurs" % [Net.players.size(), Net.max_players]
+		# Nouveaux arrivants : ils reçoivent la carte choisie.
+		Net.set_lobby_map(map_id)
 
 
 func _on_left(pid: int) -> void:
@@ -90,7 +128,7 @@ func _on_start() -> void:
 		return
 	_start.disabled = true
 	_status.text = "Lancement..."
-	Net.start_match(Game.requested_map())
+	Net.start_match(map_id)
 
 
 func back() -> void:

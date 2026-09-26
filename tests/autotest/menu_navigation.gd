@@ -2,7 +2,8 @@ extends AutotestScenario
 ## Menu principal parcouru au clavier (événements d'entrée réels) :
 ## principal -> OPTIONS (une option modifiée, vérifiée dans le fichier de
 ## réglages, puis restaurée) -> retour -> CRÉDITS (défilement) -> retour ->
-## MULTIJOUEUR -> retour -> apparition de la silhouette du fond -> SOLO
+## MULTIJOUEUR -> retour -> apparition de la silhouette du fond -> SOLO ->
+## sélection de carte -> BUNKER K-7
 ## (fondu au noir cinématique avant le chargement). Captures de chaque écran.
 
 const EXPECTED := ["SOLO", "MULTIJOUEUR", "OPTIONS", "DOSSIER DE COMBAT", "CRÉDITS", "QUITTER"]
@@ -83,7 +84,13 @@ func run() -> void:
 	menu.backdrop.force_figure(false)
 	at.check(not menu.backdrop.figure_visible(), "silhouette disparue")
 
-	# SOLO : fondu au noir cinématique AVANT le chargement.
+	# SOLO : écran de sélection de carte, puis la carte validée (BUNKER K-7,
+	# focus par défaut) lance le fondu au noir cinématique AVANT le chargement.
+	await press("ui_accept")
+	at.check(menu.current_name == "map_select", "SOLO : sélection de la carte (%s)" % menu.current_name)
+	await seconds(0.9)
+	await at.screenshot("map_select")
+	at.check(_focused_label() == "BUNKER K-7", "focus sur BUNKER K-7 (%s)" % _focused_label())
 	await press("ui_accept")
 	await seconds(0.5)
 	at.check(tree().current_scene == menu, "SOLO : toujours dans le menu pendant le fondu")

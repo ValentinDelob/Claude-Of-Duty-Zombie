@@ -451,6 +451,50 @@ func gen_ambience_bunker() -> void:
 	_save("ambience_bunker", s.gain(b, 0.6 / m), true)
 
 
+func gen_ambience_kino() -> void:
+	# Boucle de 24 s du théâtre : vaste salle vide (souffle grave), cliquetis
+	# lointain d'un projecteur, grincements de parquet et de fauteuils,
+	# quelques notes d'un orgue de cinéma désaccordé, noyées dans la réverbération.
+	var dur := 24.0
+	var b := s.lowpass(s.brown_noise(dur), 140.0)
+	b = s.gain(b, 0.55)
+	var hum := s.tone(dur, 60.0)
+	s.mix(hum, s.tone(dur, 120.0), 0.0, 0.25)
+	s.mix(b, hum, 0.0, 0.03)
+	# Projecteur : claquements réguliers (18 par seconde) qui vont et viennent.
+	var proj := s.buf(dur)
+	var click := s.env_exp(s.bandpass(s.noise(0.02), 2400.0, 3.0), 0.0005, 0.006)
+	var t := 0.0
+	while t < dur - 0.1:
+		s.mix(proj, click, t, 0.5 + 0.5 * sin(t * 0.5))
+		t += 1.0 / 18.0
+	s.mix(b, s.lowpass(proj, 3000.0), 0.0, 0.05)
+	for k in 6:
+		var creak := s.env_adsr(s.bandpass(s.sweep(1.4, s.rng.randf_range(250.0, 420.0), s.rng.randf_range(160.0, 240.0), "saw"), 800.0, 7.0), 0.3, 0.3, 0.6, 0.5)
+		s.mix(b, creak, s.rng.randf_range(1.0, dur - 2.5), 0.1)
+	# Orgue : accords mineurs lents, légèrement faux.
+	var chords := [[220.0, 261.6, 329.6], [196.0, 233.1, 293.7], [174.6, 207.7, 261.6]]
+	for k in chords.size():
+		var ch := s.buf(5.0)
+		for f in chords[k]:
+			var detune: float = f * (1.0 + s.rng.randf_range(-0.008, 0.008))
+			s.mix(ch, s.tone(5.0, detune, "saw"), 0.0, 0.25)
+			s.mix(ch, s.tone(5.0, detune * 2.0), 0.0, 0.15)
+		ch = s.env_adsr(s.lowpass(ch, 900.0), 1.5, 0.5, 0.7, 2.0)
+		s.mix(b, ch, 3.0 + k * 7.0, 0.05)
+	b = s.reverb(b, 0.97, 0.5, 0.1)
+	b.resize(int(dur * Synth.RATE))
+	var f := int(0.5 * Synth.RATE)
+	for i in f:
+		var x := float(i) / f
+		b[i] = b[i] * x + b[b.size() - f + i] * (1.0 - x)
+	b.resize(b.size() - f)
+	var m := 0.0001
+	for v in b:
+		m = maxf(m, absf(v))
+	_save("ambience_kino", s.gain(b, 0.6 / m), true)
+
+
 # ---------------------------------------------------------------- interactions
 
 func gen_purchase() -> void:

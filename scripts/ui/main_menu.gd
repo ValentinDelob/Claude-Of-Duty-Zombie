@@ -18,6 +18,7 @@ const SCREENS := {
 	"options": "res://scripts/ui/screens/options_screen.gd",
 	"credits": "res://scripts/ui/screens/credits_screen.gd",
 	"career": "res://scripts/ui/screens/career_screen.gd",
+	"map_select": "res://scripts/ui/screens/map_screen.gd",
 }
 const BASE_SIZE := Vector2i(1280, 720)
 ## Durées des transitions (fondu au noir puis retour).

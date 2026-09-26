@@ -1,14 +1,23 @@
 class_name Teleporter
 extends Interactable
-## Téléporteur du quai vers la salle du rituel (Pack-a-Punch).
+## Téléporteur (BUNKER K-7 : du quai vers la salle du rituel et son
+## Pack-a-Punch ; KINO : de la scène vers la cabine de projection).
 ##
 ## Serveur : IDLE -> CHARGING (3 s) -> ACTIVE (joueurs dans la salle, 25 s)
 ## -> COOLDOWN (60 s) -> IDLE. Tous les joueurs présents sur la plateforme au
 ## moment du départ (positions serveur) sont transportés, puis ramenés.
 ## Chaque client déplace lui-même son joueur (autorité de mouvement), sur
 ## ordre du serveur.
+##
+## Mode « liaison » (MapDef.teleporter_link, KINO) : comme à Kino der Toten,
+## après le courant il faut activer la plateforme (gratuit) puis la relier au
+## poste central (TeleporterMainframe) ; chaque voyage consomme la liaison et
+## ramène les joueurs devant le poste central. Option
+## MapDef.pap_revealed_by_teleporter : le premier voyage fait surgir le
+## Pack-a-Punch (caché jusque-là) sur la scène.
 
 enum State { IDLE, CHARGING, ACTIVE, COOLDOWN }
+enum Link { UNLINKED, PRIMED, LINKED }
 
 const COST := 1500
 const CHARGE_TIME := 3.0
@@ -25,6 +34,47 @@ var _light: OmniLight3D
 var _exit_ring_mat: StandardMaterial3D
 var _t := 0.0
 var end_time_msec := 0
+## Mode liaison (KINO) et état de la liaison.
+var needs_link := false
+var link: Link = Link.LINKED
+## Point de retour (plateforme par défaut, poste central en mode liaison).
+var return_pos := Vector3.ZERO
+var has_return_pos := false
+## Pack-a-Punch révélé par le premier voyage ?
+var reveals_pap := false
+var pap_revealed := false
+var mainframe: TeleporterMainframe
+var _shown_link: Link = Link.LINKED
+var _shown_pap := false
+
+
+## Construit le téléporteur de la carte (plateforme T, arrivée F, poste
+## central A en mode liaison). Retourne null si la carte n'en a pas.
+static func build(game: Game) -> Teleporter:
+	var pad: Array = game.map_data.markers.get("T", [])
+	var exit: Array = game.map_data.markers.get("F", [])
+	if pad.is_empty() or exit.is_empty():
+		return null
+	var tp := Teleporter.new()
+	tp.setup(pad, exit[0])
+	tp.reveals_pap = game.map_def.pap_revealed_by_teleporter
+	var mf: Array = game.map_data.markers.get("A", [])
+	if game.map_def.teleporter_link and not mf.is_empty():
+		tp.needs_link = true
+		tp.link = Link.UNLINKED
+		tp._shown_link = Link.UNLINKED
+		tp.mainframe = TeleporterMainframe.new()
+		tp.mainframe.setup(mf[0], game.map_data)
+		tp.mainframe.teleporter = tp
+		tp.return_pos = tp.mainframe.arrival_point()
+		tp.has_return_pos = true
+		game.interact.register(tp.mainframe)
+		game.world.add_child(tp.mainframe)
+		if game.nav:
+			game.nav.set_blocked(MysteryBox.spot_cells(mf[0], game.map_data), true)
+	game.interact.register(tp)
+	game.world.add_child(tp)
+	return tp
 
 
 func setup(pad_cells: Array, exit_cell: Vector2i) -> void:
@@ -57,6 +107,18 @@ func _ready() -> void:
 	_build_pad(exit_pad, 0.7, _exit_ring_mat)
 	system.game.power_changed.connect(func(_on): _refresh())
 	_refresh()
+	if reveals_pap:
+		_apply_pap(false)
+
+
+func _pap() -> PackAPunch:
+	return system.game.interact.get_obj("pap") as PackAPunch
+
+
+func _apply_pap(animate: bool) -> void:
+	var pap := _pap()
+	if pap:
+		pap.set_revealed(pap_revealed, animate)
 
 
 func _build_pad(parent: Node3D, scale_k: float, ring_mat: Material) -> void:
@@ -119,6 +181,11 @@ func prompt(_pid: int) -> String:
 		return ""
 	if not system.game.power_on:
 		return "Le courant doit être rétabli"
+	match link:
+		Link.UNLINKED:
+			return "[F] Activer la plateforme du téléporteur"
+		Link.PRIMED:
+			return "Reliez le téléporteur au poste central (hall d'entrée)"
 	return "[F] Activer le téléporteur %s" % Interactable.cost_text(COST)
 
 
@@ -129,12 +196,31 @@ func srv_use(pid: int) -> void:
 	if not game.power_on:
 		system.deny(pid, "Pas de courant")
 		return
+	if link == Link.UNLINKED:
+		link = Link.PRIMED
+		print("[Teleporter] plateforme activée : à relier au poste central")
+		broadcast_state()
+		return
+	if link == Link.PRIMED:
+		return
 	if not game.session.try_spend(pid, COST):
 		system.deny(pid, "Pas assez de points")
 		return
 	system.purchase_fx(self)
 	_timer = CHARGE_TIME
 	_set_state(State.CHARGING)
+
+
+## Serveur : le poste central relie la plateforme activée.
+func srv_link(pid: int) -> void:
+	if not system.game.power_on:
+		system.deny(pid, "Pas de courant")
+		return
+	if link != Link.PRIMED:
+		return
+	link = Link.LINKED
+	print("[Teleporter] téléporteur relié au poste central")
+	broadcast_state()
 
 
 func _set_state(s: State) -> void:
@@ -161,21 +247,33 @@ func _process(delta: float) -> void:
 				if pd and pd.life == PlayerData.Life.ALIVE and flat.length() <= PAD_RADIUS:
 					_travellers.append(p.peer_id)
 			if _travellers.is_empty():
-				# Personne sur la plateforme : l'énergie se dissipe.
+				# Personne sur la plateforme : l'énergie se dissipe (et la
+				# liaison est perdue).
+				if needs_link:
+					link = Link.UNLINKED
 				_timer = COOLDOWN_TIME * 0.25
 				_set_state(State.COOLDOWN)
 				return
 			for i in _travellers.size():
 				var off := Vector3(cos(i * 1.7), 0, sin(i * 1.7)) * (0.6 if i > 0 else 0.0)
 				_send(_travellers[i], exit_pos + off, true)
-			print("[Teleporter] %d joueur(s) vers la salle du rituel" % _travellers.size())
+			print("[Teleporter] %d joueur(s) téléporté(s)" % _travellers.size())
+			if reveals_pap and not pap_revealed:
+				pap_revealed = true
+				print("[Teleporter] le Pack-a-Punch apparaît")
 			_timer = ACTIVE_TIME
 			_set_state(State.ACTIVE)
 		State.ACTIVE:
+			var back := return_pos if has_return_pos else global_position
 			for i in _travellers.size():
 				var off := Vector3(cos(i * 1.7), 0, sin(i * 1.7)) * 0.7
-				_send(_travellers[i], global_position + off + Vector3(0, 0.05, 0), false)
+				_send(_travellers[i], back + off + Vector3(0, 0.05, 0), false)
 			_travellers = []
+			if needs_link:
+				# Comme à Kino : il faut relier à nouveau avant chaque voyage.
+				link = Link.UNLINKED
+				_set_state(State.IDLE)
+				return
 			_timer = COOLDOWN_TIME
 			_set_state(State.COOLDOWN)
 		State.COOLDOWN:
@@ -188,7 +286,7 @@ func _send(pid: int, pos: Vector3, outbound: bool) -> void:
 
 
 func get_state() -> Dictionary:
-	return {"state": state, "remaining": _timer}
+	return {"state": state, "remaining": _timer, "link": link, "pap": pap_revealed}
 
 
 func apply_state(s: Dictionary, animate: bool) -> void:
@@ -196,6 +294,23 @@ func apply_state(s: Dictionary, animate: bool) -> void:
 	end_time_msec = Time.get_ticks_msec() + int(float(s.get("remaining", 0.0)) * 1000.0)
 	if animate and state == State.CHARGING:
 		Audio.play_3d("tele_charge", global_position + Vector3.UP, 0.0, 0.0)
+	# Visuels comparés à ce qui est affiché (le serveur a déjà modifié l'état).
+	link = s.get("link", link)
+	if link != _shown_link and animate:
+		if link == Link.PRIMED:
+			Audio.play_3d("lever", global_position + Vector3.UP, 0.0, 0.02)
+			Audio.play_3d("tele_charge", global_position + Vector3.UP, -8.0, 0.1)
+		elif link == Link.LINKED and mainframe:
+			Audio.play_3d("lever", mainframe.interact_point(), 0.0, 0.02)
+			Audio.play_3d("power_on", mainframe.interact_point(), -6.0, 0.0)
+			system.game.hud.show_banner("TÉLÉPORTEUR RELIÉ", 1.5)
+	_shown_link = link
+	if mainframe:
+		mainframe.refresh()
+	pap_revealed = s.get("pap", pap_revealed)
+	if pap_revealed != _shown_pap:
+		_shown_pap = pap_revealed
+		_apply_pap(animate)
 
 
 func seconds_left() -> int:
@@ -221,6 +336,13 @@ func _animate(delta: float) -> void:
 			_ring_mat.emission_energy_multiplier = 0.8 + 0.4 * sin(_t * 3.0)
 			_light.light_energy = 0.3
 		_:
+			if on and link != Link.LINKED:
+				# Non relié : lueur bleutée faible ; plateforme activée : clignote.
+				var blink := link == Link.PRIMED and fmod(_t, 0.8) < 0.4
+				_ring_mat.emission = Color(0.4, 0.6, 1.0)
+				_ring_mat.emission_energy_multiplier = 3.0 if blink else 0.6
+				_light.light_energy = 0.8 if blink else 0.15
+				return
 			_ring_mat.emission = Color(1.0, 0.5, 0.15)
 			_ring_mat.emission_energy_multiplier = (1.5 + 0.3 * sin(_t * 2.0)) if on else 0.0
 			_light.light_energy = 0.6 if on else 0.0

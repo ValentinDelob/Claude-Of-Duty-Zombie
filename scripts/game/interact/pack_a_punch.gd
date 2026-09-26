@@ -25,6 +25,10 @@ var _light: OmniLight3D
 var _display: Node3D
 var _display_model: Node3D
 var _t := 0.0
+## Faux tant que le téléporteur ne l'a pas fait apparaître (KINO).
+var revealed := true
+var _body: StaticBody3D
+var _base_y := 0.0
 
 
 func setup(cell: Vector2i, data: MapData) -> void:
@@ -85,6 +89,8 @@ func _ready() -> void:
 	_display.position = Vector3(0, 1.25, 0.05)
 	add_child(_display)
 	var body := StaticBody3D.new()
+	_body = body
+	_base_y = position.y
 	body.collision_layer = 1
 	body.collision_mask = 0
 	var cs := CollisionShape3D.new()
@@ -138,7 +144,34 @@ func prompt(pid: int) -> String:
 	return "[F] Améliorer %s %s" % [WeaponDB.display_name(w.id), Interactable.cost_text(COST)]
 
 
+## Apparition (ou disparition) de l'autel. Animée : il surgit du plancher de
+## la scène dans une gerbe d'étincelles.
+func set_revealed(on: bool, animate: bool) -> void:
+	revealed = on
+	if _body == null:
+		return
+	(_body.get_child(0) as CollisionShape3D).set_deferred("disabled", not on)
+	if not on:
+		visible = false
+		return
+	visible = true
+	if not animate:
+		position.y = _base_y
+		return
+	position.y = _base_y - 3.4
+	var tw := create_tween()
+	tw.tween_property(self, "position:y", _base_y, 3.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	Audio.play_3d("pap_ready", global_position + Vector3.UP * 3.0, 4.0, 0.0)
+	Audio.play_3d("door_open", global_position + Vector3.UP * 3.0, 0.0, 0.0)
+	var fx := system.game.fx_root
+	for k in 6:
+		var a := k * TAU / 6.0
+		fx.sparks.burst(Vector3(global_position.x, _base_y + 0.1, global_position.z) + Vector3(cos(a), 0, sin(a)) * 0.9, Vector3.UP, 10, 4.0, 1.2, 0.5, Color(1.0, 0.5, 0.2))
+
+
 func srv_use(pid: int) -> void:
+	if not revealed:
+		return
 	var game := system.game
 	var session := game.session
 	var pd := session.get_data(pid)

@@ -16,11 +16,15 @@ func run() -> void:
 		return
 	at.check(GameState.state == GameState.State.LOBBY, "état LOBBY côté client")
 	await seconds(0.5)
+	# La carte choisie par l'hôte (KINO) s'affiche dans le salon du client.
+	ok = await until(func(): return Net.lobby_map == "kino" and menu.current._map_label.text.contains("KINO"), 15.0, "carte annoncée par l'hôte")
+	if ok:
+		at.check(true, "carte de l'hôte affichée : %s" % menu.current._map_label.text)
 	await at.screenshot("lobby")
-	ok = await until(func(): return Game.instance != null and Game.instance.players.size() == 2, 30.0, "partie lancée par l'hôte")
+	ok = await until(func(): return Game.instance != null and Game.instance.players.size() == 2, 40.0, "partie lancée par l'hôte")
 	if not ok:
 		return
 	at.check(Game.instance.local_player.peer_id != 1, "joueur local = client")
-	at.check(Game.instance.map_def.id == "bunker_k7", "même carte que l'hôte")
+	at.check(Game.instance.map_def.id == "kino", "même carte que l'hôte (KINO)")
 	await seconds(4.0)
 	await at.screenshot("ingame")

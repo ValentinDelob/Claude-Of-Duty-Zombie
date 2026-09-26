@@ -32,6 +32,21 @@ func test_greedy_rects_cover_walls_exactly() -> void:
 	assert_true(rects.size() <= 4, "fusion efficace (%d rects)" % rects.size())
 
 
+## Centre d'un bloc de marqueurs (piège 3x3) : zone de la salle, pas « a ».
+func test_marker_block_center_inherits_zone() -> void:
+	var m := MapData.parse(PackedStringArray([
+		"#######",
+		"#bbbbb#",
+		"#bEEEb#",
+		"#bEEEb#",
+		"#bEEEb#",
+		"#bbbbb#",
+		"#######",
+	]))
+	assert_eq(m.zone_at(Vector2i(3, 3)), "b", "centre du bloc")
+	assert_eq(m.zone_at(Vector2i(2, 2)), "b", "coin du bloc")
+
+
 func test_world_cell_roundtrip() -> void:
 	var c := Vector2i(7, 3)
 	assert_eq(MapData.world_to_cell(MapData.cell_to_world(c)), c)
