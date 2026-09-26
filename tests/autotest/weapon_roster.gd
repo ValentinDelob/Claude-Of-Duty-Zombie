@@ -141,7 +141,7 @@ func run() -> void:
 	await seconds(0.3)
 
 	# 4. Explosifs : projectile visible, dégâts de zone à l'arrivée.
-	for spec in [["china_lake", false, 800], ["law", false, 1200], ["m1911", true, 400]]:
+	for spec in [["china_lake", false, 600], ["law", false, 1200], ["m1911", true, 400]]:
 		await face_wall()
 		p.yaw = -PI * 0.5  # vers +X : grand espace libre
 		await equip(spec[0], spec[1])

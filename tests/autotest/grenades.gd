@@ -77,8 +77,10 @@ func run() -> void:
 	await at.screenshot("hud_4_frags")
 
 	# 2. Lancer en cloche : rebonds, roulement, explosion qui tue 3 zombies de
-	# la manche 9 (950 PV), 50 points chacun.
-	var hp := RoundRules.zombie_health(9)
+	# la manche 8 (850 PV), 50 points chacun.
+	# Manche 8 : marge suffisante à ~2,5 m, où la séparation des zombies peut
+	# écarter le plus éloigné (à la limite exacte en manche 9).
+	var hp := RoundRules.zombie_health(8)
 	var zs := []
 	for k in 3:
 		zs.append(await H.dummy_zombie(self, MapData.cell_to_world(Vector2i(12, 7)) + Vector3(0, 0, (k - 1) * 0.75), hp))
@@ -101,7 +103,7 @@ func run() -> void:
 	for z: Zombie in zs:
 		if not z.is_alive():
 			dead += 1
-	at.check(boomed and dead == 3, "explosion : %d/3 zombies de manche 9 tués" % dead)
+	at.check(boomed and dead == 3, "explosion : %d/3 zombies de manche 8 tués" % dead)
 	at.check(pd.points - points0 == 3 * PointsRules.SPLASH_KILL, "50 points par kill d'explosion (+%d)" % (pd.points - points0))
 	await seconds(0.8)
 	await at.screenshot("frag_smoke")
