@@ -114,17 +114,18 @@ func run() -> void:
 	at.check(pd.knife == "bowie" and pd.points == 0, "couteau de chasse acheté (points %d)" % pd.points)
 	at.check(p.weapons.knife_id == "bowie" and p.weapons.is_picking_up_knife(), "animation de récupération")
 	p.pitch = 0.0
-	await seconds(0.5)
-	await at.screenshot("bowie_pickup_raise")
-	await seconds(0.5)
-	await at.screenshot("bowie_pickup_look")
-	# Pendant la récupération : ni tir ni couteau.
+	# Pendant la récupération : ni tir ni couteau (vérifié tout de suite : les
+	# captures peuvent durer plus que les 2 s de récupération sous charge).
+	await seconds(0.3)
 	var mag: int = p.weapons.current().mag
 	p.input.fire_pressed = true
 	p.input.fire = true
 	await seconds(0.1)
 	p.input.fire = false
-	at.check(p.weapons.current().mag == mag, "pas de tir pendant la récupération")
+	at.check(p.weapons.current().mag == mag, "pas de tir pendant la récupération (chargeur %d)" % p.weapons.current().mag)
+	await at.screenshot("bowie_pickup_raise")
+	await seconds(0.4)
+	await at.screenshot("bowie_pickup_look")
 	await seconds(1.2)
 	at.check(not p.weapons.is_picking_up_knife(), "récupération terminée (~2 s)")
 	at.check(game.hud._prompt.text == "", "plus d'invite une fois acheté (%s)" % game.hud._prompt.text)

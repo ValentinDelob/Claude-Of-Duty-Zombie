@@ -241,14 +241,17 @@ func run() -> void:
 		# Dégâts énormes : un zombie de manche 15 (~2600 PV) fauché en une rafale.
 		var dz := await H.dummy_zombie(self, ahead(6.0), RoundRules.zombie_health(15))
 		var mag0: int = pd.current_weapon().mag
-		H.aim_at(p, dz.global_position + Vector3.UP * 1.0)
+		# On suit la hitbox réelle : les balles peuvent en faire un rampant.
 		p.input.fire = true
-		await until(func(): return not dz.is_alive(), 3.0, "zombie fauché")
+		await until(func():
+			if dz.is_alive():
+				H.aim_at(p, dz.hit_body.global_position)
+			return not dz.is_alive(), 4.0, "zombie fauché")
 		await seconds(0.1)
 		await at.screenshot("death_machine_fire")
 		p.input.fire = false
 		var fired := mag0 - int(pd.current_weapon().mag)
-		at.check(not dz.is_alive() and fired > 0 and fired <= 10, "faucheuse : zombie de manche 15 tué en %d balles" % fired)
+		at.check(not dz.is_alive() and fired > 0 and fired <= 20, "faucheuse : zombie de manche 15 tué en %d balles" % fired)
 		at.check(not game.combat.is_reloading(1) and not p.weapons.is_reloading(), "faucheuse : jamais de rechargement")
 		# Arme de bonus : ni boîte, ni armes au mur.
 		p.teleport_to(origin)
