@@ -38,6 +38,9 @@ signal zombie_damaged(pid: int, zid: int, damage: int, killed: bool, headshot: b
 signal player_fell(pid: int)
 ## Toutes les machines : un autre joueur a tiré (effets reçus du serveur).
 signal remote_shot(pid: int)
+## Serveur : un joueur a atterri d'un plongeon (crochet de l'atout façon PhD
+## Flopper : explosion à l'atterrissage selon `height`).
+signal player_dived_landed(pid: int, position: Vector3, height: float)
 
 var game: Game
 var session: Session
@@ -390,6 +393,22 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 
 ## Marge du couteau côté serveur (interpolation des zombies chez le client).
 const MELEE_SLACK := 0.5
+
+
+## Le client annonce la fin de son plongeon ; le serveur borne la position
+## (écart avec la position connue) et la hauteur, puis émet le signal.
+@rpc("any_peer", "call_local", "reliable")
+func srv_dive_landed(pos: Vector3, height: float) -> void:
+	if not multiplayer.is_server():
+		return
+	var pid := multiplayer.get_remote_sender_id()
+	var pd := session.get_data(pid)
+	var p: Player = game.players.get(pid)
+	if pd == null or p == null or pd.life != PlayerData.Life.ALIVE:
+		return
+	if p.global_position.distance_to(pos) > MAX_ORIGIN_ERROR:
+		pos = p.global_position
+	player_dived_landed.emit(pid, pos, clampf(height, 0.0, 12.0))
 
 
 @rpc("authority", "call_local", "reliable")

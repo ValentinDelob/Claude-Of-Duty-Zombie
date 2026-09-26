@@ -21,6 +21,7 @@ var weapon_key := ""
 var _phase := 0.0
 var _recoil := 0.0
 var _down_k := 0.0
+var _prone_k := 0.0
 
 
 static func material() -> ShaderMaterial:
@@ -104,25 +105,43 @@ func animate(delta: float, speed: float, pitch: float, flags: int, downed: bool,
 	var hips_drop := 0.35 if crouch else 0.0
 	_recoil = maxf(_recoil - delta * 8.0, 0.0)
 
-	skel.set_bone_pose_position(bones.hips, Vector3(0, 0.95 - hips_drop - _down_k * 0.55 + absf(c) * 0.03 * move_k, 0))
+	# Allongé / plongeon : le corps bascule à plat ventre, tête vers l'avant.
+	var flat := flags & (Player.FLAG_PRONE | Player.FLAG_DIVE) != 0 and not (downed or dead)
+	var dive := flags & Player.FLAG_DIVE != 0
+	_prone_k = move_toward(_prone_k, 1.0 if flat else 0.0, delta * (7.0 if dive else 3.5))
+	var pk := _prone_k
+	if pk > 0.0:
+		crouch = false
+		leg *= 0.3
+		hips_drop = 0.0
+
+	skel.set_bone_pose_position(bones.hips, Vector3(0, 0.95 - hips_drop - _down_k * 0.55 + absf(c) * 0.03 * move_k * (1.0 - pk), 0))
 	var knee := 0.6 if crouch else 0.0
-	skel.set_bone_pose_rotation(bones.thigh_l, _q(s * leg - knee - _down_k * 1.3))
-	skel.set_bone_pose_rotation(bones.thigh_r, _q(-s * leg - knee - _down_k * 1.1, 0.0, 0.2 * _down_k))
-	skel.set_bone_pose_rotation(bones.shin_l, _q(-maxf(0.0, -c) * leg * 1.2 + knee * 1.8 + _down_k * 1.4))
-	skel.set_bone_pose_rotation(bones.shin_r, _q(-maxf(0.0, c) * leg * 1.2 + knee * 1.8 + _down_k * 0.4))
-	var lean := 0.05 + (0.3 if sprint else 0.0) - _down_k * 0.35
-	skel.set_bone_pose_rotation(bones.spine, _q(lean - pitch * 0.3))
-	skel.set_bone_pose_rotation(bones.chest, _q(-pitch * 0.35))
-	skel.set_bone_pose_rotation(bones.head, _q(-pitch * 0.35))
-	# Bras : arme épaulée (tendue vers l'avant), balancée en sprint.
+	var kick := 0.5 if dive else 0.0  # jambes repliées en plein vol
+	skel.set_bone_pose_rotation(bones.thigh_l, _q(s * leg - knee - _down_k * 1.3 - kick * 0.3))
+	skel.set_bone_pose_rotation(bones.thigh_r, _q(-s * leg - knee - _down_k * 1.1 - kick * 0.2, 0.0, 0.2 * _down_k))
+	skel.set_bone_pose_rotation(bones.shin_l, _q(-maxf(0.0, -c) * leg * 1.2 + knee * 1.8 + _down_k * 1.4 + kick))
+	skel.set_bone_pose_rotation(bones.shin_r, _q(-maxf(0.0, c) * leg * 1.2 + knee * 1.8 + _down_k * 0.4 + kick * 0.6))
+	var lean := lerpf(0.05 + (0.3 if sprint else 0.0) - _down_k * 0.35, 0.0, pk)
+	skel.set_bone_pose_rotation(bones.spine, _q(lean - pitch * 0.3 * (1.0 - pk)))
+	skel.set_bone_pose_rotation(bones.chest, _q(-pitch * 0.35 * (1.0 - pk)))
+	# Allongé, la tête se redresse pour regarder devant.
+	skel.set_bone_pose_rotation(bones.head, _q(lerpf(-pitch * 0.35, -1.15 - pitch * 0.3, pk)))
+	# Bras : arme épaulée (tendue vers l'avant), balancée en sprint ; allongé,
+	# bras tendus dans l'axe du corps.
 	var aim_arm := -1.45 - pitch * 0.3 + _recoil * 0.25
 	if sprint:
 		aim_arm = -0.7 + s * 0.3
+	aim_arm = lerpf(aim_arm, -2.75 - pitch * 0.2 + _recoil * 0.2, pk)
 	skel.set_bone_pose_rotation(bones.arm_r, _q(aim_arm, 0.0, 0.1))
 	skel.set_bone_pose_rotation(bones.forearm_r, _q(-0.1))
-	skel.set_bone_pose_rotation(bones.arm_l, _q(aim_arm + 0.1, 0.0, -0.55))
+	skel.set_bone_pose_rotation(bones.arm_l, _q(aim_arm + 0.1, 0.0, lerpf(-0.55, -0.35, pk)))
 	skel.set_bone_pose_rotation(bones.forearm_l, _q(-0.8, 0.0, 0.3))
+	var body_x := 0.0
 	if dead:
-		skel.rotation.x = lerpf(skel.rotation.x, -PI * 0.47, 1.0 - exp(-delta * 6.0))
-	else:
-		skel.rotation.x = lerpf(skel.rotation.x, 0.0, 1.0 - exp(-delta * 6.0))
+		body_x = -PI * 0.47
+	elif pk > 0.0:
+		body_x = PI * 0.5 * pk
+	skel.rotation.x = lerpf(skel.rotation.x, body_x, 1.0 - exp(-delta * (30.0 if pk > 0.0 else 6.0)))
+	# Pivot aux pieds : on recentre le corps allongé sur la position du joueur.
+	skel.position = Vector3(0.0, 0.16 * pk, 0.85 * pk)

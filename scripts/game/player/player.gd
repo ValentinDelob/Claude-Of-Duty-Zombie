@@ -10,6 +10,9 @@ extends CharacterBody3D
 
 signal landed(impact_speed: float)
 signal footstep
+## Joueur local : fin d'un plongeon (à plat ventre). `height` : hauteur de chute
+## depuis le sommet du plongeon (le serveur relaie via Combat.player_dived_landed).
+signal dived_landed(position: Vector3, height: float)
 
 const WALK_SPEED := 4.4
 const SPRINT_SPEED := 6.8
@@ -30,6 +33,17 @@ const RADIUS := 0.35
 const SPRINT_DURATION := 4.0
 const SPRINT_RECOVERY := 1.6  # secondes de sprint regagnées par seconde de repos... (x/s)
 const PITCH_LIMIT := deg_to_rad(88.0)
+## Allongé (prone) : touche accroupie maintenue à l'arrêt, ou fin de plongeon.
+const PRONE_SPEED := 1.0
+const PRONE_EYE_HEIGHT := 0.4
+const PRONE_HEIGHT := 0.72
+const PRONE_HOLD := 0.6
+## Plongeon (dolphin dive de BO1) : accroupi en plein sprint.
+const DIVE_SPEED := 7.2
+const DIVE_UP := 3.4
+const DIVE_EYE_HEIGHT := 0.85
+## Immobilisé à plat ventre après l'atterrissage (glissade), s.
+const DIVE_LAND_LOCK := 0.55
 
 const NET_SEND_RATE := 20.0
 const INTERP_DELAY := 0.1
@@ -42,6 +56,8 @@ const FLAG_SPRINT := 2
 const FLAG_AIM := 4
 const FLAG_GROUNDED := 8
 const FLAG_MOVING := 16
+const FLAG_PRONE := 32
+const FLAG_DIVE := 64
 
 var peer_id := 1
 var is_local := false
@@ -67,6 +83,14 @@ var revive_target: ReviveTarget
 var _flinch := Vector2.ZERO
 var _lunge_vel := Vector3.ZERO
 var _lunge_left := 0.0
+## Allongé / en plein plongeon.
+var prone := false
+var diving := false
+var _crouch_was := false
+var _prone_hold := 0.0
+var _prone_lock := 0.0
+var _dive_time := 0.0
+var _dive_peak_y := 0.0
 
 var head: Node3D
 var camera: Camera3D
@@ -209,38 +233,116 @@ func _apply_look() -> void:
 
 
 func _update_stance(delta: float) -> void:
-	var want_crouch := input.crouch and not downed
-	if crouching and not want_crouch and not _can_stand():
-		want_crouch = true
-	crouching = want_crouch
-	aiming = input.aim and not sprinting
-	var moving_forward := input.move.y > 0.3
-	var want_sprint := input.sprint and moving_forward and not crouching and not downed and not aiming
-	if want_sprint and stamina > 0.05:
-		sprinting = true
-		stamina = maxf(stamina - delta, 0.0)
-	else:
+	var crouch_pressed := input.crouch and not _crouch_was
+	_crouch_was = input.crouch
+	if downed:
+		prone = false
+		diving = false
+	# Plongeon (BO1) : s'accroupir en plein sprint.
+	if crouch_pressed and sprinting and not diving and not prone and not downed and is_on_floor():
+		_start_dive()
+	if diving:
+		crouching = false
 		sprinting = false
-		stamina = minf(stamina + SPRINT_RECOVERY * delta, SPRINT_DURATION + sprint_duration_bonus)
+		aiming = false
+	else:
+		_update_prone(delta)
+		var want_crouch := input.crouch and not downed and not prone
+		if crouching and not want_crouch and not prone and not _can_stand():
+			want_crouch = true
+		crouching = want_crouch
+		aiming = input.aim and not sprinting
+		var moving_forward := input.move.y > 0.3
+		var want_sprint := input.sprint and moving_forward and not crouching and not prone and not downed and not aiming
+		if want_sprint and stamina > 0.05:
+			sprinting = true
+			stamina = maxf(stamina - delta, 0.0)
+		else:
+			sprinting = false
+			stamina = minf(stamina + SPRINT_RECOVERY * delta, SPRINT_DURATION + sprint_duration_bonus)
 
-	var target_h := CROUCH_HEIGHT if (crouching or downed) else STAND_HEIGHT
+	var target_h := STAND_HEIGHT
+	if prone:
+		target_h = PRONE_HEIGHT
+	elif crouching or downed or diving:
+		target_h = CROUCH_HEIGHT
 	_capsule.height = move_toward(_capsule.height, target_h, delta * 6.0)
 	_collision.position.y = _capsule.height * 0.5
 	var target_eye := EYE_HEIGHT
 	if downed:
 		target_eye = DOWNED_EYE_HEIGHT
+	elif diving:
+		target_eye = DIVE_EYE_HEIGHT
+	elif prone:
+		target_eye = PRONE_EYE_HEIGHT
 	elif crouching:
 		target_eye = CROUCH_EYE_HEIGHT
-	_eye_height = lerpf(_eye_height, target_eye, 1.0 - exp(-delta * 12.0))
+	_eye_height = lerpf(_eye_height, target_eye, 1.0 - exp(-delta * (16.0 if diving else 12.0)))
+
+
+## Allongé : on s'y met en maintenant la touche accroupie à l'arrêt (BO1) ;
+## on se relève en la relâchant (ou en sautant), une fois l'atterrissage fini.
+func _update_prone(delta: float) -> void:
+	if prone:
+		_prone_lock = maxf(_prone_lock - delta, 0.0)
+		if _prone_lock <= 0.0 and (not input.crouch or input.jump) and _can_fit(CROUCH_HEIGHT):
+			prone = false
+			# Sous un plafond bas : on se relève seulement accroupi.
+			crouching = not _can_stand()
+		return
+	if input.crouch and not downed and is_on_floor() and Vector2(velocity.x, velocity.z).length() < 0.6:
+		_prone_hold += delta
+		if _prone_hold >= PRONE_HOLD:
+			prone = true
+			_prone_hold = 0.0
+	else:
+		_prone_hold = 0.0
+
+
+func _start_dive() -> void:
+	var dir := Vector3(velocity.x, 0.0, velocity.z)
+	if dir.length_squared() < 1.0:
+		dir = -transform.basis.z
+		dir.y = 0.0
+	dir = dir.normalized()
+	diving = true
+	prone = false
+	crouching = false
+	sprinting = false
+	_dive_time = 0.0
+	_dive_peak_y = global_position.y
+	_lunge_left = 0.0
+	velocity = dir * DIVE_SPEED + Vector3.UP * DIVE_UP
+	Audio.play_2d("knife_swing", -8.0, 0.1, "SFX", 0.6)
+
+
+## Fin du plongeon : à plat ventre, courte glissade, signal (atout à venir).
+func _land_dive() -> void:
+	diving = false
+	prone = true
+	_prone_lock = DIVE_LAND_LOCK
+	_prone_hold = 0.0
+	velocity.x *= 0.45
+	velocity.z *= 0.45
+	_flinch = Vector2(0.03, -0.07)
+	var height := maxf(_dive_peak_y - global_position.y, 0.0)
+	Audio.play_2d("dive_land", -3.0, 0.05)
+	dived_landed.emit(global_position, height)
+	if Game.instance and Game.instance.combat:
+		Game.instance.combat.srv_dive_landed.rpc_id(1, global_position, height)
 
 
 func _can_stand() -> bool:
+	return _can_fit(STAND_HEIGHT)
+
+
+func _can_fit(height: float) -> bool:
 	var params := PhysicsShapeQueryParameters3D.new()
 	var shape := CapsuleShape3D.new()
 	shape.radius = RADIUS * 0.9
-	shape.height = STAND_HEIGHT
+	shape.height = height
 	params.shape = shape
-	params.transform = Transform3D(Basis.IDENTITY, global_position + Vector3.UP * (STAND_HEIGHT * 0.5 + 0.05))
+	params.transform = Transform3D(Basis.IDENTITY, global_position + Vector3.UP * (height * 0.5 + 0.05))
 	params.collision_mask = 1
 	return get_world_3d().direct_space_state.intersect_shape(params, 1).is_empty()
 
@@ -249,6 +351,8 @@ func current_max_speed() -> float:
 	var s := WALK_SPEED
 	if downed:
 		s = DOWNED_SPEED
+	elif prone:
+		s = PRONE_SPEED
 	elif crouching:
 		s = CROUCH_SPEED
 	elif sprinting:
@@ -266,21 +370,30 @@ func _move(delta: float) -> void:
 	var on_floor := is_on_floor()
 	if not on_floor:
 		velocity.y -= GRAVITY * delta
-	elif input.jump and not crouching and not downed:
+	elif input.jump and not crouching and not downed and not prone and not diving:
 		velocity.y = JUMP_VELOCITY
 
-	var wish := (transform.basis * Vector3(input.move.x, 0.0, -input.move.y))
-	wish.y = 0.0
-	if wish.length_squared() > 1.0:
-		wish = wish.normalized()
-	var target := wish * current_max_speed()
-	var horiz := Vector3(velocity.x, 0.0, velocity.z)
-	var accel := AIR_ACCEL
-	if on_floor:
-		accel = GROUND_ACCEL if wish.length_squared() > 0.01 else GROUND_DECEL
-	horiz = horiz.move_toward(target, accel * delta)
-	velocity.x = horiz.x
-	velocity.z = horiz.z
+	if diving:
+		# Plongeon : trajectoire balistique, aucun contrôle en l'air.
+		_dive_time += delta
+		_dive_peak_y = maxf(_dive_peak_y, global_position.y)
+	else:
+		var wish := (transform.basis * Vector3(input.move.x, 0.0, -input.move.y))
+		wish.y = 0.0
+		if wish.length_squared() > 1.0:
+			wish = wish.normalized()
+		var target := wish * current_max_speed()
+		var horiz := Vector3(velocity.x, 0.0, velocity.z)
+		var accel := AIR_ACCEL
+		if on_floor:
+			accel = GROUND_ACCEL if wish.length_squared() > 0.01 else GROUND_DECEL
+		if prone and _prone_lock > 0.0:
+			# Glissade à plat ventre après le plongeon.
+			target = Vector3.ZERO
+			accel = 7.0
+		horiz = horiz.move_toward(target, accel * delta)
+		velocity.x = horiz.x
+		velocity.z = horiz.z
 
 	# Fente au couteau : projection imposée vers le zombie visé.
 	if _lunge_left > 0.0:
@@ -296,6 +409,8 @@ func _move(delta: float) -> void:
 	if is_on_floor() and not _was_on_floor and fall_speed > 2.0:
 		landed.emit(fall_speed)
 	_was_on_floor = is_on_floor()
+	if diving and _dive_time > 0.08 and is_on_floor():
+		_land_dive()
 
 
 func _update_camera_effects(delta: float) -> void:
@@ -333,6 +448,8 @@ func _compute_flags() -> int:
 	if aiming: f |= FLAG_AIM
 	if is_on_floor(): f |= FLAG_GROUNDED
 	if Vector2(velocity.x, velocity.z).length() > 0.5: f |= FLAG_MOVING
+	if prone: f |= FLAG_PRONE
+	if diving: f |= FLAG_DIVE
 	return f
 
 
@@ -340,6 +457,9 @@ func _compute_flags() -> int:
 func teleport_to(pos: Vector3, new_yaw := NAN) -> void:
 	global_position = pos
 	velocity = Vector3.ZERO
+	diving = false
+	prone = false
+	_lunge_left = 0.0
 	if not is_nan(new_yaw):
 		yaw = new_yaw
 		rotation.y = yaw
@@ -429,7 +549,18 @@ func _apply_remote(pos: Vector3, r_yaw: float, r_pitch: float, flags: int) -> vo
 	crouching = flags & FLAG_CROUCH != 0
 	sprinting = flags & FLAG_SPRINT != 0
 	aiming = flags & FLAG_AIM != 0
+	# Plongeon d'un coéquipier : bruit d'atterrissage à plat ventre.
+	var was_diving := diving
+	prone = flags & FLAG_PRONE != 0
+	diving = flags & FLAG_DIVE != 0
+	if was_diving and not diving:
+		Audio.play_3d("dive_land", pos, -4.0, 0.05, 6)
 	head.position.y = CROUCH_EYE_HEIGHT if crouching else EYE_HEIGHT
+	if prone:
+		head.position.y = PRONE_EYE_HEIGHT
+	elif diving:
+		head.position.y = DIVE_EYE_HEIGHT
+	name_tag.position.y = 0.9 if (prone or diving) else 2.15
 	# Vitesse estimée (animation, pas) à partir des positions interpolées.
 	var dt := get_physics_process_delta_time()
 	var moved := Vector2(pos.x - _last_remote_pos.x, pos.z - _last_remote_pos.z).length()

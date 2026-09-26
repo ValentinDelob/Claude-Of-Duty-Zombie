@@ -195,7 +195,9 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 	var speed := Vector2(player.velocity.x, player.velocity.z).length()
 	if speed > 1.0:
 		spread_deg *= 1.4
-	if player.crouching:
+	if player.prone:
+		spread_deg *= 0.6
+	elif player.crouching:
 		spread_deg *= 0.75
 	var impacts := PackedVector3Array()
 	var hits: Array = []

@@ -27,6 +27,7 @@ var _switch_cb: Callable
 var _switch_mid_done := false
 var _melee_t := -1.0
 var _melee_lunge := false
+var _dive := 0.0
 var _pickup_t := -1.0
 var _pickup_dur := 2.0
 var knife_id := KnifeDB.DEFAULT
@@ -181,6 +182,10 @@ func update(delta: float, p: Player) -> void:
 	var rot := Vector3(_kick_rot * (1.0 - ads * 0.6), 0.0, 0.0)
 	rot += SPRINT_ROT * _sprint
 	rot.z += -_sway.x * 1.5
+	# Plongeon : l'arme bascule sur le côté pendant le vol.
+	_dive = move_toward(_dive, 1.0 if p.diving else 0.0, delta * 7.0)
+	pos += Vector3(-0.03, -0.07, 0.05) * _dive
+	rot += Vector3(0.35, 0.0, 0.45) * _dive
 
 	# Rechargement : l'arme plonge et pivote.
 	if _reload_t >= 0.0:

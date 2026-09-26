@@ -298,6 +298,16 @@ func gen_knife_hit() -> void:
 	_save("knife_hit", s.finish(b, 0.85))
 
 
+## Atterrissage d'un plongeon : corps lourd sur le béton, équipement qui
+## s'entrechoque, frottement du treillis.
+func gen_dive_land() -> void:
+	var b := s.env_exp(s.lowpass(s.noise(0.5), 260.0), 0.003, 0.12)
+	s.mix(b, s.env_exp(s.sweep(0.3, 110.0, 45.0), 0.002, 0.12), 0.0, 1.1)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.08), 3000.0, 3.0), 0.001, 0.02), 0.02, 0.35)
+	s.mix(b, s.env_adsr(s.bandpass(s.noise(0.3), 1400.0, 0.8), 0.02, 0.05, 0.4, 0.15), 0.05, 0.3)
+	_save("dive_land", s.finish(s.reverb(b, 0.45, 0.18, 0.4), 0.85))
+
+
 ## Lame qui entre dans la chair : déchirure humide + coup sourd.
 func gen_knife_flesh() -> void:
 	var b := s.env_exp(s.bandpass(s.noise(0.3), 900.0, 1.5), 0.002, 0.07)

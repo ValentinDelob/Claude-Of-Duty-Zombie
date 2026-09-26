@@ -41,6 +41,7 @@ Les sons sont déjà générés dans `assets/audio/`. Pour les régénérer :
 |---|---|
 | Se déplacer | ZQSD / WASD (touches physiques) |
 | Sauter / S'accroupir / Sprint | Espace / Ctrl ou C / Maj |
+| S'allonger / Plonger | maintenir Ctrl ou C à l'arrêt / Ctrl ou C en sprintant |
 | Tirer / Viser | Clic gauche / Clic droit |
 | Recharger / Couteau (fente si un zombie visé est à ~3 m) | R / V |
 | Changer d'arme | 1, 2, molette |
