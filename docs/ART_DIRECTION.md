@@ -108,3 +108,67 @@ concerne.
   petit que dans BO1 (pas de mise à l'échelle de l'interface).
 - Pas d'icônes de réanimation au-dessus des coéquipiers à terre dans le
   monde (hors périmètre du HUD 2D).
+## Zombies
+
+### Référence (Kino der Toten, Five, Ascension)
+- **Silhouette** : humains maigres, décharnés, épaules tombantes, buste voûté
+  vers l'avant, tête projetée en avant ; bras longs et osseux, mains crochues.
+  La lecture à 10 m se fait par la silhouette sombre et les deux yeux.
+- **Vêtements (Kino)** : uniformes de la Wehrmacht feldgrau (vert-gris terne,
+  sali, taché de sang séché brun-rouge), col plus sombre, ceinturon et
+  cartouchières de cuir noir, brelages, pantalon gris ardoise rentré dans des
+  bottes hautes ; couvre-chefs variés (casque d'acier M35 à bord évasé,
+  casquette M43 à visière, casquette d'officier à plateau haut) ou tête nue.
+  Tuniques déchirées : manches arrachées, trous laissant voir les côtes.
+  D'autres cartes montrent des civils, du personnel, des scientifiques en
+  blouse ; on garde quelques variantes de ce type pour la variété.
+- **Peau** : gris pâle légèrement verdâtre, marbrée, veines et ecchymoses
+  violacées ; orbites creuses et sombres ; lèvres rongées, dents visibles,
+  **mâchoire pendante / disloquée** ; plaies ouvertes, entrailles parfois.
+- **Yeux** : **jaunes lumineux** à Kino (halo net qui « bave » dans le bloom),
+  la marque la plus reconnaissable du mode, visible de loin dans le noir.
+- **Sang** : abondant mais sombre (rouge profond presque noir une fois sec),
+  surtout bouche/menton/poitrine, mains, autour des plaies.
+- **Animations** :
+  - marcheur : pas traînant, titubant, souvent une jambe qui traîne ; bras
+    tendus en avant ou un bras levé et l'autre ballant, ou bras pendants ;
+  - coureur : penché en avant, bras ballants qui battent mollement ;
+  - sprinteur : très penché, bras tendus vers la proie ;
+  - attaque : coup de griffes à deux bras (bras levés puis frappe plongeante) ;
+  - émergence : les mains crèvent le sol d'abord, puis la tête ; le zombie se
+    hisse en prenant appui ;
+  - fenêtres : agrippe une planche, l'arrache en se jetant en arrière, la jette,
+    puis enjambe l'allège ;
+  - rampants (jambes arrachées) : se traînent à la force des bras ;
+  - morts : chute molle (ragdoll), effondrements variés, tête qui éclate au
+    tir à la tête mortel.
+
+### Mise en œuvre (scripts/game/zombies/zombie_model.gd, zombie_anim.gd)
+- Maillage procédural à **normales lissées** (RigBuilder : ellipsoïdes et tubes
+  de sections elliptiques « loft »), toujours **skinné sur le squelette
+  commun** (13 os + mâchoire) et **un seul draw call** ; articulations
+  partagées entre deux os (coudes, genoux, épaules, cou) : aucune fissure.
+- **6 archétypes** (soldat casqué, soldat en calot, officier, soldat débraillé
+  torse nu à bretelles, scientifique en blouse, civil en gilet), 36 looks
+  déterministes (variante réseau -> look), couleurs converties sRGB -> linéaire.
+- Détails : col, boutons, poches à rabat, pattes d'épaule, ceinturon à boucle,
+  cartouchières, brelages, boîtier de masque à gaz ou gourde, jugulaire ;
+  côtes à vif dans les déchirures, trous de balles, joue arrachée, crâne
+  ouvert, entrailles (rare), moignons prévus pour le démembrement.
+- **Shader dédié** (assets/shaders/zombie.gdshader) : matière par pièce
+  (tissu, peau marbrée veinée, cuir, métal peint écaillé, plaie humide, os),
+  bruit calculé sur la position de repos (ne glisse pas pendant l'animation),
+  **sang peint par sommet** à bord irrégulier (pas de pastilles géométriques).
+- Zombies sur la **couche de rendu 2** : les décalques de sang du sol ne les
+  « peignent » plus (bottes rouges auparavant).
+- Coût : ~1 800 à 2 700 sommets par look, mesh et Skin partagés (cache),
+  looks préparés en arrière-plan (WorkerThreadPool) dès le premier zombie :
+  construction d'un zombie < 0,1 ms. A/B dans zombie_look : rendu de 24
+  zombies de près à ~96 % des images/s de l'ancien modèle en boîtes.
+
+### Écarts restants avec BO1
+- Pas de vrai ragdoll physique (morts procédurales variées).
+- Pas de traînée lumineuse des yeux en mouvement ni d'yeux rouges vus « à
+  terre » (effet d'écran).
+- Détail limité par le low-poly procédural (pas de textures peintes, visages
+  simplifiés).

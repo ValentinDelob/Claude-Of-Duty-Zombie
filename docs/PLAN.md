@@ -71,7 +71,7 @@ Nacht der Untoten ; HUD, lumière, étalonnage), puis par lots :
 - [ ] **HUD fidèle** : compteur de manche rouge à la craie (bâtons 1-5 puis
   chiffres), points des joueurs, munitions et armes, icônes d'atouts, grenades,
   invites, écran de fin de partie et transitions de manche comme BO1.
-- [ ] **Zombies** : silhouettes humaines crédibles (uniformes allemands
+- [x] **Zombies** : silhouettes humaines crédibles (uniformes allemands
   déchirés, peau, yeux jaunes lumineux), variété, animations (marche traînante,
   course, sprint, attaque, arrachage de planches, émergence, rampants).
 - [ ] **Modèles d'armes** à la première personne plus détaillés et fidèles,

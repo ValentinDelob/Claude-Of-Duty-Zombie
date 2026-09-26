@@ -241,7 +241,24 @@ précédent.
   sa chute, pose couchée (`ZombieGibs.crawl_pose`), capsule et hitboxes
   couchées sur toutes les machines. La tête éclate sur un tir à la tête mortel.
 - Morceaux au sol : `Fx.gibs` (`GibPool`), 24 nœuds recyclés, meshes non skinnés
-  (`ZombieModel.limb_mesh`) construits 3 par image au plus, 6 s au sol.
+  (`ZombieModel.limb_mesh`, mis en cache par look) construits 3 par image au
+  plus, 6 s au sol.
+
+## Modèle et animations des zombies
+
+- `ZombieModel` : 36 looks déterministes (variante réseau modulo 36), 6
+  archétypes façon Kino der Toten ; maillage lissé (`RigBuilder` : ellipsoïdes,
+  tubes « loft » dont les anneaux sont partagés entre deux os), skinné sur le
+  squelette commun (+ os `jaw`), 1 draw call, sang peint par sommet (fraction de
+  UV2.y) et matière par pièce lus par `zombie.gdshader`. Mesh et Skin partagés ;
+  les tableaux de tous les looks sont calculés sur un thread de travail
+  (`prewarm_async`, lancé au premier zombie construit, typiquement au
+  préchauffage) : un zombie coûte < 0,1 ms à construire. Couche de rendu 2 (hors
+  des décalques de sang).
+- `ZombieAnim` (un par zombie, cosmétique, toutes les machines) : marche
+  traînante, trot/course, sprint, attaque à deux bras, émergence, arrachage de
+  planches, enjambement, morts variées (choix déterministe id + variante).
+  `ZombieGibs.crawl_pose` anime les rampants. Voir docs/ART_DIRECTION.md.
 
 ## Bonus FAUCHEUSE et LIQUIDATION
 

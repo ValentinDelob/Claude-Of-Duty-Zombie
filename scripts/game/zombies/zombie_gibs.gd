@@ -233,6 +233,11 @@ static func crawl_pose(z: Zombie, delta: float) -> void:
 	skel.set_bone_pose_rotation(b.chest, _q(-0.06, -s * 0.12 * move_k, c * 0.05))
 	# Tête relevée vers l'avant (le buste est couché).
 	skel.set_bone_pose_rotation(b.head, _q(-1.15 * k - 0.2 + sin(z._phase * 0.7) * 0.06, 0.0, z._head_tilt))
+	# Mâchoire pendante, grande ouverte pendant la griffe.
+	var jaw := (z.anim.jaw_open if z.anim else 0.3) + sin(z._phase * 1.3) * 0.08
+	if z._attack_t >= 0.0:
+		jaw = 0.6
+	skel.set_bone_pose_rotation(b.jaw, _q(jaw))
 	# Bras : traction alternée (tendu devant, puis ramené sous le buste).
 	var arm_l := lerpf(-1.3, -2.45 - 0.55 * s * move_k, k)
 	var arm_r := lerpf(-1.2, -2.45 + 0.55 * s * move_k, k)

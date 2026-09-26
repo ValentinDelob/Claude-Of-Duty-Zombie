@@ -103,7 +103,13 @@ func test_limb_mesh() -> void:
 	var m := ZombieModel.limb_mesh(123, ["thigh_l", "shin_l"])
 	assert_true(m.get_surface_count() == 1)
 	var arr := m.surface_get_arrays(0)
-	assert_true((arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() == 36 * 3, "3 boîtes")
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	assert_true(verts.size() > 100, "jambe arrondie (%d sommets)" % verts.size())
 	assert_true(arr[Mesh.ARRAY_BONES] == null, "pas de poids d'os")
+	# Seulement la jambe (repère de la hanche) : ni torse, ni bras, ni tête.
+	var box := AABB(verts[0], Vector3.ZERO)
+	for v in verts:
+		box = box.expand(v)
+	assert_true(box.position.y > -1.0 and box.end.y < 0.2 and box.size.x < 0.3, "morceau limité à la jambe %s" % box)
 
 

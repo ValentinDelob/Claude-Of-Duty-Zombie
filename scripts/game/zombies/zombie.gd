@@ -17,8 +17,6 @@ const POSE_STEP_FAR := 1.0 / 60.0
 const POSE_STEP_VERY_FAR := 1.0 / 30.0
 ## Les membres d'un corps ont fini de retomber après ce délai.
 const DEATH_SETTLE_TIME := 1.5
-const DEATH_ARMS := ["arm_l", "arm_r"]
-const DEATH_LIMBS := ["thigh_l", "thigh_r", "shin_l", "shin_r", "spine", "chest"]
 const RADIUS := 0.3
 const HEIGHT := 1.75
 const EMERGE_TIME := 1.4
@@ -86,6 +84,8 @@ var _last_vel := Vector3.ZERO
 var skel: Skeleton3D
 var mesh: MeshInstance3D
 var bones: Dictionary
+## Animations procédurales (poses, morts) : ZombieAnim.
+var anim: ZombieAnim
 var hit_body: Area3D
 var hit_head: Area3D
 var _body_shape: CollisionShape3D
@@ -127,6 +127,7 @@ func _ready() -> void:
 	rng.seed = variant
 	_head_tilt = rng.randf_range(-0.35, 0.35)
 	_phase = rng.randf() * TAU
+	anim = ZombieAnim.new(self)
 
 	hit_body = _make_hitbox(0, CapsuleShape3D.new())
 	(hit_body.get_child(0).shape as CapsuleShape3D).radius = 0.28
@@ -553,6 +554,8 @@ func die(dir: Vector3, headshot: bool) -> void:
 	_death_t = 0.0
 	var fwd := Vector3(sin(yaw), 0.0, cos(yaw))
 	_death_dir = 1.0 if fwd.dot(dir) > 0.0 else -1.0
+	if anim:
+		anim.start_death(headshot)
 	collision_layer = 0
 	collision_mask = 1
 	hit_body.collision_layer = 0
@@ -596,83 +599,7 @@ func _update_pose(delta: float) -> void:
 	if crawl_t >= 0.0:
 		ZombieGibs.crawl_pose(self, delta)
 		return
-	var spd := anim_speed
-	var running := speed_class >= 2
-	var stride := 1.1 if not running else 1.9
-	_phase += delta * (1.2 + spd * stride)
-	var s := sin(_phase)
-	var c := cos(_phase)
-	var move_k := clampf(spd / 1.2, 0.0, 1.0)
-	var leg_amp := (0.35 if not running else 0.7) * move_k + 0.03
-	var lean := 0.18 + (0.25 if running else 0.0) * move_k
-
-	var hips_y := 0.0
-	var emerge_k := 1.0
-	if state == State.EMERGE:
-		emerge_k = clampf(_state_time / EMERGE_TIME, 0.0, 1.0)
-		hips_y = lerpf(-1.7, 0.0, ease(emerge_k, 0.4))
-	# Fenêtre : enjambement (saut par-dessus l'allège) ou arrachage sur place.
-	var vault_k := -1.0
-	var tearing := state == State.BARRIER and spd < 0.4
-	if state == State.VAULT:
-		vault_k = sin(clampf(_state_time / BarricadeRules.VAULT_TIME, 0.0, 1.0) * PI)
-		# Pieds au-dessus de l'allège, buste plié sous le linteau.
-		hips_y = vault_k * 0.95
-		lean += vault_k * 1.1
-	elif tearing:
-		lean = 0.32
-	skel.position.y = hips_y
-
-	# Jambes
-	if vault_k >= 0.0:
-		skel.set_bone_pose_rotation(bones.thigh_l, _q(-1.2 * vault_k))
-		skel.set_bone_pose_rotation(bones.thigh_r, _q(-0.9 * vault_k))
-		skel.set_bone_pose_rotation(bones.shin_l, _q(1.5 * vault_k))
-		skel.set_bone_pose_rotation(bones.shin_r, _q(1.3 * vault_k))
-	else:
-		skel.set_bone_pose_rotation(bones.thigh_l, _q(s * leg_amp))
-		skel.set_bone_pose_rotation(bones.thigh_r, _q(-s * leg_amp))
-		skel.set_bone_pose_rotation(bones.shin_l, _q(-maxf(0.0, -c) * leg_amp * 1.4))
-		skel.set_bone_pose_rotation(bones.shin_r, _q(-maxf(0.0, c) * leg_amp * 1.4))
-	# Tronc : penché, balancement
-	var sway := sin(_phase * 0.5) * 0.12
-	skel.set_bone_pose_rotation(bones.spine, _q(lean, sway * 0.5, sway))
-	skel.set_bone_pose_rotation(bones.chest, _q(lean * 0.5, -sway, 0.0))
-	skel.set_bone_pose_rotation(bones.head, _q(-0.25 + sin(_phase * 1.7) * 0.08, 0.0, _head_tilt))
-	skel.set_bone_pose_position(bones.hips, Vector3(0, skel.get_bone_rest(bones.hips).origin.y + absf(c) * 0.04 * move_k, 0))
-
-	# Bras : tendus vers l'avant (marcheurs) ou balancés (coureurs)
-	var arm_l := -1.35 + s * 0.12
-	var arm_r := -1.25 - s * 0.12
-	var fore := -0.2
-	if running:
-		arm_l = -0.6 - s * 0.7 * move_k
-		arm_r = -0.6 + s * 0.7 * move_k
-		fore = -0.9
-	if state == State.EMERGE:
-		arm_l = lerpf(-2.8, arm_l, emerge_k)
-		arm_r = lerpf(-2.6, arm_r, emerge_k)
-	if tearing:
-		# Agrippe une planche (bras tendus vers le haut) puis l'arrache d'un coup.
-		var t := fmod(_state_time, BarricadeRules.TEAR_TIME) / BarricadeRules.TEAR_TIME
-		var grab := -1.45 - 0.55 * ease(t / 0.7, 0.6) if t < 0.7 else lerpf(-2.0, -0.8, (t - 0.7) / 0.3)
-		arm_l = grab + 0.08 * s
-		arm_r = grab - 0.1 - 0.08 * s
-		fore = -0.6
-	elif vault_k >= 0.0:
-		arm_l = -1.9 + vault_k * 0.4
-		arm_r = -1.7 + vault_k * 0.3
-	if _attack_t >= 0.0:
-		_attack_t += delta / 0.7
-		var k := sin(clampf(_attack_t, 0.0, 1.0) * PI)
-		arm_l = lerpf(arm_l, -2.4 + _attack_t * 2.4, k)
-		arm_r = lerpf(arm_r, -2.2 + _attack_t * 2.0, k)
-		if _attack_t >= 1.0:
-			_attack_t = -1.0
-	skel.set_bone_pose_rotation(bones.arm_l, _q(arm_l, 0.0, -0.15))
-	skel.set_bone_pose_rotation(bones.arm_r, _q(arm_r, 0.0, 0.15))
-	skel.set_bone_pose_rotation(bones.forearm_l, _q(fore + c * 0.1))
-	skel.set_bone_pose_rotation(bones.forearm_r, _q(fore - c * 0.1))
+	anim.pose(delta)
 
 
 ## Grognements d'ambiance (cosmétique, non synchronisé).
@@ -711,16 +638,7 @@ func _process_death(delta: float) -> void:
 	# Chute et membres qui retombent mollement ; ensuite le corps est immobile
 	# (les rotations ont convergé) : plus aucune écriture d'os.
 	if before <= DEATH_SETTLE_TIME:
-		var k := ease(clampf(_death_t / 0.65, 0.0, 1.0), 0.4)
-		if crawl_t < 0.0:  # un rampant est déjà au sol
-			skel.rotation.x = _death_dir * k * PI * 0.47
-			skel.position.y = -k * 0.08
-		for b in DEATH_ARMS:
-			var q := skel.get_bone_pose_rotation(bones[b])
-			skel.set_bone_pose_rotation(bones[b], q.slerp(_q(-0.4 * _death_dir), minf(delta * 5.0, 1.0)))
-		for b in DEATH_LIMBS:
-			var q2 := skel.get_bone_pose_rotation(bones[b])
-			skel.set_bone_pose_rotation(bones[b], q2.slerp(Quaternion.IDENTITY, minf(delta * 4.0, 1.0)))
+		anim.death(delta, _death_t, _death_dir)
 	if before < 0.6 and _death_t >= 0.6:
 		Audio.play_3d("body_fall", global_position, -6.0, 0.1, 3)
 		if Game.instance:

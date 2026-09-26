@@ -38,14 +38,15 @@ func _ready() -> void:
 		var mi := MeshInstance3D.new()
 		mi.visible = false
 		mi.material_override = ZombieModel.material()
+		mi.layers = ZombieModel.RENDER_LAYERS
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.top_level = true
 		add_child(mi)
 		_nodes.append(mi)
 		_age[i] = -1.0
 	# Éclats de crâne / chair (tête qui éclate).
-	for c in [Color(0.36, 0.34, 0.28), Color(0.32, 0.03, 0.03), Color(0.2, 0.02, 0.02)]:
-		var parts := [["head", Vector3(0.07, 0.05, 0.06), Vector3.ZERO, c, 0.0]]
+	for c in [[ZombieModel.BONE, RigBuilder.MAT_BONE], [ZombieModel.FLESH, RigBuilder.MAT_WOUND], [ZombieModel.BLOOD_DARK, RigBuilder.MAT_WOUND]]:
+		var parts := [{"shape": "ell", "bone": "head", "size": Vector3(0.075, 0.045, 0.06), "color": c[0], "mat": c[1], "rings": 3, "sides": 6}]
 		_chunk_meshes.append(RigBuilder.build_static(parts, ["head"]))
 
 
