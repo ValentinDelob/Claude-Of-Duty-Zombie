@@ -29,7 +29,10 @@ VEXE="build/CallOfClaudeZombie-$TAG.exe"
 cp "$EXE" "$VEXE"
 
 echo "== vérification du build (scénario boot)"
+# Fenêtre sans focus (l'exécutable lit override.cfg à côté de lui).
+printf '[display]\n\nwindow/size/no_focus=true\n' > build/override.cfg
 "./$EXE" --windowed --resolution 1280x720 -- --autotest=boot > build/smoke.log 2>&1
+rm -f build/override.cfg
 if ! grep -q "\[autotest\] fin : SUCCES" build/smoke.log || grep -qE "SCRIPT ERROR" build/smoke.log; then
   echo "== LE BUILD NE DÉMARRE PAS (voir build/smoke.log)"; exit 1
 fi

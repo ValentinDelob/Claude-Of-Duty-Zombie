@@ -94,6 +94,9 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
 - `sh tools/perf.sh` : mesures de performance fiables (1080p, un jeu à la fois).
   Repère : ~150 fps sur la RTX A2000 de développement ≈ 60 fps sur GTX 1050.
 - `sh tools/mp_test.sh <nom>` : un test multijoueur (hôte + client).
+- Scénario isolé sans voler le focus : `sh tools/scenario.sh <nom>` (check.sh,
+  mp_test.sh et release.sh ouvrent aussi leurs fenêtres sans focus, via un
+  override.cfg temporaire : voir tools/nofocus.sh).
 - Scénario isolé : `godot --path . -- --autotest=<nom>` (captures dans
   `tests/_out/shots/`).
 

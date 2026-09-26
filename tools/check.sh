@@ -7,6 +7,8 @@
 # Usage : sh tools/check.sh [--fast]      (--fast : saute le test réseau)
 #         SCENARIOS="boot fps_controller" sh tools/check.sh
 cd "$(dirname "$0")/.."
+. tools/nofocus.sh
+nofocus_on
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
 FAIL=0

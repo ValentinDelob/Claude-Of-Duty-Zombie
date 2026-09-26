@@ -30,3 +30,6 @@ desktop.ini
 
 # Images de référence sous droits (modèles de reproduction, jamais publiées)
 /docs/reference/
+
+# Fenêtres de test sans focus (tools/nofocus.sh)
+/override.cfg

@@ -2,6 +2,8 @@
 # Test multijoueur réel : un hôte et un client dans deux fenêtres.
 # Usage : sh tools/mp_test.sh <nom>   (lance mp_<nom>_host et mp_<nom>_client)
 cd "$(dirname "$0")/.."
+. tools/nofocus.sh
+nofocus_on
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
 N=${1:-lobby}
