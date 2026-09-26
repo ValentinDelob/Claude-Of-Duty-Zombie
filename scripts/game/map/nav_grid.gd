@@ -12,6 +12,11 @@ const WALL_PENALTY := 2.5
 var data: MapData
 var astar := AStarGrid2D.new()
 var _blocked: Dictionary = {}  # Vector2i -> true (cellules bloquées dynamiquement)
+## Copie « praticable » de la grille (1 octet par cellule) : les tests de ligne
+## de vue, appelés très souvent, y lisent directement sans passer par AStarGrid2D.
+var _walk := PackedByteArray()
+var _w := 0
+var _h := 0
 
 
 func _init(map_data: MapData) -> void:
@@ -29,6 +34,12 @@ func _init(map_data: MapData) -> void:
 				astar.set_point_solid(c, true)
 			elif _near_wall(c):
 				astar.set_point_weight_scale(c, WALL_PENALTY)
+	_w = data.width
+	_h = data.height
+	_walk.resize(_w * _h)
+	for y in _h:
+		for x in _w:
+			_walk[y * _w + x] = 0 if astar.is_point_solid(Vector2i(x, y)) else 1
 
 
 func _near_wall(c: Vector2i) -> bool:
@@ -54,6 +65,7 @@ func set_blocked(cells: Array, blocked: bool) -> void:
 		else:
 			_blocked.erase(c)
 			astar.set_point_solid(c, not data.is_floor(c))
+		_walk[c.y * _w + c.x] = 0 if astar.is_point_solid(c) else 1
 
 
 ## Cellule praticable la plus proche (recherche en spirale).
@@ -103,14 +115,22 @@ func line_clear(a: Vector2i, b: Vector2i) -> bool:
 	var dx := b.x - a.x
 	var dy := b.y - a.y
 	var steps := int(maxf(absi(dx), absi(dy)) * 3.0) + 1
+	var w := _w
+	var walk := _walk
 	for s in steps + 1:
 		var t := float(s) / steps
 		var px := x0 + dx * t
 		var py := y0 + dy * t
-		# Marge d'un rayon de zombie autour de la ligne.
-		for off in [Vector2(0.3, 0.3), Vector2(-0.3, 0.3), Vector2(0.3, -0.3), Vector2(-0.3, -0.3)]:
-			if not is_walkable(Vector2i(floori(px + off.x), floori(py + off.y))):
-				return false
+		# Marge d'un rayon de zombie autour de la ligne : les 4 coins d'un carré
+		# de ±0,3 cellule (lecture directe du tableau, sans allocation).
+		var xa := floori(px + 0.3)
+		var xb := floori(px - 0.3)
+		var ya := floori(py + 0.3)
+		var yb := floori(py - 0.3)
+		if xb < 0 or yb < 0 or xa >= w or ya >= _h:
+			return false
+		if walk[ya * w + xa] == 0 or walk[ya * w + xb] == 0 or walk[yb * w + xa] == 0 or walk[yb * w + xb] == 0:
+			return false
 	return true
 
 

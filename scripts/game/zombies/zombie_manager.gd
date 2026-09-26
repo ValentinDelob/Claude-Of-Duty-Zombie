@@ -23,6 +23,69 @@ var _next_id := 1
 var _snap_accum := 0.0
 var _rng := RandomNumberGenerator.new()
 
+## Grille spatiale des zombies vivants pour la séparation (serveur), refaite
+## une fois par pas de physique. Case de 1 m >= rayon de répulsion (0,9 m) :
+## les 9 cases autour d'un zombie contiennent tous ses voisins.
+const GRID_CELL := 1.0
+const EMPTY: Array = []
+var _grid: Dictionary = {}  # clé de case -> Array[Zombie]
+var _grid_frame := -1
+
+## Caméra de l'image en cours (cadence d'animation des zombies).
+const CULL_RADIUS := 1.3
+const FAR_DIST := 20.0
+const VERY_FAR_DIST := 35.0
+var _cam_ok := false
+var _cam_pos := Vector3.ZERO
+var _frustum: Array[Plane] = []
+
+
+static func grid_key(gx: int, gz: int) -> int:
+	return (gx + 4096) + (gz + 4096) * 8192
+
+
+func separation_grid() -> Dictionary:
+	var f := Engine.get_physics_frames()
+	if f != _grid_frame:
+		_grid_frame = f
+		_grid.clear()
+		for z: Zombie in alive:
+			var p := z.global_position
+			var k := grid_key(floori(p.x / GRID_CELL), floori(p.z / GRID_CELL))
+			var bucket: Array = _grid.get(k, EMPTY)
+			if bucket.is_empty():
+				bucket = []
+				_grid[k] = bucket
+			bucket.append(z)
+	return _grid
+
+
+## Le parent est traité avant ses enfants : la caméra est lue une fois par
+## image, avant l'animation des zombies.
+func _process(_delta: float) -> void:
+	var cam := get_viewport().get_camera_3d()
+	_cam_ok = cam != null and not alive.is_empty()
+	if _cam_ok:
+		_cam_pos = cam.global_position
+		_frustum.assign(cam.get_frustum())
+
+
+## Intervalle minimal entre deux poses d'un zombie à `pos` : 0 (chaque image)
+## s'il est visible et proche, plus long hors champ ou au loin.
+func pose_step(pos: Vector3) -> float:
+	if not _cam_ok:
+		return 0.0
+	var c := pos + Vector3(0.0, 0.9, 0.0)
+	for pl in _frustum:
+		if pl.distance_to(c) > CULL_RADIUS:
+			return Zombie.POSE_STEP_OFFSCREEN
+	var d2 := c.distance_squared_to(_cam_pos)
+	if d2 > VERY_FAR_DIST * VERY_FAR_DIST:
+		return Zombie.POSE_STEP_VERY_FAR
+	if d2 > FAR_DIST * FAR_DIST:
+		return Zombie.POSE_STEP_FAR
+	return 0.0
+
 
 func _ready() -> void:
 	_rng.randomize()

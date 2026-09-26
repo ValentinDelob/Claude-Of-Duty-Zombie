@@ -8,7 +8,16 @@ enum State { EMERGE, IDLE, CHASE, ATTACK, DEAD }
 
 ## Vitesses par classe (m/s) : marcheur, trotteur, coureur, sprinteur.
 const SPEEDS := [1.25, 2.3, 3.7, 5.0]
-const GRAVITY := 16.0
+## Écart entre la capsule de collision et le sol (déplacement flottant).
+const FLOOR_GAP := 0.04
+## Animation hors champ ou lointaine : cadence réduite (secondes entre deux poses).
+const POSE_STEP_OFFSCREEN := 1.0 / 20.0
+const POSE_STEP_FAR := 1.0 / 60.0
+const POSE_STEP_VERY_FAR := 1.0 / 30.0
+## Les membres d'un corps ont fini de retomber après ce délai.
+const DEATH_SETTLE_TIME := 1.5
+const DEATH_ARMS := ["arm_l", "arm_r"]
+const DEATH_LIMBS := ["thigh_l", "thigh_r", "shin_l", "shin_r", "spine", "chest"]
 const RADIUS := 0.3
 const HEIGHT := 1.75
 const EMERGE_TIME := 1.4
@@ -62,6 +71,10 @@ var mesh: MeshInstance3D
 var bones: Dictionary
 var hit_body: Area3D
 var hit_head: Area3D
+var _body_shape: CollisionShape3D
+var _mgr: ZombieManager
+## Temps écoulé depuis la dernière pose écrite (animation à cadence réduite).
+var _pose_accum := 0.0
 
 
 func setup(zid: int, zvariant: int, zspeed: int, is_server: bool) -> void:
@@ -73,6 +86,7 @@ func setup(zid: int, zvariant: int, zspeed: int, is_server: bool) -> void:
 
 
 func _ready() -> void:
+	_mgr = get_parent() as ZombieManager
 	collision_layer = 1 << 2
 	collision_mask = 1 | (1 << 1) | (1 << 2)  # monde, joueurs, zombies
 	var cs := CollisionShape3D.new()
@@ -80,7 +94,12 @@ func _ready() -> void:
 	cap.radius = RADIUS
 	cap.height = HEIGHT
 	cs.shape = cap
-	cs.position.y = HEIGHT * 0.5
+	# Cartes plates : déplacement « flottant » à y = 0, capsule légèrement
+	# décollée du sol. move_and_slide ne gère alors ni contact ni accroche au
+	# sol (une bonne part de son coût) pour la même trajectoire.
+	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+	cs.position.y = HEIGHT * 0.5 + FLOOR_GAP
+	_body_shape = cs
 	add_child(cs)
 
 	skel = ZombieModel.build(variant)
@@ -152,12 +171,12 @@ func _physics_process(delta: float) -> void:
 			_attack(delta)
 		State.DEAD:
 			return
-	if not is_on_floor():
-		velocity.y -= GRAVITY * delta
-	else:
-		velocity.y = -0.5
+	# Déplacement au sol (y = 0) : les cartes sont plates.
+	velocity.y = 0.0
 	if state != State.EMERGE:
 		move_and_slide()
+		if global_position.y != 0.0:
+			global_position.y = 0.0
 	anim_speed = Vector2(velocity.x, velocity.z).length()
 	# Mesure de blocage sur des fenêtres d'une seconde (déplacement réel).
 	_stuck_sample_t += delta
@@ -220,20 +239,29 @@ func _flat_dist(p: Vector3) -> float:
 	return Vector2(p.x - global_position.x, p.z - global_position.z).length()
 
 
-## Répulsion douce des zombies voisins.
+## Répulsion douce des zombies voisins (rayon √0,8 ≈ 0,9 m). Seules les 9
+## cases de la grille spatiale du ZombieManager autour du zombie sont lues,
+## au lieu de tous les zombies vivants.
 func _separation() -> Vector3:
 	var push := Vector3.ZERO
 	var mgr := get_parent() as ZombieManager
 	if mgr == null:
 		return push
-	for other: Zombie in mgr.alive:
-		if other == self:
-			continue
-		var d := global_position - other.global_position
-		d.y = 0.0
-		var l2 := d.length_squared()
-		if l2 < 0.8 and l2 > 0.0001:
-			push += d / l2 * 0.25
+	var grid := mgr.separation_grid()
+	var pos := global_position
+	var cx := floori(pos.x / ZombieManager.GRID_CELL)
+	var cz := floori(pos.z / ZombieManager.GRID_CELL)
+	for gz in range(cz - 1, cz + 2):
+		for gx in range(cx - 1, cx + 2):
+			var bucket: Array = grid.get(ZombieManager.grid_key(gx, gz), ZombieManager.EMPTY)
+			for other: Zombie in bucket:
+				if other == self:
+					continue
+				var d := pos - other.global_position
+				d.y = 0.0
+				var l2 := d.length_squared()
+				if l2 < 0.8 and l2 > 0.0001:
+					push += d / l2 * 0.25
 	return push.limit_length(1.0)
 
 
@@ -364,7 +392,12 @@ func _process(delta: float) -> void:
 		_interpolate()
 		_state_time += delta
 	_groan(delta)
-	_update_pose(delta)
+	# Pose recalculée à chaque image de près ; hors champ ou au loin, à cadence
+	# réduite avec le temps cumulé (même animation, moins d'écritures d'os).
+	_pose_accum += delta
+	if _mgr == null or _pose_accum >= _mgr.pose_step(global_position):
+		_update_pose(_pose_accum)
+		_pose_accum = 0.0
 	if _flash > 0.0:
 		_flash = maxf(_flash - delta * 6.0, 0.0)
 		mesh.set_instance_shader_parameter("hit_flash", _flash)
@@ -396,6 +429,11 @@ func die(dir: Vector3, headshot: bool) -> void:
 	collision_mask = 1
 	hit_body.collision_layer = 0
 	hit_head.collision_layer = 0
+	# Corps : plus aucune forme dans l'espace physique (hitboxes, capsule).
+	hit_body.get_child(0).set_deferred("disabled", true)
+	hit_head.get_child(0).set_deferred("disabled", true)
+	if _body_shape:
+		_body_shape.set_deferred("disabled", true)
 	velocity = Vector3.ZERO
 	set_physics_process(false)
 	_snapshots.clear()
@@ -487,23 +525,26 @@ func _groan(delta: float) -> void:
 func _process_death(delta: float) -> void:
 	var before := _death_t
 	_death_t += delta
-	var k := ease(clampf(_death_t / 0.65, 0.0, 1.0), 0.4)
-	skel.rotation.x = _death_dir * k * PI * 0.47
-	skel.position.y = -k * 0.08
-	# Membres qui retombent mollement.
-	for b in ["arm_l", "arm_r"]:
-		var q := skel.get_bone_pose_rotation(bones[b])
-		skel.set_bone_pose_rotation(bones[b], q.slerp(_q(-0.4 * _death_dir), minf(delta * 5.0, 1.0)))
-	for b in ["thigh_l", "thigh_r", "shin_l", "shin_r", "spine", "chest"]:
-		var q2 := skel.get_bone_pose_rotation(bones[b])
-		skel.set_bone_pose_rotation(bones[b], q2.slerp(Quaternion.IDENTITY, minf(delta * 4.0, 1.0)))
+	# Chute et membres qui retombent mollement ; ensuite le corps est immobile
+	# (les rotations ont convergé) : plus aucune écriture d'os.
+	if before <= DEATH_SETTLE_TIME:
+		var k := ease(clampf(_death_t / 0.65, 0.0, 1.0), 0.4)
+		skel.rotation.x = _death_dir * k * PI * 0.47
+		skel.position.y = -k * 0.08
+		for b in DEATH_ARMS:
+			var q := skel.get_bone_pose_rotation(bones[b])
+			skel.set_bone_pose_rotation(bones[b], q.slerp(_q(-0.4 * _death_dir), minf(delta * 5.0, 1.0)))
+		for b in DEATH_LIMBS:
+			var q2 := skel.get_bone_pose_rotation(bones[b])
+			skel.set_bone_pose_rotation(bones[b], q2.slerp(Quaternion.IDENTITY, minf(delta * 4.0, 1.0)))
 	if before < 0.6 and _death_t >= 0.6:
 		Audio.play_3d("body_fall", global_position, -6.0, 0.1, 3)
 		if Game.instance:
 			Game.instance.fx_root.blood_decal(global_position + Vector3.UP * 0.1 + Vector3(sin(yaw), 0, cos(yaw)) * _death_dir * 0.8, Vector3.UP, randf_range(0.8, 1.4))
 	if _death_t > DISSOLVE_DELAY:
 		mesh.set_instance_shader_parameter("dissolve", clampf((_death_t - DISSOLVE_DELAY) / DISSOLVE_TIME, 0.0, 1.0))
-		mesh.set_instance_shader_parameter("eye_glow", 0.0)
+		if before <= DISSOLVE_DELAY:
+			mesh.set_instance_shader_parameter("eye_glow", 0.0)
 
 
 ## Temps passé quasi immobile en poursuite (serveur) : sert au recyclage.
