@@ -24,6 +24,12 @@ var weapon := ""
 var owner_pid := 0
 var skull := false
 var uses := 0
+## Bonus LIQUIDATION en cours (toutes les machines) : la boîte coûte 10.
+var fire_sale := false
+## Serveur : nombre de déménagements (la liquidation n'apparaît qu'après le premier).
+var moves := 0
+## Serveur : prix payé par l'acheteur courant (remboursé par le crâne).
+var _paid := COST
 ## Tests : force le prochain tirage.
 var force_result := ""
 
@@ -136,6 +142,11 @@ func _collider(size: Vector3) -> StaticBody3D:
 	return body
 
 
+## Prix courant (bonus LIQUIDATION : 10 points).
+func cost() -> int:
+	return PowerupRules.FIRE_SALE_COST if fire_sale else COST
+
+
 ## Cellules occupées par un emplacement (la boîte fait 2 cases de long).
 static func spot_cells(c: Vector2i, data: MapData) -> Array:
 	var n := MapDef.wall_normal(data, c)
@@ -167,7 +178,7 @@ func interact_point() -> Vector3:
 func prompt(pid: int) -> String:
 	match state:
 		State.IDLE:
-			return "[F] Boîte mystère %s" % Interactable.cost_text(COST)
+			return "[F] Boîte mystère %s" % Interactable.cost_text(cost())
 		State.READY:
 			if pid == owner_pid and not skull:
 				return "[F] Prendre %s" % WeaponDB.display_name(weapon)
@@ -181,9 +192,11 @@ func srv_use(pid: int) -> void:
 		return
 	match state:
 		State.IDLE:
-			if not game.session.try_spend(pid, COST):
+			var price := cost()
+			if not game.session.try_spend(pid, price):
 				system.deny(pid, "Pas assez de points")
 				return
+			_paid = price
 			owner_pid = pid
 			uses += 1
 			_roll(pd)
@@ -202,7 +215,8 @@ func srv_use(pid: int) -> void:
 ## Serveur : tirage de l'arme (jamais une arme déjà possédée).
 func _roll(pd: PlayerData) -> void:
 	skull = false
-	if force_result == "skull" or (force_result == "" and uses > MIN_USES_BEFORE_SKULL and _rng.randf() < SKULL_CHANCE):
+	# Pas de crâne pendant une liquidation (la boîte ne déménage pas).
+	if force_result == "skull" or (force_result == "" and not fire_sale and uses > MIN_USES_BEFORE_SKULL and _rng.randf() < SKULL_CHANCE):
 		skull = true
 		weapon = ""
 		force_result = ""
@@ -248,7 +262,7 @@ func _process(delta: float) -> void:
 		State.ROLLING:
 			if skull:
 				# Remboursement et départ de la boîte.
-				system.game.session.add_points(owner_pid, COST)
+				system.game.session.add_points(owner_pid, _paid)
 				state = State.MOVING
 				_timer = MOVE_TIME
 				uses = 0
@@ -264,6 +278,7 @@ func _process(delta: float) -> void:
 				while next == location:
 					next = _rng.randi() % spots.size()
 			location = next
+			moves += 1
 			_close()
 
 

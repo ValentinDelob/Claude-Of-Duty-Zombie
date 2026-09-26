@@ -29,6 +29,8 @@ var _perk_icons: PerkIcons
 var _downed: DownedOverlay
 var scoreboard: Scoreboard
 var pause_menu: PauseMenu
+## Icônes et annonces des bonus.
+var powerup_hud: PowerupHud
 
 
 func _ready() -> void:
@@ -122,6 +124,10 @@ func _ready() -> void:
 	_flash.position = Vector2(-400, 150)
 	_flash.size = Vector2(800, 40)
 	add_child(_flash)
+
+	powerup_hud = PowerupHud.new()
+	powerup_hud.setup(game)
+	add_child(powerup_hud)
 
 	_downed = DownedOverlay.new()
 	# Ancrages posés AVANT l'ajout : sous un CanvasLayer, les poser après

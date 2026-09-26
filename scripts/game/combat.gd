@@ -224,6 +224,9 @@ func damage_zombie(zid: int, dmg: int, pid: int, headshot: bool, dir: Vector3, k
 	var z: Zombie = game.zombies.get_zombie(zid)
 	if z == null or not z.is_alive() or dmg <= 0:
 		return
+	# Bonus MORT INSTANTANÉE : tout coup d'un joueur tue.
+	if pid > 0 and game.powerups and game.powerups.insta_kill():
+		dmg = maxi(dmg, z.health)
 	z.health -= dmg
 	var killed := z.health <= 0
 	if killed:

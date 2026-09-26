@@ -45,6 +45,8 @@ var doors: Dictionary = {}  # id -> Door
 ## Courant rétabli ? (répliqué par PowerSwitch)
 var power_on := false
 var teleporter: Teleporter
+## Bonus (chemin réseau : /root/Game/Powerups).
+var powerups: PowerupSystem
 signal power_changed(on: bool)
 @onready var hud: Hud = $HUD
 
@@ -63,6 +65,9 @@ func _ready() -> void:
 	if GameState.state == GameState.State.MAIN_MENU:
 		GameState.set_state(GameState.State.LOADING)
 	_load_map(Net.current_map if MAP_SCRIPTS.has(Net.current_map) else requested_map())
+	powerups = PowerupSystem.new()
+	powerups.name = "Powerups"
+	add_child(powerups)
 	Net.player_left.connect(_on_player_left)
 	Net.session_ended.connect(_on_session_ended)
 	session.inventory_changed.connect(_refresh_remote_weapon)
