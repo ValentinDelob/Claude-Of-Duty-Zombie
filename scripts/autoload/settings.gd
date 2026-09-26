@@ -2,6 +2,10 @@ extends Node
 ## Settings — options persistantes (user://settings.cfg) et actions d'entrée.
 
 const PATH := "user://settings.cfg"
+## Fichier utilisé : les tests automatisés écrivent ailleurs pour ne jamais
+## écraser les réglages du joueur (et partent des valeurs par défaut).
+const TEST_PATH := "user://settings_autotest.cfg"
+var path := PATH
 
 enum Quality { LOW, MEDIUM, HIGH }
 
@@ -72,8 +76,11 @@ func _register_inputs() -> void:
 
 
 func load_settings() -> void:
+	if _cmdline_has_prefix("--autotest="):
+		path = TEST_PATH
+		return
 	var cfg := ConfigFile.new()
-	if cfg.load(PATH) != OK:
+	if cfg.load(path) != OK:
 		return
 	player_name = cfg.get_value("player", "name", player_name)
 	mouse_sensitivity = cfg.get_value("controls", "mouse_sensitivity", mouse_sensitivity)
@@ -90,9 +97,6 @@ func load_settings() -> void:
 
 
 func save_settings() -> void:
-	# Les tests automatisés ne doivent jamais écraser les réglages du joueur.
-	if _cmdline_has_prefix("--autotest="):
-		return
 	var cfg := ConfigFile.new()
 	cfg.set_value("player", "name", player_name)
 	cfg.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
@@ -106,7 +110,7 @@ func save_settings() -> void:
 	cfg.set_value("audio", "sfx", sfx_volume)
 	cfg.set_value("network", "last_ip", last_ip)
 	cfg.set_value("network", "last_port", last_port)
-	cfg.save(PATH)
+	cfg.save(path)
 
 
 ## Applique les options vidéo / audio au moteur.

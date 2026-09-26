@@ -112,9 +112,9 @@ func _check_option_saved() -> void:
 	var expected := snappedf(before + (-0.05 if dir == "ui_left" else 0.05), 0.05)
 	at.check(is_equal_approx(Settings.music_volume, expected), "musique %.2f -> %.2f (attendu %.2f)" % [before, Settings.music_volume, expected])
 	var cfg := ConfigFile.new()
-	var ok := cfg.load(Settings.PATH) == OK
+	var ok := cfg.load(Settings.path) == OK
 	var saved: float = cfg.get_value("audio", "music", -1.0) if ok else -1.0
-	at.check(ok and is_equal_approx(saved, expected), "réglage enregistré dans %s (%.2f)" % [Settings.PATH, saved])
+	at.check(ok and is_equal_approx(saved, expected), "réglage enregistré dans %s (%.2f)" % [Settings.path, saved])
 	var bus := AudioServer.get_bus_index("Music")
 	at.check(is_equal_approx(AudioServer.get_bus_volume_db(bus), linear_to_db(expected)), "volume du bus Musique appliqué")
 	at.check(row.value_text() == "%d %%" % int(round(expected * 100.0)), "valeur affichée : %s" % row.value_text())
