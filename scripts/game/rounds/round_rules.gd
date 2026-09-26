@@ -1,67 +1,81 @@
 class_name RoundRules
 extends RefCounted
 ## Formules des manches (fonctions pures, testées unitairement).
-## Inspirées de la progression classique : quelques marcheurs aux premières
-## manches, puis des hordes de plus en plus nombreuses, résistantes et rapides.
+## Reprise fidèle de Black Ops 1 (_zombiemode.gsc) : nombre de zombies,
+## santé, délai d'apparition et vitesse de course.
 
+## zombie_max_ai : jamais plus de 24 zombies vivants en même temps.
 const MAX_ALIVE := 24
-const INTERMISSION := 9.0
+## zombie_ai_per_player
+const AI_PER_PLAYER := 6
+## zombie_between_round_time
+const INTERMISSION := 10.0
 const FIRST_ROUND_DELAY := 4.0
+## zombie_spawn_delay (manche 1) et facteur appliqué à chaque manche.
+const SPAWN_DELAY := 2.0
+const SPAWN_DELAY_FACTOR := 0.95
+const SPAWN_DELAY_MIN := 0.08
+## zombie_move_speed_multiplier (difficulté normale).
+const MOVE_SPEED_MULT := 8
+
+## Classes de vitesse du zombie (index dans Zombie.SPEEDS).
+const WALK := 0
+const RUN := 2
+const SPRINT := 3
+
 
 ## Nombre total de zombies de la manche.
 static func zombie_count(round_n: int, players: int) -> int:
-	var early := [0, 6, 8, 13, 18, 24]
-	var base: float
-	if round_n < early.size():
-		base = early[round_n]
+	var mult := maxf(round_n / 5.0, 1.0)
+	if round_n >= 10:
+		mult *= round_n * 0.15
+	var n := MAX_ALIVE
+	if players <= 1:
+		n += int(0.5 * AI_PER_PLAYER * mult)
 	else:
-		base = 24.0 + (round_n - 5) * 3.5 + pow(maxf(round_n - 10, 0), 1.6)
-	var mult := 1.0 + 0.5 * (clampi(players, 1, 8) - 1)
-	return int(round(base * mult))
+		n += int((players - 1) * AI_PER_PLAYER * mult)
+	var early := {1: 0.25, 2: 0.3, 3: 0.5, 4: 0.7, 5: 0.9}
+	if early.has(round_n):
+		n = int(n * early[round_n])
+	return n
 
 
-## Points de vie d'un zombie.
+## Points de vie d'un zombie : 150, +100 par manche jusqu'à la 9, puis +10 %.
 static func zombie_health(round_n: int) -> int:
-	if round_n < 10:
-		return 150 + 100 * (round_n - 1)
-	var h := 950.0
-	for i in range(10, round_n + 1):
-		h *= 1.1
-	return int(h)
+	var h := 150
+	for i in range(2, round_n + 1):
+		if i >= 10:
+			h += int(h * 0.1)
+		else:
+			h += 100
+	return h
 
 
 ## Nombre max de zombies vivants simultanément.
-static func max_alive(round_n: int, players: int) -> int:
-	return mini(MAX_ALIVE, 6 + round_n * 2 + (players - 1) * 4)
+static func max_alive(_round_n: int, _players: int) -> int:
+	return MAX_ALIVE
 
 
-## Délai entre deux apparitions (s).
-static func spawn_interval(round_n: int, players: int) -> float:
-	var t := 2.0 * pow(0.93, round_n - 1) / (1.0 + 0.25 * (players - 1))
-	return maxf(t, 0.35)
+## Délai entre deux apparitions (s) : 2 s, x0.95 à chaque manche.
+static func spawn_interval(round_n: int, _players: int) -> float:
+	return maxf(SPAWN_DELAY * pow(SPAWN_DELAY_FACTOR, round_n - 1), SPAWN_DELAY_MIN)
 
 
-## Poids des classes de vitesse [marche, trot, course, sprint].
-static func speed_weights(round_n: int) -> Array:
-	if round_n <= 2:
-		return [1.0, 0.0, 0.0, 0.0]
-	if round_n <= 4:
-		return [0.6, 0.4, 0.0, 0.0]
-	if round_n <= 7:
-		return [0.25, 0.5, 0.25, 0.0]
-	if round_n <= 10:
-		return [0.1, 0.3, 0.45, 0.15]
-	return [0.0, 0.15, 0.45, 0.4]
+## Vitesse de base de la manche (level.zombie_move_speed).
+static func move_speed(round_n: int) -> int:
+	return round_n * MOVE_SPEED_MULT
+
+
+## Tirage de la vitesse d'un zombie : aléatoire dans [vitesse, vitesse + 35] ;
+## <= 35 marche, <= 70 court, au-delà sprinte.
+static func speed_for_roll(roll: int) -> int:
+	if roll <= 35:
+		return WALK
+	if roll <= 70:
+		return RUN
+	return SPRINT
 
 
 static func pick_speed(round_n: int, rng: RandomNumberGenerator) -> int:
-	var w := speed_weights(round_n)
-	var total := 0.0
-	for v in w:
-		total += v
-	var r := rng.randf() * total
-	for i in w.size():
-		r -= w[i]
-		if r <= 0.0:
-			return i
-	return 0
+	var s := move_speed(round_n)
+	return speed_for_roll(rng.randi_range(s, s + 35))
