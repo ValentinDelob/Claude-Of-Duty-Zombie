@@ -27,3 +27,6 @@ desktop.ini
 
 # Outils locaux (worktrees des agents, réglages)
 .claude/
+
+# Images de référence sous droits (modèles de reproduction, jamais publiées)
+/docs/reference/
