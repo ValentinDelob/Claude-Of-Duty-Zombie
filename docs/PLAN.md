@@ -110,6 +110,8 @@ la reproduction fidèle de la carte réelle à partir d'images de référence
 - [ ] Mettre à jour README (état d'avancement) et docs/ARCHITECTURE.md.
 
 ## Fait (releases)
+- v0.1.89 : optimisation du rendu (MEDIUM -17 % de GPU), préréglage
+  automatique au premier lancement ; v0.1.87 : poignée de main de version.
 - v0.1.80 : tir droit (réticule = impact), lunette, recul BO1, effets au
   canon ; rampants et démembrement ; FAUCHEUSE ; liquidation multi-boîtes ;
   sons CC0 (armes, zombies, chiens, grenades, impacts) nivelés en intensité

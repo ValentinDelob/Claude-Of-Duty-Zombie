@@ -193,4 +193,14 @@ puis reprends §6 puis §4 dans l'ordre en respectant §0 et §2.
 
 ## État à l'arrêt
 
-(complété à la fin de la session)
+Arrêt le 26/09/2026 vers 22 h (machine précédente : i7-7700, GTX 1070).
+- main poussé sur GitHub ; dernière release de code **v0.1.89** (« perf: optimize
+  rendering after the visual rework ») ; `sh tools/check.sh` passait sur ce
+  commit (CHECK OK, `PARALLEL=2`) ; la release suivante (v0.1.90) ne contient
+  que cette mise à jour de la documentation.
+- Aucun agent en cours, aucun travail non poussé : tout est sur main.
+- Prochaine étape conseillée : §4.1 (re-mesure des fps GPU libre avec
+  `sh tools/perf.sh`, puis derniers gains de MEDIUM), puis §4.2 (R4 suite :
+  décors, machines, boîte, Pack-a-Punch, menu), puis §4.3 (KINO V2).
+- Les tests dépendant du temps sont nombreux : lancer check.sh de préférence
+  avec `PARALLEL=2` quand des agents font tourner des jeux en même temps.
