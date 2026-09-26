@@ -142,6 +142,17 @@ func kill(zid: int, headshot: bool, dir: Vector3, _gib := false) -> void:
 	get_tree().create_timer(Zombie.DISSOLVE_DELAY + Zombie.DISSOLVE_TIME + 0.3).timeout.connect(despawn.bind(zid))
 
 
+## Serveur : tue un zombie en le projetant (onde de choc du TONNERRE-7).
+## `vel` : vitesse initiale du vol, identique sur toutes les machines.
+func kill_flung(zid: int, vel: Vector3) -> void:
+	var z: Zombie = zombies.get(zid)
+	if not multiplayer.is_server() or z == null or not z.is_alive():
+		return
+	_cl_die_flung.rpc(zid, vel)
+	zombie_killed.emit(zid)
+	get_tree().create_timer(Zombie.DISSOLVE_DELAY + Zombie.DISSOLVE_TIME + 0.3).timeout.connect(despawn.bind(zid))
+
+
 func despawn(zid: int) -> void:
 	if multiplayer.is_server() and zombies.has(zid):
 		_cl_despawn.rpc(zid)
@@ -224,6 +235,15 @@ func _cl_die(zid: int, headshot: bool, dir: Vector3) -> void:
 		return
 	alive.erase(z)
 	z.die(dir, headshot)
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_die_flung(zid: int, vel: Vector3) -> void:
+	var z: Zombie = zombies.get(zid)
+	if z == null:
+		return
+	alive.erase(z)
+	z.die_flung(vel)
 
 
 @rpc("authority", "call_local", "reliable")

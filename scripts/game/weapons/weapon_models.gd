@@ -23,6 +23,8 @@ const MATERIALS := {
 	"tan": [Color(0.42, 0.36, 0.24), 0.8, 0.0],
 	"brass": [Color(0.55, 0.42, 0.18), 0.35, 0.9],
 	"glow": [Color(1.0, 0.45, 0.15), 0.3, 0.0],
+	"glow_blue": [Color(0.35, 0.75, 1.0), 0.3, 0.0],
+	"copper": [Color(0.5, 0.26, 0.14), 0.4, 0.85],
 	"glass": [Color(0.1, 0.18, 0.2), 0.1, 0.3],
 }
 
@@ -111,6 +113,8 @@ const SPECS := {
 	"law": {"arch": "rocket"},
 	# ---------------------------------------------------------------- merveille
 	"ray": {"arch": "ray"},
+	# TONNERRE-7 : gros tambour cylindrique à ailettes, réservoirs latéraux, bouche évasée.
+	"thunder": {"arch": "thunder"},
 	# ---------------------------------------------------------------- couteaux (KnifeDB)
 	# Couteau de combat : lame noircie, manche en polymère.
 	"knife": {"arch": "knife", "blade": 0.17, "w": 0.028, "blade_mat": "metal_dark", "handle": "polymer", "guard": false},
@@ -135,8 +139,8 @@ static func material(key: String, viewmodel: bool, pap: bool) -> ShaderMaterial:
 	m.set_shader_parameter("roughness", spec[1])
 	m.set_shader_parameter("metallic", spec[2])
 	m.set_shader_parameter("viewmodel", 1.0 if viewmodel else 0.0)
-	m.set_shader_parameter("pap", 1.0 if pap and key != "glow" and key != "glass" else 0.0)
-	if key == "glow":
+	m.set_shader_parameter("pap", 1.0 if pap and not key.begins_with("glow") and key != "glass" else 0.0)
+	if key.begins_with("glow"):
 		m.set_shader_parameter("emission", spec[0])
 		m.set_shader_parameter("emission_energy", 3.0)
 	_mat_cache[cache_key] = m
@@ -178,6 +182,7 @@ static func spec(model_id: String) -> Dictionary:
 		"launcher": out = _launcher()
 		"rocket": out = _rocket()
 		"knife": out = _knife(p)
+		"thunder": out = _thunder()
 		_: out = _ray()
 	_spec_cache[model_id] = out
 	return out
@@ -610,6 +615,50 @@ static func _ray() -> Dictionary:
 	return {"parts": parts, "anchors": {
 		"muzzle": Vector3(0, 0.04, -0.3), "sight": Vector3(0, 0.1, 0.0),
 		"grip": Vector3(0, -0.06, 0.04), "support": Vector3(-0.02, -0.07, 0.03)}}
+
+
+## TONNERRE-7 : gros tambour à ailettes (compresseur), bouche évasée qui
+## luit, deux réservoirs de cuivre sur les flancs, manomètre, poignée de
+## transport, poignées pistolet et avant, crosse tubulaire.
+static func _thunder() -> Dictionary:
+	var parts := []
+	var y := 0.055
+	# Tambour et ailettes de refroidissement, bande lumineuse entre les ailettes.
+	_c(parts, 0.074, 0.3, Vector3(0, y, -0.12), "metal_worn")
+	_c(parts, 0.077, 0.05, Vector3(0, y, -0.12), "glow_blue")
+	for k in 6:
+		_c(parts, 0.086, 0.012, Vector3(0, y, -0.255 + k * 0.054), "metal_dark")
+	# Bouche : col, pavillon évasé, cœur lumineux et trois lames de guidage.
+	_c(parts, 0.058, 0.07, Vector3(0, y, -0.305), "metal_dark")
+	_c(parts, 0.07, 0.025, Vector3(0, y, -0.345), "metal")
+	_c(parts, 0.092, 0.02, Vector3(0, y, -0.365), "metal_worn")
+	_c(parts, 0.05, 0.01, Vector3(0, y, -0.37), "glow_blue")
+	for a in [90.0, 210.0, 330.0]:
+		var r := deg_to_rad(a)
+		_b(parts, Vector3(0.012, 0.012, 0.09), Vector3(cos(r) * 0.08, y + sin(r) * 0.08, -0.39), "metal_dark")
+	# Boîtier arrière (moteur) et culot arrondi.
+	_b(parts, Vector3(0.085, 0.085, 0.1), Vector3(0, y - 0.005, 0.075), "metal_dark")
+	_c(parts, 0.05, 0.02, Vector3(0, y, 0.035), "brass")
+	_c(parts, 0.036, 0.04, Vector3(0, y, 0.145), "metal")
+	# Réservoirs latéraux (cuivre, bouchons en laiton, tuyaux vers le tambour).
+	for sx in [-1.0, 1.0]:
+		_c(parts, 0.03, 0.22, Vector3(sx * 0.1, y - 0.035, -0.07), "copper")
+		_c(parts, 0.032, 0.014, Vector3(sx * 0.1, y - 0.035, -0.185), "brass")
+		_c(parts, 0.032, 0.014, Vector3(sx * 0.1, y - 0.035, 0.045), "brass")
+		_c(parts, 0.012, 0.1, Vector3(sx * 0.1, y - 0.004, -0.07), "glow_blue")
+		_b(parts, Vector3(0.03, 0.012, 0.012), Vector3(sx * 0.075, y - 0.02, 0.05), "metal_dark")
+	# Manomètre sur le boîtier, poignée de transport.
+	_c(parts, 0.022, 0.012, Vector3(0.028, y + 0.045, 0.08), "brass", Vector3(90, 0, 0))
+	_c(parts, 0.017, 0.013, Vector3(0.028, y + 0.046, 0.08), "glass", Vector3(90, 0, 0))
+	_b(parts, Vector3(0.018, 0.016, 0.2), Vector3(0, y + 0.11, -0.1), "metal_dark")
+	_b(parts, Vector3(0.014, 0.045, 0.014), Vector3(0, y + 0.082, -0.19), "metal_dark")
+	_b(parts, Vector3(0.014, 0.045, 0.014), Vector3(0, y + 0.082, -0.01), "metal_dark")
+	# Poignées : pistolet sous le boîtier, poignée avant sous le tambour.
+	_pistol_grip(parts, "wood_dark", 0.07, -16.0)
+	_b(parts, Vector3(0.032, 0.09, 0.036), Vector3(0, y - 0.115, -0.2), "wood_dark", 8.0)
+	return {"parts": parts, "anchors": {
+		"muzzle": Vector3(0, y, -0.39), "sight": Vector3(0, y + 0.13, -0.02),
+		"grip": Vector3(0, -0.06, 0.08), "support": Vector3(0, y - 0.14, -0.2)}}
 
 
 ## Couteau : lame à plat dans le plan vertical (tranchant en bas), pointe vers

@@ -177,3 +177,19 @@ précédent.
   l'ignorent). Entrées : actions `grenade` [G] et `tactical` [Q] ; geste à la
   première personne : `ThrowController` / `ThrowView` (arme baissée par
   `ViewModel.lowered`).
+
+## Arme merveille TONNERRE-7 (`scripts/game/weapons/thunder_blast.gd`)
+
+- Façon Thundergun de Kino : 2 coups, réserve 12 (OURAGAN-77 amélioré : 4 / 24),
+  rare dans la boîte et **unique** dans la partie (`WeaponDB.is_unique`,
+  `MysteryBox.wonders_taken` : en main d'un joueur ou dans le Pack-a-Punch).
+- Le client n'envoie que l'intention de tir (`srv_fire` sans touches). Le
+  serveur (`ThunderBlast.server_blast`) sélectionne les zombies du cône
+  (20 m, 60°, règles pures testées), en vue du tireur (pas à travers les
+  murs), et les tue tous d'un coup (`Combat.damage_zombie(..., fling)`, 50
+  points). `ZombieManager.kill_flung` diffuse un RPC fiable de mort projetée
+  avec la vitesse initiale : chaque machine joue le même vol procédural
+  (`ZombieFling`, enfant du zombie mort : parabole, culbute, ricochets,
+  rebonds, pose allongée). Aucun dégât aux joueurs.
+- Effet visuel (toutes les machines) : cône de distorsion d'air (texture
+  d'écran), anneaux de choc, poussière, lumière ; son `thunder_fire`.

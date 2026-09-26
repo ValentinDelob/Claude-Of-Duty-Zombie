@@ -27,7 +27,7 @@ et réanimation. Fenêtres barricadées (15) : les zombies arrachent les
 zombie visé) et COUTEAU DE CHASSE au mur du quai (3000 : un coup jusqu'à la
 manche 12). Grenades à fragmentation ([G] : 2 au départ, +2 par manche, 4 au
 plus, achat mural à 250) et SINGE-TAMBOUR ([Q], boîte mystère) qui attire
-tous les zombies avant d'exploser.
+tous les zombies avant d'exploser. Arme merveille TONNERRE-7 (boîte mystère, rare, une seule dans la partie) : onde de choc qui projette et tue tous les zombies devant soi.
 
 ## Lancer le jeu
 

@@ -555,6 +555,15 @@ func die(dir: Vector3, headshot: bool) -> void:
 		Audio.play_3d("zombie_death_%d" % (1 + randi() % 3), global_position + Vector3.UP * 1.4, -2.0, 0.1, 3)
 
 
+## Mort projetée (onde de choc du TONNERRE-7) : le corps s'envole à la vitesse
+## `vel` calculée par le serveur (vol procédural : ZombieFling).
+func die_flung(vel: Vector3) -> void:
+	if state == State.DEAD:
+		return
+	die(vel, false)
+	add_child(ZombieFling.new(vel))
+
+
 func _q(x: float, y := 0.0, z := 0.0) -> Quaternion:
 	return Quaternion.from_euler(Vector3(x, y, z))
 

@@ -240,17 +240,36 @@ func _roll(pd: PlayerData) -> void:
 		weapon = force_result
 		force_result = ""
 		return
-	weapon = pick_weapon(pd, _rng)
+	weapon = pick_weapon(pd, _rng, wonders_taken(system.game))
+
+
+## Serveur : armes merveilles uniques (WeaponDB.is_unique) déjà présentes dans
+## la partie : en main d'un joueur ou en cours d'amélioration au Pack-a-Punch.
+static func wonders_taken(game: Game) -> Dictionary:
+	var out := {}
+	if game == null:
+		return out
+	for pid in game.session.data:
+		for w in game.session.data[pid].weapons:
+			if WeaponDB.is_unique(w.id):
+				out[w.id] = true
+	for obj in game.interact.objects.values():
+		if obj is PackAPunch and WeaponDB.is_unique(obj.weapon_id):
+			out[obj.weapon_id] = true
+	return out
 
 
 ## Tirage pondéré dans la liste de la boîte (WeaponDB.box_pool), sans jamais
-## proposer une arme que le joueur possède déjà (comme BO1).
-static func pick_weapon(pd: PlayerData, rng: RandomNumberGenerator) -> String:
+## proposer une arme que le joueur possède déjà (comme BO1), ni une arme
+## merveille unique déjà présente dans la partie (`taken`).
+static func pick_weapon(pd: PlayerData, rng: RandomNumberGenerator, taken := {}) -> String:
 	var pool := []
 	var weights := []
 	var box := WeaponDB.box_pool()
 	for id in box:
 		if pd != null and pd.has_weapon(id) >= 0:
+			continue
+		if taken.has(id):
 			continue
 		pool.append(id)
 		weights.append(box[id])

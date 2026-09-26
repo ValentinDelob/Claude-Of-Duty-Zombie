@@ -656,6 +656,41 @@ func gen_ray_fire() -> void:
 	_save("ray_fire", s.finish(s.reverb(b, 0.6, 0.25, 0.6), 0.85))
 
 
+func gen_thunder_fire() -> void:
+	# TONNERRE-7 : détonation d'air comprimé énorme. Claquement, coup de
+	# boutoir infra-grave, souffle qui balaie la pièce, grondement de tonnerre.
+	var dur := 2.6
+	var b := s.buf(dur)
+	s.mix(b, s.env_exp(s.highpass(s.noise(0.04), 1800.0), 0.0005, 0.012), 0.0, 0.9)
+	s.mix(b, s.env_exp(s.sweep(0.9, 75.0, 24.0), 0.002, 0.35), 0.0, 1.6)
+	s.mix(b, s.env_exp(s.sweep(0.5, 160.0, 45.0, "saw"), 0.001, 0.12), 0.0, 0.5)
+	# Souffle : bruit dont le filtre descend (l'onde s'éloigne).
+	s.mix(b, s.env_adsr(s.lowpass_sweep(s.noise(1.2), 5000.0, 250.0), 0.01, 0.25, 0.5, 0.7), 0.0, 1.0)
+	# Grondement : bruit brun très grave qui roule et s'éteint.
+	var rumble := s.env_adsr(s.lowpass(s.brown_noise(dur - 0.1), 180.0), 0.08, 0.5, 0.6, 1.4)
+	s.mix(b, rumble, 0.08, 1.2)
+	b = s.drive(b, 3.5)
+	_save("thunder_fire", s.finish(s.reverb(b, 0.95, 0.35, 1.6), 0.98, 0.3))
+
+
+func gen_thunder_charge() -> void:
+	# Mise en pression du tambour : sifflement qui monte, cliquetis, soupape.
+	var b := s.env_adsr(s.sweep(1.0, 120.0, 900.0, "saw"), 0.05, 0.2, 0.8, 0.2)
+	b = s.lowpass_sweep(b, 400.0, 3500.0)
+	s.mix(b, s.env_adsr(s.bandpass(s.noise(1.0), 2500.0, 1.5), 0.3, 0.3, 0.5, 0.2), 0.0, 0.35)
+	for k in 3:
+		s.mix(b, _clank(260.0 + k * 40.0, 0.06, 0.8), 0.15 + k * 0.22, 0.4)
+	s.mix(b, s.env_exp(s.highpass(s.noise(0.3), 3000.0), 0.002, 0.1), 0.85, 0.5)
+	_save("thunder_charge", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.8))
+
+
+func gen_zombie_fling() -> void:
+	# Zombie projeté : cri étranglé qui s'envole + froissement d'air.
+	var b := _growl(0.8, 170.0, 260.0, [760.0, 1400.0], 0.9)
+	s.mix(b, s.env_adsr(s.bandpass(s.noise(0.8), 900.0, 0.8), 0.02, 0.2, 0.5, 0.4), 0.0, 0.6)
+	_save("zombie_fling", s.finish(s.reverb(b, 0.7, 0.25, 0.6), 0.85))
+
+
 # ---------------------------------------------------------------- Pack-a-Punch
 
 ## Chœur sombre : voyelles « aah » sur un accord (pulsations de voix).

@@ -108,6 +108,12 @@ func srv_fire(slot: int, origin: Vector3, dir: Vector3, impacts: PackedVector3Ar
 	var w: Dictionary = pd.current_weapon()
 	w.mag -= 1
 	shot_validated.emit(pid)
+	if WeaponDB.stats(w.id, w.pap).has("blast_range"):
+		# Onde de choc (TONNERRE-7) : cône calculé ici ; les autres joueurs
+		# reçoivent la direction du tir comme « normale » du premier impact.
+		ThunderBlast.server_blast(self, pid, w, origin, dir.normalized())
+		NetCodec.append_shot(_fx_buf, pid, w.id, w.pap, origin, PackedVector3Array([origin, dir.normalized()]), PackedVector3Array())
+		return
 	var blood_points := PackedVector3Array()
 	# Projectile (grenade, roquette) : effet à l'arrivée, pas à l'instant du tir.
 	var delay := WeaponDB.projectile_delay(w.id, w.pap, origin, _splash_center(impacts, hits))
@@ -293,8 +299,9 @@ func explosion(pid: int, center: Vector3, radius: float, damage: int, self_damag
 
 
 ## Serveur : inflige des dégâts à un zombie. Point d'entrée unique pour toutes
-## les sources (balles, couteau, pièges...).
-func damage_zombie(zid: int, dmg: int, pid: int, headshot: bool, dir: Vector3, kind: HitKind) -> void:
+## les sources (balles, couteau, pièges...). `fling` non nul : mort projetée
+## à cette vitesse (onde de choc du TONNERRE-7).
+func damage_zombie(zid: int, dmg: int, pid: int, headshot: bool, dir: Vector3, kind: HitKind, fling := Vector3.ZERO) -> void:
 	if not multiplayer.is_server():
 		return
 	var z: Zombie = game.zombies.get_zombie(zid)
@@ -305,7 +312,9 @@ func damage_zombie(zid: int, dmg: int, pid: int, headshot: bool, dir: Vector3, k
 		dmg = maxi(dmg, z.health)
 	z.health -= dmg
 	var killed := z.health <= 0
-	if killed:
+	if killed and fling != Vector3.ZERO:
+		game.zombies.kill_flung(zid, fling)
+	elif killed:
 		game.zombies.kill(zid, headshot, dir, kind == HitKind.SPLASH or kind == HitKind.TRAP)
 	else:
 		NetCodec.append_zombie_hit(_fx_buf, zid, headshot)
@@ -349,6 +358,9 @@ func _cl_shot_fx(pid: int, weapon_id: String, pap: bool, origin: Vector3, impact
 	remote_shot.emit(pid)
 	Audio.play_3d(s.sound, origin, 0.0, 0.05, 8, s.get("sound_pitch", 0.8 if pap else 1.0))
 	fx.muzzle_flash(origin)
+	if s.has("blast_range") and impacts.size() >= 2:
+		ThunderBlast.play_fx(fx, origin, impacts[1], pap, s.blast_range)
+		return
 	if s.has("projectile_speed") and impacts.size() >= 2:
 		ProjectileFx.launch(fx, origin, impacts[0], s.projectile_speed, s.get("tracer", "grenade"), pap)
 		return

@@ -14,7 +14,10 @@ extends RefCounted
 ##   splash_radius / splash_damage / self_damage  explosion au point d'impact
 ##   projectile_speed  projectile visible, explosion à l'arrivée (m/s)
 ##   burn_dps / burn_time  balles incendiaires (dégâts par seconde, durée)
-##   move_mult   vitesse de déplacement          reload_kind mag|shells|break|bolt|cylinder|belt|rocket
+##   move_mult   vitesse de déplacement          reload_kind mag|shells|break|bolt|cylinder|belt|rocket|thunder
+##   blast_range / blast_angle  onde de choc en cône (portée en m, ouverture totale
+##               en degrés) : chaque zombie du cône en vue est projeté et tué (ThunderBlast)
+##   unique      arme merveille : un seul exemplaire à la fois dans la partie (boîte)
 
 ## Valeurs communes par famille d'arme.
 const CLASSES := {
@@ -159,6 +162,15 @@ const WEAPONS := {
 		"damage": 1000, "rpm": 180, "mag": 20, "reserve": 160, "reload": 2.6,
 		"splash_radius": 2.2, "splash_damage": 700, "self_damage": 40, "box": 0.35,
 		"pap": {"damage": 2000, "splash_damage": 1500, "mag": 40, "reserve": 200, "rpm": 220}},
+	# Canon à air comprimé (Thundergun de Kino der Toten) : 2 coups, réserve 12,
+	# onde de choc qui projette et tue tout zombie du cône, à toute manche.
+	# Les dégâts ne servent qu'à l'affichage : le coup tue toujours.
+	"thunder": {"name": "TONNERRE-7", "pap_name": "OURAGAN-77", "class": "wonder",
+		"damage": 100000, "rpm": 80, "mag": 2, "reserve": 12, "reload": 3.8, "reload_kind": "thunder",
+		"blast_range": 20.0, "blast_angle": 60.0, "range": 20.0, "spread_hip": 0.0, "spread_ads": 0.0,
+		"recoil": 9.0, "move_mult": 0.9, "sound": "thunder_fire", "tracer": "thunder",
+		"unique": true, "box": 0.35,
+		"pap": {"mag": 4, "reserve": 24, "sound_pitch": 0.85}},
 }
 
 ## Champs obligatoires de chaque arme (après fusion avec sa famille).
@@ -248,6 +260,11 @@ static func box_pool() -> Dictionary:
 		if w > 0.0:
 			out[id] = w
 	return out
+
+
+## Arme merveille limitée à un exemplaire dans la partie (TONNERRE-7).
+static func is_unique(id: String) -> bool:
+	return bool(WEAPONS.get(id, {}).get("unique", false))
 
 
 ## Délai d'arrivée d'un projectile (0 = arme à balles, effet immédiat).

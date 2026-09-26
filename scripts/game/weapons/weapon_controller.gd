@@ -48,6 +48,8 @@ const RELOAD_SOUNDS := {
 	"bolt": [[0.08, "bolt"], [0.3, "mag_out"], [0.6, "mag_in"], [0.86, "bolt"]],
 	"cylinder": [[0.05, "break_open"], [0.2, "shell"], [0.55, "shell_in"], [0.85, "break_close"]],
 	"rocket": [[0.1, "mag_out"], [0.55, "mag_in"], [0.85, "break_close"]],
+	# TONNERRE-7 : réservoirs vidés, nouveaux réservoirs, tambour qui se recharge en pression.
+	"thunder": [[0.05, "break_open"], [0.25, "mag_out"], [0.5, "mag_in"], [0.62, "thunder_charge"], [0.9, "break_close"]],
 }
 
 
@@ -209,7 +211,9 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 		spread_deg *= 0.75
 	var impacts := PackedVector3Array()
 	var hits: Array = []
-	for i in int(s.pellets):
+	var blast: bool = s.has("blast_range")
+	# Onde de choc (TONNERRE-7) : pas de balle, le serveur calcule le cône.
+	for i in (0 if blast else int(s.pellets)):
 		var dir := _spread_dir(fwd, spread_deg)
 		_trace(origin, dir, int(s.penetration), impacts, hits)
 
@@ -217,6 +221,15 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 	var muzzle := view.muzzle_global()
 	Audio.play_2d(s.sound, -1.0, 0.05, "SFX", s.get("sound_pitch", 0.8 if w.pap else 1.0))
 	view.fire_kick(s.recoil)
+	if blast:
+		ThunderBlast.play_fx(fx, muzzle, fwd, w.pap, s.blast_range)
+		var bkick := deg_to_rad(float(s.recoil))
+		player.pitch += bkick
+		_recoil_debt += bkick * 0.7
+		combat.srv_fire.rpc_id(1, slot, origin, fwd, impacts, hits)
+		fired.emit()
+		ammo_changed.emit()
+		return
 	var tracer_col := Color(1.0, 0.45, 0.1, 1.0) if s.get("tracer", "") == "ray" else Color(1.0, 0.8, 0.5, 0.7)
 	var ray_end: Vector3 = impacts[0] if impacts.size() >= 2 else (hits[0][3] if not hits.is_empty() else origin + fwd * 40.0)
 	if s.has("projectile_speed"):

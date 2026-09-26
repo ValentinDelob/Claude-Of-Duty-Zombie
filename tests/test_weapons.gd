@@ -5,7 +5,7 @@ extends TestCase
 const WALL := {"olympia": 500, "m14": 500, "mp5k": 1000, "mpl": 1000, "pm63": 1000, "mp40": 1000,
 	"ak74u": 1200, "m16": 1200, "stakeout": 1500}
 const BOX := ["cz75", "python", "spectre", "galil", "famas", "commando", "aug", "g11", "fnfal", "hk21",
-	"rpk", "spas12", "hs10", "dragunov", "l96a1", "china_lake", "law", "ray"]
+	"rpk", "spas12", "hs10", "dragunov", "l96a1", "china_lake", "law", "ray", "thunder"]
 
 
 func test_every_weapon_has_required_fields() -> void:
