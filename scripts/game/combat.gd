@@ -58,6 +58,9 @@ var _burn_next := 0.0
 const BURN_TICK := 0.25
 ## Serveur : effets de tir et de touche de l'image, envoyés groupés (_flush_fx).
 var _fx_buf := PackedByteArray()
+## Serveur : contexte du coup en cours pour le démembrement (_apply_hits).
+var _gib_at := Vector3.INF
+var _gib_weapon := ""
 ## Tests automatisés uniquement : les joueurs ne subissent aucun dégât.
 var debug_invulnerable := false
 
@@ -215,7 +218,12 @@ func _apply_hits(pid: int, w: Dictionary, origin: Vector3, dir: Vector3, hits: A
 		per_zombie[zid] = acc
 	for zid in per_zombie:
 		var acc: Array = per_zombie[zid]
+		# Démembrement : point d'impact et arme du coup (ZombieManager.srv_gib).
+		_gib_at = acc[2] if acc[2] is Vector3 else Vector3.INF
+		_gib_weapon = w.id
 		damage_zombie(zid, int(acc[0] * damage_mult(pid)), pid, acc[1], dir, HitKind.BULLET)
+		_gib_at = Vector3.INF
+		_gib_weapon = ""
 		if acc[2] is Vector3:
 			blood.append(acc[2])
 		# Munitions incendiaires : le zombie brûle quelques secondes.
@@ -312,6 +320,9 @@ func damage_zombie(zid: int, dmg: int, pid: int, headshot: bool, dir: Vector3, k
 		dmg = maxi(dmg, z.health)
 	z.health -= dmg
 	var killed := z.health <= 0
+	# Un zombie projeté par le TONNERRE-7 n'est pas démembré.
+	if fling == Vector3.ZERO:
+		game.zombies.srv_gib(z, dmg, killed, headshot, kind, _gib_at, _gib_weapon, dir)
 	if killed and fling != Vector3.ZERO:
 		game.zombies.kill_flung(zid, fling)
 	elif killed:

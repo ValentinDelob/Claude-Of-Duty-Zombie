@@ -33,6 +33,20 @@ static func material() -> ShaderMaterial:
 
 
 static func build(variant: int) -> Skeleton3D:
+	var d := parts_for(variant)
+	return RigBuilder.build(d[0], material(), d[1])
+
+
+## Morceau de corps arraché (démembrement) : mesh non skinné des boîtes des os
+## `limb_bones`, dans le repère de repos du premier os. Mêmes couleurs que le
+## zombie `variant` (déterministe).
+static func limb_mesh(variant: int, limb_bones: Array) -> ArrayMesh:
+	var d := parts_for(variant)
+	return RigBuilder.build_static(d[0], limb_bones, d[1])
+
+
+## [boîtes, positions de repos surchargées] du zombie `variant`.
+static func parts_for(variant: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = variant * 7919 + 17
 	var skin: Color = SKINS[rng.randi() % SKINS.size()]
@@ -85,4 +99,4 @@ static func build(variant: int) -> Skeleton3D:
 		"hips": Vector3(0, 0.95 * tall, 0),
 		"chest": Vector3(0, 0.25 * tall, 0),
 	}
-	return RigBuilder.build(p, material(), overrides)
+	return [p, overrides]

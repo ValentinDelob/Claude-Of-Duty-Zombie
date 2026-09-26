@@ -151,6 +151,25 @@ func kill_flung(zid: int, vel: Vector3) -> void:
 	_cl_die_flung.rpc(zid, vel)
 	zombie_killed.emit(zid)
 	get_tree().create_timer(Zombie.DISSOLVE_DELAY + Zombie.DISSOLVE_TIME + 0.3).timeout.connect(despawn.bind(zid))
+## Serveur : démembrement éventuel d'un coup (ZombieGibs), appelé par
+## Combat.damage_zombie APRÈS le retrait des PV et AVANT la mort : le RPC
+## fiable part avant _cl_die (ordre garanti). `hit_at` : point d'impact
+## (Vector3.INF si inconnu), `weapon_id` : arme du tir ("" sinon).
+func srv_gib(z: Zombie, dmg: int, killed: bool, headshot: bool, kind: int, hit_at: Vector3, weapon_id: String, dir: Vector3) -> void:
+	if not multiplayer.is_server() or z == null or z is Hellhound:
+		return
+	var limb := ZombieGibs.limb_at(z, hit_at) if hit_at != Vector3.INF else ZombieGibs.TORSO
+	var wclass: String = WeaponDB.stats(weapon_id).get("class", "") if weapon_id != "" else ""
+	var bits := ZombieGibs.decide(kind, wclass, dmg, z.health + dmg, killed, headshot, limb, z.gibs, _rng)
+	if bits != 0:
+		_cl_gib.rpc(z.id, bits, dir, killed)
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_gib(zid: int, bits: int, dir: Vector3, lethal: bool) -> void:
+	var z: Zombie = zombies.get(zid)
+	if z:
+		ZombieGibs.apply(z, bits, dir, lethal)
 
 
 func despawn(zid: int) -> void:

@@ -52,6 +52,10 @@ var barricade: Barricade
 var tear_t := 0.0
 var _vault_from := Vector3.ZERO
 var _vault_to := Vector3.ZERO
+## Membres arrachés (masque ZombieGibs) ; temps écoulé depuis la chute du
+## RAMPANT (< 0 : debout). Toutes les machines (ZombieManager._cl_gib).
+var gibs := 0
+var crawl_t := -1.0
 
 var _path := PackedVector3Array()
 var _path_i := 0
@@ -249,7 +253,7 @@ func _chase(delta: float) -> void:
 				dir = wp.normalized()
 		if _repath_t <= 0.0:
 			_repath_t = randf_range(0.35, 0.7)
-		desired = (dir + _separation() * 0.9).normalized() * SPEEDS[speed_class] * speed_mult
+		desired = (dir + _separation() * 0.9).normalized() * move_speed() * speed_mult
 		_check_stuck(delta)
 	var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(desired, 12.0 * delta)
 	velocity.x = horiz.x
@@ -284,7 +288,7 @@ func _chase_lure(pos: Vector3, delta: float) -> void:
 				dir = wp.normalized()
 	if _repath_t <= 0.0:
 		_repath_t = randf_range(0.35, 0.7)
-	var desired: Vector3 = (dir + _separation() * 0.9).limit_length(1.0) * SPEEDS[speed_class] * speed_mult
+	var desired: Vector3 = (dir + _separation() * 0.9).limit_length(1.0) * move_speed() * speed_mult
 	var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(desired, 12.0 * delta)
 	velocity.x = horiz.x
 	velocity.z = horiz.z
@@ -292,6 +296,17 @@ func _chase_lure(pos: Vector3, delta: float) -> void:
 	if dist > 0.05:
 		yaw = lerp_angle(yaw, atan2(to.x, to.z), 1.0 - exp(-delta * 8.0))
 	rotation.y = yaw
+
+
+## Vitesse de poursuite (m/s) : classe de vitesse, ou reptation d'un RAMPANT.
+func move_speed() -> float:
+	if crawl_t >= 0.0:
+		return ZombieGibs.crawl_speed(crawl_t)
+	return SPEEDS[speed_class]
+
+
+func is_crawler() -> bool:
+	return crawl_t >= 0.0
 
 
 func _flat_dist(p: Vector3) -> float:
@@ -499,6 +514,8 @@ func _process(delta: float) -> void:
 		_interpolate()
 		_state_time += delta
 	_groan(delta)
+	if crawl_t >= 0.0:
+		crawl_t += delta
 	# Pose recalculée à chaque image de près ; hors champ ou au loin, à cadence
 	# réduite avec le temps cumulé (même animation, moins d'écritures d'os).
 	_pose_accum += delta
@@ -550,6 +567,7 @@ func die(dir: Vector3, headshot: bool) -> void:
 		var neck := skel.global_transform * skel.get_bone_global_pose(bones.neck).origin
 		var fx: Fx = Game.instance.fx_root
 		fx.blood_hit(neck, Vector3.UP, 3.0)
+		ZombieGibs.head_pop(self, neck, dir)
 		Audio.play_3d("headshot", neck, 0.0, 0.08)
 	else:
 		Audio.play_3d("zombie_death_%d" % (1 + randi() % 3), global_position + Vector3.UP * 1.4, -2.0, 0.1, 3)
@@ -570,6 +588,9 @@ func _q(x: float, y := 0.0, z := 0.0) -> Quaternion:
 
 func _update_pose(delta: float) -> void:
 	if skel == null:
+		return
+	if crawl_t >= 0.0:
+		ZombieGibs.crawl_pose(self, delta)
 		return
 	var spd := anim_speed
 	var running := speed_class >= 2
@@ -671,8 +692,9 @@ func _process_death(delta: float) -> void:
 	# (les rotations ont convergé) : plus aucune écriture d'os.
 	if before <= DEATH_SETTLE_TIME:
 		var k := ease(clampf(_death_t / 0.65, 0.0, 1.0), 0.4)
-		skel.rotation.x = _death_dir * k * PI * 0.47
-		skel.position.y = -k * 0.08
+		if crawl_t < 0.0:  # un rampant est déjà au sol
+			skel.rotation.x = _death_dir * k * PI * 0.47
+			skel.position.y = -k * 0.08
 		for b in DEATH_ARMS:
 			var q := skel.get_bone_pose_rotation(bones[b])
 			skel.set_bone_pose_rotation(bones[b], q.slerp(_q(-0.4 * _death_dir), minf(delta * 5.0, 1.0)))

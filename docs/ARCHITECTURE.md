@@ -193,3 +193,16 @@ précédent.
   rebonds, pose allongée). Aucun dégât aux joueurs.
 - Effet visuel (toutes les machines) : cône de distorsion d'air (texture
   d'écran), anneaux de choc, poussière, lumière ; son `thunder_fire`.
+## Démembrement et rampants (`ZombieGibs`, `GibPool`)
+
+- `Combat.damage_zombie` appelle `ZombieManager.srv_gib` après le retrait des PV
+  et avant la mort : le serveur choisit les membres arrachés (`ZombieGibs.decide`,
+  règles de `zombie_should_gib` de BO1 : coup >= 10 % des PV restants, balles
+  hors pistolets ou explosions ; membre touché par `limb_at` sur le squelette
+  du serveur) et les diffuse par `_cl_gib` (fiable, avant `_cl_die`).
+- Masque `Zombie.gibs` (bras gauche / droit, jambes). Un zombie qui survit à la
+  perte de ses jambes devient RAMPANT (`Zombie.crawl_t >= 0`) : 0,75 m/s après
+  sa chute, pose couchée (`ZombieGibs.crawl_pose`), capsule et hitboxes
+  couchées sur toutes les machines. La tête éclate sur un tir à la tête mortel.
+- Morceaux au sol : `Fx.gibs` (`GibPool`), 24 nœuds recyclés, meshes non skinnés
+  (`ZombieModel.limb_mesh`) construits 3 par image au plus, 6 s au sol.

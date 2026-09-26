@@ -64,6 +64,28 @@ static func build(parts: Array, material: Material, bone_overrides := {}) -> Ske
 	return skel
 
 
+## Mesh NON skinné des boîtes liées aux os `only` (morceau de corps arraché),
+## exprimé dans le repère de repos du premier os de `only`.
+static func build_static(parts: Array, only: Array, bone_overrides := {}) -> ArrayMesh:
+	var global_rest := {}
+	for b in BONES:
+		var rest_pos: Vector3 = bone_overrides.get(b[0], b[2])
+		var parent_global: Transform3D = global_rest.get(b[1], Transform3D.IDENTITY)
+		global_rest[b[0]] = parent_global * Transform3D(Basis.IDENTITY, rest_pos)
+	var root: Transform3D = global_rest.get(only[0], Transform3D.IDENTITY)
+	var inv := root.affine_inverse()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for p in parts:
+		var bone: String = p[0]
+		if not bone in only:
+			continue
+		var rot: Vector3 = p[5] if p.size() > 5 else Vector3.ZERO
+		_box(st, inv * global_rest[bone], p[1], p[2], rot, p[3], p[4], -1)
+	return st.commit()
+
+
+## `bone` < 0 : pas de poids d'os (mesh statique).
 static func _box(st: SurfaceTool, bone_xf: Transform3D, size: Vector3, center: Vector3, rot_deg: Vector3, color: Color, emissive: float, bone: int) -> void:
 	var h := size * 0.5
 	var local := Transform3D(Basis.from_euler(rot_deg * (PI / 180.0)), center)
@@ -92,8 +114,9 @@ static func _box(st: SurfaceTool, bone_xf: Transform3D, size: Vector3, center: V
 		var quad := [c - du - dv, c + du - dv, c + du + dv, c - du + dv]
 		var world_n := (xf.basis * n).normalized()
 		for i in [0, 2, 1, 0, 3, 2]:
-			st.set_bones(bones)
-			st.set_weights(weights)
+			if bone >= 0:
+				st.set_bones(bones)
+				st.set_weights(weights)
 			st.set_color(col)
 			st.set_normal(world_n)
 			st.set_uv(Vector2(quad[i].x + quad[i].z, quad[i].y) * 2.0)

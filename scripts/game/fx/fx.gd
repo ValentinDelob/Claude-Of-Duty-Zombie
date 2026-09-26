@@ -11,6 +11,8 @@ const MAX_TRACERS := 24
 var sparks: ParticlePool
 var dust: ParticlePool
 var blood: ParticlePool
+## Morceaux de corps arrachés (démembrement).
+var gibs: GibPool
 var _holes: Array[Decal] = []
 var _hole_i := 0
 ## Décalques réellement utilisés (réduit en qualité LOW, voir apply_quality).
@@ -41,6 +43,9 @@ func _ready() -> void:
 	blood.gravity = 9.0
 	blood.drag = 1.0
 	add_child(blood)
+	gibs = GibPool.new()
+	gibs.name = "Gibs"
+	add_child(gibs)
 
 	for i in MAX_HOLES:
 		var d := Decal.new()
