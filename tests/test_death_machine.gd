@@ -6,7 +6,9 @@ extends TestCase
 func test_in_bag() -> void:
 	assert_true(PowerupRules.DEATH_MACHINE in PowerupRules.ALL, "dans le sac de bonus")
 	assert_eq(PowerupRules.display_name(PowerupRules.DEATH_MACHINE), "FAUCHEUSE !")
-	assert_true(PowerupModels.build(PowerupRules.DEATH_MACHINE).get_child_count() > 8, "modèle au sol")
+	var model := PowerupModels.build(PowerupRules.DEATH_MACHINE)
+	assert_true(model.get_child_count() > 8, "modèle au sol")
+	model.free()
 
 
 func test_weapon_stats() -> void:
