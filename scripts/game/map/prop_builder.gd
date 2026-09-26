@@ -305,7 +305,7 @@ func _lamps() -> void:
 		shade.rings = 1
 		_add("steel#ns", shade, Transform3D(Basis.IDENTITY, pos + Vector3(0, -0.3, 0)))
 		_cyl("bulb#ns", 0.06, 0.12, Transform3D(Basis.IDENTITY, pos + Vector3(0, -0.4, 0)), false, 8)
-		_map_light(c, pos + Vector3(0, -0.5, 0), 1.7, 8.5)
+		_map_light(c, pos + Vector3(0, -0.5, 0), 2.4, 11.0)
 
 
 var _lamp_i := 0
@@ -573,7 +573,7 @@ func _sconce(c: Vector2i) -> void:
 	tulip.radial_segments = 8
 	tulip.rings = 1
 	_add("bulb#ns", tulip, Transform3D(Basis.IDENTITY, pos - n * 0.18 + Vector3(0, 0.08, 0)))
-	_map_light(c, pos - n * 0.4 + Vector3(0, 0.1, 0), 1.3, 6.5, 0.35)
+	_map_light(c, pos - n * 0.4 + Vector3(0, 0.1, 0), 1.8, 8.5, 0.35)
 
 
 ## Panneau SORTIE rouge au-dessus d'une issue (éclairage de secours : ne

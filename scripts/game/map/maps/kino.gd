@@ -73,9 +73,9 @@ func _init() -> void:
 	pap_revealed_by_teleporter = true
 	look = {
 		"ambient_color": Color(0.42, 0.3, 0.24),
-		"ambient_energy": 0.27,
-		"fog_color": Color(0.07, 0.045, 0.035),
-		"fog_density": 0.04,
+		"ambient_energy": 0.52,
+		"fog_color": Color(0.11, 0.085, 0.07),
+		"fog_density": 0.017,
 		"saturation": 0.85,
 	}
 	rows = PackedStringArray([

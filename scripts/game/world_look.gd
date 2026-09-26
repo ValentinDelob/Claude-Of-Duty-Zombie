@@ -48,9 +48,9 @@ const SURFACES := {
 }
 
 ## Environnement normal (voir aussi apply_dog_round_look).
-const BASE_FOG_COLOR := Color(0.04, 0.04, 0.05)
-const BASE_FOG_DENSITY := 0.045
-const BASE_AMBIENT_ENERGY := 0.22
+const BASE_FOG_COLOR := Color(0.085, 0.09, 0.105)
+const BASE_FOG_DENSITY := 0.016
+const BASE_AMBIENT_ENERGY := 0.5
 const BASE_SATURATION := 0.78
 
 static var _cache: Dictionary = {}
@@ -88,10 +88,10 @@ static func setup_environment(parent: Node3D, look := {}) -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.0, 0.0, 0.0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.3, 0.33, 0.4)
+	env.ambient_light_color = Color(0.36, 0.38, 0.44)
 	env.ambient_light_energy = BASE_AMBIENT_ENERGY
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.05
+	env.tonemap_exposure = 1.3
 	env.glow_enabled = true
 	env.glow_intensity = 0.7
 	env.glow_bloom = 0.0
@@ -126,8 +126,8 @@ static func setup_environment(parent: Node3D, look := {}) -> void:
 ## Ambiance d'une manche de chiens (k = 0 : normale, 1 : pleine) : brouillard
 ## plus épais et plus sombre, lumière ambiante baissée, couleurs délavées.
 const DOG_FOG_COLOR := Color(0.07, 0.035, 0.03)
-const DOG_FOG_DENSITY := 0.085
-const DOG_AMBIENT_ENERGY := 0.15
+const DOG_FOG_DENSITY := 0.05
+const DOG_AMBIENT_ENERGY := 0.3
 const DOG_SATURATION := 0.62
 
 
