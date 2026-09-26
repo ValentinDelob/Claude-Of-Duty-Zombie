@@ -8,7 +8,19 @@ d'origine (sections 45 à 69).
 Tu reprends le développement de « Call of Claude Zombie », un FPS coop zombies
 low-poly horrifique en Godot 4.7.2 (GDScript, Forward+), dépôt GitHub
 git@github.com:ValentinDelob/Claude-Of-Duty-Zombie.git (branche main). Tout le
-texte du jeu, les commentaires et les messages de commit sont en FRANÇAIS. Le
+texte du jeu, les commentaires et les messages de commit sont en FRANÇAIS.
+
+OBJECTIF DE L'UTILISATEUR : faire un CLONE de Call of Duty: Black Ops 1 —
+mode Zombies. Chaque décision (gameplay, rythme des manches, économie de
+points, prix, armes, atouts, boîte mystère, Pack-a-Punch, téléporteur, pièges,
+comportement des zombies, HUD, sons, menus, ambiance) doit viser à reproduire
+au plus près l'expérience et les sensations de BO1 Zombies (Kino der Toten,
+Five, Ascension...). En cas de doute, fais comme BO1. Seule réserve, issue du
+cahier des charges (section 45) : ne pas copier directement le logo Call of
+Duty ni les assets graphiques de Black Ops (identité visuelle originale, noms
+d'atouts/armes originaux déjà en place).
+
+Le
 cahier des charges d'origine (sections 45 à 69 : menu Black Ops, solo,
 multijoueur host/join IP, architecture serveur autoritaire, downed, GameState,
 lobby, règles Git strictes, perf GTX 1050) est collé à la suite de ce message :
