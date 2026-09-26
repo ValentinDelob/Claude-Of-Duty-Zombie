@@ -55,6 +55,11 @@ func run() -> void:
 	await H.clear_zombies(self)
 	for id in game.doors:
 		game.doors[id].srv_open()
+	# Fenêtres déjà arrachées : on mesure la horde au contact, pas l'arrachage
+	# des planches (~12 s par fenêtre au rythme de BO1).
+	if game.barricades:
+		for b in game.barricades.windows:
+			b.srv_set_mask(0)
 	_probe_first = _make_probe(true)
 	_probe_last = _make_probe(false)
 	p.teleport_to(_orbit_pos())
