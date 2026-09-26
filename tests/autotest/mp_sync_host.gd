@@ -30,7 +30,7 @@ func run() -> void:
 	p.input.crouch = false
 	# Nouvelle arme (serveur) : la carabine.
 	var pd := game.session.local_data()
-	WeaponDB.give(pd, "carbine")
+	WeaponDB.give(pd, "m14")
 	game.session.sync_inventory(1)
 	await seconds(3.0)
 	# Le client s'est déplacé de son côté.

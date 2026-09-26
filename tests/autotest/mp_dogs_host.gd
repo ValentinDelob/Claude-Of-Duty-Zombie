@@ -28,7 +28,7 @@ func run() -> void:
 	if not ok:
 		return
 	game.local_player.teleport_to(MapData.cell_to_world(Vector2i(10, 9), 0.05))
-	cpd.weapons = [WeaponDB.new_instance("assault")]
+	cpd.weapons = [WeaponDB.new_instance("commando")]
 	cpd.slot = 0
 	game.session.sync_inventory(client_id)
 	await H.clear_zombies(self)

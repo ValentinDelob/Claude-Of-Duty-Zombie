@@ -31,7 +31,7 @@ func run() -> void:
 	at.check(host.global_position.x > 7.0, "déplacement de l'hôte reçu (%s)" % host.global_position)
 	at.check(shots[0] >= 4, "tirs de l'hôte reçus : %d/5" % shots[0])
 	at.check(saw_crouch[0], "accroupi de l'hôte visible")
-	at.check(host.visual.weapon_key == "carbine_false", "arme de l'hôte mise à jour : %s" % host.visual.weapon_key)
+	at.check(host.visual.weapon_key == "m14_false", "arme de l'hôte mise à jour : %s" % host.visual.weapon_key)
 	# Le client part vers (20, 12).
 	p.teleport_to(MapData.cell_to_world(Vector2i(20, 12), 0.05))
 	await seconds(6.0)

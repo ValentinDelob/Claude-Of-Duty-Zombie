@@ -30,6 +30,18 @@ var _melee_ready := 0.0
 var _recoil_debt := 0.0
 var _trigger_released := true
 var _drink_end := -1.0
+## Coups restant à tirer dans la rafale en cours (M16, G11...).
+var _burst_left := 0
+
+## Sons de rechargement par mécanisme : [fraction de la durée, son].
+const RELOAD_SOUNDS := {
+	"mag": [[0.0, "mag_out"], [0.55, "mag_in"], [0.85, "slide"]],
+	"belt": [[0.0, "mag_out"], [0.3, "break_open"], [0.6, "mag_in"], [0.85, "bolt"]],
+	"break": [[0.05, "break_open"], [0.4, "shell_in"], [0.55, "shell_in"], [0.85, "break_close"]],
+	"bolt": [[0.08, "bolt"], [0.3, "mag_out"], [0.6, "mag_in"], [0.86, "bolt"]],
+	"cylinder": [[0.05, "break_open"], [0.2, "shell"], [0.55, "shell_in"], [0.85, "break_close"]],
+	"rocket": [[0.1, "mag_out"], [0.55, "mag_in"], [0.85, "break_close"]],
+}
 
 
 func setup(p: Player, game: Game) -> void:
@@ -68,6 +80,7 @@ func _on_inventory_changed(pid: int) -> void:
 			view.start_switch(SWITCH_TIME, func(): view.set_weapon(w.id, w.pap))
 			Audio.play_2d("weapon_switch", -6.0)
 		_reload_end = -1.0
+		_burst_left = 0
 		view.cancel_reload()
 	ammo_changed.emit()
 
@@ -117,7 +130,13 @@ func tick(delta: float) -> void:
 	if not inp.fire:
 		_trigger_released = true
 
-	if not dead:
+	if not dead and _burst_left > 0:
+		# Rafale en cours : les coups suivants partent seuls, même détente relâchée.
+		if busy or w.mag <= 0:
+			_burst_left = 0
+		elif t >= _next_fire:
+			_fire(w, s)
+	elif not dead:
 		if inp.switch_weapon and weapons.size() > 1 and not busy:
 			combat.srv_switch.rpc_id(1, (slot + 1) % weapons.size())
 		elif inp.reload and not busy:
@@ -133,6 +152,7 @@ func tick(delta: float) -> void:
 					Audio.play_2d("dry_fire", -4.0)
 					_trigger_released = false
 					_try_reload(w, s)
+	if not dead:
 		# Rechargement automatique quand le chargeur est vide.
 		if w.mag == 0 and w.reserve > 0 and _reload_end < 0.0 and t >= _next_fire and not busy:
 			_try_reload(w, s)
@@ -147,9 +167,20 @@ func tick(delta: float) -> void:
 
 func _fire(w: Dictionary, s: Dictionary) -> void:
 	var t := now()
-	_next_fire = t + WeaponDB.fire_interval(w.id, w.pap) / combat.game_rate_mult(player.peer_id)
+	var interval := WeaponDB.fire_interval(w.id, w.pap) / combat.game_rate_mult(player.peer_id)
+	_next_fire = t + interval
 	_trigger_released = false
 	w.mag -= 1
+	var burst: int = s.get("burst", 0)
+	if burst > 1:
+		_burst_left = burst - 1 if _burst_left <= 0 else _burst_left - 1
+		if _burst_left <= 0 or w.mag <= 0:
+			_burst_left = 0
+			_next_fire += float(s.get("burst_delay", 0.2))
+	# Fusil à pompe / à verrou : bruit du mécanisme entre deux coups.
+	var cycle: String = s.get("cycle", "")
+	if cycle != "" and w.mag > 0:
+		get_tree().create_timer(interval * 0.4).timeout.connect(func(): Audio.play_2d(cycle, -4.0))
 
 	var origin := player.camera.global_position
 	var fwd := player.aim_direction()
@@ -171,12 +202,16 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 	view.fire_kick(s.recoil)
 	var tracer_col := Color(1.0, 0.45, 0.1, 1.0) if s.get("tracer", "") == "ray" else Color(1.0, 0.8, 0.5, 0.7)
 	var ray_end: Vector3 = impacts[0] if impacts.size() >= 2 else (hits[0][3] if not hits.is_empty() else origin + fwd * 40.0)
-	if s.get("tracer", "") == "ray":
-		fx.tracer(muzzle, ray_end, tracer_col, 0.12)
-	for i in range(0, impacts.size() - 1, 2):
-		if s.get("tracer", "") != "ray" and (i < 6 or randf() < 0.3):
-			fx.tracer(muzzle, impacts[i], tracer_col)
-		fx.impact(impacts[i], impacts[i + 1], i == 0)
+	if s.has("projectile_speed"):
+		# Grenade / roquette : projectile visible, l'explosion vient du serveur.
+		ProjectileFx.launch(fx, muzzle, ray_end, s.projectile_speed, s.get("tracer", "grenade"), w.pap)
+	else:
+		if s.get("tracer", "") == "ray":
+			fx.tracer(muzzle, ray_end, tracer_col, 0.12)
+		for i in range(0, impacts.size() - 1, 2):
+			if s.get("tracer", "") != "ray" and (i < 6 or randf() < 0.3):
+				fx.tracer(muzzle, impacts[i], tracer_col)
+			fx.impact(impacts[i], impacts[i + 1], i == 0)
 	var kick := deg_to_rad(float(s.recoil)) * (0.55 if view.ads > 0.5 else 0.8)
 	player.pitch += kick
 	player.yaw += deg_to_rad(randf_range(-0.3, 0.3) * float(s.recoil))
@@ -236,14 +271,26 @@ func _try_reload(w: Dictionary, s: Dictionary) -> void:
 	var dur := combat.reload_time(player.peer_id, w)
 	_reload_end = now() + dur
 	view.start_reload(dur)
-	Audio.play_2d("mag_out", -3.0)
-	get_tree().create_timer(dur * 0.55).timeout.connect(func():
-		if _reload_end > 0.0:
-			Audio.play_2d("mag_in", -3.0))
-	get_tree().create_timer(dur * 0.85).timeout.connect(func():
-		if _reload_end > 0.0:
-			Audio.play_2d("slide", -5.0))
+	_burst_left = 0
+	for step in reload_sounds(s, w):
+		get_tree().create_timer(maxf(dur * float(step[0]), 0.001)).timeout.connect(func():
+			if _reload_end > 0.0:
+				Audio.play_2d(step[1], -3.0))
 	combat.srv_reload.rpc_id(1, slot)
+
+
+## Suite de sons [fraction, son] d'un rechargement (cartouches une à une pour
+## les fusils à pompe et lance-grenades, comme dans BO1).
+static func reload_sounds(s: Dictionary, w: Dictionary) -> Array:
+	var kind: String = s.get("reload_kind", "mag")
+	if kind != "shells":
+		return RELOAD_SOUNDS.get(kind, RELOAD_SOUNDS.mag)
+	var n := clampi(int(s.mag) - int(w.get("mag", 0)), 1, 6)
+	var out := []
+	for i in n:
+		out.append([0.12 + 0.65 * float(i) / n, "shell_in"])
+	out.append([0.88, "pump"])
+	return out
 
 
 func _melee() -> void:

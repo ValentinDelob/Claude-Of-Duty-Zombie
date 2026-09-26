@@ -14,7 +14,7 @@ func run() -> void:
 	game.rounds.paused = true
 	var pd := game.session.local_data()
 	# Équipement : carabine + LAZARUS.
-	WeaponDB.give(pd, "carbine")
+	WeaponDB.give(pd, "m14")
 	game.session.sync_inventory(1)
 	game.perks.srv_grant(1, "lazarus")
 	await seconds(2.6)
@@ -23,7 +23,7 @@ func run() -> void:
 	await seconds(0.3)
 	at.check(pd.life == PlayerData.Life.DOWNED, "à terre à 0 PV")
 	at.check(GameState.state == GameState.State.PLAYER_DOWN, "état PLAYER_DOWN")
-	at.check(pd.weapons.size() == 1 and pd.current_weapon().id == "pistol", "dernier recours : pistolet seul")
+	at.check(pd.weapons.size() == 1 and pd.current_weapon().id == "m1911", "dernier recours : pistolet seul")
 	at.check(not pd.has_perk("lazarus"), "atouts perdus")
 	at.check(game.hud._downed._title.text == "À TERRE", "HUD : À TERRE")
 	await seconds(0.3)
@@ -43,7 +43,7 @@ func run() -> void:
 	# Auto-réanimation LAZARUS (10 s, comme BO1).
 	await until(func(): return pd.life == PlayerData.Life.ALIVE, DownedSystem.SOLO_SELF_REVIVE + 3.0, "réanimation")
 	at.check(pd.life == PlayerData.Life.ALIVE and pd.health == 100, "réanimé par LAZARUS (%d PV)" % pd.health)
-	at.check(pd.has_weapon("carbine") >= 0 and pd.weapons.size() == 2, "armes rendues")
+	at.check(pd.has_weapon("m14") >= 0 and pd.weapons.size() == 2, "armes rendues")
 	at.check(GameState.state == GameState.State.PLAYING, "retour à PLAYING")
 	# Sans LAZARUS : fin de partie.
 	game.combat.damage_player(1, 200, p.global_position)

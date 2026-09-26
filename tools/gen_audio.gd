@@ -67,6 +67,83 @@ func gen_sniper_fire() -> void:
 	_save("sniper_fire", _gunshot(7000.0, 0.14, 60.0, 0.16, 1.0, 0.95))
 
 
+func gen_revolver_fire() -> void:
+	# .357 : détonation grave et longue, claquement sec.
+	_save("revolver_fire", _gunshot(4200.0, 0.13, 90.0, 0.13, 1.0, 0.85))
+
+
+func gen_burst_fire() -> void:
+	# Fusil de rafale (M16, G11) : claquant, court, un peu métallique.
+	var b := _gunshot(6500.0, 0.06, 110.0, 0.06, 1.0, 0.55)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.05), 3800.0, 4.0), 0.0005, 0.01), 0.0, 0.25)
+	_save("burst_fire", s.finish(b, 0.95))
+
+
+func gen_launcher_fire() -> void:
+	# « Bloop » du lance-grenades : thump grave et creux, peu de claquement.
+	var b := s.env_exp(s.sweep(0.25, 180.0, 60.0), 0.001, 0.08)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.2), 900.0), 0.001, 0.05), 0.0, 0.8)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.05), 2200.0, 2.0), 0.0005, 0.008), 0.0, 0.3)
+	b = s.drive(b, 2.0)
+	_save("launcher_fire", s.finish(s.reverb(b, 0.6, 0.2, 0.6), 0.9))
+
+
+func gen_rocket_fire() -> void:
+	# Mise à feu + souffle de la roquette qui s'éloigne.
+	var b := _gunshot(3000.0, 0.12, 70.0, 0.12, 0.8, 0.7)
+	var whoosh := s.env_adsr(s.lowpass_sweep(s.noise(1.0), 2500.0, 500.0), 0.02, 0.2, 0.6, 0.6)
+	s.mix(b, whoosh, 0.02, 0.7)
+	_save("rocket_fire", s.finish(s.reverb(b, 0.8, 0.3, 0.8), 0.9))
+
+
+func gen_explosion() -> void:
+	# Explosion : craquement, souffle grave et grondement qui s'éteint.
+	var b := s.env_exp(s.highpass(s.noise(0.03), 1500.0), 0.0005, 0.01)
+	s.mix(b, s.env_exp(s.lowpass_sweep(s.noise(1.4), 3000.0, 150.0), 0.002, 0.35), 0.0, 1.0)
+	s.mix(b, s.env_exp(s.sweep(1.0, 90.0, 30.0), 0.002, 0.4), 0.0, 1.4)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(1.6), 250.0), 0.05, 0.6), 0.05, 0.8)
+	b = s.drive(b, 3.0)
+	_save("explosion", s.finish(s.reverb(b, 0.9, 0.3, 1.2), 0.98))
+
+
+func gen_shell_in() -> void:
+	# Cartouche glissée dans le magasin tubulaire.
+	var b := s.env_exp(s.bandpass(s.noise(0.06), 2000.0, 1.5), 0.004, 0.02)
+	s.mix(b, _clank(1500.0, 0.03, 0.4), 0.03, 0.7)
+	_save("shell_in", s.finish(s.reverb(b, 0.3, 0.1, 0.2), 0.6))
+
+
+func gen_pump() -> void:
+	# Pompe : arrière (raclement + choc) puis avant (choc plus sec).
+	var b := s.env_exp(s.bandpass(s.noise(0.1), 1800.0, 1.2), 0.005, 0.04)
+	s.mix(b, _clank(700.0, 0.05), 0.06, 0.9)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.08), 2200.0, 1.2), 0.005, 0.03), 0.16, 0.8)
+	s.mix(b, _clank(950.0, 0.05), 0.2, 1.0)
+	_save("pump", s.finish(s.reverb(b, 0.3, 0.1, 0.3), 0.8))
+
+
+func gen_bolt() -> void:
+	# Culasse à verrou : levée, recul, avant, verrouillage.
+	var b := _clank(1200.0, 0.03, 0.5)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.1), 2600.0, 1.5), 0.01, 0.04), 0.05, 0.6)
+	s.mix(b, _clank(900.0, 0.04), 0.14, 0.9)
+	s.mix(b, _clank(1400.0, 0.03), 0.24, 0.8)
+	_save("bolt", s.finish(s.reverb(b, 0.3, 0.1, 0.3), 0.75))
+
+
+func gen_break_open() -> void:
+	# Bascule des canons / du barillet : déclic puis charnière.
+	var b := _clank(1600.0, 0.02, 0.3)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.12), 900.0, 2.0), 0.01, 0.05), 0.03, 0.7)
+	_save("break_open", s.finish(s.reverb(b, 0.3, 0.1, 0.2), 0.65))
+
+
+func gen_break_close() -> void:
+	var b := s.env_exp(s.bandpass(s.noise(0.05), 1200.0, 1.5), 0.003, 0.02)
+	s.mix(b, _clank(800.0, 0.06), 0.04, 1.0)
+	_save("break_close", s.finish(s.reverb(b, 0.3, 0.1, 0.2), 0.8))
+
+
 func gen_dry_fire() -> void:
 	var b := s.env_exp(s.bandpass(s.noise(0.05), 3500.0, 3.0), 0.0005, 0.006)
 	s.mix(b, s.env_exp(s.tone(0.04, 2200.0), 0.0005, 0.008), 0.0, 0.3)

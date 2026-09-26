@@ -133,7 +133,7 @@ func update(delta: float, p: Player) -> void:
 
 	var sight := WeaponModels.anchor(model_id, "sight")
 	var ads_pos := Vector3(-sight.x, -sight.y, -ADS_DEPTH - sight.z)
-	var pos := HIP_POS.lerp(ads_pos, ads)
+	var pos := (HIP_POS + WeaponModels.anchor(model_id, "hold")).lerp(ads_pos, ads)
 	pos = pos.lerp(SPRINT_POS, _sprint)
 	pos += Vector3(sin(_bob) * bob_amp, -absf(cos(_bob)) * bob_amp, 0.0)
 	pos += Vector3(_sway.x, _sway.y, 0.0) * (1.0 - ads * 0.7)

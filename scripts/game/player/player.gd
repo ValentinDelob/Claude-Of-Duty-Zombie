@@ -249,7 +249,11 @@ func current_max_speed() -> float:
 		s = SPRINT_SPEED
 	elif aiming:
 		s = ADS_SPEED
-	return s * speed_multiplier
+	# Poids de l'arme en main (BO1 : pistolets/PM rapides, mitrailleuses lentes).
+	var weapon_mult := 1.0
+	if weapons and not downed:
+		weapon_mult = float(weapons.current_stats().get("move_mult", 1.0))
+	return s * speed_multiplier * weapon_mult
 
 
 func _move(delta: float) -> void:

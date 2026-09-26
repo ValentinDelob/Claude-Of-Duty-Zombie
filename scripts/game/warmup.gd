@@ -45,23 +45,27 @@ func _run(game: Game) -> void:
 	bolt.position = Vector3(0.3, -1.2, -1.5)
 	stage.add_child(bolt)
 	# Armes (vue FPS et monde, normales et améliorées).
+	# Un petit cube par matériau et variante suffit (même shader pour toutes
+	# les armes) : inutile de construire les ~30 modèles de l'arsenal.
 	var x := -1.0
-	for id in WeaponDB.WEAPONS:
-		var model: String = WeaponDB.WEAPONS[id].model
-		for pap in [false, true]:
-			var m := WeaponModels.build(model, true, pap)
-			m.position = Vector3(x, 0.2 if pap else -0.2, 0)
-			stage.add_child(m)
-		var mw := WeaponModels.build(model, false)
-		mw.position = Vector3(x, 0.5, 0)
-		stage.add_child(mw)
-		x += 0.3
+	var cube := BoxMesh.new()
+	cube.size = Vector3.ONE * 0.05
+	for key in WeaponModels.MATERIALS:
+		var k := 0
+		for variant in [[true, false], [true, true], [false, false], [false, true]]:
+			var mi := MeshInstance3D.new()
+			mi.mesh = cube
+			mi.material_override = WeaponModels.material(key, variant[0], variant[1])
+			mi.position = Vector3(x, -0.2 + k * 0.12, 0)
+			stage.add_child(mi)
+			k += 1
+		x += 0.16
 	# Matériaux créés à l'apparition des joueurs.
 	var body := PlayerModel.new()
 	body.build(Color.RED)
 	body.position = Vector3(1.0, -1.2, -0.5)
 	stage.add_child(body)
-	body.set_weapon("assault", false)
+	body.set_weapon("m16", false)
 	# Bonus (modèles et halo).
 	var px := -0.9
 	for type in PowerupRules.ALL:
@@ -78,6 +82,8 @@ func _run(game: Game) -> void:
 	fx.dirt_burst(p + Vector3.DOWN * 1.2)
 	fx.tracer(p + Vector3.LEFT, p + Vector3.RIGHT)
 	fx.muzzle_flash(p)
+	ProjectileFx.launch(fx, p + Vector3.LEFT, p + Vector3.RIGHT, 8.0, "rocket", false)
+	ProjectileFx.launch(fx, p + Vector3.LEFT, p + Vector3.RIGHT, 8.0, "grenade", true)
 	for i in FRAMES:
 		rotation.y = TAU * float(i) / FRAMES
 		await get_tree().process_frame

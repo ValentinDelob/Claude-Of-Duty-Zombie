@@ -34,7 +34,7 @@ func run() -> void:
 	var game := Game.instance
 	game.combat.debug_invulnerable = true
 	var pd := game.session.local_data()
-	WeaponDB.give(pd, "lmg")
+	WeaponDB.give(pd, "hk21")
 	game.session.sync_inventory(1)
 	p.teleport_to(MapData.cell_to_world(Vector2i(9, 25), 0.05))
 	await seconds(1.0)

@@ -56,7 +56,7 @@ func run() -> void:
 	await at.screenshot("machine")
 
 	# Rapid : rechargement divisé par 2.
-	var w := {"id": "pistol", "pap": false}
+	var w := {"id": "m1911", "pap": false}
 	var before := game.combat.reload_time(1, w)
 	await buy("S")
 	await seconds(2.4)

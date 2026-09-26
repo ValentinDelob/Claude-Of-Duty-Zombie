@@ -25,7 +25,15 @@ func _init() -> void:
 		"5": {"cost": 1000},
 		"6": {"cost": 1250},
 	}
-	wall_buys = {"R": "carbine", "U": "smg", "V": "shotgun"}
+	# Arsenal mural de Kino der Toten (+ MP40 de Five) : contour à la craie.
+	wall_buys = {
+		"A": "olympia", "R": "m14",           # salle de garde (départ)
+		"U": "mp5k",                          # couloir des cellules
+		"V": "stakeout", "+": "mp40",         # dortoir
+		"B": "pm63", "!": "mpl",              # laboratoire
+		"$": "ak74u",                         # générateur
+		"&": "m16",                           # quai
+	}
 	perks = {"Q": "lazarus", "J": "titan", "S": "rapid", "D": "twin", "M": "stride"}
 	box_start = 1
 	zone_materials = {
@@ -38,8 +46,8 @@ func _init() -> void:
 	rows = PackedStringArray([
 		"                                                                ",
 		" #################################################              ",
-		" #ZddddddVddddddZd#ZffffffffffDfffffffffffffffffZ# ###########  ",
-		" #dddddddddddddddd#fOffffffffffffffffffffffffffff# #ppppKpppp#  ",
+		" #ZddddddVddddddZd#ZffffffffffDfffffff&fffffffffZ# ###########  ",
+		" #ddddddddddddddd+#fOffffffffffffffffffffffffffff# #ppppKpppp#  ",
 		" #ddIddddddddIdddd#fffffffffffffffffffffffffTTfff# #ppppppppp#  ",
 		" #ddIdLdddddLIdddd#ffffLfffffffLfffffffLffffTTfff# #ppLpppLpp#  ",
 		" #dddddddddddddddd5ffffffff,fffffffffffffffffffff# #ppppppppp#  ",
@@ -53,12 +61,12 @@ func _init() -> void:
 		" #ddddddZdddddddddWdZ#     ##### ##### #cc#                     ",
 		" ########11########dd#                 #cc#                     ",
 		" ########11###########        ##########cc#############         ",
-		" #aaaaaaaaaaaaaaaa#aa#        #cc#cccccccccccccccccccZ#   ##### ",
+		" #aaaAaaaaaaaaaaaa#aa#        #cc#ccccccccccccBccccccZ#   ##### ",
 		" #aaaaaaaaaaaaaaaaWaZ#    #####ZcWcccccccccccccccccccc#   #eZe# ",
 		" #aaaaa,aaaaaaaCCa#aa#    #bZb#cc#ccccLccccccccccLcccc#   #eee# ",
 		" #QaaLaaaaaaaLaCaa####    #bbb####cccccccccccccccccccc######W###",
-		" #aaaaaaaaaaaaaaaa##########W#####ccccNNNNccccNNNNcccc#eeeSeeee#",
-		" #aOaaaaaaaaaaaaaa#bbbHbEEEb,bbbb#cccccccccccccccccccc#eeeeeeOe#",
+		" #aaaaaaaaaaaaaaaa##########W#####ccccNNNNccccNNNNcccc#e$eSeeee#",
+		" #aOaaaaaaaaaaaaaa#bbbHbEEEb,bbbb#!ccccccccccccccccccc#eeeeeeOe#",
 		" #aaaaaaaaaaaaaaaa2bbLbbEEEbbbbbb3cccccccccccccccccccc#eLeeeeee#",
 		" #aaaaaaPaPaaaaaaa2bbbbbEEEbbLbbb3ccccccccccLccccccccc4ee,eeeee#",
 		" #aaaaaaaaaaaaaaaa#bbbbbEEEbbUbbb#cccccccccccccccccccc4eeeeeeeG#",

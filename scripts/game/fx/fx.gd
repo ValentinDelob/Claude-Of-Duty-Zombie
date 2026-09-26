@@ -277,7 +277,7 @@ func explosion(pos: Vector3, radius: float) -> void:
 	_flash.global_position = pos + Vector3.UP * 0.5
 	_flash.omni_range = radius * 4.0
 	_flash_t = 0.12
-	Audio.play_3d("shotgun_fire", pos, 2.0, 0.2)
+	Audio.play_3d("explosion", pos, 2.0, 0.15)
 
 
 ## Terre projetée quand un zombie sort du sol.

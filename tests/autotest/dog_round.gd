@@ -96,7 +96,7 @@ func run() -> void:
 
 	# ------------------------------------------------ manche de chiens forcée
 	game.combat.debug_invulnerable = false
-	pd.weapons = [WeaponDB.new_instance("assault")]
+	pd.weapons = [WeaponDB.new_instance("commando")]
 	pd.slot = 0
 	game.session.sync_inventory(1)
 	for w in pd.weapons:
@@ -188,7 +188,7 @@ func run() -> void:
 		await at.screenshot("max_ammo")
 		p.teleport_to(drop_pos + Vector3.UP * 0.05)
 		await seconds(0.4)
-		at.check(pd.current_weapon().reserve == WeaponDB.stats("assault").reserve, "munitions max ramassées : réserve pleine")
+		at.check(pd.current_weapon().reserve == WeaponDB.stats("commando").reserve, "munitions max ramassées : réserve pleine")
 	await seconds(DogRules.FOG_CLEAR_DELAY + 4.5)
 	at.check(not dogs.cl_active and not game.hud.round_counter().special, "fin de l'ambiance de manche de chiens")
 	at.check(dogs.fog_amount() < 0.05 and absf(env.fog_density - WorldLook.BASE_FOG_DENSITY) < 0.002, "brouillard normal")

@@ -19,21 +19,21 @@ func run() -> void:
 	p.teleport_to(origin, -PI * 0.5)
 	await seconds(0.3)
 
-	# 1. Tirs au corps : 30 dégâts x 5 = 150.
+	# 1. Tirs au corps (M1911) : 25 dégâts x 6 = 150.
 	var z := await H.dummy_zombie(self, origin + Vector3(6, 0, 0))
-	for i in 4:
+	for i in 5:
 		H.aim_at(p, z.global_position + Vector3.UP * 0.9)
 		await H.shoot(self, p)
-	at.check(z.is_alive() and z.health == 30, "4 balles au corps : 150 -> %d PV (serveur)" % z.health)
+	at.check(z.is_alive() and z.health == 25, "5 balles au corps : 150 -> %d PV (serveur)" % z.health)
 	H.aim_at(p, z.global_position + Vector3.UP * 0.9)
 	await H.shoot(self, p)
-	at.check(not z.is_alive(), "5e balle : zombie mort")
+	at.check(not z.is_alive(), "6e balle : zombie mort")
 	await seconds(0.7)
 	await at.screenshot("body_kill")
 	await seconds(Zombie.DISSOLVE_DELAY + Zombie.DISSOLVE_TIME + 0.2)
 	at.check(not is_instance_valid(z) or game.zombies.get_zombie(z.id) == null, "corps retiré après dissolution")
 
-	# 2. Tirs à la tête : 75 dégâts x 2.
+	# 2. Tirs à la tête : 25 x 3 = 75 dégâts x 2.
 	p.input.reload = true
 	await seconds(1.8)
 	z = await H.dummy_zombie(self, origin + Vector3(5, 0, 0.5))

@@ -49,6 +49,10 @@ var _reload_end: Dictionary = {}    # pid -> [slot, end_time]
 var _last_hurt: Dictionary = {}     # pid -> sec
 var _melee_ready: Dictionary = {}   # pid -> sec
 var _regen_sync := 0.0
+## Serveur : zombies en feu (balles incendiaires) : zid -> [pid, dps, fin].
+var _burns: Dictionary = {}
+var _burn_next := 0.0
+const BURN_TICK := 0.25
 ## Tests automatisés uniquement : les joueurs ne subissent aucun dégât.
 var debug_invulnerable := false
 
@@ -71,6 +75,8 @@ func _process(delta: float) -> void:
 		if t >= r[1]:
 			_reload_end.erase(pid)
 			_finish_reload(pid, r[0])
+	if not _burns.is_empty():
+		_tick_burns(t)
 	_regenerate(delta, t)
 
 
@@ -96,8 +102,20 @@ func srv_fire(slot: int, origin: Vector3, dir: Vector3, impacts: PackedVector3Ar
 	var w: Dictionary = pd.current_weapon()
 	w.mag -= 1
 	shot_validated.emit(pid)
-	var blood_points := _apply_hits(pid, w, origin, dir.normalized(), hits)
-	_apply_splash(pid, w, impacts, hits)
+	var blood_points := PackedVector3Array()
+	# Projectile (grenade, roquette) : effet à l'arrivée, pas à l'instant du tir.
+	var delay := WeaponDB.projectile_delay(w.id, w.pap, origin, _splash_center(impacts, hits))
+	if delay > 0.0:
+		var shot := {"id": w.id, "pap": w.pap}
+		get_tree().create_timer(delay).timeout.connect(func():
+			_apply_hits(pid, shot, origin, dir.normalized(), hits)
+			_apply_splash(pid, shot, impacts, hits))
+	else:
+		blood_points = _apply_hits(pid, w, origin, dir.normalized(), hits)
+		_apply_splash(pid, w, impacts, hits)
+	if delay > 0.0:
+		# Les autres joueurs voient le projectile filer jusqu'au point d'explosion.
+		impacts = PackedVector3Array([_splash_center(impacts, hits), Vector3.UP])
 	_cl_shot_fx.rpc(pid, w.id, w.pap, origin, impacts, blood_points)
 
 
@@ -188,7 +206,24 @@ func _apply_hits(pid: int, w: Dictionary, origin: Vector3, dir: Vector3, hits: A
 		damage_zombie(zid, int(acc[0] * damage_mult(pid)), pid, acc[1], dir, HitKind.BULLET)
 		if acc[2] is Vector3:
 			blood.append(acc[2])
+		# Munitions incendiaires : le zombie brûle quelques secondes.
+		if s.has("burn_dps"):
+			_burns[zid] = [pid, float(s.burn_dps) * damage_mult(pid), now() + float(s.get("burn_time", 2.0))]
 	return blood
+
+
+## Serveur : dégâts de brûlure, appliqués par tranches de BURN_TICK secondes.
+func _tick_burns(t: float) -> void:
+	if t < _burn_next:
+		return
+	_burn_next = t + BURN_TICK
+	for zid in _burns.keys():
+		var b: Array = _burns[zid]
+		var z: Zombie = game.zombies.get_zombie(zid)
+		if z == null or not z.is_alive() or t > b[2]:
+			_burns.erase(zid)
+			continue
+		damage_zombie(zid, int(b[1] * BURN_TICK), b[0], false, Vector3.UP, HitKind.SPECIAL)
 
 
 ## Dégâts de zone (arme spéciale) au premier impact.
@@ -196,11 +231,7 @@ func _apply_splash(pid: int, w: Dictionary, impacts: PackedVector3Array, hits: A
 	var s := WeaponDB.stats(w.id, w.pap)
 	if not s.has("splash_radius"):
 		return
-	var center := Vector3.INF
-	if not hits.is_empty() and hits[0] is Array and hits[0].size() >= 4 and hits[0][3] is Vector3:
-		center = hits[0][3]
-	elif impacts.size() >= 2:
-		center = impacts[0]
+	var center := _splash_center(impacts, hits)
 	if center == Vector3.INF:
 		return
 	var p: Player = game.players.get(pid)
@@ -213,7 +244,21 @@ func _apply_splash(pid: int, w: Dictionary, impacts: PackedVector3Array, hits: A
 		if d <= r:
 			var k := 1.0 - d / r * 0.5
 			damage_zombie(z.id, int(float(s.splash_damage) * k * damage_mult(pid)), pid, false, (z.global_position - center).normalized(), HitKind.SPLASH)
+	# Dégâts à soi réduits (pas de tir ami entre joueurs, comme BO1).
+	if p and s.has("self_damage"):
+		var ds := (p.global_position + Vector3.UP * 0.9).distance_to(center)
+		if ds <= r:
+			damage_player(pid, int(float(s.self_damage) * (1.0 - ds / r * 0.5)), center)
 	_cl_splash_fx.rpc(center, r)
+
+
+## Point d'explosion : premier zombie touché, sinon premier impact sur le décor.
+static func _splash_center(impacts: PackedVector3Array, hits: Array) -> Vector3:
+	if not hits.is_empty() and hits[0] is Array and hits[0].size() >= 4 and hits[0][3] is Vector3:
+		return hits[0][3]
+	if impacts.size() >= 2:
+		return impacts[0]
+	return Vector3.INF
 
 
 ## Serveur : inflige des dégâts à un zombie. Point d'entrée unique pour toutes
@@ -254,6 +299,9 @@ func _cl_shot_fx(pid: int, weapon_id: String, pap: bool, origin: Vector3, impact
 	remote_shot.emit(pid)
 	Audio.play_3d(s.sound, origin, 0.0, 0.05, 8, s.get("sound_pitch", 0.8 if pap else 1.0))
 	fx.muzzle_flash(origin)
+	if s.has("projectile_speed") and impacts.size() >= 2:
+		ProjectileFx.launch(fx, origin, impacts[0], s.projectile_speed, s.get("tracer", "grenade"), pap)
+		return
 	for i in range(0, impacts.size() - 1, 2):
 		fx.tracer(origin, impacts[i])
 		fx.impact(impacts[i], impacts[i + 1], i == 0)

@@ -23,19 +23,24 @@ func _ready() -> void:
 	# Face au joueur : +Z du nœud tourné vers la pièce (opposé au mur).
 	look_at(global_position - _normal, Vector3.UP)
 	rotate_object_local(Vector3.UP, PI)
-	var chalk := WeaponModels.build(WeaponDB.stats(weapon_id).model, false)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.8, 0.82, 0.78, 0.3)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.emission_enabled = true
-	for mi in chalk.get_children():
-		(mi as MeshInstance3D).material_override = mat
-		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Aplati contre le mur, vu de profil, agrandi.
-	chalk.rotation.y = PI * 0.5
-	chalk.scale = Vector3(0.06, 1.6, 1.6)
-	chalk.position = Vector3(0.0, 0.0, 0.02)
+	# Contour à la craie (comme BO1) : la silhouette du modèle de l'arme, aplatie
+	# contre le mur et vue de profil, en blanc cassé lumineux, doublée d'un
+	# halo poudreux un peu plus large.
+	var chalk := Node3D.new()
+	chalk.name = "Chalk"
+	var mid: String = WeaponDB.stats(weapon_id).model
+	for layer in [[_chalk_mat(Color(0.92, 0.9, 0.84, 0.62)), 1.0, 0.0], [_chalk_mat(Color(0.85, 0.85, 0.8, 0.14)), 1.06, -0.004]]:
+		var shape := WeaponModels.build(mid, false)
+		for mi in shape.get_children():
+			(mi as MeshInstance3D).material_override = layer[0]
+			(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Aplati contre le mur, vu de profil, agrandi (et centré sur l'arme).
+		shape.rotation.y = PI * 0.5
+		shape.scale = Vector3(0.02, 1.6, 1.6) * Vector3(1.0, layer[1], layer[1])
+		shape.position = Vector3(0.0, 0.0, 0.02 + layer[2])
+		chalk.add_child(shape)
+	# Centre la silhouette (de la bouche du canon à la crosse) sur l'emplacement.
+	chalk.position.x = -WeaponModels.center_z(mid) * 1.6
 	add_child(chalk)
 	var label := Label3D.new()
 	label.text = "%s\n%d" % [WeaponDB.display_name(weapon_id), cost]
@@ -46,6 +51,21 @@ func _ready() -> void:
 	label.position = Vector3(0, -0.42, 0.03)
 	label.shaded = true
 	add_child(label)
+
+
+static var _chalk_mats: Dictionary = {}
+
+
+static func _chalk_mat(c: Color) -> StandardMaterial3D:
+	if _chalk_mats.has(c):
+		return _chalk_mats[c]
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = c
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	_chalk_mats[c] = mat
+	return mat
 
 
 func interact_point() -> Vector3:

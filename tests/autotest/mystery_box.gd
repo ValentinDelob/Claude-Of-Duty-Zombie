@@ -46,7 +46,7 @@ func run() -> void:
 	await seconds(2.0)
 	await at.screenshot("rolling")
 	await until(func(): return box.state == MysteryBox.State.READY, 4.0, "arme prête")
-	at.check(WeaponDB.exists(box.weapon) and box.weapon != "pistol", "arme tirée : %s" % box.weapon)
+	at.check(WeaponDB.exists(box.weapon) and box.weapon != "m1911" and WeaponDB.box_pool().has(box.weapon), "arme tirée : %s" % box.weapon)
 	await seconds(0.4)
 	await at.screenshot("ready")
 	var got := box.weapon

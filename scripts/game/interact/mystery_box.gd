@@ -16,7 +16,7 @@ const MOVE_TIME := 9.0
 ## Nombre d'utilisations avant que le crâne puisse apparaître.
 const MIN_USES_BEFORE_SKULL := 4
 const SKULL_CHANCE := 0.15
-const RARE := {"ray": 0.06}
+## Liste et poids des armes : WeaponDB.box_pool() (CLAUDE-RAY plus rare).
 
 var state: State = State.IDLE
 var location := 0
@@ -225,23 +225,31 @@ func _roll(pd: PlayerData) -> void:
 		weapon = force_result
 		force_result = ""
 		return
+	weapon = pick_weapon(pd, _rng)
+
+
+## Tirage pondéré dans la liste de la boîte (WeaponDB.box_pool), sans jamais
+## proposer une arme que le joueur possède déjà (comme BO1).
+static func pick_weapon(pd: PlayerData, rng: RandomNumberGenerator) -> String:
 	var pool := []
 	var weights := []
-	for id in WeaponDB.WEAPONS:
-		if id == WeaponDB.STARTING_WEAPON or pd.has_weapon(id) >= 0:
+	var box := WeaponDB.box_pool()
+	for id in box:
+		if pd != null and pd.has_weapon(id) >= 0:
 			continue
 		pool.append(id)
-		weights.append(RARE.get(id, 1.0))
+		weights.append(box[id])
+	if pool.is_empty():
+		return ""
 	var total := 0.0
 	for w in weights:
 		total += w
-	var r := _rng.randf() * total
-	weapon = pool[0]
+	var r := rng.randf() * total
 	for i in pool.size():
 		r -= weights[i]
 		if r <= 0.0:
-			weapon = pool[i]
-			break
+			return pool[i]
+	return pool[pool.size() - 1]
 
 
 func _close() -> void:
@@ -343,7 +351,7 @@ func _animate(delta: float) -> void:
 		_display.position.y = 0.4 + progress * 0.75
 		if _cycle_t <= 0.0:
 			_cycle_t = lerpf(0.07, 0.35, progress * progress)
-			var ids := WeaponDB.WEAPONS.keys()
+			var ids := WeaponDB.box_pool().keys()
 			_show_model(ids[randi() % ids.size()])
 	if _display_model:
 		_display.rotation.y += delta * (1.5 if state == State.READY else 0.0)
@@ -358,6 +366,8 @@ func _show_model(id: String) -> void:
 	_display_model = WeaponModels.build(WeaponDB.stats(id).model, false)
 	_display_model.rotation.y = PI * 0.5
 	_display_model.scale = Vector3.ONE * 1.6
+	# Centré au-dessus de la boîte (de la bouche du canon à la crosse).
+	_display_model.position.x = -WeaponModels.center_z(WeaponDB.stats(id).model) * 1.6
 	_display.add_child(_display_model)
 
 
