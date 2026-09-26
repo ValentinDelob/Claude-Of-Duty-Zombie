@@ -155,6 +155,11 @@ static func apply(z: Zombie, bits: int, dir: Vector3, lethal: bool) -> void:
 		_tear(z, fx, "forearm_l", ["forearm_l"], push, 0.001)
 	if bits & ARM_R:
 		_tear(z, fx, "forearm_r", ["forearm_r"], push, 0.001)
+	# Bras arraché : sa hitbox disparaît avec lui.
+	for i in z.hit_arms.size():
+		if bits & (ARM_L if i == 0 else ARM_R):
+			z.hit_arms[i].collision_layer = 0
+			z.hit_arms[i].get_child(0).set_deferred("disabled", true)
 	if bits & LEGS:
 		for side in ["l", "r"]:
 			# Moignon : le haut de la cuisse reste ; le reste de la jambe tombe.

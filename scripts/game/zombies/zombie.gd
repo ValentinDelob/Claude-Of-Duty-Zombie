@@ -88,6 +88,10 @@ var bones: Dictionary
 var anim: ZombieAnim
 var hit_body: Area3D
 var hit_head: Area3D
+## Avant-bras (zone 2 : dégâts du corps) : les bras tendus dépassent de la
+## capsule du corps ; ces hitboxes suivent les os pour qu'un tir au bras
+## touche vraiment le bras (et l'arrache, comme BO1).
+var hit_arms: Array[Area3D] = []
 var _body_shape: CollisionShape3D
 var _mgr: ZombieManager
 ## Temps écoulé depuis la dernière pose écrite (animation à cadence réduite).
@@ -142,6 +146,19 @@ func _ready() -> void:
 	hit_head = _make_hitbox(1, sph)
 	hit_head.position = Vector3(0, 0.13, 0.01)
 	att.add_child(hit_head)
+	for side in ["l", "r"]:
+		var arm_att := BoneAttachment3D.new()
+		arm_att.bone_name = "forearm_" + side
+		skel.add_child(arm_att)
+		var arm_cap := CapsuleShape3D.new()
+		arm_cap.radius = 0.075
+		arm_cap.height = 0.42
+		var ha := _make_hitbox(2, arm_cap)
+		ha.name = "HitArm_" + side
+		# L'avant-bras s'étend selon -Y de l'os : la capsule couvre avant-bras et main.
+		ha.position = Vector3(0, -0.2, 0)
+		arm_att.add_child(ha)
+		hit_arms.append(ha)
 
 	if not server_side:
 		# Marionnette : pas de simulation physique locale.
@@ -563,6 +580,9 @@ func die(dir: Vector3, headshot: bool) -> void:
 	# Corps : plus aucune forme dans l'espace physique (hitboxes, capsule).
 	hit_body.get_child(0).set_deferred("disabled", true)
 	hit_head.get_child(0).set_deferred("disabled", true)
+	for ha in hit_arms:
+		ha.collision_layer = 0
+		ha.get_child(0).set_deferred("disabled", true)
 	if _body_shape:
 		_body_shape.set_deferred("disabled", true)
 	velocity = Vector3.ZERO
