@@ -239,11 +239,17 @@ func run() -> void:
 	await refill_pistol()
 	z = await H.dummy_zombie(self, ahead(5.0), 1)
 	H.aim_at(p, z.global_position + Vector3.UP * 0.9)
-	await H.shoot(self, p, 0.3)
-	at.check(not z.is_alive() and pw.drop_count() == 0, "maximum de 4 bonus par manche")
+	for i in 5:
+		if not z.is_alive():
+			break
+		await H.shoot(self, p, 0.3)
+	at.check(not z.is_alive() and pw.drop_count() == 0, "maximum de 4 bonus par manche (vivant %s, bonus %d)" % [z.is_alive(), pw.drop_count()])
 	pw.tracker.new_round()
 	z = await H.dummy_zombie(self, ahead(5.0, 1.0), 1)
 	H.aim_at(p, z.global_position + Vector3.UP * 0.9)
-	await H.shoot(self, p, 0.3)
+	for i in 5:
+		if not z.is_alive():
+			break
+		await H.shoot(self, p, 0.3)
 	at.check(pw.drop_count() == 1, "nouvelle manche : le bonus dû tombe")
 	pw.debug_clear()
