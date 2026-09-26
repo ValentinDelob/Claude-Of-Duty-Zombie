@@ -6,6 +6,8 @@
 #         QUALITY=low sh tools/perf.sh      (préréglage graphique imposé :
 #                                            low / medium / high, voir RenderQuality)
 cd "$(dirname "$0")/.."
+. tools/nofocus.sh
+nofocus_on
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
 FAIL=0
