@@ -14,7 +14,7 @@ const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 4
 const MAX_SUPPORTED_PLAYERS := 8
 ## Incrémenter à chaque changement incompatible du protocole réseau.
-const PROTOCOL_VERSION := 2
+const PROTOCOL_VERSION := 3
 const CONNECT_TIMEOUT_SEC := 8.0
 
 enum Mode { NONE, SOLO, HOST, CLIENT }
@@ -293,17 +293,19 @@ var _pending_name := ""
 func _on_connected_to_server() -> void:
 	# Connexion ENet établie : on se présente au serveur, qui peut encore refuser.
 	print("[Net] connecté au transport, envoi du hello")
-	_srv_hello.rpc_id(1, _pending_name, PROTOCOL_VERSION)
+	_srv_hello.rpc_id(1, _pending_name, PROTOCOL_VERSION, build_version())
 
 
 @rpc("any_peer", "reliable")
-func _srv_hello(wanted_name: String, version: int) -> void:
+func _srv_hello(wanted_name: String, version: int, build: String) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	var reason := ""
 	if version != PROTOCOL_VERSION:
 		reason = "Version incompatible (hôte v%d, vous v%d)." % [PROTOCOL_VERSION, version]
+	elif build != build_version():
+		reason = "Version du jeu différente (hôte v%s, vous v%s) : utilisez la même release." % [build_version(), build]
 	elif match_started:
 		reason = "La partie a déjà commencé."
 	elif players.size() >= max_players:
@@ -465,3 +467,13 @@ static func _clean_name(n: String) -> String:
 	if n.is_empty():
 		n = "Survivant"
 	return n.substr(0, 16)
+
+
+## Numéro de build (inscrit par tools/release.sh dans chaque .exe publié) :
+## hôte et clients doivent avoir exactement la même release.
+static func build_version() -> String:
+	# Tests : simuler un joueur d'une autre release.
+	var fake := OS.get_environment("AUTOTEST_FAKE_BUILD")
+	if fake != "":
+		return fake
+	return str(ProjectSettings.get_setting("application/config/version", "0"))

@@ -28,8 +28,11 @@ C1=$!
 wait_for "$OUT/c1.log" "\[smoke\] client accepté"
 "$GODOT" --headless --path . res://tests/net_smoke.tscn -- --role=client --port=$PORT --expect=full > "$OUT/c2.log" 2>&1
 R2=$?
+# 3e client d'une autre release : refusé pour version différente.
+AUTOTEST_FAKE_BUILD=9.9.99 "$GODOT" --headless --path . res://tests/net_smoke.tscn -- --role=client --port=$PORT --expect=version > "$OUT/c3.log" 2>&1
+R3=$?
 wait $C1; R1=$?
 wait $H; RH=$?
-grep -h "\[smoke\]\|ERROR" "$OUT/host.log" "$OUT/c1.log" "$OUT/c2.log"
-echo "host=$RH client1=$R1 client2=$R2"
-[ $RH -eq 0 ] && [ $R1 -eq 0 ] && [ $R2 -eq 0 ]
+grep -h "\[smoke\]\|ERROR" "$OUT/host.log" "$OUT/c1.log" "$OUT/c2.log" "$OUT/c3.log"
+echo "host=$RH client1=$R1 client2=$R2 client3=$R3"
+[ $RH -eq 0 ] && [ $R1 -eq 0 ] && [ $R2 -eq 0 ] && [ $R3 -eq 0 ]

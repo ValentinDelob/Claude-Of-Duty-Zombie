@@ -7,7 +7,7 @@ var role := ""
 var port := 17801
 var max_players := 2
 var expect := "ok"
-var _deadline := 40.0
+var _deadline := 60.0
 
 
 func _ready() -> void:
@@ -27,7 +27,7 @@ func _ready() -> void:
 		Net.peer_rejected.connect(func(_id, r): _rejections += 1; print("[smoke] refus: ", r))
 	else:
 		Net.joined_server.connect(_on_joined)
-		Net.connection_error.connect(func(t, m): _result(expect == "full" and m.contains("plein"), "%s: %s" % [t, m]))
+		Net.connection_error.connect(func(t, m): _result((expect == "full" and m.contains("plein")) or (expect == "version" and m.contains("Version du jeu")), "%s: %s" % [t, m]))
 		Net.join("127.0.0.1", port, "Client")
 
 
@@ -62,5 +62,5 @@ func _on_joined() -> void:
 	print("[smoke] client accepté")
 	# Reste connecté pendant que le 3e joueur tente sa chance (il démarre
 	# seulement maintenant : laisser le temps au moteur de se lancer).
-	await get_tree().create_timer(12.0).timeout
+	await get_tree().create_timer(24.0).timeout
 	_result(Net.players.size() == 2 and Net.mode == Net.Mode.CLIENT, "accepté, %d joueurs vus" % Net.players.size())
