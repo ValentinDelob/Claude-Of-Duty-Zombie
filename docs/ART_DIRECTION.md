@@ -53,3 +53,58 @@ concerne.
   carte) là où BO1 garde une lumière faible et neutre.
 - Pas de flou de profondeur ni de flou de mouvement (coût, et peu visibles dans
   BO1 hors visée).
+- Bloom : un écran de machine d'atout vu à bout portant sature en blanc.
+
+## HUD
+
+### Ce qui caractérise le HUD de BO1 Zombies
+- **Compteur de manche** en bas à gauche, gros, rouge sang « peint à la
+  main » : bâtons pour les manches 1 à 5 (le 5e barre les quatre autres), puis
+  chiffres tracés au pinceau, irréguliers, avec de petites coulures.
+- **Transitions de manche** : à la fin d'une manche le compteur passe au blanc
+  et pulse lentement (blanc <-> rouge) pendant l'entracte ; au début de la
+  suivante l'ancien chiffre s'efface et le nouveau apparaît en blanc puis
+  vire au rouge. Manche de chiens : clignotement rouge braise.
+- **Atouts** : petites pastilles carrées arrondies, à la couleur de la
+  boisson, alignées juste au-dessus du compteur de manche.
+- **Points** en bas à droite, au-dessus des munitions : un bandeau par joueur
+  à sa couleur (blanc, bleu, jaune, vert), le sien plus grand ; chaque gain
+  fait jaillir un « +10 » / « +50 » doré qui s'envole vers la gauche en
+  s'éparpillant ; les dépenses apparaissent en rouge.
+- **Munitions** : nom de l'arme au-dessus (s'efface quelques secondes après
+  le changement d'arme), chargeur en gros chiffres, réserve plus petite ;
+  icônes de grenades (et singes) à gauche. Chargeur presque vide en rouge.
+- **Invites** au centre bas, texte blanc sans cadre : « Appuyer sur F pour
+  acheter M14 [Coût : 500] », « Maintenir F pour ... ».
+- **Réticule** : quatre traits fins blancs qui s'écartent avec la dispersion ;
+  marqueur de touche en croix.
+- **Dégâts** : sang qui envahit les bords (éclaboussures, coulures), voile
+  rouge bref à chaque coup, battements de cœur à faible santé.
+- **À terre** : vision floue qui respire, délavée, bords rouges pulsés.
+- **Fin de partie** : « GAME OVER » en grand, « Vous avez survécu N manches »
+  dessous, puis le tableau des scores (points, tués, têtes, réanimations,
+  à terre) avec une ligne colorée par joueur.
+- **Typographie** : sans empattement, condensée, blanc cassé avec ombre ;
+  aucune fioriture, lisible sur le grain.
+
+### Mise en œuvre
+- `HudStyle` (`scripts/game/hud/hud_style.gd`) : polices système condensées
+  (Bahnschrift étroite, repli Arial Narrow / Impact), couleurs, et pinceau
+  procédural `brush_stroke` (largeur variable, bords irréguliers, stries,
+  coulures) ; `digit_strokes` décrit les chiffres 0-9 en traits.
+- `RoundCounter` : bâtons et chiffres peints, machine d'états INTRO / OUTRO /
+  IDLE (`whiteness` = part de blanc), clignotement des manches de chiens.
+- `ScorePanel` : bandeaux dégradés à la couleur du joueur, « +N » envolés.
+- `Hud.bo1_prompt` : convertit le texte des objets (« [F] Acheter M14 [500] »)
+  au format BO1 ; `_prompt` garde le texte brut (tests).
+- `hurt_vignette.gdshader` (sang, voile), `downed_blur.gdshader` (flou par
+  mipmaps de l'écran, uniquement à terre), `Scoreboard` restylé, fin de
+  partie mise en page par `Hud.show_game_over_table`.
+- Captures de contrôle : `tests/autotest/visual_look.gd` (`--hud` pour ne
+  jouer que la partie HUD).
+
+### Écarts restants
+- Le HUD est en pixels (fenêtre de base 1280x720) : en 1080p il paraît plus
+  petit que dans BO1 (pas de mise à l'échelle de l'interface).
+- Pas d'icônes de réanimation au-dessus des coéquipiers à terre dans le
+  monde (hors périmètre du HUD 2D).

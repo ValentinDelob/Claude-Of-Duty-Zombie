@@ -5,6 +5,7 @@ extends Control
 
 var game: Game
 var _first: Button
+var _where: Label
 
 
 func setup(g: Game) -> void:
@@ -25,6 +26,9 @@ func setup(g: Game) -> void:
 	col.add_child(MenuStyle.title("PAUSE", 54))
 	var sub := UiStyle.label("La partie continue pour vos coéquipiers." if Net.is_online() else "Partie suspendue.", 18, UiStyle.DIM)
 	col.add_child(sub)
+	# Carte et manche en cours (comme l'en-tête du menu pause de BO1).
+	_where = HudStyle.label("", 20, HudStyle.TEXT, "condensed", 3)
+	col.add_child(_where)
 	col.add_child(UiStyle.label("", 10))
 	_first = MenuStyle.button("REPRENDRE", close)
 	col.add_child(_first)
@@ -35,6 +39,9 @@ func setup(g: Game) -> void:
 
 func open() -> void:
 	visible = true
+	if game.map_def:
+		var n: int = game.rounds.round_n if game.rounds else 0
+		_where.text = game.map_def.display_name + ("   —   MANCHE %d" % n if n > 0 else "")
 	game.capture_mouse(false)
 	if not Net.is_online():
 		get_tree().paused = true

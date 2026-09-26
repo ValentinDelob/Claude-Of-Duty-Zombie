@@ -36,7 +36,20 @@ var worst_fps := 10000.0
 
 
 func run() -> void:
-	timeout_sec = 300
+	timeout_sec = 420
+	# `-- --autotest=visual_look --hud` : seulement le HUD (itérations rapides).
+	if OS.get_cmdline_user_args().has("--hud"):
+		p = await H.start_solo_game(self, "kino")
+		if p == null:
+			return
+		game = Game.instance
+		game.combat.debug_invulnerable = true
+		game.rounds.paused = true
+		await H.clear_zombies(self)
+		(game.interact.get_obj("power") as PowerSwitch).srv_use(1)
+		await seconds(3.0)
+		await _hud_pass()
+		return
 	for map_id in ["bunker_k7", "kino"]:
 		await _map_pass(map_id)
 		if p == null:
@@ -87,6 +100,98 @@ func _map_pass(map_id: String) -> void:
 	game.rounds.dogs._set_fog(0.0)
 	at.check(is_equal_approx(env.volumetric_fog_density, base_vd), "fin de la manche de chiens : brume normale")
 	at.check_perf(worst_fps, 150.0, "pire vue %s (MEDIUM, post-traitement BO1)" % map_id)
+	if map_id == "kino":
+		await _hud_pass()
+
+
+## HUD façon BO1 en situation (KINO, courant rétabli) : manches 3 et 12 et
+## leurs transitions, points qui s'envolent, atouts, grenades et singes,
+## invite d'achat, tableau des scores, dégâts, à terre, fin de partie.
+func _hud_pass() -> void:
+	var hud := game.hud
+	var pd := game.session.local_data()
+	var rc := hud.round_counter()
+	p.teleport_to(MapData.cell_to_world(KINO_VIEWS[0][1], 0.05))
+	H.aim_at(p, MapData.cell_to_world(KINO_VIEWS[0][2], 1.2))
+	# Manche 3 : bâtons, apparition blanche puis rouge sang.
+	game.rounds.debug_jump_to(3)
+	await H.clear_zombies(self)
+	await seconds(0.9)
+	at.check(rc._shown == 3 and rc.whiteness > 0.4, "manche 3 : apparition en blanc (%.2f)" % rc.whiteness)
+	await at.screenshot("hud_manche3_blanc")
+	await until(func(): return rc.mode == RoundCounter.Mode.IDLE, 6.0, "fin de la transition")
+	await H.clear_zombies(self)
+	at.check(is_zero_approx(rc.whiteness), "manche 3 : rouge sang")
+	# Atouts, grenades, singes.
+	for perk in ["titan", "rapid", "twin", "lazarus"]:
+		game.perks.srv_grant(1, perk)
+	pd.has_monkeys = true
+	pd.monkeys = 3
+	await seconds(3.0)
+	at.check(hud._perk_icons.perks.size() == 4, "4 icônes d'atouts")
+	await at.screenshot("hud_manche3_atouts")
+	# Points qui s'envolent (+10 à chaque balle, -dépense).
+	for i in 5:
+		game.session.add_points(1, 10)
+		await seconds(0.07)
+	game.session.add_points(1, 50)
+	game.session.add_points(1, -500)
+	await seconds(0.2)
+	await at.screenshot("hud_points")
+	# Invite d'achat face à la M14 du hall.
+	var m14: WallBuy = game.interact.get_obj("wallbuy_R")
+	p.teleport_to(m14.interact_point() + Vector3(0, -1.0, 0) - (m14.global_position - m14.interact_point()).normalized() * 1.2)
+	H.aim_at(p, m14.global_position)
+	await seconds(0.4)
+	at.check(hud._prompt_view.text.begins_with("Appuyer sur F pour acheter") and hud._prompt_view.text.contains("[Coût : 500]"),
+			"invite BO1 : « %s »" % hud._prompt_view.text)
+	await at.screenshot("hud_invite")
+	# Tableau des scores [Tab].
+	Input.action_press("scoreboard")
+	await frames(3)
+	await at.screenshot("hud_tableau")
+	Input.action_release("scoreboard")
+	# Manche 12 : chiffres peints.
+	p.teleport_to(MapData.cell_to_world(KINO_VIEWS[5][1], 0.05))
+	H.aim_at(p, MapData.cell_to_world(KINO_VIEWS[5][2], 1.2))
+	game.rounds.debug_jump_to(12)
+	await H.clear_zombies(self)
+	await seconds(0.9)
+	await at.screenshot("hud_manche12_blanc")
+	await until(func(): return rc.mode == RoundCounter.Mode.IDLE, 6.0, "fin de la transition")
+	await H.clear_zombies(self)
+	await at.screenshot("hud_manche12")
+	# Fin de manche : pulsation blanc <-> rouge.
+	hud.round_changed(12, false)
+	await seconds(OUTRO_SHOT)
+	at.check(rc.mode == RoundCounter.Mode.OUTRO, "fin de manche : le compteur pulse")
+	await at.screenshot("hud_fin_manche")
+	hud.round_changed(13, true)
+	await seconds(4.5)
+	await H.clear_zombies(self)
+	# Dégâts : voile rouge et sang aux bords.
+	game.combat.debug_invulnerable = false
+	game.combat.damage_player(1, 190, p.global_position + Vector3(2, 1, 0))
+	await seconds(0.12)
+	await at.screenshot("hud_degats")
+	# À terre (LAZARUS) : vision floue.
+	game.combat.damage_player(1, 400, p.global_position + Vector3(2, 1, 0))
+	await seconds(1.2)
+	at.check(pd.life == PlayerData.Life.DOWNED and hud._downed.amount() > 0.9, "à terre : vision floue (%.2f)" % hud._downed.amount())
+	await at.screenshot("hud_a_terre")
+	await until(func(): return pd.life == PlayerData.Life.ALIVE, DownedSystem.SOLO_SELF_REVIVE + 3.0, "réanimation")
+	await seconds(1.0)
+	at.check(hud._downed.amount() < 0.05 and not hud._downed.blur.visible, "réanimé : vision nette")
+	# Fin de partie.
+	game.combat.damage_player(1, 400, p.global_position)
+	await until(func(): return GameState.state == GameState.State.GAME_OVER, 3.0, "GAME OVER")
+	await seconds(2.0)
+	at.check(hud._center_msg.text == "GAME OVER" and hud._center_sub.text.begins_with("Vous avez survécu %d manches" % game.rounds.round_n),
+			"fin de partie : %s / %s" % [hud._center_msg.text, hud._center_sub.text])
+	await at.screenshot("hud_game_over")
+
+
+const OUTRO_SHOT := 0.1
 
 
 ## Chaque préréglage règle la brume et la variante du post-traitement.

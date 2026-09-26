@@ -76,7 +76,7 @@ const GRADE_DEFAULT := {
 }
 const LUT_SIZE := 24
 ## Poids des niveaux de glow 1 à 7 (index 0 à 6) : surtout les niveaux larges.
-const GLOW_LEVELS := [0.0, 0.35, 0.8, 1.0, 0.7, 0.35, 0.0]
+const GLOW_LEVELS := [0.0, 0.2, 0.55, 0.75, 0.45, 0.2, 0.0]
 const LUMA := Vector3(0.2126, 0.7152, 0.0722)
 
 static var _cache: Dictionary = {}
@@ -122,12 +122,12 @@ static func setup_environment(parent: Node3D, look := {}) -> void:
 	# Bloom BO1 : halo large et doux autour des ampoules, des écrans et des
 	# néons des machines ; seul ce qui dépasse le blanc (sources) « bave ».
 	env.glow_enabled = true
-	env.glow_intensity = 0.75
-	env.glow_strength = 1.05
-	env.glow_bloom = 0.02
+	env.glow_intensity = 0.6
+	env.glow_strength = 1.0
+	env.glow_bloom = 0.0
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
-	env.glow_hdr_threshold = 1.0
-	env.glow_hdr_scale = 2.0
+	env.glow_hdr_threshold = 1.1
+	env.glow_hdr_scale = 1.4
 	for i in GLOW_LEVELS.size():
 		env.set_glow_level(i, GLOW_LEVELS[i])
 	env.fog_enabled = true

@@ -32,16 +32,39 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+## Pastille d'atout façon BO1 : carré arrondi à la couleur de la boisson,
+## dégradé et reflet en haut, liseré sombre, symbole clair au centre.
+static var _box: StyleBoxFlat
+static var _rim: StyleBoxFlat
+
+
 func _draw() -> void:
+	if _box == null:
+		_box = StyleBoxFlat.new()
+		_box.set_corner_radius_all(9)
+		_box.anti_aliasing = true
+		_rim = StyleBoxFlat.new()
+		_rim.draw_center = false
+		_rim.set_corner_radius_all(9)
+		_rim.set_border_width_all(2)
+		_rim.border_color = Color(0.02, 0.02, 0.02, 0.85)
+		_rim.anti_aliasing = true
 	for i in perks.size():
 		var id: String = perks[i]
 		var s := SIZE * (1.0 + 0.5 * maxf(_pop.get(id, 0.0), 0.0))
 		var c := Vector2(i * (SIZE + GAP) + SIZE * 0.5, SIZE * 0.5)
 		var col := PerkDB.color(id)
 		var r := Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s))
-		draw_rect(r, col.darkened(0.55))
-		draw_rect(r, col, false, 2.0)
-		_symbol(id, c, s * 0.34, col.lightened(0.35))
+		# Ombre portée, fond sombre, moitié haute plus claire (reflet).
+		_box.bg_color = Color(0, 0, 0, 0.55)
+		draw_style_box(_box, r.grow(1.0).grow_individual(0, 0, 2, 3))
+		_box.bg_color = col.darkened(0.45)
+		draw_style_box(_box, r)
+		_box.bg_color = Color(col.r, col.g, col.b, 0.55).lightened(0.1)
+		draw_style_box(_box, Rect2(r.position + Vector2(3, 3), Vector2(r.size.x - 6, r.size.y * 0.45)))
+		draw_style_box(_rim, r)
+		_symbol(id, c + Vector2(1, 1), s * 0.34, Color(0, 0, 0, 0.6))
+		_symbol(id, c, s * 0.34, Color(0.98, 0.96, 0.9).lerp(col.lightened(0.6), 0.25))
 
 
 func _symbol(id: String, c: Vector2, k: float, col: Color) -> void:

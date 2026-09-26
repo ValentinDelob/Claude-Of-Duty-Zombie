@@ -24,7 +24,13 @@ var _fade: ColorRect
 var _heart_t := 0.0
 var _scores: ScorePanel
 var _prompt: Label
+var _prompt_view: Label
+var _banner_tw: Tween
 var _flash: Label
+## Nom de l'arme : affiché au changement d'arme puis estompé (BO1).
+var _weapon_shown := ""
+var _weapon_name_t := 0.0
+const WEAPON_NAME_TIME := 3.0
 var _flash_t := 0.0
 var _round: RoundCounter
 var _perk_icons: PerkIcons
@@ -72,66 +78,80 @@ func _ready() -> void:
 	_debug.position = Vector2(8, 6)
 	add_child(_debug)
 
+	# BO1 : compteur de manche en bas à gauche, atouts juste au-dessus.
 	_round = RoundCounter.new()
 	_round.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_round.position = Vector2(34, -140)
+	# Bas collé à 14 px du bord : la taille minimale grandit vers le haut.
 	_round.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_round.offset_left = 30
+	_round.offset_top = -14
+	_round.offset_bottom = -14
 	add_child(_round)
 
 	_perk_icons = PerkIcons.new()
 	_perk_icons.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_perk_icons.position = Vector2(36, -196)
+	_perk_icons.position = Vector2(38, -204)
 	add_child(_perk_icons)
 
 	_scores = ScorePanel.new()
 	_scores.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_scores.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_scores.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_scores.offset_right = -36
-	_scores.offset_bottom = -118
+	_scores.offset_right = -34
+	_scores.offset_bottom = -112
 	add_child(_scores)
 
+	# Munitions BO1 : nom de l'arme (s'efface après le changement d'arme),
+	# grenades à gauche, chargeur en gros, réserve plus petite.
 	var ammo_box := VBoxContainer.new()
 	ammo_box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	ammo_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	ammo_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	ammo_box.offset_right = -36
-	ammo_box.offset_bottom = -26
+	ammo_box.offset_right = -34
+	ammo_box.offset_bottom = -22
 	ammo_box.alignment = BoxContainer.ALIGNMENT_END
+	ammo_box.add_theme_constant_override("separation", -6)
 	ammo_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(ammo_box)
-	_weapon_name = UiStyle.label("", 18, UiStyle.DIM, "impact")
+	_weapon_name = HudStyle.label("", 22, HudStyle.TEXT, "condensed", 3)
 	_weapon_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	ammo_box.add_child(_weapon_name)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_END
+	row.add_theme_constant_override("separation", 4)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ammo_box.add_child(row)
 	# Grenades et singes, à gauche des munitions (BO1).
 	row.add_child(ThrowableIcons.new(game))
-	_ammo = UiStyle.label("0", 44, UiStyle.BONE, "impact")
+	_ammo = HudStyle.label("0", 52, HudStyle.TEXT, "condensed", 5)
 	row.add_child(_ammo)
-	_reserve = UiStyle.label("/ 0", 24, UiStyle.DIM, "impact")
+	_reserve = HudStyle.label("/ 0", 30, HudStyle.TEXT_DIM, "condensed", 4)
 	_reserve.size_flags_vertical = Control.SIZE_SHRINK_END
 	row.add_child(_reserve)
 
-	_hint = UiStyle.label("", 22, UiStyle.BONE)
+	_hint = HudStyle.label("", 24, HudStyle.TEXT, "text", 4)
 	_hint.set_anchors_preset(Control.PRESET_CENTER)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.position = Vector2(-300, 60)
+	_hint.position = Vector2(-300, 56)
 	_hint.size = Vector2(600, 40)
 	add_child(_hint)
 
+	# Invite d'interaction : `_prompt` garde le texte brut de l'objet visé
+	# (tests), `_prompt_view` l'affiche au format BO1 (bo1_prompt).
 	_prompt = UiStyle.label("", 24, UiStyle.BONE)
-	_prompt.set_anchors_preset(Control.PRESET_CENTER)
-	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_prompt.position = Vector2(-400, 110)
-	_prompt.size = Vector2(800, 40)
+	_prompt.visible = false
 	add_child(_prompt)
-	_flash = UiStyle.label("", 22, UiStyle.BLOOD_BRIGHT)
+	_prompt_view = HudStyle.label("", 25, HudStyle.TEXT, "text", 5)
+	_prompt_view.set_anchors_preset(Control.PRESET_CENTER)
+	_prompt_view.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prompt_view.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_prompt_view.position = Vector2(-460, 96)
+	_prompt_view.size = Vector2(920, 40)
+	add_child(_prompt_view)
+	_flash = HudStyle.label("", 23, HudStyle.POINTS_LOSS, "text", 4)
 	_flash.set_anchors_preset(Control.PRESET_CENTER)
 	_flash.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_flash.position = Vector2(-400, 150)
+	_flash.position = Vector2(-400, 170)
 	_flash.size = Vector2(800, 40)
 	add_child(_flash)
 
@@ -144,6 +164,9 @@ func _ready() -> void:
 	# conserve une taille nulle.
 	_downed.setup(game)
 	add_child(_downed)
+	# Vision floue « à terre » : sous tout le HUD (qui reste net).
+	add_child(_downed.blur)
+	move_child(_downed.blur, 0)
 
 	scoreboard = Scoreboard.new()
 	scoreboard.setup(game)
@@ -161,10 +184,11 @@ func _ready() -> void:
 	center.alignment = BoxContainer.ALIGNMENT_CENTER
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
-	_center_msg = UiStyle.label("", 72, UiStyle.BLOOD_BRIGHT, "title")
+	_center_msg = HudStyle.label("", 72, HudStyle.CHALK, "title", 10)
+	_center_msg.add_theme_color_override("font_outline_color", Color(0.35, 0.0, 0.0, 0.85))
 	_center_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center.add_child(_center_msg)
-	_center_sub = UiStyle.label("", 24, UiStyle.BONE)
+	_center_sub = HudStyle.label("", 28, HudStyle.TEXT, "text", 5)
 	_center_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center.add_child(_center_sub)
 
@@ -201,6 +225,11 @@ func damage_flash(from: Vector3) -> void:
 
 
 func show_center(title: String, sub := "", fade_alpha := 0.0) -> void:
+	# Un bandeau en cours (« RÉANIMÉ »...) ne doit pas effacer ce message.
+	if _banner_tw and _banner_tw.is_valid():
+		_banner_tw.kill()
+	_center_msg.modulate.a = 1.0
+	_center_msg.add_theme_font_size_override("font_size", 72)
 	_center_msg.text = title
 	_center_sub.text = sub
 	create_tween().tween_property(_fade, "color:a", fade_alpha, 1.2)
@@ -218,11 +247,15 @@ func _process(delta: float) -> void:
 		hurt = 1.0 - float(pd.health) / maxf(pd.max_health, 1)
 	_hurt_flash = maxf(_hurt_flash - delta * 1.6, 0.0)
 	var intensity := clampf(maxf(hurt * 1.1, _hurt_flash * 0.8), 0.0, 1.0)
+	# À terre : la vision floue (DownedOverlay) porte déjà le rouge.
+	if pd and pd.life != PlayerData.Life.ALIVE:
+		intensity = minf(intensity, 0.3)
 	var beat_rate := 1.0 + hurt * 1.5
 	var prev_beat := _heart_t
 	_heart_t += delta * beat_rate
 	_vignette_mat.set_shader_parameter("intensity", intensity)
 	_vignette_mat.set_shader_parameter("pulse", absf(sin(_heart_t * PI)))
+	_vignette_mat.set_shader_parameter("flash", clampf(_hurt_flash * 1.6 - 0.6, 0.0, 1.0))
 	if hurt > 0.45 and pd.life == PlayerData.Life.ALIVE and floorf(_heart_t) != floorf(prev_beat):
 		Audio.play_2d("heartbeat", -6.0, 0.0)
 		# Respiration haletante (un souffle tous les trois battements).
@@ -236,7 +269,10 @@ func _process(delta: float) -> void:
 	scope.refresh(player, delta)
 	_crosshair.queue_redraw()
 	var focus := game.interact.focused
-	_prompt.text = focus.prompt(player.peer_id) if focus else ""
+	var raw := focus.prompt(player.peer_id) if focus else ""
+	if raw != _prompt.text:
+		_prompt.text = raw
+		_prompt_view.text = bo1_prompt(raw)
 	if _flash_t > 0.0:
 		_flash_t -= delta
 		_flash.modulate.a = clampf(_flash_t, 0.0, 1.0)
@@ -247,7 +283,12 @@ func _process(delta: float) -> void:
 		var w := wc.current()
 		if not w.is_empty():
 			var s := wc.current_stats()
-			_weapon_name.text = s.name
+			if s.name != _weapon_shown:
+				_weapon_shown = s.name
+				_weapon_name.text = s.name
+				_weapon_name_t = WEAPON_NAME_TIME
+			_weapon_name_t = maxf(_weapon_name_t - delta, 0.0)
+			_weapon_name.modulate.a = clampf(_weapon_name_t / 0.8, 0.0, 1.0)
 			_ammo.text = str(w.mag)
 			_reserve.text = " / %d" % w.reserve
 			var low: bool = w.mag <= int(s.mag) / 4
@@ -256,7 +297,8 @@ func _process(delta: float) -> void:
 				_ammo.text = ""
 				_reserve.text = ""
 				low = false
-			_ammo.add_theme_color_override("font_color", UiStyle.BLOOD_BRIGHT if low else UiStyle.BONE)
+			_ammo.add_theme_color_override("font_color", HudStyle.POINTS_LOSS if low else HudStyle.TEXT)
+			_reserve.add_theme_color_override("font_color", HudStyle.POINTS_LOSS if w.reserve == 0 and not s.get("infinite", false) else HudStyle.TEXT_DIM)
 			if s.get("infinite", false):
 				_hint.text = ""
 			elif w.mag == 0 and w.reserve == 0:
@@ -264,7 +306,7 @@ func _process(delta: float) -> void:
 			elif wc.is_reloading():
 				_hint.text = "RECHARGEMENT..."
 			elif low and w.reserve > 0:
-				_hint.text = "[R] RECHARGER"
+				_hint.text = "Appuyer sur R pour recharger"
 			else:
 				_hint.text = ""
 	# Compte à rebours dans la salle du rituel (prioritaire).
@@ -276,13 +318,18 @@ func _process(delta: float) -> void:
 class Crosshair extends Control:
 	var spread := 10.0
 
+	## BO1 : quatre traits fins blancs, liseré sombre pour rester lisibles sur
+	## les lampes et le grain ; pas de point central.
 	func _draw() -> void:
 		var c := size * 0.5
-		var col := Color(0.9, 0.9, 0.85, 0.75)
-		var l := 7.0
-		for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP]:
-			draw_line(c + d * spread, c + d * (spread + l), col, 2.0)
-		draw_rect(Rect2(c - Vector2(1, 1), Vector2(2, 2)), col)
+		var col := Color(0.95, 0.95, 0.9, 0.8)
+		var dark := Color(0, 0, 0, 0.45)
+		var l := 8.0
+		for d: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP]:
+			var a := c + d * spread
+			var b := c + d * (spread + l)
+			draw_line(a - d, b + d, dark, 3.5)
+			draw_line(a, b, col, 1.6)
 
 
 class HitMarker extends Control:
@@ -362,7 +409,10 @@ func show_banner(text: String, duration := 3.5) -> void:
 	_center_msg.text = text
 	_center_msg.add_theme_font_size_override("font_size", 46)
 	_center_msg.modulate.a = 0.0
+	if _banner_tw and _banner_tw.is_valid():
+		_banner_tw.kill()
 	var tw := create_tween()
+	_banner_tw = tw
 	tw.tween_property(_center_msg, "modulate:a", 1.0, 0.6)
 	tw.tween_interval(duration)
 	tw.tween_property(_center_msg, "modulate:a", 0.0, 1.2)
@@ -370,6 +420,36 @@ func show_banner(text: String, duration := 3.5) -> void:
 		_center_msg.text = ""
 		_center_msg.modulate.a = 1.0
 		_center_msg.add_theme_font_size_override("font_size", 72))
+
+
+## Invite au format BO1 (« Press F to buy M14 [Cost: 500] ») à partir du texte
+## des objets (« [F] Acheter M14 [500] ») :
+##   « Appuyer sur F pour acheter M14 [Coût : 500] ».
+## Pure : testée dans tests/test_hud.gd.
+const PROMPT_NOUNS := {
+	"Boîte mystère": "ouvrir la boîte mystère",
+	"Munitions": "acheter des munitions :",
+}
+
+
+static func bo1_prompt(raw: String) -> String:
+	if raw == "":
+		return ""
+	var t := raw
+	# Coûts : « [500] » -> « [Coût : 500] ».
+	var re := RegEx.create_from_string("\\[(\\d+)\\]")
+	t = re.sub(t, "[Coût : $1]", true)
+	if t.begins_with("Maintenir [F]"):
+		return "Maintenir F" + t.substr(13)
+	if not t.begins_with("[F] "):
+		return t
+	var rest := t.substr(4)
+	if rest.begins_with("Maintenir "):
+		return "Maintenir F " + rest.substr(10)
+	for noun: String in PROMPT_NOUNS:
+		if rest.begins_with(noun):
+			return "Appuyer sur F pour %s%s" % [PROMPT_NOUNS[noun], rest.substr(noun.length())]
+	return "Appuyer sur F pour " + rest.substr(0, 1).to_lower() + rest.substr(1)
 
 
 ## Message bref (refus d'achat...).
@@ -458,11 +538,27 @@ func _scoreboard_tick() -> void:
 
 
 ## Fin de partie : tableau récapitulatif.
+## BO1 : « GAME OVER » en haut, « Vous avez survécu N manches » dessous, puis
+## le tableau des scores.
 func show_game_over_table(title_text: String) -> void:
-	scoreboard.refresh(title_text)
+	_center_sub.text = title_text.substr(0, 1) + title_text.substr(1).to_lower()
+	_center_msg.add_theme_font_size_override("font_size", 84)
+	scoreboard.refresh("")
+	scoreboard._title.text = "SCORES"
 	scoreboard.visible = true
-	scoreboard.offset_top = 100
-	scoreboard.offset_bottom = 390
+	scoreboard.offset_top = 70
+	scoreboard.offset_bottom = 80  # la hauteur minimale du contenu l'emporte
+	# Au-dessus du voile sombre de fin de partie (le menu pause reste devant).
+	move_child(scoreboard, _fade.get_index())
+	# Le bloc central remonte au-dessus du tableau.
+	var center := _center_msg.get_parent() as Control
+	center.offset_top = -250
+	center.offset_bottom = -110
+	_center_msg.modulate.a = 0.0
+	_center_sub.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_property(_center_msg, "modulate:a", 1.0, 0.8)
+	tw.tween_property(_center_sub, "modulate:a", 1.0, 0.8)
 
 
 var _spectate_label: Label

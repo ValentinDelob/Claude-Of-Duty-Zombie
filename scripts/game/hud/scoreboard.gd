@@ -1,42 +1,51 @@
 class_name Scoreboard
 extends PanelContainer
-## Tableau des scores ([Tab] maintenu, et écran de fin de partie).
+## Tableau des scores ([Tab] maintenu, et écran de fin de partie) façon BO1 :
+## panneau sombre translucide, titre, en-têtes discrets, une ligne par joueur
+## sur un bandeau à sa couleur (le joueur local plus lumineux).
 
 var game: Game
-var _grid: GridContainer
+var _rows_box: VBoxContainer
 var _title: Label
+var _sub: Label
 
 const COLUMNS := ["JOUEUR", "POINTS", "TUÉS", "TÊTES", "RÉANIM.", "À TERRE"]
+const WIDTHS := [250, 110, 90, 90, 100, 100]
 
 
 func setup(g: Game) -> void:
 	game = g
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.02, 0.015, 0.015, 0.86)
-	sb.border_color = Color(0.4, 0.06, 0.05)
-	sb.set_border_width_all(2)
-	sb.set_content_margin_all(24)
+	sb.bg_color = Color(0.015, 0.015, 0.018, 0.82)
+	sb.border_color = Color(0.5, 0.48, 0.44, 0.35)
+	sb.border_width_top = 2
+	sb.border_width_bottom = 2
+	sb.set_content_margin_all(20)
+	sb.content_margin_left = 26
+	sb.content_margin_right = 26
 	add_theme_stylebox_override("panel", sb)
 	anchor_left = 0.5
 	anchor_right = 0.5
 	anchor_top = 0.5
 	anchor_bottom = 0.5
-	offset_left = -380
-	offset_right = 380
-	offset_top = -200
+	offset_left = -405
+	offset_right = 405
+	offset_top = -210
 	offset_bottom = -60
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
+	box.add_theme_constant_override("separation", 6)
 	add_child(box)
-	_title = UiStyle.label("", 34, UiStyle.BLOOD, "title")
+	_title = HudStyle.label("", 34, HudStyle.TEXT, "title")
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_title)
-	_grid = GridContainer.new()
-	_grid.columns = COLUMNS.size()
-	_grid.add_theme_constant_override("h_separation", 26)
-	_grid.add_theme_constant_override("v_separation", 8)
-	box.add_child(_grid)
+	_sub = HudStyle.label("", 16, HudStyle.TEXT_DIM, "text", 2)
+	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_sub)
+	box.add_child(_row(COLUMNS, HudStyle.TEXT_DIM, 16, null))
+	_rows_box = VBoxContainer.new()
+	_rows_box.add_theme_constant_override("separation", 4)
+	box.add_child(_rows_box)
 	visible = false
 
 
@@ -45,10 +54,9 @@ func refresh(title_text := "") -> void:
 		_title.text = title_text
 	else:
 		_title.text = "MANCHE %d" % game.rounds.round_n if game.rounds.round_n > 0 else "PRÉPARATION"
-	for c in _grid.get_children():
+	_sub.text = game.map_def.display_name if game.map_def else ""
+	for c in _rows_box.get_children():
 		c.queue_free()
-	for h in COLUMNS:
-		_grid.add_child(UiStyle.label(h, 18, UiStyle.DIM, "impact"))
 	var ids := Net.sorted_peer_ids()
 	if ids.is_empty():
 		ids.assign(game.session.data.keys())
@@ -63,6 +71,33 @@ func refresh(title_text := "") -> void:
 		elif pd.life == PlayerData.Life.DEAD:
 			status = " ✝"
 		var cells := [Net.player_name(pid) + status, str(pd.points), str(pd.kills), str(pd.headshots), str(pd.revives), str(pd.downs)]
-		for i in cells.size():
-			var l := UiStyle.label(cells[i], 22, col if i == 0 else UiStyle.BONE)
-			_grid.add_child(l)
+		var me := pid == multiplayer.get_unique_id()
+		_rows_box.add_child(_row(cells, HudStyle.TEXT if me else HudStyle.TEXT.lerp(col, 0.5), 24, col, me))
+
+
+## Ligne du tableau : cellules à largeur fixe ; bandeau coloré si `col`.
+func _row(cells: Array, text_col: Color, font_size: int, col: Variant, me := false) -> Control:
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	if col == null:
+		sb.bg_color = Color(0, 0, 0, 0)
+	else:
+		var c: Color = col
+		sb.bg_color = Color(c.r * 0.35, c.g * 0.35, c.b * 0.35, 0.55 if me else 0.35)
+		sb.border_color = c
+		sb.border_width_left = 5
+	sb.content_margin_left = 12
+	sb.content_margin_top = 2
+	sb.content_margin_bottom = 2
+	panel.add_theme_stylebox_override("panel", sb)
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 0)
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(hb)
+	for i in cells.size():
+		var l := HudStyle.label(str(cells[i]), font_size, text_col, "condensed" if i > 0 or col == null else "text", 2)
+		l.custom_minimum_size = Vector2(WIDTHS[i], 0)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if i == 0 else HORIZONTAL_ALIGNMENT_CENTER
+		hb.add_child(l)
+	return panel

@@ -1,31 +1,52 @@
 class_name RoundCounter
 extends Control
-## Compteur de manche en bas à gauche : bâtons de craie sanglants pour les
-## manches 1 à 5, puis chiffres. Pulse au changement de manche.
+## Compteur de manche façon BO1, en bas à gauche : bâtons peints au sang pour
+## les manches 1 à 5 (le 5e barre les quatre autres), puis chiffres peints à
+## la main (dessin procédural, HudStyle.brush_stroke).
+##
+## Transitions (comme BO1) :
+##   - fin de manche : le chiffre passe au blanc et pulse lentement
+##     (blanc <-> rouge) pendant l'entracte ;
+##   - début de manche : l'ancien chiffre s'efface, le nouveau apparaît en
+##     blanc puis vire au rouge sang en pulsant ;
+##   - manche de chiens : clignotement rouge braise tant qu'elle dure.
+
+const HEIGHT := 112.0
+const STROKE := 17.0
+## Durées (s) de l'apparition d'une nouvelle manche : fondu, puis virage au rouge.
+const INTRO_FADE := 0.7
+const INTRO_TO_RED := 2.6
+## Période de la pulsation de l'entracte.
+const OUTRO_PERIOD := 1.6
+
+enum Mode { IDLE, INTRO, OUTRO }
 
 var round_n := 0
-var _label: Label
-var _pulse := 0.0
-var _blink := 0.0
 var special := false
+var mode := Mode.IDLE
+## Part de blanc dans la couleur (0 = rouge sang, 1 = blanc craie).
+var whiteness := 0.0
+var _t := 0.0
 var _special_t := 0.0
+var _shown := 0          # manche dessinée (l'ancienne pendant le fondu)
+var _fade_old := 0.0     # fondu de sortie de l'ancienne manche
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(220, 110)
+	custom_minimum_size = Vector2(300, HEIGHT + 16.0)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_label = UiStyle.label("", 92, UiStyle.BLOOD, "title")
-	_label.position = Vector2(0, -8)
-	add_child(_label)
 
 
 func set_round(n: int, starting: bool) -> void:
-	round_n = n
 	if starting:
-		_pulse = 1.0
+		_fade_old = 0.35 if _shown > 0 and _shown != n else 0.0
+		round_n = n
+		mode = Mode.INTRO
 	else:
-		_blink = 3.0
-	_label.text = str(n) if n > 5 else ""
+		round_n = n
+		_shown = n
+		mode = Mode.OUTRO
+	_t = 0.0
 	queue_redraw()
 
 
@@ -33,46 +54,91 @@ func set_round(n: int, starting: bool) -> void:
 func set_special(on: bool) -> void:
 	special = on
 	_special_t = 0.0
-	if not on:
-		_apply_color(UiStyle.BLOOD)
-
-
-func _apply_color(col: Color) -> void:
-	self_modulate = col
-	_label.add_theme_color_override("font_color", col)
 	queue_redraw()
 
 
-func _process(delta: float) -> void:
-	if special and _pulse <= 0.0 and _blink <= 0.0:
-		_special_t += delta
-		# Clignotement lent : sang sombre <-> rouge braise vif.
+## Couleur courante (tests et dessin).
+func current_color() -> Color:
+	if special and mode == Mode.IDLE:
 		var k := 0.5 + 0.5 * sin(_special_t * TAU * 0.8)
-		_apply_color(UiStyle.BLOOD.darkened(0.55).lerp(Color(1.0, 0.25, 0.08), k))
+		return HudStyle.ROUND_RED.darkened(0.5).lerp(Color(1.0, 0.28, 0.08), k)
+	return HudStyle.ROUND_RED.lerp(HudStyle.CHALK, whiteness)
+
+
+func _process(delta: float) -> void:
+	var animating := mode != Mode.IDLE or special
+	if not animating:
 		return
-	if _pulse > 0.0 or _blink > 0.0:
-		_pulse = maxf(_pulse - delta * 0.45, 0.0)
-		_blink = maxf(_blink - delta, 0.0)
-		var col := UiStyle.BLOOD.lerp(UiStyle.BONE, _pulse)
-		if _blink > 0.0 and fmod(_blink, 0.5) < 0.25:
-			col = UiStyle.BLOOD.darkened(0.6)
-		modulate = Color(1, 1, 1, 1)
-		self_modulate = col
-		_label.add_theme_color_override("font_color", col)
-		queue_redraw()
+	_t += delta
+	match mode:
+		Mode.INTRO:
+			if _fade_old > 0.0:
+				# L'ancien chiffre s'efface d'abord (blanc).
+				_fade_old = maxf(_fade_old - delta, 0.0)
+				whiteness = 1.0
+				modulate.a = _fade_old / 0.35
+				if _fade_old <= 0.0:
+					_t = 0.0
+			else:
+				_shown = round_n
+				modulate.a = clampf(_t / INTRO_FADE, 0.0, 1.0)
+				var k := clampf((_t - INTRO_FADE) / INTRO_TO_RED, 0.0, 1.0)
+				# Pulsation qui s'éteint en virant au rouge.
+				whiteness = (1.0 - k) * (0.75 + 0.25 * cos(_t * TAU * 1.2))
+				if k >= 1.0:
+					whiteness = 0.0
+					mode = Mode.IDLE
+		Mode.OUTRO:
+			modulate.a = 1.0
+			whiteness = 0.5 + 0.5 * cos(_t * TAU / OUTRO_PERIOD)
+		Mode.IDLE:
+			modulate.a = 1.0
+			_special_t += delta
+	queue_redraw()
 
 
 func _draw() -> void:
-	if round_n <= 0 or round_n > 5:
+	var n := _shown
+	if n <= 0:
 		return
-	var col := self_modulate if self_modulate != Color.WHITE else UiStyle.BLOOD
+	var col := current_color()
+	var base_y := size.y - 6.0
+	var top := base_y - HEIGHT
+	if n <= 5:
+		_draw_tallies(n, col, top, base_y)
+	else:
+		_draw_number(n, col, top)
+
+
+## Bâtons : légèrement penchés et inégaux, le 5e en travers (BO1).
+func _draw_tallies(n: int, col: Color, top: float, bottom: float) -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 12345
-	for i in mini(round_n, 4):
-		var x := 14.0 + i * 26.0
-		var a := Vector2(x + rng.randf_range(-3, 3), 12)
-		var b := Vector2(x + rng.randf_range(-4, 4), 96)
-		draw_line(a, b, col, 9.0)
-		draw_line(a + Vector2(3, 4), b + Vector2(2, -3), col.darkened(0.3), 3.0)
-	if round_n == 5:
-		draw_line(Vector2(2, 80), Vector2(118, 26), col, 9.0)
+	rng.seed = 4242
+	for i in mini(n, 4):
+		var x := 16.0 + i * 30.0
+		var a := Vector2(x + rng.randf_range(-3.0, 4.0), top + rng.randf_range(0.0, 8.0))
+		var b := Vector2(x + rng.randf_range(-7.0, 2.0), bottom - rng.randf_range(0.0, 6.0))
+		HudStyle.brush_stroke(self, PackedVector2Array([a, a.lerp(b, 0.5) + Vector2(rng.randf_range(-2, 2), 0), b]), STROKE, col, 100 + i, 1.2)
+	if n == 5:
+		var a := Vector2(0.0, bottom - HEIGHT * 0.22)
+		var b := Vector2(128.0, top + HEIGHT * 0.3)
+		HudStyle.brush_stroke(self, PackedVector2Array([a, a.lerp(b, 0.5) + Vector2(0, 3), b]), STROKE * 1.05, col, 777, 0.6)
+
+
+## Chiffres peints : chaque chiffre est une suite de traits de pinceau.
+func _draw_number(n: int, col: Color, top: float) -> void:
+	var digits := str(n)
+	var h := HEIGHT
+	var w := h * 0.62
+	var x := 8.0
+	for i in digits.length():
+		var d := int(digits[i])
+		var strokes: Array = HudStyle.digit_strokes(d)
+		# Légère inclinaison et décalage propres à chaque chiffre.
+		var skew := 0.06 + 0.02 * ((d * 7 + i) % 3)
+		for s in strokes.size():
+			var pts := PackedVector2Array()
+			for p: Vector2 in strokes[s]:
+				pts.append(Vector2(x + (p.x + (1.0 - p.y) * skew) * w, top + p.y * h))
+			HudStyle.brush_stroke(self, pts, STROKE * 1.2, col, 31 * d + 7 * s + 1000 * i, 0.45)
+		x += w + 12.0
