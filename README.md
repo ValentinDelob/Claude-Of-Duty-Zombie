@@ -92,7 +92,9 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
 - `sh tools/ship.sh message.txt` : commit vérifié, push sur `main`, puis build `.exe`
   et release GitHub (voir ci-dessous).
 - `sh tools/perf.sh` : mesures de performance fiables (1080p, un jeu à la fois).
-  Repère : ~150 fps sur la RTX A2000 de développement ≈ 60 fps sur GTX 1050.
+  Repère : ~210 fps sur la GTX 1070 de développement ≈ 60 fps sur GTX 1050 ;
+  `sh tools/perf.sh perf_costs` : coût GPU de chaque poste de rendu. Au premier
+  lancement, le préréglage graphique est choisi automatiquement (carte + banc d'essai).
 - `sh tools/mp_test.sh <nom>` : un test multijoueur (hôte + client).
 - Scénario isolé sans voler le focus : `sh tools/scenario.sh <nom>` (check.sh,
   mp_test.sh et release.sh ouvrent aussi leurs fenêtres sans focus, via un

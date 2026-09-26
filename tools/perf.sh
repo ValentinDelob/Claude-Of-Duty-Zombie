@@ -1,7 +1,8 @@
 #!/bin/sh
 # Mesures de performance fiables : un seul jeu à la fois, en 1920x1080.
-# Référence : sur la RTX A2000 (portable) de développement, ~150 fps en 1080p
-# correspondent à ~60 fps sur une GTX 1050 (cible du projet).
+# Référence : sur la GTX 1070 de développement (~3,5x une GTX 1050), ~210 fps
+# en 1080p correspondent à ~60 fps sur une GTX 1050 (cible du projet).
+# Coût de chaque poste de rendu (A/B) : sh tools/perf.sh perf_costs
 # Usage : sh tools/perf.sh [scénarios...]
 #         QUALITY=low sh tools/perf.sh      (préréglage graphique imposé :
 #                                            low / medium / high, voir RenderQuality)

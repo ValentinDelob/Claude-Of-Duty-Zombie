@@ -71,61 +71,126 @@ précédent.
 
 ## Rendu et performances
 
-- Référence : RTX A2000 portable ≈ 2,2x une GTX 1050 ; 150 fps ici en 1080p ≈ 60 fps
-  sur la cible. Mesures : `sh tools/perf.sh` (un jeu à la fois) ;
-  `QUALITY=low sh tools/perf.sh` ou `-- --quality=low|medium|high` impose un préréglage.
-  Attention : si d'autres jeux tournent en même temps (check.sh, autres agents), les
-  chiffres chutent de 30 à 50 % ; ne comparer que des mesures faites GPU libre.
+- Référence : GTX 1070 de développement ≈ 3,5x une GTX 1050 (cible : 60 fps en
+  1080p) ; il faut donc ~210 fps ici en 1080p (≈ 4,2 ms GPU + ~0,6 ms hors GPU)
+  pour tenir 60 fps sur la cible. Mesures : `sh tools/perf.sh` (un jeu à la fois) ;
+  `QUALITY=low sh tools/perf.sh` ou `-- --quality=low|medium|high` impose un
+  préréglage. Chaque ligne `[perf]` donne aussi le temps GPU moyen du viewport
+  (`GPU x ms`) : sur la machine partagée (autres agents, check.sh), les fps
+  chutent de 30 à 70 % alors que le temps GPU ne bouge que de ~10 % ; comparer les
+  temps GPU, ou les fps pris GPU libre seulement.
+- **Coût de chaque poste** : `sh tools/perf.sh perf_costs` (préfixe `perf_` : exclu
+  de check.sh). Deux vues (labo de BUNKER K-7 avec 24 zombies au contact, scène de
+  KINO), chaque poste coupé seul, mesures appariées (référence juste avant),
+  répétées 4 fois : temps GPU et CPU de rendu, draw calls. Les lignes « ~ » donnent
+  le gain d'une variante moins chère ; `--ab-shots` capture chaque variante pour la
+  comparaison visuelle.
 - **`RenderQuality`** (`scripts/game/render_quality.gd`) est le SEUL endroit qui
   définit les préréglages `Settings.quality`. Créé par `WorldLook.setup_environment`,
   il s'applique au chargement puis à chaque `Settings.changed` (uniquement si la
   qualité a changé). Lampes (groupe `map_lamps`), décalques (`quality_decals`),
-  environnement, viewport, `ParticlePool.density` ; tout nœud du groupe
-  `render_quality` reçoit `apply_quality(preset)` (ex. `Fx`).
+  environnement, viewport, `ParticlePool.density`, ombres des zombies
+  (`ZombieShadows`) ; tout nœud du groupe `render_quality` reçoit
+  `apply_quality(preset)` (ex. `Fx`).
 
 | Réglage | LOW | MEDIUM (défaut) | HIGH |
 |---|---|---|---|
 | Lampes à ombre (sur 24) | 0 | 8 (1 sur 3) | 16 (2 sur 3) |
-| Atlas d'ombres / filtre | 1024 / dur | 4096 / doux bas | 4096 / doux moyen |
+| Atlas d'ombres / filtre | 1024 / dur | 4096 / dur | 4096 / doux bas |
 | Fondu lumière / ombre | 20 m / 12 m | 28 m / 16 m | 34 m / 22 m |
+| Zombies à ombre portée | 0 | 6 plus proches, < 12 m | 12 plus proches, < 20 m |
 | Glow | coupé | oui (suréchantillonnage linéaire) | oui (bicubique) |
 | SSAO / MSAA | non / non | non / non | léger / 2x |
 | Résolution 3D | 85 % (bilinéaire) | 100 % | 100 % |
 | Décalques / particules | 50 % / 50 % | 100 % | 100 % |
-| Brume volumétrique | non | 64x64x48 | 96x96x64 |
+| Brume volumétrique | non | 48x48x32 | 64x64x48 |
 | Post-traitement (`FilmPost`) | multiplicatif (grain, vignette) | lecture d'écran + aberration | idem |
 
 - **Direction artistique BO1** (voir `docs/ART_DIRECTION.md`) : étalonnage par table
   3D procédurale (`WorldLook.grade_lut`, surchargée par carte via `look.grade`),
   bloom large sur les sources, brume volumétrique fine, `FilmPost` (CanvasLayer 5,
   sous le HUD) pour le grain (option `Settings.film_grain`), le vignettage et
-  l'aberration. Coût mesuré (GTX 1070, 720p, `visual_look`) : brume ≈ 0,3-0,4 ms,
-  post-traitement ≈ 0,1 ms, étalonnage inclus dans la passe de tonemap.
+  l'aberration.
 
-- Coûts GPU mesurés (salle de garde, 24 zombies, A2000, ~3,5 ms par image) : glow
-  ≈ 1,0 ms (poste n° 1), résolution 3D 85 % ≈ −1,0 ms, ombres des 8 lampes
-  ≈ 0,5 ms (redessinées à chaque mouvement de zombie, 6 faces de cubemap), 16 lampes
-  ≈ +1,4 ms, SSAO ≈ +0,7 ms, MSAA 2x ≈ +0,5 ms, brouillard et ajustements < 0,1 ms.
-- Optimisations sans perte visible : géométrie et décor fusionnés par matériau ET par
-  tuile de 16x16 cellules (`MapBuilder.CHUNK`) — les passes d'ombre ne redessinent plus
-  toute la carte ; sols et plafonds sans ombre portée ; petits détails (lattes, cerclages,
-  pieds de lit, fioles, brides et petits tuyaux) sans ombre portée ; glow en
-  suréchantillonnage linéaire en MEDIUM ; décalques avec fondu à distance.
-- Mesures `tools/perf.sh` (GPU libre, moyenne fps, 1080p) :
+- Coûts GPU mesurés par `perf_costs` (GTX 1070, 1080p, MEDIUM), avant -> après la
+  passe « perf: optimize rendering after the visual rework » :
 
-| Vue | Avant | LOW | MEDIUM | HIGH |
-|---|---|---|---|---|
-| garde | 213–239 | 358 | 214 | 132* |
-| dortoir | 191–211 | 344 | 188 | 155* |
-| couloir | 187–211 | 318 | 182 | 163* |
-| labo | 218–249 | 364 | 273 | 169* |
-| générateur | 190–217 | 344 | 237 | 151* |
-| quai | 216–249 | 328 | 266 | 190* |
-| rituel | 195–223 | 363 | 240 | 132* |
-| 24 zombies (arène) | 166–205 | 316 | 203–217 | 130 |
+| Poste | labo + 24 zombies | scène de KINO |
+|---|---|---|
+| Image complète | 6,1-6,3 -> 5,3 ms | 5,4-5,6 -> 4,4 ms |
+| Lampes (éclairage + ombres) | 2,6 -> 2,0 ms | 2,1 -> 1,7 ms |
+| dont ombres des lampes | 0,9-1,1 -> 0,5 ms (143 -> 60 draw calls) | 0,5 -> 0,4 ms |
+| Glow | 0,6-0,7 ms | 0,5-0,7 ms |
+| Zombies (tout) / leurs ombres | 0,6-0,8 / 0,5-0,8 -> 0,7 / 0,3 ms | — |
+| zombie.gdshader (vs matériau simple) | 0,3 -> 0,15 ms | — |
+| surface.gdshader (vs couleur unie) | 0,2 ms | 0,5-0,8 -> 0,3 ms |
+| Brume volumétrique | 0,4-0,45 -> 0,1-0,2 ms | 0,35 -> 0,1 ms |
+| Arme FPS + mains | 0,3 ms | 0,2 ms |
+| Post-traitement (lecture d'écran) | 0,1-0,2 ms | 0,1-0,2 ms |
+| HUD (vignette de blessure comprise) | 0,3 -> 0,05 ms | 0,05-0,1 ms |
+| Étalonnage (LUT), décalques, SSAO coupé | < 0,1 ms | < 0,1 ms |
 
-  (*) mesures HIGH prises avec un peu de concurrence GPU. HIGH vise des cartes plus
-  puissantes (GTX 1060 et plus).
+  HIGH (labo + 24 zombies, 8,9 ms avant) : ombres de 16 lampes 2 ms (+241 à +420
+  draw calls : 16 cubemaps de 6 faces, redessinées dès qu'un zombie bouge — c'est
+  ce qui doublait les draw calls de HIGH), brume 96x96x64 1 ms, glow bicubique
+  1 ms, SSAO 0,75-1 ms, filtre doux moyen 0,6-1,1 ms, MSAA 2x 0,6-0,7 ms.
+  Pistes écartées (gain nul ou rendu changé) : ombres omni en double paraboloïde
+  (déformation sur les grands murs), atlas 2048 (ombres floues, 0,1-0,2 ms),
+  diffus Lambert (0 ms), portée de la brume, glow sans le niveau 6 (0 ms), portée
+  des lampes x0,85 (-0,4 à -0,55 ms mais salles visiblement plus sombres).
+
+- Optimisations (sans perte visible, captures avant/après comparées) :
+  - **bruits précalculés** (`NoiseLattice`) : `surface.gdshader` et
+    `zombie_body.gdshaderinc` lisent le bruit de valeur dans un treillis de
+    nœuds aléatoires (64² en 2D, 32³ en 3D, R8) au point i + s(f) avec le filtrage
+    linéaire du GPU : une lecture au lieu de 4 ou 8 hachages, même allure
+    (répartition des taches et fissures identique, motifs déplacés) ;
+  - **zombies vivants sans `discard`** : la dissolution a son propre shader
+    (`zombie_dissolve.gdshader`, même include, `ZombieModel.set_dissolve`) ; les
+    vivants gardent la pré-passe de profondeur et les passes d'ombre simples ;
+  - **ombres des zombies limitées aux plus proches** (`ZombieShadows`, mis à jour
+    toutes les 6 images avec hystérésis) : un zombie animé qui projette une ombre
+    force le rendu complet des cubemaps des lampes proches ;
+  - MEDIUM : filtre d'ombre dur (-0,3 à -0,4 ms) et brume 48x48x32 (-0,2 ms) ;
+    HIGH : filtre doux bas et brume 64x64x48 (-1,1 à -1,3 ms au total) ;
+  - HUD : vignette de blessure (plein écran, bruit) masquée en pleine santé ;
+  - déjà en place : géométrie et décor fusionnés par matériau ET par tuile de 16x16
+    cellules (`MapBuilder.CHUNK`), sols, plafonds et petits détails sans ombre
+    portée, décalques avec fondu à distance.
+
+- Mesures `tools/perf.sh` (1080p, temps GPU moyen de la pire vue ; avant et après
+  alternés dans la même session, machine partagée) :
+
+| Préréglage | Vue | Avant | Après | fps GPU libre (estim.) | GTX 1050 (x3,5) |
+|---|---|---|---|---|---|
+| LOW | pire vue BUNKER / KINO | 2,84 / 2,70 ms | 2,60 / 2,44 ms | ~320 | ~110 fps |
+| LOW | 24 zombies au contact | 2,80 ms | 2,48 ms | ~320 | ~110 fps |
+| MEDIUM | pire vue BUNKER / KINO | 5,45 / 5,34 ms | 4,58 / 4,44 ms | ~195-200 (avant 158-166) | ~60 fps |
+| MEDIUM | 24 zombies poursuite / contact | 5,95 / 6,14 ms | 4,96 / 5,02 ms | ~180 (CPU : IA) | ~55-57 fps |
+| MEDIUM | menu | 2,87 ms | 2,57 ms | ~320 | — |
+| HIGH | pire vue BUNKER / KINO | 7,81 / 8,42 ms | 6,87 / 7,24 ms | ~125 (avant 86-92) | ~40 fps |
+| HIGH | 24 zombies contact (draw calls) | 8,37 ms (511) | 7,03 ms (296) | ~120 | ~35 fps |
+
+  fps estimés = 1000 / (GPU + ~0,6 ms hors GPU mesurés GPU libre). MEDIUM tient donc
+  ~60 fps sur une GTX 1050 dans les vues sans zombie et 55-57 fps dans la pire
+  mêlée ; LOW garantit la cible. HIGH vise les GTX 1060 / 1070 et plus. Les seuils
+  des autotests restent à 150 fps (avertissement seulement en exécution parallèle).
+
+- **Préréglage automatique** (`QualityProbe`, lancé par `Settings` au premier
+  lancement : pas de clé `video/quality` dans `user://settings.cfg`, jamais en
+  autotest, en headless ou avec `--quality=`) :
+  1. indice de puissance d'après le nom de la carte
+     (`RenderingServer.get_video_adapter_name`, table `QualityProbe.ADAPTERS`,
+     GTX 1050 = 1) ; puces intégrées (`get_video_adapter_type`), Intel HD/UHD/Iris,
+     APU Radeon Graphics / Vega, rendu logiciel -> LOW d'office ;
+  2. mini-banc d'essai : 2 s de stabilisation puis 3 s de mesure du temps GPU du
+     menu principal (MEDIUM imposé), ramené à 1080p au prorata des pixels et
+     comparé à la GTX 1070 (`REF_MENU_MS` = 2,9 ms, `DEV_SCORE` = 3,5) ; abandonné
+     si le joueur quitte le menu pendant la mesure ;
+  3. indice mesuré prioritaire (sinon celui du modèle, sinon MEDIUM) :
+     < 0,9 -> LOW, 0,9 à 2,6 -> MEDIUM, >= 2,6 -> HIGH ; appliqué, enregistré avec
+     son compte rendu (`video/quality_auto`), jamais refait. OPTIONS > VIDÉO permet
+     toujours de changer. Scénario : `render_perf` ; règles : `tests/test_quality_probe.gd`.
 
 ## Cartes
 
@@ -262,7 +327,7 @@ précédent.
   archétypes façon Kino der Toten ; maillage lissé (`RigBuilder` : ellipsoïdes,
   tubes « loft » dont les anneaux sont partagés entre deux os), skinné sur le
   squelette commun (+ os `jaw`), 1 draw call, sang peint par sommet (fraction de
-  UV2.y) et matière par pièce lus par `zombie.gdshader`. Mesh et Skin partagés ;
+  UV2.y) et matière par pièce lus par `zombie.gdshader` (corps commun `zombie_body.gdshaderinc`, bruit lu dans `NoiseLattice.tex3d` ; variante `zombie_dissolve.gdshader` pour les corps qui se dissolvent). Mesh et Skin partagés ;
   les tableaux de tous les looks sont calculés sur un thread de travail
   (`prewarm_async`, lancé au premier zombie construit, typiquement au
   préchauffage) : un zombie coûte < 0,1 ms à construire. Couche de rendu 2 (hors

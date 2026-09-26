@@ -664,7 +664,7 @@ func _process_death(delta: float) -> void:
 		if Game.instance:
 			Game.instance.fx_root.blood_decal(global_position + Vector3.UP * 0.1 + Vector3(sin(yaw), 0, cos(yaw)) * _death_dir * 0.8, Vector3.UP, randf_range(0.8, 1.4))
 	if _death_t > DISSOLVE_DELAY:
-		mesh.set_instance_shader_parameter("dissolve", clampf((_death_t - DISSOLVE_DELAY) / DISSOLVE_TIME, 0.0, 1.0))
+		ZombieModel.set_dissolve(mesh, clampf((_death_t - DISSOLVE_DELAY) / DISSOLVE_TIME, 0.0, 1.0))
 		if before <= DISSOLVE_DELAY:
 			mesh.set_instance_shader_parameter("eye_glow", 0.0)
 

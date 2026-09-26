@@ -63,6 +63,7 @@ const RENDER_LAYERS := 2
 
 
 static var _material: ShaderMaterial
+static var _dissolve_material: ShaderMaterial
 static var _skin: Skin
 static var _meshes := {}
 static var _limbs := {}
@@ -80,7 +81,29 @@ static func material() -> ShaderMaterial:
 		_material.shader = preload("res://assets/shaders/zombie.gdshader")
 		_material.set_shader_parameter("emission_color", EYE_EMISSION)
 		_material.set_shader_parameter("emission_energy", 6.5)
+		_material.set_shader_parameter("noise_lattice", NoiseLattice.tex3d())
 	return _material
+
+
+## Variante « dissolution » (corps qui disparaissent) : seule à contenir un
+## `discard`, pour que les zombies vivants gardent la pré-passe de profondeur
+## et les passes d'ombre simples.
+static func dissolve_material() -> ShaderMaterial:
+	if _dissolve_material == null:
+		_dissolve_material = ShaderMaterial.new()
+		_dissolve_material.shader = preload("res://assets/shaders/zombie_dissolve.gdshader")
+		_dissolve_material.set_shader_parameter("emission_color", EYE_EMISSION)
+		_dissolve_material.set_shader_parameter("emission_energy", 6.5)
+		_dissolve_material.set_shader_parameter("noise_lattice", NoiseLattice.tex3d())
+	return _dissolve_material
+
+
+## Dissolution (0 : intact, 1 : disparu) du maillage d'un zombie.
+static func set_dissolve(mi: MeshInstance3D, k: float) -> void:
+	var want := dissolve_material() if k > 0.0 else material()
+	if mi.material_override != want:
+		mi.material_override = want
+	mi.set_instance_shader_parameter("dissolve", k)
 
 
 ## Look (0..LOOK_COUNT-1) de la variante.

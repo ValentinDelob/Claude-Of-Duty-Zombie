@@ -393,7 +393,9 @@ func _perf_ab() -> void:
 		await seconds(0.4)
 		at.begin_perf()
 		await seconds(2.5)
-		var f: float = at.end_perf("24 zombies de près (%s)" % ("ancien modèle" if legacy else "nouveau modèle"))
+		at.end_perf("24 zombies de près (%s)" % ("ancien modèle" if legacy else "nouveau modèle"))
+		# Temps GPU (et non fps) : insensible à la charge CPU des autres jeux.
+		var f: float = 1000.0 / maxf(at.last_gpu_ms, 0.01)
 		if legacy:
 			fps_old += f * 0.5
 		else:
@@ -401,7 +403,7 @@ func _perf_ab() -> void:
 		if round == 0:
 			await _shot("perf_horde")
 	var ratio := fps_new / maxf(fps_old, 1.0)
-	print("[perf] nouveau modèle %.0f fps contre ancien %.0f fps (%.0f %%)" % [fps_new, fps_old, ratio * 100.0])
+	print("[perf] nouveau modèle %.0f fps GPU contre ancien %.0f fps GPU (%.0f %%)" % [fps_new, fps_old, ratio * 100.0])
 	if OS.get_environment("AUTOTEST_PARALLEL") == "1":
 		print("[autotest] AVERTISSEMENT perf non vérifiée (exécution parallèle)")
 	else:

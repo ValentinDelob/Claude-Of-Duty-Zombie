@@ -16,9 +16,11 @@ extends Node
 ##   - viewport : résolution 3D (scaling_3d_scale), MSAA ;
 ##   - décalques (groupe DECAL_GROUP) : distance de fondu ;
 ##   - particules : densité (ParticlePool.density) ;
+##   - zombies à ombre portée (ZombieShadows : les plus proches seulement) ;
 ##   - tout nœud du groupe GROUP reçoit apply_quality(preset) (ex. Fx).
 ##
-## Les valeurs sont mesurées avec tools/perf.sh (voir docs/ARCHITECTURE.md,
+## Les valeurs sont mesurées avec tools/perf.sh et le scénario perf_costs
+## (coût de chaque poste en A/B, voir docs/ARCHITECTURE.md,
 ## section « Rendu et performances »). Forcer un préréglage en test :
 ##   godot --path . -- --autotest=map_tour --quality=low
 
@@ -49,13 +51,17 @@ const PRESETS := [
 		"fog_volume": [64, 48],     # résolution de la brume (xy, profondeur)
 		"post_screen": false,       # post-traitement lisant l'écran (aberration)
 		"aberration": 0.0,
+		"zombie_shadows": 0,        # zombies à ombre portée (les plus proches)
+		"zombie_shadow_dist": 0.0,  # ... à moins de cette distance (m)
 	},
 	# MEDIUM (défaut) — le rendu de référence.
 	{
 		"name": "medium",
 		"lamp_shadows": 1,
 		"shadow_atlas": 4096,
-		"shadow_filter": RenderingServer.SHADOW_QUALITY_SOFT_LOW,
+		# Filtre dur (PCF matériel 2x2) : -0,3 à -0,4 ms GPU (GTX 1070, 1080p)
+		# pour une différence invisible (lampes ponctuelles, light_size = 0).
+		"shadow_filter": RenderingServer.SHADOW_QUALITY_HARD,
 		"light_fade_begin": 28.0,
 		"light_fade_length": 6.0,
 		"shadow_fade": 16.0,
@@ -68,17 +74,20 @@ const PRESETS := [
 		"decals": 1.0,
 		"particles": 1.0,
 		"volumetric_fog": true,
-		"fog_volume": [64, 48],
+		# 48x48x32 : -0,2 ms GPU, halos identiques à l'œil (brume fine filtrée).
+		"fog_volume": [48, 32],
 		"post_screen": true,
 		"aberration": 0.003,
+		"zombie_shadows": 6,
+		"zombie_shadow_dist": 12.0,
 	},
-	# HIGH — ombres sur 2 lampes sur 3, plus douces et visibles plus loin,
+	# HIGH — ombres sur 2 lampes sur 3, filtrées et visibles plus loin,
 	# SSAO léger, glow à suréchantillonnage bicubique, MSAA 2x.
 	{
 		"name": "high",
 		"lamp_shadows": 2,
 		"shadow_atlas": 4096,
-		"shadow_filter": RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM,
+		"shadow_filter": RenderingServer.SHADOW_QUALITY_SOFT_LOW,  # SOFT_MEDIUM : +0,5 à 1 ms pour rien de visible
 		"light_fade_begin": 34.0,
 		"light_fade_length": 6.0,
 		"shadow_fade": 22.0,
@@ -91,9 +100,11 @@ const PRESETS := [
 		"decals": 1.0,
 		"particles": 1.0,
 		"volumetric_fog": true,
-		"fog_volume": [96, 64],
+		"fog_volume": [64, 48],  # 96x96x64 : +0,7 ms, même rendu
 		"post_screen": true,
 		"aberration": 0.0035,
+		"zombie_shadows": 12,
+		"zombie_shadow_dist": 20.0,
 	},
 ]
 

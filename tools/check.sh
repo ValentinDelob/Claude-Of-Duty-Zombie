@@ -15,7 +15,7 @@ FAIL=0
 FAST=0
 [ "$1" = "--fast" ] && FAST=1
 # Tous les scénarios de tests/autotest/ (hors fichiers utilitaires).
-ALL=$(ls tests/autotest/*.gd | xargs -n1 basename | sed 's/\.gd$//' | grep -vE '^(scenario|helpers|mp_.*|long_.*)$' | tr '\n' ' ')
+ALL=$(ls tests/autotest/*.gd | xargs -n1 basename | sed 's/\.gd$//' | grep -vE '^(scenario|helpers|mp_.*|long_.*|perf_.*)$' | tr '\n' ' ')
 SCENARIOS=${SCENARIOS:-$ALL}
 
 echo "== import"

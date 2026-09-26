@@ -27,6 +27,11 @@ var last_ip := "127.0.0.1"
 var last_port := 7777
 ## Dernière carte choisie (sélection solo, salon de l'hôte).
 var last_map := "bunker_k7"
+## Préréglage automatique (QualityProbe) : compte rendu de la détection faite
+## au premier lancement ("" : pas faite). Elle ne se refait jamais ensuite.
+var quality_auto := ""
+var _needs_probe := false
+var _probe: QualityProbe
 
 ## Actions -> touches par défaut (clavier AZERTY et QWERTY : on mappe par
 ## keycode physique pour que ZQSD/WASD tombe au même endroit).
@@ -58,6 +63,31 @@ func _ready() -> void:
 	load_settings()
 	_apply_cmdline_quality()
 	apply()
+	# Premier lancement : préréglage choisi d'après la carte graphique et un
+	# mini-banc d'essai dans le menu (jamais en autotest ni si --quality=).
+	if _needs_probe and path == PATH and not _cmdline_has_prefix("--quality=") and DisplayServer.get_name() != "headless":
+		start_quality_probe()
+
+
+## Détection du préréglage (QualityProbe) ; le résultat est appliqué puis
+## enregistré. Appelée au premier lancement (et par le scénario quality_probe).
+func start_quality_probe() -> QualityProbe:
+	if _probe:
+		return _probe
+	_probe = QualityProbe.new()
+	_probe.name = "QualityProbe"
+	_probe.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(_probe)
+	_probe.done.connect(func(q: int, info: String):
+		quality = q as Quality
+		quality_auto = info
+		_needs_probe = false
+		save_settings()
+		changed.emit()
+		_probe.queue_free()
+		_probe = null)
+	_probe.run.call_deferred()
+	return _probe
 
 
 ## `--quality=low|medium|high` impose la qualité graphique (tests de perf).
@@ -97,6 +127,7 @@ func load_settings() -> void:
 		return
 	var cfg := ConfigFile.new()
 	if cfg.load(path) != OK:
+		_needs_probe = true
 		return
 	player_name = cfg.get_value("player", "name", player_name)
 	mouse_sensitivity = cfg.get_value("controls", "mouse_sensitivity", mouse_sensitivity)
@@ -105,6 +136,8 @@ func load_settings() -> void:
 	fullscreen = cfg.get_value("video", "fullscreen", fullscreen)
 	vsync = cfg.get_value("video", "vsync", vsync)
 	quality = cfg.get_value("video", "quality", quality)
+	quality_auto = cfg.get_value("video", "quality_auto", quality_auto)
+	_needs_probe = not cfg.has_section_key("video", "quality")
 	film_grain = cfg.get_value("video", "film_grain", film_grain)
 	master_volume = cfg.get_value("audio", "master", master_volume)
 	music_volume = cfg.get_value("audio", "music", music_volume)
@@ -123,6 +156,8 @@ func save_settings() -> void:
 	cfg.set_value("video", "fullscreen", fullscreen)
 	cfg.set_value("video", "vsync", vsync)
 	cfg.set_value("video", "quality", quality)
+	if quality_auto != "":
+		cfg.set_value("video", "quality_auto", quality_auto)
 	cfg.set_value("video", "film_grain", film_grain)
 	cfg.set_value("audio", "master", master_volume)
 	cfg.set_value("audio", "music", music_volume)

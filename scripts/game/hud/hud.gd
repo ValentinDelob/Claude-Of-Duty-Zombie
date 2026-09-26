@@ -253,6 +253,8 @@ func _process(delta: float) -> void:
 	var beat_rate := 1.0 + hurt * 1.5
 	var prev_beat := _heart_t
 	_heart_t += delta * beat_rate
+	# Plein écran avec bruit : masqué quand il n'y a rien à montrer (perf).
+	_vignette.visible = intensity > 0.001
 	_vignette_mat.set_shader_parameter("intensity", intensity)
 	_vignette_mat.set_shader_parameter("pulse", absf(sin(_heart_t * PI)))
 	_vignette_mat.set_shader_parameter("flash", clampf(_hurt_flash * 1.6 - 0.6, 0.0, 1.0))

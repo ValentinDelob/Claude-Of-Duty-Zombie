@@ -96,6 +96,7 @@ static func surface(key: String) -> ShaderMaterial:
 	m.set_shader_parameter("grime", s[4])
 	m.set_shader_parameter("roughness_base", s[5])
 	m.set_shader_parameter("metallic_base", s[6])
+	m.set_shader_parameter("noise_lattice", NoiseLattice.tex2d())
 	if key == "stone" or key == "wall_ritual":
 		m.set_shader_parameter("glow", 1.6)
 	_cache[key] = m

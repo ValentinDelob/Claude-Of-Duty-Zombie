@@ -155,7 +155,8 @@ concerne.
   cartouchières, brelages, boîtier de masque à gaz ou gourde, jugulaire ;
   côtes à vif dans les déchirures, trous de balles, joue arrachée, crâne
   ouvert, entrailles (rare), moignons prévus pour le démembrement.
-- **Shader dédié** (assets/shaders/zombie.gdshader) : matière par pièce
+- **Shader dédié** (assets/shaders/zombie.gdshader, corps dans
+  zombie_body.gdshaderinc) : matière par pièce
   (tissu, peau marbrée veinée, cuir, métal peint écaillé, plaie humide, os),
   bruit calculé sur la position de repos (ne glisse pas pendant l'animation),
   **sang peint par sommet** à bord irrégulier (pas de pastilles géométriques).

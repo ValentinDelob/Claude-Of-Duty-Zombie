@@ -37,7 +37,11 @@ func _run(game: Game) -> void:
 	var z := ZombieModel.build(12345)
 	z.position = Vector3(-0.8, -1.2, -1.0)
 	stage.add_child(z)
-	(z.get_node("Mesh") as MeshInstance3D).set_instance_shader_parameter("dissolve", 0.3)
+	# Variante de dissolution (shader séparé, voir ZombieModel.set_dissolve).
+	var zd := ZombieModel.build(12346)
+	zd.position = Vector3(-0.3, -1.2, -1.2)
+	stage.add_child(zd)
+	ZombieModel.set_dissolve(zd.get_node("Mesh") as MeshInstance3D, 0.3)
 	# Chien de l'enfer (matériau à yeux rouges) et boule de foudre.
 	var dog := HellhoundModel.build(1)
 	dog.position = Vector3(0.6, -1.2, -1.0)

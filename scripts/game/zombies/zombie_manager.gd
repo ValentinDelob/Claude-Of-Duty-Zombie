@@ -80,6 +80,9 @@ func _process(_delta: float) -> void:
 	if _cam_ok:
 		_cam_pos = cam.global_position
 		_frustum.assign(cam.get_frustum())
+		# Ombres portées limitées aux zombies les plus proches (RenderQuality).
+		if Engine.get_process_frames() % ZombieShadows.UPDATE_FRAMES == 0:
+			ZombieShadows.update(alive, _cam_pos, RenderQuality.current())
 
 
 ## Intervalle minimal entre deux poses d'un zombie à `pos` : 0 (chaque image)

@@ -10,6 +10,11 @@ extends Node
 var active := false
 var scenario_name := ""
 var _fps_samples: PackedFloat32Array = []
+## Temps GPU du viewport principal (ms) des mêmes images : moins sensible que
+## les fps à la charge CPU des autres jeux (machine partagée).
+var _gpu_ms_sum := 0.0
+## Temps GPU moyen (ms) de la dernière mesure end_perf().
+var last_gpu_ms := 0.0
 var _frame_ms_max := 0.0
 var _sampling := false
 var _failed := false
@@ -79,11 +84,13 @@ func _process(delta: float) -> void:
 			var vp := get_viewport().get_viewport_rid()
 			print("[prof] image lente %.1f ms à t=%.2f : process %.1f ms, physique %.1f ms, rendu CPU %.1f ms, GPU %.1f ms, nav %.1f" % [delta * 1000.0, Time.get_ticks_msec() / 1000.0, Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, RenderingServer.viewport_get_measured_render_time_cpu(vp), RenderingServer.viewport_get_measured_render_time_gpu(vp), Performance.get_monitor(Performance.TIME_NAVIGATION_PROCESS) * 1000.0])
 		_fps_samples.append(1.0 / maxf(delta, 0.0001))
+		_gpu_ms_sum += RenderingServer.viewport_get_measured_render_time_gpu(get_viewport().get_viewport_rid())
 		_frame_ms_max = maxf(_frame_ms_max, delta * 1000.0)
 
 
 func begin_perf() -> void:
 	_fps_samples.clear()
+	_gpu_ms_sum = 0.0
 	_frame_ms_max = 0.0
 	_sampling = true
 
@@ -100,8 +107,9 @@ func end_perf(label: String) -> float:
 		sum += f
 	var avg := sum / _fps_samples.size()
 	var p1: float = sorted[int(sorted.size() * 0.01)]
-	print("[perf] %s : moy %.0f fps, 1%% bas %.0f fps, pire image %.1f ms, draw calls %d, nœuds %d, objets %d, mém %.0f Mo" % [
-		label, avg, p1, _frame_ms_max,
+	last_gpu_ms = _gpu_ms_sum / _fps_samples.size()
+	print("[perf] %s : moy %.0f fps, 1%% bas %.0f fps, pire image %.1f ms, GPU %.2f ms, draw calls %d, nœuds %d, objets %d, mém %.0f Mo" % [
+		label, avg, p1, _frame_ms_max, last_gpu_ms,
 		Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
 		Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
 		Performance.get_monitor(Performance.OBJECT_COUNT),

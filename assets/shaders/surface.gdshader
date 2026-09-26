@@ -22,16 +22,21 @@ uniform float glow = 0.0;
 varying vec3 wpos;
 varying vec3 wnorm;
 
+// Valeur aléatoire par carreau / planche / brique (quelques appels par pixel).
 float hash2(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
+
+// Treillis de valeurs aléatoires (NoiseLattice.tex2d, 64x64, un texel par
+// nœud) : le filtrage linéaire lu en i + s(f) donne le bruit de valeur lissé
+// en UNE lecture au lieu de 4 hachages.
+uniform sampler2D noise_lattice : filter_linear, repeat_enable;
 
 float noise2(vec2 p) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash2(i), hash2(i + vec2(1.0, 0.0)), f.x),
-			mix(hash2(i + vec2(0.0, 1.0)), hash2(i + vec2(1.0, 1.0)), f.x), f.y);
+	return textureLod(noise_lattice, (i + f + 0.5) / 64.0, 0.0).r;
 }
 
 float fbm(vec2 p) {
