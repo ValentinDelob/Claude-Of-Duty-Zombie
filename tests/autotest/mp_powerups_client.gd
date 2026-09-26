@@ -59,9 +59,15 @@ func run() -> void:
 	var z: Zombie = game.zombies.alive[0]
 	await seconds(Zombie.EMERGE_TIME + WeaponController.SWITCH_TIME)
 	await at.screenshot("death_machine")
-	AutotestHelpers.aim_at(p, z.global_position + Vector3.UP)
+	p.input.aim = true
+	await seconds(0.4)
+	# Le client suit sa cible pendant la rafale : les balles de la FAUCHEUSE
+	# peuvent arracher les jambes (rampant au sol) : on vise la hitbox réelle.
 	p.input.fire = true
-	ok = await until(func(): return not z.is_alive(), 8.0, "zombie fauché")
+	ok = await until(func():
+		if z.is_alive():
+			AutotestHelpers.aim_at(p, z.hit_body.global_position)
+		return not z.is_alive(), 8.0, "zombie fauché")
 	p.input.fire = false
 	at.check(ok, "faucheuse : zombie tué par le client")
 	ok = await until(func(): return p.weapons.current().get("id", "") != dm, 10.0, "arme rendue")

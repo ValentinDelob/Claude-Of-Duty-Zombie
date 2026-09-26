@@ -225,7 +225,10 @@ const POWERUP_WEAPONS := {
 	# DEATH MACHINE de BO1 : minigun, 30 s, dégâts énormes, munitions illimitées.
 	"death_machine": {"name": "FAUCHEUSE", "pap_name": "FAUCHEUSE", "class": "lmg",
 		"damage": 450, "head_mult": 2.0, "rpm": 1200, "mag": 999, "reserve": 999, "reload": 1.0,
-		"penetration": 4, "spread_hip": 3.2, "spread_ads": 2.4, "range": 40.0, "recoil": 0.55,
+		"penetration": 4, "spread_hip": 2.0, "spread_ads": 1.0, "range": 40.0,
+		# Comme BO1 : la visée ne monte pas (à 20 coups/s, même un petit recul progressif
+		# fait monter la visée jusqu'au plafond) ; dispersion sans gonflement.
+		"recoil": 0.0, "recoil_side": 0.0, "bloom": 0.0,
 		"ads_zoom": 0.95, "move_mult": 0.9, "sound": "minigun_fire", "infinite": true, "pap": {}},
 }
 
