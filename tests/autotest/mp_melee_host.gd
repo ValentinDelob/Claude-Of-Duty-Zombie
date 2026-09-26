@@ -32,6 +32,9 @@ func run() -> void:
 	ok = await until(func(): return not z.is_alive(), 20.0, "zombie tué au couteau par le client")
 	at.check(ok, "fente du client validée par le serveur")
 	at.check(cpd.points - pts == 130, "client crédité de 130 points (%d)" % (cpd.points - pts))
+	# La marionnette du client est interpolée avec un léger retard : on attend
+	# que la position d'arrivée de la fente soit répliquée.
+	await until(func(): return client.global_position.x - spot.x > 0.8, 2.0, "fente répliquée")
 	at.check(client.global_position.x - spot.x > 0.8, "la fente du client est répliquée (%.2f m)" % (client.global_position.x - spot.x))
 
 	# 2. Couteau de chasse : zombie de manche 10 tué d'un coup.
