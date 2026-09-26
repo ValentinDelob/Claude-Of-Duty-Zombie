@@ -93,7 +93,7 @@ func setup(id: int, local: bool) -> void:
 
 func _ready() -> void:
 	collision_layer = 1 << 1          # couche « players »
-	collision_mask = 1 | (1 << 2)     # monde + zombies
+	collision_mask = 1 | (1 << 2) | Barricade.BARRIER_LAYER  # monde + zombies + fenêtres
 	floor_max_angle = deg_to_rad(50.0)
 	_capsule = CapsuleShape3D.new()
 	_capsule.radius = RADIUS

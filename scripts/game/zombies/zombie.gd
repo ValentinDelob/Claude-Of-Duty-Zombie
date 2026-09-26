@@ -4,7 +4,8 @@ extends CharacterBody3D
 ## marionnette interpolée à partir des instantanés du ZombieManager, avec des
 ## hitboxes pour que le tireur puisse viser localement.
 
-enum State { EMERGE, IDLE, CHASE, ATTACK, DEAD }
+## BARRIER : marche vers sa fenêtre et en arrache les planches ; VAULT : l'enjambe.
+enum State { EMERGE, IDLE, CHASE, ATTACK, DEAD, BARRIER, VAULT }
 
 ## Vitesses par classe (m/s) : marcheur, trotteur, coureur, sprinteur.
 const SPEEDS := [1.25, 2.3, 3.7, 5.0]
@@ -41,6 +42,12 @@ var health := 150
 var max_health := 150
 var speed_mult := 1.0
 var target: Player
+## Fenêtre à franchir avant d'entrer dans la zone (null : déjà dedans).
+var barricade: Barricade
+## Serveur : progression de l'arrachage de la planche en cours.
+var tear_t := 0.0
+var _vault_from := Vector3.ZERO
+var _vault_to := Vector3.ZERO
 
 var _path := PackedVector3Array()
 var _path_i := 0
@@ -88,7 +95,7 @@ func setup(zid: int, zvariant: int, zspeed: int, is_server: bool) -> void:
 func _ready() -> void:
 	_mgr = get_parent() as ZombieManager
 	collision_layer = 1 << 2
-	collision_mask = 1 | (1 << 1) | (1 << 2)  # monde, joueurs, zombies
+	collision_mask = 1 | (1 << 1) | (1 << 2) | Barricade.BARRIER_LAYER  # monde, joueurs, zombies, fenêtres
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = RADIUS
@@ -169,11 +176,19 @@ func _physics_process(delta: float) -> void:
 			_chase(delta)
 		State.ATTACK:
 			_attack(delta)
+		State.BARRIER:
+			if is_instance_valid(barricade):
+				barricade.srv_zombie_barrier(self, delta)
+			else:
+				barricade = null
+				_set_state(State.CHASE)
+		State.VAULT:
+			_vault()
 		State.DEAD:
 			return
 	# Déplacement au sol (y = 0) : les cartes sont plates.
 	velocity.y = 0.0
-	if state != State.EMERGE:
+	if state != State.EMERGE and state != State.VAULT:
 		move_and_slide()
 		if global_position.y != 0.0:
 			global_position.y = 0.0
@@ -297,9 +312,47 @@ func _attack(delta: float) -> void:
 		if target and is_instance_valid(target) and _is_target_valid(target):
 			var d := target.global_position - global_position
 			d.y = 0.0
-			if d.length() < ATTACK_RANGE + 0.45:
+			# À travers une fenêtre, le bras passe au-dessus de l'allège.
+			if d.length() < ATTACK_RANGE + (0.65 if barricade else 0.45):
 				Game.instance.combat.damage_player(target.peer_id, Combat.ZOMBIE_DAMAGE, global_position + Vector3.UP * 1.2)
 	if _state_time >= ATTACK_TIME:
+		_set_state(State.BARRIER if barricade else State.CHASE)
+
+
+# --------------------------------------------------------------------------
+# Fenêtres barricadées (logique dans Barricade)
+# --------------------------------------------------------------------------
+
+## Toutes les machines : le zombie est apparu derrière la fenêtre `b`.
+func enter_barricade(b: Barricade) -> void:
+	barricade = b
+	tear_t = 0.0
+	_set_state(State.BARRIER)
+	yaw = atan2(b.inward.x, b.inward.z)
+	rotation.y = yaw
+
+
+## Serveur : coup porté à travers la fenêtre au joueur `target`.
+func barrier_attack() -> void:
+	_start_attack()
+
+
+## Serveur : enjambe la fenêtre de `from` (dehors) à `to` (dedans).
+func start_vault(from: Vector3, to: Vector3) -> void:
+	_vault_from = from
+	_vault_to = to
+	velocity = Vector3.ZERO
+	_set_state(State.VAULT)
+
+
+func _vault() -> void:
+	var k := clampf(_state_time / BarricadeRules.VAULT_TIME, 0.0, 1.0)
+	global_position = _vault_from.lerp(_vault_to, ease(k, -1.6))
+	if k >= 1.0:
+		if is_instance_valid(barricade):
+			barricade.srv_vault_done(self)
+		barricade = null
+		_repath_t = 0.0
 		_set_state(State.CHASE)
 
 
@@ -470,13 +523,29 @@ func _update_pose(delta: float) -> void:
 	if state == State.EMERGE:
 		emerge_k = clampf(_state_time / EMERGE_TIME, 0.0, 1.0)
 		hips_y = lerpf(-1.7, 0.0, ease(emerge_k, 0.4))
+	# Fenêtre : enjambement (saut par-dessus l'allège) ou arrachage sur place.
+	var vault_k := -1.0
+	var tearing := state == State.BARRIER and spd < 0.4
+	if state == State.VAULT:
+		vault_k = sin(clampf(_state_time / BarricadeRules.VAULT_TIME, 0.0, 1.0) * PI)
+		# Pieds au-dessus de l'allège, buste plié sous le linteau.
+		hips_y = vault_k * 0.95
+		lean += vault_k * 1.1
+	elif tearing:
+		lean = 0.32
 	skel.position.y = hips_y
 
 	# Jambes
-	skel.set_bone_pose_rotation(bones.thigh_l, _q(s * leg_amp))
-	skel.set_bone_pose_rotation(bones.thigh_r, _q(-s * leg_amp))
-	skel.set_bone_pose_rotation(bones.shin_l, _q(-maxf(0.0, -c) * leg_amp * 1.4))
-	skel.set_bone_pose_rotation(bones.shin_r, _q(-maxf(0.0, c) * leg_amp * 1.4))
+	if vault_k >= 0.0:
+		skel.set_bone_pose_rotation(bones.thigh_l, _q(-1.2 * vault_k))
+		skel.set_bone_pose_rotation(bones.thigh_r, _q(-0.9 * vault_k))
+		skel.set_bone_pose_rotation(bones.shin_l, _q(1.5 * vault_k))
+		skel.set_bone_pose_rotation(bones.shin_r, _q(1.3 * vault_k))
+	else:
+		skel.set_bone_pose_rotation(bones.thigh_l, _q(s * leg_amp))
+		skel.set_bone_pose_rotation(bones.thigh_r, _q(-s * leg_amp))
+		skel.set_bone_pose_rotation(bones.shin_l, _q(-maxf(0.0, -c) * leg_amp * 1.4))
+		skel.set_bone_pose_rotation(bones.shin_r, _q(-maxf(0.0, c) * leg_amp * 1.4))
 	# Tronc : penché, balancement
 	var sway := sin(_phase * 0.5) * 0.12
 	skel.set_bone_pose_rotation(bones.spine, _q(lean, sway * 0.5, sway))
@@ -495,6 +564,16 @@ func _update_pose(delta: float) -> void:
 	if state == State.EMERGE:
 		arm_l = lerpf(-2.8, arm_l, emerge_k)
 		arm_r = lerpf(-2.6, arm_r, emerge_k)
+	if tearing:
+		# Agrippe une planche (bras tendus vers le haut) puis l'arrache d'un coup.
+		var t := fmod(_state_time, BarricadeRules.TEAR_TIME) / BarricadeRules.TEAR_TIME
+		var grab := -1.45 - 0.55 * ease(t / 0.7, 0.6) if t < 0.7 else lerpf(-2.0, -0.8, (t - 0.7) / 0.3)
+		arm_l = grab + 0.08 * s
+		arm_r = grab - 0.1 - 0.08 * s
+		fore = -0.6
+	elif vault_k >= 0.0:
+		arm_l = -1.9 + vault_k * 0.4
+		arm_r = -1.7 + vault_k * 0.3
 	if _attack_t >= 0.0:
 		_attack_t += delta / 0.7
 		var k := sin(clampf(_attack_t, 0.0, 1.0) * PI)

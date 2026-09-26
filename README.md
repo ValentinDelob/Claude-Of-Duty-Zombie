@@ -9,7 +9,9 @@ Carte : **BUNKER K-7** — salle de garde, couloir des cellules (piège électri
 laboratoire, dortoir, générateur, quai du téléporteur et salle du rituel
 (Pack-a-Punch). Manches, points, portes payantes, courant, achats muraux,
 5 atouts, boîte mystère, Pack-a-Punch, téléporteur, pièges, état « à terre »
-et réanimation.
+et réanimation. Fenêtres barricadées (15) : les zombies arrachent les
+6 planches puis enjambent ; maintenir [F] pour reconstruire (+10 par planche,
+500 points au plus par manche).
 
 ## Lancer le jeu
 

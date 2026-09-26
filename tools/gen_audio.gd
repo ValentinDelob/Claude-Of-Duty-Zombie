@@ -810,3 +810,39 @@ func gen_announce_fire_sale() -> void:
 		var f: float = [523.25, 659.3, 784.0][k]
 		s.mix(sting, s.env_exp(s.tone(0.5, f, "square"), 0.004, 0.15), k * 0.14, 0.2)
 	_announce_save("announce_fire_sale", voice, sting)
+# ---------------------------------------------------------------- fenêtres barricadées
+
+## Planche arrachée : craquement du bois qui plie, clous qui grincent, rupture
+## sèche puis éclats.
+func gen_barricade_tear() -> void:
+	for k in 3:
+		s = Synth.new(2100 + k)
+		var dur := 0.75
+		var creak := s.bandpass(s.noise(0.32), 420.0 + k * 90.0, 6.0)
+		for i in creak.size():
+			creak[i] *= 0.5 + 0.5 * sin(TAU * i / (Synth.RATE * (0.018 + k * 0.004)))
+		creak = s.env_adsr(creak, 0.08, 0.1, 0.8, 0.05)
+		var b := s.buf(dur)
+		b = s.mix(b, creak, 0.0, 0.7)
+		b = s.mix(b, s.env_adsr(s.sweep(0.25, 2600.0 - k * 300.0, 1700.0, "tri"), 0.03, 0.05, 0.5, 0.1), 0.08, 0.12)
+		var snap := s.env_exp(s.highpass(s.noise(0.08), 1200.0), 0.0005, 0.012)
+		b = s.mix(b, snap, 0.3, 1.3)
+		b = s.mix(b, s.env_exp(s.lowpass(s.noise(0.3), 700.0), 0.001, 0.05), 0.3, 1.0)
+		b = s.mix(b, s.env_exp(s.sweep(0.2, 210.0, 90.0), 0.001, 0.05), 0.3, 0.7)
+		for j in 5:
+			var chip := s.env_exp(s.bandpass(s.noise(0.05), 1500.0 + s.rng.randf() * 2500.0, 3.0), 0.001, 0.01)
+			b = s.mix(b, chip, 0.34 + s.rng.randf() * 0.3, 0.35)
+		_save("barricade_tear_%d" % (k + 1), s.finish(s.reverb(b, 0.6, 0.2, 0.5), 0.9))
+
+
+## Planche reposée : elle claque contre le cadre, deux coups de marteau.
+func gen_barricade_slam() -> void:
+	for k in 2:
+		s = Synth.new(2200 + k)
+		var b := s.env_exp(s.lowpass(s.noise(0.25), 900.0), 0.001, 0.035)
+		b = s.mix(b, s.env_exp(s.sweep(0.2, 190.0, 110.0), 0.001, 0.05), 0.0, 1.0)
+		for hit in 2:
+			var t := 0.14 + hit * (0.12 + k * 0.03)
+			b = s.mix(b, s.env_exp(s.lowpass(s.noise(0.12), 1600.0), 0.0005, 0.018), t, 0.8)
+			b = s.mix(b, _clank(1900.0 + k * 250.0 + hit * 120.0, 0.12, 0.4), t, 0.5)
+		_save("barricade_slam_%d" % (k + 1), s.finish(s.reverb(b, 0.55, 0.18, 0.4), 0.85))

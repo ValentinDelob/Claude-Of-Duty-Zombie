@@ -47,6 +47,8 @@ var power_on := false
 var teleporter: Teleporter
 ## Bonus (chemin réseau : /root/Game/Powerups).
 var powerups: PowerupSystem
+## Fenêtres barricadées (marqueurs W).
+var barricades: BarricadeSystem
 signal power_changed(on: bool)
 @onready var hud: Hud = $HUD
 
@@ -105,6 +107,7 @@ func _load_map(map_id: String) -> void:
 	_build_pack_a_punch()
 	_build_teleporter()
 	_build_traps()
+	_build_barricades()
 	print("[Game] carte « %s » construite (%dx%d)" % [map_def.display_name, map_data.width, map_data.height])
 
 
@@ -435,6 +438,29 @@ func _build_traps() -> void:
 	trap.setup(lever[0], cells, map_data)
 	interact.register(trap)
 	world.add_child(trap)
+
+
+func _build_barricades() -> void:
+	barricades = BarricadeSystem.new()
+	barricades.name = "Barricades"
+	add_child(barricades)
+	barricades.setup(self)
+
+
+## Serveur : reconstruit toutes les fenêtres (bonus CHARPENTIER).
+func repair_all_barricades() -> void:
+	if multiplayer.is_server() and barricades:
+		barricades.srv_repair_all()
+
+
+## Serveur : au moins une planche manque (condition d'apparition du CHARPENTIER, comme BO1).
+func barricades_need_repair() -> bool:
+	if barricades == null:
+		return false
+	for b in barricades.windows:
+		if b.mask != BarricadeRules.FULL_MASK:
+			return true
+	return false
 
 
 ## Arme tenue par un joueur distant (modèle 3e personne).

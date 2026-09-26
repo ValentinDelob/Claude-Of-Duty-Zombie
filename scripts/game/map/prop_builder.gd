@@ -6,6 +6,9 @@ extends RefCounted
 ## Les meshes statiques sont fusionnés par matériau (SurfaceTool.append_from) :
 ## quelques draw calls pour tout le décor. Déterministe (même rendu partout).
 
+## Code du marqueur de fenêtre (MapDef.WINDOW).
+const WINDOW_CHAR := 87
+
 var data: MapData
 var def: MapDef
 var root: Node3D
@@ -54,6 +57,7 @@ func build(parent: Node3D) -> void:
 		_generator(g)
 	for c in data.markers.get(",", []):
 		_blood(c)
+	_windows()
 	_pipes()
 	_lamps()
 
@@ -79,6 +83,8 @@ func _material(key: String) -> Material:
 			return _emissive(Color(1.0, 0.1, 0.05), 3.0)
 		"bulb":
 			return _emissive(Color(1.0, 0.72, 0.42), 4.0)
+		"plank":
+			return Barricade.plank_material()
 	return WorldLook.surface(key)
 
 
@@ -218,15 +224,41 @@ func _blood(c: Vector2i) -> void:
 
 
 ## Tuyauteries le long des murs des zones industrielles.
+## Encadrement fixe des fenêtres barricadées (les planches, animées, sont
+## gérées par Barricade) : allège et linteau dans la maçonnerie de la zone
+## (collision : arrêtent aussi les balles), appui, traverse et montants en
+## bois. Fusionnés avec le reste du décor : aucun draw call par fenêtre.
+func _windows() -> void:
+	var sill := Barricade.SILL_TOP
+	var top := Barricade.LINTEL_BOTTOM
+	var lh := MapBuilder.WALL_HEIGHT - top
+	for w: BarricadeLayout.Opening in BarricadeLayout.analyze(data):
+		var center := MapData.cell_to_world(w.cell)
+		var rot := atan2(float(w.inward.x), float(w.inward.y))
+		var b := Basis(Vector3.UP, rot)
+		var zm: Array = def.zone_materials.get(w.zone, []) if def else []
+		# Sans ombre portée : noyés dans le plan du mur, redessinés sinon dans
+		# les cubemaps des lampes à chaque mouvement de zombie.
+		var wall_key: String = (zm[1] if zm.size() > 1 else "wall") + "#ns"
+		_box(wall_key, Vector3(1.0, sill, 1.0), center + Vector3(0, sill * 0.5, 0), rot, true)
+		_box(wall_key, Vector3(1.0, lh, 1.0), center + Vector3(0, top + lh * 0.5, 0), rot, true)
+		_box("plank#ns", Vector3(1.08, 0.06, 1.06), center + Vector3(0, sill + 0.03, 0), rot)
+		_box("plank#ns", Vector3(1.08, 0.1, 1.02), center + Vector3(0, top - 0.05, 0), rot)
+		for sx in [-0.47, 0.47]:
+			for sz in [-0.45, 0.45]:
+				_box("plank#ns", Vector3(0.07, top - sill, 0.1), center + b * Vector3(sx, (sill + top) * 0.5, sz), rot)
+
+
 func _pipes() -> void:
 	var h := MapBuilder.WALL_HEIGHT
 	for y in data.height:
 		for x in data.width:
 			var c := Vector2i(x, y)
-			if not data.is_floor(c) or not (data.zone_at(c) in def.pipe_zones):
+			if not data.is_floor(c) or data.at(c) == WINDOW_CHAR or not (data.zone_at(c) in def.pipe_zones):
 				continue
 			for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
-				if not data.is_wall(c + d):
+				# Les tuyaux passent au-dessus des fenêtres (au niveau du linteau).
+				if not data.is_wall(c + d) and data.at(c + d) != WINDOW_CHAR:
 					continue
 				var center := MapData.cell_to_world(c)
 				var wall_off := Vector3(d.x, 0, d.y) * 0.34

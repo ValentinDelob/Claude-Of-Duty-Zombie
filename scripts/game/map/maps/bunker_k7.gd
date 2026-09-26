@@ -5,6 +5,10 @@ extends MapDef
 ##         c Laboratoire · d Dortoir · e Générateur · f Quai du téléporteur
 ##         p Salle du Pack-a-Punch (accessible par téléporteur uniquement)
 ## Marqueurs : voir MapDef. Généré à partir de rectangles puis retouché.
+## Fenêtres barricadées (W) : 4 dans la salle de garde, 1 au dortoir, 2 au
+## quai, 2 au couloir, 4 au laboratoire, 2 au générateur ; derrière chacune,
+## une poche fermée avec son apparition Z. Quelques Z « sortie du sol »
+## subsistent dans les salles (comme à Kino der Toten).
 
 func _init() -> void:
 	id = "bunker_k7"
@@ -42,28 +46,31 @@ func _init() -> void:
 		" #dddddddddddddddd5ffffffffffffffffCCffffffffffff# #ppppFpppp#  ",
 		" #Xddddddddddddddd#ffffffffffffffffCffffffffffLff# #ppppppppp#  ",
 		" #ddIddddddddIdddd#ffffffffffffffffffffffffffffOf# #ppppppppp#  ",
-		" #ddIddddddddIdddd#fffffXffffffffZffffffffffffffZ# ###########  ",
-		" #ddddLdddddLddddd######################66########              ",
-		" #dddddddddddddddJ#                    #cc#                     ",
-		" #dddddddddddddddd#                    #Lc#                     ",
-		" #ddddddZddddddddd#                    #cc#                     ",
-		" ########11########                    #cc#                     ",
-		" ########11########              #######cc#############         ",
-		" #aaaaaaaaaaaaaaZa#              #ZccccccccccccccccccZ#         ",
-		" #aaaaaaaaaaaaaaaa#              #cccccccccccccccccccc#         ",
-		" #aaaaa,aaaaaaaCCa#              #ccccLccccccccccLcccc#         ",
-		" #QaaLaaaaaaaLaCaa#              #cccccccccccccccccccc##########",
-		" #aaaaaaaaaaaaaaaa################ccccNNNNccccNNNNcccc#eeeSeeeZ#",
+		" #ddIddddddddIdddd#fffffXfffffffffffffffffffffffZ# ###########  ",
+		" #ddddLdddddLddddd###########W#####W####66########              ",
+		" #dddddddddddddddJ####     #fff# #fff# #cc#                     ",
+		" #dddddddddddddddd#dd#     #fZf# #fZf# #Lc#                     ",
+		" #ddddddZdddddddddWdZ#     ##### ##### #cc#                     ",
+		" ########11########dd#                 #cc#                     ",
+		" ########11###########        ##########cc#############         ",
+		" #aaaaaaaaaaaaaaaa#aa#        #cc#cccccccccccccccccccZ#   ##### ",
+		" #aaaaaaaaaaaaaaaaWaZ#    #####ZcWcccccccccccccccccccc#   #eZe# ",
+		" #aaaaa,aaaaaaaCCa#aa#    #bZb#cc#ccccLccccccccccLcccc#   #eee# ",
+		" #QaaLaaaaaaaLaCaa####    #bbb####cccccccccccccccccccc######W###",
+		" #aaaaaaaaaaaaaaaa##########W#####ccccNNNNccccNNNNcccc#eeeSeeee#",
 		" #aOaaaaaaaaaaaaaa#bbbHbEEEb,bbbb#cccccccccccccccccccc#eeeeeeOe#",
 		" #aaaaaaaaaaaaaaaa2bbLbbEEEbbbbbb3cccccccccccccccccccc#eLeeeeee#",
 		" #aaaaaaPaPaaaaaaa2bbbbbEEEbbLbbb3ccccccccccLccccccccc4ee,eeeee#",
-		" #aaaaaaaaaaaaaaaa#bZbbbEEEbbUbbb#cccccccccccccccccccc4eeeeeeeG#",
-		" #aaaaaaPaPaaaaaaa################cccccccccccccccccccc#eeeYYeee#",
-		" #aaaLaaaaaaaLaaaa#              #ccccNNNNccccNNNNcccc#eeeYYeee#",
-		" #aaaaaaaaaaaa,aaa#              #cccccccccccccccccccc#eeeeeCLe#",
-		" #aaaaaaaaaaaaaaaa#              #ccccLccccccccccLcccc#Zeeeeeee#",
-		" #aZaaaaaaaaRaaaZa#              #ccccccccc,cccccccccM##########",
-		" ##################              #cccccccccccccccccccc#         ",
-		"                                 #ZcccccccccXcccccZccc#         ",
-		"                                 ######################         ",
+		" #aaaaaaaaaaaaaaaa#bbbbbEEEbbUbbb#cccccccccccccccccccc4eeeeeeeG#",
+		" #aaaaaaPaPaaaaaaa#####W##########cccccccccccccccccccc#eeeYYeee#",
+		" #aaaLaaaaaaaLaaaa#aa#bbb#    ####ccccNNNNccccNNNNcccc#eeeYYeee#",
+		" #aaaaaaaaaaaa,aaaWaZ#bZb#    #cc#cccccccccccccccccccc#eeeeeCLe#",
+		" #aaaaaaaaaaaaaaaa#aa#####    #ZcWccccLccccccccccLcccc#Zeeeeeee#",
+		" #aZaaaaaaaaRaaaaa####        #cc#ccccccccc,cccccccccM####W#####",
+		" #####W########W###           ####cccccccccccccccccccc# #eee#   ",
+		"    #aaa#    #aaa#               #ZcccccccccXccccccccc# #eZe#   ",
+		"    #aZa#    #aZa#               #######W########W##### #####   ",
+		"    #####    #####                    #ccc#    #ccc#            ",
+		"                                      #cZc#    #cZc#            ",
+		"                                      #####    #####            ",
 	])

@@ -29,11 +29,13 @@ func test_all_zones_reachable_when_doors_open() -> void:
 			props_only.append(c)
 	nav.set_blocked(props_only, true)
 	var start := MapData.cell_to_world(data.markers["P"][0])
+	# Les poches derrière les fenêtres sont « dehors » : hors du calcul.
+	var outside := BarricadeLayout.pocket_cells(BarricadeLayout.analyze(data))
 	for z in ["a", "b", "c", "d", "e", "f"]:
 		var target := Vector2i(-1, -1)
 		for y in data.height:
 			for x in data.width:
-				if target.x < 0 and data.zone_at(Vector2i(x, y)) == z and nav.is_walkable(Vector2i(x, y)):
+				if target.x < 0 and data.zone_at(Vector2i(x, y)) == z and nav.is_walkable(Vector2i(x, y)) and not outside.has(Vector2i(x, y)):
 					target = Vector2i(x, y)
 		assert_false(nav.find_path(start, MapData.cell_to_world(target)).is_empty(), "zone %s accessible" % z)
 

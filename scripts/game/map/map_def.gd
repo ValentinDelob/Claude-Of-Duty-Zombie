@@ -10,8 +10,12 @@ extends RefCounted
 ##   T plateforme du téléporteur   F sortie du téléporteur   K Pack-a-Punch
 ##   Décor bloquant : C caisse  O baril  I lit  N paillasse  Y générateur
 ##   Décor : , flaque de sang
+##   W fenêtre barricadée, posée dans un mur entre la zone et une petite poche
+##     fermée (le dehors) dont les Z sont des apparitions « par la fenêtre »
+##     (voir BarricadeLayout). Les Z hors poche sortent du sol.
 
 const BLOCKING_PROPS := "COINY"
+const WINDOW := "W"
 
 var id := "map"
 var display_name := "Carte"
@@ -39,11 +43,12 @@ func zone_display_name(zone: String) -> String:
 	return zone_names.get(zone, zone.to_upper())
 
 
-## Cellules bloquantes au départ (décor + portes fermées).
+## Cellules bloquantes au départ (décor + portes fermées + fenêtres, que les
+## zombies ne franchissent que par l'enjambement scripté).
 static func blocking_cells(data: MapData, def: MapDef) -> Array:
 	var out := []
 	for key in data.markers:
-		if BLOCKING_PROPS.contains(key) or def.doors.has(key):
+		if BLOCKING_PROPS.contains(key) or def.doors.has(key) or key == WINDOW:
 			out.append_array(data.markers[key])
 	return out
 
