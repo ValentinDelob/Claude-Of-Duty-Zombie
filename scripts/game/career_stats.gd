@@ -1,0 +1,75 @@
+class_name CareerStats
+extends RefCounted
+## Dossier de combat (« Combat Record » de Black Ops 1) : statistiques locales
+## cumulées de toutes les parties du joueur, enregistrées à chaque GAME OVER
+## dans user://career.cfg (user://career_autotest.cfg pendant les tests).
+
+const PATH := "user://career.cfg"
+const TEST_PATH := "user://career_autotest.cfg"
+
+## Clés dans l'ordre d'affichage : [clé, libellé].
+const FIELDS := [
+	["games", "Parties jouées"],
+	["best_round_solo", "Meilleure manche (solo)"],
+	["best_round_coop", "Meilleure manche (coop)"],
+	["rounds", "Manches survécues"],
+	["kills", "Zombies abattus"],
+	["headshots", "Tirs à la tête"],
+	["best_score", "Meilleur score"],
+	["downs", "Fois à terre"],
+	["revives", "Réanimations"],
+	["time", "Temps de jeu"],
+]
+
+
+static func path() -> String:
+	return TEST_PATH if Autotest.active else PATH
+
+
+static func load_stats() -> Dictionary:
+	var out := {}
+	for f in FIELDS:
+		out[f[0]] = 0
+	var cfg := ConfigFile.new()
+	if cfg.load(path()) == OK:
+		for f in FIELDS:
+			out[f[0]] = int(cfg.get_value("career", f[0], 0))
+	return out
+
+
+## Ajoute une partie terminée. `seconds` : durée de la partie.
+static func record_game(pd: PlayerData, round_n: int, solo: bool, seconds: float) -> Dictionary:
+	var s := accumulate(load_stats(), pd, round_n, solo, seconds)
+	var cfg := ConfigFile.new()
+	for k in s:
+		cfg.set_value("career", k, s[k])
+	cfg.save(path())
+	return s
+
+
+## Règle pure : ajoute une partie aux statistiques `s` (modifiées et retournées).
+static func accumulate(s: Dictionary, pd: PlayerData, round_n: int, solo: bool, seconds: float) -> Dictionary:
+	s.games += 1
+	var best_key := "best_round_solo" if solo else "best_round_coop"
+	s[best_key] = maxi(s[best_key], round_n)
+	# Manches survécues : la manche en cours au GAME OVER ne compte pas.
+	s.rounds += maxi(round_n - 1, 0)
+	if pd:
+		s.kills += pd.kills
+		s.headshots += pd.headshots
+		s.downs += pd.downs
+		s.revives += pd.revives
+		s.best_score = maxi(s.best_score, pd.points)
+	s.time += int(seconds)
+	return s
+
+
+## Réinitialise le dossier (tests).
+static func reset() -> void:
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path()))
+
+
+static func format_value(key: String, v: int) -> String:
+	if key == "time":
+		return "%d h %02d min" % [v / 3600, (v / 60) % 60]
+	return str(v)

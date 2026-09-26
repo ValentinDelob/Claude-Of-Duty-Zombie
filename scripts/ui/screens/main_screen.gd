@@ -1,5 +1,6 @@
 extends MenuScreen
-## Écran principal : SOLO / MULTIJOUEUR / OPTIONS / CRÉDITS / QUITTER.
+## Écran principal : SOLO / MULTIJOUEUR / OPTIONS / DOSSIER DE COMBAT / CRÉDITS /
+## QUITTER.
 
 var _first: Button
 var _col: VBoxContainer
@@ -19,6 +20,7 @@ func enter(_args := {}) -> void:
 	_col.add_child(_first)
 	_col.add_child(button("MULTIJOUEUR", func(): menu.show_screen("multiplayer"), "Coopération de 2 à %d survivants, par adresse IP." % Net.MAX_SUPPORTED_PLAYERS))
 	_col.add_child(button("OPTIONS", func(): menu.show_screen("options"), "Commandes, affichage, son."))
+	_col.add_child(button("DOSSIER DE COMBAT", func(): menu.show_screen("career"), "Vos statistiques de survie, partie après partie."))
 	_col.add_child(button("CRÉDITS", func(): menu.show_screen("credits"), "Ceux qui ont bâti ce bunker."))
 	_col.add_child(button("QUITTER", _quit, "Retour à la surface."))
 	focus_later(_first)

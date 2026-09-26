@@ -123,6 +123,7 @@ func _cl_begin_match(roster: Dictionary) -> void:
 		var slot: int = roster[pid].slot
 		var pos := MapData.cell_to_world(spawns[slot % spawns.size()], 0.05) if not spawns.is_empty() else Vector3(2, 0.1, 2)
 		_spawn_player(pid, pos)
+	_match_start_ms = Time.get_ticks_msec()
 	GameState.set_state(GameState.State.PLAYING)
 	capture_mouse(true)
 	hud.hide_loading()
@@ -203,6 +204,8 @@ func _unhandled_input(event: InputEvent) -> void:
 # --------------------------------------------------------------------------
 
 const GAME_OVER_DELAY := 9.0
+## Début de la partie (dossier de combat : temps de jeu).
+var _match_start_ms := 0
 
 
 ## Serveur : un joueur est tombé à 0 PV : il passe à terre (DOWNED).
@@ -253,6 +256,8 @@ func _cl_player_died(pid: int) -> void:
 func _cl_game_over(summary: String) -> void:
 	if GameState.state != GameState.State.GAME_OVER:
 		GameState.set_state(GameState.State.GAME_OVER)
+	CareerStats.record_game(session.local_data(), rounds.round_n, Net.mode == Net.Mode.SOLO,
+			(Time.get_ticks_msec() - _match_start_ms) / 1000.0)
 	hud.show_center("GAME OVER", summary, 0.6)
 	hud.show_game_over_table("VOUS AVEZ SURVÉCU %d MANCHE%s" % [rounds.round_n, "S" if rounds.round_n > 1 else ""])
 	capture_mouse(false)

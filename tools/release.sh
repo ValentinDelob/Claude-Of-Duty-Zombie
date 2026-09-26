@@ -15,8 +15,14 @@ EXE=build/CallOfClaudeZombie.exe
 mkdir -p build
 
 echo "== export $TAG"
+# Le numéro de build est inscrit dans le paquet (menu, poignée de main réseau),
+# puis project.godot est remis en état.
+cp project.godot build/project.godot.bak
+sed -i "s/^config\/version=.*/config\/version=\"${TAG#v}\"/" project.godot
 "$GODOT" --headless --path . --export-release "Windows Desktop" "$EXE" > build/export.log 2>&1
-if [ $? -ne 0 ] || [ ! -s "$EXE" ] || grep -qE "SCRIPT ERROR|Parse Error" build/export.log; then
+RC=$?
+cp build/project.godot.bak project.godot
+if [ $RC -ne 0 ] || [ ! -s "$EXE" ] || grep -qE "SCRIPT ERROR|Parse Error" build/export.log; then
   echo "== EXPORT ECHEC (voir build/export.log)"; exit 1
 fi
 VEXE="build/CallOfClaudeZombie-$TAG.exe"
@@ -39,11 +45,15 @@ if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main 2>/dev/null)" ]; th
 fi
 SUBJECT=$(git log -1 --format=%s)
 NOTES=build/release_notes.md
+# Notes : tous les commits depuis la release précédente.
+PREV=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null)
+RANGE=${PREV:+$PREV..}HEAD
 {
-  echo "**$SUBJECT**"
-  echo
-  git log -1 --format=%b | grep -v "^Co-Authored-By"
-  echo
+  for C in $(git rev-list --reverse "$RANGE"); do
+    echo "### $(git log -1 --format=%s "$C")"
+    git log -1 --format=%b "$C" | grep -v "^Co-Authored-By"
+    echo
+  done
   echo "---"
   echo "Télécharger \`CallOfClaudeZombie-$TAG.exe\` ci-dessous et le lancer (Windows 64 bits,"
   echo "aucune installation). Multijoueur : même version pour tous les joueurs, port UDP 7777."
