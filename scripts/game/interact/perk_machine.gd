@@ -9,6 +9,7 @@ var _sign_mat: StandardMaterial3D
 var _light: OmniLight3D
 var _jingle_t := 0.0
 var _lit := false
+var _gone := false
 
 
 func setup(marker: String, cell: Vector2i, perk: String, data: MapData) -> void:
@@ -82,7 +83,13 @@ func _part(size: Vector3, pos: Vector3, mat: Material) -> void:
 
 
 func powered() -> bool:
-	return not PerkDB.needs_power(perk_id) or system.game.power_on
+	return not PerkDB.needs_power(perk_id, Net.mode == Net.Mode.SOLO) or system.game.power_on
+
+
+## Solo : LAZARUS TONIC épuisé (acheté 3 fois) : la machine a disparu.
+func sold_out() -> bool:
+	return perk_id == "lazarus" and Net.mode == Net.Mode.SOLO \
+			and system.game.perks.solo_revive_buys >= PerkDB.SOLO_REVIVE_LIMIT
 
 
 func _refresh() -> void:
@@ -92,7 +99,9 @@ func _refresh() -> void:
 
 
 func _process(delta: float) -> void:
-	if not _lit:
+	if not _gone and sold_out() and not _anyone_holds():
+		_vanish()
+	if not _lit or _gone:
 		return
 	_jingle_t -= delta
 	if _jingle_t <= 0.0:
@@ -106,12 +115,10 @@ func interact_point() -> Vector3:
 
 func prompt(pid: int) -> String:
 	var pd := system.game.session.get_data(pid)
-	if pd == null or pd.has_perk(perk_id):
+	if pd == null or pd.has_perk(perk_id) or sold_out():
 		return ""
 	if not powered():
 		return "Le courant doit être rétabli"
-	if pd.perks.size() >= PerkDB.MAX_PERKS:
-		return "Vous ne pouvez pas boire plus de %d atouts" % PerkDB.MAX_PERKS
 	return "[F] Boire %s %s — %s" % [PerkDB.display_name(perk_id), Interactable.cost_text(_cost()), PerkDB.PERKS[perk_id].desc]
 
 
@@ -131,11 +138,27 @@ func srv_use(pid: int) -> void:
 	if not powered():
 		system.deny(pid, "Pas de courant")
 		return
-	if pd.perks.size() >= PerkDB.MAX_PERKS:
-		system.deny(pid, "Trop d'atouts")
+	if sold_out():
 		return
 	if not game.session.try_spend(pid, _cost()):
 		system.deny(pid, "Pas assez de points")
 		return
 	system.purchase_fx(self)
 	game.perks.srv_grant(pid, perk_id)
+
+
+func _anyone_holds() -> bool:
+	for pd: PlayerData in system.game.session.data.values():
+		if pd.has_perk(perk_id):
+			return true
+	return false
+
+
+## Comme BO1 : la dernière LAZARUS TONIC consommée, la machine s'envole.
+func _vanish() -> void:
+	_gone = true
+	Audio.play_3d("box_fly", global_position + Vector3.UP, -2.0, 0.0)
+	var tw := create_tween()
+	tw.tween_property(self, "position", position + Vector3.UP * 6.0, 2.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_callback(hide)
+	print("[Perks] LAZARUS TONIC épuisé : la machine disparaît")

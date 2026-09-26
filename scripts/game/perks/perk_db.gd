@@ -3,7 +3,8 @@ extends RefCounted
 ## Atouts (boissons). Effets lus par le serveur (santé, cadence, dégâts,
 ## rechargement, régénération) et par le client (vitesse, sprint, affichage).
 
-const MAX_PERKS := 4
+## Solo : LAZARUS TONIC ne peut être acheté que 3 fois, puis la machine disparaît.
+const SOLO_REVIVE_LIMIT := 3
 
 const PERKS := {
 	"titan": {
@@ -16,11 +17,11 @@ const PERKS := {
 	},
 	"twin": {
 		"name": "TWIN SHOT", "cost": 2000, "color": Color(1.0, 0.72, 0.18),
-		"desc": "Cadence +33 %, dégâts +25 %", "needs_power": true,
+		"desc": "Cadence de tir +33 %", "needs_power": true,
 	},
 	"lazarus": {
 		"name": "LAZARUS TONIC", "cost": 1500, "solo_cost": 500, "color": Color(0.3, 0.7, 1.0),
-		"desc": "Réanimation rapide, régénération accélérée", "needs_power": false,
+		"desc": "Réanimation 2x plus rapide (solo : se relève seul)", "needs_power": true, "solo_needs_power": false,
 	},
 	"stride": {
 		"name": "STRIDE SODA", "cost": 2000, "color": Color(0.8, 0.45, 1.0),
@@ -48,8 +49,11 @@ static func cost(id: String, solo: bool) -> int:
 	return int(p.get("solo_cost", p.get("cost", 0))) if solo else int(p.get("cost", 0))
 
 
-static func needs_power(id: String) -> bool:
-	return PERKS.get(id, {}).get("needs_power", true)
+static func needs_power(id: String, solo := false) -> bool:
+	var p: Dictionary = PERKS.get(id, {})
+	if solo and p.has("solo_needs_power"):
+		return p.solo_needs_power
+	return p.get("needs_power", true)
 
 
 # ---- effets (lus partout à partir de PlayerData.perks répliqués)
@@ -62,12 +66,14 @@ static func fire_rate_mult(pd: PlayerData) -> float:
 	return 1.33 if pd and pd.has_perk("twin") else 1.0
 
 
-static func damage_mult(pd: PlayerData) -> float:
-	return 1.25 if pd and pd.has_perk("twin") else 1.0
+## TWIN SHOT (Double Tap de BO1) n'augmente que la cadence.
+static func damage_mult(_pd: PlayerData) -> float:
+	return 1.0
 
 
-static func regen_delay_mult(pd: PlayerData) -> float:
-	return 0.5 if pd and pd.has_perk("lazarus") else 1.0
+## BO1 : aucun atout n'accélère la régénération.
+static func regen_delay_mult(_pd: PlayerData) -> float:
+	return 1.0
 
 
 static func max_health(pd: PlayerData) -> int:

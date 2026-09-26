@@ -8,10 +8,12 @@ extends Node
 ## En solo, LAZARUS TONIC relève automatiquement le joueur ; sans lui, c'est
 ## la fin de la partie.
 
-const BLEEDOUT_TIME := 30.0
-const REVIVE_TIME := 4.0
-const REVIVE_TIME_LAZARUS := 2.0
-const SOLO_SELF_REVIVE := 4.0
+## Valeurs de Black Ops 1 (saignement 45 s, réanimation 3 s, 1,5 s avec
+## LAZARUS TONIC ; en solo, on se relève seul au bout d'une dizaine de secondes).
+const BLEEDOUT_TIME := 45.0
+const REVIVE_TIME := 3.0
+const REVIVE_TIME_LAZARUS := 1.5
+const SOLO_SELF_REVIVE := 10.0
 const REVIVE_RANGE := 2.4
 const REVIVED_HEALTH := 100
 

@@ -10,7 +10,7 @@ var _pop := {}  # perk -> temps restant de l'animation d'apparition
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2((SIZE + GAP) * PerkDB.MAX_PERKS, SIZE)
+	custom_minimum_size = Vector2((SIZE + GAP) * PerkDB.PERKS.size(), SIZE)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 

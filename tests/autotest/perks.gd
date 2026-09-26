@@ -1,6 +1,7 @@
 extends AutotestScenario
 ## Atouts : courant requis (sauf Lazarus), prix solo, effets serveur (santé,
-## rechargement, cadence), limite de 4, animation de boisson, icônes.
+## rechargement, cadence), aucune limite (BO1), animation de boisson, icônes,
+## LAZARUS limité à 3 achats en solo.
 
 var H := AutotestHelpers
 var game: Game
@@ -66,9 +67,17 @@ func run() -> void:
 	await seconds(2.4)
 	at.check(pd.has_perk("twin") and absf(game.combat.game_rate_mult(1) - 1.33) < 0.01, "TWIN SHOT : cadence x1,33")
 
-	# 5e atout refusé.
+	# 5e atout : pas de limite dans Black Ops 1.
 	await buy("M")
-	at.check(not pd.has_perk("stride") and pd.perks.size() == 4, "limite de 4 atouts")
-	await seconds(2.0)
+	at.check(pd.has_perk("stride") and pd.perks.size() == 5, "5 atouts (aucune limite)")
+	await seconds(2.6)
 	await at.screenshot("icons")
-	at.check(game.hud._perk_icons.perks.size() == 4, "4 icônes dans le HUD")
+	at.check(game.hud._perk_icons.perks.size() == 5, "5 icônes dans le HUD")
+
+	# Solo : 3e LAZARUS consommé -> la machine s'envole.
+	var q: PerkMachine = game.interact.get_obj("perk_Q")
+	game.perks.solo_revive_buys = PerkDB.SOLO_REVIVE_LIMIT
+	at.check(q.visible and not q.can_interact(1), "LAZARUS épuisé : plus d'achat")
+	game.perks.srv_clear(1)
+	await until(func(): return not q.visible, 4.0, "machine disparue")
+	at.check(not q.visible, "la machine LAZARUS a disparu")

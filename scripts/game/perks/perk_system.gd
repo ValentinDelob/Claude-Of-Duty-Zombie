@@ -7,6 +7,8 @@ extends Node
 const DRINK_TIME := 2.3
 
 var game: Game
+## Solo : nombre d'achats de LAZARUS TONIC (limités à PerkDB.SOLO_REVIVE_LIMIT).
+var solo_revive_buys := 0
 
 
 func _ready() -> void:
@@ -19,6 +21,8 @@ func srv_grant(pid: int, perk: String) -> void:
 	if pd == null or pd.has_perk(perk):
 		return
 	pd.perks.append(perk)
+	if perk == "lazarus" and Net.mode == Net.Mode.SOLO:
+		solo_revive_buys += 1
 	_apply_stats(pd)
 	pd.health = pd.max_health
 	game.session.sync_stats(pid)
