@@ -2,7 +2,8 @@ extends AutotestScenario
 ## Menu principal parcouru au clavier (événements d'entrée réels) :
 ## principal -> OPTIONS (une option modifiée, vérifiée dans le fichier de
 ## réglages, puis restaurée) -> retour -> CRÉDITS (défilement) -> retour ->
-## MULTIJOUEUR -> retour. Captures de chaque écran.
+## MULTIJOUEUR -> retour -> apparition de la silhouette du fond -> SOLO
+## (fondu au noir cinématique avant le chargement). Captures de chaque écran.
 
 const EXPECTED := ["SOLO", "MULTIJOUEUR", "OPTIONS", "CRÉDITS", "QUITTER"]
 
@@ -10,11 +11,18 @@ var menu: MainMenu
 
 
 func run() -> void:
-	timeout_sec = 60
+	timeout_sec = 100
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu principal")
 	menu = tree().current_scene
-	await seconds(1.8)  # ouverture en fondu
+	await seconds(2.6)  # ouverture en fondu
 	at.check(menu.current_name == "main", "écran principal affiché")
+	# Ambiance : fond 3D, musique, logo.
+	at.check(menu.backdrop != null and menu.backdrop.camera.current, "fond 3D du bunker affiché (caméra active)")
+	at.check(Audio._music_name == MainMenu.MUSIC, "musique du menu : %s" % Audio._music_name)
+	at.check(menu.current.logo != null and menu.current.logo.is_visible_in_tree(), "logo affiché")
+	at.begin_perf()
+	await seconds(1.5)
+	at.check_perf(at.end_perf("menu 3D"), 150.0, "menu 3D")
 	var labels := []
 	for b in _buttons():
 		labels.append(b.label)
@@ -66,6 +74,29 @@ func run() -> void:
 	await at.screenshot("transition")
 	await seconds(0.8)
 	at.check(_focused_label() == "SOLO", "focus rendu à SOLO")
+
+	# La silhouette du fond apparaît dans l'embrasure, puis disparaît.
+	menu.backdrop.force_figure(true)
+	await seconds(0.5)
+	at.check(menu.backdrop.figure_visible(), "silhouette visible au fond")
+	await at.screenshot("presence")
+	menu.backdrop.force_figure(false)
+	at.check(not menu.backdrop.figure_visible(), "silhouette disparue")
+
+	# SOLO : fondu au noir cinématique AVANT le chargement.
+	await press("ui_accept")
+	await seconds(0.5)
+	at.check(tree().current_scene == menu, "SOLO : toujours dans le menu pendant le fondu")
+	at.check(menu._fade_amount > 0.15, "fondu au noir en cours (%.2f)" % menu._fade_amount)
+	await at.screenshot("launch_fade")
+	var ok: bool = await until(func(): return Game.instance != null and Game.instance.local_player != null, 30.0, "partie solo lancée après le fondu")
+	if ok:
+		at.check(GameState.state == GameState.State.PLAYING, "partie en cours")
+		at.check(get_window_scale_mode() == Window.CONTENT_SCALE_MODE_DISABLED, "mise à l'échelle du menu restaurée en jeu")
+
+
+func get_window_scale_mode() -> int:
+	return at.get_window().content_scale_mode
 
 
 ## Modifie le volume de la musique avec ► et vérifie qu'il est appliqué et

@@ -3,16 +3,18 @@ extends MenuScreen
 
 var _first: Button
 var _col: VBoxContainer
+var logo: MenuLogo
 
 
 func enter(_args := {}) -> void:
 	_col = vbox(2)
 	_col.set_anchors_preset(Control.PRESET_CENTER_LEFT)
-	_col.offset_left = 96
-	_col.offset_top = -170
+	_col.offset_left = 84
+	_col.offset_top = -292
 	add_child(_col)
-	_col.add_child(title("CALL OF CLAUDE ZOMBIE", 58))
-	_col.add_child(text("", 16))
+	logo = MenuLogo.new()
+	_col.add_child(logo)
+	_col.add_child(text("", 4))
 	_first = button("SOLO", _solo, "Survivre seul face aux hordes. Combien de manches tiendrez-vous ?")
 	_col.add_child(_first)
 	_col.add_child(button("MULTIJOUEUR", func(): menu.show_screen("multiplayer"), "Coopération de 2 à %d survivants, par adresse IP." % Net.MAX_SUPPORTED_PLAYERS))
@@ -24,7 +26,7 @@ func enter(_args := {}) -> void:
 
 func _solo() -> void:
 	if _lock():
-		menu.fade_to_black(0.9, func(): Router.start_solo())
+		menu.launch(func(): Router.start_solo())
 
 
 func _quit() -> void:

@@ -20,8 +20,11 @@ const SCREENS := {
 }
 const BASE_SIZE := Vector2i(1280, 720)
 ## Durées des transitions (fondu au noir puis retour).
-const FADE_IN := 0.16
-const FADE_OUT := 0.55
+const FADE_IN := 0.22
+const FADE_OUT := 0.7
+const MUSIC := "menu_theme"
+const MUSIC_DB := -3.0
+const MENU_3D_SCALE := 0.75
 
 var current: MenuScreen
 var current_name := ""
@@ -33,17 +36,40 @@ var _fade_tween: Tween
 var _fade_amount := 0.0
 var _hint: Label
 var _saved_scale := {}
+var backdrop: MenuBackdrop
+var _post: ColorRect
+var _post_mat: ShaderMaterial
+var _rng := RandomNumberGenerator.new()
+var _next_glitch := 8.0
+var _glitch_left := 0.0
+var _glitch_power := 0.0
 
 
 func _ready() -> void:
 	if GameState.state != GameState.State.LOBBY:
 		GameState.reset_to_menu()
 	_setup_scaling()
-	var bg := ColorRect.new()
-	bg.color = Color(0.015, 0.012, 0.012)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
+	# Fond 3D (bunker) puis voile sombre à gauche pour la lisibilité.
+	backdrop = MenuBackdrop.new()
+	add_child(backdrop)
+	backdrop.presence.connect(_on_presence)
+	var shade := TextureRect.new()
+	var g := Gradient.new()
+	g.set_color(0, Color(0, 0, 0, 0.82))
+	g.set_color(1, Color(0, 0, 0, 0.0))
+	g.add_point(0.38, Color(0, 0, 0, 0.55))
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill_from = Vector2(0, 0)
+	gt.fill_to = Vector2(0.72, 0)
+	gt.width = 256
+	gt.height = 4
+	shade.texture = gt
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shade.stretch_mode = TextureRect.STRETCH_SCALE
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(shade)
 	_layer = Control.new()
 	_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -55,6 +81,9 @@ func _ready() -> void:
 	_hint.offset_right = 900
 	_hint.offset_bottom = -36
 	add_child(_hint)
+	var hud := MenuHud.new()
+	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(hud)
 	_fade = ColorRect.new()
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -62,6 +91,15 @@ func _ready() -> void:
 	_fade_mat.shader = preload("res://assets/shaders/menu_fade.gdshader")
 	_fade.material = _fade_mat
 	add_child(_fade)
+	# Post-traitement plein écran (grain, vignette, balayage, parasites).
+	_post = ColorRect.new()
+	_post.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_post.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_post_mat = ShaderMaterial.new()
+	_post_mat.shader = preload("res://assets/shaders/menu_post.gdshader")
+	_post.material = _post_mat
+	add_child(_post)
+	_rng.randomize()
 	Net.connection_error.connect(_on_connection_error)
 	Net.session_ended.connect(_on_session_ended)
 	Net.joined_server.connect(_on_joined)
@@ -76,8 +114,51 @@ func _ready() -> void:
 		_fade_tween.kill()
 	_set_fade(1.0)
 	_fade_tween = create_tween()
-	_fade_tween.tween_method(_set_fade, 1.0, 0.0, 1.6).set_trans(Tween.TRANS_SINE)
-	Audio.play_music("", 0.0)
+	_fade_tween.tween_method(_set_fade, 1.0, 0.0, 2.4).set_trans(Tween.TRANS_SINE)
+	glitch(0.35, 0.8)
+	Audio.play_music(MUSIC, MUSIC_DB, 3.0)
+
+
+func _process(delta: float) -> void:
+	# Parasites vidéo : rares salves spontanées + celles demandées.
+	_next_glitch -= delta
+	if _next_glitch <= 0.0:
+		_next_glitch = _rng.randf_range(6.0, 14.0)
+		glitch(_rng.randf_range(0.08, 0.25), _rng.randf_range(0.3, 0.8))
+	var g := 0.0
+	if _glitch_left > 0.0:
+		_glitch_left -= delta
+		g = _glitch_power * _rng.randf_range(0.5, 1.0)
+	_post_mat.set_shader_parameter("glitch", g)
+
+
+## Salve de parasites vidéo sur tout l'écran.
+func glitch(duration: float, power := 1.0) -> void:
+	if _glitch_left <= 0.0:
+		_glitch_power = power
+	else:
+		_glitch_power = maxf(_glitch_power, power)
+	_glitch_left = maxf(_glitch_left, duration)
+
+
+## Lancement d'une partie : la lampe meurt, l'image décroche, fondu au noir
+## sur le fracas d'une porte blindée, puis `then` (chargement).
+func launch(then: Callable, duration := 1.8) -> void:
+	Audio.play_ui("menu_start", -2.0)
+	Audio.stop_music(duration)
+	glitch(0.45, 1.0)
+	backdrop.blackout(duration + 1.0)
+	backdrop.force_figure(true)  # dernière image : elle est là, dans la porte
+	fade_to_black(duration, then)
+
+
+## La silhouette du fond apparaît : râle lointain et image qui décroche.
+func _on_presence(shown: bool) -> void:
+	if shown:
+		Audio.play_ui("menu_presence", -9.0)
+		glitch(0.3, 0.9)
+	else:
+		glitch(0.12, 0.5)
 
 
 func _exit_tree() -> void:
@@ -86,13 +167,20 @@ func _exit_tree() -> void:
 		w.content_scale_mode = _saved_scale.mode
 		w.content_scale_aspect = _saved_scale.aspect
 		w.content_scale_size = _saved_scale.size
+		# Résolution 3D : restaurée seulement si personne ne l'a changée entre-temps
+		# (préréglages de qualité appliqués depuis les options).
+		if is_equal_approx(w.scaling_3d_scale, MENU_3D_SCALE):
+			w.scaling_3d_scale = _saved_scale.scale_3d
 
 
 func _setup_scaling() -> void:
 	var w := get_window()
 	if w == null:
 		return
-	_saved_scale = {"mode": w.content_scale_mode, "aspect": w.content_scale_aspect, "size": w.content_scale_size}
+	_saved_scale = {"mode": w.content_scale_mode, "aspect": w.content_scale_aspect, "size": w.content_scale_size, "scale_3d": w.scaling_3d_scale}
+	# Le fond 3D, sous le grain et la vignette, est rendu à 75 % de la
+	# définition : invisible à l'œil, nettement moins coûteux (GTX 1050).
+	w.scaling_3d_scale = minf(w.scaling_3d_scale, MENU_3D_SCALE)
 	w.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	w.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 	w.content_scale_size = BASE_SIZE
@@ -149,6 +237,8 @@ func _transition() -> void:
 	_fade_tween = create_tween()
 	_fade_tween.tween_method(_set_fade, start, 1.0, FADE_IN * (1.0 - start))
 	_fade_tween.tween_method(_set_fade, 1.0, 0.0, FADE_OUT).set_trans(Tween.TRANS_SINE)
+	Audio.play_ui("menu_whoosh", -12.0)
+	glitch(0.1, 0.35)
 
 
 func _set_fade(v: float) -> void:

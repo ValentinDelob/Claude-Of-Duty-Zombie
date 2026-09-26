@@ -13,19 +13,24 @@ const DIM_TEXT := Color(0.45, 0.42, 0.38)
 const GAUGE_ON := Color(0.62, 0.1, 0.07)
 
 ## Sons d'interface (noms des fichiers res://assets/audio/).
-const SND_MOVE := "ui_move"
-const SND_SELECT := "ui_select"
-const SND_BACK := "ui_back"
-const VOL_MOVE := -8.0
-const VOL_SELECT := -3.0
+const SND_MOVE := "menu_move"
+const SND_SELECT := "menu_select"
+const SND_BACK := "menu_back"
+const VOL_MOVE := -9.0
+const VOL_SELECT := -4.0
 
 static var _brush: ImageTexture
+static var _title_mat: ShaderMaterial
 
 
 static func title(text: String, size := 44) -> Label:
 	var l := UiStyle.label(text, size, UiStyle.BLOOD, "title")
 	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 	l.add_theme_constant_override("outline_size", 8)
+	if _title_mat == null:
+		_title_mat = ShaderMaterial.new()
+		_title_mat.shader = preload("res://assets/shaders/menu_title.gdshader")
+	l.material = _title_mat
 	return l
 
 
