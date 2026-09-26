@@ -14,7 +14,7 @@ const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 4
 const MAX_SUPPORTED_PLAYERS := 8
 ## Incrémenter à chaque changement incompatible du protocole réseau.
-const PROTOCOL_VERSION := 1
+const PROTOCOL_VERSION := 2
 const CONNECT_TIMEOUT_SEC := 8.0
 
 enum Mode { NONE, SOLO, HOST, CLIENT }
@@ -388,6 +388,33 @@ func _reset_peer() -> void:
 	loaded_peers = {}
 	match_started = false
 	_handshake_done = false
+
+
+# --------------------------------------------------------------------------
+# Mesure de bande passante (statistiques ENet de l'hôte local)
+# --------------------------------------------------------------------------
+
+var _bw_t := -1.0
+
+## Octets et paquets UDP envoyés / reçus par CETTE machine depuis l'appel
+## précédent (après compression, en-têtes ENet compris, hors IP/UDP), avec la
+## durée écoulée `dt`. Remet les compteurs d'ENet à zéro : un seul appelant.
+## Vide hors ENet (solo).
+func sample_bandwidth() -> Dictionary:
+	var peer := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	if peer == null or peer.host == null:
+		return {}
+	var h := peer.host
+	var t := Time.get_ticks_usec() / 1000000.0
+	var d := {
+		"sent": h.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA),
+		"recv": h.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_DATA),
+		"sent_packets": h.pop_statistic(ENetConnection.HOST_TOTAL_SENT_PACKETS),
+		"recv_packets": h.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_PACKETS),
+		"dt": t - _bw_t if _bw_t >= 0.0 else 0.0,
+	}
+	_bw_t = t
+	return d
 
 
 func _free_slot() -> int:

@@ -16,6 +16,50 @@ Moteur : **Godot 4.7** (GDScript, rendu Forward+). Cible : GTX 1050 à 60 FPS en
 - Le client n'envoie que des **intentions** (tirer, acheter, interagir) et sa position ;
   le serveur valide tout (distance, points, cadence, munitions...).
 
+## Protocole réseau (messages fréquents)
+
+Encodage binaire dans `NetCodec` (`scripts/game/net_codec.gd`, fonctions pures testées
+dans `tests/test_zombie_net.gd`). ENet compresse chaque datagramme (codeur de plage).
+
+- **Zombies** (`ZombieManager`, 15 Hz, `unreliable_ordered`) : état quantifié par zombie
+  `[x, z, y]` au cm (u16), lacet (u8, 256 pas), code d'animation (u8 : état | vitesse).
+  Instantané delta : `u16 n` puis par entrée `u16 id, u8 masque` et les seuls champs du
+  masque. Un zombie inchangé n'est pas envoyé. Le serveur garde le dernier état envoyé
+  (`net_q`) ; chaque entrée contient les champs modifiés depuis l'envoi précédent **et**
+  ceux modifiés à l'envoi d'avant (redondance : une perte isolée ne laisse aucun champ
+  périmé). État complet : les 3 premiers envois après l'apparition (le message
+  d'apparition, fiable, peut arriver après un delta) et, pour chaque zombie, un instantané
+  sur 15 (1 s, décalé par id pour lisser le débit). Le client garde le dernier état reçu
+  et ajoute à chaque instantané un échantillon à **tous** les zombies vivants (même
+  inchangés) : l'interpolation (120 ms de retard, horloge en µs) avance au même rythme.
+  L'état initial de chaque zombie vient du message d'apparition.
+- **Joueurs** (`Player._send_state`, 20 Hz max, `unreliable_ordered`) : 17 octets (x, y, z
+  en f32, lacet u16, tangage u16, drapeaux u8), envoyés seulement si ces octets changent,
+  avec un maintien toutes les 1 s. À la réception après un silence, l'interpolation
+  repart du dernier état tenu jusqu'à un intervalle avant le nouveau message.
+- **Effets de combat** (`Combat._flush_fx`, `unreliable_ordered`) : tirs (tireur, arme,
+  origine, impacts avec normale sur 3 x i8, taches de sang) et touches non mortelles d'une
+  image regroupés en un seul message par image, au lieu d'un RPC fiable par tir et par
+  touche. Purement visuel et sonore : la mort, les points et la santé restent fiables.
+
+Mesures (`sh tools/mp_test.sh netload`, boucle locale, 1 client, 24 zombies en poursuite,
+les deux joueurs en mouvement, client en rafale au pistolet-mitrailleur ≈ 9 tirs/s ;
+Ko = 1024 octets, en-têtes ENet compris, après compression) :
+
+| Flux (par client) | Avant | Après |
+|---|---|---|
+| Descendant, sans tirs | 3,9 Ko/s, 37-39 paquets/s | 1,7-2,1 Ko/s, 21-31 paquets/s |
+| Descendant, en rafale | 4,2-4,7 Ko/s, 56-64 paquets/s | 1,8-2,3 Ko/s, 37-51 paquets/s |
+| Montant, sans tirs | 0,9 Ko/s | 0,3-0,4 Ko/s |
+| Montant, en rafale | 1,6-1,7 Ko/s | 1,1-1,2 Ko/s |
+| Instantanés de zombies avant compression | 3,5 Ko/s (242 o x 15 Hz) | 0,9-1,2 Ko/s |
+
+Objectif < 10 Ko/s par client vérifié par le test. Fluidité des marionnettes (mesurée
+après l'interpolation de chaque image) identique à l'ancien protocole : moins de 1 %
+d'images avec un gel ou un saut, zombies à 1-2 m/s de moyenne.
+`Net.sample_bandwidth()` donne les octets / paquets ENet de la machine depuis l'appel
+précédent.
+
 ## Autoloads
 
 | Nom | Rôle |

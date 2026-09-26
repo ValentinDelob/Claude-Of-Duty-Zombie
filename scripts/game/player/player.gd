@@ -33,6 +33,8 @@ const PITCH_LIMIT := deg_to_rad(88.0)
 
 const NET_SEND_RATE := 20.0
 const INTERP_DELAY := 0.1
+## État inchangé : renvoyé quand même à cette période (maintien).
+const NET_KEEPALIVE := 1.0
 
 ## Bit flags envoyés sur le réseau avec la position.
 const FLAG_CROUCH := 1
@@ -82,6 +84,8 @@ var _send_accum := 0.0
 var _net_flags := 0
 ## Tampon d'interpolation des marionnettes : [temps, pos, yaw, pitch, flags]
 var _snapshots: Array = []
+var _last_sent_state := PackedByteArray()
+var _last_sent_t := -INF
 
 
 func setup(id: int, local: bool) -> void:
@@ -186,7 +190,7 @@ func _local_physics(delta: float) -> void:
 		_send_accum = 0.0
 		_net_flags = _compute_flags()
 		if Net.is_online():
-			_net_state.rpc(global_position, yaw, pitch, _net_flags)
+			_send_state()
 	input.clear_edges()
 
 
@@ -343,9 +347,34 @@ func aim_direction() -> Vector3:
 # Réseau : état de mouvement
 # --------------------------------------------------------------------------
 
+## Joueur local : état compact (NetCodec, 17 octets) envoyé seulement s'il a
+## changé depuis le dernier envoi, ou toutes les NET_KEEPALIVE secondes.
+func _send_state() -> void:
+	var buf := NetCodec.encode_player_state(global_position, yaw, pitch, _net_flags)
+	var t := Time.get_ticks_usec() / 1000000.0
+	if buf == _last_sent_state and t - _last_sent_t < NET_KEEPALIVE:
+		return
+	_last_sent_state = buf
+	_last_sent_t = t
+	_net_state.rpc(buf)
+
+
 @rpc("authority", "call_remote", "unreliable_ordered")
-func _net_state(pos: Vector3, net_yaw: float, net_pitch: float, flags: int) -> void:
-	_snapshots.append([Time.get_ticks_msec() / 1000.0, pos, net_yaw, net_pitch, flags])
+func _net_state(buf: PackedByteArray) -> void:
+	var s := NetCodec.decode_player_state(buf)
+	if s.is_empty():
+		return
+	var t := Time.get_ticks_usec() / 1000000.0
+	# Après un silence (joueur immobile : aucun envoi), l'interpolation repart
+	# du dernier état connu tenu jusqu'à un intervalle avant ce message, au lieu
+	# de glisser depuis l'instant du message précédent.
+	if not _snapshots.is_empty():
+		var last: Array = _snapshots[_snapshots.size() - 1]
+		if t - last[0] > 1.5 / NET_SEND_RATE:
+			var hold := last.duplicate()
+			hold[0] = t - 1.0 / NET_SEND_RATE
+			_snapshots.append(hold)
+	_snapshots.append([t, s[0], s[1], s[2], s[3]])
 	if _snapshots.size() > 20:
 		_snapshots.pop_front()
 
@@ -353,7 +382,7 @@ func _net_state(pos: Vector3, net_yaw: float, net_pitch: float, flags: int) -> v
 func _remote_interpolate() -> void:
 	if _snapshots.is_empty():
 		return
-	var render_t := Time.get_ticks_msec() / 1000.0 - INTERP_DELAY
+	var render_t := Time.get_ticks_usec() / 1000000.0 - INTERP_DELAY
 	# Cherche les deux états qui encadrent render_t.
 	while _snapshots.size() >= 2 and _snapshots[1][0] <= render_t:
 		_snapshots.pop_front()

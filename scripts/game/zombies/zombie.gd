@@ -400,7 +400,7 @@ func push_snapshot(t: float, pos: Vector3, net_yaw: float, code: int) -> void:
 func _interpolate() -> void:
 	if _snapshots.is_empty():
 		return
-	var render_t := Time.get_ticks_msec() / 1000.0 - INTERP_DELAY
+	var render_t := Time.get_ticks_usec() / 1000000.0 - INTERP_DELAY
 	while _snapshots.size() >= 2 and _snapshots[1][0] <= render_t:
 		_snapshots.pop_front()
 	var a: Array = _snapshots[0]

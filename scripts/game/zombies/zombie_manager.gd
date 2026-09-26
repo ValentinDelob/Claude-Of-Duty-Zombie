@@ -4,16 +4,15 @@ extends Node3D
 ##
 ## Seul le serveur crée, simule et détruit les zombies. Il diffuse :
 ##  * les apparitions / disparitions (fiable) ;
-##  * un instantané compact de tous les zombies à SNAPSHOT_RATE Hz (non fiable),
-##    10 octets par zombie, que les clients interpolent.
+##  * un instantané delta à SNAPSHOT_RATE Hz (non fiable) : seuls les champs
+##    quantifiés qui ont changé, chaque zombie étant renvoyé en entier tous les
+##    NetCodec.ZOMBIE_REFRESH instantanés (voir NetCodec, docs/ARCHITECTURE.md).
+##    Les clients gardent le dernier état reçu de chaque zombie et l'interpolent.
 
 const SNAPSHOT_RATE := 15.0
 ## Types d'entité partageant ce canal (apparition, instantanés, mort).
 const KIND_ZOMBIE := 0
 const KIND_DOG := 1
-const BYTES_PER_ZOMBIE := 10
-## Décalage vertical pour coder y (peut être négatif pendant l'émergence).
-const Y_OFFSET := 20.0
 
 signal zombie_spawned(z: Zombie)
 signal zombie_removed(zid: int)
@@ -24,6 +23,16 @@ var zombies: Dictionary = {}  # id -> Zombie
 var alive: Array[Zombie] = []
 var _next_id := 1
 var _snap_accum := 0.0
+## Réplication : dernier état quantifié envoyé (serveur) ou reçu (client),
+## id -> PackedInt32Array (NetCodec.quantize_zombie).
+var net_q: Dictionary = {}
+## Serveur : masque des champs modifiés au dernier envoi, et nombre d'envois
+## complets restants après l'apparition (id -> int).
+var _net_mask: Dictionary = {}
+var _net_fresh: Dictionary = {}
+var _snap_seq := 0
+## Serveur : total des octets d'instantanés envoyés (avant compression ENet), mesures.
+var snapshot_bytes := 0
 var _rng := RandomNumberGenerator.new()
 
 ## Grille spatiale des zombies vivants pour la séparation (serveur), refaite
@@ -144,27 +153,38 @@ func _physics_process(delta: float) -> void:
 	_snap_accum += delta
 	if _snap_accum < 1.0 / SNAPSHOT_RATE:
 		return
-	_snap_accum = 0.0
+	# Soustraction (et non remise à zéro) : cadence exacte malgré le pas de physique.
+	_snap_accum = minf(_snap_accum - 1.0 / SNAPSHOT_RATE, 1.0 / SNAPSHOT_RATE)
 	if Net.is_online() and multiplayer.get_peers().size() > 0:
-		_cl_snapshot.rpc(build_snapshot())
+		var buf := build_snapshot()
+		snapshot_bytes += buf.size()
+		_cl_snapshot.rpc(buf)
 
 
+## Serveur : instantané delta. Pour chaque zombie, les champs modifiés depuis
+## l'envoi précédent ET ceux modifiés à l'envoi d'avant (redondance : la perte
+## d'un seul paquet non fiable ne laisse aucun champ périmé) ; en entier pendant
+## ses NetCodec.FRESH_FULL premiers envois (son apparition, fiable, a pu arriver
+## après) et à son tour de rafraîchissement. Met à jour net_q : à n'appeler que
+## pour un envoi réel.
 func build_snapshot() -> PackedByteArray:
-	var buf := PackedByteArray()
-	var list := alive
-	buf.resize(2 + list.size() * BYTES_PER_ZOMBIE)
-	buf.encode_u16(0, list.size())
-	var o := 2
-	for z: Zombie in list:
-		var p := z.global_position
-		buf.encode_u16(o, z.id)
-		buf.encode_u16(o + 2, clampi(int(round(p.x * 100.0)), 0, 65535))
-		buf.encode_u16(o + 4, clampi(int(round((p.y + Y_OFFSET) * 100.0)), 0, 65535))
-		buf.encode_u16(o + 6, clampi(int(round(p.z * 100.0)), 0, 65535))
-		buf.encode_u8(o + 8, int(fposmod(z.yaw, TAU) / TAU * 255.0) & 255)
-		buf.encode_u8(o + 9, z.anim_code())
-		o += BYTES_PER_ZOMBIE
-	return buf
+	var entries := []
+	for z: Zombie in alive:
+		var q := NetCodec.quantize_zombie(z.global_position, z.yaw, z.anim_code())
+		var changed := NetCodec.diff_mask(net_q.get(z.id, PackedInt32Array()), q)
+		var m: int = changed | _net_mask.get(z.id, 0)
+		_net_mask[z.id] = changed
+		var fresh: int = _net_fresh.get(z.id, 0)
+		if fresh > 0:
+			_net_fresh[z.id] = fresh - 1
+			m = NetCodec.FULL_MASK
+		if (z.id + _snap_seq) % NetCodec.ZOMBIE_REFRESH == 0:
+			m = NetCodec.FULL_MASK
+		if m != 0:
+			entries.append([z.id, m, q])
+			net_q[z.id] = q
+	_snap_seq += 1
+	return NetCodec.encode_zombie_snapshot(entries)
 
 
 # --------------------------------------------------------------------------
@@ -183,6 +203,10 @@ func _cl_spawn(zid: int, pos: Vector3, yaw: float, variant: int, speed_class: in
 	z.rotation.y = yaw
 	zombies[zid] = z
 	alive.append(z)
+	# État initial connu de toutes les machines (message fiable) : base des deltas.
+	net_q[zid] = NetCodec.quantize_zombie(pos, yaw, z.anim_code())
+	if multiplayer.is_server():
+		_net_fresh[zid] = NetCodec.FRESH_FULL
 	zombie_spawned.emit(z)
 	if kind == KIND_DOG:
 		return  # Apparition par la foudre (Hellhound).
@@ -208,6 +232,9 @@ func _cl_despawn(zid: int) -> void:
 	if z == null:
 		return
 	zombies.erase(zid)
+	net_q.erase(zid)
+	_net_mask.erase(zid)
+	_net_fresh.erase(zid)
 	alive.erase(z)
 	z.queue_free()
 	zombie_removed.emit(zid)
@@ -218,19 +245,14 @@ func _cl_snapshot(buf: PackedByteArray) -> void:
 	apply_snapshot(buf)
 
 
+## Client : met à jour les derniers états reçus puis ajoute un échantillon
+## d'interpolation à CHAQUE zombie vivant, même inchangé (la ligne de temps de
+## l'interpolation avance au rythme des instantanés).
 func apply_snapshot(buf: PackedByteArray) -> void:
-	if buf.size() < 2:
+	if NetCodec.decode_zombie_snapshot(buf, net_q) < 0:
 		return
-	var n := buf.decode_u16(0)
-	if buf.size() < 2 + n * BYTES_PER_ZOMBIE:
-		return
-	var t := Time.get_ticks_msec() / 1000.0
-	var o := 2
-	for i in n:
-		var zid := buf.decode_u16(o)
-		var z: Zombie = zombies.get(zid)
-		if z:
-			var pos := Vector3(buf.decode_u16(o + 2) / 100.0, buf.decode_u16(o + 4) / 100.0 - Y_OFFSET, buf.decode_u16(o + 6) / 100.0)
-			var yaw := buf.decode_u8(o + 8) / 255.0 * TAU
-			z.push_snapshot(t, pos, yaw, buf.decode_u8(o + 9))
-		o += BYTES_PER_ZOMBIE
+	var t := Time.get_ticks_usec() / 1000000.0
+	for z: Zombie in alive:
+		var q: PackedInt32Array = net_q.get(z.id, PackedInt32Array())
+		if q.size() == 5:
+			z.push_snapshot(t, NetCodec.zombie_pos(q), NetCodec.zombie_yaw(q), q[NetCodec.QCODE])

@@ -53,6 +53,8 @@ var _regen_sync := 0.0
 var _burns: Dictionary = {}
 var _burn_next := 0.0
 const BURN_TICK := 0.25
+## Serveur : effets de tir et de touche de l'image, envoyés groupés (_flush_fx).
+var _fx_buf := PackedByteArray()
 ## Tests automatisés uniquement : les joueurs ne subissent aucun dégât.
 var debug_invulnerable := false
 
@@ -69,6 +71,7 @@ static func now() -> float:
 func _process(delta: float) -> void:
 	if not multiplayer.is_server():
 		return
+	_flush_fx()
 	var t := now()
 	for pid in _reload_end.keys():
 		var r: Array = _reload_end[pid]
@@ -116,7 +119,7 @@ func srv_fire(slot: int, origin: Vector3, dir: Vector3, impacts: PackedVector3Ar
 	if delay > 0.0:
 		# Les autres joueurs voient le projectile filer jusqu'au point d'explosion.
 		impacts = PackedVector3Array([_splash_center(impacts, hits), Vector3.UP])
-	_cl_shot_fx.rpc(pid, w.id, w.pap, origin, impacts, blood_points)
+	NetCodec.append_shot(_fx_buf, pid, w.id, w.pap, origin, impacts, blood_points)
 
 
 func _validate_fire(pid: int, slot: int, origin: Vector3) -> String:
@@ -277,13 +280,32 @@ func damage_zombie(zid: int, dmg: int, pid: int, headshot: bool, dir: Vector3, k
 	if killed:
 		game.zombies.kill(zid, headshot, dir, kind == HitKind.SPLASH or kind == HitKind.TRAP)
 	else:
-		_cl_zombie_hit.rpc(zid, headshot)
+		NetCodec.append_zombie_hit(_fx_buf, zid, headshot)
 	zombie_damaged.emit(pid, zid, dmg, killed, headshot, kind)
 	if pid > 0 and killed:
 		if pid == multiplayer.get_unique_id():
 			_cl_hit_confirm(killed, headshot)
 		else:
 			_cl_hit_confirm.rpc_id(pid, killed, headshot)
+
+
+## Serveur : envoie en un seul message (non fiable, purement visuel et sonore)
+## les tirs et touches de l'image, au lieu d'un RPC fiable chacun.
+func _flush_fx() -> void:
+	if _fx_buf.is_empty():
+		return
+	var buf := _fx_buf
+	_fx_buf = PackedByteArray()
+	_cl_fx.rpc(buf)
+
+
+@rpc("authority", "call_local", "unreliable_ordered")
+func _cl_fx(buf: PackedByteArray) -> void:
+	for e: Dictionary in NetCodec.decode_fx(buf):
+		if e.type == NetCodec.FX_SHOT:
+			_cl_shot_fx(e.pid, e.weapon, e.pap, e.origin, e.impacts, e.blood)
+		else:
+			_cl_zombie_hit(e.zid, e.headshot)
 
 
 @rpc("authority", "call_local", "reliable")
