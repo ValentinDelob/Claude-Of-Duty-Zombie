@@ -20,8 +20,11 @@ Boîte mystère : 5 emplacements, départ tiré au sort parmi 3.
 **BUNKER K-7** — salle de garde, couloir des cellules (piège électrique),
 laboratoire, dortoir, générateur, quai du téléporteur et salle du rituel
 (Pack-a-Punch). Manches, points, portes payantes, courant, achats muraux,
-5 atouts, boîte mystère, Pack-a-Punch, téléporteur, pièges, état « à terre »
-et réanimation. Fenêtres barricadées (15) : les zombies arrachent les
+7 atouts, boîte mystère, Pack-a-Punch, téléporteur, pièges, état « à terre »
+et réanimation. Atouts de Five / Ascension (aussi sur KINO) : NOVA FLOP
+(2000 : aucun dégât de ses propres explosions, le plongeon en sprint explose
+à l'atterrissage) et DEADEYE DRAM (1500 : la visée s'aimante vers la tête,
+dispersion en hanche et recul réduits). Fenêtres barricadées (15) : les zombies arrachent les
 6 planches puis enjambent ; maintenir [F] pour reconstruire (+10 par planche,
 500 points au plus par manche). Couteau à la BO1 (150 dégâts, fente vers le
 zombie visé) et COUTEAU DE CHASSE au mur du quai (3000 : un coup jusqu'à la

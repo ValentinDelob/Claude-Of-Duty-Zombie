@@ -9,10 +9,13 @@ const DRINK_TIME := 2.3
 var game: Game
 ## Solo : nombre d'achats de LAZARUS TONIC (limités à PerkDB.SOLO_REVIVE_LIMIT).
 var solo_revive_buys := 0
+## Serveur : dernière explosion de NOVA FLOP par joueur (pid -> s).
+var _nova_last := {}
 
 
 func _ready() -> void:
 	game = get_parent()
+	game.get_node("Combat").player_dived_landed.connect(_on_dived_landed)
 
 
 ## Serveur : donne un atout (achat déjà validé).
@@ -65,3 +68,26 @@ func apply_local_effects(p: Player) -> void:
 		return
 	p.speed_multiplier = PerkDB.speed_mult(pd)
 	p.sprint_duration_bonus = PerkDB.sprint_bonus(pd)
+
+
+# ---- NOVA FLOP : plongeon explosif (serveur), effets (tous)
+
+## Serveur : un joueur a atterri d'un plongeon (Combat.srv_dive_landed a déjà
+## borné position et hauteur). Explosion de zone : les kills rapportent comme
+## une explosion (HitKind.SPLASH), aucun dégât au plongeur ni aux coéquipiers.
+func _on_dived_landed(pid: int, pos: Vector3, height: float) -> void:
+	var pd := game.session.get_data(pid)
+	if not PerkDB.nova_triggers(pd, height):
+		return
+	var t := Combat.now()
+	if t - float(_nova_last.get(pid, -INF)) < PerkDB.NOVA_COOLDOWN:
+		return
+	_nova_last[pid] = t
+	print("[Perks] %s : plongeon explosif NOVA FLOP en %s (chute %.2f m)" % [Net.player_name(pid), pos, height])
+	game.combat.explosion(pid, pos + Vector3.UP * 0.3, PerkDB.NOVA_RADIUS, PerkDB.NOVA_DAMAGE, 0)
+	_cl_nova_blast.rpc(pos)
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_nova_blast(pos: Vector3) -> void:
+	NovaFx.play(game, pos)

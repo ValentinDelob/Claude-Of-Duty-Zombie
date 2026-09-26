@@ -39,6 +39,10 @@ var lunging := false
 var _burst_left := 0
 ## Grenades et SINGE-TAMBOUR (dégoupillage, cuisson, lancer).
 var throws: ThrowController
+## DEADEYE DRAM : aimantation de la visée vers la tête.
+var deadeye := DeadeyeAim.new()
+## Dispersion (degrés) du dernier tir (tests).
+var last_spread_deg := 0.0
 
 ## Sons de rechargement par mécanisme : [fraction de la durée, son].
 const RELOAD_SOUNDS := {
@@ -179,6 +183,7 @@ func tick(delta: float) -> void:
 		var back := minf(_recoil_debt, delta * 4.0 * maxf(_recoil_debt, 0.02))
 		_recoil_debt -= back
 		player.pitch -= back
+	deadeye.tick(self, delta)
 	view.update(delta, player)
 
 
@@ -201,7 +206,8 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 
 	var origin := player.camera.global_position
 	var fwd := player.aim_direction()
-	var spread_deg: float = lerpf(s.spread_hip, s.spread_ads, view.ads)
+	var ppd := session.get_data(player.peer_id)
+	var spread_deg: float = lerpf(s.spread_hip * PerkDB.hip_spread_mult(ppd), s.spread_ads, view.ads)
 	var speed := Vector2(player.velocity.x, player.velocity.z).length()
 	if speed > 1.0:
 		spread_deg *= 1.4
@@ -209,6 +215,7 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 		spread_deg *= 0.6
 	elif player.crouching:
 		spread_deg *= 0.75
+	last_spread_deg = spread_deg
 	var impacts := PackedVector3Array()
 	var hits: Array = []
 	var blast: bool = s.has("blast_range")
@@ -242,9 +249,9 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 			if s.get("tracer", "") != "ray" and (i < 6 or randf() < 0.3):
 				fx.tracer(muzzle, impacts[i], tracer_col)
 			fx.impact(impacts[i], impacts[i + 1], i == 0)
-	var kick := deg_to_rad(float(s.recoil)) * (0.55 if view.ads > 0.5 else 0.8)
+	var kick := deg_to_rad(float(s.recoil)) * (0.55 if view.ads > 0.5 else 0.8) * PerkDB.recoil_mult(ppd)
 	player.pitch += kick
-	player.yaw += deg_to_rad(randf_range(-0.3, 0.3) * float(s.recoil))
+	player.yaw += deg_to_rad(randf_range(-0.3, 0.3) * float(s.recoil)) * PerkDB.recoil_mult(ppd)
 	_recoil_debt += kick * 0.6
 	combat.srv_fire.rpc_id(1, slot, origin, fwd, impacts, hits)
 	fired.emit()

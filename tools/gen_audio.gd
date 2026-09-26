@@ -592,6 +592,29 @@ func gen_jingle_stride() -> void:
 	_save("jingle_stride", _jingle([[0, 0.5], [2, 0.5], [4, 0.5], [5, 0.5], [7, 1], [9, 0.5], [7, 0.5], [12, 2]], 246.9, 0.17, "saw"))
 
 
+func gen_jingle_nova() -> void:
+	# NOVA FLOP : air de guitare surf, montée puis chute (le plongeon).
+	_save("jingle_nova", _jingle([[0, 0.5], [3, 0.5], [5, 0.5], [7, 1], [10, 0.5], [7, 0.5], [12, 1], [-99, 0.5], [0, 0.5], [-5, 2]], 220.0, 0.16, "square"))
+
+
+func gen_jingle_deadeye() -> void:
+	# DEADEYE DRAM : marche lente et grave de western, notes pointées.
+	_save("jingle_deadeye", _jingle([[0, 1.5], [0, 0.5], [7, 1], [5, 0.5], [3, 0.5], [2, 1], [-2, 1], [0, 2]], 174.6, 0.2, "tri"))
+
+
+func gen_nova_blast() -> void:
+	# Plongeon explosif : impact sourd, souffle électrique qui s'ouvre, crépitement.
+	var b := s.env_exp(s.lowpass(s.noise(0.05), 900.0), 0.0005, 0.02)
+	s.mix(b, s.env_exp(s.sweep(0.8, 140.0, 35.0), 0.001, 0.3), 0.0, 1.5)
+	s.mix(b, s.env_exp(s.lowpass_sweep(s.noise(1.1), 600.0, 5200.0), 0.004, 0.25), 0.0, 0.9)
+	s.mix(b, s.env_exp(s.sweep(0.9, 380.0, 1400.0, "saw"), 0.01, 0.3), 0.02, 0.25)
+	for k in 10:
+		var crack := s.env_exp(s.bandpass(s.noise(0.03), s.rng.randf_range(2500.0, 7000.0), 3.0), 0.0005, 0.006)
+		s.mix(b, crack, 0.08 + s.rng.randf_range(0.0, 0.6), s.rng.randf_range(0.15, 0.35))
+	b = s.drive(b, 2.8)
+	_save("nova_blast", s.finish(s.reverb(b, 0.85, 0.3, 1.1), 0.97))
+
+
 func gen_perk_drink() -> void:
 	# Capsule, gorgées, bouteille jetée.
 	var b := _clank(2200.0, 0.05, 0.4)

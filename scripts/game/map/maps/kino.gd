@@ -4,8 +4,10 @@ extends MapDef
 ## Zones : a Hall d'entrée (départ, poste central du téléporteur, M14 et
 ##         Olympia au mur) · b Foyer (LAZARUS TONIC, MP5K, MPL)
 ##         c Loges (couloir piégé, coiffeuses, TWIN SHOT, PM63)
-##         e Salle des machines / arrière-scène (courant, couteau de chasse)
-##         d Allée (ruelle, passage étroit piégé, RAPID FIZZ, Stakeout)
+##         e Salle des machines / arrière-scène (courant, couteau de chasse,
+##           NOVA FLOP)
+##         d Allée (ruelle, passage étroit piégé, RAPID FIZZ, DEADEYE DRAM,
+##           Stakeout)
 ##         g Scène (téléporteur, Pack-a-Punch après le premier voyage)
 ##         f Salle de théâtre (fauteuils, TITAN BREW, M16)
 ##         p Cabine de projection (arrivée du téléporteur uniquement)
@@ -43,7 +45,8 @@ func _init() -> void:
 		"/": "m16",                           # salle de théâtre
 		"%": "bowie",                         # salle des machines : couteau de chasse
 	}
-	perks = {"Q": "lazarus", "D": "twin", "S": "rapid", "J": "titan"}
+	perks = {"Q": "lazarus", "D": "twin", "S": "rapid", "J": "titan",
+		"(": "nova", ")": "deadeye"}  # salle des machines, allée
 	extra_blocking = "=$@|^"
 	theater_props = true
 	# Emplacements (ordre des X) : 0 cour de l'allée, 1 théâtre, 2 ruelle,
@@ -87,7 +90,7 @@ func _init() -> void:
 		"     #ZeWeeeLeeeeeeeggggggggggggggggggggggggggggggg#ddddLddddddd,dddddd#",
 		"     #ee#eeeeeeeeee%#gggggggggggggggggggggggggggggg#ddddddddddddddddddX#",
 		"     ####eeeeeeeeLee#ffffffffffffffffffffffffffffff#ddddddddddddddddddd#",
-		"        #eeeeeeeeeee#ffffffffffffffffffffffffffffZf#!dddddddddddddLdddd#",
+		"        #(eeeeeeeeee#ffffffffffffffffffffffffffffZf#!dddddddddddddLddd)#",
 		"        #Ceeeeeeeeee#!fffffffffffffffffffffffffffff5ddddddddddddddddddd#",
 		"        ####44#######fff===========ff===========fff5ddddddddddddddddCCd#",
 		"          #ccc#     #Xfffffffffffffffffffffffffffff#ddCCddddddddddddddd#",

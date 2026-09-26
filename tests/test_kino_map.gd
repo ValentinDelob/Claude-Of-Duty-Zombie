@@ -151,7 +151,7 @@ func test_objects_defined() -> void:
 	# Aucun marqueur d'achat ne sert aussi au décor de théâtre.
 	for k in def.wall_buys:
 		assert_false("=~]?!+&$@|^".contains(k), "marqueur %s libre du décor" % k)
-	var perk_zone := {"lazarus": "b", "twin": "c", "rapid": "d", "titan": "f"}
+	var perk_zone := {"lazarus": "b", "twin": "c", "rapid": "d", "titan": "f", "nova": "e", "deadeye": "d"}
 	for k in def.perks:
 		assert_true(data.markers.has(k), "atout %s placé" % k)
 		assert_true(PerkDB.exists(def.perks[k]))

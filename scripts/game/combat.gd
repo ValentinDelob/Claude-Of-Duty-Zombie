@@ -260,7 +260,7 @@ func _apply_splash(pid: int, w: Dictionary, impacts: PackedVector3Array, hits: A
 	if p and s.has("self_damage"):
 		var ds := (p.global_position + Vector3.UP * 0.9).distance_to(center)
 		if ds <= r:
-			damage_player(pid, int(float(s.self_damage) * (1.0 - ds / r * 0.5)), center)
+			damage_player(pid, int(float(s.self_damage) * (1.0 - ds / r * 0.5) * PerkDB.explosive_self_mult(session.get_data(pid))), center)
 	_cl_splash_fx.rpc(center, r)
 
 
@@ -295,7 +295,7 @@ func explosion(pid: int, center: Vector3, radius: float, damage: int, self_damag
 	if p and self_damage > 0:
 		var ds := (p.global_position + Vector3.UP * 0.9).distance_to(center)
 		if ds <= radius:
-			damage_player(pid, ThrowableRules.splash(self_damage, radius, ds), center)
+			damage_player(pid, int(ThrowableRules.splash(self_damage, radius, ds) * PerkDB.explosive_self_mult(session.get_data(pid))), center)
 
 
 ## Serveur : inflige des dégâts à un zombie. Point d'entrée unique pour toutes

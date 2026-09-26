@@ -54,5 +54,17 @@ func test_objects_defined() -> void:
 		assert_true(WeaponDB.exists(def.wall_buys[k]) or KnifeDB.exists(def.wall_buys[k]), "achat mural %s connu" % k)
 	for k in def.perks:
 		assert_true(data.markers.has(k), "atout %s placé" % k)
+		assert_true(PerkDB.exists(def.perks[k]), "atout %s connu" % def.perks[k])
+		assert_eq(data.markers.get(k, []).size(), 1, "atout %s placé une fois" % k)
+		var c: Vector2i = data.markers[k][0]
+		var touches := false
+		for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
+			touches = touches or data.is_wall(c + d)
+		assert_true(touches, "atout %s contre un mur" % k)
+	# Les 7 atouts de BO1 (Kino + Five / Ascension) ; NOVA FLOP au laboratoire,
+	# DEADEYE DRAM au générateur.
+	assert_eq(def.perks.size(), 7, "7 atouts")
+	assert_eq(data.zone_at(data.markers["("][0]), "c", "NOVA FLOP au laboratoire")
+	assert_eq(data.zone_at(data.markers[")"][0]), "e", "DEADEYE DRAM au générateur")
 	assert_eq(data.markers.get("X", []).size(), 3, "3 emplacements de boîte")
 	assert_eq(data.markers.get("G", []).size(), 1, "un interrupteur de courant")

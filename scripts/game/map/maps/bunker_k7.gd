@@ -36,7 +36,8 @@ func _init() -> void:
 		"&": "m16",                           # quai
 		"%": "bowie",                         # quai : couteau de chasse (KnifeDB)
 	}
-	perks = {"Q": "lazarus", "J": "titan", "S": "rapid", "D": "twin", "M": "stride"}
+	perks = {"Q": "lazarus", "J": "titan", "S": "rapid", "D": "twin", "M": "stride",
+		"(": "nova", ")": "deadeye"}  # laboratoire, générateur
 	box_start = 1
 	zone_materials = {
 		"a": ["concrete", "wall_green"], "b": ["concrete_dark", "wall_cell"],
@@ -73,7 +74,7 @@ func _init() -> void:
 		" #aaaaaaPaPaaaaaaa2bbbbbEEEbbLbbb3ccccccccccLccccccccc4ee,eeeee#",
 		" #aaaaaaaaaaaaaaaa#bbbbbEEEbbUbbb#cccccccccccccccccccc4eeeeeeeG#",
 		" #aaaaaaPaPaaaaaaa#####W##########cccccccccccccccccccc#eeeYYeee#",
-		" #aaaLaaaaaaaLaaaa#aa#bbb#    ####ccccNNNNccccNNNNcccc#eeeYYeee#",
+		" #aaaLaaaaaaaLaaaa#aa#bbb#    ####(cccNNNNccccNNNNcccc#)eeYYeee#",
 		" #aaaaaaaaaaaa,aaaWaZ#bZb#    #cc#cccccccccccccccccccc#eeeeeCLe#",
 		" #aaaaaaaaaaaaaaaa#aa#####    #ZcWccccLccccccccccLcccc#Zeeeeeee#",
 		" #aZaaaaa*aaRaaaaa####        #cc#ccccccccc,cccccccccM####W#####",

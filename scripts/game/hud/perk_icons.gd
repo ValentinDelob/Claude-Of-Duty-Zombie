@@ -62,5 +62,19 @@ func _symbol(id: String, c: Vector2, k: float, col: Color) -> void:
 			for dx in [-0.5, 0.35]:
 				var o: Vector2 = c + Vector2(dx * k, 0)
 				draw_polyline(PackedVector2Array([o + Vector2(-0.35 * k, -0.8 * k), o + Vector2(0.35 * k, 0), o + Vector2(-0.35 * k, 0.8 * k)]), col, 4.0)
+		"nova":  # flèche plongeante sur une étoile d'explosion
+			var star := PackedVector2Array()
+			for j in 16:
+				var r := k * (1.0 if j % 2 == 0 else 0.5)
+				var a := TAU * j / 16.0
+				star.append(c + Vector2(cos(a), sin(a) * 0.55) * r + Vector2(0, 0.45 * k))
+			draw_colored_polygon(star, col.darkened(0.25))
+			draw_rect(Rect2(c + Vector2(-0.14 * k, -k), Vector2(0.28 * k, 0.9 * k)), col)
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-0.45 * k, -0.2 * k), c + Vector2(0.45 * k, -0.2 * k), c + Vector2(0, 0.35 * k)]), col)
+		"deadeye":  # réticule sur une tête
+			draw_arc(c, k * 0.72, 0.0, TAU, 20, col, 3.0)
+			for d: Vector2 in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+				draw_line(c + d * k * 0.35, c + d * k * 1.05, col, 3.0)
+			draw_circle(c, k * 0.14, col)
 		_:
 			draw_circle(c, k * 0.6, col)
