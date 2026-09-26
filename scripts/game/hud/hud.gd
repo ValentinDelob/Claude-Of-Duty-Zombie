@@ -225,6 +225,9 @@ func _process(delta: float) -> void:
 	_vignette_mat.set_shader_parameter("pulse", absf(sin(_heart_t * PI)))
 	if hurt > 0.45 and pd.life == PlayerData.Life.ALIVE and floorf(_heart_t) != floorf(prev_beat):
 		Audio.play_2d("heartbeat", -6.0, 0.0)
+		# Respiration haletante (un souffle tous les trois battements).
+		if int(floorf(_heart_t)) % 3 == 0:
+			Audio.play_2d("player_breath_%d" % (1 + int(floorf(_heart_t) / 3.0) % 2), -8.0, 0.05)
 
 	# Réticule dynamique : son écart est la dispersion réelle du prochain tir.
 	var wcx := player.weapons

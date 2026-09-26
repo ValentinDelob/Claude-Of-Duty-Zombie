@@ -161,6 +161,7 @@ func _collider(size: Vector3) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
 	body.collision_mask = 0
+	body.set_meta("surface", "wood")  # impacts de balles (Fx.surface_at)
 	var cs := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = size

@@ -367,7 +367,7 @@ func _cl_shot_fx(pid: int, weapon_id: String, pap: bool, origin: Vector3, impact
 	if shooter:
 		shooter.visual.fire_kick()
 	remote_shot.emit(pid)
-	Audio.play_3d(s.sound, origin, 0.0, 0.05, 8, s.get("sound_pitch", 0.8 if pap else 1.0))
+	WeaponAudio.play_3d(s, pap, origin)
 	# Les effets partent de la bouche de l'arme du soldat (pas de ses yeux).
 	var muzzle := origin
 	if shooter and shooter.visual and shooter.visual.weapon_model and shooter.visual.weapon_model.is_visible_in_tree():

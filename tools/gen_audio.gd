@@ -39,6 +39,8 @@ static func replaced(n: String) -> bool:
 func _save(n: String, b: PackedFloat32Array, loop := false) -> void:
 	if replaced(n):
 		return
+	# Intensité perçue ramenée à la cible de la catégorie (SfxLoudness).
+	b = SfxLoudness.balance(n, b, float(SfxRecipes.LEVEL_OFFSETS.get(n, 0.0)))
 	s.save(b, OUT + n + ".wav", loop)
 
 
@@ -207,10 +209,8 @@ func gen_shell() -> void:
 	_save("shell", s.finish(b, 0.35))
 
 
-func gen_impact_concrete() -> void:
-	var b := s.env_exp(s.bandpass(s.noise(0.15), 1400.0, 0.8), 0.0005, 0.03)
-	s.mix(b, s.env_exp(s.lowpass(s.noise(0.2), 600.0), 0.001, 0.05), 0.0, 0.8)
-	_save("impact_concrete", s.finish(b, 0.6))
+# (impacts sur le décor : enregistrements CC0 impact_concrete/metal/wood_1..2,
+# voir SfxRecipes.)
 
 
 func gen_weapon_switch() -> void:

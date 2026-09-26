@@ -28,6 +28,8 @@ func _initialize() -> void:
 
 
 func _save(n: String, b: PackedFloat32Array, loop := false) -> void:
+	# Intensité perçue ramenée à la cible de la catégorie (SfxLoudness).
+	b = SfxLoudness.balance(n, b, float(SfxRecipes.LEVEL_OFFSETS.get(n, 0.0)))
 	s.save(b, OUT + n + ".wav", loop)
 
 

@@ -221,6 +221,10 @@ func _emit_flames(delta: float, step: float) -> void:
 func play_attack() -> void:
 	_attack_t = 0.0
 	Audio.play_3d("dog_bark_%d" % (1 + randi() % 2), global_position + Vector3.UP * 0.7, 0.0, 0.1, 3)
+	# Morsure en fin de bond (claquement de mâchoires).
+	get_tree().create_timer(0.22).timeout.connect(func():
+		if is_instance_valid(self) and state != State.DEAD:
+			Audio.play_3d("dog_bite_%d" % (1 + randi() % 2), global_position + Vector3.UP * 0.6, 0.0, 0.1, 3))
 
 
 ## Mort : explosion de flammes et gémissement ; le corps se consume.

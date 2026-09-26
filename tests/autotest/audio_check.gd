@@ -40,7 +40,7 @@ func run() -> void:
 
 	# 1) Fichiers : chargement, format, durée, niveau.
 	var names: Array = SfxRecipes.RECIPES.keys()
-	at.check(names.size() >= 60, "%d sons importés" % names.size())
+	at.check(names.size() >= 100, "%d sons importés" % names.size())
 	var bad := []
 	for n in names:
 		var st := Audio.get_stream(n)
@@ -57,8 +57,13 @@ func run() -> void:
 			bad.append("%s : format %s %d Hz" % [n, "stéréo" if w.stereo else "mono", w.mix_rate])
 		if dur < 0.04 or dur > max_len:
 			bad.append("%s : durée %.2f s" % [n, dur])
-		if lv.x > -0.3 or lv.x < -4.0:
+		if lv.x > -0.3:
 			bad.append("%s : crête %.1f dB" % [n, lv.x])
+		# Intensité perçue dans la cible de la catégorie (SfxLoudness).
+		var dev := SfxLoudness.deviation(n, SfxLoudness.read_wav(ProjectSettings.globalize_path("res://assets/audio/%s.wav" % n)),
+			float(SfxRecipes.RECIPES[n].get("loud", 0.0)), 12.0)
+		if absf(dev) > float(SfxLoudness.category(n).tol):
+			bad.append("%s : intensité %+.1f LU" % [n, dev])
 		if lv.y < -45.0:
 			bad.append("%s : RMS %.1f dB" % [n, lv.y])
 		if bool(SfxRecipes.RECIPES[n].get("loop", false)) != (w.loop_mode != AudioStreamWAV.LOOP_DISABLED):
@@ -82,7 +87,8 @@ func run() -> void:
 	var fwd := -p.global_transform.basis.z
 	var t0 := Time.get_ticks_msec()
 	for n in names:
-		if n.begins_with("zombie_") or n.begins_with("flesh") or n.begins_with("barricade") or n in ["headshot", "body_fall", "emerge", "explosion", "frag_explode"]:
+		if n.begins_with("zombie_") or n.begins_with("flesh") or n.begins_with("barricade") or n.begins_with("impact_") \
+				or n.begins_with("dog_") or n in ["headshot", "body_fall", "emerge", "explosion", "frag_explode", "nova_blast", "grenade_bounce", "monkey_bounce"]:
 			Audio.play_3d(n, p.global_position + fwd * 4.0 + Vector3.UP, 0.0, 0.0, 99)
 		else:
 			Audio.play_2d(n, -6.0, 0.0)
@@ -134,3 +140,31 @@ func run() -> void:
 	for i in 4:
 		await H.shoot(self, p, 0.25)
 	at.check(true, "tirs joués")
+
+	# 8) Impacts de balles selon la matière (Fx.surface_at) : mur en béton,
+	# boîte mystère en bois, Pack-a-Punch en métal.
+	var fx: Fx = game.fx_root
+	var space := p.get_world_3d().direct_space_state
+	var eye := p.global_position + Vector3.UP * 1.5
+	var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(eye, eye + fwd * 80.0, 1))
+	at.check(not wall.is_empty() and fx.surface_at(wall.position, wall.normal) == "concrete", "impact sur un mur : béton")
+	var box: MysteryBox = game.interact.get_obj("box")
+	var bn: Vector3 = box.spots[box.location].normal
+	var bc := box.global_position + Vector3.UP * 0.35
+	var bh := space.intersect_ray(PhysicsRayQueryParameters3D.create(bc - bn * 2.0, bc + bn * 0.5, 1))
+	at.check(not bh.is_empty() and fx.surface_at(bh.position, bh.normal) == "wood", "impact sur la boîte mystère : bois")
+	var pap: Node3D = game.interact.get_obj("pap")
+	if pap:
+		var pc := pap.global_position + Vector3.UP * 0.5
+		var ph := space.intersect_ray(PhysicsRayQueryParameters3D.create(pc + Vector3.UP * 1.2, pc, 1))
+		at.check(not ph.is_empty() and fx.surface_at(ph.position, ph.normal) == "metal", "impact sur le Pack-a-Punch : métal")
+	var before_imp := _count("impact_")
+	fx.impact(bh.position, bh.normal)
+	fx.impact(wall.position, wall.normal)
+	at.check(_count("impact_wood_") >= 1 and _count("impact_") - before_imp == 2, "sons d'impact joués selon la matière")
+
+	# 9) Arme Pack-a-Punchée : tir + couche électrique « zap ».
+	var zaps := _count("pap_zap_")
+	WeaponAudio.play_3d(WeaponDB.stats("mp40", true), true, p.global_position + fwd * 3.0)
+	WeaponAudio.play_3d(WeaponDB.stats("mp40"), false, p.global_position + fwd * 3.0)
+	at.check(_count("pap_zap_") - zaps == 1, "zap électrique sur le tir amélioré seulement")

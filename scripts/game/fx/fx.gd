@@ -323,21 +323,17 @@ static func surface_kind(key: String) -> String:
 func impact(pos: Vector3, normal: Vector3, with_sound := true, surface := "concrete") -> void:
 	var n := normal.normalized()
 	var p := pos + n * 0.02
-	var pitch := 1.0
 	match surface:
 		"metal":
 			sparks.burst(p, n, 10, 7.0, 0.8, 0.3, Color(1.0, 0.7, 0.3, 0.95), 0.8)
 			sparks.burst(p, n, 3, 2.0, 0.5, 0.12, Color(1.0, 0.95, 0.8, 1.0), 1.6)
 			dust.burst(p + n * 0.03, n, 1, 0.4, 0.4, 0.5, Color(0.35, 0.35, 0.35, 0.25))
-			pitch = 1.6
 		"wood":
 			debris.burst(p, n, 7, 3.2, 0.7, 0.8, Color(0.42, 0.26, 0.12, 1.0), 1.3)
 			dust.burst(p + n * 0.04, n, 2, 0.6, 0.5, 0.7, Color(0.45, 0.34, 0.22, 0.35))
-			pitch = 0.75
 		"dirt":
 			debris.burst(p, n, 6, 2.5, 0.6, 0.7, Color(0.2, 0.15, 0.1, 1.0), 1.4)
 			dust.burst(p + n * 0.05, n, 4, 0.8, 0.5, 1.0, Color(0.3, 0.24, 0.17, 0.45), 1.4)
-			pitch = 0.7
 		_:
 			# Béton, plâtre, carrelage : nuage de poussière, éclats, rares étincelles.
 			dust.burst(p + n * 0.03, n, 4, 0.9, 0.45, 1.0, Color(0.52, 0.49, 0.44, 0.42), 1.3)
@@ -350,7 +346,9 @@ func impact(pos: Vector3, normal: Vector3, with_sound := true, surface := "concr
 	d.size = Vector3(hs, 0.2, hs)
 	_place_decal(d, pos, n, randf() * TAU)
 	if with_sound:
-		Audio.play_3d("impact_concrete", pos, -8.0, 0.15, 4, pitch)
+		# Sons CC0 par matière (la terre et le reste sonnent comme le béton).
+		var snd := surface if surface in ["metal", "wood"] else "concrete"
+		Audio.play_3d("impact_%s_%d" % [snd, 1 + randi() % 2], pos, -12.0, 0.12, 4)
 
 
 ## Surface au point d'impact annoncé par le serveur (tirs des autres joueurs) :

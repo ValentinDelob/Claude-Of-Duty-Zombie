@@ -33,6 +33,30 @@ const PRESETS := {
 	# Bruitages (impacts, bois, terre, pas).
 	"foley": {"eq": [["hp", 60.0, 0.7, 0.0]], "comp": [-14.0, 2.5, 0.002, 0.08], "room": [0.35, 0.1, 0.3, 0.5],
 		"peak_db": -1.5, "max_len": 2.5},
+	# Impacts de balles sur le décor : attaque sèche, présence, queue courte.
+	"impact": {"eq": [["hp", 90.0, 0.7, 0.0], ["peak", 3200.0, 1.0, 2.0]], "comp": [-12.0, 3.0, 0.001, 0.05],
+		"drive": 1.3, "room": [0.3, 0.12, 0.3, 0.5], "max_len": 1.2},
+	# Chiens de l'enfer : chiens enregistrés, abaissés d'une tierce et plus,
+	# grain renforcé (saturation), présence dans les médiums.
+	"dog": {"eq": [["hp", 70.0, 0.7, 0.0], ["lowshelf", 160.0, 0.7, 3.5], ["peak", 1800.0, 1.0, 2.0], ["highshelf", 7500.0, 0.7, -3.0]],
+		"comp": [-14.0, 2.5, 0.003, 0.1], "drive": 1.5, "room": [0.3, 0.1, 0.35, 0.5], "max_len": 3.0},
+	# Voix et corps du joueur (non spatialisés) : sec, proche.
+	"voice": {"eq": [["hp", 80.0, 0.7, 0.0], ["peak", 2500.0, 1.0, 1.0]], "comp": [-14.0, 2.5, 0.003, 0.08],
+		"room": [0.25, 0.06, 0.25, 0.5], "max_len": 2.5},
+	# Arcs électriques (armes améliorées, chiens) : sans graves.
+	"zap": {"eq": [["hp", 300.0, 0.7, 0.0], ["peak", 4500.0, 1.0, 2.0]], "comp": [-12.0, 3.0, 0.001, 0.04],
+		"room": [0.3, 0.1, 0.25, 0.5], "max_len": 0.6},
+}
+
+## Décalage de cible d'intensité (dB, relatif à la catégorie SfxLoudness) des
+## sons procéduraux nivelés par `sfx_import.gd --level` (les recettes ont
+## leur propre clé `loud`).
+const LEVEL_OFFSETS := {
+	"hitmarker": -6.0,  # tic de touche discret (joué à chaque balle)
+	"menu_move": -5.0,  # tic de déplacement dans les menus
+	"ui_move": -8.0,
+	"menu_select": 4.0,  # validation appuyée (coup sourd)
+	"lamp_on": -8.0,  # des dizaines de lampes qui se rallument en cascade
 }
 
 const RECIPES := {
@@ -48,7 +72,7 @@ const RECIPES := {
 		"room": [0.5, 0.18, 0.45, 0.5]},
 	"pm63_fire": {"preset": "gun", "layers": [{"src": "855652", "start": 3.17, "end": 3.8, "pitch": 1.2, "len": 0.35, "fade_out": 0.2}],
 		"room": [0.4, 0.14, 0.35, 0.45]},
-	"spectre_fire": {"preset": "gun", "layers": [{"src": "163456", "pitch": 1.12, "len": 0.4, "fade_out": 0.22}],
+	"spectre_fire": {"preset": "gun", "layers": [{"src": "163456", "pitch": 1.1, "len": 0.5, "fade_out": 0.28}], "drive": 3.2,
 		"room": [0.4, 0.16, 0.4, 0.45]},
 	"ak74u_fire": {"preset": "gun", "layers": [{"src": "855841", "pitch": 1.08, "len": 0.55, "fade_out": 0.3}]},
 	# ------------------------------------------------------------ fusils d'assaut
@@ -58,8 +82,9 @@ const RECIPES := {
 	"aug_fire": {"preset": "gun", "layers": [{"src": "854207", "pitch": 0.97, "len": 0.7, "fade_out": 0.35}]},
 	"burst_fire": {"preset": "gun", "layers": [{"src": "854233", "pitch": 1.03, "len": 0.5, "fade_out": 0.28}],
 		"room": [0.45, 0.16, 0.45, 0.45]},
-	"g11_fire": {"preset": "gun", "layers": [{"src": "854179", "pitch": 1.15, "len": 0.3, "fade_out": 0.18}],
-		"room": [0.4, 0.12, 0.35, 0.45]},
+	"g11_fire": {"preset": "gun", "layers": [{"src": "854179", "pitch": 1.1, "len": 0.45, "fade_out": 0.25},
+		{"src": "854231", "pitch": 1.2, "gain": -3.0, "len": 0.4, "fade_out": 0.22}], "comp": [-28.0, 5.0, 0.002, 0.05], "drive": 2.6,
+		"room": [0.45, 0.18, 0.45, 0.45]},
 	"m14_fire": {"preset": "gun_heavy", "layers": [{"src": "855655", "pitch": 0.92, "len": 0.95, "fade_out": 0.45}]},
 	"fnfal_fire": {"preset": "gun_heavy", "layers": [{"src": "855654", "pitch": 0.94, "len": 0.85, "fade_out": 0.4}]},
 	# ------------------------------------------------------------ mitrailleuses
@@ -138,10 +163,92 @@ const RECIPES := {
 	"zombie_death_2": {"preset": "zombie", "layers": [{"src": "555411", "pitch": 0.95, "fade_out": 0.15}]},
 	"zombie_death_3": {"preset": "zombie", "layers": [{"src": "555423", "pitch": 0.93, "fade_out": 0.2}]},
 	"zombie_death_4": {"preset": "zombie", "layers": [{"src": "393749", "start": 22.0, "end": 23.8, "pitch": 0.92, "fade_out": 0.3}]},
-	"zombie_step_1": {"preset": "foley", "layers": [{"src": "741627", "start": 9.12, "end": 9.52, "fade_out": 0.08}]},
-	"zombie_step_2": {"preset": "foley", "layers": [{"src": "741627", "start": 9.58, "end": 10.0, "fade_out": 0.08}]},
-	"zombie_step_3": {"preset": "foley", "layers": [{"src": "741627", "start": 10.64, "end": 11.1, "fade_out": 0.08}]},
-	"zombie_step_4": {"preset": "foley", "layers": [{"src": "741627", "start": 11.28, "end": 11.75, "fade_out": 0.08}]},
+	"zombie_step_1": {"preset": "foley", "layers": [{"src": "741627", "start": 9.12, "end": 9.52, "fade_out": 0.08}], "loud": -5.0},
+	"zombie_step_2": {"preset": "foley", "layers": [{"src": "741627", "start": 9.58, "end": 10.0, "fade_out": 0.08}], "loud": -5.0},
+	"zombie_step_3": {"preset": "foley", "layers": [{"src": "741627", "start": 10.64, "end": 11.1, "fade_out": 0.08}], "loud": -5.0},
+	"zombie_step_4": {"preset": "foley", "layers": [{"src": "741627", "start": 11.28, "end": 11.75, "fade_out": 0.08}], "loud": -5.0},
+	# ------------------------------------------------------------ fusils à canons basculants, barillet
+	"break_open": {"preset": "mech", "layers": [{"src": "722902", "start": 0.05, "end": 0.6, "pitch": 0.85, "fade_out": 0.06},
+		{"src": "177863", "start": 0.26, "end": 0.66, "pitch": 0.9, "gain": -8.0, "at": 0.03, "fade_out": 0.06}]},
+	"break_close": {"preset": "mech", "layers": [{"src": "108794", "fade_out": 0.1},
+		{"src": "722902", "start": 2.2, "end": 2.58, "pitch": 0.85, "gain": -7.0, "fade_out": 0.06}]},
+	# ------------------------------------------------------------ impacts de balles sur le décor
+	"impact_concrete_1": {"preset": "impact", "layers": [{"src": "369138", "len": 0.45, "fade_out": 0.25},
+		{"src": "392975", "gain": -16.0, "hp": 2500.0, "len": 0.3, "fade_out": 0.2}]},
+	"impact_concrete_2": {"preset": "impact", "layers": [{"src": "683774", "start": 4.72, "end": 5.3, "pitch": 1.1, "fade_out": 0.15},
+		{"src": "321477", "gain": -5.0, "len": 0.4, "fade_out": 0.2}]},
+	"impact_metal_1": {"preset": "impact", "layers": [{"src": "182263", "start": 0.05, "end": 0.6, "fade_out": 0.15},
+		{"src": "392975", "gain": -9.0, "len": 0.45, "fade_out": 0.25}]},
+	"impact_metal_2": {"preset": "impact", "layers": [{"src": "182263", "start": 7.22, "end": 7.75, "fade_out": 0.15},
+		{"src": "650573", "start": 0.0, "end": 0.34, "pitch": 1.3, "gain": -8.0, "fade_out": 0.1}]},
+	"impact_wood_1": {"preset": "impact", "layers": [{"src": "400654", "start": 0.0, "end": 0.5, "fade_out": 0.12},
+		{"src": "381617", "gain": -6.0, "len": 0.4, "fade_out": 0.2}]},
+	"impact_wood_2": {"preset": "impact", "layers": [{"src": "400654", "start": 7.0, "end": 7.6, "fade_out": 0.15},
+		{"src": "319227", "gain": -6.0, "len": 0.35, "fade_out": 0.15}]},
+	# ------------------------------------------------------------ grenades
+	# Goupille arrachée (« tchik ») puis cuiller qui tinte.
+	"grenade_pin": {"preset": "mech", "layers": [{"src": "725813", "start": 6.55, "end": 6.9, "fade_out": 0.05},
+		{"src": "682154", "gain": -9.0, "len": 0.45, "at": 0.12, "fade_out": 0.25}]},
+	"grenade_throw": {"preset": "mech", "layers": [{"src": "346373", "fade_out": 0.08}], "eq": [["hp", 150.0, 0.7, 0.0]]},
+	# Rebond : boîte métallique lourde sur le béton, tintement.
+	"grenade_bounce": {"preset": "foley", "layers": [{"src": "650573", "start": 0.43, "end": 0.8, "pitch": 1.25, "fade_out": 0.1},
+		{"src": "682154", "gain": -10.0, "len": 0.35, "fade_out": 0.2}]},
+	# ------------------------------------------------------------ singe-tambour
+	"monkey_wind": {"preset": "mech", "layers": [{"src": "445966", "fade_out": 0.05}], "loud": -2.5},
+	"monkey_bounce": {"preset": "foley", "layers": [{"src": "92622", "start": 0.5, "end": 0.95, "pitch": 1.15, "fade_out": 0.1}]},
+	# L'air original (procédural) et un vrai coup de cymbales à chaque temps.
+	"monkey_music": {"preset": "", "layers": [{"stem": "monkey_tune", "trim": false},
+		{"src": "452400", "hp": 1800.0, "len": 0.38, "fade_out": 0.25, "gain": -2.0, "times": "monkey_beats", "alt_pitch": 1.06}],
+		"eq": [["hp", 60.0, 0.7, 0.0]], "comp": [-12.0, 2.0, 0.003, 0.1], "max_len": 9.5},
+	# ------------------------------------------------------------ chiens de l'enfer
+	"dog_growl_1": {"preset": "dog", "layers": [{"src": "404920", "start": 31.7, "end": 33.0, "pitch": 0.9, "fade_in": 0.05, "fade_out": 0.25}]},
+	"dog_growl_2": {"preset": "dog", "layers": [{"src": "404920", "start": 19.8, "end": 21.6, "pitch": 0.88, "fade_in": 0.05, "fade_out": 0.3}]},
+	"dog_growl_3": {"preset": "dog", "layers": [{"src": "122183", "start": 23.95, "end": 25.2, "pitch": 0.8, "fade_in": 0.03, "fade_out": 0.25}]},
+	"dog_bark_1": {"preset": "dog", "layers": [{"src": "483176", "start": 0.55, "end": 1.22, "pitch": 0.82, "fade_out": 0.12}]},
+	"dog_bark_2": {"preset": "dog", "layers": [{"src": "619045", "start": 3.58, "end": 4.5, "pitch": 0.85, "fade_out": 0.15}]},
+	# Morsure : claquement de mâchoires, chair.
+	"dog_bite_1": {"preset": "dog", "layers": [{"src": "841350", "start": 0.5, "end": 0.98, "pitch": 0.85, "fade_out": 0.08},
+		{"src": "635049", "start": 3.7, "end": 4.0, "gain": -6.0, "at": 0.03, "fade_out": 0.06},
+		{"src": "122183", "start": 4.39, "end": 4.85, "pitch": 0.8, "gain": -3.0, "fade_out": 0.1}], "drive": 1.2},
+	"dog_bite_2": {"preset": "dog", "layers": [{"src": "841350", "start": 1.72, "end": 2.1, "pitch": 0.85, "fade_out": 0.08},
+		{"src": "423301", "start": 0.31, "end": 0.6, "gain": -7.0, "at": 0.02, "fade_out": 0.06},
+		{"src": "122183", "start": 5.4, "end": 5.84, "pitch": 0.8, "gain": -3.0, "fade_out": 0.1}], "drive": 1.2},
+	# Mort : glapissement abaissé (se consume en flammes, voir dog_explode).
+	"dog_whine": {"preset": "dog", "layers": [{"src": "724927", "pitch": 0.82, "fade_out": 0.25}]},
+	"dog_explode": {"preset": "explosion", "layers": [{"src": "431174", "fade_out": 0.4},
+		{"src": "244926", "start": 0.0, "end": 1.8, "gain": -5.0, "at": 0.05, "fade_out": 0.8}], "max_len": 3.0},
+	# ------------------------------------------------------------ joueur
+	"footstep_1": {"preset": "foley", "layers": [{"src": "392483", "start": 0.0, "end": 0.25, "fade_out": 0.06}], "loud": -6.0},
+	"footstep_2": {"preset": "foley", "layers": [{"src": "392483", "start": 0.25, "end": 0.52, "fade_out": 0.06}], "loud": -6.0},
+	"footstep_3": {"preset": "foley", "layers": [{"src": "392483", "start": 1.04, "end": 1.29, "fade_out": 0.06}], "loud": -6.0},
+	"footstep_4": {"preset": "foley", "layers": [{"src": "392483", "start": 1.55, "end": 1.8, "fade_out": 0.06}], "loud": -6.0},
+	# Respiration haletante (santé basse).
+	"player_breath_1": {"preset": "voice", "layers": [{"src": "386573", "start": 1.55, "end": 2.65, "fade_in": 0.04, "fade_out": 0.15}], "loud": -3.0},
+	"player_breath_2": {"preset": "voice", "layers": [{"src": "386573", "start": 5.55, "end": 6.62, "fade_in": 0.04, "fade_out": 0.15}], "loud": -3.0},
+	"player_hurt_1": {"preset": "voice", "layers": [{"src": "547209", "fade_out": 0.08}]},
+	"player_hurt_2": {"preset": "voice", "layers": [{"src": "464486", "fade_out": 0.1}]},
+	# À terre : râle de douleur et chute.
+	"player_down": {"preset": "voice", "layers": [{"src": "416838", "fade_out": 0.3},
+		{"src": "417994", "gain": -5.0, "at": 0.3, "fade_out": 0.4}], "room": [0.5, 0.18, 0.8, 0.5]},
+	"dive_land": {"preset": "foley", "layers": [{"src": "417994", "len": 1.0, "fade_out": 0.4},
+		{"src": "82027", "gain": -4.0, "fade_out": 0.1}]},
+	# ------------------------------------------------------------ armes spéciales
+	# FAUCHEUSE (20 coups/s) : un coup très court, les suivants se chevauchent.
+	"minigun_fire": {"preset": "gun", "layers": [{"src": "500304", "start": 0.0, "end": 0.16, "fade_out": 0.07},
+		{"src": "854179", "gain": -5.0, "len": 0.1, "fade_out": 0.06}], "room": [0.4, 0.1, 0.25, 0.45], "loud": -5.0},
+	# TONNERRE-7 : détonation d'air comprimé, boum grave, tonnerre qui roule.
+	"thunder_fire": {"preset": "explosion", "layers": [{"src": "245974", "start": 0.0, "end": 0.9, "fade_out": 0.3},
+		{"src": "814046", "gain": -3.0, "len": 1.6, "fade_out": 0.8},
+		{"src": "436790", "gain": -4.0, "at": 0.05, "len": 2.6, "fade_out": 1.2}], "max_len": 4.0},
+	"thunder_charge": {"preset": "mech", "layers": [{"src": "521509", "len": 0.8, "fade_in": 0.15, "fade_out": 0.1},
+		{"src": "815879", "start": 1.3, "end": 1.87, "gain": -2.0, "at": 0.55, "fade_out": 0.05}], "max_len": 2.0},
+	# NOVA (PhD) : explosion « d'un autre monde » et crépitement électrique violet.
+	"nova_blast": {"preset": "explosion", "layers": [{"src": "814046", "len": 2.2, "fade_out": 1.0},
+		{"src": "536793", "start": 0.0, "end": 1.3, "gain": -7.0, "hp": 800.0, "fade_out": 0.5}]},
+	# Couche électrique des tirs Pack-a-Punchés (BO1).
+	"pap_zap_1": {"preset": "zap", "layers": [{"src": "512471", "fade_out": 0.06}]},
+	"pap_zap_2": {"preset": "zap", "layers": [{"src": "143565", "len": 0.3, "fade_out": 0.12}]},
+	"pap_zap_3": {"preset": "zap", "layers": [{"src": "136542", "len": 0.28, "fade_out": 0.12}]},
 }
 
 ## Sources : freesound.org, toutes sous licence Creative Commons 0 (domaine
@@ -276,4 +383,94 @@ const SOURCES := {
 		"url": "https://cdn.freesound.org/previews/555/555423_8247784-hq.ogg"},
 	"741627": {"author": "GoatsheadCastle", "title": "Walking - Dragging feet - heavy footsteps - eerie - boots",
 		"url": "https://cdn.freesound.org/previews/741/741627_14605753-hq.ogg"},
+	# -- canons basculants, barillet
+	"722902": {"author": "tkane0512", "title": "Revolver Reload Break 2",
+		"url": "https://cdn.freesound.org/previews/722/722902_15683404-hq.ogg"},
+	"177863": {"author": "Dredile", "title": "Clean Revolver Reload",
+		"url": "https://cdn.freesound.org/previews/177/177863_1046667-hq.ogg"},
+	"108794": {"author": "CeebFrack", "title": "shotgun close.flac",
+		"url": "https://cdn.freesound.org/previews/108/108794_1553758-hq.ogg"},
+	# -- impacts
+	"369138": {"author": "newagesoup", "title": "VSH-38-pop-concrete wall-med.wav",
+		"url": "https://cdn.freesound.org/previews/369/369138_4067257-hq.ogg"},
+	"392975": {"author": "morganpurkis", "title": "Ricochet 2.wav",
+		"url": "https://cdn.freesound.org/previews/392/392975_5937039-hq.ogg"},
+	"683774": {"author": "Elements-Library", "title": "Hard Impact on Concrete",
+		"url": "https://cdn.freesound.org/previews/683/683774_14876768-hq.ogg"},
+	"321477": {"author": "dslrguide", "title": "Concrete Hit",
+		"url": "https://cdn.freesound.org/previews/321/321477_5485024-hq.ogg"},
+	"182263": {"author": "martian", "title": "Foley bullet hit metal 02.wav",
+		"url": "https://cdn.freesound.org/previews/182/182263_84709-hq.ogg"},
+	"650573": {"author": "h2p34", "title": "Metal Canister Impact Hard",
+		"url": "https://cdn.freesound.org/previews/650/650573_9534185-hq.ogg"},
+	"400654": {"author": "LampEight", "title": "Wood panel board debris sharp impact hard",
+		"url": "https://cdn.freesound.org/previews/400/400654_706234-hq.ogg"},
+	"381617": {"author": "dorian.mastin", "title": "snd_ImpactSmallWood01.wav",
+		"url": "https://cdn.freesound.org/previews/381/381617_1304060-hq.ogg"},
+	"319227": {"author": "worthahep88", "title": "Single Rock hitting wood 4.wav",
+		"url": "https://cdn.freesound.org/previews/319/319227_3443504-hq.ogg"},
+	# -- grenades, singe
+	"725813": {"author": "F3ather", "title": "small moving metallic part",
+		"url": "https://cdn.freesound.org/previews/725/725813_6401406-hq.ogg"},
+	"682154": {"author": "HenKonen", "title": "Metallic Clink 3.wav",
+		"url": "https://cdn.freesound.org/previews/682/682154_10938187-hq.ogg"},
+	"346373": {"author": "denao270", "title": "Throwing / Whip Effect",
+		"url": "https://cdn.freesound.org/previews/346/346373_4882199-hq.ogg"},
+	"445966": {"author": "Breviceps", "title": "Wind-up sound",
+		"url": "https://cdn.freesound.org/previews/445/445966_9159316-hq.ogg"},
+	"92622": {"author": "nigelcoop", "title": "CanBounce 2.wav",
+		"url": "https://cdn.freesound.org/previews/92/92622_1088850-hq.ogg"},
+	"452400": {"author": "kyles", "title": "cymbal splash hit nearby chinese opera in park.flac",
+		"url": "https://cdn.freesound.org/previews/452/452400_612689-hq.ogg"},
+	# -- chiens
+	"404920": {"author": "coldvet", "title": "Dog Growl - Beast / Creature",
+		"url": "https://cdn.freesound.org/previews/404/404920_5965692-hq.ogg"},
+	"122183": {"author": "qubodup", "title": "Dog Growling Snarling Grumbling",
+		"url": "https://cdn.freesound.org/previews/122/122183_71257-hq.ogg"},
+	"483176": {"author": "SpaceJoe", "title": "Aggressive Barking Dog - 1.wav",
+		"url": "https://cdn.freesound.org/previews/483/483176_6150892-hq.ogg"},
+	"619045": {"author": "mrrap4food", "title": "Large Dog Aggressive Bark.mp3",
+		"url": "https://cdn.freesound.org/previews/619/619045_781461-hq.ogg"},
+	"841350": {"author": "qubodup", "title": "Dog Teeth Clattering Clicking",
+		"url": "https://cdn.freesound.org/previews/841/841350_71257-hq.ogg"},
+	"724927": {"author": "greyfeather", "title": "Dog death cry - video game quality / bad-ish quality",
+		"url": "https://cdn.freesound.org/previews/724/724927_15139380-hq.ogg"},
+	"431174": {"author": "Blankened", "title": "Fireball Explosion.wav",
+		"url": "https://cdn.freesound.org/previews/431/431174_6512859-hq.ogg"},
+	"244926": {"author": "hnhnh", "title": "fire-whoosh.wav",
+		"url": "https://cdn.freesound.org/previews/244/244926_3983630-hq.ogg"},
+	# -- joueur
+	"392483": {"author": "gpag1", "title": "Footsteps boots.wav",
+		"url": "https://cdn.freesound.org/previews/392/392483_3268195-hq.ogg"},
+	"386573": {"author": "ShaneF91", "title": "heavy_breathing_1.wav",
+		"url": "https://cdn.freesound.org/previews/386/386573_7233595-hq.ogg"},
+	"547209": {"author": "MrFossy", "title": "Voice_AdultMale_PainGrunts_09.wav",
+		"url": "https://cdn.freesound.org/previews/547/547209_129727-hq.ogg"},
+	"464486": {"author": "elynch0901", "title": "Male Grunting In Pain",
+		"url": "https://cdn.freesound.org/previews/464/464486_4814007-hq.ogg"},
+	"416838": {"author": "tonsil5", "title": "Grunt2 - Death Pain.wav",
+		"url": "https://cdn.freesound.org/previews/416/416838_8247784-hq.ogg"},
+	"417994": {"author": "DylanTheFish", "title": "Body fall.wav",
+		"url": "https://cdn.freesound.org/previews/417/417994_7482766-hq.ogg"},
+	"82027": {"author": "raubana", "title": "Body Fall Over.wav",
+		"url": "https://cdn.freesound.org/previews/82/82027_1178110-hq.ogg"},
+	# -- armes spéciales, électricité
+	"500304": {"author": "Bratish", "title": "Minigun Fire",
+		"url": "https://cdn.freesound.org/previews/500/500304_9995328-hq.ogg"},
+	"245974": {"author": "Paul368", "title": "Air Canister Short Blasts .wav",
+		"url": "https://cdn.freesound.org/previews/245/245974_2971294-hq.ogg"},
+	"814046": {"author": "qubodup", "title": "Explosion From Another Dimension",
+		"url": "https://cdn.freesound.org/previews/814/814046_71257-hq.ogg"},
+	"436790": {"author": "roboroo", "title": "Thunder Clap",
+		"url": "https://cdn.freesound.org/previews/436/436790_3206727-hq.ogg"},
+	"521509": {"author": "typeoo", "title": "air_hiss_pressure_loop.wav",
+		"url": "https://cdn.freesound.org/previews/521/521509_11540209-hq.ogg"},
+	"536793": {"author": "szegvari", "title": "Spark Electric SFX 200927_0054.wav",
+		"url": "https://cdn.freesound.org/previews/536/536793_2282212-hq.ogg"},
+	"512471": {"author": "michael_grinnell", "title": "Electric zap.wav",
+		"url": "https://cdn.freesound.org/previews/512/512471_7372230-hq.ogg"},
+	"143565": {"author": "YvesSch", "title": "zap.mp3",
+		"url": "https://cdn.freesound.org/previews/143/143565_2581209-hq.ogg"},
+	"136542": {"author": "JoelAudio", "title": "ELECTRIC_ZAP_001.wav",
+		"url": "https://cdn.freesound.org/previews/136/136542_1206321-hq.ogg"},
 }

@@ -282,7 +282,7 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 
 	# Effets locaux immédiats
 	var muzzle: Vector3 = view.muzzle_global()
-	Audio.play_2d(s.sound, -1.0, 0.05, "SFX", s.get("sound_pitch", 0.8 if w.pap else 1.0))
+	WeaponAudio.play_2d(s, w.pap)
 	view.fire(s, fx, player, cycle == "")
 	feel.on_shot(s, view.ads, recoil_mult(), t)
 	if blast:

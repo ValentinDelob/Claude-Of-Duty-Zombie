@@ -8,6 +8,9 @@ extends SceneTree
 ##     --no-fetch          ne télécharge rien (sources déjà en cache)
 ##     --analyze=<dossier> analyse chaque .ogg/.wav du dossier (aucune écriture)
 ##     --dry               traite sans écrire, affiche seulement l'analyse
+##     --loudness          intensité perçue (LUFS) de chaque son, par catégorie
+##     --level             met les sons procéduraux (sans recette) au niveau
+##                         de leur catégorie (SfxLoudness), en place
 ## Sans nom : traite toutes les recettes. Déterministe (graines fixes).
 
 const OUT := "res://assets/audio/"
@@ -36,6 +39,13 @@ func _initialize() -> void:
 		elif a.begins_with("--segments="):
 			_segments(a.substr(11))
 			quit()
+			return
+		elif a == "--loudness":
+			_loudness_report()
+			quit()
+			return
+		elif a == "--level":
+			quit(_level_procedural())
 			return
 		else:
 			names.append(a)
@@ -89,7 +99,8 @@ func _load(id: String, cache: String, fetch: bool) -> PackedFloat32Array:
 
 ## Couche : {src, start, end, pitch, gain, at, hp, lp, eq:[[type,f,q,dB]...], fade_in, fade_out, trim}
 func _layer(l: Dictionary, cache: String, fetch: bool) -> PackedFloat32Array:
-	var raw := _load(String(l.src), cache, fetch)
+	# Piste procédurale originale (SynthStems) mélangée aux enregistrements.
+	var raw := SynthStems.build(String(l.stem)) if l.has("stem") else _load(String(l.src), cache, fetch)
 	if raw.is_empty():
 		return raw
 	var b := SfxDsp.slice(raw, float(l.get("start", 0.0)), float(l.get("end", 0.0)))
@@ -128,7 +139,19 @@ func _build(n: String, r: Dictionary, cache: String, fetch: bool) -> PackedFloat
 		if lb.is_empty():
 			push_error("couche vide pour " + n)
 			return lb
-		b = SfxDsp.mix(b, lb, float(l.get("at", 0.0)))
+		# `times` : la couche est répétée à ces instants (liste, ou nom d'une
+		# grille de temps de SynthStems, ex. "monkey_beats").
+		var times: Variant = l.get("times", [0.0])
+		if times is String:
+			times = SynthStems.grid(times)
+		var k := 0
+		for t in times:
+			# `alt_pitch` : une frappe sur deux légèrement désaccordée.
+			var hit := lb
+			if l.has("alt_pitch") and k % 2 == 1:
+				hit = SfxDsp.resample(lb, float(l.alt_pitch))
+			b = SfxDsp.mix(b, hit, float(l.get("at", 0.0)) + float(t))
+			k += 1
 	for e in r.get("eq", []):
 		b = SfxDsp.biquad(b, e[0], e[1], e[2], e[3])
 	if r.has("comp"):
@@ -141,8 +164,67 @@ func _build(n: String, r: Dictionary, cache: String, fetch: bool) -> PackedFloat
 	if r.has("len"):
 		b = SfxDsp.truncate(b, float(r.len), float(r.get("fade_out", 0.08)))
 	b = SfxDsp.fade(b, 0.001, float(r.get("fade_out", 0.02)))
-	b = SfxDsp.normalize(b, float(r.get("peak_db", -1.0)))
-	return SfxDsp.trim_silence(b, -80.0, -66.0)
+	b = SfxDsp.trim_silence(SfxDsp.normalize(b, -6.0), -80.0, -66.0)
+	# Intensité perçue (et non plus crête) : cible de la catégorie du son,
+	# limiteur pour les crêtes (SfxLoudness).
+	return SfxLoudness.level(n, b, float(r.get("loud", 0.0)))
+
+
+## Tous les sons du jeu (noms sans extension).
+static func all_sounds() -> Array:
+	var out := []
+	for f in DirAccess.get_files_at(OUT):
+		if f.get_extension() == "wav":
+			out.append(f.get_basename())
+	out.sort()
+	return out
+
+
+## Intensité perçue de chaque son, groupée par catégorie, avec l'écart à la
+## cible (et la crête).
+func _loudness_report() -> void:
+	var by := {}
+	for n in all_sounds():
+		var b := SfxLoudness.read_wav(ProjectSettings.globalize_path(OUT + n + ".wav"))
+		var c := SfxLoudness.category(n)
+		var off: float = float(SfxRecipes.RECIPES[n].get("loud", 0.0)) if SfxRecipes.RECIPES.has(n) else float(SfxRecipes.LEVEL_OFFSETS.get(n, 0.0))
+		var l := SfxLoudness.measure(n, b, 12.0)
+		var line := "  %-22s %6.1f LUFS  écart %+5.1f  crête %5.1f  %s" % [n, l, l - float(c.target) - off, SfxLoudness.peak_db(b),
+			"CC0" if SfxRecipes.RECIPES.has(n) else "proc"]
+		if not by.has(c.id):
+			by[c.id] = []
+		by[c.id].append(line)
+	for c in SfxLoudness.CATEGORIES:
+		if by.has(c.id):
+			print("%s (cible %.1f ±%.1f, %s)" % [c.id, c.target, c.tol, c.mode])
+			for l in by[c.id]:
+				print(l)
+
+
+## Nivelle en place les sons procéduraux (générés par gen_audio*.gd) :
+## même cible par catégorie que les sons importés.
+func _level_procedural() -> int:
+	var failed := 0
+	for n in all_sounds():
+		if SfxRecipes.RECIPES.has(n):
+			continue
+		var path := ProjectSettings.globalize_path(OUT + n + ".wav")
+		var w := AudioStreamWAV.load_from_file(path)
+		var b := SfxLoudness.read_wav(path)
+		if b.is_empty():
+			failed += 1
+			continue
+		var off := float(SfxRecipes.LEVEL_OFFSETS.get(n, 0.0))
+		var before := SfxLoudness.deviation(n, b, off, 20.0)
+		# Déjà dans la moitié de la tolérance : fichier (et identité) intacts.
+		if absf(before) <= float(SfxLoudness.category(n).tol) * 0.5:
+			continue
+		b = SfxLoudness.balance(n, b, off)
+		var loop := w.loop_mode != AudioStreamWAV.LOOP_DISABLED
+		if SfxDsp.save_wav(b, path, loop) != OK:
+			failed += 1
+		print("  %-22s %+5.1f -> %+5.1f LU" % [n, before, SfxLoudness.deviation(n, b, off, 20.0)])
+	return 1 if failed > 0 else 0
 
 
 ## Découpe un fichier en événements (au-dessus de -30 dB du pic, séparés
@@ -186,6 +268,9 @@ func _doc() -> void:
 		var srcs := []
 		var mods := ["mono 44,1 kHz 16 bits"]
 		for l in r.layers:
+			if l.has("stem"):
+				srcs.append("air original procédural (`SynthStems.%s`)" % l.stem)
+				continue
 			var s: Dictionary = SfxRecipes.SOURCES[l.src]
 			var cut := ""
 			if l.has("start") or l.has("end"):
@@ -205,7 +290,8 @@ func _doc() -> void:
 			mods.append("saturation x%.1f" % float(r.drive))
 		if r.has("room"):
 			mods.append("réverbération d'intérieur %.2f s" % float(r.room[2]))
-		mods.append("normalisé %.1f dBFS" % float(r.get("peak_db", -1.0)))
+		var c := SfxLoudness.category(n)
+		mods.append("intensité %.0f LUFS (%s)" % [float(c.target) + float(r.get("loud", 0.0)), c.id])
 		print("| `%s.wav` | %s | %s |" % [n, "<br>".join(srcs), ", ".join(mods)])
 
 

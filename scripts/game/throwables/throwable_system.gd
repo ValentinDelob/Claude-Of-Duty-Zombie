@@ -344,7 +344,7 @@ func explosion_fx(pos: Vector3, kind: int) -> void:
 		_scorch_i = (_scorch_i + 1) % MAX_SCORCH
 		d.global_transform = Transform3D(Basis(Vector3.UP, randf() * TAU), floor_pos)
 		d.visible = true
-	Audio.play_3d("frag_explode", pos, 6.0, 0.08, 4)
+	Audio.play_3d("frag_explode", pos, 1.0, 0.08, 4)
 	var lp := game.local_player
 	if lp:
 		var dist := lp.global_position.distance_to(pos)
