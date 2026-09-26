@@ -57,7 +57,8 @@ func run() -> void:
 	# Visée : réduit le FOV.
 	p.input.aim = true
 	await seconds(0.4)
-	at.check(p.camera.fov < Settings.fov * 0.8, "visée (FOV %.0f)" % p.camera.fov)
+	var ads_zoom: float = WeaponDB.stats(Game.instance.session.local_data().current_weapon().id).get("ads_zoom", 1.0)
+	at.check(p.camera.fov < Settings.fov * 0.95 and absf(p.camera.fov - Settings.fov * ads_zoom) < 2.0, "visée : FOV réduit selon l'arme (%.0f)" % p.camera.fov)
 	p.input.aim = false
 
 	# Collision : on fonce dans un mur pendant 3 s, on doit rester dans la carte.

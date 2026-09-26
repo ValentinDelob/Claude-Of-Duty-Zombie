@@ -33,7 +33,10 @@ func run() -> void:
 	H.aim_at(p, z.head_position())
 	await seconds(0.1)
 	await at.screenshot("crawler")
-	# Tir à la tête sur la marionnette couchée.
+	# Tir à la tête sur la marionnette couchée, en visée (en hanche, la
+	# dispersion de BO1 rend une tête couchée à cette distance aléatoire).
+	p.input.aim = true
+	await seconds(0.5)
 	for i in 4:
 		if not z.is_alive():
 			break
