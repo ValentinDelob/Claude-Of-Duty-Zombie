@@ -80,3 +80,14 @@ Moteur : **Godot 4.7** (GDScript, rendu Forward+). Cible : GTX 1050 à 60 FPS en
   réel du jeu + scénario. **Doit passer avant chaque commit.**
 - Tests unitaires : `tests/test_*.gd` (runner : `res://tests/test_runner.tscn`).
 - Scénarios en jeu : `tests/autotest/*.gd`.
+
+## Chiens de l'enfer (`scripts/game/dogs/`)
+
+- `Hellhound` étend `Zombie` : c'est un **type d'entité** du `ZombieManager`
+  (`spawn(..., kind = KIND_DOG)`, argument `kind` de `_cl_spawn`). Même canal
+  réseau (apparition fiable, instantanés, mort), mêmes dégâts, points, pièges et
+  nuke ; aucun bonus aléatoire (seul le dernier chien lâche MUNITIONS MAX).
+- `DogRound` (`/root/Game/Rounds/Dogs`) : planification BO1 (manche 5 à 7 puis
+  +4/+5, coupée en autotest sauf `debug_force_next`), apparitions par la foudre
+  près du joueur le moins chassé, ambiance (brouillard `WorldLook`, musique,
+  compteur qui clignote). Règles pures : `DogRules`.

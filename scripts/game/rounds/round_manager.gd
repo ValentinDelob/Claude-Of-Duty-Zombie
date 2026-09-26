@@ -26,9 +26,16 @@ var _started := false
 var _recycle_accum := 0.0
 
 
+## Manches de chiens de l'enfer (chemin réseau : /root/Game/Rounds/Dogs).
+var dogs: DogRound
+
+
 func _ready() -> void:
 	game = get_parent()
 	_rng.randomize()
+	dogs = DogRound.new()
+	dogs.name = "Dogs"
+	add_child(dogs)
 
 
 ## Serveur : lance la première manche après un court délai.
@@ -45,7 +52,7 @@ func player_count() -> int:
 
 
 func remaining() -> int:
-	return to_spawn + game.zombies.alive_count()
+	return to_spawn + game.zombies.alive_count() + (maxi(dogs.total - dogs.spawned, 0) if dogs.active else 0)
 
 
 func _process(delta: float) -> void:
@@ -59,6 +66,13 @@ func _process(delta: float) -> void:
 			if _timer <= 0.0:
 				_begin_round(round_n + 1)
 		Phase.ACTIVE:
+			if dogs.active:
+				# Manche de chiens : aucun zombie, fin au dernier chien.
+				dogs.srv_tick(delta)
+				if dogs.srv_finished():
+					dogs.srv_end(round_n)
+					_end_round()
+				return
 			_spawn_tick(delta)
 			_recycle_accum += delta
 			if _recycle_accum >= 1.0:
@@ -90,8 +104,15 @@ func _begin_round(n: int) -> void:
 	to_spawn = total
 	_spawn_accum = 0.0
 	phase = Phase.ACTIVE
-	print("[Rounds] manche %d : %d zombies, %d PV" % [n, total, RoundRules.zombie_health(n)])
 	game.respawn_dead_players()
+	if dogs.active:
+		dogs.srv_end(n - 1)
+	if dogs.is_dog_round(n):
+		to_spawn = 0
+		dogs.srv_begin(n)
+		total = dogs.total
+	else:
+		print("[Rounds] manche %d : %d zombies, %d PV" % [n, total, RoundRules.zombie_health(n)])
 	_cl_round.rpc(n, Phase.ACTIVE)
 
 
@@ -117,11 +138,13 @@ func _cl_round(n: int, new_phase: int) -> void:
 		if GameState.state == GameState.State.ROUND_END:
 			GameState.set_state(GameState.State.PLAYING)
 		game.hud.round_changed(n, true)
-		Audio.play_2d("round_start", -2.0, 0.0)
+		if not dogs.cl_active:  # manche de chiens : son d'annonce propre
+			Audio.play_2d("round_start", -2.0, 0.0)
 		round_started.emit(n)
 	else:
 		if GameState.state == GameState.State.PLAYING:
 			GameState.set_state(GameState.State.ROUND_END)
 		game.hud.round_changed(n, false)
-		Audio.play_2d("round_end", -2.0, 0.0)
+		if not dogs.cl_active:
+			Audio.play_2d("round_end", -2.0, 0.0)
 		round_ended.emit(n)

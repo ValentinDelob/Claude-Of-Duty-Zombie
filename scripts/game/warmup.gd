@@ -35,6 +35,15 @@ func _run(game: Game) -> void:
 	z.position = Vector3(-0.8, -1.2, -1.0)
 	stage.add_child(z)
 	(z.get_node("Mesh") as MeshInstance3D).set_instance_shader_parameter("dissolve", 0.3)
+	# Chien de l'enfer (matériau à yeux rouges) et boule de foudre.
+	var dog := HellhoundModel.build(1)
+	dog.position = Vector3(0.6, -1.2, -1.0)
+	stage.add_child(dog)
+	var bolt := DogLightning.new()
+	bolt.duration = 0.5
+	bolt.silent = true
+	bolt.position = Vector3(0.3, -1.2, -1.5)
+	stage.add_child(bolt)
 	# Armes (vue FPS et monde, normales et améliorées).
 	var x := -1.0
 	for id in WeaponDB.WEAPONS:

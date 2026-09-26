@@ -8,6 +8,9 @@ extends Node3D
 ##    10 octets par zombie, que les clients interpolent.
 
 const SNAPSHOT_RATE := 15.0
+## Types d'entité partageant ce canal (apparition, instantanés, mort).
+const KIND_ZOMBIE := 0
+const KIND_DOG := 1
 const BYTES_PER_ZOMBIE := 10
 ## Décalage vertical pour coder y (peut être négatif pendant l'émergence).
 const Y_OFFSET := 20.0
@@ -104,14 +107,14 @@ func get_zombie(zid: int) -> Zombie:
 # --------------------------------------------------------------------------
 
 ## Fait apparaître un zombie (serveur uniquement). Retourne son id.
-func spawn(pos: Vector3, speed_class: int, health: int) -> int:
+func spawn(pos: Vector3, speed_class: int, health: int, kind := KIND_ZOMBIE) -> int:
 	if not multiplayer.is_server():
 		return -1
 	var zid := _next_id
 	_next_id = (_next_id % 65000) + 1
 	var yaw := _rng.randf() * TAU
 	var variant := _rng.randi() % 100000
-	_cl_spawn.rpc(zid, pos, yaw, variant, speed_class)
+	_cl_spawn.rpc(zid, pos, yaw, variant, speed_class, kind)
 	var z: Zombie = zombies.get(zid)
 	if z:
 		z.health = health
@@ -169,10 +172,10 @@ func build_snapshot() -> PackedByteArray:
 # --------------------------------------------------------------------------
 
 @rpc("authority", "call_local", "reliable")
-func _cl_spawn(zid: int, pos: Vector3, yaw: float, variant: int, speed_class: int) -> void:
+func _cl_spawn(zid: int, pos: Vector3, yaw: float, variant: int, speed_class: int, kind: int) -> void:
 	if zombies.has(zid):
 		return
-	var z := Zombie.new()
+	var z: Zombie = Hellhound.new() if kind == KIND_DOG else Zombie.new()
 	z.setup(zid, variant, speed_class, multiplayer.is_server())
 	z.yaw = yaw
 	add_child(z)
@@ -181,6 +184,8 @@ func _cl_spawn(zid: int, pos: Vector3, yaw: float, variant: int, speed_class: in
 	zombies[zid] = z
 	alive.append(z)
 	zombie_spawned.emit(z)
+	if kind == KIND_DOG:
+		return  # Apparition par la foudre (Hellhound).
 	# Les zombies des fenêtres (BarricadeSystem) ne sortent pas du sol.
 	if z.state == Zombie.State.EMERGE:
 		if Game.instance:

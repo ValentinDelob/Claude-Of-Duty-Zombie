@@ -325,6 +325,15 @@ func round_changed(n: int, starting: bool) -> void:
 	_round.set_round(n, starting)
 
 
+## Manche de chiens : le compteur de manche clignote.
+func set_special_round(on: bool) -> void:
+	_round.set_special(on)
+
+
+func round_counter() -> RoundCounter:
+	return _round
+
+
 ## Grand bandeau temporaire au centre (événement de la partie).
 func show_banner(text: String, duration := 3.5) -> void:
 	_center_msg.text = text

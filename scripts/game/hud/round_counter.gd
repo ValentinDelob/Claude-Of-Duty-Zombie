@@ -7,6 +7,8 @@ var round_n := 0
 var _label: Label
 var _pulse := 0.0
 var _blink := 0.0
+var special := false
+var _special_t := 0.0
 
 
 func _ready() -> void:
@@ -27,7 +29,27 @@ func set_round(n: int, starting: bool) -> void:
 	queue_redraw()
 
 
+## Manche spéciale (chiens) : le compteur clignote tant qu'elle dure.
+func set_special(on: bool) -> void:
+	special = on
+	_special_t = 0.0
+	if not on:
+		_apply_color(UiStyle.BLOOD)
+
+
+func _apply_color(col: Color) -> void:
+	self_modulate = col
+	_label.add_theme_color_override("font_color", col)
+	queue_redraw()
+
+
 func _process(delta: float) -> void:
+	if special and _pulse <= 0.0 and _blink <= 0.0:
+		_special_t += delta
+		# Clignotement lent : sang sombre <-> rouge braise vif.
+		var k := 0.5 + 0.5 * sin(_special_t * TAU * 0.8)
+		_apply_color(UiStyle.BLOOD.darkened(0.55).lerp(Color(1.0, 0.25, 0.08), k))
+		return
 	if _pulse > 0.0 or _blink > 0.0:
 		_pulse = maxf(_pulse - delta * 0.45, 0.0)
 		_blink = maxf(_blink - delta, 0.0)

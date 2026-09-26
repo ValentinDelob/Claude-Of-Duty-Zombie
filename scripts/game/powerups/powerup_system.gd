@@ -59,7 +59,8 @@ func _on_zombie_damaged(pid: int, zid: int, _dmg: int, killed: bool, _headshot: 
 	# franchissement qui fait tomber le bonus, comme dans BO1.
 	if killed and pid > 0 and kind != Combat.HitKind.TRAP and not debug_no_auto_drops:
 		var z: Zombie = game.zombies.get_zombie(zid)
-		if z:
+		# Les chiens de l'enfer ne font rien tomber (sauf le dernier : DogRound).
+		if z and not z is Hellhound:
 			var pos := z.global_position
 			var roll := _rng.randi_range(0, 99) if random_drops else 99
 			if tracker.try_drop(roll, in_playable_area(pos)):

@@ -846,3 +846,134 @@ func gen_barricade_slam() -> void:
 			b = s.mix(b, s.env_exp(s.lowpass(s.noise(0.12), 1600.0), 0.0005, 0.018), t, 0.8)
 			b = s.mix(b, _clank(1900.0 + k * 250.0 + hit * 120.0, 0.12, 0.4), t, 0.5)
 		_save("barricade_slam_%d" % (k + 1), s.finish(s.reverb(b, 0.55, 0.18, 0.4), 0.85))
+
+
+# ---------------------------------------------------------------- chiens de l'enfer
+
+func gen_dog_growl() -> void:
+	# Grondement rauque de molosse : voix très basse, souffle, râle saturé.
+	for k in 3:
+		s = Synth.new(2100 + k)
+		var dur := s.rng.randf_range(0.8, 1.3)
+		var f0 := s.rng.randf_range(78.0, 100.0)
+		var b := _growl(dur, f0, f0 * 1.15, [420.0 + k * 60.0, 950.0], 1.2)
+		s.mix(b, s.env_adsr(s.lowpass(s.brown_noise(dur), 260.0), 0.1, 0.2, 0.8, 0.3), 0.0, 0.6)
+		b = s.drive(b, 2.0)
+		_save("dog_growl_%d" % (k + 1), s.finish(s.reverb(b, 0.5, 0.18, 0.4), 0.85))
+
+
+func gen_dog_bark() -> void:
+	# Aboiement agressif (bond) : attaque brutale, voix aiguë qui retombe.
+	for k in 2:
+		s = Synth.new(2200 + k)
+		var b := _growl(0.32, 300.0 + k * 40.0, 170.0, [900.0, 1600.0], 0.8)
+		s.mix(b, s.env_exp(s.bandpass(s.noise(0.08), 1500.0, 1.0), 0.001, 0.02), 0.0, 0.8)
+		s.mix(b, _growl(0.25, 250.0, 150.0, [850.0, 1500.0], 0.9), 0.22, 0.7)
+		b = s.gain(b, 1.3)
+		_save("dog_bark_%d" % (k + 1), s.finish(s.reverb(b, 0.55, 0.2, 0.4), 0.95))
+
+
+func gen_dog_whine() -> void:
+	# Gémissement de mort : glapissement qui monte puis s'effondre.
+	var b := _growl(0.35, 520.0, 780.0, [800.0, 1900.0], 0.3)
+	s.mix(b, _growl(0.6, 700.0, 240.0, [700.0, 1500.0], 0.4), 0.3, 0.9)
+	_save("dog_whine", s.finish(s.reverb(b, 0.6, 0.25, 0.6), 0.8))
+
+
+func gen_dog_explode() -> void:
+	# Embrasement : souffle grave, crépitements de flammes.
+	var b := s.env_exp(s.lowpass_sweep(s.noise(1.2), 3000.0, 250.0), 0.004, 0.35)
+	s.mix(b, s.env_exp(s.sweep(0.5, 110.0, 40.0), 0.002, 0.2), 0.0, 1.0)
+	for k in 14:
+		var crack := s.env_exp(s.bandpass(s.noise(0.04), s.rng.randf_range(1500.0, 5000.0), 3.0), 0.0005, 0.008)
+		s.mix(b, crack, s.rng.randf_range(0.02, 0.9), s.rng.randf_range(0.2, 0.5))
+	b = s.drive(b, 1.8)
+	_save("dog_explode", s.finish(s.reverb(b, 0.7, 0.3, 0.8), 0.9))
+
+
+func gen_dog_prespawn() -> void:
+	# Boule de foudre : bourdonnement électrique qui enfle, grésillements.
+	var dur := 1.6
+	var hum := s.tone(dur, 60.0, "saw")
+	s.mix(hum, s.tone(dur, 120.5, "square"), 0.0, 0.3)
+	hum = s.lowpass(hum, 900.0)
+	var b := s.env_adsr(hum, 1.2, 0.1, 0.9, 0.2)
+	b = s.gain(b, 0.5)
+	for k in 40:
+		var t := s.rng.randf_range(0.0, dur - 0.05)
+		var zap := s.env_exp(s.highpass(s.noise(0.03), 3000.0), 0.0005, 0.006)
+		s.mix(b, zap, t, 0.2 + 0.6 * t / dur)
+	s.mix(b, s.env_adsr(s.sweep(dur, 200.0, 900.0), 1.3, 0.05, 0.8, 0.1), 0.0, 0.25)
+	_save("dog_prespawn", s.finish(s.reverb(b, 0.6, 0.2, 0.5), 0.75))
+
+
+func gen_dog_bolt() -> void:
+	# Coup de tonnerre : claquement sec puis grondement qui roule.
+	var b := s.env_exp(s.highpass(s.noise(0.05), 1800.0), 0.0003, 0.012)
+	b = s.gain(b, 1.5)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.3), 2500.0), 0.001, 0.06), 0.0, 1.0)
+	var rumble := s.env_adsr(s.lowpass(s.brown_noise(2.2), 160.0), 0.05, 0.4, 0.6, 1.2)
+	s.mix(b, s.gain(rumble, 1.6), 0.03, 1.0)
+	s.mix(b, s.env_exp(s.sweep(0.6, 80.0, 35.0), 0.002, 0.3), 0.0, 1.0)
+	b = s.drive(b, 2.2)
+	_save("dog_bolt", s.finish(s.reverb(b, 0.9, 0.35, 1.5), 0.95, 0.2))
+
+
+func gen_dog_spawn() -> void:
+	# Le chien surgit : grésillement de braises et grognement.
+	var b := s.env_exp(s.bandpass(s.noise(0.8), 2500.0, 0.8), 0.005, 0.25)
+	b = s.gain(b, 0.5)
+	s.mix(b, _growl(0.7, 95.0, 120.0, [450.0, 1000.0], 1.1), 0.1, 1.0)
+	_save("dog_spawn", s.finish(s.reverb(b, 0.6, 0.2, 0.5), 0.85))
+
+
+func gen_dog_round_start() -> void:
+	# Annonce de manche de chiens : cuivres graves dissonants, tonnerre et voix
+	# démoniaque (« VIENS... LEURS ÂMES »).
+	var b := _brass(5.5, [41.2, 43.65, 61.7, 82.4], 0.6, 1100.0)
+	var thunder := s.env_adsr(s.lowpass(s.brown_noise(3.0), 150.0), 0.02, 0.5, 0.5, 1.5)
+	s.mix(b, s.gain(thunder, 1.4), 0.0, 1.0)
+	s.mix(b, s.env_exp(s.highpass(s.noise(0.05), 1500.0), 0.0003, 0.015), 0.0, 1.2)
+	s.mix(b, _timpani(41.0), 0.0, 1.3)
+	s.mix(b, _timpani(41.0), 0.5, 1.0)
+	s.mix(b, _timpani(38.9), 0.8, 1.0)
+	var voice := _announcer([[VE, 0.3], [VI, 0.22], [VE, 0.26], [VO, 0.7]], 66.0)
+	s.mix(b, s.gain(voice, 1.2), 1.1, 1.0)
+	s.mix(b, _bell(4.0, 110.0), 1.0, 0.7)
+	b = s.reverb(b, 0.95, 0.4, 2.5)
+	_save("dog_round_start", s.finish(b, 0.95, 0.3))
+
+
+func gen_dog_round_end() -> void:
+	# Fin de la manche de chiens : glas et accord qui se résout vers le haut.
+	var b := _brass(4.0, [55.0, 69.3, 82.4, 110.0], 0.3, 1600.0)
+	s.mix(b, _bell(4.0, 164.8), 0.0, 1.0)
+	s.mix(b, _bell(4.0, 220.0), 0.6, 0.8)
+	s.mix(b, _timpani(55.0), 0.0, 1.0)
+	b = s.reverb(b, 0.9, 0.35, 2.0)
+	_save("dog_round_end", s.finish(b, 0.85, 0.3))
+
+
+func gen_dog_round_music() -> void:
+	# Boucle de 12 s (4 mesures à 80 bpm) : pulsation de timbales, bourdon
+	# dissonant, cuivres en ostinato, cloche. Tempo et tonalité oppressants.
+	var beat := 60.0 / 80.0
+	var dur := beat * 16.0
+	var b := s.buf(dur + 3.0)
+	var drone := s.lowpass(s.tone(dur + 3.0, 41.2, "saw"), 220.0)
+	s.mix(drone, s.lowpass(s.tone(dur + 3.0, 43.65, "saw"), 220.0), 0.0, 0.8)
+	s.mix(b, drone, 0.0, 0.35)
+	for i in 16:
+		var t := i * beat
+		s.mix(b, _timpani(41.0 if i % 4 != 3 else 46.2), t, 0.9 if i % 2 == 0 else 0.6)
+		if i % 2 == 1:
+			s.mix(b, s.env_exp(s.lowpass(s.noise(0.2), 900.0), 0.001, 0.05), t + beat * 0.5, 0.4)
+	var riff := [0, 1, 0, 6, 0, 1, 3, 1]
+	for i in riff.size():
+		var f: float = 82.4 * pow(2.0, float(riff[i]) / 12.0)
+		var stab := _brass(beat * 1.6, [f, f * 1.5], 0.04, 1300.0)
+		s.mix(b, stab, i * beat * 2.0, 0.45)
+	for k in 2:
+		s.mix(b, _bell(3.0, 196.0 * (1.0 if k == 0 else 1.06)), k * beat * 8.0, 0.4)
+	b = s.reverb(b, 0.9, 0.3, 1.2)
+	_save("dog_round_music", _seamless(b, dur, 0.7), true)

@@ -31,6 +31,12 @@ const SURFACES := {
 	"door": [3, Color(0.22, 0.23, 0.22), Color(0.3, 0.15, 0.07), 1.4, 0.5, 0.55, 0.6],
 }
 
+## Environnement normal (voir aussi apply_dog_round_look).
+const BASE_FOG_COLOR := Color(0.04, 0.04, 0.05)
+const BASE_FOG_DENSITY := 0.045
+const BASE_AMBIENT_ENERGY := 0.22
+const BASE_SATURATION := 0.78
+
 static var _cache: Dictionary = {}
 
 
@@ -66,7 +72,7 @@ static func setup_environment(parent: Node3D) -> void:
 	env.background_color = Color(0.0, 0.0, 0.0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.3, 0.33, 0.4)
-	env.ambient_light_energy = 0.22
+	env.ambient_light_energy = BASE_AMBIENT_ENERGY
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.05
 	env.glow_enabled = true
@@ -74,10 +80,10 @@ static func setup_environment(parent: Node3D) -> void:
 	env.glow_bloom = 0.0
 	env.glow_hdr_threshold = 1.2
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.04, 0.04, 0.05)
-	env.fog_density = 0.045
+	env.fog_light_color = BASE_FOG_COLOR
+	env.fog_density = BASE_FOG_DENSITY
 	env.adjustment_enabled = true
-	env.adjustment_saturation = 0.78
+	env.adjustment_saturation = BASE_SATURATION
 	env.adjustment_contrast = 1.08
 	var we := WorldEnvironment.new()
 	we.name = "WorldEnvironment"
@@ -89,3 +95,19 @@ static func setup_environment(parent: Node3D) -> void:
 	rq.name = "RenderQuality"
 	rq.environment = env
 	parent.add_child(rq)
+
+
+## Ambiance d'une manche de chiens (k = 0 : normale, 1 : pleine) : brouillard
+## plus épais et plus sombre, lumière ambiante baissée, couleurs délavées.
+const DOG_FOG_COLOR := Color(0.07, 0.035, 0.03)
+const DOG_FOG_DENSITY := 0.085
+const DOG_AMBIENT_ENERGY := 0.15
+const DOG_SATURATION := 0.62
+
+
+static func apply_dog_round_look(env: Environment, k: float) -> void:
+	k = clampf(k, 0.0, 1.0)
+	env.fog_light_color = BASE_FOG_COLOR.lerp(DOG_FOG_COLOR, k)
+	env.fog_density = lerpf(BASE_FOG_DENSITY, DOG_FOG_DENSITY, k)
+	env.ambient_light_energy = lerpf(BASE_AMBIENT_ENERGY, DOG_AMBIENT_ENERGY, k)
+	env.adjustment_saturation = lerpf(BASE_SATURATION, DOG_SATURATION, k)
