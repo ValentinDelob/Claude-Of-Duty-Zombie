@@ -2,7 +2,7 @@ extends AutotestScenario
 ## [MP] Client : adresse invalide, serveur injoignable (mauvais port),
 ## connexion réussie par l'écran REJOINDRE, puis perte de l'hôte.
 
-const PORT := 17811
+var PORT := 17811 + MpHelpers.port_offset()
 
 
 func run() -> void:

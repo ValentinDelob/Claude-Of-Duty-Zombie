@@ -2,7 +2,7 @@ extends AutotestScenario
 ## [MP] Hôte : crée la partie depuis le menu, attend le client dans le salon,
 ## lance la partie, vérifie que les deux joueurs sont en jeu.
 
-const PORT := 17810
+var PORT := 17810 + MpHelpers.port_offset()
 
 
 func run() -> void:

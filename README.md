@@ -20,6 +20,17 @@ et réanimation.
 Les sons sont déjà générés dans `assets/audio/`. Pour les régénérer :
 `godot --headless --path . -s res://tools/gen_audio.gd`.
 
+## Builds Windows (.exe)
+
+- Chaque fonctionnalité livrée est publiée en **release GitHub** (onglet Releases
+  du dépôt) avec un `CallOfClaudeZombie-vX.Y.N.exe` autonome : le télécharger et le
+  lancer, aucune installation. Tous les joueurs d'une partie doivent avoir la même
+  version.
+- Construire localement : `sh tools/release.sh --local` (nécessite les modèles
+  d'export Godot 4.7.2 : éditeur > Éditeur > Gérer les modèles d'export). Résultat :
+  `build/CallOfClaudeZombie.exe` (+ copie versionnée).
+- Publier : `sh tools/release.sh` (commit poussé sur `main`, `gh` connecté).
+
 ## Commandes
 
 | Action | Touche |
@@ -49,6 +60,8 @@ Les sons sont déjà générés dans `assets/audio/`. Pour les régénérer :
   test réseau, tous les scénarios automatisés (fenêtres), tests multijoueur à
   deux fenêtres. **Doit passer avant chaque commit.**
 - `sh tools/commit.sh message.txt` : lance check.sh et ne committe que s'il réussit.
+- `sh tools/ship.sh message.txt` : commit vérifié, push sur `main`, puis build `.exe`
+  et release GitHub (voir ci-dessous).
 - `sh tools/perf.sh` : mesures de performance fiables (1080p, un jeu à la fois).
   Repère : ~150 fps sur la RTX A2000 de développement ≈ 60 fps sur GTX 1050.
 - `sh tools/mp_test.sh <nom>` : un test multijoueur (hôte + client).

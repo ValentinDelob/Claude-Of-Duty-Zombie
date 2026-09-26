@@ -1,7 +1,7 @@
 extends AutotestScenario
 ## [MP] Client : rejoint 127.0.0.1, voit le salon, attend le lancement.
 
-const PORT := 17810
+var PORT := 17810 + MpHelpers.port_offset()
 
 
 func run() -> void:

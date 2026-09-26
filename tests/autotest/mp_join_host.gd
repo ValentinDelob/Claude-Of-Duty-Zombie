@@ -2,7 +2,7 @@ extends AutotestScenario
 ## [MP] Hôte du test de connexion : attend le client puis ferme la partie
 ## (le client doit afficher une déconnexion propre).
 
-const PORT := 17811
+var PORT := 17811 + MpHelpers.port_offset()
 
 
 func run() -> void:

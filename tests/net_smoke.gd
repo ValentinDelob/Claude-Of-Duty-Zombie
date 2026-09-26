@@ -7,7 +7,7 @@ var role := ""
 var port := 17801
 var max_players := 2
 var expect := "ok"
-var _deadline := 20.0
+var _deadline := 40.0
 
 
 func _ready() -> void:
@@ -22,6 +22,7 @@ func _ready() -> void:
 			"expect": expect = kv[1]
 	if role == "host":
 		Net.host(port, max_players, "Hote")
+		print("[smoke] host en écoute")
 		Net.players_changed.connect(_host_check)
 		Net.peer_rejected.connect(func(_id, r): _rejections += 1; print("[smoke] refus: ", r))
 	else:
@@ -58,6 +59,8 @@ func _on_joined() -> void:
 	if expect != "ok":
 		_result(false, "accepté alors que le serveur devait être plein")
 		return
-	# Reste connecté pendant que le 3e joueur tente sa chance.
-	await get_tree().create_timer(2.5).timeout
+	print("[smoke] client accepté")
+	# Reste connecté pendant que le 3e joueur tente sa chance (il démarre
+	# seulement maintenant : laisser le temps au moteur de se lancer).
+	await get_tree().create_timer(12.0).timeout
 	_result(Net.players.size() == 2 and Net.mode == Net.Mode.CLIENT, "accepté, %d joueurs vus" % Net.players.size())
