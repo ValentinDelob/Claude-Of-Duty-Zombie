@@ -55,7 +55,7 @@ func refill_pistol() -> void:
 
 
 func run() -> void:
-	timeout_sec = 180
+	timeout_sec = 300
 	p = await H.start_solo_game(self, "bunker_k7")
 	if p == null:
 		return

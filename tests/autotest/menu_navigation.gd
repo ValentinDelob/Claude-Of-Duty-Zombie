@@ -5,7 +5,7 @@ extends AutotestScenario
 ## MULTIJOUEUR -> retour -> apparition de la silhouette du fond -> SOLO
 ## (fondu au noir cinématique avant le chargement). Captures de chaque écran.
 
-const EXPECTED := ["SOLO", "MULTIJOUEUR", "OPTIONS", "CRÉDITS", "QUITTER"]
+const EXPECTED := ["SOLO", "MULTIJOUEUR", "OPTIONS", "DOSSIER DE COMBAT", "CRÉDITS", "QUITTER"]
 
 var menu: MainMenu
 
@@ -47,8 +47,8 @@ func run() -> void:
 	at.check(menu.current_name == "main", "Échap : retour au principal depuis OPTIONS")
 	await seconds(0.8)
 
-	# CRÉDITS (4e entrée).
-	for i in 3:
+	# CRÉDITS (5e entrée).
+	for i in 4:
 		await press("ui_down")
 	at.check(_focused_label() == "CRÉDITS", "focus sur CRÉDITS (%s)" % _focused_label())
 	await press("ui_accept")
