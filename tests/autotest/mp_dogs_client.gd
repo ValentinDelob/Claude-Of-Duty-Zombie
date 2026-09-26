@@ -44,7 +44,9 @@ func run() -> void:
 				first_pos[d.id] = d.global_position
 			elif d.global_position.distance_to(first_pos[d.id]) > 2.0:
 				moved[d.id] = true
-			if d.state == Zombie.State.EMERGE and d.skel.visible:
+			# Visible avant la fin de la foudre = défaut (après, le client révèle le
+			# chien de lui-même si l'état du serveur arrive en retard).
+			if d.state == Zombie.State.EMERGE and d.skel.visible and d._life_t < DogRules.SPAWN_TIME:
 				hidden_ok = false
 			if d._revealed and (target == null or d.global_position.distance_to(p.global_position) < target.global_position.distance_to(p.global_position)):
 				target = d
