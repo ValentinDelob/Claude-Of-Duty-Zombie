@@ -3,14 +3,18 @@
 # Référence : sur la RTX A2000 (portable) de développement, ~150 fps en 1080p
 # correspondent à ~60 fps sur une GTX 1050 (cible du projet).
 # Usage : sh tools/perf.sh [scénarios...]
+#         QUALITY=low sh tools/perf.sh      (préréglage graphique imposé :
+#                                            low / medium / high, voir RenderQuality)
 cd "$(dirname "$0")/.."
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
 FAIL=0
 SCENARIOS=${*:-"boot fps_controller zombie_entity map_tour"}
+QARG=""
+[ -n "$QUALITY" ] && QARG="--quality=$QUALITY"
 for S in $SCENARIOS; do
-  "$GODOT" --path . --windowed --resolution 1920x1080 -- --autotest=$S > "$OUT/perf_$S.log" 2>&1 || FAIL=1
-  echo "== $S"
+  "$GODOT" --path . --windowed --resolution 1920x1080 -- --autotest=$S $QARG > "$OUT/perf_$S.log" 2>&1 || FAIL=1
+  echo "== $S${QUALITY:+ ($QUALITY)}"
   grep -E "\[perf\]|perf .*fps|ECHEC" "$OUT/perf_$S.log"
 done
 [ $FAIL -eq 0 ] && echo "== PERF OK" || echo "== PERF ECHEC"

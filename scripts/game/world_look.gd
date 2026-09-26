@@ -83,3 +83,9 @@ static func setup_environment(parent: Node3D) -> void:
 	we.name = "WorldEnvironment"
 	we.environment = env
 	parent.add_child(we)
+	# Préréglages de qualité : appliqués maintenant puis à chaque changement
+	# d'options (glow, SSAO, ombres des lampes, résolution 3D...).
+	var rq := RenderQuality.new()
+	rq.name = "RenderQuality"
+	rq.environment = env
+	parent.add_child(rq)

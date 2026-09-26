@@ -57,12 +57,14 @@ func build(parent: Node3D) -> void:
 	_pipes()
 	_lamps()
 
-	for key in _tools:
+	for tkey in _tools:
+		var key: String = tkey.get_slice("@", 0)
 		var mi := MeshInstance3D.new()
-		mi.name = "Props_" + key
-		mi.mesh = (_tools[key] as SurfaceTool).commit()
+		mi.name = "Props_%s_%s" % [key.replace("#", "_"), tkey.get_slice("@", 1)]
+		mi.mesh = (_tools[tkey] as SurfaceTool).commit()
 		# Suffixe « #ns » : ne projette pas d'ombre (lampes : sinon l'abat-jour
-		# dessine un disque noir au plafond).
+		# dessine un disque noir au plafond ; petits détails : ombre invisible
+		# mais coûteuse à redessiner dans les cubemaps).
 		mi.material_override = _material(key.get_slice("#", 0))
 		if key.ends_with("#ns"):
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -93,12 +95,16 @@ static func _emissive(c: Color, e: float) -> StandardMaterial3D:
 # Primitives fusionnées
 # --------------------------------------------------------------------------
 
+## Fusionne `mesh` dans le lot du matériau `key`, par tuile de
+## MapBuilder.CHUNK cellules (élimination hors champ / hors portée des ombres).
 func _add(key: String, mesh: Mesh, xf: Transform3D) -> void:
-	if not _tools.has(key):
+	var c := MapData.world_to_cell(xf.origin)
+	var tkey := "%s@%d_%d" % [key, c.x / MapBuilder.CHUNK, c.y / MapBuilder.CHUNK]
+	if not _tools.has(tkey):
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		_tools[key] = st
-	(_tools[key] as SurfaceTool).append_from(mesh, 0, xf)
+		_tools[tkey] = st
+	(_tools[tkey] as SurfaceTool).append_from(mesh, 0, xf)
 
 
 func _box(key: String, size: Vector3, pos: Vector3, rot_y := 0.0, collide := false) -> void:
@@ -146,7 +152,7 @@ func _crate(c: Vector2i) -> void:
 	_box("crate", Vector3(0.92, 0.9, 0.92), base + Vector3(0, 0.45, 0), rot, true)
 	# Lattes de renfort.
 	for s in [-1, 1]:
-		_box("steel", Vector3(0.94, 0.06, 0.06), base + Vector3(0, 0.45 + s * 0.3, 0.44).rotated(Vector3.UP, rot), rot)
+		_box("steel#ns", Vector3(0.94, 0.06, 0.06), base + Vector3(0, 0.45 + s * 0.3, 0.44).rotated(Vector3.UP, rot), rot)
 	if _h(c, 1) > 0.55:
 		var rot2 := rot + (_h(c, 2) - 0.5) * 0.8
 		_box("crate", Vector3(0.7, 0.62, 0.7), base + Vector3(0, 1.21, 0), rot2, true)
@@ -156,7 +162,7 @@ func _barrel(c: Vector2i) -> void:
 	var base := MapData.cell_to_world(c)
 	_cyl("barrel", 0.32, 0.95, Transform3D(Basis.IDENTITY, base + Vector3(0, 0.475, 0)), true)
 	for y in [0.2, 0.75]:
-		_cyl("steel", 0.335, 0.05, Transform3D(Basis.IDENTITY, base + Vector3(0, y, 0)))
+		_cyl("steel#ns", 0.335, 0.05, Transform3D(Basis.IDENTITY, base + Vector3(0, y, 0)))
 
 
 func _bed(g: Array) -> void:
@@ -168,7 +174,7 @@ func _bed(g: Array) -> void:
 	_box("fabric", Vector3(0.82, 0.14, len - 0.25), center + Vector3(0, 0.53, 0), rot)
 	for sx in [-0.4, 0.4]:
 		for sz in [-(len * 0.5 - 0.1), len * 0.5 - 0.1]:
-			_box("steel", Vector3(0.05, 0.45, 0.05), center + Vector3(sx, 0.22, sz).rotated(Vector3.UP, rot), rot)
+			_box("steel#ns", Vector3(0.05, 0.45, 0.05), center + Vector3(sx, 0.22, sz).rotated(Vector3.UP, rot), rot)
 	_box("steel", Vector3(0.9, 0.5, 0.05), center + Vector3(0, 0.7, -(len * 0.5 - 0.05)).rotated(Vector3.UP, rot), rot)
 
 
@@ -184,7 +190,7 @@ func _bench(g: Array) -> void:
 		var cell: Vector2i = g[k % g.size()]
 		var off := Vector3((_h(cell, k) - 0.5) * 0.7, 0, (_h(cell, k + 7) - 0.5) * 0.8)
 		var hgt := 0.12 + _h(cell, k + 3) * 0.2
-		var key := "glow_green" if _h(cell, k + 11) > 0.6 else "steel"
+		var key := "glow_green#ns" if _h(cell, k + 11) > 0.6 else "steel#ns"
 		_cyl(key, 0.035 + _h(cell, k + 5) * 0.03, hgt, Transform3D(Basis.IDENTITY, MapData.cell_to_world(cell) + off + Vector3(0, 0.93 + hgt * 0.5, 0)), false, 6)
 
 
@@ -206,6 +212,8 @@ func _blood(c: Vector2i) -> void:
 	d.position = MapData.cell_to_world(c, 0.1)
 	d.rotation.y = _h(c, 3) * TAU
 	d.cull_mask = 1
+	d.add_to_group(RenderQuality.DECAL_GROUP)
+	RenderQuality.apply_decal(d, RenderQuality.current())
 	root.add_child(d)
 
 
@@ -225,12 +233,13 @@ func _pipes() -> void:
 				# Orientation : le tuyau longe le mur.
 				var basis := Basis(Vector3.FORWARD, PI * 0.5) if d.y != 0 else Basis(Vector3.RIGHT, PI * 0.5)
 				_cyl("steel", 0.07, 1.0, Transform3D(basis, center + wall_off + Vector3(0, h - 0.25, 0)), false, 8)
-				_cyl("barrel", 0.045, 1.0, Transform3D(basis, center + wall_off * 0.92 + Vector3(0, h - 0.45, 0)), false, 6)
+				_cyl("barrel#ns", 0.045, 1.0, Transform3D(basis, center + wall_off * 0.92 + Vector3(0, h - 0.45, 0)), false, 6)
 				if (x + y) % 4 == 0:
-					_cyl("steel", 0.095, 0.08, Transform3D(basis, center + wall_off + Vector3(0, h - 0.25, 0)), false, 8)
+					_cyl("steel#ns", 0.095, 0.08, Transform3D(basis, center + wall_off + Vector3(0, h - 0.25, 0)), false, 8)
 
 
-## Lampes grillagées au plafond. Une sur cinq grésille ; ombres sur une sur trois.
+## Lampes grillagées au plafond. Une sur cinq grésille ; ombres portées sur 0,
+## 1 ou 2 lampes sur 3 selon la qualité (RenderQuality).
 func _lamps() -> void:
 	var i := 0
 	for c in data.markers.get("L", []):
@@ -252,11 +261,10 @@ func _lamps() -> void:
 		light.light_energy = 1.7
 		light.omni_range = 8.5
 		light.omni_attenuation = 1.3
-		light.shadow_enabled = i % 3 == 0
-		light.distance_fade_enabled = true
-		light.distance_fade_begin = 28.0
-		light.distance_fade_length = 6.0
-		light.distance_fade_shadow = 16.0
+		# Ombres et distances de fondu : réglées par RenderQuality.
+		light.set_meta("lamp_index", i)
+		light.add_to_group(RenderQuality.LAMP_GROUP)
+		RenderQuality.apply_lamp(light, RenderQuality.current())
 		root.add_child(light)
 		if _h(c, 9) < 0.22:
 			flicker.add(light)

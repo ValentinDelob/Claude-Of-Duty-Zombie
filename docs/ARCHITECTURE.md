@@ -25,6 +25,55 @@ Moteur : **Godot 4.7** (GDScript, rendu Forward+). Cible : GTX 1050 à 60 FPS en
 | `Net` | Host / Join / Solo, poignée de main (version, serveur plein, partie lancée), registre des joueurs, erreurs de connexion lisibles. |
 | `Autotest` | Scénarios de test automatisés dans le vrai jeu (`-- --autotest=<nom>`), mesures de perf, captures d'écran. |
 
+## Rendu et performances
+
+- Référence : RTX A2000 portable ≈ 2,2x une GTX 1050 ; 150 fps ici en 1080p ≈ 60 fps
+  sur la cible. Mesures : `sh tools/perf.sh` (un jeu à la fois) ;
+  `QUALITY=low sh tools/perf.sh` ou `-- --quality=low|medium|high` impose un préréglage.
+  Attention : si d'autres jeux tournent en même temps (check.sh, autres agents), les
+  chiffres chutent de 30 à 50 % ; ne comparer que des mesures faites GPU libre.
+- **`RenderQuality`** (`scripts/game/render_quality.gd`) est le SEUL endroit qui
+  définit les préréglages `Settings.quality`. Créé par `WorldLook.setup_environment`,
+  il s'applique au chargement puis à chaque `Settings.changed` (uniquement si la
+  qualité a changé). Lampes (groupe `map_lamps`), décalques (`quality_decals`),
+  environnement, viewport, `ParticlePool.density` ; tout nœud du groupe
+  `render_quality` reçoit `apply_quality(preset)` (ex. `Fx`).
+
+| Réglage | LOW | MEDIUM (défaut) | HIGH |
+|---|---|---|---|
+| Lampes à ombre (sur 24) | 0 | 8 (1 sur 3) | 16 (2 sur 3) |
+| Atlas d'ombres / filtre | 1024 / dur | 4096 / doux bas | 4096 / doux moyen |
+| Fondu lumière / ombre | 20 m / 12 m | 28 m / 16 m | 34 m / 22 m |
+| Glow | coupé | oui (suréchantillonnage linéaire) | oui (bicubique) |
+| SSAO / MSAA | non / non | non / non | léger / 2x |
+| Résolution 3D | 85 % (bilinéaire) | 100 % | 100 % |
+| Décalques / particules | 50 % / 50 % | 100 % | 100 % |
+
+- Coûts GPU mesurés (salle de garde, 24 zombies, A2000, ~3,5 ms par image) : glow
+  ≈ 1,0 ms (poste n° 1), résolution 3D 85 % ≈ −1,0 ms, ombres des 8 lampes
+  ≈ 0,5 ms (redessinées à chaque mouvement de zombie, 6 faces de cubemap), 16 lampes
+  ≈ +1,4 ms, SSAO ≈ +0,7 ms, MSAA 2x ≈ +0,5 ms, brouillard et ajustements < 0,1 ms.
+- Optimisations sans perte visible : géométrie et décor fusionnés par matériau ET par
+  tuile de 16x16 cellules (`MapBuilder.CHUNK`) — les passes d'ombre ne redessinent plus
+  toute la carte ; sols et plafonds sans ombre portée ; petits détails (lattes, cerclages,
+  pieds de lit, fioles, brides et petits tuyaux) sans ombre portée ; glow en
+  suréchantillonnage linéaire en MEDIUM ; décalques avec fondu à distance.
+- Mesures `tools/perf.sh` (GPU libre, moyenne fps, 1080p) :
+
+| Vue | Avant | LOW | MEDIUM | HIGH |
+|---|---|---|---|---|
+| garde | 213–239 | 358 | 214 | 132* |
+| dortoir | 191–211 | 344 | 188 | 155* |
+| couloir | 187–211 | 318 | 182 | 163* |
+| labo | 218–249 | 364 | 273 | 169* |
+| générateur | 190–217 | 344 | 237 | 151* |
+| quai | 216–249 | 328 | 266 | 190* |
+| rituel | 195–223 | 363 | 240 | 132* |
+| 24 zombies (arène) | 166–205 | 316 | 203–217 | 130 |
+
+  (*) mesures HIGH prises avec un peu de concurrence GPU. HIGH vise des cartes plus
+  puissantes (GTX 1060 et plus).
+
 ## Tests
 
 - `sh tools/check.sh` : import, tests unitaires, test réseau multi-processus, lancement

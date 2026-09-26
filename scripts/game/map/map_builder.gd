@@ -2,11 +2,18 @@ class_name MapBuilder
 extends RefCounted
 ## Construit la géométrie (rendu + collisions) d'une MapData.
 ##
-## Le rendu est regroupé en un ArrayMesh par matériau (sol/murs de chaque
-## zone) : peu de draw calls, ce qui compte pour la cible GTX 1050. Les
-## collisions sont des boîtes fusionnées (rectangles gloutons).
+## Le rendu est regroupé en un ArrayMesh par matériau ET par tuile de
+## CHUNK x CHUNK cellules : peu de draw calls (cible GTX 1050), tout en
+## laissant le moteur éliminer les tuiles hors champ — et surtout hors de
+## portée des lampes à ombre, dont les 6 faces de cubemap sont redessinées à
+## chaque mouvement de zombie. Sols et plafonds ne projettent pas d'ombre
+## (rien ne se trouve dessous / dessus) : passes d'ombre plus légères, aucun
+## changement visible. Les collisions sont des boîtes fusionnées (rectangles
+## gloutons).
 
 const WALL_HEIGHT := 3.2
+## Taille des tuiles de rendu (cellules). 16 : ~une salle par tuile.
+const CHUNK := 16
 const DIRS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 var data: MapData
@@ -41,26 +48,32 @@ func build(parent: Node3D) -> void:
 	var geo := Node3D.new()
 	geo.name = "Geometry"
 	parent.add_child(geo)
-	var tools := {}  # clé matériau -> SurfaceTool
+	var tools := {}  # "clé matériau@tuile" -> SurfaceTool
 	_build_floors(tools)
 	_build_walls(tools)
-	for key in tools:
-		var st: SurfaceTool = tools[key]
+	for tkey in tools:
+		var st: SurfaceTool = tools[tkey]
 		st.generate_tangents()
+		var key: String = tkey.get_slice("@", 0)
 		var mi := MeshInstance3D.new()
-		mi.name = "Mesh_" + key
+		mi.name = "Mesh_%s_%s" % [key, tkey.get_slice("@", 1).get_slice("#", 0)]
 		mi.mesh = st.commit()
 		mi.material_override = materials.get(key, materials.get("wall"))
+		if tkey.ends_with("#flat"):
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		geo.add_child(mi)
 	_build_collisions(parent)
 
 
-func _tool(tools: Dictionary, key: String) -> SurfaceTool:
-	if not tools.has(key):
+## SurfaceTool du matériau `key` pour la tuile contenant la cellule `c`.
+## `flat` : sol / plafond (sans ombre portée).
+func _tool(tools: Dictionary, key: String, c: Vector2i, flat := false) -> SurfaceTool:
+	var tkey := "%s@%d_%d%s" % [key, c.x / CHUNK, c.y / CHUNK, "#flat" if flat else ""]
+	if not tools.has(tkey):
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		tools[key] = st
-	return tools[key]
+		tools[tkey] = st
+	return tools[tkey]
 
 
 ## Sol et plafond : une quad par cellule de sol.
@@ -75,8 +88,8 @@ func _build_floors(tools: Dictionary) -> void:
 			var z0 := cy * MapData.CELL
 			var x1 := x0 + MapData.CELL
 			var z1 := z0 + MapData.CELL
-			_quad(_tool(tools, _floor_key(c)), Vector3(x0, 0, z1), Vector3(x1, 0, z1), Vector3(x1, 0, z0), Vector3(x0, 0, z0), Vector3.UP)
-			_quad(_tool(tools, "ceiling"), Vector3(x0, y, z0), Vector3(x1, y, z0), Vector3(x1, y, z1), Vector3(x0, y, z1), Vector3.DOWN)
+			_quad(_tool(tools, _floor_key(c), c, true), Vector3(x0, 0, z1), Vector3(x1, 0, z1), Vector3(x1, 0, z0), Vector3(x0, 0, z0), Vector3.UP)
+			_quad(_tool(tools, "ceiling", c, true), Vector3(x0, y, z0), Vector3(x1, y, z0), Vector3(x1, y, z1), Vector3(x0, y, z1), Vector3.DOWN)
 
 
 ## Murs : une face verticale pour chaque côté de mur qui touche du sol.
@@ -91,7 +104,7 @@ func _build_walls(tools: Dictionary) -> void:
 				var fc: Vector2i = c + d
 				if not data.is_floor(fc):
 					continue
-				var st := _tool(tools, _wall_key(fc))
+				var st := _tool(tools, _wall_key(fc), c)
 				var x0 := cx * MapData.CELL
 				var z0 := cy * MapData.CELL
 				var x1 := x0 + MapData.CELL

@@ -13,8 +13,11 @@ var dust: ParticlePool
 var blood: ParticlePool
 var _holes: Array[Decal] = []
 var _hole_i := 0
+## Décalques réellement utilisés (réduit en qualité LOW, voir apply_quality).
+var _hole_n := MAX_HOLES
 var _blood_decals: Array[Decal] = []
 var _blood_i := 0
+var _blood_n := MAX_BLOOD_DECALS
 var _tracers: Array[MeshInstance3D] = []
 var _tracer_life: PackedFloat32Array = []
 var _tracer_i := 0
@@ -45,6 +48,7 @@ func _ready() -> void:
 		d.size = Vector3(0.12, 0.2, 0.12)
 		d.visible = false
 		d.cull_mask = 1
+		d.add_to_group(RenderQuality.DECAL_GROUP)
 		add_child(d)
 		_holes.append(d)
 	for i in MAX_BLOOD_DECALS:
@@ -54,8 +58,11 @@ func _ready() -> void:
 		d.modulate = Color(0.55, 0.02, 0.02)
 		d.visible = false
 		d.cull_mask = 1
+		d.add_to_group(RenderQuality.DECAL_GROUP)
 		add_child(d)
 		_blood_decals.append(d)
+	add_to_group(RenderQuality.GROUP)
+	apply_quality(RenderQuality.current())
 
 	var tracer_mat := StandardMaterial3D.new()
 	tracer_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -95,12 +102,29 @@ func _process(delta: float) -> void:
 		_flash.light_energy = maxf(_flash_t / 0.05, 0.0) * 2.5
 
 
+## Préréglage de qualité (RenderQuality) : nombre de décalques en rotation,
+## distance de fondu. Les décalques au-delà du quota sont masqués.
+func apply_quality(q: Dictionary) -> void:
+	_hole_n = clampi(roundi(MAX_HOLES * float(q.decals)), 1, MAX_HOLES)
+	_blood_n = clampi(roundi(MAX_BLOOD_DECALS * float(q.decals)), 1, MAX_BLOOD_DECALS)
+	for i in MAX_HOLES:
+		RenderQuality.apply_decal(_holes[i], q)
+		if i >= _hole_n:
+			_holes[i].visible = false
+	for i in MAX_BLOOD_DECALS:
+		RenderQuality.apply_decal(_blood_decals[i], q)
+		if i >= _blood_n:
+			_blood_decals[i].visible = false
+	_hole_i %= _hole_n
+	_blood_i %= _blood_n
+
+
 ## Impact de balle sur le décor.
 func impact(pos: Vector3, normal: Vector3, with_sound := true) -> void:
 	sparks.burst(pos + normal * 0.02, normal, 4, 5.0, 0.7, 0.25, Color(0.8, 0.42, 0.15, 0.8))
 	dust.burst(pos + normal * 0.05, normal, 3, 0.7, 0.5, 0.8, Color(0.4, 0.38, 0.34, 0.35))
 	var d := _holes[_hole_i]
-	_hole_i = (_hole_i + 1) % MAX_HOLES
+	_hole_i = (_hole_i + 1) % _hole_n
 	_place_decal(d, pos, normal, randf() * TAU)
 	if with_sound:
 		Audio.play_3d("impact_concrete", pos, -8.0, 0.15, 4)
@@ -115,7 +139,7 @@ func blood_hit(pos: Vector3, dir: Vector3, amount := 1.0) -> void:
 ## Tache de sang au sol ou sur un mur (mort d'un zombie...).
 func blood_decal(pos: Vector3, normal := Vector3.UP, scale := 1.0) -> void:
 	var d := _blood_decals[_blood_i]
-	_blood_i = (_blood_i + 1) % MAX_BLOOD_DECALS
+	_blood_i = (_blood_i + 1) % _blood_n
 	d.size = Vector3(1.2 * scale, 0.8, 1.2 * scale)
 	_place_decal(d, pos, normal, randf() * TAU)
 

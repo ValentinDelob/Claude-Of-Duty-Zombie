@@ -50,7 +50,17 @@ const MOUSE_BINDINGS := {
 func _ready() -> void:
 	_register_inputs()
 	load_settings()
+	_apply_cmdline_quality()
 	apply()
+
+
+## `--quality=low|medium|high` impose la qualité graphique (tests de perf).
+func _apply_cmdline_quality() -> void:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--quality="):
+			var q := Quality.keys().find(a.substr(10).to_upper())
+			if q >= 0:
+				quality = q as Quality
 
 
 func _register_inputs() -> void:

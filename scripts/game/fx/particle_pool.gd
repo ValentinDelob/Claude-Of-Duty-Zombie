@@ -4,6 +4,9 @@ extends MultiMeshInstance3D
 ## particules d'un type (étincelles, sang, poussière...). Mises à jour en
 ## GDScript, sans allocation par image.
 
+## Densité des gerbes (réglée par RenderQuality : 0.5 en qualité LOW).
+static var density := 1.0
+
 var capacity := 256
 var gravity := 9.0
 var drag := 1.5
@@ -62,6 +65,10 @@ func emit(pos: Vector3, vel: Vector3, life: float, color: Color, size_mult := 1.
 
 ## Gerbe de particules autour d'une normale.
 func burst(pos: Vector3, normal: Vector3, n: int, speed: float, spread: float, life: float, color: Color, size_mult := 1.0) -> void:
+	if density < 1.0:
+		# Moins de particules, un peu plus grosses : même masse visuelle.
+		n = maxi(1, roundi(n * density))
+		size_mult *= 1.0 + (1.0 - density) * 0.4
 	for k in n:
 		var dir := (normal + Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * spread).normalized()
 		emit(pos, dir * speed * randf_range(0.5, 1.2), life * randf_range(0.6, 1.2), color, size_mult * randf_range(0.6, 1.4))
