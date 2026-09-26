@@ -41,4 +41,29 @@ func run() -> void:
 	await seconds(0.6)
 	at.check(game.hud.powerup_hud.shown_icons().has(PowerupRules.DOUBLE_POINTS), "HUD du client : icône points doubles")
 	await at.screenshot("hud")
-	await seconds(4.0)
+
+	# FAUCHEUSE : ramassée, minigun en main, zombie fauché.
+	p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
+	ok = await until(func(): return pw.nodes.size() >= 1, 20.0, "faucheuse reçue")
+	if not ok:
+		return
+	node = pw.nodes.values()[0]
+	p.teleport_to(node.global_position + Vector3.UP * 0.05)
+	var dm := PowerupRules.DEATH_MACHINE_WEAPON
+	ok = await until(func(): return p.weapons.current().get("id", "") == dm, 10.0, "minigun en main")
+	at.check(ok and pw.has_death_machine(p.peer_id), "faucheuse : minigun du client")
+	p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
+	ok = await until(func(): return game.zombies.alive.size() >= 1, 20.0, "zombie à faucher")
+	if not ok:
+		return
+	var z: Zombie = game.zombies.alive[0]
+	await seconds(Zombie.EMERGE_TIME + WeaponController.SWITCH_TIME)
+	await at.screenshot("death_machine")
+	AutotestHelpers.aim_at(p, z.global_position + Vector3.UP)
+	p.input.fire = true
+	ok = await until(func(): return not z.is_alive(), 8.0, "zombie fauché")
+	p.input.fire = false
+	at.check(ok, "faucheuse : zombie tué par le client")
+	ok = await until(func(): return p.weapons.current().get("id", "") != dm, 10.0, "arme rendue")
+	at.check(ok, "fin de la faucheuse : arme rendue au client (%s)" % p.weapons.current().get("id", ""))
+	await seconds(2.0)

@@ -197,6 +197,11 @@ func run() -> void:
 	at.check(pw.is_valid(PowerupRules.FIRE_SALE), "liquidation possible après un déménagement")
 	if await drop_and_grab(PowerupRules.FIRE_SALE, "ground_fire_sale"):
 		at.check(box.fire_sale and box.cost() == 10, "liquidation : boîte à 10 points")
+		at.check(box.fire_sale_boxes.size() == box.spots.size() - 1, "liquidation : une boîte à chaque emplacement (%d + 1)" % box.fire_sale_boxes.size())
+		var all_ten := true
+		for b: MysteryBox in box.fire_sale_boxes:
+			all_ten = all_ten and b.cost() == 10 and game.interact.get_obj(b.interact_id) == b
+		at.check(all_ten, "liquidation : boîtes temporaires à 10 points")
 		at.check(pw._fire_sale_music != null and pw._fire_sale_music.playing, "liquidation : musique spéciale")
 		p.teleport_to(origin)
 		H.aim_at(p, box.global_position + Vector3.UP * 0.8)
@@ -210,9 +215,53 @@ func run() -> void:
 		pw.timers[PowerupRules.FIRE_SALE] = 0.3
 		await seconds(0.6)
 		at.check(not box.fire_sale and box.cost() == MysteryBox.COST and pw._fire_sale_music == null, "fin de la liquidation : 950 points")
+		at.check(box.fire_sale_boxes.is_empty(), "fin de la liquidation : boîtes temporaires retirées")
 		await until(func(): return box.state == MysteryBox.State.READY, 6.0, "arme prête")
 		p.input.interact_pressed = true
 		await seconds(0.3)
+
+	# ---------------------------------------------- FAUCHEUSE (death machine)
+	await H.clear_zombies(self)
+	var prev_id: String = pd.current_weapon().id
+	if await drop_and_grab(PowerupRules.DEATH_MACHINE, "ground_death_machine"):
+		var dm := PowerupRules.DEATH_MACHINE_WEAPON
+		at.check(pd.current_weapon().get("id", "") == dm and pw.has_death_machine(1), "faucheuse : minigun en main (serveur)")
+		await until(func(): return p.weapons.current().get("id", "") == dm and p.weapons.view.model_id == dm, 2.0, "minigun chez le client")
+		at.check(p.weapons.current().get("id", "") == dm, "faucheuse : modèle FPS du minigun")
+		at.check(absf(pw.death_machine.get(1, 0.0) - 30.0) < 0.8, "faucheuse : 30 s (%.1f)" % pw.death_machine.get(1, 0.0))
+		at.check(PowerupRules.DEATH_MACHINE in game.hud.powerup_hud.shown_icons(), "HUD : icône de la faucheuse")
+		await stand()
+		await seconds(WeaponController.SWITCH_TIME + 0.2)
+		await at.screenshot("death_machine_hud")
+		# Pas de changement d'arme pendant le bonus.
+		p.input.switch_weapon = true
+		await seconds(0.3)
+		p.input.switch_weapon = false
+		at.check(p.weapons.current().get("id", "") == dm, "faucheuse : pas de changement d'arme")
+		# Dégâts énormes : un zombie de manche 15 (~2600 PV) fauché en une rafale.
+		var dz := await H.dummy_zombie(self, ahead(6.0), RoundRules.zombie_health(15))
+		var mag0: int = pd.current_weapon().mag
+		H.aim_at(p, dz.global_position + Vector3.UP * 1.0)
+		p.input.fire = true
+		await until(func(): return not dz.is_alive(), 3.0, "zombie fauché")
+		await seconds(0.1)
+		await at.screenshot("death_machine_fire")
+		p.input.fire = false
+		var fired := mag0 - int(pd.current_weapon().mag)
+		at.check(not dz.is_alive() and fired > 0 and fired <= 10, "faucheuse : zombie de manche 15 tué en %d balles" % fired)
+		at.check(not game.combat.is_reloading(1) and not p.weapons.is_reloading(), "faucheuse : jamais de rechargement")
+		# Arme de bonus : ni boîte, ni armes au mur.
+		p.teleport_to(origin)
+		H.aim_at(p, box.global_position + Vector3.UP * 0.8)
+		await seconds(0.4)
+		at.check(not game.hud._prompt.text.contains("Boîte"), "faucheuse : boîte mystère indisponible (%s)" % game.hud._prompt.text)
+		await H.clear_zombies(self)
+		# Fin du bonus : l'arme d'avant revient.
+		pw.death_machine[1] = 0.3
+		await seconds(0.7)
+		at.check(not pw.has_death_machine(1) and pd.powerup_weapon.is_empty() and pd.current_weapon().id == prev_id, "fin de la faucheuse : %s rendue" % pd.current_weapon().id)
+		await until(func(): return p.weapons.current().get("id", "") == prev_id, 2.0, "arme rendue au client")
+		at.check(p.weapons.current().get("id", "") == prev_id and not PowerupRules.DEATH_MACHINE in game.hud.powerup_hud.shown_icons(), "fin de la faucheuse chez le client")
 
 	# ---------------------------------------------- fin de vie au sol
 	await stand()

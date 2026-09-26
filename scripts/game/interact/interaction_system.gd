@@ -72,13 +72,19 @@ func _find_focus(p: Player) -> Interactable:
 		var facing := fwd.dot(to / maxf(d, 0.001))
 		if facing < 0.35 and d > 1.0:
 			continue
-		if not obj.can_interact(p.peer_id):
+		if not obj.can_interact(p.peer_id) or weapon_locked(obj, pd):
 			continue
 		var score := facing * 2.0 - d
 		if score > best_score:
 			best_score = score
 			best = obj
 	return best
+
+
+## Arme de bonus en main (FAUCHEUSE) : ni arme au mur, ni boîte mystère, ni
+## Pack-a-Punch tant que le bonus dure (comme BO1).
+static func weapon_locked(obj: Interactable, pd: PlayerData) -> bool:
+	return not pd.powerup_weapon.is_empty() and (obj is WallBuy or obj is MysteryBox or obj is PackAPunch)
 
 
 # --------------------------------------------------------------------------
@@ -93,7 +99,7 @@ func srv_interact(id: String) -> void:
 	var obj: Interactable = objects.get(id)
 	var p: Player = game.players.get(pid)
 	var pd := game.session.get_data(pid)
-	if obj == null or p == null or pd == null or pd.life != PlayerData.Life.ALIVE:
+	if obj == null or p == null or pd == null or pd.life != PlayerData.Life.ALIVE or weapon_locked(obj, pd):
 		return
 	if p.global_position.distance_to(obj.interact_point()) > obj.interact_range + MAX_SERVER_DISTANCE:
 		print("[Interact] %d trop loin de %s" % [pid, id])

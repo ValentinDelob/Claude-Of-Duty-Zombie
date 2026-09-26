@@ -69,7 +69,17 @@ func shown_icons() -> Array:
 	for type in PowerupRules.TIMED:
 		if game.powerups.is_active(type):
 			out.append(type)
+	# FAUCHEUSE : seulement pour le joueur qui la tient.
+	if game.powerups.has_death_machine(multiplayer.get_unique_id()):
+		out.append(PowerupRules.DEATH_MACHINE)
 	return out
+
+
+## Secondes restantes d'un bonus affiché.
+func time_left(type: String) -> float:
+	if type == PowerupRules.DEATH_MACHINE:
+		return game.powerups.death_machine.get(multiplayer.get_unique_id(), 0.0)
+	return game.powerups.timers.get(type, 0.0)
 
 
 var _drawn := false
@@ -77,7 +87,7 @@ var _drawn := false
 
 func _process(_delta: float) -> void:
 	# Redessin seulement quand des icônes sont (ou étaient) affichées.
-	var any := game != null and game.powerups != null and not game.powerups.timers.is_empty()
+	var any := game != null and game.powerups != null and (not game.powerups.timers.is_empty() or not game.powerups.death_machine.is_empty())
 	if any or _drawn:
 		_drawn = any
 		queue_redraw()
@@ -92,7 +102,7 @@ func _draw() -> void:
 	var y := size.y - BOTTOM - ICON
 	for i in list.size():
 		var type: String = list[i]
-		var left: float = game.powerups.timers.get(type, 0.0)
+		var left := time_left(type)
 		if not PowerupRules.hud_icon_visible(left):
 			continue
 		var r := Rect2(Vector2(x0 + i * (ICON + GAP), y), Vector2(ICON, ICON))
@@ -126,5 +136,15 @@ func _icon(type: String, r: Rect2) -> void:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(-k, 0), c + Vector2(-0.45 * k, -0.6 * k), c + Vector2(k, -0.6 * k), c + Vector2(k, 0.6 * k), c + Vector2(-0.45 * k, 0.6 * k)]), red)
 			draw_circle(c + Vector2(-0.55 * k, 0), k * 0.12, Color(0.95, 0.92, 0.85))
 			draw_string(UiStyle.font("impact"), Vector2(c.x - 0.35 * k, c.y + 0.3 * k), "10", HORIZONTAL_ALIGNMENT_CENTER, 1.3 * k, int(k * 0.9), Color(1, 0.96, 0.88))
+		PowerupRules.DEATH_MACHINE:  # minigun de profil : faisceau de canons
+			var steel := Color(0.78, 0.8, 0.82)
+			var dark := Color(0.2, 0.21, 0.22)
+			draw_rect(Rect2(c + Vector2(0.15 * k, -0.4 * k), Vector2(0.75 * k, 0.8 * k)), dark)
+			for j in 3:
+				var y := (-0.28 + j * 0.28) * k
+				draw_line(c + Vector2(-0.95 * k, y), c + Vector2(0.2 * k, y), steel, 3.0)
+			draw_rect(Rect2(c + Vector2(-0.55 * k, -0.42 * k), Vector2(0.12 * k, 0.84 * k)), steel)
+			draw_rect(Rect2(c + Vector2(0.4 * k, 0.4 * k), Vector2(0.18 * k, 0.45 * k)), dark)
+			draw_line(c + Vector2(0.3 * k, -0.4 * k), c + Vector2(0.6 * k, -0.75 * k), steel, 3.0)
 		_:
 			draw_circle(c, k * 0.6, green)

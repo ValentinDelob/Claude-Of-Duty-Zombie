@@ -206,3 +206,19 @@ précédent.
   couchées sur toutes les machines. La tête éclate sur un tir à la tête mortel.
 - Morceaux au sol : `Fx.gibs` (`GibPool`), 24 nœuds recyclés, meshes non skinnés
   (`ZombieModel.limb_mesh`) construits 3 par image au plus, 6 s au sol.
+
+## Bonus FAUCHEUSE et LIQUIDATION
+
+- FAUCHEUSE (DEATH MACHINE de BO1, `PowerupRules.DEATH_MACHINE`) : le joueur qui
+  la ramasse tient 30 s le minigun `death_machine` (`WeaponDB.POWERUP_WEAPONS` :
+  hors arsenal, munitions illimitées, jamais de rechargement). L'arme est posée
+  PAR-DESSUS l'inventaire (`PlayerData.powerup_weapon`, répliquée avec
+  l'inventaire) : `current_weapon()` la renvoie tant que le joueur est debout,
+  le client n'a qu'elle en main (pas de changement d'arme). Minuteur par joueur
+  `PowerupSystem.death_machine` (icône du HUD pour son seul porteur) ; perdue à
+  terre ; armes au mur, boîte et Pack-a-Punch indisponibles pendant le bonus
+  (`InteractionSystem.weapon_locked`).
+- LIQUIDATION : `MysteryBox.set_fire_sale` crée sur toutes les machines une
+  boîte temporaire (`box_fs_<i>`, 10 points, jamais de crâne) à chaque autre
+  emplacement de la carte ; à la fin, les boîtes libres disparaissent, celle
+  en cours de tirage à son retour à l'état IDLE (état diffusé par le serveur).

@@ -193,20 +193,36 @@ const MELEE_COOLDOWN := 0.7
 static var _cache: Dictionary = {}
 
 
+## Armes de bonus (hors arsenal : ni mur, ni boîte, ni Pack-a-Punch), tenues
+## le temps du bonus à la place de l'inventaire (PlayerData.powerup_weapon).
+## `infinite` : munitions illimitées, jamais de rechargement.
+const POWERUP_WEAPONS := {
+	# DEATH MACHINE de BO1 : minigun, 30 s, dégâts énormes, munitions illimitées.
+	"death_machine": {"name": "FAUCHEUSE", "pap_name": "FAUCHEUSE", "class": "lmg",
+		"damage": 450, "head_mult": 2.0, "rpm": 1200, "mag": 999, "reserve": 999, "reload": 1.0,
+		"penetration": 4, "spread_hip": 3.2, "spread_ads": 2.4, "range": 40.0, "recoil": 0.55,
+		"ads_zoom": 0.95, "move_mult": 0.9, "sound": "minigun_fire", "infinite": true, "pap": {}},
+}
+
+
 static func exists(id: String) -> bool:
-	return WEAPONS.has(id)
+	return WEAPONS.has(id) or POWERUP_WEAPONS.has(id)
+
+
+static func is_powerup_weapon(id: String) -> bool:
+	return POWERUP_WEAPONS.has(id)
 
 
 ## Statistiques effectives (famille + arme, puis valeurs Pack-a-Punch si `pap`).
 ## Le résultat est partagé (lecture seule).
 static func stats(id: String, pap := false) -> Dictionary:
-	if not WEAPONS.has(id):
+	if not exists(id):
 		id = STARTING_WEAPON
 	var key := id + ("+" if pap else "")
 	var cached: Dictionary = _cache.get(key, {})
 	if not cached.is_empty():
 		return cached
-	var base: Dictionary = WEAPONS[id]
+	var base: Dictionary = WEAPONS.get(id, POWERUP_WEAPONS.get(id, {}))
 	var s: Dictionary = CLASSES.get(base.get("class", "pistol"), {}).duplicate()
 	s.merge(base, true)
 	s["model"] = base.get("model", id)

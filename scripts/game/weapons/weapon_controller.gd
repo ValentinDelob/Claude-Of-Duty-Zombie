@@ -83,6 +83,10 @@ func _on_inventory_changed(pid: int) -> void:
 	var old_pap: bool = current().get("pap", false)
 	weapons = pd.weapons.duplicate(true)
 	slot = pd.slot
+	if not pd.powerup_weapon.is_empty() and pd.life == PlayerData.Life.ALIVE:
+		# Arme de bonus seule en main (pas de changement d'arme) ; `slot` reste
+		# celui du serveur pour la validation des tirs.
+		weapons = [pd.powerup_weapon.duplicate()]
 	if pd.knife != knife_id:
 		_on_knife_changed(pd.knife)
 	var w := current()

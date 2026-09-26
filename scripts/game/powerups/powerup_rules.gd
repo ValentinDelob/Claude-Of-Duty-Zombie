@@ -9,9 +9,13 @@ const DOUBLE_POINTS := "double_points"
 const NUKE := "nuke"
 const CARPENTER := "carpenter"
 const FIRE_SALE := "fire_sale"
+## DEATH MACHINE de BO1 : minigun pour le seul joueur qui le ramasse.
+const DEATH_MACHINE := "death_machine"
+## Arme donnée (WeaponDB.POWERUP_WEAPONS).
+const DEATH_MACHINE_WEAPON := "death_machine"
 
 ## Ordre de déclaration (le sac est mélangé à partir de cette liste).
-const ALL := [MAX_AMMO, INSTA_KILL, DOUBLE_POINTS, NUKE, CARPENTER, FIRE_SALE]
+const ALL := [MAX_AMMO, INSTA_KILL, DOUBLE_POINTS, NUKE, CARPENTER, FIRE_SALE, DEATH_MACHINE]
 ## Bonus à durée (icône dans le HUD).
 const TIMED := [INSTA_KILL, DOUBLE_POINTS, FIRE_SALE]
 
@@ -22,6 +26,7 @@ const NAMES := {
 	NUKE: "BOMBE NUCLÉAIRE !",
 	CARPENTER: "CHARPENTIER !",
 	FIRE_SALE: "LIQUIDATION !",
+	DEATH_MACHINE: "FAUCHEUSE !",
 }
 
 ## Seuil de points d'équipe du premier bonus, puis multiplicateur de

@@ -2,7 +2,8 @@ class_name PowerupModels
 extends RefCounted
 ## Modèles 3D procéduraux des bonus (~50 cm, centrés sur l'origine).
 ## Crâne (mort instantanée), bombe (nuke), « x2 » (points doubles), caisse de
-## munitions, marteau et scie (charpentier), étiquette de prix (liquidation).
+## munitions, marteau et scie (charpentier), étiquette de prix (liquidation),
+## minigun (FAUCHEUSE).
 
 static var _mats: Dictionary = {}
 
@@ -91,6 +92,8 @@ static func build(type: String) -> Node3D:
 			_hammer_saw(root)
 		PowerupRules.FIRE_SALE:
 			_price_tag(root)
+		PowerupRules.DEATH_MACHINE:
+			_minigun(root)
 		_:
 			_box(root, Vector3(0.3, 0.3, 0.3), Vector3.ZERO, mat("gold"))
 	return root
@@ -252,3 +255,24 @@ static func _price_tag(root: Node3D) -> void:
 		l.rotation.y = 0.0 if side > 0 else PI
 		l.shaded = false
 		root.add_child(l)
+
+
+## FAUCHEUSE : minigun doré (faisceau de six canons, carter, poignées, caisse
+## de bande), posé à l'horizontale.
+static func _minigun(root: Node3D) -> void:
+	var g := mat("gold")
+	var st := mat("steel")
+	var barrels := Node3D.new()
+	barrels.position = Vector3(-0.08, 0.02, 0)
+	root.add_child(barrels)
+	for i in 6:
+		var a := TAU * i / 6.0
+		_cyl(barrels, 0.016, 0.016, 0.42, Vector3(-0.1, cos(a) * 0.045, sin(a) * 0.045), st, Vector3(0, 0, PI * 0.5), 8)
+	for x in [-0.28, -0.05]:
+		_cyl(barrels, 0.07, 0.07, 0.025, Vector3(x, 0, 0), g, Vector3(0, 0, PI * 0.5), 12)
+	_box(root, Vector3(0.2, 0.15, 0.14), Vector3(0.14, 0.02, 0), g)
+	_box(root, Vector3(0.05, 0.12, 0.04), Vector3(0.2, -0.1, 0), mat("olive"), Vector3(0, 0, -0.3))
+	_box(root, Vector3(0.14, 0.03, 0.03), Vector3(0.12, 0.12, 0), st)
+	_box(root, Vector3(0.12, 0.1, 0.1), Vector3(0.1, -0.08, 0.12), mat("olive"))
+	for i in 4:
+		_box(root, Vector3(0.018, 0.03, 0.012), Vector3(0.06 + i * 0.025, -0.02, 0.17), mat("brass"))

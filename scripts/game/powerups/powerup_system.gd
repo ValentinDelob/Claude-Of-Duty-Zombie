@@ -17,6 +17,8 @@ var game: Game
 var timers: Dictionary = {}
 ## Toutes les machines : bonus au sol, id -> PowerupDrop.
 var nodes: Dictionary = {}
+## Toutes les machines : FAUCHEUSE en main, joueur -> secondes restantes.
+var death_machine: Dictionary = {}
 
 ## Serveur.
 var tracker := PowerupRules.DropTracker.new()
@@ -38,6 +40,8 @@ func _ready() -> void:
 	if multiplayer.is_server():
 		game.combat.zombie_damaged.connect(_on_zombie_damaged)
 		game.rounds.round_started.connect(func(_n: int): tracker.new_round())
+		# À terre : la FAUCHEUSE est perdue (BO1).
+		game.combat.player_fell.connect(end_death_machine)
 
 
 func is_active(type: String) -> bool:
@@ -114,12 +118,17 @@ func drop_count() -> int:
 func _process(delta: float) -> void:
 	for type in timers.keys():
 		timers[type] = maxf(timers[type] - delta, 0.0)
+	for pid in death_machine.keys():
+		death_machine[pid] = maxf(death_machine[pid] - delta, 0.0)
 	if not multiplayer.is_server():
 		return
 	# Fin des bonus temporisés (le serveur décide).
 	for type in timers.keys():
 		if timers[type] <= 0.0:
 			_cl_timer.rpc(type, 0.0)
+	for pid in death_machine.keys():
+		if death_machine[pid] <= 0.0:
+			end_death_machine(pid)
 	var life := PowerupRules.lifetime()
 	for id in _drops.keys():
 		var d: Dictionary = _drops[id]
@@ -162,12 +171,14 @@ func grab(id: int, pid: int) -> void:
 # Serveur : effets
 # --------------------------------------------------------------------------
 
-func apply(type: String, _pid: int, pos: Vector3) -> void:
+func apply(type: String, pid: int, pos: Vector3) -> void:
 	if not multiplayer.is_server():
 		return
 	match type:
 		PowerupRules.MAX_AMMO:
 			_max_ammo()
+		PowerupRules.DEATH_MACHINE:
+			_give_death_machine(pid)
 		PowerupRules.NUKE:
 			_nuke(pos)
 		PowerupRules.CARPENTER:
@@ -219,6 +230,51 @@ func _nuke_kill(zid: int, pos: Vector3) -> void:
 	game.combat.damage_zombie(zid, z.health + 1, 0, false, dir.normalized() if dir.length() > 0.01 else Vector3.FORWARD, Combat.HitKind.SPECIAL)
 
 
+## FAUCHEUSE (DEATH MACHINE) : minigun en main 30 s pour le seul joueur qui
+## ramasse le bonus, munitions illimitées, puis son arme lui est rendue.
+## L'inventaire n'est pas touché (PlayerData.powerup_weapon).
+func _give_death_machine(pid: int) -> void:
+	var pd := game.session.get_data(pid)
+	if pd == null or pd.life != PlayerData.Life.ALIVE:
+		return
+	if pd.powerup_weapon.is_empty():
+		var w := WeaponDB.new_instance(PowerupRules.DEATH_MACHINE_WEAPON)
+		w.reserve = 0  # jamais de rechargement
+		pd.powerup_weapon = w
+		game.combat.cancel_reload(pid)
+		game.session.sync_inventory(pid)
+	# Ramasser à nouveau remet le minuteur à 30 s.
+	_cl_death_machine.rpc(pid, PowerupRules.DURATION)
+
+
+## Serveur : fin de la FAUCHEUSE (minuteur écoulé, joueur à terre...).
+func end_death_machine(pid: int) -> void:
+	if not multiplayer.is_server() or not death_machine.has(pid):
+		return
+	var pd := game.session.get_data(pid)
+	if pd and not pd.powerup_weapon.is_empty():
+		pd.powerup_weapon = {}
+		game.combat.cancel_reload(pid)
+		game.session.sync_inventory(pid)
+	_cl_death_machine.rpc(pid, 0.0)
+
+
+func has_death_machine(pid: int) -> bool:
+	return death_machine.get(pid, 0.0) > 0.0
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_death_machine(pid: int, seconds: float) -> void:
+	var was := death_machine.has(pid)
+	if seconds > 0.0:
+		death_machine[pid] = seconds
+	else:
+		death_machine.erase(pid)
+	if was and seconds <= 0.0 and pid == multiplayer.get_unique_id():
+		Audio.play_2d("powerup_end", -4.0, 0.0)
+	effect_changed.emit(PowerupRules.DEATH_MACHINE, seconds > 0.0)
+
+
 ## +200 points à chaque joueur ; répare les barricades si la carte en a.
 func _carpenter() -> void:
 	if game.has_method("repair_all_barricades"):
@@ -247,6 +303,8 @@ func debug_clear() -> void:
 	_drops.clear()
 	for type in timers.keys():
 		_cl_timer.rpc(type, 0.0)
+	for pid in death_machine.keys():
+		end_death_machine(pid)
 
 
 ## Envoie l'état courant à un joueur (arrivée en cours de partie).
@@ -258,6 +316,8 @@ func sync_to(pid: int) -> void:
 		_cl_spawn.rpc_id(pid, id, d.type, d.pos, d.age)
 	for type in timers:
 		_cl_timer.rpc_id(pid, type, timers[type])
+	for holder in death_machine:
+		_cl_death_machine.rpc_id(pid, holder, death_machine[holder])
 
 
 # --------------------------------------------------------------------------
@@ -320,7 +380,7 @@ func _set_fire_sale(on: bool) -> void:
 	var box := _box()
 	if box == null:
 		return
-	box.fire_sale = on
+	box.set_fire_sale(on)
 	if on and _fire_sale_music == null:
 		_fire_sale_music = AudioStreamPlayer3D.new()
 		_fire_sale_music.bus = "Music"

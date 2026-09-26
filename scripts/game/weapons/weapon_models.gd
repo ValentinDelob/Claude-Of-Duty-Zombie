@@ -115,6 +115,9 @@ const SPECS := {
 	"ray": {"arch": "ray"},
 	# TONNERRE-7 : gros tambour cylindrique à ailettes, réservoirs latéraux, bouche évasée.
 	"thunder": {"arch": "thunder"},
+	# ---------------------------------------------------------------- bonus
+	# FAUCHEUSE (DEATH MACHINE) : minigun à six canons.
+	"death_machine": {"arch": "minigun"},
 	# ---------------------------------------------------------------- couteaux (KnifeDB)
 	# Couteau de combat : lame noircie, manche en polymère.
 	"knife": {"arch": "knife", "blade": 0.17, "w": 0.028, "blade_mat": "metal_dark", "handle": "polymer", "guard": false},
@@ -183,6 +186,7 @@ static func spec(model_id: String) -> Dictionary:
 		"rocket": out = _rocket()
 		"knife": out = _knife(p)
 		"thunder": out = _thunder()
+		"minigun": out = _minigun()
 		_: out = _ray()
 	_spec_cache[model_id] = out
 	return out
@@ -691,3 +695,28 @@ static func _knife(p: Dictionary) -> Dictionary:
 	return {"parts": parts, "anchors": {
 		"muzzle": Vector3(0, -w * 0.2, z0 - L), "sight": Vector3(0, 0.03, 0.0),
 		"grip": Vector3(0, 0, 0.012), "support": Vector3(0, 0, 0.012)}}
+
+
+## Minigun (FAUCHEUSE) : faisceau de six canons autour de l'axe, trois bagues,
+## carter moteur, poignée de transport sur le dessus, poignée arrière, caisse
+## de bande à gauche.
+static func _minigun() -> Dictionary:
+	var parts := []
+	var y := 0.02
+	for i in 6:
+		var a := TAU * i / 6.0
+		_c(parts, 0.009, 0.5, Vector3(cos(a) * 0.028, y + sin(a) * 0.028, -0.36), "metal_dark")
+	for z in [-0.18, -0.4, -0.58]:
+		_c(parts, 0.042, 0.02, Vector3(0, y, z), "metal")
+	_c(parts, 0.012, 0.52, Vector3(0, y, -0.34), "metal_worn")
+	_b(parts, Vector3(0.1, 0.1, 0.22), Vector3(0, y, 0.0), "metal_dark")
+	_c(parts, 0.05, 0.08, Vector3(0, y, -0.12), "metal")
+	_b(parts, Vector3(0.02, 0.02, 0.2), Vector3(0, y + 0.1, -0.02), "metal")
+	_b(parts, Vector3(0.02, 0.06, 0.02), Vector3(0, y + 0.07, -0.1), "metal")
+	_b(parts, Vector3(0.02, 0.06, 0.02), Vector3(0, y + 0.07, 0.06), "metal")
+	_b(parts, Vector3(0.1, 0.13, 0.12), Vector3(-0.1, y - 0.04, 0.02), "olive")
+	_b(parts, Vector3(0.03, 0.02, 0.1), Vector3(-0.05, y + 0.02, -0.02), "brass", Vector3(0, 0, 20))
+	_pistol_grip(parts, "polymer", 0.1, -10.0)
+	return {"parts": parts, "anchors": {
+		"muzzle": Vector3(0, y, -0.62), "sight": Vector3(0, y + 0.12, -0.02),
+		"grip": Vector3(0, -0.06, 0.1), "support": Vector3(0, y + 0.1, -0.05)}}

@@ -237,8 +237,15 @@ func _process(delta: float) -> void:
 			_ammo.text = str(w.mag)
 			_reserve.text = " / %d" % w.reserve
 			var low: bool = w.mag <= int(s.mag) / 4
+			if s.get("infinite", false):
+				# Arme de bonus (FAUCHEUSE) : munitions illimitées, pas de compteur.
+				_ammo.text = ""
+				_reserve.text = ""
+				low = false
 			_ammo.add_theme_color_override("font_color", UiStyle.BLOOD_BRIGHT if low else UiStyle.BONE)
-			if w.mag == 0 and w.reserve == 0:
+			if s.get("infinite", false):
+				_hint.text = ""
+			elif w.mag == 0 and w.reserve == 0:
 				_hint.text = "PLUS DE MUNITIONS"
 			elif wc.is_reloading():
 				_hint.text = "RECHARGEMENT..."

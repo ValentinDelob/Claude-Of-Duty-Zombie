@@ -32,6 +32,16 @@ var moves := 0
 var _paid := COST
 ## Tests : force le prochain tirage.
 var force_result := ""
+## LIQUIDATION (BO1) : pendant le bonus, une boîte temporaire apparaît à chaque
+## autre emplacement de la carte, toutes à 10 points ; à la fin, elles
+## disparaissent (celle qu'on utilise finit d'abord son tirage). Créées et
+## retirées sur toutes les machines (set_fire_sale, appelé par PowerupSystem).
+var temporary := false
+## Vraie boîte : boîtes temporaires en place. Temporaire : sa vraie boîte.
+var fire_sale_boxes: Array = []
+var _source: MysteryBox
+var _expiring := false
+var _fs_music: AudioStreamPlayer3D
 
 var spots: Array = []   # [{pos, basis}]
 var _root: Node3D
@@ -107,6 +117,24 @@ func _ready() -> void:
 	_display.position = Vector3(0, 1.05, 0)
 	_root.add_child(_display)
 	_root.add_child(_collider(Vector3(1.8, 0.85, 0.85)))
+	if temporary:
+		_place(self, location)
+		# Arrivée : la boîte se déploie, avec la ritournelle de la liquidation.
+		_root.scale = Vector3.ONE * 0.05
+		create_tween().tween_property(_root, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		Audio.play_3d("powerup_spawn", global_position + Vector3.UP, -4.0, 0.05)
+		var stream := Audio.get_stream("fire_sale_loop")
+		if stream:
+			_fs_music = AudioStreamPlayer3D.new()
+			_fs_music.bus = "Music"
+			_fs_music.stream = stream
+			_fs_music.unit_size = 6.0
+			_fs_music.max_distance = 40.0
+			_fs_music.volume_db = -4.0
+			_fs_music.position = Vector3.UP * 1.2
+			add_child(_fs_music)
+			_fs_music.play()
+		return
 	# Emplacements vides : un simple tas de planches.
 	for i in spots.size():
 		var m := Node3D.new()
@@ -151,6 +179,68 @@ func srv_random_start(choices: Array) -> void:
 	_move_to(valid[_rng.randi() % valid.size()])
 	print("[Box] départ : emplacement %d" % location)
 	broadcast_state()
+
+
+## Toutes les machines (vraie boîte) : début ou fin de la LIQUIDATION.
+func set_fire_sale(on: bool) -> void:
+	fire_sale = on
+	if not on:
+		for b: MysteryBox in fire_sale_boxes.duplicate():
+			b.expire()
+		return
+	for i in spots.size():
+		if i == location:
+			continue
+		var existing: MysteryBox = null
+		for b: MysteryBox in fire_sale_boxes:
+			if b.location == i:
+				existing = b
+		if existing:
+			# Nouvelle liquidation avant la fin du tirage : la boîte reste.
+			existing._expiring = false
+			existing.fire_sale = true
+			continue
+		var fs := MysteryBox.new()
+		fs.setup_temporary(self, i)
+		system.register(fs)
+		get_parent().add_child(fs)
+		fire_sale_boxes.append(fs)
+		if i < _markers.size():
+			_markers[i].visible = false
+	print("[Box] liquidation : %d boîtes temporaires" % fire_sale_boxes.size())
+
+
+## Boîte temporaire de liquidation à l'emplacement `i` de `src`.
+func setup_temporary(src: MysteryBox, i: int) -> void:
+	temporary = true
+	_source = src
+	spots = src.spots
+	location = i
+	fire_sale = true
+	interact_id = "box_fs_%d" % i
+	name = "FireSaleBox%d" % i
+	interact_range = src.interact_range
+	_rng.randomize()
+
+
+## Fin de la liquidation : retirée tout de suite si libre, sinon à la fin du
+## tirage en cours (apply_state IDLE).
+func expire() -> void:
+	_expiring = true
+	fire_sale = false
+	if state == State.IDLE:
+		_remove()
+
+
+func _remove() -> void:
+	if _source and is_instance_valid(_source):
+		_source.fire_sale_boxes.erase(self)
+		if location < _source._markers.size():
+			_source._markers[location].visible = location != _source.location
+	if system:
+		system.unregister(self)
+	Audio.play_3d("box_fly", global_position + Vector3.UP, -8.0, 0.05)
+	queue_free()
 
 
 ## Prix courant (bonus LIQUIDATION : 10 points).
@@ -231,7 +321,7 @@ func srv_use(pid: int) -> void:
 func _roll(pd: PlayerData) -> void:
 	skull = false
 	# Pas de crâne pendant une liquidation (la boîte ne déménage pas).
-	if force_result == "skull" or (force_result == "" and not fire_sale and uses > MIN_USES_BEFORE_SKULL and _rng.randf() < SKULL_CHANCE):
+	if force_result == "skull" or (force_result == "" and not fire_sale and not temporary and uses > MIN_USES_BEFORE_SKULL and _rng.randf() < SKULL_CHANCE):
 		skull = true
 		weapon = ""
 		force_result = ""
@@ -370,6 +460,9 @@ func apply_state(s: Dictionary, animate: bool) -> void:
 				_move_to(loc)
 			if prev != State.IDLE and animate:
 				Audio.play_3d("box_open", global_position + Vector3.UP, -6.0, 0.1)
+			if _expiring:
+				_remove()
+				return
 	if loc != location and state != State.MOVING:
 		_move_to(loc)
 

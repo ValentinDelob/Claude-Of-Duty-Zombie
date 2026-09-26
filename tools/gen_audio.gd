@@ -63,6 +63,14 @@ func gen_lmg_fire() -> void:
 	_save("lmg_fire", _gunshot(4200.0, 0.1, 80.0, 0.1, 0.8, 0.7))
 
 
+func gen_minigun_fire() -> void:
+	# FAUCHEUSE : coup très court (20 par seconde) et claquement métallique du
+	# barillet qui tourne.
+	var b := _gunshot(5000.0, 0.035, 110.0, 0.03, 0.8, 0.3)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.03), 5200.0, 5.0), 0.0005, 0.006), 0.0, 0.3)
+	_save("minigun_fire", s.finish(b, 0.9))
+
+
 func gen_sniper_fire() -> void:
 	_save("sniper_fire", _gunshot(7000.0, 0.14, 60.0, 0.16, 1.0, 0.95))
 
@@ -1019,6 +1027,16 @@ func gen_announce_fire_sale() -> void:
 		var f: float = [523.25, 659.3, 784.0][k]
 		s.mix(sting, s.env_exp(s.tone(0.5, f, "square"), 0.004, 0.15), k * 0.14, 0.2)
 	_announce_save("announce_fire_sale", voice, sting)
+
+
+func gen_announce_death_machine() -> void:
+	# « FAU-CHEU-SE » + rafale grave de minigun au loin.
+	var voice := _announcer([[VO, 0.22], [VE, 0.22], [VE, 0.42]], 82.0)
+	var sting := s.buf(1.2)
+	for k in 12:
+		s.mix(sting, s.env_exp(s.lowpass(s.noise(0.06), 1400.0), 0.001, 0.025), k * 0.05, 0.5)
+	s.mix(sting, _timpani(49.0), 0.0, 1.0)
+	_announce_save("announce_death_machine", voice, sting)
 # ---------------------------------------------------------------- fenêtres barricadées
 
 ## Planche arrachée : craquement du bois qui plie, clous qui grincent, rupture

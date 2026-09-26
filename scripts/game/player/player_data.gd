@@ -25,6 +25,10 @@ var knife := KnifeDB.DEFAULT
 var perks: PackedStringArray = []
 ## Armes mises de côté pendant que le joueur est à terre (serveur).
 var saved_weapons: Array = []
+## Arme de bonus tenue (FAUCHEUSE : WeaponDB.POWERUP_WEAPONS), {} sinon : elle
+## remplace l'arme en main tant que le joueur est debout ; l'inventaire reste
+## intact dessous et revient à la fin du bonus.
+var powerup_weapon: Dictionary = {}
 ## Grenades à fragmentation (2 au départ, +2 par manche, 4 au plus) et
 ## SINGE-TAMBOUR (arme tactique de la boîte mystère). Voir ThrowableRules.
 var grenades := ThrowableRules.FRAG_START
@@ -37,6 +41,8 @@ func _init(id := 0) -> void:
 
 
 func current_weapon() -> Dictionary:
+	if not powerup_weapon.is_empty() and life == Life.ALIVE:
+		return powerup_weapon
 	if weapons.is_empty():
 		return {}
 	return weapons[clampi(slot, 0, weapons.size() - 1)]
@@ -58,13 +64,14 @@ func is_alive() -> bool:
 
 
 func inventory_dict() -> Dictionary:
-	return {"weapons": weapons.duplicate(true), "slot": slot, "knife": knife}
+	return {"weapons": weapons.duplicate(true), "slot": slot, "knife": knife, "powerup": powerup_weapon.duplicate()}
 
 
 func apply_inventory(d: Dictionary) -> void:
 	weapons = d.get("weapons", []).duplicate(true)
 	slot = d.get("slot", 0)
 	knife = d.get("knife", KnifeDB.DEFAULT)
+	powerup_weapon = d.get("powerup", {}).duplicate()
 
 
 func stats_dict() -> Dictionary:
