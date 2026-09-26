@@ -291,6 +291,7 @@ func respawn_dead_players() -> void:
 		pd.health = pd.max_health
 		pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
 		pd.slot = 0
+		pd.knife = KnifeDB.DEFAULT  # le couteau de chasse est perdu (BO1)
 		session.sync_stats(pid)
 		session.sync_inventory(pid)
 		var c: Vector2i = spawns[Net.player_slot(pid) % spawns.size()]

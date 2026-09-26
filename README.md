@@ -11,7 +11,9 @@ laboratoire, dortoir, générateur, quai du téléporteur et salle du rituel
 5 atouts, boîte mystère, Pack-a-Punch, téléporteur, pièges, état « à terre »
 et réanimation. Fenêtres barricadées (15) : les zombies arrachent les
 6 planches puis enjambent ; maintenir [F] pour reconstruire (+10 par planche,
-500 points au plus par manche).
+500 points au plus par manche). Couteau à la BO1 (150 dégâts, fente vers le
+zombie visé) et COUTEAU DE CHASSE au mur du quai (3000 : un coup jusqu'à la
+manche 12).
 
 ## Lancer le jeu
 
@@ -40,7 +42,7 @@ Les sons sont déjà générés dans `assets/audio/`. Pour les régénérer :
 | Se déplacer | ZQSD / WASD (touches physiques) |
 | Sauter / S'accroupir / Sprint | Espace / Ctrl ou C / Maj |
 | Tirer / Viser | Clic gauche / Clic droit |
-| Recharger / Couteau | R / V |
+| Recharger / Couteau (fente si un zombie visé est à ~3 m) | R / V |
 | Changer d'arme | 1, 2, molette |
 | Interagir (acheter, réanimer : maintenir) | F ou E |
 | Tableau des scores | Tab (maintenu) |

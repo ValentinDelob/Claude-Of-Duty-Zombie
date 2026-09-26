@@ -20,6 +20,8 @@ var life: Life = Life.ALIVE
 ## Array de Dictionary {id, pap, mag, reserve} (voir WeaponDB.new_instance)
 var weapons: Array = []
 var slot := 0
+## Couteau de mêlée (KnifeDB) : "knife", ou "bowie" une fois acheté.
+var knife := KnifeDB.DEFAULT
 var perks: PackedStringArray = []
 ## Armes mises de côté pendant que le joueur est à terre (serveur).
 var saved_weapons: Array = []
@@ -51,12 +53,13 @@ func is_alive() -> bool:
 
 
 func inventory_dict() -> Dictionary:
-	return {"weapons": weapons.duplicate(true), "slot": slot}
+	return {"weapons": weapons.duplicate(true), "slot": slot, "knife": knife}
 
 
 func apply_inventory(d: Dictionary) -> void:
 	weapons = d.get("weapons", []).duplicate(true)
 	slot = d.get("slot", 0)
+	knife = d.get("knife", KnifeDB.DEFAULT)
 
 
 func stats_dict() -> Dictionary:

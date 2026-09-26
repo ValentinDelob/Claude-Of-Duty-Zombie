@@ -65,6 +65,8 @@ var speed_multiplier := 1.0
 var untargetable := false
 var revive_target: ReviveTarget
 var _flinch := Vector2.ZERO
+var _lunge_vel := Vector3.ZERO
+var _lunge_left := 0.0
 
 var head: Node3D
 var camera: Camera3D
@@ -280,6 +282,15 @@ func _move(delta: float) -> void:
 	velocity.x = horiz.x
 	velocity.z = horiz.z
 
+	# Fente au couteau : projection imposée vers le zombie visé.
+	if _lunge_left > 0.0:
+		_lunge_left -= delta
+		velocity.x = _lunge_vel.x
+		velocity.z = _lunge_vel.z
+		if _lunge_left <= 0.0:
+			velocity.x *= 0.2
+			velocity.z *= 0.2
+
 	var fall_speed := -velocity.y
 	move_and_slide()
 	if is_on_floor() and not _was_on_floor and fall_speed > 2.0:
@@ -333,6 +344,19 @@ func teleport_to(pos: Vector3, new_yaw := NAN) -> void:
 		yaw = new_yaw
 		rotation.y = yaw
 	_snapshots.clear()
+
+
+## Fente au couteau (joueur local) : parcourt `dist` m selon `dir` (plan
+## horizontal) en `duration` s. La position suit la synchro réseau habituelle.
+func start_lunge(dir: Vector3, dist: float, duration: float) -> void:
+	if downed or dist <= 0.01 or duration <= 0.0:
+		return
+	_lunge_vel = Vector3(dir.x, 0.0, dir.z).normalized() * (dist / duration)
+	_lunge_left = duration
+
+
+func is_lunging() -> bool:
+	return _lunge_left > 0.0
 
 
 func eye_position() -> Vector3:

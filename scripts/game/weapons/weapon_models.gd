@@ -111,6 +111,11 @@ const SPECS := {
 	"law": {"arch": "rocket"},
 	# ---------------------------------------------------------------- merveille
 	"ray": {"arch": "ray"},
+	# ---------------------------------------------------------------- couteaux (KnifeDB)
+	# Couteau de combat : lame noircie, manche en polymère.
+	"knife": {"arch": "knife", "blade": 0.17, "w": 0.028, "blade_mat": "metal_dark", "handle": "polymer", "guard": false},
+	# Couteau de chasse (Bowie) : longue lame à contre-pointe, garde et pommeau en laiton.
+	"bowie": {"arch": "knife", "blade": 0.25, "w": 0.042, "blade_mat": "metal_worn", "handle": "wood", "guard": true},
 }
 
 static var _mat_cache: Dictionary = {}
@@ -172,6 +177,7 @@ static func spec(model_id: String) -> Dictionary:
 		"shotgun": out = _shotgun(p)
 		"launcher": out = _launcher()
 		"rocket": out = _rocket()
+		"knife": out = _knife(p)
 		_: out = _ray()
 	_spec_cache[model_id] = out
 	return out
@@ -604,3 +610,35 @@ static func _ray() -> Dictionary:
 	return {"parts": parts, "anchors": {
 		"muzzle": Vector3(0, 0.04, -0.3), "sight": Vector3(0, 0.1, 0.0),
 		"grip": Vector3(0, -0.06, 0.04), "support": Vector3(-0.02, -0.07, 0.03)}}
+
+
+## Couteau : lame à plat dans le plan vertical (tranchant en bas), pointe vers
+## -Z, origine au milieu du manche (la main).
+static func _knife(p: Dictionary) -> Dictionary:
+	var parts := []
+	var L: float = p.get("blade", 0.17)
+	var w: float = p.get("w", 0.03)
+	var bm: String = p.get("blade_mat", "metal_dark")
+	var z0 := -0.05
+	# Manche (et bagues), garde, pommeau.
+	_b(parts, Vector3(0.024, 0.03, 0.11), Vector3(0, 0, 0.012), p.get("handle", "polymer"))
+	for gz in [-0.02, 0.012, 0.044]:
+		_b(parts, Vector3(0.026, 0.032, 0.006), Vector3(0, 0, gz), "metal_dark")
+	if p.get("guard", false):
+		_b(parts, Vector3(0.022, 0.075, 0.012), Vector3(0, -0.004, z0 + 0.006), "brass")
+		_b(parts, Vector3(0.028, 0.036, 0.022), Vector3(0, 0, 0.075), "brass")
+	else:
+		_b(parts, Vector3(0.02, 0.05, 0.01), Vector3(0, -0.004, z0 + 0.006), "metal_dark")
+		_b(parts, Vector3(0.026, 0.032, 0.016), Vector3(0, 0, 0.072), "metal_dark")
+	# Lame : corps, dos épaissi, contre-pointe inclinée et pointe.
+	var body := L * 0.78
+	_b(parts, Vector3(0.004, w, body), Vector3(0, -0.002, z0 - body * 0.5), bm)
+	_b(parts, Vector3(0.007, 0.006, body * 0.9), Vector3(0, w * 0.5 - 0.002, z0 - body * 0.47), bm)
+	var tip := L - body
+	_b(parts, Vector3(0.004, w * 0.62, tip * 1.1), Vector3(0, -w * 0.2, z0 - body - tip * 0.45), bm, -14.0)
+	_b(parts, Vector3(0.0035, w * 0.28, tip * 0.8), Vector3(0, -w * 0.3, z0 - L + tip * 0.05), bm, -30.0)
+	# Fil de la lame (reflet clair).
+	_b(parts, Vector3(0.005, 0.004, body), Vector3(0, -w * 0.5, z0 - body * 0.5), "metal_worn")
+	return {"parts": parts, "anchors": {
+		"muzzle": Vector3(0, -w * 0.2, z0 - L), "sight": Vector3(0, 0.03, 0.0),
+		"grip": Vector3(0, 0, 0.012), "support": Vector3(0, 0, 0.012)}}

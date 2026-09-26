@@ -30,6 +30,11 @@ var _melee_ready := 0.0
 var _recoil_debt := 0.0
 var _trigger_released := true
 var _drink_end := -1.0
+## Couteau de mêlée tenu (KnifeDB) et fin de l'animation de récupération.
+var knife_id := ""
+var _pickup_end := -1.0
+## Vrai entre le début d'une fente et le coup de couteau qui la termine.
+var lunging := false
 ## Coups restant à tirer dans la rafale en cours (M16, G11...).
 var _burst_left := 0
 
@@ -66,6 +71,8 @@ func _on_inventory_changed(pid: int) -> void:
 	var old_pap: bool = current().get("pap", false)
 	weapons = pd.weapons.duplicate(true)
 	slot = pd.slot
+	if pd.knife != knife_id:
+		_on_knife_changed(pd.knife)
 	var w := current()
 	# Mains vides (arme déposée dans le Pack-a-Punch...).
 	view.visible = not w.is_empty()
@@ -121,7 +128,7 @@ func tick(delta: float) -> void:
 		w.reserve -= take
 		ammo_changed.emit()
 
-	var busy := _reload_end > 0.0 or t < _switch_end or t < _drink_end or t < _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3
+	var busy := _reload_end > 0.0 or t < _switch_end or t < _drink_end or t < _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3 or t < _pickup_end
 	var dead := false
 	var pd := session.get_data(player.peer_id)
 	if pd:
@@ -141,7 +148,7 @@ func tick(delta: float) -> void:
 			combat.srv_switch.rpc_id(1, (slot + 1) % weapons.size())
 		elif inp.reload and not busy:
 			_try_reload(w, s)
-		elif inp.melee and t >= _melee_ready:
+		elif inp.melee and t >= _melee_ready and t >= _pickup_end:
 			_melee()
 		elif inp.fire and not busy and not player.sprinting:
 			var want: bool = s.auto or _trigger_released
@@ -293,11 +300,78 @@ static func reload_sounds(s: Dictionary, w: Dictionary) -> Array:
 	return out
 
 
+## Coup de couteau. Si un zombie visé est à portée de fente (KnifeDB), le
+## joueur se projette d'abord vers lui (LUNGE_TIME), puis frappe : le serveur
+## valide le coup depuis la position d'arrivée.
 func _melee() -> void:
 	_melee_ready = now() + WeaponDB.MELEE_COOLDOWN
-	view.start_melee()
-	Audio.play_2d("weapon_switch", -8.0, 0.2)
+	_reload_end = -1.0
+	view.cancel_reload()
+	_burst_left = 0
+	var target := _lunge_target()
+	var lunge := target != null
+	view.start_melee(lunge)
+	Audio.play_2d("knife_swing", -4.0, 0.1)
+	if not lunge:
+		_strike()
+		return
+	var to := target.global_position - player.global_position
+	to.y = 0.0
+	var dist := maxf(to.length() - KnifeDB.LUNGE_STOP, 0.0)
+	lunging = true
+	player.start_lunge(to.normalized(), dist, KnifeDB.LUNGE_TIME)
+	get_tree().create_timer(KnifeDB.LUNGE_TIME).timeout.connect(func():
+		lunging = false
+		_strike())
+
+
+func _strike() -> void:
+	var pd := session.get_data(player.peer_id)
+	if pd == null or pd.life != PlayerData.Life.ALIVE:
+		return
 	combat.srv_melee.rpc_id(1, player.camera.global_position, player.aim_direction())
+
+
+## Zombie visé à portée de fente (au-delà de la portée au contact), visible.
+func _lunge_target() -> Zombie:
+	if Game.instance == null or Game.instance.zombies == null:
+		return null
+	var alive: Array[Zombie] = Game.instance.zombies.alive
+	var positions := []
+	for z in alive:
+		positions.append(z.global_position)
+	var i := KnifeDB.pick_target(player.global_position, player.aim_direction(), positions)
+	if i < 0:
+		return null
+	var z: Zombie = alive[i]
+	var flat := z.global_position - player.global_position
+	flat.y = 0.0
+	if not KnifeDB.needs_lunge(flat.length()):
+		return null
+	# Pas de fente à travers un mur ou une barricade.
+	var q := PhysicsRayQueryParameters3D.create(player.eye_position(), z.global_position + Vector3.UP * 1.0, 1 | Barricade.BARRIER_LAYER, [player.get_rid()])
+	if not player.get_world_3d().direct_space_state.intersect_ray(q).is_empty():
+		return null
+	return z
+
+
+## Nouveau couteau (achat du COUTEAU DE CHASSE) : animation de récupération.
+func _on_knife_changed(id: String) -> void:
+	var first := knife_id == ""
+	knife_id = id
+	view.set_knife(id)
+	if first:
+		return
+	_pickup_end = now() + KnifeDB.PICKUP_TIME
+	_reload_end = -1.0
+	_burst_left = 0
+	view.cancel_reload()
+	view.start_knife_pickup(KnifeDB.PICKUP_TIME)
+	Audio.play_2d("bowie_draw", -3.0)
+
+
+func is_picking_up_knife() -> bool:
+	return now() < _pickup_end
 
 
 ## Boisson d'un atout : l'arme est baissée, une bouteille apparaît.

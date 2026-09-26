@@ -298,6 +298,26 @@ func gen_knife_hit() -> void:
 	_save("knife_hit", s.finish(b, 0.85))
 
 
+## Lame qui entre dans la chair : déchirure humide + coup sourd.
+func gen_knife_flesh() -> void:
+	var b := s.env_exp(s.bandpass(s.noise(0.3), 900.0, 1.5), 0.002, 0.07)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.25), 450.0), 0.001, 0.09), 0.01, 0.9)
+	s.mix(b, s.env_exp(s.sweep(0.12, 160.0, 70.0), 0.001, 0.04), 0.0, 0.7)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.15), 2200.0, 3.0), 0.001, 0.02), 0.03, 0.25)
+	_save("knife_flesh", s.finish(b, 0.8))
+
+
+## Couteau de chasse sorti de son étui : frottement du cuir puis tintement de la lame.
+func gen_bowie_draw() -> void:
+	var b := s.env_adsr(s.bandpass(s.noise(0.45), 1800.0, 1.0), 0.12, 0.1, 0.5, 0.15)
+	var ring := s.buf(0.9)
+	for f in [2900.0, 4350.0, 6100.0]:
+		s.mix(ring, s.env_exp(s.tone(0.9, f), 0.001, 0.35 * 3000.0 / f), 0.0, 0.18)
+	s.mix(b, ring, 0.4, 1.0)
+	s.mix(b, s.env_exp(s.highpass(s.noise(0.05), 3500.0), 0.001, 0.01), 0.4, 0.5)
+	_save("bowie_draw", s.finish(s.reverb(b, 0.35, 0.15, 0.3), 0.75))
+
+
 func gen_emerge() -> void:
 	var b := s.env_adsr(s.lowpass(s.brown_noise(1.4), 700.0), 0.2, 0.3, 0.6, 0.5)
 	for k in 6:

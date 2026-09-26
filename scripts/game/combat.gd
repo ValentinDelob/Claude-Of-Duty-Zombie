@@ -367,24 +367,35 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 	if p.global_position.distance_to(origin) > MAX_ORIGIN_ERROR + 1.7:
 		return
 	_melee_ready[pid] = t + WeaponDB.MELEE_COOLDOWN * 0.8
+	_reload_end.erase(pid)  # le couteau interrompt le rechargement (BO1)
 	dir = Vector3(dir.x, 0.0, dir.z).normalized()
-	var best: Zombie = null
-	var best_d := INF
+	# Après une fente, le client frappe depuis sa nouvelle position (`origin`,
+	# déjà bornée ci-dessus) : la cible doit être au contact de cette origine,
+	# et à portée de fente de la position connue du serveur.
+	var feet := Vector3(origin.x, p.global_position.y, origin.z)
+	var positions := []
 	for z: Zombie in game.zombies.alive:
-		var to := z.global_position - p.global_position
-		to.y = 0.0
-		var d := to.length()
-		if d < WeaponDB.MELEE_RANGE and d < best_d and (d < 0.6 or to.normalized().dot(dir) > 0.45):
-			best = z
-			best_d = d
-	if best:
-		damage_zombie(best.id, int(WeaponDB.MELEE_DAMAGE * damage_mult(pid)), pid, false, dir, HitKind.MELEE)
-		_cl_melee_fx.rpc(best.global_position + Vector3.UP * 1.2)
+		positions.append(z.global_position)
+	var i := KnifeDB.pick_target(feet, dir, positions, KnifeDB.RANGE + MELEE_SLACK, 0.0)
+	if i < 0:
+		return
+	var best: Zombie = game.zombies.alive[i]
+	var flat := best.global_position - p.global_position
+	flat.y = 0.0
+	if flat.length() > KnifeDB.LUNGE_RANGE + KnifeDB.RANGE + MELEE_SLACK:
+		return
+	damage_zombie(best.id, int(KnifeDB.damage(pd.knife) * damage_mult(pid)), pid, false, dir, HitKind.MELEE)
+	_cl_melee_fx.rpc(best.global_position + Vector3.UP * 1.2)
+
+
+## Marge du couteau côté serveur (interpolation des zombies chez le client).
+const MELEE_SLACK := 0.5
 
 
 @rpc("authority", "call_local", "reliable")
 func _cl_melee_fx(pos: Vector3) -> void:
 	Audio.play_3d("knife_hit", pos, 0.0)
+	Audio.play_3d("knife_flesh", pos, -2.0, 0.1)
 	game.fx_root.blood_hit(pos, Vector3.DOWN, 1.2)
 
 

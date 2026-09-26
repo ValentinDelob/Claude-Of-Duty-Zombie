@@ -2,15 +2,20 @@ class_name WallBuy
 extends Interactable
 ## Arme achetable au mur (silhouette tracée à la craie). Acheter l'arme, ou
 ## racheter ses munitions à moitié prix si on la possède déjà.
+## Un couteau (KnifeDB, ex. COUTEAU DE CHASSE) s'achète aussi au mur : il
+## remplace le couteau de mêlée, sans munitions à racheter.
 
 var weapon_id := ""
 var cost := 0
+## Vrai si l'objet vendu est un couteau (KnifeDB) et non une arme à feu.
+var is_knife := false
 var _normal := Vector3.FORWARD
 
 
 func setup(marker: String, cell: Vector2i, weapon: String, data: MapData) -> void:
 	weapon_id = weapon
-	cost = WeaponDB.wall_cost(weapon)
+	is_knife = KnifeDB.exists(weapon)
+	cost = KnifeDB.wall_cost(weapon) if is_knife else WeaponDB.wall_cost(weapon)
 	interact_id = "wallbuy_" + marker
 	name = "WallBuy" + marker
 	_normal = MapDef.wall_normal(data, cell)
@@ -28,7 +33,7 @@ func _ready() -> void:
 	# halo poudreux un peu plus large.
 	var chalk := Node3D.new()
 	chalk.name = "Chalk"
-	var mid: String = WeaponDB.stats(weapon_id).model
+	var mid: String = KnifeDB.model(weapon_id) if is_knife else WeaponDB.stats(weapon_id).model
 	for layer in [[_chalk_mat(Color(0.92, 0.9, 0.84, 0.62)), 1.0, 0.0], [_chalk_mat(Color(0.85, 0.85, 0.8, 0.14)), 1.06, -0.004]]:
 		var shape := WeaponModels.build(mid, false)
 		for mi in shape.get_children():
@@ -43,7 +48,7 @@ func _ready() -> void:
 	chalk.position.x = -WeaponModels.center_z(mid) * 1.6
 	add_child(chalk)
 	var label := Label3D.new()
-	label.text = "%s\n%d" % [WeaponDB.display_name(weapon_id), cost]
+	label.text = "%s\n%d" % [_item_name(), cost]
 	label.font = UiStyle.font("stencil")
 	label.font_size = 48
 	label.pixel_size = 0.004
@@ -68,6 +73,10 @@ static func _chalk_mat(c: Color) -> StandardMaterial3D:
 	return mat
 
 
+func _item_name() -> String:
+	return KnifeDB.display_name(weapon_id) if is_knife else WeaponDB.display_name(weapon_id)
+
+
 func interact_point() -> Vector3:
 	return global_position - _normal * 0.3
 
@@ -76,6 +85,10 @@ func prompt(pid: int) -> String:
 	var pd := system.game.session.get_data(pid)
 	if pd == null:
 		return ""
+	if is_knife:
+		if pd.knife == weapon_id:
+			return ""
+		return "[F] Acheter %s %s" % [_item_name(), Interactable.cost_text(cost)]
 	var slot := pd.has_weapon(weapon_id)
 	if slot < 0:
 		return "[F] Acheter %s %s" % [WeaponDB.display_name(weapon_id), Interactable.cost_text(cost)]
@@ -89,6 +102,17 @@ func srv_use(pid: int) -> void:
 	var session := system.game.session
 	var pd := session.get_data(pid)
 	if pd == null or pd.life != PlayerData.Life.ALIVE:
+		return
+	if is_knife:
+		# Couteau : remplace celui de mêlée ; le client joue la récupération.
+		if pd.knife == weapon_id:
+			return
+		if not session.try_spend(pid, cost):
+			system.deny(pid, "Pas assez de points")
+			return
+		pd.knife = weapon_id
+		system.purchase_fx(self)
+		session.sync_inventory(pid)
 		return
 	var slot := pd.has_weapon(weapon_id)
 	if slot >= 0:

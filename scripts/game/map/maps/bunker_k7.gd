@@ -33,6 +33,7 @@ func _init() -> void:
 		"B": "pm63", "!": "mpl",              # laboratoire
 		"$": "ak74u",                         # générateur
 		"&": "m16",                           # quai
+		"%": "bowie",                         # quai : couteau de chasse (KnifeDB)
 	}
 	perks = {"Q": "lazarus", "J": "titan", "S": "rapid", "D": "twin", "M": "stride"}
 	box_start = 1
@@ -46,7 +47,7 @@ func _init() -> void:
 	rows = PackedStringArray([
 		"                                                                ",
 		" #################################################              ",
-		" #ZddddddVddddddZd#ZffffffffffDfffffff&fffffffffZ# ###########  ",
+		" #ZddddddVddddddZd#Zfffff%ffffDfffffff&fffffffffZ# ###########  ",
 		" #ddddddddddddddd+#fOffffffffffffffffffffffffffff# #ppppKpppp#  ",
 		" #ddIddddddddIdddd#fffffffffffffffffffffffffTTfff# #ppppppppp#  ",
 		" #ddIdLdddddLIdddd#ffffLfffffffLfffffffLffffTTfff# #ppLpppLpp#  ",

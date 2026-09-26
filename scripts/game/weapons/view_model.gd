@@ -26,6 +26,20 @@ var _switch_dur := 0.5
 var _switch_cb: Callable
 var _switch_mid_done := false
 var _melee_t := -1.0
+var _melee_lunge := false
+var _pickup_t := -1.0
+var _pickup_dur := 2.0
+var knife_id := KnifeDB.DEFAULT
+## Durée de l'animation d'un coup de couteau (s) : armé, tranche, retrait.
+const MELEE_ANIM := 0.5
+## Poses clés du bras gauche + couteau : [t, position, rotation (Euler, rad)].
+## Armé en haut à gauche, tranche vers le bas à droite, sortie par le bas.
+const MELEE_KEYS := [
+	[0.0, Vector3(-0.48, -0.5, -0.36), Vector3(0.4, -0.2, 0.3)],
+	[0.3, Vector3(-0.32, -0.1, -0.5), Vector3(0.18, -0.55, 0.25)],
+	[0.52, Vector3(0.18, -0.21, -0.52), Vector3(-0.08, 0.35, -0.2)],
+	[1.0, Vector3(0.32, -0.6, -0.32), Vector3(-0.2, 0.5, -0.3)],
+]
 var _drink_t := -1.0
 var _drink_dur := 2.0
 var _bottle: MeshInstance3D
@@ -107,8 +121,34 @@ func start_switch(duration: float, on_mid: Callable) -> void:
 	_switch_mid_done = false
 
 
-func start_melee() -> void:
+## Coup de couteau (bras gauche). `lunge` : fente (l'arme s'abaisse davantage).
+func start_melee(lunge := false) -> void:
 	_melee_t = 0.0
+	_melee_lunge = lunge
+
+
+## Couteau tenu dans la main gauche (KnifeDB) : reconstruit le modèle.
+func set_knife(id: String) -> void:
+	if id == knife_id and arms != null and arms.get_child_count() > 0:
+		return
+	knife_id = id
+	if arms == null:
+		return
+	for c in arms.get_children():
+		c.queue_free()
+	_fill_knife_rig(arms, KnifeDB.model(id))
+
+
+## Récupération du couteau de chasse : l'arme descend, le couteau est sorti,
+## retourné et observé, puis rangé (~2 s, comme BO1).
+func start_knife_pickup(duration: float) -> void:
+	_pickup_t = 0.0
+	_pickup_dur = duration
+	_melee_t = -1.0
+
+
+func is_knife_busy() -> bool:
+	return _melee_t >= 0.0 or _pickup_t >= 0.0
 
 
 func update(delta: float, p: Player) -> void:
@@ -175,21 +215,37 @@ func update(delta: float, p: Player) -> void:
 		if _drink_t >= 1.0:
 			_drink_t = -1.0
 			_bottle.visible = false
-	# Coup de couteau : l'arme s'écarte, le bras frappe.
-	var melee_k := 0.0
+	# Coup de couteau : l'arme s'écarte vers le bas à droite, le bras gauche
+	# arme le couteau puis tranche de gauche à droite.
+	arms.visible = false
 	if _melee_t >= 0.0:
-		_melee_t += delta / WeaponDB.MELEE_COOLDOWN
-		melee_k = sin(clampf(_melee_t * 1.6, 0.0, 1.0) * PI)
-		pos += Vector3(0.1, -0.15, 0.0) * melee_k
-		rot += Vector3(0.3, -0.6, 0.0) * melee_k
+		_melee_t += delta / MELEE_ANIM
+		var melee_k := sin(clampf(_melee_t, 0.0, 1.0) * PI)
+		var drop := 1.4 if _melee_lunge else 1.0
+		pos += Vector3(0.12, -0.16, 0.04) * melee_k * drop
+		rot += Vector3(-0.35, -0.5, -0.2) * melee_k * drop
+		arms.visible = true
+		var pose := melee_pose(clampf(_melee_t, 0.0, 1.0))
+		arms.position = pose[0]
+		arms.rotation = pose[1]
 		if _melee_t >= 1.0:
 			_melee_t = -1.0
+	# Récupération du couteau de chasse.
+	if _pickup_t >= 0.0:
+		_pickup_t += delta / _pickup_dur
+		var t := clampf(_pickup_t, 0.0, 1.0)
+		var down := smoothstep(0.0, 0.12, t) * (1.0 - smoothstep(0.88, 1.0, t))
+		pos += Vector3(0.0, -0.5, 0.1) * down
+		rot += Vector3(-0.8, 0.0, 0.0) * down
+		var pose := pickup_pose(t)
+		arms.visible = t > 0.08 and t < 0.92
+		arms.position = pose[0]
+		arms.rotation = pose[1]
+		if _pickup_t >= 1.0:
+			_pickup_t = -1.0
 
 	model.position = pos
 	model.rotation = rot
-	arms.visible = melee_k > 0.05
-	arms.position = Vector3(-0.12 + 0.1 * melee_k, -0.16, -0.35 - 0.15 * melee_k)
-	arms.rotation = Vector3(0.2, 1.0 - 1.8 * melee_k, 0.3)
 
 	# Flash
 	if _flash_t > 0.0:
@@ -250,31 +306,49 @@ func _arm_mat(c: Color, wear: float) -> ShaderMaterial:
 
 
 func _build_knife() -> Node3D:
-	var knife := Node3D.new()
-	knife.name = "Knife"
-	knife.visible = false
-	var blade := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.012, 0.035, 0.22)
-	blade.mesh = bm
-	blade.position = Vector3(0, 0, -0.12)
-	blade.material_override = WeaponModels.material("metal_worn", true, false)
-	knife.add_child(blade)
-	var handle := MeshInstance3D.new()
-	var hm := BoxMesh.new()
-	hm.size = Vector3(0.025, 0.035, 0.1)
-	handle.mesh = hm
-	handle.position = Vector3(0, 0, 0.03)
-	handle.material_override = WeaponModels.material("wood_dark", true, false)
-	knife.add_child(handle)
-	var hand := MeshInstance3D.new()
-	var gm := BoxMesh.new()
-	gm.size = Vector3(0.06, 0.06, 0.3)
-	hand.mesh = gm
-	hand.position = Vector3(-0.02, -0.03, 0.2)
-	hand.material_override = _arm_mat(Color(0.13, 0.14, 0.1), 0.25)
-	knife.add_child(hand)
-	return knife
+	var rig := Node3D.new()
+	rig.name = "Knife"
+	rig.visible = false
+	_fill_knife_rig(rig, KnifeDB.model(knife_id))
+	return rig
+
+
+## Main gauche gantée, avant-bras (manche) et couteau tenu lame en avant.
+func _fill_knife_rig(rig: Node3D, mid: String) -> void:
+	var sleeve := _arm_mat(Color(0.13, 0.14, 0.1), 0.25)
+	var glove := _arm_mat(Color(0.07, 0.06, 0.05), 0.15)
+	_limb(rig, Vector3(0.0, -0.01, 0.05), Vector3(-0.06, -0.14, 0.34), 0.07, sleeve)
+	_limb(rig, Vector3(0.0, 0.0, -0.025), Vector3(0.0, -0.01, 0.07), 0.056, glove)
+	# Lame couchée : le tranchant regarde vers la droite (coup de gauche à droite).
+	var knife := WeaponModels.build(mid, true)
+	knife.name = "Blade"
+	knife.rotation.z = 1.15
+	knife.position = -WeaponModels.anchor(mid, "grip")
+	rig.add_child(knife)
+
+
+## Pose [position, rotation] du bras gauche à l'instant `t` (0..1) du coup.
+static func melee_pose(t: float) -> Array:
+	for i in MELEE_KEYS.size() - 1:
+		var a: Array = MELEE_KEYS[i]
+		var b: Array = MELEE_KEYS[i + 1]
+		if t <= b[0]:
+			var k := smoothstep(a[0], b[0], t)
+			return [a[1].lerp(b[1], k), a[2].lerp(b[2], k)]
+	var last: Array = MELEE_KEYS[MELEE_KEYS.size() - 1]
+	return [last[1], last[2]]
+
+
+## Pose de la récupération : le couteau monte au centre, pointe vers le haut,
+## pivote pour montrer la lame, puis redescend.
+static func pickup_pose(t: float) -> Array:
+	var rise := smoothstep(0.08, 0.3, t) * (1.0 - smoothstep(0.78, 0.92, t))
+	var low := Vector3(-0.12, -0.62, -0.42)
+	var high := Vector3(-0.03, -0.14, -0.48)
+	var turn := smoothstep(0.3, 0.72, t)
+	var rot := Vector3(1.15, 0.55 - 1.1 * turn, 0.1 - sin(turn * PI) * 0.3)
+	rot.x -= sin(turn * PI) * 0.2
+	return [low.lerp(high, rise), rot]
 
 
 static var _flash_tex: Texture2D

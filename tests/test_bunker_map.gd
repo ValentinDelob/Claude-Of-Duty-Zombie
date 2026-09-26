@@ -51,7 +51,7 @@ func test_pap_room_isolated() -> void:
 func test_objects_defined() -> void:
 	for k in def.wall_buys:
 		assert_true(data.markers.has(k), "achat mural %s placé" % k)
-		assert_true(WeaponDB.exists(def.wall_buys[k]))
+		assert_true(WeaponDB.exists(def.wall_buys[k]) or KnifeDB.exists(def.wall_buys[k]), "achat mural %s connu" % k)
 	for k in def.perks:
 		assert_true(data.markers.has(k), "atout %s placé" % k)
 	assert_eq(data.markers.get("X", []).size(), 3, "3 emplacements de boîte")
