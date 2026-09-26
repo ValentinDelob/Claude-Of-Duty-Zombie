@@ -167,7 +167,10 @@ func run() -> void:
 	at.check(spawn_invisible_ok, "chiens invisibles pendant la foudre")
 	at.check(min_spawn_dist >= 4.0, "apparitions près du joueur (%.1f à %.1f m)" % [min_spawn_dist, max_spawn_dist])
 	at.check(pd.kills - kills0 == 6, "kills comptés (%d)" % (pd.kills - kills0))
-	at.check(pd.points - pts >= 6 * PointsRules.KILL + 6 * 3 * PointsRules.HIT, "points par touche et par kill (+%d)" % (pd.points - pts))
+	# 6 kills (+50) et au moins une touche non mortelle (+10) ; le nombre de
+	# touches dépend de l'arme du bot.
+	var gained := pd.points - pts
+	at.check(gained > 6 * PointsRules.KILL and (gained - 6 * PointsRules.KILL) % PointsRules.HIT == 0, "points par touche et par kill (+%d)" % gained)
 
 	# Munitions max sur le dernier chien, fin de manche.
 	await seconds(0.3)
