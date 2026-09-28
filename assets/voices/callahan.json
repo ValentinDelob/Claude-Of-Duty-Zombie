@@ -1,0 +1,297 @@
+{
+  "character": "callahan",
+  "lines": {
+    "kill_headshot": [
+      {"fr": "Pile entre les deux yeux. Va raconter ça à tes potes.", "en": "Right between the eyes. Go tell your friends."},
+      {"fr": "Cette caboche vient de quitter le stade !", "en": "That noggin just left the ballpark!"},
+      {"fr": "Et un melon de moins au marché.", "en": "Pop goes the melon."},
+      {"fr": "De toute façon, y avait rien là-dedans.", "en": "Nothing up there worth saving anyway."}
+    ],
+    "kill_melee": [
+      {"fr": "C'est comme ça qu'on règle ses comptes, à Amarillo.", "en": "That's how we settle things back in Amarillo."},
+      {"fr": "De près, c'est tout de suite plus personnel, mon grand.", "en": "Up close and personal, pal."},
+      {"fr": "Dernière tournée, mon vieux. T'es viré du bar.", "en": "Last call, buddy. You're cut off."},
+      {"fr": "Fallait lever ta garde, champion.", "en": "Should've kept your guard up, chump."}
+    ],
+    "kill_bowie": [
+      {"fr": "Le cure-dent du Texas, mesdames et messieurs.", "en": "The Texas toothpick, ladies and gentlemen."},
+      {"fr": "Mon grand-père dépeçait des serpents à sonnette avec ça.", "en": "My granddaddy skinned rattlers with one of these."}
+    ],
+    "kill_explosive": [
+      {"fr": "Le feu d'artifice du quatre juillet, en avance !", "en": "Fourth of July came early, boys!"},
+      {"fr": "Des morceaux partout. Quelqu'un a une serpillière ?", "en": "Pieces everywhere. Somebody grab a mop."},
+      {"fr": "Tarif de groupe pour la sortie !", "en": "Group discount on the way out!"}
+    ],
+    "kill_streak": [
+      {"fr": "Envoyez la suite, je m'échauffe à peine !", "en": "Keep 'em coming, I'm just warming up!"},
+      {"fr": "Callahan frappe à tous les coups aujourd'hui !", "en": "Callahan's batting a thousand today!"},
+      {"fr": "On les aligne, on les renverse. Ou-rah !", "en": "Line 'em up, knock 'em down. Oorah!"},
+      {"fr": "C'est tout ? Ma petite sœur cogne plus fort !", "en": "Is that all you got? My kid sister hits harder!"}
+    ],
+    "kill_close": [
+      {"fr": "Trop près, mon pote. Beaucoup trop près.", "en": "Too close, pal. Way too close."},
+      {"fr": "Respire un bon coup, et avale ça.", "en": "Smell my breath, then eat lead."},
+      {"fr": "L'espace vital, t'en as déjà entendu parler ?", "en": "Personal space. Ever heard of it?"}
+    ],
+    "crawler_made": [
+      {"fr": "Retourne voir ta mère à quatre pattes.", "en": "Crawl on back to mama."},
+      {"fr": "Des jambes ? Visiblement, t'en as plus besoin.", "en": "Who needs legs? Not you, apparently."},
+      {"fr": "Te voilà à hauteur de mes bottes. Parfait.", "en": "Now you're down at my boot level. Perfect."}
+    ],
+    "kill_dog": [
+      {"fr": "Vilain chien ! Pas de sucre !", "en": "Bad dog! No treat!"},
+      {"fr": "Va chercher ça, sac à puces.", "en": "Go fetch that, flea bag."},
+      {"fr": "On avait un chien de chasse au ranch. Bien mieux élevé.", "en": "We had a coonhound back home. Way better manners."}
+    ],
+    "kill_ray": [
+      {"fr": "Zap ! Tout droit sorti d'un illustré !", "en": "Zap! Straight out of the funny pages!"},
+      {"fr": "Grillé comme le bacon du dimanche.", "en": "Fried crispy, just like Sunday bacon."},
+      {"fr": "Le Claude-Ray et moi, c'est du sérieux.", "en": "Me and the Claude-Ray, we're going steady."}
+    ],
+    "kill_thunder": [
+      {"fr": "Strike ! Toutes les quilles par terre !", "en": "Strike! Every last pin knocked flat!"},
+      {"fr": "Soufflés jusqu'en Oklahoma !", "en": "Blew 'em clear to Oklahoma!"},
+      {"fr": "Saison des tornades ! Tenez vos chapeaux !", "en": "Tornado season! Hold onto your hats!"}
+    ],
+    "kill_trap": [
+      {"fr": "Le barbecue est prêt ! Qui voulait bien cuit ?", "en": "Barbecue's ready! Who ordered well done?"},
+      {"fr": "Droit dans le piège. Bête comme un piquet de clôture.", "en": "Walked right into it. Dumb as a fence post."}
+    ],
+    "kill_generic": [
+      {"fr": "Allez, au tapis, toi.", "en": "Down you go, pal."},
+      {"fr": "Encore une encoche sur ma crosse.", "en": "Another one for the tally."},
+      {"fr": "Reste couché cette fois, d'accord ?", "en": "Stay down this time, will ya?"},
+      {"fr": "Voilà ce que tu gagnes, le rigolo.", "en": "That's what you get, chuckles."}
+    ],
+    "ammo_low": [
+      {"fr": "Je tire sur la réserve, là !", "en": "Running on fumes here!"},
+      {"fr": "J'ai presque plus de plomb, les gars.", "en": "Getting light on lead, fellas."},
+      {"fr": "Plus que quelques balles. Vise bien, Jack.", "en": "Few rounds left. Make 'em count, Jack."}
+    ],
+    "ammo_out": [
+      {"fr": "Sec comme un ruisseau texan en plein mois d'août !", "en": "Dry as a Texas creek in August!"},
+      {"fr": "Clic, clic. Bon, ça, c'est pas bon.", "en": "Click, click. Well, that ain't good."},
+      {"fr": "Plus de munitions ! On passe aux poings.", "en": "Out of ammo! Guess it's fists now."}
+    ],
+    "buy_wall": [
+      {"fr": "Décrochée du mur, direct dans mes mains.", "en": "Off the wall and into my hands."},
+      {"fr": "La quincaillerie est ouverte. Je prends celle-là.", "en": "Hardware store's open. I'll take that one."},
+      {"fr": "Pas de la haute couture, mais ça fera le boulot.", "en": "Ain't fancy, but she'll do the job."}
+    ],
+    "buy_bowie": [
+      {"fr": "Ça, c'est un couteau. Le reste, c'est pour tartiner.", "en": "Now that's a knife. Everything else is a butter spreader."},
+      {"fr": "Ça sent le Texas. Je me sens chez moi.", "en": "Feels like home. Smells like Texas."}
+    ],
+    "box_good": [
+      {"fr": "Oh, le père Noël est passé en avance !", "en": "Why, Santa Claus, you shouldn't have!"},
+      {"fr": "Là, on passe aux choses sérieuses !", "en": "Now we're cooking with gas!"},
+      {"fr": "Le gros lot ! Ce soir, c'est ma tournée !", "en": "Jackpot! Drinks are on me tonight!"},
+      {"fr": "Viens voir papa, ma jolie.", "en": "Come to papa, you beautiful thing."}
+    ],
+    "box_bad": [
+      {"fr": "C'est quoi ça, le cadeau dans les céréales ?", "en": "What is this, the prize from a cereal box?"},
+      {"fr": "Je préférerais encore lancer des cailloux.", "en": "I'd rather be throwing rocks."},
+      {"fr": "La boîte, toi et moi, on va s'expliquer.", "en": "Box, you and me are gonna have words."},
+      {"fr": "Neuf cent cinquante points pour cette camelote ?", "en": "Nine hundred and fifty points for this junk?"}
+    ],
+    "box_ray": [
+      {"fr": "Le Claude-Ray ! C'est mon jour de chance !", "en": "The Claude-Ray! Today's my lucky day!"},
+      {"fr": "Regardez-moi ce bijou ! Je suis un cowboy de l'espace !", "en": "Look at this beauty! I'm a space cowboy now!"}
+    ],
+    "box_thunder": [
+      {"fr": "Le Tonnerre-Sept ! On va faire la pluie et le beau temps !", "en": "The Thunder-Seven! Let's go make some weather!"},
+      {"fr": "Nom d'un chien, un orage en boîte !", "en": "Hot damn, a storm in a can!"}
+    ],
+    "box_monkey": [
+      {"fr": "Des singes-tambours ! J'ai enfin un orchestre.", "en": "Drum monkeys! Finally got myself a band."},
+      {"fr": "Petit bonhomme, tu vas faire un sacré boucan.", "en": "Little buddy, you're gonna make a big noise."}
+    ],
+    "box_teddy": [
+      {"fr": "Me fais pas coucou, boule de poils !", "en": "Don't you wave bye-bye at me, fuzzball!"},
+      {"fr": "Cet ours me doit une bière et mes points.", "en": "That bear owes me a beer and my points."},
+      {"fr": "Super. Même les meubles nous plaquent.", "en": "Great. Now the furniture's walking out on us."}
+    ],
+    "box_firesale": [
+      {"fr": "Dix points la boîte ? C'est les soldes, les gars !", "en": "Ten points a pop? Clearance sale, boys!"},
+      {"fr": "Moins cher qu'un hot-dog au stade !", "en": "Cheaper than a hot dog at the ballpark!"}
+    ],
+    "pap_upgrade": [
+      {"fr": "Allez, grosse machine, rends-la méchante.", "en": "Alright, you big metal ape, make her mean."},
+      {"fr": "Gonfle-la comme un bolide de Galveston.", "en": "Soup her up like a Galveston hot rod."},
+      {"fr": "Prends-en soin, elle fait partie de la famille.", "en": "Take good care of her. She's family."}
+    ],
+    "pap_take": [
+      {"fr": "Elle est plus teigneuse qu'un lynx mouillé, maintenant.", "en": "She's meaner than a wet bobcat now."},
+      {"fr": "Nouvelle peinture, même sale caractère. J'adore.", "en": "New paint job, same bad attitude. I love it."},
+      {"fr": "Bon retour, ma belle. T'as pris du muscle.", "en": "Welcome back, sweetheart. You got muscles now."}
+    ],
+    "no_money": [
+      {"fr": "Fauché comme une tirelire cassée.", "en": "Broke as a busted piggy bank."},
+      {"fr": "Tu me fais crédit ? Non ? Évidemment.", "en": "Put it on my tab, would ya? No? Figures."}
+    ],
+    "perk_titan": [
+      {"fr": "Titan Brew. Me voilà bâti comme un silo à grain.", "en": "Titan Brew. Now I'm built like a grain silo."},
+      {"fr": "Ça a un goût d'huile de moteur et de courage.", "en": "Tastes like motor oil and courage."}
+    ],
+    "perk_rapid": [
+      {"fr": "Rapid Fizz ! J'ai des fourmis dans les mains !", "en": "Rapid Fizz! My hands are buzzing!"},
+      {"fr": "Je recharge plus vite qu'un tricheur de Dallas.", "en": "I reload faster than a Dallas card shark."}
+    ],
+    "perk_twin": [
+      {"fr": "Twin Shot. Deux pour le prix d'un !", "en": "Twin Shot. Two for the price of one!"},
+      {"fr": "Je vois double, je tire double. Ça me va.", "en": "Seeing double, shooting double. Works for me."}
+    ],
+    "perk_lazarus": [
+      {"fr": "Lazarus Tonic. Me voilà infirmier de l'équipe.", "en": "Lazarus Tonic. Guess I'm the team medic now."},
+      {"fr": "Un goût de sirop pour la toux et de seconde chance.", "en": "Tastes like cough syrup and second chances."}
+    ],
+    "perk_stride": [
+      {"fr": "Stride Soda ! Essayez de m'attraper, les tortues !", "en": "Stride Soda! Try and catch me now, slowpokes!"},
+      {"fr": "Je volerais la deuxième base en dormant.", "en": "I could steal second base in my sleep."}
+    ],
+    "perk_nova": [
+      {"fr": "Nova Flop. Un plat qui fait boum. J'adore.", "en": "Nova Flop. A belly flop with a bang. Love it."},
+      {"fr": "Un goût de grenade trempée dans du soda cerise.", "en": "Tastes like a grenade dunked in cherry soda."}
+    ],
+    "perk_deadeye": [
+      {"fr": "Deadeye Dram. Œil de faucon, main de pierre.", "en": "Deadeye Dram. Hawk eyes, steady hands."},
+      {"fr": "Comme le whisky de mon père, sauf que ça aide à viser.", "en": "Like my daddy's whiskey, except it helps me aim."}
+    ],
+    "pw_max_ammo": [
+      {"fr": "Tout l'arsenal est rechargé, les gars !", "en": "Reload the whole armory, boys!"},
+      {"fr": "Du plomb frais pour tout le monde ! Noël dans les tranchées !", "en": "Fresh lead for everybody! Christmas in the foxhole!"}
+    ],
+    "pw_insta_kill": [
+      {"fr": "Un coup chacun. Faites la queue, les moches !", "en": "One tap each. Line up, uglies!"},
+      {"fr": "Je pourrais les assommer avec une chaussette mouillée !", "en": "I could knock 'em flat with a wet sock!"}
+    ],
+    "pw_double_points": [
+      {"fr": "Double solde ! L'armée m'a jamais payé aussi bien.", "en": "Double pay! Uncle Sam never paid this good."},
+      {"fr": "Chaque mort compte double. Faites tourner le compteur !", "en": "Every kill counts twice. Start the meter running!"}
+    ],
+    "pw_nuke": [
+      {"fr": "Ouah ! Ça, c'est du grand ménage !", "en": "Whoa! Now that's what I call housecleaning!"},
+      {"fr": "Boum ! Tout le monde rentre plus tôt ce soir.", "en": "Boom! Everybody's going home early tonight."}
+    ],
+    "pw_carpenter": [
+      {"fr": "Des marteaux ? Hé, c'est mon surnom, ça !", "en": "Hammer and nails? Hey, that's my nickname!"},
+      {"fr": "Les planches sont revenues. Un pourboire pour le charpentier.", "en": "Boards are back up. Somebody tip the carpenter."}
+    ],
+    "pw_fire_sale": [
+      {"fr": "Liquidation ! Tout le monde aux boîtes !", "en": "Fire sale! Everybody to the boxes!"},
+      {"fr": "Jour de promo ! Prenez un caddie et lâchez-vous !", "en": "Discount day! Grab a cart and go crazy!"}
+    ],
+    "pw_death_machine": [
+      {"fr": "Accrochez vos dents, voilà la tondeuse !", "en": "Hold onto your teeth, here comes the lawnmower!"},
+      {"fr": "Dites aux Marines qu'ils peuvent rester chez eux !", "en": "Tell the Corps they can send the rest home!"}
+    ],
+    "downed": [
+      {"fr": "Argh ! Je suis à terre ! Quelqu'un, vite !", "en": "Argh! I'm down! Somebody get over here!"},
+      {"fr": "Une égratignure ! D'accord, une grosse ! À l'aide !", "en": "Just a scratch! Okay, a big scratch! Help!"},
+      {"fr": "Bon sang, ils m'ont pris en traître !", "en": "Dang it, they sucker-punched me!"}
+    ],
+    "revive_start": [
+      {"fr": "Tiens bon, je m'occupe de toi !", "en": "Hang tight, I got you!"},
+      {"fr": "Debout, on fait pas la sieste sous mes ordres.", "en": "Up you get. No napping on my watch."},
+      {"fr": "Bouge pas, ça va piquer un peu.", "en": "Hold still, this is gonna sting."}
+    ],
+    "revived": [
+      {"fr": "Merci. Je te dois un steak, saignant.", "en": "Thanks. I owe you a steak, medium rare."},
+      {"fr": "J'avais la situation en main, mais merci.", "en": "I had it under control, but thanks."},
+      {"fr": "De retour dans l'équipe ! Coach, fais-moi jouer !", "en": "Back in the lineup! Put me in, coach!"}
+    ],
+    "teammate_down": [
+      {"fr": "Un homme à terre ! Tiens bon, j'arrive !", "en": "Man down! Hold on, I'm coming!"},
+      {"fr": "Lâchez mon pote, bande de monstres !", "en": "Get off my buddy, you freaks!"},
+      {"fr": "Me lâche pas maintenant, t'entends ?", "en": "Don't you quit on me now!"}
+    ],
+    "teammate_dead": [
+      {"fr": "Non ! Bon sang, on devait s'en sortir tous ensemble !", "en": "No! Dammit, we were all getting out together!"},
+      {"fr": "Je boirai ta bière à ta place, mon vieux. Promis.", "en": "I'll drink your beer for you, pal. Promise."}
+    ],
+    "last_alive": [
+      {"fr": "Rien que moi contre tout le cirque. Très bien !", "en": "Just me and the whole darn circus. Fine!"},
+      {"fr": "Neuvième manche, et je suis le dernier frappeur.", "en": "Bottom of the ninth, and I'm the last batter."}
+    ],
+    "game_start": [
+      {"fr": "Allez, chargez vos armes, tout le monde ! Ou-rah !", "en": "Alright, lock and load, people! Oorah!"},
+      {"fr": "Le type qui a construit ce trou me doit un steak.", "en": "Whoever built this dump owes me a steak dinner."},
+      {"fr": "Un théâtre ? J'espère que la pièce finit bien.", "en": "A theater? Hope this show's got a happy ending."}
+    ],
+    "round_start": [
+      {"fr": "Les revoilà ! Prenez vos battes, on attaque la manche suivante !", "en": "Here they come again! Grab a bat, it's the next inning!"},
+      {"fr": "Encore eux ? Tant mieux, je commençais à m'ennuyer.", "en": "More of 'em? Good. I was getting bored."},
+      {"fr": "Et c'est reparti pour un tour. Amenez vos copains, les puants.", "en": "Round and round we go. Hope you brought friends, stinkers."},
+      {"fr": "Des steaks et des bières nous attendent dehors. Faut les mériter !", "en": "Steaks and beers waiting on the other side. Let's earn 'em!"}
+    ],
+    "dog_round": [
+      {"fr": "Quelqu'un a lâché les chiens ! Attention aux chevilles !", "en": "Somebody let the hounds out! Watch your ankles!"},
+      {"fr": "Ça sent le chien mouillé et le soufre. Les voilà !", "en": "Smells like wet dog and brimstone. Here they come!"},
+      {"fr": "Au pied, le chien ! Viens chercher ton biscuit en plomb !", "en": "Here, boy! Come get your lead biscuit!"}
+    ],
+    "door_open": [
+      {"fr": "Toc toc. C'est Callahan.", "en": "Knock knock. Callahan's here."},
+      {"fr": "Nouvelle pièce, nouveaux ennuis. En avant.", "en": "New room, new trouble. Let's move."},
+      {"fr": "La porte est ouverte. Poussez pas, y en aura pour tout le monde.", "en": "Door's open. Don't all rush in at once."}
+    ],
+    "power_on": [
+      {"fr": "Lumière ! Maintenant, je vois bien vos tronches.", "en": "Lights on! Now I can see the ugly."},
+      {"fr": "Le courant est revenu ! Ça va chauffer dans la boutique !", "en": "Power's back! This joint is jumping now!"}
+    ],
+    "teleporter_link": [
+      {"fr": "C'est branché ! Doc, ta cabine magique est prête.", "en": "Hooked up! Doc, your magic phone booth is ready."},
+      {"fr": "Relié. Si ce truc me mélange les tripes, je porte plainte.", "en": "Linked. If this thing scrambles my guts, I'm suing."}
+    ],
+    "teleport_out": [
+      {"fr": "Ouah ! Mon estomac est resté dans le hall !", "en": "Whoa! My stomach's still back in the lobby!"},
+      {"fr": "La cabine de projection. Quelqu'un a du pop-corn ?", "en": "Projection booth. Anybody got popcorn?"}
+    ],
+    "teleport_back": [
+      {"fr": "Retour au bercail. Je crois que j'ai perdu une chaussette.", "en": "Back again. I think I left a sock in there."},
+      {"fr": "Aller-retour gratuit. Doc, c'est ta seule bonne idée.", "en": "Round trip, no charge. Doc, that's your one good idea."}
+    ],
+    "trap_on": [
+      {"fr": "Approchez, approchez ! Entrée gratuite au grill !", "en": "Step right up, folks! Free tickets to the fry!"},
+      {"fr": "Le piège est chaud ! Venez, l'eau est bonne !", "en": "Trap's hot! Come on in, the water's fine!"}
+    ],
+    "low_health": [
+      {"fr": "Je fuis comme une gourde percée !", "en": "I'm leaking like a busted canteen!"},
+      {"fr": "Je vois des étoiles, et pas celles du Texas.", "en": "Seeing stars here, and not the Texas kind."},
+      {"fr": "Bon, d'accord, je suis peut-être pas à l'épreuve des balles.", "en": "Okay, okay, maybe I'm not bulletproof."}
+    ],
+    "surrounded": [
+      {"fr": "Bagarre de bar ! Chacun son tour !", "en": "Bar fight! Everybody gets a turn!"},
+      {"fr": "Holà, holà, un à la fois, les gars !", "en": "Whoa, whoa, one at a time, fellas!"},
+      {"fr": "Je suis coincé ! Je frappe dans le tas !", "en": "They got me boxed in! Swinging for the fences!"}
+    ],
+    "throw_grenade": [
+      {"fr": "Balle rapide, attention devant !", "en": "Fastball, coming in hot!"},
+      {"fr": "Attrape ça, les mains en beurre !", "en": "Catch this, butterfingers!"},
+      {"fr": "Ananas, livraison express !", "en": "Pineapple, special delivery!"}
+    ],
+    "throw_monkey": [
+      {"fr": "Vas-y, mon petit, joue-leur un air !", "en": "Go on, little guy, play 'em a tune!"},
+      {"fr": "Ça danse par là-bas, les moches ! Allez !", "en": "Dance party over there, uglies! Go on!"}
+    ],
+    "idle": [
+      {"fr": "À la sortie, je mange un steak gros comme une selle.", "en": "When we get out, I'm eating a steak the size of a saddle."},
+      {"fr": "C'est calme. Trop calme. J'ai horreur du calme.", "en": "Quiet. Too quiet. I hate quiet."},
+      {"fr": "Au Texas, maman doit être en train de frire du poulet.", "en": "Back in Texas, Mama's frying chicken right about now."},
+      {"fr": "Quelqu'un a du feu ? Mon cigare est froid depuis Guadalcanal.", "en": "Anybody got a match? This cigar's been cold since Guadalcanal."},
+      {"fr": "Je te jure, j'ai entendu l'ours se moquer de moi.", "en": "I swear I heard that bear laughing at me."},
+      {"fr": "Ou-rah. Juste pour vérifier que j'ai encore de la voix.", "en": "Oorah. Just checking I still got a voice."}
+    ],
+    "tease_orlov": [
+      {"fr": "Hé, le Tsar, souris un peu ! Je t'offre un vrai thé à la sortie.", "en": "Hey Tsar, cheer up! I'll buy you a real cup of tea when we're out."},
+      {"fr": "Le Tsar compte les morts comme ma tante Martha compte ses sous.", "en": "Tsar, you count the dead like my Aunt Martha counts her pennies."}
+    ],
+    "tease_arakawa": [
+      {"fr": "Samouraï, tu souris jamais, ou c'est interdit par ton code ?", "en": "Samurai, you ever smile, or is that against the code?"},
+      {"fr": "Samouraï, un jour tu m'apprends le sabre. Moi, je t'apprends le base-ball.", "en": "Samurai, someday you teach me that sword thing. I'll teach you baseball."}
+    ],
+    "tease_weissmann": [
+      {"fr": "Garde tes mains bien en vue, Frankenstein.", "en": "Keep your hands where I can see 'em, Frankenstein."},
+      {"fr": "Doc, tu parles plus à tes machines qu'à nous. Je dois être jaloux ?", "en": "Doc, you talk to those machines more than to us. Should I be jealous?"}
+    ]
+  }
+}
