@@ -31,8 +31,17 @@ func run() -> void:
 	var first_pos := {}
 	var hidden_ok := true
 	var shot_done := false
+	# Capté à l'ajout du nœud : l'hôte peut ramasser les munitions max dans
+	# la même image que leur apparition (le nœud ne serait jamais vu).
+	var drop_seen := [false]
+	game.powerups.child_entered_tree.connect(func(n: Node):
+		if n is PowerupDrop and n.type == PowerupRules.MAX_AMMO:
+			drop_seen[0] = true)
 	var t := 0.0
 	while t < 110.0:
+		if not is_instance_valid(game):
+			at.fail("client : partie fermée avant la fin de la manche de chiens (%d chiens vus, munitions max %s)" % [seen.size(), drop_seen[0]])
+			return
 		var target: Hellhound = null
 		for z: Zombie in game.zombies.alive:
 			if not z is Hellhound:
@@ -62,10 +71,7 @@ func run() -> void:
 			p.input.reload = true
 		if p.global_position.distance_to(home) > 3.0:
 			p.teleport_to(home)
-		var drop_seen := false
-		for n: PowerupDrop in game.powerups.nodes.values():
-			drop_seen = drop_seen or n.type == PowerupRules.MAX_AMMO
-		if drop_seen and seen.size() >= 12:
+		if drop_seen[0] and seen.size() >= 12:
 			break
 		await frames(1)
 		t += at.get_process_delta_time()
@@ -78,7 +84,7 @@ func run() -> void:
 	for n: PowerupDrop in game.powerups.nodes.values():
 		if n.type == PowerupRules.MAX_AMMO:
 			drop_node = n
-	at.check(drop_node != null, "client : munitions max du dernier chien")
+	at.check(drop_seen[0], "client : munitions max du dernier chien")
 	if drop_node:
 		H.aim_at(p, drop_node.global_position + Vector3.UP * 0.6)
 		await seconds(0.4)

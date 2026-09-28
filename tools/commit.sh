@@ -4,7 +4,7 @@
 cd "$(dirname "$0")/.."
 MSG=$1
 [ -f "$MSG" ] || { echo "message introuvable : $MSG"; exit 2; }
-sh tools/check.sh > tests/_out/check.log 2>&1
+bash tools/check.sh > tests/_out/check.log 2>&1
 RC=$?
 grep -E "^== |TESTS|host=|ECHEC|ERROR|AVERTISSEMENT|échoué" tests/_out/check.log
 if [ $RC -ne 0 ]; then

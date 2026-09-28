@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
 ## Le jeu démarre, affiche le menu principal et tourne sans erreur.
 
 func run() -> void:

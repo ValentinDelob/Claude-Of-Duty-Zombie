@@ -27,11 +27,19 @@ du jeu, les commentaires et les messages de commit sont en FRANÇAIS.
 - CHAQUE commit est poussé sur GitHub ET publié en release GitHub avec un
   .exe Windows (et copie locale dans build/) pour que l'utilisateur et ses
   amis testent chaque fonctionnalité.
-- Les fenêtres de jeu des tests ne doivent JAMAIS voler le focus de
-  l'utilisateur (il travaille sur la même machine) : passe toujours par les
-  outils ci-dessous (override.cfg temporaire no_focus).
+- Les fenêtres de jeu des tests ne doivent JAMAIS apparaître au-dessus des
+  fenêtres de l'utilisateur ni voler son focus (il travaille sur la même
+  machine) : passe toujours par les outils ci-dessous (tests sans rendu en
+  --headless ; sinon fenêtre réduite et sans focus via override.cfg, puis
+  déplacée hors de tous les écrans par Autotest._move_offscreen).
+- Les tests doivent rester RAPIDES (l'utilisateur s'est plaint de leur
+  dérive) : check.sh complet ~3-5 min. Tout nouveau scénario : sans rendu par
+  défaut (`## @rendu` seulement s'il lit des pixels ou mesure le rendu),
+  attendre des événements (`until`) plutôt que des délais fixes, et découper
+  en parties (`## @parts N`, `mine(i)`, `owns(k)`) s'il dépasse ~60 s.
 - Utilise autant d'agents que nécessaire pour aller vite (voir §3), mais la
-  machine est limitée (i7-7700 4c/8t, GTX 1070, 16 Go, disque presque plein).
+  machine varie (portable RTX A2000, 20 threads ; ou i7-7700 4c/8t, GTX 1070,
+  16 Go, disque presque plein) : `JOBS=4` sur la petite machine.
 
 ## 1. Mise en place sur une nouvelle machine (Windows)
 - Godot 4.7.2 : `winget install --id GodotEngine.GodotEngine -e` (vérifie avec
@@ -54,7 +62,9 @@ du jeu, les commentaires et les messages de commit sont en FRANÇAIS.
   après tout nouveau fichier avec class_name ou tout reset de worktree).
 - Lis README.md, docs/ARCHITECTURE.md, docs/PLAN.md (liste de tâches vivante),
   docs/ART_DIRECTION.md, docs/ASSETS.md et ce fichier.
-- Vérifie que tout passe : `sh tools/check.sh` (~35-45 min).
+- Vérifie que tout passe : `sh tools/check.sh` (~3-5 min sur la machine de
+  développement à 20 threads ; `JOBS=` réduit le parallélisme sur une petite
+  machine).
 
 ## 2. Méthode de travail (imposée)
 - Chaque fonctionnalité : analyse -> plan -> implémentation -> lancement du
@@ -70,12 +80,16 @@ du jeu, les commentaires et les messages de commit sont en FRANÇAIS.
   précédente). Si des commits sont déjà faits (intégration d'agents) :
   `sh tools/check.sh` puis `git push origin main` puis `sh tools/release.sh`.
   Ne jamais chaîner un commit après un `grep` (code de retour faux).
-- Outils sans vol de focus : `sh tools/scenario.sh <nom>` (un scénario),
-  `sh tools/mp_test.sh <nom>` (hôte + client), `sh tools/check.sh`,
-  `sh tools/perf.sh [scénarios]` (1080p, un jeu à la fois, `QUALITY=low|medium|high`).
+- Outils (jamais de fenêtre visible) : `sh tools/scenario.sh <nom>` (un
+  scénario avec rendu hors écran et captures ; `HEADLESS=1` sans rendu),
+  `sh tools/mp_test.sh <nom>` (hôte + client sans rendu ; `GUI=1` avec rendu),
+  `sh tools/check.sh` (pool parallèle ; `SCENARIOS="a b"`, `MP="lobby"`,
+  `JOBS=`, `GUI_JOBS=`, `--fast`), `sh tools/perf.sh [scénarios]` (1080p, un
+  jeu à la fois, `QUALITY=low|medium|high`).
   NE LANCE JAMAIS `godot --path . -- --autotest=...` directement.
 - Plusieurs copies en parallèle : `AUTOTEST_PORT_OFFSET=<n>` décale les ports
-  des tests réseau ; `PARALLEL=2 sh tools/check.sh` réduit la charge.
+  des tests réseau (check.sh ajoute 100 x numéro de place pour ses propres
+  tâches) ; `JOBS=4 sh tools/check.sh` réduit la charge.
 - Agents (outil Agent, `isolation: worktree`, en arrière-plan) :
   * Brief commun à leur donner (règles ci-dessus + « analyse, test réel,
     captures, un commit atomique dans ta worktree, pas de push, pas de
@@ -184,26 +198,26 @@ sur machine libre restent à re-mesurer (`sh tools/perf.sh`).
   tests, viser `z.hit_body.global_position`, pas une hauteur fixe.
 
 ## 6. Travail en cours au moment de l'arrêt
-(voir la section « État à l'arrêt » ci-dessous, mise à jour juste avant
+(voir la section « État actuel » ci-dessous, mise à jour juste avant
 l'extinction de la machine précédente)
 
 Commence par la mise en place (§1), vérifie `sh tools/check.sh` sur main,
 puis reprends §6 puis §4 dans l'ordre en respectant §0 et §2.
 ```
 
-## État à l'arrêt
+## État actuel
 
-Arrêt le 26/09/2026 vers 22 h (machine précédente : i7-7700, GTX 1070).
-- main poussé sur GitHub ; dernière release de code **v0.1.89** (« perf: optimize
-  rendering after the visual rework ») ; `sh tools/check.sh` passait sur ce
-  commit (CHECK OK, `PARALLEL=2`). Les commits de documentation qui suivent
-  sont poussés sans release (même code que v0.1.89).
-- Test instable restant repéré au dernier check : powerups, « nouvelle
-  manche : le bonus dû tombe » (échec ponctuel sous charge) : à rendre robuste
-  en premier (attendre l'événement plutôt qu'un délai fixe).
+28/09/2026, portable RTX A2000 (20 threads).
+- main poussé sur GitHub avec la refonte des tests (« test: make the test
+  suite parallel and headless ») : check.sh complet en ~4 min au lieu de
+  35-45 min, aucune fenêtre visible (headless ou hors écran).
+- Tests fragiles corrigés : powerups « bonus dû » (corps du zombie précédent
+  qui arrêtait les balles), mp_dogs (munitions max ramassées par l'hôte dans
+  la même image que leur apparition), scope (visée du torse, attentes sur
+  événements).
 - Aucun agent en cours, aucun travail non poussé : tout est sur main.
 - Prochaine étape conseillée : §4.1 (re-mesure des fps GPU libre avec
   `sh tools/perf.sh`, puis derniers gains de MEDIUM), puis §4.2 (R4 suite :
   décors, machines, boîte, Pack-a-Punch, menu), puis §4.3 (KINO V2).
-- Les tests dépendant du temps sont nombreux : lancer check.sh de préférence
-  avec `PARALLEL=2` quand des agents font tourner des jeux en même temps.
+- Les tests dépendant du temps sont nombreux : lancer check.sh avec un `JOBS=`
+  réduit quand des agents font tourner des jeux en même temps.

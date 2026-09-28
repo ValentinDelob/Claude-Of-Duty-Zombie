@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @parts 4 : check.sh lance 4 parties en parallèle (armes et sections réparties).
 ## Arsenal BO1 : chaque arme est équipée, vue à la première personne (capture),
 ## tirée (validation serveur, rafale de 3 pour M16/G11) et rechargée. Puis les
 ## mécaniques spéciales : projectiles explosifs (China Lake, LAW, M1911
@@ -102,8 +103,12 @@ func run() -> void:
 	game.combat.shot_validated.connect(func(_pid): validated[0] += 1)
 	await face_wall()
 
-	# 1. Revue de l'arsenal.
+	# 1. Revue de l'arsenal (armes réparties entre les parties).
+	var wi := -1
 	for id in WeaponDB.WEAPONS:
+		wi += 1
+		if not mine(wi):
+			continue
 		var s := WeaponDB.stats(id)
 		print("[roster] %s à %.1f s (%d fps)" % [id, Time.get_ticks_msec() / 1000.0, Engine.get_frames_per_second()])
 		if not await equip(id):
@@ -121,96 +126,105 @@ func run() -> void:
 		await seconds(WeaponDB.fire_interval(id) + 0.05)
 		p.input.reload = true
 		var rt := game.combat.reload_time(1, pd.current_weapon())
-		await seconds(rt + 0.35)
+		var full := int(s.mag)
+		await until(func(): return pd.current_weapon().mag == full and p.weapons.current().mag == full, rt + 1.5, "%s rechargé" % id)
 		at.check(pd.current_weapon().mag == int(s.mag) and p.weapons.current().mag == int(s.mag), "%s : rechargé %d/%d" % [id, pd.current_weapon().mag, pd.current_weapon().reserve])
 
 	# 2. Quelques armes améliorées (camouflage Pack-a-Punch).
-	for id in ["m1911", "m16", "olympia", "ray"]:
-		await equip(id, true)
-		await at.screenshot("fps_pap_" + id)
+	if owns(0):
+		for id in ["m1911", "m16", "olympia", "ray"]:
+			await equip(id, true)
+			await at.screenshot("fps_pap_" + id)
 
 	# 2 bis. Planche des silhouettes (modèles « monde », vus de profil, éclairés).
-	await lineup()
+	if owns(1):
+		await lineup()
 
 	# 3. Visée : lunette du L96A1.
-	await equip("l96a1")
-	p.input.aim = true
-	await seconds(0.5)
-	await at.screenshot("ads_l96a1")
-	p.input.aim = false
-	await seconds(0.3)
+	if owns(2):
+		await equip("l96a1")
+		p.input.aim = true
+		await seconds(0.5)
+		await at.screenshot("ads_l96a1")
+		p.input.aim = false
+		await seconds(0.3)
 
 	# 4. Explosifs : projectile visible, dégâts de zone à l'arrivée.
-	for spec in [["china_lake", false, 600], ["law", false, 1200], ["m1911", true, 400]]:
-		await face_wall()
-		p.yaw = -PI * 0.5  # vers +X : grand espace libre
-		await equip(spec[0], spec[1])
-		var center := p.global_position + Vector3(9, 0, 0)
-		var zs := []
-		for k in 3:
-			zs.append(await H.dummy_zombie(self, center + Vector3(0, 0, (k - 1) * 0.8), spec[2]))
-		H.aim_at(p, zs[1].global_position + Vector3.UP * 0.9)
-		await pull_trigger()
-		await seconds(0.08)
-		var alive_mid := 0
-		for z: Zombie in zs:
-			if z.is_alive():
-				alive_mid += 1
-		if spec[0] == "law":
-			await at.screenshot("rocket_flight")
-		await seconds(0.6)
-		var dead := 0
-		for z: Zombie in zs:
-			if not z.is_alive():
-				dead += 1
-		at.check(dead == 3, "%s%s : %d/3 zombies tués par l'explosion" % [spec[0], " (amélioré)" if spec[1] else "", dead])
-		if spec[0] == "law":
-			at.check(alive_mid == 3, "LAW : la roquette met du temps à arriver (%d vivants à 0,08 s)" % alive_mid)
-			await at.screenshot("explosion")
-		await H.clear_zombies(self)
+	if owns(3):
+		for spec in [["china_lake", false, 600], ["law", false, 1200], ["m1911", true, 400]]:
+			await face_wall()
+			p.yaw = -PI * 0.5  # vers +X : grand espace libre
+			await equip(spec[0], spec[1])
+			var center := p.global_position + Vector3(9, 0, 0)
+			var zs := []
+			for k in 3:
+				zs.append(await H.dummy_zombie(self, center + Vector3(0, 0, (k - 1) * 0.8), spec[2]))
+			H.aim_at(p, zs[1].global_position + Vector3.UP * 0.9)
+			await pull_trigger()
+			await seconds(0.08)
+			var alive_mid := 0
+			for z: Zombie in zs:
+				if z.is_alive():
+					alive_mid += 1
+			if spec[0] == "law":
+				await at.screenshot("rocket_flight")
+			await seconds(0.6)
+			var dead := 0
+			for z: Zombie in zs:
+				if not z.is_alive():
+					dead += 1
+			at.check(dead == 3, "%s%s : %d/3 zombies tués par l'explosion" % [spec[0], " (amélioré)" if spec[1] else "", dead])
+			if spec[0] == "law":
+				at.check(alive_mid == 3, "LAW : la roquette met du temps à arriver (%d vivants à 0,08 s)" % alive_mid)
+				await at.screenshot("explosion")
+			await H.clear_zombies(self)
 
 	# 4 bis. Les explosions tuent aussi les chiens de l'enfer.
-	await face_wall()
-	p.yaw = -PI * 0.5
-	await equip("china_lake")
-	var zm := game.zombies
-	var dog_id := zm.spawn(p.global_position + Vector3(8, 0, 0), 0, 400, ZombieManager.KIND_DOG)
-	var dog := zm.get_zombie(dog_id)
-	dog.speed_mult = 0.0
-	await seconds(2.5)
-	H.aim_at(p, dog.global_position + Vector3.UP * 0.4)
-	await pull_trigger()
-	await seconds(0.8)
-	at.check(not dog.is_alive(), "China Lake : chien de l'enfer tué par l'explosion")
-	await H.clear_zombies(self)
+	if owns(4):
+		await face_wall()
+		p.yaw = -PI * 0.5
+		await equip("china_lake")
+		var zm := game.zombies
+		var dog_id := zm.spawn(p.global_position + Vector3(8, 0, 0), 0, 400, ZombieManager.KIND_DOG)
+		var dog := zm.get_zombie(dog_id)
+		dog.speed_mult = 0.0
+		await seconds(2.5)
+		H.aim_at(p, dog.global_position + Vector3.UP * 0.4)
+		await pull_trigger()
+		await seconds(0.8)
+		at.check(not dog.is_alive(), "China Lake : chien de l'enfer tué par l'explosion")
+		await H.clear_zombies(self)
 
 	# 5. Dégâts à soi réduits (China Lake contre un mur proche).
-	game.combat.debug_invulnerable = false
-	await face_wall()
-	p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), PI * 0.5)
-	await equip("china_lake")
-	H.aim_at(p, p.global_position + Vector3(-3.0, 1.0, 0))
-	await pull_trigger()
-	await seconds(0.5)
-	at.check(pd.health < 100 and pd.health > 0 and pd.life == PlayerData.Life.ALIVE, "China Lake à bout portant : dégâts à soi réduits (%d PV)" % pd.health)
-	game.combat.debug_invulnerable = true
+	if owns(5):
+		game.combat.debug_invulnerable = false
+		await face_wall()
+		p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), PI * 0.5)
+		await equip("china_lake")
+		H.aim_at(p, p.global_position + Vector3(-3.0, 1.0, 0))
+		await pull_trigger()
+		await seconds(0.5)
+		at.check(pd.health < 100 and pd.health > 0 and pd.life == PlayerData.Life.ALIVE, "China Lake à bout portant : dégâts à soi réduits (%d PV)" % pd.health)
+		game.combat.debug_invulnerable = true
 
 	# 6. Olympia améliorée : le zombie brûle après le tir.
-	await face_wall()
-	p.yaw = -PI * 0.5
-	await equip("olympia", true)
-	var zb := await H.dummy_zombie(self, p.global_position + Vector3(4, 0, 0), 5000)
-	H.aim_at(p, zb.global_position + Vector3.UP * 0.9)
-	await pull_trigger()
-	await seconds(0.1)
-	var hp_after_shot := zb.health
-	await seconds(1.0)
-	at.check(zb.health < hp_after_shot, "balles incendiaires : %d -> %d PV" % [hp_after_shot, zb.health])
-	await H.clear_zombies(self)
+	if owns(6):
+		await face_wall()
+		p.yaw = -PI * 0.5
+		await equip("olympia", true)
+		var zb := await H.dummy_zombie(self, p.global_position + Vector3(4, 0, 0), 5000)
+		H.aim_at(p, zb.global_position + Vector3.UP * 0.9)
+		await pull_trigger()
+		await seconds(0.1)
+		var hp_after_shot := zb.health
+		await seconds(1.0)
+		at.check(zb.health < hp_after_shot, "balles incendiaires : %d -> %d PV" % [hp_after_shot, zb.health])
+		await H.clear_zombies(self)
 
 	# 7. Vitesse de déplacement selon l'arme.
-	await equip("m1911")
-	var v_pistol := p.current_max_speed()
-	await equip("hk21")
-	var v_lmg := p.current_max_speed()
-	at.check(v_lmg < v_pistol * 0.9, "mitrailleuse plus lente : %.2f m/s contre %.2f m/s" % [v_lmg, v_pistol])
+	if owns(7):
+		await equip("m1911")
+		var v_pistol := p.current_max_speed()
+		await equip("hk21")
+		var v_lmg := p.current_max_speed()
+		at.check(v_lmg < v_pistol * 0.9, "mitrailleuse plus lente : %.2f m/s contre %.2f m/s" % [v_lmg, v_pistol])

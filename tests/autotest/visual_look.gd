@@ -1,4 +1,6 @@
 extends AutotestScenario
+## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
+## @parts 3 : partie 0 = BUNKER K-7, partie 1 = KINO, partie 2 = HUD (sur KINO).
 ## Direction artistique BO1 (docs/ART_DIRECTION.md) : étalonnage (table 3D),
 ## brume volumétrique, grain / vignettage / aberration (FilmPost) selon la
 ## qualité et l'option GRAIN DE FILM ; captures de chaque zone des deux cartes
@@ -38,7 +40,9 @@ var worst_fps := 10000.0
 func run() -> void:
 	timeout_sec = 420
 	# `-- --autotest=visual_look --hud` : seulement le HUD (itérations rapides).
-	if OS.get_cmdline_user_args().has("--hud"):
+	# En parties (check.sh) : une carte par partie, le HUD dans la dernière.
+	var split := parts() > 1
+	if OS.get_cmdline_user_args().has("--hud") or (split and owns(2)):
 		p = await H.start_solo_game(self, "kino")
 		if p == null:
 			return
@@ -50,7 +54,11 @@ func run() -> void:
 		await seconds(3.0)
 		await _hud_pass()
 		return
+	var mi := -1
 	for map_id in ["bunker_k7", "kino"]:
+		mi += 1
+		if split and not owns(mi):
+			continue
 		await _map_pass(map_id)
 		if p == null:
 			return
@@ -100,7 +108,7 @@ func _map_pass(map_id: String) -> void:
 	game.rounds.dogs._set_fog(0.0)
 	at.check(is_equal_approx(env.volumetric_fog_density, base_vd), "fin de la manche de chiens : brume normale")
 	at.check_perf(worst_fps, 150.0, "pire vue %s (MEDIUM, post-traitement BO1)" % map_id)
-	if map_id == "kino":
+	if map_id == "kino" and parts() == 1:
 		await _hud_pass()
 
 

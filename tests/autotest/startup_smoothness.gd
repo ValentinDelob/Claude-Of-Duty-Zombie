@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
 ## Début de partie fluide : aucune saccade due à la compilation des shaders
 ## une fois la main donnée au joueur (préchauffage pendant le chargement).
 

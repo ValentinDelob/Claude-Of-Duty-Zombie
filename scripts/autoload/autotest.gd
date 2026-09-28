@@ -37,6 +37,8 @@ func _ready() -> void:
 			print("[prof] rendu de l'image : %.1f ms" % (d / 1000.0)))
 	# Mesure la capacité réelle du GPU, pas la fréquence de l'écran.
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	if DisplayServer.get_name() != "headless":
+		_move_offscreen()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	print("[autotest] scénario « %s »" % scenario_name)
 	# Chien de garde global (au cas où le scénario lui-même planterait).
@@ -167,9 +169,36 @@ func finish() -> void:
 ## plusieurs jeux à la fois, AUTOTEST_PARALLEL=1), un seuil manqué n'est qu'un
 ## avertissement : les mesures fiables sont faites par tools/perf.sh.
 func check_perf(fps: float, minimum: float, label: String) -> void:
+	# Sans rendu (tests logiques en --headless), les fps ne mesurent rien :
+	# la performance est vérifiée par tools/perf.sh, avec rendu.
+	if DisplayServer.get_name() == "headless":
+		print("[autotest] perf %s ignorée (sans rendu)" % label)
+		return
 	if fps >= minimum:
 		print("[autotest] OK   perf %s (%.0f fps >= %.0f)" % [label, fps, minimum])
 	elif OS.get_environment("AUTOTEST_PARALLEL") == "1":
 		print("[autotest] AVERTISSEMENT perf %s (%.0f fps < %.0f, exécution parallèle)" % [label, fps, minimum])
 	else:
 		fail("perf %s (%.0f fps < %.0f)" % [label, fps, minimum])
+
+
+## Fenêtre de test hors de tous les écrans : elle rend normalement (captures,
+## mesures) sans jamais apparaître par-dessus les fenêtres de l'utilisateur.
+## tools/nofocus.sh la fait démarrer réduite et sans focus ; on la place à
+## droite du bureau (tous écrans confondus) puis on la restaure là-bas.
+## AUTOTEST_ONSCREEN=1 : laisse la fenêtre visible (débogage).
+func _move_offscreen() -> void:
+	if OS.get_environment("AUTOTEST_ONSCREEN") == "1":
+		return
+	var right := 0
+	var top := 0
+	for i in DisplayServer.get_screen_count():
+		var r := DisplayServer.screen_get_usable_rect(i)
+		right = maxi(right, r.end.x)
+		top = mini(top, r.position.y)
+	var pos := Vector2i(right + 400, top)
+	DisplayServer.window_set_position(pos)
+	if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_MINIMIZED:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	DisplayServer.window_set_position(pos)
+	print("[autotest] fenêtre hors écran en %s" % DisplayServer.window_get_position())

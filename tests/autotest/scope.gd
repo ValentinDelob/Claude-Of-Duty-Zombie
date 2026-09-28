@@ -77,13 +77,16 @@ func run() -> void:
 	var held := await sway_amp(1.5)
 	at.check(free > 0.25 and held < free * 0.25, "balancement %.2f° libre, %.2f° souffle retenu" % [free, held])
 	# Tir souffle retenu : l'impact est au centre du réticule.
-	H.aim_at(p, z.head_position())
+	# Visée au torse : la tête d'un zombie immobile oscille (animation d'attente)
+	# et, à 18 m, la moindre image lente la faisait sortir du réticule.
+	H.aim_at(p, z.hit_body.global_position)
 	await seconds(0.25)
 	var before := z.health
+	_hit = Vector3.ZERO
 	p.input.fire = true
-	await seconds(0.05)
+	await until(func(): return _hit != Vector3.ZERO, 1.0, "tir parti")
 	p.input.fire = false
-	await seconds(0.1)
+	await until(func(): return z.health < before, 1.0, "dégâts appliqués")
 	var center_pt := p.camera.global_position + _dir * p.camera.global_position.distance_to(_hit)
 	at.check(_hit != Vector3.ZERO and _hit.distance_to(center_pt) < 0.01, "impact au centre du réticule (%.3f m)" % _hit.distance_to(center_pt))
 	at.check(z.health < before, "zombie touché à 18 m dans la lunette (%d -> %d PV)" % [before, z.health])

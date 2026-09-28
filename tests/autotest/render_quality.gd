@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
 ## Préréglages de qualité (RenderQuality) : changement à chaud via
 ## Settings.changed (comme l'écran OPTIONS), effets réels sur les lampes,
 ## l'environnement et le viewport, perf et captures par préréglage (salle de

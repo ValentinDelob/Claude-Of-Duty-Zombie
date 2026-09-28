@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @parts 3 : check.sh lance 3 parties en parallèle (armes réparties).
 ## Tir droit, arme par arme :
 ## 1. en visée, le cran (ou l'œilleton) ET le guidon projetés à l'écran sont
 ##    au centre à ±2 px (armes à lunette : écran de lunette affiché, zoom) ;
@@ -109,7 +110,11 @@ func run() -> void:
 
 	# 1 + 2. Visée et tir précis, arme par arme.
 	var worst_px := 0.0
+	var wi := -1
 	for id in WeaponDB.WEAPONS:
+		wi += 1
+		if not mine(wi):
+			continue
 		var s := WeaponDB.stats(id)
 		if not await equip(id):
 			continue
@@ -160,6 +165,10 @@ func run() -> void:
 		p.input.aim = false
 		p.input.sprint = false
 		await seconds(0.3)
+
+	print("[weapon_aim] pire écart de la ligne de mire (partie %d) : %.2f px" % [part(), worst_px])
+	if not owns(parts() - 1):
+		return
 
 	# 3. Hanche : impacts dans le cône du réticule, réticule = dispersion.
 	for id in ["m1911", "mp40", "ak74u", "hk21", "stakeout"]:

@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @parts 3 : check.sh lance 3 parties en parallèle (armes réparties).
 ## Vue FPS des armes (comme BO1) :
 ## 1. champ de vision propre à l'arme : rapport des champs appliqué, points
 ##    apparents (bouche du canon) projetés exactement comme le shader les dessine ;
@@ -80,7 +81,11 @@ func run() -> void:
 
 	var only := OS.get_environment("WV_ONLY")
 	var ids: Array = WeaponDB.WEAPONS.keys() if only == "" else Array(only.split(","))
+	var wi := -1
 	for id in ids:
+		wi += 1
+		if not mine(wi):
+			continue
 		var s := WeaponDB.stats(id)
 		if not await equip(id):
 			continue
@@ -146,6 +151,8 @@ func run() -> void:
 		at.check(rest < 0.005, "%s : pièces revenues au repos après le rechargement (%.3f)" % [id, rest])
 
 	# 5. Sprint et changement d'arme.
+	if not owns(parts() - 1):
+		return
 	for id in ["m1911", "ak74u", "m14"]:
 		await equip(id)
 		# Vers +X : grand espace libre.

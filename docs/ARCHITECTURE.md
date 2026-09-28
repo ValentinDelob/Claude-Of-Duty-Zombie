@@ -219,6 +219,14 @@ précédent.
   réel du jeu + scénario. **Doit passer avant chaque commit.**
 - Tests unitaires : `tests/test_*.gd` (runner : `res://tests/test_runner.tscn`).
 - Scénarios en jeu : `tests/autotest/*.gd`.
+- Rapidité : check.sh lance tout dans un pool parallèle (les plus longues
+  d'abord), scénarios et multijoueur en `--headless --max-fps 60` (captures et
+  mesures de perf ignorées). Étiquettes en tête de scénario :
+  `## @rendu` (a besoin du rendu : fenêtre réduite, sans focus, puis déplacée
+  hors des écrans par `Autotest._move_offscreen`) et `## @parts N` (N parties
+  parallèles avec `--part=k/N` ; `mine(i)` répartit une liste, `owns(k)` une
+  section ; sans `--part`, tout tourne). Ports réseau : `AUTOTEST_PORT_OFFSET`,
+  décalé de 100 par place du pool.
 
 ## Chiens de l'enfer (`scripts/game/dogs/`)
 

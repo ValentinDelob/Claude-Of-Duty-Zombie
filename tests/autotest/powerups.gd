@@ -297,11 +297,15 @@ func run() -> void:
 		await H.shoot(self, p, 0.3)
 	at.check(not z.is_alive() and pw.drop_count() == 0, "maximum de 4 bonus par manche (vivant %s, bonus %d)" % [z.is_alive(), pw.drop_count()])
 	pw.tracker.new_round()
+	# Le corps du zombie précédent ne doit pas arrêter les balles.
+	await H.clear_zombies(self)
+	await refill_pistol()
 	z = await H.dummy_zombie(self, ahead(5.0, 1.0), 1)
 	H.aim_at(p, z.global_position + Vector3.UP * 0.9)
 	for i in 5:
 		if not z.is_alive():
 			break
 		await H.shoot(self, p, 0.3)
-	at.check(pw.drop_count() == 1, "nouvelle manche : le bonus dû tombe")
+	await until(func(): return pw.drop_count() == 1, 1.0, "bonus dû")
+	at.check(pw.drop_count() == 1, "nouvelle manche : le bonus dû tombe (vivant %s, dû %s, bonus de la manche %d)" % [z.is_alive(), pw.tracker.drop_pending, pw.tracker.drops_this_round])
 	pw.debug_clear()

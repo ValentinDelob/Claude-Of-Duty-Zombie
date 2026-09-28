@@ -86,8 +86,16 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
 
 - Architecture et conventions : `docs/ARCHITECTURE.md`.
 - `sh tools/check.sh` : import, compilation de tous les scripts, tests unitaires,
-  test réseau, tous les scénarios automatisés (fenêtres), tests multijoueur à
-  deux fenêtres. **Doit passer avant chaque commit.**
+  test réseau, tous les scénarios automatisés et tous les tests multijoueur.
+  **Doit passer avant chaque commit.** Tout tourne dans un pool de tâches
+  parallèles (les plus longues d'abord, durées mémorisées dans
+  `tests/_out/durations.txt`) ; les scénarios et tests multijoueur tournent
+  **sans rendu** (`--headless`, aucune fenêtre) ; seuls ceux marqués
+  `## @rendu` ouvrent une fenêtre, réduite puis déplacée hors des écrans (jamais
+  visible). Un scénario long déclare `## @parts N` pour être découpé en N
+  parties parallèles (`mine(i)` / `owns(k)` dans `tests/autotest/scenario.gd`).
+  Réglages : `JOBS=6` (tâches simultanées), `GUI_JOBS=1` (fenêtres de rendu),
+  `SCENARIOS="perks scope"` / `MP="lobby"` (sous-ensemble), `--fast` (sans réseau).
 - `sh tools/commit.sh message.txt` : lance check.sh et ne committe que s'il réussit.
 - `sh tools/ship.sh message.txt` : commit vérifié, push sur `main`, puis build `.exe`
   et release GitHub (voir ci-dessous).
@@ -95,12 +103,14 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
   Repère : ~210 fps sur la GTX 1070 de développement ≈ 60 fps sur GTX 1050 ;
   `sh tools/perf.sh perf_costs` : coût GPU de chaque poste de rendu. Au premier
   lancement, le préréglage graphique est choisi automatiquement (carte + banc d'essai).
-- `sh tools/mp_test.sh <nom>` : un test multijoueur (hôte + client).
-- Scénario isolé sans voler le focus : `sh tools/scenario.sh <nom>` (check.sh,
-  mp_test.sh et release.sh ouvrent aussi leurs fenêtres sans focus, via un
-  override.cfg temporaire : voir tools/nofocus.sh).
-- Scénario isolé : `godot --path . -- --autotest=<nom>` (captures dans
-  `tests/_out/shots/`).
+- `sh tools/mp_test.sh <nom>` : un test multijoueur (hôte + client, sans rendu ;
+  `GUI=1` pour le rendu et les captures).
+- Scénario isolé : `sh tools/scenario.sh <nom>` (rendu dans une fenêtre hors
+  écran, captures dans `tests/_out/shots/`) ; `HEADLESS=1` : sans rendu, plus
+  rapide ; `AUTOTEST_ONSCREEN=1` : fenêtre visible pour déboguer. Les fenêtres
+  des outils (check, perf, release) démarrent réduites et sans focus
+  (override.cfg temporaire, voir tools/nofocus.sh), puis l'autotest les place
+  hors des écrans : elles n'apparaissent jamais par-dessus le bureau.
 
 ## État d'avancement
 

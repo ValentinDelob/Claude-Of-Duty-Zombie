@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
 ## Menu principal parcouru au clavier (événements d'entrée réels) :
 ## principal -> OPTIONS (une option modifiée, vérifiée dans le fichier de
 ## réglages, puis restaurée) -> retour -> CRÉDITS (défilement) -> retour ->

@@ -1,4 +1,6 @@
 extends AutotestScenario
+## @parts 2 : partie 0 = visite, portes, navigation, courant ; partie 1 = téléporteur,
+## Pack-a-Punch, piège et chiens (portes et courant ouverts directement).
 ## KINO : visite de chaque zone (captures + perf), portes fermées, zombies de
 ## la manche 1 dans le hall, départ aléatoire de la boîte, deux pièges,
 ## courant, liaison du téléporteur (plateforme -> poste central), voyage vers
@@ -56,61 +58,73 @@ func run() -> void:
 	var mf: TeleporterMainframe = game.interact.get_obj("mainframe")
 	at.check(tp != null and mf != null and tp.needs_link, "téléporteur à relier au poste central")
 
-	# Porte fermée : on fonce dans la porte 2 (hall -> loges), vers l'ouest.
-	p.teleport_to(MapData.cell_to_world(Vector2i(23, 31), 0.05), PI * 0.5)
-	p.input.move = Vector2(0, 1)
-	await seconds(1.5)
-	p.input.move = Vector2.ZERO
-	at.check(p.global_position.x > 20.5, "la porte fermée bloque le joueur (x=%.2f)" % p.global_position.x)
+	if owns(0):
+		# Porte fermée : on fonce dans la porte 2 (hall -> loges), vers l'ouest.
+		p.teleport_to(MapData.cell_to_world(Vector2i(23, 31), 0.05), PI * 0.5)
+		p.input.move = Vector2(0, 1)
+		await seconds(1.5)
+		p.input.move = Vector2.ZERO
+		at.check(p.global_position.x > 20.5, "la porte fermée bloque le joueur (x=%.2f)" % p.global_position.x)
 
-	# Manche 1 : zombies du hall uniquement (fenêtres et sol du hall).
-	await until(func(): return game.zombies.alive_count() >= 2, 16.0, "zombies de la manche 1")
-	var ok_zone := true
-	for z: Zombie in game.zombies.alive:
-		if game.map_data.zone_at(MapData.world_to_cell(z.global_position)) != "a":
-			ok_zone = false
-	at.check(ok_zone, "zombies apparus dans le hall uniquement")
-	game.rounds.paused = true
-	await H.clear_zombies(self)
-	p.teleport_to(MapData.cell_to_world(Vector2i(33, 40), 0.05))
-	H.aim_at(p, MapData.cell_to_world(Vector2i(33, 28), 1.6))
-	await seconds(0.8)
-	await at.screenshot("hall_sans_courant")
+		# Manche 1 : zombies du hall uniquement (fenêtres et sol du hall).
+		await until(func(): return game.zombies.alive_count() >= 2, 16.0, "zombies de la manche 1")
+		var ok_zone := true
+		for z: Zombie in game.zombies.alive:
+			if game.map_data.zone_at(MapData.world_to_cell(z.global_position)) != "a":
+				ok_zone = false
+		at.check(ok_zone, "zombies apparus dans le hall uniquement")
+		game.rounds.paused = true
+		await H.clear_zombies(self)
+		p.teleport_to(MapData.cell_to_world(Vector2i(33, 40), 0.05))
+		H.aim_at(p, MapData.cell_to_world(Vector2i(33, 28), 1.6))
+		await seconds(0.8)
+		await at.screenshot("hall_sans_courant")
 
-	for id in game.doors:
-		game.doors[id].srv_open()
-	await seconds(1.8)
-	at.check(game.spawner.active_zones.has("g") and game.spawner.active_zones.has("e"), "zones reliées sans porte activées")
+		for id in game.doors:
+			game.doors[id].srv_open()
+		await seconds(1.8)
+		at.check(game.spawner.active_zones.has("g") and game.spawner.active_zones.has("e"), "zones reliées sans porte activées")
 
-	# Navigation : un zombie du fond de la salle rejoint le joueur sur la scène
-	# (allées entre les rangées de fauteuils).
-	p.teleport_to(MapData.cell_to_world(Vector2i(36, 4), 0.05))
-	var zid := game.zombies.spawn(MapData.cell_to_world(Vector2i(49, 19)), 2, 100000)
-	var reached: bool = await until(func():
-		var z := game.zombies.get_zombie(zid)
-		return z != null and z.global_position.distance_to(p.global_position) < 2.2, 30.0, "zombie jusqu'à la scène")
-	if reached:
-		at.check(true, "un zombie traverse la salle jusqu'à la scène")
-	await H.clear_zombies(self)
+		# Navigation : un zombie du fond de la salle rejoint le joueur sur la scène
+		# (allées entre les rangées de fauteuils).
+		p.teleport_to(MapData.cell_to_world(Vector2i(36, 4), 0.05))
+		var zid := game.zombies.spawn(MapData.cell_to_world(Vector2i(49, 19)), 2, 100000)
+		var reached: bool = await until(func():
+			var z := game.zombies.get_zombie(zid)
+			return z != null and z.global_position.distance_to(p.global_position) < 2.2, 30.0, "zombie jusqu'à la scène")
+		if reached:
+			at.check(true, "un zombie traverse la salle jusqu'à la scène")
+		await H.clear_zombies(self)
 
-	# Courant : levier de la salle des machines.
-	var sw: PowerSwitch = game.interact.get_obj("power")
-	await _use(sw, Vector2i(14, 4))
-	at.check(game.power_on, "courant rétabli depuis la salle des machines")
-	await seconds(2.5)
+		# Courant : levier de la salle des machines.
+		var sw: PowerSwitch = game.interact.get_obj("power")
+		await _use(sw, Vector2i(14, 4))
+		at.check(game.power_on, "courant rétabli depuis la salle des machines")
+		await seconds(2.5)
 
-	# Visite.
-	var worst := 10000.0
-	for v in VIEWS:
-		p.teleport_to(MapData.cell_to_world(v[1], 0.05))
-		H.aim_at(p, MapData.cell_to_world(v[2], 1.3))
-		await seconds(0.6)
-		at.begin_perf()
+		# Visite.
+		var worst := 10000.0
+		for v in VIEWS:
+			p.teleport_to(MapData.cell_to_world(v[1], 0.05))
+			H.aim_at(p, MapData.cell_to_world(v[2], 1.3))
+			await seconds(0.6)
+			at.begin_perf()
+			await seconds(1.0)
+			worst = minf(worst, at.end_perf(v[0]))
+			await at.screenshot(v[0])
+		at.check_perf(worst, 150.0, "pire vue de KINO")
+
+	if not owns(1):
+		return
+	if not owns(0):
+		# Partie seule : portes et courant ouverts directement.
+		game.rounds.paused = true
+		await H.clear_zombies(self)
+		for id in game.doors:
+			game.doors[id].srv_open()
+		(game.interact.get_obj("power") as PowerSwitch).srv_use(1)
+		await until(func(): return game.power_on, 5.0, "courant")
 		await seconds(1.0)
-		worst = minf(worst, at.end_perf(v[0]))
-		await at.screenshot(v[0])
-	at.check_perf(worst, 150.0, "pire vue de KINO")
-
 	await _teleporter(tp, mf, pap, pd)
 	await _pap(pap, pd)
 

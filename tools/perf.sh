@@ -16,7 +16,7 @@ SCENARIOS=${*:-"boot fps_controller zombie_entity map_tour"}
 QARG=""
 [ -n "$QUALITY" ] && QARG="--quality=$QUALITY"
 for S in $SCENARIOS; do
-  "$GODOT" --path . --windowed --resolution 1920x1080 -- --autotest=$S $QARG > "$OUT/perf_$S.log" 2>&1 || FAIL=1
+  "$GODOT" --path . --resolution 1920x1080 -- --autotest=$S $QARG > "$OUT/perf_$S.log" 2>&1 || FAIL=1
   echo "== $S${QUALITY:+ ($QUALITY)}"
   grep -E "\[perf\]|perf .*fps|ECHEC" "$OUT/perf_$S.log"
 done

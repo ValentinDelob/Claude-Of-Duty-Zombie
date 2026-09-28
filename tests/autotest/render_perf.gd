@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
 ## Optimisations de rendu (perf: optimize rendering after the visual rework) :
 ##  - préréglage automatique (QualityProbe) : mini-banc d'essai dans le menu,
 ##    résultat appliqué et enregistré (fichier de réglages des tests) ;

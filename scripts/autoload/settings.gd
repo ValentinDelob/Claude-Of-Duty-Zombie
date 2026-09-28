@@ -172,7 +172,9 @@ func save_settings() -> void:
 func apply() -> void:
 	if DisplayServer.get_name() != "headless":
 		var want := DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
-		if DisplayServer.window_get_mode() != want and not _cmdline_has("--windowed"):
+		# En autotest, la fenêtre est gérée par Autotest (réduite puis hors écran).
+		if DisplayServer.window_get_mode() != want and not _cmdline_has("--windowed") \
+				and not _cmdline_has_prefix("--autotest="):
 			DisplayServer.window_set_mode(want)
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
 	_set_bus_volume("Master", master_volume)
