@@ -168,7 +168,7 @@ func _spawn_player(pid: int, pos: Vector3) -> void:
 	interact.register(rt)
 	p.add_child(rt)
 	p.revive_target = rt
-	p.teleport_to(pos, PI)
+	p.teleport_to(pos, layout.player_spawn_yaw())
 	players[pid] = p
 	if p.is_local:
 		local_player = p
@@ -396,6 +396,17 @@ func _build_mystery_box() -> void:
 	root.add_child(box)
 	for m in spots:
 		layout.set_blocked(m.block, true)
+	# Tableaux à la craie indiquant l'emplacement de la boîte (Kino).
+	var boards := layout.box_boards()
+	if not boards.is_empty():
+		var outlines := layout.room_outlines()
+		var pts: Array[Vector3] = []
+		for m in spots:
+			pts.append(m.pos)
+		for bm in boards:
+			var board := BoxBoard.new()
+			board.setup(bm, outlines, pts, box)
+			root.add_child(board)
 
 
 func _build_pack_a_punch() -> void:
@@ -442,6 +453,12 @@ func _build_traps() -> void:
 		trap.setup_marker(m)
 		interact.register(trap)
 		world.add_child(trap)
+		# Second levier à l'autre bout (Kino der Toten).
+		if m.data.has("lever2"):
+			var lv := TrapLever.new()
+			lv.setup(trap, m.data.lever2)
+			interact.register(lv)
+			world.add_child(lv)
 
 
 func _build_barricades() -> void:

@@ -193,16 +193,20 @@ PERKS = [("Q", "lazarus", 527, -1261, 80), ("J", "titan", -328, -492, 5), ("S", 
 # Neuf emplacements de la boîte, ordre du jeu (index 1 = balcon du hall, exclu du départ).
 BOXES = [(901, -620, 320), (-1, -775, 266, "S"), (-1288, -635, 80), (-1500, 226, 0, "E"),
          (-1385, 1016, 175, "S"), (1, 1842, 0), (1343, 1313, 0, "E"), (1657, 714, 0, "N"), (49, 136, -10, "N")]
+# Tableaux à la craie indiquant la boîte (positions [ESTIMÉ] : balcon du hall
+# d'après les captures, puis une par grande salle).
+BOX_BOARDS = [(-150, -510, 266), (450, -510, 5), (1200, 905, 0), (-1350, 0, 0), (-300, 1910, 0)]
 POWER = (-488, 1246, 0)
 PAP = (6, -487, 320)
 TRAPS = [
-    dict(id="trap", area=(-80, -390, 20, 80, -310, 250), lever=(96, -530, 80)),
-    dict(id="trap_2", area=(900, -825, 320, 1030, -712, 440), lever=(951, -877, 320)),
-    dict(id="trap_3", area=(-1636, 1224, 175, -1316, 1355, 300), lever=(-1626, 1241, 175)),
-    dict(id="trap_4", area=(987, 1439, 0, 1044, 1618, 130), lever=(1299, 1524, 0)),
-    dict(id="trap_5", area=(-1014, -720, 70, -833, -556, 200), lever=(-825, -943, 80, "S"), fire=True),
+    dict(id="trap", area=(-80, -390, 20, 80, -310, 250), lever=(96, -530, 80), lever2=(-92, -175, 0)),
+    dict(id="trap_2", area=(900, -825, 320, 1030, -712, 440), lever=(951, -877, 320), lever2=(1091, -713, 320)),
+    dict(id="trap_3", area=(-1636, 1224, 175, -1316, 1355, 300), lever=(-1626, 1241, 175), lever2=(-1691, 1627, 175)),
+    dict(id="trap_4", area=(987, 1439, 0, 1044, 1618, 130), lever=(1299, 1524, 0), lever2=(933, 1646, 0)),
+    dict(id="trap_5", area=(-1014, -720, 70, -833, -556, 200), lever=(-825, -943, 80, "S"), lever2=(-1087, -334, 80), fire=True),
 ]
-PLAYER_SPAWNS = [(-101, -1256, 82), (-91, -1331, 82), (76, -1343, 82), (100, -1240, 82)]
+# Sur le disque du poste central (dessus à ~0,3 m du sol du hall), face à la scène.
+PLAYER_SPAWNS = [(-45, -1245, 94), (-40, -1300, 94), (40, -1300, 94), (45, -1245, 94)]
 RISERS = [(-606, -239, 0), (-574, -447, 0), (390, -395, 0), (670, -339, 0), (-581, 197, 0),
           (-605, 532, 0), (444, 425, 0)]
 TELEPORTER = dict(pad=(-306, 1116, 0), exit=(0, -436, 322), mainframe=(2, -1266, 80))
@@ -467,7 +471,7 @@ def nearest_wall(x, y, z):
         for s in (sgn, -sgn):
             px, py = (line - s * 30, y) if ori == "v" else (x, line - s * 30)
             rr = room_at(px, py, z)
-            if rr is not None and abs(floor_at(rr, px, py) - (z - 40)) < 60:
+            if rr is not None and abs(floor_at(rr, px, py) - (z - 40)) < 30:
                 sgn = s
                 break
     face = line - sgn * WALL_T / 2
@@ -518,17 +522,21 @@ for mid, perk, x, y, z in PERKS:
     markers["perks"].append(it)
 for b in BOXES:
     markers["box"].append(wall_item(b[0], b[1], b[2], b[3] if len(b) > 3 else None))
+markers["box_boards"] = [wall_item(*b) for b in BOX_BOARDS]
 markers["power"] = wall_item(*POWER)
 markers["pap"] = wall_item(*PAP)
 for t in TRAPS:
     x0, y0, z0, x1, y1, z1 = t["area"]
     a, b = G(x0, y0, z0), G(x1, y1, z1)
     lv = wall_item(*t["lever"])
-    markers["traps"].append({"id": t["id"], "lever": lv, "fire": t.get("fire", False),
+    # BO1 : 1000 points, actifs 40 s, recharge 60 s, un levier à chaque bout.
+    markers["traps"].append({"id": t["id"], "lever": lv, "lever2": wall_item(*t["lever2"]), "fire": t.get("fire", False),
+                             "active": 40.0, "cooldown": 60.0,
                              "area": [min(a[0], b[0]), a[1], min(a[2], b[2]), max(a[0], b[0]), b[1], max(a[2], b[2])]})
 tp = TELEPORTER
 markers["teleporter"] = {"pad": G(*tp["pad"]), "exit": G(*tp["exit"]), "exit_zone": "p",
-                         "mainframe": {"p": G(*tp["mainframe"]), "wall": [0, 0, 1]}}
+                         "mainframe": {"p": G(*tp["mainframe"]), "wall": [0, 0, -1], "floor": True}}
+markers["player_yaw"] = 0.0
 
 # Lampes : une grille par salle (gris : l'éclairage final viendra à la passe artistique).
 lamps = []

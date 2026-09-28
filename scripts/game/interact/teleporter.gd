@@ -44,6 +44,13 @@ var has_return_pos := false
 var reveals_pap := false
 var pap_revealed := false
 var mainframe: TeleporterMainframe
+## Réglages de la carte (MapDef.teleporter_*).
+var cost := COST
+var charge_time := CHARGE_TIME
+var stay_time := ACTIVE_TIME
+var cooldown_time := COOLDOWN_TIME
+var link_cooldown := 0.0
+var kill_radius := 0.0
 var _shown_link: Link = Link.LINKED
 var _shown_pap := false
 
@@ -57,6 +64,13 @@ static func build(game: Game) -> Teleporter:
 	var tp := Teleporter.new()
 	tp.setup_at(spec.pad, spec.exit)
 	tp.reveals_pap = game.map_def.pap_revealed_by_teleporter
+	var def := game.map_def
+	tp.cost = def.teleporter_cost
+	tp.charge_time = def.teleporter_charge
+	tp.stay_time = def.teleporter_stay
+	tp.cooldown_time = def.teleporter_cooldown
+	tp.link_cooldown = def.teleporter_link_cooldown
+	tp.kill_radius = def.teleporter_kill_radius
 	var mf: MapMarker = spec.get("mainframe")
 	if game.map_def.teleporter_link and mf != null:
 		tp.needs_link = true
@@ -185,7 +199,9 @@ func prompt(_pid: int) -> String:
 			return "[F] Activer la plateforme du téléporteur"
 		Link.PRIMED:
 			return "Reliez le téléporteur au poste central (hall d'entrée)"
-	return "[F] Activer le téléporteur %s" % Interactable.cost_text(COST)
+	if cost <= 0:
+		return "[F] Activer le téléporteur"
+	return "[F] Activer le téléporteur %s" % Interactable.cost_text(cost)
 
 
 func srv_use(pid: int) -> void:
@@ -202,11 +218,11 @@ func srv_use(pid: int) -> void:
 		return
 	if link == Link.PRIMED:
 		return
-	if not game.session.try_spend(pid, COST):
+	if cost > 0 and not game.session.try_spend(pid, cost):
 		system.deny(pid, "Pas assez de points")
 		return
 	system.purchase_fx(self)
-	_timer = CHARGE_TIME
+	_timer = charge_time
 	_set_state(State.CHARGING)
 
 
@@ -252,17 +268,18 @@ func _process(delta: float) -> void:
 				# liaison est perdue).
 				if needs_link:
 					link = Link.UNLINKED
-				_timer = COOLDOWN_TIME * 0.25
+				_timer = cooldown_time * 0.25
 				_set_state(State.COOLDOWN)
 				return
 			for i in _travellers.size():
 				var off := Vector3(cos(i * 1.7), 0, sin(i * 1.7)) * (0.6 if i > 0 else 0.0)
 				_send(_travellers[i], exit_pos + off, true)
 			print("[Teleporter] %d joueur(s) téléporté(s)" % _travellers.size())
+			_kill_around_pad()
 			if reveals_pap and not pap_revealed:
 				pap_revealed = true
 				print("[Teleporter] le Pack-a-Punch apparaît")
-			_timer = ACTIVE_TIME
+			_timer = stay_time
 			_set_state(State.ACTIVE)
 		State.ACTIVE:
 			var back := return_pos if has_return_pos else global_position
@@ -273,9 +290,14 @@ func _process(delta: float) -> void:
 			if needs_link:
 				# Comme à Kino : il faut relier à nouveau avant chaque voyage.
 				link = Link.UNLINKED
-				_set_state(State.IDLE)
+				if link_cooldown > 0.0:
+					# Kino der Toten : 90 s avant de pouvoir relier à nouveau.
+					_timer = link_cooldown
+					_set_state(State.COOLDOWN)
+				else:
+					_set_state(State.IDLE)
 				return
-			_timer = COOLDOWN_TIME
+			_timer = cooldown_time
 			_set_state(State.COOLDOWN)
 		State.COOLDOWN:
 			_set_state(State.IDLE)
@@ -325,7 +347,7 @@ func _animate(delta: float) -> void:
 	var on := system.game.power_on
 	match state:
 		State.CHARGING:
-			var k := 1.0 - clampf((end_time_msec - Time.get_ticks_msec()) / (CHARGE_TIME * 1000.0), 0.0, 1.0)
+			var k := 1.0 - clampf((end_time_msec - Time.get_ticks_msec()) / (charge_time * 1000.0), 0.0, 1.0)
 			_ring_mat.emission = Color(1.0, 0.6, 0.3).lerp(Color(1, 1, 1), k)
 			_ring_mat.emission_energy_multiplier = 2.0 + k * 10.0 + sin(_t * 40.0) * 2.0
 			_light.light_energy = 1.0 + k * 5.0
@@ -347,3 +369,21 @@ func _animate(delta: float) -> void:
 			_ring_mat.emission = Color(1.0, 0.5, 0.15)
 			_ring_mat.emission_energy_multiplier = (1.5 + 0.3 * sin(_t * 2.0)) if on else 0.0
 			_light.light_energy = 0.6 if on else 0.0
+
+
+## Serveur, au départ : les zombies proches de la plateforme sont foudroyés
+## (Kino der Toten : 300 unités autour du pad), sans points.
+func _kill_around_pad() -> void:
+	if kill_radius <= 0.0:
+		return
+	var game := system.game
+	var n := 0
+	for z: Zombie in game.zombies.alive.duplicate():
+		if z.is_alive() and z.global_position.distance_to(global_position) <= kill_radius:
+			var dir := z.global_position - global_position
+			dir.y = 0.0
+			# pid 0 : aucun point ni bonus (comme la Nuke).
+			game.combat.damage_zombie(z.id, z.health + 1, 0, false, dir.normalized() if dir.length() > 0.01 else Vector3.FORWARD, Combat.HitKind.SPECIAL)
+			n += 1
+	if n > 0:
+		print("[Teleporter] %d zombie(s) foudroyé(s) au départ" % n)

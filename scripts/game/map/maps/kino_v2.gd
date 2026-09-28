@@ -32,6 +32,14 @@ func _init() -> void:
 	music = "ambience_kino"
 	teleport_banner = "SALLE DE PROJECTION"
 	teleporter_link = true
+	# Téléporteur de Kino der Toten : gratuit, charge 1,8 s, zombies foudroyés
+	# à 300 u (7,6 m) du pad, 30 s dans la salle de projection, 90 s de
+	# recharge avant de pouvoir relier à nouveau.
+	teleporter_cost = 0
+	teleporter_charge = 1.8
+	teleporter_stay = 30.0
+	teleporter_link_cooldown = 90.0
+	teleporter_kill_radius = 7.62
 	look = {
 		"ambient_color": Color(0.42, 0.3, 0.24),
 		"ambient_energy": 0.52,

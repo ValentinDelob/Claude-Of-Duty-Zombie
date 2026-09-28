@@ -20,6 +20,9 @@ var activator := 0
 var _timer := 0.0
 var _hurt_t: Dictionary = {}
 var _normal := Vector3.FORWARD
+## Durées du piège (Kino der Toten : 40 s actif, 60 s de recharge).
+var active_time := ACTIVE_TIME
+var cooldown_time := COOLDOWN_TIME
 var _area := AABB()
 var _area_min := Vector3.ZERO
 var _area_max := Vector3.ZERO
@@ -41,6 +44,8 @@ func setup_marker(m: MapMarker) -> void:
 	_normal = m.wall
 	position = m.on_wall(0.12, 1.3)
 	interact_range = 1.9
+	active_time = float(m.data.get("active", ACTIVE_TIME))
+	cooldown_time = float(m.data.get("cooldown", COOLDOWN_TIME))
 	_area = m.data.area
 	# Rectangle au sol (y = sol de la zone).
 	_area_min = _area.position
@@ -137,7 +142,7 @@ func srv_use(pid: int) -> void:
 		return
 	system.purchase_fx(self)
 	activator = pid
-	_timer = ACTIVE_TIME
+	_timer = active_time
 	_hurt_t.clear()
 	state = State.ACTIVE
 	broadcast_state()
@@ -172,7 +177,7 @@ func _process(delta: float) -> void:
 	if _timer <= 0.0:
 		if state == State.ACTIVE:
 			state = State.COOLDOWN
-			_timer = COOLDOWN_TIME
+			_timer = cooldown_time
 		else:
 			state = State.IDLE
 		broadcast_state()

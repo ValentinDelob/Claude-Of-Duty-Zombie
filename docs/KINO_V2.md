@@ -161,3 +161,16 @@ Les étapes 5 et 6 se parallélisent avec des agents (worktrees, fichiers disjoi
   l'arrière-salle simplifié en une volée, pas encore de gravats ni de
   fauteuils dans la salle, poste central encore mural, fosse à feu en piège
   électrique provisoire, lampes en grille.
+- Étape 4 : jeu de Kino der Toten sur la maquette. Téléporteur de BO1
+  (réglages par carte `MapDef.teleporter_*` : gratuit, charge 1,8 s, zombies
+  foudroyés à 7,6 m du pad au départ, 30 s en salle de projection, retour sur
+  le poste central, 90 s de recharge puis nouvelle liaison) ; poste central
+  en disque au sol du hall (`TeleporterMainframe.floor_pad`, bord incliné
+  praticable, départ des joueurs dessus, face à la scène :
+  `MapLayout.player_spawn_yaw`) ; Pack-a-Punch en salle de projection ;
+  pièges à deux leviers (`TrapLever`) et durées par piège (Kino : 40 s / 60 s) ;
+  tableaux à la craie de la boîte (`BoxBoard` : plan tracé d'après les salles,
+  une ampoule par emplacement, verte à l'emplacement actuel après le courant,
+  clignotement pendant un déplacement ou une Liquidation) ; ours de la boîte
+  aux probabilités de BO1 (`MysteryBox.skull_chance`, toutes les cartes).
+  Scénario `kino_v2_gameplay`.

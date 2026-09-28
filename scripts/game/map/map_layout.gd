@@ -143,3 +143,18 @@ func ground(pos: Vector3) -> Vector3:
 ## Hauteur du sol sous `pos` (cartes plates : 0).
 func floor_y(_pos: Vector3) -> float:
 	return 0.0
+
+
+## Orientation des joueurs à l'apparition (lacet ; PI : vers +z).
+func player_spawn_yaw() -> float:
+	return PI
+
+
+## Tableaux indicateurs de la boîte (Kino der Toten) : MapMarker muraux.
+func box_boards() -> Array[MapMarker]:
+	return []
+
+
+## Contours des salles ([[x, z]...], plan) pour les plans à la craie.
+func room_outlines() -> Array:
+	return []

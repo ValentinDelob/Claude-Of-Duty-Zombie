@@ -10,6 +10,12 @@ var _lamp_mat: StandardMaterial3D
 var _tube_mat: StandardMaterial3D
 var _light: OmniLight3D
 var _t := 0.0
+## Kino der Toten : disque bas au centre du hall (on monte dessus), au lieu
+## d'une armoire murale.
+var floor_pad := false
+const PAD_TOP_RADIUS := 1.75
+const PAD_BOTTOM_RADIUS := 2.2
+const PAD_HEIGHT := 0.28
 
 
 func setup(cell: Vector2i, data: MapData) -> void:
@@ -20,16 +26,24 @@ func setup_marker(m: MapMarker) -> void:
 	interact_id = "mainframe"
 	name = "Mainframe"
 	_normal = m.wall
-	position = m.pos + _normal * 0.12
-	interact_range = 2.2
+	floor_pad = bool(m.data.get("floor", false))
+	position = m.pos if floor_pad else m.pos + _normal * 0.12
+	interact_range = 2.8 if floor_pad else 2.2
 
 
 ## Où arrivent les joueurs au retour de la cabine de projection.
 func arrival_point() -> Vector3:
+	if floor_pad:
+		return position + Vector3.UP * (PAD_HEIGHT + 0.05)
 	return position - _normal * 1.6
 
 
 func _ready() -> void:
+	if floor_pad:
+		_build_floor_pad()
+		system.game.power_changed.connect(func(_on): refresh())
+		refresh()
+		return
 	look_at(global_position - _normal, Vector3.UP)
 	rotate_object_local(Vector3.UP, PI)
 	var steel := WorldLook.surface("steel")
@@ -150,6 +164,8 @@ func _process(delta: float) -> void:
 
 
 func interact_point() -> Vector3:
+	if floor_pad:
+		return global_position + Vector3.UP * 1.0
 	return global_position - _normal * 0.6 + Vector3.UP * 1.2
 
 
@@ -169,3 +185,85 @@ func prompt(_pid: int) -> String:
 func srv_use(pid: int) -> void:
 	if teleporter:
 		teleporter.srv_link(pid)
+
+
+## Disque du hall : socle à bord incliné (~32° : on y monte sans marche),
+## plateau sombre, anneau de lampes selon la liaison, câble épais au sol
+## vers la salle de théâtre (direction `_normal`).
+func _build_floor_pad() -> void:
+	var steel := WorldLook.surface("steel")
+	var base := MeshInstance3D.new()
+	var cm := CylinderMesh.new()
+	cm.top_radius = PAD_TOP_RADIUS
+	cm.bottom_radius = PAD_BOTTOM_RADIUS
+	cm.height = PAD_HEIGHT
+	cm.radial_segments = 40
+	cm.rings = 1
+	base.mesh = cm
+	base.material_override = WorldLook.surface("door")
+	base.position.y = PAD_HEIGHT * 0.5
+	add_child(base)
+	var plate := MeshInstance3D.new()
+	var pm := CylinderMesh.new()
+	pm.top_radius = PAD_TOP_RADIUS * 0.62
+	pm.bottom_radius = PAD_TOP_RADIUS * 0.62
+	pm.height = 0.03
+	pm.radial_segments = 32
+	plate.mesh = pm
+	plate.material_override = steel
+	plate.position.y = PAD_HEIGHT + 0.01
+	add_child(plate)
+	# Anneau de lampes (lueur selon la liaison).
+	_tube_mat = PropBuilder._emissive(Color(1.0, 0.45, 0.15), 0.4)
+	var ring := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = PAD_TOP_RADIUS * 0.66
+	tm.outer_radius = PAD_TOP_RADIUS * 0.74
+	tm.rings = 40
+	tm.ring_segments = 6
+	ring.mesh = tm
+	ring.material_override = _tube_mat
+	ring.position.y = PAD_HEIGHT + 0.005
+	ring.scale.y = 0.3
+	add_child(ring)
+	# Voyant central (rouge : non relié, clignote : plateforme activée, vert : relié).
+	_lamp_mat = PropBuilder._emissive(Color(1.0, 0.1, 0.05), 3.0)
+	var lamp := MeshInstance3D.new()
+	var sm := SphereMesh.new()
+	sm.radius = 0.14
+	sm.height = 0.14
+	sm.is_hemisphere = true
+	lamp.mesh = sm
+	lamp.material_override = _lamp_mat
+	lamp.position.y = PAD_HEIGHT + 0.02
+	add_child(lamp)
+	# Câble du téléporteur, posé au sol.
+	var cable := MeshInstance3D.new()
+	var cc := CylinderMesh.new()
+	cc.top_radius = 0.09
+	cc.bottom_radius = 0.09
+	cc.height = 6.0
+	cc.radial_segments = 8
+	cable.mesh = cc
+	cable.material_override = WorldLook.surface("barrel")
+	cable.top_level = true
+	add_child(cable)
+	var dir := Vector3(_normal.x, 0.0, _normal.z).normalized()
+	cable.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP) * Basis(Vector3.RIGHT, PI * 0.5),
+			global_position + dir * (PAD_BOTTOM_RADIUS + 2.9) + Vector3.UP * 0.09)
+	_light = OmniLight3D.new()
+	_light.light_color = Color(1.0, 0.5, 0.2)
+	_light.omni_range = 5.0
+	_light.light_energy = 0.0
+	_light.position = Vector3(0, 1.0, 0)
+	add_child(_light)
+	# Collision : le socle (bord incliné praticable), impacts métalliques.
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.set_meta("surface", "metal")
+	var cs := CollisionShape3D.new()
+	cs.shape = cm.create_convex_shape()
+	cs.position.y = PAD_HEIGHT * 0.5
+	body.add_child(cs)
+	add_child(body)

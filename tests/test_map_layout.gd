@@ -72,3 +72,12 @@ func test_teleporter_and_exit_zone() -> void:
 	assert_true(tp.mainframe != null and tp.mainframe.block == "mainframe")
 	assert_eq(l.teleporter_exit_zone(), "p", "arrivée dans la cabine de projection")
 	assert_eq(l.zone_at(tp.exit), "p")
+
+
+func test_box_teddy_bear_odds_like_bo1() -> void:
+	assert_near(MysteryBox.skull_chance(3, 0), 0.0, 0.001, "rien avant le 4e tirage")
+	assert_near(MysteryBox.skull_chance(4, 0), 0.15, 0.001, "15 % du 4e au 7e")
+	assert_near(MysteryBox.skull_chance(7, 3), 0.15, 0.001)
+	assert_near(MysteryBox.skull_chance(8, 0), 1.0, 0.001, "départ forcé au 8e si jamais parti")
+	assert_near(MysteryBox.skull_chance(8, 1), 0.3, 0.001, "30 % du 8e au 12e")
+	assert_near(MysteryBox.skull_chance(13, 2), 0.5, 0.001, "50 % ensuite")

@@ -178,8 +178,8 @@ poste : `sh tools/perf.sh perf_costs` ; détail dans docs/ARCHITECTURE.md.
    texture ni son) ; tout le contenu de Kino est reproduit ; l'ancienne KINO
    est remplacée à la fin. Modèles construits par scripts Blender sans fenêtre
    (Blender 5.2.1 installé ; serveur MCP officiel « Blender Lab » enregistré
-   dans Claude Code, lancer Blender avec `--online-mode`). Étapes 1 à 3 faites
-   (MapLayout ; cartes en maillage à étages ; maquette grise --map=kino_v2).
+   dans Claude Code, lancer Blender avec `--online-mode`). Étapes 1 à 4 faites
+   (MapLayout ; cartes à étages ; maquette --map=kino_v2 et son jeu BO1).
 4. Écarts BO1 connus à reprendre : annonceur (voix procédurale), zone de
    renversement du TONNERRE-7, arme merveille unique, M16 amélioré sans
    lance-grenades, vol des zombies non physique, pas d'animations de tir des
@@ -231,8 +231,8 @@ puis reprends §6 puis §4 dans l'ordre en respectant §0 et §2.
   la même image que leur apparition), scope (visée du torse, attentes sur
   événements).
 - Aucun agent en cours, aucun travail non poussé : tout est sur main.
-- Prochaine étape : KINO V2 (§4.3, docs/KINO_V2.md), étape 4 (gameplay complet :
-  téléporteur BO1 gratuit avec poste central au sol, salle de projection, PaP,
-  pièges BO1, tableaux de la boîte) ; voir « Avancement » de docs/KINO_V2.md.
+- Prochaine étape : KINO V2 (§4.3, docs/KINO_V2.md), étape 5 (nouveau contenu :
+  MP40 au mur, Claymores, tourelles, fosse à feu, Mule Kick sous nom original,
+  rampants des plafonds, zombies des gravats, 4 salles bonus) ; voir « Avancement ».
 - Les tests dépendant du temps sont nombreux : lancer check.sh avec un `JOBS=`
   réduit quand des agents font tourner des jeux en même temps.

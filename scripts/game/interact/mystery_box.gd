@@ -14,6 +14,9 @@ const ROLL_TIME := 4.2
 const READY_TIME := 9.0
 const MOVE_TIME := 9.0
 ## Nombre d'utilisations avant que le crâne puisse apparaître.
+## Ours en peluche (départ de la boîte), règles de BO1 (_zombiemode_weapons) :
+## rien avant le 4e tirage, 15 % du 4e au 7e ; si la boîte n'a encore jamais
+## bougé, départ forcé au 8e ; ensuite 30 % du 8e au 12e, 50 % à partir du 13e.
 const MIN_USES_BEFORE_SKULL := 4
 const SKULL_CHANCE := 0.15
 ## Liste et poids des armes : WeaponDB.box_pool() (CLAUDE-RAY plus rare).
@@ -327,7 +330,7 @@ func srv_use(pid: int) -> void:
 func _roll(pd: PlayerData) -> void:
 	skull = false
 	# Pas de crâne pendant une liquidation (la boîte ne déménage pas).
-	if force_result == "skull" or (force_result == "" and not fire_sale and not temporary and uses > MIN_USES_BEFORE_SKULL and _rng.randf() < SKULL_CHANCE):
+	if force_result == "skull" or (force_result == "" and not fire_sale and not temporary and _rng.randf() < skull_chance(uses, moves)):
 		skull = true
 		weapon = ""
 		force_result = ""
@@ -526,3 +529,17 @@ func _show_skull() -> void:
 		_part(_display_model, Vector3(0.08, 0.08, 0.02), Vector3(x, 0.12, 0.185), eye)
 	_display.position.y = 1.0
 	_display.add_child(_display_model)
+
+
+## Probabilité de l'ours au tirage n° `use` (compté depuis le dernier
+## déplacement, 1 = premier), `moved` = déplacements déjà faits.
+static func skull_chance(use: int, moved: int) -> float:
+	if use < MIN_USES_BEFORE_SKULL:
+		return 0.0
+	if use < 8:
+		return SKULL_CHANCE
+	if moved == 0:
+		return 1.0
+	if use < 13:
+		return 0.3
+	return 0.5

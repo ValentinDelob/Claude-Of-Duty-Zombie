@@ -69,6 +69,16 @@ var teleporter_link := false
 ## Pack-a-Punch caché jusqu'au premier voyage du téléporteur (il surgit alors
 ## de la scène) au lieu d'une salle secrète.
 var pap_revealed_by_teleporter := false
+## Réglages du téléporteur (défauts : BUNKER K-7 et première KINO) ; KINO V2
+## reprend ceux de Kino der Toten (gratuit, 1,8 s, 30 s, 90 s de recharge).
+var teleporter_cost := 1500
+var teleporter_charge := 3.0
+var teleporter_stay := 25.0
+var teleporter_cooldown := 60.0
+## Recharge après chaque voyage en mode liaison (0 : relier aussitôt).
+var teleporter_link_cooldown := 0.0
+## Zombies tués autour de la plateforme au départ (0 : aucun).
+var teleporter_kill_radius := 0.0
 ## Ambiance lumineuse : surcharges de WorldLook.setup_environment
 ## (ambient_color, ambient_energy, fog_color, fog_density, saturation...).
 var look: Dictionary = {}

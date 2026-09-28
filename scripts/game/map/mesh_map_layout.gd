@@ -207,7 +207,14 @@ func teleporter() -> Dictionary:
 	if not _markers.has("teleporter"):
 		return {}
 	var t: Dictionary = _markers.teleporter
-	var mf: MapMarker = _wall_marker("mainframe", t.mainframe) if t.has("mainframe") else null
+	var mf: MapMarker = null
+	if t.has("mainframe"):
+		mf = _wall_marker("mainframe", t.mainframe)
+		if t.mainframe.get("floor", false):
+			# Disque au sol (Kino) : centré sur le point relevé.
+			mf.pos = vec(t.mainframe.p)
+			mf.zone = zone_at(mf.pos)
+			mf.data = {"floor": true}
 	return {"pad": vec(t.pad), "exit": vec(t.exit), "mainframe": mf}
 
 
@@ -219,7 +226,12 @@ func traps() -> Array[MapMarker]:
 	var out: Array[MapMarker] = []
 	for t in _markers.get("traps", []):
 		var mk := _wall_marker(String(t.id), t.lever)
-		mk.data = {"area": box(t.area), "cells": []}
+		mk.data = {"area": box(t.area), "cells": [], "fire": bool(t.get("fire", false))}
+		for k in ["active", "cooldown"]:
+			if t.has(k):
+				mk.data[k] = float(t[k])
+		if t.has("lever2"):
+			mk.data["lever2"] = _wall_marker(String(t.id) + "_b", t.lever2)
 		out.append(mk)
 	return out
 
@@ -244,3 +256,23 @@ func windows() -> Array:
 
 func floor_y(pos: Vector3) -> float:
 	return ground(pos).y
+
+
+func player_spawn_yaw() -> float:
+	return float(_markers.get("player_yaw", PI))
+
+
+func box_boards() -> Array[MapMarker]:
+	var out: Array[MapMarker] = []
+	var list: Array = _markers.get("box_boards", [])
+	for i in list.size():
+		out.append(_wall_marker("board_%d" % i, list[i]))
+	return out
+
+
+func room_outlines() -> Array:
+	var out := []
+	for r in data.get("rooms", []):
+		if not String(r.id).begins_with("dehors"):
+			out.append(r.outline)
+	return out
