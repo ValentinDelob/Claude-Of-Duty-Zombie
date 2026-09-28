@@ -263,6 +263,23 @@ précédent.
   matériau (une collision par rangée + barrière joueurs/zombies que les balles
   traversent), rideaux, écran animé et faisceau du projecteur (liés au
   courant par `PowerGrid.add_hook`), lustres et appliques (lampes de la carte).
+- **Machines d'atouts** (`PerkMachine`) : un modèle Blender par atout,
+  `sh tools/blender.sh tools/blender/props/perk_machines.py assets/models/perks
+  [dossier d'aperçus] [ids...]` (sans fenêtre ; aperçus PNG de face, de trois
+  quarts et en gros plan). Un objet par matériau (`paint`, `paint2`,
+  `chrome`, `dark`, `glass`, `lit_sign`, `lit_ink`, `lit_lamp` : un appel de
+  rendu chacun) ; seuls `paint` et `lit_sign` projettent une ombre. Les
+  boîtes `col_<n>` du .glb deviennent les `BoxShape3D` du `StaticBody3D`
+  « Body » enfant direct de la machine (joueurs et zombies butent dessus, les
+  balles s'y arrêtent : `Fx.surface_of` rend « metal » pour un parent
+  `PerkMachine`), puis sont retirées. `perk_machine.gdshader` (couleur,
+  rugosité et métal lus dans le .glb, matériau partagé par atout) ajoute
+  rouille, coulures et crasse en coordonnées de l'objet ; le courant passe
+  par le paramètre d'instance `lit` (panneau terne éteint, lumineux allumé),
+  `seed` varie l'usure d'une machine à l'autre. Nom et emblème (originaux)
+  sont en relief dans le modèle. Sans .glb : repli en boîtes (ancien rendu).
+  Scénario `perk_look` : modèle, collision, joueur arrêté, balle arrêtée,
+  allumage, captures de chaque machine sur les deux cartes.
 
 ## Tests
 

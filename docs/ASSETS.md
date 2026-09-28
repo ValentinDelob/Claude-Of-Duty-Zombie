@@ -1,6 +1,9 @@
 # Assets externes (sons)
 
-Les graphismes du jeu sont 100 % procéduraux. La plupart des bruitages
+Les graphismes du jeu sont 100 % procéduraux (les modèles 3D de
+`assets/models/` sont produits par nos scripts Blender, voir
+`tools/blender/`, aucun modèle téléchargé ; le lettrage des machines
+d'atouts utilise la police intégrée de Blender, licence libre). La plupart des bruitages
 proviennent d'enregistrements **libres de droits** retravaillés pour le jeu ;
 l'identité sonore originale reste synthétisée par `tools/gen_audio.gd` et
 `tools/gen_audio_menu.gd` : musiques et ambiances, ritournelles des atouts,
