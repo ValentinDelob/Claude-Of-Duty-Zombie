@@ -243,3 +243,35 @@ concerne.
 - Les animations sont procédurales (courbes) et non capturées : pas de
   léger dépassement ou d'hésitation humaine, et une seule chorégraphie
   « chargeur » partagée par les armes à chargeur.
+
+## Machines d'atouts
+
+### Référence (Kino der Toten, Five, Ascension)
+- Distributeurs de soda américains des années 50, environ 2,1 à 2,3 m
+  ornement compris, un peu moins d'un mètre de large, collés au mur ; chaque
+  atout a **sa propre silhouette** reconnaissable de loin : grand
+  distributeur bordeaux à épaules arrondies et tête crème (Juggernog),
+  caisse verte à tête blanche et colonne de hublots (Speed Cola), coffre
+  ambré à bande de tôle ondulée et capsule (Double Tap), glacière basse
+  bleu-gris à fronton incliné et panneau rond sur un mât (Quick Revive).
+- Panneau et enseigne ronde du dessus éclairés de l'intérieur **seulement
+  avec le courant** (sauf Quick Revive en solo) ; la lumière colorée de la
+  machine baigne le sol et les murs voisins ; lettrage peint, fente à
+  pièces, levier, trappe de distribution, garnitures chromées ; peinture
+  écaillée, rouille et crasse au pied ; ritournelle de temps en temps.
+
+### Mise en œuvre (tools/blender/props/perk_machines.py, PerkMachine)
+- Modèles Blender scriptés, un par atout, noms et emblèmes ORIGINAUX en
+  relief (police intégrée de Blender) : TITAN BREW (enclume), RAPID FIZZ
+  (éclair), TWIN SHOT (deux balles dans une capsule), LAZARUS TONIC (cœur),
+  STRIDE SODA (vitrine en arche, chevrons), NOVA FLOP (machine « âge
+  atomique » à dôme de verre, étoile), DEADEYE DRAM (caisse à fronton,
+  réticule). Aucune image ni aucun logo d'Activision.
+- Usure procédurale (`perk_machine.gdshader`) ; éteint : panneau terne ;
+  allumé : panneau lumineux (bloom modéré, lettrage lisible) et lampe
+  colorée devant la machine, à hauteur de hanche.
+
+### Écarts restants
+- Pas de textures peintes (réclames « glacé », prix, éraflures fines) : le
+  détail vient de la géométrie et du bruit procédural.
+- Lettrage en capitales italiques et non en écriture cursive peinte.

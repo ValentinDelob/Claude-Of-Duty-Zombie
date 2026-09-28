@@ -78,8 +78,9 @@ Nacht der Untoten ; HUD, lumière, étalonnage), puis par lots :
 - [x] **Modèles d'armes** à la première personne plus détaillés et fidèles,
   mains/gants, animations de rechargement.
 - [ ] **Décors et matériaux** : textures plus riches (béton, bois, métal,
-  papier peint), accessoires, éclairage de chaque zone ; machines d'atouts,
-  boîte mystère, Pack-a-Punch, téléporteur au style BO1.
+  papier peint), accessoires, éclairage de chaque zone ; machines d'atouts
+  (fait : modèles Blender par atout, voir ART_DIRECTION), boîte mystère,
+  Pack-a-Punch, téléporteur au style BO1.
 - [ ] **Menu principal** et écran de chargement au style BO1.
 - [ ] Mesures de perf à chaque lot (cible GTX 1050 à 60 fps).
 
