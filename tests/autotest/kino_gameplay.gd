@@ -1,5 +1,5 @@
 extends AutotestScenario
-## KINO V2 : jeu propre à Kino der Toten. Départ sur le disque du poste
+## KINO : jeu propre à Kino der Toten. Départ sur le disque du poste
 ## central face à la scène ; téléporteur de BO1 (gratuit, relier le pad puis le
 ## poste central, zombies foudroyés autour du pad, 30 s en salle de
 ## projection, retour sur le disque, 90 s de recharge avant de relier à
@@ -12,7 +12,7 @@ var p: Player
 
 func run() -> void:
 	timeout_sec = 150
-	p = await AutotestHelpers.start_solo_game(self, "kino_v2")
+	p = await AutotestHelpers.start_solo_game(self, "kino")
 	if p == null:
 		return
 	game = Game.instance
@@ -93,6 +93,11 @@ func run() -> void:
 	at.check(tp.state == Teleporter.State.ACTIVE and tp.seconds_left() > 25, "30 s en salle de projection (%d s)" % tp.seconds_left())
 	await seconds(1.5)
 	await at.screenshot("salle_projection")
+	# Pack-a-Punch de la salle de projection : on y dépose son arme (5000).
+	var before := game.session.local_data().points
+	pap.srv_use(1)
+	at.check(pap.state == PackAPunch.State.WORKING and before - game.session.local_data().points == PackAPunch.COST,
+			"Pack-a-Punch utilisable en salle de projection (%d points)" % (before - game.session.local_data().points))
 	# Retour (on abrège l'attente).
 	tp._timer = 0.2
 	await until(func(): return l.zone_at(p.global_position) == "a", 4.0, "retour dans le hall")

@@ -127,8 +127,10 @@ Livré et publié (dernière release : voir `gh release list`) :
   delta (NetCodec, ~2 Ko/s par client), poignée de main avec version de build.
 - Règles BO1 : manches (_zombiemode.gsc : nombre, santé, vitesse, délai),
   points, atouts (sans limite, Quick Revive solo 3 fois), à terre/réanimation.
-- Deux cartes : BUNKER K-7 et KINO (théâtre inspiré de Kino der Toten :
-  téléporteur relié au poste central, Pack-a-Punch qui sort de la scène),
+- Deux cartes : BUNKER K-7 (grille ASCII) et KINO = Kino der Toten à
+  l'échelle 1 (carte en maillage à plusieurs niveaux construite dans
+  Blender, docs/KINO_V2.md : téléporteur de BO1 relié au poste central,
+  salle de projection et Pack-a-Punch, 22 fenêtres, 9 boîtes, 5 pièges),
   sélection de carte (solo et salon), fenêtres barricadées (6 planches,
   rythme BO1 ~1,9 s par planche), portes, courant, pièges électriques.
 - Arsenal BO1 complet (M1911 de départ, 9 armes murales, 17 armes de boîte,
@@ -157,9 +159,12 @@ automatique au premier lancement (scripts/game/quality_probe.gd). Coûts par
 poste : `sh tools/perf.sh perf_costs` ; détail dans docs/ARCHITECTURE.md.
 
 ## 4. Reste à faire (dans cet ordre ; détail dans docs/PLAN.md)
-1. PERF (reste) : fps re-mesurés le 28/09/2026 (voir §3) ; KINO et BUNKER
-   sans zombie tiennent la cible MEDIUM (BUNKER à ~0,05 ms près), la horde de
-   24 zombies la dépasse de ~0,5 ms (lampes 1,5 ms, animation 0,3 ms).
+1. PERF (reste) : fps re-mesurés le 28/09/2026 (voir §3) ; KINO (l'ancienne,
+   en grille) et BUNKER sans zombie tenaient la cible MEDIUM (BUNKER à
+   ~0,05 ms près), la horde de 24 zombies la dépasse de ~0,5 ms (lampes
+   1,5 ms, animation 0,3 ms). La nouvelle KINO (~6 fois plus grande) est à
+   re-mesurer (`sh tools/perf.sh kino_tour perf_costs`, étape 6 de
+   docs/KINO_V2.md : occlusion, distances de visibilité).
    Pistes restantes à chiffrer avec perf_costs :
    animation des zombies lointains à cadence réduite, bruit
    des zombies moins cher, ombres des lampes ; vérifier le préréglage
@@ -178,8 +183,13 @@ poste : `sh tools/perf.sh perf_costs` ; détail dans docs/ARCHITECTURE.md.
    texture ni son) ; tout le contenu de Kino est reproduit ; l'ancienne KINO
    est remplacée à la fin. Modèles construits par scripts Blender sans fenêtre
    (Blender 5.2.1 installé ; serveur MCP officiel « Blender Lab » enregistré
-   dans Claude Code, lancer Blender avec `--online-mode`). Étapes 1 à 4 faites
-   (MapLayout ; cartes à étages ; maquette --map=kino_v2 et son jeu BO1).
+   dans Claude Code, lancer Blender avec `--online-mode`). Étapes 1 à 4 et 7
+   faites (MapLayout ; cartes à étages ; maquette et jeu BO1 ; remplacement :
+   la V2 EST la carte `kino`, l'ancienne KINO en grille est supprimée),
+   étape 6 faite pour la salle de théâtre. Restent l'étape 5 (contenu propre
+   à Kino : Claymores, tourelles, fosse à feu, Mule Kick, rampants des
+   plafonds, zombies des gravats, chutes des toits, salles bonus) et l'étape 6
+   pour les autres salles (liste dans docs/KINO_V2.md, « Reste »).
 4. Écarts BO1 connus à reprendre : annonceur (voix procédurale), zone de
    renversement du TONNERRE-7, arme merveille unique, M16 amélioré sans
    lance-grenades, vol des zombies non physique, pas d'animations de tir des
@@ -198,11 +208,18 @@ poste : `sh tools/perf.sh perf_costs` ; détail dans docs/ARCHITECTURE.md.
 - Autotests : réglages dans user://settings_autotest.cfg ; le délai d'un
   scénario (timeout_sec) est vérifié chaque seconde (il était figé à 60 s) ;
   les manches de chiens et les bonus aléatoires sont coupés en autotest.
-- Zombies en mode flottant (y = 0, cartes plates) ; cellules de navigation
-  uniquement via NavGrid.set_blocked ; corps non solide pendant l'émergence.
-- Marqueurs de carte déjà pris : W fenêtres, % Bowie, * grenades, ( ) NOVA FLOP
-  et DEADEYE DRAM, + ! $ & A B achats muraux du bunker ; sur KINO aussi
-  B < > / @ ? (décors). Vérifie avant d'en ajouter un.
+- Zombies en mode flottant (y = 0 sur les cartes grille, sol suivi par un
+  rayon sur les cartes en maillage) ; cellules de navigation uniquement via
+  NavGrid.set_blocked ; corps non solide pendant l'émergence.
+- Marqueurs de grille déjà pris (BUNKER K-7) : W fenêtres, % Bowie,
+  * grenades, ( ) NOVA FLOP et DEADEYE DRAM, + ! $ & A B achats muraux.
+  Vérifie avant d'en ajouter un. KINO n'a plus de grille : ses emplacements
+  sont des marqueurs nommés de assets/maps/kino/layout.json (GÉNÉRÉ par
+  tools/blender/kino/make_layout.py, ne pas l'éditer à la main).
+- Cartes en maillage : `MeshMapLayout.zone_at` teste des boîtes ; les poches
+  « dehors » des fenêtres peuvent tomber dans la boîte d'une autre zone (la
+  fenêtre du balcon du hall surplombe la salle basse) : pour un zombie
+  derrière une fenêtre, prendre la zone de sa fenêtre.
 - Godot 4.7 réécrit default_bus_layout.tres à l'import (uid) : committer le
   changement, sinon release.sh refuse l'arbre modifié.
 - Tests unitaires : libérer (free()) tout nœud construit, sinon « leaked at
@@ -231,8 +248,11 @@ puis reprends §6 puis §4 dans l'ordre en respectant §0 et §2.
   la même image que leur apparition), scope (visée du torse, attentes sur
   événements).
 - Aucun agent en cours, aucun travail non poussé : tout est sur main.
-- Prochaine étape : KINO V2 (§4.3, docs/KINO_V2.md), étape 5 (nouveau contenu :
-  MP40 au mur, Claymores, tourelles, fosse à feu, Mule Kick sous nom original,
-  rampants des plafonds, zombies des gravats, 4 salles bonus) ; voir « Avancement ».
+- KINO V2, étape 7 faite : la V2 remplace l'ancienne KINO (id `kino`, même
+  entrée de menu) ; scénarios `kino_tour`, `kino_gameplay`, `kino_theater`.
+- Prochaine étape : KINO (§4.3, docs/KINO_V2.md), étape 5 (nouveau contenu :
+  Claymores, tourelles, fosse à feu, Mule Kick sous nom original, rampants des
+  plafonds, zombies des gravats, chutes des toits, 4 salles bonus ; la MP40 est
+  déjà au mur) puis étape 6 pour les salles hors théâtre ; voir « Reste ».
 - Les tests dépendant du temps sont nombreux : lancer check.sh avec un `JOBS=`
   réduit quand des agents font tourner des jeux en même temps.

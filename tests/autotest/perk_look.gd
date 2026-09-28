@@ -53,7 +53,10 @@ func _map_pass(map_id: String) -> void:
 		game.doors[id].srv_open()
 	await seconds(0.5)
 	var list := machines()
-	at.check(list.size() >= 6, "%s : %d machines d'atouts" % [map_id, list.size()])
+	# Kino der Toten : Quick Revive, Juggernog, Speed Cola, Double Tap (Mule
+	# Kick à venir) ; BUNKER K-7 : les 7 atouts.
+	var want := 4 if map_id == "kino" else 7
+	at.check(list.size() >= want, "%s : %d machines d'atouts (au moins %d)" % [map_id, list.size(), want])
 	for m in list:
 		_check_model(m)
 	for m in list:

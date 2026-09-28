@@ -85,25 +85,27 @@ Nacht der Untoten ; HUD, lumière, étalonnage), puis par lots :
 - [ ] Mesures de perf à chaque lot (cible GTX 1050 à 60 fps).
 
 ### R5. KINO V2 : reproduction à l'identique de Kino der Toten
-Après R4. La V1 (livrée) reprend la structure et les sensations ; la V2 vise
-la reproduction fidèle de la carte réelle à partir d'images de référence
-(plans vus de dessus, captures, vidéos de parcours) :
-- [ ] Réunir les références (plan complet, chaque salle sous plusieurs angles)
-  dans un dossier local non publié `docs/reference/kino/` (ignoré par git :
-  images sous droits, servant UNIQUEMENT de modèle).
-- [ ] Relever les dimensions et l'agencement exacts : hall et son escalier,
-  foyer à l'étage et balcon, loges, allée, salle de théâtre (fauteuils,
-  scène, fosse), salle des machines, cabine de projection, emplacements exacts
-  des fenêtres, portes et prix, atouts, achats muraux, boîtes, pièges,
-  téléporteur.
-- [ ] **Étages réels** : escaliers, balcon et foyer en hauteur. Nécessite de
-  sortir les zombies du mode « flottant » y = 0 (navigation multi-niveaux) :
-  chantier technique préalable.
-- [ ] Reconstruire la géométrie, l'éclairage et l'ambiance salle par salle, en
-  comparant côte à côte avec les références (captures au même point de vue).
-- [ ] Textures et modèles recréés (procéduraux ou libres de droits) : on
-  s'inspire des images, on ne copie pas les textures ni les modèles d'Activision
-  (réserve du cahier des charges).
+Plan détaillé et avancement : [docs/KINO_V2.md](KINO_V2.md). La première KINO
+(grille ASCII, inspirée de Kino) a été REMPLACÉE par Kino der Toten à
+l'échelle 1 (même identifiant `kino`, même entrée de menu).
+- [x] Réunir les références dans `docs/reference/kino/` (ignoré par git :
+  images sous droits, servant UNIQUEMENT de modèle ; coordonnées d'une liste
+  d'entités publiée, nombres seulement).
+- [x] Relever dimensions, agencement et emplacements (22 fenêtres, 9 boîtes,
+  portes et prix, atouts, achats muraux, 5 pièges, téléporteur).
+- [x] **Étages réels** : cartes en maillage (`MeshMapLayout`, navmesh), zombies
+  et chiens qui suivent le sol, escaliers, balcons, pentes.
+- [x] Jeu de Kino der Toten (téléporteur de BO1, salle de projection et
+  Pack-a-Punch, pièges à deux leviers, tableaux de la boîte, portes et rideau
+  du courant).
+- [x] Remplacement de l'ancienne KINO (étape 7).
+- [ ] Nouveau contenu propre à Kino (étape 5 : Claymores, tourelles, vraie
+  fosse à feu, Mule Kick sous nom original, rampants des plafonds, zombies des
+  gravats, chutes des toits, salles bonus du téléporteur).
+- [ ] Passe artistique des autres salles (étape 6 : hall, salles basse et
+  haute, ruelle, arrière-salle, Foyer, loges), occlusion et distances de
+  visibilité pour tenir la cible MEDIUM ; textures et modèles recréés, sans
+  copier ceux d'Activision.
 
 ## Autres tâches restantes
 - [x] Passe de performance GPU libre (`sh tools/perf.sh`, dont `kino_tour`).
@@ -111,6 +113,12 @@ la reproduction fidèle de la carte réelle à partir d'images de référence
 - [ ] Mettre à jour README (état d'avancement) et docs/ARCHITECTURE.md.
 
 ## Fait (releases)
+- KINO V2, étape 7 : Kino der Toten à l'échelle 1 devient la carte KINO
+  (id `kino`) ; l'ancienne KINO en grille et ce qui ne servait qu'à elle
+  (décor de théâtre de `PropBuilder`, salles hautes des grilles, Pack-a-Punch
+  révélé par le téléporteur, poste central « A » des grilles) sont retirés.
+- v0.1.95 à v0.1.103 : KINO V2 étapes 1 à 4 et théâtre de l'étape 6 (voir
+  docs/KINO_V2.md).
 - v0.1.94 : HUD à l'échelle de la résolution (2D en canvas_items, base
   1280x720), lampes « courant coupé » faibles et neutres comme BO1.
 - v0.1.93 : re-mesure des performances sur RTX A2000, murs mats sans

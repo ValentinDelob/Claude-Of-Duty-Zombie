@@ -151,6 +151,10 @@ func srv_tick(delta: float) -> void:
 	if _spawn_dog(valid):
 		spawned += 1
 		_wait = DogRules.spawn_wait(round_index, spawned, total)
+	else:
+		# Aucun point accessible pour l'instant : nouvel essai un peu plus tard
+		# (pas de recherche de chemins à chaque image).
+		_wait = 0.25
 
 
 func _valid_players() -> Array:
@@ -188,15 +192,21 @@ func _spawn_dog(valid: Array) -> bool:
 
 ## Point d'apparition d'un chien (BO1 : 400 à 1000 unités du joueur visé, dans
 ## une zone ouverte, jamais deux fois de suite au même endroit). Les points
-## candidats (sol dégagé tout autour) viennent de la carte (MapLayout).
+## candidats (sol dégagé tout autour) viennent de la carte (MapLayout). Le
+## chien doit pouvoir rejoindre le joueur : sur une carte en maillage, une
+## partie des points du navmesh sont des îlots (dessus des rangées de
+## fauteuils, des gravats, des garde-corps) ; on essaie donc plusieurs points
+## de l'anneau, et à défaut les plus proches de l'anneau, tous accessibles.
+const PATH_TRIES := 24
+const FALLBACK_TRIES := 6
+
 func pick_spawn_point(near: Vector3) -> Variant:
 	var layout := game.layout
 	var pts := layout.open_floor_points().duplicate()
 	if pts.is_empty():
 		return null
 	var zones: Dictionary = game.spawner.active_zones if game.spawner else {}
-	var fallback := Vector3.INF
-	var fallback_err := INF
+	var fallbacks := []  # [écart à l'anneau, point]
 	var tries := 0
 	# Mélange partiel (quelques centaines de points suffisent).
 	for i in mini(pts.size(), 400):
@@ -214,17 +224,17 @@ func pick_spawn_point(near: Vector3) -> Variant:
 			if not game.nav.find_path(pos, near).is_empty():
 				_last_spawn = pos
 				return pos
-			if tries > 8:
+			if tries >= PATH_TRIES:
 				break
 		elif d >= 4.0:
-			var err := absf(d - clampf(d, DogRules.SPAWN_MIN_DIST, DogRules.SPAWN_MAX_DIST))
-			if err < fallback_err:
-				fallback_err = err
-				fallback = pos
-	if fallback == Vector3.INF:
-		return null
-	_last_spawn = fallback
-	return fallback
+			fallbacks.append([absf(d - clampf(d, DogRules.SPAWN_MIN_DIST, DogRules.SPAWN_MAX_DIST)), pos])
+	fallbacks.sort_custom(func(a, b): return a[0] < b[0])
+	for k in mini(fallbacks.size(), FALLBACK_TRIES):
+		var pos: Vector3 = fallbacks[k][1]
+		if not game.nav.find_path(pos, near).is_empty():
+			_last_spawn = pos
+			return pos
+	return null
 
 
 ## Chien coincé ou égaré loin de tout joueur : retiré et refait apparaître.

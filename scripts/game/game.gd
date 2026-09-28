@@ -13,7 +13,6 @@ const MAP_SCRIPTS := {
 	"test_arena": "res://scripts/game/map/maps/test_arena.gd",
 	"kino": "res://scripts/game/map/maps/kino.gd",
 	"test_levels": "res://scripts/game/map/maps/test_levels.gd",
-	"kino_v2": "res://scripts/game/map/maps/kino_v2.gd",
 }
 const DEFAULT_MAP := "bunker_k7"
 ## Cartes proposées dans les menus (sélection solo, salon de l'hôte).

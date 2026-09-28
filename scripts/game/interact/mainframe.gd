@@ -1,8 +1,9 @@
 class_name TeleporterMainframe
 extends Interactable
-## Poste central du téléporteur (KINO, marqueur A) : armoire de lampes et de
-## cadrans du hall. Relie la plateforme activée sur la scène ; les voyageurs
-## reviennent devant lui. L'état fait foi dans Teleporter (serveur).
+## Poste central du téléporteur (KINO, `mainframe` de MapLayout.teleporter()) :
+## disque au sol du hall (Kino der Toten) ou, à défaut, armoire murale de
+## lampes et de cadrans. Relie la plateforme activée sur la scène ; les
+## voyageurs reviennent dessus. L'état fait foi dans Teleporter (serveur).
 
 var teleporter: Teleporter
 var _normal := Vector3.FORWARD
@@ -18,10 +19,6 @@ const PAD_BOTTOM_RADIUS := 2.2
 const PAD_HEIGHT := 0.28
 
 
-func setup(cell: Vector2i, data: MapData) -> void:
-	setup_marker(GridMapLayout.cell_marker("mainframe", cell, data))
-
-
 func setup_marker(m: MapMarker) -> void:
 	interact_id = "mainframe"
 	name = "Mainframe"
@@ -31,7 +28,7 @@ func setup_marker(m: MapMarker) -> void:
 	interact_range = 2.8 if floor_pad else 2.2
 
 
-## Où arrivent les joueurs au retour de la cabine de projection.
+## Où arrivent les joueurs au retour de la salle de projection.
 func arrival_point() -> Vector3:
 	if floor_pad:
 		return position + Vector3.UP * (PAD_HEIGHT + 0.05)

@@ -1,6 +1,6 @@
 extends AutotestScenario
 ## LIQUIDATION sur KINO (BO1) : pendant le bonus, une boîte à CHAQUE
-## emplacement possible (5 à Kino), toutes à 10 points ; à la fin, les boîtes
+## emplacement possible (9 à Kino), toutes à 10 points ; à la fin, les boîtes
 ## temporaires disparaissent (celle en cours de tirage finit d'abord, puis
 ## disparaît aussi), la vraie reste à 950. Captures de chaque boîte.
 
@@ -36,7 +36,7 @@ func run() -> void:
 	for id in game.doors:
 		game.doors[id].srv_open()
 	box = game.interact.get_obj("box")
-	at.check(box != null and box.spots.size() == 5, "KINO : 5 emplacements de boîte (%d)" % (box.spots.size() if box else 0))
+	at.check(box != null and box.spots.size() == 9, "KINO : 9 emplacements de boîte (%d)" % (box.spots.size() if box else 0))
 	box.moves = 1
 	pd.points = 5000
 	game.session.sync_stats(1)
@@ -47,11 +47,11 @@ func run() -> void:
 	await until(func(): return not pw.nodes.has(id), 2.0, "liquidation ramassée")
 	await seconds(0.8)
 	at.check(box.fire_sale and box.cost() == 10, "vraie boîte à 10 points")
-	at.check(box.fire_sale_boxes.size() == 4, "4 boîtes temporaires (%d)" % box.fire_sale_boxes.size())
+	at.check(box.fire_sale_boxes.size() == 8, "8 boîtes temporaires (%d)" % box.fire_sale_boxes.size())
 	var locs := {box.location: true}
 	for b: MysteryBox in box.fire_sale_boxes:
 		locs[b.location] = true
-	at.check(locs.size() == 5, "une boîte à chaque emplacement (%d)" % locs.size())
+	at.check(locs.size() == 9, "une boîte à chaque emplacement (%d)" % locs.size())
 	var k := 0
 	for b: MysteryBox in box.fire_sale_boxes:
 		await face(b)

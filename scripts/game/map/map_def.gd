@@ -1,6 +1,10 @@
 class_name MapDef
 extends RefCounted
-## Description d'une carte : grille ASCII + signification des marqueurs.
+## Description d'une carte (nom, musique, ambiance, prix, départs de la
+## boîte, réglages du téléporteur...) et création de sa géométrie : grille
+## ASCII par défaut (marqueurs ci-dessous, GridMapLayout : BUNKER K-7,
+## test_arena), ou carte en maillage à plusieurs niveaux en surchargeant
+## create_layout (MeshMapLayout : KINO, test_levels).
 ##
 ## Marqueurs communs (posés sur du sol, zone déduite des voisins) :
 ##   P apparition joueur      Z apparition zombie     L lampe
@@ -14,11 +18,6 @@ extends RefCounted
 ##   W fenêtre barricadée, posée dans un mur entre la zone et une petite poche
 ##     fermée (le dehors) dont les Z sont des apparitions « par la fenêtre »
 ##     (voir BarricadeLayout). Les Z hors poche sortent du sol.
-##   A poste central du téléporteur (liaison, retour des voyageurs)
-##   Décor de théâtre (PropBuilder, si theater_props) : = fauteuils (bloquants)  ~ rideau
-##     ] écran de cinéma   ? lustre   ! applique murale   + panneau SORTIE
-##     & affiche   $ coiffeuse à miroir (bloquante)   @ projecteur (bloquant)
-##     | colonne (bloquante)   ^ portant de costumes (bloquant)
 
 const BLOCKING_PROPS := "COINY"
 const WINDOW := "W"
@@ -41,36 +40,20 @@ var zone_materials: Dictionary = {}
 var pipe_zones: Array = []
 ## Texte d'accroche (écran de sélection de carte).
 var description := ""
-## Décor bloquant propre à la carte (en plus de BLOCKING_PROPS).
-var extra_blocking := ""
 ## Départ aléatoire de la boîte parmi ces index d'emplacements (vide : box_start).
 var box_starts: Array = []
-## zone -> hauteur sous plafond (m) ; les autres zones : MapBuilder.WALL_HEIGHT.
-## Les portes et fenêtres gardent la hauteur standard (linteau automatique).
-var zone_heights: Dictionary = {}
 ## Zones ouvertes l'une sur l'autre sans porte : ouvrir l'accès à l'une
 ## active aussi les apparitions des autres (zone -> [zones]).
 var open_links: Dictionary = {}
-## Décor de théâtre (marqueurs = ~ ] ? ! + & $ @ | ^, voir en tête) ; sur les
-## autres cartes, ces caractères peuvent servir d'achats muraux.
-var theater_props := false
-## Zone bordée d'une galerie décorative à mi-hauteur (hall de KINO), "" si aucune.
-var balcony_zone := ""
-var balcony_height := 3.3
-## Zone « scène » (rampe lumineuse et lambrequin côté salle), "" si aucune.
-var stage_zone := ""
 ## Musique d'ambiance (assets/audio).
 var music := "ambience_bunker"
 ## Bandeau affiché à l'arrivée du téléporteur.
 var teleport_banner := "SALLE DU RITUEL"
-## Téléporteur à relier au poste central (marqueur A) avant chaque voyage,
-## comme à Kino der Toten ; le retour se fait devant le poste central.
+## Téléporteur à relier au poste central (`mainframe` de la description en
+## maillage) avant chaque voyage, comme à Kino der Toten ; retour dessus.
 var teleporter_link := false
-## Pack-a-Punch caché jusqu'au premier voyage du téléporteur (il surgit alors
-## de la scène) au lieu d'une salle secrète.
-var pap_revealed_by_teleporter := false
-## Réglages du téléporteur (défauts : BUNKER K-7 et première KINO) ; KINO V2
-## reprend ceux de Kino der Toten (gratuit, 1,8 s, 30 s, 90 s de recharge).
+## Réglages du téléporteur (défauts : BUNKER K-7) ; KINO reprend ceux de
+## Kino der Toten (gratuit, 1,8 s, 30 s, 90 s de recharge).
 var teleporter_cost := 1500
 var teleporter_charge := 3.0
 var teleporter_stay := 25.0
@@ -97,28 +80,9 @@ func zone_display_name(zone: String) -> String:
 static func blocking_cells(data: MapData, def: MapDef) -> Array:
 	var out := []
 	for key in data.markers:
-		if BLOCKING_PROPS.contains(key) or def.extra_blocking.contains(key) or def.doors.has(key) or key == WINDOW:
+		if BLOCKING_PROPS.contains(key) or def.doors.has(key) or key == WINDOW:
 			out.append_array(data.markers[key])
 	return out
-
-
-## Hauteur sous plafond d'une cellule de sol : celle de sa zone, sauf pour
-## les portes et fenêtres (hauteur standard : un linteau ferme le haut).
-func cell_height(data: MapData, c: Vector2i) -> float:
-	if zone_heights.is_empty():
-		return MapBuilder.WALL_HEIGHT
-	var key := String.chr(data.at(c))
-	if doors.has(key) or key == WINDOW:
-		return MapBuilder.WALL_HEIGHT
-	return float(zone_heights.get(data.zone_at(c), MapBuilder.WALL_HEIGHT))
-
-
-## Plus grande hauteur de plafond de la carte.
-func max_height() -> float:
-	var h := MapBuilder.WALL_HEIGHT
-	for z in zone_heights:
-		h = maxf(h, float(zone_heights[z]))
-	return h
 
 
 ## Regroupe des cellules adjacentes (4-connexité) : une porte de 2 cases, une

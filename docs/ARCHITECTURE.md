@@ -81,7 +81,8 @@ précédent.
   temps GPU, ou les fps pris GPU libre seulement.
 - **Coût de chaque poste** : `sh tools/perf.sh perf_costs` (préfixe `perf_` : exclu
   de check.sh). Deux vues (labo de BUNKER K-7 avec 24 zombies au contact, scène de
-  KINO), chaque poste coupé seul, mesures appariées (référence juste avant),
+  KINO vue de l'allée centrale de la salle), chaque poste coupé seul, mesures
+  appariées (référence juste avant),
   répétées 4 fois : temps GPU et CPU de rendu, draw calls. Les lignes « ~ » donnent
   le gain d'une variante moins chère ; `--ab-shots` capture chaque variante pour la
   comparaison visuelle.
@@ -113,7 +114,11 @@ précédent.
   l'aberration.
 
 - Coûts GPU mesurés par `perf_costs` (GTX 1070, 1080p, MEDIUM), avant -> après la
-  passe « perf: optimize rendering after the visual rework » :
+  passe « perf: optimize rendering after the visual rework ». Toutes les mesures
+  « KINO » de cette section ont été prises sur l'ANCIENNE KINO en grille ASCII,
+  remplacée depuis par Kino der Toten à l'échelle 1 (carte ~6 fois plus
+  grande) : à refaire avec `perf_costs` et `kino_tour` (étape 6 de
+  docs/KINO_V2.md : occlusion, distances de visibilité) :
 
 | Poste | labo + 24 zombies | scène de KINO |
 |---|---|---|
@@ -215,20 +220,27 @@ précédent.
 
 ## Cartes
 
-- Une carte = un script `MapDef` (`scripts/game/map/maps/*.gd`) : grille ASCII
-  (marqueurs documentés dans `map_def.gd`) + options. Enregistrement :
-  `Game.MAP_SCRIPTS` ; cartes proposées dans les menus : `Game.MENU_MAPS`.
-  Choix : écran `map_select` (SOLO), ligne CARTE du salon (hôte, annoncée aux
-  clients par `Net.set_lobby_map`), mémorisé dans `Settings.last_map` ;
-  `--map=<id>` en ligne de commande l'emporte (tests).
-- Options utiles (KINO) : `zone_heights` (salles hautes ; portes et fenêtres
-  restent à 3,2 m, linteaux automatiques), `open_links` (zones ouvertes sans
-  porte : leurs apparitions s'activent ensemble), `box_starts` (départ
-  aléatoire de la boîte), `teleporter_link` (plateforme + poste central A à
-  relier avant chaque voyage), `pap_revealed_by_teleporter` (Pack-a-Punch
-  caché jusqu'au premier voyage), `stage_zone`, `balcony_zone`, `look`
-  (ambiance), `music`. Plusieurs pièges : chaque levier H commande le bloc de
-  cases E le plus proche.
+- Une carte = un script `MapDef` (`scripts/game/map/maps/*.gd`) : nom, texte
+  d'accroche, noms des zones, musique, ambiance, prix, réglages, et sa
+  géométrie. Deux sortes de cartes : **grille ASCII** (marqueurs documentés
+  dans `map_def.gd`, `GridMapLayout` : BUNKER K-7, `test_arena`) et **maillage
+  à plusieurs niveaux** (`create_layout` surchargé, `MeshMapLayout` : KINO,
+  `test_levels`). Enregistrement : `Game.MAP_SCRIPTS` (`bunker_k7`, `kino`,
+  `test_arena`, `test_levels`) ; cartes proposées dans les menus :
+  `Game.MENU_MAPS` (`bunker_k7`, `kino`). Choix : écran `map_select` (SOLO,
+  plan « dossier » dessiné par `MapPreview` depuis la grille ou depuis les
+  contours des salles de la description en maillage), ligne CARTE du salon
+  (hôte, annoncée aux clients par `Net.set_lobby_map`), mémorisé dans
+  `Settings.last_map` ; `--map=<id>` en ligne de commande l'emporte (tests).
+- Options utiles : `open_links` (zones ouvertes sans porte : leurs
+  apparitions s'activent ensemble), `box_start` / `box_starts` (départ, fixe
+  ou tiré au sort, de la boîte), `teleporter_link` (pad + poste central à
+  relier avant chaque voyage) et `teleporter_*` (prix, charge, séjour,
+  recharges, rayon de foudre au départ), `teleport_banner`, `look`
+  (ambiance), `music` ; cartes grille : `zone_materials`, `pipe_zones`.
+  Plusieurs pièges sur une grille : chaque levier H commande le bloc de cases
+  E le plus proche ; sur une carte en maillage, chaque piège a son volume et
+  ses deux leviers.
 - **`MapLayout`** (`scripts/game/map/map_layout.gd`) : la géométrie vue par les
   systèmes de jeu, indépendante de la façon dont la carte est décrite. Elle
   fournit les zones (`zone_at(Vector3)`), la navigation (`nav`, serveur), les
@@ -239,8 +251,8 @@ précédent.
   fenêtres (`BarricadeLayout.Opening`), apparitions. `MapDef` garde la
   description (nom, musique, ambiance, prix, départs de la boîte...) et crée
   sa géométrie (`MapDef.create_layout`). `GridMapLayout` enveloppe les cartes
-  ASCII sans changer leur comportement ; les cartes en maillage à plusieurs
-  niveaux (KINO V2, voir `docs/KINO_V2.md`) auront leur propre implémentation.
+  ASCII ; `MeshMapLayout` lit les cartes en maillage à plusieurs niveaux
+  (KINO, voir `docs/KINO_V2.md`).
 - **Cartes en maillage à plusieurs niveaux** (`MeshMapLayout`, exemple
   `test_levels`) : une description JSON (`assets/maps/<id>/layout.json`,
   repère Godot en mètres : salles, murs avec ouvertures, dalles, escaliers,
@@ -259,10 +271,16 @@ précédent.
   (`Zombie._follow_floor`) ; portée d'attaque, bonds, séparation et points de
   passage tiennent compte de la hauteur. Morceaux et particules retombent sur
   le sol sous leur point de départ (`Fx.floor_under`).
-- Décor de théâtre (PropBuilder + `TheaterLook`) : fauteuils fusionnés par
-  matériau (une collision par rangée + barrière joueurs/zombies que les balles
-  traversent), rideaux, écran animé et faisceau du projecteur (liés au
-  courant par `PowerGrid.add_hook`), lustres et appliques (lampes de la carte).
+- Décor de KINO (`MeshMapBuilder` + `TheaterLook`) : objets modélisés dans
+  Blender (`tools/blender/props/kino_theater.py` -> `assets/models/kino/`),
+  posés par la description (`props`, `instances` en MultiMesh pour les
+  fauteuils, `screens`, `beams`, `shafts`) ; écran animé et faisceau du
+  projecteur liés au courant par `PowerGrid.add_hook` ; collisions invisibles
+  (ruines, rangées, baies) en `CollisionBox` décrites en données (`blockers`,
+  `<modèle>.collision.json`), jamais des modèles Blender ; barrière
+  joueurs/zombies que les balles traversent (couche BARRIER). Cartes grille :
+  décor de `PropBuilder` (caisses, barils, lits, paillasses, générateur,
+  tuyauteries, lampes grillagées, flaques de sang).
 - **Machines d'atouts** (`PerkMachine`) : un modèle Blender par atout,
   `sh tools/blender.sh tools/blender/props/perk_machines.py assets/models/perks
   [dossier d'aperçus] [ids...]` (sans fenêtre ; aperçus PNG de face, de trois
@@ -304,7 +322,9 @@ précédent.
   nuke ; aucun bonus aléatoire (seul le dernier chien lâche MUNITIONS MAX).
 - `DogRound` (`/root/Game/Rounds/Dogs`) : planification BO1 (manche 5 à 7 puis
   +4/+5, coupée en autotest sauf `debug_force_next`), apparitions par la foudre
-  près du joueur le moins chassé, ambiance (brouillard `WorldLook`, musique,
+  près du joueur le moins chassé (10 à 25 m, sur un point qui a un chemin
+  jusqu'à lui : les îlots du navmesh des cartes en maillage sont écartés),
+  ambiance (brouillard `WorldLook`, musique,
   compteur qui clignote). Règles pures : `DogRules`.
 
 ## Grenades et SINGE-TAMBOUR (`scripts/game/throwables/`)

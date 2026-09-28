@@ -70,7 +70,7 @@ func test_collision_box_is_invisible_and_layered() -> void:
 
 
 func test_kino_blockers_are_data_not_models() -> void:
-	var def: MapDef = load(Game.MAP_SCRIPTS["kino_v2"]).new()
+	var def: MapDef = load(Game.MAP_SCRIPTS["kino"]).new()
 	var l := def.create_layout() as MeshMapLayout
 	assert_true(l.data.get("blockers", []).size() >= 10, "ruines et rangées : pavés CollisionBox décrits dans la carte")
 	for bl in l.data.get("blocks", []):

@@ -9,7 +9,7 @@ dans Blender. Décisions de l'utilisateur :
 - **tout** le contenu propre à Kino est reproduit (fosse à feu, tourelles, Claymores, MP40,
   Mule Kick sous nom original, rampants des plafonds, zombies des gravats, chutes des toits,
   salles bonus) ;
-- l'actuelle KINO est **remplacée à la fin** (même id `kino`, même entrée de menu).
+- l'ancienne KINO (grille ASCII) est **remplacée à la fin** (même id `kino`, même entrée de menu) : fait à l'étape 7.
 
 Références privées (git-ignorées) : `docs/reference/kino/layout_research.md` (positions exactes en
 unités CoD, 1 u = 2,54 cm, niveaux de sol, 22 fenêtres, 9 boîtes, 5 pièges, 8 portes) et
@@ -112,8 +112,8 @@ leur grille et leurs tests, qui servent de filet de sécurité).
 6. **Passe artistique** salle par salle dans Blender, comparée aux captures (rendus côte à côte),
    éclairage et courant, occlusion (`OccluderInstance3D`, occlusion culling) et distances de
    visibilité pour tenir la cible MEDIUM sur une carte ~6 fois plus grande.
-7. **Remplacement** : KINO V2 prend l'id `kino`, l'ancienne `kino.gd` et ses tests sont retirés,
-   docs (README, ARCHITECTURE, ART_DIRECTION, PLAN, HANDOFF) à jour.
+7. **Remplacement** (FAIT) : KINO V2 prend l'id `kino`, l'ancienne `kino.gd` et ses tests sont
+   retirés, docs (README, ARCHITECTURE, ART_DIRECTION, PLAN, HANDOFF) à jour.
 
 Les étapes 5 et 6 se parallélisent avec des agents (worktrees, fichiers disjoints, 5 au plus).
 
@@ -121,7 +121,7 @@ Les étapes 5 et 6 se parallélisent avec des agents (worktrees, fichiers disjoi
 - Nouveaux : `scripts/game/map/map_layout.gd`, `grid_map_layout.gd`, `mesh_map_layout.gd`,
   `mesh_map_builder.gd`, `map_lights.gd` (extrait de PropBuilder), `assets/maps/kino/layout.json`
   et `*.glb`, `tools/blender.sh`, `tools/blender/kino/*.py`, `tools/bake_navmesh.gd`,
-  `scripts/game/map/maps/kino_v2.gd`.
+  `scripts/game/map/maps/kino_v2.gd` (devenu `kino.gd` à l'étape 7).
 - Modifiés : `scripts/game/game.gd`, `zombies/zombie.gd`, `zombie_manager.gd`, `dogs/*.gd`,
   `barricades/*.gd`, `interact/*.gd`, `rounds/spawner.gd`, `powerups/powerup_system.gd`,
   `hud/hud.gd`, `ui/map_preview.gd`, `assets/shaders/surface.gdshader`, `fx/gib_pool.gd`,
@@ -154,7 +154,7 @@ Les étapes 5 et 6 se parallélisent avec des agents (worktrees, fichiers disjoi
   objets y sont écrits en unités CoD d'après les relevés ; murs, garde-corps,
   contremarches et poches des fenêtres sont calculés (rastérisation par
   cases de 10 u). Portes liées (`link`), portes du courant (`power`) et
-  rideau de scène (`curtain`) gérés par `Door`. Scénario `kino_v2_tour` :
+  rideau de scène (`curtain`) gérés par `Door`. Scénario `kino_v2_tour` (devenu `kino_tour`) :
   22 fenêtres, 9 boîtes, prix des portes, zones de chaque objet, tout
   accessible, zombies qui changent d'étage. Écarts connus de la maquette :
   contours des murs [PROBABLE] (volumes englobants), escalier en U de
@@ -173,7 +173,7 @@ Les étapes 5 et 6 se parallélisent avec des agents (worktrees, fichiers disjoi
   une ampoule par emplacement, verte à l'emplacement actuel après le courant,
   clignotement pendant un déplacement ou une Liquidation) ; ours de la boîte
   aux probabilités de BO1 (`MysteryBox.skull_chance`, toutes les cartes).
-  Scénario `kino_v2_gameplay`.
+  Scénario `kino_v2_gameplay` (devenu `kino_gameplay`).
 - Étape 6, salle de théâtre (décor d'après les captures de BO1) : objets
   modélisés dans Blender (`tools/blender/props/kino_theater.py` →
   `assets/models/kino/*.glb`), posés par la description (`props`, `instances`
@@ -186,7 +186,7 @@ Les étapes 5 et 6 se parallélisent avec des agents (worktrees, fichiers disjoi
   d'en haut). Toutes les collisions invisibles (ruines, rangées, baies,
   objets) sont des `CollisionBox` décrites en données (`blockers` de la
   description, `<modèle>.collision.json`), jamais des modèles Blender.
-  Scénario `kino_v2_theater` (captures + tir depuis les baies).
+  Scénario `kino_v2_theater` (devenu `kino_theater` ; captures + tir depuis les baies).
 - Théâtre d'après les photos de référence (v0.1.103 et suivante) : cabine de
   projection avec une seule fente vers la salle (85 % de la largeur du mur, 1 m de
   haut centrée sur les yeux du joueur : on voit la scène et on tire au milieu de la
@@ -199,3 +199,47 @@ Les étapes 5 et 6 se parallélisent avec des agents (worktrees, fichiers disjoi
   bobine dorée sur rouge, jamais de disque blanc sur fond rouge.
   Restent : voûte à nervures et demi-coupoles (plafond encore plat avec coupole),
   gravats plus hauts, animation des arcs.
+- Étape 7 (remplacement) : KINO V2 est désormais LA carte KINO (`--map=kino`, même
+  entrée de menu, même texte d'accroche ; script `scripts/game/map/maps/kino.gd`,
+  ex-`kino_v2.gd` ; plus d'identifiant `kino_v2`). Plan de l'écran de sélection
+  dessiné depuis les contours des salles de la description (`MapPreview.render_mesh`).
+  Retirés avec l'ancienne KINO en grille : son décor de théâtre dans `PropBuilder`
+  (fauteuils, rideaux, écran, lustres, appliques, panneaux SORTIE, affiches,
+  coiffeuses, projecteur, colonnes, portants, galerie, avant-scène) et les affiches
+  procédurales de `TheaterLook`, les salles hautes des cartes grille
+  (`MapDef.zone_heights`, `cell_height`, linteaux et plafonds étagés de
+  `MapBuilder`), `theater_props`, `balcony_zone`, `stage_zone`, `extra_blocking`,
+  le Pack-a-Punch caché qui surgissait de la scène (`pap_revealed_by_teleporter`,
+  `PackAPunch.set_revealed`), le poste central « A » des grilles (le « A » du
+  BUNKER K-7 est un achat mural) et la surface `night_sky`. Tests : `kino_tour`
+  (réécrit par marqueurs, en 2 parties : emplacements, porte fermée, navigation
+  entre étages, vues ; manche 1 dans le hall, piège, manche de chiens),
+  `kino_gameplay` (+ Pack-a-Punch utilisé en salle de projection), `kino_theater`,
+  `tests/test_kino_map.gd` (données de la description, réglages, plan du menu) ;
+  `fire_sale_kino` (9 boîtes), `visual_look`, `perk_look`, `zombie_look`,
+  `perf_costs`, `map_select`, `mp_lobby` jouent la nouvelle KINO ;
+  `test_map_layout` vérifie les grilles sur BUNKER K-7 et test_arena. Défaut
+  trouvé par la manche de chiens de `kino_tour` et corrigé : sur la grande carte,
+  beaucoup de points du navmesh sont des îlots (dessus des rangées, gravats,
+  garde-corps) et `DogRound.pick_spawn_point` abandonnait après 8 essais puis
+  prenait un point de repli sans chemin (chien à 35 m, voire bloqué) ; il essaie
+  désormais 24 points de l'anneau de 10-25 m puis les replis les plus proches,
+  tous reliés au joueur.
+
+### Reste pour une Kino der Toten complète
+- Étape 5, contenu propre à Kino encore ABSENT (seule la MP40 au mur du Foyer est
+  en place) : Claymores (achat mural 1000), tourelles (1500, 30 s, bord de scène et
+  Foyer), vraie fosse à feu (le piège `fire` de la salle basse est encore un piège
+  électrique), Mule Kick sous nom original (5e atout, salle haute), rampants des
+  plafonds après le courant, zombies qui sortent des gravats du théâtre, chutes des
+  toits de la ruelle et des plafonds de la salle haute et des loges, salles bonus
+  du téléporteur (75 % de chances, ~4 s).
+- Étape 6 : passe artistique des autres salles (hall, salles basse et haute,
+  ruelle, arrière-salle, Foyer, loges : encore en maquette grise), voûte à nervures
+  du théâtre, gravats plus hauts, animation des arcs ; affiches, lustres du hall et
+  mobilier des loges ; occlusion et distances de visibilité ; nouvelles mesures
+  `perf_costs` / `kino_tour` (celles de docs/ARCHITECTURE.md datent de l'ancienne
+  KINO). La ruelle est la vue la plus sombre de `visual_look` (luminance ~0,06
+  pour un seuil de 0,05), puis le Foyer (~0,075).
+- Écarts de la maquette (étape 3) toujours présents : contours des murs [PROBABLE],
+  escalier en U de l'arrière-salle simplifié, lampes en grille.

@@ -167,7 +167,7 @@ func srv_open() -> void:
 	game.layout.set_blocked(block, false)
 	for z in zones:
 		game.spawner.activate_zone(z)
-		# Zones reliées sans porte (KINO : machines = scène = salle).
+		# Zones reliées sans porte (test_levels : rez-de-chaussée = mezzanine).
 		for linked in game.map_def.open_links.get(z, []):
 			game.spawner.activate_zone(linked)
 	print("[Door] porte %s ouverte (%s)" % [door_id, ", ".join(zones)])

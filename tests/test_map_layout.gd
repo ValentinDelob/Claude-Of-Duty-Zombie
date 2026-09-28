@@ -11,7 +11,7 @@ func _layout(id: String) -> GridMapLayout:
 
 
 func test_counts_match_grid_markers() -> void:
-	for id in ["bunker_k7", "kino"]:
+	for id in ["bunker_k7", "test_arena"]:
 		var l := _layout(id)
 		var m := l.data.markers
 		assert_eq(l.player_spawns().size(), m.get("P", []).size(), "%s : départs des joueurs" % id)
@@ -27,7 +27,7 @@ func test_counts_match_grid_markers() -> void:
 
 
 func test_markers_on_the_floor_facing_a_wall() -> void:
-	var l := _layout("kino")
+	var l := _layout("bunker_k7")
 	for list in [l.wall_buys(), l.perks(), l.box_spots(), l.grenade_buys()]:
 		for mk: MapMarker in list:
 			assert_near(mk.pos.y, 0.0, 0.001, "%s au sol" % mk.id)
@@ -66,11 +66,11 @@ func test_windows_neutral_fields() -> void:
 
 
 func test_teleporter_and_exit_zone() -> void:
-	var l := _layout("kino")
+	var l := _layout("bunker_k7")
 	var tp := l.teleporter()
-	assert_false(tp.is_empty(), "KINO : téléporteur")
-	assert_true(tp.mainframe != null and tp.mainframe.block == "mainframe")
-	assert_eq(l.teleporter_exit_zone(), "p", "arrivée dans la cabine de projection")
+	assert_false(tp.is_empty(), "BUNKER K-7 : téléporteur")
+	assert_true(tp.mainframe == null, "pas de poste central sur une carte grille (le A du bunker est un achat mural)")
+	assert_eq(l.teleporter_exit_zone(), "p", "arrivée dans la salle du rituel")
 	assert_eq(l.zone_at(tp.exit), "p")
 
 

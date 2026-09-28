@@ -1,231 +1,164 @@
 extends TestCase
-## Cohérence de la carte KINO (théâtre).
+## Cohérence de la carte KINO (Kino der Toten à l'échelle 1, carte en
+## maillage décrite par assets/maps/kino/layout.json) : registre et menus,
+## réglages de la carte, emplacements de BO1 et leurs zones, plan de l'écran
+## de sélection. Données seules (aucune construction de scène) ; le jeu sur la
+## carte est vérifié par les scénarios kino_tour, kino_gameplay, kino_theater.
 
 var def: MapDef
-var data: MapData
+var layout: MeshMapLayout
 
 
 func before_each() -> void:
-	def = load("res://scripts/game/map/maps/kino.gd").new()
-	data = MapData.parse(def.rows)
+	def = load(Game.MAP_SCRIPTS["kino"]).new()
+	layout = def.create_layout() as MeshMapLayout
 
 
 func test_registered_in_game_and_menus() -> void:
 	assert_true(Game.MAP_SCRIPTS.has("kino"), "KINO enregistrée dans Game.MAP_SCRIPTS")
-	assert_true("kino" in Game.MENU_MAPS and "bunker_k7" in Game.MENU_MAPS, "proposée dans les menus")
+	assert_false(Game.MAP_SCRIPTS.has("kino_v2"), "plus d'identifiant kino_v2")
+	assert_eq(Game.MENU_MAPS, ["bunker_k7", "kino"], "cartes proposées dans les menus")
 	assert_eq(def.id, "kino")
+	assert_eq(def.display_name, "KINO")
+	assert_true(def.description != "", "texte d'accroche")
+	assert_true(layout != null, "carte en maillage")
+	assert_eq(String(layout.data.get("id", "")), "kino", "description de la carte")
+	assert_true(ResourceLoader.exists(layout.glb_path), "architecture construite (%s)" % layout.glb_path)
 
 
-func test_every_door_links_two_zones() -> void:
-	assert_eq(def.doors.size(), 5, "5 portes payantes")
-	for id in def.doors:
-		var groups := MapDef.group_cells(data.markers.get(id, []))
-		assert_eq(groups.size(), 1, "porte %s : un seul bloc" % id)
-		var d := Door.new()
-		d.setup(id, groups[0], def.doors[id].cost, data)
-		assert_eq(d.zones.size(), 2, "porte %s relie deux zones %s" % [id, d.zones])
-		d.free()
+func test_map_settings() -> void:
+	assert_eq(def.music, "ambience_kino", "ambiance sonore du théâtre")
+	assert_eq(def.teleport_banner, "SALLE DE PROJECTION")
+	assert_true(def.teleporter_link, "téléporteur à relier au poste central")
+	assert_eq(def.teleporter_cost, 0, "voyage gratuit")
+	assert_eq(def.teleporter_stay, 30.0, "30 s en salle de projection")
+	assert_eq(def.teleporter_link_cooldown, 90.0, "90 s de recharge")
+	assert_eq(def.look.get("grade"), TheaterLook.GRADE, "étalonnage du théâtre")
+	assert_eq(def.look.get("volumetric_albedo"), TheaterLook.DUST_ALBEDO, "poussière du théâtre")
 
 
-func test_lobby_doors_costs() -> void:
-	# Deux portes depuis le hall : 1000 (foyer) et 750 (loges), comme à Kino.
-	var from_lobby := {}
-	for id in def.doors:
-		var d := Door.new()
-		d.setup(id, MapDef.group_cells(data.markers[id])[0], def.doors[id].cost, data)
-		if "a" in d.zones:
-			from_lobby[d.zones[0] if d.zones[1] == "a" else d.zones[1]] = d.cost
-		d.free()
-	assert_eq(from_lobby, {"b": 1000, "c": 750})
+func test_zone_names_cover_every_zone() -> void:
+	var zones: Dictionary = layout.data.get("zones", {})
+	assert_eq(zones.size(), 10, "10 zones")
+	for z in zones:
+		assert_true(def.zone_names.has(z), "zone %s nommée" % z)
+	for z in def.zone_names:
+		assert_true(zones.has(z), "nom %s : zone décrite" % z)
+	assert_eq(def.zone_display_name("p"), "Salle de projection")
 
 
-func _nav_props_only() -> NavGrid:
-	var nav := NavGrid.new(data)
-	var props_only := []
-	for c in MapDef.blocking_cells(data, def):
-		if not def.doors.has(String.chr(data.at(c))):
-			props_only.append(c)
-	nav.set_blocked(props_only, true)
-	return nav
+func test_doors_of_bo1() -> void:
+	var costs := {}
+	var power := []
+	for m in layout.doors():
+		assert_eq(m.data.zones.size(), 2, "porte %s relie deux zones %s" % [m.id, m.data.zones])
+		for z in m.data.zones:
+			assert_true(def.zone_names.has(z), "porte %s : zone %s connue" % [m.id, z])
+		if m.data.power:
+			power.append(m.id)
+		else:
+			costs[m.id] = m.data.cost
+	power.sort()
+	assert_eq(power, ["courant_hall", "courant_salle", "rideau"], "portes ouvertes par le courant")
+	assert_eq(costs, {"1": 750, "2": 750, "3": 1000, "4": 1250, "5": 1250, "5b": 1250,
+			"6": 1000, "6b": 1000, "7": 1250, "8": 1250}, "prix des portes de BO1")
+	# Deux portes depuis le hall, 750 chacune : salle basse et salle haute.
+	var from_hall := {}
+	for m in layout.doors():
+		if "a" in m.data.zones and not m.data.power:
+			from_hall[m.data.zones[0] if m.data.zones[1] == "a" else m.data.zones[1]] = m.data.cost
+	assert_eq(from_hall, {"b": 750, "e": 750})
 
 
-func _first_cell(zone: String, nav: NavGrid, outside: Dictionary) -> Vector2i:
-	for y in data.height:
-		for x in data.width:
-			var c := Vector2i(x, y)
-			if data.zone_at(c) == zone and nav.is_walkable(c) and not outside.has(c):
-				return c
-	return Vector2i(-1, -1)
-
-
-func test_all_zones_reachable_when_doors_open() -> void:
-	var nav := _nav_props_only()
-	var start := MapData.cell_to_world(data.markers["P"][0])
-	var outside := BarricadeLayout.pocket_cells(BarricadeLayout.analyze(data))
-	for z in ["a", "b", "c", "d", "e", "f", "g"]:
-		var target := _first_cell(z, nav, outside)
-		assert_true(target.x >= 0, "zone %s présente" % z)
-		assert_false(nav.find_path(start, MapData.cell_to_world(target)).is_empty(), "zone %s accessible" % z)
-
-
-func test_zones_closed_until_doors_bought() -> void:
-	var nav := NavGrid.new(data)
-	nav.set_blocked(MapDef.blocking_cells(data, def), true)
-	var start := MapData.cell_to_world(data.markers["P"][0])
-	var outside := BarricadeLayout.pocket_cells(BarricadeLayout.analyze(data))
-	for z in ["b", "c", "d", "e", "f", "g"]:
-		var target := _first_cell(z, _nav_props_only(), outside)
-		assert_true(nav.find_path(start, MapData.cell_to_world(target)).is_empty(), "zone %s fermée au départ" % z)
-
-
-func test_projection_booth_isolated() -> void:
-	var nav := _nav_props_only()
-	var start := MapData.cell_to_world(data.markers["P"][0])
-	var booth := MapData.cell_to_world(data.markers["F"][0])
-	assert_eq(data.zone_at(data.markers["F"][0]), "p", "arrivée du téléporteur dans la cabine")
-	assert_true(nav.find_path(start, booth).is_empty(), "cabine de projection accessible par téléporteur uniquement")
-
-
-func test_windows_valid() -> void:
-	var windows := BarricadeLayout.analyze(data)
-	assert_eq(windows.size(), data.markers["W"].size(), "toutes les fenêtres sont valides")
-	assert_true(windows.size() >= 12, "fenêtres barricadées nombreuses (%d)" % windows.size())
-	var per_zone := {}
-	for w: BarricadeLayout.Opening in windows:
-		assert_false(w.spawns.is_empty(), "fenêtre %s : une apparition dans la poche" % w.cell)
-		assert_true(def.zone_names.has(w.zone), "fenêtre %s dans une zone nommée (%s)" % [w.cell, w.zone])
-		per_zone[w.zone] = per_zone.get(w.zone, 0) + 1
-	assert_true(per_zone.get("a", 0) >= 3, "plusieurs fenêtres dans le hall (%d)" % per_zone.get("a", 0))
-
-
-func test_required_markers() -> void:
-	assert_eq(data.markers.get("P", []).size(), 4, "4 apparitions joueurs")
-	for c in data.markers["P"]:
-		assert_eq(data.zone_at(c), "a", "départ dans le hall")
-	assert_eq(data.markers.get("G", []).size(), 1, "un interrupteur de courant")
-	assert_eq(data.zone_at(data.markers["G"][0]), "e", "courant dans la salle des machines")
-	assert_eq(data.markers.get("A", []).size(), 1, "un poste central")
-	assert_eq(data.zone_at(data.markers["A"][0]), "a", "poste central dans le hall")
-	assert_eq(MapDef.group_cells(data.markers.get("T", [])).size(), 1, "une plateforme de téléporteur")
-	for c in data.markers["T"]:
-		assert_eq(data.zone_at(c), "g", "plateforme sur la scène")
-	assert_eq(data.markers.get("K", []).size(), 1, "un Pack-a-Punch")
-	assert_eq(data.zone_at(data.markers["K"][0]), "g", "Pack-a-Punch sur la scène")
-	assert_true(def.teleporter_link and def.pap_revealed_by_teleporter, "options Kino du téléporteur")
-	assert_true(data.markers.get("=", []).size() >= 50, "rangées de fauteuils")
-	assert_false(data.markers.get("]", []).is_empty(), "écran de cinéma")
-
-
-func test_wall_objects_against_walls() -> void:
-	var keys := def.wall_buys.keys() + def.perks.keys() + ["X", "G", "A", "H", "!", "+", "&", "$", "*"]
-	for k in keys:
-		for c: Vector2i in data.markers.get(k, []):
-			var touches := false
-			for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
-				touches = touches or data.is_wall(c + d)
-			assert_true(touches, "%s en %s contre un mur" % [k, c])
-
-
-func test_objects_defined() -> void:
-	# Arsenal mural de Kino der Toten, zone par zone.
-	var expected := {"m14": "a", "olympia": "a", "mp5k": "b", "mpl": "b", "pm63": "c",
-			"stakeout": "d", "m16": "f", "bowie": "e"}
+func test_wall_buys_of_bo1() -> void:
+	# Arsenal mural de Kino der Toten : arme -> [zone, prix].
+	var expected := {"olympia": ["a", 500], "m14": ["a", 500], "mpl": ["b", 1000],
+			"ak74u": ["c", 1200], "pm63": ["e", 1000], "mp40": ["f", 1000],
+			"stakeout": ["f", 1500], "mp5k": ["g", 1000], "m16": ["h", 1200], "bowie": ["t", 3000]}
 	var placed := {}
-	for k in def.wall_buys:
-		var wid: String = def.wall_buys[k]
-		assert_eq(data.markers.get(k, []).size(), 1, "achat mural %s placé une fois" % k)
+	for m in layout.wall_buys():
+		var wid: String = m.data.weapon
 		assert_true(WeaponDB.exists(wid) or KnifeDB.exists(wid), "objet %s connu" % wid)
 		var cost := KnifeDB.wall_cost(wid) if KnifeDB.exists(wid) else WeaponDB.wall_cost(wid)
-		assert_true(cost > 0, "%s achetable au mur (%d)" % [wid, cost])
-		placed[wid] = data.zone_at(data.markers[k][0])
-	assert_eq(placed, expected, "achats muraux dans leurs zones")
-	assert_eq(KnifeDB.wall_cost("bowie"), 3000, "couteau de chasse à 3000")
-	# Grenades (marqueur commun ThrowableSystem.GRENADE_BUY_MARKER) : hall et foyer.
-	var nades: Array = data.markers.get(ThrowableSystem.GRENADE_BUY_MARKER, [])
-	var nade_zones := []
-	for c: Vector2i in nades:
-		nade_zones.append(data.zone_at(c))
-		assert_true(MapDef.wall_normal(data, c) != Vector3(0, 0, -1) or data.is_wall(c + Vector2i(0, -1)), "grenades %s contre un mur" % c)
-	nade_zones.sort()
-	assert_eq(nade_zones, ["a", "b"], "achats de grenades dans le hall et le foyer")
-	# Aucun marqueur d'achat ne sert aussi au décor de théâtre.
-	for k in def.wall_buys:
-		assert_false("=~]?!+&$@|^".contains(k), "marqueur %s libre du décor" % k)
-	var perk_zone := {"lazarus": "b", "twin": "c", "rapid": "d", "titan": "f", "nova": "e", "deadeye": "d"}
-	for k in def.perks:
-		assert_true(data.markers.has(k), "atout %s placé" % k)
-		assert_true(PerkDB.exists(def.perks[k]))
-		assert_eq(data.zone_at(data.markers[k][0]), perk_zone[def.perks[k]], "zone de %s" % def.perks[k])
+		placed[wid] = [m.zone, cost]
+	assert_eq(placed, expected, "achats muraux dans leurs zones, prix de BO1")
+	var nades := layout.grenade_buys()
+	assert_eq(nades.size(), 1, "un achat de grenades")
 
 
-func test_mystery_box_spots() -> void:
-	var spots: Array = data.markers.get("X", [])
-	assert_true(spots.size() >= 4, "au moins 4 emplacements de boîte (%d)" % spots.size())
-	assert_true(def.box_starts.size() >= 2 and def.box_starts.size() <= 3, "départ tiré parmi 2-3 emplacements")
+func test_perks_of_bo1() -> void:
+	var placed := {}
+	for m in layout.perks():
+		assert_true(PerkDB.exists(m.data.perk), "atout %s connu" % m.data.perk)
+		placed[m.data.perk] = m.zone
+	# Quick Revive (hall), Juggernog (théâtre), Speed Cola (Foyer), Double Tap
+	# (ruelle) ; NOVA FLOP et DEADEYE DRAM n'existent pas sur Kino.
+	assert_eq(placed, {"lazarus": "a", "titan": "t", "rapid": "f", "twin": "c"})
+
+
+func test_box_windows_traps() -> void:
+	var spots := layout.box_spots()
+	assert_eq(spots.size(), 9, "9 emplacements de boîte")
+	assert_eq(def.box_starts.size(), 8, "départ tiré parmi 8 emplacements")
+	assert_false(1 in def.box_starts, "jamais le balcon du hall au départ")
 	for i in def.box_starts:
 		assert_true(i >= 0 and i < spots.size(), "départ %d valide" % i)
-	var blocked := {}
-	for c in MapDef.blocking_cells(data, def):
-		blocked[c] = true
-	for c in spots:
-		for sc in MysteryBox.spot_cells(c, data):
-			assert_true(data.is_floor(sc) and not blocked.has(sc), "emplacement %s : case %s libre" % [c, sc])
+	var zones := {}
+	for m in spots:
+		zones[m.zone] = true
+	assert_eq(zones.size(), 9, "une boîte par zone accessible (%s)" % str(zones.keys()))
+	assert_eq(layout.box_boards().size(), 5, "5 tableaux à la craie")
+	var windows := layout.windows()
+	assert_eq(windows.size(), 22, "22 fenêtres")
+	for w: BarricadeLayout.Opening in windows:
+		assert_true(def.zone_names.has(w.zone) and w.zone != "p", "fenêtre %d dans une zone jouable (%s)" % [w.index, w.zone])
+		assert_false(w.spawn_points.is_empty(), "fenêtre %d : apparition du dehors" % w.index)
+	var traps := layout.traps()
+	assert_eq(traps.size(), 5, "5 pièges")
+	var fire := 0
+	for t in traps:
+		assert_true(t.data.has("lever2"), "%s : un levier à chaque bout" % t.id)
+		assert_eq(t.data.get("active"), 40.0, "%s : 40 s" % t.id)
+		assert_eq(t.data.get("cooldown"), 60.0, "%s : 60 s de recharge" % t.id)
+		if t.data.fire:
+			fire += 1
+	assert_eq(fire, 1, "une fosse à feu")
 
 
-func test_two_traps_in_narrow_passages() -> void:
-	var groups := MapDef.group_cells(data.markers.get("E", []))
-	assert_eq(groups.size(), 2, "deux pièges électriques")
-	assert_eq(data.markers.get("H", []).size(), 2, "deux leviers")
-	var zones := []
-	for g in groups:
-		zones.append(data.zone_at(g[0]))
-		# Passage étroit : 3 cases de large au plus.
-		var xs := {}
-		for c: Vector2i in g:
-			xs[c.x] = true
-		assert_true(xs.size() <= 3, "piège dans un passage étroit")
-	zones.sort()
-	assert_eq(zones, ["c", "d"], "pièges des loges et de l'allée")
-	# Chaque levier commande le bloc le plus proche, et ce sont deux blocs distincts.
-	var picked := {}
-	for lever: Vector2i in data.markers["H"]:
-		var best := -1
-		var best_d := INF
-		for i in groups.size():
-			var d := MapData.cells_center(groups[i]).distance_to(MapData.cell_to_world(lever))
-			if d < best_d:
-				best_d = d
-				best = i
-		assert_true(best_d < 6.0, "levier %s proche de son piège" % lever)
-		picked[best] = true
-	assert_eq(picked.size(), 2, "un levier par piège")
+func test_start_power_teleporter() -> void:
+	var starts := layout.player_spawns()
+	assert_eq(starts.size(), 4, "4 départs")
+	for s in starts:
+		assert_eq(layout.zone_at(s), "a", "départ dans le hall")
+	assert_eq(layout.player_spawn_yaw(), 0.0, "regard vers la scène (nord)")
+	assert_eq(layout.power_switch().zone, "h", "courant dans les coulisses")
+	assert_eq(layout.pack_a_punch().zone, "p", "Pack-a-Punch en salle de projection")
+	var tp := layout.teleporter()
+	assert_eq(layout.zone_at(tp.pad), "t", "pad sur l'avant-scène")
+	assert_eq(layout.teleporter_exit_zone(), "p", "arrivée en salle de projection")
+	var mf: MapMarker = tp.mainframe
+	assert_true(mf != null and mf.data.get("floor", false), "poste central : disque au sol")
+	assert_eq(mf.zone, "a", "poste central dans le hall")
+	# Apparitions : chaque zone jouable en a (sauf la salle de projection).
+	var spawn_zones := {}
+	for s in layout.zombie_spawns():
+		spawn_zones[s.zone] = true
+	for z in def.zone_names:
+		assert_eq(spawn_zones.has(z), z != "p", "apparitions de zombies en zone %s" % z)
 
 
-## Zones qui se touchent sans porte : ouvrir l'une doit activer l'autre
-## (sinon ses apparitions resteraient éteintes).
-func test_open_links_cover_doorless_connections() -> void:
-	for y in data.height:
-		for x in data.width:
-			var c := Vector2i(x, y)
-			if not data.is_floor(c) or def.doors.has(String.chr(data.at(c))) or data.at(c) == 87:
-				continue
-			for d in [Vector2i(1, 0), Vector2i(0, 1)]:
-				var n: Vector2i = c + d
-				if not data.is_floor(n) or def.doors.has(String.chr(data.at(n))) or data.at(n) == 87:
-					continue
-				var za := data.zone_at(c)
-				var zb := data.zone_at(n)
-				if za != zb:
-					var linked: bool = zb in def.open_links.get(za, []) or za in def.open_links.get(zb, [])
-					assert_true(linked, "zones %s et %s reliées sans porte en %s" % [za, zb, c])
-
-
-func test_ceiling_heights() -> void:
-	assert_true(def.cell_height(data, data.markers["P"][0]) > MapBuilder.WALL_HEIGHT, "hall à double hauteur")
-	assert_true(def.cell_height(data, data.markers["T"][0]) >= 6.0, "scène haute")
-	for id in def.doors:
-		for c in data.markers[id]:
-			assert_eq(def.cell_height(data, c), MapBuilder.WALL_HEIGHT, "porte %s à hauteur standard" % id)
-	for c in data.markers["W"]:
-		assert_eq(def.cell_height(data, c), MapBuilder.WALL_HEIGHT, "fenêtre à hauteur standard")
-	assert_true(def.max_height() >= 6.0)
+func test_menu_preview() -> void:
+	var img := MapPreview.render(def)
+	assert_true(img.get_width() > 300 and img.get_height() > 300, "plan de la carte (%dx%d)" % [img.get_width(), img.get_height()])
+	var gold := 0
+	var red := 0
+	for y in range(0, img.get_height(), 2):
+		for x in range(0, img.get_width(), 2):
+			# Image en 8 bits par canal : couleurs à 1/255 près.
+			var c := img.get_pixel(x, y)
+			if Vector3(c.r - MapPreview.DOOR.r, c.g - MapPreview.DOOR.g, c.b - MapPreview.DOOR.b).length() < 0.01:
+				gold += 1
+			elif Vector3(c.r - MapPreview.START.r, c.g - MapPreview.START.g, c.b - MapPreview.START.b).length() < 0.01:
+				red += 1
+	assert_true(gold > 20, "portes dorées sur le plan (%d)" % gold)
+	assert_true(red > 5, "départ entouré de rouge (%d)" % red)
