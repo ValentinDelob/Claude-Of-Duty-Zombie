@@ -62,6 +62,9 @@ MATS = {
     "paint_teal": ((0.22, 0.45, 0.43), 0.5, 0.1, 0.0),
     "paint_red": ((0.5, 0.06, 0.05), 0.5, 0.1, 0.0),
     "rubber": ((0.02, 0.02, 0.02), 0.8, 0.0, 0.0),
+    "plaster_theater": ((0.33, 0.34, 0.30), 0.9, 0.0, 0.0),
+    "vault_theater": ((0.24, 0.25, 0.23), 0.95, 0.0, 0.0),
+    "carpet_theater": ((0.15, 0.16, 0.17), 0.9, 0.0, 0.0),
 }
 
 # ------------------------------------------------------------------ état
@@ -283,7 +286,9 @@ def torus(mat, c, R_, r, useg=24, vseg=4, scale=(1, 1, 1), **kw):
 
 def lathe(mat, prof, segs=12, loop=False, smooth=False, **kw):
     """Profil (r, z) tourné autour de Z. loop : profil fermé (anneau) ; sinon
-    le solide est refermé sur l'axe aux deux bouts."""
+    le solide est refermé sur l'axe aux deux bouts. smooth = "sides" : seules
+    les bandes plus hautes que larges sont lissées (flancs), les autres restent
+    à facettes (fonds, couvercles)."""
     bm = bmesh.new()
     rings = []
     for r, z in prof:
@@ -305,7 +310,11 @@ def lathe(mat, prof, segs=12, loop=False, smooth=False, **kw):
                 f = bm.faces.new((A[i], A[j], B[0]))
             else:
                 f = bm.faces.new((A[i], A[j], B[j], B[i]))
-            f.smooth = smooth
+            if smooth == "sides":
+                (r0, z0), (r1, z1) = prof[k], prof[(k + 1) % n]
+                f.smooth = abs(z1 - z0) > abs(r1 - r0)
+            else:
+                f.smooth = smooth
     if not loop:
         if len(rings[0]) > 1:
             bm.faces.new(list(reversed(rings[0])))
@@ -1921,6 +1930,435 @@ def m_balcony_back():
     balcony(4, 1.3, 0.4, 6.0, 9)
 
 
+# ------------------------------------------------------------------ scène et coulisses
+# Aucune peinture bleue côté jeu (WorldLook.SURFACES et clés spéciales) : les
+# bidons « bleus » de BO1 prennent la peinture sarcelle, les gros câbles bleu
+# foncé le caoutchouc noir. À changer ici si une clé bleue apparaît.
+BARREL_MAT = "paint_teal"
+CABLE_MAT = "rubber"
+
+
+def recenter():
+    """Recentre l'empreinte (x, y) sur l'origine, boîtes comprises ; le sol
+    (z) ne bouge pas. Renvoie le décalage appliqué."""
+    lo, hi = bounds()
+    d = Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, 0.0))
+    deform(lambda v: v - d)
+    _boxes[:] = [(c - d, s, yw, br) for c, s, yw, br in _boxes]
+    return d
+
+
+def drum(c, yaw=0.0, lying=False):
+    """Bidon de 200 l (Ø 0,58 m, h 0,88 m) : bords sertis, deux cerclages de
+    roulement, couvercle en creux, deux bouchons. c : centre du fond (debout)
+    ou point au sol sous le milieu (couché, axe le long de X local)."""
+    if lying:
+        m = T(c[0], c[1], c[2] + 0.303) @ R(yaw, "Z") @ R(90, "Y") @ T(0, 0, -0.44)
+    else:
+        m = T(*c) @ R(yaw, "Z")
+    with xf(m):
+        lathe(BARREL_MAT, [(0.0, 0.0), (0.275, 0.0), (0.29, 0.015), (0.29, 0.285), (0.303, 0.3), (0.29, 0.315),
+                           (0.29, 0.565), (0.303, 0.58), (0.29, 0.595), (0.29, 0.865), (0.296, 0.88), (0.27, 0.88),
+                           (0.27, 0.868), (0.0, 0.868)], 12, smooth="sides")
+        with ns():
+            cyl("steel", (0.16, 0.0, 0.88), 0.032, 0.03, "Z", 6)
+            cyl("steel", (-0.17, 0.06, 0.876), 0.02, 0.02, "Z", 6)
+
+
+def m_blue_barrel_group():
+    # Bidons bleus du pied de scène et des coulisses : quatre debout, deux
+    # empilés sur ceux du fond, un couché devant ; 2,1 x 1,7 m, 1,76 m.
+    rng = random.Random(61)
+    back = [(-0.55, 0.25), (0.08, 0.32)]
+    for x, y in back + [(0.68, 0.08), (-0.2, -0.3)]:
+        drum((x, y, 0.0), rng.uniform(0, 360))
+    for x, y in back:
+        drum((x + rng.uniform(-0.03, 0.03), y + rng.uniform(-0.03, 0.03), 0.88), rng.uniform(0, 360))
+    drum((0.62, -0.6, 0.0), -20, lying=True)
+    # Barrières (les balles passent) : rang du fond avec la pile, puis le reste.
+    colbox_mm(-0.86, 0.4, -0.06, 0.64, 0.0, 1.76, barrier=True)
+    colbox_mm(-0.5, 1.14, -1.03, 0.38, 0.0, 0.9, barrier=True)
+    recenter()
+
+
+def road_case(c, size, yaw=0.0, mat="rubber", label=None):
+    """Caisse de transport (flight case) : corps noir ou gris foncé, cornières
+    d'acier sur les arêtes, coins emboutis, joint du couvercle, poignées
+    encastrées, fermetures ; boîte de collision pleine. c : centre au sol."""
+    w, d, h = size
+    e = 0.03
+    with xf(T(*c) @ R(yaw, "Z")):
+        box(mat, -w / 2 + 0.01, w / 2 - 0.01, -d / 2 + 0.01, d / 2 - 0.01, 0.004, h - 0.004)
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                box("steel", *sorted((sx * w / 2, sx * (w / 2 - e))), *sorted((sy * d / 2, sy * (d / 2 - e))), 0.0, h)
+        for z0, z1 in ((0.0, e), (h - e, h), (h - 0.19, h - 0.17)):
+            for sy in (-1, 1):
+                box("steel", -w / 2 + e, w / 2 - e, *sorted((sy * d / 2, sy * (d / 2 - e))), z0, z1)
+            for sx in (-1, 1):
+                box("steel", *sorted((sx * w / 2, sx * (w / 2 - e))), -d / 2 + e, d / 2 - e, z0, z1)
+        with ns():
+            for sx in (-1, 1):
+                for sy in (-1, 1):
+                    for z0, z1 in ((-0.004, 0.07), (h - 0.07, h + 0.004)):
+                        box("steel", *sorted((sx * (w / 2 + 0.005), sx * (w / 2 - 0.07))),
+                            *sorted((sy * (d / 2 + 0.005), sy * (d / 2 - 0.07))), z0, z1)
+                # Poignées encastrées sur les petits côtés, fermetures en façade.
+                box("steel", *sorted((sx * (w / 2 + 0.004), sx * (w / 2 - 0.01))), -0.12, 0.12, h * 0.55 - 0.05,
+                    h * 0.55 + 0.05)
+                box("rubber", *sorted((sx * (w / 2 + 0.008), sx * (w / 2 + 0.004))), -0.08, 0.08, h * 0.55 - 0.02,
+                    h * 0.55 + 0.02)
+                box("steel", sx * w * 0.3 - 0.05, sx * w * 0.3 + 0.05, -d / 2 - 0.014, -d / 2, h - 0.25, h - 0.13)
+            if label:
+                text("chalk", label, 0.0, h * 0.42, -d / 2 + 0.008, 0.1, w * 0.55)
+        colbox((0.0, 0.0, h / 2), (w, d, h))
+
+
+def m_stage_crates():
+    # Pile de caisses de transport noires des coulisses (3 x 1,9 m, 1,5 m).
+    road_case((-0.85, 0.45, 0.0), (1.2, 0.8, 0.8), 0, "rubber", "ACCESSOIRES")
+    road_case((0.5, 0.45, 0.0), (1.0, 0.9, 0.9), 4, "door")
+    road_case((0.3, -0.5, 0.0), (1.1, 0.7, 0.7), -8, "rubber", "FRAGILE")
+    road_case((-1.0, -0.55, 0.0), (0.9, 0.6, 0.6), 15, "rubber")
+    road_case((-0.8, 0.45, 0.8), (0.9, 0.7, 0.7), 10, "metal", "SCÈNE")
+    recenter()
+
+
+def m_scaffold_stairs():
+    # Tour d'échafaudage des coulisses (2,4 x 2,4 m entre axes, 5 m) :
+    # montants tubulaires, lisses, croix de Saint-André au fond et à gauche,
+    # plancher de planches à 4 m et garde-corps ; escalier d'acier raide
+    # (16 marches) accolé à droite (+X), qui monte vers l'arrière jusqu'à un
+    # palier. Décor : seuls les montants et le bas de l'escalier arrêtent.
+    P, Hd, Ht = 1.2, 4.0, 5.0
+    corners = [(-P, -P), (P, -P), (P, P), (-P, P)]
+    for x, y in corners:
+        cyl("steel", (x, y, Ht / 2), 0.03, Ht, "Z", 6)
+        box("steel", x - 0.08, x + 0.08, y - 0.08, y + 0.08, 0.0, 0.012)
+        with ns():
+            for z in (0.15, 2.0, Hd, Hd + 0.5, Ht - 0.03):
+                box("steel", x - 0.045, x + 0.045, y - 0.045, y + 0.045, z - 0.04, z + 0.04)
+        colbox_mm(x - 0.06, x + 0.06, y - 0.06, y + 0.06, 0.0, Ht)
+
+    def tub(a, b, r=0.024):
+        rod("steel", a, b, r, 6)
+    for i in range(4):
+        (ax, ay), (bx, by) = corners[i], corners[(i + 1) % 4]
+        for z in (0.15, 2.0, Hd):
+            tub((ax, ay, z), (bx, by, z))
+        if i == 1:
+            # Côté de l'escalier : garde-corps interrompu au débouché du palier.
+            for z in (Hd + 0.5, Ht - 0.03):
+                tub((P, -P, z), (P, 0.4, z))
+            tub((P, 0.4, Hd), (P, 0.4, Ht - 0.03))
+        else:
+            for z in (Hd + 0.5, Ht - 0.03):
+                tub((ax, ay, z), (bx, by, z))
+        if i in (2, 3):
+            tub((ax, ay, 0.15), (bx, by, 2.0), 0.02)
+            tub((bx, by, 2.0), (ax, ay, Hd), 0.02)
+    for x in (-0.4, 0.4):
+        tub((x, -P, Hd), (x, P, Hd), 0.02)
+    # Plancher et plinthes.
+    for k in range(8):
+        y0 = -P + k * 0.3
+        box("plank", -P - 0.04, P + 0.04, y0 + 0.006, y0 + 0.294, Hd + 0.024, Hd + 0.06)
+    for (x0, x1, y0, y1) in ((-P, P, -P - 0.03, -P), (-P, P, P, P + 0.03), (-P - 0.03, -P, -P, P), (P, P + 0.03, -P, 0.4)):
+        box("plank", x0, x1, y0, y1, Hd + 0.06, Hd + 0.2)
+    # Escalier : limons, marches, jambes de force, palier, rampes.
+    yb, yt, n = -2.5, 0.4, 16
+    run, rise = (yt - yb) / n, Hd / n
+    xs = (1.32, 2.08)
+    for x in xs:
+        beam("steel", (x, yb - 0.05, 0.14), (x, yt, Hd - 0.06), 0.03, 0.2)
+        rod("steel", (x, yb + 0.55 * (yt - yb), 0.0), (x, yb + 0.55 * (yt - yb), 0.55 * Hd - 0.08), 0.03, 6)
+    tub((xs[0], yb + 0.55 * (yt - yb), 0.55 * Hd - 0.12), (xs[1], yb + 0.55 * (yt - yb), 0.55 * Hd - 0.12), 0.02)
+    for j in range(1, n):
+        z = j * rise
+        ya = yb + (j - 1) * run
+        box("steel", xs[0] + 0.015, xs[1] - 0.015, ya, ya + run + 0.03, z - 0.035, z)
+        with ns():
+            box("steel", xs[0] + 0.015, xs[1] - 0.015, ya - 0.012, ya, z - 0.07, z)
+    box("steel", 1.24, 2.12, yt, P + 0.04, Hd - 0.03, Hd + 0.024)
+    for x, y, z1 in ((2.08, yt + 0.02, Ht), (2.08, P, Ht), (1.3, yt + 0.02, Hd)):
+        rod("steel", (x, y, 0.0), (x, y, z1), 0.028, 6)
+        colbox_mm(x - 0.06, x + 0.06, y - 0.06, y + 0.06, 0.0, z1)
+    tub((2.08, yt + 0.02, 2.0), (2.08, P, 2.0))
+    tub((1.3, yt + 0.02, 2.0), (2.08, yt + 0.02, 2.0))
+    for x in xs:
+        tub((x, yb + 0.05, 0.1), (x, yb + 0.05, 1.05), 0.02)
+        tub((x, yb + 0.05, 1.0), (x, yt, Hd + 0.95), 0.022)
+        tub((x, yb + 0.05, 0.55), (x, yt, Hd + 0.5), 0.016)
+        tub((x, yb + 0.5 * (yt - yb), 0.5 * Hd), (x, yb + 0.5 * (yt - yb), 0.5 * Hd + 1.0), 0.018)
+    for z in (Hd + 0.5, Ht - 0.03):
+        tub((2.08, yt + 0.02, z), (2.08, P, z))
+        tub((2.08, P, z), (P, P, z))
+    # Bas de l'escalier (sous 1,8 m) : on bute dessus au lieu de le traverser.
+    colbox_mm(xs[0] - 0.05, xs[1] + 0.05, yb - 0.08, yb + 0.45 * (yt - yb), 0.0, 0.45 * Hd)
+    recenter()
+
+
+def cable_bundle(center, radii, spacing, rng, wig=0.012, plug=True):
+    """Gros câbles couchés au sol côte à côte le long d'une ligne (x, y) ;
+    manchon d'acier au bout +X (raccord avec le tronçon suivant)."""
+    pts = [Vector((p[0], p[1], 0.0)) for p in center]
+    N = len(pts)
+    nrm = []
+    for i in range(N):
+        t = pts[min(i + 1, N - 1)] - pts[max(i - 1, 0)]
+        nrm.append(Vector((-t.y, t.x, 0.0)).normalized())
+    n = len(radii)
+    for k, r in enumerate(radii):
+        off = spacing * (k - (n - 1) / 2)
+        ph, fr = rng.uniform(0, 6.3), rng.uniform(1.5, 2.5)
+        path = [pts[i] + nrm[i] * (off + wig * math.sin(fr * 2 * math.pi * i / (N - 1) + ph)) + Vector((0, 0, r))
+                for i in range(N)]
+        tube(CABLE_MAT, path, r, 8)
+        if plug:
+            t = (path[-1] - path[-2]).normalized()
+            up = Vector((0, 0, 0.016))
+            rod("steel", path[-1] - t * 0.14 + up, path[-1] + t * 0.03 + up, r + 0.016, 8)
+
+
+def m_cable_run_a():
+    # Trois câbles en S au sol (8 m d'un bout à l'autre, Ø 0,11 à 0,14 m).
+    with ns():
+        cable_bundle([(x, 0.7 * math.sin(math.pi * x / 3.8)) for x in [-3.8 + 7.6 * i / 47 for i in range(48)]],
+                     (0.065, 0.055, 0.07), 0.17, random.Random(91))
+    recenter()
+
+
+def m_cable_run_b():
+    # Deux câbles en double S, plus serré (7,4 m d'un bout à l'autre).
+    with ns():
+        cable_bundle([(x, -0.5 * math.sin(1.5 * math.pi * x / 3.7)) for x in [-3.7 + 7.4 * i / 55 for i in range(56)]],
+                     (0.06, 0.07), 0.17, random.Random(93))
+    recenter()
+
+
+def m_cable_drop():
+    # Trois câbles qui passent le bord de scène (1,15 m) et retombent au sol
+    # 1,5 m plus loin. Origine : en haut, sur l'arête du bord de scène ; le
+    # plateau est vers +Y, la salle vers -Y ; le sol de la salle à z = -1,15.
+    rng = random.Random(97)
+    with ns():
+        for k, r in enumerate((0.065, 0.055, 0.07)):
+            x = 0.17 * (k - 1)
+            fl = -1.15 + r
+            pts = [Vector((x + 0.02 * math.sin(3 * y + k), y, r)) for y in (0.7, 0.5, 0.3, 0.15)]
+            pts += bezier((x, 0.0, r), (x, -0.7, r + 0.06), (x * 1.3, -0.85, fl), (x * 1.5, -1.3, fl), 14)
+            pts.append(Vector((x * 1.6 + rng.uniform(-0.02, 0.02), -1.5, fl)))
+            tube(CABLE_MAT, pts, r, 8)
+
+
+def m_stage_lip():
+    # Nez de scène (4 x 1,15 x 0,12 m) en bois sombre : plinthe et corniche
+    # moulurées, bandeau sculpté de rinceaux (tige ondulée, volutes, feuilles,
+    # rosaces). Origine au bas du milieu de la FACE ARRIÈRE (y = 0), face vers
+    # -Y ; se répète bout à bout (période du motif 0,5 m).
+    W, Pd = 4.0, 0.5
+    x0, x1 = -W / 2, W / 2
+    box("dark_wood", x0, x1, -0.06, 0.0, 0.0, 1.15)
+    prism("dark_wood", [(0.0, 0.0), (-0.12, 0.0), (-0.12, 0.09), (-0.105, 0.11), (-0.105, 0.14), (-0.085, 0.16),
+                        (-0.085, 0.18), (0.0, 0.18)], "yz", x0, x1)
+    prism("dark_wood", [(0.0, 0.92), (-0.075, 0.92), (-0.085, 0.94), (-0.095, 0.96), (-0.095, 0.99), (-0.12, 1.02),
+                        (-0.12, 1.15), (0.0, 1.15)], "yz", x0, x1)
+    box("dark_wood", x0, x1, -0.085, -0.06, 0.2, 0.235)
+    box("dark_wood", x0, x1, -0.085, -0.06, 0.865, 0.9)
+    zc, A, yr = 0.55, 0.15, -0.068
+    with ns():
+        stem = [(x, yr, zc + A * math.sin(2 * math.pi * (x - x0) / Pd)) for x in [x0 + W * i / 80 for i in range(81)]]
+        tube("wood", stem, 0.016, 4)
+        for k in range(int(2 * W / Pd)):
+            s = 1 if k % 2 == 0 else -1
+            xe = x0 + Pd / 4 + k * Pd / 2
+            xz = xe + Pd / 4
+            c = Vector((xe + 0.13, zc + s * 0.165))
+            st = Vector((xe + 0.03, zc + s * A * math.cos(2 * math.pi * 0.03 / Pd)))
+            r0 = (st - c).length
+            th0 = math.atan2(st.y - c.y, st.x - c.x)
+            spiral = []
+            for i in range(11):
+                ph = math.radians(420) * i / 10
+                r = r0 * (1 - 0.78 * i / 10)
+                th = th0 - s * ph
+                spiral.append((c.x + math.cos(th) * r, yr, c.y + math.sin(th) * r))
+            if max(p[0] for p in spiral) < x1 - 0.02:
+                tube("wood", spiral, [0.016 - 0.008 * i / 10 for i in range(11)], 4)
+                cyl("wood", (c.x, yr, c.y), 0.024, 0.034, "Y", 6)
+            # Feuille lancéolée sous la tige, du côté opposé à la volute.
+            if x0 + 0.1 < xz < x1 - 0.05:
+                base = Vector((xz, zc))
+                tip = Vector((xz - 0.09, zc - s * 0.13))
+                ax = (tip - base).normalized()
+                nx = Vector((-ax.y, ax.x))
+                L = (tip - base).length
+                leaf = [base, base + ax * L * 0.3 + nx * 0.03, base + ax * L * 0.7 + nx * 0.025, tip,
+                        base + ax * L * 0.7 - nx * 0.025, base + ax * L * 0.3 - nx * 0.03]
+                prism("wood", [(p.x, p.y) for p in leaf], "xz", -0.078, -0.058)
+
+
+def m_wall_frieze():
+    # Frise haute des murs de la salle (6 x 1,6 m) : moulures crème, bande à
+    # losanges gris-bleu en relief (pointes de diamant), corniche épaisse à
+    # denticules et gorge (saillie 0,5 m). Origine au bas du milieu de la face
+    # arrière (collée au mur), face vers -Y ; se répète bout à bout.
+    W = 6.0
+    x0, x1 = -W / 2, W / 2
+    prism("paper", [(0.0, 0.0), (-0.12, 0.0), (-0.15, 0.03), (-0.15, 0.08), (-0.12, 0.11), (-0.12, 0.14), (0.0, 0.14)],
+          "yz", x0, x1)
+    box("vault_theater", x0, x1, -0.08, 0.0, 0.14, 0.86)
+    prism("paper", [(0.0, 0.86), (-0.12, 0.86), (-0.12, 0.89), (-0.15, 0.92), (-0.15, 0.97), (-0.12, 1.0), (0.0, 1.0)],
+          "yz", x0, x1)
+    zc, hw, hh = 0.5, 0.25, 0.3
+    for k in range(12):
+        xc = x0 + 0.25 + 0.5 * k
+        pts = []
+        for y, f in ((-0.078, 0.94), (-0.135, 0.5)):
+            pts += [Vector((xc + hw * f, y, zc)), Vector((xc, y, zc + hh * f)), Vector((xc - hw * f, y, zc)),
+                    Vector((xc, y, zc - hh * f))]
+        hull("carpet_theater", pts)
+        with ns():
+            flat("paint_teal", [(0.0, 0.07), (0.045, 0.0), (0.0, -0.07), (-0.045, 0.0)], xc, zc, -0.134, 1.0, 0.006)
+    # Triangles en creux entre les losanges (demi-triangles aux deux bouts).
+    for j in range(13):
+        xj = x0 + 0.5 * j
+        for s in (1, -1):
+            tri = [(xj - 0.19, zc + s * 0.28), (xj + 0.19, zc + s * 0.28), (xj, zc + s * 0.06)]
+            if j == 0:
+                tri = [(xj, zc + s * 0.28), (xj + 0.19, zc + s * 0.28), (xj, zc + s * 0.06)]
+            elif j == 12:
+                tri = [(xj - 0.19, zc + s * 0.28), (xj, zc + s * 0.28), (xj, zc + s * 0.06)]
+            prism("plaster_theater", tri, "xz", -0.098, -0.078)
+    # Corniche : bandeau, denticules, gorge, larmier, couronnement.
+    prof = [(0.0, 1.0), (-0.1, 1.0), (-0.1, 1.04), (-0.16, 1.06), (-0.16, 1.22)]
+    prof += [(-0.42 + 0.26 * math.cos(math.radians(a)), 1.22 + 0.18 * math.sin(math.radians(a))) for a in range(15, 91, 15)]
+    prof += [(-0.46, 1.42), (-0.46, 1.5), (-0.5, 1.52), (-0.5, 1.6), (0.0, 1.6)]
+    prism("plaster_theater", prof, "yz", x0, x1)
+    box("paper", x0, x1, -0.5, -0.46, 1.5, 1.52)
+    nd = 43
+    for k in range(nd):
+        x = x0 + W * (k + 0.5) / nd
+        box("plaster_theater", x - 0.035, x + 0.035, -0.23, -0.16, 1.08, 1.18)
+
+
+def m_screen_block_face():
+    # Habillage de la face avant du grand bloc des coulisses qui porte l'écran
+    # (16 x 14 m, 0,3 m) : contreplaqué sombre en panneaux, montants et lisses,
+    # croix de contreventement, perche d'éclairage à 6 projecteurs de scène,
+    # câbles. Zone de l'écran (|x| < 4,9 m, z de 1,9 à 8,4 m) : peau plate
+    # seulement (≤ 0,035 m), l'écran et son cadre se posent devant.
+    # Origine au bas du milieu de la face arrière (collée au bloc), face -Y.
+    W, H = 16.0, 14.0
+    rng = random.Random(71)
+    ncol, nrow = 13, 6
+    cw, rh = W / ncol, H / nrow
+    SX, SZ0, SZ1 = 4.9, 1.9, 8.4
+    for i in range(ncol):
+        for j in range(nrow):
+            xa, za = -W / 2 + i * cw, j * rh
+            t = rng.uniform(0.018, 0.032)
+            box("dark_wood" if rng.random() < 0.85 else "plank", xa + 0.008, xa + cw - 0.008, -t, 0.0, za + 0.008,
+                za + rh - 0.008)
+    for i in range(ncol + 1):
+        x = -W / 2 + i * cw
+        x = max(-W / 2 + 0.045, min(W / 2 - 0.045, x))
+        spans = [(0.0, H)] if abs(x) > SX + 0.1 else [(0.0, SZ0 - 0.2), (SZ1 + 0.2, H)]
+        for z0, z1 in spans:
+            box("wood", x - 0.045, x + 0.045, -0.2, -0.02, z0, z1)
+    box("wood", -W / 2, W / 2, -0.3, -0.02, 0.0, 0.18)
+    box("wood", -W / 2, W / 2, -0.3, -0.02, H - 0.2, H)
+    box("wood", -W / 2, W / 2, -0.22, -0.02, 10.8, 10.98)
+    for z in (SZ0 - 0.2, SZ1):
+        box("wood", -SX - 0.3, SX + 0.3, -0.25, -0.02, z, z + 0.2)
+    for sx in (-1, 1):
+        box("wood", *sorted((sx * W / 2, sx * (SX + 0.3))), -0.22, -0.02, 4.9, 5.08)
+        with xf(S(sx, 1, 1)):
+            beam("wood", (7.55, -0.12, 0.3), (5.5, -0.12, 4.75), 0.09, 0.05, up=(0, -1, 0))
+            beam("wood", (5.5, -0.12, 5.2), (7.55, -0.12, 10.7), 0.09, 0.05, up=(0, -1, 0))
+    # Perche d'éclairage et ses consoles.
+    cyl("steel", (0, -0.42, 12.9), 0.03, 15.2, "X", 8)
+    for i in (1, 4, 9, 12):
+        x = -W / 2 + i * cw
+        box("steel", x - 0.03, x + 0.03, -0.45, -0.2, 12.87, 12.93)
+    spots = (-6.2, -3.7, -1.25, 1.25, 3.7, 6.2)
+    for x in spots:
+        yaw = -x * 2.2
+        with xf(T(x, -0.42, 12.55) @ R(yaw, "Z")):
+            box("steel", -0.05, 0.05, -0.05, 0.05, 0.3, 0.4)
+            box("steel", -0.19, 0.19, -0.02, 0.02, 0.3, 0.33)
+            for sx in (-1, 1):
+                box("steel", *sorted((sx * 0.17, sx * 0.19)), -0.02, 0.02, -0.05, 0.33)
+            with xf(R(40, "X")):
+                cyl("metal", (0, 0, 0), 0.15, 0.45, "Y", 12)
+                cyl("steel", (0, 0.24, 0), 0.1, 0.05, "Y", 8)
+                for sx in (-1, 1):
+                    box("rubber", *sorted((sx * 0.15, sx * 0.19)), -0.24, -0.12, -0.14, 0.14)
+                with ns():
+                    cyl("chalk", (0, -0.216, 0), 0.125, 0.006, "Y", 12)
+                    cyl("glass", (0, -0.226, 0), 0.13, 0.008, "Y", 12)
+    # Câbles : festons le long de la perche, deux descentes jusqu'au sol.
+    with ns():
+        for a, b in zip(spots[:-1], spots[1:]):
+            tube("rubber", sag((a + 0.1, -0.47, 12.84), (b - 0.1, -0.47, 12.84), rng.uniform(0.35, 0.6), 10), 0.018, 5)
+        for sx in (-1, 1):
+            tube("rubber", bezier((sx * 6.3, -0.47, 12.84), (sx * 7.4, -0.45, 10.5), (sx * 7.5, -0.3, 2.5),
+                                  (sx * 7.35, -0.5, 0.03), 18), 0.025, 5)
+            tube("rubber", [(sx * 7.35, -0.5, 0.03), (sx * 7.1, -0.9, 0.03), (sx * 6.6, -1.2, 0.03)], 0.025, 5)
+
+
+def zigzag(a, b, rng, n=12, amp=0.06, bow=None, r=0.012, forks=0):
+    """Arc électrique figé : ligne brisée de a à b (écarts au hasard, nuls aux
+    bouts), bombée de bow, petites fourches."""
+    a, b = Vector(a), Vector(b)
+    d = b - a
+    L = d.length
+    t = d.normalized()
+    u = t.orthogonal().normalized()
+    v = t.cross(u)
+    pts = []
+    for i in range(n + 1):
+        s = i / n
+        p = a + d * s
+        if bow is not None:
+            p = p + Vector(bow) * math.sin(math.pi * s)
+        if 0 < i < n:
+            p = p + (u * rng.uniform(-1, 1) + v * rng.uniform(-1, 1)) * amp * math.sin(math.pi * s) ** 0.5
+        pts.append(p)
+    tube("glow_blue", pts, r, 3)
+    for _ in range(forks):
+        i = rng.randint(2, n - 2)
+        dirv = (t + (u * rng.uniform(-1, 1) + v * rng.uniform(-1, 1)) * 0.9).normalized()
+        zigzag(pts[i], pts[i] + dirv * L * rng.uniform(0.15, 0.3), rng, 4, amp * 0.6, None, r * 0.7, 0)
+
+
+def m_mdt_arcs():
+    # Arcs électriques bleus figés autour de la « cervelle » du téléporteur,
+    # à poser AU MÊME POINT et avec le même lacet que mdt_tower (même origine :
+    # bord avant du socle, tour à +Y, cervelle en (0 ; 1,5 ; 5,0)). Cinq arcs
+    # courts de la cervelle aux barreaux de la cage, trois longs jusqu'aux
+    # pointes des isolateurs (avant gauche, avant droit, arrière droit).
+    rng = random.Random(83)
+    yc = 1.5
+    C = Vector((0.0, yc, 5.0))
+    with ns():
+        for k in range(5):
+            a = 2 * math.pi * k / 5 + rng.uniform(-0.3, 0.3)
+            p0 = C + Vector((math.cos(a) * 0.42, math.sin(a) * 0.37, rng.uniform(-0.12, 0.18)))
+            ab = math.radians(round(math.degrees(a) / 45) * 45 + 45 * rng.choice((-1, 1)))
+            p1 = Vector((math.cos(ab) * 0.63, yc + math.sin(ab) * 0.63, rng.uniform(4.6, 5.4)))
+            mid = (p0 + p1) / 2 - C
+            bow = Vector((mid.x, mid.y, 0.0)).normalized() * 0.12
+            zigzag(p0, p1, rng, 10, 0.045, bow, 0.014, 1)
+        el = math.radians(38)
+        for k in (4, 5, 1):
+            a = math.radians(60 * k)
+            d = Vector((math.cos(a) * math.cos(el), math.sin(a) * math.cos(el), math.sin(el)))
+            tip = Vector((math.cos(a) * 0.98, yc + math.sin(a) * 0.98, 3.95)) + d * 1.35
+            start = C + Vector((math.cos(a) * 0.44, math.sin(a) * 0.38, 0.05))
+            zigzag(start, tip, rng, 16, 0.09, (0, 0, 0.25), 0.02, 2)
+
+
 BUILDERS = {
     "seat": m_seat, "seat_broken_a": m_seat_broken_a, "seat_broken_b": m_seat_broken_b,
     "rubble_heap_a": m_rubble_heap_a, "rubble_heap_b": m_rubble_heap_b, "rubble_heap_c": m_rubble_heap_c,
@@ -1933,10 +2371,17 @@ BUILDERS = {
     "dome": m_dome, "rubble_field_a": m_rubble_field_a, "rubble_field_b": m_rubble_field_b,
     "rubble_mound_big": m_rubble_mound_big, "column_balcony": m_column_balcony, "folding_chair": m_folding_chair,
     "lectern": m_lectern, "screen_frame": m_screen_frame, "balcony_back": m_balcony_back,
+    "blue_barrel_group": m_blue_barrel_group, "stage_crates": m_stage_crates, "scaffold_stairs": m_scaffold_stairs,
+    "cable_run_a": m_cable_run_a, "cable_run_b": m_cable_run_b, "cable_drop": m_cable_drop,
+    "stage_lip": m_stage_lip, "wall_frieze": m_wall_frieze, "screen_block_face": m_screen_block_face,
+    "mdt_arcs": m_mdt_arcs,
 }
 
 # Modèles suspendus ou muraux : pas de sol dans l'aperçu.
-NO_FLOOR = {"chandelier", "dome", "valance", "banner", "sconce", "wall_clock", "screen_frame"}
+NO_FLOOR = {"chandelier", "dome", "valance", "banner", "sconce", "wall_clock", "screen_frame", "mdt_arcs"}
+# Aperçu seulement (non exporté) : modèle voisin posé à côté pour juger du
+# raccord (tour sous ses arcs, nez de scène sous la descente de câbles).
+PREVIEW_WITH = {"mdt_arcs": ("mdt_tower", I4), "cable_drop": ("stage_lip", T(0, 0, -1.15))}
 
 
 # ------------------------------------------------------------------ export
@@ -2062,6 +2507,18 @@ def preview(name, obs):
         views.append(("_front", Vector((0, 0, 1.3)), Vector((0, -4.2, 1.4)), 50))
     elif name == "mdt_tower":
         views.append(("_front", Vector((0, 1.5, 3.1)), Vector((0, -9.5, 3.3)), 50))
+    elif name == "mdt_arcs":
+        views.append(("_front", Vector((0, 1.5, 3.4)), Vector((0, -9.5, 4.2)), 50))
+    elif name == "stage_lip":
+        views.append(("_front", Vector((0.6, 0, 0.6)), Vector((0.9, -2.6, 0.8)), 50))
+    elif name == "wall_frieze":
+        views.append(("_detail", Vector((1.5, -0.2, 0.9)), Vector((0.4, -3.2, 0.25)), 45))
+    elif name == "screen_block_face":
+        views.append(("_top", Vector((-3.7, -0.5, 12.6)), Vector((-1.5, -5.5, 10.8)), 45))
+    if name in PREVIEW_WITH:
+        other, m = PREVIEW_WITH[name]
+        for ob in build(other)[0]:
+            ob.matrix_world = m
     for suffix, tgt, loc, lens in views:
         target.location = tgt
         cam.location = loc

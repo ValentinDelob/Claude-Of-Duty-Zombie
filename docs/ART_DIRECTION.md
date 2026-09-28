@@ -297,6 +297,14 @@ concerne.
 - Cabine de projection : machine d'amélioration en forme de poêle sarcelle
   à trois rouleaux blancs et enseigne à losanges colorés, projecteur sur
   socle en fonte, étagère à bobines, bureau, horloge, bobines au sol.
+- Scène et coulisses (captures) : salle gris-vert sale ; nez de scène en
+  bois sombre à bandeau sculpté ; bidons bleus empilés au pied de la scène
+  à gauche et en coulisses ; caisses de transport noires ou gris foncé
+  empilées ; échafaudage métallique et son escalier en coulisses à droite ;
+  gros câbles bleu foncé qui partent de la tour du téléporteur, descendent
+  du bord de scène et serpentent dans l'allée ; frise à losanges gris-bleu
+  en haut des murs sous une corniche épaisse ; grand bloc de coulisses en
+  planches qui porte l'écran, perche de projecteurs en haut.
 
 ### Mise en œuvre (tools/blender/props/kino_theater.py, assets/models/kino/)
 - Modèles low poly scriptés (un .glb par objet, un maillage par matériau
@@ -315,13 +323,33 @@ concerne.
 - Cabine de projection : `pap_machine` (enseigne ORIGINALE « PUNCH-O-MATIC,
   Augmentez votre puissance de feu ! », police intégrée de Blender),
   `projector`, `reel_shelf`, `desk`, `wall_clock`, `film_reel`.
+- Scène et coulisses : `stage_lip` (nez de scène 4 x 1,15 m, rinceaux en
+  relief, se répète bout à bout), `wall_frieze` (frise 6 x 1,6 m, losanges
+  en pointe de diamant entre moulures crème, corniche à denticules de
+  0,5 m de saillie), `blue_barrel_group` (7 bidons, 2 barrières),
+  `stage_crates` (5 caisses de transport à cornières), `scaffold_stairs`
+  (tour de 5 m, plancher à 4 m, escalier raide accolé ; seuls les montants
+  et le bas de l'escalier arrêtent), `cable_run_a/b` (câbles en S au sol,
+  ~8 m, raccord d'acier au bout +X), `cable_drop` (descente du bord de
+  scène, origine sur l'arête), `screen_block_face` (habillage 16 x 14 m du
+  bloc de l'écran, zone de l'écran laissée plate), `mdt_arcs` (arcs bleus
+  figés, même origine que `mdt_tower`). Les modèles d'architecture à coller
+  au mur (`stage_lip`, `wall_frieze`, `screen_block_face`) ont leur origine
+  au bas du milieu de la face arrière.
+- Clés de matériau propres à la salle (aperçus Blender et shaders du jeu) :
+  `plaster_theater` (plâtre gris-vert), `vault_theater` (gris des voûtes),
+  `carpet_theater` (moquette gris-bleu).
 - Aucun symbole politique : emblèmes originaux (bobine de film stylisée
   sur les bannières, le pupitre et l'estrade ; éclair dans un anneau sur le
   téléporteur ; pistolet et étincelle sur la machine d'amélioration).
 
 ### Écarts restants
 - Formes simplifiées : pas de caissons sculptés dans la coupole, rinceaux
-  du nez de scène et feuillages des niches absents, trous du plafond à bords
+  du nez de scène en tiges et volutes simples, feuillages des niches
+  absents, trous du plafond à bords
   en escalier (grille de la coupole) ; fauteuils des balcons simplifiés.
-- La « cervelle » du téléporteur est une masse bosselée émissive, sans arcs
-  électriques (les effets viennent du jeu).
+- La « cervelle » du téléporteur est une masse bosselée émissive ; ses arcs
+  (`mdt_arcs`) sont figés (pas d'animation dans le modèle).
+- Pas de peinture bleue parmi les clés du jeu : les bidons prennent la
+  peinture sarcelle (`paint_teal`), les gros câbles le caoutchouc noir
+  (`rubber`) ; constantes `BARREL_MAT` et `CABLE_MAT` du script.
