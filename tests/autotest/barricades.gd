@@ -59,7 +59,7 @@ func run() -> void:
 	at.check(w != null and w.planks() == 6, "fenêtre sud de la salle de garde : 6 planches")
 	if w == null:
 		return
-	at.check(game.nav and not game.nav.is_walkable(w.cell), "cellule de fenêtre bloquée pour l'A*")
+	at.check(game.nav and not (game.nav as NavGrid).is_walkable(w.cell), "cellule de fenêtre bloquée pour l'A*")
 
 	# 1. Fenêtre intacte, des deux côtés.
 	await _view(true)

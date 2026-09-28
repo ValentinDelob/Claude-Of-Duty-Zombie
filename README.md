@@ -99,6 +99,8 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
 - `sh tools/commit.sh message.txt` : lance check.sh et ne committe que s'il réussit.
 - `sh tools/ship.sh message.txt` : commit vérifié, push sur `main`, puis build `.exe`
   et release GitHub (voir ci-dessous).
+- `sh tools/blender.sh <script.py> [args]` : Blender sans fenêtre (modèles et
+  architecture des cartes en maillage, voir docs/ARCHITECTURE.md).
 - `sh tools/perf.sh` : mesures de performance fiables (1080p, un jeu à la fois).
   Repère : ~210 fps sur une GTX 1070 (~250 fps sur la RTX A2000 portable) ≈
   60 fps sur GTX 1050 ;

@@ -110,9 +110,10 @@ func _chase(delta: float) -> void:
 	# Bond dès que la cible est à portée et en vue directe.
 	if target and is_instance_valid(target) and _is_target_valid(target):
 		var to := target.global_position - global_position
+		var dy := absf(to.y)
 		to.y = 0.0
 		var d := to.length()
-		if d < LUNGE_RANGE and d > 0.01 and Game.instance.nav.world_line_clear(global_position, target.global_position):
+		if d < LUNGE_RANGE and d > 0.01 and dy < 0.9 and Game.instance.nav.world_line_clear(global_position, target.global_position):
 			_lunge_dir = to / d
 			_start_attack()
 			return
@@ -148,8 +149,9 @@ func _attack(delta: float) -> void:
 		_attack_hit_done = true
 		if target and is_instance_valid(target) and _is_target_valid(target):
 			var d := target.global_position - global_position
+			var dy := absf(d.y)
 			d.y = 0.0
-			if d.length() < BITE_REACH:
+			if d.length() < BITE_REACH and dy < LEVEL_TOLERANCE:
 				Game.instance.combat.damage_player(target.peer_id, DogRules.BITE_DAMAGE, global_position + Vector3.UP * 0.6)
 	if _state_time >= DOG_ATTACK_TIME:
 		_lunge_dir = Vector3.ZERO

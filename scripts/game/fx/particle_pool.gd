@@ -18,6 +18,8 @@ var _life: PackedFloat32Array
 var _max_life: PackedFloat32Array
 var _size: PackedFloat32Array
 var _col: PackedColorArray
+## Sol sous le point d'émission de chaque particule.
+var _floor: PackedFloat32Array
 var _count := 0
 
 
@@ -41,6 +43,7 @@ func setup(cap: int, mat: Material, size := 0.05) -> ParticlePool:
 	_max_life.resize(cap)
 	_size.resize(cap)
 	_col.resize(cap)
+	_floor.resize(cap)
 	# Les particules sont en coordonnées monde.
 	top_level = true
 	global_transform = Transform3D.IDENTITY
@@ -61,6 +64,7 @@ func emit(pos: Vector3, vel: Vector3, life: float, color: Color, size_mult := 1.
 	_max_life[i] = life
 	_size[i] = base_size * size_mult
 	_col[i] = color
+	_floor[i] = Fx.floor_under(pos) + 0.01
 
 
 ## Gerbe de particules autour d'une normale.
@@ -89,11 +93,12 @@ func _process(delta: float) -> void:
 			_max_life[i] = _max_life[_count]
 			_size[i] = _size[_count]
 			_col[i] = _col[_count]
+			_floor[i] = _floor[_count]
 			continue
 		_vel[i] = _vel[i] * damp + Vector3.DOWN * gravity * delta
 		_pos[i] += _vel[i] * delta
-		if _pos[i].y < 0.01:
-			_pos[i].y = 0.01
+		if _pos[i].y < _floor[i]:
+			_pos[i].y = _floor[i]
 			_vel[i] = Vector3(_vel[i].x * 0.3, 0.0, _vel[i].z * 0.3)
 		i += 1
 	var mm := multimesh

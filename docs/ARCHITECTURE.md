@@ -241,6 +241,24 @@ précédent.
   sa géométrie (`MapDef.create_layout`). `GridMapLayout` enveloppe les cartes
   ASCII sans changer leur comportement ; les cartes en maillage à plusieurs
   niveaux (KINO V2, voir `docs/KINO_V2.md`) auront leur propre implémentation.
+- **Cartes en maillage à plusieurs niveaux** (`MeshMapLayout`, exemple
+  `test_levels`) : une description JSON (`assets/maps/<id>/layout.json`,
+  repère Godot en mètres : salles, murs avec ouvertures, dalles, escaliers,
+  garde-corps, zones en boîtes, emplacements) sert à la fois à Blender et au
+  jeu. `sh tools/blender.sh tools/blender/mesh_map.py <layout.json> <id>.glb
+  [aperçu.png]` construit l'architecture sans fenêtre : objets
+  `<matériau>__<salle>__<type>` (visibles, shader `WorldLook.surface` et
+  `floor_y` par instance pour les lambris des étages) et `...__col-colonly`
+  (collisions ; escaliers = marches visibles + coin de collision plein, le
+  joueur n'ayant pas de montée de marche). `MeshMapBuilder` (hérite de
+  `MapProps`, comme `PropBuilder`) branche le .glb sur le rendu, le courant et
+  les lampes. `MeshNav` (hérite de `MapNav`, comme `NavGrid`) cuit le navmesh
+  au chargement d'après les collisions (portes fermées et fenêtres comprises)
+  ; chaque porte est un `NavigationLink3D` activé à l'ouverture. Les zombies
+  gardent le déplacement flottant et suivent le sol par un rayon vers le bas
+  (`Zombie._follow_floor`) ; portée d'attaque, bonds, séparation et points de
+  passage tiennent compte de la hauteur. Morceaux et particules retombent sur
+  le sol sous leur point de départ (`Fx.floor_under`).
 - Décor de théâtre (PropBuilder + `TheaterLook`) : fauteuils fusionnés par
   matériau (une collision par rangée + barrière joueurs/zombies que les balles
   traversent), rideaux, écran animé et faisceau du projecteur (liés au

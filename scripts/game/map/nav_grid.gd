@@ -1,5 +1,5 @@
 class_name NavGrid
-extends RefCounted
+extends MapNav
 ## Navigation des zombies (serveur uniquement) sur la grille de la carte.
 ##
 ## AStarGrid2D (natif, rapide) + lissage des chemins par ligne de vue. Les

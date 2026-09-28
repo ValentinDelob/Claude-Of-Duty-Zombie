@@ -12,6 +12,7 @@ const MAP_SCRIPTS := {
 	"bunker_k7": "res://scripts/game/map/maps/bunker_k7.gd",
 	"test_arena": "res://scripts/game/map/maps/test_arena.gd",
 	"kino": "res://scripts/game/map/maps/kino.gd",
+	"test_levels": "res://scripts/game/map/maps/test_levels.gd",
 }
 const DEFAULT_MAP := "bunker_k7"
 ## Cartes proposées dans les menus (sélection solo, salon de l'hôte).
@@ -32,7 +33,7 @@ var map_data: MapData
 ## navigation, bloqueurs).
 var layout: MapLayout
 ## Navigation des zombies (serveur uniquement).
-var nav: NavGrid
+var nav: MapNav
 var players: Dictionary = {}  # peer_id -> Player
 var local_player: Player
 
@@ -48,7 +49,7 @@ var local_player: Player
 @onready var perks: PerkSystem = $Perks
 @onready var downed: DownedSystem = $Downed
 var spawner: Spawner
-var props: PropBuilder
+var props: MapProps
 var doors: Dictionary = {}  # id -> Door
 ## Courant rétabli ? (répliqué par PowerSwitch)
 var power_on := false
@@ -105,9 +106,9 @@ func _load_map(map_id: String) -> void:
 		map_data = (layout as GridMapLayout).data
 	if multiplayer.is_server():
 		layout.create_nav()
-		nav = layout.nav as NavGrid
+		nav = layout.nav
 		spawner = Spawner.new(self)
-	props = layout.build(world) as PropBuilder
+	props = layout.build(world) as MapProps
 	WorldLook.setup_environment(world, map_def.look)
 	_build_doors()
 	_build_wall_buys()
@@ -118,6 +119,8 @@ func _load_map(map_id: String) -> void:
 	_build_teleporter()
 	_build_traps()
 	_build_barricades()
+	if multiplayer.is_server():
+		layout.finish_nav(world)
 	print("[Game] carte « %s » construite" % map_def.display_name)
 
 
@@ -376,6 +379,7 @@ func _build_perk_machines() -> void:
 		pm.setup_marker(m, m.data.perk)
 		interact.register(pm)
 		root.add_child(pm)
+		layout.set_blocked(m.block, true)
 
 
 func _build_mystery_box() -> void:

@@ -62,6 +62,10 @@ var _repath_t := 0.0
 const LOS_PERIOD := 0.1
 var _los_t := 0.0
 var _los_ok := false
+## Carte à plusieurs niveaux : le zombie suit le sol (sinon y = 0).
+var _multilevel := false
+## Écart de hauteur au-delà duquel une cible est « à un autre niveau ».
+const LEVEL_TOLERANCE := 1.2
 var _stuck_t := 0.0
 var _stuck_pos := Vector3.ZERO
 var _attack_hit_done := false
@@ -112,6 +116,7 @@ func setup(zid: int, zvariant: int, zspeed: int, is_server: bool) -> void:
 
 func _ready() -> void:
 	_mgr = get_parent() as ZombieManager
+	_multilevel = Game.instance != null and Game.instance.layout != null and Game.instance.layout.is_multilevel()
 	_update_solidity()
 	collision_mask = 1 | (1 << 1) | (1 << 2) | Barricade.BARRIER_LAYER  # monde, joueurs, zombies, fenêtres
 	var cs := CollisionShape3D.new()
@@ -221,11 +226,14 @@ func _physics_process(delta: float) -> void:
 			_vault()
 		State.DEAD:
 			return
-	# Déplacement au sol (y = 0) : les cartes sont plates.
+	# Déplacement au sol : y = 0 sur les cartes plates ; sur les cartes à
+	# plusieurs niveaux, le zombie suit le sol (escaliers, pentes, balcons).
 	velocity.y = 0.0
 	if state != State.EMERGE and state != State.VAULT:
 		move_and_slide()
-		if global_position.y != 0.0:
+		if _multilevel:
+			_follow_floor()
+		elif global_position.y != 0.0:
 			global_position.y = 0.0
 	anim_speed = Vector2(velocity.x, velocity.z).length()
 	# Mesure de blocage sur des fenêtres d'une seconde (déplacement réel).
@@ -258,9 +266,10 @@ func _chase(delta: float) -> void:
 	if target:
 		var tpos := target.global_position
 		var to := tpos - global_position
+		var dy := absf(to.y)
 		to.y = 0.0
 		var dist := to.length()
-		if dist < ATTACK_RANGE:
+		if dist < ATTACK_RANGE and dy < LEVEL_TOLERANCE:
 			_start_attack()
 			return
 		var dir := Vector3.ZERO
@@ -271,7 +280,8 @@ func _chase(delta: float) -> void:
 		if _los_t <= 0.0:
 			_los_t = LOS_PERIOD
 			_los_ok = dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, tpos)
-		if _los_ok and dist < DIRECT_RANGE:
+		# En ligne droite seulement au même niveau (sinon : escaliers, par le chemin).
+		if _los_ok and dist < DIRECT_RANGE and dy < 0.9:
 			dir = to / dist
 			_path.clear()
 		else:
@@ -279,7 +289,7 @@ func _chase(delta: float) -> void:
 				_path = game.nav.find_path(global_position, tpos)
 				_path_i = 0
 				_repath_t = randf_range(0.35, 0.7)
-			while _path_i < _path.size() and _flat_dist(_path[_path_i]) < 0.45:
+			while _path_i < _path.size() and _waypoint_reached(_path[_path_i]):
 				_path_i += 1
 			if _path_i < _path.size():
 				var wp := _path[_path_i] - global_position
@@ -365,6 +375,8 @@ func _separation() -> Vector3:
 			# Sa propre position (distance nulle) est écartée par le test l2.
 			for op: Vector3 in bucket:
 				var d := pos - op
+				if absf(d.y) > 1.0:
+					continue  # autre niveau (balcon, escalier)
 				d.y = 0.0
 				var l2 := d.length_squared()
 				if l2 < 0.8 and l2 > 0.0001:
@@ -403,9 +415,10 @@ func _attack(delta: float) -> void:
 		_attack_hit_done = true
 		if target and is_instance_valid(target) and _is_target_valid(target):
 			var d := target.global_position - global_position
+			var dy := absf(d.y)
 			d.y = 0.0
 			# À travers une fenêtre, le bras passe au-dessus de l'allège.
-			if d.length() < ATTACK_RANGE + (0.65 if barricade else 0.45):
+			if dy < LEVEL_TOLERANCE and d.length() < ATTACK_RANGE + (0.65 if barricade else 0.45):
 				Game.instance.combat.damage_player(target.peer_id, Combat.ZOMBIE_DAMAGE, global_position + Vector3.UP * 1.2)
 	if _state_time >= ATTACK_TIME:
 		_set_state(State.BARRIER if barricade else State.CHASE)
@@ -685,3 +698,20 @@ func _process_death(delta: float) -> void:
 ## Temps passé quasi immobile en poursuite (serveur) : sert au recyclage.
 func stuck_time() -> float:
 	return _low_move_t
+
+
+## Cartes à plusieurs niveaux : pose le zombie sur le sol sous lui (rayon
+## vers le bas sur le décor, couche 1). Immobile : rien à faire.
+func _follow_floor() -> void:
+	if absf(velocity.x) + absf(velocity.z) < 0.01:
+		return
+	var from := global_position + Vector3.UP * 0.9
+	var q := PhysicsRayQueryParameters3D.create(from, global_position + Vector3.DOWN * 1.1, 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if not hit.is_empty():
+		global_position.y = hit.position.y
+
+
+## Point de passage atteint (à plat, et au même niveau sur les cartes à étages).
+func _waypoint_reached(p: Vector3) -> bool:
+	return _flat_dist(p) < 0.45 and absf(p.y - global_position.y) < 1.0

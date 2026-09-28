@@ -584,3 +584,9 @@ func dirt_burst(pos: Vector3) -> void:
 	dust.burst(pos + Vector3.UP * 0.1, Vector3.UP, 10, 1.4, 0.8, 1.6, Color(0.22, 0.17, 0.12, 0.6), 2.0)
 	blood.burst(pos + Vector3.UP * 0.05, Vector3.UP, 14, 3.5, 0.7, 0.9, Color(0.16, 0.12, 0.08, 1.0), 1.2)
 	blood_decal(pos + Vector3.UP * 0.1, Vector3.UP, 0.7)
+
+
+## Hauteur du sol sous un point (0 sur les cartes plates ou hors partie).
+static func floor_under(pos: Vector3) -> float:
+	var g := Game.instance
+	return g.layout.floor_y(pos) if g != null and g.layout != null else 0.0

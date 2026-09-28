@@ -20,6 +20,8 @@ var _vel: PackedVector3Array = []
 var _spin: PackedVector3Array = []
 var _age: PackedFloat32Array = []
 var _landed: PackedByteArray = []
+## Hauteur de repos de chaque morceau (sol sous son point de départ).
+var _floor: PackedFloat32Array = []
 var _next := 0
 var _active := 0
 var _chunk_meshes: Array[Mesh] = []
@@ -34,6 +36,7 @@ func _ready() -> void:
 	_spin.resize(MAX_GIBS)
 	_age.resize(MAX_GIBS)
 	_landed.resize(MAX_GIBS)
+	_floor.resize(MAX_GIBS)
 	for i in MAX_GIBS:
 		var mi := MeshInstance3D.new()
 		mi.visible = false
@@ -78,6 +81,7 @@ func spawn(mesh: Mesh, xf: Transform3D, vel: Vector3, spin: Vector3) -> void:
 	_spin[i] = spin
 	_age[i] = 0.0
 	_landed[i] = 0
+	_floor[i] = Fx.floor_under(xf.origin) + FLOOR_Y
 
 
 ## Tête qui éclate : quelques éclats projetés depuis `pos`.
@@ -110,8 +114,8 @@ func _process(delta: float) -> void:
 		if _landed[i] < 2:
 			_vel[i].y -= GRAVITY * delta
 			xf.origin += _vel[i] * delta
-			if xf.origin.y < FLOOR_Y:
-				xf.origin.y = FLOOR_Y
+			if xf.origin.y < _floor[i]:
+				xf.origin.y = _floor[i]
 				if _landed[i] == 0:
 					# Première chute : le morceau se couche à plat (son axe
 					# long, -Y local, à l'horizontale) ; flaque de sang dessous.
@@ -122,7 +126,7 @@ func _process(delta: float) -> void:
 					xf.basis = Basis(xv, yv, xv.cross(yv))
 					_spin[i] = Vector3.ZERO
 					if fx:
-						fx.blood_decal(Vector3(xf.origin.x, 0.05, xf.origin.z), Vector3.UP, randf_range(0.25, 0.4))
+						fx.blood_decal(Vector3(xf.origin.x, _floor[i], xf.origin.z), Vector3.UP, randf_range(0.25, 0.4))
 				if absf(_vel[i].y) < 1.2:
 					_landed[i] = 2
 					_vel[i] = Vector3.ZERO

@@ -13,7 +13,7 @@ extends RefCounted
 var def: MapDef
 ## Navigation des zombies (serveur uniquement, null sur les clients) :
 ## find_path(from, to) -> PackedVector3Array, world_line_clear(from, to) -> bool.
-var nav: RefCounted
+var nav: MapNav
 
 
 ## Construit la navigation (serveur).
@@ -122,3 +122,24 @@ func windows() -> Array:
 func warm_point() -> Vector3:
 	var s := player_spawns()
 	return s[0] if not s.is_empty() else Vector3(2, 0, 2)
+
+
+## Fin de construction (serveur) : cartes en maillage, cuisson du navmesh
+## une fois la carte, les portes et les fenêtres en place.
+func finish_nav(_world: Node3D) -> void:
+	pass
+
+
+## Carte à plusieurs niveaux (les zombies suivent le sol au lieu de rester à y = 0).
+func is_multilevel() -> bool:
+	return false
+
+
+## Point au sol sous `pos` (cartes plates : y = 0 au plus bas).
+func ground(pos: Vector3) -> Vector3:
+	return Vector3(pos.x, maxf(pos.y, 0.0), pos.z)
+
+
+## Hauteur du sol sous `pos` (cartes plates : 0).
+func floor_y(_pos: Vector3) -> float:
+	return 0.0

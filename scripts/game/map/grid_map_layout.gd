@@ -159,6 +159,8 @@ func perks() -> Array[MapMarker]:
 		for c in data.markers.get(marker, []):
 			var m := cell_marker(marker, c, data)
 			m.data = {"perk": def.perks[marker]}
+			m.block = "perk_" + marker
+			_blockers[m.block] = [c]
 			out.append(m)
 	return out
 

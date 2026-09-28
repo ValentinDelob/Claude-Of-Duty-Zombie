@@ -34,6 +34,9 @@ func _init(g: Game) -> void:
 	game = g
 	_rng.randomize()
 	active_zones = {g.layout.start_zone(): true}
+	# Zones ouvertes sans porte sur la zone de départ (ex. mezzanine).
+	for linked in g.map_def.open_links.get(g.layout.start_zone(), []):
+		active_zones[linked] = true
 	for s in g.layout.zombie_spawns():
 		var sp := SpawnPoint.new()
 		sp.cell = s.get("cell", Vector2i(-1, -1))

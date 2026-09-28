@@ -18,6 +18,9 @@ uniform float roughness_base = 0.9;
 uniform float metallic_base = 0.0;
 uniform vec4 glow_color : source_color = vec4(0.8, 0.05, 0.02, 1.0);
 uniform float glow = 0.0;
+// Sol de la salle (cartes à plusieurs niveaux) : lambris, bande peinte et
+// salissures se placent par rapport à lui, pas à y = 0.
+instance uniform float floor_y = 0.0;
 
 varying vec3 wpos;
 varying vec3 wnorm;
@@ -69,6 +72,7 @@ void fragment() {
 	float metal = metallic_base;
 	vec3 emi = vec3(0.0);
 	float base_noise = fbm(uv * 1.7);
+	float hy = wpos.y - floor_y;
 
 	if (pattern == 1) {
 		// Carrelage 40 cm : joints sombres, teinte par carreau, carreaux cassés.
@@ -105,13 +109,13 @@ void fragment() {
 		// Mur peint : bas peint (color_b) au bord écaillé, haut en plâtre.
 		float edge = paint_height + (noise2(vec2(uv.x * 3.0, 0.0)) - 0.5) * 0.12;
 		float chip = step(0.72, fbm(uv * 3.1 + 2.0));
-		float painted = step(wpos.y, edge) * (1.0 - chip * 0.9);
+		float painted = step(hy, edge) * (1.0 - chip * 0.9);
 		col = mix(color_a.rgb * (0.85 + base_noise * 0.3), color_b.rgb * (0.9 + base_noise * 0.15), painted);
 		// Liseré sombre à la limite de peinture.
-		col *= 1.0 - 0.35 * (1.0 - smoothstep(0.0, 0.04, abs(wpos.y - edge)));
+		col *= 1.0 - 0.35 * (1.0 - smoothstep(0.0, 0.04, abs(hy - edge)));
 		// Coulures d'eau verticales.
 		float streak = smoothstep(0.62, 0.9, noise2(vec2(uv.x * 6.0, uv.y * 0.35)));
-		col *= 1.0 - streak * 0.35 * smoothstep(0.5, 3.0, wpos.y);
+		col *= 1.0 - streak * 0.35 * smoothstep(0.5, 3.0, hy);
 		rough = mix(0.95, 0.6, painted);
 	} else if (pattern == 5) {
 		// Blocs de pierre sombre et veines incandescentes.
@@ -140,15 +144,15 @@ void fragment() {
 	} else if (pattern == 8) {
 		// Boiserie (lambris jusqu'à paint_height) et papier peint damassé au-dessus.
 		float edge = paint_height;
-		if (wpos.y < edge) {
-			vec2 p = vec2(uv.x / 0.9, wpos.y / edge);
+		if (hy < edge) {
+			vec2 p = vec2(uv.x / 0.9, hy / edge);
 			vec2 f = fract(p);
 			float frame = step(0.9, f.x) + step(f.x, 0.1) + step(0.88, p.y) + step(p.y, 0.08);
-			float grain = noise2(vec2(uv.x * 3.0, wpos.y * 40.0));
+			float grain = noise2(vec2(uv.x * 3.0, hy * 40.0));
 			col = color_b.rgb * (0.8 + grain * 0.35) * (1.0 - clamp(frame, 0.0, 1.0) * 0.35);
 			rough = 0.55;
 		} else {
-			vec2 p = vec2(uv.x / 0.5, (wpos.y - edge) / 0.7);
+			vec2 p = vec2(uv.x / 0.5, (hy - edge) / 0.7);
 			vec2 f = fract(p) - 0.5;
 			float dam = smoothstep(0.26, 0.22, length(f * vec2(1.0, 1.6))) * (0.5 + 0.5 * sin(atan(f.y, f.x) * 6.0));
 			float stripe = step(0.46, abs(f.x));
@@ -157,7 +161,7 @@ void fragment() {
 			float peel = smoothstep(0.74, 0.8, fbm(uv * 1.1 + 17.0));
 			col = mix(col, vec3(0.16, 0.14, 0.12) * (0.8 + base_noise * 0.3), peel);
 			// Moulure dorée à la limite.
-			float mould = 1.0 - smoothstep(0.0, 0.05, abs(wpos.y - edge - 0.03));
+			float mould = 1.0 - smoothstep(0.0, 0.05, abs(hy - edge - 0.03));
 			col = mix(col, vec3(0.45, 0.33, 0.14), mould);
 			metal = mould * 0.6;
 			rough = mix(0.9, 0.4, mould);
@@ -199,7 +203,7 @@ void fragment() {
 	float stain = smoothstep(0.58, 0.8, fbm(uv * 0.6 + 31.0));
 	col = mix(col, col * vec3(0.4, 0.33, 0.28), stain * grime);
 	if (vertical) {
-		col *= mix(1.0, 0.45 + 0.55 * smoothstep(0.0, 0.6, wpos.y), grime);
+		col *= mix(1.0, 0.45 + 0.55 * smoothstep(0.0, 0.6, hy), grime);
 	}
 	ALBEDO = col;
 	ROUGHNESS = rough;

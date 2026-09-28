@@ -1,5 +1,5 @@
 class_name PropBuilder
-extends RefCounted
+extends MapProps
 ## Décor de la carte : caisses, barils, lits, paillasses, générateur,
 ## tuyauteries, lampes grillagées (dont certaines clignotent), flaques de sang.
 ##
@@ -11,14 +11,9 @@ const WINDOW_CHAR := 87
 
 var data: MapData
 var def: MapDef
-var root: Node3D
 var _tools: Dictionary = {}
 var _body: StaticBody3D
 var _box_meshes: Dictionary = {}
-var flicker: LightFlicker
-var power: PowerGrid
-## Matériaux à shader dédié, montrés pendant le préchauffage (Warmup).
-var warmup_materials: Array[Material] = []
 
 
 func _init(map_data: MapData, map_def: MapDef) -> void:
@@ -311,28 +306,11 @@ func _lamps() -> void:
 		_map_light(c, pos + Vector3(0, -0.5, 0), 2.4, 11.0)
 
 
-var _lamp_i := 0
 
 
 ## Lampe de la carte (groupe RenderQuality, courant, grésillement 1 sur 5).
 func _map_light(c: Vector2i, pos: Vector3, energy: float, light_range: float, flicker_chance := 0.22) -> OmniLight3D:
-	var light := OmniLight3D.new()
-	light.name = "Lamp%d" % _lamp_i
-	light.position = pos
-	light.light_color = Color(1.0, 0.74, 0.5)
-	light.light_energy = energy
-	light.omni_range = light_range
-	light.omni_attenuation = 1.3
-	# Ombres et distances de fondu : réglées par RenderQuality.
-	light.set_meta("lamp_index", _lamp_i)
-	light.add_to_group(RenderQuality.LAMP_GROUP)
-	RenderQuality.apply_lamp(light, RenderQuality.current())
-	root.add_child(light)
-	if _h(c, 9) < flicker_chance:
-		flicker.add(light)
-	power.add(light)
-	_lamp_i += 1
-	return light
+	return add_lamp(pos, energy, light_range, _h(c, 9) < flicker_chance)
 
 
 # --------------------------------------------------------------------------

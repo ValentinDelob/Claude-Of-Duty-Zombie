@@ -196,8 +196,13 @@ func run() -> void:
 	await seconds(2.6)
 	# Avec l'atout : passage en visée -> la vue glisse vers la tête.
 	p.teleport_to(lab(35.5, 24.5), -PI * 0.5)
-	p.pitch = 0.0
 	await seconds(0.3)
+	# Écart de départ imposé (4° à côté de la tête) : ne dépend pas du
+	# balancement du zombie.
+	H.aim_at(p, zt.head_position())
+	p.yaw += deg_to_rad(4.0)
+	p.rotation.y = p.yaw
+	await frames(2)
 	err0 = aim_error(zt)
 	p.input.aim = true
 	# Mise en joue puis glissement (0,1 s) : on attend l'aimantation (sous charge,

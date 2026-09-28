@@ -35,6 +35,18 @@ func _ready() -> void:
 	body_mat.roughness = 0.5
 	body_mat.metallic = 0.3
 	_part(Vector3(1.0, 2.05, 0.78), Vector3(0, 1.025, 0), body_mat)
+	# Machine pleine : ni les joueurs ni les zombies ne la traversent (les
+	# balles s'y arrêtent, effet d'impact métallique).
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(1.04, 2.2, 0.82)
+	cs.shape = shape
+	cs.position = Vector3(0, 1.1, 0)
+	body.add_child(cs)
+	add_child(body)
 	_part(Vector3(1.04, 0.12, 0.82), Vector3(0, 2.1, 0), WorldLook.surface("steel"))
 	_part(Vector3(1.04, 0.12, 0.82), Vector3(0, 0.06, 0), WorldLook.surface("steel"))
 	# Panneau lumineux + fente de distribution.

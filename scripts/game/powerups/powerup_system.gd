@@ -103,7 +103,7 @@ func spawn_drop(type: String, pos: Vector3) -> int:
 		return -1
 	var id := _next_id
 	_next_id += 1
-	pos.y = maxf(pos.y, 0.0)
+	pos = game.layout.ground(pos)
 	_drops[id] = {"type": type, "pos": pos, "age": 0.0}
 	print("[Powerups] %s apparaît en %s" % [type, pos])
 	_cl_spawn.rpc(id, type, pos, 0.0)
