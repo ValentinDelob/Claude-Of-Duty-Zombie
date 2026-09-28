@@ -50,3 +50,28 @@ func test_windows() -> void:
 	assert_near(w.height, 2.4)
 	assert_eq(w.spawn_points.size(), 1)
 	assert_eq(l.windows()[0], w, "même objet à chaque appel (ordre stable)")
+
+
+func test_collision_box_is_invisible_and_layered() -> void:
+	var holder := Node3D.new()
+	var b := CollisionBox.from_dict({"center": [1, 2, 3], "size": [4, 1, 2], "yaw": 0.5, "barrier": true, "surface": "wood"})
+	holder.add_child(b)
+	b._ready()
+	assert_eq(b.collision_layer, Barricade.BARRIER_LAYER, "barrière : couche BARRIER")
+	assert_eq(b.position, Vector3(1, 2, 3))
+	assert_true(b.find_children("*", "MeshInstance3D", true, false).is_empty(), "aucun maillage : invisible")
+	var shape := (b.get_child(0) as CollisionShape3D).shape as BoxShape3D
+	assert_eq(shape.size, Vector3(4, 1, 2))
+	var solid := CollisionBox.make(Vector3.ZERO, Vector3.ONE)
+	solid._ready()
+	assert_eq(solid.collision_layer, 1, "pavé plein : couche du décor")
+	holder.free()
+	solid.free()
+
+
+func test_kino_blockers_are_data_not_models() -> void:
+	var def: MapDef = load(Game.MAP_SCRIPTS["kino_v2"]).new()
+	var l := def.create_layout() as MeshMapLayout
+	assert_true(l.data.get("blockers", []).size() >= 10, "ruines et rangées : pavés CollisionBox décrits dans la carte")
+	for bl in l.data.get("blocks", []):
+		assert_false(bl.has("invisible"), "aucun bloc invisible exporté par Blender")

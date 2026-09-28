@@ -195,7 +195,7 @@ BOXES = [(901, -620, 320), (-1, -775, 266, "S"), (-1288, -635, 80), (-1500, 226,
          (-1385, 1016, 175, "S"), (1, 1842, 0), (1343, 1313, 0, "E"), (1657, 714, 0, "N"), (49, 136, -10, "N")]
 # Tableaux à la craie indiquant la boîte (positions [ESTIMÉ] : balcon du hall
 # d'après les captures, puis une par grande salle).
-BOX_BOARDS = [(-150, -510, 266), (450, -510, 5), (1200, 905, 0), (-1350, 0, 0), (-300, 1910, 0)]
+BOX_BOARDS = [(-150, -510, 266), (160, 190, -12, "E"), (1200, 905, 0), (-1350, 0, 0), (-300, 1910, 0)]
 POWER = (-488, 1246, 0)
 PAP = (6, -487, 320)
 TRAPS = [
@@ -287,41 +287,49 @@ for r in ROOMS:
     for (i, j) in r["cells"]:
         cx, cy = (i + 0.5) * CELL, (j + 0.5) * CELL
         my = span(r, cx, cy)
-        for (di, dj), ori, side in DIRS:
-            n = (i + di, j + dj)
-            if n in r["cells"]:
-                continue
-            # Arête de la case (segment sur la grille).
-            if ori == "v":
-                line = (i + side) * CELL
-                s0, s1 = j * CELL, (j + 1) * CELL
-            else:
-                line = (j + side) * CELL
-                s0, s1 = i * CELL, (i + 1) * CELL
-            nx, ny = (n[0] + 0.5) * CELL, (n[1] + 0.5) * CELL
-            covered = []
-            for oid in cells.get(n, []):
-                o = ROOM[oid]
-                osp = span(o, nx, ny)
-                if not overlaps(my, osp):
+        # Salle close (box) nichée dans celle-ci (cabine de projection dans la salle de
+        # théâtre) : son volume n'appartient pas à la grande salle, qui n'y pose pas de mur.
+        inner = []
+        for q in cells.get((i, j), []):
+            qs = span(ROOM[q], cx, cy)
+            if ROOM[q].get("box") and q != r["id"] and qs[0] > my[0] and qs[1] < my[1]:
+                inner.append(qs)
+        for my in subtract(my, inner):
+            for (di, dj), ori, side in DIRS:
+                n = (i + di, j + dj)
+                if n in r["cells"]:
                     continue
-                lo, hi = max(my[0], osp[0]), min(my[1], osp[1])
-                covered.append((lo, hi))
-                if frozenset((r["id"], oid)) in OPEN:
-                    fr, fo = floor_at(r, cx, cy), floor_at(o, nx, ny)
-                    if fr - fo > DROP:
-                        # Balcon : garde-corps ; façade pleine seulement si rien dessous.
-                        add_edge(rails, (ori, line, round(fr), r["id"]), s0, s1)
-                        # Une salle plus basse sous cette case (hall sous le balcon...) : vide dessous.
-                        below = [q for q in cells.get((i, j), []) if q != r["id"] and floor_at(ROOM[q], cx, cy) < fr - 10]
-                        if not below and not r.get("box"):
-                            add_edge(facades, (ori, line, round(fo - 10), round(fr), r["mats"][1], r["id"]), s0, s1)
-                    elif fr - fo > 3:
-                        add_edge(walls, (ori, line, round(fo - 5), round(fr), r["mats"][1], r["id"]), s0, s1)
-                elif r["id"] < oid:
+                # Arête de la case (segment sur la grille).
+                if ori == "v":
+                    line = (i + side) * CELL
+                    s0, s1 = j * CELL, (j + 1) * CELL
+                else:
+                    line = (j + side) * CELL
+                    s0, s1 = i * CELL, (i + 1) * CELL
+                nx, ny = (n[0] + 0.5) * CELL, (n[1] + 0.5) * CELL
+                covered = []
+                for oid in cells.get(n, []):
+                    o = ROOM[oid]
+                    osp = span(o, nx, ny)
+                    if not overlaps(my, osp):
+                        continue
+                    lo, hi = max(my[0], osp[0]), min(my[1], osp[1])
+                    covered.append((lo, hi))
+                    if frozenset((r["id"], oid)) in OPEN:
+                        fr, fo = floor_at(r, cx, cy), floor_at(o, nx, ny)
+                        if fr - fo > DROP:
+                            # Balcon : garde-corps ; façade pleine seulement si rien dessous.
+                            add_edge(rails, (ori, line, round(fr), r["id"]), s0, s1)
+                            # Une salle plus basse sous cette case (hall sous le balcon...) : vide dessous.
+                            below = [q for q in cells.get((i, j), []) if q != r["id"] and floor_at(ROOM[q], cx, cy) < fr - 10]
+                            if not below and not r.get("box"):
+                                add_edge(facades, (ori, line, round(fo - 10), round(fr), r["mats"][1], r["id"]), s0, s1)
+                        elif fr - fo > 3:
+                            add_edge(walls, (ori, line, round(fo - 5), round(fr), r["mats"][1], r["id"]), s0, s1)
+                    elif r["id"] < oid:
+                        add_edge(walls, (ori, line, round(lo), round(hi), r["mats"][1], r["id"]), s0, s1)
+                for lo, hi in subtract(my, covered):
                     add_edge(walls, (ori, line, round(lo), round(hi), r["mats"][1], r["id"]), s0, s1)
-            for lo, hi in subtract(my, covered):
-                add_edge(walls, (ori, line, round(lo), round(hi), r["mats"][1], r["id"]), s0, s1)
 
 
 def merge(runs):
@@ -370,8 +378,10 @@ for (x, y, z) in WINDOWS:
     OPENINGS.append((x, y, z + SILL, z + LINTEL, 42))
 # Passage piégé entre la salle haute et la salle des portraits (piège n° 2).
 OPENINGS.append((960, -768, 310, 440, 113))
-# Baie du projecteur (vitrée : bloc barrière ci-dessous).
+# Baie du projecteur et baie d'observation : ouvertes (on tire dans la salle
+# depuis la cabine), fermées aux joueurs et aux zombies par des pavés barrières.
 OPENINGS.append((-62, -90, 360, 430, 110))
+OPENINGS.append((95, -90, 360, 430, 110))
 
 wall_list = []
 for (ori, line, y0, y1, mat, room), runs in walls.items():
@@ -492,6 +502,209 @@ def wall_item(x, y, z, forced=None):
     return {"p": G(fx, fy, z), "wall": v}
 
 
+# ---------------------------------------------------------------- décor : salle de théâtre
+# D'après les captures de BO1 (docs/reference/kino/images/theater_bo1/INDEX.md) :
+# - un seul balcon en fer à cheval à ~4,8 m (ailes latérales, deux ailes au
+#   fond de part et d'autre du bloc central : couloir en bas, cabine de
+#   projection et ses baies en haut), porté par des colonnes ;
+# - coin de l'atout rouge exigu sous le balcon du fond (plafond bas, cloison) ;
+# - parterre : dix rangées de chaque côté de l'allée centrale, la moitié des
+#   fauteuils ensevelis ou renversés ; grand tas de gravats au centre-droit
+#   (vu des sièges) avec le lustre tombé ; nappes de débris sur les côtés ;
+# - scène : cadre, rideaux, écran suspendu, tour du téléporteur, estrade de la
+#   tourelle, pupitre et chaises pliantes.
+# Les zones infranchissables sont des CollisionBox (clé « blockers »).
+# Modèles : tools/blender/props/kino_theater.py.
+import random
+RNG = random.Random(115)
+FACE = {"N": math.pi, "S": 0.0, "E": math.pi / 2, "W": -math.pi / 2}
+PAR = ROOM["parterre"]
+BALC_Z = 190  # dessus du balcon (u), ~4,8 m au-dessus du fond de la salle
+props, blocks_decor, screens, beams, theater_lamps = [], [], [], [], []
+inst = {}
+
+
+def prop(model, x, y, z, yaw=0.0, scale=1.0, tilt=0.0, pid=None):
+    d = {"model": model, "p": G(x, y, z), "yaw": round(yaw, 4)}
+    if scale != 1.0:
+        d["scale"] = scale
+    if tilt:
+        d["tilt"] = round(tilt, 4)
+    if pid:
+        d["id"] = pid
+    props.append(d)
+
+
+def seat(model, x, y, yaw, tilt=0.0, dz=0.0):
+    z = floor_at(PAR, x, y) + dz
+    g = G(x, y, z)
+    inst.setdefault(model, []).append([g[0], g[1], g[2], round(yaw, 4), round(tilt, 4)])
+
+
+def gbox(x0, y0, z0, x1, y1, z1):
+    a, b = G(x0, y0, z0), G(x1, y1, z1)
+    return [min(a[0], b[0]), min(a[1], b[1]), min(a[2], b[2]), max(a[0], b[0]), max(a[1], b[1]), max(a[2], b[2])]
+
+
+blockers = []
+
+
+def invisible(x0, y0, x1, y1, z0, z1, barrier=True, surface="concrete"):
+    """Pavé de collision invisible (CollisionBox côté jeu, jamais un modèle Blender)."""
+    b = gbox(x0, y0, z0, x1, y1, z1)
+    blockers.append({"center": [round((b[0] + b[3]) / 2, 3), round((b[1] + b[4]) / 2, 3), round((b[2] + b[5]) / 2, 3)],
+                     "size": [round(b[3] - b[0], 3), round(b[4] - b[1], 3), round(b[5] - b[2], 3)],
+                     "yaw": 0.0, "barrier": barrier, "surface": surface})
+
+
+def fz(x, y):
+    return floor_at(PAR, x, y)
+
+
+SEAT_W = 22  # u (0,55 m)
+
+
+def column(x, y):
+    """Colonne du balcon (modèle de 4,8 m) mise à l'échelle du sol en pente au dessous de la dalle."""
+    f = fz(x, y)
+    prop("column_balcony", x, y, f, 0.0, scale=round((BALC_Z - 14 - f) * K / 4.8, 3))
+
+
+# --- balcon en fer à cheval : dalle (bloc visible) sur colonnes, garde-corps, gradins
+for x0, y0, x1, y1 in ((-770, -330, -590, 880), (590, -330, 770, 880),
+                       (-770, -510, -190, -330), (190, -510, 770, -330)):
+    blocks_decor.append({"room": "parterre", "box": gbox(x0, y0, BALC_Z - 14, x1, y1, BALC_Z), "mat": "dark_wood"})
+for side in (-1, 1):
+    y = -250
+    while y < 880:
+        prop("balcony_front", side * 590, y + 78, BALC_Z, FACE["E"] if side < 0 else FACE["W"])
+        column(side * 598, y)
+        y += 157
+    for x in (side * 470, side * 290):
+        column(x, -338)
+for x0, x1 in ((-770, -190), (190, 770)):
+    x = x0 + 80
+    while x < x1 - 40:
+        prop("balcony_front", x, -330, BALC_Z, FACE["N"])
+        x += 157
+# --- coin de l'atout rouge : exigu, sous le balcon du fond, cloison à l'ouest
+blocks_decor.append({"room": "parterre", "box": gbox(-482, -510, -10, -466, -345, BALC_Z - 14), "mat": "wall_theater"})
+invisible(-770, -510, -466, -110, -60, BALC_Z - 14)  # derrière la cloison : ruines sous le balcon
+for (x, y, yaw) in ((-445, -445, 1.2), (-430, -372, 2.6), (-238, -466, 4.1)):
+    seat("seat_broken_" + RNG.choice("ab"), x, y, yaw, tilt=RNG.uniform(-0.8, 0.8))
+prop("debris_planks", -410, -420, fz(-410, -420), 0.4)
+prop("debris_scatter", -300, -250, fz(-300, -250), 1.3)
+prop("rubble_heap_b", -560, -250, fz(-560, -250), 2.2)
+theater_lamps.append({"p": G(-330, -420, 150), "range": 7.0, "energy": 1.4})
+# --- dix rangées de chaque côté de l'allée, la moitié ensevelies ou renversées
+for y in range(-40, 660, 70):
+    for side in (-1, 1):
+        x = 175 + SEAT_W / 2
+        while x < 380:
+            r = RNG.random()
+            if r < 0.45:
+                seat("seat", side * x, y, FACE["N"] + RNG.uniform(-0.05, 0.05), tilt=RNG.uniform(-0.08, 0.12))
+            elif r < 0.85:
+                seat("seat_broken_" + RNG.choice("ab"), side * x, y, FACE["N"] + RNG.uniform(-0.7, 0.7),
+                     tilt=RNG.uniform(-0.6, 0.5), dz=RNG.uniform(-10, 4))
+            x += SEAT_W
+# Trois rangées intactes devant la scène, avec une allée transversale.
+for y in (690, 745, 800):
+    for side in (-1, 1):
+        for x0, x1 in ((175, 390), (440, 570)):
+            x = x0 + SEAT_W / 2
+            while x <= x1:
+                seat("seat" if RNG.random() > 0.15 else "seat_broken_a", side * x, y, FACE["N"],
+                     tilt=RNG.uniform(-0.05, 0.05))
+                x += SEAT_W
+            xa, xb = sorted((side * x0, side * x1))
+            invisible(xa, y - 14, xb, y + 14, fz(0, y) - 5, fz(0, y) + 45)
+# --- gravats : grand tas au centre-droit (vu des sièges : x > 0) avec le lustre
+# tombé, nappes de débris et fauteuils arrachés sur les côtés.
+prop("rubble_mound_big", 400, 320, fz(400, 320), 0.25)
+prop("chandelier_fallen", 360, 430, fz(360, 430) + 40, 0.7)
+for (m, x, y, yaw) in (("rubble_field_a", -520, 60, 0.3), ("rubble_field_b", -560, 430, 1.57),
+                       ("rubble_field_a", 560, -200, 2.8), ("rubble_field_b", 600, 575, 0.1),
+                       ("rubble_heap_a", -420, 250, 0.9), ("rubble_heap_c", -640, -60, 1.4),
+                       ("rubble_heap_c", 640, 60, 1.4), ("rubble_heap_b", -300, 560, -0.6),
+                       ("rubble_heap_a", 300, -250, 0.2)):
+    prop(m, x, y, fz(x, y), yaw)
+prop("debris_beam", -470, 330, fz(-470, 330), 0.9)
+prop("debris_beam", 310, 80, fz(310, 80), -2.3)
+for (x, y) in ((-250, 600), (300, -150), (-620, 280), (560, 560), (-420, -60), (250, 620), (-690, 620)):
+    prop("debris_planks", x, y, fz(x, y), RNG.uniform(0, 6.28))
+for (x, y) in ((-100, 620), (110, 300), (-60, -120), (90, 840), (-300, 860), (330, 870), (-130, 200)):
+    prop("debris_scatter", x, y, fz(x, y), RNG.uniform(0, 6.28))
+for i in range(60):
+    side = RNG.choice((-1, 1))
+    x = side * RNG.uniform(400, 740)
+    y = RNG.uniform(-100 if side < 0 else -320, 630)
+    seat("seat_broken_" + RNG.choice("ab"), x, y, RNG.uniform(0, 6.28), tilt=RNG.uniform(-1.3, 1.3), dz=RNG.uniform(0, 25))
+# Côtés infranchissables (rangées et ruines).
+invisible(-770, -110, -165, 640, -60, 110)
+invisible(165, -510, 770, 640, -60, 110)
+# --- lustre central, appliques au-dessus et au-dessous du balcon
+prop("chandelier", -1, 414, 840, 0.0, pid="lustre")
+theater_lamps.append({"p": G(-1, 414, 700), "range": 28.0, "energy": 3.6})
+# Lumière d'appoint au-dessus des côtés effondrés et de la bande de scène
+# (la salle de BO1 est sombre mais on y lit les gravats et les fauteuils).
+for x in (-450, 450):
+    for y in (50, 450, 800):
+        theater_lamps.append({"p": G(x, y, 420), "range": 17.0, "energy": 1.7})
+for side in (-1, 1):
+    for y in (-150, 250, 650):
+        prop("sconce", side * 762, y, BALC_Z + 130, FACE["E"] if side < 0 else FACE["W"])
+        theater_lamps.append({"p": G(side * 730, y, BALC_Z + 130), "range": 10.0, "energy": 1.9})
+    for y in (100, 500):
+        prop("sconce", side * 590, y, 120, FACE["W"] if side < 0 else FACE["E"])
+        theater_lamps.append({"p": G(side * 560, y, 120), "range": 8.0, "energy": 1.3})
+# --- arcades au-dessus du balcon, sur les murs latéraux et le fond
+for side in (-1, 1):
+    y = -300
+    while y < 860:
+        prop("wall_arch_panel", side * 762, y, BALC_Z + 10, FACE["E"] if side < 0 else FACE["W"])
+        y += 230
+for x in (-560, -360, 360, 560):
+    prop("wall_arch_panel", x, -502, BALC_Z + 10, FACE["N"])
+# --- coupole (sous le plafond plat de la salle)
+prop("dome", 0, 205, 680, 0.0)
+# --- scène : cadre, rideaux, lambrequin, bannières, écran suspendu dans son cadre
+prop("proscenium", 0, 1210, 0, FACE["S"])
+# Rideaux noués vers l'extérieur (modèle tiré vers +X : celui de gauche est retourné).
+prop("curtain_drape", -420, 1205, 0, FACE["N"])
+prop("curtain_drape", 400, 1200, 0, FACE["S"])
+prop("valance", 0, 1200, 450, FACE["S"])
+for x in (-620, 620):
+    prop("banner", x, 1212, 560, FACE["S"])
+screens.append({"p": G(0, 1188, 300), "w": 6.5, "h": 4.2, "yaw": 0.0})
+prop("screen_frame", 0, 1190, 300, FACE["S"])
+beams.append({"from": G(-62, -92, 392), "to": G(0, 1186, 300), "radius": 1.6})
+theater_lamps.append({"p": G(-300, 1000, 420), "range": 14.0, "energy": 2.2})
+theater_lamps.append({"p": G(300, 1000, 420), "range": 14.0, "energy": 2.2})
+# Tour du téléporteur derrière son pad, estrade de la tourelle au bord de scène,
+# pupitre et chaises pliantes.
+# Tour : origine au bord avant du socle (Ø 3 m), juste derrière le pad (Ø 3 m).
+prop("mdt_tower", -306, 1177, 0, FACE["S"], pid="tour_teleporteur")
+prop("turret_podium", 0, 952, 0, FACE["S"], pid="estrade_tourelle")
+prop("lectern", 170, 1060, 0, FACE["S"])
+for (x, y, yaw) in ((230, 990, 0.4), (290, 1025, -0.3), (-150, 1080, 2.9)):
+    prop("folding_chair", x, y, 0, yaw)
+# --- salle de projection : projecteur face à sa baie, deuxième baie
+# d'observation, étagère à bobines, bureau, horloge au-dessus de la machine
+# d'amélioration, bobines au sol.
+prop("projector", -62, -140, 320, FACE["N"])
+prop("reel_shelf", -160, -330, 320, FACE["E"])
+prop("desk", 160, -300, 320, FACE["W"])
+prop("wall_clock", 3, -506, 432, FACE["N"])
+for (x, y) in ((-40, -260), (90, -380), (-120, -420)):
+    prop("film_reel", x, y, 320, RNG.uniform(0, 6.28))
+theater_lamps.append({"p": G(0, -300, 440), "range": 9.0, "energy": 1.8})
+
+instances = [{"model": m, "items": items} for m, items in sorted(inst.items())]
+# Zombies qui sortent des gravats : au pied des tas, côté allée et bande de scène.
+RISERS = [(-180, -120, 0), (-185, 240, 0), (185, 10, 0), (182, 400, 0), (-420, 630, 0), (440, 630, 0),
+          (-420, -200, 0)]
+
 markers = {
     "player_spawns": [G(*p) for p in PLAYER_SPAWNS],
     "zombie_spawns": [{"p": w["spawns"][0], "zone": w["zone"]} for w in windows]
@@ -539,8 +752,10 @@ markers["teleporter"] = {"pad": G(*tp["pad"]), "exit": G(*tp["exit"]), "exit_zon
 markers["player_yaw"] = 0.0
 
 # Lampes : une grille par salle (gris : l'éclairage final viendra à la passe artistique).
-lamps = []
+lamps = list(theater_lamps)
 for r in ROOMS:
+    if r["id"] in ("parterre", "avant_scene"):
+        continue  # éclairage propre (lustre, appliques, scène : voir le décor)
     xs = [p[0] for p in r["poly"]]
     ys = [p[1] for p in r["poly"]]
     step = 420 if r["ceil"] - floor_at(r, xs[0], ys[0]) > 300 else 320
@@ -597,20 +812,19 @@ rooms_json += pockets
 
 stairs_json = [{"room": s["room"], "a": G(*s["a"]), "b": G(*s["b"]), "w": round(s["w"] * K, 3), "mat": s["mat"]}
                for s in STAIRS]
-# Blocs : vitre de la baie du projecteur (barrière : bloque joueurs et zombies, pas les balles).
-def gbox(x0, y0, z0, x1, y1, z1):
-    a, b = G(x0, y0, z0), G(x1, y1, z1)
-    return [min(a[0], b[0]), min(a[1], b[1]), min(a[2], b[2]), max(a[0], b[0]), max(a[1], b[1]), max(a[2], b[2])]
-
-
-blocks = [{"room": "projection", "box": gbox(-117, -96, 355, -7, -84, 435), "mat": "glass", "barrier": True}]
+# Baies de la cabine : pavés barrières invisibles (on ne saute pas dans la
+# salle, les balles passent).
+blocks = []
+invisible(-117, -96, -7, -84, 355, 435, surface="wood")
+invisible(40, -96, 150, -84, 355, 435, surface="wood")
 
 for w in wall_list:
     for k in ("_ori", "_line", "_s"):
         w.pop(k, None)
 
 layout = {"id": "kino", "note": "Généré par tools/blender/kino/make_layout.py - ne pas modifier à la main.",
-          "rooms": rooms_json, "walls": wall_list, "rails": rail_list, "stairs": stairs_json, "blocks": blocks,
+          "rooms": rooms_json, "walls": wall_list, "rails": rail_list, "stairs": stairs_json,
+          "blocks": blocks + blocks_decor, "props": props, "instances": instances, "screens": screens, "beams": beams, "blockers": blockers,
           "zones": zone_json, "zone_order": zone_order, "markers": markers}
 with open(OUT, "w", encoding="utf-8") as f:
     json.dump(layout, f, ensure_ascii=False, indent=1)

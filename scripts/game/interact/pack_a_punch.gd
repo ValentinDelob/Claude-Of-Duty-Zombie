@@ -29,6 +29,8 @@ var _t := 0.0
 var revealed := true
 var _body: StaticBody3D
 var _base_y := 0.0
+## Modèle de style BO1 (tools/blender/props/kino_theater.py) ; à défaut, blocs.
+const MODEL := "res://assets/models/kino/pap_machine.glb"
 
 
 func setup(cell: Vector2i, data: MapData) -> void:
@@ -46,6 +48,9 @@ func setup_marker(m: MapMarker) -> void:
 func _ready() -> void:
 	look_at(global_position - _normal, Vector3.UP)
 	rotate_object_local(Vector3.UP, PI)
+	if ResourceLoader.exists(MODEL):
+		_build_model()
+		return
 	var stone := WorldLook.surface("stone")
 	var steel := WorldLook.surface("steel")
 	_box(Vector3(1.6, 0.9, 0.9), Vector3(0, 0.45, 0), stone)
@@ -283,3 +288,56 @@ func _animate(delta: float) -> void:
 		system.game.fx_root.sparks.burst(global_position + Vector3.UP * 1.1 - _normal * 0.3, -_normal + Vector3.UP, 3, 3.0, 0.8, 0.4, Color(1.0, 0.3, 0.1))
 	if _display_model:
 		_display.rotation.y += delta * 1.2
+
+
+## Machine de style BO1 : coffre bleu-vert sur pieds, rouleaux dans
+## l'ouverture avant, enseigne au-dessus. La lueur (_core_mat) éclaire
+## l'ouverture pendant l'amélioration ; l'arme y est présentée (_display).
+func _build_model() -> void:
+	var model: Node3D = (load(MODEL) as PackedScene).instantiate()
+	model.name = "Model"
+	add_child(model)
+	for n in model.find_children("*", "", true, false):
+		var parts := String(n.name).split("__")
+		if n is MeshInstance3D and parts.size() >= 3:
+			(n as MeshInstance3D).material_override = MeshMapBuilder.material_for(parts[0])
+			if parts[2] == "ns":
+				(n as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		elif n is StaticBody3D:
+			n.queue_free()  # collision propre ci-dessous (activée ou non selon la révélation)
+	_core_mat = StandardMaterial3D.new()
+	_core_mat.albedo_color = Color(0.4, 0.02, 0.02)
+	_core_mat.emission_enabled = true
+	_core_mat.emission = Color(1.0, 0.35, 0.1)
+	_core_mat.emission_energy_multiplier = 0.2
+	var core := MeshInstance3D.new()
+	var qm := QuadMesh.new()
+	qm.size = Vector2(1.2, 0.45)
+	core.mesh = qm
+	core.material_override = _core_mat
+	core.position = Vector3(0, 0.78, 0.3)
+	add_child(core)
+	_ring = Node3D.new()  # l'anneau runique n'existe pas sur ce modèle
+	add_child(_ring)
+	_light = OmniLight3D.new()
+	_light.light_color = Color(1.0, 0.45, 0.2)
+	_light.omni_range = 5.0
+	_light.light_energy = 0.3
+	_light.position = Vector3(0, 1.0, 0.9)
+	add_child(_light)
+	_display = Node3D.new()
+	_display.position = Vector3(0, 0.8, 0.35)
+	add_child(_display)
+	var body := StaticBody3D.new()
+	_body = body
+	_base_y = position.y
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.set_meta("surface", "metal")
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(1.75, 1.35, 0.95)
+	cs.shape = shape
+	cs.position.y = 0.675
+	body.add_child(cs)
+	add_child(body)

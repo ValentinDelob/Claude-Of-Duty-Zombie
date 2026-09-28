@@ -174,3 +174,16 @@ Les étapes 5 et 6 se parallélisent avec des agents (worktrees, fichiers disjoi
   clignotement pendant un déplacement ou une Liquidation) ; ours de la boîte
   aux probabilités de BO1 (`MysteryBox.skull_chance`, toutes les cartes).
   Scénario `kino_v2_gameplay`.
+- Étape 6, salle de théâtre (décor d'après les captures de BO1) : objets
+  modélisés dans Blender (`tools/blender/props/kino_theater.py` →
+  `assets/models/kino/*.glb`), posés par la description (`props`, `instances`
+  en MultiMesh pour les fauteuils, `screens`, `beams`). Balcon en fer à cheval
+  à ~4,8 m sur colonnes, coin de l'atout rouge exigu sous le balcon du fond,
+  dix rangées de chaque côté de l'allée (moitié ensevelies), grand tas au
+  centre-droit avec le lustre tombé, nappes de gravats sur les côtés, écran
+  6,5 × 4,2 m dans son cadre, tour du téléporteur, pupitre et chaises
+  pliantes. Cabine de projection : deux baies ouvertes sur la salle (on y tire
+  d'en haut). Toutes les collisions invisibles (ruines, rangées, baies,
+  objets) sont des `CollisionBox` décrites en données (`blockers` de la
+  description, `<modèle>.collision.json`), jamais des modèles Blender.
+  Scénario `kino_v2_theater` (captures + tir depuis les baies).

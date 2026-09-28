@@ -9,7 +9,7 @@
 # Sorties (noms d'objets lus par MeshMapBuilder côté Godot) :
 #   <matériau>__<salle>            maillage visible (matériau = clé de WorldLook.SURFACES)
 #   <matériau>__<salle>__col-colonly  collision (Godot en fait un StaticBody3D)
-# Les escaliers ont des marches visibles et une RAMPE de collision invisible
+# Les escaliers ont des marches visibles et une RAMPE de collision (coin plein)
 # (le joueur n'a pas de logique de montée de marche).
 #
 # Éléments du JSON utilisés ici :
@@ -157,13 +157,18 @@ for r in L.get("rooms", []):
             polygon(bm_for(cm, r["id"], True), r["outline"], lambda x, z, r=r: r["ceiling"], False)
 
 # --------------------------------------------------------------------- blocs
+# Blocs VISIBLES seulement : les collisions invisibles (ruines, rangées de
+# fauteuils) sont des CollisionBox créées par le jeu (clé « blockers »).
 # {room, box [x0,y0,z0,x1,y1,z1] (Godot), mat, barrier} : barrier = couche BARRIER
 # côté Godot (arrête joueurs et zombies, pas les balles : vitres, gravats bas).
 for bl in L.get("blocks", []):
     KIND = "barrier" if bl.get("barrier") else "block"
     x0, y0, z0, x1, y1, z1 = bl["box"]
-    both(bl.get("mat", "wood"), bl.get("room", "x"), box, ((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
-         (x1 - x0, y1 - y0, z1 - z0), 0.0)
+    args = (((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), (x1 - x0, y1 - y0, z1 - z0), 0.0)
+    if bl.get("nocollide"):
+        box(bm_for(bl.get("mat", "wood"), bl.get("room", "x")), *args)  # collision : CollisionBox du jeu
+    else:
+        both(bl.get("mat", "wood"), bl.get("room", "x"), box, *args)
 
 # --------------------------------------------------------------------- murs
 KIND = "wall"
