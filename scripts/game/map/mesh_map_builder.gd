@@ -40,6 +40,7 @@ func build(parent: Node3D) -> void:
 	for r in layout.get("rooms", []):
 		floors[r.id] = _room_floor(r)
 	_setup_nodes(scene, func(room: String) -> float: return float(floors.get(room, 0.0)))
+	_prop_mats = layout.get("prop_materials", {})
 	_build_props()
 	_build_instances()
 	_build_screens()
@@ -53,12 +54,17 @@ func build(parent: Node3D) -> void:
 
 ## Matériaux, ombres et collisions des nœuds d'un .glb. `floor_of(salle)` :
 ## hauteur du sol de référence (lambris des étages).
+## Matériaux des objets remplacés par la carte (ex. plâtre de la salle au lieu
+## du papier peint rouge) : clé « prop_materials » de la description.
+var _prop_mats: Dictionary = {}
+
+
 func _setup_nodes(scene: Node, floor_of: Callable) -> void:
 	for n in scene.find_children("*", "", true, false):
 		var parts := String(n.name).split("__")
 		if parts.size() < 3:
 			continue
-		var mat := parts[0]
+		var mat: String = _prop_mats.get(parts[0], parts[0])
 		if n is MeshInstance3D:
 			var mi := n as MeshInstance3D
 			mi.material_override = material_for(mat)
@@ -170,28 +176,32 @@ func _build_screens() -> void:
 		mi.material_override = mat
 		root.add_child(mi)
 		power.add_hook(func(on: bool): mat.set_shader_parameter("playing", 1.0 if on else 0.0))
-	for b in layout.get("beams", []):
+	for b in layout.get("beams", []) + layout.get("shafts", []):
+		var shaft: bool = b.get("shaft", false)
 		var from := MeshMapLayout.vec(b.from)
 		var to := MeshMapLayout.vec(b.to)
 		var beam := MeshInstance3D.new()
-		beam.name = "ProjectorBeam"
+		beam.name = "LightShaft" if shaft else "ProjectorBeam"
 		var cm := CylinderMesh.new()
-		cm.top_radius = 0.15
-		cm.bottom_radius = float(b.get("radius", 3.0))
+		# Cône : étroit à la source (`from`, rayon `top`), large à l'arrivée (`radius`).
+		# Le haut du cylindre (+Y local) est orienté vers `to`.
+		cm.bottom_radius = float(b.get("top", 0.15))
+		cm.top_radius = float(b.get("radius", 3.0))
 		cm.height = from.distance_to(to)
 		cm.radial_segments = 16
 		cm.cap_top = false
 		cm.cap_bottom = false
 		beam.mesh = cm
-		beam.material_override = TheaterLook.beam_material()
+		beam.material_override = TheaterLook.shaft_material() if shaft else TheaterLook.beam_material()
 		warmup_materials.append(beam.material_override)
 		beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var up := (to - from).normalized()
 		var bx := up.cross(Vector3.UP if absf(up.y) < 0.9 else Vector3.RIGHT).normalized()
 		beam.transform = Transform3D(Basis(bx, up, bx.cross(up)).orthonormalized(), (from + to) * 0.5)
-		beam.visible = false
 		root.add_child(beam)
-		power.add_hook(func(on: bool): beam.visible = on)
+		if not shaft:  # le faisceau du projecteur ne s'allume qu'avec le courant
+			beam.visible = false
+			power.add_hook(func(on: bool): beam.visible = on)
 
 
 ## Matériau d'une clé : WorldLook.SURFACES, ou clé spéciale.

@@ -109,9 +109,9 @@ ROOMS = [
          poly=[(-770, -510), (-190, -510), (-190, -190), (190, -190), (190, -510), (770, -510),
                (770, 920), (-770, 920)],
          slope=[(-770, -190, 0), (770, -190, 0), (-770, 900, -45)], ceil=900,
-         mats=("carpet_red", "wall_theater", "ceiling_theater")),
+         mats=("carpet_theater", "plaster_theater", "vault_theater")),
     dict(id="avant_scene", zone="t", poly=rect(-770, 920, 770, 1220), floor=0, ceil=900,
-         mats=("stage_wood", "wall_theater", "ceiling_theater")),
+         mats=("stage_wood", "plaster_theater", "vault_theater")),
     # Scène / coulisses et aile ouest.
     dict(id="coulisses", zone="h", poly=rect(-520, 1220, 750, 1910), floor=0, ceil=580,
          mats=("stage_wood", "wall", "ceiling")),
@@ -119,7 +119,7 @@ ROOMS = [
          mats=("stage_wood", "wall", "ceiling")),
     # Salle de projection (Pack-a-Punch), au-dessus du couloir, dans la salle.
     dict(id="projection", zone="p", poly=rect(-180, -510, 180, -90), floor=320, ceil=460,
-         slab=True, box=True, mats=("wood", "wall_theater", "ceiling_theater")),
+         slab=True, box=True, mats=("dark_wood", "plaster_theater", "vault_theater")),
 ]
 ROOM = {r["id"]: r for r in ROOMS}
 
@@ -144,8 +144,10 @@ STAIRS = [
     dict(room="escalier_foyer", a=(1410, -35, 160), b=(1410, -315, 320), w=110, mat="wood"),
     dict(room="foyer", a=(1260, 380, 0), b=(995, 380, 165), w=100, mat="wood"),
     dict(room="foyer", a=(1650, 370, 0), b=(1650, 105, 165), w=100, mat="wood"),
-    dict(room="parterre", a=(-640, 820, -40), b=(-640, 918, 0), w=90, mat="stage_wood"),
-    dict(room="parterre", a=(640, 820, -40), b=(640, 918, 0), w=90, mat="stage_wood"),
+    # Larges escaliers de scène (BO1) : à gauche devant la tour du téléporteur, à droite
+    # près de l'estrade de la tourelle.
+    dict(room="parterre", a=(-330, 840, -42), b=(-330, 918, 0), w=200, mat="stage_wood"),
+    dict(room="parterre", a=(400, 840, -42), b=(400, 918, 0), w=200, mat="stage_wood"),
 ]
 
 # Portes (milieu de l'ouverture, au sol) : id, x, y, z, largeur w, hauteur h (u),
@@ -164,7 +166,7 @@ DOORS = [
     dict(id="8", x=750, y=1540, z=0, w=150, h=110, cost=1250, zones=["g", "h"]),
     dict(id="courant_hall", x=0, y=-510, z=80, w=120, h=110, power=True, zones=["a", "t"]),
     dict(id="courant_salle", x=0, y=-190, z=0, w=120, h=110, power=True, zones=["a", "t"]),
-    dict(id="rideau", x=0, y=1220, z=0, w=900, h=434, power=True, zones=["t", "h"], curtain=True),
+    dict(id="rideau", x=0, y=1220, z=0, w=674, h=325, power=True, zones=["t", "h"], curtain=True),
 ]
 
 # Fenêtres (point du mur, au sol de la salle) : x, y, z.
@@ -195,7 +197,7 @@ BOXES = [(901, -620, 320), (-1, -775, 266, "S"), (-1288, -635, 80), (-1500, 226,
          (-1385, 1016, 175, "S"), (1, 1842, 0), (1343, 1313, 0, "E"), (1657, 714, 0, "N"), (49, 136, -10, "N")]
 # Tableaux à la craie indiquant la boîte (positions [ESTIMÉ] : balcon du hall
 # d'après les captures, puis une par grande salle).
-BOX_BOARDS = [(-150, -510, 266), (160, 190, -12, "E"), (1200, 905, 0), (-1350, 0, 0), (-300, 1910, 0)]
+BOX_BOARDS = [(-150, -510, 266), (150, 912, -45, "S"), (1200, 905, 0), (-1350, 0, 0), (-300, 1910, 0)]
 POWER = (-488, 1246, 0)
 PAP = (6, -487, 320)
 TRAPS = [
@@ -326,7 +328,8 @@ for r in ROOMS:
                                 add_edge(facades, (ori, line, round(fo - 10), round(fr), r["mats"][1], r["id"]), s0, s1)
                         elif fr - fo > 3:
                             add_edge(walls, (ori, line, round(fo - 5), round(fr), r["mats"][1], r["id"]), s0, s1)
-                    elif r["id"] < oid:
+                    elif r["id"] < oid or (r.get("box") and oid in cells.get((i, j), [])):
+                        # (une salle close nichée dans une autre pose elle-même ses murs)
                         add_edge(walls, (ori, line, round(lo), round(hi), r["mats"][1], r["id"]), s0, s1)
                 for lo, hi in subtract(my, covered):
                     add_edge(walls, (ori, line, round(lo), round(hi), r["mats"][1], r["id"]), s0, s1)
@@ -378,10 +381,12 @@ for (x, y, z) in WINDOWS:
     OPENINGS.append((x, y, z + SILL, z + LINTEL, 42))
 # Passage piégé entre la salle haute et la salle des portraits (piège n° 2).
 OPENINGS.append((960, -768, 310, 440, 113))
-# Baie du projecteur et baie d'observation : ouvertes (on tire dans la salle
-# depuis la cabine), fermées aux joueurs et aux zombies par des pavés barrières.
-OPENINGS.append((-62, -90, 360, 430, 110))
-OPENINGS.append((95, -90, 360, 430, 110))
+# Baie de la cabine vers la salle : fente sur 85 % de la largeur du mur (360 u),
+# 1 m de haut centrée sur les yeux du joueur debout (sol 320 u + 1,62 m) : on voit
+# la scène et on tire dans la salle ; pavé barrière : on ne saute pas.
+BAIE_W = 0.85 * 360
+BAIE_Z = (320 + 1.62 / K - 0.5 / K, 320 + 1.62 / K + 0.5 / K)
+OPENINGS.append((0, -90, BAIE_Z[0], BAIE_Z[1], BAIE_W))
 
 wall_list = []
 for (ori, line, y0, y1, mat, room), runs in walls.items():
@@ -582,13 +587,14 @@ for side in (-1, 1):
         y += 157
     for x in (side * 470, side * 290):
         column(x, -338)
+# Balcon du fond : gradins (modèle de 6 m de profondeur ramené aux 4,6 m de l'aile).
 for x0, x1 in ((-770, -190), (190, 770)):
-    x = x0 + 80
-    while x < x1 - 40:
-        prop("balcony_front", x, -330, BALC_Z, FACE["N"])
-        x += 157
+    x = x0 + 61
+    while x < x1 - 30:
+        prop("balcony_back", x, -330, BALC_Z, FACE["N"], scale=0.77)
+        x += 122
 # --- coin de l'atout rouge : exigu, sous le balcon du fond, cloison à l'ouest
-blocks_decor.append({"room": "parterre", "box": gbox(-482, -510, -10, -466, -345, BALC_Z - 14), "mat": "wall_theater"})
+blocks_decor.append({"room": "parterre", "box": gbox(-482, -510, -10, -466, -345, BALC_Z - 14), "mat": "plaster_theater"})
 invisible(-770, -510, -466, -110, -60, BALC_Z - 14)  # derrière la cloison : ruines sous le balcon
 for (x, y, yaw) in ((-445, -445, 1.2), (-430, -372, 2.6), (-238, -466, 4.1)):
     seat("seat_broken_" + RNG.choice("ab"), x, y, yaw, tilt=RNG.uniform(-0.8, 0.8))
@@ -596,33 +602,60 @@ prop("debris_planks", -410, -420, fz(-410, -420), 0.4)
 prop("debris_scatter", -300, -250, fz(-300, -250), 1.3)
 prop("rubble_heap_b", -560, -250, fz(-560, -250), 2.2)
 theater_lamps.append({"p": G(-330, -420, 150), "range": 7.0, "energy": 1.4})
+# Rangées courbes et concentriques (BO1) : arcs centrés loin derrière la scène,
+# les bouts de rang avancent vers la scène ; chaque fauteuil regarde ce centre.
+ROW_C = 4200
+
+
+def row_y(y0, x):
+    r = ROW_C - y0
+    return ROW_C - math.sqrt(r * r - x * x)
+
+
+def row_yaw(x, y):
+    return math.atan2(-x, -(ROW_C - y))
+
+
+def invisible_chord(xa, xb, y0, half, z0, z1):
+    """Pavé barrière le long de la corde d'un rang courbe (tourné comme elle)."""
+    ya, yb = row_y(y0, xa), row_y(y0, xb)
+    a, b = G(xa, ya, z0), G(xb, yb, z1)
+    ln = math.hypot(xb - xa, yb - ya) * K
+    blockers.append({"center": [round((a[0] + b[0]) / 2, 3), round((a[1] + b[1]) / 2, 3), round((a[2] + b[2]) / 2, 3)],
+                     "size": [round(ln, 3), round(b[1] - a[1], 3), round(2 * half * K, 3)],
+                     "yaw": round(math.atan2(yb - ya, xb - xa), 4), "barrier": True, "surface": "concrete"})
+
+
 # --- dix rangées de chaque côté de l'allée, la moitié ensevelies ou renversées
-for y in range(-40, 660, 70):
+for y0 in range(-40, 660, 70):
     for side in (-1, 1):
         x = 175 + SEAT_W / 2
         while x < 380:
             r = RNG.random()
+            xs_, ys_ = side * x, row_y(y0, x)
+            yaw = row_yaw(xs_, ys_)
             if r < 0.45:
-                seat("seat", side * x, y, FACE["N"] + RNG.uniform(-0.05, 0.05), tilt=RNG.uniform(-0.08, 0.12))
+                seat("seat", xs_, ys_, yaw + RNG.uniform(-0.05, 0.05), tilt=RNG.uniform(-0.08, 0.12))
             elif r < 0.85:
-                seat("seat_broken_" + RNG.choice("ab"), side * x, y, FACE["N"] + RNG.uniform(-0.7, 0.7),
+                seat("seat_broken_" + RNG.choice("ab"), xs_, ys_, yaw + RNG.uniform(-0.7, 0.7),
                      tilt=RNG.uniform(-0.6, 0.5), dz=RNG.uniform(-10, 4))
             x += SEAT_W
 # Trois rangées intactes devant la scène, avec une allée transversale.
-for y in (690, 745, 800):
+for y0 in (690, 745, 800):
     for side in (-1, 1):
         for x0, x1 in ((175, 390), (440, 570)):
             x = x0 + SEAT_W / 2
             while x <= x1:
-                seat("seat" if RNG.random() > 0.15 else "seat_broken_a", side * x, y, FACE["N"],
+                xs_, ys_ = side * x, row_y(y0, x)
+                seat("seat" if RNG.random() > 0.15 else "seat_broken_a", xs_, ys_, row_yaw(xs_, ys_),
                      tilt=RNG.uniform(-0.05, 0.05))
                 x += SEAT_W
             xa, xb = sorted((side * x0, side * x1))
-            invisible(xa, y - 14, xb, y + 14, fz(0, y) - 5, fz(0, y) + 45)
+            invisible_chord(xa, xb, y0, 14, fz(0, y0) - 5, fz(0, y0) + 45)
 # --- gravats : grand tas au centre-droit (vu des sièges : x > 0) avec le lustre
 # tombé, nappes de débris et fauteuils arrachés sur les côtés.
-prop("rubble_mound_big", 400, 320, fz(400, 320), 0.25)
-prop("chandelier_fallen", 360, 430, fz(360, 430) + 40, 0.7)
+prop("rubble_mound_big", 390, 410, fz(390, 410), 0.25)
+prop("chandelier_fallen", 330, 560, fz(330, 560) + 40, 0.5)
 for (m, x, y, yaw) in (("rubble_field_a", -520, 60, 0.3), ("rubble_field_b", -560, 430, 1.57),
                        ("rubble_field_a", 560, -200, 2.8), ("rubble_field_b", 600, 575, 0.1),
                        ("rubble_heap_a", -420, 250, 0.9), ("rubble_heap_c", -640, -60, 1.4),
@@ -669,26 +702,42 @@ for x in (-560, -360, 360, 560):
 # --- coupole (sous le plafond plat de la salle)
 prop("dome", 0, 205, 680, 0.0)
 # --- scène : cadre, rideaux, lambrequin, bannières, écran suspendu dans son cadre
-prop("proscenium", 0, 1210, 0, FACE["S"])
-# Rideaux noués vers l'extérieur (modèle tiré vers +X : celui de gauche est retourné).
-prop("curtain_drape", -420, 1205, 0, FACE["N"])
-prop("curtain_drape", 400, 1200, 0, FACE["S"])
-prop("valance", 0, 1200, 450, FACE["S"])
-for x in (-620, 620):
-    prop("banner", x, 1212, 560, FACE["S"])
-screens.append({"p": G(0, 1188, 300), "w": 6.5, "h": 4.2, "yaw": 0.0})
-prop("screen_frame", 0, 1190, 300, FACE["S"])
-beams.append({"from": G(-62, -92, 392), "to": G(0, 1186, 300), "radius": 1.6})
+PROSC = 0.75  # modèle : ouverture 22,8 × 11 m -> 17,1 × 8,25 m (captures)
+prop("proscenium", 0, 1210, 0, FACE["S"], scale=PROSC)
+# Rideau noué à droite seulement (à gauche, la tour du téléporteur cache le jambage).
+prop("curtain_drape", 285, 1205, 0, FACE["S"], scale=PROSC)
+prop("valance", 0, 1200, 330, FACE["S"], scale=PROSC)
+# Bannières contre le mur de part et d'autre du cadre, une sur chaque mur latéral.
+for x in (-470, 470):
+    prop("banner", x, 1212, 410, FACE["S"])
+prop("banner", -762, 700, 540, FACE["E"])
+prop("banner", 762, 700, 540, FACE["W"])
+# Coulisses : grand bloc central qui porte l'écran de cinéma (face à y = 1425, relevé
+# de BO1), entouré d'un passage de 3 m (côtés et fond) ; la boîte (1, 1842) est
+# contre le mur du fond, derrière l'écran.
+SB = (-517 + 118, 1425, 747 - 118, 1907 - 118)
+blocks_decor.append({"room": "coulisses", "box": gbox(SB[0], SB[1], -10, SB[2], SB[3], 580), "mat": "dark_wood"})
+screens.append({"p": G(0, 1418, 187), "w": 11.0, "h": 7.1, "yaw": 0.0})
+prop("screen_frame", 0, 1419, 187, FACE["S"], scale=round(11.0 / 6.5, 3))
+beams.append({"from": G(-62, -92, 384), "to": G(0, 1416, 187), "radius": 2.6})
+# Rais de lumière froide tombant des trous de la voûte : fins, obliques (même
+# direction pour tous, comme un soleil bas), toujours visibles.
+SUN = (250, -400)
+shafts = [{"from": G(x, y, 870), "to": G(x + SUN[0], y + SUN[1], fz(x + SUN[0], y + SUN[1])),
+           "top": 0.45, "radius": 1.0, "shaft": True}
+          for (x, y) in ((-420, 600), (150, 250), (380, 700), (-560, 150), (0, 500))]
 theater_lamps.append({"p": G(-300, 1000, 420), "range": 14.0, "energy": 2.2})
 theater_lamps.append({"p": G(300, 1000, 420), "range": 14.0, "energy": 2.2})
 # Tour du téléporteur derrière son pad, estrade de la tourelle au bord de scène,
 # pupitre et chaises pliantes.
 # Tour : origine au bord avant du socle (Ø 3 m), juste derrière le pad (Ø 3 m).
-prop("mdt_tower", -306, 1177, 0, FACE["S"], pid="tour_teleporteur")
-prop("turret_podium", 0, 952, 0, FACE["S"], pid="estrade_tourelle")
-prop("lectern", 170, 1060, 0, FACE["S"])
-for (x, y, yaw) in ((230, 990, 0.4), (290, 1025, -0.3), (-150, 1080, 2.9)):
-    prop("folding_chair", x, y, 0, yaw)
+# Tour : origine au bord avant du socle ; le socle mord un peu sur le pad (captures).
+prop("mdt_tower", -306, 1150, 0, FACE["S"], pid="tour_teleporteur")
+prop("turret_podium", 230, 1040, 0, FACE["S"], pid="estrade_tourelle")
+# Pupitre au bord de scène, deux chaises pliantes au pied de la scène (captures).
+prop("lectern", 0, 950, 0, FACE["S"])
+for (x, y, yaw) in ((-70, 895, 0.3), (-28, 898, -0.2)):
+    prop("folding_chair", x, y, fz(x, y), yaw)
 # --- salle de projection : projecteur face à sa baie, deuxième baie
 # d'observation, étagère à bobines, bureau, horloge au-dessus de la machine
 # d'amélioration, bobines au sol.
@@ -753,9 +802,13 @@ markers["player_yaw"] = 0.0
 
 # Lampes : une grille par salle (gris : l'éclairage final viendra à la passe artistique).
 lamps = list(theater_lamps)
+# Coulisses : autour du bloc de l'écran (aucune lampe dans le bloc).
+for (x, y) in ((-300, 1320), (0, 1320), (300, 1320), (620, 1320), (-458, 1560), (-458, 1840),
+               (-200, 1848), (200, 1848), (500, 1848), (688, 1560)):
+    lamps.append({"p": G(x, y, 220), "range": 10.0, "energy": 2.2})
 for r in ROOMS:
-    if r["id"] in ("parterre", "avant_scene"):
-        continue  # éclairage propre (lustre, appliques, scène : voir le décor)
+    if r["id"] in ("parterre", "avant_scene", "coulisses"):
+        continue  # éclairage propre (lustre, appliques, scène, coulisses : voir le décor)
     xs = [p[0] for p in r["poly"]]
     ys = [p[1] for p in r["poly"]]
     step = 420 if r["ceil"] - floor_at(r, xs[0], ys[0]) > 300 else 320
@@ -812,11 +865,16 @@ rooms_json += pockets
 
 stairs_json = [{"room": s["room"], "a": G(*s["a"]), "b": G(*s["b"]), "w": round(s["w"] * K, 3), "mat": s["mat"]}
                for s in STAIRS]
-# Baies de la cabine : pavés barrières invisibles (on ne saute pas dans la
-# salle, les balles passent).
+# Baie de la cabine : pavé barrière invisible (on ne saute pas dans la salle, les
+# balles passent) ; fin cadre sombre autour de la fente (décor, sans collision).
 blocks = []
-invisible(-117, -96, -7, -84, 355, 435, surface="wood")
-invisible(40, -96, 150, -84, 355, 435, surface="wood")
+invisible(-BAIE_W / 2, -96, BAIE_W / 2, -84, BAIE_Z[0] - 5, BAIE_Z[1] + 5, surface="wood")
+for z0, z1 in ((BAIE_Z[0] - 3, BAIE_Z[0]), (BAIE_Z[1], BAIE_Z[1] + 3)):
+    blocks.append({"room": "projection", "box": gbox(-BAIE_W / 2 - 3, -101, z0, BAIE_W / 2 + 3, -79, z1),
+                   "mat": "dark_wood", "nocollide": True})
+for x in (-BAIE_W / 2 - 3, BAIE_W / 2):
+    blocks.append({"room": "projection", "box": gbox(x, -101, BAIE_Z[0], x + 3, -79, BAIE_Z[1]),
+                   "mat": "dark_wood", "nocollide": True})
 
 for w in wall_list:
     for k in ("_ori", "_line", "_s"):
@@ -824,7 +882,9 @@ for w in wall_list:
 
 layout = {"id": "kino", "note": "Généré par tools/blender/kino/make_layout.py - ne pas modifier à la main.",
           "rooms": rooms_json, "walls": wall_list, "rails": rail_list, "stairs": stairs_json,
-          "blocks": blocks + blocks_decor, "props": props, "instances": instances, "screens": screens, "beams": beams, "blockers": blockers,
+          "blocks": blocks + blocks_decor, "props": props, "instances": instances, "screens": screens, "beams": beams, "shafts": shafts, "blockers": blockers,
+          # Objets de la salle : plâtre gris-vert et voûte grise (BO1) au lieu du rouge.
+          "prop_materials": {"wall_theater": "plaster_theater", "ceiling_theater": "vault_theater"},
           "zones": zone_json, "zone_order": zone_order, "markers": markers}
 with open(OUT, "w", encoding="utf-8") as f:
     json.dump(layout, f, ensure_ascii=False, indent=1)

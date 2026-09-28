@@ -41,9 +41,9 @@ func _init() -> void:
 	teleporter_link_cooldown = 90.0
 	teleporter_kill_radius = 7.62
 	look = {
-		"ambient_color": Color(0.42, 0.3, 0.24),
+		"ambient_color": Color(0.34, 0.36, 0.35),
 		"ambient_energy": 0.8,
-		"fog_color": Color(0.11, 0.085, 0.07),
+		"fog_color": Color(0.085, 0.095, 0.11),
 		"fog_density": 0.007,
 		"saturation": 0.85,
 		"grade": TheaterLook.GRADE,

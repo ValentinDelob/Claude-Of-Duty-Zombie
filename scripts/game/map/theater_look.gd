@@ -66,6 +66,7 @@ shader_type spatial;
 render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled;
 uniform vec4 tint : source_color = vec4(1.0, 0.93, 0.78, 1.0);
 uniform float strength = 0.032;
+uniform float flicker = 1.0;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -78,7 +79,7 @@ void fragment() {
 	// scintillement de l'obturateur.
 	float edge = pow(abs(dot(NORMAL, VIEW)), 1.5);
 	float dust = 0.6 + 0.8 * noise(UV * vec2(18.0, 6.0) + vec2(TIME * 0.05, TIME * 0.12));
-	float shutter = 0.85 + 0.15 * hash(vec2(floor(TIME * 24.0), 1.0));
+	float shutter = mix(1.0, 0.85 + 0.15 * hash(vec2(floor(TIME * 24.0), 1.0)), flicker);
 	float fade = smoothstep(0.0, 0.15, UV.y) * smoothstep(1.0, 0.85, UV.y);
 	ALBEDO = tint.rgb * strength * edge * dust * shutter * fade;
 }
@@ -87,6 +88,7 @@ void fragment() {
 static var _posters: Dictionary = {}
 static var _screen: ShaderMaterial
 static var _beam: ShaderMaterial
+static var _shaft: ShaderMaterial
 
 
 static func screen_material() -> ShaderMaterial:
@@ -105,6 +107,16 @@ static func beam_material() -> ShaderMaterial:
 		_beam = ShaderMaterial.new()
 		_beam.shader = sh
 	return _beam
+
+
+## Rai de lumière froide tombant d'un trou du plafond (sans obturateur).
+static func shaft_material() -> ShaderMaterial:
+	if _shaft == null:
+		_shaft = beam_material().duplicate()
+		_shaft.set_shader_parameter("tint", Color(0.82, 0.9, 1.0))
+		_shaft.set_shader_parameter("strength", 0.011)
+		_shaft.set_shader_parameter("flicker", 0.0)
+	return _shaft
 
 
 static func poster_material(variant: int) -> StandardMaterial3D:
