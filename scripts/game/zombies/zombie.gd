@@ -58,6 +58,10 @@ var crawl_t := -1.0
 var _path := PackedVector3Array()
 var _path_i := 0
 var _repath_t := 0.0
+## Ligne de vue vers la cible, recalculée toutes les LOS_PERIOD secondes.
+const LOS_PERIOD := 0.1
+var _los_t := 0.0
+var _los_ok := false
 var _stuck_t := 0.0
 var _stuck_pos := Vector3.ZERO
 var _attack_hit_done := false
@@ -119,6 +123,9 @@ func _ready() -> void:
 	# décollée du sol. move_and_slide ne gère alors ni contact ni accroche au
 	# sol (une bonne part de son coût) pour la même trajectoire.
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+	# 3 glissements suffisent (angle de deux murs) ; les 6 par défaut
+	# doublaient le coût des zombies coincés dans la horde.
+	max_slides = 3
 	cs.position.y = HEIGHT * 0.5 + FLOOR_GAP
 	_body_shape = cs
 	add_child(cs)
@@ -257,7 +264,14 @@ func _chase(delta: float) -> void:
 			_start_attack()
 			return
 		var dir := Vector3.ZERO
-		if dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, tpos):
+		# Ligne de vue mise en cache (LOS_PERIOD) : le tracé sur la grille à
+		# chaque pas de chaque zombie pesait dans la horde, pour une réaction
+		# identique à l'œil.
+		_los_t -= delta
+		if _los_t <= 0.0:
+			_los_t = LOS_PERIOD
+			_los_ok = dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, tpos)
+		if _los_ok and dist < DIRECT_RANGE:
 			dir = to / dist
 			_path.clear()
 		else:
@@ -348,10 +362,9 @@ func _separation() -> Vector3:
 	for gz in range(cz - 1, cz + 2):
 		for gx in range(cx - 1, cx + 2):
 			var bucket: Array = grid.get(ZombieManager.grid_key(gx, gz), ZombieManager.EMPTY)
-			for other: Zombie in bucket:
-				if other == self:
-					continue
-				var d := pos - other.global_position
+			# Sa propre position (distance nulle) est écartée par le test l2.
+			for op: Vector3 in bucket:
+				var d := pos - op
 				d.y = 0.0
 				var l2 := d.length_squared()
 				if l2 < 0.8 and l2 > 0.0001:

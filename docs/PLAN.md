@@ -110,6 +110,9 @@ la reproduction fidèle de la carte réelle à partir d'images de référence
 - [ ] Mettre à jour README (état d'avancement) et docs/ARCHITECTURE.md.
 
 ## Fait (releases)
+- v0.1.93 : re-mesure des performances sur RTX A2000, murs mats sans
+  spéculaire, CPU des zombies au contact réduit ; v0.1.92 : tests parallèles
+  sans rendu (check.sh ~4 min au lieu de 35-45), fenêtres de test invisibles.
 - v0.1.89 : optimisation du rendu (MEDIUM -17 % de GPU), préréglage
   automatique au premier lancement ; v0.1.87 : poignée de main de version.
 - v0.1.80 : tir droit (réticule = impact), lunette, recul BO1, effets au

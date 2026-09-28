@@ -36,7 +36,7 @@ const SAMPLE_SEC := 3.0
 ## carte. Ordre : du plus précis au plus général.
 const ADAPTERS := [
 	# NVIDIA
-	["rtx 40", 9.0], ["rtx 30", 7.0], ["rtx 20", 5.0], ["rtx a2000", 3.0],
+	["rtx 40", 9.0], ["rtx 30", 7.0], ["rtx 20", 5.0], ["rtx a2000", 4.4],
 	["gtx 1660", 2.3], ["gtx 1650 super", 1.9], ["gtx 1650", 1.4],
 	["gtx 1080", 4.5], ["gtx 1070", 3.5], ["gtx 1060", 2.2],
 	["gtx 1050 ti", 1.25], ["gtx 1050", 1.0], ["gt 1030", 0.45],

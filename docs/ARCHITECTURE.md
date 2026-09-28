@@ -136,7 +136,8 @@ précédent.
   1 ms, SSAO 0,75-1 ms, filtre doux moyen 0,6-1,1 ms, MSAA 2x 0,6-0,7 ms.
   Pistes écartées (gain nul ou rendu changé) : ombres omni en double paraboloïde
   (déformation sur les grands murs), atlas 2048 (ombres floues, 0,1-0,2 ms),
-  diffus Lambert (0 ms), portée de la brume, glow sans le niveau 6 (0 ms), portée
+  diffus Lambert (0 ms), portée de la brume, glow sans le niveau 6 ou 2 (0 ms),
+  spéculaire des lampes à 0 (0 ms : seul `specular_disabled` du shader compte), portée
   des lampes x0,85 (-0,4 à -0,55 ms mais salles visiblement plus sombres).
 
 - Optimisations (sans perte visible, captures avant/après comparées) :
@@ -154,6 +155,15 @@ précédent.
   - MEDIUM : filtre d'ombre dur (-0,3 à -0,4 ms) et brume 48x48x32 (-0,2 ms) ;
     HIGH : filtre doux bas et brume 64x64x48 (-1,1 à -1,3 ms au total) ;
   - HUD : vignette de blessure (plein écran, bruit) masquée en pleine santé ;
+  - **murs mats sans spéculaire** (`WorldLook.MATTE_SURFACES`, variante de
+    `surface.gdshader` en `specular_disabled`) : -0,1 à -0,15 ms. Sols et
+    plafonds le gardent : sans le reflet rasant des lampes, ils s'assombrissent
+    nettement (-0,3 ms de plus, écarté) ;
+  - **CPU des zombies au contact** : 3 glissements au plus par `move_and_slide`
+    (au lieu de 6 : -45 % sur le déplacement des zombies coincés dans la horde),
+    grille de séparation qui garde les positions (au lieu de relire
+    `global_position` de chaque voisin : -30 %), ligne de vue vers la cible
+    mise en cache 0,1 s (`Zombie.LOS_PERIOD`) ;
   - déjà en place : géométrie et décor fusionnés par matériau ET par tuile de 16x16
     cellules (`MapBuilder.CHUNK`), sols, plafonds et petits détails sans ombre
     portée, décalques avec fondu à distance.
@@ -175,6 +185,17 @@ précédent.
   ~60 fps sur une GTX 1050 dans les vues sans zombie et 55-57 fps dans la pire
   mêlée ; LOW garantit la cible. HIGH vise les GTX 1060 / 1070 et plus. Les seuils
   des autotests restent à 150 fps (avertissement seulement en exécution parallèle).
+
+- Re-mesure GPU libre sur le portable RTX A2000 (28/09/2026, 1080p, `perf.sh`) :
+  sur les mêmes vues, la carte fait ~1,25x une GTX 1070 (indice 4,4 dans
+  `QualityProbe`) ; la cible « 60 fps sur GTX 1050 » y vaut ~3,4 ms de GPU
+  (~250 fps). MEDIUM : pire vue BUNKER 3,64 -> 3,45 ms (226 -> 231-241 fps),
+  pire vue KINO 3,51 -> 3,3 ms (232 -> 241-251 fps), 24 zombies au contact
+  3,96 ms (207 fps ; physique 2,7 -> 2,3-2,8 ms par pas). LOW 384-393 fps,
+  HIGH 147 fps. Postes restants (`perf_costs`) : lampes 1,1-1,5 ms (dont ombres
+  0,2-0,5), glow 0,6 ms (retirer des niveaux ne change rien), post-traitement
+  0,2 ms (sans lecture d'écran : -0,15 ms mais grain seulement sombre, écarté),
+  animation des zombies 0,3 ms, bruit des zombies 0,15-0,25 ms.
 
 - **Préréglage automatique** (`QualityProbe`, lancé par `Settings` au premier
   lancement : pas de clé `video/quality` dans `user://settings.cfg`, jamais en

@@ -40,7 +40,9 @@ var _rng := RandomNumberGenerator.new()
 ## les 9 cases autour d'un zombie contiennent tous ses voisins.
 const GRID_CELL := 1.0
 const EMPTY: Array = []
-var _grid: Dictionary = {}  # clé de case -> Array[Zombie]
+## Les cases gardent les POSITIONS (lues une fois par pas) : relire
+## global_position de chaque voisin coûtait cher au milieu de la horde.
+var _grid: Dictionary = {}  # clé de case -> Array[Vector3]
 var _grid_frame := -1
 
 ## Caméra de l'image en cours (cadence d'animation des zombies).
@@ -68,7 +70,7 @@ func separation_grid() -> Dictionary:
 			if bucket.is_empty():
 				bucket = []
 				_grid[k] = bucket
-			bucket.append(z)
+			bucket.append(p)
 	return _grid
 
 

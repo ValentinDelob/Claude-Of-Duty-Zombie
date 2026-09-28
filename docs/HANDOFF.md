@@ -138,24 +138,23 @@ Livré et publié (dernière release : voir `gh release list`) :
   vignettage, brume volumétrique), HUD BO1 (manche peinte), zombies refaits
   (6 archétypes, animations), armes FPS détaillées + mains, FOV d'arme séparé.
 - Dossier de combat (statistiques), menu principal, options (dont grain).
-PERF (GTX 1070, 1080p). Avant optimisation (GPU libre) : LOW 240-272 fps,
-MEDIUM 130-166 (24 zombies : 130), HIGH 86-92. Après « perf: optimize rendering
-after the visual rework » (temps GPU de la pire vue) : MEDIUM 5,4 -> 4,5 ms
-(~195-200 fps estimés, cible ~210 = 60 fps sur GTX 1050), 24 zombies au contact
-6,1 -> 5,0 ms (~55-57 fps sur GTX 1050, limité aussi par le CPU : physique
-~3 ms/pas), HIGH 511 -> 296 draw calls. Préréglage automatique au premier
-lancement (scripts/game/quality_probe.gd). Coûts par poste :
-`sh tools/perf.sh perf_costs` ; détail dans docs/ARCHITECTURE.md. Les fps réels
-sur machine libre restent à re-mesurer (`sh tools/perf.sh`).
+PERF (1080p). GTX 1070 après « perf: optimize rendering after the visual
+rework » : MEDIUM 4,5 ms de GPU sur la pire vue, 24 zombies au contact 5,0 ms,
+HIGH 511 -> 296 draw calls. Re-mesure GPU libre du 28/09/2026 sur le portable
+RTX A2000 (~1,25x une GTX 1070 ; cible 60 fps GTX 1050 ≈ 3,4 ms ici) : MEDIUM
+231-251 fps sur les pires vues (3,3-3,45 ms), 24 zombies au contact 207 fps
+(3,96 ms, physique ~2,5 ms par pas), LOW ~390 fps, HIGH ~147 fps. Préréglage
+automatique au premier lancement (scripts/game/quality_probe.gd). Coûts par
+poste : `sh tools/perf.sh perf_costs` ; détail dans docs/ARCHITECTURE.md.
 
 ## 4. Reste à faire (dans cet ordre ; détail dans docs/PLAN.md)
-1. PERF (fin) : re-mesurer les fps réels GPU libre (`sh tools/perf.sh boot
-   map_tour kino_tour zombie_stress visual_look`, puis QUALITY=low/high) ;
-   gagner les derniers ~0,4 ms de MEDIUM (postes restants : éclairage des
-   lampes ~1,7 ms, glow ~0,6 ms, arme FPS ~0,3 ms qui peut utiliser le bruit
-   précalculé NoiseLattice, post-traitement) ; réduire le coût CPU de la
-   physique des zombies au contact (~3 ms/pas avec 24 zombies) ; vérifier le
-   préréglage automatique sur d'autres cartes graphiques.
+1. PERF (reste) : fps re-mesurés le 28/09/2026 (voir §3) ; KINO et BUNKER
+   sans zombie tiennent la cible MEDIUM (BUNKER à ~0,05 ms près), la horde de
+   24 zombies la dépasse de ~0,5 ms (lampes 1,5 ms, animation 0,3 ms).
+   Pistes restantes à chiffrer avec perf_costs :
+   animation des zombies lointains à cadence réduite, bruit
+   des zombies moins cher, ombres des lampes ; vérifier le préréglage
+   automatique sur d'autres cartes graphiques.
 2. R4 suite : décors et matériaux plus riches par zone, machines d'atouts,
    boîte mystère, Pack-a-Punch, téléporteur au style BO1 ; menu principal et
    écran de chargement au style BO1 ; HUD à l'échelle de la résolution
@@ -216,8 +215,8 @@ puis reprends §6 puis §4 dans l'ordre en respectant §0 et §2.
   la même image que leur apparition), scope (visée du torse, attentes sur
   événements).
 - Aucun agent en cours, aucun travail non poussé : tout est sur main.
-- Prochaine étape conseillée : §4.1 (re-mesure des fps GPU libre avec
-  `sh tools/perf.sh`, puis derniers gains de MEDIUM), puis §4.2 (R4 suite :
-  décors, machines, boîte, Pack-a-Punch, menu), puis §4.3 (KINO V2).
+- Prochaine étape conseillée : §4.2 (R4 suite : décors, machines, boîte,
+  Pack-a-Punch, menu), puis §4.3 (KINO V2) ; §4.1 (fin de la perf) quand
+  la horde le demande.
 - Les tests dépendant du temps sont nombreux : lancer check.sh avec un `JOBS=`
   réduit quand des agents font tourner des jeux en même temps.

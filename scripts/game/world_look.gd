@@ -83,12 +83,32 @@ static var _cache: Dictionary = {}
 static var _luts: Dictionary = {}
 
 
+## Murs mats (plâtre, pierre, brique, tissu) : variante sans reflet spéculaire,
+## invisible sur ces matières et moins chère (perf_costs « surfaces sans
+## spéculaire »). Sols et plafonds gardent le reflet rasant de la lumière
+## ambiante (sans lui, ils s'assombrissent nettement) ; métal, carrelage,
+## marbre, bois vernis et laiton gardent le reflet des lampes.
+const MATTE_SURFACES := ["wall", "wall_green", "wall_cell", "wall_concrete", "wall_ritual", "stone",
+	"wall_theater", "wall_lobby", "wall_foyer", "wall_loges", "brick", "fabric", "velvet"]
+static var _matte_shader: Shader
+
+
+static func surface_shader(key: String) -> Shader:
+	if not key in MATTE_SURFACES:
+		return SURFACE
+	if _matte_shader == null:
+		_matte_shader = Shader.new()
+		_matte_shader.code = SURFACE.code.replace("render_mode cull_back;", "render_mode cull_back, specular_disabled;")
+		assert(_matte_shader.code != SURFACE.code, "surface.gdshader : render_mode introuvable")
+	return _matte_shader
+
+
 static func surface(key: String) -> ShaderMaterial:
 	if _cache.has(key):
 		return _cache[key]
 	var s: Array = SURFACES.get(key, SURFACES.wall)
 	var m := ShaderMaterial.new()
-	m.shader = SURFACE
+	m.shader = surface_shader(key)
 	m.set_shader_parameter("pattern", s[0])
 	m.set_shader_parameter("color_a", s[1])
 	m.set_shader_parameter("color_b", s[2])
