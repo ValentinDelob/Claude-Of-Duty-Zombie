@@ -33,3 +33,7 @@ desktop.ini
 
 # Fenêtres de test sans focus (tools/nofocus.sh)
 /override.cfg
+
+# Synthèse vocale (environnement Python, moteurs et modèles téléchargés, voir docs/ASSETS.md)
+tools/piper/
+tools/tts/
