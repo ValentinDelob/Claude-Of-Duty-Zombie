@@ -107,7 +107,12 @@ func _build_props() -> void:
 		var pos := MeshMapLayout.vec(pr.p)
 		inst.transform = _xf(pos, float(pr.get("yaw", 0.0)), float(pr.get("scale", 1.0)), float(pr.get("tilt", 0.0)))
 		root.add_child(inst)
+		# Matériaux propres à cet objet (« remap » de la description), en plus de ceux de la carte.
+		var map_mats := _prop_mats
+		if pr.has("remap"):
+			_prop_mats = map_mats.merged(pr.remap, true)
 		_setup_nodes(inst, func(_room: String) -> float: return pos.y)
+		_prop_mats = map_mats
 		# Règle : aucune collision ne vient d'un modèle Blender (seulement des
 		# CollisionBox décrites à côté du .glb).
 		for body in inst.find_children("*", "StaticBody3D", true, false):
@@ -240,13 +245,14 @@ static func _special(key: String) -> Material:
 			m.emission_enabled = true
 			m.emission = Color(1.0, 0.9, 0.75)
 			m.emission_energy_multiplier = 0.35
-		"chalk", "paper", "paint_teal", "paint_red", "rubber":
+		"chalk", "paper", "paint_teal", "paint_red", "paint_blue", "cable_blue", "rubber":
 			m = StandardMaterial3D.new()
 			m.albedo_color = {"chalk": Color(0.85, 0.84, 0.78), "paper": Color(0.78, 0.75, 0.66),
 					"paint_teal": Color(0.3, 0.5, 0.5), "paint_red": Color(0.42, 0.07, 0.05),
+					"paint_blue": Color(0.1, 0.22, 0.5), "cable_blue": Color(0.04, 0.07, 0.19),
 					"rubber": Color(0.035, 0.035, 0.035)}[key]
-			m.roughness = {"paint_teal": 0.5, "paint_red": 0.55}.get(key, 0.9)
-			m.metallic = 0.25 if key == "paint_teal" else 0.0
+			m.roughness = {"paint_teal": 0.5, "paint_red": 0.55, "paint_blue": 0.5, "cable_blue": 0.6}.get(key, 0.9)
+			m.metallic = 0.25 if key in ["paint_teal", "paint_blue"] else 0.0
 		"plank":
 			return WorldLook.surface("wood")
 	if m != null:

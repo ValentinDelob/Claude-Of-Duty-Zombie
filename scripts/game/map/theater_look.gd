@@ -114,7 +114,7 @@ static func shaft_material() -> ShaderMaterial:
 	if _shaft == null:
 		_shaft = beam_material().duplicate()
 		_shaft.set_shader_parameter("tint", Color(0.82, 0.9, 1.0))
-		_shaft.set_shader_parameter("strength", 0.011)
+		_shaft.set_shader_parameter("strength", 0.006)
 		_shaft.set_shader_parameter("flicker", 0.0)
 	return _shaft
 

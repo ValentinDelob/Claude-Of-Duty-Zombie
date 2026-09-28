@@ -3,8 +3,10 @@ extends Node
 
 const PATH := "user://settings.cfg"
 ## Fichier utilisé : les tests automatisés écrivent ailleurs pour ne jamais
-## écraser les réglages du joueur (et partent des valeurs par défaut).
-const TEST_PATH := "user://settings_autotest.cfg"
+## écraser les réglages du joueur (et partent des valeurs par défaut), un
+## fichier par processus (check.sh lance les scénarios en parallèle), effacé à
+## la sortie.
+const TEST_PATH_PREFIX := "user://settings_autotest_"
 var path := PATH
 
 enum Quality { LOW, MEDIUM, HIGH }
@@ -121,9 +123,14 @@ func _register_inputs() -> void:
 	# Navigation des menus à la manette/clavier : on garde les ui_* par défaut.
 
 
+func _exit_tree() -> void:
+	if path.begins_with(TEST_PATH_PREFIX) and FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+
+
 func load_settings() -> void:
 	if _cmdline_has_prefix("--autotest="):
-		path = TEST_PATH
+		path = "%s%d.cfg" % [TEST_PATH_PREFIX, OS.get_process_id()]
 		return
 	var cfg := ConfigFile.new()
 	if cfg.load(path) != OK:

@@ -62,6 +62,8 @@ MATS = {
     "paint_teal": ((0.22, 0.45, 0.43), 0.5, 0.1, 0.0),
     "paint_red": ((0.5, 0.06, 0.05), 0.5, 0.1, 0.0),
     "rubber": ((0.02, 0.02, 0.02), 0.8, 0.0, 0.0),
+    "paint_blue": ((0.08, 0.18, 0.45), 0.5, 0.3, 0.0),
+    "cable_blue": ((0.03, 0.05, 0.15), 0.6, 0.0, 0.0),
     "plaster_theater": ((0.33, 0.34, 0.30), 0.9, 0.0, 0.0),
     "vault_theater": ((0.24, 0.25, 0.23), 0.95, 0.0, 0.0),
     "carpet_theater": ((0.15, 0.16, 0.17), 0.9, 0.0, 0.0),
@@ -505,9 +507,10 @@ def bounds(keys=None):
 
 
 # ------------------------------------------------------------------ motifs
-def reel_emblem(cx, cz, y_front, size, light="chalk", dark="rubber", disc=True):
-    """Emblème ORIGINAL : bobine de film stylisée (disque sombre, cinq trous
-    clairs, moyeu) et amorce de pellicule, sur un disque clair."""
+def reel_emblem(cx, cz, y_front, size, light="velvet", dark="brass", disc=False):
+    """Emblème ORIGINAL : bobine de film stylisée dorée (disque, cinq trous, moyeu)
+    et amorce de pellicule. Jamais de disque blanc sur fond rouge (trop proche de la
+    mise en page d'un drapeau politique) : or sur rouge, sans disque par défaut."""
     if disc:
         flat(light, circle(0.5, 32), cx, cz, y_front, size, 0.004)
     flat(dark, circle(0.36, 28), cx, cz, y_front - 0.004, size, 0.004)
@@ -1368,8 +1371,11 @@ def m_banner():
         for side in (0, 180):
             with xf(R(side, "Z")):
                 reel_emblem(0.0, -1.7, -0.03, 1.25)
+                # Cadre doré (captures : panneaux rouges bordés d'or).
                 for x in (-0.66, 0.66):
-                    box("chalk", x - 0.03, x + 0.03, -0.034, -0.028, -4.8, -0.2)
+                    box("brass", x - 0.03, x + 0.03, -0.034, -0.028, -4.8, -0.2)
+                for z in (-0.26, -4.74):
+                    box("brass", -0.69, 0.69, -0.034, -0.028, z - 0.03, z + 0.03)
 
 
 def m_sconce():
@@ -1934,8 +1940,8 @@ def m_balcony_back():
 # Aucune peinture bleue côté jeu (WorldLook.SURFACES et clés spéciales) : les
 # bidons « bleus » de BO1 prennent la peinture sarcelle, les gros câbles bleu
 # foncé le caoutchouc noir. À changer ici si une clé bleue apparaît.
-BARREL_MAT = "paint_teal"
-CABLE_MAT = "rubber"
+BARREL_MAT = "paint_blue"
+CABLE_MAT = "cable_blue"
 
 
 def recenter():

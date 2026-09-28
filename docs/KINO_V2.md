@@ -187,3 +187,15 @@ Les étapes 5 et 6 se parallélisent avec des agents (worktrees, fichiers disjoi
   objets) sont des `CollisionBox` décrites en données (`blockers` de la
   description, `<modèle>.collision.json`), jamais des modèles Blender.
   Scénario `kino_v2_theater` (captures + tir depuis les baies).
+- Théâtre d'après les photos de référence (v0.1.103 et suivante) : cabine de
+  projection avec une seule fente vers la salle (85 % de la largeur du mur, 1 m de
+  haut centrée sur les yeux du joueur : on voit la scène et on tire au milieu de la
+  salle) ; coulisses avec un grand bloc qui porte l'écran (à 8 m derrière le rideau,
+  relevé de BO1), passage de 3 m tout autour et emplacement de la boîte contre le mur
+  du fond ; cadre de scène ramené à 17 × 8,3 m ; palette gris-vert de BO1 ; rangées
+  courbes ; larges escaliers de scène ; habillage : nez de scène sculpté, gros câbles
+  bleus de la tour à l'allée, bidons bleus, caisses et échafaudage en coulisses,
+  frises à losanges et corniches, arcs électriques de la tour. Emblèmes originaux :
+  bobine dorée sur rouge, jamais de disque blanc sur fond rouge.
+  Restent : voûte à nervures et demi-coupoles (plafond encore plat avec coupole),
+  gravats plus hauts, animation des arcs.

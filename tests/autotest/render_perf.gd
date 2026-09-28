@@ -83,7 +83,7 @@ func _probe() -> void:
 	at.check(q >= Settings.Quality.LOW and q <= Settings.Quality.HIGH, "préréglage automatique : %s (%s)" % [RenderQuality.preset(q).name, res[1]])
 	at.check(Settings.quality == q and Settings.quality_auto == res[1], "préréglage appliqué et mémorisé")
 	var cfg := ConfigFile.new()
-	at.check(cfg.load(Settings.TEST_PATH) == OK and cfg.get_value("video", "quality_auto", "") == res[1], "détection enregistrée (réglages des tests)")
+	at.check(cfg.load(Settings.path) == OK and Settings.path.begins_with(Settings.TEST_PATH_PREFIX) and cfg.get_value("video", "quality_auto", "") == res[1], "détection enregistrée (réglages des tests)")
 	# Sur la GTX 1070 de développement, le banc doit reconnaître une carte
 	# de classe HIGH (même en présence d'autres jeux, il reste au moins MEDIUM).
 	if RenderingServer.get_video_adapter_name().to_lower().contains("gtx 1070"):

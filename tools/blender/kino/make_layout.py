@@ -529,8 +529,10 @@ props, blocks_decor, screens, beams, theater_lamps = [], [], [], [], []
 inst = {}
 
 
-def prop(model, x, y, z, yaw=0.0, scale=1.0, tilt=0.0, pid=None):
+def prop(model, x, y, z, yaw=0.0, scale=1.0, tilt=0.0, pid=None, remap=None):
     d = {"model": model, "p": G(x, y, z), "yaw": round(yaw, 4)}
+    if remap:
+        d["remap"] = remap
     if scale != 1.0:
         d["scale"] = scale
     if tilt:
@@ -717,14 +719,15 @@ prop("banner", 762, 700, 540, FACE["W"])
 # contre le mur du fond, derrière l'écran.
 SB = (-517 + 118, 1425, 747 - 118, 1907 - 118)
 blocks_decor.append({"room": "coulisses", "box": gbox(SB[0], SB[1], -10, SB[2], SB[3], 580), "mat": "dark_wood"})
-screens.append({"p": G(0, 1418, 187), "w": 11.0, "h": 7.1, "yaw": 0.0})
-prop("screen_frame", 0, 1419, 187, FACE["S"], scale=round(11.0 / 6.5, 3))
-beams.append({"from": G(-62, -92, 384), "to": G(0, 1416, 187), "radius": 2.6})
+prop("screen_block_face", 0, SB[1], 0, FACE["S"])
+screens.append({"p": G(0, 1410, 199), "w": 9.8, "h": 6.3, "yaw": 0.0})
+prop("screen_frame", 0, 1411, 199, FACE["S"], scale=round(9.8 / 6.5, 3))
+beams.append({"from": G(-62, -92, 384), "to": G(0, 1408, 199), "radius": 2.4})
 # Rais de lumière froide tombant des trous de la voûte : fins, obliques (même
 # direction pour tous, comme un soleil bas), toujours visibles.
 SUN = (250, -400)
 shafts = [{"from": G(x, y, 870), "to": G(x + SUN[0], y + SUN[1], fz(x + SUN[0], y + SUN[1])),
-           "top": 0.45, "radius": 1.0, "shaft": True}
+           "top": 0.35, "radius": 0.75, "shaft": True}
           for (x, y) in ((-420, 600), (150, 250), (380, 700), (-560, 150), (0, 500))]
 theater_lamps.append({"p": G(-300, 1000, 420), "range": 14.0, "energy": 2.2})
 theater_lamps.append({"p": G(300, 1000, 420), "range": 14.0, "energy": 2.2})
@@ -733,11 +736,48 @@ theater_lamps.append({"p": G(300, 1000, 420), "range": 14.0, "energy": 2.2})
 # Tour : origine au bord avant du socle (Ø 3 m), juste derrière le pad (Ø 3 m).
 # Tour : origine au bord avant du socle ; le socle mord un peu sur le pad (captures).
 prop("mdt_tower", -306, 1150, 0, FACE["S"], pid="tour_teleporteur")
+prop("mdt_arcs", -306, 1150, 0, FACE["S"])
 prop("turret_podium", 230, 1040, 0, FACE["S"], pid="estrade_tourelle")
 # Pupitre au bord de scène, deux chaises pliantes au pied de la scène (captures).
 prop("lectern", 0, 950, 0, FACE["S"])
 for (x, y, yaw) in ((-70, 895, 0.3), (-28, 898, -0.2)):
     prop("folding_chair", x, y, fz(x, y), yaw)
+# --- habillage d'après les photos de référence
+# Nez de scène sculpté (panneaux de 4 m), entre les deux escaliers et sur les côtés.
+LIP = 4.0 / K
+for x0, x1 in ((-770, -430), (-230, 300), (500, 770)):
+    x = x0 + LIP / 2
+    while True:
+        cx = min(x, x1 - LIP / 2)
+        prop("stage_lip", cx, 920, fz(cx, 919), FACE["S"])
+        if cx >= x1 - LIP / 2:
+            break
+        x += LIP
+# Gros câbles bleus : de la tour au bord de scène, puis le long de l'allée.
+prop("cable_run_b", -250, 1010, 0, 1.0)
+prop("cable_drop", -200, 920, 0, FACE["S"])
+for (m, x, y, yaw) in (("cable_run_a", -150, 760, 1.35), ("cable_run_b", -95, 470, 1.7), ("cable_run_a", -60, 170, 1.5)):
+    prop(m, x, y, fz(x, y), yaw)
+# Bidons bleus : sous le balcon à gauche près de la scène, et en coulisses à droite.
+prop("blue_barrel_group", -700, 720, fz(-700, 720), 0.4)
+prop("blue_barrel_group", 660, 1300, 0, -0.6)
+# Coulisses devant le bloc de l'écran : caisses de transport, échafaudage à escalier.
+prop("stage_crates", -180, 1320, 0, 0.2)
+prop("stage_crates", 240, 1330, 0, -0.3)
+prop("scaffold_stairs", 520, 1320, 0, FACE["S"])
+# Frises à losanges et corniches : au-dessus des arcades et en haut des murs ;
+# bande plus claire que le mur (captures), losanges sombres.
+FR = 6.0 / K
+FRIEZE = {"vault_theater": "fabric"}
+for z in (560, 800):
+    for side in (-1, 1):
+        y = -480 + FR / 2
+        while y < 1200:
+            prop("wall_frieze", side * 762, y, z, FACE["E"] if side < 0 else FACE["W"], remap=FRIEZE)
+            y += FR
+    for x in (-590, -354, -118, 118, 354, 590):
+        prop("wall_frieze", x, -502, z, FACE["N"], remap=FRIEZE)
+        prop("wall_frieze", x, 1212, z, FACE["S"], remap=FRIEZE)
 # --- salle de projection : projecteur face à sa baie, deuxième baie
 # d'observation, étagère à bobines, bureau, horloge au-dessus de la machine
 # d'amélioration, bobines au sol.
