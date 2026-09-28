@@ -1,0 +1,4 @@
+{"boxes": [
+  {"center": [0.0, 0.5, 0.0], "size": [0.9, 1.0, 0.9], "yaw": 0.0, "barrier": false},
+  {"center": [0.0, 1.45, 0.0], "size": [0.6, 0.9, 1.4], "yaw": 0.0, "barrier": false}
+]}

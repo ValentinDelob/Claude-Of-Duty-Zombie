@@ -275,3 +275,53 @@ concerne.
 - Pas de textures peintes (réclames « glacé », prix, éraflures fines) : le
   détail vient de la géométrie et du bruit procédural.
 - Lettrage en capitales italiques et non en écriture cursive peinte.
+
+## Salle de théâtre de KINO V2 : objets
+
+### Référence (Kino der Toten, BO1)
+- Salle en fer à cheval sous une coupole ovale à nervures, trouée par
+  endroits ; un grand lustre à pampilles suspendu et un second écrasé sur
+  les sièges ; fauteuils à haut dossier de bois sombre au sommet chantourné,
+  garniture rouge râpée ; balcon unique à garde-corps plein et gradins ;
+  arcades aveugles et pilastres cannelés sur les murs, appliques à tulipes ;
+  grands drapeaux rouges à disque blanc (chez nous : bannières à emblème
+  original) ; cadre de scène doré, lambrequin festonné à frange, rideaux
+  retroussés, écran « vieille télé » à cadre noir arrondi, pupitre à petit
+  drapeau et chaises pliantes ; champs de gravats (plâtre, caissons, lattes,
+  poutres, sièges arrachés) sur une bonne partie du parterre.
+- Téléporteur (MDT) sur la scène : socle rond à gradins et grille
+  d'aération, tambour noir à grand emblème et voyant vert, épaulement
+  conique hérissé de 6 isolateurs à ailettes, cage de barreaux autour d'une
+  « cervelle » électrique bleue, chapeau en dôme, câbles vers les cintres.
+  Estrade de la tourelle en bois avec son escalier.
+- Cabine de projection : machine d'amélioration en forme de poêle sarcelle
+  à trois rouleaux blancs et enseigne à losanges colorés, projecteur sur
+  socle en fonte, étagère à bobines, bureau, horloge, bobines au sol.
+
+### Mise en œuvre (tools/blender/props/kino_theater.py, assets/models/kino/)
+- Modèles low poly scriptés (un .glb par objet, un maillage par matériau
+  `<mat>__<modèle>__solid|ns`, matériaux remplacés par les shaders
+  procéduraux du jeu) ; collisions en boîtes dans `<modèle>.collision.json`
+  (repère Godot, `barrier` : laisse passer les balles), aucun objet de
+  collision dans les .glb.
+- Salle : `seat`, `seat_broken_a/b`, `balcony_front` (2 rangs),
+  `balcony_back` (4 rangs), `column_balcony`, `wall_arch_panel`, `sconce`,
+  `banner`, `proscenium`, `curtain_drape`, `valance`, `screen_frame`,
+  `lectern`, `folding_chair`, `turret_podium`, `mdt_tower`, `chandelier`,
+  `chandelier_fallen`, `dome`.
+- Gravats : `rubble_heap_a/b/c` (tas), `rubble_field_a/b` (tapis bas),
+  `rubble_mound_big` (grand champ du parterre), `debris_beam`,
+  `debris_planks`, `debris_scatter`.
+- Cabine de projection : `pap_machine` (enseigne ORIGINALE « PUNCH-O-MATIC,
+  Augmentez votre puissance de feu ! », police intégrée de Blender),
+  `projector`, `reel_shelf`, `desk`, `wall_clock`, `film_reel`.
+- Aucun symbole politique : emblèmes originaux (bobine de film stylisée
+  sur les bannières, le pupitre et l'estrade ; éclair dans un anneau sur le
+  téléporteur ; pistolet et étincelle sur la machine d'amélioration).
+
+### Écarts restants
+- Formes simplifiées : pas de caissons sculptés dans la coupole, rinceaux
+  du nez de scène et feuillages des niches absents, trous du plafond à bords
+  en escalier (grille de la coupole) ; fauteuils des balcons simplifiés.
+- La « cervelle » du téléporteur est une masse bosselée émissive, sans arcs
+  électriques (les effets viennent du jeu).

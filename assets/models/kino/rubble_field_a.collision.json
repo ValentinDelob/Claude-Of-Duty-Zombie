@@ -1,0 +1,11 @@
+{"boxes": [
+  {"center": [-2.0, 0.05, 2.0], "size": [2.0, 0.1, 2.0], "yaw": 0.0, "barrier": true},
+  {"center": [-2.0, 0.1345, 0.0], "size": [2.0, 0.2689, 2.0], "yaw": 0.0, "barrier": true},
+  {"center": [-2.0, 0.0547, -2.0], "size": [2.0, 0.1095, 2.0], "yaw": 0.0, "barrier": true},
+  {"center": [0.0, 0.0908, 2.0], "size": [2.0, 0.1816, 2.0], "yaw": 0.0, "barrier": true},
+  {"center": [0.0, 0.3061, 0.0], "size": [2.0, 0.6122, 2.0], "yaw": 0.0, "barrier": true},
+  {"center": [0.0, 0.1386, -2.0], "size": [2.0, 0.2772, 2.0], "yaw": 0.0, "barrier": true},
+  {"center": [2.0, 0.1092, 2.0], "size": [2.0, 0.2183, 2.0], "yaw": 0.0, "barrier": true},
+  {"center": [2.0, 0.2503, 0.0], "size": [2.0, 0.5006, 2.0], "yaw": 0.0, "barrier": true},
+  {"center": [2.0, 0.0581, -2.0], "size": [2.0, 0.1162, 2.0], "yaw": 0.0, "barrier": true}
+]}
