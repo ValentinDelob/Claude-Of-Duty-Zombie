@@ -1,0 +1,297 @@
+{
+  "character": "weissmann",
+  "lines": {
+    "kill_headshot": [
+      {"fr": "En plein lobe frontal. Note pour plus tard : ça marche.", "en": "Right through the frontal lobe. Noted, it works."},
+      {"fr": "Trépanation express, mon enfant. Aucun frais.", "en": "Express trepanation, my child. No charge."},
+      {"fr": "Le cerveau, toujours le cerveau. Les voix avaient raison.", "en": "Always the brain. The voices were right again."},
+      {"fr": "Précision chirurgicale ! Mes anciens collègues seraient jaloux.", "en": "Surgical precision! My old colleagues would weep with envy."}
+    ],
+    "kill_melee": [
+      {"fr": "Dissection sur le vif, mon petit. Tiens-toi tranquille.", "en": "A live dissection, little one. Do hold still."},
+      {"fr": "Incision propre. J'ai toujours eu la main sûre.", "en": "A clean incision. My hands never shake."},
+      {"fr": "Pardon, mon enfant, il me fallait un échantillon.", "en": "Forgive me, child, I needed a tissue sample."},
+      {"fr": "La lame, c'est tellement plus intime qu'une balle.", "en": "A blade is so much more personal than a bullet."}
+    ],
+    "kill_bowie": [
+      {"fr": "Ce couteau tranche la chair morte comme du beurre. Fascinant.", "en": "This knife parts dead flesh like warm butter. Fascinating."},
+      {"fr": "Un scalpel de géant ! Je l'adopte.", "en": "A scalpel for giants! I shall keep it forever."}
+    ],
+    "kill_explosive": [
+      {"fr": "Dispersion excellente ! Il faudra tout ramasser à la pince à épiler.", "en": "Superb dispersion! We will need tweezers to collect the samples."},
+      {"fr": "Boum ! Ha ha ha ! Encore, encore !", "en": "Boom! Ha ha ha! Again, again!"},
+      {"fr": "Réaction en chaîne réussie. Notez l'heure, quelqu'un !", "en": "Chain reaction confirmed. Somebody write down the time!"}
+    ],
+    "kill_streak": [
+      {"fr": "Cinq sujets en quelques secondes. Mes courbes n'y suffisent plus !", "en": "Five subjects in seconds. My charts cannot keep up!"},
+      {"fr": "Vounderbar ! Le rendement du laboratoire explose !", "en": "Voonderbar! Laboratory output has never been higher!"},
+      {"fr": "Venez, venez tous, il reste de la place sur la table.", "en": "Come, all of you, there is room on the table."},
+      {"fr": "Les voix applaudissent ! Vous les entendez ? Non ? Dommage.", "en": "The voices are applauding! You hear them? No? Pity."}
+    ],
+    "kill_close": [
+      {"fr": "Pas si près, mon enfant, tu baves sur mes lunettes.", "en": "Not so close, child, you are drooling on my goggles."},
+      {"fr": "Tu voulais m'examiner ? C'est moi le docteur, ici.", "en": "You wished to examine me? I am the doctor here."},
+      {"fr": "Contact direct. Je vais devoir tout stériliser.", "en": "Direct contact. Now I must sterilize everything."}
+    ],
+    "crawler_made": [
+      {"fr": "Plus de jambes ! Voyons jusqu'où tu rampes, mon petit.", "en": "No more legs! Let us see how far you crawl."},
+      {"fr": "Amputation réussie. Le patient reste motivé, admirable.", "en": "Amputation successful. The patient remains motivated. Admirable."},
+      {"fr": "Un rampant ! Laissez-le-moi, il est parfait pour mes mesures.", "en": "A crawler! Leave that one, it is perfect for my measurements."}
+    ],
+    "kill_dog": [
+      {"fr": "Couché, le chien ! Pour toujours.", "en": "Down, boy. Permanently."},
+      {"fr": "Ces chiens n'étaient pas dans mes plans. Enfin, pas tous.", "en": "Those hounds were never in my plans. Well, not all of them."},
+      {"fr": "Pauvre bête. Je t'aurais bien gardé dans un bocal.", "en": "Poor beast. I would have kept you in a jar."}
+    ],
+    "kill_ray": [
+      {"fr": "Le Claude-Ray ! Regardez-les fondre, c'est magnifique !", "en": "The Claude-Ray! Watch them melt, how beautiful!"},
+      {"fr": "Rayon calibré à la perfection. Enfin, presque.", "en": "Beam calibrated to perfection. Well, nearly."},
+      {"fr": "Évaporé ! Même pas une tache à nettoyer.", "en": "Vaporized! Not even a stain to clean."}
+    ],
+    "kill_thunder": [
+      {"fr": "Le Tonnerre-Sept ! Envolez-vous, mes enfants !", "en": "The Thunder-Seven! Fly, my children, fly!"},
+      {"fr": "Une seule onde de choc pour tout un couloir. Quelle économie !", "en": "One shockwave for an entire corridor. So efficient!"},
+      {"fr": "Pouf ! Le vent de la science vous emporte !", "en": "Whoosh! Swept away by the winds of science!"}
+    ],
+    "kill_trap": [
+      {"fr": "Grillés à point ! Mon petit piège fonctionne à merveille.", "en": "Cooked to perfection! My little trap works beautifully."},
+      {"fr": "Mille volts de pure pédagogie. Ils ont compris la leçon.", "en": "A thousand volts of pure education. Lesson learned."}
+    ],
+    "kill_generic": [
+      {"fr": "Encore un. La science avance.", "en": "Another one. Science marches on."},
+      {"fr": "Repose-toi, mon enfant. Ou pas, comme d'habitude.", "en": "Rest now, my child. Or do not, as usual."},
+      {"fr": "Résultat conforme à l'hypothèse.", "en": "Result consistent with the hypothesis."},
+      {"fr": "Ya, ya, tombe, c'est ça. Bon garçon.", "en": "Yah, yah, fall down. Good boy."}
+    ],
+    "ammo_low": [
+      {"fr": "Mes munitions s'épuisent. Un chargeur pour le docteur, quelqu'un ?", "en": "My ammunition dwindles. Spare a magazine for the doctor?"},
+      {"fr": "Presque vide ! Il faut rationner l'expérience.", "en": "Nearly empty! The experiment must be rationed."},
+      {"fr": "Plus que quelques balles. Les voix disent de viser juste.", "en": "Only a few rounds left. The voices say aim carefully."}
+    ],
+    "ammo_out": [
+      {"fr": "Plus rien ! Maïne Gott, quel manque de prévoyance.", "en": "Nothing left! Mine Gott, such poor planning."},
+      {"fr": "À sec. Je vais devoir les raisonner, maintenant.", "en": "Empty. I shall have to reason with them instead."},
+      {"fr": "Mon arme a faim, et le garde-manger est vide.", "en": "My weapon is hungry, and the pantry is bare."}
+    ],
+    "buy_wall": [
+      {"fr": "Un outil rudimentaire, mais les classiques ont du bon.", "en": "A crude tool, but the classics endure."},
+      {"fr": "Accroché au mur comme un trophée. Je le prends.", "en": "Hanging there like a trophy. Mine now."},
+      {"fr": "Un instrument de plus pour mon laboratoire.", "en": "One more instrument for my laboratory."}
+    ],
+    "buy_bowie": [
+      {"fr": "Ah, une lame digne d'un chirurgien de campagne.", "en": "Ah, a blade worthy of a field surgeon."},
+      {"fr": "Quelle belle pièce. Je vais pouvoir travailler de près.", "en": "What a lovely piece. Now I can work up close."}
+    ],
+    "box_good": [
+      {"fr": "La boîte m'aime ! Enfin quelqu'un qui me comprend.", "en": "The box loves me! Finally, someone who understands."},
+      {"fr": "Excellent tirage ! Les probabilités préfèrent les génies.", "en": "Excellent draw! Probability favors the brilliant."},
+      {"fr": "Voilà qui va accélérer mes recherches.", "en": "Now this will accelerate my research."},
+      {"fr": "Merci, petite boîte. Je savais que tu m'écoutais.", "en": "Thank you, little box. I knew you were listening."}
+    ],
+    "box_bad": [
+      {"fr": "Ça ? Même un rat de laboratoire n'en voudrait pas.", "en": "This? Even a lab rat would refuse it."},
+      {"fr": "La boîte se moque de moi. Je m'en souviendrai.", "en": "The box mocks me. I will remember this."},
+      {"fr": "Expérience ratée. On note, on recommence.", "en": "Failed experiment. Write it down, try again."},
+      {"fr": "Quelle déception. Les voix rient, je les entends.", "en": "How disappointing. The voices are laughing, I hear them."}
+    ],
+    "box_ray": [
+      {"fr": "Le Claude-Ray ! Viens voir ton créateur, mon trésor.", "en": "The Claude-Ray! Come to your maker, my treasure."},
+      {"fr": "Mon rayon ! Je reconnais chacune de mes soudures.", "en": "My beam gun! I remember every single weld."}
+    ],
+    "box_thunder": [
+      {"fr": "Le Tonnerre-Sept ! Il faut absolument que je l'essaie dans un couloir.", "en": "The Thunder-Seven! I simply must try it in a hallway."},
+      {"fr": "Ah, ma soufflerie de poche. Tenez vos chapeaux, messieurs.", "en": "Ah, my pocket wind tunnel. Hold on to your hats, gentlemen."}
+    ],
+    "box_monkey": [
+      {"fr": "Mes petits singes musiciens ! Ils devaient jouer des valses, au départ.", "en": "My little drummer monkeys! They were meant to play waltzes."},
+      {"fr": "Des Singes-Tambours ! Chaque concert est une tournée d'adieu.", "en": "Drum Monkeys! Every concert is a farewell tour."}
+    ],
+    "box_teddy": [
+      {"fr": "L'ours ! Je t'avais dit de rester dans ta cage.", "en": "The bear! I told you to stay in your cage."},
+      {"fr": "La boîte s'envole. Même elle a peur de moi.", "en": "The box flees. Even it fears me now."},
+      {"fr": "Ce nounours rit de moi. Un jour, je le dissèque.", "en": "That teddy is laughing at me. Someday, I dissect it."}
+    ],
+    "box_firesale": [
+      {"fr": "Liquidation ! La science à prix cassés, profitez-en !", "en": "Fire Sale! Science at bargain prices, hurry!"},
+      {"fr": "Dix points la boîte ? L'Institut ferait faillite.", "en": "Ten points a box? The Institute would go bankrupt."}
+    ],
+    "pap_upgrade": [
+      {"fr": "Mange, ma belle machine. Mange, et rends-moi quelque chose de sublime.", "en": "Eat, my lovely machine. Eat, and give me something sublime."},
+      {"fr": "Aethérium, fais ton œuvre. Doucement, doucement.", "en": "Aetherium, work your magic. Gently now, gently."},
+      {"fr": "Je l'ai construite pour ça. Enfin, officiellement.", "en": "I built her for exactly this. Officially, anyway."}
+    ],
+    "pap_take": [
+      {"fr": "Regardez cette lueur ! C'est l'aethérium qui chante.", "en": "Look at that glow! The aetherium is singing."},
+      {"fr": "Vounderbar ! Elle n'a rien perdu de son génie. Comme moi.", "en": "Voonderbar! She is as brilliant as ever. Like me."},
+      {"fr": "Amélioration terminée. Le monde n'est pas prêt.", "en": "Enhancement complete. The world is not ready."}
+    ],
+    "no_money": [
+      {"fr": "Pas assez de points ? L'Institut me doit des années de salaire !", "en": "Not enough points? The Institute owes me years of wages!"},
+      {"fr": "Refusé ? D'habitude, même mes machines me font crédit.", "en": "Refused? Even my machines usually give me credit."}
+    ],
+    "perk_titan": [
+      {"fr": "Titan Brew ! Ma peau devient du cuir. Très intéressant.", "en": "Titan Brew! My skin feels like leather. Most interesting."},
+      {"fr": "Un goût de fer et de boulons. Je me sens incassable.", "en": "Tastes of iron and bolts. I feel unbreakable."}
+    ],
+    "perk_rapid": [
+      {"fr": "Rapid Fizz ! Mes doigts vont plus vite que mes pensées. Presque.", "en": "Rapid Fizz! My fingers outrun my thoughts. Almost."},
+      {"fr": "Ça pétille jusqu'au bout des ongles. Rechargeons !", "en": "It fizzes all the way to my fingernails. Reload!"}
+    ],
+    "perk_twin": [
+      {"fr": "Twin Shot ! Deux fois plus de balles, deux fois plus de données.", "en": "Twin Shot! Twice the bullets, twice the data."},
+      {"fr": "Mon cœur bat en double. Ou alors j'ai deux cœurs, maintenant.", "en": "My heart beats double. Or perhaps I have two now."}
+    ],
+    "perk_lazarus": [
+      {"fr": "Lazarus Tonic. Ranimer des vivants, pour une fois.", "en": "Lazarus Tonic. Reviving the living, for a change."},
+      {"fr": "Un goût de formol et de miracle. Parfait.", "en": "Tastes like formaldehyde and miracles. Perfect."}
+    ],
+    "perk_stride": [
+      {"fr": "Stride Soda ! Mes jambes n'en font plus qu'à leur tête.", "en": "Stride Soda! My legs have minds of their own."},
+      {"fr": "Courir, moi ? Pour la science, je veux bien.", "en": "Me, running? For science, I suppose."}
+    ],
+    "perk_nova": [
+      {"fr": "Nova Flop ! Je vais plonger comme une comète.", "en": "Nova Flop! I shall dive like a comet."},
+      {"fr": "Enfin, je suis moi-même une expérience explosive.", "en": "At last, I am an explosive experiment myself."}
+    ],
+    "perk_deadeye": [
+      {"fr": "Deadeye Dram ! Je vois chaque veine, chaque nerf. Magnifique.", "en": "Deadeye Dram! I see every vein, every nerve. Magnificent."},
+      {"fr": "Ma vue s'aiguise comme un scalpel neuf.", "en": "My sight is sharp as a fresh scalpel."}
+    ],
+    "pw_max_ammo": [
+      {"fr": "Munitions max ! Le laboratoire est réapprovisionné.", "en": "Max Ammo! The laboratory is fully restocked."},
+      {"fr": "Des balles pour tout le monde ! Je suis d'humeur généreuse.", "en": "Bullets for everyone! I feel generous today."}
+    ],
+    "pw_insta_kill": [
+      {"fr": "Mort instantanée ! Un effleurement suffit. Fascinant.", "en": "Insta-Kill! A mere touch will do. Fascinating."},
+      {"fr": "Plus besoin de viser, mes enfants, vous êtes en verre.", "en": "No need to aim now. You are all made of glass."}
+    ],
+    "pw_double_points": [
+      {"fr": "Points doubles ! Mon budget de recherche vous remercie.", "en": "Double Points! My research budget thanks you."},
+      {"fr": "Chaque cadavre compte double. Quelle belle comptabilité.", "en": "Every corpse counts twice. Such elegant bookkeeping."}
+    ],
+    "pw_nuke": [
+      {"fr": "Bombe nucléaire ! Quelle lumière, quelle chaleur, quelle beauté !", "en": "Nuke! Such light, such heat, such beauty!"},
+      {"fr": "Tout un échantillon effacé d'un éclair. J'ai failli pleurer.", "en": "A whole sample wiped out in a flash. I nearly wept."}
+    ],
+    "pw_carpenter": [
+      {"fr": "Charpentier ! Qui répare mes fenêtres ? Les voix, peut-être.", "en": "Carpenter! Who repairs my windows? The voices, perhaps."},
+      {"fr": "Planches neuves. Mes enfants devront frapper plus fort.", "en": "Fresh boards. My children must knock harder now."}
+    ],
+    "pw_fire_sale": [
+      {"fr": "Liquidation ! Toutes les boîtes ouvertes, comme mon esprit.", "en": "Fire Sale! Every box open, just like my mind."},
+      {"fr": "Dix points ! Vite, avant que la boîte ne se ravise.", "en": "Ten points! Quickly, before the box changes its mind."}
+    ],
+    "pw_death_machine": [
+      {"fr": "La Faucheuse ! Enfin un outil à la hauteur de mon génie.", "en": "Death Machine! At last, a tool worthy of my genius."},
+      {"fr": "Elle tourne, elle crache, elle chante ! Dansez, mes enfants !", "en": "It spins, it spits, it sings! Dance, my children!"}
+    ],
+    "downed": [
+      {"fr": "Non, non, non ! Je suis bien trop précieux pour mourir !", "en": "No, no, no! I am far too valuable to die!"},
+      {"fr": "Maïne Gott ! Mes cobayes, venez chercher votre docteur !", "en": "Mine Gott! Test subjects, come fetch your doctor!"},
+      {"fr": "Les voix me disent de ramper. Alors je rampe.", "en": "The voices tell me to crawl. So I crawl."}
+    ],
+    "revive_start": [
+      {"fr": "Ne bougez pas. Personne ne connaît la réanimation mieux que moi.", "en": "Hold still. Nobody knows reanimation better than me."},
+      {"fr": "Du calme, cobaye, vous m'êtes encore utile.", "en": "Easy, subject, you are still useful to me."},
+      {"fr": "Respirez. Enfin, essayez. Je m'occupe du reste.", "en": "Breathe. Or try to. I will handle the rest."}
+    ],
+    "revived": [
+      {"fr": "Merci. Je vous garde pour l'expérience finale.", "en": "Thank you. I will save you for the final experiment."},
+      {"fr": "Vous m'avez ramené. Quelle loyauté mal placée.", "en": "You brought me back. Such misplaced loyalty."},
+      {"fr": "Dannkeu. Vous gagnez une bonne note dans mon carnet.", "en": "Dahnkeh. You earn a gold star in my notebook."}
+    ],
+    "teammate_down": [
+      {"fr": "Un cobaye à terre ! Vite, avant qu'il ne refroidisse !", "en": "A test subject is down! Hurry, before it goes cold!"},
+      {"fr": "Déjà ? Votre résistance est décevante, mon ami.", "en": "Already? Your endurance is disappointing, my friend."},
+      {"fr": "Tenez bon, j'ai encore des mesures à prendre sur vous !", "en": "Hold on, I still have measurements to take on you!"}
+    ],
+    "teammate_dead": [
+      {"fr": "Perdu. Quel gâchis, un si beau spécimen.", "en": "Lost. What a waste of a fine specimen."},
+      {"fr": "Il nous a quittés. Attendez, il va peut-être revenir. Autrement.", "en": "He is gone. Wait, he may yet return. Differently."}
+    ],
+    "last_alive": [
+      {"fr": "Seul, enfin. Juste moi, mes enfants, et les voix.", "en": "Alone at last. Just me, my children, and the voices."},
+      {"fr": "Tous mes cobayes sont tombés. L'expérience continue quand même.", "en": "All my test subjects have fallen. The experiment continues."}
+    ],
+    "game_start": [
+      {"fr": "Bienvenue dans mon théâtre, messieurs. La représentation commence !", "en": "Welcome to my theater, gentlemen. The show begins!"},
+      {"fr": "Tout est prêt. Les sujets, les machines, les cobayes. Parfait.", "en": "Everything is ready. The subjects, the machines, the guinea pigs. Perfect."},
+      {"fr": "Ah, vous entendez ? Les voix disent que la nuit sera longue.", "en": "Ah, do you hear that? The voices say it will be a long night."}
+    ],
+    "round_start": [
+      {"fr": "Nouvelle série d'essais. Sortez de vos tombes, mes enfants, le docteur vous attend.", "en": "A new series of trials. Rise, my children, the doctor is waiting."},
+      {"fr": "Ils sont plus nombreux. Plus rapides. Plus affamés. Exactement comme je l'avais prévu.", "en": "More of them now. Faster. Hungrier. Exactly as I predicted."},
+      {"fr": "Carnet ouvert, crayon taillé. Passons à la manche suivante.", "en": "Notebook open, pencil sharpened. On to the next round."},
+      {"fr": "L'aethérium bourdonne plus fort. Il réveille tout le monde, là-dessous.", "en": "The aetherium hums louder. It is waking everyone down below."}
+    ],
+    "dog_round": [
+      {"fr": "Les chiens ! Qui a ouvert le chenil ? Pas moi. Enfin, peut-être.", "en": "The hounds! Who opened the kennels? Not me. Probably."},
+      {"fr": "Ça sent le soufre et le poil brûlé. Ils arrivent.", "en": "Sulfur and burnt fur. Here they come."},
+      {"fr": "Mes petits toutous de l'au-delà ! Au pied, au pied !", "en": "My little hounds from beyond! Heel, heel!"}
+    ],
+    "door_open": [
+      {"fr": "Une porte de plus. Voyons ce que l'Institut cachait ici.", "en": "Another door. Let us see what the Institute hid in here."},
+      {"fr": "Entrez, entrez. Et surtout, ne touchez à rien.", "en": "Go on, go in. And touch nothing."},
+      {"fr": "Ah, cette pièce. J'y ai laissé quelques souvenirs.", "en": "Ah, this room. I left a few souvenirs in here."}
+    ],
+    "power_on": [
+      {"fr": "Le courant ! Réveillez-vous, mes belles machines, votre maître est revenu !", "en": "Power! Wake up, my lovely machines, your master has returned!"},
+      {"fr": "Écoutez ce bourdonnement. Le théâtre respire à nouveau.", "en": "Listen to that hum. The theater breathes again."}
+    ],
+    "teleporter_link": [
+      {"fr": "Liaison établie. Mon téléporteur n'a jamais vraiment dormi.", "en": "Link established. My teleporter never truly slept."},
+      {"fr": "Poste central et tour de la scène, reliés. Personne ne s'y perdra. Presque.", "en": "Main station to the stage tower, connected. Nobody gets lost. Mostly."}
+    ],
+    "teleport_out": [
+      {"fr": "La cabine de projection ! Personne ne devait jamais revoir cette pièce.", "en": "The projection booth! No one was ever meant to see this room again."},
+      {"fr": "Tous mes atomes sont arrivés ? Je compte. Oui. Presque tous.", "en": "Did all my atoms arrive? Counting. Yes. Nearly all."}
+    ],
+    "teleport_back": [
+      {"fr": "Retour au poste central. Quelle nausée exquise.", "en": "Back at the main station. What exquisite nausea."},
+      {"fr": "J'ai laissé un peu de moi là-haut, je le sens.", "en": "I left a little of myself up there. I can feel it."}
+    ],
+    "trap_on": [
+      {"fr": "Piège activé. Approchez, mes enfants, c'est gratuit.", "en": "The trap is live. Come closer, children, it is free."},
+      {"fr": "Des étincelles ! Rien ne vaut l'électricité pour instruire les morts.", "en": "Sparks! Nothing teaches the dead like electricity."}
+    ],
+    "low_health": [
+      {"fr": "Je saigne. Ça, ce n'était pas dans le protocole.", "en": "I am bleeding. That was not in the protocol."},
+      {"fr": "Je vois des lumières bleues. Ah non, ça, c'est normal chez moi.", "en": "I see blue lights. Oh wait, that is normal for me."},
+      {"fr": "Vite, un pansement, un stimulant, n'importe quoi !", "en": "Quickly, a bandage, a stimulant, anything!"}
+    ],
+    "surrounded": [
+      {"fr": "Ils m'encerclent ! Mes enfants, un peu de respect pour votre créateur !", "en": "They surround me! Children, show some respect to your maker!"},
+      {"fr": "Trop de patients, pas assez de docteur !", "en": "Too many patients, not enough doctor!"},
+      {"fr": "Reculez ! Je ne reçois pas sans rendez-vous !", "en": "Back away! No visits without an appointment!"}
+    ],
+    "throw_grenade": [
+      {"fr": "Un petit cadeau de chimie pour vous !", "en": "A little chemistry present for you!"},
+      {"fr": "Attention, expérience volante !", "en": "Look out, airborne experiment!"},
+      {"fr": "Tenez, mes enfants, attrapez !", "en": "Here, children, catch!"}
+    ],
+    "throw_monkey": [
+      {"fr": "Va, petit singe, joue-leur ta dernière symphonie !", "en": "Go, little monkey, play them your final symphony!"},
+      {"fr": "Suivez le tambour, mes enfants, suivez la musique !", "en": "Follow the drum, children, follow the music!"}
+    ],
+    "idle": [
+      {"fr": "Oui, oui, je vous entends. Non, je ne leur dirai pas.", "en": "Yes, yes, I hear you. No, I will not tell them."},
+      {"fr": "Ce théâtre a vu tant d'expériences. Les fauteuils s'en souviennent.", "en": "This theater has seen so many experiments. The seats remember."},
+      {"fr": "Si seulement j'avais un peu plus d'aethérium. Juste un tout petit peu.", "en": "If only I had more aetherium. Just a tiny bit more."},
+      {"fr": "Ma machine d'amélioration ronronne là-haut. Elle m'appelle, je le sens.", "en": "My enhancement machine purrs up there. She is calling me."},
+      {"fr": "Ha ha ha ! Pardon. Je repensais à une vieille expérience.", "en": "Ha ha ha! Forgive me. I was remembering an old experiment."},
+      {"fr": "Le calme. Mes enfants reprennent des forces. Faites de même, cobayes.", "en": "Quiet. My children gather strength. So should you, subjects."}
+    ],
+    "tease_callahan": [
+      {"fr": "Sergent Callahan m'appelle Frankenstein. C'est pourtant lui qui a une cicatrice au menton.", "en": "Sergeant Callahan calls me Frankenstein. Yet he is the one with the stitched chin."},
+      {"fr": "Callahan, vos steaks et vos bières attendront. Votre foie, lui, m'intéresse beaucoup.", "en": "Callahan, your steaks and beers can wait. Your liver, however, fascinates me."}
+    ],
+    "tease_orlov": [
+      {"fr": "Orlov, encore votre hiver ? Mon laboratoire était bien plus froid, croyez-moi.", "en": "Orlov, your winter again? My laboratory was colder, believe me."},
+      {"fr": "Monsieur Orlov récite des poèmes aux morts. Je note : aucun effet sédatif.", "en": "Mister Orlov recites poetry to the dead. Noted: no sedative effect."}
+    ],
+    "tease_arakawa": [
+      {"fr": "Le lieutenant Arakawa me surveille comme un serpent. Il a raison, mais c'est vexant.", "en": "Lieutenant Arakawa watches me like a snake. He is right, but still, how rude."},
+      {"fr": "Arakawa, votre sabre est ravissant. Laissez-moi y ajouter un peu d'aethérium, pour voir.", "en": "Arakawa, lovely sword. Let me add a pinch of aetherium, just to see."}
+    ]
+  }
+}
