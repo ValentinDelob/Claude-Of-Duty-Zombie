@@ -32,10 +32,14 @@ var _base_y := 0.0
 
 
 func setup(cell: Vector2i, data: MapData) -> void:
+	setup_marker(GridMapLayout.cell_marker("pap", cell, data))
+
+
+func setup_marker(m: MapMarker) -> void:
 	interact_id = "pap"
 	name = "PackAPunch"
-	_normal = MapDef.wall_normal(data, cell)
-	position = MapData.cell_to_world(cell) + _normal * 0.1
+	_normal = m.wall
+	position = m.pos + _normal * 0.1
 	interact_range = 2.1
 
 

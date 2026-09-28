@@ -20,6 +20,7 @@ var activator := 0
 var _timer := 0.0
 var _hurt_t: Dictionary = {}
 var _normal := Vector3.FORWARD
+var _area := AABB()
 var _area_min := Vector3.ZERO
 var _area_max := Vector3.ZERO
 var _lamp_mat: StandardMaterial3D
@@ -30,21 +31,20 @@ var _lights: Array[OmniLight3D] = []
 var _hum: AudioStreamPlayer3D
 
 
-func setup(lever_cell: Vector2i, cells: Array, data: MapData, id := "trap") -> void:
-	interact_id = id
-	name = "ElectricTrap" if id == "trap" else "ElectricTrap_" + id
-	for c in cells:
+## Levier `m` (plaqué au mur) ; m.data.area = volume électrifié (AABB, bas au
+## niveau du sol) ; m.data.cells = cellules de la zone sur une carte grille.
+func setup_marker(m: MapMarker) -> void:
+	interact_id = m.id
+	name = "ElectricTrap" if m.id == "trap" else "ElectricTrap_" + m.id
+	for c in m.data.get("cells", []):
 		trap_cells[c] = true
-	_normal = MapDef.wall_normal(data, lever_cell)
-	position = MapData.cell_to_world(lever_cell) + _normal * 0.38 + Vector3.UP * 1.3
+	_normal = m.wall
+	position = m.on_wall(0.12, 1.3)
 	interact_range = 1.9
-	var minc := Vector2i(9999, 9999)
-	var maxc := Vector2i(-9999, -9999)
-	for c in cells:
-		minc = Vector2i(mini(minc.x, c.x), mini(minc.y, c.y))
-		maxc = Vector2i(maxi(maxc.x, c.x), maxi(maxc.y, c.y))
-	_area_min = Vector3(minc.x, 0, minc.y) * MapData.CELL
-	_area_max = Vector3(maxc.x + 1, 0, maxc.y + 1) * MapData.CELL
+	_area = m.data.area
+	# Rectangle au sol (y = sol de la zone).
+	_area_min = _area.position
+	_area_max = Vector3(_area.end.x, _area.position.y, _area.end.z)
 
 
 func _ready() -> void:
@@ -144,7 +144,9 @@ func srv_use(pid: int) -> void:
 
 
 func contains(pos: Vector3) -> bool:
-	return trap_cells.has(MapData.world_to_cell(pos))
+	if not trap_cells.is_empty():
+		return trap_cells.has(MapData.world_to_cell(pos))
+	return _area.grow(0.05).has_point(pos + Vector3.UP * 0.1)
 
 
 func _process(delta: float) -> void:
@@ -214,7 +216,7 @@ func _animate(delta: float) -> void:
 	_imesh.surface_begin(Mesh.PRIMITIVE_LINES)
 	for k in 7:
 		var t := randf()
-		var h := randf_range(0.2, 2.6)
+		var h := _area_min.y + randf_range(0.2, 2.6)
 		var a: Vector3
 		var b: Vector3
 		if across_z:

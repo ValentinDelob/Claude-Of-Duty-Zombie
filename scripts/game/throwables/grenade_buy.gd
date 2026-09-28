@@ -8,10 +8,14 @@ var _normal := Vector3.FORWARD
 
 
 func setup(cell: Vector2i, data: MapData) -> void:
-	interact_id = "grenades_%d_%d" % [cell.x, cell.y]
-	name = "GrenadeBuy_%d_%d" % [cell.x, cell.y]
-	_normal = MapDef.wall_normal(data, cell)
-	position = MapData.cell_to_world(cell) + _normal * (MapData.CELL * 0.5 - 0.02) + Vector3.UP * 1.45
+	setup_marker(GridMapLayout.cell_marker("%d_%d" % [cell.x, cell.y], cell, data))
+
+
+func setup_marker(m: MapMarker) -> void:
+	interact_id = "grenades_" + m.id
+	name = "GrenadeBuy_" + m.id
+	_normal = m.wall
+	position = m.on_wall(0.02, 1.45)
 	interact_range = 1.8
 
 

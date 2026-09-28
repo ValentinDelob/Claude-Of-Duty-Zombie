@@ -141,3 +141,9 @@ static func wall_normal(data: MapData, c: Vector2i) -> Vector3:
 		if data.is_wall(c + d):
 			return Vector3(d.x, 0, d.y)
 	return Vector3(0, 0, -1)
+
+
+## Géométrie de la carte pour les systèmes de jeu (grille ASCII par défaut ;
+## les cartes en maillage surchargent cette méthode).
+func create_layout() -> MapLayout:
+	return GridMapLayout.new(self)

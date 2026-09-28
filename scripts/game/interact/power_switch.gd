@@ -12,10 +12,14 @@ var _t := 0.0
 
 
 func setup(cell: Vector2i, data: MapData) -> void:
+	setup_marker(GridMapLayout.cell_marker("power", cell, data))
+
+
+func setup_marker(m: MapMarker) -> void:
 	interact_id = "power"
 	name = "PowerSwitch"
-	_normal = MapDef.wall_normal(data, cell)
-	position = MapData.cell_to_world(cell) + _normal * (MapData.CELL * 0.5 - 0.12) + Vector3.UP * 1.3
+	_normal = m.wall
+	position = m.on_wall(0.12, 1.3)
 	interact_range = 1.9
 
 

@@ -58,6 +58,15 @@ du jeu, les commentaires et les messages de commit sont en FRANÇAIS.
   "/c/Program Files/GitHub CLI/gh.exe", puis `gh auth status` (si non connecté,
   demande à l'utilisateur de lancer `gh auth login` lui-même ; clé SSH ou
   `gh auth setup-git` pour pousser).
+- Blender (modèles de KINO V2, construits par scripts sans fenêtre) :
+  `winget install --id BlenderFoundation.Blender -e` (5.2.1). Serveur MCP officiel
+  « Blender Lab » (facultatif, pour inspecter une scène) : `winget install --id
+  astral-sh.uv -e`, cloner https://projects.blender.org/lab/blender_mcp.git (tag
+  v1.0.3), `uv tool install --python 3.12 <clone>/mcp`, construire l'extension
+  (`blender --command extension build --source-dir <clone>/addon/blender_mcp_addon`)
+  puis `blender --command extension install-file -r user_default -e mcp-1.0.3.zip`,
+  et `claude mcp add blender --scope user -e BLENDER_PATH=<blender.exe> --
+  <~/.local/bin/blender-mcp.exe>` ; lancer Blender avec `--online-mode`.
 - `godot --headless --path . --import` (enregistre les class_name ; à refaire
   après tout nouveau fichier avec class_name ou tout reset de worktree).
 - Lis README.md, docs/ARCHITECTURE.md, docs/PLAN.md (liste de tâches vivante),
@@ -160,10 +169,17 @@ poste : `sh tools/perf.sh perf_costs` ; détail dans docs/ARCHITECTURE.md.
    écran de chargement au style BO1 ; occlusion des sons derrière les murs
    (HUD à l'échelle de la résolution et lampes « courant coupé » neutres :
    faits en v0.1.94).
-3. R5 — KINO V2 : reproduction à l'identique de Kino der Toten d'après des
-   images de référence (plan, chaque salle) rangées dans docs/reference/kino/ ;
-   préalable technique : navigation multi-niveaux (escaliers, balcon, foyer à
-   l'étage) en sortant les zombies du mode « flottant » y = 0.
+3. R5 — KINO V2 (EN COURS, demandé par l'utilisateur) : Kino der Toten à
+   l'échelle 1 et à l'identique, plan validé dans **docs/KINO_V2.md** (7 étapes,
+   chacune livrée). Références privées dans docs/reference/kino/ :
+   layout_research.md (positions exactes en unités CoD) et images/ (65 images,
+   INDEX.md). L'utilisateur a accepté d'utiliser les coordonnées d'une liste
+   d'entités publiée par un dépôt tiers, NOMBRES SEULEMENT (aucun modèle,
+   texture ni son) ; tout le contenu de Kino est reproduit ; l'ancienne KINO
+   est remplacée à la fin. Modèles construits par scripts Blender sans fenêtre
+   (Blender 5.2.1 installé ; serveur MCP officiel « Blender Lab » enregistré
+   dans Claude Code, lancer Blender avec `--online-mode`). Étape 1 faite
+   (interface MapLayout + GridMapLayout).
 4. Écarts BO1 connus à reprendre : annonceur (voix procédurale), zone de
    renversement du TONNERRE-7, arme merveille unique, M16 amélioré sans
    lance-grenades, vol des zombies non physique, pas d'animations de tir des
@@ -215,8 +231,8 @@ puis reprends §6 puis §4 dans l'ordre en respectant §0 et §2.
   la même image que leur apparition), scope (visée du torse, attentes sur
   événements).
 - Aucun agent en cours, aucun travail non poussé : tout est sur main.
-- Prochaine étape conseillée : §4.2 (R4 suite : décors, machines, boîte,
-  Pack-a-Punch, menu), puis §4.3 (KINO V2) ; §4.1 (fin de la perf) quand
-  la horde le demande.
+- Prochaine étape : KINO V2 (§4.3, docs/KINO_V2.md), étape 2 (cartes 3D :
+  MeshMapLayout, navmesh, zombies qui suivent le sol, petite carte de test à
+  étages générée par Blender).
 - Les tests dépendant du temps sont nombreux : lancer check.sh avec un `JOBS=`
   réduit quand des agents font tourner des jeux en même temps.

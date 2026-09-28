@@ -26,7 +26,11 @@ static func requested_map() -> String:
 	return Settings.last_map if MAP_SCRIPTS.has(Settings.last_map) else DEFAULT_MAP
 
 var map_def: MapDef
+## Grille de la carte (cartes ASCII seulement, null sinon).
 var map_data: MapData
+## Géométrie de la carte vue par les systèmes de jeu (zones, emplacements,
+## navigation, bloqueurs).
+var layout: MapLayout
 ## Navigation des zombies (serveur uniquement).
 var nav: NavGrid
 var players: Dictionary = {}  # peer_id -> Player
@@ -87,8 +91,7 @@ func _ready() -> void:
 		combat.player_fell.connect(_on_player_fell)
 	Audio.play_music(map_def.music, -6.0, 3.0)
 	hud.show_loading(map_def.display_name)
-	var spawns: Array = map_data.markers.get(map_def.player_spawn_marker(), [])
-	var warm_at := MapData.cell_to_world(spawns[0]) if not spawns.is_empty() else Vector3(2, 0, 2)
+	var warm_at := layout.warm_point()
 	var t0 := Time.get_ticks_msec()
 	await Warmup.run(self, warm_at)
 	print("[Game] préchauffage des shaders : %d ms" % (Time.get_ticks_msec() - t0))
@@ -97,16 +100,14 @@ func _ready() -> void:
 
 func _load_map(map_id: String) -> void:
 	map_def = load(MAP_SCRIPTS[map_id]).new()
-	map_data = MapData.parse(map_def.rows)
+	layout = map_def.create_layout()
+	if layout is GridMapLayout:
+		map_data = (layout as GridMapLayout).data
 	if multiplayer.is_server():
-		nav = NavGrid.new(map_data)
-		nav.set_blocked(MapDef.blocking_cells(map_data, map_def), true)
+		layout.create_nav()
+		nav = layout.nav as NavGrid
 		spawner = Spawner.new(self)
-	var builder := MapBuilder.new(map_data, map_def)
-	builder.materials = WorldLook.map_materials()
-	builder.build(world)
-	props = PropBuilder.new(map_data, map_def)
-	props.build(world)
+	props = layout.build(world) as PropBuilder
 	WorldLook.setup_environment(world, map_def.look)
 	_build_doors()
 	_build_wall_buys()
@@ -117,7 +118,7 @@ func _load_map(map_id: String) -> void:
 	_build_teleporter()
 	_build_traps()
 	_build_barricades()
-	print("[Game] carte « %s » construite (%dx%d)" % [map_def.display_name, map_data.width, map_data.height])
+	print("[Game] carte « %s » construite" % map_def.display_name)
 
 
 # --------------------------------------------------------------------------
@@ -136,12 +137,12 @@ func _on_all_loaded() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _cl_begin_match(roster: Dictionary) -> void:
-	var spawns: Array = map_data.markers.get(map_def.player_spawn_marker(), [])
+	var spawns := layout.player_spawns()
 	for pid in roster:
 		session.create(pid)
 	for pid in roster:
 		var slot: int = roster[pid].slot
-		var pos := MapData.cell_to_world(spawns[slot % spawns.size()], 0.05) if not spawns.is_empty() else Vector3(2, 0.1, 2)
+		var pos := spawns[slot % spawns.size()] if not spawns.is_empty() else Vector3(2, 0.1, 2)
 		_spawn_player(pid, pos)
 	_match_start_ms = Time.get_ticks_msec()
 	GameState.set_state(GameState.State.PLAYING)
@@ -294,7 +295,7 @@ func _leave_after_game_over(summary: String) -> void:
 ## Serveur : les joueurs morts reviennent au début de chaque manche (pistolet
 ## de départ, points conservés).
 func respawn_dead_players() -> void:
-	var spawns: Array = map_data.markers.get(map_def.player_spawn_marker(), [])
+	var spawns := layout.player_spawns()
 	for pid in session.data:
 		var pd: PlayerData = session.data[pid]
 		if pd.life != PlayerData.Life.DEAD:
@@ -306,8 +307,8 @@ func respawn_dead_players() -> void:
 		pd.knife = KnifeDB.DEFAULT  # le couteau de chasse est perdu (BO1)
 		session.sync_stats(pid)
 		session.sync_inventory(pid)
-		var c: Vector2i = spawns[Net.player_slot(pid) % spawns.size()]
-		_cl_respawn.rpc(pid, MapData.cell_to_world(c, 0.05))
+		var pos: Vector3 = spawns[Net.player_slot(pid) % spawns.size()]
+		_cl_respawn.rpc(pid, pos)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -326,37 +327,35 @@ func _build_doors() -> void:
 	var root := Node3D.new()
 	root.name = "Doors"
 	world.add_child(root)
-	for id in map_def.doors:
-		for group in MapDef.group_cells(map_data.markers.get(id, [])):
-			var d := Door.new()
-			d.setup(id, group, map_def.doors[id].cost, map_data)
-			root.add_child(d)
-			doors[id] = d
-			interact.register(d)
+	for m in layout.doors():
+		var d := Door.new()
+		d.setup_marker(m)
+		root.add_child(d)
+		doors[m.id] = d
+		interact.register(d)
 
 
 func _build_wall_buys() -> void:
 	var root := Node3D.new()
 	root.name = "WallBuys"
 	world.add_child(root)
-	for marker in map_def.wall_buys:
-		for c in map_data.markers.get(marker, []):
-			var wb := WallBuy.new()
-			wb.setup(marker, c, map_def.wall_buys[marker], map_data)
-			root.add_child(wb)
-			interact.register(wb)
+	for m in layout.wall_buys():
+		var wb := WallBuy.new()
+		wb.setup_marker(m, m.data.weapon)
+		root.add_child(wb)
+		interact.register(wb)
 
 
 func _build_power() -> void:
-	var cells: Array = map_data.markers.get("G", [])
-	if cells.is_empty():
+	var m := layout.power_switch()
+	if m == null:
 		# Carte sans générateur : le courant est là dès le départ.
 		props.power.apply_immediate(true)
 		set_power(true)
 		return
 	props.power.apply_immediate(false)
 	var sw := PowerSwitch.new()
-	sw.setup(cells[0], map_data)
+	sw.setup_marker(m)
 	world.add_child(sw)
 	interact.register(sw)
 
@@ -372,40 +371,37 @@ func _build_perk_machines() -> void:
 	var root := Node3D.new()
 	root.name = "PerkMachines"
 	world.add_child(root)
-	for marker in map_def.perks:
-		for c in map_data.markers.get(marker, []):
-			var m := PerkMachine.new()
-			m.setup(marker, c, map_def.perks[marker], map_data)
-			interact.register(m)
-			root.add_child(m)
+	for m in layout.perks():
+		var pm := PerkMachine.new()
+		pm.setup_marker(m, m.data.perk)
+		interact.register(pm)
+		root.add_child(pm)
 
 
 func _build_mystery_box() -> void:
-	var cells: Array = map_data.markers.get("X", [])
-	if cells.is_empty():
+	var spots := layout.box_spots()
+	if spots.is_empty():
 		return
 	var root := Node3D.new()
 	root.name = "Box"
 	world.add_child(root)
 	var box := MysteryBox.new()
-	box.setup(cells, map_def.box_start, map_data)
+	box.setup_spots(spots, map_def.box_start)
 	interact.register(box)
 	root.add_child(box)
-	if nav:
-		for c in cells:
-			nav.set_blocked(MysteryBox.spot_cells(c, map_data), true)
+	for m in spots:
+		layout.set_blocked(m.block, true)
 
 
 func _build_pack_a_punch() -> void:
-	var cells: Array = map_data.markers.get("K", [])
-	if cells.is_empty():
+	var m := layout.pack_a_punch()
+	if m == null:
 		return
 	var pap := PackAPunch.new()
-	pap.setup(cells[0], map_data)
+	pap.setup_marker(m)
 	interact.register(pap)
 	world.add_child(pap)
-	if nav:
-		nav.set_blocked(MysteryBox.spot_cells(cells[0], map_data), true)
+	layout.set_blocked(m.block, true)
 
 
 func _build_teleporter() -> void:
@@ -436,22 +432,9 @@ func _cl_teleport(pid: int, pos: Vector3, outbound: bool) -> void:
 
 
 func _build_traps() -> void:
-	# Chaque levier H commande le bloc de cases E le plus proche (KINO : deux
-	# pièges ; le premier garde l'identifiant « trap »).
-	var groups := MapDef.group_cells(map_data.markers.get("E", []))
-	var levers: Array = map_data.markers.get("H", [])
-	for i in levers.size():
-		var best := -1
-		var best_d := INF
-		for g in groups.size():
-			var d := MapData.cells_center(groups[g]).distance_to(MapData.cell_to_world(levers[i]))
-			if d < best_d:
-				best_d = d
-				best = g
-		if best < 0:
-			return
+	for m in layout.traps():
 		var trap := ElectricTrap.new()
-		trap.setup(levers[i], groups[best], map_data, "trap" if i == 0 else "trap_%d" % (i + 1))
+		trap.setup_marker(m)
 		interact.register(trap)
 		world.add_child(trap)
 

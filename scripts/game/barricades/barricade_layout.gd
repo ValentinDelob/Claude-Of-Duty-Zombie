@@ -15,10 +15,21 @@ const DIRS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 
 class Opening:
 	var index := 0
+	## Centre de l'ouverture, au niveau du sol.
+	var pos := Vector3.ZERO
+	## Direction unitaire (dans le plan) de la fenêtre vers l'intérieur.
+	var inward_dir := Vector3(0, 0, 1)
+	## Hauteur de l'ouverture (du sol au linteau).
+	var height := MapBuilder.WALL_HEIGHT
+	## Graine des planches (aspect déterministe sur toutes les machines).
+	var seed := 0
+	var zone := ""
+	## Apparitions derrière la fenêtre (au sol).
+	var spawn_points: Array[Vector3] = []
+	# --- cartes grille ---
 	var cell := Vector2i.ZERO
 	## Direction (cellule) de la fenêtre vers l'intérieur de la zone.
 	var inward := Vector2i.ZERO
-	var zone := ""
 	var pocket: Array = []  # Array[Vector2i]
 	var spawns: Array = []  # cellules Z de la poche
 
@@ -55,9 +66,13 @@ static func analyze(data: MapData) -> Array:
 			push_warning("[Barricade] fenêtre %s invalide (il faut du sol de part et d'autre, une poche fermée d'un côté)" % c)
 			continue
 		best.index = out.size()
+		best.pos = MapData.cell_to_world(c)
+		best.inward_dir = Vector3(best.inward.x, 0, best.inward.y)
+		best.seed = hash(c)
 		for pc in best.pocket:
 			if z_cells.has(pc):
 				best.spawns.append(pc)
+				best.spawn_points.append(MapData.cell_to_world(pc))
 		out.append(best)
 	return out
 

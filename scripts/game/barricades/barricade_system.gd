@@ -10,8 +10,8 @@ extends Node
 
 var game: Game
 var windows: Array[Barricade] = []
-## Cellule d'apparition (poche) -> fenêtre.
-var _by_spawn: Dictionary = {}
+## Apparitions derrière les fenêtres : [position, fenêtre].
+var _spawns: Array = []
 ## Serveur : points de réparation gagnés pendant la manche, par joueur.
 var repair_earned: Dictionary = {}
 
@@ -21,27 +21,29 @@ func setup(g: Game) -> void:
 	var root := Node3D.new()
 	root.name = "Barricades"
 	game.world.add_child(root)
-	for w: BarricadeLayout.Opening in BarricadeLayout.analyze(game.map_data):
+	for w: BarricadeLayout.Opening in game.layout.windows():
 		var b := Barricade.new()
 		b.setup(w)
 		game.interact.register(b)
 		root.add_child(b)
 		windows.append(b)
-		for c in w.spawns:
-			_by_spawn[c] = b
-		if game.nav:
-			game.nav.set_blocked([w.cell], true)
+		for p in w.spawn_points:
+			_spawns.append([p, b])
+		game.layout.set_blocked("window_%d" % w.index, true)
 	game.zombies.zombie_spawned.connect(_on_zombie_spawned)
 	game.rounds.round_started.connect(_on_round_started)
 	if multiplayer.is_server():
 		Net.all_loaded.connect(_on_all_loaded)
 	if not windows.is_empty():
-		print("[Barricades] %d fenêtres, %d apparitions derrière les fenêtres" % [windows.size(), _by_spawn.size()])
+		print("[Barricades] %d fenêtres, %d apparitions derrière les fenêtres" % [windows.size(), _spawns.size()])
 
 
-## Fenêtre dont la poche contient `pos` (apparition), ou null.
+## Fenêtre dont une apparition est en `pos` (à 0,5 m près), ou null.
 func window_for_spawn(pos: Vector3) -> Barricade:
-	return _by_spawn.get(MapData.world_to_cell(pos))
+	for s in _spawns:
+		if (s[0] as Vector3).distance_squared_to(pos) < 0.25:
+			return s[1]
+	return null
 
 
 func window_at(index: int) -> Barricade:

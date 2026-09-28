@@ -229,6 +229,18 @@ précédent.
   caché jusqu'au premier voyage), `stage_zone`, `balcony_zone`, `look`
   (ambiance), `music`. Plusieurs pièges : chaque levier H commande le bloc de
   cases E le plus proche.
+- **`MapLayout`** (`scripts/game/map/map_layout.gd`) : la géométrie vue par les
+  systèmes de jeu, indépendante de la façon dont la carte est décrite. Elle
+  fournit les zones (`zone_at(Vector3)`), la navigation (`nav`, serveur), les
+  bloqueurs nommés (`set_blocked` : portes, fenêtres, boîte, PaP, poste
+  central) et les emplacements en `MapMarker` (point au sol devant le mur,
+  direction du mur, identifiant réseau stable, graine) : portes, achats muraux,
+  atouts, grenades, interrupteur, boîte, PaP, téléporteur, pièges (volume 3D),
+  fenêtres (`BarricadeLayout.Opening`), apparitions. `MapDef` garde la
+  description (nom, musique, ambiance, prix, départs de la boîte...) et crée
+  sa géométrie (`MapDef.create_layout`). `GridMapLayout` enveloppe les cartes
+  ASCII sans changer leur comportement ; les cartes en maillage à plusieurs
+  niveaux (KINO V2, voir `docs/KINO_V2.md`) auront leur propre implémentation.
 - Décor de théâtre (PropBuilder + `TheaterLook`) : fauteuils fusionnés par
   matériau (une collision par rangée + barrière joueurs/zombies que les balles
   traversent), rideaux, écran animé et faisceau du projecteur (liés au

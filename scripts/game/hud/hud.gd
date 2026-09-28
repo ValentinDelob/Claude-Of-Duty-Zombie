@@ -313,7 +313,7 @@ func _process(delta: float) -> void:
 				_hint.text = ""
 	# Compte à rebours dans la salle du rituel (prioritaire).
 	var tp := game.teleporter
-	if tp and tp.state == Teleporter.State.ACTIVE and game.map_data.zone_at(MapData.world_to_cell(player.global_position)) == "p":
+	if tp and tp.state == Teleporter.State.ACTIVE and game.layout.zone_at(player.global_position) == game.layout.teleporter_exit_zone():
 		_hint.text = "RETOUR DANS %d s" % tp.seconds_left()
 
 

@@ -70,9 +70,9 @@ static func now() -> float:
 
 ## Achats muraux de grenades (marqueur « * »), comme sur Kino der Toten.
 func _build_buys() -> void:
-	for c in game.map_data.markers.get(GRENADE_BUY_MARKER, []):
+	for m in game.layout.grenade_buys():
 		var b := GrenadeBuy.new()
-		b.setup(c, game.map_data)
+		b.setup_marker(m)
 		game.world.add_child(b)
 		game.interact.register(b)
 

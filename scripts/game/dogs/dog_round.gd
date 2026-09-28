@@ -34,9 +34,8 @@ var _wait := 0.0
 var _alive: Dictionary = {}  # zid -> true
 var _recycle_accum := 0.0
 var _far_time: Dictionary = {}  # zid -> s
-var _last_spawn_cell := Vector2i(-99, -99)
+var _last_spawn := Vector3.INF
 var _end_sent := false
-var _cells: Array[Vector2i] = []
 var _rng := RandomNumberGenerator.new()
 
 ## Toutes les machines : ambiance de manche de chiens active.
@@ -187,51 +186,33 @@ func _spawn_dog(valid: Array) -> bool:
 	return true
 
 
-## Cellules d'apparition possibles : praticables et dégagées tout autour.
-func _candidate_cells() -> Array[Vector2i]:
-	if _cells.is_empty() and game.nav:
-		var md := game.map_data
-		for y in md.height:
-			for x in md.width:
-				var c := Vector2i(x, y)
-				if md.zone_at(c) == "" or not game.nav.is_walkable(c):
-					continue
-				var clear := true
-				for dy in [-1, 0, 1]:
-					for dx in [-1, 0, 1]:
-						if not game.nav.is_walkable(c + Vector2i(dx, dy)):
-							clear = false
-				if clear:
-					_cells.append(c)
-	return _cells
-
-
 ## Point d'apparition d'un chien (BO1 : 400 à 1000 unités du joueur visé, dans
-## une zone ouverte, jamais deux fois de suite au même endroit).
+## une zone ouverte, jamais deux fois de suite au même endroit). Les points
+## candidats (sol dégagé tout autour) viennent de la carte (MapLayout).
 func pick_spawn_point(near: Vector3) -> Variant:
-	var cells := _candidate_cells().duplicate()
-	if cells.is_empty():
+	var layout := game.layout
+	var pts := layout.open_floor_points().duplicate()
+	if pts.is_empty():
 		return null
 	var zones: Dictionary = game.spawner.active_zones if game.spawner else {}
-	var fallback := Vector2i(-1, -1)
+	var fallback := Vector3.INF
 	var fallback_err := INF
 	var tries := 0
-	# Mélange partiel (quelques centaines de cellules suffisent).
-	for i in mini(cells.size(), 400):
-		var j := _rng.randi_range(i, cells.size() - 1)
-		var c: Vector2i = cells[j]
-		cells[j] = cells[i]
-		cells[i] = c
-		if not zones.is_empty() and not zones.has(game.map_data.zone_at(c)):
+	# Mélange partiel (quelques centaines de points suffisent).
+	for i in mini(pts.size(), 400):
+		var j := _rng.randi_range(i, pts.size() - 1)
+		var pos: Vector3 = pts[j]
+		pts[j] = pts[i]
+		pts[i] = pos
+		if not zones.is_empty() and not zones.has(layout.zone_at(pos)):
 			continue
-		if c == _last_spawn_cell or not game.nav.is_walkable(c):
+		if pos == _last_spawn or not layout.is_walkable_at(pos):
 			continue
-		var pos := MapData.cell_to_world(c)
 		var d := Vector2(pos.x - near.x, pos.z - near.z).length()
 		if d >= DogRules.SPAWN_MIN_DIST and d <= DogRules.SPAWN_MAX_DIST:
 			tries += 1
 			if not game.nav.find_path(pos, near).is_empty():
-				_last_spawn_cell = c
+				_last_spawn = pos
 				return pos
 			if tries > 8:
 				break
@@ -239,11 +220,11 @@ func pick_spawn_point(near: Vector3) -> Variant:
 			var err := absf(d - clampf(d, DogRules.SPAWN_MIN_DIST, DogRules.SPAWN_MAX_DIST))
 			if err < fallback_err:
 				fallback_err = err
-				fallback = c
-	if fallback.x < 0:
+				fallback = pos
+	if fallback == Vector3.INF:
 		return null
-	_last_spawn_cell = fallback
-	return MapData.cell_to_world(fallback)
+	_last_spawn = fallback
+	return fallback
 
 
 ## Chien coincé ou égaré loin de tout joueur : retiré et refait apparaître.

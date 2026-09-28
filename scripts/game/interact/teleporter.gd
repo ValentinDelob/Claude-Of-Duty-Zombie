@@ -51,37 +51,36 @@ var _shown_pap := false
 ## Construit le téléporteur de la carte (plateforme T, arrivée F, poste
 ## central A en mode liaison). Retourne null si la carte n'en a pas.
 static func build(game: Game) -> Teleporter:
-	var pad: Array = game.map_data.markers.get("T", [])
-	var exit: Array = game.map_data.markers.get("F", [])
-	if pad.is_empty() or exit.is_empty():
+	var spec := game.layout.teleporter()
+	if spec.is_empty():
 		return null
 	var tp := Teleporter.new()
-	tp.setup(pad, exit[0])
+	tp.setup_at(spec.pad, spec.exit)
 	tp.reveals_pap = game.map_def.pap_revealed_by_teleporter
-	var mf: Array = game.map_data.markers.get("A", [])
-	if game.map_def.teleporter_link and not mf.is_empty():
+	var mf: MapMarker = spec.get("mainframe")
+	if game.map_def.teleporter_link and mf != null:
 		tp.needs_link = true
 		tp.link = Link.UNLINKED
 		tp._shown_link = Link.UNLINKED
 		tp.mainframe = TeleporterMainframe.new()
-		tp.mainframe.setup(mf[0], game.map_data)
+		tp.mainframe.setup_marker(mf)
 		tp.mainframe.teleporter = tp
 		tp.return_pos = tp.mainframe.arrival_point()
 		tp.has_return_pos = true
 		game.interact.register(tp.mainframe)
 		game.world.add_child(tp.mainframe)
-		if game.nav:
-			game.nav.set_blocked(MysteryBox.spot_cells(mf[0], game.map_data), true)
+		game.layout.set_blocked(mf.block, true)
 	game.interact.register(tp)
 	game.world.add_child(tp)
 	return tp
 
 
-func setup(pad_cells: Array, exit_cell: Vector2i) -> void:
+## Plateforme centrée en `pad` (au sol), arrivée des voyageurs en `exit`.
+func setup_at(pad: Vector3, exit: Vector3) -> void:
 	interact_id = "teleporter"
 	name = "Teleporter"
-	position = MapData.cells_center(pad_cells)
-	exit_pos = MapData.cell_to_world(exit_cell, 0.05)
+	position = pad
+	exit_pos = exit
 	interact_range = 2.4
 
 
@@ -243,8 +242,10 @@ func _process(delta: float) -> void:
 			for p: Player in game.players.values():
 				var pd := game.session.get_data(p.peer_id)
 				var flat := p.global_position - global_position
+				var dy := absf(flat.y)
 				flat.y = 0.0
-				if pd and pd.life == PlayerData.Life.ALIVE and flat.length() <= PAD_RADIUS:
+				# Tolérance verticale : pas de voyageur à l'étage du dessus.
+				if pd and pd.life == PlayerData.Life.ALIVE and flat.length() <= PAD_RADIUS and dy < 1.5:
 					_travellers.append(p.peer_id)
 			if _travellers.is_empty():
 				# Personne sur la plateforme : l'énergie se dissipe (et la

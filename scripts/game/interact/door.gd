@@ -10,7 +10,10 @@ const SLAB_THICKNESS := 0.22
 const OPEN_TIME := 1.6
 
 var door_id := ""
+## Cellules de la porte (cartes grille seulement).
 var cells: Array = []
+## Bloqueur de navigation levé à l'ouverture (MapLayout.set_blocked).
+var block := ""
 var cost := 0
 var is_open := false
 ## Zones reliées par la porte.
@@ -19,39 +22,28 @@ var zones: Array = []
 var _slab: Node3D
 var _body: StaticBody3D
 var _size := Vector3.ONE
-var _along_z := false
 var _signs: Array[Label3D] = []
 
 
 func setup(id: String, door_cells: Array, door_cost: int, data: MapData) -> void:
-	door_id = id
-	interact_id = "door_" + id
-	cells = door_cells
-	cost = door_cost
-	name = "Door" + id
-	var minc := Vector2i(999, 999)
-	var maxc := Vector2i(-999, -999)
-	for c in cells:
-		minc = Vector2i(mini(minc.x, c.x), mini(minc.y, c.y))
-		maxc = Vector2i(maxi(maxc.x, c.x), maxi(maxc.y, c.y))
-	# Porte dans un mur « vertical » (x constant) si les voisins en X sont du sol.
-	var probe: Vector2i = cells[0]
-	_along_z = data.is_floor(Vector2i(minc.x - 1, probe.y)) and data.is_floor(Vector2i(maxc.x + 1, probe.y))
-	var span := (maxc - minc) + Vector2i.ONE
-	var width := float(span.y if _along_z else span.x) * MapData.CELL
-	var depth := float(span.x if _along_z else span.y) * MapData.CELL
-	_size = Vector3(width, MapBuilder.WALL_HEIGHT, SLAB_THICKNESS)
-	position = (MapData.cell_to_world(minc) + MapData.cell_to_world(maxc)) * 0.5
-	rotation.y = PI * 0.5 if _along_z else 0.0
-	interact_range = 1.6 + depth * 0.5
+	setup_marker(GridMapLayout.door_marker(id, door_cells, door_cost, data))
+
+
+## Porte décrite par la carte : `m.pos` au sol au milieu de l'ouverture,
+## data = {cost, width, height, depth, yaw, zones}, `m.block` = bloqueur.
+func setup_marker(m: MapMarker) -> void:
+	door_id = m.id
+	interact_id = "door_" + m.id
+	cells = m.data.get("cells", [])
+	cost = int(m.data.cost)
+	block = m.block
+	name = "Door" + m.id
+	_size = Vector3(float(m.data.width), float(m.data.height), SLAB_THICKNESS)
+	position = m.pos
+	rotation.y = float(m.data.yaw)
+	interact_range = 1.6 + float(m.data.depth) * 0.5
 	# Zones de part et d'autre.
-	var side_a := minc - (Vector2i(1, 0) if _along_z else Vector2i(0, 1))
-	var side_b := maxc + (Vector2i(1, 0) if _along_z else Vector2i(0, 1))
-	zones = []
-	for c in [side_a, side_b]:
-		var z := data.zone_at(c)
-		if z != "" and not z in zones:
-			zones.append(z)
+	zones = m.data.zones.duplicate()
 
 
 func _ready() -> void:
@@ -129,7 +121,7 @@ func prompt(pid: int) -> String:
 	var p: Player = game.players.get(pid)
 	var label := ""
 	if p and zones.size() == 2:
-		var here := game.map_data.zone_at(MapData.world_to_cell(p.global_position))
+		var here := game.layout.zone_at(p.global_position)
 		label = game.map_def.zone_display_name(zones[1] if zones[0] == here else zones[0])
 	if label == "":
 		return "[F] Ouvrir la porte %s" % Interactable.cost_text(cost)
@@ -150,8 +142,7 @@ func srv_use(pid: int) -> void:
 func srv_open() -> void:
 	is_open = true
 	var game := system.game
-	if game.nav:
-		game.nav.set_blocked(cells, false)
+	game.layout.set_blocked(block, false)
 	for z in zones:
 		game.spawner.activate_zone(z)
 		# Zones reliées sans porte (KINO : machines = scène = salle).
@@ -175,7 +166,7 @@ func set_open(open: bool, animate := true) -> void:
 		return
 	is_open = open
 	(_body.get_child(0) as CollisionShape3D).set_deferred("disabled", open)
-	var target_y := MapBuilder.WALL_HEIGHT - 0.1 if open else 0.0
+	var target_y := _size.y - 0.1 if open else 0.0
 	if animate:
 		Audio.play_3d("door_open", global_position + Vector3.UP * 1.5, 0.0, 0.05)
 		var tw := create_tween()

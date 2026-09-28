@@ -44,6 +44,9 @@ const LAYOUT := [
 var window_index := 0
 var cell := Vector2i.ZERO
 var inward := Vector3.FORWARD
+## Hauteur de l'ouverture et graine des planches (déterministes).
+var opening_height := MapBuilder.WALL_HEIGHT
+var seed := 0
 var zone := ""
 var spawn_cells: Array = []
 ## Planches présentes (bit i = planche i).
@@ -66,15 +69,17 @@ func setup(w: BarricadeLayout.Opening) -> void:
 	cell = w.cell
 	zone = w.zone
 	spawn_cells = w.spawns
-	inward = Vector3(w.inward.x, 0, w.inward.y)
+	inward = w.inward_dir
+	opening_height = w.height
+	seed = w.seed
 	interact_id = "window_%d" % w.index
 	name = "Window%d" % w.index
 	interact_range = 1.9
 	hold_time = BarricadeRules.REPAIR_TIME
-	position = MapData.cell_to_world(cell)
+	position = w.pos
 	rotation.y = atan2(inward.x, inward.z)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(cell)
+	rng.seed = seed
 	for i in BarricadeRules.PLANKS:
 		var l: Array = LAYOUT[i]
 		var b := Basis(Vector3.UP, rng.randf_range(-0.05, 0.05)) * Basis(Vector3.BACK, l[1] + rng.randf_range(-0.04, 0.04))
@@ -121,7 +126,7 @@ func _build_planks() -> void:
 	_mm.mesh = bm
 	_mm.instance_count = BarricadeRules.PLANKS
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(cell) + 7
+	rng.seed = seed + 7
 	for i in BarricadeRules.PLANKS:
 		var v := rng.randf_range(0.72, 1.08)
 		_mm.set_instance_color(i, Color(v, v * rng.randf_range(0.9, 1.0), v * rng.randf_range(0.8, 0.95)))
@@ -149,9 +154,9 @@ func _build_barrier() -> void:
 	barrier.collision_mask = 0
 	var bcs := CollisionShape3D.new()
 	var bbox := BoxShape3D.new()
-	bbox.size = Vector3(1.0, MapBuilder.WALL_HEIGHT, 1.0)
+	bbox.size = Vector3(1.0, opening_height, 1.0)
 	bcs.shape = bbox
-	bcs.position.y = MapBuilder.WALL_HEIGHT * 0.5
+	bcs.position.y = opening_height * 0.5
 	barrier.add_child(bcs)
 	add_child(barrier)
 
@@ -300,13 +305,13 @@ func _plank_xform(i: int) -> Transform3D:
 ## Là où se tient le zombie qui arrache les planches (dehors).
 func tear_point() -> Vector3:
 	var p := global_position - inward * TEAR_DIST
-	return Vector3(p.x, 0.0, p.z)
+	return Vector3(p.x, global_position.y, p.z)
 
 
 ## Arrivée de l'enjambement (dedans).
 func inside_point() -> Vector3:
 	var p := global_position + inward * INSIDE_DIST
-	return Vector3(p.x, 0.0, p.z)
+	return Vector3(p.x, global_position.y, p.z)
 
 
 func interact_point() -> Vector3:

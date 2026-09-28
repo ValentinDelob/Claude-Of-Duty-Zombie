@@ -13,13 +13,17 @@ var _gone := false
 
 
 func setup(marker: String, cell: Vector2i, perk: String, data: MapData) -> void:
+	setup_marker(GridMapLayout.cell_marker(marker, cell, data), perk)
+
+
+func setup_marker(m: MapMarker, perk: String) -> void:
 	perk_id = perk
-	interact_id = "perk_" + marker
+	interact_id = "perk_" + m.id
 	name = "Perk_" + perk
-	_normal = MapDef.wall_normal(data, cell)
-	position = MapData.cell_to_world(cell) + _normal * 0.08
+	_normal = m.wall
+	position = m.pos + _normal * 0.08
 	interact_range = 2.0
-	_jingle_t = 20.0 + fposmod(float(cell.x * 7 + cell.y * 13), 40.0)
+	_jingle_t = 20.0 + fposmod(float(m.seed), 40.0)
 
 
 func _ready() -> void:

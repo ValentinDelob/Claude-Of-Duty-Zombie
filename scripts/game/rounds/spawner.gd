@@ -17,6 +17,7 @@ const RECYCLE_TIME := 18.0
 class SpawnPoint:
 	var pos: Vector3
 	var zone: String
+	## Cellule d'origine (cartes grille seulement).
 	var cell: Vector2i
 
 var game: Game
@@ -32,11 +33,12 @@ var _far_time: Dictionary = {}
 func _init(g: Game) -> void:
 	game = g
 	_rng.randomize()
-	for c in g.map_data.markers.get("Z", []):
+	active_zones = {g.layout.start_zone(): true}
+	for s in g.layout.zombie_spawns():
 		var sp := SpawnPoint.new()
-		sp.cell = c
-		sp.pos = MapData.cell_to_world(c)
-		sp.zone = g.map_data.zone_at(c)
+		sp.cell = s.get("cell", Vector2i(-1, -1))
+		sp.pos = s.pos
+		sp.zone = s.zone
 		points.append(sp)
 
 

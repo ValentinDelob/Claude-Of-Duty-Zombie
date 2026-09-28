@@ -13,14 +13,18 @@ var _normal := Vector3.FORWARD
 
 
 func setup(marker: String, cell: Vector2i, weapon: String, data: MapData) -> void:
+	setup_marker(GridMapLayout.cell_marker(marker, cell, data), weapon)
+
+
+func setup_marker(m: MapMarker, weapon: String) -> void:
 	weapon_id = weapon
 	is_knife = KnifeDB.exists(weapon)
 	cost = KnifeDB.wall_cost(weapon) if is_knife else WeaponDB.wall_cost(weapon)
-	interact_id = "wallbuy_" + marker
-	name = "WallBuy" + marker
-	_normal = MapDef.wall_normal(data, cell)
+	interact_id = "wallbuy_" + m.id
+	name = "WallBuy" + m.id
+	_normal = m.wall
 	# Plaqué contre le mur, à hauteur de poitrine.
-	position = MapData.cell_to_world(cell) + _normal * (MapData.CELL * 0.5 - 0.02) + Vector3.UP * 1.45
+	position = m.on_wall(0.02, 1.45)
 	interact_range = 1.8
 
 

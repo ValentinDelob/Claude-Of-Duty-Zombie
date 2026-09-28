@@ -57,13 +57,18 @@ var _markers: Array[Node3D] = []
 
 
 func setup(cells: Array, start: int, data: MapData) -> void:
+	var markers: Array[MapMarker] = []
+	for i in cells.size():
+		markers.append(GridMapLayout.cell_marker("box_%d" % i, cells[i], data))
+	setup_spots(markers, start)
+
+
+func setup_spots(markers: Array[MapMarker], start: int) -> void:
 	interact_id = "box"
 	name = "MysteryBox"
 	interact_range = 2.0
-	for c in cells:
-		var n := MapDef.wall_normal(data, c)
-		var pos := MapData.cell_to_world(c) + n * 0.05
-		spots.append({"pos": pos, "normal": n})
+	for m in markers:
+		spots.append({"pos": m.pos + m.wall * 0.05, "normal": m.wall})
 	location = clampi(start, 0, spots.size() - 1)
 	_rng.randomize()
 

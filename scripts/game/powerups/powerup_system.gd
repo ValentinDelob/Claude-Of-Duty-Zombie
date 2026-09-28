@@ -78,8 +78,7 @@ func _on_zombie_damaged(pid: int, zid: int, _dmg: int, killed: bool, _headshot: 
 func in_playable_area(pos: Vector3) -> bool:
 	if game.spawner == null:
 		return true
-	var zone := game.map_data.zone_at(MapData.world_to_cell(pos))
-	return game.spawner.active_zones.has(zone)
+	return game.spawner.active_zones.has(game.layout.zone_at(pos))
 
 
 ## Bonus autorisé à cet instant (get_valid_powerup de BO1).
