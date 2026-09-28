@@ -194,7 +194,7 @@ static func become_crawler(z: Zombie) -> void:
 	if cap:
 		cap.height = 0.6
 		cap.radius = 0.3
-		z._body_shape.position.y = 0.3 + Zombie.FLOOR_GAP
+		z._body_shape.position.y = 0.3 + z.floor_gap()
 	var hb := z.hit_body.get_child(0).shape as CapsuleShape3D
 	hb.radius = 0.22
 	hb.height = 1.1

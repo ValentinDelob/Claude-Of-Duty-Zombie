@@ -38,10 +38,16 @@ func _init(map_def: MapDef, json_path: String, glb: String) -> void:
 		push_error("[MeshMapLayout] JSON illisible : " + json_path)
 		data = {}
 	_markers = data.get("markers", {})
-	var zones: Dictionary = data.get("zones", {})
-	for id in zones:
-		for b in zones[id].boxes:
-			_zones.append([String(id), box(b)])
+	# Ordre de test des boîtes de zones : « zone_order » (les plus petites
+	# d'abord : balcons et galeries avant la grande salle) s'il est fourni.
+	if data.has("zone_order"):
+		for zo in data.zone_order:
+			_zones.append([String(zo.zone), box(zo.box)])
+	else:
+		var zones: Dictionary = data.get("zones", {})
+		for id in zones:
+			for b in zones[id].boxes:
+				_zones.append([String(id), box(b)])
 
 
 static func vec(a: Array) -> Vector3:
@@ -149,6 +155,8 @@ func doors() -> Array[MapMarker]:
 			"cost": int(d.get("cost", def.doors.get(mk.id, {}).get("cost", 1000))),
 			"width": float(d.w), "height": float(d.h), "depth": float(d.get("depth", 0.3)),
 			"yaw": float(d.get("yaw", 0.0)), "zones": d.get("zones", []),
+			"power": bool(d.get("power", false)), "link": String(d.get("link", "")),
+			"curtain": bool(d.get("curtain", false)),
 		}
 		_door_markers.append(mk)
 	return _door_markers

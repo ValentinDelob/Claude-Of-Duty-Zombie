@@ -11,6 +11,8 @@ enum State { EMERGE, IDLE, CHASE, ATTACK, DEAD, BARRIER, VAULT }
 const SPEEDS := [1.25, 2.3, 3.7, 5.0]
 ## Écart entre la capsule de collision et le sol (déplacement flottant).
 const FLOOR_GAP := 0.04
+## Décollement de la capsule sur les cartes à plusieurs niveaux.
+const STEP_GAP := 0.3
 ## Animation hors champ ou lointaine : cadence réduite (secondes entre deux poses).
 const POSE_STEP_OFFSCREEN := 1.0 / 20.0
 const POSE_STEP_FAR := 1.0 / 60.0
@@ -116,7 +118,7 @@ func setup(zid: int, zvariant: int, zspeed: int, is_server: bool) -> void:
 
 func _ready() -> void:
 	_mgr = get_parent() as ZombieManager
-	_multilevel = Game.instance != null and Game.instance.layout != null and Game.instance.layout.is_multilevel()
+	_multilevel = map_is_multilevel()
 	_update_solidity()
 	collision_mask = 1 | (1 << 1) | (1 << 2) | Barricade.BARRIER_LAYER  # monde, joueurs, zombies, fenêtres
 	var cs := CollisionShape3D.new()
@@ -131,7 +133,9 @@ func _ready() -> void:
 	# 3 glissements suffisent (angle de deux murs) ; les 6 par défaut
 	# doublaient le coût des zombies coincés dans la horde.
 	max_slides = 3
-	cs.position.y = HEIGHT * 0.5 + FLOOR_GAP
+	# Cartes à étages : capsule plus haute que les petits rebords (<= 0,3 m,
+	# comme la marche maximale du navmesh) ; le sol est suivi par _follow_floor.
+	cs.position.y = HEIGHT * 0.5 + floor_gap()
 	_body_shape = cs
 	add_child(cs)
 
@@ -715,3 +719,13 @@ func _follow_floor() -> void:
 ## Point de passage atteint (à plat, et au même niveau sur les cartes à étages).
 func _waypoint_reached(p: Vector3) -> bool:
 	return _flat_dist(p) < 0.45 and absf(p.y - global_position.y) < 1.0
+
+
+## La partie en cours se joue-t-elle sur une carte à plusieurs niveaux ?
+static func map_is_multilevel() -> bool:
+	return Game.instance != null and Game.instance.layout != null and Game.instance.layout.is_multilevel()
+
+
+## Décollement de la capsule au-dessus du sol (voir STEP_GAP).
+func floor_gap() -> float:
+	return STEP_GAP if _multilevel else FLOOR_GAP

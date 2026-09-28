@@ -141,3 +141,23 @@ Les étapes 5 et 6 se parallélisent avec des agents (worktrees, fichiers disjoi
   `mp_*` sur Kino (hôte et client voient les zombies aux bons étages).
 - Visuel : `visual_look` et `render_views.py` comparés aux captures de référence ; `perf.sh`
   (`kino_tour`, `perf_costs`) pour garder la cible MEDIUM.
+
+## Avancement
+- Étape 1 (v0.1.95) : interface `MapLayout`, `GridMapLayout`.
+- Étape 2 (v0.1.96) : cartes en maillage à étages (`MeshMapLayout`, `MeshNav`,
+  `tools/blender/mesh_map.py`), carte `test_levels`, distributeurs pleins.
+- Étape 3 : maquette grise `--map=kino_v2` (hors menus). La description
+  `assets/maps/kino/layout.json` est GÉNÉRÉE par
+  `sh tools/blender.sh tools/blender/kino/make_layout.py assets/maps/kino/layout.json`
+  puis `sh tools/blender.sh tools/blender/mesh_map.py assets/maps/kino/layout.json assets/maps/kino/kino.glb [aperçu.png]`
+  (vue de dessus orthographique, nord en haut). Salles, portes, fenêtres et
+  objets y sont écrits en unités CoD d'après les relevés ; murs, garde-corps,
+  contremarches et poches des fenêtres sont calculés (rastérisation par
+  cases de 10 u). Portes liées (`link`), portes du courant (`power`) et
+  rideau de scène (`curtain`) gérés par `Door`. Scénario `kino_v2_tour` :
+  22 fenêtres, 9 boîtes, prix des portes, zones de chaque objet, tout
+  accessible, zombies qui changent d'étage. Écarts connus de la maquette :
+  contours des murs [PROBABLE] (volumes englobants), escalier en U de
+  l'arrière-salle simplifié en une volée, pas encore de gravats ni de
+  fauteuils dans la salle, poste central encore mural, fosse à feu en piège
+  électrique provisoire, lampes en grille.

@@ -30,6 +30,7 @@ var _lightning: DogLightning
 
 func _ready() -> void:
 	_mgr = get_parent() as ZombieManager
+	_multilevel = map_is_multilevel()
 	speed_class = 3
 	speed_mult = DogRules.RUN_SPEED / Zombie.SPEEDS[3]
 	collision_layer = 0
@@ -40,7 +41,7 @@ func _ready() -> void:
 	cap.height = 0.9
 	cs.shape = cap
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
-	cs.position.y = 0.45 + FLOOR_GAP
+	cs.position.y = 0.45 + floor_gap()
 	_body_shape = cs
 	add_child(cs)
 

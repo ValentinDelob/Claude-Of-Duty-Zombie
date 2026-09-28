@@ -14,6 +14,12 @@ var door_id := ""
 var cells: Array = []
 ## Bloqueur de navigation levé à l'ouverture (MapLayout.set_blocked).
 var block := ""
+## Porte ouverte par le courant (non achetable : KINO, hall <-> salle de théâtre).
+var power_door := false
+## Porte liée : un seul achat ouvre les deux (KINO : escaliers à deux portes).
+var link_id := ""
+## Rideau de scène (velours, ouvert par le courant).
+var curtain := false
 var cost := 0
 var is_open := false
 ## Zones reliées par la porte.
@@ -44,6 +50,9 @@ func setup_marker(m: MapMarker) -> void:
 	interact_range = 1.6 + float(m.data.depth) * 0.5
 	# Zones de part et d'autre.
 	zones = m.data.zones.duplicate()
+	power_door = bool(m.data.get("power", false))
+	link_id = String(m.data.get("link", ""))
+	curtain = bool(m.data.get("curtain", false))
 
 
 func _ready() -> void:
@@ -54,9 +63,20 @@ func _ready() -> void:
 	var bm := BoxMesh.new()
 	bm.size = _size
 	slab.mesh = bm
-	slab.material_override = WorldLook.surface("door")
+	slab.material_override = WorldLook.surface("velvet" if curtain else "door")
 	slab.position.y = _size.y * 0.5
 	_slab.add_child(slab)
+	if not power_door:
+		_decorate()
+	_build_body()
+	if power_door and multiplayer.is_server() and Game.instance:
+		Game.instance.power_changed.connect(func(on: bool):
+			if on and not is_open:
+				srv_open())
+
+
+## Bandes d'avertissement, volants et prix peints (portes payantes).
+func _decorate() -> void:
 	# Bandes d'avertissement jaunes et noires.
 	var stripe_mat := StandardMaterial3D.new()
 	stripe_mat.albedo_texture = _stripes_texture()
@@ -96,6 +116,8 @@ func _ready() -> void:
 		_slab.add_child(sign)
 		_signs.append(sign)
 
+
+func _build_body() -> void:
 	_body = StaticBody3D.new()
 	_body.collision_layer = 1
 	_body.collision_mask = 0
@@ -114,7 +136,7 @@ func interact_point() -> Vector3:
 
 
 func prompt(pid: int) -> String:
-	if is_open:
+	if is_open or power_door:
 		return ""
 	# Nom de la zone de l'autre côté (celle où le joueur n'est pas).
 	var game := system.game
@@ -129,7 +151,7 @@ func prompt(pid: int) -> String:
 
 
 func srv_use(pid: int) -> void:
-	if is_open:
+	if is_open or power_door:
 		return
 	if not system.game.session.try_spend(pid, cost):
 		system.deny(pid, "Pas assez de points")
@@ -149,6 +171,9 @@ func srv_open() -> void:
 		for linked in game.map_def.open_links.get(z, []):
 			game.spawner.activate_zone(linked)
 	print("[Door] porte %s ouverte (%s)" % [door_id, ", ".join(zones)])
+	# Porte liée (l'autre bout de l'escalier) : ouverte du même achat.
+	if link_id != "" and game.doors.has(link_id) and not game.doors[link_id].is_open:
+		game.doors[link_id].srv_open()
 	broadcast_state()
 
 

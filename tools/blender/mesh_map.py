@@ -127,15 +127,43 @@ def polygon(bm, outline, height_fn, up=True):
 
 
 # --------------------------------------------------------------------- salles
+def slab(bm, outline, top, th):
+    """Dalle pleine (dessus à `top`, épaisseur `th`) : balcons, galeries, toits de salles posées dans une autre."""
+    t = [bm.verts.new(B(x, top, z)) for x, z in outline]
+    b = [bm.verts.new(B(x, top - th, z)) for x, z in outline]
+    bm.faces.new(t)
+    bm.faces.new(list(reversed(b)))
+    n = len(t)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new([b[i], b[j], t[j], t[i]])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+
+
 for r in L.get("rooms", []):
     KIND = "floor"
     fm = r.get("floor_mat", "floor")
-    both(fm, r["id"], polygon, r["outline"], lambda x, z, r=r: floor_height(r, x, z), True)
+    if r.get("floor_slab"):
+        both(fm, r["id"], slab, r["outline"], r.get("floor", 0.0), r["floor_slab"])
+    else:
+        both(fm, r["id"], polygon, r["outline"], lambda x, z, r=r: floor_height(r, x, z), True)
     if not r.get("no_ceiling", False):
         KIND = "ceil"
         cm = r.get("ceiling_mat", "ceiling")
-        polygon(bm_for(cm, r["id"]), r["outline"], lambda x, z, r=r: r["ceiling"], False)
-        polygon(bm_for(cm, r["id"], True), r["outline"], lambda x, z, r=r: r["ceiling"], False)
+        if r.get("ceiling_slab"):
+            both(cm, r["id"], slab, r["outline"], r["ceiling"] + r["ceiling_slab"], r["ceiling_slab"])
+        else:
+            polygon(bm_for(cm, r["id"]), r["outline"], lambda x, z, r=r: r["ceiling"], False)
+            polygon(bm_for(cm, r["id"], True), r["outline"], lambda x, z, r=r: r["ceiling"], False)
+
+# --------------------------------------------------------------------- blocs
+# {room, box [x0,y0,z0,x1,y1,z1] (Godot), mat, barrier} : barrier = couche BARRIER
+# côté Godot (arrête joueurs et zombies, pas les balles : vitres, gravats bas).
+for bl in L.get("blocks", []):
+    KIND = "barrier" if bl.get("barrier") else "block"
+    x0, y0, z0, x1, y1, z1 = bl["box"]
+    both(bl.get("mat", "wood"), bl.get("room", "x"), box, ((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
+         (x1 - x0, y1 - y0, z1 - z0), 0.0)
 
 # --------------------------------------------------------------------- murs
 KIND = "wall"
@@ -268,16 +296,19 @@ if PREVIEW:
             bpy.data.objects.remove(ob)
     cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
     bpy.context.scene.collection.objects.link(cam)
-    cam.location = B(cx - span * 0.6, span * 0.9, cz + span * 0.9)
-    cam.rotation_euler = (math.radians(50), 0, math.radians(-35))
-    cam.data.lens = 24
+    # Vue de dessus orthographique, nord (-z Godot) en haut de l'image.
+    cam.location = B(cx, 200.0, cz)
+    cam.rotation_euler = (0, 0, 0)
+    cam.data.type = "ORTHO"
+    cam.data.ortho_scale = span * 1.05
+    cam.data.clip_end = 1000.0
     bpy.context.scene.camera = cam
     sun = bpy.data.objects.new("sun", bpy.data.lights.new("sun", "SUN"))
     sun.data.energy = 3
     sun.rotation_euler = (math.radians(35), math.radians(15), 0)
     bpy.context.scene.collection.objects.link(sun)
     sc = bpy.context.scene
-    sc.render.resolution_x, sc.render.resolution_y = 960, 640
+    sc.render.resolution_x, sc.render.resolution_y = 1000, 1000
     sc.render.filepath = PREVIEW
     bpy.ops.render.render(write_still=True)
     print("[mesh_map] aperçu -> %s" % PREVIEW)

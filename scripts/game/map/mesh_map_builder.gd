@@ -35,13 +35,14 @@ func build(parent: Node3D) -> void:
 		var mat := parts[0]
 		if n is MeshInstance3D:
 			var mi := n as MeshInstance3D
-			mi.material_override = WorldLook.surface(mat)
+			mi.material_override = _glass() if mat == "glass" else WorldLook.surface(mat)
 			mi.set_instance_shader_parameter("floor_y", float(floors.get(parts[1], 0.0)))
 			if parts[2] in NO_SHADOW_KINDS:
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		elif n is StaticBody3D:
 			var body := n as StaticBody3D
-			body.collision_layer = 1
+			# Barrière (vitres, gravats bas) : arrête joueurs et zombies, pas les balles.
+			body.collision_layer = Barricade.BARRIER_LAYER if parts[2] == "barrier" else 1
 			body.collision_mask = 0
 			# Effets d'impact selon la matière (Fx.surface_of).
 			for cs in body.get_children():
@@ -63,3 +64,18 @@ static func _room_floor(r: Dictionary) -> float:
 			y = minf(y, float(p[1]))
 		return y
 	return float(r.get("floor", 0.0))
+
+
+static var _glass_mat: StandardMaterial3D
+
+
+## Vitre sale et légèrement teintée (baie du projecteur...).
+static func _glass() -> StandardMaterial3D:
+	if _glass_mat == null:
+		_glass_mat = StandardMaterial3D.new()
+		_glass_mat.albedo_color = Color(0.55, 0.62, 0.6, 0.18)
+		_glass_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_glass_mat.roughness = 0.15
+		_glass_mat.metallic_specular = 0.8
+		_glass_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return _glass_mat
