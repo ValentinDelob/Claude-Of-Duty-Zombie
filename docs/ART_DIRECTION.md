@@ -47,10 +47,12 @@ concerne.
 - Contrainte utilisateur : l'éclairage venait d'être relevé (« trop sombre ») —
   l'étalonnage ne ré-assombrit pas : `tests/autotest/visual_look.gd` mesure la
   luminance moyenne de chaque zone (courant rétabli) et échoue sous 0,05.
+- Courant coupé (`PowerGrid`) : lampes à 40 %, blanc pâle neutre (à peine
+  chaud, l'étalonnage refroidissant les zones sombres), comme BO1 avant le
+  courant ; seuls le panneau SORTIE et le gyrophare de l'interrupteur restent
+  rouges.
 
 ### Écarts restants
-- Les lampes « courant coupé » restent rouges (choix de l'éclairage de la
-  carte) là où BO1 garde une lumière faible et neutre.
 - Pas de flou de profondeur ni de flou de mouvement (coût, et peu visibles dans
   BO1 hors visée).
 - Bloom : un écran de machine d'atout vu à bout portant sature en blanc.
@@ -100,12 +102,13 @@ concerne.
 - `hurt_vignette.gdshader` (sang, voile), `downed_blur.gdshader` (flou par
   mipmaps de l'écran, uniquement à terre), `Scoreboard` restylé, fin de
   partie mise en page par `Hud.show_game_over_table`.
+- Mise à l'échelle : tout le 2D (HUD et menus) suit la résolution depuis une
+  base 1280x720 (`display/window/stretch` = `canvas_items`, `expand`), comme
+  le HUD de BO1 ; la 3D reste rendue à la définition de l'écran.
 - Captures de contrôle : `tests/autotest/visual_look.gd` (`--hud` pour ne
   jouer que la partie HUD).
 
 ### Écarts restants
-- Le HUD est en pixels (fenêtre de base 1280x720) : en 1080p il paraît plus
-  petit que dans BO1 (pas de mise à l'échelle de l'interface).
 - Pas d'icônes de réanimation au-dessus des coéquipiers à terre dans le
   monde (hors périmètre du HUD 2D).
 ## Zombies

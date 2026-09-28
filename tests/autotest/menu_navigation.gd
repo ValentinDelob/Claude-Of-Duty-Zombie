@@ -100,7 +100,7 @@ func run() -> void:
 	var ok: bool = await until(func(): return Game.instance != null and Game.instance.local_player != null, 30.0, "partie solo lancée après le fondu")
 	if ok:
 		at.check(GameState.state == GameState.State.PLAYING, "partie en cours")
-		at.check(get_window_scale_mode() == Window.CONTENT_SCALE_MODE_DISABLED, "mise à l'échelle du menu restaurée en jeu")
+		at.check(get_window_scale_mode() == Window.CONTENT_SCALE_MODE_CANVAS_ITEMS, "HUD mis à l'échelle de la résolution en jeu")
 
 
 func get_window_scale_mode() -> int:

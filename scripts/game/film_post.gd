@@ -53,6 +53,8 @@ func _refresh() -> void:
 	var g := grain_amount()
 	material.set_shader_parameter("grain", g)
 	material.set_shader_parameter("vignette", VIGNETTE)
-	material.set_shader_parameter("grain_px", maxf(1.0, get_viewport().get_visible_rect().size.y / 720.0))
+	# FRAGCOORD est en pixels réels de la fenêtre (le 2D, lui, est mis à
+	# l'échelle depuis 1280x720) : 1 px à 720p, 1,5 px à 1080p.
+	material.set_shader_parameter("grain_px", maxf(1.0, get_window().size.y / 720.0))
 	if material.shader == SHADER:
 		material.set_shader_parameter("aberration", float(_quality.get("aberration", 0.0)))

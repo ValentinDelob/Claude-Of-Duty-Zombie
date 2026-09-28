@@ -157,9 +157,9 @@ poste : `sh tools/perf.sh perf_costs` ; détail dans docs/ARCHITECTURE.md.
    automatique sur d'autres cartes graphiques.
 2. R4 suite : décors et matériaux plus riches par zone, machines d'atouts,
    boîte mystère, Pack-a-Punch, téléporteur au style BO1 ; menu principal et
-   écran de chargement au style BO1 ; HUD à l'échelle de la résolution
-   (aujourd'hui en pixels 1280x720) ; lampes « courant coupé » (actuellement
-   rouges) faibles et neutres comme BO1 ; occlusion des sons derrière les murs.
+   écran de chargement au style BO1 ; occlusion des sons derrière les murs
+   (HUD à l'échelle de la résolution et lampes « courant coupé » neutres :
+   faits en v0.1.94).
 3. R5 — KINO V2 : reproduction à l'identique de Kino der Toten d'après des
    images de référence (plan, chaque salle) rangées dans docs/reference/kino/ ;
    préalable technique : navigation multi-niveaux (escaliers, balcon, foyer à

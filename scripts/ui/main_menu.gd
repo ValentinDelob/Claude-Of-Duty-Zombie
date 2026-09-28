@@ -20,7 +20,6 @@ const SCREENS := {
 	"career": "res://scripts/ui/screens/career_screen.gd",
 	"map_select": "res://scripts/ui/screens/map_screen.gd",
 }
-const BASE_SIZE := Vector2i(1280, 720)
 ## Durées des transitions (fondu au noir puis retour).
 const FADE_IN := 0.22
 const FADE_OUT := 0.7
@@ -166,9 +165,6 @@ func _on_presence(shown: bool) -> void:
 func _exit_tree() -> void:
 	var w := get_window()
 	if w and not _saved_scale.is_empty():
-		w.content_scale_mode = _saved_scale.mode
-		w.content_scale_aspect = _saved_scale.aspect
-		w.content_scale_size = _saved_scale.size
 		# Résolution 3D : restaurée seulement si personne ne l'a changée entre-temps
 		# (préréglages de qualité appliqués depuis les options).
 		if is_equal_approx(w.scaling_3d_scale, MENU_3D_SCALE):
@@ -179,13 +175,12 @@ func _setup_scaling() -> void:
 	var w := get_window()
 	if w == null:
 		return
-	_saved_scale = {"mode": w.content_scale_mode, "aspect": w.content_scale_aspect, "size": w.content_scale_size, "scale_3d": w.scaling_3d_scale}
+	_saved_scale = {"scale_3d": w.scaling_3d_scale}
 	# Le fond 3D, sous le grain et la vignette, est rendu à 75 % de la
 	# définition : invisible à l'œil, nettement moins coûteux (GTX 1050).
 	w.scaling_3d_scale = minf(w.scaling_3d_scale, MENU_3D_SCALE)
-	w.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
-	w.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
-	w.content_scale_size = BASE_SIZE
+	# L'interface (menu et HUD) suit la résolution : mise à l'échelle 2D du
+	# projet (display/window/stretch = canvas_items, base 1280x720).
 
 
 func show_screen(screen_name: String, args := {}, remember := true) -> void:

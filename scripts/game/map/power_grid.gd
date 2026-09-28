@@ -2,12 +2,14 @@ class_name PowerGrid
 extends Node
 ## Éclairage de la carte selon l'état du courant.
 ##
-## Courant coupé : lampes faibles et rougeâtres (secours), grésillement.
+## Courant coupé : lampes faibles, blanc pâle neutre (comme BO1 avant le
+## courant, sans teinte de secours rouge ; à peine chaud car l'étalonnage
+## refroidit les zones sombres), grésillement.
 ## Courant rétabli : les lampes se rallument en cascade depuis le générateur.
 ## Purement visuel ; l'état du courant fait foi côté serveur (PowerSwitch).
 
-const OFF_ENERGY := 0.35
-const OFF_COLOR := Color(1.0, 0.35, 0.25)
+const OFF_ENERGY := 0.4
+const OFF_COLOR := Color(0.95, 0.9, 0.82)
 const ON_COLOR := Color(1.0, 0.74, 0.5)
 const CASCADE_SPEED := 14.0  # m/s
 

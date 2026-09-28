@@ -110,6 +110,8 @@ la reproduction fidèle de la carte réelle à partir d'images de référence
 - [ ] Mettre à jour README (état d'avancement) et docs/ARCHITECTURE.md.
 
 ## Fait (releases)
+- v0.1.94 : HUD à l'échelle de la résolution (2D en canvas_items, base
+  1280x720), lampes « courant coupé » faibles et neutres comme BO1.
 - v0.1.93 : re-mesure des performances sur RTX A2000, murs mats sans
   spéculaire, CPU des zombies au contact réduit ; v0.1.92 : tests parallèles
   sans rendu (check.sh ~4 min au lieu de 35-45), fenêtres de test invisibles.
