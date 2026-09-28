@@ -1,6 +1,6 @@
 extends AutotestScenario
 ## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
-## KINO V2, salle de théâtre et salle de projection : captures depuis les
+## KINO, salle de théâtre et salle de projection : captures depuis les
 ## points de vue des références de BO1 (docs/reference/kino/images/theater_*),
 ## courant rétabli, pour comparer le décor à la carte d'origine.
 
@@ -24,7 +24,7 @@ func view(label: String, eye: Vector3, target: Vector3) -> void:
 
 func run() -> void:
 	timeout_sec = 90
-	p = await AutotestHelpers.start_solo_game(self, "kino_v2")
+	p = await AutotestHelpers.start_solo_game(self, "kino")
 	if p == null:
 		return
 	game = Game.instance

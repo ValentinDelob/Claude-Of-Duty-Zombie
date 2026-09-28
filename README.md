@@ -11,20 +11,27 @@ ambiances, annonces et interface restent synthétisées par du code.
 Cartes (SOLO ouvre l'écran de sélection ; en multijoueur, l'hôte choisit dans
 le salon ; le dernier choix est mémorisé) :
 
-**KINO** — théâtre abandonné inspiré de Kino der Toten : hall d'entrée à
-galerie (poste central du téléporteur, M-14 et fusil à pompe au mur), foyer,
-loges et allée (deux pièges électriques dans les passages étroits), salle des
-machines (courant), salle de théâtre (fauteuils, scène, rideaux, écran qui
-projette un film une fois le courant rétabli), cabine de projection. Comme à
-Kino : activer la plateforme de la scène puis la relier au poste central avant
-chaque voyage ; le premier voyage fait surgir le Pack-a-Punch sur la scène.
-Boîte mystère : 5 emplacements, départ tiré au sort parmi 3.
+**KINO** — Kino der Toten à l'échelle 1, sur plusieurs niveaux (carte en
+maillage construite dans Blender, voir [docs/KINO_V2.md](docs/KINO_V2.md)) :
+hall d'entrée à double escalier et balcon (départ sur le disque du poste
+central, Olympia et M14), salle basse et ruelle, arrière-salle surélevée,
+salle haute, Foyer à mezzanine, loges, coulisses (courant), salle de théâtre
+en ruines (fauteuils, gravats, scène, écran qui projette un film une fois le
+courant rétabli) et salle de projection (Pack-a-Punch). Les deux boucles de
+portes de BO1 (750 / 1000 / 1250), portes du couloir et rideau de scène
+ouverts par le courant, 22 fenêtres barricadées, arsenal mural de Kino
+(dont MP40 et couteau de chasse), 4 atouts, boîte mystère à 9 emplacements
+(départ tiré au sort parmi 8) et tableaux à la craie qui l'indiquent,
+5 pièges à deux leviers (40 s, dont la fosse à feu encore électrique).
+Téléporteur de Kino : gratuit, activer le pad de la scène puis le relier au
+poste central ; 30 s en salle de projection, retour sur le disque, 90 s de
+recharge.
 
 **BUNKER K-7** — salle de garde, couloir des cellules (piège électrique),
 laboratoire, dortoir, générateur, quai du téléporteur et salle du rituel
 (Pack-a-Punch). Manches, points, portes payantes, courant, achats muraux,
 7 atouts, boîte mystère, Pack-a-Punch, téléporteur, pièges, état « à terre »
-et réanimation. Atouts de Five / Ascension (aussi sur KINO) : NOVA FLOP
+et réanimation. Atouts de Five / Ascension (BUNKER K-7 seulement) : NOVA FLOP
 (2000 : aucun dégât de ses propres explosions, le plongeon en sprint explose
 à l'atterrissage) et DEADEYE DRAM (1500 : la visée s'aimante vers la tête,
 dispersion en hanche et recul réduits). Fenêtres barricadées (15) : les zombies arrachent les

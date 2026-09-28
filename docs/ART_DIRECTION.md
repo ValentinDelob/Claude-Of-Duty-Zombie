@@ -49,8 +49,7 @@ concerne.
   luminance moyenne de chaque zone (courant rétabli) et échoue sous 0,05.
 - Courant coupé (`PowerGrid`) : lampes à 40 %, blanc pâle neutre (à peine
   chaud, l'étalonnage refroidissant les zones sombres), comme BO1 avant le
-  courant ; seuls le panneau SORTIE et le gyrophare de l'interrupteur restent
-  rouges.
+  courant ; seul le gyrophare de l'interrupteur reste rouge.
 
 ### Écarts restants
 - Pas de flou de profondeur ni de flou de mouvement (coût, et peu visibles dans
@@ -276,7 +275,7 @@ concerne.
   détail vient de la géométrie et du bruit procédural.
 - Lettrage en capitales italiques et non en écriture cursive peinte.
 
-## Salle de théâtre de KINO V2 : objets
+## Salle de théâtre de KINO : objets
 
 ### Référence (Kino der Toten, BO1)
 - Salle en fer à cheval sous une coupole ovale à nervures, trouée par
@@ -294,7 +293,7 @@ concerne.
   conique hérissé de 6 isolateurs à ailettes, cage de barreaux autour d'une
   « cervelle » électrique bleue, chapeau en dôme, câbles vers les cintres.
   Estrade de la tourelle en bois avec son escalier.
-- Cabine de projection : machine d'amélioration en forme de poêle sarcelle
+- Salle de projection : machine d'amélioration en forme de poêle sarcelle
   à trois rouleaux blancs et enseigne à losanges colorés, projecteur sur
   socle en fonte, étagère à bobines, bureau, horloge, bobines au sol.
 - Scène et coulisses (captures) : salle gris-vert sale ; nez de scène en
@@ -320,7 +319,7 @@ concerne.
 - Gravats : `rubble_heap_a/b/c` (tas), `rubble_field_a/b` (tapis bas),
   `rubble_mound_big` (grand champ du parterre), `debris_beam`,
   `debris_planks`, `debris_scatter`.
-- Cabine de projection : `pap_machine` (enseigne ORIGINALE « PUNCH-O-MATIC,
+- Salle de projection : `pap_machine` (enseigne ORIGINALE « PUNCH-O-MATIC,
   Augmentez votre puissance de feu ! », police intégrée de Blender),
   `projector`, `reel_shelf`, `desk`, `wall_clock`, `film_reel`.
 - Scène et coulisses : `stage_lip` (nez de scène 4 x 1,15 m, rinceaux en
@@ -344,6 +343,13 @@ concerne.
   téléporteur ; pistolet et étincelle sur la machine d'amélioration).
 
 ### Écarts restants
+- Seules la salle de théâtre, la scène, les coulisses et la salle de
+  projection sont habillées : hall, salles basse et haute, ruelle,
+  arrière-salle, Foyer et loges restent en maquette grise (murs et sols
+  aux matériaux de la description, lampes en grille), sans affiches, lustres
+  du hall, coiffeuses ni portants (l'ancienne KINO en grille, remplacée,
+  en avait des versions procédurales : `PropBuilder` et
+  `TheaterLook.poster_image`, récupérables dans l'historique git).
 - Formes simplifiées : pas de caissons sculptés dans la coupole, rinceaux
   du nez de scène en tiges et volutes simples, feuillages des niches
   absents, trous du plafond à bords

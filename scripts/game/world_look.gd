@@ -42,14 +42,13 @@ const SURFACES := {
 	"cobble": [11, Color(0.2, 0.2, 0.21), Color(0.07, 0.06, 0.05), 1.0, 0.55, 0.9, 0.0],
 	"velvet": [10, Color(0.46, 0.035, 0.045), Color(0.1, 0.01, 0.015), 1.0, 0.25, 0.8, 0.0],
 	"brass": [0, Color(0.5, 0.36, 0.13), Color(0.2, 0.14, 0.05), 2.0, 0.3, 0.35, 0.85],
-	# Salle de théâtre de KINO V2 (BO1) : plâtre gris-vert sale, voûte grise,
+	# Salle de théâtre de KINO (BO1) : plâtre gris-vert sale, voûte grise,
 	# moquette gris-bleu.
 	"plaster_theater": [4, Color(0.33, 0.34, 0.3), Color(0.17, 0.2, 0.17), 1.0, 0.65, 0.9, 0.0],
 	"vault_theater": [6, Color(0.24, 0.25, 0.23), Color(0.08, 0.09, 0.085), 0.7, 0.55, 1.0, 0.0],
 	"carpet_theater": [7, Color(0.15, 0.16, 0.17), Color(0.24, 0.21, 0.15), 1.0, 0.7, 1.0, 0.0],
 	"ceiling_theater": [6, Color(0.16, 0.1, 0.07), Color(0.05, 0.03, 0.02), 0.7, 0.5, 1.0, 0.0],
 	"dark_wood": [2, Color(0.13, 0.07, 0.035), Color(0.03, 0.02, 0.01), 2.5, 0.3, 0.6, 0.0],
-	"night_sky": [0, Color(0.018, 0.02, 0.032), Color(0.0, 0.0, 0.01), 0.15, 0.0, 1.0, 0.0],
 }
 
 ## Environnement normal (voir aussi apply_dog_round_look).

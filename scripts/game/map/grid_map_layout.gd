@@ -203,13 +203,9 @@ func teleporter() -> Dictionary:
 	var exit: Array = data.markers.get("F", [])
 	if pad.is_empty() or exit.is_empty():
 		return {}
-	var mf: MapMarker = null
-	var mf_cells: Array = data.markers.get("A", [])
-	if not mf_cells.is_empty():
-		mf = cell_marker("mainframe", mf_cells[0], data)
-		mf.block = "mainframe"
-		_blockers[mf.block] = MysteryBox.spot_cells(mf_cells[0], data)
-	return {"pad": MapData.cells_center(pad), "exit": MapData.cell_to_world(exit[0], 0.05), "mainframe": mf}
+	# Pas de poste central sur les cartes ASCII (le « A » du BUNKER K-7 est un
+	# achat mural) : le mode liaison n'existe que sur KINO, carte en maillage.
+	return {"pad": MapData.cells_center(pad), "exit": MapData.cell_to_world(exit[0], 0.05), "mainframe": null}
 
 
 func teleporter_exit_zone() -> String:

@@ -22,7 +22,7 @@ var _far_dir := Vector3.BACK
 ## [carte, centre de la scène (les zombies y sont alignés sur X, la caméra
 ## regarde vers -Z)].
 const STAGES := [
-	["kino", Vector3(30.0, 0.0, 33.5), Vector3(0, 0, 1)],
+	["kino", Vector3(74.0, 2.032, 96.0), Vector3(0, 0, 1)],  # hall, entre les deux escaliers
 	["bunker_k7", Vector3(33.5, 0.0, 4.6), Vector3(1, 0, 0)],
 ]
 
@@ -198,7 +198,8 @@ func _gallery() -> void:
 	# La tête est bien couverte par la hitbox de tête.
 	for z in row:
 		var hp := z.head_position()
-		at.check(hp.y > 1.35 and hp.y < 1.85, "hitbox de tête à hauteur de tête (%.2f m)" % hp.y)
+		var hy := hp.y - _stage.y  # au-dessus du sol de la scène (hall de KINO : 2 m)
+		at.check(hy > 1.35 and hy < 1.85, "hitbox de tête à hauteur de tête (%.2f m)" % hy)
 	await _shot("front")
 	_set_yaw(row, PI * 0.5)
 	await seconds(0.3)
@@ -347,7 +348,7 @@ func _animations() -> void:
 	await seconds(1.0)
 	await _shot("death_down")
 	for z in row:
-		at.check(z.skel.global_position.y < 0.2 or absf(z.skel.rotation.x) > 1.0 or absf(z.skel.rotation.z) > 1.0,
+		at.check(z.skel.global_position.y - _stage.y < 0.2 or absf(z.skel.rotation.x) > 1.0 or absf(z.skel.rotation.z) > 1.0,
 			"corps au sol (%s)" % ZombieAnim.Death.keys()[z.anim.death_style])
 	_clear()
 

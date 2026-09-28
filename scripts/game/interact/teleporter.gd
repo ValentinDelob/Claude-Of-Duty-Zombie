@@ -1,7 +1,7 @@
 class_name Teleporter
 extends Interactable
 ## Téléporteur (BUNKER K-7 : du quai vers la salle du rituel et son
-## Pack-a-Punch ; KINO : de la scène vers la cabine de projection).
+## Pack-a-Punch ; KINO : de la scène vers la salle de projection).
 ##
 ## Serveur : IDLE -> CHARGING (3 s) -> ACTIVE (joueurs dans la salle, 25 s)
 ## -> COOLDOWN (60 s) -> IDLE. Tous les joueurs présents sur la plateforme au
@@ -12,9 +12,7 @@ extends Interactable
 ## Mode « liaison » (MapDef.teleporter_link, KINO) : comme à Kino der Toten,
 ## après le courant il faut activer la plateforme (gratuit) puis la relier au
 ## poste central (TeleporterMainframe) ; chaque voyage consomme la liaison et
-## ramène les joueurs devant le poste central. Option
-## MapDef.pap_revealed_by_teleporter : le premier voyage fait surgir le
-## Pack-a-Punch (caché jusque-là) sur la scène.
+## ramène les joueurs sur le poste central.
 
 enum State { IDLE, CHARGING, ACTIVE, COOLDOWN }
 enum Link { UNLINKED, PRIMED, LINKED }
@@ -40,9 +38,6 @@ var link: Link = Link.LINKED
 ## Point de retour (plateforme par défaut, poste central en mode liaison).
 var return_pos := Vector3.ZERO
 var has_return_pos := false
-## Pack-a-Punch révélé par le premier voyage ?
-var reveals_pap := false
-var pap_revealed := false
 var mainframe: TeleporterMainframe
 ## Réglages de la carte (MapDef.teleporter_*).
 var cost := COST
@@ -52,18 +47,17 @@ var cooldown_time := COOLDOWN_TIME
 var link_cooldown := 0.0
 var kill_radius := 0.0
 var _shown_link: Link = Link.LINKED
-var _shown_pap := false
 
 
-## Construit le téléporteur de la carte (plateforme T, arrivée F, poste
-## central A en mode liaison). Retourne null si la carte n'en a pas.
+## Construit le téléporteur de la carte (MapLayout.teleporter() : plateforme,
+## arrivée et, en mode liaison, poste central). Retourne null si la carte n'en
+## a pas.
 static func build(game: Game) -> Teleporter:
 	var spec := game.layout.teleporter()
 	if spec.is_empty():
 		return null
 	var tp := Teleporter.new()
 	tp.setup_at(spec.pad, spec.exit)
-	tp.reveals_pap = game.map_def.pap_revealed_by_teleporter
 	var def := game.map_def
 	tp.cost = def.teleporter_cost
 	tp.charge_time = def.teleporter_charge
@@ -120,18 +114,6 @@ func _ready() -> void:
 	_build_pad(exit_pad, 0.7, _exit_ring_mat)
 	system.game.power_changed.connect(func(_on): _refresh())
 	_refresh()
-	if reveals_pap:
-		_apply_pap(false)
-
-
-func _pap() -> PackAPunch:
-	return system.game.interact.get_obj("pap") as PackAPunch
-
-
-func _apply_pap(animate: bool) -> void:
-	var pap := _pap()
-	if pap:
-		pap.set_revealed(pap_revealed, animate)
 
 
 func _build_pad(parent: Node3D, scale_k: float, ring_mat: Material) -> void:
@@ -276,9 +258,6 @@ func _process(delta: float) -> void:
 				_send(_travellers[i], exit_pos + off, true)
 			print("[Teleporter] %d joueur(s) téléporté(s)" % _travellers.size())
 			_kill_around_pad()
-			if reveals_pap and not pap_revealed:
-				pap_revealed = true
-				print("[Teleporter] le Pack-a-Punch apparaît")
 			_timer = stay_time
 			_set_state(State.ACTIVE)
 		State.ACTIVE:
@@ -309,7 +288,7 @@ func _send(pid: int, pos: Vector3, outbound: bool) -> void:
 
 
 func get_state() -> Dictionary:
-	return {"state": state, "remaining": _timer, "link": link, "pap": pap_revealed}
+	return {"state": state, "remaining": _timer, "link": link}
 
 
 func apply_state(s: Dictionary, animate: bool) -> void:
@@ -330,10 +309,6 @@ func apply_state(s: Dictionary, animate: bool) -> void:
 	_shown_link = link
 	if mainframe:
 		mainframe.refresh()
-	pap_revealed = s.get("pap", pap_revealed)
-	if pap_revealed != _shown_pap:
-		_shown_pap = pap_revealed
-		_apply_pap(animate)
 
 
 func seconds_left() -> int:
