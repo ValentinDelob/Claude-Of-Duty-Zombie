@@ -290,6 +290,24 @@
     "fr": "Des voix plus fortes, l'ambiance intacte"
    }
   },
+  "v0.1.135": {
+   "date": "2026-09-29",
+   "images": [],
+   "items": [
+    {
+     "en": "Behind the scenes: upcoming maps are now drawn as a colour-coded plan and then built automatically, with no forgotten room or blocked window.",
+     "fr": "En coulisses : les prochaines cartes se dessinent désormais comme un plan en couleurs, puis se construisent toutes seules, sans pièce oubliée ni fenêtre bloquée."
+    },
+    {
+     "en": "A first test map was made this way; it will help shape the next ones.",
+     "fr": "Une première carte d'essai a été réalisée ainsi ; elle servira à préparer les suivantes."
+    }
+   ],
+   "title": {
+    "en": "Drawing tomorrow's maps",
+    "fr": "Les cartes de demain se dessinent"
+   }
+  },
   "v0.1.36": {
    "date": "2026-09-26",
    "images": [],

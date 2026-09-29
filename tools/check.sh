@@ -13,8 +13,10 @@
 # Usage : sh tools/check.sh [--fast]           --fast : sans réseau ni multijoueur
 #   SCENARIOS="boot perks" sh tools/check.sh   uniquement ces scénarios (et pas de mp)
 #   MP="lobby zombies" sh tools/check.sh       uniquement ces tests multijoueur
-#   JOBS=6 sh tools/check.sh                   nombre de tâches simultanées
-#   GUI_JOBS=1 sh tools/check.sh               fenêtres de rendu simultanées (déf. 2)
+#   JOBS=6 sh tools/check.sh                   nombre de tâches simultanées (déf. 3)
+#   GUI_JOBS=2 sh tools/check.sh               fenêtres de rendu simultanées (déf. 1)
+# Par défaut peu de jeux ouverts à la fois (3 tâches, 1 fenêtre) : la machine
+# reste silencieuse ; la vérification est plus longue (≈ 12 à 15 min).
 #   AUTOTEST_PORT_OFFSET=500                   décalage des ports (copies parallèles)
 cd "$(dirname "$0")/.."
 . tools/nofocus.sh
@@ -24,9 +26,8 @@ OUT=tests/_out; mkdir -p "$OUT/jobs"
 DUR="$OUT/durations.txt"; touch "$DUR"
 FAST=0
 [ "$1" = "--fast" ] && FAST=1
-NPROC=$(nproc 2>/dev/null || echo 4)
-JOBS=${JOBS:-${PARALLEL:-$(( NPROC / 2 > 12 ? 12 : (NPROC / 2 < 2 ? 2 : NPROC / 2) ))}}
-GUI_JOBS=${GUI_JOBS:-2}
+JOBS=${JOBS:-${PARALLEL:-3}}
+GUI_JOBS=${GUI_JOBS:-1}
 BASE_PORT=${AUTOTEST_PORT_OFFSET:-0}
 # Images/s plafonnées : la physique tourne à 60 Hz, inutile de brûler du CPU.
 HEADLESS="--headless --max-fps 60"

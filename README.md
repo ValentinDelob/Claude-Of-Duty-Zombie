@@ -133,7 +133,8 @@ Chaque réglage s'applique tout de suite et est enregistré.
   `## @rendu` ouvrent une fenêtre, réduite puis déplacée hors des écrans (jamais
   visible). Un scénario long déclare `## @parts N` pour être découpé en N
   parties parallèles (`mine(i)` / `owns(k)` dans `tests/autotest/scenario.gd`).
-  Réglages : `JOBS=6` (tâches simultanées), `GUI_JOBS=1` (fenêtres de rendu),
+  Réglages : `JOBS=3` (tâches simultanées, défaut : peu de jeux ouverts, machine
+  silencieuse), `GUI_JOBS=1` (fenêtres de rendu, défaut),
   `SCENARIOS="perks scope"` / `MP="lobby"` (sous-ensemble), `--fast` (sans réseau).
 - `sh tools/commit.sh message.txt` : lance check.sh et ne committe que s'il réussit.
 - `sh tools/ship.sh message.txt` : commit vérifié, push sur `main`, puis build `.exe`
