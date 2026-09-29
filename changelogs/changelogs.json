@@ -1,0 +1,183 @@
+{"versions": {
+  "v0.1.116": {"date": "2026-09-28",
+    "title": {"fr": "KINO renaît à l'échelle réelle", "en": "KINO reborn at full scale"},
+    "items": [
+      {"fr": "La nouvelle KINO remplace l'ancienne : un théâtre complet, à taille réelle et sur plusieurs étages.", "en": "The new KINO takes over from the old one: a complete, full-size theater spread across several floors."},
+      {"fr": "Hall à double escalier, Foyer à mezzanine, loges, coulisses, ruelle et salle de théâtre en ruines vous attendent.", "en": "Fight through the lobby with its twin staircases, the Foyer mezzanine, the dressing rooms, backstage, the alley and the ruined auditorium."},
+      {"fr": "Téléporteur gratuit depuis la scène : 30 secondes en salle de projection avec le Pack-a-Punch, puis 90 secondes de recharge.", "en": "The stage teleporter is free: 30 seconds in the projection room with the Pack-a-Punch, then a 90-second cooldown."},
+      {"fr": "Neuf emplacements pour la boîte mystère, indiqués par des tableaux à la craie, et cinq pièges à deux leviers.", "en": "Nine mystery box locations, marked on chalkboards around the map, and five traps you can trigger from either end."},
+      {"fr": "Le plan de l'écran de sélection montre désormais les vraies salles de la carte.", "en": "The map selection screen now shows the actual rooms of the map."},
+      {"fr": "Les chiens de l'enfer n'apparaissent plus beaucoup trop loin des joueurs.", "en": "Hellhounds no longer spawn absurdly far away from the players."}
+    ],
+    "images": []},
+  "v0.1.106": {"date": "2026-09-28",
+    "title": {"fr": "La scène de KINO s'habille", "en": "Dressing the KINO stage"},
+    "items": [
+      {"fr": "Avant-première de la future KINO : nez de scène sculpté, frises et corniches au-dessus des arcades.", "en": "A sneak peek at the upcoming KINO: a carved stage front, plus friezes and cornices above the arches."},
+      {"fr": "Gros câbles bleus de la tour du téléporteur jusqu'à l'allée, bidons, caisses et échafaudage en coulisses.", "en": "Thick blue cables run from the teleporter tower down the aisle, with barrels, crates and scaffolding backstage."},
+      {"fr": "Arcs électriques figés autour de la tour, écran mieux placé et rais de lumière plus discrets.", "en": "Frozen electric arcs crackle around the tower, the screen sits better and the light shafts are subtler."}
+    ],
+    "images": []},
+  "v0.1.103": {"date": "2026-09-28",
+    "title": {"fr": "Un théâtre plus fidèle", "en": "A more faithful theater"},
+    "items": [
+      {"fr": "Future KINO : la cabine de projection s'ouvre sur la salle par une longue fente, idéale pour tirer sur la horde.", "en": "Upcoming KINO: the projection booth now looks over the auditorium through one long slit, perfect for picking off the horde."},
+      {"fr": "Coulisses repensées autour d'un grand bloc qui porte un écran bien plus large.", "en": "Backstage is rebuilt around a huge block holding a much larger screen."},
+      {"fr": "Plâtre gris-vert, voûte grise, moquette gris-bleu et rangées de fauteuils en arc de cercle.", "en": "Grey-green plaster, a grey vault, blue-grey carpet and curved rows of seats."},
+      {"fr": "Escaliers de scène, pupitre, chaises pliantes et fins rais de lumière tombant de la voûte.", "en": "Stage stairs, a lectern, folding chairs and thin shafts of light falling from the vault."}
+    ],
+    "images": []},
+  "v0.1.102": {"date": "2026-09-28",
+    "title": {"fr": "Le théâtre de KINO prend vie", "en": "The KINO theater comes alive"},
+    "items": [
+      {"fr": "Future KINO : balcon en fer à cheval sur colonnes, arcades, coupole et lustres.", "en": "Upcoming KINO: a horseshoe balcony on columns, arches, a dome and chandeliers."},
+      {"fr": "Parterre dévasté : rangées ensevelies, fauteuils arrachés et lustre effondré sur un tas de gravats.", "en": "A wrecked stalls area: buried rows, torn-out seats and a fallen chandelier on a pile of rubble."},
+      {"fr": "Scène complète avec rideaux, bannières et grand écran, et une tour de téléporteur entièrement remodelée.", "en": "A full stage with curtains, banners and a big screen, plus a completely remodeled teleporter tower."},
+      {"fr": "Un éclairage plus lisible dans toute la salle.", "en": "Clearer lighting throughout the auditorium."}
+    ],
+    "images": []},
+  "v0.1.100": {"date": "2026-09-28",
+    "title": {"fr": "La boîte mystère devient capricieuse", "en": "A more fickle mystery box"},
+    "items": [
+      {"fr": "La boîte mystère déménage comme il se doit : jamais avant le quatrième tirage, puis de plus en plus souvent.", "en": "The mystery box now moves on as it should: never before the fourth spin, then more and more often."},
+      {"fr": "Future KINO : téléporteur gratuit qui foudroie les zombies autour de vous au départ.", "en": "Upcoming KINO: a free teleporter that fries the zombies around you as you leave."},
+      {"fr": "Tableaux à la craie qui s'allument pour indiquer où se trouve la boîte.", "en": "Chalkboards light up to show where the box currently is."},
+      {"fr": "Pièges actionnables des deux côtés, 40 secondes de fonctionnement pour 60 de recharge.", "en": "Traps can be triggered from either side and run for 40 seconds, with a 60-second cooldown."}
+    ],
+    "images": []},
+  "v0.1.99": {"date": "2026-09-28",
+    "title": {"fr": "Nouvelles machines d'atouts", "en": "New perk machines"},
+    "items": [
+      {"fr": "Chaque atout a son propre distributeur de soda des années 50, avec une silhouette reconnaissable de loin.", "en": "Every perk now has its own 1950s soda machine, with a silhouette you can spot from across the room."},
+      {"fr": "Emblèmes originaux en relief, rouille, coulures et crasse pour un look bien usé.", "en": "Original raised emblems, rust, drips and grime give them a properly worn look."},
+      {"fr": "Le panneau reste terne sans courant et s'illumine une fois le courant rétabli.", "en": "Their signs stay dull until the power comes back on, then light up."},
+      {"fr": "Les machines arrêtent les joueurs, les zombies et les balles.", "en": "The machines block players, zombies and bullets alike."}
+    ],
+    "images": []},
+  "v0.1.97": {"date": "2026-09-28",
+    "title": {"fr": "Première maquette de la nouvelle KINO", "en": "First draft of the new KINO"},
+    "items": [
+      {"fr": "Une nouvelle KINO à taille réelle se construit en coulisses : hall à double escalier, salle de théâtre, Foyer, loges et bien plus.", "en": "A full-size new KINO is taking shape behind the scenes: twin-staircase lobby, auditorium, Foyer, dressing rooms and more."},
+      {"fr": "Au programme : 22 fenêtres barricadées, 9 emplacements de boîte mystère et des portes aux prix habituels.", "en": "On the menu: 22 boarded windows, 9 mystery box spots and doors at their familiar prices."},
+      {"fr": "Elle n'est pas encore jouable depuis le menu.", "en": "It is not playable from the menu yet."}
+    ],
+    "images": []},
+  "v0.1.96": {"date": "2026-09-28",
+    "title": {"fr": "Machines solides et zombies grimpeurs", "en": "Solid machines, climbing zombies"},
+    "items": [
+      {"fr": "Les machines d'atouts sont désormais solides : impossible de passer au travers.", "en": "Perk machines are now solid: no more walking through them."},
+      {"fr": "Zombies et chiens savent emprunter escaliers, pentes et balcons, en prévision des cartes à étages.", "en": "Zombies and hellhounds can now take stairs, slopes and balconies, ready for multi-floor maps."}
+    ],
+    "images": []},
+  "v0.1.95": {"date": "2026-09-28",
+    "title": {"fr": "Améliorations de stabilité", "en": "Stability improvements"},
+    "items": [
+      {"fr": "Améliorations de stabilité.", "en": "Stability improvements."}
+    ],
+    "images": []},
+  "v0.1.94": {"date": "2026-09-28",
+    "title": {"fr": "Interface nette en toute résolution", "en": "A crisp HUD at any resolution"},
+    "items": [
+      {"fr": "L'interface en jeu et les menus gardent les bonnes proportions quelle que soit la résolution de l'écran.", "en": "The HUD and menus now keep their proportions at any screen resolution."},
+      {"fr": "Le grain de film s'adapte à la taille de la fenêtre.", "en": "Film grain now matches the size of your window."},
+      {"fr": "Avant le courant, les lampes brillent d'un blanc pâle et faible au lieu du rouge de secours.", "en": "Before the power is on, lamps give off a faint pale white instead of emergency red."}
+    ],
+    "images": []},
+  "v0.1.93": {"date": "2026-09-28",
+    "title": {"fr": "Meilleures performances", "en": "Better performance"},
+    "items": [
+      {"fr": "Grandes hordes plus fluides et rendu un peu plus léger.", "en": "Smoother play against large hordes and slightly lighter rendering."}
+    ],
+    "images": []},
+  "v0.1.92": {"date": "2026-09-28",
+    "title": {"fr": "Améliorations de stabilité", "en": "Stability improvements"},
+    "items": [
+      {"fr": "Améliorations de stabilité.", "en": "Stability improvements."}
+    ],
+    "images": []},
+  "v0.1.89": {"date": "2026-09-26",
+    "title": {"fr": "Plus d'images par seconde", "en": "More frames per second"},
+    "items": [
+      {"fr": "Rendu nettement plus rapide à tous les niveaux de qualité, même face à 24 zombies.", "en": "Noticeably faster rendering at every quality level, even with 24 zombies on screen."},
+      {"fr": "Au premier lancement, le jeu teste votre carte graphique et choisit la qualité adaptée, modifiable dans les options.", "en": "On first launch, the game checks your graphics card and picks a suitable quality preset, which you can change in the options."}
+    ],
+    "images": []},
+  "v0.1.87": {"date": "2026-09-26",
+    "title": {"fr": "Parties en ligne plus sûres", "en": "Safer online games"},
+    "items": [
+      {"fr": "Rejoindre un hôte qui n'a pas la même version affiche un message clair au lieu d'une partie désynchronisée.", "en": "Joining a host running a different version now shows a clear message instead of a broken, out-of-sync game."},
+      {"fr": "Améliorations de stabilité.", "en": "Stability improvements."}
+    ],
+    "images": []},
+  "v0.1.80": {"date": "2026-09-26",
+    "title": {"fr": "Démembrement, rampants et nouveau look", "en": "Gore, crawlers and a new look"},
+    "items": [
+      {"fr": "Arrachez les bras, faites éclater les têtes, et les explosions laissent des zombies rampants au sol.", "en": "Shoot off arms, pop heads, and watch explosions leave zombies crawling along the floor."},
+      {"fr": "Nouveau bonus FAUCHEUSE, une mitrailleuse rotative pendant 30 secondes, et LIQUIDATION ouvre une boîte à chaque emplacement.", "en": "New Death Machine power-up with a 30-second minigun, and Fire Sale now drops a box at every location."},
+      {"fr": "Les armes tirent droit, avec un vrai recul, des lunettes de sniper où l'on retient son souffle, des douilles et des impacts selon la matière.", "en": "Guns shoot straight, with real recoil, sniper scopes that let you hold your breath, flying shell casings and material-based impacts."},
+      {"fr": "Zombies entièrement redessinés, maigres et voûtés, yeux jaunes lumineux et nouvelles animations.", "en": "Completely redesigned zombies: gaunt, hunched, glowing yellow eyes and brand new animations."},
+      {"fr": "Armes détaillées à la première personne, mains articulées et rechargements animés pièce par pièce.", "en": "Detailed first-person weapons, fully articulated hands and part-by-part reload animations."},
+      {"fr": "Nouveaux sons enregistrés pour les armes et les zombies, image étalonnée, grain de film réglable et interface repeinte à la main.", "en": "Newly recorded sounds for weapons and zombies, color grading, adjustable film grain and a hand-painted HUD."}
+    ],
+    "images": []},
+  "v0.1.62": {"date": "2026-09-26",
+    "title": {"fr": "Bienvenue à KINO", "en": "Welcome to KINO"},
+    "items": [
+      {"fr": "Nouvelle carte KINO : un vieux théâtre avec hall, foyer, loges, allée, salle de théâtre et cabine de projection.", "en": "New map, KINO: an old theater with a lobby, foyer, dressing rooms, an alley, the auditorium and a projection booth."},
+      {"fr": "Reliez le téléporteur de la scène au poste central pour faire apparaître le Pack-a-Punch.", "en": "Link the stage teleporter to the mainframe in the lobby to make the Pack-a-Punch appear."},
+      {"fr": "Nouvelle arme spéciale TONNERRE-7 : une onde de choc qui balaie tous les zombies devant vous.", "en": "New wonder weapon, the THUNDER-7: a shockwave that blasts away every zombie in front of you."},
+      {"fr": "Deux nouveaux atouts : NOVA FLOP, qui rend insensible à vos explosions et fait exploser vos plongeons, et DEADEYE DRAM, qui aimante la visée vers les têtes.", "en": "Two new perks: NOVA FLOP makes you immune to your own explosions and turns dives into blasts, while DEADEYE DRAM snaps your aim to heads."},
+      {"fr": "Écran de sélection de carte en solo, et choix de la carte par l'hôte en multijoueur.", "en": "A map selection screen in solo, and the host picks the map in multiplayer."},
+      {"fr": "Cartes mieux éclairées, planches arrachées moins vite, et les zombies qui sortent du sol ne poussent plus les joueurs.", "en": "Brighter maps, boards torn off at a slower pace, and zombies rising from the ground no longer shove players around."}
+    ],
+    "images": []},
+  "v0.1.54": {"date": "2026-09-26",
+    "title": {"fr": "Arsenal complet et grenades", "en": "Full arsenal and grenades"},
+    "items": [
+      {"fr": "Arsenal complet : M1911 de départ, 9 armes murales, 17 armes dans la boîte mystère et le rarissime CLAUDE-RAY.", "en": "The full arsenal: a starting M1911, 9 wall weapons, 17 mystery box guns and the very rare CLAUDE-RAY."},
+      {"fr": "Chaque arme améliorée au Pack-a-Punch reçoit son propre nom et parfois des balles explosives ou incendiaires.", "en": "Every Pack-a-Punched weapon gets its own name, some with explosive or incendiary rounds."},
+      {"fr": "Grenades à dégoupiller et laisser cuire, et SINGE-TAMBOUR qui attire toute la horde avant d'exploser.", "en": "Frag grenades you can cook, and the Drum Monkey that lures the whole horde before blowing up."},
+      {"fr": "Le couteau vous projette sur le zombie visé, et le couteau de chasse s'achète au mur.", "en": "Your knife now lunges at the targeted zombie, and a Bowie knife is available on the wall."},
+      {"fr": "Plongez en sprintant et allongez-vous pour ramper.", "en": "Dive to the ground mid-sprint, or go prone and crawl."},
+      {"fr": "Parties en ligne plus fluides et moins gourmandes en connexion.", "en": "Smoother online games that use far less bandwidth."}
+    ],
+    "images": []},
+  "v0.1.45": {"date": "2026-09-26",
+    "title": {"fr": "Barricades et chiens de l'enfer", "en": "Barricades and hellhounds"},
+    "items": [
+      {"fr": "Les zombies arrachent les planches des fenêtres avant d'entrer : maintenez F pour reconstruire et gagner des points.", "en": "Zombies tear the boards off windows before climbing in: hold F to rebuild them and earn points."},
+      {"fr": "BUNKER K-7 compte désormais 15 fenêtres barricadées.", "en": "BUNKER K-7 now has 15 boarded windows."},
+      {"fr": "Manches de chiens de l'enfer : ils tombent du ciel dans un éclair, brouillard épais et musique dédiée.", "en": "Hellhound rounds: they drop in with a lightning strike, amid thick fog and their own music."},
+      {"fr": "Le dernier chien lâche toujours MUNITIONS MAX, et CHARPENTIER reconstruit toutes les fenêtres.", "en": "The last hound always drops a Max Ammo, and Carpenter rebuilds every window."}
+    ],
+    "images": []},
+  "v0.1.41": {"date": "2026-09-26",
+    "title": {"fr": "Bonus et dossier de combat", "en": "Power-ups and Combat Record"},
+    "items": [
+      {"fr": "Six bonus lâchés par les zombies : MUNITIONS MAX, MORT INSTANTANÉE, POINTS DOUBLES, BOMBE NUCLÉAIRE, CHARPENTIER et LIQUIDATION.", "en": "Six power-ups dropped by zombies: Max Ammo, Insta-Kill, Double Points, Nuke, Carpenter and Fire Sale."},
+      {"fr": "Ils flottent au sol, clignotent avant de disparaître et sont annoncés par une voix grave.", "en": "They float above the ground, blink before vanishing and are announced by a deep voice."},
+      {"fr": "Nouveau DOSSIER DE COMBAT dans le menu : parties, meilleures manches, zombies abattus, tirs à la tête et plus encore.", "en": "New Combat Record in the main menu: games played, best rounds, kills, headshots and more."},
+      {"fr": "Le numéro de version s'affiche dans le menu.", "en": "The game version is now shown in the menu."}
+    ],
+    "images": []},
+  "v0.1.38": {"date": "2026-09-26",
+    "title": {"fr": "Des atouts plus fidèles", "en": "Perks done right"},
+    "items": [
+      {"fr": "Plus aucune limite au nombre d'atouts.", "en": "No more limit on how many perks you can carry."},
+      {"fr": "TWIN SHOT augmente la cadence de tir de 33 %.", "en": "TWIN SHOT raises your fire rate by 33%."},
+      {"fr": "LAZARUS TONIC réanime deux fois plus vite ; en solo, il coûte 500 points et vous relève seul, trois fois au maximum.", "en": "LAZARUS TONIC revives twice as fast; in solo it costs 500 points and gets you back up on your own, up to three times."},
+      {"fr": "À terre, vous avez 45 secondes pour être réanimé.", "en": "When you go down, you have 45 seconds to be revived."}
+    ],
+    "images": []},
+  "v0.1.36": {"date": "2026-09-26",
+    "title": {"fr": "Première sortie : BUNKER K-7", "en": "First release: BUNKER K-7"},
+    "items": [
+      {"fr": "Survivez à des manches de zombies de plus en plus dures dans BUNKER K-7, un bunker militaire abandonné.", "en": "Survive ever-harder rounds of zombies in BUNKER K-7, an abandoned military bunker."},
+      {"fr": "Gagnez des points pour ouvrir les portes, rétablir le courant et acheter des armes au mur.", "en": "Earn points to open doors, restore the power and buy weapons off the wall."},
+      {"fr": "Boîte mystère, Pack-a-Punch, téléporteur et piège électrique sont déjà au rendez-vous.", "en": "The mystery box, Pack-a-Punch, teleporter and electric trap are all there from day one."},
+      {"fr": "Cinq atouts à boire : TITAN BREW, RAPID FIZZ, TWIN SHOT, LAZARUS TONIC et STRIDE SODA.", "en": "Five perks to drink: TITAN BREW, RAPID FIZZ, TWIN SHOT, LAZARUS TONIC and STRIDE SODA."},
+      {"fr": "Jouez seul ou en coopération en ligne, et réanimez vos coéquipiers à terre.", "en": "Play solo or online co-op, and revive teammates when they go down."},
+      {"fr": "Menu principal à l'ambiance horrifique et hordes plus fluides.", "en": "A creepy main menu and smoother hordes."}
+    ],
+    "images": []}
+}}
