@@ -61,6 +61,8 @@ func enter(_args := {}) -> void:
 	_add("master_volume", MenuOptionRow.make_range("VOLUME GÉNÉRAL", Settings.master_volume, 0.0, 1.0, 0.05, pct), "Volume de tous les sons.")
 	_add("music_volume", MenuOptionRow.make_range("MUSIQUE", Settings.music_volume, 0.0, 1.0, 0.05, pct), "Musiques et ambiances.")
 	_add("sfx_volume", MenuOptionRow.make_range("EFFETS SONORES", Settings.sfx_volume, 0.0, 1.0, 0.05, pct), "Armes, zombies, machines.")
+	_add("voice_volume", MenuOptionRow.make_range("VOIX DES PERSONNAGES" if Settings.language == "fr" else "CHARACTER VOICES", Settings.voice_volume, 0.0, 1.0, 0.05, pct),
+			"Répliques des personnages : les autres sons baissent quand ils parlent." if Settings.language == "fr" else "Character lines: other sounds duck while they speak.")
 
 	_col.add_child(text("", 4))
 	var back_btn := button("RETOUR", back, "Les réglages sont enregistrés automatiquement.")

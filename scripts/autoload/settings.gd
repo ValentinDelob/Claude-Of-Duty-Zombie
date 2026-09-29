@@ -20,6 +20,8 @@ var fov := 80.0
 var master_volume := 0.9
 var music_volume := 0.7
 var sfx_volume := 0.9
+## Volume des répliques des personnages (bus « Voice »).
+var voice_volume := 1.0
 var fullscreen := false
 var vsync := true
 var quality: Quality = Quality.MEDIUM
@@ -157,6 +159,7 @@ func load_settings() -> void:
 	master_volume = cfg.get_value("audio", "master", master_volume)
 	music_volume = cfg.get_value("audio", "music", music_volume)
 	sfx_volume = cfg.get_value("audio", "sfx", sfx_volume)
+	voice_volume = cfg.get_value("audio", "voice", voice_volume)
 	last_ip = cfg.get_value("network", "last_ip", last_ip)
 	last_port = cfg.get_value("network", "last_port", last_port)
 	last_map = cfg.get_value("game", "last_map", last_map)
@@ -177,6 +180,7 @@ func save_settings() -> void:
 	cfg.set_value("audio", "master", master_volume)
 	cfg.set_value("audio", "music", music_volume)
 	cfg.set_value("audio", "sfx", sfx_volume)
+	cfg.set_value("audio", "voice", voice_volume)
 	cfg.set_value("network", "last_ip", last_ip)
 	cfg.set_value("network", "last_port", last_port)
 	cfg.set_value("game", "last_map", last_map)
@@ -196,6 +200,7 @@ func apply() -> void:
 	_set_bus_volume("Master", master_volume)
 	_set_bus_volume("Music", music_volume)
 	_set_bus_volume("SFX", sfx_volume)
+	_set_bus_volume("Voice", voice_volume)
 	changed.emit()
 
 

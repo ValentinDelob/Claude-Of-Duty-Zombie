@@ -22,9 +22,16 @@ const COOLDOWN := {
 }
 ## Répliques prioritaires : passent même juste après une autre réplique.
 const URGENT := ["downed", "revived", "teammate_down", "teammate_dead", "last_alive", "game_start", "death"]
-## Voix : portée et niveau.
-const VOLUME_3D := 2.0
-const VOLUME_2D := -3.0
+## Voix : niveau et portée. Elles jouent sur le bus « Voice » et baissent les
+## zombies, effets et musique pendant qu'elles parlent (Audio.track_voice,
+## docs/ASSETS.md « Mixage ») ; niveau relevé pour rester intelligibles au
+## milieu d'une horde (voix à -19 dBFS contre -14 LUFS pour les zombies).
+const VOLUME_3D := 6.0
+const VOLUME_2D := 2.0
+## Coéquipiers : niveau plein jusqu'à UNIT_SIZE_3D m, audibles jusqu'à
+## MAX_DISTANCE_3D m, à peine assourdis par la distance (voix claires).
+const UNIT_SIZE_3D := 10.0
+const MAX_DISTANCE_3D := 50.0
 
 var game: Game
 var _last_ms := {}   # pid -> ms de la dernière réplique
@@ -46,8 +53,8 @@ signal said(pid: int, category: String, variant: int)
 func _ready() -> void:
 	game = get_parent() as Game
 	_self_voice = AudioStreamPlayer.new()
-	_self_voice.bus = "SFX"
 	_self_voice.volume_db = VOLUME_2D
+	Audio.track_voice(_self_voice)
 	add_child(_self_voice)
 	if not multiplayer.is_server():
 		return
@@ -347,10 +354,12 @@ func _cl_say(pid: int, category: String, variant: int) -> void:
 	var v: AudioStreamPlayer3D = _voices.get(pid)
 	if v == null or not is_instance_valid(v):
 		v = AudioStreamPlayer3D.new()
-		v.bus = "SFX"
-		v.unit_size = 8.0
-		v.max_distance = 40.0
+		v.unit_size = UNIT_SIZE_3D
+		v.max_distance = MAX_DISTANCE_3D
+		v.attenuation_filter_cutoff_hz = 9000.0
+		v.attenuation_filter_db = -6.0
 		v.volume_db = VOLUME_3D
+		Audio.track_voice(v)
 		v.position = Vector3(0, 1.6, 0)  # à la hauteur de la bouche
 		p.add_child(v)
 		_voices[pid] = v
