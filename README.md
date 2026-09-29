@@ -45,7 +45,9 @@ tous les zombies avant d'exploser. Arme merveille TONNERRE-7 (boîte mystère, r
 **CARTES PERSO** — faites avec l'**ÉDITEUR DE CARTES** du menu principal
 (pièces vues de dessus, portes entre pièces collées, fenêtres, atouts, armes,
 boîte... posés depuis un inventaire façon Minecraft, vérification façon BO1,
-bouton TESTER) ; les cartes jouables apparaissent dans l'écran SOLO. Voir
+bouton TESTER) ; les cartes jouables apparaissent dans l'écran SOLO et dans
+le salon multijoueur de l'hôte : les invités la téléchargent automatiquement
+(vérifiée chez chacun), la partie démarre quand tout le monde l'a. Voir
 [docs/MAP_AUTHORING.md](docs/MAP_AUTHORING.md).
 
 ## Lancer le jeu

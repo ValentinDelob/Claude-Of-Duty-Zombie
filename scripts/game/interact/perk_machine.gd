@@ -70,6 +70,9 @@ func _ready() -> void:
 ## projettent une ombre, pas les petits détails. Les boîtes « col_* »
 ## deviennent la collision de la machine. Faux si le modèle manque.
 func _build_model() -> bool:
+	# Chemin de modèle seulement pour un atout du jeu (jamais un id de carte perso brut).
+	if not CustomMapGuard.perk_ok(perk_id):
+		return false
 	var path := MODEL_DIR + perk_id + ".glb"
 	if not ResourceLoader.exists(path):
 		return false

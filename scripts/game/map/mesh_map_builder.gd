@@ -29,7 +29,13 @@ var _scenes: Dictionary = {}
 func _init(layout_data: Dictionary, glb: String) -> void:
 	layout = layout_data
 	glb_path = glb
-	models_dir = String(layout_data.get("models_dir", models_dir))
+	# Dossier des modèles : seulement sous res://assets/models/ (jamais un
+	# chemin venu d'une description de carte qui sortirait de là).
+	var md := String(layout_data.get("models_dir", models_dir))
+	if md.begins_with("res://assets/models/") and not md.contains("..") and not md.contains("\\") and md.find(":", 6) < 0:
+		models_dir = md if md.ends_with("/") else md + "/"
+	else:
+		push_warning("[MeshMapBuilder] dossier de modèles refusé : " + md.left(80))
 
 
 func build(parent: Node3D) -> void:
@@ -106,6 +112,10 @@ func _setup_nodes(scene: Node, floor_of: Callable) -> void:
 
 
 func _model(name: String) -> PackedScene:
+	# Nom de modèle : lettres, chiffres, _ et - (pas de chemin).
+	if not CustomMapGuard.asset_name_ok(name):
+		push_warning("[MeshMapBuilder] nom de modèle refusé : " + name.left(64))
+		return null
 	if not _scenes.has(name):
 		var path := models_dir + name + ".glb"
 		_scenes[name] = load(path) if ResourceLoader.exists(path) else null
@@ -326,6 +336,8 @@ var _collisions: Dictionary = {}
 ## Collision d'un modèle : <modèle>.collision.json à côté du .glb,
 ## {"boxes": [{center, size, yaw, barrier, surface}]} en coordonnées du modèle.
 func _collision_boxes(model: String) -> Array:
+	if not CustomMapGuard.asset_name_ok(model):
+		return []
 	if not _collisions.has(model):
 		var path := models_dir + model + ".collision.json"
 		var boxes := []

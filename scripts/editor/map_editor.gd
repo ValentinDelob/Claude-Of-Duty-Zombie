@@ -1121,6 +1121,9 @@ func set_floor(k: int) -> void:
 
 
 func add_floor() -> void:
+	if doc.floor_count() >= MapCatalog.MAX_FLOORS:
+		set_status(Lang.t("%d étages au plus" % MapCatalog.MAX_FLOORS, "%d floors at most" % MapCatalog.MAX_FLOORS), true)
+		return
 	push_undo()
 	var f: Array = doc.carte.etages
 	var top := doc.floor_count() - 1

@@ -355,48 +355,42 @@ func export_zip(path: String) -> Error:
 	return z.close()
 
 
-## Archive .zip reçue : contrôlée AVANT toute décompression (bombe zip,
-## chemins piégés) :
-##   - archive de 2 Mo au plus, 32 entrées au plus ;
-##   - seulement les cinq JSON de la carte, à la racine ou dans UN dossier
-##     (les entrées de dossier sont admises) ; tout autre nom est refusé,
-##     comme « .. », un chemin absolu ou une barre oblique inverse ;
-##   - taille décompressée de chaque fichier (lue dans le répertoire central
-##     de l'archive, zip_entries) de 2 Mo au plus, vérifiée encore après lecture.
+## Archive venue d'ailleurs : contrôle de légitimité (CustomMapGuard) avant
+## tout, tailles lues avant d'extraire, cinq JSON seulement (à la racine ou
+## dans un dossier de l'archive). Refusée : carte vide avec les raisons.
+## Deux barrières : d'abord la liste stricte des entrées (2 Mo, 32 entrées, cinq
+## JSON et rien d'autre, lue dans le répertoire central), puis le contrôle commun
+## aux cartes reçues en réseau.
 static func import_zip(path: String) -> EditorMap:
-	var m := EditorMap.new()
+	var pre := _precheck_zip(path)
+	if not pre.is_empty():
+		var bad := EditorMap.new()
+		bad.load_errors.append(pre)
+		return bad
+	var got := CustomMapGuard.read_zip_texts(path)
+	var refused: Array = got.reasons
+	if refused.is_empty():
+		refused = CustomMapGuard.check_texts(got.texts).reasons
+	if not refused.is_empty():
+		var m := EditorMap.new()
+		m.load_errors = refused
+		return m
+	return from_texts(got.texts)
+
+
+## Première barrière d'import_zip : [fr, en] si l'archive est refusée, [] sinon.
+static func _precheck_zip(path: String) -> Array:
 	var fa := FileAccess.open(path, FileAccess.READ)
 	if fa == null:
-		m.load_errors.append(["archive illisible : %s" % path, "unreadable archive: %s" % path])
-		return m
+		return ["archive illisible : %s" % path, "unreadable archive: %s" % path]
 	var n := fa.get_length()
 	if n > MAX_ARCHIVE_BYTES:
-		m.load_errors.append(["archive trop grosse (%d Ko, 2 Mo au plus)" % (n / 1024), "archive too big (%d KB, 2 MB at most)" % (n / 1024)])
-		return m
+		return ["archive trop grosse (%d Ko, 2 Mo au plus)" % (n / 1024), "archive too big (%d KB, 2 MB at most)" % (n / 1024)]
 	var listing := zip_entries(fa.get_buffer(n))
 	fa.close()
 	if listing.has("error"):
-		m.load_errors.append(listing.error)
-		return m
-	var wanted := {}   # nom de base -> chemin dans l'archive
-	var err := check_zip_entries(listing.entries, wanted)
-	if not err.is_empty():
-		m.load_errors.append(err)
-		return m
-	var r := ZIPReader.new()
-	if r.open(path) != OK:
-		m.load_errors.append(["archive illisible : %s" % path, "unreadable archive: %s" % path])
-		return m
-	var texts := {}
-	for base in wanted:
-		var data := r.read_file(String(wanted[base]))
-		if data.size() > MAX_FILE_BYTES:
-			r.close()
-			m.load_errors.append(["%s trop gros dans l'archive (2 Mo au plus)" % base, "%s too big in the archive (2 MB at most)" % base])
-			return m
-		texts[base] = data.get_string_from_utf8()
-	r.close()
-	return from_texts(texts)
+		return listing.error
+	return check_zip_entries(listing.entries, {})
 
 
 ## Vérifie les entrées d'une archive (zip_entries) ; remplit `wanted` (nom de

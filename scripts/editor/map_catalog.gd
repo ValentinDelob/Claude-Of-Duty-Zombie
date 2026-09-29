@@ -397,8 +397,8 @@ static func musics() -> Array:
 # ------------------------------------------------------------------ types admis (contrôle des cartes)
 
 ## Coordonnée maximale (m) et nombre d'étages maximal d'une carte.
-const MAX_COORD := 1000.0
-const MAX_FLOORS := 16
+const MAX_COORD := CustomMapGuard.MAX_COORD  # mêmes limites que le contrôle des cartes reçues
+const MAX_FLOORS := CustomMapGuard.MAX_FLOORS
 
 
 ## Types d'éléments admis dans ouvertures.json et objets.json, avec leurs clés

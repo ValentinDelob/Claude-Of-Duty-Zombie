@@ -14,7 +14,7 @@ const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 4
 const MAX_SUPPORTED_PLAYERS := 8
 ## Incrémenter à chaque changement incompatible du protocole réseau.
-const PROTOCOL_VERSION := 3
+const PROTOCOL_VERSION := 4
 const CONNECT_TIMEOUT_SEC := 8.0
 
 enum Mode { NONE, SOLO, HOST, CLIENT }
@@ -42,9 +42,16 @@ var match_started := false
 
 var _connect_timer: Timer
 var _handshake_done := false
+## Envoi des cartes perso de l'hôte aux invités (chemin réseau /root/Net/MapShare).
+var map_share: MapShare
 
 
 func _ready() -> void:
+	map_share = MapShare.new()
+	map_share.name = "MapShare"
+	add_child(map_share)
+	# Jamais d'objet décodé depuis le réseau (un objet peut porter un script).
+	(multiplayer as SceneMultiplayer).allow_object_decoding = false
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
@@ -151,33 +158,82 @@ var lobby_map := ""
 signal lobby_map_changed(map_id: String)
 
 
-## Serveur (salon) : annonce la carte choisie à tous les joueurs.
-func set_lobby_map(map_id: String) -> void:
+## Serveur (salon) : annonce la carte choisie à tous les joueurs (les nouveaux
+## arrivants la reçoivent aussi, voir _srv_hello). Carte perso « perso:<id> » :
+## contrôlée, mise en paquet et envoyée automatiquement aux invités (MapShare) ;
+## la carte du salon devient « partage:<sha256> ». {ok, reasons} : refusée si
+## la carte ne passe pas le contrôle (rien n'est annoncé).
+func set_lobby_map(map_id: String) -> Dictionary:
 	if multiplayer.multiplayer_peer == null or not multiplayer.is_server():
-		return
+		return {"ok": false, "reasons": []}
+	if map_id.begins_with(EditorMapDef.CUSTOM_PREFIX):
+		var r := map_share.srv_offer_local(map_id)
+		if not r.ok:
+			return r
+		_cl_lobby_map.rpc(EditorMapDef.SHARED_PREFIX + String(r.sha))
+		return r
+	map_share.srv_clear()
 	_cl_lobby_map.rpc(map_id)
+	return {"ok": true, "reasons": []}
 
 
 @rpc("authority", "call_local", "reliable")
-func _cl_lobby_map(map_id: String) -> void:
+func _cl_lobby_map(map_id: Variant) -> void:
+	# Identifiant borné : texte court, carte du registre ou hash de carte perso.
+	if not (map_id is String and map_id.length() <= 80 and CustomMapGuard.game_map_id_ok(map_id)):
+		return
 	lobby_map = map_id
 	lobby_map_changed.emit(map_id)
 
 
-## Serveur : ordonne à tout le monde de charger la partie sur `map_id`.
-func start_match(map_id: String) -> void:
+## Carte que cette machine accepte de charger sur ordre de l'hôte : carte du
+## registre, carte perso partagée présente dans le cache ; une carte perso
+## locale « perso:<id> » seulement pour l'hôte lui-même (solo, TESTER).
+func can_load_map(map_id: Variant) -> bool:
+	if not (map_id is String and map_id.length() <= 80 and CustomMapGuard.game_map_id_ok(map_id)):
+		return false
+	if Game.MAP_SCRIPTS.has(map_id):
+		return true
+	if map_id.begins_with(EditorMapDef.SHARED_PREFIX):
+		return Game.has_map(map_id)
+	return map_id.begins_with(EditorMapDef.CUSTOM_PREFIX) and multiplayer.is_server()
+
+
+## Serveur : ordonne à tout le monde de charger la partie sur `map_id`. Carte
+## perso partagée : seulement quand TOUS les joueurs ont confirmé l'avoir
+## (MapShare.can_start) ; faux sinon (rien n'est envoyé).
+func start_match(map_id: String) -> bool:
 	if not multiplayer.is_server():
-		return
+		return false
+	if map_id.begins_with(EditorMapDef.SHARED_PREFIX):
+		var st := map_share.can_start()
+		if map_share.offer.get("sha", "") != map_id.trim_prefix(EditorMapDef.SHARED_PREFIX) or not st[0]:
+			print("[Net] lancement refusé : %s" % (st[1] if st[1] != "" else "carte non annoncée"))
+			return false
+	elif map_id.begins_with(EditorMapDef.CUSTOM_PREFIX) and players.size() > 1:
+		# Les invités n'ont pas les cartes de l'hôte : passer par set_lobby_map.
+		print("[Net] lancement refusé : carte perso non partagée")
+		return false
 	match_started = true
 	loaded_peers.clear()
 	_cl_load_game.rpc(map_id, 0 if Autotest.active else randi() % CharacterDB.IDS.size())
+	return true
 
 
 @rpc("authority", "call_local", "reliable")
-func _cl_load_game(map_id: String, cast := 0) -> void:
+func _cl_load_game(map_id: Variant, cast: Variant = 0) -> void:
+	# Carte inconnue, identifiant invalide, carte partagée absente ou refusée
+	# ici : on ne charge jamais autre chose (la partie serait désynchronisée).
+	if not can_load_map(map_id):
+		var was := mode
+		_reset_peer()
+		if was == Mode.CLIENT:
+			connection_error.emit(Lang.t("Carte absente", "Missing map"),
+				Lang.t("La carte de l'hôte n'a pas pu être vérifiée sur cette machine.", "The host's map could not be verified on this computer."))
+		return
 	match_started = true
 	current_map = map_id
-	cast_offset = cast
+	cast_offset = posmod(int(cast), CharacterDB.IDS.size()) if (cast is int or cast is float) else 0
 	GameState.set_state(GameState.State.LOADING)
 	get_tree().change_scene_to_file(GAME_SCENE)
 
@@ -191,7 +247,11 @@ func report_loaded() -> void:
 func _srv_loaded() -> void:
 	if not multiplayer.is_server():
 		return
-	loaded_peers[multiplayer.get_remote_sender_id()] = true
+	# Seulement un joueur accepté (pas un pair encore muet ou refusé).
+	var sender := multiplayer.get_remote_sender_id()
+	if not players.has(sender):
+		return
+	loaded_peers[sender] = true
 	if is_everyone_loaded():
 		all_loaded.emit()
 
@@ -302,13 +362,19 @@ func _on_connected_to_server() -> void:
 
 
 @rpc("any_peer", "reliable")
-func _srv_hello(wanted_name: String, version: int, build: String) -> void:
+func _srv_hello(wanted_name: Variant, version: Variant, build_v: Variant) -> void:
 	if not multiplayer.is_server():
 		return
 	var sender := multiplayer.get_remote_sender_id()
+	# Un seul bonjour par joueur (un second ne change ni nom ni place).
+	if players.has(sender):
+		return
+	if not wanted_name is String:
+		wanted_name = ""
+	var build := String(build_v).left(32) if build_v is String else "?"
 	var reason := ""
-	if version != PROTOCOL_VERSION:
-		reason = "Version incompatible (hôte v%d, vous v%d)." % [PROTOCOL_VERSION, version]
+	if not version is int or version != PROTOCOL_VERSION:
+		reason = "Version incompatible (hôte v%d, vous v%s)." % [PROTOCOL_VERSION, str(version).left(8)]
 	elif build != build_version():
 		reason = "Version du jeu différente (hôte v%s, vous v%s) : utilisez la même release." % [build_version(), build]
 	elif match_started:
@@ -328,14 +394,18 @@ func _srv_hello(wanted_name: String, version: int, build: String) -> void:
 	print("[Net] %s a rejoint (peer %d)" % [players[sender].name, sender])
 	_cl_welcome.rpc_id(sender, max_players)
 	_cl_players.rpc(players)
+	# Carte du salon (et carte perso à télécharger) pour le nouvel arrivant.
+	map_share.srv_peer_joined(sender)
+	if lobby_map != "":
+		_cl_lobby_map.rpc_id(sender, lobby_map)
 	player_joined.emit(sender)
 
 
 @rpc("authority", "reliable")
-func _cl_welcome(server_max_players: int) -> void:
+func _cl_welcome(server_max_players: Variant) -> void:
 	_connect_timer.stop()
 	_handshake_done = true
-	max_players = server_max_players
+	max_players = clampi(int(server_max_players), 1, MAX_SUPPORTED_PLAYERS) if server_max_players is int else DEFAULT_MAX_PLAYERS
 	print("[Net] accepté par le serveur")
 	joined_server.emit()
 
@@ -352,17 +422,49 @@ func _cl_rejected(reason: String) -> void:
 
 
 @rpc("authority", "call_local", "reliable")
-func _cl_players(new_players: Dictionary) -> void:
-	players = new_players
+func _cl_players(new_players: Variant) -> void:
+	if multiplayer.is_server():
+		players = new_players
+	else:
+		players = clean_players(new_players)
 	players_changed.emit()
+
+
+## Registre des joueurs reçu de l'hôte, borné : 8 entrées au plus, clés
+## entières, noms nettoyés (_clean_name), places 0 à 7.
+static func clean_players(v: Variant) -> Dictionary:
+	var out := {}
+	if not v is Dictionary:
+		return out
+	for pid in v:
+		if out.size() >= MAX_SUPPORTED_PLAYERS:
+			break
+		var p = v[pid]
+		if not (pid is int and pid > 0 and p is Dictionary):
+			continue
+		var n = p.get("name", "")
+		var s = p.get("slot", 0)
+		out[pid] = {"name": _clean_name(n if n is String else "", 24), "slot": clampi(int(s) if (s is int or s is float) else 0, 0, MAX_SUPPORTED_PLAYERS - 1)}
+	return out
 
 
 # --------------------------------------------------------------------------
 # Événements du transport
 # --------------------------------------------------------------------------
 
+## Délai laissé à un pair pour se présenter (_srv_hello) avant d'être coupé
+## (réglable par les tests).
+var hello_timeout_sec := 5.0
+
+
 func _on_peer_connected(id: int) -> void:
 	print("[Net] transport : peer %d connecté" % id)
+	# Serveur : un pair muet ne garde pas une place ENet.
+	if multiplayer.is_server() and mode == Mode.HOST:
+		get_tree().create_timer(hello_timeout_sec).timeout.connect(func():
+			if mode == Mode.HOST and not players.has(id) and multiplayer.multiplayer_peer is ENetMultiplayerPeer and id in multiplayer.get_peers():
+				print("[Net] peer %d coupé : pas de présentation en %d s" % [id, int(hello_timeout_sec)])
+				(multiplayer.multiplayer_peer as ENetMultiplayerPeer).disconnect_peer(id))
 
 
 func _on_peer_disconnected(id: int) -> void:
@@ -371,6 +473,8 @@ func _on_peer_disconnected(id: int) -> void:
 		print("[Net] %s a quitté la partie" % players[id].name)
 		players.erase(id)
 		loaded_peers.erase(id)
+		# Un joueur qui part pendant le transfert ne bloque pas les autres.
+		map_share.srv_peer_left(id)
 		_cl_players.rpc(players)
 		player_left.emit(id)
 		# Un joueur qui part pendant le chargement ne doit pas bloquer les autres.
@@ -416,6 +520,8 @@ func _reset_peer() -> void:
 	match_started = false
 	_handshake_done = false
 	lobby_map = ""
+	if map_share:
+		map_share.reset()
 
 
 # --------------------------------------------------------------------------
@@ -467,11 +573,22 @@ func _unique_name(n: String) -> String:
 	return "%s (%d)" % [n, i]
 
 
-static func _clean_name(n: String) -> String:
-	n = n.strip_edges().replace("\n", " ")
-	if n.is_empty():
-		n = "Survivant"
-	return n.substr(0, 16)
+## Nom de joueur affichable : sans caractère de contrôle (C0, DEL, marques et
+## contrôles bidirectionnels), 16 caractères (`max_len`) au plus.
+static func _clean_name(n: String, max_len := 16) -> String:
+	var out := ""
+	for i in n.length():
+		var c := n.unicode_at(i)
+		if c == 10 or c == 9:
+			out += " "
+		elif c < 0x20 or c == 0x7F or (c >= 0x200B and c <= 0x200F) or (c >= 0x202A and c <= 0x202E) or (c >= 0x2066 and c <= 0x2069):
+			continue
+		else:
+			out += n[i]
+	out = out.strip_edges()
+	if out.is_empty():
+		out = "Survivant"
+	return out.substr(0, max_len)
 
 
 ## Numéro de build (inscrit par tools/release.sh dans chaque .exe publié) :
