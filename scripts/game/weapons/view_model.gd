@@ -336,7 +336,7 @@ func update(delta: float, p: Player) -> void:
 		RenderingServer.global_shader_parameter_set("vm_fov_scale", fov_k)
 	if model == null:
 		return
-	var slot := Net.player_slot(p.peer_id)
+	var slot := CharacterDB.index_of(p.peer_id)  # tenue du personnage du joueur
 	if slot != hand_style and slot >= 0:
 		hand_style = slot
 		style = slot

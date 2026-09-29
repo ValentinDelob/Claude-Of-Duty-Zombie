@@ -140,6 +140,10 @@ var loaded_peers: Dictionary = {}
 
 ## Carte de la partie en cours (choisie par le serveur).
 var current_map := ""
+## Rotation des personnages de la partie (CharacterDB) : tirée par l'hôte au
+## lancement, comme le tirage des personnages de BO1 ; 0 pendant les tests
+## automatiques (emplacement 0 = Callahan, reproductible).
+var cast_offset := 0
 
 
 ## Carte choisie par l'hôte dans le salon (affichée aux clients).
@@ -166,13 +170,14 @@ func start_match(map_id: String) -> void:
 		return
 	match_started = true
 	loaded_peers.clear()
-	_cl_load_game.rpc(map_id)
+	_cl_load_game.rpc(map_id, 0 if Autotest.active else randi() % CharacterDB.IDS.size())
 
 
 @rpc("authority", "call_local", "reliable")
-func _cl_load_game(map_id: String) -> void:
+func _cl_load_game(map_id: String, cast := 0) -> void:
 	match_started = true
 	current_map = map_id
+	cast_offset = cast
 	GameState.set_state(GameState.State.LOADING)
 	get_tree().change_scene_to_file(GAME_SCENE)
 

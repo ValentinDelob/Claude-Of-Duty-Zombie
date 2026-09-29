@@ -115,6 +115,7 @@ func srv_use(pid: int) -> void:
 			system.deny(pid, "Pas assez de points")
 			return
 		pd.knife = weapon_id
+		VoxSystem.say(pid, "buy_bowie" if weapon_id == "bowie" else "buy_wall", 0.8)
 		system.purchase_fx(self)
 		session.sync_inventory(pid)
 		return
@@ -127,11 +128,13 @@ func srv_use(pid: int) -> void:
 			system.deny(pid, "Pas assez de points")
 			return
 		WeaponDB.refill(pd, slot)
+		VoxSystem.say(pid, "buy_ammo", 0.5)
 	else:
 		if not session.try_spend(pid, cost):
 			system.deny(pid, "Pas assez de points")
 			return
 		WeaponDB.give(pd, weapon_id)
+		VoxSystem.say(pid, "buy_wall", 0.6)
 	system.game.combat.cancel_reload(pid)
 	system.purchase_fx(self)
 	session.sync_inventory(pid)

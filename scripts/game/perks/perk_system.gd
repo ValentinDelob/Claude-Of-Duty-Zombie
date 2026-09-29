@@ -30,6 +30,7 @@ func srv_grant(pid: int, perk: String) -> void:
 	pd.health = pd.max_health
 	game.session.sync_stats(pid)
 	_cl_granted.rpc(pid, perk)
+	VoxSystem.say_later(2.6, pid, "perk_" + perk)
 	print("[Perks] %s boit %s" % [Net.player_name(pid), PerkDB.display_name(perk)])
 
 

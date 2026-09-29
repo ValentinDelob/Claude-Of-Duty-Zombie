@@ -1,0 +1,21 @@
+{
+ "note": "Voix des personnages (tools/voices/make_voices.py). kokoro = voix de référence synthétique (Kokoro-82M, Apache 2.0) ; ref_semitones = décalage de hauteur de la référence (identité plus grave ou plus aiguë) ; exaggeration, cfg, temperature = réglages de Chatterbox Multilingual (MIT) : expressivité, fidélité au texte, variété ; ref = phrase dite par la voix de référence.",
+ "characters": {
+  "callahan": {
+   "kokoro": "am_fenrir", "ref_semitones": 0.0, "exaggeration": 0.65, "cfg": 0.45, "temperature": 0.8,
+   "ref": "Listen up, you sorry bunch. We hold this theater, we hit them hard, and nobody gets left behind. Now grab a gun and let's go to work!"
+  },
+  "orlov": {
+   "kokoro": "bm_george", "ref_semitones": -2.0, "exaggeration": 0.45, "cfg": 0.5, "temperature": 0.75,
+   "ref": "Snow, mud, blood. It is always the same winter. The dead walk, and still we must stand. Very well. Give me bread, give me bullets, and I will stand."
+  },
+  "arakawa": {
+   "kokoro": "am_michael", "ref_semitones": 0.0, "exaggeration": 0.35, "cfg": 0.55, "temperature": 0.7,
+   "ref": "The river does not hurry, yet it carves the mountain. Stay calm, keep your aim true, and we shall leave this place with honor."
+  },
+  "weissmann": {
+   "kokoro": "bm_fable", "ref_semitones": 1.0, "exaggeration": 0.85, "cfg": 0.4, "temperature": 0.85,
+   "ref": "Marvelous! Simply marvelous! Do you see how they twitch? My machines are awake, my children are hungry, and the experiment has only just begun!"
+  }
+ }
+}

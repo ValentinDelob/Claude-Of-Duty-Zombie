@@ -432,6 +432,7 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 		return
 	_melee_ready[pid] = t + WeaponDB.MELEE_COOLDOWN * 0.8
 	_reload_end.erase(pid)  # le couteau interrompt le rechargement (BO1)
+	VoxSystem.say(pid, "exert_melee", 0.3)
 	dir = Vector3(dir.x, 0.0, dir.z).normalized()
 	# Après une fente, le client frappe depuis sa nouvelle position (`origin`,
 	# déjà bornée ci-dessus) : la cible doit être au contact de cette origine,
@@ -497,6 +498,8 @@ func srv_reload(slot: int) -> void:
 		return
 	_reload_end[pid] = [slot, now() + reload_time(pid, w) * RELOAD_LENIENCY]
 	_cl_reload_fx.rpc(pid)
+	if w.mag == 0:
+		VoxSystem.say(pid, "reload", 0.2)
 
 
 func reload_time(pid: int, w: Dictionary) -> float:
@@ -565,6 +568,10 @@ func damage_player(pid: int, amount: int, from: Vector3) -> void:
 	_last_hurt[pid] = now()
 	session.sync_stats(pid)
 	_cl_player_hurt.rpc(pid, from)
+	if pd.health > 0 and pd.health < pd.max_health * 0.35:
+		VoxSystem.say(pid, "low_health", 0.7)
+	if pd.health > 0:
+		VoxSystem.say(pid, "hurt", 0.55)
 	if pd.health <= 0:
 		player_fell.emit(pid)
 

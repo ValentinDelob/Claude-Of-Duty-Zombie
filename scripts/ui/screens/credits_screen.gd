@@ -31,6 +31,8 @@ const LINES := [
 	["p", "Tirs, rechargements, couteau, impacts, grenades, cymbales du singe, chiens de l'enfer, barricades, voix des zombies et du joueur : enregistrements libres de droits (CC0, domaine public) de freesound.org, retravaillés pour le jeu."],
 	["p", "Merci à qubodup, serøutōnin--deprivəd, morganpurkis, SuperPhat, LeMudCrab, LilMati, tonsil5, Under7dude, ArriGD, haratman, PaulMorek, unfa, coldvet, martian, kyles, Paul368, roboroo et tous les auteurs listés dans docs/ASSETS.md."],
 	["p", "Musiques, ambiances, annonces, jingles, air du singe et interface : synthétisés par du code."],
+	["role", "VOIX DES PERSONNAGES"],
+	["p", "Callahan, Orlov, Arakawa et Weissmann : personnages et répliques originaux, voix de synthèse générées hors ligne avec Chatterbox Multilingual (Resemble AI, licence MIT) à partir de voix de référence synthétiques Kokoro-82M (hexgrad, licence Apache 2.0). Aucune voix de personne réelle n'est imitée."],
 	["role", "GRAPHISMES"],
 	["p", "100 % procéduraux : maillages, matériaux, textures et effets générés par des shaders et des scripts. Aucune image externe."],
 	["role", "POLICES"],

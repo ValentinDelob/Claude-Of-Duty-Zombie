@@ -60,6 +60,8 @@ var powerups: PowerupSystem
 var barricades: BarricadeSystem
 ## Grenades et SINGE-TAMBOUR (chemin réseau : /root/Game/Throwables).
 var throwables: ThrowableSystem
+## Répliques des personnages (chemin réseau : /root/Game/Vox).
+var vox: VoxSystem
 signal power_changed(on: bool)
 @onready var hud: Hud = $HUD
 
@@ -84,6 +86,9 @@ func _ready() -> void:
 	throwables = ThrowableSystem.new()
 	throwables.name = "Throwables"
 	add_child(throwables)
+	vox = VoxSystem.new()
+	vox.name = "Vox"
+	add_child(vox)
 	Net.player_left.connect(_on_player_left)
 	Net.session_ended.connect(_on_session_ended)
 	session.inventory_changed.connect(_refresh_remote_weapon)

@@ -216,6 +216,7 @@ func srv_link(pid: int) -> void:
 	if link != Link.PRIMED:
 		return
 	link = Link.LINKED
+	VoxSystem.say(pid, "teleporter_link", 0.8)
 	print("[Teleporter] téléporteur relié au poste central")
 	broadcast_state()
 
@@ -257,6 +258,8 @@ func _process(delta: float) -> void:
 				var off := Vector3(cos(i * 1.7), 0, sin(i * 1.7)) * (0.6 if i > 0 else 0.0)
 				_send(_travellers[i], exit_pos + off, true)
 			print("[Teleporter] %d joueur(s) téléporté(s)" % _travellers.size())
+			for t in _travellers:
+				VoxSystem.say_later(1.6, t, "teleport_out", 0.7)
 			_kill_around_pad()
 			_timer = stay_time
 			_set_state(State.ACTIVE)
@@ -265,6 +268,8 @@ func _process(delta: float) -> void:
 			for i in _travellers.size():
 				var off := Vector3(cos(i * 1.7), 0, sin(i * 1.7)) * 0.7
 				_send(_travellers[i], back + off + Vector3(0, 0.05, 0), false)
+			for t in _travellers:
+				VoxSystem.say_later(1.4, t, "teleport_back", 0.6)
 			_travellers = []
 			if needs_link:
 				# Comme à Kino : il faut relier à nouveau avant chaque voyage.

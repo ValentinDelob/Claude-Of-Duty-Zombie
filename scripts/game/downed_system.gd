@@ -58,6 +58,14 @@ func srv_down(pid: int) -> void:
 	pd.weapons = [last_stand]
 	pd.slot = 0
 	game.perks.srv_clear(pid)
+	# Répliques : celui qui tombe, un coéquipier qui le voit, le dernier debout.
+	VoxSystem.say(pid, "downed")
+	if game.vox:
+		var mates := game.vox.teammates(pid)
+		if not mates.is_empty():
+			game.vox.later(1.2, mates.pick_random(), "teammate_down", 0.9)
+		if mates.size() == 1 and game.session.data.size() > 1:
+			game.vox.later(3.8, mates[0], "last_alive")
 	game.combat.cancel_reload(pid)
 	var entry := {"bleed_end": now() + bleedout_time, "reviver": 0, "revive_start": 0.0, "revive_dur": 0.0, "self_revive": 0.0}
 	if Net.mode == Net.Mode.SOLO and had_lazarus:
@@ -83,6 +91,7 @@ func srv_start_revive(reviver: int, target: int) -> void:
 	e.reviver = reviver
 	e.revive_start = now()
 	e.revive_dur = REVIVE_TIME_LAZARUS if rpd.has_perk("lazarus") else REVIVE_TIME
+	VoxSystem.say(reviver, "revive_start", 0.7)
 	_broadcast(target)
 
 
@@ -117,6 +126,7 @@ func _process(_delta: float) -> void:
 			elif t - e.revive_start >= e.revive_dur:
 				var rev: int = e.reviver
 				_revive(pid)
+				VoxSystem.say_later(0.6, pid, "revived")
 				var r := game.session.get_data(rev)
 				if r:
 					r.revives += 1
@@ -155,6 +165,11 @@ func _bleed_out(pid: int) -> void:
 	if pd:
 		pd.saved_weapons = []
 	print("[Downed] %s a succombé" % Net.player_name(pid))
+	VoxSystem.say(pid, "death")
+	if game.vox:
+		var mates := game.vox.teammates(pid)
+		if not mates.is_empty():
+			game.vox.later(1.0, mates.pick_random(), "teammate_dead")
 	_broadcast(pid)
 	game.kill_player(pid)
 

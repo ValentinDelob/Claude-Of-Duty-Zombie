@@ -146,7 +146,7 @@ func _ready() -> void:
 
 	visual = PlayerModel.new()
 	visual.name = "Visual"
-	visual.build(ScorePanel.slot_color(Net.player_slot(peer_id)))
+	visual.build(ScorePanel.slot_color(Net.player_slot(peer_id)), CharacterDB.index_of(peer_id))
 	add_child(visual)
 	name_tag = Label3D.new()
 	name_tag.text = Net.player_name(peer_id)

@@ -202,6 +202,36 @@
     "fr": "Claude of Duty Zombie"
    }
   },
+  "v0.1.128": {
+   "date": "2026-09-29",
+   "images": [],
+   "items": [
+    {
+     "en": "Play as one of four survivors: Sergeant Callahan, Orlov, Lieutenant Arakawa or Doctor Weissmann, drawn at random each game.",
+     "fr": "Incarnez l'un des quatre survivants : le sergent Callahan, Orlov, le lieutenant Arakawa ou le docteur Weissmann, tirés au sort à chaque partie."
+    },
+    {
+     "en": "Each one has their own look for your teammates, and their own hands on screen.",
+     "fr": "Chacun a son allure, vue par vos coéquipiers, et ses propres mains à l'écran."
+    },
+    {
+     "en": "They comment on everything: headshots, running dry, taking hits, going down, revives, perks, power-ups, the mystery box, Pack-a-Punch, rounds and hellhounds.",
+     "fr": "Ils commentent tout : tirs à la tête, munitions épuisées, coups reçus, chute, réanimation, atouts, bonus, boîte mystère, Pack-a-Punch, manches et chiens."
+    },
+    {
+     "en": "Over a thousand lines in French, including banter between teammates.",
+     "fr": "Plus de mille répliques en français, avec leurs taquineries entre coéquipiers."
+    },
+    {
+     "en": "New Language option in the settings; English voices are coming in an upcoming update.",
+     "fr": "Nouvelle option Langue dans les réglages ; les voix anglaises arrivent dans une prochaine mise à jour."
+    }
+   ],
+   "title": {
+    "en": "Four survivors with a voice",
+    "fr": "Quatre survivants qui parlent"
+   }
+  },
   "v0.1.36": {
    "date": "2026-09-26",
    "images": [],

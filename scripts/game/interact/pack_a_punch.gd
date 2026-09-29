@@ -158,6 +158,7 @@ func srv_use(pid: int) -> void:
 		if pid != owner_pid:
 			return
 		WeaponDB.give(pd, weapon_id, true)
+		VoxSystem.say(pid, "pap_take", 0.9)
 		game.combat.cancel_reload(pid)
 		session.sync_inventory(pid)
 		_set_state(State.IDLE, 0, "")
@@ -189,6 +190,8 @@ func srv_use(pid: int) -> void:
 	session.sync_inventory(pid)
 	_timer = WORK_TIME
 	_set_state(State.WORKING, pid, w.id)
+	VoxSystem.say(pid, "pap_upgrade", 0.9)
+	VoxSystem.say_later(4.5, pid, "pap_wait", 0.5)
 
 
 func _set_state(s: State, pid: int, wid: String) -> void:

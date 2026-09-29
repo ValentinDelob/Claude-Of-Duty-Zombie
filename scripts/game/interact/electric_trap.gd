@@ -142,6 +142,7 @@ func srv_use(pid: int) -> void:
 		return
 	system.purchase_fx(self)
 	activator = pid
+	VoxSystem.say(pid, "trap_on", 0.8)
 	_timer = active_time
 	_hurt_t.clear()
 	state = State.ACTIVE

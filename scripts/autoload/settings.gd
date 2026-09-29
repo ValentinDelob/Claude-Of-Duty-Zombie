@@ -25,6 +25,10 @@ var vsync := true
 var quality: Quality = Quality.MEDIUM
 ## Intensité du grain de film en jeu (0 = désactivé, 1 = maximum).
 var film_grain := 0.5
+## Langue des voix des personnages et de leurs répliques (« fr » ou « en »).
+## Sans fichier de réglages : celle du système si c'est le français, sinon l'anglais.
+const LANGUAGES := ["fr", "en"]
+var language := "fr"
 var last_ip := "127.0.0.1"
 var last_port := 7777
 ## Dernière carte choisie (sélection solo, salon de l'hôte).
@@ -135,6 +139,7 @@ func load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(path) != OK:
 		_needs_probe = true
+		language = "fr" if OS.get_locale_language() == "fr" else "en"
 		return
 	player_name = cfg.get_value("player", "name", player_name)
 	mouse_sensitivity = cfg.get_value("controls", "mouse_sensitivity", mouse_sensitivity)
@@ -146,6 +151,9 @@ func load_settings() -> void:
 	quality_auto = cfg.get_value("video", "quality_auto", quality_auto)
 	_needs_probe = not cfg.has_section_key("video", "quality")
 	film_grain = cfg.get_value("video", "film_grain", film_grain)
+	language = cfg.get_value("game", "language", "fr" if OS.get_locale_language() == "fr" else "en")
+	if not language in LANGUAGES:
+		language = "fr"
 	master_volume = cfg.get_value("audio", "master", master_volume)
 	music_volume = cfg.get_value("audio", "music", music_volume)
 	sfx_volume = cfg.get_value("audio", "sfx", sfx_volume)
@@ -172,6 +180,7 @@ func save_settings() -> void:
 	cfg.set_value("network", "last_ip", last_ip)
 	cfg.set_value("network", "last_port", last_port)
 	cfg.set_value("game", "last_map", last_map)
+	cfg.set_value("game", "language", language)
 	cfg.save(path)
 
 

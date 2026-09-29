@@ -408,12 +408,14 @@ func _process(delta: float) -> void:
 			if skull:
 				# Remboursement et départ de la boîte.
 				system.game.session.add_points(owner_pid, _paid)
+				VoxSystem.say_later(0.8, owner_pid, "box_teddy")
 				state = State.MOVING
 				_timer = MOVE_TIME
 				uses = 0
 			else:
 				state = State.READY
 				_timer = READY_TIME
+				VoxSystem.box_result(owner_pid, weapon)
 			broadcast_state()
 		State.READY:
 			_close()

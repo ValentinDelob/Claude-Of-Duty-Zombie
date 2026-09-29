@@ -163,6 +163,8 @@ func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
 	if dir.length_squared() < 0.01:
 		dir = -p.global_transform.basis.z
 	var kind: int = c[0]
+	var monkey := kind == ThrowableRules.Kind.MONKEY
+	VoxSystem.say(pid, "throw_monkey" if monkey else "throw_grenade", 0.9 if monkey else 0.5)
 	var fuse := ThrowableRules.fuse_left(c[1], now()) if kind == K.FRAG else 0.0
 	_spawn(pid, kind, origin, ThrowableRules.throw_velocity(kind, dir), fuse, seq)
 

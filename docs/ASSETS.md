@@ -14,6 +14,30 @@ téléporteur, arme à rayons (CLAUDE-RAY, volontairement synthétique),
 interface. L'air du singe-tambour est lui aussi original (procédural,
 `tools/audio/synth_stems.gd`) ; seules ses cymbales sont enregistrées.
 
+## Voix des personnages
+
+Les répliques de Callahan, Orlov, Arakawa et Weissmann (textes originaux,
+`assets/voices/*.json`, voir `docs/CHARACTERS.md`) sont des voix de **synthèse**
+générées hors ligne par `tools/voices/make_voices.py`, en français et en anglais,
+dans `assets/audio/vox/<langue>/<personnage>/` (Ogg Vorbis, 24 kHz) :
+
+- **Chatterbox Multilingual** ([ResembleAI/chatterbox](https://huggingface.co/ResembleAI/chatterbox),
+  Resemble AI, licence **MIT**, usage commercial autorisé) : synthèse de chaque
+  réplique, même voix dans les deux langues. Les sons produits portent le
+  filigrane inaudible « Perth » de Resemble AI.
+- **Kokoro-82M** ([hexgrad/Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M),
+  licence **Apache 2.0**) : une voix de référence synthétique par personnage
+  (`am_fenrir`, `bm_george`, `am_michael`, `bm_fable`, réglages dans
+  `tools/voices/cast.json`) ; aucune voix de personne réelle n'est clonée.
+- Environnement : `tools/tts/` (hors git) avec `uv` (MIT/Apache 2.0), Python 3.11,
+  PyTorch (BSD) et les paquets `chatterbox-tts` (MIT) et `kokoro` (Apache 2.0).
+  Installation : `tools/tts/bin/uv.exe venv --python 3.11 tools/tts/.venv`, puis
+  `uv pip install --index-strategy unsafe-best-match --extra-index-url
+  https://download.pytorch.org/whl/cu124 chatterbox-tts kokoro soundfile "setuptools<81"`
+  et le modèle spaCy `en_core_web_sm` 3.8.0 (MIT).
+- Génération : `tools/tts/.venv/Scripts/python.exe tools/voices/make_voices.py`
+  (`--sample 3` pour un échantillon d'écoute ; reprend là où elle s'est arrêtée).
+
 ## Licence
 
 Toutes les sources ci-dessous sont publiées sur [freesound.org](https://freesound.org)

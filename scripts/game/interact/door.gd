@@ -157,6 +157,7 @@ func srv_use(pid: int) -> void:
 		system.deny(pid, "Pas assez de points")
 		return
 	system.purchase_fx(self)
+	VoxSystem.say(pid, "door_open", 0.6)
 	srv_open()
 
 

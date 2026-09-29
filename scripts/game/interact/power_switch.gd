@@ -95,10 +95,11 @@ func prompt(_pid: int) -> String:
 	return "" if is_on else "[F] Rétablir le courant"
 
 
-func srv_use(_pid: int) -> void:
+func srv_use(pid: int) -> void:
 	if is_on:
 		return
 	is_on = true
+	VoxSystem.say_later(1.5, pid, "power_on")
 	print("[Power] courant rétabli")
 	broadcast_state()
 

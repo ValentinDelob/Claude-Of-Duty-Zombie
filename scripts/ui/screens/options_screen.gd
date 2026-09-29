@@ -36,6 +36,9 @@ func enter(_args := {}) -> void:
 	name_edit.focus_entered.connect(func(): menu.set_hint("Nom affiché aux autres survivants (16 caractères)."))
 	name_row.add_child(name_edit)
 	_col.add_child(name_row)
+	_add("language", MenuOptionRow.make_choice("LANGUE / LANGUAGE", PackedStringArray(["FRANÇAIS", "ENGLISH"]),
+			maxi(Settings.LANGUAGES.find(Settings.language), 0)),
+			"Langue des voix des personnages / Language of the characters' voices.")
 
 	_section("COMMANDES")
 	_add("mouse_sensitivity", MenuOptionRow.make_range("SENSIBILITÉ SOURIS", Settings.mouse_sensitivity, 0.05, 1.0, 0.05,
@@ -88,6 +91,8 @@ func _on_changed(key: String, v: float) -> void:
 			Settings.set(key, v > 0.5)
 		"quality":
 			Settings.quality = int(v) as Settings.Quality
+		"language":
+			Settings.language = Settings.LANGUAGES[clampi(int(v), 0, Settings.LANGUAGES.size() - 1)]
 		_:
 			Settings.set(key, v)
 	Settings.apply()

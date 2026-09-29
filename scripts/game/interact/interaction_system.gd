@@ -131,6 +131,10 @@ func _cl_state(id: String, state: Dictionary) -> void:
 
 ## Serveur : refus (points insuffisants...) signalé au seul joueur concerné.
 func deny(pid: int, reason: String) -> void:
+	if reason == "Pas assez de points":
+		VoxSystem.say(pid, "no_money", 0.6)
+	elif reason == "Pas de courant":
+		VoxSystem.say(pid, "no_power", 0.7)
 	if pid == multiplayer.get_unique_id():
 		_cl_denied(reason)
 	else:
