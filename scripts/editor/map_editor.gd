@@ -1363,34 +1363,37 @@ static func _cfg_path() -> String:
 
 
 ## Réglage mémorisé de l'éditeur (_editeur.cfg, section « editeur »).
+## Réglages de l'éditeur lus sans décoder d'objet (SafeConfig : un .cfg piégé
+## pourrait sinon exécuter du code) ; fichier vide s'il est absent ou refusé.
+static func _load_cfg() -> ConfigFile:
+	var cf := SafeConfig.load_file(_cfg_path())
+	return cf if cf != null else ConfigFile.new()
+
+
 static func pref(key: String, default: Variant) -> Variant:
-	var cf := ConfigFile.new()
-	if cf.load(_cfg_path()) != OK:
-		return default
-	return cf.get_value("editeur", key, default)
+	var v: Variant = _load_cfg().get_value("editeur", key, default)
+	return v if typeof(v) == typeof(default) else default
 
 
 static func set_pref(key: String, value: Variant) -> void:
-	var cf := ConfigFile.new()
-	cf.load(_cfg_path())
+	var cf := _load_cfg()
 	cf.set_value("editeur", key, value)
 	DirAccess.make_dir_recursive_absolute(EditorMap.maps_root())
 	cf.save(_cfg_path())
 
 
 static func recent_maps() -> Array:
-	var cf := ConfigFile.new()
-	if cf.load(_cfg_path()) != OK:
+	var list: Variant = _load_cfg().get_value("editeur", "recentes", [])
+	if not list is Array:
 		return []
-	return (cf.get_value("editeur", "recentes", []) as Array).filter(func(d): return EditorMap.is_map_dir(String(d)))
+	return (list as Array).filter(func(d): return d is String and EditorMap.is_map_dir(d))
 
 
 func _add_recent(dir: String) -> void:
 	var list := recent_maps()
 	list.erase(dir)
 	list.push_front(dir)
-	var cf := ConfigFile.new()
-	cf.load(_cfg_path())
+	var cf := _load_cfg()
 	cf.set_value("editeur", "recentes", list.slice(0, RECENT_MAX))
 	DirAccess.make_dir_recursive_absolute(EditorMap.maps_root())
 	cf.save(_cfg_path())
