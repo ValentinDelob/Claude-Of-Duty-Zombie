@@ -6,6 +6,7 @@
 cd "$(dirname "$0")/.."
 MSG=$1
 [ -f "$MSG" ] || { echo "message introuvable : $MSG"; exit 2; }
+mkdir -p tests/_out  # absent dans une copie neuve (ignoré par git)
 set -f  # motifs de COMMIT_EXCLUDE laissés tels quels (pas de développement par le shell)
 # Arbre de travail au départ : un fichier qui change PENDANT la vérification
 # (autre session dans le même dossier...) ne doit pas partir dans ce commit

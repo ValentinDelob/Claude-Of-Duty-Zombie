@@ -26,7 +26,7 @@ func test_four_characters_with_complete_lines() -> void:
 ## et qu'aucun fichier ne correspond à une réplique inexistante.
 ## TODO : remettre l'exigence « toutes les voix dans les deux langues » quand la
 ## génération est terminée (VOX_COMPLETE = true).
-const VOX_COMPLETE := false
+const VOX_COMPLETE := true
 
 
 func test_voice_files_match_lines() -> void:

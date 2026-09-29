@@ -308,6 +308,24 @@
     "fr": "Les cartes de demain se dessinent"
    }
   },
+  "v0.1.136": {
+   "date": "2026-09-29",
+   "images": [],
+   "items": [
+    {
+     "en": "Every line from the four survivors is now voiced in English: pick English in the Language option.",
+     "fr": "Toutes les répliques des quatre survivants existent maintenant en anglais : choisissez English dans l'option Langue."
+    },
+    {
+     "en": "Doctor Weissmann now has all of his lines, in French and in English.",
+     "fr": "Le docteur Weissmann a toutes ses répliques, en français comme en anglais."
+    }
+   ],
+   "title": {
+    "en": "The survivors speak English",
+    "fr": "Les survivants parlent anglais"
+   }
+  },
   "v0.1.36": {
    "date": "2026-09-26",
    "images": [],
