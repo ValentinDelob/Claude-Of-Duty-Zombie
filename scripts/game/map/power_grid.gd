@@ -15,6 +15,8 @@ const CASCADE_SPEED := 14.0  # m/s
 
 var _lights: Array[OmniLight3D] = []
 var _base: PackedFloat32Array = []
+## Couleur de chaque lampe une fois le courant rétabli (luminaires colorés de l'éditeur).
+var _on_color: PackedColorArray = []
 var _flicker: LightFlicker
 ## Décor lié au courant (écran de cinéma, faisceau du projecteur...) :
 ## Callable(on: bool), appelés à chaque changement.
@@ -31,9 +33,10 @@ func add_hook(cb: Callable) -> void:
 	cb.call(powered)
 
 
-func add(light: OmniLight3D) -> void:
+func add(light: OmniLight3D, on_color := ON_COLOR) -> void:
 	_lights.append(light)
 	_base.append(light.light_energy)
+	_on_color.append(on_color)
 
 
 ## État initial sans animation (chargement de la carte).
@@ -58,7 +61,7 @@ func power_on_from(origin: Vector3) -> void:
 		var tw := l.create_tween()
 		tw.tween_interval(delay)
 		# Petit clignotement avant l'allumage.
-		tw.tween_callback(func(): l.light_energy = _base[i] * 1.6; l.light_color = ON_COLOR)
+		tw.tween_callback(func(): l.light_energy = _base[i] * 1.6; l.light_color = _on_color[i])
 		tw.tween_interval(0.06)
 		tw.tween_callback(func(): l.light_energy = 0.0)
 		tw.tween_interval(0.08)
@@ -69,7 +72,7 @@ func power_on_from(origin: Vector3) -> void:
 
 func _set_light(i: int, on: bool) -> void:
 	var l := _lights[i]
-	l.light_color = ON_COLOR if on else OFF_COLOR
+	l.light_color = _on_color[i] if on else OFF_COLOR
 	l.light_energy = _base[i] if on else _base[i] * OFF_ENERGY
 	# LightFlicker lit l'énergie de base : on la met à jour.
 	if _flicker:

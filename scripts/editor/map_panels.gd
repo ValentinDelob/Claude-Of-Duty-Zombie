@@ -219,6 +219,45 @@ static func _m(v: float) -> String:
 	return MapRules._m(v, not Lang.is_en())
 
 
+## Choix d'une texture (clé de WorldLook.SURFACES) pour `target[key]`, avec
+## un aperçu dans la liste et à côté ; premier choix : la valeur par défaut
+## (`default_key`, celle de la zone pour une pièce), qui efface la clé.
+func _surface_option(box: Container, label: String, target: Dictionary, key: String, default_key: String, of_zone := false) -> OptionButton:
+	var keys := MapCatalog.allowed_surfaces()
+	var o := OptionButton.new()
+	var def_txt := (Lang.t("(%s)", "(%s)") if of_zone else Lang.t("(zone : %s)", "(zone: %s)")) % MapCatalog.surface_name(default_key)
+	o.add_icon_item(MapIcons.surface_texture(default_key), def_txt)
+	for k in keys:
+		o.add_icon_item(MapIcons.surface_texture(String(k)), MapCatalog.surface_name(String(k)))
+	o.selected = keys.find(String(target.get(key, ""))) + 1
+	o.fit_to_longest_item = false
+	o.clip_text = true
+	var h := HBoxContainer.new()
+	var l := Label.new()
+	l.text = label
+	l.custom_minimum_size = Vector2(118, 0)
+	h.add_child(l)
+	var sw := TextureRect.new()
+	sw.custom_minimum_size = Vector2(40, 24)
+	sw.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sw.stretch_mode = TextureRect.STRETCH_SCALE
+	sw.texture = MapIcons.surface_texture(String(target.get(key, default_key)))
+	sw.tooltip_text = Lang.t("Aperçu de la texture", "Texture preview")
+	h.add_child(sw)
+	o.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(o)
+	box.add_child(h)
+	o.item_selected.connect(func(i):
+		ed.push_undo()
+		if i == 0:
+			target.erase(key)
+		else:
+			target[key] = String(keys[i - 1])
+		sw.texture = MapIcons.surface_texture(String(target.get(key, default_key)))
+		ed.changed(false))
+	return o
+
+
 # ------------------------------------------------------------------ propriétés
 
 func _fill_props() -> void:
@@ -239,7 +278,7 @@ func _fill_props() -> void:
 		l.add_theme_color_override("font_color", Color(1, 0.5, 0.4))
 	var h := HBoxContainer.new()
 	_props.add_child(h)
-	if e.has("contour") or e.has("rect") or String(e.get("type", "")) == "mur":
+	if e.has("contour") or e.has("rect") or String(e.get("type", "")) == "mur" or MapCatalog.rotates(e):
 		_button(h, Lang.t("Pivoter (R)", "Rotate (R)"), ed.rotate_selected)
 	_button(h, Lang.t("Supprimer (Suppr)", "Delete (Del)"), func(): ed.delete_element(String(e.id)))
 
@@ -300,6 +339,13 @@ func _room_props(r: Dictionary) -> void:
 	dh.disabled = top
 	if top:
 		dh.tooltip_text = Lang.t("Ajoutez un étage au-dessus (onglet Étages)", "Add a floor above (Floors tab)")
+	# Textures de la pièce (par défaut : celles de sa zone).
+	var z := ed.doc.zone(String(r.get("zone", "")))
+	_title(_props, Lang.t("Textures", "Textures"))
+	_surface_option(_props, Lang.t("Sol", "Floor"), r, "surface_sol", String(z.get("sol", "concrete")))
+	_surface_option(_props, Lang.t("Murs", "Walls"), r, "surface_murs", String(z.get("murs", "wall")))
+	_surface_option(_props, Lang.t("Plafond", "Ceiling"), r, "surface_plafond", String(z.get("plafond", "ceiling")))
+	_note(_props, Lang.t("Un mur mitoyen montre de chaque côté la texture de sa pièce.", "A shared wall shows each room's texture on its own side."))
 	var poly := ed.doc.room_poly(r)
 	var bb := MapGeom.bbox(poly)
 	_note(_props, Lang.t("Étage %d · %s × %s m · %s m²\nMurs générés sur le contour ; un bord commun avec une pièce collée = un seul mur.",
@@ -373,6 +419,10 @@ func _object_props(o: Dictionary) -> void:
 				ed.changed())
 			_note(_props, Lang.t("Relie l'étage %d à l'étage %d. Le haut arrive sur le plancher d'une pièce de l'étage du dessus ; le vide au-dessus des marches est automatique.",
 				"Links floor %d to floor %d. The top lands on a room floor of the floor above; the opening above the steps is automatic.") % [int(o.etage), int(o.etage) + 1])
+		"prefab":
+			_prefab_props(o)
+		"luminaire":
+			_light_props(o)
 		"mur":
 			var th := [0.5, 1.5, 2.5]
 			_option(_props, Lang.t("Épaisseur", "Thickness"), th.map(func(v): return _m(v) + " m"), maxi(0, th.find(float(o.get("epaisseur", 0.5)))), func(i):
@@ -389,6 +439,83 @@ func _object_props(o: Dictionary) -> void:
 		_note(_props, hint)
 	var r := MapRules.footprint_rect(o)
 	_note(_props, Lang.t("Position : x %s m, y %s m, étage %d", "Position: x %s m, y %s m, floor %d") % [_m(r.get_center().x), _m(r.get_center().y), int(o.get("etage", 0))])
+
+
+## Change le modèle d'un décor ou d'un luminaire posé (`key` : prefab ou
+## luminaire), s'il tient à sa place (emprise différente) ; sinon la raison.
+func _swap_kind(o: Dictionary, key: String, value: String) -> void:
+	var cand := o.duplicate(true)
+	cand[key] = value
+	if key == "luminaire":
+		# Réglages par défaut du nouveau luminaire.
+		var d: Dictionary = MapCatalog.LIGHTS[value]
+		for p in ["couleur", "intensite", "portee", "courant", "vacille"]:
+			cand[p] = d[p]
+	var k := int(o.get("etage", 0))
+	var res := MapRules.place_floor_item(ed.doc, k, cand, MapGeom.v2(o.position), String(o.id)) if MapCatalog.tool_of(cand) == "floor_item" \
+		else MapRules.place_wall_item(ed.doc, k, cand, MapGeom.v2(o.position) - MapGeom.dir_vec(String(o.get("mur", "n"))) * 0.6, String(o.id))
+	if not res.ok:
+		ed.canvas.show_refusal(res)
+		_fill_props.call_deferred()
+		return
+	ed.push_undo()
+	for p in cand:
+		o[p] = cand[p]
+	o["position"] = res.position
+	ed.changed()
+
+
+func _prefab_props(o: Dictionary) -> void:
+	var ids := MapCatalog.PREFABS.keys()
+	_option(_props, Lang.t("Décor", "Prop"), ids.map(func(x): return Lang.t(String(MapCatalog.PREFABS[x].fr), String(MapCatalog.PREFABS[x].en))),
+		ids.find(String(o.get("prefab", ""))), func(i): _swap_kind(o, "prefab", String(ids[i])))
+	var d := MapCatalog.def_of(o)
+	var n := MapCatalog.floor_size(o)
+	var block := MapCatalog.blocking(o)
+	_note(_props, Lang.t("Rotation : %d° (R) · emprise %s × %s m", "Rotation: %d° (R) · footprint %s × %s m") % [int(o.get("rot", 0)), _m(n.x * 0.5), _m(n.y * 0.5)])
+	_note(_props, {"solide": Lang.t("Bloque joueurs, zombies et balles.", "Blocks players, zombies and bullets."),
+		"barriere": Lang.t("Bloque joueurs et zombies ; les balles passent.", "Blocks players and zombies; bullets go through."),
+		"non": Lang.t("Décor : on marche dessus (aucune collision).", "Decoration: can be walked over (no collision).")}[block])
+	if float(d.get("support", 0.0)) > 0.0:
+		_note(_props, Lang.t("Une lampe de bureau ou des bougies peuvent être posées dessus.", "A desk lamp or candles can be placed on top."))
+
+
+func _light_props(o: Dictionary) -> void:
+	var d := MapCatalog.def_of(o)
+	var mount := String(d.get("mount", "plafond"))
+	# Changer de luminaire : seulement pour un autre du même montage.
+	var ids := MapCatalog.LIGHTS.keys().filter(func(x): return String(MapCatalog.LIGHTS[x].mount) == mount)
+	_option(_props, Lang.t("Luminaire", "Fixture"), ids.map(func(x): return Lang.t(String(MapCatalog.LIGHTS[x].fr), String(MapCatalog.LIGHTS[x].en))),
+		ids.find(String(o.get("luminaire", ""))), func(i): _swap_kind(o, "luminaire", String(ids[i])))
+	var cp := ColorPickerButton.new()
+	cp.color = MapCatalog.light_color(o)
+	cp.edit_alpha = false
+	cp.custom_minimum_size = Vector2(0, 26)
+	# Appliqué à la fermeture du nuancier (une seule étape d'annulation).
+	cp.popup_closed.connect(func():
+		var html := "#" + cp.color.to_html(false)
+		if html != String(o.get("couleur", "")):
+			ed.push_undo()
+			o["couleur"] = html
+			ed.changed(false))
+	_row(_props, Lang.t("Couleur", "Colour"), cp)
+	var lim: Dictionary = MapCatalog.LIGHT_LIMITS
+	_spin(_props, Lang.t("Intensité", "Intensity"), float(o.get("intensite", d.intensite)), lim.intensite[0], lim.intensite[1], 0.1,
+		func(v): o["intensite"] = snappedf(v, 0.1), "×")
+	_spin(_props, Lang.t("Portée", "Range"), float(o.get("portee", d.portee)), lim.portee[0], lim.portee[1], 0.5, func(v): o["portee"] = v)
+	_check(_props, Lang.t("Liée au courant (s'allume au courant)", "Tied to the power (lights up with the power)"), bool(o.get("courant", d.courant)),
+		func(on): o["courant"] = on)
+	_check(_props, Lang.t("Vacille", "Flickers"), bool(o.get("vacille", d.vacille)), func(on): o["vacille"] = on)
+	var where: String = {"plafond": Lang.t("Accroché au plafond de la pièce.", "Hung from the room ceiling."),
+		"mur": Lang.t("Contre le mur, à 2 m du sol.", "Against the wall, 2 m above the floor."),
+		"sol": Lang.t("Posé au sol, ou sur un meuble (bureau, chariot, sacs de sable).", "On the floor, or on furniture (desk, cart, sandbags).")}[mount]
+	_note(_props, where)
+	if mount == "sol":
+		var sup := MapRules.support_under(ed.doc, o)
+		if not sup.is_empty():
+			_note(_props, Lang.t("Posé sur : %s", "Standing on: %s") % MapCatalog.name_of(MapCatalog.item_for(sup)))
+	if not bool(o.get("courant", d.courant)):
+		_note(_props, Lang.t("Toujours allumé, même sans courant (bougies, feu).", "Always lit, even without power (candles, fire)."))
 
 
 # ------------------------------------------------------------------ listes
@@ -431,21 +558,11 @@ func _fill_zone_form() -> void:
 	var nm: Dictionary = z.get("nom", {})
 	_line(_zone_form, Lang.t("Nom (FR)", "Name (FR)"), String(nm.get("fr", "")), func(t): z.nom["fr"] = t)
 	_line(_zone_form, Lang.t("Nom (EN)", "Name (EN)"), String(nm.get("en", "")), func(t): z.nom["en"] = t)
-	var mats := [Lang.t("(par défaut)", "(default)")] + MapCatalog.materials()
-	_option(_zone_form, Lang.t("Sol", "Floor"), mats, maxi(0, mats.find(String(z.get("sol", "")))), func(i):
-		ed.push_undo()
-		if i == 0:
-			z.erase("sol")
-		else:
-			z["sol"] = mats[i]
-		ed.changed(false))
-	_option(_zone_form, Lang.t("Murs", "Walls"), mats, maxi(0, mats.find(String(z.get("murs", "")))), func(i):
-		ed.push_undo()
-		if i == 0:
-			z.erase("murs")
-		else:
-			z["murs"] = mats[i]
-		ed.changed(false))
+	_surface_option(_zone_form, Lang.t("Sol", "Floor"), z, "sol", "concrete", true)
+	_surface_option(_zone_form, Lang.t("Murs", "Walls"), z, "murs", "wall", true)
+	_surface_option(_zone_form, Lang.t("Plafond", "Ceiling"), z, "plafond", "ceiling", true)
+	_note(_zone_form, Lang.t("Textures par défaut des pièces de la zone (chaque pièce peut avoir les siennes : onglet Propriétés).",
+		"Default textures of the zone's rooms (each room may have its own: Properties tab)."))
 	var rooms := ed.doc.rooms_of_zone(_zone_sel).map(func(p): return String(p.get("nom", p.id)))
 	_note(_zone_form, Lang.t("Pièces : %s", "Rooms: %s") % ", ".join(rooms))
 	var start := _zone_sel == ed.doc.depart

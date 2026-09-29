@@ -71,6 +71,8 @@ class Floor:
 	var zone := PackedStringArray()
 	## Plafond propre à la case (pièce à hauteur réglée), 0 : celui de l'étage.
 	var ceil := PackedFloat64Array()
+	## Pièce de l'éditeur de chaque case de sol ("" sinon) : textures par pièce.
+	var room := PackedStringArray()
 
 	func setup(width: int, height: int) -> void:
 		w = width
@@ -81,6 +83,10 @@ class Floor:
 		key.fill("vide")
 		zone.resize(w * h)
 		ceil.resize(w * h)
+		room.resize(w * h)
+
+	func room_of(c: Vector2i) -> String:
+		return room[c.y * w + c.x] if inside(c) else ""
 
 	func inside(c: Vector2i) -> bool:
 		return c.x >= 0 and c.y >= 0 and c.x < w and c.y < h
@@ -117,6 +123,13 @@ var zone_names: Dictionary = {}
 var zone_label: Dictionary = {}
 var floor_mats: Dictionary = {}
 var wall_mats: Dictionary = {}
+## Plafonds des zones (clé de WorldLook.SURFACES) : lettre -> surface.
+var ceil_mats: Dictionary = {}
+## Textures propres à une pièce : id de pièce -> {sol, murs, plafond} (clés
+## de WorldLook.SURFACES ; absentes : celles de la zone).
+var room_surfaces: Dictionary = {}
+## Zone (lettre) de chaque pièce de l'éditeur : sol dessiné sous le décor.
+var room_zone: Dictionary = {}
 var floors: Array[Floor] = []
 ## Portes : clé de la case (« porte#id ») -> {cost, power, debris, eid}.
 var door_info: Dictionary = {}
@@ -127,7 +140,12 @@ var eid_of: Dictionary = {}
 ## Décor bloquant : [{floor, rect (Rect2i, cases), h, mat, eid}].
 var decor: Array = []
 ## Lampes ajoutées : [{floor, center (Vector2, cases)}] ; lampes automatiques ?
+## Luminaires : en plus {luminaire, mount, color, energy, range, power,
+## flicker, yaw, wall (Vector2i), support (m), boxes, barrier, eid}.
 var lamps_extra: Array = []
+## Décor posé (prefabs) : [{floor, prefab, center (Vector2, m, repère de
+## l'éditeur), rot (degrés), eid}].
+var props: Array = []
 var lamps_auto := true
 
 ## Messages : {level ("erreur" | "attention" | "info"), fr, en, text, floor, cells}

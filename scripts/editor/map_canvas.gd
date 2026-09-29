@@ -38,12 +38,18 @@ var _refusal_t := 0.0
 ## Cases mises en évidence (problème choisi dans l'onglet Vérification).
 var highlight: Array = []
 var highlight_floor := -1
+const COL_HOVER := Color(0.35, 0.9, 1.0)
+## Survol à recalculer (une fois par image au plus, pas à chaque mouvement).
+var _hover_dirty := false
 
 
 func _ready() -> void:
 	clip_contents = true
 	focus_mode = Control.FOCUS_CLICK
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_exited.connect(func():
+		_hover_dirty = false
+		ed.map_hovered(""))
 
 
 func _process(delta: float) -> void:
@@ -52,6 +58,18 @@ func _process(delta: float) -> void:
 		if _refusal_t <= 0.0:
 			refusal = ""
 			queue_redraw()
+	if _hover_dirty:
+		update_hover()
+
+
+## Élément sous le curseur -> liste des objets (surlignée, bonne page).
+## Seulement quand la liste est ouverte : sinon aucun coût.
+func update_hover() -> void:
+	_hover_dirty = false
+	if not ed.object_list.expanded or _pan or not drag.is_empty():
+		return
+	var e := ed.element_at(mouse_m)
+	ed.map_hovered(String(e.get("id", "")))
 
 
 # ------------------------------------------------------------------ repères
@@ -115,6 +133,7 @@ func _gui_input(event: InputEvent) -> void:
 			_drag_update()
 		else:
 			_update_preview()
+			_hover_dirty = true
 		ed.show_cursor(mouse_m)
 		queue_redraw()
 	elif event is InputEventMouseButton:
@@ -301,6 +320,8 @@ func _update_preview() -> void:
 	if not tool in ["opening", "wall_item", "floor_item"]:
 		return
 	var o: Dictionary = it.make.duplicate(true)
+	if it.get("rotates", false):
+		o["rot"] = ed.place_rot
 	var res := {}
 	match tool:
 		"opening":
@@ -450,6 +471,10 @@ func _draw() -> void:
 		for h in handles():
 			draw_rect(Rect2(to_px(h) - Vector2.ONE * HANDLE * 0.5, Vector2.ONE * HANDLE), COL_SEL)
 			draw_rect(Rect2(to_px(h) - Vector2.ONE * HANDLE * 0.5, Vector2.ONE * HANDLE), Color.BLACK, false, 1.0)
+	# Élément survolé (dans la liste des objets ou sur la carte) : contour lumineux.
+	var hov := doc.find(ed.hover_id) if ed.hover_id != "" else {}
+	if not hov.is_empty() and int(hov.get("etage", 0)) == k:
+		_draw_glow(hov)
 	# Problème choisi dans l'onglet Vérification.
 	if highlight_floor == k:
 		for c in highlight:
@@ -457,6 +482,21 @@ func _draw() -> void:
 			draw_rect(Rect2(cp - Vector2.ONE * zoom * 0.25, Vector2.ONE * zoom * 0.5).grow(1.0), Color(1, 0.2, 0.2, 0.9), false, 2.0)
 	_draw_tool(font)
 	_draw_rulers(font)
+
+
+## Contour lumineux (halo en trois traits) d'un élément, sans bouger la vue.
+func _draw_glow(e: Dictionary) -> void:
+	for i in 3:
+		var w := 7.0 - i * 2.5
+		var a := 0.18 + i * 0.3
+		if e.has("contour"):
+			var poly := _px_poly(ed.doc.room_poly(e))
+			draw_polyline(poly + PackedVector2Array([poly[0]]), Color(COL_HOVER, a), w)
+		else:
+			draw_rect(_elem_rect_px(e).grow(4 + (2 - i) * 2), Color(COL_HOVER, a), false, w)
+	var light := MapCatalog.light_mount(e)
+	if light != "" and e.has("portee"):
+		draw_arc(to_px(MapRules.footprint_rect(e).get_center()), float(e.portee) * zoom, 0, TAU, 48, Color(COL_HOVER, 0.35), 1.5)
 
 
 func _px_poly(p: PackedVector2Array) -> PackedVector2Array:
@@ -575,6 +615,9 @@ func _draw_object(o: Dictionary, font: Font, alpha: float) -> void:
 	var it := MapCatalog.item_for(o)
 	var r := MapRules.footprint_rect(o)
 	var rp := Rect2(to_px(r.position), r.size * zoom)
+	# Hors de la vue : rien à dessiner (cartes de 2000 objets).
+	if not rp.grow(8.0).intersects(Rect2(Vector2.ZERO, size)):
+		return
 	match t:
 		"pilier", "mur":
 			return   # dessinés par les cases de mur
@@ -601,13 +644,45 @@ func _draw_object(o: Dictionary, font: Font, alpha: float) -> void:
 			var s := minf(minf(rp.size.x, rp.size.y), 48.0)
 			MapIcons.draw(self, it, Rect2(rp.get_center() - Vector2(s, s) * 0.5, Vector2(s, s)))
 			return
+	var col: Color = it.get("color", Color.WHITE)
+	var mount := MapCatalog.light_mount(o)
+	if t == "prefab" or (t == "luminaire" and mount != "mur"):
+		# Empreinte au sol (couleur du prefab, hachures s'il bloque), icône et
+		# flèche du devant (rotation R).
+		var block := MapCatalog.blocking(o)
+		draw_rect(rp, Color(col.darkened(0.35), (0.55 if block != "non" else 0.3) * alpha))
+		if block == "solide" and zoom >= 10.0:
+			var step_px := maxf(6.0, zoom * 0.35)
+			var x := rp.position.x - rp.size.y
+			while x < rp.end.x:
+				var a := Vector2(maxf(x, rp.position.x), rp.position.y + maxf(0.0, rp.position.x - x))
+				var b := Vector2(minf(x + rp.size.y, rp.end.x), rp.position.y + minf(rp.size.y, rp.end.x - x))
+				draw_line(a, b, Color(0, 0, 0, 0.25 * alpha), 1.0)
+				x += step_px
+		if mount == "plafond":
+			draw_circle(rp.get_center(), maxf(4.0, minf(rp.size.x, rp.size.y) * 0.45), Color(col, 0.25 * alpha))
+		var si := maxf(12.0, minf(minf(rp.size.x, rp.size.y) * 0.9, 56.0))
+		MapIcons.draw(self, it, Rect2(rp.get_center() - Vector2(si, si) * 0.5, Vector2(si, si)))
+		draw_rect(rp, Color(col.lightened(0.2), 0.9 * alpha), false, 1.5 if block != "non" else 1.0)
+		if MapCatalog.rotates(o) and zoom >= 8.0:
+			# Devant de l'objet : côté +y (sud) à rot = 0, tourné avec lui.
+			var dv := Vector2(0, 1).rotated(deg_to_rad(float(o.get("rot", 0))))
+			var edge := rp.get_center() + dv * Vector2(rp.size.x, rp.size.y) * 0.5
+			draw_line(edge - dv * 7.0, edge, Color(1, 1, 1, 0.8 * alpha), 2.0)
+			draw_line(edge, edge - dv.rotated(0.6) * 5.0, Color(1, 1, 1, 0.8 * alpha), 2.0)
+			draw_line(edge, edge - dv.rotated(-0.6) * 5.0, Color(1, 1, 1, 0.8 * alpha), 2.0)
+		if t == "luminaire" and o.get("id", "") == ed.selected:
+			draw_arc(rp.get_center(), float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
+		return
 	# Objets muraux et au sol : icône dans leur emprise.
 	draw_rect(rp, Color(0, 0, 0, 0.35 * alpha))
 	var s := maxf(12.0, minf(rp.size.x, rp.size.y) * 1.1)
-	if t == "lampe":
+	if t == "lampe" or t == "luminaire":
 		s = maxf(14.0, zoom * 0.9)
 	MapIcons.draw(self, it, Rect2(rp.get_center() - Vector2(s, s) * 0.5, Vector2(s, s)))
-	draw_rect(rp, Color(it.get("color", Color.WHITE), 0.8 * alpha), false, 1.0)
+	draw_rect(rp, Color(col, 0.8 * alpha), false, 1.0)
+	if t == "luminaire" and o.get("id", "") == ed.selected:
+		draw_arc(rp.get_center(), float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
 
 
 func _draw_opening(o: Dictionary, font: Font) -> void:
