@@ -126,7 +126,24 @@ un remplacement futur : `door_open`, `purchase`, `denied`, `zombie_fling`.
 ## Mixage
 
 - Bus : `Master` (limiteur `AudioEffectHardLimiter`, plafond -0,5 dB),
-  `Music`, `SFX`, `UI` (`default_bus_layout.tres`).
+  `Music`, `SFX`, `UI`, `Voice` (`default_bus_layout.tres`). Un réglage de
+  volume par bus dans les options (`Voice` : « VOIX DES PERSONNAGES »,
+  `[audio] voice` dans `settings.cfg`).
+- Voix des personnages devant le reste, comme dans BO1 : toutes les répliques
+  (`VoxSystem`, 2D pour soi, 3D sur les coéquipiers) passent par le bus
+  `Voice` (`Audio.track_voice`). Pendant une réplique, l'effet `Duck`
+  (`AudioEffectAmplify` piloté par `Audio._process`) baisse `SFX` (zombies,
+  armes, machines) de 7 dB et `Music` de 4 dB, attaque 20 ms, retour 300 ms
+  (constante de temps) ; l'interface n'est jamais baissée. Baisse pilotée par
+  le code plutôt qu'un compresseur en sidechain : profondeur exacte, et
+  déclenchée par les seules voix (les tirs ne font jamais pomper). Voix d'un
+  coéquipier : baisse complète jusqu'à 10 m, nulle au-delà de 30 m ; voix
+  réglées à 0 % : aucune baisse.
+- Niveau des voix (fichiers à -19 dBFS sur la parole, `tools/voices`) :
+  réplique du joueur local en 2D à +2 dB, coéquipiers en 3D à +6 dB
+  (`unit_size` 10 m, audibles jusqu'à 50 m, filtre de distance léger
+  9 kHz / -6 dB pour rester intelligibles). Le limiteur du `Master` absorbe
+  les crêtes.
 - Tirs du joueur local en 2D à -1 dB, tirs des autres joueurs et zombies en
   3D (`unit_size` 6 m, audibles jusqu'à 45 m, filtre passe-bas avec la
   distance).

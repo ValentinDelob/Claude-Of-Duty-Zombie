@@ -27,6 +27,9 @@ func run() -> void:
 	at.check(game.vox._self_voice.playing, "réplique jouée en 2D pour le joueur local")
 	var stream_fr: AudioStream = game.vox._self_voice.stream
 	at.check(stream_fr != null and stream_fr.resource_path.contains("/fr/callahan/perk_titan_"), "voix française de Callahan (%s)" % (stream_fr.resource_path if stream_fr else ""))
+	# Mixage : bus Voice, effets et musique baissés pendant la réplique.
+	at.check(game.vox._self_voice.bus == Audio.VOICE_BUS, "réplique sur le bus Voice")
+	await until(func(): return Audio.duck > 0.9, 1.0, "effets et musique baissés pendant la réplique")
 	# Délai par situation : pas deux fois de suite la même réplique.
 	at.check(not game.vox.srv_say(1, "perk_titan"), "même situation : attendre avant de la redire")
 	# Langue anglaise (voix anglaises en cours de génération : seulement si le

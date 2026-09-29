@@ -232,6 +232,42 @@
     "fr": "Quatre survivants qui parlent"
    }
   },
+  "v0.1.130": {
+   "date": "2026-09-29",
+   "images": [
+    "v0.1.130/01_options.jpg"
+   ],
+   "items": [
+    {
+     "en": "Esc opens the pause menu (RESUME, OPTIONS, QUIT GAME): in solo the game stops; in co-op it goes on, but your survivor stays still.",
+     "fr": "Échap ouvre le menu pause (REPRENDRE, OPTIONS, QUITTER LA PARTIE) : en solo la partie s'arrête, en coop elle continue mais votre survivant reste immobile."
+    },
+    {
+     "en": "Every key can be rebound to the keyboard or mouse, with two keys per action and a button to restore the original keys.",
+     "fr": "Toutes les touches se réaffectent, clavier ou souris, avec deux touches par action et un bouton pour revenir aux touches d'origine."
+    },
+    {
+     "en": "New graphics settings: adjustable brightness, 3D render scale and a frame rate limit.",
+     "fr": "Nouveaux réglages graphiques : luminosité réglable, échelle de rendu 3D et limite d'images par seconde."
+    },
+    {
+     "en": "Separate aim sensitivity, and a tabbed options screen in French or English.",
+     "fr": "Sensibilité en visée réglable à part, et écran d'options en onglets, en français ou en anglais."
+    },
+    {
+     "en": "When a character speaks, zombies, gunfire and music dip for a moment, so their lines come through even in the middle of a horde.",
+     "fr": "Quand un personnage parle, les zombies, les tirs et la musique baissent un instant : ses répliques s'entendent même au milieu d'une horde."
+    },
+    {
+     "en": "New \"Character voices\" setting in the audio options.",
+     "fr": "Nouveau réglage « Voix des personnages » dans les options audio."
+    }
+   ],
+   "title": {
+    "en": "In-game options and clearer voices",
+    "fr": "Options en jeu et voix plus claires"
+   }
+  },
   "v0.1.36": {
    "date": "2026-09-26",
    "images": [],

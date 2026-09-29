@@ -101,6 +101,26 @@ def process(x, sr):
     return np.clip(x, -0.98, 0.98).astype(np.float32)
 
 
+def synth(model, text, lang, spec, key):
+    """Synthèse d'une réplique, graine fixe par réplique (une régénération donne le
+    même résultat). Chatterbox échoue parfois sur les cris très courts (« Back! ») :
+    autres graines, puis texte légèrement allongé (points de suspension, répétition)."""
+    base = int(hashlib.md5(key.encode()).hexdigest()[:8], 16)
+    for attempt, t in enumerate([text, text, text, text.rstrip("!.?") + "...", text + " " + text]):
+        torch.manual_seed(base + attempt)
+        try:
+            wav = model.generate(t, language_id=lang, exaggeration=spec["exaggeration"],
+                                 cfg_weight=spec["cfg"], temperature=spec["temperature"])
+        except Exception as e:  # erreur de l'aligneur sur les textes minuscules
+            print("[vox] essai %d en échec pour %r : %s" % (attempt + 1, t, e), flush=True)
+            continue
+        if wav is not None and wav.numel() > 2400:
+            if attempt:
+                print("[vox] %r obtenu à l'essai %d (%r)" % (text, attempt + 1, t), flush=True)
+            return wav
+    return None
+
+
 def write_ogg(x, sr, path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     sf.write(path, x, sr, format="OGG", subtype="VORBIS")
@@ -135,10 +155,10 @@ def main():
                 out = os.path.join(opt["out"], lang, ch, "%s_%d.ogg" % (cat, i))
                 if not opt["sample"] and os.path.exists(out):
                     continue  # reprise d'une génération interrompue
-                # Graine fixe par réplique : une régénération donne le même résultat.
-                torch.manual_seed(int(hashlib.md5(("%s/%s/%s/%d" % (lang, ch, cat, i)).encode()).hexdigest()[:8], 16))
-                wav = model.generate(text, language_id=lang, exaggeration=spec["exaggeration"],
-                                     cfg_weight=spec["cfg"], temperature=spec["temperature"])
+                wav = synth(model, text, lang, spec, "%s/%s/%s/%d" % (lang, ch, cat, i))
+                if wav is None:
+                    print("[vox] ÉCHEC %s %s %s_%d : %r" % (lang, ch, cat, i, text), flush=True)
+                    continue
                 y = process(wav.squeeze(0).cpu().numpy().astype(np.float32), sr)
                 write_ogg(y, sr, out)
                 if opt["sample"]:
