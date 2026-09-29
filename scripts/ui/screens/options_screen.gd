@@ -311,8 +311,8 @@ func _page_audio() -> void:
 	_add("sfx_volume", MenuOptionRow.make_range(Lang.t("EFFETS SONORES", "SOUND EFFECTS"), Settings.sfx_volume, 0.0, 1.0, 0.05, pct),
 			Lang.t("Armes, zombies, machines.", "Weapons, zombies, machines."))
 	_add("voice_volume", MenuOptionRow.make_range(Lang.t("VOIX DES PERSONNAGES", "CHARACTER VOICES"), Settings.voice_volume, 0.0, 1.0, 0.05, pct),
-			Lang.t("Répliques des personnages : les autres sons baissent quand ils parlent.",
-				"Character lines: other sounds duck while they speak."))
+			Lang.t("Volume des répliques des personnages (plus fortes que le reste par défaut).",
+				"Volume of the characters' lines (louder than everything else by default)."))
 
 
 func _section(t: String) -> void:

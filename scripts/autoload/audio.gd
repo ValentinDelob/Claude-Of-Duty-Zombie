@@ -31,25 +31,11 @@ var _group_of: Dictionary = {}  # AudioStreamPlayer3D -> groupe
 ## Nombre de lectures 3D par son depuis le lancement (diagnostic, autotests).
 var played: Dictionary = {}
 
-## Voix des personnages devant le reste, comme dans BO1 : elles passent par le
-## bus « Voice » et, pendant une réplique, les bus SFX et Music baissent en
-## douceur (effet « Duck », un AudioEffectAmplify piloté ici) puis reviennent.
-## Baisse pilotée par le code plutôt qu'un compresseur en sidechain : profondeur
-## exacte, indépendante du niveau de la voix, et les tirs ne font jamais pomper.
+## Voix des personnages : bus « Voice » (réglage « VOIX DES PERSONNAGES »). Elles
+## sont simplement mixées plus fort que le reste (VoxSystem.VOLUME_2D / VOLUME_3D) ;
+## les autres sons ne baissent JAMAIS quand un personnage parle (choix de
+## l'utilisateur : une baisse dénature le jeu).
 const VOICE_BUS := "Voice"
-## Profondeur maximale (dB) par bus baissé.
-const DUCK_DB := {"SFX": -7.0, "Music": -4.0}
-## Constantes de temps (s) de la baisse et du retour.
-const DUCK_ATTACK := 0.02
-const DUCK_RELEASE := 0.3
-## Voix 3D (coéquipiers) : baisse complète jusqu'à DUCK_NEAR m, nulle au-delà
-## de DUCK_FAR m (une réplique lointaine ne couvre pas la horde).
-const DUCK_NEAR := 10.0
-const DUCK_FAR := 30.0
-## Baisse en cours : 0 = aucune, 1 = profondeur maximale.
-var duck := 0.0
-var _voice_players: Array[Node] = []
-var _duck_fx := {}  # bus -> AudioEffectAmplify
 
 
 func _ready() -> void:
@@ -77,77 +63,26 @@ func _ready() -> void:
 	_setup_voice_bus()
 
 
-## Bus « Voice » et effets « Duck » (default_bus_layout.tres), recréés s'ils
-## manquent.
+## Bus « Voice » (default_bus_layout.tres), recréé s'il manque. Retire tout
+## ancien effet de baisse (« Duck ») des bus SFX et Music.
 func _setup_voice_bus() -> void:
 	if AudioServer.get_bus_index(VOICE_BUS) < 0:
 		AudioServer.add_bus()
 		var i := AudioServer.bus_count - 1
 		AudioServer.set_bus_name(i, VOICE_BUS)
 		AudioServer.set_bus_send(i, "Master")
-	for bus in DUCK_DB:
+	for bus in ["SFX", "Music"]:
 		var idx := AudioServer.get_bus_index(bus)
 		if idx < 0:
 			continue
-		var fx: AudioEffectAmplify = null
-		for e in AudioServer.get_bus_effect_count(idx):
-			var eff := AudioServer.get_bus_effect(idx, e)
-			if eff is AudioEffectAmplify and eff.resource_name == "Duck":
-				fx = eff
-		if fx == null:
-			fx = AudioEffectAmplify.new()
-			fx.resource_name = "Duck"
-			AudioServer.add_bus_effect(idx, fx, 0)
-		fx.volume_db = 0.0
-		_duck_fx[bus] = fx
+		for e in range(AudioServer.get_bus_effect_count(idx) - 1, -1, -1):
+			if AudioServer.get_bus_effect(idx, e).resource_name == "Duck":
+				AudioServer.remove_bus_effect(idx, e)
 
 
-## Déclare un lecteur de réplique (VoxSystem) : il joue sur le bus Voice et
-## fait baisser le reste tant qu'il parle.
+## Déclare un lecteur de réplique (VoxSystem) : il joue sur le bus Voice.
 func track_voice(p: Node) -> void:
 	p.set("bus", VOICE_BUS)
-	if not p in _voice_players:
-		_voice_players.append(p)
-
-
-## Baisse visée (0..1) : la plus forte des répliques en cours, pondérée par la
-## distance pour les voix 3D et par le volume du bus Voice (voix coupées :
-## aucune baisse).
-func duck_target() -> float:
-	var vidx := AudioServer.get_bus_index(VOICE_BUS)
-	if _shutdown or vidx < 0 or AudioServer.is_bus_mute(vidx):
-		return 0.0
-	var ear: Variant = null
-	var w := 0.0
-	for i in range(_voice_players.size() - 1, -1, -1):
-		var p = _voice_players[i]
-		if not is_instance_valid(p):
-			_voice_players.remove_at(i)
-			continue
-		if not p.playing:
-			continue
-		if p is AudioStreamPlayer3D:
-			if ear == null:
-				ear = listener_position()
-			var d: float = 0.0 if ear == null else (p as Node3D).global_position.distance_to(ear)
-			w = maxf(w, clampf((DUCK_FAR - d) / (DUCK_FAR - DUCK_NEAR), 0.0, 1.0))
-		else:
-			w = 1.0
-	return w * clampf(db_to_linear(AudioServer.get_bus_volume_db(vidx)) * 2.0, 0.0, 1.0)
-
-
-## Baisse lissée (attaque DUCK_ATTACK, retour DUCK_RELEASE) appliquée aux
-## effets « Duck » (l'AudioEffectAmplify interpole lui-même au sein d'un bloc).
-func _process(delta: float) -> void:
-	var target := duck_target()
-	if target == duck:
-		return
-	var tau := DUCK_ATTACK if target > duck else DUCK_RELEASE
-	duck = lerpf(duck, target, 1.0 - exp(-delta / tau))
-	if absf(duck - target) < 0.01:
-		duck = target
-	for bus in _duck_fx:
-		(_duck_fx[bus] as AudioEffectAmplify).volume_db = float(DUCK_DB[bus]) * duck
 
 
 func get_stream(sound: String) -> AudioStream:
@@ -299,4 +234,3 @@ func stop_all() -> void:
 	_music_name = ""
 	_cache.clear()
 	_group_of.clear()
-	_voice_players.clear()

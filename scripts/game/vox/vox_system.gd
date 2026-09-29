@@ -22,12 +22,13 @@ const COOLDOWN := {
 }
 ## Répliques prioritaires : passent même juste après une autre réplique.
 const URGENT := ["downed", "revived", "teammate_down", "teammate_dead", "last_alive", "game_start", "death"]
-## Voix : niveau et portée. Elles jouent sur le bus « Voice » et baissent les
-## zombies, effets et musique pendant qu'elles parlent (Audio.track_voice,
-## docs/ASSETS.md « Mixage ») ; niveau relevé pour rester intelligibles au
-## milieu d'une horde (voix à -19 dBFS contre -14 LUFS pour les zombies).
-const VOLUME_3D := 6.0
-const VOLUME_2D := 2.0
+## Voix : niveau et portée. Elles jouent sur le bus « Voice » (Audio.track_voice,
+## docs/ASSETS.md « Mixage ») et sont simplement plus fortes que le reste, qui ne
+## baisse jamais : fichiers à -19 dBFS contre -14 LUFS pour les zombies, d'où
+## +8 dB pour sa propre voix et +10 dB pour celles des coéquipiers (le limiteur
+## du Master évite toute saturation).
+const VOLUME_3D := 10.0
+const VOLUME_2D := 8.0
 ## Coéquipiers : niveau plein jusqu'à UNIT_SIZE_3D m, audibles jusqu'à
 ## MAX_DISTANCE_3D m, à peine assourdis par la distance (voix claires).
 const UNIT_SIZE_3D := 10.0

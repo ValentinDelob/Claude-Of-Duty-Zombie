@@ -232,10 +232,10 @@
     "fr": "Quatre survivants qui parlent"
    }
   },
-  "v0.1.130": {
+  "v0.1.131": {
    "date": "2026-09-29",
    "images": [
-    "v0.1.130/01_options.jpg"
+    "v0.1.131/01_options.jpg"
    ],
    "items": [
     {
@@ -266,6 +266,28 @@
    "title": {
     "en": "In-game options and clearer voices",
     "fr": "Options en jeu et voix plus claires"
+   }
+  },
+  "v0.1.132": {
+   "date": "2026-09-29",
+   "images": [],
+   "items": [
+    {
+     "en": "The characters' lines are now louder than everything else by default.",
+     "fr": "Les répliques des personnages sont maintenant plus fortes que le reste par défaut."
+    },
+    {
+     "en": "Zombies, gunfire and music no longer dip when a character speaks.",
+     "fr": "Les zombies, les tirs et la musique ne baissent plus quand un personnage parle."
+    },
+    {
+     "en": "The \"Character voices\" setting still lets you adjust them.",
+     "fr": "Le réglage « Voix des personnages » permet toujours de les ajuster."
+    }
+   ],
+   "title": {
+    "en": "Louder voices, same atmosphere",
+    "fr": "Des voix plus fortes, l'ambiance intacte"
    }
   },
   "v0.1.36": {

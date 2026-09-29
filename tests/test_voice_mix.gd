@@ -1,7 +1,8 @@
 extends TestCase
 ## Mixage des voix des personnages (docs/ASSETS.md « Mixage ») : bus « Voice »,
-## baisse des effets et de la musique pendant une réplique (comme BO1), réglage
-## « VOIX DES PERSONNAGES » enregistré, rechargé et appliqué au bus.
+## voix simplement plus fortes que le reste, AUCUNE baisse des autres sons
+## pendant une réplique (choix de l'utilisateur), réglage « VOIX DES
+## PERSONNAGES » enregistré, rechargé et appliqué au bus.
 
 
 ## Lecteur qui « parle » indéfiniment (générateur : reste en lecture).
@@ -13,28 +14,21 @@ func _speaker(p: Node) -> Node:
 	return p
 
 
-func _duck_fx(bus: String) -> AudioEffectAmplify:
+func _bus_state(bus: String) -> Array:
 	var idx := AudioServer.get_bus_index(bus)
-	for e in AudioServer.get_bus_effect_count(idx):
-		var eff := AudioServer.get_bus_effect(idx, e)
-		if eff is AudioEffectAmplify and eff.resource_name == "Duck":
-			return eff
-	return null
+	return [AudioServer.get_bus_volume_db(idx), AudioServer.get_bus_effect_count(idx)]
 
 
 func test_voice_bus_in_layout() -> void:
 	var layout := FileAccess.get_file_as_string("res://default_bus_layout.tres")
 	assert_true(layout.contains("name = &\"Voice\""), "bus Voice dans default_bus_layout.tres")
 	assert_true(layout.contains("AudioEffectHardLimiter"), "limiteur du Master conservé")
+	assert_false(layout.contains("Duck"), "aucun effet de baisse dans les bus")
 	var idx := AudioServer.get_bus_index(Audio.VOICE_BUS)
 	assert_true(idx > 0, "bus Voice chargé")
 	assert_eq(String(AudioServer.get_bus_send(idx)), "Master", "Voice -> Master")
 	for bus in ["SFX", "Music"]:
-		assert_true(_duck_fx(bus) != null, "effet Duck sur %s" % bus)
-	assert_true(_duck_fx("UI") == null, "interface jamais baissée")
-	# Profondeurs raisonnables (zombies et effets plus baissés que la musique).
-	assert_true(Audio.DUCK_DB.SFX <= -6.0 and Audio.DUCK_DB.SFX >= -9.0, "SFX -6 à -9 dB")
-	assert_true(Audio.DUCK_DB.Music < 0.0 and Audio.DUCK_DB.Music > Audio.DUCK_DB.SFX, "musique moins baissée")
+		assert_eq(AudioServer.get_bus_effect_count(AudioServer.get_bus_index(bus)), 0, "aucun effet sur %s" % bus)
 
 
 func test_vox_players_on_voice_bus() -> void:
@@ -47,46 +41,20 @@ func test_vox_players_on_voice_bus() -> void:
 	p.free()
 
 
-func test_ducking_follows_voice() -> void:
-	await wait_seconds(0.8)
-	assert_near(Audio.duck, 0.0, 0.01, "rien ne parle : pas de baisse")
+func test_voices_louder_than_the_rest() -> void:
+	assert_true(VoxSystem.VOLUME_2D >= 6.0, "sa propre voix au-dessus du reste (+%.0f dB)" % VoxSystem.VOLUME_2D)
+	assert_true(VoxSystem.VOLUME_3D >= 8.0, "voix des coéquipiers au-dessus du reste (+%.0f dB)" % VoxSystem.VOLUME_3D)
+
+
+func test_nothing_else_lowered_while_speaking() -> void:
+	var before := {"SFX": _bus_state("SFX"), "Music": _bus_state("Music"), "UI": _bus_state("UI")}
 	var p: AudioStreamPlayer = _speaker(AudioStreamPlayer.new())
-	await wait_seconds(0.15)
+	await wait_seconds(0.3)
 	assert_true(p.playing, "réplique en cours")
-	assert_true(Audio.duck > 0.9, "baisse rapide (attaque) : %.2f" % Audio.duck)
-	assert_near(_duck_fx("SFX").volume_db, Audio.DUCK_DB.SFX * Audio.duck, 0.01, "SFX baissé")
-	assert_near(_duck_fx("Music").volume_db, Audio.DUCK_DB.Music * Audio.duck, 0.01, "musique baissée")
+	for bus in before:
+		assert_eq(_bus_state(bus), before[bus], "%s inchangé pendant une réplique" % bus)
 	p.stop()
-	await wait_seconds(0.1)
-	assert_true(Audio.duck > 0.3, "retour en douceur, pas d'un coup : %.2f" % Audio.duck)
-	await wait_seconds(1.5)
-	assert_near(Audio.duck, 0.0, 0.01, "retour complet après la réplique")
-	assert_near(_duck_fx("SFX").volume_db, 0.0, 0.01, "SFX rétabli")
-	# Voix coupées dans les options : aucune baisse.
-	var before := Settings.voice_volume
-	Settings.voice_volume = 0.0
-	Settings.apply()
-	p.play()
-	await wait_seconds(0.2)
-	assert_near(Audio.duck, 0.0, 0.01, "voix à 0 % : rien ne baisse")
-	Settings.voice_volume = before
-	Settings.apply()
 	p.queue_free()
-	await wait_seconds(1.5)
-
-
-func test_ducking_weighted_by_distance() -> void:
-	var cam := Camera3D.new()
-	host.add_child(cam)
-	cam.make_current()
-	var v: AudioStreamPlayer3D = _speaker(AudioStreamPlayer3D.new())
-	var cases := [[5.0, 1.0], [20.0, 0.5], [40.0, 0.0]]
-	for c in cases:
-		v.global_position = Vector3(c[0], 0, 0)
-		assert_near(Audio.duck_target(), c[1], 0.01, "coéquipier à %d m" % int(c[0]))
-	v.queue_free()
-	cam.queue_free()
-	await wait_seconds(1.5)
 
 
 func test_voice_volume_saved_and_applied() -> void:
