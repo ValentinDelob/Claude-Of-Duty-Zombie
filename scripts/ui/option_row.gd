@@ -24,6 +24,8 @@ var step := 0.05
 var choices: PackedStringArray = []
 ## func(value: float) -> String : texte affiché pour une valeur (RANGE).
 var formatter: Callable
+## Faux : la molette n'est pas consommée (page d'options qui défile).
+var wheel_nudges := true
 
 var _focus_t := 0.0  # 0..1, animation de surbrillance
 var _flash := 0.0  # éclat bref à chaque changement
@@ -46,7 +48,7 @@ static func make_toggle(label: String, on: bool) -> MenuOptionRow:
 	var r := MenuOptionRow.new()
 	r.label_text = label
 	r.kind = Kind.TOGGLE
-	r.choices = PackedStringArray(["NON", "OUI"])
+	r.choices = PackedStringArray([Lang.t("NON", "NO"), Lang.t("OUI", "YES")])
 	r.min_value = 0.0
 	r.max_value = 1.0
 	r.step = 1.0
@@ -68,7 +70,9 @@ static func make_choice(label: String, options: PackedStringArray, index: int) -
 
 func _ready() -> void:
 	focus_mode = Control.FOCUS_ALL
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	# PASS : les événements non consommés (molette d'une page qui défile)
+	# remontent au ScrollContainer.
+	mouse_filter = Control.MOUSE_FILTER_PASS
 	custom_minimum_size = Vector2(VALUE_X + ARROW_W * 2.0 + GAUGE_W + 110.0, HEIGHT)
 	mouse_entered.connect(func(): grab_focus())
 	focus_entered.connect(func():
@@ -126,6 +130,8 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 	elif event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
+		if not wheel_nudges and mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			return
 		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
 			nudge(1)
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:

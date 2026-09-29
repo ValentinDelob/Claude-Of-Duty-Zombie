@@ -219,10 +219,15 @@ func capture_mouse(on: bool) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if on else Input.MOUSE_MODE_VISIBLE
 
 
+## Menu pause (ou options en jeu) ouvert : entrées du joueur local ignorées.
+func menu_open() -> bool:
+	return hud != null and hud.pause_menu != null and hud.pause_menu.visible
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	# Le menu pause est géré par le HUD ; un clic recapture la souris.
 	if event is InputEventMouseButton and event.pressed and GameState.is_in_game() \
-			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not hud.pause_menu.visible:
+			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not menu_open():
 		capture_mouse(true)
 
 
@@ -527,7 +532,7 @@ func _update_spectator() -> void:
 			local_player.camera.make_current()
 			hud.set_spectating("")
 		return
-	if Input.is_action_just_pressed("fire"):
+	if Input.is_action_just_pressed("fire") and not menu_open():
 		_spectate_index += 1
 	var target: Player = others[_spectate_index % others.size()]
 	if target != spectating:

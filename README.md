@@ -82,7 +82,33 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
 | Changer d'arme | 1, 2, molette |
 | Interagir (acheter, réanimer : maintenir) | F ou E |
 | Tableau des scores | Tab (maintenu) |
-| Pause | Échap |
+| Pause (REPRENDRE, OPTIONS, QUITTER LA PARTIE) | Échap |
+
+Toutes ces touches (sauf Échap) se réaffectent dans **OPTIONS > COMMANDES**,
+depuis le menu principal ou en pleine partie (Échap > OPTIONS) : clic ou
+Entrée sur une action, puis la nouvelle touche ou le bouton de souris (Échap
+annule, Retour arrière efface) ; deux touches par action ; une touche déjà
+prise est retirée de l'autre action (message affiché) ; « Rétablir les touches
+par défaut ». Enregistré dans `settings.cfg`.
+
+## Options
+
+OPTIONS (menu principal, ou Échap > OPTIONS en jeu : partie suspendue en solo
+comme dans BO1, en multijoueur la partie continue mais votre survivant ne
+bouge plus tant que le menu est ouvert). Onglets (◄ / ►, ou Page préc. /
+Page suiv.) :
+
+- **JEU** : nom du joueur, LANGUE / LANGUAGE (interface des options et du menu
+  pause, voix des personnages).
+- **COMMANDES** : sensibilité de la souris, sensibilité en visée, inversion de
+  l'axe vertical, réaffectation des touches.
+- **GRAPHISMES** : plein écran, synchro verticale, limite d'images par seconde
+  (illimitée, 30, 60, 120, 144, 240), échelle de rendu 3D (50 à 100 %), qualité
+  (basse, moyenne, haute), champ de vision, luminosité (gamma, comme BO1),
+  grain de film.
+- **SON** : volumes général, musique, effets.
+
+Chaque réglage s'applique tout de suite et est enregistré.
 
 ## Multijoueur
 

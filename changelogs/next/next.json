@@ -1,0 +1,11 @@
+{"title": {"fr": "Options en pleine partie", "en": "Options during a game"},
+ "items": [
+  {"fr": "Échap ouvre le menu pause (REPRENDRE, OPTIONS, QUITTER LA PARTIE) : en solo la partie s'arrête, en coop elle continue mais votre survivant reste immobile.",
+   "en": "Esc opens the pause menu (RESUME, OPTIONS, QUIT GAME): in solo the game stops; in co-op it goes on, but your survivor stays still."},
+  {"fr": "Toutes les touches se réaffectent, clavier ou souris, avec deux touches par action et un bouton pour revenir aux touches d'origine.",
+   "en": "Every key can be rebound to the keyboard or mouse, with two keys per action and a button to restore the original keys."},
+  {"fr": "Nouveaux réglages graphiques : luminosité comme dans Black Ops, échelle de rendu 3D et limite d'images par seconde.",
+   "en": "New graphics settings: Black Ops-style brightness, 3D render scale and a frame rate limit."},
+  {"fr": "Sensibilité en visée réglable à part, et écran d'options en onglets, en français ou en anglais.",
+   "en": "Separate aim sensitivity, and a tabbed options screen in French or English."}
+ ]}

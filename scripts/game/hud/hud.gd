@@ -274,7 +274,7 @@ func _process(delta: float) -> void:
 	var raw := focus.prompt(player.peer_id) if focus else ""
 	if raw != _prompt.text:
 		_prompt.text = raw
-		_prompt_view.text = bo1_prompt(raw)
+		_prompt_view.text = bo1_prompt(raw, Settings.action_label("interact"))
 	if _flash_t > 0.0:
 		_flash_t -= delta
 		_flash.modulate.a = clampf(_flash_t, 0.0, 1.0)
@@ -308,7 +308,7 @@ func _process(delta: float) -> void:
 			elif wc.is_reloading():
 				_hint.text = "RECHARGEMENT..."
 			elif low and w.reserve > 0:
-				_hint.text = "Appuyer sur R pour recharger"
+				_hint.text = "Appuyer sur %s pour recharger" % Settings.action_label("reload")
 			else:
 				_hint.text = ""
 	# Compte à rebours dans la salle du rituel (prioritaire).
@@ -427,6 +427,7 @@ func show_banner(text: String, duration := 3.5) -> void:
 ## Invite au format BO1 (« Press F to buy M14 [Cost: 500] ») à partir du texte
 ## des objets (« [F] Acheter M14 [500] ») :
 ##   « Appuyer sur F pour acheter M14 [Coût : 500] ».
+## `key` : nom de la touche INTERAGIR (réaffectable dans les options).
 ## Pure : testée dans tests/test_hud.gd.
 const PROMPT_NOUNS := {
 	"Boîte mystère": "ouvrir la boîte mystère",
@@ -434,7 +435,7 @@ const PROMPT_NOUNS := {
 }
 
 
-static func bo1_prompt(raw: String) -> String:
+static func bo1_prompt(raw: String, key := "F") -> String:
 	if raw == "":
 		return ""
 	var t := raw
@@ -442,16 +443,16 @@ static func bo1_prompt(raw: String) -> String:
 	var re := RegEx.create_from_string("\\[(\\d+)\\]")
 	t = re.sub(t, "[Coût : $1]", true)
 	if t.begins_with("Maintenir [F]"):
-		return "Maintenir F" + t.substr(13)
+		return "Maintenir " + key + t.substr(13)
 	if not t.begins_with("[F] "):
 		return t
 	var rest := t.substr(4)
 	if rest.begins_with("Maintenir "):
-		return "Maintenir F " + rest.substr(10)
+		return "Maintenir %s %s" % [key, rest.substr(10)]
 	for noun: String in PROMPT_NOUNS:
 		if rest.begins_with(noun):
-			return "Appuyer sur F pour %s%s" % [PROMPT_NOUNS[noun], rest.substr(noun.length())]
-	return "Appuyer sur F pour " + rest.substr(0, 1).to_lower() + rest.substr(1)
+			return "Appuyer sur %s pour %s%s" % [key, PROMPT_NOUNS[noun], rest.substr(noun.length())]
+	return "Appuyer sur %s pour %s%s" % [key, rest.substr(0, 1).to_lower(), rest.substr(1)]
 
 
 ## Message bref (refus d'achat...).
@@ -515,11 +516,10 @@ func teleport_flash() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause") and GameState.is_in_game():
-		if pause_menu.visible:
-			pause_menu.close()
-		else:
-			pause_menu.open()
+	# Ouverture seulement : une fois ouvert (partie suspendue en solo), le
+	# menu pause gère lui-même Échap (retour des options, reprise).
+	if event.is_action_pressed("pause") and GameState.is_in_game() and pause_menu and not pause_menu.visible:
+		pause_menu.open()
 		get_viewport().set_input_as_handled()
 
 

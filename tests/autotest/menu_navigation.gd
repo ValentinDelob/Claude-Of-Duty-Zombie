@@ -1,8 +1,9 @@
 extends AutotestScenario
 ## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
 ## Menu principal parcouru au clavier (événements d'entrée réels) :
-## principal -> OPTIONS (une option modifiée, vérifiée dans le fichier de
-## réglages, puis restaurée) -> retour -> CRÉDITS (défilement) -> retour ->
+## principal -> OPTIONS (onglets, onglet SON, une option modifiée, vérifiée
+## dans le fichier de réglages, puis restaurée) -> retour -> CRÉDITS
+## (défilement) -> retour ->
 ## MULTIJOUEUR -> retour -> apparition de la silhouette du fond -> SOLO ->
 ## sélection de carte -> BUNKER K-7
 ## (fondu au noir cinématique avant le chargement). Captures de chaque écran.
@@ -43,6 +44,17 @@ func run() -> void:
 	at.check(menu.current_name == "options", "Entrée : écran OPTIONS")
 	await seconds(0.9)
 	await at.screenshot("options")
+	# Onglets JEU / COMMANDES / GRAPHISMES / SON : focus sur JEU, ► jusqu'à SON.
+	var tabs := []
+	for t in menu.current.TABS:
+		tabs.append(menu.current.tab_buttons[t].label)
+	at.check(tabs == ["JEU", "COMMANDES", "GRAPHISMES", "SON"], "onglets des options : %s" % ", ".join(tabs))
+	at.check(_focused_label() == "JEU", "focus sur l'onglet JEU (%s)" % _focused_label())
+	for i in 3:
+		await press("ui_right")
+	at.check(menu.current.tab == "audio" and _focused_label() == "SON", "► ► ► : onglet SON (%s)" % _focused_label())
+	await seconds(0.3)
+	await at.screenshot("options_audio")
 	await _check_option_saved()
 
 	await press("ui_cancel")

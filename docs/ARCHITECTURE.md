@@ -65,9 +65,59 @@ précédent.
 | Nom | Rôle |
 |-----|------|
 | `GameState` | Machine à états unique de la session (`MAIN_MENU`, `LOBBY`, `CONNECTING`, `LOADING`, `PLAYING`, `ROUND_END`, `PLAYER_DOWN`, `GAME_OVER`, `DISCONNECTING`) avec transitions validées. |
-| `Settings` | Options persistantes (`user://settings.cfg`) et actions d'entrée. |
+| `Settings` | Options persistantes (`user://settings.cfg`), actions d'entrée et touches réaffectables (voir « Menus, options et touches »). |
 | `Net` | Host / Join / Solo, poignée de main (version, serveur plein, partie lancée), registre des joueurs, erreurs de connexion lisibles. |
 | `Autotest` | Scénarios de test automatisés dans le vrai jeu (`-- --autotest=<nom>`), mesures de perf, captures d'écran. |
+
+## Menus, options et touches
+
+- **Hôtes d'écrans** : `MenuHost` (`scripts/ui/menu_host.gd`) est l'interface
+  que voient les écrans `MenuScreen` (`show_screen`, `go_back`, `set_hint`,
+  `current`). Deux hôtes : `MainMenu` (menu principal, fond 3D, transitions) et
+  `PauseMenu` (`scripts/game/hud/pause_menu.gd`, enfant du HUD, toujours
+  actif même arbre en pause).
+- **Menu pause** : Échap (action `pause`, fixe) l'ouvre depuis le HUD
+  (`GameState.is_in_game()` ; jamais pendant le chargement). REPRENDRE,
+  OPTIONS, QUITTER LA PARTIE, QUITTER LE JEU. Solo : `get_tree().paused`
+  (comme BO1). Multijoueur : la partie continue ; `Game.menu_open()` fait
+  ignorer toutes les entrées du joueur local (`Player._local_physics` : ni
+  déplacement, ni visée, ni tir ; souris libérée) et le changement de joueur
+  suivi en spectateur. Une fois ouvert, le menu gère Échap / `ui_cancel`
+  lui-même : retour des options, sinon reprise.
+- **Options** : un seul écran, `scripts/ui/screens/options_screen.gd`, pour le
+  menu principal et la partie (`PauseMenu.show_screen("options")` charge
+  `MainMenu.SCREENS.options`, `args.in_game = true`). Onglets JEU, COMMANDES,
+  GRAPHISMES, SON (◄ / ► sur les onglets, Page préc. / suiv. partout) ; page
+  dans un `ScrollContainer` (`follow_focus`) avec voisins de focus explicites
+  onglet <-> page <-> RETOUR. Sur la page COMMANDES, les jauges laissent la
+  molette au défilement (`MenuOptionRow.wheel_nudges = false` ; lignes en
+  `MOUSE_FILTER_PASS`). Chaque changement : `Settings.apply()` puis
+  `save_settings()`.
+- **Touches** : `Settings.bindings` = action -> codes (`key:<physical_keycode>`,
+  `mouse:<bouton>`), deux cases par action (`MAX_KEYS`), actions de
+  `Settings.REBINDABLE`. `bind(action, case, code)` retire le code de toute
+  autre action (retourne laquelle, affiché dans l'aide) ou échange les deux
+  cases ; `clear_binding`, `reset_bindings` ; `apply_bindings()` reconstruit
+  l'InputMap (la molette reste liée à `switch_weapon`, Échap à `pause`).
+  Section `[bindings]` de `settings.cfg` ; relecture filtrée (codes valides,
+  sans doublon ; action absente : ses touches d'origine si elles sont libres).
+  Ligne `MenuBindRow` (`scripts/ui/bind_row.gd`) ; la saisie (« Appuyez sur une
+  touche… ») est faite par `OptionsScreen._input` : touche ou bouton de souris
+  (molette exclue), Échap annule. Noms affichés : `Settings.code_label`
+  (disposition du clavier : la touche physique W s'affiche Z en AZERTY). Les
+  invites du HUD utilisent la touche courante (`Hud.bo1_prompt(raw, key)`).
+- **Graphismes** : `Settings.render_scale` (x la résolution 3D du préréglage,
+  `RenderQuality.scale_3d`), `Settings.max_fps` (`Engine.max_fps` ; un
+  `--max-fps` de la ligne de commande l'emporte), `Settings.brightness` (gamma
+  de sortie ajouté à la table d'étalonnage de la carte : `WorldLook.map_lut`,
+  dérivée de la table de base par une table de 256 valeurs, en cache).
+  `RenderQuality` réapplique l'échelle et la luminosité seules quand elles
+  changent (le préréglage complet seulement si la qualité change). Valeurs par
+  défaut (100 %, illimitée, 100 %) = rendu d'avant ces options.
+- **Langues** : `Lang.t(fr, en)` (`scripts/ui/lang.gd`) selon
+  `Settings.language`. Traduits : écran d'options, menu pause, noms des
+  touches ; le reste du jeu est en français. Changer la langue reconstruit
+  l'écran d'options.
 
 ## Rendu et performances
 
@@ -102,7 +152,7 @@ précédent.
 | Zombies à ombre portée | 0 | 6 plus proches, < 12 m | 12 plus proches, < 20 m |
 | Glow | coupé | oui (suréchantillonnage linéaire) | oui (bicubique) |
 | SSAO / MSAA | non / non | non / non | léger / 2x |
-| Résolution 3D | 85 % (bilinéaire) | 100 % | 100 % |
+| Résolution 3D (x ÉCHELLE DE RENDU 3D des options) | 85 % (bilinéaire) | 100 % | 100 % |
 | Décalques / particules | 50 % / 50 % | 100 % | 100 % |
 | Brume volumétrique | non | 48x48x32 | 64x64x48 |
 | Post-traitement (`FilmPost`) | multiplicatif (grain, vignette) | lecture d'écran + aberration | idem |
@@ -304,7 +354,7 @@ précédent.
 - `sh tools/check.sh` : import, tests unitaires, test réseau multi-processus, lancement
   réel du jeu + scénario. **Doit passer avant chaque commit.**
 - Tests unitaires : `tests/test_*.gd` (runner : `res://tests/test_runner.tscn`).
-- Scénarios en jeu : `tests/autotest/*.gd`.
+- Scénarios en jeu : `tests/autotest/*.gd` (options en jeu : `pause_options` ; captures de l'écran d'options en jeu : `options_look`, `## @rendu`). Réglages et touches : `tests/test_settings.gd` (fichier temporaire, jamais les réglages du joueur).
 - Rapidité : check.sh lance tout dans un pool parallèle (les plus longues
   d'abord), scénarios et multijoueur en `--headless --max-fps 60` (captures et
   mesures de perf ignorées). Étiquettes en tête de scénario :

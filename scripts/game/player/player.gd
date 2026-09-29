@@ -195,12 +195,15 @@ func _local_physics(delta: float) -> void:
 		_update_camera_effects(delta)
 		return
 	if not bot_controlled:
-		if input_enabled and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		# Menu pause ouvert (multijoueur : la partie continue) : le joueur ne
+		# bouge plus, ne vise plus et ne tire plus.
+		var menu_open := Game.instance != null and Game.instance.menu_open()
+		if input_enabled and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not menu_open:
 			input.read_devices()
 		else:
 			var keep_look := input.look
 			input = PlayerInput.new()
-			input.look = keep_look if input_enabled else Vector2.ZERO
+			input.look = keep_look if input_enabled and not menu_open else Vector2.ZERO
 
 	_apply_look()
 	_update_stance(delta)
@@ -223,7 +226,7 @@ func _local_physics(delta: float) -> void:
 func _apply_look() -> void:
 	var sens := Settings.mouse_sensitivity * 0.01
 	if aiming:
-		sens *= weapons.ads_look_mult() if weapons else 0.6
+		sens *= (weapons.ads_look_mult() if weapons else 0.6) * Settings.ads_sensitivity
 	yaw -= input.look.x * sens
 	var dy := input.look.y * sens
 	pitch -= -dy if Settings.invert_y else dy

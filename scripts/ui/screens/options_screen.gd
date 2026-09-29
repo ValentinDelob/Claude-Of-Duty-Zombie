@@ -1,71 +1,315 @@
 extends MenuScreen
-## Options : joueur, commandes, vidéo, audio. Chaque changement est appliqué
-## et enregistré immédiatement (Settings.apply() + Settings.save_settings()).
+## Options, en onglets (comme les sous-menus d'options de BO1) : JEU,
+## COMMANDES (sensibilité, touches), GRAPHISMES, SON. Chaque changement est
+## appliqué et enregistré immédiatement (Settings.apply() +
+## Settings.save_settings()). Le même écran sert au menu principal et au menu
+## pause de la partie (hôte : MenuHost ; `args.in_game`).
+##
+## Clavier : ◄ / ► sur les onglets (ou Page préc. / Page suiv. partout)
+## changent d'onglet, ▲ / ▼ parcourent la page (qui défile si besoin).
+## Textes en français ou en anglais selon Settings.language (Lang.t).
 
-const QUALITY_NAMES := ["BASSE", "MOYENNE", "HAUTE"]
+const TABS := ["game", "controls", "graphics", "audio"]
+## Libellés des actions réaffectables [fr, en] (ordre : Settings.REBINDABLE).
+const ACTION_NAMES := {
+	"move_forward": ["AVANCER", "MOVE FORWARD"],
+	"move_back": ["RECULER", "MOVE BACK"],
+	"move_left": ["GAUCHE", "STRAFE LEFT"],
+	"move_right": ["DROITE", "STRAFE RIGHT"],
+	"jump": ["SAUTER", "JUMP"],
+	"crouch": ["S'ACCROUPIR / S'ALLONGER", "CROUCH / PRONE"],
+	"sprint": ["SPRINTER", "SPRINT"],
+	"fire": ["TIRER", "FIRE"],
+	"aim": ["VISER", "AIM DOWN SIGHT"],
+	"reload": ["RECHARGER", "RELOAD"],
+	"interact": ["INTERAGIR / ACHETER", "USE / BUY"],
+	"melee": ["COUTEAU", "KNIFE"],
+	"grenade": ["GRENADE", "GRENADE"],
+	"tactical": ["GRENADE SPÉCIALE", "SPECIAL GRENADE"],
+	"switch_weapon": ["CHANGER D'ARME", "SWITCH WEAPON"],
+	"scoreboard": ["TABLEAU DES SCORES", "SCOREBOARD"],
+}
+const PAGE_SIZE := Vector2(870, 440)
 
-var rows := {}  # clé -> MenuOptionRow
+var rows := {}  # clé -> MenuOptionRow (onglet affiché)
+var bind_rows := {}  # action -> MenuBindRow (onglet COMMANDES)
+var tab_buttons := {}  # onglet -> MenuActionButton
+var tab := "game"
 var name_edit: LineEdit
+var reset_button: Button
+var back_button: Button
+var scroll: ScrollContainer
+var page: VBoxContainer
+var in_game := false
 var _col: VBoxContainer
+var _focusables: Array[Control] = []
+## Réaffectation en cours : ligne, case, image du clic qui l'a lancée.
+var _capture: MenuBindRow
+var _capture_slot := 0
+var _capture_frame := -1
 
 
-func enter(_args := {}) -> void:
+static func action_name(action: String) -> String:
+	var n: Array = ACTION_NAMES.get(action, [action, action])
+	return Lang.t(n[0], n[1])
+
+
+static func tab_label(t: String) -> String:
+	match t:
+		"game": return Lang.t("JEU", "GAME")
+		"controls": return Lang.t("COMMANDES", "CONTROLS")
+		"graphics": return Lang.t("GRAPHISMES", "GRAPHICS")
+		"audio": return Lang.t("SON", "AUDIO")
+	return t.to_upper()
+
+
+func enter(args := {}) -> void:
+	in_game = args.get("in_game", false)
+	tab = args.get("tab", "game")
+	if not tab in TABS:
+		tab = "game"
+	_build()
+	var f: String = args.get("focus", "")
+	focus_later(rows[f] if rows.has(f) else tab_buttons[tab])
+
+
+func exit() -> void:
+	_end_capture()
+
+
+func _build() -> void:
 	_col = vbox(1)
 	_col.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	_col.offset_left = 96
 	_col.offset_top = 34
 	add_child(_col)
 	_col.add_child(title("OPTIONS", 46))
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 4)
+	_col.add_child(bar)
+	for t in TABS:
+		var b := button(tab_label(t), func(): _select_tab(t), _tab_hint()) as MenuActionButton
+		b.font_size = 24
+		b.gui_input.connect(_on_tab_input)
+		tab_buttons[t] = b
+		bar.add_child(b)
+	_col.add_child(text("", 4))
+	scroll = ScrollContainer.new()
+	scroll.custom_minimum_size = PAGE_SIZE
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	_style_scrollbar(scroll.get_v_scroll_bar())
+	_col.add_child(scroll)
+	_col.add_child(text("", 4))
+	back_button = button(Lang.t("RETOUR", "BACK"), back,
+			Lang.t("Les réglages sont enregistrés automatiquement.", "Settings are saved automatically."))
+	_col.add_child(back_button)
+	_select_tab(tab, false)
 
-	_section("JOUEUR")
+
+func _tab_hint() -> String:
+	return Lang.t("◄ / ► : changer d'onglet.", "◄ / ►: switch tab.")
+
+
+func _style_scrollbar(bar: VScrollBar) -> void:
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.08, 0.03, 0.03, 0.6)
+	bg.content_margin_left = 4
+	bg.content_margin_right = 4
+	bar.add_theme_stylebox_override("scroll", bg)
+	var grab := StyleBoxFlat.new()
+	grab.bg_color = Color(0.5, 0.08, 0.06)
+	bar.add_theme_stylebox_override("grabber", grab)
+	var hi := grab.duplicate()
+	hi.bg_color = MenuStyle.HOVER
+	bar.add_theme_stylebox_override("grabber_highlight", hi)
+	bar.add_theme_stylebox_override("grabber_pressed", hi)
+
+
+# --------------------------------------------------------------------------
+# Onglets
+# --------------------------------------------------------------------------
+
+func _select_tab(t: String, sound := true) -> void:
+	_end_capture()
+	if sound and t != tab:
+		Audio.play_ui("menu_whoosh", -16.0)
+	tab = t
+	for k in tab_buttons:
+		tab_buttons[k].selected = k == t
+	rows.clear()
+	bind_rows.clear()
+	name_edit = null
+	reset_button = null
+	if page:
+		scroll.remove_child(page)
+		page.queue_free()
+	page = vbox(1)
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(page)
+	scroll.scroll_vertical = 0
+	_focusables.clear()
+	match t:
+		"game": _page_game()
+		"controls": _page_controls()
+		"graphics": _page_graphics()
+		"audio": _page_audio()
+	_link_focus()
+
+
+## Onglet voisin (`dir` = -1 / +1), le focus passe sur son bouton.
+func switch_tab(dir: int) -> void:
+	var i := posmod(TABS.find(tab) + dir, TABS.size())
+	_select_tab(TABS[i])
+	tab_buttons[tab].grab_focus()
+
+
+func _on_tab_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_left", true):
+		switch_tab(-1)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_right", true):
+		switch_tab(1)
+		get_viewport().set_input_as_handled()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _capture != null or not is_visible_in_tree():
+		return
+	if event.is_action_pressed("ui_page_down"):
+		switch_tab(1)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_page_up"):
+		switch_tab(-1)
+		get_viewport().set_input_as_handled()
+
+
+## Voisins de focus explicites : onglet actif <-> page <-> RETOUR.
+func _link_focus() -> void:
+	var tb: Control = tab_buttons[tab]
+	var first: Control = _focusables[0] if not _focusables.is_empty() else back_button
+	var last: Control = _focusables[-1] if not _focusables.is_empty() else tb
+	for k in tab_buttons:
+		var b: Control = tab_buttons[k]
+		b.focus_neighbor_bottom = b.get_path_to(first)
+		b.focus_neighbor_top = b.get_path_to(back_button)
+	for i in _focusables.size():
+		var c := _focusables[i]
+		c.focus_neighbor_top = c.get_path_to(_focusables[i - 1] if i > 0 else tb)
+		c.focus_neighbor_bottom = c.get_path_to(_focusables[i + 1] if i < _focusables.size() - 1 else back_button)
+	back_button.focus_neighbor_top = back_button.get_path_to(last)
+	back_button.focus_neighbor_bottom = back_button.get_path_to(tb)
+
+
+# --------------------------------------------------------------------------
+# Pages
+# --------------------------------------------------------------------------
+
+func _page_game() -> void:
+	_section(Lang.t("JOUEUR", "PLAYER"))
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 0)
-	var nl := UiStyle.label("NOM DU JOUEUR", 22, MenuStyle.IDLE, "impact")
-	nl.custom_minimum_size = Vector2(MenuOptionRow.VALUE_X, 0)
 	var pad := Control.new()
 	pad.custom_minimum_size = Vector2(16, 0)
 	name_row.add_child(pad)
-	nl.custom_minimum_size.x -= 16
+	var nl := UiStyle.label(Lang.t("NOM DU JOUEUR", "PLAYER NAME"), 22, MenuStyle.IDLE, "impact")
+	nl.custom_minimum_size = Vector2(MenuOptionRow.VALUE_X - 16, 0)
 	name_row.add_child(nl)
-	name_edit = MenuStyle.line_edit(Settings.player_name, "Survivant", 16)
+	name_edit = MenuStyle.line_edit(Settings.player_name, Lang.t("Survivant", "Survivor"), 16)
 	name_edit.custom_minimum_size = Vector2(330, 36)
 	name_edit.add_theme_font_size_override("font_size", 20)
 	name_edit.text_changed.connect(_on_name_changed)
 	name_edit.text_submitted.connect(func(_t): _on_name_changed(name_edit.text, true))
 	name_edit.focus_exited.connect(func(): _on_name_changed(name_edit.text, true))
-	name_edit.focus_entered.connect(func(): menu.set_hint("Nom affiché aux autres survivants (16 caractères)."))
+	var name_hint := Lang.t("Nom affiché aux autres survivants (16 caractères).", "Name shown to the other survivors (16 characters).")
+	if in_game:
+		name_hint += Lang.t(" Appliqué à la prochaine partie.", " Applies from the next game.")
+	name_edit.focus_entered.connect(func(): menu.set_hint(name_hint))
 	name_row.add_child(name_edit)
-	_col.add_child(name_row)
+	page.add_child(name_row)
+	_focusables.append(name_edit)
 	_add("language", MenuOptionRow.make_choice("LANGUE / LANGUAGE", PackedStringArray(["FRANÇAIS", "ENGLISH"]),
 			maxi(Settings.LANGUAGES.find(Settings.language), 0)),
-			"Langue des voix des personnages / Language of the characters' voices.")
+			Lang.t("Langue de l'interface et des voix des personnages.", "Language of the interface and of the characters' voices."))
 
-	_section("COMMANDES")
-	_add("mouse_sensitivity", MenuOptionRow.make_range("SENSIBILITÉ SOURIS", Settings.mouse_sensitivity, 0.05, 1.0, 0.05,
-			func(v): return "%.2f" % v), "Vitesse de rotation de la vue à la souris.")
-	_add("invert_y", MenuOptionRow.make_toggle("INVERSER L'AXE VERTICAL", Settings.invert_y), "Pousser la souris vers l'avant fait baisser la vue.")
 
-	_section("VIDÉO")
-	_add("fov", MenuOptionRow.make_range("CHAMP DE VISION", Settings.fov, 60.0, 110.0, 5.0,
-			func(v): return "%d°" % int(v)), "Angle de vue horizontal en jeu.")
-	_add("fullscreen", MenuOptionRow.make_toggle("PLEIN ÉCRAN", Settings.fullscreen), "Plein écran ou fenêtre.")
-	_add("vsync", MenuOptionRow.make_toggle("SYNCHRO VERTICALE", Settings.vsync), "Supprime les déchirures d'image (peut ajouter un peu de latence).")
-	_add("quality", MenuOptionRow.make_choice("QUALITÉ GRAPHIQUE", PackedStringArray(QUALITY_NAMES), int(Settings.quality)),
-			"Basse : cartes graphiques modestes. Haute : ombres et effets complets.")
-	_add("film_grain", MenuOptionRow.make_range("GRAIN DE FILM", Settings.film_grain, 0.0, 1.0, 0.1,
-			func(v): return "DÉSACTIVÉ" if v < 0.05 else "%d %%" % int(round(v * 100.0))),
-			"Grain de pellicule en jeu, comme dans Black Ops (0 : image nette).")
-
-	_section("AUDIO")
+func _page_controls() -> void:
 	var pct := func(v): return "%d %%" % int(round(v * 100.0))
-	_add("master_volume", MenuOptionRow.make_range("VOLUME GÉNÉRAL", Settings.master_volume, 0.0, 1.0, 0.05, pct), "Volume de tous les sons.")
-	_add("music_volume", MenuOptionRow.make_range("MUSIQUE", Settings.music_volume, 0.0, 1.0, 0.05, pct), "Musiques et ambiances.")
-	_add("sfx_volume", MenuOptionRow.make_range("EFFETS SONORES", Settings.sfx_volume, 0.0, 1.0, 0.05, pct), "Armes, zombies, machines.")
+	_section(Lang.t("SOURIS", "MOUSE"))
+	_add("mouse_sensitivity", MenuOptionRow.make_range(Lang.t("SENSIBILITÉ SOURIS", "MOUSE SENSITIVITY"),
+			Settings.mouse_sensitivity, 0.05, 1.0, 0.05, func(v): return "%.2f" % v),
+			Lang.t("Vitesse de rotation de la vue à la souris.", "How fast the view turns with the mouse."))
+	_add("ads_sensitivity", MenuOptionRow.make_range(Lang.t("SENSIBILITÉ EN VISÉE", "AIM SENSITIVITY"),
+			Settings.ads_sensitivity, Settings.ADS_SENSITIVITY_RANGE.x, Settings.ADS_SENSITIVITY_RANGE.y, 0.05, pct),
+			Lang.t("Vitesse de la vue en visée, par rapport à celle de l'arme (100 % : comme BO1).",
+				"View speed while aiming, relative to the weapon's own (100%: like BO1)."))
+	_add("invert_y", MenuOptionRow.make_toggle(Lang.t("INVERSER L'AXE VERTICAL", "INVERT VERTICAL AXIS"), Settings.invert_y),
+			Lang.t("Pousser la souris vers l'avant fait baisser la vue.", "Pushing the mouse forward looks down."))
+	for r in rows.values():
+		r.wheel_nudges = false  # la page défile à la molette
+	_section(Lang.t("TOUCHES", "KEYS"))
+	for action in Settings.REBINDABLE:
+		var br := MenuBindRow.make(action, action_name(action))
+		br.rebind_requested.connect(_on_rebind_requested)
+		br.clear_requested.connect(_on_clear_requested)
+		var hint := Lang.t("Entrée ou clic : changer la touche. ◄ / ► : case. Retour arrière : effacer.",
+				"Enter or click: change the key. ◄ / ►: slot. Backspace: clear.")
+		if action == "switch_weapon":
+			hint += Lang.t(" La molette change aussi d'arme.", " The mouse wheel also switches weapons.")
+		br.focus_entered.connect(func(): menu.set_hint(hint))
+		bind_rows[action] = br
+		page.add_child(br)
+		_focusables.append(br)
+	page.add_child(text("", 4))
+	reset_button = button(Lang.t("RÉTABLIR LES TOUCHES PAR DÉFAUT", "RESTORE DEFAULT KEYS"), reset_keys,
+			Lang.t("Toutes les actions reprennent leurs touches d'origine.", "Every action gets its original keys back."))
+	(reset_button as MenuActionButton).font_size = 24
+	page.add_child(reset_button)
+	_focusables.append(reset_button)
 
-	_col.add_child(text("", 4))
-	var back_btn := button("RETOUR", back, "Les réglages sont enregistrés automatiquement.")
-	_col.add_child(back_btn)
-	focus_later(rows.mouse_sensitivity)
+
+func _page_graphics() -> void:
+	var pct := func(v): return "%d %%" % int(round(v * 100.0))
+	_section(Lang.t("AFFICHAGE", "DISPLAY"))
+	_add("fullscreen", MenuOptionRow.make_toggle(Lang.t("PLEIN ÉCRAN", "FULLSCREEN"), Settings.fullscreen),
+			Lang.t("Plein écran ou fenêtre.", "Fullscreen or windowed."))
+	_add("vsync", MenuOptionRow.make_toggle(Lang.t("SYNCHRO VERTICALE", "VERTICAL SYNC"), Settings.vsync),
+			Lang.t("Supprime les déchirures d'image (peut ajouter un peu de latence).", "Removes screen tearing (may add a little latency)."))
+	var fps_names := PackedStringArray()
+	for f in Settings.FPS_LIMITS:
+		fps_names.append(Lang.t("ILLIMITÉE", "UNLIMITED") if f == 0 else "%d" % f)
+	_add("max_fps", MenuOptionRow.make_choice(Lang.t("IMAGES PAR SECONDE (MAX.)", "FRAME RATE LIMIT"), fps_names,
+			maxi(Settings.FPS_LIMITS.find(Settings.max_fps), 0)),
+			Lang.t("Nombre maximal d'images par seconde (moins de chaleur et de bruit).", "Maximum frames per second (less heat and fan noise)."))
+	_add("render_scale", MenuOptionRow.make_range(Lang.t("ÉCHELLE DE RENDU 3D", "3D RENDER SCALE"), Settings.render_scale,
+			Settings.RENDER_SCALE_RANGE.x, Settings.RENDER_SCALE_RANGE.y, 0.05, pct),
+			Lang.t("Définition de l'image 3D (l'interface reste nette). Moins : plus d'images par seconde.",
+				"Resolution of the 3D image (the interface stays sharp). Lower: higher frame rate."))
+	_section(Lang.t("IMAGE", "PICTURE"))
+	_add("quality", MenuOptionRow.make_choice(Lang.t("QUALITÉ GRAPHIQUE", "GRAPHICS QUALITY"),
+			PackedStringArray([Lang.t("BASSE", "LOW"), Lang.t("MOYENNE", "MEDIUM"), Lang.t("HAUTE", "HIGH")]), int(Settings.quality)),
+			Lang.t("Basse : cartes graphiques modestes. Haute : ombres et effets complets.",
+				"Low: modest graphics cards. High: full shadows and effects."))
+	_add("fov", MenuOptionRow.make_range(Lang.t("CHAMP DE VISION", "FIELD OF VIEW"), Settings.fov, 60.0, 110.0, 5.0,
+			func(v): return "%d°" % int(v)), Lang.t("Angle de vue horizontal en jeu.", "Horizontal view angle in game."))
+	_add("brightness", MenuOptionRow.make_range(Lang.t("LUMINOSITÉ", "BRIGHTNESS"), Settings.brightness,
+			Settings.BRIGHTNESS_RANGE.x, Settings.BRIGHTNESS_RANGE.y, 0.05, pct),
+			Lang.t("Gamma de l'image en jeu, comme dans Black Ops (100 % : réglage d'origine).",
+				"In-game picture gamma, as in Black Ops (100%: original setting)."))
+	_add("film_grain", MenuOptionRow.make_range(Lang.t("GRAIN DE FILM", "FILM GRAIN"), Settings.film_grain, 0.0, 1.0, 0.1,
+			func(v): return Lang.t("DÉSACTIVÉ", "OFF") if v < 0.05 else "%d %%" % int(round(v * 100.0))),
+			Lang.t("Grain de pellicule en jeu, comme dans Black Ops (0 : image nette).", "In-game film grain, as in Black Ops (0: clean picture)."))
+
+
+func _page_audio() -> void:
+	var pct := func(v): return "%d %%" % int(round(v * 100.0))
+	_section(Lang.t("VOLUME", "VOLUME"))
+	_add("master_volume", MenuOptionRow.make_range(Lang.t("VOLUME GÉNÉRAL", "MASTER VOLUME"), Settings.master_volume, 0.0, 1.0, 0.05, pct),
+			Lang.t("Volume de tous les sons.", "Volume of every sound."))
+	_add("music_volume", MenuOptionRow.make_range(Lang.t("MUSIQUE", "MUSIC"), Settings.music_volume, 0.0, 1.0, 0.05, pct),
+			Lang.t("Musiques et ambiances.", "Music and ambience."))
+	_add("sfx_volume", MenuOptionRow.make_range(Lang.t("EFFETS SONORES", "SOUND EFFECTS"), Settings.sfx_volume, 0.0, 1.0, 0.05, pct),
+			Lang.t("Armes, zombies, machines.", "Weapons, zombies, machines."))
 
 
 func _section(t: String) -> void:
@@ -75,12 +319,13 @@ func _section(t: String) -> void:
 	var m := MarginContainer.new()
 	m.add_theme_constant_override("margin_left", 16)
 	m.add_child(l)
-	_col.add_child(m)
+	page.add_child(m)
 
 
 func _add(key: String, row: MenuOptionRow, hint: String) -> void:
 	rows[key] = row
-	_col.add_child(row)
+	page.add_child(row)
+	_focusables.append(row)
 	row.value_changed.connect(func(v): _on_changed(key, v))
 	row.focus_entered.connect(func(): menu.set_hint(hint))
 
@@ -91,15 +336,36 @@ func _on_changed(key: String, v: float) -> void:
 			Settings.set(key, v > 0.5)
 		"quality":
 			Settings.quality = int(v) as Settings.Quality
+		"max_fps":
+			Settings.max_fps = Settings.FPS_LIMITS[clampi(int(v), 0, Settings.FPS_LIMITS.size() - 1)]
 		"language":
 			Settings.language = Settings.LANGUAGES[clampi(int(v), 0, Settings.LANGUAGES.size() - 1)]
+			# Tout l'écran est réécrit dans la nouvelle langue.
+			_rebuild.call_deferred("language")
 		_:
 			Settings.set(key, v)
 	Settings.apply()
 	Settings.save_settings()
 
 
+## Reconstruit l'écran (changement de langue), même onglet, focus sur `focus`.
+func _rebuild(focus := "") -> void:
+	if not is_inside_tree():
+		return
+	_end_capture()
+	remove_child(_col)
+	_col.queue_free()
+	page = null
+	tab_buttons.clear()
+	_build()
+	focus_later(rows[focus] if rows.has(focus) else tab_buttons[tab])
+	if menu:
+		menu.set_hint("")
+
+
 func _on_name_changed(t: String, final := false) -> void:
+	if name_edit == null:
+		return
 	var clean := Net._clean_name(t)
 	if final and name_edit.text != clean:
 		name_edit.text = clean
@@ -108,6 +374,108 @@ func _on_name_changed(t: String, final := false) -> void:
 		Settings.save_settings()
 
 
+# --------------------------------------------------------------------------
+# Réaffectation des touches
+# --------------------------------------------------------------------------
+
+## Réaffectation en cours ?
+func capturing() -> bool:
+	return _capture != null
+
+
+func _on_rebind_requested(row: MenuBindRow, slot: int) -> void:
+	if _capture != null:
+		return
+	Audio.play_ui(MenuStyle.SND_SELECT, MenuStyle.VOL_SELECT)
+	_capture = row
+	_capture_slot = slot
+	_capture_frame = Engine.get_process_frames()
+	row.set_capturing(slot)
+	menu.set_hint(Lang.t("%s : appuyez sur une touche ou un bouton de la souris (Échap : annuler)." % row.label_text,
+			"%s: press a key or a mouse button (Esc: cancel)." % row.label_text))
+
+
+func _on_clear_requested(row: MenuBindRow, slot: int) -> void:
+	if slot >= (Settings.bindings.get(row.action, []) as Array).size():
+		Audio.play_ui("ui_error", -14.0)
+		return
+	Settings.clear_binding(row.action, slot)
+	Settings.save_settings()
+	Audio.play_ui(MenuStyle.SND_BACK, -8.0)
+	row.flash()
+	menu.set_hint(Lang.t("%s : touche effacée." % row.label_text, "%s: key cleared." % row.label_text))
+
+
+## Pendant une réaffectation, toutes les entrées reviennent à l'écran : la
+## touche (ou le bouton de souris) suivante est affectée, Échap annule.
+func _input(event: InputEvent) -> void:
+	if _capture == null:
+		return
+	get_viewport().set_input_as_handled()
+	if event is InputEventKey and event.pressed and not event.echo:
+		if (event as InputEventKey).physical_keycode == KEY_ESCAPE or (event as InputEventKey).keycode == KEY_ESCAPE:
+			_cancel_capture()
+		else:
+			_finish_capture(Settings.code_from_event(event))
+	elif event is InputEventMouseButton and event.pressed:
+		# Le clic qui a lancé la saisie n'est pas une réponse.
+		if Engine.get_process_frames() == _capture_frame:
+			return
+		var code := Settings.code_from_event(event)
+		if code != "":
+			_finish_capture(code)
+	elif event is InputEventJoypadButton and event.is_action_pressed("ui_cancel"):
+		_cancel_capture()  # manette : B annule (les boutons ne s'affectent pas)
+
+
+func _cancel_capture() -> void:
+	Audio.play_ui(MenuStyle.SND_BACK, -6.0)
+	var row := _capture
+	_end_capture()
+	menu.set_hint(Lang.t("Réaffectation annulée.", "Rebinding cancelled."))
+	row.grab_focus()
+
+
+func _finish_capture(code: String) -> void:
+	if code == "":
+		return
+	var row := _capture
+	var slot := _capture_slot
+	_end_capture()
+	var taken := Settings.bind(row.action, slot, code)
+	Settings.save_settings()
+	Audio.play_ui(MenuStyle.SND_SELECT, MenuStyle.VOL_SELECT)
+	row.flash()
+	row.grab_focus()
+	var key := Settings.code_label(code)
+	if taken != "":
+		if bind_rows.has(taken):
+			bind_rows[taken].flash()
+		menu.set_hint(Lang.t("« %s » affectée à %s et retirée de %s." % [key, row.label_text, action_name(taken)],
+				"\"%s\" bound to %s and removed from %s." % [key, row.label_text, action_name(taken)]))
+	else:
+		menu.set_hint(Lang.t("%s : %s." % [row.label_text, key], "%s: %s." % [row.label_text, key]))
+
+
+func _end_capture() -> void:
+	if _capture != null and is_instance_valid(_capture):
+		_capture.set_capturing(-1)
+	_capture = null
+
+
+func reset_keys() -> void:
+	_end_capture()
+	Settings.reset_bindings()
+	Settings.save_settings()
+	for r in bind_rows.values():
+		r.flash()
+	menu.set_hint(Lang.t("Touches par défaut rétablies.", "Default keys restored."))
+
+
 func back() -> void:
-	_on_name_changed(name_edit.text, true)
+	if _capture != null:
+		_cancel_capture()
+		return
+	if name_edit:
+		_on_name_changed(name_edit.text, true)
 	menu.go_back()

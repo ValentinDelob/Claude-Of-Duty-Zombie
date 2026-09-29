@@ -3,7 +3,7 @@ extends Control
 ## Écran de menu (principal, héberger, salon, rejoindre...). Le MainMenu en
 ## affiche un seul à la fois et gère les transitions.
 
-var menu: MainMenu
+var menu: MenuHost
 
 
 ## Appelé à l'affichage de l'écran.

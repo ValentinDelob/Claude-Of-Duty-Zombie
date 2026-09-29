@@ -12,6 +12,9 @@ func test_bo1_prompts() -> void:
 	assert_eq(Hud.bo1_prompt("[F] Maintenir pour réanimer Bob"), "Maintenir F pour réanimer Bob")
 	assert_eq(Hud.bo1_prompt("Le courant doit être rétabli"), "Le courant doit être rétabli")
 	assert_eq(Hud.bo1_prompt("[F] Rétablir le courant"), "Appuyer sur F pour rétablir le courant")
+	# Touche INTERAGIR réaffectée dans les options.
+	assert_eq(Hud.bo1_prompt("[F] Acheter M14 [500]", "E"), "Appuyer sur E pour acheter M14 [Coût : 500]")
+	assert_eq(Hud.bo1_prompt("Maintenir [F] pour reconstruire la barricade", "CLIC MOLETTE"), "Maintenir CLIC MOLETTE pour reconstruire la barricade")
 
 
 func test_every_digit_is_painted() -> void:

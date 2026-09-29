@@ -7,6 +7,11 @@ extends Button
 var label := ""
 var hint := ""
 var font_size := MenuStyle.BUTTON_SIZE
+## Onglet actif (écran d'options) : texte clair et trait rouge sous le texte.
+var selected := false:
+	set(v):
+		selected = v
+		queue_redraw()
 
 var _focus_t := 0.0
 var _flash := 0.0
@@ -57,6 +62,10 @@ func _draw() -> void:
 	var x := 22.0 + 16.0 * ease_f
 	var base_y := h * 0.5 + font_size * 0.36
 	var col := MenuStyle.IDLE.lerp(MenuStyle.FOCUS_TEXT, ease_f)
+	if selected:
+		col = MenuStyle.FOCUS_TEXT
+		var w := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		draw_rect(Rect2(x, base_y + 5.0, w, 3.0), MenuStyle.HOVER)
 	if disabled:
 		col = MenuStyle.DISABLED
 	col = col.lerp(Color(1, 0.75, 0.6), _flash)

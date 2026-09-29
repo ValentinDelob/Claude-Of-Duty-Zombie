@@ -85,6 +85,8 @@ const LUMA := Vector3(0.2126, 0.7152, 0.0722)
 
 static var _cache: Dictionary = {}
 static var _luts: Dictionary = {}
+## Images des tables de base (sans gamma), pour dériver vite les variantes.
+static var _lut_layers: Dictionary = {}
 
 
 ## Murs mats (plâtre, pierre, brique, tissu) : variante sans reflet spéculaire,
@@ -180,8 +182,10 @@ static func setup_environment(parent: Node3D, look := {}) -> void:
 	env.tonemap_exposure = look.get("exposure", env.tonemap_exposure)
 	env.volumetric_fog_density = look.get("volumetric_density", env.volumetric_fog_density)
 	env.volumetric_fog_albedo = look.get("volumetric_albedo", env.volumetric_fog_albedo)
-	# Étalonnage BO1 (table 3D procédurale).
-	env.adjustment_color_correction = grade_lut(look.get("grade", {}))
+	# Étalonnage BO1 (table 3D procédurale), luminosité des options comprise
+	# (RenderQuality la refait quand Settings.brightness change).
+	env.set_meta("grade", look.get("grade", {}))
+	env.adjustment_color_correction = map_lut(look.get("grade", {}))
 	# Valeurs « normales » de la carte, reprises après une manche de chiens.
 	env.set_meta("base_look", {"fog_color": env.fog_light_color, "fog_density": env.fog_density,
 			"ambient_energy": env.ambient_light_energy, "saturation": env.adjustment_saturation,
@@ -247,9 +251,16 @@ static func grade_color(c: Color, g: Dictionary) -> Color:
 ## Table de correspondance 3D (LUT_SIZE³) de l'étalonnage, mise en cache.
 ## Chaque texel i stocke la sortie pour le centre de sa cellule ((i+0.5)/N) :
 ## l'interpolation trilinéaire retombe ainsi sur grade_color.
+## `over.gamma` (luminosité des options, 1 = neutre) : courbe gamma_curve
+## appliquée en sortie, sur la table de base (rapide : une table de 256 valeurs).
 static func grade_lut(over := {}) -> ImageTexture3D:
-	var g := grade_params(over)
+	var base_over := over.duplicate()
+	var gamma := float(base_over.get("gamma", 1.0))
+	base_over.erase("gamma")
+	var g := grade_params(base_over)
 	var key := var_to_str(g)
+	if not is_equal_approx(gamma, 1.0):
+		return _gamma_lut(base_over, key, gamma)
 	if _luts.has(key):
 		return _luts[key]
 	var n := LUT_SIZE
@@ -263,7 +274,44 @@ static func grade_lut(over := {}) -> ImageTexture3D:
 	var tex := ImageTexture3D.new()
 	tex.create(Image.FORMAT_RGB8, n, n, n, false, layers)
 	_luts[key] = tex
+	_lut_layers[key] = layers
 	return tex
+
+
+## Luminosité (gamma de sortie, comme le réglage de BO1) : > 1 éclaircit les
+## tons sombres et moyens, noir et blanc restent en place. Pure.
+static func gamma_curve(x: float, gamma: float) -> float:
+	return pow(clampf(x, 0.0, 1.0), 1.0 / maxf(gamma, 0.01))
+
+
+static func _gamma_lut(base_over: Dictionary, base_key: String, gamma: float) -> ImageTexture3D:
+	var key := "%s|gamma=%.3f" % [base_key, gamma]
+	if _luts.has(key):
+		return _luts[key]
+	grade_lut(base_over)
+	var table := PackedByteArray()
+	table.resize(256)
+	for i in 256:
+		table[i] = clampi(roundi(gamma_curve(i / 255.0, gamma) * 255.0), 0, 255)
+	var n := LUT_SIZE
+	var layers: Array[Image] = []
+	for img: Image in _lut_layers[base_key]:
+		var d := img.get_data()
+		for j in d.size():
+			d[j] = table[d[j]]
+		layers.append(Image.create_from_data(n, n, false, Image.FORMAT_RGB8, d))
+	var tex := ImageTexture3D.new()
+	tex.create(Image.FORMAT_RGB8, n, n, n, false, layers)
+	_luts[key] = tex
+	return tex
+
+
+## Table de la carte (surcharges `grade` de MapDef.look) avec la luminosité
+## des options (Settings.brightness).
+static func map_lut(grade_over: Dictionary) -> ImageTexture3D:
+	var o := grade_over.duplicate()
+	o["gamma"] = Settings.brightness
+	return grade_lut(o)
 
 
 ## Ambiance d'une manche de chiens (k = 0 : normale, 1 : pleine) : brouillard

@@ -13,7 +13,8 @@ extends Node
 ##   - environnement : glow (et sa qualité), SSAO, brume volumétrique ;
 ##   - post-traitement FilmPost (groupe GROUP) : variante lisant l'écran
 ##     (aberration chromatique) ou variante LOW multiplicative ;
-##   - viewport : résolution 3D (scaling_3d_scale), MSAA ;
+##   - viewport : résolution 3D (scaling_3d_scale, x Settings.render_scale), MSAA ;
+##   - luminosité des options (Settings.brightness) : table d'étalonnage ;
 ##   - décalques (groupe DECAL_GROUP) : distance de fondu ;
 ##   - particules : densité (ParticlePool.density) ;
 ##   - zombies à ombre portée (ZombieShadows : les plus proches seulement) ;
@@ -110,6 +111,10 @@ const PRESETS := [
 
 var environment: Environment
 var _applied := -1
+## Échelle de rendu et luminosité des options appliquées (réglages légers,
+## refaits seuls sans réappliquer tout le préréglage).
+var _applied_scale := -1.0
+var _applied_brightness := -1.0
 
 
 static func preset(quality: int) -> Dictionary:
@@ -140,11 +145,22 @@ func _ready() -> void:
 
 
 ## Settings.changed est émis pour toute option (volume, FOV...) : on ne
-## réapplique que si la qualité a changé (réallouer l'atlas d'ombres ou les
-## tampons MSAA coûte une image).
+## réapplique le préréglage que si la qualité a changé (réallouer l'atlas
+## d'ombres ou les tampons MSAA coûte une image) ; l'échelle de rendu 3D et la
+## luminosité se règlent à part.
 func _on_settings_changed() -> void:
 	if Settings.quality != _applied:
 		apply()
+		return
+	if not is_equal_approx(Settings.render_scale, _applied_scale):
+		_apply_scale(preset(_applied))
+	if not is_equal_approx(Settings.brightness, _applied_brightness):
+		_apply_brightness()
+
+
+## Résolution 3D effective : celle du préréglage x l'échelle des options.
+static func scale_3d(q: Dictionary) -> float:
+	return float(q.scale_3d) * clampf(Settings.render_scale, Settings.RENDER_SCALE_RANGE.x, Settings.RENDER_SCALE_RANGE.y)
 
 
 func apply() -> void:
@@ -152,6 +168,7 @@ func apply() -> void:
 	var q := preset(_applied)
 	_apply_environment(q)
 	_apply_viewport(q)
+	_apply_brightness()
 	for l in get_tree().get_nodes_in_group(LAMP_GROUP):
 		apply_lamp(l as OmniLight3D, q)
 	for d in get_tree().get_nodes_in_group(DECAL_GROUP):
@@ -186,9 +203,21 @@ func _apply_viewport(q: Dictionary) -> void:
 	var vp := get_viewport()
 	vp.positional_shadow_atlas_size = q.shadow_atlas
 	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
-	vp.scaling_3d_scale = q.scale_3d
+	_apply_scale(q)
 	vp.msaa_3d = q.msaa
 	RenderingServer.positional_soft_shadow_filter_set_quality(q.shadow_filter)
+
+
+func _apply_scale(q: Dictionary) -> void:
+	_applied_scale = Settings.render_scale
+	get_viewport().scaling_3d_scale = scale_3d(q)
+
+
+## Luminosité (gamma) : table d'étalonnage de la carte refaite (en cache).
+func _apply_brightness() -> void:
+	_applied_brightness = Settings.brightness
+	if environment:
+		environment.adjustment_color_correction = WorldLook.map_lut(environment.get_meta("grade", {}))
 
 
 static func apply_lamp(l: OmniLight3D, q: Dictionary) -> void:

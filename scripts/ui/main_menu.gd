@@ -1,5 +1,5 @@
 class_name MainMenu
-extends Control
+extends MenuHost
 ## Racine des menus : fond, écran courant, transitions, messages d'erreur.
 ## Les écrans (MenuScreen) sont créés à la demande.
 ##
@@ -27,8 +27,6 @@ const MUSIC := "menu_theme"
 const MUSIC_DB := -3.0
 const MENU_3D_SCALE := 0.75
 
-var current: MenuScreen
-var current_name := ""
 var _layer: Control
 var _history: Array[String] = []
 var _fade: ColorRect
