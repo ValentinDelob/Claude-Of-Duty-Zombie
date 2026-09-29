@@ -306,20 +306,19 @@ func export_zip(path: String) -> Error:
 	return z.close()
 
 
+## Archive venue d'ailleurs : contrôle de légitimité (CustomMapGuard) avant
+## tout, tailles lues avant d'extraire, cinq JSON seulement (à la racine ou
+## dans un dossier de l'archive). Refusée : carte vide avec les raisons.
 static func import_zip(path: String) -> EditorMap:
-	var r := ZIPReader.new()
-	if r.open(path) != OK:
+	var got := CustomMapGuard.read_zip_texts(path)
+	var refused: Array = got.reasons
+	if refused.is_empty():
+		refused = CustomMapGuard.check_texts(got.texts).reasons
+	if not refused.is_empty():
 		var m := EditorMap.new()
-		m.load_errors.append(["archive illisible : %s" % path, "unreadable archive: %s" % path])
+		m.load_errors = refused
 		return m
-	var texts := {}
-	for f in r.get_files():
-		# Fichiers à la racine ou dans un dossier de l'archive.
-		var base := String(f).get_file()
-		if base in FILES and not texts.has(base):
-			texts[base] = r.read_file(f).get_string_from_utf8()
-	r.close()
-	return from_texts(texts)
+	return from_texts(got.texts)
 
 
 ## JSON lisible dans un diff : une entrée (pièce, porte, objet...) par ligne.

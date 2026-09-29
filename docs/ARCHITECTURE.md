@@ -15,6 +15,18 @@ Moteur : **Godot 4.7** (GDScript, rendu Forward+). Cible : GTX 1050 à 60 FPS en
   - diffusion serveur → tous : `@rpc("authority", "call_local")` + `rpc(...)`.
 - Le client n'envoie que des **intentions** (tirer, acheter, interagir) et sa position ;
   le serveur valide tout (distance, points, cadence, munitions...).
+- Durcissement de `Net` : décodage d'objets désactivé (`allow_object_decoding`),
+  un pair qui ne se présente pas (`_srv_hello`) en 5 s est coupé, un second
+  bonjour est ignoré, `_srv_loaded` d'un inconnu ignoré, noms de joueurs sans
+  caractère de contrôle ni contrôle bidirectionnel (`_clean_name`) ; côté
+  client, registre des joueurs borné (`clean_players` : 8 entrées, clés
+  entières, places 0 à 7), nombre de places borné, rotation des personnages
+  `posmod`, identifiants de carte bornés (`CustomMapGuard.game_map_id_ok`) et
+  carte chargée seulement si elle est connue (`Net.can_load_map`). Au
+  chargement, atouts et armes murales vérifiés dans `PerkDB` / `WeaponDB` /
+  `KnifeDB`, dossier et noms des modèles de `MeshMapBuilder` filtrés
+  (`res://assets/models/` seulement, noms `[A-Za-z0-9_-]`). Tests :
+  `tests/test_net_hardening.gd`.
 
 ## Protocole réseau (messages fréquents)
 
@@ -60,13 +72,62 @@ d'images avec un gel ou un saut, zombies à 1-2 m/s de moyenne.
 `Net.sample_bandwidth()` donne les octets / paquets ENet de la machine depuis l'appel
 précédent.
 
+## Cartes perso en multijoueur (`MapShare`, protocole v4)
+
+L'hôte peut choisir dans le salon une carte perso de l'éditeur ; elle est
+envoyée aux invités (`scripts/game/map/map_share.gd`, nœud `/root/Net/MapShare`,
+réception par `MapTransfer`, contrôle par `CustomMapGuard` ; détail des
+contrôles et des limites : `docs/MAP_AUTHORING.md`, « Cartes perso en
+multijoueur »).
+
+1. `Net.set_lobby_map("perso:<id>")` (hôte) : carte relue en sûreté, contrôlée
+   (légitimité + validateur), mise en **paquet canonique** (les cinq JSON
+   réécrits par l'éditeur, JSON trié, UTF-8) identifié par son **SHA-256**,
+   copiée dans le cache de l'hôte `user://maps_cache/<sha>/`. Diffusion
+   `MapShare._cl_offer({sha, size, chunk, chunks, nom, n})` (n : numéro de
+   l'annonce) puis
+   `Net._cl_lobby_map("partage:<sha>")`. Un nouvel arrivant reçoit les deux à
+   la fin de `_srv_hello`. Carte officielle : `_cl_offer({})`.
+2. Client : annonce vérifiée (types, empreinte hexadécimale, taille ≤ 2 Mo,
+   morceaux de 1 à 16 Ko, `chunks == ceil(size / chunk)`, nom sans balise).
+   Hash déjà en cache et revérifié → `_srv_status(sha, "prete")` sans
+   téléchargement ; sinon `_srv_request(sha)`.
+3. Hôte : envoi `_cl_chunk(sha, n, index, octets)` sur le **canal fiable dédié 2**
+   (morceaux d'une annonce précédente ignorés),
+   au plus 8 morceaux non acquittés et 4 par image (le reste du jeu et du salon
+   n'attend pas) ; le client acquitte chaque morceau (`_srv_ack(sha, reçus)`,
+   progression diffusée).
+4. Client (`MapTransfer`) : morceaux strictement dans l'ordre, jamais en double,
+   chacun de la taille attendue, jamais au-delà de la taille annoncée ; à la
+   fin : nombre de morceaux, taille totale, SHA-256, paquet canonique, légitimité,
+   jouabilité → cache `user://maps_cache/<sha>/` puis `_srv_status(sha,
+   "prete")`. Tout échec → `_srv_status(sha, "refusee", code)` (codes de
+   `CustomMapGuard.REASONS`, textes FR/EN locaux), message dans le salon, la
+   carte n'est jamais chargée.
+5. Hôte : état de chacun (`attente`, `telechargement` + %, `prete`, `refusee`)
+   diffusé par `_cl_states` (10 Hz au plus). `Net.start_match("partage:<sha>")`
+   n'envoie `_cl_load_game` que si **tous** les joueurs sont « prete » pour ce
+   hash (`MapShare.can_start`, bouton DÉMARRER grisé avec la raison sinon) ;
+   un joueur qui part est retiré des états (il ne bloque pas les autres).
+   `_cl_load_game` d'une carte partagée absente du cache : le client quitte
+   proprement au lieu de charger autre chose. Tout le monde, hôte compris,
+   joue depuis le cache (`EditorMapDef.shared`, empreinte recalculée) : mêmes
+   octets, même géométrie, mêmes chemins de nœuds.
+
+Sécurité : aucun RPC ne permet à un client d'envoyer une carte ; les `_srv_*`
+exigent un expéditeur connu (jamais l'hôte lui-même) et le hash annoncé,
+bornent les acquittements, limitent les demandes (3 par carte) et le débit
+(seau de 240 messages, 120 par seconde, par client) ; les `_cl_*` exigent
+l'expéditeur 1 et vérifient chaque type reçu. Aucune ressource Godot n'est
+jamais chargée depuis le réseau ou une archive (données JSON seulement).
+
 ## Autoloads
 
 | Nom | Rôle |
 |-----|------|
 | `GameState` | Machine à états unique de la session (`MAIN_MENU`, `LOBBY`, `CONNECTING`, `LOADING`, `PLAYING`, `ROUND_END`, `PLAYER_DOWN`, `GAME_OVER`, `DISCONNECTING`) avec transitions validées. |
 | `Settings` | Options persistantes (`user://settings.cfg`), actions d'entrée et touches réaffectables (voir « Menus, options et touches »). |
-| `Net` | Host / Join / Solo, poignée de main (version, serveur plein, partie lancée), registre des joueurs, erreurs de connexion lisibles. |
+| `Net` | Host / Join / Solo, poignée de main (version, serveur plein, partie lancée), registre des joueurs, erreurs de connexion lisibles, carte du salon et envoi des cartes perso (enfant `MapShare`). |
 | `Autotest` | Scénarios de test automatisés dans le vrai jeu (`-- --autotest=<nom>`), mesures de perf, captures d'écran. |
 
 ## Menus, options et touches
@@ -305,7 +366,10 @@ précédent.
   au format de `MeshMapLayout`, en mémoire) -> `MeshMapGeometry` (architecture
   construite par le jeu, sans Blender : jouable aussitôt, même dans le .exe).
   Côté jeu : `EditorMapDef` ; cartes du joueur `perso:<id>` (`Game.has_map`,
-  `Game.make_map_def` ; bouton TESTER, écran SOLO « CARTES PERSO » ;
+  `Game.make_map_def` ; bouton TESTER, écran SOLO « CARTES PERSO », salon
+  multijoueur : carte envoyée aux invités et jouée par tous depuis le cache
+  sous l'identifiant `partage:<sha256>`, voir « Cartes perso en multijoueur » ;
+  contrôle de légitimité `CustomMapGuard` à l'ouverture pour jouer ;
   `Router.return_scene` ramène dans l'éditeur en fin de partie) ; exemple
   livré hors menus `draft_arena` (`assets/maps/draft_arena/*.json`,
   scénarios `draft_arena`, `map_editor`, `map_editor_play`, tests

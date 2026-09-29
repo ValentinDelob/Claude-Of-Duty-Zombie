@@ -198,8 +198,79 @@ départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
 - **Jouer** : ▶ **TESTER** vérifie, enregistre et lance une partie solo sur la
   carte (`perso:<id>`) ; la fin de la partie ramène dans l'éditeur, sur la même
   carte. Les cartes jouables de `user://maps` apparaissent aussi dans l'écran
-  **SOLO**, sous « CARTES PERSO » (pas encore en multijoueur : les autres
-  joueurs n'ont pas le fichier).
+  **SOLO**, sous « CARTES PERSO », et dans le **salon multijoueur** de l'hôte
+  (ligne CARTE, « (perso) ») : voir « Cartes perso en multijoueur » ci-dessous.
+- **Contrôle de légitimité** : une carte perso qui vient d'ailleurs (archive
+  importée, carte reçue d'un hôte, carte locale ouverte pour jouer) passe par
+  `CustomMapGuard` avant d'être ouverte (voir ci-dessous) ; une carte refusée
+  n'est jamais chargée et la raison est affichée (FR/EN).
+
+### Cartes perso en multijoueur
+
+L'hôte choisit une carte perso dans le salon : elle est envoyée
+automatiquement à chaque invité (y compris ceux qui arrivent après), qui la
+vérifie puis la garde dans un cache. Le salon montre à tous le nom de la
+carte, son aperçu (dessiné sur place depuis la carte vérifiée), sa taille et
+l'état de chaque joueur (« télécharge 45 % », « carte prête », « carte
+refusée ») ; **DÉMARRER** reste grisé, avec la raison, tant que tous les
+joueurs ne l'ont pas. Un invité qui refuse la carte reste dans le salon avec
+un message clair ; un joueur qui part pendant le transfert ne bloque pas les
+autres. Protocole réseau : `docs/ARCHITECTURE.md`, « Cartes perso en
+multijoueur ».
+
+![Salon : l'hôte a choisi une carte perso, l'invité la télécharge](map_authoring/salon_carte_perso.jpg)
+
+- **Paquet canonique** : seulement les cinq JSON, tels que l'éditeur les
+  réécrit (`EditorMap.file_texts`), dans un JSON trié
+  `{"format": 1, "fichiers": {"carte.json": "…", …}}` en UTF-8. Son
+  **SHA-256** identifie la carte : même carte = même empreinte sur toutes les
+  machines. Tout le monde, hôte compris, joue la carte depuis son cache
+  `user://maps_cache/<sha256>/` (identifiant de jeu `partage:<sha256>`) : les
+  géométries sont identiques partout.
+- **Cache** : le dossier est nommé par l'empreinte (jamais par un nom venu de
+  l'hôte) ; une carte déjà en cache n'est pas retéléchargée (elle est
+  revérifiée : empreinte recalculée, contrôle complet) ; 32 cartes au plus,
+  les plus anciennes sont effacées.
+- **Contrôle de légitimité** (`scripts/game/map/custom_map_guard.gd`), à la
+  réception, à l'import d'une archive et à l'ouverture d'une carte locale pour
+  jouer. Une carte n'est **que des données** : jamais `load()`,
+  `ResourceLoader`, `.tres`, `.tscn`, script ni image venant du réseau ou d'une
+  archive (une ressource Godot peut embarquer du code) ; les textes sont lus en
+  UTF-8 strict puis par le lecteur JSON du moteur. Limites dures :
+
+  | Limite | Valeur |
+  |---|---|
+  | Paquet (et total des cinq fichiers) | 2 Mo |
+  | Morceaux réseau | 16 Ko (1 Ko au moins) |
+  | Archive .zip | 4 Mo, 64 entrées, tailles décompressées lues avant d'extraire |
+  | Profondeur JSON | 6 (lue avant l'analyse) |
+  | Pièces / ouvertures / objets / zones / étages | 256 / 512 / 1024 / 64 / 6 |
+  | Sommets | 64 par pièce, 4096 en tout |
+  | Coordonnées | nombres finis, 0 à 256 m ; surface des pièces (rectangles englobants) 100 000 m² au plus |
+  | Étages | sol -20 à 200 m, hauteur 2 à 30 m ; plafond 1,5 à 30 m ; portes 1,5 à 10 m |
+  | Prix | entiers, 0 à 100 000 |
+  | Textes | identifiants 32 caractères (lettres, chiffres, `_`, `-`) ; identifiant de carte en minuscules, chiffres et `_` ; noms 64 caractères ; descriptions 600 |
+
+  **Liste blanche** des clés et des valeurs, tirée du catalogue de l'éditeur
+  (`MapCatalog`) et donc des bases du jeu : types d'objets et d'ouvertures
+  (champ `make` des objets du catalogue), clés de géométrie de chaque outil de
+  pose, atouts (`PerkDB`), armes (`WeaponDB`, `KnifeDB`), surfaces
+  (`WorldLook.SURFACES`), musiques (`assets/audio/ambience_*`), directions ; une
+  clé ou une valeur inconnue est refusée. Tout passe par **une seule fonction
+  adaptatrice**, `CustomMapGuard.catalog_source()` : dès qu'elles existent,
+  elle prend la table typée `MapCatalog.allowed_kinds()` (format 2 : chaque
+  type d'ouverture et d'objet, ses clés, ses clés obligatoires et leurs
+  valeurs : identifiant, entier ou nombre borné, vrai / faux, liste de
+  valeurs, point, rectangle, couleur `#rrggbb`), `MapCatalog.room_keys()`,
+  `MapCatalog.zone_keys()` et `MapCatalog.allowed_surfaces()` (préfabriqués,
+  luminaires, textures par pièce, plafond de zone) ; sinon le schéma est
+  déduit des objets du catalogue. Les limites dures ci-dessus s'appliquent en
+  plus (elles sont plus strictes que celles de l'éditeur : 256 m et 6 étages). **Noms** : pas de
+  caractère de contrôle ni de contrôle bidirectionnel, pas de `[` `]` (BBCode),
+  `<` `>`, `{` `}`, `\` ni `..` ; affichés dans des `Label` (jamais
+  interprétés), nettoyés une seconde fois à l'affichage. Enfin la carte doit
+  passer le **validateur de jouabilité** de l'éditeur (`MapRaster` +
+  `MapValidator`).
 
 ### Format des fichiers
 
@@ -324,7 +395,9 @@ celui du jeu aussi.
 | `scripts/editor/map_validator.gd` | `MapValidator` : validateur et indicateurs BO1. |
 | `scripts/editor/map_layout_export.gd` | `MapLayoutExport` : grille validée -> description en maillage (format de `MeshMapLayout`). |
 | `scripts/editor/map_editor.gd`, `map_canvas.gd`, `map_panels.gd`, `map_hotbar.gd`, `map_inventory.gd`, `map_slot.gd` | L'interface (`scenes/editor/map_editor.tscn`). |
-| `scripts/game/map/editor_map_def.gd` | `EditorMapDef` : carte de l'éditeur côté jeu (`perso:<id>`, ou script de carte livré). |
+| `scripts/game/map/editor_map_def.gd` | `EditorMapDef` : carte de l'éditeur côté jeu (`perso:<id>`, `partage:<sha256>`, ou script de carte livré). |
+| `scripts/game/map/custom_map_guard.gd` | `CustomMapGuard` : contrôle de légitimité, paquet canonique et SHA-256, cache, lecture sûre d'un dossier ou d'une archive. |
+| `scripts/game/map/map_share.gd`, `map_transfer.gd` | `MapShare` (envoi aux invités, `/root/Net/MapShare`) et `MapTransfer` (réception par morceaux). |
 | `scripts/game/map/mesh_map_geometry.gd` | `MeshMapGeometry` : architecture 3D construite par le jeu (portage de `tools/blender/mesh_map.py`). |
 
 1. **Grille** (`MapRaster`) : une case de 0,5 m **centrée** sur chaque multiple
@@ -390,6 +463,16 @@ Preuves automatiques :
   la carte de l'éditeur, retour dans l'éditeur.
 - `tests/autotest/draft_arena.gd` : la carte se joue (zombies aux fenêtres,
   portes, débris, escalier, tout accessible à pied).
+- `tests/test_map_share.gd` : paquet canonique et empreinte stable, morceaux
+  dans le désordre, manquants, en double, trop gros, empreinte fausse,
+  contrôle de légitimité (clé ou type inconnu, chaîne géante, infini,
+  coordonnée énorme, chemin `../`, faux JSON, JSON trop profond, BBCode dans
+  le nom, fichier en plus...), DRAFT ARENA acceptée, cache par hash, archive
+  .zip piégée refusée.
+- `sh tools/mp_test.sh custommap` : hôte + invité sans fenêtre ; carte perso
+  choisie avant l'arrivée de l'invité, téléchargée, DÉMARRER grisé pendant le
+  téléchargement, cartes corrompue et piégée refusées (partie non démarrée),
+  cache réutilisé, partie sur la même carte.
 
 ## 9. Conseils de conception (BO1)
 
@@ -422,6 +505,7 @@ Preuves automatiques :
   sont ouvertes l'une sur l'autre) ; pas de portes liées ; pièges électriques
   seulement ; décor limité à des caisses et barils (pas encore les modèles de
   Kino).
-- Les cartes perso ne se jouent qu'en solo (TESTER, écran SOLO) : le
-  multijoueur demanderait d'envoyer la carte aux autres joueurs.
+- Cartes perso en multijoueur : réseau local ou IP directe seulement (pas de
+  serveur de cartes) ; une carte en cours de téléchargement ne se joue pas
+  hors du salon où elle a été reçue (elle reste dans le cache).
 - Architecture en maquette grise (matériaux par zone seulement).

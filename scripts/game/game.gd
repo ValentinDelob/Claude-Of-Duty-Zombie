@@ -33,15 +33,26 @@ static func requested_map() -> String:
 static func has_map(map_id: String) -> bool:
 	if MAP_SCRIPTS.has(map_id):
 		return true
+	# Identifiant venu d'ailleurs (réseau, ligne de commande, réglages) : jamais
+	# un chemin (CustomMapGuard.game_map_id_ok) avant de toucher au disque.
+	if not CustomMapGuard.game_map_id_ok(map_id):
+		return false
+	# Carte perso reçue d'un hôte (MapShare) : dans le cache, nommée par son hash.
+	if map_id.begins_with(EditorMapDef.SHARED_PREFIX):
+		return CustomMapGuard.is_cached(map_id.trim_prefix(EditorMapDef.SHARED_PREFIX))
 	return map_id.begins_with(EditorMapDef.CUSTOM_PREFIX) and EditorMap.is_map_dir(EditorMap.map_dir(map_id.trim_prefix(EditorMapDef.CUSTOM_PREFIX)))
 
 
-## Définition d'une carte (null si inconnue).
+## Définition d'une carte (null si inconnue ou si son identifiant est refusé).
 static func make_map_def(map_id: String) -> MapDef:
 	if MAP_SCRIPTS.has(map_id):
 		return load(MAP_SCRIPTS[map_id]).new()
+	if not CustomMapGuard.game_map_id_ok(map_id):
+		return null
 	if map_id.begins_with(EditorMapDef.CUSTOM_PREFIX):
 		return EditorMapDef.custom(map_id)
+	if map_id.begins_with(EditorMapDef.SHARED_PREFIX):
+		return EditorMapDef.shared(map_id)
 	return null
 
 var map_def: MapDef
@@ -124,6 +135,10 @@ func _ready() -> void:
 
 func _load_map(map_id: String) -> void:
 	map_def = make_map_def(map_id)
+	if map_def == null:
+		# Carte perso refusée par le contrôle de légitimité (CustomMapGuard).
+		push_warning("[Game] carte « %s » indisponible : %s" % [map_id, DEFAULT_MAP])
+		map_def = make_map_def(DEFAULT_MAP)
 	layout = map_def.create_layout()
 	if layout is GridMapLayout:
 		map_data = (layout as GridMapLayout).data
@@ -371,6 +386,10 @@ func _build_wall_buys() -> void:
 	root.name = "WallBuys"
 	world.add_child(root)
 	for m in layout.wall_buys():
+		# Arme inconnue du jeu (carte perso) : pas d'achat mural.
+		if not CustomMapGuard.weapon_ok(m.data.get("weapon")):
+			push_warning("[Game] achat mural ignoré : arme inconnue « %s »" % str(m.data.get("weapon")).left(32))
+			continue
 		var wb := WallBuy.new()
 		wb.setup_marker(m, m.data.weapon)
 		root.add_child(wb)
@@ -403,6 +422,10 @@ func _build_perk_machines() -> void:
 	root.name = "PerkMachines"
 	world.add_child(root)
 	for m in layout.perks():
+		# Atout inconnu du jeu (carte perso) : pas de machine.
+		if not CustomMapGuard.perk_ok(m.data.get("perk")):
+			push_warning("[Game] machine ignorée : atout inconnu « %s »" % str(m.data.get("perk")).left(32))
+			continue
 		var pm := PerkMachine.new()
 		pm.setup_marker(m, m.data.perk)
 		interact.register(pm)

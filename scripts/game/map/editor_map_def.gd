@@ -9,8 +9,11 @@ extends MapDef
 ## Deux sortes : les cartes livrées (assets/maps/<id>/, ex. DRAFT ARENA :
 ## script de carte `extends EditorMapDef` + `_init_editor`) et les cartes du
 ## joueur (user://maps/<id>/, identifiant « perso:<id> », bouton Tester).
+## En multijoueur, la carte perso de l'hôte est envoyée aux invités (MapShare)
+## et tout le monde la joue depuis son cache : « partage:<sha256> ».
 
 const CUSTOM_PREFIX := "perso:"
+const SHARED_PREFIX := "partage:"
 
 var dir := ""
 var editor_map: EditorMap
@@ -31,14 +34,34 @@ static func from_map(m: EditorMap, map_id := "") -> EditorMapDef:
 	return d
 
 
-## Carte du joueur « perso:<id> » (null si le dossier n'existe pas).
+## Carte du joueur « perso:<id> » (null si le dossier n'existe pas, ou si la
+## carte ne passe pas le contrôle de légitimité : CustomMapGuard).
 static func custom(map_id: String) -> EditorMapDef:
 	var folder := map_id.trim_prefix(CUSTOM_PREFIX)
 	var path := EditorMap.map_dir(folder)
-	if not EditorMap.is_map_dir(path):
+	if folder.contains("/") or folder.contains("\\") or folder.contains("..") or not EditorMap.is_map_dir(path):
+		return null
+	var r := CustomMapGuard.load_local(path, false)
+	if not r.ok:
+		push_warning("[EditorMapDef] carte perso « %s » refusée : %s" % [folder, CustomMapGuard.reasons_text(r.reasons).replace("\n", " ; ")])
 		return null
 	var d := EditorMapDef.new()
-	d._init_editor(path, CUSTOM_PREFIX + folder)
+	d.dir = path
+	d._setup(r.map, CUSTOM_PREFIX + folder)
+	return d
+
+
+## Carte perso reçue d'un hôte « partage:<sha256> » (cache
+## user://maps_cache/<sha256>/, empreinte et légitimité revérifiées ; null sinon).
+static func shared(map_id: String) -> EditorMapDef:
+	var sha := map_id.trim_prefix(SHARED_PREFIX)
+	var r := CustomMapGuard.load_cached(sha)
+	if not r.ok:
+		push_warning("[EditorMapDef] carte partagée %s refusée : %s" % [sha.substr(0, 12), CustomMapGuard.reasons_text(r.reasons).replace("\n", " ; ")])
+		return null
+	var d := EditorMapDef.new()
+	d.dir = CustomMapGuard.cache_dir(sha)
+	d._setup(r.map, map_id)
 	return d
 
 
