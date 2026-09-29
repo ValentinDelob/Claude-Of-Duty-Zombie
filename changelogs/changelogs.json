@@ -364,6 +364,57 @@
     "fr": "Un éditeur de cartes pour créer les vôtres"
    }
   },
+  "v0.1.144": {
+   "date": "2026-09-30",
+   "images": [
+    "v0.1.144/01_salon_carte_perso.png",
+    "v0.1.144/02_objets_sur_la_carte.png",
+    "v0.1.144/03_decor_et_lumieres.png",
+    "v0.1.144/04_textures.png"
+   ],
+   "items": [
+    {
+     "en": "Host matches on your own maps: pick a custom map in the lobby and your friends receive it automatically.",
+     "fr": "Hébergez une partie sur vos propres cartes : choisissez une carte perso dans le salon, vos amis la reçoivent automatiquement."
+    },
+    {
+     "en": "The lobby shows everyone's download; the match starts as soon as everybody has the map.",
+     "fr": "Le salon montre le téléchargement de chacun ; la partie démarre dès que tout le monde a la carte."
+    },
+    {
+     "en": "Every received or imported map is checked before it is played: a damaged or booby-trapped map is refused.",
+     "fr": "Chaque carte reçue ou importée est vérifiée avant d'être jouée : une carte abîmée ou piégée est refusée."
+    },
+    {
+     "en": "New \"Items on map\" tab in the editor: everything you placed, page by page; hover an item to spot it on the plan.",
+     "fr": "Nouvel onglet « Objets sur la carte » dans l'éditeur : tout ce que vous avez posé, page par page ; survolez un objet pour le retrouver sur le plan."
+    },
+    {
+     "en": "Dress up your maps: rubble, fallen beams, sandbags, overturned tables, cinema seats, desks, car wrecks…",
+     "fr": "Décorez vos cartes : gravats, poutres, sacs de sable, tables renversées, fauteuils de cinéma, bureaux, épaves de voiture…"
+    },
+    {
+     "en": "Real lights to place: bulbs, pendants, fluorescent tubes, wall sconces, candles, fire barrels, with their own colour, lighting up with the power or flickering.",
+     "fr": "De vraies lumières à poser : ampoules, suspensions, néons, appliques, bougies, braseros, avec leur couleur, qui s'allument au courant ou vacillent."
+    },
+    {
+     "en": "Pick the floor, wall and ceiling texture of every room: brick, wood, tiles, concrete…",
+     "fr": "Choisissez la texture du sol, des murs et du plafond de chaque pièce : brique, bois, carrelage, béton…"
+    },
+    {
+     "en": "The launcher checks that every download (game and launcher updates) is authentic and rejects any damaged or altered file.",
+     "fr": "Le lanceur vérifie l'authenticité de chaque téléchargement (jeu et mises à jour du lanceur) et refuse tout fichier abîmé ou modifié."
+    },
+    {
+     "en": "Safer online games: the host ignores network cheats (teleporting, remote explosions, message flooding).",
+     "fr": "Parties en ligne plus sûres : l'hôte ignore les tricheries par le réseau (téléportation, explosions à distance, messages en rafale)."
+    }
+   ],
+   "title": {
+    "en": "Your maps in co-op, decor and lights",
+    "fr": "Vos cartes en coop, décor et lumières"
+   }
+  },
   "v0.1.36": {
    "date": "2026-09-26",
    "images": [],
