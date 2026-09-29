@@ -34,15 +34,17 @@ T_START=$(date +%s)
 
 echo "== import"
 "$GODOT" --headless --path . --import > "$OUT/import.log" 2>&1
+# Lanceur (projet Godot séparé, launcher/).
+"$GODOT" --headless --path launcher --import >> "$OUT/import.log" 2>&1
 if grep -qE "SCRIPT ERROR|Parse Error|ERROR:" "$OUT/import.log"; then
   grep -E "SCRIPT ERROR|Parse Error|ERROR:" "$OUT/import.log" | head
   echo "== CHECK ECHEC (import)"; exit 1
 fi
 
 # ------------------------------------------------------------ liste des tâches
-# Une tâche = « type:nom ». Types : parse, unit, net, head, gui, mp.
+# Une tâche = « type:nom ». Types : parse, unit, launcher, net, head, gui, mp.
 TASKS=()
-TASKS+=("parse:scripts" "unit:tests")
+TASKS+=("parse:scripts" "unit:tests" "launcher:tests")
 [ $FAST -eq 0 ] && [ -z "$SCENARIOS" ] && TASKS+=("net:smoke")
 ALL=$(ls tests/autotest/*.gd | xargs -n1 basename | sed 's/\.gd$//' | grep -vE '^(scenario|helpers|mp_.*|long_.*|perf_.*)$')
 for S in ${SCENARIOS:-$ALL}; do
@@ -74,6 +76,7 @@ run_task() {
   case $KIND in
     parse) "$GODOT" --headless --path . -s res://tests/parse_all.gd > "$LOG" 2>&1 || RC=1 ;;
     unit)  "$GODOT" --headless --path . res://tests/test_runner.tscn > "$LOG" 2>&1 || RC=1 ;;
+    launcher) "$GODOT" --headless --path launcher -s res://tests/test_launcher.gd > "$LOG" 2>&1 || RC=1 ;;
     net)   AUTOTEST_PORT_OFFSET=$PORTS sh tools/net_smoke.sh > "$LOG" 2>&1 || RC=1 ;;
     head)  AUTOTEST_PARALLEL=1 timeout 420 "$GODOT" $HEADLESS --path . -- --autotest=$SCN $PARTARG > "$LOG" 2>&1 || RC=1 ;;
     gui)   AUTOTEST_PARALLEL=1 timeout 420 "$GODOT" --path . --resolution 1280x720 -- --autotest=$SCN $PARTARG > "$LOG" 2>&1 || RC=1 ;;

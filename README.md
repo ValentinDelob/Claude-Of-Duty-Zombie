@@ -55,6 +55,10 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
 
 ## Builds Windows (.exe)
 
+- **Lanceur** (le plus simple) : `CallOfClaudeZombie-Launcher.exe`, joint à chaque
+  release. Il télécharge et met à jour le jeu tout seul, permet de choisir la
+  version et montre les notes de chaque version avec des captures ; JOUER lance
+  le jeu. Voir `docs/LAUNCHER.md`.
 - Chaque fonctionnalité livrée est publiée en **release GitHub** (onglet Releases
   du dépôt) avec un `CallOfClaudeZombie-vX.Y.N.exe` autonome : le télécharger et le
   lancer, aucune installation. Tous les joueurs d'une partie doivent avoir la même
