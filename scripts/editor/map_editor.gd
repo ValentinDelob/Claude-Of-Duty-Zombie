@@ -30,6 +30,10 @@ var clipboard: Dictionary = {}
 var ghost_below := true
 var hotbar: Array = MapCatalog.DEFAULT_HOTBAR.duplicate()
 var hot_index := 0
+## Rotation (degrés) de l'objet tenu (prefabs, luminaires) : R avant de poser.
+var place_rot := 0
+## Élément survolé (liste des objets ou carte) : contour lumineux sur la carte.
+var hover_id := ""
 ## Éléments posés devenus invalides (dessinés en rouge) : id -> raison.
 var invalid: Dictionary = {}
 var validator: MapValidator
@@ -41,6 +45,8 @@ var _validate_t := -1.0
 
 var canvas: MapCanvas
 var panels: MapPanels
+## Onglet déployable « Objets sur la carte » (à gauche de la vue).
+var object_list: MapObjectList
 var hotbar_ui: MapHotbar
 var inventory: MapInventory
 var status: Label
@@ -103,7 +109,7 @@ func _start() -> void:
 	var auto := _autosave_dir()
 	if EditorMap.is_map_dir(auto):
 		new_map(true)
-		var meta = JSON.parse_string(FileAccess.get_file_as_string(auto.path_join("meta.json"))) if FileAccess.file_exists(auto.path_join("meta.json")) else {}
+		var meta = _read_meta(auto)
 		var nm := String(meta.get("name", "")) if meta is Dictionary else ""
 		var when := Time.get_datetime_string_from_unix_time(int(meta.get("time", 0)) if meta is Dictionary else 0, true)
 		_confirm(Lang.t("Reprendre le travail non enregistré", "Resume unsaved work"),
@@ -226,6 +232,9 @@ func _build_ui() -> void:
 	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	mid.add_theme_constant_override("separation", 0)
 	root.add_child(mid)
+	object_list = MapObjectList.new()
+	object_list.ed = self
+	mid.add_child(object_list)
 	canvas = MapCanvas.new()
 	canvas.ed = self
 	canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -348,8 +357,8 @@ func _update_title() -> void:
 
 func _show_help() -> void:
 	_info(Lang.t("Raccourcis", "Shortcuts"), Lang.t(
-		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser : pièces, murs, piliers, escaliers, pièges\nMaj : aimantation à 0,5 m (sinon 1 m)\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone",
-		"Left click: place / pick · right click: cancel\nDrag: rooms, walls, pillars, stairs, traps\nShift: snap to 0.5 m (otherwise 1 m)\nCtrl + wheel: zoom · middle click or Space + drag: pan\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon"))
+		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser : pièces, murs, piliers, escaliers, pièges\nMaj : aimantation à 0,5 m (sinon 1 m)\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone",
+		"Left click: place / pick · right click: cancel\nDrag: rooms, walls, pillars, stairs, traps\nShift: snap to 0.5 m (otherwise 1 m)\nCtrl + wheel: zoom · middle click or Space + drag: pan\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon"))
 
 
 func _info(title_text: String, text: String) -> void:
@@ -446,6 +455,8 @@ func _input(event: InputEvent) -> void:
 					select("")
 			KEY_R:
 				rotate_selected()
+			KEY_L:
+				object_list.toggle()
 			KEY_DELETE:
 				if selected != "":
 					delete_element(selected)
@@ -486,6 +497,7 @@ func tool() -> String:
 
 func select_slot(i: int) -> void:
 	hot_index = clampi(i, 0, 8)
+	place_rot = 0
 	canvas.cancel()
 	canvas.preview = {}
 	canvas.refusal = ""
@@ -549,21 +561,26 @@ func push_undo_snapshot(s: Dictionary) -> void:
 ## Après une modification : grille, vérification, dessin, panneaux.
 func changed(rebuild_panels := true) -> void:
 	dirty = true
+	_hit_dirty = true
 	_raster_dirty = true
 	validation_stale = true
 	_validate_t = 1.0
 	if doc.find(selected).is_empty():
 		selected = ""
+	if hover_id != "" and doc.find(hover_id).is_empty():
+		hover_id = ""
 	_update_invalid()
 	canvas.queue_redraw()
 	if rebuild_panels:
 		panels.refresh()
+	object_list.mark_dirty()
 	_update_title()
 
 
 ## Modification en direct (glissement) : dessin seulement.
 func moved_live() -> void:
 	dirty = true
+	_hit_dirty = true
 	_raster_dirty = true
 	validation_stale = true
 	canvas.queue_redraw()
@@ -571,11 +588,14 @@ func moved_live() -> void:
 
 func _update_invalid() -> void:
 	invalid.clear()
+	# Emprises calculées une fois pour toute la carte (rapide avec 2000 objets).
+	MapRules.begin_batch(doc)
 	for list in [doc.pieces, doc.ouvertures, doc.objets]:
 		for e in list:
 			var r := MapRules.check_existing(doc, e)
 			if not r.ok:
 				invalid[String(e.id)] = MapRules.why(r)
+	MapRules.end_batch()
 
 
 func undo() -> void:
@@ -612,7 +632,39 @@ func select(eid: String) -> void:
 	if invalid.has(eid):
 		set_status(invalid[eid], true)
 	panels.refresh()
+	object_list.refresh_rows()
 	canvas.queue_redraw()
+
+
+## Survol d'un élément sur la carte : sa ligne est surlignée dans la liste des
+## objets (qui saute à la bonne page) et l'élément est entouré sur la carte.
+func map_hovered(eid: String) -> void:
+	if eid == hover_id:
+		return
+	hover_id = eid
+	object_list.show_hover(eid)
+	canvas.queue_redraw()
+
+
+## Survol d'une ligne de la liste : l'élément est entouré sur la carte, la vue
+## ne bouge pas.
+func list_hovered(eid: String) -> void:
+	if eid == hover_id:
+		return
+	hover_id = eid
+	canvas.queue_redraw()
+
+
+## Double-clic sur une ligne : vue centrée et zoomée sur l'élément.
+func zoom_to_element(eid: String) -> void:
+	focus_element(eid)
+	var e := doc.find(eid)
+	if e.is_empty():
+		return
+	var r := MapGeom.bbox(doc.room_poly(e)) if e.has("contour") else MapRules.footprint_rect(e)
+	var avail := canvas.size * 0.6
+	canvas.zoom = clampf(minf(avail.x / maxf(r.size.x, 1.0), avail.y / maxf(r.size.y, 1.0)), MapCanvas.MIN_ZOOM, 60.0)
+	canvas.center_on(r.get_center() if not String(e.get("type", "")) in MapRules.ouvertures_types() else MapGeom.v2(e.position))
 
 
 ## Centre la vue sur un élément et le choisit.
@@ -656,7 +708,8 @@ func add_object(o: Dictionary, k: int) -> Dictionary:
 			e.erase("largeur")
 		doc.ouvertures.append(e)
 	else:
-		var prefix: String = {"atout": "a", "arme": "w", "boite": "b", "depart": "s", "escalier": "e", "pilier": "x", "mur": "m", "piege": "t", "levier": "l"}.get(String(e.get("type", "")), "x")
+		var prefix: String = {"atout": "a", "arme": "w", "boite": "b", "depart": "s", "escalier": "e", "pilier": "x", "mur": "m", "piege": "t", "levier": "l",
+			"prefab": "d", "luminaire": "lu"}.get(String(e.get("type", "")), "x")
 		e["id"] = doc.new_id(prefix)
 		# Un seul départ de la boîte.
 		if String(e.type) == "boite" and e.get("depart", false):
@@ -701,15 +754,43 @@ func element_at(m: Vector2) -> Dictionary:
 	for o in doc.openings_on(floor_k):
 		if MapRules.hit(doc, o, m):
 			return o
-	var objs := doc.objects_on(floor_k)
-	objs.sort_custom(func(a, b): return MapRules.footprint_rect(a).get_area() < MapRules.footprint_rect(b).get_area())
-	for o in objs:
+	# Le plus petit objet touché d'abord (une lampe sur un bureau). Seuls les
+	# objets rangés dans la case de 4 m du point sont essayés (survol fluide
+	# avec 2000 objets).
+	var best := {}
+	var best_area := INF
+	for o in _hit_candidates(m):
 		if MapRules.hit(doc, o, m):
-			return o
+			var a := MapRules.footprint_rect(o).get_area()
+			if a < best_area:
+				best_area = a
+				best = o
+	if not best.is_empty():
+		return best
 	for p in doc.rooms_on(floor_k):
 		if MapRules.hit(doc, p, m):
 			return p
 	return {}
+
+
+## Index des objets par cases de 4 m (étage -> {case: [objets]}), refait
+## après chaque modification (clic, survol : seulement les objets proches).
+const HIT_BUCKET := 4.0
+var _hit_index: Dictionary = {}
+var _hit_dirty := true
+
+
+func _hit_candidates(m: Vector2) -> Array:
+	if _hit_dirty:
+		_hit_dirty = false
+		_hit_index = {}
+		for o in doc.objets:
+			var r := MapRules.footprint_rect(o).grow(0.35)
+			var grid: Dictionary = _hit_index.get_or_add(int(o.get("etage", 0)), {})
+			for j in range(floori(r.position.y / HIT_BUCKET), floori(r.end.y / HIT_BUCKET) + 1):
+				for i in range(floori(r.position.x / HIT_BUCKET), floori(r.end.x / HIT_BUCKET) + 1):
+					grid.get_or_add(Vector2i(i, j), []).append(o)
+	return _hit_index.get(floor_k, {}).get(Vector2i(floori(m.x / HIT_BUCKET), floori(m.y / HIT_BUCKET)), [])
 
 
 func delete_element(eid: String) -> void:
@@ -858,17 +939,37 @@ static func _rot(o: Dictionary, c: Vector2) -> Dictionary:
 	for key in ["mur", "monte"]:
 		if e.has(key):
 			e[key] = MapGeom.dir_rot(String(e[key]))
+	if e.has("rot"):
+		e["rot"] = posmod(int(e.rot) + 90, 360)
 	return e
 
 
-## Pivote de 90° l'élément choisi (une pièce pivote avec son contenu).
+## Emprise d'un objet au sol pivoté : sa position est ré-aimantée pour que ses
+## cases tombent sur la grille (un prefab 3 × 2 devient 2 × 3).
+func _resnap(o: Dictionary) -> void:
+	if MapCatalog.tool_of(o) != "floor_item" or not o.has("position"):
+		return
+	var n := MapCatalog.floor_size(o)
+	var p := MapGeom.v2(o.position)
+	o["position"] = MapGeom.arr(Vector2(MapGeom.snap_along(p.x, n.x), MapGeom.snap_along(p.y, n.y)))
+
+
+## R : pivote de 90° l'objet tenu (prefab, luminaire : avant de le poser),
+## sinon l'élément choisi (une pièce pivote avec son contenu).
 func rotate_selected() -> void:
+	var held := current_item()
+	if held.get("rotates", false):
+		place_rot = (place_rot + 90) % 360
+		canvas._update_preview()
+		canvas.queue_redraw()
+		set_status(Lang.t("%s : rotation %d°", "%s: rotation %d°") % [MapCatalog.name_of(held), place_rot])
+		return
 	var e := doc.find(selected)
 	if e.is_empty():
 		set_status(Lang.t("Choisissez d'abord un élément (outil Sélection)", "Pick an element first (Select tool)"))
 		return
 	var t := String(e.get("type", ""))
-	if not (e.has("contour") or e.has("rect") or t == "mur"):
+	if not (e.has("contour") or e.has("rect") or t == "mur" or MapCatalog.rotates(e)):
 		set_status(Lang.t("Cet élément suit son mur : déplacez-le plutôt", "This element follows its wall: move it instead"))
 		return
 	var before := doc.snapshot()
@@ -877,17 +978,25 @@ func rotate_selected() -> void:
 		c = MapGeom.bbox(doc.room_poly(e)).get_center()
 	elif e.has("rect"):
 		c = MapGeom.rect_of(e.rect).get_center()
+	elif e.has("position"):
+		c = MapGeom.v2(e.position)
 	else:
 		c = (MapGeom.v2(e.a) + MapGeom.v2(e.b)) * 0.5
-	c = Vector2(snappedf(c.x, 0.5), snappedf(c.y, 0.5))
+	if not e.has("position"):
+		c = Vector2(snappedf(c.x, 0.5), snappedf(c.y, 0.5))
 	var attached := attached_to(e)
-	_replace(_rot(e, c))
+	var re := _rot(e, c)
+	_resnap(re)
+	_replace(re)
 	for aid in attached:
-		_replace(_rot(doc.find(aid), c))
+		var ra := _rot(doc.find(aid), c)
+		_resnap(ra)
+		_replace(ra)
 	var ne := doc.find(selected)
 	var res := MapRules.check_existing(doc, ne)
 	if not res.ok:
 		doc.restore(before)
+		_hit_dirty = true
 		canvas.show_refusal(res)
 		return
 	push_undo_snapshot(before)
@@ -1066,13 +1175,16 @@ func focus_problem(m: Dictionary) -> void:
 
 func _reset(d: EditorMap) -> void:
 	doc = d
+	_hit_dirty = true
 	undo_stack.clear()
 	redo_stack.clear()
 	selected = ""
+	hover_id = ""
 	floor_k = 0
 	validator = null
 	canvas.cancel()
 	canvas.highlight = []
+	object_list.mark_dirty()
 	_raster_dirty = true
 	validation_stale = true
 	dirty = false
@@ -1250,6 +1362,22 @@ static func _cfg_path() -> String:
 	return EditorMap.maps_root().path_join("_editeur.cfg")
 
 
+## Réglage mémorisé de l'éditeur (_editeur.cfg, section « editeur »).
+static func pref(key: String, default: Variant) -> Variant:
+	var cf := ConfigFile.new()
+	if cf.load(_cfg_path()) != OK:
+		return default
+	return cf.get_value("editeur", key, default)
+
+
+static func set_pref(key: String, value: Variant) -> void:
+	var cf := ConfigFile.new()
+	cf.load(_cfg_path())
+	cf.set_value("editeur", key, value)
+	DirAccess.make_dir_recursive_absolute(EditorMap.maps_root())
+	cf.save(_cfg_path())
+
+
 static func recent_maps() -> Array:
 	var cf := ConfigFile.new()
 	if cf.load(_cfg_path()) != OK:
@@ -1277,6 +1405,18 @@ func _fill_recent() -> void:
 		_recent_menu.set_item_disabled(0, true)
 
 
+## Taille maximale du meta.json de la sauvegarde automatique.
+const MAX_META_BYTES := 256 * 1024
+
+
+## meta.json de la sauvegarde automatique (source, nom, date) : {} s'il est
+## absent, illisible ou trop gros (256 Ko au plus).
+static func _read_meta(dir: String) -> Variant:
+	var txt = EditorMap.read_text(dir.path_join("meta.json"), MAX_META_BYTES)
+	var meta = JSON.parse_string(txt) if txt != null else null
+	return meta if meta is Dictionary else {}
+
+
 static func _autosave_dir() -> String:
 	return EditorMap.maps_root().path_join("_autosave")
 
@@ -1296,7 +1436,7 @@ func autosave() -> void:
 
 func _resume_autosave() -> void:
 	var dir := _autosave_dir()
-	var meta = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("meta.json"))) if FileAccess.file_exists(dir.path_join("meta.json")) else {}
+	var meta = _read_meta(dir)
 	var d := EditorMap.load_dir(dir)
 	_reset(d)
 	if meta is Dictionary:

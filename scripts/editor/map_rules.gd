@@ -253,7 +253,8 @@ static func footprint_rect(o: Dictionary) -> Rect2:
 		return Rect2(MapGeom.v2(o.a), Vector2.ZERO).expand(MapGeom.v2(o.b)).grow(half)
 	var fp := MapCatalog.footprint(o)
 	var p := MapGeom.v2(o.get("position", [0, 0]))
-	if MapCatalog.tool_of(o) == "wall_item":
+	var tool := MapCatalog.tool_of(o)
+	if tool == "wall_item":
 		var d := MapGeom.dir_vec(String(o.get("mur", "n")))
 		var along := fp.x * MapGeom.CELL
 		var depth := fp.y * MapGeom.CELL
@@ -262,8 +263,9 @@ static func footprint_rect(o: Dictionary) -> Rect2:
 		var back := face - d * depth
 		var lat := Vector2(absf(d.y), absf(d.x)) * along * 0.5
 		return Rect2(face - lat, Vector2.ZERO).expand(back + lat)
-	var s := fp.x * MapGeom.CELL
-	return Rect2(p - Vector2(s, s) * 0.5, Vector2(s, s))
+	var n := MapCatalog.floor_size(o)
+	var s := Vector2(n) * MapGeom.CELL
+	return Rect2(p - s * 0.5, s)
 
 
 ## L'élément `o` couvre-t-il le point `p` (clic, gomme) ?
@@ -281,16 +283,120 @@ static func ouvertures_types() -> Array:
 	return ["porte", "debris", "porte_courant", "passage", "fenetre"]
 
 
-## Chevauchement avec les objets de l'étage (lampes : au plafond, jamais).
-static func _overlaps(doc: EditorMap, k: int, r: Rect2, ignore_id: String, skip_lamps := true) -> Dictionary:
+## Couche d'un objet pour les chevauchements : « plafond » (lampes et
+## luminaires du plafond), « mur_haut » (appliques, à 2 m) ou « sol » (tout le
+## reste). Deux objets ne se gênent que dans la même couche.
+static func layer_of(o: Dictionary) -> String:
+	match MapCatalog.light_mount(o):
+		"plafond":
+			return "plafond"
+		"mur":
+			return "mur_haut"
+	return "sol"
+
+
+## Vérification en série (onglet d'état de toute la carte) : emprises des
+## objets calculées une fois et rangées par cases de 4 m (sinon chaque
+## vérification relit tous les objets : lent avec 2000 éléments).
+const BUCKET := 4.0
+static var _batch: Dictionary = {}   # étage -> {Vector2i: [[objet, emprise, couche]]}
+static var _batch_doc: EditorMap = null
+
+
+static func begin_batch(doc: EditorMap) -> void:
+	_batch = {}
+	_batch_doc = doc
+	for o in doc.objets:
+		if String(o.get("type", "")) == "mur":
+			continue
+		var r := footprint_rect(o)
+		var e := [o, r, layer_of(o)]
+		var grid: Dictionary = _batch.get_or_add(int(o.get("etage", 0)), {})
+		for b in _buckets(r):
+			grid.get_or_add(b, []).append(e)
+
+
+static func end_batch() -> void:
+	_batch = {}
+	_batch_doc = null
+
+
+static func _buckets(r: Rect2) -> Array:
+	var out := []
+	for j in range(floori(r.position.y / BUCKET), floori(r.end.y / BUCKET) + 1):
+		for i in range(floori(r.position.x / BUCKET), floori(r.end.x / BUCKET) + 1):
+			out.append(Vector2i(i, j))
+	return out
+
+
+## Objets de l'étage qui pourraient toucher `r` : [[objet, emprise, couche]].
+static func _near(doc: EditorMap, k: int, r: Rect2) -> Array:
+	if _batch_doc == doc:
+		var grid: Dictionary = _batch.get(k, {})
+		var seen := {}
+		var out := []
+		for b in _buckets(r):
+			for e in grid.get(b, []):
+				var eid := String(e[0].get("id", ""))
+				if not seen.has(eid):
+					seen[eid] = true
+					out.append(e)
+		return out
+	var out := []
 	for o in doc.objects_on(k):
-		if String(o.id) == ignore_id or String(o.type) == "mur":
+		if String(o.get("type", "")) != "mur":
+			out.append([o, footprint_rect(o), layer_of(o)])
+	return out
+
+
+## Premier objet de la couche `layer` qui chevauche `r` ({} sinon).
+static func _overlaps(doc: EditorMap, k: int, r: Rect2, ignore_id: String, layer := "sol") -> Dictionary:
+	var all := _overlaps_all(doc, k, r, ignore_id, layer)
+	return all[0] if not all.is_empty() else {}
+
+
+static func _overlaps_all(doc: EditorMap, k: int, r: Rect2, ignore_id: String, layer := "sol") -> Array:
+	var out := []
+	for e in _near(doc, k, r):
+		var o: Dictionary = e[0]
+		if String(o.get("id", "")) == ignore_id or String(e[2]) != layer:
 			continue
-		if skip_lamps and String(o.type) == "lampe":
-			continue
-		if footprint_rect(o).grow(-0.01).intersects(r.grow(-0.01)):
-			return o
+		if (e[1] as Rect2).grow(-0.01).intersects(r.grow(-0.01)):
+			out.append(o)
+	return out
+
+
+## Hauteur du dessus d'un meuble (m), 0 s'il n'en a pas (un luminaire posé au
+## sol peut se poser dessus : lampe de bureau sur un bureau).
+static func support_height(o: Dictionary) -> float:
+	return float(MapCatalog.def_of(o).get("support", 0.0)) if String(o.get("type", "")) == "prefab" else (1.0 if String(o.get("type", "")) == "caisse" else 0.0)
+
+
+## Meuble sous un luminaire posé au sol ({} : posé par terre).
+static func support_under(doc: EditorMap, o: Dictionary) -> Dictionary:
+	var r := footprint_rect(o)
+	for other in _overlaps_all(doc, int(o.get("etage", 0)), r, String(o.get("id", "")), "sol"):
+		if support_height(other) > 0.0:
+			return other
 	return {}
+
+
+## Cases intérieures des pièces (contour -> {case: true}), gardées d'une pose à
+## l'autre : poser 2000 objets dans une grande pièce ne recalcule pas ses cases.
+static var _inner_cache: Dictionary = {}
+
+
+static func inner_cells(poly: PackedVector2Array) -> Dictionary:
+	var key := var_to_str(poly)
+	if _inner_cache.has(key):
+		return _inner_cache[key]
+	if _inner_cache.size() > 64:
+		_inner_cache.clear()
+	var inner := {}
+	for c in MapRaster.room_cells(poly)[1]:
+		inner[c] = true
+	_inner_cache[key] = inner
+	return inner
 
 
 ## Pose d'un objet contre un mur (atout, arme, boîte, Pack-a-Punch...).
@@ -353,36 +459,51 @@ static func place_wall_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vec
 	for c in [fr.position, fr.end, Vector2(fr.position.x, fr.end.y), Vector2(fr.end.x, fr.position.y)]:
 		if not MapGeom.contains(poly, c.lerp(fr.get_center(), 0.02)):
 			return refuse("pas la place devant %s dans cette pièce" % nm[0].to_lower(), "not enough room in front of %s in this room" % nm[1].to_lower())
-	var other := _overlaps(doc, k, fr, ignore_id)
+	var other := _overlaps(doc, k, fr, ignore_id, layer_of(tmpl))
 	if not other.is_empty():
 		var on := _name(other)
 		return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
 	return {"ok": true, "position": obj.position, "mur": dir, "room": String(room.id)}
 
 
-## Pose d'un objet au sol (départ, apparition, téléporteur, lampe, caisse...).
+## Pose d'un objet au sol (départ, apparition, téléporteur, lampe, caisse,
+## prefab, luminaire...). Emprise rectangulaire, rotation comprise (prefabs).
+## Couches (layer_of) : un luminaire du plafond ne gêne que les autres
+## luminaires du plafond ; un luminaire posé au sol peut se poser sur un
+## meuble qui a un dessus (support : bureau, chariot...).
 static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "") -> Dictionary:
-	var n := MapCatalog.footprint(tmpl).x
-	var pos := Vector2(MapGeom.snap_along(mouse.x, n), MapGeom.snap_along(mouse.y, n))
+	var n := MapCatalog.floor_size(tmpl)
+	var pos := Vector2(MapGeom.snap_along(mouse.x, n.x), MapGeom.snap_along(mouse.y, n.y))
 	var obj := tmpl.duplicate()
 	obj["position"] = MapGeom.arr(pos)
 	var nm := _name(tmpl)
 	var room := room_at(doc, k, pos)
 	if room.is_empty():
 		return refuse("%s se pose à l'intérieur d'une pièce" % nm[0], "%s goes inside a room" % nm[1])
-	var inner := {}
-	for c in MapRaster.room_cells(doc.room_poly(room))[1]:
-		inner[c] = true
-	for c in MapRaster._square(obj, n):
+	var inner := inner_cells(doc.room_poly(room))
+	for c in MapRaster.floor_cells(obj):
 		if not inner.has(c):
 			return refuse("%s touche un mur : posez-le plus au milieu de la pièce" % nm[0], "%s touches a wall: place it further inside the room" % nm[1])
-	if String(tmpl.get("type", "")) != "lampe":
-		var fr := footprint_rect(obj)
-		var other := _overlaps(doc, k, fr, ignore_id)
-		if not other.is_empty():
-			var on := _name(other)
-			return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
-	return {"ok": true, "position": obj.position, "room": String(room.id)}
+	var fr := footprint_rect(obj)
+	var layer := layer_of(tmpl)
+	var others := _overlaps_all(doc, k, fr, ignore_id, layer)
+	var on_top := {}
+	if layer == "sol" and MapCatalog.light_mount(tmpl) == "sol" and not others.is_empty():
+		# Luminaire posé sur un meuble : tout ce qu'il touche doit être un dessus de meuble.
+		var all_supports := others.all(func(q): return support_height(q) > 0.0)
+		if all_supports and others.size() == 1 and footprint_rect(others[0]).grow(0.01).encloses(fr):
+			on_top = others[0]
+			others = []
+	elif support_height(tmpl) > 0.0:
+		# Meuble : les luminaires posés sur son dessus ne le gênent pas.
+		others = others.filter(func(q): return not (MapCatalog.light_mount(q) == "sol" and fr.grow(0.01).encloses(footprint_rect(q))))
+	if not others.is_empty():
+		var on := _name(others[0])
+		return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
+	var res := {"ok": true, "position": obj.position, "room": String(room.id)}
+	if not on_top.is_empty():
+		res["sur"] = String(on_top.id)
+	return res
 
 
 ## Rectangle au sol (pilier, escalier, piège) : dans une seule pièce, sans chevauchement.

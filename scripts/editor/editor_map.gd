@@ -10,7 +10,14 @@ extends RefCounted
 ##   objets.json      tout le reste (murs, piliers, escaliers, atouts, armes, boîte...)
 ##   zones.json       zones (noms FR/EN, matériaux) et zone de départ
 
-const FORMAT := 1
+## Version du format des fichiers :
+##   1  premières cartes (v0.1.137) ;
+##   2  décor posé (type « prefab »), luminaires réglables (type
+##      « luminaire »), textures par pièce (surface_sol, surface_murs,
+##      surface_plafond de pieces.json) et plafond des zones (plafond de
+##      zones.json). Une carte au format 1 se lit telle quelle : toutes les
+##      nouvelles clés sont facultatives (_migrate).
+const FORMAT := 2
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -245,8 +252,23 @@ static func from_texts(texts: Dictionary) -> EditorMap:
 	m.objets = parsed["objets.json"].get("objets", [])
 	m.zones = parsed["zones.json"].get("zones", [])
 	m.depart = String(parsed["zones.json"].get("depart", ""))
+	m.format_read = int(m.carte.get("format", FORMAT))
+	m._migrate(m.format_read)
 	m._normalize()
 	return m
+
+
+## Mise à niveau d'une carte d'un format plus ancien (elle sera écrite au
+## format FORMAT à l'enregistrement).
+func _migrate(from: int) -> void:
+	if from < 2:
+		# Format 1 -> 2 : rien à convertir (nouvelles clés facultatives) ;
+		# les lampes, caisses et barils du format 1 restent des types admis.
+		pass
+
+
+## Version du format lue dans carte.json (FORMAT pour une carte neuve).
+var format_read := FORMAT
 
 
 ## Valeurs lues du JSON remises au bon type (étages entiers, identifiants en texte).
@@ -255,6 +277,9 @@ func _normalize() -> void:
 		for e in list:
 			e["id"] = String(e.get("id", ""))
 			e["etage"] = int(e.get("etage", 0))
+	for o in objets:
+		if o.has("rot"):
+			o["rot"] = posmod(int(o.rot), 360)
 	for list in [pieces, ouvertures, objets, zones]:
 		for e in list:
 			if String(e.get("id", "")) == "":
@@ -279,17 +304,41 @@ func save_dir(dir: String) -> Error:
 	return OK
 
 
+## Limites des fichiers lus (cartes reçues, archives : jamais de lecture sans
+## borne). Une carte réelle pèse quelques dizaines de Ko.
+const MAX_FILE_BYTES := 2 * 1024 * 1024
+const MAX_ARCHIVE_BYTES := 2 * 1024 * 1024
+const MAX_ARCHIVE_ENTRIES := 32
+
+
+## Texte d'un fichier de `max_bytes` au plus ; null s'il est absent, illisible
+## ou trop gros.
+static func read_text(path: String, max_bytes := MAX_FILE_BYTES) -> Variant:
+	var fa := FileAccess.open(path, FileAccess.READ)
+	if fa == null or fa.get_length() > max_bytes:
+		return null
+	return fa.get_as_text()
+
+
 static func load_dir(dir: String) -> EditorMap:
 	var texts := {}
+	var too_big := []
 	for f in FILES:
 		var p := dir.path_join(f)
 		if FileAccess.file_exists(p):
-			texts[f] = FileAccess.get_file_as_string(p)
-	return from_texts(texts)
+			var t = read_text(p)
+			if t == null:
+				too_big.append(f)
+				continue
+			texts[f] = t
+	var m := from_texts(texts)
+	for f in too_big:
+		m.load_errors.append(["%s trop gros (2 Mo au plus) ou illisible" % f, "%s too big (2 MB at most) or unreadable" % f])
+	return m
 
 
 static func is_map_dir(dir: String) -> bool:
-	return FileAccess.file_exists(dir.path_join("carte.json"))
+	return dir != "" and FileAccess.file_exists(dir.path_join("carte.json"))
 
 
 ## Archive .zip : les cinq fichiers à la racine.
@@ -306,20 +355,112 @@ func export_zip(path: String) -> Error:
 	return z.close()
 
 
+## Archive .zip reçue : contrôlée AVANT toute décompression (bombe zip,
+## chemins piégés) :
+##   - archive de 2 Mo au plus, 32 entrées au plus ;
+##   - seulement les cinq JSON de la carte, à la racine ou dans UN dossier
+##     (les entrées de dossier sont admises) ; tout autre nom est refusé,
+##     comme « .. », un chemin absolu ou une barre oblique inverse ;
+##   - taille décompressée de chaque fichier (lue dans le répertoire central
+##     de l'archive, zip_entries) de 2 Mo au plus, vérifiée encore après lecture.
 static func import_zip(path: String) -> EditorMap:
+	var m := EditorMap.new()
+	var fa := FileAccess.open(path, FileAccess.READ)
+	if fa == null:
+		m.load_errors.append(["archive illisible : %s" % path, "unreadable archive: %s" % path])
+		return m
+	var n := fa.get_length()
+	if n > MAX_ARCHIVE_BYTES:
+		m.load_errors.append(["archive trop grosse (%d Ko, 2 Mo au plus)" % (n / 1024), "archive too big (%d KB, 2 MB at most)" % (n / 1024)])
+		return m
+	var listing := zip_entries(fa.get_buffer(n))
+	fa.close()
+	if listing.has("error"):
+		m.load_errors.append(listing.error)
+		return m
+	var wanted := {}   # nom de base -> chemin dans l'archive
+	var err := check_zip_entries(listing.entries, wanted)
+	if not err.is_empty():
+		m.load_errors.append(err)
+		return m
 	var r := ZIPReader.new()
 	if r.open(path) != OK:
-		var m := EditorMap.new()
 		m.load_errors.append(["archive illisible : %s" % path, "unreadable archive: %s" % path])
 		return m
 	var texts := {}
-	for f in r.get_files():
-		# Fichiers à la racine ou dans un dossier de l'archive.
-		var base := String(f).get_file()
-		if base in FILES and not texts.has(base):
-			texts[base] = r.read_file(f).get_string_from_utf8()
+	for base in wanted:
+		var data := r.read_file(String(wanted[base]))
+		if data.size() > MAX_FILE_BYTES:
+			r.close()
+			m.load_errors.append(["%s trop gros dans l'archive (2 Mo au plus)" % base, "%s too big in the archive (2 MB at most)" % base])
+			return m
+		texts[base] = data.get_string_from_utf8()
 	r.close()
 	return from_texts(texts)
+
+
+## Vérifie les entrées d'une archive (zip_entries) ; remplit `wanted` (nom de
+## base -> chemin) ; rend [fr, en] si l'archive est refusée, [] sinon.
+static func check_zip_entries(entries: Array, wanted: Dictionary) -> Array:
+	if entries.size() > MAX_ARCHIVE_ENTRIES:
+		return ["trop d'entrées dans l'archive (%d, 32 au plus)" % entries.size(), "too many entries in the archive (%d, 32 at most)" % entries.size()]
+	var folder = null
+	for e in entries:
+		var name := String(e.name)
+		if name.contains("..") or name.begins_with("/") or name.contains("\\") or name.contains(":"):
+			return ["chemin interdit dans l'archive : %s" % name.left(80), "forbidden path in the archive: %s" % name.left(80)]
+		if name.ends_with("/"):
+			if name.count("/") > 1:
+				return ["dossier inattendu dans l'archive : %s" % name.left(80), "unexpected folder in the archive: %s" % name.left(80)]
+			continue
+		var base := name.get_file()
+		var dir := name.get_base_dir()
+		if not base in FILES or dir.contains("/") or (folder != null and dir != folder) or wanted.has(base):
+			return ["fichier inattendu dans l'archive : %s (seulement %s)" % [name.left(80), ", ".join(FILES)],
+				"unexpected file in the archive: %s (only %s)" % [name.left(80), ", ".join(FILES)]]
+		folder = dir
+		if int(e.size) > MAX_FILE_BYTES:
+			return ["%s trop gros dans l'archive (%d Ko décompressés, 2 Mo au plus)" % [base, int(e.size) / 1024],
+				"%s too big in the archive (%d KB uncompressed, 2 MB at most)" % [base, int(e.size) / 1024]]
+		wanted[base] = name
+	return []
+
+
+## Entrées d'une archive .zip lues dans son répertoire central, sans rien
+## décompresser : {"entries": [{name, size (décompressé), csize}]} ou
+## {"error": [fr, en]} (archive abîmée, ZIP64 refusé).
+static func zip_entries(bytes: PackedByteArray) -> Dictionary:
+	var bad := {"error": ["archive illisible (répertoire du zip abîmé)", "unreadable archive (broken zip directory)"]}
+	var n := bytes.size()
+	# Fin du répertoire central : signature 0x06054b50, au plus 64 Ko de commentaire.
+	var eocd := -1
+	var i := n - 22
+	while i >= maxi(0, n - 22 - 65535):
+		if bytes.decode_u32(i) == 0x06054b50:
+			eocd = i
+			break
+		i -= 1
+	if eocd < 0:
+		return bad
+	var count := bytes.decode_u16(eocd + 10)
+	var cd_size := bytes.decode_u32(eocd + 12)
+	var at := bytes.decode_u32(eocd + 16)
+	if count == 0xFFFF or at == 0xFFFFFFFF or at + cd_size > eocd:
+		return bad
+	var out := []
+	for k in count:
+		if at + 46 > eocd or bytes.decode_u32(at) != 0x02014b50:
+			return bad
+		var csize := bytes.decode_u32(at + 20)
+		var size := bytes.decode_u32(at + 24)
+		var ln := bytes.decode_u16(at + 28)
+		var lx := bytes.decode_u16(at + 30)
+		var lc := bytes.decode_u16(at + 32)
+		if size == 0xFFFFFFFF or csize == 0xFFFFFFFF or at + 46 + ln > eocd:
+			return bad
+		out.append({"name": bytes.slice(at + 46, at + 46 + ln).get_string_from_utf8(), "size": size, "csize": csize})
+		at += 46 + ln + lx + lc
+	return {"entries": out}
 
 
 ## JSON lisible dans un diff : une entrée (pièce, porte, objet...) par ligne.
@@ -354,7 +495,26 @@ static func maps_root() -> String:
 	return "user://maps"
 
 
+## Longueur maximale d'un identifiant de carte (nom de dossier).
+const MAX_ID_LEN := 48
+
+
+## Identifiant de carte admis : 1 à 48 caractères parmi a-z, 0-9 et _ (le
+## format de slug) ; jamais de chemin (« .. », « / »...).
+static func valid_id(map_id: String) -> bool:
+	if map_id.is_empty() or map_id.length() > MAX_ID_LEN:
+		return false
+	for ch in map_id:
+		if not ((ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") or ch == "_"):
+			return false
+	return true
+
+
+## Dossier de la carte `map_id` dans le dossier des cartes ; "" si
+## l'identifiant n'est pas admis (valid_id).
 static func map_dir(map_id: String) -> String:
+	if not valid_id(map_id):
+		return ""
 	return maps_root().path_join(map_id)
 
 
@@ -364,12 +524,13 @@ static func list_maps() -> Array:
 	var root := maps_root()
 	if DirAccess.dir_exists_absolute(root):
 		for d in DirAccess.get_directories_at(root):
-			if d.begins_with("_"):
+			if d.begins_with("_") or not valid_id(d):
 				continue
 			var dir := root.path_join(d)
 			if not is_map_dir(dir):
 				continue
-			var c = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("carte.json")))
+			var txt = read_text(dir.path_join("carte.json"))
+			var c = JSON.parse_string(txt) if txt != null else null
 			var n: Dictionary = c.get("nom", {}) if c is Dictionary else {}
 			out.append({"id": d, "dir": dir, "name": Lang.t(String(n.get("fr", d)), String(n.get("en", n.get("fr", d))))})
 	out.sort_custom(func(a, b): return a.name < b.name)
@@ -388,4 +549,6 @@ static func slug(s: String) -> String:
 	while out.contains("__"):
 		out = out.replace("__", "_")
 	out = out.trim_prefix("_").trim_suffix("_")
+	# Place pour un suffixe « _2 » sans dépasser MAX_ID_LEN.
+	out = out.left(MAX_ID_LEN - 8).trim_suffix("_")
 	return out if out != "" else "carte"

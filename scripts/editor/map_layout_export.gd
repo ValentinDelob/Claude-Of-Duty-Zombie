@@ -18,6 +18,8 @@ var blocks: Array = []
 var walls: Array = []
 var rails: Array = []
 var stairs: Array = []
+var props: Array = []   # décor posé : [{id, model | build, p, yaw, scale, remap, nocollide}]
+var blockers: Array = []   # collisions du décor et des luminaires : [{center, size, yaw, barrier, surface}]
 var zone_boxes: Array = []   # [étage, volume, zone, boîte]
 var ref_room: Dictionary = {}   # étage -> id d'une salle (hauteur de sol des murs)
 var door_of: Array = []   # par étage : {Vector2i: porte}
@@ -131,6 +133,7 @@ func _build() -> Dictionary:
 		_walls(f)
 		_rails(f)
 	_decor()
+	_props()
 	_stairs()
 	var markers := _markers()
 	_pockets()
@@ -145,8 +148,26 @@ func _build() -> Dictionary:
 		"id": md.id,
 		"note": "Généré par l'éditeur de cartes (MapLayoutExport) - ne pas modifier à la main.",
 		"rooms": rooms, "walls": walls, "blocks": blocks, "rails": rails, "stairs": stairs,
+		"props": props, "blockers": blockers,
 		"zones": zones, "zone_order": zone_order, "markers": markers, "map_def": _map_def(),
 	}
+
+
+## Surface d'une partie (« sol », « murs », « plafond ») de la pièce de
+## l'éditeur `room_id` : celle de la pièce, sinon celle de sa zone, sinon `fallback`.
+func surface_of(room_id: String, part: String, zone: String, fallback: String) -> String:
+	var own: Dictionary = md.room_surfaces.get(room_id, {})
+	if own.has(part):
+		return String(own[part])
+	var zm: Dictionary = {"sol": md.floor_mats, "murs": md.wall_mats, "plafond": md.ceil_mats}[part]
+	return String(zm.get(zone, fallback))
+
+
+## Case de sol d'une pièce, y compris sous le décor posé (prefabs, caisses).
+func _floor_cell(f: MapValidator.Floor, c: Vector2i) -> bool:
+	if md._walk(f, c):
+		return true
+	return f.at(c) == Kd.MUR and f.key_at(c).begins_with("decor#") and f.room_of(c) != ""
 
 
 func _rooms(f: MapValidator.Floor) -> void:
@@ -157,16 +178,23 @@ func _rooms(f: MapValidator.Floor) -> void:
 	for y in f.h:
 		for x in f.w:
 			var c := Vector2i(x, y)
-			if not md._walk(f, c):
+			if not _floor_cell(f, c):
 				continue
 			var ce := ceil_at(k, c)
 			var key := ""
+			var zone := f.zone_of(c)
+			var rid := f.room_of(c)
+			if zone == "" and rid != "":
+				zone = String(md.room_zone.get(rid, ""))
 			if door_of[k].has(c):
 				key = "porte%s|%s|%s" % [door_of[k][c].id, ce[0], ce[1]]
+				info[key] = [door_of[k][c].id, zone, ce, "wood", "ceiling"]
 			else:
-				key = "%s|%s|%s" % [f.zone_of(c), ce[0], ce[1]]
+				var fm := surface_of(rid, "sol", zone, "concrete")
+				var cm := surface_of(rid, "plafond", zone, "ceiling")
+				key = "%s|%s|%s|%s|%s" % [zone, ce[0], ce[1], fm, cm]
+				info[key] = ["", zone, ce, fm, cm]
 			keys[y * f.w + x] = key
-			info[key] = [door_of[k][c].id if door_of[k].has(c) else "", f.zone_of(c), ce]
 	var n := 0
 	for rk in merge_rects(f.w, f.h, keys):
 		var r: Rect2i = rk[0]
@@ -175,9 +203,13 @@ func _rooms(f: MapValidator.Floor) -> void:
 		var zone: String = inf[1]
 		var rid := ("porte%s_%d" % [inf[0], n]) if inf[0] != "" else ("%s%d_%d" % [zone, k, n])
 		var room := {"id": rid, "outline": _outline(r), "floor": _r(f.sol), "ceiling": _r(inf[2][0]),
-			"floor_mat": "wood" if inf[0] != "" else String(md.floor_mats.get(zone, "concrete")), "ceiling_mat": "ceiling"}
+			"floor_mat": String(inf[3]), "ceiling_mat": String(inf[4])}
 		if not inf[2][1]:
-			room["no_ceiling"] = true
+			if String(inf[4]) != "ceiling":
+				# Plafond choisi sous l'étage du dessus : dessiné juste sous sa dalle.
+				room["ceiling"] = _r(float(inf[2][0]) - 0.01)
+			else:
+				room["no_ceiling"] = true
 		if k > 0:
 			room["floor_slab"] = MapValidator.DALLE
 		rooms.append(room)
@@ -189,37 +221,83 @@ func _rooms(f: MapValidator.Floor) -> void:
 			zone_boxes.append([k, (b[3] - b[0]) * (b[4] - b[1]) * (b[5] - b[2]), zone, b])
 
 
+## Matériau d'un demi-mur : la moitié (sx, sy) de la case de mur `c` (0 :
+## côté ouest / nord, 1 : côté est / sud) prend la texture de la pièce qui la
+## touche de ce côté ; un mur mitoyen montre ainsi de chaque côté la texture
+## de sa pièce. Sans pièce de ce côté (mur extérieur), celle de la case.
+func _half_wall_mat(f: MapValidator.Floor, c: Vector2i, sx: int, sy: int, whole: String) -> String:
+	var dx := -1 if sx == 0 else 1
+	var dy := -1 if sy == 0 else 1
+	for n in [c + Vector2i(dx, 0), c + Vector2i(0, dy), c + Vector2i(dx, dy)]:
+		if f.zone_of(n) != "" and f.at(n) in [Kd.SOL, Kd.MARQUEUR, Kd.ESCALIER]:
+			return surface_of(f.room_of(n), "murs", f.zone_of(n), "wall")
+	return whole
+
+
+## Matériau d'une case de mur entière : la pièce la plus présente autour.
+func _cell_wall_mat(f: MapValidator.Floor, c: Vector2i) -> String:
+	var count := {}
+	for d in MapValidator.DIRS:
+		var n: Vector2i = c + d
+		var z := f.zone_of(n)
+		if z != "":
+			var m := surface_of(f.room_of(n), "murs", z, "wall")
+			count[m] = count.get(m, 0) + 1
+	var best := ""
+	for m in count:
+		if best == "" or count[m] > count[best] or (count[m] == count[best] and m < best):
+			best = m
+	return best if best != "" else _wall_mat(f, c)
+
+
+## Murs, allèges et linteaux : blocs fusionnés sur une grille de demi-cases
+## (0,25 m) pour que chaque face d'un mur ait la texture de sa pièce.
 func _walls(f: MapValidator.Floor) -> void:
 	var k := f.index
 	var y0 := f.sol - (0.1 if k == 0 else MapValidator.DALLE)
+	var w2 := f.w * 2
+	var h2 := f.h * 2
 	var main := PackedStringArray()
 	var upper := PackedStringArray()
-	main.resize(f.w * f.h)
-	upper.resize(f.w * f.h)
+	main.resize(w2 * h2)
+	upper.resize(w2 * h2)
 	for y in f.h:
 		for x in f.w:
 			var c := Vector2i(x, y)
 			var i := y * f.w + x
 			var kd := f.at(c)
+			var lo := ""   # grille principale : "bas|haut"
+			var hi := ""   # grille du haut (linteaux)
 			if kd == Kd.MUR:
-				# Décor bloquant : ses propres blocs (_decor), pas un mur.
+				# Décor bloquant : ses propres blocs (_decor) ou objets, pas un mur.
 				if f.key[i].begins_with("decor#"):
 					continue
-				main[i] = "%s|%s|%s" % [_wall_mat(f, c), y0, wall_top(k, c)]
+				lo = "%s|%s" % [y0, wall_top(k, c)]
 			elif kd == Kd.FENETRE:
 				# Allège et linteau autour de l'ouverture (hauteurs de Barricade).
-				main[i] = "%s|%s|%s" % [_wall_mat(f, c), y0, f.sol + MapValidator.SILL]
-				upper[i] = "%s|%s|%s" % [_wall_mat(f, c), f.sol + MapValidator.LINTEL, wall_top(k, c)]
+				lo = "%s|%s" % [y0, f.sol + MapValidator.SILL]
+				hi = "%s|%s" % [f.sol + MapValidator.LINTEL, wall_top(k, c)]
 			elif kd == Kd.PORTE or kd == Kd.DEBRIS:
 				var ce: float = ceil_at(k, c)[0]
 				if ce > f.sol + md.door_height + 0.05:
-					upper[i] = "%s|%s|%s" % [_wall_mat(f, c), f.sol + md.door_height, ce]
+					hi = "%s|%s" % [f.sol + md.door_height, ce]
+			if lo == "" and hi == "":
+				continue
+			var whole := _cell_wall_mat(f, c)
+			for sy in 2:
+				for sx in 2:
+					var mat := _half_wall_mat(f, c, sx, sy, whole)
+					var j := (y * 2 + sy) * w2 + x * 2 + sx
+					if lo != "":
+						main[j] = mat + "|" + lo
+					if hi != "":
+						upper[j] = mat + "|" + hi
 	for grid in [main, upper]:
-		for rk in merge_rects(f.w, f.h, grid):
+		for rk in merge_rects(w2, h2, grid):
 			var r: Rect2i = rk[0]
 			var p: PackedStringArray = String(rk[1]).split("|")
-			blocks.append({"room": ref_room.get(k, "x"), "box": [wx(r.position.x), _r(p[1].to_float()), wx(r.position.y),
-				wx(r.end.x), _r(p[2].to_float()), wx(r.end.y)], "mat": p[0]})
+			blocks.append({"room": ref_room.get(k, "x"), "box": [wx(r.position.x * 0.5), _r(p[1].to_float()), wx(r.position.y * 0.5),
+				wx(r.end.x * 0.5), _r(p[2].to_float()), wx(r.end.y * 0.5)], "mat": p[0]})
 
 
 ## Décor bloquant (caisses, barils) : un bloc plein à sa hauteur.
@@ -229,6 +307,58 @@ func _decor() -> void:
 		var sol: float = md.floors[d.floor].sol
 		blocks.append({"room": ref_room.get(d.floor, "x"), "box": [wx(r.position.x), _r(sol), wx(r.position.y),
 			wx(r.end.x), _r(sol + float(d.h)), wx(r.end.y)], "mat": String(d.mat)})
+
+
+## Point du monde d'un point de l'éditeur (m) à l'étage k, `dy` au-dessus du sol.
+func _world(k: int, m: Vector2, dy := 0.0) -> Vector3:
+	return Vector3(_r(m.x + MapGeom.WORLD_OFFSET), _r(md.floors[k].sol + dy), _r(m.y + MapGeom.WORLD_OFFSET))
+
+
+static func _v3(v: Vector3) -> Array:
+	return [snappedf(v.x, 0.001), snappedf(v.y, 0.001), snappedf(v.z, 0.001)]
+
+
+## Pavés de collision d'un objet (coordonnées de l'objet) -> « blockers » du
+## monde (CollisionBox) : jamais une collision tirée d'un modèle Blender.
+func _blockers_of(boxes: Array, origin: Vector3, yaw: float, barrier: bool, surface: String) -> void:
+	var b := Basis(Vector3.UP, yaw)
+	for bx in boxes:
+		var c: Array = bx.center
+		blockers.append({"center": _v3(origin + b * Vector3(c[0], c[1], c[2])), "size": bx.size,
+			"yaw": _r(yaw + float(bx.get("yaw", 0.0))), "barrier": barrier, "surface": surface})
+
+
+## Décor posé (prefabs) : objets du jeu (« props » : modèle ou objet
+## construit par EditorPrefabs) et leurs collisions (« blockers »).
+func _props() -> void:
+	for pr in md.props:
+		var d: Dictionary = MapCatalog.PREFABS.get(String(pr.prefab), {})
+		if d.is_empty():
+			continue
+		var k: int = pr.floor
+		var yaw := -deg_to_rad(float(pr.rot))
+		var origin := _world(k, pr.center)
+		var block := String(d.bloque)
+		var copies: Array = d.get("copies", [[0, 0, 0]])
+		for i in copies.size():
+			var cp: Array = copies[i]
+			var p := origin + Basis(Vector3.UP, yaw) * Vector3(cp[0], 0, cp[1])
+			var e := {"id": "%s_%d" % [pr.eid, i] if copies.size() > 1 else String(pr.eid), "p": _v3(p), "yaw": _r(yaw + float(cp[2]))}
+			if d.has("model"):
+				e["model"] = String(d.model)
+				if d.has("scale"):
+					e["scale"] = float(d.scale)
+				if d.has("remap"):
+					e["remap"] = d.remap
+				# Collisions du modèle (<modèle>.collision.json) seulement s'il
+				# bloque et que le catalogue n'en donne pas.
+				if block == "non" or d.has("boxes"):
+					e["nocollide"] = true
+			else:
+				e["build"] = String(d.build)
+			props.append(e)
+		if block != "non" and d.has("boxes"):
+			_blockers_of(d.boxes, origin, yaw, block == "barriere", String(d.get("surface", "concrete")))
 
 
 ## Garde-corps : bord d'un plancher d'étage sur un vide (sauf en haut d'escalier).
@@ -396,8 +526,49 @@ func _markers() -> Dictionary:
 	m.erase("_mainframe")
 	m.lamps = _lamps() if md.lamps_auto else []
 	for l in md.lamps_extra:
-		m.lamps.append(_lamp(int(l.floor), Vector2i(floori(l.center.x), floori(l.center.y))))
+		if l.has("luminaire"):
+			m.lamps.append(_fixture(l))
+		else:
+			m.lamps.append(_lamp(int(l.floor), Vector2i(floori(l.center.x), floori(l.center.y))))
 	return m
+
+
+## Luminaire posé : lumière (couleur, intensité, portée, courant, vacillement)
+## et son objet (« fixture » : EditorPrefabs.fixture), à la hauteur de son
+## montage (plafond, mur, sol ou dessus d'un meuble).
+func _fixture(l: Dictionary) -> Dictionary:
+	var d: Dictionary = MapCatalog.LIGHTS.get(String(l.luminaire), {})
+	var k := int(l.floor)
+	var c: Vector2 = l.center
+	var cell := Vector2i(floori(c.x), floori(c.y))
+	var sol: float = md.floors[k].sol
+	var fix_y := 0.0   # hauteur de l'objet (m au-dessus du sol)
+	var light_y := 0.0
+	match String(l.mount):
+		"plafond":
+			var h: float = float(ceil_at(k, cell)[0]) - sol
+			fix_y = h
+			light_y = h - float(d.get("drop", 0.4))
+		"mur":
+			fix_y = float(d.get("y", 2.0))
+			light_y = fix_y
+		_:
+			fix_y = float(l.get("support", 0.0))
+			light_y = fix_y + float(d.get("y", 0.5))
+	var at := Vector2(wx(c.x), wx(c.y))
+	var pl := Vector3(at.x, sol + light_y, at.y)
+	if String(l.mount) == "mur":
+		# La lumière devant l'applique (0,2 m du mur), pas dans le mur.
+		var wv: Vector2i = l.wall
+		pl -= Vector3(wv.x, 0, wv.y) * 0.2
+	var col: Color = l.color
+	var e := {"p": _v3(pl), "range": _r(float(l.range)), "energy": _r(float(l.energy) * 1.4), "color": col.to_html(false),
+		"power": bool(l.power), "flicker": bool(l.flicker), "fixture": String(l.luminaire),
+		"fixture_p": _v3(Vector3(at.x, sol + fix_y, at.y)), "yaw": _r(float(l.yaw))}
+	var boxes: Array = l.get("boxes", [])
+	if not boxes.is_empty() and String(d.get("bloque", "non")) != "non":
+		_blockers_of(boxes, Vector3(at.x, sol + fix_y, at.y), float(l.yaw), bool(l.barrier), "metal")
+	return e
 
 
 ## Lampes : une grille de 6 m par zone et par étage, sous le plafond.

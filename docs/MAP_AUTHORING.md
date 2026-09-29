@@ -18,6 +18,10 @@ menus, `--map=draft_arena`) est faite dans ce format et se joue (scénarios
 ![DRAFT ARENA dans l'éditeur (rez-de-chaussée)](map_authoring/draft_arena_editeur.png)
 ![DRAFT ARENA, étage : passerelle au-dessus de l'entrepôt à double hauteur](map_authoring/draft_arena_etage1.png)
 ![En jeu : la passerelle au-dessus de l'entrepôt](map_authoring/jeu_passerelle.png)
+![Onglet « Objets sur la carte » : le bureau survolé sur la carte, sa ligne surlignée](map_authoring/objets.png)
+![Textures d'une pièce (sol, murs, plafond) dans l'onglet Propriétés](map_authoring/textures.png)
+![L'inventaire, catégorie Décor et obstacles](map_authoring/inventaire_decor.png)
+![En jeu : murs de brique, parquet, plafond en bois, fauteuils, bureau, applique et suspension](map_authoring/jeu_decor.png)
 
 ---
 
@@ -42,6 +46,7 @@ automatique non enregistrée, il propose de la reprendre.
 | Barre rapide | 9 cases au bas de la vue (touches 1 à 9, molette) : l'objet tenu. |
 | Inventaire | Touche **E** ou **Tab** : toutes les catégories ; cliquer un objet le met dans la case choisie, ou le glisser sur une case. |
 | Panneaux | **Propriétés** (élément choisi, sinon la carte), **Pièces**, **Zones**, **Étages**, **Vérification**. |
+| Objets sur la carte | Onglet déployable à gauche de la vue (languette, bouton ◂ ou touche **L** ; ouvert / replié : mémorisé) : voir §2 bis. |
 | Barre d'état | Aide de l'outil, raison d'un refus, résultat des actions. |
 
 ### Commandes
@@ -55,7 +60,8 @@ automatique non enregistrée, il propose de la reprendre.
 | Aimantation | 1 m ; 0,5 m en maintenant Maj |
 | Case de la barre rapide | 1 à 9, molette |
 | Inventaire | E ou Tab |
-| Pivoter de 90° | R (une pièce pivote avec son contenu) |
+| Pivoter de 90° | R (une pièce pivote avec son contenu ; un décor ou un luminaire tenu pivote avant d'être posé) |
+| Liste des objets sur la carte | L |
 | Supprimer | Suppr (une pièce emporte ses objets et ses ouvertures) |
 | Copier / coller sous le curseur | Ctrl+C / Ctrl+V |
 | Annuler / rétablir (illimité) | Ctrl+Z / Ctrl+Y (ou Ctrl+Maj+Z) |
@@ -70,6 +76,28 @@ redimensionner (coins et milieux des côtés d'une pièce rectangle, sommets d'u
 polygone, coins d'un pilier, d'un escalier ou d'un piège, bouts d'un mur). Un
 élément devenu invalide (une fenêtre restée sur l'ancien mur d'une pièce
 agrandie…) est entouré de rouge avec la raison dans la barre d'état.
+
+## 2 bis. Objets sur la carte (liste)
+
+Onglet déployable à gauche de la vue (`MapObjectList`) : **tous les éléments
+posés** (pièces, ouvertures, objets de jeu, construction, décor, luminaires),
+une ligne chacun avec son icône, son nom, son type, son étage (É0, É1…) et sa
+position en mètres ; triés par identifiant (ordre naturel : `p2` avant `p10`).
+
+- **Pages de 50** : ◄ ► et « page 2/7 » au bas de la liste.
+- **Filtre** par catégorie (Tout, Pièces, Ouvertures, Construction, Objets de
+  jeu, Décor et obstacles, Luminaires ; mémorisé) et **recherche** dans le
+  nom, le type et l'identifiant.
+- **Survol** d'un élément sur la carte : sa ligne est surlignée et la liste
+  saute à sa page ; survol d'une ligne : l'élément s'entoure d'un **contour
+  lumineux** sur la carte (portée d'un luminaire en cercle), sans déplacer la
+  vue. **Clic** sur une ligne : choisir l'élément et centrer la vue (change
+  d'étage au besoin) ; **double-clic** : centrer et zoomer.
+- Fluide avec 2000 éléments : la liste n'est refaite qu'après une
+  modification de la carte (et seulement onglet ouvert), les 50 lignes sont
+  dessinées par un seul contrôle, le survol ne cherche que parmi les objets
+  proches (index par cases de 4 m). Mesuré par les tests : survol < 1 ms,
+  pose d'un objet ≈ 0,6 s avec 2000 objets.
 
 ## 3. Ce que l'on pose (inventaire)
 
@@ -89,7 +117,43 @@ par code (`MapIcons`).
 | Machines | Pack-a-Punch, interrupteur du courant, téléporteur, arrivée du téléporteur, poste central | contre un mur, ou au sol (téléporteur, arrivée) |
 | Pièges | zone de piège électrique, levier | zone : glisser au sol ; levier : contre un mur, à moins de 10 m |
 | Joueurs et apparitions | départ des joueurs, zombie qui sort du sol | au sol |
-| Décor et lumières | lampe, caisse, baril | au sol |
+| Décor et obstacles | caisse, baril, tas de gravats, gros éboulement, mur effondré, débris épars, planches au sol, poutre tombée, lustre tombé, pile de caisses, tonneaux, sacs de sable, table et chaise renversées, chaise pliante, bureau, étagère, rangée de fauteuils de cinéma, fauteuil arraché, pupitre, projecteur de cinéma, chariot, épave de voiture | au sol, pivote avec R |
+| Luminaires | lampe (historique), ampoule nue, suspension, néon, lustre, applique murale, lampe de bureau, projecteur de chantier, bougies, brasero | plafond, mur (applique) ou sol ; pivote avec R |
+
+### Décor (prefabs) et luminaires
+
+Tous décrits à un seul endroit, `MapCatalog.PREFABS` et `MapCatalog.LIGHTS`
+(`scripts/editor/map_catalog.gd`) : emprise au sol (cases de 0,5 m), modèle
+(`assets/models/kino/*.glb`, déjà livrés avec KINO) ou objet construit par le
+jeu (`EditorPrefabs` : sacs de sable, table et chaise renversées, chariot,
+épave de voiture, et les luminaires sans modèle), collisions.
+
+- **Empreinte** dessinée dans l'éditeur (hachurée si le décor bloque), flèche
+  du devant ; **R** pivote de 90° (la largeur et la profondeur s'échangent).
+- **Collisions** : chaque décor bloque ou non selon son modèle : « solide »
+  (joueurs, zombies et balles : gravats, bureau, sacs de sable…), « barrière »
+  (joueurs et zombies, les balles passent : fauteuils, tonneaux, lustre
+  tombé…) ou « non » (débris épars, planches : on marche dessus). Toujours des
+  `CollisionBox` du jeu (pavés du catalogue ou `<modèle>.collision.json`),
+  jamais une collision de modèle Blender. Les cases d'un décor qui bloque sont
+  pleines pour le validateur et pour les trajets des zombies.
+- **Luminaires** : couleur, intensité (× 0,1 à 4), portée (2 à 20 m), « liée
+  au courant » (faibles avant le courant, allumées en cascade quand on le
+  rétablit ; sinon toujours allumées : bougies, brasero) et « vacille »
+  (grésillement), réglés dans l'onglet Propriétés. Ils passent par le code
+  commun des lampes (`MapProps.add_lamp` : `PowerGrid`, `LightFlicker`,
+  `RenderQuality` pour les ombres et le fondu) ; leurs objets ne projettent
+  pas d'ombre.
+
+Règles de pose en plus (`MapRules.layer_of`) :
+- décor et luminaires au sol : dans une pièce, sans toucher ses murs, sans
+  chevauchement ; une **lampe de bureau** ou des **bougies** peuvent se poser
+  **sur un meuble** qui a un dessus (`support` : bureau, chariot, sacs de
+  sable) : la lumière monte à sa hauteur ;
+- luminaires du plafond : dans une pièce ; ils surplombent le décor mais pas
+  un autre luminaire du plafond ;
+- applique : contre un mur plein de la pièce, face vers l'intérieur, à 2 m du
+  sol (elle ne gêne pas les objets posés dessous).
 
 ### Règles imposées à la pose
 
@@ -130,10 +194,15 @@ raison à côté du curseur (`MapRules`) :
   son contour reste un mur et son intérieur est un vide ; ses piliers montent
   jusqu'en haut). Une pièce posée à l'étage au-dessus d'une double hauteur est
   une **mezzanine** : ses bords au-dessus du vide ont un garde-corps.
+  **Textures** : sol, murs et plafond, parmi les surfaces du jeu
+  (`WorldLook.SURFACES` : plâtre, béton, brique, bois, parquet, carrelage,
+  pierre, pavés, moquette…), avec un aperçu ; par défaut, celles de la zone.
+  Un **mur mitoyen montre de chaque côté la texture de sa pièce** (le jeu
+  construit les murs par demi-cases de 0,25 m).
 - **Zone** (onglet Zones) : un groupe de pièces qui s'ouvre d'un coup (ses
   fenêtres s'activent ensemble, comme les zones de BO1). Par défaut une zone
   par pièce. Renommer en français et en anglais (noms affichés en jeu selon la
-  langue), matériaux du sol et des murs, **fusionner** (les pièces d'une zone
+  langue), textures par défaut du sol, des murs et du plafond, **fusionner** (les pièces d'une zone
   rejoignent une autre), **séparer** (une zone par pièce), **zone de départ**
   (★, ouverte au début). Les pièces d'une même zone doivent être reliées par
   un passage libre.
@@ -194,7 +263,17 @@ départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
   (`user://maps/_editeur.cfg`).
 - **Archive .zip** : Fichier > Exporter / Importer ; l'archive contient les cinq
   JSON à la racine (ZIPPacker / ZIPReader). Une archive importée s'enregistre
-  comme une nouvelle carte.
+  comme une nouvelle carte. Elle est contrôlée **avant** toute décompression
+  (`EditorMap.import_zip`, `zip_entries` lit le répertoire central) : 2 Mo au
+  plus, 32 entrées au plus, seulement les cinq JSON (à la racine ou dans un
+  seul dossier), aucun chemin piégé (`..`, `/` en tête, `\`, `:`), chaque
+  fichier 2 Mo au plus une fois décompressé (bombe zip refusée) ; sinon elle
+  est refusée avec la raison. Les fichiers d'un dossier de carte sont lus
+  avec la même limite (`EditorMap.read_text`), le `meta.json` de la
+  sauvegarde automatique avec 256 Ko.
+- **Identifiant de carte** (nom de dossier) : 1 à 48 caractères parmi `a-z`,
+  `0-9` et `_` (`EditorMap.valid_id`) ; `EditorMap.map_dir` refuse tout autre
+  identifiant (« perso:../x » n'est pas une carte).
 - **Jouer** : ▶ **TESTER** vérifie, enregistre et lance une partie solo sur la
   carte (`perso:<id>`) ; la fin de la partie ramène dans l'éditeur, sur la même
   carte. Les cartes jouables de `user://maps` apparaissent aussi dans l'écran
@@ -213,7 +292,7 @@ carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
 
 ```json
 {
- "format": 1,
+ "format": 2,
  "id": "draft_arena",
  "nom": {"fr":"DRAFT ARENA","en":"DRAFT ARENA"},
  "description": {"fr":"…","en":"…"},
@@ -227,7 +306,12 @@ carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
 }
 ```
 
-`format` : version du format (1) ; `id` : dossier ; `musique` : un son
+`format` : version du format (**2** ; `EditorMap.FORMAT`). Historique : 1 =
+premières cartes ; 2 = décor (`prefab`), luminaires (`luminaire`), textures
+par pièce et plafond des zones. Une carte au **format 1 se lit telle quelle**
+(toutes les nouvelles clés sont facultatives, `EditorMap._migrate`) et
+s'enregistre au format 2 ; DRAFT ARENA est restée au format 1 pour le prouver.
+Une carte d'un format plus récent que le jeu est signalée. `id` : dossier ; `musique` : un son
 `assets/audio/ambience_*` ; `hauteur_portes` (m) ; `lampes_auto` : une lampe
 tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
 `hauteur` sous plafond (m) des pièces sans rien au-dessus.
@@ -238,14 +322,16 @@ tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
 {
  "pieces": [
   {"id":"p3","nom":"Entrepôt","etage":0,"zone":"z3","contour":[[2.5,4.5],[17,4.5],[17,17],[2.5,17]],"double_hauteur":true},
-  {"id":"p5","nom":"Passerelle","etage":1,"zone":"z5","contour":[[2.5,4.5],[7.5,4.5],[7.5,9.5],[2.5,9.5]]}
+  {"id":"p5","nom":"Passerelle","etage":1,"zone":"z5","contour":[[2.5,4.5],[7.5,4.5],[7.5,9.5],[2.5,9.5]],"surface_murs":"brick","surface_sol":"parquet","surface_plafond":"wood"}
  ]
 }
 ```
 
 `contour` : les sommets (au moins 3) du trait des murs ; `zone` : un `id` de
 `zones.json` ; facultatifs : `plafond` (hauteur sous plafond, m),
-`double_hauteur` (true). Une pièce rectangle a 4 sommets alignés sur les axes.
+`double_hauteur` (true), et (format 2) les **textures** `surface_sol`,
+`surface_murs`, `surface_plafond` : clés de `WorldLook.SURFACES` ; absentes,
+celles de la zone. Une pièce rectangle a 4 sommets alignés sur les axes.
 
 **`ouvertures.json`** — portes, débris, passages, fenêtres :
 
@@ -278,7 +364,10 @@ un nombre pair de demi-mètres, le milieu tombe à 0,25 m de la grille).
   {"id":"w1","type":"arme","arme":"m14","etage":0,"position":[13.25,33],"mur":"s"},
   {"id":"b2","type":"boite","etage":0,"position":[20.5,29.25],"mur":"e","depart":true},
   {"id":"t1","type":"piege","etage":0,"rect":[5,5,7,9]},
-  {"id":"c1","type":"courant","etage":1,"position":[2.5,7.5],"mur":"o"}
+  {"id":"c1","type":"courant","etage":1,"position":[2.5,7.5],"mur":"o"},
+  {"id":"d1","type":"prefab","prefab":"sacs_sable","etage":0,"position":[10.25,3.25],"rot":90},
+  {"id":"lu1","type":"luminaire","luminaire":"suspension","etage":0,"position":[7.5,5.5],"rot":0,"couleur":"#ffc88a","intensite":2.2,"portee":10,"courant":true,"vacille":false},
+  {"id":"lu2","type":"luminaire","luminaire":"applique","etage":0,"position":[0,5],"mur":"o","couleur":"#40a0ff","intensite":1.4,"portee":7,"courant":true,"vacille":false}
  ]
 }
 ```
@@ -295,6 +384,33 @@ un nombre pair de demi-mètres, le milieu tombe à 0,25 m de la grille).
 - Objets au sol (`depart`, `apparition`, `teleporteur`, `arrivee`, `lampe`,
   `caisse`, `baril`) : `position` = centre. Un seul départ : les 4 joueurs se
   placent autour ; 2 à 4 départs : un joueur sur chacun.
+- `prefab` (format 2) : `prefab` = une clé de `MapCatalog.PREFABS`
+  (`gravats`, `gros_gravats`, `eboulis`, `debris_epars`, `planches`, `poutre`,
+  `lustre_tombe`, `caisses`, `tonneaux`, `sacs_sable`, `table_renversee`,
+  `chaise_renversee`, `chaise`, `bureau`, `etagere`, `fauteuils`,
+  `fauteuil_casse`, `pupitre`, `projecteur_film`, `chariot`, `epave_voiture`) ;
+  `position` = centre de l'emprise ; `rot` = 0, 90, 180 ou 270 (degrés, sens
+  horaire vu de dessus ; à 0, le devant est au sud).
+- `luminaire` (format 2) : `luminaire` = une clé de `MapCatalog.LIGHTS`
+  (`ampoule`, `suspension`, `neon`, `lustre`, `applique`, `lampe_bureau`,
+  `projecteur`, `bougies`, `feu`) ; `position` = centre (applique : sur le
+  trait du mur, avec `mur` comme un objet mural) ; `rot` ; `couleur`
+  « #rrggbb » ; `intensite` (0,1 à 4) ; `portee` (2 à 20 m) ; `courant`
+  (true : s'allume avec le courant) ; `vacille` (true : grésille).
+
+**Types et valeurs admis** (contrôle des cartes reçues) : une seule source,
+le catalogue.
+- `MapCatalog.allowed_kinds()` : pour chaque `type` de `ouvertures.json` et
+  `objets.json`, `{"file", "required": [clés obligatoires], "keys": {clé:
+  spec}}` ; spec = `{"t": "id"}` (identifiant a-z, 0-9, _), `{"t": "int" |
+  "number", "min", "max"}`, `{"t": "bool"}`, `{"t": "enum", "values": [...]}`
+  (atouts, armes, prefabs, luminaires, directions, rotations…), `{"t":
+  "point"}` ([x, y] en m, 0 à `MapCatalog.MAX_COORD`), `{"t": "rect"}`,
+  `{"t": "color"}` (« #rrggbb »). Tout type ou toute clé absent est à refuser.
+- `MapCatalog.allowed_surfaces()` : les textures admises (clés triées de
+  `WorldLook.SURFACES`).
+- `MapCatalog.room_keys()` / `MapCatalog.zone_keys()` : clés admises d'une
+  pièce et d'une zone, même format (+ `{"t": "text" | "names" | "polygon"}`).
 
 **`zones.json`** — zones et zone de départ :
 
@@ -308,7 +424,8 @@ un nombre pair de demi-mètres, le milieu tombe à 0,25 m de la grille).
 }
 ```
 
-`sol`, `murs` (facultatifs) : clés de `WorldLook.SURFACES`. Un fichier illisible
+`sol`, `murs`, `plafond` (facultatifs ; `plafond` depuis le format 2) : textures par défaut des
+pièces de la zone, clés de `WorldLook.SURFACES`. Un fichier illisible
 est signalé à l'ouverture (fichier, ligne, erreur) ; un format plus récent que
 celui du jeu aussi.
 
@@ -319,7 +436,9 @@ celui du jeu aussi.
 | `scripts/editor/editor_map.gd` | `EditorMap` : la carte (cinq JSON), lecture, écriture, archive .zip, dossier des cartes. |
 | `scripts/editor/map_geom.gd` | `MapGeom` : géométrie 2D (contours, bords communs, cases). |
 | `scripts/editor/map_rules.gd` | `MapRules` : règles de pose et leurs raisons (FR/EN). |
-| `scripts/editor/map_catalog.gd`, `map_icons.gd` | Inventaire tiré des bases du jeu, icônes. |
+| `scripts/editor/map_catalog.gd`, `map_icons.gd` | Inventaire tiré des bases du jeu, décor (`PREFABS`), luminaires (`LIGHTS`), types admis (`allowed_kinds`…), icônes et aperçus des textures. |
+| `scripts/editor/map_object_list.gd` | `MapObjectList` : l'onglet « Objets sur la carte » (pages de 50, filtres, survol). |
+| `scripts/game/map/editor_prefabs.gd` | `EditorPrefabs` : décor et luminaires construits par le jeu (sans modèle). |
 | `scripts/editor/map_raster.gd` | `MapRaster` : carte -> grille de cases de 0,5 m par étage. |
 | `scripts/editor/map_validator.gd` | `MapValidator` : validateur et indicateurs BO1. |
 | `scripts/editor/map_layout_export.gd` | `MapLayoutExport` : grille validée -> description en maillage (format de `MeshMapLayout`). |
@@ -340,7 +459,11 @@ celui du jeu aussi.
 3. **Description en maillage** (`MapLayoutExport`) : salles (sols, plafonds,
    dalles d'étage), murs, allèges et linteaux en blocs, garde-corps,
    escaliers (marches et rampe de collision), cours des fenêtres, zones,
-   marqueurs (objets muraux par la face du mur), lampes, réglages de la carte
+   marqueurs (objets muraux par la face du mur), lampes, décor (`props` :
+   modèle ou objet construit, `blockers` : ses `CollisionBox`), luminaires
+   (lampes avec `color`, `power`, `flicker`, `fixture`), textures (sols et
+   plafonds par pièce ; murs fusionnés sur une grille de demi-cases, chaque
+   face avec la texture de la pièce qui la touche), réglages de la carte
    (`map_def` : noms des zones dans la langue du jeu, prix des portes, zones
    ouvertes l'une sur l'autre, départ de la boîte, téléporteur à relier si un
    poste central est posé).
@@ -382,10 +505,22 @@ Preuves automatiques :
   l'éditeur, inventaire tiré des bases du jeu, conversion en carte jouable
   (emplacements, zones, géométrie construite par le jeu), DRAFT ARENA migrée
   valide, cartes perso trouvées par le jeu.
+- `tests/test_map_editor_decor.gd` : pagination (0, 50, 51, 2000 éléments),
+  tri et filtres de la liste, survol carte ↔ ligne dans l'éditeur, 2000
+  éléments fluides, chaque décor et chaque luminaire posé ou refusé selon les
+  règles (lampe sur un bureau, suspensions qui se chevauchent, applique hors
+  d'un mur), rotation R, textures enregistrées, relues et construites (mur
+  mitoyen à deux faces), lecture du format 1, types admis
+  (`allowed_kinds`), carte jouable construite par le jeu (décor,
+  `CollisionBox`, lumières colorées, feu hors du réseau électrique), archives
+  refusées (trop grosse, bombe, trop d'entrées, nom ou chemin inattendu) et
+  identifiants invalides.
 - `tests/autotest/map_editor.gd` (captures) : bouton du menu principal, trois
   pièces au glisser, porte refusée puis posée, objets par l'inventaire,
   vérification, Ctrl+S, rechargement, Ctrl+Z / Ctrl+Y, archive, polygone,
-  copier / coller, poignée.
+  copier / coller, poignée ; puis une salle décorée (décor et luminaires de
+  l'inventaire, R, refus, couleur, textures), l'onglet « Objets sur la
+  carte » (survol, page 2) et la pièce en jeu (TESTER).
 - `tests/autotest/map_editor_play.gd` : TESTER sur DRAFT ARENA, partie solo sur
   la carte de l'éditeur, retour dans l'éditeur.
 - `tests/autotest/draft_arena.gd` : la carte se joue (zombies aux fenêtres,
@@ -420,8 +555,11 @@ Preuves automatiques :
   droits (horizontaux ou verticaux).
 - Pas de porte en haut ou en bas d'un escalier (les deux zones d'un escalier
   sont ouvertes l'une sur l'autre) ; pas de portes liées ; pièges électriques
-  seulement ; décor limité à des caisses et barils (pas encore les modèles de
-  Kino).
+  seulement.
+- Décor posé au sol seulement (pas encore de décor accroché aux murs, hors
+  appliques) ; les luminaires sont des lampes omnidirectionnelles (le
+  projecteur de chantier éclaire tout autour de lui).
 - Les cartes perso ne se jouent qu'en solo (TESTER, écran SOLO) : le
   multijoueur demanderait d'envoyer la carte aux autres joueurs.
-- Architecture en maquette grise (matériaux par zone seulement).
+- Architecture simple : textures par pièce et par zone (sols, murs,
+  plafonds), pas encore de plinthes, lambris ni moulures.

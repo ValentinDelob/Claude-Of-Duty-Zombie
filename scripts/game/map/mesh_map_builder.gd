@@ -50,8 +50,28 @@ func build(parent: Node3D) -> void:
 	var lamps: Array = layout.get("markers", {}).get("lamps", [])
 	for i in lamps.size():
 		var l: Dictionary = lamps[i]
+		if l.has("fixture"):
+			_fixture_lamp(l)
+			continue
 		# Une lampe sur cinq grésille (déterministe).
 		add_lamp(MeshMapLayout.vec(l.p), float(l.get("energy", 2.2)), float(l.get("range", 10.0)), i % 5 == 3)
+
+
+## Luminaire de l'éditeur de cartes : lumière (code commun des lampes :
+## courant, grésillement, RenderQuality) et son objet (EditorPrefabs.fixture).
+func _fixture_lamp(l: Dictionary) -> void:
+	var col := Color.html(String(l.get("color", "ffbd80"))) if Color.html_is_valid(String(l.get("color", ""))) else PowerGrid.ON_COLOR
+	add_lamp(MeshMapLayout.vec(l.p), float(l.get("energy", 2.2)), float(l.get("range", 10.0)), bool(l.get("flicker", false)),
+		col, bool(l.get("power", true)))
+	var fx := EditorPrefabs.fixture(String(l.fixture), models_dir, _model)
+	if fx == null:
+		return
+	fx.position = MeshMapLayout.vec(l.get("fixture_p", l.p))
+	fx.rotation.y = float(l.get("yaw", 0.0))
+	root.add_child(fx)
+	_setup_nodes(fx, func(_room: String) -> float: return fx.position.y)
+	for n in fx.find_children("*", "GeometryInstance3D", true, false):
+		(n as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 ## Matériaux, ombres et collisions des nœuds d'un .glb. `floor_of(salle)` :
@@ -101,11 +121,17 @@ static func _xf(p: Vector3, yaw: float, scale := 1.0, tilt := 0.0) -> Transform3
 
 func _build_props() -> void:
 	for pr in layout.get("props", []):
-		var ps := _model(String(pr.model))
-		if ps == null:
+		var inst: Node3D = null
+		if pr.has("build"):
+			# Objet construit par le jeu (décor de l'éditeur : sacs de sable, chariot...).
+			inst = EditorPrefabs.build(String(pr.build))
+		else:
+			var ps := _model(String(pr.model))
+			if ps != null:
+				inst = ps.instantiate()
+		if inst == null:
 			continue
-		var inst: Node3D = ps.instantiate()
-		inst.name = String(pr.get("id", pr.model))
+		inst.name = String(pr.get("id", pr.get("model", pr.get("build", "prop"))))
 		var pos := MeshMapLayout.vec(pr.p)
 		inst.transform = _xf(pos, float(pr.get("yaw", 0.0)), float(pr.get("scale", 1.0)), float(pr.get("tilt", 0.0)))
 		root.add_child(inst)
@@ -118,11 +144,16 @@ func _build_props() -> void:
 		# Règle : aucune collision ne vient d'un modèle Blender (seulement des
 		# CollisionBox décrites à côté du .glb).
 		for body in inst.find_children("*", "StaticBody3D", true, false):
-			push_warning("[MeshMapBuilder] collision ignorée dans le modèle %s : utiliser %s.collision.json" % [pr.model, pr.model])
+			if body is CollisionBox:
+				continue
+			push_warning("[MeshMapBuilder] collision ignorée dans le modèle %s : utiliser %s.collision.json" % [pr.get("model", "?"), pr.get("model", "?")])
 			body.free()
-		# Collisions du modèle : pavés invisibles décrits à côté du .glb.
-		for d in _collision_boxes(String(pr.model)):
-			inst.add_child(CollisionBox.from_dict(d))
+		# Collisions du modèle : pavés invisibles décrits à côté du .glb (sauf
+		# « nocollide » : décor sans collision, ou collisions données à part
+		# dans « blockers »).
+		if pr.has("model") and not pr.get("nocollide", false):
+			for d in _collision_boxes(String(pr.model)):
+				inst.add_child(CollisionBox.from_dict(d))
 
 
 ## Objets répétés : un MultiMesh par maillage du modèle (sans collision : les

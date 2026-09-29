@@ -27,12 +27,14 @@ func _make_root(parent: Node3D, root_name := "Props") -> void:
 
 
 ## Lampe de la carte : groupe RenderQuality (ombres et fondu selon la
-## qualité), reliée au courant, grésillante si `flickers`.
-func add_lamp(pos: Vector3, energy: float, light_range: float, flickers: bool) -> OmniLight3D:
+## qualité), reliée au courant (sinon toujours allumée : bougies, feu),
+## grésillante si `flickers`. `color` : couleur une fois le courant rétabli
+## (luminaires de l'éditeur ; par défaut l'ampoule chaude des lampes BO1).
+func add_lamp(pos: Vector3, energy: float, light_range: float, flickers: bool, color := PowerGrid.ON_COLOR, powered := true) -> OmniLight3D:
 	var light := OmniLight3D.new()
 	light.name = "Lamp%d" % _lamp_i
 	light.position = pos
-	light.light_color = Color(1.0, 0.74, 0.5)
+	light.light_color = color
 	light.light_energy = energy
 	light.omni_range = light_range
 	light.omni_attenuation = 1.3
@@ -43,6 +45,7 @@ func add_lamp(pos: Vector3, energy: float, light_range: float, flickers: bool) -
 	root.add_child(light)
 	if flickers:
 		flicker.add(light)
-	power.add(light)
+	if powered:
+		power.add(light, color)
 	_lamp_i += 1
 	return light

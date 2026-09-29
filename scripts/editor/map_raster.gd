@@ -18,6 +18,8 @@ extends RefCounted
 const K := MapValidator.K
 ## Cases de marge au-delà de la carte (cours des fenêtres).
 const MARGIN := 8
+## Clés de texture d'une pièce (pieces.json) -> partie (MapValidator.room_surfaces).
+const ROOM_SURFACES := {"surface_sol": "sol", "surface_murs": "murs", "surface_plafond": "plafond"}
 
 var doc: EditorMap
 var v: MapValidator
@@ -52,6 +54,14 @@ func _build() -> void:
 	v.door_height = float(c.get("hauteur_portes", MapValidator.DOOR_HEIGHT))
 	v.lamps_auto = bool(c.get("lampes_auto", true))
 	_zones()
+	# Textures propres aux pièces (surface_sol, surface_murs, surface_plafond).
+	for p in doc.pieces:
+		var s := {}
+		for key in ROOM_SURFACES:
+			if WorldLook.SURFACES.has(String(p.get(key, ""))):
+				s[ROOM_SURFACES[key]] = String(p[key])
+		if not s.is_empty():
+			v.room_surfaces[String(p.id)] = s
 	# Étages.
 	var n := doc.floor_count()
 	for k in n:
@@ -108,6 +118,8 @@ func _zones() -> void:
 			v.floor_mats[l] = String(z.sol)
 		if z.has("murs"):
 			v.wall_mats[l] = String(z.murs)
+		if z.has("plafond"):
+			v.ceil_mats[l] = String(z.plafond)
 	# Pièce sans zone connue : sa propre zone (le nom de la pièce).
 	for p in doc.pieces:
 		var zid := String(p.get("zone", ""))
@@ -172,6 +184,7 @@ func _floor(k: int) -> void:
 	for p in doc.rooms_on(k):
 		var rc := room_cells(doc.room_poly(p))
 		var z := zone_letter(p)
+		v.room_zone[String(p.id)] = z
 		var ce := _ceil_of(p, k)
 		var own := []
 		for c in rc[1]:
@@ -185,6 +198,7 @@ func _floor(k: int) -> void:
 				continue   # mur d'une double hauteur : il reste
 			f.put(c, K.SOL, "zone", z)
 			f.ceil[c.y * f.w + c.x] = ce
+			f.room[c.y * f.w + c.x] = String(p.id)
 			own.append(c)
 		for c in rc[0]:
 			border_of.get_or_add(c, []).append(p)
@@ -199,6 +213,7 @@ func _floor(k: int) -> void:
 			# Bord d'une mezzanine au-dessus du vide : plancher (garde-corps).
 			f.put(c, K.SOL, "zone", zone_letter(p))
 			f.ceil[i] = _ceil_of(p, k)
+			f.room[i] = String(p.id)
 			continue
 		if inner_of.has(c):
 			continue
@@ -235,6 +250,23 @@ func _floor(k: int) -> void:
 				v.decor.append({"floor": k, "rect": MapValidator._bbox(cells), "h": 1.0 if o.type == "caisse" else 0.9,
 					"mat": "crate" if o.type == "caisse" else "barrel", "eid": String(o.id)})
 				cells_of[String(o.id)] = [k, cells]
+			"prefab", "luminaire":
+				# Décor posé : ses cases bloquent le passage (validateur, trajets)
+				# sauf s'il ne bloque pas ; sa géométrie vient du jeu (props).
+				var cells := floor_cells(o) if MapCatalog.light_mount(o) != "mur" else []
+				if String(o.type) == "prefab":
+					if MapCatalog.def_of(o).is_empty():
+						_err("décor inconnu « %s »" % o.get("prefab", ""), "unknown prop \"%s\"" % o.get("prefab", ""), k)
+						continue
+					v.props.append({"floor": k, "prefab": String(o.prefab), "center": MapGeom.v2(o.position),
+						"rot": posmod(int(o.get("rot", 0)), 360), "eid": String(o.id)})
+				if MapCatalog.blocking(o) != "non" and not cells.is_empty():
+					var key := "decor#" + String(o.id)
+					for c in cells:
+						if f.at(c) == K.SOL:
+							f.put(c, K.MUR, key)
+					v.eid_of[key] = String(o.id)
+				cells_of[String(o.id)] = [k, cells]
 	# (f) Escaliers de cet étage.
 	for o in doc.objects_on(k):
 		if String(o.type) == "escalier":
@@ -253,7 +285,10 @@ func _floor(k: int) -> void:
 			v.lamps_extra.append({"floor": k, "center": Vector2(c) + Vector2(0.5, 0.5)})
 			cells_of[String(o.id)] = [k, [c]]
 			continue
-		if t in ["caisse", "baril", "pilier", "mur", "escalier"]:
+		if t == "luminaire":
+			_light(k, o)
+			continue
+		if t in ["caisse", "baril", "pilier", "mur", "escalier", "prefab"]:
 			continue
 		var cells := []
 		if tool == "wall_item":
@@ -261,7 +296,7 @@ func _floor(k: int) -> void:
 		elif t == "piege":
 			cells = MapGeom.rect_cells_inside(MapGeom.rect_of(o.rect))
 		elif tool == "floor_item":
-			cells = _square(o, MapCatalog.footprint(o).x)
+			cells = floor_cells(o)
 		if cells.is_empty():
 			continue
 		var key := "%s#%s" % [MapCatalog.validator_key(o), o.id]
@@ -281,6 +316,44 @@ func _floor(k: int) -> void:
 			v.wall_hint[key] = MapGeom.DIRS.get(String(o.get("mur", "n")), Vector2i(0, -1))
 		v.eid_of[key] = String(o.id)
 		cells_of[String(o.id)] = [k, cells]
+
+
+## Luminaire posé -> lampe du jeu (v.lamps_extra) : position de la lumière en
+## cases (comme les lampes historiques : case + 0,5), réglages bornés.
+func _light(k: int, o: Dictionary) -> void:
+	var d := MapCatalog.def_of(o)
+	if d.is_empty():
+		_err("luminaire inconnu « %s »" % o.get("luminaire", ""), "unknown light fixture \"%s\"" % o.get("luminaire", ""), k)
+		return
+	var p := MapGeom.v2(o.position)
+	var mount := String(d.mount)
+	var lim: Dictionary = MapCatalog.LIGHT_LIMITS
+	var l := {"floor": k, "luminaire": String(o.luminaire), "mount": mount, "eid": String(o.id),
+		"color": MapCatalog.light_color(o),
+		"energy": clampf(float(o.get("intensite", d.intensite)), lim.intensite[0], lim.intensite[1]),
+		"range": clampf(float(o.get("portee", d.portee)), lim.portee[0], lim.portee[1]),
+		"power": bool(o.get("courant", d.courant)), "flicker": bool(o.get("vacille", d.vacille)),
+		"yaw": -deg_to_rad(posmod(int(o.get("rot", 0)), 360)), "boxes": d.get("boxes", []),
+		"barrier": MapCatalog.blocking(o) == "barriere"}
+	var cells := []
+	if mount == "mur":
+		# Sur le trait du mur, face vers l'intérieur : la face du mur est à
+		# 0,25 m du trait, côté pièce.
+		var dv := MapGeom.dir_vec(String(o.get("mur", "n")))
+		var face := p - dv * MapGeom.CELL * 0.5
+		l["center"] = face / MapGeom.CELL + Vector2(0.5, 0.5)
+		l["wall"] = Vector2i(dv)
+		# Lacet : l'axe +z de l'applique (du mur vers la pièce) vers -dv.
+		l["yaw"] = atan2(-dv.x, -dv.y)
+		cells = wall_item_cells(o)
+	else:
+		l["center"] = p / MapGeom.CELL + Vector2(0.5, 0.5)
+		cells = floor_cells(o)
+		if mount == "sol":
+			var sup := MapRules.support_under(doc, o)
+			l["support"] = MapRules.support_height(sup) if not sup.is_empty() else 0.0
+	v.lamps_extra.append(l)
+	cells_of[String(o.id)] = [k, cells]
 
 
 ## Cases d'un pilier (contour et intérieur) ou d'un mur libre (segment épais).
@@ -304,14 +377,24 @@ func _obstacle_cells(o: Dictionary) -> Array:
 
 ## Carré de n × n cases centré sur la position de l'objet.
 static func _square(o: Dictionary, n: int) -> Array:
+	return _block(o, Vector2i(n, n))
+
+
+## Rectangle de n.x × n.y cases centré sur la position de l'objet.
+static func _block(o: Dictionary, n: Vector2i) -> Array:
 	var p := MapGeom.v2(o.position)
-	var i0 := MapGeom.first_cell(p.x, n)
-	var j0 := MapGeom.first_cell(p.y, n)
+	var i0 := MapGeom.first_cell(p.x, n.x)
+	var j0 := MapGeom.first_cell(p.y, n.y)
 	var out := []
-	for j in n:
-		for i in n:
+	for j in n.y:
+		for i in n.x:
 			out.append(Vector2i(i0 + i, j0 + j))
 	return out
+
+
+## Cases d'un objet au sol (rotation comprise : MapCatalog.floor_size).
+static func floor_cells(o: Dictionary) -> Array:
+	return _block(o, MapCatalog.floor_size(o))
 
 
 ## Cases d'un objet mural : la rangée collée au mur, sur sa largeur. La

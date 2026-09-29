@@ -7,14 +7,20 @@ extends AutotestScenario
 ## l'inventaire, des fenêtres, la boîte, une arme, un atout et le courant
 ## choisis dans l'inventaire (E), le départ ; vérification sans erreur,
 ## Ctrl+S, rechargement identique, suppression annulée par Ctrl+Z, archive
-## .zip réimportée à l'identique. Captures : tests/_out/shots/map_editor_*.png.
+## .zip réimportée à l'identique. Puis une salle décorée : prefabs pris dans
+## l'inventaire (gravats, bureau, sacs de sable pivotés avec R, fauteuils),
+## refus d'un décor sur un autre et dans un mur, luminaires (lampe sur le
+## bureau, suspension recolorée, applique, brasero, néon, bougies), textures
+## des pièces (brique / parquet / bois, plâtre vert / carrelage), onglet
+## « Objets sur la carte » (L) avec survol dans les deux sens et page 2, puis
+## TESTER : la pièce en jeu. Captures : tests/_out/shots/map_editor_*.png.
 
 var ed: MapEditor
 var cv: MapCanvas
 
 
 func run() -> void:
-	timeout_sec = 120
+	timeout_sec = 240
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu principal")
 	var root := EditorMap.maps_root()
 	_clean(root)
@@ -173,6 +179,211 @@ func run() -> void:
 	ed.set_floor(1)
 	await frames(2)
 	await at.screenshot("draft_arena_etage1")
+
+	await _decor_and_textures()
+
+
+## Décor, luminaires, textures, liste des objets, puis la carte jouée.
+func _decor_and_textures() -> void:
+	ed.new_map(true)
+	ed.doc.carte.nom = {"fr": "SALLE DÉCORÉE", "en": "DECORATED HALL"}
+	ed.object_list.set_expanded(false, false)
+	await frames(2)
+	cv.zoom = 30.0
+	cv.origin = Vector2(40, 40)
+	# Deux pièces, une porte, des fenêtres, le départ, la boîte.
+	await key(KEY_2)
+	await drag(Vector2(2, 2), Vector2(18, 14))
+	await drag(Vector2(18, 2), Vector2(28, 14))
+	await key(KEY_5)
+	await click(Vector2(18.2, 8))
+	await key(KEY_6)
+	for p in [Vector2(8, 1.8), Vector2(23, 1.8), Vector2(27.9, 10)]:
+		await click(p)
+	await key(KEY_8)
+	await click(Vector2(13, 11))
+	await key(KEY_7)
+	await click(Vector2(6, 13.3))
+	at.check(ed.doc.pieces.size() == 2 and ed.doc.ouvertures.size() == 4, "deux pièces, une porte, trois fenêtres")
+	# Décor pris dans l'inventaire (catégorie Décor et obstacles).
+	await key(KEY_E)
+	ed.inventory.show_category("prefabs")
+	await frames(2)
+	await at.screenshot("inventaire_decor")
+	at.check(ed.inventory.cells.size() >= MapCatalog.PREFABS.size(), "inventaire : %d décors" % ed.inventory.cells.size())
+	_pick("prefab:gravats")
+	await click(Vector2(24, 9.5))
+	await key(KEY_E)
+	ed.inventory.show_category("prefabs")
+	_pick("prefab:bureau")
+	await click(Vector2(6, 6))
+	await key(KEY_E)
+	ed.inventory.show_category("prefabs")
+	_pick("prefab:sacs_sable")
+	await key(KEY_R)
+	at.check(ed.place_rot == 90, "R : sacs de sable pivotés avant la pose")
+	await click(Vector2(15, 5))
+	await key(KEY_E)
+	ed.inventory.show_category("prefabs")
+	_pick("prefab:fauteuils")
+	await click(Vector2(9, 9))
+	var n_prefabs := ed.doc.objets.filter(func(o): return o.type == "prefab").size()
+	at.check(n_prefabs == 4, "4 décors posés (%d)" % n_prefabs)
+	var sand: Array = ed.doc.objets.filter(func(o): return o.get("prefab", "") == "sacs_sable")
+	at.check(not sand.is_empty() and int(sand[0].rot) == 90, "sacs de sable posés pivotés")
+	# Refus : décor sur un autre, décor dans un mur.
+	await key(KEY_E)
+	ed.inventory.show_category("prefabs")
+	_pick("prefab:caisses")
+	await click(Vector2(24, 9.5))
+	at.check(ed.doc.objets.filter(func(o): return o.type == "prefab").size() == 4 and cv.refusal != "", "caisses sur les gravats refusées : « %s »" % cv.refusal)
+	await click(Vector2(18.1, 11))
+	at.check(ed.doc.objets.filter(func(o): return o.type == "prefab").size() == 4, "caisses dans le mur refusées")
+	# Luminaires.
+	var bureau: Dictionary = ed.doc.objets.filter(func(o): return o.get("prefab", "") == "bureau")[0]
+	for pick in [["luminaire:lampe_bureau", MapRules.footprint_rect(bureau).get_center()], ["luminaire:suspension", Vector2(11, 6)],
+			["luminaire:applique", Vector2(2.6, 9)], ["luminaire:feu", Vector2(21, 12)], ["luminaire:neon", Vector2(24, 5)],
+			["luminaire:bougies", Vector2(16, 12)]]:
+		await key(KEY_E)
+		ed.inventory.show_category("lumieres")
+		_pick(String(pick[0]))
+		await click(pick[1])
+	var lights := ed.doc.objets.filter(func(o): return o.type == "luminaire")
+	at.check(lights.size() == 6, "6 luminaires posés (%d)" % lights.size())
+	var lamp: Array = lights.filter(func(o): return o.luminaire == "lampe_bureau")
+	at.check(not lamp.is_empty() and MapRules.support_under(ed.doc, lamp[0]).get("id", "") == bureau.id, "lampe de bureau posée sur le bureau")
+	var sconce: Array = lights.filter(func(o): return o.luminaire == "applique")
+	at.check(not sconce.is_empty() and sconce[0].get("mur", "") == "o", "applique contre le mur ouest")
+	# Réglages d'un luminaire : couleur et vacillement dans les propriétés.
+	await key(KEY_1)
+	var sus: Dictionary = lights.filter(func(o): return o.luminaire == "suspension")[0]
+	await click(MapGeom.v2(sus.position))
+	at.check(ed.selected == String(sus.id), "suspension choisie")
+	ed.panels.refresh_now()
+	var cp := ed.panels._props.find_children("*", "ColorPickerButton", true, false)
+	at.check(cp.size() == 1, "couleur réglable")
+	if not cp.is_empty():
+		(cp[0] as ColorPickerButton).color = Color(1.0, 0.55, 0.3)
+		(cp[0] as ColorPickerButton).popup_closed.emit()
+	at.check(String(ed.doc.find(String(sus.id)).couleur) == "#ff8c4d", "couleur enregistrée (%s)" % ed.doc.find(String(sus.id)).get("couleur", ""))
+
+	# Textures des pièces (onglet Propriétés), mur mitoyen à deux faces.
+	var a: Dictionary = ed.doc.pieces[0]
+	var b: Dictionary = ed.doc.pieces[1]
+	await click(Vector2(4, 11))
+	at.check(ed.selected == String(a.id), "pièce A choisie")
+	ed.panels.show_tab("props")
+	ed.panels.refresh_now()
+	_surface_pick(Lang.t("Murs", "Walls"), "brick")
+	_surface_pick(Lang.t("Sol", "Floor"), "parquet")
+	_surface_pick(Lang.t("Plafond", "Ceiling"), "wood")
+	await click(Vector2(26, 13))
+	at.check(ed.selected == String(b.id), "pièce B choisie")
+	ed.panels.refresh_now()
+	_surface_pick(Lang.t("Murs", "Walls"), "wall_green")
+	_surface_pick(Lang.t("Sol", "Floor"), "tiles")
+	at.check(String(a.get("surface_murs", "")) == "brick" and String(a.get("surface_plafond", "")) == "wood" and String(b.get("surface_murs", "")) == "wall_green",
+		"textures des pièces : A brique / bois, B plâtre vert")
+	await click(Vector2(4, 11))
+	ed.panels.refresh_now()
+	var v := ed.validate()
+	at.check(v.ok(), "carte décorée jouable (%s)" % " | ".join(v.errors().map(func(m): return String(m.fr))))
+	var lay := MapLayoutExport.build(v)
+	var wall_mats := {}
+	for bl in lay.blocks:
+		wall_mats[bl.mat] = true
+	at.check(wall_mats.has("brick") and wall_mats.has("wall_green"), "murs construits en brique et plâtre vert : %s" % str(wall_mats.keys()))
+	ed.panels.show_tab("props")
+	cv.frame_all()
+	await frames(3)
+	await at.screenshot("textures")
+
+	# Onglet « Objets sur la carte » : ouvert d'un clic (L), survol dans les deux sens.
+	await key(KEY_L)
+	await frames(3)
+	var lst := ed.object_list
+	at.check(lst.expanded and lst.entries.size() == ed.doc.pieces.size() + ed.doc.ouvertures.size() + ed.doc.objets.size(), "liste ouverte : %d éléments" % lst.entries.size())
+	cv.frame_all()
+	await frames(2)
+	_motion(MapRules.footprint_rect(bureau).get_center() + Vector2(0.6, 0.3))
+	await frames(2)
+	at.check(ed.hover_id == String(bureau.id) and lst.row_of(String(bureau.id)) >= 0, "survol du bureau sur la carte : sa ligne est surlignée (%s)" % ed.hover_id)
+	await at.screenshot("objets")
+	var mm := InputEventMouseMotion.new()
+	var row := lst.row_of(String(sus.id))
+	mm.position = Vector2(30, (row + 0.5) * MapObjectList.ROW_H)
+	lst.rows._gui_input(mm)
+	await frames(2)
+	at.check(ed.hover_id == String(sus.id), "survol de la ligne : la suspension s'allume sur la carte")
+
+	# Enregistrer (format 2), puis 60 apparitions en plus : page 2 de la liste.
+	await key(KEY_S, true)
+	var dir := ed.map_dir
+	at.check(EditorMap.is_map_dir(dir) and int(JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("carte.json"))).format) == EditorMap.FORMAT,
+		"Ctrl+S : enregistrée au format %d" % EditorMap.FORMAT)
+	var saved := ed.doc.duplicate_map()
+	var before := ed.doc.snapshot()
+	for i in 60:
+		ed.doc.objets.append({"id": ed.doc.new_id("q"), "type": "apparition", "etage": 0, "position": [3.0 + (i % 12), 3.0 + (i / 12) * 0.5 + 8.5]})
+	ed.changed()
+	await frames(2)
+	at.check(lst._page_label.text.contains("1/2"), "plus de 50 éléments : deux pages (%s)" % lst._page_label.text)
+	lst._next.pressed.emit()
+	await frames(2)
+	at.check(lst.page == 1 and lst.rows.items.size() == lst.shown.size() - 50, "page 2 : %d éléments" % lst.rows.items.size())
+	await at.screenshot("page2")
+	ed.doc.restore(before)
+	ed.changed()
+	ed.dirty = false
+	ed.open_dir(dir)
+	await frames(2)
+	at.check(ed.doc.same_as(saved), "carte décorée rechargée identique")
+
+	# En jeu : TESTER, une vue de la pièce A (brique, parquet, bureau, lampes).
+	if not ed.test_map():
+		at.fail("TESTER refusé")
+		return
+	var ok: bool = await until(func(): return Game.instance != null and Game.instance.local_player != null, 30.0, "partie lancée")
+	if not ok:
+		return
+	var game := Game.instance
+	var p := game.local_player
+	p.bot_controlled = true
+	game.combat.debug_invulnerable = true
+	var off := MapGeom.WORLD_OFFSET
+	at.check(game.map_def is EditorMapDef and (game.map_def as EditorMapDef).validator.props.size() == 4, "partie : 4 décors")
+	var omni := game.world.find_children("*", "OmniLight3D", true, false)
+	at.check(omni.size() >= 6, "lumières de la carte : %d" % omni.size())
+	await seconds(1.0)
+	p.global_position = Vector3(off + 16.5, 0.05, off + 12.5)
+	AutotestHelpers.aim_at(p, Vector3(off + 6.0, 1.0, off + 6.5))
+	await seconds(0.8)
+	AutotestHelpers.aim_at(p, Vector3(off + 6.0, 1.0, off + 6.5))
+	await frames(4)
+	await at.screenshot("en_jeu")
+	Router.back_to_menu()
+	if not await until(func(): return tree().current_scene is MapEditor, 10.0, "retour dans l'éditeur"):
+		return
+	ed = tree().current_scene
+	cv = ed.canvas
+	await frames(3)
+	at.check(ed.doc.objets.filter(func(o): return o.type == "luminaire").size() == 6, "retour dans l'éditeur sur la carte décorée")
+	_clean(EditorMap.maps_root())
+
+
+## Choix d'une texture dans l'onglet Propriétés (ligne `label`).
+func _surface_pick(label: String, surface: String) -> void:
+	for h in ed.panels._props.get_children():
+		if not h is HBoxContainer or h.get_child_count() < 3 or not h.get_child(0) is Label or (h.get_child(0) as Label).text != label:
+			continue
+		var o := h.get_child(2) as OptionButton
+		if o == null:
+			continue
+		var i := MapCatalog.allowed_surfaces().find(surface) + 1
+		o.select(i)
+		o.item_selected.emit(i)
+		return
+	at.fail("texture « %s » introuvable dans les propriétés" % label)
 
 
 func _clean(dir: String) -> void:
