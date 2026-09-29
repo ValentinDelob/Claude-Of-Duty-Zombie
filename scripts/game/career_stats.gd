@@ -30,10 +30,11 @@ static func load_stats() -> Dictionary:
 	var out := {}
 	for f in FIELDS:
 		out[f[0]] = 0
-	var cfg := ConfigFile.new()
-	if cfg.load(path()) == OK:
+	# SafeConfig : aucun objet ni ressource décodés depuis le fichier.
+	var cfg := SafeConfig.load_file(path())
+	if cfg != null:
 		for f in FIELDS:
-			out[f[0]] = int(cfg.get_value("career", f[0], 0))
+			out[f[0]] = SafeConfig.get_int(cfg, "career", f[0], 0, 0)
 	return out
 
 

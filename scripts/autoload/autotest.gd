@@ -50,6 +50,11 @@ func _ready() -> void:
 
 func _run() -> void:
 	var path := "res://tests/autotest/%s.gd" % scenario_name
+	# Le nom devient un chemin de script chargé : jamais « .. », « / » ni « : ».
+	if not NetGuard.safe_token(scenario_name, 64):
+		fail("nom de scénario invalide : " + scenario_name.left(64))
+		finish()
+		return
 	if not ResourceLoader.exists(path):
 		fail("scénario introuvable : " + path)
 		finish()

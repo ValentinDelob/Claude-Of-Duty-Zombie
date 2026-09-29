@@ -14,6 +14,8 @@ var objects: Dictionary = {}  # id -> Interactable
 ## Objet actuellement visé par le joueur local.
 var focused: Interactable
 var _holding: Interactable
+## Serveur : demandes d'interaction par joueur (un humain en fait 5 à 10 / s).
+var _limit := NetGuard.Limiter.new(20.0, 20.0)
 
 
 func _ready() -> void:
@@ -96,6 +98,9 @@ func srv_interact(id: String) -> void:
 	if not multiplayer.is_server():
 		return
 	var pid := multiplayer.get_remote_sender_id()
+	# Inondation de demandes : chaque refus envoie un message (achat refusé...).
+	if not _limit.allow(pid):
+		return
 	var obj: Interactable = objects.get(id)
 	var p: Player = game.players.get(pid)
 	var pd := game.session.get_data(pid)

@@ -14,7 +14,9 @@ Moteur : **Godot 4.7** (GDScript, rendu Forward+). Cible : GTX 1050 à 60 FPS en
     fonctionne aussi quand l'appelant est le serveur (solo / hôte) ;
   - diffusion serveur → tous : `@rpc("authority", "call_local")` + `rpc(...)`.
 - Le client n'envoie que des **intentions** (tirer, acheter, interagir) et sa position ;
-  le serveur valide tout (distance, points, cadence, munitions...).
+  le serveur valide tout (distance, points, cadence, munitions...). Règles
+  détaillées (arguments bornés par `NetGuard`, cadence, positions plausibles) :
+  `docs/SECURITY.md`.
 
 ## Protocole réseau (messages fréquents)
 

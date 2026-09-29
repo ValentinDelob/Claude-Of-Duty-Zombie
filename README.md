@@ -128,6 +128,8 @@ Chaque réglage s'applique tout de suite et est enregistré.
 ## Développement
 
 - Architecture et conventions : `docs/ARCHITECTURE.md`.
+- Sécurité (modèle de menace, règles pour les RPC, les fichiers et le chargement
+  de ressources, vérifications du lanceur) : `docs/SECURITY.md`.
 - Concevoir une carte avec l'**éditeur de cartes** (menu principal > ÉDITEUR
   DE CARTES, ou `godot --path . res://scenes/editor/map_editor.tscn`, ou
   `tools/map_editor.bat`) : pièces vues de dessus, inventaire façon Minecraft,

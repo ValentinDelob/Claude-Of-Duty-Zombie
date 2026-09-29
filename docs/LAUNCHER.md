@@ -35,6 +35,13 @@ réglages et le dossier de combat du jeu restent communs à toutes les versions.
 - Mise à jour du lanceur : chaque release porte `ClaudeOfDutyZombie-Launcher.exe`
   et `launcher_version.txt` ; un lanceur plus ancien télécharge le nouveau, le
   remplace après sa fermeture (petit script `.bat`) et le relance.
+- Sécurité (détails : `docs/SECURITY.md`, « Ce que le lanceur vérifie ») :
+  HTTPS vers les seuls domaines GitHub (redirections revérifiées), réponses
+  bornées, numéros de version et noms de fichiers filtrés, notes échappées ;
+  chaque release publie `SHA256SUMS.txt` et le lanceur vérifie la somme du jeu
+  (téléchargé en `.part`, renommé seulement s'il est conforme) et de sa propre
+  mise à jour. Anciennes releases sans sommes : taille vérifiée seulement ;
+  release récente sans sommes : refusée.
 - Tests : `godot --headless --path launcher -s res://tests/test_launcher.gd`
   (tâche `launcher:tests` de `tools/check.sh`) ; la release démarre aussi le
   lanceur exporté hors écran (`--offline --capture=...`).

@@ -341,6 +341,10 @@ func _physics_process(delta: float) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _cl_say(pid: int, category: String, variant: int) -> void:
+	# La catégorie devient un chemin de fichier : jamais de « .. », « / » ni
+	# « : » venus d'un hôte malveillant (chargement hors du dossier des voix).
+	if not NetGuard.safe_token(category) or variant < 0 or variant > 999:
+		return
 	said.emit(pid, category, variant)
 	var ch := CharacterDB.id_of(pid)
 	var path := CharacterDB.vox_path(Settings.language, ch, category, variant)

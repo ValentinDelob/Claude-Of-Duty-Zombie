@@ -154,10 +154,15 @@ static func encode_player_state(pos: Vector3, yaw: float, pitch: float, flags: i
 
 
 ## [position, lacet, tangage, drapeaux], ou [] si le message est invalide.
+## Position NaN / infinie refusée : chez le serveur, elle ferait échouer toute
+## comparaison de distance (achats, tirs, interactions depuis n'importe où).
 static func decode_player_state(buf: PackedByteArray) -> Array:
 	if buf.size() != PLAYER_STATE_SIZE:
 		return []
-	return [Vector3(buf.decode_float(0), buf.decode_float(4), buf.decode_float(8)),
+	var pos := Vector3(buf.decode_float(0), buf.decode_float(4), buf.decode_float(8))
+	if not NetGuard.finite_vec(pos):
+		return []
+	return [pos,
 		buf.decode_u16(12) / 65536.0 * TAU,
 		(buf.decode_u16(14) / 65535.0 - 0.5) * PI,
 		buf.decode_u8(16)]
@@ -258,7 +263,11 @@ static func decode_fx(buf: PackedByteArray) -> Array:
 			for i in n_blood:
 				blood.append(_get_vec(buf, o))
 				o += 12
-			out.append({"type": kind, "pid": pid, "weapon": wid, "pap": pap, "origin": origin, "impacts": impacts, "blood": blood})
+			# Valeurs non finies (hôte malveillant ou message corrompu) : effet ignoré.
+			if NetGuard.finite_vec(origin):
+				out.append({"type": kind, "pid": pid, "weapon": wid, "pap": pap, "origin": origin,
+					"impacts": NetGuard.clean_vecs(impacts, MAX_FX_POINTS * 2, true),
+					"blood": NetGuard.clean_vecs(blood, MAX_FX_POINTS)})
 		else:
 			break
 	return out

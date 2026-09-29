@@ -60,7 +60,16 @@ rm -f build/override.cfg
 if [ ! -s build/launcher_smoke.png ] || grep -qE "SCRIPT ERROR" build/launcher_smoke.log; then
   echo "== LE LANCEUR NE DÉMARRE PAS (voir build/launcher_smoke.log)"; exit 1
 fi
-echo "== build local : $VEXE"
+# Sommes SHA-256 de tous les fichiers publiés (docs/SECURITY.md) : le lanceur
+# refuse d'installer le jeu ou de se remplacer si la somme ne correspond pas.
+# Calculées APRÈS les tests de démarrage (fichiers définitifs), noms seuls.
+SUMS=build/SHA256SUMS.txt
+( cd build && sha256sum "ClaudeOfDutyZombie-$TAG.exe" ClaudeOfDutyZombie-Launcher.exe \
+    CallOfClaudeZombie-Launcher.exe launcher_version.txt ) > "$SUMS" || { echo "== SHA256SUMS ECHEC"; exit 1; }
+if [ "$(grep -cE '^[0-9a-f]{64} [ *][A-Za-z0-9._-]+$' "$SUMS")" != 4 ]; then
+  echo "== SHA256SUMS INVALIDE (voir $SUMS)"; exit 1
+fi
+echo "== build local : $VEXE (sommes : $SUMS)"
 [ "$1" = "--local" ] && exit 0
 
 if git status --porcelain | grep -q .; then
@@ -92,7 +101,8 @@ RANGE=${PREV:+$PREV..}HEAD
   echo "et met à jour le jeu tout seul, et permet de choisir la version. Sinon, télécharger"
   echo "\`ClaudeOfDutyZombie-$TAG.exe\` ci-dessous et le lancer (Windows 64 bits, aucune installation)."
   echo "Multijoueur : même version pour tous les joueurs, port UDP 7777."
+  echo "Intégrité : \`SHA256SUMS.txt\` donne la somme SHA-256 de chaque fichier (vérifiée par le lanceur)."
 } > "$NOTES"
-"$GH" release create "$TAG" "$VEXE" "$LEXE" build/CallOfClaudeZombie-Launcher.exe build/launcher_version.txt --target "$(git rev-parse HEAD)" \
+"$GH" release create "$TAG" "$VEXE" "$LEXE" build/CallOfClaudeZombie-Launcher.exe build/launcher_version.txt "$SUMS" --target "$(git rev-parse HEAD)" \
   --title "$TAG — $SUBJECT" --notes-file "$NOTES" --latest || { echo "== PUBLICATION ECHEC"; exit 1; }
 echo "== release publiée : $TAG"

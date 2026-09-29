@@ -468,6 +468,7 @@ func teleport_to(pos: Vector3, new_yaw := NAN) -> void:
 		yaw = new_yaw
 		rotation.y = yaw
 	_snapshots.clear()
+	_srv_ok_pos = Vector3.INF
 
 
 ## Fente au couteau (joueur local) : parcourt `dist` m selon `dir` (plan
@@ -513,6 +514,11 @@ func _net_state(buf: PackedByteArray) -> void:
 	if s.is_empty():
 		return
 	var t := Time.get_ticks_usec() / 1000000.0
+	if multiplayer.is_server():
+		if not _srv_accept_state(s[0], t):
+			return
+		if int(s[3]) & FLAG_DIVE:
+			_srv_dive_t = t
 	# Après un silence (joueur immobile : aucun envoi), l'interpolation repart
 	# du dernier état connu tenu jusqu'à un intervalle avant ce message, au lieu
 	# de glisser depuis l'instant du message précédent.
@@ -525,6 +531,70 @@ func _net_state(buf: PackedByteArray) -> void:
 	_snapshots.append([t, s[0], s[1], s[2], s[3]])
 	if _snapshots.size() > 20:
 		_snapshots.pop_front()
+
+
+# --------------------------------------------------------------------------
+# Serveur : vraisemblance des positions reçues (anti-téléportation)
+# --------------------------------------------------------------------------
+
+## Vitesse horizontale moyenne maximale acceptée (m/s) : près de 3 fois le
+## sprint ; la fente au couteau (21 m/s pendant 0,15 s) tient dans la marge.
+const NET_MAX_SPEED := 18.0
+## Marge fixe (m) : gigue réseau, fente, glissade du plongeon.
+const NET_MOVE_SLACK := 3.0
+## Après une téléportation voulue par le serveur (téléporteur, réapparition),
+## toute position est acceptée pendant ce délai (s).
+const NET_WARP_GRACE := 2.0
+
+var _srv_ok_pos := Vector3.INF
+var _srv_ok_t := 0.0
+var _srv_grace_until := 0.0
+var _srv_last_correct := -INF
+var _srv_dive_t := -INF
+
+
+## Règle pure : déplacement horizontal plausible de `from` à `to` en `dt` s.
+static func plausible_move(from: Vector3, to: Vector3, dt: float) -> bool:
+	var d := Vector2(to.x - from.x, to.z - from.z).length()
+	return d <= NET_MAX_SPEED * maxf(dt, 0.0) + NET_MOVE_SLACK
+
+
+## Serveur : le prochain saut de position de ce joueur est voulu.
+func net_allow_warp() -> void:
+	_srv_grace_until = Time.get_ticks_usec() / 1000000.0 + NET_WARP_GRACE
+	_srv_ok_pos = Vector3.INF
+
+
+## Serveur : vrai si ce joueur a été vu en plein plongeon il y a peu.
+func srv_dived_recently() -> bool:
+	return is_local or Time.get_ticks_usec() / 1000000.0 - _srv_dive_t < 2.0
+
+
+## Serveur : accepte l'état reçu, ou le refuse (déplacement impossible) et
+## replace le client à la dernière position acceptée. Les autotests déplacent
+## les joueurs par script : pas de contrôle pendant les tests automatiques.
+func _srv_accept_state(pos: Vector3, t: float) -> bool:
+	if Autotest.active or _srv_ok_pos == Vector3.INF or t < _srv_grace_until \
+			or plausible_move(_srv_ok_pos, pos, t - _srv_ok_t):
+		_srv_ok_pos = pos
+		_srv_ok_t = t
+		return true
+	if t - _srv_last_correct > 0.5:
+		_srv_last_correct = t
+		print("[Player] %d : déplacement impossible refusé (%.1f m)" % [peer_id, _srv_ok_pos.distance_to(pos)])
+		if is_inside_tree():
+			_cl_correct.rpc_id(peer_id, _srv_ok_pos)
+	return false
+
+
+## Serveur -> joueur concerné : retour à la dernière position acceptée.
+## « any_peer » car l'autorité de ce nœud est le client : l'expéditeur est
+## vérifié à la main (serveur seulement).
+@rpc("any_peer", "call_remote", "reliable")
+func _cl_correct(pos: Vector3) -> void:
+	if multiplayer.get_remote_sender_id() != 1 or not is_local or not NetGuard.finite_vec(pos):
+		return
+	teleport_to(pos)
 
 
 func _remote_interpolate() -> void:

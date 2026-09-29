@@ -348,6 +348,8 @@ func _cl_respawn(pid: int, pos: Vector3) -> void:
 	if p == null:
 		return
 	p.set_dead(false)
+	if multiplayer.is_server() and not p.is_local:
+		p.net_allow_warp()  # le client réapparaît ailleurs : saut voulu
 	if p.is_local:
 		p.teleport_to(pos)
 		p._eye_height = Player.EYE_HEIGHT
@@ -472,6 +474,8 @@ func _cl_teleport(pid: int, pos: Vector3, outbound: bool) -> void:
 	else:
 		p._snapshots.clear()
 		p.global_position = pos
+		if multiplayer.is_server():
+			p.net_allow_warp()  # saut voulu par le serveur (Player._srv_accept_state)
 
 
 func _build_traps() -> void:

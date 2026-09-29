@@ -23,6 +23,14 @@ const RELOAD_LENIENCY := 0.85
 const HIT_TOLERANCE := 1.4
 const HEAD_TOLERANCE := 0.75
 const MAX_RANGE := 160.0
+## Points revendiqués par tir au plus (impacts position / normale, touches) :
+## 8 plombs x pénétration, largement ; au-delà, le reste est ignoré.
+const MAX_CLAIMED_POINTS := 128
+## Demi-angle du cône où un point d'explosion revendiqué est accepté (la
+## dispersion la plus large, fusil de précision à la hanche, fait 7 à 10°).
+const SPLASH_CONE_DEG := 20.0
+## Écart max entre le point d'impact revendiqué sur un zombie et son corps.
+const MAX_HIT_POINT_ERROR := 2.5
 
 const ZOMBIE_DAMAGE := 50
 const REGEN_DELAY := 2.6
@@ -51,6 +59,12 @@ var _last_refill: Dictionary = {}   # pid -> sec
 var _reload_end: Dictionary = {}    # pid -> [slot, end_time]
 var _last_hurt: Dictionary = {}     # pid -> sec
 var _melee_ready: Dictionary = {}   # pid -> sec
+## Resynchronisations après un tir refusé (4 par seconde au plus et par joueur).
+var _resync_limit := NetGuard.Limiter.new(4.0, 4.0)
+## Requêtes de rechargement / changement d'arme (bien au-delà d'un humain).
+var _action_limit := NetGuard.Limiter.new(15.0, 15.0)
+## Serveur : dernier plongeon accepté par joueur (s).
+var _dive_last: Dictionary = {}
 var _regen_sync := 0.0
 ## Serveur : zombies en feu (balles incendiaires) : zid -> [pid, dps, fin].
 var _burns: Dictionary = {}
@@ -100,13 +114,21 @@ func srv_fire(slot: int, origin: Vector3, dir: Vector3, impacts: PackedVector3Ar
 	if not multiplayer.is_server():
 		return
 	var pid := multiplayer.get_remote_sender_id()
-	var reason := _validate_fire(pid, slot, origin)
+	# Arguments du client bornés AVANT tout contrôle : un NaN ferait échouer
+	# les comparaisons de distance (touches acceptées partout sur la carte).
+	var reason := "tir invalide" if not NetGuard.finite_vec(origin) or not NetGuard.valid_dir(dir) else _validate_fire(pid, slot, origin)
 	if reason != "":
 		shot_rejected.emit(pid, reason)
-		print("[Combat] tir refusé (%d) : %s" % [pid, reason])
-		# Resynchronise le client dont la prédiction a divergé.
-		session.sync_inventory(pid)
+		# Resynchronise le client dont la prédiction a divergé (borné : un
+		# client qui inonde de tirs refusés ne fait pas inonder les autres).
+		if _resync_limit.allow(pid):
+			print("[Combat] tir refusé (%d) : %s" % [pid, reason])
+			session.sync_inventory(pid)
 		return
+	dir = dir.normalized()
+	impacts = NetGuard.clean_vecs(impacts, MAX_CLAIMED_POINTS, true)
+	if hits.size() > MAX_CLAIMED_POINTS:
+		hits = hits.slice(0, MAX_CLAIMED_POINTS)
 	var pd := session.get_data(pid)
 	var w: Dictionary = pd.current_weapon()
 	w.mag -= 1
@@ -114,9 +136,16 @@ func srv_fire(slot: int, origin: Vector3, dir: Vector3, impacts: PackedVector3Ar
 	if WeaponDB.stats(w.id, w.pap).has("blast_range"):
 		# Onde de choc (TONNERRE-7) : cône calculé ici ; les autres joueurs
 		# reçoivent la direction du tir comme « normale » du premier impact.
-		ThunderBlast.server_blast(self, pid, w, origin, dir.normalized())
-		NetCodec.append_shot(_fx_buf, pid, w.id, w.pap, origin, PackedVector3Array([origin, dir.normalized()]), PackedVector3Array())
+		ThunderBlast.server_blast(self, pid, w, origin, dir)
+		NetCodec.append_shot(_fx_buf, pid, w.id, w.pap, origin, PackedVector3Array([origin, dir]), PackedVector3Array())
 		return
+	# Point d'explosion revendiqué (grenade, roquette) : sur la trajectoire du
+	# tir seulement, jamais une explosion posée n'importe où sur la carte.
+	var s0 := WeaponDB.stats(w.id, w.pap)
+	if (s0.has("splash_radius") or s0.has("projectile_speed")) and not plausible_splash(origin, dir, _splash_center(impacts, hits)):
+		print("[Combat] explosion refusée (%d) : hors de la trajectoire" % pid)
+		impacts = PackedVector3Array()
+		hits = []
 	var blood_points := PackedVector3Array()
 	# Projectile (grenade, roquette) : effet à l'arrivée, pas à l'instant du tir.
 	var delay := WeaponDB.projectile_delay(w.id, w.pap, origin, _splash_center(impacts, hits))
@@ -163,6 +192,23 @@ func _validate_fire(pid: int, slot: int, origin: Vector3) -> String:
 	return ""
 
 
+## Vrai si le point d'explosion `c` revendiqué par le tireur est sur la
+## trajectoire du tir (cône de SPLASH_CONE_DEG autour de la visée : couvre la
+## dispersion de toutes les armes), à portée. Vector3.INF (rien touché) : vrai.
+static func plausible_splash(origin: Vector3, dir: Vector3, c: Vector3) -> bool:
+	if c == Vector3.INF:
+		return true
+	if not NetGuard.finite_vec(c):
+		return false
+	var rd := NetGuard.ray_distance(origin, dir, c)
+	# Derrière le tireur (au-delà d'un mètre) ou hors de portée : jamais.
+	if rd.y < -1.0 or rd.y > MAX_RANGE + 5.0:
+		return false
+	if rd.x <= HIT_TOLERANCE + 0.6:
+		return true
+	return rd.x <= maxf(rd.y, 0.0) * tan(deg_to_rad(SPLASH_CONE_DEG))
+
+
 ## Multiplicateur de cadence (atout TWIN SHOT).
 func game_rate_mult(pid: int) -> float:
 	return PerkDB.fire_rate_mult(session.get_data(pid))
@@ -188,9 +234,9 @@ func _apply_hits(pid: int, w: Dictionary, origin: Vector3, dir: Vector3, hits: A
 		if n >= max_hits:
 			break
 		n += 1
-		if not (h is Array) or h.size() < 4:
+		if not (h is Array) or h.size() < 4 or not (h[0] is int) or not (h[1] is int):
 			continue
-		var zid := int(h[0])
+		var zid: int = h[0]
 		var z: Zombie = game.zombies.get_zombie(zid)
 		if z == null or not z.is_alive():
 			continue
@@ -212,7 +258,9 @@ func _apply_hits(pid: int, w: Dictionary, origin: Vector3, dir: Vector3, hits: A
 		var dmg: float = float(s.damage) * WeaponDB.falloff(w.id, w.pap, along)
 		if head:
 			dmg *= float(s.head_mult)
-		var acc: Array = per_zombie.get(zid, [0.0, false, h[3]])
+		# Point d'impact (sang, démembrement) : sur le zombie, sinon son centre.
+		var at: Vector3 = h[3] if h[3] is Vector3 and NetGuard.finite_vec(h[3]) and (h[3] as Vector3).distance_to(center) <= MAX_HIT_POINT_ERROR else center
+		var acc: Array = per_zombie.get(zid, [0.0, false, at])
 		acc[0] += dmg
 		acc[1] = acc[1] or head
 		per_zombie[zid] = acc
@@ -428,6 +476,8 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 	var t := now()
 	if pd == null or p == null or pd.life != PlayerData.Life.ALIVE or t < _melee_ready.get(pid, 0.0):
 		return
+	if not NetGuard.finite_vec(origin) or not NetGuard.valid_dir(dir):
+		return
 	if p.global_position.distance_to(origin) > MAX_ORIGIN_ERROR + 1.7:
 		return
 	_melee_ready[pid] = t + WeaponDB.MELEE_COOLDOWN * 0.8
@@ -455,6 +505,9 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 
 ## Marge du couteau côté serveur (interpolation des zombies chez le client).
 const MELEE_SLACK := 0.5
+## Intervalle minimal entre deux fins de plongeon d'un joueur (s) : un vrai
+## plongeon dure bien plus (élan, vol, glissade à plat ventre).
+const DIVE_MIN_INTERVAL := 0.5
 
 
 ## Le client annonce la fin de son plongeon ; le serveur borne la position
@@ -468,9 +521,16 @@ func srv_dive_landed(pos: Vector3, height: float) -> void:
 	var p: Player = game.players.get(pid)
 	if pd == null or p == null or pd.life != PlayerData.Life.ALIVE:
 		return
-	if p.global_position.distance_to(pos) > MAX_ORIGIN_ERROR:
+	# Un plongeon par DIVE_MIN_INTERVAL au plus, et seulement si le serveur a
+	# vu ce joueur plonger (drapeau de son état de mouvement) : pas
+	# d'explosion NOVA FLOP à volonté par simple RPC.
+	var t := now()
+	if t - float(_dive_last.get(pid, -INF)) < DIVE_MIN_INTERVAL or not p.srv_dived_recently():
+		return
+	_dive_last[pid] = t
+	if not NetGuard.finite_vec(pos) or p.global_position.distance_to(pos) > MAX_ORIGIN_ERROR:
 		pos = p.global_position
-	player_dived_landed.emit(pid, pos, clampf(height, 0.0, 12.0))
+	player_dived_landed.emit(pid, pos, clampf(height, 0.0, 12.0) if NetGuard.finite(height) else 0.0)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -490,7 +550,7 @@ func srv_reload(slot: int) -> void:
 		return
 	var pid := multiplayer.get_remote_sender_id()
 	var pd := session.get_data(pid)
-	if pd == null or slot != pd.slot or _reload_end.has(pid):
+	if pd == null or slot != pd.slot or _reload_end.has(pid) or not _action_limit.allow(pid):
 		return
 	var w: Dictionary = pd.current_weapon()
 	var s := WeaponDB.stats(w.id, w.pap)
@@ -525,7 +585,7 @@ func srv_switch(slot: int) -> void:
 		return
 	var pid := multiplayer.get_remote_sender_id()
 	var pd := session.get_data(pid)
-	if pd == null or slot < 0 or slot >= pd.weapons.size() or slot == pd.slot:
+	if pd == null or slot < 0 or slot >= pd.weapons.size() or slot == pd.slot or not _action_limit.allow(pid):
 		return
 	_reload_end.erase(pid)
 	pd.slot = slot
@@ -609,3 +669,6 @@ func forget_player(pid: int) -> void:
 	_reload_end.erase(pid)
 	_last_hurt.erase(pid)
 	_melee_ready.erase(pid)
+	_dive_last.erase(pid)
+	_resync_limit.forget(pid)
+	_action_limit.forget(pid)

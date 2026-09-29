@@ -22,6 +22,13 @@ const T := {
 	"self_update": {"fr": "Mise à jour du lanceur…", "en": "Updating the launcher…"},
 	"deleted": {"fr": "%s supprimée.", "en": "%s deleted."},
 	"click_zoom": {"fr": "Cliquez sur une capture pour l'agrandir.", "en": "Click a screenshot to enlarge it."},
+	"integrity_failed": {"fr": "Fichier de %s refusé : il ne correspond pas à la version publiée (téléchargement abîmé ou modifié). Réessayez.",
+		"en": "%s file rejected: it does not match the published version (damaged or altered download). Please try again."},
+	"integrity_failed_launcher": {"fr": "Mise à jour du lanceur refusée : fichier non conforme. Le lanceur actuel reste en place.",
+		"en": "Launcher update rejected: the file does not match. The current launcher is kept."},
+	"no_checksum": {"fr": "%s ne peut pas être vérifiée (somme de contrôle absente) : téléchargement refusé.",
+		"en": "%s cannot be verified (checksum missing): download refused."},
+	"legacy": {"fr": "(version ancienne : taille vérifiée seulement)", "en": "(old version: size check only)"},
 }
 
 

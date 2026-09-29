@@ -381,40 +381,42 @@ func load_settings() -> void:
 
 ## Lit un fichier de réglages (faux s'il n'existe pas). N'applique rien :
 ## appeler apply_bindings() puis apply() ensuite.
+## Fichier lu par SafeConfig : jamais d'objet ni de ressource décodés (un
+## .cfg piégé ne peut pas exécuter de code) ; chaque valeur est typée et bornée.
 func load_from(file: String) -> bool:
-	var cfg := ConfigFile.new()
-	if cfg.load(file) != OK:
+	var cfg := SafeConfig.load_file(file)
+	if cfg == null:
 		return false
-	player_name = cfg.get_value("player", "name", player_name)
-	mouse_sensitivity = cfg.get_value("controls", "mouse_sensitivity", mouse_sensitivity)
-	ads_sensitivity = clampf(float(cfg.get_value("controls", "ads_sensitivity", ads_sensitivity)),
+	player_name = SafeConfig.get_string(cfg, "player", "name", player_name, 64)
+	mouse_sensitivity = SafeConfig.get_float(cfg, "controls", "mouse_sensitivity", mouse_sensitivity, 0.01, 5.0)
+	ads_sensitivity = SafeConfig.get_float(cfg, "controls", "ads_sensitivity", ads_sensitivity,
 			ADS_SENSITIVITY_RANGE.x, ADS_SENSITIVITY_RANGE.y)
-	invert_y = cfg.get_value("controls", "invert_y", invert_y)
+	invert_y = SafeConfig.get_bool(cfg, "controls", "invert_y", invert_y)
 	bindings = _bindings_from_cfg(cfg)
-	fov = cfg.get_value("video", "fov", fov)
-	fullscreen = cfg.get_value("video", "fullscreen", fullscreen)
-	vsync = cfg.get_value("video", "vsync", vsync)
-	quality = cfg.get_value("video", "quality", quality)
-	quality_auto = cfg.get_value("video", "quality_auto", quality_auto)
+	fov = SafeConfig.get_float(cfg, "video", "fov", fov, 40.0, 130.0)
+	fullscreen = SafeConfig.get_bool(cfg, "video", "fullscreen", fullscreen)
+	vsync = SafeConfig.get_bool(cfg, "video", "vsync", vsync)
+	quality = SafeConfig.get_int(cfg, "video", "quality", quality, Quality.LOW, Quality.HIGH) as Quality
+	quality_auto = SafeConfig.get_string(cfg, "video", "quality_auto", quality_auto, 32)
 	_needs_probe = not cfg.has_section_key("video", "quality")
-	film_grain = cfg.get_value("video", "film_grain", film_grain)
-	render_scale = clampf(float(cfg.get_value("video", "render_scale", render_scale)),
+	film_grain = SafeConfig.get_float(cfg, "video", "film_grain", film_grain, 0.0, 1.0)
+	render_scale = SafeConfig.get_float(cfg, "video", "render_scale", render_scale,
 			RENDER_SCALE_RANGE.x, RENDER_SCALE_RANGE.y)
-	max_fps = int(cfg.get_value("video", "max_fps", max_fps))
+	max_fps = SafeConfig.get_int(cfg, "video", "max_fps", max_fps)
 	if not max_fps in FPS_LIMITS:
 		max_fps = 0
-	brightness = clampf(float(cfg.get_value("video", "brightness", brightness)),
+	brightness = SafeConfig.get_float(cfg, "video", "brightness", brightness,
 			BRIGHTNESS_RANGE.x, BRIGHTNESS_RANGE.y)
-	language = cfg.get_value("game", "language", "fr" if OS.get_locale_language() == "fr" else "en")
+	language = SafeConfig.get_string(cfg, "game", "language", "fr" if OS.get_locale_language() == "fr" else "en", 8)
 	if not language in LANGUAGES:
 		language = "fr"
-	master_volume = cfg.get_value("audio", "master", master_volume)
-	music_volume = cfg.get_value("audio", "music", music_volume)
-	sfx_volume = cfg.get_value("audio", "sfx", sfx_volume)
-	voice_volume = cfg.get_value("audio", "voice", voice_volume)
-	last_ip = cfg.get_value("network", "last_ip", last_ip)
-	last_port = cfg.get_value("network", "last_port", last_port)
-	last_map = cfg.get_value("game", "last_map", last_map)
+	master_volume = SafeConfig.get_float(cfg, "audio", "master", master_volume, 0.0, 1.0)
+	music_volume = SafeConfig.get_float(cfg, "audio", "music", music_volume, 0.0, 1.0)
+	sfx_volume = SafeConfig.get_float(cfg, "audio", "sfx", sfx_volume, 0.0, 1.0)
+	voice_volume = SafeConfig.get_float(cfg, "audio", "voice", voice_volume, 0.0, 1.0)
+	last_ip = SafeConfig.get_string(cfg, "network", "last_ip", last_ip, 64)
+	last_port = SafeConfig.get_int(cfg, "network", "last_port", last_port, 0, 65535)
+	last_map = SafeConfig.get_string(cfg, "game", "last_map", last_map, 128)
 	return true
 
 

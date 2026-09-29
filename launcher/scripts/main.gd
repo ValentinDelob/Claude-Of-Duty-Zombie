@@ -56,6 +56,7 @@ var _http_dl: HTTPRequest
 var _dl_tag := ""
 var _dl_size := 0
 var _dl_is_update := false
+var _dl_sha256 := ""            # somme attendue de l'exécutable en cours ("" : version ancienne)
 var _play_after := false
 var _img_loading := ""
 
@@ -73,13 +74,9 @@ func _ready() -> void:
 	get_window().min_size = Vector2i(900, 560)
 	_build_ui()
 	_http_api = _new_http()
-	_http_api.request_completed.connect(_on_releases)
 	_http_notes = _new_http()
-	_http_notes.request_completed.connect(_on_changelogs)
 	_http_img = _new_http()
-	_http_img.request_completed.connect(_on_image)
 	_http_dl = _new_http()
-	_http_dl.request_completed.connect(_on_download_done)
 	_load_cached_changelogs()
 	_refresh_list()
 	if _args.has("changelogs"):
@@ -88,9 +85,9 @@ func _ready() -> void:
 		_set_offline()
 	else:
 		_set_status(Texts.t("loading", lang))
-		_http_api.request(Releases.API_URL, PackedStringArray(Releases.HEADERS))
+		_fetch(_http_api, Releases.API_URL, Releases.MAX_API_BYTES, _on_releases)
 		if not _args.has("changelogs"):
-			_http_notes.request(Releases.CHANGELOG_URL, PackedStringArray(Releases.HEADERS))
+			_fetch(_http_notes, Releases.CHANGELOG_URL, Releases.MAX_CHANGELOG_BYTES, _on_changelogs)
 	if _args.has("capture"):
 		_capture_later(String(_args.capture))
 
@@ -99,8 +96,44 @@ func _new_http() -> HTTPRequest:
 	var h := HTTPRequest.new()
 	h.timeout = 20.0
 	h.use_threads = true
+	# Redirections suivies à la main (_on_http) : chaque adresse est revérifiée.
+	h.max_redirects = 0
+	# Certificat du serveur vérifié (autorités de confiance du système).
+	h.set_tls_options(TLSOptions.client())
+	h.request_completed.connect(_on_http.bind(h))
 	add_child(h)
 	return h
+
+
+## Requête GET vers une adresse autorisée (HTTPS, domaines GitHub), réponse
+## bornée à `limit` octets, écrite dans `file` si donné. `done` reçoit
+## (résultat, code HTTP, corps). Faux si l'adresse est refusée ou si la
+## requête ne part pas (rien n'est appelé).
+func _fetch(h: HTTPRequest, url: String, limit: int, done: Callable, file := "", timeout := 20.0) -> bool:
+	if not Releases.is_allowed_url(url):
+		push_warning("[launcher] adresse refusée : " + url.left(200))
+		return false
+	h.set_meta("done", done)
+	h.set_meta("hops", 0)
+	h.download_file = file
+	h.body_size_limit = limit
+	h.timeout = timeout
+	return h.request(url, PackedStringArray(Releases.HEADERS)) == OK
+
+
+func _on_http(result: int, code: int, headers: PackedStringArray, body: PackedByteArray, h: HTTPRequest) -> void:
+	if code in [301, 302, 303, 307, 308]:
+		var loc := Releases.header(headers, "location")
+		var hops := int(h.get_meta("hops", 0)) + 1
+		if hops <= Releases.MAX_REDIRECTS and Releases.is_allowed_url(loc):
+			h.set_meta("hops", hops)
+			if h.request(loc, PackedStringArray(Releases.HEADERS)) == OK:
+				return
+		push_warning("[launcher] redirection refusée : " + loc.left(200))
+		result = HTTPRequest.RESULT_REDIRECT_LIMIT_REACHED
+	var done: Callable = h.get_meta("done", Callable())
+	if done.is_valid():
+		done.call(result, code, body)
 
 
 # --------------------------------------------------------------------------
@@ -402,7 +435,8 @@ func _show_notes() -> void:
 	_date.text = tag + ("  ·  " + Texts.date(d, lang) if d != "" else "")
 	var txt := ""
 	for it in n.items:
-		txt += "[color=#%s]■[/color]  %s\n" % [BLOOD_BRIGHT.to_html(false), String(it)]
+		# Texte des notes échappé : aucune balise BBCode venue d'Internet.
+		txt += "[color=#%s]■[/color]  %s\n" % [BLOOD_BRIGHT.to_html(false), Releases.escape_bbcode(String(it))]
 	if n.items.is_empty():
 		txt = "[color=#%s]%s[/color]" % [DIM.to_html(false), Texts.t("no_notes" if tag != "" else "no_versions", lang)]
 	_items.text = txt.strip_edges()
@@ -433,7 +467,13 @@ func _update_buttons() -> void:
 	if Store.is_installed(tag):
 		_set_status(Texts.t("ready", lang) if online else Texts.t("offline", lang))
 	elif not _info(tag).is_empty():
-		_set_status(Texts.t("to_download", lang) % str(int(round(float(_info(tag).exe_size) / 1048576.0))))
+		var policy := Releases.integrity(versions, tag)
+		if policy == Releases.REFUSED:
+			_play.disabled = true
+			_set_status(Texts.t("no_checksum", lang) % tag)
+			return
+		_set_status(Texts.t("to_download", lang) % str(int(round(float(_info(tag).exe_size) / 1048576.0)))
+				+ ("   " + Texts.t("legacy", lang) if policy == Releases.LEGACY else ""))
 
 
 func _on_delete() -> void:
@@ -449,7 +489,7 @@ func _on_delete() -> void:
 # Réseau : versions, notes, captures
 # --------------------------------------------------------------------------
 
-func _on_releases(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
+func _on_releases(result: int, code: int, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
 		_set_offline()
 		return
@@ -476,14 +516,14 @@ func _set_offline() -> void:
 
 func _load_cached_changelogs() -> void:
 	var f := FileAccess.open("user://changelogs.json", FileAccess.READ)
-	if f:
+	if f and f.get_length() <= Releases.MAX_CHANGELOG_BYTES:
 		var d = JSON.parse_string(f.get_as_text())
 		if d is Dictionary:
 			changelogs = d
 
 
-func _on_changelogs(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
-	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+func _on_changelogs(result: int, code: int, body: PackedByteArray) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200 or body.size() > Releases.MAX_CHANGELOG_BYTES:
 		return
 	var text := body.get_string_from_utf8()
 	var d = JSON.parse_string(text)
@@ -509,6 +549,9 @@ func _read_local_changelogs(path: String) -> void:
 
 
 func _fill_image(b: TextureButton, name: String) -> void:
+	# Le nom devient un chemin (cache, adresse) : déjà filtré par Releases.notes.
+	if not Releases.is_safe_image_name(name):
+		return
 	if _textures.has(name):
 		b.texture_normal = _textures[name]
 		return
@@ -530,29 +573,34 @@ func _next_image() -> void:
 	if _img_loading != "" or _image_queue.is_empty() or _args.has("offline"):
 		return
 	_img_loading = _image_queue.pop_front()
-	_http_img.request(Releases.IMAGE_URL + _img_loading.uri_encode().replace("%2F", "/"), PackedStringArray(Releases.HEADERS))
+	if not _fetch(_http_img, Releases.IMAGE_URL + _img_loading.uri_encode().replace("%2F", "/"), Releases.MAX_IMAGE_BYTES, _on_image):
+		_img_loading = ""
 
 
-func _on_image(result: int, code: int, _h: PackedStringArray, body: PackedByteArray) -> void:
+func _on_image(result: int, code: int, body: PackedByteArray) -> void:
 	var name := _img_loading
 	_img_loading = ""
-	if result == HTTPRequest.RESULT_SUCCESS and code == 200:
+	# Seules les images valides (format, taille, dimensions) sont gardées en cache.
+	var tex := _texture_from(body, name) if result == HTTPRequest.RESULT_SUCCESS and code == 200 else null
+	if tex:
 		DirAccess.make_dir_recursive_absolute(("user://img/" + name).get_base_dir())
 		var f := FileAccess.open("user://img/" + name, FileAccess.WRITE)
 		if f:
 			f.store_buffer(body)
-		var tex := _texture_from(body, name)
-		if tex:
-			_textures[name] = tex
-			for b in _images.get_children():
-				if b.get_meta("image", "") == name:
-					(b as TextureButton).texture_normal = tex
+		_textures[name] = tex
+		for b in _images.get_children():
+			if b.get_meta("image", "") == name:
+				(b as TextureButton).texture_normal = tex
 	_next_image()
 
 
-func _texture_from(bytes: PackedByteArray, name: String) -> Texture2D:
+## Texture d'une capture : format reconnu à ses premiers octets (pas au nom),
+## dimensions lues dans l'en-tête et bornées AVANT le décodage.
+func _texture_from(bytes: PackedByteArray, _name: String) -> Texture2D:
+	if not Releases.image_ok(bytes):
+		return null
 	var img := Image.new()
-	var err := img.load_png_from_buffer(bytes) if name.to_lower().ends_with(".png") else img.load_jpg_from_buffer(bytes)
+	var err := img.load_png_from_buffer(bytes) if Releases.image_format(bytes) == "png" else img.load_jpg_from_buffer(bytes)
 	return ImageTexture.create_from_image(img) if err == OK else null
 
 
@@ -571,23 +619,72 @@ func _on_zoom(name: String) -> void:
 # Téléchargement et lancement
 # --------------------------------------------------------------------------
 
+## Téléchargement d'une version, en deux temps quand la release publie ses
+## sommes (Releases.integrity) : SHA256SUMS.txt d'abord, puis l'exécutable
+## dans un fichier partiel, vérifié (taille, SHA-256) avant de devenir
+## l'exécutable installé. Une version récente sans sommes est refusée.
 func _start_download(tag: String, is_update: bool) -> void:
 	var info := _info(tag)
 	if info.is_empty() or _dl_tag != "":
+		return
+	var policy := Releases.integrity(versions, tag)
+	if policy == Releases.REFUSED:
+		_play_after = false
+		_set_status(Texts.t("no_checksum", lang) % tag)
 		return
 	Store.prepare_dir(tag)
 	_dl_tag = tag
 	_dl_size = int(info.exe_size)
 	_dl_is_update = is_update
-	_http_dl.download_file = Store.part_path(tag)
-	_http_dl.timeout = 0.0
-	if _http_dl.request(String(info.exe_url), PackedStringArray(Releases.HEADERS)) != OK:
+	_dl_sha256 = ""
+	var ok := false
+	if policy == Releases.VERIFIED:
+		ok = _fetch(_http_dl, String(info.sums_url), Releases.MAX_SMALL_BYTES, _on_game_sums)
+	else:
+		print("[launcher] %s : version antérieure aux sommes SHA-256, taille vérifiée seulement" % tag)
+		ok = _download_exe(info)
+	if not ok:
 		_dl_tag = ""
 		_set_status(Texts.t("download_failed", lang) % tag)
 		return
 	_progress.visible = true
 	_progress.value = 0
 	_update_buttons()
+
+
+func _on_game_sums(result: int, code: int, body: PackedByteArray) -> void:
+	var info := _info(_dl_tag)
+	var sha := ""
+	if result == HTTPRequest.RESULT_SUCCESS and code == 200 and not info.is_empty():
+		sha = String(Releases.parse_sums(body.get_string_from_utf8()).get(String(info.exe_name), ""))
+	if sha == "":
+		_fail_download(_dl_tag, "no_checksum")
+		return
+	_dl_sha256 = sha
+	if not _download_exe(info):
+		_fail_download(_dl_tag, "download_failed")
+
+
+func _download_exe(info: Dictionary) -> bool:
+	var part := Store.part_path(String(info.tag))
+	if part == "":
+		return false
+	Store.prepare_dir(String(info.tag))
+	if FileAccess.file_exists(part):
+		DirAccess.remove_absolute(part)
+	var limit := int(info.exe_size) if int(info.exe_size) > 0 else Releases.MAX_EXE_BYTES
+	return _fetch(_http_dl, String(info.exe_url), limit, _on_download_done, part, 0.0)
+
+
+func _fail_download(tag: String, key: String) -> void:
+	_dl_tag = ""
+	_play_after = false
+	_progress.visible = false
+	var part := Store.part_path(tag)
+	if part != "" and FileAccess.file_exists(part):
+		DirAccess.remove_absolute(part)
+	_refresh_list()
+	_set_status(Texts.t(key, lang) % tag)
 
 
 func _process(_delta: float) -> void:
@@ -602,17 +699,22 @@ func _process(_delta: float) -> void:
 			+ ("   " + Texts.t("play_after", lang) if _play_after else ""))
 
 
-func _on_download_done(result: int, code: int, _h: PackedStringArray, _b: PackedByteArray) -> void:
+func _on_download_done(result: int, code: int, _b: PackedByteArray) -> void:
 	var tag := _dl_tag
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		_fail_download(tag, "download_failed")
+		return
+	# Jamais installé (ni lancé) avant d'être vérifié : taille annoncée par
+	# GitHub et, si la release les publie, somme SHA-256.
+	if not Store.verify_file(Store.part_path(tag), _dl_sha256, _dl_size):
+		print("[launcher] %s : fichier téléchargé NON conforme (taille ou SHA-256), supprimé" % tag)
+		_fail_download(tag, "integrity_failed")
+		return
+	if not Store.finish_download(tag):
+		_fail_download(tag, "download_failed")
+		return
 	_dl_tag = ""
 	_progress.visible = false
-	if result != HTTPRequest.RESULT_SUCCESS or code != 200 or not Store.finish_download(tag):
-		_play_after = false
-		if FileAccess.file_exists(Store.part_path(tag)):
-			DirAccess.remove_absolute(Store.part_path(tag))
-		_refresh_list()
-		_set_status(Texts.t("download_failed", lang) % tag)
-		return
 	_refresh_list()
 	if _args.has("quit-after-update"):
 		print("[launcher] installée : ", Store.exe_path(tag))
@@ -638,6 +740,8 @@ func _on_play() -> void:
 
 
 func _launch(tag: String) -> void:
+	if not Store.is_installed(tag):
+		return
 	_set_status(Texts.t("launching", lang) % tag)
 	var pid := OS.create_process(Store.exe_path(tag), [])
 	if pid <= 0:
@@ -657,39 +761,66 @@ func _check_launcher_update() -> void:
 	var v: Dictionary = versions[0]
 	if String(v.launcher_version_url) == "" or String(v.launcher_url) == "":
 		return
+	# Nouveau lanceur jamais installé sans somme SHA-256 publiée avec lui.
+	if String(v.sums_url) == "":
+		print("[launcher] mise à jour du lanceur ignorée : %s sans %s" % [v.tag, Releases.SUMS_ASSET])
+		return
 	var h := _new_http()
-	h.request_completed.connect(_on_launcher_version.bind(h, String(v.launcher_url)))
-	h.request(String(v.launcher_version_url), PackedStringArray(Releases.HEADERS))
+	if not _fetch(h, String(v.launcher_version_url), 64, _on_launcher_version.bind(h, v)):
+		h.queue_free()
 
 
-func _on_launcher_version(result: int, code: int, _hd: PackedStringArray, body: PackedByteArray, h: HTTPRequest, url: String) -> void:
-	h.queue_free()
-	if result == HTTPRequest.RESULT_SUCCESS and code == 200 \
-			and body.get_string_from_utf8().strip_edges().to_int() > Version.LAUNCHER_VERSION:
-		_download_launcher(url)
+func _on_launcher_version(result: int, code: int, body: PackedByteArray, h: HTTPRequest, v: Dictionary) -> void:
+	var txt := body.get_string_from_utf8().strip_edges()
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200 or not txt.is_valid_int() or txt.to_int() <= Version.LAUNCHER_VERSION:
+		h.queue_free()
+		return
+	if not _fetch(h, String(v.sums_url), Releases.MAX_SMALL_BYTES, _on_launcher_sums.bind(h, v)):
+		h.queue_free()
 
 
-func _download_launcher(url: String) -> void:
+func _on_launcher_sums(result: int, code: int, body: PackedByteArray, h: HTTPRequest, v: Dictionary) -> void:
+	var sha := ""
+	if result == HTTPRequest.RESULT_SUCCESS and code == 200:
+		sha = String(Releases.parse_sums(body.get_string_from_utf8()).get(String(v.launcher_name), ""))
+	if sha == "":
+		print("[launcher] mise à jour du lanceur ignorée : somme SHA-256 absente")
+		h.queue_free()
+		return
 	var exe := OS.get_executable_path()
 	var fresh := exe.get_base_dir() + "/ClaudeOfDutyZombie-Launcher.new.exe"
-	var h := _new_http()
-	h.timeout = 0.0
-	h.download_file = fresh
-	h.request_completed.connect(_on_launcher_downloaded.bind(h, exe, fresh))
-	h.request(url, PackedStringArray(Releases.HEADERS))
+	var part := fresh + ".part"
+	if FileAccess.file_exists(part):
+		DirAccess.remove_absolute(part)
+	var size := int(v.launcher_size)
+	if not _fetch(h, String(v.launcher_url), size if size > 0 else Releases.MAX_EXE_BYTES,
+			_on_launcher_downloaded.bind(h, exe, fresh, sha, size), part, 0.0):
+		h.queue_free()
 
 
-func _on_launcher_downloaded(result: int, code: int, _hd: PackedStringArray, _b: PackedByteArray, h: HTTPRequest, exe: String, fresh: String) -> void:
+func _on_launcher_downloaded(result: int, code: int, _b: PackedByteArray, h: HTTPRequest, exe: String, fresh: String, sha: String, size: int) -> void:
 	h.queue_free()
-	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+	var part := fresh + ".part"
+	# Vérifié AVANT de remplacer le lanceur : sinon supprimé, l'ancien reste.
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200 or not Store.verify_file(part, sha, size):
+		print("[launcher] nouveau lanceur refusé (téléchargement incomplet ou SHA-256 différente)")
+		if FileAccess.file_exists(part):
+			DirAccess.remove_absolute(part)
+		if result == HTTPRequest.RESULT_SUCCESS and code == 200:
+			_set_status(Texts.t("integrity_failed_launcher", lang))
+		return
+	if FileAccess.file_exists(fresh):
+		DirAccess.remove_absolute(fresh)
+	if DirAccess.rename_absolute(part, fresh) != OK:
 		return
 	# Remplacement après fermeture (un exécutable ouvert ne peut pas être écrasé).
 	var bat := ProjectSettings.globalize_path("user://update_launcher.bat")
 	var f := FileAccess.open(bat, FileAccess.WRITE)
 	if f == null:
 		return
-	var cur := exe.replace("/", "\\")
-	var nxt := fresh.replace("/", "\\")
+	# « % » est spécial dans un .bat : doublé dans les chemins.
+	var cur := exe.replace("/", "\\").replace("%", "%%")
+	var nxt := fresh.replace("/", "\\").replace("%", "%%")
 	f.store_string("@echo off\r\nping 127.0.0.1 -n 3 >nul\r\nmove /y \"%s\" \"%s\" >nul\r\nstart \"\" \"%s\"\r\ndel \"%%~f0\"\r\n" % [nxt, cur, cur])
 	f.close()
 	_set_status(Texts.t("self_update", lang))

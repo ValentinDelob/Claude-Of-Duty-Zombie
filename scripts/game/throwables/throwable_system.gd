@@ -158,9 +158,10 @@ func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
 			_cl_cancel.rpc_id(pid, seq)
 		return
 	_cooking.erase(pid)
-	if p.global_position.distance_to(origin) > MAX_ORIGIN_ERROR:
+	# NaN / infini : repli sur la position et l'orientation connues du serveur.
+	if not NetGuard.finite_vec(origin) or p.global_position.distance_to(origin) > MAX_ORIGIN_ERROR:
 		origin = p.global_position + Vector3.UP * 1.5
-	if dir.length_squared() < 0.01:
+	if not NetGuard.valid_dir(dir) or dir.length_squared() < 0.01:
 		dir = -p.global_transform.basis.z
 	var kind: int = c[0]
 	var monkey := kind == ThrowableRules.Kind.MONKEY
