@@ -9,7 +9,7 @@ extends MapLayout
 ## la FACE du mur, au niveau du sol, et `wall` = direction vers le mur ; le jeu
 ## le place à 0,5 m devant (MapMarker.wall_gap), comme sur une grille.
 ##   player_spawns [[x,y,z]], zombie_spawns [{p, zone}],
-##   doors [{id, p (milieu de l'ouverture, au sol), yaw, w, h, depth, cost, zones}],
+##   doors [{id, p (milieu de l'ouverture, au sol), yaw, w, h, depth, cost, zones, debris?}],
 ##   wall_buys [{id, p, wall, weapon}], perks [{id, p, wall, perk}],
 ##   grenade_buys [{id, p, wall}], power {p, wall}, box [{p, wall}], pap {p, wall},
 ##   teleporter {pad, exit, mainframe {p, wall}, exit_zone},
@@ -156,7 +156,7 @@ func doors() -> Array[MapMarker]:
 			"width": float(d.w), "height": float(d.h), "depth": float(d.get("depth", 0.3)),
 			"yaw": float(d.get("yaw", 0.0)), "zones": d.get("zones", []),
 			"power": bool(d.get("power", false)), "link": String(d.get("link", "")),
-			"curtain": bool(d.get("curtain", false)),
+			"curtain": bool(d.get("curtain", false)), "debris": bool(d.get("debris", false)),
 		}
 		_door_markers.append(mk)
 	return _door_markers
