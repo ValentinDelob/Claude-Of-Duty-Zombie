@@ -21,8 +21,9 @@ func _init() -> void:
 		{"tag_name": "v0.1.99", "name": "v0.1.99 — Merge branch 'x'", "published_at": "2026-09-28T10:00:00Z",
 			"assets": [{"name": "CallOfClaudeZombie-v0.1.99.exe", "size": 1000, "browser_download_url": "https://x/99.exe"}]},
 		{"tag_name": "v0.1.116", "name": "v0.1.116 — feat: release KINO V2", "published_at": "2026-09-28T20:00:00Z",
-			"assets": [{"name": "CallOfClaudeZombie-v0.1.116.exe", "size": 2000, "browser_download_url": "https://x/116.exe"},
-				{"name": "CallOfClaudeZombie-Launcher.exe", "size": 50, "browser_download_url": "https://x/l.exe"},
+			"assets": [{"name": "ClaudeOfDutyZombie-v0.1.116.exe", "size": 2000, "browser_download_url": "https://x/116.exe"},
+				{"name": "CallOfClaudeZombie-Launcher.exe", "size": 50, "browser_download_url": "https://x/old.exe"},
+				{"name": "ClaudeOfDutyZombie-Launcher.exe", "size": 50, "browser_download_url": "https://x/l.exe"},
 				{"name": "launcher_version.txt", "size": 1, "browser_download_url": "https://x/lv.txt"}]},
 		{"tag_name": "v0.1.9", "name": "v0.1.9", "published_at": "2026-09-01T00:00:00Z", "assets": []},
 		{"tag_name": "v0.1.100", "name": "brouillon", "draft": true, "assets": []},
@@ -30,7 +31,8 @@ func _init() -> void:
 	var v := Releases.parse_releases(api)
 	check(v.size() == 2, "releases jouables seulement (sans exe ni brouillon : ignorées)")
 	check(v[0].tag == "v0.1.116" and v[1].tag == "v0.1.99", "plus récente d'abord (ordre numérique, pas alphabétique)")
-	check(v[0].launcher_url == "https://x/l.exe" and v[0].launcher_version_url != "", "lanceur et sa version repérés")
+	check(v[0].launcher_url == "https://x/l.exe" and v[0].launcher_version_url != "", "lanceur (nouveau nom prioritaire) et sa version repérés")
+	check(v[1].exe_url == "https://x/99.exe", "anciennes versions (ancien nom du jeu) toujours reconnues")
 	check(v[0].date == "2026-09-28" and v[0].exe_size == 2000, "date et taille")
 	check(v[0].title == "release KINO V2", "titre sans numéro ni préfixe technique")
 	check(Releases.newer("v0.1.116", "v0.1.99") and not Releases.newer("v0.1.99", "v0.1.116"), "comparaison de versions")

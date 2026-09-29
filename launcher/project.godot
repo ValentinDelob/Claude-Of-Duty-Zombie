@@ -1,14 +1,15 @@
-; Lanceur de Call of Claude Zombie : projet Godot séparé (voir docs/LAUNCHER.md).
-; Exporté par tools/release.sh en build/CallOfClaudeZombie-Launcher.exe.
+; Lanceur de Claude of Duty Zombie : projet Godot séparé (voir docs/LAUNCHER.md).
+; Exporté par tools/release.sh en build/ClaudeOfDutyZombie-Launcher.exe.
 
 config_version=5
 
 [application]
 
-config/name="Call of Claude Zombie - Lanceur"
+config/name="Claude of Duty Zombie - Lanceur"
 config/description="Lanceur : mises à jour automatiques, choix de la version, notes de version."
 run/main_scene="res://main.tscn"
 config/use_custom_user_dir=true
+; Dossier de réglages de l'ancien nom (réglages du lanceur conservés).
 config/custom_user_dir_name="CallOfClaudeZombieLauncher"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"

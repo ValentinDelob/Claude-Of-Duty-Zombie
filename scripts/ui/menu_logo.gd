@@ -1,6 +1,6 @@
 class_name MenuLogo
 extends Control
-## Logo « CALL OF CLAUDE ZOMBIE » : emblème original (crâne casqué dans un
+## Logo « CLAUDE OF DUTY ZOMBIE » : emblème original (crâne casqué dans un
 ## écusson brisé) et texte au pochoir, dessinés une seule fois dans une
 ## SubViewport, puis usés / ensanglantés par le shader menu_logo. Tremblement
 ## et parasites occasionnels.
@@ -77,11 +77,11 @@ class LogoArt extends Control:
 		_emblem(Vector2(172, 232))
 		var stencil := UiStyle.font("stencil")
 		var impact := UiStyle.font("impact")
-		_tracked(impact, Vector2(350, 106), "CALL  OF", 66, 12.0, BONE_DIM)
+		_tracked(impact, Vector2(352, 266), "OF  DUTY", 64, 12.0, BONE)
 		# Filet sous « CALL OF ».
 		draw_rect(Rect2(352, 118, 250, 5), BONE_DIM.darkened(0.3))
 		draw_rect(Rect2(610, 118, 36, 5), BONE_DIM.darkened(0.3))
-		_tracked(stencil, Vector2(338, 262), "CLAUDE", 150, 4.0, BONE)
+		_tracked(stencil, Vector2(338, 196), "CLAUDE", 150, 4.0, BONE)
 		_tracked(stencil, Vector2(338, 404), "ZOMBIE", 150, 4.0, RED)
 
 	func _tracked(font: Font, pos: Vector2, text: String, size: int, spacing: float, col: Color) -> void:

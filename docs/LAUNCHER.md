@@ -2,7 +2,7 @@
 
 ## Pour le joueur
 
-`CallOfClaudeZombie-Launcher.exe` (pièce jointe de chaque release GitHub) :
+`ClaudeOfDutyZombie-Launcher.exe` (pièce jointe de chaque release GitHub) :
 
 - **Mise à jour automatique** : à l'ouverture, la dernière version du jeu est
   téléchargée si elle n'est pas déjà installée (barre de progression en bas).
@@ -32,7 +32,7 @@ réglages et le dossier de combat du jeu restent communs à toutes les versions.
   (le `.exe` du jeu de chaque release).
 - Notes : `changelogs/changelogs.json` et `changelogs/img/` du dépôt, lus sur
   `raw.githubusercontent.com` (branche main) et gardés en cache pour le hors ligne.
-- Mise à jour du lanceur : chaque release porte `CallOfClaudeZombie-Launcher.exe`
+- Mise à jour du lanceur : chaque release porte `ClaudeOfDutyZombie-Launcher.exe`
   et `launcher_version.txt` ; un lanceur plus ancien télécharge le nouveau, le
   remplace après sa fermeture (petit script `.bat`) et le relance.
 - Tests : `godot --headless --path launcher -s res://tests/test_launcher.gd`

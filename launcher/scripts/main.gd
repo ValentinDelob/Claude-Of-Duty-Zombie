@@ -1,5 +1,5 @@
 extends Control
-## Lanceur de Call of Claude Zombie (comme celui de Minecraft) :
+## Lanceur de Claude of Duty Zombie (comme celui de Minecraft) :
 ## - liste des versions publiées, « Dernière version » en tête ;
 ## - notes de version pour les joueurs, avec captures (cliquer pour agrandir) ;
 ## - à l'ouverture, télécharge tout seul la dernière version (mise à jour) ;
@@ -69,7 +69,7 @@ func _ready() -> void:
 	settings = Store.load_settings()
 	lang = String(settings.get("language", "fr"))
 	selected = String(settings.get("selected", "latest"))
-	get_window().title = "Call of Claude Zombie"
+	get_window().title = "Claude of Duty Zombie"
 	get_window().min_size = Vector2i(900, 560)
 	_build_ui()
 	_http_api = _new_http()
@@ -156,7 +156,7 @@ func _build_ui() -> void:
 	head.add_theme_constant_override("separation", 14)
 	root.add_child(head)
 	var t := Label.new()
-	t.text = "CALL OF CLAUDE ZOMBIE"
+	t.text = "CLAUDE OF DUTY ZOMBIE"
 	t.add_theme_font_override("font", title_font)
 	t.add_theme_font_size_override("font_size", 40)
 	t.add_theme_color_override("font_color", BONE)
@@ -671,7 +671,7 @@ func _on_launcher_version(result: int, code: int, _hd: PackedStringArray, body: 
 
 func _download_launcher(url: String) -> void:
 	var exe := OS.get_executable_path()
-	var fresh := exe.get_base_dir() + "/CallOfClaudeZombie-Launcher.new.exe"
+	var fresh := exe.get_base_dir() + "/ClaudeOfDutyZombie-Launcher.new.exe"
 	var h := _new_http()
 	h.timeout = 0.0
 	h.download_file = fresh

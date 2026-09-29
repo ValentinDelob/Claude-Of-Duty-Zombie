@@ -1,6 +1,8 @@
 extends RefCounted
 ## Versions installées et réglages du lanceur.
 ## Jeux : %LOCALAPPDATA%\CallOfClaudeZombie\versions\<version>\CallOfClaudeZombie.exe
+## (dossier et nom de fichier de l'ancien nom du jeu, gardés pour ne pas
+## retélécharger les versions déjà installées)
 ## (comme les versions du lanceur de Minecraft, une copie par version).
 
 const EXE_NAME := "CallOfClaudeZombie.exe"

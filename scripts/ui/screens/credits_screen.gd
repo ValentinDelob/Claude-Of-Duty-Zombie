@@ -9,7 +9,7 @@ const CLIP_H := 500.0
 const EDGE := 70.0  # hauteur des fondus haut / bas
 
 const LINES := [
-	["h1", "CALL OF CLAUDE ZOMBIE"],
+	["h1", "CLAUDE OF DUTY ZOMBIE"],
 	["p", "Survie coopérative en bunker, de 1 à 4 joueurs."],
 	["gap"],
 	["role", "CONÇU ET DÉVELOPPÉ PAR"],

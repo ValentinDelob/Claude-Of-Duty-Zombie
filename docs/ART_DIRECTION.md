@@ -216,7 +216,7 @@ concerne.
   ouverte chargeur vide (pistolets) ; sprint : arme basse, tournée et
   inclinée, grand balancement en huit.
 
-### Mise en œuvre (Call of Claude Zombie)
+### Mise en œuvre (Claude of Duty Zombie)
 - `WeaponMesh` : primitives arrondies (profil extrudé chanfreiné, révolution,
   capsule), fusionnées en un maillage par matériau et par pièce mobile,
   construites une fois et mises en cache. Couleur de sommet = donnée

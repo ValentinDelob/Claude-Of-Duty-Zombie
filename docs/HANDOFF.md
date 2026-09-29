@@ -4,7 +4,7 @@ Copier TOUT le bloc ci-dessous dans une nouvelle session Claude Code ouverte à
 la racine du dépôt cloné (`git clone git@github.com:ValentinDelob/Claude-Of-Duty-Zombie.git`).
 
 ```text
-Tu reprends le développement de « Call of Claude Zombie », un CLONE de
+Tu reprends le développement de « Claude of Duty Zombie », un CLONE de
 Call of Duty: Black Ops 1 — mode Zombies, en Godot 4.7.2 (GDScript, Forward+).
 Dépôt GitHub : ValentinDelob/Claude-Of-Duty-Zombie, branche main. Tout le texte
 du jeu, les commentaires et les messages de commit sont en FRANÇAIS.

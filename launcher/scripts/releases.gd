@@ -7,10 +7,12 @@ const API_URL := "https://api.github.com/repos/" + REPO + "/releases?per_page=10
 const RAW_URL := "https://raw.githubusercontent.com/" + REPO + "/main/"
 const CHANGELOG_URL := RAW_URL + "changelogs/changelogs.json"
 const IMAGE_URL := RAW_URL + "changelogs/img/"
-const GAME_ASSET_PREFIX := "CallOfClaudeZombie-v"
-const LAUNCHER_ASSET := "CallOfClaudeZombie-Launcher.exe"
+## Fichiers joints aux releases (le jeu s'appelait « Call of Claude Zombie »
+## jusqu'à v0.1.126 : les anciens noms restent reconnus).
+const GAME_ASSET_PREFIXES := ["ClaudeOfDutyZombie-v", "CallOfClaudeZombie-v"]
+const LAUNCHER_ASSETS := ["ClaudeOfDutyZombie-Launcher.exe", "CallOfClaudeZombie-Launcher.exe"]
 const LAUNCHER_VERSION_ASSET := "launcher_version.txt"
-const HEADERS := ["User-Agent: CallOfClaudeZombie-Launcher", "Accept: application/vnd.github+json"]
+const HEADERS := ["User-Agent: ClaudeOfDutyZombie-Launcher", "Accept: application/vnd.github+json"]
 
 
 ## Liste de l'API GitHub -> versions jouables, de la plus récente à la plus
@@ -30,10 +32,10 @@ static func parse_releases(text: String) -> Array:
 		for a in r.get("assets", []):
 			var n := String(a.get("name", ""))
 			var url := String(a.get("browser_download_url", ""))
-			if n.begins_with(GAME_ASSET_PREFIX) and n.ends_with(".exe"):
+			if GAME_ASSET_PREFIXES.any(func(p): return n.begins_with(p)) and n.ends_with(".exe"):
 				v.exe_url = url
 				v.exe_size = int(a.get("size", 0))
-			elif n == LAUNCHER_ASSET:
+			elif n in LAUNCHER_ASSETS and (v.launcher_url == "" or n == LAUNCHER_ASSETS[0]):
 				v.launcher_url = url
 			elif n == LAUNCHER_VERSION_ASSET:
 				v.launcher_version_url = url

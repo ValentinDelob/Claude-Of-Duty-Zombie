@@ -1,4 +1,4 @@
-# Call of Claude Zombie
+# Claude of Duty Zombie
 
 FPS coopératif de survie aux zombies, low-poly et horrifique, réalisé avec
 **Godot 4.7.2** (GDScript, rendu Forward+). Solo ou coop réseau (hôte / client
@@ -55,17 +55,17 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
 
 ## Builds Windows (.exe)
 
-- **Lanceur** (le plus simple) : `CallOfClaudeZombie-Launcher.exe`, joint à chaque
+- **Lanceur** (le plus simple) : `ClaudeOfDutyZombie-Launcher.exe`, joint à chaque
   release. Il télécharge et met à jour le jeu tout seul, permet de choisir la
   version et montre les notes de chaque version avec des captures ; JOUER lance
   le jeu. Voir `docs/LAUNCHER.md`.
 - Chaque fonctionnalité livrée est publiée en **release GitHub** (onglet Releases
-  du dépôt) avec un `CallOfClaudeZombie-vX.Y.N.exe` autonome : le télécharger et le
+  du dépôt) avec un `ClaudeOfDutyZombie-vX.Y.N.exe` autonome : le télécharger et le
   lancer, aucune installation. Tous les joueurs d'une partie doivent avoir la même
   version.
 - Construire localement : `sh tools/release.sh --local` (nécessite les modèles
   d'export Godot 4.7.2 : éditeur > Éditeur > Gérer les modèles d'export). Résultat :
-  `build/CallOfClaudeZombie.exe` (+ copie versionnée).
+  `build/ClaudeOfDutyZombie.exe` (+ copie versionnée).
 - Publier : `sh tools/release.sh` (commit poussé sur `main`, `gh` connecté).
 
 ## Commandes

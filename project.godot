@@ -10,7 +10,10 @@ config_version=5
 
 [application]
 
-config/name="Call of Claude Zombie"
+config/name="Claude of Duty Zombie"
+; Dossier de données de l'ancien nom : réglages et dossier de combat conservés.
+config/use_custom_user_dir=true
+config/custom_user_dir_name="Godot/app_userdata/Call of Claude Zombie"
 config/description="FPS coop zombies low-poly horreur"
 config/version="0.1.0"
 run/main_scene="res://scenes/boot.tscn"

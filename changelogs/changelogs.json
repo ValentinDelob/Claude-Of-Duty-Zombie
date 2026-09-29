@@ -177,6 +177,31 @@
     "fr": "Le lanceur du jeu"
    }
   },
+  "v0.1.127": {
+   "date": "2026-09-29",
+   "images": [
+    "v0.1.127/01_menu.jpg",
+    "v0.1.127/02_lanceur.jpg"
+   ],
+   "items": [
+    {
+     "en": "The game is now called Claude of Duty Zombie: a new logo in the menu and the new name everywhere.",
+     "fr": "Le jeu s'appelle désormais Claude of Duty Zombie : nouveau logo dans le menu, nouveau nom partout."
+    },
+    {
+     "en": "Your settings and combat record are kept.",
+     "fr": "Vos réglages et votre dossier de combat sont conservés."
+    },
+    {
+     "en": "The launcher updates itself to the new version and still knows every older one.",
+     "fr": "Le lanceur se met à jour tout seul vers la nouvelle version et reconnaît toujours les anciennes."
+    }
+   ],
+   "title": {
+    "en": "Claude of Duty Zombie",
+    "fr": "Claude of Duty Zombie"
+   }
+  },
   "v0.1.36": {
    "date": "2026-09-26",
    "images": [],

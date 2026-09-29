@@ -19,7 +19,7 @@ func enter(args := {}) -> void:
 	col.offset_left = 110
 	col.offset_top = -260
 	add_child(col)
-	col.add_child(title("CALL OF CLAUDE ZOMBIE", 40))
+	col.add_child(title("CLAUDE OF DUTY ZOMBIE", 40))
 	if is_host:
 		col.add_child(text("PARTIE PRIVÉE", 26, UiStyle.BONE))
 	else:

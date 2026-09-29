@@ -1,7 +1,7 @@
 #!/bin/sh
 # Construit le .exe Windows du commit courant et le publie en release GitHub.
 #   Version : <majeur.mineur de project.godot>.<nombre de commits>  (ex. v0.1.34)
-#   Local   : build/CallOfClaudeZombie.exe (dernier build) + build/CallOfClaudeZombie-<version>.exe
+#   Local   : build/ClaudeOfDutyZombie.exe (dernier build) + build/ClaudeOfDutyZombie-<version>.exe
 #   GitHub  : release <version> (notes = message du commit) avec le .exe en pièce jointe.
 # Prérequis : modèles d'export Godot 4.7.2 installés, `gh` connecté.
 # Usage : sh tools/release.sh [--local]      (--local : build sans publication)
@@ -11,7 +11,7 @@ GH=${GH:-gh}
 BASE=$(sed -n 's/^config\/version="\([0-9]*\.[0-9]*\).*/\1/p' project.godot)
 N=$(git rev-list --count HEAD)
 TAG="v$BASE.$N"
-EXE=build/CallOfClaudeZombie.exe
+EXE=build/ClaudeOfDutyZombie.exe
 mkdir -p build
 
 echo "== export $TAG"
@@ -25,17 +25,19 @@ cp build/project.godot.bak project.godot
 if [ $RC -ne 0 ] || [ ! -s "$EXE" ] || grep -qE "SCRIPT ERROR|Parse Error" build/export.log; then
   echo "== EXPORT ECHEC (voir build/export.log)"; exit 1
 fi
-VEXE="build/CallOfClaudeZombie-$TAG.exe"
+VEXE="build/ClaudeOfDutyZombie-$TAG.exe"
 cp "$EXE" "$VEXE"
 
 echo "== export du lanceur"
 # Lanceur (launcher/, docs/LAUNCHER.md) : publié avec chaque version, avec son
 # numéro (les lanceurs plus anciens se mettent à jour tout seuls).
-LEXE=build/CallOfClaudeZombie-Launcher.exe
+LEXE=build/ClaudeOfDutyZombie-Launcher.exe
 "$GODOT" --headless --path launcher --export-release "Windows Desktop" "$PWD/$LEXE" > build/export_launcher.log 2>&1
 if [ ! -s "$LEXE" ] || grep -qE "SCRIPT ERROR|Parse Error" build/export_launcher.log; then
   echo "== EXPORT DU LANCEUR ECHEC (voir build/export_launcher.log)"; exit 1
 fi
+# Ancien nom : les lanceurs publiés avant le changement de nom cherchent ce fichier.
+cp "$LEXE" build/CallOfClaudeZombie-Launcher.exe
 sed -n 's/^const LAUNCHER_VERSION := \([0-9]*\).*/\1/p' launcher/scripts/version.gd > build/launcher_version.txt
 
 echo "== vérification du build (scénario boot)"
@@ -86,11 +88,11 @@ RANGE=${PREV:+$PREV..}HEAD
     echo
   done
   echo "---"
-  echo "Le plus simple : télécharger \`CallOfClaudeZombie-Launcher.exe\` et le lancer : il installe"
+  echo "Le plus simple : télécharger \`ClaudeOfDutyZombie-Launcher.exe\` et le lancer : il installe"
   echo "et met à jour le jeu tout seul, et permet de choisir la version. Sinon, télécharger"
-  echo "\`CallOfClaudeZombie-$TAG.exe\` ci-dessous et le lancer (Windows 64 bits, aucune installation)."
+  echo "\`ClaudeOfDutyZombie-$TAG.exe\` ci-dessous et le lancer (Windows 64 bits, aucune installation)."
   echo "Multijoueur : même version pour tous les joueurs, port UDP 7777."
 } > "$NOTES"
-"$GH" release create "$TAG" "$VEXE" "$LEXE" build/launcher_version.txt --target "$(git rev-parse HEAD)" \
+"$GH" release create "$TAG" "$VEXE" "$LEXE" build/CallOfClaudeZombie-Launcher.exe build/launcher_version.txt --target "$(git rev-parse HEAD)" \
   --title "$TAG — $SUBJECT" --notes-file "$NOTES" --latest || { echo "== PUBLICATION ECHEC"; exit 1; }
 echo "== release publiée : $TAG"

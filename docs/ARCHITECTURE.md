@@ -1,4 +1,4 @@
-# Architecture — Call of Claude Zombie
+# Architecture — Claude of Duty Zombie
 
 Moteur : **Godot 4.7** (GDScript, rendu Forward+). Cible : GTX 1050 à 60 FPS en 1080p.
 
