@@ -20,6 +20,9 @@ var power_door := false
 var link_id := ""
 ## Rideau de scène (velours, ouvert par le courant).
 var curtain := false
+## Tas de débris à dégager (BO1) au lieu d'une porte : planches et gravats
+## qui s'enfoncent et disparaissent à l'achat.
+var debris := false
 var cost := 0
 var is_open := false
 ## Zones reliées par la porte.
@@ -53,21 +56,25 @@ func setup_marker(m: MapMarker) -> void:
 	power_door = bool(m.data.get("power", false))
 	link_id = String(m.data.get("link", ""))
 	curtain = bool(m.data.get("curtain", false))
+	debris = bool(m.data.get("debris", false))
 
 
 func _ready() -> void:
 	_slab = Node3D.new()
 	_slab.name = "Slab"
 	add_child(_slab)
-	var slab := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = _size
-	slab.mesh = bm
-	slab.material_override = WorldLook.surface("velvet" if curtain else "door")
-	slab.position.y = _size.y * 0.5
-	_slab.add_child(slab)
-	if not power_door:
-		_decorate()
+	if debris:
+		_build_debris()
+	else:
+		var slab := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = _size
+		slab.mesh = bm
+		slab.material_override = WorldLook.surface("velvet" if curtain else "door")
+		slab.position.y = _size.y * 0.5
+		_slab.add_child(slab)
+		if not power_door:
+			_decorate()
 	_build_body()
 	if power_door and multiplayer.is_server() and Game.instance:
 		Game.instance.power_changed.connect(func(on: bool):
@@ -117,6 +124,38 @@ func _decorate() -> void:
 		_signs.append(sign)
 
 
+## Tas de débris (planches, gravats, poutre) qui bouche le passage, de
+## l'aspect déterministe (même tas sur toutes les machines).
+func _build_debris() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("debris_" + door_id)
+	var w := _size.x
+	var h := _size.y
+	for i in 14:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		var plank := i % 3 != 0
+		var s := rng.randf_range(0.35, 0.75)
+		bm.size = Vector3(rng.randf_range(0.9, w * 0.8), 0.07, 0.22) if plank else Vector3(s, s * 0.7, s)
+		mi.mesh = bm
+		mi.material_override = WorldLook.surface("wood" if plank else "concrete")
+		# Tas plus haut au milieu, plus bas sur les bords.
+		var x := rng.randf_range(-0.5, 0.5) * (w - 0.4)
+		var top := h * (0.95 - absf(x) / w)
+		mi.position = Vector3(x, rng.randf_range(0.15, maxf(top, 0.3)), rng.randf_range(-0.3, 0.3))
+		mi.rotation = Vector3(rng.randf_range(-0.5, 0.5), rng.randf_range(-0.6, 0.6), rng.randf_range(-0.9, 0.9) if plank else rng.randf_range(-0.3, 0.3))
+		_slab.add_child(mi)
+	# Poutre en travers, du sol au haut de l'ouverture.
+	var beam := MeshInstance3D.new()
+	var bb := BoxMesh.new()
+	bb.size = Vector3(0.2, h * 1.05, 0.2)
+	beam.mesh = bb
+	beam.material_override = WorldLook.surface("wood")
+	beam.position = Vector3(w * 0.15, h * 0.48, 0.05)
+	beam.rotation.z = 0.55
+	_slab.add_child(beam)
+
+
 func _build_body() -> void:
 	_body = StaticBody3D.new()
 	_body.collision_layer = 1
@@ -145,6 +184,8 @@ func prompt(pid: int) -> String:
 	if p and zones.size() == 2:
 		var here := game.layout.zone_at(p.global_position)
 		label = game.map_def.zone_display_name(zones[1] if zones[0] == here else zones[0])
+	if debris:
+		return "[F] Dégager les débris %s" % Interactable.cost_text(cost)
 	if label == "":
 		return "[F] Ouvrir la porte %s" % Interactable.cost_text(cost)
 	return "[F] Ouvrir : %s %s" % [label, Interactable.cost_text(cost)]
@@ -192,7 +233,8 @@ func set_open(open: bool, animate := true) -> void:
 		return
 	is_open = open
 	(_body.get_child(0) as CollisionShape3D).set_deferred("disabled", open)
-	var target_y := _size.y - 0.1 if open else 0.0
+	# Porte : monte dans le linteau ; débris : s'enfoncent sous le sol.
+	var target_y := (-(_size.y + 0.3) if debris else _size.y - 0.1) if open else 0.0
 	if animate:
 		Audio.play_3d("door_open", global_position + Vector3.UP * 1.5, 0.0, 0.05)
 		var tw := create_tween()

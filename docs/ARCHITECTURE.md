@@ -226,7 +226,7 @@ précédent.
   dans `map_def.gd`, `GridMapLayout` : BUNKER K-7, `test_arena`) et **maillage
   à plusieurs niveaux** (`create_layout` surchargé, `MeshMapLayout` : KINO,
   `test_levels`). Enregistrement : `Game.MAP_SCRIPTS` (`bunker_k7`, `kino`,
-  `test_arena`, `test_levels`) ; cartes proposées dans les menus :
+  `test_arena`, `test_levels`, `draft_arena`) ; cartes proposées dans les menus :
   `Game.MENU_MAPS` (`bunker_k7`, `kino`). Choix : écran `map_select` (SOLO,
   plan « dossier » dessiné par `MapPreview` depuis la grille ou depuis les
   contours des salles de la description en maillage), ligne CARTE du salon
@@ -241,6 +241,16 @@ précédent.
   Plusieurs pièges sur une grille : chaque levier H commande le bloc de cases
   E le plus proche ; sur une carte en maillage, chaque piège a son volume et
   ses deux leviers.
+- **Cartes dessinées** (`docs/MAP_AUTHORING.md`) : la façon recommandée de
+  concevoir une nouvelle carte. Un PNG par étage (1 pixel = 0,5 m, une couleur
+  de `tools/maps/legende.json` par élément) + `carte.txt` (étages, noms des
+  zones, prix des portes par paire de zones) ; `sh tools/maps/build_map.sh
+  <carte.txt>` valide le dessin (`MapDrawing` : erreurs pointées en pixels,
+  indicateurs d'amusement BO1), écrit le `layout.json` en maillage
+  (`MapDrawingExport`), lance `mesh_map.py` et l'import. Côté jeu :
+  `DrawnMapDef` (réglages lus dans la section `map_def` de la description) ;
+  exemple hors menus `draft_arena` (scénario `draft_arena`, tests
+  `test_map_drawing.gd`). Portes `debris` : tas de gravats qui s'enfonce à l'achat.
 - **`MapLayout`** (`scripts/game/map/map_layout.gd`) : la géométrie vue par les
   systèmes de jeu, indépendante de la façon dont la carte est décrite. Elle
   fournit les zones (`zone_at(Vector3)`), la navigation (`nav`, serveur), les

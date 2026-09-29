@@ -96,6 +96,8 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
 ## Développement
 
 - Architecture et conventions : `docs/ARCHITECTURE.md`.
+- Concevoir une carte en la dessinant (PNG + légende, validation, 3D) :
+  `docs/MAP_AUTHORING.md` ; `sh tools/maps/build_map.sh <carte.txt>`.
 - `sh tools/check.sh` : import, compilation de tous les scripts, tests unitaires,
   test réseau, tous les scénarios automatisés et tous les tests multijoueur.
   **Doit passer avant chaque commit.** Tout tourne dans un pool de tâches

@@ -1,0 +1,32 @@
+# Carte dessinée DRAFT ARENA (preuve de concept de docs/MAP_AUTHORING.md).
+# Conversion : sh tools/maps/build_map.sh assets/maps/draft_arena/dessin/carte.txt
+id = draft_arena
+nom = DRAFT ARENA
+description = Carte d'essai dessinée : salle des machines, couloir de service, entrepôt à double hauteur et sa passerelle.
+musique = ambience_bunker
+
+# Une image par étage (1 case = 0,5 m) : sol de l'étage, plafond du dernier.
+etage 0 = etage0.png, sol 0
+etage 1 = etage1.png, sol 3.5, plafond 6.8
+
+zone A = Salle des machines
+zone B = Couloir de service
+zone C = Entrepôt
+zone D = Atelier
+zone E = Passerelle
+
+# Prix des portes et débris, par paire de zones (BO1 : 750, puis 1000, 1250...).
+porte A-B = 750
+porte B-C = 1000
+porte A-D = 1250
+
+# Matériaux (clés de WorldLook.SURFACES), facultatifs.
+sol A = concrete_dark
+murs A = wall_concrete
+sol B = tiles
+murs B = wall_green
+sol C = concrete
+murs C = brick
+sol D = wood
+murs D = wall_rust
+sol E = wood
