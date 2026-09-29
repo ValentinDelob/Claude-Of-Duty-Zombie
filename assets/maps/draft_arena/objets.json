@@ -1,0 +1,15 @@
+{
+ "objets": [
+  {"id":"x1","type":"pilier","etage":0,"rect":[9.0,9.5,11.5,12.0]},
+  {"id":"x2","type":"escalier","etage":0,"rect":[2.5,9.5,5.0,16.0],"monte":"n"},
+  {"id":"s1","type":"depart","etage":0,"position":[12.0,26.0]},
+  {"id":"a1","type":"atout","atout":"lazarus","etage":0,"position":[14.0,21.5],"mur":"n"},
+  {"id":"a2","type":"atout","atout":"titan","etage":0,"position":[17.0,14.0],"mur":"e"},
+  {"id":"w1","type":"arme","arme":"m14","etage":0,"position":[13.25,33.0],"mur":"s"},
+  {"id":"w2","type":"arme","arme":"mp5k","etage":0,"position":[20.5,12.25],"mur":"e"},
+  {"id":"b1","type":"boite","etage":0,"position":[6.75,17.0],"mur":"s","depart":false},
+  {"id":"b2","type":"boite","etage":0,"position":[20.5,29.25],"mur":"e","depart":true},
+  {"id":"b3","type":"boite","etage":1,"position":[3.75,4.5],"mur":"n","depart":false},
+  {"id":"c1","type":"courant","etage":1,"position":[2.5,7.5],"mur":"o"}
+ ]
+}

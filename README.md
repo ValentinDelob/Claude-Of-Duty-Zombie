@@ -42,6 +42,12 @@ manche 12). Grenades à fragmentation ([G] : 2 au départ, +2 par manche, 4 au
 plus, achat mural à 250) et SINGE-TAMBOUR ([Q], boîte mystère) qui attire
 tous les zombies avant d'exploser. Arme merveille TONNERRE-7 (boîte mystère, rare, une seule dans la partie) : onde de choc qui projette et tue tous les zombies devant soi.
 
+**CARTES PERSO** — faites avec l'**ÉDITEUR DE CARTES** du menu principal
+(pièces vues de dessus, portes entre pièces collées, fenêtres, atouts, armes,
+boîte... posés depuis un inventaire façon Minecraft, vérification façon BO1,
+bouton TESTER) ; les cartes jouables apparaissent dans l'écran SOLO. Voir
+[docs/MAP_AUTHORING.md](docs/MAP_AUTHORING.md).
+
 ## Lancer le jeu
 
 1. Installer Godot 4.7.2 standard (ex. `winget install GodotEngine.GodotEngine`).
@@ -122,8 +128,13 @@ Chaque réglage s'applique tout de suite et est enregistré.
 ## Développement
 
 - Architecture et conventions : `docs/ARCHITECTURE.md`.
-- Concevoir une carte en la dessinant (PNG + légende, validation, 3D) :
-  `docs/MAP_AUTHORING.md` ; `sh tools/maps/build_map.sh <carte.txt>`.
+- Concevoir une carte avec l'**éditeur de cartes** (menu principal > ÉDITEUR
+  DE CARTES, ou `godot --path . res://scenes/editor/map_editor.tscn`, ou
+  `tools/map_editor.bat`) : pièces vues de dessus, inventaire façon Minecraft,
+  vérification façon BO1, bouton TESTER ; cinq JSON lisibles dans
+  `user://maps/<id>/` ou une archive .zip. Voir `docs/MAP_AUTHORING.md`.
+  Vérifier une carte sans fenêtre :
+  `godot --headless --path . res://scenes/editor/map_editor.tscn -- --check=<dossier>`.
 - `sh tools/check.sh` : import, compilation de tous les scripts, tests unitaires,
   test réseau, tous les scénarios automatisés et tous les tests multijoueur.
   **Doit passer avant chaque commit.** Tout tourne dans un pool de tâches

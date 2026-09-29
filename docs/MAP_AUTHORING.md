@@ -1,410 +1,398 @@
-# Concevoir une carte en la dessinant
+# Concevoir une carte : l'éditeur de cartes
 
-But : pouvoir concevoir une carte **simplement, sans bug et amusante** avant de
-la construire dans le jeu. Ce document compare les façons de décrire une carte,
-justifie la méthode retenue, en donne le format exact (légende, échelle, règles,
-propriétés), les outils, le validateur et ses indicateurs « façon BO1 », puis
-un guide pas à pas. Preuve de concept : la carte d'essai **DRAFT ARENA**
-(`--map=draft_arena`, hors menus), dessinée, convertie, construite et testée
-par cette méthode.
+But : concevoir une carte **simplement, sans bug et amusante**, puis la jouer
+aussitôt. L'**éditeur de cartes** est une scène du jeu (menu principal >
+ÉDITEUR DE CARTES) : on y dessine les pièces vues de dessus, on pose portes,
+fenêtres, atouts, armes, boîte… depuis un inventaire façon Minecraft, un
+validateur vérifie la carte avec des règles « façon BO1 », et le bouton
+**TESTER** lance une partie solo dessus. La carte est enregistrée en cinq
+fichiers JSON lisibles et écrivables à la main (un outil peut aussi les
+écrire), exportables en archive `.zip`.
 
-**En bref : un dessin PNG par étage (une case = 0,5 m, une couleur par type
-d'élément, peint dans n'importe quel logiciel, même Paint) + un petit fichier
-texte `carte.txt` (nom, étages, noms des zones, prix des portes). Une commande
-valide le tout (erreurs pointées dans le dessin, indicateurs d'amusement),
-écrit la description `layout.json` au format actuel de `MeshMapLayout`, et
-Blender construit la géométrie 3D.**
+Preuve : la carte d'essai **DRAFT ARENA** (`assets/maps/draft_arena/`, hors
+menus, `--map=draft_arena`) est faite dans ce format et se joue (scénarios
+`draft_arena` et `map_editor_play`).
 
-![Dessin de DRAFT ARENA, rez-de-chaussée](map_authoring/draft_arena_etage0.png)
-![Étage (passerelle, trémie)](map_authoring/draft_arena_etage1.png)
+![L'éditeur : trois pièces, portes, fenêtres, objets, onglet Vérification](map_authoring/editeur.png)
+![L'inventaire (touche E), catégorie Ouvertures](map_authoring/inventaire.png)
+![DRAFT ARENA dans l'éditeur (rez-de-chaussée)](map_authoring/draft_arena_editeur.png)
+![DRAFT ARENA, étage : passerelle au-dessus de l'entrepôt à double hauteur](map_authoring/draft_arena_etage1.png)
 ![En jeu : la passerelle au-dessus de l'entrepôt](map_authoring/jeu_passerelle.png)
 
 ---
 
-## 1. Comparaison des méthodes
+## 1. Lancer l'éditeur
 
-Ce qui existe déjà dans le projet : les cartes **grille ASCII** (BUNKER K-7,
-test_arena : `MapData`, un caractère par case, une seule hauteur) et les cartes
-**en maillage à étages** (KINO, test_levels : `layout.json` écrit à la main ou
-par un script Python, `tools/blender/kino/make_layout.py`, construit par
-`tools/blender/mesh_map.py`). KINO a montré les pièges d'une description à la
-main : murs parasites qui coupent une salle, salle close sans ses murs, objets
-muraux du mauvais côté, zones inaccessibles, fenêtres qui ne mènent nulle part,
-apparitions sur des îlots du navmesh, portes mal orientées, escaliers bloqués.
-Tous viennent du même défaut : **on écrit des coordonnées sans voir le plan**,
-et rien ne vérifie la carte avant de la jouer.
+- Depuis le jeu : menu principal > **ÉDITEUR DE CARTES** (aussi dans le `.exe`).
+- Directement : `godot --path . res://scenes/editor/map_editor.tscn`, ou
+  double-clic sur `tools/map_editor.bat` (Godot dans le PATH, ou `set GODOT=…`).
+- Vérifier une carte sans fenêtre (outil, intégration) :
+  `godot --headless --path . res://scenes/editor/map_editor.tscn -- --check=<dossier ou archive.zip>`
+  affiche le rapport du validateur ; code de sortie 0 si la carte est jouable.
 
-Méthodes évaluées :
+Au démarrage, l'éditeur rouvre la dernière carte ; s'il reste une sauvegarde
+automatique non enregistrée, il propose de la reprendre.
 
-- **(a) Image PNG à légende de couleurs** (l'idée de départ) : chaque pixel est
-  une case ; sa couleur dit ce qu'elle est (mur, sol de telle zone, porte,
-  fenêtre, atout…). N'importe quel logiciel : Paint (déjà dans Windows),
-  Paint.NET, GIMP, Krita, LibreSprite, Aseprite, Piskel (en ligne).
-- **(b) Éditeur de niveaux 2D libre** :
-  - **Tiled** (<https://www.mapeditor.org>, éditeur sous GPL‑2.0, bibliothèque
-    libtiled sous BSD ; installeur de quelques dizaines de Mo). Formats TMX (XML) et
-    JSON (`.tmj`). Calques de tuiles, calques d'objets (rectangles, points,
-    polygones), groupes de calques (un par étage), **propriétés typées** sur
-    chaque objet (chaîne, entier, réel, booléen, couleur, fichier, objet, classes
-    personnalisées) : un objet « porte » peut porter `cost = 750`, un objet
-    « atout » `perk = titan`.
-  - **LDtk** (<https://ldtk.io>, licence MIT, par l'auteur des niveaux de Dead
-    Cells ; application à installer). Format `.ldtk` (JSON). Calques
-    **IntGrid** (une grille d'entiers colorés : exactement notre légende),
-    calques d'**entités** à champs typés (entier, réel, texte, énumération,
-    couleur, point, référence à une autre entité, tableaux), règles
-    d'« auto-calque », plusieurs niveaux dans un monde (avec une profondeur
-    pour empiler des étages).
-- **(c) Dessin vectoriel SVG** (Inkscape, <https://inkscape.org>, GPL) : formes
-  exactes, identifiants et attributs posés dans l'éditeur XML ; il faut lire
-  des chemins SVG (transformations, courbes, unités) : gros convertisseur, et
-  les attributs sont peu accessibles à un non-programmeur.
-- **(d) Éditeur intégré à Godot** (greffon ou scène : `TileMapLayer` avec des
-  couches de données personnalisées, `GridMap`, script `@tool`) : aperçu 3D
-  immédiat, rien à installer de plus, mais il faut ouvrir l'éditeur Godot,
-  écrire et maintenir un greffon, et les `.tscn` se lisent mal dans un diff.
-- **(e) Description texte** (ASCII étendu comme BUNKER K-7, ou JSON écrit à la
-  main comme test_levels) : diffs parfaits, aucun outil, mais les
-  métadonnées vivent ailleurs que la case (tables de correspondance), les
-  étages et les hauteurs sont pénibles, et on ne « voit » pas le plan.
+## 2. L'écran
 
-| Critère | (a) PNG + légende | (b) Tiled / LDtk | (c) SVG Inkscape | (d) Godot | (e) Texte / JSON |
-|---|---|---|---|---|---|
-| Simplicité pour un non-programmeur | ★★★ Paint suffit | ★★ outil à apprendre | ★ XML à la main | ★ éditeur de jeu | ★ syntaxe |
-| Rapidité d'itération | ★★★ peindre, relancer | ★★★ | ★★ | ★★ | ★★ |
-| Étages, hauteurs | ★★ une image par étage, trémies | ★★★ calques / niveaux | ★ | ★★★ | ★ |
-| Métadonnées (prix, types, zones) | ★★ couleur = type ; le reste dans `carte.txt` | ★★★ champs typés | ★★ attributs | ★★★ | ★★ tables séparées |
-| Risque d'erreur | ★★ (lissage des pinceaux : refusé par le validateur) | ★★★ | ★ | ★★ | ★ |
-| Validation automatique | ★★★ grille = simple à vérifier | ★★★ | ★ géométrie libre | ★★ | ★★ |
-| Rendu 3D fidèle | ★★★ même chaîne `mesh_map.py` | ★★★ | ★★ | ★★★ | ★★★ |
-| Diffs git lisibles | ★ image binaire (mais `layout.json` et `rapport.txt` générés, eux, se lisent) | ★★★ JSON | ★★ | ★ | ★★★ |
-| Coût d'outillage | ★★★ rien à installer ; ~1 500 lignes | ★★ installer l'éditeur ; convertisseur de son JSON | ★ | ★ greffon | ★★★ déjà là |
-
-**Recommandation : (a) hybride — un PNG par étage + un fichier texte de
-propriétés.** Raisons :
-
-1. **On voit le plan et on le modifie en quelques clics**, dans le logiciel que
-   l'on connaît ; ce que l'on peint est ce que l'on obtient (une case = une
-   case du jeu). C'était l'idée de l'utilisateur, et elle tient.
-2. **Tout ce qui a un emplacement est une couleur** (mur, zone, porte, fenêtre,
-   chaque atout, chaque arme au mur, boîte…) : aucun lien caché entre le dessin
-   et un tableau. Le peu qui n'a pas d'emplacement (nom de la carte, hauteurs
-   d'étage, noms des zones, prix des portes par paire de zones) tient dans
-   `carte.txt`, lisible et diffable.
-3. **La grille rend la validation simple et sûre** : chaque piège de KINO devient
-   une règle vérifiée case par case (§4), avec la position fautive en pixels,
-   comme on la lit dans la barre d'état du logiciel de dessin.
-4. **Rien de nouveau côté jeu** : la sortie est le `layout.json` déjà lu par
-   `MeshMapLayout` et construit par `mesh_map.py` (salles, blocs, garde-corps,
-   escaliers à rampe, zones, marqueurs).
-5. **Zéro installation** ; l'image binaire est le seul défaut (diff illisible),
-   compensé par le `layout.json` généré (une ligne par salle, bloc ou objet) et
-   par `rapport.txt`, versionnés, qui montrent ce qui a changé.
-
-LDtk est la meilleure alternative (IntGrid = notre légende, entités typées = nos
-objets) et Tiled la plus répandue ; elles ne sont **pas retenues** parce qu'il
-faut les installer et les apprendre pour un gain faible sur des cartes BO1
-(plans orthogonaux, objets posés contre les murs). Le cœur du convertisseur
-travaille sur une grille de clés de légende : lire un calque IntGrid de LDtk ou
-un calque de tuiles de Tiled au lieu d'un PNG serait un petit ajout si le
-besoin s'en faisait sentir (§8).
-
----
-
-## 2. Format
-
-### Échelle et repères
-- **1 case (pixel) = 0,5 m** (`tools/maps/legende.json`, `echelle`). Nord en haut
-  de l'image. Case (x, y) de l'image -> monde Godot x = 4 + 0,5·x, z = 4 + 0,5·y
-  (le décalage de 4 m garde x, z ≥ 0 pour `NetCodec` et laisse la place des
-  cours derrière les fenêtres du bord).
-- **Tailles BO1** en cases : couloir 4 à 8 (2 à 4 m ; couloir hall-théâtre de
-  Kino : 4 m), salle 20 à 40 (10 à 20 m), mur 1 (0,5 m ; 0,4 m à Kino), porte 3
-  à 6 (1,5 à 3 m), fenêtre 2 (1 m), escalier 3 à 5 de large (1,5 à 2,5 m) et
-  9 à 12 de long pour un étage de 3,5 m (30 à 38°).
-- Hauteurs : sol de chaque étage dans `carte.txt` ; les salles d'un étage ont
-  leur plafond sous la **dalle de 0,3 m** de l'étage du dessus ; seul le dernier
-  étage déclare son plafond. Portes : 2,5 m ; fenêtres : allège 0,95 m et
-  linteau 2,35 m (ceux des barricades du jeu).
-
-### Légende
-Image prête à l'emploi (carrés aux couleurs **exactes**, à prendre à la
-pipette) : [`map_authoring/legende.png`](map_authoring/legende.png), aussi dans
-le modèle `tools/maps/modele/`. Source unique : `tools/maps/legende.json`
-(l'image est rendue par `sh tools/blender.sh tools/maps/legend.py <png>`). Une
-couleur à moins de 30 (distance RVB) de celle de la légende est acceptée ; deux
-couleurs de la légende sont à 85 au moins l'une de l'autre, donc jamais confondues.
-
-![Légende](map_authoring/legende.png)
-
-| Élément | RVB | Hex | Règle |
-|---|---|---|---|
-| Vide / dehors | 255, 255, 255 | `#FFFFFF` | Rien (ou transparent). Derrière une fenêtre : la cour des zombies. |
-| Mur | 0, 0, 0 | `#000000` | Mur plein de 0,5 m, du sol au plafond de l'étage. |
-| Trémie (vide sur l'étage du dessous) | 85, 85, 85 | `#555555` | À l'étage : trou vers la salle du dessous (double hauteur, dessus d'escalier). Garde-corps automatiques. |
-| Escalier | 255, 0, 255 | `#FF00FF` | Rectangle sur l'étage du BAS, monte vers le plancher de l'étage du dessus. |
-| Porte payante | 255, 170, 0 | `#FFAA00` | Dans un mur, entre deux zones. Prix : « porte A-B = 750 ». |
-| Débris à dégager | 170, 85, 0 | `#AA5500` | Comme une porte (prix « porte A-B »), en tas de gravats. |
-| Fenêtre à barricades | 0, 85, 255 | `#0055FF` | 2 cases dans un mur extérieur ; les zombies arrivent du vide derrière. |
-| Sol zone A (départ) | 255, 255, 170 | `#FFFFAA` | Sol de la zone A : la zone de départ des joueurs. |
-| Sol zone B | 170, 255, 255 | `#AAFFFF` | Sol d'une zone ouverte par une porte. |
-| Sol zone C | 170, 255, 170 | `#AAFFAA` | Sol d'une zone. |
-| Sol zone D | 255, 170, 255 | `#FFAAFF` | Sol d'une zone. |
-| Sol zone E | 255, 170, 170 | `#FFAAAA` | Sol d'une zone. |
-| Sol zone F | 170, 170, 255 | `#AAAAFF` | Sol d'une zone. |
-| Sol zone G | 170, 170, 170 | `#AAAAAA` | Sol d'une zone. |
-| Sol zone H | 255, 255, 85 | `#FFFF55` | Sol d'une zone. |
-| Départ des joueurs | 0, 255, 0 | `#00FF00` | Sur le sol de la zone A (1 carré : 4 joueurs autour). |
-| Zombie qui sort du sol | 85, 0, 0 | `#550000` | Apparition au sol (facultatif), en plus des fenêtres. |
-| Zone de piège électrique | 255, 85, 85 | `#FF5555` | Rectangle au sol ; au moins un levier à moins de 10 m. |
-| Téléporteur (plateforme) | 0, 255, 255 | `#00FFFF` | Au sol ; envoie vers « arrivée du téléporteur ». |
-| Arrivée du téléporteur | 0, 170, 170 | `#00AAAA` | Au sol, souvent dans une salle close (Pack-a-Punch). |
-| Emplacement de boîte mystère | 255, 255, 0 | `#FFFF00` | Contre un mur ; il faut 2 m de mur libre. |
-| Boîte mystère (départ) | 170, 170, 0 | `#AAAA00` | L'emplacement où la boîte commence (sinon : au hasard). |
-| Interrupteur du courant | 255, 0, 0 | `#FF0000` | Contre un mur ; un seul. |
-| Pack-a-Punch | 85, 0, 255 | `#5500FF` | Contre un mur ; marche avec le courant. |
-| Poste central du téléporteur | 0, 85, 85 | `#005555` | À relier avant chaque voyage (Kino) ; facultatif. |
-| Levier de piège | 170, 0, 0 | `#AA0000` | Contre un mur, près de sa zone de piège (1 ou 2 leviers). |
-| Achat de grenades | 85, 85, 0 | `#555500` | Contre un mur (250 points). |
-| Atout TITAN BREW (vie) | 170, 0, 85 | `#AA0055` | Distributeur contre un mur (rôle du Juggernog). |
-| Atout LAZARUS TONIC (réanimation) | 0, 170, 255 | `#00AAFF` | Rôle du Quick Revive ; d'habitude dans la zone de départ. |
-| Atout RAPID FIZZ (rechargement) | 0, 170, 0 | `#00AA00` | Rôle du Speed Cola. |
-| Atout TWIN SHOT (cadence) | 255, 85, 0 | `#FF5500` | Rôle du Double Tap. |
-| Atout STRIDE SODA (course) | 170, 0, 255 | `#AA00FF` | Rôle du Stamin-Up. |
-| Atout NOVA FLOP (plongeon) | 85, 0, 170 | `#5500AA` | Rôle du PhD Flopper. |
-| Atout DEADEYE DRAM (visée) | 170, 170, 85 | `#AAAA55` | Rôle du Deadshot Daiquiri. |
-| Arme au mur : Olympia (500) | 85, 0, 85 | `#550055` | Dessin à la craie sur le mur. |
-| Arme au mur : M14 (500) | 0, 0, 170 | `#0000AA` | Dessin à la craie sur le mur. |
-| Arme au mur : MPL (1000) | 0, 85, 0 | `#005500` | Dessin à la craie sur le mur. |
-| Arme au mur : MP5K (1000) | 0, 0, 85 | `#000055` | Dessin à la craie sur le mur. |
-| Arme au mur : PM63 (1000) | 85, 170, 0 | `#55AA00` | Dessin à la craie sur le mur. |
-| Arme au mur : MP40 (1000) | 85, 85, 255 | `#5555FF` | Dessin à la craie sur le mur. |
-| Arme au mur : AK74u (1200) | 85, 85, 170 | `#5555AA` | Dessin à la craie sur le mur. |
-| Arme au mur : M16 (1200) | 0, 85, 170 | `#0055AA` | Dessin à la craie sur le mur. |
-| Arme au mur : Stakeout (1500) | 170, 85, 85 | `#AA5555` | Dessin à la craie sur le mur. |
-| Couteau de chasse (3000) | 170, 85, 170 | `#AA55AA` | Au mur. |
-
-### Règles de dessin
-- **Outil crayon, sans lissage** (pas de pinceau adouci, pas de flou, pas de
-  redimensionnement) : une couleur inconnue est refusée avec sa position et la
-  couleur de la légende la plus proche.
-- **Une zone = une couleur de sol.** Deux salles de même couleur reliées par une
-  ouverture sans porte forment une seule zone ; deux zones de couleurs
-  différentes qui se touchent sans mur sont « ouvertes l'une sur l'autre »
-  (activées ensemble, comme la mezzanine de test_levels). La zone de départ est
-  toujours **A** (le jeu ouvre la zone « a » au début).
-- **Tout sol est fermé** : entre un sol et le vide, il faut un mur (ou une
-  fenêtre, qui se pose *dans* le mur).
-- **Porte / débris** : un rectangle posé à la place du mur, mur aux deux bouts,
-  sol d'une zone d'un côté et d'une **autre** zone de l'autre ; 2 cases au moins
-  de large (3 conseillées). Sens et largeur sont lus dans le dessin : une porte
-  ne peut pas être « mal orientée ».
-- **Fenêtre** : 2 cases dans un mur de 1 case, sol d'une zone à l'intérieur,
-  vide dehors, et 2,5 × 3 m de vide libre derrière (le convertisseur y construit
-  la cour à trois murs où les zombies apparaissent).
-- **Marqueur = petit carré** (1 ou 2 cases) posé sur le sol. **Objet mural** :
-  carré collé contre le mur visé (le côté est déduit du mur touché ; dans un
-  angle, décalez-le d'une case) ; il faut du mur derrière toute sa largeur et du
-  sol libre devant (boîte : 4 × 2 cases ; atout, Pack-a-Punch : 3 × 2 ; arme :
-  2 × 1). Deux objets ne se chevauchent pas.
-- **Départ** : un carré vert dans la zone A, à 1 m au moins des murs ; les
-  4 joueurs se placent autour et regardent vers le milieu de la zone.
-- **Étages** : une image par étage, **même taille**, superposables. À l'étage,
-  ce qui est au-dessus d'une salle à double hauteur ou d'un escalier est peint
-  en **trémie** ; le plancher d'étage qui borde une trémie reçoit un garde-corps
-  (sauf en haut de l'escalier) ; la trémie doit être entourée de murs d'étage
-  (ou de plancher). Le blanc au-dessus d'une salle = un plafond normal.
-- **Escalier** : rectangle magenta sur l'étage du bas ; du sol à son pied d'un
-  côté court, du plancher de l'étage du dessus au bout opposé ; trémie au-dessus
-  de tout l'escalier ; 3 cases de large au moins, 40° au plus.
-
-### Propriétés : `carte.txt`
-Une ligne `clé = valeur` par propriété, `#` pour les commentaires (modèle
-commenté : `tools/maps/modele/carte.txt`).
-
-```text
-id = draft_arena                       # dossier assets/maps/<id>/, --map=<id>
-nom = DRAFT ARENA
-description = Une phrase pour l'écran de sélection.
-musique = ambience_bunker
-etage 0 = etage0.png, sol 0            # sol de l'étage (m)
-etage 1 = etage1.png, sol 3.5, plafond 6.8   # le dernier donne son plafond
-zone A = Salle des machines            # noms affichés sur les portes
-porte A-B = 750                        # prix par paire de zones
-porte A-D = 1250                       # (vaut pour les débris aussi)
-porte C-E = courant                    # ouverte par le courant
-porte B-F = 1250 liées                 # un achat ouvre toutes les portes B-F
-sol A = concrete_dark                  # matériaux (clés de WorldLook.SURFACES)
-murs A = wall_concrete
-hauteur des portes = 2.5
-```
-
----
-
-## 3. Outils et commandes
-
-| Fichier | Rôle |
+| Zone | Rôle |
 |---|---|
-| `tools/maps/legende.json` | Légende (clé, type, RVB, nom, règle) : source unique. |
-| `tools/maps/map_drawing.gd` | `MapDrawing` : lecture du dessin et de `carte.txt`, **validateur**, indicateurs d'amusement, rapport texte et images. |
-| `tools/maps/map_drawing_export.gd` | `MapDrawingExport` : dessin validé -> `layout.json` (format de `MeshMapLayout` / `mesh_map.py`). |
-| `tools/maps/draw2layout.gd` | Ligne de commande (Godot sans fenêtre, sans autoloads). |
-| `tools/maps/build_map.sh` | Tout en une commande : conversion, Blender, import. |
-| `tools/maps/legend.py` | Image de légende (Blender sans fenêtre). |
-| `tools/maps/modele/` | Modèle vide : `carte.txt` commenté, `etage0.png` blanc 80 × 60, `legende.png`. |
-| `scripts/game/map/drawn_map_def.gd` | `DrawnMapDef` : carte dessinée côté jeu (réglages lus dans la section `map_def` du `layout.json`). |
+| Barre du haut | **Fichier** (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, exporter / importer l'archive .zip, cartes récentes, retour au menu), **Édition** (annuler, rétablir, copier, coller, pivoter, supprimer, inventaire, recadrer), étage courant (◄ ►), **▶ TESTER**, état de la vérification. |
+| Vue de dessus | Grille de 1 m (traits forts tous les 5 m), règles graduées en mètres en haut et à gauche, coordonnées du curseur en bas à droite. |
+| Barre rapide | 9 cases au bas de la vue (touches 1 à 9, molette) : l'objet tenu. |
+| Inventaire | Touche **E** ou **Tab** : toutes les catégories ; cliquer un objet le met dans la case choisie, ou le glisser sur une case. |
+| Panneaux | **Propriétés** (élément choisi, sinon la carte), **Pièces**, **Zones**, **Étages**, **Vérification**. |
+| Barre d'état | Aide de l'outil, raison d'un refus, résultat des actions. |
 
-```sh
-# Conversion + validation + géométrie + import (la commande à retenir) :
-sh tools/maps/build_map.sh assets/maps/<id>/dessin/carte.txt
-# Seulement la validation et le layout.json (1 s) :
-godot --headless --path . -s res://tools/maps/draw2layout.gd -- assets/maps/<id>/dessin/carte.txt
-# Image blanche pour commencer :
-godot --headless --path . -s res://tools/maps/draw2layout.gd -- --vierge etage1.png 80 60
-# Légende :
-sh tools/blender.sh tools/maps/legend.py docs/map_authoring/legende.png
-```
+### Commandes
 
-Sorties : `assets/maps/<id>/layout.json` (généré, ne pas modifier à la main) et
-`<id>.glb` ; à côté du dessin, `rapport.txt` (versionné : son diff montre
-l'effet d'une retouche sur les indicateurs), `rapport_etageN.png` (dessin
-agrandi ×8, quadrillage tous les 5 m, erreurs entourées de rouge et
-avertissements d'orange) et `apercu_dessus.png` (vue de dessus rendue par
-Blender) — ces images sont ignorées par git.
+| Action | Commande |
+|---|---|
+| Poser / choisir | clic gauche |
+| Annuler le tracé, désélectionner | clic droit, Échap |
+| Zoom | Ctrl + molette (ou + / -) |
+| Déplacer la vue | clic milieu + glisser, ou Espace + glisser |
+| Aimantation | 1 m ; 0,5 m en maintenant Maj |
+| Case de la barre rapide | 1 à 9, molette |
+| Inventaire | E ou Tab |
+| Pivoter de 90° | R (une pièce pivote avec son contenu) |
+| Supprimer | Suppr (une pièce emporte ses objets et ses ouvertures) |
+| Copier / coller sous le curseur | Ctrl+C / Ctrl+V |
+| Annuler / rétablir (illimité) | Ctrl+Z / Ctrl+Y (ou Ctrl+Maj+Z) |
+| Enregistrer | Ctrl+S |
+| Étage du dessous / du dessus | Page préc. / Page suiv. |
+| Recadrer sur la carte | Origine |
+| Fermer un polygone | double-clic, clic sur le premier point, ou Entrée ; Retour arrière retire le dernier point |
 
-Déclarer la carte dans le jeu : un script de 3 lignes
-(`scripts/game/map/maps/<id>.gd` : `extends DrawnMapDef` et
-`_init_drawn("<id>")`) et une ligne dans `Game.MAP_SCRIPTS` ; l'ajouter à
-`Game.MENU_MAPS` la propose dans les menus.
+Outil **Sélection** (case 1) : clic sur un élément pour le choisir, glisser
+pour le déplacer (il reste accroché à son mur), **poignées** jaunes pour
+redimensionner (coins et milieux des côtés d'une pièce rectangle, sommets d'un
+polygone, coins d'un pilier, d'un escalier ou d'un piège, bouts d'un mur). Un
+élément devenu invalide (une fenêtre restée sur l'ancien mur d'une pièce
+agrandie…) est entouré de rouge avec la raison dans la barre d'état.
 
-Ce que produit le convertisseur, avec les conventions existantes de
-`mesh_map.py` : une salle (`rooms`) par rectangle de même zone et même plafond
-(dalles d'étage `floor_slab`, `no_ceiling` sous une dalle, plafond à double
-hauteur sous une trémie), les murs, allèges, linteaux de portes et de fenêtres
-en `blocks`, les garde-corps (`rails`), les escaliers (`stairs` : marches
-visibles et rampe de collision), les cours des fenêtres (salles `dehors_N` et
-leurs trois murs), les boîtes de zones (`zones`, `zone_order`, étages hauts
-d'abord), les marqueurs (objets muraux donnés par la face du mur et la direction
-du mur, portes avec lacet, largeur et profondeur, fenêtres avec leur apparition,
-lampes sur une grille de 6 m) et la section `map_def` (nom, zones, prix, zones
-ouvertes l'une sur l'autre, départ de la boîte).
+## 3. Ce que l'on pose (inventaire)
 
----
+Les catégories et leurs objets viennent des **bases de données du jeu**
+(`MapCatalog` lit `PerkDB`, `WeaponDB`, `KnifeDB`, `MysteryBox.COST`,
+`PackAPunch.COST`, `ElectricTrap.COST`…) : un atout ou une arme murale ajouté
+au jeu apparaît tout seul dans l'inventaire, avec son prix. Icônes dessinées
+par code (`MapIcons`).
 
-## 4. Le validateur
+| Catégorie | Objets | Pose |
+|---|---|---|
+| Construction | Sélection, Gomme, Pièce rectangle, Pièce polygone, Mur, Pilier / obstacle, Escalier | glisser (rectangle, mur, pilier, escalier), clics successifs (polygone) |
+| Ouvertures | Porte payante, Débris à dégager, Porte ouverte par le courant, Passage libre, Fenêtre à zombies | sur un mur (voir les règles) |
+| Atouts | un distributeur par atout du jeu | contre un mur |
+| Armes murales | chaque arme à prix mural, couteau de chasse, grenades | contre un mur |
+| Boîte mystère | emplacement, emplacement de départ | contre un mur |
+| Machines | Pack-a-Punch, interrupteur du courant, téléporteur, arrivée du téléporteur, poste central | contre un mur, ou au sol (téléporteur, arrivée) |
+| Pièges | zone de piège électrique, levier | zone : glisser au sol ; levier : contre un mur, à moins de 10 m |
+| Joueurs et apparitions | départ des joueurs, zombie qui sort du sol | au sol |
+| Décor et lumières | lampe, caisse, baril | au sol |
 
-La carte est **refusée** (aucun `layout.json` écrit) au moindre défaut ; chaque
-message donne la position dans le dessin (x, y en pixels, étage).
+### Règles imposées à la pose
 
-Erreurs (règles qui rendent impossibles les pièges rencontrés sur KINO) :
-- couleur inconnue (pinceau lissé, transparence partielle) ;
-- sol au bord du vide sans mur (**salle close sans ses murs**) ;
-- zone coupée en morceaux sans passage (**mur parasite qui coupe une salle**) ;
-- zone ou passage inaccessible depuis le départ, toutes portes ouvertes
-  (**zones inaccessibles, pièce close sans accès**) ;
-- porte hors d'un mur, entre deux morceaux de la même zone, côté bordé de deux
-  zones, sans prix, trop étroite (**portes mal orientées** : impossible, le sens
-  vient du dessin) ;
-- fenêtre qui ne donne pas sur le dehors, mauvaise taille, sans place pour la
-  cour des zombies (**fenêtres qui ne mènent nulle part**, **apparitions sur des
-  îlots** : chaque apparition est dans la cour de sa fenêtre) ;
-- zone sans fenêtre (sauf la salle d'arrivée du téléporteur) ;
-- départ hors de la zone A, collé à un mur, ou à moins de 7 m de toutes les
-  fenêtres de la zone A (le jeu n'y ferait apparaître aucun zombie :
-  `Spawner.MIN_PLAYER_DIST`) ;
-- objet mural qui ne touche pas de mur, dans un angle, sans la place devant ou
-  sans mur derrière (**objets muraux collés du mauvais côté** : impossible, le
-  côté vient du mur touché) ;
+L'aperçu est **vert** si l'élément peut être posé, **rouge** sinon, avec la
+raison à côté du curseur (`MapRules`) :
+
+- **Pièce** : contour simple (les côtés ne se croisent pas), 1,5 m de côté au
+  moins, x et y positifs ; deux pièces peuvent **se toucher, jamais se
+  recouvrir**. Ses murs sont générés sur son contour ; le bord commun de deux
+  pièces collées devient **un seul mur mitoyen**. Par défaut, chaque pièce a
+  sa propre zone.
+- **Porte payante, débris, porte ouverte par le courant, passage libre** :
+  seulement sur le **bord commun de deux pièces collées** du même étage (une
+  porte ne donne que sur une autre pièce) ; elle relie exactement ces deux
+  pièces. Mur droit (horizontal ou vertical), 0,5 m de mur plein à chaque
+  bout et entre deux ouvertures. Prix réglable ; par défaut ceux de BO1 : la
+  première 750, la deuxième 1000, les suivantes 1250. Largeur réglable (2 m par
+  défaut ; BO1 : 1,5 à 3 m). Le passage libre n'a pas de porte : les deux
+  zones sont « ouvertes l'une sur l'autre » (ou n'en font qu'une).
+- **Fenêtre à zombies** (barricade de 6 planches) : 1 m, sur un **mur
+  extérieur** d'une pièce (pas un mur commun, pas le bord d'une mezzanine), avec
+  2,5 × 3 m de vide dehors : le jeu y construit la cour où les zombies
+  apparaissent, derrière la fenêtre.
+- **Objets muraux** (atouts, armes, grenades, boîte, Pack-a-Punch, courant,
+  poste central, levier) : dans une pièce, accrochés au mur le plus proche,
+  **face vers l'intérieur** ; il faut du mur plein derrière (pas une ouverture)
+  et la place devant (boîte : 2 × 1 m ; atout, Pack-a-Punch : 1,5 × 1 m ;
+  arme : 1 × 0,5 m), sans chevaucher un autre objet.
+- **Objets au sol, pilier, escalier, zone de piège** : à l'intérieur d'une
+  pièce, sans toucher ses murs, sans chevauchement (les lampes, au plafond,
+  peuvent surplomber un objet). L'escalier monte à l'étage du dessus : il faut
+  un étage au-dessus.
+
+## 4. Pièces, zones, étages
+
+- **Pièce** (onglet Propriétés) : nom, zone, hauteur de plafond (sinon celle
+  de l'étage), **double hauteur** (ouverte sur l'étage du dessus : à l'étage,
+  son contour reste un mur et son intérieur est un vide ; ses piliers montent
+  jusqu'en haut). Une pièce posée à l'étage au-dessus d'une double hauteur est
+  une **mezzanine** : ses bords au-dessus du vide ont un garde-corps.
+- **Zone** (onglet Zones) : un groupe de pièces qui s'ouvre d'un coup (ses
+  fenêtres s'activent ensemble, comme les zones de BO1). Par défaut une zone
+  par pièce. Renommer en français et en anglais (noms affichés en jeu selon la
+  langue), matériaux du sol et des murs, **fusionner** (les pièces d'une zone
+  rejoignent une autre), **séparer** (une zone par pièce), **zone de départ**
+  (★, ouverte au début). Les pièces d'une même zone doivent être reliées par
+  un passage libre.
+- **Étage** (onglet Étages) : hauteur du sol, hauteur sous plafond ; ajouter un
+  étage au-dessus, supprimer le dernier s'il est vide ; l'étage du dessous
+  s'affiche en transparence (réglable), ses escaliers aussi. Entre deux sols :
+  3,1 m au moins (2,8 m sous plafond + dalle de 0,3 m). Un escalier dessiné
+  sur l'étage du bas **monte dans le sens du glisser** (du pied vers le haut) ;
+  le vide au-dessus des marches est automatique ; son haut doit arriver sur le
+  plancher d'une pièce de l'étage du dessus.
+
+## 5. Vérification (onglet Vérification)
+
+Le validateur (`MapValidator`, repris de l'ancien outil de cartes dessinées)
+tourne sur une **grille de 0,5 m** tirée de la carte (`MapRaster`, voir §7) :
+chaque message est en français et en anglais, avec sa position en mètres ;
+**cliquer un problème centre la vue dessus** et entoure ses cases. TESTER
+refuse une carte qui a des erreurs.
+
+Erreurs (la carte est refusée) :
+- sol au bord du vide sans mur, pièces qui se chevauchent ;
+- zone coupée en morceaux sans passage (ses pièces ne se touchent pas) ;
+- zone ou passage **inaccessible depuis le départ**, toutes portes ouvertes ;
+- porte hors d'un mur commun, entre deux pièces de la même zone, trop étroite ;
+- fenêtre qui ne donne pas dehors, sans place pour la cour des zombies ;
+- **zone sans fenêtre** (sauf l'arrivée du téléporteur) ;
+- départ hors de la zone de départ, collé à un mur, ou à moins de 7 m de toutes
+  les fenêtres de la zone de départ (le jeu n'y ferait apparaître aucun zombie) ;
+- objet mural qui ne touche pas de mur, sans la place devant, sans mur derrière ;
 - aucune boîte, deux « boîte (départ) », deux interrupteurs, deux distributeurs
   du même atout, téléporteur sans arrivée, levier sans piège à moins de 10 m,
   piège sans levier ;
-- passage de 0,5 m (trop étroit pour les zombies et les joueurs), en comptant
-  l'emprise des objets pleins (boîte, distributeurs) ;
-- escalier sans palier, sens ambigu, trop étroit, trop raide, recouvert par
-  l'étage du dessus ; trémie au rez-de-chaussée, au-dessus du vide ou ouverte
-  sur le vide (**escaliers bloqués**) ;
-- `carte.txt` : propriété inconnue, matériau inconnu, étages mal déclarés,
-  hauteur sous plafond insuffisante.
+- passage de 0,5 m (trop étroit pour les zombies et les joueurs) ;
+- escalier sans palier, sens ambigu, trop étroit (1,5 m), trop raide (40°),
+  recouvert par l'étage du dessus ; vide d'étage ouvert sur le vide ;
+- étages trop rapprochés, plafond trop bas.
 
-Avertissements et indicateurs d'amusement (inspirés de BO1, jamais bloquants) :
-- **boucles** : cycles du graphe des zones (portes ouvertes) avec le coût pour
-  les ouvrir, et blocs isolés autour desquels on tourne (pilier, îlot de murs,
-  trémie entourée de plancher) avec la longueur du tour (BO1 : 25 à 40 m) ;
-  avertissement s'il n'y en a aucune (« training » impossible) ;
-- **impasses** (zone à une seule sortie ; avertissement si c'est le départ) et
-  **passages obligés** (goulots du graphe des zones) ; couloirs de 1 m ;
-- **courbe d'ouverture** : les portes dans l'ordre d'un joueur qui achète la
-  moins chère d'abord, et le total pour tout ouvrir ; avertissement si la
-  première porte n'est pas entre 500 et 1000 (BO1 : 750, achetée vers la fin de
-  la manche 1 ou en manche 2) ;
-- **répartition** : emplacements de boîte par zone (avertissement s'ils sont
-  tous dans la même, ou moins de 3), atouts et coût pour les atteindre, arme bon
-  marché au mur dans la zone de départ, LAZARUS au départ ;
-- **coin Juggernog** : zone du TITAN BREW, points de portes pour l'atteindre,
-  impasse ou zone de passage (avertissement s'il est dans la zone de départ) ;
-- **apparitions** : fenêtre la plus proche du départ, distance à pied au plus
-  loin d'une fenêtre dans chaque zone (avertissement au-delà de 30 m) ;
-  surface et nombre de fenêtres de chaque zone.
+Avertissements et indicateurs d'amusement (BO1, jamais bloquants) : boucles
+entre zones et coût pour les ouvrir, blocs autour desquels on tourne
+(« training », 25 à 40 m de tour), impasses (le départ doit avoir 2 sorties),
+passages obligés, courbe d'ouverture (la porte la moins chère d'abord ;
+première porte à 750-1000), emplacements de boîte (3 au moins, dans plusieurs
+zones), atouts et coût pour les atteindre, coin TITAN BREW (rôle du
+Juggernog : jamais dans la salle de départ), arme bon marché et LAZARUS au
+départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
 
-Exemple d'un dessin volontairement fautif (image du rapport, défauts entourés) :
+## 6. Enregistrer, reprendre, partager
 
-![Rapport d'un dessin fautif](map_authoring/exemple_erreurs.png)
+- **Enregistrer** (Ctrl+S) : dans le dossier des cartes du joueur,
+  `user://maps/<id>/` (sous Windows :
+  `%APPDATA%\Godot\app_userdata\Call of Claude Zombie\maps\<id>\`), aussi
+  depuis le `.exe`. `<id>` est tiré du nom de la carte ; **Enregistrer sous**
+  choisit le dossier. Un exemple livré (DRAFT ARENA) s'ouvre en lecture seule :
+  Enregistrer en fait une copie.
+- **Sauvegarde automatique** toutes les 60 s et à la fermeture si la carte a
+  changé (`user://maps/_autosave/`) ; au démarrage suivant, l'éditeur propose
+  de reprendre le travail non enregistré. **Cartes récentes** : menu Fichier
+  (`user://maps/_editeur.cfg`).
+- **Archive .zip** : Fichier > Exporter / Importer ; l'archive contient les cinq
+  JSON à la racine (ZIPPacker / ZIPReader). Une archive importée s'enregistre
+  comme une nouvelle carte.
+- **Jouer** : ▶ **TESTER** vérifie, enregistre et lance une partie solo sur la
+  carte (`perso:<id>`) ; la fin de la partie ramène dans l'éditeur, sur la même
+  carte. Les cartes jouables de `user://maps` apparaissent aussi dans l'écran
+  **SOLO**, sous « CARTES PERSO » (pas encore en multijoueur : les autres
+  joueurs n'ont pas le fichier).
 
-```text
-ERREURS (la carte est refusée) :
-  - fenêtre en (x 27, y 9) : elle doit être dans un mur extérieur, avec le sol d'une zone d'un côté et du vide (dehors) de l'autre
-  - porte en (x 12, y 12) : elle doit être posée dans un mur (mur aux deux bouts), avec du sol de chaque côté
-  - Atout TITAN BREW (vie) en (x 33, y 15) : doit toucher un mur (collez le carré contre le mur)
-  - sol au bord du vide sans mur en (x 7, y 17) (3 case(s)) : fermez la pièce par un mur noir (une fenêtre se pose DANS un mur)
+### Format des fichiers
+
+Cinq fichiers JSON dans le dossier de la carte (ou à la racine de l'archive).
+Une entrée par ligne (diffs lisibles). Coordonnées en **mètres** dans le plan
+de l'éditeur : x vers l'est, y vers le sud, x et y positifs ; le jeu place la
+carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
+(`p1`, `o3`, `a2`…). Les nombres entiers s'écrivent sans décimale.
+
+**`carte.json`** — la carte :
+
+```json
+{
+ "format": 1,
+ "id": "draft_arena",
+ "nom": {"fr":"DRAFT ARENA","en":"DRAFT ARENA"},
+ "description": {"fr":"…","en":"…"},
+ "musique": "ambience_bunker",
+ "hauteur_portes": 2.5,
+ "lampes_auto": true,
+ "etages": [
+  {"sol":0,"hauteur":3.2},
+  {"sol":3.5,"hauteur":3.3}
+ ]
+}
 ```
 
----
+`format` : version du format (1) ; `id` : dossier ; `musique` : un son
+`assets/audio/ambience_*` ; `hauteur_portes` (m) ; `lampes_auto` : une lampe
+tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
+`hauteur` sous plafond (m) des pièces sans rien au-dessus.
 
-## 5. Guide : de l'idée au jeu
+**`pieces.json`** — les pièces :
 
-1. **Esquisser sur papier** la boucle de la carte : la zone de départ, 2 sorties,
-   l'ordre des portes (750, 1000, 1250…), où sont le courant, la boîte, le
-   Juggernog (TITAN BREW), une grande boucle pour tourner en rond.
-2. **Copier le modèle** `tools/maps/modele/` dans `assets/maps/<id>/dessin/`
-   (garder le fichier `.gdignore`), ouvrir `etage0.png` et `legende.png` côte à
-   côte, zoomer fort, **crayon de 1 pixel**.
-3. **Peindre** : murs noirs (rectangles pleins, puis vider l'intérieur avec la
-   couleur de la zone), une couleur par zone (A = départ), portes orange et
-   fenêtres bleues dans les murs, objets contre les murs, carré vert du départ.
-   Étage : une deuxième image de même taille, trémie gris foncé au-dessus des
-   doubles hauteurs et des escaliers.
-4. **Remplir `carte.txt`** : `id`, `nom`, étages, noms des zones, un prix par
-   paire de zones reliées par une porte.
-5. **Convertir** : `sh tools/maps/build_map.sh assets/maps/<id>/dessin/carte.txt`.
-6. **Lire le rapport** (dans le terminal et `rapport.txt`) ; ouvrir
-   `rapport_etage0.png` : chaque erreur est entourée de rouge à sa case. Corriger
-   le dessin, relancer (1 s tant qu'il y a des erreurs). Puis regarder les
-   indicateurs : boucles, impasses, courbe d'ouverture, coin Juggernog.
-7. **Construire** : une fois la carte acceptée, la même commande lance Blender
-   (géométrie et vue de dessus `apercu_dessus.png`) et l'import Godot.
-8. **Déclarer et tester** : script de carte `extends DrawnMapDef`, entrée dans
-   `Game.MAP_SCRIPTS`, puis `--map=<id>` en jeu, ou un scénario sur le modèle de
-   `tests/autotest/draft_arena.gd` (`HEADLESS=1 sh tools/scenario.sh <nom>`) ;
-   `sh tools/check.sh` avant de livrer.
-9. **Itérer** : chaque retouche = peindre, relancer `build_map.sh`, rejouer.
-   Le test `test_map_drawing.gd` vérifie que le `layout.json` versionné de
-   draft_arena correspond toujours à son dessin (même règle conseillée pour
-   toute carte dessinée).
+```json
+{
+ "pieces": [
+  {"id":"p3","nom":"Entrepôt","etage":0,"zone":"z3","contour":[[2.5,4.5],[17,4.5],[17,17],[2.5,17]],"double_hauteur":true},
+  {"id":"p5","nom":"Passerelle","etage":1,"zone":"z5","contour":[[2.5,4.5],[7.5,4.5],[7.5,9.5],[2.5,9.5]]}
+ ]
+}
+```
 
-### Pièges
-- Pinceau lissé, gomme adoucie, redimensionnement, enregistrement en JPEG :
-  couleurs intermédiaires refusées. Toujours PNG, crayon, sans anticrénelage.
-- Une fenêtre peinte **à côté** du mur (sur le sol) au lieu d'**à la place** du
-  mur ; un carré d'objet mural posé **dans** le mur au lieu de contre lui.
-- Une zone peinte d'une couleur légèrement différente : elle devient une autre
-  zone (le rapport liste les zones et leurs surfaces : vérifiez-les).
-- Oublier les murs de l'étage autour d'une trémie (le vide de la salle à double
-  hauteur serait ouvert) ou la trémie au-dessus d'un escalier (plafond sur les
-  marches).
-- Une porte sans prix dans `carte.txt`, ou un prix pour une paire de zones qui
-  n'a pas de porte (avertissement).
+`contour` : les sommets (au moins 3) du trait des murs ; `zone` : un `id` de
+`zones.json` ; facultatifs : `plafond` (hauteur sous plafond, m),
+`double_hauteur` (true). Une pièce rectangle a 4 sommets alignés sur les axes.
 
-### Conseils de conception (BO1)
+**`ouvertures.json`** — portes, débris, passages, fenêtres :
+
+```json
+{
+ "ouvertures": [
+  {"id":"o1","type":"porte","etage":0,"position":[17,26.75],"largeur":2,"prix":750},
+  {"id":"o3","type":"debris","etage":0,"position":[5.75,21.5],"largeur":2,"prix":1250},
+  {"id":"o4","type":"passage","etage":0,"position":[11.75,17],"largeur":4},
+  {"id":"o5","type":"fenetre","etage":0,"position":[11.25,4.5]}
+ ]
+}
+```
+
+`type` : `porte`, `debris`, `porte_courant` (sans prix), `passage` (sans
+prix), `fenetre` (1 m, sans largeur) ; `position` : le **milieu** de
+l'ouverture, **sur le trait du mur** ; `largeur` (m, multiple de 0,5 ; pour
+un nombre pair de demi-mètres, le milieu tombe à 0,25 m de la grille).
+
+**`objets.json`** — tout le reste :
+
+```json
+{
+ "objets": [
+  {"id":"x1","type":"pilier","etage":0,"rect":[9,9.5,11.5,12]},
+  {"id":"x2","type":"escalier","etage":0,"rect":[2.5,9.5,5,16],"monte":"n"},
+  {"id":"m1","type":"mur","etage":0,"a":[4,4],"b":[4,9],"epaisseur":0.5},
+  {"id":"s1","type":"depart","etage":0,"position":[12,26]},
+  {"id":"a2","type":"atout","atout":"titan","etage":0,"position":[17,14],"mur":"e"},
+  {"id":"w1","type":"arme","arme":"m14","etage":0,"position":[13.25,33],"mur":"s"},
+  {"id":"b2","type":"boite","etage":0,"position":[20.5,29.25],"mur":"e","depart":true},
+  {"id":"t1","type":"piege","etage":0,"rect":[5,5,7,9]},
+  {"id":"c1","type":"courant","etage":1,"position":[2.5,7.5],"mur":"o"}
+ ]
+}
+```
+
+- Rectangles (`pilier`, `escalier`, `piege`) : `rect` = [x0, y0, x1, y1]. Un
+  pilier a son contour sur le trait (comme un mur de pièce) ; les marches et la
+  zone de piège sont les cases à l'intérieur. `monte` : `n`, `e`, `s`, `o`.
+- `mur` libre : segment `a` → `b`, `epaisseur` 0,5, 1,5 ou 2,5 m.
+- Objets muraux (`atout` + `atout`, `arme` + `arme`, `grenades`, `boite` +
+  `depart`, `pap`, `courant`, `poste_central`, `levier`) : `position` = milieu
+  de l'objet **sur le trait du mur**, `mur` = direction du mur vu depuis
+  l'objet (`n` : le mur est au nord). Identifiants d'atouts et d'armes : ceux
+  de `PerkDB` / `WeaponDB` / `KnifeDB` (`titan`, `lazarus`, `m14`, `bowie`…).
+- Objets au sol (`depart`, `apparition`, `teleporteur`, `arrivee`, `lampe`,
+  `caisse`, `baril`) : `position` = centre. Un seul départ : les 4 joueurs se
+  placent autour ; 2 à 4 départs : un joueur sur chacun.
+
+**`zones.json`** — zones et zone de départ :
+
+```json
+{
+ "depart": "z1",
+ "zones": [
+  {"id":"z1","nom":{"fr":"Salle des machines","en":"Engine room"},"sol":"concrete_dark","murs":"wall_concrete"},
+  {"id":"z5","nom":{"fr":"Passerelle","en":"Catwalk"},"sol":"wood"}
+ ]
+}
+```
+
+`sol`, `murs` (facultatifs) : clés de `WorldLook.SURFACES`. Un fichier illisible
+est signalé à l'ouverture (fichier, ligne, erreur) ; un format plus récent que
+celui du jeu aussi.
+
+## 7. Comment le jeu construit la carte
+
+| Fichier | Rôle |
+|---|---|
+| `scripts/editor/editor_map.gd` | `EditorMap` : la carte (cinq JSON), lecture, écriture, archive .zip, dossier des cartes. |
+| `scripts/editor/map_geom.gd` | `MapGeom` : géométrie 2D (contours, bords communs, cases). |
+| `scripts/editor/map_rules.gd` | `MapRules` : règles de pose et leurs raisons (FR/EN). |
+| `scripts/editor/map_catalog.gd`, `map_icons.gd` | Inventaire tiré des bases du jeu, icônes. |
+| `scripts/editor/map_raster.gd` | `MapRaster` : carte -> grille de cases de 0,5 m par étage. |
+| `scripts/editor/map_validator.gd` | `MapValidator` : validateur et indicateurs BO1. |
+| `scripts/editor/map_layout_export.gd` | `MapLayoutExport` : grille validée -> description en maillage (format de `MeshMapLayout`). |
+| `scripts/editor/map_editor.gd`, `map_canvas.gd`, `map_panels.gd`, `map_hotbar.gd`, `map_inventory.gd`, `map_slot.gd` | L'interface (`scenes/editor/map_editor.tscn`). |
+| `scripts/game/map/editor_map_def.gd` | `EditorMapDef` : carte de l'éditeur côté jeu (`perso:<id>`, ou script de carte livré). |
+| `scripts/game/map/mesh_map_geometry.gd` | `MeshMapGeometry` : architecture 3D construite par le jeu (portage de `tools/blender/mesh_map.py`). |
+
+1. **Grille** (`MapRaster`) : une case de 0,5 m **centrée** sur chaque multiple
+   de 0,5 m. Les cases que traverse le contour d'une pièce sont des murs (un
+   mur de 0,5 m centré sur le trait ; le bord commun de deux pièces = les mêmes
+   cases : un seul mur), celles dont le centre est à l'intérieur son sol, de la
+   zone de la pièce. Ouvertures : les cases du mur sur leur largeur. Double
+   hauteur : à l'étage du dessus, contour en mur, intérieur en vide ; une pièce
+   d'étage au-dessus du vide y pose son plancher (mezzanine). Escalier : cases
+   de marches, vide au-dessus. Objets : leurs cases. Zones : la zone de départ
+   devient `a` (celle que le jeu ouvre au début), les autres `b`, `c`…
+2. **Validation** (`MapValidator`, §5).
+3. **Description en maillage** (`MapLayoutExport`) : salles (sols, plafonds,
+   dalles d'étage), murs, allèges et linteaux en blocs, garde-corps,
+   escaliers (marches et rampe de collision), cours des fenêtres, zones,
+   marqueurs (objets muraux par la face du mur), lampes, réglages de la carte
+   (`map_def` : noms des zones dans la langue du jeu, prix des portes, zones
+   ouvertes l'une sur l'autre, départ de la boîte, téléporteur à relier si un
+   poste central est posé).
+4. **Géométrie** (`MeshMapGeometry`) : les mêmes objets que le `.glb` de
+   `mesh_map.py` (`<matériau>__<salle>__<type>`, collisions en pavés et prismes),
+   branchés par `MeshMapBuilder` ; `MeshNav` cuit le navmesh, `MeshMapLayout`
+   fournit zones et emplacements aux systèmes du jeu. **Aucune étape Blender** :
+   une carte de l'éditeur se joue aussitôt, y compris dans le `.exe`.
+
+Déclarer une carte livrée avec le jeu : ses JSON dans `assets/maps/<id>/`, un
+script de 3 lignes (`scripts/game/map/maps/<id>.gd` : `extends EditorMapDef`
+et `_init_editor("res://assets/maps/<id>/", "<id>")`), une ligne dans
+`Game.MAP_SCRIPTS` ; l'ajouter à `Game.MENU_MAPS` la propose dans les menus.
+
+## 8. DRAFT ARENA
+
+Carte d'essai de 18 × 28,5 m sur 2 étages (`assets/maps/draft_arena/`) :
+salle des machines (départ, M14, LAZARUS), couloir de service (MP5K, boîte de
+départ), entrepôt à double hauteur avec son pilier (TITAN BREW, boîte,
+escalier), atelier (ouvert sur l'entrepôt par un passage), passerelle à
+l'étage (boîte, courant) ; portes 750 et 1000, débris 1250 ; 7 fenêtres.
+Recréée dans ce format à partir de l'ancien dessin : même grille case par
+case, donc la même carte en jeu (mêmes salles, murs, escaliers, fenêtres,
+portes, zones et objets ; seules les deux armes murales se décalent de
+0,25 m). Rapport du validateur : 0 erreur, 0 avertissement ; boucle
+Couloir → Salle des machines → Atelier → Entrepôt (3000 points de portes),
+grande boucle de training de 63 m, passerelle en impasse (poste de camping),
+TITAN BREW à 1250 points de portes.
+
+Preuves automatiques :
+- `tests/test_map_editor.gd` : règles de pose (porte refusée sans deux pièces
+  collées, acceptée sur le bord commun et reliant ces deux pièces ; fenêtre
+  seulement sur un mur extérieur avec la place des zombies ; objets muraux
+  contre un mur, face vers l'intérieur ; objets au sol dans une pièce sans
+  chevauchement ; pièces collées mais pas superposées), mur mitoyen unique,
+  validateur (erreurs pointées, messages FR/EN), passage libre, double
+  hauteur, mezzanine et escalier, JSON lisibles, enregistrement et archive
+  .zip relus à l'identique, JSON écrit à la main, annuler / rétablir dans
+  l'éditeur, inventaire tiré des bases du jeu, conversion en carte jouable
+  (emplacements, zones, géométrie construite par le jeu), DRAFT ARENA migrée
+  valide, cartes perso trouvées par le jeu.
+- `tests/autotest/map_editor.gd` (captures) : bouton du menu principal, trois
+  pièces au glisser, porte refusée puis posée, objets par l'inventaire,
+  vérification, Ctrl+S, rechargement, Ctrl+Z / Ctrl+Y, archive, polygone,
+  copier / coller, poignée.
+- `tests/autotest/map_editor_play.gd` : TESTER sur DRAFT ARENA, partie solo sur
+  la carte de l'éditeur, retour dans l'éditeur.
+- `tests/autotest/draft_arena.gd` : la carte se joue (zombies aux fenêtres,
+  portes, débris, escalier, tout accessible à pied).
+
+## 9. Conseils de conception (BO1)
+
 - **Départ** : 150 à 250 m², 2 à 4 fenêtres à plus de 6 m du départ, deux
   sorties (Kino : hall avec deux portes à 750), une arme à 500 au mur (M14 ou
   Olympia), LAZARUS (Quick Revive).
@@ -412,115 +400,28 @@ ERREURS (la carte est refusée) :
   750, 1000, 1000, 1250 × 4) ; 5 à 10 portes ; ce qu'il y a derrière chaque
   porte doit valoir le prix (une arme, un atout, un emplacement de boîte, le
   courant, un raccourci qui ferme une boucle).
-- **Boucles** : au moins une grande boucle de salles (Kino : deux, qui se
-  rejoignent en coulisses) et un espace dégagé pour tourner autour d'un obstacle
-  (25 à 40 m de tour) ; couloirs de 2 à 4 m, jamais moins de 1,5 m sur un trajet
-  de training.
-- **Fenêtres** : environ une pour 50 à 80 m² de zone (Kino : 22 pour une dizaine
-  de zones) ; à moins de 25 m à pied de tout point, pour que les zombies arrivent
-  vite ; jamais dans le dos immédiat d'une arme au mur.
-- **Boîte** : 1 emplacement par grande salle (Kino : 9), départ souvent une porte
-  plus loin que le départ ; **courant** au bout d'un chemin qui coûte (Kino : en
-  coulisses, derrière 3 portes) ; **Juggernog** derrière 1 à 3 portes, dans un
-  coin défendable.
+- **Boucles** : au moins une grande boucle de salles (Kino : deux) et un
+  espace dégagé pour tourner autour d'un obstacle (25 à 40 m de tour) ;
+  couloirs de 2 à 4 m, jamais moins de 1,5 m sur un trajet de training.
+- **Fenêtres** : environ une pour 50 à 80 m² de zone ; à moins de 25 m à pied
+  de tout point ; jamais dans le dos immédiat d'une arme au mur.
+- **Boîte** : un emplacement par grande salle (Kino : 9), départ souvent une
+  porte plus loin que le départ ; **courant** au bout d'un chemin qui coûte ;
+  **TITAN BREW** (Juggernog) derrière 1 à 3 portes, dans un coin défendable.
 - **Étages** : une passerelle ou un balcon donne un poste de tir et une impasse
-  (bon pour camper, dangereux pour le training) ; escaliers de 2 m ou plus de
-  large pour que la horde passe.
+  ; escaliers de 2 m ou plus de large pour que la horde passe.
 
----
+## 10. Limites et prochaines étapes
 
-## 6. Preuve de concept : DRAFT ARENA
-
-Carte originale de 26 × 37 m, 2 étages, dessinée avec cette méthode
-(`assets/maps/draft_arena/dessin/` : `etage0.png`, `etage1.png`, `carte.txt`) :
-salle des machines (A, départ, M14, LAZARUS), couloir de service (B, MP5K,
-boîte de départ), entrepôt à double hauteur avec son pilier (C, TITAN BREW,
-boîte, escalier), atelier (D, ouvert sur l'entrepôt), passerelle à l'étage (E,
-boîte, courant) ; portes A-B 750 et B-C 1000, débris A-D 1250 ; 7 fenêtres ;
-3 emplacements de boîte ; 2 atouts ; 2 armes au mur ; courant. Déclarée hors
-menus : `--map=draft_arena` (`scripts/game/map/maps/draft_arena.gd`).
-
-Rapport du validateur (0 erreur, 0 avertissement) :
-
-```text
-  - Départ : fenêtre la plus proche à 7.6 m, apparition utilisable la plus lointaine à 10.6 m
-  - Zones : A Salle des machines (154 m², 2 fenêtres) ; B Couloir de service (84 m², 1 fenêtre) ; C Entrepôt (161 m², 2 fenêtres) ; D Atelier (56 m², 1 fenêtre) ; E Passerelle (25 m², 1 fenêtre)
-  - Boucles entre zones (portes ouvertes) : 1 — B → A → D → C → B (3000 points de portes)
-  - Boucle de training autour du bloc en (x 34, y 18, étage 0) : tour au plus près ≈ 63 m en passant les portes
-  - Boucle de training autour du bloc en (x 18, y 19, étage 0) : tour au plus près ≈ 14 m (petit : BO1 ≈ 25-40 m)
-  - Impasse : zone E n'a qu'une sortie (vers C) : bon coin pour camper, piège pour le training
-  - Passage obligé (goulot) entre C et E (escalier)
-  - Courbe d'ouverture (moins cher d'abord) : 750 (porte 3, ouvre B) → 1000 (porte 1, ouvre C, D, E) → 1250 (débris A-D, ferme une boucle) ; total pour tout ouvrir 3000 points
-  - Coin TITAN BREW (rôle du Juggernog) : zone C, 1250 points de portes depuis le départ, zone de passage (3 sorties)
-  - Distance à pied au plus loin d'une fenêtre, par zone : A 15 m, B 16 m, C 15 m, D 15 m, E 7 m
-```
-
-Lecture « BO1 » : la grande boucle A-B-C-D (63 m) existe dès que tout est
-ouvert, le pilier de l'entrepôt ne fait qu'un petit tour (14 m) : la carte se
-joue mais un vrai training demanderait un bloc plus grand ; la passerelle est
-une impasse (poste de camping) ; le TITAN BREW coûte 1250 (les débris), dans la
-fourchette de BO1.
-
-Vue de dessus (Blender, `mesh_map.py`) et captures en jeu :
-
-![Vue de dessus](map_authoring/draft_arena_dessus.png)
-![Salle des machines (départ)](map_authoring/jeu_salle_des_machines.png)
-![Entrepôt : pilier, TITAN BREW, escalier](map_authoring/jeu_entrepot.png)
-![Couloir de service et boîte](map_authoring/jeu_couloir.png)
-![Débris à dégager (1250)](map_authoring/jeu_debris.png)
-
-Preuves automatiques :
-- `tests/autotest/draft_arena.gd` (dans `check.sh`, sans rendu) : 7 fenêtres,
-  3 boîtes (départ dans le couloir, une à l'étage), atouts, armes et prix à leur
-  place ; en manche 1, les zombies n'apparaissent qu'aux fenêtres de la zone A,
-  **arrachent les planches, enjambent la fenêtre et rejoignent le joueur** ;
-  chaque apparition est rattachée à sa fenêtre ; portes fermées
-  infranchissables ; porte achetée 750 et débris 1250 (le tas disparaît) ; toutes
-  portes ouvertes et courant rétabli, **tout est accessible à pied** (objets,
-  fenêtres, chaque salle) ; un zombie **monte l'escalier** jusqu'à la passerelle,
-  un autre en descend, un troisième vient du départ par l'atelier. Avec rendu
-  (`sh tools/scenario.sh draft_arena`), captures dans `tests/_out/shots/`.
-- `tests/test_map_drawing.gd` : légende sans ambiguïté et image de légende aux
-  couleurs exactes, constantes égales à celles du jeu, carte correcte acceptée et
-  exportée, et une vingtaine de dessins fautifs refusés avec le bon message à la
-  bonne case (couleur inconnue, sol sans mur, fenêtres, portes, zone close, zone
-  sans fenêtre, départ, objets muraux, mur parasite, passage étroit, escaliers,
-  trémie), indicateurs d'amusement, pièges / téléporteur / Pack-a-Punch, modèle
-  lisible, et `layout.json` de draft_arena à jour avec son dessin.
-
----
-
-## 7. Côté jeu
-
-- `DrawnMapDef` lit la section `map_def` du `layout.json` (nom, description,
-  musique, noms des zones, prix, `open_links`, départ de la boîte, téléporteur à
-  relier s'il y a un poste central).
-- `Door` sait être un **tas de débris** (`debris` dans la description) :
-  planches, gravats et une poutre qui bouchent le passage, invite « Dégager les
-  débris », le tas s'enfonce dans le sol à l'achat ; `MeshMapLayout.doors`
-  transmet le drapeau.
-- Rien d'autre ne change : les cartes existantes (KINO, BUNKER K-7, test_arena,
-  test_levels) sont intactes.
-
-## 8. Limites et prochaines étapes
-
-- **Sols plats par étage** : pas encore de pente (le parterre de Kino) ni de
-  petites marches entre deux salles d'un même étage ; à ajouter comme propriété
-  de zone (`pente C = …`) ou couleur « rampe ».
-- **Plan orthogonal à 0,5 m** : pas de murs en biais ni de courbes (BO1 en a peu :
-  l'arrondi du Foyer de Kino se ferait en escalier de cases).
-- Pas de porte en haut ou en bas d'un escalier (les deux zones d'un escalier sont
-  ouvertes l'une sur l'autre) ; pas de portes liées à des paires de zones
-  différentes ; pièges électriques seulement (pas de fosse à feu ni de
-  tourelle) ; pas de décor (tables, caisses) : il se poserait en couleurs
-  « décor bloquant » ou par la clé `props` existante.
-- Téléporteur, Pack-a-Punch et pièges sont convertis et testés en unitaires,
-  pas encore joués dans un scénario.
-- Architecture en maquette grise (matériaux par zone seulement) : la passe
-  artistique reste à faire dans Blender, carte par carte.
-- **Prochaine étape conseillée** : redessiner une carte complète avec cette
-  méthode (par exemple une version dessinée de BUNKER K-7, ou une nouvelle carte
-  de la taille de Five), jouer les indicateurs contre le ressenti en partie, et
-  ajuster les seuils. Si l'on veut un éditeur à calques plus tard, un lecteur
-  LDtk (calque IntGrid = légende, entités = objets) alimenterait le même
-  validateur.
+- **Sols plats par étage** : pas encore de pente ni de petites marches entre
+  deux pièces d'un même étage.
+- **Grille de 0,5 m** : les murs en biais d'une pièce polygone deviennent un
+  escalier de cases dans le jeu ; portes et fenêtres seulement sur les murs
+  droits (horizontaux ou verticaux).
+- Pas de porte en haut ou en bas d'un escalier (les deux zones d'un escalier
+  sont ouvertes l'une sur l'autre) ; pas de portes liées ; pièges électriques
+  seulement ; décor limité à des caisses et barils (pas encore les modèles de
+  Kino).
+- Les cartes perso ne se jouent qu'en solo (TESTER, écran SOLO) : le
+  multijoueur demanderait d'envoyer la carte aux autres joueurs.
+- Architecture en maquette grise (matériaux par zone seulement).

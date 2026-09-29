@@ -11,7 +11,7 @@ func enter(_args := {}) -> void:
 	_col = vbox(2)
 	_col.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 	_col.offset_left = 84
-	_col.offset_top = -292
+	_col.offset_top = -342
 	add_child(_col)
 	logo = MenuLogo.new()
 	_col.add_child(logo)
@@ -22,6 +22,7 @@ func enter(_args := {}) -> void:
 	_col.add_child(button("OPTIONS", func(): menu.show_screen("options"), "Commandes, affichage, son."))
 	_col.add_child(button("DOSSIER DE COMBAT", func(): menu.show_screen("career"), "Vos statistiques de survie, partie après partie."))
 	_col.add_child(button("CRÉDITS", func(): menu.show_screen("credits"), "Ceux qui ont bâti ce bunker."))
+	_col.add_child(button(Lang.t("ÉDITEUR DE CARTES", "MAP EDITOR"), _editor, Lang.t("Dessinez vos propres cartes et jouez-les aussitôt.", "Draw your own maps and play them right away.")))
 	_col.add_child(button("QUITTER", _quit, "Retour à la surface."))
 	focus_later(_first)
 
@@ -30,6 +31,12 @@ func enter(_args := {}) -> void:
 func _solo() -> void:
 	if not _leaving:
 		menu.show_screen("map_select")
+
+
+## ÉDITEUR DE CARTES : scène de l'éditeur (docs/MAP_AUTHORING.md).
+func _editor() -> void:
+	if _lock():
+		menu.fade_to_black(0.4, func(): get_tree().change_scene_to_file(MapEditor.SCENE))
 
 
 func _quit() -> void:

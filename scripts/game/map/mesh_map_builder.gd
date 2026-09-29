@@ -1,8 +1,9 @@
 class_name MeshMapBuilder
 extends MapProps
 ## Décor d'une carte en maillage : instancie le .glb produit par
-## tools/blender/mesh_map.py et le branche sur le rendu du jeu, puis pose le
-## décor décrit par la carte (clés du layout.json) :
+## tools/blender/mesh_map.py (ou, pour les cartes de l'éditeur, l'architecture
+## construite par le jeu : MeshMapGeometry) et le branche sur le rendu du jeu,
+## puis pose le décor décrit par la carte (clés du layout.json) :
 ##   props     [{model, p, yaw, scale}]           objets uniques (avec collisions)
 ##   instances [{model, items [[x,y,z,yaw,tilt]]}] objets répétés (fauteuils) en
 ##                                                 MultiMesh : un appel de dessin par matériau
@@ -33,7 +34,8 @@ func _init(layout_data: Dictionary, glb: String) -> void:
 
 func build(parent: Node3D) -> void:
 	_make_root(parent, "Props")
-	var scene: Node3D = (load(glb_path) as PackedScene).instantiate()
+	# Sans .glb (cartes de l'éditeur) : architecture construite par le jeu.
+	var scene: Node3D = MeshMapGeometry.build(layout) if glb_path == "" else (load(glb_path) as PackedScene).instantiate()
 	scene.name = "Architecture"
 	root.add_child(scene)
 	var floors := {}

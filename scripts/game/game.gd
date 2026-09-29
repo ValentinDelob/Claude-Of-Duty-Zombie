@@ -25,7 +25,24 @@ static func requested_map() -> String:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--map="):
 			return a.substr(6)
-	return Settings.last_map if MAP_SCRIPTS.has(Settings.last_map) else DEFAULT_MAP
+	return Settings.last_map if has_map(Settings.last_map) else DEFAULT_MAP
+
+
+## Carte connue : du registre, ou carte du joueur faite dans l'éditeur
+## (« perso:<id> », dossier user://maps/<id>/).
+static func has_map(map_id: String) -> bool:
+	if MAP_SCRIPTS.has(map_id):
+		return true
+	return map_id.begins_with(EditorMapDef.CUSTOM_PREFIX) and EditorMap.is_map_dir(EditorMap.map_dir(map_id.trim_prefix(EditorMapDef.CUSTOM_PREFIX)))
+
+
+## Définition d'une carte (null si inconnue).
+static func make_map_def(map_id: String) -> MapDef:
+	if MAP_SCRIPTS.has(map_id):
+		return load(MAP_SCRIPTS[map_id]).new()
+	if map_id.begins_with(EditorMapDef.CUSTOM_PREFIX):
+		return EditorMapDef.custom(map_id)
+	return null
 
 var map_def: MapDef
 ## Grille de la carte (cartes ASCII seulement, null sinon).
@@ -80,7 +97,7 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	if GameState.state == GameState.State.MAIN_MENU:
 		GameState.set_state(GameState.State.LOADING)
-	_load_map(Net.current_map if MAP_SCRIPTS.has(Net.current_map) else requested_map())
+	_load_map(Net.current_map if has_map(Net.current_map) else requested_map())
 	powerups = PowerupSystem.new()
 	powerups.name = "Powerups"
 	add_child(powerups)
@@ -106,7 +123,7 @@ func _ready() -> void:
 
 
 func _load_map(map_id: String) -> void:
-	map_def = load(MAP_SCRIPTS[map_id]).new()
+	map_def = make_map_def(map_id)
 	layout = map_def.create_layout()
 	if layout is GridMapLayout:
 		map_data = (layout as GridMapLayout).data

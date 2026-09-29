@@ -2,8 +2,10 @@ extends MenuScreen
 ## Sélection de la carte (SOLO), façon Black Ops : liste des cartes à gauche,
 ## dossier de la carte survolée à droite (plan, nom, description, lieux).
 ## Valider une carte lance la partie ; le choix est mémorisé (Settings.last_map).
+## Les cartes perso de l'éditeur de cartes (user://maps, jouables) suivent.
 
 var buttons: Dictionary = {}  # id -> MenuActionButton
+var _defs: Dictionary = {}  # id -> MapDef (une seule validation par carte perso)
 var selected := ""
 var _preview: TextureRect
 var _name: Label
@@ -28,6 +30,21 @@ func enter(_args := {}) -> void:
 		b.focus_entered.connect(_show.bind(id))
 		_col.add_child(b)
 		buttons[id] = b
+	# Cartes perso faites dans l'éditeur de cartes (jouables seulement).
+	var custom := []
+	for m in EditorMap.list_maps():
+		var cid := EditorMapDef.CUSTOM_PREFIX + String(m.id)
+		var cdef := MapPreview.map_def(cid) as EditorMapDef
+		if cdef != null and cdef.is_valid():
+			custom.append([cid, cdef])
+			_defs[cid] = cdef
+	if not custom.is_empty():
+		_col.add_child(text(Lang.t("CARTES PERSO", "CUSTOM MAPS"), 14, UiStyle.DIM))
+		for c in custom:
+			var b := button(c[1].display_name, _launch.bind(c[0]), Lang.t("Carte perso (éditeur de cartes) : %s.", "Custom map (map editor): %s.") % c[1].display_name)
+			b.focus_entered.connect(_show.bind(c[0]))
+			_col.add_child(b)
+			buttons[c[0]] = b
 	_col.add_child(text("", 8))
 	_col.add_child(button("RETOUR", back))
 
@@ -64,7 +81,9 @@ func enter(_args := {}) -> void:
 ## Affiche le dossier de la carte `id`.
 func _show(id: String) -> void:
 	selected = id
-	var def := MapPreview.map_def(id)
+	if not _defs.has(id):
+		_defs[id] = MapPreview.map_def(id)
+	var def: MapDef = _defs[id]
 	_name.text = def.display_name
 	_preview.texture = MapPreview.texture(id)
 	_desc.text = def.description

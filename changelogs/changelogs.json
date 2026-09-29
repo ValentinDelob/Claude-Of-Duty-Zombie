@@ -326,6 +326,44 @@
     "fr": "Les survivants parlent anglais"
    }
   },
+  "v0.1.137": {
+   "date": "2026-09-29",
+   "images": [
+    "v0.1.137/01_editeur.jpg",
+    "v0.1.137/02_inventaire.jpg",
+    "v0.1.137/03_etage_draft_arena.jpg"
+   ],
+   "items": [
+    {
+     "en": "New in the main menu: the MAP EDITOR. Draw your rooms from above and the walls build themselves.",
+     "fr": "Nouveau au menu principal : l'ÉDITEUR DE CARTES. Tracez vos pièces vues de dessus, les murs se construisent tout seuls."
+    },
+    {
+     "en": "A building-game style inventory: doors, debris, windows, perks, wall weapons, mystery box, Pack-a-Punch, traps, stairs and floors.",
+     "fr": "Un inventaire comme dans les jeux de construction : portes, débris, fenêtres, atouts, armes au mur, boîte mystère, Pack-a-Punch, pièges, escaliers et étages."
+    },
+    {
+     "en": "The editor guides you: a door links two touching rooms, a window opens outside, and every refusal tells you why.",
+     "fr": "L'éditeur vous guide : une porte relie deux pièces collées, une fenêtre donne dehors, et chaque refus dit pourquoi."
+    },
+    {
+     "en": "A check spots zones without windows or out of reach, and gives tips on door prices and loops to lose the horde.",
+     "fr": "Une vérification repère les zones sans fenêtre ou inaccessibles et donne des conseils sur le prix des portes et les boucles pour semer la horde."
+    },
+    {
+     "en": "PLAY TEST button to play your map right away; your playable maps also show up on the SOLO screen.",
+     "fr": "Bouton TESTER pour jouer votre carte aussitôt ; vos cartes jouables apparaissent aussi dans l'écran SOLO."
+    },
+    {
+     "en": "Autosave, undo / redo, and archive export to share your maps.",
+     "fr": "Sauvegarde automatique, annuler / rétablir, et export en archive pour partager vos cartes."
+    }
+   ],
+   "title": {
+    "en": "A map editor to build your own",
+    "fr": "Un éditeur de cartes pour créer les vôtres"
+   }
+  },
   "v0.1.36": {
    "date": "2026-09-26",
    "images": [],

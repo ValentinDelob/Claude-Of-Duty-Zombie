@@ -113,6 +113,12 @@ l'échelle 1 (même identifiant `kino`, même entrée de menu).
 - [ ] Mettre à jour README (état d'avancement) et docs/ARCHITECTURE.md.
 
 ## Fait (releases)
+- Éditeur de cartes (docs/MAP_AUTHORING.md) : vue de dessus, murs générés,
+  inventaire façon Minecraft, règles de pose, vérification BO1, cinq JSON et
+  archive .zip, bouton TESTER (géométrie construite par le jeu, sans Blender) ;
+  DRAFT ARENA recréée dans ce format ; l'ancienne méthode des dessins PNG à
+  palette de couleurs est retirée. Reste : cartes perso en multijoueur
+  (envoi de la carte aux clients), pentes, décor de Kino dans l'éditeur.
 - KINO V2, étape 7 : Kino der Toten à l'échelle 1 devient la carte KINO
   (id `kino`) ; l'ancienne KINO en grille et ce qui ne servait qu'à elle
   (décor de théâtre de `PropBuilder`, salles hautes des grilles, Pack-a-Punch

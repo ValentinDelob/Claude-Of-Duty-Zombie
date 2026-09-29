@@ -1,0 +1,9 @@
+{
+ "pieces": [
+  {"id":"p1","nom":"Salle des machines","etage":0,"zone":"z1","contour":[[2.5,21.5],[17.0,21.5],[17.0,33.0],[2.5,33.0]]},
+  {"id":"p2","nom":"Couloir de service","etage":0,"zone":"z2","contour":[[17.0,4.5],[20.5,4.5],[20.5,33.0],[17.0,33.0]]},
+  {"id":"p3","nom":"Entrepôt","etage":0,"zone":"z3","contour":[[2.5,4.5],[17.0,4.5],[17.0,17.0],[2.5,17.0]],"double_hauteur":true},
+  {"id":"p4","nom":"Atelier","etage":0,"zone":"z4","contour":[[2.5,17.0],[17.0,17.0],[17.0,21.5],[2.5,21.5]]},
+  {"id":"p5","nom":"Passerelle","etage":1,"zone":"z5","contour":[[2.5,4.5],[7.5,4.5],[7.5,9.5],[2.5,9.5]]}
+ ]
+}

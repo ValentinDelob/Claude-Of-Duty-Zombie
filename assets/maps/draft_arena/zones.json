@@ -1,0 +1,10 @@
+{
+ "depart": "z1",
+ "zones": [
+  {"id":"z1","nom":{"fr":"Salle des machines","en":"Engine room"},"sol":"concrete_dark","murs":"wall_concrete"},
+  {"id":"z2","nom":{"fr":"Couloir de service","en":"Service corridor"},"sol":"tiles","murs":"wall_green"},
+  {"id":"z3","nom":{"fr":"Entrepôt","en":"Warehouse"},"sol":"concrete","murs":"brick"},
+  {"id":"z4","nom":{"fr":"Atelier","en":"Workshop"},"sol":"wood","murs":"wall_rust"},
+  {"id":"z5","nom":{"fr":"Passerelle","en":"Catwalk"},"sol":"wood"}
+ ]
+}

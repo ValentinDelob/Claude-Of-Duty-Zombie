@@ -1,0 +1,78 @@
+class_name EditorMapDef
+extends MapDef
+## Carte faite dans l'ÉDITEUR DE CARTES (docs/MAP_AUTHORING.md) : dossier de
+## cinq JSON (EditorMap). Au chargement, la carte est convertie en grille
+## (MapRaster), validée (MapValidator) puis décrite en maillage
+## (MapLayoutExport) ; le jeu construit sa géométrie lui-même
+## (MeshMapGeometry) : aucune étape Blender, jouable aussitôt, même dans le .exe.
+##
+## Deux sortes : les cartes livrées (assets/maps/<id>/, ex. DRAFT ARENA :
+## script de carte `extends EditorMapDef` + `_init_editor`) et les cartes du
+## joueur (user://maps/<id>/, identifiant « perso:<id> », bouton Tester).
+
+const CUSTOM_PREFIX := "perso:"
+
+var dir := ""
+var editor_map: EditorMap
+## Résultat de la validation (messages, zones...).
+var validator: MapValidator
+## Description en maillage (vide si la carte est refusée).
+var layout_data: Dictionary = {}
+
+
+func _init_editor(map_dir: String, map_id := "") -> void:
+	dir = map_dir
+	_setup(EditorMap.load_dir(map_dir), map_id)
+
+
+static func from_map(m: EditorMap, map_id := "") -> EditorMapDef:
+	var d := EditorMapDef.new()
+	d._setup(m, map_id)
+	return d
+
+
+## Carte du joueur « perso:<id> » (null si le dossier n'existe pas).
+static func custom(map_id: String) -> EditorMapDef:
+	var folder := map_id.trim_prefix(CUSTOM_PREFIX)
+	var path := EditorMap.map_dir(folder)
+	if not EditorMap.is_map_dir(path):
+		return null
+	var d := EditorMapDef.new()
+	d._init_editor(path, CUSTOM_PREFIX + folder)
+	return d
+
+
+func _setup(m: EditorMap, map_id: String) -> void:
+	editor_map = m
+	id = map_id if map_id != "" else m.id()
+	display_name = m.display_name()
+	var desc: Dictionary = m.carte.get("description", {})
+	description = Lang.t(String(desc.get("fr", "")), String(desc.get("en", desc.get("fr", ""))))
+	validator = MapRaster.build(m).v
+	validator.analyze()
+	if not validator.ok():
+		return
+	layout_data = MapLayoutExport.build(validator)
+	var md: Dictionary = layout_data.map_def
+	music = String(md.get("music", music))
+	zone_names = md.get("zone_names", {})
+	doors = md.get("doors", {})
+	open_links = md.get("open_links", {})
+	box_start = int(md.get("box_start", 0))
+	box_starts = md.get("box_starts", [])
+	# Poste central posé : téléporteur à relier avant chaque voyage (Kino).
+	if bool(md.get("teleporter_link", false)):
+		teleporter_link = true
+		teleporter_cost = 0
+		teleporter_charge = 1.8
+		teleporter_stay = 30.0
+		teleporter_link_cooldown = 90.0
+
+
+## La carte a passé la validation (jouable) ?
+func is_valid() -> bool:
+	return not layout_data.is_empty()
+
+
+func create_layout() -> MapLayout:
+	return MeshMapLayout.new(self, layout_data, "")

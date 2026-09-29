@@ -16,11 +16,9 @@ const START := Color(0.75, 0.05, 0.04)
 static var _cache: Dictionary = {}
 
 
-## Définition d'une carte du registre Game.MAP_SCRIPTS.
+## Définition d'une carte du registre Game.MAP_SCRIPTS (ou carte perso de l'éditeur).
 static func map_def(map_id: String) -> MapDef:
-	if not Game.MAP_SCRIPTS.has(map_id):
-		return null
-	return load(Game.MAP_SCRIPTS[map_id]).new()
+	return Game.make_map_def(map_id) if Game.has_map(map_id) else null
 
 
 static func texture(map_id: String) -> Texture2D:

@@ -29,14 +29,21 @@ var _windows: Array = []
 var _world: Node3D
 
 
-func _init(map_def: MapDef, json_path: String, glb: String) -> void:
+## `source` : chemin du layout.json, ou la description déjà en mémoire (cartes
+## de l'éditeur, MapLayoutExport). `glb` vide : architecture construite par le
+## jeu (MeshMapGeometry) au lieu du .glb de Blender.
+func _init(map_def: MapDef, source: Variant, glb: String) -> void:
 	def = map_def
 	glb_path = glb
-	var txt := FileAccess.get_file_as_string(json_path)
-	data = JSON.parse_string(txt)
-	if data == null:
-		push_error("[MeshMapLayout] JSON illisible : " + json_path)
-		data = {}
+	if source is Dictionary:
+		data = source
+	else:
+		var parsed = JSON.parse_string(FileAccess.get_file_as_string(String(source)))
+		if parsed is Dictionary:
+			data = parsed
+		else:
+			push_error("[MeshMapLayout] JSON illisible : " + String(source))
+			data = {}
 	_markers = data.get("markers", {})
 	# Ordre de test des boîtes de zones : « zone_order » (les plus petites
 	# d'abord : balcons et galeries avant la grande salle) s'il est fourni.

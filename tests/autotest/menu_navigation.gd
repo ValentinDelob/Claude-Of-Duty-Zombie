@@ -8,7 +8,8 @@ extends AutotestScenario
 ## sélection de carte -> BUNKER K-7
 ## (fondu au noir cinématique avant le chargement). Captures de chaque écran.
 
-const EXPECTED := ["SOLO", "MULTIJOUEUR", "OPTIONS", "DOSSIER DE COMBAT", "CRÉDITS", "QUITTER"]
+const EXPECTED := ["SOLO", "MULTIJOUEUR", "OPTIONS", "DOSSIER DE COMBAT", "CRÉDITS", "ÉDITEUR DE CARTES", "QUITTER"]
+const EXPECTED_EN := ["SOLO", "MULTIJOUEUR", "OPTIONS", "DOSSIER DE COMBAT", "CRÉDITS", "MAP EDITOR", "QUITTER"]
 
 var menu: MainMenu
 
@@ -29,7 +30,7 @@ func run() -> void:
 	var labels := []
 	for b in _buttons():
 		labels.append(b.label)
-	at.check(labels == EXPECTED, "entrées du menu : %s" % ", ".join(labels))
+	at.check(labels == (EXPECTED_EN if Lang.is_en() else EXPECTED), "entrées du menu : %s" % ", ".join(labels))
 	at.check(_focused_label() == "SOLO", "focus initial sur SOLO (%s)" % _focused_label())
 	await at.screenshot("main")
 

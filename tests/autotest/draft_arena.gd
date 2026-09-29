@@ -1,6 +1,7 @@
 extends AutotestScenario
-## DRAFT ARENA, carte DESSINÉE (docs/MAP_AUTHORING.md) : preuve qu'une carte
-## tirée d'un dessin se joue. Manche 1 : les zombies n'apparaissent qu'aux
+## DRAFT ARENA, carte faite avec l'ÉDITEUR DE CARTES (docs/MAP_AUTHORING.md,
+## assets/maps/draft_arena/*.json) : preuve qu'une carte de l'éditeur se joue,
+## géométrie construite par le jeu. Manche 1 : les zombies n'apparaissent qu'aux
 ## fenêtres de la zone de départ, franchissent leur barricade et rejoignent le
 ## joueur ; chaque apparition est rattachée à sa fenêtre ; portes fermées
 ## infranchissables pour la navigation ; achat d'une porte et des débris au
@@ -41,7 +42,7 @@ func run() -> void:
 	game = Game.instance
 	game.combat.debug_invulnerable = true
 	l = game.layout as MeshMapLayout
-	at.check(game.map_def.id == "draft_arena" and l != null and l.is_multilevel(), "DRAFT ARENA : carte dessinée chargée en maillage à étages")
+	at.check(game.map_def.id == "draft_arena" and l != null and l.is_multilevel(), "DRAFT ARENA : carte de l'éditeur chargée en maillage à étages")
 	at.check(l.zone_at(p.global_position) == "a", "départ dans la zone A (%s)" % l.zone_at(p.global_position))
 	var start := l.player_spawns()[0]
 

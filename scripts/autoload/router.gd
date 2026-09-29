@@ -5,6 +5,9 @@ const MENU_SCENE := "res://scenes/main_menu.tscn"
 
 ## Message à afficher par le menu à son retour (ex. « Connexion perdue »).
 var pending_message := ""
+## Scène où revenir à la fin de la partie au lieu du menu (partie lancée par
+## le bouton Tester de l'éditeur de cartes), "" : menu principal.
+var return_scene := ""
 
 
 func start_solo(map_id := "") -> void:
@@ -22,7 +25,11 @@ func back_to_menu(reason := "") -> void:
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Audio.stop_music(1.0)
-	get_tree().change_scene_to_file.call_deferred(MENU_SCENE)
+	var target := MENU_SCENE
+	if return_scene != "":
+		target = return_scene
+		return_scene = ""
+	get_tree().change_scene_to_file.call_deferred(target)
 	if GameState.state == GameState.State.DISCONNECTING:
 		GameState.set_state(GameState.State.MAIN_MENU)
 
