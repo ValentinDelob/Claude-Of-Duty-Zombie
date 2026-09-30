@@ -301,12 +301,18 @@ func run() -> void:
 	# Le corps du zombie précédent ne doit pas arrêter les balles.
 	await H.clear_zombies(self)
 	await refill_pistol()
+	await stand()
 	z = await H.dummy_zombie(self, ahead(5.0, 1.0), 1)
-	H.aim_at(p, z.global_position + Vector3.UP * 0.9)
-	for i in 5:
+	# Ce qui est vérifié ici est le bonus dû, pas la précision : on revise avant
+	# chaque tir et on tire jusqu'à la mort (dispersion aléatoire à la hanche ;
+	# 5 tirs ratés d'affilée faisaient échouer le test de temps en temps).
+	for i in 12:
 		if not z.is_alive():
 			break
+		H.aim_at(p, z.global_position + Vector3.UP * 0.9)
 		await H.shoot(self, p, 0.3)
+		if i == 5:
+			await refill_pistol()
 	await until(func(): return pw.drop_count() == 1, 1.0, "bonus dû")
 	at.check(pw.drop_count() == 1, "nouvelle manche : le bonus dû tombe (vivant %s, dû %s, bonus de la manche %d)" % [z.is_alive(), pw.tracker.drop_pending, pw.tracker.drops_this_round])
 	pw.debug_clear()
