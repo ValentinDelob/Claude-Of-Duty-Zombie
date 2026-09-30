@@ -17,7 +17,7 @@ func run() -> void:
 	await until(func(): return pd.life == PlayerData.Life.DOWNED, 20.0, "à terre")
 	await seconds(0.3)
 	at.check(GameState.state == GameState.State.PLAYER_DOWN, "état PLAYER_DOWN")
-	at.check(game.hud._downed._title.text == "À TERRE", "HUD : À TERRE")
+	at.check(game.hud._downed._title.text == Lang.t("À TERRE", "DOWNED"), "HUD : À TERRE")
 	var saw_bar := [false]
 	var ok: bool = await until(func():
 		if game.hud._downed._revive.text.contains("█"):
