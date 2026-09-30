@@ -587,6 +587,18 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   sur l'axe de la caméra (`ads`.z : distance de l'œil). Précision totale en
   visée (sauf fusils à pompe), champ `ads_zoom`, durée `ads_time`. Vérifié par
   `tests/autotest/weapon_aim.gd` (±2 px, impact à ±3 cm à 20 m pour chaque arme).
+- **Joue de visée** : en visée, ce qui passe plus près de l'œil que le cran
+  (arrière du boîtier, corps des bullpups, tube du LAW) est abaissé par le
+  shader (`vm_bend`, `ViewModel.bend_params` / `bend`) : la carcasse file vers
+  le bas de l'écran au lieu de l'emplir ou de traverser le plan proche ; la
+  crosse (groupe `rear`) est masquée en fin de mise en joue ; l'écran de
+  lunette masque l'arme dans l'image même où la mise en joue atteint
+  `ViewModel.SCOPE_ADS` (`apply_scope`). Arme sans organes de visée (info
+  `no_sights` : minigun) : reste à la hanche en visée, réticule affiché.
+  Vérifié arme par arme sans partie par `tests/test_view_model_fit.gd` (rien à
+  l'écran à moins de 5 cm de l'œil — hanche, visée, tir, rechargement, sprint,
+  changement d'arme —, rien à moins de 11,5 cm en visée, bouts de manche hors
+  de l'écran, mains posées sur l'arme, avant-bras hors de l'arme).
 - **Lunettes** : `scope` = `sniper` (L96A1, Dragunov : écran de lunette
   `ScopeOverlay` + `scope.gdshader`, zoom `scope_fov`, balancement, [Maj]
   pour retenir sa respiration) ou `optic` (AUG, G11 : lunette courte).
@@ -662,7 +674,8 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
 ## Bonus FAUCHEUSE et LIQUIDATION
 
 - FAUCHEUSE (DEATH MACHINE de BO1, `PowerupRules.DEATH_MACHINE`) : le joueur qui
-  la ramasse tient 30 s le minigun `death_machine` (`WeaponDB.POWERUP_WEAPONS` :
+  la ramasse tient 30 s le minigun `death_machine` (main droite sur la poignée
+  arrière, main gauche sur la poignée latérale ; `WeaponDB.POWERUP_WEAPONS` :
   hors arsenal, munitions illimitées, jamais de rechargement). L'arme est posée
   PAR-DESSUS l'inventaire (`PlayerData.powerup_weapon`, répliquée avec
   l'inventaire) : `current_weapon()` la renvoie tant que le joueur est debout,

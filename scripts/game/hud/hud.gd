@@ -267,7 +267,10 @@ func _process(delta: float) -> void:
 	# Réticule dynamique : son écart est la dispersion réelle du prochain tir.
 	var wcx := player.weapons
 	_crosshair.spread = maxf(WeaponDB.spread_to_px(wcx.spread_deg(), player.camera.fov, _crosshair.size.y), 3.0) if wcx else 10.0
-	_crosshair.visible = not player.sprinting and not player.aiming and (pd == null or pd.life != PlayerData.Life.DEAD)
+	# En visée, les organes de visée remplacent le réticule (sauf arme sans
+	# organes de visée : minigun de la FAUCHEUSE).
+	var sights: bool = wcx == null or wcx.view == null or wcx.view.model_id == "" or not WeaponModels.info(wcx.view.model_id, "no_sights", false)
+	_crosshair.visible = not player.sprinting and not (player.aiming and sights) and (pd == null or pd.life != PlayerData.Life.DEAD)
 	scope.refresh(player, delta)
 	_crosshair.queue_redraw()
 	var focus := game.interact.focused

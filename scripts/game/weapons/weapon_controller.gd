@@ -185,16 +185,19 @@ func tick(delta: float) -> void:
 		if w.mag == 0 and w.reserve > 0 and _reload_end < 0.0 and t >= _next_fire and not busy:
 			_try_reload(w, s)
 
-	# Lunette : l'écran de lunette remplace le modèle en fin de mise en joue.
+	view.scoped = scoped
+	view.update(delta, player)
+	# Lunette : l'écran de lunette remplace le modèle en fin de mise en joue,
+	# dès l'image où la mise en joue l'atteint (jamais une image avec
+	# l'oculaire et la carcasse contre l'œil).
 	var was_scoped := scoped
-	scoped = WeaponDB.scope_kind(s) != "" and player.aiming and view.ads >= 0.92 and not dead and not busy
+	scoped = WeaponDB.scope_kind(s) != "" and player.aiming and view.ads >= ViewModel.SCOPE_ADS and not dead and not busy
 	if scoped and not was_scoped:
 		Audio.play_2d("slide", -12.0, 0.03, "SFX", 1.35)
+	view.apply_scope(scoped)
 	# Dispersion, recul progressif et retour, balancement dans la lunette.
 	feel.update(delta, player, s, view.ads, scoped and WeaponDB.scope_kind(s) == "sniper", inp.sprint, hip_spread_mult(), t)
 	deadeye.tick(self, delta)
-	view.scoped = scoped
-	view.update(delta, player)
 
 
 ## Multiplicateur de dispersion à la hanche (atouts : DEADEYE DRAM).
