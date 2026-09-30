@@ -50,6 +50,24 @@ func test_box_rarity_and_uniqueness() -> void:
 	assert_eq(again, 0, "une seule à la fois dans la partie")
 
 
+## Le propriétaire du TONNERRE-7 est à terre : l'arme est mise de côté
+## (saved_weapons) mais reste à lui ; la boîte ne doit pas en donner une autre.
+func test_unique_wonder_held_while_owner_downed() -> void:
+	var owner := PlayerData.new(1)
+	owner.saved_weapons = [WeaponDB.new_instance("m1911"), WeaponDB.new_instance("thunder")]
+	owner.weapons = [WeaponDB.new_instance("m1911")]
+	var other := PlayerData.new(2)
+	other.weapons = [WeaponDB.new_instance("m1911")]
+	var taken := MysteryBox.wonders_held([owner, other])
+	assert_true(taken.has("thunder"), "arme mise de côté comptée")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	for i in 3000:
+		if MysteryBox.pick_weapon(other, rng, taken) == "thunder":
+			assert_true(false, "second TONNERRE-7 tiré")
+			return
+
+
 func test_cone_selection() -> void:
 	var feet := func(x: float, z: float) -> Vector3: return Vector3(x, 0, z)
 	# Devant, à diverses distances.

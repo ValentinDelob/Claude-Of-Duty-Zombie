@@ -80,6 +80,14 @@ Check des tâches impactées après chaque étape ; check complet après 6, 9, 1
 - Rappels différés (`SceneTreeTimer` + lambda) sans vérifier que le joueur
   est encore là (combat.gd:154, weapon_controller.gd:263/370/410…).
 
+**Traité (30/09/2026)** sauf l'anti-téléportation : limiteurs de
+`srv_release` / `srv_cook` / refus de `srv_throw` (scénario `net_guard`),
+garde du point de réapparition (`Game.spawn_for_slot`, `test_robustness`),
+chargement abandonné si la session se termine (`load_abort`). Rappels
+différés : une connexion à une lambda disparaît avec son objet (vérifié par
+`delayed_callbacks`) ; le seul défaut réel était la confirmation de touche
+envoyée à un tireur déjà parti (corrigé dans `Combat.damage_zombie`).
+
 ## 4. Réalisé
 
 | Étape | Fait | Pourquoi / effet |

@@ -45,3 +45,12 @@ func run() -> void:
 	p.yaw = 0.0
 	await seconds(0.2)
 	await at.screenshot("horde")
+
+	# Identifiants recyclés (après 65000) : jamais celui d'un zombie présent.
+	game.rounds.paused = true
+	var old: Zombie = zm.zombies.values()[0]
+	var hp := old.health
+	zm._next_id = old.id
+	var nid := zm.spawn(p.global_position + Vector3(3, 0, 3), 0, 777)
+	at.check(nid != old.id and zm.get_zombie(nid) != null and zm.get_zombie(nid).health == 777 and old.health == hp,
+		"identifiant occupé sauté (%d -> %d), PV du zombie existant intacts" % [old.id, nid])

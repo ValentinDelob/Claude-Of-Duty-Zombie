@@ -286,4 +286,13 @@ func _vanish() -> void:
 	var tw := create_tween()
 	tw.tween_property(self, "position", position + Vector3.UP * 6.0, 2.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_callback(hide)
+	# Cachée mais toujours là, 6 m plus haut : sans collision, elle ne gêne
+	# plus ni joueurs, ni balles, ni étage supérieur.
+	tw.tween_callback(_drop_collisions)
 	print("[Perks] LAZARUS TONIC épuisé : la machine disparaît")
+
+
+func _drop_collisions() -> void:
+	for c in find_children("*", "CollisionObject3D", true, false):
+		(c as CollisionObject3D).collision_layer = 0
+		(c as CollisionObject3D).collision_mask = 0

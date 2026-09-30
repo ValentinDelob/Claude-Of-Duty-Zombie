@@ -16,6 +16,8 @@ var focused: Interactable
 var _holding: Interactable
 ## Serveur : demandes d'interaction par joueur (un humain en fait 5 à 10 / s).
 var _limit := NetGuard.Limiter.new(20.0, 20.0)
+## Serveur : fins d'interaction (une par demande acceptée, même cadence).
+var _release_limit := NetGuard.Limiter.new(20.0, 20.0)
 
 
 func _ready() -> void:
@@ -116,9 +118,17 @@ func srv_interact(id: String) -> void:
 func srv_release(id: String) -> void:
 	if not multiplayer.is_server():
 		return
+	var pid := multiplayer.get_remote_sender_id()
+	if not _release_limit.allow(pid):
+		return
+	# Joueur connu seulement (un pair pas encore entré dans la partie n'a rien
+	# à relâcher). Ni distance ni « vivant » exigés : relâcher ne fait
+	# qu'arrêter une action (réparation, réanimation), jamais en démarrer une ;
+	# un joueur tombé à terre en pleine action doit pouvoir la relâcher.
 	var obj: Interactable = objects.get(id)
-	if obj:
-		obj.srv_release(multiplayer.get_remote_sender_id())
+	if obj == null or not game.players.has(pid) or game.session.get_data(pid) == null:
+		return
+	obj.srv_release(pid)
 
 
 ## Serveur : diffuse l'état d'un objet.

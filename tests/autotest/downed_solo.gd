@@ -40,6 +40,11 @@ func run() -> void:
 	game.combat.shot_validated.connect(func(_pid): shots[0] += 1)
 	await H.shoot(self, p)
 	at.check(shots[0] == 1, "tir possible à terre")
+	# HUD : la barre d'auto-réanimation se remplit (pas de compte à rebours
+	# de saignement de 45 s alors qu'on se relève en 10 s).
+	var ov := game.hud._downed
+	at.check(ov._revive.text.contains("█") and ov._time.text == "",
+		"HUD : barre d'auto-réanimation (« %s », « %s »)" % [ov._revive.text, ov._time.text])
 	# Auto-réanimation LAZARUS (10 s, comme BO1).
 	await until(func(): return pd.life == PlayerData.Life.ALIVE, DownedSystem.SOLO_SELF_REVIVE + 3.0, "réanimation")
 	at.check(pd.life == PlayerData.Life.ALIVE and pd.health == 100, "réanimé par LAZARUS (%d PV)" % pd.health)
