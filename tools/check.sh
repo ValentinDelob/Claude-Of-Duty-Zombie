@@ -322,13 +322,21 @@ for T in "${FAILED[@]}"; do
   fi
 done
 { for K in "${!OKH[@]}"; do [ -n "${HASH[${K%%+*}]}" ] && echo "$K ${OKH[$K]}"; done; } | sort > "$CACHE.tmp" && mv "$CACHE.tmp" "$CACHE"
-# Durées : mises à jour pour les tâches lancées, entrées disparues retirées.
+# Durées : mises à jour pour les tâches lancées, les autres gardées (un
+# check ciblé, SCENARIOS=… ou MP=…, ne doit pas effacer les durées dont
+# dépend l'ordonnancement du check complet), entrées disparues retirées.
 {
-  for T in "${CANDIDATES[@]}" "unit:tests"; do
-    if [ -n "${TASK_DUR[$T]}" ]; then echo "$T ${TASK_DUR[$T]}"
-    else awk -v k="$T" '$1 == k { d = $2 } END { if (d != "") print k, d }' "$DUR"; fi
-  done
-} > "$DUR.tmp" && mv "$DUR.tmp" "$DUR"
+  for T in "${!TASK_DUR[@]}"; do [[ $T != batch:* ]] && [ -n "${TASK_DUR[$T]}" ] && echo "$T ${TASK_DUR[$T]}"; done
+  while read -r T D; do
+    [ -z "$T" ] || [ -n "${TASK_DUR[$T]}" ] && continue
+    case $T in
+      head:*|gui:*) S=${T#*:}; [ -f "tests/autotest/${S%%+*}.gd" ] || continue ;;
+      mp:*) [ -f "tests/autotest/mp_${T#mp:}_host.gd" ] || continue ;;
+      batch:*) continue ;;
+    esac
+    echo "$T $D"
+  done < "$DUR"
+} | sort > "$DUR.tmp" && mv "$DUR.tmp" "$DUR"
 xml_escape() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
 REPORTED=($(printf '%s\n' "${PASSED[@]}" "${FAILED[@]}" | sort -u))
 {
