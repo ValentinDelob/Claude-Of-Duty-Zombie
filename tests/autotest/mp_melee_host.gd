@@ -1,6 +1,4 @@
 extends AutotestScenario
-## @temps-reel : validation serveur (lancer, coup de couteau) dans une fenêtre de temps
-## de jeu alors que le réseau reste en temps réel : échecs répétés en accéléré.
 ## [MP] Hôte : le CLIENT fait une fente au couteau sur un zombie à 2,5 m ; le
 ## serveur valide le coup depuis la position d'arrivée (répliquée), crédite
 ## 130 points ; puis, couteau de chasse donné au client, un zombie de manche 10
@@ -26,13 +24,13 @@ func run() -> void:
 	var ok: bool = await until(func(): return client.global_position.distance_to(spot) < 0.5, 20.0, "client en position")
 	if not ok:
 		return
-	await seconds(1.0)
 
 	# 1. Fente du client (couteau de départ, 150 PV).
 	var z := _spawn(game, client.global_position + Vector3(2.5, 0, 0), 150)
 	var pts := cpd.points
 	ok = await until(func(): return not z.is_alive(), 20.0, "zombie tué au couteau par le client")
 	at.check(ok, "fente du client validée par le serveur")
+	await until(func(): return cpd.points - pts >= 130, 2.0, "points de la fente")
 	at.check(cpd.points - pts == 130, "client crédité de 130 points (%d)" % (cpd.points - pts))
 	# La marionnette du client est interpolée avec un léger retard : on attend
 	# que la position d'arrivée de la fente soit répliquée.
@@ -40,15 +38,18 @@ func run() -> void:
 	at.check(client.global_position.x - spot.x > 0.8, "la fente du client est répliquée (%.2f m)" % (client.global_position.x - spot.x))
 
 	# 2. Couteau de chasse : zombie de manche 10 tué d'un coup.
-	await seconds(1.5)
 	cpd.knife = "bowie"
 	game.session.sync_inventory(client_id)
-	await seconds(3.0)
+	# Le client a fini de ramasser le couteau et il est revenu à sa place.
+	if not await MpHelpers.wait_peer(self, "bowie_en_main", 20.0):
+		return
+	if not await until(func(): return client.global_position.distance_to(spot) < 0.5, 5.0, "client revenu en position"):
+		return
 	var hp := RoundRules.zombie_health(10)
 	z = _spawn(game, client.global_position + Vector3(2.5, 0, 0), hp)
 	ok = await until(func(): return not z.is_alive() or z.health < hp, 20.0, "coup de couteau de chasse du client")
 	at.check(not z.is_alive(), "zombie de manche 10 tué d'un coup (PV restants %d)" % z.health)
-	await seconds(4.0)
+	await MpHelpers.finish(self)
 
 
 func _spawn(game: Game, pos: Vector3, hp: int) -> Zombie:
