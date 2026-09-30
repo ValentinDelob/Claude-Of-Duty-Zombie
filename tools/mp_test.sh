@@ -28,9 +28,13 @@ else
     MODE="--headless --max-fps 60"
   fi
 fi
+# Rendez-vous hôte / client (MpHelpers.signal_peer / wait_peer) : un dossier
+# vide propre à cette paire. Aucun délai fixe entre les deux lancements : le
+# client attend que l'hôte annonce qu'il écoute.
+export MP_SYNC_ID="${N}_${AUTOTEST_PORT_OFFSET:-0}"
+rm -rf "$OUT/mp_sync/$MP_SYNC_ID"; mkdir -p "$OUT/mp_sync/$MP_SYNC_ID"
 AUTOTEST_PARALLEL=1 "$GODOT" $MODE --log-file "$LOGS/mp_${N}_host.log" --path . -- --autotest=mp_${N}_host > "$OUT/mp_${N}_host.log" 2>&1 &
 H=$!
-sleep 1
 AUTOTEST_PARALLEL=1 "$GODOT" $MODE --log-file "$LOGS/mp_${N}_client.log" --path . -- --autotest=mp_${N}_client > "$OUT/mp_${N}_client.log" 2>&1 &
 C=$!
 wait $H; RH=$?
