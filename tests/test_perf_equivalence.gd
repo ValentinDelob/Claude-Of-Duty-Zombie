@@ -404,3 +404,85 @@ func test_ground_matches_fresh_ray() -> void:
 			diffs += 1
 	assert_eq(diffs, 0, "sol identique à un rayon neuf")
 	w.queue_free()
+
+
+# --------------------------------------------------------------------------
+# R8 : InteractionSystem.pick_focus (liste gardée, distance d'abord)
+# --------------------------------------------------------------------------
+
+class Obj extends Interactable:
+	var usable := true
+
+	func prompt(_pid: int) -> String:
+		return "x" if usable else ""
+
+
+static func _ref_focus(sys: InteractionSystem, eye: Vector3, fwd: Vector3, pid: int, pd: PlayerData) -> Interactable:
+	var best: Interactable = null
+	var best_score := -INF
+	for obj: Interactable in sys.objects.values():
+		if not obj.is_visible_in_tree():
+			continue
+		var to := obj.interact_point() - eye
+		var d := to.length()
+		if d > obj.interact_range + 0.6:
+			continue
+		var facing := fwd.dot(to / maxf(d, 0.001))
+		if facing < 0.35 and d > 1.0:
+			continue
+		if not obj.can_interact(pid) or InteractionSystem.weapon_locked(obj, pd):
+			continue
+		var score := facing * 2.0 - d
+		if score > best_score:
+			best_score = score
+			best = obj
+	return best
+
+
+func test_focus_matches_reference() -> void:
+	var sys := InteractionSystem.new()
+	var root := Node3D.new()
+	host.add_child(root)
+	var hidden := Node3D.new()
+	hidden.visible = false
+	root.add_child(hidden)
+	seed(16)
+	var all: Array[Obj] = []
+	for i in 60:
+		var o := Obj.new()
+		o.interact_id = "o%d" % i
+		o.interact_range = randf_range(1.0, 3.0)
+		o.usable = randf() < 0.8
+		(hidden if i % 7 == 0 else root).add_child(o)
+		o.global_position = Vector3(randf_range(-6, 6), randf_range(-0.5, 0.5), randf_range(-6, 6))
+		sys.register(o)
+		all.append(o)
+	# Retiré puis réinscrit, retiré : ordre du Dictionary suivi.
+	sys.unregister(all[10])
+	sys.register(all[10])
+	sys.unregister(all[20])
+	assert_eq(sys._list, sys.objects.values(), "liste dans l'ordre du Dictionary")
+	var pd := PlayerData.new(1)
+	var diffs := 0
+	var hits := 0
+	for i in 1500:
+		var eye := Vector3(randf_range(-6, 6), 1.6, randf_range(-6, 6))
+		var fwd := Vector3(randf_range(-1, 1), randf_range(-0.6, 0.3), randf_range(-1, 1)).normalized()
+		var want := _ref_focus(sys, eye, fwd, 1, pd)
+		if sys.pick_focus(eye, fwd, 1, pd) != want:
+			diffs += 1
+		if want != null:
+			hits += 1
+	assert_eq(diffs, 0, "même objet visé que la référence")
+	assert_true(hits > 100, "des objets sont visés (%d)" % hits)
+	# Coût (information).
+	var t0 := Time.get_ticks_usec()
+	for i in 1000:
+		_ref_focus(sys, Vector3(i % 12 - 6, 1.6, 0), Vector3.FORWARD, 1, pd)
+	var t1 := Time.get_ticks_usec()
+	for i in 1000:
+		sys.pick_focus(Vector3(i % 12 - 6, 1.6, 0), Vector3.FORWARD, 1, pd)
+	var t2 := Time.get_ticks_usec()
+	print("         focus (%d objets) : référence %.1f µs, actuel %.1f µs" % [sys._list.size(), (t1 - t0) / 1000.0, (t2 - t1) / 1000.0])
+	sys.free()
+	root.queue_free()
