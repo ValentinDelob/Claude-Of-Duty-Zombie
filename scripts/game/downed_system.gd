@@ -294,6 +294,15 @@ func revive_progress(pid: int) -> float:
 	return clampf((GameClock.now() - e.revive_start) / e.revive_dur, 0.0, 1.0)
 
 
+## Avancement de l'auto-réanimation (LAZARUS en solo), 0 si aucune. Connu
+## seulement du serveur, c'est-à-dire du joueur lui-même en solo.
+func self_revive_progress(pid: int) -> float:
+	var end: float = downed.get(pid, {}).get("self_revive", 0.0)
+	if end <= 0.0:
+		return 0.0
+	return clampf(1.0 - (end - GameClock.now()) / SOLO_SELF_REVIVE, 0.001, 1.0)
+
+
 func reviver_of(pid: int) -> int:
 	return downed.get(pid, {}).get("reviver", 0)
 
