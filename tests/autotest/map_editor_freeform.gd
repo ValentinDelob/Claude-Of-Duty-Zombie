@@ -8,7 +8,7 @@ extends AutotestScenario
 ## le côté voisin du cercle puis ramenée, sans grille), un mur libre tracé sans
 ## grille avec une arme contre sa face nord, un mur courbe (rayon et ouverture au clavier),
 ## un pilier tourné à 30° avec la poignée de rotation, le départ et la boîte ;
-## vérification sans erreur, Ctrl+S (format 4), rechargement identique. Puis
+## vérification sans erreur, Ctrl+S (format courant), rechargement identique. Puis
 ## TESTER : l'arme du mur libre s'achète depuis son côté ; murs obliques de la
 ## salle ronde (CollisionBox tournées), un rayon
 ## arrêté par le mur rond, le mur courbe et le pilier ; des zombies entrent
@@ -171,11 +171,11 @@ func run() -> void:
 	await frames(3)
 	await at.screenshot("editeur")
 
-	# Ctrl+S : format 4 ; rechargement identique.
+	# Ctrl+S : format courant (4 ou plus : formes libres) ; rechargement identique.
 	await key(KEY_S, true)
 	var dir := ed.map_dir
 	var carte = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("carte.json")))
-	at.check(carte is Dictionary and int(carte.format) == 4, "Ctrl+S : enregistrée au format 4")
+	at.check(carte is Dictionary and int(carte.format) == EditorMap.FORMAT and EditorMap.FORMAT >= 4, "Ctrl+S : enregistrée au format %d" % EditorMap.FORMAT)
 	at.check(FileAccess.get_file_as_string(dir.path_join("pieces.json")).contains("\"forme\":{"), "forme de base dans pieces.json")
 	var saved := ed.doc.duplicate_map()
 	ed.open_dir(dir)
