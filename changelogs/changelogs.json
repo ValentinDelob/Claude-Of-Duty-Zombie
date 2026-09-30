@@ -1017,6 +1017,25 @@
     "en": "Closer to Black Ops 1 rules",
     "fr": "Règles de Black Ops 1 au plus près"
    }
+  },
+  "v0.2.0-snapshot.210": {
+   "channel": "snapshot",
+   "date": "2026-09-30",
+   "images": [],
+   "items": [
+    {
+     "en": "The whole game now follows the language chosen in the options (French or English): buy prompts, perks, power-ups, weapons, downed and game over screens, scoreboard, menus, lobby, network messages and credits.",
+     "fr": "Tout le jeu suit la langue choisie dans les options (français ou anglais) : invites d'achat, atouts, bonus, armes, écran à terre et de fin de partie, tableau des scores, menus, salon, messages réseau et générique."
+    },
+    {
+     "en": "In English, prompts use the Black Ops wording: \"Press F to buy M14 [Cost: 500]\".",
+     "fr": "En anglais, les invites reprennent la forme de Black Ops : « Press F to buy M14 [Cost: 500] »."
+    }
+   ],
+   "title": {
+    "en": "The game in French and English",
+    "fr": "Le jeu en français et en anglais"
+   }
   }
  }
 }

@@ -1,7 +1,0 @@
-{"title": {"fr": "Le jeu en français et en anglais", "en": "The game in French and English"},
- "items": [
-  {"fr": "Tout le jeu suit la langue choisie dans les options (français ou anglais) : invites d'achat, atouts, bonus, armes, écran à terre et de fin de partie, tableau des scores, menus, salon, messages réseau et générique.",
-   "en": "The whole game now follows the language chosen in the options (French or English): buy prompts, perks, power-ups, weapons, downed and game over screens, scoreboard, menus, lobby, network messages and credits."},
-  {"fr": "En anglais, les invites reprennent la forme de Black Ops : « Press F to buy M14 [Cost: 500] ».",
-   "en": "In English, prompts use the Black Ops wording: \"Press F to buy M14 [Cost: 500]\"."}
- ]}
