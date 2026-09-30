@@ -52,6 +52,14 @@ func setup(cap: int, mat: Material, size := 0.05) -> ParticlePool:
 
 
 func emit(pos: Vector3, vel: Vector3, life: float, color: Color, size_mult := 1.0) -> void:
+	_emit_at(pos, vel, life, color, size_mult, Fx.floor_under(pos) + 0.01)
+
+
+## `floor_y` : sol sous `pos` (Fx.floor_under), calculé par l'appelant. Sur
+## les cartes en maillage c'est un rayon vers le bas : une gerbe le lance une
+## fois pour toutes ses particules (même point de départ) au lieu d'une fois
+## par particule (12 rayons par giclée de sang, 100 par grenade).
+func _emit_at(pos: Vector3, vel: Vector3, life: float, color: Color, size_mult: float, floor_y: float) -> void:
 	var i := _count
 	if i >= capacity:
 		# Pool plein : on remplace la particule la plus ancienne (index 0).
@@ -64,7 +72,7 @@ func emit(pos: Vector3, vel: Vector3, life: float, color: Color, size_mult := 1.
 	_max_life[i] = life
 	_size[i] = base_size * size_mult
 	_col[i] = color
-	_floor[i] = Fx.floor_under(pos) + 0.01
+	_floor[i] = floor_y
 
 
 ## Gerbe de particules autour d'une normale.
@@ -73,9 +81,12 @@ func burst(pos: Vector3, normal: Vector3, n: int, speed: float, spread: float, l
 		# Moins de particules, un peu plus grosses : même masse visuelle.
 		n = maxi(1, roundi(n * density))
 		size_mult *= 1.0 + (1.0 - density) * 0.4
+	if n <= 0:
+		return
+	var floor_y := Fx.floor_under(pos) + 0.01
 	for k in n:
 		var dir := (normal + Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * spread).normalized()
-		emit(pos, dir * speed * randf_range(0.5, 1.2), life * randf_range(0.6, 1.2), color, size_mult * randf_range(0.6, 1.4))
+		_emit_at(pos, dir * speed * randf_range(0.5, 1.2), life * randf_range(0.6, 1.2), color, size_mult * randf_range(0.6, 1.4), floor_y)
 
 
 func _process(delta: float) -> void:
