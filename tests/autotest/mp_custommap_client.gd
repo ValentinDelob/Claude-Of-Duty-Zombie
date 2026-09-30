@@ -23,7 +23,9 @@ func run() -> void:
 	var share := Net.map_share
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu")
 	var menu: MainMenu = tree().current_scene
-	await seconds(3.0)
+	# L'hôte écoute et a déjà choisi sa carte perso.
+	if not await MpHelpers.wait_peer(self, "ecoute", 40.0):
+		return
 	GameState.set_state(GameState.State.CONNECTING)
 	Net.join("127.0.0.1", PORT, "Client")
 	if not await until(func(): return menu.current_name == "lobby", 15.0, "salon de l'invité"):
@@ -37,7 +39,6 @@ func run() -> void:
 	await until(func(): return lobby._map_label.text.contains("ARÈNE PERSO") or lobby._map_label.text.contains("CUSTOM ARENA"), 5.0, "nom de la carte affiché")
 	at.check(lobby._map_info.text.contains("Ko") or lobby._map_info.text.contains("KB"), "taille affichée : « %s »" % lobby._map_info.text.replace("\n", " / "))
 	at.check(lobby._preview.texture == null, "pas d'aperçu avant la vérification")
-	await seconds(1.0)
 	await at.screenshot("telechargement")
 	if not await until(func(): return share.local_state == "prete", 40.0, "carte reçue et vérifiée"):
 		return
@@ -65,5 +66,5 @@ func run() -> void:
 		return
 	at.check(Game.instance.local_player.peer_id != 1, "joueur local = invité")
 	at.check(Game.instance.map_def.id == EditorMapDef.SHARED_PREFIX + sha, "même carte que l'hôte (%s)" % Game.instance.map_def.id)
-	await seconds(3.0)
 	await at.screenshot("ingame")
+	await MpHelpers.finish(self)
