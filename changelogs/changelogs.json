@@ -477,6 +477,43 @@
     "fr": "Formes libres dans l'éditeur de cartes"
    }
   },
+  "v0.1.149": {
+   "date": "2026-09-30",
+   "images": [
+    "v0.1.149/01_apercu_3d.png",
+    "v0.1.149/02_apercu_vue_joueur.png"
+   ],
+   "items": [
+    {
+     "en": "New 3D PREVIEW button (P key): your map exactly as it will look in game, with walls, textures, doors, boarded windows, props, lights and items.",
+     "fr": "Nouveau bouton APERÇU 3D (touche P) : votre carte telle qu'elle sera en jeu, murs, textures, portes, fenêtres barricadées, décor, luminaires et objets compris."
+    },
+    {
+     "en": "The preview updates by itself after every change, without slowing the editor down.",
+     "fr": "L'aperçu se met à jour tout seul à chaque modification, sans ralentir l'éditeur."
+    },
+    {
+     "en": "Three cameras: orbit around a point, free flight, and a player view at eye height that walks into walls so you can feel the scale.",
+     "fr": "Trois caméras : orbite autour d'un point, vol libre et vue joueur à hauteur d'yeux qui marche contre les murs pour sentir l'échelle."
+    },
+    {
+     "en": "Movable, resizable window that can fill the editor or be detached onto a second screen; it comes back where you left it.",
+     "fr": "Fenêtre déplaçable et redimensionnable, agrandissable, ou détachée sur un deuxième écran ; elle retrouve sa place à la prochaine ouverture."
+    },
+    {
+     "en": "Power on or off, full lighting, hidden ceilings for a cutaway view, choice of the floors shown.",
+     "fr": "Courant allumé ou coupé, éclairage plein, plafonds masqués pour voir en coupe, choix des étages affichés."
+    },
+    {
+     "en": "Click in the preview to pick an element; the selected or hovered element is highlighted there, and a marker on the plan shows where the camera looks (Ctrl + double-click to move it).",
+     "fr": "Cliquez dans l'aperçu pour choisir un élément ; l'élément choisi ou survolé y est surligné, et un repère sur le plan montre où regarde la caméra (Ctrl + double-clic pour l'y déplacer)."
+    }
+   ],
+   "title": {
+    "en": "Map editor: live 3D preview",
+    "fr": "Éditeur de cartes : aperçu 3D en direct"
+   }
+  },
   "v0.1.36": {
    "date": "2026-09-26",
    "images": [],
