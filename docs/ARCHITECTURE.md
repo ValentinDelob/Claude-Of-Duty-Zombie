@@ -11,7 +11,10 @@ Moteur : **Godot 4.7** (GDScript, rendu Forward+). Cible : GTX 1050 à 60 FPS en
   Aucune ligne de gameplay n'est dupliquée entre solo et multijoueur.
 - Conventions RPC :
   - requête client → serveur : `@rpc("any_peer", "call_local")` + `rpc_id(1, ...)` —
-    fonctionne aussi quand l'appelant est le serveur (solo / hôte) ;
+    fonctionne aussi quand l'appelant est le serveur (solo / hôte). Côté serveur,
+    le RPC commence par le prologue commun `NetGuard.server_sender` /
+    `known_sender` / `alive_sender` (serveur, expéditeur, joueur connu ou
+    vivant, limiteur) ;
   - diffusion serveur → tous : `@rpc("authority", "call_local")` + `rpc(...)`.
 - Le client n'envoie que des **intentions** (tirer, acheter, interagir) et sa position ;
   le serveur valide tout (distance, points, cadence, munitions...). Règles

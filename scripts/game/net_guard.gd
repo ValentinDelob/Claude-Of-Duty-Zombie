@@ -61,9 +61,45 @@ static func safe_token(s: String, max_len := 48) -> bool:
 	return true
 
 
+## Aucun expéditeur valable : le RPC est ignoré (valeur des *_sender).
+const NO_SENDER := -1
+
+
+## Prologue d'un RPC client -> serveur (docs/SECURITY.md, règles 1, 2 et 5) :
+## l'identifiant de l'expéditeur, ou NO_SENDER si cette machine n'est pas le
+## serveur ou si `limiter` (facultatif) refuse le message.
+static func server_sender(node: Node, limiter: Limiter = null) -> int:
+	var mp := node.multiplayer
+	if not mp.is_server():
+		return NO_SENDER
+	var pid := mp.get_remote_sender_id()
+	if limiter != null and not limiter.allow(pid):
+		return NO_SENDER
+	return pid
+
+
+## Comme server_sender, et l'expéditeur est un joueur de la partie : ses
+## données de session existent et, si `need_player`, son nœud Player aussi.
+static func known_sender(node: Node, game: Game, limiter: Limiter = null, need_player := true) -> int:
+	var pid := server_sender(node, limiter)
+	if pid == NO_SENDER or game.session.get_data(pid) == null or (need_player and not game.players.has(pid)):
+		return NO_SENDER
+	return pid
+
+
+## Comme known_sender, et le joueur est vivant (ni à terre ni mort).
+static func alive_sender(node: Node, game: Game, limiter: Limiter = null, need_player := true) -> int:
+	var pid := known_sender(node, game, limiter, need_player)
+	if pid == NO_SENDER or game.session.get_data(pid).life != PlayerData.Life.ALIVE:
+		return NO_SENDER
+	return pid
+
+
 ## Seau de jetons par joueur et par type de message : `rate` messages par
 ## seconde en moyenne, rafale de `burst`. Protège le serveur (et, par
-## ricochet, les autres clients) d'une inondation de requêtes.
+## ricochet, les autres clients) d'une inondation de requêtes. Seule
+## implémentation du projet : la cadence de tir de Combat s'en sert aussi,
+## avec un débit propre à l'arme en main (take).
 class Limiter:
 	var rate: float
 	var burst: float
@@ -74,10 +110,15 @@ class Limiter:
 		rate = per_second
 		burst = burst_size
 
-	## Vrai si le message de `pid` est accepté ; `now` en secondes (tests).
+	## Vrai si le message de `pid` est accepté ; `now` en secondes (tests),
+	## temps réel par défaut.
 	func allow(pid: int, now := -1.0) -> bool:
-		var t := now if now >= 0.0 else Time.get_ticks_msec() / 1000.0
-		var tokens: float = minf(float(_tokens.get(pid, burst)) + (t - float(_t.get(pid, t))) * rate, burst)
+		return take(pid, now if now >= 0.0 else Time.get_ticks_msec() / 1000.0, rate)
+
+	## Prend un jeton pour `pid` à l'instant `t` (s), le seau se remplissant de
+	## `per_second` jetons par seconde depuis l'appel précédent. Vrai si accepté.
+	func take(pid: int, t: float, per_second: float) -> bool:
+		var tokens: float = minf(float(_tokens.get(pid, burst)) + (t - float(_t.get(pid, t))) * per_second, burst)
 		_t[pid] = t
 		if tokens < 1.0:
 			_tokens[pid] = tokens

@@ -90,6 +90,21 @@ func test_limiter() -> void:
 	assert_true(l.allow(8, 100.0), "autre joueur indépendant")
 
 
+## Débit propre à chaque message (cadence de tir de Combat : arme en main).
+func test_limiter_take_with_own_rate() -> void:
+	var l := NetGuard.Limiter.new(0.0, 4.0)
+	var n := 0
+	for i in 10:
+		if l.take(1, 10.0, 8.0):
+			n += 1
+	assert_eq(n, 4, "rafale de 4 jetons")
+	assert_false(l.take(1, 10.1, 8.0), "0,8 jeton regagné en 0,1 s : refusé")
+	assert_true(l.take(1, 10.2, 8.0), "1,6 jeton cumulé : accepté")
+	assert_false(l.take(1, 10.3, 2.0), "débit plus lent : 0,8 jeton")
+	l.forget(1)
+	assert_true(l.take(1, 10.3, 2.0), "oublié : seau plein")
+
+
 func test_splash_must_follow_the_shot() -> void:
 	var o := Vector3(0, 1.6, 0)
 	var d := Vector3(1, 0, 0)

@@ -23,12 +23,27 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
 ### RPC (`@rpc`)
 
 1. **Requête client -> serveur** : `@rpc("any_peer", "call_local", ...)`, et en
-   première ligne `if not multiplayer.is_server(): return` (un client peut
-   appeler un RPC « any_peer » directement chez un autre client, via le relais
-   du serveur).
-2. **L'expéditeur est `multiplayer.get_remote_sender_id()`**, jamais un argument :
-   un client n'agit que pour lui-même. Ses données : `session.get_data(pid)`
-   (null pour un pair qui n'est pas un joueur de la partie : on ignore).
+   première ligne le prologue commun de `NetGuard` (un client peut appeler un
+   RPC « any_peer » directement chez un autre client, via le relais du
+   serveur) :
+   ```gdscript
+   var pid := NetGuard.alive_sender(self, game, _limit)
+   if pid == NetGuard.NO_SENDER:
+       return
+   ```
+   - `server_sender(node, limiter)` : ce nœud est le serveur, puis limiteur
+     facultatif ; rend l'expéditeur ;
+   - `known_sender(node, game, limiter, need_player)` : en plus, joueur de la
+     partie (données de session et, sauf `need_player = false`, nœud Player) ;
+   - `alive_sender(...)` : en plus, joueur vivant.
+   Un limiteur passé au prologue compte AVANT les autres contrôles ; quand un
+   jeton ne doit être pris que pour une demande utile (`Combat.srv_reload`,
+   `srv_switch`) ou seulement pour un refus (`ThrowableSystem.srv_throw`), le
+   RPC appelle `server_sender(self)` puis son limiteur à l'endroit voulu.
+2. **L'expéditeur est `multiplayer.get_remote_sender_id()`** (rendu par le
+   prologue), jamais un argument : un client n'agit que pour lui-même. Ses
+   données : `session.get_data(pid)` (null pour un pair qui n'est pas un joueur
+   de la partie : on ignore).
 3. **Borner chaque argument avant tout contrôle** (`NetGuard`) :
    - vecteurs et nombres : `NetGuard.finite_vec` / `finite` (un NaN rend fausses
      toutes les comparaisons `distance > max` et contourne le contrôle) ;
@@ -39,13 +54,15 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
    - types des éléments d'un `Array` reçu (`h[0] is int`...).
 4. **Tout se vérifie côté serveur** avec SES données : position connue du joueur
    (distance d'interaction, origine du tir), points, munitions, cadence
-   (seau de jetons de `Combat._validate_fire`), état (vivant, à terre).
+   (`NetGuard.Limiter.take` au débit de l'arme dans `Combat._validate_fire`),
+   état (vivant, à terre).
    Un point revendiqué (impact, explosion) doit être plausible pour le tir
    (`Combat.plausible_splash`). Bornes larges : un joueur honnête avec du lag ne
    doit jamais être refusé.
 5. **Cadence** : toute requête qui déclenche une diffusion ou un message de
-   refus passe par un `NetGuard.Limiter` (par joueur) ; pas de réponse à chaque
-   requête refusée.
+   refus passe par un `NetGuard.Limiter` (par joueur ; seul seau de jetons des
+   RPC de partie — `MapShare`, dans le salon, garde le sien, rempli à chaque
+   image) ; pas de réponse à chaque requête refusée.
 6. **Diffusion serveur -> clients** : `@rpc("authority", ...)` sur un nœud dont
    l'autorité est le serveur. Pour un nœud dont l'autorité est un client (le
    `Player`), un message du serveur est « any_peer » ET vérifie
