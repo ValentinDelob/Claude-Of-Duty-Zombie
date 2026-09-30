@@ -1,4 +1,5 @@
 extends TestCase
+## @carte kino : lancé seulement quand la carte Kino change (fichiers de la carte).
 ## Cohérence de la carte KINO (Kino der Toten à l'échelle 1, carte en
 ## maillage décrite par assets/maps/kino/layout.json) : registre et menus,
 ## réglages de la carte, emplacements de BO1 et leurs zones, plan de l'écran

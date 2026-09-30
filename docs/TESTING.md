@@ -1,0 +1,154 @@
+# Tests — stratégie, niveaux et outils
+
+Ce document décrit comment le projet est vérifié : quels niveaux de tests
+existent, comment en écrire un de chaque niveau, quoi lancer et quand.
+Historique et mesures de la refonte : `docs/TESTING_PLAN.md`.
+
+## 1. Principes
+
+- **Pyramide** : beaucoup de tests unitaires rapides, moins de scénarios dans
+  le vrai jeu, très peu de bout-en-bout (multijoueur, rendu). Un cas limite se
+  teste au niveau le plus bas possible ; un scénario couvre le cas nominal
+  (« golden path », Sea of Thieves [1]).
+- **Invisibles et silencieux** : `--headless` partout où c'est possible ; les
+  rares tests avec rendu tournent dans une fenêtre réduite puis déplacée hors
+  des écrans (`tools/nofocus.sh`). Peu de jeux à la fois (`JOBS=3`,
+  `GUI_JOBS=1` par défaut).
+- **Temps de jeu, pas temps réel** : les minuteurs du jeu lisent
+  `GameClock.now()` (somme des pas de physique). Les scénarios sans rendu
+  tournent avec `--fixed-fps 60` : 1 s de jeu = 60 images simulées aussi vite
+  que le processeur le permet (×3 à ×10 plus rapide), et le résultat ne dépend
+  plus de la charge de la machine.
+- **Attendre un événement, jamais une durée arbitraire** : `until(cond,
+  délai_max, "quoi")`. Une attente fixe n'est légitime que pour simuler un
+  joueur (viser, tenir une touche) ; en temps simulé elle ne coûte presque rien.
+- **Indépendants de l'ordre** : chaque test part d'un état connu (réglages et
+  dossier de combat propres au processus, remis à zéro à la fin).
+- **Captures d'écran** : uniquement pour un ajout **en cours** (revue humaine) ;
+  une fois la fonctionnalité publiée, la capture sort du check. Les
+  vérifications logiques restent.
+
+## 2. Niveaux
+
+| Niveau | Où | Lancement | Durée typique |
+|---|---|---|---|
+| N0 compilation | `tests/parse_all.gd` | tâche `parse:scripts` | ≈ 20 s |
+| N1 unitaire | `tests/test_*.gd` (`extends TestCase`) | une seule instance, fichiers impactés seulement | ms à 1 s par test |
+| N2 scénario | `tests/autotest/<nom>.gd` (`extends AutotestScenario`) | `--headless --fixed-fps 60`, une instance par scénario | 5 à 15 s |
+| N3 bout-en-bout | `## @rendu` (rendu réel), `mp_<nom>_host/_client.gd` (hôte + client), `tools/net_smoke.sh` | rendu : temps réel ; multijoueur : `--fixed-fps 60` (sauf `@temps-reel`) | 15 à 60 s |
+| Carte dédiée | `## @carte kino` | seulement quand la carte change | — |
+| Perf | `perf_*`, `long_*`, `## @niveau perf` | `tools/perf.sh`, jamais dans le check | — |
+
+### Écrire un test unitaire (N1)
+
+```gdscript
+extends TestCase
+## Ce que ce fichier vérifie (une phrase).
+
+func test_prix_du_pack_a_punch() -> void:
+	assert_eq(PackAPunch.COST, 5000)
+
+func test_session_depense() -> void:
+	var s := Session.new()
+	host.add_child(s)          # nœud du runner : accès à l'arbre si besoin
+	var pd := s.create(1)
+	assert_false(s.try_spend(1, 9999), "pas assez de points")
+	s.queue_free()
+```
+
+- Logique pure d'abord (règles, codecs, parseurs, tables de données).
+- Test « actor » (idée de Sea of Thieves) : construire UN nœud du jeu seul,
+  l'ajouter sous `host`, appeler `_physics_process(1.0 / 60.0)` à la main pour
+  l'avancer, vérifier. Pas de carte, pas de partie.
+- Assertions : `assert_true`, `assert_false`, `assert_eq`, `assert_near`.
+  Attentes : `wait_frames(n)`, `wait_seconds(s)` (à éviter).
+- Lancer un fichier : `godot --headless --path . res://tests/test_runner.tscn -- --files=test_points.gd`.
+
+### Écrire un scénario (N2)
+
+```gdscript
+extends AutotestScenario
+## Ce que le scénario vérifie (cas nominal).
+
+var H := AutotestHelpers
+
+func run() -> void:
+	timeout_sec = 90
+	var p := await H.start_solo_game(self, "test_arena")
+	if p == null:
+		return
+	var game := Game.instance
+	game.rounds.paused = true
+	var pd := game.session.local_data()
+	var z := await H.dummy_zombie(self, p.global_position + Vector3(0, 0, -5))
+	H.aim_at(p, z.head_position())
+	await H.shoot(self, p)
+	await until(func(): return pd.points > 500, 5.0, "points de la touche crédités")
+	at.check(pd.points >= 510, "au moins +10 pour la touche (%d)" % pd.points)
+```
+
+- Petites cartes de test (`test_arena`, `test_levels`) plutôt que les vraies
+  cartes, sauf si la carte elle-même est le sujet.
+- Mesurer une durée de jeu avec `GameClock.msec()`, jamais
+  `Time.get_ticks_msec()` (qui reste réservé aux mesures de coût CPU).
+- Un drapeau statique ou un réglage modifié par le scénario doit être remis
+  à la fin.
+- Lancer seul : `godot --headless --fixed-fps 60 --path . -- --autotest=<nom>`.
+
+### Annotations d'en-tête
+
+| Annotation | Effet |
+|---|---|
+| `## @rendu` | lancé avec rendu, en temps réel (N3) — seulement si le test lit vraiment l'image (pixels, compteurs de rendu, GPU) ou pour un ajout en cours |
+| `## @parts N` | scénario découpé en N parties parallèles (`mine(i)`, `owns(k)`) ; utile seulement en temps réel |
+| `## @carte <id>` | dépend uniquement des fichiers de la carte `<id>` : lancé seulement quand elle change |
+| `## @couvre <motifs>` | dépendances ajoutées à la main (ex. `scripts/game/perks/*`) |
+| `## @niveau perf` | hors check (`tools/perf.sh`) |
+| `## @temps-reel` | pas d'accélération (`--max-fps 60`) : le test mesure ou limite quelque chose par seconde réelle (débit réseau, transfert cadencé) ; pour un `mp_`, à mettre dans le script hôte |
+
+## 3. Le check
+
+```bash
+sh tools/check.sh
+```
+
+1. Import du projet et du lanceur.
+2. **Carte des dépendances** (`tools/test_deps.gd`) : pour chaque tâche, les
+   fichiers dont elle dépend (class_name nommées et chemins `res://` cités,
+   sur deux niveaux ; les fichiers noyau — autoloads, `game.gd`, `player.gd`,
+   `session.gd`, scènes, framework de test, scripts du check — sont des
+   dépendances de tous les scénarios). Un fichier qu'aucun scénario n'atteint
+   est ajouté à tous (prudence). Détail : `tests/_out/deps/<tâche>.txt`.
+3. **Sélection** : une tâche n'est relancée que si l'empreinte de ses
+   dépendances a changé depuis son dernier succès (`tests/_out/test_cache.txt`).
+   Une tâche en échec est toujours relancée.
+4. Pool parallèle (les plus longues d'abord).
+5. Un échec est **rejoué une fois** ; s'il passe, il est signalé INSTABLE
+   (`tests/_out/flaky.txt`, premier journal gardé en `.1.log`) sans bloquer.
+6. Bilan : lignes d'échec et chemin du journal de chaque tâche
+   (`tests/_out/jobs/`), rapport JUnit `tests/_out/junit.xml`.
+
+| Commande | Usage |
+|---|---|
+| `sh tools/check.sh` | tâches impactées (avant un commit : `tools/commit.sh`) |
+| `sh tools/check.sh --full` | tout (hors cartes dédiées) ; exigé par `tools/release.sh` |
+| `sh tools/check.sh --kino` | force les tests de la carte Kino |
+| `sh tools/check.sh --fast` | sans réseau ni multijoueur |
+| `sh tools/check.sh --no-retry` | pas de rejeu |
+| `SCENARIOS="perks traps" sh tools/check.sh` | ces scénarios, sans cache |
+| `MP="lobby" sh tools/check.sh` | ces tests multijoueur |
+| `sh tools/perf.sh [scénarios]` | mesures de performance fiables, un jeu à la fois |
+
+`tools/ship.sh` lance `tools/commit.sh` avec `--full`, puis la release ;
+`tools/release.sh` refuse de publier si le dernier check complet réussi ne
+porte pas exactement sur le contenu actuel (`tests/_out/last_full_ok`).
+
+## Sources
+
+1. R. Masella, *Automated Testing of Gameplay Features in Sea of Thieves*, GDC 2019 — https://media.gdcvault.com/gdc2019/presentations/Masella_Robert_AutomatedTestingOf.pdf
+2. Riot Games, *Automated Testing for League of Legends* — https://www.riotgames.com/en/news/automated-testing-league-legends
+3. H. Vocke, *The Practical Test Pyramid* — https://martinfowler.com/articles/practical-test-pyramid.html
+4. Google Testing Blog, *Test Sizes* — https://testing.googleblog.com/2010/12/test-sizes.html
+5. Microsoft, *Test Impact Analysis* — https://learn.microsoft.com/en-us/azure/devops/pipelines/test/test-impact-analysis
+6. Godot, ligne de commande (`--fixed-fps`, `--headless`) — https://docs.godotengine.org/en/stable/tutorials/editor/command_line_tutorial.html
+7. Godot, classe `Engine` (`time_scale`, ticks de physique) — https://docs.godotengine.org/en/stable/classes/class_engine.html

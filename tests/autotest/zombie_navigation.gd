@@ -17,10 +17,10 @@ func reach_test(player_cell: Vector2i, zombie_cell: Vector2i, limit: float, labe
 	p.teleport_to(MapData.cell_to_world(player_cell, 0.05))
 	var zid := game.zombies.spawn(MapData.cell_to_world(zombie_cell), 2, 150)
 	var z := game.zombies.get_zombie(zid)
-	var t0 := Time.get_ticks_msec()
+	var t0 := GameClock.msec()
 	var ok: bool = await until(func(): return z.global_position.distance_to(p.global_position) < 1.6, limit, label)
 	if ok:
-		at.check(true, "%s (%.1f s)" % [label, (Time.get_ticks_msec() - t0) / 1000.0])
+		at.check(true, "%s (%.1f s)" % [label, (GameClock.msec() - t0) / 1000.0])
 
 
 func run() -> void:

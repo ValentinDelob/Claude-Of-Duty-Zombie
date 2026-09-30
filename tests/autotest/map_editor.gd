@@ -1,5 +1,4 @@
 extends AutotestScenario
-## @rendu : a besoin du rendu (captures de l'éditeur, fenêtre hors écran).
 ## ÉDITEUR DE CARTES : bouton du menu principal, puis une carte faite avec les
 ## vrais outils (événements de souris et de clavier envoyés à la vue) : trois
 ## pièces collées au glisser (murs mitoyens uniques), une porte refusée sur un

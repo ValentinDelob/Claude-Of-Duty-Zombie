@@ -60,10 +60,14 @@ func seconds(s: float) -> void:
 
 
 ## Attend qu'une condition devienne vraie (ou échoue après `limit` secondes).
+## Le délai doit être écoulé en temps de jeu ET en temps réel : en temps
+## accéléré (--fixed-fps) le jeu avance plus vite que l'horloge, mais ce qui
+## vient de l'extérieur (autre processus qui démarre, réseau) garde son rythme.
 func until(cond: Callable, limit: float, what: String) -> bool:
 	var t := 0.0
+	var real0 := Time.get_ticks_msec()
 	while not cond.call():
-		if t >= limit:
+		if t >= limit and Time.get_ticks_msec() - real0 >= limit * 1000.0:
 			at.fail("attente trop longue : " + what)
 			return false
 		await at.get_tree().process_frame

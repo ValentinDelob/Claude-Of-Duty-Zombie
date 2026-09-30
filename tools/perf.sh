@@ -12,7 +12,7 @@ nofocus_on
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
 FAIL=0
-SCENARIOS=${*:-"boot fps_controller zombie_entity map_tour"}
+SCENARIOS=${*:-"boot fps_controller zombie_entity map_tour startup_smoothness"}
 QARG=""
 [ -n "$QUALITY" ] && QARG="--quality=$QUALITY"
 for S in $SCENARIOS; do

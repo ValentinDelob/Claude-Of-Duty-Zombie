@@ -79,7 +79,7 @@ func srv_say(pid: int, category: String, chance := 1.0) -> bool:
 	var pd: PlayerData = game.session.get_data(pid)
 	if pd == null or (pd.life == PlayerData.Life.DEAD):
 		return false
-	var now := Time.get_ticks_msec()
+	var now := GameClock.msec()
 	if not category in URGENT and now - int(_last_ms.get(pid, -100000)) < GAP * 1000.0:
 		return false
 	var key := "%d:%s" % [pid, category]
@@ -202,7 +202,7 @@ func _on_zombie_damaged(pid: int, zid: int, _damage: int, killed: bool, headshot
 			srv_say(pid, "crawler_made", 0.6)
 		return
 	_crawlers.erase(zid)
-	var now := Time.get_ticks_msec()
+	var now := GameClock.msec()
 	var recent: Array = (_kills.get(pid, []) as Array).filter(func(t): return now - int(t) < 4000)
 	recent.append(now)
 	_kills[pid] = recent
@@ -285,7 +285,7 @@ func _physics_process(delta: float) -> void:
 	if _tick < 1.0:
 		return
 	_tick = 0.0
-	var now := Time.get_ticks_msec()
+	var now := GameClock.msec()
 	for pid in game.players:
 		var pd: PlayerData = game.session.get_data(pid)
 		if pd == null:

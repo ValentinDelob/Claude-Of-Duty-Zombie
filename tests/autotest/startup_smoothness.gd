@@ -1,5 +1,7 @@
 extends AutotestScenario
-## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
+## @rendu : a besoin du rendu.
+## @niveau perf : hors check (la vérification n'est faite que seul, sans
+## autre jeu en parallèle) ; lancé par tools/perf.sh.
 ## Début de partie fluide : aucune saccade due à la compilation des shaders
 ## une fois la main donnée au joueur (préchauffage pendant le chargement).
 

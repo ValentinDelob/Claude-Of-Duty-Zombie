@@ -49,7 +49,7 @@ func setup(id: int, k: int, pid: int, pos: Vector3, velocity: Vector3, fuse: flo
 
 
 static func now() -> float:
-	return Time.get_ticks_msec() / 1000.0
+	return GameClock.now()  # temps de jeu (voir game_clock.gd)
 
 
 func _ready() -> void:

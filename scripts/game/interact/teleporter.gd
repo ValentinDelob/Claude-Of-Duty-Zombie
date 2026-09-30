@@ -223,7 +223,7 @@ func srv_link(pid: int) -> void:
 
 func _set_state(s: State) -> void:
 	state = s
-	end_time_msec = Time.get_ticks_msec() + int(_timer * 1000.0)
+	end_time_msec = GameClock.msec() + int(_timer * 1000.0)
 	broadcast_state()
 
 
@@ -298,7 +298,7 @@ func get_state() -> Dictionary:
 
 func apply_state(s: Dictionary, animate: bool) -> void:
 	state = s.get("state", State.IDLE)
-	end_time_msec = Time.get_ticks_msec() + int(float(s.get("remaining", 0.0)) * 1000.0)
+	end_time_msec = GameClock.msec() + int(float(s.get("remaining", 0.0)) * 1000.0)
 	if animate and state == State.CHARGING:
 		Audio.play_3d("tele_charge", global_position + Vector3.UP, 0.0, 0.0)
 	# Visuels comparés à ce qui est affiché (le serveur a déjà modifié l'état).
@@ -317,7 +317,7 @@ func apply_state(s: Dictionary, animate: bool) -> void:
 
 
 func seconds_left() -> int:
-	return maxi(0, int(ceil((end_time_msec - Time.get_ticks_msec()) / 1000.0)))
+	return maxi(0, int(ceil((end_time_msec - GameClock.msec()) / 1000.0)))
 
 
 func _animate(delta: float) -> void:
@@ -327,7 +327,7 @@ func _animate(delta: float) -> void:
 	var on := system.game.power_on
 	match state:
 		State.CHARGING:
-			var k := 1.0 - clampf((end_time_msec - Time.get_ticks_msec()) / (charge_time * 1000.0), 0.0, 1.0)
+			var k := 1.0 - clampf((end_time_msec - GameClock.msec()) / (charge_time * 1000.0), 0.0, 1.0)
 			_ring_mat.emission = Color(1.0, 0.6, 0.3).lerp(Color(1, 1, 1), k)
 			_ring_mat.emission_energy_multiplier = 2.0 + k * 10.0 + sin(_t * 40.0) * 2.0
 			_light.light_energy = 1.0 + k * 5.0

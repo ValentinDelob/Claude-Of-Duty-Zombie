@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @temps-reel : reste en temps réel (mélange de minuteurs réseau réels et de temps de jeu, à revoir : docs/TESTING_PLAN.md).
 ## [MP] Hôte : crée la partie depuis le menu, attend le client dans le salon,
 ## lance la partie, vérifie que les deux joueurs sont en jeu.
 

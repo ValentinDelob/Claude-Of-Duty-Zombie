@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @temps-reel : transfert de carte cadencé par seconde réelle, reste en temps réel.
 ## [MP] Hôte : choisit une carte perso dans le salon AVANT l'arrivée de
 ## l'invité (il la reçoit en arrivant), DÉMARRER grisé pendant le
 ## téléchargement (lent, en morceaux de 1 Ko, pour la capture du salon), puis

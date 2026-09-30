@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @temps-reel : reste en temps réel (mélange de minuteurs réseau réels et de temps de jeu, à revoir : docs/TESTING_PLAN.md).
 ## [MP] Hôte : voit le CLIENT plonger (état réseau DIVE puis PRONE, pose du
 ## soldat à plat ventre) et reçoit le signal serveur player_dived_landed.
 

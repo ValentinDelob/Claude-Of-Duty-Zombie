@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @temps-reel : débit mesuré par seconde RÉELLE (budget réseau), reste en temps réel.
 ## [MP] Hôte : charge réseau. 24 zombies en poursuite (remplacés dès qu'ils
 ## meurent), l'hôte fait des allers-retours pour les faire bouger, le client
 ## tire en rafale (arme automatique donnée ici). Mesure chaque seconde les

@@ -1,5 +1,4 @@
 extends AutotestScenario
-## @parts 3 : check.sh lance 3 parties en parallèle (armes réparties).
 ## Tir droit, arme par arme :
 ## 1. en visée, le cran (ou l'œilleton) ET le guidon projetés à l'écran sont
 ##    au centre à ±2 px (armes à lunette : écran de lunette affiché, zoom) ;

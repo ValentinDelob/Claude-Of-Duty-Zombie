@@ -139,21 +139,21 @@ Chaque réglage s'applique tout de suite et est enregistré.
   `user://maps/<id>/` ou une archive .zip. Voir `docs/MAP_AUTHORING.md`.
   Vérifier une carte sans fenêtre :
   `godot --headless --path . res://scenes/editor/map_editor.tscn -- --check=<dossier>`.
-- `sh tools/check.sh` : import, compilation de tous les scripts, tests unitaires,
-  test réseau, tous les scénarios automatisés et tous les tests multijoueur.
-  **Doit passer avant chaque commit.** Tout tourne dans un pool de tâches
-  parallèles (les plus longues d'abord, durées mémorisées dans
-  `tests/_out/durations.txt`) ; les scénarios et tests multijoueur tournent
-  **sans rendu** (`--headless`, aucune fenêtre) ; seuls ceux marqués
-  `## @rendu` ouvrent une fenêtre, réduite puis déplacée hors des écrans (jamais
-  visible). Un scénario long déclare `## @parts N` pour être découpé en N
-  parties parallèles (`mine(i)` / `owns(k)` dans `tests/autotest/scenario.gd`).
-  Réglages : `JOBS=3` (tâches simultanées, défaut : peu de jeux ouverts, machine
-  silencieuse), `GUI_JOBS=1` (fenêtres de rendu, défaut),
-  `SCENARIOS="perks scope"` / `MP="lobby"` (sous-ensemble), `--fast` (sans réseau).
-- `sh tools/commit.sh message.txt` : lance check.sh et ne committe que s'il réussit.
-- `sh tools/ship.sh message.txt` : commit vérifié, push sur `main`, puis build `.exe`
-  et release GitHub (voir ci-dessous).
+- `sh tools/check.sh` : vérification avant commit. Par défaut, seules les
+  tâches **impactées** par les fichiers modifiés depuis leur dernier succès sont
+  relancées (carte des dépendances `tools/test_deps.gd`) ; `--full` relance
+  tout. Scénarios et multijoueur **sans rendu** et en **temps de jeu accéléré**
+  (`--headless --fixed-fps 60`) ; seuls les tests `## @rendu` ouvrent une
+  fenêtre, réduite puis hors des écrans (jamais visible). Un échec est rejoué
+  une fois (signalé INSTABLE s'il passe). Rapport JUnit `tests/_out/junit.xml`.
+  Réglages : `JOBS=3`, `GUI_JOBS=1` (peu de jeux ouverts, machine silencieuse),
+  `SCENARIOS="perks scope"` / `MP="lobby"`, `--fast`, `--kino`, `--no-retry`.
+  Stratégie, niveaux et écriture des tests : **docs/TESTING.md**.
+- `sh tools/commit.sh message.txt` : lance check.sh (tâches impactées) et ne
+  committe que s'il réussit (`CHECK_ARGS=--full` pour tout vérifier).
+- `sh tools/ship.sh message.txt` : commit avec check **complet**, push sur
+  `main`, puis build `.exe` et release GitHub (voir ci-dessous) ;
+  `tools/release.sh` refuse de publier sans check complet réussi sur ce contenu.
 - `sh tools/blender.sh <script.py> [args]` : Blender sans fenêtre (modèles et
   architecture des cartes en maillage, voir docs/ARCHITECTURE.md).
 - `sh tools/perf.sh` : mesures de performance fiables (1080p, un jeu à la fois).

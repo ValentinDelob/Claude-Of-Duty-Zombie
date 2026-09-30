@@ -13,7 +13,14 @@ if [ "$GUI" = "1" ]; then
   nofocus_on
   MODE="--resolution 960x540"
 else
-  MODE="--headless --max-fps 60"
+  # Temps de jeu simulé (--fixed-fps) : voir docs/TESTING.md. MP_MODE pour
+  # forcer un autre mode (ex. temps réel : "--headless --max-fps 60").
+  MODE=${MP_MODE:-"--headless --fixed-fps 60"}
+  # « ## @temps-reel » dans le script hôte : ce test mesure ou limite quelque
+  # chose par seconde RÉELLE (débit, transfert cadencé…), il reste en temps réel.
+  if [ -z "$MP_MODE" ] && grep -q "^## @temps-reel" "tests/autotest/mp_${N}_host.gd"; then
+    MODE="--headless --max-fps 60"
+  fi
 fi
 AUTOTEST_PARALLEL=1 "$GODOT" $MODE --path . -- --autotest=mp_${N}_host > "$OUT/mp_${N}_host.log" 2>&1 &
 H=$!

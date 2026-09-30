@@ -1,5 +1,4 @@
 extends AutotestScenario
-## @parts 3 : check.sh lance 3 parties en parallèle (armes réparties).
 ## Vue FPS des armes (comme BO1) :
 ## 1. champ de vision propre à l'arme : rapport des champs appliqué, points
 ##    apparents (bouche du canon) projetés exactement comme le shader les dessine ;
@@ -98,16 +97,16 @@ func run() -> void:
 		# Culasse du pistolet au tir.
 		var slide_peak := 0.0
 		await pull_trigger()
-		var t0 := Time.get_ticks_msec()
-		while Time.get_ticks_msec() - t0 < 100:
+		var t0 := GameClock.msec()
+		while GameClock.msec() - t0 < 100:
 			slide_peak = maxf(slide_peak, group_offset(v, "slide"))
 			await tree().process_frame
 		if s.get("class", "") == "pistol":
 			at.check(slide_peak > 0.01, "%s : la glissière recule au tir (%.3f m)" % [id, slide_peak])
 		if s.get("cycle", "") == "pump":
 			var pump_peak := 0.0
-			var t1 := Time.get_ticks_msec()
-			while Time.get_ticks_msec() - t1 < WeaponDB.fire_interval(id) * 1000.0:
+			var t1 := GameClock.msec()
+			while GameClock.msec() - t1 < WeaponDB.fire_interval(id) * 1000.0:
 				pump_peak = maxf(pump_peak, group_offset(v, "pump"))
 				await tree().process_frame
 			at.check(pump_peak > 0.04, "%s : coup de pompe après le tir (%.3f m)" % [id, pump_peak])
@@ -123,10 +122,10 @@ func run() -> void:
 		var kind := String(s.get("reload_kind", "mag"))
 		var peak := {"mag": 0.0, "barrels": 0.0, "cyl": 0.0, "hand": 0.0}
 		var shots := [0.3, 0.5, 0.8]
-		var start := Time.get_ticks_msec()
+		var start := GameClock.msec()
 		var si := 0
-		while (Time.get_ticks_msec() - start) / 1000.0 < rt + 0.1:
-			var el := (Time.get_ticks_msec() - start) / 1000.0 / rt
+		while (GameClock.msec() - start) / 1000.0 < rt + 0.1:
+			var el := (GameClock.msec() - start) / 1000.0 / rt
 			for g in ["mag", "barrels", "cyl"]:
 				peak[g] = maxf(peak[g], group_offset(v, g))
 			peak.hand = maxf(peak.hand, left_offset(v))

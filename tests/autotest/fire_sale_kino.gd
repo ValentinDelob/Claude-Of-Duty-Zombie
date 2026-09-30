@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @carte kino : lancé seulement quand la carte Kino change (fichiers de la carte).
 ## LIQUIDATION sur KINO (BO1) : pendant le bonus, une boîte à CHAQUE
 ## emplacement possible (9 à Kino), toutes à 10 points ; à la fin, les boîtes
 ## temporaires disparaissent (celle en cours de tirage finit d'abord, puis

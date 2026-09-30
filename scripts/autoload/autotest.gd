@@ -7,6 +7,9 @@ extends Node
 ## mesure les performances, prend des captures (tests/_out/shots/) et quitte avec
 ## le code 0 (succès) ou 1 (échec). Inactif sans l'argument --autotest.
 
+## Filet global, en secondes réelles (au-delà du plus long timeout_sec).
+const GLOBAL_GUARD_SEC := 450
+
 var active := false
 var scenario_name := ""
 var _fps_samples: PackedFloat32Array = []
@@ -41,10 +44,20 @@ func _ready() -> void:
 		_move_offscreen()
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	print("[autotest] scénario « %s »" % scenario_name)
-	# Chien de garde global (au cas où le scénario lui-même planterait).
-	get_tree().create_timer(300.0, true, false, true).timeout.connect(func():
-		fail("chien de garde global")
-		finish())
+	# Chien de garde global (au cas où le scénario lui-même planterait), en
+	# temps RÉEL : avec --fixed-fps le temps de jeu va bien plus vite que
+	# l'horloge, un minuteur de l'arbre expirerait trop tôt.
+	var t_boot := Time.get_ticks_msec()
+	var guard := Timer.new()
+	guard.wait_time = 1.0
+	guard.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(guard)
+	guard.timeout.connect(func():
+		if Time.get_ticks_msec() - t_boot > GLOBAL_GUARD_SEC * 1000:
+			guard.stop()
+			fail("chien de garde global")
+			finish())
+	guard.start()
 	_run.call_deferred()
 
 
@@ -163,10 +176,20 @@ func finish() -> void:
 	# ressources encore référencées.
 	Net.leave()
 	Audio.stop_all()
+	# Dossier de combat propre à ce processus de test (CareerStats.path()).
+	if FileAccess.file_exists(CareerStats.path()):
+		DirAccess.remove_absolute(CareerStats.path())
 	if get_tree().current_scene:
 		get_tree().current_scene.queue_free()
-	for i in 3:
+	# Quelques images ET un peu de temps réel : avec --fixed-fps les images
+	# passent en quelques microsecondes, les tâches de fond (chargements,
+	# fils de travail) n'auraient pas le temps de rendre leurs ressources
+	# (« resources still in use at exit »).
+	var t_end := Time.get_ticks_msec()
+	var frames := 0
+	while frames < 3 or Time.get_ticks_msec() - t_end < 150:
 		await get_tree().process_frame
+		frames += 1
 	get_tree().quit(1 if _failed else 0)
 
 

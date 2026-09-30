@@ -14,6 +14,17 @@ TAG="v$BASE.$N"
 EXE=build/ClaudeOfDutyZombie.exe
 mkdir -p build
 
+# Publication : seulement si le dernier check COMPLET (tools/check.sh --full,
+# lancé par tools/ship.sh) a réussi sur exactement ce contenu (même empreinte
+# de toutes les tâches, hors tests propres à une carte : docs/TESTING.md).
+if [ "$1" != "--local" ]; then
+  "$GODOT" --headless --path . -s res://tools/test_deps.gd -- --out=tests/_out/deps_release > /dev/null 2>&1
+  NOW=$(awk '$4 == "-" { print $1, $2 }' tests/_out/deps_release/tasks.txt 2>/dev/null | md5sum | cut -c1-32)
+  if [ ! -s tests/_out/deps_release/tasks.txt ] || [ "$NOW" != "$(cat tests/_out/last_full_ok 2>/dev/null)" ]; then
+    echo "== RELEASE REFUSÉE : pas de check complet réussi sur ce contenu (sh tools/check.sh --full)"; exit 1
+  fi
+fi
+
 echo "== export $TAG"
 # Le numéro de build est inscrit dans le paquet (menu, poignée de main réseau),
 # puis project.godot est remis en état.

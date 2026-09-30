@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @carte kino : lancé seulement quand la carte Kino change (fichiers de la carte).
 ## KINO : jeu propre à Kino der Toten. Départ sur le disque du poste
 ## central face à la scène ; téléporteur de BO1 (gratuit, relier le pad puis le
 ## poste central, zombies foudroyés autour du pad, 30 s en salle de

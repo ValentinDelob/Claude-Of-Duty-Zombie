@@ -22,6 +22,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+GameClock="*res://scripts/autoload/game_clock.gd"
 GameState="*res://scripts/autoload/game_state.gd"
 Settings="*res://scripts/autoload/settings.gd"
 Net="*res://scripts/autoload/net.gd"

@@ -85,7 +85,7 @@ func run() -> void:
 
 	# 3) Lecture en jeu, par familles : armes (2D), zombies et impacts (3D).
 	var fwd := -p.global_transform.basis.z
-	var t0 := Time.get_ticks_msec()
+	var t0 := GameClock.msec()
 	for n in names:
 		if n.begins_with("zombie_") or n.begins_with("flesh") or n.begins_with("barricade") or n.begins_with("impact_") \
 				or n.begins_with("dog_") or n in ["headshot", "body_fall", "emerge", "explosion", "frag_explode", "nova_blast", "grenade_bounce", "monkey_bounce"]:
@@ -93,7 +93,7 @@ func run() -> void:
 		else:
 			Audio.play_2d(n, -6.0, 0.0)
 		await seconds(0.12)
-	at.check(Time.get_ticks_msec() - t0 < 60000, "tous les sons joués")
+	at.check(GameClock.msec() - t0 < 60000, "tous les sons joués")
 	await at.screenshot("playing")
 
 	# 4) Polyphonie : 30 râles simultanés -> au plus VOICE_LIMITS.zombie voix.

@@ -1,5 +1,4 @@
 extends AutotestScenario
-## @parts 4 : check.sh lance 4 parties en parallèle (armes et sections réparties).
 ## Arsenal BO1 : chaque arme est équipée, vue à la première personne (capture),
 ## tirée (validation serveur, rafale de 3 pour M16/G11) et rechargée. Puis les
 ## mécaniques spéciales : projectiles explosifs (China Lake, LAW, M1911
@@ -110,7 +109,7 @@ func run() -> void:
 		if not mine(wi):
 			continue
 		var s := WeaponDB.stats(id)
-		print("[roster] %s à %.1f s (%d fps)" % [id, Time.get_ticks_msec() / 1000.0, Engine.get_frames_per_second()])
+		print("[roster] %s à %.1f s (%d fps)" % [id, GameClock.msec() / 1000.0, Engine.get_frames_per_second()])
 		if not await equip(id):
 			continue
 		at.check(p.weapons.view.model_id == s.model and WeaponModels.spec(s.model).parts.size() > 8, "%s : modèle FPS (%d pièces)" % [id, WeaponModels.spec(s.model).parts.size()])

@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @temps-reel : reste en temps réel (mélange de minuteurs réseau réels et de temps de jeu, à revoir : docs/TESTING_PLAN.md).
 ## [MP] Hôte : arrache 4 planches d'une fenêtre (diffusion fiable), vérifie
 ## que la réparation du CLIENT est validée ici (+10 par planche), puis fait
 ## apparaître un zombie derrière la fenêtre.

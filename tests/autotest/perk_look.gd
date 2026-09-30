@@ -1,6 +1,4 @@
 extends AutotestScenario
-## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
-## @parts 2 : partie 0 = BUNKER K-7, partie 1 = KINO.
 ## Machines d'atouts façon BO1 (modèles Blender assets/models/perks/) : chaque
 ## machine est le modèle de son atout, pleine (le joueur bute dessus, une
 ## balle s'y arrête), panneau éteint sans courant et allumé avec. Captures de

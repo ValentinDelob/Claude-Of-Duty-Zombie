@@ -1,5 +1,4 @@
 extends AutotestScenario
-## @rendu : a besoin du rendu (captures de l'éditeur et du jeu, fenêtre hors écran).
 ## FORMES LIBRES dans l'éditeur de cartes, avec les vrais outils (souris et
 ## clavier envoyés à la vue) : une salle ronde de 32 points posée au cercle
 ## (un clic au centre puis « 13 Tab 32 Entrée » au clavier), G G : sans
@@ -202,9 +201,9 @@ func run() -> void:
 	var arc_segs := MapShapes.arc_segments(arc[0]) if not arc.is_empty() else []
 	var crossed := [false, false]
 	var inside := {}
-	var t0 := Time.get_ticks_msec()
+	var t0 := GameClock.msec()
 	var reached := false
-	while Time.get_ticks_msec() - t0 < 70000:
+	while GameClock.msec() - t0 < 70000:
 		await tree().physics_frame
 		for z: Zombie in game.zombies.zombies.values():
 			if not z.is_alive():

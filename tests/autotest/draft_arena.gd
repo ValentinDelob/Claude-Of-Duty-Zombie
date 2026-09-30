@@ -28,10 +28,10 @@ func reach(from: Vector3, to: Vector3, limit: float, label: String) -> void:
 	p.teleport_to(to + Vector3.UP * 0.05)
 	await seconds(0.3)
 	var z := game.zombies.get_zombie(game.zombies.spawn(from, 3, 150))
-	var t0 := Time.get_ticks_msec()
+	var t0 := GameClock.msec()
 	var ok: bool = await until(func(): return z.global_position.distance_to(p.global_position) < 2.0, limit, label)
 	if ok:
-		at.check(true, "%s (%.1f s)" % [label, (Time.get_ticks_msec() - t0) / 1000.0])
+		at.check(true, "%s (%.1f s)" % [label, (GameClock.msec() - t0) / 1000.0])
 
 
 func run() -> void:
@@ -73,14 +73,14 @@ func run() -> void:
 		for z: Zombie in game.zombies.alive:
 			zones.append(l.windows()[z.barricade.window_index].zone if z.barricade != null else l.zone_at(z.global_position))
 		at.check(zones.all(func(zone): return zone == "a"), "zombies apparus aux fenêtres de la zone A seulement (%s)" % str(zones))
-		var t0 := Time.get_ticks_msec()
+		var t0 := GameClock.msec()
 		var came: bool = await until(func():
 			for z: Zombie in game.zombies.alive:
 				if z.global_position.distance_to(p.global_position) < 2.2:
 					return true
 			return false, 70.0, "un zombie franchit sa fenêtre et rejoint le joueur")
 		if came:
-			at.check(true, "un zombie de la manche 1 arrache les planches, enjambe la fenêtre et rejoint le joueur (%.0f s)" % ((Time.get_ticks_msec() - t0) / 1000.0))
+			at.check(true, "un zombie de la manche 1 arrache les planches, enjambe la fenêtre et rejoint le joueur (%.0f s)" % ((GameClock.msec() - t0) / 1000.0))
 	game.rounds.paused = true
 	await H.clear_zombies(self)
 

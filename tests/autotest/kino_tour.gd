@@ -1,4 +1,5 @@
 extends AutotestScenario
+## @carte kino : lancé seulement quand la carte Kino change (fichiers de la carte).
 ## @parts 2 : partie 0 = emplacements, portes, navigation entre les étages,
 ## courant, vues (captures + perf) ; partie 1 = manche 1 dans le hall, piège,
 ## manche de chiens (portes et courant ouverts directement).
@@ -28,10 +29,10 @@ func reach(from: Vector3, to: Vector3, limit: float, label: String) -> void:
 	p.teleport_to(to + Vector3.UP * 0.05)
 	await seconds(0.3)
 	var z := game.zombies.get_zombie(game.zombies.spawn(from, 3, 150))
-	var t0 := Time.get_ticks_msec()
+	var t0 := GameClock.msec()
 	var ok: bool = await until(func(): return z.global_position.distance_to(p.global_position) < 2.0, limit, label)
 	if ok:
-		at.check(true, "%s (%.1f s)" % [label, (Time.get_ticks_msec() - t0) / 1000.0])
+		at.check(true, "%s (%.1f s)" % [label, (GameClock.msec() - t0) / 1000.0])
 
 
 func run() -> void:

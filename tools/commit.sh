@@ -1,5 +1,7 @@
 #!/bin/sh
 # Commit sécurisé : lance tools/check.sh et ne committe QUE s'il réussit.
+# CHECK_ARGS : options de check.sh (par défaut : tests impactés seulement ;
+# tools/ship.sh passe --full avant une release).
 # Usage : sh tools/commit.sh fichier_message.txt
 # COMMIT_EXCLUDE="motif ..." : chemins laissés hors du commit (par exemple le
 # travail en cours d'une autre session dans le même dossier), sans y toucher.
@@ -14,7 +16,7 @@ set -f  # motifs de COMMIT_EXCLUDE laissés tels quels (pas de développement pa
 EXCL_RE=$(printf '%s\n' $COMMIT_EXCLUDE | sed 's/[.]/\./g; s/[*]/.*/g' | paste -sd'|' -)
 tree_state() { git status --porcelain --untracked-files=all | grep -vE '\.(uid|import)$' | { [ -n "$EXCL_RE" ] && grep -vE "$EXCL_RE" || cat; } | while read -r _ f; do echo "$f $(git hash-object "$f" 2>/dev/null)"; done | sort; }
 BEFORE=$(tree_state)
-bash tools/check.sh > tests/_out/check.log 2>&1
+bash tools/check.sh $CHECK_ARGS > tests/_out/check.log 2>&1
 RC=$?
 grep -E "^== |TESTS|host=|ECHEC|ERROR|AVERTISSEMENT|échoué" tests/_out/check.log
 if [ $RC -ne 0 ]; then

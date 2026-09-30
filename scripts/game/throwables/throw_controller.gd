@@ -42,7 +42,7 @@ func setup(controller: WeaponController, game: Game) -> void:
 
 
 static func now() -> float:
-	return Time.get_ticks_msec() / 1000.0
+	return GameClock.now()  # temps de jeu (voir game_clock.gd)
 
 
 func busy() -> bool:

@@ -1,5 +1,4 @@
 extends AutotestScenario
-## @rendu : a besoin du rendu (captures de l'éditeur et du jeu, fenêtre hors écran).
 ## MURS EN BIAIS dans l'éditeur de cartes, avec les vrais outils (souris et
 ## clavier envoyés à la vue) : une pièce en octogone tracée au polygone
 ## (côtés aimantés à 0, 45 et 90°, clics volontairement imprécis), un
@@ -210,10 +209,10 @@ func run() -> void:
 				crossed[0] = true
 			if e.x + e.y > 9.0:
 				inside[z.id] = true
-	var t0 := Time.get_ticks_msec()
+	var t0 := GameClock.msec()
 	var reached := false
 	var crawler_done := false
-	while Time.get_ticks_msec() - t0 < 70000:
+	while GameClock.msec() - t0 < 70000:
 		await tree().physics_frame
 		check.call()
 		for z: Zombie in game.zombies.zombies.values():

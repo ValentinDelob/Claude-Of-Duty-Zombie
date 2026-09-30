@@ -1,5 +1,5 @@
 extends AutotestScenario
-## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
+## @carte kino : lancé seulement quand la carte Kino change (fichiers de la carte).
 ## KINO, salle de théâtre et salle de projection : captures depuis les
 ## points de vue des références de BO1 (docs/reference/kino/images/theater_*),
 ## courant rétabli, pour comparer le décor à la carte d'origine.

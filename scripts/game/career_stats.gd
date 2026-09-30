@@ -2,10 +2,12 @@ class_name CareerStats
 extends RefCounted
 ## Dossier de combat (« Combat Record » de Black Ops 1) : statistiques locales
 ## cumulées de toutes les parties du joueur, enregistrées à chaque GAME OVER
-## dans user://career.cfg (user://career_autotest.cfg pendant les tests).
+## dans user://career.cfg (pendant les tests : un fichier par processus,
+## user://career_autotest_<pid>.cfg, effacé à la fin du scénario ; plusieurs
+## scénarios tournent en parallèle et ne doivent pas se marcher dessus).
 
 const PATH := "user://career.cfg"
-const TEST_PATH := "user://career_autotest.cfg"
+const TEST_PATH_PREFIX := "user://career_autotest_"
 
 ## Clés dans l'ordre d'affichage : [clé, libellé].
 const FIELDS := [
@@ -23,7 +25,7 @@ const FIELDS := [
 
 
 static func path() -> String:
-	return TEST_PATH if Autotest.active else PATH
+	return "%s%d.cfg" % [TEST_PATH_PREFIX, OS.get_process_id()] if Autotest.active else PATH
 
 
 static func load_stats() -> Dictionary:
