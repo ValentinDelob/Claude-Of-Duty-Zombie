@@ -92,11 +92,16 @@ func burst(pos: Vector3, normal: Vector3, n: int, speed: float, spread: float, l
 func _process(delta: float) -> void:
 	if _count == 0:
 		return
+	# Une seule passe : mouvement puis instance du MultiMesh, valeurs lues
+	# une fois dans des variables locales (mêmes calculs, même résultat).
 	var i := 0
 	var damp := exp(-drag * delta)
+	var fall := Vector3.DOWN * gravity * delta
+	var mm := multimesh
 	while i < _count:
 		_life[i] -= delta
-		if _life[i] <= 0.0:
+		var life := _life[i]
+		if life <= 0.0:
 			_count -= 1
 			_pos[i] = _pos[_count]
 			_vel[i] = _vel[_count]
@@ -106,18 +111,19 @@ func _process(delta: float) -> void:
 			_col[i] = _col[_count]
 			_floor[i] = _floor[_count]
 			continue
-		_vel[i] = _vel[i] * damp + Vector3.DOWN * gravity * delta
-		_pos[i] += _vel[i] * delta
-		if _pos[i].y < _floor[i]:
-			_pos[i].y = _floor[i]
-			_vel[i] = Vector3(_vel[i].x * 0.3, 0.0, _vel[i].z * 0.3)
-		i += 1
-	var mm := multimesh
-	mm.visible_instance_count = _count
-	for k in _count:
-		var t := _life[k] / _max_life[k]
-		var s := _size[k] * (1.0 + grow * (1.0 - t))
-		mm.set_instance_transform(k, Transform3D(Basis.from_scale(Vector3(s, s, s)), _pos[k]))
-		var c := _col[k]
+		var v := _vel[i] * damp + fall
+		var p := _pos[i] + v * delta
+		var fy := _floor[i]
+		if p.y < fy:
+			p.y = fy
+			v = Vector3(v.x * 0.3, 0.0, v.z * 0.3)
+		_vel[i] = v
+		_pos[i] = p
+		var t := life / _max_life[i]
+		var s := _size[i] * (1.0 + grow * (1.0 - t))
+		mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(s, s, s)), p))
+		var c := _col[i]
 		c.a *= clampf(t * 2.0, 0.0, 1.0)
-		mm.set_instance_color(k, c)
+		mm.set_instance_color(i, c)
+		i += 1
+	mm.visible_instance_count = _count
