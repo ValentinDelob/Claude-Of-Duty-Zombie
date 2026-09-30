@@ -97,16 +97,14 @@ static func weapon_locked(obj: Interactable, pd: PlayerData) -> bool:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_interact(id: String) -> void:
-	if not multiplayer.is_server():
-		return
-	var pid := multiplayer.get_remote_sender_id()
 	# Inondation de demandes : chaque refus envoie un message (achat refusé...).
-	if not _limit.allow(pid):
+	var pid := NetGuard.alive_sender(self, game, _limit)
+	if pid == NetGuard.NO_SENDER:
 		return
 	var obj: Interactable = objects.get(id)
 	var p: Player = game.players.get(pid)
 	var pd := game.session.get_data(pid)
-	if obj == null or p == null or pd == null or pd.life != PlayerData.Life.ALIVE or weapon_locked(obj, pd):
+	if obj == null or weapon_locked(obj, pd):
 		return
 	if p.global_position.distance_to(obj.interact_point()) > obj.interact_range + MAX_SERVER_DISTANCE:
 		print("[Interact] %d trop loin de %s" % [pid, id])
@@ -116,17 +114,13 @@ func srv_interact(id: String) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_release(id: String) -> void:
-	if not multiplayer.is_server():
-		return
-	var pid := multiplayer.get_remote_sender_id()
-	if not _release_limit.allow(pid):
-		return
 	# Joueur connu seulement (un pair pas encore entré dans la partie n'a rien
 	# à relâcher). Ni distance ni « vivant » exigés : relâcher ne fait
 	# qu'arrêter une action (réparation, réanimation), jamais en démarrer une ;
 	# un joueur tombé à terre en pleine action doit pouvoir la relâcher.
+	var pid := NetGuard.known_sender(self, game, _release_limit)
 	var obj: Interactable = objects.get(id)
-	if obj == null or not game.players.has(pid) or game.session.get_data(pid) == null:
+	if pid == NetGuard.NO_SENDER or obj == null:
 		return
 	obj.srv_release(pid)
 

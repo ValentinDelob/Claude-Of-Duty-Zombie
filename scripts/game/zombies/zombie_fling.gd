@@ -87,14 +87,14 @@ func _fly(dt: float) -> void:
 		velocity = (velocity - 2.0 * velocity.dot(n) * n) * WALL_BOUNCE
 		next = hit.position + n * 0.35 - Vector3.UP * BODY_Y
 		next.y = maxf(next.y, _ground_y)
-		if Game.instance:
-			Game.instance.fx_root.blood_hit(hit.position, n, 1.0)
+		if _z.game:
+			_z.game.fx_root.blood_hit(hit.position, n, 1.0)
 		Audio.play_3d("body_fall", hit.position, -3.0, 0.15, 3)
 	if next.y <= _ground_y:
 		next.y = _ground_y
 		_bounces += 1
-		if Game.instance:
-			Game.instance.fx_root.dust.burst(next + Vector3.UP * 0.1, Vector3.UP, 5, 1.2, 0.8, 1.0, Color(0.35, 0.32, 0.28, 0.45), 2.5)
+		if _z.game:
+			_z.game.fx_root.dust.burst(next + Vector3.UP * 0.1, Vector3.UP, 5, 1.2, 0.8, 1.0, Color(0.35, 0.32, 0.28, 0.45), 2.5)
 		if velocity.y < -4.0 and _bounces < 3:
 			velocity.y = -velocity.y * GROUND_BOUNCE
 			velocity.x *= 0.5
@@ -110,8 +110,8 @@ func _land() -> void:
 	velocity = Vector3.ZERO
 	_land_t = 0.0
 	_land_basis = _z.skel.basis.orthonormalized()
-	if Game.instance:
-		Game.instance.fx_root.blood_decal(_z.global_position + Vector3.UP * 0.1, Vector3.UP, randf_range(0.9, 1.4))
+	if _z.game:
+		_z.game.fx_root.blood_decal(_z.global_position + Vector3.UP * 0.1, Vector3.UP, randf_range(0.9, 1.4))
 
 
 ## Bras en croix qui battent, jambes qui pédalent.

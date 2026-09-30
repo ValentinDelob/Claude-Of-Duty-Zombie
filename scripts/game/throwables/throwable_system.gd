@@ -121,14 +121,12 @@ func srv_refill_all() -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_cook(kind: int) -> void:
-	if not multiplayer.is_server():
-		return
-	var pid := multiplayer.get_remote_sender_id()
-	if not _cook_limit.allow(pid):
+	# Données de session suffisent (pas de nœud Player exigé) ; le lancer,
+	# lui, en a besoin (srv_throw).
+	var pid := NetGuard.alive_sender(self, game, _cook_limit, false)
+	if pid == NetGuard.NO_SENDER or _cooking.has(pid):
 		return
 	var pd := game.session.get_data(pid)
-	if pd == null or pd.life != PlayerData.Life.ALIVE or _cooking.has(pid):
-		return
 	match kind:
 		K.FRAG:
 			if pd.grenades <= 0:
@@ -148,9 +146,10 @@ func srv_cook(kind: int) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
-	if not multiplayer.is_server():
+	# Limiteur réservé aux refus (un lancer valide suit un dégoupillage borné).
+	var pid := NetGuard.server_sender(self)
+	if pid == NetGuard.NO_SENDER:
 		return
-	var pid := multiplayer.get_remote_sender_id()
 	var c: Array = _cooking.get(pid, [])
 	var p: Player = game.players.get(pid)
 	if c.is_empty() or p == null:
@@ -412,6 +411,6 @@ func _tick_fx(delta: float) -> void:
 		var lp := game.local_player
 		if lp:
 			var a := _shake_amp * clampf(_shake_t / 0.5, 0.0, 1.0)
-			lp._flinch += Vector2(randf_range(-a, a), randf_range(-a, a))
+			lp.add_flinch(Vector2(randf_range(-a, a), randf_range(-a, a)))
 		if _shake_t <= 0.0:
 			_shake_amp = 0.0

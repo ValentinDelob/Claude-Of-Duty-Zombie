@@ -11,7 +11,10 @@ Moteur : **Godot 4.7** (GDScript, rendu Forward+). Cible : GTX 1050 à 60 FPS en
   Aucune ligne de gameplay n'est dupliquée entre solo et multijoueur.
 - Conventions RPC :
   - requête client → serveur : `@rpc("any_peer", "call_local")` + `rpc_id(1, ...)` —
-    fonctionne aussi quand l'appelant est le serveur (solo / hôte) ;
+    fonctionne aussi quand l'appelant est le serveur (solo / hôte). Côté serveur,
+    le RPC commence par le prologue commun `NetGuard.server_sender` /
+    `known_sender` / `alive_sender` (serveur, expéditeur, joueur connu ou
+    vivant, limiteur) ;
   - diffusion serveur → tous : `@rpc("authority", "call_local")` + `rpc(...)`.
 - Le client n'envoie que des **intentions** (tirer, acheter, interagir) et sa position ;
   le serveur valide tout (distance, points, cadence, munitions...). Règles
@@ -122,6 +125,26 @@ bornent les acquittements, limitent les demandes (3 par carte) et le débit
 (seau de 240 messages, 120 par seconde, par client) ; les `_cl_*` exigent
 l'expéditeur 1 et vérifient chaque type reçu. Aucune ressource Godot n'est
 jamais chargée depuis le réseau ou une archive (données JSON seulement).
+
+## Référence à la partie (`game`)
+
+Chaque objet de la partie reçoit son `Game` de celui qui le crée, dans un champ
+`game` :
+
+- systèmes enfants directs de `Game` (`Combat`, `Interact`, `Throwables`,
+  `Rounds`, `Zombies`...) : `game = get_parent()` dans `_ready` ;
+- objets créés par un système : de leur créateur — `WeaponController.setup(p, game)`,
+  `ThrowController.setup(...)`, `Spawner.new(game)`, `DogRound` via
+  `RoundManager.game`, zombies et chiens via leur `ZombieManager.game` (lu dans
+  `Zombie._ready`), et leurs aides (`ZombieGibs`, `ZombieFling`) via `z.game` ;
+- `game` peut être nul pour un objet seul des tests unitaires (zombie ou
+  gestionnaire hors partie) : le code qui le lit le vérifie
+  (`Zombie._is_target_valid` refuse toute cible hors partie).
+
+`Game.instance` est réservé au code sans propriétaire dans la partie
+(autoloads, fonctions statiques, menus). Lisent encore `Game.instance`, tous
+avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
+(aussi créé hors partie par `Warmup`), `Barricade`, `Door`, `BoxBoard`.
 
 ## Autoloads
 

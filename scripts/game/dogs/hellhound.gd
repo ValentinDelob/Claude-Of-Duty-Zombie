@@ -30,6 +30,7 @@ var _lightning: DogLightning
 
 func _ready() -> void:
 	_mgr = get_parent() as ZombieManager
+	game = _mgr.game if _mgr else null
 	_multilevel = map_is_multilevel()
 	speed_class = 3
 	speed_mult = DogRules.RUN_SPEED / Zombie.SPEEDS[3]
@@ -114,7 +115,7 @@ func _chase(delta: float) -> void:
 		var dy := absf(to.y)
 		to.y = 0.0
 		var d := to.length()
-		if d < LUNGE_RANGE and d > 0.01 and dy < 0.9 and Game.instance.nav.world_line_clear(global_position, target.global_position):
+		if d < LUNGE_RANGE and d > 0.01 and dy < 0.9 and game.nav.world_line_clear(global_position, target.global_position):
 			_lunge_dir = to / d
 			_start_attack()
 			return
@@ -153,7 +154,7 @@ func _attack(delta: float) -> void:
 			var dy := absf(d.y)
 			d.y = 0.0
 			if d.length() < BITE_REACH and dy < LEVEL_TOLERANCE:
-				Game.instance.combat.damage_player(target.peer_id, DogRules.BITE_DAMAGE, global_position + Vector3.UP * 0.6)
+				game.combat.damage_player(target.peer_id, DogRules.BITE_DAMAGE, global_position + Vector3.UP * 0.6)
 	if _state_time >= DOG_ATTACK_TIME:
 		_lunge_dir = Vector3.ZERO
 		_set_state(State.CHASE)
@@ -254,7 +255,7 @@ func die(_dir: Vector3, _headshot: bool) -> void:
 		_light.light_energy = 0.0
 		return
 	var c := global_position + Vector3.UP * 0.5
-	var fx: Fx = Game.instance.fx_root if Game.instance else null
+	var fx: Fx = game.fx_root if game else null
 	if fx:
 		fx.sparks.burst(c, Vector3.UP, 14, 5.0, 1.1, 0.6, Color(1.0, 0.5, 0.12, 0.9), 0.8)
 		fx.explosion_light(c, Color(1.0, 0.45, 0.12))

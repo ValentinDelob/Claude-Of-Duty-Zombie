@@ -119,6 +119,7 @@ func _in_view(p: Player, pos: Vector3, dist: float) -> bool:
 ## nombre de zombies retirés (à remettre dans le quota de la manche).
 func recycle(delta: float) -> int:
 	var removed := 0
+	prune_far_time(_far_time, game.zombies.alive)
 	var players: Array = _standing_players()
 	if players.is_empty():
 		return 0
@@ -137,3 +138,17 @@ func recycle(delta: float) -> int:
 			game.zombies.despawn(z.id)
 			removed += 1
 	return removed
+
+
+## Oublie le temps passé loin des joueurs des zombies qui ne sont plus
+## vivants (tués, retirés) : la table ne grossit plus toute la partie, et un
+## futur zombie au même identifiant (recyclés après 65000) repart de zéro.
+static func prune_far_time(far_time: Dictionary, alive: Array[Zombie]) -> void:
+	if far_time.is_empty():
+		return
+	var ids := {}
+	for z in alive:
+		ids[z.id] = true
+	for zid in far_time.keys():
+		if not ids.has(zid):
+			far_time.erase(zid)

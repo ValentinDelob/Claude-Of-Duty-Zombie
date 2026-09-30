@@ -61,8 +61,8 @@ func run() -> void:
 	await at.screenshot("hud")
 
 	# FAUCHEUSE ramassée par le client : minigun pour lui seul, tirs validés.
-	var rejects := [0]
-	game.combat.shot_rejected.connect(func(_pid, _r): rejects[0] += 1)
+	var rejects := []
+	game.combat.shot_rejected.connect(func(_pid, r): rejects.append(r))
 	await seconds(1.0)
 	pw.debug_drop(PowerupRules.DEATH_MACHINE, MapData.cell_to_world(Vector2i(7, 7)))
 	ok = await until(func(): return grabs.size() >= 3, 25.0, "faucheuse ramassée")
@@ -75,7 +75,7 @@ func run() -> void:
 	at.check(client.visual.weapon_key.begins_with(PowerupRules.DEATH_MACHINE_WEAPON), "l'hôte voit le minigun dans les mains du client (%s)" % client.visual.weapon_key)
 	var z := await H.dummy_zombie(self, MapData.cell_to_world(Vector2i(11, 7)), 3000)
 	ok = await until(func(): return not z.is_alive(), 20.0, "zombie fauché par le client")
-	at.check(ok and rejects[0] == 0, "faucheuse du client : tirs validés, zombie tué (%d refus)" % rejects[0])
+	at.check(ok and rejects.is_empty(), "faucheuse du client : tirs validés, zombie tué (%d refus %s)" % [rejects.size(), rejects])
 	pw.death_machine[client_id] = 0.2
 	await seconds(0.8)
 	at.check(cpd.powerup_weapon.is_empty() and cpd.current_weapon().id != PowerupRules.DEATH_MACHINE_WEAPON, "fin de la faucheuse du client")

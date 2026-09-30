@@ -15,6 +15,8 @@ signal fired
 signal ammo_changed
 
 var player: Player
+## Partie reçue de setup() (null avant : contrôleur seul des tests unitaires).
+var game: Game
 var combat: Combat
 var session: Session
 var fx: Fx
@@ -63,11 +65,12 @@ const RELOAD_SOUNDS := {
 }
 
 
-func setup(p: Player, game: Game) -> void:
+func setup(p: Player, g: Game) -> void:
 	player = p
-	combat = game.get_node("Combat")
-	session = game.get_node("Session")
-	fx = game.fx_root
+	game = g
+	combat = g.get_node("Combat")
+	session = g.get_node("Session")
+	fx = g.fx_root
 	view = ViewModel.new()
 	view.name = "ViewModel"
 	p.camera.add_child(view)
@@ -329,7 +332,7 @@ func _trace(origin: Vector3, dir: Vector3, pen: int, impacts: PackedVector3Array
 			var zid := int(col.get_meta("zombie_id"))
 			hits.append([zid, int(col.get_meta("zone", 0)), origin.distance_to(r.position), r.position])
 			fx.blood_hit(r.position, dir, 0.6)
-			Game.instance.hud.hit_marker(false, int(col.get_meta("zone", 0)) == 1)
+			game.hud.hit_marker(false, int(col.get_meta("zone", 0)) == 1)
 			exclude.append(r.rid)
 			# Les autres hitboxes du même zombie ne comptent pas deux fois.
 			for sib in col.get_parent().get_children():
@@ -420,9 +423,9 @@ func _strike() -> void:
 
 ## Zombie visé à portée de fente (au-delà de la portée au contact), visible.
 func _lunge_target() -> Zombie:
-	if Game.instance == null or Game.instance.zombies == null:
+	if game == null or game.zombies == null:
 		return null
-	var alive: Array[Zombie] = Game.instance.zombies.alive
+	var alive: Array[Zombie] = game.zombies.alive
 	var positions := []
 	for z in alive:
 		positions.append(z.global_position)
