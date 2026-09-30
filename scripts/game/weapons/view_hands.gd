@@ -32,12 +32,16 @@ const ELBOW_R := Vector3(0.11, -0.2, 0.34)
 const ELBOW_L := Vector3(-0.16, -0.2, 0.3)
 ## Longueur du maillage d'avant-bras (étiré à la longueur voulue).
 const ARM_LEN := 0.3
+## La manche continue derrière le coude (haut du bras) sur cette fraction de
+## l'avant-bras : son bout sort toujours de l'écran (jamais un bras coupé
+## qui flotte, même quand la main gauche descend au rechargement).
+const SLEEVE_BACK := 0.9
 ## Bout de l'index (détente) dans le repère de la poignée.
 const TRIGGER := Vector3(0, 0.046, -0.056)
 ## Pièces d'une tenue.
 const PIECES := ["grip", "pistol_support", "foregrip", "cradle", "forearm", "knife", "throw_r", "throw_l"]
 ## Modèles à poignée avant verticale (main gauche en poing).
-const FRONT_GRIP := {"mp5k": true, "aug": true, "pm63": true, "thunder": true}
+const FRONT_GRIP := {"mp5k": true, "aug": true, "pm63": true, "thunder": true, "death_machine": true}
 
 var hand_r: Node3D
 var hand_l: Node3D
@@ -314,8 +318,8 @@ static func _forearm(accs: Dictionary, elbow: Vector3, wrist: Vector3, s: Dictio
 		WeaponMesh.limb(accs.cuff if s.get("rubber", false) else accs.hand, elbow, elbow + d * 1.0,
 			[[0.86, 0.029], [0.88, 0.031], [0.97, 0.027], [0.99, 0.024]], 10, 0.85)
 	# Manche : ample, qui se resserre sur le bord (retroussée : gros bourrelet).
-	var sl := [[0.0, 0.052], [sleeve_end - 0.1, 0.047], [sleeve_end - 0.02, 0.044], [sleeve_end, 0.038]]
-	WeaponMesh.limb(accs.sleeve, elbow + d * -0.2, elbow + d * 1.0, _stretch(sl, -0.2), 10, 0.9)
+	var sl := [[-SLEEVE_BACK, 0.056], [0.0, 0.052], [sleeve_end - 0.1, 0.047], [sleeve_end - 0.02, 0.044], [sleeve_end, 0.038]]
+	WeaponMesh.limb(accs.sleeve, elbow + d * -SLEEVE_BACK, elbow + d * 1.0, _stretch(sl, -SLEEVE_BACK), 10, 0.9)
 	var cuff := [[sleeve_end - 0.09, 0.05], [sleeve_end - 0.07, 0.054], [sleeve_end - 0.01, 0.05], [sleeve_end + 0.005, 0.043]] if rolled \
 		else [[sleeve_end - 0.04, 0.047], [sleeve_end - 0.03, 0.049], [sleeve_end + 0.005, 0.046], [sleeve_end + 0.01, 0.04]]
 	WeaponMesh.limb(accs.cuff, elbow + d * -0.2, elbow + d * 1.0, _stretch(cuff, -0.2), 10, 0.9)

@@ -90,6 +90,49 @@ func test_limiter() -> void:
 	assert_true(l.allow(8, 100.0), "autre joueur indépendant")
 
 
+## Débit propre à chaque message (cadence de tir de Combat : arme en main).
+func test_limiter_take_with_own_rate() -> void:
+	var l := NetGuard.Limiter.new(0.0, 4.0)
+	var n := 0
+	for i in 10:
+		if l.take(1, 10.0, 8.0):
+			n += 1
+	assert_eq(n, 4, "rafale de 4 jetons")
+	assert_false(l.take(1, 10.1, 8.0), "0,8 jeton regagné en 0,1 s : refusé")
+	assert_true(l.take(1, 10.2, 8.0), "1,6 jeton cumulé : accepté")
+	assert_false(l.take(1, 10.3, 2.0), "débit plus lent : 0,8 jeton")
+	l.forget(1)
+	assert_true(l.take(1, 10.3, 2.0), "oublié : seau plein")
+
+
+## Tirs d'un seau de cadence de Combat : `n` tirs réguliers à `rate` coups/s
+## à partir de `t0`, dont ceux d'un à-coup de `stall` s (réseau, serveur
+## chargé) arrivent tous ensemble à sa fin. Retourne le nombre de refus.
+func _fire_refusals(rate: float, n: int, stall: float, client_rate := -1.0) -> int:
+	var l := NetGuard.Limiter.new(0.0, Combat.FIRE_BURST_TOKENS)
+	var sent := rate if client_rate < 0.0 else client_rate
+	var refused := 0
+	for i in n:
+		var t := 1.0 + i / sent
+		if t > 1.5 and t < 1.5 + stall:
+			t = 1.5 + stall
+		if not l.take(1, t, rate * 1.25, Combat.fire_burst(rate)):
+			refused += 1
+	return refused
+
+
+## FAUCHEUSE (20 coups/s) : un à-coup de 0,3 s regroupait 6 tirs, au-delà de
+## la rafale fixe de 4 jetons (tir d'un client honnête refusé, mp_powerups).
+func test_fast_weapon_tolerates_jitter_but_not_cheating() -> void:
+	var dm := 1.0 / WeaponDB.fire_interval("death_machine")
+	assert_near(dm, 20.0, 0.01, "FAUCHEUSE : 1200 coups/min")
+	assert_eq(_fire_refusals(dm, 40, 0.3), 0, "à-coup de 0,3 s : aucun tir refusé")
+	assert_true(_fire_refusals(dm, 200, 0.0, dm * 1.5) > 10, "cadence 1,5x tenue : refusée")
+	var pistol := 1.0 / WeaponDB.fire_interval("m1911")
+	assert_eq(Combat.fire_burst(pistol), Combat.FIRE_BURST_TOKENS, "arme lente : rafale de 4 tirs inchangée")
+	assert_true(_fire_refusals(dm, 40, 0.6) > 0, "à-coup de 0,6 s : au-delà de la tolérance")
+
+
 func test_splash_must_follow_the_shot() -> void:
 	var o := Vector3(0, 1.6, 0)
 	var d := Vector3(1, 0, 0)

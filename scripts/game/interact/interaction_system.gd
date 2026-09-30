@@ -16,6 +16,8 @@ var focused: Interactable
 var _holding: Interactable
 ## Serveur : demandes d'interaction par joueur (un humain en fait 5 à 10 / s).
 var _limit := NetGuard.Limiter.new(20.0, 20.0)
+## Serveur : fins d'interaction (une par demande acceptée, même cadence).
+var _release_limit := NetGuard.Limiter.new(20.0, 20.0)
 
 
 func _ready() -> void:
@@ -95,16 +97,14 @@ static func weapon_locked(obj: Interactable, pd: PlayerData) -> bool:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_interact(id: String) -> void:
-	if not multiplayer.is_server():
-		return
-	var pid := multiplayer.get_remote_sender_id()
 	# Inondation de demandes : chaque refus envoie un message (achat refusé...).
-	if not _limit.allow(pid):
+	var pid := NetGuard.alive_sender(self, game, _limit)
+	if pid == NetGuard.NO_SENDER:
 		return
 	var obj: Interactable = objects.get(id)
 	var p: Player = game.players.get(pid)
 	var pd := game.session.get_data(pid)
-	if obj == null or p == null or pd == null or pd.life != PlayerData.Life.ALIVE or weapon_locked(obj, pd):
+	if obj == null or weapon_locked(obj, pd):
 		return
 	if p.global_position.distance_to(obj.interact_point()) > obj.interact_range + MAX_SERVER_DISTANCE:
 		print("[Interact] %d trop loin de %s" % [pid, id])
@@ -114,11 +114,15 @@ func srv_interact(id: String) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_release(id: String) -> void:
-	if not multiplayer.is_server():
-		return
+	# Joueur connu seulement (un pair pas encore entré dans la partie n'a rien
+	# à relâcher). Ni distance ni « vivant » exigés : relâcher ne fait
+	# qu'arrêter une action (réparation, réanimation), jamais en démarrer une ;
+	# un joueur tombé à terre en pleine action doit pouvoir la relâcher.
+	var pid := NetGuard.known_sender(self, game, _release_limit)
 	var obj: Interactable = objects.get(id)
-	if obj:
-		obj.srv_release(multiplayer.get_remote_sender_id())
+	if pid == NetGuard.NO_SENDER or obj == null:
+		return
+	obj.srv_release(pid)
 
 
 ## Serveur : diffuse l'état d'un objet.
@@ -134,11 +138,27 @@ func _cl_state(id: String, state: Dictionary) -> void:
 		obj.apply_state(state, true)
 
 
+## Motifs de refus : codes envoyés par le serveur, traduits par chaque
+## client dans sa propre langue (deny_text).
+const NO_POINTS := "no_points"
+const NO_POWER := "no_power"
+
+
+## Texte affiché pour un motif de refus, dans la langue du joueur local.
+static func deny_text(reason: String) -> String:
+	match reason:
+		NO_POINTS:
+			return Lang.t("Pas assez de points", "Not enough points")
+		NO_POWER:
+			return Lang.t("Pas de courant", "No power")
+	return ""
+
+
 ## Serveur : refus (points insuffisants...) signalé au seul joueur concerné.
 func deny(pid: int, reason: String) -> void:
-	if reason == "Pas assez de points":
+	if reason == NO_POINTS:
 		VoxSystem.say(pid, "no_money", 0.6)
-	elif reason == "Pas de courant":
+	elif reason == NO_POWER:
 		VoxSystem.say(pid, "no_power", 0.7)
 	if pid == multiplayer.get_unique_id():
 		_cl_denied(reason)
@@ -149,7 +169,7 @@ func deny(pid: int, reason: String) -> void:
 @rpc("authority", "call_remote", "reliable")
 func _cl_denied(reason: String) -> void:
 	Audio.play_2d("denied", -4.0, 0.0)
-	game.hud.flash_message(reason)
+	game.hud.flash_message(deny_text(reason))
 
 
 ## Serveur : son d'achat joué pour tout le monde à la position de l'objet.

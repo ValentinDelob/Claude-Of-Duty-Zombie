@@ -372,6 +372,8 @@ func _opening_props(o: Dictionary) -> void:
 		_option(_props, Lang.t("Type", "Type"), names, types.find(t), func(i):
 			ed.push_undo()
 			o["type"] = types[i]
+			# Les variantes sont propres à un type : l'aspect par défaut du nouveau.
+			o.erase("variante")
 			if types[i] in ["porte", "debris"] and not o.has("prix"):
 				o["prix"] = ed.default_door_price()
 			if not types[i] in ["porte", "debris"]:
@@ -379,6 +381,7 @@ func _opening_props(o: Dictionary) -> void:
 			ed.changed())
 		if t in ["porte", "debris"]:
 			_spin(_props, Lang.t("Prix", "Price"), float(o.get("prix", 750)), 0, 20000, 250, func(v): o["prix"] = int(v), "")
+		_variant_row(o)
 		var w := _spin(_props, Lang.t("Largeur", "Width"), MapRules.opening_width(o), 1.0, 6.0, 0.5, func(v):
 			var res := MapRules.place_opening(ed.doc, k, t, MapGeom.v2(o.position), v, String(o.id))
 			if res.ok:
@@ -413,6 +416,16 @@ func _object_props(o: Dictionary) -> void:
 				ed.push_undo()
 				o["arme"] = String(ids[i])
 				ed.changed())
+			_variant_row(o)
+		"bloc_invisible":
+			var hs := _spin(_props, Lang.t("Hauteur", "Height"), float(o.get("hauteur", 0.0)), 0.0, MapCatalog.CLIP_HEIGHT[1], 0.5, func(v):
+				if v < MapCatalog.CLIP_HEIGHT[0]:
+					o.erase("hauteur")
+				else:
+					o["hauteur"] = v)
+			hs.tooltip_text = Lang.t("0 : du sol au plafond de l'étage", "0: from the floor up to the ceiling")
+			_note(_props, Lang.t("Invisible en jeu. Bloque les joueurs et les zombies (leurs trajets la contournent) ; les balles et les grenades passent, comme les barrières invisibles de BO1. Hauteur 0 : du sol au plafond.",
+				"Invisible in game. Blocks players and zombies (their paths go around it); bullets and grenades go through, like BO1 invisible clips. Height 0: floor to ceiling."))
 		"boite":
 			_check(_props, Lang.t("Départ de la boîte (un seul)", "Box start (only one)"), bool(o.get("depart", false)), func(on):
 				if on:
@@ -452,6 +465,21 @@ func _object_props(o: Dictionary) -> void:
 		_note(_props, hint)
 	var r := MapRules.footprint_rect(o)
 	_note(_props, Lang.t("Position : x %s m, y %s m, étage %d", "Position: x %s m, y %s m, floor %d") % [_m(r.get_center().x), _m(r.get_center().y), int(o.get("etage", 0))])
+
+
+## Liste « Aspect » (variantes d'un type, MapCatalog.VARIANTS ; touche V).
+func _variant_row(o: Dictionary) -> void:
+	var t := String(o.get("type", ""))
+	var ids := MapCatalog.variants(t)
+	if ids.size() < 2:
+		return
+	var opt := _option(_props, Lang.t("Aspect (V)", "Look (V)"), ids.map(func(x): return MapCatalog.variant_name(t, String(x))),
+		maxi(0, ids.find(MapCatalog.variant_of(o))), func(i):
+			ed.push_undo()
+			MapCatalog.set_variant(o, String(ids[i]))
+			ed.changed(false))
+	opt.tooltip_text = Lang.t("Modèle affiché en jeu ; même prix et même collision. V : aspect suivant",
+		"Model shown in game; same price and same collision. V: next look")
 
 
 ## Change le modèle d'un décor ou d'un luminaire posé (`key` : prefab ou

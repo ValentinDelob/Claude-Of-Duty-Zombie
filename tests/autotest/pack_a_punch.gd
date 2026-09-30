@@ -38,7 +38,7 @@ func run() -> void:
 	pap = game.interact.get_obj("pap")
 	at.check(pap != null, "Pack-a-Punch présent dans la salle du rituel")
 	await at_machine()
-	at.check(game.hud._prompt.text.contains("courant"), "courant requis : %s" % game.hud._prompt.text)
+	at.check(game.hud._prompt.text == Interactable.need_power_text(), "courant requis : %s" % game.hud._prompt.text)
 	(game.interact.get_obj("power") as PowerSwitch).srv_use(1)
 	await until(func(): return game.power_on, 2.0, "courant rétabli")
 	# On achète une M14 (don direct) et on se donne des points.
@@ -47,7 +47,7 @@ func run() -> void:
 	game.session.add_points(1, 12000)
 	await until(func(): return pd.points == 12500 and p.weapons.current().get("id", "") == "m14", 3.0, "M14 en main et points crédités")
 	await at_machine()
-	at.check(game.hud._prompt.text.contains("Améliorer") and game.hud._prompt.text.contains("5000"), "invite : %s" % game.hud._prompt.text)
+	at.check(game.hud._prompt.text.contains(Lang.t("Améliorer", "Upgrade")) and game.hud._prompt.text.contains("5000"), "invite : %s" % game.hud._prompt.text)
 	await press()
 	at.check(pap.state == PackAPunch.State.WORKING and pd.has_weapon("m14") < 0, "M14 déposée dans l'autel")
 	at.check(pd.points == 12500 - 5000, "5000 points débités (%d)" % pd.points)

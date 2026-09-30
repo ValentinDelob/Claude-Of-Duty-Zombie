@@ -20,9 +20,13 @@ func run() -> void:
 	var cpd := game.session.get_data(cid)
 	var client: Player = game.players[cid]
 	await until(func(): return client.global_position.distance_to(MapData.cell_to_world(Vector2i(6, 7))) < 1.0, 15.0, "client en place")
+	var hpd := game.session.local_data()
+	cpd.points = 1000
+	hpd.points = 2000
 	game.combat.damage_player(cid, 500, client.global_position + Vector3(1, 1, 0))
 	await until(func(): return cpd.life == PlayerData.Life.DOWNED and game.downed.is_downed(cid), 2.0, "client à terre")
 	at.check(cpd.life == PlayerData.Life.DOWNED and game.downed.is_downed(cid), "client à terre (serveur)")
+	at.check(cpd.points == 950, "à terre : 5 %% des points perdus (1000 -> %d)" % cpd.points)
 	at.check(game.players.size() == 2 and GameState.state == GameState.State.PLAYING, "la partie continue (l'hôte est debout)")
 	# Réanimation : on s'approche et on maintient [F].
 	p.teleport_to(client.global_position + Vector3(-1.2, 0, 0), -PI * 0.5)
@@ -37,6 +41,7 @@ func run() -> void:
 	p.input.interact = false
 	at.check(cpd.life == PlayerData.Life.ALIVE, "client réanimé par l'hôte (maintien de 4 s)")
 	at.check(game.session.local_data().revives == 1, "réanimation comptée pour l'hôte")
+	at.check(hpd.points == 2050, "le sauveteur reçoit les points perdus (2000 -> %d)" % hpd.points)
 	# Le client a vu sa réanimation ; saignement jusqu'à la mort.
 	if not await MpHelpers.wait_peer(self, "releve", 15.0):
 		return
@@ -44,6 +49,7 @@ func run() -> void:
 	game.combat.damage_player(cid, 500, client.global_position)
 	await until(func(): return cpd.life == PlayerData.Life.DEAD, 6.0, "mort par saignement")
 	at.check(cpd.life == PlayerData.Life.DEAD, "client mort après le délai de saignement")
+	at.check(hpd.points == 1840, "coéquipier succombé : 10 %% des points perdus (2050 -> %d)" % hpd.points)
 	# Manche suivante (une fois la mort vue par le client) : retour du client.
 	if not await MpHelpers.wait_peer(self, "mort", 15.0):
 		return

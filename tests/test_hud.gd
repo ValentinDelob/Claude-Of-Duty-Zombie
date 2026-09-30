@@ -3,6 +3,28 @@ extends TestCase
 
 
 func test_bo1_prompts() -> void:
+	var saved := Settings.language
+	Settings.language = "fr"
+	_bo1_prompts_fr()
+	Settings.language = "en"
+	_bo1_prompts_en()
+	Settings.language = saved
+
+
+func _bo1_prompts_en() -> void:
+	assert_eq(Hud.bo1_prompt("[F] Buy M14 [500]"), "Press F to buy M14 [Cost: 500]")
+	assert_eq(Hud.bo1_prompt("[F] Mystery Box [950]"), "Press F to use the Mystery Box [Cost: 950]")
+	assert_eq(Hud.bo1_prompt("[F] Upgrade M14 [5000]"), "Press F to upgrade M14 [Cost: 5000]")
+	assert_eq(Hud.bo1_prompt("[F] Ammo MP40 [250]"), "Press F to buy ammo: MP40 [Cost: 250]")
+	assert_eq(Hud.bo1_prompt("Hold [F] to rebuild the barrier"), "Hold F to rebuild the barrier")
+	assert_eq(Hud.bo1_prompt("[F] Hold to revive Bob"), "Hold F to revive Bob")
+	assert_eq(Hud.bo1_prompt("Power must be activated first"), "Power must be activated first")
+	assert_eq(Hud.bo1_prompt("[F] Turn on the power"), "Press F to turn on the power")
+	assert_eq(Hud.bo1_prompt("[F] Buy M14 [500]", "E"), "Press E to buy M14 [Cost: 500]")
+	assert_eq(Hud.bo1_prompt("Hold [F] to rebuild the barrier", "MOUSE 3"), "Hold MOUSE 3 to rebuild the barrier")
+
+
+func _bo1_prompts_fr() -> void:
 	assert_eq(Hud.bo1_prompt(""), "")
 	assert_eq(Hud.bo1_prompt("[F] Acheter M14 [500]"), "Appuyer sur F pour acheter M14 [Coût : 500]")
 	assert_eq(Hud.bo1_prompt("[F] Boîte mystère [950]"), "Appuyer sur F pour ouvrir la boîte mystère [Coût : 950]")

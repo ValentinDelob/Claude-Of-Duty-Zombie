@@ -20,12 +20,12 @@ func run() -> void:
 	await seconds(2.6)  # fin de la boisson de l'atout (réplique incluse)
 	p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
 	game.combat.damage_player(1, 200, p.global_position + Vector3(1, 1, 0))
-	await until(func(): return pd.life == PlayerData.Life.DOWNED and GameState.state == GameState.State.PLAYER_DOWN and game.hud._downed._title.text == "À TERRE", 2.0, "joueur à terre")
+	await until(func(): return pd.life == PlayerData.Life.DOWNED and GameState.state == GameState.State.PLAYER_DOWN and game.hud._downed._title.text == Lang.t("À TERRE", "DOWNED"), 2.0, "joueur à terre")
 	at.check(pd.life == PlayerData.Life.DOWNED, "à terre à 0 PV")
 	at.check(GameState.state == GameState.State.PLAYER_DOWN, "état PLAYER_DOWN")
 	at.check(pd.weapons.size() == 1 and pd.current_weapon().id == "m1911", "dernier recours : pistolet seul")
 	at.check(not pd.has_perk("lazarus"), "atouts perdus")
-	at.check(game.hud._downed._title.text == "À TERRE", "HUD : À TERRE")
+	at.check(game.hud._downed._title.text == Lang.t("À TERRE", "DOWNED"), "HUD : À TERRE")
 	await seconds(0.3)  # capture
 	await at.screenshot("downed")
 	# On rampe.
@@ -40,6 +40,11 @@ func run() -> void:
 	game.combat.shot_validated.connect(func(_pid): shots[0] += 1)
 	await H.shoot(self, p)
 	at.check(shots[0] == 1, "tir possible à terre")
+	# HUD : la barre d'auto-réanimation se remplit (pas de compte à rebours
+	# de saignement de 45 s alors qu'on se relève en 10 s).
+	var ov := game.hud._downed
+	at.check(ov._revive.text.contains("█") and ov._time.text == "",
+		"HUD : barre d'auto-réanimation (« %s », « %s »)" % [ov._revive.text, ov._time.text])
 	# Auto-réanimation LAZARUS (10 s, comme BO1).
 	await until(func(): return pd.life == PlayerData.Life.ALIVE, DownedSystem.SOLO_SELF_REVIVE + 3.0, "réanimation")
 	at.check(pd.life == PlayerData.Life.ALIVE and pd.health == 100, "réanimé par LAZARUS (%d PV)" % pd.health)

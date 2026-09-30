@@ -15,7 +15,7 @@ func run() -> void:
 	var host: Player = game.players.get(1)
 	await until(func(): return game.spectating == host and host.camera.current, 3.0, "vue de l'hôte")
 	at.check(game.spectating == host and host.camera.current, "spectateur : vue de l'hôte")
-	at.check(game.hud._spectate_label.text.begins_with("SPECTATEUR"), "HUD : %s" % game.hud._spectate_label.text)
+	at.check(game.hud._spectate_label.text.begins_with(Lang.t("SPECTATEUR", "SPECTATING")), "HUD : %s" % game.hud._spectate_label.text)
 	await at.screenshot("spectating")
 	MpHelpers.signal_peer("spectateur")
 	await until(func(): return pd.life == PlayerData.Life.ALIVE, 15.0, "réapparition")
@@ -28,6 +28,6 @@ func run() -> void:
 		var menu: MainMenu = tree().current_scene
 		at.check(menu.current_name == "message", "écran de message")
 		var body: String = menu.current.get_child(0).get_child(1).text if menu.current_name == "message" else ""
-		at.check(body.contains("Connexion perdue"), "message : %s" % body)
+		at.check(body.contains(Lang.t("Connexion perdue", "Connection to the host lost")), "message : %s" % body)
 		await at.screenshot("host_lost")
 	await MpHelpers.finish(self)

@@ -20,13 +20,13 @@ const ALL := [MAX_AMMO, INSTA_KILL, DOUBLE_POINTS, NUKE, CARPENTER, FIRE_SALE, D
 const TIMED := [INSTA_KILL, DOUBLE_POINTS, FIRE_SALE]
 
 const NAMES := {
-	MAX_AMMO: "MUNITIONS MAX !",
-	INSTA_KILL: "MORT INSTANTANÉE !",
-	DOUBLE_POINTS: "POINTS DOUBLES !",
-	NUKE: "BOMBE NUCLÉAIRE !",
-	CARPENTER: "CHARPENTIER !",
-	FIRE_SALE: "LIQUIDATION !",
-	DEATH_MACHINE: "FAUCHEUSE !",
+	MAX_AMMO: {"fr": "MUNITIONS MAX !", "en": "MAX AMMO!"},
+	INSTA_KILL: {"fr": "MORT INSTANTANÉE !", "en": "INSTA-KILL!"},
+	DOUBLE_POINTS: {"fr": "POINTS DOUBLES !", "en": "DOUBLE POINTS!"},
+	NUKE: {"fr": "BOMBE NUCLÉAIRE !", "en": "NUKE!"},
+	CARPENTER: {"fr": "CHARPENTIER !", "en": "CARPENTER!"},
+	FIRE_SALE: {"fr": "LIQUIDATION !", "en": "FIRE SALE!"},
+	DEATH_MACHINE: {"fr": "FAUCHEUSE !", "en": "REAPER!"},
 }
 
 ## Seuil de points d'équipe du premier bonus, puis multiplicateur de
@@ -52,6 +52,25 @@ const PICKUP_RADIUS := 1.5
 ## alternances de plus en plus rapides (15 x 0,5 s, 10 x 0,25 s, 15 x 0,1 s).
 const SOLID_TIME := 15.0
 const BLINKS := 40
+
+
+## LIQUIDATION autorisée (get_valid_powerup de BO1) : la boîte a déjà bougé
+## au moins une fois, elle n'est ni en train de partir ni sur le point de
+## partir (ours tiré, envol à la fin du défilement), et aucune liquidation
+## n'est déjà en cours.
+static func fire_sale_allowed(box_moves: int, box_leaving: bool, fire_sale_on: bool) -> bool:
+	return box_moves >= 1 and not box_leaving and not fire_sale_on
+
+
+## FAUCHEUSE autorisée (minigun_no_drop de BO1) : aucun joueur ne l'a déjà en
+## main, et le courant est rétabli ; en solo, avant le courant, seulement si
+## le LAZARUS TONIC (Quick Revive) a déjà été bu au moins une fois.
+static func death_machine_allowed(anyone_holds: bool, power_on: bool, solo: bool, solo_revive_buys: int) -> bool:
+	if anyone_holds:
+		return false
+	if not power_on:
+		return solo and solo_revive_buys > 0
+	return true
 
 
 static func blink_wait(i: int) -> float:
@@ -95,7 +114,7 @@ static func is_timed(type: String) -> bool:
 
 
 static func display_name(type: String) -> String:
-	return NAMES.get(type, type.to_upper())
+	return Lang.pick(NAMES.get(type, type.to_upper()))
 
 
 # --------------------------------------------------------------------------

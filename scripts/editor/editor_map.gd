@@ -28,8 +28,13 @@ extends RefCounted
 ##      paramètres pour les régénérer ; MapShapes), mur courbe (type
 ##      « mur_courbe »), rotation au degré près (« rot » entier de 0 à 359 du
 ##      décor, des luminaires, des piliers, escaliers et pièges). Toutes les
-##      nouvelles clés sont facultatives : formats 1 à 3 lus tels quels.
-const FORMAT := 4
+##      nouvelles clés sont facultatives : formats 1 à 3 lus tels quels ;
+##   5  objets (docs/MAP_OBJECTS.md) : variante d'aspect (clé « variante » des
+##      portes, débris et armes murales, MapCatalog.VARIANTS ; absente :
+##      l'aspect d'avant, jamais écrite pour l'aspect par défaut) et barrière
+##      invisible (type « bloc_invisible » : rect, rot, hauteur). Toutes les
+##      nouvelles clés sont facultatives : formats 1 à 4 lus tels quels.
+const FORMAT := 5
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -227,7 +232,9 @@ func file_texts() -> Dictionary:
 static func _ints(v: Variant) -> Variant:
 	if v is float:
 		var f: float = v
-		return int(f) if f == floorf(f) and absf(f) < 1e12 else snappedf(f, 0.0001)
+		if f == floorf(f) and absf(f) < 1e12:
+			return int(f)
+		return snappedf(f, 0.0001)
 	if v is Dictionary:
 		var out := {}
 		for k in v:
@@ -285,6 +292,10 @@ func _migrate(from: int) -> void:
 		# Format 3 -> 4 : rien à convertir (« forme », « rot » des rectangles et
 		# murs courbes facultatifs ; « rot » du décor : 0, 90, 180 ou 270 comme avant).
 		pass
+	if from < 5:
+		# Format 4 -> 5 : rien à convertir (« variante » facultative : sans elle,
+		# l'aspect d'avant ; « bloc_invisible » : un nouveau type).
+		pass
 
 
 ## Version du format lue dans carte.json (FORMAT pour une carte neuve).
@@ -315,6 +326,13 @@ func _normalize() -> void:
 				o["angle"] = snappedf(fposmod(ang, 360.0), 0.01)
 			else:
 				o.erase("angle")
+	# Variante inconnue ou par défaut (fichier écrit à la main) : clé retirée,
+	# l'élément garde l'aspect par défaut.
+	for list in [ouvertures, objets]:
+		for e in list:
+			if e.has("variante") and (not MapCatalog.variants(String(e.get("type", ""))).has(e.variante) \
+					or e.variante == MapCatalog.default_variant(String(e.get("type", "")))):
+				e.erase("variante")
 	for list in [pieces, ouvertures, objets, zones]:
 		for e in list:
 			if String(e.get("id", "")) == "":
@@ -420,7 +438,9 @@ static func _precheck_zip(path: String) -> Array:
 		return ["archive illisible : %s" % path, "unreadable archive: %s" % path]
 	var n := fa.get_length()
 	if n > MAX_ARCHIVE_BYTES:
-		return ["archive trop grosse (%d Ko, 2 Mo au plus)" % (n / 1024), "archive too big (%d KB, 2 MB at most)" % (n / 1024)]
+		@warning_ignore("integer_division")
+		var kb := n / 1024  # Ko entiers (troncature voulue)
+		return ["archive trop grosse (%d Ko, 2 Mo au plus)" % kb, "archive too big (%d KB, 2 MB at most)" % kb]
 	var listing := zip_entries(fa.get_buffer(n))
 	fa.close()
 	if listing.has("error"):
@@ -449,8 +469,10 @@ static func check_zip_entries(entries: Array, wanted: Dictionary) -> Array:
 				"unexpected file in the archive: %s (only %s)" % [name.left(80), ", ".join(FILES)]]
 		folder = dir
 		if int(e.size) > MAX_FILE_BYTES:
-			return ["%s trop gros dans l'archive (%d Ko décompressés, 2 Mo au plus)" % [base, int(e.size) / 1024],
-				"%s too big in the archive (%d KB uncompressed, 2 MB at most)" % [base, int(e.size) / 1024]]
+			@warning_ignore("integer_division")
+			var kb := int(e.size) / 1024  # Ko entiers (troncature voulue)
+			return ["%s trop gros dans l'archive (%d Ko décompressés, 2 Mo au plus)" % [base, kb],
+				"%s too big in the archive (%d KB uncompressed, 2 MB at most)" % [base, kb]]
 		wanted[base] = name
 	return []
 
@@ -518,9 +540,8 @@ static var root_override := ""
 static func maps_root() -> String:
 	if root_override != "":
 		return root_override
-	var at: Node = Engine.get_main_loop().root.get_node_or_null("/root/Autotest") if Engine.get_main_loop() is SceneTree else null
-	if at != null and at.active:
-		return ProjectSettings.globalize_path("res://tests/_out/editor_maps_%s" % at.scenario_name)
+	if AutotestMode.is_running():
+		return ProjectSettings.globalize_path("res://tests/_out/editor_maps_%s" % AutotestMode.scenario_name())
 	return "user://maps"
 
 

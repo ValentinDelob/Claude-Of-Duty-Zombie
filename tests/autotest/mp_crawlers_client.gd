@@ -32,8 +32,10 @@ func run() -> void:
 	at.check(hips_y.call() < 0.45 and z.hit_body.global_position.y < 0.45, "corps et hitbox au sol (bassin %.2f)" % hips_y.call())
 	# Il se traîne vers le client (position interpolée : temps réel).
 	var x0 := z.global_position.x
-	await until(func(): return z.global_position.x < x0 - 0.5, 6.0, "rampant en mouvement")
-	at.check(z.global_position.x < x0 - 0.5, "le rampant se traîne vers le client (%.2f m)" % (x0 - z.global_position.x))
+	# Attente bornée plutôt qu'une fenêtre fixe de 2 s : sous charge (check
+	# parallèle), les instantanés réseau arrivent en retard.
+	var crawled: bool = await until(func(): return z.global_position.x < x0 - 0.5, 6.0, "rampant qui se traîne")
+	at.check(crawled, "le rampant se traîne vers le client (%.2f m)" % (x0 - z.global_position.x))
 	H.aim_at(p, z.head_position())
 	await seconds(0.1)
 	await at.screenshot("crawler")

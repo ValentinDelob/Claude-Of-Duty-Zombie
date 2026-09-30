@@ -142,6 +142,7 @@ func _build() -> Dictionary:
 		_rails(f)
 	_decor()
 	_props()
+	_clips()
 	_stairs()
 	var markers := _markers()
 	_pockets()
@@ -608,6 +609,23 @@ func _props() -> void:
 			_blockers_of(d.boxes, origin, yaw, block == "barriere", String(d.get("surface", "concrete")))
 
 
+## Barrières invisibles (format 5) : un pavé de collision chacune, sur la
+## couche BARRIER (joueurs et zombies arrêtés, navmesh cuit autour ; balles et
+## grenades passent), du sol jusqu'au plafond de l'étage (ou sa hauteur),
+## JAMAIS de maillage en jeu. « clip » et « eid » : l'aperçu 3D peut les
+## montrer (MapPreviewBuilder) ; CollisionBox.from_dict les ignore.
+func _clips() -> void:
+	for cl in md.clips:
+		var k: int = cl.floor
+		var sol: float = md.floors[k].sol
+		var h := float(cl.h)
+		if h <= 0.0:
+			h = maxf(top(k) - sol, 2.0)
+		var sz: Vector2 = cl.size
+		blockers.append({"center": _v3(_world(k, cl.center, h * 0.5)), "size": [_r(sz.x), _r(h), _r(sz.y)],
+			"yaw": _r(-deg_to_rad(float(cl.rot))), "barrier": true, "surface": "concrete", "clip": true, "eid": String(cl.eid)})
+
+
 ## Garde-corps : bord d'un plancher d'étage sur un vide (sauf en haut d'escalier).
 func _rails(f: MapValidator.Floor) -> void:
 	var k := f.index
@@ -742,6 +760,9 @@ func _markers() -> Dictionary:
 			dj["debris"] = true
 		if d.power:
 			dj["power"] = true
+		# Format 5 : aspect choisi dans l'éditeur (absent : aspect par défaut).
+		if md.variants.has(String(d.get("eid", ""))):
+			dj["variant"] = String(md.variants[String(d.eid)])
 		m.doors.append(dj)
 	# Objets muraux (ordre de lecture de la grille).
 	var used_ids := {}
@@ -755,6 +776,9 @@ func _markers() -> Dictionary:
 			wi["id"] = base if n == 1 else "%s_%d" % [base, n]
 			if e.has("arme"):
 				wi["weapon"] = base
+				var weid := String(md.eid_of.get(it.key, ""))
+				if md.variants.has(weid):
+					wi["variant"] = String(md.variants[weid])
 				m.wall_buys.append(wi)
 			else:
 				wi["perk"] = base

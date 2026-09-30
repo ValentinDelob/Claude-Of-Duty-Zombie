@@ -86,7 +86,12 @@ func is_valid(type: String) -> bool:
 	match type:
 		PowerupRules.FIRE_SALE:
 			var box := _box()
-			return box != null and box.moves >= 1 and box.state != MysteryBox.State.MOVING
+			return box != null and PowerupRules.fire_sale_allowed(box.moves,
+				box.state == MysteryBox.State.MOVING or (box.state == MysteryBox.State.ROLLING and box.skull),
+				is_active(PowerupRules.FIRE_SALE))
+		PowerupRules.DEATH_MACHINE:
+			return PowerupRules.death_machine_allowed(not death_machine.is_empty(), game.power_on,
+				Net.mode == Net.Mode.SOLO, game.perks.solo_revive_buys)
 		PowerupRules.CARPENTER:
 			if game.has_method("barricades_need_repair"):
 				return game.call("barricades_need_repair")

@@ -104,8 +104,38 @@ var hit_head: Area3D
 var hit_arms: Array[Area3D] = []
 var _body_shape: CollisionShape3D
 var _mgr: ZombieManager
+## Partie de ce zombie : celle de son ZombieManager (lue dans _ready), null
+## hors partie (zombie seul des tests unitaires). Jamais Game.instance ici.
+var game: Game
 ## Temps écoulé depuis la dernière pose écrite (animation à cadence réduite).
 var _pose_accum := 0.0
+
+## Accès publics pour les animations (ZombieAnim, ZombieGibs) : mêmes valeurs
+## que les champs privés ci-dessus.
+## Phase de la démarche (rad), avancée par l'animation.
+var gait_phase: float:
+	get:
+		return _phase
+	set(value):
+		_phase = value
+## Temps passé dans l'état courant (s), lecture seule.
+var state_time: float:
+	get:
+		return _state_time
+## Avancement de l'attaque (0 -> 1), -1 hors attaque ; l'animation l'avance.
+var attack_t: float:
+	get:
+		return _attack_t
+	set(value):
+		_attack_t = value
+## Inclinaison de tête propre à ce zombie (rad).
+var head_tilt: float:
+	get:
+		return _head_tilt
+## Forme de collision du corps (capsule), ou null avant _ready.
+var body_shape: CollisionShape3D:
+	get:
+		return _body_shape
 
 
 func setup(zid: int, zvariant: int, zspeed: int, is_server: bool) -> void:
@@ -118,6 +148,7 @@ func setup(zid: int, zvariant: int, zspeed: int, is_server: bool) -> void:
 
 func _ready() -> void:
 	_mgr = get_parent() as ZombieManager
+	game = _mgr.game if _mgr else null
 	_multilevel = map_is_multilevel()
 	_update_solidity()
 	collision_mask = 1 | (1 << 1) | (1 << 2) | Barricade.BARRIER_LAYER  # monde, joueurs, zombies, fenêtres
@@ -254,7 +285,6 @@ func _physics_process(delta: float) -> void:
 ## Poursuite : ligne droite si le joueur est visible et proche, sinon chemin
 ## A* recalculé régulièrement. Séparation entre zombies pour éviter les amas.
 func _chase(delta: float) -> void:
-	var game := Game.instance
 	if game == null or game.nav == null:
 		return
 	_repath_t -= delta
@@ -313,8 +343,8 @@ func _chase(delta: float) -> void:
 
 
 ## Serveur : marche vers le SINGE-TAMBOUR (chemin A*) puis l'encercle.
+## Appelé par _chase seulement (partie et navigation présentes).
 func _chase_lure(pos: Vector3, delta: float) -> void:
-	var game := Game.instance
 	var to := pos - global_position
 	to.y = 0.0
 	var dist := to.length()
@@ -364,6 +394,10 @@ func _flat_dist(p: Vector3) -> float:
 ## Répulsion douce des zombies voisins (rayon √0,8 ≈ 0,9 m). Seules les 9
 ## cases de la grille spatiale du ZombieManager autour du zombie sont lues,
 ## au lieu de tous les zombies vivants.
+func separation() -> Vector3:
+	return _separation()
+
+
 func _separation() -> Vector3:
 	var push := Vector3.ZERO
 	var mgr := get_parent() as ZombieManager
@@ -423,7 +457,8 @@ func _attack(delta: float) -> void:
 			d.y = 0.0
 			# À travers une fenêtre, le bras passe au-dessus de l'allège.
 			if dy < LEVEL_TOLERANCE and d.length() < ATTACK_RANGE + (0.65 if barricade else 0.45):
-				Game.instance.combat.damage_player(target.peer_id, Combat.ZOMBIE_DAMAGE, global_position + Vector3.UP * 1.2)
+				# `game` non nul : _is_target_valid l'exige.
+				game.combat.damage_player(target.peer_id, Combat.ZOMBIE_DAMAGE, global_position + Vector3.UP * 1.2)
 	if _state_time >= ATTACK_TIME:
 		_set_state(State.BARRIER if barricade else State.CHASE)
 
@@ -465,17 +500,25 @@ func _vault() -> void:
 		_set_state(State.CHASE)
 
 
+## Joueur ciblable : vivant et pas intouchable (utilisé aussi par Barricade).
+## Hors partie : aucun.
+func is_target_valid(p: Player) -> bool:
+	return _is_target_valid(p)
+
+
 func _is_target_valid(p: Player) -> bool:
-	var pd := Game.instance.session.get_data(p.peer_id)
+	if game == null:
+		return false
+	var pd := game.session.get_data(p.peer_id)
 	return pd != null and pd.life == PlayerData.Life.ALIVE and not p.untargetable
 
 
 func _nearest_player() -> Player:
 	var best: Player = null
 	var best_d := INF
-	if Game.instance == null:
+	if game == null:
 		return null
-	for p: Player in Game.instance.players.values():
+	for p: Player in game.players.values():
 		if not _is_target_valid(p):
 			continue
 		var d: float = p.global_position.distance_squared_to(global_position)
@@ -622,8 +665,8 @@ func die(dir: Vector3, headshot: bool) -> void:
 		_headless = true
 		skel.set_bone_pose_scale(bones.head, Vector3.ONE * 0.001)
 		var neck := skel.global_transform * skel.get_bone_global_pose(bones.neck).origin
-		var fx: Fx = Game.instance.fx_root
-		fx.blood_hit(neck, Vector3.UP, 3.0)
+		if game:
+			game.fx_root.blood_hit(neck, Vector3.UP, 3.0)
 		ZombieGibs.head_pop(self, neck, dir)
 		Audio.play_3d("headshot", neck, 0.0, 0.08)
 	else:
@@ -691,8 +734,8 @@ func _process_death(delta: float) -> void:
 		anim.death(delta, _death_t, _death_dir)
 	if before < 0.6 and _death_t >= 0.6:
 		Audio.play_3d("body_fall", global_position, -6.0, 0.1, 3)
-		if Game.instance:
-			Game.instance.fx_root.blood_decal(global_position + Vector3.UP * 0.1 + Vector3(sin(yaw), 0, cos(yaw)) * _death_dir * 0.8, Vector3.UP, randf_range(0.8, 1.4))
+		if game:
+			game.fx_root.blood_decal(global_position + Vector3.UP * 0.1 + Vector3(sin(yaw), 0, cos(yaw)) * _death_dir * 0.8, Vector3.UP, randf_range(0.8, 1.4))
 	if _death_t > DISSOLVE_DELAY:
 		ZombieModel.set_dissolve(mesh, clampf((_death_t - DISSOLVE_DELAY) / DISSOLVE_TIME, 0.0, 1.0))
 		if before <= DISSOLVE_DELAY:
@@ -721,9 +764,9 @@ func _waypoint_reached(p: Vector3) -> bool:
 	return _flat_dist(p) < 0.45 and absf(p.y - global_position.y) < 1.0
 
 
-## La partie en cours se joue-t-elle sur une carte à plusieurs niveaux ?
-static func map_is_multilevel() -> bool:
-	return Game.instance != null and Game.instance.layout != null and Game.instance.layout.is_multilevel()
+## La partie de ce zombie se joue-t-elle sur une carte à plusieurs niveaux ?
+func map_is_multilevel() -> bool:
+	return game != null and game.layout != null and game.layout.is_multilevel()
 
 
 ## Décollement de la capsule au-dessus du sol (voir STEP_GAP).

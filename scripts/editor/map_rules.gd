@@ -924,7 +924,11 @@ static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id
 	var o := {"type": type}
 	var nm := _name(o)
 	var sz0 := r.size   # taille avant rotation (largeur d'un escalier)
-	if r.size.x < MapGeom.CELL * 2 - MapGeom.EPS or r.size.y < MapGeom.CELL * 2 - MapGeom.EPS:
+	if type == "bloc_invisible":
+		# Barrière invisible : une case (0,5 m) d'épaisseur suffit.
+		if r.size.x < MapGeom.CELL - MapGeom.EPS or r.size.y < MapGeom.CELL - MapGeom.EPS:
+			return refuse("%s trop petite (0,5 m de côté au moins)" % nm[0], "%s too small (at least 0.5 m per side)" % nm[1])
+	elif r.size.x < MapGeom.CELL * 2 - MapGeom.EPS or r.size.y < MapGeom.CELL * 2 - MapGeom.EPS:
 		return refuse("%s trop petit (1 m de côté au moins)" % nm[0], "%s too small (at least 1 m per side)" % nm[1])
 	var room := room_at(doc, k, r.get_center())
 	if room.is_empty():

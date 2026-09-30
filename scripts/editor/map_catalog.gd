@@ -137,6 +137,32 @@ const LIGHTS := {
 		"boxes": [{"center": [0, 0.45, 0], "size": [0.62, 0.9, 0.62]}], "color": Color(1.0, 0.45, 0.1)},
 }
 
+## Variantes d'aspect d'un type d'élément (format 5, clé « variante » de
+## ouvertures.json / objets.json) : [identifiant, nom FR, nom EN] ; la
+## PREMIÈRE est l'aspect par défaut (celui d'avant les variantes). Une
+## variante par défaut n'est jamais écrite dans le fichier (une carte sans la
+## clé garde exactement son aspect et ses octets). Construites par le jeu :
+## Door (portes, débris), WallBuy (armes murales). docs/MAP_OBJECTS.md.
+const VARIANTS := {
+	"porte": [
+		["blindee", "Porte blindée", "Armoured door"],
+		["bois", "Porte en bois", "Wooden door"],
+		["grille", "Grille en fer", "Iron gate"],
+	],
+	"debris": [
+		["planches", "Planches et gravats", "Planks and rubble"],
+		["gravats", "Éboulement de béton", "Concrete cave-in"],
+	],
+	"arme": [
+		["craie", "Craie sur le mur", "Chalk on the wall"],
+		["planche", "Craie sur une planche", "Chalk on a board"],
+	],
+}
+
+## Barrière invisible (type « bloc_invisible ») : hauteur (m) réglable ;
+## absente, du sol au plafond de l'étage.
+const CLIP_HEIGHT := [0.5, 30.0]
+
 static var _items: Array = []
 static var _by_id: Dictionary = {}
 
@@ -226,6 +252,12 @@ static func _build() -> void:
 	_add({"id": "escalier", "cat": "construction", "fr": "Escalier", "en": "Stairs", "tool": "rect",
 		"color": Color(0.8, 0.55, 0.9), "make": {"type": "escalier", "monte": "n"},
 		"hint_fr": "Glisser du bas vers le haut de l'escalier (monte vers l'étage du dessus)", "hint_en": "Drag from the bottom to the top of the stairs (goes up one floor)"})
+	# Barrière invisible (« clip » de BO1) : bloque joueurs et zombies, les
+	# balles et les grenades passent ; invisible en jeu (CollisionBox).
+	_add({"id": "bloc_invisible", "cat": "construction", "fr": "Barrière invisible", "en": "Invisible barrier", "tool": "rect",
+		"color": Color(0.35, 0.85, 1.0), "make": {"type": "bloc_invisible"},
+		"hint_fr": "Glisser un rectangle dans une pièce (0,5 m de côté au moins) ; invisible en jeu, bloque joueurs et zombies, les balles passent",
+		"hint_en": "Drag a rectangle inside a room (at least 0.5 m per side); invisible in game, blocks players and zombies, bullets go through"})
 	# Ouvertures (sur un mur de pièce).
 	_add({"id": "porte", "cat": "ouvertures", "fr": "Porte payante", "en": "Buyable door", "tool": "opening", "color": Color(1.0, 0.67, 0.0),
 		"make": {"type": "porte", "largeur": 2.0}, "price": DOOR_PRICES[0],
@@ -245,7 +277,7 @@ static func _build() -> void:
 	for id in PerkDB.PERKS:
 		_add({"id": "atout:" + id, "cat": "atouts", "fr": PerkDB.display_name(id), "en": PerkDB.display_name(id), "tool": "wall_item",
 			"color": PerkDB.color(id), "make": {"type": "atout", "atout": id}, "fp": [3, 2], "price": PerkDB.cost(id, false),
-			"hint_fr": String(PerkDB.PERKS[id].get("desc", "")), "hint_en": String(PerkDB.PERKS[id].get("desc", ""))})
+			"hint_fr": String(PerkDB.PERKS[id].desc.fr), "hint_en": String(PerkDB.PERKS[id].desc.en)})
 	# Armes murales (WeaponDB, KnifeDB) et grenades.
 	for id in WeaponDB.WEAPONS:
 		if WeaponDB.wall_cost(id) > 0:
@@ -334,9 +366,69 @@ static func item_for(o: Dictionary) -> Dictionary:
 		"boite":
 			return item("boite_depart" if o.get("depart", false) else "boite")
 		"porte", "debris", "porte_courant", "passage", "fenetre", "mur", "mur_courbe", "pilier", "escalier", "piege", "levier", "grenades", "pap", \
-				"courant", "teleporteur", "arrivee", "poste_central", "depart", "apparition", "lampe", "caisse", "baril":
+				"courant", "teleporteur", "arrivee", "poste_central", "depart", "apparition", "lampe", "caisse", "baril", "bloc_invisible":
 			return item(t)
 	return {}
+
+
+# ------------------------------------------------------------------ variantes (format 5)
+
+## Identifiants des variantes d'un type (la première : aspect par défaut) ;
+## [] si le type n'en a pas.
+static func variants(type: String) -> Array:
+	var out := []
+	for v in VARIANTS.get(type, []):
+		out.append(String(v[0]))
+	return out
+
+
+static func has_variants(o: Dictionary) -> bool:
+	return VARIANTS.has(String(o.get("type", "")))
+
+
+static func default_variant(type: String) -> String:
+	var l: Array = VARIANTS.get(type, [])
+	return String(l[0][0]) if not l.is_empty() else ""
+
+
+## Variante d'un élément posé : sa clé « variante » si elle est admise pour
+## son type, sinon l'aspect par défaut ("" : type sans variantes).
+static func variant_of(o: Dictionary) -> String:
+	var t := String(o.get("type", ""))
+	var v: Variant = o.get("variante")
+	if v is String and variants(t).has(v):
+		return v
+	return default_variant(t)
+
+
+## Change la variante de `o` ; l'aspect par défaut efface la clé (la carte
+## reste identique à une carte d'avant les variantes). Rend false si la
+## variante n'existe pas pour ce type.
+static func set_variant(o: Dictionary, v: String) -> bool:
+	var t := String(o.get("type", ""))
+	if not variants(t).has(v):
+		return false
+	if v == default_variant(t):
+		o.erase("variante")
+	else:
+		o["variante"] = v
+	return true
+
+
+## Variante suivante (touche V) dans l'ordre du catalogue.
+static func next_variant(type: String, v: String) -> String:
+	var l := variants(type)
+	if l.is_empty():
+		return ""
+	return String(l[(maxi(0, l.find(v)) + 1) % l.size()])
+
+
+## Nom affiché d'une variante (langue de l'éditeur).
+static func variant_name(type: String, v: String) -> String:
+	for e in VARIANTS.get(type, []):
+		if String(e[0]) == v:
+			return Lang.t(String(e[1]), String(e[2]))
+	return v
 
 
 ## Emprise en cases : [le long du mur, profondeur] (objets muraux) ou [côté, côté].
@@ -470,6 +562,9 @@ static func allowed_kinds() -> Dictionary:
 	var add := func(file: String, type: String, keys: Dictionary, req: Array) -> void:
 		var k := {"id": {"t": "id"}, "type": {"t": "enum", "values": [type]}, "etage": {"t": "int", "min": 0, "max": MAX_FLOORS - 1}}
 		k.merge(keys)
+		# Format 5 : variante d'aspect, seulement parmi celles du type.
+		if VARIANTS.has(type):
+			k["variante"] = {"t": "enum", "values": variants(type)}
 		out[type] = {"file": file, "required": ["id", "type"] + req, "keys": k}
 	for t in ["porte", "debris"]:
 		add.call("ouvertures.json", t, {"position": point, "largeur": width, "prix": price}, ["position"])
@@ -479,6 +574,9 @@ static func allowed_kinds() -> Dictionary:
 	for t in ["pilier", "piege"]:
 		add.call("objets.json", t, {"rect": {"t": "rect"}, "rot": rot}, ["rect"])
 	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs, "rot": rot}, ["rect"])
+	# Format 5 : barrière invisible (rectangle, rotation, hauteur facultative).
+	add.call("objets.json", "bloc_invisible", {"rect": {"t": "rect"}, "rot": rot,
+		"hauteur": {"t": "number", "min": CLIP_HEIGHT[0], "max": CLIP_HEIGHT[1]}}, ["rect"])
 	add.call("objets.json", "mur", {"a": point, "b": point, "epaisseur": thick}, ["a", "b"])
 	# Format 4 : mur courbe (arc de cercle en segments, MapShapes).
 	add.call("objets.json", "mur_courbe", {"centre": point, "rayon": {"t": "number", "min": 1.0, "max": MapShapes.MAX_RADIUS},

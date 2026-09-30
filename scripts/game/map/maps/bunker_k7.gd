@@ -13,10 +13,13 @@ extends MapDef
 func _init() -> void:
 	id = "bunker_k7"
 	display_name = "BUNKER K-7"
-	description = "Installation militaire et laboratoire abandonnés. Le générateur est mort, les expériences non."
+	description = Lang.t("Installation militaire et laboratoire abandonnés. Le générateur est mort, les expériences non.",
+			"An abandoned military facility and laboratory. The generator is dead; the experiments are not.")
 	zone_names = {
-		"a": "Salle de garde", "b": "Couloir des cellules", "c": "Laboratoire",
-		"d": "Dortoir", "e": "Générateur", "f": "Quai", "p": "Salle du rituel",
+		"a": Lang.t("Salle de garde", "Guard Room"), "b": Lang.t("Couloir des cellules", "Cell Block"),
+		"c": Lang.t("Laboratoire", "Laboratory"), "d": Lang.t("Dortoir", "Barracks"),
+		"e": Lang.t("Générateur", "Generator"), "f": Lang.t("Quai", "Platform"),
+		"p": Lang.t("Salle du rituel", "Ritual Room"),
 	}
 	doors = {
 		"1": {"cost": 750},

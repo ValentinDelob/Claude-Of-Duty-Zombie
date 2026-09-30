@@ -11,7 +11,10 @@ Moteur : **Godot 4.7** (GDScript, rendu Forward+). Cible : GTX 1050 à 60 FPS en
   Aucune ligne de gameplay n'est dupliquée entre solo et multijoueur.
 - Conventions RPC :
   - requête client → serveur : `@rpc("any_peer", "call_local")` + `rpc_id(1, ...)` —
-    fonctionne aussi quand l'appelant est le serveur (solo / hôte) ;
+    fonctionne aussi quand l'appelant est le serveur (solo / hôte). Côté serveur,
+    le RPC commence par le prologue commun `NetGuard.server_sender` /
+    `known_sender` / `alive_sender` (serveur, expéditeur, joueur connu ou
+    vivant, limiteur) ;
   - diffusion serveur → tous : `@rpc("authority", "call_local")` + `rpc(...)`.
 - Le client n'envoie que des **intentions** (tirer, acheter, interagir) et sa position ;
   le serveur valide tout (distance, points, cadence, munitions...). Règles
@@ -123,6 +126,26 @@ bornent les acquittements, limitent les demandes (3 par carte) et le débit
 l'expéditeur 1 et vérifient chaque type reçu. Aucune ressource Godot n'est
 jamais chargée depuis le réseau ou une archive (données JSON seulement).
 
+## Référence à la partie (`game`)
+
+Chaque objet de la partie reçoit son `Game` de celui qui le crée, dans un champ
+`game` :
+
+- systèmes enfants directs de `Game` (`Combat`, `Interact`, `Throwables`,
+  `Rounds`, `Zombies`...) : `game = get_parent()` dans `_ready` ;
+- objets créés par un système : de leur créateur — `WeaponController.setup(p, game)`,
+  `ThrowController.setup(...)`, `Spawner.new(game)`, `DogRound` via
+  `RoundManager.game`, zombies et chiens via leur `ZombieManager.game` (lu dans
+  `Zombie._ready`), et leurs aides (`ZombieGibs`, `ZombieFling`) via `z.game` ;
+- `game` peut être nul pour un objet seul des tests unitaires (zombie ou
+  gestionnaire hors partie) : le code qui le lit le vérifie
+  (`Zombie._is_target_valid` refuse toute cible hors partie).
+
+`Game.instance` est réservé au code sans propriétaire dans la partie
+(autoloads, fonctions statiques, menus). Lisent encore `Game.instance`, tous
+avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
+(aussi créé hors partie par `Warmup`), `Barricade`, `Door`, `BoxBoard`.
+
 ## Autoloads
 
 | Nom | Rôle |
@@ -133,7 +156,7 @@ jamais chargée depuis le réseau ou une archive (données JSON seulement).
 | `GameState` | Machine à états unique de la session (`MAIN_MENU`, `LOBBY`, `CONNECTING`, `LOADING`, `PLAYING`, `ROUND_END`, `PLAYER_DOWN`, `GAME_OVER`, `DISCONNECTING`) avec transitions validées. |
 | `Settings` | Options persistantes (`user://settings.cfg`), actions d'entrée et touches réaffectables (voir « Menus, options et touches »). |
 | `Net` | Host / Join / Solo, poignée de main (version, serveur plein, partie lancée), registre des joueurs, erreurs de connexion lisibles, carte du salon et envoi des cartes perso (enfant `MapShare`). |
-| `Autotest` | Scénarios de test automatisés dans le vrai jeu (`-- --autotest=<nom>`), mesures de perf, captures d'écran. |
+| `Autotest` | Scénarios de test automatisés dans le vrai jeu (`-- --autotest=<nom>`), mesures de perf, captures d'écran. Savoir si l'on tourne sous autotest : `AutotestMode.is_running()` (classe statique qui lit la ligne de commande, valable avant le `_ready` des autoloads, donc dans `Settings` et les fonctions statiques ; `AutotestMode.scenario_name()` pour le scénario en cours d'une série) ; `Autotest.active` en est le reflet une fois l'autoload prêt. |
 
 ## Menus, options et touches
 
@@ -402,7 +425,10 @@ jamais chargée depuis le réseau ou une archive (données JSON seulement).
   (collisions ; escaliers = marches visibles + coin de collision plein, le
   joueur n'ayant pas de montée de marche). `MeshMapBuilder` (hérite de
   `MapProps`, comme `PropBuilder`) branche le .glb sur le rendu, le courant et
-  les lampes. `MeshNav` (hérite de `MapNav`, comme `NavGrid`) cuit le navmesh
+  les lampes, en trois morceaux (`_add_architecture`, `_build_decor_parts`,
+  `_build_lamps`) que l'aperçu 3D de l'éditeur (`MapPreviewBuilder`, qui en
+  hérite) appelle aussi : l'aperçu montre la géométrie du jeu, pas une copie
+  (test « même géométrie que le jeu », `tests/test_map_preview.gd`). `MeshNav` (hérite de `MapNav`, comme `NavGrid`) cuit le navmesh
   au chargement d'après les collisions (portes fermées et fenêtres comprises)
   ; chaque porte est un `NavigationLink3D` activé à l'ouverture. Les zombies
   gardent le déplacement flottant et suivent le sol par un rayon vers le bas
@@ -512,6 +538,26 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   jours, taille bornée, plantage -> rapport, fermeture normale -> rien,
   réglages des deux projets, `--log-file` dans tools/).
 
+## Déroulement d'une partie (`Game`, `MatchRules`, `SpectatorCamera`)
+
+- `Game` (`/root/Game`) : chargement, apparition des joueurs, RPC de mort, de
+  fin de partie et de réapparition. Les règles pures sont dans `MatchRules`
+  (`scripts/game/match_rules.gd`, statique, `tests/test_match_rules.gd`) :
+  fin de partie quand plus personne n'est debout (un joueur à terre qui va
+  se relever seul — LAZARUS en solo — la repousse), mort par saignement,
+  réapparition des morts au début de chaque manche (`RoundManager` ->
+  `Game.respawn_dead_players`), point d'apparition par place (modulo positif,
+  repli fixe sur une carte sans point d'apparition).
+- `SpectatorCamera` (`/root/Game/Spectator`, local, sans RPC) : joueur mort en
+  multijoueur, vue d'un coéquipier en vie ([Tir] : suivant), retour à sa
+  caméra à la réapparition. `Game.spectating` lit ce nœud.
+- Présentation : le HUD dessine la fin de partie (`Hud.show_game_over` :
+  « GAME OVER », résumé, manches survécues, tableau des scores) et le bandeau
+  de spectateur (`Hud.set_spectating`) ; `Game._cl_game_over` reçoit le
+  nombre de zombies tués, écrit les textes dans la langue du joueur
+  (`Game.game_over_summary`, `Game.survived_text`, via `Lang`) et garde
+  l'état, le dossier de combat et le retour au menu après `GAME_OVER_DELAY`.
+
 ## Tests
 
 - **Stratégie, niveaux, écriture des tests, couverture : `docs/TESTING.md`.**
@@ -587,6 +633,18 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   sur l'axe de la caméra (`ads`.z : distance de l'œil). Précision totale en
   visée (sauf fusils à pompe), champ `ads_zoom`, durée `ads_time`. Vérifié par
   `tests/autotest/weapon_aim.gd` (±2 px, impact à ±3 cm à 20 m pour chaque arme).
+- **Joue de visée** : en visée, ce qui passe plus près de l'œil que le cran
+  (arrière du boîtier, corps des bullpups, tube du LAW) est abaissé par le
+  shader (`vm_bend`, `ViewModel.bend_params` / `bend`) : la carcasse file vers
+  le bas de l'écran au lieu de l'emplir ou de traverser le plan proche ; la
+  crosse (groupe `rear`) est masquée en fin de mise en joue ; l'écran de
+  lunette masque l'arme dans l'image même où la mise en joue atteint
+  `ViewModel.SCOPE_ADS` (`apply_scope`). Arme sans organes de visée (info
+  `no_sights` : minigun) : reste à la hanche en visée, réticule affiché.
+  Vérifié arme par arme sans partie par `tests/test_view_model_fit.gd` (rien à
+  l'écran à moins de 5 cm de l'œil — hanche, visée, tir, rechargement, sprint,
+  changement d'arme —, rien à moins de 11,5 cm en visée, bouts de manche hors
+  de l'écran, mains posées sur l'arme, avant-bras hors de l'arme).
 - **Lunettes** : `scope` = `sniper` (L96A1, Dragunov : écran de lunette
   `ScopeOverlay` + `scope.gdshader`, zoom `scope_fov`, balancement, [Maj]
   pour retenir sa respiration) ou `optic` (AUG, G11 : lunette courte).
@@ -662,7 +720,8 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
 ## Bonus FAUCHEUSE et LIQUIDATION
 
 - FAUCHEUSE (DEATH MACHINE de BO1, `PowerupRules.DEATH_MACHINE`) : le joueur qui
-  la ramasse tient 30 s le minigun `death_machine` (`WeaponDB.POWERUP_WEAPONS` :
+  la ramasse tient 30 s le minigun `death_machine` (main droite sur la poignée
+  arrière, main gauche sur la poignée latérale ; `WeaponDB.POWERUP_WEAPONS` :
   hors arsenal, munitions illimitées, jamais de rechargement). L'arme est posée
   PAR-DESSUS l'inventaire (`PlayerData.powerup_weapon`, répliquée avec
   l'inventaire) : `current_weapon()` la renvoie tant que le joueur est debout,

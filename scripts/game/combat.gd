@@ -11,8 +11,12 @@ extends Node
 ## * Dégâts aux joueurs : infligés par les zombies (serveur), santé et
 ##   régénération gérées ici.
 
-## Tolérance de cadence : rafale max acceptée d'un coup (gigue réseau).
+## Tolérance de cadence : rafale max acceptée d'un coup (gigue réseau), en
+## tirs au moins FIRE_BURST_TOKENS, et au moins FIRE_BURST_SEC de tirs de
+## l'arme : pour une arme très rapide (FAUCHEUSE, 20 coups/s), 4 tirs ne
+## couvraient qu'un à-coup de 0,2 s (tirs d'un joueur honnête refusés).
 const FIRE_BURST_TOKENS := 4.0
+const FIRE_BURST_SEC := 0.4
 ## Écart max toléré entre l'origine du tir annoncée et la position serveur.
 const MAX_ORIGIN_ERROR := 3.0
 ## Le serveur termine le rechargement un peu plus tôt que le client : le premier
@@ -54,8 +58,9 @@ var game: Game
 var session: Session
 
 ## Serveur : état par joueur.
-var _tokens: Dictionary = {}        # pid -> float
-var _last_refill: Dictionary = {}   # pid -> sec
+## Cadence de tir : seau de jetons au débit et à la rafale de l'arme en main
+## (_validate_fire).
+var _fire_limit := NetGuard.Limiter.new(0.0, FIRE_BURST_TOKENS)
 var _reload_end: Dictionary = {}    # pid -> [slot, end_time]
 var _last_hurt: Dictionary = {}     # pid -> sec
 var _melee_ready: Dictionary = {}   # pid -> sec
@@ -107,9 +112,11 @@ func _process(delta: float) -> void:
 ## `hits` : touches revendiquées [zid, zone, distance, position] (validées ici).
 @rpc("any_peer", "call_local", "reliable")
 func srv_fire(slot: int, origin: Vector3, dir: Vector3, impacts: PackedVector3Array, hits: Array) -> void:
-	if not multiplayer.is_server():
+	# Pas de contrôle « vivant » ici : _validate_fire donne la raison du refus
+	# (signal shot_rejected, resynchronisation du client).
+	var pid := NetGuard.server_sender(self)
+	if pid == NetGuard.NO_SENDER:
 		return
-	var pid := multiplayer.get_remote_sender_id()
 	# Arguments du client bornés AVANT tout contrôle : un NaN ferait échouer
 	# les comparaisons de distance (touches acceptées partout sur la carte).
 	var reason := "tir invalide" if not NetGuard.finite_vec(origin) or not NetGuard.valid_dir(dir) else _validate_fire(pid, slot, origin)
@@ -178,14 +185,14 @@ func _validate_fire(pid: int, slot: int, origin: Vector3) -> String:
 	# Seau de jetons : cadence moyenne respectée, rafale courte tolérée.
 	var t := GameClock.now()
 	var rate := 1.0 / WeaponDB.fire_interval(w.id, w.pap) * game_rate_mult(pid)
-	var tokens: float = _tokens.get(pid, FIRE_BURST_TOKENS)
-	tokens = minf(tokens + (t - _last_refill.get(pid, t)) * rate * 1.25, FIRE_BURST_TOKENS)
-	_last_refill[pid] = t
-	if tokens < 1.0:
-		_tokens[pid] = tokens
+	if not _fire_limit.take(pid, t, rate * 1.25, fire_burst(rate)):
 		return "cadence trop élevée"
-	_tokens[pid] = tokens - 1.0
 	return ""
+
+
+## Rafale tolérée (jetons) pour une arme tirant `rate` coups par seconde.
+static func fire_burst(rate: float) -> float:
+	return maxf(FIRE_BURST_TOKENS, rate * FIRE_BURST_SEC)
 
 
 ## Vrai si le point d'explosion `c` revendiqué par le tireur est sur la
@@ -374,7 +381,9 @@ func damage_zombie(zid: int, dmg: int, pid: int, headshot: bool, dir: Vector3, k
 	else:
 		NetCodec.append_zombie_hit(_fx_buf, zid, headshot)
 	zombie_damaged.emit(pid, zid, dmg, killed, headshot, kind)
-	if pid > 0 and killed:
+	# Tireur parti entre le tir et l'impact (projectile en vol, brûlure) : les
+	# dégâts comptent, mais aucune confirmation vers un pair inconnu.
+	if pid > 0 and killed and session.get_data(pid) != null:
 		if pid == multiplayer.get_unique_id():
 			_cl_hit_confirm(killed, headshot)
 		else:
@@ -464,14 +473,12 @@ func _cl_hit_confirm(killed: bool, headshot: bool) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_melee(origin: Vector3, dir: Vector3) -> void:
-	if not multiplayer.is_server():
+	var pid := NetGuard.alive_sender(self, game)
+	var t := GameClock.now()
+	if pid == NetGuard.NO_SENDER or t < _melee_ready.get(pid, 0.0):
 		return
-	var pid := multiplayer.get_remote_sender_id()
 	var pd := session.get_data(pid)
 	var p: Player = game.players.get(pid)
-	var t := GameClock.now()
-	if pd == null or p == null or pd.life != PlayerData.Life.ALIVE or t < _melee_ready.get(pid, 0.0):
-		return
 	if not NetGuard.finite_vec(origin) or not NetGuard.valid_dir(dir):
 		return
 	if p.global_position.distance_to(origin) > MAX_ORIGIN_ERROR + 1.7:
@@ -510,13 +517,10 @@ const DIVE_MIN_INTERVAL := 0.5
 ## (écart avec la position connue) et la hauteur, puis émet le signal.
 @rpc("any_peer", "call_local", "reliable")
 func srv_dive_landed(pos: Vector3, height: float) -> void:
-	if not multiplayer.is_server():
+	var pid := NetGuard.alive_sender(self, game)
+	if pid == NetGuard.NO_SENDER:
 		return
-	var pid := multiplayer.get_remote_sender_id()
-	var pd := session.get_data(pid)
 	var p: Player = game.players.get(pid)
-	if pd == null or p == null or pd.life != PlayerData.Life.ALIVE:
-		return
 	# Un plongeon par DIVE_MIN_INTERVAL au plus, et seulement si le serveur a
 	# vu ce joueur plonger (drapeau de son état de mouvement) : pas
 	# d'explosion NOVA FLOP à volonté par simple RPC.
@@ -542,9 +546,10 @@ func _cl_melee_fx(pos: Vector3) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_reload(slot: int) -> void:
-	if not multiplayer.is_server():
+	# Limiteur en dernier : une demande sans effet ne consomme pas de jeton.
+	var pid := NetGuard.server_sender(self)
+	if pid == NetGuard.NO_SENDER:
 		return
-	var pid := multiplayer.get_remote_sender_id()
 	var pd := session.get_data(pid)
 	if pd == null or slot != pd.slot or _reload_end.has(pid) or not _action_limit.allow(pid):
 		return
@@ -577,9 +582,9 @@ func _finish_reload(pid: int, slot: int) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_switch(slot: int) -> void:
-	if not multiplayer.is_server():
+	var pid := NetGuard.server_sender(self)
+	if pid == NetGuard.NO_SENDER:
 		return
-	var pid := multiplayer.get_remote_sender_id()
 	var pd := session.get_data(pid)
 	if pd == null or slot < 0 or slot >= pd.weapons.size() or slot == pd.slot or not _action_limit.allow(pid):
 		return
@@ -660,8 +665,7 @@ func _cl_player_hurt(pid: int, from: Vector3) -> void:
 
 
 func forget_player(pid: int) -> void:
-	_tokens.erase(pid)
-	_last_refill.erase(pid)
+	_fire_limit.forget(pid)
 	_reload_end.erase(pid)
 	_last_hurt.erase(pid)
 	_melee_ready.erase(pid)

@@ -22,7 +22,7 @@ static func play(game: Game, pos: Vector3) -> void:
 	var lp := game.local_player
 	if lp and lp.global_position.distance_to(pos) < SHAKE_RANGE:
 		var a := lerpf(0.05, 0.01, lp.global_position.distance_to(pos) / SHAKE_RANGE)
-		lp._flinch += Vector2(randf_range(-a, a), a)
+		lp.add_flinch(Vector2(randf_range(-a, a), a))
 
 
 static func _mat(alpha: float) -> StandardMaterial3D:

@@ -25,6 +25,8 @@ uniform float pap = 0.0;
 uniform vec4 pap_color : source_color = vec4(0.55, 0.1, 0.9, 1.0);
 // Rapport tan(fov caméra / 2) / tan(fov arme / 2) (ViewModel).
 global uniform float vm_fov_scale;
+// Joue de visée (ViewModel.bend_params) : début, fin (profondeurs, m), abaissement (m).
+global uniform vec3 vm_bend;
 
 varying vec3 obj_pos;
 varying vec2 vdata;
@@ -48,6 +50,14 @@ void vertex() {
 	// Godot n'applique plus la projection par défaut.
 	POSITION = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	if (viewmodel > 0.5) {
+		// Joue de visée (ViewModel.bend, même formule) : ce qui est plus près
+		// de l'œil que le cran est abaissé, jusqu'à vm_bend.z m à vm_bend.y m.
+		if (vm_bend.z > 0.0) {
+			vec4 vp = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+			float s = clamp((vm_bend.x + vp.z) / max(vm_bend.x - vm_bend.y, 0.0001), 0.0, 1.0);
+			vp.y -= vm_bend.z * s * s;
+			POSITION = PROJECTION_MATRIX * vp;
+		}
 		POSITION.xy *= vm_fov_scale;
 		POSITION.z = mix(POSITION.z, POSITION.w, 0.92);
 	}

@@ -11,7 +11,8 @@ enum State { IDLE, ROLLING, READY, MOVING }
 
 const COST := 950
 const ROLL_TIME := 4.2
-const READY_TIME := 9.0
+## Arme offerte : reprise possible 12 s (treasure_chest_timeout de BO1).
+const READY_TIME := 12.0
 const MOVE_TIME := 9.0
 ## Nombre d'utilisations avant que le crâne puisse apparaître.
 ## Ours en peluche (départ de la boîte), règles de BO1 (_zombiemode_weapons) :
@@ -288,10 +289,10 @@ func interact_point() -> Vector3:
 func prompt(pid: int) -> String:
 	match state:
 		State.IDLE:
-			return "[F] Boîte mystère %s" % Interactable.cost_text(cost())
+			return Lang.t("[F] Boîte mystère %s", "[F] Mystery Box %s") % Interactable.cost_text(cost())
 		State.READY:
 			if pid == owner_pid and not skull:
-				return "[F] Prendre %s" % (ThrowableRules.MONKEY_NAME if weapon == ThrowableRules.MONKEY_ID else WeaponDB.display_name(weapon))
+				return Lang.t("[F] Prendre %s", "[F] Take %s") % (ThrowableRules.monkey_name() if weapon == ThrowableRules.MONKEY_ID else WeaponDB.display_name(weapon))
 	return ""
 
 
@@ -304,7 +305,7 @@ func srv_use(pid: int) -> void:
 		State.IDLE:
 			var price := cost()
 			if not game.session.try_spend(pid, price):
-				system.deny(pid, "Pas assez de points")
+				system.deny(pid, InteractionSystem.NO_POINTS)
 				return
 			_paid = price
 			owner_pid = pid
@@ -345,16 +346,23 @@ func _roll(pd: PlayerData) -> void:
 ## Serveur : armes merveilles uniques (WeaponDB.is_unique) déjà présentes dans
 ## la partie : en main d'un joueur ou en cours d'amélioration au Pack-a-Punch.
 static func wonders_taken(game: Game) -> Dictionary:
-	var out := {}
 	if game == null:
-		return out
-	for pid in game.session.data:
-		for w in game.session.data[pid].weapons:
-			if WeaponDB.is_unique(w.id):
-				out[w.id] = true
+		return {}
+	var out := wonders_held(game.session.data.values())
 	for obj in game.interact.objects.values():
 		if obj is PackAPunch and WeaponDB.is_unique(obj.weapon_id):
 			out[obj.weapon_id] = true
+	return out
+
+
+## Armes merveilles uniques détenues par ces joueurs, y compris celles mises
+## de côté pendant qu'ils sont à terre (rendues à la réanimation).
+static func wonders_held(datas: Array) -> Dictionary:
+	var out := {}
+	for pd: PlayerData in datas:
+		for w in pd.weapons + pd.saved_weapons:
+			if WeaponDB.is_unique(w.id):
+				out[w.id] = true
 	return out
 
 

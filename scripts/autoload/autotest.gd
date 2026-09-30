@@ -16,6 +16,8 @@ extends Node
 ## Filet global, en secondes réelles (au-delà du plus long timeout_sec).
 const GLOBAL_GUARD_SEC := 450
 
+## Vrai une fois _ready passé si des scénarios sont demandés
+## (= AutotestMode.is_running(), qui répond aussi avant _ready).
 var active := false
 var scenario_name := ""
 ## Scénarios de la série (un seul hors série).
@@ -37,9 +39,7 @@ var _rng_counts := {}
 
 
 func _ready() -> void:
-	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--autotest="):
-			batch = a.substr(11).split(",", false)
+	batch = AutotestMode.batch()
 	if not batch.is_empty():
 		scenario_name = batch[0]
 	if scenario_name == "":

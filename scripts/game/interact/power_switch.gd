@@ -92,7 +92,7 @@ func interact_point() -> Vector3:
 
 
 func prompt(_pid: int) -> String:
-	return "" if is_on else "[F] Rétablir le courant"
+	return "" if is_on else Lang.t("[F] Rétablir le courant", "[F] Turn on the power")
 
 
 func srv_use(pid: int) -> void:
@@ -124,7 +124,7 @@ func apply_state(state: Dictionary, animate: bool) -> void:
 		Audio.play_3d("lever", interact_point(), 0.0, 0.02)
 		Audio.play_2d("power_on", -2.0, 0.0)
 		game.props.power.power_on_from(global_position)
-		game.hud.show_banner("LE COURANT EST RÉTABLI")
+		game.hud.show_banner(Lang.t("LE COURANT EST RÉTABLI", "THE POWER IS ON"))
 	else:
 		_lever.rotation.x = 0.9
 		game.props.power.apply_immediate(true)

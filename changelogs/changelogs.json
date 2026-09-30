@@ -933,6 +933,128 @@
     "en": "New perk machines",
     "fr": "Nouvelles machines d'atouts"
    }
+  },
+  "v0.2.0-snapshot.180": {
+   "channel": "snapshot",
+   "date": "2026-09-30",
+   "images": [
+    "v0.2.0-snapshot.180/01_variantes.jpg"
+   ],
+   "items": [
+    {
+     "en": "Buyable doors now come in three looks: armoured door, wooden door or iron gate. Pick one in the properties or with the V key.",
+     "fr": "Les portes payantes existent maintenant en trois aspects : porte blindée, porte en bois ou grille en fer. Choisissez-le dans les propriétés ou avec la touche V."
+    },
+    {
+     "en": "Debris can be planks or a concrete cave-in, and wall weapons can be drawn on a board nailed to the wall.",
+     "fr": "Les débris à dégager peuvent être des planches ou un éboulement de béton, et les armes murales peuvent être dessinées sur une planche clouée au mur."
+    },
+    {
+     "en": "New invisible barrier: it stops players and zombies, who walk around it, but lets bullets and grenades through. Hatched in the editor, optionally shown in the 3D preview, invisible in game.",
+     "fr": "Nouvelle barrière invisible : elle arrête les joueurs et les zombies, qui la contournent, mais laisse passer les balles et les grenades. Hachurée dans l'éditeur, visible au choix dans l'aperçu 3D, invisible en jeu."
+    },
+    {
+     "en": "Maps shared in multiplayer keep their looks and barriers; older maps open and play exactly as before.",
+     "fr": "Les cartes partagées en multijoueur gardent leurs aspects et leurs barrières ; les anciennes cartes s'ouvrent et se jouent exactement comme avant."
+    },
+    {
+     "en": "The Death Machine is finally held with both hands: rear grip and side grip, no more hand resting on top.",
+     "fr": "La Faucheuse se tient enfin à deux mains : poignée arrière et poignée latérale, plus de main posée au-dessus."
+    },
+    {
+     "en": "When aiming, stocks and the rear of weapons no longer poke into the camera: the gun drops below the screen like in BO1, sights stay perfectly aligned.",
+     "fr": "En visant, la crosse et l'arrière des armes ne rentrent plus dans la caméra : l'arme descend sous l'écran comme dans BO1, la mire reste parfaitement alignée."
+    },
+    {
+     "en": "LAW and HS10 hands sit where they should, and no more sleeve ends showing while reloading or sprinting.",
+     "fr": "Mains du LAW et du HS10 bien placées, et plus de bout de manche visible pendant les rechargements et la course."
+    }
+   ],
+   "title": {
+    "en": "Door looks, invisible barriers and weapons held right",
+    "fr": "Portes au choix, barrières invisibles et armes bien en main"
+   }
+  },
+  "v0.2.0-snapshot.198": {
+   "channel": "snapshot",
+   "date": "2026-09-30",
+   "images": [],
+   "items": [
+    {
+     "en": "Going down costs 5% of your points, and the teammate who revives you gets them. When a player bleeds out, everyone else loses 10% of their points.",
+     "fr": "À terre, vous perdez 5 % de vos points ; le coéquipier qui vous relève les récupère. Si un joueur succombe, les autres perdent 10 % de leurs points."
+    },
+    {
+     "en": "When downed you pull out your best pistol (the CLAUDE-RAY first) with two extra magazines, instead of a sometimes empty M1911.",
+     "fr": "À terre, vous sortez votre meilleur pistolet (le CLAUDE-RAY en premier) avec deux chargeurs de plus, au lieu d'un M1911 parfois vide."
+    },
+    {
+     "en": "In solo with LAZARUS TONIC, a bar shows your self-revive instead of a misleading countdown.",
+     "fr": "En solo avec LAZARUS TONIC, une barre montre votre auto-réanimation au lieu d'un compte à rebours trompeur."
+    },
+    {
+     "en": "The mystery box weapon now waits 12 seconds, the Pack-a-Punch weapon 15 seconds.",
+     "fr": "L'arme de la boîte mystère reste 12 secondes, celle du Pack-a-Punch 15 secondes."
+    },
+    {
+     "en": "No more second THUNDER-7 while its owner is downed, no more two boxes on the same spot, no more double FIRE SALE or REAPER.",
+     "fr": "Plus de second TONNERRE-7 quand son propriétaire est à terre, plus de deux boîtes au même endroit, plus de LIQUIDATION ou de FAUCHEUSE en double."
+    },
+    {
+     "en": "The REAPER no longer drops before the power is on (in solo: once LAZARUS TONIC has been bought).",
+     "fr": "La FAUCHEUSE n'apparaît plus avant le courant (en solo : une fois LAZARUS TONIC bu)."
+    },
+    {
+     "en": "Window repair points now bring the next power-up closer, and dog rounds have up to 32 dogs with four players.",
+     "fr": "Les points de réparation des fenêtres rapprochent le prochain bonus, et les manches de chiens comptent jusqu'à 32 chiens à quatre."
+    },
+    {
+     "en": "The flown-away LAZARUS TONIC machine no longer blocks anything.",
+     "fr": "La machine LAZARUS TONIC envolée ne bloque plus rien."
+    }
+   ],
+   "title": {
+    "en": "Closer to Black Ops 1 rules",
+    "fr": "Règles de Black Ops 1 au plus près"
+   }
+  },
+  "v0.2.0-snapshot.210": {
+   "channel": "snapshot",
+   "date": "2026-09-30",
+   "images": [],
+   "items": [
+    {
+     "en": "The whole game now follows the language chosen in the options (French or English): buy prompts, perks, power-ups, weapons, downed and game over screens, scoreboard, menus, lobby, network messages and credits.",
+     "fr": "Tout le jeu suit la langue choisie dans les options (français ou anglais) : invites d'achat, atouts, bonus, armes, écran à terre et de fin de partie, tableau des scores, menus, salon, messages réseau et générique."
+    },
+    {
+     "en": "In English, prompts use the Black Ops wording: \"Press F to buy M14 [Cost: 500]\".",
+     "fr": "En anglais, les invites reprennent la forme de Black Ops : « Press F to buy M14 [Cost: 500] »."
+    }
+   ],
+   "title": {
+    "en": "The game in French and English",
+    "fr": "Le jeu en français et en anglais"
+   }
+  },
+  "v0.2.0-snapshot.220": {
+   "channel": "snapshot",
+   "date": "2026-09-30",
+   "images": [],
+   "items": [
+    {
+     "en": "In multiplayer, REAPER shots are no longer refused by the host during a short network hiccup.",
+     "fr": "En multijoueur, les tirs de la FAUCHEUSE ne sont plus refusés par l'hôte lors d'un petit ralentissement du réseau."
+    },
+    {
+     "en": "On a custom map, a weapon with no wall price (such as the CLAUDE-RAY) can no longer be bought for free.",
+     "fr": "Sur une carte personnalisée, une arme sans prix au mur (comme le CLAUDE-RAY) ne s'achète plus gratuitement."
+    }
+   ],
+   "title": {
+    "en": "Multiplayer fixes",
+    "fr": "Corrections en multijoueur"
+   }
   }
  }
 }

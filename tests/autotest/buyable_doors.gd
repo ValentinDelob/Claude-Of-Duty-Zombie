@@ -20,7 +20,7 @@ func run() -> void:
 	await until(func(): return game.interact.focused == door and game.hud._prompt.text == door.prompt(p.peer_id), 2.0, "porte 2 visée")
 	at.check(game.interact.focused == door, "la porte 2 est visée")
 	var txt: String = game.hud._prompt.text
-	at.check(txt.contains("750") and txt.contains("Couloir"), "invite : « %s »" % txt)
+	at.check(txt.contains("750") and txt.contains(Lang.t("Couloir", "Cell Block")), "invite : « %s »" % txt)
 	await at.screenshot("prompt")
 
 	# 500 points : trop pauvre.

@@ -1038,10 +1038,8 @@ static func check_offer(o: Variant) -> String:
 static func cache_root() -> String:
 	if cache_override != "":
 		return cache_override
-	var ml := Engine.get_main_loop()
-	var at: Node = (ml as SceneTree).root.get_node_or_null("/root/Autotest") if ml is SceneTree else null
-	if at != null and at.active:
-		return ProjectSettings.globalize_path("res://tests/_out/maps_cache_%s" % at.scenario_name)
+	if AutotestMode.is_running():
+		return ProjectSettings.globalize_path("res://tests/_out/maps_cache_%s" % AutotestMode.scenario_name())
 	return "user://maps_cache"
 
 

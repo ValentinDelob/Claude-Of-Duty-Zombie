@@ -39,6 +39,11 @@ var _scorch: Array[Decal] = []
 var _scorch_i := 0
 var _flash: OmniLight3D
 var _flash_t := 0.0
+## Serveur : demandes de dégoupillage et de lancer par joueur. Un humain en
+## fait au plus 2 à 3 par seconde ; un lancer valide suit toujours un
+## dégoupillage accepté (borné par la réserve) : seuls les refus sont bornés.
+var _cook_limit := NetGuard.Limiter.new(8.0, 8.0)
+var _cancel_limit := NetGuard.Limiter.new(8.0, 8.0)
 
 
 func _ready() -> void:
@@ -116,12 +121,12 @@ func srv_refill_all() -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_cook(kind: int) -> void:
-	if not multiplayer.is_server():
+	# Données de session suffisent (pas de nœud Player exigé) ; le lancer,
+	# lui, en a besoin (srv_throw).
+	var pid := NetGuard.alive_sender(self, game, _cook_limit, false)
+	if pid == NetGuard.NO_SENDER or _cooking.has(pid):
 		return
-	var pid := multiplayer.get_remote_sender_id()
 	var pd := game.session.get_data(pid)
-	if pd == null or pd.life != PlayerData.Life.ALIVE or _cooking.has(pid):
-		return
 	match kind:
 		K.FRAG:
 			if pd.grenades <= 0:
@@ -141,13 +146,17 @@ func srv_cook(kind: int) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
-	if not multiplayer.is_server():
+	# Limiteur réservé aux refus (un lancer valide suit un dégoupillage borné).
+	var pid := NetGuard.server_sender(self)
+	if pid == NetGuard.NO_SENDER:
 		return
-	var pid := multiplayer.get_remote_sender_id()
 	var c: Array = _cooking.get(pid, [])
 	var p: Player = game.players.get(pid)
 	if c.is_empty() or p == null:
 		# Rien de dégoupillé (refus, déjà explosé) : la prédiction est annulée.
+		# Chaque refus renvoie un message : borné (inondation de faux lancers).
+		if not _cancel_limit.allow(pid):
+			return
 		if pid == multiplayer.get_unique_id():
 			_cl_cancel(seq)
 		else:
@@ -157,6 +166,10 @@ func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
 	# NaN / infini : repli sur la position et l'orientation connues du serveur.
 	if not NetGuard.finite_vec(origin) or p.global_position.distance_to(origin) > MAX_ORIGIN_ERROR:
 		origin = p.global_position + Vector3.UP * 1.5
+	elif not _origin_reachable(p, origin):
+		# Origine annoncée derrière un mur, une porte ou le sol : l'objet
+		# partirait de l'autre côté. Repli sur les yeux du joueur (serveur).
+		origin = p.eye_position()
 	if not NetGuard.valid_dir(dir) or dir.length_squared() < 0.01:
 		dir = -p.global_transform.basis.z
 	var kind: int = c[0]
@@ -164,6 +177,13 @@ func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
 	VoxSystem.say(pid, "throw_monkey" if monkey else "throw_grenade", 0.9 if monkey else 0.5)
 	var fuse := ThrowableRules.fuse_left(c[1], GameClock.now()) if kind == K.FRAG else 0.0
 	_spawn(pid, kind, origin, ThrowableRules.throw_velocity(kind, dir), fuse, seq)
+
+
+## Rien de solide (décor, portes, barricades) entre les yeux du joueur,
+## connus du serveur, et le point de départ annoncé par le client.
+func _origin_reachable(p: Player, origin: Vector3) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(p.eye_position(), origin, Throwable.FLIGHT_MASK, [p.get_rid()])
+	return p.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
 
 func _spawn(pid: int, kind: int, origin: Vector3, vel: Vector3, fuse: float, seq: int) -> void:
@@ -391,6 +411,6 @@ func _tick_fx(delta: float) -> void:
 		var lp := game.local_player
 		if lp:
 			var a := _shake_amp * clampf(_shake_t / 0.5, 0.0, 1.0)
-			lp._flinch += Vector2(randf_range(-a, a), randf_range(-a, a))
+			lp.add_flinch(Vector2(randf_range(-a, a), randf_range(-a, a)))
 		if _shake_t <= 0.0:
 			_shake_amp = 0.0

@@ -47,11 +47,12 @@ func srv_down(pid: int) -> void:
 	var had_lazarus := pd.has_perk("lazarus")
 	pd.life = PlayerData.Life.DOWNED
 	pd.downs += 1
+	# BO1 : 5 % des points perdus, rendus au coéquipier qui réanime.
+	var lost := PointsRules.downed_loss(pd.points)
+	game.session.add_points(pid, -lost)
 	# Dernier recours : on garde le pistolet (ou on en reçoit un).
 	pd.saved_weapons = pd.weapons.duplicate(true)
-	var pistol := pd.has_weapon(WeaponDB.STARTING_WEAPON)
-	var last_stand: Dictionary = pd.weapons[pistol].duplicate() if pistol >= 0 else WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)
-	pd.weapons = [last_stand]
+	pd.weapons = [last_stand_weapon(pd.saved_weapons)]
 	pd.slot = 0
 	game.perks.srv_clear(pid)
 	# Répliques : celui qui tombe, un coéquipier qui le voit, le dernier debout.
@@ -63,7 +64,7 @@ func srv_down(pid: int) -> void:
 		if mates.size() == 1 and game.session.data.size() > 1:
 			game.vox.later(3.8, mates[0], "last_alive")
 	game.combat.cancel_reload(pid)
-	var entry := {"bleed_end": GameClock.now() + bleedout_time, "reviver": 0, "revive_start": 0.0, "revive_dur": 0.0, "self_revive": 0.0}
+	var entry := {"bleed_end": GameClock.now() + bleedout_time, "reviver": 0, "revive_start": 0.0, "revive_dur": 0.0, "self_revive": 0.0, "lost": lost}
 	if Net.mode == Net.Mode.SOLO and had_lazarus:
 		entry.self_revive = GameClock.now() + SOLO_SELF_REVIVE
 	downed[pid] = entry
@@ -72,6 +73,39 @@ func srv_down(pid: int) -> void:
 	print("[Downed] %s est à terre" % Net.player_name(pid))
 	_broadcast(pid)
 	game.check_game_over()
+
+
+## Pistolets du dernier recours, du moins bon au meilleur (level.pistol_values
+## de BO1 ; « + » : amélioré au Pack-a-Punch). Le CLAUDE-RAY (Ray Gun) passe
+## avant tout le reste.
+const LAST_STAND_RANK := ["m1911", "cz75", "python", "python+", "cz75+", "m1911+", "ray", "ray+"]
+
+
+## Arme tenue à terre (last_stand_best_pistol / last_stand_pistol_swap de
+## BO1) : le meilleur pistolet possédé, avec deux chargeurs de réserve en plus
+## (M1911 : au moins deux chargeurs ; le CLAUDE-RAY garde ses munitions) ;
+## sans pistolet, un M1911 neuf avec deux chargeurs de réserve.
+static func last_stand_weapon(weapons: Array) -> Dictionary:
+	var best := -1
+	var best_rank := -1
+	for i in weapons.size():
+		var w: Dictionary = weapons[i]
+		var rank := LAST_STAND_RANK.find(String(w.get("id", "")) + ("+" if w.get("pap", false) else ""))
+		if rank > best_rank:
+			best_rank = rank
+			best = i
+	if best < 0:
+		var fresh := WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)
+		fresh.reserve = int(WeaponDB.stats(WeaponDB.STARTING_WEAPON).mag) * 2
+		return fresh
+	var out: Dictionary = (weapons[best] as Dictionary).duplicate()
+	var two_mags := int(WeaponDB.stats(out.id, out.pap).mag) * 2
+	if out.id == WeaponDB.STARTING_WEAPON and not out.pap:
+		# BO1 fixe la réserve du M1911 à deux chargeurs ; on ne retire rien.
+		out.reserve = maxi(int(out.reserve), two_mags)
+	elif out.id != "ray":
+		out.reserve = int(out.reserve) + two_mags
+	return out
 
 
 ## Serveur : un coéquipier commence à réanimer `target`.
@@ -121,12 +155,15 @@ func _process(_delta: float) -> void:
 				srv_stop_revive(e.reviver, pid)
 			elif t - e.revive_start >= e.revive_dur:
 				var rev: int = e.reviver
+				var lost: int = e.get("lost", 0)
 				_revive(pid)
 				VoxSystem.say_later(0.6, pid, "revived")
 				var r := game.session.get_data(rev)
 				if r:
 					r.revives += 1
 					game.session.sync_stats(rev)
+					# BO1 : le sauveteur reçoit les points perdus par le joueur à terre.
+					game.session.add_points(rev, lost)
 				continue
 		# Pas de fin de saignement pendant une réanimation en cours.
 		if e.reviver == 0 and t >= e.bleed_end:
@@ -143,9 +180,13 @@ func _revive(pid: int) -> void:
 	# On récupère ses armes, avec les munitions du pistolet utilisé à terre.
 	var used: Dictionary = pd.weapons[0] if not pd.weapons.is_empty() else {}
 	pd.weapons = pd.saved_weapons.duplicate(true) if not pd.saved_weapons.is_empty() else [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
-	var pistol := pd.has_weapon(WeaponDB.STARTING_WEAPON)
-	if pistol >= 0 and not used.is_empty() and used.id == WeaponDB.STARTING_WEAPON:
-		pd.weapons[pistol] = used
+	# L'arme utilisée à terre, si le joueur la possédait, revient avec ses
+	# munitions ; un M1911 prêté (aucun pistolet possédé) est repris.
+	if not used.is_empty():
+		for i in pd.weapons.size():
+			if pd.weapons[i].id == used.id and pd.weapons[i].pap == used.pap:
+				pd.weapons[i] = used
+				break
 	pd.saved_weapons = []
 	pd.slot = clampi(pd.slot, 0, pd.weapons.size() - 1)
 	game.session.sync_stats(pid)
@@ -160,6 +201,12 @@ func _bleed_out(pid: int) -> void:
 	var pd := game.session.get_data(pid)
 	if pd:
 		pd.saved_weapons = []
+	# BO1 (player_died_penalty) : chacun des autres joueurs encore en jeu perd
+	# 10 % de ses points quand un coéquipier succombe.
+	for other in game.session.data:
+		var opd: PlayerData = game.session.data[other]
+		if other != pid and opd.life != PlayerData.Life.DEAD:
+			game.session.add_points(other, -PointsRules.no_revive_loss(opd.points))
 	print("[Downed] %s a succombé" % Net.player_name(pid))
 	VoxSystem.say(pid, "death")
 	if game.vox:
@@ -213,7 +260,7 @@ func _cl_state(pid: int, is_down: bool, bleed_time: float, reviver: int, progres
 			if GameState.state in [GameState.State.PLAYING, GameState.State.ROUND_END]:
 				GameState.set_state(GameState.State.PLAYER_DOWN)
 		else:
-			game.hud.flash_message("%s EST À TERRE !" % Net.player_name(pid).to_upper())
+			game.hud.flash_message(Lang.t("%s EST À TERRE !", "%s IS DOWN!") % Net.player_name(pid).to_upper())
 	elif not is_down and was_down:
 		_was_shown.erase(pid)
 		if pid == multiplayer.get_unique_id() and GameState.state == GameState.State.PLAYER_DOWN:
@@ -231,7 +278,7 @@ func _cl_revived(pid: int) -> void:
 	if p:
 		Audio.play_3d("revive", p.global_position + Vector3.UP, 0.0, 0.0)
 	if pid == multiplayer.get_unique_id():
-		game.hud.show_banner("RÉANIMÉ", 1.2)
+		game.hud.show_banner(Lang.t("RÉANIMÉ", "REVIVED"), 1.2)
 
 
 ## Toutes les machines : infos pour le HUD.
@@ -245,6 +292,15 @@ func revive_progress(pid: int) -> float:
 	if e.is_empty() or e.reviver == 0 or e.revive_dur <= 0.0:
 		return 0.0
 	return clampf((GameClock.now() - e.revive_start) / e.revive_dur, 0.0, 1.0)
+
+
+## Avancement de l'auto-réanimation (LAZARUS en solo), 0 si aucune. Connu
+## seulement du serveur, c'est-à-dire du joueur lui-même en solo.
+func self_revive_progress(pid: int) -> float:
+	var end: float = downed.get(pid, {}).get("self_revive", 0.0)
+	if end <= 0.0:
+		return 0.0
+	return clampf(1.0 - (end - GameClock.now()) / SOLO_SELF_REVIVE, 0.001, 1.0)
 
 
 func reviver_of(pid: int) -> int:

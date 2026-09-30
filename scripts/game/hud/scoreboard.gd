@@ -8,8 +8,10 @@ var game: Game
 var _rows_box: VBoxContainer
 var _title: Label
 var _sub: Label
+var _header: Control
 
-const COLUMNS := ["JOUEUR", "POINTS", "TUÉS", "TÊTES", "RÉANIM.", "À TERRE"]
+## En-têtes [français, anglais] (voir columns()).
+const COLUMNS := [["JOUEUR", "PLAYER"], ["POINTS", "POINTS"], ["TUÉS", "KILLS"], ["TÊTES", "HEADSHOTS"], ["RÉANIM.", "REVIVES"], ["À TERRE", "DOWNS"]]
 const WIDTHS := [250, 110, 90, 90, 100, 100]
 
 
@@ -42,7 +44,8 @@ func setup(g: Game) -> void:
 	_sub = HudStyle.label("", 16, HudStyle.TEXT_DIM, "text", 2)
 	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_sub)
-	box.add_child(_row(COLUMNS, HudStyle.TEXT_DIM, 16, null))
+	_header = _row(columns(), HudStyle.TEXT_DIM, 16, null)
+	box.add_child(_header)
 	_rows_box = VBoxContainer.new()
 	_rows_box.add_theme_constant_override("separation", 4)
 	box.add_child(_rows_box)
@@ -53,7 +56,12 @@ func refresh(title_text := "") -> void:
 	if title_text != "":
 		_title.text = title_text
 	else:
-		_title.text = "MANCHE %d" % game.rounds.round_n if game.rounds.round_n > 0 else "PRÉPARATION"
+		_title.text = Lang.t("MANCHE %d", "ROUND %d") % game.rounds.round_n if game.rounds.round_n > 0 else Lang.t("PRÉPARATION", "GET READY")
+	# En-têtes dans la langue courante (elle a pu changer depuis le menu pause).
+	var heads := columns()
+	var hb := _header.get_child(0)
+	for i in mini(hb.get_child_count(), heads.size()):
+		(hb.get_child(i) as Label).text = heads[i]
 	_sub.text = game.map_def.display_name if game.map_def else ""
 	for c in _rows_box.get_children():
 		c.queue_free()
@@ -101,3 +109,8 @@ func _row(cells: Array, text_col: Color, font_size: int, col: Variant, me := fal
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if i == 0 else HORIZONTAL_ALIGNMENT_CENTER
 		hb.add_child(l)
 	return panel
+
+
+## En-têtes des colonnes dans la langue du joueur.
+static func columns() -> Array:
+	return COLUMNS.map(func(c: Array) -> String: return Lang.t(c[0], c[1]))

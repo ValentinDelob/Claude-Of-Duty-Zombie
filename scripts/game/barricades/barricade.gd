@@ -334,7 +334,7 @@ func prompt(pid: int) -> String:
 	var p: Player = system.game.players.get(pid) if system else null
 	if p and not is_inside(p.global_position):
 		return ""
-	return "Maintenir [F] pour reconstruire la barricade"
+	return Lang.t("Maintenir [F] pour reconstruire la barricade", "Hold [F] to rebuild the barrier")
 
 
 func srv_use(pid: int) -> void:
@@ -438,7 +438,7 @@ func srv_zombie_barrier(z: Zombie, delta: float) -> void:
 	else:
 		z.tear_t = 0.0
 		var spd: float = Zombie.SPEEDS[z.speed_class] * z.speed_mult
-		desired = (to / dist + z._separation() * 0.6).normalized() * spd * clampf(dist * 1.5, 0.3, 1.0)
+		desired = (to / dist + z.separation() * 0.6).normalized() * spd * clampf(dist * 1.5, 0.3, 1.0)
 		face = atan2(to.x, to.z)
 	var horiz := Vector3(z.velocity.x, 0.0, z.velocity.z).move_toward(desired, 12.0 * delta)
 	z.velocity.x = horiz.x
@@ -458,7 +458,7 @@ func _victim_for(z: Zombie) -> Player:
 	var best: Player = null
 	var best_d := REACH
 	for p: Player in system.game.players.values():
-		if not z._is_target_valid(p) or not is_inside(p.global_position):
+		if not z.is_target_valid(p) or not is_inside(p.global_position):
 			continue
 		var d := _flat_dist(p.global_position, z.global_position)
 		if d < best_d:

@@ -91,3 +91,7 @@ func run() -> void:
 	game.perks.srv_clear(1)
 	await until(func(): return not q.visible, 4.0, "machine disparue")
 	at.check(not q.visible, "la machine LAZARUS a disparu")
+	var solid := 0
+	for c in q.find_children("*", "CollisionObject3D", true, false):
+		solid += (c as CollisionObject3D).collision_layer
+	at.check(solid == 0, "plus aucune collision (elle ne bloque plus rien 6 m plus haut)")

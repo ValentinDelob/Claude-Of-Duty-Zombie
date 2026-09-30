@@ -15,7 +15,7 @@ func run() -> void:
 	var js := menu.current
 	js._ip.text = "300.1.2.3"
 	js._join()
-	at.check(js._error.text.contains("invalide") and menu.current_name == "join", "adresse invalide refusée : %s" % js._error.text)
+	at.check(js._error.text.contains(Lang.t("invalide", "Invalid")) and menu.current_name == "join", "adresse invalide refusée : %s" % js._error.text)
 
 	# Mauvais port : personne n'écoute.
 	js._ip.text = "127.0.0.1"

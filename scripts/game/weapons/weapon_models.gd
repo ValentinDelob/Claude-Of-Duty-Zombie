@@ -1191,7 +1191,7 @@ static func _shotgun(p: Dictionary) -> Dictionary:
 		"muzzle": Vector3(0, muzzle_y, front), "sight": Vector3(0, line, 0.05),
 		"front": Vector3(0, line, front + 0.03), "ads": Vector3(0, 0, 0.3),
 		"eject": Vector3(0.027, y + 0.01, -0.03),
-		"grip": grip, "support": Vector3(0, y - 0.05, -0.3),
+		"grip": grip, "support": Vector3(0, y - 0.05, -0.3 if barrels == 2 or p.get("pump", false) else -0.2),
 		"pivot_mag": Vector3(0, y - 0.035, -0.02), "mag_dir": Vector3(0, -1, 0)})
 	return {"parts": parts, "anchors": anchors, "info": model_info}
 
@@ -1247,7 +1247,7 @@ static func _rocket() -> Dictionary:
 	return {"parts": parts, "info": {"grip_angle": 10.0}, "anchors": {
 		"muzzle": Vector3(0, y, -0.61), "sight": Vector3(0, line, 0.06),
 		"front": Vector3(0, line, -0.44), "ads": Vector3(0, 0, 0.17),
-		"grip": Vector3(0, -0.04, 0.03), "support": Vector3(-0.02, y - 0.05, -0.25)}}
+		"grip": Vector3(0, -0.01, 0.025), "support": Vector3(-0.02, y - 0.05, -0.25)}}
 
 
 ## CLAUDE-RAY : pistolet à rayon rétro, corps renflé cerclé de bagues,
@@ -1356,7 +1356,10 @@ static func _knife(p: Dictionary) -> Dictionary:
 
 ## Minigun (FAUCHEUSE) : faisceau de six canons autour de l'axe, trois bagues,
 ## carter moteur, poignée de transport sur le dessus, poignée arrière, caisse
-## de bande à gauche.
+## de bande à gauche, poignée latérale verticale à gauche du faisceau (main
+## gauche, comme la DEATH MACHINE de BO1 : main droite sur la poignée arrière,
+## main gauche sur la poignée de côté). Pas d'organes de visée ("no_sights") :
+## en visée, l'arme reste à la hanche, un peu remontée (ViewModel.rest_pose).
 static func _minigun() -> Dictionary:
 	var parts := []
 	var y := 0.02
@@ -1375,6 +1378,14 @@ static func _minigun() -> Dictionary:
 	_p(parts, WeaponMesh.round_rect(0.12, 0.13, 0.012), 0.1, Vector3(-0.1, y - 0.04, 0.02), "olive", 0.0, "", 0.006)
 	_b(parts, Vector3(0.03, 0.02, 0.1), Vector3(-0.05, y + 0.02, -0.02), "brass", Vector3(0, 0, 20))
 	_pistol_grip(parts, "polymer", 0.1, -10.0, y - 0.05)
-	return {"parts": parts, "info": {"grip_angle": -10.0}, "anchors": {
+	# Poignée latérale : collier autour du faisceau, bras vers la gauche,
+	# manche vertical sous l'axe (la main gauche l'empoigne, ViewHands.FRONT_GRIP).
+	var hz := -0.3
+	var hx := -0.072
+	_c(parts, 0.045, 0.024, Vector3(0, y, hz), "metal")
+	_b(parts, Vector3(0.04, 0.02, 0.024), Vector3(-0.052, y - 0.004, hz), "metal_dark")
+	_c(parts, 0.016, 0.1, Vector3(hx, y - 0.058, hz), "polymer", Vector3(90, 0, 0))
+	_c(parts, 0.019, 0.008, Vector3(hx, y - 0.108, hz), "metal_dark", Vector3(90, 0, 0))
+	return {"parts": parts, "info": {"grip_angle": -10.0, "no_sights": true}, "anchors": {
 		"muzzle": Vector3(0, y, -0.62), "sight": Vector3(0, y + 0.12, -0.02),
-		"grip": Vector3(0, -0.06, 0.1), "support": Vector3(0, y + 0.1, -0.05)}}
+		"grip": Vector3(0, -0.06, 0.1), "support": Vector3(hx, y - 0.078, hz)}}
