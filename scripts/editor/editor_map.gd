@@ -534,9 +534,8 @@ static var root_override := ""
 static func maps_root() -> String:
 	if root_override != "":
 		return root_override
-	var at: Node = Engine.get_main_loop().root.get_node_or_null("/root/Autotest") if Engine.get_main_loop() is SceneTree else null
-	if at != null and at.active:
-		return ProjectSettings.globalize_path("res://tests/_out/editor_maps_%s" % at.scenario_name)
+	if AutotestMode.is_running():
+		return ProjectSettings.globalize_path("res://tests/_out/editor_maps_%s" % AutotestMode.scenario_name())
 	return "user://maps"
 
 

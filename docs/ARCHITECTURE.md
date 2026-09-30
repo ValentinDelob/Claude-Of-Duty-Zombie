@@ -133,7 +133,7 @@ jamais chargée depuis le réseau ou une archive (données JSON seulement).
 | `GameState` | Machine à états unique de la session (`MAIN_MENU`, `LOBBY`, `CONNECTING`, `LOADING`, `PLAYING`, `ROUND_END`, `PLAYER_DOWN`, `GAME_OVER`, `DISCONNECTING`) avec transitions validées. |
 | `Settings` | Options persistantes (`user://settings.cfg`), actions d'entrée et touches réaffectables (voir « Menus, options et touches »). |
 | `Net` | Host / Join / Solo, poignée de main (version, serveur plein, partie lancée), registre des joueurs, erreurs de connexion lisibles, carte du salon et envoi des cartes perso (enfant `MapShare`). |
-| `Autotest` | Scénarios de test automatisés dans le vrai jeu (`-- --autotest=<nom>`), mesures de perf, captures d'écran. |
+| `Autotest` | Scénarios de test automatisés dans le vrai jeu (`-- --autotest=<nom>`), mesures de perf, captures d'écran. Savoir si l'on tourne sous autotest : `AutotestMode.is_running()` (classe statique qui lit la ligne de commande, valable avant le `_ready` des autoloads, donc dans `Settings` et les fonctions statiques ; `AutotestMode.scenario_name()` pour le scénario en cours d'une série) ; `Autotest.active` en est le reflet une fois l'autoload prêt. |
 
 ## Menus, options et touches
 
