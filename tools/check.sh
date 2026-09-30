@@ -38,6 +38,11 @@ cd "$(dirname "$0")/.."
 nofocus_on
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT/jobs"
+# Journaux Godot des tests (--log-file) : ici, JAMAIS dans le dossier des
+# journaux du joueur (%APPDATA%\Godot\app_userdata\Call of Claude Zombie\logs,
+# où ils écraseraient le journal d'un plantage). Chemin absolu : Godot se
+# place dans le dossier de --path avant de l'ouvrir.
+LOGS="$PWD/$OUT/logs"; mkdir -p "$LOGS"
 DUR="$OUT/durations.txt"; touch "$DUR"
 CACHE="$OUT/test_cache.txt"; touch "$CACHE"
 FAST=0; FULL=0; KINO=0; RETRY=1
@@ -58,16 +63,16 @@ HEADLESS="--headless --fixed-fps 60"
 T_START=$(date +%s)
 
 echo "== import"
-"$GODOT" --headless --path . --import > "$OUT/import.log" 2>&1
+"$GODOT" --headless --log-file "$LOGS/import.log" --path . --import > "$OUT/import.log" 2>&1
 # Lanceur (projet Godot séparé, launcher/).
-"$GODOT" --headless --path launcher --import >> "$OUT/import.log" 2>&1
+"$GODOT" --headless --log-file "$LOGS/import_launcher.log" --path launcher --import >> "$OUT/import.log" 2>&1
 if grep -qE "SCRIPT ERROR|Parse Error|ERROR:" "$OUT/import.log"; then
   grep -E "SCRIPT ERROR|Parse Error|ERROR:" "$OUT/import.log" | head
   echo "== CHECK ECHEC (import)"; exit 1
 fi
 
 echo "== dépendances"
-"$GODOT" --headless --path . -s res://tools/test_deps.gd -- --out=$OUT/deps > "$OUT/deps.log" 2>&1
+"$GODOT" --headless --log-file "$LOGS/deps.log" --path . -s res://tools/test_deps.gd -- --out=$OUT/deps > "$OUT/deps.log" 2>&1
 if [ ! -s "$OUT/deps/tasks.txt" ] || grep -qE "SCRIPT ERROR|Parse Error" "$OUT/deps.log"; then
   cat "$OUT/deps.log" | head; echo "== CHECK ECHEC (carte des dépendances)"; exit 1
 fi
@@ -179,21 +184,22 @@ log_of() { echo "$OUT/jobs/${1/:/_}.log"; }
 run_task() {
   local T=$1 KIND=${1%%:*} NAME=${1#*:} SLOT=$2 LOG RC=0
   LOG=$(log_of "$1")
+  local GLOG="$LOGS/${1/:/_}.log"   # journal Godot de la tâche (--log-file)
   local PORTS=$(( BASE_PORT + 100 * SLOT ))
   local SCN=${NAME%%+*} PARTARG=""
   if [[ $NAME == *+* ]]; then local R=${NAME#*+}; PARTARG="--part=${R%+*}/${R#*+}"; fi
   case $KIND in
-    parse) "$GODOT" --headless --path . -s res://tests/parse_all.gd > "$LOG" 2>&1 || RC=1 ;;
-    unit)  "$GODOT" --headless --path . res://tests/test_runner.tscn -- $UNIT_ARG > "$LOG" 2>&1 || RC=1 ;;
-    launcher) "$GODOT" --headless --path launcher -s res://tests/test_launcher.gd > "$LOG" 2>&1 || RC=1 ;;
+    parse) "$GODOT" --headless --log-file "$GLOG" --path . -s res://tests/parse_all.gd > "$LOG" 2>&1 || RC=1 ;;
+    unit)  "$GODOT" --headless --log-file "$GLOG" --path . res://tests/test_runner.tscn -- $UNIT_ARG > "$LOG" 2>&1 || RC=1 ;;
+    launcher) "$GODOT" --headless --log-file "$GLOG" --path launcher -s res://tests/test_launcher.gd > "$LOG" 2>&1 || RC=1 ;;
     net)   AUTOTEST_PORT_OFFSET=$PORTS sh tools/net_smoke.sh > "$LOG" 2>&1 || RC=1 ;;
     head)  local MODE=$HEADLESS
            # « ## @temps-reel » : mesure par seconde réelle, pas d'accélération.
            grep -q "^## @temps-reel" "tests/autotest/$SCN.gd" && MODE="--headless --max-fps 60"
-           AUTOTEST_PARALLEL=1 timeout 420 "$GODOT" $MODE --path . -- --autotest=$SCN $PARTARG > "$LOG" 2>&1 || RC=1 ;;
+           AUTOTEST_PARALLEL=1 timeout 420 "$GODOT" $MODE --log-file "$GLOG" --path . -- --autotest=$SCN $PARTARG > "$LOG" 2>&1 || RC=1 ;;
     batch) local NS; NS=$(echo "${BATCH[$T]}" | tr ',' '\n' | wc -l)
-           AUTOTEST_PARALLEL=1 timeout $(( 120 + 60 * NS )) "$GODOT" $HEADLESS --path . -- --autotest=${BATCH[$T]} > "$LOG" 2>&1 || RC=1 ;;
-    gui)   AUTOTEST_PARALLEL=1 timeout 420 "$GODOT" --path . --resolution 1280x720 -- --autotest=$SCN $PARTARG > "$LOG" 2>&1 || RC=1 ;;
+           AUTOTEST_PARALLEL=1 timeout $(( 120 + 60 * NS )) "$GODOT" $HEADLESS --log-file "$GLOG" --path . -- --autotest=${BATCH[$T]} > "$LOG" 2>&1 || RC=1 ;;
+    gui)   AUTOTEST_PARALLEL=1 timeout 420 "$GODOT" --log-file "$GLOG" --path . --resolution 1280x720 -- --autotest=$SCN $PARTARG > "$LOG" 2>&1 || RC=1 ;;
     mp)    AUTOTEST_PORT_OFFSET=$PORTS HEADLESS_MP=1 sh tools/mp_test.sh "$NAME" > "$LOG" 2>&1 || RC=1 ;;
   esac
   if grep -qE "SCRIPT ERROR|ERROR:|\[FAIL\]|ECHEC" "$LOG"; then RC=1; fi

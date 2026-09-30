@@ -94,12 +94,21 @@ var _base_env := {}
 var _framed_doc := 0
 
 
-## Conversion d'une copie de la carte, dans le fil de travail.
+## Conversion d'une copie de la carte, dans le fil de travail. Tout ce qu'il
+## lit est à lui ou figé avant le lancement (ThreadGuard, docs/ARCHITECTURE.md
+## « Fils de travail ») : `map` (copie profonde, faite sur le fil principal),
+## `lang_en` (langue des textes), le catalogue (MapCatalog, construit puis mis
+## en lecture seule sur le fil principal) et des constantes. Les caches du
+## fil principal (MapRules, WeaponDB...) refusent tout accès depuis le fil.
 class Job extends RefCounted:
 	var map: EditorMap
+	var lang_en := false
 
 	func run() -> Dictionary:
-		return MapPreviewWorld.compute(map)
+		ThreadGuard.enter(lang_en)
+		var res := MapPreviewWorld.compute(map)
+		ThreadGuard.leave()
+		return res
 
 
 func _ready() -> void:
@@ -143,10 +152,22 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_join()
+	_free_game()
+
+
+## Libéré sans passer par _exit_tree (jamais entré dans l'arbre) : le fil est
+## attendu avant que son travail ne disparaisse.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		_join()
+
+
+func _join() -> void:
 	if _thread != null:
 		_thread.wait_to_finish()
 		_thread = null
-	_free_game()
+		_job = null
 
 
 # ------------------------------------------------------------------ conversion (fil de travail)
@@ -158,7 +179,8 @@ func _exit_tree() -> void:
 ## zones, escaliers, ouvertures et objets (MapValidator.analyze, dans le même
 ## ordre). Une carte pas encore jouable s'affiche quand même (sans départ :
 ## un point de vue au milieu de la première pièce). Fonction pure : aucune
-## scène, aucun nœud (appelée hors du fil principal).
+## scène, aucun nœud, aucune ressource, aucun état partagé modifiable
+## (appelée hors du fil principal : tests/test_preview_thread.gd).
 static func compute(m: EditorMap) -> Dictionary:
 	var t0 := Time.get_ticks_usec()
 	var out := {"data": {}, "errors": 0, "map": m, "sols": [], "ms": 0.0}
@@ -170,7 +192,8 @@ static func compute(m: EditorMap) -> Dictionary:
 	var v := MapRaster.build(m).v
 	v.check_floors()
 	if v.errors().is_empty():
-		for step in ["_find_blobs", "_marker_zones", "_stairs", "_openings", "_wall_markers", "_floor_markers", "_zone_graph"]:
+		# _counts : leviers rattachés à leurs pièges (sans lui, aucun piège).
+		for step in ["_find_blobs", "_marker_zones", "_stairs", "_openings", "_wall_markers", "_floor_markers", "_zone_graph", "_counts"]:
 			v.call(step)
 	if v.start_points.is_empty():
 		var r: Dictionary = m.pieces[0]
@@ -186,10 +209,13 @@ static func compute(m: EditorMap) -> Dictionary:
 
 func _process(delta: float) -> void:
 	if _thread != null and not _thread.is_alive():
-		var res: Dictionary = _thread.wait_to_finish()
+		var got: Variant = _thread.wait_to_finish()
 		_thread = null
 		_job = null
-		_on_computed(res)
+		print("[Apercu3D] calcul fini (%.0f ms), construction sur le fil principal" % (float(got.get("ms", 0.0)) if got is Dictionary else -1.0))
+		# Calcul interrompu (erreur dans le fil) : rien de construit, jamais
+		# une valeur d'un autre type passée à la suite.
+		_on_computed(got if got is Dictionary else {"data": {}, "errors": 1, "map": doc.duplicate_map() if doc != null else null, "sols": [0.0]})
 	if not _queue.is_empty():
 		_run_step()
 		return
@@ -223,21 +249,23 @@ func is_stale() -> bool:
 
 
 func _start(h: int) -> void:
-	MapCatalog.items()   # catalogue construit ici, jamais dans le fil de travail
+	# Préparé ici, sur le fil principal : catalogue construit et figé, copie
+	# profonde de la carte, langue. Le fil n'a rien d'autre à lire.
+	MapCatalog.items()
 	_job_hash = h
 	_job = Job.new()
 	_job.map = doc.duplicate_map()
+	_job.lang_en = Lang.is_en()
 	building = true
+	# Journal (vidé à chaque ligne) : un plantage pendant le calcul s'y voit.
+	print("[Apercu3D] calcul lancé : %d pièces, %d ouvertures, %d objets" % [doc.pieces.size(), doc.ouvertures.size(), doc.objets.size()])
 	_thread = Thread.new()
 	_thread.start(_job.run)
 
 
 ## Reconstruction immédiate, sans fil ni étalement (tests, première image).
 func rebuild_now() -> void:
-	if _thread != null:
-		_on_computed(_thread.wait_to_finish())
-		_thread = null
-		_job = null
+	_join()   # calcul en cours : attendu, remplacé par le calcul immédiat
 	while not _queue.is_empty():
 		_run_step()
 	if doc == null:
@@ -256,6 +284,9 @@ func idle() -> bool:
 
 
 func _on_computed(res: Dictionary) -> void:
+	# Accès refusés dans le fil (cache du fil principal atteint : bogue à corriger).
+	for what in ThreadGuard.take_violations():
+		push_error("[Apercu3D] état partagé touché hors du fil principal : " + what)
 	_result = res
 	_apply_ms = 0.0
 	_step_max = 0.0

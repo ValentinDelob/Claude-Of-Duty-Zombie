@@ -310,7 +310,7 @@ func _decor_and_textures() -> void:
 	await at.screenshot("objets")
 	var mm := InputEventMouseMotion.new()
 	var row := lst.row_of(String(sus.id))
-	mm.position = Vector2(30, (row + 0.5) * MapObjectList.ROW_H)
+	mm.position = Vector2(30, (row + 0.5) * MapObjectList.row_h())
 	lst.rows._gui_input(mm)
 	await frames(2)
 	at.check(ed.hover_id == String(sus.id), "survol de la ligne : la suspension s'allume sur la carte")

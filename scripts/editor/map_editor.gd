@@ -62,8 +62,22 @@ var file_menu: MenuButton
 var edit_menu: MenuButton
 var _recent_menu: PopupMenu
 var _dialog: AcceptDialog
+var _dialog_scroll: ScrollContainer
+var _dialog_label: Label
 var _file_dialog: FileDialog
 var _status_error := false
+## Barre du haut (passe à la ligne si elle ne tient pas en largeur).
+var top_bar: HFlowContainer
+## Écran d'options ouvert par-dessus l'éditeur (bouton ⚙, Fichier > Options).
+var options: EditorOptions
+## Taille de l'interface appliquée (EditorUi ; -1 : pas encore).
+var ui_scale := -1.0
+## Contrôles ajoutés depuis, mis à l'échelle en fin d'image.
+var _ui_pending: Array = []
+var _ui_queued := false
+## Position du plan à l'écran avant un changement de taille (_keep_plan_in_place).
+var _plan_anchor := Vector2.ZERO
+var _plan_pending := false
 
 
 func _ready() -> void:
@@ -71,12 +85,16 @@ func _ready() -> void:
 		if a.begins_with("--check="):
 			_cli_check(a.substr(8))
 			return
-	theme = make_theme()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	if GameState.state != GameState.State.MAIN_MENU:
 		GameState.reset_to_menu()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	theme = make_theme(EditorUi.factor())
 	_build_ui()
+	apply_ui_scale()
+	get_tree().node_added.connect(_on_node_added)
+	resized.connect(_fit_side_panels)
+	Settings.editor_ui_scale_changed.connect(func(_v): apply_ui_scale())
 	get_tree().root.close_requested.connect(_on_close_requested)
 	doc = EditorMap.blank()
 	_start.call_deferred()
@@ -149,12 +167,16 @@ func _build_ui() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_theme_constant_override("separation", 0)
 	add_child(root)
-	# Barre du haut.
+	# Barre du haut : passe sur deux lignes plutôt que de déborder (grande
+	# taille d'interface).
 	var top := PanelContainer.new()
 	root.add_child(top)
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 6)
+	var bar := HFlowContainer.new()
+	bar.name = "TopBar"
+	bar.add_theme_constant_override("h_separation", 6)
+	bar.add_theme_constant_override("v_separation", 4)
 	top.add_child(bar)
+	top_bar = bar
 	file_menu = MenuButton.new()
 	file_menu.text = Lang.t("Fichier", "File")
 	file_menu.flat = false
@@ -174,6 +196,7 @@ func _build_ui() -> void:
 	fm.add_submenu_item(Lang.t("Cartes récentes", "Recent maps"), "Recent", 6)
 	_recent_menu.index_pressed.connect(func(i): open_dir(recent_maps()[i]))
 	fm.add_separator()
+	fm.add_item(Lang.t("Options (taille de l'interface…)", "Options (interface size…)"), 8)
 	fm.add_item(Lang.t("Retour au menu principal", "Back to main menu"), 7)
 	fm.id_pressed.connect(_on_file_menu)
 	fm.about_to_popup.connect(_fill_recent)
@@ -234,11 +257,22 @@ func _build_ui() -> void:
 	preview_button.toggled.connect(func(on): preview.set_shown(on))
 	bar.add_child(preview_button)
 	# --- fin aperçu 3D
-	var sp := Control.new()
-	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.add_child(sp)
+	var opt := Button.new()
+	opt.name = "OptionsButton"
+	opt.text = "⚙"
+	opt.focus_mode = Control.FOCUS_NONE
+	opt.tooltip_text = Lang.t("Options du jeu (taille de l'interface de l'éditeur : Ctrl + / Ctrl - / Ctrl 0)",
+		"Game options (map editor UI size: Ctrl + / Ctrl - / Ctrl 0)")
+	opt.pressed.connect(open_options)
+	bar.add_child(opt)
+	# Nom et dossier de la carte, à droite ; coupé s'il est trop long.
 	title_label = Label.new()
 	title_label.add_theme_color_override("font_color", UiStyle.BONE)
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title_label.custom_minimum_size = Vector2(140, 0)
+	title_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	bar.add_child(title_label)
 	var help := Button.new()
 	help.text = " ? "
@@ -259,7 +293,9 @@ func _build_ui() -> void:
 	mid.add_child(canvas)
 	panels = MapPanels.new()
 	panels.ed = self
-	panels.custom_minimum_size = Vector2(PANEL_W, 0)
+	# Largeur à l'échelle, bornée pour laisser la place au plan (side_width).
+	panels.set_meta(EditorUi.KEEP_MIN, true)
+	panels.custom_minimum_size = Vector2(side_width(PANEL_W), 0)
 	mid.add_child(panels)
 	# Barre d'état.
 	var sb := PanelContainer.new()
@@ -282,6 +318,17 @@ func _build_ui() -> void:
 	inventory.visible = false
 	canvas.add_child(inventory)
 	_dialog = AcceptDialog.new()
+	# Texte du message dans une zone qui défile (aide « ? » à grande taille) ;
+	# sa taille est calculée par _info.
+	_dialog.get_label().visible = false
+	_dialog_scroll = ScrollContainer.new()
+	_dialog_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_dialog_scroll.set_meta(EditorUi.SKIP, true)
+	_dialog_label = Label.new()
+	_dialog_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_dialog_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dialog_scroll.add_child(_dialog_label)
+	_dialog.add_child(_dialog_scroll)
 	add_child(_dialog)
 	# --- Aperçu 3D (MapPreviewPanel), flottant au-dessus de la vue.
 	preview = MapPreviewPanel.new()
@@ -291,10 +338,13 @@ func _build_ui() -> void:
 	# --- fin aperçu 3D
 
 
-func make_theme() -> Theme:
-	var t := Theme.new()
+## Thème de l'éditeur à la taille d'interface `f` (EditorUi) : styles écrits
+## à 100 %, puis marges, bordures et arrondis mis à l'échelle, par-dessus le
+## thème par défaut de Godot lui aussi à l'échelle (EditorUi.base_theme).
+func make_theme(f := 1.0) -> Theme:
+	var t := EditorUi.base_theme(f)
 	t.default_font = UiStyle.font("body")
-	t.default_font_size = 14
+	t.default_font_size = EditorUi.fs(EditorUi.BODY_FONT, f)
 	var panel := StyleBoxFlat.new()
 	panel.bg_color = Color(0.13, 0.135, 0.145)
 	panel.set_content_margin_all(6)
@@ -350,8 +400,127 @@ func make_theme() -> Theme:
 	t.set_stylebox("tab_hovered", "TabContainer", tab)
 	t.set_stylebox("tab_selected", "TabContainer", tabs)
 	t.set_stylebox("panel", "TabContainer", panel)
-	t.set_font_size("font_size", "TabContainer", 13)
+	t.set_font_size("font_size", "TabContainer", EditorUi.fs(13, f))
+	t.set_font_size("font_size", "TooltipLabel", EditorUi.fs(13, f))
+	for type in ["PanelContainer", "Panel", "PopupMenu", "PopupPanel", "AcceptDialog", "ConfirmationDialog",
+			"Button", "MenuButton", "OptionButton", "CheckBox", "LineEdit", "ItemList", "TabContainer"]:
+		for n in t.get_stylebox_list(type):
+			EditorUi.scale_stylebox(t.get_stylebox(n, type), f)
 	return t
+
+
+# ------------------------------------------------------------------ taille de l'interface
+
+## Applique la taille d'interface du réglage (Settings.editor_ui_scale) à tout
+## l'éditeur, en direct : thème, contrôles (EditorUi.scale_tree), dessins de
+## la vue, barre rapide, liste des objets, inventaire, aperçu 3D. Le plan garde
+## son zoom et ne bouge pas à l'écran : il gagne la place libérée.
+func apply_ui_scale() -> void:
+	var f := EditorUi.factor()
+	var first := ui_scale < 0.0
+	if not first and is_equal_approx(f, ui_scale):
+		return
+	var g0 := canvas.global_position
+	ui_scale = f
+	if not first:
+		theme = make_theme(f)
+		if preview != null and preview.window != null:
+			preview.window.theme = theme
+	EditorUi.scale_tree(self, f)
+	_fit_side_panels()
+	if hotbar_ui != null:
+		hotbar_ui.queue_redraw_slots()
+		hotbar_ui.ui_scale_changed()
+	if object_list != null:
+		object_list.ui_scale_changed()
+	if inventory != null:
+		inventory.ui_scale_changed()
+	if preview != null:
+		preview.ui_scale_changed()
+	canvas.queue_redraw()
+	if first:
+		return
+	set_status(Lang.t("Taille de l'interface : %d %% (Ctrl + / Ctrl - / Ctrl 0 ; Options, onglet JEU)",
+		"Interface size: %d%% (Ctrl + / Ctrl - / Ctrl 0; Options, GAME tab)") % roundi(f * 100.0))
+	# Après la mise en page (image suivante) : le plan reste à la même place à
+	# l'écran, même après plusieurs changements dans la même image.
+	if not _plan_pending:
+		_plan_pending = true
+		_plan_anchor = g0
+		get_tree().process_frame.connect(_keep_plan_in_place, CONNECT_ONE_SHOT)
+
+
+func _keep_plan_in_place() -> void:
+	_plan_pending = false
+	canvas.origin += _plan_anchor - canvas.global_position
+	canvas.queue_redraw()
+
+
+## Part de la largeur de l'éditeur que peut prendre chaque panneau latéral
+## (liste des objets, panneaux de droite) : le plan garde au moins 40 %.
+const SIDE_MAX := 0.3
+
+
+## Largeur d'un panneau latéral de `base` pixels à 100 %, à la taille de
+## l'interface, bornée par SIDE_MAX (grande taille, petite fenêtre).
+func side_width(base: float) -> float:
+	var w := EditorUi.px(base)
+	return minf(w, roundf(size.x * SIDE_MAX)) if size.x > 0.0 else w
+
+
+func _fit_side_panels() -> void:
+	if panels != null:
+		panels.custom_minimum_size = Vector2(side_width(PANEL_W), 0)
+	if object_list != null:
+		object_list.fit_width(side_width(MapObjectList.WIDTH))
+
+
+## Ctrl + / Ctrl - (pas de 5 %), Ctrl 0 (taille par défaut) : même réglage
+## que dans les options, enregistré tout de suite.
+func step_ui_scale(dir: int) -> void:
+	var v := Settings.EDITOR_UI_SCALE_DEFAULT if dir == 0 else Settings.editor_ui_scale + dir * Settings.EDITOR_UI_SCALE_STEP
+	Settings.editor_ui_scale = v
+	Settings.save_settings()
+	if is_equal_approx(Settings.editor_ui_scale, ui_scale):
+		set_status(Lang.t("Taille de l'interface : %d %% (de %d à %d %%)", "Interface size: %d%% (from %d to %d%%)") % [
+			roundi(ui_scale * 100.0), roundi(Settings.EDITOR_UI_SCALE_RANGE.x * 100.0), roundi(Settings.EDITOR_UI_SCALE_RANGE.y * 100.0)])
+
+
+## Contrôle ajouté à l'éditeur (panneaux reconstruits, fenêtres...) : mis à
+## l'échelle en fin d'image, une fois ses tailles écrites par le code.
+func _on_node_added(n: Node) -> void:
+	if ui_scale < 0.0 or not n is Control:
+		return
+	_ui_pending.append(n)
+	if not _ui_queued:
+		_ui_queued = true
+		_flush_ui_pending.call_deferred()
+
+
+func _flush_ui_pending() -> void:
+	_ui_queued = false
+	var list := _ui_pending
+	_ui_pending = []
+	for n in list:
+		if is_instance_valid(n) and (n as Node).is_inside_tree() and is_ancestor_of(n) and not EditorUi.skipped(n, self):
+			EditorUi.scale_control(n, ui_scale)
+
+
+# ------------------------------------------------------------------ options
+
+## Écran d'options du jeu par-dessus l'éditeur (onglet JEU, sur la taille de
+## l'interface) ; RETOUR ou Échap le ferme.
+func open_options() -> void:
+	if options_open():
+		return
+	canvas.cancel()
+	canvas.set_space(false)
+	options = EditorOptions.open_in(self)
+	options.closed.connect(func(): options = null)
+
+
+func options_open() -> bool:
+	return options != null and is_instance_valid(options)
 
 
 func set_status(text: String, error := false) -> void:
@@ -375,6 +544,7 @@ func snap_changed() -> void:
 func _update_title() -> void:
 	var where := Lang.t("exemple (copie à l'enregistrement)", "example (copied when saved)") if example else (map_dir if map_dir != "" else Lang.t("non enregistrée", "not saved"))
 	title_label.text = "%s%s  —  %s" % [doc.display_name(), " *" if dirty else "", where]
+	title_label.tooltip_text = title_label.text
 	floor_label.text = Lang.t("Étage %d / %d", "Floor %d / %d") % [floor_k, doc.floor_count() - 1]
 	snap_changed()
 	if validation_stale or validator == null:
@@ -389,13 +559,22 @@ func _update_title() -> void:
 
 func _show_help() -> void:
 	_info(Lang.t("Raccourcis", "Shortcuts"), Lang.t(
-		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu",
-		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there"))
+		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nCtrl + « + » / Ctrl + « - » / Ctrl + 0 : taille de l'interface de l'éditeur (aussi dans les options, bouton ⚙)\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu",
+		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nCtrl + \"+\" / Ctrl + \"-\" / Ctrl + 0: map editor UI size (also in the options, ⚙ button)\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there"))
 
 
 func _info(title_text: String, text: String) -> void:
 	_dialog.title = title_text
-	_dialog.dialog_text = text
+	_dialog_label.text = text
+	# Texte replié à une largeur qui tient dans la fenêtre, et qui défile s'il
+	# est plus haut qu'elle (toutes les tailles d'interface).
+	var vp := get_viewport_rect().size
+	var w := minf(EditorUi.px(820.0), vp.x - 80.0)
+	var font := _dialog_label.get_theme_font("font")
+	var fsz := _dialog_label.get_theme_font_size("font_size")
+	var h := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, w, fsz).y
+	h += h / maxf(font.get_height(fsz), 1.0) * _dialog_label.get_theme_constant("line_spacing") + 8.0
+	_dialog_scroll.custom_minimum_size = Vector2(w + EditorUi.px(14.0), minf(h, vp.y - 160.0))
 	_dialog.popup_centered()
 
 
@@ -426,6 +605,9 @@ func _typing() -> bool:
 
 func _input(event: InputEvent) -> void:
 	if not event is InputEventKey:
+		return
+	# Options ouvertes par-dessus : les touches sont à elles.
+	if options_open():
 		return
 	var k := event as InputEventKey
 	if k.keycode == KEY_SPACE and not _typing():
@@ -459,8 +641,19 @@ func _input(event: InputEvent) -> void:
 				if _typing():
 					return
 				paste()
+			# Taille de l'interface (Ctrl + molette reste le zoom du plan).
+			KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
+				step_ui_scale(1)
+			KEY_MINUS, KEY_KP_SUBTRACT:
+				step_ui_scale(-1)
+			KEY_0, KEY_KP_0:
+				step_ui_scale(0)
 			_:
-				return
+				# Ctrl 0 sur un clavier AZERTY (touche « à / 0 »).
+				if k.physical_keycode == KEY_0:
+					step_ui_scale(0)
+				else:
+					return
 		get_viewport().set_input_as_handled()
 		return
 	if _typing():
@@ -829,7 +1022,7 @@ func delete_element(eid: String) -> void:
 	if selected == eid:
 		selected = ""
 	changed()
-	set_status(Lang.t("%s supprimé", "%s deleted") % _label(e) + (Lang.t(" (avec %d élément(s) de la pièce)", " (with %d element(s) of the room)") % (n - 1) if n > 1 else ""))
+	set_status(Lang.t("%s supprimé", "%s deleted") % _label(e) + (Lang.t(" (avec %d élément(s) rattaché(s))", " (with %d attached element(s))") % (n - 1) if n > 1 else ""))
 
 
 ## Remplace un élément par sa nouvelle version (même identifiant).
@@ -898,6 +1091,17 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 		var a := doc.find(aid)
 		if not a.is_empty():
 			_replace(_shift(a, delta))
+	if t in ["mur", "mur_courbe"]:
+		# Objets accrochés au mur libre : raccrochés à sa face (un mur déplacé
+		# hors de la grille devient un vrai mur oblique).
+		for aid in attached:
+			var a := doc.find(aid)
+			if a.is_empty():
+				continue
+			var r := MapRules.place_wall_item(doc, k, a, MapGeom.v2(a.position) - MapGeom.item_wall_dir(a) * 0.3, aid)
+			if r.ok:
+				a["position"] = r.position
+				MapRules.apply_wall(a, r)
 	moved_live()
 	return res
 
@@ -1351,7 +1555,9 @@ func _zip_dialog(save_mode: bool) -> void:
 	_file_dialog.title = Lang.t("Exporter l'archive", "Export the archive") if save_mode else Lang.t("Importer une archive", "Import an archive")
 	_file_dialog.current_file = doc.id() + ".zip"
 	_file_dialog.current_dir = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
-	_file_dialog.size = Vector2i(760, 480)
+	# Fenêtre de Godot (contenu interne) : seule sa taille suit l'interface.
+	_file_dialog.set_meta(EditorUi.SKIP, true)
+	_file_dialog.size = Vector2i((Vector2(760, 480) * ui_scale).min(get_viewport_rect().size - Vector2(40, 40)))
 	add_child(_file_dialog)
 	_file_dialog.file_selected.connect(func(path):
 		if save_mode:
@@ -1513,6 +1719,8 @@ func _on_file_menu(id: int) -> void:
 			_zip_dialog(false)
 		7:
 			quit_to_menu()
+		8:
+			open_options()
 
 
 func _on_edit_menu(id: int) -> void:
@@ -1555,5 +1763,6 @@ func test_map() -> bool:
 	reopen_dir = map_dir
 	reopen_example = false
 	Router.return_scene = SCENE
+	CrashGuard.context("éditeur de cartes : TESTER « %s »" % map_dir.get_file(), true)
 	Router.start_solo(EditorMapDef.CUSTOM_PREFIX + map_dir.get_file())
 	return true

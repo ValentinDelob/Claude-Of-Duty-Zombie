@@ -26,10 +26,12 @@ func _ready() -> void:
 	h.add_theme_constant_override("separation", 3)
 	v.add_child(h)
 	for i in 9:
-		var s := MapSlot.new(50.0)
+		var s := MapSlot.new(SLOT)
 		s.index = i
 		s.ed = ed
 		s.clicked.connect(func(slot): ed.select_slot(slot.index))
+		# Taille des cases calculée ici (_place), à la taille de l'interface.
+		s.set_meta(EditorUi.SKIP, true)
 		h.add_child(s)
 		slots.append(s)
 	queue_redraw_slots()
@@ -38,9 +40,29 @@ func _ready() -> void:
 	_place.call_deferred()
 
 
+## Case à 100 % ; plus petite si la barre ne tient pas dans la vue (grande
+## taille d'interface, liste des objets ouverte).
+const SLOT := 50.0
+
+
 func _place() -> void:
 	var p := get_parent() as Control
-	position = Vector2((p.size.x - size.x) * 0.5, p.size.y - size.y - 8)
+	var f := EditorUi.factor()
+	# Largeur de la barre hors cases : 8 séparations et les marges du cadre.
+	var extra := EditorUi.px(3.0 * 8.0 + 2.0 * 4.0)
+	var s := clampf(floorf((p.size.x - 16.0 - extra) / 9.0), 24.0, roundf(SLOT * f))
+	for slot in slots:
+		if slot.custom_minimum_size.x != s:
+			slot.custom_minimum_size = Vector2(s, s)
+	var want := get_combined_minimum_size()
+	if size != want:
+		size = want
+	position = Vector2((p.size.x - size.x) * 0.5, p.size.y - size.y - EditorUi.px(8.0))
+
+
+## Taille de l'interface changée (MapEditor.apply_ui_scale).
+func ui_scale_changed() -> void:
+	_place.call_deferred()
 
 
 func queue_redraw_slots() -> void:

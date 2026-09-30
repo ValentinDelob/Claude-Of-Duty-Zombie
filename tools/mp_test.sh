@@ -7,6 +7,8 @@
 cd "$(dirname "$0")/.."
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
+# Journaux Godot : tests/_out/logs, jamais ceux du joueur (voir check.sh).
+LOGS="$PWD/$OUT/logs"; mkdir -p "$LOGS"
 N=${1:-lobby}
 if [ "$GUI" = "1" ]; then
   . tools/nofocus.sh
@@ -25,10 +27,10 @@ else
     MODE="--headless --max-fps 60"
   fi
 fi
-AUTOTEST_PARALLEL=1 "$GODOT" $MODE --path . -- --autotest=mp_${N}_host > "$OUT/mp_${N}_host.log" 2>&1 &
+AUTOTEST_PARALLEL=1 "$GODOT" $MODE --log-file "$LOGS/mp_${N}_host.log" --path . -- --autotest=mp_${N}_host > "$OUT/mp_${N}_host.log" 2>&1 &
 H=$!
 sleep 1
-AUTOTEST_PARALLEL=1 "$GODOT" $MODE --path . -- --autotest=mp_${N}_client > "$OUT/mp_${N}_client.log" 2>&1 &
+AUTOTEST_PARALLEL=1 "$GODOT" $MODE --log-file "$LOGS/mp_${N}_client.log" --path . -- --autotest=mp_${N}_client > "$OUT/mp_${N}_client.log" 2>&1 &
 C=$!
 wait $H; RH=$?
 wait $C; RC=$?

@@ -6,7 +6,7 @@ extends TestCase
 
 const TMP := "user://settings_unittest.cfg"
 const SAVED_KEYS := ["bindings", "render_scale", "max_fps", "brightness", "ads_sensitivity",
-	"mouse_sensitivity", "invert_y", "language", "fov", "film_grain", "quality"]
+	"mouse_sensitivity", "invert_y", "language", "fov", "film_grain", "quality", "editor_ui_scale"]
 
 var _saved := {}
 
@@ -160,6 +160,61 @@ func test_invalid_file_values_are_sanitized() -> void:
 	assert_eq(Settings.bindings.reload, ["key:%d" % KEY_R, "key:%d" % KEY_T])
 	assert_eq(Settings.bindings.tactical, [], "Q déjà pris")
 	assert_eq(Settings.bindings.grenade, ["key:%d" % KEY_G], "action absente : touche d'origine")
+
+
+# ------------------------------------------------------------------ taille de l'interface de l'éditeur
+
+func test_editor_ui_scale_default_and_bounds() -> void:
+	assert_near(Settings.EDITOR_UI_SCALE_DEFAULT, 0.8, 0.001, "80 % par défaut (l'ancienne taille était trop grosse)")
+	assert_near(Settings.EDITOR_UI_SCALE_RANGE.x, 0.6)
+	assert_near(Settings.EDITOR_UI_SCALE_RANGE.y, 1.5)
+	# Plage et pas de 5 % imposés à toute écriture (options, raccourcis, fichier).
+	Settings.editor_ui_scale = 3.0
+	assert_near(Settings.editor_ui_scale, 1.5, 0.001, "trop grand -> 150 %")
+	Settings.editor_ui_scale = 0.1
+	assert_near(Settings.editor_ui_scale, 0.6, 0.001, "trop petit -> 60 %")
+	Settings.editor_ui_scale = 0.83
+	assert_near(Settings.editor_ui_scale, 0.85, 0.001, "arrondi au pas de 5 %")
+	assert_near(Settings.clamp_editor_ui_scale(NAN), 0.8, 0.001, "valeur non finie -> défaut")
+	assert_near(Settings.clamp_editor_ui_scale(INF), 0.8, 0.001)
+
+
+func test_editor_ui_scale_signal() -> void:
+	Settings.editor_ui_scale = 0.8
+	var got := []
+	var cb := func(v): got.append(v)
+	Settings.editor_ui_scale_changed.connect(cb)
+	Settings.editor_ui_scale = 1.1
+	Settings.editor_ui_scale = 1.1
+	Settings.editor_ui_scale = 1.12
+	Settings.editor_ui_scale_changed.disconnect(cb)
+	assert_eq(got.size(), 1, "un seul signal (valeurs égales après arrondi ignorées) : %s" % str(got))
+
+
+func test_editor_ui_scale_saved_and_sanitized() -> void:
+	Settings.editor_ui_scale = 1.25
+	Settings.save_to(TMP)
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(TMP), OK)
+	assert_near(float(cfg.get_value("interface", "editor_ui_scale")), 1.25, 0.001, "enregistré dans settings.cfg")
+	Settings.editor_ui_scale = 0.8
+	assert_true(Settings.load_from(TMP))
+	assert_near(Settings.editor_ui_scale, 1.25, 0.001, "relu")
+	# Valeurs piégées ou hors plage dans le fichier : ramenées dans la plage.
+	for bad in [[9.0, 1.5], [-2.0, 0.6], [0.0, 0.6], ["énorme", 0.8], [Vector2(2, 2), 0.8], [0.7777, 0.8]]:
+		Settings.editor_ui_scale = 0.8
+		var c := ConfigFile.new()
+		c.set_value("interface", "editor_ui_scale", bad[0])
+		c.save(TMP)
+		assert_true(Settings.load_from(TMP))
+		assert_near(Settings.editor_ui_scale, float(bad[1]), 0.001, "fichier : %s" % str(bad[0]))
+	# Clé absente (ancien fichier) : la taille courante reste.
+	var old := ConfigFile.new()
+	old.set_value("game", "language", "fr")
+	old.save(TMP)
+	Settings.editor_ui_scale = 0.9
+	assert_true(Settings.load_from(TMP))
+	assert_near(Settings.editor_ui_scale, 0.9, 0.001, "clé absente")
 
 
 func test_labels_follow_language() -> void:

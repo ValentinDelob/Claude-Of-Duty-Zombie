@@ -779,6 +779,11 @@ func _markers() -> Dictionary:
 		var r: Rect2i = it.rect
 		var sol: float = md.floors[it.floor].sol
 		var lv: Array = it.get("levers", [])
+		if lv.is_empty():
+			# Zone sans levier (carte pas encore vérifiée : aperçu 3D) : pas de
+			# piège, jamais d'erreur (une erreur de script dans le fil de
+			# l'aperçu peut planter le jeu exporté).
+			continue
 		var t := {"id": "trap_%d" % (m.traps.size() + 1), "lever": _wall_item(lv[0]),
 			"area": [wx(r.position.x), _r(sol), wx(r.position.y), wx(r.end.x), _r(sol + 2.5), wx(r.end.y)],
 			"active": 40.0, "cooldown": 60.0}

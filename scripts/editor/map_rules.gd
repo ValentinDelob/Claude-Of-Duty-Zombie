@@ -473,6 +473,8 @@ static var _batch_doc: EditorMap = null
 
 
 static func begin_batch(doc: EditorMap) -> void:
+	if not ThreadGuard.main_only("MapRules.begin_batch"):   # fil principal seulement
+		return
 	_batch = {}
 	_batch_doc = doc
 	for o in doc.objets:
@@ -486,6 +488,8 @@ static func begin_batch(doc: EditorMap) -> void:
 
 
 static func end_batch() -> void:
+	if not ThreadGuard.main_only("MapRules.end_batch"):   # fil principal seulement
+		return
 	_batch = {}
 	_batch_doc = null
 
@@ -500,7 +504,8 @@ static func _buckets(r: Rect2) -> Array:
 
 ## Objets de l'étage qui pourraient toucher `r` : [[objet, emprise, couche]].
 static func _near(doc: EditorMap, k: int, r: Rect2) -> Array:
-	if _batch_doc == doc:
+	# Fil de travail (aperçu 3D) : jamais le lot du fil principal (état partagé).
+	if not ThreadGuard.worker() and _batch_doc == doc:
 		var grid: Dictionary = _batch.get(k, {})
 		var seen := {}
 		var out := []
@@ -556,15 +561,18 @@ static var _inner_cache: Dictionary = {}
 
 
 static func inner_cells(poly: PackedVector2Array) -> Dictionary:
+	# Cache du fil principal : hors de lui, calculé sans le cache (et noté).
+	var main := ThreadGuard.main_only("MapRules._inner_cache")
 	var key := var_to_str(poly)
-	if _inner_cache.has(key):
+	if main and _inner_cache.has(key):
 		return _inner_cache[key]
-	if _inner_cache.size() > 64:
+	if main and _inner_cache.size() > 64:
 		_inner_cache.clear()
 	var inner := {}
 	for c in MapRaster.room_cells(poly)[1]:
 		inner[c] = true
-	_inner_cache[key] = inner
+	if main:
+		_inner_cache[key] = inner
 	return inner
 
 
@@ -584,6 +592,17 @@ static func place_wall_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vec
 		if d < best_d:
 			best_d = d
 			best = i
+	# Mur libre (outil Mur, mur courbe) plus proche que les côtés de la pièce :
+	# l'objet se pose contre lui, du côté du curseur.
+	var segs := free_wall_segments(doc, k)
+	var fw := -1
+	for i in segs.size():
+		var d := _free_wall_dist(mouse, segs[i])
+		if d < best_d:
+			best_d = d
+			fw = i
+	if fw >= 0:
+		return _place_wall_item_free(doc, k, tmpl, mouse, room, segs, fw, ignore_id)
 	if best < 0:
 		return refuse("rapprochez-vous d'un mur : %s se pose contre un mur" % nm[0].to_lower(), "move closer to a wall: %s stands against a wall" % nm[1].to_lower())
 	var a := poly[best]
@@ -679,6 +698,181 @@ static func _place_wall_item_oblique(doc: EditorMap, k: int, tmpl: Dictionary, m
 		var on := _name(other)
 		return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
 	return {"ok": true, "position": obj.position, "mur": obj.mur, "angle": obj.angle, "room": String(room.id)}
+
+
+# ------------------------------------------------------------------ murs libres
+
+## Segments des murs libres de l'étage (outil Mur : un segment ; mur courbe :
+## ses segments droits) : [{a, b, half (demi-épaisseur), eid, i (rang)}].
+static func free_wall_segments(doc: EditorMap, k: int) -> Array:
+	var out := []
+	for o in doc.objects_on(k):
+		var t := String(o.get("type", ""))
+		var half := float(o.get("epaisseur", 0.5)) * 0.5
+		if t == "mur":
+			out.append({"a": MapGeom.v2(o.a), "b": MapGeom.v2(o.b), "half": half, "eid": String(o.id), "i": 0})
+		elif t == "mur_courbe":
+			var i := 0
+			for s in MapShapes.arc_segments(o):
+				if (s[0] as Vector2).distance_to(s[1]) >= 0.01:
+					out.append({"a": s[0], "b": s[1], "half": half, "eid": String(o.id), "i": i})
+				i += 1
+	return out
+
+
+## Distance du curseur au « trait » d'une face d'un mur libre : la ligne à
+## 0,25 m derrière sa face (celle d'un mur de pièce de 0,5 m), de chaque côté.
+static func _free_wall_dist(mouse: Vector2, s: Dictionary) -> float:
+	var off := float(s.half) - MapGeom.WALL_HALF
+	return maxf(0.0, MapGeom.dist_to_segment(mouse, s.a, s.b) - off)
+
+
+## Distance d'un contour convexe (emprise) à un segment (0 s'ils se coupent).
+static func _poly_seg_dist(poly: PackedVector2Array, a: Vector2, b: Vector2) -> float:
+	var best := INF
+	for i in poly.size():
+		var p := poly[i]
+		var q := poly[(i + 1) % poly.size()]
+		if Geometry2D.segment_intersects_segment(p, q, a, b) != null:
+			return 0.0
+		best = minf(best, MapGeom.dist_to_segment(p, a, b))
+		best = minf(best, MapGeom.dist_to_segment(a, p, q))
+		best = minf(best, MapGeom.dist_to_segment(b, p, q))
+	if MapGeom.contains(poly, a):
+		return 0.0
+	return best
+
+
+## Objet mural contre un MUR LIBRE (segment `segs[fw]`) : sur la face du côté
+## du curseur, face de l'objet vers ce côté. Mêmes règles que contre un mur de
+## pièce : mur plein derrière sur toute sa largeur (l'objet ne dépasse pas les
+## bouts du mur), place devant dans la pièce, sans toucher les murs de la
+## pièce ni un autre mur libre, sans chevaucher un autre objet. « position » :
+## sur le trait de la face (à 0,25 m derrière elle, comme sur un mur de pièce ;
+## sur le trait même d'un mur de 0,5 m). Mur droit de la grille : l'objet suit
+## la grille (« mur » n, e, s, o) ; sinon « angle » (vrai mur oblique).
+static func _place_wall_item_free(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, room: Dictionary, segs: Array, fw: int, ignore_id: String) -> Dictionary:
+	var nm := _name(tmpl)
+	var poly := doc.room_poly(room)
+	var host: Dictionary = segs[fw]
+	var a: Vector2 = host.a
+	var b: Vector2 = host.b
+	var seg_len := a.distance_to(b)
+	var t := (b - a) / seg_len
+	var nrm := Vector2(-t.y, t.x)
+	var inward := nrm if (mouse - a).dot(nrm) >= 0.0 else -nrm
+	var dv := -inward
+	var off := float(host.half) - MapGeom.WALL_HALF
+	var ta := a + inward * off
+	var tb := b + inward * off
+	var fp := MapCatalog.footprint(tmpl)
+	var n := fp.x
+	var w := n * MapGeom.CELL
+	var horizontal := absf(t.y) < MapGeom.EPS
+	# Trait droit sur la grille de 0,5 m : l'objet suit les cases de la grille.
+	var grid := MapGeom.is_axis_seg(ta, tb) and MapGeom.on_grid(ta.y if horizontal else ta.x)
+	# Mur de la grille (bouts sur la grille) : ses cases débordent de 0,25 m
+	# après chaque bout.
+	var ext := MapGeom.CELL * 0.5 if MapGeom.is_grid_seg(a, b) else 0.0
+	if seg_len + 2.0 * ext < w - MapGeom.EPS:
+		return refuse("ce mur est trop court pour %s (%s m de mur)" % [nm[0].to_lower(), _m(w)], "this wall is too short for %s (%s m of wall)" % [nm[1].to_lower(), _m(w, false)])
+	var lo := (minf(ta.x, tb.x) if horizontal else minf(ta.y, tb.y)) - ext
+	var hi := (maxf(ta.x, tb.x) if horizontal else maxf(ta.y, tb.y)) + ext
+	var u0 := (mouse - ta).dot(t)
+	var first := {}
+	var seen := {}
+	# Position aimantée sous le curseur ; si elle touche un mur de la pièce ou
+	# un autre mur libre (bout d'un mur collé à la pièce), les voisines le long
+	# du mur (pas de 0,25 m, jusqu'à une largeur d'objet).
+	for j in [0, 1, -1, 2, -2, 3, -3, 4, -4]:
+		if absf(float(j) * MapGeom.CELL * 0.5) > w + MapGeom.EPS:
+			continue
+		var u: float = u0 + float(j) * MapGeom.CELL * 0.5
+		var pos := Vector2.ZERO
+		if grid:
+			var c := MapGeom.snap_along((ta + t * u).x if horizontal else (ta + t * u).y, n)
+			while c - w * 0.5 < lo - MapGeom.EPS:
+				c += MapGeom.CELL
+			while c + w * 0.5 > hi + MapGeom.EPS:
+				c -= MapGeom.CELL
+			if c - w * 0.5 < lo - MapGeom.EPS:
+				continue
+			pos = Vector2(c, ta.y) if horizontal else Vector2(ta.x, c)
+		else:
+			var s := MapGeom.snap_on_segment(ta, tb, u, w, 0.0)
+			if s < 0.0:
+				continue
+			pos = MapGeom.round_mm(ta + t * s)
+		var key := MapGeom.arr(pos)
+		if seen.has(key):
+			continue
+		seen[key] = true
+		var obj := tmpl.duplicate()
+		obj["position"] = MapGeom.arr(pos)
+		obj["mur"] = MapGeom.cardinal_of(dv)
+		obj.erase("angle")
+		if not grid:
+			obj["angle"] = snappedf(MapGeom.dir_deg(dv), 0.01)
+		var r := _free_wall_room_check(doc, k, obj, poly, segs, fw)
+		if not r.ok:
+			if first.is_empty():
+				first = r
+			continue
+		var fpoly := wall_item_poly(obj)
+		var others := _overlaps_all(doc, k, footprint_rect(obj) if grid else MapGeom.bbox(fpoly), ignore_id, layer_of(tmpl))
+		if not grid:
+			# Emprise tournée : les vrais contours (deux objets dos à dos
+			# contre un mur en biais ne se gênent pas).
+			others = others.filter(func(q): return MapGeom.overlap(fpoly, exact_poly(q)))
+		if not others.is_empty():
+			var other: Dictionary = others[0]
+			var on := _name(other)
+			return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
+		var res := {"ok": true, "position": obj.position, "mur": obj.mur, "room": String(room.id)}
+		if obj.has("angle"):
+			res["angle"] = obj.angle
+		return res
+	if first.is_empty():
+		return refuse("ce mur est trop court pour %s (%s m de mur)" % [nm[0].to_lower(), _m(w)], "this wall is too short for %s (%s m of wall)" % [nm[1].to_lower(), _m(w, false)])
+	return first
+
+
+## Contour exact (m) de l'emprise d'un objet posé : tournée pour un objet
+## contre un mur en biais, un décor, un pilier... tournés ; son rectangle sinon.
+static func exact_poly(o: Dictionary) -> PackedVector2Array:
+	var tool := MapCatalog.tool_of(o)
+	if tool == "wall_item" and MapGeom.item_oblique(o):
+		return wall_item_poly(o)
+	if o.has("rect") and MapGeom.rot_of(o) != 0:
+		return MapRaster.rect_poly(o)
+	if tool == "floor_item" and MapRaster.free_rot(o) and MapCatalog.rotates(o):
+		return MapRaster.floor_poly(o)
+	return MapGeom.rect_poly(footprint_rect(o))
+
+
+## Place devant un objet contre un mur libre : son emprise est dans la pièce,
+## à 0,25 m au moins de ses murs (face intérieure), et ne touche aucun autre
+## mur libre (ni les autres segments d'un mur courbe).
+static func _free_wall_room_check(doc: EditorMap, k: int, obj: Dictionary, poly: PackedVector2Array, segs: Array, fw: int) -> Dictionary:
+	var nm := _name(obj)
+	var fpoly := wall_item_poly(obj)
+	var fc := MapGeom.centroid(fpoly)
+	for c in fpoly:
+		if not MapGeom.contains(poly, c.lerp(fc, 0.02)):
+			return refuse("pas la place devant %s dans cette pièce" % nm[0].to_lower(), "not enough room in front of %s in this room" % nm[1].to_lower())
+	var inner := PackedVector2Array()
+	for c in fpoly:
+		inner.append(c.lerp(fc, 0.02))
+	for i in poly.size():
+		if _poly_seg_dist(inner, poly[i], poly[(i + 1) % poly.size()]) < MapGeom.WALL_HALF - 0.02:
+			return refuse("%s touche un mur de la pièce : décalez-le le long du mur" % nm[0], "%s touches a wall of the room: slide it along the wall" % nm[1])
+	for i in segs.size():
+		if i == fw:
+			continue
+		var s: Dictionary = segs[i]
+		if _poly_seg_dist(inner, s.a, s.b) < float(s.half) - 0.02:
+			return refuse("%s touche un autre mur : décalez-le le long du mur" % nm[0], "%s touches another wall: slide it along the wall" % nm[1])
+	return {"ok": true}
 
 
 ## Pose d'un objet au sol (départ, apparition, téléporteur, lampe, caisse,
@@ -798,7 +992,9 @@ static func check_existing(doc: EditorMap, o: Dictionary) -> Dictionary:
 		return r
 	match MapCatalog.tool_of(o):
 		"wall_item":
-			var r := place_wall_item(doc, k, o, MapGeom.v2(o.position) - MapGeom.item_wall_dir(o) * 0.6, String(o.id))
+			# Curseur juste devant la face (0,05 m) : le mur de l'objet reste le plus
+			# proche, même au raccord d'un mur libre et d'un mur de la pièce.
+			var r := place_wall_item(doc, k, o, MapGeom.v2(o.position) - MapGeom.item_wall_dir(o) * 0.3, String(o.id))
 			if r.ok:
 				# Même mur, même direction (à 0,6° près), à la même place.
 				var now := o.duplicate()

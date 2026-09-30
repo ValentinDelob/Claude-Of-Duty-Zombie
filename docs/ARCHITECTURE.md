@@ -127,6 +127,7 @@ jamais chargée depuis le réseau ou une archive (données JSON seulement).
 
 | Nom | Rôle |
 |-----|------|
+| `CrashGuard` | Premier autoload : marqueur « session en cours », écran courant, rapport et message au menu après un plantage (voir « Journaux et plantages »). |
 | `GameState` | Machine à états unique de la session (`MAIN_MENU`, `LOBBY`, `CONNECTING`, `LOADING`, `PLAYING`, `ROUND_END`, `PLAYER_DOWN`, `GAME_OVER`, `DISCONNECTING`) avec transitions validées. |
 | `Settings` | Options persistantes (`user://settings.cfg`), actions d'entrée et touches réaffectables (voir « Menus, options et touches »). |
 | `Net` | Host / Join / Solo, poignée de main (version, serveur plein, partie lancée), registre des joueurs, erreurs de connexion lisibles, carte du salon et envoi des cartes perso (enfant `MapShare`). |
@@ -434,10 +435,92 @@ jamais chargée depuis le réseau ou une archive (données JSON seulement).
   Scénario `perk_look` : modèle, collision, joueur arrêté, balle arrêtée,
   allumage, captures de chaque machine sur les deux cartes.
 
+## Fils de travail : aucun état partagé (`ThreadGuard`)
+
+Un calcul lancé hors du fil principal (`Thread`, `WorkerThreadPool`) ne touche
+à **aucun état partagé modifiable** : ni `static var` (caches), ni autoload
+(`Settings`, `Net`...), ni nœud, ni ressource (maillage, matériau, `load()`),
+ni donnée que le fil principal peut modifier pendant le calcul. Dans le jeu
+exporté (modèles « release », sans les vérifications du mode débogage), un
+accès concurrent ne donne pas d'erreur de script : il peut faire planter le jeu
+(violation d'accès 0xc0000005, sans rien dans le journal).
+
+- **Avant le lancement** (fil principal) : tout ce que le calcul lit est
+  préparé et ne change plus — copie profonde des données (`EditorMap.duplicate_map`),
+  tables construites puis figées en lecture seule (`MapCatalog.items()` :
+  `make_read_only` en profondeur), réglages lus une fois (langue :
+  `ThreadGuard.enter(lang_en)` au début du calcul, `Lang.t` ne lit jamais
+  `Settings` dans un fil).
+- **Caches du fil principal** : `ThreadGuard.main_only("nom")` en tête ; hors du
+  fil principal l'accès est refusé (ni lu ni écrit), noté, et relevé par le
+  fil principal (`ThreadGuard.take_violations()`, erreur signalée par
+  l'aperçu 3D). Les fonctions utiles aux deux calculent alors sans cache
+  (`WeaponDB.stats`, `MapRules.inner_cells`) ; le lot de vérification
+  (`MapRules.begin_batch`) n'est jamais ouvert ni lu depuis un fil.
+- **Résultat** : données seulement (dictionnaires, tableaux) ; les nœuds et
+  ressources sont créés par le fil principal avec ce résultat, après
+  `wait_to_finish()`. Le nœud qui possède le fil l'attend avant de disparaître
+  (`_exit_tree` et `NOTIFICATION_PREDELETE`).
+- Mutex seulement pour un échange explicite et court (`WeaponModels`,
+  `ZombieModel` : tableaux précalculés rangés sous verrou).
+- Tests : `tests/test_preview_thread.gd` (chemin du fil de l'aperçu 3D : aucun
+  accès noté, caches refusés, catalogue figé, copie profonde) et
+  `map_preview_stress` (contrainte de 60 s, avec rendu).
+
+## Journaux et plantages (`CrashLog`, `CrashGuard`)
+
+Tout plantage laisse une trace, même une violation d'accès sans aucun message
+(jeu ET lanceur ; `scripts/game/crash_log.gd`, copie identique dans
+`launcher/scripts/crash_log.gd`).
+
+- **Où** (joueur, exe exporté) :
+  - jeu : `%APPDATA%\Godot\app_userdata\Call of Claude Zombie\logs\` (journaux,
+    `godot.log` = session en cours, les précédents horodatés) et
+    `...\Call of Claude Zombie\crashes\` (rapports de plantage) ;
+  - lanceur : `%APPDATA%\CallOfClaudeZombieLauncher\logs\` et `...\crashes\`.
+- **Journal toujours écrit, vidé à chaque ligne** : `debug/file_logging/*`
+  activé pour tous (exe exporté compris) et `application/run/flush_stdout_on_print`
+  (sans lui, l'exe exporté ne vide son journal qu'aux erreurs : un exe tué
+  garde un journal VIDE, vérifié avec le modèle d'export « release »).
+- **Conservation par jours** : Godot garde jusqu'à 1000 journaux
+  (`max_log_files`, limite de secours) ; au démarrage, `CrashLog.prune`
+  supprime ceux de plus de 14 jours, puis les plus anciens si le total
+  dépasse 200 Mo. Rapports de plantage : 30 jours, 50 Mo au plus.
+- **Marqueur de session** : `session_en_cours_<pid>.json` dans le dossier des
+  données (version, heure, écran courant, dernier contexte, journal, identifiant
+  de session écrit aussi dans le journal : `[Session] début <id>`). Posé au
+  démarrage, mis à jour à chaque changement d'écran (et au lancement de
+  TESTER, à l'ouverture / fermeture de l'aperçu 3D), retiré à la fermeture
+  normale (`_exit_tree` de l'autoload : Quitter, fenêtre fermée, lanceur qui
+  lance le jeu ou se met à jour). Encore là au démarrage suivant et son
+  processus arrêté : la session a planté -> `crashes/plantage_<date>.txt`
+  (version, heures, dernier écran et contexte, 60 dernières lignes) et
+  `plantage_<date>.log` (journal complet de la session, retrouvé par son
+  identifiant) ; message discret au menu principal (FR/EN, bouton « Ouvrir le
+  dossier ») ou sous l'état du lanceur. Un second jeu ouvert en même temps
+  (processus vivant) n'est pas pris pour un plantage.
+- **Lignes de contexte** (`[Session]`, `[Apercu3D]`) : changement d'écran
+  (dont l'ouverture de l'éditeur), TESTER, ouverture / fermeture de l'aperçu
+  3D, début et fin de chaque calcul de l'aperçu, fermeture normale.
+- **Tests et agents** : jamais dans les données du joueur. Marqueur et
+  rapports seulement dans l'exe exporté (`OS.has_feature("template")`) ; le
+  binaire de l'éditeur écrit son journal dans `tests/_out/logs/`
+  (`log_path.editor`), et tous les lancements de `tools/*.sh` passent
+  `--log-file`. Vérifié par `tests/test_crash_log.gd` (conservation 13 / 15
+  jours, taille bornée, plantage -> rapport, fermeture normale -> rien,
+  réglages des deux projets, `--log-file` dans tools/).
+
 ## Tests
 
 - `sh tools/check.sh` : import, tests unitaires, test réseau multi-processus, lancement
   réel du jeu + scénario. **Doit passer avant chaque commit.**
+- Journaux : chaque processus de test écrit son journal Godot dans
+  `tests/_out/logs/` (`--log-file`, dans check.sh, mp_test.sh, perf.sh,
+  scenario.sh, net_smoke.sh, commit.sh ; release.sh : `build/*.godot.log`),
+  jamais dans celui du joueur (voir « Journaux et plantages »). Un lancement
+  à la main sans `--log-file` va aussi dans `tests/_out/logs/godot.log`
+  (réglage `log_path.editor` du binaire de l'éditeur) ; ajouter quand même
+  `--log-file` pour garder son journal à part.
 - Tests unitaires : `tests/test_*.gd` (runner : `res://tests/test_runner.tscn`).
 - Scénarios en jeu : `tests/autotest/*.gd` (options en jeu : `pause_options` ; captures de l'écran d'options en jeu : `options_look`, `## @rendu`). Réglages et touches : `tests/test_settings.gd` (fichier temporaire, jamais les réglages du joueur).
 - Rapidité : check.sh lance tout dans un pool parallèle (les plus longues

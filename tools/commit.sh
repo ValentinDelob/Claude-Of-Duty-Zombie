@@ -42,7 +42,8 @@ else
   COUNT=$(git rev-list --count HEAD)
 fi
 NEXT_TAG="v$BASE.$(( COUNT + 1 ))"
-"$GODOT" --headless --path . -s res://tools/changelog_merge.gd -- "$NEXT_TAG" || { echo "== COMMIT ANNULÉ : notes de version invalides (changelogs/next/next.json)"; exit 1; }
+mkdir -p tests/_out/logs   # journal Godot hors du dossier du joueur
+"$GODOT" --headless --log-file "$PWD/tests/_out/logs/changelog_merge.log" --path . -s res://tools/changelog_merge.gd -- "$NEXT_TAG" || { echo "== COMMIT ANNULÉ : notes de version invalides (changelogs/next/next.json)"; exit 1; }
 git add -A
 [ -n "$COMMIT_EXCLUDE" ] && git reset -q -- $COMMIT_EXCLUDE
 git commit -q -F "$MSG" && git log --oneline -1

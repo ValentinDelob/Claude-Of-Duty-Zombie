@@ -20,6 +20,9 @@
 Versions installées : `%LOCALAPPDATA%\CallOfClaudeZombie\versions\<version>\CallOfClaudeZombie.exe`.
 Réglages du lanceur : `%APPDATA%\CallOfClaudeZombieLauncher\launcher.cfg`. Les
 réglages et le dossier de combat du jeu restent communs à toutes les versions.
+Journaux du lanceur : `%APPDATA%\CallOfClaudeZombieLauncher\logs\` (14 jours),
+rapports de plantage : `...\crashes\` (30 jours ; `crash_log.gd`, copie de celui
+du jeu, docs/ARCHITECTURE.md « Journaux et plantages »).
 
 ## Fonctionnement
 
@@ -27,7 +30,8 @@ réglages et le dossier de combat du jeu restent communs à toutes les versions.
   jeu, exclu de son export). Scripts : `main.gd` (interface et déroulé),
   `releases.gd` (API GitHub, ordre des versions, notes), `store.gd` (versions
   installées, réglages), `texts.gd` (français / anglais), `version.gd`
-  (`LAUNCHER_VERSION`).
+  (`LAUNCHER_VERSION`), `crash_log.gd` (journaux gardés, rapports de plantage :
+  copie identique de `scripts/game/crash_log.gd`).
 - Versions : API publique `https://api.github.com/repos/ValentinDelob/Claude-Of-Duty-Zombie/releases`
   (le `.exe` du jeu de chaque release).
 - Notes : `changelogs/changelogs.json` et `changelogs/img/` du dépôt, lus sur

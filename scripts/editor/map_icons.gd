@@ -368,7 +368,8 @@ static func surface_texture(key: String) -> ImageTexture:
 
 
 static func _text(ci: CanvasItem, font: Font, s: String, center: Vector2, size: float, col: Color) -> void:
-	var fs := maxi(8, int(size))
+	# Jamais plus petit que 8 px à 100 % (taille de l'interface : EditorUi).
+	var fs := maxi(EditorUi.fs(8), int(size))
 	var w := font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	ci.draw_string_outline(font, center + Vector2(-w * 0.5, fs * 0.35), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 3, Color(0, 0, 0, 0.85))
 	ci.draw_string(font, center + Vector2(-w * 0.5, fs * 0.35), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)

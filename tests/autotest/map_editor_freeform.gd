@@ -4,10 +4,13 @@ extends AutotestScenario
 ## (un clic au centre puis « 13 Tab 32 Entrée » au clavier), G G : sans
 ## grille, une annexe tracée au polygone collée au côté est du cercle
 ## (aimant aux sommets, « 8 Tab 0 Entrée » pour un côté), une porte sur le
-## bord commun, deux fenêtres, un mur courbe (rayon et ouverture au clavier),
+## bord commun, deux fenêtres (celle de la salle ronde glissée à la souris sur
+## le côté voisin du cercle puis ramenée, sans grille), un mur libre tracé sans
+## grille avec une arme contre sa face nord, un mur courbe (rayon et ouverture au clavier),
 ## un pilier tourné à 30° avec la poignée de rotation, le départ et la boîte ;
 ## vérification sans erreur, Ctrl+S (format 4), rechargement identique. Puis
-## TESTER : murs obliques de la salle ronde (CollisionBox tournées), un rayon
+## TESTER : l'arme du mur libre s'achète depuis son côté ; murs obliques de la
+## salle ronde (CollisionBox tournées), un rayon
 ## arrêté par le mur rond, le mur courbe et le pilier ; des zombies entrent
 ## par la fenêtre de la salle ronde et rejoignent le joueur en contournant le
 ## pilier et le mur courbe sans jamais les traverser.
@@ -16,6 +19,8 @@ extends AutotestScenario
 var ed: MapEditor
 var cv: MapCanvas
 var off := MapGeom.WORLD_OFFSET
+## Trait (y, m) du mur libre tracé dans la salle ronde (l'éditeur est fermé en jeu).
+var free_wall_y := 25.0
 
 
 func run() -> void:
@@ -92,6 +97,25 @@ func run() -> void:
 	for p in [Vector2(6.6, 6.6), mid + Vector2(8.3, 0)]:
 		await click(p)
 	at.check(ed.doc.ouvertures.filter(func(o): return o.type == "fenetre").size() == 2, "2 fenêtres (%s)" % cv.refusal)
+	# Toujours sans grille : la fenêtre de la salle ronde glissée à la souris sur
+	# le côté voisin du cercle, puis ramenée.
+	await _move_window_free(cpoly)
+	# Mur libre tracé sans grille dans la salle ronde, arme posée contre sa face nord.
+	await key(KEY_4)
+	await key(KEY_E)
+	ed.inventory.show_category("construction")
+	_pick("mur")
+	await drag(Vector2(21.03, 25.02), Vector2(24.02, 24.98))
+	var fwall: Array = ed.doc.objets.filter(func(o): return o.type == "mur")
+	at.check(fwall.size() == 1 and absf(float(fwall[0].a[1]) - float(fwall[0].b[1])) < 0.001, "mur libre tracé sans grille (%s)" % str(fwall))
+	if not fwall.is_empty():
+		free_wall_y = float(fwall[0].a[1])
+	await key(KEY_9)
+	await click(Vector2(22.6, 24.4))
+	var guns: Array = ed.doc.objets.filter(func(o): return o.type == "arme")
+	var on_wall := guns.size() == 1 and fwall.size() == 1 and String(guns[0].mur) == "s" \
+		and absf(float(guns[0].position[1]) - float(fwall[0].a[1])) < 0.001
+	at.check(on_wall, "arme posée contre le mur libre, face au nord (%s %s)" % [str(guns), cv.refusal])
 	# Mur courbe : un clic au centre, le curseur vers le début, « 7 Tab 100 Entrée ».
 	await key(KEY_4)   # case 4 (Mur) : reçoit l'objet pris dans l'inventaire
 	await key(KEY_E)
@@ -179,8 +203,10 @@ func run() -> void:
 		"un rayon s'arrête sur le mur rond (%s)" % str(hs.get("position", "rien")))
 	var hp := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(off + 14, 1.2, off + 18), Vector3(off + 6, 1.2, off + 18), 1))
 	at.check(not hp.is_empty() and hp.collider is CollisionBox, "un rayon s'arrête sur le pilier tourné (%s)" % str(hp.get("position", "rien")))
-	# Vue de la salle ronde : mur courbe, pilier tourné, fenêtre.
+	# Arme du mur libre : achetée depuis le bon côté.
 	game.rounds.paused = true
+	await _buy_on_free_wall(game, p)
+	# Vue de la salle ronde : mur courbe, pilier tourné, fenêtre.
 	p.global_position = Vector3(off + 24.5, 0.05, off + 23.5)
 	AutotestHelpers.aim_at(p, Vector3(off + 9.5, 1.4, off + 10.5))
 	await seconds(0.6)
@@ -230,6 +256,60 @@ func run() -> void:
 	Router.back_to_menu()
 	await until(func(): return tree().current_scene is MapEditor, 10.0, "retour dans l'éditeur")
 	_clean(EditorMap.maps_root())
+
+
+## Sans grille, outil Sélection : la fenêtre posée sur la salle ronde (côté
+## nord-ouest) glissée à la souris jusqu'au milieu du côté voisin du cercle,
+## puis ramenée à sa place.
+func _move_window_free(cpoly: PackedVector2Array) -> void:
+	var win := {}
+	for o in ed.doc.ouvertures:
+		if o.type == "fenetre" and MapGeom.on_boundary(cpoly, MapGeom.v2(o.position), 0.02):
+			win = o
+	at.check(not win.is_empty(), "fenêtre de la salle ronde")
+	if win.is_empty():
+		return
+	var p0 := MapGeom.v2(win.position)
+	var side := -1
+	for i in cpoly.size():
+		if MapGeom.dist_to_segment(p0, cpoly[i], cpoly[(i + 1) % cpoly.size()]) < 0.02:
+			side = i
+	var j := (side + 1) % cpoly.size()
+	var target := (cpoly[j] + cpoly[(j + 1) % cpoly.size()]) * 0.5
+	await key(KEY_1)
+	await click(p0)
+	at.check(ed.selected == String(win.id), "fenêtre choisie")
+	await drag(p0, target + (target - Vector2(16, 16)).normalized() * 0.15)
+	var p1 := MapGeom.v2(ed.doc.find(String(win.id)).position)
+	at.check(p1.distance_to(target) < 0.3 and MapGeom.dist_to_segment(p1, cpoly[j], cpoly[(j + 1) % cpoly.size()]) < 0.02,
+		"sans grille : fenêtre glissée sur le côté voisin du cercle (%s -> %s, voulu %s) %s" % [p0, p1, target, cv.refusal])
+	at.check(not ed.invalid.has(String(win.id)), "fenêtre déplacée valide")
+	await drag(p1, p0)
+	var p2 := MapGeom.v2(ed.doc.find(String(win.id)).position)
+	at.check(p2.distance_to(p0) < 0.05, "fenêtre ramenée à sa place (%s)" % p2)
+
+
+## Arme posée contre le mur libre : construite contre sa face nord, tournée
+## vers le nord, achetée depuis ce côté.
+func _buy_on_free_wall(game: Game, p: Player) -> void:
+	var wb: WallBuy = game.interact.get_obj("wallbuy_m14")
+	at.check(wb != null, "arme du mur libre construite en jeu")
+	if wb == null:
+		return
+	var wy := free_wall_y
+	var front := wb.interact_point()
+	at.check(absf(wb.global_position.z - (off + wy - MapGeom.WALL_HALF)) < 0.08 and front.z < wb.global_position.z,
+		"contre la face nord du mur libre, achat du côté nord (arme z %.2f, devant z %.2f, mur y %.2f)" % [wb.global_position.z - off, front.z - off, wy])
+	var pd := game.session.local_data()
+	game.session.add_points(1, maxi(0, 500 - pd.points))
+	p.teleport_to(front + Vector3(0, -1.0, 0) + (front - wb.global_position).normalized() * 0.6)
+	AutotestHelpers.aim_at(p, wb.global_position)
+	await seconds(0.3)
+	at.check(game.interact.focused == wb, "l'arme du mur libre est visée depuis le côté nord")
+	p.input.interact_pressed = true
+	await seconds(0.5)
+	at.check(pd.current_weapon().id == "m14", "M14 achetée sur le mur libre (%s, %d points)" % [pd.current_weapon().id, pd.points])
+	await at.screenshot("arme_mur_libre")
 
 
 ## Côté est du cercle (à plat, vertical) : [sommet haut, sommet bas].

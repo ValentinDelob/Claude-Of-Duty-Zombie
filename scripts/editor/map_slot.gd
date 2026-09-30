@@ -42,8 +42,9 @@ func _draw() -> void:
 	draw_rect(r, Color(1.0, 0.85, 0.3) if selected else Color(0.35, 0.35, 0.38), false, 3.0 if selected else 1.0)
 	if index >= 0:
 		var font := UiStyle.font("impact")
-		draw_string_outline(font, Vector2(4, 14), str(index + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 3, Color.BLACK)
-		draw_string(font, Vector2(4, 14), str(index + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, 0.8))
+		var at := Vector2(EditorUi.px(4.0), EditorUi.px(14.0))
+		draw_string_outline(font, at, str(index + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13), 3, Color.BLACK)
+		draw_string(font, at, str(index + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13), Color(1, 1, 1, 0.8))
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -57,7 +58,7 @@ func _gui_input(event: InputEvent) -> void:
 func _get_drag_data(_pos: Vector2) -> Variant:
 	if item_id == "":
 		return null
-	var p := MapSlot.new(44.0)
+	var p := MapSlot.new(EditorUi.px(44.0))
 	p.set_item(item_id)
 	set_drag_preview(p)
 	return {"map_item": item_id, "from_slot": index}

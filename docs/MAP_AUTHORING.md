@@ -41,7 +41,7 @@ automatique non enregistrée, il propose de la reprendre.
 
 | Zone | Rôle |
 |---|---|
-| Barre du haut | **Fichier** (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, exporter / importer l'archive .zip, cartes récentes, retour au menu), **Édition** (annuler, rétablir, copier, coller, pivoter, supprimer, inventaire, recadrer), étage courant (◄ ►), **▶ TESTER**, état de la vérification. |
+| Barre du haut | **Fichier** (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, exporter / importer l'archive .zip, cartes récentes, options, retour au menu), **Édition** (annuler, rétablir, copier, coller, pivoter, supprimer, inventaire, recadrer), étage courant (◄ ►), **▶ TESTER**, état de la vérification, aimantation, aperçu 3D, **⚙** (options du jeu), nom de la carte, **?** (raccourcis). Elle passe sur deux lignes si elle ne tient pas en largeur (grande taille d'interface). |
 | Vue de dessus | Grille de 1 m (traits forts tous les 5 m ; traits fins au pas de la grille fine), règles graduées en mètres en haut et à gauche, coordonnées du curseur aimanté en bas à droite. |
 | Barre rapide | 9 cases au bas de la vue (touches 1 à 9, molette) : l'objet tenu. |
 | Inventaire | Touche **E** ou **Tab** : toutes les catégories ; cliquer un objet le met dans la case choisie, ou le glisser sur une case. |
@@ -49,6 +49,20 @@ automatique non enregistrée, il propose de la reprendre.
 | Objets sur la carte | Onglet déployable à gauche de la vue (languette, bouton ◂ ou touche **L** ; ouvert / replié : mémorisé) : voir §2 bis. |
 | Aperçu 3D | Bouton **APERÇU 3D** de la barre du haut ou touche **P** : la carte telle qu'en jeu, en direct, dans un panneau flottant ou une fenêtre séparée : voir §2 ter. |
 | Barre d'état | Aide de l'outil, raison d'un refus, résultat des actions. |
+
+**Taille de l'interface** : tout l'éditeur (textes, barres, panneaux,
+onglets, barre rapide, inventaire, liste des objets, bulles d'aide, messages,
+aperçu 3D, cotes et étiquettes dessinées sur le plan) suit un seul réglage,
+OPTIONS > JEU > INTERFACE > **TAILLE DE L'INTERFACE DE L'ÉDITEUR**, de 60 à
+150 % par pas de 5 %, **80 % par défaut**. Dans l'éditeur : **Ctrl + « + »**
+/ **Ctrl + « - »** (5 % de plus ou de moins), **Ctrl + 0** (80 %), ou le
+bouton **⚙** (les options s'ouvrent par-dessus l'éditeur, sur ce réglage, et
+le changement se voit en direct derrière). Le plan garde son zoom et ne bouge
+pas : il gagne la place libérée. Chaque panneau latéral prend au plus 30 % de
+la largeur (le plan garde au moins 40 %) ; à grande taille, la barre du haut
+passe sur deux lignes, la barre rapide et l'inventaire se resserrent.
+Enregistré dans `settings.cfg` (section `interface`, clé `editor_ui_scale`,
+ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_ui.gd`.
 
 ### Commandes
 
@@ -58,6 +72,7 @@ automatique non enregistrée, il propose de la reprendre.
 | Tracer (pièce, forme, mur, pilier, escalier, piège) | glisser, ou clic puis clic (le tracé suit le curseur entre les deux) |
 | Annuler le tracé, désélectionner | clic droit, Échap |
 | Zoom | Ctrl + molette (ou + / -) |
+| Taille de l'interface de l'éditeur | Ctrl + « + » / Ctrl + « - » (pas de 5 %, de 60 à 150 %), Ctrl + 0 : 80 % ; aussi OPTIONS > JEU (bouton ⚙) |
 | Déplacer la vue | clic milieu + glisser, ou Espace + glisser |
 | Aimantation | **G** : grille 1 m → grille fine → libre (sans grille) ; **Maj+G** : pas de la grille fine (0,5 / 0,25 / 0,1 m) ; **Maj** maintenu : inverse le mode (grille ↔ libre) ; mémorisé ; bouton « Aimantation » de la barre du haut |
 | Angle d'un mur ou d'un côté de polygone | sur la grille : 0, 45 ou 90° ; sans grille : par pas de 15° ; angle libre en maintenant Alt ; longueur et direction affichées pendant le tracé |
@@ -80,7 +95,9 @@ automatique non enregistrée, il propose de la reprendre.
 | Fermer un polygone | double-clic, clic sur le premier point, ou Entrée ; Retour arrière retire le dernier point |
 
 Outil **Sélection** (case 1) : clic sur un élément pour le choisir, glisser
-pour le déplacer (il reste accroché à son mur), **poignées** jaunes pour
+pour le déplacer (une ouverture ou un objet mural suit le curseur, dans tous les
+modes d'aimantation, et reste accroché à son mur, calé sur les cases de 0,5 m
+d'un mur de la grille), **poignées** jaunes pour
 redimensionner (coins et milieux des côtés d'une pièce rectangle, sommets d'un
 polygone ou d'une forme, coins d'un pilier, d'un escalier ou d'un piège, même
 tournés, bouts d'un mur), **poignée ronde** au-dessus pour tourner. Un
@@ -226,6 +243,21 @@ décor, luminaires, atouts, armes, boîte, courant, étages), construite par le
   restant affiché jusque-là : l'éditeur ne se fige pas. Une carte pas encore
   jouable (sans départ, sans fenêtre...) s'affiche quand même, avec la
   mention « aperçu indicatif ».
+- **Fil de travail sans état partagé** (`MapPreviewWorld.Job`, règle
+  `ThreadGuard` de ARCHITECTURE.md « Fils de travail ») : le fil principal
+  prépare tout avant de le lancer (copie profonde de la carte, catalogue
+  construit puis figé en lecture seule, langue des textes) ; le fil fait
+  `MapRaster` → étapes du validateur utiles à la géométrie (dont le
+  rattachement des leviers aux pièges) → `MapLayoutExport` sur SA copie, sans
+  créer de nœud ni de ressource, sans lire d'autoload (`Settings`) ni de cache
+  du fil principal (lot de vérification et cases intérieures de `MapRules`,
+  statistiques de `WeaponDB` : refusés hors du fil principal, recalculés
+  localement ou notés comme un bogue et signalés). Le fil principal ne
+  construit l'aperçu qu'avec le résultat rendu. Vérifié par
+  `tests/test_preview_thread.gd` (aucun accès noté, même description que sur
+  le fil principal) et le scénario de contrainte `map_preview_stress` (60 s :
+  un second fil calcule en boucle pendant que l'éditeur pose, glisse,
+  vérifie, annule et vide ses caches à chaque image).
 - **Caméras** (liste de la barre d'outils) :
   - **Orbite** : clic droit glisser pour tourner autour du point visé,
     molette pour zoomer, clic milieu glisser pour déplacer le point ;
@@ -349,10 +381,17 @@ raison à côté du curseur (`MapRules`) :
   2,5 × 3 m de vide dehors : le jeu y construit la cour où les zombies
   apparaissent, derrière la fenêtre.
 - **Objets muraux** (atouts, armes, grenades, boîte, Pack-a-Punch, courant,
-  poste central, levier) : dans une pièce, accrochés au mur le plus proche,
-  **face vers l'intérieur** ; il faut du mur plein derrière (pas une ouverture)
-  et la place devant (boîte : 2 × 1 m ; atout, Pack-a-Punch : 1,5 × 1 m ;
-  arme : 1 × 0,5 m), sans chevaucher un autre objet.
+  poste central, levier, applique) : dans une pièce, accrochés au mur le plus
+  proche, **face vers l'intérieur** ; il faut du mur plein derrière (pas une
+  ouverture) et la place devant (boîte : 2 × 1 m ; atout, Pack-a-Punch :
+  1,5 × 1 m ; arme : 1 × 0,5 m), sans chevaucher un autre objet. Ils se posent
+  aussi sur un **mur libre** (outil Mur, droit, en biais ou épais, et mur
+  courbe), **des deux côtés** : face tournée vers le côté du curseur, sans
+  dépasser les bouts du mur, à 0,25 m au moins de la face des murs de la pièce
+  (près d'un mur collé à la pièce, l'objet glisse le long du mur), sans toucher
+  un autre mur libre (ni, dans le creux d'un mur courbe, ses segments voisins).
+  Ils suivent leur mur libre quand on le déplace ou le tourne (et partent avec
+  lui s'il est supprimé).
 - **Objets au sol, pilier, escalier, zone de piège** : à l'intérieur d'une
   pièce, sans toucher ses murs, sans chevauchement (les lampes, au plafond,
   peuvent surplomber un objet ; un élément tourné compte par son rectangle
@@ -736,6 +775,7 @@ celui du jeu aussi.
 | `scripts/editor/map_validator.gd` | `MapValidator` : validateur et indicateurs BO1. |
 | `scripts/editor/map_layout_export.gd` | `MapLayoutExport` : grille validée -> description en maillage (format de `MeshMapLayout`). |
 | `scripts/editor/map_editor.gd`, `map_canvas.gd`, `map_panels.gd`, `map_hotbar.gd`, `map_inventory.gd`, `map_slot.gd` | L'interface (`scenes/editor/map_editor.tscn`). |
+| `scripts/editor/editor_ui.gd`, `editor_options.gd` | `EditorUi` : taille de l'interface (un facteur : thème, tailles minimales, polices, marges et styles des contrôles depuis leurs valeurs d'origine, dessins de la vue) ; `EditorOptions` : écran d'options du jeu par-dessus l'éditeur. |
 | `scripts/editor/map_preview_panel.gd`, `map_preview_world.gd`, `map_preview_camera.gd`, `map_preview_builder.gd` | Aperçu 3D en direct (§2 ter) : panneau et fenêtre détachée, monde de l'aperçu (conversion hors du fil principal, morceaux reconstruits, options, surlignage, sélection par un rayon), caméras (orbite, vol libre, vue joueur), construction par morceaux avec le code de `MeshMapBuilder`. |
 | `scripts/game/map/editor_map_def.gd` | `EditorMapDef` : carte de l'éditeur côté jeu (`perso:<id>`, `partage:<sha256>`, ou script de carte livré). |
 | `scripts/game/map/custom_map_guard.gd` | `CustomMapGuard` : contrôle de légitimité, paquet canonique et SHA-256, cache, lecture sûre d'un dossier ou d'une archive. |

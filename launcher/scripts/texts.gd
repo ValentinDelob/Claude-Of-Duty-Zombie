@@ -29,6 +29,8 @@ const T := {
 	"no_checksum": {"fr": "%s ne peut pas être vérifiée (somme de contrôle absente) : téléchargement refusé.",
 		"en": "%s cannot be verified (checksum missing): download refused."},
 	"legacy": {"fr": "(version ancienne : taille vérifiée seulement)", "en": "(old version: size check only)"},
+	"crashed": {"fr": "Le lanceur s'est arrêté brutalement la dernière fois. Rapport : %s",
+		"en": "The launcher stopped unexpectedly last time. Report: %s"},
 }
 
 

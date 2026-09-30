@@ -65,7 +65,9 @@ func _ready() -> void:
 	_handle.list = self
 	add_child(_handle)
 	_panel = PanelContainer.new()
-	_panel.custom_minimum_size = Vector2(WIDTH, 0)
+	# Largeur donnée par l'éditeur (fit_width : taille de l'interface, bornée).
+	_panel.set_meta(EditorUi.KEEP_MIN, true)
+	_panel.custom_minimum_size = Vector2(EditorUi.px(WIDTH), 0)
 	add_child(_panel)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
@@ -266,6 +268,24 @@ func set_page(p: int) -> void:
 	refresh_rows()
 
 
+## Hauteur d'une ligne à la taille de l'interface (EditorUi).
+static func row_h() -> float:
+	return EditorUi.px(ROW_H)
+
+
+## Largeur de la liste dépliée (MapEditor.side_width).
+func fit_width(w: float) -> void:
+	if _panel != null:
+		_panel.custom_minimum_size = Vector2(w, 0)
+
+
+## Taille de l'interface changée : lignes et languette redessinées.
+func ui_scale_changed() -> void:
+	refresh_rows()
+	if _handle != null:
+		_handle.queue_redraw()
+
+
 ## Lignes de la page courante : [entrée].
 func page_rows() -> Array:
 	var pg := paginate(shown.size(), page)
@@ -280,7 +300,7 @@ func refresh_rows() -> void:
 		# Autre page : l'ancienne ligne survolée ne veut plus rien dire.
 		rows._hover_row = -1
 	rows.items = items
-	rows.custom_minimum_size = Vector2(0, rows.items.size() * ROW_H)
+	rows.custom_minimum_size = Vector2(0, rows.items.size() * row_h())
 	rows.queue_redraw()
 
 
@@ -297,8 +317,8 @@ func show_hover(eid: String) -> void:
 		var pg := page_of(i)
 		if pg != page:
 			set_page(pg)
-		var y := (i - pg * PER_PAGE) * ROW_H
-		if y < _scroll.scroll_vertical or y + ROW_H > _scroll.scroll_vertical + _scroll.size.y:
+		var y := (i - pg * PER_PAGE) * row_h()
+		if y < _scroll.scroll_vertical or y + row_h() > _scroll.scroll_vertical + _scroll.size.y:
 			_scroll.scroll_vertical = int(maxf(0.0, y - _scroll.size.y * 0.4))
 	rows.queue_redraw()
 
@@ -329,8 +349,8 @@ class Handle extends Control:
 		var font := UiStyle.font("impact")
 		var txt := ("◂  " if list.expanded else "▸  ") + Lang.t("OBJETS SUR LA CARTE", "ITEMS ON MAP")
 		# Texte vertical, de haut en bas : ligne de base à gauche, lettres vers la droite.
-		draw_set_transform(Vector2(6, 12), PI / 2, Vector2.ONE)
-		draw_string(font, Vector2.ZERO, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, UiStyle.GOLD)
+		draw_set_transform(Vector2(EditorUi.px(6.0), EditorUi.px(12.0)), PI / 2, Vector2.ONE)
+		draw_string(font, Vector2.ZERO, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(14), UiStyle.GOLD)
 		draw_set_transform(Vector2.ZERO, 0, Vector2.ONE)
 
 	func _gui_input(event: InputEvent) -> void:
@@ -349,6 +369,8 @@ class Rows extends Control:
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_STOP
+		# Hauteur déjà calculée à la taille de l'interface (row_h).
+		set_meta(EditorUi.SKIP, true)
 		mouse_exited.connect(func():
 			_hover_row = -1
 			list.ed.list_hovered("")
@@ -357,9 +379,14 @@ class Rows extends Control:
 	func _draw() -> void:
 		var font := UiStyle.font("body")
 		var sel := list.ed.selected
+		# Lignes dessinées à la taille de l'interface (EditorUi).
+		var rh := MapObjectList.row_h()
+		var f13 := EditorUi.fs(13)
+		var f11 := EditorUi.fs(11)
+		var f10 := EditorUi.fs(10)
 		for i in items.size():
 			var e: Dictionary = items[i]
-			var r := Rect2(0, i * ROW_H, size.x, ROW_H)
+			var r := Rect2(0, i * rh, size.x, rh)
 			var eid := String(e.id)
 			if eid == list.hover_id or i == _hover_row:
 				draw_rect(r, Color(0.2, 0.55, 0.65, 0.45))
@@ -368,18 +395,20 @@ class Rows extends Control:
 				draw_rect(r, Color(0.45, 0.35, 0.1, 0.5))
 			elif i % 2 == 1:
 				draw_rect(r, Color(1, 1, 1, 0.03))
-			MapIcons.draw(self, e.item, Rect2(r.position + Vector2(3, 3), Vector2(ROW_H - 6, ROW_H - 6)))
+			var m3: float = EditorUi.px(3.0)
+			MapIcons.draw(self, e.item, Rect2(r.position + Vector2(m3, m3), Vector2(rh - 2.0 * m3, rh - 2.0 * m3)))
 			var fr := not Lang.is_en()
 			var p: Vector2 = e.pos
 			var where := "%s%d · %s ; %s m" % [Lang.t("É", "F"), int(e.floor), MapRules._m(snappedf(p.x, 0.25), fr), MapRules._m(snappedf(p.y, 0.25), fr)]
-			var x0 := ROW_H + 4
-			var wwhere := font.get_string_size(where, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
-			draw_string(font, Vector2(x0, r.position.y + 12), String(e.name), HORIZONTAL_ALIGNMENT_LEFT, size.x - x0 - wwhere - 10, 13, Color(0.92, 0.9, 0.84))
-			draw_string(font, Vector2(x0, r.position.y + 23), "%s · %s" % [e.type, eid], HORIZONTAL_ALIGNMENT_LEFT, size.x - x0 - 6, 10, Color(0.62, 0.62, 0.6))
-			draw_string(font, Vector2(size.x - wwhere - 6, r.position.y + 12), where, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.7, 0.75, 0.8))
+			var x0: float = rh + EditorUi.px(4.0)
+			var wwhere := font.get_string_size(where, HORIZONTAL_ALIGNMENT_LEFT, -1, f11).x
+			var y1: float = r.position.y + EditorUi.px(12.0)
+			draw_string(font, Vector2(x0, y1), String(e.name), HORIZONTAL_ALIGNMENT_LEFT, size.x - x0 - wwhere - EditorUi.px(10.0), f13, Color(0.92, 0.9, 0.84))
+			draw_string(font, Vector2(x0, r.position.y + EditorUi.px(23.0)), "%s · %s" % [e.type, eid], HORIZONTAL_ALIGNMENT_LEFT, size.x - x0 - EditorUi.px(6.0), f10, Color(0.62, 0.62, 0.6))
+			draw_string(font, Vector2(size.x - wwhere - EditorUi.px(6.0), y1), where, HORIZONTAL_ALIGNMENT_LEFT, -1, f11, Color(0.7, 0.75, 0.8))
 
 	func _row_at(y: float) -> int:
-		var i := int(y / ROW_H)
+		var i := int(y / MapObjectList.row_h())
 		return i if i >= 0 and i < items.size() else -1
 
 	func _gui_input(event: InputEvent) -> void:

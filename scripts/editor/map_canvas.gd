@@ -64,6 +64,20 @@ var _snap_exclude := ""
 const ROT_HANDLE_PX := 30.0
 
 
+## Longueurs d'interface de la vue (règles, poignées, étiquettes, cotes) à la
+## taille de l'interface de l'éditeur (EditorUi) ; le zoom du plan n'en dépend pas.
+func _u(v: float) -> float:
+	return EditorUi.px(v)
+
+
+func _ruler() -> float:
+	return EditorUi.px(RULER)
+
+
+func _hsz() -> float:
+	return EditorUi.px(HANDLE)
+
+
 func _ready() -> void:
 	clip_contents = true
 	focus_mode = Control.FOCUS_CLICK
@@ -414,9 +428,9 @@ func frame_all() -> void:
 	if first:
 		bb = Rect2(0, 0, 30, 20)
 	bb = bb.grow(3.0)
-	var avail := size - Vector2(RULER + 20, RULER + 90)
+	var avail := size - Vector2(_ruler() + _u(20), _ruler() + _u(90))
 	zoom = clampf(minf(avail.x / maxf(bb.size.x, 1.0), avail.y / maxf(bb.size.y, 1.0)), MIN_ZOOM, 40.0)
-	origin = Vector2(RULER + 10, RULER + 10) + (avail - bb.size * zoom) * 0.5 - bb.position * zoom
+	origin = Vector2.ONE * (_ruler() + _u(10)) + (avail - bb.size * zoom) * 0.5 - bb.position * zoom
 	queue_redraw()
 
 
@@ -527,7 +541,7 @@ func _press(double: bool) -> void:
 		"select":
 			# Poignée de rotation, poignées de l'élément choisi, puis l'élément sous le curseur.
 			var rh := rot_handle()
-			if not rh.is_empty() and to_px(rh.p).distance_to(to_px(mouse_m)) <= HANDLE + 4.0:
+			if not rh.is_empty() and to_px(rh.p).distance_to(to_px(mouse_m)) <= _hsz() + 4.0:
 				var sel := ed.doc.find(ed.selected)
 				drag = {"kind": "rotate", "c": rh.c, "a0": (mouse_m - Vector2(rh.c)).angle(), "snap": ed.doc.snapshot(),
 					"orig": sel.duplicate(true), "attached": ed.attached_to(sel), "moved": false, "deg": 0}
@@ -729,7 +743,12 @@ func _drag_update() -> void:
 		return
 	if kind == "move":
 		var delta := snap(mouse_m) - Vector2(drag.start)
-		if mode_now() == "libre":
+		# Ouverture ou objet mural : il suit le curseur (déplacement depuis le
+		# début du glisser, au centimètre) et s'aimante lui-même le long de son
+		# mur ; un déplacement arrondi au mètre en x et en y l'écarterait du mur
+		# (côté d'un cercle, mur en biais).
+		var wall_bound := String(orig.get("type", "")) in MapRules.ouvertures_types() or MapCatalog.tool_of(orig) == "wall_item"
+		if mode_now() == "libre" or wall_bound:
 			# Sans grille : au centimètre ; une pièce se colle par un sommet au
 			# sommet ou au côté d'une autre pièce (aimant).
 			delta = MapGeom.round_cm(mouse_m - Vector2(drag.raw))
@@ -796,13 +815,13 @@ func rot_handle() -> Dictionary:
 	if e.is_empty() or int(e.get("etage", 0)) != ed.floor_k or not MapTransform.can_rotate(e):
 		return {}
 	var bb := MapGeom.bbox(ed.doc.room_poly(e)) if e.has("contour") else MapRules.footprint_rect(e)
-	return {"p": Vector2(bb.get_center().x, bb.position.y - ROT_HANDLE_PX / zoom), "c": MapTransform.pivot(ed.doc, e)}
+	return {"p": Vector2(bb.get_center().x, bb.position.y - EditorUi.px(ROT_HANDLE_PX) / zoom), "c": MapTransform.pivot(ed.doc, e)}
 
 
 func _handle_at(m: Vector2) -> int:
 	var hs := handles()
 	for i in hs.size():
-		if to_px(hs[i]).distance_to(to_px(m)) <= HANDLE + 2.0:
+		if to_px(hs[i]).distance_to(to_px(m)) <= _hsz() + 2.0:
 			return i
 	return -1
 
@@ -846,15 +865,15 @@ func _draw() -> void:
 			var poly := doc.room_poly(p)
 			var c := to_px(MapGeom.centroid(poly))
 			var nm := String(p.get("nom", ""))
-			var fs := 13 if zoom < 20.0 else 15
+			var fs := EditorUi.fs(13 if zoom < 20.0 else 15)
 			var w := font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 			draw_string_outline(font, c + Vector2(-w * 0.5, -2), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 4, Color(0, 0, 0, 0.8))
 			draw_string(font, c + Vector2(-w * 0.5, -2), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1, 0.9))
 			var zn := ed.doc.zone_name(String(p.get("zone", "")))
 			if zn != nm:
-				var wz := font.get_string_size(zn, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
-				draw_string_outline(font, c + Vector2(-wz * 0.5, 13), zn, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, Color(0, 0, 0, 0.8))
-				draw_string(font, c + Vector2(-wz * 0.5, 13), zn, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.6))
+				var wz := font.get_string_size(zn, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11)).x
+				draw_string_outline(font, c + Vector2(-wz * 0.5, _u(13)), zn, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11), 3, Color(0, 0, 0, 0.8))
+				draw_string(font, c + Vector2(-wz * 0.5, _u(13)), zn, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11), Color(1, 1, 1, 0.6))
 	# Éléments devenus invalides (après un déplacement de pièce...).
 	for eid in ed.invalid:
 		var e := doc.find(eid)
@@ -862,7 +881,7 @@ func _draw() -> void:
 			continue
 		var r := _elem_rect_px(e)
 		draw_rect(r.grow(3), COL_BAD, false, 2.0)
-		draw_string(font, r.position + Vector2(r.size.x + 4, 12), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, COL_BAD)
+		draw_string(font, r.position + Vector2(r.size.x + _u(4), _u(12)), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(16), COL_BAD)
 	# Sélection et poignées.
 	var sel := doc.find(ed.selected)
 	if not sel.is_empty() and int(sel.get("etage", 0)) == k:
@@ -873,19 +892,19 @@ func _draw() -> void:
 		else:
 			draw_rect(_elem_rect_px(sel).grow(3), COL_SEL, false, 2.0)
 		for h in handles():
-			draw_rect(Rect2(to_px(h) - Vector2.ONE * HANDLE * 0.5, Vector2.ONE * HANDLE), COL_SEL)
-			draw_rect(Rect2(to_px(h) - Vector2.ONE * HANDLE * 0.5, Vector2.ONE * HANDLE), Color.BLACK, false, 1.0)
+			draw_rect(Rect2(to_px(h) - Vector2.ONE * _hsz() * 0.5, Vector2.ONE * _hsz()), COL_SEL)
+			draw_rect(Rect2(to_px(h) - Vector2.ONE * _hsz() * 0.5, Vector2.ONE * _hsz()), Color.BLACK, false, 1.0)
 		# Poignée de rotation (pas de 15°, Alt : au degré près).
 		var rh := rot_handle()
 		if not rh.is_empty():
 			var hp := to_px(rh.p)
 			var bb := MapGeom.bbox(outline) if not outline.is_empty() else MapRules.footprint_rect(sel)
 			draw_line(to_px(Vector2(bb.get_center().x, bb.position.y)), hp, Color(COL_SEL, 0.7), 1.0)
-			draw_circle(hp, HANDLE * 0.8, COL_SEL)
-			draw_arc(hp, HANDLE * 0.45, -PI * 0.8, PI * 0.5, 10, Color.BLACK, 1.5)
+			draw_circle(hp, _hsz() * 0.8, COL_SEL)
+			draw_arc(hp, _hsz() * 0.45, -PI * 0.8, PI * 0.5, 10, Color.BLACK, 1.5)
 			if drag.get("kind", "") == "rotate":
 				draw_circle(to_px(drag.c), 3.0, COL_SEL)
-				_label_at(font, hp + Vector2(12, -6), "%d°" % MapGeom.norm_deg(float(drag.get("deg", 0))))
+				_label_at(font, hp + Vector2(_u(12), -_u(6)), "%d°" % MapGeom.norm_deg(float(drag.get("deg", 0))))
 	# Élément survolé (dans la liste des objets ou sur la carte) : contour lumineux.
 	var hov := doc.find(ed.hover_id) if ed.hover_id != "" else {}
 	if not hov.is_empty() and int(hov.get("etage", 0)) == k:
@@ -993,35 +1012,35 @@ func _draw_grid() -> void:
 
 
 func _draw_rulers(font: Font) -> void:
-	draw_rect(Rect2(0, 0, size.x, RULER), Color(0.07, 0.07, 0.08, 0.95))
-	draw_rect(Rect2(0, 0, RULER, size.y), Color(0.07, 0.07, 0.08, 0.95))
+	draw_rect(Rect2(0, 0, size.x, _ruler()), Color(0.07, 0.07, 0.08, 0.95))
+	draw_rect(Rect2(0, 0, _ruler(), size.y), Color(0.07, 0.07, 0.08, 0.95))
 	var every := 1.0
 	for e in [1.0, 2.0, 5.0, 10.0, 20.0, 50.0]:
 		every = e
-		if e * zoom >= 34.0:
+		if e * zoom >= _u(34.0):
 			break
 	var m0 := to_m(Vector2.ZERO)
 	var m1 := to_m(size)
 	var x := floorf(m0.x / every) * every
 	while x <= m1.x:
 		var px := to_px(Vector2(x, 0)).x
-		if px > RULER:
-			draw_line(Vector2(px, RULER - 6), Vector2(px, RULER), Color(1, 1, 1, 0.5), 1.0)
-			draw_string(font, Vector2(px + 2, 13), "%d" % roundi(x), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.65))
+		if px > _ruler():
+			draw_line(Vector2(px, _ruler() - _u(6)), Vector2(px, _ruler()), Color(1, 1, 1, 0.5), 1.0)
+			draw_string(font, Vector2(px + 2, _u(13)), "%d" % roundi(x), HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11), Color(1, 1, 1, 0.65))
 		x += every
 	var y := floorf(m0.y / every) * every
 	while y <= m1.y:
 		var py := to_px(Vector2(0, y)).y
-		if py > RULER:
-			draw_line(Vector2(RULER - 6, py), Vector2(RULER, py), Color(1, 1, 1, 0.5), 1.0)
-			draw_string(font, Vector2(1, py - 2), "%d" % roundi(y), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.65))
+		if py > _ruler():
+			draw_line(Vector2(_ruler() - _u(6), py), Vector2(_ruler(), py), Color(1, 1, 1, 0.5), 1.0)
+			draw_string(font, Vector2(1, py - 2), "%d" % roundi(y), HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), Color(1, 1, 1, 0.65))
 		y += every
-	draw_rect(Rect2(0, 0, RULER, RULER), Color(0.07, 0.07, 0.08))
-	draw_string(font, Vector2(3, 13), "m", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.5))
+	draw_rect(Rect2(0, 0, _ruler(), _ruler()), Color(0.07, 0.07, 0.08))
+	draw_string(font, Vector2(_u(3), _u(13)), "m", HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11), Color(1, 1, 1, 0.5))
 	# Position du curseur sur les règles.
 	var cp := to_px(mouse_m)
-	draw_line(Vector2(cp.x, 0), Vector2(cp.x, RULER), COL_SEL, 1.0)
-	draw_line(Vector2(0, cp.y), Vector2(RULER, cp.y), COL_SEL, 1.0)
+	draw_line(Vector2(cp.x, 0), Vector2(cp.x, _ruler()), COL_SEL, 1.0)
+	draw_line(Vector2(0, cp.y), Vector2(_ruler(), cp.y), COL_SEL, 1.0)
 
 
 func _draw_cells(k: int) -> void:
@@ -1253,19 +1272,19 @@ func _draw_opening(o: Dictionary, font: Font) -> void:
 	if not t in ["porte", "debris"] or zoom < 10.0:
 		if t == "porte_courant" and zoom >= 10.0:
 			var p := to_px(MapGeom.v2(o.position))
-			MapIcons._bolt(self, p, 14.0, Color(0.1, 0.1, 0.1))
+			MapIcons._bolt(self, p, _u(14.0), Color(0.1, 0.1, 0.1))
 		return
 	var p := to_px(MapGeom.v2(o.position))
 	var s := str(int(o.get("prix", 0)))
-	var w := font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
-	draw_string_outline(font, p + Vector2(-w * 0.5, 4), s, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 4, Color(0, 0, 0, 0.9))
-	draw_string(font, p + Vector2(-w * 0.5, 4), s, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.9, 0.5))
+	var w := font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(12)).x
+	draw_string_outline(font, p + Vector2(-w * 0.5, _u(4)), s, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(12), 4, Color(0, 0, 0, 0.9))
+	draw_string(font, p + Vector2(-w * 0.5, _u(4)), s, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(12), Color(1.0, 0.9, 0.5))
 
 
 ## Étiquette sur fond sombre (mesures du tracé).
 func _label_at(font: Font, p: Vector2, lbl: String) -> void:
-	draw_string_outline(font, p, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color.BLACK)
-	draw_string(font, p, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
+	draw_string_outline(font, p, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13), 4, Color.BLACK)
+	draw_string(font, p, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13), Color.WHITE)
 
 
 ## Longueur et direction du côté ou du mur en cours de tracé (« 4,24 m · 45° » :
@@ -1279,7 +1298,7 @@ func _trace_label(font: Font, a: Vector2, b: Vector2) -> void:
 	var lbl := "%s m · %s°" % [MapRules._m(snappedf(d.length(), 0.01), fr), MapRules._m(snappedf(MapGeom.dir_angle(d), 0.1), fr)]
 	if angle_free():
 		lbl += Lang.t(" (angle libre)", " (free angle)")
-	_label_at(font, to_px(b) + Vector2(12, -10), lbl)
+	_label_at(font, to_px(b) + Vector2(_u(12), -_u(10)), lbl)
 
 
 ## Champ de saisie au clavier près du curseur : « longueur [4,5] · angle [30] ».
@@ -1295,13 +1314,13 @@ func _draw_entry(font: Font) -> void:
 			val = val.replace(".", ",")
 		parts.append("%s %s" % [String(lb[0] if fr else lb[1]), ("[%s▏]" % val) if i == int(entry.i) else ("[%s]" % val)])
 	var txt := "  ·  ".join(parts) + Lang.t("   (Tab : champ suivant, Entrée : poser, Échap)", "   (Tab: next field, Enter: place, Esc)")
-	var p := to_px(mouse_m) + Vector2(16, -30)
-	var w := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
-	p.x = minf(p.x, size.x - w - 12)
-	p.y = maxf(p.y, RULER + 18)
-	draw_rect(Rect2(p + Vector2(-6, -15), Vector2(w + 12, 21)), Color(0.05, 0.08, 0.12, 0.94))
-	draw_rect(Rect2(p + Vector2(-6, -15), Vector2(w + 12, 21)), COL_SEL, false, 1.0)
-	draw_string(font, p, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.95, 0.8))
+	var p := to_px(mouse_m) + Vector2(_u(16), -_u(30))
+	var w := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13)).x
+	p.x = minf(p.x, size.x - w - _u(12))
+	p.y = maxf(p.y, _ruler() + _u(18))
+	draw_rect(Rect2(p + Vector2(-_u(6), -_u(15)), Vector2(w + _u(12), _u(21))), Color(0.05, 0.08, 0.12, 0.94))
+	draw_rect(Rect2(p + Vector2(-_u(6), -_u(15)), Vector2(w + _u(12), _u(21))), COL_SEL, false, 1.0)
+	draw_string(font, p, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13), Color(1, 0.95, 0.8))
 
 
 func _draw_tool(font: Font) -> void:
@@ -1340,7 +1359,7 @@ func _draw_tool(font: Font) -> void:
 						lbl = Lang.t("%s × %s m · %d points", "%s × %s m · %d points") % [MapRules._m(float(forme.rx) * 2.0, fr), MapRules._m(float(forme.ry) * 2.0, fr), int(forme.points)]
 					_:
 						lbl = "%s × %s m" % [MapRules._m(float(forme.get("rx", 0.0)) * 2.0, fr), MapRules._m(float(forme.get("ry", 0.0)) * 2.0, fr)]
-				_label_at(font, b + Vector2(10, -8), lbl)
+				_label_at(font, b + Vector2(_u(10), -_u(8)), lbl)
 			elif tool == "arc":
 				var o: Dictionary = res.get("obj", {})
 				var q := MapShapes.wall_arc(o)
@@ -1348,7 +1367,7 @@ func _draw_tool(font: Font) -> void:
 				draw_polyline(pts, Color(col, 0.85), maxf(3.0, zoom * float(o.get("epaisseur", 0.5))))
 				draw_line(a, b, Color(col, 0.5), 1.0)
 				var fr := not Lang.is_en()
-				_label_at(font, b + Vector2(10, -8), Lang.t("rayon %s m · %s° · %d segments", "radius %s m · %s° · %d segments") % [
+				_label_at(font, b + Vector2(_u(10), -_u(8)), Lang.t("rayon %s m · %s° · %d segments", "radius %s m · %s° · %d segments") % [
 					MapRules._m(snappedf(float(o.get("rayon", 0.0)), 0.01), fr), MapRules._m(float(o.get("ouverture", 0.0)), fr), int(o.get("segments", 1))])
 			elif tool == "room_rect" and ed.place_rot == 45:
 				var pts := _px_poly(rect45_poly(drag.start, end))
@@ -1356,14 +1375,14 @@ func _draw_tool(font: Font) -> void:
 				draw_polyline(pts + PackedVector2Array([pts[0]]), col, 2.0)
 				var q := rect45_poly(drag.start, end)
 				var lbl := "%s × %s m · 45°" % [MapRules._m(q[0].distance_to(q[1]), not Lang.is_en()), MapRules._m(q[0].distance_to(q[3]), not Lang.is_en())]
-				_label_at(font, b + Vector2(10, -8), lbl)
+				_label_at(font, b + Vector2(_u(10), -_u(8)), lbl)
 			else:
 				var r := Rect2(a, Vector2.ZERO).expand(b)
 				draw_rect(r, Color(col, 0.2))
 				draw_rect(r, col, false, 2.0)
 				var sz := (end - Vector2(drag.start)).abs()
 				var lbl := "%s × %s m" % [MapRules._m(sz.x, not Lang.is_en()), MapRules._m(sz.y, not Lang.is_en())]
-				_label_at(font, b + Vector2(10, -8), lbl)
+				_label_at(font, b + Vector2(_u(10), -_u(8)), lbl)
 	elif tool == "room_poly" and not poly_pts.is_empty():
 		var end := trace_end()
 		var pts := _px_poly(poly_pts)
@@ -1411,12 +1430,12 @@ func _draw_tool(font: Font) -> void:
 		msg = refusal
 		col = COL_BAD
 	if msg != "":
-		var p := to_px(mouse_m) + Vector2(16, 22)
-		var w := font.get_string_size(msg, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
-		p.x = minf(p.x, size.x - w - 12)
-		draw_rect(Rect2(p + Vector2(-6, -15), Vector2(w + 12, 21)), Color(0.15, 0.02, 0.02, 0.92))
-		draw_rect(Rect2(p + Vector2(-6, -15), Vector2(w + 12, 21)), COL_BAD, false, 1.0)
-		draw_string(font, p, msg, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.85, 0.8))
+		var p := to_px(mouse_m) + Vector2(_u(16), _u(22))
+		var w := font.get_string_size(msg, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13)).x
+		p.x = minf(p.x, size.x - w - _u(12))
+		draw_rect(Rect2(p + Vector2(-_u(6), -_u(15)), Vector2(w + _u(12), _u(21))), Color(0.15, 0.02, 0.02, 0.92))
+		draw_rect(Rect2(p + Vector2(-_u(6), -_u(15)), Vector2(w + _u(12), _u(21))), COL_BAD, false, 1.0)
+		draw_string(font, p, msg, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13), Color(1, 0.85, 0.8))
 	# Curseur aimanté (bout du tracé en cours : grille et angle).
 	var sp := to_px(trace_end())
 	draw_line(sp - Vector2(6, 0), sp + Vector2(6, 0), Color(1, 1, 1, 0.5), 1.0)

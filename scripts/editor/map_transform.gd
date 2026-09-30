@@ -117,6 +117,8 @@ static func rotated(o: Dictionary, c: Vector2, deg: float) -> Dictionary:
 ## objets dont le centre est dans la pièce, les ouvertures sur son contour.
 static func attached(doc: EditorMap, e: Dictionary) -> Array:
 	var out := []
+	if String(e.get("type", "")) in ["mur", "mur_courbe"]:
+		return on_free_wall(doc, e)
 	if not e.has("contour"):
 		return out
 	var poly := doc.room_poly(e)
@@ -133,6 +135,32 @@ static func attached(doc: EditorMap, e: Dictionary) -> Array:
 	for o in doc.openings_on(k):
 		if MapGeom.on_boundary(poly, MapGeom.v2(o.position), MapGeom.JOIN_TOL):
 			out.append(String(o.id))
+	return out
+
+
+## Objets muraux accrochés à un mur libre `e` (outil Mur, mur courbe) : leur
+## trait est sur une face du mur, parallèle à lui ; ils bougent et tournent avec
+## lui.
+static func on_free_wall(doc: EditorMap, e: Dictionary) -> Array:
+	var out := []
+	var half := float(e.get("epaisseur", 0.5)) * 0.5
+	var off := half - MapGeom.WALL_HALF
+	var segs := MapShapes.arc_segments(e) if String(e.get("type", "")) == "mur_courbe" else [[MapGeom.v2(e.a), MapGeom.v2(e.b)]]
+	for o in doc.objects_on(int(e.get("etage", 0))):
+		if MapCatalog.tool_of(o) != "wall_item":
+			continue
+		var p := MapGeom.v2(o.get("position", [0, 0]))
+		var dv := MapGeom.item_wall_dir(o)
+		for s in segs:
+			var a: Vector2 = s[0]
+			var b: Vector2 = s[1]
+			if a.distance_to(b) < 0.01:
+				continue
+			var t := (b - a).normalized()
+			if absf(dv.dot(t)) < 0.05 and absf(MapGeom.dist_to_segment(p, a, b) - off) < 0.02 \
+					and MapGeom.dist_to_segment(p + dv * off, a, b) < 0.02:
+				out.append(String(o.id))
+				break
 	return out
 
 
