@@ -9,11 +9,15 @@
   {"fr": "L'arme de la boîte mystère reste 12 secondes, celle du Pack-a-Punch 15 secondes.",
    "en": "The mystery box weapon now waits 12 seconds, the Pack-a-Punch weapon 15 seconds."},
   {"fr": "Plus de second TONNERRE-7 quand son propriétaire est à terre, plus de deux boîtes au même endroit, plus de LIQUIDATION ou de FAUCHEUSE en double.",
-   "en": "No more second TONNERRE-7 while its owner is downed, no more two boxes on the same spot, no more double FIRE SALE or DEATH MACHINE."},
+   "en": "No more second THUNDER-7 while its owner is downed, no more two boxes on the same spot, no more double FIRE SALE or REAPER."},
   {"fr": "La FAUCHEUSE n'apparaît plus avant le courant (en solo : une fois LAZARUS TONIC bu).",
-   "en": "The DEATH MACHINE no longer drops before the power is on (in solo: once LAZARUS TONIC has been bought)."},
+   "en": "The REAPER no longer drops before the power is on (in solo: once LAZARUS TONIC has been bought)."},
   {"fr": "Les points de réparation des fenêtres rapprochent le prochain bonus, et les manches de chiens comptent jusqu'à 32 chiens à quatre.",
    "en": "Window repair points now bring the next power-up closer, and dog rounds have up to 32 dogs with four players."},
   {"fr": "La machine LAZARUS TONIC envolée ne bloque plus rien.",
-   "en": "The flown-away LAZARUS TONIC machine no longer blocks anything."}
+   "en": "The flown-away LAZARUS TONIC machine no longer blocks anything."},
+  {"fr": "Tout le jeu suit la langue choisie dans les options (français ou anglais) : invites d'achat, atouts, bonus, armes, écran à terre et de fin de partie, tableau des scores, menus, salon, messages réseau et générique.",
+   "en": "The whole game now follows the language chosen in the options (French or English): buy prompts, perks, power-ups, weapons, downed and game over screens, scoreboard, menus, lobby, network messages and credits."},
+  {"fr": "En anglais, les invites reprennent la forme de Black Ops : « Press F to buy M14 [Cost: 500] ».",
+   "en": "In English, prompts use the Black Ops wording: \"Press F to buy M14 [Cost: 500]\"."}
  ]}
