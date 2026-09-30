@@ -39,6 +39,11 @@ var _scorch: Array[Decal] = []
 var _scorch_i := 0
 var _flash: OmniLight3D
 var _flash_t := 0.0
+## Serveur : demandes de dégoupillage et de lancer par joueur. Un humain en
+## fait au plus 2 à 3 par seconde ; un lancer valide suit toujours un
+## dégoupillage accepté (borné par la réserve) : seuls les refus sont bornés.
+var _cook_limit := NetGuard.Limiter.new(8.0, 8.0)
+var _cancel_limit := NetGuard.Limiter.new(8.0, 8.0)
 
 
 func _ready() -> void:
@@ -119,6 +124,8 @@ func srv_cook(kind: int) -> void:
 	if not multiplayer.is_server():
 		return
 	var pid := multiplayer.get_remote_sender_id()
+	if not _cook_limit.allow(pid):
+		return
 	var pd := game.session.get_data(pid)
 	if pd == null or pd.life != PlayerData.Life.ALIVE or _cooking.has(pid):
 		return
@@ -148,6 +155,9 @@ func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
 	var p: Player = game.players.get(pid)
 	if c.is_empty() or p == null:
 		# Rien de dégoupillé (refus, déjà explosé) : la prédiction est annulée.
+		# Chaque refus renvoie un message : borné (inondation de faux lancers).
+		if not _cancel_limit.allow(pid):
+			return
 		if pid == multiplayer.get_unique_id():
 			_cl_cancel(seq)
 		else:
