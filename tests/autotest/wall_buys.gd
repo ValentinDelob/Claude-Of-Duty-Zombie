@@ -6,19 +6,25 @@ extends AutotestScenario
 var H := AutotestHelpers
 
 
-func use(p: Player, wb: WallBuy) -> void:
+## `refused` : achat censé être refusé (rien à attendre, attente fixe).
+func use(p: Player, wb: WallBuy, refused := false) -> void:
+	var pd := Game.instance.session.local_data()
+	var before := pd.points
 	p.teleport_to(wb.interact_point() + Vector3(0, -1.0, 0) + (wb.interact_point() - wb.global_position).normalized() * 0.6)
 	H.aim_at(p, wb.global_position)
-	await seconds(0.25)
+	await seconds(0.25)  # mise en joue après le téléport
 	p.input.interact_pressed = true
-	await seconds(0.4)
+	if refused:
+		await seconds(0.4)  # on vérifie ensuite que rien ne s'est passé
+	else:
+		await until(func(): return pd.points != before, 2.0, "achat mural débité")
 
 
 ## Se place face au dessin à la craie, un peu en retrait.
 func look_at_chalk(p: Player, wb: WallBuy) -> void:
 	p.teleport_to(wb.interact_point() + Vector3(0, -1.0, 0) - (wb.global_position - wb.interact_point()).normalized() * 1.5)
 	H.aim_at(p, wb.global_position)
-	await seconds(0.4)
+	await seconds(0.4)  # capture : image posée après le téléport
 
 
 func run() -> void:
@@ -41,7 +47,7 @@ func run() -> void:
 		at.check(wb != null and wb.get_node_or_null("Chalk") != null, "contour à la craie %s" % marker)
 	for id in game.doors:
 		game.doors[id].srv_open()
-	await seconds(0.3)
+	await seconds(0.3)  # collisions des portes coupées (différé) avant les téléports
 	for marker in ["A", "U", "$", "&"]:
 		await look_at_chalk(p, game.interact.get_obj("wallbuy_" + marker))
 		await at.screenshot("chalk_%s" % expected[marker][0])
@@ -49,11 +55,12 @@ func run() -> void:
 	var m14: WallBuy = game.interact.get_obj("wallbuy_R")
 	await look_at_chalk(p, m14)
 	await at.screenshot("chalk")
+	await until(func(): return game.interact.focused == m14 and game.hud._prompt.text == m14.prompt(p.peer_id), 2.0, "invite de la M14")
 	at.check(game.interact.focused == m14 and game.hud._prompt.text.contains("500"), "invite : %s" % game.hud._prompt.text)
 
 	await use(p, m14)
 	at.check(pd.points == 0 and pd.weapons.size() == 2 and pd.current_weapon().id == "m14", "M14 achetée (points %d, %d armes)" % [pd.points, pd.weapons.size()])
-	await seconds(0.8)
+	await until(func(): return p.weapons.current().get("id", "") == "m14", 3.0, "M14 en main côté client")
 	at.check(p.weapons.current().id == "m14", "le client tient la M14")
 	await at.screenshot("m14")
 
@@ -69,10 +76,10 @@ func run() -> void:
 	pd.weapons[pd.slot] = WeaponDB.new_instance("m14", true)
 	pd.current_weapon().mag = 3
 	game.session.sync_inventory(1)
-	await seconds(0.3)
+	await seconds(0.3)  # inventaire synchronisé chez le client (rpc)
 	p.teleport_to(m14.interact_point() + Vector3(0, -1.0, 0) + (m14.interact_point() - m14.global_position).normalized() * 0.6)
 	H.aim_at(p, m14.global_position)
-	await seconds(0.3)
+	await until(func(): return game.interact.focused == m14 and game.hud._prompt.text == m14.prompt(p.peer_id), 2.0, "invite de munitions améliorées")
 	at.check(game.hud._prompt.text.contains("4500"), "munitions d'une arme améliorée : %s" % game.hud._prompt.text)
 	game.session.add_points(1, 4500)
 	await use(p, m14)
@@ -88,7 +95,7 @@ func run() -> void:
 	# Trop pauvre.
 	pd.points = 100
 	var stakeout: WallBuy = game.interact.get_obj("wallbuy_V")
-	await use(p, stakeout)
+	await use(p, stakeout, true)
 	at.check(pd.has_weapon("stakeout") < 0 and pd.points == 100, "STAKEOUT refusé (100 points)")
 
 	# Olympia de la salle de départ.

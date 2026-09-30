@@ -19,20 +19,20 @@ func run() -> void:
 	# Accès au générateur.
 	for id in ["2", "3", "4"]:
 		game.doors[id].srv_open()
-	await seconds(0.5)
+	await seconds(0.5)  # collisions des portes coupées (différé) avant le téléport
 	p.teleport_to(MapData.cell_to_world(Vector2i(61, 25), 0.05))
 	H.aim_at(p, sw.global_position)
-	await seconds(0.4)
+	await until(func(): return game.interact.focused == sw and game.hud._prompt.text == sw.prompt(p.peer_id), 2.0, "levier visé")
 	await at.screenshot("before")
 	at.check(game.interact.focused == sw, "le levier est visé : %s" % game.hud._prompt.text)
 	p.input.interact_pressed = true
-	await seconds(0.3)
+	await until(func(): return game.power_on and sw.is_on, 2.0, "courant rétabli")
 	at.check(game.power_on and sw.is_on, "courant rétabli")
-	await seconds(3.0)
+	await seconds(3.0)  # capture : fin de la cascade d'allumage
 	await at.screenshot("after")
 	at.check(game.interact.focused != sw, "plus d'invite une fois le courant rétabli")
 	# Vue du labo éclairé.
 	p.teleport_to(MapData.cell_to_world(Vector2i(35, 31), 0.05))
 	H.aim_at(p, MapData.cell_to_world(Vector2i(52, 18), 1.2))
-	await seconds(0.4)
+	await seconds(0.4)  # capture : image posée après le téléport
 	await at.screenshot("lab_lit")

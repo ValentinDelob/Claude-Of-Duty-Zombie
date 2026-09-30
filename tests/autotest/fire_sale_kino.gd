@@ -18,9 +18,9 @@ func face(b: MysteryBox) -> void:
 	var n: Vector3 = b.spots[b.location].normal
 	var fwd := -Vector3(n.x, 0, n.z).normalized()
 	p.teleport_to(b.global_position + fwd * 1.6 + Vector3(0, 0.05, 0), atan2(fwd.x, fwd.z))
-	await seconds(0.3)
+	await seconds(0.3)  # posé après le téléport
 	H.aim_at(p, b.global_position + Vector3.UP * 0.8)
-	await seconds(0.3)
+	await until(func(): return is_instance_valid(b) and game.interact.focused == b and game.hud._prompt.text == b.prompt(p.peer_id), 2.0, "boîte visée")
 
 
 func run() -> void:
@@ -46,7 +46,7 @@ func run() -> void:
 	await face(box)
 	var id := pw.debug_drop(PowerupRules.FIRE_SALE, p.global_position)
 	await until(func(): return not pw.nodes.has(id), 2.0, "liquidation ramassée")
-	await seconds(0.8)
+	await until(func(): return box.fire_sale and box.fire_sale_boxes.size() == 8, 3.0, "boîtes de liquidation posées")
 	at.check(box.fire_sale and box.cost() == 10, "vraie boîte à 10 points")
 	at.check(box.fire_sale_boxes.size() == 8, "8 boîtes temporaires (%d)" % box.fire_sale_boxes.size())
 	var locs := {box.location: true}
@@ -67,24 +67,24 @@ func run() -> void:
 	await face(tb)
 	var before := pd.points
 	p.input.interact_pressed = true
-	await seconds(0.4)
+	await until(func(): return tb.state == MysteryBox.State.ROLLING, 2.0, "boîte temporaire achetée")
 	at.check(tb.state == MysteryBox.State.ROLLING and before - pd.points == 10, "boîte temporaire achetée 10 points")
-	await seconds(0.6)
+	await seconds(0.6)  # capture : défilement en cours
 	await at.screenshot("temp_box_rolling")
 
 	# Fin du bonus pendant le tirage : les boîtes libres disparaissent, celle
 	# en cours reste jusqu'au bout.
 	pw.timers[PowerupRules.FIRE_SALE] = 0.2
-	await seconds(0.5)
+	await until(func(): return not box.fire_sale, 2.0, "fin de la liquidation")
 	at.check(not box.fire_sale and box.cost() == MysteryBox.COST, "fin : vraie boîte à 950")
 	at.check(box.fire_sale_boxes.size() == 1 and box.fire_sale_boxes[0] == tb, "fin : seule la boîte en cours reste (%d)" % box.fire_sale_boxes.size())
 	await until(func(): return tb.state == MysteryBox.State.READY, 6.0, "arme prête")
 	var weapon := tb.weapon
 	await face(tb)
 	p.input.interact_pressed = true
-	await seconds(0.4)
+	await until(func(): return pd.has_weapon(weapon) >= 0 or pd.has_monkeys, 2.0, "arme prise dans la boîte temporaire")
 	at.check(weapon != "" and (pd.has_weapon(weapon) >= 0 or pd.has_monkeys), "arme prise dans la boîte temporaire (%s)" % weapon)
-	await seconds(0.3)
+	await until(func(): return box.fire_sale_boxes.is_empty() and game.interact.get_obj(tb_id) == null, 2.0, "dernière boîte temporaire retirée")
 	at.check(box.fire_sale_boxes.is_empty() and game.interact.get_obj(tb_id) == null, "la dernière boîte temporaire disparaît")
 	# Les planches des emplacements vides sont revenues.
 	var markers_ok := true

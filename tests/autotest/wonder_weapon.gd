@@ -17,8 +17,21 @@ func equip(pap: bool) -> bool:
 	game.combat.cancel_reload(1)
 	game.session.sync_inventory(1)
 	var ok: bool = await until(func(): return p.weapons.current().get("id", "") == "thunder" and p.weapons.current().get("pap", false) == pap, 2.0, "TONNERRE-7 en main")
-	await seconds(WeaponController.SWITCH_TIME + 0.25)
+	await until(func(): return GameClock.now() >= p.weapons._switch_end and not p.weapons.view.is_busy(), WeaponController.SWITCH_TIME + 2.0, "TONNERRE-7 sorti")
 	return ok
+
+
+## Tous les corps projetés sont retombés au sol (variables non typées : un
+## zombie libéré ne doit pas être affecté à une variable typée).
+func all_landed(front: Array, start_pos: Array) -> bool:
+	for i in front.size():
+		var z = front[i]
+		if not is_instance_valid(z):
+			return false
+		var f = z.get_node_or_null("Fling")
+		if f == null or f.flying or absf(z.global_position.y - start_pos[i].y) >= 0.05:
+			return false
+	return true
 
 
 func spawn_still(pos: Vector3, health: int) -> Zombie:
@@ -52,7 +65,7 @@ func run() -> void:
 	var origin := MapData.cell_to_world(Vector2i(4, 7), 0.05)
 	p.teleport_to(origin, -PI * 0.5)
 	p.pitch = 0.0
-	await seconds(0.3)
+	await seconds(0.3)  # posé après le téléport
 	at.check(await equip(false), "TONNERRE-7 équipé")
 	at.check(MysteryBox.wonders_taken(game).has("thunder"), "boîte : TONNERRE-7 déjà dans la partie (plus proposé)")
 	await at.screenshot("fps_thunder")
@@ -64,10 +77,10 @@ func run() -> void:
 			Vector3(10.5, 0, 0.9), Vector3(13.0, 0, 1.5), Vector3(16.5, 0, -0.4)]:
 		front.append(spawn_still(origin + off, hp))
 	var behind := spawn_still(origin + Vector3(-3.0, 0, 0), hp)
-	await seconds(Zombie.EMERGE_TIME + 0.4)
+	await H.emerged(self, front + [behind])
 	p.yaw = -PI * 0.5
 	p.pitch = 0.0
-	await seconds(0.1)
+	await seconds(0.1)  # vue posée
 	await at.screenshot("before")
 	var points_before := pd.points
 	var health_before := pd.health
@@ -75,7 +88,7 @@ func run() -> void:
 	for z: Zombie in front:
 		start_pos.append(z.global_position)
 	await pull_trigger()
-	await seconds(0.12)
+	await seconds(0.12)  # capture : onde de choc
 	await at.screenshot("blast")
 	var dead := 0
 	for z: Zombie in front:
@@ -88,9 +101,9 @@ func run() -> void:
 		if z.get_node_or_null("Fling") is ZombieFling:
 			flung += 1
 	at.check(flung == 7, "%d/7 zombies projetés (vol procédural)" % flung)
-	await seconds(0.25)
+	await seconds(0.25)  # capture : corps en vol
 	await at.screenshot("flight")
-	await seconds(0.9)
+	await until(func(): return all_landed(front, start_pos), 3.0, "corps retombés au sol")
 	var moved := 0
 	var landed := 0
 	for i in front.size():
@@ -120,10 +133,10 @@ func run() -> void:
 	p.pitch = 0.0
 	var hidden := spawn_still(pillar + Vector3(2.2, 0, 0), hp)
 	var open := spawn_still(eye + Vector3(3.0, 0, 1.4), hp)
-	await seconds(Zombie.EMERGE_TIME + 0.4)
+	await H.emerged(self, [hidden, open])
 	p.yaw = -PI * 0.5
 	await pull_trigger()
-	await seconds(0.15)
+	await until(func(): return not open.is_alive(), 1.0, "zombie à découvert tué")
 	at.check(not open.is_alive(), "zombie à découvert tué")
 	at.check(hidden.is_alive(), "zombie caché derrière le pilier épargné (pas à travers les murs)")
 	var rt := game.combat.reload_time(1, pd.current_weapon())
@@ -144,11 +157,11 @@ func run() -> void:
 	# Un chien de l'enfer aussi.
 	var dog := game.zombies.get_zombie(game.zombies.spawn(origin + Vector3(6.0, 0, -2.0), 0, 2000, ZombieManager.KIND_DOG))
 	dog.speed_mult = 0.0
-	await seconds(2.6)
+	await H.emerged(self, zs + [dog])
 	p.yaw = -PI * 0.5
 	p.pitch = 0.0
 	await pull_trigger()
-	await seconds(0.12)
+	await seconds(0.12)  # capture : onde de choc
 	await at.screenshot("blast_pap")
 	var dead_pap := 0
 	for z: Zombie in zs:
@@ -156,5 +169,5 @@ func run() -> void:
 			dead_pap += 1
 	at.check(dead_pap == 3 and pd.current_weapon().mag == 3, "OURAGAN-77 : %d/3 tués, 3 coups restants" % dead_pap)
 	at.check(not dog.is_alive(), "chien de l'enfer projeté et tué")
-	await seconds(0.8)
+	await seconds(0.8)  # fin du vol des corps avant le nettoyage (rien de vérifié)
 	await H.clear_zombies(self)

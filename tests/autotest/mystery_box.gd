@@ -13,12 +13,18 @@ func face_box() -> void:
 	var n: Vector3 = box.spots[box.location].normal
 	p.teleport_to(box.global_position - n * 1.6 + Vector3(0, 0.05, 0))
 	H.aim_at(p, box.global_position + Vector3.UP * 0.8)
-	await seconds(0.3)
+	await until(func(): return game.interact.focused == box and game.hud._prompt.text == box.prompt(p.peer_id), 2.0, "boîte visée")
 
 
-func press() -> void:
+## Appuie sur [F] et attend que la boîte change d'état. `refused` : achat
+## censé être refusé (rien à attendre, attente fixe).
+func press(refused := false) -> void:
+	var s0 := box.state
 	p.input.interact_pressed = true
-	await seconds(0.3)
+	if refused:
+		await seconds(0.3)  # on vérifie ensuite que rien ne s'est passé
+	else:
+		await until(func(): return box.state != s0, 2.0, "boîte utilisée")
 
 
 func run() -> void:
@@ -36,19 +42,19 @@ func run() -> void:
 	at.check(box != null and box.location == 1, "boîte au quai au départ (emplacement 1)")
 	await face_box()
 	at.check(game.hud._prompt.text.contains("950"), "invite : %s" % game.hud._prompt.text)
-	await press()
+	await press(true)
 	at.check(box.state == MysteryBox.State.IDLE and pd.points == 500, "refus sans 950 points")
 
 	game.session.add_points(1, 20000)
-	await seconds(0.1)
+	await until(func(): return pd.points == 20500, 2.0, "points crédités")
 	await press()
 	at.check(box.state == MysteryBox.State.ROLLING and pd.points == 20500 - 950, "achat : défilement en cours")
-	await seconds(2.0)
+	await seconds(2.0)  # capture : au milieu du défilement
 	await at.screenshot("rolling")
 	await until(func(): return box.state == MysteryBox.State.READY, 4.0, "arme prête")
 	var monkey := box.weapon == ThrowableRules.MONKEY_ID
 	at.check(monkey or (WeaponDB.exists(box.weapon) and box.weapon != "m1911" and WeaponDB.box_pool().has(box.weapon)), "arme tirée : %s" % box.weapon)
-	await seconds(0.4)
+	await seconds(0.4)  # capture : arme sortie de la boîte
 	await at.screenshot("ready")
 	var got := box.weapon
 	await press()
@@ -70,9 +76,9 @@ func run() -> void:
 	await until(func(): return box.state == MysteryBox.State.READY, 6.0, "rayon prêt")
 	await press()
 	at.check(pd.current_weapon().id == "ray", "CLAUDE-RAY en main")
-	await seconds(0.8)
+	await until(func(): return p.weapons.current().get("id", "") == "ray" and GameClock.now() >= p.weapons._switch_end, 3.0, "CLAUDE-RAY sorti")
 	p.yaw += PI
-	await seconds(0.2)
+	await seconds(0.2)  # vue posée
 	var center := p.global_position + (-p.global_transform.basis.z) * 6.0
 	var zs := []
 	for k in 3:
@@ -95,7 +101,7 @@ func run() -> void:
 	box.force_result = ThrowableRules.MONKEY_ID
 	await press()
 	await until(func(): return box.state == MysteryBox.State.READY, 6.0, "singe prêt")
-	await seconds(0.4)
+	await seconds(0.4)  # capture : singe sorti de la boîte
 	await at.screenshot("monkey")
 	at.check(game.hud._prompt.text.contains(ThrowableRules.MONKEY_NAME), "invite : %s" % game.hud._prompt.text)
 	await press()
@@ -110,7 +116,7 @@ func run() -> void:
 	await press()
 	await until(func(): return box.state == MysteryBox.State.MOVING, 6.0, "crâne")
 	at.check(pd.points == before, "crâne : 950 points remboursés (%d)" % pd.points)
-	await seconds(1.0)
+	await seconds(1.0)  # capture : crâne et départ de la boîte
 	await at.screenshot("skull")
 	await until(func(): return box.state == MysteryBox.State.IDLE, MysteryBox.MOVE_TIME + 2.0, "réapparition")
 	at.check(box.location != old_loc, "la boîte a déménagé (%d -> %d)" % [old_loc, box.location])
