@@ -25,7 +25,8 @@ static func aim_at(p: Player, point: Vector3) -> void:
 	p.head.rotation.x = p.pitch
 
 
-## Tir semi-automatique unique (bot).
+## Tir semi-automatique unique (bot) : détente pressée puis relâchée, comme un
+## joueur (attentes fixes voulues : elles simulent le doigt).
 static func shoot(sc: AutotestScenario, p: Player, interval := 0.2) -> void:
 	p.input.fire = true
 	await sc.seconds(0.04)
@@ -46,5 +47,17 @@ static func dummy_zombie(sc: AutotestScenario, pos: Vector3, health := 150) -> Z
 	var zid := zm.spawn(pos, 0, health)
 	var z := zm.get_zombie(zid)
 	z.speed_mult = 0.0
-	await sc.seconds(Zombie.EMERGE_TIME + 0.3)
+	await emerged(sc, [z])
 	return z
+
+
+## Attend que ces zombies soient sortis de terre, puis la fin de leur
+## redressement (0,3 s d'animation : tête et hitboxes à leur place).
+static func emerged(sc: AutotestScenario, zs: Array) -> bool:
+	var ok: bool = await sc.until(func():
+		for z in zs:
+			if is_instance_valid(z) and (z as Zombie).state == Zombie.State.EMERGE:
+				return false
+		return true, Zombie.EMERGE_TIME + 3.0, "zombie(s) sorti(s) de terre")
+	await sc.seconds(0.3)
+	return ok

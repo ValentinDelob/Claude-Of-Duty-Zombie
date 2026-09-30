@@ -18,7 +18,8 @@ func run() -> void:
 	timeout_sec = 100
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu principal")
 	menu = tree().current_scene
-	await seconds(2.6)  # ouverture en fondu
+	# Ouverture en fondu.
+	await until(func(): return _screen_ready() and menu.current.logo != null and menu.current.logo.is_visible_in_tree(), 5.0, "écran principal affiché")
 	at.check(menu.current_name == "main", "écran principal affiché")
 	# Ambiance : fond 3D, musique, logo.
 	at.check(menu.backdrop != null and menu.backdrop.camera.current, "fond 3D du bunker affiché (caméra active)")
@@ -43,7 +44,7 @@ func run() -> void:
 	await at.screenshot("main_focus_options")
 	await press("ui_accept")
 	at.check(menu.current_name == "options", "Entrée : écran OPTIONS")
-	await seconds(0.9)
+	await _wait_screen("OPTIONS")
 	await at.screenshot("options")
 	# Onglets JEU / COMMANDES / GRAPHISMES / SON : focus sur JEU, ► jusqu'à SON.
 	var tabs := []
@@ -60,7 +61,7 @@ func run() -> void:
 
 	await press("ui_cancel")
 	at.check(menu.current_name == "main", "Échap : retour au principal depuis OPTIONS")
-	await seconds(0.8)
+	await _wait_screen("principal")
 
 	# CRÉDITS (5e entrée).
 	for i in 4:
@@ -69,25 +70,25 @@ func run() -> void:
 	await press("ui_accept")
 	at.check(menu.current_name == "credits", "écran CRÉDITS")
 	var y0: float = menu.current.scroll_y()
-	await seconds(2.5)
+	await until(func(): return menu.current.scroll_y() < y0 - 30.0, 4.0, "défilement du générique")
 	var y1: float = menu.current.scroll_y()
 	at.check(y1 < y0 - 30.0, "le générique défile (%.0f -> %.0f)" % [y0, y1])
 	await at.screenshot("credits")
 	await press("ui_cancel")
 	at.check(menu.current_name == "main", "retour au principal depuis CRÉDITS")
-	await seconds(0.8)
+	await _wait_screen("principal")
 
 	# MULTIJOUEUR.
 	await press("ui_down")
 	await press("ui_accept")
 	at.check(menu.current_name == "multiplayer", "écran MULTIJOUEUR")
-	await seconds(0.8)
+	await _wait_screen("MULTIJOUEUR")
 	await at.screenshot("multiplayer")
 	await press("ui_cancel")
 	at.check(menu.current_name == "main", "retour au principal depuis MULTIJOUEUR")
-	await seconds(0.25)
+	await seconds(0.25)  # capture au milieu de la transition
 	await at.screenshot("transition")
-	await seconds(0.8)
+	await _wait_screen("principal")
 	at.check(_focused_label() == "SOLO", "focus rendu à SOLO")
 
 	# La silhouette du fond apparaît dans l'embrasure, puis disparaît.
@@ -102,7 +103,7 @@ func run() -> void:
 	# focus par défaut) lance le fondu au noir cinématique AVANT le chargement.
 	await press("ui_accept")
 	at.check(menu.current_name == "map_select", "SOLO : sélection de la carte (%s)" % menu.current_name)
-	await seconds(0.9)
+	await _wait_screen("sélection de carte")
 	await at.screenshot("map_select")
 	at.check(_focused_label() == "BUNKER K-7", "focus sur BUNKER K-7 (%s)" % _focused_label())
 	await press("ui_accept")
@@ -160,6 +161,15 @@ func press(action: String) -> void:
 	up.pressed = false
 	Input.parse_input_event(up)
 	await frames(3)
+
+
+## Écran courant entièrement affiché (fondu d'entrée et passage au noir finis).
+func _screen_ready() -> bool:
+	return menu.current != null and menu.current.modulate.a >= 0.999 and menu._fade_amount < 0.001
+
+
+func _wait_screen(what: String) -> void:
+	await until(_screen_ready, 3.0, "écran %s affiché" % what)
 
 
 func _buttons() -> Array:

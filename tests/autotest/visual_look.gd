@@ -135,7 +135,8 @@ func _hud_pass() -> void:
 		game.perks.srv_grant(1, perk)
 	pd.has_monkeys = true
 	pd.monkeys = 3
-	await seconds(3.0)
+	await until(func(): return hud._perk_icons.perks.size() == 4, 3.0, "icônes d'atouts")
+	await seconds(0.5)  # apparition des icônes (capture)
 	at.check(hud._perk_icons.perks.size() == 4, "4 icônes d'atouts")
 	await at.screenshot("hud_manche3_atouts")
 	# Points qui s'envolent (+10 à chaque balle, -dépense).
@@ -150,7 +151,7 @@ func _hud_pass() -> void:
 	var m14: WallBuy = game.interact.get_obj("wallbuy_R")
 	p.teleport_to(m14.interact_point() + Vector3(0, -1.0, 0) - (m14.global_position - m14.interact_point()).normalized() * 1.2)
 	H.aim_at(p, m14.global_position)
-	await seconds(0.4)
+	await until(func(): return hud._prompt_view.text.begins_with("Appuyer sur F pour acheter"), 2.0, "invite d'achat")
 	at.check(hud._prompt_view.text.begins_with("Appuyer sur F pour acheter") and hud._prompt_view.text.contains("[Coût : 500]"),
 			"invite BO1 : « %s »" % hud._prompt_view.text)
 	await at.screenshot("hud_invite")
@@ -174,7 +175,7 @@ func _hud_pass() -> void:
 	at.check(rc.mode == RoundCounter.Mode.OUTRO, "fin de manche : le compteur pulse")
 	await at.screenshot("hud_fin_manche")
 	hud.round_changed(13, true)
-	await seconds(4.5)
+	await until(func(): return rc.mode == RoundCounter.Mode.IDLE, 6.0, "fin de la transition vers la manche 13")
 	await H.clear_zombies(self)
 	# Dégâts : voile rouge et sang aux bords.
 	game.combat.debug_invulnerable = false
@@ -183,16 +184,17 @@ func _hud_pass() -> void:
 	await at.screenshot("hud_degats")
 	# À terre (LAZARUS) : vision floue.
 	game.combat.damage_player(1, 400, p.global_position + Vector3(2, 1, 0))
-	await seconds(1.2)
+	await until(func(): return pd.life == PlayerData.Life.DOWNED and hud._downed.amount() > 0.9, 3.0, "vision floue")
 	at.check(pd.life == PlayerData.Life.DOWNED and hud._downed.amount() > 0.9, "à terre : vision floue (%.2f)" % hud._downed.amount())
 	await at.screenshot("hud_a_terre")
 	await until(func(): return pd.life == PlayerData.Life.ALIVE, DownedSystem.SOLO_SELF_REVIVE + 3.0, "réanimation")
-	await seconds(1.0)
+	await until(func(): return hud._downed.amount() < 0.05 and not hud._downed.blur.visible, 3.0, "vision nette")
 	at.check(hud._downed.amount() < 0.05 and not hud._downed.blur.visible, "réanimé : vision nette")
 	# Fin de partie.
 	game.combat.damage_player(1, 400, p.global_position)
 	await until(func(): return GameState.state == GameState.State.GAME_OVER, 3.0, "GAME OVER")
-	await seconds(2.0)
+	await until(func(): return hud._center_msg.text == "GAME OVER" and hud._center_sub.text != "", 4.0, "écran de fin de partie")
+	await seconds(0.5)  # apparition du texte (capture)
 	at.check(hud._center_msg.text == "GAME OVER" and hud._center_sub.text.begins_with("Vous avez survécu %d manches" % game.rounds.round_n),
 			"fin de partie : %s / %s" % [hud._center_msg.text, hud._center_sub.text])
 	await at.screenshot("hud_game_over")
