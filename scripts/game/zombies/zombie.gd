@@ -109,6 +109,8 @@ var _mgr: ZombieManager
 var game: Game
 ## Temps écoulé depuis la dernière pose écrite (animation à cadence réduite).
 var _pose_accum := 0.0
+## Rayon de sol réutilisé par _follow_floor (cartes à étages).
+var _floor_q: PhysicsRayQueryParameters3D
 
 ## Accès publics pour les animations (ZombieAnim, ZombieGibs) : mêmes valeurs
 ## que les champs privés ci-dessus.
@@ -752,9 +754,13 @@ func stuck_time() -> float:
 func _follow_floor() -> void:
 	if absf(velocity.x) + absf(velocity.z) < 0.01:
 		return
-	var from := global_position + Vector3.UP * 0.9
-	var q := PhysicsRayQueryParameters3D.create(from, global_position + Vector3.DOWN * 1.1, 1)
-	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	# Requête gardée d'un pas à l'autre (seuls les deux points changent) : même
+	# rayon, sans objet alloué par zombie et par pas.
+	if _floor_q == null:
+		_floor_q = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.DOWN, 1)
+	_floor_q.from = global_position + Vector3.UP * 0.9
+	_floor_q.to = global_position + Vector3.DOWN * 1.1
+	var hit := get_world_3d().direct_space_state.intersect_ray(_floor_q)
 	if not hit.is_empty():
 		global_position.y = hit.position.y
 
