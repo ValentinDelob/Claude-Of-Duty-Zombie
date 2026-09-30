@@ -35,11 +35,10 @@ func run() -> void:
 	cpd.slot = 0
 	game.session.sync_inventory(client_id)
 	await H.clear_zombies(self)
-	await seconds(0.5)
 	dogs.debug_force_next(2)
 	game.rounds.paused = false
 	game.rounds.debug_jump_to(2)
-	await seconds(0.3)
+	await until(func(): return dogs.active, 2.0, "manche de chiens lancée")
 	at.check(dogs.active and dogs.total == 12, "manche de chiens à 2 joueurs : %d chiens" % dogs.total)
 	var max_alive := 0
 	var hunted := {}
@@ -68,4 +67,4 @@ func run() -> void:
 	for id in game.powerups._drops:
 		drop = drop or game.powerups._drops[id].type == PowerupRules.MAX_AMMO
 	at.check(drop, "munitions max sur le dernier chien")
-	await seconds(8.0)
+	await MpHelpers.finish(self)
