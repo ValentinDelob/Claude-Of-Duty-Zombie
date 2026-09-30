@@ -288,3 +288,168 @@ static func dir_rot(d: String) -> String:
 ## Direction opposée.
 static func dir_back(d: String) -> String:
 	return {"n": "s", "s": "n", "e": "o", "o": "e"}.get(d, "s")
+
+
+# ------------------------------------------------------------------ murs en biais
+
+## Demi-épaisseur d'un mur de pièce (m) : 0,5 m centré sur le trait.
+const WALL_HALF := 0.25
+
+
+## Segment droit (horizontal ou vertical) ?
+static func is_axis_seg(a: Vector2, b: Vector2) -> bool:
+	return absf(a.x - b.x) < EPS or absf(a.y - b.y) < EPS
+
+
+## Le contour a-t-il un côté en biais (ni horizontal ni vertical) ?
+static func has_oblique(p: PackedVector2Array) -> bool:
+	for i in p.size():
+		if not is_axis_seg(p[i], p[(i + 1) % p.size()]):
+			return true
+	return false
+
+
+## Point suivant d'un tracé (côté de pièce, mur libre) : le point est aimanté
+## à la grille (pas `step`) et, sauf `free` (angle libre : Alt maintenu), le
+## côté part de `from` à un multiple de 45° (0, 45, 90°...). `from` étant sur
+## la grille, le point rendu l'est aussi.
+static func snap_angle(from: Vector2, to: Vector2, step: float, free := false) -> Vector2:
+	var g := Vector2(roundf(to.x / step) * step, roundf(to.y / step) * step)
+	var d := to - from
+	if free or d.length() < 1e-6:
+		return g
+	var ang := snappedf(atan2(d.y, d.x), PI / 4.0)
+	var u := Vector2(roundf(cos(ang)), roundf(sin(ang)))
+	var k := roundf(d.dot(u) / (u.length_squared() * step))
+	return from + u * k * step
+
+
+## Inclinaison d'un trait par rapport à l'horizontale (degrés, 0 à 90 : 0
+## horizontal, 90 vertical, 45 en biais), affichée pendant le tracé.
+static func line_angle(d: Vector2) -> float:
+	if d.length() < 1e-6:
+		return 0.0
+	var a := fposmod(rad_to_deg(atan2(-d.y, d.x)), 180.0)
+	return minf(a, 180.0 - a)
+
+
+## Direction (vecteur unitaire) -> degrés dans le sens horaire depuis le
+## nord : n = 0, e = 90, s = 180, o = 270 (clé « angle » des objets muraux).
+static func dir_deg(v: Vector2) -> float:
+	return fposmod(rad_to_deg(atan2(v.x, -v.y)), 360.0)
+
+
+## Degrés (sens horaire depuis le nord) -> vecteur unitaire.
+static func deg_dir(deg: float) -> Vector2:
+	var r := deg_to_rad(deg)
+	return Vector2(sin(r), -cos(r))
+
+
+## Direction cardinale la plus proche d'un vecteur (n, e, s, o).
+static func cardinal_of(v: Vector2) -> String:
+	if absf(v.x) > absf(v.y):
+		return "e" if v.x > 0.0 else "o"
+	return "s" if v.y > 0.0 else "n"
+
+
+## Direction du mur vu depuis un objet mural : « angle » (mur en biais) s'il
+## est donné, sinon « mur » (n, e, s, o).
+static func item_wall_dir(o: Dictionary) -> Vector2:
+	if o.has("angle"):
+		return deg_dir(float(o.angle))
+	return dir_vec(String(o.get("mur", "n")))
+
+
+## L'objet mural est-il contre un mur en biais (angle non multiple de 90°) ?
+static func item_oblique(o: Dictionary) -> bool:
+	if not o.has("angle"):
+		return false
+	var a := fposmod(float(o.angle), 90.0)
+	return a > 0.01 and a < 89.99
+
+
+## Cases COUPÉES par le pavé d'un mur en biais [a, b] de demi-épaisseur
+## `half` (sans dépasser ses bouts) : toute case que le mur touche, même un
+## peu (marquage prudent : la grille ne laisse jamais passer à travers un mur).
+## Test des axes séparateurs entre le carré de la case et le pavé orienté.
+static func slab_cells(a: Vector2, b: Vector2, half: float) -> Array:
+	var out := []
+	var d := b - a
+	var seg_len := d.length()
+	if seg_len < EPS:
+		return out
+	var t := d / seg_len
+	var n := Vector2(-t.y, t.x)
+	var m := (a + b) * 0.5
+	var hl := seg_len * 0.5
+	var h := CELL * 0.5 - 0.02
+	var ext := Vector2(absf(t.x) * hl + absf(n.x) * half, absf(t.y) * hl + absf(n.y) * half)
+	var sq_t := h * (absf(t.x) + absf(t.y))
+	var sq_n := h * (absf(n.x) + absf(n.y))
+	var i0 := floori((m.x - ext.x) / CELL) - 1
+	var i1 := ceili((m.x + ext.x) / CELL) + 1
+	var j0 := floori((m.y - ext.y) / CELL) - 1
+	var j1 := ceili((m.y + ext.y) / CELL) + 1
+	for j in range(j0, j1 + 1):
+		for i in range(i0, i1 + 1):
+			var c := Vector2(i, j) * CELL
+			var r := c - m
+			if absf(r.x) > h + ext.x or absf(r.y) > h + ext.y:
+				continue
+			if absf(r.dot(t)) > hl + sq_t or absf(r.dot(n)) > half + sq_n:
+				continue
+			out.append(Vector2i(i, j))
+	return out
+
+
+## Point le long d'un segment [a, b] aimanté pour une ouverture ou un objet
+## mural de largeur `w` (m) : sur un côté à 45°, le milieu tombe sur la
+## grille de 0,25 m ; sur un angle libre, pas de 0,1 m. `along` (m depuis a)
+## est borné pour laisser `margin` de mur à chaque bout ; -1 si le segment est
+## trop court.
+static func snap_on_segment(a: Vector2, b: Vector2, along: float, w: float, margin: float) -> float:
+	var seg_len := a.distance_to(b)
+	var lo := margin + w * 0.5
+	var hi := seg_len - margin - w * 0.5
+	if hi < lo - EPS:
+		return -1.0
+	var cells := (b - a).abs() / CELL
+	var g := _gcd(roundi(cells.x), roundi(cells.y))
+	var step := seg_len / (2.0 * g) if g > 0 else 0.1
+	if step > 0.36:
+		step = 0.1
+	var s := roundf(clampf(along, lo, hi) / step) * step
+	if s < lo - EPS:
+		s += step
+	if s > hi + EPS:
+		s -= step
+	if s < lo - EPS or s > hi + EPS:
+		s = clampf(along, lo, hi)
+	return s
+
+
+static func _gcd(x: int, y: int) -> int:
+	x = absi(x)
+	y = absi(y)
+	while y != 0:
+		var r := x % y
+		x = y
+		y = r
+	return x
+
+
+## Triangulation d'un contour (convexe ou non) : [[a, b, c], ...].
+static func triangulate(p: PackedVector2Array) -> Array:
+	var out := []
+	var idx := Geometry2D.triangulate_polygon(p)
+	for i in range(0, idx.size(), 3):
+		out.append([p[idx[i]], p[idx[i + 1]], p[idx[i + 2]]])
+	return out
+
+
+## Rectangle orienté (4 sommets) : de `face` vers l'intérieur `inward` sur
+## `depth`, `along` de large le long du mur.
+static func oriented_rect(face: Vector2, inward: Vector2, along: float, depth: float) -> PackedVector2Array:
+	var t := Vector2(-inward.y, inward.x) * along * 0.5
+	var back := face + inward * depth
+	return PackedVector2Array([face - t, face + t, back + t, back - t])

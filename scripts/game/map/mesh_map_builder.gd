@@ -97,6 +97,9 @@ func _setup_nodes(scene: Node, floor_of: Callable) -> void:
 			var mi := n as MeshInstance3D
 			mi.material_override = material_for(mat)
 			mi.set_instance_shader_parameter("floor_y", float(floor_of.call(parts[1])))
+			if parts[2] == "biais":
+				# Mur en biais (éditeur de cartes) : motif le long du mur.
+				mi.set_instance_shader_parameter("oblique", 1.0)
 			if parts[2] in NO_SHADOW_KINDS:
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		elif n is StaticBody3D:

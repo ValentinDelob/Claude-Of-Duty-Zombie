@@ -415,6 +415,35 @@
     "fr": "Vos cartes en coop, décor et lumières"
    }
   },
+  "v0.1.145": {
+   "date": "2026-09-30",
+   "images": [
+    "v0.1.145/01_murs_diagonale_editeur.png",
+    "v0.1.145/02_murs_diagonale_jeu.png"
+   ],
+   "items": [
+    {
+     "en": "Map editor: draw diagonal walls and rooms, snapped to 45°, or at any angle while holding Alt; length and angle are shown as you draw.",
+     "fr": "Éditeur de cartes : tracez des murs et des pièces en biais, aimantés à 45°, ou à l'angle de votre choix en maintenant Alt ; la longueur et l'angle s'affichent pendant le tracé."
+    },
+    {
+     "en": "Press R with the rectangle room to turn it 45° and draw a diamond in one go.",
+     "fr": "La pièce rectangle se tourne de 45° avec R pour dessiner un losange en un seul geste."
+    },
+    {
+     "en": "Doors, debris, zombie windows, wall weapons, perks and the box can also go on a diagonal wall.",
+     "fr": "Portes, débris, fenêtres à zombies, armes au mur, atouts et boîte se posent aussi sur un mur en biais."
+    },
+    {
+     "en": "In game, diagonal walls are real smooth walls: bullets, grenades, players and zombies stop at them, and the horde walks around them without getting stuck.",
+     "fr": "En jeu, les murs en biais sont de vrais murs lisses : balles, grenades, joueurs et zombies s'y arrêtent, et la horde les contourne sans rester coincée."
+    }
+   ],
+   "title": {
+    "en": "Diagonal walls in your maps",
+    "fr": "Des murs en biais dans vos cartes"
+   }
+  },
   "v0.1.36": {
    "date": "2026-09-26",
    "images": [],

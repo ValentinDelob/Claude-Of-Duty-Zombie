@@ -91,6 +91,50 @@ func snap(m: Vector2) -> Vector2:
 	return Vector2(roundf(m.x / s) * s, roundf(m.y / s) * s)
 
 
+## Angle libre (Alt maintenu, ou imposé par un test) : sinon les côtés et les
+## murs tracés partent à 0, 45 ou 90°.
+var free_angle := false
+
+
+func angle_free() -> bool:
+	return free_angle or Input.is_key_pressed(KEY_ALT)
+
+
+## Point tracé depuis `from` (côté de polygone, mur) : sommet sur la grille,
+## côté aimanté à un multiple de 45° sauf en angle libre.
+func snap_from(from: Vector2, m: Vector2) -> Vector2:
+	return MapGeom.snap_angle(from, m, step(), angle_free())
+
+
+## Bout du tracé en cours (mur au glisser, point suivant du polygone).
+func trace_end() -> Vector2:
+	var tool := String(_item().get("tool", ""))
+	if tool == "wall" and drag.get("kind", "") == "create":
+		return snap_from(drag.start, mouse_m)
+	if tool == "room_poly" and not poly_pts.is_empty():
+		return snap_from(poly_pts[-1], mouse_m)
+	if tool == "room_rect" and drag.get("kind", "") == "create" and ed.place_rot == 45:
+		return rect45_end(drag.start, snap(mouse_m))
+	return snap(mouse_m)
+
+
+## Rectangle à 45° : `b` décalé d'une demi-case si besoin pour que les quatre
+## sommets tombent sur la grille de 0,5 m.
+static func rect45_end(a: Vector2, b: Vector2) -> Vector2:
+	var d := b - a
+	if absf(fposmod(d.x + d.y, 1.0)) > 0.01 and absf(fposmod(d.x + d.y, 1.0) - 1.0) > 0.01:
+		b.x += 0.5
+	return b
+
+
+## Contour d'un rectangle tourné de 45° dont `a` et `b` sont deux coins opposés.
+static func rect45_poly(a: Vector2, b: Vector2) -> PackedVector2Array:
+	var d := b - a
+	var s := (d.x + d.y) * 0.5
+	var t := (d.x - d.y) * 0.5
+	return PackedVector2Array([a, a + Vector2(s, s), b, a + Vector2(t, -t)])
+
+
 ## Centre la vue sur un point (m).
 func center_on(m: Vector2) -> void:
 	origin = size * 0.5 - m * zoom
@@ -226,6 +270,8 @@ func _press(double: bool) -> void:
 			if poly_pts.size() >= 3 and (double or to_px(p).distance_to(to_px(poly_pts[0])) < 10.0):
 				_finish_poly()
 				return
+			if not poly_pts.is_empty():
+				p = snap_from(poly_pts[-1], mouse_m)
 			if poly_pts.is_empty() or poly_pts[-1].distance_to(p) > 0.01:
 				poly_pts.append(p)
 		"opening", "wall_item", "floor_item":
@@ -244,7 +290,7 @@ func _release() -> void:
 	var kind := String(drag.kind)
 	if kind == "create":
 		var it := _item()
-		var res := _creation(it, drag.start, snap(mouse_m))
+		var res := _creation(it, drag.start, trace_end())
 		drag = {}
 		if res.is_empty():
 			return
@@ -265,7 +311,7 @@ func _creation(it: Dictionary, a: Vector2, b: Vector2) -> Dictionary:
 	match String(it.tool):
 		"room_rect":
 			var r := Rect2(a, Vector2.ZERO).expand(b)
-			var poly := MapGeom.rect_poly(r)
+			var poly := MapGeom.rect_poly(r) if ed.place_rot != 45 else rect45_poly(a, b)
 			var res := MapRules.check_room(ed.doc, k, poly)
 			res["obj"] = {"contour": MapGeom.poly_arr(poly)}
 			return res
@@ -334,7 +380,7 @@ func _update_preview() -> void:
 			res = MapRules.place_wall_item(ed.doc, k, o, mouse_m)
 			if res.ok:
 				o["position"] = res.position
-				o["mur"] = res.mur
+				MapRules.apply_wall(o, res)
 		"floor_item":
 			res = MapRules.place_floor_item(ed.doc, k, o, mouse_m)
 			if res.ok:
@@ -343,6 +389,7 @@ func _update_preview() -> void:
 		o["position"] = MapGeom.arr(snap(mouse_m))
 		if tool == "wall_item":
 			o["mur"] = "n"
+			o.erase("angle")
 	res["obj"] = o
 	preview = res
 
@@ -583,6 +630,7 @@ func _draw_cells(k: int) -> void:
 	var j0 := maxi(0, floori(m0.y / MapGeom.CELL) - 1)
 	var j1 := mini(f.h - 1, ceili(m1.y / MapGeom.CELL) + 1)
 	var cs := zoom * MapGeom.CELL
+	var dc: Dictionary = r.v.diag_cells[k] if k < r.v.diag_cells.size() else {}
 	for j in range(j0, j1 + 1):
 		var run_kind := -1
 		var run_start := 0
@@ -591,6 +639,8 @@ func _draw_cells(k: int) -> void:
 			var shown := kd if kd in [MapValidator.K.MUR, MapValidator.K.TREMIE, MapValidator.K.PORTE, MapValidator.K.DEBRIS, MapValidator.K.FENETRE] else -1
 			if shown == MapValidator.K.MUR and f.key[j * f.w + i].begins_with("decor#"):
 				shown = -1
+			if shown >= 0 and dc.has(Vector2i(i, j)):
+				shown = -1   # mur en biais : dessiné en vrai mur oblique (plus bas)
 			if shown != run_kind:
 				if run_kind >= 0:
 					var p := to_px(MapGeom.cell_center(Vector2i(run_start, j))) - Vector2.ONE * cs * 0.5
@@ -608,6 +658,43 @@ func _draw_cells(k: int) -> void:
 							draw_rect(rect, Color(0.1, 0.45, 1.0))
 				run_kind = shown
 				run_start = i
+	_draw_obliques(r.v, k)
+
+
+## Couleur d'une ouverture dessinée (porte, débris, fenêtre, passage).
+const OPENING_COLORS := {"porte": Color(1.0, 0.67, 0.0), "porte_courant": Color(1.0, 0.67, 0.0), "debris": Color(0.67, 0.4, 0.15),
+	"fenetre": Color(0.1, 0.45, 1.0), "passage": Color(0.16, 0.17, 0.19)}
+
+
+## Pavé d'un mur (ou d'une ouverture) en biais, en pixels.
+func _slab_px(a: Vector2, b: Vector2, half: float) -> PackedVector2Array:
+	var t := (b - a).normalized()
+	var n := Vector2(-t.y, t.x) * half
+	return _px_poly(PackedVector2Array([a + n, b + n, b - n, a - n]))
+
+
+## Murs en biais de l'étage : vrais murs obliques (comme en jeu), jonctions
+## arrondies, ouvertures posées dessus.
+func _draw_obliques(v: MapValidator, k: int) -> void:
+	if k >= v.oblique_walls.size():
+		return
+	var view := Rect2(Vector2.ZERO, size).grow(zoom)
+	for w in v.oblique_walls[k]:
+		var poly := _slab_px(w.a, w.b, float(w.half))
+		if not MapGeom.bbox(poly).intersects(view):
+			continue
+		draw_colored_polygon(poly, COL_WALL)
+		for e in [w.a, w.b]:
+			draw_circle(to_px(e), float(w.half) * zoom, COL_WALL)
+	for key in v.diag_open:
+		var o: Dictionary = v.diag_open[key]
+		if int(o.floor) != k:
+			continue
+		var p: Vector2 = o.p
+		var t: Vector2 = o.t
+		var hw := float(o.w) * 0.5
+		var poly := _slab_px(p - t * hw, p + t * hw, float(o.half) + 0.02)
+		draw_colored_polygon(poly, OPENING_COLORS.get(String(o.type), COL_OK))
 
 
 func _draw_object(o: Dictionary, font: Font, alpha: float) -> void:
@@ -674,6 +761,19 @@ func _draw_object(o: Dictionary, font: Font, alpha: float) -> void:
 		if t == "luminaire" and o.get("id", "") == ed.selected:
 			draw_arc(rp.get_center(), float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
 		return
+	# Objet contre un mur en biais : emprise tournée comme le mur.
+	if MapGeom.item_oblique(o) and MapCatalog.tool_of(o) == "wall_item":
+		var poly := _px_poly(MapRules.wall_item_poly(o))
+		draw_colored_polygon(poly, Color(0, 0, 0, 0.35 * alpha))
+		var c := MapGeom.centroid(poly)
+		var so := maxf(12.0, minf(rp.size.x, rp.size.y) * 0.8)
+		if t == "luminaire":
+			so = maxf(14.0, zoom * 0.9)
+		MapIcons.draw(self, it, Rect2(c - Vector2(so, so) * 0.5, Vector2(so, so)))
+		draw_polyline(poly + PackedVector2Array([poly[0]]), Color(col, 0.8 * alpha), 1.0)
+		if t == "luminaire" and o.get("id", "") == ed.selected:
+			draw_arc(c, float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
+		return
 	# Objets muraux et au sol : icône dans leur emprise.
 	draw_rect(rp, Color(0, 0, 0, 0.35 * alpha))
 	var s := maxf(12.0, minf(rp.size.x, rp.size.y) * 1.1)
@@ -699,33 +799,61 @@ func _draw_opening(o: Dictionary, font: Font) -> void:
 	draw_string(font, p + Vector2(-w * 0.5, 4), s, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.9, 0.5))
 
 
+## Étiquette sur fond sombre (mesures du tracé).
+func _label_at(font: Font, p: Vector2, lbl: String) -> void:
+	draw_string_outline(font, p, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color.BLACK)
+	draw_string(font, p, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
+
+
+## Longueur et angle du côté ou du mur en cours de tracé (« 4,24 m · 45° »),
+## avec « angle libre » quand Alt est maintenu.
+func _trace_label(font: Font, a: Vector2, b: Vector2) -> void:
+	var d := b - a
+	if d.length() < 0.01:
+		return
+	var fr := not Lang.is_en()
+	var lbl := "%s m · %s°" % [MapRules._m(snappedf(d.length(), 0.01), fr), MapRules._m(snappedf(MapGeom.line_angle(d), 0.1), fr)]
+	if angle_free():
+		lbl += Lang.t(" (angle libre)", " (free angle)")
+	_label_at(font, to_px(b) + Vector2(12, -10), lbl)
+
+
 func _draw_tool(font: Font) -> void:
 	var it := _item()
 	var tool := String(it.get("tool", "select"))
 	var col := COL_OK
 	var msg := ""
 	if drag.get("kind", "") == "create":
-		var res := _creation(it, drag.start, snap(mouse_m))
+		var end := trace_end()
+		var res := _creation(it, drag.start, end)
 		if not res.is_empty():
 			col = COL_OK if res.ok else COL_BAD
 			msg = "" if res.ok else MapRules.why(res)
 			var a := to_px(drag.start)
-			var b := to_px(snap(mouse_m))
+			var b := to_px(end)
 			if tool == "wall":
 				draw_line(a, b, Color(col, 0.8), maxf(3.0, zoom * 0.5))
+				_trace_label(font, drag.start, end)
+			elif tool == "room_rect" and ed.place_rot == 45:
+				var pts := _px_poly(rect45_poly(drag.start, end))
+				draw_colored_polygon(pts, Color(col, 0.2))
+				draw_polyline(pts + PackedVector2Array([pts[0]]), col, 2.0)
+				var q := rect45_poly(drag.start, end)
+				var lbl := "%s × %s m · 45°" % [MapRules._m(q[0].distance_to(q[1]), not Lang.is_en()), MapRules._m(q[0].distance_to(q[3]), not Lang.is_en())]
+				_label_at(font, b + Vector2(10, -8), lbl)
 			else:
 				var r := Rect2(a, Vector2.ZERO).expand(b)
 				draw_rect(r, Color(col, 0.2))
 				draw_rect(r, col, false, 2.0)
-				var sz := (snap(mouse_m) - Vector2(drag.start)).abs()
+				var sz := (end - Vector2(drag.start)).abs()
 				var lbl := "%s × %s m" % [MapRules._m(sz.x, not Lang.is_en()), MapRules._m(sz.y, not Lang.is_en())]
-				draw_string_outline(font, b + Vector2(10, -8), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, Color.BLACK)
-				draw_string(font, b + Vector2(10, -8), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
+				_label_at(font, b + Vector2(10, -8), lbl)
 	elif tool == "room_poly" and not poly_pts.is_empty():
+		var end := trace_end()
 		var pts := _px_poly(poly_pts)
-		pts.append(to_px(snap(mouse_m)))
+		pts.append(to_px(end))
 		var test := poly_pts.duplicate()
-		test.append(snap(mouse_m))
+		test.append(end)
 		var res := MapRules.check_room(ed.doc, ed.floor_k, test) if test.size() >= 3 else {"ok": true}
 		col = COL_OK if res.ok else COL_BAD
 		if test.size() >= 3:
@@ -734,18 +862,31 @@ func _draw_tool(font: Font) -> void:
 		for q in pts:
 			draw_circle(q, 4.0, col)
 		draw_arc(to_px(poly_pts[0]), 10.0, 0, TAU, 20, Color(1, 1, 1, 0.6), 1.5)
+		_trace_label(font, poly_pts[-1], end)
 	elif tool in ["opening", "wall_item", "floor_item"] and not preview.is_empty():
 		var o: Dictionary = preview.obj
 		col = COL_OK if preview.ok else COL_BAD
 		if not preview.ok:
 			msg = MapRules.why(preview)
-		if tool == "opening":
+		if tool == "opening" and preview.has("dir"):
+			# Ouverture sur un mur en biais : tournée comme le mur.
+			var t := MapGeom.v2(preview.dir)
+			var p := MapGeom.v2(o.position)
+			var hw := MapRules.opening_width(o) * 0.5
+			var poly := _slab_px(p - t * hw, p + t * hw, MapGeom.WALL_HALF + 0.05)
+			draw_colored_polygon(poly, Color(col, 0.55))
+			draw_polyline(poly + PackedVector2Array([poly[0]]), col, 2.0)
+		elif tool == "opening":
 			var p := to_px(MapGeom.v2(o.position))
 			var w := MapRules.opening_width(o) * zoom
 			var horiz := bool(preview.get("horizontal", true))
 			var r := Rect2(p - (Vector2(w, zoom * 0.5) if horiz else Vector2(zoom * 0.5, w)) * 0.5, Vector2(w, zoom * 0.5) if horiz else Vector2(zoom * 0.5, w))
 			draw_rect(r.grow(2), Color(col, 0.55))
 			draw_rect(r.grow(2), col, false, 2.0)
+		elif MapGeom.item_oblique(o) and tool == "wall_item":
+			_draw_object(o, font, 0.8)
+			var poly := _px_poly(MapRules.wall_item_poly(o))
+			draw_polyline(poly + PackedVector2Array([poly[0]]), col, 2.0)
 		else:
 			_draw_object(o, font, 0.8)
 			var r := MapRules.footprint_rect(o)
@@ -760,7 +901,7 @@ func _draw_tool(font: Font) -> void:
 		draw_rect(Rect2(p + Vector2(-6, -15), Vector2(w + 12, 21)), Color(0.15, 0.02, 0.02, 0.92))
 		draw_rect(Rect2(p + Vector2(-6, -15), Vector2(w + 12, 21)), COL_BAD, false, 1.0)
 		draw_string(font, p, msg, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.85, 0.8))
-	# Curseur aimanté.
-	var sp := to_px(snap(mouse_m))
+	# Curseur aimanté (bout du tracé en cours : grille et angle).
+	var sp := to_px(trace_end())
 	draw_line(sp - Vector2(6, 0), sp + Vector2(6, 0), Color(1, 1, 1, 0.5), 1.0)
 	draw_line(sp - Vector2(0, 6), sp + Vector2(0, 6), Color(1, 1, 1, 0.5), 1.0)

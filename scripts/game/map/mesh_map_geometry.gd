@@ -16,6 +16,8 @@ extends RefCounted
 
 var _groups: Dictionary = {}   # clé -> {v, n, faces, boxes, convex}
 var _kind := "wall"
+## Collisions des murs en biais (clé « obliques ») : pavés CollisionBox tournés.
+var _col_boxes: Array[CollisionBox] = []
 
 
 static func build(layout: Dictionary) -> Node3D:
@@ -63,6 +65,46 @@ func _box(g: Dictionary, center: Vector3, size: Vector3, yaw: float, vis := true
 				_quad(g, [c - a - b, c + a - b, c + a + b, c - a + b], n * s)
 	if col:
 		g.boxes.append([Transform3D(Basis(ux, Vector3.UP, uz), center), size])
+
+
+## Morceaux pleins d'un mur de `s0` à `s1` (le long du mur) et de `y0` à
+## `y1`, percé des ouvertures `cuts` [{t (milieu), w, y0, y1}] : de part et
+## d'autre de chaque ouverture, allège dessous et linteau dessus.
+## -> [[début, fin, bas, haut]].
+static func wall_pieces(s0: float, s1: float, y0: float, y1: float, cuts: Array) -> Array:
+	var sorted := cuts.duplicate()
+	sorted.sort_custom(func(p, q): return float(p.t) < float(q.t))
+	var pieces := []
+	var s := s0
+	for o in sorted:
+		var o0 := float(o.t) - float(o.w) / 2.0
+		var o1 := float(o.t) + float(o.w) / 2.0
+		if o0 > s:
+			pieces.append([s, o0, y0, y1])
+		if float(o.y0) > y0:
+			pieces.append([o0, o1, y0, float(o.y0)])
+		if float(o.y1) < y1:
+			pieces.append([o0, o1, float(o.y1), y1])
+		s = o1
+	pieces.append([s, s1, y0, y1])
+	return pieces
+
+
+## Pavé orienté visible dont les deux grandes faces ont chacune leur
+## matériau : face +z (normale du mur) -> `gn`, face -z -> `gm`, dessus,
+## dessous et bouts -> `gn`.
+func _two_sided_box(gn: Dictionary, gm: Dictionary, center: Vector3, size: Vector3, yaw: float) -> void:
+	var ux := Vector3(cos(yaw), 0, -sin(yaw))
+	var uz := Vector3(sin(yaw), 0, cos(yaw))
+	var h := size * 0.5
+	for axis in [[ux, h.x, Vector3.UP, h.y, uz, h.z], [Vector3.UP, h.y, ux, h.x, uz, h.z], [uz, h.z, ux, h.x, Vector3.UP, h.y]]:
+		var n: Vector3 = axis[0]
+		var a: Vector3 = axis[2] * float(axis[3])
+		var b: Vector3 = axis[4] * float(axis[5])
+		for s in [1.0, -1.0]:
+			var c: Vector3 = center + n * float(axis[1]) * s
+			var g := gm if (n == uz and s < 0.0) else gn
+			_quad(g, [c - a - b, c + a - b, c + a + b, c - a + b], n * s)
 
 
 ## Face plane d'un contour [[x, z]...] à la hauteur height_fn(x, z).
@@ -166,25 +208,40 @@ func _build(L: Dictionary) -> Node3D:
 			var d := (bb - a) / length
 			var yaw := atan2(-d.z, d.x)
 			var cuts: Array = w.get("openings", []).filter(func(o): return int(o.seg) == si)
-			cuts.sort_custom(func(p, q): return float(p.t) < float(q.t))
-			var pieces := []
-			var s := -t / 2.0
-			for o in cuts:
-				var o0 := float(o.t) - float(o.w) / 2.0
-				var o1 := float(o.t) + float(o.w) / 2.0
-				if o0 > s:
-					pieces.append([s, o0, y0, y1])
-				if float(o.y0) > y0:
-					pieces.append([o0, o1, y0, float(o.y0)])
-				if float(o.y1) < y1:
-					pieces.append([o0, o1, float(o.y1), y1])
-				s = o1
-			pieces.append([s, length + t / 2.0, y0, y1])
-			for pc in pieces:
+			for pc in wall_pieces(-t / 2.0, length + t / 2.0, y0, y1, cuts):
 				if pc[1] - pc[0] < 0.001 or pc[3] - pc[2] < 0.001:
 					continue
 				var c: Vector3 = a + d * ((pc[0] + pc[1]) * 0.5) + Vector3.UP * ((pc[2] + pc[3]) * 0.5)
 				_box(g, c, Vector3(pc[1] - pc[0], pc[3] - pc[2], t), yaw)
+	# Murs en biais (cartes de l'éditeur) : vrais murs droits obliques, une
+	# texture par face (celle de la pièce de chaque côté), collisions en
+	# pavés CollisionBox tournés comme le mur (balles, grenades, joueurs et
+	# zombies suivent le vrai mur ; le navmesh est cuit dessus). Type
+	# « biais » : le rendu pose le motif le long du mur (MeshMapBuilder).
+	_kind = "biais"
+	for w in L.get("obliques", []):
+		var a := Vector3(float(w.a[0]), 0, float(w.a[1]))
+		var bb := Vector3(float(w.b[0]), 0, float(w.b[1]))
+		var length := a.distance_to(bb)
+		if length < 0.001:
+			continue
+		var d := (bb - a) / length
+		var yaw := atan2(-d.z, d.x)
+		var t := float(w.get("thick", 0.5))
+		var y0 := float(w.y0)
+		var y1 := float(w.y1)
+		var mat_n := String(w.get("mat_n", "wall"))
+		var gn := _group(mat_n, String(w.get("room", "x")))
+		var gm := _group(String(w.get("mat_m", mat_n)), String(w.get("room", "x")))
+		for pc in wall_pieces(0.0, length, y0, y1, w.get("openings", [])):
+			if pc[1] - pc[0] < 0.001 or pc[3] - pc[2] < 0.001:
+				continue
+			var c: Vector3 = a + d * ((pc[0] + pc[1]) * 0.5) + Vector3.UP * ((pc[2] + pc[3]) * 0.5)
+			var size := Vector3(pc[1] - pc[0], pc[3] - pc[2], t)
+			_two_sided_box(gn, gm, c, size, yaw)
+			var cb := CollisionBox.make(c, size, yaw, false, mat_n)
+			cb.name = "Biais_%d" % _col_boxes.size()
+			_col_boxes.append(cb)
 	# Dalles (balcons, mezzanines).
 	_kind = "slab"
 	for sl in L.get("slabs", []):
@@ -277,4 +334,6 @@ func _nodes() -> Node3D:
 			cs.shape = shape
 			body.add_child(cs)
 		root.add_child(body)
+	for cb in _col_boxes:
+		root.add_child(cb)
 	return root

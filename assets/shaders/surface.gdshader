@@ -21,6 +21,9 @@ uniform float glow = 0.0;
 // Sol de la salle (cartes à plusieurs niveaux) : lambris, bande peinte et
 // salissures se placent par rapport à lui, pas à y = 0.
 instance uniform float floor_y = 0.0;
+// Mur en biais (cartes de l'éditeur) : 1 = motif posé le long du mur (sinon
+// selon l'axe x ou z le plus proche, étiré sur un mur à 45°).
+instance uniform float oblique = 0.0;
 
 varying vec3 wpos;
 varying vec3 wnorm;
@@ -61,6 +64,14 @@ void fragment() {
 	vec2 uv;
 	if (vertical) {
 		float along = abs(n.x) > abs(n.z) ? wpos.z : wpos.x;
+		if (oblique > 0.5) {
+			// Direction du mur, orientée comme sur un mur droit (pas de miroir).
+			vec2 t = normalize(vec2(-n.z, n.x));
+			if ((abs(t.x) >= abs(t.y) ? t.x : t.y) < 0.0) {
+				t = -t;
+			}
+			along = dot(wpos.xz, t);
+		}
 		uv = vec2(along, wpos.y);
 	} else {
 		uv = wpos.xz;

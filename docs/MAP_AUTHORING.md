@@ -58,6 +58,8 @@ automatique non enregistrée, il propose de la reprendre.
 | Zoom | Ctrl + molette (ou + / -) |
 | Déplacer la vue | clic milieu + glisser, ou Espace + glisser |
 | Aimantation | 1 m ; 0,5 m en maintenant Maj |
+| Angle d'un mur ou d'un côté de polygone | 0, 45 ou 90° (multiples de 45°) ; angle libre en maintenant Alt ; longueur et angle affichés pendant le tracé |
+| Rectangle à 45° | Pièce rectangle en main : R (le glisser va d'un coin au coin opposé du losange) |
 | Case de la barre rapide | 1 à 9, molette |
 | Inventaire | E ou Tab |
 | Pivoter de 90° | R (une pièce pivote avec son contenu ; un décor ou un luminaire tenu pivote avant d'être posé) |
@@ -76,6 +78,31 @@ redimensionner (coins et milieux des côtés d'une pièce rectangle, sommets d'u
 polygone, coins d'un pilier, d'un escalier ou d'un piège, bouts d'un mur). Un
 élément devenu invalide (une fenêtre restée sur l'ancien mur d'une pièce
 agrandie…) est entouré de rouge avec la raison dans la barre d'état.
+
+### Murs en biais
+
+![Octogone et losange collés par un côté en biais, porte et fenêtres en biais](map_authoring/murs_biais_editeur.png)
+![En jeu : porte dans le mur en biais, murs obliques lisses](map_authoring/murs_biais_jeu.png)
+
+- **Tracer** : avec la Pièce polygone ou le Mur, chaque côté part du point
+  précédent à 0, 45 ou 90° (les sommets restent sur la grille de 1 m, 0,5 m
+  avec Maj) ; **Alt** maintenu : angle libre (sommets toujours sur la
+  grille). La longueur et l'inclinaison du côté en cours s'affichent à côté
+  du curseur (« 5,66 m · 45° »). **Pièce rectangle + R** : rectangle tourné
+  de 45° (losange), glissé d'un coin au coin opposé.
+- **Mur mitoyen** : deux pièces qui partagent un côté en biais n'ont qu'un
+  mur, qui montre de chaque côté la texture de sa pièce.
+- **Ouvertures** (porte, débris, porte du courant, passage, fenêtre) et
+  **objets muraux** (atouts, armes, boîte, machines, levier, applique) se
+  posent aussi sur un mur en biais, orientés selon le mur, avec les mêmes
+  règles (porte seulement sur le bord commun de deux pièces collées, fenêtre
+  sur un mur extérieur avec 2,5 × 3 m de vide dehors, 0,5 m de mur plein aux
+  bouts, mur plein derrière un objet). Sur un côté à 45°, le milieu d'une
+  ouverture tombe sur la grille de 0,25 m.
+- **En jeu** : de vrais murs droits obliques (pas de marches), collisions en
+  pavés `CollisionBox` tournés (balles, grenades, joueurs et zombies suivent le
+  vrai mur), un raccord aux angles entre deux murs en biais ; le sol et le
+  plafond suivent le vrai contour.
 
 ## 2 bis. Objets sur la carte (liste)
 
@@ -168,7 +195,7 @@ raison à côté du curseur (`MapRules`) :
 - **Porte payante, débris, porte ouverte par le courant, passage libre** :
   seulement sur le **bord commun de deux pièces collées** du même étage (une
   porte ne donne que sur une autre pièce) ; elle relie exactement ces deux
-  pièces. Mur droit (horizontal ou vertical), 0,5 m de mur plein à chaque
+  pièces. Mur droit ou en biais, 0,5 m de mur plein à chaque
   bout et entre deux ouvertures. Prix réglable ; par défaut ceux de BO1 : la
   première 750, la deuxième 1000, les suivantes 1250. Largeur réglable (2 m par
   défaut ; BO1 : 1,5 à 3 m). Le passage libre n'a pas de porte : les deux
@@ -363,7 +390,7 @@ carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
 
 ```json
 {
- "format": 2,
+ "format": 3,
  "id": "draft_arena",
  "nom": {"fr":"DRAFT ARENA","en":"DRAFT ARENA"},
  "description": {"fr":"…","en":"…"},
@@ -377,11 +404,13 @@ carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
 }
 ```
 
-`format` : version du format (**2** ; `EditorMap.FORMAT`). Historique : 1 =
+`format` : version du format (**3** ; `EditorMap.FORMAT`). Historique : 1 =
 premières cartes ; 2 = décor (`prefab`), luminaires (`luminaire`), textures
-par pièce et plafond des zones. Une carte au **format 1 se lit telle quelle**
-(toutes les nouvelles clés sont facultatives, `EditorMap._migrate`) et
-s'enregistre au format 2 ; DRAFT ARENA est restée au format 1 pour le prouver.
+par pièce et plafond des zones ; 3 = murs en biais (clé `angle` des objets
+muraux posés contre un mur en biais). Une carte au **format 1 ou 2 se lit
+telle quelle** (toutes les nouvelles clés sont facultatives,
+`EditorMap._migrate`) et s'enregistre au format 3 ; DRAFT ARENA est restée
+au format 1 pour le prouver (sa carte construite est identique).
 Une carte d'un format plus récent que le jeu est signalée. `id` : dossier ; `musique` : un son
 `assets/audio/ambience_*` ; `hauteur_portes` (m) ; `lampes_auto` : une lampe
 tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
@@ -402,7 +431,9 @@ tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
 `zones.json` ; facultatifs : `plafond` (hauteur sous plafond, m),
 `double_hauteur` (true), et (format 2) les **textures** `surface_sol`,
 `surface_murs`, `surface_plafond` : clés de `WorldLook.SURFACES` ; absentes,
-celles de la zone. Une pièce rectangle a 4 sommets alignés sur les axes.
+celles de la zone. Une pièce rectangle a 4 sommets alignés sur les axes ; un
+côté en biais est simplement un côté dont les deux sommets ne sont ni sur la
+même ligne ni sur la même colonne (rien d'autre à écrire).
 
 **`ouvertures.json`** — portes, débris, passages, fenêtres :
 
@@ -420,7 +451,9 @@ celles de la zone. Une pièce rectangle a 4 sommets alignés sur les axes.
 `type` : `porte`, `debris`, `porte_courant` (sans prix), `passage` (sans
 prix), `fenetre` (1 m, sans largeur) ; `position` : le **milieu** de
 l'ouverture, **sur le trait du mur** ; `largeur` (m, multiple de 0,5 ; pour
-un nombre pair de demi-mètres, le milieu tombe à 0,25 m de la grille).
+un nombre pair de demi-mètres, le milieu tombe à 0,25 m de la grille). Sur un
+mur en biais, `position` est aussi sur le trait et `largeur` se mesure le
+long du mur ; son orientation se lit sur le côté de pièce qui passe par là.
 
 **`objets.json`** — tout le reste :
 
@@ -433,6 +466,7 @@ un nombre pair de demi-mètres, le milieu tombe à 0,25 m de la grille).
   {"id":"s1","type":"depart","etage":0,"position":[12,26]},
   {"id":"a2","type":"atout","atout":"titan","etage":0,"position":[17,14],"mur":"e"},
   {"id":"w1","type":"arme","arme":"m14","etage":0,"position":[13.25,33],"mur":"s"},
+  {"id":"w2","type":"arme","arme":"mp5k","etage":0,"position":[16,4],"mur":"n","angle":45},
   {"id":"b2","type":"boite","etage":0,"position":[20.5,29.25],"mur":"e","depart":true},
   {"id":"t1","type":"piege","etage":0,"rect":[5,5,7,9]},
   {"id":"c1","type":"courant","etage":1,"position":[2.5,7.5],"mur":"o"},
@@ -446,11 +480,15 @@ un nombre pair de demi-mètres, le milieu tombe à 0,25 m de la grille).
 - Rectangles (`pilier`, `escalier`, `piege`) : `rect` = [x0, y0, x1, y1]. Un
   pilier a son contour sur le trait (comme un mur de pièce) ; les marches et la
   zone de piège sont les cases à l'intérieur. `monte` : `n`, `e`, `s`, `o`.
-- `mur` libre : segment `a` → `b`, `epaisseur` 0,5, 1,5 ou 2,5 m.
+- `mur` libre : segment `a` → `b` (droit ou en biais), `epaisseur` 0,5, 1,5 ou 2,5 m.
 - Objets muraux (`atout` + `atout`, `arme` + `arme`, `grenades`, `boite` +
   `depart`, `pap`, `courant`, `poste_central`, `levier`) : `position` = milieu
   de l'objet **sur le trait du mur**, `mur` = direction du mur vu depuis
-  l'objet (`n` : le mur est au nord). Identifiants d'atouts et d'armes : ceux
+  l'objet (`n` : le mur est au nord). Contre un mur en biais (format 3) :
+  `angle` = direction exacte du mur vue depuis l'objet, en degrés dans le
+  sens horaire depuis le nord (`n` = 0, `e` = 90, `s` = 180, `o` = 270 ; 45 :
+  mur au nord-est), nombre fini de 0 à 360 ; `mur` garde la direction
+  cardinale la plus proche. Sans `angle`, l'objet suit `mur` comme avant. Identifiants d'atouts et d'armes : ceux
   de `PerkDB` / `WeaponDB` / `KnifeDB` (`titan`, `lazarus`, `m14`, `bowie`…).
 - Objets au sol (`depart`, `apparition`, `teleporteur`, `arrivee`, `lampe`,
   `caisse`, `baril`) : `position` = centre. Un seul départ : les 4 joueurs se
@@ -478,6 +516,9 @@ le catalogue.
   (atouts, armes, prefabs, luminaires, directions, rotations…), `{"t":
   "point"}` ([x, y] en m, 0 à `MapCatalog.MAX_COORD`), `{"t": "rect"}`,
   `{"t": "color"}` (« #rrggbb »). Tout type ou toute clé absent est à refuser.
+  Format 3 : `angle` des objets muraux et des luminaires = `{"t": "number",
+  "min": 0, "max": 360}` (nombre fini ; un NaN, un infini, un texte ou un angle
+  sur un objet qui n'est pas mural sont refusés).
 - `MapCatalog.allowed_surfaces()` : les textures admises (clés triées de
   `WorldLook.SURFACES`).
 - `MapCatalog.room_keys()` / `MapCatalog.zone_keys()` : clés admises d'une
@@ -528,6 +569,15 @@ celui du jeu aussi.
    d'étage au-dessus du vide y pose son plancher (mezzanine). Escalier : cases
    de marches, vide au-dessus. Objets : leurs cases. Zones : la zone de départ
    devient `a` (celle que le jeu ouvre au début), les autres `b`, `c`…
+   **Murs en biais** : les cases **coupées** par le mur de 0,5 m (même un
+   peu : marquage prudent, `MapGeom.slab_cells`) sont des murs, de sorte que
+   la grille ne laisse jamais passer à travers ; les côtés colinéaires de deux
+   pièces fusionnent en un seul mur oblique (`MapValidator.oblique_walls`,
+   pièce de chaque côté) ; une ouverture en biais prend les cases coupées sur
+   sa largeur, ses deux côtés sont vérifiés par le validateur
+   (`_diag_opening`) ; un objet mural en biais prend les cases de son emprise
+   tournée, hors cases du mur. Les cases qui ne sont que des cases de murs en
+   biais (`diag_cells`) ne sont pas construites en blocs.
 2. **Validation** (`MapValidator`, §5).
 3. **Description en maillage** (`MapLayoutExport`) : salles (sols, plafonds,
    dalles d'étage), murs, allèges et linteaux en blocs, garde-corps,
@@ -539,11 +589,24 @@ celui du jeu aussi.
    face avec la texture de la pièce qui la touche), réglages de la carte
    (`map_def` : noms des zones dans la langue du jeu, prix des portes, zones
    ouvertes l'une sur l'autre, départ de la boîte, téléporteur à relier si un
-   poste central est posé).
+   poste central est posé). Murs en biais : clé `obliques` (`a`, `b`, `y0`,
+   `y1`, `thick`, `mat_n` / `mat_m` : texture de chaque face, `openings` :
+   portes, fenêtres et passages découpés, `joint` : raccord d'angle) ; le sol
+   et le plafond le long d'un mur en biais sont les cases coupées par le mur
+   **découpées selon le vrai contour** de la pièce (salles `biais_*`,
+   triangulées), le reste de la pièce garde ses rectangles de cases ; portes
+   et fenêtres en biais : milieu exact, lacet et direction vers l'intérieur
+   du mur ; cour d'une fenêtre en biais tournée comme le mur.
 4. **Géométrie** (`MeshMapGeometry`) : les mêmes objets que le `.glb` de
    `mesh_map.py` (`<matériau>__<salle>__<type>`, collisions en pavés et prismes),
    branchés par `MeshMapBuilder` ; `MeshNav` cuit le navmesh, `MeshMapLayout`
-   fournit zones et emplacements aux systèmes du jeu. **Aucune étape Blender** :
+   fournit zones et emplacements aux systèmes du jeu. Un mur en biais est un
+   pavé oblique (type `biais` : le rendu pose le motif le long du mur, sans
+   étirement) avec une texture par face, et sa collision un pavé
+   `CollisionBox` tourné comme lui (jamais une collision de modèle Blender) :
+   balles, grenades, impacts, joueurs et zombies suivent le vrai mur, et le
+   navmesh des zombies et des chiens est cuit dessus (chemins qui le
+   contournent, porte en biais reliée par son passage). **Aucune étape Blender** :
    une carte de l'éditeur se joue aussitôt, y compris dans le `.exe`.
 
 Déclarer une carte livrée avec le jeu : ses JSON dans `assets/maps/<id>/`, un
@@ -594,6 +657,20 @@ Preuves automatiques :
   copier / coller, poignée ; puis une salle décorée (décor et luminaires de
   l'inventaire, R, refus, couleur, textures), l'onglet « Objets sur la
   carte » (survol, page 2) et la pièce en jeu (TESTER).
+- `tests/test_map_editor_diagonal.gd` : aimantation d'angle (0, 45, 90°,
+  angle libre, rectangle à 45°), mur mitoyen en biais unique, porte, fenêtre
+  et objets muraux sur un mur en biais acceptés et refusés selon les règles,
+  validateur, sol qui suit le vrai contour (triangulation, pièce concave),
+  collisions (un rayon et un corps ne traversent pas le mur oblique, la
+  fenêtre laisse passer), navigation (chemin qui contourne le mur, passage par
+  la porte en biais), format 3 relu à l'identique, formats 1 et 2 lus, DRAFT
+  ARENA sans rien d'oblique.
+- `tests/autotest/map_editor_diagonal.gd` (captures) : octogone au polygone,
+  losange à la Pièce rectangle + R, mur libre en biais, angle libre (Alt),
+  porte refusée puis posée en biais, fenêtres, arme et atout en biais,
+  vérification, format 3 ; puis TESTER : rayon et joueur arrêtés par le mur,
+  zombies qui entrent par la fenêtre en biais et rejoignent le joueur en
+  contournant le mur en biais sans le traverser, un rampant aussi.
 - `tests/autotest/map_editor_play.gd` : TESTER sur DRAFT ARENA, partie solo sur
   la carte de l'éditeur, retour dans l'éditeur.
 - `tests/autotest/draft_arena.gd` : la carte se joue (zombies aux fenêtres,
@@ -602,8 +679,9 @@ Preuves automatiques :
   dans le désordre, manquants, en double, trop gros, empreinte fausse,
   contrôle de légitimité (clé ou type inconnu, chaîne géante, infini,
   coordonnée énorme, chemin `../`, faux JSON, JSON trop profond, BBCode dans
-  le nom, fichier en plus...), DRAFT ARENA acceptée, cache par hash, archive
-  .zip piégée refusée.
+  le nom, fichier en plus...), DRAFT ARENA acceptée, carte à murs en biais
+  acceptée (même empreinte) et angles refusés (400, -5, infini, texte),
+  cache par hash, archive .zip piégée refusée.
 - `sh tools/mp_test.sh custommap` : hôte + invité sans fenêtre ; carte perso
   choisie avant l'arrivée de l'invité, téléchargée, DÉMARRER grisé pendant le
   téléchargement, cartes corrompue et piégée refusées (partie non démarrée),
@@ -633,9 +711,11 @@ Preuves automatiques :
 
 - **Sols plats par étage** : pas encore de pente ni de petites marches entre
   deux pièces d'un même étage.
-- **Grille de 0,5 m** : les murs en biais d'une pièce polygone deviennent un
-  escalier de cases dans le jeu ; portes et fenêtres seulement sur les murs
-  droits (horizontaux ou verticaux).
+- **Murs en biais** : les sommets restent sur la grille de 0,5 m (un angle
+  libre est donc celui de deux points de la grille) ; le bord d'une mezzanine
+  en biais au-dessus du vide a encore un garde-corps en escalier de cases ;
+  pas de pilier, d'escalier ni de piège tourné (rectangles droits) ; le décor
+  au sol pivote par quarts de tour.
 - Pas de porte en haut ou en bas d'un escalier (les deux zones d'un escalier
   sont ouvertes l'une sur l'autre) ; pas de portes liées ; pièges électriques
   seulement.

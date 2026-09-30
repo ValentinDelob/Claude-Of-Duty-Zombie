@@ -18,6 +18,9 @@ var blocks: Array = []
 var walls: Array = []
 var rails: Array = []
 var stairs: Array = []
+## Murs en biais : [{a, b ([x, z]), y0, y1, thick, mat_n, mat_m, room, openings}]
+## (MeshMapGeometry : pavés obliques, collisions en CollisionBox tournées).
+var obliques: Array = []
 var props: Array = []   # décor posé : [{id, model | build, p, yaw, scale, remap, nocollide}]
 var blockers: Array = []   # collisions du décor et des luminaires : [{center, size, yaw, barrier, surface}]
 var zone_boxes: Array = []   # [étage, volume, zone, boîte]
@@ -129,8 +132,10 @@ func _build() -> Dictionary:
 		door_of.append(dm)
 	for f in md.floors:
 		_rooms(f)
+		_fillers(f)
 	for f in md.floors:
 		_walls(f)
+		_obliques(f)
 		_rails(f)
 	_decor()
 	_props()
@@ -144,13 +149,16 @@ func _build() -> Dictionary:
 	for zb in zone_boxes:
 		zones.get_or_add(zb[2], {"boxes": []}).boxes.append(zb[3])
 		zone_order.append({"zone": zb[2], "box": zb[3]})
-	return {
+	var out := {
 		"id": md.id,
 		"note": "Généré par l'éditeur de cartes (MapLayoutExport) - ne pas modifier à la main.",
 		"rooms": rooms, "walls": walls, "blocks": blocks, "rails": rails, "stairs": stairs,
 		"props": props, "blockers": blockers,
 		"zones": zones, "zone_order": zone_order, "markers": markers, "map_def": _map_def(),
 	}
+	if not obliques.is_empty():
+		out["obliques"] = obliques
+	return out
 
 
 ## Surface d'une partie (« sol », « murs », « plafond ») de la pièce de
@@ -175,10 +183,11 @@ func _rooms(f: MapValidator.Floor) -> void:
 	var keys := PackedStringArray()
 	keys.resize(f.w * f.h)
 	var info := {}
+	var dc := _diag(k)
 	for y in f.h:
 		for x in f.w:
 			var c := Vector2i(x, y)
-			if not _floor_cell(f, c):
+			if not _floor_cell(f, c) or dc.has(c):
 				continue
 			var ce := ceil_at(k, c)
 			var key := ""
@@ -261,10 +270,13 @@ func _walls(f: MapValidator.Floor) -> void:
 	var upper := PackedStringArray()
 	main.resize(w2 * h2)
 	upper.resize(w2 * h2)
+	var dc := _diag(k)
 	for y in f.h:
 		for x in f.w:
 			var c := Vector2i(x, y)
 			var i := y * f.w + x
+			if dc.has(c):
+				continue   # mur en biais : vrai mur oblique (_obliques)
 			var kd := f.at(c)
 			var lo := ""   # grille principale : "bas|haut"
 			var hi := ""   # grille du haut (linteaux)
@@ -298,6 +310,221 @@ func _walls(f: MapValidator.Floor) -> void:
 			var p: PackedStringArray = String(rk[1]).split("|")
 			blocks.append({"room": ref_room.get(k, "x"), "box": [wx(r.position.x * 0.5), _r(p[1].to_float()), wx(r.position.y * 0.5),
 				wx(r.end.x * 0.5), _r(p[2].to_float()), wx(r.end.y * 0.5)], "mat": p[0]})
+
+
+# ------------------------------------------------------------------ murs en biais
+
+## Cases des murs en biais de l'étage k ({Vector2i: true}).
+func _diag(k: int) -> Dictionary:
+	return md.diag_cells[k] if k < md.diag_cells.size() else {}
+
+
+## Point de l'éditeur (m) -> [x, z] du monde.
+static func _xz(m: Vector2) -> Array:
+	return [snappedf(m.x + MapGeom.WORLD_OFFSET, 0.001), snappedf(m.y + MapGeom.WORLD_OFFSET, 0.001)]
+
+
+## Plafond d'une case pour une pièce de plafond `own` (m) : comme ceil_at, mais
+## avec le plafond de CETTE pièce (un mur mitoyen porte le plus haut des deux).
+func _ceil_room(k: int, c: Vector2i, own: float) -> Array:
+	if k == n_floors - 1:
+		return [own, true]
+	var above := md.floors[k + 1].at(c)
+	if above == Kd.TREMIE:
+		return ceil_at(k + 1, c)
+	if above == Kd.VIDE:
+		return [own, true]
+	return [md.floors[k + 1].sol - MapValidator.DALLE, false]
+
+
+## Salle (sol, plafond) d'un morceau de contour `outline` ([[x, z]...], monde).
+func _room_entry(rid: String, outline: Array, f: MapValidator.Floor, ce: Array, fm: String, cm: String) -> Dictionary:
+	var room := {"id": rid, "outline": outline, "floor": _r(f.sol), "ceiling": _r(ce[0]), "floor_mat": fm, "ceiling_mat": cm}
+	if not ce[1]:
+		if cm != "ceiling":
+			room["ceiling"] = _r(float(ce[0]) - 0.01)
+		else:
+			room["no_ceiling"] = true
+	if f.index > 0:
+		room["floor_slab"] = MapValidator.DALLE
+	return room
+
+
+## Sols et plafonds le long des murs en biais : pour chaque pièce, la part de
+## ses cases de mur oblique qui est DANS son contour (rangées de cases
+## fusionnées, découpées selon le vrai contour puis triangulées par
+## MeshMapGeometry) ; le reste de la pièce garde ses rectangles de cases. Le
+## sol suit ainsi exactement le trait du mur, sans marches.
+func _fillers(f: MapValidator.Floor) -> void:
+	var k := f.index
+	var dc := _diag(k)
+	if dc.is_empty():
+		return
+	var cells := dc.keys()
+	cells.sort_custom(func(a, b): return a.y < b.y or (a.y == b.y and a.x < b.x))
+	var half := MapGeom.CELL * 0.5
+	for r in md.room_polys[k]:
+		var poly: PackedVector2Array = r.poly
+		var bb := MapGeom.bbox(poly).grow(MapGeom.CELL)
+		var runs := []   # [ligne, x0, x1]
+		for c in cells:
+			if not bb.has_point(MapGeom.cell_center(c)):
+				continue
+			if not runs.is_empty() and runs[-1][0] == c.y and runs[-1][2] == c.x - 1:
+				runs[-1][2] = c.x
+			else:
+				runs.append([c.y, c.x, c.x])
+		var zone := String(r.zone)
+		var fm := surface_of(String(r.id), "sol", zone, "concrete")
+		var cm := surface_of(String(r.id), "plafond", zone, "ceiling")
+		for run in runs:
+			var rect := Rect2(Vector2(run[1], run[0]) * MapGeom.CELL - Vector2(half, half), Vector2((run[2] - run[1] + 1) * MapGeom.CELL, MapGeom.CELL))
+			var ce := _ceil_room(k, Vector2i((run[1] + run[2]) / 2, run[0]), float(r.ceil))
+			for piece in Geometry2D.intersect_polygons(MapGeom.rect_poly(rect), poly):
+				if MapGeom.area(piece) < 1e-4:
+					continue
+				var outline := []
+				for q in piece:
+					outline.append(_xz(q))
+				rooms.append(_room_entry("biais_%s%d" % [zone, k], outline, f, ce, fm, cm))
+
+
+## Texture d'un côté de mur en biais : celle des murs de la pièce `rid`.
+func _oblique_mat(rid: String) -> String:
+	if rid == "":
+		return ""
+	return surface_of(rid, "murs", String(md.room_zone.get(rid, "")), "wall")
+
+
+## Murs en biais de l'étage : de vrais murs droits obliques (MeshMapGeometry),
+## coupés par tronçons de même hauteur (étage du dessus, double hauteur) et
+## percés de leurs ouvertures (portes, débris, passages, fenêtres) ; chaque
+## face a la texture de la pièce de son côté. Aux angles entre murs en biais,
+## un raccord (pavé ajusté à l'angle) ferme la jonction.
+func _obliques(f: MapValidator.Floor) -> void:
+	var k := f.index
+	if k >= md.oblique_walls.size() or md.oblique_walls[k].is_empty():
+		return
+	var y0 := f.sol - (0.1 if k == 0 else MapValidator.DALLE)
+	var dc := _diag(k)
+	var ends := {}   # sommet -> {p, list: [{n, half, top, mat}]}
+	for w in md.oblique_walls[k]:
+		var a: Vector2 = w.a
+		var b: Vector2 = w.b
+		var t: Vector2 = w.t
+		var mat_pos := _oblique_mat(String(w.pos))
+		var mat_neg := _oblique_mat(String(w.neg))
+		if mat_pos == "":
+			mat_pos = mat_neg if mat_neg != "" else String(md.wall_mats.get("a", "wall"))
+		if mat_neg == "":
+			mat_neg = mat_pos
+		var seg_len := a.distance_to(b)
+		var nseg := maxi(1, ceili(seg_len / 0.25))
+		var runs := []   # [s0, s1, haut]
+		for i in nseg:
+			var s := (i + 0.5) * seg_len / nseg
+			var top := wall_top(k, MapGeom.cell_of(a + t * s))
+			if not runs.is_empty() and absf(float(runs[-1][2]) - top) < 0.001:
+				runs[-1][1] = (i + 1) * seg_len / nseg
+			else:
+				runs.append([i * seg_len / nseg, (i + 1) * seg_len / nseg, top])
+		var top_max := 0.0
+		for run in runs:
+			var pa: Vector2 = a + t * float(run[0])
+			var pb: Vector2 = a + t * float(run[1])
+			top_max = maxf(top_max, float(run[2]))
+			obliques.append({"room": ref_room.get(k, "x"), "a": _xz(pa), "b": _xz(pb), "y0": _r(y0), "y1": _r(float(run[2])),
+				"thick": _r(float(w.half) * 2.0), "mat_n": mat_pos, "mat_m": mat_neg,
+				"openings": _oblique_cuts(f, pa, t, float(run[1]) - float(run[0]), y0, float(run[2]))})
+		for e in [a, b]:
+			var key := "%.3f:%.3f" % [e.x, e.y]
+			ends.get_or_add(key, {"p": e, "list": []}).list.append({"n": w.n, "half": float(w.half), "top": top_max, "mat": mat_pos})
+	# Raccords des angles (sommets entre murs en biais, hors blocs de la grille).
+	var keys := ends.keys()
+	keys.sort()
+	for key in keys:
+		var e: Dictionary = ends[key]
+		var v: Vector2 = e.p
+		if e.list.size() < 2 or not dc.has(MapGeom.cell_of(v)):
+			continue
+		var pts := PackedVector2Array([v])
+		var top := 0.0
+		for it in e.list:
+			pts.append(v + Vector2(it.n) * float(it.half))
+			pts.append(v - Vector2(it.n) * float(it.half))
+			top = maxf(top, float(it.top))
+		var box := _min_box(pts)
+		if box.is_empty() or float(box.w) * float(box.d) < 0.005:
+			continue
+		var u: Vector2 = box.u
+		var c: Vector2 = box.c
+		obliques.append({"room": ref_room.get(k, "x"), "a": _xz(c - u * float(box.w) * 0.5), "b": _xz(c + u * float(box.w) * 0.5),
+			"y0": _r(y0), "y1": _r(top), "thick": _r(float(box.d)), "mat_n": String(e.list[0].mat), "mat_m": String(e.list[0].mat),
+			"openings": [], "joint": true})
+
+
+## Plus petit rectangle orienté qui contient les points (raccord d'angle) :
+## {c (centre), u (direction de la longueur), w (longueur), d (épaisseur)}.
+static func _min_box(pts: PackedVector2Array) -> Dictionary:
+	var hull := Geometry2D.convex_hull(pts)
+	var best := {}
+	var best_area := INF
+	for i in hull.size() - 1:
+		var edge := hull[i + 1] - hull[i]
+		if edge.length() < 1e-4:
+			continue
+		var u := edge.normalized()
+		var nn := Vector2(-u.y, u.x)
+		var lo := Vector2(INF, INF)
+		var hi := Vector2(-INF, -INF)
+		for p in hull:
+			var q := Vector2(p.dot(u), p.dot(nn))
+			lo = lo.min(q)
+			hi = hi.max(q)
+		var sz := hi - lo
+		if sz.x * sz.y < best_area:
+			best_area = sz.x * sz.y
+			var mid := (lo + hi) * 0.5
+			best = {"c": u * mid.x + nn * mid.y, "u": u, "w": sz.x, "d": sz.y}
+	return best
+
+
+## Ouvertures d'un tronçon de mur en biais (de `pa`, direction `t`, longueur
+## `seg_len`) : [{t (milieu le long du tronçon), w, y0, y1}] (hauteurs absolues).
+func _oblique_cuts(f: MapValidator.Floor, pa: Vector2, t: Vector2, seg_len: float, y0: float, top: float) -> Array:
+	var out := []
+	var nrm := Vector2(-t.y, t.x)
+	for key in md.diag_open:
+		var o: Dictionary = md.diag_open[key]
+		if int(o.floor) != f.index:
+			continue
+		var p: Vector2 = o.p
+		if absf((p - pa).dot(nrm)) > 0.02 or absf(Vector2(o.t).dot(t)) < 0.999:
+			continue
+		var c := (p - pa).dot(t)
+		var hw := float(o.w) * 0.5
+		if c + hw <= 0.001 or c - hw >= seg_len - 0.001:
+			continue
+		var oy0 := y0
+		var oy1 := top
+		match String(o.type):
+			"fenetre":
+				oy0 = f.sol + MapValidator.SILL
+				oy1 = f.sol + MapValidator.LINTEL
+			"passage":
+				# Passage libre : ouvert jusqu'au plus bas des deux plafonds.
+				var ce := INF
+				for r in md.room_polys[f.index]:
+					if MapGeom.on_boundary(r.poly, p, 0.02):
+						ce = minf(ce, float(r.ceil))
+				oy1 = minf(top, ce) if ce < INF else top
+			_:
+				if top > f.sol + md.door_height + 0.05:
+					oy1 = f.sol + md.door_height
+		var lo := maxf(c - hw, 0.0)
+		var hi := minf(c + hw, seg_len)
+		out.append({"t": _r((lo + hi) * 0.5), "w": _r(hi - lo), "y0": _r(oy0), "y1": _r(oy1)})
+	return out
 
 
 ## Décor bloquant (caisses, barils) : un bloc plein à sa hauteur.
@@ -424,6 +651,9 @@ func _p(k: int, v: Vector2, dy := 0.0) -> Array:
 
 
 func _wall_item(it: Dictionary) -> Dictionary:
+	if it.has("oblique"):
+		# Mur en biais : direction exacte du mur (vecteur unitaire).
+		return {"p": _p(it.floor, it.face), "wall": [_r(it.wall.x), 0, _r(it.wall.y)]}
 	return {"p": _p(it.floor, it.face), "wall": [it.wall.x, 0, it.wall.y]}
 
 
@@ -451,7 +681,8 @@ func _markers() -> Dictionary:
 		var ww := md._world_window(w)
 		var p: Vector3 = ww.p
 		var sp: Vector3 = ww.spawn
-		m.windows.append({"p": [_r(p.x), _r(p.y), _r(p.z)], "in": [w.inward.x, 0, w.inward.y], "h": MapValidator.LINTEL,
+		var inn: Array = [_r(w.inward.x), 0, _r(w.inward.y)] if w.has("oblique") else [w.inward.x, 0, w.inward.y]
+		m.windows.append({"p": [_r(p.x), _r(p.y), _r(p.z)], "in": inn, "h": MapValidator.LINTEL,
 			"zone": w.zone, "spawns": [[_r(sp.x), _r(sp.y), _r(sp.z)]]})
 		m.zombie_spawns.append({"p": [_r(sp.x), _r(sp.y), _r(sp.z)], "zone": w.zone})
 	for it in md.floor_items:
@@ -463,6 +694,12 @@ func _markers() -> Dictionary:
 		var thick := r.size.x if d.axis.x != 0 else r.size.y
 		var dj := {"id": d.id, "p": _p(d.floor, Vector2(r.position) + Vector2(r.size) * 0.5), "yaw": _r(PI / 2.0) if d.axis.x != 0 else 0.0,
 			"w": _r(d.width * S), "h": _r(md.door_height), "depth": _r(thick * S + 0.5), "cost": d.cost, "zones": d.zones}
+		if d.has("oblique"):
+			# Mur en biais : milieu exact sur le trait, porte tournée comme le mur.
+			var t: Vector2 = d.t
+			dj["p"] = _p(d.floor, Vector2(d.p) / S + Vector2(0.5, 0.5))
+			dj["yaw"] = _r(atan2(-t.y, t.x))
+			dj["depth"] = _r(MapGeom.WALL_HALF * 2.0 + 0.5)
 		if d.debris:
 			dj["debris"] = true
 		if d.power:
@@ -559,7 +796,7 @@ func _fixture(l: Dictionary) -> Dictionary:
 	var pl := Vector3(at.x, sol + light_y, at.y)
 	if String(l.mount) == "mur":
 		# La lumière devant l'applique (0,2 m du mur), pas dans le mur.
-		var wv: Vector2i = l.wall
+		var wv := Vector2(l.wall)
 		pl -= Vector3(wv.x, 0, wv.y) * 0.2
 	var col: Color = l.color
 	var e := {"p": _v3(pl), "range": _r(float(l.range)), "energy": _r(float(l.energy) * 1.4), "color": col.to_html(false),
@@ -622,6 +859,9 @@ func _pockets() -> void:
 		var w: Dictionary = md.windows[i]
 		var k: int = w.floor
 		var sol: float = md.floors[k].sol
+		if w.has("oblique"):
+			_pocket_oblique(i, w, k, sol)
+			continue
 		var r: Rect2i = w.pocket
 		var x0 := wx(r.position.x)
 		var x1 := wx(r.end.x)
@@ -644,6 +884,23 @@ func _pockets() -> void:
 			path = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]
 		walls.append({"room": "dehors_%d" % i, "path": path, "y0": _r(sol - (0.25 if k == 0 else MapValidator.DALLE)),
 			"y1": _r(sol + MapValidator.POCKET_HEIGHT), "thick": 0.3, "mat": "brick", "openings": []})
+
+
+## Cour d'une fenêtre sur un mur en biais : sol et plafond tournés comme le
+## mur (de sa face extérieure à 2,75 m du trait, 3 m de large), trois murs.
+func _pocket_oblique(i: int, w: Dictionary, k: int, sol: float) -> void:
+	var poly: PackedVector2Array = w.pocket_poly
+	var outline := []
+	for q in poly:
+		outline.append(_xz(q))
+	var room := {"id": "dehors_%d" % i, "outline": outline, "floor": _r(sol), "ceiling": _r(sol + MapValidator.POCKET_HEIGHT),
+		"floor_mat": "cobble", "ceiling_mat": "ceiling"}
+	if k > 0:
+		room["floor_slab"] = MapValidator.DALLE
+	rooms.append(room)
+	# oriented_rect : [face - t, face + t, fond + t, fond - t] ; le côté de la face reste ouvert.
+	walls.append({"room": "dehors_%d" % i, "path": [_xz(poly[1]), _xz(poly[2]), _xz(poly[3]), _xz(poly[0])],
+		"y0": _r(sol - (0.25 if k == 0 else MapValidator.DALLE)), "y1": _r(sol + MapValidator.POCKET_HEIGHT), "thick": 0.3, "mat": "brick", "openings": []})
 
 
 func _map_def() -> Dictionary:

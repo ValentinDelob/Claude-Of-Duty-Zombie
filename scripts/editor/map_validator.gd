@@ -147,6 +147,19 @@ var lamps_extra: Array = []
 ## l'éditeur), rot (degrés), eid}].
 var props: Array = []
 var lamps_auto := true
+## Murs en biais (MapRaster), par étage : [{a, b (m, repère de l'éditeur),
+## t (direction), n (normale), half (demi-épaisseur, m), pos, neg (pièce du
+## côté +n / -n, "" : dehors), kind ("piece" : côté de pièce, "mur" : mur libre)}].
+var oblique_walls: Array = []
+## Cases des murs en biais qui ne sont pas aussi celles d'un mur droit, par
+## étage ({Vector2i: true}) : le jeu les construit en vrais murs obliques.
+var diag_cells: Array = []
+## Ouvertures sur un mur en biais : clé de case -> {p (m), t, n, w (m), half, type, eid}.
+var diag_open: Dictionary = {}
+## Objets muraux contre un mur en biais : clé -> {p (m, sur le trait), wall (vers le mur), eid}.
+var diag_items: Dictionary = {}
+## Pièces par étage : [{id, poly (m), zone, ceil (m, absolu)}] (sols des murs en biais).
+var room_polys: Array = []
 
 ## Messages : {level ("erreur" | "attention" | "info"), fr, en, text, floor, cells}
 var messages: Array = []
@@ -486,6 +499,9 @@ func _openings() -> void:
 		var r: Rect2i = b.rect
 		var w := _at(k, b.cells[0])
 		var what: Array = ["porte", "door"] if b.kind == K.PORTE else (["débris", "debris"] if b.kind == K.DEBRIS else ["fenêtre", "window"])
+		if diag_open.has(b.key):
+			_diag_opening(b, what, pockets)
+			continue
 		if b.cells.size() != r.get_area():
 			_msg("erreur", "%s en %s : doit être un rectangle plein" % [what[0], w[0]], "%s at %s: must be a full rectangle" % [what[1], w[1]], k, b.cells)
 			continue
@@ -571,6 +587,156 @@ func _openings() -> void:
 		doors[i]["link_id"] = ""
 
 
+## Ouvertures déjà traitées sur un mur en biais (une par clé, même si ses
+## cases forment plusieurs morceaux).
+var _diag_done: Dictionary = {}
+
+
+## Ouverture sur un mur EN BIAIS (MapRaster : diag_open) : mêmes règles que
+## sur un mur droit. Porte, débris : du sol d'une pièce de chaque côté, deux
+## zones différentes ; fenêtre : du sol d'un côté, du vide de l'autre et la
+## place de la cour des zombies (3 m le long du mur, 2,5 m de profondeur).
+## Les côtés sont les cases voisines des cases de l'ouverture, rangées selon
+## le côté du trait du mur où tombe leur centre.
+func _diag_opening(b: Dictionary, what: Array, pockets: Dictionary) -> void:
+	if _diag_done.has(b.key):
+		return
+	_diag_done[b.key] = true
+	var info: Dictionary = diag_open[b.key]
+	var k: int = b.floor
+	var f := floors[k]
+	var cells: Array = info.cells.filter(func(c): return f.key_at(c) == b.key)
+	if cells.is_empty():
+		cells = b.cells
+	var rect := _bbox(cells)
+	var w := _at(k, cells[0])
+	var p: Vector2 = info.p
+	var n: Vector2 = info.n
+	var own := {}
+	for c in cells:
+		own[c] = true
+	var pos := {}
+	var neg := {}
+	for c in cells:
+		for d in DIRS:
+			var q: Vector2i = c + d
+			if own.has(q) or f.at(q) == K.MUR:
+				continue
+			if (MapGeom.cell_center(q) - p).dot(n) > 0.0:
+				pos[q] = true
+			else:
+				neg[q] = true
+	var sa: Array = pos.keys()
+	var sb: Array = neg.keys()
+	var floor_a := not sa.is_empty() and _all(sa, func(c): return _floorlike(f, c))
+	var floor_b := not sb.is_empty() and _all(sb, func(c): return _floorlike(f, c))
+	if b.kind == K.FENETRE:
+		var inward := Vector2.ZERO
+		var inside := []
+		if floor_a and not sb.is_empty() and _all(sb, func(c): return f.at(c) == K.VIDE):
+			inward = n
+			inside = sa
+		elif floor_b and not sa.is_empty() and _all(sa, func(c): return f.at(c) == K.VIDE):
+			inward = -n
+			inside = sb
+		else:
+			_msg("erreur", "fenêtre en %s : elle doit être dans un mur extérieur, avec le sol d'une pièce d'un côté et du vide (dehors) de l'autre" % w[0],
+				"window at %s: it must be in an outer wall, with a room floor on one side and empty space (outside) on the other" % w[1], k, cells)
+			return
+		# Cour des zombies : les cases dont le centre est dans la cour (hors
+		# des cases coupées par le mur) sont du vide.
+		var out := -inward
+		var poly := MapGeom.oriented_rect(p + out * MapGeom.WALL_HALF, out, 3.0, 2.5)
+		var pocket := []
+		var blocked := []
+		var bb := MapGeom.bbox(poly)
+		for j in range(floori(bb.position.y / MapGeom.CELL), ceili(bb.end.y / MapGeom.CELL) + 1):
+			for i in range(floori(bb.position.x / MapGeom.CELL), ceili(bb.end.x / MapGeom.CELL) + 1):
+				var c := Vector2i(i, j)
+				var cc := MapGeom.cell_center(c)
+				if not MapGeom.contains(poly, cc) or absf((cc - p).dot(n)) < 0.6:
+					continue
+				pocket.append(c)
+				if f.at(c) != K.VIDE or pockets.get(k, {}).has(c):
+					blocked.append(c)
+		if not blocked.is_empty():
+			var wb := _at(k, blocked[0])
+			_msg("erreur", "fenêtre en %s : pas de place dehors pour les zombies (il faut 2,5 m × 3 m de vide derrière ; occupé en %s)" % [w[0], wb[0]],
+				"window at %s: no room outside for the zombies (2.5 m × 3 m of empty space needed behind it; blocked at %s)" % [w[1], wb[1]], k, blocked)
+			return
+		for c in pocket:
+			pockets.get_or_add(k, {})[c] = true
+		windows.append({"floor": k, "rect": rect, "inward": inward, "zone": _uniform_zone(f, inside), "cells": cells,
+			"pocket": _bbox(pocket) if not pocket.is_empty() else rect, "pocket_poly": poly, "inside": inside, "p": p,
+			"oblique": true, "eid": eid_of.get(b.key, "")})
+		return
+	if not (floor_a and floor_b):
+		_msg("erreur", "%s en %s : elle doit être sur le mur commun de deux pièces collées (mur aux deux bouts, sol de chaque côté)" % [what[0], w[0]],
+			"%s at %s: it must be on the shared wall of two touching rooms (wall at both ends, floor on each side)" % [what[1], w[1]], k, cells)
+		return
+	var za := _uniform_zone(f, sa)
+	var zb := _uniform_zone(f, sb)
+	if za == "?" or zb == "?":
+		_msg("erreur", "%s en %s : un de ses côtés touche deux zones différentes" % [what[0], w[0]],
+			"%s at %s: one of its sides touches two different zones" % [what[1], w[1]], k, cells)
+		return
+	if za == zb:
+		_msg("erreur", "%s en %s : elle relie deux pièces de la même zone « %s » (une porte sépare deux zones : séparez-les dans l'onglet Zones)" % [what[0], w[0], _zf(za)],
+			"%s at %s: it links two rooms of the same zone \"%s\" (a door separates two zones: split them in the Zones tab)" % [what[1], w[1], _ze(za)], k, cells)
+		return
+	var width := roundi(float(info.w) / scale)
+	if width < 2:
+		_msg("erreur", "%s en %s : trop étroite (0,5 m ; 1 m au moins, 1,5 m conseillé)" % [what[0], w[0]],
+			"%s at %s: too narrow (0.5 m; at least 1 m, 1.5 m advised)" % [what[1], w[1]], k, cells)
+	elif width < 3:
+		_msg("attention", "%s en %s : étroite (%s m ; BO1 : 1,5 à 3 m)" % [what[0], w[0], _num(width * scale).replace(".", ",")],
+			"%s at %s: narrow (%s m; BO1: 1.5 to 3 m)" % [what[1], w[1], _num(width * scale)], k, cells)
+	var dinfo: Dictionary = door_info.get(b.key, {})
+	doors.append({"floor": k, "rect": rect, "axis": Vector2i.ZERO, "zones": [za, zb] if za < zb else [zb, za], "debris": b.kind == K.DEBRIS,
+		"cost": int(dinfo.get("cost", 0)), "power": bool(dinfo.get("power", false)), "cells": cells, "width": width,
+		"eid": String(dinfo.get("eid", "")), "oblique": true, "p": p, "t": info.t, "n": n})
+
+
+## Objet mural contre un mur EN BIAIS (MapRaster : diag_items) : il faut du
+## mur plein derrière lui sur toute sa largeur (pas d'ouverture) ; la place
+## devant a été vérifiée par la grille (ses cases sont du sol).
+func _diag_wall_marker(b: Dictionary, e: Dictionary) -> void:
+	var info: Dictionary = diag_items[b.key]
+	var k: int = b.floor
+	var f := floors[k]
+	var w := _at(k, b.cells[0])
+	var p: Vector2 = info.p
+	var dv: Vector2 = info.wall
+	var t := Vector2(-dv.y, dv.x)
+	var fp: Array = footprint(b.base)
+	var wide := float(fp[0]) * scale
+	var bad := []
+	var steps := maxi(2, ceili(wide / 0.25))
+	for i in steps + 1:
+		var q: Vector2 = p + t * (-wide * 0.5 + wide * float(i) / steps) * 0.96
+		var c := MapGeom.cell_of(q)
+		if f.at(c) != K.MUR and not bad.has(c):
+			bad.append(c)
+	if not bad.is_empty():
+		var wb := _at(k, bad[0])
+		_msg("erreur", "%s en %s : pas la place (il faut %s m de mur plein derrière ; gêné en %s)" % [e.fr, w[0], _num(wide).replace(".", ","), wb[0]],
+			"%s at %s: not enough room (needs %s m of solid wall behind; blocked at %s)" % [e.en, w[1], _num(wide), wb[1]], k, bad)
+		return
+	var cx := 0.0
+	var cy := 0.0
+	for c in b.cells:
+		cx += c.x + 0.5
+		cy += c.y + 0.5
+	var center := Vector2(cx / b.cells.size(), cy / b.cells.size())
+	var face_m: Vector2 = p - dv * MapGeom.WALL_HALF
+	var face := face_m / scale + Vector2(0.5, 0.5)
+	if int(fp[1]) >= 2:
+		for c in b.cells:
+			_obstacles[k][c] = true
+	wall_items.append({"key": b.key, "base": b.base, "entry": e, "floor": k, "cells": b.cells, "zone": b.zone, "wall": dv,
+		"face": face, "center": center, "oblique": true})
+
+
 func _wall_markers() -> void:
 	for f in floors:
 		_obstacles.append({})
@@ -579,6 +745,11 @@ func _wall_markers() -> void:
 			continue
 		var e := entry(b.key)
 		if e.type != "mural":
+			continue
+		if diag_items.has(b.key):
+			if not _diag_done.has(b.key):
+				_diag_done[b.key] = true
+				_diag_wall_marker(b, e)
 			continue
 		var k: int = b.floor
 		var f := floors[k]
@@ -984,7 +1155,7 @@ func _connectivity() -> void:
 	# Distance à pied de chaque case à la fenêtre la plus proche.
 	var wsrc := []
 	for w in windows:
-		for c in _side(w.rect, w.inward):
+		for c in (w.inside if w.has("oblique") else _side(w.rect, w.inward)):
 			wsrc.append([w.floor, c])
 	var wd := _bfs(wsrc, true)
 	for f in floors:
@@ -1391,6 +1562,9 @@ func _world(k: int, p: Vector2) -> Vector3:
 func _world_window(w: Dictionary) -> Dictionary:
 	var r: Rect2i = w.rect
 	var c := Vector2(r.position) + Vector2(r.size) * 0.5
+	if w.has("oblique"):
+		# Mur en biais : milieu exact de la fenêtre sur le trait (m -> cases).
+		c = Vector2(w.p) / scale + Vector2(0.5, 0.5)
 	var p := _world(w.floor, c)
 	var inn := Vector3(w.inward.x, 0, w.inward.y)
 	return {"p": p, "in": inn, "spawn": p - inn * SPAWN_OUT}

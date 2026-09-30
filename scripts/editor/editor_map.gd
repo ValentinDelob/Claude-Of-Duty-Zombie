@@ -16,8 +16,14 @@ extends RefCounted
 ##      « luminaire »), textures par pièce (surface_sol, surface_murs,
 ##      surface_plafond de pieces.json) et plafond des zones (plafond de
 ##      zones.json). Une carte au format 1 se lit telle quelle : toutes les
-##      nouvelles clés sont facultatives (_migrate).
-const FORMAT := 2
+##      nouvelles clés sont facultatives (_migrate) ;
+##   3  murs en biais : un objet mural (ou une applique) contre un côté de
+##      pièce oblique a la clé « angle » (direction du mur vue de l'objet,
+##      degrés dans le sens horaire depuis le nord ; « mur » garde la
+##      direction cardinale la plus proche). Les côtés en biais, les murs libres
+##      en biais et les ouvertures posées dessus n'ont pas de clé nouvelle
+##      (coordonnées en mètres, comme avant). Formats 1 et 2 lus tels quels.
+const FORMAT := 3
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -265,6 +271,10 @@ func _migrate(from: int) -> void:
 		# Format 1 -> 2 : rien à convertir (nouvelles clés facultatives) ;
 		# les lampes, caisses et barils du format 1 restent des types admis.
 		pass
+	if from < 3:
+		# Format 2 -> 3 : rien à convertir (« angle » facultatif : sans lui, un
+		# objet mural suit « mur » comme avant).
+		pass
 
 
 ## Version du format lue dans carte.json (FORMAT pour une carte neuve).
@@ -280,6 +290,12 @@ func _normalize() -> void:
 	for o in objets:
 		if o.has("rot"):
 			o["rot"] = posmod(int(o.rot), 360)
+		if o.has("angle"):
+			var ang := float(o.angle) if (o.angle is float or o.angle is int) else NAN
+			if is_finite(ang):
+				o["angle"] = snappedf(fposmod(ang, 360.0), 0.01)
+			else:
+				o.erase("angle")
 	for list in [pieces, ouvertures, objets, zones]:
 		for e in list:
 			if String(e.get("id", "")) == "":

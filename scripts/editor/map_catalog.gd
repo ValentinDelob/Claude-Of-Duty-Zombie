@@ -174,12 +174,15 @@ static func _build() -> void:
 		"hint_fr": "Clic : supprimer l'élément sous le curseur", "hint_en": "Click: delete the element under the cursor"})
 	_add({"id": "piece_rect", "cat": "construction", "fr": "Pièce rectangle", "en": "Rectangle room", "tool": "room_rect",
 		"color": Color(0.55, 0.75, 0.95), "make": {"forme": "rect"},
-		"hint_fr": "Glisser d'un coin à l'autre ; les murs suivent le contour", "hint_en": "Drag from corner to corner; walls follow the outline"})
+		"hint_fr": "Glisser d'un coin à l'autre ; les murs suivent le contour ; R : rectangle tourné de 45°",
+		"hint_en": "Drag from corner to corner; walls follow the outline; R: rectangle turned 45°"})
 	_add({"id": "piece_poly", "cat": "construction", "fr": "Pièce polygone", "en": "Polygon room", "tool": "room_poly",
 		"color": Color(0.55, 0.9, 0.8), "make": {"forme": "poly"},
-		"hint_fr": "Clics successifs, double-clic (ou clic sur le premier point) pour fermer", "hint_en": "Click each corner, double-click (or click the first point) to close"})
+		"hint_fr": "Clics successifs (côtés à 0, 45 ou 90° ; Alt : angle libre), double-clic (ou clic sur le premier point) pour fermer",
+		"hint_en": "Click each corner (sides at 0, 45 or 90°; Alt: free angle), double-click (or click the first point) to close"})
 	_add({"id": "mur", "cat": "construction", "fr": "Mur", "en": "Wall", "tool": "wall", "color": Color(0.35, 0.35, 0.38),
-		"make": {"type": "mur", "epaisseur": 0.5}, "hint_fr": "Glisser d'un bout à l'autre", "hint_en": "Drag from one end to the other"})
+		"make": {"type": "mur", "epaisseur": 0.5}, "hint_fr": "Glisser d'un bout à l'autre (0, 45 ou 90° ; Alt : angle libre)",
+		"hint_en": "Drag from one end to the other (0, 45 or 90°; Alt: free angle)"})
 	_add({"id": "pilier", "cat": "construction", "fr": "Pilier / obstacle", "en": "Pillar / obstacle", "tool": "rect",
 		"color": Color(0.45, 0.42, 0.4), "make": {"type": "pilier"}, "hint_fr": "Glisser un rectangle dans une pièce", "hint_en": "Drag a rectangle inside a room"})
 	_add({"id": "escalier", "cat": "construction", "fr": "Escalier", "en": "Stairs", "tool": "rect",
@@ -414,6 +417,9 @@ const MAX_FLOORS := CustomMapGuard.MAX_FLOORS
 ##   « #rrggbb ». Les clés communes (id, type, etage) sont dans chaque entrée.
 static func allowed_kinds() -> Dictionary:
 	var dirs := {"t": "enum", "values": ["n", "e", "s", "o"]}
+	# Format 3 : objet mural contre un mur en biais (degrés, sens horaire depuis
+	# le nord ; nombre fini, 0 à 360).
+	var angle := {"t": "number", "min": 0.0, "max": 360.0}
 	var rot := {"t": "enum", "values": [0, 90, 180, 270]}
 	var point := {"t": "point"}
 	var price := {"t": "int", "min": 0, "max": 100000}
@@ -432,19 +438,19 @@ static func allowed_kinds() -> Dictionary:
 		add.call("objets.json", t, {"rect": {"t": "rect"}}, ["rect"])
 	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs}, ["rect"])
 	add.call("objets.json", "mur", {"a": point, "b": point, "epaisseur": {"t": "enum", "values": [0.5, 1.5, 2.5]}}, ["a", "b"])
-	add.call("objets.json", "atout", {"atout": {"t": "enum", "values": PerkDB.PERKS.keys()}, "position": point, "mur": dirs}, ["atout", "position"])
+	add.call("objets.json", "atout", {"atout": {"t": "enum", "values": PerkDB.PERKS.keys()}, "position": point, "mur": dirs, "angle": angle}, ["atout", "position"])
 	var arms := []
 	for it in in_category("armes"):
 		if String(it.id).begins_with("arme:"):
 			arms.append(String(it.id).substr(5))
-	add.call("objets.json", "arme", {"arme": {"t": "enum", "values": arms}, "position": point, "mur": dirs}, ["arme", "position"])
-	add.call("objets.json", "boite", {"position": point, "mur": dirs, "depart": {"t": "bool"}}, ["position"])
+	add.call("objets.json", "arme", {"arme": {"t": "enum", "values": arms}, "position": point, "mur": dirs, "angle": angle}, ["arme", "position"])
+	add.call("objets.json", "boite", {"position": point, "mur": dirs, "angle": angle, "depart": {"t": "bool"}}, ["position"])
 	for t in ["grenades", "pap", "courant", "poste_central", "levier"]:
-		add.call("objets.json", t, {"position": point, "mur": dirs}, ["position"])
+		add.call("objets.json", t, {"position": point, "mur": dirs, "angle": angle}, ["position"])
 	for t in ["depart", "apparition", "teleporteur", "arrivee", "lampe", "caisse", "baril"]:
 		add.call("objets.json", t, {"position": point}, ["position"])
 	add.call("objets.json", "prefab", {"prefab": {"t": "enum", "values": PREFABS.keys()}, "position": point, "rot": rot}, ["prefab", "position"])
-	add.call("objets.json", "luminaire", {"luminaire": {"t": "enum", "values": LIGHTS.keys()}, "position": point, "rot": rot, "mur": dirs,
+	add.call("objets.json", "luminaire", {"luminaire": {"t": "enum", "values": LIGHTS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
 		"couleur": {"t": "color"}, "intensite": {"t": "number", "min": LIGHT_LIMITS.intensite[0], "max": LIGHT_LIMITS.intensite[1]},
 		"portee": {"t": "number", "min": LIGHT_LIMITS.portee[0], "max": LIGHT_LIMITS.portee[1]},
 		"courant": {"t": "bool"}, "vacille": {"t": "bool"}}, ["luminaire", "position"])

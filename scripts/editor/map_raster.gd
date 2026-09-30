@@ -90,6 +90,9 @@ func _build() -> void:
 	var h := ceili(hi.y / MapGeom.CELL) + MARGIN + 1
 	for f in v.floors:
 		f.setup(w, h)
+		v.oblique_walls.append([])
+		v.diag_cells.append({})
+		v.room_polys.append([])
 	for k in n:
 		_floor(k)
 
@@ -139,11 +142,19 @@ func _ceil_of(p: Dictionary, k: int) -> float:
 	return doc.floor_sol(k) + float(p.get("plafond", doc.floor_height(k)))
 
 
+## Cases d'un côté de pièce : celles que traverse le trait (côté droit) ou
+## celles que coupe le mur de 0,5 m (côté en biais, marquage prudent).
+static func edge_cells(a: Vector2, b: Vector2) -> Array:
+	if MapGeom.is_axis_seg(a, b):
+		return MapGeom.segment_cells(a, b)
+	return MapGeom.slab_cells(a, b, MapGeom.WALL_HALF)
+
+
 ## Contour -> [cases du bord (dictionnaire), cases intérieures (tableau)].
 static func room_cells(poly: PackedVector2Array) -> Array:
 	var border := {}
 	for i in poly.size():
-		for c in MapGeom.segment_cells(poly[i], poly[(i + 1) % poly.size()]):
+		for c in edge_cells(poly[i], poly[(i + 1) % poly.size()]):
 			border[c] = true
 	var inner := []
 	var bb := MapGeom.bbox(poly)
@@ -158,13 +169,23 @@ static func room_cells(poly: PackedVector2Array) -> Array:
 func _floor(k: int) -> void:
 	var f := v.floors[k]
 	var ceil_up := f.sol + doc.floor_height(k)
+	# Cases des murs droits (côtés droits, piliers, murs libres droits) : elles
+	# restent des blocs de la grille même si un mur en biais les coupe aussi.
+	_axis = {}
+	_diag_pass = {}
+	# Côtés en biais de cet étage (fusionnés en murs obliques après (b)).
+	var raw := []
+	var void_polys := []
 	# (a) Pièces à double hauteur de l'étage du dessous : vide et murs qui montent.
 	var voids := {}   # case -> true (intérieur d'une double hauteur)
 	if k > 0:
 		for p in doc.rooms_on(k - 1):
 			if not p.get("double_hauteur", false):
 				continue
-			var rc := room_cells(doc.room_poly(p))
+			var poly := doc.room_poly(p)
+			void_polys.append(poly)
+			_edges(poly, String(p.id), false, raw)
+			var rc := room_cells(poly)
 			for c in rc[1]:
 				f.put(c, K.TREMIE, "tremie")
 				f.ceil[c.y * f.w + c.x] = ceil_up
@@ -175,17 +196,25 @@ func _floor(k: int) -> void:
 		# Piliers et murs d'une double hauteur : jusqu'en haut.
 		for o in doc.objects_on(k - 1):
 			if String(o.type) in ["pilier", "mur"]:
-				for c in _obstacle_cells(o):
+				var cells := _obstacle_cells(o)
+				var up := false
+				for c in cells:
 					if voids.has(c):
 						f.put(c, K.MUR, "mur")
+						up = true
+				if up:
+					_obstacle_record(k, o, cells)
 	# (b) Pièces de cet étage.
 	var inner_of := {}
 	var border_of := {}
 	for p in doc.rooms_on(k):
-		var rc := room_cells(doc.room_poly(p))
+		var poly := doc.room_poly(p)
+		_edges(poly, String(p.id), true, raw)
+		var rc := room_cells(poly)
 		var z := zone_letter(p)
 		v.room_zone[String(p.id)] = z
 		var ce := _ceil_of(p, k)
+		v.room_polys[k].append({"id": String(p.id), "poly": poly, "zone": z, "ceil": ce})
 		var own := []
 		for c in rc[1]:
 			if inner_of.has(c):
@@ -222,6 +251,9 @@ func _floor(k: int) -> void:
 		for q in list:
 			ce = maxf(ce, _ceil_of(q, k))
 		f.ceil[i] = maxf(f.ceil[i], ce)
+	# Murs en biais : côtés obliques fusionnés (un seul mur mitoyen), pièce de
+	# chaque côté.
+	v.oblique_walls[k].append_array(_merge_obliques(raw, void_polys))
 	# (c) Escaliers de l'étage du dessous : vide au-dessus des marches.
 	if k > 0:
 		for o in doc.objects_on(k - 1):
@@ -239,6 +271,7 @@ func _floor(k: int) -> void:
 				var cells := _obstacle_cells(o)
 				for c in cells:
 					f.put(c, K.MUR, "mur")
+				_obstacle_record(k, o, cells)
 				cells_of[String(o.id)] = [k, cells]
 			"caisse", "baril":
 				var fp := MapCatalog.footprint(o)
@@ -312,10 +345,144 @@ func _floor(k: int) -> void:
 			continue
 		for c in cells:
 			f.put(c, K.MARQUEUR, key, f.zone_of(c))
-		if tool == "wall_item":
-			v.wall_hint[key] = MapGeom.DIRS.get(String(o.get("mur", "n")), Vector2i(0, -1))
+		if tool == "wall_item" and MapGeom.item_oblique(o):
+			v.diag_items[key] = {"p": MapGeom.v2(o.position), "wall": MapGeom.item_wall_dir(o), "eid": String(o.id)}
+		elif tool == "wall_item":
+			v.wall_hint[key] = MapGeom.DIRS.get(_cardinal(o), Vector2i(0, -1))
 		v.eid_of[key] = String(o.id)
 		cells_of[String(o.id)] = [k, cells]
+	_finish_diag(k)
+
+
+## Cases coupées par un mur droit (pièces, piliers, murs libres droits) de
+## l'étage en cours : elles restent des blocs de la grille.
+var _axis: Dictionary = {}
+## Cases d'un passage libre posé sur un mur en biais (sol, sans mur).
+var _diag_pass: Dictionary = {}
+
+
+## Direction (n, e, s, o) d'un objet mural posé contre un mur droit (l'angle,
+## s'il est donné, l'emporte sur « mur »).
+static func _cardinal(o: Dictionary) -> String:
+	if o.has("angle"):
+		return MapGeom.cardinal_of(MapGeom.item_wall_dir(o))
+	return String(o.get("mur", "n"))
+
+
+## Côtés d'un contour : droits -> cases de la grille (_axis) ; en biais ->
+## `raw` (fusionnés ensuite par _merge_obliques). `own` : pièce de cet étage
+## (sinon contour d'une double hauteur de l'étage du dessous).
+func _edges(poly: PackedVector2Array, rid: String, own: bool, raw: Array) -> void:
+	for i in poly.size():
+		var a := poly[i]
+		var b := poly[(i + 1) % poly.size()]
+		if MapGeom.is_axis_seg(a, b):
+			for c in MapGeom.segment_cells(a, b):
+				_axis[c] = true
+		else:
+			raw.append({"a": a, "b": b, "room": rid, "poly": poly, "own": own})
+
+
+## Pilier ou mur libre de l'étage k : cases droites (_axis) ou mur oblique.
+func _obstacle_record(k: int, o: Dictionary, cells: Array) -> void:
+	if String(o.type) == "mur" and not MapGeom.is_axis_seg(MapGeom.v2(o.a), MapGeom.v2(o.b)):
+		var a := MapGeom.v2(o.a)
+		var b := MapGeom.v2(o.b)
+		var t := (b - a).normalized()
+		var room := MapRules.room_at(doc, int(o.get("etage", 0)), (a + b) * 0.5)
+		var rid := String(room.get("id", ""))
+		v.oblique_walls[k].append({"a": a, "b": b, "t": t, "n": Vector2(-t.y, t.x), "half": float(o.get("epaisseur", 0.5)) * 0.5,
+			"pos": rid, "neg": rid, "kind": "mur", "eid": String(o.id)})
+		return
+	for c in cells:
+		_axis[c] = true
+
+
+## Côtés en biais -> murs obliques : les côtés colinéaires qui se recouvrent
+## (bord commun de deux pièces) ne font qu'UN mur, découpé là où la pièce
+## d'un côté change ; pas de mur au bord d'une mezzanine au-dessus du vide
+## (garde-corps).
+func _merge_obliques(raw: Array, void_polys: Array) -> Array:
+	var lines := {}
+	for r in raw:
+		var t: Vector2 = (r.b - r.a).normalized()
+		if t.x < -MapGeom.EPS or (absf(t.x) <= MapGeom.EPS and t.y < 0.0):
+			t = -t
+		var n := Vector2(-t.y, t.x)
+		var off := snappedf(Vector2(r.a).dot(n), 0.001)
+		var key := "%.4f:%.4f:%.3f" % [t.x, t.y, off]
+		var line: Dictionary = lines.get_or_add(key, {"t": t, "n": n, "off": off, "spans": []})
+		var s0: float = Vector2(r.a).dot(t)
+		var s1: float = Vector2(r.b).dot(t)
+		var mid: Vector2 = (r.a + r.b) * 0.5
+		var side := 1 if MapGeom.contains(r.poly, mid + n * 0.2) else -1
+		line.spans.append([minf(s0, s1), maxf(s0, s1), String(r.room), side, bool(r.own)])
+	var out := []
+	var keys := lines.keys()
+	keys.sort()
+	for key in keys:
+		var line: Dictionary = lines[key]
+		var cuts := []
+		for sp in line.spans:
+			for s in [sp[0], sp[1]]:
+				if not cuts.any(func(x): return absf(x - s) < 0.001):
+					cuts.append(s)
+		cuts.sort()
+		var t: Vector2 = line.t
+		var n: Vector2 = line.n
+		var base: Vector2 = n * float(line.off)
+		for i in cuts.size() - 1:
+			var u: float = cuts[i]
+			var w: float = cuts[i + 1]
+			if w - u < 0.01:
+				continue
+			var sides := {1: ["", false], -1: ["", false]}
+			for sp in line.spans:
+				if sp[0] <= u + 0.001 and sp[1] >= w - 0.001:
+					var cur: Array = sides[sp[3]]
+					if cur[0] == "" or (sp[4] and not cur[1]):
+						sides[sp[3]] = [sp[2], sp[4]]
+			var pos := String(sides[1][0])
+			var neg := String(sides[-1][0])
+			if pos == "" and neg == "":
+				continue
+			if (pos == "") != (neg == ""):
+				var empty := n if pos == "" else -n
+				var outside := base + t * ((u + w) * 0.5) + empty * 0.3
+				if void_polys.any(func(vp): return MapGeom.strictly_inside(vp, outside)):
+					continue
+			var a := base + t * u
+			var b := base + t * w
+			if not out.is_empty():
+				var last: Dictionary = out[-1]
+				if last.kind == "piece" and last.b.distance_to(a) < 0.001 and last.t.is_equal_approx(t) and last.pos == pos and last.neg == neg:
+					last.b = b
+					continue
+			out.append({"a": a, "b": b, "t": t, "n": n, "half": MapGeom.WALL_HALF, "pos": pos, "neg": neg, "kind": "piece"})
+	return out
+
+
+## Mur oblique (côté de pièce) de l'étage k qui passe par `p` ({} sinon).
+func oblique_at(k: int, p: Vector2) -> Dictionary:
+	for w in v.oblique_walls[k]:
+		if w.kind == "piece" and MapGeom.dist_to_segment(p, w.a, w.b) <= 0.02:
+			return w
+	return {}
+
+
+## Fin d'un étage : cases des murs obliques qui ne sont pas des murs droits
+## (le jeu les construit en vrais murs obliques, pas en blocs de la grille).
+func _finish_diag(k: int) -> void:
+	var f := v.floors[k]
+	var dc: Dictionary = v.diag_cells[k]
+	for w in v.oblique_walls[k]:
+		for c in MapGeom.slab_cells(w.a, w.b, w.half):
+			if _axis.has(c) or not f.inside(c):
+				continue
+			var kd := f.at(c)
+			var key := f.key_at(c)
+			if (kd == K.MUR and key == "mur") or (kd in [K.PORTE, K.DEBRIS, K.FENETRE] and v.diag_open.has(key)) or (kd == K.SOL and _diag_pass.has(c)):
+				dc[c] = true
 
 
 ## Luminaire posé -> lampe du jeu (v.lamps_extra) : position de la lumière en
@@ -338,11 +505,11 @@ func _light(k: int, o: Dictionary) -> void:
 	var cells := []
 	if mount == "mur":
 		# Sur le trait du mur, face vers l'intérieur : la face du mur est à
-		# 0,25 m du trait, côté pièce.
-		var dv := MapGeom.dir_vec(String(o.get("mur", "n")))
+		# 0,25 m du trait, côté pièce (mur en biais : selon son angle).
+		var dv := MapGeom.item_wall_dir(o) if MapGeom.item_oblique(o) else MapGeom.dir_vec(_cardinal(o))
 		var face := p - dv * MapGeom.CELL * 0.5
 		l["center"] = face / MapGeom.CELL + Vector2(0.5, 0.5)
-		l["wall"] = Vector2i(dv)
+		l["wall"] = dv
 		# Lacet : l'axe +z de l'applique (du mur vers la pièce) vers -dv.
 		l["yaw"] = atan2(-dv.x, -dv.y)
 		cells = wall_item_cells(o)
@@ -362,6 +529,9 @@ func _obstacle_cells(o: Dictionary) -> Array:
 		return MapGeom.rect_cells_closed(MapGeom.rect_of(o.rect))
 	var a := MapGeom.v2(o.a)
 	var b := MapGeom.v2(o.b)
+	if not MapGeom.is_axis_seg(a, b):
+		# Mur libre en biais : toutes les cases que coupe son épaisseur.
+		return MapGeom.slab_cells(a, b, float(o.get("epaisseur", 0.5)) * 0.5)
 	var cells := {}
 	for c in MapGeom.segment_cells(a, b):
 		cells[c] = true
@@ -400,8 +570,10 @@ static func floor_cells(o: Dictionary) -> Array:
 ## Cases d'un objet mural : la rangée collée au mur, sur sa largeur. La
 ## position est sur le trait du mur (centre de l'objet le long du mur).
 static func wall_item_cells(o: Dictionary) -> Array:
+	if MapGeom.item_oblique(o):
+		return oblique_item_cells(o)
 	var p := MapGeom.v2(o.position)
-	var d: Vector2i = MapGeom.DIRS.get(String(o.get("mur", "n")), Vector2i(0, -1))
+	var d: Vector2i = MapGeom.DIRS.get(_cardinal(o), Vector2i(0, -1))
 	var n := MapCatalog.footprint(o).x
 	var out := []
 	if d.x == 0:
@@ -414,6 +586,35 @@ static func wall_item_cells(o: Dictionary) -> Array:
 		var j0 := MapGeom.first_cell(p.y, n)
 		for j in n:
 			out.append(Vector2i(i, j0 + j))
+	return out
+
+
+## Cases d'un objet mural contre un mur EN BIAIS : celles dont le centre est
+## dans son emprise tournée (MapRules.wall_item_poly), sauf les cases coupées
+## par le mur ; au moins la case libre la plus proche de son milieu.
+static func oblique_item_cells(o: Dictionary) -> Array:
+	var poly := MapRules.wall_item_poly(o)
+	var p := MapGeom.v2(o.position)
+	var dv := MapGeom.item_wall_dir(o)
+	var cut := MapGeom.WALL_HALF + (MapGeom.CELL * 0.5 - 0.02) * (absf(dv.x) + absf(dv.y))
+	var out := []
+	var best := Vector2i.ZERO
+	var best_d := INF
+	var mid := MapGeom.centroid(poly)
+	var bb := MapGeom.bbox(poly).grow(MapGeom.CELL)
+	for j in range(floori(bb.position.y / MapGeom.CELL), ceili(bb.end.y / MapGeom.CELL) + 1):
+		for i in range(floori(bb.position.x / MapGeom.CELL), ceili(bb.end.x / MapGeom.CELL) + 1):
+			var c := Vector2i(i, j)
+			var cc := MapGeom.cell_center(c)
+			if absf((cc - p).dot(dv)) <= cut or (cc - p).dot(dv) > 0.0:
+				continue
+			if MapGeom.contains(poly, cc):
+				out.append(c)
+			elif cc.distance_to(mid) < best_d:
+				best_d = cc.distance_to(mid)
+				best = c
+	if out.is_empty():
+		out.append(best)
 	return out
 
 
@@ -457,12 +658,17 @@ func opening_axis(o: Dictionary) -> int:
 func _opening(f: MapValidator.Floor, o: Dictionary) -> void:
 	var t := String(o.type)
 	var axis := opening_axis(o)
+	if axis < 0:
+		var ow := oblique_at(f.index, MapGeom.v2(o.position))
+		if not ow.is_empty():
+			_opening_oblique(f, o, ow)
+			return
 	var cells := opening_cells(o, axis != 0)
 	cells_of[String(o.id)] = [f.index, cells]
 	if axis < 0:
 		var w := v._at(f.index, cells[0])
-		_err("ouverture en %s : elle doit être posée sur un mur droit (horizontal ou vertical) d'une pièce" % w[0],
-			"opening at %s: it must sit on a straight (horizontal or vertical) room wall" % w[1], f.index, cells)
+		_err("ouverture en %s : elle doit être posée sur un mur d'une pièce" % w[0],
+			"opening at %s: it must sit on a room wall" % w[1], f.index, cells)
 		return
 	var key := "%s#%s" % ["fenetre" if t == "fenetre" else "porte", o.id]
 	v.eid_of[key] = String(o.id)
@@ -484,6 +690,47 @@ func _opening(f: MapValidator.Floor, o: Dictionary) -> void:
 				var i: int = c.y * f.w + c.x
 				if f.inside(c):
 					f.ceil[i] = maxf(f.ceil_at(c + side), f.ceil_at(c - side))
+		_:
+			for c in cells:
+				f.put(c, K.DEBRIS if t == "debris" else K.PORTE, key)
+			v.door_info[key] = {"cost": 0 if t == "porte_courant" else int(o.get("prix", 1000)), "power": t == "porte_courant",
+				"debris": t == "debris", "eid": String(o.id)}
+
+
+## Ouverture sur un mur EN BIAIS : les cases que coupe le mur sur la largeur
+## de l'ouverture (même marquage prudent que le mur) ; le validateur vérifie
+## ses deux côtés (MapValidator._diag_opening), le jeu découpe le mur oblique.
+func _opening_oblique(f: MapValidator.Floor, o: Dictionary, ow: Dictionary) -> void:
+	var t := String(o.type)
+	var p := MapGeom.v2(o.position)
+	var dir: Vector2 = ow.t
+	var w := 1.0 if t == "fenetre" else maxi(1, roundi(float(o.get("largeur", 2.0)) / MapGeom.CELL)) * MapGeom.CELL
+	var cells := MapGeom.slab_cells(p - dir * w * 0.5, p + dir * w * 0.5, float(ow.half)).filter(func(c): return f.inside(c) and not _axis.has(c))
+	cells_of[String(o.id)] = [f.index, cells]
+	if cells.is_empty():
+		return
+	var key := "%s#%s" % ["fenetre" if t == "fenetre" else "porte", o.id]
+	v.eid_of[key] = String(o.id)
+	v.diag_open[key] = {"p": p, "t": dir, "n": ow.n, "w": w, "half": float(ow.half), "type": t, "eid": String(o.id),
+		"floor": f.index, "cells": cells}
+	match t:
+		"fenetre":
+			for c in cells:
+				f.put(c, K.FENETRE, key)
+		"passage":
+			# Sol de la pièce d'un côté du mur (sinon de l'autre), plafond le plus haut.
+			var z := String(v.room_zone.get(String(ow.pos), "")) if ow.pos != "" else ""
+			if z == "":
+				z = String(v.room_zone.get(String(ow.neg), ""))
+			var ce := 0.0
+			for rid in [ow.pos, ow.neg]:
+				var r := doc.find(String(rid))
+				if not r.is_empty():
+					ce = maxf(ce, _ceil_of(r, f.index))
+			for c in cells:
+				f.put(c, K.SOL, "zone", z)
+				f.ceil[c.y * f.w + c.x] = maxf(f.ceil_at(c), ce)
+				_diag_pass[c] = true
 		_:
 			for c in cells:
 				f.put(c, K.DEBRIS if t == "debris" else K.PORTE, key)

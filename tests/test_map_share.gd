@@ -254,6 +254,35 @@ func test_guard_refusals() -> void:
 	_refused(missing, "fichier absent")
 
 
+## Carte à murs en biais (format 3) partagée en multijoueur : acceptée,
+## même empreinte chez l'invité ; l'angle d'un objet mural est borné (nombre
+## fini de 0 à 360) et une carte d'un format plus récent est refusée.
+func test_guard_diagonal_walls() -> void:
+	CustomMapGuard.reset_schema()
+	var m: EditorMap = preload("res://tests/test_map_editor_diagonal.gd").diag_map()
+	var pk := CustomMapGuard.package_of(m)
+	var chk := CustomMapGuard.check_package(pk.bytes, pk.sha)
+	assert_true(chk.ok, "carte à murs en biais acceptée : " + str(chk.get("reasons")))
+	assert_eq(CustomMapGuard.package_of(chk.map).sha, pk.sha, "même empreinte chez l'invité")
+	assert_true(CustomMapGuard.check_full(m.file_texts()).ok, "contrôle complet (jouabilité comprise)")
+	assert_true(String(m.file_texts()["objets.json"]).contains("\"angle\":45"), "clé angle transmise")
+	var kinds := MapCatalog.allowed_kinds()
+	for t in ["atout", "arme", "boite", "grenades", "pap", "courant", "poste_central", "levier", "luminaire"]:
+		assert_eq(kinds[t].keys.get("angle", {}).get("t", ""), "number", "angle admis pour %s" % t)
+	for bad in ["400", "-5", "1e999", "\"nord\"", "[45]", "true"]:
+		var t := m.file_texts()
+		t["objets.json"] = String(t["objets.json"]).replace("\"angle\":45", "\"angle\":" + bad)
+		assert_true(String(t["objets.json"]).contains("\"angle\":" + bad), "remplacement %s" % bad)
+		_refused(t, "angle %s" % bad)
+	# Angle sur un objet qui n'est pas mural : clé inconnue.
+	var t2 := m.file_texts()
+	t2["objets.json"] = String(t2["objets.json"]).replace("\"type\":\"depart\"", "\"type\":\"depart\",\"angle\":45")
+	_refused(t2, "angle sur le départ")
+	var t3 := m.file_texts()
+	t3["carte.json"] = String(t3["carte.json"]).replace("\"format\": 3", "\"format\": 4")
+	_refused(t3, "format plus récent que le jeu")
+
+
 func test_guard_unplayable_map() -> void:
 	# Sûre mais injouable (aucune pièce) : refusée par le validateur de l'éditeur.
 	var blank := EditorMap.blank("vide", "VIDE", "EMPTY")

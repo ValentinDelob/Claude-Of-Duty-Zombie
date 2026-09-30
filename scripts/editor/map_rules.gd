@@ -148,16 +148,14 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 	for e in cands:
 		var a: Vector2 = e.a
 		var b: Vector2 = e.b
-		if absf(a.x - b.x) > MapGeom.EPS and absf(a.y - b.y) > MapGeom.EPS:
-			continue   # mur en biais : pas d'ouverture
 		var d := MapGeom.dist_to_segment(mouse, a, b)
 		if d < best_d:
 			best_d = d
 			best = e
 	if best == null:
 		if window:
-			return refuse("une fenêtre se pose sur un mur extérieur droit d'une pièce (visez le bord de la pièce, côté dehors)",
-				"a window goes on a straight outer wall of a room (aim at the room's edge, outside side)")
+			return refuse("une fenêtre se pose sur un mur extérieur d'une pièce (visez le bord de la pièce, côté dehors)",
+				"a window goes on an outer wall of a room (aim at the room's edge, outside side)")
 		if doc.rooms_on(k).size() < 2 or shared_edges(doc, k).is_empty():
 			return refuse("une porte relie deux pièces : il faut deux pièces collées (un bord commun) à cet étage",
 				"a door links two rooms: you need two touching rooms (a shared edge) on this floor")
@@ -165,6 +163,8 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 			"aim at the shared wall of two touching rooms: a door only leads into another room")
 	var a: Vector2 = best.a
 	var b: Vector2 = best.b
+	if not MapGeom.is_axis_seg(a, b):
+		return _place_opening_oblique(doc, k, window, mouse, width, best, ignore_id)
 	var horizontal := absf(a.y - b.y) < MapGeom.EPS
 	var n := maxi(1, roundi(width / MapGeom.CELL))
 	var w := n * MapGeom.CELL
@@ -189,7 +189,7 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 		if String(o.id) == ignore_id:
 			continue
 		var op := MapGeom.v2(o.position)
-		if absf((op.y if horizontal else op.x) - line) > MapGeom.EPS:
+		if absf((op.y if horizontal else op.x) - line) > MapGeom.EPS or _on_oblique_wall(doc, k, op):
 			continue
 		var s := opening_span(o, horizontal)
 		if s.x < span.y + END_MARGIN - MapGeom.EPS and s.y > span.x - END_MARGIN + MapGeom.EPS:
@@ -198,7 +198,7 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 				"too close to another opening (%s): leave 0.5 m of wall between them" % nm[1].to_lower())
 	# Objets muraux contre ce mur à cet endroit.
 	for o in doc.objects_on(k):
-		if MapCatalog.tool_of(o) != "wall_item":
+		if MapCatalog.tool_of(o) != "wall_item" or MapGeom.item_oblique(o):
 			continue
 		var d := String(o.get("mur", "n"))
 		var op := MapGeom.v2(o.position)
@@ -228,6 +228,98 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 	return res
 
 
+## Côté de pièce de l'étage qui passe par `p` : [a, b] (le premier trouvé),
+## [] sinon.
+static func edge_through(doc: EditorMap, k: int, p: Vector2, tol := 0.01) -> Array:
+	for r in doc.rooms_on(k):
+		var poly := doc.room_poly(r)
+		for i in poly.size():
+			var a := poly[i]
+			var b := poly[(i + 1) % poly.size()]
+			if MapGeom.dist_to_segment(p, a, b) <= tol:
+				return [a, b]
+	return []
+
+
+## `p` est-il sur un mur en biais (et sur aucun mur droit) ?
+static func _on_oblique_wall(doc: EditorMap, k: int, p: Vector2) -> bool:
+	var oblique := false
+	for r in doc.rooms_on(k):
+		var poly := doc.room_poly(r)
+		for i in poly.size():
+			var a := poly[i]
+			var b := poly[(i + 1) % poly.size()]
+			if MapGeom.dist_to_segment(p, a, b) <= 0.01:
+				if MapGeom.is_axis_seg(a, b):
+					return false
+				oblique = true
+	return oblique
+
+
+## Distance de `p` à la droite (a, direction unitaire t).
+static func _line_dist(p: Vector2, a: Vector2, t: Vector2) -> float:
+	return absf((p - a).dot(Vector2(-t.y, t.x)))
+
+
+## Ouverture sur un mur EN BIAIS (côté de pièce oblique) : même règles que sur
+## un mur droit (0,5 m de mur à chaque bout et entre deux ouvertures, rien
+## d'accroché au mur à cet endroit, place dehors pour la cour d'une fenêtre),
+## le long du mur ; le milieu est aimanté (grille de 0,25 m sur un côté à 45°).
+static func _place_opening_oblique(doc: EditorMap, k: int, window: bool, mouse: Vector2, width: float, best: Dictionary, ignore_id: String) -> Dictionary:
+	var a: Vector2 = best.a
+	var b: Vector2 = best.b
+	var seg_len := a.distance_to(b)
+	var t := (b - a) / seg_len
+	var w := 1.0 if window else maxi(1, roundi(width / MapGeom.CELL)) * MapGeom.CELL
+	var s := MapGeom.snap_on_segment(a, b, (mouse - a).dot(t), w, END_MARGIN)
+	if s < 0.0:
+		return refuse("ce mur est trop court pour une ouverture de %s m (il faut %s m de mur, 0,5 m de chaque côté)" % [_m(w), _m(w + 2.0 * END_MARGIN)],
+			"this wall is too short for a %s m opening (%s m of wall needed, 0.5 m on each side)" % [_m(w, false), _m(w + 2.0 * END_MARGIN, false)])
+	var pos := a + t * s
+	for o in doc.openings_on(k):
+		if String(o.id) == ignore_id:
+			continue
+		var op := MapGeom.v2(o.position)
+		if _line_dist(op, a, t) > 0.01:
+			continue
+		var oc := (op - a).dot(t)
+		var ow := opening_width(o) * 0.5
+		if oc - ow < s + w * 0.5 + END_MARGIN - MapGeom.EPS and oc + ow > s - w * 0.5 - END_MARGIN + MapGeom.EPS:
+			var nm := _name(o)
+			return refuse("trop près d'une autre ouverture (%s) : laissez 0,5 m de mur entre les deux" % nm[0].to_lower(),
+				"too close to another opening (%s): leave 0.5 m of wall between them" % nm[1].to_lower())
+	for o in doc.objects_on(k):
+		if MapCatalog.tool_of(o) != "wall_item":
+			continue
+		var op := MapGeom.v2(o.position)
+		if _line_dist(op, a, t) > 0.01 or absf(MapGeom.item_wall_dir(o).dot(t)) > 0.05:
+			continue
+		var half := MapCatalog.footprint(o).x * MapGeom.CELL * 0.5
+		var oc := (op - a).dot(t)
+		if oc - half < s + w * 0.5 - MapGeom.EPS and oc + half > s - w * 0.5 + MapGeom.EPS:
+			var nm := _name(o)
+			return refuse("%s est contre ce mur à cet endroit" % nm[0], "%s stands against this wall here" % nm[1])
+	var res := {"ok": true, "position": MapGeom.arr(pos), "horizontal": false, "dir": [t.x, t.y]}
+	if window:
+		res["rooms"] = [best.room]
+		var poly := doc.room_poly(doc.find(best.room))
+		var out_dir := (_outside(poly, a, b, 0.3) - (a + b) * 0.5).normalized()
+		var pocket := pocket_poly(pos, out_dir)
+		for q in doc.rooms_on(k):
+			if MapGeom.overlap(pocket, doc.room_poly(q)):
+				return refuse("pas de place dehors pour les zombies : il faut 2,5 m × 3 m de vide derrière la fenêtre (gêné par « %s »)" % q.get("nom", q.id),
+					"no room outside for the zombies: 2.5 m × 3 m of empty space is needed behind the window (blocked by \"%s\")" % q.get("nom", q.id))
+	else:
+		res["rooms"] = best.rooms
+	return res
+
+
+## Cour des zombies derrière une fenêtre en `pos` (sur le trait), `out_dir`
+## vers dehors : 3 m le long du mur, de 0,3 à 2,75 m du trait.
+static func pocket_poly(pos: Vector2, out_dir: Vector2) -> PackedVector2Array:
+	return MapGeom.oriented_rect(pos + out_dir * 0.3, out_dir, POCKET.y, POCKET.x - 0.3)
+
+
 static func _m(v: float, fr := true) -> String:
 	var s := ("%.2f" % v).trim_suffix("0").trim_suffix("0").trim_suffix(".")
 	return s.replace(".", ",") if fr else s
@@ -254,6 +346,9 @@ static func footprint_rect(o: Dictionary) -> Rect2:
 	var fp := MapCatalog.footprint(o)
 	var p := MapGeom.v2(o.get("position", [0, 0]))
 	var tool := MapCatalog.tool_of(o)
+	if tool == "wall_item" and MapGeom.item_oblique(o):
+		# Contre un mur en biais : rectangle englobant de l'emprise tournée.
+		return MapGeom.bbox(wall_item_poly(o))
 	if tool == "wall_item":
 		var d := MapGeom.dir_vec(String(o.get("mur", "n")))
 		var along := fp.x * MapGeom.CELL
@@ -268,6 +363,25 @@ static func footprint_rect(o: Dictionary) -> Rect2:
 	return Rect2(p - s * 0.5, s)
 
 
+## Emprise exacte (4 sommets, m) d'un objet mural : de la face du mur (0,25 m
+## du trait, côté pièce) vers l'intérieur, sur sa largeur le long du mur.
+static func wall_item_poly(o: Dictionary) -> PackedVector2Array:
+	var fp := MapCatalog.footprint(o)
+	var dv := MapGeom.item_wall_dir(o)
+	var face := MapGeom.v2(o.get("position", [0, 0])) - dv * MapGeom.WALL_HALF
+	return MapGeom.oriented_rect(face, -dv, fp.x * MapGeom.CELL, fp.y * MapGeom.CELL)
+
+
+## Reporte le mur visé d'un résultat de pose (place_wall_item) sur l'objet :
+## « mur » (n, e, s, o) et, contre un mur en biais, « angle ».
+static func apply_wall(o: Dictionary, res: Dictionary) -> void:
+	o["mur"] = String(res.get("mur", o.get("mur", "n")))
+	if res.has("angle"):
+		o["angle"] = res.angle
+	else:
+		o.erase("angle")
+
+
 ## L'élément `o` couvre-t-il le point `p` (clic, gomme) ?
 static func hit(doc: EditorMap, o: Dictionary, p: Vector2) -> bool:
 	if o.has("contour"):
@@ -276,6 +390,9 @@ static func hit(doc: EditorMap, o: Dictionary, p: Vector2) -> bool:
 		return MapGeom.dist_to_segment(p, MapGeom.v2(o.a), MapGeom.v2(o.b)) <= maxf(0.3, float(o.get("epaisseur", 0.5)) * 0.5)
 	if o.has("position") and not o.has("rect") and ouvertures_types().has(String(o.get("type", ""))):
 		return MapGeom.v2(o.position).distance_to(p) <= maxf(0.5, opening_width(o) * 0.5)
+	if MapGeom.item_oblique(o) and MapCatalog.tool_of(o) == "wall_item":
+		var poly := wall_item_poly(o)
+		return MapGeom.contains(poly, p) or MapGeom.on_boundary(poly, p, 0.05)
 	return footprint_rect(o).grow(0.05).has_point(p)
 
 
@@ -411,16 +528,16 @@ static func place_wall_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vec
 	for i in poly.size():
 		var a := poly[i]
 		var b := poly[(i + 1) % poly.size()]
-		if absf(a.x - b.x) > MapGeom.EPS and absf(a.y - b.y) > MapGeom.EPS:
-			continue
 		var d := MapGeom.dist_to_segment(mouse, a, b)
 		if d < best_d:
 			best_d = d
 			best = i
 	if best < 0:
-		return refuse("rapprochez-vous d'un mur droit : %s se pose contre un mur" % nm[0].to_lower(), "move closer to a straight wall: %s stands against a wall" % nm[1].to_lower())
+		return refuse("rapprochez-vous d'un mur : %s se pose contre un mur" % nm[0].to_lower(), "move closer to a wall: %s stands against a wall" % nm[1].to_lower())
 	var a := poly[best]
 	var b := poly[(best + 1) % poly.size()]
+	if not MapGeom.is_axis_seg(a, b):
+		return _place_wall_item_oblique(doc, k, tmpl, mouse, room, a, b, ignore_id)
 	var horizontal := absf(a.y - b.y) < MapGeom.EPS
 	var fp := MapCatalog.footprint(tmpl)
 	var n := fp.x
@@ -445,10 +562,11 @@ static func place_wall_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vec
 	var obj := tmpl.duplicate()
 	obj["position"] = MapGeom.arr(pos)
 	obj["mur"] = dir
+	obj.erase("angle")
 	var span := Vector2(along - w * 0.5, along + w * 0.5)
 	for o in doc.openings_on(k):
 		var op := MapGeom.v2(o.position)
-		if absf((op.y if horizontal else op.x) - line) > MapGeom.EPS:
+		if absf((op.y if horizontal else op.x) - line) > MapGeom.EPS or _on_oblique_wall(doc, k, op):
 			continue
 		var s := opening_span(o, horizontal)
 		if s.x < span.y - MapGeom.EPS and s.y > span.x + MapGeom.EPS:
@@ -464,6 +582,50 @@ static func place_wall_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vec
 		var on := _name(other)
 		return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
 	return {"ok": true, "position": obj.position, "mur": dir, "room": String(room.id)}
+
+
+## Objet mural contre un côté EN BIAIS [a, b] de la pièce `room` : face vers
+## l'intérieur, « angle » = direction du mur vu depuis l'objet (degrés, sens
+## horaire depuis le nord) et « mur » = direction cardinale la plus proche.
+static func _place_wall_item_oblique(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, room: Dictionary, a: Vector2, b: Vector2, ignore_id: String) -> Dictionary:
+	var nm := _name(tmpl)
+	var poly := doc.room_poly(room)
+	var seg_len := a.distance_to(b)
+	var t := (b - a) / seg_len
+	var inward := Vector2(-t.y, t.x)
+	if not MapGeom.contains(poly, (a + b) * 0.5 + inward * 0.3):
+		inward = -inward
+	var dv := -inward
+	var fp := MapCatalog.footprint(tmpl)
+	var w := fp.x * MapGeom.CELL
+	var s := MapGeom.snap_on_segment(a, b, (mouse - a).dot(t), w, MapGeom.CELL * 0.5)
+	if s < 0.0:
+		return refuse("ce mur est trop court pour %s (%s m de mur)" % [nm[0].to_lower(), _m(w)], "this wall is too short for %s (%s m of wall)" % [nm[1].to_lower(), _m(w, false)])
+	var pos := a + t * s
+	var obj := tmpl.duplicate()
+	obj["position"] = MapGeom.arr(pos)
+	obj["mur"] = MapGeom.cardinal_of(dv)
+	obj["angle"] = snappedf(MapGeom.dir_deg(dv), 0.01)
+	for o in doc.openings_on(k):
+		var op := MapGeom.v2(o.position)
+		if _line_dist(op, a, t) > 0.01:
+			continue
+		var oc := (op - a).dot(t)
+		var ow := opening_width(o) * 0.5
+		if oc - ow < s + w * 0.5 - MapGeom.EPS and oc + ow > s - w * 0.5 + MapGeom.EPS:
+			var on := _name(o)
+			return refuse("il faut du mur plein derrière : %s est dans ce mur à cet endroit" % on[0].to_lower(),
+				"a solid wall is needed behind it: %s is in this wall here" % on[1].to_lower())
+	var fpoly := wall_item_poly(obj)
+	var fc := MapGeom.centroid(fpoly)
+	for c in fpoly:
+		if not MapGeom.contains(poly, c.lerp(fc, 0.02)):
+			return refuse("pas la place devant %s dans cette pièce" % nm[0].to_lower(), "not enough room in front of %s in this room" % nm[1].to_lower())
+	var other := _overlaps(doc, k, footprint_rect(obj), ignore_id, layer_of(tmpl))
+	if not other.is_empty():
+		var on := _name(other)
+		return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
+	return {"ok": true, "position": obj.position, "mur": obj.mur, "angle": obj.angle, "room": String(room.id)}
 
 
 ## Pose d'un objet au sol (départ, apparition, téléporteur, lampe, caisse,
@@ -552,8 +714,9 @@ static func check_existing(doc: EditorMap, o: Dictionary) -> Dictionary:
 		return r
 	match MapCatalog.tool_of(o):
 		"wall_item":
-			var r := place_wall_item(doc, k, o, MapGeom.v2(o.position) - MapGeom.dir_vec(String(o.get("mur", "n"))) * 0.6, String(o.id))
-			if r.ok and (MapGeom.v2(r.position).distance_to(MapGeom.v2(o.position)) > 0.3 or String(r.mur) != String(o.get("mur", ""))):
+			var r := place_wall_item(doc, k, o, MapGeom.v2(o.position) - MapGeom.item_wall_dir(o) * 0.6, String(o.id))
+			if r.ok and (MapGeom.v2(r.position).distance_to(MapGeom.v2(o.position)) > 0.3 or String(r.mur) != String(o.get("mur", ""))
+					or r.has("angle") != MapGeom.item_oblique(o) or (r.has("angle") and absf(angle_difference(deg_to_rad(float(r.angle)), deg_to_rad(float(o.angle)))) > 0.01)):
 				return refuse("n'est plus contre un mur", "is no longer against a wall")
 			return r
 		"floor_item":

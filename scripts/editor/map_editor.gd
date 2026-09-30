@@ -357,8 +357,8 @@ func _update_title() -> void:
 
 func _show_help() -> void:
 	_info(Lang.t("Raccourcis", "Shortcuts"), Lang.t(
-		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser : pièces, murs, piliers, escaliers, pièges\nMaj : aimantation à 0,5 m (sinon 1 m)\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone",
-		"Left click: place / pick · right click: cancel\nDrag: rooms, walls, pillars, stairs, traps\nShift: snap to 0.5 m (otherwise 1 m)\nCtrl + wheel: zoom · middle click or Space + drag: pan\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon"))
+		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser : pièces, murs, piliers, escaliers, pièges\nMaj : aimantation à 0,5 m (sinon 1 m)\nMurs et côtés de polygone : à 0, 45 ou 90° ; Alt : angle libre (longueur et angle affichés)\nPièce rectangle en main : R la tourne de 45°\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone",
+		"Left click: place / pick · right click: cancel\nDrag: rooms, walls, pillars, stairs, traps\nShift: snap to 0.5 m (otherwise 1 m)\nWalls and polygon sides: at 0, 45 or 90°; Alt: free angle (length and angle shown)\nRectangle room held: R turns it 45°\nCtrl + wheel: zoom · middle click or Space + drag: pan\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon"))
 
 
 func _info(title_text: String, text: String) -> void:
@@ -855,7 +855,7 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 				res = MapRules.place_wall_item(doc, k, orig, MapRules.footprint_rect(cand).get_center(), String(orig.id))
 				if res.ok:
 					cand.position = res.position
-					cand.mur = res.mur
+					MapRules.apply_wall(cand, res)
 			"floor_item":
 				res = MapRules.place_floor_item(doc, k, orig, MapGeom.v2(cand.position), String(orig.id))
 				if res.ok:
@@ -941,6 +941,9 @@ static func _rot(o: Dictionary, c: Vector2) -> Dictionary:
 			e[key] = MapGeom.dir_rot(String(e[key]))
 	if e.has("rot"):
 		e["rot"] = posmod(int(e.rot) + 90, 360)
+	if e.has("angle"):
+		# Objet contre un mur en biais : il tourne avec la pièce.
+		e["angle"] = snappedf(fposmod(float(e.angle) + 90.0, 360.0), 0.01)
 	return e
 
 
@@ -958,6 +961,14 @@ func _resnap(o: Dictionary) -> void:
 ## sinon l'élément choisi (une pièce pivote avec son contenu).
 func rotate_selected() -> void:
 	var held := current_item()
+	if String(held.get("tool", "")) == "room_rect":
+		# Pièce rectangle : R bascule entre un rectangle droit et un rectangle
+		# tourné de 45° (losange), tracé d'un coin à l'autre.
+		place_rot = 45 if place_rot != 45 else 0
+		canvas.queue_redraw()
+		set_status(Lang.t("Pièce rectangle : tournée de 45° (R pour revenir droite)", "Rectangle room: turned 45° (R to go back straight)") if place_rot == 45
+			else Lang.t("Pièce rectangle : droite (R pour la tourner de 45°)", "Rectangle room: straight (R to turn it 45°)"))
+		return
 	if held.get("rotates", false):
 		place_rot = (place_rot + 90) % 360
 		canvas._update_preview()
@@ -1042,7 +1053,7 @@ func paste() -> void:
 				res = MapRules.place_wall_item(doc, floor_k, e, target)
 				if res.ok:
 					e.position = res.position
-					e.mur = res.mur
+					MapRules.apply_wall(e, res)
 			"floor_item":
 				res = MapRules.place_floor_item(doc, floor_k, e, target)
 				if res.ok:
