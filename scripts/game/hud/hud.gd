@@ -43,7 +43,7 @@ var powerup_hud: PowerupHud
 ## AMMO_UNSET : rien d'écrit encore ; AMMO_HIDDEN : compteur masqué.
 const AMMO_UNSET := -2
 const AMMO_HIDDEN := -1
-var _shown_fps := -1
+var _shown_fps := -1.0
 var _shown_mag := AMMO_UNSET
 var _shown_reserve := AMMO_UNSET
 var _ammo_col: Variant = null
