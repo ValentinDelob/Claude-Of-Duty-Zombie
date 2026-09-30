@@ -47,8 +47,8 @@ func run() -> void:
 		if z.get_node_or_null("Fling") is ZombieFling:
 			flung += 1
 	at.check(ok and flung == 4, "serveur : %d/4 zombies de manche 30 tués et projetés" % flung)
-	await seconds(0.3)
+	await until(func(): return cpd.points - points0 >= 4 * PointsRules.KILL, 1.0, "points du client")
 	at.check(cpd.points - points0 == 4 * PointsRules.KILL, "50 points par kill au client (+%d)" % (cpd.points - points0))
 	at.check(cpd.current_weapon().id == "thunder" and cpd.current_weapon().mag == 1, "munition décomptée par le serveur (%d)" % cpd.current_weapon().mag)
 	await at.screenshot("host")
-	await seconds(3.0)
+	await MpHelpers.finish(self)

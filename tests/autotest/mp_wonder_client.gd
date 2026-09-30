@@ -22,8 +22,10 @@ func run() -> void:
 	var ok: bool = await until(func(): return p.weapons.current().get("id", "") == "thunder" and game.zombies.alive.size() >= 4, 40.0, "arme et zombies reçus")
 	if not ok:
 		return
-	await seconds(Zombie.EMERGE_TIME + WeaponController.SWITCH_TIME + 0.5)
 	var zs: Array = game.zombies.alive.duplicate()
+	# Zombies sortis de terre, TONNERRE-7 sorti.
+	await until(func(): return zs.all(func(z): return z.state != Zombie.State.EMERGE) and GameClock.now() >= p.weapons._switch_end, Zombie.EMERGE_TIME + 3.0, "zombies debout et arme prête")
+	await seconds(0.3)  # fin du redressement des zombies (animation)
 	var start_pos := []
 	for z: Zombie in zs:
 		start_pos.append(z.global_position)
@@ -45,14 +47,19 @@ func run() -> void:
 		if is_instance_valid(z) and z.get_node_or_null("Fling") is ZombieFling:
 			flung += 1
 	at.check(ok and flung == 4, "client : %d/4 zombies projetés" % flung)
-	await seconds(1.0)
 	var moved := 0
-	for i in zs.size():
-		var z: Zombie = zs[i]
-		if is_instance_valid(z) and z.global_position.x - start_pos[i].x > 1.5:
-			moved += 1
+	var count_moved := func() -> int:
+		var n := 0
+		for i in zs.size():
+			var z: Variant = zs[i]  # non typé : le corps peut avoir été libéré
+			if is_instance_valid(z) and (z as Zombie).global_position.x - start_pos[i].x > 1.5:
+				n += 1
+		return n
+	# Vol des corps (≈ 1 s).
+	await until(func(): return count_moved.call() == 4, 3.0, "corps envolés")
+	moved = count_moved.call()
 	at.check(moved == 4, "client : %d/4 corps envolés vers l'arrière" % moved)
 	await at.screenshot("landed")
 	ok = await until(func(): return pd.points - points0 == 4 * PointsRules.KILL, 3.0, "points répliqués")
 	at.check(ok, "points du client répliqués (+%d)" % (pd.points - points0))
-	await seconds(2.0)
+	await MpHelpers.finish(self)
