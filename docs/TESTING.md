@@ -146,7 +146,8 @@ sh tools/check.sh
 | `sh tools/check.sh --fast` | sans réseau ni multijoueur |
 | `sh tools/check.sh --no-retry` | pas de rejeu |
 | `SCENARIOS="perks traps" sh tools/check.sh` | ces scénarios, sans cache |
-| `MP="lobby" sh tools/check.sh` | ces tests multijoueur |
+| `MP="lobby" sh tools/check.sh` | ces tests multijoueur seulement (ni scénario ni test réseau), sans cache |
+| `SCENARIOS="boot" MP="lobby" sh tools/check.sh` | les deux listes ensemble |
 | `sh tools/perf.sh [scénarios]` | mesures de performance fiables, un jeu à la fois |
 
 `tools/ship.sh` lance `tools/commit.sh` avec `--full`, puis la release ;
