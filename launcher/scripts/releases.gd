@@ -50,6 +50,7 @@ const SNAPSHOT_SEP := "-snapshot."
 const MANIFEST_ASSET := "manifest.json"
 const MAX_MANIFEST_BYTES := 256 << 10
 const MAX_PACK_BYTES := 1 << 30
+const MAX_LAUNCHER_VERSION := 1000000
 
 const VERIFIED := "verified"   # SHA256SUMS.txt publié : somme vérifiée
 const LEGACY := "legacy"       # version antérieure aux sommes : taille vérifiée
@@ -375,7 +376,8 @@ static func _pick(v, lang: String) -> String:
 ## tailles, numéros de release), les adresses sont reconstruites ici (jamais
 ## lues dans le fichier). Résultat : {version, channel, build, engine: {godot,
 ## file, sha256, size, release, url}, packs: [{id, lang, file, sha256, size,
-## release, url, main}]}, un seul paquet principal (le core).
+## release, url, main}], launcher (facultatif): {version, file, sha256, size,
+## release, url}}, un seul paquet principal (le core).
 static func parse_manifest(text: String, tag: String) -> Dictionary:
 	if text.length() > MAX_MANIFEST_BYTES:
 		return {}
@@ -420,7 +422,32 @@ static func parse_manifest(text: String, tag: String) -> Dictionary:
 		packs.append(f)
 	if mains != 1:
 		return {}
-	return {"version": tag, "channel": channel, "build": build, "engine": engine, "packs": packs}
+	var out := {"version": tag, "channel": channel, "build": build, "engine": engine, "packs": packs}
+	# Lanceur : facultatif (absent des manifestes de v0.2.0-snapshot.165 à 167) ;
+	# présent, il doit être entièrement valide, sinon tout le manifeste est refusé.
+	if d.has("launcher"):
+		var l := _manifest_launcher(d.get("launcher"))
+		if l.is_empty():
+			return {}
+		out.launcher = l
+	return out
+
+
+## Entrée « launcher » d'un manifeste : {version, file, sha256, size, release,
+## url} ou {} (mêmes règles que les autres fichiers, plus un numéro de lanceur
+## entier et positif).
+static func _manifest_launcher(e: Variant) -> Dictionary:
+	if not e is Dictionary:
+		return {}
+	var f := _manifest_file(e, ".exe", MAX_EXE_BYTES)
+	var v: Variant = e.get("version")
+	if f.is_empty() or not (v is float or v is int):
+		return {}
+	var n := float(v)
+	if n != floorf(n) or n < 1.0 or n > MAX_LAUNCHER_VERSION:
+		return {}
+	f.version = int(n)
+	return f
 
 
 ## Fichier d'un manifeste : {file, sha256, size, release, url} ou {}.
@@ -444,3 +471,66 @@ static func is_sha256(s: String) -> bool:
 ## Adresse d'un fichier joint à une release de ce dépôt.
 static func asset_url(release: String, file: String) -> String:
 	return DOWNLOAD_PREFIX + release + "/" + file
+
+
+# --------------------------------------------------------------------------
+# Auto-mise à jour du lanceur (docs/LAUNCHER.md)
+# --------------------------------------------------------------------------
+# Source : la release la plus récente du canal choisi. Depuis le lanceur 8,
+# son manifeste dit quel lanceur est à jour (entrée « launcher », adressée par
+# son contenu : le fichier est dans la release qui l'a publié, souvent plus
+# ancienne). Sans manifeste, ou manifeste sans entrée « launcher » (snapshots
+# 165 à 167) : ancien mécanisme, launcher_version.txt et
+# ClaudeOfDutyZombie-Launcher.exe joints à cette même release.
+
+const LAUNCHER_BY_MANIFEST := "manifest"
+const LAUNCHER_BY_ASSETS := "assets"
+
+
+## Release dont le lanceur est proposé : la plus récente du canal `channel`
+## (un joueur du canal stable ne reçoit jamais le lanceur d'une snapshot) ; {} sans.
+static func launcher_release(versions: Array, channel: String) -> Dictionary:
+	for v: Dictionary in versions:
+		if String(v.get("channel", STABLE)) == channel:
+			return v
+	return {}
+
+
+## Comment lire le lanceur de la release `v` : LAUNCHER_BY_MANIFEST (manifeste,
+## puis repli sur les fichiers joints s'il n'a pas d'entrée « launcher »),
+## LAUNCHER_BY_ASSETS, ou "" (rien à faire ; toujours "" sans SHA256SUMS.txt).
+static func launcher_mode(v: Dictionary) -> String:
+	if v.is_empty() or String(v.get("sums_url", "")) == "":
+		return ""
+	if String(v.get("manifest_url", "")) != "":
+		return LAUNCHER_BY_MANIFEST
+	if has_launcher_assets(v):
+		return LAUNCHER_BY_ASSETS
+	return ""
+
+
+## La release joint un lanceur et son numéro (ancien mécanisme).
+static func has_launcher_assets(v: Dictionary) -> bool:
+	return String(v.get("launcher_version_url", "")) != "" and String(v.get("launcher_url", "")) != ""
+
+
+## Lanceur à installer d'après un manifeste vérifié (parse_manifest) :
+## {version, url, sha256, size} s'il est plus récent que `current`, sinon {}.
+static func launcher_from_manifest(m: Dictionary, current: int) -> Dictionary:
+	var l: Variant = m.get("launcher")
+	if not l is Dictionary or int(l.get("version", 0)) <= current:
+		return {}
+	return {"version": int(l.version), "url": String(l.url), "sha256": String(l.sha256), "size": int(l.size)}
+
+
+## Lanceur à installer d'après l'ancien mécanisme : numéro lu dans
+## launcher_version.txt (`version_text`), somme lue dans SHA256SUMS.txt (`sums`,
+## parse_sums) ; {} s'il n'est pas plus récent, numéro illisible ou somme absente.
+static func launcher_from_assets(v: Dictionary, version_text: String, sums: Dictionary, current: int) -> Dictionary:
+	var txt := version_text.strip_edges()
+	if not has_launcher_assets(v) or not txt.is_valid_int() or txt.to_int() <= current or txt.to_int() > MAX_LAUNCHER_VERSION:
+		return {}
+	var sha := String(sums.get(String(v.get("launcher_name", "")), ""))
+	if not is_sha256(sha):
+		return {}
+	return {"version": txt.to_int(), "url": String(v.launcher_url), "sha256": sha, "size": int(v.get("launcher_size", 0))}

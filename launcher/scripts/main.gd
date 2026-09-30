@@ -1139,49 +1139,88 @@ func _check_launcher_update() -> void:
 		return
 	# Lanceur de la dernière version du canal choisi : un joueur du canal
 	# stable ne reçoit jamais le lanceur d'une snapshot.
-	var v: Dictionary = {}
-	for e: Dictionary in versions:
-		if String(e.get("channel", Releases.STABLE)) == channel:
-			v = e
-			break
+	var v := Releases.launcher_release(versions, channel)
 	if v.is_empty():
-		return
-	if String(v.launcher_version_url) == "" or String(v.launcher_url) == "":
 		return
 	# Nouveau lanceur jamais installé sans somme SHA-256 publiée avec lui.
 	if String(v.sums_url) == "":
 		print("[launcher] mise à jour du lanceur ignorée : %s sans %s" % [v.tag, Releases.SUMS_ASSET])
 		return
-	var h := _new_http()
-	if not _fetch(h, String(v.launcher_version_url), 64, _on_launcher_version.bind(h, v)):
-		h.queue_free()
-
-
-func _on_launcher_version(result: int, code: int, body: PackedByteArray, h: HTTPRequest, v: Dictionary) -> void:
-	var txt := body.get_string_from_utf8().strip_edges()
-	if result != HTTPRequest.RESULT_SUCCESS or code != 200 or not txt.is_valid_int() or txt.to_int() <= Version.LAUNCHER_VERSION:
-		h.queue_free()
+	if Releases.launcher_mode(v) == "":
 		return
+	var h := _new_http()
 	if not _fetch(h, String(v.sums_url), Releases.MAX_SMALL_BYTES, _on_launcher_sums.bind(h, v)):
 		h.queue_free()
 
 
+## Étape 1 : SHA256SUMS.txt de la release. Avec un manifeste : sa somme, puis
+## le manifeste (entrée « launcher ») ; sinon l'ancien mécanisme.
 func _on_launcher_sums(result: int, code: int, body: PackedByteArray, h: HTTPRequest, v: Dictionary) -> void:
-	var sha := ""
-	if result == HTTPRequest.RESULT_SUCCESS and code == 200:
-		sha = String(Releases.parse_sums(body.get_string_from_utf8()).get(String(v.launcher_name), ""))
-	if sha == "":
-		print("[launcher] mise à jour du lanceur ignorée : somme SHA-256 absente")
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
 		h.queue_free()
 		return
+	var sums := Releases.parse_sums(body.get_string_from_utf8())
+	if Releases.launcher_mode(v) == Releases.LAUNCHER_BY_MANIFEST and sums.has(Releases.MANIFEST_ASSET):
+		if not _fetch(h, String(v.manifest_url), Releases.MAX_MANIFEST_BYTES, _on_launcher_manifest.bind(h, v, sums)):
+			h.queue_free()
+		return
+	_launcher_from_assets(h, v, sums)
+
+
+## Étape 2 (manifeste) : vérifié (somme puis contenu) ; son entrée « launcher »
+## décide. Sans cette entrée (snapshots 165 à 167) : ancien mécanisme.
+func _on_launcher_manifest(result: int, code: int, body: PackedByteArray, h: HTTPRequest, v: Dictionary, sums: Dictionary) -> void:
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		h.queue_free()
+		return
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	ctx.update(body)
+	var m := Releases.parse_manifest(body.get_string_from_utf8(), String(v.tag))
+	if ctx.finish().hex_encode() != String(sums.get(Releases.MANIFEST_ASSET, "")) or m.is_empty():
+		print("[launcher] mise à jour du lanceur ignorée : manifeste de %s NON conforme" % v.tag)
+		h.queue_free()
+		return
+	if not m.has("launcher"):
+		_launcher_from_assets(h, v, sums)
+		return
+	var l := Releases.launcher_from_manifest(m, Version.LAUNCHER_VERSION)
+	if l.is_empty():
+		h.queue_free()
+		return
+	print("[launcher] lanceur %d disponible (manifeste de %s)" % [l.version, v.tag])
+	_download_launcher(h, l)
+
+
+## Ancien mécanisme : launcher_version.txt et lanceur joints à la release.
+func _launcher_from_assets(h: HTTPRequest, v: Dictionary, sums: Dictionary) -> void:
+	if not Releases.has_launcher_assets(v) or not _fetch(h, String(v.launcher_version_url), 64, _on_launcher_version.bind(h, v, sums)):
+		h.queue_free()
+
+
+func _on_launcher_version(result: int, code: int, body: PackedByteArray, h: HTTPRequest, v: Dictionary, sums: Dictionary) -> void:
+	var txt := body.get_string_from_utf8() if result == HTTPRequest.RESULT_SUCCESS and code == 200 else ""
+	var l := Releases.launcher_from_assets(v, txt, sums, Version.LAUNCHER_VERSION)
+	if l.is_empty():
+		if txt.strip_edges().is_valid_int() and txt.to_int() > Version.LAUNCHER_VERSION:
+			print("[launcher] mise à jour du lanceur ignorée : somme SHA-256 absente")
+		h.queue_free()
+		return
+	print("[launcher] lanceur %d disponible (fichiers joints à %s)" % [l.version, v.tag])
+	_download_launcher(h, l)
+
+
+## Étape finale : téléchargement dans un fichier partiel, vérifié (taille,
+## SHA-256) avant tout remplacement.
+func _download_launcher(h: HTTPRequest, l: Dictionary) -> void:
 	var exe := OS.get_executable_path()
 	var fresh := exe.get_base_dir() + "/ClaudeOfDutyZombie-Launcher.new.exe"
 	var part := fresh + ".part"
 	if FileAccess.file_exists(part):
 		DirAccess.remove_absolute(part)
-	var size := int(v.launcher_size)
-	if not _fetch(h, String(v.launcher_url), size if size > 0 else Releases.MAX_EXE_BYTES,
-			_on_launcher_downloaded.bind(h, exe, fresh, sha, size), part, 0.0):
+	var size := int(l.size)
+	if not _fetch(h, String(l.url), size if size > 0 else Releases.MAX_EXE_BYTES,
+			_on_launcher_downloaded.bind(h, exe, fresh, String(l.sha256), size), part, 0.0):
 		h.queue_free()
 
 

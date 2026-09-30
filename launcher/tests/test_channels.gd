@@ -19,6 +19,8 @@ func run(tester) -> void:
 	_tags()
 	_releases()
 	_manifest()
+	_manifest_launcher()
+	_launcher_update()
 	_install()
 	_settings()
 	_update_script()
@@ -110,6 +112,124 @@ func _manifest() -> void:
 	t.check(accepted.is_empty(), "manifestes piégés refusés (%d cas) %s" % [cases.size(), accepted])
 	t.check(Releases.parse_manifest("[1]", tag).is_empty() and Releases.parse_manifest("\"texte\"", tag).is_empty()
 		and Releases.parse_manifest(" ".repeat(Releases.MAX_MANIFEST_BYTES + 1), tag).is_empty(), "manifeste illisible ou trop gros refusé")
+
+
+## Entrée « launcher » valide (lanceur 8, publié avec une snapshot plus ancienne).
+func _launcher_entry() -> Dictionary:
+	return {"version": 8, "file": "ClaudeOfDutyZombie-Launcher.exe", "sha256": "e".repeat(64), "size": 110000000,
+		"release": "v0.2.0-snapshot.38", "inputs": "f".repeat(64)}
+
+
+func _manifest_launcher() -> void:
+	var tag := "v0.2.0-snapshot.40"
+	# Manifestes déjà publiés (v0.2.0-snapshot.165 à 167) : pas d'entrée « launcher ».
+	var old := Releases.parse_manifest(JSON.stringify(_good(tag)), tag)
+	t.check(not old.is_empty() and not old.has("launcher"), "manifeste sans entrée « launcher » (snapshots 165 à 167) accepté")
+	var d := _good(tag)
+	d.launcher = _launcher_entry()
+	var m := Releases.parse_manifest(JSON.stringify(d), tag)
+	t.check(not m.is_empty() and m.launcher.version == 8 and m.launcher.version is int and m.launcher.size == 110000000
+		and m.launcher.sha256 == "e".repeat(64) and m.launcher.url == DL + "v0.2.0-snapshot.38/ClaudeOfDutyZombie-Launcher.exe",
+		"entrée « launcher » lue, adresse reconstruite vers la release qui le porte")
+	var ml := d.duplicate(true)
+	ml.launcher.sha256 = "E".repeat(64)
+	t.check(Releases.parse_manifest(JSON.stringify(ml), tag).get("launcher", {}).get("sha256", "") == "e".repeat(64),
+		"somme du lanceur en majuscules ramenée en minuscules")
+	var cases := {
+		"lanceur non objet": func(d): d.launcher = "ClaudeOfDutyZombie-Launcher.exe",
+		"lanceur null": func(d): d.launcher = null,
+		"numéro absent": func(d): d.launcher.erase("version"),
+		"numéro nul": func(d): d.launcher.version = 0,
+		"numéro négatif": func(d): d.launcher.version = -3,
+		"numéro décimal": func(d): d.launcher.version = 8.5,
+		"numéro en texte": func(d): d.launcher.version = "8",
+		"numéro énorme": func(d): d.launcher.version = 1e9,
+		"fichier absent": func(d): d.launcher.erase("file"),
+		"fichier-chemin": func(d): d.launcher.file = "../ClaudeOfDutyZombie-Launcher.exe",
+		"fichier caché": func(d): d.launcher.file = ".Launcher.exe",
+		"lanceur non .exe": func(d): d.launcher.file = "ClaudeOfDutyZombie-Launcher.bat",
+		"somme courte": func(d): d.launcher.sha256 = "e".repeat(63),
+		"somme non hexadécimale": func(d): d.launcher.sha256 = "z".repeat(64),
+		"somme absente": func(d): d.launcher.erase("sha256"),
+		"taille nulle": func(d): d.launcher.size = 0,
+		"taille énorme": func(d): d.launcher.size = 1e12,
+		"taille en texte": func(d): d.launcher.size = "110000000",
+		"release suspecte": func(d): d.launcher.release = "v0.2.0/../../evil",
+		"release d'un autre format": func(d): d.launcher.release = "latest",
+		"release absente": func(d): d.launcher.erase("release"),
+	}
+	var accepted := []
+	for what in cases:
+		var bad := _good(tag)
+		bad.launcher = _launcher_entry()
+		cases[what].call(bad)
+		if not Releases.parse_manifest(JSON.stringify(bad), tag).is_empty():
+			accepted.append(what)
+	t.check(accepted.is_empty(), "entrées « launcher » piégées : tout le manifeste refusé (%d cas) %s" % [cases.size(), accepted])
+
+
+func _launcher_update() -> void:
+	var s38 := "v0.2.0-snapshot.38"
+	var s40 := "v0.2.0-snapshot.40"
+	var s41 := "v0.2.0-snapshot.41"
+	var a := func(tag: String, n: String, size: int) -> Dictionary:
+		return {"name": n, "size": size, "browser_download_url": DL + tag + "/" + n}
+	var api := [
+		# Snapshot récente, sans lanceur joint (lanceur inchangé) : manifeste + sommes + core.
+		{"tag_name": s41, "prerelease": true, "assets": [a.call(s41, "manifest.json", 1), a.call(s41, "SHA256SUMS.txt", 1),
+			a.call(s41, "core-1a2b3c4d.pck", 1)]},
+		# Snapshot publiée avant l'entrée « launcher » : lanceur joint + launcher_version.txt.
+		{"tag_name": s40, "prerelease": true, "assets": [a.call(s40, "manifest.json", 1), a.call(s40, "SHA256SUMS.txt", 1),
+			a.call(s40, "ClaudeOfDutyZombie-Launcher.exe", 110000000), a.call(s40, "launcher_version.txt", 1)]},
+		# Stable : exécutable complet, lanceurs, numéro, manifeste.
+		{"tag_name": "v0.1.160", "assets": [a.call("v0.1.160", "ClaudeOfDutyZombie-v0.1.160.exe", 1),
+			a.call("v0.1.160", "ClaudeOfDutyZombie-Launcher.exe", 109000000), a.call("v0.1.160", "CallOfClaudeZombie-Launcher.exe", 109000000),
+			a.call("v0.1.160", "launcher_version.txt", 1), a.call("v0.1.160", "SHA256SUMS.txt", 1)]},
+		# Stable ancienne sans sommes.
+		{"tag_name": "v0.1.100", "assets": [a.call("v0.1.100", "ClaudeOfDutyZombie-v0.1.100.exe", 1),
+			a.call("v0.1.100", "ClaudeOfDutyZombie-Launcher.exe", 1), a.call("v0.1.100", "launcher_version.txt", 1)]},
+	]
+	var v := Releases.parse_releases(JSON.stringify(api))
+	# Canal choisi seulement : la plus récente de CE canal.
+	var snap := Releases.launcher_release(v, Releases.SNAPSHOT)
+	var stable := Releases.launcher_release(v, Releases.STABLE)
+	t.check(snap.get("tag", "") == s41 and stable.get("tag", "") == "v0.1.160", "lanceur : dernière release du canal choisi (%s, %s)"
+		% [snap.get("tag", ""), stable.get("tag", "")])
+	t.check(Releases.launcher_release(v.filter(func(e): return e.channel == Releases.STABLE), Releases.SNAPSHOT).is_empty(),
+		"lanceur : aucune release du canal, rien à faire (jamais celui d'un autre canal)")
+	t.check(Releases.launcher_mode(snap) == Releases.LAUNCHER_BY_MANIFEST and Releases.launcher_mode(stable) == Releases.LAUNCHER_BY_ASSETS,
+		"lanceur : manifeste d'abord, sinon fichiers joints")
+	var no_sums := v.filter(func(e): return e.tag == "v0.1.100")[0] as Dictionary
+	t.check(Releases.launcher_mode(no_sums) == "" and Releases.launcher_mode({}) == "", "lanceur : jamais depuis une release sans sommes")
+	# Décision depuis le manifeste (vérifié) de la snapshot 41.
+	var d := _good(s41)
+	d.launcher = _launcher_entry()
+	var m := Releases.parse_manifest(JSON.stringify(d), s41)
+	var l := Releases.launcher_from_manifest(m, 7)
+	t.check(l.get("version", 0) == 8 and l.get("url", "") == DL + s38 + "/ClaudeOfDutyZombie-Launcher.exe"
+		and l.get("sha256", "") == "e".repeat(64) and l.get("size", 0) == 110000000,
+		"lanceur 7 : le lanceur 8 du manifeste est téléchargé depuis la release qui le porte, somme et taille du manifeste")
+	t.check(Releases.launcher_from_manifest(m, 8).is_empty() and Releases.launcher_from_manifest(m, 9).is_empty(),
+		"lanceur à jour ou plus récent : rien à faire (jamais de retour en arrière)")
+	var old := Releases.parse_manifest(JSON.stringify(_good(s41)), s41)
+	t.check(Releases.launcher_from_manifest(old, 1).is_empty() and not old.has("launcher"),
+		"manifeste sans entrée « launcher » : aucune décision (repli sur l'ancien mécanisme)")
+	# Repli : snapshot 40 (manifeste sans entrée) -> fichiers joints à la release.
+	var s40v := v.filter(func(e): return e.tag == s40)[0] as Dictionary
+	t.check(Releases.launcher_mode(s40v) == Releases.LAUNCHER_BY_MANIFEST and Releases.has_launcher_assets(s40v),
+		"snapshot 165 à 167 : manifeste lu d'abord, fichiers joints disponibles pour le repli")
+	var sums := Releases.parse_sums("%s  ClaudeOfDutyZombie-Launcher.exe\n%s  manifest.json\n" % ["1".repeat(64), "2".repeat(64)])
+	var la := Releases.launcher_from_assets(s40v, "8\r\n", sums, 7)
+	t.check(la.get("version", 0) == 8 and la.get("url", "") == DL + s40 + "/ClaudeOfDutyZombie-Launcher.exe"
+		and la.get("sha256", "") == "1".repeat(64) and la.get("size", 0) == 110000000, "repli : launcher_version.txt + lanceur joint + somme publiée")
+	t.check(Releases.launcher_from_assets(s40v, "7", sums, 7).is_empty() and Releases.launcher_from_assets(s40v, "6", sums, 7).is_empty(),
+		"repli : numéro égal ou plus petit, rien à faire")
+	t.check(Releases.launcher_from_assets(s40v, "8", {}, 7).is_empty() and Releases.launcher_from_assets(s40v, "huit", sums, 7).is_empty()
+		and Releases.launcher_from_assets(s40v, "99999999", sums, 7).is_empty() and Releases.launcher_from_assets(snap, "8", sums, 7).is_empty(),
+		"repli : somme absente, numéro illisible ou énorme, release sans lanceur joint : refusé")
+	# Ancienne stable : le lanceur au nouveau nom est préféré (et sa somme).
+	var sums_st := Releases.parse_sums("%s  ClaudeOfDutyZombie-Launcher.exe\n%s  CallOfClaudeZombie-Launcher.exe\n" % ["3".repeat(64), "4".repeat(64)])
+	t.check(Releases.launcher_from_assets(stable, "8", sums_st, 7).get("sha256", "") == "3".repeat(64), "stable : lanceur au nouveau nom et sa somme")
 
 
 ## Fichier de contenu `text` et sa somme.
