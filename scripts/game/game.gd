@@ -193,7 +193,7 @@ func _cl_begin_match(roster: Dictionary) -> void:
 	for pid in roster:
 		session.create(pid)
 	for pid in roster:
-		var pos := spawn_for_slot(spawns, int(roster[pid].slot))
+		var pos := MatchRules.spawn_for_slot(spawns, int(roster[pid].slot))
 		_spawn_player(pid, pos)
 	_match_start_ms = Time.get_ticks_msec()
 	GameState.set_state(GameState.State.PLAYING)
@@ -296,7 +296,7 @@ func kill_player(pid: int) -> void:
 	var pd := session.get_data(pid)
 	if pd == null:
 		return
-	pd.life = PlayerData.Life.DEAD
+	MatchRules.bleed_out(pd)
 	perks.srv_clear(pid)
 	session.sync_stats(pid)
 	_cl_player_died.rpc(pid)
@@ -307,18 +307,14 @@ func kill_player(pid: int) -> void:
 func check_game_over() -> void:
 	if not multiplayer.is_server() or GameState.state == GameState.State.GAME_OVER:
 		return
-	for pd: PlayerData in session.data.values():
-		if pd.life == PlayerData.Life.ALIVE or downed.will_self_revive(pd.peer_id):
-			return
+	if not MatchRules.is_game_over(session.data.values(), downed.will_self_revive):
+		return
 	print("[Game] tous les joueurs sont tombés : GAME OVER")
 	_cl_game_over.rpc(game_over_summary())
 
 
 func game_over_summary() -> String:
-	var kills := 0
-	for pd: PlayerData in session.data.values():
-		kills += pd.kills
-	return "%d zombies abattus" % kills
+	return "%d zombies abattus" % MatchRules.total_kills(session.data.values())
 
 
 @rpc("authority", "call_local", "reliable")
@@ -355,29 +351,21 @@ func respawn_dead_players() -> void:
 	var spawns := layout.player_spawns()
 	for pid in session.data:
 		var pd: PlayerData = session.data[pid]
-		if pd.life != PlayerData.Life.DEAD:
+		if not MatchRules.should_respawn(pd):
 			continue
-		pd.life = PlayerData.Life.ALIVE
-		pd.health = pd.max_health
-		pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
-		pd.slot = 0
-		pd.knife = KnifeDB.DEFAULT  # le couteau de chasse est perdu (BO1)
+		MatchRules.respawn(pd)
 		session.sync_stats(pid)
 		session.sync_inventory(pid)
-		_cl_respawn.rpc(pid, spawn_for_slot(spawns, Net.player_slot(pid)))
+		_cl_respawn.rpc(pid, MatchRules.spawn_for_slot(spawns, Net.player_slot(pid)))
 
 
-## Point d'apparition d'une place de joueur : les places au-delà du nombre de
-## points se partagent les points (modulo positif) ; carte sans point
-## d'apparition (carte perso incomplète) : repli fixe au lieu d'une division
-## par zéro.
-const FALLBACK_SPAWN := Vector3(2, 0.1, 2)
+## Point d'apparition d'une place de joueur (règle et repli sans point :
+## MatchRules ; alias gardés pour les appelants).
+const FALLBACK_SPAWN := MatchRules.FALLBACK_SPAWN
 
 
 static func spawn_for_slot(spawns: Array[Vector3], slot: int) -> Vector3:
-	if spawns.is_empty():
-		return FALLBACK_SPAWN
-	return spawns[posmod(slot, spawns.size())]
+	return MatchRules.spawn_for_slot(spawns, slot)
 
 
 @rpc("authority", "call_local", "reliable")
