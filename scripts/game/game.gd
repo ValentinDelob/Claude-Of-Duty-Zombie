@@ -123,6 +123,10 @@ func _ready() -> void:
 	vox = VoxSystem.new()
 	vox.name = "Vox"
 	add_child(vox)
+	spectator = SpectatorCamera.new()
+	spectator.name = "Spectator"
+	spectator.setup(self)
+	add_child(spectator)
 	Net.player_left.connect(_on_player_left)
 	Net.session_ended.connect(_on_session_ended)
 	session.inventory_changed.connect(_refresh_remote_weapon)
@@ -332,10 +336,8 @@ func _cl_game_over(summary: String) -> void:
 		GameState.set_state(GameState.State.GAME_OVER)
 	CareerStats.record_game(session.local_data(), rounds.round_n, Net.mode == Net.Mode.SOLO,
 			(Time.get_ticks_msec() - _match_start_ms) / 1000.0)
-	hud.show_center("GAME OVER", summary, 0.6)
-	hud.show_game_over_table("VOUS AVEZ SURVÉCU %d MANCHE%s" % [rounds.round_n, "S" if rounds.round_n > 1 else ""])
+	hud.show_game_over(summary, rounds.round_n)
 	capture_mouse(false)
-	Audio.play_2d("heartbeat", 0.0, 0.0)
 	# Le serveur part en dernier pour que les clients ne voient pas « connexion perdue ».
 	var delay := GAME_OVER_DELAY + (0.8 if multiplayer.is_server() else 0.0)
 	get_tree().create_timer(delay).timeout.connect(_leave_after_game_over.bind(summary))
@@ -560,38 +562,12 @@ func _refresh_remote_weapon(pid: int) -> void:
 
 
 # --------------------------------------------------------------------------
-# Spectateur (joueur mort en multijoueur)
+# Spectateur (joueur mort en multijoueur) : SpectatorCamera
 # --------------------------------------------------------------------------
 
-var spectating: Player
-var _spectate_index := 0
-
-
-func _process(_delta: float) -> void:
-	_update_spectator()
-
-
-func _update_spectator() -> void:
-	if local_player == null:
-		return
-	var pd := session.local_data()
-	var is_dead := pd != null and pd.life == PlayerData.Life.DEAD and GameState.state != GameState.State.GAME_OVER
-	var others: Array = []
-	for p: Player in players.values():
-		if not p.is_local:
-			var opd := session.get_data(p.peer_id)
-			if opd and opd.life != PlayerData.Life.DEAD:
-				others.append(p)
-	if not is_dead or others.is_empty():
-		if spectating:
-			spectating = null
-			local_player.camera.make_current()
-			hud.set_spectating("")
-		return
-	if Input.is_action_just_pressed("fire") and not menu_open():
-		_spectate_index += 1
-	var target: Player = others[_spectate_index % others.size()]
-	if target != spectating:
-		spectating = target
-		target.camera.make_current()
-		hud.set_spectating(Net.player_name(target.peer_id))
+## Caméra de spectateur (enfant « Spectator », sans RPC).
+var spectator: SpectatorCamera
+## Joueur regardé par le joueur local mort (null : sa propre vue).
+var spectating: Player:
+	get:
+		return spectator.spectating if spectator else null
