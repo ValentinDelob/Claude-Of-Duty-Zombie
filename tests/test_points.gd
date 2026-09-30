@@ -21,3 +21,17 @@ func test_session_spend() -> void:
 	s.add_points(1, 60)
 	assert_eq(pd.points, 60)
 	s.queue_free()
+
+
+## Pénalités de BO1 (player_reduce_points) : 5 % à terre, 10 % aux autres
+## quand un joueur succombe, arrondis à la dizaine supérieure.
+func test_down_and_bleed_out_penalties() -> void:
+	assert_eq(PointsRules.round_up_to_ten(0), 0)
+	assert_eq(PointsRules.round_up_to_ten(41), 50)
+	assert_eq(PointsRules.round_up_to_ten(50), 50)
+	assert_eq(PointsRules.downed_loss(500), 30, "5 % de 500 = 25 -> 30")
+	assert_eq(PointsRules.downed_loss(10000), 500)
+	assert_eq(PointsRules.downed_loss(0), 0)
+	assert_eq(PointsRules.downed_loss(5), 0, "5 % de 5 = 0")
+	assert_eq(PointsRules.downed_loss(30), 10, "jamais plus que ce qu'on a (int(1.5) = 1 -> 10)")
+	assert_eq(PointsRules.no_revive_loss(2345), 240, "10 % de 2345 = 234 -> 240")

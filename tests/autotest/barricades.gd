@@ -115,6 +115,7 @@ func run() -> void:
 	await _view(false, 1.6)
 	await at.screenshot("broken_outside")
 	var pts0 := pd.points
+	var team0 := game.points.team_earned
 	await _hold_repair()
 	at.check(game.interact.focused == w and game.hud._prompt.text == "Maintenir [F] pour reconstruire la barricade", "invite : « %s »" % game.hud._prompt.text)
 	ok = await until(func(): return w.planks() >= 3, 4.0, "3 planches reposées")
@@ -123,6 +124,7 @@ func run() -> void:
 	at.check(ok, "maintenir [F] reconstruit la fenêtre planche par planche")
 	await seconds(0.5)
 	at.check(pd.points - pts0 == 60, "+10 points par planche reposée (+%d)" % (pd.points - pts0))
+	at.check(game.points.team_earned - team0 == 60, "points de réparation comptés pour l'apparition des bonus (+%d)" % (game.points.team_earned - team0))
 	await _release()
 	await at.screenshot("repaired_inside")
 
