@@ -700,6 +700,8 @@ func _update_preview() -> void:
 	var o: Dictionary = it.make.duplicate(true)
 	if it.get("rotates", false):
 		o["rot"] = ed.place_rot
+	if ed.place_variant != "":
+		MapCatalog.set_variant(o, ed.place_variant)
 	var res := {}
 	match tool:
 		"opening":
@@ -1134,6 +1136,9 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 	# Hors de la vue : rien à dessiner (cartes de 2000 objets).
 	if not rp.grow(8.0).intersects(Rect2(Vector2.ZERO, size)):
 		return
+	if t == "bloc_invisible":
+		_draw_clip(o, it, alpha)
+		return
 	if t in ["escalier", "piege"] and MapGeom.rot_of(o) != 0:
 		_draw_rot_rect(o, it, alpha)
 		return
@@ -1226,6 +1231,9 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 		return
 	# Objets muraux et au sol : icône dans leur emprise.
 	draw_rect(rp, Color(0, 0, 0, 0.35 * alpha))
+	if t == "arme" and MapCatalog.variant_of(o) == "planche":
+		# Variante « planche » : la craie sur une planche (fond bois).
+		draw_rect(rp.grow(-1.0), Color(0.45, 0.3, 0.16, 0.75 * alpha))
 	var s := maxf(12.0, minf(rp.size.x, rp.size.y) * 1.1)
 	if t == "lampe" or t == "luminaire":
 		s = maxf(14.0, zoom * 0.9)
@@ -1233,6 +1241,34 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 	draw_rect(rp, Color(col, 0.8 * alpha), false, 1.0)
 	if t == "luminaire" and o.get("id", "") == ed.selected:
 		draw_arc(rp.get_center(), float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
+
+
+## Barrière invisible : rectangle (tourné) translucide et hachuré, contour
+## en tirets, icône au milieu (elle n'existe pas à l'œil en jeu).
+func _draw_clip(o: Dictionary, it: Dictionary, alpha: float) -> void:
+	var r := MapGeom.rect_of(o.get("rect", [0, 0, 0, 0]))
+	var c := r.get_center()
+	var h := r.size * 0.5
+	var rot := deg_to_rad(float(MapGeom.rot_of(o)))
+	var col: Color = it.get("color", Color(0.35, 0.85, 1.0))
+	var px := _px_poly(MapRaster.rect_poly(o))
+	_fill(px, Color(col, 0.16 * alpha))
+	# Hachures à 45° dans le repère du rectangle (elles tournent avec lui).
+	var step := maxf(0.25, 7.0 / maxf(zoom, 0.01))
+	var k := -h.x - h.y + step * 0.5
+	while k < h.x + h.y:
+		var y0 := maxf(-h.y, -h.x - k)
+		var y1 := minf(h.y, h.x - k)
+		if y1 > y0:
+			var a := c + Vector2(y0 + k, y0).rotated(rot)
+			var b := c + Vector2(y1 + k, y1).rotated(rot)
+			draw_line(to_px(a), to_px(b), Color(col, 0.45 * alpha), 1.0)
+		k += step
+	for i in 4:
+		draw_dashed_line(px[i], px[(i + 1) % 4], Color(col.lightened(0.2), 0.95 * alpha), 1.5, 6.0)
+	var s := minf(minf(r.size.x, r.size.y) * zoom * 0.8, 40.0)
+	if s >= 12.0:
+		MapIcons.draw(self, it, Rect2(to_px(c) - Vector2(s, s) * 0.5, Vector2(s, s)))
 
 
 ## Escalier ou zone de piège tournés : contour, marches et flèche de montée
@@ -1281,6 +1317,13 @@ func _draw_opening(o: Dictionary, font: Font) -> void:
 	var w := font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(12)).x
 	draw_string_outline(font, p + Vector2(-w * 0.5, _u(4)), s, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(12), 4, Color(0, 0, 0, 0.9))
 	draw_string(font, p + Vector2(-w * 0.5, _u(4)), s, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(12), Color(1.0, 0.9, 0.5))
+	# Aspect autre que celui par défaut (format 5) : son nom sous le prix.
+	var va := MapCatalog.variant_of(o)
+	if va != MapCatalog.default_variant(t) and zoom >= 14.0:
+		var vn := MapCatalog.variant_name(t, va)
+		var vw := font.get_string_size(vn, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10)).x
+		draw_string_outline(font, p + Vector2(-vw * 0.5, _u(16)), vn, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), 3, Color(0, 0, 0, 0.9))
+		draw_string(font, p + Vector2(-vw * 0.5, _u(16)), vn, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), Color(0.85, 0.95, 1.0))
 
 
 ## Étiquette sur fond sombre (mesures du tracé).

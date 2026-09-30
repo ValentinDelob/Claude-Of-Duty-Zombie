@@ -28,7 +28,7 @@ const PREF_KEY := "apercu"
 const OFF := MapGeom.WORLD_OFFSET
 const COL_CAM := Color(1.0, 0.55, 0.15)
 ## Options du menu Affichage (identifiants).
-enum Opt { POWER, FULL, CEIL, FLOORS_ALL, FLOORS_UP_TO, FLOORS_ONLY, SCALE_0 = 10, PAUSE = 20 }
+enum Opt { POWER, FULL, CEIL, FLOORS_ALL, FLOORS_UP_TO, FLOORS_ONLY, SCALE_0 = 10, PAUSE = 20, CLIPS = 30 }
 
 var ed: MapEditor
 var world: MapPreviewWorld
@@ -178,6 +178,7 @@ func _build_ui() -> void:
 	pm.add_check_item(Lang.t("Courant rétabli (luminaires liés au courant)", "Power on (power-linked lights)"), Opt.POWER)
 	pm.add_check_item(Lang.t("Éclairage plein (tout voir)", "Full lighting (see everything)"), Opt.FULL)
 	pm.add_check_item(Lang.t("Masquer les plafonds (vue en coupe)", "Hide ceilings (cutaway view)"), Opt.CEIL)
+	pm.add_check_item(Lang.t("Montrer les barrières invisibles", "Show invisible barriers"), Opt.CLIPS)
 	pm.add_separator(Lang.t("Étages", "Floors"))
 	pm.add_radio_check_item(Lang.t("Tous les étages", "All floors"), Opt.FLOORS_ALL)
 	pm.add_radio_check_item(Lang.t("Jusqu'à l'étage affiché en 2D", "Up to the floor shown in 2D"), Opt.FLOORS_UP_TO)
@@ -255,6 +256,7 @@ func _refresh_menu() -> void:
 	pm.set_item_checked(pm.get_item_index(Opt.POWER), world.power_on)
 	pm.set_item_checked(pm.get_item_index(Opt.FULL), world.full_light)
 	pm.set_item_checked(pm.get_item_index(Opt.CEIL), world.hide_ceilings)
+	pm.set_item_checked(pm.get_item_index(Opt.CLIPS), world.show_clips)
 	pm.set_item_checked(pm.get_item_index(Opt.FLOORS_ALL), world.floors_mode == MapPreviewWorld.Floors.ALL)
 	pm.set_item_checked(pm.get_item_index(Opt.FLOORS_UP_TO), world.floors_mode == MapPreviewWorld.Floors.UP_TO)
 	pm.set_item_checked(pm.get_item_index(Opt.FLOORS_ONLY), world.floors_mode == MapPreviewWorld.Floors.ONLY)
@@ -273,6 +275,8 @@ func _on_display(id: int) -> void:
 			set_option("full", not world.full_light)
 		Opt.CEIL:
 			set_option("ceil", not world.hide_ceilings)
+		Opt.CLIPS:
+			set_option("clips", not world.show_clips)
 		Opt.FLOORS_ALL, Opt.FLOORS_UP_TO, Opt.FLOORS_ONLY:
 			set_option("floors", id - Opt.FLOORS_ALL)
 		Opt.PAUSE:
@@ -866,7 +870,7 @@ func state() -> Dictionary:
 	var d := {
 		"visible": shown, "rect": [r.position.x, r.position.y, r.size.x, r.size.y], "max": maximized,
 		"detached": detached, "camera": int(world.rig.mode), "follow": follow, "power": world.power_on,
-		"full": world.full_light, "ceil": world.hide_ceilings, "floors": int(world.floors_mode),
+		"full": world.full_light, "ceil": world.hide_ceilings, "clips": world.show_clips, "floors": int(world.floors_mode),
 		"scale": render_scale, "pause": pause_unfocused,
 	}
 	if window != null:
@@ -891,7 +895,7 @@ func apply_state(p: Dictionary) -> void:
 	if r.size() == 4 and r.all(func(v): return v is float or v is int):
 		_free_rect = Rect2(float(r[0]), float(r[1]), float(r[2]), float(r[3]))
 	world.set_options({
-		"power": bool(p.get("power", true)), "full": bool(p.get("full", false)), "ceil": bool(p.get("ceil", false)),
+		"power": bool(p.get("power", true)), "full": bool(p.get("full", false)), "ceil": bool(p.get("ceil", false)), "clips": bool(p.get("clips", true)),
 		"floors": clampi(int(p.get("floors", 0)), 0, 2)})
 	var sc := float(p.get("scale", 0.75)) if (p.get("scale") is float or p.get("scale") is int) else 0.75
 	render_scale = clampf(sc, 0.25, 1.0)

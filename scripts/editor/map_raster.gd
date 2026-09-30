@@ -62,6 +62,13 @@ func _build() -> void:
 				s[ROOM_SURFACES[key]] = String(p[key])
 		if not s.is_empty():
 			v.room_surfaces[String(p.id)] = s
+	# Variantes d'aspect (format 5) : seulement celles admises et autres que
+	# l'aspect par défaut (une carte sans variante : description inchangée).
+	for o in doc.ouvertures + doc.objets:
+		if o.has("variante"):
+			var va := MapCatalog.variant_of(o)
+			if va != MapCatalog.default_variant(String(o.get("type", ""))):
+				v.variants[String(o.get("id", ""))] = va
 	# Étages.
 	var n := doc.floor_count()
 	for k in n:
@@ -179,6 +186,25 @@ static func rect_inner_cells(o: Dictionary) -> Array:
 	if rect_on_grid(o):
 		return MapGeom.rect_cells_inside(MapGeom.rect_of(o.rect))
 	return MapGeom.poly_cells(rect_poly(o))
+
+
+## Cases d'une barrière invisible : celles dont le centre est dans le
+## rectangle (tourné) pris demi-ouvert dans son repère ([x0, x1[ × [y0, y1[) :
+## autant de cases que de surface, même pour une barrière de 0,5 m posée sur
+## la grille (une rangée de cases, pas deux).
+static func clip_cells(o: Dictionary) -> Array:
+	var r := MapGeom.rect_of(o.get("rect", [0, 0, 0, 0]))
+	var c := r.get_center()
+	var h := r.size * 0.5
+	var rot := deg_to_rad(MapGeom.rot_of(o))
+	var bb := MapGeom.bbox(rect_poly(o))
+	var out := []
+	for j in range(floori(bb.position.y / MapGeom.CELL) - 1, ceili(bb.end.y / MapGeom.CELL) + 2):
+		for i in range(floori(bb.position.x / MapGeom.CELL) - 1, ceili(bb.end.x / MapGeom.CELL) + 2):
+			var q := (MapGeom.cell_center(Vector2i(i, j)) - c).rotated(-rot)
+			if q.x >= -h.x - 0.001 and q.x < h.x - 0.001 and q.y >= -h.y - 0.001 and q.y < h.y - 0.001:
+				out.append(Vector2i(i, j))
+	return out
 
 
 ## Pavé d'un pilier hors de la grille (tourné) : mur oblique de l'épaisseur du
@@ -355,6 +381,22 @@ func _floor(k: int) -> void:
 							f.put(c, K.MUR, key)
 					v.eid_of[key] = String(o.id)
 				cells_of[String(o.id)] = [k, cells]
+			"bloc_invisible":
+				# Barrière invisible : ses cases bloquent le passage (validateur,
+				# trajets) comme un décor ; le jeu y pose une CollisionBox sans
+				# maillage (MapLayoutExport._clips).
+				var cells := clip_cells(o)
+				var key := "decor#" + String(o.id)
+				for c in cells:
+					if f.at(c) == K.SOL:
+						f.put(c, K.MUR, key)
+				v.eid_of[key] = String(o.id)
+				var r := MapGeom.rect_of(o.get("rect", [0, 0, 0, 0]))
+				var hv: Variant = o.get("hauteur", 0.0)
+				v.clips.append({"floor": k, "center": r.get_center(), "size": r.size, "rot": MapGeom.rot_of(o),
+					"h": clampf(float(hv), 0.0, MapCatalog.CLIP_HEIGHT[1]) if (hv is float or hv is int) and is_finite(float(hv)) else 0.0,
+					"eid": String(o.id)})
+				cells_of[String(o.id)] = [k, cells]
 	# (f) Escaliers de cet étage (tournés : vraie géométrie, MapValidator.diag_stairs).
 	for o in doc.objects_on(k):
 		if String(o.type) == "escalier":
@@ -380,7 +422,7 @@ func _floor(k: int) -> void:
 		if t == "luminaire":
 			_light(k, o)
 			continue
-		if t in ["caisse", "baril", "pilier", "mur", "mur_courbe", "escalier", "prefab"]:
+		if t in ["caisse", "baril", "pilier", "mur", "mur_courbe", "escalier", "prefab", "bloc_invisible"]:
 			continue
 		var cells := []
 		if tool == "wall_item":

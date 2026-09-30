@@ -28,8 +28,13 @@ extends RefCounted
 ##      paramètres pour les régénérer ; MapShapes), mur courbe (type
 ##      « mur_courbe »), rotation au degré près (« rot » entier de 0 à 359 du
 ##      décor, des luminaires, des piliers, escaliers et pièges). Toutes les
-##      nouvelles clés sont facultatives : formats 1 à 3 lus tels quels.
-const FORMAT := 4
+##      nouvelles clés sont facultatives : formats 1 à 3 lus tels quels ;
+##   5  objets (docs/MAP_OBJECTS.md) : variante d'aspect (clé « variante » des
+##      portes, débris et armes murales, MapCatalog.VARIANTS ; absente :
+##      l'aspect d'avant, jamais écrite pour l'aspect par défaut) et barrière
+##      invisible (type « bloc_invisible » : rect, rot, hauteur). Toutes les
+##      nouvelles clés sont facultatives : formats 1 à 4 lus tels quels.
+const FORMAT := 5
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -285,6 +290,10 @@ func _migrate(from: int) -> void:
 		# Format 3 -> 4 : rien à convertir (« forme », « rot » des rectangles et
 		# murs courbes facultatifs ; « rot » du décor : 0, 90, 180 ou 270 comme avant).
 		pass
+	if from < 5:
+		# Format 4 -> 5 : rien à convertir (« variante » facultative : sans elle,
+		# l'aspect d'avant ; « bloc_invisible » : un nouveau type).
+		pass
 
 
 ## Version du format lue dans carte.json (FORMAT pour une carte neuve).
@@ -315,6 +324,13 @@ func _normalize() -> void:
 				o["angle"] = snappedf(fposmod(ang, 360.0), 0.01)
 			else:
 				o.erase("angle")
+	# Variante inconnue ou par défaut (fichier écrit à la main) : clé retirée,
+	# l'élément garde l'aspect par défaut.
+	for list in [ouvertures, objets]:
+		for e in list:
+			if e.has("variante") and (not MapCatalog.variants(String(e.get("type", ""))).has(e.variante) \
+					or e.variante == MapCatalog.default_variant(String(e.get("type", "")))):
+				e.erase("variante")
 	for list in [pieces, ouvertures, objets, zones]:
 		for e in list:
 			if String(e.get("id", "")) == "":
