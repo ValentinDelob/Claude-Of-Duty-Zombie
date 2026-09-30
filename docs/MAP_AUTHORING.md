@@ -349,10 +349,17 @@ raison à côté du curseur (`MapRules`) :
   2,5 × 3 m de vide dehors : le jeu y construit la cour où les zombies
   apparaissent, derrière la fenêtre.
 - **Objets muraux** (atouts, armes, grenades, boîte, Pack-a-Punch, courant,
-  poste central, levier) : dans une pièce, accrochés au mur le plus proche,
-  **face vers l'intérieur** ; il faut du mur plein derrière (pas une ouverture)
-  et la place devant (boîte : 2 × 1 m ; atout, Pack-a-Punch : 1,5 × 1 m ;
-  arme : 1 × 0,5 m), sans chevaucher un autre objet.
+  poste central, levier, applique) : dans une pièce, accrochés au mur le plus
+  proche, **face vers l'intérieur** ; il faut du mur plein derrière (pas une
+  ouverture) et la place devant (boîte : 2 × 1 m ; atout, Pack-a-Punch :
+  1,5 × 1 m ; arme : 1 × 0,5 m), sans chevaucher un autre objet. Ils se posent
+  aussi sur un **mur libre** (outil Mur, droit, en biais ou épais, et mur
+  courbe), **des deux côtés** : face tournée vers le côté du curseur, sans
+  dépasser les bouts du mur, à 0,25 m au moins de la face des murs de la pièce
+  (près d'un mur collé à la pièce, l'objet glisse le long du mur), sans toucher
+  un autre mur libre (ni, dans le creux d'un mur courbe, ses segments voisins).
+  Ils suivent leur mur libre quand on le déplace ou le tourne (et partent avec
+  lui s'il est supprimé).
 - **Objets au sol, pilier, escalier, zone de piège** : à l'intérieur d'une
   pièce, sans toucher ses murs, sans chevauchement (les lampes, au plafond,
   peuvent surplomber un objet ; un élément tourné compte par son rectangle

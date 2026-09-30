@@ -1,0 +1,8 @@
+{
+ "title": {"fr": "Éditeur de cartes : murs libres et fenêtres", "en": "Map editor: free walls and windows"},
+ "items": [
+  {"fr": "Le curseur de la souris ne disparaît plus après avoir tourné la caméra de l'aperçu 3D au clic droit.", "en": "The mouse cursor no longer disappears after turning the 3D preview camera with the right button."},
+  {"fr": "Armes, atouts, boîte, appliques et autres objets muraux se posent aussi sur les murs libres (droits, en biais, épais ou courbes), des deux côtés, et les suivent quand on les déplace.", "en": "Weapons, perks, the box, sconces and other wall items can now go on free walls too (straight, slanted, thick or curved), on either side, and follow them when moved."},
+  {"fr": "Les fenêtres à zombies se déplacent le long de leur mur ou vers un autre mur aussi en grille fine et sans grille.", "en": "Zombie windows slide along their wall or onto another wall with the fine grid and without the grid too."}
+ ]
+}

@@ -829,7 +829,7 @@ func delete_element(eid: String) -> void:
 	if selected == eid:
 		selected = ""
 	changed()
-	set_status(Lang.t("%s supprimé", "%s deleted") % _label(e) + (Lang.t(" (avec %d élément(s) de la pièce)", " (with %d element(s) of the room)") % (n - 1) if n > 1 else ""))
+	set_status(Lang.t("%s supprimé", "%s deleted") % _label(e) + (Lang.t(" (avec %d élément(s) rattaché(s))", " (with %d attached element(s))") % (n - 1) if n > 1 else ""))
 
 
 ## Remplace un élément par sa nouvelle version (même identifiant).
@@ -898,6 +898,17 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 		var a := doc.find(aid)
 		if not a.is_empty():
 			_replace(_shift(a, delta))
+	if t in ["mur", "mur_courbe"]:
+		# Objets accrochés au mur libre : raccrochés à sa face (un mur déplacé
+		# hors de la grille devient un vrai mur oblique).
+		for aid in attached:
+			var a := doc.find(aid)
+			if a.is_empty():
+				continue
+			var r := MapRules.place_wall_item(doc, k, a, MapGeom.v2(a.position) - MapGeom.item_wall_dir(a) * 0.3, aid)
+			if r.ok:
+				a["position"] = r.position
+				MapRules.apply_wall(a, r)
 	moved_live()
 	return res
 
