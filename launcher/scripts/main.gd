@@ -22,7 +22,6 @@ const Look := preload("res://scripts/look.gd")
 # Couleurs (identité visuelle : scripts/look.gd).
 const BONE := Look.PAPER
 const DIM := Look.DIM
-const BLOOD_BRIGHT := Look.ALARM
 ## États de la ligne d'état (_set_status) : sa couleur.
 const ST_BUSY := "busy"
 const ST_ERROR := "error"
@@ -44,7 +43,7 @@ var _list: ItemList
 var _list_tags: Array = []
 var _title: Label
 var _date: Label
-var _items: RichTextLabel
+var _items: VBoxContainer
 var _images: HFlowContainer
 var _hint: Label
 var _status: Label
@@ -56,6 +55,7 @@ var _channel_btns: Array = []   # interrupteur de canal : [STABLE, SNAPSHOT]
 var _settings_btn: Button
 var _settings: PanelContainer
 var _settings_grid: GridContainer
+var _settings_note: Label
 var _progress_failed := false  # barre en rouge (échec) ou en lueur
 ## Téléchargement des versions en paquets (manifeste) : reprise, sommes.
 var _dl: Node
@@ -213,9 +213,9 @@ func _on_http(result: int, code: int, headers: PackedStringArray, body: PackedBy
 # Interface
 # --------------------------------------------------------------------------
 
+## Interface : dimensions des maquettes validées (Look, base 1280 × 720).
 func _build_ui() -> void:
 	theme = Look.theme()
-	var title_font := Look.display_font()
 	var bg := ColorRect.new()
 	bg.color = Look.INK
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -226,49 +226,8 @@ func _build_ui() -> void:
 	add_child(root)
 
 	# En-tête : le nom au pochoir (pas de logo), langue, réglages.
-	var head_box := PanelContainer.new()
-	head_box.add_theme_stylebox_override("panel", Look.box(Color("151812"), 0))
-	root.add_child(head_box)
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 14)
-	head_box.add_child(_padded(head, 32, 16))
-	var word := VBoxContainer.new()
-	word.add_theme_constant_override("separation", -8)
-	head.add_child(word)
-	var spaced := FontVariation.new()
-	spaced.base_font = title_font
-	spaced.spacing_glyph = 7
-	var top := Label.new()
-	top.text = "CLAUDE OF DUTY"
-	top.add_theme_font_override("font", spaced)
-	top.add_theme_font_size_override("font_size", 17)
-	top.add_theme_color_override("font_color", Look.DIM)
-	word.add_child(top)
-	var name_row := HBoxContainer.new()
-	name_row.add_theme_constant_override("separation", 0)
-	word.add_child(name_row)
-	for part: Array in [["ZOMB", Look.PAPER], ["IE", Look.ALARM]]:
-		var l := Label.new()
-		l.text = part[0]
-		l.add_theme_font_override("font", title_font)
-		l.add_theme_font_size_override("font_size", 50)
-		l.add_theme_color_override("font_color", part[1])
-		name_row.add_child(l)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(spacer)
-	_lang_btn = OptionButton.new()
-	_lang_btn.add_item("FRANÇAIS")
-	_lang_btn.add_item("ENGLISH")
-	_lang_btn.select(0 if lang == "fr" else 1)
-	_lang_btn.item_selected.connect(_on_lang)
-	_lang_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(_lang_btn)
-	_settings_btn = Button.new()
-	_settings_btn.name = "SettingsButton"
-	_settings_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_settings_btn.pressed.connect(_show_settings.bind(true))
-	head.add_child(_settings_btn)
+	var head := _head_bar(true)
+	root.add_child(head)
 	root.add_child(_rule())
 
 	# Corps : canal et versions à gauche, notes à droite.
@@ -277,15 +236,15 @@ func _build_ui() -> void:
 	body.add_theme_constant_override("separation", 0)
 	root.add_child(body)
 	var left_box := PanelContainer.new()
-	left_box.custom_minimum_size = Vector2(320, 0)
-	left_box.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 0))
+	left_box.custom_minimum_size = Vector2(Look.LIST_W, 0)
+	left_box.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 20, 23))
 	body.add_child(left_box)
 	var left := VBoxContainer.new()
-	left.add_theme_constant_override("separation", 12)
-	left_box.add_child(_padded(left, 20, 20))
+	left.add_theme_constant_override("separation", 10)
+	left_box.add_child(left)
 	# Canal : un seul endroit, un interrupteur ; la liste ne montre que ses versions.
 	var sw_box := PanelContainer.new()
-	sw_box.add_theme_stylebox_override("panel", Look.box(Color(0, 0, 0, 0), 0, Look.STEEL, 2))
+	sw_box.add_theme_stylebox_override("panel", Look.box(Color(0, 0, 0, 0), 0, 0, Look.STEEL, Look.BORDER))
 	left.add_child(sw_box)
 	var sw := HBoxContainer.new()
 	sw.add_theme_constant_override("separation", 0)
@@ -305,7 +264,6 @@ func _build_ui() -> void:
 	_list = ItemList.new()
 	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_list.item_selected.connect(_on_select)
-	_list.add_theme_font_size_override("font_size", 18)
 	left.add_child(_list)
 	body.add_child(_vrule())
 
@@ -315,49 +273,42 @@ func _build_ui() -> void:
 	body.add_child(scroll)
 	var notes := VBoxContainer.new()
 	notes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	notes.add_theme_constant_override("separation", 14)
-	var notes_pad := _padded(notes, 36, 28)
+	notes.add_theme_constant_override("separation", 15)
+	var notes_pad := _padded(notes, Look.GUTTER, 28)
 	notes_pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(notes_pad)
 	_title = Label.new()
-	_title.add_theme_font_override("font", title_font)
-	_title.add_theme_font_size_override("font_size", 40)
+	_title.add_theme_font_override("font", Look.display_font())
+	_title.add_theme_font_size_override("font_size", Look.SIZE_TITLE)
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	notes.add_child(_title)
 	_date = Label.new()
 	_date.add_theme_font_override("font", Look.file_font())
-	_date.add_theme_font_size_override("font_size", 15)
+	_date.add_theme_font_size_override("font_size", Look.SIZE_SMALL)
 	_date.add_theme_color_override("font_color", Look.DIM)
 	notes.add_child(_date)
-	_items = RichTextLabel.new()
-	_items.bbcode_enabled = true
-	_items.fit_content = true
-	_items.scroll_active = false
-	_items.add_theme_font_size_override("normal_font_size", 19)
-	_items.add_theme_constant_override("line_separation", 8)
+	# Nouveautés : une ligne par puce (carré d'alerte, texte en clair).
+	_items = VBoxContainer.new()
+	_items.add_theme_constant_override("separation", 10)
 	notes.add_child(_items)
 	_images = HFlowContainer.new()
-	_images.add_theme_constant_override("h_separation", 14)
-	_images.add_theme_constant_override("v_separation", 14)
+	_images.add_theme_constant_override("h_separation", 15)
+	_images.add_theme_constant_override("v_separation", 15)
 	notes.add_child(_images)
 	_hint = Label.new()
 	_hint.add_theme_color_override("font_color", Look.DIM)
-	_hint.add_theme_font_size_override("font_size", 14)
+	_hint.add_theme_font_size_override("font_size", Look.SIZE_SMALL)
 	notes.add_child(_hint)
 	root.add_child(_rule())
 
 	# Pied : état, progression, supprimer, jouer.
-	var foot_box := PanelContainer.new()
-	foot_box.add_theme_stylebox_override("panel", Look.box(Color("0b0d09"), 0))
-	root.add_child(foot_box)
-	var foot := HBoxContainer.new()
-	foot.add_theme_constant_override("separation", 18)
-	foot_box.add_child(_padded(foot, 32, 16))
+	var foot := _foot_bar()
+	root.add_child(foot)
 	var st := VBoxContainer.new()
 	st.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	st.alignment = BoxContainer.ALIGNMENT_CENTER
-	st.add_theme_constant_override("separation", 8)
-	foot.add_child(st)
+	st.add_theme_constant_override("separation", 9)
+	foot.get_child(0).add_child(st)
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	st.add_child(_status)
@@ -368,17 +319,14 @@ func _build_ui() -> void:
 	_progress.visible = false
 	st.add_child(_progress)
 	_delete = Button.new()
-	_delete.custom_minimum_size = Vector2(150, 58)
 	_delete.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	Look.action_button(_delete, false)
 	_delete.pressed.connect(_on_delete)
-	foot.add_child(_delete)
+	foot.get_child(0).add_child(_delete)
 	_play = Button.new()
-	_play.custom_minimum_size = Vector2(250, 70)
 	_play.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	Look.action_button(_play, true)
+	Look.play_button(_play)
 	_play.pressed.connect(_on_play)
-	foot.add_child(_play)
+	foot.get_child(0).add_child(_play)
 
 	_build_settings()
 
@@ -399,9 +347,72 @@ func _build_ui() -> void:
 	_zoom_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_zoom_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_zoom.add_child(_zoom_tex)
-	# Grain de film et vignette, par-dessus tout (ignore la souris).
-	add_child(Look.grain_overlay())
 	_apply_texts()
+
+
+## Bandeau du haut (141 px) : le nom au pochoir, puis, sur l'accueil, la
+## langue et RÉGLAGES ; sur les réglages, RETOUR.
+func _head_bar(home: bool) -> PanelContainer:
+	var box := PanelContainer.new()
+	box.custom_minimum_size = Vector2(0, Look.HEAD_H)
+	box.add_theme_stylebox_override("panel", Look.box(Color("151812"), Look.GUTTER, 0))
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 12)
+	box.add_child(head)
+	var word := VBoxContainer.new()
+	word.alignment = BoxContainer.ALIGNMENT_CENTER
+	word.add_theme_constant_override("separation", -10)
+	head.add_child(word)
+	var top := Label.new()
+	top.text = "CLAUDE OF DUTY"
+	top.add_theme_font_override("font", Look.spaced(Look.display_font(), 8))
+	top.add_theme_font_size_override("font_size", Look.SIZE_NAME_TOP)
+	top.add_theme_color_override("font_color", Look.DIM)
+	word.add_child(top)
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 0)
+	word.add_child(name_row)
+	for part: Array in [["ZOMB", Look.PAPER], ["IE", Look.ALARM]]:
+		var l := Label.new()
+		l.text = part[0]
+		l.add_theme_font_override("font", Look.spaced(Look.display_font(), 1))
+		l.add_theme_font_size_override("font_size", Look.SIZE_NAME)
+		l.add_theme_color_override("font_color", part[1])
+		name_row.add_child(l)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(spacer)
+	if home:
+		_lang_btn = OptionButton.new()
+		_lang_btn.add_item("FR")
+		_lang_btn.add_item("EN")
+		_lang_btn.select(0 if lang == "fr" else 1)
+		_lang_btn.item_selected.connect(_on_lang)
+		_lang_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		head.add_child(_lang_btn)
+		_settings_btn = Button.new()
+		_settings_btn.name = "SettingsButton"
+		_settings_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_settings_btn.pressed.connect(_show_settings.bind(true))
+		head.add_child(_settings_btn)
+	else:
+		var back := Button.new()
+		back.name = "Back"
+		back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		back.pressed.connect(_show_settings.bind(false))
+		head.add_child(back)
+	return box
+
+
+## Bandeau du bas (110 px) ; son premier enfant reçoit le contenu.
+func _foot_bar() -> PanelContainer:
+	var box := PanelContainer.new()
+	box.custom_minimum_size = Vector2(0, Look.FOOT_H)
+	box.add_theme_stylebox_override("panel", Look.box(Color("0b0d09"), Look.GUTTER, 0))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 31)
+	box.add_child(row)
+	return box
 
 
 func _padded(c: Control, h: int, v: int) -> MarginContainer:
@@ -417,15 +428,42 @@ func _padded(c: Control, h: int, v: int) -> MarginContainer:
 func _rule() -> ColorRect:
 	var r := ColorRect.new()
 	r.color = Look.STEEL
-	r.custom_minimum_size = Vector2(0, 2)
+	r.custom_minimum_size = Vector2(0, Look.BORDER)
 	return r
 
 
 func _vrule() -> ColorRect:
 	var r := ColorRect.new()
 	r.color = Look.STEEL
-	r.custom_minimum_size = Vector2(2, 0)
+	r.custom_minimum_size = Vector2(Look.BORDER, 0)
 	return r
+
+
+## Une puce des notes : carré d'alerte et texte (sans balise : texte en clair).
+func _note_line(text: String, dim := false) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	if not dim:
+		var holder := VBoxContainer.new()
+		var sq := ColorRect.new()
+		sq.color = Look.ALARM
+		sq.custom_minimum_size = Vector2(10, 10)
+		var pad := Control.new()
+		pad.custom_minimum_size = Vector2(0, 6)
+		holder.add_child(pad)
+		holder.add_child(sq)
+		holder.add_theme_constant_override("separation", 0)
+		row.add_child(holder)
+	var l := Label.new()
+	l.text = text
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.custom_minimum_size = Vector2(200, 0)
+	l.add_theme_constant_override("line_spacing", 5)
+	if dim:
+		l.add_theme_color_override("font_color", Look.DIM)
+	row.add_child(l)
+	return row
 
 
 # --------------------------------------------------------------------------
@@ -441,26 +479,29 @@ func _build_settings() -> void:
 	_settings.visible = false
 	add_child(_settings)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 18)
-	_settings.add_child(_padded(col, 40, 28))
-	var head := HBoxContainer.new()
-	col.add_child(head)
-	var t := Label.new()
-	t.name = "SettingsTitle"
-	t.add_theme_font_override("font", Look.display_font())
-	t.add_theme_font_size_override("font_size", 40)
-	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(t)
-	var back := Button.new()
-	back.name = "Back"
-	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	back.pressed.connect(_show_settings.bind(false))
-	head.add_child(back)
+	col.add_theme_constant_override("separation", 0)
+	_settings.add_child(col)
+	col.add_child(_head_bar(false))
+	col.add_child(_rule())
+	var mid := MarginContainer.new()
+	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	for side in ["left", "right"]:
+		mid.add_theme_constant_override("margin_" + side, Look.GUTTER)
+	for side in ["top", "bottom"]:
+		mid.add_theme_constant_override("margin_" + side, 31)
+	col.add_child(mid)
 	_settings_grid = GridContainer.new()
 	_settings_grid.columns = 2
-	_settings_grid.add_theme_constant_override("h_separation", 22)
-	_settings_grid.add_theme_constant_override("v_separation", 22)
-	col.add_child(_settings_grid)
+	_settings_grid.add_theme_constant_override("h_separation", Look.GUTTER)
+	_settings_grid.add_theme_constant_override("v_separation", 20)
+	mid.add_child(_settings_grid)
+	col.add_child(_rule())
+	var foot := _foot_bar()
+	col.add_child(foot)
+	_settings_note = Label.new()
+	_settings_note.add_theme_color_override("font_color", Look.DIM)
+	_settings_note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	foot.get_child(0).add_child(_settings_note)
 
 
 func _show_settings(on: bool) -> void:
@@ -473,10 +514,11 @@ func _show_settings(on: bool) -> void:
 func _fill_settings() -> void:
 	for c in _settings_grid.get_children():
 		c.queue_free()
-	(find_child("SettingsTitle", true, false) as Label).text = Texts.t("settings", lang)
 	(find_child("Back", true, false) as Button).text = Texts.t("back", lang)
+	_settings_note.text = ""
 	# Langue.
 	var lr := HBoxContainer.new()
+	lr.add_theme_constant_override("separation", 10)
 	for i in 2:
 		var b := Button.new()
 		b.text = "FRANÇAIS" if i == 0 else "ENGLISH"
@@ -486,7 +528,7 @@ func _fill_settings() -> void:
 			_lang_btn.select(i)
 			_on_lang(i))
 		lr.add_child(b)
-	_setting(Texts.t("s_lang", lang), Texts.t("s_lang_help", lang), lr)
+	_setting(Texts.t("s_lang", lang), lr, Texts.t("s_lang_help", lang))
 	# Dossier des versions et place prise.
 	var n := Store.installed().size()
 	var total := Store.dir_bytes(Store.data_dir())
@@ -495,7 +537,7 @@ func _fill_settings() -> void:
 	open.text = Texts.t("s_open", lang)
 	open.pressed.connect(func() -> void: OS.shell_open(Store.data_dir()))
 	var space := Texts.t("s_space", lang) % [n, _mb(total)] + (Texts.t("s_space_engine", lang) % _mb(engine) if engine > 0 else "")
-	_setting(Texts.t("s_folder", lang), Store.data_dir() + "\n" + space, open)
+	_setting(Texts.t("s_folder", lang), open, space, Store.data_dir())
 	# Paquets que plus aucune version n'utilise.
 	var unused := Store.unused_bytes()
 	var clean := Button.new()
@@ -505,8 +547,8 @@ func _fill_settings() -> void:
 		var removed := Store.prune_store()
 		print("[launcher] paquets inutilisés supprimés : %d" % removed)
 		_fill_settings()
-		_set_status(Texts.t("s_clean_done", lang)))
-	_setting(Texts.t("s_clean", lang), Texts.t("s_clean_help", lang), clean)
+		_settings_note.text = Texts.t("s_clean_done", lang))
+	_setting(Texts.t("s_clean", lang), clean, Texts.t("s_clean_help", lang))
 	# Journaux et rapports de plantage.
 	var logs := ProjectSettings.globalize_path("user://logs")
 	var open_logs := Button.new()
@@ -514,30 +556,40 @@ func _fill_settings() -> void:
 	open_logs.pressed.connect(func() -> void:
 		DirAccess.make_dir_recursive_absolute(logs)
 		OS.shell_open(logs))
-	_setting(Texts.t("s_logs", lang), logs + "\n" + Texts.t("s_logs_help", lang), open_logs)
+	_setting(Texts.t("s_logs", lang), open_logs, Texts.t("s_logs_help", lang), logs)
 	# À propos.
-	_setting(Texts.t("s_about", lang), Texts.t("s_about_txt", lang) % Version.LAUNCHER_VERSION, null)
+	_setting(Texts.t("s_about", lang), null, Texts.t("s_about_txt", lang) % Version.LAUNCHER_VERSION)
 
 
-func _setting(title: String, help: String, control: Control) -> void:
+## Un bloc des réglages : titre, commande, chemin (police de dossier, laiton), aide.
+func _setting(title: String, control: Control, help: String, path := "") -> void:
 	var p := PanelContainer.new()
 	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	p.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 18, Look.STEEL, 2))
+	p.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 18, 18, Look.STEEL, Look.BORDER))
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	p.add_child(v)
 	var t := Label.new()
 	t.text = title
-	t.add_theme_font_size_override("font_size", 20)
+	t.add_theme_font_override("font", Look.label_font())
+	t.add_theme_font_size_override("font_size", Look.SIZE_FIELD)
 	v.add_child(t)
 	if control:
 		control.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		v.add_child(control)
+	if path != "":
+		var c := Label.new()
+		c.text = path
+		c.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+		c.add_theme_font_override("font", Look.file_font())
+		c.add_theme_font_size_override("font_size", Look.SIZE_SMALL)
+		c.add_theme_color_override("font_color", Look.BRASS)
+		v.add_child(c)
 	var h := Label.new()
 	h.text = help
 	h.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	h.add_theme_color_override("font_color", Look.DIM)
-	h.add_theme_font_size_override("font_size", 15)
+	h.add_theme_font_size_override("font_size", Look.SIZE_HELP)
 	v.add_child(h)
 	_settings_grid.add_child(p)
 
@@ -665,18 +717,18 @@ func _show_notes() -> void:
 	_title.text = String(n.title) if String(n.title) != "" else tag
 	var d := String(info.get("date", ""))
 	_date.text = tag + ("  ·  " + Texts.date(d, lang) if d != "" else "")
-	var txt := ""
+	# Nouveautés en texte simple (Label : aucune balise interprétée).
+	for c in _items.get_children():
+		c.queue_free()
 	for it in n.items:
-		# Texte des notes échappé : aucune balise BBCode venue d'Internet.
-		txt += "[color=#%s]■[/color]  %s\n" % [BLOOD_BRIGHT.to_html(false), Releases.escape_bbcode(String(it))]
+		_items.add_child(_note_line(String(it)))
 	if n.items.is_empty():
-		txt = "[color=#%s]%s[/color]" % [DIM.to_html(false), Texts.t("no_notes" if tag != "" else "no_versions", lang)]
-	_items.text = txt.strip_edges()
+		_items.add_child(_note_line(Texts.t("no_notes" if tag != "" else "no_versions", lang), true))
 	for c in _images.get_children():
 		c.queue_free()
 	for img in n.images:
 		var b := TextureButton.new()
-		b.custom_minimum_size = Vector2(320, 180)
+		b.custom_minimum_size = Vector2(218, 123)
 		b.ignore_texture_size = true
 		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		b.set_meta("image", img)
