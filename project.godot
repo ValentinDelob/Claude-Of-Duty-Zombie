@@ -19,15 +19,34 @@ config/version="0.1.0"
 run/main_scene="res://scenes/boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
+; Journal vidé à chaque ligne, même dans l'exe exporté : les dernières lignes
+; avant un plantage restent dans le journal (CrashLog).
+run/flush_stdout_on_print=true
 
 [autoload]
 
+CrashGuard="*res://scripts/autoload/crash_guard.gd"
 GameState="*res://scripts/autoload/game_state.gd"
 Settings="*res://scripts/autoload/settings.gd"
 Net="*res://scripts/autoload/net.gd"
 Router="*res://scripts/autoload/router.gd"
 Audio="*res://scripts/autoload/audio.gd"
 Autotest="*res://scripts/autoload/autotest.gd"
+
+[debug]
+
+; Journaux (docs/ARCHITECTURE.md « Journaux et plantages ») : un fichier par
+; lancement dans user://logs, toujours écrit (exe exporté compris), gardé au
+; moins 14 jours (nettoyage par date au démarrage : CrashLog.prune, total
+; borné à 200 Mo ; le nombre de fichiers n'est qu'une limite de secours).
+; Binaire de l'éditeur (tests, agents, scénarios lancés à la main) : jamais le
+; dossier du joueur, mais tests/_out/logs (et --log-file partout dans tools/).
+file_logging/enable_file_logging=true
+file_logging/enable_file_logging.pc=true
+file_logging/log_path="user://logs/godot.log"
+file_logging/log_path.editor="res://tests/_out/logs/godot.log"
+file_logging/max_log_files=1000
+file_logging/max_log_files.editor=5
 
 [display]
 

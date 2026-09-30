@@ -11,12 +11,14 @@ cd "$(dirname "$0")/.."
 nofocus_on
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
+# Journaux Godot : tests/_out/logs, jamais ceux du joueur (voir check.sh).
+LOGS="$PWD/$OUT/logs"; mkdir -p "$LOGS"
 FAIL=0
 SCENARIOS=${*:-"boot fps_controller zombie_entity map_tour"}
 QARG=""
 [ -n "$QUALITY" ] && QARG="--quality=$QUALITY"
 for S in $SCENARIOS; do
-  "$GODOT" --path . --resolution 1920x1080 -- --autotest=$S $QARG > "$OUT/perf_$S.log" 2>&1 || FAIL=1
+  "$GODOT" --log-file "$LOGS/perf_$S.log" --path . --resolution 1920x1080 -- --autotest=$S $QARG > "$OUT/perf_$S.log" 2>&1 || FAIL=1
   echo "== $S${QUALITY:+ ($QUALITY)}"
   grep -E "\[perf\]|perf .*fps|ECHEC" "$OUT/perf_$S.log"
 done

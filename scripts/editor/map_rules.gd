@@ -473,6 +473,8 @@ static var _batch_doc: EditorMap = null
 
 
 static func begin_batch(doc: EditorMap) -> void:
+	if not ThreadGuard.main_only("MapRules.begin_batch"):   # fil principal seulement
+		return
 	_batch = {}
 	_batch_doc = doc
 	for o in doc.objets:
@@ -486,6 +488,8 @@ static func begin_batch(doc: EditorMap) -> void:
 
 
 static func end_batch() -> void:
+	if not ThreadGuard.main_only("MapRules.end_batch"):   # fil principal seulement
+		return
 	_batch = {}
 	_batch_doc = null
 
@@ -500,7 +504,8 @@ static func _buckets(r: Rect2) -> Array:
 
 ## Objets de l'étage qui pourraient toucher `r` : [[objet, emprise, couche]].
 static func _near(doc: EditorMap, k: int, r: Rect2) -> Array:
-	if _batch_doc == doc:
+	# Fil de travail (aperçu 3D) : jamais le lot du fil principal (état partagé).
+	if not ThreadGuard.worker() and _batch_doc == doc:
 		var grid: Dictionary = _batch.get(k, {})
 		var seen := {}
 		var out := []
@@ -556,15 +561,18 @@ static var _inner_cache: Dictionary = {}
 
 
 static func inner_cells(poly: PackedVector2Array) -> Dictionary:
+	# Cache du fil principal : hors de lui, calculé sans le cache (et noté).
+	var main := ThreadGuard.main_only("MapRules._inner_cache")
 	var key := var_to_str(poly)
-	if _inner_cache.has(key):
+	if main and _inner_cache.has(key):
 		return _inner_cache[key]
-	if _inner_cache.size() > 64:
+	if main and _inner_cache.size() > 64:
 		_inner_cache.clear()
 	var inner := {}
 	for c in MapRaster.room_cells(poly)[1]:
 		inner[c] = true
-	_inner_cache[key] = inner
+	if main:
+		_inner_cache[key] = inner
 	return inner
 
 

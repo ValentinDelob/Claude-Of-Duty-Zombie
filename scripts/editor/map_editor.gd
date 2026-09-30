@@ -1566,5 +1566,6 @@ func test_map() -> bool:
 	reopen_dir = map_dir
 	reopen_example = false
 	Router.return_scene = SCENE
+	CrashGuard.context("éditeur de cartes : TESTER « %s »" % map_dir.get_file(), true)
 	Router.start_solo(EditorMapDef.CUSTOM_PREFIX + map_dir.get_file())
 	return true
