@@ -62,6 +62,45 @@ func run() -> void:
 			break
 	at.check(recycled == 1 and game.zombies.alive_count() == 0, "zombie égaré recyclé (%d)" % recycled)
 
+	# 4 bis. Un point occupé n'est pas repris : trois apparitions à la suite
+	# (manche rapide) sortent à trois endroits et chacune rejoint le joueur
+	# (avant : superposées au même point, bloquées l'une dans l'autre).
+	p.teleport_to(MapData.cell_to_world(Vector2i(6, 3), 0.05), 0.0)
+	await seconds(0.2)
+	var trio: Array[Zombie] = []
+	var starts: Array[Vector3] = []
+	for i in 3:
+		var at_pos: Variant = sp.pick_spawn_point()
+		if at_pos == null:
+			break
+		starts.append(at_pos)
+		trio.append(game.zombies.get_zombie(game.zombies.spawn(at_pos, 0, 100000)))
+	var distinct := trio.size() == 3 and starts[0].distance_to(starts[1]) > 0.8 and starts[0].distance_to(starts[2]) > 0.8 and starts[1].distance_to(starts[2]) > 0.8
+	at.check(distinct, "trois apparitions à la suite : trois points différents (%s)" % str(starts))
+	await seconds(Zombie.EMERGE_TIME + 3.0)  # sortie de terre puis quelques pas
+	var walked := 0
+	for i in trio.size():
+		if trio[i].global_position.distance_to(starts[i]) > 1.0:
+			walked += 1
+	at.check(walked == trio.size(), "chaque zombie quitte son point d'apparition (%d/%d)" % [walked, trio.size()])
+	await H.clear_zombies(self)
+
+	# 4 ter. Filet de BO1 : un zombie coincé PRÈS du joueur (le recyclage à
+	# distance ne le prend pas) est retiré après 30 s sans bouger de 60 cm.
+	var stuck := await H.dummy_zombie(self, p.global_position + Vector3(0, 0, 6.0))
+	var gone_early := false
+	var t_stuck := 0.0
+	var back := 0
+	while t_stuck < 33.0 and back == 0:
+		await seconds(1.0)
+		t_stuck += 1.0
+		back += sp.recycle(1.0)
+		if back > 0 and t_stuck < Spawner.FAILSAFE_TIME - 1.0:
+			gone_early = true
+	at.check(back == 1 and not gone_early and game.zombies.alive_count() == 0, "zombie immobile à 6 m retiré par le filet vers 30 s, pas avant (%.0f s)" % t_stuck)
+	stuck = null
+	await H.clear_zombies(self)
+
 	# 5. Émergence visible.
 	p.teleport_to(MapData.cell_to_world(Vector2i(12, 9), 0.05), 0.0)
 	var zid := game.zombies.spawn(MapData.cell_to_world(Vector2i(12, 5)), 0, 150)

@@ -13,6 +13,13 @@ const IDEAL_MIN := 9.0
 const IDEAL_MAX := 26.0
 const RECYCLE_DIST := 38.0
 const RECYCLE_TIME := 18.0
+## Distance (m, à plat) sous laquelle un point d'apparition est occupé.
+const SPAWN_CLEARANCE := 0.8
+## Filet de BO1 (round_spawn_failsafe) : moins de 24 pouces (0,6 m) en 30 s,
+## 10 s de plus pour un rampant.
+const FAILSAFE_TIME := 30.0
+const FAILSAFE_CRAWLER_EXTRA := 10.0
+const FAILSAFE_MOVE := 0.6
 
 class SpawnPoint:
 	var pos: Vector3
@@ -28,6 +35,8 @@ var recycle_time := RECYCLE_TIME
 var _rng := RandomNumberGenerator.new()
 ## zid -> secondes passées loin de tout joueur
 var _far_time: Dictionary = {}
+## Filet : zid -> [position de référence, instant (GameClock) où il y était].
+var _failsafe: Dictionary = {}
 
 
 func _init(g: Game) -> void:
@@ -69,7 +78,14 @@ func pick_spawn_point() -> Variant:
 		players = game.players.values()
 	var best_score := -INF
 	var best: SpawnPoint = null
+	var taken := zombie_positions()
 	for sp in candidates:
+		# Un seul zombie à la fois par point (comme les points de sortie de
+		# BO1) : deux zombies apparus au même endroit se superposent
+		# exactement (non solides pendant l'émergence) et restent bloqués
+		# l'un dans l'autre ensuite (aucune direction pour se séparer).
+		if occupied(sp.pos, taken):
+			continue
 		var nearest := INF
 		var seen := false
 		for p: Player in players:
@@ -92,6 +108,22 @@ func pick_spawn_point() -> Variant:
 			best = sp
 	@warning_ignore("incompatible_ternary")
 	return best.pos if best else null
+
+
+## Positions des zombies et chiens en vie (serveur).
+func zombie_positions() -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for z: Zombie in game.zombies.alive:
+		out.append(z.global_position)
+	return out
+
+
+## Règle pure : un zombie (même niveau) se tient-il sur ce point ?
+static func occupied(pos: Vector3, taken: PackedVector3Array) -> bool:
+	for q in taken:
+		if absf(q.y - pos.y) < 1.0 and Vector2(q.x - pos.x, q.z - pos.z).length() < SPAWN_CLEARANCE:
+			return true
+	return false
 
 
 func _standing_players() -> Array:
@@ -123,8 +155,26 @@ func recycle(delta: float) -> int:
 	var players: Array = _standing_players()
 	if players.is_empty():
 		return 0
+	prune_far_time(_failsafe, game.zombies.alive)
+	var now := GameClock.now()
 	for z: Zombie in game.zombies.alive.duplicate():
 		if z.state == Zombie.State.EMERGE:
+			continue
+		# Filet de BO1 (round_spawn_failsafe) : un zombie qui n'a pas bougé
+		# de 60 cm en 30 s (40 s pour un rampant) est retiré et remis dans le
+		# quota, même près des joueurs (coincé dans le décor à 10 m, il
+		# bloquait la fin de la manche). Pas pendant qu'il arrache une planche,
+		# enjambe une fenêtre ou frappe.
+		if z.state in [Zombie.State.BARRIER, Zombie.State.VAULT, Zombie.State.ATTACK] or z.lured:
+			_failsafe.erase(z.id)
+		elif not _failsafe.has(z.id) or (_failsafe[z.id][0] as Vector3).distance_to(z.global_position) >= FAILSAFE_MOVE:
+			_failsafe[z.id] = [z.global_position, now]
+		elif failsafe_due(float(_failsafe[z.id][1]), now, z.is_crawler()):
+			print("[Spawner] zombie %d immobile depuis %.0f s en %s : retiré (filet de BO1)" % [z.id, now - float(_failsafe[z.id][1]), z.global_position])
+			_failsafe.erase(z.id)
+			_far_time.erase(z.id)
+			game.zombies.despawn(z.id)
+			removed += 1
 			continue
 		var nearest := INF
 		for p: Player in players:
@@ -138,6 +188,11 @@ func recycle(delta: float) -> int:
 			game.zombies.despawn(z.id)
 			removed += 1
 	return removed
+
+
+## Règle pure du filet : immobile depuis `since` (s de jeu), retiré à `now` ?
+static func failsafe_due(since: float, now: float, crawler: bool) -> bool:
+	return now - since >= FAILSAFE_TIME + (FAILSAFE_CRAWLER_EXTRA if crawler else 0.0)
 
 
 ## Oublie le temps passé loin des joueurs des zombies qui ne sont plus
