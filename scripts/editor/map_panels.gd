@@ -74,7 +74,9 @@ func _ready() -> void:
 func _tab(id: String, title_text: String) -> VBoxContainer:
 	var sc := ScrollContainer.new()
 	sc.name = id
-	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# Défilement horizontal seulement si une ligne ne tient pas (grande taille
+	# d'interface : la largeur des panneaux est bornée, MapEditor.side_width).
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	add_child(sc)
 	set_tab_title(get_tab_count() - 1, title_text)
 	var v := VBoxContainer.new()
@@ -190,6 +192,10 @@ func _option(box: Container, label: String, items: Array, selected_i: int, apply
 	for it in items:
 		o.add_item(String(it))
 	o.selected = selected_i
+	# Largeur donnée par le panneau (texte coupé au besoin, liste complète).
+	o.fit_to_longest_item = false
+	o.clip_text = true
+	o.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	o.item_selected.connect(func(i): apply.call(i))
 	_row(box, label, o)
 	return o
@@ -198,6 +204,7 @@ func _option(box: Container, label: String, items: Array, selected_i: int, apply
 func _check(box: Container, text: String, value: bool, apply: Callable) -> CheckBox:
 	var c := CheckBox.new()
 	c.text = text
+	c.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	c.button_pressed = value
 	c.toggled.connect(func(on):
 		ed.push_undo()
@@ -276,7 +283,8 @@ func _fill_props() -> void:
 	if ed.invalid.has(String(e.id)):
 		var l := _note(_props, "⚠ " + String(ed.invalid[String(e.id)]))
 		l.add_theme_color_override("font_color", Color(1, 0.5, 0.4))
-	var h := HBoxContainer.new()
+	# Boutons à la ligne s'ils ne tiennent pas côte à côte (grande taille d'interface).
+	var h := HFlowContainer.new()
 	_props.add_child(h)
 	if MapTransform.can_rotate(e):
 		_button(h, Lang.t("Pivoter (R)", "Rotate (R)"), ed.rotate_selected)
@@ -496,6 +504,8 @@ func _light_props(o: Dictionary) -> void:
 	cp.color = MapCatalog.light_color(o)
 	cp.edit_alpha = false
 	cp.custom_minimum_size = Vector2(0, 26)
+	# Nuancier de Godot : sa mise en page interne n'est pas touchée (EditorUi).
+	cp.get_popup().set_meta(EditorUi.SKIP, true)
 	# Appliqué à la fermeture du nuancier (une seule étape d'annulation).
 	cp.popup_closed.connect(func():
 		var html := "#" + cp.color.to_html(false)

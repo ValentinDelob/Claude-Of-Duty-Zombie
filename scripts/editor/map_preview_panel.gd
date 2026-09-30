@@ -231,9 +231,10 @@ func _build_ui() -> void:
 	grip.mouse_default_cursor_shape = Control.CURSOR_FDIAGSIZE
 	grip.gui_input.connect(_grip_input)
 	grip.draw.connect(func():
+		var g := grip.size.x
 		for i in 3:
-			var o := 4.0 + i * 4.0
-			grip.draw_line(Vector2(16, o), Vector2(o, 16), Color(1, 0.7, 0.4, 0.8), 1.5))
+			var o := g * (0.25 + i * 0.25)
+			grip.draw_line(Vector2(g, o), Vector2(o, g), Color(1, 0.7, 0.4, 0.8), 1.5))
 	add_child(grip)
 	_refresh_menu()
 	_refresh_hint()
@@ -404,7 +405,7 @@ func set_detached(on: bool, win_rect := Rect2i()) -> void:
 		window.title = Lang.t("APERÇU 3D", "3D PREVIEW") + " — " + (ed.doc.display_name() if ed != null and ed.doc != null else "")
 		window.force_native = true
 		window.transient = false
-		window.min_size = Vector2i(MIN_SIZE)
+		window.min_size = Vector2i(_min_size())
 		window.theme = ed.theme if ed != null else null
 		window.size = win_rect.size if win_rect.size.x > 0 else Vector2i(_free_rect.size.max(DEFAULT_SIZE))
 		window.close_requested.connect(func(): set_detached(false))
@@ -450,7 +451,7 @@ func _area_size() -> Vector2:
 
 func _apply_rect(r: Rect2) -> void:
 	position = r.position
-	size = r.size.max(MIN_SIZE)
+	size = r.size.max(_min_size())
 	_clamp_rect()
 
 
@@ -463,15 +464,47 @@ func _clamp_rect() -> void:
 		position = Vector2.ZERO
 		size = area
 		return
-	size = size.min(area).max(MIN_SIZE)
-	position = position.clamp(Vector2(-size.x + 80, 0), (area - Vector2(80, 30)).max(Vector2.ZERO))
+	size = size.min(area).max(_min_size())
+	# Jamais sur la barre du haut de l'éditeur (sa hauteur suit la taille de l'interface).
+	var top := minf(_top_limit(), maxf(area.y - 30.0, 0.0))
+	position = position.clamp(Vector2(-size.x + 80, top), (area - Vector2(80, 30)).max(Vector2(0, top)))
+
+
+## Haut de la vue 2D dans l'éditeur (sous la barre du haut) ; 0 sans éditeur.
+func _top_limit() -> float:
+	if ed != null and ed.canvas != null and ed.canvas.is_inside_tree() and ed.canvas.size.x > 0.0:
+		return ed.canvas.global_position.y - (get_parent() as Control).global_position.y if get_parent() is Control else ed.canvas.global_position.y
+	return 0.0
 
 
 func _default_rect() -> Rect2:
 	var area := _area_size()
-	var s := DEFAULT_SIZE.min(area * 0.6)
+	var s := (DEFAULT_SIZE * EditorUi.factor()).round().min(area * 0.6)
 	# En haut à droite de la vue 2D (à gauche des panneaux).
-	return Rect2(Vector2(area.x - MapEditor.PANEL_W - s.x - 12, 44), s)
+	var right := area.x - EditorUi.px(MapEditor.PANEL_W)
+	var top := maxf(EditorUi.px(44.0), _top_limit() + 8.0)
+	if ed != null and ed.canvas != null and ed.canvas.is_inside_tree() and ed.canvas.size.x > 0.0:
+		right = ed.canvas.get_global_rect().end.x
+	return Rect2(Vector2(right - s.x - 12, top), s)
+
+
+## Plus petite taille du panneau, à la taille de l'interface (EditorUi).
+func _min_size() -> Vector2:
+	return (MIN_SIZE * EditorUi.factor()).round()
+
+
+## Taille de l'interface changée (MapEditor.apply_ui_scale) : coin de
+## redimensionnement, aide, panneau gardé dans l'éditeur.
+func ui_scale_changed() -> void:
+	var g := EditorUi.px(16.0)
+	grip.offset_left = -g
+	grip.offset_top = -g
+	grip.queue_redraw()
+	# Aide collée au bas de la vue (elle grandit vers le haut).
+	hint.offset_top = -EditorUi.px(20.0)
+	hint.offset_bottom = -EditorUi.px(4.0)
+	info.position = Vector2(EditorUi.px(6.0), EditorUi.px(4.0))
+	_clamp_rect.call_deferred()
 
 
 func _title_input(event: InputEvent) -> void:
@@ -506,7 +539,7 @@ func _grip_input(event: InputEvent) -> void:
 			_drag = ""
 			_save_soon()
 	elif event is InputEventMouseMotion and _drag == "resize":
-		size = (_rect0.size + get_global_mouse_position() - _drag_from).max(MIN_SIZE)
+		size = (_rect0.size + get_global_mouse_position() - _drag_from).max(_min_size())
 		_clamp_rect()
 
 
@@ -629,7 +662,7 @@ func nav_active() -> bool:
 
 
 func _view_key(event: InputEvent) -> void:
-	if not event is InputEventKey:
+	if not event is InputEventKey or (ed != null and ed.options_open()):
 		return
 	var k := event as InputEventKey
 	# P dans la fenêtre détachée (celle de l'éditeur : _input).
@@ -646,7 +679,7 @@ func _input(event: InputEvent) -> void:
 	if _captured_mouse_input(event):
 		get_viewport().set_input_as_handled()
 		return
-	if not event is InputEventKey:
+	if not event is InputEventKey or (ed != null and ed.options_open()):
 		return
 	var k := event as InputEventKey
 	if k.pressed and not k.echo and k.keycode == KEY_P and not k.ctrl_pressed and not k.alt_pressed and not k.meta_pressed and not _typing():

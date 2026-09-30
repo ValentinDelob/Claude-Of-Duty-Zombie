@@ -1,8 +1,12 @@
 {
- "title": {"fr": "Éditeur de cartes : murs libres et fenêtres", "en": "Map editor: free walls and windows"},
+ "title": {"fr": "Éditeur de cartes : interface compacte, murs libres et stabilité", "en": "Map editor: compact interface, free walls and stability"},
  "items": [
-  {"fr": "Le curseur de la souris ne disparaît plus après avoir tourné la caméra de l'aperçu 3D au clic droit.", "en": "The mouse cursor no longer disappears after turning the 3D preview camera with the right button."},
+  {"fr": "L'interface de l'éditeur est plus compacte par défaut (80 % de l'ancienne taille) : le plan gagne la place libérée, sans changer de zoom.", "en": "The editor interface is more compact by default (80% of the old size): the map view gets the freed space, without changing its zoom."},
+  {"fr": "Nouveau réglage OPTIONS > JEU > TAILLE DE L'INTERFACE DE L'ÉDITEUR, de 60 à 150 %, aussi avec Ctrl + « + » / Ctrl + « - » / Ctrl + 0 dans l'éditeur, et un bouton ⚙ qui ouvre les options par-dessus l'éditeur.", "en": "New setting OPTIONS > GAME > MAP EDITOR UI SIZE, from 60 to 150%, also with Ctrl + \"+\" / Ctrl + \"-\" / Ctrl + 0 in the editor, and a ⚙ button that opens the options over the editor."},
   {"fr": "Armes, atouts, boîte, appliques et autres objets muraux se posent aussi sur les murs libres (droits, en biais, épais ou courbes), des deux côtés, et les suivent quand on les déplace.", "en": "Weapons, perks, the box, sconces and other wall items can now go on free walls too (straight, slanted, thick or curved), on either side, and follow them when moved."},
-  {"fr": "Fenêtres à zombies, portes et objets muraux suivent le curseur quand on les glisse le long de leur mur, dans tous les modes d'aimantation, même sur les côtés d'une salle ronde.", "en": "Zombie windows, doors and wall items follow the cursor when dragged along their wall, in every snapping mode, even on the sides of a round room."}
+  {"fr": "Fenêtres à zombies, portes et objets muraux suivent le curseur quand on les glisse le long de leur mur, dans tous les modes d'aimantation, même sur les côtés d'une salle ronde.", "en": "Zombie windows, doors and wall items follow the cursor when dragged along their wall, in every snapping mode, even on the sides of a round room."},
+  {"fr": "Le curseur de la souris ne disparaît plus après avoir tourné la caméra de l'aperçu 3D au clic droit.", "en": "The mouse cursor no longer disappears after turning the 3D preview camera with the right button."},
+  {"fr": "Correction d'un plantage possible de l'éditeur quand l'aperçu 3D se met à jour pendant qu'on pose des éléments.", "en": "Fixed a possible editor crash when the 3D preview updates while placing items."},
+  {"fr": "Chaque plantage du jeu ou du lanceur laisse maintenant un rapport (dossier « crashes », gardé 30 jours) et les journaux sont conservés 14 jours ; le menu vous indique où le trouver.", "en": "Every game or launcher crash now leaves a report (\"crashes\" folder, kept 30 days) and logs are kept for 14 days; the menu tells you where to find it."}
  ]
 }

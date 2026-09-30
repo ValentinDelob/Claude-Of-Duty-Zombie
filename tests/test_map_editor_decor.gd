@@ -156,7 +156,7 @@ func test_list_in_the_editor_hover_both_ways() -> void:
 	var origin := ed.canvas.origin
 	var zoom := ed.canvas.zoom
 	var mm := InputEventMouseMotion.new()
-	mm.position = Vector2(20, MapObjectList.ROW_H * 3.5)
+	mm.position = Vector2(20, MapObjectList.row_h() * 3.5)
 	lst.rows._gui_input(mm)
 	assert_eq(ed.hover_id, String(lst.rows.items[3].id), "ligne survolée -> élément surligné sur la carte")
 	assert_true(ed.canvas.origin == origin and ed.canvas.zoom == zoom, "la vue ne bouge pas au survol")
