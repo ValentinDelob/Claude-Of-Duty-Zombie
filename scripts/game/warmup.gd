@@ -18,7 +18,8 @@ static func run(game: Game, at: Vector3) -> void:
 	game.world.add_child(w)
 	w.global_position = at
 	await w._run(game)
-	w.queue_free()
+	if is_instance_valid(w):
+		w.queue_free()
 
 
 func _run(game: Game) -> void:
@@ -107,5 +108,8 @@ func _run(game: Game) -> void:
 	ProjectileFx.launch(fx, p + Vector3.LEFT, p + Vector3.RIGHT, 8.0, "rocket", false)
 	ProjectileFx.launch(fx, p + Vector3.LEFT, p + Vector3.RIGHT, 8.0, "grenade", true)
 	for i in FRAMES:
+		# Partie quittée pendant le chargement : le nœud sort de l'arbre.
+		if not is_inside_tree():
+			return
 		rotation.y = TAU * float(i) / FRAMES
 		await get_tree().process_frame

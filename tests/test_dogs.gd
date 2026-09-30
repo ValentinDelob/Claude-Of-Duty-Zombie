@@ -30,8 +30,8 @@ func test_dog_count() -> void:
 	assert_eq(DogRules.dog_count(1, 3), 8, "solo, 3e : 8 par joueur")
 	assert_eq(DogRules.dog_count(2, 1), 12)
 	assert_eq(DogRules.dog_count(4, 1), 24)
-	assert_eq(DogRules.dog_count(4, 5), 24, "plafond de 24")
-	assert_eq(DogRules.dog_count(8, 1), 24, "plafond de 24")
+	assert_eq(DogRules.dog_count(4, 5), 32, "4 joueurs, 3e manche et plus : 8 x 4 comme BO1 (sans plafond)")
+	assert_eq(DogRules.dog_count(8, 1), 32, "plus de 4 joueurs : plafonné au maximum de BO1")
 	assert_eq(DogRules.dog_count(0, 1), 6, "au moins un joueur")
 
 

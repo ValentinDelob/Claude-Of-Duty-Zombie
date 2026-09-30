@@ -411,7 +411,7 @@ func reset_for_test() -> void:
 
 
 func load_settings() -> void:
-	if _cmdline_has_prefix("--autotest="):
+	if AutotestMode.is_running():
 		path = "%s%d.cfg" % [TEST_PATH_PREFIX, OS.get_process_id()]
 		return
 	if not load_from(path):
@@ -506,7 +506,7 @@ func apply() -> void:
 		var want := DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
 		# En autotest, la fenêtre est gérée par Autotest (réduite puis hors écran).
 		if DisplayServer.window_get_mode() != want and not _cmdline_has("--windowed") \
-				and not _cmdline_has_prefix("--autotest="):
+				and not AutotestMode.is_running():
 			DisplayServer.window_set_mode(want)
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
 	# --max-fps (tests, check.sh) l'emporte sur l'option.

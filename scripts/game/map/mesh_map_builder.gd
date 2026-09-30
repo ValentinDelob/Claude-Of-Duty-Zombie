@@ -50,17 +50,39 @@ func build(parent: Node3D) -> void:
 			push_error("[MeshMap] architecture introuvable : " + glb_path)
 			return
 		scene = packed.instantiate()
+	_add_architecture(scene)
+	_build_decor_parts()
+	_build_lamps()
+
+
+# Les trois morceaux ci-dessous sont communs au jeu (build) et à l'aperçu 3D
+# de l'éditeur (MapPreviewBuilder) : le test « même géométrie que le jeu »
+# (tests/test_map_preview.gd) repose sur ce partage.
+
+## Architecture (.glb ou MeshMapGeometry) sous la racine : matériaux, ombres
+## et collisions, lambris posés sur le sol de référence de chaque salle.
+## Les matériaux remplacés (_prop_mats) sont pris tels qu'ils sont à l'appel
+## (vides en jeu : « prop_materials » ne vise que le décor posé).
+func _add_architecture(scene: Node3D) -> void:
 	scene.name = "Architecture"
 	root.add_child(scene)
-	var floors := {}
+	var floors: Dictionary = {}
 	for r in layout.get("rooms", []):
 		floors[r.id] = _room_floor(r)
 	_setup_nodes(scene, func(room: String) -> float: return float(floors.get(room, 0.0)))
+
+
+## Décor posé : objets, objets répétés, écrans et faisceaux, pavés de collision.
+func _build_decor_parts() -> void:
 	_prop_mats = layout.get("prop_materials", {})
 	_build_props()
 	_build_instances()
 	_build_screens()
 	_build_blockers()
+
+
+## Lampes automatiques (une sur cinq grésille) et luminaires de l'éditeur.
+func _build_lamps() -> void:
 	var lamps: Array = layout.get("markers", {}).get("lamps", [])
 	for i in lamps.size():
 		var l: Dictionary = lamps[i]
