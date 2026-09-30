@@ -41,7 +41,7 @@ func run() -> void:
 	var power: PowerSwitch = game.interact.get_obj("power")
 	if power:
 		power.srv_use(1)  # lumière pour les captures
-	await seconds(2.5)
+	await seconds(2.5)  # captures : les lumières finissent de s'allumer
 	at.check(pd.knife == "knife" and p.weapons.knife_id == "knife", "couteau de départ")
 
 	# 1. Fente : zombie visé à 2,5 m, mort d'un coup (150 PV), 130 points.
@@ -50,13 +50,13 @@ func run() -> void:
 	var x0 := p.global_position.x
 	await knife(p)
 	at.check(p.weapons.lunging and p.is_lunging(), "fente déclenchée")
-	await seconds(0.07)
+	await seconds(0.07)  # capture : élan
 	await at.screenshot("melee_windup")
-	await seconds(0.12)
+	await seconds(0.12)  # capture : coup porté
 	await at.screenshot("melee_slash")
 	var moved := p.global_position.x - x0
 	at.check(moved > 1.0 and moved < 2.2, "le joueur s'est projeté vers le zombie (%.2f m)" % moved)
-	await seconds(0.2)
+	await until(func(): return (not is_instance_valid(z) or not z.is_alive()) and pd.points - pts == 130, 1.0, "zombie tué par la fente")
 	at.check(not z.is_alive(), "zombie à 2,5 m tué par la fente")
 	at.check(pd.points - pts == 130, "mort au couteau : +130 (%d)" % (pd.points - pts))
 	await seconds(0.5)
@@ -64,7 +64,7 @@ func run() -> void:
 	# 2. Dégâts du couteau : 150 sur un zombie plus résistant.
 	z = await setup_duel(p, 2.5, 1000)
 	await knife(p)
-	await seconds(0.45)
+	await until(func(): return z.health < 1000, 1.0, "coup de couteau encaissé")
 	at.check(z.is_alive() and z.health == 850, "couteau : 150 dégâts (1000 -> %d)" % z.health)
 	pts = pd.points
 	await seconds(0.5)
@@ -73,9 +73,9 @@ func run() -> void:
 	z = await setup_duel(p, 2.1, 1000, -1.45)
 	x0 = p.global_position.x
 	await knife(p)
-	await seconds(0.1)
+	await seconds(0.1)  # capture
 	await at.screenshot("melee_miss")
-	await seconds(0.3)
+	await seconds(0.3)  # fenêtre fixe : on vérifie qu'aucune fente ne part
 	at.check(not p.weapons.lunging and absf(p.global_position.x - x0) < 0.3, "pas de fente hors du cône (%.2f m)" % (p.global_position.x - x0))
 	at.check(z.health == 1000, "zombie non visé intact (%d)" % z.health)
 	await seconds(0.5)
@@ -84,7 +84,7 @@ func run() -> void:
 	# zombie à 6 m, hors de portée de fente depuis la position serveur.
 	z = await setup_duel(p, 6.0, 1000)
 	game.combat.srv_melee.rpc_id(1, p.camera.global_position + Vector3(4.2, 0, 0), Vector3(1, 0, 0))
-	await seconds(0.2)
+	await seconds(0.2)  # fenêtre fixe : le coup doit rester sans effet
 	at.check(z.health == 1000, "coup de couteau à distance refusé (%d)" % z.health)
 	await H.clear_zombies(self)
 
@@ -96,37 +96,37 @@ func run() -> void:
 	var front := wb.interact_point() + Vector3(0, -1.0, 0) + (wb.interact_point() - wb.global_position).normalized() * 1.2
 	p.teleport_to(front)
 	H.aim_at(p, wb.global_position)
-	await seconds(0.5)
+	await seconds(0.5)  # capture
 	await at.screenshot("bowie_chalk")
 	pd.points = 2999
 	game.session.sync_stats(1)
 	p.teleport_to(wb.interact_point() + Vector3(0, -1.0, 0) + (wb.interact_point() - wb.global_position).normalized() * 0.6)
 	H.aim_at(p, wb.global_position)
-	await seconds(0.3)
+	await until(func(): return game.hud._prompt.text.contains("COUTEAU DE CHASSE") and game.hud._prompt.text.contains("3000"), 2.0, "invite du couteau de chasse")
 	at.check(game.hud._prompt.text.contains("COUTEAU DE CHASSE") and game.hud._prompt.text.contains("3000"), "invite : %s" % game.hud._prompt.text)
 	p.input.interact_pressed = true
-	await seconds(0.4)
+	await seconds(0.4)  # fenêtre fixe : l'achat doit être refusé
 	at.check(pd.knife == "knife" and pd.points == 2999, "refusé à 2999 points")
 	pd.points = 3000
 	game.session.sync_stats(1)
 	p.input.interact_pressed = true
-	await seconds(0.3)
+	await until(func(): return pd.knife == "bowie" and p.weapons.knife_id == "bowie", 2.0, "couteau de chasse acheté")
 	at.check(pd.knife == "bowie" and pd.points == 0, "couteau de chasse acheté (points %d)" % pd.points)
 	at.check(p.weapons.knife_id == "bowie" and p.weapons.is_picking_up_knife(), "animation de récupération")
 	p.pitch = 0.0
 	# Pendant la récupération : ni tir ni couteau (vérifié tout de suite : les
 	# captures peuvent durer plus que les 2 s de récupération sous charge).
-	await seconds(0.3)
+	await seconds(0.3)  # le joueur essaie de tirer un peu après l'achat
 	var mag: int = p.weapons.current().mag
 	p.input.fire_pressed = true
 	p.input.fire = true
-	await seconds(0.1)
+	await seconds(0.1)  # détente tenue
 	p.input.fire = false
 	at.check(p.weapons.current().mag == mag, "pas de tir pendant la récupération (chargeur %d)" % p.weapons.current().mag)
 	await at.screenshot("bowie_pickup_raise")
-	await seconds(0.4)
+	await seconds(0.4)  # capture
 	await at.screenshot("bowie_pickup_look")
-	await seconds(1.2)
+	await seconds(1.2)  # durée mesurée : récupération finie ~2 s après l'achat
 	at.check(not p.weapons.is_picking_up_knife(), "récupération terminée (~2 s)")
 	at.check(game.hud._prompt.text == "", "plus d'invite une fois acheté (%s)" % game.hud._prompt.text)
 
@@ -135,13 +135,13 @@ func run() -> void:
 	pts = pd.points
 	z = await setup_duel(p, 2.5, hp10)
 	await knife(p)
-	await seconds(0.15)
+	await seconds(0.15)  # capture
 	await at.screenshot("bowie_slash")
-	await seconds(0.3)
+	await until(func(): return (not is_instance_valid(z) or not z.is_alive()) and pd.points - pts == 130, 1.0, "zombie tué au couteau de chasse")
 	at.check(not z.is_alive(), "zombie de manche 10 (%d PV) tué d'un coup de couteau de chasse" % hp10)
 	at.check(pd.points - pts == 130, "mort au couteau de chasse : +130 (%d)" % (pd.points - pts))
 	z = await setup_duel(p, 1.2, 5000)
 	await knife(p)
-	await seconds(0.4)
+	await until(func(): return z.health < 5000, 1.0, "coup de couteau de chasse encaissé")
 	at.check(z.health == 5000 - KnifeDB.damage("bowie"), "couteau de chasse : %d dégâts (5000 -> %d)" % [KnifeDB.damage("bowie"), z.health])
 	await H.clear_zombies(self)

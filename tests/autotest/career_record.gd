@@ -17,7 +17,7 @@ func run() -> void:
 	var pd := game.session.local_data()
 	pd.kills = 17
 	pd.headshots = 5
-	await seconds(1.0)
+	await seconds(1.0)  # la manche 4 s'installe (état exact attendu incertain : attente gardée)
 	game.combat.damage_player(1, 500, p.global_position)
 	await until(func(): return GameState.state == GameState.State.GAME_OVER, 5.0, "GAME OVER")
 	var s := CareerStats.load_stats()
@@ -25,14 +25,14 @@ func run() -> void:
 			"partie enregistrée (%s)" % s)
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 20.0, "retour au menu")
 	var menu: MainMenu = tree().current_scene
-	await seconds(1.0)
+	await seconds(1.0)  # le menu finit d'apparaître
 	menu.show_screen("career")
-	await seconds(1.2)
+	await seconds(1.2)  # capture : fondu de l'écran (les valeurs sont remplies dès l'entrée)
 	var screen = menu.current
 	at.check(screen.rows.has("kills") and screen.rows.kills.text == "17", "écran : zombies abattus = 17")
 	at.check(screen.rows.best_round_solo.text == "4", "écran : meilleure manche solo = 4")
 	await at.screenshot("screen")
 	menu.show_screen("main")
-	await seconds(1.0)
+	await seconds(1.0)  # capture : fondu de l'écran
 	await at.screenshot("main_menu")
 	CareerStats.reset()

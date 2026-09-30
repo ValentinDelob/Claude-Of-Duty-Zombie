@@ -23,20 +23,20 @@ func _view(inside: bool, dist := 2.2) -> void:
 	var side := w.inward if inside else -w.inward
 	p.teleport_to(w.global_position + side * dist + Vector3(0, 0.05, 0))
 	H.aim_at(p, w.global_position + Vector3.UP * 1.45)
-	await seconds(0.45)
+	await seconds(0.45)  # capture : la vue se pose après la téléportation
 
 
 func _hold_repair() -> void:
 	p.teleport_to(w.global_position + w.inward * 1.25 + Vector3(0, 0.05, 0))
 	H.aim_at(p, w.global_position + Vector3.UP * 1.4)
-	await seconds(0.2)
+	await seconds(0.2)  # le joueur se pose avant d'appuyer
 	p.input.interact = true
 	p.input.interact_pressed = true
 
 
 func _release() -> void:
 	p.input.interact = false
-	await seconds(0.2)
+	await seconds(0.2)  # touche relâchée
 
 
 func run() -> void:
@@ -72,7 +72,7 @@ func run() -> void:
 	w.srv_set_mask(0)
 	p.teleport_to(w.global_position + w.inward * 1.6 + Vector3(0, 0.05, 0), atan2(w.inward.x, w.inward.z))
 	p.input.move = Vector2(0, 1)
-	await seconds(1.2)
+	await seconds(1.2)  # durée mesurée : le joueur pousse contre la fenêtre
 	p.input.move = Vector2.ZERO
 	at.check(w.is_inside(p.global_position), "fenêtre ouverte : le joueur ne peut pas sortir")
 	w.srv_set_mask(BarricadeRules.FULL_MASK)
@@ -100,7 +100,7 @@ func run() -> void:
 	at.check(not escaped, "tant qu'il reste une planche, le zombie reste dehors")
 	ok = await until(func(): return z.state == Zombie.State.VAULT, 3.0, "enjambement")
 	at.check(ok, "le zombie enjambe la fenêtre")
-	await seconds(0.45)
+	await seconds(0.45)  # capture : en plein enjambement
 	await at.screenshot("vault")
 	ok = await until(func(): return z.state == Zombie.State.CHASE and w.is_inside(z.global_position), 4.0, "zombie entré")
 	at.check(ok, "le zombie est entré dans la salle et poursuit le joueur")
@@ -121,7 +121,7 @@ func run() -> void:
 	await at.screenshot("repairing")
 	ok = await until(func(): return w.planks() == 6, 5.0, "fenêtre reconstruite")
 	at.check(ok, "maintenir [F] reconstruit la fenêtre planche par planche")
-	await seconds(0.5)
+	await until(func(): return pd.points - pts0 >= 60, 2.0, "points des planches reposées")
 	at.check(pd.points - pts0 == 60, "+10 points par planche reposée (+%d)" % (pd.points - pts0))
 	await _release()
 	await at.screenshot("repaired_inside")
@@ -129,10 +129,10 @@ func run() -> void:
 	# Relâcher [F] arrête la réparation.
 	w.srv_set_mask(0)
 	await _hold_repair()
-	await seconds(0.9)
+	await seconds(0.9)  # touche tenue
 	await _release()
 	var after_release := w.planks()
-	await seconds(1.2)
+	await seconds(1.2)  # fenêtre fixe : plus aucune planche ne doit être reposée
 	at.check(after_release >= 1 and w.planks() == after_release, "relâcher [F] arrête la réparation (%d planche(s))" % w.planks())
 
 	# 4. Double points puis plafond de 500 par manche.
@@ -142,7 +142,7 @@ func run() -> void:
 	pts0 = pd.points
 	await _hold_repair()
 	await until(func(): return w.planks() == 2, 3.0, "2 planches")
-	await seconds(0.2)
+	await until(func(): return pd.points - pts0 >= 40, 2.0, "points doublés des 2 planches")
 	await _release()
 	at.check(pd.points - pts0 == 40, "double points : +20 par planche (+%d)" % (pd.points - pts0))
 	game.points.multiplier = 1
@@ -151,7 +151,7 @@ func run() -> void:
 	pts0 = pd.points
 	await _hold_repair()
 	await until(func(): return w.planks() == 4, 5.0, "4 planches")
-	await seconds(0.2)
+	await seconds(0.2)  # fenêtre fixe : aucun point au-delà du plafond
 	await _release()
 	at.check(pd.points - pts0 == 10, "plafond de réparation : 500 points par manche (+%d)" % (pd.points - pts0))
 	game.rounds.round_started.emit(game.rounds.round_n + 1)
@@ -171,7 +171,7 @@ func run() -> void:
 	game.zombies.despawn(zid2)
 	w.srv_set_mask(0b000111)
 	await _view(false, 1.6)
-	await seconds(0.3)
+	await seconds(0.3)  # capture : planches reposées à l'écran
 	await at.screenshot("half_outside")
 
 	# 6. Bonus CHARPENTIER : Game.repair_all_barricades().
@@ -183,5 +183,5 @@ func run() -> void:
 		all_full = all_full and b.planks() == 6
 	at.check(all_full, "repair_all_barricades() reconstruit toutes les fenêtres")
 	await _view(true)
-	await seconds(0.5)
+	await seconds(0.5)  # capture
 	await at.screenshot("carpenter")

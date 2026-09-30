@@ -17,21 +17,21 @@ func run() -> void:
 	WeaponDB.give(pd, "m14")
 	game.session.sync_inventory(1)
 	game.perks.srv_grant(1, "lazarus")
-	await seconds(2.6)
+	await seconds(2.6)  # fin de la boisson de l'atout (réplique incluse)
 	p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
 	game.combat.damage_player(1, 200, p.global_position + Vector3(1, 1, 0))
-	await seconds(0.3)
+	await until(func(): return pd.life == PlayerData.Life.DOWNED and GameState.state == GameState.State.PLAYER_DOWN and game.hud._downed._title.text == "À TERRE", 2.0, "joueur à terre")
 	at.check(pd.life == PlayerData.Life.DOWNED, "à terre à 0 PV")
 	at.check(GameState.state == GameState.State.PLAYER_DOWN, "état PLAYER_DOWN")
 	at.check(pd.weapons.size() == 1 and pd.current_weapon().id == "m1911", "dernier recours : pistolet seul")
 	at.check(not pd.has_perk("lazarus"), "atouts perdus")
 	at.check(game.hud._downed._title.text == "À TERRE", "HUD : À TERRE")
-	await seconds(0.3)
+	await seconds(0.3)  # capture
 	await at.screenshot("downed")
 	# On rampe.
 	var x0 := p.global_position.x
 	p.input.move = Vector2(0, 1)
-	await seconds(1.0)
+	await seconds(1.0)  # durée mesurée
 	p.input.move = Vector2.ZERO
 	var crawl := p.global_position.x - x0
 	at.check(crawl > 0.3 and crawl < 1.5, "déplacement limité à terre (%.2f m/s)" % crawl)
