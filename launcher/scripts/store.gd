@@ -280,6 +280,15 @@ static func launch_args(tag: String) -> PackedStringArray:
 ## Supprime du stock les paquets qu'aucune version installée n'utilise plus
 ## (après la suppression d'une version). Moteurs gardés (peu nombreux).
 static func prune_store() -> int:
+	var removed := 0
+	for f in unused_files():
+		DirAccess.remove_absolute(f)
+		removed += 1
+	return removed
+
+
+## Fichiers du stock qu'aucune version installée n'utilise (chemins complets).
+static func unused_files() -> PackedStringArray:
 	var keep := {}
 	for tag: String in installed():
 		var path := versions_dir() + "/" + tag + "/" + MANIFEST_NAME
@@ -287,13 +296,37 @@ static func prune_store() -> int:
 			var m := Releases.parse_manifest(FileAccess.get_file_as_string(path), tag)
 			for p: Dictionary in m.get("packs", []):
 				keep[String(p.sha256) + ".pck"] = true
-	var removed := 0
+	var out := PackedStringArray()
 	if DirAccess.dir_exists_absolute(store_dir()):
 		for f in DirAccess.get_files_at(store_dir()):
 			if not keep.has(f):
-				DirAccess.remove_absolute(store_dir() + "/" + f)
-				removed += 1
-	return removed
+				out.append(store_dir() + "/" + f)
+	return out
+
+
+## Place libérée par prune_store() (octets).
+static func unused_bytes() -> int:
+	var n := 0
+	for f in unused_files():
+		n += _size_of(f)
+	return n
+
+
+## Taille d'un dossier et de ses sous-dossiers (octets), 0 s'il n'existe pas.
+static func dir_bytes(dir: String) -> int:
+	if not DirAccess.dir_exists_absolute(dir):
+		return 0
+	var n := 0
+	for f in DirAccess.get_files_at(dir):
+		n += _size_of(dir + "/" + f)
+	for d in DirAccess.get_directories_at(dir):
+		n += dir_bytes(dir + "/" + d)
+	return n
+
+
+static func _size_of(path: String) -> int:
+	var f := FileAccess.open(path, FileAccess.READ)
+	return f.get_length() if f else 0
 
 
 # --------------------------------------------------------------------------

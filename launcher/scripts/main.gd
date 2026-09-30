@@ -8,7 +8,8 @@ extends Control
 ##
 ## Options (tests, captures) : --capture=<fichier.png> (image puis sortie, sans
 ## téléchargement), --changelogs=<changelogs.json local>, --offline,
-## --quit-after-update (test : se ferme après la mise à jour automatique).
+## --quit-after-update (test : se ferme après la mise à jour automatique),
+## --open=settings (ouvre les réglages, pour une capture).
 
 const Releases := preload("res://scripts/releases.gd")
 const Store := preload("res://scripts/store.gd")
@@ -16,13 +17,16 @@ const Texts := preload("res://scripts/texts.gd")
 const Version := preload("res://scripts/version.gd")
 const Downloader := preload("res://scripts/downloader.gd")
 
-const BG := Color(0.045, 0.04, 0.035)
-const PANEL := Color(0.085, 0.075, 0.065)
-const BONE := Color(0.86, 0.82, 0.72)
-const DIM := Color(0.55, 0.52, 0.46)
-const BLOOD := Color(0.62, 0.05, 0.04)
-const BLOOD_BRIGHT := Color(0.85, 0.1, 0.06)
-const GOLD := Color(0.95, 0.78, 0.35)
+const Look := preload("res://scripts/look.gd")
+
+# Couleurs (identité visuelle : scripts/look.gd).
+const BONE := Look.PAPER
+const DIM := Look.DIM
+const BLOOD_BRIGHT := Look.ALARM
+## États de la ligne d'état (_set_status) : sa couleur.
+const ST_BUSY := "busy"
+const ST_ERROR := "error"
+const ST_OFFLINE := "offline"
 
 var settings := {}
 var lang := "fr"
@@ -48,7 +52,11 @@ var _progress: ProgressBar
 var _play: Button
 var _delete: Button
 var _lang_btn: OptionButton
-var _channel_btn: OptionButton
+var _channel_btns: Array = []   # interrupteur de canal : [STABLE, SNAPSHOT]
+var _settings_btn: Button
+var _settings: PanelContainer
+var _settings_grid: GridContainer
+var _progress_failed := false  # barre en rouge (échec) ou en lueur
 ## Téléchargement des versions en paquets (manifeste) : reprise, sommes.
 var _dl: Node
 var _dl_manifest := {}          # manifeste vérifié de la version en cours
@@ -101,6 +109,9 @@ func _ready() -> void:
 		_fetch(_http_api, Releases.API_URL, Releases.MAX_API_BYTES, _on_releases)
 		if not _args.has("changelogs"):
 			_fetch(_http_notes, Releases.CHANGELOG_URL, Releases.MAX_CHANGELOG_BYTES, _on_changelogs)
+	# Capture d'un écran précis (tests, notes de version) : --open=settings.
+	if String(_args.get("open", "")) == "settings":
+		_show_settings(true)
 	if _args.has("capture"):
 		_capture_later(String(_args.capture))
 	if not crashes.is_empty():
@@ -202,82 +213,50 @@ func _on_http(result: int, code: int, headers: PackedStringArray, body: PackedBy
 # Interface
 # --------------------------------------------------------------------------
 
-func _font(names: Array) -> SystemFont:
-	var f := SystemFont.new()
-	f.font_names = PackedStringArray(names)
-	f.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
-	return f
-
-
 func _build_ui() -> void:
-	var body_font := _font(["Bahnschrift", "Segoe UI", "Arial", "sans-serif"])
-	var title_font := _font(["Impact", "Bahnschrift", "Arial Black", "sans-serif"])
-	var th := Theme.new()
-	th.default_font = body_font
-	th.default_font_size = 17
-	th.set_color("font_color", "Label", BONE)
-	th.set_color("font_color", "ItemList", BONE)
-	th.set_color("font_selected_color", "ItemList", Color(1, 0.95, 0.88))
-	th.set_color("font_hovered_color", "ItemList", Color(1, 0.95, 0.88))
-	var sel := StyleBoxFlat.new()
-	sel.bg_color = Color(BLOOD, 0.75)
-	th.set_stylebox("selected", "ItemList", sel)
-	th.set_stylebox("selected_focus", "ItemList", sel)
-	var hov := StyleBoxFlat.new()
-	hov.bg_color = Color(1, 1, 1, 0.05)
-	th.set_stylebox("hovered", "ItemList", hov)
-	th.set_stylebox("panel", "ItemList", _box(PANEL, 0))
-	th.set_stylebox("focus", "ItemList", StyleBoxEmpty.new())
-	th.set_constant("v_separation", "ItemList", 10)
-	th.set_constant("h_separation", "ItemList", 10)
-	th.set_color("default_color", "RichTextLabel", BONE)
-	theme = th
-
+	theme = Look.theme()
+	var title_font := Look.display_font()
 	var bg := ColorRect.new()
-	bg.color = BG
+	bg.color = Look.INK
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 22)
-	add_child(margin)
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 14)
-	margin.add_child(root)
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override("separation", 0)
+	add_child(root)
 
-	# En-tête : titre, sous-titre, langue.
+	# En-tête : le nom au pochoir (pas de logo), langue, réglages.
+	var head_box := PanelContainer.new()
+	head_box.add_theme_stylebox_override("panel", Look.box(Color("151812"), 0))
+	root.add_child(head_box)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 14)
-	root.add_child(head)
-	var t := Label.new()
-	t.text = "CLAUDE OF DUTY ZOMBIE"
-	t.add_theme_font_override("font", title_font)
-	t.add_theme_font_size_override("font_size", 40)
-	t.add_theme_color_override("font_color", BONE)
-	t.add_theme_color_override("font_shadow_color", Color(BLOOD, 0.9))
-	t.add_theme_constant_override("shadow_offset_x", 3)
-	t.add_theme_constant_override("shadow_offset_y", 3)
-	head.add_child(t)
-	var sub := Label.new()
-	sub.name = "Subtitle"
-	sub.add_theme_color_override("font_color", BLOOD_BRIGHT)
-	sub.add_theme_font_override("font", title_font)
-	sub.add_theme_font_size_override("font_size", 22)
-	sub.size_flags_vertical = Control.SIZE_SHRINK_END
-	head.add_child(sub)
+	head_box.add_child(_padded(head, 32, 16))
+	var word := VBoxContainer.new()
+	word.add_theme_constant_override("separation", -8)
+	head.add_child(word)
+	var spaced := FontVariation.new()
+	spaced.base_font = title_font
+	spaced.spacing_glyph = 7
+	var top := Label.new()
+	top.text = "CLAUDE OF DUTY"
+	top.add_theme_font_override("font", spaced)
+	top.add_theme_font_size_override("font_size", 17)
+	top.add_theme_color_override("font_color", Look.DIM)
+	word.add_child(top)
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override("separation", 0)
+	word.add_child(name_row)
+	for part: Array in [["ZOMB", Look.PAPER], ["IE", Look.ALARM]]:
+		var l := Label.new()
+		l.text = part[0]
+		l.add_theme_font_override("font", title_font)
+		l.add_theme_font_size_override("font_size", 50)
+		l.add_theme_color_override("font_color", part[1])
+		name_row.add_child(l)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(spacer)
-	# Canal : stable (versions éprouvées) ou snapshot (chaque nouveauté).
-	_channel_btn = OptionButton.new()
-	_channel_btn.name = "Channel"
-	_channel_btn.add_item(Texts.t("channel_stable", lang))
-	_channel_btn.add_item(Texts.t("channel_snapshot", lang))
-	_channel_btn.select(1 if channel == Releases.SNAPSHOT else 0)
-	_channel_btn.item_selected.connect(_on_channel)
-	_channel_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(_channel_btn)
 	_lang_btn = OptionButton.new()
 	_lang_btn.add_item("FRANÇAIS")
 	_lang_btn.add_item("ENGLISH")
@@ -285,90 +264,123 @@ func _build_ui() -> void:
 	_lang_btn.item_selected.connect(_on_lang)
 	_lang_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(_lang_btn)
+	_settings_btn = Button.new()
+	_settings_btn.name = "SettingsButton"
+	_settings_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_settings_btn.pressed.connect(_show_settings.bind(true))
+	head.add_child(_settings_btn)
+	root.add_child(_rule())
 
-	# Corps : versions à gauche, notes à droite.
+	# Corps : canal et versions à gauche, notes à droite.
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 16)
+	body.add_theme_constant_override("separation", 0)
 	root.add_child(body)
+	var left_box := PanelContainer.new()
+	left_box.custom_minimum_size = Vector2(320, 0)
+	left_box.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 0))
+	body.add_child(left_box)
 	var left := VBoxContainer.new()
-	left.custom_minimum_size = Vector2(290, 0)
-	body.add_child(left)
-	var vt := Label.new()
-	vt.name = "VersionsTitle"
-	vt.add_theme_font_override("font", title_font)
-	vt.add_theme_font_size_override("font_size", 20)
-	vt.add_theme_color_override("font_color", DIM)
-	left.add_child(vt)
+	left.add_theme_constant_override("separation", 12)
+	left_box.add_child(_padded(left, 20, 20))
+	# Canal : un seul endroit, un interrupteur ; la liste ne montre que ses versions.
+	var sw_box := PanelContainer.new()
+	sw_box.add_theme_stylebox_override("panel", Look.box(Color(0, 0, 0, 0), 0, Look.STEEL, 2))
+	left.add_child(sw_box)
+	var sw := HBoxContainer.new()
+	sw.add_theme_constant_override("separation", 0)
+	sw_box.add_child(sw)
+	var group := ButtonGroup.new()
+	_channel_btns = []
+	for i in 2:
+		var b := Button.new()
+		b.name = "ChannelSnapshot" if i == 1 else "ChannelStable"
+		b.button_group = group
+		Look.switch_button(b, i == 1)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.button_pressed = (i == 1) == (channel == Releases.SNAPSHOT)
+		b.pressed.connect(_on_channel.bind(i))
+		sw.add_child(b)
+		_channel_btns.append(b)
 	_list = ItemList.new()
 	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_list.item_selected.connect(_on_select)
-	_list.add_theme_font_size_override("font_size", 17)
+	_list.add_theme_font_size_override("font_size", 18)
 	left.add_child(_list)
+	body.add_child(_vrule())
 
-	var right := PanelContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right.add_theme_stylebox_override("panel", _box(PANEL, 18))
-	body.add_child(right)
 	var scroll := ScrollContainer.new()
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	right.add_child(scroll)
+	body.add_child(scroll)
 	var notes := VBoxContainer.new()
 	notes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	notes.add_theme_constant_override("separation", 10)
-	scroll.add_child(notes)
+	notes.add_theme_constant_override("separation", 14)
+	var notes_pad := _padded(notes, 36, 28)
+	notes_pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(notes_pad)
 	_title = Label.new()
 	_title.add_theme_font_override("font", title_font)
-	_title.add_theme_font_size_override("font_size", 32)
+	_title.add_theme_font_size_override("font_size", 40)
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	notes.add_child(_title)
 	_date = Label.new()
-	_date.add_theme_color_override("font_color", DIM)
+	_date.add_theme_font_override("font", Look.file_font())
+	_date.add_theme_font_size_override("font_size", 15)
+	_date.add_theme_color_override("font_color", Look.DIM)
 	notes.add_child(_date)
 	_items = RichTextLabel.new()
 	_items.bbcode_enabled = true
 	_items.fit_content = true
 	_items.scroll_active = false
 	_items.add_theme_font_size_override("normal_font_size", 19)
-	_items.add_theme_constant_override("line_separation", 6)
+	_items.add_theme_constant_override("line_separation", 8)
 	notes.add_child(_items)
 	_images = HFlowContainer.new()
-	_images.add_theme_constant_override("h_separation", 10)
-	_images.add_theme_constant_override("v_separation", 10)
+	_images.add_theme_constant_override("h_separation", 14)
+	_images.add_theme_constant_override("v_separation", 14)
 	notes.add_child(_images)
 	_hint = Label.new()
-	_hint.add_theme_color_override("font_color", DIM)
+	_hint.add_theme_color_override("font_color", Look.DIM)
 	_hint.add_theme_font_size_override("font_size", 14)
 	notes.add_child(_hint)
+	root.add_child(_rule())
 
 	# Pied : état, progression, supprimer, jouer.
+	var foot_box := PanelContainer.new()
+	foot_box.add_theme_stylebox_override("panel", Look.box(Color("0b0d09"), 0))
+	root.add_child(foot_box)
 	var foot := HBoxContainer.new()
-	foot.add_theme_constant_override("separation", 14)
-	root.add_child(foot)
+	foot.add_theme_constant_override("separation", 18)
+	foot_box.add_child(_padded(foot, 32, 16))
 	var st := VBoxContainer.new()
 	st.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	st.alignment = BoxContainer.ALIGNMENT_CENTER
+	st.add_theme_constant_override("separation", 8)
 	foot.add_child(st)
 	_status = Label.new()
-	_status.add_theme_color_override("font_color", DIM)
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	st.add_child(_status)
 	_progress = ProgressBar.new()
-	_progress.custom_minimum_size = Vector2(0, 10)
+	_progress.custom_minimum_size = Vector2(0, 12)
 	_progress.show_percentage = false
-	_progress.add_theme_stylebox_override("background", _box(PANEL, 0))
-	_progress.add_theme_stylebox_override("fill", _box(BLOOD, 0))
+	Look.progress(_progress)
 	_progress.visible = false
 	st.add_child(_progress)
 	_delete = Button.new()
-	_delete.custom_minimum_size = Vector2(150, 56)
-	_style_button(_delete, Color(0.16, 0.14, 0.12), title_font, 20)
+	_delete.custom_minimum_size = Vector2(150, 58)
+	_delete.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	Look.action_button(_delete, false)
 	_delete.pressed.connect(_on_delete)
 	foot.add_child(_delete)
 	_play = Button.new()
-	_play.custom_minimum_size = Vector2(260, 56)
-	_style_button(_play, BLOOD, title_font, 30)
+	_play.custom_minimum_size = Vector2(250, 70)
+	_play.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	Look.action_button(_play, true)
 	_play.pressed.connect(_on_play)
 	foot.add_child(_play)
+
+	_build_settings()
 
 	# Capture agrandie (clic pour fermer).
 	_zoom = ColorRect.new()
@@ -387,44 +399,173 @@ func _build_ui() -> void:
 	_zoom_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_zoom_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_zoom.add_child(_zoom_tex)
+	# Grain de film et vignette, par-dessus tout (ignore la souris).
+	add_child(Look.grain_overlay())
 	_apply_texts()
 
 
-func _box(c: Color, pad: int) -> StyleBoxFlat:
-	var b := StyleBoxFlat.new()
-	b.bg_color = c
-	b.content_margin_left = pad
-	b.content_margin_right = pad
-	b.content_margin_top = pad
-	b.content_margin_bottom = pad
-	return b
+func _padded(c: Control, h: int, v: int) -> MarginContainer:
+	var m := MarginContainer.new()
+	m.add_theme_constant_override("margin_left", h)
+	m.add_theme_constant_override("margin_right", h)
+	m.add_theme_constant_override("margin_top", v)
+	m.add_theme_constant_override("margin_bottom", v)
+	m.add_child(c)
+	return m
 
 
-func _style_button(b: Button, c: Color, f: Font, size: int) -> void:
-	b.add_theme_font_override("font", f)
-	b.add_theme_font_size_override("font_size", size)
-	b.add_theme_color_override("font_color", BONE)
-	b.add_theme_color_override("font_hover_color", Color(1, 0.96, 0.9))
-	b.add_theme_color_override("font_disabled_color", DIM)
-	b.add_theme_stylebox_override("normal", _box(c, 8))
-	b.add_theme_stylebox_override("hover", _box(c.lightened(0.15), 8))
-	b.add_theme_stylebox_override("pressed", _box(c.darkened(0.2), 8))
-	b.add_theme_stylebox_override("disabled", _box(c.darkened(0.45), 8))
-	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+func _rule() -> ColorRect:
+	var r := ColorRect.new()
+	r.color = Look.STEEL
+	r.custom_minimum_size = Vector2(0, 2)
+	return r
+
+
+func _vrule() -> ColorRect:
+	var r := ColorRect.new()
+	r.color = Look.STEEL
+	r.custom_minimum_size = Vector2(2, 0)
+	return r
+
+
+# --------------------------------------------------------------------------
+# Réglages (écran par-dessus l'accueil) : langue, dossier et place prise,
+# paquets inutilisés, journaux, à propos. Le canal se choisit sur l'accueil.
+# --------------------------------------------------------------------------
+
+func _build_settings() -> void:
+	_settings = PanelContainer.new()
+	_settings.name = "Settings"
+	_settings.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_settings.add_theme_stylebox_override("panel", Look.box(Look.INK, 0))
+	_settings.visible = false
+	add_child(_settings)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 18)
+	_settings.add_child(_padded(col, 40, 28))
+	var head := HBoxContainer.new()
+	col.add_child(head)
+	var t := Label.new()
+	t.name = "SettingsTitle"
+	t.add_theme_font_override("font", Look.display_font())
+	t.add_theme_font_size_override("font_size", 40)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(t)
+	var back := Button.new()
+	back.name = "Back"
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	back.pressed.connect(_show_settings.bind(false))
+	head.add_child(back)
+	_settings_grid = GridContainer.new()
+	_settings_grid.columns = 2
+	_settings_grid.add_theme_constant_override("h_separation", 22)
+	_settings_grid.add_theme_constant_override("v_separation", 22)
+	col.add_child(_settings_grid)
+
+
+func _show_settings(on: bool) -> void:
+	if on:
+		_fill_settings()
+	_settings.visible = on
+
+
+## Contenu des réglages (recalculé à chaque ouverture et changement de langue).
+func _fill_settings() -> void:
+	for c in _settings_grid.get_children():
+		c.queue_free()
+	(find_child("SettingsTitle", true, false) as Label).text = Texts.t("settings", lang)
+	(find_child("Back", true, false) as Button).text = Texts.t("back", lang)
+	# Langue.
+	var lr := HBoxContainer.new()
+	for i in 2:
+		var b := Button.new()
+		b.text = "FRANÇAIS" if i == 0 else "ENGLISH"
+		b.toggle_mode = true
+		b.button_pressed = (i == 1) == (lang == "en")
+		b.pressed.connect(func() -> void:
+			_lang_btn.select(i)
+			_on_lang(i))
+		lr.add_child(b)
+	_setting(Texts.t("s_lang", lang), Texts.t("s_lang_help", lang), lr)
+	# Dossier des versions et place prise.
+	var n := Store.installed().size()
+	var total := Store.dir_bytes(Store.data_dir())
+	var engine := Store.dir_bytes(Store.engines_dir())
+	var open := Button.new()
+	open.text = Texts.t("s_open", lang)
+	open.pressed.connect(func() -> void: OS.shell_open(Store.data_dir()))
+	var space := Texts.t("s_space", lang) % [n, _mb(total)] + (Texts.t("s_space_engine", lang) % _mb(engine) if engine > 0 else "")
+	_setting(Texts.t("s_folder", lang), Store.data_dir() + "\n" + space, open)
+	# Paquets que plus aucune version n'utilise.
+	var unused := Store.unused_bytes()
+	var clean := Button.new()
+	clean.text = Texts.t("s_clean_btn", lang) % _mb(unused)
+	clean.disabled = unused == 0
+	clean.pressed.connect(func() -> void:
+		var removed := Store.prune_store()
+		print("[launcher] paquets inutilisés supprimés : %d" % removed)
+		_fill_settings()
+		_set_status(Texts.t("s_clean_done", lang)))
+	_setting(Texts.t("s_clean", lang), Texts.t("s_clean_help", lang), clean)
+	# Journaux et rapports de plantage.
+	var logs := ProjectSettings.globalize_path("user://logs")
+	var open_logs := Button.new()
+	open_logs.text = Texts.t("s_open", lang)
+	open_logs.pressed.connect(func() -> void:
+		DirAccess.make_dir_recursive_absolute(logs)
+		OS.shell_open(logs))
+	_setting(Texts.t("s_logs", lang), logs + "\n" + Texts.t("s_logs_help", lang), open_logs)
+	# À propos.
+	_setting(Texts.t("s_about", lang), Texts.t("s_about_txt", lang) % Version.LAUNCHER_VERSION, null)
+
+
+func _setting(title: String, help: String, control: Control) -> void:
+	var p := PanelContainer.new()
+	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	p.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 18, Look.STEEL, 2))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	p.add_child(v)
+	var t := Label.new()
+	t.text = title
+	t.add_theme_font_size_override("font_size", 20)
+	v.add_child(t)
+	if control:
+		control.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		v.add_child(control)
+	var h := Label.new()
+	h.text = help
+	h.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	h.add_theme_color_override("font_color", Look.DIM)
+	h.add_theme_font_size_override("font_size", 15)
+	v.add_child(h)
+	_settings_grid.add_child(p)
+
+
+static func _mb(bytes: int) -> String:
+	return str(int(round(float(bytes) / 1048576.0)))
 
 
 func _apply_texts() -> void:
-	(find_child("Subtitle", true, false) as Label).text = Texts.t("subtitle", lang)
-	(find_child("VersionsTitle", true, false) as Label).text = Texts.t("versions", lang)
 	_play.text = Texts.t("play", lang)
 	_delete.text = Texts.t("delete", lang)
-	_channel_btn.set_item_text(0, Texts.t("channel_stable", lang))
-	_channel_btn.set_item_text(1, Texts.t("channel_snapshot", lang))
+	_settings_btn.text = Texts.t("settings", lang)
+	_channel_btns[0].text = Texts.t("channel_stable", lang)
+	_channel_btns[1].text = Texts.t("channel_snapshot", lang)
+	if _settings and _settings.visible:
+		_fill_settings()
 	_refresh_list()
 
 
-func _set_status(t: String) -> void:
+## Ligne d'état ; `kind` donne sa couleur : "" normal, "busy" en cours (lueur),
+## "error" échec (alerte), "offline" hors ligne (laiton).
+func _set_status(t: String, kind := "") -> void:
 	_status.text = t
+	var c: Color = {ST_BUSY: Look.NEON, ST_ERROR: Look.ALARM, ST_OFFLINE: Look.BRASS}.get(kind, Look.PAPER)
+	_status.add_theme_color_override("font_color", c)
+	if (kind == ST_ERROR) != _progress_failed:
+		_progress_failed = kind == ST_ERROR
+		Look.progress(_progress, _progress_failed)
 
 
 # --------------------------------------------------------------------------
@@ -468,7 +609,7 @@ func _refresh_list() -> void:
 	_list_tags = []
 	var latest := _latest()
 	if latest != "":
-		_list.add_item("★  %s  (%s)" % [Texts.t("latest", lang), latest])
+		_list.add_item("★  %s  (%s)" % [Texts.t("latest" if channel == Releases.STABLE else "latest_snapshot", lang), latest])
 		_list_tags.append("latest")
 	for tag in _all_tags():
 		var d := String(_info(tag).get("date", ""))
@@ -613,7 +754,7 @@ func _set_offline() -> void:
 	online = false
 	_known = true
 	_refresh_list()
-	_set_status(Texts.t("offline", lang))
+	_set_status(Texts.t("offline", lang), ST_OFFLINE)
 
 
 func _load_cached_changelogs() -> void:
@@ -859,7 +1000,7 @@ func _fail_download(tag: String, key: String) -> void:
 	if part != "" and FileAccess.file_exists(part):
 		DirAccess.remove_absolute(part)
 	_refresh_list()
-	_set_status(Texts.t(key, lang) % tag)
+	_set_status(Texts.t(key, lang) % tag, ST_ERROR)
 
 
 func _process(_delta: float) -> void:
@@ -871,7 +1012,7 @@ func _process(_delta: float) -> void:
 		var p := 100.0 * float(got) / float(all)
 		_progress.value = p
 		_set_status(Texts.t("downloading_parts", lang) % [_dl_tag, int(p), str(int(round(float(all) / 1048576.0)))]
-				+ ("   " + Texts.t("play_after", lang) if _play_after else ""))
+				+ ("   " + Texts.t("play_after", lang) if _play_after else ""), ST_BUSY)
 		return
 	var total := _http_dl.get_body_size()
 	if total <= 0:
@@ -879,7 +1020,7 @@ func _process(_delta: float) -> void:
 	var pct := 0.0 if total <= 0 else 100.0 * float(_http_dl.get_downloaded_bytes()) / float(total)
 	_progress.value = pct
 	_set_status(Texts.t("updating" if _dl_is_update else "downloading", lang) % [_dl_tag, int(pct)]
-			+ ("   " + Texts.t("play_after", lang) if _play_after else ""))
+			+ ("   " + Texts.t("play_after", lang) if _play_after else ""), ST_BUSY)
 
 
 func _on_download_done(result: int, code: int, _b: PackedByteArray) -> void:

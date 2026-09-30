@@ -6,9 +6,10 @@ Publication, paquets et canaux : `docs/RELEASE.md`.
 
 `ClaudeOfDutyZombie-Launcher.exe` (pièce jointe de chaque release GitHub) :
 
-- **Canal** (menu en haut) : **STABLE** (versions éprouvées, par défaut) ou
-  **SNAPSHOT** (chaque nouveauté dès sa sortie, parfois moins stable) ; le
-  choix est mémorisé.
+- **Canal** : l'interrupteur **STABLE / SNAPSHOT** en haut de la liste des
+  versions (seul endroit où il se choisit) ; la liste, les notes et la barre du
+  bas suivent le canal choisi, et le choix est mémorisé. STABLE (par défaut) :
+  versions éprouvées ; SNAPSHOT : chaque nouveauté dès sa sortie.
 - **Mise à jour automatique** : à l'ouverture (et au changement de canal), la
   dernière version du canal est téléchargée si elle n'est pas déjà installée.
   Pour les versions en paquets, **seules les parties qui ont changé** sont
@@ -23,6 +24,10 @@ Publication, paquets et canaux : `docs/RELEASE.md`.
 - **JOUER** : lance la version choisie (après son téléchargement si besoin) et
   ferme le lanceur.
 - Français ou anglais ; hors ligne, seules les versions installées sont proposées.
+- **RÉGLAGES** (en haut à droite) : langue, dossier des versions et place prise,
+  nettoyage des paquets qu'aucune version n'utilise plus, dossier des journaux,
+  à propos. Identité visuelle : `launcher/scripts/look.gd` (thème réutilisable,
+  maquettes validées le 30/09/2026 ; pas de logo pour l'instant).
 - Le lanceur **se met à jour lui-même** et **redémarre** ; si la nouvelle version
   ne démarre pas, l'ancienne est remise automatiquement.
 
