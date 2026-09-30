@@ -167,6 +167,10 @@ func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
 	# NaN / infini : repli sur la position et l'orientation connues du serveur.
 	if not NetGuard.finite_vec(origin) or p.global_position.distance_to(origin) > MAX_ORIGIN_ERROR:
 		origin = p.global_position + Vector3.UP * 1.5
+	elif not _origin_reachable(p, origin):
+		# Origine annoncée derrière un mur, une porte ou le sol : l'objet
+		# partirait de l'autre côté. Repli sur les yeux du joueur (serveur).
+		origin = p.eye_position()
 	if not NetGuard.valid_dir(dir) or dir.length_squared() < 0.01:
 		dir = -p.global_transform.basis.z
 	var kind: int = c[0]
@@ -174,6 +178,13 @@ func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
 	VoxSystem.say(pid, "throw_monkey" if monkey else "throw_grenade", 0.9 if monkey else 0.5)
 	var fuse := ThrowableRules.fuse_left(c[1], GameClock.now()) if kind == K.FRAG else 0.0
 	_spawn(pid, kind, origin, ThrowableRules.throw_velocity(kind, dir), fuse, seq)
+
+
+## Rien de solide (décor, portes, barricades) entre les yeux du joueur,
+## connus du serveur, et le point de départ annoncé par le client.
+func _origin_reachable(p: Player, origin: Vector3) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(p.eye_position(), origin, Throwable.FLIGHT_MASK, [p.get_rid()])
+	return p.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
 
 func _spawn(pid: int, kind: int, origin: Vector3, vel: Vector3, fuse: float, seq: int) -> void:

@@ -95,3 +95,15 @@ func run() -> void:
 	game.throwables.srv_throw.rpc_id(1, eye, Vector3(1, 0, 0), 2000)
 	at.check(pd.grenades == grenades - 1 and game.throwables.items.size() == items + 1,
 		"vrai lancer accepté après l'inondation (%d -> %d grenades)" % [grenades, pd.grenades])
+
+	# 7. Lancer annoncé depuis sous le sol (à moins de 4 m du joueur) : l'objet
+	#    part des yeux du joueur, jamais de l'autre côté du décor.
+	pd.grenades = 2
+	game.throwables.srv_cook.rpc_id(1, ThrowableRules.Kind.FRAG)
+	game.throwables.srv_throw.rpc_id(1, p.global_position + Vector3(0, -2.5, 0), Vector3(1, 0, 0), 2001)
+	var newest: Throwable = null
+	for tid in game.throwables.items:
+		if newest == null or int(tid) > newest.tid:
+			newest = game.throwables.items[tid]
+	at.check(newest != null and newest.position.y > p.global_position.y + 0.5,
+		"origine sous le sol refusée : départ des yeux (y %.2f, joueur %.2f)" % [newest.position.y if newest else 0.0, p.global_position.y])
