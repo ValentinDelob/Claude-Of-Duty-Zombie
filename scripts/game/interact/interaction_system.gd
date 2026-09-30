@@ -106,10 +106,17 @@ func srv_interact(id: String) -> void:
 	var pd := game.session.get_data(pid)
 	if obj == null or weapon_locked(obj, pd):
 		return
-	if p.global_position.distance_to(obj.interact_point()) > obj.interact_range + MAX_SERVER_DISTANCE:
+	# Référence : dernier état reçu et accepté (Player.srv_origin), pas la
+	# position interpolée qui traîne derrière le joueur avec de la latence.
+	if not in_reach(p.srv_origin(), obj.interact_point(), obj.interact_range):
 		print("[Interact] %d trop loin de %s" % [pid, id])
 		return
 	obj.srv_use(pid)
+
+
+## Règle pure : joueur (référence du serveur `ref`) assez près de `point`.
+static func in_reach(ref: Vector3, point: Vector3, interact_range: float) -> bool:
+	return ref.distance_to(point) <= interact_range + MAX_SERVER_DISTANCE
 
 
 @rpc("any_peer", "call_local", "reliable")

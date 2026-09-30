@@ -171,6 +171,52 @@ func test_server_refuses_teleporting_client() -> void:
 	p.free()
 
 
+## Origines annoncées (tir, couteau, lancer, plongeon, interaction) : jugées
+## par rapport au DERNIER état reçu et accepté, pas à la position interpolée
+## affichée, qui traîne derrière le client avec de la latence (mp_dive à
+## cadence x3 : client allongé en (8 ; 7,5), serveur resté en (2,5 ; 7,5)).
+func test_origins_checked_against_last_accepted_state() -> void:
+	var shown := Vector3(2.5, 0, 7.5)     # position interpolée, en retard
+	var accepted := Vector3(8.0, 0, 7.5)  # dernier état reçu et accepté
+	var ref := Player.origin_reference(false, accepted, shown)
+	assert_eq(ref, accepted, "référence : dernier état accepté")
+	assert_eq(Player.origin_reference(true, accepted, shown), shown, "joueur de l'hôte : position réelle du nœud")
+	assert_eq(Player.origin_reference(false, Vector3.INF, shown), shown, "aucun état accepté (après un saut voulu) : position du nœud")
+	# Plongeon honnête sous le lag : atterrissage du client gardé.
+	var land := Vector3(8.3, 0, 7.6)
+	assert_eq(Combat.dive_landing(ref, land), land, "atterrissage honnête gardé malgré le retard d'affichage")
+	assert_eq(Combat.dive_landing(ref, Vector3(8.0 + Combat.MAX_ORIGIN_ERROR + 0.5, 0, 7.5)), accepted, "atterrissage trop loin : position du serveur")
+	assert_eq(Combat.dive_landing(ref, Vector3(NAN, 0, 0)), accepted, "atterrissage NaN : position du serveur")
+	# Tir / couteau : même tolérance qu'avant, autour du dernier état accepté.
+	var eye := accepted + Vector3.UP * 1.6
+	assert_true(Combat.origin_ok(ref, eye, Combat.MAX_ORIGIN_ERROR + 1.7), "tir honnête sous le lag accepté")
+	assert_false(Combat.origin_ok(ref, accepted + Vector3(Combat.MAX_ORIGIN_ERROR + 2.0, 1.6, 0), Combat.MAX_ORIGIN_ERROR + 1.7), "origine trop loin du dernier état : refusée")
+	assert_false(Combat.origin_ok(ref, Vector3(0, NAN, 0), 100.0), "origine NaN refusée")
+	# Lancer : tolérance de ThrowableSystem.
+	assert_true(Combat.origin_ok(ref, eye, ThrowableSystem.MAX_ORIGIN_ERROR), "lancer honnête sous le lag accepté")
+	assert_false(Combat.origin_ok(ref, accepted + Vector3(0, 1.5, ThrowableSystem.MAX_ORIGIN_ERROR + 1.0), ThrowableSystem.MAX_ORIGIN_ERROR), "lancer trop loin : refusé")
+	# Interaction : l'objet est à portée du joueur réel, pas de la position en retard.
+	var box := accepted + Vector3(1.2, 1.0, 0)
+	assert_false(InteractionSystem.in_reach(shown, box, 1.5), "l'ancienne référence (en retard) aurait refusé")
+	assert_true(InteractionSystem.in_reach(ref, box, 1.5), "interaction honnête sous le lag acceptée")
+	assert_false(InteractionSystem.in_reach(ref, accepted + Vector3(1.5 + InteractionSystem.MAX_SERVER_DISTANCE + 0.5, 0, 0), 1.5), "objet trop loin du dernier état : refusé")
+
+
+## La marionnette d'un client suit, pour la référence du serveur, le dernier
+## état accepté ; un état refusé (téléportation) ne la déplace pas.
+func test_server_origin_follows_accepted_states_only() -> void:
+	var p := Player.new()  # hors de l'arbre : seule la règle du serveur est jouée
+	p.peer_id = 6
+	var t := Time.get_ticks_usec() / 1000000.0
+	assert_true(p._srv_accept_state(Vector3(2.5, 0, 7.5), t))
+	assert_true(p._srv_accept_state(Vector3(4.0, 0, 7.5), t + 0.1))
+	assert_eq(p.srv_origin(), Vector3(4.0, 0, 7.5), "dernier état accepté")
+	assert_false(p._srv_accept_state(Vector3(60, 0, 7.5), t + 0.15), "téléportation refusée")
+	assert_eq(p.srv_origin(), Vector3(4.0, 0, 7.5), "état refusé : référence inchangée")
+	assert_false(Combat.origin_ok(p.srv_origin(), Vector3(60, 1.6, 7.5), Combat.MAX_ORIGIN_ERROR + 1.7), "tir depuis la position refusée : refusé")
+	p.free()
+
+
 # ------------------------------------------------------------------ fichiers
 
 func test_safe_config_rejects_objects_and_resources() -> void:

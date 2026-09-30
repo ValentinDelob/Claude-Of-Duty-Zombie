@@ -1,5 +1,4 @@
 extends AutotestScenario
-## @temps-reel : reste en temps réel (mélange de minuteurs réseau réels et de temps de jeu, à revoir : docs/TESTING_PLAN.md).
 ## [MP] Hôte : voit le CLIENT plonger (état réseau DIVE puis PRONE, pose du
 ## soldat à plat ventre) et reçoit le signal serveur player_dived_landed.
 
@@ -34,8 +33,10 @@ func run() -> void:
 	await at.screenshot("client_dive")
 	ok = await until(func(): return client.net_flags() & Player.FLAG_PRONE != 0, 3.0, "client allongé")
 	at.check(ok and client.prone, "l'hôte voit le client à plat ventre")
-	await seconds(0.6)
-	at.check(client.visual._prone_k > 0.8, "soldat du client allongé (%.2f)" % client.visual._prone_k)
+	# Attente bornée plutôt qu'un instant fixe : l'affichage du client (délai
+	# d'interpolation en temps réel) décale la pose en temps de jeu accéléré.
+	ok = await until(func(): return client.visual._prone_k > 0.8, 1.0, "soldat allongé")
+	at.check(ok, "soldat du client allongé (%.2f)" % client.visual._prone_k)
 	await at.screenshot("client_prone")
 	at.check(landings.size() == 1 and landings[0][0] == client_id, "serveur : player_dived_landed du client (%d)" % landings.size())
 	if not landings.is_empty():

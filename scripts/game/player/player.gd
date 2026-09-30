@@ -570,6 +570,27 @@ func srv_dived_recently() -> bool:
 	return is_local or Time.get_ticks_usec() / 1000000.0 - _srv_dive_t < 2.0
 
 
+## Serveur : position de référence pour contrôler une origine annoncée par ce
+## joueur (tir, couteau, lancer, plongeon, interaction). C'est le DERNIER état
+## reçu et accepté (anti-téléportation, `_srv_accept_state`), jamais la
+## position affichée : celle-ci est interpolée INTERP_DELAY en arrière et, avec
+## de la latence ou en test accéléré, traîne plusieurs mètres derrière le
+## joueur réel. Joueur de l'hôte, ou aucun état accepté depuis un saut voulu :
+## position du nœud (réelle pour l'hôte, dernière connue sinon).
+func srv_origin() -> Vector3:
+	return origin_reference(is_local, _srv_ok_pos, global_position)
+
+
+## Règle pure de srv_origin (tests).
+static func origin_reference(local: bool, accepted: Vector3, shown: Vector3) -> Vector3:
+	return shown if local or accepted == Vector3.INF else accepted
+
+
+## Serveur : yeux du joueur à la position de référence (srv_origin).
+func srv_eye() -> Vector3:
+	return srv_origin() + (eye_position() - global_position)
+
+
 ## Serveur : accepte l'état reçu, ou le refuse (déplacement impossible) et
 ## replace le client à la dernière position acceptée. Les autotests déplacent
 ## les joueurs par script : pas de contrôle pendant les tests automatiques.

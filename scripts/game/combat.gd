@@ -180,7 +180,7 @@ func _validate_fire(pid: int, slot: int, origin: Vector3) -> String:
 	if _reload_end.has(pid):
 		return "rechargement en cours"
 	var p: Player = game.players.get(pid)
-	if p and p.global_position.distance_to(origin) > MAX_ORIGIN_ERROR + 1.7:
+	if p and not origin_ok(p.srv_origin(), origin, MAX_ORIGIN_ERROR + 1.7):
 		return "origine incohérente"
 	# Seau de jetons : cadence moyenne respectée, rafale courte tolérée.
 	var t := GameClock.now()
@@ -188,6 +188,19 @@ func _validate_fire(pid: int, slot: int, origin: Vector3) -> String:
 	if not _fire_limit.take(pid, t, rate * 1.25, fire_burst(rate)):
 		return "cadence trop élevée"
 	return ""
+
+
+## Vrai si l'origine annoncée `origin` (finie) est à `tol` m au plus de la
+## position de référence du serveur `ref` (Player.srv_origin : dernier état
+## reçu et accepté, pas la position interpolée affichée).
+static func origin_ok(ref: Vector3, origin: Vector3, tol: float) -> bool:
+	return NetGuard.finite_vec(origin) and ref.distance_to(origin) <= tol
+
+
+## Position d'atterrissage retenue pour un plongeon : celle du client si elle
+## est cohérente avec la référence du serveur `ref`, sinon `ref`.
+static func dive_landing(ref: Vector3, claimed: Vector3) -> Vector3:
+	return claimed if origin_ok(ref, claimed, MAX_ORIGIN_ERROR) else ref
 
 
 ## Rafale tolérée (jetons) pour une arme tirant `rate` coups par seconde.
@@ -481,7 +494,9 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 	var p: Player = game.players.get(pid)
 	if not NetGuard.finite_vec(origin) or not NetGuard.valid_dir(dir):
 		return
-	if p.global_position.distance_to(origin) > MAX_ORIGIN_ERROR + 1.7:
+	# Référence : dernier état reçu et accepté (pas la position interpolée).
+	var ref := p.srv_origin()
+	if not origin_ok(ref, origin, MAX_ORIGIN_ERROR + 1.7):
 		return
 	_melee_ready[pid] = t + WeaponDB.MELEE_COOLDOWN * 0.8
 	_reload_end.erase(pid)  # le couteau interrompt le rechargement (BO1)
@@ -490,7 +505,7 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 	# Après une fente, le client frappe depuis sa nouvelle position (`origin`,
 	# déjà bornée ci-dessus) : la cible doit être au contact de cette origine,
 	# et à portée de fente de la position connue du serveur.
-	var feet := Vector3(origin.x, p.global_position.y, origin.z)
+	var feet := Vector3(origin.x, ref.y, origin.z)
 	var positions := []
 	for z: Zombie in game.zombies.alive:
 		positions.append(z.global_position)
@@ -498,7 +513,7 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 	if i < 0:
 		return
 	var best: Zombie = game.zombies.alive[i]
-	var flat := best.global_position - p.global_position
+	var flat := best.global_position - ref
 	flat.y = 0.0
 	if flat.length() > KnifeDB.LUNGE_RANGE + KnifeDB.RANGE + MELEE_SLACK:
 		return
@@ -528,8 +543,9 @@ func srv_dive_landed(pos: Vector3, height: float) -> void:
 	if t - float(_dive_last.get(pid, -INF)) < DIVE_MIN_INTERVAL or not p.srv_dived_recently():
 		return
 	_dive_last[pid] = t
-	if not NetGuard.finite_vec(pos) or p.global_position.distance_to(pos) > MAX_ORIGIN_ERROR:
-		pos = p.global_position
+	# Référence : dernier état reçu et accepté (la position interpolée traîne
+	# derrière le client avec de la latence : atterrissage honnête refusé).
+	pos = dive_landing(p.srv_origin(), pos)
 	player_dived_landed.emit(pid, pos, clampf(height, 0.0, 12.0) if NetGuard.finite(height) else 0.0)
 
 

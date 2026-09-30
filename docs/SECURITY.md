@@ -53,7 +53,7 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
      serveur (`WeaponDB.exists`, `objects.get(id)`...), jamais utilisés tels quels ;
    - types des éléments d'un `Array` reçu (`h[0] is int`...).
 4. **Tout se vérifie côté serveur** avec SES données : position connue du joueur
-   (distance d'interaction, origine du tir), points, munitions, cadence
+   (distance d'interaction, origine du tir : `Player.srv_origin()`, point 10), points, munitions, cadence
    (`NetGuard.Limiter.take` au débit de l'arme dans `Combat._validate_fire` :
    cadence moyenne x1,25, rafale d'au moins 4 tirs ou 0,4 s de tirs de l'arme,
    `Combat.fire_burst`), état (vivant, à terre).
@@ -79,6 +79,18 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
    serveur refuse un déplacement impossible (plus de 18 m/s en moyenne + 3 m)
    et replace le joueur (`Player._srv_accept_state`). Toute téléportation voulue
    par le serveur appelle `Player.net_allow_warp()` sur la marionnette du serveur.
+10. **Position de référence d'un joueur** : toute origine annoncée par un client
+   (tir `Combat._validate_fire`, couteau `srv_melee`, plongeon `srv_dive_landed`,
+   lancer `ThrowableSystem.srv_throw`, distance d'interaction
+   `InteractionSystem.srv_interact`) se juge par rapport à `Player.srv_origin()` :
+   le DERNIER état reçu et accepté par `_srv_accept_state` (déjà passé par
+   l'anti-téléportation), jamais `global_position` de la marionnette, qui est
+   interpolée `INTERP_DELAY` en arrière (avec du lag ou en test accéléré, elle
+   traîne plusieurs mètres derrière le joueur : actions honnêtes refusées).
+   Mêmes tolérances qu'avant (`Combat.origin_ok`, `InteractionSystem.in_reach`) :
+   un état refusé ne déplace pas la référence. Joueur de l'hôte, ou aucun état
+   accepté depuis un saut voulu : position du nœud. La position interpolée ne
+   sert qu'à l'affichage.
 
 ### Fichiers
 

@@ -163,13 +163,15 @@ func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
 			_cl_cancel.rpc_id(pid, seq)
 		return
 	_cooking.erase(pid)
-	# NaN / infini : repli sur la position et l'orientation connues du serveur.
-	if not NetGuard.finite_vec(origin) or p.global_position.distance_to(origin) > MAX_ORIGIN_ERROR:
-		origin = p.global_position + Vector3.UP * 1.5
+	# NaN / infini, ou trop loin : repli sur la position connue du serveur
+	# (dernier état reçu et accepté, pas la position interpolée affichée).
+	var ref := p.srv_origin()
+	if not Combat.origin_ok(ref, origin, MAX_ORIGIN_ERROR):
+		origin = ref + Vector3.UP * 1.5
 	elif not _origin_reachable(p, origin):
 		# Origine annoncée derrière un mur, une porte ou le sol : l'objet
 		# partirait de l'autre côté. Repli sur les yeux du joueur (serveur).
-		origin = p.eye_position()
+		origin = p.srv_eye()
 	if not NetGuard.valid_dir(dir) or dir.length_squared() < 0.01:
 		dir = -p.global_transform.basis.z
 	var kind: int = c[0]
@@ -180,9 +182,9 @@ func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
 
 
 ## Rien de solide (décor, portes, barricades) entre les yeux du joueur,
-## connus du serveur, et le point de départ annoncé par le client.
+## connus du serveur (Player.srv_eye), et le point de départ annoncé par le client.
 func _origin_reachable(p: Player, origin: Vector3) -> bool:
-	var q := PhysicsRayQueryParameters3D.create(p.eye_position(), origin, Throwable.FLIGHT_MASK, [p.get_rid()])
+	var q := PhysicsRayQueryParameters3D.create(p.srv_eye(), origin, Throwable.FLIGHT_MASK, [p.get_rid()])
 	return p.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
 

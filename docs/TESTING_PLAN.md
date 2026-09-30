@@ -332,7 +332,7 @@ Changements de tests (aucune vérification supprimée) :
 ### 5.2 Reste à faire (phase 1)
 
 - **Temps réel restant** (`@temps-reel`) : mp_barricades (réparation tenue),
-  mp_dive (pose du soldat), mp_lobby (écran du salon) échouent à cadence ×4 à
+  mp_lobby (écran du salon) échouent à cadence ×4 à
   chaque fois : chercher le minuteur en temps réel côté jeu et le passer sur
   `GameClock`. audio_check (lecture des sons en temps réel), mp_custommap et
   mp_netload (mesures par seconde réelle) resteront en temps réel.
