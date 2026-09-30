@@ -337,6 +337,45 @@ func test_state_is_remembered() -> void:
 	await wait_frames(2)
 
 
+## Regard au clic droit : la souris capturée est toujours rendue, même si le
+## relâchement arrive au plan 2D (curseur bloqué au centre de la fenêtre), si
+## le relâchement est perdu, ou si l'éditeur perd le focus.
+func test_captured_mouse_is_always_given_back() -> void:
+	var ed := await _editor()
+	var pv := ed.preview
+	pv.set_shown(true)
+	await wait_frames(2)
+	# Relâchement vu par la fenêtre (et non par l'aperçu) : souris rendue, événement consommé.
+	pv._rmb = true
+	pv._captured = true
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_RIGHT
+	up.pressed = false
+	assert_true(pv._captured_mouse_input(up), "relâchement lu pour toute la fenêtre")
+	assert_false(pv._captured, "souris rendue au relâchement")
+	assert_false(pv._rmb, "regard terminé")
+	# Mouvement pendant la capture : il tourne la caméra de l'aperçu, pas le plan.
+	pv._rmb = true
+	pv._captured = true
+	var mm := InputEventMouseMotion.new()
+	mm.relative = Vector2(40, 0)
+	assert_true(pv._captured_mouse_input(mm), "mouvement capturé consommé")
+	# Relâchement perdu (bouton déjà relâché) : rendue à l'image suivante.
+	await wait_frames(2)
+	assert_false(pv._captured, "filet : bouton relâché, souris rendue")
+	# Perte du focus.
+	pv._rmb = true
+	pv._captured = true
+	pv._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	assert_false(pv._captured, "perte du focus : souris rendue")
+	assert_false(Input.mouse_mode == Input.MOUSE_MODE_CAPTURED, "curseur visible")
+	# Sans capture, les clics du plan ne sont pas touchés.
+	assert_false(pv._captured_mouse_input(up), "sans capture : rien de consommé")
+	pv.set_shown(false)
+	ed.queue_free()
+	await wait_frames(2)
+
+
 func test_no_render_when_hidden() -> void:
 	var ed := await _editor()
 	var pv := ed.preview

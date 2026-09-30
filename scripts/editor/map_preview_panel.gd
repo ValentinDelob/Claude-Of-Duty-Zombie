@@ -66,6 +66,10 @@ var _rmb := false
 var _mmb := false
 var _lmb_at := Vector2(-1, -1)
 var _capture_at := Vector2.ZERO
+## Vrai tant que l'aperçu tient la souris capturée (regard au clic droit) :
+## elle doit TOUJOURS être rendue (relâchement vu n'importe où, bouton déjà
+## relâché, perte du focus), sinon le curseur reste invisible sur le plan.
+var _captured := false
 var _last_status := ""
 
 
@@ -552,6 +556,8 @@ func _view_input(event: InputEvent) -> void:
 		_request_render()
 	elif event is InputEventMouseMotion:
 		var mm := event as InputEventMouseMotion
+		# Fenêtre de l'éditeur : souris capturée, regard déjà lu (et consommé) par
+		# _input ; fenêtre détachée : l'événement arrive seulement ici.
 		if _rmb:
 			rig.look(mm.relative)
 		elif _mmb:
@@ -575,15 +581,44 @@ func _capture(at: Vector2) -> void:
 	if au != null and au.active:
 		return
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_captured = true
 
 
 func _release_mouse() -> void:
 	_rmb = false
 	_mmb = false
-	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	var was := _captured or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	_captured = false
+	if was:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		if view != null and view.is_inside_tree():
 			view.warp_mouse(_capture_at)
+
+
+## Souris capturée : le curseur (caché) est bloqué au centre de la fenêtre, donc
+## les clics et mouvements vont au contrôle qui s'y trouve (souvent le plan 2D),
+## pas à l'aperçu. Le relâchement et le regard sont donc lus ici, pour toute la
+## fenêtre. Vrai si l'événement est consommé.
+func _captured_mouse_input(event: InputEvent) -> bool:
+	if not _captured:
+		return false
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed:
+			_release_mouse()
+			_request_render()
+		return true
+	if event is InputEventMouseMotion:
+		world.rig.look((event as InputEventMouseMotion).relative)
+		_request_render()
+		return true
+	return false
+
+
+func _notification(what: int) -> void:
+	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_WINDOW_FOCUS_OUT, NOTIFICATION_EXIT_TREE]:
+		if _captured:
+			_release_mouse()
 
 
 ## Les touches de déplacement vont à l'aperçu quand la souris est dessus (ou
@@ -607,6 +642,9 @@ func _view_key(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if _captured_mouse_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if not event is InputEventKey:
 		return
 	var k := event as InputEventKey
@@ -696,6 +734,9 @@ func draw_on_canvas(cv: MapCanvas) -> void:
 # ------------------------------------------------------------------ boucle
 
 func _process(delta: float) -> void:
+	# Filet : bouton droit déjà relâché (relâchement perdu) → souris rendue.
+	if _captured and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		_release_mouse()
 	if ed == null:
 		return
 	world.doc = ed.doc
