@@ -1036,6 +1036,25 @@
     "en": "The game in French and English",
     "fr": "Le jeu en français et en anglais"
    }
+  },
+  "v0.2.0-snapshot.220": {
+   "channel": "snapshot",
+   "date": "2026-09-30",
+   "images": [],
+   "items": [
+    {
+     "en": "In multiplayer, REAPER shots are no longer refused by the host during a short network hiccup.",
+     "fr": "En multijoueur, les tirs de la FAUCHEUSE ne sont plus refusés par l'hôte lors d'un petit ralentissement du réseau."
+    },
+    {
+     "en": "On a custom map, a weapon with no wall price (such as the CLAUDE-RAY) can no longer be bought for free.",
+     "fr": "Sur une carte personnalisée, une arme sans prix au mur (comme le CLAUDE-RAY) ne s'achète plus gratuitement."
+    }
+   ],
+   "title": {
+    "en": "Multiplayer fixes",
+    "fr": "Corrections en multijoueur"
+   }
   }
  }
 }
