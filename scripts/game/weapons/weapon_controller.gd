@@ -51,6 +51,8 @@ var scoped := false
 ## Points d'arrivée des balles du dernier tir (tests) :
 ## [position, normale, id du zombie touché ou -1].
 var last_impacts: Array = []
+## Rayon des balles (_trace), réutilisé d'un segment et d'un tir à l'autre.
+var _trace_q: PhysicsRayQueryParameters3D
 
 ## Sons de rechargement par mécanisme : [fraction de la durée, son].
 const RELOAD_SOUNDS := {
@@ -321,9 +323,16 @@ func _trace(origin: Vector3, dir: Vector3, pen: int, impacts: PackedVector3Array
 	var from := origin
 	var exclude: Array[RID] = [player.get_rid()]
 	var remaining := pen
+	# Une requête gardée pour tous les segments et tous les tirs (même masque,
+	# zones comprises) : seuls le départ, la fin et les exclusions changent.
+	if _trace_q == null:
+		_trace_q = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.FORWARD, 1 | HITBOX_LAYER)
+		_trace_q.collide_with_areas = true
+	var q := _trace_q
+	q.to = origin + dir * RAY_LENGTH
+	q.exclude = exclude
 	for step in 12:
-		var q := PhysicsRayQueryParameters3D.create(from, origin + dir * RAY_LENGTH, 1 | HITBOX_LAYER, exclude)
-		q.collide_with_areas = true
+		q.from = from
 		var r := space.intersect_ray(q)
 		if r.is_empty():
 			break
@@ -338,6 +347,8 @@ func _trace(origin: Vector3, dir: Vector3, pen: int, impacts: PackedVector3Array
 			for sib in col.get_parent().get_children():
 				if sib is Area3D:
 					exclude.append(sib.get_rid())
+			# La requête garde une copie des exclusions : mise à jour.
+			q.exclude = exclude
 			remaining -= 1
 			if remaining <= 0:
 				return [r.position, -dir, zid, "flesh"]

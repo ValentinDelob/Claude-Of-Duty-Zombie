@@ -167,8 +167,33 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	fov_k = 1.0
-	RenderingServer.global_shader_parameter_set("vm_fov_scale", 1.0)
-	RenderingServer.global_shader_parameter_set("vm_bend", Vector3.ZERO)
+	_set_fov_scale(1.0)
+	_set_bend(Vector3.ZERO)
+
+
+## Paramètres globaux des shaders de l'arme : écrits seulement quand ils
+## changent (la valeur en place est gardée ici, partagée par toutes les armes
+## vues ; eux seuls écrivent ces deux paramètres). Même image.
+static var _fov_scale_set := false
+static var _fov_scale_val := 1.0
+static var _bend_set := false
+static var _bend_val := Vector3.ZERO
+
+
+static func _set_fov_scale(v: float) -> void:
+	if _fov_scale_set and v == _fov_scale_val:
+		return
+	_fov_scale_set = true
+	_fov_scale_val = v
+	RenderingServer.global_shader_parameter_set("vm_fov_scale", v)
+
+
+static func _set_bend(v: Vector3) -> void:
+	if _bend_set and v == _bend_val:
+		return
+	_bend_set = true
+	_bend_val = v
+	RenderingServer.global_shader_parameter_set("vm_bend", v)
 
 
 func set_weapon(id: String, is_pap: bool) -> void:
@@ -396,7 +421,7 @@ func update(delta: float, p: Player) -> void:
 	var cam := get_parent() as Camera3D
 	if cam:
 		fov_k = tan(deg_to_rad(cam.fov) * 0.5) / tan(deg_to_rad(view_fov()) * 0.5)
-		RenderingServer.global_shader_parameter_set("vm_fov_scale", fov_k)
+		_set_fov_scale(fov_k)
 	if model == null:
 		return
 	var slot := CharacterDB.index_of(p.peer_id)  # tenue du personnage du joueur
@@ -561,7 +586,7 @@ func update(delta: float, p: Player) -> void:
 	# le reste de la carcasse proche de l'œil est abaissé (joue de visée).
 	if _groups.has("rear"):
 		_groups.rear.visible = rear_visible(model_id, ak)
-	RenderingServer.global_shader_parameter_set("vm_bend", bend_params(model_id, ak) if not scoped else Vector3.ZERO)
+	_set_bend(bend_params(model_id, ak) if not scoped else Vector3.ZERO)
 	for g in _groups:
 		if g == "body" or g == "rear" or g == "Hands":
 			continue
@@ -731,7 +756,7 @@ func apply_scope(on: bool) -> void:
 	model.visible = not on
 	if on:
 		_flash_rig.visible = false
-		RenderingServer.global_shader_parameter_set("vm_bend", Vector3.ZERO)
+		_set_bend(Vector3.ZERO)
 
 
 func is_busy() -> bool:
