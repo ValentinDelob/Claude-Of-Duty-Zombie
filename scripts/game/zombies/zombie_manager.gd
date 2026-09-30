@@ -124,8 +124,15 @@ func get_zombie(zid: int) -> Zombie:
 func spawn(pos: Vector3, speed_class: int, health: int, kind := KIND_ZOMBIE) -> int:
 	if not multiplayer.is_server():
 		return -1
+	# Identifiants recyclés après 65000 (codec réseau) : jamais celui d'un
+	# zombie encore présent (un rampant gardé toute une partie), sinon
+	# l'apparition serait ignorée chez tous et ses PV écraseraient les siens.
 	var zid := _next_id
-	_next_id = (_next_id % 65000) + 1
+	for i in 65000:
+		if not zombies.has(zid):
+			break
+		zid = (zid % 65000) + 1
+	_next_id = (zid % 65000) + 1
 	var yaw := _rng.randf() * TAU
 	var variant := _rng.randi() % 100000
 	_cl_spawn.rpc(zid, pos, yaw, variant, speed_class, kind)
