@@ -26,6 +26,33 @@ enum Arms { REACH, ONE_ARM, DANGLE }
 const POSE_BONES := ["hips", "spine", "chest", "neck", "head", "jaw", "thigh_l", "thigh_r",
 		"shin_l", "shin_r", "arm_l", "arm_r", "forearm_l", "forearm_r"]
 
+## Tables de clés des poses (t, valeur) : constantes partagées, aucune
+## allocation à chaque image (ZombieAnim._keys).
+const RUN_TARGET := [0.0, 0.65, 1.0, 1.0]
+const STIFF_BONES := ["thigh_l", "thigh_r", "shin_l", "shin_r", "spine", "chest"]
+const K_EMERGE_ROOT := [[0.0, -2.3], [0.18, -1.95], [0.42, -1.4], [0.78, -0.2], [1.0, 0.0]]
+const K_VAULT_THIGH_L := [[0.0, -0.3], [0.35, -1.4], [0.7, -0.6], [1.0, -0.1]]
+const K_VAULT_THIGH_R := [[0.0, 0.1], [0.3, -0.5], [0.6, -1.3], [1.0, -0.2]]
+const K_VAULT_SHIN_L := [[0.0, 0.3], [0.35, 1.8], [0.8, 0.6], [1.0, 0.2]]
+const K_VAULT_SHIN_R := [[0.0, 0.2], [0.5, 1.6], [0.9, 0.9], [1.0, 0.2]]
+const K_VAULT_ARM_L := [[0.0, -1.3], [0.3, -0.7], [0.7, -0.3], [1.0, -1.1]]
+const K_VAULT_ARM_R := [[0.0, -1.2], [0.3, -0.65], [0.7, -0.35], [1.0, -1.0]]
+const K_TEAR_ARM_L := [[0.0, -1.3], [0.35, -1.75], [0.5, -1.7], [0.7, -0.55], [0.85, -1.2], [1.0, -1.3]]
+const K_TEAR_ARM_R := [[0.0, -1.25], [0.35, -1.7], [0.5, -1.68], [0.7, -0.5], [0.85, -1.7], [1.0, -1.25]]
+const K_TEAR_FOREARM_L := [[0.0, -0.3], [0.45, -0.25], [0.7, -1.4], [1.0, -0.3]]
+const K_TEAR_FOREARM_R := [[0.0, -0.3], [0.45, -0.25], [0.7, -1.3], [0.85, -0.3], [1.0, -0.3]]
+const K_TEAR_ARM_R_Z := [[0.0, 0.1], [0.7, 0.1], [0.85, -0.6], [1.0, 0.1]]
+const K_TEAR_SPINE := [[0.0, 0.35], [0.45, 0.45], [0.7, -0.05], [1.0, 0.35]]
+const K_TEAR_CHEST_X := [[0.0, 0.2], [0.45, 0.25], [0.7, 0.0], [1.0, 0.2]]
+const K_TEAR_CHEST_Y := [[0.0, 0.0], [0.7, 0.1], [0.85, -0.5], [1.0, 0.0]]
+const K_ATTACK_ARM_R := [[0.0, -1.3], [0.28, -2.45], [0.5, -0.85], [0.7, -1.0], [1.0, -1.2]]
+const K_ATTACK_ARM_L := [[0.0, -1.3], [0.32, -2.35], [0.56, -0.9], [0.75, -1.05], [1.0, -1.2]]
+const K_ATTACK_FOREARM_L := [[0.0, -0.3], [0.3, -0.9], [0.55, -0.15], [1.0, -0.3]]
+const K_ATTACK_FOREARM_R := [[0.0, -0.3], [0.26, -0.9], [0.48, -0.12], [1.0, -0.3]]
+const K_ATTACK_SPINE := [[0.0, 0.3], [0.28, 0.1], [0.5, 0.5], [1.0, 0.35]]
+const K_ATTACK_CHEST_Y := [[0.0, 0.0], [0.28, 0.2], [0.5, -0.25], [1.0, 0.0]]
+
+
 var z: Zombie
 ## Traits propres à chaque zombie (graine = variante).
 var limp_side := 1.0
@@ -74,7 +101,7 @@ static func _q(x: float, y := 0.0, zr := 0.0) -> Quaternion:
 
 
 static func _run_target(cls: int) -> float:
-	return [0.0, 0.65, 1.0, 1.0][clampi(cls, 0, 3)]
+	return RUN_TARGET[clampi(cls, 0, 3)]
 
 
 ## Interpolation par morceaux lissée : `keys` = [[t, valeur], ...] (t croissant).
@@ -191,7 +218,7 @@ func pose(delta: float) -> void:
 	# --- Émergence : les mains d'abord, puis la tête, puis tout le corps ----
 	if state == Zombie.State.EMERGE:
 		var k := clampf(z.state_time / Zombie.EMERGE_TIME, 0.0, 1.0)
-		root_y = _keys(k, [[0.0, -2.3], [0.18, -1.95], [0.42, -1.4], [0.78, -0.2], [1.0, 0.0]])
+		root_y = _keys(k, K_EMERGE_ROOT)
 		var claw := sin(_t * 11.0) * 0.12
 		var up := 1.0 - smoothstep(0.3, 0.55, k)
 		var push := smoothstep(0.3, 0.55, k) * (1.0 - smoothstep(0.8, 1.0, k))
@@ -220,13 +247,13 @@ func pose(delta: float) -> void:
 		spine_x += v * 0.9
 		chest_x += v * 0.3
 		head_x -= v * 0.9
-		th_l = _keys(vk, [[0.0, -0.3], [0.35, -1.4], [0.7, -0.6], [1.0, -0.1]])
-		th_r = _keys(vk, [[0.0, 0.1], [0.3, -0.5], [0.6, -1.3], [1.0, -0.2]])
-		sh_l = _keys(vk, [[0.0, 0.3], [0.35, 1.8], [0.8, 0.6], [1.0, 0.2]])
-		sh_r = _keys(vk, [[0.0, 0.2], [0.5, 1.6], [0.9, 0.9], [1.0, 0.2]])
+		th_l = _keys(vk, K_VAULT_THIGH_L)
+		th_r = _keys(vk, K_VAULT_THIGH_R)
+		sh_l = _keys(vk, K_VAULT_SHIN_L)
+		sh_r = _keys(vk, K_VAULT_SHIN_R)
 		# Mains en appui sur l'allège puis bras qui se relèvent.
-		al = _keys(vk, [[0.0, -1.3], [0.3, -0.7], [0.7, -0.3], [1.0, -1.1]])
-		ar = _keys(vk, [[0.0, -1.2], [0.3, -0.65], [0.7, -0.35], [1.0, -1.0]])
+		al = _keys(vk, K_VAULT_ARM_L)
+		ar = _keys(vk, K_VAULT_ARM_R)
 		fl = -0.35
 		fr = -0.35
 	elif tearing:
@@ -234,14 +261,14 @@ func pose(delta: float) -> void:
 		var tt := fmod(z.state_time, period) / period
 		# Agrippe (bras tendus vers la planche), tire en se jetant en
 		# arrière (coudes ramenés), puis jette la planche sur le côté.
-		al = _keys(tt, [[0.0, -1.3], [0.35, -1.75], [0.5, -1.7], [0.7, -0.55], [0.85, -1.2], [1.0, -1.3]])
-		ar = _keys(tt, [[0.0, -1.25], [0.35, -1.7], [0.5, -1.68], [0.7, -0.5], [0.85, -1.7], [1.0, -1.25]])
-		fl = _keys(tt, [[0.0, -0.3], [0.45, -0.25], [0.7, -1.4], [1.0, -0.3]])
-		fr = _keys(tt, [[0.0, -0.3], [0.45, -0.25], [0.7, -1.3], [0.85, -0.3], [1.0, -0.3]])
-		zr = _keys(tt, [[0.0, 0.1], [0.7, 0.1], [0.85, -0.6], [1.0, 0.1]])
-		spine_x = _keys(tt, [[0.0, 0.35], [0.45, 0.45], [0.7, -0.05], [1.0, 0.35]])
-		chest_x = _keys(tt, [[0.0, 0.2], [0.45, 0.25], [0.7, 0.0], [1.0, 0.2]])
-		chest_y = _keys(tt, [[0.0, 0.0], [0.7, 0.1], [0.85, -0.5], [1.0, 0.0]])
+		al = _keys(tt, K_TEAR_ARM_L)
+		ar = _keys(tt, K_TEAR_ARM_R)
+		fl = _keys(tt, K_TEAR_FOREARM_L)
+		fr = _keys(tt, K_TEAR_FOREARM_R)
+		zr = _keys(tt, K_TEAR_ARM_R_Z)
+		spine_x = _keys(tt, K_TEAR_SPINE)
+		chest_x = _keys(tt, K_TEAR_CHEST_X)
+		chest_y = _keys(tt, K_TEAR_CHEST_Y)
 		head_x = -0.55
 		jaw = jaw_open + 0.15 * sin(_t * 5.0)
 		# Pieds plantés, l'un devant l'autre.
@@ -257,16 +284,16 @@ func pose(delta: float) -> void:
 		z.attack_t += delta / 0.7
 		var at := clampf(z.attack_t, 0.0, 1.0)
 		var w := smoothstep(0.0, 0.12, at) * (1.0 - smoothstep(0.8, 1.0, at))
-		var a_r := _keys(at, [[0.0, -1.3], [0.28, -2.45], [0.5, -0.85], [0.7, -1.0], [1.0, -1.2]])
-		var a_l := _keys(at, [[0.0, -1.3], [0.32, -2.35], [0.56, -0.9], [0.75, -1.05], [1.0, -1.2]])
+		var a_r := _keys(at, K_ATTACK_ARM_R)
+		var a_l := _keys(at, K_ATTACK_ARM_L)
 		al = lerpf(al, a_l, w)
 		ar = lerpf(ar, a_r, w)
-		fl = lerpf(fl, _keys(at, [[0.0, -0.3], [0.3, -0.9], [0.55, -0.15], [1.0, -0.3]]), w)
-		fr = lerpf(fr, _keys(at, [[0.0, -0.3], [0.26, -0.9], [0.48, -0.12], [1.0, -0.3]]), w)
+		fl = lerpf(fl, _keys(at, K_ATTACK_FOREARM_L), w)
+		fr = lerpf(fr, _keys(at, K_ATTACK_FOREARM_R), w)
 		zl = lerpf(zl, -0.2, w)
 		zr = lerpf(zr, 0.2, w)
-		spine_x = lerpf(spine_x, _keys(at, [[0.0, 0.3], [0.28, 0.1], [0.5, 0.5], [1.0, 0.35]]), w)
-		chest_y = lerpf(chest_y, _keys(at, [[0.0, 0.0], [0.28, 0.2], [0.5, -0.25], [1.0, 0.0]]), w)
+		spine_x = lerpf(spine_x, _keys(at, K_ATTACK_SPINE), w)
+		chest_y = lerpf(chest_y, _keys(at, K_ATTACK_CHEST_Y), w)
 		head_x = lerpf(head_x, -0.45, w)
 		jaw = lerpf(jaw, 0.62, w)
 		if z.attack_t >= 1.0:
@@ -372,7 +399,7 @@ func death(delta: float, t: float, dir: float) -> void:
 			_slerp("arm_r", _q(-0.4, 0.0, -0.8 * ks), blend)
 			_slerp("forearm_l", _q(-0.1), blend)
 			_slerp("forearm_r", _q(-0.2), blend)
-			for b in ["thigh_l", "thigh_r", "shin_l", "shin_r", "spine", "chest"]:
+			for b: String in STIFF_BONES:
 				_slerp(b, Quaternion.IDENTITY, blend)
 
 
