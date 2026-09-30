@@ -49,6 +49,8 @@ dans `tests/test_zombie_net.gd`). ENet compresse chaque datagramme (codeur de pl
   sur 15 (1 s, décalé par id pour lisser le débit). Le client garde le dernier état reçu
   et ajoute à chaque instantané un échantillon à **tous** les zombies vivants (même
   inchangés) : l'interpolation (120 ms de retard, horloge en µs) avance au même rythme.
+  Chaque marionnette garde ses 12 derniers échantillons dans un tampon circulaire
+  (`Zombie.push_snapshot` / `interpolate_at`, tableaux compacts, aucune allocation).
   L'état initial de chaque zombie vient du message d'apparition.
 - **Joueurs** (`Player._send_state`, 20 Hz max, `unreliable_ordered`) : 17 octets (x, y, z
   en f32, lacet u16, tangage u16, drapeaux u8), envoyés seulement si ces octets changent,
@@ -430,7 +432,10 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   hérite) appelle aussi : l'aperçu montre la géométrie du jeu, pas une copie
   (test « même géométrie que le jeu », `tests/test_map_preview.gd`). `MeshNav` (hérite de `MapNav`, comme `NavGrid`) cuit le navmesh
   au chargement d'après les collisions (portes fermées et fenêtres comprises)
-  ; chaque porte est un `NavigationLink3D` activé à l'ouverture. Les zombies
+  ; chaque porte est un `NavigationLink3D` activé à l'ouverture. `find_path`
+  garde en cache le point du navmesh le plus proche de chaque cible
+  (`goal_point` : un pas physique, vidé quand la carte change) et réutilise sa
+  requête de chemin (`query_path`, mêmes réglages que `map_get_path`). Les zombies
   gardent le déplacement flottant et suivent le sol par un rayon vers le bas
   (`Zombie._follow_floor`) ; portée d'attaque, bonds, séparation et points de
   passage tiennent compte de la hauteur. Morceaux et particules retombent sur
