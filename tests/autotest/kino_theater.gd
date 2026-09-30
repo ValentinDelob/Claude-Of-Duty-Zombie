@@ -16,9 +16,9 @@ static func cod(x: float, y: float, z: float) -> Vector3:
 
 func view(label: String, eye: Vector3, target: Vector3) -> void:
 	p.teleport_to(eye)
-	await seconds(0.2)
+	await seconds(0.2)  # posé après la téléportation
 	AutotestHelpers.aim_at(p, target)
-	await seconds(0.8)
+	await seconds(0.8)  # rendu posé avant la capture
 	await at.screenshot(label)
 
 

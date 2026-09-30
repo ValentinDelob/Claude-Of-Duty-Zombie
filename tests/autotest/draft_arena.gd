@@ -108,12 +108,13 @@ func run() -> void:
 	var door_ab: Door = game.doors["3"]
 	door_ab.srv_use(1)
 	at.check(door_ab.is_open and pd.points == 1750, "porte A-B achetée 750 (%d points restants)" % pd.points)
-	await seconds(0.3)
+	await until(func(): return not nav.find_path(start, mp5k.pos).is_empty() and game.spawner.active_zones.has("b"), 3.0, "couloir ouvert par la porte A-B")
 	at.check(not nav.find_path(start, mp5k.pos).is_empty() and game.spawner.active_zones.has("b"), "porte ouverte : couloir accessible et actif")
 	var debris: Door = game.doors["2"]
 	debris.srv_use(1)
 	at.check(debris.is_open and pd.points == 500, "débris dégagés pour 1250 (%d points restants)" % pd.points)
-	await seconds(Door.OPEN_TIME + 0.3)
+	await until(func(): return not (debris.get_node("Slab") as Node3D).visible \
+		and not nav.find_path(start, titan.pos).is_empty(), Door.OPEN_TIME + 3.0, "débris enfoncés et entrepôt accessible")
 	at.check(not (debris.get_node("Slab") as Node3D).visible, "le tas de débris a disparu")
 	at.check(not nav.find_path(start, titan.pos).is_empty() and game.spawner.active_zones.has("c") and game.spawner.active_zones.has("e"),
 		"par l'atelier : entrepôt et passerelle accessibles et actifs (zones ouvertes l'une sur l'autre)")
@@ -124,26 +125,9 @@ func run() -> void:
 			d.srv_open()
 	(game.interact.get_obj("power") as PowerSwitch).srv_use(1)
 	await until(func(): return game.power_on, 4.0, "courant rétabli")
-	await seconds(0.5)
-	var unreachable := []
-	for list in [l.wall_buys(), l.perks(), l.box_spots(), [l.power_switch()]]:
-		for mk: MapMarker in list:
-			if nav.find_path(start, mk.pos).is_empty():
-				unreachable.append("%s (%s)" % [mk.id, mk.zone])
-	for w in l.windows():
-		if nav.find_path(start, w.pos + w.inward_dir * 1.0).is_empty():
-			unreachable.append("fenêtre %d (%s)" % [w.index, w.zone])
-	for r in l.data.rooms:
-		if String(r.id).begins_with("dehors") or String(r.id).begins_with("porte"):
-			continue
-		var o: Array = r.outline
-		var c := Vector3((float(o[0][0]) + float(o[2][0])) * 0.5, float(r.floor), (float(o[0][1]) + float(o[2][1])) * 0.5)
-		if l.zone_at(c) != "" and not nav.find_path(start, c).is_empty():
-			continue
-		# Milieu d'une salle occupé (pilier, marches) : un coin de la salle.
-		var corner := Vector3(float(o[0][0]) + 0.6, float(r.floor), float(o[0][1]) + 0.6)
-		if nav.find_path(start, corner).is_empty():
-			unreachable.append("salle %s" % r.id)
+	# Navigation mise à jour après l'ouverture de toutes les portes.
+	await until(func(): return _unreachable(start).is_empty(), 3.0, "tout accessible après l'ouverture des portes")
+	var unreachable := _unreachable(start)
 	at.check(unreachable.is_empty(), "tout est accessible à pied depuis le départ : objets, fenêtres, salles (inaccessibles : %s)" % str(unreachable))
 
 	# Étages : un zombie monte l'escalier jusqu'à la passerelle, un autre en descend.
@@ -156,9 +140,34 @@ func run() -> void:
 		await _capture_view(v)
 
 
+## Ce qui n'est pas accessible à pied depuis `from` : objets, fenêtres, salles.
+func _unreachable(from: Vector3) -> Array:
+	var nav := game.nav
+	var unreachable := []
+	for list in [l.wall_buys(), l.perks(), l.box_spots(), [l.power_switch()]]:
+		for mk: MapMarker in list:
+			if nav.find_path(from, mk.pos).is_empty():
+				unreachable.append("%s (%s)" % [mk.id, mk.zone])
+	for w in l.windows():
+		if nav.find_path(from, w.pos + w.inward_dir * 1.0).is_empty():
+			unreachable.append("fenêtre %d (%s)" % [w.index, w.zone])
+	for r in l.data.rooms:
+		if String(r.id).begins_with("dehors") or String(r.id).begins_with("porte"):
+			continue
+		var o: Array = r.outline
+		var c := Vector3((float(o[0][0]) + float(o[2][0])) * 0.5, float(r.floor), (float(o[0][1]) + float(o[2][1])) * 0.5)
+		if l.zone_at(c) != "" and not nav.find_path(from, c).is_empty():
+			continue
+		# Milieu d'une salle occupé (pilier, marches) : un coin de la salle.
+		var corner := Vector3(float(o[0][0]) + 0.6, float(r.floor), float(o[0][1]) + 0.6)
+		if nav.find_path(from, corner).is_empty():
+			unreachable.append("salle %s" % r.id)
+	return unreachable
+
+
 func _capture_view(v: Array) -> void:
 	p.teleport_to(v[1], v[2])
 	p.pitch = v[3]
 	p.head.rotation.x = v[3]
-	await seconds(0.6)
+	await seconds(0.6)  # rendu posé avant la capture
 	await at.screenshot(v[0])

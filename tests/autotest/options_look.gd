@@ -17,15 +17,15 @@ func run() -> void:
 	game.rounds.paused = true
 	await until(func(): return game.hud.pause_menu != null, 2.0, "menu pause construit")
 	var pm: PauseMenu = game.hud.pause_menu
-	await seconds(1.0)
+	await seconds(1.0)  # fondu de l'écran de chargement (pas d'état simple à attendre)
 	pm.open()
-	await seconds(0.3)
+	await seconds(0.3)  # rendu posé avant la capture
 	await at.screenshot("pause")
 	pm.show_screen("options")
 	var opt = pm.current
-	await seconds(0.4)
+	await until(func(): return is_instance_valid(opt) and opt.modulate.a >= 0.999, 2.0, "écran d'options affiché")
 	opt.switch_tab(1)
-	await seconds(0.3)
+	await seconds(0.3)  # rendu posé : onglet puis focus avant la capture
 	opt.bind_rows.move_forward.grab_focus()
 	await seconds(0.4)
 	await at.screenshot("controls")
@@ -33,7 +33,7 @@ func run() -> void:
 	_save_jpg("options_look")
 	opt.bind_rows.reload.grab_focus()
 	opt._on_rebind_requested(opt.bind_rows.reload, 0)
-	await seconds(0.3)
+	await seconds(0.3)  # rendu posé avant la capture
 	await at.screenshot("capture")
 	opt._cancel_capture()
 	opt.switch_tab(1)
@@ -56,7 +56,8 @@ func run() -> void:
 	opt.rows.language.grab_focus()
 	await frames(2)
 	opt.rows.language.nudge(1)
-	await seconds(0.3)
+	await until(func(): return Settings.language == "en" and opt.tab_buttons.has("controls") \
+		and opt.tab_buttons.controls.label == "CONTROLS", 2.0, "écran d'options réécrit en anglais")
 	at.check(Settings.language == "en" and opt.tab_buttons.controls.label == "CONTROLS", "anglais : onglet « %s »" % opt.tab_buttons.controls.label)
 	opt.switch_tab(1)
 	await seconds(0.4)

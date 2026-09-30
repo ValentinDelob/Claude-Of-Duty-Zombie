@@ -96,12 +96,12 @@ func run() -> void:
 			Audio.play_3d(n, p.global_position + fwd * 4.0 + Vector3.UP, 0.0, 0.0, 99)
 		else:
 			Audio.play_2d(n, -6.0, 0.0)
-		await seconds(0.12)
+		await seconds(0.12)  # chaque son joue vraiment un instant (temps réel)
 	at.check(GameClock.msec() - t0 < 60000, "tous les sons joués")
 	await at.screenshot("playing")
 
 	# 4) Polyphonie : 30 râles simultanés -> au plus VOICE_LIMITS.zombie voix.
-	await seconds(1.5)
+	await seconds(1.5)  # laisse finir les sons précédents avant de compter les voix
 	for i in 30:
 		var a := TAU * i / 30.0
 		Audio.play_3d("zombie_groan_%d" % (1 + i % ZombieVoice.GROANS), p.global_position + Vector3(cos(a), 0.5, sin(a)) * (3.0 + i),
@@ -131,7 +131,7 @@ func run() -> void:
 		game.zombies.spawn(p.global_position + fwd * (6.0 + i) + Vector3(i - 3.0, 0, 0), i % 3, 150)
 	var max_voices := 0
 	for k in 40:
-		await seconds(0.2)
+		await seconds(0.2)  # échantillonnage sur une fenêtre fixe de 8 s
 		max_voices = maxi(max_voices, Audio.group_playing(ZombieVoice.GROUP))
 	var vocal := _count("zombie_groan_") + _count("zombie_sprint_") - before
 	at.check(max_voices <= int(Audio.VOICE_LIMITS[ZombieVoice.GROUP]), "zombies vivants : polyphonie respectée (%d)" % max_voices)

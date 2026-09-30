@@ -33,7 +33,7 @@ func run() -> void:
 	p.input.jump = true
 	await seconds(0.25)
 	at.check(p.global_position.y > ground_y + 0.4, "saut (+%.2f m)" % (p.global_position.y - ground_y))
-	await seconds(0.8)
+	await until(func(): return p.is_on_floor(), 3.0, "retombée au sol après le saut")
 	at.check(p.is_on_floor(), "retombe au sol")
 
 	# Accroupi.
