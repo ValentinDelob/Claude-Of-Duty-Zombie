@@ -46,7 +46,9 @@ static func record_game(pd: PlayerData, round_n: int, solo: bool, seconds: float
 	var cfg := ConfigFile.new()
 	for k in s:
 		cfg.set_value("career", k, s[k])
-	cfg.save(path())
+	var err := cfg.save(path())
+	if err != OK:
+		push_warning("[Career] dossier de combat non enregistré (%s)" % error_string(err))
 	return s
 
 

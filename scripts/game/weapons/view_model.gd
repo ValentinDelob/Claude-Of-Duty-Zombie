@@ -269,7 +269,7 @@ func eject_shell(fx: Fx, p: Player, kind: String) -> void:
 
 func start_reload(duration: float) -> void:
 	_reload_t = 0.0
-	_reload_start = WeaponController.now()
+	_reload_start = GameClock.now()
 	_reload_dur = duration
 	# Mécanisme, chargeur vide, nombre de cartouches : lus à l'image suivante.
 	_reload_pending = true
@@ -283,7 +283,7 @@ func cancel_reload() -> void:
 ## Baisse l'arme, appelle `on_mid` (changement de modèle), puis la remonte.
 func start_switch(duration: float, on_mid: Callable) -> void:
 	_switch_t = 0.0
-	_switch_start = WeaponController.now()
+	_switch_start = GameClock.now()
 	_switch_dur = duration
 	_switch_cb = on_mid
 	_switch_mid_done = false
@@ -415,7 +415,7 @@ func update(delta: float, p: Player) -> void:
 	if _reload_t >= 0.0:
 		# Horloge murale, comme WeaponController (_reload_end) : l'animation
 		# finit avec le rechargement même si des pas physiques sont sautés.
-		_reload_t = (WeaponController.now() - _reload_start) / _reload_dur
+		_reload_t = (GameClock.now() - _reload_start) / _reload_dur
 		var t := clampf(_reload_t, 0.0, 1.0)
 		var r := _reload_anim(t, g_off, g_rot, travel, bolt)
 		pos += r[0]
@@ -427,7 +427,7 @@ func update(delta: float, p: Player) -> void:
 		_shell.visible = _reload_t >= 0.0 and _reload_kind == "shells" and _shell_visible
 	# Changement d'arme : rangement vers le bas à droite, sortie en remontant.
 	if _switch_t >= 0.0:
-		_switch_t = (WeaponController.now() - _switch_start) / _switch_dur
+		_switch_t = (GameClock.now() - _switch_start) / _switch_dur
 		if _switch_t >= 0.5 and not _switch_mid_done:
 			_switch_mid_done = true
 			if _switch_cb.is_valid():

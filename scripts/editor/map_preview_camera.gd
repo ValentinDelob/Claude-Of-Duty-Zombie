@@ -124,7 +124,7 @@ func set_mode(m: Mode, ground: Callable = Callable()) -> void:
 			# Posé au sol sous la caméra, sinon sous le point visé.
 			var at := from
 			if ground.is_valid():
-				var g = ground.call(from)
+				var g: Variant = ground.call(from)
 				if g == null and mode == Mode.ORBIT:
 					g = ground.call(pivot + Vector3.UP * 1.0)
 				if g != null:

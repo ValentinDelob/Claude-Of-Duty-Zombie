@@ -550,7 +550,7 @@ func _set_offline() -> void:
 func _load_cached_changelogs() -> void:
 	var f := FileAccess.open("user://changelogs.json", FileAccess.READ)
 	if f and f.get_length() <= Releases.MAX_CHANGELOG_BYTES:
-		var d = JSON.parse_string(f.get_as_text())
+		var d: Variant = JSON.parse_string(f.get_as_text())
 		if d is Dictionary:
 			changelogs = d
 
@@ -559,7 +559,7 @@ func _on_changelogs(result: int, code: int, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS or code != 200 or body.size() > Releases.MAX_CHANGELOG_BYTES:
 		return
 	var text := body.get_string_from_utf8()
-	var d = JSON.parse_string(text)
+	var d: Variant = JSON.parse_string(text)
 	if not d is Dictionary:
 		return
 	changelogs = d
@@ -574,7 +574,7 @@ func _read_local_changelogs(path: String) -> void:
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
 		return
-	var d = JSON.parse_string(f.get_as_text())
+	var d: Variant = JSON.parse_string(f.get_as_text())
 	if d is Dictionary:
 		changelogs = d
 		_args["local_img"] = path.get_base_dir() + "/img/"

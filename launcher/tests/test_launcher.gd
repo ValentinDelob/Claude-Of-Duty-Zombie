@@ -5,10 +5,16 @@ extends SceneTree
 ## versions installées et téléchargement terminé ; sécurité : domaines et
 ## adresses autorisés, numéros de version et noms de fichiers sûrs, sommes
 ## SHA-256 et politique des anciennes versions, BBCode échappé, images bornées,
-## réglages piégés ignorés.
+## réglages piégés ignorés ; réponses de l'API mal formées, releases en
+## préversion, fichiers joints et adresses piégés, versions à 3 et 4 nombres,
+## SHA256SUMS.txt abîmé ; textes du lanceur en français et en anglais ; journaux
+## et rapports de plantage (tests/test_crash_log.gd). Fichiers écrits dans
+## tests/_out seulement (jamais dans le dossier du joueur, user://).
 
 const Releases := preload("res://scripts/releases.gd")
 const Store := preload("res://scripts/store.gd")
+const Texts := preload("res://scripts/texts.gd")
+const CrashLogTests := preload("res://tests/test_crash_log.gd")
 
 const DL := "https://github.com/ValentinDelob/Claude-Of-Duty-Zombie/releases/download/"
 
@@ -131,8 +137,8 @@ func _init() -> void:
 					bad.append(im)
 		check(bad.is_empty(), "changelogs.json : %d versions complètes, captures présentes %s" % [real.versions.size(), bad])
 
-	# Versions installées : dossier temporaire.
-	Store.root = ProjectSettings.globalize_path("user://test_versions")
+	# Versions installées : dossier temporaire (hors du dossier du joueur).
+	Store.root = ProjectSettings.globalize_path("res://tests/_out/launcher_versions_test")
 	for t in ["v0.1.1", "v0.1.2"]:
 		Store.remove(t)
 	check(Store.installed().is_empty(), "aucune version installée au départ")
@@ -155,10 +161,184 @@ func _init() -> void:
 	check(DirAccess.dir_exists_absolute(Store.root), "suppression d'un numéro-chemin : rien d'effacé")
 	Store.remove("v0.1.2")
 	check(not Store.is_installed("v0.1.2"), "version supprimée")
+	DirAccess.remove_absolute(Store.root)
+	check(not DirAccess.dir_exists_absolute(Store.root), "dossier temporaire des versions supprimé")
+	Store.root = ""
 
 	# Réglages du lanceur : jamais d'objet ni de ressource décodés.
 	check(Store.has_constructor("[launcher]\nselected=Object(Node,\"script\":Resource(\"user://x.gd\"))\n"), "réglages piégés détectés")
 	check(Store.has_constructor("[launcher]\nlanguage=\"fr\" ; c\nselected=Resource (\"user://x.gd\")\n"), "constructeur après un commentaire détecté")
 	check(not Store.has_constructor("[launcher]\nlanguage=\"fr\"\nselected=\"Object(latest)\" ; Object(\n"), "texte ordinaire (même avec « Object( » entre guillemets) accepté")
+	_settings()
+	_api_edge_cases()
+	_tags_and_versions()
+	_sums_edge_cases()
+	_texts()
+	CrashLogTests.new().run(self)
 	print("LAUNCHER: %d échec(s)" % failures)
 	quit(1 if failures > 0 else 0)
+
+
+## Réglages : lecture seule. Store.SETTINGS est une constante (user://launcher.cfg,
+## le vrai fichier du joueur) : save_settings n'est jamais appelé ici.
+func _settings() -> void:
+	var s := Store.load_settings()
+	check(s.get("language") in ["fr", "en"] and (s.get("selected") == "latest" or Releases.is_safe_tag(String(s.get("selected")))),
+		"réglages lus : langue et version choisie toujours valides %s" % [s])
+
+
+## Réponses de l'API mal formées : aucune erreur, rien de jouable inventé.
+func _api_edge_cases() -> void:
+	for text in ["{\"message\": \"API rate limit exceeded\"}", "[]", "\"texte\"", "42", "null", "[1, null, [], \"x\", true]"]:
+		check(Releases.parse_releases(text).is_empty(), "API mal formée : aucune version (%s)" % text)
+	# Champs null ou d'un autre type (GitHub : « "name": null » sans titre) :
+	# la release est lue quand même, les autres ne disparaissent pas.
+	var ok_exe := "ClaudeOfDutyZombie-v0.1.7.exe"
+	var typed := JSON.stringify([
+		{"tag_name": "v0.1.7", "name": null, "published_at": null, "assets": [
+			{"name": ok_exe, "browser_download_url": "https://github.com/" + Releases.REPO + "/releases/download/v0.1.7/" + ok_exe, "size": null}]},
+		{"tag_name": 42, "name": ["x"], "assets": []},
+		{"tag_name": "v0.1.6", "name": {"a": 1}, "assets": [
+			{"name": 5, "browser_download_url": null, "size": "gros"}]},
+	])
+	var got := Releases.parse_releases(typed)
+	check(got.size() == 1 and got[0].tag == "v0.1.7" and got[0].title == "" and got[0].exe_size == 0,
+		"champs null ou mal typés : release lue quand même, aucune erreur (%d)" % got.size())
+	check(not Releases.is_safe_tag("v0.1.5\n") and not Releases.is_safe_asset_name("x.exe\n")
+		and not Releases.is_safe_image_name("v0.1.5/01.jpg\n"), "saut de ligne final refusé (tag, fichier, capture)")
+	var tag := "v0.1.5"
+	var exe := "ClaudeOfDutyZombie-v0.1.5.exe"
+	var good := _asset(tag, exe, 10)
+	var base := {"tag_name": tag, "name": "v0.1.5", "published_at": "2026-09-01T00:00:00Z"}
+	var cases := {
+		"préversion": {"prerelease": true, "assets": [good]},
+		"brouillon": {"draft": true, "assets": [good]},
+		"fichiers pas en liste": {"assets": {"0": good}},
+		"fichiers absents": {},
+		"fichier pas un objet": {"assets": ["https://github.com/x.exe", 3]},
+		"adresse d'un autre dépôt": {"assets": [_named(exe, "https://github.com/ValentinDelob/Autre/releases/download/v0.1.5/" + exe)]},
+		"adresse d'une autre version": {"assets": [_named(exe, DL + "v0.1.4/" + exe)]},
+		"adresse http": {"assets": [_named(exe, DL.replace("https://", "http://") + tag + "/" + exe)]},
+		"adresse avec identifiant": {"assets": [_named(exe, DL.replace("https://", "https://user:pw@") + tag + "/" + exe)]},
+		"adresse avec port": {"assets": [_named(exe, DL.replace("github.com", "github.com:443") + tag + "/" + exe)]},
+		"adresse avec barre inverse": {"assets": [_named(exe, DL + tag + "/..\\" + exe)]},
+		"adresse avec espace": {"assets": [_named(exe, DL + tag + "/ " + exe)]},
+		"adresse vide": {"assets": [_named(exe, "")]},
+		"nom-chemin": {"assets": [_named("../" + exe, DL + tag + "/" + exe)]},
+		"nom avec barre inverse": {"assets": [_named("x\\" + exe, DL + tag + "/" + exe)]},
+		"nom caché": {"assets": [_named("." + exe, DL + tag + "/" + exe)]},
+		"nom trop long": {"assets": [_named("ClaudeOfDutyZombie-v" + "1".repeat(100) + ".exe", DL + tag + "/x.exe")]},
+		"pas un exécutable": {"assets": [_asset(tag, "ClaudeOfDutyZombie-v0.1.5.zip")]},
+		"lanceur seul": {"assets": [_asset(tag, "ClaudeOfDutyZombie-Launcher.exe"), _asset(tag, "SHA256SUMS.txt")]},
+		"numéro de version-chemin": {"tag_name": "v0.1.5/..", "assets": [good]},
+		"numéro de version à 5 nombres": {"tag_name": "v0.1.5.1.1", "assets": [_asset("v0.1.5.1.1", "ClaudeOfDutyZombie-v0.1.5.1.1.exe")]},
+	}
+	var accepted: Array = []
+	for what in cases:
+		var r := base.duplicate()
+		r.merge(cases[what], true)
+		if not Releases.parse_releases(JSON.stringify([r])).is_empty():
+			accepted.append(what)
+	check(accepted.is_empty(), "releases piégées ou non jouables ignorées (%d cas) %s" % [cases.size(), accepted])
+	# Une release piégée n'empêche pas les autres ; valeurs bornées.
+	var mixed := [
+		{"tag_name": tag, "name": "x".repeat(1000), "published_at": "2026-09-01T00:00:00Z", "assets": [
+			"pas un objet", _asset(tag, exe, -5), _named("../evil.exe", DL + tag + "/evil.exe"),
+			_named("ClaudeOfDutyZombie-Launcher.exe", "https://evil.example/l.exe")]},
+		{"tag_name": "v0.1.6", "prerelease": true, "assets": [_asset("v0.1.6", "ClaudeOfDutyZombie-v0.1.6.exe")]},
+		{"tag_name": "v0.1.4.2", "assets": [_asset("v0.1.4.2", "ClaudeOfDutyZombie-v0.1.4.2.exe", 7)]},
+	]
+	var v := Releases.parse_releases(JSON.stringify(mixed))
+	check(v.size() == 2 and v[0].tag == tag and v[1].tag == "v0.1.4.2", "releases valides gardées à côté des piégées (préversion ignorée) %s" % [v.map(func(e): return e.tag)])
+	if v.size() == 2:
+		check(v[0].exe_size == 0 and v[0].launcher_url == "" and v[0].exe_name == exe, "taille négative ramenée à 0, lanceur hors dépôt ignoré")
+		check(v[0].title.length() == 300 and v[1].date == "", "titre borné (300 caractères), date absente vide")
+		check(v[1].exe_url == DL + "v0.1.4.2/ClaudeOfDutyZombie-v0.1.4.2.exe", "numéro de version à 4 nombres accepté")
+	var upper := [{"tag_name": tag, "assets": [_named(exe, DL.replace("ValentinDelob/Claude-Of-Duty-Zombie", "valentindelob/claude-of-duty-zombie") + tag + "/" + exe)]}]
+	check(Releases.parse_releases(JSON.stringify(upper)).size() == 1, "nom du dépôt sans distinction de casse (comme GitHub)")
+	check(not Releases.is_asset_url(DL + tag + "/" + exe, "v0.1.4") and Releases.is_asset_url(DL + tag + "/" + exe, tag), "fichier joint : de cette version seulement")
+
+
+func _named(n: String, url: String) -> Dictionary:
+	return {"name": n, "size": 1, "browser_download_url": url}
+
+
+func _tags_and_versions() -> void:
+	var good := ["v0.1", "v0.1.116", "v1.2.3.4", "v999999.0"]
+	var bad := ["v1", "v1.2.3.4.5", "V1.2", "1.2.3", "v1.2-beta", "v1.2.", "v.1.2", "v1..2", "v1234567.1", " v1.2", "v1.2 ", "v1.2/x", "v+1.2", "v-1.2", ""]
+	check(good.all(func(x): return Releases.is_safe_tag(x)) and bad.filter(func(x): return Releases.is_safe_tag(x)).is_empty(),
+		"numéros de version : 2 à 4 nombres seulement %s" % [bad.filter(func(x): return Releases.is_safe_tag(x))])
+	check(Releases.version_key("v0.1.116") == [0, 1, 116] and Releases.version_key("v1.2.3.4") == [1, 2, 3, 4] and Releases.version_key("vx.2") == [0, 2],
+		"parties numériques d'une version")
+	check(Releases.newer("v0.1.2.1", "v0.1.2") and not Releases.newer("v0.1.2", "v0.1.2.1"), "4 nombres : plus récente que la même à 3 nombres")
+	check(not Releases.newer("v0.1.2.0", "v0.1.2") and not Releases.newer("v0.1.2", "v0.1.2.0") and not Releases.newer("v0.1.2", "v0.1.2"), "v0.1.2.0 = v0.1.2 (aucune plus récente)")
+	check(Releases.newer("v1.0", "v0.9.9.9") and Releases.newer("v0.1.10", "v0.1.9.9") and Releases.newer("v0.10", "v0.9.99"), "ordre numérique à 2, 3 et 4 nombres")
+	var tags := ["v0.1.9", "v0.1.10.1", "v0.2", "v0.1.10", "v0.1.100", "v0.1.9.9"]
+	tags.sort_custom(func(a, b): return Releases.newer(a, b))
+	check(tags == ["v0.2", "v0.1.100", "v0.1.10.1", "v0.1.10", "v0.1.9.9", "v0.1.9"], "tri des versions %s" % [tags])
+	var names_bad := ["../x.exe", "a/b.exe", "a\\b.exe", ".x.exe", "x y.exe", "x.exe;rm", "", "é.exe", "a".repeat(101)]
+	check(Releases.is_safe_asset_name("SHA256SUMS.txt") and Releases.is_safe_asset_name("a".repeat(100))
+		and names_bad.filter(func(x): return Releases.is_safe_asset_name(x)).is_empty(), "noms de fichiers joints sûrs %s" % [names_bad.filter(func(x): return Releases.is_safe_asset_name(x))])
+
+
+func _sums_edge_cases() -> void:
+	var hx := "0123456789abcdef".repeat(4)
+	var up := hx.to_upper()
+	var text := "\n".join(PackedStringArray([
+		"%s  Majuscules.exe" % up,
+		"%s\tTabulation.exe" % hx,
+		"%s  dossier/Sous.exe" % hx,
+		"  %s  Espaces.exe  \r" % hx,
+		"%s  Court.exe" % hx.left(63),
+		"%s  Long.exe" % (hx + "0"),
+		"%sg  Lettre.exe" % hx.left(63),
+		"%s  Deux mots.exe" % hx,
+		"%s" % hx,
+		"%s  x\\Inverse.exe" % hx,
+		"%s  .cache" % hx,
+		"# commentaire",
+		"",
+	]))
+	var sums := Releases.parse_sums(text)
+	var keys := sums.keys()
+	keys.sort()
+	check(keys == ["Espaces.exe", "Inverse.exe", "Majuscules.exe", "Sous.exe", "Tabulation.exe"], "SHA256SUMS.txt : lignes invalides ignorées, chemins réduits au nom du fichier %s" % [keys])
+	check(sums.get("Majuscules.exe") == hx, "SHA256SUMS.txt : chiffres hexadécimaux en majuscules ramenés en minuscules")
+	var many := PackedStringArray()
+	for i in 250:
+		many.append("%s  f%d.exe" % [hx, i])
+	var s2 := Releases.parse_sums("\n".join(many))
+	check(s2.size() == 200 and s2.has("f199.exe") and not s2.has("f200.exe"), "SHA256SUMS.txt : 200 lignes lues au plus (%d)" % s2.size())
+	check(Releases.parse_sums("").is_empty() and Releases.parse_sums("\n\n\n").is_empty(), "SHA256SUMS.txt vide")
+	var dup := Releases.parse_sums("%s  a.exe\n%s  a.exe" % ["1".repeat(64), "2".repeat(64)])
+	check(dup.size() == 1 and dup["a.exe"] == "2".repeat(64), "SHA256SUMS.txt : nom en double, dernière ligne gardée")
+
+
+## Textes du lanceur : chaque texte en français et en anglais (mêmes
+## emplacements %s / %d), et chaque texte utilisé par main.gd existe.
+func _texts() -> void:
+	var bad: Array = []
+	var re := RegEx.create_from_string("%[sd%]")
+	for key in Texts.T:
+		var e: Dictionary = Texts.T[key]
+		var fr := String(e.get("fr", ""))
+		var en := String(e.get("en", ""))
+		if fr.strip_edges() == "" or en.strip_edges() == "" or e.size() != 2:
+			bad.append(key)
+		elif re.search_all(fr).map(func(m): return m.get_string()) != re.search_all(en).map(func(m): return m.get_string()):
+			bad.append(key + " (%)")
+		elif Texts.t(key, "fr") != fr or Texts.t(key, "en") != en:
+			bad.append(key + " (t)")
+	check(bad.is_empty() and Texts.T.size() >= 20, "textes du lanceur : %d, tous en français et en anglais %s" % [Texts.T.size(), bad])
+	check(Texts.t("play", "de") == Texts.t("play", "fr") and Texts.t("inconnu", "en") == "inconnu", "texte : langue inconnue -> français, clé inconnue -> clé")
+	check(Texts.date("2026-09-28", "fr") == "28/09/2026" and Texts.date("2026-09-28", "en") == "2026-09-28" and Texts.date("", "fr") == ""
+		and Texts.date("2026-09", "en") == "2026-09", "dates selon la langue (mal formée : telle quelle)")
+	var src := FileAccess.get_file_as_string("res://scripts/main.gd")
+	var used := {}
+	var key_re := RegEx.create_from_string("\"([a-z_]+)\"")
+	for line in src.split("\n"):
+		if line.contains("Texts.t(") or line.contains("_fail_download("):
+			for m in key_re.search_all(line):
+				used[m.get_string(1)] = true
+	var missing := used.keys().filter(func(k): return not Texts.T.has(k))
+	check(used.size() >= 15 and missing.is_empty(), "textes utilisés par main.gd : %d, tous définis %s" % [used.size(), missing])

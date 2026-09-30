@@ -264,7 +264,11 @@ func _animate(delta: float) -> void:
 ## l'ouverture avant, enseigne au-dessus. La lueur (_core_mat) éclaire
 ## l'ouverture pendant l'amélioration ; l'arme y est présentée (_display).
 func _build_model() -> void:
-	var model: Node3D = (load(MODEL) as PackedScene).instantiate()
+	var packed := load(MODEL) as PackedScene
+	if packed == null:
+		push_error("[PackAPunch] modèle introuvable : " + MODEL)
+		return
+	var model: Node3D = packed.instantiate()
 	model.name = "Model"
 	add_child(model)
 	for n in model.find_children("*", "", true, false):

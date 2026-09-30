@@ -195,7 +195,7 @@ func _random_alive() -> int:
 func _on_zombie_damaged(pid: int, zid: int, _damage: int, killed: bool, headshot: bool, kind: Combat.HitKind) -> void:
 	if pid <= 0 or not game.players.has(pid):
 		return
-	var z = game.zombies.get_zombie(zid)
+	var z: Variant = game.zombies.get_zombie(zid)
 	if not killed:
 		if z is Zombie and z.is_crawler() and not _crawlers.has(zid):
 			_crawlers[zid] = true

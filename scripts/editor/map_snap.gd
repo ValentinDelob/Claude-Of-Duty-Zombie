@@ -117,7 +117,7 @@ static func trace_free(doc: EditorMap, k: int, from: Vector2, m: Vector2, radius
 	if String(mg.kind) == "cote" and not free_angle and from.distance_to(m) > 0.05:
 		# Le côté à 15° prolongé jusqu'au côté aimanté, s'il le croise près du curseur.
 		var dir := (ang - from).normalized()
-		var hit = Geometry2D.segment_intersects_segment(from, from + dir * (from.distance_to(m) + radius * 4.0), mg.a, mg.b)
+		var hit: Variant = Geometry2D.segment_intersects_segment(from, from + dir * (from.distance_to(m) + radius * 4.0), mg.a, mg.b)
 		if hit != null and (hit as Vector2).distance_to(m) < radius * 2.0:
 			return Vector2(snappedf(hit.x, 0.001), snappedf(hit.y, 0.001))
 	return mg.p

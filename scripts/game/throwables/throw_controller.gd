@@ -41,10 +41,6 @@ func setup(controller: WeaponController, game: Game) -> void:
 	player.camera.add_child(view)
 
 
-static func now() -> float:
-	return GameClock.now()  # temps de jeu (voir game_clock.gd)
-
-
 func busy() -> bool:
 	return phase != Phase.IDLE
 
@@ -52,7 +48,7 @@ func busy() -> bool:
 ## Appelé à chaque image physique par WeaponController.tick.
 func tick(delta: float) -> void:
 	var inp := player.input
-	var t := now()
+	var t := GameClock.now()
 	var frag_edge := inp.grenade and not _prev_frag
 	var tac_edge := inp.tactical and not _prev_tac
 	_prev_frag = inp.grenade
@@ -103,7 +99,7 @@ func tick(delta: float) -> void:
 func _begin(k: int) -> void:
 	kind = k
 	phase = Phase.PULL
-	_t0 = now()
+	_t0 = GameClock.now()
 	_cook_start = _t0
 	_release = false
 	wc.cancel_reload_local()
@@ -114,7 +110,7 @@ func _begin(k: int) -> void:
 
 func _throw() -> void:
 	phase = Phase.THROW
-	_t0 = now()
+	_t0 = GameClock.now()
 	thrown += 1
 	var fwd := player.aim_direction()
 	var right := player.camera.global_transform.basis.x

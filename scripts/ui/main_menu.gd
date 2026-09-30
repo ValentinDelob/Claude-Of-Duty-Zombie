@@ -189,7 +189,11 @@ func show_screen(screen_name: String, args := {}, remember := true) -> void:
 		old.exit()
 		_retire(old)
 	_hint.text = ""
-	var s: MenuScreen = load(SCREENS[screen_name]).new()
+	var script := load(SCREENS[screen_name]) as GDScript
+	if script == null:
+		push_error("[MainMenu] écran introuvable : " + str(SCREENS[screen_name]))
+		return
+	var s: MenuScreen = script.new()
 	s.menu = self
 	s.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_layer.add_child(s)

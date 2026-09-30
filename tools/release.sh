@@ -13,6 +13,7 @@ N=$(git rev-list --count HEAD)
 TAG="v$BASE.$N"
 EXE=build/ClaudeOfDutyZombie.exe
 mkdir -p build
+touch build/.gdignore   # builds : jamais importés par Godot
 
 # Publication : seulement si le dernier check COMPLET (tools/check.sh --full,
 # lancé par tools/ship.sh) a réussi sur exactement ce contenu (même empreinte

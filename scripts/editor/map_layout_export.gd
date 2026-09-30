@@ -799,8 +799,8 @@ func _markers() -> Dictionary:
 			t["lever2"] = _wall_item(lv[1])
 		m.traps.append(t)
 	# Téléporteur.
-	var pad = null
-	var exit = null
+	var pad: Variant = null
+	var exit: Variant = null
 	for it in md.floor_items:
 		if it.base == "teleporteur":
 			pad = it

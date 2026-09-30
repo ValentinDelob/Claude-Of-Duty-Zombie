@@ -80,7 +80,7 @@ func _on_dived_landed(pid: int, pos: Vector3, height: float) -> void:
 	var pd := game.session.get_data(pid)
 	if not PerkDB.nova_triggers(pd, height):
 		return
-	var t := Combat.now()
+	var t := GameClock.now()
 	if t - float(_nova_last.get(pid, -INF)) < PerkDB.NOVA_COOLDOWN:
 		return
 	_nova_last[pid] = t

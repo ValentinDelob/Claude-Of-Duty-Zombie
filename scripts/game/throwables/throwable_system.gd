@@ -64,10 +64,6 @@ func _ready() -> void:
 		_scorch.append(d)
 
 
-static func now() -> float:
-	return GameClock.now()  # temps de jeu (voir game_clock.gd)
-
-
 ## Achats muraux de grenades (marqueur « * »), comme sur Kino der Toten.
 func _build_buys() -> void:
 	for m in game.layout.grenade_buys():
@@ -137,7 +133,7 @@ func srv_cook(kind: int) -> void:
 			pd.monkeys -= 1
 		_:
 			return
-	_cooking[pid] = [kind, now()]
+	_cooking[pid] = [kind, GameClock.now()]
 	game.combat.cancel_reload(pid)
 	game.session.sync_stats(pid)
 	_cl_pin.rpc(pid, kind)
@@ -166,7 +162,7 @@ func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
 	var kind: int = c[0]
 	var monkey := kind == ThrowableRules.Kind.MONKEY
 	VoxSystem.say(pid, "throw_monkey" if monkey else "throw_grenade", 0.9 if monkey else 0.5)
-	var fuse := ThrowableRules.fuse_left(c[1], now()) if kind == K.FRAG else 0.0
+	var fuse := ThrowableRules.fuse_left(c[1], GameClock.now()) if kind == K.FRAG else 0.0
 	_spawn(pid, kind, origin, ThrowableRules.throw_velocity(kind, dir), fuse, seq)
 
 
@@ -185,7 +181,7 @@ func _process(delta: float) -> void:
 	_tick_fx(delta)
 	if not multiplayer.is_server() or _cooking.is_empty():
 		return
-	var t := now()
+	var t := GameClock.now()
 	for pid in _cooking.keys():
 		var c: Array = _cooking[pid]
 		var pd := game.session.get_data(pid)
@@ -263,7 +259,7 @@ func throw_local(kind: int, origin: Vector3, dir: Vector3, cook_start: float) ->
 	if not multiplayer.is_server():
 		var t := Throwable.new()
 		t.setup(-_seq, kind, multiplayer.get_unique_id(), origin, ThrowableRules.throw_velocity(kind, dir),
-			maxf(ThrowableRules.fuse_left(cook_start, now()), 0.05), false)
+			maxf(ThrowableRules.fuse_left(cook_start, GameClock.now()), 0.05), false)
 		add_child(t)
 		_predicted[_seq] = t
 	srv_throw.rpc_id(1, origin, dir, _seq)

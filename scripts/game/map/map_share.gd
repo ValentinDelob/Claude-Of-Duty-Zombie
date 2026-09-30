@@ -396,7 +396,7 @@ func _cl_states(s: Variant) -> void:
 		return
 	var clean := {}
 	for pid in s:
-		var v = s[pid]
+		var v: Variant = s[pid]
 		if not (pid is int and v is Dictionary and v.get("etat") is String and v.etat in STATES and v.get("pct") is int and v.get("raison") is String):
 			continue
 		clean[pid] = _st(v.etat, clampi(v.pct, 0, 100), v.raison if CustomMapGuard.REASONS.has(v.raison) else "")

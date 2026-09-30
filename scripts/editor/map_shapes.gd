@@ -134,7 +134,7 @@ static func valid(f: Variant) -> bool:
 	for k in ["rx", "ry", "angle", "bras", "points"]:
 		if f.has(k) and not ((f[k] is float or f[k] is int) and is_finite(float(f[k]))):
 			return false
-	var c = f.get("centre")
+	var c: Variant = f.get("centre")
 	if not (c is Array and c.size() == 2 and (c[0] is float or c[0] is int) and (c[1] is float or c[1] is int)
 			and is_finite(float(c[0])) and is_finite(float(c[1]))):
 		return false

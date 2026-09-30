@@ -105,7 +105,7 @@ func _on_inventory_changed(pid: int) -> void:
 		if old_id == "":
 			view.set_weapon(w.id, w.pap)
 		else:
-			_switch_end = now() + SWITCH_TIME
+			_switch_end = GameClock.now() + SWITCH_TIME
 			view.start_switch(SWITCH_TIME, func(): view.set_weapon(w.id, w.pap))
 			Audio.play_2d("weapon_switch", -6.0)
 		_reload_end = -1.0
@@ -113,10 +113,6 @@ func _on_inventory_changed(pid: int) -> void:
 		feel.reset()
 		view.cancel_reload()
 	ammo_changed.emit()
-
-
-static func now() -> float:
-	return GameClock.now()  # temps de jeu (voir game_clock.gd)
 
 
 func current() -> Dictionary:
@@ -137,7 +133,7 @@ func is_reloading() -> bool:
 ## Appelé par Player._local_physics à chaque image physique.
 func tick(delta: float) -> void:
 	var w := current()
-	var t := now()
+	var t := GameClock.now()
 	throws.tick(delta)
 	if w.is_empty():
 		return
@@ -245,7 +241,7 @@ func ads_look_mult() -> float:
 
 
 func _fire(w: Dictionary, s: Dictionary) -> void:
-	var t := now()
+	var t := GameClock.now()
 	var interval := WeaponDB.fire_interval(w.id, w.pap) / combat.game_rate_mult(player.peer_id)
 	_next_fire = t + interval
 	_trigger_released = false
@@ -363,7 +359,7 @@ func _try_reload(w: Dictionary, s: Dictionary) -> void:
 	if _reload_end > 0.0 or w.mag >= s.mag or w.reserve <= 0:
 		return
 	var dur := combat.reload_time(player.peer_id, w)
-	_reload_end = now() + dur
+	_reload_end = GameClock.now() + dur
 	view.start_reload(dur)
 	_burst_left = 0
 	for step in reload_sounds(s, w):
@@ -391,7 +387,7 @@ static func reload_sounds(s: Dictionary, w: Dictionary) -> Array:
 ## joueur se projette d'abord vers lui (LUNGE_TIME), puis frappe : le serveur
 ## valide le coup depuis la position d'arrivée.
 func _melee() -> void:
-	_melee_ready = now() + WeaponDB.MELEE_COOLDOWN
+	_melee_ready = GameClock.now() + WeaponDB.MELEE_COOLDOWN
 	_reload_end = -1.0
 	view.cancel_reload()
 	_burst_left = 0
@@ -449,7 +445,7 @@ func _on_knife_changed(id: String) -> void:
 	view.set_knife(id)
 	if first:
 		return
-	_pickup_end = now() + KnifeDB.PICKUP_TIME
+	_pickup_end = GameClock.now() + KnifeDB.PICKUP_TIME
 	_reload_end = -1.0
 	_burst_left = 0
 	view.cancel_reload()
@@ -458,13 +454,13 @@ func _on_knife_changed(id: String) -> void:
 
 
 func is_picking_up_knife() -> bool:
-	return now() < _pickup_end
+	return GameClock.now() < _pickup_end
 
 
 ## Coup de couteau, fente ou récupération du couteau en cours : pas de lancer
 ## de grenade pendant ce temps (ThrowController).
 func is_knifing() -> bool:
-	var t := now()
+	var t := GameClock.now()
 	return t < _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3 or t < _pickup_end
 
 
@@ -478,7 +474,7 @@ func cancel_reload_local() -> void:
 
 ## Boisson d'un atout : l'arme est baissée, une bouteille apparaît.
 func drink(color: Color, duration: float) -> void:
-	_drink_end = now() + duration
+	_drink_end = GameClock.now() + duration
 	_reload_end = -1.0
 	view.cancel_reload()
 	view.start_drink(color, duration)

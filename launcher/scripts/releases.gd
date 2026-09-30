@@ -51,30 +51,30 @@ const REFUSED := "refused"     # version récente sans somme : refusée
 ## launcher_name, launcher_size, launcher_version_url, sums_url}.
 ## Versions au numéro suspect et fichiers hors des releases du dépôt ignorés.
 static func parse_releases(text: String) -> Array:
-	var data = JSON.parse_string(text)
+	var data: Variant = JSON.parse_string(text)
 	var out: Array = []
 	if not data is Array:
 		return out
 	for r in data:
 		if not r is Dictionary or r.get("draft", false) or r.get("prerelease", false):
 			continue
-		var tag := String(r.get("tag_name", ""))
+		var tag := _str(r.get("tag_name"))
 		if not is_safe_tag(tag):
 			continue
-		var v := {"tag": tag, "date": String(r.get("published_at", "")).left(10),
-			"title": _title(String(r.get("name", "")).left(300), tag), "exe_url": "", "exe_name": "", "exe_size": 0,
+		var v := {"tag": tag, "date": _str(r.get("published_at")).left(10),
+			"title": _title(_str(r.get("name")).left(300), tag), "exe_url": "", "exe_name": "", "exe_size": 0,
 			"launcher_url": "", "launcher_name": "", "launcher_size": 0, "launcher_version_url": "", "sums_url": ""}
-		var assets = r.get("assets", [])
+		var assets: Variant = r.get("assets", [])
 		if not assets is Array:
 			continue
 		for a in assets:
 			if not a is Dictionary:
 				continue
-			var n := String(a.get("name", ""))
-			var url := String(a.get("browser_download_url", ""))
+			var n := _str(a.get("name"))
+			var url := _str(a.get("browser_download_url"))
 			if not is_safe_asset_name(n) or not is_asset_url(url, tag):
 				continue
-			var size := maxi(int(a.get("size", 0)), 0)
+			var size := maxi(int(a.get("size")) if a.get("size") is int or a.get("size") is float else 0, 0)
 			if GAME_ASSET_PREFIXES.any(func(p): return n.begins_with(p)) and n.ends_with(".exe"):
 				v.exe_url = url
 				v.exe_name = n
@@ -91,6 +91,13 @@ static func parse_releases(text: String) -> Array:
 			out.append(v)
 	out.sort_custom(func(a, b): return newer(a.tag, b.tag))
 	return out
+
+
+## Champ texte de l'API : "" s'il est absent, null ou d'un autre type (GitHub
+## renvoie « "name": null » pour une release sans titre ; une seule valeur
+## inattendue ne doit pas vider toute la liste des versions).
+static func _str(v: Variant) -> String:
+	return v if v is String else ""
 
 
 ## Titre GitHub « v0.1.116 — feat: ... » : sans le numéro ni le préfixe technique.
@@ -127,19 +134,20 @@ static func newer(a: String, b: String) -> bool:
 ## Numéro de version utilisable comme nom de dossier : « v » puis 2 à 4
 ## nombres séparés par des points (jamais de « .. », « / » ni « \ »).
 static func is_safe_tag(tag: String) -> bool:
-	return RegEx.create_from_string("^v[0-9]{1,6}(\\.[0-9]{1,6}){1,3}$").search(tag) != null
+	# « \z » : vraie fin du texte (« $ » accepterait un saut de ligne final).
+	return RegEx.create_from_string("^v[0-9]{1,6}(\\.[0-9]{1,6}){1,3}\\z").search(tag) != null
 
 
 ## Nom de fichier joint à une release : lettres, chiffres, « . », « _ », « - ».
 static func is_safe_asset_name(n: String) -> bool:
 	return n.length() <= 100 and not n.begins_with(".") \
-		and RegEx.create_from_string("^[A-Za-z0-9._-]+$").search(n) != null
+		and RegEx.create_from_string("^[A-Za-z0-9._-]+\\z").search(n) != null
 
 
 ## Nom d'une capture des notes (« v0.1.116/01.jpg ») : sous-dossiers permis,
 ## jamais « .. » ; .png, .jpg ou .jpeg seulement.
 static func is_safe_image_name(n: String) -> bool:
-	if n.length() > 120 or RegEx.create_from_string("^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$").search(n) == null:
+	if n.length() > 120 or RegEx.create_from_string("^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*\\z").search(n) == null:
 		return false
 	if ".." in n:
 		return false
@@ -289,16 +297,16 @@ static func _be32(b: PackedByteArray, o: int) -> int:
 ## Sans notes pour cette version : titre de la release, aucune puce.
 ## Captures au nom suspect ignorées.
 static func notes(changelogs: Dictionary, tag: String, lang: String, fallback_title := "") -> Dictionary:
-	var versions = changelogs.get("versions", {})
-	var e = versions.get(tag, {}) if versions is Dictionary else {}
+	var versions: Variant = changelogs.get("versions", {})
+	var e: Variant = versions.get(tag, {}) if versions is Dictionary else {}
 	if not e is Dictionary:
 		e = {}
 	var items: Array = []
-	var raw_items = e.get("items", [])
+	var raw_items: Variant = e.get("items", [])
 	for it in (raw_items if raw_items is Array else []):
 		items.append(_pick(it, lang).left(2000))
 	var images: Array = []
-	var raw_images = e.get("images", [])
+	var raw_images: Variant = e.get("images", [])
 	for img in (raw_images if raw_images is Array else []):
 		if img is String and is_safe_image_name(img) and images.size() < 12:
 			images.append(img)
@@ -312,5 +320,5 @@ static func notes(changelogs: Dictionary, tag: String, lang: String, fallback_ti
 
 static func _pick(v, lang: String) -> String:
 	if v is Dictionary:
-		return String(v.get(lang, v.get("fr", v.get("en", ""))))
+		return _str(v.get(lang, v.get("fr", v.get("en", ""))))
 	return String(v) if v is String else ""

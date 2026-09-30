@@ -155,7 +155,7 @@ class Bag extends RefCounted:
 		# Fisher-Yates avec le générateur du sac (reproductible dans les tests).
 		for i in range(items.size() - 1, 0, -1):
 			var j := rng.randi_range(0, i)
-			var t = items[i]
+			var t: Variant = items[i]
 			items[i] = items[j]
 			items[j] = t
 		index = 0

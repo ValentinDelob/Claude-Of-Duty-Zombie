@@ -41,7 +41,15 @@ func _init(layout_data: Dictionary, glb: String) -> void:
 func build(parent: Node3D) -> void:
 	_make_root(parent, "Props")
 	# Sans .glb (cartes de l'éditeur) : architecture construite par le jeu.
-	var scene: Node3D = MeshMapGeometry.build(layout) if glb_path == "" else (load(glb_path) as PackedScene).instantiate()
+	var scene: Node3D
+	if glb_path == "":
+		scene = MeshMapGeometry.build(layout)
+	else:
+		var packed := load(glb_path) as PackedScene
+		if packed == null:
+			push_error("[MeshMap] architecture introuvable : " + glb_path)
+			return
+		scene = packed.instantiate()
 	scene.name = "Architecture"
 	root.add_child(scene)
 	var floors := {}
@@ -345,7 +353,7 @@ func _collision_boxes(model: String) -> Array:
 		var path := models_dir + model + ".collision.json"
 		var boxes := []
 		if FileAccess.file_exists(path):
-			var d = JSON.parse_string(FileAccess.get_file_as_string(path))
+			var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
 			if d is Dictionary:
 				boxes = d.get("boxes", [])
 		_collisions[model] = boxes

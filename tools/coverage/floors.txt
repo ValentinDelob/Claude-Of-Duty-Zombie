@@ -1,0 +1,23 @@
+# Seuils de couverture par dossier (%), relevés par
+# tools/coverage.sh --ratchet ; ne descendent jamais (docs/TESTING.md § 4).
+launcher/scripts 19
+scripts 100
+scripts/autoload 91
+scripts/editor 85
+scripts/game 93
+scripts/game/barricades 97
+scripts/game/characters 94
+scripts/game/dogs 94
+scripts/game/fx 98
+scripts/game/hud 95
+scripts/game/interact 83
+scripts/game/map 88
+scripts/game/perks 46
+scripts/game/player 91
+scripts/game/powerups 95
+scripts/game/rounds 93
+scripts/game/throwables 92
+scripts/game/vox 92
+scripts/game/weapons 97
+scripts/game/zombies 97
+scripts/ui 91

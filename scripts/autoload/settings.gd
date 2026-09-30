@@ -368,7 +368,7 @@ func _bindings_from_cfg(cfg: ConfigFile) -> Dictionary:
 	for action in REBINDABLE:
 		if not cfg.has_section_key("bindings", action):
 			continue
-		var raw = cfg.get_value("bindings", action, [])
+		var raw: Variant = cfg.get_value("bindings", action, [])
 		var list := []
 		if raw is Array or raw is PackedStringArray:
 			for c in raw:
@@ -493,7 +493,9 @@ func save_to(file: String) -> void:
 	cfg.set_value("network", "last_port", last_port)
 	cfg.set_value("game", "last_map", last_map)
 	cfg.set_value("game", "language", language)
-	cfg.save(file)
+	var err := cfg.save(file)
+	if err != OK:
+		push_warning("[Settings] réglages non enregistrés (%s) : %s" % [error_string(err), file])
 
 
 ## Applique les options vidéo / audio au moteur. Les réglages de rendu de la

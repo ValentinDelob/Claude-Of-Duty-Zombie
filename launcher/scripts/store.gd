@@ -113,8 +113,8 @@ static func load_settings() -> Dictionary:
 	var cfg := ConfigFile.new()
 	if cfg.parse(text) != OK:
 		return out
-	var l = cfg.get_value("launcher", "language", lang)
-	var s = cfg.get_value("launcher", "selected", "latest")
+	var l: Variant = cfg.get_value("launcher", "language", lang)
+	var s: Variant = cfg.get_value("launcher", "selected", "latest")
 	out.language = l if l is String and l in ["fr", "en"] else lang
 	out.selected = s if s is String and (s == "latest" or Releases.is_safe_tag(s)) else "latest"
 	return out
@@ -151,4 +151,6 @@ static func save_settings(s: Dictionary) -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("launcher", "language", s.get("language", "fr"))
 	cfg.set_value("launcher", "selected", s.get("selected", "latest"))
-	cfg.save(SETTINGS)
+	var err := cfg.save(SETTINGS)
+	if err != OK:
+		push_warning("[Lanceur] réglages non enregistrés (%s)" % error_string(err))

@@ -439,11 +439,11 @@ static func clean_players(v: Variant) -> Dictionary:
 	for pid in v:
 		if out.size() >= MAX_SUPPORTED_PLAYERS:
 			break
-		var p = v[pid]
+		var p: Variant = v[pid]
 		if not (pid is int and pid > 0 and p is Dictionary):
 			continue
-		var n = p.get("name", "")
-		var s = p.get("slot", 0)
+		var n: Variant = p.get("name", "")
+		var s: Variant = p.get("slot", 0)
 		out[pid] = {"name": _clean_name(n if n is String else "", 24), "slot": clampi(int(s) if (s is int or s is float) else 0, 0, MAX_SUPPORTED_PLAYERS - 1)}
 	return out
 

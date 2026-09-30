@@ -210,7 +210,7 @@ static func spec(model_id: String) -> Dictionary:
 
 
 static func _part_basis(part: Array) -> Basis:
-	var r = part[4]
+	var r: Variant = part[4]
 	if r is Vector3:
 		return Basis.from_euler(Vector3(deg_to_rad(r.x), deg_to_rad(r.y), deg_to_rad(r.z)))
 	return Basis(Vector3.RIGHT, deg_to_rad(float(r)))
@@ -438,7 +438,7 @@ static func profile(model_id: String) -> Array:
 		var sz: Vector3 = lb[1]
 		var b := _part_basis(part)
 		var c: Vector3 = part[2] + b * lb[0]
-		var r = part[4]
+		var r: Variant = part[4]
 		var ang := deg_to_rad(r.x if r is Vector3 else float(r))
 		var extent := Vector2(sz.z, sz.y)
 		# Rotation d'Euler autour de Y (pièce vue par le bout) : largeur apparente.

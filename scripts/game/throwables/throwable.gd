@@ -41,15 +41,11 @@ func setup(id: int, k: int, pid: int, pos: Vector3, velocity: Vector3, fuse: flo
 	kind = k
 	owner_pid = pid
 	vel = velocity
-	fuse_end = now() + fuse
+	fuse_end = GameClock.now() + fuse
 	server_side = is_server
 	name = "T%d" % id if id > 0 else "Pred%d" % -id
 	position = pos
 	_spin = Vector3(randf_range(-9, 9), randf_range(-5, 5), randf_range(-9, 9))
-
-
-static func now() -> float:
-	return GameClock.now()  # temps de jeu (voir game_clock.gd)
 
 
 func _ready() -> void:
@@ -77,11 +73,11 @@ func _physics_process(delta: float) -> void:
 			_settle()
 	if server_side and system:
 		if kind == ThrowableRules.Kind.FRAG:
-			if now() >= fuse_end:
+			if GameClock.now() >= fuse_end:
 				system.srv_detonate(self)
 		elif resting and not luring:
 			system.srv_monkey_landed(self)
-		elif luring and now() >= lure_end:
+		elif luring and GameClock.now() >= lure_end:
 			system.srv_detonate(self)
 
 
@@ -152,7 +148,7 @@ func start_lure(pos: Vector3, duration: float) -> void:
 	position = pos
 	_settle()
 	luring = true
-	lure_end = now() + duration
+	lure_end = GameClock.now() + duration
 	if _music == null:
 		_music = AudioStreamPlayer3D.new()
 		_music.bus = "SFX"
@@ -165,7 +161,7 @@ func start_lure(pos: Vector3, duration: float) -> void:
 
 ## Singe qui frappe ses cymbales (au tempo de la musique), yeux rouges.
 func _animate_monkey() -> void:
-	var t := now() - (lure_end - ThrowableRules.MONKEY_TIME)
+	var t := GameClock.now() - (lure_end - ThrowableRules.MONKEY_TIME)
 	var beat := t * 2.0 * 2.25  # 135 battements/min, un choc par battement
 	var clap := absf(sin(beat * PI * 0.5))
 	if _cymbal_l:

@@ -98,17 +98,17 @@ static func strip_strings(text: String) -> String:
 # --------------------------------------------------------------------------
 
 static func get_string(cfg: ConfigFile, section: String, key: String, default: String, max_len := 256) -> String:
-	var v = cfg.get_value(section, key, default)
+	var v: Variant = cfg.get_value(section, key, default)
 	return String(v).substr(0, max_len) if v is String or v is StringName else default
 
 
 static func get_bool(cfg: ConfigFile, section: String, key: String, default: bool) -> bool:
-	var v = cfg.get_value(section, key, default)
+	var v: Variant = cfg.get_value(section, key, default)
 	return v if v is bool else default
 
 
 static func get_int(cfg: ConfigFile, section: String, key: String, default: int, lo := -2147483648, hi := 2147483647) -> int:
-	var v = cfg.get_value(section, key, default)
+	var v: Variant = cfg.get_value(section, key, default)
 	if v is int:
 		return clampi(v, lo, hi)
 	if v is float and is_finite(v):
@@ -117,7 +117,7 @@ static func get_int(cfg: ConfigFile, section: String, key: String, default: int,
 
 
 static func get_float(cfg: ConfigFile, section: String, key: String, default: float, lo := -1e9, hi := 1e9) -> float:
-	var v = cfg.get_value(section, key, default)
+	var v: Variant = cfg.get_value(section, key, default)
 	if (v is float or v is int) and is_finite(float(v)):
 		return clampf(float(v), lo, hi)
 	return default

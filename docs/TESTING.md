@@ -153,6 +153,57 @@ sh tools/check.sh
 `tools/release.sh` refuse de publier si le dernier check complet réussi ne
 porte pas exactement sur le contenu actuel (`tests/_out/last_full_ok`).
 
+## 4. Couverture de code
+
+GDScript n'a pas de couverture native et aucun outil mûr n'existe pour
+Godot 4.7 (projets Godot 3 seulement, ou alpha : voir `docs/TESTING_PLAN.md`
+§ 2) : le projet a son propre outil, léger.
+
+```bash
+sh tools/coverage.sh
+```
+
+1. copie du projet et du lanceur dans un dossier temporaire (le cache
+   d'import est copié : pas de réimport des assets) — **les sources ne sont
+   jamais modifiées** ;
+2. `tools/coverage/instrument.gd` ajoute, dans la copie, une ligne
+   `CovHits.h(n)` avant chaque instruction d'un corps de fonction (pas avant
+   `elif` / `else`, les motifs de `match`, les suites d'expression sur
+   plusieurs lignes, le contenu des chaînes `"""…"""`) ;
+3. check complet dans la copie (`--full --kino --no-retry`) ; chaque jeu vide
+   ses compteurs en quittant ;
+4. `tools/coverage/report.gd` : `tests/_out/coverage/summary.md` (par
+   dossier), `files.txt` (par fichier, du moins couvert au plus couvert),
+   `missed.txt` (fonctions jamais exécutées).
+
+Durée ≈ 18 min (le code instrumenté est 2 à 3 fois plus lent) : **hors check
+par défaut**, à lancer avant une release importante ou pour choisir les tests
+à écrire. Dans la copie, quelques tests sensibles au temps échouent (attendu :
+lenteur) ; leurs compteurs sont quand même pris.
+
+**Seuils** (`tools/coverage/floors.txt`) : un par dossier, relevés au niveau
+atteint par `COV_RATCHET=1 sh tools/coverage.sh` ; ils ne descendent jamais.
+Sous un seuil : avertissement ; `COV_STRICT=1` rend le dépassement bloquant.
+
+### Mesure initiale (30/09/2026)
+
+Instructions couvertes **87,6 %** (25 298 / 28 879), fonctions **91,8 %**.
+Plus faibles : lanceur 19,9 % (interface `main.gd` et journal des plantages
+jamais exécutés), perks 47 % (effet visuel du Nova Flop, aide à la visée
+Deadeye), interactions 83 % (fonctions `setup` jamais appelées), éditeur 85 %.
+
+### Zones volontairement non testées
+
+- **Entrées réelles** (`player_input.gd`, souris et manette) : les tests
+  pilotent le joueur en bot (`bot_controlled`), le lecteur d'entrées lui-même
+  ne se teste qu'à la main.
+- **Rendu pur** (aspect des shaders, lumière) : pas de capture comparée
+  automatiquement (décision : captures seulement pendant un ajout en cours).
+- **Mesures de performance** : niveau perf (`tools/perf.sh`), pas le check.
+- **Interface du lanceur** (`launcher/scripts/main.gd`) : à rendre testable
+  pendant sa refonte (phase 4), la logique (versions, sommes, stockage,
+  journaux) étant testée à part.
+
 ## Sources
 
 1. R. Masella, *Automated Testing of Gameplay Features in Sea of Thieves*, GDC 2019 — https://media.gdcvault.com/gdc2019/presentations/Masella_Robert_AutomatedTestingOf.pdf

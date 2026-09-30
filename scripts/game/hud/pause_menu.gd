@@ -114,7 +114,11 @@ func _unhandled_input(event: InputEvent) -> void:
 func show_screen(screen_name: String, args := {}, _remember := true) -> void:
 	if screen_name != "options" or current:
 		return
-	var s: MenuScreen = load(MainMenu.SCREENS.options).new()
+	var script := load(MainMenu.SCREENS.options) as GDScript
+	if script == null:
+		push_error("[PauseMenu] écran des options introuvable")
+		return
+	var s: MenuScreen = script.new()
 	s.menu = self
 	s.set_anchors_preset(Control.PRESET_FULL_RECT)
 	current = s

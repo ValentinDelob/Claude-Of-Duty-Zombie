@@ -38,7 +38,7 @@ func _init(map_def: MapDef, source: Variant, glb: String) -> void:
 	if source is Dictionary:
 		data = source
 	else:
-		var parsed = JSON.parse_string(FileAccess.get_file_as_string(String(source)))
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(String(source)))
 		if parsed is Dictionary:
 			data = parsed
 		else:

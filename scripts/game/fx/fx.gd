@@ -290,7 +290,7 @@ static func surface_of(col: Object, shape_index := 0) -> String:
 		var co := col as CollisionObject3D
 		var owner_id := co.shape_find_owner(shape_index)
 		if owner_id >= 0:
-			var shape_node = co.shape_owner_get_owner(owner_id)
+			var shape_node: Variant = co.shape_owner_get_owner(owner_id)
 			if shape_node is Node and (shape_node as Node).has_meta("surface"):
 				return surface_kind(String(shape_node.get_meta("surface")))
 		if co.has_meta("surface"):

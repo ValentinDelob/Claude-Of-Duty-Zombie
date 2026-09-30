@@ -37,7 +37,7 @@ static func id_of(pid: int) -> String:
 ## Répliques d'un personnage : {catégorie: [{fr, en}, ...]}.
 static func lines(character: String) -> Dictionary:
 	if not _lines.has(character):
-		var res = load(LINES_DIR + character + ".json")
+		var res: Variant = load(LINES_DIR + character + ".json")
 		var data: Dictionary = res.data if res is JSON else {}
 		_lines[character] = data.get("lines", {})
 	return _lines[character]

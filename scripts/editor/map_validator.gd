@@ -1323,7 +1323,7 @@ func _counts() -> void:
 	var traps := floor_items.filter(func(it): return it.base == "piege")
 	var levers := wall_items.filter(func(it): return it.base == "levier")
 	for lv in levers:
-		var best = null
+		var best: Variant = null
 		for t in traps:
 			if t.floor == lv.floor and (t.center - lv.center).length() * scale <= LEVER_RANGE and (best == null or (t.center - lv.center).length() < (best.center - lv.center).length()):
 				best = t
@@ -1546,7 +1546,7 @@ func _fun_doors() -> void:
 	var total := 0
 	var power_doors := doors.filter(func(d): return d.power)
 	while true:
-		var best = null
+		var best: Variant = null
 		for d in doors:
 			if bought.has(d.id) or d.power:
 				continue

@@ -31,10 +31,6 @@ func _ready() -> void:
 	game = get_parent()
 
 
-static func now() -> float:
-	return GameClock.now()  # temps de jeu (voir game_clock.gd)
-
-
 func is_downed(pid: int) -> bool:
 	return downed.has(pid)
 
@@ -67,9 +63,9 @@ func srv_down(pid: int) -> void:
 		if mates.size() == 1 and game.session.data.size() > 1:
 			game.vox.later(3.8, mates[0], "last_alive")
 	game.combat.cancel_reload(pid)
-	var entry := {"bleed_end": now() + bleedout_time, "reviver": 0, "revive_start": 0.0, "revive_dur": 0.0, "self_revive": 0.0}
+	var entry := {"bleed_end": GameClock.now() + bleedout_time, "reviver": 0, "revive_start": 0.0, "revive_dur": 0.0, "self_revive": 0.0}
 	if Net.mode == Net.Mode.SOLO and had_lazarus:
-		entry.self_revive = now() + SOLO_SELF_REVIVE
+		entry.self_revive = GameClock.now() + SOLO_SELF_REVIVE
 	downed[pid] = entry
 	game.session.sync_stats(pid)
 	game.session.sync_inventory(pid)
@@ -89,7 +85,7 @@ func srv_start_revive(reviver: int, target: int) -> void:
 	if not _in_range(reviver, target):
 		return
 	e.reviver = reviver
-	e.revive_start = now()
+	e.revive_start = GameClock.now()
 	e.revive_dur = REVIVE_TIME_LAZARUS if rpd.has_perk("lazarus") else REVIVE_TIME
 	VoxSystem.say(reviver, "revive_start", 0.7)
 	_broadcast(target)
@@ -113,7 +109,7 @@ func _in_range(a: int, b: int) -> bool:
 func _process(_delta: float) -> void:
 	if not multiplayer.is_server() or downed.is_empty():
 		return
-	var t := now()
+	var t := GameClock.now()
 	for pid in downed.keys():
 		var e: Dictionary = downed[pid]
 		if e.self_revive > 0.0 and t >= e.self_revive:
@@ -188,7 +184,7 @@ func forget(pid: int) -> void:
 # --------------------------------------------------------------------------
 
 func _broadcast(pid: int) -> void:
-	var t := now()
+	var t := GameClock.now()
 	var e: Dictionary = downed.get(pid, {})
 	if e.is_empty():
 		_cl_state.rpc(pid, false, 0.0, 0, 0.0, 0.0)
@@ -199,7 +195,7 @@ func _broadcast(pid: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _cl_state(pid: int, is_down: bool, bleed_left: float, reviver: int, progress: float, dur: float) -> void:
-	var t := now()
+	var t := GameClock.now()
 	var was_down := _was_shown.has(pid)
 	if not multiplayer.is_server():
 		if is_down:
@@ -241,14 +237,14 @@ func _cl_revived(pid: int) -> void:
 ## Toutes les machines : infos pour le HUD.
 func bleed_left(pid: int) -> float:
 	var e: Dictionary = downed.get(pid, {})
-	return maxf(e.get("bleed_end", 0.0) - now(), 0.0)
+	return maxf(e.get("bleed_end", 0.0) - GameClock.now(), 0.0)
 
 
 func revive_progress(pid: int) -> float:
 	var e: Dictionary = downed.get(pid, {})
 	if e.is_empty() or e.reviver == 0 or e.revive_dur <= 0.0:
 		return 0.0
-	return clampf((now() - e.revive_start) / e.revive_dur, 0.0, 1.0)
+	return clampf((GameClock.now() - e.revive_start) / e.revive_dur, 0.0, 1.0)
 
 
 func reviver_of(pid: int) -> int:

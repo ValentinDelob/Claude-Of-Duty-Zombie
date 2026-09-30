@@ -84,15 +84,11 @@ func _ready() -> void:
 	session = game.get_node("Session")
 
 
-static func now() -> float:
-	return GameClock.now()  # temps de jeu (voir game_clock.gd)
-
-
 func _process(delta: float) -> void:
 	if not multiplayer.is_server():
 		return
 	_flush_fx()
-	var t := now()
+	var t := GameClock.now()
 	for pid in _reload_end.keys():
 		var r: Array = _reload_end[pid]
 		if t >= r[1]:
@@ -180,7 +176,7 @@ func _validate_fire(pid: int, slot: int, origin: Vector3) -> String:
 	if p and p.global_position.distance_to(origin) > MAX_ORIGIN_ERROR + 1.7:
 		return "origine incohérente"
 	# Seau de jetons : cadence moyenne respectée, rafale courte tolérée.
-	var t := now()
+	var t := GameClock.now()
 	var rate := 1.0 / WeaponDB.fire_interval(w.id, w.pap) * game_rate_mult(pid)
 	var tokens: float = _tokens.get(pid, FIRE_BURST_TOKENS)
 	tokens = minf(tokens + (t - _last_refill.get(pid, t)) * rate * 1.25, FIRE_BURST_TOKENS)
@@ -276,7 +272,7 @@ func _apply_hits(pid: int, w: Dictionary, origin: Vector3, dir: Vector3, hits: A
 			blood.append(acc[2])
 		# Munitions incendiaires : le zombie brûle quelques secondes.
 		if s.has("burn_dps"):
-			_burns[zid] = [pid, float(s.burn_dps) * damage_mult(pid), now() + float(s.get("burn_time", 2.0))]
+			_burns[zid] = [pid, float(s.burn_dps) * damage_mult(pid), GameClock.now() + float(s.get("burn_time", 2.0))]
 	return blood
 
 
@@ -473,7 +469,7 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 	var pid := multiplayer.get_remote_sender_id()
 	var pd := session.get_data(pid)
 	var p: Player = game.players.get(pid)
-	var t := now()
+	var t := GameClock.now()
 	if pd == null or p == null or pd.life != PlayerData.Life.ALIVE or t < _melee_ready.get(pid, 0.0):
 		return
 	if not NetGuard.finite_vec(origin) or not NetGuard.valid_dir(dir):
@@ -524,7 +520,7 @@ func srv_dive_landed(pos: Vector3, height: float) -> void:
 	# Un plongeon par DIVE_MIN_INTERVAL au plus, et seulement si le serveur a
 	# vu ce joueur plonger (drapeau de son état de mouvement) : pas
 	# d'explosion NOVA FLOP à volonté par simple RPC.
-	var t := now()
+	var t := GameClock.now()
 	if t - float(_dive_last.get(pid, -INF)) < DIVE_MIN_INTERVAL or not p.srv_dived_recently():
 		return
 	_dive_last[pid] = t
@@ -556,7 +552,7 @@ func srv_reload(slot: int) -> void:
 	var s := WeaponDB.stats(w.id, w.pap)
 	if w.mag >= s.mag or w.reserve <= 0:
 		return
-	_reload_end[pid] = [slot, now() + reload_time(pid, w) * RELOAD_LENIENCY]
+	_reload_end[pid] = [slot, GameClock.now() + reload_time(pid, w) * RELOAD_LENIENCY]
 	_cl_reload_fx.rpc(pid)
 	if w.mag == 0:
 		VoxSystem.say(pid, "reload", 0.2)
@@ -625,7 +621,7 @@ func damage_player(pid: int, amount: int, from: Vector3) -> void:
 	if pd == null or pd.life != PlayerData.Life.ALIVE or amount <= 0:
 		return
 	pd.health = maxi(pd.health - amount, 0)
-	_last_hurt[pid] = now()
+	_last_hurt[pid] = GameClock.now()
 	session.sync_stats(pid)
 	_cl_player_hurt.rpc(pid, from)
 	if pd.health > 0 and pd.health < pd.max_health * 0.35:

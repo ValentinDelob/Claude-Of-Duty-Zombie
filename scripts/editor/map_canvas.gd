@@ -250,8 +250,8 @@ func _open_entry() -> void:
 
 ## Bout du tracé d'après les valeurs tapées (les champs vides suivent le curseur).
 func _entry_end(tool: String, cursor: Vector2) -> Vector2:
-	var v0 = entry_value(0)
-	var v1 = entry_value(1)
+	var v0: Variant = entry_value(0)
+	var v1: Variant = entry_value(1)
 	match tool:
 		"wall", "room_poly":
 			var from: Vector2 = drag.start if tool == "wall" else poly_pts[-1]

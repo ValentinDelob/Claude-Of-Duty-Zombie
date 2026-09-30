@@ -131,7 +131,7 @@ func _start() -> void:
 	var auto := _autosave_dir()
 	if EditorMap.is_map_dir(auto):
 		new_map(true)
-		var meta = _read_meta(auto)
+		var meta: Variant = _read_meta(auto)
 		var nm := String(meta.get("name", "")) if meta is Dictionary else ""
 		var when := Time.get_datetime_string_from_unix_time(int(meta.get("time", 0)) if meta is Dictionary else 0, true)
 		_confirm(Lang.t("Reprendre le travail non enregistré", "Resume unsaved work"),
@@ -1613,7 +1613,9 @@ static func set_pref(key: String, value: Variant) -> void:
 	var cf := _load_cfg()
 	cf.set_value("editeur", key, value)
 	DirAccess.make_dir_recursive_absolute(EditorMap.maps_root())
-	cf.save(_cfg_path())
+	var err := cf.save(_cfg_path())
+	if err != OK:
+		push_warning("[MapEditor] préférences non enregistrées (%s)" % error_string(err))
 
 
 static func recent_maps() -> Array:
@@ -1630,7 +1632,9 @@ func _add_recent(dir: String) -> void:
 	var cf := _load_cfg()
 	cf.set_value("editeur", "recentes", list.slice(0, RECENT_MAX))
 	DirAccess.make_dir_recursive_absolute(EditorMap.maps_root())
-	cf.save(_cfg_path())
+	var err := cf.save(_cfg_path())
+	if err != OK:
+		push_warning("[MapEditor] préférences non enregistrées (%s)" % error_string(err))
 
 
 func _fill_recent() -> void:
@@ -1649,8 +1653,8 @@ const MAX_META_BYTES := 256 * 1024
 ## meta.json de la sauvegarde automatique (source, nom, date) : {} s'il est
 ## absent, illisible ou trop gros (256 Ko au plus).
 static func _read_meta(dir: String) -> Variant:
-	var txt = EditorMap.read_text(dir.path_join("meta.json"), MAX_META_BYTES)
-	var meta = JSON.parse_string(txt) if txt != null else null
+	var txt: Variant = EditorMap.read_text(dir.path_join("meta.json"), MAX_META_BYTES)
+	var meta: Variant = JSON.parse_string(txt) if txt != null else null
 	return meta if meta is Dictionary else {}
 
 
@@ -1673,7 +1677,7 @@ func autosave() -> void:
 
 func _resume_autosave() -> void:
 	var dir := _autosave_dir()
-	var meta = _read_meta(dir)
+	var meta: Variant = _read_meta(dir)
 	var d := EditorMap.load_dir(dir)
 	_reset(d)
 	if meta is Dictionary:

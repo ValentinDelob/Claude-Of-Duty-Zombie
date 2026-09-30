@@ -38,6 +38,9 @@ cd "$(dirname "$0")/.."
 nofocus_on
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT/jobs"
+# Sorties de tests (captures, cartes temporaires…) : jamais importées par
+# Godot (sinon des centaines de Mo de textures dans .godot/imported).
+touch "$OUT/.gdignore"
 # Journaux Godot des tests (--log-file) : ici, JAMAIS dans le dossier des
 # journaux du joueur (%APPDATA%\Godot\app_userdata\Call of Claude Zombie\logs,
 # où ils écraseraient le journal d'un plantage). Chemin absolu : Godot se

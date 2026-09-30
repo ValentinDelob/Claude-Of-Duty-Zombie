@@ -110,7 +110,7 @@ static func catalog_source() -> Dictionary:
 		"surfaces": MapCatalog.materials(), "musics": MapCatalog.musics()}
 	for f in ["allowed_kinds", "room_keys", "zone_keys"]:
 		if names.has(f):
-			var v = cat.call(f)
+			var v: Variant = cat.call(f)
 			if v is Dictionary:
 				src["kinds" if f == "allowed_kinds" else f] = v
 	if names.has("allowed_surfaces"):
@@ -201,15 +201,15 @@ static func schema() -> Dictionary:
 		var make: Dictionary = it.get("make", {})
 		if make.has("forme"):
 			room_forms[String(make.forme)] = true
-	var table = src.get("kinds", {})
+	var table: Variant = src.get("kinds", {})
 	if table is Dictionary and not table.is_empty():
 		# Format 2 : table typée du catalogue (MapCatalog.allowed_kinds).
 		for t in table:
-			var d = table[t]
+			var d: Variant = table[t]
 			if not (t is String and d is Dictionary):
 				continue
 			var keys := {}
-			var spec_keys = d.get("keys", {})
+			var spec_keys: Variant = d.get("keys", {})
 			if spec_keys is Dictionary:
 				for k in spec_keys:
 					if not k in ["id", "type", "etage"]:
@@ -244,7 +244,7 @@ static func schema() -> Dictionary:
 			for k in make:
 				if k == "type":
 					continue
-				var v = make[k]
+				var v: Variant = make[k]
 				if k in ["mur", "monte"]:
 					keys[k] = "dir"
 				elif v is bool:
@@ -259,7 +259,7 @@ static func schema() -> Dictionary:
 	# Pièces et zones : clés du catalogue (format 2) ou celles du format 1.
 	var room_keys := {"id": "id", "nom": "name", "etage": "floor", "zone": "zone_ref", "contour": "polygon",
 		"plafond": "num:1.5:30", "double_hauteur": "bool", "forme": room_forms, "sol": "surface", "murs": "surface"}
-	var rk = src.get("room_keys", {})
+	var rk: Variant = src.get("room_keys", {})
 	if rk is Dictionary and not rk.is_empty():
 		room_keys = {}
 		for k in rk:
@@ -268,7 +268,7 @@ static func schema() -> Dictionary:
 		if room_keys.has("zone"):
 			room_keys["zone"] = "zone_ref"
 	var zone_keys := {"id": "id", "nom": "names", "sol": "surface", "murs": "surface"}
-	var zk = src.get("zone_keys", {})
+	var zk: Variant = src.get("zone_keys", {})
 	if zk is Dictionary and not zk.is_empty():
 		zone_keys = {}
 		for k in zk:
@@ -530,7 +530,7 @@ static func check_texts(texts: Dictionary) -> Dictionary:
 		if d < 0 or d > MAX_DEPTH:
 			c.bad("%s : JSON trop imbriqué ou mal fermé" % f, "%s: JSON nested too deep or not closed" % f)
 			continue
-		var v = parse_json(t)
+		var v: Variant = parse_json(t)
 		if not v is Dictionary:
 			c.bad("%s : JSON illisible" % f, "%s: unreadable JSON" % f)
 			continue
@@ -662,7 +662,7 @@ static func _names(c: Check, v: Variant, what: String, long := false) -> bool:
 		if not k in ["fr", "en"]:
 			c.bad("%s : clé inconnue « %s »" % [what, clean_display(str(k), 24)], "%s: unknown key \"%s\"" % [what, clean_display(str(k), 24)])
 			return false
-		var s = v[k]
+		var s: Variant = v[k]
 		if not s is String or not (text_ok(s) if long else name_ok(s)):
 			c.bad("%s : texte refusé (trop long, caractère de contrôle, balise ou chemin)" % what,
 				"%s: text refused (too long, control character, tag or path)" % what)
@@ -810,7 +810,7 @@ static func _check_carte(c: Check, d: Dictionary) -> void:
 		_num(c, d.hauteur_portes, 1.5, 10.0, what + " (hauteur_portes)")
 	if d.has("lampes_auto"):
 		_rule(c, "bool", d.lampes_auto, what + " (lampes_auto)")
-	var et = d.get("etages", [])
+	var et: Variant = d.get("etages", [])
 	if not (et is Array and et.size() <= MAX_FLOORS):
 		c.bad("carte.json : étages (au plus %d)" % MAX_FLOORS, "carte.json: floors (at most %d)" % MAX_FLOORS)
 		return
@@ -828,7 +828,7 @@ static func _check_carte(c: Check, d: Dictionary) -> void:
 static func _check_list_file(c: Check, d: Dictionary, file: String, key: String, max_n: int, each: Callable) -> void:
 	if not _keys(c, d, {key: 1}, file):
 		return
-	var list = d.get(key, [])
+	var list: Variant = d.get(key, [])
 	if not list is Array:
 		c.bad("%s : liste « %s » attendue" % [file, key], "%s: list \"%s\" expected" % [file, key])
 		return
@@ -838,7 +838,7 @@ static func _check_list_file(c: Check, d: Dictionary, file: String, key: String,
 	for i in list.size():
 		if c.reasons.size() >= MAX_REASONS:
 			return
-		var e = list[i]
+		var e: Variant = list[i]
 		if not e is Dictionary:
 			c.bad("%s : élément %d invalide" % [file, i + 1], "%s: invalid element %d" % [file, i + 1])
 			continue
@@ -853,7 +853,7 @@ static func _check_room(c: Check, e: Dictionary, what: String) -> void:
 	for k in e:
 		if not k in ["id", "contour"]:
 			_rule(c, rk[k], e[k], "%s (%s)" % [what, k])
-	var poly = e.get("contour")
+	var poly: Variant = e.get("contour")
 	if not (poly is Array and poly.size() >= 3 and poly.size() <= MAX_VERTICES):
 		c.bad("%s : contour de 3 à %d sommets attendu" % [what, MAX_VERTICES], "%s: outline of 3 to %d vertices expected" % [what, MAX_VERTICES])
 		return
@@ -870,7 +870,7 @@ static func _check_room(c: Check, e: Dictionary, what: String) -> void:
 
 static func _check_opening(c: Check, e: Dictionary, what: String) -> void:
 	var sc := schema()
-	var t = e.get("type")
+	var t: Variant = e.get("type")
 	if not (t is String and sc.kinds.has(t) and sc.kinds[t].file == "ouvertures.json"):
 		c.bad("%s : type d'ouverture inconnu « %s »" % [what, clean_display(str(t), 24)], "%s: unknown opening type \"%s\"" % [what, clean_display(str(t), 24)])
 		return
@@ -879,7 +879,7 @@ static func _check_opening(c: Check, e: Dictionary, what: String) -> void:
 
 static func _check_object(c: Check, e: Dictionary, what: String) -> void:
 	var sc := schema()
-	var t = e.get("type")
+	var t: Variant = e.get("type")
 	if not (t is String and sc.kinds.has(t) and sc.kinds[t].file == "objets.json"):
 		c.bad("%s : type d'objet inconnu « %s »" % [what, clean_display(str(t), 24)], "%s: unknown object type \"%s\"" % [what, clean_display(str(t), 24)])
 		return
@@ -923,7 +923,7 @@ static func _check_zones(c: Check, d: Dictionary) -> void:
 		return
 	if d.has("depart") and not (d.depart is String and (d.depart == "" or id_ok(d.depart))):
 		c.bad("zones.json : zone de départ invalide", "zones.json: invalid start zone")
-	var list = d.get("zones", [])
+	var list: Variant = d.get("zones", [])
 	if not (list is Array and list.size() <= MAX_ZONES):
 		c.bad("zones.json : zones (au plus %d)" % MAX_ZONES, "zones.json: zones (at most %d)" % MAX_ZONES)
 		return
@@ -964,13 +964,13 @@ static func unpack(b: PackedByteArray) -> Dictionary:
 	var bad := func(fr: String, en: String) -> Dictionary: return {"ok": false, "reasons": [[fr, en]]}
 	if b.is_empty() or b.size() > MAX_PACKAGE_BYTES:
 		return bad.call("paquet de carte vide ou trop volumineux", "map package empty or too large")
-	var s = decode_utf8(b)
+	var s: Variant = decode_utf8(b)
 	if s == null:
 		return bad.call("paquet de carte : texte UTF-8 invalide", "map package: invalid UTF-8 text")
 	var d := json_depth(s)
 	if d < 0 or d > 2:
 		return bad.call("paquet de carte : JSON mal formé", "map package: malformed JSON")
-	var v = parse_json(s)
+	var v: Variant = parse_json(s)
 	if not (v is Dictionary and v.size() == 2 and v.get("format") is float and int(v.format) == PACKAGE_FORMAT and v.get("fichiers") is Dictionary):
 		return bad.call("paquet de carte : format inconnu", "map package: unknown format")
 	var files: Dictionary = v.fichiers
@@ -1011,10 +1011,10 @@ static func check_offer(o: Variant) -> String:
 	for k in ["sha", "size", "chunk", "chunks", "nom", "n"]:
 		if not o.has(k):
 			return "offre"
-	var sha = o["sha"]
-	var size = o["size"]
-	var chunk = o["chunk"]
-	var chunks = o["chunks"]
+	var sha: Variant = o["sha"]
+	var size: Variant = o["size"]
+	var chunk: Variant = o["chunk"]
+	var chunks: Variant = o["chunks"]
 	if not (sha is String and sha_ok(sha)):
 		return "offre"
 	if not (size is int and chunk is int and chunks is int and o["n"] is int and o["n"] >= 0):
@@ -1023,7 +1023,7 @@ static func check_offer(o: Variant) -> String:
 		return "trop_gros"
 	if chunk < MIN_CHUNK_BYTES or chunk > CHUNK_BYTES or chunks != ceili(float(size) / chunk):
 		return "offre"
-	var n = o["nom"]
+	var n: Variant = o["nom"]
 	if not (n is Dictionary and n.size() <= 2):
 		return "offre"
 	for k in n:
@@ -1113,7 +1113,7 @@ static func read_dir_texts(dir: String) -> Dictionary:
 		total += fa.get_length()
 		if total > MAX_PACKAGE_BYTES:
 			return {"texts": {}, "reasons": [["carte trop volumineuse", "map too large"]]}
-		var s = decode_utf8(fa.get_buffer(fa.get_length()))
+		var s: Variant = decode_utf8(fa.get_buffer(fa.get_length()))
 		fa.close()
 		if s == null:
 			return {"texts": {}, "reasons": [["%s : texte UTF-8 invalide" % f, "%s: invalid UTF-8 text" % f]]}
@@ -1192,7 +1192,7 @@ static func read_zip_texts(path: String) -> Dictionary:
 			return bad.call("archive .zip invalide", "invalid .zip archive")
 		var raw := b.slice(off + 46, off + 46 + nlen)
 		off = next
-		var name = decode_utf8(raw)
+		var name: Variant = decode_utf8(raw)
 		if name == null:
 			continue
 		var base := String(name).get_file()
@@ -1214,7 +1214,7 @@ static func read_zip_texts(path: String) -> Dictionary:
 		if data.size() != int(wanted[name]):
 			r.close()
 			return bad.call("archive : taille de %s incorrecte" % String(name).get_file(), "archive: wrong size for %s" % String(name).get_file())
-		var s = decode_utf8(data)
+		var s: Variant = decode_utf8(data)
 		if s == null:
 			r.close()
 			return bad.call("archive : %s n'est pas du texte UTF-8" % String(name).get_file(), "archive: %s is not UTF-8 text" % String(name).get_file())

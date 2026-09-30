@@ -178,7 +178,7 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 		return first
 	var window := type == "fenetre"
 	var cands := outer_edges(doc, k) if window else shared_edges(doc, k)
-	var best = null
+	var best: Variant = null
 	var best_d := SNAP_DIST
 	for e in cands:
 		var a: Vector2 = e.a
