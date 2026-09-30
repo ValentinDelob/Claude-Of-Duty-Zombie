@@ -23,19 +23,21 @@ func run() -> void:
 	# Quelques zombies au fond de la salle de garde : sur place mais animés
 	# (squelettes en mouvement : les ombres des lampes proches sont
 	# redessinées), à la même distance pour chaque préréglage.
+	var zs := []
 	for i in 8:
 		var zid: int = game.zombies.spawn(MapData.cell_to_world(Vector2i(4 + i, 19), 0.0), i % 4, 150)
 		game.zombies.get_zombie(zid).speed_mult = 0.0
+		zs.append(game.zombies.get_zombie(zid))
 	p.teleport_to(MapData.cell_to_world(Vector2i(9, 29), 0.05))
 	H.aim_at(p, MapData.cell_to_world(Vector2i(9, 17), 1.2))
-	await seconds(Zombie.EMERGE_TIME + 0.3)
+	await H.emerged(self, zs)
 	var initial := Settings.quality
 	var fps := {}
 	for q in [Settings.Quality.LOW, Settings.Quality.HIGH, Settings.Quality.MEDIUM]:
 		var preset := RenderQuality.preset(q)
 		Settings.quality = q
 		Settings.changed.emit()
-		await seconds(0.4)
+		await seconds(0.4)  # rendu posé après le changement de préréglage, avant la mesure
 		var shadows := 0
 		for l: OmniLight3D in lamps:
 			if l.shadow_enabled:
@@ -46,7 +48,7 @@ func run() -> void:
 		at.check(is_equal_approx(at.get_viewport().scaling_3d_scale, preset.scale_3d), "%s : résolution 3D %.2f" % [preset.name, at.get_viewport().scaling_3d_scale])
 		at.check(is_equal_approx(ParticlePool.density, preset.particles), "%s : densité de particules" % preset.name)
 		at.begin_perf()
-		await seconds(1.0)
+		await seconds(1.0)  # fenêtre de mesure des images par seconde
 		fps[q] = at.end_perf("garde " + preset.name)
 		await at.screenshot(preset.name)
 	at.check_perf(fps[Settings.Quality.LOW], 150.0, "garde LOW")

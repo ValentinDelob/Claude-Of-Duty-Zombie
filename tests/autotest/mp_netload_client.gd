@@ -31,7 +31,8 @@ func run() -> void:
 	p.teleport_to(MapData.cell_to_world(Vector2i(3, 14), 0.05), -PI * 0.5)
 	if not await until(func(): return game.zombies.alive_count() >= 20, 30.0, "zombies reçus"):
 		return
-	await seconds(Zombie.EMERGE_TIME + 1.2)
+	await until(func(): return game.session.local_data().current_weapon().get("id", "") == "mp40" and game.zombies.alive.all(func(z): return z.state != Zombie.State.EMERGE), Zombie.EMERGE_TIME + 5.0, "arme reçue, horde sortie de terre")
+	await seconds(1.0)  # la horde se met en route avant la mesure
 	at.check(game.session.local_data().current_weapon().get("id", "") == "mp40", "arme automatique reçue de l'hôte")
 	await at.screenshot("netload")
 	# Repos.
@@ -54,7 +55,7 @@ func run() -> void:
 	# machine : on vérifie seulement qu'elle n'est pas figée.
 	at.check(idle_smooth[2] > 0.4 and fire_smooth[2] > 0.2, "les marionnettes avancent (%.2f / %.2f m/s en moyenne)" % [idle_smooth[2], fire_smooth[2]])
 	await at.screenshot("netload_fire")
-	await seconds(6.0)
+	await MpHelpers.finish(self)
 
 
 class Probe extends Node:

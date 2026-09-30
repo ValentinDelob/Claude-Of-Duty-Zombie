@@ -30,7 +30,7 @@ func run() -> void:
 	at.check(absf(wrapf(p.yaw, -PI, PI)) < 0.2, "face à la scène (lacet %.2f)" % p.yaw)
 	await seconds(1.6)  # fondu de l'écran de chargement
 	p.pitch = -0.35
-	await seconds(1.0)
+	await seconds(1.0)  # rendu posé avant la capture
 	await at.screenshot("depart_disque")
 	p.pitch = 0.0
 
@@ -54,14 +54,14 @@ func run() -> void:
 	# Courant.
 	(game.interact.get_obj("power") as PowerSwitch).srv_use(1)
 	await until(func(): return game.power_on, 3.0, "courant")
-	await seconds(0.3)
 	var board: BoxBoard = boards[0]
 	var lit: StandardMaterial3D = board._bulbs[game.interact.get_obj("box").location]
+	await until(func(): return lit.emission.g > 0.8 and lit.emission_energy_multiplier > 2.0, 2.0, "ampoule du tableau allumée")
 	at.check(lit.emission.g > 0.8 and lit.emission_energy_multiplier > 2.0, "tableau : ampoule verte à l'emplacement de la boîte")
 	var bm: MapMarker = l.box_boards()[0]
 	p.teleport_to(bm.pos - bm.wall * 1.4 + Vector3.UP * 0.05, 0.0)
 	H_look(board.global_position)
-	await seconds(0.8)
+	await seconds(0.8)  # rendu posé avant la capture
 	await at.screenshot("tableau_boite")
 
 	# Second levier : il déclenche le piège.
@@ -74,7 +74,7 @@ func run() -> void:
 	# Téléporteur : gratuit, pad puis poste central.
 	var pts := game.session.local_data().points
 	p.teleport_to(tp.global_position + Vector3.UP * 0.1)
-	await seconds(0.3)
+	await seconds(0.3)  # posé sur le pad après la téléportation
 	tp.srv_use(1)
 	at.check(tp.link == Teleporter.Link.PRIMED, "pad activé : à relier au poste central")
 	mf.srv_use(1)
@@ -83,7 +83,7 @@ func run() -> void:
 	var zid := game.zombies.spawn(tp.global_position + Vector3(3.0, 0, 0), 0, 150)
 	var z := game.zombies.get_zombie(zid)
 	z.speed_mult = 0.0
-	await seconds(1.6)
+	await AutotestHelpers.emerged(self, [z])
 	# Replacé sur le pad juste avant le départ (rien ne doit l'en avoir poussé).
 	p.teleport_to(tp.global_position + Vector3.UP * 0.1)
 	await seconds(0.1)
@@ -92,7 +92,7 @@ func run() -> void:
 	await until(func(): return l.zone_at(p.global_position) == "p", 4.0, "arrivée en salle de projection")
 	at.check(not z.is_alive(), "zombie proche du pad foudroyé au départ")
 	at.check(tp.state == Teleporter.State.ACTIVE and tp.seconds_left() > 25, "30 s en salle de projection (%d s)" % tp.seconds_left())
-	await seconds(1.5)
+	await seconds(1.5)  # rendu posé avant la capture
 	await at.screenshot("salle_projection")
 	# Pack-a-Punch de la salle de projection : on y dépose son arme (5000).
 	var before := game.session.local_data().points

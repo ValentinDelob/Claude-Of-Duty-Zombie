@@ -24,7 +24,8 @@ func run() -> void:
 	if not ok:
 		return
 	at.check(game.hud.round_counter().special, "client : compteur de manche qui clignote")
-	await seconds(3.3)
+	# Le brouillard monte en ≈ 3 s.
+	await until(func(): return dogs.fog_amount() > 0.9, 5.0, "brouillard")
 	at.check(dogs.fog_amount() > 0.9, "client : brouillard de manche de chiens (%.2f)" % dogs.fog_amount())
 	var seen := {}
 	var moved := {}
@@ -91,4 +92,4 @@ func run() -> void:
 		await at.screenshot("max_ammo")
 	ok = await until(func(): return not dogs.cl_active, 8.0, "fin de l'ambiance")
 	at.check(ok and not game.hud.round_counter().special, "client : ambiance terminée")
-	await seconds(3.0)
+	await MpHelpers.finish(self)

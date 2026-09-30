@@ -552,6 +552,15 @@ func _scoreboard_tick() -> void:
 	scoreboard.visible = show_board
 
 
+## Fin de partie (Game._cl_game_over) : « GAME OVER » + résumé sur voile
+## sombre, manches survécues, tableau des scores, battement de cœur. Textes
+## déjà dans la langue du joueur (Game.game_over_summary / survived_text).
+func show_game_over(summary: String, survived: String) -> void:
+	show_center("GAME OVER", summary, 0.6)
+	show_game_over_table(survived)
+	Audio.play_2d("heartbeat", 0.0, 0.0)
+
+
 ## Fin de partie : tableau récapitulatif.
 ## BO1 : « GAME OVER » en haut, « Vous avez survécu N manches » dessous, puis
 ## le tableau des scores.

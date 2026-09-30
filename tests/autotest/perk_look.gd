@@ -21,7 +21,7 @@ func run() -> void:
 		if p == null:
 			return
 		Router.back_to_menu()
-		await seconds(1.0)
+		await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "retour au menu")
 
 
 func machines() -> Array[PerkMachine]:
@@ -49,7 +49,7 @@ func _map_pass(map_id: String) -> void:
 	await H.clear_zombies(self)
 	for id in game.doors:
 		game.doors[id].srv_open()
-	await seconds(0.5)
+	await seconds(0.5)  # collisions des portes coupées (différé) avant les téléports
 	var list := machines()
 	# Kino der Toten : Quick Revive, Juggernog, Speed Cola, Double Tap (Mule
 	# Kick à venir) ; BUNKER K-7 : les 7 atouts.
@@ -62,7 +62,7 @@ func _map_pass(map_id: String) -> void:
 	for m in list:
 		await _shot(m, map_id, "off")
 	(game.interact.get_obj("power") as PowerSwitch).srv_use(1)
-	await seconds(3.0)
+	await seconds(3.0)  # capture : cascade d'allumage de la carte terminée
 	for m in list:
 		at.check(_lit(m) == 1.0, "%s allumée avec le courant" % m.perk_id)
 		await _shot(m, map_id, "on")
@@ -102,9 +102,9 @@ func _check_solid(m: PerkMachine) -> void:
 	p.teleport_to(start)
 	H.aim_at(p, m.global_position + Vector3.UP * 1.0)
 	p.pitch = 0.0
-	await seconds(0.2)
+	await seconds(0.2)  # posé après le téléport avant d'avancer
 	p.input.move = Vector2(0, 1)
-	await seconds(1.0)
+	await seconds(1.0)  # marche mesurée
 	p.input.move = Vector2.ZERO
 	var d := (p.global_position - m.global_position).dot(f)
 	at.check(d > 0.38, "%s : le joueur bute sur la machine (%.2f m du centre)" % [m.perk_id, d])
@@ -121,5 +121,5 @@ func _shot(m: PerkMachine, map_id: String, state: String) -> void:
 	var side := f.cross(Vector3.UP).normalized()
 	p.teleport_to(m.global_position + f * 2.9 + side * 0.8 + Vector3(0, 0.05, 0))
 	H.aim_at(p, m.global_position + Vector3.UP * 1.25)
-	await seconds(0.5)
+	await seconds(0.5)  # capture : image posée après le téléport
 	await at.screenshot("%s_%s_%s" % [map_id, m.perk_id, state])

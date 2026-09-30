@@ -16,13 +16,13 @@ var booms: Array = []
 func stand(cell: Vector2i, yaw: float) -> void:
 	p.teleport_to(MapData.cell_to_world(cell, 0.05), yaw)
 	p.pitch = 0.0
-	await seconds(0.3)
+	await seconds(0.3)  # le joueur se pose après la téléportation
 
 
 func set_frags(n: int) -> void:
 	pd.grenades = n
 	game.session.sync_stats(1)
-	await seconds(0.1)
+	await seconds(0.1)  # synchro vers le client
 
 
 ## Maintient [G] (ou [Q]) `hold` secondes puis relâche. Retourne l'objet lancé.
@@ -67,10 +67,10 @@ func run() -> void:
 	# 1. Réserve : 2 au départ, +2 par manche, jamais plus de 4.
 	at.check(pd.grenades == 2, "2 grenades au départ (%d)" % pd.grenades)
 	game.rounds.debug_jump_to(2)
-	await seconds(0.3)
+	await until(func(): return pd.grenades == 4, 2.0, "grenades de la manche 2")
 	at.check(pd.grenades == 4, "manche 2 : +2 grenades (%d)" % pd.grenades)
 	game.rounds.debug_jump_to(3)
-	await seconds(0.3)
+	await seconds(0.3)  # fenêtre fixe : la réserve doit rester à 4
 	at.check(pd.grenades == 4, "manche 3 : plafonné à 4 (%d)" % pd.grenades)
 	await H.clear_zombies(self)
 	await stand(Vector2i(4, 7), -PI * 0.5)
@@ -89,7 +89,7 @@ func run() -> void:
 	var t := await throw(false, 0.6, "frag_hold")
 	at.check(t != null and pd.grenades == 3, "grenade lancée, réserve 3 (%d)" % pd.grenades)
 	if t:
-		await seconds(0.25)
+		await seconds(0.25)  # capture : grenade en vol
 		await at.screenshot("frag_flight")
 		var bounced: bool = await until(func(): return not is_instance_valid(t) or t.bounces >= 1, 2.0, "rebond")
 		at.check(bounced, "la grenade rebondit au sol")
@@ -97,7 +97,7 @@ func run() -> void:
 		if is_instance_valid(t):
 			at.check(t.bounces >= 1 and t.on_ground, "roule après %d rebond(s) en %s" % [t.bounces, t.position])
 	var boomed := await wait_boom(1, 4.5)
-	await seconds(0.06)
+	await seconds(0.06)  # capture
 	await at.screenshot("frag_explosion")
 	var dead := 0
 	for z: Zombie in zs:
@@ -105,7 +105,7 @@ func run() -> void:
 			dead += 1
 	at.check(boomed and dead == 3, "explosion : %d/3 zombies de manche 8 tués" % dead)
 	at.check(pd.points - points0 == 3 * PointsRules.SPLASH_KILL, "50 points par kill d'explosion (+%d)" % (pd.points - points0))
-	await seconds(0.8)
+	await seconds(0.8)  # capture : fumée
 	await at.screenshot("frag_smoke")
 	await H.clear_zombies(self)
 
@@ -127,10 +127,10 @@ func run() -> void:
 	var zc := await H.dummy_zombie(self, p.global_position + Vector3(2.4, 0, 0), 800)
 	var items0 := sys.items.size()
 	p.input.grenade = true
-	await seconds(ThrowableRules.FUSE - 0.6)
+	await seconds(ThrowableRules.FUSE - 0.6)  # touche tenue : la grenade cuit
 	await at.screenshot("cook_danger")
 	var in_hand := await wait_boom(3, 1.5)
-	await seconds(0.05)
+	await seconds(0.05)  # capture
 	await at.screenshot("cook_explosion")
 	p.input.grenade = false
 	at.check(in_hand and sys.items.size() == items0 and booms[2][0] == ThrowableRules.Kind.FRAG
@@ -148,25 +148,25 @@ func run() -> void:
 	if buy:
 		p.teleport_to(Vector3(buy.global_position.x, 0.05, buy.global_position.z + 1.3))
 		H.aim_at(p, buy.global_position)
-		await seconds(0.4)
+		await until(func(): return game.hud._prompt.text.contains("250"), 2.0, "invite de l'achat de grenades")
 		at.check(game.hud._prompt.text.contains("250"), "invite : %s" % game.hud._prompt.text)
 		await at.screenshot("wall_buy")
 		var pts := pd.points
 		p.input.interact_pressed = true
-		await seconds(0.4)
+		await until(func(): return pd.grenades == 4 and pts - pd.points == 250, 2.0, "grenades achetées")
 		at.check(pd.grenades == 4 and pts - pd.points == 250, "grenades achetées : 4 (-%d points)" % (pts - pd.points))
-		await seconds(0.2)
+		await until(func(): return game.hud._prompt.text == "", 2.0, "invite retirée")
 		at.check(game.hud._prompt.text == "", "réserve pleine : plus d'invite")
 
 	# 6. MUNITIONS MAX : grenades à 4 (et singes à 3 s'il y en a).
 	await set_frags(0)
 	game.powerups.apply(PowerupRules.MAX_AMMO, 1, p.global_position)
-	await seconds(0.2)
+	await until(func(): return pd.grenades == 4, 2.0, "grenades rendues par munitions max")
 	at.check(pd.grenades == 4 and pd.monkeys == 0, "munitions max : 4 grenades, pas de singe (%d / %d)" % [pd.grenades, pd.monkeys])
 
 	# 7. SINGE-TAMBOUR : attire tous les zombies, puis explose.
 	sys.srv_give_monkeys(1)
-	await seconds(0.2)
+	await until(func(): return pd.has_monkeys and pd.monkeys == 3, 2.0, "singes reçus")
 	at.check(pd.has_monkeys and pd.monkeys == 3, "3 singes reçus")
 	await stand(Vector2i(4, 7), -PI * 0.5)
 	await at.screenshot("hud_monkeys")
@@ -174,7 +174,7 @@ func run() -> void:
 	for c in [Vector2i(22, 2), Vector2i(23, 12), Vector2i(12, 17), Vector2i(12, 2)]:
 		var zid := game.zombies.spawn(MapData.cell_to_world(c), 1, 150)
 		runners.append(game.zombies.get_zombie(zid))
-	await seconds(Zombie.EMERGE_TIME + 0.2)
+	await H.emerged(self, runners)
 	H.aim_at(p, MapData.cell_to_world(Vector2i(11, 7)))
 	var monkey := await throw(true, 0.5, "monkey_hold")
 	at.check(monkey != null and pd.monkeys == 2, "singe lancé (reste %d)" % pd.monkeys)
@@ -184,7 +184,7 @@ func run() -> void:
 	# Le joueur s'éloigne : les zombies ne le suivent pas.
 	await stand(Vector2i(5, 7), -PI * 0.5)
 	H.aim_at(p, mpos)
-	await seconds(4.5)
+	await seconds(4.5)  # fenêtre mesurée : les zombies rejoignent le singe sans poursuivre le joueur
 	await at.screenshot("monkey_lure")
 	var near := 0
 	var lured := 0
@@ -201,7 +201,7 @@ func run() -> void:
 	at.check(closest_to_player > 3.0, "aucun zombie ne poursuit le joueur (plus proche %.1f m)" % closest_to_player)
 	var pts2 := pd.points
 	var mboom := await wait_boom(4, ThrowableRules.MONKEY_TIME + 1.0)
-	await seconds(0.06)
+	await seconds(0.06)  # capture
 	await at.screenshot("monkey_explosion")
 	var mdead := 0
 	for z: Zombie in runners:
@@ -209,12 +209,16 @@ func run() -> void:
 			mdead += 1
 	at.check(mboom and booms[3][0] == ThrowableRules.Kind.MONKEY and mdead >= near, "explosion du singe : %d zombies tués" % mdead)
 	at.check(pd.points - pts2 == mdead * PointsRules.SPLASH_KILL, "points des kills du singe (+%d)" % (pd.points - pts2))
-	await seconds(0.5)
 	# Après la musique, les zombies restants reviennent vers les joueurs.
+	await until(func():
+		for z in runners:
+			if is_instance_valid(z) and z.is_alive() and z.lured:
+				return false
+		return true, 2.0, "zombies libérés du singe")
 	for z: Zombie in runners:
 		if z.is_alive():
 			at.check(not z.lured, "zombie survivant de nouveau sur les joueurs")
 	game.powerups.apply(PowerupRules.MAX_AMMO, 1, p.global_position)
-	await seconds(0.2)
+	await until(func(): return pd.monkeys == 3, 2.0, "singes rendus par munitions max")
 	at.check(pd.monkeys == 3, "munitions max : singes rendus (%d)" % pd.monkeys)
 	await H.clear_zombies(self)

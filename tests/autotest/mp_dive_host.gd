@@ -27,6 +27,8 @@ func run() -> void:
 	var ok: bool = await until(func(): return client.global_position.distance_to(spot) < 0.6, 20.0, "client en position")
 	if not ok:
 		return
+	# Le client ne s'élance qu'une fois vu à son point de départ.
+	MpHelpers.signal_peer("depart_vu")
 	ok = await until(func(): return client.net_flags() & Player.FLAG_DIVE != 0, 20.0, "plongeon du client vu")
 	at.check(ok and client.diving, "l'hôte voit le client plonger")
 	await seconds(0.12)
@@ -35,14 +37,16 @@ func run() -> void:
 	at.check(ok and client.prone, "l'hôte voit le client à plat ventre")
 	# Attente bornée plutôt qu'un instant fixe : l'affichage du client (délai
 	# d'interpolation en temps réel) décale la pose en temps de jeu accéléré.
-	ok = await until(func(): return client.visual._prone_k > 0.8, 1.0, "soldat allongé")
-	at.check(ok, "soldat du client allongé (%.2f)" % client.visual._prone_k)
+	await until(func(): return client.visual._prone_k > 0.8, 3.0, "soldat du client allongé")
+	at.check(client.visual._prone_k > 0.8, "soldat du client allongé (%.2f)" % client.visual._prone_k)
 	await at.screenshot("client_prone")
 	at.check(landings.size() == 1 and landings[0][0] == client_id, "serveur : player_dived_landed du client (%d)" % landings.size())
 	if not landings.is_empty():
-		at.check(landings[0][1].distance_to(client.global_position) < 1.5, "position d'atterrissage cohérente")
+		at.check(landings[0][1].distance_to(client.global_position) < 1.5, "position d'atterrissage cohérente (%s / client %s)" % [landings[0][1], client.global_position])
+	# Le client reste allongé jusqu'ici, puis se relève.
+	MpHelpers.signal_peer("allonge_vu")
 	ok = await until(func(): return client.net_flags() & Player.FLAG_PRONE == 0, 6.0, "client relevé")
-	await seconds(0.8)
+	await until(func(): return client.visual._prone_k < 0.2, 3.0, "soldat du client debout")
 	at.check(ok and client.visual._prone_k < 0.2, "le client se relève (%.2f)" % client.visual._prone_k)
 	await at.screenshot("client_up")
-	await seconds(3.0)
+	await MpHelpers.finish(self)

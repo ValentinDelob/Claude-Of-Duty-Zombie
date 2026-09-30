@@ -35,7 +35,9 @@ func run() -> void:
 		await frames(3)
 	at.check(menu.current_name == "join", "RETOUR ramène à l'écran REJOINDRE")
 
-	# Bon port.
+	# Bon port (l'hôte écoute).
+	if not await MpHelpers.wait_peer(self, "ecoute", 40.0):
+		return
 	js = menu.current
 	js._ip.text = "127.0.0.1"
 	js._port.text = str(PORT)
@@ -46,6 +48,7 @@ func run() -> void:
 		return
 	at.check(GameState.state == GameState.State.LOBBY, "connecté : salon, état LOBBY")
 	at.check(Settings.last_ip == "127.0.0.1" and Settings.last_port == PORT, "adresse mémorisée")
+	MpHelpers.signal_peer("salon_vu")
 
 	# L'hôte ferme : message de déconnexion.
 	ok = await until(func(): return menu.current_name == "message", 15.0, "déconnexion détectée")
@@ -53,3 +56,4 @@ func run() -> void:
 		var t2: String = menu.current.get_child(0).get_child(0).text
 		at.check(t2 == "DÉCONNECTÉ", "message : %s" % t2)
 		await at.screenshot("disconnected")
+	await MpHelpers.finish(self)

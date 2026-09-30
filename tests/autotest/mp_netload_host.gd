@@ -33,16 +33,17 @@ func run() -> void:
 	for pid in game.players:
 		if pid != 1:
 			client_id = pid
-	await seconds(2.0)
+	var client: Player = game.players[client_id]
+	await until(func(): return client.global_position.distance_to(MapData.cell_to_world(Vector2i(3, 14))) < 1.0, 15.0, "client en position")
 	# Arme automatique pour le client (tirs soutenus), munitions illimitées.
 	var cpd := game.session.get_data(client_id)
 	cpd.weapons = [WeaponDB.new_instance("mp40")]
 	cpd.slot = 0
 	game.session.sync_inventory(client_id)
 	p.teleport_to(MapData.cell_to_world(Vector2i(2, 3), 0.05), -PI * 0.5)
-	await seconds(0.5)
 	_top_up()
-	await seconds(Zombie.EMERGE_TIME + 1.0)
+	await until(func(): return game.zombies.alive.all(func(z): return z.state != Zombie.State.EMERGE), Zombie.EMERGE_TIME + 3.0, "horde sortie de terre")
+	await seconds(1.0)  # la horde se met en route avant la mesure
 	Net.sample_bandwidth()
 	_snap_bytes = game.zombies.snapshot_bytes
 	var t := 0.0
@@ -95,7 +96,7 @@ func run() -> void:
 	at.check(_idle.size() >= 4 and _firing.size() >= 6, "fenêtres de mesure : %d au repos, %d en tir" % [_idle.size(), _firing.size()])
 	at.check(firing > 0.0 and firing < BUDGET_KBPS, "flux descendant par client en tir : %.2f Ko/s < %.0f Ko/s" % [firing, BUDGET_KBPS])
 	at.check(idle > 0.0 and idle <= firing + 0.5, "repos (%.2f Ko/s) <= tirs (%.2f Ko/s)" % [idle, firing])
-	await seconds(4.0)
+	await MpHelpers.finish(self)
 
 
 ## Maintient ZOMBIES zombies vivants (apparitions réparties dans l'arène).

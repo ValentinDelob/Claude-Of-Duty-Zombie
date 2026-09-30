@@ -24,6 +24,12 @@ Historique et mesures de la refonte : `docs/TESTING_PLAN.md`.
   joueur (viser, tenir une touche) ; en temps simulé elle ne coûte presque rien.
 - **Indépendants de l'ordre** : chaque test part d'un état connu (réglages et
   dossier de combat propres au processus, remis à zéro à la fin).
+- **Aléatoire rejouable** : chaque scénario tourne avec une graine fixe
+  (hash de son nom, imprimée dans le journal : `[autotest] graine N`). Elle
+  fixe `seed()` et les `RandomNumberGenerator` du jeu (boîte, apparitions,
+  bonus, chiens…, graines à leur création par `Autotest._seed_rngs`).
+  `--seed=N` (ou `AUTOTEST_SEED=N`) rejoue un échec ou essaie un autre
+  tirage. Hors autotest, l'aléatoire du jeu n'est pas touché.
 - **Captures d'écran** : uniquement pour un ajout **en cours** (revue humaine) ;
   une fois la fonctionnalité publiée, la capture sort du check. Les
   vérifications logiques restent.
@@ -102,6 +108,27 @@ func run() -> void:
   Un scénario qui échoue en série est rejoué seul : s'il passe seul, le bilan
   le signale (état laissé par un scénario précédent).
 
+### Écrire un test multijoueur (N3)
+
+Deux scénarios, `mp_<nom>_host.gd` et `mp_<nom>_client.gd`, lancés ensemble
+par `tools/mp_test.sh <nom>` (sans délai entre les deux), à cadence fixe ×3.
+
+- Démarrage : `MpHelpers.host_game(self, PORT)` / `MpHelpers.join_game(self, PORT)`
+  (le client attend que l'hôte écoute, l'hôte que le client soit au salon).
+- **Jamais de délai fixe pour attendre l'autre jeu** : rendez-vous par
+  fichiers, `MpHelpers.signal_peer("etape")` d'un côté,
+  `await MpHelpers.wait_peer(self, "etape", délai)` de l'autre (dossier
+  `tests/_out/mp_sync/<nom>_<décalage>`, vidé par mp_test.sh).
+- Fin : `await MpHelpers.finish(self)` des deux côtés (aucun ne quitte, ni ne
+  coupe la connexion, pendant que l'autre vérifie encore).
+- Une action du client que le serveur valide avec la position qu'il connaît
+  (interaction, réparation…) : attendre que l'hôte **voie** le client en place
+  (il le signale) ; la marionnette est interpolée en temps réel, donc en
+  retard de ≈ 0,3 s de jeu à ×3.
+- Les effets de tir passent par un canal non fiable : ne pas compter sur un
+  nombre exact de paquets (voir mp_sync : l'hôte tire jusqu'à ce que le
+  client en ait vu 5).
+
 ### Annotations d'en-tête
 
 | Annotation | Effet |
@@ -112,7 +139,7 @@ func run() -> void:
 | `## @couvre <motifs>` | dépendances ajoutées à la main (ex. `scripts/game/perks/*`) |
 | `## @niveau perf` | hors check (`tools/perf.sh`) |
 | `## @seul` | jamais en série : un processus pour lui seul (à justifier dans le fichier) |
-| `## @temps-reel` | pas d'accélération (`--max-fps 60`) : le test mesure ou limite quelque chose par seconde réelle (débit réseau, transfert cadencé) ; pour un `mp_`, à mettre dans le script hôte |
+| `## @temps-reel` | pas d'accélération (`--max-fps 60`) : le test mesure ou limite quelque chose par seconde réelle (débit réseau, transfert cadencé) ; pour un `mp_`, à mettre dans le script hôte, avec la raison précise (aujourd'hui : audio_check, mp_custommap, mp_netload) |
 
 ## 3. Le check
 
@@ -146,7 +173,8 @@ sh tools/check.sh
 | `sh tools/check.sh --fast` | sans réseau ni multijoueur |
 | `sh tools/check.sh --no-retry` | pas de rejeu |
 | `SCENARIOS="perks traps" sh tools/check.sh` | ces scénarios, sans cache |
-| `MP="lobby" sh tools/check.sh` | ces tests multijoueur |
+| `MP="lobby" sh tools/check.sh` | ces tests multijoueur seulement (ni scénario ni test réseau), sans cache |
+| `SCENARIOS="boot" MP="lobby" sh tools/check.sh` | les deux listes ensemble |
 | `sh tools/perf.sh [scénarios]` | mesures de performance fiables, un jeu à la fois |
 
 `tools/ship.sh` lance `tools/commit.sh` avec `--full`, puis la release ;

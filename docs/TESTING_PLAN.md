@@ -329,22 +329,86 @@ Changements de tests (aucune vérification supprimée) :
 - Mesures de durée de jeu des scénarios : `GameClock.msec()` ; mesures de coût
   CPU : toujours `Time`.
 
-### 5.2 Reste à faire (phase 1)
+### 5.2 Attentes sur événement, graines, multijoueur accéléré (01/10/2026)
 
-- **Temps réel restant** (`@temps-reel`) : mp_barricades (réparation tenue),
-  mp_lobby (écran du salon) échouent à cadence ×4 à
-  chaque fois : chercher le minuteur en temps réel côté jeu et le passer sur
-  `GameClock`. audio_check (lecture des sons en temps réel), mp_custommap et
-  mp_netload (mesures par seconde réelle) resteront en temps réel.
-- **visual_look** (3 parties, ≈ 150 s en temps réel) : plus gros poste avec
+| Mesure | Avant | Après |
+|---|---|---|
+| Attentes fixes `seconds(…)` (tests/autotest) | 701 (593 s écrites) | **462 (280 s)**, dont ≈ 90 dans les scénarios d'armes et d'éditeur non traités ici |
+| Attentes sur condition `until(…)` | 270 | 446 |
+| Délais de synchronisation hôte / client | `sleep 1` (mp_test.sh) + 1,5 s (`join_game`) + longues attentes finales (3 à 8 s) | **aucun** : rendez-vous par fichiers (`MpHelpers.signal_peer / wait_peer / finish`) |
+| Multijoueur en temps réel (`@temps-reel`) | 7 paires | **3** : mp_custommap, mp_netload (mesures par seconde réelle), mp_dive (voir ci-dessous ; accéléré depuis, **2**) |
+| mp_barricades + mp_dive + mp_lobby + mp_grenades + mp_melee | 124 s (temps réel) | **43 s** (4 accélérées, mp_dive 18 → 9 s en temps réel) |
+| CPU cumulé, multijoueur | 294 s | **193 s** |
+| Tests instables | mp:crawlers au check « avant » (rampant 0,22 m en 2 s fixes), mp:sync (tirs perdus) | 0 sur les passages de vérification (chaque scénario modifié ≥ 3 fois) |
+| **Check complet** (`--full`, JOBS=3) | **376 s** | **517 s mesurés**, voir la note |
+
+Note sur la durée du check : le second check complet a été ordonnancé avec un
+`durations.txt` vidé par les checks ciblés précédents (défaut de check.sh
+corrigé depuis : un `SCENARIOS=…` ne réécrivait que ses propres tâches). Les
+12 tâches avec rendu (une à la fois, ≈ 300 s en tout, le chemin critique) sont
+donc parties en dernier au lieu d'en premier. Avec l'ordre normal, le check
+est borné par cette chaîne de rendu : ≈ 330 s + import, soit ≈ 370 s. Le gain
+réel de cette étape est côté multijoueur (−100 s de CPU) et fiabilité ; les
+séries sans rendu (152 s d'horloge cumulée avant comme après) coûtaient déjà
+peu en temps accéléré.
+
+Ce qui a été fait :
+1. **Rendez-vous hôte / client** : `tools/mp_test.sh` lance les deux jeux sans
+   délai ; le client attend l'annonce « ecoute » de l'hôte, l'hôte l'annonce
+   « salon » du client ; chaque étape où l'un attendait l'autre par une durée
+   est un `wait_peer` ; fin commune `MpHelpers.finish`.
+2. **Pourquoi les mp échouaient en accéléré** : ils attendaient l'autre jeu par
+   des durées de jeu (×3 plus courtes en temps réel), alors que la marionnette
+   distante est interpolée en temps réel (`Player.INTERP_DELAY` = 0,1 s réelle,
+   soit ≥ 0,3 s de jeu à ×3). Ex. mp_barricades : le client appuyait sur [F]
+   0,1 s réelle après sa téléportation, le serveur le voyait encore loin
+   (« trop loin ») ; maintenant il répare quand l'hôte l'a vu devant la fenêtre.
+   mp_lobby : le client rejoignait avant que l'hôte écoute.
+3. **mp_dive restait en temps réel** : `Combat.srv_dive_landed` borne la position
+   d'atterrissage annoncée par la position interpolée du client ; à ×3 le
+   serveur le voit encore au départ (≈ 5 m, > `MAX_ORIGIN_ERROR`) et garde
+   cette position (mesuré : client allongé en (8 ; 7,5), position gardée
+   (2,5 ; 7,5)). C'est ce que vivrait un joueur à forte latence : à traiter côté
+   jeu (valider contre le dernier état reçu, `_srv_ok_pos`, plutôt que la
+   position interpolée ; même remarque pour `srv_melee`, `srv_fire`,
+   `srv_throw`, `srv_interact`). **Corrigé depuis** : le serveur juge ces
+   origines par rapport à `Player.srv_origin()` (dernier état accepté,
+   docs/SECURITY.md règle 10) ; mp_dive tourne en accéléré (plus de
+   `@temps-reel`).
+4. **mp:sync** : les effets de tir passent par un canal non fiable ; sous
+   charge, jusqu'à 7 tirs sur 10 perdus (mesuré). L'hôte tire désormais (en
+   rechargeant) jusqu'à ce que le client en ait vu 5, et le client en exige 5
+   (au lieu de 4 sur 5).
+5. **Graine par scénario** (`Autotest._seed_scenario`, `_seed_rngs`) : hash du
+   nom, imprimée dans le journal, `--seed=N` pour rejouer ; `seed()` global et
+   chaque `RandomNumberGenerator` du jeu à sa création. Hors autotest : rien.
+6. **Attentes fixes → conditions** dans 46 scénarios solo et les 17 paires
+   multijoueur (achat fait, boisson
+   finie, zombie sorti de terre — `AutotestHelpers.emerged` —, mort, bonus
+   ramassé, invite affichée, transition de menu finie, navigation à jour…).
+   Gardées et commentées : gestes humains (touche tenue, élan, mise en joue),
+   durées mesurées, fenêtres « rien ne doit se passer », captures, fenêtres de
+   perf et temps de pose du rendu.
+
+Changements de vérifications (aucune supprimée) : mp_sync exige 5 tirs reçus
+(au lieu de 4) ; mp_grenades mesure l'arrivée des zombies au singe en moins de
+4 s de jeu (au lieu d'un instantané à 4 s) ; mp_crawlers vérifie que le rampant
+avance de 0,5 m (délai 6 s au lieu d'une fenêtre fixe de 2 s : la marionnette
+est interpolée en temps réel).
+
+### 5.3 Reste à faire (phase 1)
+
+- **Scénarios d'armes et d'éditeur** (weapon_aim, weapon_view, weapon_roster,
+  weapon_basic, scope, map_editor*, map_preview*) : attentes fixes pas
+  encore converties (travail en cours d'un autre chantier).
+- **visual_look** (3 parties, ≈ 120 s en temps réel) : plus gros poste avec
   rendu ; ses parties 1 et 2 sont sur Kino (à passer sur BUNKER K-7 ou à
-  réserver aux changements de Kino).
-- **Attentes fixes** : moins coûteuses en temps accéléré, mais toujours à
-  remplacer par des attentes sur condition quand elles attendent un événement
-  (surtout dans les tests multijoueur et ceux en temps réel).
+  réserver aux changements de Kino). Ses attentes restantes sont des temps de
+  pose du rendu et des fenêtres de mesure.
+- **Chaîne des tâches avec rendu** (`GUI_JOBS=1`, ≈ 300 s) : c'est maintenant
+  elle qui borne le check complet.
 - **Doublons** (§ 1.7) : fusion au cas par cas, avec la liste des vérifications
   déplacées.
-- **Aléatoire** : graine fixée par scénario (dispersion, boîte, apparitions).
 - `test_audio::test_loudness_of_every_sound` (18 s) : ne tourne plus que si
   les sons changent (sélection par impact) ; suffisant pour l'instant.
 

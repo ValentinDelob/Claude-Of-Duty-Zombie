@@ -36,7 +36,7 @@ func run() -> void:
 	# Langue anglaise (voix anglaises en cours de génération : seulement si le
 	# fichier tiré existe, sinon la réplique reste muette sans erreur).
 	Settings.language = "en"
-	await seconds(2.5)
+	await seconds(2.5)  # délai entre deux répliques (VoxSystem.GAP = 2,2 s), règle du jeu
 	heard.clear()
 	at.check(game.vox.srv_say(1, "round_start"), "réplique de début de manche")
 	await frames(3)

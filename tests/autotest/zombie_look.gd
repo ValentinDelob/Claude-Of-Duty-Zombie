@@ -34,7 +34,7 @@ func run() -> void:
 		var st: Array = STAGES[i]
 		if i > 0:
 			Router.back_to_menu()
-			await seconds(0.5)
+			await seconds(0.5)  # le menu lui-même est attendu par start_solo_game
 		p = await H.start_solo_game(self, st[0])
 		if p == null:
 			return
@@ -254,6 +254,8 @@ func _side_view() -> void:
 	_look(_stage + Vector3(0, 1.1, 5.0), _stage + Vector3(0, 0.9, 0))
 
 
+## Attentes fixes voulues : chaque capture montre une phase précise de
+## l'animation (temps écoulé depuis le début de l'état ou de la pose).
 func _animations() -> void:
 	_side_view()
 	var names := ["walk", "trot", "run", "sprint"]
@@ -376,7 +378,7 @@ func _perf_ab() -> void:
 	for z in zs:
 		new_meshes.append(z.mesh.mesh)
 		old_meshes.append(RigBuilder.build_mesh(_legacy_parts(z.variant)))
-	await seconds(1.0)
+	await seconds(1.0)  # chauffe avant mesure
 	# Coût CPU des poses (24 zombies, une image).
 	var ta := Time.get_ticks_usec()
 	for r in 50:
@@ -392,9 +394,9 @@ func _perf_ab() -> void:
 		for k in zs.size():
 			zs[k].mesh.mesh = old_meshes[k] if legacy else new_meshes[k]
 			zs[k].mesh.material_override = old_mat if legacy else ZombieModel.material()
-		await seconds(0.4)
+		await seconds(0.4)  # changement de modèle digéré avant mesure
 		at.begin_perf()
-		await seconds(2.5)
+		await seconds(2.5)  # fenêtre de mesure
 		at.end_perf("24 zombies de près (%s)" % ("ancien modèle" if legacy else "nouveau modèle"))
 		# Temps GPU (et non fps) : insensible à la charge CPU des autres jeux.
 		var f: float = 1000.0 / maxf(at.last_gpu_ms, 0.01)

@@ -17,7 +17,7 @@ var fwd: Vector3
 
 func stand() -> void:
 	p.teleport_to(origin, atan2(-fwd.x, -fwd.z))
-	await seconds(0.25)
+	await seconds(0.25)  # le joueur se pose après la téléportation
 
 
 func ahead(d: float, side := 0.0) -> Vector3:
@@ -29,19 +29,19 @@ func ahead(d: float, side := 0.0) -> Vector3:
 func drop_and_grab(type: String, shot := "") -> bool:
 	await stand()
 	var id := pw.debug_drop(type, ahead(3.0))
-	await seconds(0.5)
+	await until(func(): return pw.nodes.has(id), 2.0, "%s : bonus au sol chez le client" % type)
 	var node: PowerupDrop = pw.nodes.get(id)
 	at.check(node != null and node.type == type, "%s : bonus au sol chez le client" % type)
 	if shot != "" and node:
 		H.aim_at(p, node.global_position + Vector3.UP * 0.8)
-		await seconds(0.3)
+		await seconds(0.3)  # capture : la vue se pose
 		# Modèle tourné de face (il pivote en continu).
 		var to_cam := p.global_position - node.global_position
 		node._model.rotation.y = atan2(to_cam.x, to_cam.z) - 0.35
 		await at.screenshot(shot)
 	at.check(pw._drops.has(id), "%s : pas ramassé à 3 m" % type)
 	p.teleport_to(ahead(3.0) + Vector3.UP * 0.05)
-	await seconds(0.3)
+	await until(func(): return not pw._drops.has(id) and not pw.nodes.has(id), 2.0, "%s ramassé" % type)
 	var ok := not pw._drops.has(id) and not pw.nodes.has(id)
 	at.check(ok, "%s : ramassé en marchant dessus" % type)
 	return ok
@@ -51,7 +51,7 @@ func refill_pistol() -> void:
 	var w: Dictionary = pd.current_weapon()
 	w.mag = WeaponDB.stats(w.id, w.pap).mag
 	game.session.sync_inventory(1)
-	await seconds(0.3)
+	await until(func(): return int(p.weapons.current().get("mag", -1)) == int(w.mag), 2.0, "chargeur plein chez le client")
 
 
 func run() -> void:
@@ -87,14 +87,14 @@ func run() -> void:
 	var zpos := z.global_position
 	H.aim_at(p, zpos + Vector3.UP * 0.9)
 	await H.shoot(self, p, 0.3)
-	await seconds(0.3)
+	await until(func(): return pw.drop_count() == 1 and pw.nodes.size() == 1, 2.0, "bonus tombé au kill suivant")
 	at.check(pw.drop_count() == 1 and pw.nodes.size() == 1, "le kill suivant fait tomber un bonus")
 	var first_id: int = pw._drops.keys()[0] if pw.drop_count() > 0 else -1
 	if first_id > 0:
 		var dpos: Vector3 = pw._drops[first_id].pos
 		at.check(Vector2(dpos.x - zpos.x, dpos.z - zpos.z).length() < 0.5, "bonus sur le cadavre du zombie")
 		at.check(pw._drops[first_id].type in PowerupRules.ALL, "type tiré du sac : %s" % pw._drops[first_id].type)
-	await seconds(1.0)
+	await seconds(1.0)  # capture
 	await at.screenshot("kill_drop")
 	pw.debug_clear()
 	await H.clear_zombies(self)
@@ -103,14 +103,15 @@ func run() -> void:
 	for w in pd.weapons:
 		w.reserve = 0
 	game.session.sync_inventory(1)
-	await seconds(0.2)
+	await until(func(): return int(p.weapons.current().get("reserve", -1)) == 0, 2.0, "réserve vidée chez le client")
 	if await drop_and_grab(PowerupRules.MAX_AMMO, "ground_max_ammo"):
 		var full := true
 		for w in pd.weapons:
 			full = full and w.reserve == WeaponDB.stats(w.id, w.pap).reserve
 		at.check(full, "munitions max : réserve pleine (%d)" % pd.current_weapon().reserve)
+		await until(func(): return p.weapons.current().get("reserve", -1) == pd.current_weapon().reserve, 2.0, "réserve pleine chez le client")
 		at.check(p.weapons.current().reserve == pd.current_weapon().reserve, "munitions max : arme du client synchronisée")
-		await seconds(0.4)
+		await seconds(0.4)  # capture : annonce à l'écran
 		await at.screenshot("announce_max_ammo")
 
 	# ---------------------------------------------- mort instantanée
@@ -132,7 +133,7 @@ func run() -> void:
 	if await drop_and_grab(PowerupRules.DOUBLE_POINTS, "ground_double_points"):
 		at.check(game.points.multiplier == 2, "points doubles : multiplicateur x2")
 		await stand()
-		await seconds(0.8)
+		await until(func(): return game.hud.powerup_hud.shown_icons().size() == 2, 2.0, "icônes des bonus au HUD")
 		at.check(game.hud.powerup_hud.shown_icons().size() == 2, "HUD : icônes mort instantanée + points doubles")
 		await at.screenshot("hud_icons")
 		# Mort instantanée coupée pour tester un coup non mortel.
@@ -155,7 +156,7 @@ func run() -> void:
 		await drop_and_grab(PowerupRules.DOUBLE_POINTS)
 		at.check(pw.timers.get(PowerupRules.DOUBLE_POINTS, 0.0) > 29.0, "nouveau ramassage : minuteur remis à 30 s")
 		pw.timers[PowerupRules.DOUBLE_POINTS] = 0.3
-		await seconds(0.6)
+		await until(func(): return not pw.is_active(PowerupRules.DOUBLE_POINTS) and game.points.multiplier == 1, 2.0, "fin des points doubles")
 		at.check(not pw.is_active(PowerupRules.DOUBLE_POINTS) and game.points.multiplier == 1, "fin des points doubles : x1")
 
 	# ---------------------------------------------- nuke
@@ -169,9 +170,13 @@ func run() -> void:
 	pw.tracker.drop_pending = true
 	if await drop_and_grab(PowerupRules.NUKE, "ground_nuke"):
 		H.aim_at(p, ahead(10.0) + Vector3.UP)
-		await seconds(0.15)
+		await seconds(0.15)  # capture : éclair de la nuke
 		await at.screenshot("nuke_flash")
-		await seconds(2.2)
+		await until(func():
+			for zz in zs:
+				if is_instance_valid(zz) and zz.is_alive():
+					return false
+			return true, 4.0, "zombies tués par la nuke")
 		var alive := 0
 		for zz: Zombie in zs:
 			if is_instance_valid(zz) and zz.is_alive():
@@ -206,15 +211,15 @@ func run() -> void:
 		at.check(pw._fire_sale_music != null and pw._fire_sale_music.playing, "liquidation : musique spéciale")
 		p.teleport_to(origin)
 		H.aim_at(p, box.global_position + Vector3.UP * 0.8)
-		await seconds(0.4)
+		await until(func(): return game.hud._prompt.text.contains("[10]"), 2.0, "invite de la boîte à 10 points")
 		at.check(game.hud._prompt.text.contains("[10]"), "invite : %s" % game.hud._prompt.text)
 		await at.screenshot("fire_sale_prompt")
 		var before_f := pd.points
 		p.input.interact_pressed = true
-		await seconds(0.3)
+		await until(func(): return box.state == MysteryBox.State.ROLLING and before_f - pd.points == 10, 2.0, "achat de la boîte")
 		at.check(box.state == MysteryBox.State.ROLLING and before_f - pd.points == 10, "achat de la boîte pour 10 points")
 		pw.timers[PowerupRules.FIRE_SALE] = 0.3
-		await seconds(0.6)
+		await until(func(): return not box.fire_sale and box.cost() == MysteryBox.COST and pw._fire_sale_music == null and box.fire_sale_boxes.is_empty(), 2.0, "fin de la liquidation")
 		at.check(not box.fire_sale and box.cost() == MysteryBox.COST and pw._fire_sale_music == null, "fin de la liquidation : 950 points")
 		at.check(box.fire_sale_boxes.is_empty(), "fin de la liquidation : boîtes temporaires retirées")
 		await until(func(): return box.state == MysteryBox.State.READY, 6.0, "arme prête")
@@ -232,11 +237,11 @@ func run() -> void:
 		at.check(absf(pw.death_machine.get(1, 0.0) - 30.0) < 0.8, "faucheuse : 30 s (%.1f)" % pw.death_machine.get(1, 0.0))
 		at.check(PowerupRules.DEATH_MACHINE in game.hud.powerup_hud.shown_icons(), "HUD : icône de la faucheuse")
 		await stand()
-		await seconds(WeaponController.SWITCH_TIME + 0.2)
+		await seconds(WeaponController.SWITCH_TIME + 0.2)  # capture : minigun sorti
 		await at.screenshot("death_machine_hud")
 		# Pas de changement d'arme pendant le bonus.
 		p.input.switch_weapon = true
-		await seconds(0.3)
+		await seconds(0.3)  # touche tenue
 		p.input.switch_weapon = false
 		at.check(p.weapons.current().get("id", "") == dm, "faucheuse : pas de changement d'arme")
 		# Dégâts énormes : un zombie de manche 15 (~2600 PV) fauché en une rafale.
@@ -248,7 +253,7 @@ func run() -> void:
 			if dz.is_alive():
 				H.aim_at(p, dz.hit_body.global_position)
 			return not dz.is_alive(), 4.0, "zombie fauché")
-		await seconds(0.1)
+		await seconds(0.1)  # capture
 		await at.screenshot("death_machine_fire")
 		p.input.fire = false
 		var fired := mag0 - int(pd.current_weapon().mag)
@@ -257,12 +262,12 @@ func run() -> void:
 		# Arme de bonus : ni boîte, ni armes au mur.
 		p.teleport_to(origin)
 		H.aim_at(p, box.global_position + Vector3.UP * 0.8)
-		await seconds(0.4)
+		await seconds(0.4)  # fenêtre fixe : on vérifie qu'aucune invite n'apparaît
 		at.check(not game.hud._prompt.text.contains("Boîte"), "faucheuse : boîte mystère indisponible (%s)" % game.hud._prompt.text)
 		await H.clear_zombies(self)
 		# Fin du bonus : l'arme d'avant revient.
 		pw.death_machine[1] = 0.3
-		await seconds(0.7)
+		await until(func(): return not pw.has_death_machine(1) and pd.powerup_weapon.is_empty() and pd.current_weapon().id == prev_id, 2.0, "fin de la faucheuse")
 		at.check(not pw.has_death_machine(1) and pd.powerup_weapon.is_empty() and pd.current_weapon().id == prev_id, "fin de la faucheuse : %s rendue" % pd.current_weapon().id)
 		await until(func(): return p.weapons.current().get("id", "") == prev_id, 2.0, "arme rendue au client")
 		at.check(p.weapons.current().get("id", "") == prev_id and not PowerupRules.DEATH_MACHINE in game.hud.powerup_hud.shown_icons(), "fin de la faucheuse chez le client")
@@ -270,7 +275,7 @@ func run() -> void:
 	# ---------------------------------------------- fin de vie au sol
 	await stand()
 	var eid := pw.debug_drop(PowerupRules.MAX_AMMO, ahead(4.0))
-	await seconds(0.3)
+	await until(func(): return pw.nodes.has(eid), 2.0, "bonus au sol chez le client")
 	pw._drops[eid].age = 22.0
 	var enode: PowerupDrop = pw.nodes[eid]
 	enode.age = 22.0

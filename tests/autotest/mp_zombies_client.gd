@@ -18,7 +18,9 @@ func run() -> void:
 	if not ok:
 		return
 	at.check(not game.zombies.alive[0].server_side, "zombies = marionnettes côté client")
-	await seconds(Zombie.EMERGE_TIME + 0.6)
+	var targets: Array = game.zombies.alive.duplicate()
+	await until(func(): return targets.all(func(z): return z.state != Zombie.State.EMERGE), Zombie.EMERGE_TIME + 3.0, "zombies sortis de terre")
+	await seconds(0.3)  # fin du redressement (animation)
 	await at.screenshot("zombies")
 	var t := 0.0
 	# Seulement les 3 cibles : le 4e zombie (envoyé ensuite par l'hôte) doit
@@ -28,13 +30,14 @@ func run() -> void:
 		AutotestHelpers.aim_at(p, z.head_position())
 		await AutotestHelpers.shoot(self, p, 0.2)
 		if p.weapons.current().mag == 0:
-			await seconds(1.8)
+			# Rechargement automatique.
+			await until(func(): return p.weapons.current().mag > 0, 4.0, "rechargement")
 		t += 0.25
+	await until(func(): return pd.kills == 3 and pd.points > 500, 3.0, "kills et points reçus du serveur")
 	at.check(pd.kills == 3, "zombies abattus côté client")
-	await seconds(0.5)
 	at.check(pd.points > 500 and pd.kills == 3, "points reçus du serveur : %d (tués %d)" % [pd.points, pd.kills])
+	MpHelpers.signal_peer("points_vus")
 	ok = await until(func(): return pd.health < pd.max_health, 20.0, "coup reçu")
 	at.check(ok, "santé répliquée après un coup de zombie (%d PV)" % pd.health)
-	await seconds(0.3)
 	await at.screenshot("hurt")
-	await seconds(4.0)
+	await MpHelpers.finish(self)

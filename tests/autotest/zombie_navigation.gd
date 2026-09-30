@@ -39,9 +39,9 @@ func run() -> void:
 	var spots := [Vector2i(1, 1), Vector2i(24, 1), Vector2i(1, 14), Vector2i(24, 14), Vector2i(12, 3), Vector2i(20, 8), Vector2i(5, 10)]
 	for i in 14:
 		game.zombies.spawn(MapData.cell_to_world(spots[i % spots.size()]) + Vector3(randf_range(-0.3, 0.3), 0, randf_range(-0.3, 0.3)), i % 4, 150)
-	await seconds(4.0)
+	await seconds(4.0)  # temps de trajet de la foule (compté dans le délai)
 	at.begin_perf()
-	await seconds(12.0)
+	await seconds(12.0)  # fenêtre de mesure et de trajet
 	at.end_perf("14 zombies en navigation")
 	var near := 0
 	for z: Zombie in game.zombies.alive:

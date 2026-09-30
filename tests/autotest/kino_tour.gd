@@ -101,7 +101,7 @@ func _doors_and_navigation() -> void:
 	var door1: Door = game.doors["1"]
 	p.teleport_to(door1.global_position + Vector3(2.2, 0.1, 0), PI * 0.5)
 	p.input.move = Vector2(0, 1)
-	await seconds(1.5)
+	await seconds(1.5)  # on marche contre la porte pendant une durée fixe
 	p.input.move = Vector2.ZERO
 	at.check(p.global_position.x > door1.global_position.x + 0.5, "la porte fermée bloque le joueur (x=%.2f, porte %.2f)" % [p.global_position.x, door1.global_position.x])
 
@@ -129,12 +129,9 @@ func _doors_and_navigation() -> void:
 			d.srv_open()
 	(game.interact.get_obj("power") as PowerSwitch).srv_use(1)
 	await until(func(): return game.power_on and game.doors.rideau.is_open and game.doors.courant_hall.is_open, 4.0, "courant : rideau et couloir ouverts")
-	await seconds(0.5)
-	var unreachable := []
-	for list in [l.wall_buys(), l.perks(), l.box_spots()]:
-		for mk: MapMarker in list:
-			if nav.find_path(start, mk.pos).is_empty():
-				unreachable.append("%s (%s)" % [mk.id, mk.zone])
+	# Navigation mise à jour après l'ouverture des portes.
+	await until(func(): return _unreachable(start).is_empty(), 3.0, "tout accessible après l'ouverture des portes")
+	var unreachable := _unreachable(start)
 	at.check(unreachable.is_empty(), "tout est accessible à pied depuis le hall (inaccessibles : %s)" % str(unreachable))
 	var pap := l.pack_a_punch()
 	at.check(nav.find_path(start, pap.pos).is_empty(), "salle de projection : seulement par le téléporteur")
@@ -150,12 +147,22 @@ func _doors_and_navigation() -> void:
 	for v in VIEWS:
 		p.teleport_to(v[1], v[2])
 		p.pitch = v[3]
-		await seconds(0.8)
+		await seconds(0.8)  # rendu posé avant la mesure
 		at.begin_perf()
-		await seconds(0.8)
+		await seconds(0.8)  # fenêtre de mesure des images par seconde
 		worst = minf(worst, at.end_perf(v[0]))
 		await at.screenshot(v[0])
 	at.check_perf(worst, 150.0, "pire vue de KINO")
+
+
+## Objets de la carte (achats muraux, atouts, boîte) inaccessibles à pied depuis `from`.
+func _unreachable(from: Vector3) -> Array:
+	var unreachable := []
+	for list in [l.wall_buys(), l.perks(), l.box_spots()]:
+		for mk: MapMarker in list:
+			if game.nav.find_path(from, mk.pos).is_empty():
+				unreachable.append("%s (%s)" % [mk.id, mk.zone])
+	return unreachable
 
 
 func _trap_and_dogs() -> void:
@@ -193,7 +200,7 @@ func _dog_round() -> void:
 	dogs.debug_force_next(5)
 	game.rounds.paused = false
 	game.rounds.debug_jump_to(5)
-	await seconds(0.3)
+	await until(func(): return dogs.active, 3.0, "début de la manche de chiens")
 	at.check(dogs.active, "manche 5 : manche de chiens sur KINO")
 	var ok: bool = await until(func(): return dists.size() >= 2, 20.0, "chiens apparus")
 	if not ok:

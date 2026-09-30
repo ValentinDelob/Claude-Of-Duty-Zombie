@@ -12,16 +12,16 @@ func run() -> void:
 	game.rounds.paused = true
 	var z := await H.dummy_zombie(self, p.global_position + Vector3(0, 0, -8))
 	z.speed_mult = 1.0
-	await seconds(0.3)
+	await seconds(0.3)  # le zombie se met en marche avant la pause
 	game.hud.pause_menu.open()
 	await frames(2)
 	at.check(tree().paused and game.hud.pause_menu.visible, "pause : partie suspendue en solo")
 	var zpos := z.global_position
-	await seconds(1.0)
+	await seconds(1.0)  # rien ne doit bouger : fenêtre d'observation fixe
 	at.check(z.global_position.distance_to(zpos) < 0.01, "les zombies sont figés pendant la pause")
 	await at.screenshot("pause")
 	game.hud.pause_menu.close()
-	await seconds(0.5)
+	await until(func(): return not tree().paused and is_instance_valid(z) and z.global_position.distance_to(zpos) > 0.2, 3.0, "zombie reparti après la pause")
 	at.check(not tree().paused and z.global_position.distance_to(zpos) > 0.2, "reprise : les zombies repartent")
 	# Tableau des scores.
 	Input.action_press("scoreboard")

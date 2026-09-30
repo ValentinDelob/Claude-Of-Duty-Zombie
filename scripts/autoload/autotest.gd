@@ -32,6 +32,10 @@ var _frame_ms_max := 0.0
 var _sampling := false
 var _failed := false
 var _t_pre := 0
+## Graine de l'aléatoire du scénario en cours (voir _seed_scenario).
+var rng_seed := 0
+## Générateurs déjà graines, par « script:variable » (compteur d'instances).
+var _rng_counts := {}
 
 
 func _ready() -> void:
@@ -53,6 +57,9 @@ func _ready() -> void:
 	if DisplayServer.get_name() != "headless":
 		_move_offscreen()
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# Aléatoire reproductible : chaque générateur du jeu reçoit une graine
+	# dérivée de celle du scénario (_seed_rngs), jamais hors test.
+	get_tree().node_added.connect(_on_node_added)
 	# Chien de garde global (au cas où le scénario lui-même planterait), en
 	# temps RÉEL : avec --fixed-fps le temps de jeu va bien plus vite que
 	# l'horloge, un minuteur de l'arbre expirerait trop tôt.
@@ -78,6 +85,7 @@ func _run() -> void:
 		if i > 0:
 			await _reset_between()
 		print("[autotest] scénario « %s »" % scenario_name)
+		_seed_scenario()
 		var t0 := Time.get_ticks_msec()
 		await _run_one()
 		print("[autotest] résultat « %s » : %s (%.1f s)" % [scenario_name, "ECHEC" if _failed else "SUCCES", (Time.get_ticks_msec() - t0) / 1000.0])
@@ -120,6 +128,55 @@ func _run_one() -> void:
 	await sc.run()
 	watchdog.stop()
 	watchdog.queue_free()
+
+
+## Graine fixe par scénario (hash de son nom) : un échec se rejoue à
+## l'identique. `--seed=N` (ou AUTOTEST_SEED=N) impose une autre graine, pour
+## rejouer un échec ou essayer d'autres tirages. Fixe la graine globale
+## (randf, randi, shuffle…) ; les RandomNumberGenerator du jeu (boîte,
+## apparitions, bonus, chiens…) reçoivent la leur à leur création
+## (_on_node_added). Hors autotest, rien n'est touché.
+func _seed_scenario() -> void:
+	rng_seed = absi(hash(scenario_name))
+	var forced := OS.get_environment("AUTOTEST_SEED")
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--seed="):
+			forced = a.substr(7)
+	if forced.is_valid_int():
+		rng_seed = forced.to_int()
+	seed(rng_seed)
+	_rng_counts.clear()
+	print("[autotest] graine %d (rejouer : --seed=%d)" % [rng_seed, rng_seed])
+
+
+func _on_node_added(n: Node) -> void:
+	if n.get_script() != null:
+		# Après le _ready du nœud (qui appelle souvent randomize()).
+		_seed_rngs.call_deferred(n, "")
+
+
+## Donne une graine déterminée (graine du scénario, script, variable, rang de
+## création) à chaque RandomNumberGenerator d'un objet du jeu, et à ceux des
+## objets qu'il contient directement (générateur d'apparitions, sac des bonus :
+## `parent` = clé de l'objet qui les contient).
+func _seed_rngs(o: Object, parent: String) -> void:
+	if not is_instance_valid(o):
+		return
+	var scr: Script = o.get_script()
+	if scr == null or scr.resource_path.begins_with("res://tests/"):
+		return
+	var base := parent if scr.resource_path == "" else scr.resource_path
+	for prop in scr.get_script_property_list():
+		if not (prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE):
+			continue
+		var v: Variant = o.get(prop.name)
+		var key := "%s:%s" % [base, prop.name]
+		if v is RandomNumberGenerator:
+			var k: int = _rng_counts.get(key, 0)
+			_rng_counts[key] = k + 1
+			(v as RandomNumberGenerator).seed = hash("%d:%s:%d" % [rng_seed, key, k])
+		elif parent == "" and v is RefCounted and not (v is Resource):
+			_seed_rngs(v, key)
 
 
 ## Entre deux scénarios d'une série : session quittée, retour au menu, état

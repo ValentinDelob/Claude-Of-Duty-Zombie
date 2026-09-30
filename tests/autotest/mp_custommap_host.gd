@@ -51,6 +51,7 @@ func run() -> void:
 	await frames(3)
 	menu.current._port.text = str(PORT)
 	menu.current._name.text = "Hote"
+	MpHelpers._clear_sync()
 	menu.current._create()
 	await frames(3)
 	var lobby = menu.current
@@ -64,6 +65,8 @@ func run() -> void:
 	at.check(Net.lobby_map == EditorMapDef.SHARED_PREFIX + sha and CustomMapGuard.is_cached(sha), "carte annoncée « partage:%s », dans le cache de l'hôte" % sha.substr(0, 12))
 	at.check(share.offer.chunks >= 3, "carte en %d morceaux" % share.offer.chunks)
 	at.check(not lobby._start.disabled, "seul dans le salon : DÉMARRER possible")
+	# Carte choisie : l'invité peut arriver.
+	MpHelpers.signal_peer("ecoute")
 	# L'invité arrive : il reçoit la carte.
 	if not await until(func(): return Net.players.size() == 2, 30.0, "arrivée de l'invité"):
 		return
@@ -126,5 +129,5 @@ func run() -> void:
 	at.check(Game.instance.map_def.display_name in ["ARÈNE PERSO", "CUSTOM ARENA"], "nom : %s" % Game.instance.map_def.display_name)
 	at.check(GameState.state == GameState.State.PLAYING, "état PLAYING")
 	Game.instance.rounds.paused = true
-	await seconds(3.0)
 	await at.screenshot("ingame")
+	await MpHelpers.finish(self)

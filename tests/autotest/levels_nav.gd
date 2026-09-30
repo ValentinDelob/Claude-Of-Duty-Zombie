@@ -78,7 +78,7 @@ func run() -> void:
 	var door: Door = game.doors.get("1")
 	at.check(door != null and door.zones.size() == 2, "porte 1 entre deux zones")
 	door.srv_open()
-	await seconds(0.3)
+	await until(func(): return not nav.find_path(Vector3(15, 0, 16), Vector3(26, 0, 16)).is_empty(), 3.0, "chemin ouvert par la porte")
 	at.check(not nav.find_path(Vector3(15, 0, 16), Vector3(26, 0, 16)).is_empty(), "porte ouverte : chemin vers la salle est")
 	at.check(game.spawner.active_zones.has("c"), "salle est active après l'ouverture")
 	await reach_test(Vector3(26, 0, 16), Vector3(12, 0, 18), 20.0, "zombie passe la porte ouverte")
@@ -88,7 +88,7 @@ func run() -> void:
 	p.teleport_to(Vector3(26, 0.05, 13.5), 0.0)
 	await seconds(0.2)
 	p.input.move = Vector2(0, 1)
-	await seconds(1.5)
+	await seconds(1.5)  # on marche contre le distributeur pendant une durée fixe
 	p.input.move = Vector2.ZERO
 	at.check(p.global_position.z > 11.2, "le joueur ne traverse pas le distributeur (z = %.2f, face avant à 10,98)" % p.global_position.z)
 

@@ -27,7 +27,7 @@ func run() -> void:
 	at.check(labels.slice(0, 3) == ["REPRENDRE", "OPTIONS", "QUITTER LA PARTIE"], "entrées : %s" % ", ".join(labels))
 	at.check(_focused_label() == "REPRENDRE", "focus sur REPRENDRE (%s)" % _focused_label())
 	var zpos := z.global_position
-	await seconds(0.4)
+	await seconds(0.4)  # rien ne doit bouger : fenêtre d'observation fixe
 	at.check(z.global_position.distance_to(zpos) < 0.01, "zombies figés pendant la pause")
 
 	# OPTIONS : ↓ puis Entrée.
@@ -149,7 +149,7 @@ func run() -> void:
 	at.check(_focused_label() == "OPTIONS", "focus rendu à OPTIONS (%s)" % _focused_label())
 	await key(KEY_ESCAPE)
 	at.check(not pm.visible and not tree().paused, "Échap : reprise de la partie")
-	await seconds(0.5)
+	await until(func(): return is_instance_valid(z) and z.global_position.distance_to(zpos) > 0.2, 3.0, "zombie reparti après la pause")
 	at.check(z.global_position.distance_to(zpos) > 0.2, "les zombies repartent")
 	# Rouvert puis refermé par REPRENDRE : l'état « options » ne reste pas.
 	await key(KEY_ESCAPE)

@@ -21,12 +21,16 @@ func run() -> void:
 	if not ok:
 		return
 	var z: Zombie = game.zombies.alive[0]
+	MpHelpers.signal_peer("zombie_1")
 	ok = await until(func(): return z.is_crawler(), 15.0, "rampant reçu")
 	at.check(ok and (z.gibs & ZombieGibs.LEGS) != 0 and not z.server_side, "marionnette : rampant (masque %d)" % z.gibs)
 	at.check(gibs.active_count() >= 2, "jambes tombées chez le client (%d morceaux)" % gibs.active_count())
-	await seconds(1.2)
-	var hips := (z.skel.global_transform * z.skel.get_bone_global_pose(z.bones.hips)).origin
-	at.check(hips.y < 0.45 and z.hit_body.global_position.y < 0.45, "corps et hitbox au sol (bassin %.2f)" % hips.y)
+	var hips_y := func() -> float:
+		return (z.skel.global_transform * z.skel.get_bone_global_pose(z.bones.hips)).origin.y
+	# Le corps bascule au sol (animation de chute).
+	await until(func(): return hips_y.call() < 0.45 and z.hit_body.global_position.y < 0.45, 3.0, "corps au sol")
+	at.check(hips_y.call() < 0.45 and z.hit_body.global_position.y < 0.45, "corps et hitbox au sol (bassin %.2f)" % hips_y.call())
+	# Il se traîne vers le client (position interpolée : temps réel).
 	var x0 := z.global_position.x
 	# Attente bornée plutôt qu'une fenêtre fixe de 2 s : sous charge (check
 	# parallèle), les instantanés réseau arrivent en retard.
@@ -38,7 +42,7 @@ func run() -> void:
 	# Tir à la tête sur la marionnette couchée, en visée (en hanche, la
 	# dispersion de BO1 rend une tête couchée à cette distance aléatoire).
 	p.input.aim = true
-	await seconds(0.5)
+	await seconds(0.5)  # mise en joue
 	for i in 4:
 		if not z.is_alive():
 			break
@@ -53,8 +57,9 @@ func run() -> void:
 	if not ok:
 		return
 	var z2: Zombie = game.zombies.alive[0]
+	MpHelpers.signal_peer("zombie_2")
 	ok = await until(func(): return not z2.is_alive(), 10.0, "explosion mortelle")
 	await seconds(0.1)
 	await at.screenshot("death_gibs")
 	at.check(ok and z2.gibs != 0, "corps déchiqueté chez le client (masque %d)" % z2.gibs)
-	await seconds(2.0)
+	await MpHelpers.finish(self)

@@ -538,6 +538,26 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   jours, taille bornée, plantage -> rapport, fermeture normale -> rien,
   réglages des deux projets, `--log-file` dans tools/).
 
+## Déroulement d'une partie (`Game`, `MatchRules`, `SpectatorCamera`)
+
+- `Game` (`/root/Game`) : chargement, apparition des joueurs, RPC de mort, de
+  fin de partie et de réapparition. Les règles pures sont dans `MatchRules`
+  (`scripts/game/match_rules.gd`, statique, `tests/test_match_rules.gd`) :
+  fin de partie quand plus personne n'est debout (un joueur à terre qui va
+  se relever seul — LAZARUS en solo — la repousse), mort par saignement,
+  réapparition des morts au début de chaque manche (`RoundManager` ->
+  `Game.respawn_dead_players`), point d'apparition par place (modulo positif,
+  repli fixe sur une carte sans point d'apparition).
+- `SpectatorCamera` (`/root/Game/Spectator`, local, sans RPC) : joueur mort en
+  multijoueur, vue d'un coéquipier en vie ([Tir] : suivant), retour à sa
+  caméra à la réapparition. `Game.spectating` lit ce nœud.
+- Présentation : le HUD dessine la fin de partie (`Hud.show_game_over` :
+  « GAME OVER », résumé, manches survécues, tableau des scores) et le bandeau
+  de spectateur (`Hud.set_spectating`) ; `Game._cl_game_over` reçoit le
+  nombre de zombies tués, écrit les textes dans la langue du joueur
+  (`Game.game_over_summary`, `Game.survived_text`, via `Lang`) et garde
+  l'état, le dossier de combat et le retour au menu après `GAME_OVER_DELAY`.
+
 ## Tests
 
 - **Stratégie, niveaux, écriture des tests, couverture : `docs/TESTING.md`.**

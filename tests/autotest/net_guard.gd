@@ -32,7 +32,7 @@ func run() -> void:
 	var hp_behind := behind.health
 	game.combat.srv_fire.rpc_id(1, pd.slot, eye, Vector3(1, 0, 0), PackedVector3Array(),
 		[[behind.id, 0, 8.0, behind.global_position + Vector3.UP * 0.9]])
-	await seconds(1.0)
+	await seconds(1.0)  # rien ne doit arriver : on laisse le temps à une explosion éventuelle
 	at.check(behind.health == hp_behind, "explosion hors de la trajectoire refusée (PV %d -> %d)" % [hp_behind, behind.health])
 
 	# 2. Contrôle : la même roquette devant le tireur explose normalement.
@@ -42,7 +42,7 @@ func run() -> void:
 	pd.current_weapon().mag = 1  # M72 LAW : une roquette par chargeur
 	game.combat.srv_fire.rpc_id(1, pd.slot, eye, Vector3(1, 0, 0), PackedVector3Array(),
 		[[front.id, 0, 8.0, front.global_position + Vector3.UP * 0.9]])
-	await seconds(1.0)
+	await until(func(): return is_instance_valid(front) and front.health < hp_front, 3.0, "dégâts de la roquette")
 	at.check(front.health < hp_front, "roquette sur la trajectoire : dégâts (PV %d -> %d)" % [hp_front, front.health])
 	await H.clear_zombies(self)
 
@@ -54,7 +54,7 @@ func run() -> void:
 	game.combat.shot_rejected.connect(func(_pid, reason): rejected.append(reason))
 	game.combat.srv_fire.rpc_id(1, pd.slot, Vector3(NAN, 0, 0), Vector3(1, 0, 0), PackedVector3Array(), [])
 	game.combat.srv_fire.rpc_id(1, pd.slot, eye, Vector3(INF, 0, 0), PackedVector3Array(), [])
-	await seconds(0.2)
+	await until(func(): return rejected.size() >= 2, 2.0, "refus des deux tirs NaN / infini")
 	at.check(pd.current_weapon().mag == mag and rejected.size() == 2, "tirs NaN / infini refusés (%s)" % [rejected])
 
 	# 4. Fins de plongeon envoyées en rafale : une seule acceptée.
@@ -62,7 +62,7 @@ func run() -> void:
 	game.combat.player_dived_landed.connect(func(pid, _pos, _h): landings.append(pid))
 	for i in 6:
 		game.combat.srv_dive_landed.rpc_id(1, p.global_position, 12.0)
-	await seconds(0.2)
+	await seconds(0.2)  # on compte TOUS les plongeons acceptés : fenêtre fixe
 	at.check(landings.size() == 1, "plongeons en rafale : %d accepté(s) sur 6" % landings.size())
 
 	# 5. Réplique au nom-chemin (hôte malveillant) : ignorée.
