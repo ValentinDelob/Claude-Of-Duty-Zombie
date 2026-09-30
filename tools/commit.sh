@@ -29,18 +29,32 @@ else
   COUNT=$(git rev-list --count HEAD)
 fi
 NEXT_TAG="v$TARGET-snapshot.$(( COUNT + 1 ))"
+# Copie des notes avant de les ranger : si la vérification échoue, elles sont
+# remises telles quelles (le prochain essai les range sous le bon numéro).
+UNDO=tests/_out/notes_undo
+rm -rf "$UNDO"; mkdir -p "$UNDO"
+cp changelogs/changelogs.json "$UNDO/" 2>/dev/null
+[ -d changelogs/next ] && cp -r changelogs/next "$UNDO/next"
+HAD_IMG=0; [ -d "changelogs/img/$NEXT_TAG" ] && HAD_IMG=1
+undo_notes() {
+  cp "$UNDO/changelogs.json" changelogs/changelogs.json 2>/dev/null
+  [ -d "$UNDO/next" ] && { rm -rf changelogs/next; cp -r "$UNDO/next" changelogs/next; }
+  [ $HAD_IMG -eq 0 ] && rm -rf "changelogs/img/$NEXT_TAG"
+}
 mkdir -p tests/_out/logs   # journal Godot hors du dossier du joueur
-"$GODOT" --headless --log-file "$PWD/tests/_out/logs/changelog_merge.log" --path . -s res://tools/changelog_merge.gd -- "$NEXT_TAG" || { echo "== COMMIT ANNULÉ : notes de version invalides (changelogs/next/next.json)"; exit 1; }
+"$GODOT" --headless --log-file "$PWD/tests/_out/logs/changelog_merge.log" --path . -s res://tools/changelog_merge.gd -- "$NEXT_TAG" || { undo_notes; echo "== COMMIT ANNULÉ : notes de version invalides (changelogs/next/next.json)"; exit 1; }
 BEFORE=$(tree_state)
 bash tools/check.sh $CHECK_ARGS > tests/_out/check.log 2>&1
 RC=$?
 grep -E "^== |TESTS|host=|ECHEC|ERROR|AVERTISSEMENT|échoué" tests/_out/check.log
 if [ $RC -ne 0 ]; then
-  echo "== COMMIT ANNULÉ : la vérification a échoué"
+  undo_notes
+  echo "== COMMIT ANNULÉ : la vérification a échoué (notes de version remises dans changelogs/next)"
   exit 1
 fi
 AFTER=$(tree_state)
 if [ "$BEFORE" != "$AFTER" ]; then
+  undo_notes
   echo "== COMMIT ANNULÉ : des fichiers ont changé pendant la vérification :"
   echo "$BEFORE" > tests/_out/tree_before.txt
   echo "$AFTER" > tests/_out/tree_after.txt
