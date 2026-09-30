@@ -80,3 +80,7 @@ vm_fov_scale={
 "type": "float",
 "value": 1.0
 }
+vm_bend={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}

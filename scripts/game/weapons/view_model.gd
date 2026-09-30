@@ -22,6 +22,23 @@ const HIP_POS := Vector3(0.25, -0.294, -0.95)
 ## Hanche : canon légèrement relevé et tourné vers le réticule (on voit le
 ## dessus et le flanc gauche de l'arme, la crosse sort par le bas de l'écran).
 const HIP_ROT := Vector3(0.07, 0.06, 0.0)
+## « Joue » de visée (weapon.gdshader, `vm_bend`) : en visée, ce qui passe
+## plus près de l'œil que les organes de visée (arrière du boîtier, crosse,
+## tube) est abaissé progressivement, de 0 à BEND_DROP m entre la profondeur
+## du cran moins BEND_MARGIN et BEND_END m : la carcasse file vers le bas de
+## l'écran au lieu d'emplir l'image ou de traverser le plan proche de la
+## caméra (comme la joue posée sur la crosse). Le cran et le guidon, plus
+## loin, ne bougent pas : l'alignement de visée est intact.
+const BEND_DROP := 0.2
+const BEND_END := 0.04
+const BEND_MARGIN := 0.03
+## Mise en joue (brute) à partir de laquelle l'écran de lunette remplace
+## l'arme (WeaponController.scoped).
+const SCOPE_ADS := 0.92
+## Avancement de visée (lissé) à partir duquel la crosse ("rear") est masquée.
+const REAR_HIDE_AK := 0.75
+## Visée d'une arme sans organes de visée : décalage depuis la hanche.
+const NO_SIGHTS_ADS := Vector3(-0.06, 0.035, 0.05)
 const SPRINT_POS := Vector3(0.15, -0.3, -0.85)
 const SPRINT_ROT := Vector3(-0.3, 0.9, 0.3)
 
@@ -151,6 +168,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	fov_k = 1.0
 	RenderingServer.global_shader_parameter_set("vm_fov_scale", 1.0)
+	RenderingServer.global_shader_parameter_set("vm_bend", Vector3.ZERO)
 
 
 func set_weapon(id: String, is_pap: bool) -> void:
@@ -215,6 +233,51 @@ static func ads_pose(mid: String) -> Array:
 	var b := Basis(Vector3.RIGHT, pitch)
 	var eye := WeaponModels.anchor(mid, "ads").z
 	return [Vector3(0, 0, -eye) - b * sight, pitch]
+
+
+## Pose de repos de l'arme (repère de la caméra) pour un avancement de visée
+## lissé `ak` (0 : hanche, 1 : visée) : [position, tangage de visée (rad)].
+## Arme sans organes de visée (info "no_sights" : minigun) : en visée, elle
+## reste à la hanche, remontée et rapprochée du centre (DEATH MACHINE de BO1).
+static func rest_pose(mid: String, ak: float) -> Array:
+	var hip := HIP_POS + WeaponModels.anchor(mid, "hold")
+	if WeaponModels.info(mid, "no_sights", false):
+		return [hip.lerp(hip + NO_SIGHTS_ADS, ak), 0.0]
+	var aim_pose := ads_pose(mid)
+	return [hip.lerp(aim_pose[0], ak), float(aim_pose[1]) * ak]
+
+
+## Paramètres de la joue de visée (`vm_bend` du shader) pour le modèle `mid`
+## à l'avancement lissé `ak` : (début, fin (profondeurs, m), abaissement (m)).
+static func bend_params(mid: String, ak: float) -> Vector3:
+	if WeaponModels.info(mid, "no_sights", false):
+		return Vector3.ZERO
+	var start := WeaponModels.anchor(mid, "ads").z - BEND_MARGIN
+	if start <= BEND_END + 0.01:
+		return Vector3.ZERO
+	return Vector3(start, BEND_END, BEND_DROP * clampf(ak, 0.0, 1.0))
+
+
+## Groupe "rear" (crosse) affiché à l'avancement de visée lissé `ak`.
+static func rear_visible(mid: String, ak: float) -> bool:
+	return ak < REAR_HIDE_AK or WeaponModels.info(mid, "no_sights", false)
+
+
+## Point du repère de la caméra tel que le dessine weapon.gdshader (joue de
+## visée `b` = bend_params) : même formule que le shader.
+static func bend(p: Vector3, b: Vector3) -> Vector3:
+	if b.z <= 0.0:
+		return p
+	var s := clampf((b.x - (-p.z)) / maxf(b.x - b.y, 0.0001), 0.0, 1.0)
+	return Vector3(p.x, p.y - b.z * s * s, p.z)
+
+
+## Transformation du modèle au repos (sans balancement, recul, sprint ni
+## animation) pour l'avancement de visée lissé `ak` : ce que dessine update().
+static func rest_transform(mid: String, ak: float) -> Transform3D:
+	var base := rest_pose(mid, ak)
+	var rot := Vector3(float(base[1]), 0.0, 0.0) + (HIP_ROT + WeaponModels.anchor(mid, "hold_rot")) * hip_rot_k(mid, ak)
+	return Transform3D(Basis.from_euler(rot), base[0])
 
 
 ## Tir : recul du modèle (recul + montée du canon, ressorts), culasse qui
@@ -371,15 +434,15 @@ func update(delta: float, p: Player) -> void:
 	var bob_amp := (0.014 if not p.sprinting else 0.034) * (1.0 - ads * 0.85) * clampf(speed / 4.0, 0.0, 1.5)
 
 	# Visée : la ligne de mire se pose sur l'axe de la caméra (ads_pose).
-	var aim_pose := ads_pose(model_id)
 	var ak := ads * ads * (3.0 - 2.0 * ads)
-	var pos: Vector3 = (HIP_POS + WeaponModels.anchor(model_id, "hold")).lerp(aim_pose[0], ak)
+	var base := rest_pose(model_id, ak)
+	var pos: Vector3 = base[0]
 	pos = pos.lerp(SPRINT_POS, _sprint)
 	pos += Vector3(sin(_bob) * bob_amp, -absf(cos(_bob)) * bob_amp, 0.0)
 	pos += Vector3(_sway.x, _sway.y, 0.0) * (1.0 - ak * 0.7)
 	pos.z += _kick * _kick_back * (1.0 - ak * 0.4)
-	var rot := Vector3(float(aim_pose[1]) * ak + _kick_rot * _kick_climb * (1.0 - ak * 0.55), 0.0, _kick_roll * (1.0 - ak * 0.5))
-	rot += (HIP_ROT + WeaponModels.anchor(model_id, "hold_rot")) * (1.0 - ak) * (1.0 - _sprint)
+	var rot := Vector3(float(base[1]) + _kick_rot * _kick_climb * (1.0 - ak * 0.55), 0.0, _kick_roll * (1.0 - ak * 0.5))
+	rot += (HIP_ROT + WeaponModels.anchor(model_id, "hold_rot")) * hip_rot_k(model_id, ak) * (1.0 - _sprint)
 	rot += SPRINT_ROT * _sprint
 	rot += Vector3(sin(_bob * 2.0) * 0.03, cos(_bob) * 0.05, sin(_bob) * 0.06) * _sprint
 	rot.z += -_sway.x * 1.5 * (1.0 - ak)
@@ -494,9 +557,11 @@ func update(delta: float, p: Player) -> void:
 	model.rotation = rot
 	# Lunette : l'écran de lunette (HUD) remplace l'arme.
 	model.visible = not scoped
-	# Crosse sous la joue en visée : masquée pour ne pas boucher l'écran.
+	# Crosse sous la joue en visée : masquée pour ne pas boucher l'écran ;
+	# le reste de la carcasse proche de l'œil est abaissé (joue de visée).
 	if _groups.has("rear"):
-		_groups.rear.visible = ak < 0.75
+		_groups.rear.visible = rear_visible(model_id, ak)
+	RenderingServer.global_shader_parameter_set("vm_bend", bend_params(model_id, ak) if not scoped else Vector3.ZERO)
 	for g in _groups:
 		if g == "body" or g == "rear" or g == "Hands":
 			continue
@@ -655,6 +720,18 @@ func _reload_anim(t: float, g_off: Dictionary, g_rot: Dictionary, travel: float,
 			hand = h
 			hand_rot = Vector3(0.2, 0.0, 0.0) * _hump(t, 0.1, 0.2, 0.6, 0.7)
 	return [pos, rot, Transform3D(Basis.from_euler(hand_rot), hand)]
+
+
+## Écran de lunette (WeaponController, après update) : l'arme est masquée
+## dans la même image.
+func apply_scope(on: bool) -> void:
+	scoped = on
+	if model == null:
+		return
+	model.visible = not on
+	if on:
+		_flash_rig.visible = false
+		RenderingServer.global_shader_parameter_set("vm_bend", Vector3.ZERO)
 
 
 func is_busy() -> bool:
@@ -843,4 +920,13 @@ func is_drinking() -> bool:
 ## Champ de vision (vertical) courant de l'arme : de la hanche à la visée.
 func view_fov() -> float:
 	var ak := ads * ads * (3.0 - 2.0 * ads)
+	if model_id != "" and WeaponModels.info(model_id, "no_sights", false):
+		return VIEW_FOV
 	return lerpf(VIEW_FOV, VIEW_FOV_ADS, ak)
+
+
+## Poids de la rotation de hanche à l'avancement de visée lissé `ak` : elle
+## s'efface en visée, sauf pour une arme sans organes de visée (qui reste
+## tenue à la hanche).
+static func hip_rot_k(mid: String, ak: float) -> float:
+	return 1.0 if WeaponModels.info(mid, "no_sights", false) else 1.0 - ak
