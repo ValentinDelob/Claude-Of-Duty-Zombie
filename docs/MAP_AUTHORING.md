@@ -80,7 +80,9 @@ automatique non enregistrée, il propose de la reprendre.
 | Fermer un polygone | double-clic, clic sur le premier point, ou Entrée ; Retour arrière retire le dernier point |
 
 Outil **Sélection** (case 1) : clic sur un élément pour le choisir, glisser
-pour le déplacer (il reste accroché à son mur), **poignées** jaunes pour
+pour le déplacer (une ouverture ou un objet mural suit le curseur, dans tous les
+modes d'aimantation, et reste accroché à son mur, calé sur les cases de 0,5 m
+d'un mur de la grille), **poignées** jaunes pour
 redimensionner (coins et milieux des côtés d'une pièce rectangle, sommets d'un
 polygone ou d'une forme, coins d'un pilier, d'un escalier ou d'un piège, même
 tournés, bouts d'un mur), **poignée ronde** au-dessus pour tourner. Un

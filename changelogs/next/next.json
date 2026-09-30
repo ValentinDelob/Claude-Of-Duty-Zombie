@@ -3,6 +3,6 @@
  "items": [
   {"fr": "Le curseur de la souris ne disparaît plus après avoir tourné la caméra de l'aperçu 3D au clic droit.", "en": "The mouse cursor no longer disappears after turning the 3D preview camera with the right button."},
   {"fr": "Armes, atouts, boîte, appliques et autres objets muraux se posent aussi sur les murs libres (droits, en biais, épais ou courbes), des deux côtés, et les suivent quand on les déplace.", "en": "Weapons, perks, the box, sconces and other wall items can now go on free walls too (straight, slanted, thick or curved), on either side, and follow them when moved."},
-  {"fr": "Les fenêtres à zombies se déplacent le long de leur mur ou vers un autre mur aussi en grille fine et sans grille.", "en": "Zombie windows slide along their wall or onto another wall with the fine grid and without the grid too."}
+  {"fr": "Fenêtres à zombies, portes et objets muraux suivent le curseur quand on les glisse le long de leur mur, dans tous les modes d'aimantation, même sur les côtés d'une salle ronde.", "en": "Zombie windows, doors and wall items follow the cursor when dragged along their wall, in every snapping mode, even on the sides of a round room."}
  ]
 }

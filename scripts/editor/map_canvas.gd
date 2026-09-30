@@ -729,7 +729,12 @@ func _drag_update() -> void:
 		return
 	if kind == "move":
 		var delta := snap(mouse_m) - Vector2(drag.start)
-		if mode_now() == "libre":
+		# Ouverture ou objet mural : il suit le curseur (déplacement depuis le
+		# début du glisser, au centimètre) et s'aimante lui-même le long de son
+		# mur ; un déplacement arrondi au mètre en x et en y l'écarterait du mur
+		# (côté d'un cercle, mur en biais).
+		var wall_bound := String(orig.get("type", "")) in MapRules.ouvertures_types() or MapCatalog.tool_of(orig) == "wall_item"
+		if mode_now() == "libre" or wall_bound:
 			# Sans grille : au centimètre ; une pièce se colle par un sommet au
 			# sommet ou au côté d'une autre pièce (aimant).
 			delta = MapGeom.round_cm(mouse_m - Vector2(drag.raw))

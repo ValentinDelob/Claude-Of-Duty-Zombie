@@ -470,3 +470,76 @@ func test_wall_item_moves_along_a_free_wall_in_every_snap_mode() -> void:
 	cv.set_snap_mode("grille")
 	ed.queue_free()
 	await wait_frames(1)
+
+
+## Glisser LENT, comme une vraie souris : beaucoup de petits mouvements (pas
+## de `step` m) de `from` à `to`, sans écart de la main.
+func _slow_drag(ed: MapEditor, from: Vector2, to: Vector2, step: float) -> void:
+	_drag(ed, from, to, maxi(1, roundi(from.distance_to(to) / step)))
+
+
+func test_slow_drags_in_every_snap_mode() -> void:
+	var ed := await _editor()
+	var cv := ed.canvas
+	var tried := 0
+	for mp in _maps():
+		var base: EditorMap = mp[1]
+		# [type, point de pose, direction du mur]
+		var tries := []
+		for at in mp[2]:
+			var r := MapRules.place_opening(base, 0, "fenetre", at, 1.0)
+			if r.ok:
+				tries.append(["fenetre", MapGeom.v2(r.position), _along(r)])
+		for e in MapRules.shared_edges(base, 0):
+			var t := (Vector2(e.b) - Vector2(e.a)).normalized()
+			for kind in ["porte", "debris", "passage"]:
+				tries.append([kind, (Vector2(e.a) + Vector2(e.b)) * 0.5, t])
+		var poly := base.room_poly(base.pieces[0])
+		var c := MapGeom.centroid(poly)
+		var m := (poly[0] + poly[1]) * 0.5
+		tries.append(["arme", m + (c - m).normalized() * 0.6, (poly[1] - poly[0]).normalized()])
+		for tr in tries:
+			var kind: String = tr[0]
+			var doc0 := base.duplicate_map()
+			if kind == "arme":
+				var o := put(doc0, WEAPON, tr[1])
+				if not o.has("id"):
+					continue
+				o["id"] = "o9"
+			else:
+				var r := MapRules.place_opening(doc0, 0, kind, tr[1], 1.0 if kind == "fenetre" else 1.5, "", true)
+				if not r.ok:
+					continue
+				var op := {"id": "o9", "type": kind, "etage": 0, "position": r.position}
+				if kind != "fenetre":
+					op["largeur"] = float(r.get("largeur", 1.5))
+				doc0.ouvertures.append(op)
+			var o0 := doc0.find("o9")
+			var p0 := MapGeom.v2(o0.position)
+			var grab := p0 if kind != "arme" else MapRules.footprint_rect(o0).get_center()
+			var t: Vector2 = tr[2]
+			# Le plus long glissement possible le long du mur (jusqu'à 3 m), dans un sens ou l'autre.
+			var dl := 0.0
+			for d in [3.0, -3.0, 2.0, -2.0, 1.5, -1.5, 1.0, -1.0]:
+				var w := MapRules.place_wall_item(doc0, 0, o0, grab + t * d, "o9") if kind == "arme" \
+					else MapRules.place_opening(doc0, 0, kind, p0 + t * d, MapRules.opening_width(o0), "o9")
+				if w.ok and absf((MapGeom.v2(w.position) - p0).dot(t) - d) < 0.3:
+					dl = d
+					break
+			if dl == 0.0:
+				continue
+			for mode in MODES:
+				for step in [0.02, 0.08]:
+					ed.doc = doc0.duplicate_map()
+					ed.changed()
+					cv.fine_step = mode[1]
+					cv.set_snap_mode(mode[0])
+					ed.select_slot(0)
+					_slow_drag(ed, grab + Vector2(0.04, 0.03), grab + t * dl + Vector2(0.04, 0.03), step)
+					var p1 := MapGeom.v2(ed.doc.find("o9").position)
+					tried += 1
+					assert_true(absf((p1 - p0).dot(t) - dl) < 0.55, "%s %s %s pas de %s m : glissé de %s m (%s -> %s) %s" % [
+						mp[0], kind, str(mode), step, dl, p0, p1, cv.refusal])
+	assert_true(tried > 100, "glissements lents essayés : %d" % tried)
+	ed.queue_free()
+	await wait_frames(1)
