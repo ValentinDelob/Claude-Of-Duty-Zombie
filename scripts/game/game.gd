@@ -193,8 +193,7 @@ func _cl_begin_match(roster: Dictionary) -> void:
 	for pid in roster:
 		session.create(pid)
 	for pid in roster:
-		var slot: int = roster[pid].slot
-		var pos := spawns[slot % spawns.size()] if not spawns.is_empty() else Vector3(2, 0.1, 2)
+		var pos := spawn_for_slot(spawns, int(roster[pid].slot))
 		_spawn_player(pid, pos)
 	_match_start_ms = Time.get_ticks_msec()
 	GameState.set_state(GameState.State.PLAYING)
@@ -365,8 +364,20 @@ func respawn_dead_players() -> void:
 		pd.knife = KnifeDB.DEFAULT  # le couteau de chasse est perdu (BO1)
 		session.sync_stats(pid)
 		session.sync_inventory(pid)
-		var pos: Vector3 = spawns[Net.player_slot(pid) % spawns.size()]
-		_cl_respawn.rpc(pid, pos)
+		_cl_respawn.rpc(pid, spawn_for_slot(spawns, Net.player_slot(pid)))
+
+
+## Point d'apparition d'une place de joueur : les places au-delà du nombre de
+## points se partagent les points (modulo positif) ; carte sans point
+## d'apparition (carte perso incomplète) : repli fixe au lieu d'une division
+## par zéro.
+const FALLBACK_SPAWN := Vector3(2, 0.1, 2)
+
+
+static func spawn_for_slot(spawns: Array[Vector3], slot: int) -> Vector3:
+	if spawns.is_empty():
+		return FALLBACK_SPAWN
+	return spawns[posmod(slot, spawns.size())]
 
 
 @rpc("authority", "call_local", "reliable")
