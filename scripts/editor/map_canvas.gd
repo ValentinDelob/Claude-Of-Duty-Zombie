@@ -202,6 +202,10 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
+			# Aperçu 3D : Ctrl + double-clic y place la caméra (MapPreviewPanel).
+			if ed.preview != null and ed.preview.canvas_click(mb, mouse_m):
+				accept_event()
+				return
 			grab_focus()
 			if mb.pressed:
 				_press(mb.double_click)
@@ -528,6 +532,9 @@ func _draw() -> void:
 			var cp := to_px(MapGeom.cell_center(c))
 			draw_rect(Rect2(cp - Vector2.ONE * zoom * 0.25, Vector2.ONE * zoom * 0.5).grow(1.0), Color(1, 0.2, 0.2, 0.9), false, 2.0)
 	_draw_tool(font)
+	# Aperçu 3D : repère de sa caméra (MapPreviewPanel).
+	if ed.preview != null:
+		ed.preview.draw_on_canvas(self)
 	_draw_rulers(font)
 
 

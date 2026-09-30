@@ -47,6 +47,7 @@ automatique non enregistrée, il propose de la reprendre.
 | Inventaire | Touche **E** ou **Tab** : toutes les catégories ; cliquer un objet le met dans la case choisie, ou le glisser sur une case. |
 | Panneaux | **Propriétés** (élément choisi, sinon la carte), **Pièces**, **Zones**, **Étages**, **Vérification**. |
 | Objets sur la carte | Onglet déployable à gauche de la vue (languette, bouton ◂ ou touche **L** ; ouvert / replié : mémorisé) : voir §2 bis. |
+| Aperçu 3D | Bouton **APERÇU 3D** de la barre du haut ou touche **P** : la carte telle qu'en jeu, en direct, dans un panneau flottant ou une fenêtre séparée : voir §2 ter. |
 | Barre d'état | Aide de l'outil, raison d'un refus, résultat des actions. |
 
 ### Commandes
@@ -64,6 +65,8 @@ automatique non enregistrée, il propose de la reprendre.
 | Inventaire | E ou Tab |
 | Pivoter de 90° | R (une pièce pivote avec son contenu ; un décor ou un luminaire tenu pivote avant d'être posé) |
 | Liste des objets sur la carte | L |
+| Aperçu 3D (afficher / masquer) | P (voir §2 ter pour ses caméras) |
+| Placer la caméra de l'aperçu à un endroit | Ctrl + double-clic sur la carte (aperçu affiché) |
 | Supprimer | Suppr (une pièce emporte ses objets et ses ouvertures) |
 | Copier / coller sous le curseur | Ctrl+C / Ctrl+V |
 | Annuler / rétablir (illimité) | Ctrl+Z / Ctrl+Y (ou Ctrl+Maj+Z) |
@@ -125,6 +128,74 @@ position en mètres ; triés par identifiant (ordre naturel : `p2` avant `p10`).
   dessinées par un seul contrôle, le survol ne cherche que parmi les objets
   proches (index par cases de 4 m). Mesuré par les tests : survol < 1 ms,
   pose d'un objet ≈ 0,6 s avec 2000 objets.
+
+## 2 ter. Aperçu 3D en direct
+
+![L'éditeur avec l'aperçu 3D ouvert (DRAFT ARENA)](map_authoring/apercu_3d.png)
+![L'aperçu agrandi, en vue joueur dans l'entrepôt](map_authoring/apercu_vue_joueur.png)
+
+Bouton **APERÇU 3D** (barre du haut) ou touche **P** : un panneau flottant
+au-dessus de la vue 2D montre la carte **telle qu'elle sera en jeu** (mêmes
+murs, sols, plafonds et textures, portes et débris, fenêtres barricadées,
+décor, luminaires, atouts, armes, boîte, courant, étages), construite par le
+**même code que la partie** (`MapLayoutExport`, `MeshMapGeometry`,
+`MeshMapBuilder`, `MapProps.add_lamp`, et les fonctions de construction de
+`Game` pour les objets de jeu), avec l'éclairage du jeu (`WorldLook`,
+`RenderQuality`, grain de film).
+
+- **Fenêtre** : glisser la barre de titre pour la déplacer, le coin en bas à
+  droite pour la redimensionner ; **⛶** (ou double-clic sur le titre) :
+  agrandie à tout l'éditeur ; **⧉** : détachée dans une vraie fenêtre (à
+  mettre sur un deuxième écran ; la fermer la ramène dans l'éditeur) ;
+  **✕** ou P : masquée. Position, taille, fenêtre détachée, caméra et
+  options sont mémorisées (`_editeur.cfg`, clé `apercu`).
+- **En direct** : après chaque modification (pose, déplacement, suppression,
+  annuler / rétablir, propriétés), l'aperçu se met à jour tout seul 0,3 s
+  après la dernière retouche. La conversion de la carte tourne **hors du fil
+  principal** ; seuls les morceaux qui ont changé sont refaits
+  (architecture, décor, lampes, objets de jeu), un par image, l'ancien
+  restant affiché jusque-là : l'éditeur ne se fige pas. Une carte pas encore
+  jouable (sans départ, sans fenêtre...) s'affiche quand même, avec la
+  mention « aperçu indicatif ».
+- **Caméras** (liste de la barre d'outils) :
+  - **Orbite** : clic droit glisser pour tourner autour du point visé,
+    molette pour zoomer, clic milieu glisser pour déplacer le point ;
+  - **Vol libre** : touches de déplacement du jeu (ZQSD / WASD, celles des
+    options), Maj pour aller plus vite, clic droit maintenu pour regarder,
+    Espace / accroupi pour monter / descendre ;
+  - **Joueur** : à hauteur d'yeux (1,62 m), avec la capsule, la gravité, les
+    vitesses et le saut du joueur ; les murs, fenêtres et décor arrêtent,
+    les portes fermées se traversent (pour visiter).
+  - Les touches vont à l'aperçu quand la souris est dessus.
+  - **⌖ Sélection** : centre la caméra sur l'élément choisi ; **Carte** :
+    recadre sur toute la carte ; **Suivre la 2D** : la caméra vise ce que
+    montre la vue 2D ; **Ctrl + double-clic** sur la carte 2D : la caméra va
+    à cet endroit (un clic avec Ctrl ne pose rien tant que l'aperçu est
+    affiché).
+  - La vue 2D montre un **repère orange** : position de la caméra, son champ
+    de vision et, en orbite, le point visé (estompé si la caméra est à un
+    autre étage).
+- **Sélection** : l'élément choisi (jaune) et celui survolé dans la vue 2D ou
+  la liste (bleu) sont surlignés dans l'aperçu, vus à travers les murs ; un
+  **clic dans l'aperçu** choisit l'élément touché (rayon sur les collisions
+  visibles), un double-clic le choisit et centre la caméra dessus.
+- **Affichage ▾** : courant rétabli ou coupé (luminaires liés au courant),
+  éclairage plein (tout voir, sans brume), plafonds masqués (vue de dessus
+  en coupe), étages (tous, jusqu'à l'étage affiché en 2D, ou seulement
+  celui-là), résolution du rendu (100, 75, 50 ou 35 %, en plus de celle de
+  la qualité graphique), pause quand l'éditeur n'a pas le focus.
+- **Performances** : aperçu masqué, rien n'est construit ni rendu ; au repos,
+  24 images/s au plus (chaque mouvement de caméra est rendu aussitôt) ;
+  objets de jeu figés (ni son ni animation). Mesures : **DRAFT ARENA**
+  (scénario `map_preview`, avec rendu) : conversion ≈ 0,15 s hors du fil
+  principal, construction ≈ 17 ms (la toute première ≈ 0,2 s : chargement
+  des modèles des machines), mise à jour visible ≈ 0,5 s après la retouche
+  (délai de 0,3 s compris) ; un luminaire : seules les lampes, ≈ 11 ms.
+  **Carte de 50 pièces** (test `test_update_time_on_a_50_room_map`) :
+  conversion ≈ 1,4 à 2,5 s hors du fil principal, construction ≈ 80 à
+  220 ms en 6 étapes (la plus longue, l'architecture, ≈ 60 à 150 ms), mise
+  à jour visible ≈ 2 s après la retouche ; un luminaire : ≈ 20 à 30 ms sur le
+  fil principal.
 
 ## 3. Ce que l'on pose (inventaire)
 
@@ -555,6 +626,7 @@ celui du jeu aussi.
 | `scripts/editor/map_validator.gd` | `MapValidator` : validateur et indicateurs BO1. |
 | `scripts/editor/map_layout_export.gd` | `MapLayoutExport` : grille validée -> description en maillage (format de `MeshMapLayout`). |
 | `scripts/editor/map_editor.gd`, `map_canvas.gd`, `map_panels.gd`, `map_hotbar.gd`, `map_inventory.gd`, `map_slot.gd` | L'interface (`scenes/editor/map_editor.tscn`). |
+| `scripts/editor/map_preview_panel.gd`, `map_preview_world.gd`, `map_preview_camera.gd`, `map_preview_builder.gd` | Aperçu 3D en direct (§2 ter) : panneau et fenêtre détachée, monde de l'aperçu (conversion hors du fil principal, morceaux reconstruits, options, surlignage, sélection par un rayon), caméras (orbite, vol libre, vue joueur), construction par morceaux avec le code de `MeshMapBuilder`. |
 | `scripts/game/map/editor_map_def.gd` | `EditorMapDef` : carte de l'éditeur côté jeu (`perso:<id>`, `partage:<sha256>`, ou script de carte livré). |
 | `scripts/game/map/custom_map_guard.gd` | `CustomMapGuard` : contrôle de légitimité, paquet canonique et SHA-256, cache, lecture sûre d'un dossier ou d'une archive. |
 | `scripts/game/map/map_share.gd`, `map_transfer.gd` | `MapShare` (envoi aux invités, `/root/Net/MapShare`) et `MapTransfer` (réception par morceaux). |
@@ -671,6 +743,21 @@ Preuves automatiques :
   vérification, format 3 ; puis TESTER : rayon et joueur arrêtés par le mur,
   zombies qui entrent par la fenêtre en biais et rejoignent le joueur en
   contournant le mur en biais sans le traverser, un rampant aussi.
+- `tests/test_map_preview.gd` : l'aperçu 3D construit la même description et
+  les mêmes nœuds que le jeu sur DRAFT ARENA (maillages, collisions,
+  `CollisionBox`, lampes identiques, portes, 7 fenêtres barricadées, atouts,
+  armes, boîte, courant, objets figés), carte inachevée affichée, mise à jour
+  toute seule après un ajout, une suppression et une annulation (seules les
+  lampes refaites pour un luminaire), options (plafonds, courant, étages,
+  éclairage plein), sélection par un rayon et surlignage, vue joueur arrêtée
+  par un mur et passant la porte, réglages mémorisés (valeurs piégées
+  ignorées), aucun rendu aperçu masqué ou sans focus, temps sur 50 pièces.
+- `tests/autotest/map_preview.gd` (captures) : P sur DRAFT ARENA, orbite au
+  clic droit et à la molette, pièce tracée et luminaire posé qui apparaissent
+  dans l'aperçu, clic dans l'aperçu qui choisit la pièce, vol libre à la
+  touche d'avance du jeu, vue joueur posée par Ctrl + double-clic et arrêtée
+  par le mur, repère sur la 2D, fenêtre détachée (hors écran, sans focus) et
+  refermée, P : plus aucun rendu.
 - `tests/autotest/map_editor_play.gd` : TESTER sur DRAFT ARENA, partie solo sur
   la carte de l'éditeur, retour dans l'éditeur.
 - `tests/autotest/draft_arena.gd` : la carte se joue (zombies aux fenêtres,
@@ -727,3 +814,8 @@ Preuves automatiques :
   hors du salon où elle a été reçue (elle reste dans le cache).
 - Architecture simple : textures par pièce et par zone (sols, murs,
   plafonds), pas encore de plinthes, lambris ni moulures.
+- Aperçu 3D : sur une grande carte, la conversion reste la plus longue étape
+  (≈ 1,4 s pour 50 pièces, surtout la pose des lampes automatiques et les
+  murs de `MapLayoutExport`), faite hors du fil principal ; les objets de jeu
+  y sont figés (ni animation, ni son) ; la vue joueur traverse les portes
+  fermées.
