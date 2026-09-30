@@ -4,7 +4,8 @@ Publication, paquets et canaux : `docs/RELEASE.md`.
 
 ## Pour le joueur
 
-`ClaudeOfDutyZombie-Launcher.exe` (pièce jointe de chaque release GitHub) :
+`ClaudeOfDutyZombie-Launcher.exe` (joint à chaque release stable, et à la
+snapshot qui l'a modifié ; les notes de chaque snapshot donnent le lien) :
 
 - **Canal** : l'interrupteur **STABLE / SNAPSHOT** en haut de la liste des
   versions (seul endroit où il se choisit) ; la liste, les notes et la barre du
@@ -70,14 +71,30 @@ Les réglages et le dossier de combat du jeu restent communs à toutes les versi
   `raw.githubusercontent.com` (branche main) et gardés en cache pour le hors
   ligne. Chaque entrée porte son canal ; une stable rassemble les notes des
   snapshots depuis la stable précédente (`tools/promote.sh`).
-- **Auto-mise à jour** : la dernière version du canal choisi porte
-  `ClaudeOfDutyZombie-Launcher.exe` et `launcher_version.txt` ; un lanceur plus
-  ancien télécharge le nouveau, le vérifie (SHA-256), puis un script `.bat`
-  (`Store.update_script`) attend sa fermeture, garde l'ancien en `.bak`, met le
-  nouveau en place et le démarre (`--updated`). Le nouveau signale son démarrage
-  (`user://launcher_update.ok`) ; sans ce signal en 90 s, il est arrêté, mis de
-  côté (`.echec`) et l'ancien est remis puis relancé (`--update-failed`, message
-  au joueur). Chaque étape est notée dans `logs/launcher_update.log`.
+- **Auto-mise à jour** : la source est la release la plus récente **du canal
+  choisi** (`Releases.launcher_release` ; un joueur stable ne reçoit jamais le
+  lanceur d'une snapshot), jamais une release sans `SHA256SUMS.txt`.
+  - Depuis le lanceur 8 : `SHA256SUMS.txt` → `manifest.json` de cette release
+    (somme vérifiée, puis `Releases.parse_manifest`) → entrée `launcher`
+    (`docs/RELEASE.md` § 4). Si son `version` est plus grand que
+    `LAUNCHER_VERSION` (`Releases.launcher_from_manifest`), le lanceur est
+    téléchargé depuis la release qui le porte (souvent plus ancienne : il n'est
+    publié que quand il change), avec la somme et la taille du manifeste.
+  - Repli (ancien mécanisme, `Releases.launcher_from_assets`) : release sans
+    manifeste, ou manifeste sans entrée `launcher` (`v0.2.0-snapshot.165` à
+    `167`) : `launcher_version.txt` et `ClaudeOfDutyZombie-Launcher.exe` joints
+    à cette release, somme lue dans son `SHA256SUMS.txt`. Un manifeste non
+    conforme arrête tout (pas de repli).
+  - Les lanceurs 7 et plus anciens ne connaissent que le repli : les stables
+    joignent toujours ces fichiers (`tools/promote.sh`), les snapshots
+    seulement quand elles publient un nouveau lanceur.
+  - Ensuite, comme avant : le nouveau lanceur est téléchargé en `.part` et
+    vérifié (taille, SHA-256) AVANT tout remplacement, puis un script `.bat`
+    (`Store.update_script`) attend sa fermeture, garde l'ancien en `.bak`, met le
+    nouveau en place et le démarre (`--updated`). Le nouveau signale son démarrage
+    (`user://launcher_update.ok`) ; sans ce signal en 90 s, il est arrêté, mis de
+    côté (`.echec`) et l'ancien est remis puis relancé (`--update-failed`, message
+    au joueur). Chaque étape est notée dans `logs/launcher_update.log`.
 - Sécurité (détails : `docs/SECURITY.md`, « Ce que le lanceur vérifie ») :
   HTTPS vers les seuls domaines GitHub (redirections revérifiées), réponses
   bornées, numéros de version et noms de fichiers filtrés (fin de texte stricte),
@@ -88,8 +105,11 @@ Les réglages et le dossier de combat du jeu restent communs à toutes les versi
   sans sommes : refusée.
 - Tests (tâche `launcher:tests` de `tools/check.sh`) :
   - `godot --headless --path launcher -s res://tests/test_launcher.gd` : versions,
-    canaux, manifestes piégés, installation différentielle (dossier temporaire),
-    réglages, script d'auto-mise à jour, journaux et plantages, textes ;
+    canaux, manifestes piégés (entrée `launcher` comprise, manifestes sans elle
+    acceptés), décision d'auto-mise à jour (manifeste, canal choisi, numéro plus
+    grand seulement, repli sur `launcher_version.txt`), installation
+    différentielle (dossier temporaire), réglages, script d'auto-mise à jour,
+    journaux et plantages, textes ;
   - `godot --headless --path launcher -s res://tests/test_downloader.gd` :
     téléchargement contre un serveur HTTP **local** (coupure et reprise, serveur
     sans reprise, octets faux, redirections autorisée / interdite) ;
@@ -116,4 +136,7 @@ Les réglages et le dossier de combat du jeu restent communs à toutes les versi
    de la snapshot que le commit va devenir (`tools/changelog_merge.gd`) et
    `tools/release.sh` les place en tête de la page de la release.
 
-Quand le lanceur change, augmenter `LAUNCHER_VERSION` dans `launcher/scripts/version.gd`.
+Quand le lanceur change, augmenter `LAUNCHER_VERSION` dans `launcher/scripts/version.gd`
+(de 1) : `tools/release.sh` refuse de publier un lanceur modifié (sources de
+`launcher/` hors `tests/`, ou version de Godot) sous un numéro déjà publié, et
+ne republie pas un lanceur inchangé.

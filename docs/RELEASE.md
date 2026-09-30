@@ -86,6 +86,8 @@ le paquet des voix) ; sans le paquet des voix, il échoue (contre-épreuve).
   choisie (et l'autre à la demande). Montées au démarrage par le premier
   autoload du jeu (`--packs=`), les chemins `res://assets/audio/vox/...`
   restent les mêmes (`CharacterDB` charge par chemin).
+- **launcher** : `ClaudeOfDutyZombie-Launcher.exe`, décrit dans le manifeste et
+  publié seulement quand ses sources changent (§ 4).
 - **engine** : le modèle d'export officiel, publié comme fichier
   `engine-4.7.2.exe` dans une release ; ne change qu'à une mise à jour de
   Godot. L'ancienne version est gardée tant qu'une version installée en a
@@ -118,9 +120,28 @@ le paquet des voix) ; sans le paquet des voix, il échoue (contre-épreuve).
     {"id": "core", "file": "core-1a2b3c4d.pck", "sha256": "…", "size": 12345678, "release": "v0.2.1-snapshot.180", "main": true},
     {"id": "vox-fr", "lang": "fr", "file": "vox-fr-5e6f7a8b.pck", "sha256": "…", "size": 26000000, "release": "v0.2.0"},
     {"id": "vox-en", "lang": "en", "file": "vox-en-9c0d1e2f.pck", "sha256": "…", "size": 25000000, "release": "v0.2.0"}
-  ]
+  ],
+  "launcher": {"version": 8, "file": "ClaudeOfDutyZombie-Launcher.exe", "sha256": "…", "size": 109300000,
+               "release": "v0.2.1-snapshot.172", "inputs": "…"}
 }
 ```
+
+- `launcher` (depuis le lanceur 8) : le lanceur à jour du canal, **adressé par
+  son contenu** comme les paquets. `inputs` = empreinte de ses sources
+  (fichiers de `launcher/` hors `tests/`, tels que git les enregistre, et la
+  version de Godot) : identique à la release précédente, l'entrée est reprise
+  telle quelle (fichier dans l'ancienne release) et rien n'est publié ; sinon
+  le lanceur est joint à la release et `version` doit être plus grand que le
+  numéro déjà publié (`release.sh` échoue sinon : un lanceur modifié au même
+  numéro ne serait jamais installé). Facultative pour le lanceur (manifestes de
+  `v0.2.0-snapshot.165` à `167`, publiés sans elle) ; présente, elle est
+  validée comme les autres fichiers (nom sûr en `.exe`, somme de 64 chiffres
+  hexadécimaux, taille bornée, numéro de release sûr) plus un numéro entier
+  de 1 à 1 000 000, sinon **tout** le manifeste est refusé.
+- `tools/manifest.gd` l'écrit toujours (`--make` refuse des entrées sans
+  lanceur) ; ses fonctions sont testées sans réseau par
+  `tests/test_release_tools.gd` (construction, champs relus par les scripts,
+  promotion, manifeste accepté par `Releases.parse_manifest` du lanceur).
 
 - `release` : la release GitHub où se trouve le fichier (celle-ci ou une plus
   ancienne) ; l'adresse est reconstruite et vérifiée par le lanceur
@@ -142,12 +163,48 @@ le paquet des voix) ; sans le paquet des voix, il échoue (contre-épreuve).
 - `tools/ship.sh` publie une **snapshot** (défaut). Première série :
   `v0.2.0-snapshot.<n>` ; après une stable `v0.2.0`, les snapshots deviennent
   `v0.2.1-snapshot.<n>` (version visée par la prochaine stable).
-- `tools/promote.sh <snapshot> [<version>]` crée la **stable** sans rien
-  reconstruire : même commit, mêmes fichiers (téléchargés de la snapshot puis
-  joints à la nouvelle release), manifeste recopié avec `"channel": "stable"`.
+- `tools/promote.sh <snapshot> [<version>]` crée la **stable** : même commit,
+  manifeste recopié avec `"channel": "stable"` (les paquets restent dans les
+  releases qui les portent : rien n'est republié pour les nouveaux lanceurs).
   Le jeu promu garde son numéro de build (`0.2.0-snapshot.37`) : hôte et
-  clients d'une stable et de sa snapshot sont le même binaire et se
+  clients d'une stable et de sa snapshot sont le même jeu et se
   reconnaissent en multijoueur ; le menu affiche « v0.2.0 (snapshot 37) ».
+- **Exception à « rien n'est reconstruit »** (depuis le lanceur 8) : les
+  snapshots ne joignent plus l'exécutable complet, dont seuls les anciens
+  lanceurs ont besoin. `promote.sh` le **reconstruit** donc pour la stable :
+  worktree git du tag de la snapshot (même commit), même `config/version` que
+  la snapshot (le `build` du manifeste), même version de Godot (vérifiée),
+  `--export-release "Windows Desktop"`, puis scénario `boot` (fenêtre sans
+  focus, hors écran) et contrôle du numéro de build affiché au démarrage avant
+  de le joindre. Seul ce fichier est reconstruit : les paquets lus par les
+  nouveaux lanceurs ne le sont **pas**. Les snapshots 165 à 167, qui ont encore
+  leur exécutable complet, le fournissent tel quel (somme vérifiée).
+  `DRY_RUN=1 sh tools/promote.sh …` prépare tout dans `build/promote` sans
+  publier.
+
+### Fichiers de chaque release
+
+| Release | Fichiers | Taille |
+|---|---|---|
+| snapshot, cas courant (code ou carte modifiés) | `manifest.json`, `SHA256SUMS.txt`, `core-<sha8>.pck` | **3 fichiers, ≈ 14 Mo** |
+| snapshot, répliques modifiées | + `vox-fr-<id>.pck` et / ou `vox-en-<id>.pck` | + ≈ 25 Mo par langue |
+| snapshot, lanceur modifié | + `ClaudeOfDutyZombie-Launcher.exe`, `launcher_version.txt` | + ≈ 104 Mo |
+| snapshot, nouvelle version de Godot | + `engine-<godot>.exe` (et le lanceur, fait avec le même modèle) | + ≈ 104 Mo (+ 104 Mo) |
+| **stable** | `ClaudeOfDutyZombie-v<M.m.p>.exe` (jeu complet), `ClaudeOfDutyZombie-Launcher.exe`, `CallOfClaudeZombie-Launcher.exe`, `launcher_version.txt`, `manifest.json` (canal stable), `SHA256SUMS.txt` | 6 fichiers, ≈ 375 Mo |
+
+Avant (snapshots 165 à 167) : chaque snapshot joignait en plus le jeu complet
+(≈ 166 Mo), le lanceur sous ses deux noms (2 × 104 Mo) et
+`launcher_version.txt` : **7 fichiers et ≈ 390 Mo** dans le cas courant, contre
+3 fichiers et ≈ 14 Mo désormais. Mesuré le 30/09/2026 (`release.sh --local`) :
+core 13,5 Mo, voix 24,8 / 23,8 Mo, moteur et lanceur 104,2 / 104,3 Mo, jeu complet reconstruit par `promote.sh` 165,9 Mo (Mo = 2^20 octets).
+
+- Le lanceur (entrée `launcher` du manifeste, § 4) n'est joint qu'à la
+  snapshot qui le change ; `launcher_version.txt` l'accompagne alors pour les
+  lanceurs 7 et plus anciens du canal snapshot, qui ne lisent que la dernière
+  snapshot. Les stables joignent toujours tout ce que lisent les anciens
+  lanceurs.
+- Les notes d'une snapshot donnent le lien direct du lanceur à jour (dans la
+  release qui le porte).
 - Ordre des versions : `v0.2.0` > `v0.1.157` pour les anciens lanceurs
   (comparaison numérique) ; une snapshot `-snapshot.n` passe avant la stable
   de même numéro (règle semver des préversions).
@@ -158,10 +215,19 @@ le paquet des voix) ; sans le paquet des voix, il échoue (contre-épreuve).
 - **Anciens lanceurs** : ils ignorent les *pre-releases* et les tags qui ne
   sont pas « v + nombres » (vérifié dans `launcher/scripts/releases.gd`) : ils
   ne voient jamais les snapshots. Chaque **stable** continue donc de joindre
-  l'exécutable complet `ClaudeOfDutyZombie-v<version>.exe` (et les deux noms
-  du lanceur, `launcher_version.txt`, `SHA256SUMS.txt`) : un ancien lanceur
-  l'installe comme avant et se met à jour tout seul vers le nouveau lanceur
-  (numéro de lanceur relevé).
+  l'exécutable complet `ClaudeOfDutyZombie-v<version>.exe` (reconstruit par
+  `promote.sh`, § 5, et les deux noms du lanceur, `launcher_version.txt`,
+  `SHA256SUMS.txt`) : un ancien lanceur l'installe comme avant et se met à
+  jour tout seul vers le nouveau lanceur (numéro de lanceur relevé).
+- **Lanceurs 7** (publiés avec les snapshots 165 à 167, canal snapshot) : ils ne
+  lisent que `launcher_version.txt` et le lanceur joints à la dernière release
+  du canal. Ils se mettent à jour s'ils s'ouvrent quand la dernière snapshot
+  est celle qui publie un nouveau lanceur (c'est le cas de la première
+  snapshot du lanceur 8), ou dès qu'ils passent au canal stable ; sinon, à la
+  main (lien dans les notes de chaque snapshot).
+- **Lanceurs 8 et suivants** : entrée `launcher` du manifeste de la dernière
+  release du canal ; repli sur l'ancien mécanisme pour les manifestes qui n'en
+  ont pas (`docs/LAUNCHER.md`).
 - **Versions déjà installées** (`versions/<tag>/CallOfClaudeZombie.exe` ou
   `ClaudeOfDutyZombie.exe`) : restent jouables, le nouveau lanceur gère les
   deux formes d'installation.
@@ -179,6 +245,13 @@ le paquet des voix) ; sans le paquet des voix, il échoue (contre-épreuve).
   `.json` des cartes, polices, `project.binary`, caches Godot ; tout autre
   type (`.blend`, `.py`, `.md`, `.png` hors import, `.zip`, `.log`…) ou un
   paquet au-delà de la taille maximale fait échouer la release.
+- Démarrage vérifié sur l'installation que font les nouveaux lanceurs
+  (moteur officiel + core au même nom + voix montées) : scénario `boot` avec
+  rendu (fenêtre sans focus, hors écran) et numéro de build affiché, puis
+  scénario `vox` sans rendu ; lanceur exporté démarré hors écran. Le jeu
+  complet n'est plus exporté par `release.sh` (seulement par `promote.sh`).
+- Lanceur modifié sans `LAUNCHER_VERSION` augmenté (ou numéro en baisse) :
+  release refusée.
 - Somme et taille de chaque fichier publié ; le lanceur refuse tout fichier
   dont la somme ne correspond pas (`docs/SECURITY.md`).
 - `build/` : seuls le dernier build et les fichiers à publier sont gardés ;
@@ -191,7 +264,8 @@ le paquet des voix) ; sans le paquet des voix, il échoue (contre-épreuve).
 3. Pas de patch delta de Godot au début.
 4. Numérotation `v0.2.0` / `v0.2.x-snapshot.<n>` ; la première stable sera
    `v0.2.0`.
-5. Les stables gardent l'exécutable complet pour les anciens lanceurs.
+5. Les stables gardent l'exécutable complet pour les anciens lanceurs,
+   reconstruit à la promotion (les snapshots ne l'ont plus).
 
 ## 9. Sources
 

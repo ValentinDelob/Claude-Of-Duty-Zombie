@@ -150,8 +150,14 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
    long que prévu est rejeté. L'installation ne fait que des copies de fichiers
    vérifiés. Les paquets montés par le jeu (`--packs=`) doivent exister et
    finir par `.pck`.
-9. **Auto-mise à jour du lanceur** : nouveau lanceur vérifié (somme) avant tout
-   remplacement ; l'ancien est gardé et remis si le nouveau ne démarre pas.
+9. **Auto-mise à jour du lanceur** : source = dernière release du canal choisi,
+   jamais sans `SHA256SUMS.txt`. Nom, somme, taille, release et numéro du
+   nouveau lanceur lus dans l'entrée `launcher` du manifeste vérifié (même
+   validation que les paquets ; entrée invalide = manifeste refusé, sans
+   repli), sinon (manifestes plus anciens) dans `launcher_version.txt` et
+   `SHA256SUMS.txt` de la release. Seulement un numéro plus grand. Nouveau
+   lanceur vérifié (taille, somme) avant tout remplacement ; l'ancien est gardé
+   et remis si le nouveau ne démarre pas.
 10. **Réglages du lanceur** : lus sans décoder d'objet (`Store.has_constructor`),
    valeurs vérifiées (langue, version choisie).
 

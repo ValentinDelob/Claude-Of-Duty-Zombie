@@ -67,13 +67,15 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
   release. Il télécharge et met à jour le jeu tout seul, permet de choisir la
   version et montre les notes de chaque version avec des captures ; JOUER lance
   le jeu. Voir `docs/LAUNCHER.md`.
-- Chaque fonctionnalité livrée est publiée en **release GitHub** (onglet Releases
-  du dépôt) avec un `ClaudeOfDutyZombie-vX.Y.N.exe` autonome : le télécharger et le
-  lancer, aucune installation. Tous les joueurs d'une partie doivent avoir la même
-  version.
+- Chaque fonctionnalité livrée est publiée en **snapshot** (release GitHub en
+  préversion, seulement les paquets qui ont changé, pour le lanceur) ; les
+  versions **stables** joignent aussi un `ClaudeOfDutyZombie-vX.Y.Z.exe` autonome :
+  le télécharger et le lancer, aucune installation. Tous les joueurs d'une partie
+  doivent avoir la même version. Détails : `docs/RELEASE.md`.
 - Construire localement : `sh tools/release.sh --local` (nécessite les modèles
   d'export Godot 4.7.2 : éditeur > Éditeur > Gérer les modèles d'export). Résultat :
-  `build/ClaudeOfDutyZombie.exe` (+ copie versionnée).
+  paquets dans `build/packs/`, `build/manifest.json` et le lanceur
+  `build/ClaudeOfDutyZombie-Launcher.exe`.
 - Publier : `sh tools/release.sh` (commit poussé sur `main`, `gh` connecté).
 
 ### Journaux et rapports de plantage

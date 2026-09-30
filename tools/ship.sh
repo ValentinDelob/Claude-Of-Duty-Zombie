@@ -2,7 +2,7 @@
 # Livraison complète d'une fonctionnalité :
 #   1. tools/commit.sh avec check COMPLET (--full) puis commit,
 #   2. push sur origin/main,
-#   3. tools/release.sh (build .exe local + release GitHub).
+#   3. tools/release.sh (paquets construits et vérifiés + snapshot GitHub).
 # Usage : sh tools/ship.sh fichier_message.txt
 cd "$(dirname "$0")/.."
 CHECK_ARGS=--full sh tools/commit.sh "$1" || exit 1
