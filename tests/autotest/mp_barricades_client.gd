@@ -21,22 +21,26 @@ func run() -> void:
 	at.check(w != null and game.barricades.windows.size() >= 12, "fenêtres construites côté client")
 	if w == null:
 		return
+	MpHelpers.signal_peer("fenetres")
 	var ok: bool = await until(func(): return w.planks() == 2, 25.0, "planches arrachées reçues")
 	at.check(ok, "état des planches répliqué (%d planches)" % w.planks())
-	await seconds(0.8)
 	p.teleport_to(w.global_position + w.inward * 1.25 + Vector3(0, 0.05, 0))
 	AutotestHelpers.aim_at(p, w.global_position + Vector3.UP * 1.4)
-	await seconds(0.3)
+	MpHelpers.signal_peer("devant_fenetre")
+	# Le serveur voit la nouvelle position (sinon il refuse : trop loin).
+	if not await MpHelpers.wait_peer(self, "vu_devant_fenetre", 20.0):
+		return
 	var pts0 := pd.points
 	p.input.interact = true
 	p.input.interact_pressed = true
 	ok = await until(func(): return w.planks() == 6, 12.0, "fenêtre reconstruite")
 	p.input.interact = false
 	at.check(ok, "maintenir [F] reconstruit la fenêtre côté client")
-	await seconds(0.5)
+	await until(func(): return pd.points - pts0 >= 40, 3.0, "points de réparation reçus")
 	at.check(pd.points - pts0 == 40, "points de réparation reçus du serveur : +%d" % (pd.points - pts0))
 	p.teleport_to(w.global_position + w.inward * 2.4 + Vector3(0, 0.05, 0))
 	AutotestHelpers.aim_at(p, w.global_position + Vector3.UP * 1.3)
+	MpHelpers.signal_peer("recule")
 	ok = await until(func(): return game.zombies.alive_count() >= 1, 15.0, "zombie reçu")
 	if ok:
 		var z: Zombie = game.zombies.alive[0]
@@ -45,4 +49,5 @@ func run() -> void:
 		at.check(ok, "le zombie du serveur arrache les planches (vu par le client)")
 		await seconds(0.3)
 		await at.screenshot("tearing")
-	await seconds(3.0)
+	MpHelpers.signal_peer("arrachage_vu")
+	await MpHelpers.finish(self)
