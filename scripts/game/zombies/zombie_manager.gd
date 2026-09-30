@@ -57,8 +57,12 @@ var _cam_pos := Vector3.ZERO
 var _frustum: Array[Plane] = []
 
 
+## Écart entre les clés de deux rangées voisines (grid_key(x, z + 1) - grid_key(x, z)).
+const GRID_ROW := 8192
+
+
 static func grid_key(gx: int, gz: int) -> int:
-	return (gx + 4096) + (gz + 4096) * 8192
+	return (gx + 4096) + (gz + 4096) * GRID_ROW
 
 
 func separation_grid() -> Dictionary:

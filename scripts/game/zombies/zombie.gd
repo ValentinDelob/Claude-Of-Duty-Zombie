@@ -402,16 +402,18 @@ func separation() -> Vector3:
 
 func _separation() -> Vector3:
 	var push := Vector3.ZERO
-	var mgr := get_parent() as ZombieManager
-	if mgr == null:
+	# _mgr : le parent lu dans _ready (un zombie n'est jamais déplacé).
+	if _mgr == null:
 		return push
-	var grid := mgr.separation_grid()
+	var grid := _mgr.separation_grid()
 	var pos := global_position
-	var cx := floori(pos.x / ZombieManager.GRID_CELL)
-	var cz := floori(pos.z / ZombieManager.GRID_CELL)
-	for gz in range(cz - 1, cz + 2):
-		for gx in range(cx - 1, cx + 2):
-			var bucket: Array = grid.get(ZombieManager.grid_key(gx, gz), ZombieManager.EMPTY)
+	# Clés des 9 cases (ZombieManager.grid_key) : celle du coin, puis +1 par
+	# colonne et +GRID_ROW par rangée ; mêmes cases, même ordre qu'avant.
+	var row0 := ZombieManager.grid_key(floori(pos.x / ZombieManager.GRID_CELL) - 1, floori(pos.z / ZombieManager.GRID_CELL) - 1)
+	for gz in 3:
+		var row := row0 + gz * ZombieManager.GRID_ROW
+		for gx in 3:
+			var bucket: Array = grid.get(row + gx, ZombieManager.EMPTY)
 			# Sa propre position (distance nulle) est écartée par le test l2.
 			for op: Vector3 in bucket:
 				var d := pos - op

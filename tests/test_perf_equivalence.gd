@@ -157,3 +157,76 @@ func test_find_path_matches_map_get_path() -> void:
 	var t2 := Time.get_ticks_usec()
 	print("         find_path (%d polygones) : référence %.1f µs, actuel %.1f µs" % [polys, (t1 - t0) / 200.0, (t2 - t1) / 200.0])
 	w.queue_free()
+
+
+# --------------------------------------------------------------------------
+# R4 : Zombie._separation (clés de cases calculées, _mgr en cache)
+# --------------------------------------------------------------------------
+
+static func _ref_separation(z: Zombie) -> Vector3:
+	var push := Vector3.ZERO
+	var mgr := z.get_parent() as ZombieManager
+	if mgr == null:
+		return push
+	var grid := mgr.separation_grid()
+	var pos := z.global_position
+	var cx := floori(pos.x / ZombieManager.GRID_CELL)
+	var cz := floori(pos.z / ZombieManager.GRID_CELL)
+	for gz in range(cz - 1, cz + 2):
+		for gx in range(cx - 1, cx + 2):
+			var bucket: Array = grid.get(ZombieManager.grid_key(gx, gz), ZombieManager.EMPTY)
+			for op: Vector3 in bucket:
+				var d := pos - op
+				if absf(d.y) > 1.0:
+					continue
+				d.y = 0.0
+				var l2 := d.length_squared()
+				if l2 < 0.8 and l2 > 0.0001:
+					push += d / l2 * 0.25
+	return push.limit_length(1.0)
+
+
+func test_separation_matches_reference() -> void:
+	var mgr := ZombieManager.new()
+	host.add_child(mgr)
+	seed(14)
+	var zs: Array[Zombie] = []
+	for i in 40:
+		var z := Zombie.new()
+		z.setup(i + 1, i, 0, true)
+		mgr.add_child(z)
+		z.set_physics_process(false)
+		z.set_process(false)
+		mgr.zombies[i + 1] = z
+		mgr.alive.append(z)
+		zs.append(z)
+	var diffs := 0
+	var nonzero := 0
+	for round_i in 5:
+		# Horde serrée autour de l'origine (cases négatives comprises), deux étages.
+		for z in zs:
+			z.global_position = Vector3(randf_range(-3, 3), 0.0 if randf() < 0.8 else 1.5, randf_range(-3, 3))
+		await _physics_frames(1)  # grille refaite à ce pas
+		for z in zs:
+			var want := _ref_separation(z)
+			if z.separation() != want:
+				diffs += 1
+			if want != Vector3.ZERO:
+				nonzero += 1
+	assert_eq(diffs, 0, "répulsion identique à la référence")
+	assert_true(nonzero > 50, "des voisins se repoussent (%d)" % nonzero)
+	var t0 := Time.get_ticks_usec()
+	for i in 2000:
+		_ref_separation(zs[i % zs.size()])
+	var t1 := Time.get_ticks_usec()
+	for i in 2000:
+		zs[i % zs.size()].separation()
+	var t2 := Time.get_ticks_usec()
+	print("         Zombie.separation : référence %.2f µs, actuel %.2f µs" % [(t1 - t0) / 2000.0, (t2 - t1) / 2000.0])
+	# Hors d'un ZombieManager : aucune répulsion, comme avant.
+	var lone := Zombie.new()
+	lone.setup(99, 1, 0, true)
+	host.add_child(lone)
+	assert_eq(lone.separation(), Vector3.ZERO)
+	lone.queue_free()
+	mgr.queue_free()
