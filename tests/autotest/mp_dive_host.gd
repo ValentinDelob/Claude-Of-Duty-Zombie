@@ -1,5 +1,12 @@
 extends AutotestScenario
-## @temps-reel : reste en temps réel (mélange de minuteurs réseau réels et de temps de jeu, à revoir : docs/TESTING_PLAN.md).
+## @temps-reel : Combat.srv_dive_landed borne la position d'atterrissage annoncée
+## par la position INTERPOLÉE du client côté serveur (Player.INTERP_DELAY, 0,1 s
+## réelle, + réseau). À ×3 ce retard vaut ≥ 0,3 s de jeu : le serveur voit
+## encore le client au départ (≈ 5 m derrière, > MAX_ORIGIN_ERROR), remplace la
+## position et « position d'atterrissage cohérente » échoue à chaque fois
+## (mesuré : client allongé en (8, 7,5), position gardée (2,5, 7,5), celle
+## d'avant l'élan). Comme un joueur à forte
+## latence : à revoir côté jeu (valider contre le dernier état reçu).
 ## [MP] Hôte : voit le CLIENT plonger (état réseau DIVE puis PRONE, pose du
 ## soldat à plat ventre) et reçoit le signal serveur player_dived_landed.
 
@@ -28,20 +35,24 @@ func run() -> void:
 	var ok: bool = await until(func(): return client.global_position.distance_to(spot) < 0.6, 20.0, "client en position")
 	if not ok:
 		return
+	# Le client ne s'élance qu'une fois vu à son point de départ.
+	MpHelpers.signal_peer("depart_vu")
 	ok = await until(func(): return client.net_flags() & Player.FLAG_DIVE != 0, 20.0, "plongeon du client vu")
 	at.check(ok and client.diving, "l'hôte voit le client plonger")
 	await seconds(0.12)
 	await at.screenshot("client_dive")
 	ok = await until(func(): return client.net_flags() & Player.FLAG_PRONE != 0, 3.0, "client allongé")
 	at.check(ok and client.prone, "l'hôte voit le client à plat ventre")
-	await seconds(0.6)
+	await until(func(): return client.visual._prone_k > 0.8, 3.0, "soldat du client allongé")
 	at.check(client.visual._prone_k > 0.8, "soldat du client allongé (%.2f)" % client.visual._prone_k)
 	await at.screenshot("client_prone")
 	at.check(landings.size() == 1 and landings[0][0] == client_id, "serveur : player_dived_landed du client (%d)" % landings.size())
 	if not landings.is_empty():
-		at.check(landings[0][1].distance_to(client.global_position) < 1.5, "position d'atterrissage cohérente")
+		at.check(landings[0][1].distance_to(client.global_position) < 1.5, "position d'atterrissage cohérente (%s / client %s)" % [landings[0][1], client.global_position])
+	# Le client reste allongé jusqu'ici, puis se relève.
+	MpHelpers.signal_peer("allonge_vu")
 	ok = await until(func(): return client.net_flags() & Player.FLAG_PRONE == 0, 6.0, "client relevé")
-	await seconds(0.8)
+	await until(func(): return client.visual._prone_k < 0.2, 3.0, "soldat du client debout")
 	at.check(ok and client.visual._prone_k < 0.2, "le client se relève (%.2f)" % client.visual._prone_k)
 	await at.screenshot("client_up")
-	await seconds(3.0)
+	await MpHelpers.finish(self)
