@@ -116,9 +116,11 @@ class Limiter:
 		return take(pid, now if now >= 0.0 else Time.get_ticks_msec() / 1000.0, rate)
 
 	## Prend un jeton pour `pid` à l'instant `t` (s), le seau se remplissant de
-	## `per_second` jetons par seconde depuis l'appel précédent. Vrai si accepté.
-	func take(pid: int, t: float, per_second: float) -> bool:
-		var tokens: float = minf(float(_tokens.get(pid, burst)) + (t - float(_t.get(pid, t))) * per_second, burst)
+	## `per_second` jetons par seconde depuis l'appel précédent, jusqu'à
+	## `cap` jetons (`burst` si négatif). Vrai si accepté.
+	func take(pid: int, t: float, per_second: float, cap := -1.0) -> bool:
+		var size := cap if cap >= 0.0 else burst
+		var tokens: float = minf(float(_tokens.get(pid, size)) + (t - float(_t.get(pid, t))) * per_second, size)
 		_t[pid] = t
 		if tokens < 1.0:
 			_tokens[pid] = tokens

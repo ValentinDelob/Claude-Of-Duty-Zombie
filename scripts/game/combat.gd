@@ -11,8 +11,12 @@ extends Node
 ## * Dégâts aux joueurs : infligés par les zombies (serveur), santé et
 ##   régénération gérées ici.
 
-## Tolérance de cadence : rafale max acceptée d'un coup (gigue réseau).
+## Tolérance de cadence : rafale max acceptée d'un coup (gigue réseau), en
+## tirs au moins FIRE_BURST_TOKENS, et au moins FIRE_BURST_SEC de tirs de
+## l'arme : pour une arme très rapide (FAUCHEUSE, 20 coups/s), 4 tirs ne
+## couvraient qu'un à-coup de 0,2 s (tirs d'un joueur honnête refusés).
 const FIRE_BURST_TOKENS := 4.0
+const FIRE_BURST_SEC := 0.4
 ## Écart max toléré entre l'origine du tir annoncée et la position serveur.
 const MAX_ORIGIN_ERROR := 3.0
 ## Le serveur termine le rechargement un peu plus tôt que le client : le premier
@@ -54,7 +58,8 @@ var game: Game
 var session: Session
 
 ## Serveur : état par joueur.
-## Cadence de tir : seau de jetons au débit de l'arme en main (_validate_fire).
+## Cadence de tir : seau de jetons au débit et à la rafale de l'arme en main
+## (_validate_fire).
 var _fire_limit := NetGuard.Limiter.new(0.0, FIRE_BURST_TOKENS)
 var _reload_end: Dictionary = {}    # pid -> [slot, end_time]
 var _last_hurt: Dictionary = {}     # pid -> sec
@@ -180,9 +185,14 @@ func _validate_fire(pid: int, slot: int, origin: Vector3) -> String:
 	# Seau de jetons : cadence moyenne respectée, rafale courte tolérée.
 	var t := GameClock.now()
 	var rate := 1.0 / WeaponDB.fire_interval(w.id, w.pap) * game_rate_mult(pid)
-	if not _fire_limit.take(pid, t, rate * 1.25):
+	if not _fire_limit.take(pid, t, rate * 1.25, fire_burst(rate)):
 		return "cadence trop élevée"
 	return ""
+
+
+## Rafale tolérée (jetons) pour une arme tirant `rate` coups par seconde.
+static func fire_burst(rate: float) -> float:
+	return maxf(FIRE_BURST_TOKENS, rate * FIRE_BURST_SEC)
 
 
 ## Vrai si le point d'explosion `c` revendiqué par le tireur est sur la

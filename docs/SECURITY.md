@@ -54,8 +54,9 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
    - types des éléments d'un `Array` reçu (`h[0] is int`...).
 4. **Tout se vérifie côté serveur** avec SES données : position connue du joueur
    (distance d'interaction, origine du tir), points, munitions, cadence
-   (`NetGuard.Limiter.take` au débit de l'arme dans `Combat._validate_fire`),
-   état (vivant, à terre).
+   (`NetGuard.Limiter.take` au débit de l'arme dans `Combat._validate_fire` :
+   cadence moyenne x1,25, rafale d'au moins 4 tirs ou 0,4 s de tirs de l'arme,
+   `Combat.fire_burst`), état (vivant, à terre).
    Un point revendiqué (impact, explosion) doit être plausible pour le tir
    (`Combat.plausible_splash`). Bornes larges : un joueur honnête avec du lag ne
    doit jamais être refusé.
