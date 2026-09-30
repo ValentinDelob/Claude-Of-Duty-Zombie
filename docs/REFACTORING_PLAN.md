@@ -120,3 +120,73 @@ Verrückt), les étapes qui le touchent attendent que ce travail soit committé.
 Suite possible de l'étape 12 : injecter aussi `game` dans `Player`,
 `Barricade`, `Door`, `BoxBoard`, `DeadeyeAim` (créés par `Game`, ils lisent
 encore `Game.instance`, avec garde).
+
+## 5. Performance (CPU, 01/10/2026)
+
+**Mesure.** Scénario `perf_cpu` (`## @niveau perf`, hors check) sans rendu,
+`--fixed-fps 60` : l'écart entre deux images est le coût CPU complet d'une
+image. Fin de partie sur KINO puis DRAFT ARENA : 24 zombies (manche 24) et
+4 chiens gardés en vie ; phase « horde » (au contact, le joueur ne tire pas)
+puis « combat » (HK21 en continu, démembrements, morts, réapparitions, une
+grenade toutes les 2 s), puis micro-mesures (µs par appel). Détail par
+fonction : `bash tools/profile.sh` (copie instrumentée du projet, sources
+jamais modifiées ; temps inclusifs, surcoût ≈ 1 µs par appel mesuré). Réseau :
+paire hôte + client sur KINO (28 zombies). GPU non mesuré (sans rendu) :
+`perf_costs` reste l'outil pour le GPU. Machine partagée : chiffres à ±30 %,
+les comparaisons avant / après sont appariées dans le même processus quand
+c'est possible.
+
+**Image complète (KINO, combat)** : 6,1 ms (pire 17,9) -> 4,6-5,1 ms (pire
+10,6-10,7) ; DRAFT ARENA 4,6 ms (pire 18,2) -> 3,9-4,0 ms (pire 11,9-13,6).
+
+**Postes les plus chers (copie instrumentée, KINO, ms par image)**
+
+| Poste | horde | combat | Remarque |
+|---|---|---|---|
+| `Zombie._physics_process` (28) | 2,3-2,9 | 2,6-2,9 | dont `_chase` 1,0-1,3 (`find_path` 0,4-0,5), `_follow_floor` 0,25-0,38, `_separation` 0,25-0,36, reste ≈ `move_and_slide` |
+| `Player._physics_process` | 1,0-1,25 | 1,3-1,8 | dont `_move` 0,69-0,87 (socle du téléporteur, R1) |
+| `Hellhound._physics_process` (4) | 0,6-0,8 | 0,7-0,8 | 150-200 µs par chien (super + ligne de vue à chaque pas) |
+| `Zombie._process` (animation, sons) | 0,66-0,69 | 0,6-0,83 | pose 0,36-0,44 |
+| `Audio.play_3d` | 0,33 | 0,76 | **corrigé** : chargement du fichier au premier son (0,87 ms par son) |
+| `WeaponController.tick` | 0,14-0,19 | 0,38-0,78 | `_fire` 1,1-2,9 ms par tir, `_trace` 0,28-0,34 ms |
+| `Hud._process` | 0,12-0,14 | 0,13-0,17 | R7 |
+| `InteractionSystem.local_tick` | 0,10-0,15 | 0,14 | R8 |
+| `ParticlePool._process` (5) | 0,03 | 0,13-0,15 | **corrigé** (-24 %) |
+
+**Corrigé (fichiers autorisés, rendu et jeu identiques)**
+
+| Commit | Avant -> après |
+|---|---|
+| `ZombieAnim` : tables de clés constantes (plus d'Array alloués par pose) | `_keys` 3,0 -> 1,2 µs (même processus) ; ≈ 11 µs par zombie qui attaque et par image |
+| `ParticlePool.burst` : un seul sol par gerbe (rayon sur les cartes en maillage) | giclée de sang 204 -> 21-45 µs, impact 102 -> 24-54 µs, grenade (effets) 837 -> 126-245 µs, démembrement 447 -> 160-250 µs ; gerbe de 12 : 22 µs contre 117 (même processus) |
+| `ParticlePool._process` en une passe | 128 -> 97 µs pour 240 particules (même processus, image identique vérifiée) |
+| `Audio` : effets chargés en tâche de fond au lancement | premier appel d'un son 869 -> 6-12 µs (≈ 75 sons joués pour la première fois en pleine partie) |
+
+**Réseau (hôte + client, KINO, 28 zombies)** : 15 instantanés/s (84-91
+en 6 s réelles), ≈ 150 octets chacun ; `build_snapshot` 72-150 µs (encodage
+38-44), client `apply_snapshot` 220-300 µs (instrumenté, dont `decode` ≈
+95) : < 0,1 ms par image. Le poste client qui compte est l'interpolation :
+`Zombie._interpolate` 7 µs x 28 = 0,2 ms par image (R5). Remarque : en paire
+accélérée (`--fixed-fps` + `--max-fps 180`), hôte et client n'avancent pas au
+même rythme réel ; les compteurs d'instantanés n'y sont pas fiables.
+
+**Recommandations (fichiers hors de ce chantier)**
+
+| # | Où | Cause | Proposition | Gain attendu |
+|---|---|---|---|---|
+| R1 | `interact/mainframe.gd:257-266` | collision du socle du téléporteur = `CylinderMesh.create_convex_shape()` à 40 segments (88 points) ; GodotPhysics teste toutes les faces à chaque `move_and_slide` | convexe construit à la main : tronc de cône à 12-16 côtés circonscrit (jamais plus petit que le socle), ou sans l'anneau intermédiaire (80 points, même enveloppe exacte, gain faible) | `Player.move_and_slide` à côté du socle : 460-660 µs -> 12-23 µs mesurés en coupant la forme ; soit **0,45-0,65 ms par image** au départ de KINO (le socle est dans le hall), plus les zombies et chiens qui y passent. Seule forme convexe de plus de 24 points de KINO. À valider en jeu (bord incliné praticable) |
+| R2 | `zombies/zombie.gd:745-752` (`_follow_floor`) | un `PhysicsRayQueryParameters3D.create` + un Dictionary par zombie et par pas | réutiliser un objet de requête par zombie (from / to mis à jour) : identique | 20-30 % de 0,25-0,38 ms |
+| R3 | `zombie.gd:319-322`, `map/mesh_nav.gd:88-94` | `find_path` 116-152 µs sur KINO, ≈ 3,4 appels par image | `closest_point(to)` mis en cache par cible et par pas (identique) ; `NavigationServer3D.query_path` avec paramètres et résultat réutilisés ; mesurer le nombre de polygones du navmesh de KINO (`CELL_SIZE` 0,2) | 0,1-0,2 ms par image |
+| R4 | `zombie.gd:398-419` (`_separation`) | `range()` et `get_parent() as ZombieManager` à chaque appel (11-15 µs) | boucles `for dz in 3`, `_mgr` déjà en cache : identique | ≈ 0,1 ms par image |
+| R5 | `zombie.gd:542-589` (client) | instantanés en Array d'Array, `pop_front` | tampon circulaire (PackedFloat64Array / PackedVector3Array) : identique | 0,1 ms par image sur le client |
+| R6 | `dogs/hellhound.gd:110-121`, `205-221` | ligne de vue vers la cible à CHAQUE pas dès qu'elle est à portée de bond ; un rayon de sol par particule de flamme (26/s par chien, flammes qui montent) | cache comme `Zombie.LOS_PERIOD` ; sol calculé une fois par chien et par image (exposer `ParticlePool._emit_at`) | ≈ 0,1-0,2 ms par image en manche de chiens |
+| R7 | `hud/hud.gd:238-320` | à chaque image : 2 `add_theme_color_override` (propagation du thème), textes reformatés (FPS, munitions, aide avec `Lang.t` + `Settings.action_label`), `_crosshair.queue_redraw()`, 3 paramètres de shader même vignette masquée | n'écrire que ce qui change (valeurs précédentes gardées) | 120-175 -> ≈ 40 µs |
+| R8 | `interact/interaction_system.gd:60-85` (`_find_focus`) | `objects.values()` alloué et `is_visible_in_tree()` (remontée de l'arbre) AVANT le test de distance, pour tous les objets, à chaque pas | test de distance d'abord, tableau des objets gardé : même résultat | 100-150 -> 30-40 µs sur KINO |
+| R9 | `weapons/weapon_controller.gd:316-340` (`_trace`), `view_model.gd:394-460` | une requête et un tableau d'exclusion par segment de pénétration ; `view_model.update` alloue deux Dictionary et écrit `vm_fov_scale` à chaque image (83-116 µs) | réutiliser la requête ; n'écrire le paramètre global que s'il change | 0,05-0,1 ms par image, 0,1-0,2 ms par tir |
+| R10 | moteur physique (`project.godot`) | GodotPhysics3D : `move_and_slide` et convexes coûteux | essayer Jolt (intégré à Godot 4.7) sur une branche : change la réponse des collisions, à valider en jeu | à mesurer ; potentiellement le plus gros gain CPU restant |
+| R11 | `zombies/zombie_manager.gd:124-143`, `zombie_model.gd` | chaque apparition construit squelette + maillage (120-350 µs) et chaque mort libère le nœud | pool de zombies (réutiliser les nœuds morts) | supprime 0,1-0,35 ms par apparition en manche haute |
+
+Écartés après mesure : tampon MultiMesh en un bloc pour les particules (même
+coût sans rendu que 2 appels par instance), recalcul des lignes de vue du
+`Spawner` seulement pour les points retenus (aucun gain mesurable : le test
+d'orientation rejette déjà la plupart des points avant le rayon).

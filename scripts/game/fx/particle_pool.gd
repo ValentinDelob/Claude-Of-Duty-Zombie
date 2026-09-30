@@ -52,6 +52,14 @@ func setup(cap: int, mat: Material, size := 0.05) -> ParticlePool:
 
 
 func emit(pos: Vector3, vel: Vector3, life: float, color: Color, size_mult := 1.0) -> void:
+	_emit_at(pos, vel, life, color, size_mult, Fx.floor_under(pos) + 0.01)
+
+
+## `floor_y` : sol sous `pos` (Fx.floor_under), calculé par l'appelant. Sur
+## les cartes en maillage c'est un rayon vers le bas : une gerbe le lance une
+## fois pour toutes ses particules (même point de départ) au lieu d'une fois
+## par particule (12 rayons par giclée de sang, 100 par grenade).
+func _emit_at(pos: Vector3, vel: Vector3, life: float, color: Color, size_mult: float, floor_y: float) -> void:
 	var i := _count
 	if i >= capacity:
 		# Pool plein : on remplace la particule la plus ancienne (index 0).
@@ -64,7 +72,7 @@ func emit(pos: Vector3, vel: Vector3, life: float, color: Color, size_mult := 1.
 	_max_life[i] = life
 	_size[i] = base_size * size_mult
 	_col[i] = color
-	_floor[i] = Fx.floor_under(pos) + 0.01
+	_floor[i] = floor_y
 
 
 ## Gerbe de particules autour d'une normale.
@@ -73,19 +81,27 @@ func burst(pos: Vector3, normal: Vector3, n: int, speed: float, spread: float, l
 		# Moins de particules, un peu plus grosses : même masse visuelle.
 		n = maxi(1, roundi(n * density))
 		size_mult *= 1.0 + (1.0 - density) * 0.4
+	if n <= 0:
+		return
+	var floor_y := Fx.floor_under(pos) + 0.01
 	for k in n:
 		var dir := (normal + Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * spread).normalized()
-		emit(pos, dir * speed * randf_range(0.5, 1.2), life * randf_range(0.6, 1.2), color, size_mult * randf_range(0.6, 1.4))
+		_emit_at(pos, dir * speed * randf_range(0.5, 1.2), life * randf_range(0.6, 1.2), color, size_mult * randf_range(0.6, 1.4), floor_y)
 
 
 func _process(delta: float) -> void:
 	if _count == 0:
 		return
+	# Une seule passe : mouvement puis instance du MultiMesh, valeurs lues
+	# une fois dans des variables locales (mêmes calculs, même résultat).
 	var i := 0
 	var damp := exp(-drag * delta)
+	var fall := Vector3.DOWN * gravity * delta
+	var mm := multimesh
 	while i < _count:
 		_life[i] -= delta
-		if _life[i] <= 0.0:
+		var life := _life[i]
+		if life <= 0.0:
 			_count -= 1
 			_pos[i] = _pos[_count]
 			_vel[i] = _vel[_count]
@@ -95,18 +111,19 @@ func _process(delta: float) -> void:
 			_col[i] = _col[_count]
 			_floor[i] = _floor[_count]
 			continue
-		_vel[i] = _vel[i] * damp + Vector3.DOWN * gravity * delta
-		_pos[i] += _vel[i] * delta
-		if _pos[i].y < _floor[i]:
-			_pos[i].y = _floor[i]
-			_vel[i] = Vector3(_vel[i].x * 0.3, 0.0, _vel[i].z * 0.3)
-		i += 1
-	var mm := multimesh
-	mm.visible_instance_count = _count
-	for k in _count:
-		var t := _life[k] / _max_life[k]
-		var s := _size[k] * (1.0 + grow * (1.0 - t))
-		mm.set_instance_transform(k, Transform3D(Basis.from_scale(Vector3(s, s, s)), _pos[k]))
-		var c := _col[k]
+		var v := _vel[i] * damp + fall
+		var p := _pos[i] + v * delta
+		var fy := _floor[i]
+		if p.y < fy:
+			p.y = fy
+			v = Vector3(v.x * 0.3, 0.0, v.z * 0.3)
+		_vel[i] = v
+		_pos[i] = p
+		var t := life / _max_life[i]
+		var s := _size[i] * (1.0 + grow * (1.0 - t))
+		mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(s, s, s)), p))
+		var c := _col[i]
 		c.a *= clampf(t * 2.0, 0.0, 1.0)
-		mm.set_instance_color(k, c)
+		mm.set_instance_color(i, c)
+		i += 1
+	mm.visible_instance_count = _count
