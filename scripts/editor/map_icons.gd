@@ -61,6 +61,16 @@ static func draw(ci: CanvasItem, it: Dictionary, r: Rect2) -> void:
 		"pilier":
 			ci.draw_rect(Rect2(cx - Vector2(s, s) * 0.3, Vector2(s, s) * 0.6), c.lightened(0.2))
 			ci.draw_rect(Rect2(cx - Vector2(s, s) * 0.3, Vector2(s, s) * 0.6), INK, false, 2.0)
+		"bloc_invisible":
+			# Pavé fantôme : carré translucide hachuré, contour en tirets.
+			var q := Rect2(cx - Vector2(s, s) * 0.36, Vector2(s, s) * 0.72)
+			ci.draw_rect(q, Color(c, 0.22))
+			for i in 4:
+				var d := s * (0.18 + i * 0.18)
+				ci.draw_line(q.position + Vector2(maxf(0.0, d - q.size.y), minf(d, q.size.y)), q.position + Vector2(minf(d, q.size.x), maxf(0.0, d - q.size.x)), Color(c, 0.7), 1.5)
+			var pts := [q.position, Vector2(q.end.x, q.position.y), q.end, Vector2(q.position.x, q.end.y)]
+			for i in 4:
+				ci.draw_dashed_line(pts[i], pts[(i + 1) % 4], c.lightened(0.3), 2.0, maxf(2.0, s * 0.1))
 		"escalier":
 			for i in 5:
 				ci.draw_rect(Rect2(p.position + Vector2(s * 0.15, s * (0.1 + i * 0.16)), Vector2(s * 0.7, s * 0.1)), c)

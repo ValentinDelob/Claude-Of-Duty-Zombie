@@ -767,7 +767,8 @@ func test_format_4_round_trip_and_older_formats() -> void:
 	var doc := round_map()
 	doc.objets.append({"id": "d9", "type": "prefab", "prefab": "chaise", "etage": 0, "position": [20.0, 21.0], "rot": 37})
 	var t := doc.file_texts()
-	assert_true(String(t["carte.json"]).contains("\"format\": 4"), "format 4")
+	# Format 5 (variantes, barrière) : les clés du format 4 sont écrites telles quelles.
+	assert_true(EditorMap.FORMAT >= 4 and String(t["carte.json"]).contains("\"format\": %d" % EditorMap.FORMAT), "format courant (%d), au moins 4" % EditorMap.FORMAT)
 	assert_true(String(t["pieces.json"]).contains("\"forme\":{") and String(t["pieces.json"]).contains("\"points\":32"), "forme de base enregistrée")
 	assert_true(String(t["objets.json"]).contains("\"type\":\"mur_courbe\"") and String(t["objets.json"]).contains("\"rot\":30")
 		and String(t["objets.json"]).contains("\"rot\":37"), "mur courbe et rotations enregistrés")

@@ -9,6 +9,10 @@ var weapon_id := ""
 var cost := 0
 ## Vrai si l'objet vendu est un couteau (KnifeDB) et non une arme à feu.
 var is_knife := false
+## Aspect choisi dans l'éditeur de cartes (format 5, MapCatalog.VARIANTS) :
+## « craie » (défaut : la craie à même le mur) ou « planche » (la craie sur
+## une planche clouée au mur). Valeur inconnue : l'aspect par défaut.
+var variant := ""
 var _normal := Vector3.FORWARD
 
 
@@ -22,6 +26,7 @@ func setup_marker(m: MapMarker, weapon: String) -> void:
 	cost = KnifeDB.wall_cost(weapon) if is_knife else WeaponDB.wall_cost(weapon)
 	interact_id = "wallbuy_" + m.id
 	name = "WallBuy" + m.id
+	variant = String(m.data.get("variant", ""))
 	_normal = m.wall
 	# Plaqué contre le mur, à hauteur de poitrine.
 	position = m.on_wall(0.02, 1.45)
@@ -32,6 +37,8 @@ func _ready() -> void:
 	# Face au joueur : +Z du nœud tourné vers la pièce (opposé au mur).
 	look_at(global_position - _normal, Vector3.UP)
 	rotate_object_local(Vector3.UP, PI)
+	if variant == "planche":
+		_build_board()
 	# Contour à la craie (comme BO1) : la silhouette du modèle de l'arme, aplatie
 	# contre le mur et vue de profil, en blanc cassé lumineux, doublée d'un
 	# halo poudreux un peu plus large.
@@ -60,6 +67,23 @@ func _ready() -> void:
 	label.position = Vector3(0, -0.42, 0.03)
 	label.shaded = true
 	add_child(label)
+
+
+## Variante « planche » : trois planches sombres clouées au mur derrière la
+## craie (la craie et le prix restent devant, à 2 cm du mur).
+func _build_board() -> void:
+	var board := Node3D.new()
+	board.name = "Board"
+	for i in 3:
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(1.7 - 0.08 * float(i % 2), 0.3, 0.018)
+		mi.mesh = bm
+		mi.material_override = WorldLook.surface("dark_wood" if i != 1 else "wood")
+		mi.position = Vector3(0.03 * float(i - 1), 0.31 - 0.31 * i, -0.012)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		board.add_child(mi)
+	add_child(board)
 
 
 static var _chalk_mats: Dictionary = {}

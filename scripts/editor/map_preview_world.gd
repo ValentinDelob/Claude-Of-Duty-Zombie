@@ -47,6 +47,8 @@ var auto := true
 var power_on := true
 var full_light := false
 var hide_ceilings := false
+## Barrières invisibles (format 5) montrées en pavés translucides.
+var show_clips := true
 var floors_mode := Floors.ALL
 ## Étage affiché dans la vue 2D (options « jusqu'à » / « seulement »).
 var view_floor := 0
@@ -560,6 +562,8 @@ func _apply_visibility() -> void:
 			continue
 		var u: Array = _units[n]
 		var show: bool = floor_shown(int(u[0])) and not (hide_ceilings and String(u[1]) == "ceil")
+		if String(n.name).begins_with("ClipView_"):
+			show = show and show_clips
 		if n is Node3D and not n is StaticBody3D:
 			(n as Node3D).visible = show
 
@@ -579,6 +583,7 @@ func set_options(o: Dictionary) -> void:
 	power_on = bool(o.get("power", power_on))
 	full_light = bool(o.get("full", full_light))
 	hide_ceilings = bool(o.get("ceil", hide_ceilings))
+	show_clips = bool(o.get("clips", show_clips))
 	floors_mode = int(o.get("floors", floors_mode)) as Floors
 	_apply_power()
 	_apply_light()

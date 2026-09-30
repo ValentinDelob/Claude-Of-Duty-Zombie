@@ -164,6 +164,7 @@ func doors() -> Array[MapMarker]:
 			"yaw": float(d.get("yaw", 0.0)), "zones": d.get("zones", []),
 			"power": bool(d.get("power", false)), "link": String(d.get("link", "")),
 			"curtain": bool(d.get("curtain", false)), "debris": bool(d.get("debris", false)),
+			"variant": String(d.get("variant", "")),
 		}
 		_door_markers.append(mk)
 	return _door_markers
@@ -173,7 +174,7 @@ func wall_buys() -> Array[MapMarker]:
 	var out: Array[MapMarker] = []
 	for w in _markers.get("wall_buys", []):
 		var mk := _wall_marker(String(w.id), w)
-		mk.data = {"weapon": String(w.weapon)}
+		mk.data = {"weapon": String(w.weapon), "variant": String(w.get("variant", ""))}
 		out.append(mk)
 	return out
 

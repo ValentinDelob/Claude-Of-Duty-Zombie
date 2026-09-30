@@ -40,6 +40,39 @@ func build_decor(parent: Node3D) -> void:
 	_build_instances()
 	_build_screens()
 	_build_blockers()
+	_build_clip_views()
+
+
+## Barrières invisibles (blockers « clip ») : un pavé translucide dans
+## l'aperçu seulement (option « Montrer les barrières invisibles ») ; en jeu,
+## MeshMapBuilder n'en construit que la CollisionBox.
+func _build_clip_views() -> void:
+	for d in layout.get("blockers", []):
+		if not bool(d.get("clip", false)):
+			continue
+		var mi := MeshInstance3D.new()
+		mi.name = "ClipView_" + String(d.get("eid", ""))
+		var bm := BoxMesh.new()
+		bm.size = MeshMapLayout.vec(d.size)
+		mi.mesh = bm
+		mi.material_override = _clip_material()
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.transform = Transform3D(Basis(Vector3.UP, float(d.get("yaw", 0.0))), MeshMapLayout.vec(d.center))
+		root.add_child(mi)
+
+
+static var _clip_mat: StandardMaterial3D
+
+
+static func _clip_material() -> StandardMaterial3D:
+	if _clip_mat == null:
+		_clip_mat = StandardMaterial3D.new()
+		_clip_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_clip_mat.albedo_color = Color(0.35, 0.85, 1.0, 0.22)
+		_clip_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_clip_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_clip_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	return _clip_mat
 
 
 ## Lampes : même boucle que MeshMapBuilder.build (une lampe automatique sur

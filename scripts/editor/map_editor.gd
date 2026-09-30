@@ -32,6 +32,9 @@ var hotbar: Array = MapCatalog.DEFAULT_HOTBAR.duplicate()
 var hot_index := 0
 ## Rotation (degrés) de l'objet tenu (prefabs, luminaires) : R avant de poser.
 var place_rot := 0
+## Variante de l'objet tenu (portes, débris, armes murales : V avant de
+## poser) ; "" : l'aspect par défaut.
+var place_variant := ""
 ## Élément survolé (liste des objets ou carte) : contour lumineux sur la carte.
 var hover_id := ""
 ## Éléments posés devenus invalides (dessinés en rouge) : id -> raison.
@@ -211,6 +214,7 @@ func _build_ui() -> void:
 	em.add_item(Lang.t("Copier", "Copy") + "   Ctrl+C", 2)
 	em.add_item(Lang.t("Coller", "Paste") + "   Ctrl+V", 3)
 	em.add_item(Lang.t("Pivoter de 90°", "Rotate 90°") + "   R", 4)
+	em.add_item(Lang.t("Aspect suivant", "Next look") + "   V", 8)
 	em.add_item(Lang.t("Supprimer", "Delete") + "   Suppr", 5)
 	em.add_separator()
 	em.add_item(Lang.t("Inventaire", "Inventory") + "   E / Tab", 6)
@@ -684,6 +688,8 @@ func _input(event: InputEvent) -> void:
 					select("")
 			KEY_R:
 				rotate_selected()
+			KEY_V:
+				cycle_variant()
 			KEY_L:
 				object_list.toggle()
 			KEY_DELETE:
@@ -727,6 +733,7 @@ func tool() -> String:
 func select_slot(i: int) -> void:
 	hot_index = clampi(i, 0, 8)
 	place_rot = 0
+	place_variant = ""
 	canvas.cancel()
 	canvas.preview = {}
 	canvas.refusal = ""
@@ -938,7 +945,7 @@ func add_object(o: Dictionary, k: int) -> Dictionary:
 		doc.ouvertures.append(e)
 	else:
 		var prefix: String = {"atout": "a", "arme": "w", "boite": "b", "depart": "s", "escalier": "e", "pilier": "x", "mur": "m", "mur_courbe": "m",
-			"piege": "t", "levier": "l", "prefab": "d", "luminaire": "lu"}.get(String(e.get("type", "")), "x")
+			"piege": "t", "levier": "l", "prefab": "d", "luminaire": "lu", "bloc_invisible": "i"}.get(String(e.get("type", "")), "x")
 		e["id"] = doc.new_id(prefix)
 		# Un seul départ de la boîte.
 		if String(e.type) == "boite" and e.get("depart", false):
@@ -1227,6 +1234,34 @@ func rotate_selected() -> void:
 	push_undo_snapshot(before)
 	changed()
 	set_status(Lang.t("Pivoté de 90°", "Rotated 90°"))
+
+
+## V : variante suivante (aspect) de l'objet tenu (avant de le poser), sinon
+## de l'élément choisi (MapCatalog.VARIANTS : portes, débris, armes murales).
+func cycle_variant() -> void:
+	var held := current_item()
+	var make: Dictionary = held.get("make", {})
+	var ht := String(make.get("type", ""))
+	if MapCatalog.variants(ht).size() > 1 and String(held.get("tool", "")) != "select":
+		var cur := place_variant if place_variant != "" else MapCatalog.default_variant(ht)
+		place_variant = MapCatalog.next_variant(ht, cur)
+		canvas._update_preview()
+		canvas.queue_redraw()
+		set_status(Lang.t("%s : %s (V : aspect suivant)", "%s: %s (V: next look)") % [MapCatalog.name_of(held), MapCatalog.variant_name(ht, place_variant)])
+		return
+	var e := doc.find(selected)
+	if e.is_empty():
+		set_status(Lang.t("Choisissez d'abord une porte, des débris ou une arme murale (outil Sélection)",
+			"Pick a door, debris or a wall weapon first (Select tool)"))
+		return
+	var t := String(e.get("type", ""))
+	if MapCatalog.variants(t).size() < 2:
+		set_status(Lang.t("Cet élément n'a qu'un seul aspect", "This element has only one look"))
+		return
+	push_undo()
+	MapCatalog.set_variant(e, MapCatalog.next_variant(t, MapCatalog.variant_of(e)))
+	changed()
+	set_status(Lang.t("Aspect : %s (V : suivant)", "Look: %s (V: next)") % MapCatalog.variant_name(t, MapCatalog.variant_of(e)))
 
 
 func copy_selected() -> void:
@@ -1746,6 +1781,8 @@ func _on_edit_menu(id: int) -> void:
 			toggle_inventory()
 		7:
 			canvas.frame_all()
+		8:
+			cycle_variant()
 
 
 func quit_to_menu() -> void:
