@@ -402,7 +402,10 @@ jamais chargée depuis le réseau ou une archive (données JSON seulement).
   (collisions ; escaliers = marches visibles + coin de collision plein, le
   joueur n'ayant pas de montée de marche). `MeshMapBuilder` (hérite de
   `MapProps`, comme `PropBuilder`) branche le .glb sur le rendu, le courant et
-  les lampes. `MeshNav` (hérite de `MapNav`, comme `NavGrid`) cuit le navmesh
+  les lampes, en trois morceaux (`_add_architecture`, `_build_decor_parts`,
+  `_build_lamps`) que l'aperçu 3D de l'éditeur (`MapPreviewBuilder`, qui en
+  hérite) appelle aussi : l'aperçu montre la géométrie du jeu, pas une copie
+  (test « même géométrie que le jeu », `tests/test_map_preview.gd`). `MeshNav` (hérite de `MapNav`, comme `NavGrid`) cuit le navmesh
   au chargement d'après les collisions (portes fermées et fenêtres comprises)
   ; chaque porte est un `NavigationLink3D` activé à l'ouverture. Les zombies
   gardent le déplacement flottant et suivent le sol par un rayon vers le bas
