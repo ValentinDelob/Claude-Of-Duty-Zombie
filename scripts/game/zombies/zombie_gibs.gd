@@ -149,7 +149,7 @@ static func apply(z: Zombie, bits: int, dir: Vector3, lethal: bool) -> void:
 	if bits == 0 or z.skel == null:
 		return
 	z.gibs |= bits
-	var fx: Fx = Game.instance.fx_root if Game.instance else null
+	var fx: Fx = z.game.fx_root if z.game else null
 	var push := Vector3(dir.x, 0.0, dir.z).normalized() if Vector2(dir.x, dir.z).length() > 0.01 else Vector3.ZERO
 	if bits & ARM_L:
 		_tear(z, fx, "forearm_l", ["forearm_l"], push, 0.001)
@@ -205,9 +205,9 @@ static func become_crawler(z: Zombie) -> void:
 
 
 ## Tête qui éclate (tir à la tête mortel) : éclats de crâne.
-static func head_pop(_z: Zombie, neck: Vector3, dir: Vector3) -> void:
-	if Game.instance and Game.instance.fx_root.gibs:
-		Game.instance.fx_root.gibs.head_burst(neck + Vector3.UP * 0.12, dir)
+static func head_pop(z: Zombie, neck: Vector3, dir: Vector3) -> void:
+	if z.game and z.game.fx_root.gibs:
+		z.game.fx_root.gibs.head_burst(neck + Vector3.UP * 0.12, dir)
 
 
 # --------------------------------------------------------------------------

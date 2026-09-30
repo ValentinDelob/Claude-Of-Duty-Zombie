@@ -126,6 +126,26 @@ bornent les acquittements, limitent les demandes (3 par carte) et le débit
 l'expéditeur 1 et vérifient chaque type reçu. Aucune ressource Godot n'est
 jamais chargée depuis le réseau ou une archive (données JSON seulement).
 
+## Référence à la partie (`game`)
+
+Chaque objet de la partie reçoit son `Game` de celui qui le crée, dans un champ
+`game` :
+
+- systèmes enfants directs de `Game` (`Combat`, `Interact`, `Throwables`,
+  `Rounds`, `Zombies`...) : `game = get_parent()` dans `_ready` ;
+- objets créés par un système : de leur créateur — `WeaponController.setup(p, game)`,
+  `ThrowController.setup(...)`, `Spawner.new(game)`, `DogRound` via
+  `RoundManager.game`, zombies et chiens via leur `ZombieManager.game` (lu dans
+  `Zombie._ready`), et leurs aides (`ZombieGibs`, `ZombieFling`) via `z.game` ;
+- `game` peut être nul pour un objet seul des tests unitaires (zombie ou
+  gestionnaire hors partie) : le code qui le lit le vérifie
+  (`Zombie._is_target_valid` refuse toute cible hors partie).
+
+`Game.instance` est réservé au code sans propriétaire dans la partie
+(autoloads, fonctions statiques, menus). Lisent encore `Game.instance`, tous
+avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
+(aussi créé hors partie par `Warmup`), `Barricade`, `Door`, `BoxBoard`.
+
 ## Autoloads
 
 | Nom | Rôle |

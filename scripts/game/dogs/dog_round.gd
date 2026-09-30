@@ -54,7 +54,7 @@ static func flame_pool() -> ParticlePool:
 
 func _ready() -> void:
 	rounds = get_parent()
-	game = rounds.get_parent()
+	game = rounds.game  # donnée par RoundManager, qui crée ce nœud
 	_rng.randomize()
 	next_dog_round = DogRules.first_dog_round(_rng)
 	var pool := ParticlePool.new().setup(200, Fx._particle_mat(true), 0.08)

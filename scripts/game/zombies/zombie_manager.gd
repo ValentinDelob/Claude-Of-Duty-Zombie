@@ -18,6 +18,9 @@ signal zombie_spawned(z: Zombie)
 signal zombie_removed(zid: int)
 signal zombie_killed(zid: int)
 
+## Partie parente (null pour un gestionnaire seul, dans les tests unitaires).
+## Les zombies et les chiens la prennent ici (Zombie.game).
+var game: Game
 var zombies: Dictionary = {}  # id -> Zombie
 ## Zombies vivants (liste tenue à jour, sans allocation pour les parcours).
 var alive: Array[Zombie] = []
@@ -105,6 +108,7 @@ func pose_step(pos: Vector3) -> float:
 
 
 func _ready() -> void:
+	game = get_parent() as Game
 	_rng.randomize()
 
 
@@ -254,8 +258,8 @@ func _cl_spawn(zid: int, pos: Vector3, yaw: float, variant: int, speed_class: in
 		return  # Apparition par la foudre (Hellhound).
 	# Les zombies des fenêtres (BarricadeSystem) ne sortent pas du sol.
 	if z.state == Zombie.State.EMERGE:
-		if Game.instance:
-			Game.instance.fx_root.dirt_burst(pos)
+		if game:
+			game.fx_root.dirt_burst(pos)
 		Audio.play_3d("emerge", pos, -3.0, 0.1, 3)
 
 
