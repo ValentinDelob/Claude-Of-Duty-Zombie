@@ -18,7 +18,6 @@ func run() -> void:
 			client_id = pid
 	var cpd := game.session.get_data(client_id)
 	var client: Player = game.players[client_id]
-	await seconds(3.0)
 	# Le client se place en (3,7) face à l'est ; 3 zombies immobiles à 6 m.
 	var ok: bool = await until(func(): return client.global_position.distance_to(MapData.cell_to_world(Vector2i(3, 7))) < 1.0, 15.0, "client en position")
 	if not ok:
@@ -36,11 +35,12 @@ func run() -> void:
 		return true, 40.0, "zombies tués par le client")
 	at.check(ok, "les 3 zombies ont été tués par les tirs du client (validés par l'hôte)")
 	at.check(cpd.kills == 3 and cpd.points > 500, "le serveur crédite le client : %d tués, %d points" % [cpd.kills, cpd.points])
-	# Un zombie va attaquer le client.
-	await seconds(1.0)
+	# Un zombie va attaquer le client (une fois ses points vérifiés chez lui).
+	if not await MpHelpers.wait_peer(self, "points_vus", 15.0):
+		return
 	var hp := cpd.health
 	var zid2 := game.zombies.spawn(client.global_position + Vector3(2.5, 0, 0), 1, 150)
 	ok = await until(func(): return cpd.health < hp, 12.0, "client frappé")
 	at.check(ok, "un zombie serveur blesse le client (%d -> %d PV)" % [hp, cpd.health])
 	game.zombies.despawn(zid2)
-	await seconds(6.0)
+	await MpHelpers.finish(self)
