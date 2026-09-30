@@ -77,10 +77,10 @@ func _build_board() -> void:
 	for i in 3:
 		var mi := MeshInstance3D.new()
 		var bm := BoxMesh.new()
-		bm.size = Vector3(1.5 - 0.06 * float(i % 2), 0.26, 0.018)
+		bm.size = Vector3(1.7 - 0.08 * float(i % 2), 0.3, 0.018)
 		mi.mesh = bm
 		mi.material_override = WorldLook.surface("dark_wood" if i != 1 else "wood")
-		mi.position = Vector3(0.02 * float(i - 1), 0.28 - 0.27 * i, -0.012)
+		mi.position = Vector3(0.03 * float(i - 1), 0.31 - 0.31 * i, -0.012)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		board.add_child(mi)
 	add_child(board)

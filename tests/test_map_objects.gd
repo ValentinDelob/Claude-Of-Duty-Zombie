@@ -190,6 +190,12 @@ func test_barrier_cells_are_solid_for_the_validator() -> void:
 		assert_eq(f.key_at(c), "decor#i1")
 	assert_eq(v.clips.size(), 1)
 	assert_eq(v.variants, {"o1": "bois", "o4": "gravats", "w1": "planche"}, "variantes transmises")
+	# Barrière d'un mur à l'autre de la salle B : l'est de B (fenêtre, atout)
+	# n'est plus accessible à pied, comme derrière un mur.
+	var cut := objects_map()
+	cut.find("i1")["rect"] = [17, 0, 17.5, 10]
+	var vc := _check(cut)
+	assert_false(vc.errors().is_empty(), "barrière qui coupe la salle : signalée par le validateur")
 	# Règles de pose : 0,5 m suffit, hors d'une pièce refusé.
 	assert_true(MapRules.check_rect(doc, 0, "bloc_invisible", Rect2(20, 2, 0.5, 3)).ok, "0,5 m d'épaisseur accepté")
 	assert_false(MapRules.check_rect(doc, 0, "pilier", Rect2(20, 2, 0.5, 3)).ok, "un pilier garde 1 m au moins")
