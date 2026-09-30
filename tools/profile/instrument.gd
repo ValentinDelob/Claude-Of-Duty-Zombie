@@ -25,12 +25,13 @@ static func reset() -> void:
 """
 
 const EXTRA := {
-	"res://scripts/game/player/player.gd": ["_move", "_update_camera_effects", "_local_physics"],
+	"res://scripts/game/player/player.gd": ["_move", "_update_camera_effects", "_local_physics", "_remote_interpolate"],
 	"res://scripts/game/weapons/weapon_controller.gd": ["tick", "_fire", "_trace"],
 	"res://scripts/game/interact/interaction_system.gd": ["local_tick"],
 	"res://scripts/game/weapons/view_model.gd": ["update"],
-	"res://scripts/game/zombies/zombie.gd": ["_chase", "_separation", "_update_pose", "_groan", "_footstep", "_nearest_player", "_follow_floor", "_check_stuck", "_process_death"],
-	"res://scripts/game/zombies/zombie_manager.gd": ["separation_grid", "build_snapshot", "pose_step"],
+	"res://scripts/game/zombies/zombie.gd": ["_chase", "_separation", "_update_pose", "_groan", "_footstep", "_nearest_player", "_follow_floor", "_check_stuck", "_process_death", "_interpolate", "push_snapshot"],
+	"res://scripts/game/zombies/zombie_manager.gd": ["separation_grid", "build_snapshot", "pose_step", "apply_snapshot"],
+	"res://scripts/game/net_codec.gd": ["encode_zombie_snapshot", "decode_zombie_snapshot", "quantize_zombie"],
 	"res://scripts/game/dogs/hellhound.gd": ["_emit_flames"],
 	"res://scripts/game/combat.gd": ["damage_zombie", "explosion", "srv_fire", "_apply_hits"],
 	"res://scripts/game/fx/fx.gd": ["blood_hit", "impact", "tracer", "dirt_burst"],
@@ -129,7 +130,14 @@ func _instrument(path: String, wanted: Array) -> bool:
 					var nm: String = p.strip_edges().split(":")[0].split("=")[0].strip_edges()
 					args.append(nm)
 				var key := "%s.%s" % [base, fname]
-				var w := "\n%sfunc %s(%s)%s:\n\tvar __t := Time.get_ticks_usec()\n" % ["static " if is_static else "", fname, params, (" -> " + ret) if ret != "" else ""]
+				# Annotations (@rpc...) : elles vont sur l'enveloppe, qui garde le nom.
+				var ann := ""
+				var j := i - 1
+				while j >= 0 and String(lines[j]).begins_with("@"):
+					ann = String(lines[j]) + "\n" + ann
+					lines[j] = ""
+					j -= 1
+				var w := "\n%s%sfunc %s(%s)%s:\n\tvar __t := Time.get_ticks_usec()\n" % [ann, "static " if is_static else "", fname, params, (" -> " + ret) if ret != "" else ""]
 				if ret == "" or ret == "void":
 					w += "\t%s(%s)\n\tProfTmp.add(&\"%s\", __t)\n" % [inner, ", ".join(args), key]
 				else:

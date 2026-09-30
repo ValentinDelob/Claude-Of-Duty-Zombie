@@ -303,6 +303,61 @@ func _micro() -> void:
 	_bench("Zombie.separation", 2000, func(i): alive[i % alive.size()].separation())
 	_bench("ZombieManager.pose_step", 5000, func(i): game.zombies.pose_step(alive[i % alive.size()].global_position))
 	var tgt := p.global_position
+	# Déplacement du joueur (move_and_slide) : ce qui l'entoure.
+	var q := PhysicsShapeQueryParameters3D.new()
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.6
+	cap.height = 2.4
+	q.shape = cap
+	q.transform = Transform3D(Basis.IDENTITY, tgt + Vector3.UP * 1.0)
+	q.collision_mask = p.collision_mask
+	var around := p.get_world_3d().direct_space_state.intersect_shape(q, 256)
+	var kinds := {}
+	for h in around:
+		var col: Object = h.collider
+		var key := col.get_class()
+		if col is CollisionObject3D:
+			var sh: Shape3D = (col as CollisionObject3D).shape_owner_get_shape((col as CollisionObject3D).shape_find_owner(int(h.shape)), 0)
+			key += "/" + (sh.get_class() if sh else "?")
+			if sh is ConcavePolygonShape3D:
+				key += "(%d tri)" % ((sh as ConcavePolygonShape3D).get_faces().size() / 3)
+			elif sh is ConvexPolygonShape3D:
+				key += "(%d points, %s)" % [(sh as ConvexPolygonShape3D).points.size(), (col as Node).get_path()]
+		kinds[key] = int(kinds.get(key, 0)) + 1
+	print("[micro] autour du joueur (masque %d) : %s" % [p.collision_mask, kinds])
+	# Formes convexes lourdes de la carte (coût de move_and_slide au contact).
+	var heavy := []
+	for cs in game.world.find_children("*", "CollisionShape3D", true, false):
+		var sh := (cs as CollisionShape3D).shape
+		if sh is ConvexPolygonShape3D and (sh as ConvexPolygonShape3D).points.size() > 24:
+			heavy.append("%s (%d points)" % [game.world.get_path_to(cs), (sh as ConvexPolygonShape3D).points.size()])
+	print("[micro] formes convexes de plus de 24 points : %d %s" % [heavy.size(), heavy.slice(0, 8)])
+	var vel0 := p.velocity
+	_bench("Player.move_and_slide (horde autour)", 200, func(_i):
+		p.velocity = vel0
+		p.move_and_slide())
+	var saved_mask := p.collision_mask
+	p.collision_mask = 1
+	_bench("Player.move_and_slide (décor seul)", 200, func(_i):
+		p.velocity = vel0
+		p.move_and_slide())
+	p.collision_mask = saved_mask
+	# Même mesure sans les formes convexes voisines (socle du téléporteur...).
+	var off: Array[CollisionShape3D] = []
+	for h in around:
+		if h.collider is StaticBody3D:
+			for c in (h.collider as Node).get_children():
+				if c is CollisionShape3D and (c as CollisionShape3D).shape is ConvexPolygonShape3D and not c.disabled:
+					c.disabled = true
+					off.append(c)
+	if not off.is_empty():
+		await frames(3)
+		_bench("Player.move_and_slide (sans convexes voisines)", 200, func(_i):
+			p.velocity = vel0
+			p.move_and_slide())
+		for c in off:
+			c.disabled = false
+		await frames(3)
 	_bench("nav.world_line_clear", 2000, func(i): game.nav.world_line_clear(alive[i % alive.size()].global_position, tgt))
 	_bench("nav.find_path (zombie -> joueur)", 200, func(i): game.nav.find_path(alive[i % alive.size()].global_position, tgt))
 	_bench("Spawner.pick_spawn_point", 200, func(_i): game.spawner.pick_spawn_point())
@@ -344,4 +399,14 @@ func _micro() -> void:
 		worst = maxi(worst, dt)
 		total += dt
 	print("[micro] %-44s %8.2f µs/appel (pire %d µs)" % ["ZombieGibs.apply (jambes + bras)", float(total) / maxi(nz, 1), worst])
+	# Grenade au milieu de la horde (dégâts, démembrements, morts, effets).
+	var c := Vector3.ZERO
+	for zz in alive:
+		c += zz.global_position
+	c /= alive.size()
+	var before := game.zombies.alive_count()
+	var tb := Time.get_ticks_usec()
+	game.combat.explosion(1, c, 4.0, 100000, 0)
+	game.throwables.explosion_fx(c, ThrowableRules.Kind.FRAG)
+	print("[micro] %-44s %8.2f µs (%d zombies tués)" % ["grenade dans la horde (Combat.explosion + effets)", float(Time.get_ticks_usec() - tb), before - game.zombies.alive_count()])
 	await frames(10)
