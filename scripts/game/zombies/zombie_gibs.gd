@@ -190,11 +190,12 @@ static func become_crawler(z: Zombie) -> void:
 	if z.crawl_t >= 0.0:
 		return
 	z.crawl_t = 0.0
-	var cap := z._body_shape.shape as CapsuleShape3D if z._body_shape else null
+	var body := z.body_shape
+	var cap := body.shape as CapsuleShape3D if body else null
 	if cap:
 		cap.height = 0.6
 		cap.radius = 0.3
-		z._body_shape.position.y = 0.3 + z.floor_gap()
+		body.position.y = 0.3 + z.floor_gap()
 	var hb := z.hit_body.get_child(0).shape as CapsuleShape3D
 	hb.radius = 0.22
 	hb.height = 1.1
@@ -224,9 +225,9 @@ static func crawl_pose(z: Zombie, delta: float) -> void:
 	var skel := z.skel
 	var b := z.bones
 	var spd := z.anim_speed
-	z._phase += delta * (1.4 + spd * 4.5)
-	var s := sin(z._phase)
-	var c := cos(z._phase)
+	z.gait_phase += delta * (1.4 + spd * 4.5)
+	var s := sin(z.gait_phase)
+	var c := cos(z.gait_phase)
 	var k := ease(clampf(z.crawl_t / CRAWL_FALL_TIME, 0.0, 1.0), 0.5)
 	var move_k := clampf(spd / 0.5, 0.0, 1.0)
 	skel.position.y = 0.0
@@ -237,10 +238,10 @@ static func crawl_pose(z: Zombie, delta: float) -> void:
 	skel.set_bone_pose_rotation(b.spine, _q(0.04, s * 0.12 * move_k, 0.0))
 	skel.set_bone_pose_rotation(b.chest, _q(-0.06, -s * 0.12 * move_k, c * 0.05))
 	# Tête relevée vers l'avant (le buste est couché).
-	skel.set_bone_pose_rotation(b.head, _q(-1.15 * k - 0.2 + sin(z._phase * 0.7) * 0.06, 0.0, z._head_tilt))
+	skel.set_bone_pose_rotation(b.head, _q(-1.15 * k - 0.2 + sin(z.gait_phase * 0.7) * 0.06, 0.0, z.head_tilt))
 	# Mâchoire pendante, grande ouverte pendant la griffe.
-	var jaw := (z.anim.jaw_open if z.anim else 0.3) + sin(z._phase * 1.3) * 0.08
-	if z._attack_t >= 0.0:
+	var jaw := (z.anim.jaw_open if z.anim else 0.3) + sin(z.gait_phase * 1.3) * 0.08
+	if z.attack_t >= 0.0:
 		jaw = 0.6
 	skel.set_bone_pose_rotation(b.jaw, _q(jaw))
 	# Bras : traction alternée (tendu devant, puis ramené sous le buste).
@@ -248,15 +249,15 @@ static func crawl_pose(z: Zombie, delta: float) -> void:
 	var arm_r := lerpf(-1.2, -2.45 + 0.55 * s * move_k, k)
 	var fore_l := -0.25 - 0.35 * maxf(0.0, s) * move_k
 	var fore_r := -0.25 - 0.35 * maxf(0.0, -s) * move_k
-	if z._attack_t >= 0.0:
-		z._attack_t += delta / 0.7
-		var ak := sin(clampf(z._attack_t, 0.0, 1.0) * PI)
+	if z.attack_t >= 0.0:
+		z.attack_t += delta / 0.7
+		var ak := sin(clampf(z.attack_t, 0.0, 1.0) * PI)
 		# Griffe vers le haut (chevilles, jambes du joueur).
-		arm_r = lerpf(arm_r, -3.35 + z._attack_t * 1.2, ak)
-		arm_l = lerpf(arm_l, -3.1 + z._attack_t * 0.9, ak * 0.7)
+		arm_r = lerpf(arm_r, -3.35 + z.attack_t * 1.2, ak)
+		arm_l = lerpf(arm_l, -3.1 + z.attack_t * 0.9, ak * 0.7)
 		fore_r = lerpf(fore_r, -0.1, ak)
-		if z._attack_t >= 1.0:
-			z._attack_t = -1.0
+		if z.attack_t >= 1.0:
+			z.attack_t = -1.0
 	skel.set_bone_pose_rotation(b.arm_l, _q(arm_l, 0.0, -0.3 * k - 0.15))
 	skel.set_bone_pose_rotation(b.arm_r, _q(arm_r, 0.0, 0.3 * k + 0.15))
 	skel.set_bone_pose_rotation(b.forearm_l, _q(fore_l))

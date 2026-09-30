@@ -390,7 +390,7 @@ func _cl_respawn(pid: int, pos: Vector3) -> void:
 		p.net_allow_warp()  # le client réapparaît ailleurs : saut voulu
 	if p.is_local:
 		p.teleport_to(pos)
-		p._eye_height = Player.EYE_HEIGHT
+		p.reset_eye_height()
 		hud.show_center("", "", 0.0)
 
 
@@ -518,7 +518,7 @@ func _cl_teleport(pid: int, pos: Vector3, outbound: bool) -> void:
 		if outbound:
 			hud.show_banner(map_def.teleport_banner, 1.5)
 	else:
-		p._snapshots.clear()
+		p.clear_snapshots()
 		p.global_position = pos
 		if multiplayer.is_server():
 			p.net_allow_warp()  # saut voulu par le serveur (Player._srv_accept_state)

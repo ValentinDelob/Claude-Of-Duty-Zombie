@@ -232,7 +232,9 @@ func file_texts() -> Dictionary:
 static func _ints(v: Variant) -> Variant:
 	if v is float:
 		var f: float = v
-		return int(f) if f == floorf(f) and absf(f) < 1e12 else snappedf(f, 0.0001)
+		if f == floorf(f) and absf(f) < 1e12:
+			return int(f)
+		return snappedf(f, 0.0001)
 	if v is Dictionary:
 		var out := {}
 		for k in v:
@@ -436,7 +438,9 @@ static func _precheck_zip(path: String) -> Array:
 		return ["archive illisible : %s" % path, "unreadable archive: %s" % path]
 	var n := fa.get_length()
 	if n > MAX_ARCHIVE_BYTES:
-		return ["archive trop grosse (%d Ko, 2 Mo au plus)" % (n / 1024), "archive too big (%d KB, 2 MB at most)" % (n / 1024)]
+		@warning_ignore("integer_division")
+		var kb := n / 1024  # Ko entiers (troncature voulue)
+		return ["archive trop grosse (%d Ko, 2 Mo au plus)" % kb, "archive too big (%d KB, 2 MB at most)" % kb]
 	var listing := zip_entries(fa.get_buffer(n))
 	fa.close()
 	if listing.has("error"):
@@ -465,8 +469,10 @@ static func check_zip_entries(entries: Array, wanted: Dictionary) -> Array:
 				"unexpected file in the archive: %s (only %s)" % [name.left(80), ", ".join(FILES)]]
 		folder = dir
 		if int(e.size) > MAX_FILE_BYTES:
-			return ["%s trop gros dans l'archive (%d Ko décompressés, 2 Mo au plus)" % [base, int(e.size) / 1024],
-				"%s too big in the archive (%d KB uncompressed, 2 MB at most)" % [base, int(e.size) / 1024]]
+			@warning_ignore("integer_division")
+			var kb := int(e.size) / 1024  # Ko entiers (troncature voulue)
+			return ["%s trop gros dans l'archive (%d Ko décompressés, 2 Mo au plus)" % [base, kb],
+				"%s too big in the archive (%d KB uncompressed, 2 MB at most)" % [base, kb]]
 		wanted[base] = name
 	return []
 
@@ -534,9 +540,8 @@ static var root_override := ""
 static func maps_root() -> String:
 	if root_override != "":
 		return root_override
-	var at: Node = Engine.get_main_loop().root.get_node_or_null("/root/Autotest") if Engine.get_main_loop() is SceneTree else null
-	if at != null and at.active:
-		return ProjectSettings.globalize_path("res://tests/_out/editor_maps_%s" % at.scenario_name)
+	if AutotestMode.is_running():
+		return ProjectSettings.globalize_path("res://tests/_out/editor_maps_%s" % AutotestMode.scenario_name())
 	return "user://maps"
 
 

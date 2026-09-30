@@ -107,6 +107,33 @@ var _mgr: ZombieManager
 ## Temps écoulé depuis la dernière pose écrite (animation à cadence réduite).
 var _pose_accum := 0.0
 
+## Accès publics pour les animations (ZombieAnim, ZombieGibs) : mêmes valeurs
+## que les champs privés ci-dessus.
+## Phase de la démarche (rad), avancée par l'animation.
+var gait_phase: float:
+	get:
+		return _phase
+	set(value):
+		_phase = value
+## Temps passé dans l'état courant (s), lecture seule.
+var state_time: float:
+	get:
+		return _state_time
+## Avancement de l'attaque (0 -> 1), -1 hors attaque ; l'animation l'avance.
+var attack_t: float:
+	get:
+		return _attack_t
+	set(value):
+		_attack_t = value
+## Inclinaison de tête propre à ce zombie (rad).
+var head_tilt: float:
+	get:
+		return _head_tilt
+## Forme de collision du corps (capsule), ou null avant _ready.
+var body_shape: CollisionShape3D:
+	get:
+		return _body_shape
+
 
 func setup(zid: int, zvariant: int, zspeed: int, is_server: bool) -> void:
 	id = zid
@@ -364,6 +391,10 @@ func _flat_dist(p: Vector3) -> float:
 ## Répulsion douce des zombies voisins (rayon √0,8 ≈ 0,9 m). Seules les 9
 ## cases de la grille spatiale du ZombieManager autour du zombie sont lues,
 ## au lieu de tous les zombies vivants.
+func separation() -> Vector3:
+	return _separation()
+
+
 func _separation() -> Vector3:
 	var push := Vector3.ZERO
 	var mgr := get_parent() as ZombieManager
@@ -463,6 +494,11 @@ func _vault() -> void:
 		barricade = null
 		_repath_t = 0.0
 		_set_state(State.CHASE)
+
+
+## Joueur ciblable : vivant et pas intouchable (utilisé aussi par Barricade).
+func is_target_valid(p: Player) -> bool:
+	return _is_target_valid(p)
 
 
 func _is_target_valid(p: Player) -> bool:
