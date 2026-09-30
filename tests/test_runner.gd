@@ -63,5 +63,9 @@ func _ready() -> void:
 	# Sons encore en cours (effets déclenchés par un test) : coupés avant de
 	# quitter, sinon « resources still in use at exit » (compté comme erreur).
 	Audio.stop_all()
-	await get_tree().process_frame
+	# Quelques images et un peu de temps réel : les tâches de fond (aperçu 3D,
+	# chargements) rendent leurs ressources avant la sortie.
+	var t_end := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t_end < 150:
+		await get_tree().process_frame
 	get_tree().quit(1 if failed > 0 else 0)

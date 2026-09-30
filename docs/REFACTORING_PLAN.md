@@ -82,4 +82,24 @@ Check des tâches impactées après chaque étape ; check complet après 6, 9, 1
 
 ## 4. Réalisé
 
-(rempli au fil des étapes : ce qui a changé et pourquoi)
+| Étape | Fait | Pourquoi / effet |
+|---|---|---|
+| 1 | `tools/warnings.sh` : audit des avertissements (réglés sur « erreur » dans une copie du projet, compilation sans fenêtre) | Godot n'affiche les avertissements que dans l'éditeur ; mesure initiale : **10 503** avertissements, dont 4 037 `unsafe_call_argument`, 2 223 `unsafe_method_access`, 1 637 `untyped_declaration`, 1 426 `return_value_discarded` |
+| 1 bis | **165 avertissements utiles corrigés** sans changer le comportement : variables et paramètres inutilisés, masquages (renommages locaux), divisions entières (`@warning_ignore` : la troncature est voulue), fonctions statiques appelées sur une instance (autoloads sans `class_name`), ternaires, `await` superflu, conversion en enum | reste 9 occurrences dans des fichiers en cours d'écriture (carte Verrückt, zombies Blender) ; une fois ces fichiers terminés, ces avertissements passent en **erreur** dans `project.godot` (toute nouvelle occurrence cassera la compilation du check) |
+| 2 | 68 `var x =` → `var x: Variant =` (données JSON / fichiers non fiables) | type explicite, sémantique identique |
+| 3 | Une seule source de temps : les 6 `now()` supprimés, appels directs à `GameClock.now()` | plus de copies ; le temps de jeu est la référence (voir `docs/TESTING.md`) |
+| 13 | `load()` contrôlés : Pack-a-Punch, architecture des cartes, écrans du menu et de la pause | un fichier manquant donne une erreur claire au lieu d'un plantage |
+| 14 | Erreurs d'écriture journalisées : réglages, dossier de combat, préférences de l'éditeur, réglages du lanceur | une sauvegarde ratée n'est plus silencieuse |
+| — | Corrections trouvées par les nouveaux tests : `Session.try_spend` refuse un montant négatif (il créditait des points) ; `SafeConfig.get_int` borne avant la conversion (1e30 donnait la borne basse) ; lanceur : un champ `null` de l'API GitHub vidait toute la liste des versions ; numéros et noms de fichiers avec saut de ligne final acceptés | comportement faux corrigé, test à l'appui |
+
+**Avertissements volontairement non activés** : `unsafe_*`, `untyped_declaration`,
+`return_value_discarded`, `inferred_declaration`. Le style du projet (`:=`,
+données JSON lues en `Variant`, lambdas courtes, `connect()` sans lire le
+code de retour) en produit des milliers sans gain de robustesse ; les passer
+à zéro reviendrait à réécrire le code. Ils restent mesurés par `tools/warnings.sh`.
+
+**Reste à faire** : étapes 4 à 12 et 15 (accesseurs publics, `MapRegistry`,
+`GameWorldBuilder`, construction des cartes mise en commun, `MatchRules`,
+caméra spectateur, prologue RPC centralisé, injection de `game`, détection
+unique du mode test). `game.gd` étant en cours de modification (carte
+Verrückt), les étapes qui le touchent attendent que ce travail soit committé.

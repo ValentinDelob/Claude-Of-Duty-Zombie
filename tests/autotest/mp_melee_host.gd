@@ -1,4 +1,6 @@
 extends AutotestScenario
+## @temps-reel : validation serveur (lancer, coup de couteau) dans une fenêtre de temps
+## de jeu alors que le réseau reste en temps réel : échecs répétés en accéléré.
 ## [MP] Hôte : le CLIENT fait une fente au couteau sur un zombie à 2,5 m ; le
 ## serveur valide le coup depuis la position d'arrivée (répliquée), crédite
 ## 130 points ; puis, couteau de chasse donné au client, un zombie de manche 10

@@ -127,7 +127,9 @@ jamais chargée depuis le réseau ou une archive (données JSON seulement).
 
 | Nom | Rôle |
 |-----|------|
-| `CrashGuard` | Premier autoload : marqueur « session en cours », écran courant, rapport et message au menu après un plantage (voir « Journaux et plantages »). |
+| `Packs` | Tout premier autoload : monte, dans `_init()`, les paquets de contenu passés par le lanceur (`-- --packs=<voix>.pck,…`, `docs/RELEASE.md`). Sans cet argument (éditeur, tests, exécutable complet) : ne fait rien. |
+| `CrashGuard` | Marqueur « session en cours », écran courant, rapport et message au menu après un plantage (voir « Journaux et plantages »). |
+| `GameClock` | Horloge de jeu : somme des pas de physique (`now()`, `msec()`). Tous les minuteurs de gameplay (cadence, rechargements, réanimation, mèches, répliques, téléporteur) la lisent : figés par la pause solo, insensibles aux images bloquées, accélérés dans les tests (`--fixed-fps`). L'interpolation réseau et les mesures de coût restent en temps réel (`Time`). |
 | `GameState` | Machine à états unique de la session (`MAIN_MENU`, `LOBBY`, `CONNECTING`, `LOADING`, `PLAYING`, `ROUND_END`, `PLAYER_DOWN`, `GAME_OVER`, `DISCONNECTING`) avec transitions validées. |
 | `Settings` | Options persistantes (`user://settings.cfg`), actions d'entrée et touches réaffectables (voir « Menus, options et touches »). |
 | `Net` | Host / Join / Solo, poignée de main (version, serveur plein, partie lancée), registre des joueurs, erreurs de connexion lisibles, carte du salon et envoi des cartes perso (enfant `MapShare`). |
@@ -512,8 +514,10 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
 
 ## Tests
 
-- `sh tools/check.sh` : import, tests unitaires, test réseau multi-processus, lancement
-  réel du jeu + scénario. **Doit passer avant chaque commit.**
+- **Stratégie, niveaux, écriture des tests, couverture : `docs/TESTING.md`.**
+- `sh tools/check.sh` : tâches impactées par les changements (carte des
+  dépendances `tools/test_deps.gd`) ; `--full` : tout (exigé par la release).
+  **Doit passer avant chaque commit.**
 - Journaux : chaque processus de test écrit son journal Godot dans
   `tests/_out/logs/` (`--log-file`, dans check.sh, mp_test.sh, perf.sh,
   scenario.sh, net_smoke.sh, commit.sh ; release.sh : `build/*.godot.log`),
@@ -524,8 +528,12 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
 - Tests unitaires : `tests/test_*.gd` (runner : `res://tests/test_runner.tscn`).
 - Scénarios en jeu : `tests/autotest/*.gd` (options en jeu : `pause_options` ; captures de l'écran d'options en jeu : `options_look`, `## @rendu`). Réglages et touches : `tests/test_settings.gd` (fichier temporaire, jamais les réglages du joueur).
 - Rapidité : check.sh lance tout dans un pool parallèle (les plus longues
-  d'abord), scénarios et multijoueur en `--headless --max-fps 60` (captures et
-  mesures de perf ignorées). Étiquettes en tête de scénario :
+  d'abord) ; scénarios sans rendu en temps de jeu accéléré
+  (`--headless --fixed-fps 60`, enchaînés en **séries** dans quelques
+  processus), multijoueur à cadence fixe x3 (`--max-fps 180`), captures et
+  mesures de perf ignorées sans rendu. Étiquettes en tête de scénario :
+  `## @temps-reel`, `## @carte <id>`, `## @niveau perf`, `## @seul`,
+  `## @couvre <motifs>` (voir `docs/TESTING.md`), et :
   `## @rendu` (a besoin du rendu : fenêtre réduite, sans focus, puis déplacée
   hors des écrans par `Autotest._move_offscreen`) et `## @parts N` (N parties
   parallèles avec `--part=k/N` ; `mine(i)` répartit une liste, `owns(k)` une

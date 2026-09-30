@@ -1,4 +1,6 @@
 extends AutotestScenario
+## @temps-reel : validation serveur (lancer, coup de couteau) dans une fenêtre de temps
+## de jeu alors que le réseau reste en temps réel : échecs répétés en accéléré.
 ## [MP] Hôte : c'est le CLIENT qui lance. Le serveur décompte sa réserve,
 ## simule la grenade (objet serveur appartenant au client), applique
 ## l'explosion (3 zombies tués, 50 points chacun au client), puis simule le
