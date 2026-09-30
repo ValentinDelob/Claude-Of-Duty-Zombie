@@ -39,6 +39,17 @@ var scoreboard: Scoreboard
 var pause_menu: PauseMenu
 ## Icônes et annonces des bonus.
 var powerup_hud: PowerupHud
+## Dernières valeurs écrites (_process n'écrit que ce qui change).
+## AMMO_UNSET : rien d'écrit encore ; AMMO_HIDDEN : compteur masqué.
+const AMMO_UNSET := -2
+const AMMO_HIDDEN := -1
+var _shown_fps := -1
+var _shown_mag := AMMO_UNSET
+var _shown_reserve := AMMO_UNSET
+var _ammo_col: Variant = null
+var _reserve_col: Variant = null
+var _drawn_spread := -1.0
+var _drawn_size := Vector2(-1, -1)
 
 
 func _ready() -> void:
@@ -237,7 +248,13 @@ func show_center(title: String, sub := "", fade_alpha := 0.0) -> void:
 
 func _process(delta: float) -> void:
 	_scoreboard_tick()
-	_debug.text = "%d FPS" % Engine.get_frames_per_second()
+	# Chaque écriture ci-dessous n'a lieu que si la valeur change (textes,
+	# couleurs du thème, paramètres de shader, dessin du réticule) : même
+	# affichage, sans reformatage ni propagation du thème à chaque image.
+	var fps := Engine.get_frames_per_second()
+	if fps != _shown_fps:
+		_shown_fps = fps
+		_debug.text = "%d FPS" % fps
 	if player == null:
 		return
 	var pd := game.session.local_data()
@@ -255,9 +272,12 @@ func _process(delta: float) -> void:
 	_heart_t += delta * beat_rate
 	# Plein écran avec bruit : masqué quand il n'y a rien à montrer (perf).
 	_vignette.visible = intensity > 0.001
-	_vignette_mat.set_shader_parameter("intensity", intensity)
-	_vignette_mat.set_shader_parameter("pulse", absf(sin(_heart_t * PI)))
-	_vignette_mat.set_shader_parameter("flash", clampf(_hurt_flash * 1.6 - 0.6, 0.0, 1.0))
+	# Masquée, elle n'est pas dessinée : ses paramètres sont écrits dès
+	# qu'elle réapparaît (même image), inutile de les écrire avant.
+	if _vignette.visible:
+		_vignette_mat.set_shader_parameter("intensity", intensity)
+		_vignette_mat.set_shader_parameter("pulse", absf(sin(_heart_t * PI)))
+		_vignette_mat.set_shader_parameter("flash", clampf(_hurt_flash * 1.6 - 0.6, 0.0, 1.0))
 	if hurt > 0.45 and pd.life == PlayerData.Life.ALIVE and floorf(_heart_t) != floorf(prev_beat):
 		Audio.play_2d("heartbeat", -6.0, 0.0)
 		# Respiration haletante (un souffle tous les trois battements).
@@ -272,7 +292,11 @@ func _process(delta: float) -> void:
 	var sights: bool = wcx == null or wcx.view == null or wcx.view.model_id == "" or not WeaponModels.info(wcx.view.model_id, "no_sights", false)
 	_crosshair.visible = not player.sprinting and not (player.aiming and sights) and (pd == null or pd.life != PlayerData.Life.DEAD)
 	scope.refresh(player, delta)
-	_crosshair.queue_redraw()
+	# Le dessin ne dépend que de l'écart et de la taille du réticule.
+	if _crosshair.spread != _drawn_spread or _crosshair.size != _drawn_size:
+		_drawn_spread = _crosshair.spread
+		_drawn_size = _crosshair.size
+		_crosshair.queue_redraw()
 	var focus := game.interact.focused
 	var raw := focus.prompt(player.peer_id) if focus else ""
 	if raw != _prompt.text:
@@ -294,27 +318,45 @@ func _process(delta: float) -> void:
 				_weapon_name_t = WEAPON_NAME_TIME
 			_weapon_name_t = maxf(_weapon_name_t - delta, 0.0)
 			_weapon_name.modulate.a = clampf(_weapon_name_t / 0.8, 0.0, 1.0)
-			_ammo.text = str(w.mag)
-			_reserve.text = " / %d" % w.reserve
 			@warning_ignore("integer_division")
 			var low: bool = w.mag <= int(s.mag) / 4
-			if s.get("infinite", false):
+			var infinite: bool = s.get("infinite", false)
+			var mag: int = w.mag
+			var reserve: int = w.reserve
+			if infinite:
 				# Arme de bonus (FAUCHEUSE) : munitions illimitées, pas de compteur.
-				_ammo.text = ""
-				_reserve.text = ""
 				low = false
-			_ammo.add_theme_color_override("font_color", HudStyle.POINTS_LOSS if low else HudStyle.TEXT)
-			_reserve.add_theme_color_override("font_color", HudStyle.POINTS_LOSS if w.reserve == 0 and not s.get("infinite", false) else HudStyle.TEXT_DIM)
-			if s.get("infinite", false):
-				_hint.text = ""
-			elif w.mag == 0 and w.reserve == 0:
-				_hint.text = Lang.t("PLUS DE MUNITIONS", "NO AMMO")
-			elif wc.is_reloading():
-				_hint.text = Lang.t("RECHARGEMENT...", "RELOADING...")
-			elif low and w.reserve > 0:
-				_hint.text = Lang.t("Appuyer sur %s pour recharger", "Press %s to reload") % Settings.action_label("reload")
+				if _shown_mag != AMMO_HIDDEN:
+					_shown_mag = AMMO_HIDDEN
+					_shown_reserve = AMMO_HIDDEN
+					_ammo.text = ""
+					_reserve.text = ""
 			else:
-				_hint.text = ""
+				if mag != _shown_mag:
+					_shown_mag = mag
+					_ammo.text = str(mag)
+				if reserve != _shown_reserve:
+					_shown_reserve = reserve
+					_reserve.text = " / %d" % reserve
+			var ammo_col := HudStyle.POINTS_LOSS if low else HudStyle.TEXT
+			if ammo_col != _ammo_col:
+				_ammo_col = ammo_col
+				_ammo.add_theme_color_override("font_color", ammo_col)
+			var reserve_col := HudStyle.POINTS_LOSS if reserve == 0 and not infinite else HudStyle.TEXT_DIM
+			if reserve_col != _reserve_col:
+				_reserve_col = reserve_col
+				_reserve.add_theme_color_override("font_color", reserve_col)
+			var hint := ""
+			if infinite:
+				hint = ""
+			elif mag == 0 and reserve == 0:
+				hint = Lang.t("PLUS DE MUNITIONS", "NO AMMO")
+			elif wc.is_reloading():
+				hint = Lang.t("RECHARGEMENT...", "RELOADING...")
+			elif low and reserve > 0:
+				hint = Lang.t("Appuyer sur %s pour recharger", "Press %s to reload") % Settings.action_label("reload")
+			if hint != _hint.text:
+				_hint.text = hint
 	# Compte à rebours dans la salle du rituel (prioritaire).
 	var tp := game.teleporter
 	if tp and tp.state == Teleporter.State.ACTIVE and game.layout.zone_at(player.global_position) == game.layout.teleporter_exit_zone():
