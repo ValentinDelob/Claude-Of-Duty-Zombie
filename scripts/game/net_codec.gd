@@ -183,6 +183,7 @@ const MAX_FX_POINTS := 64
 ## `impacts` : paires position / normale (comme Combat.srv_fire).
 static func append_shot(buf: PackedByteArray, pid: int, weapon_id: String, pap: bool, origin: Vector3, impacts: PackedVector3Array, blood: PackedVector3Array) -> void:
 	var wid := weapon_id.to_utf8_buffer()
+	@warning_ignore("integer_division")
 	var n_imp := mini(impacts.size() / 2, MAX_FX_POINTS)
 	var n_blood := mini(blood.size(), MAX_FX_POINTS)
 	var o := buf.size()

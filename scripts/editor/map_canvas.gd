@@ -27,6 +27,7 @@ var zoom := 18.0
 var origin := Vector2(60, 50)
 var mouse_m := Vector2.ZERO
 var _pan := false
+@warning_ignore("unused_private_class_variable")
 var _pan_from := Vector2.ZERO
 var _space := false
 ## Opération de glissement en cours : {kind, start, ...}.
@@ -241,6 +242,7 @@ func entry_value(i: int) -> Variant:
 	var s := String(entry.values[i]).replace(",", ".")
 	if s == "" or s == "-" or s == ".":
 		return null
+	@warning_ignore("incompatible_ternary")
 	return float(s) if s.is_valid_float() else null
 
 
@@ -1124,7 +1126,7 @@ func _draw_obliques(v: MapValidator, k: int) -> void:
 		_fill(poly, OPENING_COLORS.get(String(o.type), COL_OK))
 
 
-func _draw_object(o: Dictionary, font: Font, alpha: float) -> void:
+func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 	var t := String(o.get("type", ""))
 	var it := MapCatalog.item_for(o)
 	var r := MapRules.footprint_rect(o)

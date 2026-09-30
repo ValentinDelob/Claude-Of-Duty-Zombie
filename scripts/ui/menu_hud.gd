@@ -56,11 +56,11 @@ func _ready() -> void:
 	resized.connect(queue_redraw)
 
 
-func _label(font: Font, t: String, size: int, col: Color) -> Label:
+func _label(font: Font, t: String, size_px: int, col: Color) -> Label:
 	var l := Label.new()
 	l.text = t
 	l.add_theme_font_override("font", font)
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", size_px)
 	l.add_theme_color_override("font_color", col)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(l)

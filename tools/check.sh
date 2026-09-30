@@ -194,7 +194,9 @@ run_task() {
   case $KIND in
     parse) "$GODOT" --headless --log-file "$GLOG" --path . -s res://tests/parse_all.gd > "$LOG" 2>&1 || RC=1 ;;
     unit)  "$GODOT" --headless --log-file "$GLOG" --path . res://tests/test_runner.tscn -- $UNIT_ARG > "$LOG" 2>&1 || RC=1 ;;
-    launcher) "$GODOT" --headless --log-file "$GLOG" --path launcher -s res://tests/test_launcher.gd > "$LOG" 2>&1 || RC=1 ;;
+    launcher) { "$GODOT" --headless --log-file "$GLOG" --path launcher -s res://tests/test_launcher.gd || RC=1
+              # Téléchargement avec reprise, contre un serveur HTTP local (127.0.0.1).
+              "$GODOT" --headless --log-file "${GLOG%.log}_dl.log" --path launcher -s res://tests/test_downloader.gd || RC=1; } > "$LOG" 2>&1 ;;
     net)   AUTOTEST_PORT_OFFSET=$PORTS sh tools/net_smoke.sh > "$LOG" 2>&1 || RC=1 ;;
     head)  local MODE=$HEADLESS
            # « ## @temps-reel » : mesure par seconde réelle, pas d'accélération.

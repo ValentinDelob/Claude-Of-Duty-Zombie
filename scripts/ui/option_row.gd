@@ -56,7 +56,7 @@ static func make_toggle(label: String, on: bool) -> MenuOptionRow:
 	return r
 
 
-static func make_choice(label: String, options: PackedStringArray, index: int) -> MenuOptionRow:
+static func make_choice(label: String, options: PackedStringArray, start_index: int) -> MenuOptionRow:
 	var r := MenuOptionRow.new()
 	r.label_text = label
 	r.kind = Kind.CHOICE
@@ -64,7 +64,7 @@ static func make_choice(label: String, options: PackedStringArray, index: int) -
 	r.min_value = 0.0
 	r.max_value = options.size() - 1
 	r.step = 1.0
-	r.value = clampi(index, 0, options.size() - 1)
+	r.value = clampi(start_index, 0, options.size() - 1)
 	return r
 
 

@@ -853,7 +853,7 @@ static func exact_poly(o: Dictionary) -> PackedVector2Array:
 ## Place devant un objet contre un mur libre : son emprise est dans la pièce,
 ## à 0,25 m au moins de ses murs (face intérieure), et ne touche aucun autre
 ## mur libre (ni les autres segments d'un mur courbe).
-static func _free_wall_room_check(doc: EditorMap, k: int, obj: Dictionary, poly: PackedVector2Array, segs: Array, fw: int) -> Dictionary:
+static func _free_wall_room_check(_doc: EditorMap, _k: int, obj: Dictionary, poly: PackedVector2Array, segs: Array, fw: int) -> Dictionary:
 	var nm := _name(obj)
 	var fpoly := wall_item_poly(obj)
 	var fc := MapGeom.centroid(fpoly)

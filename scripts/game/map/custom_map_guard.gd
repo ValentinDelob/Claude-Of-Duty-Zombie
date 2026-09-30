@@ -524,6 +524,7 @@ static func check_texts(texts: Dictionary) -> Dictionary:
 		var t: String = texts[f]
 		total += t.to_utf8_buffer().size()
 		if total > MAX_PACKAGE_BYTES:
+			@warning_ignore("integer_division")
 			c.bad("carte trop volumineuse (plus de %d Mo)" % (MAX_PACKAGE_BYTES / 1048576), "map too large (over %d MB)" % (MAX_PACKAGE_BYTES / 1048576))
 			break
 		var d := json_depth(t)

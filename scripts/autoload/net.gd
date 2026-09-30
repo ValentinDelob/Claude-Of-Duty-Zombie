@@ -67,18 +67,18 @@ func _ready() -> void:
 # API publique
 # --------------------------------------------------------------------------
 
-func start_solo(player_name: String) -> void:
+func start_solo(nickname: String) -> void:
 	_reset_peer()
 	mode = Mode.SOLO
 	max_players = 1
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
-	players = {1: {"name": _clean_name(player_name), "slot": 0}}
+	players = {1: {"name": _clean_name(nickname), "slot": 0}}
 	match_started = false
 	print("[Net] partie solo (pair hors-ligne)")
 	players_changed.emit()
 
 
-func host(host_port: int, wanted_max_players: int, player_name: String) -> Error:
+func host(host_port: int, wanted_max_players: int, nickname: String) -> Error:
 	_reset_peer()
 	if not is_valid_port(host_port):
 		connection_error.emit("Hébergement impossible", "Port invalide : %d (1024-65535)." % host_port)
@@ -97,14 +97,14 @@ func host(host_port: int, wanted_max_players: int, player_name: String) -> Error
 	mode = Mode.HOST
 	port = host_port
 	max_players = clampi(wanted_max_players, 1, MAX_SUPPORTED_PLAYERS)
-	players = {1: {"name": _clean_name(player_name), "slot": 0}}
+	players = {1: {"name": _clean_name(nickname), "slot": 0}}
 	match_started = false
 	print("[Net] serveur hébergé sur le port %d (max %d joueurs)" % [port, max_players])
 	players_changed.emit()
 	return OK
 
 
-func join(address: String, join_port: int, player_name: String) -> Error:
+func join(address: String, join_port: int, nickname: String) -> Error:
 	_reset_peer()
 	address = address.strip_edges()
 	if not is_valid_ipv4(address):
@@ -126,7 +126,7 @@ func join(address: String, join_port: int, player_name: String) -> Error:
 	players = {}
 	_handshake_done = false
 	lobby_map = ""
-	_pending_name = _clean_name(player_name)
+	_pending_name = _clean_name(nickname)
 	_connect_timer.start(CONNECT_TIMEOUT_SEC)
 	print("[Net] connexion à %s:%d..." % [address, join_port])
 	return OK

@@ -17,10 +17,11 @@ if [ "$GUI" = "1" ]; then
 else
   # Temps de jeu simulé (--fixed-fps) : voir docs/TESTING.md. MP_MODE pour
   # forcer un autre mode (ex. temps réel : "--headless --max-fps 60").
-  # Même cadence pour les deux jeux (60 images de jeu par image, au plus 240
-  # images/s : exactement 4 fois le temps réel) : sans plafond, chacun irait à
-  # la vitesse de son processeur et leurs temps de jeu divergeraient.
-  MODE=${MP_MODE:-"--headless --fixed-fps 60 --max-fps 240"}
+  # Même cadence pour les deux jeux (1/60 s de jeu par image, au plus 180
+  # images/s : 3 fois le temps réel) : sans plafond, chacun irait à la vitesse
+  # de son processeur et leurs temps de jeu divergeraient. x3 et non x4 : de la
+  # marge quand la machine est chargée (à x4, des échecs sous charge).
+  MODE=${MP_MODE:-"--headless --fixed-fps 60 --max-fps 180"}
   # « ## @temps-reel » dans le script hôte : ce test mesure ou limite quelque
   # chose par seconde RÉELLE (débit, transfert cadencé…), il reste en temps réel.
   if [ -z "$MP_MODE" ] && grep -q "^## @temps-reel" "tests/autotest/mp_${N}_host.gd"; then

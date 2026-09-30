@@ -41,6 +41,7 @@ func _has_mouse(action: String, button: MouseButton) -> bool:
 
 
 func test_defaults_match_previous_bindings() -> void:
+	@warning_ignore("static_called_on_instance")
 	var d := Settings.default_bindings()
 	assert_eq(d.size(), Settings.REBINDABLE.size())
 	assert_eq(d.crouch, ["key:%d" % KEY_CTRL, "key:%d" % KEY_C])
@@ -59,19 +60,26 @@ func test_codes_roundtrip() -> void:
 	var k := InputEventKey.new()
 	k.physical_keycode = KEY_T
 	k.pressed = true
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.code_from_event(k), "key:%d" % KEY_T)
 	var esc := InputEventKey.new()
 	esc.physical_keycode = KEY_ESCAPE
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.code_from_event(esc), "", "Échap : jamais affectable")
 	var wheel := InputEventMouseButton.new()
 	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.code_from_event(wheel), "", "molette exclue")
 	var mb := InputEventMouseButton.new()
 	mb.button_index = MOUSE_BUTTON_XBUTTON1
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.code_from_event(mb), "mouse:%d" % MOUSE_BUTTON_XBUTTON1)
+	@warning_ignore("static_called_on_instance")
 	assert_true(Settings.event_from_code("key:%d" % KEY_T) is InputEventKey)
+	@warning_ignore("static_called_on_instance")
 	assert_true(Settings.event_from_code("mouse:%d" % MOUSE_BUTTON_MIDDLE) is InputEventMouseButton)
 	for bad in ["", "key:", "key:abc", "mouse:4", "pad:1", "key:%d" % KEY_ESCAPE]:
+		@warning_ignore("static_called_on_instance")
 		assert_true(Settings.event_from_code(bad) == null, "code invalide « %s »" % bad)
 
 
@@ -110,6 +118,7 @@ func test_reset_bindings() -> void:
 	Settings.bind("jump", 0, "key:%d" % KEY_W)
 	assert_false(_has_key("move_forward", KEY_W))
 	Settings.reset_bindings()
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.bindings, Settings.default_bindings())
 	assert_true(_has_key("move_forward", KEY_W) and _has_key("jump", KEY_SPACE))
 
@@ -175,7 +184,9 @@ func test_editor_ui_scale_default_and_bounds() -> void:
 	assert_near(Settings.editor_ui_scale, 0.6, 0.001, "trop petit -> 60 %")
 	Settings.editor_ui_scale = 0.83
 	assert_near(Settings.editor_ui_scale, 0.85, 0.001, "arrondi au pas de 5 %")
+	@warning_ignore("static_called_on_instance")
 	assert_near(Settings.clamp_editor_ui_scale(NAN), 0.8, 0.001, "valeur non finie -> défaut")
+	@warning_ignore("static_called_on_instance")
 	assert_near(Settings.clamp_editor_ui_scale(INF), 0.8, 0.001)
 
 
@@ -220,12 +231,17 @@ func test_editor_ui_scale_saved_and_sanitized() -> void:
 func test_labels_follow_language() -> void:
 	Settings.language = "fr"
 	assert_eq(Lang.t("REPRENDRE", "RESUME"), "REPRENDRE")
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.code_label("mouse:%d" % MOUSE_BUTTON_LEFT), "CLIC GAUCHE")
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.code_label("key:%d" % KEY_SPACE), "ESPACE")
 	Settings.language = "en"
 	assert_eq(Lang.t("REPRENDRE", "RESUME"), "RESUME")
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.code_label("mouse:%d" % MOUSE_BUTTON_LEFT), "LEFT CLICK")
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.code_label("key:%d" % KEY_SPACE), "SPACE")
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.code_label("key:%d" % KEY_R), "R")
 	assert_eq(Settings.action_label("interact"), "F")
 

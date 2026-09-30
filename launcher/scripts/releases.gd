@@ -41,27 +41,41 @@ const MAX_EXE_BYTES := 2 << 30
 const MAX_IMAGE_SIDE := 4096
 
 ## Politique d'intégrité d'une version (integrity()).
+## Canaux de publication (docs/RELEASE.md § 5) : les snapshots sont des
+## « pre-releases » GitHub au numéro « v<M.m.p>-snapshot.<n> ».
+const STABLE := "stable"
+const SNAPSHOT := "snapshot"
+const SNAPSHOT_SEP := "-snapshot."
+## Manifeste d'une version en paquets (docs/RELEASE.md § 4).
+const MANIFEST_ASSET := "manifest.json"
+const MAX_MANIFEST_BYTES := 256 << 10
+const MAX_PACK_BYTES := 1 << 30
+
 const VERIFIED := "verified"   # SHA256SUMS.txt publié : somme vérifiée
 const LEGACY := "legacy"       # version antérieure aux sommes : taille vérifiée
 const REFUSED := "refused"     # version récente sans somme : refusée
 
 
 ## Liste de l'API GitHub -> versions jouables, de la plus récente à la plus
-## ancienne : {tag, date, title, exe_url, exe_name, exe_size, launcher_url,
-## launcher_name, launcher_size, launcher_version_url, sums_url}.
-## Versions au numéro suspect et fichiers hors des releases du dépôt ignorés.
+## ancienne : {tag, channel, date, title, exe_url, exe_name, exe_size,
+## manifest_url, launcher_url, launcher_name, launcher_size,
+## launcher_version_url, sums_url}. Une « pre-release » GitHub (ou un numéro
+## « -snapshot.<n> ») est une version du canal snapshot ; les brouillons, les
+## numéros suspects et les fichiers hors des releases du dépôt sont ignorés.
+## Jouable : exécutable complet (ancien format) ou manifeste de paquets.
 static func parse_releases(text: String) -> Array:
 	var data: Variant = JSON.parse_string(text)
 	var out: Array = []
 	if not data is Array:
 		return out
 	for r in data:
-		if not r is Dictionary or r.get("draft", false) or r.get("prerelease", false):
+		if not r is Dictionary or r.get("draft", false):
 			continue
 		var tag := _str(r.get("tag_name"))
 		if not is_safe_tag(tag):
 			continue
-		var v := {"tag": tag, "date": _str(r.get("published_at")).left(10),
+		var pre: bool = r.get("prerelease", false) is bool and r.get("prerelease", false)
+		var v := {"tag": tag, "channel": SNAPSHOT if pre or channel_of(tag) == SNAPSHOT else STABLE, "manifest_url": "", "date": _str(r.get("published_at")).left(10),
 			"title": _title(_str(r.get("name")).left(300), tag), "exe_url": "", "exe_name": "", "exe_size": 0,
 			"launcher_url": "", "launcher_name": "", "launcher_size": 0, "launcher_version_url": "", "sums_url": ""}
 		var assets: Variant = r.get("assets", [])
@@ -87,7 +101,9 @@ static func parse_releases(text: String) -> Array:
 				v.launcher_version_url = url
 			elif n == SUMS_ASSET:
 				v.sums_url = url
-		if v.exe_url != "":
+			elif n == MANIFEST_ASSET:
+				v.manifest_url = url
+		if v.exe_url != "" or v.manifest_url != "":
 			out.append(v)
 	out.sort_custom(func(a, b): return newer(a.tag, b.tag))
 	return out
@@ -107,15 +123,32 @@ static func _title(name: String, tag: String) -> String:
 	return t.substr(colon + 2) if colon >= 0 and colon < 12 else t
 
 
-## Parties numériques d'une version (« v0.1.116 » -> [0, 1, 116]).
+## Parties numériques d'une version (« v0.1.116 » -> [0, 1, 116]) ; le
+## suffixe de canal (« -snapshot.37 ») n'en fait pas partie (snapshot_number).
 static func version_key(tag: String) -> Array:
 	var out: Array = []
-	for p in tag.trim_prefix("v").split("."):
+	for p in tag.trim_prefix("v").get_slice("-", 0).split("."):
 		out.append(int(p) if p.is_valid_int() else 0)
 	return out
 
 
-## Vrai si `a` est plus récente que `b`.
+## Numéro de la snapshot (« v0.2.0-snapshot.37 » -> 37), -1 pour une stable.
+static func snapshot_number(tag: String) -> int:
+	var i := tag.find(SNAPSHOT_SEP)
+	if i < 0:
+		return -1
+	var n := tag.substr(i + SNAPSHOT_SEP.length())
+	return int(n) if n.is_valid_int() else -1
+
+
+## Canal d'une version d'après son numéro : "snapshot" ou "stable".
+static func channel_of(tag: String) -> String:
+	return SNAPSHOT if snapshot_number(tag) >= 0 else STABLE
+
+
+## Vrai si `a` est plus récente que `b`. À nombres égaux, la stable passe
+## après toutes ses snapshots (v0.2.0-snapshot.37 < v0.2.0, règle des
+## préversions de semver) ; entre snapshots, le numéro décide.
 static func newer(a: String, b: String) -> bool:
 	var ka := version_key(a)
 	var kb := version_key(b)
@@ -124,7 +157,15 @@ static func newer(a: String, b: String) -> bool:
 		var y: int = kb[i] if i < kb.size() else 0
 		if x != y:
 			return x > y
-	return false
+	var sa := snapshot_number(a)
+	var sb := snapshot_number(b)
+	if sa == sb:
+		return false
+	if sa < 0:
+		return true
+	if sb < 0:
+		return false
+	return sa > sb
 
 
 # --------------------------------------------------------------------------
@@ -132,10 +173,11 @@ static func newer(a: String, b: String) -> bool:
 # --------------------------------------------------------------------------
 
 ## Numéro de version utilisable comme nom de dossier : « v » puis 2 à 4
-## nombres séparés par des points (jamais de « .. », « / » ni « \ »).
+## nombres séparés par des points, éventuellement « -snapshot.<n> » (jamais
+## de « .. », « / » ni « \ »).
 static func is_safe_tag(tag: String) -> bool:
 	# « \z » : vraie fin du texte (« $ » accepterait un saut de ligne final).
-	return RegEx.create_from_string("^v[0-9]{1,6}(\\.[0-9]{1,6}){1,3}\\z").search(tag) != null
+	return RegEx.create_from_string("^v[0-9]{1,6}(\\.[0-9]{1,6}){1,3}(-snapshot\\.[0-9]{1,6})?\\z").search(tag) != null
 
 
 ## Nom de fichier joint à une release : lettres, chiffres, « . », « _ », « - ».
@@ -322,3 +364,83 @@ static func _pick(v, lang: String) -> String:
 	if v is Dictionary:
 		return _str(v.get(lang, v.get("fr", v.get("en", ""))))
 	return String(v) if v is String else ""
+
+
+# --------------------------------------------------------------------------
+# Manifeste d'une version en paquets (docs/RELEASE.md § 4)
+# --------------------------------------------------------------------------
+
+## Manifeste vérifié de la version `tag`, {} s'il est invalide. Tout vient
+## d'Internet : chaque champ est contrôlé (types, noms de fichiers, sommes,
+## tailles, numéros de release), les adresses sont reconstruites ici (jamais
+## lues dans le fichier). Résultat : {version, channel, build, engine: {godot,
+## file, sha256, size, release, url}, packs: [{id, lang, file, sha256, size,
+## release, url, main}]}, un seul paquet principal (le core).
+static func parse_manifest(text: String, tag: String) -> Dictionary:
+	if text.length() > MAX_MANIFEST_BYTES:
+		return {}
+	var d: Variant = JSON.parse_string(text)
+	if not d is Dictionary or d.get("format") != 1.0 or _str(d.get("version")) != tag:
+		return {}
+	var channel := _str(d.get("channel"))
+	if not channel in [STABLE, SNAPSHOT]:
+		return {}
+	var build := _str(d.get("build"))
+	if build.length() > 40 or RegEx.create_from_string("^[0-9A-Za-z.-]+\\z").search(build) == null:
+		return {}
+	var e: Variant = d.get("engine")
+	if not e is Dictionary:
+		return {}
+	var engine := _manifest_file(e, ".exe", MAX_EXE_BYTES)
+	var godot := _str(e.get("godot"))
+	if engine.is_empty() or RegEx.create_from_string("^[0-9]{1,2}\\.[0-9]{1,2}(\\.[0-9]{1,2})?\\z").search(godot) == null:
+		return {}
+	engine.godot = godot
+	var raw: Variant = d.get("packs")
+	if not raw is Array or (raw as Array).is_empty() or (raw as Array).size() > 8:
+		return {}
+	var packs: Array = []
+	var ids := {}
+	var mains := 0
+	for p in raw:
+		if not p is Dictionary:
+			return {}
+		var f := _manifest_file(p, ".pck", MAX_PACK_BYTES)
+		var id := _str(p.get("id"))
+		var lang := _str(p.get("lang"))
+		if f.is_empty() or RegEx.create_from_string("^[a-z0-9-]{1,24}\\z").search(id) == null or ids.has(id) \
+				or not lang in ["", "fr", "en"]:
+			return {}
+		ids[id] = true
+		f.id = id
+		f.lang = lang
+		f.main = p.get("main", false) is bool and p.get("main", false)
+		if f.main:
+			mains += 1
+		packs.append(f)
+	if mains != 1:
+		return {}
+	return {"version": tag, "channel": channel, "build": build, "engine": engine, "packs": packs}
+
+
+## Fichier d'un manifeste : {file, sha256, size, release, url} ou {}.
+static func _manifest_file(e: Dictionary, ext: String, max_size: int) -> Dictionary:
+	var file := _str(e.get("file"))
+	var sha := _str(e.get("sha256")).to_lower()
+	var release := _str(e.get("release"))
+	var size_v: Variant = e.get("size")
+	var size := int(size_v) if size_v is float or size_v is int else 0
+	if not is_safe_asset_name(file) or not file.ends_with(ext) or not is_sha256(sha) \
+			or size <= 0 or size > max_size or not is_safe_tag(release):
+		return {}
+	return {"file": file, "sha256": sha, "size": size, "release": release, "url": asset_url(release, file)}
+
+
+## Somme SHA-256 écrite en hexadécimal (64 caractères).
+static func is_sha256(s: String) -> bool:
+	return RegEx.create_from_string("^[0-9a-f]{64}\\z").search(s) != null
+
+
+## Adresse d'un fichier joint à une release de ce dépôt.
+static func asset_url(release: String, file: String) -> String:
+	return DOWNLOAD_PREFIX + release + "/" + file

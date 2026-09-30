@@ -84,11 +84,11 @@ class LogoArt extends Control:
 		_tracked(stencil, Vector2(338, 196), "CLAUDE", 150, 4.0, BONE)
 		_tracked(stencil, Vector2(338, 404), "ZOMBIE", 150, 4.0, RED)
 
-	func _tracked(font: Font, pos: Vector2, text: String, size: int, spacing: float, col: Color) -> void:
+	func _tracked(font: Font, pos: Vector2, text: String, font_size: int, spacing: float, col: Color) -> void:
 		var x := pos.x
 		for ch in text:
-			draw_string(font, Vector2(x, pos.y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
-			x += font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + spacing
+			draw_string(font, Vector2(x, pos.y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, col)
+			x += font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + spacing
 
 	## Crâne coiffé d'un casque, dans un écusson circulaire brisé.
 	func _emblem(c: Vector2) -> void:

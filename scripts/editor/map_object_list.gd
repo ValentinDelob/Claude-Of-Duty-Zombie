@@ -234,6 +234,7 @@ static func paginate(total: int, p: int, per := PER_PAGE) -> Dictionary:
 
 ## Page (0 = première) de l'élément d'index `i` de la liste.
 static func page_of(i: int, per := PER_PAGE) -> int:
+	@warning_ignore("integer_division")
 	return maxi(0, i) / per
 
 

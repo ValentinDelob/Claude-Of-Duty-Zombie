@@ -76,5 +76,6 @@ static func reset() -> void:
 
 static func format_value(key: String, v: int) -> String:
 	if key == "time":
+		@warning_ignore("integer_division")
 		return "%d h %02d min" % [v / 3600, (v / 60) % 60]
 	return str(v)

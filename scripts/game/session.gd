@@ -46,8 +46,9 @@ func add_points(pid: int, amount: int) -> void:
 
 
 ## Débite `amount` si le joueur en a les moyens. Retourne false sinon.
+## Un montant négatif est refusé (il créditerait des points au lieu d'en débiter).
 func try_spend(pid: int, amount: int) -> bool:
-	if not multiplayer.is_server() or not data.has(pid):
+	if not multiplayer.is_server() or not data.has(pid) or amount < 0:
 		return false
 	var pd: PlayerData = data[pid]
 	if pd.points < amount:

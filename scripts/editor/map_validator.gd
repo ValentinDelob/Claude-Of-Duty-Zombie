@@ -70,6 +70,7 @@ class Floor:
 	## Zone de chaque case praticable ("" sinon).
 	var zone := PackedStringArray()
 	## Plafond propre à la case (pièce à hauteur réglée), 0 : celui de l'étage.
+	@warning_ignore("shadowed_global_identifier")
 	var ceil := PackedFloat64Array()
 	## Pièce de l'éditeur de chaque case de sol ("" sinon) : textures par pièce.
 	var room := PackedStringArray()

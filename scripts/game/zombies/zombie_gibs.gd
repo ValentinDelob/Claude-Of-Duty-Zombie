@@ -204,7 +204,7 @@ static func become_crawler(z: Zombie) -> void:
 
 
 ## Tête qui éclate (tir à la tête mortel) : éclats de crâne.
-static func head_pop(z: Zombie, neck: Vector3, dir: Vector3) -> void:
+static func head_pop(_z: Zombie, neck: Vector3, dir: Vector3) -> void:
 	if Game.instance and Game.instance.fx_root.gibs:
 		Game.instance.fx_root.gibs.head_burst(neck + Vector3.UP * 0.12, dir)
 

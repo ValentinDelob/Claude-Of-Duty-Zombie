@@ -25,12 +25,12 @@ func back() -> void:
 # Construction rapide de widgets (le style est centralisé dans MenuStyle)
 # --------------------------------------------------------------------------
 
-func title(text: String, size := 44) -> Label:
-	return MenuStyle.title(text, size)
+func title(label_text: String, font_size := 44) -> Label:
+	return MenuStyle.title(label_text, font_size)
 
 
-func text(t: String, size := 20, color := UiStyle.BONE) -> Label:
-	return UiStyle.label(t, size, color)
+func text(t: String, font_size := 20, color := UiStyle.BONE) -> Label:
+	return UiStyle.label(t, font_size, color)
 
 
 ## Bouton ; `hint` s'affiche en bas de l'écran quand il a le focus.

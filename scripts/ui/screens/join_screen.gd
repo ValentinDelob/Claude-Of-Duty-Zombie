@@ -37,14 +37,17 @@ func enter(_args := {}) -> void:
 func _join() -> void:
 	var ip := _ip.text.strip_edges()
 	var port_txt := _port.text.strip_edges()
+	@warning_ignore("static_called_on_instance")
 	if not Net.is_valid_ipv4(ip):
 		_error.text = "Adresse IPv4 invalide (exemple : 192.168.1.25)."
 		Audio.play_ui("ui_error", -6.0)
 		return
+	@warning_ignore("static_called_on_instance")
 	if not port_txt.is_valid_int() or not Net.is_valid_port(port_txt.to_int()):
 		_error.text = "Port invalide (1024 à 65535)."
 		Audio.play_ui("ui_error", -6.0)
 		return
+	@warning_ignore("static_called_on_instance")
 	Settings.player_name = Net._clean_name(_name.text)
 	Settings.last_ip = ip
 	Settings.last_port = port_txt.to_int()

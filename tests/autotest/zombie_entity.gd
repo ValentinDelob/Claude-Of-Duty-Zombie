@@ -32,6 +32,7 @@ func run() -> void:
 	# Stress : 24 zombies simultanés.
 	var missing := 24 - zm.alive_count()
 	for i in missing:
+		@warning_ignore("integer_division")
 		zm.spawn(MapData.cell_to_world(Vector2i(3 + i % 20, 1 + (i / 20) * 12), 0.0), i % 4, 150)
 	await seconds(Zombie.EMERGE_TIME + 1.0)
 	at.check(zm.alive_count() >= 24, "%d zombies actifs" % zm.alive_count())

@@ -43,6 +43,7 @@ func _set_max(v: int) -> void:
 
 func _create() -> void:
 	var port := _port.text.strip_edges().to_int()
+	@warning_ignore("static_called_on_instance")
 	Settings.player_name = Net._clean_name(_name.text)
 	if Net.host(port, _max, Settings.player_name) != OK:
 		return  # le menu affiche l'erreur (Net.connection_error)

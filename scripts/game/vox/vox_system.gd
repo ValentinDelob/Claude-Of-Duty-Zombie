@@ -136,18 +136,18 @@ static func box_category(weapon: String) -> String:
 
 ## Arme sortie de la boîte : commentaire du joueur, puis parfois d'un
 ## coéquipier proche (moquerie ou envie, comme les réponses de BO1).
-static func box_result(owner: int, weapon: String) -> void:
+static func box_result(owner_pid: int, weapon: String) -> void:
 	var g := Game.instance
 	if g == null or g.vox == null:
 		return
 	var cat := box_category(weapon)
-	g.vox.srv_say(owner, cat, 0.85)
+	g.vox.srv_say(owner_pid, cat, 0.85)
 	var resp := "resp_wonder" if cat in ["box_ray", "box_thunder"] else "resp_box_bad" if cat == "box_bad" else ""
-	if resp == "" or not g.players.has(owner):
+	if resp == "" or not g.players.has(owner_pid):
 		return
 	var near: Array[int] = []
-	for m in g.vox.teammates(owner):
-		if g.players[m].global_position.distance_to(g.players[owner].global_position) < 15.0:
+	for m in g.vox.teammates(owner_pid):
+		if g.players[m].global_position.distance_to(g.players[owner_pid].global_position) < 15.0:
 			near.append(m)
 	if not near.is_empty():
 		g.vox.later(2.6, near.pick_random(), resp, 0.7 if resp == "resp_wonder" else 0.45)
@@ -255,10 +255,12 @@ func _on_shot(pid: int) -> void:
 		return
 	var mag := int(w.get("mag", 0))
 	var reserve := int(w.get("reserve", 0))
+	@warning_ignore_start("integer_division")
 	if mag == 0 and reserve == 0:
 		srv_say(pid, "ammo_out")
 	elif reserve == 0 and mag <= maxi(1, int(st.get("mag", 8)) / 3):
 		srv_say(pid, "ammo_low", 0.8)
+	@warning_ignore_restore("integer_division")
 
 
 func _on_round_started(n: int) -> void:

@@ -325,6 +325,7 @@ static func wall_cost(id: String) -> int:
 
 ## Prix des munitions au mur : moitié prix, 4500 si l'arme est améliorée.
 static func ammo_cost(id: String, pap: bool) -> int:
+	@warning_ignore("integer_division")
 	return PAP_AMMO_COST if pap else wall_cost(id) / 2
 
 

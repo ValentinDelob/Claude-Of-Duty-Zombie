@@ -6,7 +6,7 @@ extends SceneTree
 ## adresses autorisés, numéros de version et noms de fichiers sûrs, sommes
 ## SHA-256 et politique des anciennes versions, BBCode échappé, images bornées,
 ## réglages piégés ignorés ; réponses de l'API mal formées, releases en
-## préversion, fichiers joints et adresses piégés, versions à 3 et 4 nombres,
+## préversion (canal snapshot), fichiers joints et adresses piégés, versions à 3 et 4 nombres,
 ## SHA256SUMS.txt abîmé ; textes du lanceur en français et en anglais ; journaux
 ## et rapports de plantage (tests/test_crash_log.gd). Fichiers écrits dans
 ## tests/_out seulement (jamais dans le dossier du joueur, user://).
@@ -15,6 +15,7 @@ const Releases := preload("res://scripts/releases.gd")
 const Store := preload("res://scripts/store.gd")
 const Texts := preload("res://scripts/texts.gd")
 const CrashLogTests := preload("res://tests/test_crash_log.gd")
+const ChannelTests := preload("res://tests/test_channels.gd")
 
 const DL := "https://github.com/ValentinDelob/Claude-Of-Duty-Zombie/releases/download/"
 
@@ -175,6 +176,7 @@ func _init() -> void:
 	_sums_edge_cases()
 	_texts()
 	CrashLogTests.new().run(self)
+	ChannelTests.new().run(self)
 	print("LAUNCHER: %d échec(s)" % failures)
 	quit(1 if failures > 0 else 0)
 
@@ -211,7 +213,6 @@ func _api_edge_cases() -> void:
 	var good := _asset(tag, exe, 10)
 	var base := {"tag_name": tag, "name": "v0.1.5", "published_at": "2026-09-01T00:00:00Z"}
 	var cases := {
-		"préversion": {"prerelease": true, "assets": [good]},
 		"brouillon": {"draft": true, "assets": [good]},
 		"fichiers pas en liste": {"assets": {"0": good}},
 		"fichiers absents": {},
@@ -249,7 +250,8 @@ func _api_edge_cases() -> void:
 		{"tag_name": "v0.1.4.2", "assets": [_asset("v0.1.4.2", "ClaudeOfDutyZombie-v0.1.4.2.exe", 7)]},
 	]
 	var v := Releases.parse_releases(JSON.stringify(mixed))
-	check(v.size() == 2 and v[0].tag == tag and v[1].tag == "v0.1.4.2", "releases valides gardées à côté des piégées (préversion ignorée) %s" % [v.map(func(e): return e.tag)])
+	check(v.size() == 3 and v[0].tag == "v0.1.6" and v[0].channel == Releases.SNAPSHOT and v[1].tag == tag and v[1].channel == Releases.STABLE and v[2].tag == "v0.1.4.2",
+		"releases valides gardées à côté des piégées (préversion = canal snapshot) %s" % [v.map(func(e): return e.tag)])
 	if v.size() == 2:
 		check(v[0].exe_size == 0 and v[0].launcher_url == "" and v[0].exe_name == exe, "taille négative ramenée à 0, lanceur hors dépôt ignoré")
 		check(v[0].title.length() == 300 and v[1].date == "", "titre borné (300 caractères), date absente vide")

@@ -102,6 +102,7 @@ static func _emissive(c: Color, e: float) -> StandardMaterial3D:
 ## MapBuilder.CHUNK cellules (élimination hors champ / hors portée des ombres).
 func _add(key: String, mesh: Mesh, xf: Transform3D) -> void:
 	var c := MapData.world_to_cell(xf.origin)
+	@warning_ignore("integer_division")
 	var tkey := "%s@%d_%d" % [key, c.x / MapBuilder.CHUNK, c.y / MapBuilder.CHUNK]
 	if not _tools.has(tkey):
 		var st := SurfaceTool.new()
@@ -175,22 +176,22 @@ func _bed(g: Array) -> void:
 	var center := MapData.cells_center(g)
 	var along_z: bool = g.size() > 1 and g[0].x == g[1].x
 	var rot := 0.0 if along_z else PI * 0.5
-	var len := g.size() * MapData.CELL
-	_box("steel", Vector3(0.9, 0.08, len - 0.1), center + Vector3(0, 0.42, 0), rot, true)
-	_box("fabric", Vector3(0.82, 0.14, len - 0.25), center + Vector3(0, 0.53, 0), rot)
+	var seg_len := g.size() * MapData.CELL
+	_box("steel", Vector3(0.9, 0.08, seg_len - 0.1), center + Vector3(0, 0.42, 0), rot, true)
+	_box("fabric", Vector3(0.82, 0.14, seg_len - 0.25), center + Vector3(0, 0.53, 0), rot)
 	for sx in [-0.4, 0.4]:
-		for sz in [-(len * 0.5 - 0.1), len * 0.5 - 0.1]:
+		for sz in [-(seg_len * 0.5 - 0.1), seg_len * 0.5 - 0.1]:
 			_box("steel#ns", Vector3(0.05, 0.45, 0.05), center + Vector3(sx, 0.22, sz).rotated(Vector3.UP, rot), rot)
-	_box("steel", Vector3(0.9, 0.5, 0.05), center + Vector3(0, 0.7, -(len * 0.5 - 0.05)).rotated(Vector3.UP, rot), rot)
+	_box("steel", Vector3(0.9, 0.5, 0.05), center + Vector3(0, 0.7, -(seg_len * 0.5 - 0.05)).rotated(Vector3.UP, rot), rot)
 
 
 func _bench(g: Array) -> void:
 	var center := MapData.cells_center(g)
 	var along_x: bool = g.size() > 1 and g[0].y == g[1].y
 	var rot := PI * 0.5 if along_x else 0.0
-	var len := g.size() * MapData.CELL
-	_box("steel", Vector3(0.95, 0.06, len - 0.05), center + Vector3(0, 0.9, 0), rot, true)
-	_box("steel", Vector3(0.85, 0.7, len - 0.3), center + Vector3(0, 0.45, 0), rot, true)
+	var seg_len := g.size() * MapData.CELL
+	_box("steel", Vector3(0.95, 0.06, seg_len - 0.05), center + Vector3(0, 0.9, 0), rot, true)
+	_box("steel", Vector3(0.85, 0.7, seg_len - 0.3), center + Vector3(0, 0.45, 0), rot, true)
 	# Verrerie de laboratoire (certaines fioles luisent encore).
 	for k in g.size() * 2:
 		var cell: Vector2i = g[k % g.size()]

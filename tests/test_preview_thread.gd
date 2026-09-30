@@ -10,6 +10,7 @@ extends TestCase
 ## la carte donnée au fil est profonde (aucun objet partagé) ; la langue du
 ## calcul est celle figée au lancement.
 
+@warning_ignore("unused_private_class_variable")
 var _res: Variant
 var _probe: Array = []
 

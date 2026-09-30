@@ -70,6 +70,7 @@ func test_special_mechanics() -> void:
 	for id in ["china_lake", "law"]:
 		var s := WeaponDB.stats(id)
 		assert_true(s.has("splash_radius") and s.has("projectile_speed") and s.has("self_damage"), "%s : projectile explosif" % id)
+		@warning_ignore("integer_division")
 		assert_true(int(s.self_damage) < int(s.splash_damage) / 5, "%s : dégâts à soi réduits" % id)
 	assert_near(WeaponDB.projectile_delay("law", false, Vector3.ZERO, Vector3(0, 0, -45)), 1.0, 0.001, "roquette à 45 m/s")
 	assert_eq(WeaponDB.projectile_delay("m14", false, Vector3.ZERO, Vector3(0, 0, -45)), 0.0, "balle instantanée")

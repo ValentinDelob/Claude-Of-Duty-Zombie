@@ -13,6 +13,7 @@ var H := AutotestHelpers
 ## Crête et RMS (dB) d'un WAV 16 bits.
 static func levels(w: AudioStreamWAV) -> Vector2:
 	var d := w.data
+	@warning_ignore("integer_division")
 	var n := d.size() / 2
 	var pk := 0.0
 	var acc := 0.0

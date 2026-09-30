@@ -343,10 +343,10 @@ func _trace(origin: Vector3, dir: Vector3, pen: int, impacts: PackedVector3Array
 	return [origin + dir * RAY_LENGTH, Vector3.ZERO, -1, ""]
 
 
-static func _spread_dir(fwd: Vector3, spread_deg: float) -> Vector3:
-	if spread_deg <= 0.001:
+static func _spread_dir(fwd: Vector3, spread_angle: float) -> Vector3:
+	if spread_angle <= 0.001:
 		return fwd
-	var r := deg_to_rad(spread_deg) * sqrt(randf())
+	var r := deg_to_rad(spread_angle) * sqrt(randf())
 	var a := randf() * TAU
 	var right := fwd.cross(Vector3.UP).normalized()
 	if right.length_squared() < 0.01:

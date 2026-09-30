@@ -71,6 +71,7 @@ func lineup() -> void:
 			var m := WeaponModels.build(WeaponDB.stats(ids[k]).model, false)
 			stage.add_child(m)
 			# Grille 3 x 5, canon vers la gauche, vue de profil (côté droit).
+			@warning_ignore("integer_division")
 			m.position = Vector3(-1.2 + (i % 3) * 1.2, 0.72 - int(i / 3) * 0.36, 0)
 			m.rotation.y = -PI * 0.5
 			var lb := Label3D.new()

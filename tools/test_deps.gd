@@ -64,8 +64,8 @@ func _init() -> void:
 		if a.begins_with("--out="):
 			out = a.substr(6)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://" + out))
-	for root in ["scripts", "scenes", "tests", "assets", "tools"]:
-		_scan("res://" + root)
+	for top_dir in ["scripts", "scenes", "tests", "assets", "tools"]:
+		_scan("res://" + top_dir)
 	_all_files.append("project.godot")
 	for f in _all_files:
 		if f.ends_with(".gd"):

@@ -291,6 +291,7 @@ static func analyze(b: PackedFloat32Array) -> Dictionary:
 	var env := ""
 	var cols := 48
 	var chars := " .:-=+*#%@"
+	@warning_ignore("integer_division")
 	var step := maxi(b.size() / cols, 1)
 	for c in cols:
 		var m := 0.0

@@ -408,17 +408,17 @@ func test_doors_and_wall_items_move_in_every_snap_mode() -> void:
 		var c := MapGeom.centroid(poly)
 		var m := (poly[0] + poly[1]) * 0.5
 		tries.append(["arme", m + (c - m).normalized() * 0.6, (poly[1] - poly[0]).normalized()])
-		for tr in tries:
-			var kind: String = tr[0]
+		for attempt in tries:
+			var kind: String = attempt[0]
 			var doc0 := base.duplicate_map()
 			if kind in ["porte", "passage"]:
-				var r := MapRules.place_opening(doc0, 0, kind, tr[1], 1.5, "", true)
+				var r := MapRules.place_opening(doc0, 0, kind, attempt[1], 1.5, "", true)
 				assert_true(r.ok, "%s : %s posée" % [mp[0], kind])
 				if not r.ok:
 					continue
 				doc0.ouvertures.append({"id": "o9", "type": kind, "etage": 0, "position": r.position, "largeur": float(r.get("largeur", 1.5)), "prix": 750})
 			else:
-				var o := put(doc0, WEAPON, tr[1])
+				var o := put(doc0, WEAPON, attempt[1])
 				assert_true(o.has("id"), "%s : arme posée" % mp[0])
 				if not o.has("id"):
 					continue
@@ -432,7 +432,7 @@ func test_doors_and_wall_items_move_in_every_snap_mode() -> void:
 				ed.select_slot(0)
 				var o := doc.find("o9")
 				var grab := MapGeom.v2(o.position) if kind != "arme" else MapRules.footprint_rect(o).get_center()
-				var t: Vector2 = tr[2]
+				var t: Vector2 = attempt[2]
 				var p0 := MapGeom.v2(o.position)
 				var dl := 0.0
 				for d in [1.5, -1.5, 1.0, -1.0]:
@@ -498,16 +498,16 @@ func test_slow_drags_in_every_snap_mode() -> void:
 		var c := MapGeom.centroid(poly)
 		var m := (poly[0] + poly[1]) * 0.5
 		tries.append(["arme", m + (c - m).normalized() * 0.6, (poly[1] - poly[0]).normalized()])
-		for tr in tries:
-			var kind: String = tr[0]
+		for attempt in tries:
+			var kind: String = attempt[0]
 			var doc0 := base.duplicate_map()
 			if kind == "arme":
-				var o := put(doc0, WEAPON, tr[1])
+				var o := put(doc0, WEAPON, attempt[1])
 				if not o.has("id"):
 					continue
 				o["id"] = "o9"
 			else:
-				var r := MapRules.place_opening(doc0, 0, kind, tr[1], 1.0 if kind == "fenetre" else 1.5, "", true)
+				var r := MapRules.place_opening(doc0, 0, kind, attempt[1], 1.0 if kind == "fenetre" else 1.5, "", true)
 				if not r.ok:
 					continue
 				var op := {"id": "o9", "type": kind, "etage": 0, "position": r.position}
@@ -517,7 +517,7 @@ func test_slow_drags_in_every_snap_mode() -> void:
 			var o0 := doc0.find("o9")
 			var p0 := MapGeom.v2(o0.position)
 			var grab := p0 if kind != "arme" else MapRules.footprint_rect(o0).get_center()
-			var t: Vector2 = tr[2]
+			var t: Vector2 = attempt[2]
 			# Le plus long glissement possible le long du mur (jusqu'à 3 m), dans un sens ou l'autre.
 			var dl := 0.0
 			for d in [3.0, -3.0, 2.0, -2.0, 1.5, -1.5, 1.0, -1.0]:

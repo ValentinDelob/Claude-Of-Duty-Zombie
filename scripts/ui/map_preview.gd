@@ -45,6 +45,7 @@ static func render(def: MapDef) -> Image:
 	var outside := BarricadeLayout.pocket_cells(BarricadeLayout.analyze(data))
 	for y in h:
 		for x in w:
+			@warning_ignore("integer_division")
 			var c := Vector2i(x / PX, y / PX)
 			var col := _paper(noise, x, y)
 			if data.is_wall(c):

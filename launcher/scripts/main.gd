@@ -14,6 +14,7 @@ const Releases := preload("res://scripts/releases.gd")
 const Store := preload("res://scripts/store.gd")
 const Texts := preload("res://scripts/texts.gd")
 const Version := preload("res://scripts/version.gd")
+const Downloader := preload("res://scripts/downloader.gd")
 
 const BG := Color(0.045, 0.04, 0.035)
 const PANEL := Color(0.085, 0.075, 0.065)
@@ -29,7 +30,8 @@ var versions: Array = []        # versions publiées (Releases.parse_releases)
 var changelogs: Dictionary = {}
 var online := true
 var _known := false             # liste des versions connue (en ligne ou hors ligne confirmé)
-var selected := "latest"        # « latest » ou un numéro de version
+var selected := "latest"        # « latest » ou un numéro de version (du canal choisi)
+var channel := "stable"         # canal affiché : Releases.STABLE ou Releases.SNAPSHOT
 var _textures := {}             # nom d'image -> Texture2D
 var _image_queue: Array = []
 var _args := {}
@@ -46,6 +48,11 @@ var _progress: ProgressBar
 var _play: Button
 var _delete: Button
 var _lang_btn: OptionButton
+var _channel_btn: OptionButton
+## Téléchargement des versions en paquets (manifeste) : reprise, sommes.
+var _dl: Node
+var _dl_manifest := {}          # manifeste vérifié de la version en cours
+var _dl_manifest_text := ""
 var _zoom: ColorRect
 var _zoom_tex: TextureRect
 
@@ -70,7 +77,8 @@ func _ready() -> void:
 	settings = Store.load_settings()
 	lang = String(settings.get("language", "fr"))
 	var crashes := _session_begin()
-	selected = String(settings.get("selected", "latest"))
+	channel = String(settings.get("channel", Releases.STABLE))
+	selected = _selected_of(channel)
 	get_window().title = "Claude of Duty Zombie"
 	get_window().min_size = Vector2i(900, 560)
 	_build_ui()
@@ -78,6 +86,10 @@ func _ready() -> void:
 	_http_notes = _new_http()
 	_http_img = _new_http()
 	_http_dl = _new_http()
+	_dl = Downloader.new()
+	_dl.name = "Parts"
+	add_child(_dl)
+	_dl.finished.connect(_on_parts_done)
 	_load_cached_changelogs()
 	_refresh_list()
 	if _args.has("changelogs"):
@@ -93,6 +105,23 @@ func _ready() -> void:
 		_capture_later(String(_args.capture))
 	if not crashes.is_empty():
 		_show_crash_note(crashes[crashes.size() - 1])
+	_after_self_update()
+
+
+## Démarrage après une auto-mise à jour (Store.update_script) : --updated,
+## le nouveau lanceur signale qu'il a bien démarré (sinon l'ancien est remis) ;
+## --update-failed : l'ancien lanceur a été remis, le joueur en est informé.
+func _after_self_update() -> void:
+	if _args.has("updated"):
+		var f := FileAccess.open(Store.UPDATE_OK, FileAccess.WRITE)
+		if f:
+			f.store_string(str(Version.LAUNCHER_VERSION))
+			f.close()
+		print("[launcher] mise à jour du lanceur réussie (version %d)" % Version.LAUNCHER_VERSION)
+		_set_status(Texts.t("launcher_updated", lang))
+	elif _args.has("update-failed"):
+		print("[launcher] la mise à jour du lanceur a échoué : ancienne version remise")
+		_set_status(Texts.t("launcher_update_failed", lang))
 
 
 # --------------------------------------------------------------------------
@@ -240,6 +269,15 @@ func _build_ui() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(spacer)
+	# Canal : stable (versions éprouvées) ou snapshot (chaque nouveauté).
+	_channel_btn = OptionButton.new()
+	_channel_btn.name = "Channel"
+	_channel_btn.add_item(Texts.t("channel_stable", lang))
+	_channel_btn.add_item(Texts.t("channel_snapshot", lang))
+	_channel_btn.select(1 if channel == Releases.SNAPSHOT else 0)
+	_channel_btn.item_selected.connect(_on_channel)
+	_channel_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(_channel_btn)
 	_lang_btn = OptionButton.new()
 	_lang_btn.add_item("FRANÇAIS")
 	_lang_btn.add_item("ENGLISH")
@@ -380,6 +418,8 @@ func _apply_texts() -> void:
 	(find_child("VersionsTitle", true, false) as Label).text = Texts.t("versions", lang)
 	_play.text = Texts.t("play", lang)
 	_delete.text = Texts.t("delete", lang)
+	_channel_btn.set_item_text(0, Texts.t("channel_stable", lang))
+	_channel_btn.set_item_text(1, Texts.t("channel_snapshot", lang))
 	_refresh_list()
 
 
@@ -391,13 +431,15 @@ func _set_status(t: String) -> void:
 # Versions
 # --------------------------------------------------------------------------
 
-## Versions affichées : publiées (en ligne) ou installées (hors ligne).
+## Versions affichées : celles du canal choisi, publiées (en ligne) ou
+## installées (hors ligne ; canal d'après le numéro).
 func _all_tags() -> Array:
 	var tags: Array = []
 	for v in versions:
-		tags.append(v.tag)
-	for t in Store.installed():
-		if not t in tags:
+		if String(v.get("channel", Releases.STABLE)) == channel:
+			tags.append(v.tag)
+	for t: String in Store.installed():
+		if not t in tags and _info(t).is_empty() and Releases.channel_of(t) == channel:
 			tags.append(t)
 	tags.sort_custom(func(a, b): return Releases.newer(a, b))
 	return tags
@@ -447,9 +489,25 @@ func _refresh_list() -> void:
 
 func _on_select(i: int) -> void:
 	selected = _list_tags[i]
-	settings.selected = selected
+	settings["selected" if channel == Releases.STABLE else "selected_snapshot"] = selected
 	Store.save_settings(settings)
 	_show_notes()
+
+
+## Version choisie (mémorisée) dans un canal : « latest » ou un numéro.
+func _selected_of(ch: String) -> String:
+	return String(settings.get("selected" if ch == Releases.STABLE else "selected_snapshot", "latest"))
+
+
+func _on_channel(i: int) -> void:
+	channel = Releases.SNAPSHOT if i == 1 else Releases.STABLE
+	settings.channel = channel
+	Store.save_settings(settings)
+	selected = _selected_of(channel)
+	_refresh_list()
+	if channel == Releases.SNAPSHOT:
+		_set_status(Texts.t("snapshot_note", lang))
+	_auto_update()
 
 
 func _on_lang(i: int) -> void:
@@ -505,6 +563,9 @@ func _update_buttons() -> void:
 			_play.disabled = true
 			_set_status(Texts.t("no_checksum", lang) % tag)
 			return
+		if String(_info(tag).get("manifest_url", "")) != "":
+			_set_status(Texts.t("to_download_parts", lang))
+			return
 		_set_status(Texts.t("to_download", lang) % str(int(round(float(_info(tag).exe_size) / 1048576.0)))
 				+ ("   " + Texts.t("legacy", lang) if policy == Releases.LEGACY else ""))
 
@@ -514,6 +575,8 @@ func _on_delete() -> void:
 	if not Store.is_installed(tag) or _dl_tag == tag:
 		return
 	Store.remove(tag)
+	# Paquets que plus aucune version installée n'utilise : supprimés.
+	Store.prune_store()
 	_refresh_list()
 	_set_status(Texts.t("deleted", lang) % tag)
 
@@ -534,9 +597,15 @@ func _on_releases(result: int, code: int, body: PackedByteArray) -> void:
 		_set_offline()
 		return
 	_check_launcher_update()
-	# Mise à jour automatique : la dernière version est téléchargée à l'ouverture.
+	_auto_update()
+
+
+## Mise à jour automatique : la dernière version du canal est téléchargée à
+## l'ouverture (et au changement de canal) quand « Dernière version » est choisie.
+func _auto_update() -> void:
 	var latest := _latest()
-	if selected == "latest" and latest != "" and not Store.is_installed(latest) and not _args.has("capture"):
+	if online and _known and selected == "latest" and latest != "" and not Store.is_installed(latest) \
+			and not _args.has("capture") and _dl_tag == "":
 		_start_download(latest, true)
 
 
@@ -670,8 +739,13 @@ func _start_download(tag: String, is_update: bool) -> void:
 	_dl_size = int(info.exe_size)
 	_dl_is_update = is_update
 	_dl_sha256 = ""
+	_dl_manifest = {}
 	var ok := false
-	if policy == Releases.VERIFIED:
+	if String(info.get("manifest_url", "")) != "":
+		# Version en paquets : seulement ce qui manque (docs/RELEASE.md). Les
+		# sommes sont obligatoires (manifeste vérifié avant d'être lu).
+		ok = policy == Releases.VERIFIED and _fetch(_http_dl, String(info.sums_url), Releases.MAX_SMALL_BYTES, _on_manifest_sums)
+	elif policy == Releases.VERIFIED:
 		ok = _fetch(_http_dl, String(info.sums_url), Releases.MAX_SMALL_BYTES, _on_game_sums)
 	else:
 		print("[launcher] %s : version antérieure aux sommes SHA-256, taille vérifiée seulement" % tag)
@@ -698,6 +772,73 @@ func _on_game_sums(result: int, code: int, body: PackedByteArray) -> void:
 		_fail_download(_dl_tag, "download_failed")
 
 
+## Version en paquets, étape 1 : somme du manifeste lue dans SHA256SUMS.txt.
+func _on_manifest_sums(result: int, code: int, body: PackedByteArray) -> void:
+	var sha := ""
+	if result == HTTPRequest.RESULT_SUCCESS and code == 200:
+		sha = String(Releases.parse_sums(body.get_string_from_utf8()).get(Releases.MANIFEST_ASSET, ""))
+	if sha == "":
+		_fail_download(_dl_tag, "no_checksum")
+		return
+	_dl_sha256 = sha
+	if not _fetch(_http_dl, String(_info(_dl_tag).manifest_url), Releases.MAX_MANIFEST_BYTES, _on_manifest):
+		_fail_download(_dl_tag, "download_failed")
+
+
+## Étape 2 : manifeste reçu, vérifié (somme puis contenu) ; téléchargement des
+## seuls fichiers manquants (moteur, paquets), avec reprise.
+func _on_manifest(result: int, code: int, body: PackedByteArray) -> void:
+	var tag := _dl_tag
+	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
+		_fail_download(tag, "download_failed")
+		return
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	ctx.update(body)
+	var text := body.get_string_from_utf8()
+	var m := Releases.parse_manifest(text, tag)
+	if ctx.finish().hex_encode() != _dl_sha256 or m.is_empty():
+		print("[launcher] %s : manifeste NON conforme (somme ou contenu), refusé" % tag)
+		_fail_download(tag, "integrity_failed")
+		return
+	_dl_manifest = m
+	_dl_manifest_text = text
+	var missing := Store.missing_files(m)
+	var mb := 0
+	for f: Dictionary in missing:
+		mb += int(f.size)
+	print("[launcher] %s : %d fichier(s) à télécharger (%d Mo)" % [tag, missing.size(), mb >> 20])
+	if missing.is_empty():
+		_on_parts_done(true, "")
+		return
+	_dl_size = mb
+	_dl.start(missing)
+
+
+## Étape 3 : fichiers vérifiés rangés ; installation (copies locales).
+func _on_parts_done(ok: bool, key: String) -> void:
+	var tag := _dl_tag
+	if tag == "" or _dl_manifest.is_empty():
+		return
+	if not ok:
+		# Les fichiers partiels restent : le prochain essai reprend à la suite.
+		_fail_download(tag, key)
+		return
+	if not Store.install_manifest(tag, _dl_manifest, _dl_manifest_text):
+		_fail_download(tag, "download_failed")
+		return
+	_dl_manifest = {}
+	_dl_tag = ""
+	_progress.visible = false
+	_refresh_list()
+	print("[launcher] installée (paquets) : ", Store.exe_path(tag))
+	if _args.has("quit-after-update"):
+		get_tree().quit()
+		return
+	if _play_after and _resolved() == tag:
+		_launch(tag)
+
+
 func _download_exe(info: Dictionary) -> bool:
 	var part := Store.part_path(String(info.tag))
 	if part == "":
@@ -711,6 +852,7 @@ func _download_exe(info: Dictionary) -> bool:
 
 func _fail_download(tag: String, key: String) -> void:
 	_dl_tag = ""
+	_dl_manifest = {}
 	_play_after = false
 	_progress.visible = false
 	var part := Store.part_path(tag)
@@ -722,6 +864,14 @@ func _fail_download(tag: String, key: String) -> void:
 
 func _process(_delta: float) -> void:
 	if _dl_tag == "":
+		return
+	if _dl.busy():
+		var got: int = _dl.progress_bytes()
+		var all: int = maxi(_dl.total_bytes, 1)
+		var p := 100.0 * float(got) / float(all)
+		_progress.value = p
+		_set_status(Texts.t("downloading_parts", lang) % [_dl_tag, int(p), str(int(round(float(all) / 1048576.0)))]
+				+ ("   " + Texts.t("play_after", lang) if _play_after else ""))
 		return
 	var total := _http_dl.get_body_size()
 	if total <= 0:
@@ -776,7 +926,10 @@ func _launch(tag: String) -> void:
 	if not Store.is_installed(tag):
 		return
 	_set_status(Texts.t("launching", lang) % tag)
-	var pid := OS.create_process(Store.exe_path(tag), [])
+	# Version en paquets : les paquets de répliques sont montés par le jeu.
+	var args := Store.launch_args(tag)
+	print("[launcher] lancement de %s %s" % [tag, " ".join(args)])
+	var pid := OS.create_process(Store.exe_path(tag), args)
 	if pid <= 0:
 		_set_status(Texts.t("download_failed", lang) % tag)
 		return
@@ -791,7 +944,15 @@ func _launch(tag: String) -> void:
 func _check_launcher_update() -> void:
 	if not OS.has_feature("template") or _args.has("capture") or versions.is_empty():
 		return
-	var v: Dictionary = versions[0]
+	# Lanceur de la dernière version du canal choisi : un joueur du canal
+	# stable ne reçoit jamais le lanceur d'une snapshot.
+	var v: Dictionary = {}
+	for e: Dictionary in versions:
+		if String(e.get("channel", Releases.STABLE)) == channel:
+			v = e
+			break
+	if v.is_empty():
+		return
 	if String(v.launcher_version_url) == "" or String(v.launcher_url) == "":
 		return
 	# Nouveau lanceur jamais installé sans somme SHA-256 publiée avec lui.
@@ -846,16 +1007,18 @@ func _on_launcher_downloaded(result: int, code: int, _b: PackedByteArray, h: HTT
 		DirAccess.remove_absolute(fresh)
 	if DirAccess.rename_absolute(part, fresh) != OK:
 		return
-	# Remplacement après fermeture (un exécutable ouvert ne peut pas être écrasé).
+	# Remplacement après fermeture (un exécutable ouvert ne peut pas être
+	# écrasé), redémarrage automatique et retour à l'ancien lanceur si le
+	# nouveau ne démarre pas (Store.update_script).
 	var bat := ProjectSettings.globalize_path("user://update_launcher.bat")
 	var f := FileAccess.open(bat, FileAccess.WRITE)
 	if f == null:
 		return
-	# « % » est spécial dans un .bat : doublé dans les chemins.
-	var cur := exe.replace("/", "\\").replace("%", "%%")
-	var nxt := fresh.replace("/", "\\").replace("%", "%%")
-	f.store_string("@echo off\r\nping 127.0.0.1 -n 3 >nul\r\nmove /y \"%s\" \"%s\" >nul\r\nstart \"\" \"%s\"\r\ndel \"%%~f0\"\r\n" % [nxt, cur, cur])
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(Store.UPDATE_LOG).get_base_dir())
+	f.store_string(Store.update_script(exe, fresh, ProjectSettings.globalize_path(Store.UPDATE_OK),
+		ProjectSettings.globalize_path(Store.UPDATE_LOG)))
 	f.close()
+	print("[launcher] mise à jour du lanceur : script ", bat)
 	_set_status(Texts.t("self_update", lang))
 	OS.create_process("cmd.exe", ["/c", bat.replace("/", "\\")])
 	get_tree().quit()

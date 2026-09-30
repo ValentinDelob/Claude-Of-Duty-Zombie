@@ -3,4 +3,4 @@ extends RefCounted
 ## tools/release.sh la publie avec chaque version du jeu (launcher_version.txt)
 ## et les lanceurs plus anciens se mettent à jour tout seuls.
 
-const LAUNCHER_VERSION := 4
+const LAUNCHER_VERSION := 5

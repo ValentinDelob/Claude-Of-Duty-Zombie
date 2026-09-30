@@ -178,6 +178,7 @@ func _modes(zombies: bool) -> Array:
 		plain.vertex_color_use_as_albedo = true
 		m.append(["zombie.gdshader (vs matériau simple)", func(on: bool):
 			for z: Zombie in game.zombies.alive:
+				@warning_ignore("incompatible_ternary")
 				z.mesh.material_override = ZombieModel.material() if on else plain])
 		var zflat := ShaderMaterial.new()
 		zflat.shader = Shader.new()

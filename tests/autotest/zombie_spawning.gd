@@ -52,7 +52,7 @@ func run() -> void:
 
 	# 4. Recyclage d'un zombie coincé loin des joueurs.
 	p.teleport_to(MapData.cell_to_world(Vector2i(2, 7), 0.05), 0.0)
-	var z := await H.dummy_zombie(self, MapData.cell_to_world(Vector2i(22, 13)))
+	var _z := await H.dummy_zombie(self, MapData.cell_to_world(Vector2i(22, 13)))
 	sp.recycle_time = 2.0
 	var recycled := 0
 	for i in 20:

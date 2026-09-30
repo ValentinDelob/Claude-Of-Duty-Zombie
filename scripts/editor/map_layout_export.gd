@@ -434,11 +434,11 @@ func _obliques(f: MapValidator.Floor) -> void:
 		var runs := []   # [s0, s1, haut]
 		for i in nseg:
 			var s := (i + 0.5) * seg_len / nseg
-			var top := wall_top(k, MapGeom.cell_of(a + t * s))
-			if not runs.is_empty() and absf(float(runs[-1][2]) - top) < 0.001:
+			var top_y := wall_top(k, MapGeom.cell_of(a + t * s))
+			if not runs.is_empty() and absf(float(runs[-1][2]) - top_y) < 0.001:
 				runs[-1][1] = (i + 1) * seg_len / nseg
 			else:
-				runs.append([i * seg_len / nseg, (i + 1) * seg_len / nseg, top])
+				runs.append([i * seg_len / nseg, (i + 1) * seg_len / nseg, top_y])
 		var top_max := 0.0
 		for run in runs:
 			var pa: Vector2 = a + t * float(run[0])
@@ -468,18 +468,18 @@ func _obliques(f: MapValidator.Floor) -> void:
 		if e.list.size() < 2 or not dc.has(MapGeom.cell_of(v)):
 			continue
 		var pts := PackedVector2Array([v])
-		var top := 0.0
+		var top_y := 0.0
 		for it in e.list:
 			pts.append(v + Vector2(it.n) * float(it.half))
 			pts.append(v - Vector2(it.n) * float(it.half))
-			top = maxf(top, float(it.top))
+			top_y = maxf(top_y, float(it.top))
 		var box := _min_box(pts)
 		if box.is_empty() or float(box.w) * float(box.d) < 0.005:
 			continue
 		var u: Vector2 = box.u
 		var c: Vector2 = box.c
 		obliques.append({"room": ref_room.get(k, "x"), "a": _xz(c - u * float(box.w) * 0.5), "b": _xz(c + u * float(box.w) * 0.5),
-			"y0": _r(y0), "y1": _r(top), "thick": _r(float(box.d)), "mat_n": String(e.list[0].mat), "mat_m": String(e.list[0].mat),
+			"y0": _r(y0), "y1": _r(top_y), "thick": _r(float(box.d)), "mat_n": String(e.list[0].mat), "mat_m": String(e.list[0].mat),
 			"openings": [], "joint": true})
 
 
@@ -511,7 +511,7 @@ static func _min_box(pts: PackedVector2Array) -> Dictionary:
 
 ## Ouvertures d'un tronçon de mur en biais (de `pa`, direction `t`, longueur
 ## `seg_len`) : [{t (milieu le long du tronçon), w, y0, y1}] (hauteurs absolues).
-func _oblique_cuts(f: MapValidator.Floor, pa: Vector2, t: Vector2, seg_len: float, y0: float, top: float) -> Array:
+func _oblique_cuts(f: MapValidator.Floor, pa: Vector2, t: Vector2, seg_len: float, y0: float, top_y: float) -> Array:
 	var out := []
 	var nrm := Vector2(-t.y, t.x)
 	for key in md.diag_open:
@@ -526,7 +526,7 @@ func _oblique_cuts(f: MapValidator.Floor, pa: Vector2, t: Vector2, seg_len: floa
 		if c + hw <= 0.001 or c - hw >= seg_len - 0.001:
 			continue
 		var oy0 := y0
-		var oy1 := top
+		var oy1 := top_y
 		match String(o.type):
 			"fenetre":
 				oy0 = f.sol + MapValidator.SILL
@@ -537,9 +537,9 @@ func _oblique_cuts(f: MapValidator.Floor, pa: Vector2, t: Vector2, seg_len: floa
 				for r in md.room_polys[f.index]:
 					if MapGeom.on_boundary(r.poly, p, MapGeom.JOIN_TOL):
 						ce = minf(ce, float(r.ceil))
-				oy1 = minf(top, ce) if ce < INF else top
+				oy1 = minf(top_y, ce) if ce < INF else top_y
 			_:
-				if top > f.sol + md.door_height + 0.05:
+				if top_y > f.sol + md.door_height + 0.05:
 					oy1 = f.sol + md.door_height
 		var lo := maxf(c - hw, 0.0)
 		var hi := minf(c + hw, seg_len)

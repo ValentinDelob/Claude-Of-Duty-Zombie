@@ -132,6 +132,7 @@ func play_3d(sound: String, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.06
 ## Position de l'auditeur (caméra active), ou null sans caméra 3D.
 func listener_position() -> Variant:
 	var cam := get_viewport().get_camera_3d() if get_viewport() else null
+	@warning_ignore("incompatible_ternary")
 	return cam.global_position if cam else null
 
 

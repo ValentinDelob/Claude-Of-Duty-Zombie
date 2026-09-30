@@ -46,6 +46,7 @@ var cell := Vector2i.ZERO
 var inward := Vector3.FORWARD
 ## Hauteur de l'ouverture et graine des planches (déterministes).
 var opening_height := MapBuilder.WALL_HEIGHT
+@warning_ignore("shadowed_global_identifier")
 var seed := 0
 var zone := ""
 var spawn_cells: Array = []

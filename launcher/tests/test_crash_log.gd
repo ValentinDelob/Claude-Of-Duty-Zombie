@@ -8,7 +8,9 @@ extends RefCounted
 ## journal), rapports jamais écrasés.
 
 const CrashLog := preload("res://scripts/crash_log.gd")
-const TMP := "res://tests/_out/launcher_crash_test"
+## Un dossier par processus : deux exécutions simultanées (check en parallèle
+## d'un essai à la main) ne se marchent pas dessus.
+var TMP := "res://tests/_out/launcher_crash_test_%d" % OS.get_process_id()
 
 ## Numéro de processus qui ne tourne pas (session précédente arrêtée).
 const DEAD_PID := 999999937

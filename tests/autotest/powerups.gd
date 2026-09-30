@@ -162,6 +162,7 @@ func run() -> void:
 	await stand()
 	var zs: Array = []
 	for k in 6:
+		@warning_ignore("integer_division")
 		zs.append(await H.dummy_zombie(self, ahead(6.0 + (k % 3) * 1.5, (k / 3) * 2.0 - 1.0), 5000))
 	var pts_before := pd.points
 	var kills_before := pd.kills

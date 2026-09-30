@@ -361,6 +361,7 @@ func _animations() -> void:
 func _perf_ab() -> void:
 	var zs: Array[Zombie] = []
 	for i in 24:
+		@warning_ignore("integer_division")
 		var pos := _stage + Vector3((i % 6 - 2.5) * 0.9, 0, -float(i / 6) * 1.4 + 1.0)
 		var z := _show(i * 7 + 1, pos, 0.0, i % 4)
 		z.anim_speed = Zombie.SPEEDS[i % 4]
@@ -386,8 +387,8 @@ func _perf_ab() -> void:
 	at.check(pose_ms < 1.5, "poses de 24 zombies en %.2f ms/image" % pose_ms)
 	var fps_new := 0.0
 	var fps_old := 0.0
-	for round in 4:
-		var legacy := round % 2 == 1
+	for round_i in 4:
+		var legacy := round_i % 2 == 1
 		for k in zs.size():
 			zs[k].mesh.mesh = old_meshes[k] if legacy else new_meshes[k]
 			zs[k].mesh.material_override = old_mat if legacy else ZombieModel.material()
@@ -401,7 +402,7 @@ func _perf_ab() -> void:
 			fps_old += f * 0.5
 		else:
 			fps_new += f * 0.5
-		if round == 0:
+		if round_i == 0:
 			await _shot("perf_horde")
 	var ratio := fps_new / maxf(fps_old, 1.0)
 	print("[perf] nouveau modèle %.0f fps GPU contre ancien %.0f fps GPU (%.0f %%)" % [fps_new, fps_old, ratio * 100.0])
@@ -420,25 +421,25 @@ static func _legacy_parts(variant: int) -> Array:
 	var shirt := Color(0.2, 0.22, 0.15)
 	var pants := Color(0.14, 0.15, 0.11)
 	var wound := Color(0.32, 0.03, 0.03)
-	var p: Array = []
-	p.append(["hips", Vector3(0.34, 0.2, 0.2), Vector3(0, 0, 0), pants, 0.0])
-	p.append(["spine", Vector3(0.31, 0.26, 0.19), Vector3(0, 0.12, 0), shirt, 0.0])
-	p.append(["chest", Vector3(0.4, 0.28, 0.22), Vector3(0, 0.1, 0), shirt, 0.0])
-	p.append(["chest", Vector3(0.14, 0.12, 0.02), Vector3(rng.randf_range(-0.1, 0.1), 0.08, 0.112), wound, 0.0])
-	p.append(["spine", Vector3(0.1, 0.08, 0.02), Vector3(rng.randf_range(-0.1, 0.1), 0.1, 0.098), wound, 0.0])
-	p.append(["neck", Vector3(0.1, 0.12, 0.1), Vector3(0, 0.03, 0), skin, 0.0])
-	p.append(["head", Vector3(0.22, 0.25, 0.23), Vector3(0, 0.14, 0.0), skin, 0.0])
-	p.append(["head", Vector3(0.19, 0.06, 0.17), Vector3(0, 0.0, 0.04), skin.darkened(0.25), 0.0, Vector3(12, 0, 0)])
-	p.append(["head", Vector3(0.16, 0.025, 0.02), Vector3(0, 0.035, 0.121), Color(0.12, 0.05, 0.04), 0.0])
-	p.append(["head", Vector3(0.05, 0.028, 0.02), Vector3(0.052, 0.15, 0.116), Color(1.0, 0.55, 0.2), 1.0])
-	p.append(["head", Vector3(0.05, 0.028, 0.02), Vector3(-0.052, 0.15, 0.116), Color(1.0, 0.55, 0.2), 1.0])
-	p.append(["head", Vector3(0.24, 0.04, 0.05), Vector3(0, 0.185, 0.1), skin.darkened(0.35), 0.0])
-	p.append(["head", Vector3(0.235, 0.06, 0.24), Vector3(0, 0.27, -0.01), Color(0.08, 0.07, 0.06), 0.0])
+	var pts: Array = []
+	pts.append(["hips", Vector3(0.34, 0.2, 0.2), Vector3(0, 0, 0), pants, 0.0])
+	pts.append(["spine", Vector3(0.31, 0.26, 0.19), Vector3(0, 0.12, 0), shirt, 0.0])
+	pts.append(["chest", Vector3(0.4, 0.28, 0.22), Vector3(0, 0.1, 0), shirt, 0.0])
+	pts.append(["chest", Vector3(0.14, 0.12, 0.02), Vector3(rng.randf_range(-0.1, 0.1), 0.08, 0.112), wound, 0.0])
+	pts.append(["spine", Vector3(0.1, 0.08, 0.02), Vector3(rng.randf_range(-0.1, 0.1), 0.1, 0.098), wound, 0.0])
+	pts.append(["neck", Vector3(0.1, 0.12, 0.1), Vector3(0, 0.03, 0), skin, 0.0])
+	pts.append(["head", Vector3(0.22, 0.25, 0.23), Vector3(0, 0.14, 0.0), skin, 0.0])
+	pts.append(["head", Vector3(0.19, 0.06, 0.17), Vector3(0, 0.0, 0.04), skin.darkened(0.25), 0.0, Vector3(12, 0, 0)])
+	pts.append(["head", Vector3(0.16, 0.025, 0.02), Vector3(0, 0.035, 0.121), Color(0.12, 0.05, 0.04), 0.0])
+	pts.append(["head", Vector3(0.05, 0.028, 0.02), Vector3(0.052, 0.15, 0.116), Color(1.0, 0.55, 0.2), 1.0])
+	pts.append(["head", Vector3(0.05, 0.028, 0.02), Vector3(-0.052, 0.15, 0.116), Color(1.0, 0.55, 0.2), 1.0])
+	pts.append(["head", Vector3(0.24, 0.04, 0.05), Vector3(0, 0.185, 0.1), skin.darkened(0.35), 0.0])
+	pts.append(["head", Vector3(0.235, 0.06, 0.24), Vector3(0, 0.27, -0.01), Color(0.08, 0.07, 0.06), 0.0])
 	for side in ["l", "r"]:
-		p.append(["arm_" + side, Vector3(0.1, 0.3, 0.1), Vector3(0, -0.14, 0), shirt, 0.0])
-		p.append(["forearm_" + side, Vector3(0.085, 0.27, 0.085), Vector3(0, -0.13, 0), skin, 0.0])
-		p.append(["forearm_" + side, Vector3(0.075, 0.11, 0.045), Vector3(0, -0.31, 0.01), skin.darkened(0.1), 0.0])
-		p.append(["thigh_" + side, Vector3(0.14, 0.46, 0.15), Vector3(0, -0.22, 0), pants, 0.0])
-		p.append(["shin_" + side, Vector3(0.12, 0.44, 0.12), Vector3(0, -0.22, 0), pants.darkened(0.1), 0.0])
-		p.append(["shin_" + side, Vector3(0.12, 0.07, 0.23), Vector3(0, -0.45, 0.04), Color(0.06, 0.05, 0.04), 0.0])
-	return p
+		pts.append(["arm_" + side, Vector3(0.1, 0.3, 0.1), Vector3(0, -0.14, 0), shirt, 0.0])
+		pts.append(["forearm_" + side, Vector3(0.085, 0.27, 0.085), Vector3(0, -0.13, 0), skin, 0.0])
+		pts.append(["forearm_" + side, Vector3(0.075, 0.11, 0.045), Vector3(0, -0.31, 0.01), skin.darkened(0.1), 0.0])
+		pts.append(["thigh_" + side, Vector3(0.14, 0.46, 0.15), Vector3(0, -0.22, 0), pants, 0.0])
+		pts.append(["shin_" + side, Vector3(0.12, 0.44, 0.12), Vector3(0, -0.22, 0), pants.darkened(0.1), 0.0])
+		pts.append(["shin_" + side, Vector3(0.12, 0.07, 0.23), Vector3(0, -0.45, 0.04), Color(0.06, 0.05, 0.04), 0.0])
+	return pts

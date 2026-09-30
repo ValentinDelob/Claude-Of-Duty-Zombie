@@ -105,6 +105,7 @@ static func _chunks(b: PackedFloat32Array, max_seconds := 0.0) -> PackedFloat32A
 		acc += z * z
 		k += 1
 		if k == hop:
+			@warning_ignore("integer_division")
 			out[i / hop] = acc / hop
 			acc = 0.0
 			k = 0
@@ -246,6 +247,7 @@ static func read_wav(path: String) -> PackedFloat32Array:
 		return out
 	var d := w.data
 	var ch := 2 if w.stereo else 1
+	@warning_ignore("integer_division")
 	var n := d.size() / (2 * ch)
 	out.resize(n)
 	for i in n:

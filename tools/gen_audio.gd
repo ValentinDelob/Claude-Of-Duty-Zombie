@@ -577,11 +577,11 @@ func gen_lamp_on() -> void:
 # ---------------------------------------------------------------- atouts
 
 ## Petite ritournelle « orgue de barbarie » désaccordée. notes : [demi-tons, durée]
-func _jingle(notes: Array, root: float, tempo: float, wave: String) -> PackedFloat32Array:
+func _jingle(notes: Array, root_hz: float, tempo: float, wave: String) -> PackedFloat32Array:
 	var b := s.buf(0.1)
 	var t := 0.0
 	for n in notes:
-		var f: float = root * pow(2.0, float(n[0]) / 12.0) * (1.0 + s.rng.randf_range(-0.006, 0.006))
+		var f: float = root_hz * pow(2.0, float(n[0]) / 12.0) * (1.0 + s.rng.randf_range(-0.006, 0.006))
 		var d: float = n[1] * tempo
 		if n[0] > -99:
 			var v := s.env_adsr(s.tone(d + 0.3, f, wave), 0.01, 0.08, 0.5, 0.25)
@@ -589,7 +589,7 @@ func _jingle(notes: Array, root: float, tempo: float, wave: String) -> PackedFlo
 			s.mix(b, v, t, 0.4)
 		t += d
 	# Basse d'accompagnement.
-	var bass := s.env_adsr(s.lowpass(s.tone(t + 0.3, root / 2.0, "tri"), 400.0), 0.05, 0.2, 0.5, 0.4)
+	var bass := s.env_adsr(s.lowpass(s.tone(t + 0.3, root_hz / 2.0, "tri"), 400.0), 0.05, 0.2, 0.5, 0.4)
 	s.mix(b, bass, 0.0, 0.3)
 	b = s.bitcrush(s.lowpass(b, 5000.0), 10)
 	return s.finish(s.reverb(b, 0.6, 0.25, 0.8), 0.75)
@@ -756,6 +756,7 @@ func gen_pap_forge() -> void:
 		s.mix(b, _clank(180.0 + s.rng.randf() * 80.0, 0.25, 1.0), 0.2 + k * 0.45, 0.7)
 	var arc := s.env_adsr(s.highpass(s.noise(dur), 3500.0), 0.5, 0.5, 0.4, 0.5)
 	for i in arc.size():
+		@warning_ignore("integer_division")
 		arc[i] *= 1.0 if (i / 900) % 3 == 0 else 0.1
 	s.mix(b, arc, 0.0, 0.25)
 	_save("pap_forge", s.finish(s.reverb(b, 0.9, 0.35, 1.5), 0.9, 0.2))
@@ -812,6 +813,7 @@ func gen_trap_hum() -> void:
 func gen_zap() -> void:
 	var b := s.env_exp(s.highpass(s.noise(0.4), 2000.0), 0.001, 0.08)
 	for i in b.size():
+		@warning_ignore("integer_division")
 		b[i] *= 1.0 if (i / 300) % 2 == 0 else 0.3
 	s.mix(b, s.env_exp(s.sweep(0.3, 900.0, 100.0, "square"), 0.001, 0.08), 0.0, 0.4)
 	_save("zap", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.8))
@@ -884,10 +886,10 @@ func _seamless(b: PackedFloat32Array, dur: float, peak: float) -> PackedFloat32A
 
 
 ## Scintillement magique : arpège de clochettes aiguës.
-func _sparkle(seconds: float, root: float, count: int) -> PackedFloat32Array:
+func _sparkle(seconds: float, root_hz: float, count: int) -> PackedFloat32Array:
 	var b := s.buf(seconds)
 	for k in count:
-		var f := root * pow(2.0, float([0, 4, 7, 12, 16, 19, 24][k % 7]) / 12.0)
+		var f := root_hz * pow(2.0, float([0, 4, 7, 12, 16, 19, 24][k % 7]) / 12.0)
 		s.mix(b, s.env_exp(s.tone(0.6, f), 0.002, 0.18), k * seconds / count * 0.8, 0.25)
 	return b
 
@@ -958,6 +960,7 @@ func gen_fire_sale_loop() -> void:
 		s.mix(v, s.env_exp(s.tone(0.5, f * 2.0), 0.003, 0.08), 0.0, 0.4)
 		s.mix(b, v, i * step, 0.25)
 		# Basse « oom-pah ».
+		@warning_ignore("integer_division")
 		var bass_f: float = 98.0 if (i / 8) % 2 == 0 else 130.8
 		if i % 2 == 0:
 			s.mix(b, s.env_exp(s.tone(0.3, bass_f, "tri"), 0.004, 0.12), i * step, 0.5)
@@ -1296,6 +1299,7 @@ func gen_monkey_music() -> void:
 		# Cymbales.
 		s.mix(b, _cymbal(0.4, 0.14), t, 0.55)
 		# Basse oum-pa.
+		@warning_ignore("integer_division")
 		var bass: float = 98.0 if (i / 2) % 2 == 0 else 73.4
 		s.mix(b, s.env_exp(s.tone(beat, bass if i % 2 == 0 else bass * 1.5, "tri"), 0.004, 0.12), t, 0.35)
 		# Mélodie (croches).

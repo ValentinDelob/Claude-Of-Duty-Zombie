@@ -101,6 +101,7 @@ func run() -> void:
 		if _next == null:
 			_next = ed.doc.duplicate_map()
 		_mutex.unlock()
+		@warning_ignore("integer_division")
 		var cyc := n / CYCLE
 		var step := n % CYCLE
 		var tool: Array = TOOLS[cyc % TOOLS.size()]

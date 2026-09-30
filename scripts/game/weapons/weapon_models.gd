@@ -161,20 +161,20 @@ static func material(key: String, viewmodel: bool, pap: bool) -> ShaderMaterial:
 	var cache_key := "%s_%s_%s" % [key, viewmodel, pap]
 	if _mat_cache.has(cache_key):
 		return _mat_cache[cache_key]
-	var spec: Array = MATERIALS[key]
+	var mat_spec: Array = MATERIALS[key]
 	var m := ShaderMaterial.new()
 	m.shader = preload("res://assets/shaders/weapon.gdshader")
-	m.set_shader_parameter("albedo", spec[0])
-	m.set_shader_parameter("roughness", spec[1])
-	m.set_shader_parameter("metallic", spec[2])
-	m.set_shader_parameter("edge_wear", spec[3])
-	m.set_shader_parameter("grain", spec[4])
+	m.set_shader_parameter("albedo", mat_spec[0])
+	m.set_shader_parameter("roughness", mat_spec[1])
+	m.set_shader_parameter("metallic", mat_spec[2])
+	m.set_shader_parameter("edge_wear", mat_spec[3])
+	m.set_shader_parameter("grain", mat_spec[4])
 	m.set_shader_parameter("tone_var", 0.18)
 	m.set_shader_parameter("viewmodel", 1.0 if viewmodel else 0.0)
 	var no_pap := key.begins_with("glow") or key == "glass" or key == "bore"
 	m.set_shader_parameter("pap", 1.0 if pap and not no_pap else 0.0)
 	if key.begins_with("glow"):
-		m.set_shader_parameter("emission", spec[0])
+		m.set_shader_parameter("emission", mat_spec[0])
 		m.set_shader_parameter("emission_energy", 3.0)
 	_mat_cache[cache_key] = m
 	return m
@@ -719,7 +719,7 @@ static func _long(p: Dictionary) -> Dictionary:
 	var bottom := y - rh * 0.5
 	var top_kind: String = p.get("top", "iron")
 	var bullpup: bool = p.get("bullpup", false)
-	var info := {"grip_angle": -14.0, "slide_travel": 0.05}
+	var model_info := {"grip_angle": -14.0, "slide_travel": 0.05}
 	# ---- Boîtier
 	if p.get("round", false):
 		# MP40 : tube rond, boîtier inférieur en bakélite, cannelures du tube.
@@ -848,7 +848,7 @@ static func _long(p: Dictionary) -> Dictionary:
 			for sx in [-1.0, 1.0]:
 				_b(parts, Vector3(0.002, ml * 0.8, 0.01), c + Vector3(sx * 0.0145, 0, 0), "metal_dark", tilt, "mag")
 			_b(parts, Vector3(0.032, 0.008, 0.06), mag_top + mag_dir * (ml + 0.002), "metal_dark", tilt, "mag")
-			info["mag_len"] = ml
+			model_info["mag_len"] = ml
 		"curved":
 			var curve: float = mag[3] if mag.size() > 3 else 30.0
 			var pts := _curved_pts(Vector2.ZERO, ml, 0.056, curve)
@@ -861,14 +861,14 @@ static func _long(p: Dictionary) -> Dictionary:
 				end += Vector2(-sin(a), -cos(a)) * ml / 8.0
 			_b(parts, Vector3(0.032, 0.008, 0.058), mag_top + Vector3(0, end.y, end.x), "metal_dark", curve, "mag")
 			mag_dir = Vector3(0, end.y, end.x).normalized()
-			info["mag_len"] = ml
+			model_info["mag_len"] = ml
 		"box":
 			# Boîtier de bande (HK21), bande de cartouches jusqu'au boîtier.
 			_p(parts, WeaponMesh.round_rect(0.13, ml, 0.012), 0.1, Vector3(0.03, bottom - ml * 0.5 + 0.01, mz), "olive", 0.0, "mag", 0.006)
 			_b(parts, Vector3(0.102, 0.012, 0.132), Vector3(0.03, bottom + 0.004, mz), "metal_dark", 0.0, "mag")
 			for i in 4:
 				_c(parts, 0.006, 0.035, Vector3(0.02 - i * 0.0, bottom + 0.012 + i * 0.006, mz - 0.03 + i * 0.012), "brass", Vector3(0, 90, 0), "mag")
-			info["mag_len"] = ml
+			model_info["mag_len"] = ml
 		"drum":
 			var dc := Vector3(0, bottom - ml + 0.01, mz)
 			var prof := [Vector2(-0.032, ml * 0.4), Vector2(-0.03, ml * 0.97), Vector2(-0.026, ml), Vector2(0.026, ml), Vector2(0.03, ml * 0.97), Vector2(0.032, ml * 0.4)]
@@ -878,7 +878,7 @@ static func _long(p: Dictionary) -> Dictionary:
 				var ar := TAU * a / 8.0
 				_b(parts, Vector3(0.066, 0.004, 0.006), dc + Vector3(0, sin(ar), cos(ar)) * ml * 0.7, "metal_dark", Vector3(-rad_to_deg(ar), 0, 0), "mag")
 			_b(parts, Vector3(0.026, 0.04, 0.05), Vector3(0, bottom - 0.012, mz), "metal_dark", 0.0, "mag")
-			info["mag_len"] = ml * 2.0
+			model_info["mag_len"] = ml * 2.0
 		"grip":
 			# Chargeur logé dans la poignée : dépasse sous la crosse de pistolet.
 			var gb := Basis(Vector3.RIGHT, deg_to_rad(-14.0))
@@ -886,7 +886,7 @@ static func _long(p: Dictionary) -> Dictionary:
 			mag_dir = gb * Vector3.DOWN
 			_b(parts, Vector3(0.024, ml + 0.08, 0.034), mag_top + mag_dir * (ml + 0.08) * 0.5, "metal_dark", -14.0, "mag")
 			_b(parts, Vector3(0.03, 0.008, 0.042), mag_top + mag_dir * (ml + 0.084), "metal_dark", -14.0, "mag")
-			info["mag_len"] = ml + 0.08
+			model_info["mag_len"] = ml + 0.08
 	# ---- Poignée
 	var gz := 0.05
 	var grip := Vector3(0, -0.06, gz)
@@ -900,7 +900,7 @@ static func _long(p: Dictionary) -> Dictionary:
 			_guard(parts, rb - 0.055, rb - 0.13, bottom - 0.008, 0.028)
 			_trigger(parts, rb - 0.1, bottom - 0.008)
 			grip = Vector3(0, bottom - 0.05, rb - 0.02)
-			info["grip_angle"] = -30.0
+			model_info["grip_angle"] = -30.0
 		var gm:
 			_pistol_grip(parts, gm, gz, -14.0, bottom)
 	if p.get("front_grip", false):
@@ -923,9 +923,9 @@ static func _long(p: Dictionary) -> Dictionary:
 		_c(parts, 0.009, 0.06, bp + Vector3(0, 0, 0.005), "metal_dark", 0.0, "slide")
 		_c(parts, 0.0035, 0.05, bp + Vector3(0.028, -0.004, 0.0), "metal_dark", Vector3(0, 90, -10), "slide")
 		_l(parts, [Vector2(-0.011, 0.0), Vector2(-0.008, 0.009), Vector2(0.008, 0.009), Vector2(0.011, 0.0)], bp + Vector3(0.056, -0.009, 0.0), "metal_dark", Vector3(0, 90, 0), "slide")
-		info["pivot_slide"] = bp
-		info["slide_travel"] = 0.07
-		info["bolt"] = true
+		model_info["pivot_slide"] = bp
+		model_info["slide_travel"] = 0.07
+		model_info["bolt"] = true
 	else:
 		match charge:
 			"right", "left":
@@ -933,17 +933,17 @@ static func _long(p: Dictionary) -> Dictionary:
 				var cp := Vector3(sx * (rw * 0.5 + 0.004), y + 0.012 if top_kind != "ak" else y + 0.008, rb - 0.05 if top_kind == "ak" else rf + (rb - rf) * 0.3)
 				_b(parts, Vector3(0.008, 0.008, 0.03), cp, "metal_dark", 0.0, "slide")
 				_l(parts, [Vector2(-0.006, 0.0), Vector2(-0.004, 0.006), Vector2(0.004, 0.006), Vector2(0.006, 0.0)], cp + Vector3(sx * 0.012, 0, -0.01), "metal_dark", Vector3(0, 90, 0), "slide")
-				info["pivot_slide"] = cp
+				model_info["pivot_slide"] = cp
 			"left_top":
 				# Levier HK dans son tube au-dessus du garde-main, à gauche.
 				var cp := Vector3(-0.02, top - 0.004, rf + 0.03)
 				_c(parts, 0.006, 0.06, Vector3(-0.012, top - 0.004, rf + 0.02), "metal_dark")
 				_b(parts, Vector3(0.024, 0.008, 0.008), cp, "metal_dark", Vector3(0, 30, 0), "slide")
-				info["pivot_slide"] = cp
+				model_info["pivot_slide"] = cp
 			"top":
 				var cp := Vector3(0, top + 0.004, rb - 0.03)
 				_b(parts, Vector3(0.03, 0.008, 0.02), cp, "metal_dark", 0.0, "slide")
-				info["pivot_slide"] = cp
+				model_info["pivot_slide"] = cp
 	# ---- Crosse
 	var st: Array = p.get("stock", ["none"])
 	var sl: float = st[1] if st.size() > 1 else 0.25
@@ -1100,9 +1100,9 @@ static func _long(p: Dictionary) -> Dictionary:
 		# Bullpup : l'arme est tenue plus en avant (crosse à l'épaule).
 		"hold": Vector3(0, 0, -0.14) if bullpup else Vector3.ZERO,
 		"pivot_mag": mag_top, "mag_dir": mag_dir}
-	if info.has("pivot_slide"):
-		anchors["pivot_slide"] = info.pivot_slide
-	return {"parts": parts, "anchors": anchors, "info": info}
+	if model_info.has("pivot_slide"):
+		anchors["pivot_slide"] = model_info.pivot_slide
+	return {"parts": parts, "anchors": anchors, "info": model_info}
 
 
 static func _shotgun(p: Dictionary) -> Dictionary:
@@ -1111,7 +1111,7 @@ static func _shotgun(p: Dictionary) -> Dictionary:
 	var y := 0.03
 	var front := -0.12 - L
 	var barrels: int = p.get("barrels", 1)
-	var info := {"grip_angle": -18.0}
+	var model_info := {"grip_angle": -18.0}
 	# Carcasse aux flancs plats, arrondie sur le dessus, fenêtre d'éjection.
 	_x(parts, _sec(0.05, 0.07, y, 0.012, 0.006), -0.1, 0.1, "metal", "", 0.004)
 	var muzzle_y := y + 0.015
@@ -1186,14 +1186,14 @@ static func _shotgun(p: Dictionary) -> Dictionary:
 		_guard(parts, 0.06, -0.01, y - 0.035, 0.028)
 		_trigger(parts, 0.02, y - 0.035)
 		grip = Vector3(0, y - 0.08, 0.13)
-		info["grip_angle"] = -35.0
+		model_info["grip_angle"] = -35.0
 	anchors.merge({
 		"muzzle": Vector3(0, muzzle_y, front), "sight": Vector3(0, line, 0.05),
 		"front": Vector3(0, line, front + 0.03), "ads": Vector3(0, 0, 0.3),
 		"eject": Vector3(0.027, y + 0.01, -0.03),
 		"grip": grip, "support": Vector3(0, y - 0.05, -0.3),
 		"pivot_mag": Vector3(0, y - 0.035, -0.02), "mag_dir": Vector3(0, -1, 0)})
-	return {"parts": parts, "anchors": anchors, "info": info}
+	return {"parts": parts, "anchors": anchors, "info": model_info}
 
 
 ## China Lake : gros tube, magasin tubulaire à pompe, crosse bois, hausse à échelle.

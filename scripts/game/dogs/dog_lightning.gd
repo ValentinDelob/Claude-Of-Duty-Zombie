@@ -75,8 +75,8 @@ func _make_bolt() -> Node3D:
 		var b := Vector3(rng.randf_range(-0.28, 0.28) if i < segs - 1 else 0.0, y, rng.randf_range(-0.28, 0.28) if i < segs - 1 else 0.0)
 		var m := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		var len := a.distance_to(b)
-		box.size = Vector3(0.07, len, 0.07)
+		var seg_len := a.distance_to(b)
+		box.size = Vector3(0.07, seg_len, 0.07)
 		m.mesh = box
 		m.material_override = bolt_material()
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

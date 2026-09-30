@@ -85,12 +85,12 @@ func _build_model() -> bool:
 	# balles s'y arrêtent, effet d'impact métallique : Fx.surface_of).
 	body.collision_layer = 1
 	body.collision_mask = 0
-	var to_local := global_transform.affine_inverse()
+	var inv := global_transform.affine_inverse()
 	var grain := float(absi(hash(interact_id)) % 97)
 	for mi: MeshInstance3D in scene.find_children("*", "MeshInstance3D", true, false):
 		var part := String(mi.name)
 		if part.begins_with("col_"):
-			var box := (to_local * mi.global_transform) * mi.get_aabb()
+			var box := (inv * mi.global_transform) * mi.get_aabb()
 			var cs := CollisionShape3D.new()
 			var shape := BoxShape3D.new()
 			shape.size = box.size

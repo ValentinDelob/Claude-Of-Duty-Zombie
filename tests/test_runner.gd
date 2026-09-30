@@ -60,4 +60,8 @@ func _ready() -> void:
 		print("  %6d ms  %s" % times[i])
 	print("")
 	print("TESTS: %d, ÉCHECS: %d (%.1f s)" % [total, failed, (Time.get_ticks_msec() - t_all) / 1000.0])
+	# Sons encore en cours (effets déclenchés par un test) : coupés avant de
+	# quitter, sinon « resources still in use at exit » (compté comme erreur).
+	Audio.stop_all()
+	await get_tree().process_frame
 	get_tree().quit(1 if failed > 0 else 0)

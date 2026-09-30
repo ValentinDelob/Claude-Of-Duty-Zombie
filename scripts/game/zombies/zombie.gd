@@ -542,7 +542,7 @@ func _interpolate() -> void:
 		var v := (pos - prev) / dt
 		anim_speed = lerpf(anim_speed, Vector2(v.x, v.z).length(), 0.2)
 	var code: int = a[3]
-	var new_state: State = code & 7
+	var new_state: State = (code & 7) as State
 	speed_class = (code >> 3) & 3
 	if new_state != state and state != State.DEAD:
 		if new_state == State.ATTACK:

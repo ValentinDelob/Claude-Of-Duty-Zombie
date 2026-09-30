@@ -73,10 +73,12 @@ func run() -> void:
 	at.check(opt.capturing() and row.capturing == 0, "Entrée : attente d'une touche")
 	await key(KEY_T)
 	at.check(not opt.capturing(), "touche reçue")
+	@warning_ignore("static_called_on_instance")
 	at.check(Settings.bindings.reload == [Settings.key_code(KEY_T)], "Settings : RECHARGER = T (%s)" % str(Settings.bindings.reload))
 	at.check(_has_key("reload", KEY_T) and not _has_key("reload", KEY_R), "InputMap : T recharge, R ne recharge plus")
 	var cfg := ConfigFile.new()
 	var ok := cfg.load(Settings.path) == OK
+	@warning_ignore("static_called_on_instance")
 	at.check(ok and Array(cfg.get_value("bindings", "reload", [])) == [Settings.key_code(KEY_T)], "enregistré dans %s" % Settings.path)
 	at.check(pm.visible and tree().paused, "la saisie ne ferme pas le menu")
 
@@ -85,6 +87,7 @@ func run() -> void:
 	at.check(row.slot == 1, "► : deuxième case")
 	await action("ui_accept")
 	await key(KEY_G)
+	@warning_ignore("static_called_on_instance")
 	at.check(Settings.bindings.reload == [Settings.key_code(KEY_T), Settings.key_code(KEY_G)], "RECHARGER = T, G")
 	at.check(Settings.bindings.grenade.is_empty() and not _has_key("grenade", KEY_G), "G retiré de GRENADE")
 	at.check(pm._hint.text.contains("GRENADE"), "conflit affiché : « %s »" % pm._hint.text)
@@ -99,6 +102,7 @@ func run() -> void:
 	opt.reset_button.grab_focus()
 	await frames(2)
 	await action("ui_accept")
+	@warning_ignore("static_called_on_instance")
 	at.check(Settings.bindings == Settings.default_bindings(), "touches par défaut rétablies")
 	at.check(_has_key("reload", KEY_R) and _has_key("grenade", KEY_G), "InputMap : R et G d'origine")
 

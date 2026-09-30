@@ -90,6 +90,7 @@ func pick_spawn_point() -> Variant:
 		if score > best_score:
 			best_score = score
 			best = sp
+	@warning_ignore("incompatible_ternary")
 	return best.pos if best else null
 
 

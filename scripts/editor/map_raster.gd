@@ -467,6 +467,7 @@ func _obstacle_record(k: int, o: Dictionary, cells: Array) -> void:
 				at = MapGeom.rect_of(o.rect).get_center()
 			"mur_courbe":
 				var arc := MapShapes.wall_arc(o)
+				@warning_ignore("integer_division")
 				at = arc[arc.size() / 2]
 			_:
 				at = (MapGeom.v2(o.a) + MapGeom.v2(o.b)) * 0.5

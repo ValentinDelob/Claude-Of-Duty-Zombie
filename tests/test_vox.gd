@@ -44,6 +44,7 @@ func test_voice_files_match_lines() -> void:
 						per_lang[lang] += 1
 					else:
 						missing += 1
+	@warning_ignore("integer_division")
 	print("[vox] voix générées : fr %d, en %d sur %d par langue" % [per_lang.fr, per_lang.en, total / 2])
 	if VOX_COMPLETE:
 		assert_eq(missing, 0, "toutes les voix dans les deux langues")

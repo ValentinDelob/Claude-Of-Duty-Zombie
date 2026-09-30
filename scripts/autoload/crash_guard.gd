@@ -1,6 +1,7 @@
 extends Node
 ## CrashGuard — journal de session et trace des plantages (CrashLog,
-## docs/ARCHITECTURE.md « Journaux et plantages »). Premier autoload : la
+## docs/ARCHITECTURE.md « Journaux et plantages »). Premier autoload (après Packs,
+## qui ne fait que monter des paquets) : la
 ## session commence avant tout le reste.
 ##
 ## Chez le joueur (exe exporté) : marqueur « session en cours » posé au

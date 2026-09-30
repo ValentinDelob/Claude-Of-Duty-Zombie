@@ -323,6 +323,7 @@ func _decor_and_textures() -> void:
 	var saved := ed.doc.duplicate_map()
 	var before := ed.doc.snapshot()
 	for i in 60:
+		@warning_ignore("integer_division")
 		ed.doc.objets.append({"id": ed.doc.new_id("q"), "type": "apparition", "etage": 0, "position": [3.0 + (i % 12), 3.0 + (i / 12) * 0.5 + 8.5]})
 	ed.changed()
 	await frames(2)

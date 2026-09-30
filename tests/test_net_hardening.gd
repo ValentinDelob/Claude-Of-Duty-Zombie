@@ -9,9 +9,13 @@ const SHA := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 
 func test_clean_name() -> void:
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Net._clean_name("\u202eAB\u0007C\nD\u200b"), "ABC D", "contrôles retirés")
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Net._clean_name("   "), "Survivant")
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Net._clean_name("A".repeat(40)).length(), 16, "16 caractères")
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Net._clean_name("\u2066\u2069\u007f"), "Survivant", "que des contrôles")
 
 
@@ -19,14 +23,17 @@ func test_clean_players() -> void:
 	var many := {}
 	for i in 20:
 		many[i + 2] = {"name": "J%d" % i, "slot": i}
+	@warning_ignore("static_called_on_instance")
 	var out := Net.clean_players(many)
 	assert_eq(out.size(), Net.MAX_SUPPORTED_PLAYERS, "8 entrées au plus")
 	for pid in out:
 		assert_true(pid is int and out[pid].slot >= 0 and out[pid].slot < Net.MAX_SUPPORTED_PLAYERS, "place bornée")
+	@warning_ignore("static_called_on_instance")
 	var odd := Net.clean_players({"1": {"name": "x"}, 3: "pas un dict", 4: {"name": "[b]\u202eMéchant\u0001", "slot": 99}, -2: {"name": "y"}})
 	assert_eq(odd.keys(), [4], "clés entières positives seulement")
 	assert_eq(odd[4].slot, Net.MAX_SUPPORTED_PLAYERS - 1)
 	assert_eq(odd[4].name, "[b]Méchant", "contrôles retirés du nom")
+	@warning_ignore("static_called_on_instance")
 	assert_true(Net.clean_players("n'importe quoi").is_empty())
 
 
@@ -75,6 +82,7 @@ func test_hello_and_loaded_from_unknown_ignored() -> void:
 	var saved := Net.players.duplicate(true)
 	# Hors RPC, l'expéditeur vaut 0 : un « joueur » 0 déjà présent.
 	Net.players = {0: {"name": "Premier", "slot": 0}}
+	@warning_ignore("static_called_on_instance")
 	Net._srv_hello("Second", Net.PROTOCOL_VERSION, Net.build_version())
 	assert_eq(Net.players[0].name, "Premier", "second bonjour ignoré")
 	Net.players = {}

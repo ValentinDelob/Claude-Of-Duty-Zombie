@@ -142,7 +142,7 @@ func run() -> void:
 	var kills0 := pd.kills
 	pts = pd.points
 	var t := 0.0
-	var last_pos := Vector3.ZERO
+	var _last_pos := Vector3.ZERO
 	while (dogs.active and not dogs.srv_finished()) and t < 80.0:
 		_track()
 		var w: Dictionary = pd.current_weapon()
@@ -151,7 +151,7 @@ func run() -> void:
 			game.session.sync_inventory(1)
 		var target := revealed_dog()
 		if target:
-			last_pos = target.global_position
+			_last_pos = target.global_position
 			H.aim_at(p, target.global_position + Vector3.UP * 0.5)
 			p.input.fire = true
 		else:

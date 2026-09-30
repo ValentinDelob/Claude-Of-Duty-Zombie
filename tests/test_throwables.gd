@@ -46,6 +46,7 @@ func test_fuse_and_splash() -> void:
 	var r := ThrowableRules.FRAG_RADIUS
 	var dmg := ThrowableRules.FRAG_DAMAGE
 	assert_eq(ThrowableRules.splash(dmg, r, 0.0), dmg, "plein centre")
+	@warning_ignore("integer_division")
 	assert_eq(ThrowableRules.splash(dmg, r, r), dmg / 2, "moitié au bord")
 	assert_eq(ThrowableRules.splash(dmg, r, r + 0.1), 0, "rien au-delà")
 	# Tue en un coup un zombie proche jusqu'à la manche 10 (BO1 : ~10-11).

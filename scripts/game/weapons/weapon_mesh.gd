@@ -52,13 +52,13 @@ class Acc:
 		return [v, n, c]
 
 	static func make_mesh(arr: Array) -> ArrayMesh:
-		var arrays := []
-		arrays.resize(Mesh.ARRAY_MAX)
-		arrays[Mesh.ARRAY_VERTEX] = arr[0]
-		arrays[Mesh.ARRAY_NORMAL] = arr[1]
-		arrays[Mesh.ARRAY_COLOR] = arr[2]
+		var surf_arrays := []
+		surf_arrays.resize(Mesh.ARRAY_MAX)
+		surf_arrays[Mesh.ARRAY_VERTEX] = arr[0]
+		surf_arrays[Mesh.ARRAY_NORMAL] = arr[1]
+		surf_arrays[Mesh.ARRAY_COLOR] = arr[2]
 		var m := ArrayMesh.new()
-		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, surf_arrays)
 		return m
 
 	## Triangle orienté d'après la normale voulue (Godot : faces avant dans le

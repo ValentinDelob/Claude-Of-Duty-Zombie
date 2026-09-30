@@ -151,6 +151,7 @@ func _draw() -> void:
 		draw_rect(r, bg)
 		var border := Color(0.3, 0.07, 0.05, 0.9).lerp(MenuStyle.HOVER, 1.0 if sel else 0.0)
 		draw_rect(r, border, false, 2.0 if sel else 1.0)
+		@warning_ignore("static_called_on_instance")
 		var t := Settings.code_label(list[i]) if i < list.size() else "—"
 		var tc := UiStyle.BONE if i < list.size() else MenuStyle.DIM_TEXT
 		tc = tc.lerp(Color(1, 0.55, 0.45), _flash)

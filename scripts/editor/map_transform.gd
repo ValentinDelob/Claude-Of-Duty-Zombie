@@ -82,6 +82,7 @@ static func rotated(o: Dictionary, c: Vector2, deg: float) -> Dictionary:
 			var p1 := MapGeom.rotate_about(r.end, c, d)
 			e.rect = MapGeom.rect_arr(Rect2(p0, Vector2.ZERO).expand(p1))
 			if e.has("monte"):
+				@warning_ignore("integer_division")
 				for i in d / 90:
 					e["monte"] = MapGeom.dir_rot(String(e.monte))
 		else:
@@ -95,6 +96,7 @@ static func rotated(o: Dictionary, c: Vector2, deg: float) -> Dictionary:
 	if e.has("mur") and not e.has("rect"):
 		# Objet mural (ou applique) : il reste collé à son mur, face vers l'intérieur.
 		if quarter and not e.has("angle"):
+			@warning_ignore("integer_division")
 			for i in d / 90:
 				e["mur"] = MapGeom.dir_rot(String(e.mur))
 		else:
@@ -102,6 +104,7 @@ static func rotated(o: Dictionary, c: Vector2, deg: float) -> Dictionary:
 			var nd := fposmod(cur + d, 360.0)
 			e["angle"] = snappedf(nd, 0.01)
 			if quarter:
+				@warning_ignore("integer_division")
 				for i in d / 90:
 					e["mur"] = MapGeom.dir_rot(String(e.mur))
 			else:
@@ -129,6 +132,7 @@ static func attached(doc: EditorMap, e: Dictionary) -> Array:
 			c = (MapGeom.v2(o.a) + MapGeom.v2(o.b)) * 0.5
 		elif String(o.type) == "mur_courbe":
 			var arc := MapShapes.wall_arc(o)
+			@warning_ignore("integer_division")
 			c = arc[arc.size() / 2]
 		if MapGeom.contains(poly, c):
 			out.append(String(o.id))
@@ -186,7 +190,7 @@ static func replace(doc: EditorMap, e: Dictionary) -> void:
 ## Tourne `orig` (et les éléments `attached`, identifiants) de `deg` degrés
 ## autour de `c`, depuis la carte `snap0` ; appliqué seulement si l'élément
 ## tourné est valide. -> {ok, ...} (raison sinon).
-static func apply(doc: EditorMap, orig: Dictionary, attached: Array, c: Vector2, deg: float, snap0: Dictionary) -> Dictionary:
+static func apply(doc: EditorMap, orig: Dictionary, attached_ids: Array, c: Vector2, deg: float, snap0: Dictionary) -> Dictionary:
 	var cand := rotated(orig, c, deg)
 	if String(orig.get("type", "")) != "" and not orig.has("contour"):
 		resnap(cand)
@@ -194,7 +198,7 @@ static func apply(doc: EditorMap, orig: Dictionary, attached: Array, c: Vector2,
 	var before := doc.snapshot()
 	doc.restore(snap0)
 	replace(doc, cand)
-	for aid in attached:
+	for aid in attached_ids:
 		var a := doc.find(aid)
 		if not a.is_empty():
 			var ra := rotated(a, c, deg)

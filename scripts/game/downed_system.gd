@@ -194,12 +194,12 @@ func _broadcast(pid: int) -> void:
 
 
 @rpc("authority", "call_local", "reliable")
-func _cl_state(pid: int, is_down: bool, bleed_left: float, reviver: int, progress: float, dur: float) -> void:
+func _cl_state(pid: int, is_down: bool, bleed_time: float, reviver: int, progress: float, dur: float) -> void:
 	var t := GameClock.now()
 	var was_down := _was_shown.has(pid)
 	if not multiplayer.is_server():
 		if is_down:
-			downed[pid] = {"bleed_end": t + bleed_left, "reviver": reviver, "revive_start": t - progress, "revive_dur": dur, "self_revive": 0.0}
+			downed[pid] = {"bleed_end": t + bleed_time, "reviver": reviver, "revive_start": t - progress, "revive_dur": dur, "self_revive": 0.0}
 		else:
 			downed.erase(pid)
 	var p: Player = game.players.get(pid)

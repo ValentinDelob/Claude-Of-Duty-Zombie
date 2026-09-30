@@ -178,6 +178,7 @@ func run() -> void:
 	at.check(not pv.detached and pv.window == null, "fenêtre séparée refusée en test")
 	pv.test_window_at = _offscreen_point()
 	pv.set_detached(true)
+	@warning_ignore("incompatible_ternary")
 	at.check(pv.detached and pv.window != null and pv.window.force_native and pv.content.get_parent() == pv.window and not pv.visible,
 		"⧉ : aperçu détaché dans une vraie fenêtre (réduite pendant le test : %s)" % str(pv.window.mode == Window.MODE_MINIMIZED if pv.window else "-"))
 	var rd := pv.renders

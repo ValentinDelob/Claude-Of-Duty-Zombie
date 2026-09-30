@@ -261,7 +261,7 @@ static func _prefab(ci: CanvasItem, kind: String, p: Rect2, cx: Vector2, s: floa
 
 
 ## Icône d'un luminaire (MapCatalog.LIGHTS).
-static func _light(ci: CanvasItem, kind: String, p: Rect2, cx: Vector2, s: float, c: Color) -> void:
+static func _light(ci: CanvasItem, kind: String, _p: Rect2, cx: Vector2, s: float, c: Color) -> void:
 	var glow := Color(1.0, 0.9, 0.55)
 	match kind:
 		"ampoule":
@@ -336,11 +336,13 @@ static func surface_texture(key: String) -> ImageTexture:
 			match pat:
 				0, 4, 5:   # béton, plâtre, pierre : taches
 					c = a.lerp(b, n * (0.45 if pat == 0 else 0.3))
+					@warning_ignore("integer_division")
 					if pat == 5 and (y % 8 == 0 or (x + (y / 8) * 5) % 12 == 0):
 						c = b
 				1:   # carrelage
 					c = b if x % 8 == 0 or y % 8 == 0 else a.lerp(b, n * 0.12)
 				2:   # bois : lames
+					@warning_ignore("integer_division")
 					c = b if y % 6 == 0 or (x + (y / 6) * 13) % 20 == 0 else a.lerp(b, 0.25 + 0.2 * sin(x * 0.7 + y))
 				3:   # métal : rivets, brossé
 					c = a.lerp(b, 0.1 + 0.2 * fposmod(y * 0.37, 1.0))
@@ -353,6 +355,7 @@ static func surface_texture(key: String) -> ImageTexture:
 				8:   # papier peint : rayures
 					c = b if x % 6 < 2 else a
 				9:   # brique
+					@warning_ignore("integer_division")
 					var row := y / 5
 					c = b if y % 5 == 0 or (x + (row % 2) * 5) % 10 == 0 else a.lerp(b, n * 0.15)
 				10:   # velours : plis

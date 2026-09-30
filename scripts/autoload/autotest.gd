@@ -116,6 +116,7 @@ func _run_one() -> void:
 			fail("timeout du scénario (%ds)" % sc.timeout_sec)
 			finish())
 	watchdog.start()
+	@warning_ignore("redundant_await")
 	await sc.run()
 	watchdog.stop()
 	watchdog.queue_free()

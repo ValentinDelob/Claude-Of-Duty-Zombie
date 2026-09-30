@@ -51,6 +51,7 @@ static func monkey_tune(s: Synth) -> PackedFloat32Array:
 	var t := 0.0
 	for i in n:
 		var slow := 1.0 + maxf(0.0, float(i - (n - 4))) * 0.12
+		@warning_ignore("integer_division")
 		var bass: float = 98.0 if (i / 2) % 2 == 0 else 73.4
 		s.mix(b, s.env_exp(s.tone(beat, bass if i % 2 == 0 else bass * 1.5, "tri"), 0.004, 0.12), t, 0.35)
 		for h in 2:

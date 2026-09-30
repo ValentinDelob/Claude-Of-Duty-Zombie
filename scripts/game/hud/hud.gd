@@ -293,6 +293,7 @@ func _process(delta: float) -> void:
 			_weapon_name.modulate.a = clampf(_weapon_name_t / 0.8, 0.0, 1.0)
 			_ammo.text = str(w.mag)
 			_reserve.text = " / %d" % w.reserve
+			@warning_ignore("integer_division")
 			var low: bool = w.mag <= int(s.mag) / 4
 			if s.get("infinite", false):
 				# Arme de bonus (FAUCHEUSE) : munitions illimitées, pas de compteur.
@@ -533,10 +534,10 @@ func _build_pause_menu() -> void:
 func _scoreboard_tick() -> void:
 	if GameState.state == GameState.State.GAME_OVER:
 		return
-	var show := Input.is_action_pressed("scoreboard") and not pause_menu.visible
-	if show and not scoreboard.visible:
+	var show_board := Input.is_action_pressed("scoreboard") and not pause_menu.visible
+	if show_board and not scoreboard.visible:
 		scoreboard.refresh()
-	scoreboard.visible = show
+	scoreboard.visible = show_board
 
 
 ## Fin de partie : tableau récapitulatif.

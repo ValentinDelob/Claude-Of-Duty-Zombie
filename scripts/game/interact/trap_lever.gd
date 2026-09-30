@@ -46,8 +46,8 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	var ready := system != null and system.game.power_on and trap.state == ElectricTrap.State.IDLE
-	_lamp_mat.emission = Color(0.1, 1.0, 0.2) if ready else Color(1.0, 0.1, 0.05)
+	var is_ready := system != null and system.game.power_on and trap.state == ElectricTrap.State.IDLE
+	_lamp_mat.emission = Color(0.1, 1.0, 0.2) if is_ready else Color(1.0, 0.1, 0.05)
 
 
 func interact_point() -> Vector3:

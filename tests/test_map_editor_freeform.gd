@@ -741,18 +741,18 @@ func test_rotated_stairs_and_trap() -> void:
 	assert_near(float(s.w), 2.0, 0.01, "largeur des marches")
 	assert_near(float(s.b[1]), 3.5, 0.001, "haut à l'étage du dessus")
 	# Piège tourné : zone électrifiée tournée de 20°.
-	var tr: Dictionary = L.markers.traps[0]
-	assert_true(tr.has("yaw") and absf(float(tr.yaw) + deg_to_rad(20.0)) < 0.001, "piège tourné : %s" % str(tr.get("yaw", "?")))
+	var trap_marker: Dictionary = L.markers.traps[0]
+	assert_true(trap_marker.has("yaw") and absf(float(trap_marker.yaw) + deg_to_rad(20.0)) < 0.001, "piège tourné : %s" % str(trap_marker.get("yaw", "?")))
 	var trap := ElectricTrap.new()
 	var m := MapMarker.new()
 	m.id = "t"
 	m.wall = Vector3(1, 0, 0)
-	m.data = {"area": MeshMapLayout.box(tr.area), "yaw": float(tr.get("yaw", 0.0))}
+	m.data = {"area": MeshMapLayout.box(trap_marker.area), "yaw": float(trap_marker.get("yaw", 0.0))}
 	trap.setup_marker(m)
 	var off := MapGeom.WORLD_OFFSET
 	var cen := Vector3(off + 14.5, 0, off + 7)
-	assert_true(trap.contains(cen + Basis(Vector3.UP, float(tr.yaw)) * Vector3(1.2, 0, 1.7)), "coin de la zone tournée : électrifié")
-	assert_false(trap.contains(cen + Basis(Vector3.UP, float(tr.yaw)) * Vector3(1.2, 0, -1.9)), "hors de la zone tournée")
+	assert_true(trap.contains(cen + Basis(Vector3.UP, float(trap_marker.yaw)) * Vector3(1.2, 0, 1.7)), "coin de la zone tournée : électrifié")
+	assert_false(trap.contains(cen + Basis(Vector3.UP, float(trap_marker.yaw)) * Vector3(1.2, 0, -1.9)), "hors de la zone tournée")
 	assert_false(trap.contains(cen + Vector3(1.2, 0, -1.7)), "coin de la zone avant rotation : hors de la zone")
 	trap.free()
 	# Refus : escalier tourné trop étroit.

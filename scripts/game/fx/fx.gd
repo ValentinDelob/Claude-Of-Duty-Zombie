@@ -218,21 +218,21 @@ func _place_tracer(i: int) -> void:
 ## Étire la traînée entre `from` et `to`. Épaisseur proportionnelle à la
 ## distance de la caméra : ~2 px à l'écran de près comme de loin.
 func _stretch(t: MeshInstance3D, from: Vector3, to: Vector3) -> void:
-	var len := maxf(from.distance_to(to), 0.001)
-	var dir := (to - from) / len
+	var seg_len := maxf(from.distance_to(to), 0.001)
+	var dir := (to - from) / seg_len
 	var mid := (from + to) * 0.5
 	var w := 1.0
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam:
 		# Point de la traînée le plus proche de la caméra.
 		var cp := cam.global_position
-		var k := clampf((cp - from).dot(dir), 0.0, len)
+		var k := clampf((cp - from).dot(dir), 0.0, seg_len)
 		var d := (from + dir * k).distance_to(cp)
 		w = clampf(d * 0.004, 0.006, 0.08) / 0.014
-	var basis := Basis.looking_at(dir, Vector3.UP if absf(dir.y) < 0.99 else Vector3.RIGHT)
+	var b := Basis.looking_at(dir, Vector3.UP if absf(dir.y) < 0.99 else Vector3.RIGHT)
 	# Échelle dans les axes PROPRES de la traînée (Basis.scaled agit dans les
 	# axes du monde : les traçantes hors de l'axe Z restaient minuscules).
-	t.global_transform = Transform3D(Basis(basis.x * w, basis.y * w, basis.z * len), mid)
+	t.global_transform = Transform3D(Basis(b.x * w, b.y * w, b.z * seg_len), mid)
 	t.visible = true
 
 
@@ -414,10 +414,10 @@ func blood_hit(pos: Vector3, dir: Vector3, amount := 1.0) -> void:
 
 
 ## Tache de sang au sol ou sur un mur (mort d'un zombie...).
-func blood_decal(pos: Vector3, normal := Vector3.UP, scale := 1.0) -> void:
+func blood_decal(pos: Vector3, normal := Vector3.UP, size_scale := 1.0) -> void:
 	var d := _blood_decals[_blood_i]
 	_blood_i = (_blood_i + 1) % _blood_n
-	d.size = Vector3(1.2 * scale, 0.8, 1.2 * scale)
+	d.size = Vector3(1.2 * size_scale, 0.8, 1.2 * size_scale)
 	_place_decal(d, pos, normal, randf() * TAU)
 
 
@@ -425,23 +425,23 @@ func blood_decal(pos: Vector3, normal := Vector3.UP, scale := 1.0) -> void:
 ## lumineuse file à TRACER_SPEED m/s et s'arrête exactement à l'impact.
 ## `beam` > 0 : faisceau fixe de toute la longueur pendant `beam` s.
 func tracer(from: Vector3, to: Vector3, color := TRACER_COLOR, beam := 0.0) -> void:
-	var len := from.distance_to(to)
-	if len < 0.3:
+	var seg_len := from.distance_to(to)
+	if seg_len < 0.3:
 		return
 	var i := _tracer_i
 	_tracer_i = (_tracer_i + 1) % MAX_TRACERS
 	var t := _tracers[i]
 	(t.material_override as StandardMaterial3D).albedo_color = color
 	_tr_from[i] = from
-	_tr_dir[i] = (to - from) / len
-	_tr_len[i] = len
+	_tr_dir[i] = (to - from) / seg_len
+	_tr_len[i] = seg_len
 	_tr_beam[i] = beam
-	_tr_streak[i] = clampf(len * 0.5, 0.4, TRACER_STREAK)
+	_tr_streak[i] = clampf(seg_len * 0.5, 0.4, TRACER_STREAK)
 	if beam > 0.0:
 		_stretch(t, from, to)
 		return
 	# Première image : la traînée sort déjà de la bouche (visible même de près).
-	_tr_head[i] = minf(_tr_streak[i], len)
+	_tr_head[i] = minf(_tr_streak[i], seg_len)
 	_place_tracer(i)
 
 

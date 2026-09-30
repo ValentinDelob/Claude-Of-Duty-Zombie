@@ -77,6 +77,7 @@ func build(parent: Node3D) -> void:
 ## SurfaceTool du matériau `key` pour la tuile contenant la cellule `c`.
 ## `flat` : sol / plafond (sans ombre portée).
 func _tool(tools: Dictionary, key: String, c: Vector2i, flat := false) -> SurfaceTool:
+	@warning_ignore("integer_division")
 	var tkey := "%s@%d_%d%s" % [key, c.x / CHUNK, c.y / CHUNK, "#flat" if flat else ""]
 	if not tools.has(tkey):
 		var st := SurfaceTool.new()

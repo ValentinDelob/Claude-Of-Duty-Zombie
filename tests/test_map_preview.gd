@@ -92,7 +92,7 @@ func test_same_geometry_as_the_game_on_draft_arena() -> void:
 	var game_world := Node3D.new()
 	host.add_child(game_world)
 	var layout := def.create_layout() as MeshMapLayout
-	var props := layout.build(game_world) as MapProps
+	var _props := layout.build(game_world) as MapProps
 	# L'aperçu.
 	var w := _world(doc)
 	w.rebuild_now()
@@ -129,7 +129,7 @@ func test_same_geometry_as_the_game_on_draft_arena() -> void:
 	for n in stuff.find_children("*", "Interactable", true, false):
 		assert_false(n.is_processing() or n.is_physics_processing(), "objet figé : %s" % n.name)
 	game_world.free()
-	props = null
+	_props = null
 	await _free(w)
 
 
@@ -421,14 +421,14 @@ func test_update_time_on_a_50_room_map() -> void:
 	w.auto = true
 	w.active = true
 	# Mise à jour automatique : conversion dans le fil de travail, construction étalée.
-	var frames := 0
+	var _frames := 0
 	var worst := 0.0
 	var t0 := Time.get_ticks_msec()
 	while w.builds == 0 and Time.get_ticks_msec() - t0 < 60000:
 		var f0 := Time.get_ticks_usec()
 		await wait_frames(1)
 		worst = maxf(worst, (Time.get_ticks_usec() - f0) / 1000.0)
-		frames += 1
+		_frames += 1
 	assert_eq(w.builds, 1, "construite")
 	assert_eq((w.groups.stuff as Node).find_children("*", "Barricade", true, false).size(), 50, "50 fenêtres")
 	print("    [apercu] 50 pieces : conversion %.0f ms (fil de travail), construction %.0f ms en %d etapes (plus longue %.0f ms), delai total %.0f ms, pire image %.0f ms" % [

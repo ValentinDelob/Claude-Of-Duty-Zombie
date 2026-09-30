@@ -15,6 +15,7 @@ var wall := Vector3(0, 0, -1)
 var wall_gap := 0.5
 var zone := ""
 ## Graine déterministe (décalages d'animation, hasard cosmétique).
+@warning_ignore("shadowed_global_identifier")
 var seed := 0
 ## Bloqueur de navigation associé ("" : aucun), voir MapLayout.set_blocked.
 var block := ""

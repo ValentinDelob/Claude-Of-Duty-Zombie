@@ -167,12 +167,15 @@ func test_crash_without_log_still_reported() -> void:
 
 
 func test_notice_is_bilingual() -> void:
+	@warning_ignore("static_called_on_instance")
 	var s := CrashGuard.notice_text("C:/x/crashes/plantage.txt")
 	assert_true(s.contains("C:\\x\\crashes\\plantage.txt"), "message : chemin du rapport (à la Windows)")
 	var l0 := String(Settings.language)
 	Settings.language = "en"
+	@warning_ignore("static_called_on_instance")
 	var en := CrashGuard.notice_text("r")
 	Settings.language = "fr"
+	@warning_ignore("static_called_on_instance")
 	var fr := CrashGuard.notice_text("r")
 	Settings.language = l0
 	assert_true(en.contains("report") and fr.contains("rapport"), "message en anglais et en français")

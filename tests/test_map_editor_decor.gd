@@ -135,6 +135,7 @@ func test_list_in_the_editor_hover_both_ways() -> void:
 	var doc := EditorMap.blank("liste", "LISTE", "LIST")
 	_room(doc, 0, 0, 40, 30)
 	for i in 120:
+		@warning_ignore("integer_division")
 		_obj(doc, {"type": "apparition", "position": [2.0 + (i % 30) * 1.0, 2.0 + (i / 30) * 2.0], "_p": "q"})
 	ed._reset(doc)
 	ed.object_list.set_expanded(true, false)
@@ -201,6 +202,7 @@ func test_two_thousand_elements_stay_fluid() -> void:
 	var doc := EditorMap.blank("gros", "GROS", "BIG")
 	_room(doc, 0, 0, 102, 82)
 	for i in 2000:
+		@warning_ignore("integer_division")
 		_obj(doc, {"type": "apparition", "position": [1.0 + (i % 50) * 2.0, 1.0 + (i / 50) * 2.0], "_p": "q"})
 	var t0 := Time.get_ticks_msec()
 	ed._reset(doc)
@@ -416,6 +418,7 @@ func test_archives_are_checked_before_reading() -> void:
 	rng.seed = 7
 	var noise := PackedByteArray()
 	noise.resize(2200000)
+	@warning_ignore("integer_division")
 	for i in noise.size() / 4:
 		noise.encode_u32(i * 4, rng.randi())
 	_zip(dir + "/grosse.zip", {"carte.json": noise})

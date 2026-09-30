@@ -22,6 +22,7 @@ class Opening:
 	## Hauteur de l'ouverture (du sol au linteau).
 	var height := MapBuilder.WALL_HEIGHT
 	## Graine des planches (aspect déterministe sur toutes les machines).
+	@warning_ignore("shadowed_global_identifier")
 	var seed := 0
 	var zone := ""
 	## Apparitions derrière la fenêtre (au sol).

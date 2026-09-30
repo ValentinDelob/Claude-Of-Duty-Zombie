@@ -7,7 +7,7 @@ var _count := 0
 
 
 func _initialize() -> void:
-	for dir in ["res://scripts", "res://tests", "res://tools"]:
+	for dir: String in ["res://scripts", "res://tests", "res://tools"]:
 		_scan(dir)
 	print("PARSE: %d scripts, %d en erreur" % [_count, _bad])
 	quit(1 if _bad > 0 else 0)

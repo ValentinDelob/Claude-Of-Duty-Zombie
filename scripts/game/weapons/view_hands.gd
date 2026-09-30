@@ -82,14 +82,14 @@ static func style_materials(style: int) -> Dictionary:
 
 ## Maillages d'une pièce (cache ; calculée ici si le préchargement ne l'a
 ## pas encore fournie).
-static func piece(style: int, name: String) -> Dictionary:
+static func piece(style: int, piece_name: String) -> Dictionary:
 	style = posmod(style, STYLES.size())
-	var key := "%d|%s" % [style, name]
+	var key := "%d|%s" % [style, piece_name]
 	if _cache.has(key):
 		return _cache[key]
 	var arr: Variant = WeaponModels.take_arrays("hand|" + key)
 	if arr == null:
-		arr = piece_arrays(style, name)
+		arr = piece_arrays(style, piece_name)
 	var out := {}
 	for mk in arr:
 		out[mk] = WeaponMesh.Acc.make_mesh(arr[mk])
@@ -98,12 +98,12 @@ static func piece(style: int, name: String) -> Dictionary:
 
 
 ## Nœud d'une pièce, placé par `xf`.
-static func piece_node(style: int, name: String, xf := Transform3D.IDENTITY) -> Node3D:
+static func piece_node(style: int, piece_name: String, xf := Transform3D.IDENTITY) -> Node3D:
 	var root := Node3D.new()
-	root.name = name
+	root.name = piece_name
 	root.transform = xf
 	var mats := style_materials(style)
-	var meshes := piece(style, name)
+	var meshes := piece(style, piece_name)
 	for mk in meshes:
 		var mi := MeshInstance3D.new()
 		mi.mesh = meshes[mk]
@@ -207,14 +207,14 @@ static func throw_hand(style: int, left: bool) -> Node3D:
 ## Tableaux {matériau: [sommets, normales, couleurs]} d'une pièce, en repère
 ## local (poing : manche d'axe Y à l'origine ; avant-bras : du coude en 0 au
 ## poignet en -Z, longueur ARM_LEN).
-static func piece_arrays(style: int, name: String) -> Dictionary:
+static func piece_arrays(style: int, piece_name: String) -> Dictionary:
 	var s: Dictionary = STYLES[posmod(style, STYLES.size())]
 	var accs := {}
 	for k in ["sleeve", "cuff", "hand", "tip"]:
 		var a := WeaponMesh.Acc.new()
 		a.seg = 10
 		accs[k] = a
-	match name:
+	match piece_name:
 		"grip": _fist(accs, 1.0, 0.018, 0.024, s, TRIGGER)
 		"pistol_support": _fist(accs, -1.0, 0.03, 0.035, s, Vector3.ZERO)
 		"foregrip": _fist(accs, -1.0, 0.017, 0.017, s, Vector3.ZERO)

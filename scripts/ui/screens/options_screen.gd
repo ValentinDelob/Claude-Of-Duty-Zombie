@@ -379,6 +379,7 @@ func _rebuild(focus := "") -> void:
 func _on_name_changed(t: String, final := false) -> void:
 	if name_edit == null:
 		return
+	@warning_ignore("static_called_on_instance")
 	var clean := Net._clean_name(t)
 	if final and name_edit.text != clean:
 		name_edit.text = clean
@@ -429,11 +430,13 @@ func _input(event: InputEvent) -> void:
 		if (event as InputEventKey).physical_keycode == KEY_ESCAPE or (event as InputEventKey).keycode == KEY_ESCAPE:
 			_cancel_capture()
 		else:
+			@warning_ignore("static_called_on_instance")
 			_finish_capture(Settings.code_from_event(event))
 	elif event is InputEventMouseButton and event.pressed:
 		# Le clic qui a lancé la saisie n'est pas une réponse.
 		if Engine.get_process_frames() == _capture_frame:
 			return
+		@warning_ignore("static_called_on_instance")
 		var code := Settings.code_from_event(event)
 		if code != "":
 			_finish_capture(code)
@@ -460,6 +463,7 @@ func _finish_capture(code: String) -> void:
 	Audio.play_ui(MenuStyle.SND_SELECT, MenuStyle.VOL_SELECT)
 	row.flash()
 	row.grab_focus()
+	@warning_ignore("static_called_on_instance")
 	var key := Settings.code_label(code)
 	if taken != "":
 		if bind_rows.has(taken):

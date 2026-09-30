@@ -47,6 +47,7 @@ func enter(args := {}) -> void:
 	_list = vbox(4)
 	inner.add_child(_list)
 	if is_host:
+		@warning_ignore("static_called_on_instance")
 		var ips := Net.local_ipv4_addresses()
 		var ip_text := ips[0] if ips.size() > 0 else "127.0.0.1"
 		inner.add_child(text("", 4))

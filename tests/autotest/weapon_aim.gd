@@ -171,7 +171,7 @@ func run() -> void:
 
 	# 3. Hanche : impacts dans le cône du réticule, réticule = dispersion.
 	for id in ["m1911", "mp40", "ak74u", "hk21", "stakeout"]:
-		var s := WeaponDB.stats(id)
+		var _s := WeaponDB.stats(id)
 		await equip(id)
 		var out := 0
 		var n := 0

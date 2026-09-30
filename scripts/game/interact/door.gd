@@ -110,18 +110,18 @@ func _decorate() -> void:
 		wheel.position = Vector3(0, 1.45, side * (_size.z * 0.5 + 0.03))
 		_slab.add_child(wheel)
 		# Prix peint au pochoir, des deux côtés.
-		var sign := Label3D.new()
-		sign.text = str(cost)
-		sign.font = UiStyle.font("stencil")
-		sign.font_size = 96
-		sign.pixel_size = 0.004
-		sign.modulate = Color(0.75, 0.62, 0.35, 0.9)
-		sign.outline_size = 0
-		sign.position = Vector3(0, 2.25, side * (_size.z * 0.5 + 0.015))
-		sign.rotation.y = 0.0 if side > 0 else PI
-		sign.shaded = true
-		_slab.add_child(sign)
-		_signs.append(sign)
+		var sign_label := Label3D.new()
+		sign_label.text = str(cost)
+		sign_label.font = UiStyle.font("stencil")
+		sign_label.font_size = 96
+		sign_label.pixel_size = 0.004
+		sign_label.modulate = Color(0.75, 0.62, 0.35, 0.9)
+		sign_label.outline_size = 0
+		sign_label.position = Vector3(0, 2.25, side * (_size.z * 0.5 + 0.015))
+		sign_label.rotation.y = 0.0 if side > 0 else PI
+		sign_label.shaded = true
+		_slab.add_child(sign_label)
+		_signs.append(sign_label)
 
 
 ## Tas de débris (planches, gravats, poutre) qui bouche le passage, de

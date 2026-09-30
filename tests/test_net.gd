@@ -5,19 +5,30 @@ func after_each() -> void:
 
 
 func test_ipv4_validation() -> void:
+	@warning_ignore("static_called_on_instance")
 	assert_true(Net.is_valid_ipv4("192.168.1.25"))
+	@warning_ignore("static_called_on_instance")
 	assert_true(Net.is_valid_ipv4("127.0.0.1"))
+	@warning_ignore("static_called_on_instance")
 	assert_true(Net.is_valid_ipv4("localhost"))
+	@warning_ignore("static_called_on_instance")
 	assert_false(Net.is_valid_ipv4("256.1.1.1"))
+	@warning_ignore("static_called_on_instance")
 	assert_false(Net.is_valid_ipv4("192.168.1"))
+	@warning_ignore("static_called_on_instance")
 	assert_false(Net.is_valid_ipv4("a.b.c.d"))
+	@warning_ignore("static_called_on_instance")
 	assert_false(Net.is_valid_ipv4(""))
+	@warning_ignore("static_called_on_instance")
 	assert_false(Net.is_valid_ipv4("1.2.3.4.5"))
 
 
 func test_port_validation() -> void:
+	@warning_ignore("static_called_on_instance")
 	assert_true(Net.is_valid_port(7777))
+	@warning_ignore("static_called_on_instance")
 	assert_false(Net.is_valid_port(80))
+	@warning_ignore("static_called_on_instance")
 	assert_false(Net.is_valid_port(70000))
 
 
@@ -43,7 +54,7 @@ func test_host_and_leave_frees_port() -> void:
 
 func test_join_invalid_address_reports_error() -> void:
 	var errors := []
-	var cb := func(t, m): errors.append(t)
+	var cb := func(t, _m): errors.append(t)
 	Net.connection_error.connect(cb)
 	Net.join("999.1.1.1", 7777, "X")
 	Net.connection_error.disconnect(cb)
@@ -53,7 +64,7 @@ func test_join_invalid_address_reports_error() -> void:
 
 func test_join_nobody_listening_reports_error() -> void:
 	var errors := []
-	var cb := func(t, m): errors.append(t)
+	var cb := func(t, _m): errors.append(t)
 	Net.connection_error.connect(cb)
 	Net.join("127.0.0.1", 17999, "X")
 	var t := 0.0
@@ -66,5 +77,7 @@ func test_join_nobody_listening_reports_error() -> void:
 
 
 func test_name_cleaning() -> void:
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Net._clean_name(""), "Survivant")
+	@warning_ignore("static_called_on_instance")
 	assert_eq(Net._clean_name("abcdefghijklmnopqrstuvwxyz").length(), 16)

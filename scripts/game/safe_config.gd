@@ -112,7 +112,8 @@ static func get_int(cfg: ConfigFile, section: String, key: String, default: int,
 	if v is int:
 		return clampi(v, lo, hi)
 	if v is float and is_finite(v):
-		return clampi(int(v), lo, hi)
+		# Borné AVANT la conversion : int(1e30) déborde (valeur la plus négative).
+		return clampi(int(clampf(v, lo, hi)), lo, hi)
 	return default
 
 

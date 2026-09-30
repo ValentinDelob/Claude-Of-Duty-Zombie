@@ -121,8 +121,8 @@ func _ready() -> void:
 
 
 func _refresh_lamp() -> void:
-	var ready := system.game.power_on and state == State.IDLE
-	_lamp_mat.emission = Color(0.1, 1.0, 0.2) if ready else Color(1.0, 0.1, 0.05)
+	var is_ready := system.game.power_on and state == State.IDLE
+	_lamp_mat.emission = Color(0.1, 1.0, 0.2) if is_ready else Color(1.0, 0.1, 0.05)
 
 
 func interact_point() -> Vector3:
@@ -214,7 +214,7 @@ func get_state() -> Dictionary:
 	return {"state": state}
 
 
-func apply_state(s: Dictionary, _animate: bool) -> void:
+func apply_state(s: Dictionary, _animated: bool) -> void:
 	state = s.get("state", State.IDLE)
 	if state == State.ACTIVE:
 		_hum.stream = Audio.get_stream("trap_hum")

@@ -115,7 +115,8 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
 3. **Réponses bornées** : liste des versions 8 Mo, notes 4 Mo, captures 8 Mo et
    4096 px (dimensions lues dans l'en-tête avant décodage, format reconnu aux
    premiers octets), petits fichiers 64 Ko, exécutable = taille annoncée par GitHub.
-4. **Données de l'API nettoyées** : numéro de version `v<n>.<n>[.<n>...]`
+4. **Données de l'API nettoyées** (un champ absent ou mal typé ne vide pas la liste) :
+   numéro de version `v<n>.<n>[.<n>...][-snapshot.<n>]`
    (devient un nom de dossier), noms de fichiers `[A-Za-z0-9._-]`, fichiers
    joints obligatoirement dans `https://github.com/<dépôt>/releases/download/<version>/`.
 5. **Intégrité** : `tools/release.sh` publie `SHA256SUMS.txt` (format
@@ -135,7 +136,23 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
 7. **Notes de version** : texte échappé (`[` -> `[lb]`, aucune balise BBCode
    injectée), noms de captures filtrés (sous-dossiers permis, jamais `..`,
    `.png` / `.jpg` seulement).
-8. **Réglages du lanceur** : lus sans décoder d'objet (`Store.has_constructor`),
+8. **Versions en paquets** (`docs/RELEASE.md`) : le manifeste n'est lu qu'après
+   vérification de sa somme (`SHA256SUMS.txt`), puis validé champ par champ
+   (`Releases.parse_manifest` : format, numéro égal au tag, canal, noms de
+   fichiers sûrs et extensions attendues, sommes de 64 chiffres hexadécimaux,
+   tailles bornées, numéros de release sûrs, un seul paquet principal, 8 au
+   plus). Les adresses de téléchargement sont **reconstruites** par le lanceur à
+   partir du numéro de release et du nom de fichier (jamais lues dans le
+   manifeste) et passent par la même liste de domaines. Chaque fichier arrive
+   en `.part`, n'est rangé (`store/<sha256>.pck`, `engines/`) qu'après
+   vérification de sa taille et de sa somme ; une reprise (`Range`) n'est
+   acceptée que si le serveur annonce le bon point de départ ; un fichier plus
+   long que prévu est rejeté. L'installation ne fait que des copies de fichiers
+   vérifiés. Les paquets montés par le jeu (`--packs=`) doivent exister et
+   finir par `.pck`.
+9. **Auto-mise à jour du lanceur** : nouveau lanceur vérifié (somme) avant tout
+   remplacement ; l'ancien est gardé et remis si le nouveau ne démarre pas.
+10. **Réglages du lanceur** : lus sans décoder d'objet (`Store.has_constructor`),
    valeurs vérifiées (langue, version choisie).
 
 ## Limites connues
