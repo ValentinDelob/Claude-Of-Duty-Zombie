@@ -367,7 +367,7 @@ func test_format_1_maps_still_load() -> void:
 	assert_true(m.load_errors.is_empty(), str(m.load_errors))
 	assert_eq(m.format_read, 1, "format 1 reconnu")
 	assert_eq(int(JSON.parse_string(m.file_texts()["carte.json"]).format), EditorMap.FORMAT, "réécrite au format %d" % EditorMap.FORMAT)
-	assert_eq(EditorMap.FORMAT, 3, "format 3 : murs en biais (clé angle)")
+	assert_eq(EditorMap.FORMAT, 4, "format 4 : formes libres (formes de base, rotations au degré près)")
 	var v := _check(m)
 	assert_true(v.ok(), "ancienne carte toujours jouable :\n" + _errs(v))
 	var da := EditorMap.load_dir("res://assets/maps/draft_arena/")

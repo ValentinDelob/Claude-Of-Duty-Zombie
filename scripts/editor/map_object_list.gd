@@ -198,7 +198,9 @@ static func build_entries(doc: EditorMap) -> Array:
 		cat_names[String(c[0])] = Lang.t(String(c[1]), String(c[2]))
 	for p in doc.pieces:
 		var poly := doc.room_poly(p)
-		var it := MapCatalog.item("piece_rect" if MapGeom.is_axis_rect(poly) else "piece_poly")
+		var shape := String(p.get("forme", {}).get("type", "")) if p.get("forme") is Dictionary else ""
+		var it := MapCatalog.item(("piece_" + shape) if shape != "" and not MapCatalog.item("piece_" + shape).is_empty()
+			else ("piece_rect" if MapGeom.is_axis_rect(poly) else "piece_poly"))
 		out.append({"id": String(p.id), "filter": "pieces", "name": String(p.get("nom", p.id)), "type": Lang.t("Pièce", "Room"),
 			"floor": int(p.get("etage", 0)), "pos": MapGeom.bbox(poly).get_center(), "item": it})
 	for o in doc.ouvertures:

@@ -160,6 +160,13 @@ var diag_open: Dictionary = {}
 var diag_items: Dictionary = {}
 ## Pièces par étage : [{id, poly (m), zone, ceil (m, absolu)}] (sols des murs en biais).
 var room_polys: Array = []
+## Escaliers tournés ou hors de la grille (MapRaster) : clé de case ->
+## {center (m), size (m, contour sur le trait, avant rotation), rot (degrés),
+## up (direction de montée, vecteur unitaire), cells, floor, eid}.
+var diag_stairs: Dictionary = {}
+## Pièges tournés ou hors de la grille : id de l'élément -> {center, size, rot}
+## (le jeu électrifie le vrai rectangle, MapLayoutExport).
+var diag_traps: Dictionary = {}
 
 ## Messages : {level ("erreur" | "attention" | "info"), fr, en, text, floor, cells}
 var messages: Array = []
@@ -427,6 +434,11 @@ func _stairs() -> void:
 	for b in blobs:
 		if b.kind != K.ESCALIER:
 			continue
+		if diag_stairs.has(b.key):
+			if not _diag_done.has(b.key):
+				_diag_done[b.key] = true
+				_diag_stair(b)
+			continue
 		var k: int = b.floor
 		var r: Rect2i = b.rect
 		var w := _at(k, b.cells[0])
@@ -475,18 +487,115 @@ func _stairs() -> void:
 				"stairs at %s: floor %d covers it at %s" % [w[1], k + 1, wc[1]], k + 1, covered)
 		var lower := _uniform_zone(f, _side(r, -d))
 		var upper := _uniform_zone(up, _side(r, d))
-		var st := {"floor": k, "rect": r, "up": d, "lower": lower, "upper": upper, "run": run, "width": width, "cells": b.cells}
-		var si := stairs.size()
-		stairs.append(st)
+		# Pied (sol de l'étage), palier (étage du dessus) et passages du haut
+		# (marche -> case du palier) : communs aux escaliers droits et tournés.
+		var foot := {}
+		for c in _side(r, -d):
+			foot[c] = true
+		var top := {}
+		for c in _side(r, d):
+			top[c] = true
+		var links := {}
 		for c in b.cells:
-			_stair_at[k][c] = si
-			f.zone[c.y * f.w + c.x] = lower
-		# Haut de l'escalier : passage vers les cases du palier de l'étage du dessus.
-		for t in _side(r, d):
+			if top.has(c + d):
+				links[c] = [c + d]
+		var st := {"floor": k, "rect": r, "up": d, "lower": lower, "upper": upper, "run": run, "width": width, "cells": b.cells,
+			"foot": foot, "top": top, "links": links}
+		_add_stair(st)
+
+
+## Escalier retenu : cases, zone du pied, passages vers le palier du dessus.
+func _add_stair(st: Dictionary) -> void:
+	var k: int = st.floor
+	var f := floors[k]
+	var si := stairs.size()
+	stairs.append(st)
+	for c in st.cells:
+		_stair_at[k][c] = si
+		f.zone[c.y * f.w + c.x] = st.lower
+	# Haut de l'escalier : passage vers les cases du palier de l'étage du dessus.
+	for c in st.links:
+		for t in st.links[c]:
 			var key := "%d:%d:%d" % [k + 1, t.x, t.y]
 			if not _up_links.has(key):
 				_up_links[key] = []
-			_up_links[key].append([k, t - d])
+			_up_links[key].append([k, c])
+
+
+## Escalier TOURNÉ ou hors de la grille (MapRaster : diag_stairs) : mêmes
+## règles qu'un escalier droit, dans son propre repère. Pied : cases de sol de
+## l'étage qui touchent les premières marches ; palier : cases de sol de
+## l'étage du dessus qui touchent les dernières ; largeur utile et pente tirées
+## du vrai rectangle (contour sur le trait, marches 0,25 m en retrait).
+func _diag_stair(b: Dictionary) -> void:
+	var info: Dictionary = diag_stairs[b.key]
+	var k: int = b.floor
+	var cells: Array = info.get("cells", b.cells)
+	var w := _at(k, cells[0])
+	if k >= floors.size() - 1:
+		_msg("erreur", "escalier en %s : il n'y a pas d'étage au-dessus (ajoutez un étage dans l'onglet Étages)" % w[0],
+			"stairs at %s: there is no floor above (add a floor in the Floors tab)" % w[1], k, cells)
+		return
+	var f := floors[k]
+	var up := floors[k + 1]
+	var u: Vector2 = info.up
+	var lat := Vector2(-u.y, u.x)
+	var c0: Vector2 = info.center
+	var sz: Vector2 = info.size
+	# Longueur le long de la montée, largeur en travers (rectangle avant rotation).
+	var along_x := absf(MapGeom.dir_vec("e").rotated(deg_to_rad(float(info.rot))).dot(u)) > 0.7
+	var length := sz.x if along_x else sz.y
+	var wide := sz.y if along_x else sz.x
+	var own := {}
+	for c in cells:
+		own[c] = true
+	var foot := {}
+	var top := {}
+	var links := {}
+	for c in cells:
+		for d in DIRS:
+			var q: Vector2i = c + d
+			if own.has(q):
+				continue
+			# Hors des marches et dans leur largeur : au-delà d'un petit côté
+			# (au pied ou en haut).
+			var rel := MapGeom.cell_center(q) - c0
+			if absf(rel.dot(lat)) > wide * 0.5 - 0.2:
+				continue
+			if rel.dot(u) < 0.0:
+				foot[q] = true
+			else:
+				top[q] = true
+				if not links.get_or_add(c, []).has(q):
+					links[c].append(q)
+	var foot_ok := not foot.is_empty() and _all(foot.keys(), func(c): return _floorlike(f, c))
+	var top_ok := not top.is_empty() and _all(top.keys(), func(c): return _floorlike(up, c))
+	if not (foot_ok and top_ok):
+		_msg("erreur", "escalier en %s : il faut du sol au pied (étage %d) d'un seul petit côté et le plancher d'une pièce en haut (étage %d) du côté opposé" % [w[0], k, k + 1],
+			"stairs at %s: needs floor at its foot (floor %d) on one short side and a room floor at the top (floor %d) on the opposite side" % [w[1], k, k + 1], k, cells)
+		return
+	var run := roundi((length - MapGeom.CELL) / scale)
+	var width := roundi((wide - MapGeom.CELL) / scale)
+	var rise := up.sol - f.sol
+	var slope := rad_to_deg(atan2(rise, maxf(length - MapGeom.CELL, 0.01)))
+	if width < MIN_STAIR_WIDTH:
+		_msg("erreur", "escalier en %s : trop étroit (%s m ; %s m au moins)" % [w[0], _num(width * scale).replace(".", ","), _num(MIN_STAIR_WIDTH * scale).replace(".", ",")],
+			"stairs at %s: too narrow (%s m; at least %s m)" % [w[1], _num(width * scale), _num(MIN_STAIR_WIDTH * scale)], k, cells)
+	if slope > MAX_STAIR_SLOPE:
+		var need := ceili((rise / tan(deg_to_rad(MAX_STAIR_SLOPE)) + MapGeom.CELL) / scale) * scale
+		_msg("erreur", "escalier en %s : trop raide (%.0f° ; %d° au plus : allongez-le à %s m)" % [w[0], slope, int(MAX_STAIR_SLOPE), _num(need).replace(".", ",")],
+			"stairs at %s: too steep (%.0f°; %d° at most: make it %s m long)" % [w[1], slope, int(MAX_STAIR_SLOPE), _num(need)], k, cells)
+	var covered := []
+	for c in cells:
+		if up.at(c) != K.TREMIE:
+			covered.append(c)
+	if not covered.is_empty():
+		var wc := _at(k + 1, covered[0])
+		_msg("erreur", "escalier en %s : l'étage %d le recouvre en %s" % [w[0], k + 1, wc[0]],
+			"stairs at %s: floor %d covers it at %s" % [w[1], k + 1, wc[1]], k + 1, covered)
+	_add_stair({"floor": k, "rect": _bbox(cells), "up": Vector2i(roundi(u.x), roundi(u.y)), "lower": _uniform_zone(f, foot.keys()),
+		"upper": _uniform_zone(up, top.keys()), "run": run, "width": width, "cells": cells, "foot": foot, "top": top, "links": links,
+		"diag": info})
 
 
 func _openings() -> void:
@@ -1004,18 +1113,16 @@ func _neighbors(k: int, c: Vector2i, doors_open: bool) -> Array:
 			out.append([k, n])
 		elif st_here >= 0:
 			# Du pied de l'escalier vers le sol de l'étage.
-			if d == -stairs[st_here].up and _side(stairs[st_here].rect, -stairs[st_here].up).has(n):
+			if stairs[st_here].foot.has(n):
 				out.append([k, n])
 		elif st_n >= 0:
-			if d == stairs[st_n].up and _side(stairs[st_n].rect, -stairs[st_n].up).has(c):
+			if stairs[st_n].foot.has(c):
 				out.append([k, n])
 		elif here != K.ESCALIER:
 			out.append([k, n])
 	# Haut d'escalier : passage entre la dernière marche et le palier du dessus.
 	if st_here >= 0:
-		var s: Dictionary = stairs[st_here]
-		var t: Vector2i = c + s.up
-		if _side(s.rect, s.up).has(t):
+		for t in stairs[st_here].links.get(c, []):
 			out.append([k + 1, t])
 	var key := "%d:%d:%d" % [k, c.x, c.y]
 	for l in _up_links.get(key, []):

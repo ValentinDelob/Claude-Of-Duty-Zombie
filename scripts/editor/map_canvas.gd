@@ -3,7 +3,10 @@ extends Control
 ## Vue de dessus de l'éditeur de cartes : grille de 1 m (règles en mètres),
 ## pièces, murs générés (grille du validateur), ouvertures, objets ; outils de
 ## pose avec aperçu vert / rouge et la raison d'un refus. Zoom : Ctrl + molette ;
-## déplacement : clic milieu ou Espace + glisser ; aimantation 1 m (0,5 m avec Maj).
+## déplacement : clic milieu ou Espace + glisser ; aimantation (MapSnap) : grille
+## 1 m, grille fine ou libre (touche G ; Maj inverse), aimants aux sommets et aux
+## côtés en libre ; saisie au clavier de la longueur et de l'angle pendant le
+## tracé ; formes de base (MapShapes) ; poignée de rotation (MapTransform).
 
 const RULER := 20.0
 const HANDLE := 7.0
@@ -41,6 +44,24 @@ var highlight_floor := -1
 const COL_HOVER := Color(0.35, 0.9, 1.0)
 ## Survol à recalculer (une fois par image au plus, pas à chaque mouvement).
 var _hover_dirty := false
+## Aimantation (MapSnap) : mode (« grille », « fine », « libre »), pas de la
+## grille fine, dernière grille utilisée (Maj en mode libre) ; mémorisés.
+var snap_mode := "grille"
+var fine_step := 0.5
+var last_grid := "grille"
+## Maj imposée (tests) : inverse le mode d'aimantation.
+var invert_snap := false
+## Nombre de points des cercles et ellipses, segments et ouverture du mur courbe.
+var shape_points := MapShapes.DEFAULT_POINTS
+var arc_segments := MapShapes.DEFAULT_SEGMENTS
+var arc_opening := MapShapes.DEFAULT_OPENING
+## Saisie au clavier pendant le tracé : {labels: [[fr, en], [fr, en]],
+## values: ["", ""], i: champ courant}.
+var entry: Dictionary = {}
+## Élément modifié par le glissement en cours : exclu des aimants.
+var _snap_exclude := ""
+## Pixels de la poignée de rotation au-dessus de l'élément choisi.
+const ROT_HANDLE_PX := 30.0
 
 
 func _ready() -> void:
@@ -50,6 +71,11 @@ func _ready() -> void:
 	mouse_exited.connect(func():
 		_hover_dirty = false
 		ed.map_hovered(""))
+	var m := String(MapEditor.pref("aimantation", "grille"))
+	snap_mode = m if m in MapSnap.MODES else "grille"
+	var fs := float(MapEditor.pref("pas_fin", 0.5))
+	fine_step = fs if MapSnap.FINE_STEPS.any(func(x): return absf(float(x) - fs) < 0.001) else 0.5
+	last_grid = "fine" if snap_mode == "fine" else "grille"
 
 
 func _process(delta: float) -> void:
@@ -82,13 +108,51 @@ func to_px(m: Vector2) -> Vector2:
 	return origin + m * zoom
 
 
+## Mode d'aimantation appliqué maintenant (Maj inverse le mode choisi).
+func mode_now() -> String:
+	return MapSnap.effective(snap_mode, invert_snap or Input.is_key_pressed(KEY_SHIFT), last_grid)
+
+
 func step() -> float:
-	return 0.5 if Input.is_key_pressed(KEY_SHIFT) else 1.0
+	return MapSnap.step_of(mode_now(), fine_step)
 
 
+## Rayon des aimants de la carte (m) : quelques pixels à l'écran.
+func magnet_radius() -> float:
+	return MapSnap.MAGNET_PX / zoom
+
+
+## Point aimanté : grille du mode ; en libre, sommet ou côté proche d'une
+## pièce, sinon le centimètre.
 func snap(m: Vector2) -> Vector2:
-	var s := step()
-	return Vector2(roundf(m.x / s) * s, roundf(m.y / s) * s)
+	var mode := mode_now()
+	if mode == "libre":
+		var mg := MapSnap.magnet(ed.doc, ed.floor_k, m, magnet_radius(), _snap_exclude)
+		return mg.p if not mg.is_empty() else MapGeom.round_cm(m)
+	return MapSnap.on_step(m, mode, fine_step)
+
+
+## G : mode d'aimantation suivant (grille 1 m -> fine -> libre), mémorisé.
+func cycle_snap() -> void:
+	set_snap_mode(MapSnap.next_mode(snap_mode))
+
+
+## Maj+G : pas de la grille fine suivant (0,5 -> 0,25 -> 0,1 m).
+func cycle_fine() -> void:
+	fine_step = MapSnap.next_fine(fine_step)
+	MapEditor.set_pref("pas_fin", fine_step)
+	set_snap_mode("fine")
+
+
+func set_snap_mode(mode: String) -> void:
+	snap_mode = mode if mode in MapSnap.MODES else "grille"
+	if snap_mode != "libre":
+		last_grid = snap_mode
+	MapEditor.set_pref("aimantation", snap_mode)
+	ed.snap_changed()
+	ed.set_status(Lang.t("Aimantation : %s (G pour changer ; Maj maintenu : inverse)", "Snapping: %s (G to change; hold Shift: invert)") % MapSnap.label(snap_mode, fine_step))
+	_update_preview()
+	queue_redraw()
 
 
 ## Angle libre (Alt maintenu, ou imposé par un test) : sinon les côtés et les
@@ -100,22 +164,220 @@ func angle_free() -> bool:
 	return free_angle or Input.is_key_pressed(KEY_ALT)
 
 
-## Point tracé depuis `from` (côté de polygone, mur) : sommet sur la grille,
-## côté aimanté à un multiple de 45° sauf en angle libre.
+## Point tracé depuis `from` (côté de polygone, mur) : sur la grille, sommet
+## sur la grille et côté aimanté à un multiple de 45° sauf en angle libre ;
+## sans grille, aimants de la carte puis côté à 15° près (Alt : libre).
 func snap_from(from: Vector2, m: Vector2) -> Vector2:
+	if mode_now() == "libre":
+		return MapSnap.trace_free(ed.doc, ed.floor_k, from, m, magnet_radius(), angle_free(), _snap_exclude)
 	return MapGeom.snap_angle(from, m, step(), angle_free())
 
 
-## Bout du tracé en cours (mur au glisser, point suivant du polygone).
+## Bout du tracé en cours (mur au glisser, point suivant du polygone), ou le
+## point saisi au clavier.
 func trace_end() -> Vector2:
 	var tool := String(_item().get("tool", ""))
+	var p := _cursor_end(tool)
+	if not entry.is_empty():
+		return _entry_end(tool, p)
+	return p
+
+
+## Bout du tracé d'après le curseur seulement.
+func _cursor_end(tool: String) -> Vector2:
 	if tool == "wall" and drag.get("kind", "") == "create":
 		return snap_from(drag.start, mouse_m)
 	if tool == "room_poly" and not poly_pts.is_empty():
 		return snap_from(poly_pts[-1], mouse_m)
 	if tool == "room_rect" and drag.get("kind", "") == "create" and ed.place_rot == 45:
-		return rect45_end(drag.start, snap(mouse_m))
+		var b := snap(mouse_m)
+		return rect45_end(drag.start, b) if mode_now() == "grille" else b
 	return snap(mouse_m)
+
+
+# ------------------------------------------------------------------ saisie au clavier
+
+## Un tracé est-il en cours (saisie au clavier possible) ?
+func tracing() -> bool:
+	var tool := String(_item().get("tool", ""))
+	if tool == "room_poly":
+		return not poly_pts.is_empty()
+	return drag.get("kind", "") == "create" and tool in ["room_rect", "wall", "rect", "room_shape", "arc"]
+
+
+## Champs de la saisie au clavier selon l'outil : [[fr, en], [fr, en]].
+func entry_labels() -> Array:
+	var it := _item()
+	match String(it.get("tool", "")):
+		"room_rect", "rect":
+			return [["largeur", "width"], ["hauteur", "height"]]
+		"room_shape":
+			if String(it.make.get("forme", "")) == "cercle":
+				return [["rayon", "radius"], ["points", "points"]]
+			return [["largeur", "width"], ["hauteur", "height"]]
+		"arc":
+			return [["rayon", "radius"], ["ouverture", "opening"]]
+	return [["longueur", "length"], ["angle", "angle"]]
+
+
+## Valeur tapée du champ `i` (null si vide ou illisible).
+func entry_value(i: int) -> Variant:
+	if entry.is_empty() or i >= entry.values.size():
+		return null
+	var s := String(entry.values[i]).replace(",", ".")
+	if s == "" or s == "-" or s == ".":
+		return null
+	return float(s) if s.is_valid_float() else null
+
+
+func _open_entry() -> void:
+	entry = {"labels": entry_labels(), "values": ["", ""], "i": 0}
+
+
+## Bout du tracé d'après les valeurs tapées (les champs vides suivent le curseur).
+func _entry_end(tool: String, cursor: Vector2) -> Vector2:
+	var v0 = entry_value(0)
+	var v1 = entry_value(1)
+	match tool:
+		"wall", "room_poly":
+			var from: Vector2 = drag.start if tool == "wall" else poly_pts[-1]
+			var d := cursor - from
+			var length: float = absf(v0) if v0 != null else d.length()
+			var ang: float = v1 if v1 != null else MapGeom.dir_angle(d)
+			# Valeurs tapées : exactes (au millimètre ; 0° reste horizontal).
+			return MapGeom.round_mm(MapGeom.polar(from, length, ang))
+		"room_rect", "rect":
+			var a: Vector2 = drag.start
+			var d := cursor - a
+			var sx := -1.0 if d.x < 0.0 else 1.0
+			var sy := -1.0 if d.y < 0.0 else 1.0
+			return a + Vector2(sx * (absf(v0) if v0 != null else absf(d.x)), sy * (absf(v1) if v1 != null else absf(d.y)))
+		"room_shape":
+			var a: Vector2 = drag.start
+			var d := cursor - a
+			if String(_item().make.get("forme", "")) == "cercle":
+				if v1 != null:
+					shape_points = clampi(roundi(v1), MapShapes.MIN_POINTS, MapShapes.MAX_POINTS)
+				var r: float = absf(v0) if v0 != null else d.length()
+				return a + (d.normalized() if d.length() > 0.001 else Vector2(1, 0)) * r
+			var sx := -1.0 if d.x < 0.0 else 1.0
+			var sy := -1.0 if d.y < 0.0 else 1.0
+			return a + Vector2(sx * (absf(v0) if v0 != null else absf(d.x)), sy * (absf(v1) if v1 != null else absf(d.y)))
+		"arc":
+			var a: Vector2 = drag.start
+			var d := cursor - a
+			if v1 != null:
+				arc_opening = clampf(absf(v1), 5.0, 360.0)
+			var r: float = absf(v0) if v0 != null else d.length()
+			return a + (d.normalized() if d.length() > 0.001 else Vector2(0, -1)) * r
+	return cursor
+
+
+## Caractère tapé (chiffre, virgule, point, moins) d'un évènement clavier, "" sinon.
+static func _entry_char(k: InputEventKey) -> String:
+	if k.unicode > 0:
+		var ch := String.chr(k.unicode)
+		return ch if ch in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ",", ".", "-"] else ""
+	if k.keycode >= KEY_0 and k.keycode <= KEY_9:
+		return str(k.keycode - KEY_0)
+	if k.keycode >= KEY_KP_0 and k.keycode <= KEY_KP_9:
+		return str(k.keycode - KEY_KP_0)
+	if k.keycode in [KEY_PERIOD, KEY_COMMA, KEY_KP_PERIOD]:
+		return "."
+	return ""
+
+
+## Touche pendant l'édition (appelée par MapEditor avant ses raccourcis) :
+## G (aimantation), saisie au clavier du tracé en cours (chiffres, Tab,
+## Entrée, Retour arrière, Échap), + / - (points d'une forme, segments d'un
+## mur courbe). -> true si la touche est prise.
+func handle_key(k: InputEventKey) -> bool:
+	if not k.pressed or k.ctrl_pressed or k.alt_pressed:
+		return false
+	if k.keycode == KEY_G and entry.is_empty():
+		if k.shift_pressed:
+			cycle_fine()
+		else:
+			cycle_snap()
+		return true
+	if not tracing():
+		return false
+	if entry.is_empty() and k.keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD, KEY_MINUS, KEY_KP_SUBTRACT] and _adjusts_count():
+		adjust_count(1 if k.keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD] else -1)
+		return true
+	var ch := _entry_char(k)
+	if ch == "-" and (entry.is_empty() or int(entry.i) == 0):
+		ch = ""   # signe seulement dans le second champ (angle)
+	if ch != "":
+		if entry.is_empty():
+			_open_entry()
+		if ch == "." and String(entry.values[entry.i]).contains("."):
+			return true
+		entry.values[entry.i] = String(entry.values[entry.i]) + ch
+		queue_redraw()
+		return true
+	match k.keycode:
+		KEY_TAB:
+			if entry.is_empty():
+				_open_entry()
+			entry.i = (int(entry.i) + 1) % 2
+			queue_redraw()
+			return true
+		KEY_BACKSPACE:
+			if entry.is_empty():
+				return false
+			var s := String(entry.values[entry.i])
+			if s == "" and int(entry.i) > 0:
+				entry.i = int(entry.i) - 1
+			else:
+				entry.values[entry.i] = s.left(s.length() - 1)
+			queue_redraw()
+			return true
+		KEY_ENTER, KEY_KP_ENTER:
+			if entry.is_empty():
+				return false
+			commit_entry()
+			return true
+		KEY_ESCAPE:
+			if entry.is_empty():
+				return false
+			entry = {}
+			queue_redraw()
+			return true
+	return false
+
+
+## Entrée : le côté, le mur ou la forme tapés sont posés.
+func commit_entry() -> void:
+	var tool := String(_item().get("tool", ""))
+	var end := trace_end()
+	entry = {}
+	if tool == "room_poly":
+		if poly_pts.is_empty() or poly_pts[-1].distance_to(end) > 0.01:
+			poly_pts.append(end)
+		queue_redraw()
+		return
+	if drag.get("kind", "") == "create":
+		_finish_create(end)
+
+
+## Le nombre de points (formes) ou de segments (mur courbe) se règle-t-il ?
+func _adjusts_count() -> bool:
+	var it := _item()
+	var tool := String(it.get("tool", ""))
+	return tool == "arc" or (tool == "room_shape" and String(it.make.get("forme", "")) in ["cercle", "ellipse"])
+
+
+## Molette ou + / - pendant le tracé : points d'un cercle ou d'une ellipse (3
+## à 64), segments d'un mur courbe (1 à 64).
+func adjust_count(d: int) -> void:
+	if String(_item().get("tool", "")) == "arc":
+		arc_segments = clampi(arc_segments + d, MapShapes.MIN_SEGMENTS, MapShapes.MAX_SEGMENTS)
+		ed.set_status(Lang.t("Mur courbe : %d segments", "Curved wall: %d segments") % arc_segments)
+	else:
+		shape_points = clampi(shape_points + d, MapShapes.MIN_POINTS, MapShapes.MAX_POINTS)
+		ed.set_status(Lang.t("Forme : %d points", "Shape: %d points") % shape_points)
+	queue_redraw()
 
 
 ## Rectangle à 45° : `b` décalé d'une demi-case si besoin pour que les quatre
@@ -187,6 +449,9 @@ func _gui_input(event: InputEvent) -> void:
 			if mb.pressed:
 				if mb.ctrl_pressed:
 					_zoom_at(mb.position, 1.15 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15)
+				elif tracing() and _adjusts_count():
+					# Pendant le tracé d'une forme : nombre de points (segments d'un mur courbe).
+					adjust_count(1 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else -1)
 				else:
 					ed.cycle_hotbar(-1 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else 1)
 			accept_event()
@@ -231,10 +496,12 @@ func zoom_by(f: float) -> void:
 
 ## Annule le tracé ou le glissement en cours.
 func cancel() -> void:
-	if drag.get("kind", "") == "move" or drag.get("kind", "") == "handle":
+	if drag.get("kind", "") in ["move", "handle", "rotate"]:
 		ed.doc.restore(drag.snap)
 		ed.changed()
 	drag = {}
+	entry = {}
+	_snap_exclude = ""
 	poly_pts.clear()
 	queue_redraw()
 
@@ -247,24 +514,36 @@ func _press(double: bool) -> void:
 	var it := _item()
 	var tool := String(it.get("tool", "select"))
 	var k := ed.floor_k
+	# Tracé commencé d'un simple clic (sans glisser) : ce clic le termine.
+	if drag.get("kind", "") == "create" and drag.get("sticky", false):
+		_finish_create(trace_end())
+		return
 	var p := snap(mouse_m)
 	match tool:
 		"select":
-			# Poignée de l'élément choisi d'abord, puis l'élément sous le curseur.
+			# Poignée de rotation, poignées de l'élément choisi, puis l'élément sous le curseur.
+			var rh := rot_handle()
+			if not rh.is_empty() and to_px(rh.p).distance_to(to_px(mouse_m)) <= HANDLE + 4.0:
+				var sel := ed.doc.find(ed.selected)
+				drag = {"kind": "rotate", "c": rh.c, "a0": (mouse_m - Vector2(rh.c)).angle(), "snap": ed.doc.snapshot(),
+					"orig": sel.duplicate(true), "attached": ed.attached_to(sel), "moved": false, "deg": 0}
+				return
 			var h := _handle_at(mouse_m)
 			if h >= 0:
+				_snap_exclude = ed.selected
 				drag = {"kind": "handle", "handle": h, "snap": ed.doc.snapshot(), "orig": ed.doc.find(ed.selected).duplicate(true), "moved": false}
 				return
 			var e := ed.element_at(mouse_m)
 			ed.select(String(e.get("id", "")))
 			if not e.is_empty():
-				drag = {"kind": "move", "start": p, "snap": ed.doc.snapshot(), "orig": e.duplicate(true), "moved": false,
+				_snap_exclude = String(e.id)
+				drag = {"kind": "move", "start": snap(mouse_m), "raw": mouse_m, "snap": ed.doc.snapshot(), "orig": e.duplicate(true), "moved": false,
 					"attached": ed.attached_to(e)}
 		"erase":
 			var e := ed.element_at(mouse_m)
 			if not e.is_empty():
 				ed.delete_element(String(e.id))
-		"room_rect", "wall", "rect":
+		"room_rect", "wall", "rect", "room_shape", "arc":
 			drag = {"kind": "create", "start": p}
 		"room_poly":
 			if poly_pts.size() >= 3 and (double or to_px(p).distance_to(to_px(poly_pts[0])) < 10.0):
@@ -274,6 +553,7 @@ func _press(double: bool) -> void:
 				p = snap_from(poly_pts[-1], mouse_m)
 			if poly_pts.is_empty() or poly_pts[-1].distance_to(p) > 0.01:
 				poly_pts.append(p)
+			entry = {}
 		"opening", "wall_item", "floor_item":
 			_update_preview()
 			if preview.is_empty():
@@ -289,20 +569,38 @@ func _release() -> void:
 		return
 	var kind := String(drag.kind)
 	if kind == "create":
-		var it := _item()
-		var res := _creation(it, drag.start, trace_end())
-		drag = {}
-		if res.is_empty():
+		if drag.get("sticky", false):
 			return
-		if not res.ok:
-			show_refusal(res)
+		var end := trace_end()
+		if entry.is_empty() and to_px(end).distance_to(to_px(drag.start)) < 4.0:
+			# Simple clic : le tracé suit le curseur jusqu'au clic suivant (ou la
+			# saisie au clavier : longueur, Tab, angle, Entrée).
+			drag["sticky"] = true
 			return
-		ed.add_object(res.obj, ed.floor_k)
-	elif kind == "move" or kind == "handle":
+		if not entry.is_empty():
+			return   # saisie au clavier en cours : Entrée termine
+		_finish_create(end)
+	elif kind in ["move", "handle", "rotate"]:
 		if drag.moved:
 			ed.push_undo_snapshot(drag.snap)
 			ed.changed()
 		drag = {}
+		_snap_exclude = ""
+
+
+## Termine le tracé en cours (glisser, clic-clic ou saisie au clavier) en `end`.
+func _finish_create(end: Vector2) -> void:
+	var it := _item()
+	var res := _creation(it, drag.start, end)
+	drag = {}
+	entry = {}
+	queue_redraw()
+	if res.is_empty():
+		return
+	if not res.ok:
+		show_refusal(res)
+		return
+	ed.add_object(res.obj, ed.floor_k)
 
 
 ## Élément créé par un glissement de `a` à `b` (pièce, mur, pilier, escalier, piège).
@@ -330,6 +628,20 @@ func _creation(it: Dictionary, a: Vector2, b: Vector2) -> Dictionary:
 				var d := b - a
 				o["monte"] = ("e" if d.x > 0 else "o") if absf(d.x) > absf(d.y) else ("s" if d.y > 0 else "n")
 			var res := MapRules.check_rect(ed.doc, k, String(o.type), r)
+			res["obj"] = o
+			return res
+		"room_shape":
+			# Forme de base : un polygone éditable qui garde ses paramètres (« forme »).
+			var forme := MapShapes.from_drag(String(it.make.get("forme", "cercle")), a, b, shape_points)
+			if forme.is_empty() or float(forme.rx) < 0.05:
+				return {"ok": false, "fr": "forme trop petite", "en": "shape too small"}
+			var poly := MapShapes.outline(forme)
+			var res := MapRules.check_room(ed.doc, k, poly)
+			res["obj"] = {"contour": MapGeom.poly_arr(poly), "forme": forme}
+			return res
+		"arc":
+			var o := MapShapes.arc_from_drag(it.make, a, b, arc_segments, arc_opening)
+			var res := MapRules.check_arc(o)
 			res["obj"] = o
 			return res
 	return {}
@@ -371,9 +683,13 @@ func _update_preview() -> void:
 	var res := {}
 	match tool:
 		"opening":
-			res = MapRules.place_opening(ed.doc, k, String(o.type), mouse_m, MapRules.opening_width(o))
+			# Mur trop court pour la largeur par défaut (côté d'un cercle...) :
+			# la porte est réduite pour y tenir (1 m au moins).
+			res = MapRules.place_opening(ed.doc, k, String(o.type), mouse_m, MapRules.opening_width(o), "", true)
 			if res.ok:
 				o["position"] = res.position
+				if res.has("largeur"):
+					o["largeur"] = float(res.largeur)
 				if o.type in ["porte", "debris"]:
 					o["prix"] = ed.default_door_price()
 		"wall_item":
@@ -382,7 +698,9 @@ func _update_preview() -> void:
 				o["position"] = res.position
 				MapRules.apply_wall(o, res)
 		"floor_item":
-			res = MapRules.place_floor_item(ed.doc, k, o, mouse_m)
+			# Sans grille : là où est le curseur (au centimètre).
+			var free := mode_now() == "libre"
+			res = MapRules.place_floor_item(ed.doc, k, o, MapGeom.round_cm(mouse_m) if free else mouse_m, "", not free)
 			if res.ok:
 				o["position"] = res.position
 	if not res.ok:
@@ -407,6 +725,12 @@ func _drag_update() -> void:
 		return
 	if kind == "move":
 		var delta := snap(mouse_m) - Vector2(drag.start)
+		if mode_now() == "libre":
+			# Sans grille : au centimètre ; une pièce se colle par un sommet au
+			# sommet ou au côté d'une autre pièce (aimant).
+			delta = MapGeom.round_cm(mouse_m - Vector2(drag.raw))
+			if orig.has("contour"):
+				delta = MapSnap.room_delta(ed.doc, ed.floor_k, MapGeom.poly(orig.contour), delta, magnet_radius(), String(orig.id))
 		var res := ed.try_move(orig, drag.attached, delta, drag.snap)
 		if res.ok:
 			drag.moved = drag.moved or delta.length() > 0.001
@@ -420,6 +744,22 @@ func _drag_update() -> void:
 		else:
 			refusal = MapRules.why(res)
 			_refusal_t = 1.5
+	elif kind == "rotate":
+		# Poignée de rotation : pas de 15°, au degré près avec Alt.
+		var c: Vector2 = drag.c
+		var deg := rad_to_deg(angle_difference(float(drag.a0), (mouse_m - c).angle()))
+		deg = roundf(deg) if angle_free() else snappedf(deg, MapTransform.STEP)
+		if absf(deg - float(drag.deg)) < 0.001:
+			return
+		var res := MapTransform.apply(ed.doc, orig, drag.attached, c, deg, drag.snap)
+		if res.ok:
+			drag.moved = true
+			drag.deg = deg
+			ed.moved_live()
+			ed.set_status(Lang.t("Rotation : %d°", "Rotation: %d°") % MapGeom.norm_deg(deg))
+		else:
+			refusal = MapRules.why(res)
+			_refusal_t = 1.5
 
 
 ## Poignées de l'élément choisi : points (m).
@@ -430,17 +770,29 @@ func handles() -> PackedVector2Array:
 		return out
 	if e.has("contour"):
 		var poly := ed.doc.room_poly(e)
-		if MapGeom.is_axis_rect(poly):
+		if MapGeom.is_axis_rect(poly) and not e.has("forme"):
 			var r := MapGeom.bbox(poly)
 			return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y),
 				Vector2(r.get_center().x, r.position.y), Vector2(r.end.x, r.get_center().y), Vector2(r.get_center().x, r.end.y), Vector2(r.position.x, r.get_center().y)])
 		return poly
 	if e.has("rect"):
+		if MapGeom.rot_of(e) != 0:
+			return MapRaster.rect_poly(e)
 		var r := MapGeom.rect_of(e.rect)
 		return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
 	if String(e.get("type", "")) == "mur":
 		return PackedVector2Array([MapGeom.v2(e.a), MapGeom.v2(e.b)])
 	return out
+
+
+## Poignée de rotation de l'élément choisi : {p (m), c (centre de rotation)},
+## {} si l'élément ne tourne pas (objets muraux : ils suivent leur mur).
+func rot_handle() -> Dictionary:
+	var e := ed.doc.find(ed.selected)
+	if e.is_empty() or int(e.get("etage", 0)) != ed.floor_k or not MapTransform.can_rotate(e):
+		return {}
+	var bb := MapGeom.bbox(ed.doc.room_poly(e)) if e.has("contour") else MapRules.footprint_rect(e)
+	return {"p": Vector2(bb.get_center().x, bb.position.y - ROT_HANDLE_PX / zoom), "c": MapTransform.pivot(ed.doc, e)}
 
 
 func _handle_at(m: Vector2) -> int:
@@ -465,13 +817,13 @@ func _draw() -> void:
 	if ed.ghost_below and k > 0:
 		for p in doc.rooms_on(k - 1):
 			var poly := _px_poly(doc.room_poly(p))
-			draw_colored_polygon(poly, Color(0.6, 0.7, 1.0, 0.07))
+			_fill(poly, Color(0.6, 0.7, 1.0, 0.07))
 			draw_polyline(poly + PackedVector2Array([poly[0]]), Color(0.6, 0.7, 1.0, 0.35), 1.0)
 	# Pièces (couleur de leur zone).
 	for p in doc.rooms_on(k):
 		var poly := _px_poly(doc.room_poly(p))
 		if poly.size() >= 3:
-			draw_colored_polygon(poly, ed.zone_color(String(p.get("zone", ""))))
+			_fill(poly, ed.zone_color(String(p.get("zone", ""))))
 	# Grille du validateur : murs générés, vides, ouvertures.
 	_draw_cells(k)
 	# Escaliers de l'étage du dessous : ils arrivent ici.
@@ -510,14 +862,26 @@ func _draw() -> void:
 	# Sélection et poignées.
 	var sel := doc.find(ed.selected)
 	if not sel.is_empty() and int(sel.get("etage", 0)) == k:
-		if sel.has("contour"):
-			var poly := _px_poly(doc.room_poly(sel))
-			draw_polyline(poly + PackedVector2Array([poly[0]]), COL_SEL, 2.5)
+		var outline := _outline_of(sel)
+		if not outline.is_empty():
+			var poly := _px_poly(outline)
+			draw_polyline(poly + PackedVector2Array([poly[0]]), COL_SEL, 2.5 if sel.has("contour") else 2.0)
 		else:
 			draw_rect(_elem_rect_px(sel).grow(3), COL_SEL, false, 2.0)
 		for h in handles():
 			draw_rect(Rect2(to_px(h) - Vector2.ONE * HANDLE * 0.5, Vector2.ONE * HANDLE), COL_SEL)
 			draw_rect(Rect2(to_px(h) - Vector2.ONE * HANDLE * 0.5, Vector2.ONE * HANDLE), Color.BLACK, false, 1.0)
+		# Poignée de rotation (pas de 15°, Alt : au degré près).
+		var rh := rot_handle()
+		if not rh.is_empty():
+			var hp := to_px(rh.p)
+			var bb := MapGeom.bbox(outline) if not outline.is_empty() else MapRules.footprint_rect(sel)
+			draw_line(to_px(Vector2(bb.get_center().x, bb.position.y)), hp, Color(COL_SEL, 0.7), 1.0)
+			draw_circle(hp, HANDLE * 0.8, COL_SEL)
+			draw_arc(hp, HANDLE * 0.45, -PI * 0.8, PI * 0.5, 10, Color.BLACK, 1.5)
+			if drag.get("kind", "") == "rotate":
+				draw_circle(to_px(drag.c), 3.0, COL_SEL)
+				_label_at(font, hp + Vector2(12, -6), "%d°" % MapGeom.norm_deg(float(drag.get("deg", 0))))
 	# Élément survolé (dans la liste des objets ou sur la carte) : contour lumineux.
 	var hov := doc.find(ed.hover_id) if ed.hover_id != "" else {}
 	if not hov.is_empty() and int(hov.get("etage", 0)) == k:
@@ -531,19 +895,42 @@ func _draw() -> void:
 	_draw_rulers(font)
 
 
+## Contour exact d'un élément quand il n'est pas un rectangle droit (pièce,
+## rectangle ou décor tourné, objet contre un mur en biais) ; vide sinon.
+func _outline_of(e: Dictionary) -> PackedVector2Array:
+	if e.has("contour"):
+		return ed.doc.room_poly(e)
+	if e.has("rect") and MapGeom.rot_of(e) != 0:
+		return MapRaster.rect_poly(e)
+	var tool := MapCatalog.tool_of(e)
+	if tool == "floor_item" and MapRaster.free_rot(e) and MapCatalog.rotates(e):
+		return MapRaster.floor_poly(e)
+	if tool == "wall_item" and MapGeom.item_oblique(e):
+		return MapRules.wall_item_poly(e)
+	return PackedVector2Array()
+
+
 ## Contour lumineux (halo en trois traits) d'un élément, sans bouger la vue.
 func _draw_glow(e: Dictionary) -> void:
+	var outline := _outline_of(e)
 	for i in 3:
 		var w := 7.0 - i * 2.5
 		var a := 0.18 + i * 0.3
-		if e.has("contour"):
-			var poly := _px_poly(ed.doc.room_poly(e))
+		if not outline.is_empty():
+			var poly := _px_poly(outline)
 			draw_polyline(poly + PackedVector2Array([poly[0]]), Color(COL_HOVER, a), w)
 		else:
 			draw_rect(_elem_rect_px(e).grow(4 + (2 - i) * 2), Color(COL_HOVER, a), false, w)
 	var light := MapCatalog.light_mount(e)
 	if light != "" and e.has("portee"):
 		draw_arc(to_px(MapRules.footprint_rect(e).get_center()), float(e.portee) * zoom, 0, TAU, 48, Color(COL_HOVER, 0.35), 1.5)
+
+
+## Polygone rempli seulement s'il se découpe en triangles (un tracé en cours
+## aplati, un losange de taille nulle : rien, sans erreur du moteur).
+func _fill(pts: PackedVector2Array, col: Color) -> void:
+	if pts.size() >= 3 and not Geometry2D.triangulate_polygon(pts).is_empty():
+		draw_colored_polygon(pts, col)
 
 
 func _px_poly(p: PackedVector2Array) -> PackedVector2Array:
@@ -580,6 +967,18 @@ func _draw_grid() -> void:
 		var major := is_equal_approx(fmod(absf(y), 5.0), 0.0)
 		draw_line(Vector2(0, to_px(Vector2(0, y)).y), Vector2(size.x, to_px(Vector2(0, y)).y), COL_GRID5 if major else COL_GRID, 1.0)
 		y += fine
+	# Grille fine (mode « fine ») : traits légers au pas choisi, si lisibles.
+	if snap_mode == "fine" and fine_step * zoom >= 8.0 and fine_step < 0.99:
+		var fx := floorf(m0.x / fine_step) * fine_step
+		while fx <= m1.x:
+			if absf(fx - roundf(fx)) > 0.001:
+				draw_line(Vector2(to_px(Vector2(fx, 0)).x, 0), Vector2(to_px(Vector2(fx, 0)).x, size.y), Color(1, 1, 1, 0.022), 1.0)
+			fx += fine_step
+		var fy := floorf(m0.y / fine_step) * fine_step
+		while fy <= m1.y:
+			if absf(fy - roundf(fy)) > 0.001:
+				draw_line(Vector2(0, to_px(Vector2(0, fy)).y), Vector2(size.x, to_px(Vector2(0, fy)).y), Color(1, 1, 1, 0.022), 1.0)
+			fy += fine_step
 	# Axes : bord du terrain (x = 0, y = 0).
 	var o := to_px(Vector2.ZERO)
 	draw_line(Vector2(o.x, 0), Vector2(o.x, size.y), Color(0.9, 0.5, 0.3, 0.5), 1.5)
@@ -683,7 +1082,9 @@ func _draw_obliques(v: MapValidator, k: int) -> void:
 		var poly := _slab_px(w.a, w.b, float(w.half))
 		if not MapGeom.bbox(poly).intersects(view):
 			continue
-		draw_colored_polygon(poly, COL_WALL)
+		_fill(poly, COL_WALL)
+		if String(w.get("kind", "")) == "pilier":
+			continue   # pilier tourné : pavé plein, sans bouts arrondis
 		for e in [w.a, w.b]:
 			draw_circle(to_px(e), float(w.half) * zoom, COL_WALL)
 	for key in v.diag_open:
@@ -694,7 +1095,7 @@ func _draw_obliques(v: MapValidator, k: int) -> void:
 		var t: Vector2 = o.t
 		var hw := float(o.w) * 0.5
 		var poly := _slab_px(p - t * hw, p + t * hw, float(o.half) + 0.02)
-		draw_colored_polygon(poly, OPENING_COLORS.get(String(o.type), COL_OK))
+		_fill(poly, OPENING_COLORS.get(String(o.type), COL_OK))
 
 
 func _draw_object(o: Dictionary, font: Font, alpha: float) -> void:
@@ -705,9 +1106,12 @@ func _draw_object(o: Dictionary, font: Font, alpha: float) -> void:
 	# Hors de la vue : rien à dessiner (cartes de 2000 objets).
 	if not rp.grow(8.0).intersects(Rect2(Vector2.ZERO, size)):
 		return
+	if t in ["escalier", "piege"] and MapGeom.rot_of(o) != 0:
+		_draw_rot_rect(o, it, alpha)
+		return
 	match t:
-		"pilier", "mur":
-			return   # dessinés par les cases de mur
+		"pilier", "mur", "mur_courbe":
+			return   # dessinés par les cases de mur (vrais murs obliques hors de la grille)
 		"escalier":
 			draw_rect(rp, Color(0.55, 0.35, 0.65, 0.55 * alpha))
 			var d := MapGeom.dir_vec(String(o.get("monte", "n")))
@@ -733,6 +1137,24 @@ func _draw_object(o: Dictionary, font: Font, alpha: float) -> void:
 			return
 	var col: Color = it.get("color", Color.WHITE)
 	var mount := MapCatalog.light_mount(o)
+	if (t == "prefab" or (t == "luminaire" and mount != "mur")) and MapRaster.free_rot(o):
+		# Décor tourné au degré près : emprise tournée, icône, flèche du devant.
+		var poly := _px_poly(MapRaster.floor_poly(o))
+		var block := MapCatalog.blocking(o)
+		_fill(poly, Color(col.darkened(0.35), (0.55 if block != "non" else 0.3) * alpha))
+		var c := MapGeom.centroid(poly)
+		var si := maxf(12.0, minf(rp.size.x, rp.size.y) * 0.7)
+		MapIcons.draw(self, it, Rect2(c - Vector2(si, si) * 0.5, Vector2(si, si)))
+		draw_polyline(poly + PackedVector2Array([poly[0]]), Color(col.lightened(0.2), 0.9 * alpha), 1.5 if block != "non" else 1.0)
+		if zoom >= 8.0:
+			var dv := Vector2(0, 1).rotated(deg_to_rad(float(MapGeom.rot_of(o))))
+			var edge := (poly[2] + poly[3]) * 0.5
+			draw_line(edge - dv * 7.0, edge, Color(1, 1, 1, 0.8 * alpha), 2.0)
+			draw_line(edge, edge - dv.rotated(0.6) * 5.0, Color(1, 1, 1, 0.8 * alpha), 2.0)
+			draw_line(edge, edge - dv.rotated(-0.6) * 5.0, Color(1, 1, 1, 0.8 * alpha), 2.0)
+		if t == "luminaire" and o.get("id", "") == ed.selected:
+			draw_arc(c, float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
+		return
 	if t == "prefab" or (t == "luminaire" and mount != "mur"):
 		# Empreinte au sol (couleur du prefab, hachures s'il bloque), icône et
 		# flèche du devant (rotation R).
@@ -764,7 +1186,7 @@ func _draw_object(o: Dictionary, font: Font, alpha: float) -> void:
 	# Objet contre un mur en biais : emprise tournée comme le mur.
 	if MapGeom.item_oblique(o) and MapCatalog.tool_of(o) == "wall_item":
 		var poly := _px_poly(MapRules.wall_item_poly(o))
-		draw_colored_polygon(poly, Color(0, 0, 0, 0.35 * alpha))
+		_fill(poly, Color(0, 0, 0, 0.35 * alpha))
 		var c := MapGeom.centroid(poly)
 		var so := maxf(12.0, minf(rp.size.x, rp.size.y) * 0.8)
 		if t == "luminaire":
@@ -783,6 +1205,40 @@ func _draw_object(o: Dictionary, font: Font, alpha: float) -> void:
 	draw_rect(rp, Color(col, 0.8 * alpha), false, 1.0)
 	if t == "luminaire" and o.get("id", "") == ed.selected:
 		draw_arc(rp.get_center(), float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
+
+
+## Escalier ou zone de piège tournés : contour, marches et flèche de montée
+## (escalier) ou éclair (piège) dans le repère du rectangle.
+func _draw_rot_rect(o: Dictionary, it: Dictionary, alpha: float) -> void:
+	var poly := MapRaster.rect_poly(o)
+	var px := _px_poly(poly)
+	var rot := deg_to_rad(float(MapGeom.rot_of(o)))
+	var r := MapGeom.rect_of(o.rect)
+	var c := r.get_center()
+	if String(o.type) == "piege":
+		_fill(px, Color(1.0, 0.3, 0.3, 0.22 * alpha))
+		draw_polyline(px + PackedVector2Array([px[0]]), Color(1.0, 0.35, 0.3, 0.8 * alpha), 1.5)
+		var s := minf(minf(r.size.x, r.size.y) * zoom, 48.0)
+		MapIcons.draw(self, it, Rect2(to_px(c) - Vector2(s, s) * 0.5, Vector2(s, s)))
+		return
+	_fill(px, Color(0.55, 0.35, 0.65, 0.55 * alpha))
+	var d := MapGeom.dir_vec(String(o.get("monte", "n")))
+	var along := absf(d.x) > 0.5
+	var length := r.size.x if along else r.size.y
+	var n := maxi(2, int(length / 0.3))
+	var u := (Vector2(1, 0) if along else Vector2(0, 1)).rotated(rot)
+	var lat := (Vector2(0, 1) if along else Vector2(1, 0)).rotated(rot) * ((r.size.y if along else r.size.x) * 0.5)
+	for i in n + 1:
+		var q := c + u * (-length * 0.5 + length * i / n)
+		draw_line(to_px(q - lat), to_px(q + lat), Color(1, 1, 1, 0.35 * alpha), 1.0)
+	var dv := d.rotated(rot)
+	var half := length * 0.4
+	var a := to_px(c - dv * half)
+	var b := to_px(c + dv * half)
+	var dp := (b - a).normalized()
+	draw_line(a, b, Color(1, 1, 1, 0.9 * alpha), 2.0)
+	draw_line(b, b - dp.rotated(0.5) * 8.0, Color(1, 1, 1, 0.9 * alpha), 2.0)
+	draw_line(b, b - dp.rotated(-0.5) * 8.0, Color(1, 1, 1, 0.9 * alpha), 2.0)
 
 
 func _draw_opening(o: Dictionary, font: Font) -> void:
@@ -805,17 +1261,40 @@ func _label_at(font: Font, p: Vector2, lbl: String) -> void:
 	draw_string(font, p, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 
 
-## Longueur et angle du côté ou du mur en cours de tracé (« 4,24 m · 45° »),
-## avec « angle libre » quand Alt est maintenu.
+## Longueur et direction du côté ou du mur en cours de tracé (« 4,24 m · 45° » :
+## degrés depuis l'est, dans le sens trigonométrique, comme à la saisie au
+## clavier), avec « angle libre » quand Alt est maintenu.
 func _trace_label(font: Font, a: Vector2, b: Vector2) -> void:
 	var d := b - a
 	if d.length() < 0.01:
 		return
 	var fr := not Lang.is_en()
-	var lbl := "%s m · %s°" % [MapRules._m(snappedf(d.length(), 0.01), fr), MapRules._m(snappedf(MapGeom.line_angle(d), 0.1), fr)]
+	var lbl := "%s m · %s°" % [MapRules._m(snappedf(d.length(), 0.01), fr), MapRules._m(snappedf(MapGeom.dir_angle(d), 0.1), fr)]
 	if angle_free():
 		lbl += Lang.t(" (angle libre)", " (free angle)")
 	_label_at(font, to_px(b) + Vector2(12, -10), lbl)
+
+
+## Champ de saisie au clavier près du curseur : « longueur [4,5] · angle [30] ».
+func _draw_entry(font: Font) -> void:
+	if entry.is_empty():
+		return
+	var fr := not Lang.is_en()
+	var parts := PackedStringArray()
+	for i in 2:
+		var lb: Array = entry.labels[i]
+		var val := String(entry.values[i])
+		if fr:
+			val = val.replace(".", ",")
+		parts.append("%s %s" % [String(lb[0] if fr else lb[1]), ("[%s▏]" % val) if i == int(entry.i) else ("[%s]" % val)])
+	var txt := "  ·  ".join(parts) + Lang.t("   (Tab : champ suivant, Entrée : poser, Échap)", "   (Tab: next field, Enter: place, Esc)")
+	var p := to_px(mouse_m) + Vector2(16, -30)
+	var w := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+	p.x = minf(p.x, size.x - w - 12)
+	p.y = maxf(p.y, RULER + 18)
+	draw_rect(Rect2(p + Vector2(-6, -15), Vector2(w + 12, 21)), Color(0.05, 0.08, 0.12, 0.94))
+	draw_rect(Rect2(p + Vector2(-6, -15), Vector2(w + 12, 21)), COL_SEL, false, 1.0)
+	draw_string(font, p, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 0.95, 0.8))
 
 
 func _draw_tool(font: Font) -> void:
@@ -834,9 +1313,39 @@ func _draw_tool(font: Font) -> void:
 			if tool == "wall":
 				draw_line(a, b, Color(col, 0.8), maxf(3.0, zoom * 0.5))
 				_trace_label(font, drag.start, end)
+			elif tool == "room_shape":
+				# Aperçu de la forme (points réglables à la molette ou avec + / -).
+				var forme: Dictionary = res.get("obj", {}).get("forme", {})
+				var q := MapShapes.outline(forme) if not forme.is_empty() else PackedVector2Array()
+				if q.size() >= 3:
+					var pts := _px_poly(q)
+					_fill(pts, Color(col, 0.2))
+					draw_polyline(pts + PackedVector2Array([pts[0]]), col, 2.0)
+					for v in pts:
+						draw_circle(v, 2.5, col)
+				var fr := not Lang.is_en()
+				var lbl := ""
+				match String(forme.get("type", "")):
+					"cercle":
+						draw_line(a, b, Color(col, 0.6), 1.0)
+						lbl = Lang.t("rayon %s m · %d points", "radius %s m · %d points") % [MapRules._m(snappedf(float(forme.rx), 0.01), fr), int(forme.points)]
+					"ellipse":
+						lbl = Lang.t("%s × %s m · %d points", "%s × %s m · %d points") % [MapRules._m(float(forme.rx) * 2.0, fr), MapRules._m(float(forme.ry) * 2.0, fr), int(forme.points)]
+					_:
+						lbl = "%s × %s m" % [MapRules._m(float(forme.get("rx", 0.0)) * 2.0, fr), MapRules._m(float(forme.get("ry", 0.0)) * 2.0, fr)]
+				_label_at(font, b + Vector2(10, -8), lbl)
+			elif tool == "arc":
+				var o: Dictionary = res.get("obj", {})
+				var q := MapShapes.wall_arc(o)
+				var pts := _px_poly(q)
+				draw_polyline(pts, Color(col, 0.85), maxf(3.0, zoom * float(o.get("epaisseur", 0.5))))
+				draw_line(a, b, Color(col, 0.5), 1.0)
+				var fr := not Lang.is_en()
+				_label_at(font, b + Vector2(10, -8), Lang.t("rayon %s m · %s° · %d segments", "radius %s m · %s° · %d segments") % [
+					MapRules._m(snappedf(float(o.get("rayon", 0.0)), 0.01), fr), MapRules._m(float(o.get("ouverture", 0.0)), fr), int(o.get("segments", 1))])
 			elif tool == "room_rect" and ed.place_rot == 45:
 				var pts := _px_poly(rect45_poly(drag.start, end))
-				draw_colored_polygon(pts, Color(col, 0.2))
+				_fill(pts, Color(col, 0.2))
 				draw_polyline(pts + PackedVector2Array([pts[0]]), col, 2.0)
 				var q := rect45_poly(drag.start, end)
 				var lbl := "%s × %s m · 45°" % [MapRules._m(q[0].distance_to(q[1]), not Lang.is_en()), MapRules._m(q[0].distance_to(q[3]), not Lang.is_en())]
@@ -857,7 +1366,7 @@ func _draw_tool(font: Font) -> void:
 		var res := MapRules.check_room(ed.doc, ed.floor_k, test) if test.size() >= 3 else {"ok": true}
 		col = COL_OK if res.ok else COL_BAD
 		if test.size() >= 3:
-			draw_colored_polygon(pts, Color(col, 0.15))
+			_fill(pts, Color(col, 0.15))
 		draw_polyline(pts, col, 2.0)
 		for q in pts:
 			draw_circle(q, 4.0, col)
@@ -874,7 +1383,7 @@ func _draw_tool(font: Font) -> void:
 			var p := MapGeom.v2(o.position)
 			var hw := MapRules.opening_width(o) * 0.5
 			var poly := _slab_px(p - t * hw, p + t * hw, MapGeom.WALL_HALF + 0.05)
-			draw_colored_polygon(poly, Color(col, 0.55))
+			_fill(poly, Color(col, 0.55))
 			draw_polyline(poly + PackedVector2Array([poly[0]]), col, 2.0)
 		elif tool == "opening":
 			var p := to_px(MapGeom.v2(o.position))
@@ -905,3 +1414,13 @@ func _draw_tool(font: Font) -> void:
 	var sp := to_px(trace_end())
 	draw_line(sp - Vector2(6, 0), sp + Vector2(6, 0), Color(1, 1, 1, 0.5), 1.0)
 	draw_line(sp - Vector2(0, 6), sp + Vector2(0, 6), Color(1, 1, 1, 0.5), 1.0)
+	# Aimant de la carte (mode libre) : sommet (carré) ou côté (rond).
+	if mode_now() == "libre" and entry.is_empty():
+		var mg := MapSnap.magnet(ed.doc, ed.floor_k, mouse_m, magnet_radius(), _snap_exclude)
+		if not mg.is_empty():
+			var mp := to_px(mg.p)
+			if String(mg.kind) == "sommet":
+				draw_rect(Rect2(mp - Vector2(5, 5), Vector2(10, 10)), Color(0.35, 0.9, 1.0), false, 2.0)
+			else:
+				draw_arc(mp, 5.0, 0, TAU, 14, Color(0.35, 0.9, 1.0), 2.0)
+	_draw_entry(font)

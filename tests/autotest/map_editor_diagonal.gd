@@ -142,7 +142,7 @@ func run() -> void:
 	await key(KEY_S, true)
 	var dir := ed.map_dir
 	var carte = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("carte.json")))
-	at.check(carte is Dictionary and int(carte.format) == EditorMap.FORMAT and EditorMap.FORMAT == 3, "Ctrl+S : enregistrée au format 3")
+	at.check(carte is Dictionary and int(carte.format) == EditorMap.FORMAT and EditorMap.FORMAT >= 3, "Ctrl+S : enregistrée au format %d" % EditorMap.FORMAT)
 	at.check(FileAccess.get_file_as_string(dir.path_join("objets.json")).contains("\"angle\":45"), "clé angle dans objets.json")
 	var saved := ed.doc.duplicate_map()
 	ed.open_dir(dir)

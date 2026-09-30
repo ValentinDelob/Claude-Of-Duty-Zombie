@@ -43,7 +43,9 @@ const MAX_OPENINGS := 512
 const MAX_OBJECTS := 2048
 const MAX_ZONES := 64
 const MAX_FLOORS := 8
-const MAX_VERTICES := 64
+## Sommets par pièce : un cercle de 64 points (MapShapes.MAX_POINTS) et de la
+## marge pour ses retouches ; le total reste borné.
+const MAX_VERTICES := 128
 const MAX_TOTAL_VERTICES := 4096
 ## Coordonnées en mètres dans le plan de l'éditeur (x, y positifs).
 const MAX_COORD := 256.0
@@ -164,6 +166,8 @@ static func _rule_of_spec(s: Variant) -> Variant:
 			return "names"
 		"polygon":
 			return "polygon"
+		"shape":
+			return "forme"
 	return ""
 
 
@@ -708,6 +712,8 @@ static func _rule(c: Check, rule: Variant, v: Variant, what: String) -> bool:
 		"polygon":
 			c.bad("%s : liste de points inattendue" % what, "%s: unexpected point list" % what)
 			return false
+		"forme":
+			return _forme(c, v, what)
 		"bool":
 			if not v is bool:
 				c.bad("%s : vrai / faux attendu" % what, "%s: true / false expected" % what)
@@ -750,6 +756,38 @@ static func _rule(c: Check, rule: Variant, v: Variant, what: String) -> bool:
 		return true
 	c.bad("%s : valeur refusée" % what, "%s: value refused" % what)
 	return false
+
+
+## Forme de base d'une pièce (format 4, MapShapes) : {type, centre, rx, ry,
+## points (3 à 64), angle (0 à 360), bras (0,2 à 0,8)}, rien d'autre ; nombres
+## finis et bornés.
+static func _forme(c: Check, v: Variant, what: String) -> bool:
+	if not v is Dictionary:
+		c.bad("%s : forme {type, centre...} attendue" % what, "%s: shape {type, centre...} expected" % what)
+		return false
+	var allowed := {"type": 1, "centre": 1, "rx": 1, "ry": 1, "points": 1, "angle": 1, "bras": 1}
+	if not _keys(c, v, allowed, what):
+		return false
+	if not (v.get("type") is String and String(v.type) in MapShapes.TYPES):
+		c.bad("%s : type de forme inconnu" % what, "%s: unknown shape type" % what)
+		return false
+	if not (v.has("centre") and _pt(c, v.centre, what + " (centre)")):
+		if not v.has("centre"):
+			c.bad("%s : centre de la forme absent" % what, "%s: missing shape centre" % what)
+		return false
+	if not (v.has("rx") and _num(c, v.rx, 0.1, MapShapes.MAX_RADIUS, what + " (rx)")):
+		if not v.has("rx"):
+			c.bad("%s : rayon de la forme absent" % what, "%s: missing shape radius" % what)
+		return false
+	if v.has("ry") and not _num(c, v.ry, 0.1, MapShapes.MAX_RADIUS, what + " (ry)"):
+		return false
+	if v.has("points") and not _int(c, v.points, MapShapes.MIN_POINTS, MapShapes.MAX_POINTS, what + " (points)"):
+		return false
+	if v.has("angle") and not _num(c, v.angle, 0.0, 360.0, what + " (angle)"):
+		return false
+	if v.has("bras") and not _num(c, v.bras, 0.2, 0.8, what + " (bras)"):
+		return false
+	return true
 
 
 # Fichiers.
@@ -845,7 +883,13 @@ static func _check_object(c: Check, e: Dictionary, what: String) -> void:
 	if not (t is String and sc.kinds.has(t) and sc.kinds[t].file == "objets.json"):
 		c.bad("%s : type d'objet inconnu « %s »" % [what, clean_display(str(t), 24)], "%s: unknown object type \"%s\"" % [what, clean_display(str(t), 24)])
 		return
+	var before := c.reasons.size()
 	_check_element(c, e, sc.kinds[t], what)
+	if t == "mur_courbe" and c.reasons.size() == before:
+		# Mur courbe : tout l'arc dans le terrain (0 à MAX_COORD).
+		var bb := MapGeom.bbox(MapShapes.wall_arc(e))
+		if bb.position.x < -0.001 or bb.position.y < -0.001 or bb.end.x > MAX_COORD or bb.end.y > MAX_COORD:
+			c.bad("%s : mur courbe hors du terrain" % what, "%s: curved wall off the board" % what)
 
 
 static func _check_element(c: Check, e: Dictionary, kind: Dictionary, what: String) -> void:

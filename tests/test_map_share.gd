@@ -279,8 +279,37 @@ func test_guard_diagonal_walls() -> void:
 	t2["objets.json"] = String(t2["objets.json"]).replace("\"type\":\"depart\"", "\"type\":\"depart\",\"angle\":45")
 	_refused(t2, "angle sur le départ")
 	var t3 := m.file_texts()
-	t3["carte.json"] = String(t3["carte.json"]).replace("\"format\": 3", "\"format\": 4")
+	t3["carte.json"] = String(t3["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": %d" % (EditorMap.FORMAT + 1))
 	_refused(t3, "format plus récent que le jeu")
+
+
+## Carte à formes libres (format 4 : salle ronde de 32 points, annexe sans
+## grille, mur courbe, pilier tourné) partagée en multijoueur : acceptée, même
+## empreinte chez l'invité, rejouée à l'identique ; valeurs piégées refusées.
+func test_guard_free_shapes_shared() -> void:
+	CustomMapGuard.reset_schema()
+	var m: EditorMap = preload("res://tests/test_map_editor_freeform.gd").round_map()
+	var pk := CustomMapGuard.package_of(m)
+	var chk := CustomMapGuard.check_package(pk.bytes, pk.sha)
+	assert_true(chk.ok, "carte à formes libres acceptée : " + str(chk.get("reasons")))
+	if not chk.ok:
+		return
+	assert_eq(CustomMapGuard.package_of(chk.map).sha, pk.sha, "même empreinte chez l'invité")
+	assert_true(chk.map.same_as(m), "carte reçue identique")
+	# Même description en maillage chez l'hôte et chez l'invité.
+	var vh := MapRaster.build(m).v
+	vh.analyze()
+	var vg := MapRaster.build(chk.map).v
+	vg.analyze()
+	assert_eq(JSON.stringify(MapLayoutExport.build(vg), "", true), JSON.stringify(MapLayoutExport.build(vh), "", true), "géométrie identique des deux côtés")
+	var t := m.file_texts()
+	for s in [["pieces.json", "\"points\":32", "\"points\":65"], ["pieces.json", "\"type\":\"cercle\"", "\"type\":\"../x\""],
+			["objets.json", "\"rot\":30", "\"rot\":400"], ["objets.json", "\"segments\":8", "\"segments\":0"],
+			["objets.json", "\"rayon\":7", "\"rayon\":1e999"]]:
+		var tt := t.duplicate()
+		tt[s[0]] = String(tt[s[0]]).replace(s[1], s[2])
+		assert_true(String(tt[s[0]]).contains(s[2]), "remplacement %s" % s[2])
+		_refused(tt, "forme libre piégée %s" % s[2])
 
 
 func test_guard_unplayable_map() -> void:

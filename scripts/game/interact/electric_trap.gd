@@ -26,6 +26,10 @@ var cooldown_time := COOLDOWN_TIME
 var _area := AABB()
 var _area_min := Vector3.ZERO
 var _area_max := Vector3.ZERO
+## Zone tournée (cartes de l'éditeur) : `_area` est donnée avant rotation,
+## tournée de `_yaw` autour de son centre (0 : zone alignée sur les axes).
+var _yaw := 0.0
+var _center := Vector3.ZERO
 var _lamp_mat: StandardMaterial3D
 var _bolts: MeshInstance3D
 var _imesh: ImmediateMesh
@@ -47,6 +51,8 @@ func setup_marker(m: MapMarker) -> void:
 	active_time = float(m.data.get("active", ACTIVE_TIME))
 	cooldown_time = float(m.data.get("cooldown", COOLDOWN_TIME))
 	_area = m.data.area
+	_yaw = float(m.data.get("yaw", 0.0))
+	_center = _area.get_center()
 	# Rectangle au sol (y = sol de la zone).
 	_area_min = _area.position
 	_area_max = Vector3(_area.end.x, _area.position.y, _area.end.z)
@@ -101,7 +107,7 @@ func _ready() -> void:
 		l.light_energy = 0.0
 		l.top_level = true
 		add_child(l)
-		l.global_position = center + Vector3((k - 0.5) * 1.5, 1.6, 0)
+		l.global_position = _rotate(center + Vector3((k - 0.5) * 1.5, 1.6, 0))
 		_lights.append(l)
 	_hum = AudioStreamPlayer3D.new()
 	_hum.bus = "SFX"
@@ -152,7 +158,21 @@ func srv_use(pid: int) -> void:
 func contains(pos: Vector3) -> bool:
 	if not trap_cells.is_empty():
 		return trap_cells.has(MapData.world_to_cell(pos))
-	return _area.grow(0.05).has_point(pos + Vector3.UP * 0.1)
+	return _area.grow(0.05).has_point(_unrotate(pos) + Vector3.UP * 0.1)
+
+
+## Point du monde ramené dans le repère de la zone avant rotation.
+func _unrotate(pos: Vector3) -> Vector3:
+	if _yaw == 0.0:
+		return pos
+	return _center + Basis(Vector3.UP, -_yaw) * (pos - _center)
+
+
+## Point du repère de la zone (avant rotation) -> monde.
+func _rotate(p: Vector3) -> Vector3:
+	if _yaw == 0.0:
+		return p
+	return _center + Basis(Vector3.UP, _yaw) * (p - _center)
 
 
 func _process(delta: float) -> void:
@@ -233,11 +253,12 @@ func _animate(delta: float) -> void:
 			var z := lerpf(_area_min.z, _area_max.z, t)
 			a = Vector3(_area_min.x, h, z)
 			b = Vector3(_area_max.x, h + randf_range(-0.5, 0.5), z + randf_range(-0.5, 0.5))
-		var prev := a
+		var prev := _rotate(a)
 		for s in range(1, 9):
 			var p := a.lerp(b, s / 8.0)
 			if s < 8:
 				p += Vector3(randf_range(-0.15, 0.15), randf_range(-0.2, 0.2), randf_range(-0.15, 0.15))
+			p = _rotate(p)
 			_imesh.surface_add_vertex(prev)
 			_imesh.surface_add_vertex(p)
 			prev = p

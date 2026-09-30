@@ -54,6 +54,8 @@ var cursor_label: Label
 var title_label: Label
 var floor_label: Label
 var check_button: Button
+## Mode d'aimantation (clic ou G : grille 1 m, grille fine, libre).
+var snap_button: Button
 var file_menu: MenuButton
 var edit_menu: MenuButton
 var _recent_menu: PopupMenu
@@ -216,6 +218,11 @@ func _build_ui() -> void:
 	check_button.tooltip_text = Lang.t("Onglet Vérification", "Check tab")
 	check_button.pressed.connect(func(): panels.show_tab("check"))
 	bar.add_child(check_button)
+	snap_button = Button.new()
+	snap_button.tooltip_text = Lang.t("Aimantation : G pour changer (grille 1 m, grille fine, libre) ; Maj+G : pas de la grille fine ; Maj maintenu : inverse",
+		"Snapping: G to change (1 m grid, fine grid, free); Shift+G: fine grid step; hold Shift: invert")
+	snap_button.pressed.connect(func(): canvas.cycle_snap())
+	bar.add_child(snap_button)
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(sp)
@@ -338,13 +345,21 @@ func set_status(text: String, error := false) -> void:
 
 func show_cursor(m: Vector2) -> void:
 	var fr := not Lang.is_en()
-	cursor_label.text = "x %s m · y %s m · %s %d" % [MapRules._m(snappedf(m.x, 0.5), fr), MapRules._m(snappedf(m.y, 0.5), fr), Lang.t("étage", "floor"), floor_k]
+	var s := canvas.snap(m)
+	cursor_label.text = "x %s m · y %s m · %s %d" % [MapRules._m(snappedf(s.x, 0.01), fr), MapRules._m(snappedf(s.y, 0.01), fr), Lang.t("étage", "floor"), floor_k]
+
+
+## Mode d'aimantation changé (MapCanvas) : bouton de la barre du haut.
+func snap_changed() -> void:
+	if snap_button != null and canvas != null:
+		snap_button.text = Lang.t("Aimantation : %s", "Snapping: %s") % MapSnap.label(canvas.snap_mode, canvas.fine_step)
 
 
 func _update_title() -> void:
 	var where := Lang.t("exemple (copie à l'enregistrement)", "example (copied when saved)") if example else (map_dir if map_dir != "" else Lang.t("non enregistrée", "not saved"))
 	title_label.text = "%s%s  —  %s" % [doc.display_name(), " *" if dirty else "", where]
 	floor_label.text = Lang.t("Étage %d / %d", "Floor %d / %d") % [floor_k, doc.floor_count() - 1]
+	snap_changed()
 	if validation_stale or validator == null:
 		check_button.text = Lang.t("Vérification : à faire", "Check: pending")
 		check_button.add_theme_color_override("font_color", UiStyle.DIM)
@@ -357,8 +372,8 @@ func _update_title() -> void:
 
 func _show_help() -> void:
 	_info(Lang.t("Raccourcis", "Shortcuts"), Lang.t(
-		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser : pièces, murs, piliers, escaliers, pièges\nMaj : aimantation à 0,5 m (sinon 1 m)\nMurs et côtés de polygone : à 0, 45 ou 90° ; Alt : angle libre (longueur et angle affichés)\nPièce rectangle en main : R la tourne de 45°\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone",
-		"Left click: place / pick · right click: cancel\nDrag: rooms, walls, pillars, stairs, traps\nShift: snap to 0.5 m (otherwise 1 m)\nWalls and polygon sides: at 0, 45 or 90°; Alt: free angle (length and angle shown)\nRectangle room held: R turns it 45°\nCtrl + wheel: zoom · middle click or Space + drag: pan\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon"))
+		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone",
+		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon"))
 
 
 func _info(title_text: String, text: String) -> void:
@@ -435,6 +450,10 @@ func _input(event: InputEvent) -> void:
 		if k.keycode == KEY_ESCAPE:
 			get_viewport().gui_release_focus()
 			get_viewport().set_input_as_handled()
+		return
+	# Aimantation (G), saisie au clavier du tracé, points d'une forme (+ / -).
+	if canvas.handle_key(k):
+		get_viewport().set_input_as_handled()
 		return
 	var handled := true
 	var pk := k.physical_keycode
@@ -708,8 +727,8 @@ func add_object(o: Dictionary, k: int) -> Dictionary:
 			e.erase("largeur")
 		doc.ouvertures.append(e)
 	else:
-		var prefix: String = {"atout": "a", "arme": "w", "boite": "b", "depart": "s", "escalier": "e", "pilier": "x", "mur": "m", "piege": "t", "levier": "l",
-			"prefab": "d", "luminaire": "lu"}.get(String(e.get("type", "")), "x")
+		var prefix: String = {"atout": "a", "arme": "w", "boite": "b", "depart": "s", "escalier": "e", "pilier": "x", "mur": "m", "mur_courbe": "m",
+			"piege": "t", "levier": "l", "prefab": "d", "luminaire": "lu"}.get(String(e.get("type", "")), "x")
 		e["id"] = doc.new_id(prefix)
 		# Un seul départ de la boîte.
 		if String(e.type) == "boite" and e.get("depart", false):
@@ -732,21 +751,7 @@ func _label(e: Dictionary) -> String:
 
 ## Éléments rattachés à une pièce (qui bougent et pivotent avec elle).
 func attached_to(e: Dictionary) -> Array:
-	var out := []
-	if not e.has("contour"):
-		return out
-	var poly := doc.room_poly(e)
-	var k := int(e.get("etage", 0))
-	for o in doc.objects_on(k):
-		var c := MapRules.footprint_rect(o).get_center()
-		if String(o.type) == "mur":
-			c = (MapGeom.v2(o.a) + MapGeom.v2(o.b)) * 0.5
-		if MapGeom.contains(poly, c):
-			out.append(String(o.id))
-	for o in doc.openings_on(k):
-		if MapGeom.on_boundary(poly, MapGeom.v2(o.position), 0.01):
-			out.append(String(o.id))
-	return out
+	return MapTransform.attached(doc, e)
 
 
 ## Élément sous le point `m` de l'étage courant (ouvertures et objets avant les pièces).
@@ -826,7 +831,9 @@ static func _shift(o: Dictionary, delta: Vector2) -> Dictionary:
 		for p in e.contour:
 			pts.append(MapGeom.arr(MapGeom.v2(p) + delta))
 		e.contour = pts
-	for key in ["position", "a", "b"]:
+		if e.has("forme") and MapShapes.valid(e.forme):
+			e.forme = MapShapes.shifted(e.forme, delta)
+	for key in ["position", "a", "b", "centre"]:
 		if e.has(key):
 			e[key] = MapGeom.arr(MapGeom.v2(e[key]) + delta)
 	if e.has("rect"):
@@ -857,13 +864,15 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 					cand.position = res.position
 					MapRules.apply_wall(cand, res)
 			"floor_item":
-				res = MapRules.place_floor_item(doc, k, orig, MapGeom.v2(cand.position), String(orig.id))
+				res = MapRules.place_floor_item(doc, k, orig, MapGeom.v2(cand.position), String(orig.id), canvas.mode_now() != "libre")
 				if res.ok:
 					cand.position = res.position
 			"rect":
-				res = MapRules.check_rect(doc, k, t, MapGeom.rect_of(cand.rect), String(orig.id))
+				res = MapRules.check_rect(doc, k, t, MapGeom.rect_of(cand.rect), String(orig.id), MapGeom.rot_of(cand))
 			"wall":
 				res = MapRules.check_wall(MapGeom.v2(cand.a), MapGeom.v2(cand.b))
+			"arc":
+				res = MapRules.check_arc(cand)
 	if not res.ok:
 		return res
 	doc.restore(snap0)
@@ -884,7 +893,7 @@ func try_handle(orig: Dictionary, h: int, p: Vector2, snap0: Dictionary) -> Dict
 	if orig.has("contour"):
 		var poly := doc.room_poly(orig)
 		var np := PackedVector2Array()
-		if MapGeom.is_axis_rect(poly):
+		if MapGeom.is_axis_rect(poly) and not orig.has("forme"):
 			var r := MapGeom.bbox(poly)
 			var x0 := r.position.x
 			var y0 := r.position.y
@@ -904,7 +913,20 @@ func try_handle(orig: Dictionary, h: int, p: Vector2, snap0: Dictionary) -> Dict
 			np = poly.duplicate()
 			np[h] = p
 		cand.contour = MapGeom.poly_arr(np)
+		# Sommet déplacé à la main : la forme de base d'origine ne se régénère plus.
+		cand.erase("forme")
 		res = MapRules.check_room(doc, k, np, String(orig.id))
+	elif orig.has("rect") and MapGeom.rot_of(orig) != 0:
+		# Rectangle tourné : le coin opposé reste en place, dans le repère du rectangle.
+		var rot := float(MapGeom.rot_of(orig))
+		var corners := MapRaster.rect_poly(orig)
+		var opp: Vector2 = corners[(h + 2) % 4]
+		var local := (p - opp).rotated(-deg_to_rad(rot))
+		var sz := local.abs()
+		var c := opp + (local * 0.5).rotated(deg_to_rad(rot))
+		var nr := Rect2(c - sz * 0.5, sz)
+		cand.rect = MapGeom.rect_arr(nr)
+		res = MapRules.check_rect(doc, k, String(orig.type), nr, String(orig.id), int(rot))
 	elif orig.has("rect"):
 		var r := MapGeom.rect_of(orig.rect)
 		var corners := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
@@ -923,38 +945,15 @@ func try_handle(orig: Dictionary, h: int, p: Vector2, snap0: Dictionary) -> Dict
 	return res
 
 
+## Élément tourné de 90° (sens horaire) autour de `c` (MapTransform.rotated).
 static func _rot(o: Dictionary, c: Vector2) -> Dictionary:
-	var e := o.duplicate(true)
-	if e.has("contour"):
-		var pts := []
-		for p in e.contour:
-			pts.append(MapGeom.arr(MapGeom.rot90(MapGeom.v2(p), c)))
-		e.contour = pts
-	for key in ["position", "a", "b"]:
-		if e.has(key):
-			e[key] = MapGeom.arr(MapGeom.rot90(MapGeom.v2(e[key]), c))
-	if e.has("rect"):
-		var r := MapGeom.rect_of(e.rect)
-		e.rect = MapGeom.rect_arr(Rect2(MapGeom.rot90(r.position, c), Vector2.ZERO).expand(MapGeom.rot90(r.end, c)))
-	for key in ["mur", "monte"]:
-		if e.has(key):
-			e[key] = MapGeom.dir_rot(String(e[key]))
-	if e.has("rot"):
-		e["rot"] = posmod(int(e.rot) + 90, 360)
-	if e.has("angle"):
-		# Objet contre un mur en biais : il tourne avec la pièce.
-		e["angle"] = snappedf(fposmod(float(e.angle) + 90.0, 360.0), 0.01)
-	return e
+	return MapTransform.rotated(o, c, 90.0)
 
 
 ## Emprise d'un objet au sol pivoté : sa position est ré-aimantée pour que ses
 ## cases tombent sur la grille (un prefab 3 × 2 devient 2 × 3).
 func _resnap(o: Dictionary) -> void:
-	if MapCatalog.tool_of(o) != "floor_item" or not o.has("position"):
-		return
-	var n := MapCatalog.floor_size(o)
-	var p := MapGeom.v2(o.position)
-	o["position"] = MapGeom.arr(Vector2(MapGeom.snap_along(p.x, n.x), MapGeom.snap_along(p.y, n.y)))
+	MapTransform.resnap(o)
 
 
 ## R : pivote de 90° l'objet tenu (prefab, luminaire : avant de le poser),
@@ -979,21 +978,15 @@ func rotate_selected() -> void:
 	if e.is_empty():
 		set_status(Lang.t("Choisissez d'abord un élément (outil Sélection)", "Pick an element first (Select tool)"))
 		return
-	var t := String(e.get("type", ""))
-	if not (e.has("contour") or e.has("rect") or t == "mur" or MapCatalog.rotates(e)):
+	if not MapTransform.can_rotate(e):
 		set_status(Lang.t("Cet élément suit son mur : déplacez-le plutôt", "This element follows its wall: move it instead"))
 		return
 	var before := doc.snapshot()
-	var c := Vector2.ZERO
-	if e.has("contour"):
+	var c := MapTransform.pivot(doc, e)
+	if e.has("contour") and not e.has("forme"):
 		c = MapGeom.bbox(doc.room_poly(e)).get_center()
-	elif e.has("rect"):
-		c = MapGeom.rect_of(e.rect).get_center()
-	elif e.has("position"):
-		c = MapGeom.v2(e.position)
-	else:
-		c = (MapGeom.v2(e.a) + MapGeom.v2(e.b)) * 0.5
-	if not e.has("position"):
+	# Sur la grille, un quart de tour garde les sommets sur la grille.
+	if not e.has("position") and canvas.mode_now() != "libre" and not (e.has("forme") or String(e.get("type", "")) == "mur_courbe"):
 		c = Vector2(snappedf(c.x, 0.5), snappedf(c.y, 0.5))
 	var attached := attached_to(e)
 	var re := _rot(e, c)
@@ -1034,7 +1027,7 @@ func paste() -> void:
 	elif e.has("position"):
 		c = MapGeom.v2(e.position)
 	var target := canvas.snap(canvas.mouse_m)
-	var delta := target - Vector2(snappedf(c.x, 0.5), snappedf(c.y, 0.5))
+	var delta := target - (c if canvas.mode_now() == "libre" else Vector2(snappedf(c.x, 0.5), snappedf(c.y, 0.5)))
 	e = _shift(e, delta)
 	e.erase("id")
 	e["etage"] = floor_k
@@ -1055,11 +1048,15 @@ func paste() -> void:
 					e.position = res.position
 					MapRules.apply_wall(e, res)
 			"floor_item":
-				res = MapRules.place_floor_item(doc, floor_k, e, target)
+				res = MapRules.place_floor_item(doc, floor_k, e, target, "", canvas.mode_now() != "libre")
 				if res.ok:
 					e.position = res.position
 			"rect":
-				res = MapRules.check_rect(doc, floor_k, t, MapGeom.rect_of(e.rect))
+				res = MapRules.check_rect(doc, floor_k, t, MapGeom.rect_of(e.rect), "", MapGeom.rot_of(e))
+			"wall":
+				res = MapRules.check_wall(MapGeom.v2(e.a), MapGeom.v2(e.b))
+			"arc":
+				res = MapRules.check_arc(e)
 	if not res.ok:
 		canvas.show_refusal(res)
 		return

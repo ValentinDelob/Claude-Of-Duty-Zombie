@@ -22,8 +22,14 @@ extends RefCounted
 ##      degrés dans le sens horaire depuis le nord ; « mur » garde la
 ##      direction cardinale la plus proche). Les côtés en biais, les murs libres
 ##      en biais et les ouvertures posées dessus n'ont pas de clé nouvelle
-##      (coordonnées en mètres, comme avant). Formats 1 et 2 lus tels quels.
-const FORMAT := 3
+##      (coordonnées en mètres, comme avant). Formats 1 et 2 lus tels quels ;
+##   4  formes libres : coordonnées sans grille (au centimètre), formes de base
+##      (clé « forme » d'une pièce : cercle, ellipse, triangle, L, avec leurs
+##      paramètres pour les régénérer ; MapShapes), mur courbe (type
+##      « mur_courbe »), rotation au degré près (« rot » entier de 0 à 359 du
+##      décor, des luminaires, des piliers, escaliers et pièges). Toutes les
+##      nouvelles clés sont facultatives : formats 1 à 3 lus tels quels.
+const FORMAT := 4
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -275,6 +281,10 @@ func _migrate(from: int) -> void:
 		# Format 2 -> 3 : rien à convertir (« angle » facultatif : sans lui, un
 		# objet mural suit « mur » comme avant).
 		pass
+	if from < 4:
+		# Format 3 -> 4 : rien à convertir (« forme », « rot » des rectangles et
+		# murs courbes facultatifs ; « rot » du décor : 0, 90, 180 ou 270 comme avant).
+		pass
 
 
 ## Version du format lue dans carte.json (FORMAT pour une carte neuve).
@@ -287,9 +297,18 @@ func _normalize() -> void:
 		for e in list:
 			e["id"] = String(e.get("id", ""))
 			e["etage"] = int(e.get("etage", 0))
+	for p in pieces:
+		# Forme de base illisible (fichier écrit à la main) : la pièce reste un polygone.
+		if p.has("forme") and not MapShapes.valid(p.forme):
+			p.erase("forme")
+		elif p.has("forme") and p.forme.has("points"):
+			p.forme["points"] = clampi(int(p.forme.points), MapShapes.MIN_POINTS, MapShapes.MAX_POINTS)
 	for o in objets:
 		if o.has("rot"):
-			o["rot"] = posmod(int(o.rot), 360)
+			var rv = o.rot
+			o["rot"] = posmod(roundi(float(rv)), 360) if (rv is float or rv is int) and is_finite(float(rv)) else 0
+		if String(o.get("type", "")) == "mur_courbe" and o.has("segments"):
+			o["segments"] = clampi(int(o.segments), MapShapes.MIN_SEGMENTS, MapShapes.MAX_SEGMENTS)
 		if o.has("angle"):
 			var ang := float(o.angle) if (o.angle is float or o.angle is int) else NAN
 			if is_finite(ang):

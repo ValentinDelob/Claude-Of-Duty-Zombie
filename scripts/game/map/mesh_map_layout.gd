@@ -13,7 +13,7 @@ extends MapLayout
 ##   wall_buys [{id, p, wall, weapon}], perks [{id, p, wall, perk}],
 ##   grenade_buys [{id, p, wall}], power {p, wall}, box [{p, wall}], pap {p, wall},
 ##   teleporter {pad, exit, mainframe {p, wall}, exit_zone},
-##   traps [{id, lever {p, wall}, area [x0,y0,z0,x1,y1,z1]}],
+##   traps [{id, lever {p, wall}, area [x0,y0,z0,x1,y1,z1], yaw? (zone tournée autour de son centre)}],
 ##   windows [{p (au sol, dans l'ouverture), in (vers l'intérieur), h, zone, spawns [[x,y,z]]}],
 ##   lamps [{p, range, energy}]
 ## Zones (clé « zones ») : {id: {boxes: [[x0,y0,z0,x1,y1,z1]...]}}, testées dans l'ordre.
@@ -234,6 +234,10 @@ func traps() -> Array[MapMarker]:
 	for t in _markers.get("traps", []):
 		var mk := _wall_marker(String(t.id), t.lever)
 		mk.data = {"area": box(t.area), "cells": [], "fire": bool(t.get("fire", false))}
+		if t.has("yaw"):
+			# Zone tournée (éditeur de cartes) : `area` avant rotation, tournée de
+			# `yaw` autour de son centre.
+			mk.data["yaw"] = float(t.yaw)
 		for k in ["active", "cooldown"]:
 			if t.has(k):
 				mk.data[k] = float(t[k])

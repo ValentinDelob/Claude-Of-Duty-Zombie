@@ -183,6 +183,26 @@ static func _build() -> void:
 	_add({"id": "mur", "cat": "construction", "fr": "Mur", "en": "Wall", "tool": "wall", "color": Color(0.35, 0.35, 0.38),
 		"make": {"type": "mur", "epaisseur": 0.5}, "hint_fr": "Glisser d'un bout à l'autre (0, 45 ou 90° ; Alt : angle libre)",
 		"hint_en": "Drag from one end to the other (0, 45 or 90°; Alt: free angle)"})
+	# Formes de base (MapShapes) : la pièce posée reste un polygone éditable.
+	_add({"id": "piece_cercle", "cat": "construction", "fr": "Cercle / polygone régulier", "en": "Circle / regular polygon", "tool": "room_shape",
+		"color": Color(0.6, 0.8, 0.95), "make": {"forme": "cercle"},
+		"hint_fr": "Glisser du centre vers le bord ; molette ou + / - : nombre de points (3 à 64) ; clavier : rayon, Tab, points, Entrée",
+		"hint_en": "Drag from the centre to the edge; wheel or + / -: number of points (3 to 64); keyboard: radius, Tab, points, Enter"})
+	_add({"id": "piece_ellipse", "cat": "construction", "fr": "Ellipse", "en": "Ellipse", "tool": "room_shape",
+		"color": Color(0.55, 0.85, 0.95), "make": {"forme": "ellipse"},
+		"hint_fr": "Glisser d'un coin à l'autre ; molette ou + / - : nombre de points", "hint_en": "Drag from corner to corner; wheel or + / -: number of points"})
+	_add({"id": "piece_triangle", "cat": "construction", "fr": "Pièce triangle", "en": "Triangle room", "tool": "room_shape",
+		"color": Color(0.6, 0.9, 0.7), "make": {"forme": "triangle"},
+		"hint_fr": "Glisser d'un coin à l'autre (pointe en haut ; glissé vers le haut : pointe en bas)",
+		"hint_en": "Drag from corner to corner (tip at the top; dragged upwards: tip at the bottom)"})
+	_add({"id": "piece_l", "cat": "construction", "fr": "Pièce en L", "en": "L-shaped room", "tool": "room_shape",
+		"color": Color(0.7, 0.8, 0.95), "make": {"forme": "l"},
+		"hint_fr": "Glisser d'un coin à l'autre ; épaisseur des branches dans les propriétés",
+		"hint_en": "Drag from corner to corner; arm thickness in the properties"})
+	_add({"id": "mur_courbe", "cat": "construction", "fr": "Mur courbe", "en": "Curved wall", "tool": "arc", "color": Color(0.42, 0.42, 0.46),
+		"make": {"type": "mur_courbe", "epaisseur": 0.5},
+		"hint_fr": "Glisser du centre vers le premier bout (arc de 90° dans le sens horaire) ; molette ou + / - : segments ; clavier : rayon, Tab, ouverture",
+		"hint_en": "Drag from the centre to the first end (90° clockwise arc); wheel or + / -: segments; keyboard: radius, Tab, opening"})
 	_add({"id": "pilier", "cat": "construction", "fr": "Pilier / obstacle", "en": "Pillar / obstacle", "tool": "rect",
 		"color": Color(0.45, 0.42, 0.4), "make": {"type": "pilier"}, "hint_fr": "Glisser un rectangle dans une pièce", "hint_en": "Drag a rectangle inside a room"})
 	_add({"id": "escalier", "cat": "construction", "fr": "Escalier", "en": "Stairs", "tool": "rect",
@@ -295,7 +315,7 @@ static func item_for(o: Dictionary) -> Dictionary:
 			return item("arme:" + String(o.get("arme", "")))
 		"boite":
 			return item("boite_depart" if o.get("depart", false) else "boite")
-		"porte", "debris", "porte_courant", "passage", "fenetre", "mur", "pilier", "escalier", "piege", "levier", "grenades", "pap", \
+		"porte", "debris", "porte_courant", "passage", "fenetre", "mur", "mur_courbe", "pilier", "escalier", "piege", "levier", "grenades", "pap", \
 				"courant", "teleporteur", "arrivee", "poste_central", "depart", "apparition", "lampe", "caisse", "baril":
 			return item(t)
 	return {}
@@ -309,13 +329,14 @@ static func footprint(o: Dictionary) -> Vector2i:
 
 
 ## Taille au sol en cases (x, y) d'un objet au sol, rotation comprise
-## (prefab 3 × 2 pivoté de 90° : 2 × 3). Objets historiques : carré fp × fp.
+## (prefab 3 × 2 pivoté de 90° : 2 × 3 ; tourné au degré près : le plus proche
+## des deux). Objets historiques : carré fp × fp.
 static func floor_size(o: Dictionary) -> Vector2i:
 	var it := item_for(o)
 	var fp: Array = it.get("fp", [1, 1])
 	if not it.get("rotates", false):
 		return Vector2i(int(fp[0]), int(fp[0]))
-	var r := posmod(int(o.get("rot", 0)), 360)
+	var r := posmod(roundi(float(o.get("rot", 0)) / 90.0) * 90, 360)
 	return Vector2i(int(fp[1]), int(fp[0])) if r == 90 or r == 270 else Vector2i(int(fp[0]), int(fp[1]))
 
 
@@ -420,10 +441,13 @@ static func allowed_kinds() -> Dictionary:
 	# Format 3 : objet mural contre un mur en biais (degrés, sens horaire depuis
 	# le nord ; nombre fini, 0 à 360).
 	var angle := {"t": "number", "min": 0.0, "max": 360.0}
-	var rot := {"t": "enum", "values": [0, 90, 180, 270]}
+	# Format 4 : rotation au degré près (degrés entiers, sens horaire vu de
+	# dessus) du décor, des luminaires, des piliers, escaliers et pièges.
+	var rot := {"t": "int", "min": 0, "max": 359}
 	var point := {"t": "point"}
 	var price := {"t": "int", "min": 0, "max": 100000}
 	var width := {"t": "number", "min": 0.5, "max": 20.0}
+	var thick := {"t": "enum", "values": [0.5, 1.5, 2.5]}
 	var out := {}
 	var add := func(file: String, type: String, keys: Dictionary, req: Array) -> void:
 		var k := {"id": {"t": "id"}, "type": {"t": "enum", "values": [type]}, "etage": {"t": "int", "min": 0, "max": MAX_FLOORS - 1}}
@@ -435,9 +459,14 @@ static func allowed_kinds() -> Dictionary:
 		add.call("ouvertures.json", t, {"position": point, "largeur": width}, ["position"])
 	add.call("ouvertures.json", "fenetre", {"position": point, "largeur": {"t": "number", "min": 1.0, "max": 1.0}}, ["position"])
 	for t in ["pilier", "piege"]:
-		add.call("objets.json", t, {"rect": {"t": "rect"}}, ["rect"])
-	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs}, ["rect"])
-	add.call("objets.json", "mur", {"a": point, "b": point, "epaisseur": {"t": "enum", "values": [0.5, 1.5, 2.5]}}, ["a", "b"])
+		add.call("objets.json", t, {"rect": {"t": "rect"}, "rot": rot}, ["rect"])
+	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs, "rot": rot}, ["rect"])
+	add.call("objets.json", "mur", {"a": point, "b": point, "epaisseur": thick}, ["a", "b"])
+	# Format 4 : mur courbe (arc de cercle en segments, MapShapes).
+	add.call("objets.json", "mur_courbe", {"centre": point, "rayon": {"t": "number", "min": 1.0, "max": MapShapes.MAX_RADIUS},
+		"debut": angle, "ouverture": {"t": "number", "min": 5.0, "max": 360.0},
+		"segments": {"t": "int", "min": MapShapes.MIN_SEGMENTS, "max": MapShapes.MAX_SEGMENTS}, "epaisseur": thick},
+		["centre", "rayon", "ouverture", "segments"])
 	add.call("objets.json", "atout", {"atout": {"t": "enum", "values": PerkDB.PERKS.keys()}, "position": point, "mur": dirs, "angle": angle}, ["atout", "position"])
 	var arms := []
 	for it in in_category("armes"):
@@ -465,12 +494,14 @@ static func allowed_surfaces() -> Array:
 
 ## Clés admises d'une pièce (pieces.json), même format que allowed_kinds() ;
 ## en plus : {"t": "text", "max"} texte libre, {"t": "polygon", "min", "max"}
-## liste de points.
+## liste de points, {"t": "shape"} forme de base (MapShapes).
 static func room_keys() -> Dictionary:
 	var surf := {"t": "enum", "values": allowed_surfaces()}
+	# Format 4 : « forme » = forme de base d'origine (MapShapes) : {"t": "shape"}
+	# (type parmi MapShapes.TYPES, centre, rayons, points 3 à 64, angle, bras).
 	return {"id": {"t": "id"}, "nom": {"t": "text", "max": 64}, "etage": {"t": "int", "min": 0, "max": MAX_FLOORS - 1},
-		"zone": {"t": "id"}, "contour": {"t": "polygon", "min": 3, "max": 64}, "plafond": {"t": "number", "min": 2.0, "max": 20.0},
-		"double_hauteur": {"t": "bool"}, "surface_sol": surf, "surface_murs": surf, "surface_plafond": surf}
+		"zone": {"t": "id"}, "contour": {"t": "polygon", "min": 3, "max": CustomMapGuard.MAX_VERTICES}, "plafond": {"t": "number", "min": 2.0, "max": 20.0},
+		"double_hauteur": {"t": "bool"}, "surface_sol": surf, "surface_murs": surf, "surface_plafond": surf, "forme": {"t": "shape"}}
 
 
 ## Clés admises d'une zone (zones.json) ; {"t": "names", "max"} : {fr, en}.

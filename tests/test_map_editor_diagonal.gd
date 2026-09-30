@@ -359,7 +359,7 @@ func test_save_reload_format_3() -> void:
 	var dir := ProjectSettings.globalize_path(TMP + "/biais")
 	assert_eq(doc.save_dir(dir), OK)
 	var t := doc.file_texts()
-	assert_true(String(t["carte.json"]).contains("\"format\": 3"), "format 3")
+	assert_true(String(t["carte.json"]).contains("\"format\": %d" % EditorMap.FORMAT), "format courant (%d)" % EditorMap.FORMAT)
 	assert_true(String(t["objets.json"]).contains("\"angle\":45"), "clé angle des objets muraux en biais")
 	assert_false(String(t["objets.json"]).contains("\"angle\":0"), "pas d'angle sur un mur droit")
 	var back := EditorMap.load_dir(dir)
@@ -380,14 +380,14 @@ func test_previous_formats_are_read() -> void:
 	# Format 2 écrit à la main : pièce polygone avec un côté en biais, sans angle.
 	var doc := diag_map()
 	var texts := doc.file_texts()
-	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": 3", "\"format\": 2")
+	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 2")
 	var m := EditorMap.from_texts(texts)
 	assert_true(m.load_errors.is_empty() and m.format_read == 2, "format 2 lu tel quel")
 	assert_true(_check(m).ok(), "carte du format 2 jouable")
-	assert_true(m.file_texts()["carte.json"].contains("\"format\": 3"), "réenregistrée au format 3")
+	assert_true(m.file_texts()["carte.json"].contains("\"format\": %d" % EditorMap.FORMAT), "réenregistrée au format courant")
 	# Format plus récent que le jeu : signalé.
-	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": 2", "\"format\": 4")
-	assert_false(EditorMap.from_texts(texts).load_errors.is_empty(), "format 4 signalé")
+	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": 2", "\"format\": %d" % (EditorMap.FORMAT + 1))
+	assert_false(EditorMap.from_texts(texts).load_errors.is_empty(), "format plus récent signalé")
 	# DRAFT ARENA (format 1, murs droits) : aucune case en biais, rien d'oblique.
 	var draft := EditorMap.load_dir("res://assets/maps/draft_arena/")
 	assert_eq(draft.format_read, 1)

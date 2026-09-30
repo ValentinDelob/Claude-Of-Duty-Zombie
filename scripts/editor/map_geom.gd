@@ -13,6 +13,10 @@ extends RefCounted
 
 const CELL := 0.5
 const EPS := 0.001
+## Tolérance de contact (m) entre deux pièces tracées sans grille : deux côtés
+## parallèles à moins de 3 cm l'un de l'autre sont un bord commun (un seul mur
+## mitoyen), une bande de recouvrement plus mince n'est pas un chevauchement.
+const JOIN_TOL := 0.03
 ## Monde du jeu = éditeur + WORLD_OFFSET (x, z) : la case i de la grille a
 ## son centre en x = 4 + 0,5·i + 0,25 dans le jeu (MapValidator.ORIGIN).
 const WORLD_OFFSET := 4.25
@@ -133,21 +137,32 @@ static func is_simple(p: PackedVector2Array) -> bool:
 	return true
 
 
+## Périmètre d'un contour (m).
+static func perimeter(p: PackedVector2Array) -> float:
+	var s := 0.0
+	for i in p.size():
+		s += p[i].distance_to(p[(i + 1) % p.size()])
+	return s
+
+
 ## Les intérieurs de deux contours se recouvrent-ils (plus que se toucher) ?
+## Une bande de recouvrement plus mince que JOIN_TOL (deux pièces collées sans
+## grille, sommets arrondis au centimètre) n'est pas un chevauchement.
 static func overlap(a: PackedVector2Array, b: PackedVector2Array) -> bool:
 	if not bbox(a).grow(-EPS).intersects(bbox(b).grow(-EPS)):
 		return false
 	for part in Geometry2D.intersect_polygons(a, b):
-		if area(part) > 0.01:
+		var s := area(part)
+		if s > 0.01 and 2.0 * s / maxf(perimeter(part), EPS) > JOIN_TOL * 0.5:
 			return true
 	return false
 
 
 ## Segments communs (colinéaires, qui se recouvrent) des contours de deux
-## pièces : [[a, b], ...].
+## pièces : [[a, b], ...]. Tolérance JOIN_TOL (pièces collées sans grille).
 static func common_segments(pa: PackedVector2Array, pb: PackedVector2Array) -> Array:
 	var out := []
-	if not bbox(pa).grow(0.01).intersects(bbox(pb).grow(0.01)):
+	if not bbox(pa).grow(JOIN_TOL + 0.01).intersects(bbox(pb).grow(JOIN_TOL + 0.01)):
 		return out
 	for i in pa.size():
 		out.append_array(edge_common(pa[i], pa[(i + 1) % pa.size()], pb))
@@ -155,6 +170,8 @@ static func common_segments(pa: PackedVector2Array, pb: PackedVector2Array) -> A
 
 
 ## Parties du segment [a1, a2] qui longent le contour `pb` : [[a, b], ...].
+## Deux côtés sont colinéaires si les bouts de l'un sont à moins de JOIN_TOL de
+## la droite de l'autre (exact sur la grille, tolérant sans grille).
 static func edge_common(a1: Vector2, a2: Vector2, pb: PackedVector2Array) -> Array:
 	var out := []
 	var d := (a2 - a1)
@@ -167,7 +184,11 @@ static func edge_common(a1: Vector2, a2: Vector2, pb: PackedVector2Array) -> Arr
 		var b1 := pb[j]
 		var b2 := pb[(j + 1) % pb.size()]
 		# Colinéaires : b1 et b2 sur la droite de (a1, a2).
-		if absf((b1 - a1).dot(n)) > EPS or absf((b2 - a1).dot(n)) > EPS:
+		if absf((b1 - a1).dot(n)) > JOIN_TOL or absf((b2 - a1).dot(n)) > JOIN_TOL:
+			continue
+		# Parallèles (moins de 1° d'écart) : un côté court presque sur la droite
+		# n'est pas pour autant colinéaire.
+		if b1.distance_to(b2) > EPS and absf((b2 - b1).normalized().dot(n)) > 0.0175:
 			continue
 		var t1 := (b1 - a1).dot(d)
 		var t2 := (b2 - a1).dot(d)
@@ -309,6 +330,108 @@ static func has_oblique(p: PackedVector2Array) -> bool:
 	return false
 
 
+## Coordonnée sur la grille de 0,5 m (centres des cases) ?
+static func on_grid(v: float) -> bool:
+	return absf(v - roundf(v / CELL) * CELL) < EPS
+
+
+static func point_on_grid(p: Vector2) -> bool:
+	return on_grid(p.x) and on_grid(p.y)
+
+
+## Côté construit en blocs de la grille : droit ET ses deux bouts sur la grille
+## de 0,5 m (le mur de 0,5 m est alors centré exactement sur le trait). Tout
+## autre côté (en biais, ou tracé sans grille) est un vrai mur oblique.
+static func is_grid_seg(a: Vector2, b: Vector2) -> bool:
+	return is_axis_seg(a, b) and point_on_grid(a) and point_on_grid(b)
+
+
+## Rectangle [x0, y0, x1, y1] sur la grille de 0,5 m ?
+static func rect_on_grid(r: Rect2) -> bool:
+	return point_on_grid(r.position) and point_on_grid(r.end)
+
+
+# ------------------------------------------------------------------ rotations libres
+
+## Tourne `p` de `deg` degrés autour de `c`, dans le sens horaire vu de dessus
+## (repère de l'éditeur : y vers le bas ; 90° : le nord devient l'est).
+static func rotate_about(p: Vector2, c: Vector2, deg: float) -> Vector2:
+	return c + (p - c).rotated(deg_to_rad(deg))
+
+
+## Rectangle de centre `c`, de taille `size` (m), tourné de `deg` degrés (sens
+## horaire) : 4 sommets.
+static func rot_rect_poly(c: Vector2, size: Vector2, deg: float) -> PackedVector2Array:
+	var h := size * 0.5
+	var out := PackedVector2Array()
+	for q in [Vector2(-h.x, -h.y), Vector2(h.x, -h.y), Vector2(h.x, h.y), Vector2(-h.x, h.y)]:
+		out.append(c + (q as Vector2).rotated(deg_to_rad(deg)))
+	return out
+
+
+## Angle (degrés) ramené à [0, 360[ et arrondi au degré.
+static func norm_deg(deg: float) -> int:
+	return posmod(roundi(deg), 360)
+
+
+## Rotation « rot » d'un objet (degrés, sens horaire vu de dessus) : 0 si absente.
+static func rot_of(o: Dictionary) -> int:
+	return posmod(int(o.get("rot", 0)), 360)
+
+
+## Cases dont le centre est strictement dans le contour (au moins la plus
+## proche de son centre) : emprises tournées (escaliers, pièges, décor).
+static func poly_cells(p: PackedVector2Array, at_least_one := true) -> Array:
+	var out := []
+	var bb := bbox(p)
+	var mid := centroid(p)
+	var best := cell_of(mid)
+	for j in range(floori(bb.position.y / CELL) - 1, ceili(bb.end.y / CELL) + 2):
+		for i in range(floori(bb.position.x / CELL) - 1, ceili(bb.end.x / CELL) + 2):
+			var c := Vector2i(i, j)
+			if strictly_inside(p, cell_center(c)):
+				out.append(c)
+	if out.is_empty() and at_least_one:
+		out.append(best)
+	return out
+
+
+## Cases touchées (même un peu) par un contour convexe : test des axes
+## séparateurs entre chaque case et le contour (marquage prudent).
+static func poly_touched_cells(p: PackedVector2Array) -> Array:
+	var out := []
+	var bb := bbox(p)
+	var h := CELL * 0.5 - 0.02
+	var axes := [Vector2(1, 0), Vector2(0, 1)]
+	for i in p.size():
+		var e := p[(i + 1) % p.size()] - p[i]
+		if e.length() > EPS:
+			axes.append(Vector2(-e.y, e.x).normalized())
+	for j in range(floori(bb.position.y / CELL) - 1, ceili(bb.end.y / CELL) + 2):
+		for i in range(floori(bb.position.x / CELL) - 1, ceili(bb.end.x / CELL) + 2):
+			var c := Vector2i(i, j)
+			var cc := cell_center(c)
+			var sq := PackedVector2Array([cc + Vector2(-h, -h), cc + Vector2(h, -h), cc + Vector2(h, h), cc + Vector2(-h, h)])
+			var hit := true
+			for ax: Vector2 in axes:
+				var lo_a := INF
+				var hi_a := -INF
+				for q in p:
+					lo_a = minf(lo_a, q.dot(ax))
+					hi_a = maxf(hi_a, q.dot(ax))
+				var lo_b := INF
+				var hi_b := -INF
+				for q in sq:
+					lo_b = minf(lo_b, q.dot(ax))
+					hi_b = maxf(hi_b, q.dot(ax))
+				if hi_a < lo_b or hi_b < lo_a:
+					hit = false
+					break
+			if hit:
+				out.append(c)
+	return out
+
+
 ## Point suivant d'un tracé (côté de pièce, mur libre) : le point est aimanté
 ## à la grille (pas `step`) et, sauf `free` (angle libre : Alt maintenu), le
 ## côté part de `from` à un multiple de 45° (0, 45, 90°...). `from` étant sur
@@ -322,6 +445,44 @@ static func snap_angle(from: Vector2, to: Vector2, step: float, free := false) -
 	var u := Vector2(roundf(cos(ang)), roundf(sin(ang)))
 	var k := roundf(d.dot(u) / (u.length_squared() * step))
 	return from + u * k * step
+
+
+## Point arrondi au centimètre (tracé sans grille : coordonnées lisibles dans le JSON).
+static func round_cm(p: Vector2) -> Vector2:
+	return Vector2(snappedf(p.x, 0.01), snappedf(p.y, 0.01))
+
+
+## Point suivant d'un tracé SANS GRILLE : le côté part de `from` à un multiple
+## de `step_deg` degrés (15°) sauf `free` (Alt : angle libre, point au
+## centimètre) ; longueur au centimètre, point au millimètre (un côté à 0° ou
+## à 90° reste exactement droit).
+static func snap_angle_free(from: Vector2, to: Vector2, step_deg := 15.0, free := false) -> Vector2:
+	var d := to - from
+	if free or d.length() < 1e-6:
+		return round_cm(to)
+	var ang := snappedf(atan2(d.y, d.x), deg_to_rad(step_deg))
+	var u := Vector2(cos(ang), sin(ang))
+	return round_mm(from + u * snappedf(d.dot(u), 0.01))
+
+
+## Point arrondi au millimètre (précision des fichiers de carte).
+static func round_mm(p: Vector2) -> Vector2:
+	return Vector2(snappedf(p.x, 0.001), snappedf(p.y, 0.001))
+
+
+## Direction d'un trait (degrés, 0 à 360, sens trigonométrique depuis l'est
+## comme sur un plan : 0 = est, 90 = nord), affichée et saisie au clavier
+## pendant le tracé (« 4 m à 30° »).
+static func dir_angle(d: Vector2) -> float:
+	if d.length() < 1e-6:
+		return 0.0
+	return fposmod(rad_to_deg(atan2(-d.y, d.x)), 360.0)
+
+
+## Point à `length` m de `from` dans la direction `angle_deg` (dir_angle).
+static func polar(from: Vector2, length: float, angle_deg: float) -> Vector2:
+	var r := deg_to_rad(angle_deg)
+	return from + Vector2(cos(r), -sin(r)) * length
 
 
 ## Inclinaison d'un trait par rapport à l'horizontale (degrés, 0 à 90 : 0
@@ -360,12 +521,18 @@ static func item_wall_dir(o: Dictionary) -> Vector2:
 	return dir_vec(String(o.get("mur", "n")))
 
 
-## L'objet mural est-il contre un mur en biais (angle non multiple de 90°) ?
+## L'objet mural est-il contre un vrai mur oblique (angle non multiple de 90°,
+## ou mur droit tracé hors de la grille : son trait n'est pas sur la grille de
+## 0,5 m) ? Sinon il suit la grille (rangée de cases collée au mur).
 static func item_oblique(o: Dictionary) -> bool:
 	if not o.has("angle"):
 		return false
 	var a := fposmod(float(o.angle), 90.0)
-	return a > 0.01 and a < 89.99
+	if a > 0.01 and a < 89.99:
+		return true
+	var d := deg_dir(float(o.angle))
+	var p := v2(o.get("position", [0, 0]))
+	return not on_grid(p.y if absf(d.y) > 0.5 else p.x)
 
 
 ## Cases COUPÉES par le pavé d'un mur en biais [a, b] de demi-épaisseur

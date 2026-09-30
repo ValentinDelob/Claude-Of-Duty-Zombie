@@ -24,6 +24,9 @@ var obliques: Array = []
 var props: Array = []   # décor posé : [{id, model | build, p, yaw, scale, remap, nocollide}]
 var blockers: Array = []   # collisions du décor et des luminaires : [{center, size, yaw, barrier, surface}]
 var zone_boxes: Array = []   # [étage, volume, zone, boîte]
+## Boîtes de zone des morceaux de sol le long des murs obliques : testées après
+## celles des salles de la grille (une boîte englobante déborde un peu du mur).
+var filler_boxes: Array = []
 var ref_room: Dictionary = {}   # étage -> id d'une salle (hauteur de sol des murs)
 var door_of: Array = []   # par étage : {Vector2i: porte}
 
@@ -144,6 +147,8 @@ func _build() -> Dictionary:
 	_pockets()
 	# Zones : boîtes des salles ; étages hauts d'abord, puis les plus petites.
 	zone_boxes.sort_custom(func(a, b): return a[0] > b[0] if a[0] != b[0] else a[1] < b[1])
+	filler_boxes.sort_custom(func(a, b): return a[0] > b[0] if a[0] != b[0] else a[1] < b[1])
+	zone_boxes.append_array(filler_boxes)
 	var zones := {}
 	var zone_order := []
 	for zb in zone_boxes:
@@ -387,6 +392,12 @@ func _fillers(f: MapValidator.Floor) -> void:
 				for q in piece:
 					outline.append(_xz(q))
 				rooms.append(_room_entry("biais_%s%d" % [zone, k], outline, f, ce, fm, cm))
+				# Zone de ce morceau de sol (testée après les salles de la grille).
+				var pb := MapGeom.bbox(piece)
+				var lo := f.sol - (0.5 if k == 0 else 0.15)
+				var zb := [_r(pb.position.x + MapGeom.WORLD_OFFSET), _r(lo), _r(pb.position.y + MapGeom.WORLD_OFFSET),
+					_r(pb.end.x + MapGeom.WORLD_OFFSET), _r(float(ce[0])), _r(pb.end.y + MapGeom.WORLD_OFFSET)]
+				filler_boxes.append([k, pb.get_area() * (zb[4] - zb[1]), zone, zb])
 
 
 ## Texture d'un côté de mur en biais : celle des murs de la pièce `rid`.
@@ -436,8 +447,17 @@ func _obliques(f: MapValidator.Floor) -> void:
 			obliques.append({"room": ref_room.get(k, "x"), "a": _xz(pa), "b": _xz(pb), "y0": _r(y0), "y1": _r(float(run[2])),
 				"thick": _r(float(w.half) * 2.0), "mat_n": mat_pos, "mat_m": mat_neg,
 				"openings": _oblique_cuts(f, pa, t, float(run[1]) - float(run[0]), y0, float(run[2]))})
+		if String(w.kind) == "pilier":
+			continue   # pilier tourné : un pavé plein, sans raccord
 		for e in [a, b]:
+			# Bouts à 2 cm près (sommets tracés sans grille, murs mitoyens
+			# regroupés avec tolérance) : le même sommet.
 			var key := "%.3f:%.3f" % [e.x, e.y]
+			if not ends.has(key):
+				for k2 in ends:
+					if Vector2(ends[k2].p).distance_to(e) < 0.02:
+						key = k2
+						break
 			ends.get_or_add(key, {"p": e, "list": []}).list.append({"n": w.n, "half": float(w.half), "top": top_max, "mat": mat_pos})
 	# Raccords des angles (sommets entre murs en biais, hors blocs de la grille).
 	var keys := ends.keys()
@@ -499,7 +519,7 @@ func _oblique_cuts(f: MapValidator.Floor, pa: Vector2, t: Vector2, seg_len: floa
 		if int(o.floor) != f.index:
 			continue
 		var p: Vector2 = o.p
-		if absf((p - pa).dot(nrm)) > 0.02 or absf(Vector2(o.t).dot(t)) < 0.999:
+		if absf((p - pa).dot(nrm)) > MapGeom.JOIN_TOL or absf(Vector2(o.t).dot(t)) < 0.999:
 			continue
 		var c := (p - pa).dot(t)
 		var hw := float(o.w) * 0.5
@@ -515,7 +535,7 @@ func _oblique_cuts(f: MapValidator.Floor, pa: Vector2, t: Vector2, seg_len: floa
 				# Passage libre : ouvert jusqu'au plus bas des deux plafonds.
 				var ce := INF
 				for r in md.room_polys[f.index]:
-					if MapGeom.on_boundary(r.poly, p, 0.02):
+					if MapGeom.on_boundary(r.poly, p, MapGeom.JOIN_TOL):
 						ce = minf(ce, float(r.ceil))
 				oy1 = minf(top, ce) if ce < INF else top
 			_:
@@ -596,8 +616,11 @@ func _rails(f: MapValidator.Floor) -> void:
 	var skip := {}
 	for s in md.stairs:
 		if s.floor == k - 1:
-			for t in MapValidator._side(s.rect, s.up):
-				skip["%d:%d:%d:%d" % [t.x, t.y, -s.up.x, -s.up.y]] = true
+			# Bord du palier vers les marches (droites ou tournées) : pas de garde-corps.
+			for c in s.links:
+				for t in s.links[c]:
+					var d: Vector2i = c - t
+					skip["%d:%d:%d:%d" % [t.x, t.y, d.x, d.y]] = true
 	var lines := {}   # "v:x" / "h:z" -> [[début, fin]] (cases)
 	for y in f.h:
 		for x in f.w:
@@ -630,9 +653,24 @@ func _rails(f: MapValidator.Floor) -> void:
 
 func _stairs() -> void:
 	for s in md.stairs:
+		var k: int = s.floor
+		if s.has("diag"):
+			# Escalier tourné : du milieu du pied au milieu du haut des marches
+			# (0,25 m en retrait du contour tracé, comme sur la grille).
+			var info: Dictionary = s.diag
+			var u: Vector2 = info.up
+			var sz: Vector2 = info.size
+			var along_x := absf(Vector2(1, 0).rotated(deg_to_rad(float(info.rot))).dot(u)) > 0.7
+			var half_run := (sz.x if along_x else sz.y) * 0.5 - MapGeom.WALL_HALF
+			var tread := (sz.y if along_x else sz.x) - MapGeom.CELL
+			var c: Vector2 = info.center
+			var foot: Array = _xz(c - u * half_run)
+			var head: Array = _xz(c + u * half_run)
+			stairs.append({"room": ref_room.get(k, "x"), "a": [foot[0], _r(md.floors[k].sol), foot[1]],
+				"b": [head[0], _r(md.floors[k + 1].sol), head[1]], "w": _r(tread), "mat": "wood"})
+			continue
 		var r: Rect2i = s.rect
 		var d: Vector2i = s.up
-		var k: int = s.floor
 		var mid := Vector2(r.position) + Vector2(r.size) * 0.5
 		var a := mid
 		var b := mid
@@ -744,6 +782,14 @@ func _markers() -> Dictionary:
 		var t := {"id": "trap_%d" % (m.traps.size() + 1), "lever": _wall_item(lv[0]),
 			"area": [wx(r.position.x), _r(sol), wx(r.position.y), wx(r.end.x), _r(sol + 2.5), wx(r.end.y)],
 			"active": 40.0, "cooldown": 60.0}
+		var tg: Dictionary = md.diag_traps.get(String(md.eid_of.get(it.key, "")), {})
+		if not tg.is_empty():
+			# Zone tournée ou hors de la grille : le vrai rectangle (0,25 m en
+			# retrait du contour, comme sur la grille), tourné autour de son centre.
+			var c: Array = _xz(tg.center)
+			var h: Vector2 = (Vector2(tg.size) - Vector2.ONE * MapGeom.CELL).max(Vector2.ONE * MapGeom.CELL) * 0.5
+			t["area"] = [_r(c[0] - h.x), _r(sol), _r(c[1] - h.y), _r(c[0] + h.x), _r(sol + 2.5), _r(c[1] + h.y)]
+			t["yaw"] = _r(-deg_to_rad(float(tg.rot)))
 		if lv.size() > 1:
 			t["lever2"] = _wall_item(lv[1])
 		m.traps.append(t)

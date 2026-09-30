@@ -39,6 +39,25 @@ static func draw(ci: CanvasItem, it: Dictionary, r: Rect2) -> void:
 			ci.draw_polyline(pts + PackedVector2Array([pts[0]]), c, maxf(2.0, s * 0.1))
 		"mur":
 			ci.draw_line(p.position + Vector2(s * 0.1, s * 0.85), p.position + Vector2(s * 0.9, s * 0.15), c.lightened(0.3), s * 0.22)
+		"piece_cercle", "piece_ellipse", "piece_triangle", "piece_l":
+			var pts := PackedVector2Array()
+			match id:
+				"piece_cercle":
+					pts = MapShapes.regular(cx, s * 0.45, s * 0.45, 16)
+				"piece_ellipse":
+					pts = MapShapes.regular(cx, s * 0.48, s * 0.32, 20)
+				"piece_triangle":
+					pts = MapShapes.triangle(cx, s * 0.45, s * 0.4)
+				_:
+					pts = MapShapes.l_shape(cx, s * 0.42, s * 0.42, 0.45)
+			ci.draw_colored_polygon(pts, c.darkened(0.55))
+			ci.draw_polyline(pts + PackedVector2Array([pts[0]]), c, maxf(2.0, s * 0.08))
+			if id == "piece_cercle":
+				for q in pts:
+					ci.draw_circle(q, maxf(1.0, s * 0.03), WHITE)
+		"mur_courbe":
+			var arc := MapShapes.arc_points(cx + Vector2(-s * 0.3, s * 0.3), s * 0.62, 0.0, 90.0, 6)
+			ci.draw_polyline(arc, c.lightened(0.3), s * 0.18)
 		"pilier":
 			ci.draw_rect(Rect2(cx - Vector2(s, s) * 0.3, Vector2(s, s) * 0.6), c.lightened(0.2))
 			ci.draw_rect(Rect2(cx - Vector2(s, s) * 0.3, Vector2(s, s) * 0.6), INK, false, 2.0)

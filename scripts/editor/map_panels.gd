@@ -278,7 +278,7 @@ func _fill_props() -> void:
 		l.add_theme_color_override("font_color", Color(1, 0.5, 0.4))
 	var h := HBoxContainer.new()
 	_props.add_child(h)
-	if e.has("contour") or e.has("rect") or String(e.get("type", "")) == "mur" or MapCatalog.rotates(e):
+	if MapTransform.can_rotate(e):
 		_button(h, Lang.t("Pivoter (R)", "Rotate (R)"), ed.rotate_selected)
 	_button(h, Lang.t("Supprimer (Suppr)", "Delete (Del)"), func(): ed.delete_element(String(e.id)))
 
@@ -339,6 +339,7 @@ func _room_props(r: Dictionary) -> void:
 	dh.disabled = top
 	if top:
 		dh.tooltip_text = Lang.t("Ajoutez un étage au-dessus (onglet Étages)", "Add a floor above (Floors tab)")
+	MapPanelsShape.room_shape(self, r)
 	# Textures de la pièce (par défaut : celles de sa zone).
 	var z := ed.doc.zone(String(r.get("zone", "")))
 	_title(_props, Lang.t("Textures", "Textures"))
@@ -423,12 +424,16 @@ func _object_props(o: Dictionary) -> void:
 			_prefab_props(o)
 		"luminaire":
 			_light_props(o)
-		"mur":
+		"mur", "mur_courbe":
 			var th := [0.5, 1.5, 2.5]
 			_option(_props, Lang.t("Épaisseur", "Thickness"), th.map(func(v): return _m(v) + " m"), maxi(0, th.find(float(o.get("epaisseur", 0.5)))), func(i):
 				ed.push_undo()
 				o["epaisseur"] = th[i]
 				ed.changed())
+			if t == "mur_courbe":
+				MapPanelsShape.arc_props(self, o)
+	if MapTransform.can_rotate(o):
+		MapPanelsShape.angle_row(self, o)
 	var price := int(it.get("price", 0))
 	if t == "atout":
 		price = PerkDB.cost(String(o.atout), false)

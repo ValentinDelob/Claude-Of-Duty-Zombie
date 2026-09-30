@@ -444,6 +444,39 @@
     "fr": "Des murs en biais dans vos cartes"
    }
   },
+  "v0.1.146": {
+   "date": "2026-09-30",
+   "images": [
+    "v0.1.146/01_formes_libres_editeur.png",
+    "v0.1.146/02_salle_ronde_jeu.png"
+   ],
+   "items": [
+    {
+     "en": "Choose your snapping with the G key: 1 m grid, fine grid (0.5, 0.25 or 0.1 m) or free drawing without a grid, with magnets on room corners and walls to stick rooms together easily.",
+     "fr": "Aimantation au choix avec la touche G : grille de 1 m, grille fine (0,5, 0,25 ou 0,1 m) ou tracé libre sans grille, avec des aimants sur les coins et les murs des pièces pour les coller facilement."
+    },
+    {
+     "en": "New room shapes: circle or regular polygon with 3 to 64 points (set with the mouse wheel), ellipse, triangle and L-shaped room, plus a curved wall to round off a room.",
+     "fr": "Nouvelles formes de pièces : cercle ou polygone régulier de 3 à 64 points (réglable à la molette), ellipse, triangle et pièce en L, plus un mur courbe pour arrondir une salle."
+    },
+    {
+     "en": "Keyboard input while drawing: type the length and angle of a wall (for example 4 m at 30°), the size of a rectangle or the radius of a circle.",
+     "fr": "Saisie au clavier pendant le tracé : tapez la longueur et l'angle d'un mur (par exemple 4 m à 30°), la taille d'un rectangle ou le rayon d'un cercle."
+    },
+    {
+     "en": "Rotate rooms (with everything inside), pillars, stairs, traps and props to the exact degree, with a handle or in the properties.",
+     "fr": "Rotation au degré près des pièces (avec tout leur contenu), des piliers, escaliers, pièges et du décor, avec une poignée ou dans les propriétés."
+    },
+    {
+     "en": "In game, round rooms and slanted walls are real smooth walls: zombies climb in through their windows and walk around them without ever going through.",
+     "fr": "En jeu, salles rondes et murs de travers sont de vrais murs lisses : les zombies entrent par leurs fenêtres et les contournent sans jamais passer au travers."
+    }
+   ],
+   "title": {
+    "en": "Free-form shapes in the map editor",
+    "fr": "Formes libres dans l'éditeur de cartes"
+   }
+  },
   "v0.1.36": {
    "date": "2026-09-26",
    "images": [],

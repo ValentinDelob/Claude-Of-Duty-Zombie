@@ -42,7 +42,7 @@ automatique non enregistrée, il propose de la reprendre.
 | Zone | Rôle |
 |---|---|
 | Barre du haut | **Fichier** (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, exporter / importer l'archive .zip, cartes récentes, retour au menu), **Édition** (annuler, rétablir, copier, coller, pivoter, supprimer, inventaire, recadrer), étage courant (◄ ►), **▶ TESTER**, état de la vérification. |
-| Vue de dessus | Grille de 1 m (traits forts tous les 5 m), règles graduées en mètres en haut et à gauche, coordonnées du curseur en bas à droite. |
+| Vue de dessus | Grille de 1 m (traits forts tous les 5 m ; traits fins au pas de la grille fine), règles graduées en mètres en haut et à gauche, coordonnées du curseur aimanté en bas à droite. |
 | Barre rapide | 9 cases au bas de la vue (touches 1 à 9, molette) : l'objet tenu. |
 | Inventaire | Touche **E** ou **Tab** : toutes les catégories ; cliquer un objet le met dans la case choisie, ou le glisser sur une case. |
 | Panneaux | **Propriétés** (élément choisi, sinon la carte), **Pièces**, **Zones**, **Étages**, **Vérification**. |
@@ -54,11 +54,15 @@ automatique non enregistrée, il propose de la reprendre.
 | Action | Commande |
 |---|---|
 | Poser / choisir | clic gauche |
+| Tracer (pièce, forme, mur, pilier, escalier, piège) | glisser, ou clic puis clic (le tracé suit le curseur entre les deux) |
 | Annuler le tracé, désélectionner | clic droit, Échap |
 | Zoom | Ctrl + molette (ou + / -) |
 | Déplacer la vue | clic milieu + glisser, ou Espace + glisser |
-| Aimantation | 1 m ; 0,5 m en maintenant Maj |
-| Angle d'un mur ou d'un côté de polygone | 0, 45 ou 90° (multiples de 45°) ; angle libre en maintenant Alt ; longueur et angle affichés pendant le tracé |
+| Aimantation | **G** : grille 1 m → grille fine → libre (sans grille) ; **Maj+G** : pas de la grille fine (0,5 / 0,25 / 0,1 m) ; **Maj** maintenu : inverse le mode (grille ↔ libre) ; mémorisé ; bouton « Aimantation » de la barre du haut |
+| Angle d'un mur ou d'un côté de polygone | sur la grille : 0, 45 ou 90° ; sans grille : par pas de 15° ; angle libre en maintenant Alt ; longueur et direction affichées pendant le tracé |
+| Saisie au clavier pendant le tracé | taper la longueur, **Tab**, l'angle (degrés depuis l'est, sens trigonométrique : 90 = nord), **Entrée** ; rectangle, ellipse, triangle, L : largeur, hauteur ; cercle : rayon, points ; mur courbe : rayon, ouverture ; Retour arrière efface, Échap annule la saisie |
+| Points d'un cercle ou d'une ellipse, segments d'un mur courbe | molette ou + / - pendant le tracé ; puis dans l'onglet Propriétés |
+| Rotation libre | **poignée ronde** au-dessus de l'élément choisi : pas de 15°, au degré près avec Alt ; champ « Angle » des propriétés |
 | Rectangle à 45° | Pièce rectangle en main : R (le glisser va d'un coin au coin opposé du losange) |
 | Case de la barre rapide | 1 à 9, molette |
 | Inventaire | E ou Tab |
@@ -75,7 +79,8 @@ automatique non enregistrée, il propose de la reprendre.
 Outil **Sélection** (case 1) : clic sur un élément pour le choisir, glisser
 pour le déplacer (il reste accroché à son mur), **poignées** jaunes pour
 redimensionner (coins et milieux des côtés d'une pièce rectangle, sommets d'un
-polygone, coins d'un pilier, d'un escalier ou d'un piège, bouts d'un mur). Un
+polygone ou d'une forme, coins d'un pilier, d'un escalier ou d'un piège, même
+tournés, bouts d'un mur), **poignée ronde** au-dessus pour tourner. Un
 élément devenu invalide (une fenêtre restée sur l'ancien mur d'une pièce
 agrandie…) est entouré de rouge avec la raison dans la barre d'état.
 
@@ -85,11 +90,12 @@ agrandie…) est entouré de rouge avec la raison dans la barre d'état.
 ![En jeu : porte dans le mur en biais, murs obliques lisses](map_authoring/murs_biais_jeu.png)
 
 - **Tracer** : avec la Pièce polygone ou le Mur, chaque côté part du point
-  précédent à 0, 45 ou 90° (les sommets restent sur la grille de 1 m, 0,5 m
-  avec Maj) ; **Alt** maintenu : angle libre (sommets toujours sur la
-  grille). La longueur et l'inclinaison du côté en cours s'affichent à côté
-  du curseur (« 5,66 m · 45° »). **Pièce rectangle + R** : rectangle tourné
-  de 45° (losange), glissé d'un coin au coin opposé.
+  précédent à 0, 45 ou 90° (sur la grille, les sommets restent sur la
+  grille) ; **Alt** maintenu : angle libre. La longueur et la direction du
+  côté en cours s'affichent à côté du curseur (« 5,66 m · 45° », degrés
+  depuis l'est). **Pièce rectangle + R** : rectangle tourné de 45°
+  (losange), glissé d'un coin au coin opposé. Sans grille, voir « Formes
+  libres » ci-dessous.
 - **Mur mitoyen** : deux pièces qui partagent un côté en biais n'ont qu'un
   mur, qui montre de chaque côté la texture de sa pièce.
 - **Ouvertures** (porte, débris, porte du courant, passage, fenêtre) et
@@ -103,6 +109,69 @@ agrandie…) est entouré de rouge avec la raison dans la barre d'état.
   pavés `CollisionBox` tournés (balles, grenades, joueurs et zombies suivent le
   vrai mur), un raccord aux angles entre deux murs en biais ; le sol et le
   plafond suivent le vrai contour.
+
+### Formes libres
+
+![Salle ronde de 32 points, annexe tracée sans grille, mur courbe, pilier tourné de 30° (poignée de rotation)](map_authoring/formes_libres_editeur.png)
+![En jeu : mur rond en brique, mur courbe et pilier tourné](map_authoring/formes_libres_jeu.png)
+
+- **Aimantation au choix** (touche **G**, ou le bouton « Aimantation » de la
+  barre du haut ; mémorisée) : **grille 1 m** (comme avant), **grille fine**
+  (0,5, 0,25 ou 0,1 m : **Maj+G** change le pas ; traits fins affichés quand
+  le zoom le permet) ou **libre** (sans grille : coordonnées au centimètre,
+  lisibles dans le JSON). **Maj** maintenu inverse le mode courant (grille →
+  libre, libre → la dernière grille). En libre : **aimants** aux sommets des
+  pièces et aux bouts des murs (carré bleu), sinon aux côtés des pièces (rond
+  bleu) pour coller deux pièces ; un côté part du point précédent **à 15°
+  près** (Alt : angle libre) ; une pièce déplacée se colle par son sommet le
+  plus proche au sommet ou au côté d'une autre pièce.
+- **Saisie au clavier** pendant un tracé (côté de polygone, mur, rectangle,
+  forme, mur courbe, pilier, escalier, piège) : taper la longueur, **Tab**,
+  l'angle, **Entrée** (« 4 Tab 30 Entrée » : 4 m à 30°) ; l'angle se compte
+  depuis l'est, dans le sens trigonométrique (90 = nord, -90 = sud), comme la
+  direction affichée à côté du curseur ; un champ laissé vide suit le curseur.
+  Rectangle, ellipse, triangle, L : largeur, hauteur ; cercle : rayon,
+  nombre de points ; mur courbe : rayon, ouverture. Un **simple clic** (sans
+  glisser) commence le tracé, qui suit le curseur jusqu'au clic suivant ou à
+  Entrée. Le champ s'affiche près du curseur ; Retour arrière efface, Échap
+  annule la saisie.
+- **Formes de base** (inventaire, Construction) : **cercle / polygone
+  régulier** (glisser du centre au bord ; **3 à 64 points**, à la molette ou
+  avec + / - pendant le tracé, aperçu en direct ; à 0°, un côté est à plat au
+  sud, et avec un nombre de points multiple de 4 les côtés nord, est, ouest et
+  sud sont droits : une pièce s'y colle), **ellipse** (d'un coin à l'autre,
+  N points), **triangle** (pointe en haut ; glissé vers le haut : pointe en
+  bas), **pièce en L** (épaisseur des branches réglable), **mur courbe** (arc
+  de cercle en 1 à 64 segments droits : glisser du centre vers le premier
+  bout, 90° dans le sens horaire ; rayon, ouverture et segments réglables).
+  Une forme posée reste un **polygone éditable** ; elle garde son type et
+  ses paramètres (clé `forme`) : dans l'onglet Propriétés, changer le nombre
+  de points, le rayon, la largeur, la hauteur, les branches ou l'angle la
+  **régénère** (ses ouvertures et ses objets muraux se raccrochent au mur le
+  plus proche). Déplacer un sommet à la main en fait un polygone libre.
+- **Rotation libre** : **poignée ronde** au-dessus de l'élément choisi (pièce,
+  pilier, escalier, piège, décor, luminaire au sol ou au plafond, mur, mur
+  courbe) : pas de **15°**, au **degré près avec Alt** ; champ **Angle** de
+  l'onglet Propriétés (« Pivoter de » pour une pièce quelconque) ; **R** :
+  90° comme avant. Une pièce tourne **avec son contenu** : ses ouvertures et
+  ses objets muraux restent collés à leur mur (face vers l'intérieur), son
+  décor, ses piliers, escaliers et pièges tournent avec elle. Les objets
+  muraux ne tournent pas seuls : ils suivent leur mur.
+- **Portes sur un côté court** (côté d'un cercle) : posée à la souris, une
+  porte trop large pour le mur visé est réduite par pas de 0,5 m (1 m au
+  moins) ; il faut toujours 0,5 m de mur plein à chaque bout (un côté de
+  2,5 m pour une porte de 1,5 m : un cercle de 32 points de 13 m de rayon).
+- **En jeu** : tout côté qui n'est pas un côté droit de la grille (en biais,
+  ou droit mais hors de la grille de 0,5 m) est un **vrai mur oblique**
+  (collisions `CollisionBox` tournées), sol et plafond découpés selon le vrai
+  contour ; deux pièces collées **sans grille** (côtés parallèles à moins de
+  3 cm) n'ont qu'**un mur mitoyen** ; une pièce sans grille collée au côté
+  d'une pièce de la grille garde ce mur de la grille (pas de second mur).
+  Piliers tournés : un pavé plein tourné ; escaliers tournés : marches et
+  rampe dans le sens de montée ; pièges tournés : zone électrifiée tournée ;
+  décor tourné au degré près : modèle et `CollisionBox` tournés. Les murs
+  obliques sont **fusionnés en un maillage par matériau** (un cercle de 64
+  côtés ne coûte pas plus de rendu qu'un mur droit).
 
 ## 2 bis. Objets sur la carte (liste)
 
@@ -136,7 +205,7 @@ par code (`MapIcons`).
 
 | Catégorie | Objets | Pose |
 |---|---|---|
-| Construction | Sélection, Gomme, Pièce rectangle, Pièce polygone, Mur, Pilier / obstacle, Escalier | glisser (rectangle, mur, pilier, escalier), clics successifs (polygone) |
+| Construction | Sélection, Gomme, Pièce rectangle, Pièce polygone, Mur, Cercle / polygone régulier, Ellipse, Pièce triangle, Pièce en L, Mur courbe, Pilier / obstacle, Escalier | glisser ou clic-clic (rectangle, formes, mur, mur courbe, pilier, escalier), clics successifs (polygone) ; saisie au clavier |
 | Ouvertures | Porte payante, Débris à dégager, Porte ouverte par le courant, Passage libre, Fenêtre à zombies | sur un mur (voir les règles) |
 | Atouts | un distributeur par atout du jeu | contre un mur |
 | Armes murales | chaque arme à prix mural, couteau de chasse, grenades | contre un mur |
@@ -144,7 +213,7 @@ par code (`MapIcons`).
 | Machines | Pack-a-Punch, interrupteur du courant, téléporteur, arrivée du téléporteur, poste central | contre un mur, ou au sol (téléporteur, arrivée) |
 | Pièges | zone de piège électrique, levier | zone : glisser au sol ; levier : contre un mur, à moins de 10 m |
 | Joueurs et apparitions | départ des joueurs, zombie qui sort du sol | au sol |
-| Décor et obstacles | caisse, baril, tas de gravats, gros éboulement, mur effondré, débris épars, planches au sol, poutre tombée, lustre tombé, pile de caisses, tonneaux, sacs de sable, table et chaise renversées, chaise pliante, bureau, étagère, rangée de fauteuils de cinéma, fauteuil arraché, pupitre, projecteur de cinéma, chariot, épave de voiture | au sol, pivote avec R |
+| Décor et obstacles | caisse, baril, tas de gravats, gros éboulement, mur effondré, débris épars, planches au sol, poutre tombée, lustre tombé, pile de caisses, tonneaux, sacs de sable, table et chaise renversées, chaise pliante, bureau, étagère, rangée de fauteuils de cinéma, fauteuil arraché, pupitre, projecteur de cinéma, chariot, épave de voiture | au sol, pivote avec R (90°) ou au degré près (poignée, Angle) |
 | Luminaires | lampe (historique), ampoule nue, suspension, néon, lustre, applique murale, lampe de bureau, projecteur de chantier, bougies, brasero | plafond, mur (applique) ou sol ; pivote avec R |
 
 ### Décor (prefabs) et luminaires
@@ -156,7 +225,9 @@ jeu (`EditorPrefabs` : sacs de sable, table et chaise renversées, chariot,
 épave de voiture, et les luminaires sans modèle), collisions.
 
 - **Empreinte** dessinée dans l'éditeur (hachurée si le décor bloque), flèche
-  du devant ; **R** pivote de 90° (la largeur et la profondeur s'échangent).
+  du devant ; **R** pivote de 90° (la largeur et la profondeur s'échangent) ;
+  la poignée de rotation et le champ Angle le tournent au degré près
+  (emprise tournée, cases dont le centre est dedans pour la vérification).
 - **Collisions** : chaque décor bloque ou non selon son modèle : « solide »
   (joueurs, zombies et balles : gravats, bureau, sacs de sable…), « barrière »
   (joueurs et zombies, les balles passent : fauteuils, tonneaux, lustre
@@ -188,10 +259,12 @@ L'aperçu est **vert** si l'élément peut être posé, **rouge** sinon, avec la
 raison à côté du curseur (`MapRules`) :
 
 - **Pièce** : contour simple (les côtés ne se croisent pas), 1,5 m de côté au
-  moins, x et y positifs ; deux pièces peuvent **se toucher, jamais se
-  recouvrir**. Ses murs sont générés sur son contour ; le bord commun de deux
-  pièces collées devient **un seul mur mitoyen**. Par défaut, chaque pièce a
-  sa propre zone.
+  moins, côtés de 10 cm au moins, 128 sommets au plus, x et y positifs ; deux
+  pièces peuvent **se toucher, jamais se recouvrir** (sans grille : une bande
+  de recouvrement de moins de 1,5 cm compte comme un contact). Ses murs sont
+  générés sur son contour ; le bord commun de deux pièces collées (côtés
+  parallèles à moins de 3 cm) devient **un seul mur mitoyen**. Par défaut,
+  chaque pièce a sa propre zone.
 - **Porte payante, débris, porte ouverte par le courant, passage libre** :
   seulement sur le **bord commun de deux pièces collées** du même étage (une
   porte ne donne que sur une autre pièce) ; elle relie exactement ces deux
@@ -211,8 +284,11 @@ raison à côté du curseur (`MapRules`) :
   arme : 1 × 0,5 m), sans chevaucher un autre objet.
 - **Objets au sol, pilier, escalier, zone de piège** : à l'intérieur d'une
   pièce, sans toucher ses murs, sans chevauchement (les lampes, au plafond,
-  peuvent surplomber un objet). L'escalier monte à l'étage du dessus : il faut
-  un étage au-dessus.
+  peuvent surplomber un objet ; un élément tourné compte par son rectangle
+  englobant). L'escalier monte à l'étage du dessus : il faut un étage
+  au-dessus.
+- **Mur courbe** : 1 m de rayon au moins, ouverture de 5 à 360°, 1 à 64
+  segments, tout l'arc dans le terrain.
 
 ## 4. Pièces, zones, étages
 
@@ -351,8 +427,9 @@ multijoueur ».
   | Archive .zip | 4 Mo, 64 entrées, tailles décompressées lues avant d'extraire |
   | Profondeur JSON | 6 (lue avant l'analyse) |
   | Pièces / ouvertures / objets / zones / étages | 256 / 512 / 1024 / 64 / 6 |
-  | Sommets | 64 par pièce, 4096 en tout |
+  | Sommets | 128 par pièce (un cercle de 64 points et de la marge), 4096 en tout |
   | Coordonnées | nombres finis, 0 à 256 m ; surface des pièces (rectangles englobants) 100 000 m² au plus |
+  | Formes (format 4) | forme d'une pièce : type connu, centre dans le terrain, rayons 0,1 à 128 m, 3 à 64 points (entier), angle 0 à 360, branches 0,2 à 0,8, aucune autre clé ; mur courbe : rayon 1 à 128 m, ouverture 5 à 360°, 1 à 64 segments, arc dans le terrain ; rotation `rot` : entier de 0 à 359 |
   | Étages | sol -20 à 200 m, hauteur 2 à 30 m ; plafond 1,5 à 30 m ; portes 1,5 à 10 m |
   | Prix | entiers, 0 à 100 000 |
   | Textes | identifiants 32 caractères (lettres, chiffres, `_`, `-`) ; identifiant de carte en minuscules, chiffres et `_` ; noms 64 caractères ; descriptions 600 |
@@ -390,7 +467,7 @@ carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
 
 ```json
 {
- "format": 3,
+ "format": 4,
  "id": "draft_arena",
  "nom": {"fr":"DRAFT ARENA","en":"DRAFT ARENA"},
  "description": {"fr":"…","en":"…"},
@@ -404,13 +481,16 @@ carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
 }
 ```
 
-`format` : version du format (**3** ; `EditorMap.FORMAT`). Historique : 1 =
+`format` : version du format (**4** ; `EditorMap.FORMAT`). Historique : 1 =
 premières cartes ; 2 = décor (`prefab`), luminaires (`luminaire`), textures
 par pièce et plafond des zones ; 3 = murs en biais (clé `angle` des objets
-muraux posés contre un mur en biais). Une carte au **format 1 ou 2 se lit
-telle quelle** (toutes les nouvelles clés sont facultatives,
-`EditorMap._migrate`) et s'enregistre au format 3 ; DRAFT ARENA est restée
-au format 1 pour le prouver (sa carte construite est identique).
+muraux posés contre un mur en biais) ; 4 = formes libres (coordonnées sans
+grille, clé `forme` des pièces, type `mur_courbe`, rotation `rot` au degré
+près du décor, des luminaires, des piliers, escaliers et pièges). Une carte
+au **format 1, 2 ou 3 se lit telle quelle** (toutes les nouvelles clés sont
+facultatives, `EditorMap._migrate`) et s'enregistre au format 4 ; DRAFT
+ARENA est restée au format 1 pour le prouver (sa description en maillage est
+identique octet pour octet, vérifié par son empreinte SHA-256).
 Une carte d'un format plus récent que le jeu est signalée. `id` : dossier ; `musique` : un son
 `assets/audio/ambience_*` ; `hauteur_portes` (m) ; `lampes_auto` : une lampe
 tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
@@ -433,7 +513,22 @@ tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
 `surface_murs`, `surface_plafond` : clés de `WorldLook.SURFACES` ; absentes,
 celles de la zone. Une pièce rectangle a 4 sommets alignés sur les axes ; un
 côté en biais est simplement un côté dont les deux sommets ne sont ni sur la
-même ligne ni sur la même colonne (rien d'autre à écrire).
+même ligne ni sur la même colonne (rien d'autre à écrire). Les sommets
+peuvent être quelconques (au millimètre) : un côté qui n'est pas droit sur la
+grille de 0,5 m devient un vrai mur oblique.
+
+Format 4 : `forme` (facultative) = la forme de base d'origine, pour la
+régénérer ; le `contour` fait foi (il est écrit à côté) :
+
+```json
+{"id":"p1","nom":"Salle ronde","etage":0,"zone":"z1","contour":[[16,28.937],…],"forme":{"type":"cercle","centre":[16,16],"rx":13,"points":32,"angle":0}}
+```
+
+`type` : `cercle` (polygone régulier, `rx` = rayon, `points` 3 à 64),
+`ellipse` (`rx`, `ry` : demi-largeur et demi-hauteur, `points`), `triangle`
+(`rx`, `ry`), `l` (`rx`, `ry`, `bras` : épaisseur des branches, 0,2 à 0,8) ;
+`angle` : rotation en degrés, sens horaire vu de dessus. Une forme illisible
+écrite à la main est ignorée (la pièce reste un polygone).
 
 **`ouvertures.json`** — portes, débris, passages, fenêtres :
 
@@ -480,7 +575,15 @@ long du mur ; son orientation se lit sur le côté de pièce qui passe par là.
 - Rectangles (`pilier`, `escalier`, `piege`) : `rect` = [x0, y0, x1, y1]. Un
   pilier a son contour sur le trait (comme un mur de pièce) ; les marches et la
   zone de piège sont les cases à l'intérieur. `monte` : `n`, `e`, `s`, `o`.
+  Format 4 : `rot` (facultatif) = rotation du rectangle autour de son centre,
+  entier de 0 à 359, sens horaire vu de dessus (`monte` se lit avant la
+  rotation) : `{"id":"x1","type":"pilier","etage":0,"rect":[9,17,11,19],"rot":30}`.
 - `mur` libre : segment `a` → `b` (droit ou en biais), `epaisseur` 0,5, 1,5 ou 2,5 m.
+- `mur_courbe` (format 4) : arc de cercle en segments droits, `centre`,
+  `rayon` (1 à 128 m), `debut` (direction du premier bout, degrés dans le sens
+  horaire depuis le nord), `ouverture` (5 à 360°, dans le sens horaire),
+  `segments` (1 à 64), `epaisseur` :
+  `{"id":"m1","type":"mur_courbe","etage":0,"centre":[16,16],"rayon":7,"debut":290,"ouverture":100,"segments":8,"epaisseur":0.5}`.
 - Objets muraux (`atout` + `atout`, `arme` + `arme`, `grenades`, `boite` +
   `depart`, `pap`, `courant`, `poste_central`, `levier`) : `position` = milieu
   de l'objet **sur le trait du mur**, `mur` = direction du mur vu depuis
@@ -499,7 +602,8 @@ long du mur ; son orientation se lit sur le côté de pièce qui passe par là.
   `chaise_renversee`, `chaise`, `bureau`, `etagere`, `fauteuils`,
   `fauteuil_casse`, `pupitre`, `projecteur_film`, `chariot`, `epave_voiture`) ;
   `position` = centre de l'emprise ; `rot` = 0, 90, 180 ou 270 (degrés, sens
-  horaire vu de dessus ; à 0, le devant est au sud).
+  horaire vu de dessus ; à 0, le devant est au sud) ; format 4 : tout entier
+  de 0 à 359 (emprise tournée).
 - `luminaire` (format 2) : `luminaire` = une clé de `MapCatalog.LIGHTS`
   (`ampoule`, `suspension`, `neon`, `lustre`, `applique`, `lampe_bureau`,
   `projecteur`, `bougies`, `feu`) ; `position` = centre (applique : sur le
@@ -518,11 +622,16 @@ le catalogue.
   `{"t": "color"}` (« #rrggbb »). Tout type ou toute clé absent est à refuser.
   Format 3 : `angle` des objets muraux et des luminaires = `{"t": "number",
   "min": 0, "max": 360}` (nombre fini ; un NaN, un infini, un texte ou un angle
-  sur un objet qui n'est pas mural sont refusés).
+  sur un objet qui n'est pas mural sont refusés). Format 4 : `rot` du décor,
+  des luminaires, des piliers, escaliers et pièges = `{"t": "int", "min": 0,
+  "max": 359}` ; type `mur_courbe` (`centre` point, `rayon` et `ouverture`
+  nombres bornés, `segments` entier de 1 à 64, `debut`, `epaisseur`).
 - `MapCatalog.allowed_surfaces()` : les textures admises (clés triées de
   `WorldLook.SURFACES`).
 - `MapCatalog.room_keys()` / `MapCatalog.zone_keys()` : clés admises d'une
-  pièce et d'une zone, même format (+ `{"t": "text" | "names" | "polygon"}`).
+  pièce et d'une zone, même format (+ `{"t": "text" | "names" | "polygon" |
+  "shape"}` ; `shape` : la forme de base d'une pièce, contrôlée par
+  `CustomMapGuard._forme`).
 
 **`zones.json`** — zones et zone de départ :
 
@@ -546,7 +655,8 @@ celui du jeu aussi.
 | Fichier | Rôle |
 |---|---|
 | `scripts/editor/editor_map.gd` | `EditorMap` : la carte (cinq JSON), lecture, écriture, archive .zip, dossier des cartes. |
-| `scripts/editor/map_geom.gd` | `MapGeom` : géométrie 2D (contours, bords communs, cases). |
+| `scripts/editor/map_geom.gd` | `MapGeom` : géométrie 2D (contours, bords communs avec tolérance, cases, rotations). |
+| `scripts/editor/map_shapes.gd`, `map_snap.gd`, `map_transform.gd`, `map_panels_shape.gd` | Formes libres : `MapShapes` (cercle, ellipse, triangle, L, mur courbe), `MapSnap` (grille, grille fine, libre, aimants), `MapTransform` (rotations libres, régénération d'une forme), propriétés des formes et angles. |
 | `scripts/editor/map_rules.gd` | `MapRules` : règles de pose et leurs raisons (FR/EN). |
 | `scripts/editor/map_catalog.gd`, `map_icons.gd` | Inventaire tiré des bases du jeu, décor (`PREFABS`), luminaires (`LIGHTS`), types admis (`allowed_kinds`…), icônes et aperçus des textures. |
 | `scripts/editor/map_object_list.gd` | `MapObjectList` : l'onglet « Objets sur la carte » (pages de 50, filtres, survol). |
@@ -578,6 +688,18 @@ celui du jeu aussi.
    (`_diag_opening`) ; un objet mural en biais prend les cases de son emprise
    tournée, hors cases du mur. Les cases qui ne sont que des cases de murs en
    biais (`diag_cells`) ne sont pas construites en blocs.
+   **Formes libres** : seul un côté droit dont les deux bouts sont sur la
+   grille de 0,5 m (`MapGeom.is_grid_seg`) reste en blocs de la grille ; tout
+   autre côté (en biais, ou droit hors de la grille) suit le chemin des murs
+   en biais. Les côtés colinéaires à 3 cm près (`MapGeom.JOIN_TOL`) forment
+   une seule ligne (un mur mitoyen) ; la part d'un mur oblique qui longe un
+   côté de la grille n'est pas construite deux fois. Pilier tourné ou hors de
+   la grille : un pavé oblique (type `pilier`, cases coupées) ; mur courbe : un
+   mur oblique par segment ; escalier tourné : cases dont le centre est dans
+   le rectangle tourné, vide au-dessus, pied et palier vérifiés dans son
+   repère (`MapValidator.diag_stairs`) ; piège tourné : ses cases, et le vrai
+   rectangle pour le jeu (`diag_traps`) ; décor tourné au degré près : cases
+   dont le centre est dans l'emprise tournée.
 2. **Validation** (`MapValidator`, §5).
 3. **Description en maillage** (`MapLayoutExport`) : salles (sols, plafonds,
    dalles d'étage), murs, allèges et linteaux en blocs, garde-corps,
@@ -596,7 +718,11 @@ celui du jeu aussi.
    **découpées selon le vrai contour** de la pièce (salles `biais_*`,
    triangulées), le reste de la pièce garde ses rectangles de cases ; portes
    et fenêtres en biais : milieu exact, lacet et direction vers l'intérieur
-   du mur ; cour d'une fenêtre en biais tournée comme le mur.
+   du mur ; cour d'une fenêtre en biais tournée comme le mur. Formes libres :
+   les morceaux de sol le long des murs obliques ont leur boîte de zone
+   (testée après celles des salles de la grille) ; escalier tourné : `a` et
+   `b` au milieu du pied et du haut des marches ; piège tourné : `area` avant
+   rotation et `yaw` (le jeu, `ElectricTrap`, électrifie le rectangle tourné).
 4. **Géométrie** (`MeshMapGeometry`) : les mêmes objets que le `.glb` de
    `mesh_map.py` (`<matériau>__<salle>__<type>`, collisions en pavés et prismes),
    branchés par `MeshMapBuilder` ; `MeshNav` cuit le navmesh, `MeshMapLayout`
@@ -671,6 +797,27 @@ Preuves automatiques :
   vérification, format 3 ; puis TESTER : rayon et joueur arrêtés par le mur,
   zombies qui entrent par la fenêtre en biais et rejoignent le joueur en
   contournant le mur en biais sans le traverser, un rampant aussi.
+- `tests/test_map_editor_freeform.gd` : modes d'aimantation (grille, grille
+  fine, libre, inversion Maj, aimants aux sommets et aux côtés, mémorisés),
+  saisie au clavier (polygone, mur, rectangle, cercle, mur courbe ; + / - et
+  molette), formes de base (points, rayon exact, côtés à plat, ellipse,
+  triangle, L, arc), nombre de points d'une forme posée (et refus sans rien
+  changer), rotation libre d'une pièce avec son contenu, d'un décor et d'un
+  pilier, poignée de rotation (15°, Alt, annuler), mur mitoyen hors de la
+  grille à 3 mm près, pièce sans grille contre un mur de la grille (pas de mur
+  en double), porte sur un côté à 17°, salle ronde de 32 points (sol continu,
+  maillages fusionnés, rayons et corps arrêtés par le mur rond, le mur courbe
+  et le pilier tourné, navigation qui les contourne), escalier et piège
+  tournés, format 4 relu à l'identique, formats 1 à 3 lus, DRAFT ARENA
+  identique octet pour octet, contrôle des cartes reçues (formes, rotations
+  et murs courbes piégés refusés).
+- `tests/autotest/map_editor_freeform.gd` (captures) : salle ronde de 32
+  points au cercle et au clavier, G G (libre), annexe au polygone aimantée au
+  cercle, côté tapé au clavier, porte réduite pour tenir sur le côté du
+  cercle, fenêtres, mur courbe au clavier, pilier tourné de 30° à la poignée,
+  vérification, format 4 ; puis TESTER : rayons arrêtés par le mur rond et le
+  pilier, zombies entrés par la fenêtre de la salle ronde qui rejoignent le
+  joueur sans traverser le pilier ni le mur courbe.
 - `tests/autotest/map_editor_play.gd` : TESTER sur DRAFT ARENA, partie solo sur
   la carte de l'éditeur, retour dans l'éditeur.
 - `tests/autotest/draft_arena.gd` : la carte se joue (zombies aux fenêtres,
@@ -711,11 +858,16 @@ Preuves automatiques :
 
 - **Sols plats par étage** : pas encore de pente ni de petites marches entre
   deux pièces d'un même étage.
-- **Murs en biais** : les sommets restent sur la grille de 0,5 m (un angle
-  libre est donc celui de deux points de la grille) ; le bord d'une mezzanine
-  en biais au-dessus du vide a encore un garde-corps en escalier de cases ;
-  pas de pilier, d'escalier ni de piège tourné (rectangles droits) ; le décor
-  au sol pivote par quarts de tour.
+- **Murs en biais et formes libres** : le bord d'une mezzanine en biais
+  au-dessus du vide a encore un garde-corps en escalier de cases ; la
+  vérification compte un mur hors de la grille « large » (les cases qu'il
+  touche, 0,5 à 1 m) : un couloir sans grille de moins de 2 m peut être
+  signalé trop étroit ; une ouverture tient sur un seul côté droit (0,5 m de
+  mur plein à chaque bout) : sur un cercle, il faut des côtés assez longs
+  (moins de points ou un plus grand rayon) ; les chevauchements d'objets
+  tournés se comptent par leur rectangle englobant ; les objets muraux
+  suivent leur mur (pas de rotation propre) ; pas encore d'ajout ni de
+  suppression d'un sommet au clavier.
 - Pas de porte en haut ou en bas d'un escalier (les deux zones d'un escalier
   sont ouvertes l'une sur l'autre) ; pas de portes liées ; pièges électriques
   seulement.

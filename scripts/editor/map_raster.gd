@@ -84,6 +84,14 @@ func _build() -> void:
 				neg = neg or float(o[key][0]) < -0.001 or float(o[key][1]) < -0.001
 		if o.has("rect"):
 			hi = hi.max(MapGeom.rect_of(o.rect).end)
+			if MapGeom.rot_of(o) != 0:
+				var rb := MapGeom.bbox(rect_poly(o))
+				hi = hi.max(rb.end)
+				neg = neg or rb.position.x < -0.001 or rb.position.y < -0.001
+		if String(o.get("type", "")) == "mur_courbe":
+			var ab := MapGeom.bbox(MapShapes.wall_arc(o))
+			hi = hi.max(ab.end)
+			neg = neg or ab.position.x < -0.001 or ab.position.y < -0.001
 	if neg:
 		_err("un élément est hors du terrain : les coordonnées x et y doivent être positives", "an element is off the board: x and y coordinates must be positive")
 	var w := ceili(hi.x / MapGeom.CELL) + MARGIN + 1
@@ -142,12 +150,58 @@ func _ceil_of(p: Dictionary, k: int) -> float:
 	return doc.floor_sol(k) + float(p.get("plafond", doc.floor_height(k)))
 
 
-## Cases d'un côté de pièce : celles que traverse le trait (côté droit) ou
-## celles que coupe le mur de 0,5 m (côté en biais, marquage prudent).
+## Cases d'un côté de pièce : celles que traverse le trait (côté droit sur la
+## grille) ou celles que coupe le mur de 0,5 m (côté en biais ou tracé hors de
+## la grille : marquage prudent).
 static func edge_cells(a: Vector2, b: Vector2) -> Array:
-	if MapGeom.is_axis_seg(a, b):
+	if MapGeom.is_grid_seg(a, b):
 		return MapGeom.segment_cells(a, b)
 	return MapGeom.slab_cells(a, b, MapGeom.WALL_HALF)
+
+
+# ------------------------------------------------------------------ rectangles tournés, décor
+
+## Pilier, escalier ou piège construit sur la grille (pas de rotation, bords
+## sur la grille de 0,5 m) ? Sinon : vraie géométrie (rectangle tourné).
+static func rect_on_grid(o: Dictionary) -> bool:
+	return MapGeom.rot_of(o) == 0 and MapGeom.rect_on_grid(MapGeom.rect_of(o.get("rect", [0, 0, 0, 0])))
+
+
+## Contour (sur le trait) d'un pilier, escalier ou piège, rotation comprise.
+static func rect_poly(o: Dictionary) -> PackedVector2Array:
+	var r := MapGeom.rect_of(o.get("rect", [0, 0, 0, 0]))
+	return MapGeom.rot_rect_poly(r.get_center(), r.size, MapGeom.rot_of(o))
+
+
+## Cases intérieures d'un escalier ou d'un piège (marches, zone électrifiée) :
+## centres strictement dans le rectangle (tourné).
+static func rect_inner_cells(o: Dictionary) -> Array:
+	if rect_on_grid(o):
+		return MapGeom.rect_cells_inside(MapGeom.rect_of(o.rect))
+	return MapGeom.poly_cells(rect_poly(o))
+
+
+## Pavé d'un pilier hors de la grille (tourné) : mur oblique de l'épaisseur du
+## pilier, contour sur le trait (0,25 m de mur de chaque côté, comme une pièce).
+static func pillar_box(o: Dictionary) -> Dictionary:
+	var r := MapGeom.rect_of(o.rect)
+	var c := r.get_center()
+	var u := Vector2(1, 0).rotated(deg_to_rad(MapGeom.rot_of(o)))
+	var hl := r.size.x * 0.5 + MapGeom.WALL_HALF
+	return {"a": c - u * hl, "b": c + u * hl, "t": u, "n": Vector2(-u.y, u.x), "half": r.size.y * 0.5 + MapGeom.WALL_HALF}
+
+
+## Emprise au sol (m) d'un décor ou d'un luminaire posé au sol, rotation comprise.
+static func floor_poly(o: Dictionary) -> PackedVector2Array:
+	var it := MapCatalog.item_for(o)
+	var fp: Array = it.get("fp", [1, 1])
+	var sz := Vector2(float(fp[0]), float(fp[1] if it.get("rotates", false) else fp[0])) * MapGeom.CELL
+	return MapGeom.rot_rect_poly(MapGeom.v2(o.get("position", [0, 0])), sz, MapGeom.rot_of(o))
+
+
+## Rotation « au degré près » (pas un quart de tour) ?
+static func free_rot(o: Dictionary) -> bool:
+	return MapGeom.rot_of(o) % 90 != 0
 
 
 ## Contour -> [cases du bord (dictionnaire), cases intérieures (tableau)].
@@ -173,6 +227,7 @@ func _floor(k: int) -> void:
 	# restent des blocs de la grille même si un mur en biais les coupe aussi.
 	_axis = {}
 	_diag_pass = {}
+	_grid_edges = []
 	# Côtés en biais de cet étage (fusionnés en murs obliques après (b)).
 	var raw := []
 	var void_polys := []
@@ -195,7 +250,7 @@ func _floor(k: int) -> void:
 				f.ceil[c.y * f.w + c.x] = ceil_up
 		# Piliers et murs d'une double hauteur : jusqu'en haut.
 		for o in doc.objects_on(k - 1):
-			if String(o.type) in ["pilier", "mur"]:
+			if String(o.type) in ["pilier", "mur", "mur_courbe"]:
 				var cells := _obstacle_cells(o)
 				var up := false
 				for c in cells:
@@ -258,7 +313,7 @@ func _floor(k: int) -> void:
 	if k > 0:
 		for o in doc.objects_on(k - 1):
 			if String(o.type) == "escalier":
-				for c in MapGeom.rect_cells_inside(MapGeom.rect_of(o.rect)):
+				for c in rect_inner_cells(o):
 					f.put(c, K.TREMIE, "tremie")
 					f.ceil[c.y * f.w + c.x] = ceil_up
 	# (d) Ouvertures.
@@ -267,7 +322,7 @@ func _floor(k: int) -> void:
 	# (e) Piliers, murs libres, décor.
 	for o in doc.objects_on(k):
 		match String(o.type):
-			"pilier", "mur":
+			"pilier", "mur", "mur_courbe":
 				var cells := _obstacle_cells(o)
 				for c in cells:
 					f.put(c, K.MUR, "mur")
@@ -300,15 +355,19 @@ func _floor(k: int) -> void:
 							f.put(c, K.MUR, key)
 					v.eid_of[key] = String(o.id)
 				cells_of[String(o.id)] = [k, cells]
-	# (f) Escaliers de cet étage.
+	# (f) Escaliers de cet étage (tournés : vraie géométrie, MapValidator.diag_stairs).
 	for o in doc.objects_on(k):
 		if String(o.type) == "escalier":
 			var key := "escalier#" + String(o.id)
-			var cells := MapGeom.rect_cells_inside(MapGeom.rect_of(o.rect))
+			var cells := rect_inner_cells(o)
 			for c in cells:
 				f.put(c, K.ESCALIER, key, f.zone_of(c))
 			v.eid_of[key] = String(o.id)
 			cells_of[String(o.id)] = [k, cells]
+			if not rect_on_grid(o):
+				var r := MapGeom.rect_of(o.rect)
+				v.diag_stairs[key] = {"center": r.get_center(), "size": r.size, "rot": MapGeom.rot_of(o), "cells": cells, "floor": k,
+					"up": MapGeom.dir_vec(String(o.get("monte", "n"))).rotated(deg_to_rad(MapGeom.rot_of(o))), "eid": String(o.id)}
 	# (g) Objets muraux et au sol.
 	for o in doc.objects_on(k):
 		var t := String(o.type)
@@ -321,13 +380,17 @@ func _floor(k: int) -> void:
 		if t == "luminaire":
 			_light(k, o)
 			continue
-		if t in ["caisse", "baril", "pilier", "mur", "escalier", "prefab"]:
+		if t in ["caisse", "baril", "pilier", "mur", "mur_courbe", "escalier", "prefab"]:
 			continue
 		var cells := []
 		if tool == "wall_item":
 			cells = wall_item_cells(o)
 		elif t == "piege":
-			cells = MapGeom.rect_cells_inside(MapGeom.rect_of(o.rect))
+			cells = rect_inner_cells(o)
+			if not rect_on_grid(o):
+				# Zone tournée : le jeu électrifie le vrai rectangle (MapLayoutExport).
+				var r := MapGeom.rect_of(o.rect)
+				v.diag_traps[String(o.id)] = {"center": r.get_center(), "size": r.size, "rot": MapGeom.rot_of(o)}
 		elif tool == "floor_item":
 			cells = floor_cells(o)
 		if cells.is_empty():
@@ -369,31 +432,71 @@ static func _cardinal(o: Dictionary) -> String:
 	return String(o.get("mur", "n"))
 
 
-## Côtés d'un contour : droits -> cases de la grille (_axis) ; en biais ->
-## `raw` (fusionnés ensuite par _merge_obliques). `own` : pièce de cet étage
-## (sinon contour d'une double hauteur de l'étage du dessous).
+## Côtés d'un contour : droits sur la grille -> cases de la grille (_axis) ;
+## en biais ou hors de la grille -> `raw` (fusionnés ensuite par
+## _merge_obliques). `own` : pièce de cet étage (sinon contour d'une double
+## hauteur de l'étage du dessous).
 func _edges(poly: PackedVector2Array, rid: String, own: bool, raw: Array) -> void:
 	for i in poly.size():
 		var a := poly[i]
 		var b := poly[(i + 1) % poly.size()]
-		if MapGeom.is_axis_seg(a, b):
+		if MapGeom.is_grid_seg(a, b):
 			for c in MapGeom.segment_cells(a, b):
 				_axis[c] = true
+			_grid_edges.append([a, b])
 		else:
 			raw.append({"a": a, "b": b, "room": rid, "poly": poly, "own": own})
 
 
-## Pilier ou mur libre de l'étage k : cases droites (_axis) ou mur oblique.
+## Côtés de pièce construits en blocs de la grille (étage en cours) : un mur
+## oblique qui les longe (pièce tracée sans grille collée à une pièce de la
+## grille) n'est pas construit une seconde fois.
+var _grid_edges: Array = []
+
+
+## Pilier, mur libre ou mur courbe de l'étage k : cases droites (_axis) ou
+## mur oblique (vraie géométrie).
 func _obstacle_record(k: int, o: Dictionary, cells: Array) -> void:
-	if String(o.type) == "mur" and not MapGeom.is_axis_seg(MapGeom.v2(o.a), MapGeom.v2(o.b)):
-		var a := MapGeom.v2(o.a)
-		var b := MapGeom.v2(o.b)
-		var t := (b - a).normalized()
-		var room := MapRules.room_at(doc, int(o.get("etage", 0)), (a + b) * 0.5)
-		var rid := String(room.get("id", ""))
-		v.oblique_walls[k].append({"a": a, "b": b, "t": t, "n": Vector2(-t.y, t.x), "half": float(o.get("epaisseur", 0.5)) * 0.5,
-			"pos": rid, "neg": rid, "kind": "mur", "eid": String(o.id)})
-		return
+	var t0 := String(o.type)
+	var rid := ""
+	if t0 != "pilier" or not rect_on_grid(o):
+		# Pièce de l'obstacle (texture de ses faces) : sous son milieu.
+		var at := Vector2.ZERO
+		match t0:
+			"pilier":
+				at = MapGeom.rect_of(o.rect).get_center()
+			"mur_courbe":
+				var arc := MapShapes.wall_arc(o)
+				at = arc[arc.size() / 2]
+			_:
+				at = (MapGeom.v2(o.a) + MapGeom.v2(o.b)) * 0.5
+		rid = String(MapRules.room_at(doc, int(o.get("etage", 0)), at).get("id", ""))
+	var half := float(o.get("epaisseur", 0.5)) * 0.5
+	match t0:
+		"pilier":
+			if not rect_on_grid(o):
+				var box := pillar_box(o)
+				box.merge({"pos": rid, "neg": rid, "kind": "pilier", "eid": String(o.id)})
+				v.oblique_walls[k].append(box)
+				return
+		"mur":
+			var a := MapGeom.v2(o.a)
+			var b := MapGeom.v2(o.b)
+			if not MapGeom.is_grid_seg(a, b):
+				var t := (b - a).normalized()
+				v.oblique_walls[k].append({"a": a, "b": b, "t": t, "n": Vector2(-t.y, t.x), "half": half,
+					"pos": rid, "neg": rid, "kind": "mur", "eid": String(o.id)})
+				return
+		"mur_courbe":
+			for s in MapShapes.arc_segments(o):
+				var a: Vector2 = s[0]
+				var b: Vector2 = s[1]
+				if a.distance_to(b) < 0.01:
+					continue
+				var t := (b - a).normalized()
+				v.oblique_walls[k].append({"a": a, "b": b, "t": t, "n": Vector2(-t.y, t.x), "half": half,
+					"pos": rid, "neg": rid, "kind": "mur", "eid": String(o.id)})
+			return
 	for c in cells:
 		_axis[c] = true
 
@@ -404,37 +507,71 @@ func _obstacle_record(k: int, o: Dictionary, cells: Array) -> void:
 ## (garde-corps).
 func _merge_obliques(raw: Array, void_polys: Array) -> Array:
 	var lines := {}
+	var order := []   # lignes dans l'ordre de création (regroupement tolérant)
 	for r in raw:
 		var t: Vector2 = (r.b - r.a).normalized()
 		if t.x < -MapGeom.EPS or (absf(t.x) <= MapGeom.EPS and t.y < 0.0):
 			t = -t
 		var n := Vector2(-t.y, t.x)
-		var off := snappedf(Vector2(r.a).dot(n), 0.001)
-		var key := "%.4f:%.4f:%.3f" % [t.x, t.y, off]
-		var line: Dictionary = lines.get_or_add(key, {"t": t, "n": n, "off": off, "spans": []})
-		var s0: float = Vector2(r.a).dot(t)
-		var s1: float = Vector2(r.b).dot(t)
+		# Côtés colinéaires à JOIN_TOL près (pièces collées sans grille) : la
+		# même ligne, donc un seul mur mitoyen.
+		var line: Dictionary = {}
+		for l: Dictionary in order:
+			var lt: Vector2 = l.t
+			var ln: Vector2 = l.n
+			if absf(t.dot(lt)) > 0.99985 and absf(Vector2(r.a).dot(ln) - float(l.off)) < MapGeom.JOIN_TOL \
+					and absf(Vector2(r.b).dot(ln) - float(l.off)) < MapGeom.JOIN_TOL:
+				line = l
+				break
+		if line.is_empty():
+			var off := snappedf(Vector2(r.a).dot(n), 0.001)
+			var key := "%.4f:%.4f:%.3f" % [t.x, t.y, off]
+			while lines.has(key):
+				key += "+"
+			line = {"t": t, "n": n, "off": off, "spans": [], "key": key}
+			lines[key] = line
+			order.append(line)
+		var lt2: Vector2 = line.t
+		var ln2: Vector2 = line.n
+		var s0: float = Vector2(r.a).dot(lt2)
+		var s1: float = Vector2(r.b).dot(lt2)
 		var mid: Vector2 = (r.a + r.b) * 0.5
-		var side := 1 if MapGeom.contains(r.poly, mid + n * 0.2) else -1
+		var side := 1 if MapGeom.contains(r.poly, mid + ln2 * 0.2) else -1
 		line.spans.append([minf(s0, s1), maxf(s0, s1), String(r.room), side, bool(r.own)])
 	var out := []
 	var keys := lines.keys()
 	keys.sort()
 	for key in keys:
 		var line: Dictionary = lines[key]
+		var t: Vector2 = line.t
+		var n: Vector2 = line.n
+		var base: Vector2 = n * float(line.off)
+		# Parties déjà construites en blocs de la grille (côté d'une pièce de la
+		# grille sur la même ligne) : pas de second mur.
+		var covered := []
+		for g in _grid_edges:
+			var ga: Vector2 = g[0]
+			var gb: Vector2 = g[1]
+			if absf((gb - ga).normalized().dot(t)) > 0.9998 and absf(ga.dot(n) - float(line.off)) < MapGeom.JOIN_TOL \
+					and absf(gb.dot(n) - float(line.off)) < MapGeom.JOIN_TOL:
+				covered.append([minf(ga.dot(t), gb.dot(t)), maxf(ga.dot(t), gb.dot(t))])
 		var cuts := []
 		for sp in line.spans:
 			for s in [sp[0], sp[1]]:
 				if not cuts.any(func(x): return absf(x - s) < 0.001):
 					cuts.append(s)
+		for cv in covered:
+			for s in [cv[0], cv[1]]:
+				if not cuts.any(func(x): return absf(x - s) < 0.001):
+					cuts.append(s)
 		cuts.sort()
-		var t: Vector2 = line.t
-		var n: Vector2 = line.n
-		var base: Vector2 = n * float(line.off)
 		for i in cuts.size() - 1:
 			var u: float = cuts[i]
 			var w: float = cuts[i + 1]
 			if w - u < 0.01:
+				continue
+			var mid_s := (u + w) * 0.5
+			if covered.any(func(cv): return mid_s > float(cv[0]) - 0.001 and mid_s < float(cv[1]) + 0.001):
 				continue
 			var sides := {1: ["", false], -1: ["", false]}
 			for sp in line.spans:
@@ -465,7 +602,7 @@ func _merge_obliques(raw: Array, void_polys: Array) -> Array:
 ## Mur oblique (côté de pièce) de l'étage k qui passe par `p` ({} sinon).
 func oblique_at(k: int, p: Vector2) -> Dictionary:
 	for w in v.oblique_walls[k]:
-		if w.kind == "piece" and MapGeom.dist_to_segment(p, w.a, w.b) <= 0.02:
+		if w.kind == "piece" and MapGeom.dist_to_segment(p, w.a, w.b) <= MapGeom.JOIN_TOL:
 			return w
 	return {}
 
@@ -523,14 +660,25 @@ func _light(k: int, o: Dictionary) -> void:
 	cells_of[String(o.id)] = [k, cells]
 
 
-## Cases d'un pilier (contour et intérieur) ou d'un mur libre (segment épais).
+## Cases d'un pilier (contour et intérieur), d'un mur libre (segment épais)
+## ou d'un mur courbe (ses segments épais).
 func _obstacle_cells(o: Dictionary) -> Array:
 	if String(o.type) == "pilier":
-		return MapGeom.rect_cells_closed(MapGeom.rect_of(o.rect))
+		if rect_on_grid(o):
+			return MapGeom.rect_cells_closed(MapGeom.rect_of(o.rect))
+		# Pilier tourné ou hors de la grille : toutes les cases que touche son pavé.
+		var box := pillar_box(o)
+		return MapGeom.slab_cells(box.a, box.b, float(box.half))
+	if String(o.type) == "mur_courbe":
+		var all := {}
+		for s in MapShapes.arc_segments(o):
+			for c in MapGeom.slab_cells(s[0], s[1], float(o.get("epaisseur", 0.5)) * 0.5):
+				all[c] = true
+		return all.keys()
 	var a := MapGeom.v2(o.a)
 	var b := MapGeom.v2(o.b)
-	if not MapGeom.is_axis_seg(a, b):
-		# Mur libre en biais : toutes les cases que coupe son épaisseur.
+	if not MapGeom.is_grid_seg(a, b):
+		# Mur libre en biais ou hors de la grille : toutes les cases que coupe son épaisseur.
 		return MapGeom.slab_cells(a, b, float(o.get("epaisseur", 0.5)) * 0.5)
 	var cells := {}
 	for c in MapGeom.segment_cells(a, b):
@@ -562,8 +710,11 @@ static func _block(o: Dictionary, n: Vector2i) -> Array:
 	return out
 
 
-## Cases d'un objet au sol (rotation comprise : MapCatalog.floor_size).
+## Cases d'un objet au sol (rotation comprise : MapCatalog.floor_size ; tourné
+## au degré près : cases dont le centre est dans l'emprise tournée).
 static func floor_cells(o: Dictionary) -> Array:
+	if free_rot(o) and MapCatalog.rotates(o):
+		return MapGeom.poly_cells(floor_poly(o))
 	return _block(o, MapCatalog.floor_size(o))
 
 
@@ -637,8 +788,9 @@ static func opening_cells(o: Dictionary, horizontal: bool) -> Array:
 	return out
 
 
-## Sens du mur sous une ouverture : un bord de pièce (horizontal ou vertical)
-## qui passe par sa position. -1 : aucun.
+## Sens du mur sous une ouverture : un bord de pièce de la grille (horizontal
+## ou vertical, bouts sur la grille) qui passe par sa position. -1 : aucun
+## (mur en biais ou hors de la grille : vrai mur oblique).
 func opening_axis(o: Dictionary) -> int:
 	var p := MapGeom.v2(o.position)
 	for r in doc.rooms_on(int(o.get("etage", 0))):
@@ -646,7 +798,7 @@ func opening_axis(o: Dictionary) -> int:
 		for i in poly.size():
 			var a := poly[i]
 			var b := poly[(i + 1) % poly.size()]
-			if MapGeom.dist_to_segment(p, a, b) > 0.01:
+			if MapGeom.dist_to_segment(p, a, b) > 0.01 or not MapGeom.is_grid_seg(a, b):
 				continue
 			if absf(a.y - b.y) < MapGeom.EPS:
 				return 1

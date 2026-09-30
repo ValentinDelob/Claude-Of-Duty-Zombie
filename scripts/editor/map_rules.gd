@@ -40,6 +40,11 @@ static func _name(o: Dictionary) -> Array:
 static func check_room(doc: EditorMap, k: int, poly: PackedVector2Array, ignore_id := "") -> Dictionary:
 	if poly.size() < 3 or not MapGeom.is_simple(poly):
 		return refuse("contour invalide : ses côtés se croisent", "invalid outline: its sides cross")
+	if poly.size() > CustomMapGuard.MAX_VERTICES:
+		return refuse("trop de sommets (%d au plus)" % CustomMapGuard.MAX_VERTICES, "too many vertices (%d at most)" % CustomMapGuard.MAX_VERTICES)
+	for i in poly.size():
+		if poly[i].distance_to(poly[(i + 1) % poly.size()]) < 0.1:
+			return refuse("côté trop court (10 cm au moins)", "side too short (at least 10 cm)")
 	var bb := MapGeom.bbox(poly)
 	if bb.position.x < -MapGeom.EPS or bb.position.y < -MapGeom.EPS:
 		return refuse("hors du terrain : x et y doivent rester positifs", "off the board: x and y must stay positive")
@@ -52,15 +57,30 @@ static func check_room(doc: EditorMap, k: int, poly: PackedVector2Array, ignore_
 	return {"ok": true}
 
 
-## Bords communs de deux pièces collées de l'étage : [{a, b, rooms: [id, id]}].
+## Bords communs de deux pièces collées de l'étage : [{a, b, rooms: [id, id],
+## grid}] ; `grid` : le bord est construit en blocs de la grille (il longe un
+## côté de la grille de l'une des deux pièces), sinon c'est un mur oblique.
 static func shared_edges(doc: EditorMap, k: int) -> Array:
 	var out := []
 	var rooms := doc.rooms_on(k)
+	var polys := rooms.map(func(r): return doc.room_poly(r))
 	for i in rooms.size():
 		for j in range(i + 1, rooms.size()):
-			for s in MapGeom.common_segments(doc.room_poly(rooms[i]), doc.room_poly(rooms[j])):
-				out.append({"a": s[0], "b": s[1], "rooms": [String(rooms[i].id), String(rooms[j].id)]})
+			for s in MapGeom.common_segments(polys[i], polys[j]):
+				var grid := on_grid_edge(polys[i], s[0], s[1]) or on_grid_edge(polys[j], s[0], s[1])
+				out.append({"a": s[0], "b": s[1], "rooms": [String(rooms[i].id), String(rooms[j].id)], "grid": grid})
 	return out
+
+
+## Le segment [a, b] longe-t-il (à JOIN_TOL près) un côté de la grille du contour ?
+static func on_grid_edge(poly: PackedVector2Array, a: Vector2, b: Vector2) -> bool:
+	for i in poly.size():
+		var p := poly[i]
+		var q := poly[(i + 1) % poly.size()]
+		if MapGeom.is_grid_seg(p, q) and MapGeom.dist_to_segment(a, p, q) <= MapGeom.JOIN_TOL \
+				and MapGeom.dist_to_segment(b, p, q) <= MapGeom.JOIN_TOL:
+			return true
+	return false
 
 
 ## Point juste de l'autre côté d'un bord (normale sortante de la pièce).
@@ -92,11 +112,12 @@ static func outer_edges(doc: EditorMap, k: int) -> Array:
 				for pc in pieces:
 					next.append_array(_subtract(pc[0], pc[1], MapGeom.edge_common(pc[0], pc[1], doc.room_poly(q))))
 				pieces = next
+			var grid := MapGeom.is_grid_seg(poly[i], poly[(i + 1) % poly.size()])
 			for pc in pieces:
 				var outside := _outside(poly, pc[0], pc[1])
 				if voids.any(func(vp): return MapGeom.strictly_inside(vp, outside)):
 					continue
-				out.append({"a": pc[0], "b": pc[1], "room": String(r.id)})
+				out.append({"a": pc[0], "b": pc[1], "room": String(r.id), "grid": grid})
 	return out
 
 
@@ -139,8 +160,22 @@ static func opening_span(o: Dictionary, horizontal: bool) -> Vector2:
 
 
 ## Pose d'une ouverture de type `type`, de largeur `width`, près de `mouse`.
-## -> {ok, position, rooms, horizontal} ou {ok: false, fr, en}.
-static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, width: float, ignore_id := "") -> Dictionary:
+## -> {ok, position, rooms, horizontal} ou {ok: false, fr, en}. `shrink` (pose
+## à la souris) : sur un mur trop court (côté d'un cercle...), la porte est
+## réduite par pas de 0,5 m jusqu'à 1 m pour y tenir (clé « largeur » du résultat).
+static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, width: float, ignore_id := "", shrink := false) -> Dictionary:
+	if shrink and type != "fenetre":
+		var first := place_opening(doc, k, type, mouse, width, ignore_id)
+		if first.ok:
+			return first
+		var w2 := width - MapGeom.CELL
+		while w2 >= 1.0 - MapGeom.EPS:
+			var r2 := place_opening(doc, k, type, mouse, w2, ignore_id)
+			if r2.ok:
+				r2["largeur"] = w2
+				return r2
+			w2 -= MapGeom.CELL
+		return first
 	var window := type == "fenetre"
 	var cands := outer_edges(doc, k) if window else shared_edges(doc, k)
 	var best = null
@@ -163,9 +198,9 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 			"aim at the shared wall of two touching rooms: a door only leads into another room")
 	var a: Vector2 = best.a
 	var b: Vector2 = best.b
-	if not MapGeom.is_axis_seg(a, b):
+	if not bool(best.get("grid", MapGeom.is_grid_seg(a, b))):
 		return _place_opening_oblique(doc, k, window, mouse, width, best, ignore_id)
-	var horizontal := absf(a.y - b.y) < MapGeom.EPS
+	var horizontal := absf(a.y - b.y) < MapGeom.JOIN_TOL
 	var n := maxi(1, roundi(width / MapGeom.CELL))
 	var w := n * MapGeom.CELL
 	var lo := minf(a.x, b.x) if horizontal else minf(a.y, b.y)
@@ -181,7 +216,9 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 	if max_c + w * 0.5 > hi - END_MARGIN + MapGeom.EPS:
 		max_c -= MapGeom.CELL
 	along = clampf(along, min_c, max_c)
-	var line := a.y if horizontal else a.x
+	# Trait du mur de la grille (une pièce collée sans grille peut en être à
+	# quelques millimètres).
+	var line := snappedf(a.y if horizontal else a.x, MapGeom.CELL)
 	var pos := Vector2(along, line) if horizontal else Vector2(line, along)
 	var span := Vector2(along - w * 0.5, along + w * 0.5)
 	# Autres ouvertures du même mur : 0,5 m de mur entre deux ouvertures.
@@ -250,7 +287,7 @@ static func _on_oblique_wall(doc: EditorMap, k: int, p: Vector2) -> bool:
 			var a := poly[i]
 			var b := poly[(i + 1) % poly.size()]
 			if MapGeom.dist_to_segment(p, a, b) <= 0.01:
-				if MapGeom.is_axis_seg(a, b):
+				if MapGeom.is_grid_seg(a, b):
 					return false
 				oblique = true
 	return oblique
@@ -280,7 +317,7 @@ static func _place_opening_oblique(doc: EditorMap, k: int, window: bool, mouse: 
 		if String(o.id) == ignore_id:
 			continue
 		var op := MapGeom.v2(o.position)
-		if _line_dist(op, a, t) > 0.01:
+		if _line_dist(op, a, t) > MapGeom.JOIN_TOL:
 			continue
 		var oc := (op - a).dot(t)
 		var ow := opening_width(o) * 0.5
@@ -292,7 +329,7 @@ static func _place_opening_oblique(doc: EditorMap, k: int, window: bool, mouse: 
 		if MapCatalog.tool_of(o) != "wall_item":
 			continue
 		var op := MapGeom.v2(o.position)
-		if _line_dist(op, a, t) > 0.01 or absf(MapGeom.item_wall_dir(o).dot(t)) > 0.05:
+		if _line_dist(op, a, t) > MapGeom.JOIN_TOL or absf(MapGeom.item_wall_dir(o).dot(t)) > 0.05:
 			continue
 		var half := MapCatalog.footprint(o).x * MapGeom.CELL * 0.5
 		var oc := (op - a).dot(t)
@@ -339,13 +376,19 @@ static func room_at(doc: EditorMap, k: int, p: Vector2) -> Dictionary:
 static func footprint_rect(o: Dictionary) -> Rect2:
 	var t := String(o.get("type", ""))
 	if o.has("rect"):
+		if MapGeom.rot_of(o) != 0:
+			return MapGeom.bbox(MapRaster.rect_poly(o))
 		return MapGeom.rect_of(o.rect)
 	if t == "mur":
 		var half := float(o.get("epaisseur", 0.5)) * 0.5
 		return Rect2(MapGeom.v2(o.a), Vector2.ZERO).expand(MapGeom.v2(o.b)).grow(half)
+	if t == "mur_courbe":
+		return MapGeom.bbox(MapShapes.wall_arc(o)).grow(float(o.get("epaisseur", 0.5)) * 0.5)
 	var fp := MapCatalog.footprint(o)
 	var p := MapGeom.v2(o.get("position", [0, 0]))
 	var tool := MapCatalog.tool_of(o)
+	if tool == "floor_item" and MapRaster.free_rot(o) and MapCatalog.rotates(o):
+		return MapGeom.bbox(MapRaster.floor_poly(o))
 	if tool == "wall_item" and MapGeom.item_oblique(o):
 		# Contre un mur en biais : rectangle englobant de l'emprise tournée.
 		return MapGeom.bbox(wall_item_poly(o))
@@ -388,10 +431,19 @@ static func hit(doc: EditorMap, o: Dictionary, p: Vector2) -> bool:
 		return MapGeom.contains(doc.room_poly(o), p)
 	if String(o.get("type", "")) == "mur":
 		return MapGeom.dist_to_segment(p, MapGeom.v2(o.a), MapGeom.v2(o.b)) <= maxf(0.3, float(o.get("epaisseur", 0.5)) * 0.5)
+	if String(o.get("type", "")) == "mur_courbe":
+		var half := maxf(0.3, float(o.get("epaisseur", 0.5)) * 0.5)
+		return MapShapes.arc_segments(o).any(func(s): return MapGeom.dist_to_segment(p, s[0], s[1]) <= half)
 	if o.has("position") and not o.has("rect") and ouvertures_types().has(String(o.get("type", ""))):
 		return MapGeom.v2(o.position).distance_to(p) <= maxf(0.5, opening_width(o) * 0.5)
 	if MapGeom.item_oblique(o) and MapCatalog.tool_of(o) == "wall_item":
 		var poly := wall_item_poly(o)
+		return MapGeom.contains(poly, p) or MapGeom.on_boundary(poly, p, 0.05)
+	if o.has("rect") and MapGeom.rot_of(o) != 0:
+		var poly := MapRaster.rect_poly(o)
+		return MapGeom.contains(poly, p) or MapGeom.on_boundary(poly, p, 0.05)
+	if MapCatalog.tool_of(o) == "floor_item" and MapRaster.free_rot(o) and MapCatalog.rotates(o):
+		var poly := MapRaster.floor_poly(o)
 		return MapGeom.contains(poly, p) or MapGeom.on_boundary(poly, p, 0.05)
 	return footprint_rect(o).grow(0.05).has_point(p)
 
@@ -424,7 +476,7 @@ static func begin_batch(doc: EditorMap) -> void:
 	_batch = {}
 	_batch_doc = doc
 	for o in doc.objets:
-		if String(o.get("type", "")) == "mur":
+		if String(o.get("type", "")) in ["mur", "mur_courbe"]:
 			continue
 		var r := footprint_rect(o)
 		var e := [o, r, layer_of(o)]
@@ -461,7 +513,7 @@ static func _near(doc: EditorMap, k: int, r: Rect2) -> Array:
 		return out
 	var out := []
 	for o in doc.objects_on(k):
-		if String(o.get("type", "")) != "mur":
+		if not String(o.get("type", "")) in ["mur", "mur_courbe"]:
 			out.append([o, footprint_rect(o), layer_of(o)])
 	return out
 
@@ -536,7 +588,8 @@ static func place_wall_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vec
 		return refuse("rapprochez-vous d'un mur : %s se pose contre un mur" % nm[0].to_lower(), "move closer to a wall: %s stands against a wall" % nm[1].to_lower())
 	var a := poly[best]
 	var b := poly[(best + 1) % poly.size()]
-	if not MapGeom.is_axis_seg(a, b):
+	if not MapGeom.is_grid_seg(a, b):
+		# Mur en biais ou tracé hors de la grille : vrai mur oblique.
 		return _place_wall_item_oblique(doc, k, tmpl, mouse, room, a, b, ignore_id)
 	var horizontal := absf(a.y - b.y) < MapGeom.EPS
 	var fp := MapCatalog.footprint(tmpl)
@@ -608,7 +661,7 @@ static func _place_wall_item_oblique(doc: EditorMap, k: int, tmpl: Dictionary, m
 	obj["angle"] = snappedf(MapGeom.dir_deg(dv), 0.01)
 	for o in doc.openings_on(k):
 		var op := MapGeom.v2(o.position)
-		if _line_dist(op, a, t) > 0.01:
+		if _line_dist(op, a, t) > MapGeom.JOIN_TOL:
 			continue
 		var oc := (op - a).dot(t)
 		var ow := opening_width(o) * 0.5
@@ -633,9 +686,12 @@ static func _place_wall_item_oblique(doc: EditorMap, k: int, tmpl: Dictionary, m
 ## Couches (layer_of) : un luminaire du plafond ne gêne que les autres
 ## luminaires du plafond ; un luminaire posé au sol peut se poser sur un
 ## meuble qui a un dessus (support : bureau, chariot...).
-static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "") -> Dictionary:
+static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "", grid := true) -> Dictionary:
 	var n := MapCatalog.floor_size(tmpl)
 	var pos := Vector2(MapGeom.snap_along(mouse.x, n.x), MapGeom.snap_along(mouse.y, n.y))
+	if not grid or MapRaster.free_rot(tmpl):
+		# Sans grille, ou tourné au degré près : là où est le curseur (au centimètre).
+		pos = MapGeom.round_cm(mouse)
 	var obj := tmpl.duplicate()
 	obj["position"] = MapGeom.arr(pos)
 	var nm := _name(tmpl)
@@ -668,23 +724,34 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 	return res
 
 
-## Rectangle au sol (pilier, escalier, piège) : dans une seule pièce, sans chevauchement.
-static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id := "") -> Dictionary:
+## Rectangle au sol (pilier, escalier, piège) : dans une seule pièce, sans
+## chevauchement ; `rot` : rotation au degré près (sens horaire) autour de son centre.
+static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id := "", rot := 0) -> Dictionary:
 	var o := {"type": type}
 	var nm := _name(o)
+	var sz0 := r.size   # taille avant rotation (largeur d'un escalier)
 	if r.size.x < MapGeom.CELL * 2 - MapGeom.EPS or r.size.y < MapGeom.CELL * 2 - MapGeom.EPS:
 		return refuse("%s trop petit (1 m de côté au moins)" % nm[0], "%s too small (at least 1 m per side)" % nm[1])
 	var room := room_at(doc, k, r.get_center())
 	if room.is_empty():
 		return refuse("%s se pose à l'intérieur d'une pièce" % nm[0], "%s goes inside a room" % nm[1])
 	var poly := doc.room_poly(room)
-	for c in [r.position, r.end, Vector2(r.position.x, r.end.y), Vector2(r.end.x, r.position.y)]:
+	var corners := MapGeom.rot_rect_poly(r.get_center(), r.size, posmod(rot, 360))
+	for c in corners:
 		if not MapGeom.contains(poly, c.lerp(r.get_center(), 0.01)) and not MapGeom.on_boundary(poly, c, 0.01):
 			return refuse("%s déborde de la pièce « %s »" % [nm[0], room.get("nom", room.id)], "%s sticks out of room \"%s\"" % [nm[1], room.get("nom", room.id)])
+	if posmod(rot, 360) != 0:
+		# Rectangle tourné : aucun côté de la pièce ne le traverse (pièce concave).
+		for i in poly.size():
+			for j in 4:
+				if Geometry2D.segment_intersects_segment(poly[i], poly[(i + 1) % poly.size()], corners[j].lerp(r.get_center(), 0.01),
+						corners[(j + 1) % 4].lerp(r.get_center(), 0.01)) != null:
+					return refuse("%s déborde de la pièce « %s »" % [nm[0], room.get("nom", room.id)], "%s sticks out of room \"%s\"" % [nm[1], room.get("nom", room.id)])
+		r = MapGeom.bbox(corners)
 	if type == "escalier":
 		if k >= doc.floor_count() - 1:
 			return refuse("un escalier monte à l'étage du dessus : ajoutez d'abord un étage (onglet Étages)", "stairs go up to the floor above: add a floor first (Floors tab)")
-		if minf(r.size.x, r.size.y) < 1.5 - MapGeom.EPS:
+		if minf(sz0.x, sz0.y) < 1.5 - MapGeom.EPS:
 			return refuse("escalier trop étroit (1,5 m au moins)", "stairs too narrow (at least 1.5 m)")
 	var other := _overlaps(doc, k, r, ignore_id)
 	if not other.is_empty():
@@ -697,6 +764,23 @@ static func check_wall(a: Vector2, b: Vector2) -> Dictionary:
 	if a.distance_to(b) < MapGeom.CELL - MapGeom.EPS:
 		return refuse("mur trop court", "wall too short")
 	if minf(a.x, b.x) < -MapGeom.EPS or minf(a.y, b.y) < -MapGeom.EPS:
+		return refuse("hors du terrain : x et y doivent rester positifs", "off the board: x and y must stay positive")
+	return {"ok": true}
+
+
+## Mur courbe (arc en segments) : rayon d'un mètre au moins, ouverture de 5 à
+## 360°, dans le terrain.
+static func check_arc(o: Dictionary) -> Dictionary:
+	var r := float(o.get("rayon", 0.0))
+	if r < 1.0 - MapGeom.EPS:
+		return refuse("mur courbe trop petit (1 m de rayon au moins)", "curved wall too small (at least 1 m radius)")
+	if r > MapShapes.MAX_RADIUS:
+		return refuse("mur courbe trop grand", "curved wall too large")
+	var op := float(o.get("ouverture", 0.0))
+	if op < 5.0 or op > 360.0:
+		return refuse("ouverture du mur courbe : 5 à 360°", "curved wall opening: 5 to 360°")
+	var bb := MapGeom.bbox(MapShapes.wall_arc(o))
+	if bb.position.x < -MapGeom.EPS or bb.position.y < -MapGeom.EPS:
 		return refuse("hors du terrain : x et y doivent rester positifs", "off the board: x and y must stay positive")
 	return {"ok": true}
 
@@ -715,14 +799,19 @@ static func check_existing(doc: EditorMap, o: Dictionary) -> Dictionary:
 	match MapCatalog.tool_of(o):
 		"wall_item":
 			var r := place_wall_item(doc, k, o, MapGeom.v2(o.position) - MapGeom.item_wall_dir(o) * 0.6, String(o.id))
-			if r.ok and (MapGeom.v2(r.position).distance_to(MapGeom.v2(o.position)) > 0.3 or String(r.mur) != String(o.get("mur", ""))
-					or r.has("angle") != MapGeom.item_oblique(o) or (r.has("angle") and absf(angle_difference(deg_to_rad(float(r.angle)), deg_to_rad(float(o.angle)))) > 0.01)):
-				return refuse("n'est plus contre un mur", "is no longer against a wall")
+			if r.ok:
+				# Même mur, même direction (à 0,6° près), à la même place.
+				var now := o.duplicate()
+				apply_wall(now, r)
+				if MapGeom.v2(r.position).distance_to(MapGeom.v2(o.position)) > 0.3 or MapGeom.item_wall_dir(now).dot(MapGeom.item_wall_dir(o)) < 0.99995:
+					return refuse("n'est plus contre un mur", "is no longer against a wall")
 			return r
 		"floor_item":
-			return place_floor_item(doc, k, o, MapGeom.v2(o.position), String(o.id))
+			return place_floor_item(doc, k, o, MapGeom.v2(o.position), String(o.id), false)
 		"rect":
-			return check_rect(doc, k, t, MapGeom.rect_of(o.rect), String(o.id))
+			return check_rect(doc, k, t, MapGeom.rect_of(o.rect), String(o.id), MapGeom.rot_of(o))
 		"wall":
 			return check_wall(MapGeom.v2(o.a), MapGeom.v2(o.b))
+		"arc":
+			return check_arc(o)
 	return {"ok": true}
