@@ -411,6 +411,6 @@ func _tick_fx(delta: float) -> void:
 		var lp := game.local_player
 		if lp:
 			var a := _shake_amp * clampf(_shake_t / 0.5, 0.0, 1.0)
-			lp._flinch += Vector2(randf_range(-a, a), randf_range(-a, a))
+			lp.add_flinch(Vector2(randf_range(-a, a), randf_range(-a, a)))
 		if _shake_t <= 0.0:
 			_shake_amp = 0.0
