@@ -102,8 +102,8 @@ func pose(delta: float) -> void:
 	var spd := z.anim_speed
 	# Longueur d'un pas : la cadence suit la vitesse réelle (pas de glisse).
 	var stride := lerpf(0.4, 0.8, run_k) + 0.18 * sprint_k
-	z._phase += delta * (PI * spd / stride + 0.5)
-	var ph := z._phase
+	z.gait_phase += delta * (PI * spd / stride + 0.5)
+	var ph := z.gait_phase
 	var s := sin(ph)
 	var c := cos(ph)
 	var move_k := clampf(spd / lerpf(0.9, 2.2, run_k), 0.0, 1.0)
@@ -190,7 +190,7 @@ func pose(delta: float) -> void:
 	var root_y := 0.0
 	# --- Émergence : les mains d'abord, puis la tête, puis tout le corps ----
 	if state == Zombie.State.EMERGE:
-		var k := clampf(z._state_time / Zombie.EMERGE_TIME, 0.0, 1.0)
+		var k := clampf(z.state_time / Zombie.EMERGE_TIME, 0.0, 1.0)
 		root_y = _keys(k, [[0.0, -2.3], [0.18, -1.95], [0.42, -1.4], [0.78, -0.2], [1.0, 0.0]])
 		var claw := sin(_t * 11.0) * 0.12
 		var up := 1.0 - smoothstep(0.3, 0.55, k)
@@ -214,7 +214,7 @@ func pose(delta: float) -> void:
 	# --- Fenêtre : arrachage des planches / enjambement ---------------------
 	var tearing := state == Zombie.State.BARRIER and spd < 0.4
 	if state == Zombie.State.VAULT:
-		var vk := clampf(z._state_time / BarricadeRules.VAULT_TIME, 0.0, 1.0)
+		var vk := clampf(z.state_time / BarricadeRules.VAULT_TIME, 0.0, 1.0)
 		var v := sin(vk * PI)
 		root_y = v * 0.95
 		spine_x += v * 0.9
@@ -231,7 +231,7 @@ func pose(delta: float) -> void:
 		fr = -0.35
 	elif tearing:
 		var period := BarricadeRules.tear_interval(z.speed_class)
-		var tt := fmod(z._state_time, period) / period
+		var tt := fmod(z.state_time, period) / period
 		# Agrippe (bras tendus vers la planche), tire en se jetant en
 		# arrière (coudes ramenés), puis jette la planche sur le côté.
 		al = _keys(tt, [[0.0, -1.3], [0.35, -1.75], [0.5, -1.7], [0.7, -0.55], [0.85, -1.2], [1.0, -1.3]])
@@ -253,9 +253,9 @@ func pose(delta: float) -> void:
 		hip_roll = 0.0
 
 	# --- Attaque : griffes à deux bras ---------------------------------------
-	if z._attack_t >= 0.0:
-		z._attack_t += delta / 0.7
-		var at := clampf(z._attack_t, 0.0, 1.0)
+	if z.attack_t >= 0.0:
+		z.attack_t += delta / 0.7
+		var at := clampf(z.attack_t, 0.0, 1.0)
 		var w := smoothstep(0.0, 0.12, at) * (1.0 - smoothstep(0.8, 1.0, at))
 		var a_r := _keys(at, [[0.0, -1.3], [0.28, -2.45], [0.5, -0.85], [0.7, -1.0], [1.0, -1.2]])
 		var a_l := _keys(at, [[0.0, -1.3], [0.32, -2.35], [0.56, -0.9], [0.75, -1.05], [1.0, -1.2]])
@@ -269,8 +269,8 @@ func pose(delta: float) -> void:
 		chest_y = lerpf(chest_y, _keys(at, [[0.0, 0.0], [0.28, 0.2], [0.5, -0.25], [1.0, 0.0]]), w)
 		head_x = lerpf(head_x, -0.45, w)
 		jaw = lerpf(jaw, 0.62, w)
-		if z._attack_t >= 1.0:
-			z._attack_t = -1.0
+		if z.attack_t >= 1.0:
+			z.attack_t = -1.0
 
 	skel.position.y = root_y
 	skel.set_bone_pose_position(z.bones.hips, Vector3(0, hips_y, 0))

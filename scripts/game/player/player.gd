@@ -658,6 +658,22 @@ func flinch(from: Vector3) -> void:
 	_flinch = Vector2(side * 0.06, 0.05)
 
 
+## Secousse de caméra ajoutée (souffle d'une explosion proche, joueur local).
+func add_flinch(kick: Vector2) -> void:
+	_flinch += kick
+
+
+## Hauteur des yeux debout (réapparition après la chute de la mort).
+func reset_eye_height() -> void:
+	_eye_height = EYE_HEIGHT
+
+
+## Oublie les états réseau reçus (joueur distant déplacé d'un coup :
+## pas d'interpolation depuis l'ancienne position).
+func clear_snapshots() -> void:
+	_snapshots.clear()
+
+
 ## Mort du joueur (toutes les machines) : plus de contrôle, caméra au sol.
 func set_dead(is_dead: bool) -> void:
 	input_enabled = not is_dead
