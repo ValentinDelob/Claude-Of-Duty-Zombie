@@ -933,6 +933,47 @@
     "en": "New perk machines",
     "fr": "Nouvelles machines d'atouts"
    }
+  },
+  "v0.2.0-snapshot.178": {
+   "channel": "snapshot",
+   "date": "2026-09-30",
+   "images": [
+    "v0.2.0-snapshot.178/01_variantes.jpg"
+   ],
+   "items": [
+    {
+     "en": "Buyable doors now come in three looks: armoured door, wooden door or iron gate. Pick one in the properties or with the V key.",
+     "fr": "Les portes payantes existent maintenant en trois aspects : porte blindée, porte en bois ou grille en fer. Choisissez-le dans les propriétés ou avec la touche V."
+    },
+    {
+     "en": "Debris can be planks or a concrete cave-in, and wall weapons can be drawn on a board nailed to the wall.",
+     "fr": "Les débris à dégager peuvent être des planches ou un éboulement de béton, et les armes murales peuvent être dessinées sur une planche clouée au mur."
+    },
+    {
+     "en": "New invisible barrier: it stops players and zombies, who walk around it, but lets bullets and grenades through. Hatched in the editor, optionally shown in the 3D preview, invisible in game.",
+     "fr": "Nouvelle barrière invisible : elle arrête les joueurs et les zombies, qui la contournent, mais laisse passer les balles et les grenades. Hachurée dans l'éditeur, visible au choix dans l'aperçu 3D, invisible en jeu."
+    },
+    {
+     "en": "Maps shared in multiplayer keep their looks and barriers; older maps open and play exactly as before.",
+     "fr": "Les cartes partagées en multijoueur gardent leurs aspects et leurs barrières ; les anciennes cartes s'ouvrent et se jouent exactement comme avant."
+    },
+    {
+     "en": "The Death Machine is finally held with both hands: rear grip and side grip, no more hand resting on top.",
+     "fr": "La Faucheuse se tient enfin à deux mains : poignée arrière et poignée latérale, plus de main posée au-dessus."
+    },
+    {
+     "en": "When aiming, stocks and the rear of weapons no longer poke into the camera: the gun drops below the screen like in BO1, sights stay perfectly aligned.",
+     "fr": "En visant, la crosse et l'arrière des armes ne rentrent plus dans la caméra : l'arme descend sous l'écran comme dans BO1, la mire reste parfaitement alignée."
+    },
+    {
+     "en": "LAW and HS10 hands sit where they should, and no more sleeve ends showing while reloading or sprinting.",
+     "fr": "Mains du LAW et du HS10 bien placées, et plus de bout de manche visible pendant les rechargements et la course."
+    }
+   ],
+   "title": {
+    "en": "Door looks, invisible barriers and weapons held right",
+    "fr": "Portes au choix, barrières invisibles et armes bien en main"
+   }
   }
  }
 }

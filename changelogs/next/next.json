@@ -1,7 +1,0 @@
-{"title": {"fr": "Éditeur de cartes : aspects des objets et barrières invisibles", "en": "Map editor: object looks and invisible barriers"},
- "items": [
-  {"fr": "Les portes payantes existent maintenant en trois aspects : porte blindée, porte en bois ou grille en fer. Choisissez-le dans les propriétés ou avec la touche V.", "en": "Buyable doors now come in three looks: armoured door, wooden door or iron gate. Pick one in the properties or with the V key."},
-  {"fr": "Les débris à dégager peuvent être des planches ou un éboulement de béton, et les armes murales peuvent être dessinées sur une planche clouée au mur.", "en": "Debris can be planks or a concrete cave-in, and wall weapons can be drawn on a board nailed to the wall."},
-  {"fr": "Nouvelle barrière invisible : elle arrête les joueurs et les zombies, qui la contournent, mais laisse passer les balles et les grenades. Hachurée dans l'éditeur, visible au choix dans l'aperçu 3D, invisible en jeu.", "en": "New invisible barrier: it stops players and zombies, who walk around it, but lets bullets and grenades through. Hatched in the editor, optionally shown in the 3D preview, invisible in game."},
-  {"fr": "Les cartes partagées en multijoueur gardent leurs aspects et leurs barrières ; les anciennes cartes s'ouvrent et se jouent exactement comme avant.", "en": "Maps shared in multiplayer keep their looks and barriers; older maps open and play exactly as before."}
- ]}
