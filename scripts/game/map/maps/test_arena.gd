@@ -3,7 +3,7 @@ extends MapDef
 
 func _init() -> void:
 	id = "test_arena"
-	display_name = "Arène de test"
+	display_name = Lang.t("Arène de test", "Test arena")
 	rows = PackedStringArray([
 		"##########################",
 		"#...................*....#",

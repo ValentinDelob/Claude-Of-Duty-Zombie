@@ -138,15 +138,15 @@ func prompt(pid: int) -> String:
 		State.WORKING:
 			return ""
 		State.READY:
-			return "[F] Prendre %s" % WeaponDB.display_name(weapon_id, true) if pid == owner_pid else ""
+			return Lang.t("[F] Prendre %s", "[F] Take %s") % WeaponDB.display_name(weapon_id, true) if pid == owner_pid else ""
 	if not game.power_on:
-		return "Le courant doit être rétabli"
+		return Interactable.need_power_text()
 	var w := pd.current_weapon()
 	if w.is_empty():
 		return ""
 	if w.pap:
-		return "" if WeaponDB.is_full(w) else "[F] Recharger %s %s" % [WeaponDB.display_name(w.id, true), Interactable.cost_text(REFILL_COST)]
-	return "[F] Améliorer %s %s" % [WeaponDB.display_name(w.id), Interactable.cost_text(COST)]
+		return "" if WeaponDB.is_full(w) else Lang.t("[F] Recharger %s %s", "[F] Refill %s %s") % [WeaponDB.display_name(w.id, true), Interactable.cost_text(REFILL_COST)]
+	return Lang.t("[F] Améliorer %s %s", "[F] Upgrade %s %s") % [WeaponDB.display_name(w.id), Interactable.cost_text(COST)]
 
 
 func srv_use(pid: int) -> void:
@@ -166,14 +166,14 @@ func srv_use(pid: int) -> void:
 		return
 	if state != State.IDLE or not game.power_on:
 		if not game.power_on:
-			system.deny(pid, "Pas de courant")
+			system.deny(pid, InteractionSystem.NO_POWER)
 		return
 	var w := pd.current_weapon()
 	if w.is_empty():
 		return
 	if w.pap:
 		if WeaponDB.is_full(w) or not session.try_spend(pid, REFILL_COST):
-			system.deny(pid, "Pas assez de points")
+			system.deny(pid, InteractionSystem.NO_POINTS)
 			return
 		WeaponDB.refill(pd, pd.slot)
 		game.combat.cancel_reload(pid)
@@ -181,7 +181,7 @@ func srv_use(pid: int) -> void:
 		session.sync_inventory(pid)
 		return
 	if not session.try_spend(pid, COST):
-		system.deny(pid, "Pas assez de points")
+		system.deny(pid, InteractionSystem.NO_POINTS)
 		return
 	system.purchase_fx(self)
 	# L'arme quitte les mains du joueur.

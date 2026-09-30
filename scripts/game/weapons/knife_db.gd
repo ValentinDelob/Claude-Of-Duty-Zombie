@@ -44,7 +44,7 @@ static func damage(id: String) -> int:
 
 
 static func display_name(id: String) -> String:
-	return info(id).name
+	return WeaponDB.localized(info(id).name)
 
 
 static func model(id: String) -> String:

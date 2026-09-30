@@ -311,14 +311,25 @@ func check_game_over() -> void:
 		if pd.life == PlayerData.Life.ALIVE or downed.will_self_revive(pd.peer_id):
 			return
 	print("[Game] tous les joueurs sont tombés : GAME OVER")
-	_cl_game_over.rpc(game_over_summary())
+	# Nombre de zombies tués, pas un texte : chaque client l'écrit dans sa langue.
+	_cl_game_over.rpc(game_over_kills())
 
 
-func game_over_summary() -> String:
+func game_over_kills() -> int:
 	var kills := 0
 	for pd: PlayerData in session.data.values():
 		kills += pd.kills
-	return "%d zombies abattus" % kills
+	return kills
+
+
+static func game_over_summary(kills: int) -> String:
+	return Lang.t("%d zombies abattus", "%d zombies killed") % kills
+
+
+static func survived_text(rounds_n: int) -> String:
+	if rounds_n > 1:
+		return Lang.t("VOUS AVEZ SURVÉCU %d MANCHES", "YOU SURVIVED %d ROUNDS") % rounds_n
+	return Lang.t("VOUS AVEZ SURVÉCU %d MANCHE", "YOU SURVIVED %d ROUND") % rounds_n
 
 
 @rpc("authority", "call_local", "reliable")
@@ -327,17 +338,18 @@ func _cl_player_died(pid: int) -> void:
 	if p:
 		p.set_dead(true)
 	if pid == multiplayer.get_unique_id():
-		hud.show_center("VOUS ÊTES MORT", "", 0.35)
+		hud.show_center(Lang.t("VOUS ÊTES MORT", "YOU ARE DEAD"), "", 0.35)
 
 
 @rpc("authority", "call_local", "reliable")
-func _cl_game_over(summary: String) -> void:
+func _cl_game_over(kills: int) -> void:
 	if GameState.state != GameState.State.GAME_OVER:
 		GameState.set_state(GameState.State.GAME_OVER)
 	CareerStats.record_game(session.local_data(), rounds.round_n, Net.mode == Net.Mode.SOLO,
 			(Time.get_ticks_msec() - _match_start_ms) / 1000.0)
+	var summary := game_over_summary(kills)
 	hud.show_center("GAME OVER", summary, 0.6)
-	hud.show_game_over_table("VOUS AVEZ SURVÉCU %d MANCHE%s" % [rounds.round_n, "S" if rounds.round_n > 1 else ""])
+	hud.show_game_over_table(survived_text(rounds.round_n))
 	capture_mouse(false)
 	Audio.play_2d("heartbeat", 0.0, 0.0)
 	# Le serveur part en dernier pour que les clients ne voient pas « connexion perdue ».
@@ -346,7 +358,7 @@ func _cl_game_over(summary: String) -> void:
 
 
 func _leave_after_game_over(summary: String) -> void:
-	Router.back_to_menu("Partie terminée — " + summary)
+	Router.back_to_menu(Lang.t("Partie terminée — ", "Game over — ") + summary)
 
 
 ## Serveur : les joueurs morts reviennent au début de chaque manche (pistolet

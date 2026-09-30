@@ -144,11 +144,27 @@ func _cl_state(id: String, state: Dictionary) -> void:
 		obj.apply_state(state, true)
 
 
+## Motifs de refus : codes envoyés par le serveur, traduits par chaque
+## client dans sa propre langue (deny_text).
+const NO_POINTS := "no_points"
+const NO_POWER := "no_power"
+
+
+## Texte affiché pour un motif de refus, dans la langue du joueur local.
+static func deny_text(reason: String) -> String:
+	match reason:
+		NO_POINTS:
+			return Lang.t("Pas assez de points", "Not enough points")
+		NO_POWER:
+			return Lang.t("Pas de courant", "No power")
+	return ""
+
+
 ## Serveur : refus (points insuffisants...) signalé au seul joueur concerné.
 func deny(pid: int, reason: String) -> void:
-	if reason == "Pas assez de points":
+	if reason == NO_POINTS:
 		VoxSystem.say(pid, "no_money", 0.6)
-	elif reason == "Pas de courant":
+	elif reason == NO_POWER:
 		VoxSystem.say(pid, "no_power", 0.7)
 	if pid == multiplayer.get_unique_id():
 		_cl_denied(reason)
@@ -159,7 +175,7 @@ func deny(pid: int, reason: String) -> void:
 @rpc("authority", "call_remote", "reliable")
 func _cl_denied(reason: String) -> void:
 	Audio.play_2d("denied", -4.0, 0.0)
-	game.hud.flash_message(reason)
+	game.hud.flash_message(deny_text(reason))
 
 
 ## Serveur : son d'achat joué pour tout le monde à la position de l'objet.

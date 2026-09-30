@@ -334,7 +334,7 @@ func prompt(pid: int) -> String:
 	var p: Player = system.game.players.get(pid) if system else null
 	if p and not is_inside(p.global_position):
 		return ""
-	return "Maintenir [F] pour reconstruire la barricade"
+	return Lang.t("Maintenir [F] pour reconstruire la barricade", "Hold [F] to rebuild the barrier")
 
 
 func srv_use(pid: int) -> void:

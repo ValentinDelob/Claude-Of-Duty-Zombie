@@ -332,7 +332,7 @@ func _build_blood() -> void:
 	_decal(Fx.blood_splat_texture(1), Vector3(4.48, 1.2, -6.5), Vector3(1.4, 0.3, 1.4), Vector3(0, 0, 90), dark)
 	# Message tracé au sang.
 	var msg := Label3D.new()
-	msg.text = "ILS ENTENDENT."
+	msg.text = Lang.t("ILS ENTENDENT.", "THEY HEAR.")
 	msg.font = BloodTex.scrawl_font()
 	msg.font_size = 110
 	msg.pixel_size = 0.0042
@@ -344,7 +344,7 @@ func _build_blood() -> void:
 	add_child(msg)
 	# Marquage au pochoir (mur droit).
 	var plate := Label3D.new()
-	plate.text = "SECTEUR K7"
+	plate.text = Lang.t("SECTEUR K7", "SECTOR K7")
 	plate.font = UiStyle.font("stencil")
 	plate.font_size = 120
 	plate.pixel_size = 0.004
@@ -355,7 +355,7 @@ func _build_blood() -> void:
 	plate.rotation_degrees = Vector3(0, -90, 0)
 	add_child(plate)
 	var sub := plate.duplicate() as Label3D
-	sub.text = "NIVEAU -3  ·  ACCÈS RESTREINT"
+	sub.text = Lang.t("NIVEAU -3  ·  ACCÈS RESTREINT", "LEVEL -3  ·  RESTRICTED ACCESS")
 	sub.font_size = 44
 	sub.position = Vector3(4.47, 1.8, -6.4)
 	add_child(sub)

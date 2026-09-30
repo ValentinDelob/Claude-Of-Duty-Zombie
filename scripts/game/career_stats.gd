@@ -9,18 +9,18 @@ extends RefCounted
 const PATH := "user://career.cfg"
 const TEST_PATH_PREFIX := "user://career_autotest_"
 
-## Clés dans l'ordre d'affichage : [clé, libellé].
+## Clés dans l'ordre d'affichage : [clé, libellé français, libellé anglais].
 const FIELDS := [
-	["games", "Parties jouées"],
-	["best_round_solo", "Meilleure manche (solo)"],
-	["best_round_coop", "Meilleure manche (coop)"],
-	["rounds", "Manches survécues"],
-	["kills", "Zombies abattus"],
-	["headshots", "Tirs à la tête"],
-	["best_score", "Meilleur score"],
-	["downs", "Fois à terre"],
-	["revives", "Réanimations"],
-	["time", "Temps de jeu"],
+	["games", "Parties jouées", "Games played"],
+	["best_round_solo", "Meilleure manche (solo)", "Best round (solo)"],
+	["best_round_coop", "Meilleure manche (coop)", "Best round (co-op)"],
+	["rounds", "Manches survécues", "Rounds survived"],
+	["kills", "Zombies abattus", "Zombies killed"],
+	["headshots", "Tirs à la tête", "Headshots"],
+	["best_score", "Meilleur score", "Best score"],
+	["downs", "Fois à terre", "Downs"],
+	["revives", "Réanimations", "Revives"],
+	["time", "Temps de jeu", "Time played"],
 ]
 
 

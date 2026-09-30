@@ -290,7 +290,7 @@ func _process(delta: float) -> void:
 			var s := wc.current_stats()
 			if s.name != _weapon_shown:
 				_weapon_shown = s.name
-				_weapon_name.text = s.name
+				_weapon_name.text = WeaponDB.localized(s.name)
 				_weapon_name_t = WEAPON_NAME_TIME
 			_weapon_name_t = maxf(_weapon_name_t - delta, 0.0)
 			_weapon_name.modulate.a = clampf(_weapon_name_t / 0.8, 0.0, 1.0)
@@ -308,17 +308,17 @@ func _process(delta: float) -> void:
 			if s.get("infinite", false):
 				_hint.text = ""
 			elif w.mag == 0 and w.reserve == 0:
-				_hint.text = "PLUS DE MUNITIONS"
+				_hint.text = Lang.t("PLUS DE MUNITIONS", "NO AMMO")
 			elif wc.is_reloading():
-				_hint.text = "RECHARGEMENT..."
+				_hint.text = Lang.t("RECHARGEMENT...", "RELOADING...")
 			elif low and w.reserve > 0:
-				_hint.text = "Appuyer sur %s pour recharger" % Settings.action_label("reload")
+				_hint.text = Lang.t("Appuyer sur %s pour recharger", "Press %s to reload") % Settings.action_label("reload")
 			else:
 				_hint.text = ""
 	# Compte à rebours dans la salle du rituel (prioritaire).
 	var tp := game.teleporter
 	if tp and tp.state == Teleporter.State.ACTIVE and game.layout.zone_at(player.global_position) == game.layout.teleporter_exit_zone():
-		_hint.text = "RETOUR DANS %d s" % tp.seconds_left()
+		_hint.text = Lang.t("RETOUR DANS %d s", "RETURNING IN %d s") % tp.seconds_left()
 
 
 class Crosshair extends Control:
@@ -429,14 +429,20 @@ func show_banner(text: String, duration := 3.5) -> void:
 
 
 ## Invite au format BO1 (« Press F to buy M14 [Cost: 500] ») à partir du texte
-## des objets (« [F] Acheter M14 [500] ») :
-##   « Appuyer sur F pour acheter M14 [Coût : 500] ».
+## des objets (« [F] Acheter M14 [500] » / « [F] Buy M14 [500] ») :
+##   « Appuyer sur F pour acheter M14 [Coût : 500] » / « Press F to buy M14 [Cost: 500] ».
+## Le texte des objets est déjà dans la langue du joueur (Lang.t) ; seuls les
+## mots ajoutés ici (« Appuyer sur... pour », « Coût ») suivent Lang.
 ## `key` : nom de la touche INTERAGIR (réaffectable dans les options).
 ## Pure : testée dans tests/test_hud.gd.
 const PROMPT_NOUNS := {
 	"Boîte mystère": "ouvrir la boîte mystère",
 	"Munitions": "acheter des munitions :",
+	"Mystery Box": "use the Mystery Box",
+	"Ammo": "buy ammo:",
 }
+## Préfixes « maintenir » des deux langues (« Maintenir [F] ... », « [F] Hold ... »).
+const HOLD_WORDS := ["Maintenir", "Hold"]
 
 
 static func bo1_prompt(raw: String, key := "F") -> String:
@@ -445,18 +451,21 @@ static func bo1_prompt(raw: String, key := "F") -> String:
 	var t := raw
 	# Coûts : « [500] » -> « [Coût : 500] ».
 	var re := RegEx.create_from_string("\\[(\\d+)\\]")
-	t = re.sub(t, "[Coût : $1]", true)
-	if t.begins_with("Maintenir [F]"):
-		return "Maintenir " + key + t.substr(13)
+	t = re.sub(t, Lang.t("[Coût : $1]", "[Cost: $1]"), true)
+	for hold: String in HOLD_WORDS:
+		if t.begins_with(hold + " [F]"):
+			return hold + " " + key + t.substr(hold.length() + 4)
 	if not t.begins_with("[F] "):
 		return t
 	var rest := t.substr(4)
-	if rest.begins_with("Maintenir "):
-		return "Maintenir %s %s" % [key, rest.substr(10)]
+	for hold: String in HOLD_WORDS:
+		if rest.begins_with(hold + " "):
+			return "%s %s %s" % [hold, key, rest.substr(hold.length() + 1)]
+	var press := Lang.t("Appuyer sur %s pour %s%s", "Press %s to %s%s")
 	for noun: String in PROMPT_NOUNS:
 		if rest.begins_with(noun):
-			return "Appuyer sur %s pour %s%s" % [key, PROMPT_NOUNS[noun], rest.substr(noun.length())]
-	return "Appuyer sur %s pour %s%s" % [key, rest.substr(0, 1).to_lower(), rest.substr(1)]
+			return press % [key, PROMPT_NOUNS[noun], rest.substr(noun.length())]
+	return press % [key, rest.substr(0, 1).to_lower(), rest.substr(1)]
 
 
 ## Message bref (refus d'achat...).
@@ -492,7 +501,7 @@ func show_loading(map_name: String) -> void:
 	var title := UiStyle.label(map_name, 64, UiStyle.BLOOD, "title")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
-	var sub := UiStyle.label("CHARGEMENT...", 20, UiStyle.DIM)
+	var sub := UiStyle.label(Lang.t("CHARGEMENT...", "LOADING..."), 20, UiStyle.DIM)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
 
@@ -580,6 +589,6 @@ func set_spectating(player_name: String) -> void:
 		_spectate_label.offset_top = 70
 		_spectate_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		add_child(_spectate_label)
-	_spectate_label.text = ("SPECTATEUR — %s   ([Tir] joueur suivant — retour à la prochaine manche)" % player_name) if player_name != "" else ""
+	_spectate_label.text = (Lang.t("SPECTATEUR — %s   ([Tir] joueur suivant — retour à la prochaine manche)", "SPECTATING — %s   ([Fire] next player — back next round)") % player_name) if player_name != "" else ""
 	if player_name != "":
 		show_center("", "", 0.0)

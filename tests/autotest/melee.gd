@@ -103,7 +103,7 @@ func run() -> void:
 	p.teleport_to(wb.interact_point() + Vector3(0, -1.0, 0) + (wb.interact_point() - wb.global_position).normalized() * 0.6)
 	H.aim_at(p, wb.global_position)
 	await seconds(0.3)
-	at.check(game.hud._prompt.text.contains("COUTEAU DE CHASSE") and game.hud._prompt.text.contains("3000"), "invite : %s" % game.hud._prompt.text)
+	at.check(game.hud._prompt.text.contains(KnifeDB.display_name("bowie")) and game.hud._prompt.text.contains("3000"), "invite : %s" % game.hud._prompt.text)
 	p.input.interact_pressed = true
 	await seconds(0.4)
 	at.check(pd.knife == "knife" and pd.points == 2999, "refusé à 2999 points")

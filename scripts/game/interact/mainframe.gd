@@ -101,7 +101,7 @@ func _ready() -> void:
 		cable.position = Vector3(x, 3.8, -0.2)
 		add_child(cable)
 	var label := Label3D.new()
-	label.text = "POSTE CENTRAL"
+	label.text = Lang.t("POSTE CENTRAL", "MAINFRAME")
 	label.font = UiStyle.font("stencil")
 	label.font_size = 44
 	label.pixel_size = 0.004
@@ -170,12 +170,12 @@ func prompt(_pid: int) -> String:
 	if teleporter == null or teleporter.state != Teleporter.State.IDLE:
 		return ""
 	if not system.game.power_on:
-		return "Le courant doit être rétabli"
+		return Interactable.need_power_text()
 	match teleporter.link:
 		Teleporter.Link.UNLINKED:
-			return "Activez d'abord la plateforme du téléporteur (scène)"
+			return Lang.t("Activez d'abord la plateforme du téléporteur (scène)", "Activate the teleporter pad first (stage)")
 		Teleporter.Link.PRIMED:
-			return "[F] Relier le téléporteur"
+			return Lang.t("[F] Relier le téléporteur", "[F] Link the teleporter")
 	return ""
 
 

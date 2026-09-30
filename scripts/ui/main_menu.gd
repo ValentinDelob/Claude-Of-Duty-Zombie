@@ -104,7 +104,7 @@ func _ready() -> void:
 	Net.joined_server.connect(_on_joined)
 	if Router.pending_message != "":
 		show_screen("main")
-		show_message("PARTIE TERMINÉE", Router.pending_message)
+		show_message(Lang.t("PARTIE TERMINÉE", "GAME OVER"), Router.pending_message)
 		Router.pending_message = ""
 	else:
 		show_screen("main")
@@ -287,7 +287,7 @@ func _on_connection_error(t: String, m: String) -> void:
 
 func _on_session_ended(reason: String) -> void:
 	GameState.reset_to_menu()
-	show_message("DÉCONNECTÉ", reason, "multiplayer")
+	show_message(Lang.t("DÉCONNECTÉ", "DISCONNECTED"), reason, "multiplayer")
 
 
 ## Client accepté par un hôte : direction le salon.
