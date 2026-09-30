@@ -27,7 +27,8 @@
 #   --full     tout relancer (obligatoire avant une release : tools/ship.sh)
 #   --fast     sans réseau ni multijoueur
 #   SCENARIOS="boot perks" sh tools/check.sh   uniquement ces scénarios (sans cache, pas de mp)
-#   MP="lobby zombies" sh tools/check.sh       uniquement ces tests multijoueur
+#   MP="lobby zombies" sh tools/check.sh       uniquement ces tests multijoueur (sans cache)
+#   SCENARIOS="boot" MP="lobby" sh tools/check.sh   les deux listes ensemble
 #   JOBS=6 sh tools/check.sh                   nombre de tâches simultanées (déf. 3)
 #   GUI_JOBS=2 sh tools/check.sh               fenêtres de rendu simultanées (déf. 1)
 # Par défaut peu de jeux ouverts à la fois (3 tâches, 1 fenêtre) : la machine
@@ -87,9 +88,13 @@ while read -r T H; do [ -n "$T" ] && OKH[$T]=$H; done < "$CACHE"
 # Une tâche = « type:nom ». Types : parse, unit, launcher, net, head, gui, mp.
 # Clé d'empreinte : la tâche sans son suffixe de partie (« gui:x+0+3 » -> « gui:x »).
 CANDIDATES=("parse:scripts" "launcher:tests")
-[ $FAST -eq 0 ] && [ -z "$SCENARIOS" ] && CANDIDATES+=("net:smoke")
+[ $FAST -eq 0 ] && [ -z "$SCENARIOS$MP" ] && CANDIDATES+=("net:smoke")
 ALL=$(ls tests/autotest/*.gd | xargs -n1 basename | sed 's/\.gd$//' | grep -vE '^(scenario|helpers|mp_.*|long_.*|perf_.*)$')
-for S in ${SCENARIOS:-$ALL}; do
+# SCENARIOS : ces scénarios seulement ; MP seul : aucun scénario (ces tests
+# multijoueur seulement) ; ni l'un ni l'autre : tous.
+SCN_LIST=$ALL
+if [ -n "$SCENARIOS" ]; then SCN_LIST=$SCENARIOS; elif [ -n "$MP" ]; then SCN_LIST=""; fi
+for S in $SCN_LIST; do
   F="tests/autotest/$S.gd"
   grep -q "^## @niveau perf" "$F" 2>/dev/null && [ -z "$SCENARIOS" ] && continue
   KIND=head

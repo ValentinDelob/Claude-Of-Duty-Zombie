@@ -123,6 +123,10 @@ func _ready() -> void:
 	vox = VoxSystem.new()
 	vox.name = "Vox"
 	add_child(vox)
+	spectator = SpectatorCamera.new()
+	spectator.name = "Spectator"
+	spectator.setup(self)
+	add_child(spectator)
 	Net.player_left.connect(_on_player_left)
 	Net.session_ended.connect(_on_session_ended)
 	session.inventory_changed.connect(_refresh_remote_weapon)
@@ -193,7 +197,7 @@ func _cl_begin_match(roster: Dictionary) -> void:
 	for pid in roster:
 		session.create(pid)
 	for pid in roster:
-		var pos := spawn_for_slot(spawns, int(roster[pid].slot))
+		var pos := MatchRules.spawn_for_slot(spawns, int(roster[pid].slot))
 		_spawn_player(pid, pos)
 	_match_start_ms = Time.get_ticks_msec()
 	GameState.set_state(GameState.State.PLAYING)
@@ -296,7 +300,7 @@ func kill_player(pid: int) -> void:
 	var pd := session.get_data(pid)
 	if pd == null:
 		return
-	pd.life = PlayerData.Life.DEAD
+	MatchRules.bleed_out(pd)
 	perks.srv_clear(pid)
 	session.sync_stats(pid)
 	_cl_player_died.rpc(pid)
@@ -307,19 +311,15 @@ func kill_player(pid: int) -> void:
 func check_game_over() -> void:
 	if not multiplayer.is_server() or GameState.state == GameState.State.GAME_OVER:
 		return
-	for pd: PlayerData in session.data.values():
-		if pd.life == PlayerData.Life.ALIVE or downed.will_self_revive(pd.peer_id):
-			return
+	if not MatchRules.is_game_over(session.data.values(), downed.will_self_revive):
+		return
 	print("[Game] tous les joueurs sont tombés : GAME OVER")
 	# Nombre de zombies tués, pas un texte : chaque client l'écrit dans sa langue.
 	_cl_game_over.rpc(game_over_kills())
 
 
 func game_over_kills() -> int:
-	var kills := 0
-	for pd: PlayerData in session.data.values():
-		kills += pd.kills
-	return kills
+	return MatchRules.total_kills(session.data.values())
 
 
 static func game_over_summary(kills: int) -> String:
@@ -348,10 +348,8 @@ func _cl_game_over(kills: int) -> void:
 	CareerStats.record_game(session.local_data(), rounds.round_n, Net.mode == Net.Mode.SOLO,
 			(Time.get_ticks_msec() - _match_start_ms) / 1000.0)
 	var summary := game_over_summary(kills)
-	hud.show_center("GAME OVER", summary, 0.6)
-	hud.show_game_over_table(survived_text(rounds.round_n))
+	hud.show_game_over(summary, survived_text(rounds.round_n))
 	capture_mouse(false)
-	Audio.play_2d("heartbeat", 0.0, 0.0)
 	# Le serveur part en dernier pour que les clients ne voient pas « connexion perdue ».
 	var delay := GAME_OVER_DELAY + (0.8 if multiplayer.is_server() else 0.0)
 	get_tree().create_timer(delay).timeout.connect(_leave_after_game_over.bind(summary))
@@ -367,29 +365,21 @@ func respawn_dead_players() -> void:
 	var spawns := layout.player_spawns()
 	for pid in session.data:
 		var pd: PlayerData = session.data[pid]
-		if pd.life != PlayerData.Life.DEAD:
+		if not MatchRules.should_respawn(pd):
 			continue
-		pd.life = PlayerData.Life.ALIVE
-		pd.health = pd.max_health
-		pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
-		pd.slot = 0
-		pd.knife = KnifeDB.DEFAULT  # le couteau de chasse est perdu (BO1)
+		MatchRules.respawn(pd)
 		session.sync_stats(pid)
 		session.sync_inventory(pid)
-		_cl_respawn.rpc(pid, spawn_for_slot(spawns, Net.player_slot(pid)))
+		_cl_respawn.rpc(pid, MatchRules.spawn_for_slot(spawns, Net.player_slot(pid)))
 
 
-## Point d'apparition d'une place de joueur : les places au-delà du nombre de
-## points se partagent les points (modulo positif) ; carte sans point
-## d'apparition (carte perso incomplète) : repli fixe au lieu d'une division
-## par zéro.
-const FALLBACK_SPAWN := Vector3(2, 0.1, 2)
+## Point d'apparition d'une place de joueur (règle et repli sans point :
+## MatchRules ; alias gardés pour les appelants).
+const FALLBACK_SPAWN := MatchRules.FALLBACK_SPAWN
 
 
 static func spawn_for_slot(spawns: Array[Vector3], slot: int) -> Vector3:
-	if spawns.is_empty():
-		return FALLBACK_SPAWN
-	return spawns[posmod(slot, spawns.size())]
+	return MatchRules.spawn_for_slot(spawns, slot)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -584,38 +574,12 @@ func _refresh_remote_weapon(pid: int) -> void:
 
 
 # --------------------------------------------------------------------------
-# Spectateur (joueur mort en multijoueur)
+# Spectateur (joueur mort en multijoueur) : SpectatorCamera
 # --------------------------------------------------------------------------
 
-var spectating: Player
-var _spectate_index := 0
-
-
-func _process(_delta: float) -> void:
-	_update_spectator()
-
-
-func _update_spectator() -> void:
-	if local_player == null:
-		return
-	var pd := session.local_data()
-	var is_dead := pd != null and pd.life == PlayerData.Life.DEAD and GameState.state != GameState.State.GAME_OVER
-	var others: Array = []
-	for p: Player in players.values():
-		if not p.is_local:
-			var opd := session.get_data(p.peer_id)
-			if opd and opd.life != PlayerData.Life.DEAD:
-				others.append(p)
-	if not is_dead or others.is_empty():
-		if spectating:
-			spectating = null
-			local_player.camera.make_current()
-			hud.set_spectating("")
-		return
-	if Input.is_action_just_pressed("fire") and not menu_open():
-		_spectate_index += 1
-	var target: Player = others[_spectate_index % others.size()]
-	if target != spectating:
-		spectating = target
-		target.camera.make_current()
-		hud.set_spectating(Net.player_name(target.peer_id))
+## Caméra de spectateur (enfant « Spectator », sans RPC).
+var spectator: SpectatorCamera
+## Joueur regardé par le joueur local mort (null : sa propre vue).
+var spectating: Player:
+	get:
+		return spectator.spectating if spectator else null
