@@ -1055,6 +1055,21 @@
     "en": "Multiplayer fixes",
     "fr": "Corrections en multijoueur"
    }
+  },
+  "v0.2.0-snapshot.256": {
+   "channel": "snapshot",
+   "date": "2026-10-01",
+   "images": [],
+   "items": [
+    {
+     "en": "Multiplayer: with lag, the host no longer wrongly refuses a player's shots, knife hits, grenade throws, purchases and dives, nor wrongly stops their barricade repairs, revives and power-up pickups (it compared them to a delayed display position).",
+     "fr": "Multijoueur : avec de la latence, l'hôte ne refuse plus à tort les tirs, coups de couteau, lancers de grenade, achats et plongeons d'un joueur, et ne coupe plus à tort ses réparations de barricade, ses réanimations ni ses ramassages de bonus (il comparait à une position affichée en retard)."
+    }
+   ],
+   "title": {
+    "en": "Next version",
+    "fr": "Prochaine version"
+   }
   }
  }
 }

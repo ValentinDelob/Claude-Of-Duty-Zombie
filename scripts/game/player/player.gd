@@ -578,7 +578,11 @@ func srv_dived_recently() -> bool:
 ## joueur réel. Joueur de l'hôte, ou aucun état accepté depuis un saut voulu :
 ## position du nœud (réelle pour l'hôte, dernière connue sinon).
 func srv_origin() -> Vector3:
-	return origin_reference(is_local, _srv_ok_pos, global_position)
+	# Même règle qu'origin_reference, sans lire global_position quand l'état
+	# accepté suffit (joueur hors de l'arbre dans les tests unitaires).
+	if not is_local and _srv_ok_pos != Vector3.INF:
+		return _srv_ok_pos
+	return global_position
 
 
 ## Règle pure de srv_origin (tests).
