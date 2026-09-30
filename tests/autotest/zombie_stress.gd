@@ -87,6 +87,7 @@ func run() -> void:
 	var spawn_ms := (Time.get_ticks_usec() - t0) / 1000.0
 	print("[perf] apparitions : 24 zombies en %.1f ms (%.2f ms/zombie, pire %.2f ms)" % [spawn_ms, spawn_ms / 24.0, worst_spawn / 1000.0])
 	at.check(game.zombies.alive_count() == 24, "24 zombies vivants")
+	# Sortie de terre + premiers pas : fait partie du temps de trajet de la horde.
 	await seconds(Zombie.EMERGE_TIME + 1.0)
 
 	# Poursuite : les zombies traversent la carte jusqu'au labo.
@@ -98,7 +99,7 @@ func run() -> void:
 	at.check(near >= 10, "la horde a rejoint le joueur (%d/24 à moins de 8 m)" % near)
 	# Mêlée autour du joueur immobile (attaques, séparation).
 	_orbiting = false
-	await seconds(2.0)
+	await seconds(2.0)  # la horde se resserre autour du joueur
 	var crowd := await _measure("24 zombies au contact", 4.0)
 	await at.screenshot("horde")
 	await seconds(0.5)  # la capture bloque le GPU : hors mesure
@@ -109,7 +110,7 @@ func run() -> void:
 		game.zombies.kill(z.id, false, Vector3.FORWARD)
 	print("[perf] 24 morts simultanées : %.1f ms" % ((Time.get_ticks_usec() - tk) / 1000.0))
 	var death := await _measure("24 corps", 3.0)
-	await seconds(2.0)
+	await until(func(): return game.zombies.zombies.is_empty(), Zombie.DISSOLVE_DELAY + Zombie.DISSOLVE_TIME + 2.0, "corps dissous et retirés")
 	at.check(game.zombies.zombies.is_empty(), "corps retirés après dissolution")
 	_probe_first.queue_free()
 	_probe_last.queue_free()

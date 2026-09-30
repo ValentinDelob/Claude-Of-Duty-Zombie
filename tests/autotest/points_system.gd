@@ -34,7 +34,7 @@ func run() -> void:
 	z = await H.dummy_zombie(self, origin + Vector3(1.3, 0, 0))
 	H.aim_at(p, z.global_position + Vector3.UP)
 	p.input.melee = true
-	await seconds(0.4)
+	await until(func(): return pd.points >= 840, 2.0, "points du coup de couteau crédités")
 	at.check(pd.points == 840, "mort au couteau : 840 (%d)" % pd.points)
 	at.check(pd.kills == 3 and pd.headshots == 1, "stats : %d tués, %d têtes" % [pd.kills, pd.headshots])
 	var label: Label = game.hud._scores._rows.get(1)

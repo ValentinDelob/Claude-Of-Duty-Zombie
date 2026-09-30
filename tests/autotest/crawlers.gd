@@ -17,7 +17,7 @@ func equip(id: String) -> void:
 	game.combat.cancel_reload(1)
 	game.session.sync_inventory(1)
 	await until(func(): return p.weapons.current().get("id", "") == id, 2.0, "arme %s en main" % id)
-	await seconds(WeaponController.SWITCH_TIME + 0.25)
+	await seconds(WeaponController.SWITCH_TIME + 0.25)  # fin de la sortie d'arme (aucun état public)
 
 
 func pull_trigger() -> void:
@@ -63,9 +63,10 @@ func run() -> void:
 	await at.screenshot("grenade_gib")
 	at.check(z.is_alive() and z.is_crawler() and (z.gibs & ZombieGibs.LEGS) != 0, "survivant sans jambes : rampant (PV %d, masque %d)" % [z.health, z.gibs])
 	at.check(gibs.active_count() >= 2, "les deux jambes tombent (%d morceaux)" % gibs.active_count())
-	await seconds(1.2)
+	# Fin de la chute au sol (ZombieGibs.CRAWL_FALL_TIME) : corps, tête et bassin couchés.
+	await until(func(): return z.hit_body.global_position.y < 0.45 and z.head_position().y < 0.9 and bone_pos(z, "hips").y < 0.45, 4.0, "rampant couché au sol")
 	H.aim_at(p, z.global_position + Vector3.UP * 0.3)
-	await seconds(0.1)
+	await seconds(0.1)  # capture
 	await at.screenshot("crawler_down")
 	at.check(z.hit_body.global_position.y < 0.45, "hitbox du corps couchée (y %.2f)" % z.hit_body.global_position.y)
 	at.check(z.head_position().y < 0.9, "tête au ras du sol (y %.2f)" % z.head_position().y)
@@ -74,7 +75,7 @@ func run() -> void:
 	# 2. Le rampant se traîne vers le joueur, lentement, puis frappe bas.
 	z.speed_mult = 1.0
 	var start := z.global_position
-	await seconds(2.0)
+	await seconds(2.0)  # durée mesurée
 	var moved := Vector2(z.global_position.x - start.x, z.global_position.z - start.z).length()
 	at.check(moved > 0.6 and moved < 2.0 * ZombieGibs.CRAWL_SPEED + 0.3, "se traîne à %.2f m/s" % (moved / 2.0))
 	p.teleport_to(z.global_position + Vector3(-2.2, 0, 0), -PI * 0.5)
@@ -160,6 +161,6 @@ func run() -> void:
 	ZombieGibs.debug_chance = -1.0
 	z = await H.dummy_zombie(self, origin + Vector3(5.0, 0, 0), 20000)
 	game.combat.explosion(1, origin + Vector3(5.0, 0.2, 0), 3.0, 1000, 0)
-	await seconds(0.2)
+	await seconds(0.2)  # rien ne doit se produire : attente fixe
 	at.check(z.gibs == 0 and not z.is_crawler(), "coup trop faible : aucun démembrement")
 	await H.clear_zombies(self)

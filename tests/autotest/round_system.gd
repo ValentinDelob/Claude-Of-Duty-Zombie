@@ -29,7 +29,7 @@ func run() -> void:
 	var max_seen := 0
 	while rounds.phase == RoundManager.Phase.ACTIVE and t < 40.0:
 		max_seen = maxi(max_seen, game.zombies.alive_count())
-		await seconds(0.5)
+		await seconds(0.5)  # scrutation : on laisse les zombies apparaître
 		t += 0.5
 		if game.zombies.alive_count() > 0:
 			var z: Zombie = game.zombies.alive[0]

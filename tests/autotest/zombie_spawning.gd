@@ -66,6 +66,6 @@ func run() -> void:
 	p.teleport_to(MapData.cell_to_world(Vector2i(12, 9), 0.05), 0.0)
 	var zid := game.zombies.spawn(MapData.cell_to_world(Vector2i(12, 5)), 0, 150)
 	H.aim_at(p, MapData.cell_to_world(Vector2i(12, 5), 0.6))
-	await seconds(0.7)
+	await seconds(0.7)  # capture en pleine émergence (état vérifié ensuite)
 	await at.screenshot("emerge")
 	at.check(game.zombies.get_zombie(zid).state == Zombie.State.EMERGE, "le zombie sort du sol")
