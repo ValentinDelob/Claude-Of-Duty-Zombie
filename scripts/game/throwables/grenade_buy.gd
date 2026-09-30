@@ -54,7 +54,7 @@ func prompt(pid: int) -> String:
 	var pd := system.game.session.get_data(pid)
 	if pd == null or not ThrowableRules.can_buy_frags(pd.grenades):
 		return ""
-	return "[F] Acheter des grenades %s" % Interactable.cost_text(cost)
+	return Lang.t("[F] Acheter des grenades %s", "[F] Buy grenades %s") % Interactable.cost_text(cost)
 
 
 func srv_use(pid: int) -> void:
@@ -63,7 +63,7 @@ func srv_use(pid: int) -> void:
 	if pd == null or pd.life != PlayerData.Life.ALIVE or not ThrowableRules.can_buy_frags(pd.grenades):
 		return
 	if not session.try_spend(pid, cost):
-		system.deny(pid, "Pas assez de points")
+		system.deny(pid, InteractionSystem.NO_POINTS)
 		return
 	pd.grenades = ThrowableRules.FRAG_MAX
 	system.purchase_fx(self)

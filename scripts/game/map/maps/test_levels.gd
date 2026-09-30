@@ -9,9 +9,10 @@ const DIR := "res://assets/maps/test_levels/"
 
 func _init() -> void:
 	id = "test_levels"
-	display_name = "Étages (test)"
-	description = "Carte de test des cartes en maillage à plusieurs niveaux."
-	zone_names = {"a": "Rez-de-chaussée", "b": "Mezzanine", "c": "Salle est", "d": "Salle en pente"}
+	display_name = Lang.t("Étages (test)", "Levels (test)")
+	description = Lang.t("Carte de test des cartes en maillage à plusieurs niveaux.", "Test map for multi-level mesh maps.")
+	zone_names = {"a": Lang.t("Rez-de-chaussée", "Ground floor"), "b": Lang.t("Mezzanine", "Mezzanine"),
+		"c": Lang.t("Salle est", "East room"), "d": Lang.t("Salle en pente", "Sloped room")}
 	doors = {"1": {"cost": 500}}
 	open_links = {"a": ["b", "d"]}
 	music = "ambience_bunker"

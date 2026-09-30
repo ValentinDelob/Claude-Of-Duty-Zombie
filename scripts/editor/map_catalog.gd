@@ -277,7 +277,7 @@ static func _build() -> void:
 	for id in PerkDB.PERKS:
 		_add({"id": "atout:" + id, "cat": "atouts", "fr": PerkDB.display_name(id), "en": PerkDB.display_name(id), "tool": "wall_item",
 			"color": PerkDB.color(id), "make": {"type": "atout", "atout": id}, "fp": [3, 2], "price": PerkDB.cost(id, false),
-			"hint_fr": String(PerkDB.PERKS[id].get("desc", "")), "hint_en": String(PerkDB.PERKS[id].get("desc", ""))})
+			"hint_fr": String(PerkDB.PERKS[id].desc.fr), "hint_en": String(PerkDB.PERKS[id].desc.en)})
 	# Armes murales (WeaponDB, KnifeDB) et grenades.
 	for id in WeaponDB.WEAPONS:
 		if WeaponDB.wall_cost(id) > 0:

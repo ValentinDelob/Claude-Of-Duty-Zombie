@@ -20,17 +20,20 @@ const DIR := "res://assets/maps/kino/"
 func _init() -> void:
 	id = "kino"
 	display_name = "KINO"
-	description = "Un théâtre abandonné où l'on projetait autrefois les films du Reich. Les rideaux sont rouges ; la moquette aussi, désormais."
+	description = Lang.t("Un théâtre abandonné où l'on projetait autrefois les films du Reich. Les rideaux sont rouges ; la moquette aussi, désormais.",
+			"An abandoned theater that once screened the Reich's films. The curtains are red; so is the carpet, now.")
 	zone_names = {
-		"a": "Hall d'entrée", "b": "Salle basse", "c": "Ruelle", "d": "Arrière-salle",
-		"e": "Salle haute", "f": "Foyer", "g": "Loges", "h": "Coulisses",
-		"t": "Salle de théâtre", "p": "Salle de projection",
+		"a": Lang.t("Hall d'entrée", "Lobby"), "b": Lang.t("Salle basse", "Lower Hall"),
+		"c": Lang.t("Ruelle", "Alley"), "d": Lang.t("Arrière-salle", "Back Room"),
+		"e": Lang.t("Salle haute", "Upper Hall"), "f": Lang.t("Foyer", "Foyer"),
+		"g": Lang.t("Loges", "Dressing Rooms"), "h": Lang.t("Coulisses", "Backstage"),
+		"t": Lang.t("Salle de théâtre", "Theater"), "p": Lang.t("Salle de projection", "Projection Room"),
 	}
 	# Départ de la boîte : au hasard, jamais le balcon du hall (index 1).
 	box_start = 0
 	box_starts = [0, 2, 3, 4, 5, 6, 7, 8]
 	music = "ambience_kino"
-	teleport_banner = "SALLE DE PROJECTION"
+	teleport_banner = Lang.t("SALLE DE PROJECTION", "PROJECTION ROOM")
 	teleporter_link = true
 	# Téléporteur de Kino der Toten : gratuit, charge 1,8 s, zombies foudroyés
 	# à 300 u (7,6 m) du pad, 30 s dans la salle de projection, 90 s de

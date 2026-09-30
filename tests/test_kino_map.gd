@@ -45,7 +45,7 @@ func test_zone_names_cover_every_zone() -> void:
 		assert_true(def.zone_names.has(z), "zone %s nommée" % z)
 	for z in def.zone_names:
 		assert_true(zones.has(z), "nom %s : zone décrite" % z)
-	assert_eq(def.zone_display_name("p"), "Salle de projection")
+	assert_eq(def.zone_display_name("p"), Lang.t("Salle de projection", "Projection Room"))
 
 
 func test_doors_of_bo1() -> void:

@@ -695,7 +695,7 @@ func set_downed(is_down: bool) -> void:
 		return
 	if is_down and _down_marker == null:
 		_down_marker = Label3D.new()
-		_down_marker.text = "✚ À TERRE"
+		_down_marker.text = Lang.t("✚ À TERRE", "✚ DOWNED")
 		_down_marker.font = UiStyle.font("impact")
 		_down_marker.font_size = 48
 		_down_marker.pixel_size = 0.004

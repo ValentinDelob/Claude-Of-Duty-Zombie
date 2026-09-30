@@ -260,7 +260,7 @@ func _cl_state(pid: int, is_down: bool, bleed_time: float, reviver: int, progres
 			if GameState.state in [GameState.State.PLAYING, GameState.State.ROUND_END]:
 				GameState.set_state(GameState.State.PLAYER_DOWN)
 		else:
-			game.hud.flash_message("%s EST À TERRE !" % Net.player_name(pid).to_upper())
+			game.hud.flash_message(Lang.t("%s EST À TERRE !", "%s IS DOWN!") % Net.player_name(pid).to_upper())
 	elif not is_down and was_down:
 		_was_shown.erase(pid)
 		if pid == multiplayer.get_unique_id() and GameState.state == GameState.State.PLAYER_DOWN:
@@ -278,7 +278,7 @@ func _cl_revived(pid: int) -> void:
 	if p:
 		Audio.play_3d("revive", p.global_position + Vector3.UP, 0.0, 0.0)
 	if pid == multiplayer.get_unique_id():
-		game.hud.show_banner("RÉANIMÉ", 1.2)
+		game.hud.show_banner(Lang.t("RÉANIMÉ", "REVIVED"), 1.2)
 
 
 ## Toutes les machines : infos pour le HUD.

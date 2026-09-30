@@ -27,7 +27,7 @@ func _ready() -> void:
 	_mat.shader = preload("res://assets/shaders/scope.gdshader")
 	_lens.material = _mat
 	add_child(_lens)
-	_hint = UiStyle.label("[MAJ] RETENIR SA RESPIRATION", 15, Color(0.85, 0.85, 0.8, 0.55))
+	_hint = UiStyle.label(Lang.t("[MAJ] RETENIR SA RESPIRATION", "[SHIFT] HOLD BREATH"), 15, Color(0.85, 0.85, 0.8, 0.55))
 	_hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.position = Vector2(-160, -150)

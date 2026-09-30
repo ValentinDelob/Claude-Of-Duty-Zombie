@@ -18,7 +18,7 @@ const FRAG_WALL_COST := 250
 const MONKEY_MAX := 3
 ## Identifiant du singe dans la boîte mystère (ce n'est pas une arme).
 const MONKEY_ID := "monkey"
-const MONKEY_NAME := "SINGE-TAMBOUR"
+const MONKEY_NAME := {"fr": "SINGE-TAMBOUR", "en": "CYMBAL MONKEY"}
 const MONKEY_BOX_WEIGHT := 1.0
 
 # ---------------------------------------------------------------- grenade
@@ -96,4 +96,8 @@ static func bounce(vel: Vector3, n: Vector3) -> Vector3:
 
 
 static func kind_name(kind: int) -> String:
-	return "GRENADE" if kind == Kind.FRAG else MONKEY_NAME
+	return "GRENADE" if kind == Kind.FRAG else monkey_name()
+
+
+static func monkey_name() -> String:
+	return Lang.pick(MONKEY_NAME)

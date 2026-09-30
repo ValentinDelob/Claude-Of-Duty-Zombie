@@ -289,10 +289,10 @@ func interact_point() -> Vector3:
 func prompt(pid: int) -> String:
 	match state:
 		State.IDLE:
-			return "[F] Boîte mystère %s" % Interactable.cost_text(cost())
+			return Lang.t("[F] Boîte mystère %s", "[F] Mystery Box %s") % Interactable.cost_text(cost())
 		State.READY:
 			if pid == owner_pid and not skull:
-				return "[F] Prendre %s" % (ThrowableRules.MONKEY_NAME if weapon == ThrowableRules.MONKEY_ID else WeaponDB.display_name(weapon))
+				return Lang.t("[F] Prendre %s", "[F] Take %s") % (ThrowableRules.monkey_name() if weapon == ThrowableRules.MONKEY_ID else WeaponDB.display_name(weapon))
 	return ""
 
 
@@ -305,7 +305,7 @@ func srv_use(pid: int) -> void:
 		State.IDLE:
 			var price := cost()
 			if not game.session.try_spend(pid, price):
-				system.deny(pid, "Pas assez de points")
+				system.deny(pid, InteractionSystem.NO_POINTS)
 				return
 			_paid = price
 			owner_pid = pid

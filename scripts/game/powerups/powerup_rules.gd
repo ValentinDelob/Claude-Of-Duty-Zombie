@@ -20,13 +20,13 @@ const ALL := [MAX_AMMO, INSTA_KILL, DOUBLE_POINTS, NUKE, CARPENTER, FIRE_SALE, D
 const TIMED := [INSTA_KILL, DOUBLE_POINTS, FIRE_SALE]
 
 const NAMES := {
-	MAX_AMMO: "MUNITIONS MAX !",
-	INSTA_KILL: "MORT INSTANTANÉE !",
-	DOUBLE_POINTS: "POINTS DOUBLES !",
-	NUKE: "BOMBE NUCLÉAIRE !",
-	CARPENTER: "CHARPENTIER !",
-	FIRE_SALE: "LIQUIDATION !",
-	DEATH_MACHINE: "FAUCHEUSE !",
+	MAX_AMMO: {"fr": "MUNITIONS MAX !", "en": "MAX AMMO!"},
+	INSTA_KILL: {"fr": "MORT INSTANTANÉE !", "en": "INSTA-KILL!"},
+	DOUBLE_POINTS: {"fr": "POINTS DOUBLES !", "en": "DOUBLE POINTS!"},
+	NUKE: {"fr": "BOMBE NUCLÉAIRE !", "en": "NUKE!"},
+	CARPENTER: {"fr": "CHARPENTIER !", "en": "CARPENTER!"},
+	FIRE_SALE: {"fr": "LIQUIDATION !", "en": "FIRE SALE!"},
+	DEATH_MACHINE: {"fr": "FAUCHEUSE !", "en": "REAPER!"},
 }
 
 ## Seuil de points d'équipe du premier bonus, puis multiplicateur de
@@ -114,7 +114,7 @@ static func is_timed(type: String) -> bool:
 
 
 static func display_name(type: String) -> String:
-	return NAMES.get(type, type.to_upper())
+	return Lang.pick(NAMES.get(type, type.to_upper()))
 
 
 # --------------------------------------------------------------------------

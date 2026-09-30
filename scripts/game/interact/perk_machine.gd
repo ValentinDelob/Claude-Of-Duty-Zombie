@@ -243,8 +243,8 @@ func prompt(pid: int) -> String:
 	if pd == null or pd.has_perk(perk_id) or sold_out():
 		return ""
 	if not powered():
-		return "Le courant doit être rétabli"
-	return "[F] Boire %s %s — %s" % [PerkDB.display_name(perk_id), Interactable.cost_text(_cost()), PerkDB.PERKS[perk_id].desc]
+		return Interactable.need_power_text()
+	return Lang.t("[F] Boire %s %s — %s", "[F] Buy %s %s — %s") % [PerkDB.display_name(perk_id), Interactable.cost_text(_cost()), PerkDB.desc(perk_id)]
 
 
 func can_interact(pid: int) -> bool:
@@ -261,12 +261,12 @@ func srv_use(pid: int) -> void:
 	if pd == null or pd.life != PlayerData.Life.ALIVE or pd.has_perk(perk_id):
 		return
 	if not powered():
-		system.deny(pid, "Pas de courant")
+		system.deny(pid, InteractionSystem.NO_POWER)
 		return
 	if sold_out():
 		return
 	if not game.session.try_spend(pid, _cost()):
-		system.deny(pid, "Pas assez de points")
+		system.deny(pid, InteractionSystem.NO_POINTS)
 		return
 	system.purchase_fx(self)
 	game.perks.srv_grant(pid, perk_id)
