@@ -237,7 +237,7 @@ func _build_ui() -> void:
 	root.add_child(body)
 	var left_box := PanelContainer.new()
 	left_box.custom_minimum_size = Vector2(Look.LIST_W, 0)
-	left_box.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 17, 19))
+	left_box.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 18, 21))
 	body.add_child(left_box)
 	var left := VBoxContainer.new()
 	left.add_theme_constant_override("separation", 8)
@@ -273,8 +273,8 @@ func _build_ui() -> void:
 	body.add_child(scroll)
 	var notes := VBoxContainer.new()
 	notes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	notes.add_theme_constant_override("separation", 12)
-	var notes_pad := _padded(notes, Look.GUTTER, 24)
+	notes.add_theme_constant_override("separation", 13)
+	var notes_pad := _padded(notes, Look.GUTTER, 26)
 	notes_pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(notes_pad)
 	_title = Label.new()
@@ -289,7 +289,7 @@ func _build_ui() -> void:
 	notes.add_child(_date)
 	# Nouveautés : une ligne par puce (carré d'alerte, texte en clair).
 	_items = VBoxContainer.new()
-	_items.add_theme_constant_override("separation", 8)
+	_items.add_theme_constant_override("separation", 9)
 	notes.add_child(_items)
 	_images = HFlowContainer.new()
 	_images.add_theme_constant_override("h_separation", 12)
@@ -307,13 +307,13 @@ func _build_ui() -> void:
 	var st := VBoxContainer.new()
 	st.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	st.alignment = BoxContainer.ALIGNMENT_CENTER
-	st.add_theme_constant_override("separation", 7)
+	st.add_theme_constant_override("separation", 8)
 	foot.get_child(0).add_child(st)
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	st.add_child(_status)
 	_progress = ProgressBar.new()
-	_progress.custom_minimum_size = Vector2(0, 10)
+	_progress.custom_minimum_size = Vector2(0, 11)
 	_progress.show_percentage = false
 	Look.progress(_progress)
 	_progress.visible = false
@@ -361,11 +361,11 @@ func _head_bar(home: bool) -> PanelContainer:
 	box.add_child(head)
 	var word := VBoxContainer.new()
 	word.alignment = BoxContainer.ALIGNMENT_CENTER
-	word.add_theme_constant_override("separation", -8)
+	word.add_theme_constant_override("separation", -9)
 	head.add_child(word)
 	var top := Label.new()
 	top.text = "CLAUDE OF DUTY"
-	top.add_theme_font_override("font", Look.spaced(Look.display_font(), 6))
+	top.add_theme_font_override("font", Look.spaced(Look.display_font(), 7))
 	top.add_theme_font_size_override("font_size", Look.SIZE_NAME_TOP)
 	top.add_theme_color_override("font_color", Look.DIM)
 	word.add_child(top)
@@ -410,7 +410,7 @@ func _foot_bar() -> PanelContainer:
 	box.custom_minimum_size = Vector2(0, Look.FOOT_H)
 	box.add_theme_stylebox_override("panel", Look.box(Color("0b0d09"), Look.GUTTER, 0))
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 26)
+	row.add_theme_constant_override("separation", 28)
 	box.add_child(row)
 	return box
 
@@ -447,7 +447,7 @@ func _note_line(text: String, dim := false) -> HBoxContainer:
 		var holder := VBoxContainer.new()
 		var sq := ColorRect.new()
 		sq.color = Look.ALARM
-		sq.custom_minimum_size = Vector2(8, 8)
+		sq.custom_minimum_size = Vector2(9, 9)
 		var pad := Control.new()
 		pad.custom_minimum_size = Vector2(0, 5)
 		holder.add_child(pad)
@@ -488,12 +488,12 @@ func _build_settings() -> void:
 	for side in ["left", "right"]:
 		mid.add_theme_constant_override("margin_" + side, Look.GUTTER)
 	for side in ["top", "bottom"]:
-		mid.add_theme_constant_override("margin_" + side, 26)
+		mid.add_theme_constant_override("margin_" + side, 28)
 	col.add_child(mid)
 	_settings_grid = GridContainer.new()
 	_settings_grid.columns = 2
 	_settings_grid.add_theme_constant_override("h_separation", Look.GUTTER)
-	_settings_grid.add_theme_constant_override("v_separation", 16)
+	_settings_grid.add_theme_constant_override("v_separation", 18)
 	mid.add_child(_settings_grid)
 	col.add_child(_rule())
 	var foot := _foot_bar()
@@ -565,7 +565,7 @@ func _fill_settings() -> void:
 func _setting(title: String, control: Control, help: String, path := "") -> void:
 	var p := PanelContainer.new()
 	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	p.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 15, 15, Look.STEEL, Look.BORDER))
+	p.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 16, 16, Look.STEEL, Look.BORDER))
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 6)
 	p.add_child(v)
@@ -728,7 +728,7 @@ func _show_notes() -> void:
 		c.queue_free()
 	for img in n.images:
 		var b := TextureButton.new()
-		b.custom_minimum_size = Vector2(180, 101)
+		b.custom_minimum_size = Vector2(199, 112)
 		b.ignore_texture_size = true
 		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		b.set_meta("image", img)

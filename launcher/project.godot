@@ -32,8 +32,8 @@ file_logging/max_log_files.editor=5
 
 ; Taille fixe : l'interface garde la taille de la maquette quelle que soit la
 ; fenêtre (agrandie : plus de place, pas de textes plus gros).
-window/size/viewport_width=1100
-window/size/viewport_height=660
+window/size/viewport_width=1190
+window/size/viewport_height=690
 
 [rendering]
 
