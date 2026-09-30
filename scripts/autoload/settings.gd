@@ -44,6 +44,21 @@ var max_fps := 0
 ## carte (WorldLook.grade_lut, via RenderQuality).
 var brightness := 1.0
 const BRIGHTNESS_RANGE := Vector2(0.5, 1.5)
+## Taille de l'interface de l'éditeur de cartes (OPTIONS > JEU > INTERFACE, ou
+## Ctrl + / Ctrl - / Ctrl 0 dans l'éditeur) : un seul facteur appliqué à tout
+## l'éditeur (EditorUi). 80 % par défaut : l'ancienne taille (100 %) était
+## jugée trop grosse. Bornée et arrondie au pas de 5 % (clamp_editor_ui_scale).
+const EDITOR_UI_SCALE_RANGE := Vector2(0.6, 1.5)
+const EDITOR_UI_SCALE_STEP := 0.05
+const EDITOR_UI_SCALE_DEFAULT := 0.8
+## La taille de l'interface de l'éditeur a changé (appliquée en direct).
+signal editor_ui_scale_changed(value: float)
+var editor_ui_scale := EDITOR_UI_SCALE_DEFAULT:
+	set(v):
+		var c := clamp_editor_ui_scale(v)
+		if not is_equal_approx(c, editor_ui_scale):
+			editor_ui_scale = c
+			editor_ui_scale_changed.emit(c)
 ## Langue de l'interface (écran d'options, menu pause), des voix des
 ## personnages et de leurs répliques (« fr » ou « en », voir Lang.t).
 ## Sans fichier de réglages : celle du système si c'est le français, sinon l'anglais.
@@ -101,6 +116,14 @@ const BINDABLE_MOUSE := [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MID
 ## Touches courantes : action -> codes (« key:<physical_keycode> »,
 ## « mouse:<bouton> »). Voir bind(), reset_bindings(), apply_bindings().
 var bindings := {}
+
+
+## Taille de l'interface de l'éditeur ramenée dans la plage et au pas de 5 %
+## (valeur non finie : taille par défaut).
+static func clamp_editor_ui_scale(v: float) -> float:
+	if not is_finite(v):
+		return EDITOR_UI_SCALE_DEFAULT
+	return clampf(snappedf(v, EDITOR_UI_SCALE_STEP), EDITOR_UI_SCALE_RANGE.x, EDITOR_UI_SCALE_RANGE.y)
 
 
 func _ready() -> void:
@@ -407,6 +430,8 @@ func load_from(file: String) -> bool:
 		max_fps = 0
 	brightness = SafeConfig.get_float(cfg, "video", "brightness", brightness,
 			BRIGHTNESS_RANGE.x, BRIGHTNESS_RANGE.y)
+	editor_ui_scale = SafeConfig.get_float(cfg, "interface", "editor_ui_scale", editor_ui_scale,
+			EDITOR_UI_SCALE_RANGE.x, EDITOR_UI_SCALE_RANGE.y)
 	language = SafeConfig.get_string(cfg, "game", "language", "fr" if OS.get_locale_language() == "fr" else "en", 8)
 	if not language in LANGUAGES:
 		language = "fr"
@@ -442,6 +467,7 @@ func save_to(file: String) -> void:
 	cfg.set_value("video", "render_scale", render_scale)
 	cfg.set_value("video", "max_fps", max_fps)
 	cfg.set_value("video", "brightness", brightness)
+	cfg.set_value("interface", "editor_ui_scale", editor_ui_scale)
 	cfg.set_value("audio", "master", master_volume)
 	cfg.set_value("audio", "music", music_volume)
 	cfg.set_value("audio", "sfx", sfx_volume)

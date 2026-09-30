@@ -20,7 +20,6 @@ func _ready() -> void:
 	sb.set_content_margin_all(12)
 	sb.set_corner_radius_all(4)
 	add_theme_stylebox_override("panel", sb)
-	custom_minimum_size = Vector2(700, 430)
 	var v := VBoxContainer.new()
 	add_child(v)
 	_title = UiStyle.label(Lang.t("INVENTAIRE", "INVENTORY"), 22, UiStyle.GOLD, "impact")
@@ -30,14 +29,17 @@ func _ready() -> void:
 		"Click an item to put it in the selected hotbar slot, or drag it onto a slot. E or Tab: close.")
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.add_theme_color_override("font_color", UiStyle.DIM)
-	hint.custom_minimum_size = Vector2(660, 0)
 	v.add_child(hint)
 	var h := HBoxContainer.new()
 	h.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(h)
+	# Catégories : défilent si la vue est trop basse (grande taille d'interface).
+	var cscroll := ScrollContainer.new()
+	cscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	h.add_child(cscroll)
 	_cats = VBoxContainer.new()
-	_cats.custom_minimum_size = Vector2(190, 0)
-	h.add_child(_cats)
+	_cats.custom_minimum_size = Vector2(CATS_W, 0)
+	cscroll.add_child(_cats)
 	for c in MapCatalog.CATEGORIES:
 		var b := Button.new()
 		b.text = Lang.t(c[1], c[2])
@@ -59,9 +61,29 @@ func _ready() -> void:
 	get_parent().resized.connect(_place)
 
 
+## Taille à 100 % ; réduite (moins de colonnes, défilement) si la vue est plus
+## petite, à grande taille d'interface.
+const SIZE := Vector2(700, 430)
+const CATS_W := 176.0
+const COLUMNS := 5
+
+
 func _place() -> void:
 	var p := get_parent() as Control
-	position = ((p.size - size) * 0.5 - Vector2(0, 40)).max(Vector2(8, 8))
+	var want := (SIZE * EditorUi.factor()).round().min(p.size - Vector2(16, 16))
+	# Autant de colonnes que la largeur en laisse à côté des catégories.
+	_grid.columns = COLUMNS
+	while _grid.columns > 1 and get_combined_minimum_size().x > want.x:
+		_grid.columns -= 1
+	size = want
+	# Centré un peu au-dessus de la barre rapide, toujours dans la vue.
+	var free := (p.size - size).max(Vector2.ZERO)
+	position = ((p.size - size) * 0.5 - Vector2(0, EditorUi.px(40.0))).clamp(free.min(Vector2(8, 8)), free)
+
+
+## Taille de l'interface changée (MapEditor.apply_ui_scale).
+func ui_scale_changed() -> void:
+	_place.call_deferred()
 
 
 func open() -> void:

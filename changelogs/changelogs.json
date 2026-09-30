@@ -514,6 +514,34 @@
     "fr": "Éditeur de cartes : aperçu 3D en direct"
    }
   },
+  "v0.1.150": {
+   "date": "2026-09-30",
+   "images": [
+    "v0.1.150/01_editeur_compact.png"
+   ],
+   "items": [
+    {
+     "en": "The editor interface is more compact by default (80% of the old size): the map view gets the freed space, without changing its zoom.",
+     "fr": "L'interface de l'éditeur est plus compacte par défaut (80 % de l'ancienne taille) : le plan gagne la place libérée, sans changer de zoom."
+    },
+    {
+     "en": "New setting OPTIONS > GAME > MAP EDITOR UI SIZE, from 60 to 150%: text, panels, tabs, hotbar, inventory, item list, 3D preview and map measurements all follow it.",
+     "fr": "Nouveau réglage OPTIONS > JEU > TAILLE DE L'INTERFACE DE L'ÉDITEUR, de 60 à 150 % : textes, panneaux, onglets, barre rapide, inventaire, liste des objets, aperçu 3D et cotes du plan suivent tous."
+    },
+    {
+     "en": "In the editor: Ctrl + \"+\" / Ctrl + \"-\" to enlarge or shrink, Ctrl + 0 to go back to the default size, and the ⚙ button opens the options over the editor, with the result shown live.",
+     "fr": "Dans l'éditeur : Ctrl + « + » / Ctrl + « - » pour grossir ou réduire, Ctrl + 0 pour revenir à la taille par défaut, et le bouton ⚙ ouvre les options par-dessus l'éditeur, avec le résultat visible en direct."
+    },
+    {
+     "en": "At large sizes nothing spills over: the top bar wraps onto two lines, the panels and hotbar tighten up and the shortcut help scrolls.",
+     "fr": "À grande taille, rien ne déborde : la barre du haut passe sur deux lignes, les panneaux et la barre rapide se resserrent et l'aide des raccourcis défile."
+    }
+   ],
+   "title": {
+    "en": "Map editor: a more compact, adjustable interface",
+    "fr": "Éditeur de cartes : interface plus compacte et réglable"
+   }
+  },
   "v0.1.36": {
    "date": "2026-09-26",
    "images": [],

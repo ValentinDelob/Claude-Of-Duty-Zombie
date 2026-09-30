@@ -1,9 +1,11 @@
 extends MenuScreen
-## Options, en onglets (comme les sous-menus d'options de BO1) : JEU,
-## COMMANDES (sensibilité, touches), GRAPHISMES, SON. Chaque changement est
+## Options, en onglets (comme les sous-menus d'options de BO1) : JEU (joueur,
+## langue, taille de l'interface de l'éditeur de cartes), COMMANDES
+## (sensibilité, touches), GRAPHISMES, SON. Chaque changement est
 ## appliqué et enregistré immédiatement (Settings.apply() +
-## Settings.save_settings()). Le même écran sert au menu principal et au menu
-## pause de la partie (hôte : MenuHost ; `args.in_game`).
+## Settings.save_settings()). Le même écran sert au menu principal, au menu
+## pause de la partie et à l'éditeur de cartes (hôte : MenuHost ; PauseMenu,
+## EditorOptions ; `args.in_game`).
 ##
 ## Clavier : ◄ / ► sur les onglets (ou Page préc. / Page suiv. partout)
 ## changent d'onglet, ▲ / ▼ parcourent la page (qui défile si besoin).
@@ -231,6 +233,14 @@ func _page_game() -> void:
 	_add("language", MenuOptionRow.make_choice("LANGUE / LANGUAGE", PackedStringArray(["FRANÇAIS", "ENGLISH"]),
 			maxi(Settings.LANGUAGES.find(Settings.language), 0)),
 			Lang.t("Langue de l'interface et des voix des personnages.", "Language of the interface and of the characters' voices."))
+	_section(Lang.t("INTERFACE", "INTERFACE"))
+	_add("editor_ui_scale", MenuOptionRow.make_range(Lang.t("TAILLE DE L'INTERFACE DE L'ÉDITEUR", "MAP EDITOR UI SIZE"),
+			Settings.editor_ui_scale, Settings.EDITOR_UI_SCALE_RANGE.x, Settings.EDITOR_UI_SCALE_RANGE.y,
+			Settings.EDITOR_UI_SCALE_STEP, func(v): return "%d %%" % int(round(v * 100.0))),
+			Lang.t("Taille des textes et panneaux de l'éditeur de cartes (%d %% par défaut). Dans l'éditeur : Ctrl + / Ctrl - / Ctrl 0."
+				% roundi(Settings.EDITOR_UI_SCALE_DEFAULT * 100.0),
+				"Size of the map editor's text and panels (%d%% by default). In the editor: Ctrl + / Ctrl - / Ctrl 0."
+				% roundi(Settings.EDITOR_UI_SCALE_DEFAULT * 100.0)))
 
 
 func _page_controls() -> void:
