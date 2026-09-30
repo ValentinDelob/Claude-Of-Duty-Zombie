@@ -237,10 +237,10 @@ func _build_ui() -> void:
 	root.add_child(body)
 	var left_box := PanelContainer.new()
 	left_box.custom_minimum_size = Vector2(Look.LIST_W, 0)
-	left_box.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 20, 23))
+	left_box.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 17, 19))
 	body.add_child(left_box)
 	var left := VBoxContainer.new()
-	left.add_theme_constant_override("separation", 10)
+	left.add_theme_constant_override("separation", 8)
 	left_box.add_child(left)
 	# Canal : un seul endroit, un interrupteur ; la liste ne montre que ses versions.
 	var sw_box := PanelContainer.new()
@@ -273,8 +273,8 @@ func _build_ui() -> void:
 	body.add_child(scroll)
 	var notes := VBoxContainer.new()
 	notes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	notes.add_theme_constant_override("separation", 15)
-	var notes_pad := _padded(notes, Look.GUTTER, 28)
+	notes.add_theme_constant_override("separation", 12)
+	var notes_pad := _padded(notes, Look.GUTTER, 24)
 	notes_pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(notes_pad)
 	_title = Label.new()
@@ -289,11 +289,11 @@ func _build_ui() -> void:
 	notes.add_child(_date)
 	# Nouveautés : une ligne par puce (carré d'alerte, texte en clair).
 	_items = VBoxContainer.new()
-	_items.add_theme_constant_override("separation", 10)
+	_items.add_theme_constant_override("separation", 8)
 	notes.add_child(_items)
 	_images = HFlowContainer.new()
-	_images.add_theme_constant_override("h_separation", 15)
-	_images.add_theme_constant_override("v_separation", 15)
+	_images.add_theme_constant_override("h_separation", 12)
+	_images.add_theme_constant_override("v_separation", 12)
 	notes.add_child(_images)
 	_hint = Label.new()
 	_hint.add_theme_color_override("font_color", Look.DIM)
@@ -307,13 +307,13 @@ func _build_ui() -> void:
 	var st := VBoxContainer.new()
 	st.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	st.alignment = BoxContainer.ALIGNMENT_CENTER
-	st.add_theme_constant_override("separation", 9)
+	st.add_theme_constant_override("separation", 7)
 	foot.get_child(0).add_child(st)
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	st.add_child(_status)
 	_progress = ProgressBar.new()
-	_progress.custom_minimum_size = Vector2(0, 12)
+	_progress.custom_minimum_size = Vector2(0, 10)
 	_progress.show_percentage = false
 	Look.progress(_progress)
 	_progress.visible = false
@@ -361,11 +361,11 @@ func _head_bar(home: bool) -> PanelContainer:
 	box.add_child(head)
 	var word := VBoxContainer.new()
 	word.alignment = BoxContainer.ALIGNMENT_CENTER
-	word.add_theme_constant_override("separation", -10)
+	word.add_theme_constant_override("separation", -8)
 	head.add_child(word)
 	var top := Label.new()
 	top.text = "CLAUDE OF DUTY"
-	top.add_theme_font_override("font", Look.spaced(Look.display_font(), 8))
+	top.add_theme_font_override("font", Look.spaced(Look.display_font(), 6))
 	top.add_theme_font_size_override("font_size", Look.SIZE_NAME_TOP)
 	top.add_theme_color_override("font_color", Look.DIM)
 	word.add_child(top)
@@ -410,7 +410,7 @@ func _foot_bar() -> PanelContainer:
 	box.custom_minimum_size = Vector2(0, Look.FOOT_H)
 	box.add_theme_stylebox_override("panel", Look.box(Color("0b0d09"), Look.GUTTER, 0))
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 31)
+	row.add_theme_constant_override("separation", 26)
 	box.add_child(row)
 	return box
 
@@ -442,14 +442,14 @@ func _vrule() -> ColorRect:
 ## Une puce des notes : carré d'alerte et texte (sans balise : texte en clair).
 func _note_line(text: String, dim := false) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 8)
 	if not dim:
 		var holder := VBoxContainer.new()
 		var sq := ColorRect.new()
 		sq.color = Look.ALARM
-		sq.custom_minimum_size = Vector2(10, 10)
+		sq.custom_minimum_size = Vector2(8, 8)
 		var pad := Control.new()
-		pad.custom_minimum_size = Vector2(0, 6)
+		pad.custom_minimum_size = Vector2(0, 5)
 		holder.add_child(pad)
 		holder.add_child(sq)
 		holder.add_theme_constant_override("separation", 0)
@@ -459,7 +459,7 @@ func _note_line(text: String, dim := false) -> HBoxContainer:
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.custom_minimum_size = Vector2(200, 0)
-	l.add_theme_constant_override("line_spacing", 5)
+	l.add_theme_constant_override("line_spacing", 4)
 	if dim:
 		l.add_theme_color_override("font_color", Look.DIM)
 	row.add_child(l)
@@ -488,12 +488,12 @@ func _build_settings() -> void:
 	for side in ["left", "right"]:
 		mid.add_theme_constant_override("margin_" + side, Look.GUTTER)
 	for side in ["top", "bottom"]:
-		mid.add_theme_constant_override("margin_" + side, 31)
+		mid.add_theme_constant_override("margin_" + side, 26)
 	col.add_child(mid)
 	_settings_grid = GridContainer.new()
 	_settings_grid.columns = 2
 	_settings_grid.add_theme_constant_override("h_separation", Look.GUTTER)
-	_settings_grid.add_theme_constant_override("v_separation", 20)
+	_settings_grid.add_theme_constant_override("v_separation", 16)
 	mid.add_child(_settings_grid)
 	col.add_child(_rule())
 	var foot := _foot_bar()
@@ -565,9 +565,9 @@ func _fill_settings() -> void:
 func _setting(title: String, control: Control, help: String, path := "") -> void:
 	var p := PanelContainer.new()
 	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	p.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 18, 18, Look.STEEL, Look.BORDER))
+	p.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 15, 15, Look.STEEL, Look.BORDER))
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 8)
+	v.add_theme_constant_override("separation", 6)
 	p.add_child(v)
 	var t := Label.new()
 	t.text = title
@@ -728,7 +728,7 @@ func _show_notes() -> void:
 		c.queue_free()
 	for img in n.images:
 		var b := TextureButton.new()
-		b.custom_minimum_size = Vector2(218, 123)
+		b.custom_minimum_size = Vector2(180, 101)
 		b.ignore_texture_size = true
 		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		b.set_meta("image", img)

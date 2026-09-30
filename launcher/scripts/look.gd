@@ -5,8 +5,8 @@ extends RefCounted
 ## principal du jeu pourra reprendre les mêmes. Aucun logo pour l'instant :
 ## le nom seul, au pochoir ; aucun effet par-dessus l'interface.
 ##
-## Tailles : celles des maquettes, dessinées en 1280 × 720 (base du lanceur,
-## project.godot) ; 1 unité de maquette (1 % de la largeur) = 12,8 px.
+## Tailles : celles des maquettes telles qu'on les voit à l'écran (cadre de
+## ≈ 1100 px de large) ; taille fixe, jamais étirée avec la fenêtre.
 
 ## Palette.
 const INK := Color("0e100c")        # nuit du bunker (fond)
@@ -19,20 +19,20 @@ const NEON := Color("57e3cf")       # lueur : en cours, canal snapshot
 const BRASS := Color("c49a4a")      # laiton : stable, installé
 
 ## Tailles de texte (px, base 1280 × 720).
-const SIZE_BODY := 17        # texte courant, notes, liste, état
-const SIZE_SMALL := 13       # dates, étiquettes, boutons discrets
-const SIZE_SWITCH := 16      # interrupteur de canal
-const SIZE_TITLE := 40       # titre des notes
-const SIZE_NAME_TOP := 20    # « CLAUDE OF DUTY »
-const SIZE_NAME := 54        # « ZOMBIE »
-const SIZE_PLAY := 41        # JOUER
-const SIZE_FIELD := 17       # titre d'un bloc des réglages
-const SIZE_HELP := 14        # aide d'un bloc des réglages
+const SIZE_BODY := 15        # texte courant, notes, liste, état
+const SIZE_SMALL := 12       # dates, étiquettes, boutons discrets
+const SIZE_SWITCH := 14      # interrupteur de canal
+const SIZE_TITLE := 32       # titre des notes
+const SIZE_NAME_TOP := 16    # « CLAUDE OF DUTY »
+const SIZE_NAME := 44        # « ZOMBIE »
+const SIZE_PLAY := 34        # JOUER
+const SIZE_FIELD := 15       # titre d'un bloc des réglages
+const SIZE_HELP := 13        # aide d'un bloc des réglages
 ## Bandeaux et marges (px).
-const HEAD_H := 141
-const FOOT_H := 110
-const LIST_W := 333
-const GUTTER := 38           # marge gauche / droite de l'en-tête, des notes, du pied
+const HEAD_H := 116
+const FOOT_H := 92
+const LIST_W := 280
+const GUTTER := 32           # marge gauche / droite de l'en-tête, des notes, du pied
 const BORDER := 2
 
 ## Polices du système les plus proches des maquettes (pochoir condensé,
@@ -94,16 +94,16 @@ static func theme() -> Theme:
 	th.set_color("font_color", "ItemList", PAPER)
 	th.set_color("font_selected_color", "ItemList", PAPER)
 	th.set_color("font_hovered_color", "ItemList", PAPER)
-	var sel := box(Color(ALARM, 0.14), 13, 10)
+	var sel := box(Color(ALARM, 0.14), 11, 8)
 	sel.border_color = ALARM
 	sel.border_width_left = 4
 	th.set_stylebox("selected", "ItemList", sel)
 	th.set_stylebox("selected_focus", "ItemList", sel)
-	th.set_stylebox("hovered", "ItemList", box(Color(PAPER, 0.05), 13, 10))
+	th.set_stylebox("hovered", "ItemList", box(Color(PAPER, 0.05), 11, 8))
 	th.set_stylebox("panel", "ItemList", box(Color(0, 0, 0, 0), 0))
 	th.set_stylebox("focus", "ItemList", StyleBoxEmpty.new())
-	th.set_constant("v_separation", "ItemList", 20)
-	th.set_constant("h_separation", "ItemList", 13)
+	th.set_constant("v_separation", "ItemList", 16)
+	th.set_constant("h_separation", "ItemList", 11)
 	th.set_font_size("font_size", "ItemList", SIZE_BODY)
 	# Boutons discrets (étiquettes à bord de tôle) et menus déroulants.
 	var chip := spaced(label_font(), 2)
@@ -116,12 +116,12 @@ static func theme() -> Theme:
 		th.set_color("font_hover_pressed_color", t, INK)
 		th.set_color("font_focus_color", t, PAPER)
 		th.set_color("font_disabled_color", t, Color(DIM, 0.5))
-		th.set_stylebox("normal", t, box(Color(0, 0, 0, 0), 13, 10, STEEL, BORDER))
-		th.set_stylebox("hover", t, box(Color(PAPER, 0.06), 13, 10, STEEL, BORDER))
-		th.set_stylebox("pressed", t, box(PAPER, 13, 10, PAPER, BORDER))
-		th.set_stylebox("hover_pressed", t, box(PAPER, 13, 10, PAPER, BORDER))
-		th.set_stylebox("disabled", t, box(Color(0, 0, 0, 0), 13, 10, Color(STEEL, 0.5), BORDER))
-		th.set_stylebox("focus", t, box(Color(0, 0, 0, 0), 13, 10, NEON, BORDER))
+		th.set_stylebox("normal", t, box(Color(0, 0, 0, 0), 11, 8, STEEL, BORDER))
+		th.set_stylebox("hover", t, box(Color(PAPER, 0.06), 11, 8, STEEL, BORDER))
+		th.set_stylebox("pressed", t, box(PAPER, 11, 8, PAPER, BORDER))
+		th.set_stylebox("hover_pressed", t, box(PAPER, 11, 8, PAPER, BORDER))
+		th.set_stylebox("disabled", t, box(Color(0, 0, 0, 0), 11, 8, Color(STEEL, 0.5), BORDER))
+		th.set_stylebox("focus", t, box(Color(0, 0, 0, 0), 11, 8, NEON, BORDER))
 	# Menus déroulants ouverts et défilement discret.
 	th.set_stylebox("panel", "PopupMenu", box(CONCRETE, 8, 6, STEEL, BORDER))
 	th.set_color("font_color", "PopupMenu", PAPER)
@@ -141,14 +141,14 @@ static func play_button(b: Button) -> void:
 	b.add_theme_color_override("font_pressed_color", PAPER)
 	b.add_theme_color_override("font_disabled_color", DIM)
 	var edge := Color("f06a4f")
-	var n := box(ALARM, 44, 12, edge, 3)
+	var n := box(ALARM, 36, 10, edge, 3)
 	n.shadow_color = Color(ALARM, 0.4)
-	n.shadow_size = 16
+	n.shadow_size = 12
 	b.add_theme_stylebox_override("normal", n)
-	b.add_theme_stylebox_override("hover", box(ALARM.lightened(0.1), 44, 12, edge, 3))
-	b.add_theme_stylebox_override("pressed", box(ALARM.darkened(0.2), 44, 12, edge, 3))
-	b.add_theme_stylebox_override("disabled", box(STEEL, 44, 12, STEEL, 3))
-	b.add_theme_stylebox_override("focus", box(Color(0, 0, 0, 0), 44, 12, NEON, 2))
+	b.add_theme_stylebox_override("hover", box(ALARM.lightened(0.1), 36, 10, edge, 3))
+	b.add_theme_stylebox_override("pressed", box(ALARM.darkened(0.2), 36, 10, edge, 3))
+	b.add_theme_stylebox_override("disabled", box(STEEL, 36, 10, STEEL, 3))
+	b.add_theme_stylebox_override("focus", box(Color(0, 0, 0, 0), 36, 10, NEON, 2))
 
 
 ## Interrupteur de canal : bouton enfoncé en laiton (stable) ou en lueur (snapshot).
@@ -161,11 +161,11 @@ static func switch_button(b: Button, snapshot: bool) -> void:
 	b.add_theme_color_override("font_hover_color", PAPER)
 	b.add_theme_color_override("font_pressed_color", INK)
 	b.add_theme_color_override("font_hover_pressed_color", INK)
-	b.add_theme_stylebox_override("normal", box(Color(0, 0, 0, 0), 8, 13))
-	b.add_theme_stylebox_override("hover", box(Color(PAPER, 0.06), 8, 13))
-	b.add_theme_stylebox_override("pressed", box(on, 8, 13))
-	b.add_theme_stylebox_override("hover_pressed", box(on.lightened(0.1), 8, 13))
-	b.add_theme_stylebox_override("focus", box(Color(0, 0, 0, 0), 8, 13, NEON, BORDER))
+	b.add_theme_stylebox_override("normal", box(Color(0, 0, 0, 0), 8, 11))
+	b.add_theme_stylebox_override("hover", box(Color(PAPER, 0.06), 8, 11))
+	b.add_theme_stylebox_override("pressed", box(on, 8, 11))
+	b.add_theme_stylebox_override("hover_pressed", box(on.lightened(0.1), 8, 11))
+	b.add_theme_stylebox_override("focus", box(Color(0, 0, 0, 0), 8, 11, NEON, BORDER))
 
 
 ## Barre de progression rayée (lueur quand ça avance, alerte en cas d'échec).
