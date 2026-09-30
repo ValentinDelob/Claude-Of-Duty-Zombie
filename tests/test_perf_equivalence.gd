@@ -78,7 +78,7 @@ func test_follow_floor_matches_fresh_ray() -> void:
 # R3 : MeshNav.find_path (cible en cache, requête réutilisée)
 # --------------------------------------------------------------------------
 
-func _ref_find_path(mn: MeshNav, from: Vector3, to: Vector3) -> PackedVector3Array:
+static func _ref_find_path(mn: MeshNav, from: Vector3, to: Vector3) -> PackedVector3Array:
 	var goal := mn.closest_point(to)
 	var path := NavigationServer3D.map_get_path(mn.map, from, goal, true)
 	if path.is_empty() or path[path.size() - 1].distance_to(goal) > MeshNav.REACH_TOLERANCE:
