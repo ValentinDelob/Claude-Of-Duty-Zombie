@@ -20,6 +20,8 @@ var p: Player
 const TARGET_ZOMBIES := 24
 const TARGET_DOGS := 4
 const PROF_PATH := "res://scripts/prof_tmp.gd"
+## Anciennes versions des fonctions optimisées (micro-mesures avant / après).
+const REF := preload("res://tests/test_perf_equivalence.gd")
 
 var _frame_us := PackedFloat32Array()
 var _proc_us := PackedFloat32Array()
@@ -301,6 +303,8 @@ func _micro() -> void:
 	_bench("ZombieGibs.crawl_pose", 2000, func(_i): ZombieGibs.crawl_pose(z, 1.0 / 60.0))
 	_bench("ZombieGibs.limb_at", 1000, func(_i): ZombieGibs.limb_at(z, z.global_position + Vector3.UP))
 	_bench("Zombie.separation", 2000, func(i): alive[i % alive.size()].separation())
+	# Ancien code (tests/test_perf_equivalence.gd), même horde, même image.
+	_bench("Zombie.separation (ancien code)", 2000, func(i): REF._ref_separation(alive[i % alive.size()]))
 	_bench("ZombieManager.pose_step", 5000, func(i): game.zombies.pose_step(alive[i % alive.size()].global_position))
 	var tgt := p.global_position
 	# Déplacement du joueur (move_and_slide) : ce qui l'entoure.
@@ -360,6 +364,8 @@ func _micro() -> void:
 		await frames(3)
 	_bench("nav.world_line_clear", 2000, func(i): game.nav.world_line_clear(alive[i % alive.size()].global_position, tgt))
 	_bench("nav.find_path (zombie -> joueur)", 200, func(i): game.nav.find_path(alive[i % alive.size()].global_position, tgt))
+	if game.nav is MeshNav:
+		_bench("nav.find_path (ancien code)", 200, func(i): REF._ref_find_path(game.nav, alive[i % alive.size()].global_position, tgt))
 	_bench("Spawner.pick_spawn_point", 200, func(_i): game.spawner.pick_spawn_point())
 	_bench("Spawner.recycle", 200, func(_i): game.spawner.recycle(0.0))
 	var snap := PackedByteArray()

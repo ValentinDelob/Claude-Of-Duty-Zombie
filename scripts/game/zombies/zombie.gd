@@ -88,7 +88,14 @@ var _death_t := -1.0
 var _death_dir := 1.0
 var _flash := 0.0
 var _head_tilt := 0.0
-var _snapshots: Array = []
+## Clients : instantanés reçus (tampon circulaire, voir push_snapshot).
+const SNAP_CAP := 12
+var _snap_t := _packed_f64(SNAP_CAP)
+var _snap_pos := _packed_v3(SNAP_CAP)
+var _snap_yaw := _packed_f64(SNAP_CAP)
+var _snap_code := _packed_i32(SNAP_CAP)
+var _snap_head := 0
+var _snap_n := 0
 var _last_vel := Vector3.ZERO
 
 var skel: Skeleton3D
@@ -109,6 +116,8 @@ var _mgr: ZombieManager
 var game: Game
 ## Temps écoulé depuis la dernière pose écrite (animation à cadence réduite).
 var _pose_accum := 0.0
+## Rayon de sol réutilisé par _follow_floor (cartes à étages).
+var _floor_q: PhysicsRayQueryParameters3D
 
 ## Accès publics pour les animations (ZombieAnim, ZombieGibs) : mêmes valeurs
 ## que les champs privés ci-dessus.
@@ -400,16 +409,18 @@ func separation() -> Vector3:
 
 func _separation() -> Vector3:
 	var push := Vector3.ZERO
-	var mgr := get_parent() as ZombieManager
-	if mgr == null:
+	# _mgr : le parent lu dans _ready (un zombie n'est jamais déplacé).
+	if _mgr == null:
 		return push
-	var grid := mgr.separation_grid()
+	var grid := _mgr.separation_grid()
 	var pos := global_position
-	var cx := floori(pos.x / ZombieManager.GRID_CELL)
-	var cz := floori(pos.z / ZombieManager.GRID_CELL)
-	for gz in range(cz - 1, cz + 2):
-		for gx in range(cx - 1, cx + 2):
-			var bucket: Array = grid.get(ZombieManager.grid_key(gx, gz), ZombieManager.EMPTY)
+	# Clés des 9 cases (ZombieManager.grid_key) : celle du coin, puis +1 par
+	# colonne et +GRID_ROW par rangée ; mêmes cases, même ordre qu'avant.
+	var row0 := ZombieManager.grid_key(floori(pos.x / ZombieManager.GRID_CELL) - 1, floori(pos.z / ZombieManager.GRID_CELL) - 1)
+	for gz in 3:
+		var row := row0 + gz * ZombieManager.GRID_ROW
+		for gx in 3:
+			var bucket: Array = grid.get(row + gx, ZombieManager.EMPTY)
 			# Sa propre position (distance nulle) est écartée par le test l2.
 			for op: Vector3 in bucket:
 				var d := pos - op
@@ -546,36 +557,89 @@ func _update_solidity() -> void:
 # Clients : interpolation des instantanés
 # --------------------------------------------------------------------------
 
+## Tampon circulaire des instantanés : SNAP_CAP derniers au plus, le plus
+## ancien à l'indice _snap_head (mêmes valeurs qu'une liste où l'on ajoute à
+## la fin et retire au début, sans tableau alloué par instantané).
 func push_snapshot(t: float, pos: Vector3, net_yaw: float, code: int) -> void:
-	if not _snapshots.is_empty():
-		var prev: Array = _snapshots[_snapshots.size() - 1]
-		var dt: float = t - prev[0]
+	if _snap_n > 0:
+		var last := (_snap_head + _snap_n - 1) % SNAP_CAP
+		var dt: float = t - _snap_t[last]
 		if dt > 0.001:
-			_last_vel = (pos - prev[1]) / dt
+			_last_vel = (pos - _snap_pos[last]) / dt
 			_last_vel.y = 0.0
-	_snapshots.append([t, pos, net_yaw, code])
-	if _snapshots.size() > 12:
-		_snapshots.pop_front()
+	var i := (_snap_head + _snap_n) % SNAP_CAP
+	if _snap_n < SNAP_CAP:
+		_snap_n += 1
+	else:
+		# Plein : le nouveau remplace le plus ancien.
+		_snap_head = (_snap_head + 1) % SNAP_CAP
+	_snap_t[i] = t
+	_snap_pos[i] = pos
+	_snap_yaw[i] = net_yaw
+	_snap_code[i] = code
+
+
+## Nombre d'instantanés en attente d'interpolation.
+func snapshot_count() -> int:
+	return _snap_n
+
+
+## Instantané `k` (0 : le plus ancien) : [temps, position, lacet, code].
+func snapshot(k: int) -> Array:
+	var i := (_snap_head + k) % SNAP_CAP
+	return [_snap_t[i], _snap_pos[i], _snap_yaw[i], _snap_code[i]]
+
+
+func clear_snapshots() -> void:
+	_snap_n = 0
+	_snap_head = 0
+
+
+static func _packed_f64(n: int) -> PackedFloat64Array:
+	var a := PackedFloat64Array()
+	a.resize(n)
+	return a
+
+
+static func _packed_v3(n: int) -> PackedVector3Array:
+	var a := PackedVector3Array()
+	a.resize(n)
+	return a
+
+
+static func _packed_i32(n: int) -> PackedInt32Array:
+	var a := PackedInt32Array()
+	a.resize(n)
+	return a
 
 
 func _interpolate() -> void:
-	if _snapshots.is_empty():
+	if _snap_n == 0:
 		return
-	var render_t := Time.get_ticks_usec() / 1000000.0 - INTERP_DELAY
-	while _snapshots.size() >= 2 and _snapshots[1][0] <= render_t:
-		_snapshots.pop_front()
-	var a: Array = _snapshots[0]
-	var pos: Vector3 = a[1]
-	var ny: float = a[2]
-	if _snapshots.size() == 1 and render_t > a[0] and _last_vel != Vector3.ZERO:
+	interpolate_at(Time.get_ticks_usec() / 1000000.0 - INTERP_DELAY)
+
+
+## Pose la marionnette à l'instant `render_t` (horloge des instantanés).
+func interpolate_at(render_t: float) -> void:
+	if _snap_n == 0:
+		return
+	while _snap_n >= 2 and _snap_t[(_snap_head + 1) % SNAP_CAP] <= render_t:
+		_snap_head = (_snap_head + 1) % SNAP_CAP
+		_snap_n -= 1
+	var ia := _snap_head
+	var a_t: float = _snap_t[ia]
+	var pos: Vector3 = _snap_pos[ia]
+	var ny: float = _snap_yaw[ia]
+	if _snap_n == 1 and render_t > a_t and _last_vel != Vector3.ZERO:
 		# Paquet en retard : on prolonge brièvement le dernier mouvement connu
 		# au lieu de figer le zombie (max 0,25 s).
-		pos = a[1] + _last_vel * minf(render_t - a[0], 0.25)
-	if _snapshots.size() >= 2 and render_t > a[0]:
-		var b: Array = _snapshots[1]
-		var t := clampf((render_t - a[0]) / maxf(b[0] - a[0], 0.001), 0.0, 1.0)
-		pos = a[1].lerp(b[1], t)
-		ny = lerp_angle(a[2], b[2], t)
+		pos = _snap_pos[ia] + _last_vel * minf(render_t - a_t, 0.25)
+	if _snap_n >= 2 and render_t > a_t:
+		var ib := (ia + 1) % SNAP_CAP
+		var b_t: float = _snap_t[ib]
+		var t := clampf((render_t - a_t) / maxf(b_t - a_t, 0.001), 0.0, 1.0)
+		pos = _snap_pos[ia].lerp(_snap_pos[ib], t)
+		ny = lerp_angle(_snap_yaw[ia], _snap_yaw[ib], t)
 	var prev := global_position
 	global_position = pos
 	yaw = ny
@@ -584,7 +648,7 @@ func _interpolate() -> void:
 	if dt > 0.0:
 		var v := (pos - prev) / dt
 		anim_speed = lerpf(anim_speed, Vector2(v.x, v.z).length(), 0.2)
-	var code: int = a[3]
+	var code: int = _snap_code[ia]
 	var new_state: State = (code & 7) as State
 	speed_class = (code >> 3) & 3
 	if new_state != state and state != State.DEAD:
@@ -660,7 +724,7 @@ func die(dir: Vector3, headshot: bool) -> void:
 		_body_shape.set_deferred("disabled", true)
 	velocity = Vector3.ZERO
 	set_physics_process(false)
-	_snapshots.clear()
+	clear_snapshots()
 	if headshot:
 		_headless = true
 		skel.set_bone_pose_scale(bones.head, Vector3.ONE * 0.001)
@@ -752,9 +816,13 @@ func stuck_time() -> float:
 func _follow_floor() -> void:
 	if absf(velocity.x) + absf(velocity.z) < 0.01:
 		return
-	var from := global_position + Vector3.UP * 0.9
-	var q := PhysicsRayQueryParameters3D.create(from, global_position + Vector3.DOWN * 1.1, 1)
-	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	# Requête gardée d'un pas à l'autre (seuls les deux points changent) : même
+	# rayon, sans objet alloué par zombie et par pas.
+	if _floor_q == null:
+		_floor_q = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.DOWN, 1)
+	_floor_q.from = global_position + Vector3.UP * 0.9
+	_floor_q.to = global_position + Vector3.DOWN * 1.1
+	var hit := get_world_3d().direct_space_state.intersect_ray(_floor_q)
 	if not hit.is_empty():
 		global_position.y = hit.position.y
 

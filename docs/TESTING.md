@@ -176,8 +176,12 @@ sh tools/check.sh
 | `MP="lobby" sh tools/check.sh` | ces tests multijoueur seulement (ni scénario ni test réseau), sans cache |
 | `SCENARIOS="boot" MP="lobby" sh tools/check.sh` | les deux listes ensemble |
 | `sh tools/perf.sh [scénarios]` | mesures de performance fiables, un jeu à la fois |
-| `godot --headless --fixed-fps 60 --path . -- --autotest=perf_cpu` | coût CPU d'une fin de partie sans rendu (KINO et DRAFT ARENA, 24 zombies + 4 chiens, tir, grenades) et micro-mesures des fonctions chaudes |
+| `godot --headless --fixed-fps 60 --path . -- --autotest=perf_cpu` | coût CPU d'une fin de partie sans rendu (KINO et DRAFT ARENA, 24 zombies + 4 chiens, tir, grenades) et micro-mesures des fonctions chaudes (lignes « ancien code » : l'ancienne version, même processus) |
 | `bash tools/profile.sh [scénario]` | même scénario dans une COPIE instrumentée du projet : ms par image et µs par appel de chaque `_process` / `_physics_process` et de quelques fonctions chaudes (sources jamais modifiées) |
+
+Optimisation sans changement de comportement : garder l'ancienne logique
+comme référence dans un test et comparer sur des entrées tirées au hasard
+(`tests/test_perf_equivalence.gd`, `tests/test_particle_pool.gd`).
 
 `tools/ship.sh` lance `tools/commit.sh` avec `--full`, puis la release ;
 `tools/release.sh` refuse de publier si le dernier check complet réussi ne

@@ -11,6 +11,9 @@ const MAX_SERVER_DISTANCE := 3.5
 
 var game: Game
 var objects: Dictionary = {}  # id -> Interactable
+## Les valeurs de `objects`, dans le même ordre (register / unregister) :
+## _find_focus les parcourt à chaque pas sans allouer de tableau.
+var _list: Array[Interactable] = []
 ## Objet actuellement visé par le joueur local.
 var focused: Interactable
 var _holding: Interactable
@@ -26,11 +29,21 @@ func _ready() -> void:
 
 func register(obj: Interactable) -> void:
 	assert(obj.interact_id != "" and not objects.has(obj.interact_id), "id d'interaction invalide ou dupliqué : " + obj.interact_id)
+	# Id déjà pris (assert retirée des exports) : le Dictionary garde la place
+	# de l'ancien objet, la liste aussi.
+	var old: Interactable = objects.get(obj.interact_id)
+	var at := _list.find(old) if old != null else -1
 	objects[obj.interact_id] = obj
+	if at >= 0:
+		_list[at] = obj
+	else:
+		_list.append(obj)
 	obj.system = self
 
 
 func unregister(obj: Interactable) -> void:
+	if objects.get(obj.interact_id) == obj:
+		_list.erase(obj)
 	objects.erase(obj.interact_id)
 	if focused == obj:
 		focused = null
@@ -62,21 +75,28 @@ func _find_focus(p: Player) -> Interactable:
 	var pd := game.session.get_data(p.peer_id)
 	if pd == null or pd.life != PlayerData.Life.ALIVE:
 		return null
-	var eye := p.eye_position()
-	var fwd := p.aim_direction()
+	return pick_focus(p.eye_position(), p.aim_direction(), p.peer_id, pd)
+
+
+## Objet visé depuis l'œil `eye` dans la direction `fwd` par le joueur `pid`
+## (vivant, données `pd`) : le mieux placé à portée, devant lui, utilisable.
+func pick_focus(eye: Vector3, fwd: Vector3, pid: int, pd: PlayerData) -> Interactable:
 	var best: Interactable = null
 	var best_score := -INF
-	for obj: Interactable in objects.values():
-		if not obj.is_visible_in_tree():
-			continue
+	# Liste gardée (même ordre que `objects`) et distance testée avant la
+	# visibilité (remontée de l'arbre) : tous ces tests sont sans effet, le
+	# résultat est le même, mais la plupart des objets sont écartés au plus tôt.
+	for obj: Interactable in _list:
 		var to := obj.interact_point() - eye
 		var d := to.length()
 		if d > obj.interact_range + 0.6:
 			continue
+		if not obj.is_visible_in_tree():
+			continue
 		var facing := fwd.dot(to / maxf(d, 0.001))
 		if facing < 0.35 and d > 1.0:
 			continue
-		if not obj.can_interact(p.peer_id) or weapon_locked(obj, pd):
+		if not obj.can_interact(pid) or weapon_locked(obj, pd):
 			continue
 		var score := facing * 2.0 - d
 		if score > best_score:

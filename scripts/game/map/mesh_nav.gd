@@ -22,6 +22,20 @@ var region: NavigationRegion3D
 var links: Dictionary = {}  # bloqueur -> NavigationLink3D
 var _world: Node3D
 var _points: Array[Vector3] = []
+## Recherche de chemin : paramètres et résultat réutilisés, mêmes réglages que
+## map_get_path(map, from, to, true) (A*, entonnoir, couche 1), sans les
+## métadonnées que map_get_path construit à chaque appel puis jette.
+var _query := NavigationPathQueryParameters3D.new()
+var _result := NavigationPathQueryResult3D.new()
+## closest_point(to) par cible : toute la horde vise la même position du
+## joueur pendant un pas. Vidé à chaque pas physique et dès que la carte de
+## navigation change (nouvelle itération du serveur, porte, cuisson) :
+## closest_point ne dépend que de la cible et de la carte.
+var _goals := {}
+var _goals_physics := -1
+var _goals_iteration := -1
+## Rayon de ligne de vue réutilisé (seuls les deux points changent).
+var _los_q: PhysicsRayQueryParameters3D
 
 
 func setup(world: Node3D) -> void:
@@ -29,6 +43,11 @@ func setup(world: Node3D) -> void:
 	map = world.get_world_3d().navigation_map
 	NavigationServer3D.map_set_cell_size(map, CELL_SIZE)
 	NavigationServer3D.map_set_cell_height(map, CELL_HEIGHT)
+	_query.map = map
+	_query.navigation_layers = 1
+	_query.pathfinding_algorithm = NavigationPathQueryParameters3D.PATHFINDING_ALGORITHM_ASTAR
+	_query.path_postprocessing = NavigationPathQueryParameters3D.PATH_POSTPROCESSING_CORRIDORFUNNEL
+	_query.metadata_flags = NavigationPathQueryParameters3D.PATH_METADATA_INCLUDE_NONE
 	region = NavigationRegion3D.new()
 	region.name = "NavRegion"
 	world.add_child(region)
@@ -53,6 +72,7 @@ func bake() -> void:
 	NavigationServer3D.bake_from_source_geometry_data(nm, src)
 	region.navigation_mesh = nm
 	NavigationServer3D.map_force_update(map)
+	_goals.clear()
 	print("[MeshNav] navmesh cuit en %d ms (%d polygones)" % [Time.get_ticks_msec() - t0, nm.get_polygon_count()])
 
 
@@ -66,6 +86,7 @@ func add_link(key: String, a: Vector3, b: Vector3) -> void:
 	l.enabled = false
 	_world.add_child(l)
 	links[key] = l
+	_goals.clear()
 
 
 func set_blocked(key: String, blocked: bool) -> void:
@@ -73,6 +94,7 @@ func set_blocked(key: String, blocked: bool) -> void:
 	if l:
 		l.enabled = not blocked
 		NavigationServer3D.map_force_update(map)
+		_goals.clear()
 
 
 func closest_point(pos: Vector3) -> Vector3:
@@ -86,17 +108,39 @@ func is_walkable(pos: Vector3) -> bool:
 
 ## Chemin (points au sol) ; vide si `to` n'est pas accessible depuis `from`.
 func find_path(from: Vector3, to: Vector3) -> PackedVector3Array:
-	var goal := closest_point(to)
-	var path := NavigationServer3D.map_get_path(map, from, goal, true)
+	var goal := goal_point(to)
+	_query.start_position = from
+	_query.target_position = goal
+	NavigationServer3D.query_path(_query, _result)
+	var path := _result.path
 	if path.is_empty() or path[path.size() - 1].distance_to(goal) > REACH_TOLERANCE:
 		return PackedVector3Array()
 	return path
 
 
+## closest_point(to), mis en cache tant que la carte de navigation est la
+## même (numéro d'itération du serveur) et pour un seul pas physique.
+func goal_point(to: Vector3) -> Vector3:
+	var fp := Engine.get_physics_frames()
+	var it := NavigationServer3D.map_get_iteration_id(map)
+	if fp != _goals_physics or it != _goals_iteration:
+		_goals_physics = fp
+		_goals_iteration = it
+		_goals.clear()
+	var g: Variant = _goals.get(to)
+	if g == null:
+		g = closest_point(to)
+		_goals[to] = g
+	return g
+
+
 ## Ligne de vue dégagée à hauteur de poitrine (murs, portes, fenêtres, décor).
 func world_line_clear(from: Vector3, to: Vector3) -> bool:
-	var q := PhysicsRayQueryParameters3D.create(from + Vector3.UP * EYE, to + Vector3.UP * EYE, 1 | Barricade.BARRIER_LAYER)
-	return _world.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+	if _los_q == null:
+		_los_q = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.UP, 1 | Barricade.BARRIER_LAYER)
+	_los_q.from = from + Vector3.UP * EYE
+	_los_q.to = to + Vector3.UP * EYE
+	return _world.get_world_3d().direct_space_state.intersect_ray(_los_q).is_empty()
 
 
 ## Points du navmesh tirés au hasard (apparitions des chiens), dégagés.
