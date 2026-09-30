@@ -61,6 +61,26 @@ func _ready() -> void:
 	_music_b.bus = "Music"
 	add_child(_music_b)
 	_setup_voice_bus()
+	_preload_all()
+
+
+## Sons chargés en tâche de fond dès le lancement (chemin -> nom) : sans cela,
+## le premier « zombie_attack_3 », « flesh_hit_2 »... de la partie chargeait
+## son fichier au moment de le jouer (≈ 0,9 ms par son, en pleine mêlée).
+var _pending: Dictionary = {}
+
+
+func _preload_all() -> void:
+	var names := {}
+	for f in DirAccess.get_files_at(DIR):
+		# Jeu exporté : seuls les « .wav.import » sont listés.
+		var n := f.trim_suffix(".import")
+		if n.ends_with(".wav"):
+			names[n.get_basename()] = true
+	for sound: String in names:
+		var path := DIR + sound + ".wav"
+		if ResourceLoader.load_threaded_request(path, "AudioStream") == OK:
+			_pending[sound] = path
 
 
 ## Bus « Voice » (default_bus_layout.tres), recréé s'il manque. Retire tout
@@ -91,7 +111,13 @@ func get_stream(sound: String) -> AudioStream:
 	if _cache.has(sound):
 		return _cache[sound]
 	var path := DIR + sound + ".wav"
-	var st: AudioStream = load(path) if ResourceLoader.exists(path) else null
+	var st: AudioStream = null
+	if _pending.has(sound):
+		# Déjà chargé en tâche de fond (sinon : attend la fin de son chargement).
+		st = ResourceLoader.load_threaded_get(_pending[sound]) as AudioStream
+		_pending.erase(sound)
+	elif ResourceLoader.exists(path):
+		st = load(path)
 	if st == null:
 		push_warning("[Audio] son introuvable : " + sound)
 	_cache[sound] = st
@@ -233,5 +259,10 @@ func stop_all() -> void:
 		m.stop()
 		m.stream = null
 	_music_name = ""
+	# Chargements en tâche de fond : récupérés (fin d'attente) puis lâchés,
+	# pour que le chargeur ne garde aucun son à la fermeture.
+	for sound: String in _pending:
+		ResourceLoader.load_threaded_get(_pending[sound])
+	_pending.clear()
 	_cache.clear()
 	_group_of.clear()
