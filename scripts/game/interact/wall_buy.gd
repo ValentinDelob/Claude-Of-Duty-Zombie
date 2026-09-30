@@ -24,6 +24,10 @@ func setup_marker(m: MapMarker, weapon: String) -> void:
 	weapon_id = weapon
 	is_knife = KnifeDB.exists(weapon)
 	cost = KnifeDB.wall_cost(weapon) if is_knife else WeaponDB.wall_cost(weapon)
+	if cost <= 0:
+		# Arme inconnue ou pas vendue au mur (boîte mystère, bonus) : sans prix,
+		# elle serait gratuite ; srv_use refuse tout achat.
+		push_error("[WallBuy] « %s » n'a pas de prix au mur (%s) : achat refusé" % [weapon.left(32), m.id])
 	interact_id = "wallbuy_" + m.id
 	name = "WallBuy" + m.id
 	variant = String(m.data.get("variant", ""))
@@ -129,7 +133,7 @@ func prompt(pid: int) -> String:
 func srv_use(pid: int) -> void:
 	var session := system.game.session
 	var pd := session.get_data(pid)
-	if pd == null or pd.life != PlayerData.Life.ALIVE:
+	if pd == null or pd.life != PlayerData.Life.ALIVE or cost <= 0:
 		return
 	if is_knife:
 		# Couteau : remplace celui de mêlée ; le client joue la récupération.
