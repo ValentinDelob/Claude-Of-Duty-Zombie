@@ -28,8 +28,8 @@ func test_snapshot_roundtrip() -> void:
 	var z2 := _zombie(mgr2, 42, false, Vector3.ZERO, 0.0)
 	mgr2.net_q[42] = NetCodec.quantize_zombie(Vector3.ZERO, 0.0, 0)
 	mgr2.apply_snapshot(buf)
-	assert_eq(z2._snapshots.size(), 1)
-	var snap: Array = z2._snapshots[0]
+	assert_eq(z2.snapshot_count(), 1)
+	var snap: Array = z2.snapshot(0)
 	assert_true(snap[1].distance_to(Vector3(12.34, -0.5, 56.78)) < 0.02, "position %s" % snap[1])
 	assert_near(snap[2], 1.5, 0.03, "yaw")
 	var code: int = snap[3]

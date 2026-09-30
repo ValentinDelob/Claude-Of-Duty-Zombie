@@ -248,7 +248,7 @@ func die(_dir: Vector3, _headshot: bool) -> void:
 		_body_shape.set_deferred("disabled", true)
 	velocity = Vector3.ZERO
 	set_physics_process(false)
-	_snapshots.clear()
+	clear_snapshots()
 	if not _revealed:
 		# Tué avant d'apparaître (nuke) : rien à faire exploser.
 		skel.visible = false

@@ -230,3 +230,155 @@ func test_separation_matches_reference() -> void:
 	assert_eq(lone.separation(), Vector3.ZERO)
 	lone.queue_free()
 	mgr.queue_free()
+
+
+# --------------------------------------------------------------------------
+# R5 : instantanés des marionnettes (tampon circulaire)
+# --------------------------------------------------------------------------
+
+## Ancienne logique : liste d'instantanés [t, pos, yaw, code], retrait au début.
+class RefPuppet:
+	var snaps: Array = []
+	var last_vel := Vector3.ZERO
+
+	func push(t: float, pos: Vector3, net_yaw: float, code: int) -> void:
+		if not snaps.is_empty():
+			var prev: Array = snaps[snaps.size() - 1]
+			var dt: float = t - prev[0]
+			if dt > 0.001:
+				last_vel = (pos - prev[1]) / dt
+				last_vel.y = 0.0
+		snaps.append([t, pos, net_yaw, code])
+		if snaps.size() > 12:
+			snaps.pop_front()
+
+	## [position, lacet, code] à l'instant `render_t` (null : rien à poser).
+	func at(render_t: float) -> Variant:
+		if snaps.is_empty():
+			return null
+		while snaps.size() >= 2 and snaps[1][0] <= render_t:
+			snaps.pop_front()
+		var a: Array = snaps[0]
+		var pos: Vector3 = a[1]
+		var ny: float = a[2]
+		if snaps.size() == 1 and render_t > a[0] and last_vel != Vector3.ZERO:
+			pos = a[1] + last_vel * minf(render_t - a[0], 0.25)
+		if snaps.size() >= 2 and render_t > a[0]:
+			var b: Array = snaps[1]
+			var t := clampf((render_t - a[0]) / maxf(b[0] - a[0], 0.001), 0.0, 1.0)
+			pos = a[1].lerp(b[1], t)
+			ny = lerp_angle(a[2], b[2], t)
+		return [pos, ny, a[3]]
+
+
+## Ancien code complet de Zombie (liste, retrait au début), nœud posé.
+class RefZombie extends Zombie:
+	var snaps: Array = []
+
+	func push_snapshot(t: float, pos: Vector3, net_yaw: float, code: int) -> void:
+		if not snaps.is_empty():
+			var prev: Array = snaps[snaps.size() - 1]
+			var dt: float = t - prev[0]
+			if dt > 0.001:
+				_last_vel = (pos - prev[1]) / dt
+				_last_vel.y = 0.0
+		snaps.append([t, pos, net_yaw, code])
+		if snaps.size() > 12:
+			snaps.pop_front()
+
+	func interpolate_at(render_t: float) -> void:
+		if snaps.is_empty():
+			return
+		while snaps.size() >= 2 and snaps[1][0] <= render_t:
+			snaps.pop_front()
+		var a: Array = snaps[0]
+		var pos: Vector3 = a[1]
+		var ny: float = a[2]
+		if snaps.size() == 1 and render_t > a[0] and _last_vel != Vector3.ZERO:
+			pos = a[1] + _last_vel * minf(render_t - a[0], 0.25)
+		if snaps.size() >= 2 and render_t > a[0]:
+			var b: Array = snaps[1]
+			var t := clampf((render_t - a[0]) / maxf(b[0] - a[0], 0.001), 0.0, 1.0)
+			pos = a[1].lerp(b[1], t)
+			ny = lerp_angle(a[2], b[2], t)
+		var prev := global_position
+		global_position = pos
+		yaw = ny
+		rotation.y = yaw
+		var dt := get_process_delta_time()
+		if dt > 0.0:
+			var v := (pos - prev) / dt
+			anim_speed = lerpf(anim_speed, Vector2(v.x, v.z).length(), 0.2)
+		var code: int = a[3]
+		var new_state: State = (code & 7) as State
+		speed_class = (code >> 3) & 3
+		if new_state != state and state != State.DEAD:
+			if new_state == State.ATTACK:
+				play_attack()
+			state = new_state
+			_state_time = 0.0
+			_update_solidity()
+
+
+func test_snapshot_ring_matches_list() -> void:
+	var mgr := ZombieManager.new()
+	host.add_child(mgr)
+	var z := Zombie.new()
+	z.setup(5, 2, 1, false)
+	mgr.add_child(z)
+	z.set_process(false)
+	var ref := RefPuppet.new()
+	seed(15)
+	var t := 100.0
+	var pos := Vector3(1, 0, 1)
+	var diffs := 0
+	var extrapolated := 0
+	for step in 400:
+		# Rafales de paquets (parfois plusieurs au même instant), puis rendu.
+		var n := randi() % 4
+		for k in n:
+			t += 0.0 if randf() < 0.1 else randf_range(0.0005, 0.12)
+			pos += Vector3(randf_range(-0.3, 0.3), 0.0, randf_range(-0.3, 0.3))
+			var y := randf_range(-PI, PI)
+			var code := (Zombie.State.CHASE if randf() < 0.9 else Zombie.State.IDLE) | ((randi() % 4) << 3)
+			z.push_snapshot(t, pos, y, code)
+			ref.push(t, pos, y, code)
+		if z.snapshot_count() != ref.snaps.size():
+			diffs += 1
+		for k in ref.snaps.size():
+			if z.snapshot(k) != ref.snaps[k]:
+				diffs += 1
+		var render_t := t - randf_range(-0.3, 0.4)
+		var want: Variant = ref.at(render_t)
+		z.interpolate_at(render_t)
+		if want == null:
+			continue
+		if ref.snaps.size() == 1 and render_t > ref.snaps[0][0]:
+			extrapolated += 1
+		var code: int = want[2]
+		if z.global_position != want[0] or z.yaw != want[1] or z.speed_class != (code >> 3) & 3 or z.state != (code & 7):
+			diffs += 1
+	assert_eq(diffs, 0, "mêmes instantanés et même pose que la liste d'origine")
+	assert_true(extrapolated > 5, "prolongement des paquets en retard essayé (%d)" % extrapolated)
+	# Même marionnette avec l'ancien code complet (nœud posé) : même pose, et
+	# coût (information) à 15 paquets/s pour 60 images/s (1 paquet, 4 poses).
+	var old := RefZombie.new()
+	old.setup(6, 2, 1, false)
+	mgr.add_child(old)
+	old.set_process(false)
+	var t0 := Time.get_ticks_usec()
+	for i in 4000:
+		if i % 4 == 0:
+			old.push_snapshot(t + i * 0.016, pos + Vector3(i * 0.01, 0, 0), 0.5, 10)
+		old.interpolate_at(t + i * 0.016 - 0.12)
+	var t1 := Time.get_ticks_usec()
+	for i in 4000:
+		if i % 4 == 0:
+			z.push_snapshot(t + i * 0.016, pos + Vector3(i * 0.01, 0, 0), 0.5, 10)
+		z.interpolate_at(t + i * 0.016 - 0.12)
+	var t2 := Time.get_ticks_usec()
+	assert_true(old.global_position == z.global_position and old.yaw == z.yaw, "même pose que l'ancien code")
+	print("         instantanés (paquet + pose) : liste %.2f µs, tampon %.2f µs par image" % [(t1 - t0) / 4000.0, (t2 - t1) / 4000.0])
+	z.clear_snapshots()
+	assert_eq(z.snapshot_count(), 0)
+	mgr.queue_free()
