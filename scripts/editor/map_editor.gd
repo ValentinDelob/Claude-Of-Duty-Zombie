@@ -49,6 +49,8 @@ var panels: MapPanels
 var object_list: MapObjectList
 var hotbar_ui: MapHotbar
 var inventory: MapInventory
+## Aperçu 3D en direct (MapPreviewPanel : bouton APERÇU 3D, touche P).
+var preview: MapPreviewPanel
 var status: Label
 var cursor_label: Label
 var title_label: Label
@@ -223,6 +225,15 @@ func _build_ui() -> void:
 		"Snapping: G to change (1 m grid, fine grid, free); Shift+G: fine grid step; hold Shift: invert")
 	snap_button.pressed.connect(func(): canvas.cycle_snap())
 	bar.add_child(snap_button)
+	# --- Aperçu 3D (MapPreviewPanel) : bouton et touche P.
+	var preview_button := Button.new()
+	preview_button.text = Lang.t("APERÇU 3D", "3D PREVIEW")
+	preview_button.toggle_mode = true
+	preview_button.focus_mode = Control.FOCUS_NONE
+	preview_button.tooltip_text = Lang.t("Afficher / masquer l'aperçu 3D en direct (P)", "Show / hide the live 3D preview (P)")
+	preview_button.toggled.connect(func(on): preview.set_shown(on))
+	bar.add_child(preview_button)
+	# --- fin aperçu 3D
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(sp)
@@ -272,6 +283,12 @@ func _build_ui() -> void:
 	canvas.add_child(inventory)
 	_dialog = AcceptDialog.new()
 	add_child(_dialog)
+	# --- Aperçu 3D (MapPreviewPanel), flottant au-dessus de la vue.
+	preview = MapPreviewPanel.new()
+	preview.ed = self
+	add_child(preview)
+	preview.shown_changed.connect(func(on): preview_button.set_pressed_no_signal(on))
+	# --- fin aperçu 3D
 
 
 func make_theme() -> Theme:
@@ -372,8 +389,8 @@ func _update_title() -> void:
 
 func _show_help() -> void:
 	_info(Lang.t("Raccourcis", "Shortcuts"), Lang.t(
-		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone",
-		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon"))
+		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu",
+		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there"))
 
 
 func _info(title_text: String, text: String) -> void:
