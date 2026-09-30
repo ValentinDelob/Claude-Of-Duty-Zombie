@@ -382,3 +382,25 @@ func test_snapshot_ring_matches_list() -> void:
 	z.clear_snapshots()
 	assert_eq(z.snapshot_count(), 0)
 	mgr.queue_free()
+
+
+# --------------------------------------------------------------------------
+# R6 : MeshMapLayout.ground (requête gardée)
+# --------------------------------------------------------------------------
+
+func test_ground_matches_fresh_ray() -> void:
+	var w := _world()
+	var l := MeshMapLayout.new(null, {}, "")
+	l._world = w
+	await _physics_frames(2)
+	seed(12)
+	var diffs := 0
+	for i in 300:
+		var p := Vector3(randf_range(-13, 13), randf_range(-0.5, 2.0), randf_range(-13, 13))
+		var q := PhysicsRayQueryParameters3D.create(p + Vector3.UP * 0.8, p + Vector3.DOWN * 3.0, 1)
+		var hit := w.get_world_3d().direct_space_state.intersect_ray(q)
+		var want: Vector3 = hit.position if not hit.is_empty() else p
+		if l.ground(p) != want:
+			diffs += 1
+	assert_eq(diffs, 0, "sol identique à un rayon neuf")
+	w.queue_free()

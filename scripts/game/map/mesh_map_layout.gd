@@ -27,6 +27,8 @@ var _zones: Array = []  # [id, AABB]
 var _door_markers: Array[MapMarker] = []
 var _windows: Array = []
 var _world: Node3D
+## Rayon de sol réutilisé par ground().
+var _ground_q: PhysicsRayQueryParameters3D
 
 
 ## `source` : chemin du layout.json, ou la description déjà en mémoire (cartes
@@ -113,8 +115,13 @@ func is_walkable_at(pos: Vector3) -> bool:
 func ground(pos: Vector3) -> Vector3:
 	if _world == null:
 		return pos
-	var q := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 0.8, pos + Vector3.DOWN * 3.0, 1)
-	var hit := _world.get_world_3d().direct_space_state.intersect_ray(q)
+	# Requête réutilisée (seuls les deux points changent) : sol des particules
+	# (Fx.floor_under : flammes des chiens, gerbes) et des bonus, même rayon.
+	if _ground_q == null:
+		_ground_q = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.DOWN, 1)
+	_ground_q.from = pos + Vector3.UP * 0.8
+	_ground_q.to = pos + Vector3.DOWN * 3.0
+	var hit := _world.get_world_3d().direct_space_state.intersect_ray(_ground_q)
 	return hit.position if not hit.is_empty() else pos
 
 
