@@ -2,16 +2,24 @@ extends Node
 ## Autotest — scénarios de test automatisés joués dans le vrai jeu.
 ##
 ##   godot --path . -- --autotest=<nom> [--shots]
+##   godot --path . -- --autotest=<nom1>,<nom2>,...   (série, niveau 2)
 ##
 ## Charge res://tests/autotest/<nom>.gd (qui étend AutotestScenario), l'exécute,
 ## mesure les performances, prend des captures (tests/_out/shots/) et quitte avec
 ## le code 0 (succès) ou 1 (échec). Inactif sans l'argument --autotest.
+## En SÉRIE, les scénarios s'enchaînent dans ce même processus (le démarrage du
+## moteur n'est payé qu'une fois) : entre deux, retour au menu et remise à zéro
+## de l'état global (_reset_between). Chaque scénario imprime une ligne
+## « [autotest] résultat « nom » : SUCCES|ECHEC » (lue par tools/check.sh) ;
+## un scénario bloqué arrête la série (les suivants ne sont pas lancés).
 
 ## Filet global, en secondes réelles (au-delà du plus long timeout_sec).
 const GLOBAL_GUARD_SEC := 450
 
 var active := false
 var scenario_name := ""
+## Scénarios de la série (un seul hors série).
+var batch: PackedStringArray = []
 var _fps_samples: PackedFloat32Array = []
 ## Temps GPU du viewport principal (ms) des mêmes images : moins sensible que
 ## les fps à la charge CPU des autres jeux (machine partagée).
@@ -27,7 +35,9 @@ var _t_pre := 0
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--autotest="):
-			scenario_name = a.substr(11)
+			batch = a.substr(11).split(",", false)
+	if not batch.is_empty():
+		scenario_name = batch[0]
 	if scenario_name == "":
 		set_process(false)
 		return
@@ -43,7 +53,6 @@ func _ready() -> void:
 	if DisplayServer.get_name() != "headless":
 		_move_offscreen()
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	print("[autotest] scénario « %s »" % scenario_name)
 	# Chien de garde global (au cas où le scénario lui-même planterait), en
 	# temps RÉEL : avec --fixed-fps le temps de jeu va bien plus vite que
 	# l'horloge, un minuteur de l'arbre expirerait trop tôt.
@@ -53,7 +62,7 @@ func _ready() -> void:
 	guard.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(guard)
 	guard.timeout.connect(func():
-		if Time.get_ticks_msec() - t_boot > GLOBAL_GUARD_SEC * 1000:
+		if Time.get_ticks_msec() - t_boot > (GLOBAL_GUARD_SEC + 120 * (batch.size() - 1)) * 1000:
 			guard.stop()
 			fail("chien de garde global")
 			finish())
@@ -62,20 +71,33 @@ func _ready() -> void:
 
 
 func _run() -> void:
+	var any_failed := false
+	for i in batch.size():
+		scenario_name = batch[i]
+		_failed = false
+		if i > 0:
+			await _reset_between()
+		print("[autotest] scénario « %s »" % scenario_name)
+		var t0 := Time.get_ticks_msec()
+		await _run_one()
+		print("[autotest] résultat « %s » : %s (%.1f s)" % [scenario_name, "ECHEC" if _failed else "SUCCES", (Time.get_ticks_msec() - t0) / 1000.0])
+		any_failed = any_failed or _failed
+	_failed = any_failed
+	finish()
+
+
+func _run_one() -> void:
 	var path := "res://tests/autotest/%s.gd" % scenario_name
 	# Le nom devient un chemin de script chargé : jamais « .. », « / » ni « : ».
 	if not NetGuard.safe_token(scenario_name, 64):
 		fail("nom de scénario invalide : " + scenario_name.left(64))
-		finish()
 		return
 	if not ResourceLoader.exists(path):
 		fail("scénario introuvable : " + path)
-		finish()
 		return
 	var script: GDScript = load(path)
 	if script == null or not script.can_instantiate():
 		fail("le scénario ne compile pas : " + path)
-		finish()
 		return
 	var sc: AutotestScenario = script.new()
 	sc.at = self
@@ -95,7 +117,45 @@ func _run() -> void:
 			finish())
 	watchdog.start()
 	await sc.run()
-	finish()
+	watchdog.stop()
+	watchdog.queue_free()
+
+
+## Entre deux scénarios d'une série : session quittée, retour au menu, état
+## global remis comme au démarrage (tout ce qu'un scénario peut modifier et
+## qui survit à la scène de jeu : autoloads, variables statiques, moteur).
+## Un oubli ici se voit : le scénario échoue en série mais passe seul
+## (tools/check.sh le rejoue alors seul et le signale).
+func _reset_between() -> void:
+	_sampling = false
+	Net.leave()
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+	for action in InputMap.get_actions():
+		Input.action_release(action)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Router.pending_message = ""
+	Router.return_scene = ""
+	GameState.reset_to_menu()
+	Audio.stop_music(0.0)
+	# Réglages : valeurs par défaut (comme un processus neuf, sans fichier).
+	Settings.reset_for_test()
+	# Variables statiques que des scénarios modifient.
+	ZombieGibs.debug_chance = -1.0
+	ZombieShadows.debug_count = -1
+	EditorMap.root_override = ""
+	CustomMapGuard.cache_override = ""
+	CustomMapGuard.source_override = {}
+	MapEditor.reopen_dir = ""
+	MapEditor.reopen_example = false
+	get_tree().change_scene_to_file(Router.MENU_SCENE)
+	var t := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t < 15000:
+		await get_tree().process_frame
+		var cs := get_tree().current_scene
+		if cs != null and cs.name == "MainMenu" and Game.instance == null:
+			break
+	await get_tree().process_frame
 
 
 func _process(delta: float) -> void:

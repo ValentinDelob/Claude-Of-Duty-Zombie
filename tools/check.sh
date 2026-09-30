@@ -136,7 +136,43 @@ echo "== ${#TASKS[@]} tâche(s) à lancer (${#UNIT_FILES[@]} fichier(s) unitaire
 
 # Les plus longues d'abord (durée mémorisée, 20 s par défaut).
 duration_of() { awk -v k="$1" '$1 == k { d = $2 } END { print (d == "" ? 20 : d) }' "$DUR"; }
-ORDERED=$(for T in "${TASKS[@]}"; do echo "$(duration_of "$T") $T"; done | sort -rn | awk '{print $2}')
+
+# ------------------------------------------------------------ séries (niveau 2)
+# Les scénarios sans rendu s'enchaînent dans quelques processus (« série »,
+# --autotest=a,b,c) au lieu d'un processus chacun : le démarrage du moteur
+# (≈ 6 s) n'est payé qu'une fois par série. Séries équilibrées d'après les
+# durées mémorisées (≈ BATCH_SEC secondes chacune). Restent seuls : scénarios
+# découpés (@parts), en temps réel (@temps-reel) ou marqués « ## @seul ».
+# SERIES=0 : un processus par scénario (comme avant).
+declare -A BATCH BATCH_EST
+BATCH_SEC=${BATCH_SEC:-40}
+if [ "${SERIES:-1}" = "1" ]; then
+  SOLO=(); ELIG=()
+  for T in "${TASKS[@]}"; do
+    S=${T#head:}
+    if [[ $T == head:* ]] && [[ $S != *+* ]] && ! grep -qE "^## @(temps-reel|seul)" "tests/autotest/$S.gd"; then
+      ELIG+=("$T")
+    else
+      SOLO+=("$T")
+    fi
+  done
+  if [ ${#ELIG[@]} -ge 2 ]; then
+    SUM=$(for T in "${ELIG[@]}"; do duration_of "$T"; done | awk '{s += $1} END {print s}')
+    NB=$(( (SUM + BATCH_SEC - 1) / BATCH_SEC ))
+    [ $NB -lt 1 ] && NB=1
+    [ $NB -gt ${#ELIG[@]} ] && NB=${#ELIG[@]}
+    # Répartition gloutonne : le plus long d'abord, dans la série la moins chargée.
+    while read -r K S D; do
+      BATCH[batch:$K]="${BATCH[batch:$K]:+${BATCH[batch:$K]},}$S"
+      BATCH_EST[batch:$K]=$(( ${BATCH_EST[batch:$K]:-6} + D ))
+    done < <(for T in "${ELIG[@]}"; do echo "$(duration_of "$T") ${T#head:}"; done | sort -rn | \
+      awk -v nb=$NB '{ b = 1; for (i = 2; i <= nb; i++) if (tot[i] < tot[b]) b = i; tot[b] += $1; print b, $2, int($1 + 0.5) }')
+    TASKS=("${SOLO[@]}" "${!BATCH[@]}")
+    echo "== ${#ELIG[@]} scénario(s) en $NB série(s)"
+  fi
+fi
+est_of() { if [ -n "${BATCH_EST[$1]}" ]; then echo "${BATCH_EST[$1]}"; else duration_of "$1"; fi; }
+ORDERED=$(for T in "${TASKS[@]}"; do echo "$(est_of "$T") $T"; done | sort -rn | awk '{print $2}')
 
 # ------------------------------------------------------------ exécution d'une tâche
 log_of() { echo "$OUT/jobs/${1/:/_}.log"; }
@@ -155,6 +191,8 @@ run_task() {
            # « ## @temps-reel » : mesure par seconde réelle, pas d'accélération.
            grep -q "^## @temps-reel" "tests/autotest/$SCN.gd" && MODE="--headless --max-fps 60"
            AUTOTEST_PARALLEL=1 timeout 420 "$GODOT" $MODE --path . -- --autotest=$SCN $PARTARG > "$LOG" 2>&1 || RC=1 ;;
+    batch) local NS; NS=$(echo "${BATCH[$T]}" | tr ',' '\n' | wc -l)
+           AUTOTEST_PARALLEL=1 timeout $(( 120 + 60 * NS )) "$GODOT" $HEADLESS --path . -- --autotest=${BATCH[$T]} > "$LOG" 2>&1 || RC=1 ;;
     gui)   AUTOTEST_PARALLEL=1 timeout 420 "$GODOT" --path . --resolution 1280x720 -- --autotest=$SCN $PARTARG > "$LOG" 2>&1 || RC=1 ;;
     mp)    AUTOTEST_PORT_OFFSET=$PORTS HEADLESS_MP=1 sh tools/mp_test.sh "$NAME" > "$LOG" 2>&1 || RC=1 ;;
   esac
@@ -199,6 +237,27 @@ while [ ${#PENDING[@]} -gt 0 ] || [ ${#PID_TASK[@]} -gt 0 ]; do
   unset "PID_TASK[$DONE_PID]" "PID_T0[$DONE_PID]" "PID_SLOT[$DONE_PID]"
   DONE=$((DONE + 1))
   TASK_DUR[$T]=$D
+  if [[ $T == batch:* ]]; then
+    # Résultat de chaque scénario de la série (ligne « résultat ») ; son
+    # morceau de journal devient jobs/head_<nom>.log (bilan, rejeu, JUnit).
+    BLOG=$(log_of "$T")
+    NOK=0; NKO=0
+    while read -r S ST SEC; do
+      TASK_DUR[head:$S]=$SEC
+      if [ "$ST" = "ok" ]; then PASSED+=("head:$S"); NOK=$((NOK + 1))
+      else FAILED+=("head:$S"); NKO=$((NKO + 1)); printf "       ECHEC  %-30s (série %s)\n" "head:$S" "$T"; fi
+    done < <(awk -v list="${BATCH[$T]}" -v dir="$OUT/jobs" -v blog="$BLOG" '
+      BEGIN { n = split(list, names, ","); for (i = 1; i <= n; i++) st[names[i]] = "absent" }
+      /^\[autotest\] scénario « / { cur = $0; sub(/^\[autotest\] scénario « /, "", cur); sub(/ ».*$/, "", cur); st[cur] = "ko"; bad[cur] = 0 }
+      cur != "" { print > (dir "/head_" cur ".log") }
+      cur != "" && /SCRIPT ERROR|ERROR:|\[autotest\] ECHEC/ { bad[cur] = 1 }
+      /^\[autotest\] résultat « / { if ($0 ~ /: SUCCES/ && !bad[cur]) st[cur] = "ok"; s = $0; sub(/^.*\(/, "", s); sub(/ s\).*$/, "", s); sec[cur] = int(s + 0.5) }
+      END { for (i = 1; i <= n; i++) { k = names[i]
+              if (st[k] == "absent") print "(scénario non lancé : la série s est arrêtée avant, voir " blog ")" > (dir "/head_" k ".log")
+              print k, (st[k] == "ok" ? "ok" : "ko"), (sec[k] == "" ? 0 : sec[k]) } }' "$BLOG")
+    printf "[%2d/%d] %-6s %-30s %4ds (%d scénarios, %d en échec)\n" $DONE $TOTAL "$([ $NKO -eq 0 ] && echo ok || echo ECHEC)" "$T" $D $((NOK + NKO)) $NKO
+    continue
+  fi
   if [ $RC -eq 0 ]; then
     printf "[%2d/%d] ok     %-30s %4ds\n" $DONE $TOTAL "$T" $D
     PASSED+=("$T")
@@ -260,10 +319,11 @@ done
   done
 } > "$DUR.tmp" && mv "$DUR.tmp" "$DUR"
 xml_escape() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
+REPORTED=($(printf '%s\n' "${PASSED[@]}" "${FAILED[@]}" | sort -u))
 {
   echo '<?xml version="1.0" encoding="UTF-8"?>'
-  echo "<testsuite name=\"check\" tests=\"${#TASKS[@]}\" failures=\"${#FAILED[@]}\" skipped=\"$SKIPPED\">"
-  for T in "${TASKS[@]}"; do
+  echo "<testsuite name=\"check\" tests=\"${#REPORTED[@]}\" failures=\"${#FAILED[@]}\" skipped=\"$SKIPPED\">"
+  for T in "${REPORTED[@]}"; do
     echo "  <testcase classname=\"${T%%:*}\" name=\"${T#*:}\" time=\"${TASK_DUR[$T]:-0}\">"
     if printf '%s\n' "${FAILED[@]}" | grep -qxF "$T"; then
       echo "    <failure message=\"voir $(log_of "$T")\">"
@@ -280,7 +340,13 @@ xml_escape() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
 # ------------------------------------------------------------ bilan
 grep -h "PARSE:" "$OUT/jobs/parse_scripts.log" 2>/dev/null | tail -1
 [ ${#UNIT_FILES[@]} -gt 0 ] && grep -h "TESTS:" "$(log_of unit:tests)" 2>/dev/null
-for T in "${FLAKY[@]}"; do echo "== INSTABLE (réussi au rejeu) : $T — premier journal ${OUT}/jobs/${T/:/_}.1.log"; done
+for T in "${FLAKY[@]}"; do
+  HINT=""
+  if [[ $T == head:* ]] && printf '%s\n' "${BATCH[@]}" | tr ',' '\n' | grep -qxF "${T#head:}"; then
+    HINT=" (échec en série, réussi seul : état laissé par un scénario précédent ?)"
+  fi
+  echo "== INSTABLE (réussi au rejeu) : $T — premier journal ${OUT}/jobs/${T/:/_}.1.log$HINT"
+done
 for T in "${FAILED[@]}"; do
   echo "---- $T ($(log_of "$T"))"
   grep -hE "\[autotest\] ECHEC|\[FAIL\]|^\s+- |SCRIPT ERROR|ERROR:|ECHEC|délai" "$(log_of "$T")" | head -12

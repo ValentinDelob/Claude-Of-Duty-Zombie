@@ -34,7 +34,7 @@ Historique et mesures de la refonte : `docs/TESTING_PLAN.md`.
 |---|---|---|---|
 | N0 compilation | `tests/parse_all.gd` | tâche `parse:scripts` | ≈ 20 s |
 | N1 unitaire | `tests/test_*.gd` (`extends TestCase`) | une seule instance, fichiers impactés seulement | ms à 1 s par test |
-| N2 scénario | `tests/autotest/<nom>.gd` (`extends AutotestScenario`) | `--headless --fixed-fps 60`, une instance par scénario | 5 à 15 s |
+| N2 scénario | `tests/autotest/<nom>.gd` (`extends AutotestScenario`) | `--headless --fixed-fps 60`, **en série** : plusieurs scénarios enchaînés dans un même processus (`--autotest=a,b,c`), état global remis à zéro entre deux | 1 à 10 s par scénario |
 | N3 bout-en-bout | `## @rendu` (rendu réel), `mp_<nom>_host/_client.gd` (hôte + client), `tools/net_smoke.sh` | rendu : temps réel ; multijoueur : `--fixed-fps 60` (sauf `@temps-reel`) | 15 à 60 s |
 | Carte dédiée | `## @carte kino` | seulement quand la carte change | — |
 | Perf | `perf_*`, `long_*`, `## @niveau perf` | `tools/perf.sh`, jamais dans le check | — |
@@ -94,6 +94,13 @@ func run() -> void:
 - Un drapeau statique ou un réglage modifié par le scénario doit être remis
   à la fin.
 - Lancer seul : `godot --headless --fixed-fps 60 --path . -- --autotest=<nom>`.
+- En série, les scénarios partagent le processus : entre deux,
+  `Autotest._reset_between()` quitte la session, revient au menu, remet les
+  réglages par défaut (`Settings.reset_for_test()`), relâche les touches et
+  remet les variables statiques connues. Un scénario qui modifie un nouvel
+  état global doit le remettre lui-même ou l'ajouter à `_reset_between()`.
+  Un scénario qui échoue en série est rejoué seul : s'il passe seul, le bilan
+  le signale (état laissé par un scénario précédent).
 
 ### Annotations d'en-tête
 
@@ -104,6 +111,7 @@ func run() -> void:
 | `## @carte <id>` | dépend uniquement des fichiers de la carte `<id>` : lancé seulement quand elle change |
 | `## @couvre <motifs>` | dépendances ajoutées à la main (ex. `scripts/game/perks/*`) |
 | `## @niveau perf` | hors check (`tools/perf.sh`) |
+| `## @seul` | jamais en série : un processus pour lui seul (à justifier dans le fichier) |
 | `## @temps-reel` | pas d'accélération (`--max-fps 60`) : le test mesure ou limite quelque chose par seconde réelle (débit réseau, transfert cadencé) ; pour un `mp_`, à mettre dans le script hôte |
 
 ## 3. Le check
@@ -122,7 +130,9 @@ sh tools/check.sh
 3. **Sélection** : une tâche n'est relancée que si l'empreinte de ses
    dépendances a changé depuis son dernier succès (`tests/_out/test_cache.txt`).
    Une tâche en échec est toujours relancée.
-4. Pool parallèle (les plus longues d'abord).
+4. Scénarios sans rendu regroupés en **séries** équilibrées (≈ 40 s chacune,
+   `BATCH_SEC`), puis pool parallèle (les plus longues d'abord) ;
+   `SERIES=0` : un processus par scénario.
 5. Un échec est **rejoué une fois** ; s'il passe, il est signalé INSTABLE
    (`tests/_out/flaky.txt`, premier journal gardé en `.1.log`) sans bloquer.
 6. Bilan : lignes d'échec et chemin du journal de chaque tâche

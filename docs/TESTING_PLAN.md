@@ -295,6 +295,59 @@ Le multijoueur reste le plus gros poste du check complet (≈ 470 s cumulées) :
 ENet tourne en temps réel, `--fixed-fps` y est plus risqué ; on commence par
 retirer les `sleep` de synchronisation et on mesure avant d'aller plus loin.
 
+### 5.1 Résultats mesurés (30/09/2026, même machine, `JOBS=3`, `GUI_JOBS=1`)
+
+| Mesure | Avant | Après |
+|---|---|---|
+| **Check complet** (`--full`) | 12-15 min (531 s au 1er essai de l'outil, sans séries) | **315 s** (5 min 15), aucun test instable |
+| **Check sans changement** | 12-15 min | **32 s** (import + carte des dépendances) |
+| **Check après modification d'un fichier de gameplay** (`mystery_box.gd`) | 12-15 min | **≈ 90 s** (12 tâches) |
+| CPU cumulé, scénarios sans rendu | 2 264 s (59 tâches) | **220 s** (48 scénarios en 3 séries + 6 seuls) |
+| CPU cumulé, multijoueur | 467 s | **254 s** (12 paires ×4, 5 en temps réel) |
+| CPU cumulé, avec rendu | 488 s (14 tâches) | 256 s (10 tâches) |
+| Démarrages de jeu par check complet | ≈ 125 | ≈ 55 |
+| Plus long scénario | weapon_roster 179 s (4 parties) | 9 s en série |
+
+Ce qui a produit le gain, dans l'ordre :
+1. **Horloge de jeu** (`GameClock`) + `--fixed-fps 60` : ×3 à ×13 sur les
+   scénarios sans rendu (perks 27 → 9 s, weapon_view 171 → 13 s).
+2. **Séries** (niveau 2) : 48 scénarios dans 3 processus au lieu de 48 ;
+   chaque scénario ne coûte plus que 1 à 9 s.
+3. **Multijoueur à cadence fixe ×4** (`--fixed-fps 60 --max-fps 240`) : les
+   deux jeux avancent au même rythme (sans plafond, chacun allait à la vitesse
+   de son processeur et leurs temps divergeaient : mp_crawlers, mp_melee).
+4. **Sélection par impact** : seules les tâches dont les dépendances ont changé.
+5. Captures seules passées sans rendu, tests Kino seulement quand Kino change,
+   startup_smoothness au niveau perf.
+
+Changements de tests (aucune vérification supprimée) :
+- `@parts` retiré de weapon_aim / weapon_roster / weapon_view (entiers en 9 à 15 s) ;
+  `@rendu` retiré de kino_theater, perk_look, map_editor, map_editor_diagonal,
+  map_editor_freeform (captures seulement : leurs vérifications passent sans rendu).
+- startup_smoothness : `@niveau perf` (sa vérification n'était jamais faite en
+  parallèle ; lancée par `tools/perf.sh`).
+- Mesures de durée de jeu des scénarios : `GameClock.msec()` ; mesures de coût
+  CPU : toujours `Time`.
+
+### 5.2 Reste à faire (phase 1)
+
+- **Temps réel restant** (`@temps-reel`) : mp_barricades (réparation tenue),
+  mp_dive (pose du soldat), mp_lobby (écran du salon) échouent à cadence ×4 à
+  chaque fois : chercher le minuteur en temps réel côté jeu et le passer sur
+  `GameClock`. audio_check (lecture des sons en temps réel), mp_custommap et
+  mp_netload (mesures par seconde réelle) resteront en temps réel.
+- **visual_look** (3 parties, ≈ 150 s en temps réel) : plus gros poste avec
+  rendu ; ses parties 1 et 2 sont sur Kino (à passer sur BUNKER K-7 ou à
+  réserver aux changements de Kino).
+- **Attentes fixes** : moins coûteuses en temps accéléré, mais toujours à
+  remplacer par des attentes sur condition quand elles attendent un événement
+  (surtout dans les tests multijoueur et ceux en temps réel).
+- **Doublons** (§ 1.7) : fusion au cas par cas, avec la liste des vérifications
+  déplacées.
+- **Aléatoire** : graine fixée par scénario (dispersion, boîte, apparitions).
+- `test_audio::test_loudness_of_every_sound` (18 s) : ne tourne plus que si
+  les sons changent (sélection par impact) ; suffisant pour l'instant.
+
 ## 6. Décisions (validées par l'utilisateur le 30/09/2026)
 
 1. **Framework maison conservé**, avec reprise d'idées de GUT / gdUnit4.

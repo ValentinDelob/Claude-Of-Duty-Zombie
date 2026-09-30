@@ -370,6 +370,23 @@ func _exit_tree() -> void:
 		DirAccess.remove_absolute(path)
 
 
+## Tests en série (Autotest._reset_between) : toutes les options publiques
+## reprennent leur valeur par défaut, comme dans un processus neuf (lues sur
+## une instance vierge de ce script : aucune liste à tenir à jour), le
+## fichier de réglages du test est effacé, puis tout est appliqué.
+func reset_for_test() -> void:
+	var fresh: Node = (get_script() as GDScript).new()
+	for prop in get_property_list():
+		var pname: String = prop.name
+		if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and not pname.begins_with("_") and pname != "path":
+			set(pname, fresh.get(pname))
+	fresh.free()
+	if path.begins_with(TEST_PATH_PREFIX) and FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+	reset_bindings()
+	apply()
+
+
 func load_settings() -> void:
 	if _cmdline_has_prefix("--autotest="):
 		path = "%s%d.cfg" % [TEST_PATH_PREFIX, OS.get_process_id()]

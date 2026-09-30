@@ -1,4 +1,7 @@
 extends AutotestScenario
+## @temps-reel : la lecture des sons avance en temps réel (serveur audio) ; en
+## temps accéléré les voix restent « en cours » trop longtemps et le plafond
+## de polyphonie fausse le compte des râles.
 ## Sons importés (enregistrements CC0, tools/audio/sfx_import.gd) : chaque son
 ## remplacé existe, se charge, est mono 44,1 kHz, a une durée et un niveau
 ## plausibles, et se joue en jeu (3D et 2D) sans erreur ; polyphonie des
