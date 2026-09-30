@@ -12,7 +12,8 @@ enum State { IDLE, WORKING, READY }
 const COST := 5000
 const REFILL_COST := 2500
 const WORK_TIME := 4.0
-const READY_TIME := 10.0
+## Arme améliorée à reprendre dans les 15 s (level.packapunch_timeout de BO1).
+const READY_TIME := 15.0
 
 var state: State = State.IDLE
 var owner_pid := 0

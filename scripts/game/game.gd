@@ -92,6 +92,11 @@ var throwables: ThrowableSystem
 ## Répliques des personnages (chemin réseau : /root/Game/Vox).
 var vox: VoxSystem
 signal power_changed(on: bool)
+## Chargement local terminé (préchauffage fait), juste avant de l'annoncer au
+## serveur. Jamais émis si la session s'est terminée pendant le chargement.
+signal loaded
+## La session s'est terminée (retour au menu en cours).
+var _session_over := false
 @onready var hud: Hud = $HUD
 
 
@@ -129,7 +134,13 @@ func _ready() -> void:
 	var warm_at := layout.warm_point()
 	var t0 := Time.get_ticks_msec()
 	await Warmup.run(self, warm_at)
+	# Session terminée pendant le préchauffage (hôte perdu, « Quitter ») : le
+	# retour au menu est en cours, rien à annoncer à une session disparue.
+	if _session_over or not is_inside_tree() or Net.mode == Net.Mode.NONE:
+		print("[Game] chargement abandonné : session terminée")
+		return
 	print("[Game] préchauffage des shaders : %d ms" % (Time.get_ticks_msec() - t0))
+	loaded.emit()
 	Net.report_loaded()
 
 
@@ -182,8 +193,7 @@ func _cl_begin_match(roster: Dictionary) -> void:
 	for pid in roster:
 		session.create(pid)
 	for pid in roster:
-		var slot: int = roster[pid].slot
-		var pos := spawns[slot % spawns.size()] if not spawns.is_empty() else Vector3(2, 0.1, 2)
+		var pos := spawn_for_slot(spawns, int(roster[pid].slot))
 		_spawn_player(pid, pos)
 	_match_start_ms = Time.get_ticks_msec()
 	GameState.set_state(GameState.State.PLAYING)
@@ -238,6 +248,7 @@ func _cl_remove_player(pid: int) -> void:
 
 
 func _on_session_ended(reason: String) -> void:
+	_session_over = true
 	print("[Game] session terminée : " + reason)
 	Router.back_to_menu(reason)
 
@@ -353,8 +364,20 @@ func respawn_dead_players() -> void:
 		pd.knife = KnifeDB.DEFAULT  # le couteau de chasse est perdu (BO1)
 		session.sync_stats(pid)
 		session.sync_inventory(pid)
-		var pos: Vector3 = spawns[Net.player_slot(pid) % spawns.size()]
-		_cl_respawn.rpc(pid, pos)
+		_cl_respawn.rpc(pid, spawn_for_slot(spawns, Net.player_slot(pid)))
+
+
+## Point d'apparition d'une place de joueur : les places au-delà du nombre de
+## points se partagent les points (modulo positif) ; carte sans point
+## d'apparition (carte perso incomplète) : repli fixe au lieu d'une division
+## par zéro.
+const FALLBACK_SPAWN := Vector3(2, 0.1, 2)
+
+
+static func spawn_for_slot(spawns: Array[Vector3], slot: int) -> Vector3:
+	if spawns.is_empty():
+		return FALLBACK_SPAWN
+	return spawns[posmod(slot, spawns.size())]
 
 
 @rpc("authority", "call_local", "reliable")
@@ -367,7 +390,7 @@ func _cl_respawn(pid: int, pos: Vector3) -> void:
 		p.net_allow_warp()  # le client réapparaît ailleurs : saut voulu
 	if p.is_local:
 		p.teleport_to(pos)
-		p._eye_height = Player.EYE_HEIGHT
+		p.reset_eye_height()
 		hud.show_center("", "", 0.0)
 
 
@@ -495,7 +518,7 @@ func _cl_teleport(pid: int, pos: Vector3, outbound: bool) -> void:
 		if outbound:
 			hud.show_banner(map_def.teleport_banner, 1.5)
 	else:
-		p._snapshots.clear()
+		p.clear_snapshots()
 		p.global_position = pos
 		if multiplayer.is_server():
 			p.net_allow_warp()  # saut voulu par le serveur (Player._srv_accept_state)

@@ -133,7 +133,7 @@ jamais chargée depuis le réseau ou une archive (données JSON seulement).
 | `GameState` | Machine à états unique de la session (`MAIN_MENU`, `LOBBY`, `CONNECTING`, `LOADING`, `PLAYING`, `ROUND_END`, `PLAYER_DOWN`, `GAME_OVER`, `DISCONNECTING`) avec transitions validées. |
 | `Settings` | Options persistantes (`user://settings.cfg`), actions d'entrée et touches réaffectables (voir « Menus, options et touches »). |
 | `Net` | Host / Join / Solo, poignée de main (version, serveur plein, partie lancée), registre des joueurs, erreurs de connexion lisibles, carte du salon et envoi des cartes perso (enfant `MapShare`). |
-| `Autotest` | Scénarios de test automatisés dans le vrai jeu (`-- --autotest=<nom>`), mesures de perf, captures d'écran. |
+| `Autotest` | Scénarios de test automatisés dans le vrai jeu (`-- --autotest=<nom>`), mesures de perf, captures d'écran. Savoir si l'on tourne sous autotest : `AutotestMode.is_running()` (classe statique qui lit la ligne de commande, valable avant le `_ready` des autoloads, donc dans `Settings` et les fonctions statiques ; `AutotestMode.scenario_name()` pour le scénario en cours d'une série) ; `Autotest.active` en est le reflet une fois l'autoload prêt. |
 
 ## Menus, options et touches
 
@@ -402,7 +402,10 @@ jamais chargée depuis le réseau ou une archive (données JSON seulement).
   (collisions ; escaliers = marches visibles + coin de collision plein, le
   joueur n'ayant pas de montée de marche). `MeshMapBuilder` (hérite de
   `MapProps`, comme `PropBuilder`) branche le .glb sur le rendu, le courant et
-  les lampes. `MeshNav` (hérite de `MapNav`, comme `NavGrid`) cuit le navmesh
+  les lampes, en trois morceaux (`_add_architecture`, `_build_decor_parts`,
+  `_build_lamps`) que l'aperçu 3D de l'éditeur (`MapPreviewBuilder`, qui en
+  hérite) appelle aussi : l'aperçu montre la géométrie du jeu, pas une copie
+  (test « même géométrie que le jeu », `tests/test_map_preview.gd`). `MeshNav` (hérite de `MapNav`, comme `NavGrid`) cuit le navmesh
   au chargement d'après les collisions (portes fermées et fenêtres comprises)
   ; chaque porte est un `NavigationLink3D` activé à l'ouverture. Les zombies
   gardent le déplacement flottant et suivent le sol par un rayon vers le bas

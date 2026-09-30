@@ -69,6 +69,9 @@ func srv_award_repair(pid: int) -> int:
 	if pts > 0:
 		repair_earned[pid] = earned + pts
 		game.session.add_points(pid, pts)
+		# BO1 : gagnés par player_add_points, ils comptent dans le total de
+		# l'équipe qui fait tomber les bonus.
+		game.points.team_earned += pts
 	return pts
 
 

@@ -12,7 +12,9 @@ const GAP_MAX := 5
 ## Chiens par joueur : 6 pour les deux premières manches de chiens, 8 ensuite.
 const PER_PLAYER_EARLY := 6
 const PER_PLAYER_LATE := 8
-const MAX_TOTAL := 24
+## BO1 n'a pas de plafond (4 joueurs au plus : 32 chiens) ; le jeu accepte
+## jusqu'à 8 joueurs, on garde donc le maximum de BO1.
+const MAX_TOTAL := 32
 ## Chiens vivants en même temps : 2 par joueur valide.
 const ALIVE_PER_PLAYER := 2
 ## PV selon le numéro de la manche de chiens (dog_health_increase).

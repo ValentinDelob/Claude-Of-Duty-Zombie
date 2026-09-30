@@ -54,6 +54,25 @@ const SOLID_TIME := 15.0
 const BLINKS := 40
 
 
+## LIQUIDATION autorisée (get_valid_powerup de BO1) : la boîte a déjà bougé
+## au moins une fois, elle n'est ni en train de partir ni sur le point de
+## partir (ours tiré, envol à la fin du défilement), et aucune liquidation
+## n'est déjà en cours.
+static func fire_sale_allowed(box_moves: int, box_leaving: bool, fire_sale_on: bool) -> bool:
+	return box_moves >= 1 and not box_leaving and not fire_sale_on
+
+
+## FAUCHEUSE autorisée (minigun_no_drop de BO1) : aucun joueur ne l'a déjà en
+## main, et le courant est rétabli ; en solo, avant le courant, seulement si
+## le LAZARUS TONIC (Quick Revive) a déjà été bu au moins une fois.
+static func death_machine_allowed(anyone_holds: bool, power_on: bool, solo: bool, solo_revive_buys: int) -> bool:
+	if anyone_holds:
+		return false
+	if not power_on:
+		return solo and solo_revive_buys > 0
+	return true
+
+
 static func blink_wait(i: int) -> float:
 	if i < 15:
 		return 0.5

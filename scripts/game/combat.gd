@@ -374,7 +374,9 @@ func damage_zombie(zid: int, dmg: int, pid: int, headshot: bool, dir: Vector3, k
 	else:
 		NetCodec.append_zombie_hit(_fx_buf, zid, headshot)
 	zombie_damaged.emit(pid, zid, dmg, killed, headshot, kind)
-	if pid > 0 and killed:
+	# Tireur parti entre le tir et l'impact (projectile en vol, brûlure) : les
+	# dégâts comptent, mais aucune confirmation vers un pair inconnu.
+	if pid > 0 and killed and session.get_data(pid) != null:
 		if pid == multiplayer.get_unique_id():
 			_cl_hit_confirm(killed, headshot)
 		else:

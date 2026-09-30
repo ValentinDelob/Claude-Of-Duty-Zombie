@@ -390,8 +390,7 @@ var test_window_at := Vector2i(-1, -1)
 
 
 func _autotest() -> bool:
-	var at: Node = get_node_or_null("/root/Autotest")
-	return at != null and at.active
+	return AutotestMode.is_running()
 
 
 func set_detached(on: bool, win_rect := Rect2i()) -> void:
@@ -615,8 +614,7 @@ func _select(id: String) -> void:
 
 func _capture(at: Vector2) -> void:
 	_capture_at = at
-	var au: Node = get_node_or_null("/root/Autotest")
-	if au != null and au.active:
+	if _autotest():
 		return
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_captured = true

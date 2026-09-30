@@ -93,12 +93,18 @@ func _process(delta: float) -> void:
 		_title.text = "À TERRE"
 		var rp := d.revive_progress(me)
 		var solo := Net.mode == Net.Mode.SOLO
-		if rp > 0.0:
-			_revive.text = "Réanimation : " + bar(rp)
+		# Solo avec LAZARUS TONIC : la barre se remplit pendant qu'on se relève
+		# seul (BO1), au lieu d'un compte à rebours de saignement trompeur.
+		var sp := d.self_revive_progress(me)
+		var reviving := Lang.t("Réanimation : ", "Reviving: ")
+		if sp > 0.0:
+			_revive.text = reviving + bar(sp)
+		elif rp > 0.0:
+			_revive.text = reviving + bar(rp)
 		else:
-			_revive.text = "Réanimation : " + bar(0.0) if not solo else ""
+			_revive.text = reviving + bar(0.0) if not solo else ""
 		var left := d.bleed_left(me)
-		_time.text = "Temps restant : %ds" % int(ceil(left))
+		_time.text = "" if sp > 0.0 else Lang.t("Temps restant : %ds", "Time left: %ds") % int(ceil(left))
 		# Cœur de plus en plus rapide, rouge de plus en plus présent.
 		var bleed := 1.0 - clampf(left / DownedSystem.BLEEDOUT_TIME, 0.0, 1.0)
 		_beat += delta * (1.1 + bleed * 1.2)

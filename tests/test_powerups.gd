@@ -120,3 +120,23 @@ func test_timed_powerups() -> void:
 		if not PowerupRules.hud_icon_visible(4.0 - i * 0.05):
 			hidden += 1
 	assert_true(hidden > 10, "l'icône clignote dans les dernières secondes")
+
+
+## get_valid_powerup de BO1 : pas de LIQUIDATION avant le premier départ de la
+## boîte, ni pendant son départ (ou quand l'ours vient d'être tiré), ni
+## pendant une liquidation en cours.
+func test_fire_sale_validity() -> void:
+	assert_false(PowerupRules.fire_sale_allowed(0, false, false), "boîte jamais déplacée")
+	assert_true(PowerupRules.fire_sale_allowed(1, false, false))
+	assert_false(PowerupRules.fire_sale_allowed(2, true, false), "boîte sur le départ (ours tiré)")
+	assert_false(PowerupRules.fire_sale_allowed(2, false, true), "déjà une liquidation en cours")
+
+
+## minigun_no_drop de BO1 : une seule FAUCHEUSE à la fois ; pas avant le
+## courant, sauf en solo une fois le LAZARUS TONIC bu.
+func test_death_machine_validity() -> void:
+	assert_true(PowerupRules.death_machine_allowed(false, true, false, 0))
+	assert_false(PowerupRules.death_machine_allowed(true, true, false, 0), "déjà en main d'un joueur")
+	assert_false(PowerupRules.death_machine_allowed(false, false, false, 0), "courant coupé (coop)")
+	assert_false(PowerupRules.death_machine_allowed(false, false, true, 0), "courant coupé, solo sans LAZARUS")
+	assert_true(PowerupRules.death_machine_allowed(false, false, true, 1), "solo, LAZARUS déjà bu")
