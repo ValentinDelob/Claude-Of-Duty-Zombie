@@ -23,7 +23,8 @@ func run() -> void:
 	var ok: bool = await until(func(): return game.zombies.alive.size() >= 3, 40.0, "zombies reçus")
 	if not ok:
 		return
-	await seconds(Zombie.EMERGE_TIME + 0.5)
+	var zs: Array = game.zombies.alive.duplicate()
+	await until(func(): return zs.all(func(z): return z.state != Zombie.State.EMERGE), Zombie.EMERGE_TIME + 3.0, "zombies sortis de terre")
 	H.aim_at(p, MapData.cell_to_world(Vector2i(10, 7)))
 	var points0 := pd.points
 	# Objets créés chez le client, avec leur numéro à la création (< 0 : prédit).
@@ -32,7 +33,7 @@ func run() -> void:
 		if n is Throwable:
 			created.append([n, n.tid]))
 	p.input.grenade = true
-	await seconds(0.6)
+	await seconds(0.6)  # touche tenue (le joueur dégoupille puis lâche)
 	p.input.grenade = false
 	ok = await until(func(): return sys._predicted.is_empty() and not sys.items.is_empty(), 3.0, "objet rattaché au serveur")
 	var pred: Throwable = created[0][0] if not created.is_empty() else null
@@ -43,7 +44,7 @@ func run() -> void:
 	ok = await until(func(): return booms.size() >= 1, 6.0, "explosion reçue")
 	await seconds(0.05)
 	await at.screenshot("explosion")
-	await seconds(0.4)
+	await until(func(): return sys.items.is_empty() and pd.points - points0 >= 3 * PointsRules.SPLASH_KILL, 3.0, "objet retiré et points reçus")
 	at.check(ok and sys.items.is_empty(), "explosion reçue, objet retiré")
 	at.check(pd.points - points0 == 3 * PointsRules.SPLASH_KILL and pd.grenades == 1, "points (+%d) et réserve (%d) répliqués" % [pd.points - points0, pd.grenades])
 
@@ -51,15 +52,15 @@ func run() -> void:
 	ok = await until(func(): return pd.has_monkeys and pd.monkeys == 3, 20.0, "singes reçus")
 	if not ok:
 		return
-	await seconds(0.5)
+	await seconds(0.5)  # le joueur regarde où lancer
 	H.aim_at(p, MapData.cell_to_world(Vector2i(11, 7)))
 	p.input.tactical = true
-	await seconds(0.6)
+	await seconds(0.6)  # touche tenue
 	p.input.tactical = false
 	ok = await until(func(): return not sys.items.is_empty() and sys.items.values()[0].luring, 5.0, "musique du singe")
 	at.check(ok, "le singe joue sa musique chez le client")
-	await seconds(3.0)
 	await at.screenshot("monkey")
 	ok = await until(func(): return booms.size() >= 2, ThrowableRules.MONKEY_TIME, "explosion du singe")
+	await until(func(): return pd.monkeys == 2, 2.0, "réserve de singes répliquée")
 	at.check(ok and pd.monkeys == 2, "explosion du singe reçue (reste %d)" % pd.monkeys)
-	await seconds(3.0)
+	await MpHelpers.finish(self)

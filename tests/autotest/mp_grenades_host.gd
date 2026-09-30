@@ -1,6 +1,4 @@
 extends AutotestScenario
-## @temps-reel : validation serveur (lancer, coup de couteau) dans une fenêtre de temps
-## de jeu alors que le réseau reste en temps réel : échecs répétés en accéléré.
 ## [MP] Hôte : c'est le CLIENT qui lance. Le serveur décompte sa réserve,
 ## simule la grenade (objet serveur appartenant au client), applique
 ## l'explosion (3 zombies tués, 50 points chacun au client), puis simule le
@@ -31,10 +29,14 @@ func run() -> void:
 	var ok: bool = await until(func(): return client.global_position.distance_to(MapData.cell_to_world(Vector2i(4, 7))) < 1.0, 20.0, "client en position")
 	if not ok:
 		return
-	# 1. Grenade du client.
+	# 1. Grenade du client : 3 zombies immobiles (sortis de terre ensemble).
 	var zs := []
 	for k in 3:
-		zs.append(await H.dummy_zombie(self, MapData.cell_to_world(Vector2i(12, 7)) + Vector3(0, 0, (k - 1) * 0.75), 900))
+		var zid := game.zombies.spawn(MapData.cell_to_world(Vector2i(12, 7)) + Vector3(0, 0, (k - 1) * 0.75), 0, 900)
+		var z := game.zombies.get_zombie(zid)
+		z.speed_mult = 0.0
+		zs.append(z)
+	await until(func(): return zs.all(func(z): return z.state != Zombie.State.EMERGE), Zombie.EMERGE_TIME + 3.0, "zombies sortis de terre")
 	var points0 := cpd.points
 	ok = await until(func(): return not sys.items.is_empty(), 25.0, "grenade du client simulée par le serveur")
 	if not ok:
@@ -43,7 +45,7 @@ func run() -> void:
 	at.check(t.server_side and t.owner_pid == client_id and t.kind == ThrowableRules.Kind.FRAG, "objet serveur : grenade du client %d" % t.owner_pid)
 	at.check(cpd.grenades == 1, "réserve du client décomptée par le serveur (%d)" % cpd.grenades)
 	ok = await until(func(): return booms.size() >= 1, 6.0, "explosion")
-	await seconds(0.3)
+	await until(func(): return zs.all(func(z): return not z.is_alive()), 1.0, "zombies tués par l'explosion")
 	var dead := 0
 	for z: Zombie in zs:
 		if not z.is_alive():
@@ -62,12 +64,18 @@ func run() -> void:
 	if not ok:
 		return
 	var mpos: Vector3 = sys._lures[0].position
-	await seconds(4.0)
-	var lured := 0
-	for z: Zombie in runners:
-		if z.is_alive() and z.lured and Vector2(z.global_position.x - mpos.x, z.global_position.z - mpos.z).length() < 4.0:
-			lured += 1
-	at.check(lured == runners.size(), "zombies attirés par le singe du client (%d/%d)" % [lured, runners.size()])
+	var lured_count := func() -> int:
+		var n := 0
+		for z: Zombie in runners:
+			if z.is_alive() and z.lured and Vector2(z.global_position.x - mpos.x, z.global_position.z - mpos.z).length() < 4.0:
+				n += 1
+		return n
+	# Les trotteurs rejoignent le singe en moins de 4 s de jeu.
+	var t0 := GameClock.now()
+	await until(func(): return lured_count.call() == runners.size(), 4.0, "zombies au pied du singe")
+	var lured: int = lured_count.call()
+	var took := GameClock.now() - t0
+	at.check(lured == runners.size() and took <= 4.0, "zombies attirés par le singe du client (%d/%d en %.1f s)" % [lured, runners.size(), took])
 	ok = await until(func(): return booms.size() >= 2, ThrowableRules.MONKEY_TIME, "explosion du singe")
 	at.check(ok and booms[1][0] == ThrowableRules.Kind.MONKEY, "explosion du singe")
-	await seconds(4.0)
+	await MpHelpers.finish(self)
