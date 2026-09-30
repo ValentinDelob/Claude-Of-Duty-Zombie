@@ -10,14 +10,14 @@ func enter(_args := {}) -> void:
 	col.offset_left = 110
 	col.offset_top = -250
 	add_child(col)
-	col.add_child(title("DOSSIER DE COMBAT", 44))
+	col.add_child(title(Lang.t("DOSSIER DE COMBAT", "COMBAT RECORD"), 44))
 	col.add_child(text(Settings.player_name.to_upper(), 20, UiStyle.DIM))
 	col.add_child(text("", 8))
 	var stats := CareerStats.load_stats()
 	for f in CareerStats.FIELDS:
 		var line := HBoxContainer.new()
 		line.custom_minimum_size = Vector2(560, 0)
-		var name_l := UiStyle.label(f[1], 22, UiStyle.BONE)
+		var name_l := UiStyle.label(Lang.t(f[1], f[2]), 22, UiStyle.BONE)
 		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(name_l)
 		var val := UiStyle.label(CareerStats.format_value(f[0], stats[f[0]]), 24, UiStyle.GOLD, "impact")
@@ -25,7 +25,7 @@ func enter(_args := {}) -> void:
 		rows[f[0]] = val
 		col.add_child(line)
 	col.add_child(text("", 10))
-	var b := button("RETOUR", back)
+	var b := button(Lang.t("RETOUR", "BACK"), back)
 	col.add_child(b)
 	focus_later(b)
 

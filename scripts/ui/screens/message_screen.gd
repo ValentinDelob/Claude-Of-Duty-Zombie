@@ -17,7 +17,7 @@ func enter(args := {}) -> void:
 	body.custom_minimum_size = Vector2(720, 0)
 	col.add_child(body)
 	col.add_child(text("", 10))
-	var b := button("RETOUR", back)
+	var b := button(Lang.t("RETOUR", "BACK"), back)
 	col.add_child(b)
 	focus_later(b)
 	Audio.play_ui("ui_error", -4.0)

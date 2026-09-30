@@ -90,7 +90,7 @@ func _process(delta: float) -> void:
 		_time.text = ""
 	elif d.is_downed(me):
 		target = 1.0
-		_title.text = "À TERRE"
+		_title.text = Lang.t("À TERRE", "DOWNED")
 		var rp := d.revive_progress(me)
 		var solo := Net.mode == Net.Mode.SOLO
 		# Solo avec LAZARUS TONIC : la barre se remplit pendant qu'on se relève
@@ -122,4 +122,4 @@ func _process(delta: float) -> void:
 	_assist.text = ""
 	for pid in d.downed:
 		if d.reviver_of(pid) == me:
-			_assist.text = "Réanimation de %s : %s" % [Net.player_name(pid), bar(d.revive_progress(pid))]
+			_assist.text = Lang.t("Réanimation de %s : %s", "Reviving %s: %s") % [Net.player_name(pid), bar(d.revive_progress(pid))]

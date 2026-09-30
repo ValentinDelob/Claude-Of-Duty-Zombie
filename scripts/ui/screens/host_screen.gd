@@ -13,10 +13,10 @@ func enter(_args := {}) -> void:
 	col.offset_left = 110
 	col.offset_top = -200
 	add_child(col)
-	col.add_child(title("HÉBERGER UNE PARTIE", 44))
+	col.add_child(title(Lang.t("HÉBERGER UNE PARTIE", "HOST A GAME"), 44))
 	col.add_child(text("", 6))
-	col.add_child(text("Nom du joueur", 18, UiStyle.DIM))
-	_name = MenuStyle.line_edit(Settings.player_name, "Survivant", 16)
+	col.add_child(text(Lang.t("Nom du joueur", "Player name"), 18, UiStyle.DIM))
+	_name = MenuStyle.line_edit(Settings.player_name, Lang.t("Survivant", "Survivor"), 16)
 	col.add_child(_name)
 	col.add_child(text("Port", 18, UiStyle.DIM))
 	_port = MenuStyle.line_edit(str(Settings.last_port), "7777", 5)
@@ -24,15 +24,15 @@ func enter(_args := {}) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	col.add_child(row)
-	row.add_child(text("Joueurs maximum :", 20, UiStyle.DIM))
+	row.add_child(text(Lang.t("Joueurs maximum :", "Max players:"), 20, UiStyle.DIM))
 	_max_label = text(str(_max), 24)
 	row.add_child(_max_label)
 	row.add_child(button("-", func(): _set_max(_max - 1)))
 	row.add_child(button("+", func(): _set_max(_max + 1)))
 	col.add_child(text("", 6))
-	var create := button("CRÉER LA PARTIE", _create)
+	var create := button(Lang.t("CRÉER LA PARTIE", "CREATE GAME"), _create)
 	col.add_child(create)
-	col.add_child(button("RETOUR", back))
+	col.add_child(button(Lang.t("RETOUR", "BACK"), back))
 	focus_later(create)
 
 

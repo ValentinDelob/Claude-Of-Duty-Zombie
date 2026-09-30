@@ -56,3 +56,8 @@ func broadcast_state() -> void:
 
 static func cost_text(cost: int) -> String:
 	return "[%d]" % cost
+
+
+## Invite commune des objets qui attendent le courant.
+static func need_power_text() -> String:
+	return Lang.t("Le courant doit être rétabli", "Power must be activated first")

@@ -116,14 +116,14 @@ func prompt(pid: int) -> String:
 	if is_knife:
 		if pd.knife == weapon_id:
 			return ""
-		return "[F] Acheter %s %s" % [_item_name(), Interactable.cost_text(cost)]
+		return Lang.t("[F] Acheter %s %s", "[F] Buy %s %s") % [_item_name(), Interactable.cost_text(cost)]
 	var slot := pd.has_weapon(weapon_id)
 	if slot < 0:
-		return "[F] Acheter %s %s" % [WeaponDB.display_name(weapon_id), Interactable.cost_text(cost)]
+		return Lang.t("[F] Acheter %s %s", "[F] Buy %s %s") % [WeaponDB.display_name(weapon_id), Interactable.cost_text(cost)]
 	var w: Dictionary = pd.weapons[slot]
 	if WeaponDB.is_full(w):
 		return ""
-	return "[F] Munitions %s %s" % [WeaponDB.display_name(w.id, w.pap), Interactable.cost_text(WeaponDB.ammo_cost(w.id, w.pap))]
+	return Lang.t("[F] Munitions %s %s", "[F] Ammo %s %s") % [WeaponDB.display_name(w.id, w.pap), Interactable.cost_text(WeaponDB.ammo_cost(w.id, w.pap))]
 
 
 func srv_use(pid: int) -> void:
@@ -136,7 +136,7 @@ func srv_use(pid: int) -> void:
 		if pd.knife == weapon_id:
 			return
 		if not session.try_spend(pid, cost):
-			system.deny(pid, "Pas assez de points")
+			system.deny(pid, InteractionSystem.NO_POINTS)
 			return
 		pd.knife = weapon_id
 		VoxSystem.say(pid, "buy_bowie" if weapon_id == "bowie" else "buy_wall", 0.8)
@@ -149,13 +149,13 @@ func srv_use(pid: int) -> void:
 		if WeaponDB.is_full(w):
 			return
 		if not session.try_spend(pid, WeaponDB.ammo_cost(w.id, w.pap)):
-			system.deny(pid, "Pas assez de points")
+			system.deny(pid, InteractionSystem.NO_POINTS)
 			return
 		WeaponDB.refill(pd, slot)
 		VoxSystem.say(pid, "buy_ammo", 0.5)
 	else:
 		if not session.try_spend(pid, cost):
-			system.deny(pid, "Pas assez de points")
+			system.deny(pid, InteractionSystem.NO_POINTS)
 			return
 		WeaponDB.give(pd, weapon_id)
 		VoxSystem.say(pid, "buy_wall", 0.6)

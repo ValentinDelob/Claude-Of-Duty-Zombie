@@ -268,7 +268,44 @@ static func stats(id: String, pap := false) -> Dictionary:
 
 
 static func display_name(id: String, pap := false) -> String:
-	return stats(id, pap).name
+	return localized(stats(id, pap).name)
+
+
+## Noms anglais des armes dont le nom est en français (les autres noms,
+## modèles réels ou noms propres, sont les mêmes dans les deux langues).
+## Couteaux compris (KnifeDB). Vérifié par tests/test_lang.gd.
+const EN_NAMES := {
+	"OLYMPIA PHLÉGÉTHON": "OLYMPIA PHLEGETHON",
+	"M14 VIEILLE GARDE": "M14 OLD GUARD",
+	"MP5K FRELON": "MP5K HORNET",
+	"PM63 CHIENS JUMEAUX": "PM63 TWIN HOUNDS",
+	"MP40 VIEUX LOUP": "MP40 OLD WOLF",
+	"AK74u TOUNDRA": "AK74u TUNDRA",
+	"STAKEOUT EMBUSCADE": "STAKEOUT AMBUSH",
+	"CZ75 FLÉAU": "CZ75 SCOURGE",
+	"PYTHON MAMBA NOIR": "PYTHON BLACK MAMBA",
+	"SPECTRE ÂME DAMNÉE": "SPECTRE DAMNED SOUL",
+	"FAMAS FULGURANT": "FAMAS LIGHTNING",
+	"COMMANDO TRAQUEUR": "COMMANDO STALKER",
+	"AUG SENTINELLE": "AUG SENTINEL",
+	"FN FAL ÉCLIPSE": "FN FAL ECLIPSE",
+	"HK21 SÉISME": "HK21 QUAKE",
+	"RPK TONNERRE ROUGE": "RPK RED THUNDER",
+	"HS10 OURAGANS JUMEAUX": "HS10 TWIN HURRICANES",
+	"L96A1 VEUVE NOIRE": "L96A1 BLACK WIDOW",
+	"CHINA LAKE DRAGON DE JADE": "CHINA LAKE JADE DRAGON",
+	"M72 LAW CATACLYSME": "M72 LAW CATACLYSM",
+	"TONNERRE-7": "THUNDER-7",
+	"OURAGAN-77": "HURRICANE-77",
+	"FAUCHEUSE": "REAPER",
+	"COUTEAU": "KNIFE",
+	"COUTEAU DE CHASSE": "HUNTING KNIFE",
+}
+
+
+## Nom d'arme (tel que dans WEAPONS / KnifeDB) dans la langue du joueur.
+static func localized(weapon_name: String) -> String:
+	return EN_NAMES.get(weapon_name, weapon_name) if Lang.is_en() else weapon_name
 
 
 static func fire_interval(id: String, pap := false) -> float:

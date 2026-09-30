@@ -23,7 +23,7 @@ const BLOCKING_PROPS := "COINY"
 const WINDOW := "W"
 
 var id := "map"
-var display_name := "Carte"
+var display_name := Lang.t("Carte", "Map")
 var rows: PackedStringArray = []
 var zone_names: Dictionary = {}
 ## "1" -> {"cost": 750}
@@ -48,7 +48,7 @@ var open_links: Dictionary = {}
 ## Musique d'ambiance (assets/audio).
 var music := "ambience_bunker"
 ## Bandeau affiché à l'arrivée du téléporteur.
-var teleport_banner := "SALLE DU RITUEL"
+var teleport_banner := Lang.t("SALLE DU RITUEL", "RITUAL ROOM")
 ## Téléporteur à relier au poste central (`mainframe` de la description en
 ## maillage) avant chaque voyage, comme à Kino der Toten ; retour dessus.
 var teleporter_link := false

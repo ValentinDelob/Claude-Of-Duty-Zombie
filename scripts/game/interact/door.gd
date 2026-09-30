@@ -321,17 +321,17 @@ func prompt(pid: int) -> String:
 		var here := game.layout.zone_at(p.global_position)
 		label = game.map_def.zone_display_name(zones[1] if zones[0] == here else zones[0])
 	if debris:
-		return "[F] Dégager les débris %s" % Interactable.cost_text(cost)
+		return Lang.t("[F] Dégager les débris %s", "[F] Clear the debris %s") % Interactable.cost_text(cost)
 	if label == "":
-		return "[F] Ouvrir la porte %s" % Interactable.cost_text(cost)
-	return "[F] Ouvrir : %s %s" % [label, Interactable.cost_text(cost)]
+		return Lang.t("[F] Ouvrir la porte %s", "[F] Open the door %s") % Interactable.cost_text(cost)
+	return Lang.t("[F] Ouvrir : %s %s", "[F] Open: %s %s") % [label, Interactable.cost_text(cost)]
 
 
 func srv_use(pid: int) -> void:
 	if is_open or power_door:
 		return
 	if not system.game.session.try_spend(pid, cost):
-		system.deny(pid, "Pas assez de points")
+		system.deny(pid, InteractionSystem.NO_POINTS)
 		return
 	system.purchase_fx(self)
 	VoxSystem.say(pid, "door_open", 0.6)

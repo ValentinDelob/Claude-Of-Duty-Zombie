@@ -974,6 +974,68 @@
     "en": "Door looks, invisible barriers and weapons held right",
     "fr": "Portes au choix, barrières invisibles et armes bien en main"
    }
+  },
+  "v0.2.0-snapshot.198": {
+   "channel": "snapshot",
+   "date": "2026-09-30",
+   "images": [],
+   "items": [
+    {
+     "en": "Going down costs 5% of your points, and the teammate who revives you gets them. When a player bleeds out, everyone else loses 10% of their points.",
+     "fr": "À terre, vous perdez 5 % de vos points ; le coéquipier qui vous relève les récupère. Si un joueur succombe, les autres perdent 10 % de leurs points."
+    },
+    {
+     "en": "When downed you pull out your best pistol (the CLAUDE-RAY first) with two extra magazines, instead of a sometimes empty M1911.",
+     "fr": "À terre, vous sortez votre meilleur pistolet (le CLAUDE-RAY en premier) avec deux chargeurs de plus, au lieu d'un M1911 parfois vide."
+    },
+    {
+     "en": "In solo with LAZARUS TONIC, a bar shows your self-revive instead of a misleading countdown.",
+     "fr": "En solo avec LAZARUS TONIC, une barre montre votre auto-réanimation au lieu d'un compte à rebours trompeur."
+    },
+    {
+     "en": "The mystery box weapon now waits 12 seconds, the Pack-a-Punch weapon 15 seconds.",
+     "fr": "L'arme de la boîte mystère reste 12 secondes, celle du Pack-a-Punch 15 secondes."
+    },
+    {
+     "en": "No more second THUNDER-7 while its owner is downed, no more two boxes on the same spot, no more double FIRE SALE or REAPER.",
+     "fr": "Plus de second TONNERRE-7 quand son propriétaire est à terre, plus de deux boîtes au même endroit, plus de LIQUIDATION ou de FAUCHEUSE en double."
+    },
+    {
+     "en": "The REAPER no longer drops before the power is on (in solo: once LAZARUS TONIC has been bought).",
+     "fr": "La FAUCHEUSE n'apparaît plus avant le courant (en solo : une fois LAZARUS TONIC bu)."
+    },
+    {
+     "en": "Window repair points now bring the next power-up closer, and dog rounds have up to 32 dogs with four players.",
+     "fr": "Les points de réparation des fenêtres rapprochent le prochain bonus, et les manches de chiens comptent jusqu'à 32 chiens à quatre."
+    },
+    {
+     "en": "The flown-away LAZARUS TONIC machine no longer blocks anything.",
+     "fr": "La machine LAZARUS TONIC envolée ne bloque plus rien."
+    }
+   ],
+   "title": {
+    "en": "Closer to Black Ops 1 rules",
+    "fr": "Règles de Black Ops 1 au plus près"
+   }
+  },
+  "v0.2.0-snapshot.210": {
+   "channel": "snapshot",
+   "date": "2026-09-30",
+   "images": [],
+   "items": [
+    {
+     "en": "The whole game now follows the language chosen in the options (French or English): buy prompts, perks, power-ups, weapons, downed and game over screens, scoreboard, menus, lobby, network messages and credits.",
+     "fr": "Tout le jeu suit la langue choisie dans les options (français ou anglais) : invites d'achat, atouts, bonus, armes, écran à terre et de fin de partie, tableau des scores, menus, salon, messages réseau et générique."
+    },
+    {
+     "en": "In English, prompts use the Black Ops wording: \"Press F to buy M14 [Cost: 500]\".",
+     "fr": "En anglais, les invites reprennent la forme de Black Ops : « Press F to buy M14 [Cost: 500] »."
+    }
+   ],
+   "title": {
+    "en": "The game in French and English",
+    "fr": "Le jeu en français et en anglais"
+   }
   }
  }
 }

@@ -81,15 +81,15 @@ func start_solo(nickname: String) -> void:
 func host(host_port: int, wanted_max_players: int, nickname: String) -> Error:
 	_reset_peer()
 	if not is_valid_port(host_port):
-		connection_error.emit("Hébergement impossible", "Port invalide : %d (1024-65535)." % host_port)
+		connection_error.emit(Lang.t("Hébergement impossible", "Cannot host"), Lang.t("Port invalide : %d (1024-65535).", "Invalid port: %d (1024-65535).") % host_port)
 		return ERR_INVALID_PARAMETER
 	var peer := ENetMultiplayerPeer.new()
 	# On accepte plus de connexions ENet que de places : le refus « serveur plein »
 	# est géré au niveau applicatif pour pouvoir envoyer un message clair.
 	var err := peer.create_server(host_port, MAX_SUPPORTED_PLAYERS + 2)
 	if err != OK:
-		var msg := "Le port %d est peut-être déjà utilisé par un autre programme." % host_port
-		connection_error.emit("Hébergement impossible", msg)
+		var msg := Lang.t("Le port %d est peut-être déjà utilisé par un autre programme.", "Port %d may already be used by another program.") % host_port
+		connection_error.emit(Lang.t("Hébergement impossible", "Cannot host"), msg)
 		push_warning("[Net] create_server a échoué (%s)" % error_string(err))
 		return err
 	peer.host.compress(ENetConnection.COMPRESS_RANGE_CODER)
@@ -108,15 +108,16 @@ func join(address: String, join_port: int, nickname: String) -> Error:
 	_reset_peer()
 	address = address.strip_edges()
 	if not is_valid_ipv4(address):
-		connection_error.emit("Adresse invalide", "« %s » n'est pas une adresse IPv4 valide.\nExemple : 192.168.1.25" % address)
+		connection_error.emit(Lang.t("Adresse invalide", "Invalid address"),
+			Lang.t("« %s » n'est pas une adresse IPv4 valide.\nExemple : 192.168.1.25", "\"%s\" is not a valid IPv4 address.\nExample: 192.168.1.25") % address)
 		return ERR_INVALID_PARAMETER
 	if not is_valid_port(join_port):
-		connection_error.emit("Port invalide", "Le port doit être compris entre 1024 et 65535.")
+		connection_error.emit(Lang.t("Port invalide", "Invalid port"), Lang.t("Le port doit être compris entre 1024 et 65535.", "The port must be between 1024 and 65535."))
 		return ERR_INVALID_PARAMETER
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_client(address, join_port)
 	if err != OK:
-		connection_error.emit("Connexion impossible", "Impossible d'initialiser la connexion réseau (%s)." % error_string(err))
+		connection_error.emit(Lang.t("Connexion impossible", "Cannot connect"), Lang.t("Impossible d'initialiser la connexion réseau (%s).", "Could not start the network connection (%s).") % error_string(err))
 		return err
 	peer.host.compress(ENetConnection.COMPRESS_RANGE_CODER)
 	multiplayer.multiplayer_peer = peer
@@ -284,7 +285,7 @@ func local_id() -> int:
 
 
 func player_name(peer_id: int) -> String:
-	return players.get(peer_id, {}).get("name", "Joueur %d" % peer_id)
+	return players.get(peer_id, {}).get("name", Lang.t("Joueur %d", "Player %d") % peer_id)
 
 
 func player_slot(peer_id: int) -> int:
@@ -372,15 +373,17 @@ func _srv_hello(wanted_name: Variant, version: Variant, build_v: Variant) -> voi
 	if not wanted_name is String:
 		wanted_name = ""
 	var build := String(build_v).left(32) if build_v is String else "?"
+	# Motif en français puis en anglais sur deux lignes : chaque client garde
+	# celle de sa langue (pick_reason) ; une ancienne version affiche les deux.
 	var reason := ""
 	if not version is int or version != PROTOCOL_VERSION:
-		reason = "Version incompatible (hôte v%d, vous v%s)." % [PROTOCOL_VERSION, str(version).left(8)]
+		reason = "Version incompatible (hôte v%d, vous v%s).\nIncompatible version (host v%d, you v%s)." % [PROTOCOL_VERSION, str(version).left(8), PROTOCOL_VERSION, str(version).left(8)]
 	elif build != build_version():
-		reason = "Version du jeu différente (hôte v%s, vous v%s) : utilisez la même release." % [build_version(), build]
+		reason = "Version du jeu différente (hôte v%s, vous v%s) : utilisez la même release.\nDifferent game version (host v%s, you v%s): use the same release." % [build_version(), build, build_version(), build]
 	elif match_started:
-		reason = "La partie a déjà commencé."
+		reason = "La partie a déjà commencé.\nThe game has already started."
 	elif players.size() >= max_players:
-		reason = "Le serveur est plein (%d/%d joueurs)." % [players.size(), max_players]
+		reason = "Le serveur est plein (%d/%d joueurs).\nThe server is full (%d/%d players)." % [players.size(), max_players, players.size(), max_players]
 	if reason != "":
 		print("[Net] refus du peer %d : %s" % [sender, reason])
 		_cl_rejected.rpc_id(sender, reason)
@@ -410,6 +413,15 @@ func _cl_welcome(server_max_players: Variant) -> void:
 	joined_server.emit()
 
 
+## Motif de refus « français\nanglais » envoyé par l'hôte : la ligne de la
+## langue du joueur (texte d'une seule ligne : rendu tel quel).
+static func pick_reason(reason: String) -> String:
+	var parts := reason.split("\n")
+	if parts.size() != 2:
+		return reason
+	return Lang.t(parts[0], parts[1])
+
+
 @rpc("authority", "reliable")
 func _cl_rejected(reason: String) -> void:
 	_connect_timer.stop()
@@ -418,7 +430,7 @@ func _cl_rejected(reason: String) -> void:
 	var peer_was := mode
 	_reset_peer()
 	if peer_was == Mode.CLIENT:
-		connection_error.emit("Connexion refusée", reason)
+		connection_error.emit(Lang.t("Connexion refusée", "Connection refused"), pick_reason(reason))
 
 
 @rpc("authority", "call_local", "reliable")
@@ -485,23 +497,25 @@ func _on_peer_disconnected(id: int) -> void:
 func _on_connection_failed() -> void:
 	_connect_timer.stop()
 	_reset_peer()
-	connection_error.emit("Connexion impossible",
-		"Le serveur est inaccessible.\nVérifiez l'adresse IP, le port, et que l'hôte a bien lancé la partie (pare-feu).")
+	connection_error.emit(Lang.t("Connexion impossible", "Cannot connect"),
+		Lang.t("Le serveur est inaccessible.\nVérifiez l'adresse IP, le port, et que l'hôte a bien lancé la partie (pare-feu).",
+			"The server cannot be reached.\nCheck the IP address, the port, and that the host has started the game (firewall)."))
 
 
 func _on_connect_timeout() -> void:
 	if mode != Mode.CLIENT or _handshake_done:
 		return
 	_reset_peer()
-	connection_error.emit("Délai dépassé",
-		"Aucune réponse du serveur après %d secondes.\nLe serveur n'existe pas ou le port est incorrect." % int(CONNECT_TIMEOUT_SEC))
+	connection_error.emit(Lang.t("Délai dépassé", "Timed out"),
+		Lang.t("Aucune réponse du serveur après %d secondes.\nLe serveur n'existe pas ou le port est incorrect.",
+			"No answer from the server after %d seconds.\nThe server does not exist or the port is wrong.") % int(CONNECT_TIMEOUT_SEC))
 
 
 func _on_server_disconnected() -> void:
 	var was_joined := _handshake_done
 	_reset_peer()
 	if was_joined:
-		session_ended.emit("Connexion perdue avec l'hôte.")
+		session_ended.emit(Lang.t("Connexion perdue avec l'hôte.", "Connection to the host lost."))
 
 
 # --------------------------------------------------------------------------

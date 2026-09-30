@@ -117,7 +117,7 @@ func run() -> void:
 	var pts0 := pd.points
 	var team0 := game.points.team_earned
 	await _hold_repair()
-	at.check(game.interact.focused == w and game.hud._prompt.text == "Maintenir [F] pour reconstruire la barricade", "invite : « %s »" % game.hud._prompt.text)
+	at.check(game.interact.focused == w and game.hud._prompt.text == Lang.t("Maintenir [F] pour reconstruire la barricade", "Hold [F] to rebuild the barrier"), "invite : « %s »" % game.hud._prompt.text)
 	ok = await until(func(): return w.planks() >= 3, 4.0, "3 planches reposées")
 	await at.screenshot("repairing")
 	ok = await until(func(): return w.planks() == 6, 5.0, "fenêtre reconstruite")

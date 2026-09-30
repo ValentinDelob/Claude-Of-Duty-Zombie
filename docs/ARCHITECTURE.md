@@ -530,8 +530,10 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   caméra à la réapparition. `Game.spectating` lit ce nœud.
 - Présentation : le HUD dessine la fin de partie (`Hud.show_game_over` :
   « GAME OVER », résumé, manches survécues, tableau des scores) et le bandeau
-  de spectateur (`Hud.set_spectating`) ; `Game._cl_game_over` garde l'état,
-  le dossier de combat et le retour au menu après `GAME_OVER_DELAY`.
+  de spectateur (`Hud.set_spectating`) ; `Game._cl_game_over` reçoit le
+  nombre de zombies tués, écrit les textes dans la langue du joueur
+  (`Game.game_over_summary`, `Game.survived_text`, via `Lang`) et garde
+  l'état, le dossier de combat et le retour au menu après `GAME_OVER_DELAY`.
 
 ## Tests
 

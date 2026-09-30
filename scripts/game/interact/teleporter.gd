@@ -175,15 +175,15 @@ func prompt(_pid: int) -> String:
 	if state != State.IDLE:
 		return ""
 	if not system.game.power_on:
-		return "Le courant doit être rétabli"
+		return Interactable.need_power_text()
 	match link:
 		Link.UNLINKED:
-			return "[F] Activer la plateforme du téléporteur"
+			return Lang.t("[F] Activer la plateforme du téléporteur", "[F] Activate the teleporter pad")
 		Link.PRIMED:
-			return "Reliez le téléporteur au poste central (hall d'entrée)"
+			return Lang.t("Reliez le téléporteur au poste central (hall d'entrée)", "Link the teleporter to the mainframe (entrance hall)")
 	if cost <= 0:
-		return "[F] Activer le téléporteur"
-	return "[F] Activer le téléporteur %s" % Interactable.cost_text(cost)
+		return Lang.t("[F] Activer le téléporteur", "[F] Use the teleporter")
+	return Lang.t("[F] Activer le téléporteur %s", "[F] Use the teleporter %s") % Interactable.cost_text(cost)
 
 
 func srv_use(pid: int) -> void:
@@ -191,7 +191,7 @@ func srv_use(pid: int) -> void:
 	if state != State.IDLE:
 		return
 	if not game.power_on:
-		system.deny(pid, "Pas de courant")
+		system.deny(pid, InteractionSystem.NO_POWER)
 		return
 	if link == Link.UNLINKED:
 		link = Link.PRIMED
@@ -201,7 +201,7 @@ func srv_use(pid: int) -> void:
 	if link == Link.PRIMED:
 		return
 	if cost > 0 and not game.session.try_spend(pid, cost):
-		system.deny(pid, "Pas assez de points")
+		system.deny(pid, InteractionSystem.NO_POINTS)
 		return
 	system.purchase_fx(self)
 	_timer = charge_time
@@ -211,7 +211,7 @@ func srv_use(pid: int) -> void:
 ## Serveur : le poste central relie la plateforme activée.
 func srv_link(pid: int) -> void:
 	if not system.game.power_on:
-		system.deny(pid, "Pas de courant")
+		system.deny(pid, InteractionSystem.NO_POWER)
 		return
 	if link != Link.PRIMED:
 		return
@@ -310,7 +310,7 @@ func apply_state(s: Dictionary, animate: bool) -> void:
 		elif link == Link.LINKED and mainframe:
 			Audio.play_3d("lever", mainframe.interact_point(), 0.0, 0.02)
 			Audio.play_3d("power_on", mainframe.interact_point(), -6.0, 0.0)
-			system.game.hud.show_banner("TÉLÉPORTEUR RELIÉ", 1.5)
+			system.game.hud.show_banner(Lang.t("TÉLÉPORTEUR RELIÉ", "TELEPORTER LINKED"), 1.5)
 	_shown_link = link
 	if mainframe:
 		mainframe.refresh()

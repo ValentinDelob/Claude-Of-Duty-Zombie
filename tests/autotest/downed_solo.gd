@@ -25,7 +25,7 @@ func run() -> void:
 	at.check(GameState.state == GameState.State.PLAYER_DOWN, "état PLAYER_DOWN")
 	at.check(pd.weapons.size() == 1 and pd.current_weapon().id == "m1911", "dernier recours : pistolet seul")
 	at.check(not pd.has_perk("lazarus"), "atouts perdus")
-	at.check(game.hud._downed._title.text == "À TERRE", "HUD : À TERRE")
+	at.check(game.hud._downed._title.text == Lang.t("À TERRE", "DOWNED"), "HUD : À TERRE")
 	await seconds(0.3)
 	await at.screenshot("downed")
 	# On rampe.

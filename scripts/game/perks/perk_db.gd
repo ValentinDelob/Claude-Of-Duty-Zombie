@@ -9,32 +9,32 @@ const SOLO_REVIVE_LIMIT := 3
 const PERKS := {
 	"titan": {
 		"name": "TITAN BREW", "cost": 2500, "color": Color(0.9, 0.12, 0.08),
-		"desc": "Santé maximale 250", "needs_power": true,
+		"desc": {"fr": "Santé maximale 250", "en": "Max health 250"}, "needs_power": true,
 	},
 	"rapid": {
 		"name": "RAPID FIZZ", "cost": 3000, "color": Color(0.25, 0.9, 0.35),
-		"desc": "Rechargement 2x plus rapide", "needs_power": true,
+		"desc": {"fr": "Rechargement 2x plus rapide", "en": "Reload 2x faster"}, "needs_power": true,
 	},
 	"twin": {
 		"name": "TWIN SHOT", "cost": 2000, "color": Color(1.0, 0.72, 0.18),
-		"desc": "Cadence de tir +33 %", "needs_power": true,
+		"desc": {"fr": "Cadence de tir +33 %", "en": "Fire rate +33%"}, "needs_power": true,
 	},
 	"lazarus": {
 		"name": "LAZARUS TONIC", "cost": 1500, "solo_cost": 500, "color": Color(0.3, 0.7, 1.0),
-		"desc": "Réanimation 2x plus rapide (solo : se relève seul)", "needs_power": true, "solo_needs_power": false,
+		"desc": {"fr": "Réanimation 2x plus rapide (solo : se relève seul)", "en": "Revive 2x faster (solo: revive yourself)"}, "needs_power": true, "solo_needs_power": false,
 	},
 	"stride": {
 		"name": "STRIDE SODA", "cost": 2000, "color": Color(0.8, 0.45, 1.0),
-		"desc": "Sprint plus long et plus rapide", "needs_power": true,
+		"desc": {"fr": "Sprint plus long et plus rapide", "en": "Longer, faster sprint"}, "needs_power": true,
 	},
 	# Five / Ascension (BO1).
 	"nova": {
 		"name": "NOVA FLOP", "cost": 2000, "color": Color(0.58, 0.16, 0.98),
-		"desc": "Aucun dégât de vos explosions ; plongeon explosif", "needs_power": true,
+		"desc": {"fr": "Aucun dégât de vos explosions ; plongeon explosif", "en": "No damage from your own explosions; explosive dive"}, "needs_power": true,
 	},
 	"deadeye": {
 		"name": "DEADEYE DRAM", "cost": 1500, "color": Color(0.8, 0.76, 0.6),
-		"desc": "Visée auto vers la tête, tir plus précis", "needs_power": true,
+		"desc": {"fr": "Visée auto vers la tête, tir plus précis", "en": "Aim snaps to the head, tighter shots"}, "needs_power": true,
 	},
 }
 
@@ -47,6 +47,11 @@ static func exists(id: String) -> bool:
 
 static func display_name(id: String) -> String:
 	return PERKS.get(id, {}).get("name", id.to_upper())
+
+
+## Effet de l'atout, dans la langue du joueur (Lang).
+static func desc(id: String) -> String:
+	return Lang.pick(PERKS.get(id, {}).get("desc", ""))
 
 
 static func color(id: String) -> Color:

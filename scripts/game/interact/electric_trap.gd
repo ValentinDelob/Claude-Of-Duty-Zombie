@@ -133,18 +133,18 @@ func prompt(_pid: int) -> String:
 	if state != State.IDLE:
 		return ""
 	if not system.game.power_on:
-		return "Le courant doit être rétabli"
-	return "[F] Activer le piège électrique %s" % Interactable.cost_text(COST)
+		return Interactable.need_power_text()
+	return Lang.t("[F] Activer le piège électrique %s", "[F] Activate the electric trap %s") % Interactable.cost_text(COST)
 
 
 func srv_use(pid: int) -> void:
 	if state != State.IDLE:
 		return
 	if not system.game.power_on:
-		system.deny(pid, "Pas de courant")
+		system.deny(pid, InteractionSystem.NO_POWER)
 		return
 	if not system.game.session.try_spend(pid, COST):
-		system.deny(pid, "Pas assez de points")
+		system.deny(pid, InteractionSystem.NO_POINTS)
 		return
 	system.purchase_fx(self)
 	activator = pid

@@ -12,11 +12,11 @@ func enter(args := {}) -> void:
 	col.offset_left = 110
 	col.offset_top = -100
 	add_child(col)
-	col.add_child(title("CONNEXION AU SERVEUR", 44))
+	col.add_child(title(Lang.t("CONNEXION AU SERVEUR", "CONNECTING TO SERVER"), 44))
 	col.add_child(text("%s:%d" % [args.ip, args.port], 26))
 	_dots = text("", 26, UiStyle.DIM)
 	col.add_child(_dots)
-	var cancel := button("ANNULER", back)
+	var cancel := button(Lang.t("ANNULER", "CANCEL"), back)
 	col.add_child(cancel)
 	focus_later(cancel)
 	GameState.set_state(GameState.State.CONNECTING)
@@ -26,7 +26,7 @@ func enter(args := {}) -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	_dots.text = "Connexion" + ".".repeat(1 + int(_t * 2.0) % 3)
+	_dots.text = Lang.t("Connexion", "Connecting") + ".".repeat(1 + int(_t * 2.0) % 3)
 
 
 func back() -> void:

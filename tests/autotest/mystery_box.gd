@@ -97,7 +97,7 @@ func run() -> void:
 	await until(func(): return box.state == MysteryBox.State.READY, 6.0, "singe prêt")
 	await seconds(0.4)
 	await at.screenshot("monkey")
-	at.check(game.hud._prompt.text.contains(ThrowableRules.MONKEY_NAME), "invite : %s" % game.hud._prompt.text)
+	at.check(game.hud._prompt.text.contains(ThrowableRules.monkey_name()), "invite : %s" % game.hud._prompt.text)
 	await press()
 	at.check(pd.has_monkeys and pd.monkeys == ThrowableRules.MONKEY_MAX and pd.current_weapon().id == "ray",
 		"3 singes pris (%d), arme en main inchangée" % pd.monkeys)

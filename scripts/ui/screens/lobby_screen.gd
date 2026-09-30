@@ -51,10 +51,10 @@ func enter(args := {}) -> void:
 		var ips := Net.local_ipv4_addresses()
 		var ip_text := ips[0] if ips.size() > 0 else "127.0.0.1"
 		inner.add_child(text("", 4))
-		inner.add_child(text("IP : %s" % ip_text, 24, UiStyle.GOLD))
+		inner.add_child(text(Lang.t("IP : %s", "IP: %s") % ip_text, 24, UiStyle.GOLD))
 		if ips.size() > 1:
 			inner.add_child(text(Lang.t("(autres : %s)", "(others: %s)") % ", ".join(ips.slice(1)), 16, UiStyle.DIM))
-		inner.add_child(text("PORT : %d" % Net.port, 24, UiStyle.GOLD))
+		inner.add_child(text(Lang.t("PORT : %d", "PORT: %d") % Net.port, 24, UiStyle.GOLD))
 		# Choix de la carte (mémorisé, annoncé aux clients) : cartes officielles,
 		# puis les cartes perso jouables de l'éditeur (envoyées aux invités).
 		var names := PackedStringArray()

@@ -15,6 +15,22 @@ set -f  # motifs de COMMIT_EXCLUDE laissés tels quels (pas de développement pa
 # sans avoir été vérifié. Les .uid/.import créés par l'import du check sont admis.
 EXCL_RE=$(printf '%s\n' $COMMIT_EXCLUDE | sed 's/[.]/\./g; s/[*]/.*/g' | paste -sd'|' -)
 tree_state() { git status --porcelain --untracked-files=all | grep -vE '\.(uid|import)$' | { [ -n "$EXCL_RE" ] && grep -vE "$EXCL_RE" || cat; } | while read -r _ f; do echo "$f $(git hash-object "$f" 2>/dev/null)"; done | sort; }
+# Notes rangées AVANT la vérification : le check complet porte sur le contenu
+# final (tools/release.sh refuse un contenu différent de celui vérifié).
+# Notes de version pour les joueurs (changelogs/next/) : rangées sous le numéro
+# de la version que ce commit va devenir (tools/release.sh :
+# v<M.m.p>-snapshot.<commits>, M.m.p = config/version, la prochaine stable).
+GODOT=${GODOT:-godot}
+TARGET=$(sed -n 's/^config\/version="\([0-9]*\.[0-9]*\.[0-9]*\)".*/\1/p' project.godot)
+# Commit qui conclut une fusion : les commits de la branche fusionnée comptent aussi.
+if git rev-parse -q --verify MERGE_HEAD > /dev/null; then
+  COUNT=$(git rev-list --count HEAD MERGE_HEAD)
+else
+  COUNT=$(git rev-list --count HEAD)
+fi
+NEXT_TAG="v$TARGET-snapshot.$(( COUNT + 1 ))"
+mkdir -p tests/_out/logs   # journal Godot hors du dossier du joueur
+"$GODOT" --headless --log-file "$PWD/tests/_out/logs/changelog_merge.log" --path . -s res://tools/changelog_merge.gd -- "$NEXT_TAG" || { echo "== COMMIT ANNULÉ : notes de version invalides (changelogs/next/next.json)"; exit 1; }
 BEFORE=$(tree_state)
 bash tools/check.sh $CHECK_ARGS > tests/_out/check.log 2>&1
 RC=$?
@@ -31,20 +47,6 @@ if [ "$BEFORE" != "$AFTER" ]; then
   diff tests/_out/tree_before.txt tests/_out/tree_after.txt | grep '^[<>]' | head -20
   exit 1
 fi
-# Notes de version pour les joueurs (changelogs/next/) : rangées sous le numéro
-# de la version que ce commit va devenir (tools/release.sh :
-# v<M.m.p>-snapshot.<commits>, M.m.p = config/version, la prochaine stable).
-GODOT=${GODOT:-godot}
-TARGET=$(sed -n 's/^config\/version="\([0-9]*\.[0-9]*\.[0-9]*\)".*/\1/p' project.godot)
-# Commit qui conclut une fusion : les commits de la branche fusionnée comptent aussi.
-if git rev-parse -q --verify MERGE_HEAD > /dev/null; then
-  COUNT=$(git rev-list --count HEAD MERGE_HEAD)
-else
-  COUNT=$(git rev-list --count HEAD)
-fi
-NEXT_TAG="v$TARGET-snapshot.$(( COUNT + 1 ))"
-mkdir -p tests/_out/logs   # journal Godot hors du dossier du joueur
-"$GODOT" --headless --log-file "$PWD/tests/_out/logs/changelog_merge.log" --path . -s res://tools/changelog_merge.gd -- "$NEXT_TAG" || { echo "== COMMIT ANNULÉ : notes de version invalides (changelogs/next/next.json)"; exit 1; }
 git add -A
 [ -n "$COMMIT_EXCLUDE" ] && git reset -q -- $COMMIT_EXCLUDE
 git commit -q -F "$MSG" && git log --oneline -1
