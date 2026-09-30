@@ -323,7 +323,7 @@ func _chase(delta: float) -> void:
 				_path = game.nav.find_path(global_position, tpos)
 				_path_i = 0
 				_repath_t = randf_range(0.35, 0.7)
-			while _path_i < _path.size() and _waypoint_reached(_path[_path_i]):
+			while _path_i < _path.size() and (_waypoint_reached(_path[_path_i]) or _waypoint_passed(_path_i)):
 				_path_i += 1
 			if _path_i < _path.size():
 				var wp := _path[_path_i] - global_position
@@ -757,6 +757,20 @@ func _follow_floor() -> void:
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if not hit.is_empty():
 		global_position.y = hit.position.y
+
+
+## Point de passage déjà dépassé : tout près, et l'un des quatre suivants est
+## plus près du zombie que de lui, en vue. Un chemin recalculé en haut d'un
+## escalier de KINO repartait du bord du palier, derrière le zombie : il
+## faisait demi-tour à chaque recalcul et restait bloqué en haut des marches.
+func _waypoint_passed(i: int) -> bool:
+	if i + 1 >= _path.size() or _flat_dist(_path[i]) > 1.2:
+		return false
+	for j in range(i + 1, mini(i + 5, _path.size())):
+		var nxt := _path[j]
+		if global_position.distance_to(nxt) < _path[i].distance_to(nxt) and game.nav.world_line_clear(global_position, nxt):
+			return true
+	return false
 
 
 ## Point de passage atteint (à plat, et au même niveau sur les cartes à étages).
