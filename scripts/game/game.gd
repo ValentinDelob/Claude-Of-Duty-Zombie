@@ -92,6 +92,11 @@ var throwables: ThrowableSystem
 ## Répliques des personnages (chemin réseau : /root/Game/Vox).
 var vox: VoxSystem
 signal power_changed(on: bool)
+## Chargement local terminé (préchauffage fait), juste avant de l'annoncer au
+## serveur. Jamais émis si la session s'est terminée pendant le chargement.
+signal loaded
+## La session s'est terminée (retour au menu en cours).
+var _session_over := false
 @onready var hud: Hud = $HUD
 
 
@@ -129,7 +134,13 @@ func _ready() -> void:
 	var warm_at := layout.warm_point()
 	var t0 := Time.get_ticks_msec()
 	await Warmup.run(self, warm_at)
+	# Session terminée pendant le préchauffage (hôte perdu, « Quitter ») : le
+	# retour au menu est en cours, rien à annoncer à une session disparue.
+	if _session_over or not is_inside_tree() or Net.mode == Net.Mode.NONE:
+		print("[Game] chargement abandonné : session terminée")
+		return
 	print("[Game] préchauffage des shaders : %d ms" % (Time.get_ticks_msec() - t0))
+	loaded.emit()
 	Net.report_loaded()
 
 
@@ -238,6 +249,7 @@ func _cl_remove_player(pid: int) -> void:
 
 
 func _on_session_ended(reason: String) -> void:
+	_session_over = true
 	print("[Game] session terminée : " + reason)
 	Router.back_to_menu(reason)
 
