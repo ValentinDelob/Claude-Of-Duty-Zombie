@@ -108,7 +108,7 @@ func srv_interact(id: String) -> void:
 		return
 	# Référence : dernier état reçu et accepté (Player.srv_origin), pas la
 	# position interpolée qui traîne derrière le joueur avec de la latence.
-	if not in_reach(p.srv_origin(), obj.interact_point(), obj.interact_range):
+	if not in_reach(p.srv_origin(), obj.srv_point(), obj.interact_range):
 		print("[Interact] %d trop loin de %s" % [pid, id])
 		return
 	obj.srv_use(pid)

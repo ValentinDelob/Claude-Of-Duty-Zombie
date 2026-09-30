@@ -321,7 +321,7 @@ func interact_point() -> Vector3:
 
 ## Le point `pos` est-il du côté intérieur de la fenêtre ?
 func is_inside(pos: Vector3) -> bool:
-	return (pos - global_position).dot(inward) > 0.2
+	return (pos - global_position).dot(inward) > 0.2  # même seuil que can_repair_from
 
 
 # --------------------------------------------------------------------------
@@ -355,8 +355,10 @@ func _physics_process(delta: float) -> void:
 	for pid in _repairers.keys():
 		var p: Player = game.players.get(pid)
 		var pd := game.session.get_data(pid)
-		if p == null or pd == null or pd.life != PlayerData.Life.ALIVE or not is_inside(p.global_position) \
-				or _flat_dist(p.global_position, interact_point()) > REPAIR_RANGE:
+		# Position de référence du serveur (dernier état accepté), pas la
+		# position interpolée qui traîne derrière le joueur avec de la latence.
+		if p == null or pd == null or pd.life != PlayerData.Life.ALIVE \
+				or not can_repair_from(p.srv_origin(), global_position, inward, interact_point()):
 			_repairers.erase(pid)
 			continue
 		if mask == BarricadeRules.FULL_MASK:
@@ -400,6 +402,12 @@ func srv_set_mask(m: int) -> void:
 		return
 	set_mask(m)
 	broadcast_state()
+
+
+## Règle pure de la réparation : joueur en `pos` du côté intérieur de la
+## fenêtre (`window`, normale `inward`) et à REPAIR_RANGE (à plat) de `point`.
+static func can_repair_from(pos: Vector3, window: Vector3, inward_dir: Vector3, point: Vector3) -> bool:
+	return (pos - window).dot(inward_dir) > 0.2 and _flat_dist(pos, point) <= REPAIR_RANGE
 
 
 static func _flat_dist(a: Vector3, b: Vector3) -> float:

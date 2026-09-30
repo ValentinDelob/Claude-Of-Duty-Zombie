@@ -82,7 +82,12 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
 10. **Position de référence d'un joueur** : toute origine annoncée par un client
    (tir `Combat._validate_fire`, couteau `srv_melee`, plongeon `srv_dive_landed`,
    lancer `ThrowableSystem.srv_throw`, distance d'interaction
-   `InteractionSystem.srv_interact`) se juge par rapport à `Player.srv_origin()` :
+   `InteractionSystem.srv_interact`, point visé `Interactable.srv_point()` : pour
+   une réanimation, la référence du joueur à terre), et toute position de joueur
+   lue par le serveur pour autoriser une action (réparation
+   `Barricade.can_repair_from`, réanimation `DownedSystem.in_revive_range` avec
+   la référence du sauveteur ET du joueur à terre, ramassage de bonus
+   `PowerupRules.within_pickup`) se juge par rapport à `Player.srv_origin()` :
    le DERNIER état reçu et accepté par `_srv_accept_state` (déjà passé par
    l'anti-téléportation), jamais `global_position` de la marionnette, qui est
    interpolée `INTERP_DELAY` en arrière (avec du lag ou en test accéléré, elle

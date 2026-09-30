@@ -153,8 +153,8 @@ func _player_on(pos: Vector3) -> int:
 		var pd := game.session.get_data(pid)
 		if pd == null or pd.life != PlayerData.Life.ALIVE:
 			continue
-		var d := Vector2(p.global_position.x - pos.x, p.global_position.z - pos.z).length()
-		if d <= PowerupRules.PICKUP_RADIUS and absf(p.global_position.y - pos.y) < 2.0:
+		# Référence du serveur : dernier état accepté (Player.srv_origin).
+		if PowerupRules.within_pickup(p.srv_origin(), pos):
 			return pid
 	return 0
 

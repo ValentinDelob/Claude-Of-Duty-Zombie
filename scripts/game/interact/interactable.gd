@@ -20,6 +20,13 @@ func interact_point() -> Vector3:
 	return global_position + Vector3.UP * 1.1
 
 
+## Serveur : point utilisé pour la distance d'interaction. Objet fixe : son
+## interact_point() ; objet porté par un joueur (ReviveTarget) : calculé sur
+## la position de référence de ce joueur (Player.srv_origin).
+func srv_point() -> Vector3:
+	return interact_point()
+
+
 ## Texte affiché au joueur local (vide = rien à faire ici).
 func prompt(_pid: int) -> String:
 	return ""

@@ -137,7 +137,15 @@ func srv_stop_revive(reviver: int, target: int) -> void:
 func _in_range(a: int, b: int) -> bool:
 	var pa: Player = game.players.get(a)
 	var pb: Player = game.players.get(b)
-	return pa != null and pb != null and pa.global_position.distance_to(pb.global_position) <= REVIVE_RANGE + 0.8
+	# Références du serveur (dernier état accepté de chacun, Player.srv_origin) :
+	# ni le sauveteur ni le joueur à terre (qui rampe lentement) ne sont jugés
+	# sur leur position interpolée, en retard avec de la latence.
+	return pa != null and pb != null and in_revive_range(pa.srv_origin(), pb.srv_origin())
+
+
+## Règle pure : sauveteur en `reviver_pos` assez près du joueur à terre.
+static func in_revive_range(reviver_pos: Vector3, downed_pos: Vector3) -> bool:
+	return reviver_pos.distance_to(downed_pos) <= REVIVE_RANGE + 0.8
 
 
 func _process(_delta: float) -> void:

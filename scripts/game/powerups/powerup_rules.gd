@@ -48,6 +48,13 @@ const NUKE_SPREAD := 1.6
 ## Rayon de ramassage (BO1 : 64 unités, ~1,6 m), mesuré à plat.
 const PICKUP_RADIUS := 1.5
 
+
+## Joueur en `player_pos` (référence du serveur : Player.srv_origin) sur le
+## bonus posé en `drop` : PICKUP_RADIUS à plat, moins de 2 m en hauteur.
+static func within_pickup(player_pos: Vector3, drop: Vector3) -> bool:
+	return Vector2(player_pos.x - drop.x, player_pos.z - drop.z).length() <= PICKUP_RADIUS \
+			and absf(player_pos.y - drop.y) < 2.0
+
 ## Durée de vie au sol (powerup_timeout de BO1) : 15 s visible, puis 40
 ## alternances de plus en plus rapides (15 x 0,5 s, 10 x 0,25 s, 15 x 0,1 s).
 const SOLID_TIME := 15.0

@@ -18,6 +18,13 @@ func interact_point() -> Vector3:
 	return global_position + Vector3.UP * 0.4
 
 
+## Serveur : sur la position de référence du joueur à terre (dernier état
+## accepté), pas sur sa marionnette interpolée.
+func srv_point() -> Vector3:
+	var p := get_parent() as Player
+	return p.srv_origin() + Vector3.UP * 0.4 if p else interact_point()
+
+
 func prompt(pid: int) -> String:
 	var d := system.game.downed
 	if pid == owner_pid or not d.is_downed(owner_pid):
