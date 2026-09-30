@@ -20,9 +20,10 @@ func run() -> void:
 		return
 	var node: PowerupDrop = pw.nodes.values()[0]
 	at.check(node.type == PowerupRules.MAX_AMMO, "bonus au sol chez le client : %s" % node.type)
+	await until(func(): return pd.current_weapon().reserve == 0, 3.0, "réserve vidée")
 	at.check(pd.current_weapon().reserve == 0, "réserve vidée par le serveur")
 	AutotestHelpers.aim_at(p, node.global_position + Vector3.UP * 0.8)
-	await seconds(0.4)
+	await seconds(0.4)  # le joueur regarde le bonus
 	await at.screenshot("drop")
 	p.teleport_to(node.global_position + Vector3.UP * 0.05)
 	ok = await until(func(): return pw.nodes.is_empty(), 10.0, "bonus retiré après ramassage")
@@ -31,6 +32,7 @@ func run() -> void:
 	at.check(ok, "munitions max reçues (%d)" % pd.current_weapon().reserve)
 	at.check(p.weapons.current().reserve == pd.current_weapon().reserve, "arme prédite du client synchronisée")
 	p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
+	MpHelpers.signal_peer("pret_2")
 	ok = await until(func(): return pw.nodes.size() >= 1, 20.0, "second bonus reçu")
 	if not ok:
 		return
@@ -38,12 +40,13 @@ func run() -> void:
 	p.teleport_to(node.global_position + Vector3.UP * 0.05)
 	ok = await until(func(): return pw.is_active(PowerupRules.DOUBLE_POINTS), 10.0, "points doubles actifs")
 	at.check(ok, "points doubles actifs chez le client")
-	await seconds(0.6)
+	await until(func(): return game.hud.powerup_hud.shown_icons().has(PowerupRules.DOUBLE_POINTS), 2.0, "icône points doubles")
 	at.check(game.hud.powerup_hud.shown_icons().has(PowerupRules.DOUBLE_POINTS), "HUD du client : icône points doubles")
 	await at.screenshot("hud")
 
 	# FAUCHEUSE : ramassée, minigun en main, zombie fauché.
 	p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
+	MpHelpers.signal_peer("pret_3")
 	ok = await until(func(): return pw.nodes.size() >= 1, 20.0, "faucheuse reçue")
 	if not ok:
 		return
@@ -59,10 +62,11 @@ func run() -> void:
 	if not ok:
 		return
 	var z: Zombie = game.zombies.alive[0]
-	await seconds(Zombie.EMERGE_TIME + WeaponController.SWITCH_TIME)
+	# Zombie sorti de terre, minigun sorti.
+	await until(func(): return z.state != Zombie.State.EMERGE and GameClock.now() >= p.weapons._switch_end, Zombie.EMERGE_TIME + 3.0, "zombie debout et minigun prêt")
 	await at.screenshot("death_machine")
 	p.input.aim = true
-	await seconds(0.4)
+	await seconds(0.4)  # mise en joue
 	# Le client suit sa cible pendant la rafale : les balles de la FAUCHEUSE
 	# peuvent arracher les jambes (rampant au sol) : on vise la hitbox réelle.
 	p.input.fire = true
@@ -74,4 +78,4 @@ func run() -> void:
 	at.check(ok, "faucheuse : zombie tué par le client")
 	ok = await until(func(): return p.weapons.current().get("id", "") != dm, 10.0, "arme rendue")
 	at.check(ok, "fin de la faucheuse : arme rendue au client (%s)" % p.weapons.current().get("id", ""))
-	await seconds(2.0)
+	await MpHelpers.finish(self)

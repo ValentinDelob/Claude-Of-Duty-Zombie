@@ -31,7 +31,6 @@ func run() -> void:
 		game.session.sync_inventory(pid)
 	var grabs := []
 	pw.powerup_grabbed.connect(func(t: String, pid: int): grabs.append([t, pid]))
-	await seconds(1.0)
 	pw.debug_drop(PowerupRules.MAX_AMMO, MapData.cell_to_world(Vector2i(7, 7)))
 	ok = await until(func(): return grabs.size() >= 1, 25.0, "munitions max ramassées")
 	if not ok:
@@ -43,7 +42,9 @@ func run() -> void:
 			full = full and w.reserve == WeaponDB.stats(w.id, w.pap).reserve
 	at.check(full, "munitions max : réserve pleine pour l'hôte ET le client")
 	at.check(game.local_player.weapons.current().reserve > 0, "arme de l'hôte rechargée")
-	await seconds(1.5)
+	# Le client a vérifié le premier bonus et il est revenu à sa place.
+	if not await MpHelpers.wait_peer(self, "pret_2", 20.0):
+		return
 	pw.debug_drop(PowerupRules.DOUBLE_POINTS, MapData.cell_to_world(Vector2i(7, 9)))
 	ok = await until(func(): return grabs.size() >= 2, 25.0, "points doubles ramassés")
 	if not ok:
@@ -54,16 +55,17 @@ func run() -> void:
 	var hpd := game.session.local_data()
 	var before := hpd.points
 	game.points.award(1, 50)
-	await seconds(0.2)
+	await until(func(): return hpd.points != before, 1.0, "points de l'hôte")
 	at.check(hpd.points - before == 100, "hôte : kill à +100 pendant les points doubles")
-	await seconds(0.8)
+	await until(func(): return game.hud.powerup_hud.shown_icons().has(PowerupRules.DOUBLE_POINTS), 2.0, "icône points doubles")
 	at.check(game.hud.powerup_hud.shown_icons().has(PowerupRules.DOUBLE_POINTS), "HUD de l'hôte : icône points doubles")
 	await at.screenshot("hud")
 
 	# FAUCHEUSE ramassée par le client : minigun pour lui seul, tirs validés.
 	var rejects := [0]
 	game.combat.shot_rejected.connect(func(_pid, _r): rejects[0] += 1)
-	await seconds(1.0)
+	if not await MpHelpers.wait_peer(self, "pret_3", 20.0):
+		return
 	pw.debug_drop(PowerupRules.DEATH_MACHINE, MapData.cell_to_world(Vector2i(7, 7)))
 	ok = await until(func(): return grabs.size() >= 3, 25.0, "faucheuse ramassée")
 	if not ok:
@@ -71,12 +73,12 @@ func run() -> void:
 	var cpd := game.session.get_data(client_id)
 	at.check(grabs[2][1] == client_id and cpd.current_weapon().get("id", "") == PowerupRules.DEATH_MACHINE_WEAPON, "faucheuse : minigun du client (serveur)")
 	at.check(hpd.powerup_weapon.is_empty() and not pw.has_death_machine(1), "faucheuse : pas pour l'hôte")
-	await seconds(0.5)
+	await until(func(): return client.visual.weapon_key.begins_with(PowerupRules.DEATH_MACHINE_WEAPON), 3.0, "minigun du client visible")
 	at.check(client.visual.weapon_key.begins_with(PowerupRules.DEATH_MACHINE_WEAPON), "l'hôte voit le minigun dans les mains du client (%s)" % client.visual.weapon_key)
 	var z := await H.dummy_zombie(self, MapData.cell_to_world(Vector2i(11, 7)), 3000)
 	ok = await until(func(): return not z.is_alive(), 20.0, "zombie fauché par le client")
 	at.check(ok and rejects[0] == 0, "faucheuse du client : tirs validés, zombie tué (%d refus)" % rejects[0])
 	pw.death_machine[client_id] = 0.2
-	await seconds(0.8)
+	await until(func(): return cpd.powerup_weapon.is_empty() and cpd.current_weapon().id != PowerupRules.DEATH_MACHINE_WEAPON, 3.0, "fin de la faucheuse")
 	at.check(cpd.powerup_weapon.is_empty() and cpd.current_weapon().id != PowerupRules.DEATH_MACHINE_WEAPON, "fin de la faucheuse du client")
-	await seconds(3.0)
+	await MpHelpers.finish(self)
