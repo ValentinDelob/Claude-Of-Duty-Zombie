@@ -154,7 +154,9 @@ func test_hello_rejections() -> void:
 	for bad_b in ["0.0.0-autre", 12, null, "A".repeat(500)]:
 		assert_true(_hello_reason(n, "X", Net.PROTOCOL_VERSION, bad_b).begins_with("Version du jeu différente"), "build %s refusé" % str(bad_b).left(12))
 	n.match_started = true
-	assert_eq(_hello_reason(n, "X", Net.PROTOCOL_VERSION, bv), "La partie a déjà commencé.")
+	assert_eq(_hello_reason(n, "X", Net.PROTOCOL_VERSION, bv), "La partie a déjà commencé.\nThe game has already started.")
+	assert_eq(Net.pick_reason("La partie a déjà commencé.\nThe game has already started."), Lang.t("La partie a déjà commencé.", "The game has already started."))
+	assert_eq(Net.pick_reason("Texte seul"), "Texte seul", "motif d'une ligne rendu tel quel")
 	n.match_started = false
 	n.max_players = 1
 	assert_true(_hello_reason(n, "X", Net.PROTOCOL_VERSION, bv).begins_with("Le serveur est plein"), "serveur plein")
