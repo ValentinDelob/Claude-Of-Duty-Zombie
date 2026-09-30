@@ -330,6 +330,7 @@ func set_shown(on: bool) -> void:
 	if on == shown:
 		return
 	shown = on
+	CrashGuard.context("aperçu 3D " + ("ouvert" if on else "fermé"), true)
 	if detached:
 		if window != null:
 			window.visible = on

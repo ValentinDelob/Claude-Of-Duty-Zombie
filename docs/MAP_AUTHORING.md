@@ -226,6 +226,21 @@ décor, luminaires, atouts, armes, boîte, courant, étages), construite par le
   restant affiché jusque-là : l'éditeur ne se fige pas. Une carte pas encore
   jouable (sans départ, sans fenêtre...) s'affiche quand même, avec la
   mention « aperçu indicatif ».
+- **Fil de travail sans état partagé** (`MapPreviewWorld.Job`, règle
+  `ThreadGuard` de ARCHITECTURE.md « Fils de travail ») : le fil principal
+  prépare tout avant de le lancer (copie profonde de la carte, catalogue
+  construit puis figé en lecture seule, langue des textes) ; le fil fait
+  `MapRaster` → étapes du validateur utiles à la géométrie (dont le
+  rattachement des leviers aux pièges) → `MapLayoutExport` sur SA copie, sans
+  créer de nœud ni de ressource, sans lire d'autoload (`Settings`) ni de cache
+  du fil principal (lot de vérification et cases intérieures de `MapRules`,
+  statistiques de `WeaponDB` : refusés hors du fil principal, recalculés
+  localement ou notés comme un bogue et signalés). Le fil principal ne
+  construit l'aperçu qu'avec le résultat rendu. Vérifié par
+  `tests/test_preview_thread.gd` (aucun accès noté, même description que sur
+  le fil principal) et le scénario de contrainte `map_preview_stress` (60 s :
+  un second fil calcule en boucle pendant que l'éditeur pose, glisse,
+  vérifie, annule et vide ses caches à chaque image).
 - **Caméras** (liste de la barre d'outils) :
   - **Orbite** : clic droit glisser pour tourner autour du point visé,
     molette pour zoomer, clic milieu glisser pour déplacer le point ;

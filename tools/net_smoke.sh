@@ -5,6 +5,8 @@
 cd "$(dirname "$0")/.."
 GODOT=${GODOT:-godot}
 OUT=tests/_out; mkdir -p "$OUT"
+# Journaux Godot : tests/_out/logs, jamais ceux du joueur (voir check.sh).
+LOGS="$PWD/$OUT/logs"; mkdir -p "$LOGS"
 PORT=$((17801 + ${AUTOTEST_PORT_OFFSET:-0}))
 rm -f "$OUT/host.log" "$OUT/c1.log" "$OUT/c2.log"
 
@@ -20,16 +22,16 @@ wait_for() {
   return 1
 }
 
-"$GODOT" --headless --path . res://tests/net_smoke.tscn -- --role=host --port=$PORT --max=2 > "$OUT/host.log" 2>&1 &
+"$GODOT" --headless --log-file "$LOGS/smoke_host_$PORT.log" --path . res://tests/net_smoke.tscn -- --role=host --port=$PORT --max=2 > "$OUT/host.log" 2>&1 &
 H=$!
 wait_for "$OUT/host.log" "\[smoke\] host en écoute"
-"$GODOT" --headless --path . res://tests/net_smoke.tscn -- --role=client --port=$PORT --expect=ok > "$OUT/c1.log" 2>&1 &
+"$GODOT" --headless --log-file "$LOGS/smoke_c1_$PORT.log" --path . res://tests/net_smoke.tscn -- --role=client --port=$PORT --expect=ok > "$OUT/c1.log" 2>&1 &
 C1=$!
 wait_for "$OUT/c1.log" "\[smoke\] client accepté"
-"$GODOT" --headless --path . res://tests/net_smoke.tscn -- --role=client --port=$PORT --expect=full > "$OUT/c2.log" 2>&1
+"$GODOT" --headless --log-file "$LOGS/smoke_c2_$PORT.log" --path . res://tests/net_smoke.tscn -- --role=client --port=$PORT --expect=full > "$OUT/c2.log" 2>&1
 R2=$?
 # 3e client d'une autre release : refusé pour version différente.
-AUTOTEST_FAKE_BUILD=9.9.99 "$GODOT" --headless --path . res://tests/net_smoke.tscn -- --role=client --port=$PORT --expect=version > "$OUT/c3.log" 2>&1
+AUTOTEST_FAKE_BUILD=9.9.99 "$GODOT" --headless --log-file "$LOGS/smoke_c3_$PORT.log" --path . res://tests/net_smoke.tscn -- --role=client --port=$PORT --expect=version > "$OUT/c3.log" 2>&1
 R3=$?
 wait $C1; R1=$?
 wait $H; RH=$?

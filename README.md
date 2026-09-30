@@ -76,6 +76,27 @@ curl, puis traitement et mise à l'intensité perçue de leur catégorie) : `god
   `build/ClaudeOfDutyZombie.exe` (+ copie versionnée).
 - Publier : `sh tools/release.sh` (commit poussé sur `main`, `gh` connecté).
 
+### Journaux et rapports de plantage
+
+En cas de problème, ces fichiers aident à comprendre ce qui s'est passé
+(à joindre à un signalement) :
+
+- **Jeu** : journaux dans `%APPDATA%\Godot\app_userdata\Call of Claude Zombie\logs\`
+  (`godot.log` = partie en cours, les précédents sont datés), gardés au moins
+  14 jours (200 Mo au plus).
+- **Plantages** : si le jeu s'est arrêté brutalement (plantage, fermeture
+  forcée, coupure), le lancement suivant enregistre un rapport dans
+  `%APPDATA%\Godot\app_userdata\Call of Claude Zombie\crashes\`
+  (`plantage_<date>.txt` : version, heure, dernier écran, dernières lignes ;
+  `plantage_<date>.log` : journal complet de la session), gardé 30 jours. Un
+  message discret au menu principal indique où il se trouve (bouton « Ouvrir
+  le dossier »).
+- **Lanceur** : même chose dans `%APPDATA%\CallOfClaudeZombieLauncher\logs\` et
+  `...\crashes\` (message sous l'état du lanceur).
+
+Collez le chemin dans la barre d'adresse de l'Explorateur Windows pour ouvrir
+le dossier.
+
 ## Commandes
 
 | Action | Touche |

@@ -19,7 +19,8 @@ echo "== export $TAG"
 # puis project.godot est remis en état.
 cp project.godot build/project.godot.bak
 sed -i "s/^config\/version=.*/config\/version=\"${TAG#v}\"/" project.godot
-"$GODOT" --headless --path . --export-release "Windows Desktop" "$EXE" > build/export.log 2>&1
+# Journaux Godot dans build/, jamais dans le dossier des journaux du joueur.
+"$GODOT" --headless --log-file "$PWD/build/export.godot.log" --path . --export-release "Windows Desktop" "$EXE" > build/export.log 2>&1
 RC=$?
 cp build/project.godot.bak project.godot
 if [ $RC -ne 0 ] || [ ! -s "$EXE" ] || grep -qE "SCRIPT ERROR|Parse Error" build/export.log; then
@@ -32,7 +33,7 @@ echo "== export du lanceur"
 # Lanceur (launcher/, docs/LAUNCHER.md) : publié avec chaque version, avec son
 # numéro (les lanceurs plus anciens se mettent à jour tout seuls).
 LEXE=build/ClaudeOfDutyZombie-Launcher.exe
-"$GODOT" --headless --path launcher --export-release "Windows Desktop" "$PWD/$LEXE" > build/export_launcher.log 2>&1
+"$GODOT" --headless --log-file "$PWD/build/export_launcher.godot.log" --path launcher --export-release "Windows Desktop" "$PWD/$LEXE" > build/export_launcher.log 2>&1
 if [ ! -s "$LEXE" ] || grep -qE "SCRIPT ERROR|Parse Error" build/export_launcher.log; then
   echo "== EXPORT DU LANCEUR ECHEC (voir build/export_launcher.log)"; exit 1
 fi

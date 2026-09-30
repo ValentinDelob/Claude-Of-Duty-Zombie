@@ -13,6 +13,20 @@ config/use_custom_user_dir=true
 config/custom_user_dir_name="CallOfClaudeZombieLauncher"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
+; Journal vidé à chaque ligne (dernières lignes gardées en cas de plantage).
+run/flush_stdout_on_print=true
+
+[debug]
+
+; Journaux comme le jeu (docs/ARCHITECTURE.md « Journaux et plantages ») :
+; user://logs toujours écrit, 14 jours au moins (CrashLog.prune) ; binaire de
+; l'éditeur (tests) : jamais le dossier du joueur.
+file_logging/enable_file_logging=true
+file_logging/enable_file_logging.pc=true
+file_logging/log_path="user://logs/godot.log"
+file_logging/log_path.editor="res://tests/_out/logs/launcher.log"
+file_logging/max_log_files=1000
+file_logging/max_log_files.editor=5
 
 [display]
 

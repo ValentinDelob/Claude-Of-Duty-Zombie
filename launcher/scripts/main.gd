@@ -69,6 +69,7 @@ func _ready() -> void:
 			_args[a.trim_prefix("--")] = true
 	settings = Store.load_settings()
 	lang = String(settings.get("language", "fr"))
+	var crashes := _session_begin()
 	selected = String(settings.get("selected", "latest"))
 	get_window().title = "Claude of Duty Zombie"
 	get_window().min_size = Vector2i(900, 560)
@@ -90,6 +91,38 @@ func _ready() -> void:
 			_fetch(_http_notes, Releases.CHANGELOG_URL, Releases.MAX_CHANGELOG_BYTES, _on_changelogs)
 	if _args.has("capture"):
 		_capture_later(String(_args.capture))
+	if not crashes.is_empty():
+		_show_crash_note(crashes[crashes.size() - 1])
+
+
+# --------------------------------------------------------------------------
+# Journal et plantages (CrashLog, docs/ARCHITECTURE.md « Journaux et plantages »)
+# --------------------------------------------------------------------------
+
+## Session du lanceur : marqueur posé (exe exporté seulement, jamais dans les
+## tests), rapports des sessions plantées. Renvoie les rapports créés.
+func _session_begin() -> PackedStringArray:
+	if not CrashLog.player_session():
+		return PackedStringArray()
+	return CrashLog.begin_session(OS.get_user_data_dir(), CrashLog.log_path(),
+		{"programme": "Lanceur / Launcher", "version": str(Version.LAUNCHER_VERSION), "ecran": "lanceur"})
+
+
+## Fermeture normale (jouer, mise à jour, fenêtre fermée) : marqueur retiré.
+func _exit_tree() -> void:
+	if CrashLog.player_session():
+		CrashLog.end_session(OS.get_user_data_dir())
+
+
+## Message discret sous l'état : où trouver le rapport du plantage.
+func _show_crash_note(report: String) -> void:
+	var l := Label.new()
+	l.name = "CrashNote"
+	l.text = Texts.t("crashed", lang) % report
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_size_override("font_size", 12)
+	l.add_theme_color_override("font_color", DIM)
+	_status.get_parent().add_child(l)
 
 
 func _new_http() -> HTTPRequest:

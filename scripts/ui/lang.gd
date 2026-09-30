@@ -10,4 +10,8 @@ static func t(fr: String, en: String) -> String:
 
 
 static func is_en() -> bool:
+	# Fil de travail : jamais l'autoload Settings (état partagé), la langue
+	# figée par le fil principal au lancement du calcul (ThreadGuard.enter).
+	if ThreadGuard.worker():
+		return ThreadGuard.worker_lang_en()
 	return Settings.language == "en"

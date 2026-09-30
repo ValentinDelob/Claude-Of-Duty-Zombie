@@ -141,10 +141,28 @@ static var _items: Array = []
 static var _by_id: Dictionary = {}
 
 
+## Construit une fois, sur le fil principal, puis FIGÉ (lecture seule, en
+## profondeur) : les fils de travail (aperçu 3D) le lisent sans risque, rien
+## ne peut plus le modifier.
 static func items() -> Array:
 	if _items.is_empty():
+		if not ThreadGuard.main_only("MapCatalog._build"):
+			return []
 		_build()
+		_freeze(_items)
+		_by_id.make_read_only()
 	return _items
+
+
+static func _freeze(v: Variant) -> void:
+	if v is Dictionary:
+		for k in v:
+			_freeze(v[k])
+		(v as Dictionary).make_read_only()
+	elif v is Array:
+		for x in v:
+			_freeze(x)
+		(v as Array).make_read_only()
 
 
 static func item(id: String) -> Dictionary:

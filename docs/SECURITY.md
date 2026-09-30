@@ -84,6 +84,15 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
    avec des chemins construits par le code (jamais un texte reçu) ; dans un
    `.bat`, doubler les `%`.
 
+### Fils de travail
+
+- **Aucun état partagé modifiable dans un fil de travail** (`Thread`,
+  `WorkerThreadPool`) : ni cache statique, ni autoload, ni nœud, ni ressource.
+  Données préparées et figées par le fil principal avant le lancement, caches
+  protégés par `ThreadGuard.main_only()` (règle détaillée dans
+  ARCHITECTURE.md, « Fils de travail »). Dans le jeu exporté, une course
+  entre fils peut planter le jeu sans erreur de script.
+
 ### Publication
 
 - Aucun jeton ni mot de passe dans le dépôt : `gh` utilise la connexion locale ;

@@ -247,7 +247,10 @@ static func stats(id: String, pap := false) -> Dictionary:
 	if not exists(id):
 		id = STARTING_WEAPON
 	var key := id + ("+" if pap else "")
-	var cached: Dictionary = _cache.get(key, {})
+	# Fil de travail (aperçu 3D de l'éditeur...) : calculé sans le cache,
+	# jamais lu ni écrit hors du fil principal (ThreadGuard).
+	var main := not ThreadGuard.worker()
+	var cached: Dictionary = _cache.get(key, {}) if main else {}
 	if not cached.is_empty():
 		return cached
 	var base: Dictionary = WEAPONS.get(id, POWERUP_WEAPONS.get(id, {}))
@@ -259,7 +262,8 @@ static func stats(id: String, pap := false) -> Dictionary:
 		s.merge(base.get("pap", {}), true)
 		s["name"] = base.get("pap_name", base.name)
 	s.make_read_only()
-	_cache[key] = s
+	if main:
+		_cache[key] = s
 	return s
 
 
