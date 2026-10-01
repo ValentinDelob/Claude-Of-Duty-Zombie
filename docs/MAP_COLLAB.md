@@ -183,3 +183,109 @@ automatique : hôte seulement, comme aujourd'hui.
   quand l'hôte l'a demandé, code de session obligatoire.
 - Tout message est validé (§ 2) ; un message invalide = déconnexion du pair.
 - Jamais d'objet Godot décodé, jamais de chemin de fichier venu du réseau.
+
+## 9. Précisions de l'implémentation (v1)
+
+Ce qui suit complète les sections précédentes sans en changer les noms
+(commandes, champs, ports, `agent.json`). Code : `scripts/editor/collab/`.
+Tests : `tests/test_map_ops.gd`, `test_map_history.gd`, `test_map_collab.gd`,
+`test_map_agent_link.gd`.
+
+### Identifiants de participants
+
+Toujours du **texte** : hôte `"1"`, invités `"2"`, `"3"`… (dans l'ordre
+d'arrivée), agent `"<parrain>:claude"` (`"1:claude"`, `"2:claude"`). `you`,
+`author`, `peer`, `peers[].id` et `skipped_by` suivent ce format. Un éditeur
+seul est l'id `"1"` (rôle `solo`) ; s'il héberge, ses entrées d'historique
+restent les siennes.
+
+### Opérations (§ 2)
+
+- `put` accepte un champ facultatif `at` (entier ≥ 0) : indice où insérer
+  l'élément s'il est absent (ignoré s'il existe : remplacé sur place).
+  `MapOps.diff` le met sur les éléments nouveaux et `MapOps.inverse` sur les
+  éléments supprimés, pour qu'une suppression annulée retrouve sa place (et
+  que les cartes restent identiques élément par élément, ordre compris).
+  L'agent peut l'omettre (ajout en fin).
+- `add` sans `id` : l'id attribué est rendu sous la clé `"#<indice de l'op>"`
+  dans `ids` (avec `id` provisoire : sous `"$n"`).
+- `add` remplit aussi, comme `MapEditor.add_object` : pièce sans `nom` →
+  « Pièce N » ; pièce sans zone existante → zone créée (même nom, devient la
+  zone de départ s'il n'y en a pas) ; porte / débris sans `prix` → 750, 1000
+  puis 1250 ; fenêtre sans `largeur` ; une seule boîte `depart`. `etage`
+  absent → 0.
+- Contrôle du contenu (en plus de `validate`) : chaque élément `put` passe
+  les règles des cartes reçues (`CustomMapGuard` : types, clés, valeurs,
+  étages existants, identifiants `[A-Za-z0-9_-]` de 32 caractères au plus) et
+  les tailles maximales des listes (256 pièces, 512 ouvertures, 2048 objets,
+  64 zones). Un élément refusé n'est pas appliqué (agent : listé dans
+  `invalid` ; invité : retiré du lot et signalé dans le journal, sans
+  déconnexion).
+- Empreinte (`sum.hash`) : SHA-256 du JSON canonique (clés triées, nombres
+  entiers sans décimale, précision complète). Tous les messages sont écrits
+  en précision complète (`JSON.stringify(..., full_precision = true)`).
+
+### Changements et annulations (§ 3, § 4)
+
+- `change` peut porter `undo: <cid>` ou `redo: <cid>` (cid de l'entrée
+  annulée ou rétablie). Pour un invité, l'hôte **recalcule** les opérations
+  avec son historique (les `ops` envoyées ne servent que d'aperçu optimiste)
+  et refuse silencieusement (ops vides) l'annulation d'une entrée qui n'est
+  pas à l'expéditeur ou à son Claude. La diffusion ajoute `skipped` (nombre
+  d'éléments laissés pour conflit) et `skipped_by` (auteurs).
+- Un invité qui appuie sur Ctrl+Z pendant qu'un de ses changements attend
+  l'écho : l'annulation part juste après l'écho.
+- Au-delà de 30 changements/s (rafale de 60), l'hôte ignore le changement et
+  renvoie la carte entière à l'invité (`map`) au plus une fois par seconde ;
+  au-delà de 20 présences/s, la présence est ignorée.
+- `welcome.history` = `{entries: [{cid, author, label, time, active}], touch,
+  authors}` : les 100 dernières entrées pour l'affichage et l'état des
+  éléments (dernier changement de chaque élément) ; un invité n'annule que
+  ses propres entrées, faites après son arrivée.
+- `map` peut porter `reset: true` (l'hôte a ouvert une autre carte :
+  historique vidé). Un invité qui ouvre une autre carte quitte la session.
+- `presence` peut porter `agent: true/false` (invité → hôte) : un Claude est
+  rattaché à cet invité (pastille `"<id>:claude"` dans `peers`).
+- Libellés (`label`) : texte court dans la langue de l'émetteur (120
+  caractères au plus).
+
+### Agent (§ 5.2)
+
+- `agent.json` : en autotest, dans `tests/_out/editor_collab_<scénario>/` ;
+  les tests unitaires utilisent `MapAgentLink.dir_override`. Supprimé à
+  l'arrêt seulement s'il porte encore le `pid` et le `port` de cet éditeur
+  (un deuxième éditeur ouvert l'a remplacé : le dernier ouvert gagne).
+- L'écoute ne démarre jamais en mode `--headless` ni en autotest ; 4 clients
+  au plus ; un client sans `hello` valide en 5 s est coupé ; un mauvais
+  jeton ou une autre commande avant `hello` = réponse d'erreur puis coupure.
+- `error` : texte dans la langue du jeu.
+- `hello` rend aussi `you` (`"<moi>:claude"`) ; `status` rend aussi `seq` et
+  `can_undo`.
+- `apply` : `{cid, ids, invalid}` ; `cid` vide si aucun élément n'a été
+  admis. `invalid` liste les éléments refusés (non appliqués) ET ceux posés
+  mais mal placés (règles de pose de l'éditeur, dessinés en rouge).
+- `undo` : `{cid, undone, label, skipped, conflict}` (ou `{queued: true}`
+  chez un invité en attente d'écho).
+- `validate` : `{ok, errors, warnings, text, problems: [{level, text, floor,
+  points: [[x, y]…]}]}` (points en mètres, 12 au plus par problème).
+- `screenshot` : plan dessiné hors écran (1280 × 960, règles en mètres
+  comprises dans `bounds`) ; rend aussi `floor` ; erreur en mode sans
+  affichage.
+- `highlight` : `{shown}` ; version simple (élément cadré, message dans la
+  barre d'état). Le rendu riche se branche sur les signaux
+  `MapAgentLink.highlight_requested(ids, message)` et
+  `animate_requested(ids, label)` (après un `apply` avec `animate`).
+- Événements poussés : `{event: "change", cid, author, label, seq, ids}`,
+  `{event: "selection", ids}`, `{event: "peers", peers}`.
+
+### Éditeur
+
+- `push_undo()` / `push_undo_snapshot()` mémorisent la carte d'avant (la plus
+  ancienne si plusieurs) ; `changed()` calcule le diff et l'envoie à la
+  session (`MapCollab.submit_local`) seulement s'il n'est pas vide.
+- Un changement reçu pendant un glissement est aussi appliqué à la copie du
+  glissement (`MapCanvas.drag.snap`), pour ne pas l'effacer au relâchement.
+- Invité : Fichier > « Enregistrer une copie… » (nouveau dossier dans les
+  cartes du joueur) ; pas de sauvegarde automatique ; TESTER refusé (copie,
+  puis quitter la session). Hôte : TESTER change de scène et ferme la
+  session (les invités repassent seuls avec la carte).

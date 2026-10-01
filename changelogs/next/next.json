@@ -1,0 +1,8 @@
+{
+ "title": {"fr": "Éditeur de cartes à plusieurs (et avec Claude)", "en": "Map editor with friends (and with Claude)"},
+ "items": [
+  {"fr": "Éditeur de cartes : nouveau menu Collaboration. Héberger ouvre une session (un code à 6 caractères et l'adresse de votre ordinateur s'affichent) ; vos amis font Rejoindre avec l'adresse, le port et le code, et tout le monde modifie la même carte en même temps, en voyant les curseurs des autres.", "en": "Map editor: new Collaboration menu. Host opens a session (a 6-character code and your computer's address are shown); your friends use Join with the address, port and code, and everyone edits the same map at the same time, seeing the others' cursors."},
+  {"fr": "Ctrl+Z annule seulement VOS actions : si quelqu'un a retouché un élément entre-temps, il n'est pas défait (un message le dit). Seul l'hôte enregistre la carte ; un invité peut en enregistrer une copie.", "en": "Ctrl+Z only undoes YOUR actions: if someone touched an element meanwhile, it is left alone (a message says so). Only the host saves the map; a guest can save a copy."},
+  {"fr": "« Autoriser Claude (MCP) » (coché par défaut) : Claude Code peut lire la carte et y poser des pièces et des objets, sur cet ordinateur seulement. Chaque lot de Claude s'annule d'un seul Ctrl+Z.", "en": "\"Allow Claude (MCP)\" (on by default): Claude Code can read the map and place rooms and objects, on this computer only. Each batch from Claude is undone with a single Ctrl+Z."}
+ ]
+}

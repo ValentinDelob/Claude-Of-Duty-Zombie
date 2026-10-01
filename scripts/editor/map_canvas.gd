@@ -63,6 +63,11 @@ var entry: Dictionary = {}
 var _snap_exclude := ""
 ## Pixels de la poignée de rotation au-dessus de l'élément choisi.
 const ROT_HANDLE_PX := 30.0
+## Vue dessinée hors écran (capture du plan pour Claude, MapAgentLink) : ni
+## outil, ni sélection, ni curseurs ; étage `floor_override` (-1 : celui de
+## l'éditeur).
+var offscreen := false
+var floor_override := -1
 
 
 ## Longueurs d'interface de la vue (règles, poignées, étiquettes, cotes) à la
@@ -81,6 +86,9 @@ func _hsz() -> float:
 
 func _ready() -> void:
 	clip_contents = true
+	if offscreen:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return
 	focus_mode = Control.FOCUS_CLICK
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_exited.connect(func():
@@ -94,6 +102,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if offscreen:
+		return
 	if _refusal_t > 0.0:
 		_refusal_t -= delta
 		if _refusal_t <= 0.0:
@@ -842,7 +852,7 @@ func _draw() -> void:
 	draw_rect(Rect2(tl.max(Vector2.ZERO), size - tl.max(Vector2.ZERO)), COL_TERRAIN)
 	_draw_grid()
 	var doc := ed.doc
-	var k := ed.floor_k
+	var k := ed.floor_k if floor_override < 0 else floor_override
 	var font := UiStyle.font("body")
 	# Étage du dessous en transparence.
 	if ed.ghost_below and k > 0:
@@ -890,6 +900,9 @@ func _draw() -> void:
 		var r := _elem_rect_px(e)
 		draw_rect(r.grow(3), COL_BAD, false, 2.0)
 		draw_string(font, r.position + Vector2(r.size.x + _u(4), _u(12)), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(16), COL_BAD)
+	if offscreen:
+		_draw_rulers(font)
+		return
 	# Sélection et poignées.
 	var sel := doc.find(ed.selected)
 	if not sel.is_empty() and int(sel.get("etage", 0)) == k:
@@ -926,7 +939,29 @@ func _draw() -> void:
 	# Aperçu 3D : repère de sa caméra (MapPreviewPanel).
 	if ed.preview != null:
 		ed.preview.draw_on_canvas(self)
+	_draw_peers(font, k)
 	_draw_rulers(font)
+
+
+## Curseurs des autres participants de la session (MapCollab) à cet étage :
+## point de leur couleur et pseudo. Le rendu riche (sélections, aperçu en
+## direct) viendra par-dessus.
+func _draw_peers(font: Font, k: int) -> void:
+	if ed.collab == null or not ed.collab.is_session():
+		return
+	for id in ed.collab.peers:
+		if id == ed.collab.my_id:
+			continue
+		var p: Dictionary = ed.collab.peers[id]
+		var pr: Dictionary = p.get("presence", {})
+		if not pr.has("cursor") or int(pr.get("floor", 0)) != k:
+			continue
+		var c := Color.html(String(p.color))
+		var at := to_px(Vector2(float(pr.cursor[0]), float(pr.cursor[1])))
+		draw_circle(at, _u(5), c)
+		draw_arc(at, _u(5), 0, TAU, 16, Color.BLACK, 1.0)
+		draw_string_outline(font, at + Vector2(_u(8), -_u(6)), String(p.name), HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(12), 4, Color(0, 0, 0, 0.85))
+		draw_string(font, at + Vector2(_u(8), -_u(6)), String(p.name), HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(12), c)
 
 
 ## Contour exact d'un élément quand il n'est pas un rectangle droit (pièce,
@@ -1045,6 +1080,8 @@ func _draw_rulers(font: Font) -> void:
 		y += every
 	draw_rect(Rect2(0, 0, _ruler(), _ruler()), Color(0.07, 0.07, 0.08))
 	draw_string(font, Vector2(_u(3), _u(13)), "m", HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11), Color(1, 1, 1, 0.5))
+	if offscreen:
+		return
 	# Position du curseur sur les règles.
 	var cp := to_px(mouse_m)
 	draw_line(Vector2(cp.x, 0), Vector2(cp.x, _ruler()), COL_SEL, 1.0)
