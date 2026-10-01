@@ -434,6 +434,7 @@ func _object_props(o: Dictionary) -> void:
 							q["depart"] = false
 				o["depart"] = on)
 		"escalier":
+			_stair_props(o)
 			var dirs := ["n", "e", "s", "o"]
 			_option(_props, Lang.t("Monte vers", "Goes up to"), dirs.map(func(d): return Lang.t(DIR_NAMES[d][0], DIR_NAMES[d][1])), dirs.find(String(o.get("monte", "n"))), func(i):
 				ed.push_undo()
@@ -465,6 +466,59 @@ func _object_props(o: Dictionary) -> void:
 		_note(_props, hint)
 	var r := MapRules.footprint_rect(o)
 	_note(_props, Lang.t("Position : x %s m, y %s m, étage %d", "Position: x %s m, y %s m, floor %d") % [_m(r.get_center().x), _m(r.get_center().y), int(o.get("etage", 0))])
+
+
+## Escalier (format 6) : type (V), sens du virage, marches, garde-corps,
+## côtés fermés ; rappel de ce qu'exige le type.
+func _stair_props(o: Dictionary) -> void:
+	var ids := MapCatalog.variants("escalier")
+	var kind := MapCatalog.stair_kind(o)
+	var opt := _option(_props, Lang.t("Type (V)", "Type (V)"), ids.map(func(x): return MapCatalog.variant_name("escalier", String(x))),
+		maxi(0, ids.find(kind)), func(i):
+			ed.push_undo()
+			MapCatalog.set_variant(o, String(ids[i]))
+			MapCatalog.tidy_stair(o)
+			ed.changed())
+	opt.tooltip_text = Lang.t("Forme des marches, leur collision et le trajet des zombies (ancres) suivent le type. V : type suivant",
+		"Step layout, collision and the zombies' route (anchors) follow the type. V: next type")
+	if StairGen.is_shaped(kind):
+		var turns := MapCatalog.STAIR_TURNS
+		_option(_props, Lang.t("Tourne vers", "Turns"), [Lang.t("la droite", "right"), Lang.t("la gauche", "left")],
+			maxi(0, turns.find(String(o.get("sens", "droite")))), func(i):
+				ed.push_undo()
+				o["sens"] = turns[i]
+				MapCatalog.tidy_stair(o)
+				ed.changed())
+	if kind != "rampe":
+		var set_steps := func(v: float) -> void:
+			if int(v) < MapCatalog.STAIR_STEPS[0]:
+				o.erase("marches")
+			else:
+				o["marches"] = int(v)
+		var ms := _spin(_props, Lang.t("Marches", "Steps"), float(o.get("marches", 0)), 0, MapCatalog.STAIR_STEPS[1], 1, set_steps, "")
+		ms.tooltip_text = Lang.t("0 : automatique (≈ 18 cm par marche)", "0: automatic (about 18 cm per step)")
+	_check(_props, Lang.t("Garde-corps", "Railing"), bool(o.get("garde_corps", MapCatalog.stair_rail_default(kind))), func(on):
+		o["garde_corps"] = on
+		MapCatalog.tidy_stair(o))
+	_check(_props, Lang.t("Côtés fermés (limons pleins)", "Closed sides (solid stringers)"), String(o.get("cotes", "ouverts")) == "fermes", func(on):
+		o["cotes"] = "fermes" if on else "ouverts"
+		MapCatalog.tidy_stair(o))
+	var mw := MapCatalog.stair_min_width(kind)
+	var need: String = {
+		"quart": Lang.t("En L : la sortie est sur le côté où il tourne, au bout ; il faut le plancher d'une pièce de l'étage du dessus de ce côté.",
+			"L-shaped: the exit is on the side it turns to, at the far end; the floor above needs a room floor on that side."),
+		"demi_tour": Lang.t("En U : la sortie revient du côté du pied, à côté du départ ; il faut le plancher d'une pièce de l'étage du dessus de ce côté.",
+			"U-shaped: the exit comes back on the foot side, next to the start; the floor above needs a room floor on that side."),
+		"colimacon": Lang.t("Colimaçon : un tour complet autour d'un noyau, sortie en face du pied ; 4 m de côté et 3,2 m entre les étages au moins.",
+			"Spiral: one full turn around a newel, exit opposite the foot; at least 4 m per side and 3.2 m between floors."),
+		"service": Lang.t("Escalier de service : 1 m de large suffit ; les zombies y montent en file indienne.", "Service stairs: 1 m wide is enough; zombies climb in single file."),
+		"large": Lang.t("Escalier d'honneur : 3 m de large au moins, garde-corps des deux côtés ; la horde monte de front.",
+			"Grand stairs: at least 3 m wide, railing on both sides; the horde climbs abreast."),
+	}.get(kind, "")
+	if need != "":
+		_note(_props, need)
+	_note(_props, Lang.t("Largeur minimale : %s m. Les zombies suivent ses ancres : entrée devant le pied, axe des marches, sortie sur le palier.",
+		"Minimum width: %s m. Zombies follow its anchors: entry in front of the foot, the stairs' centreline, exit on the landing.") % _m(mw))
 
 
 ## Liste « Aspect » (variantes d'un type, MapCatalog.VARIANTS ; touche V).

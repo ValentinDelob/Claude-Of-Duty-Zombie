@@ -1251,8 +1251,8 @@ func cycle_variant() -> void:
 		return
 	var e := doc.find(selected)
 	if e.is_empty():
-		set_status(Lang.t("Choisissez d'abord une porte, des débris ou une arme murale (outil Sélection)",
-			"Pick a door, debris or a wall weapon first (Select tool)"))
+		set_status(Lang.t("Choisissez d'abord une porte, des débris, une arme murale ou un escalier (outil Sélection)",
+			"Pick a door, debris, a wall weapon or stairs first (Select tool)"))
 		return
 	var t := String(e.get("type", ""))
 	if MapCatalog.variants(t).size() < 2:
@@ -1260,6 +1260,7 @@ func cycle_variant() -> void:
 		return
 	push_undo()
 	MapCatalog.set_variant(e, MapCatalog.next_variant(t, MapCatalog.variant_of(e)))
+	MapCatalog.tidy_stair(e)
 	changed()
 	set_status(Lang.t("Aspect : %s (V : suivant)", "Look: %s (V: next)") % MapCatalog.variant_name(t, MapCatalog.variant_of(e)))
 
@@ -1308,7 +1309,7 @@ func paste() -> void:
 				if res.ok:
 					e.position = res.position
 			"rect":
-				res = MapRules.check_rect(doc, floor_k, t, MapGeom.rect_of(e.rect), "", MapGeom.rot_of(e))
+				res = MapRules.check_rect(doc, floor_k, t, MapGeom.rect_of(e.rect), "", MapGeom.rot_of(e), MapCatalog.stair_kind(e))
 			"wall":
 				res = MapRules.check_wall(MapGeom.v2(e.a), MapGeom.v2(e.b))
 			"arc":

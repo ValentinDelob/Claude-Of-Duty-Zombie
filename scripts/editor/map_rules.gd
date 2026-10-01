@@ -920,7 +920,7 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 
 ## Rectangle au sol (pilier, escalier, piège) : dans une seule pièce, sans
 ## chevauchement ; `rot` : rotation au degré près (sens horaire) autour de son centre.
-static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id := "", rot := 0) -> Dictionary:
+static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id := "", rot := 0, variant := "") -> Dictionary:
 	var o := {"type": type}
 	var nm := _name(o)
 	var sz0 := r.size   # taille avant rotation (largeur d'un escalier)
@@ -949,8 +949,17 @@ static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id
 	if type == "escalier":
 		if k >= doc.floor_count() - 1:
 			return refuse("un escalier monte à l'étage du dessus : ajoutez d'abord un étage (onglet Étages)", "stairs go up to the floor above: add a floor first (Floors tab)")
-		if minf(sz0.x, sz0.y) < 1.5 - MapGeom.EPS:
-			return refuse("escalier trop étroit (1,5 m au moins)", "stairs too narrow (at least 1.5 m)")
+		# Type d'escalier (format 6) : celui donné, sinon celui de l'escalier déplacé.
+		var kind := variant
+		if kind == "" and ignore_id != "":
+			kind = MapCatalog.stair_kind(doc.find(ignore_id))
+		if kind == "":
+			kind = StairGen.DEFAULT_KIND
+		var mw := MapCatalog.stair_min_width(kind)
+		if minf(sz0.x, sz0.y) < mw - MapGeom.EPS:
+			var ms := ("%s" % snappedf(mw, 0.1)).trim_suffix(".0")
+			var vn := MapCatalog.variant_names("escalier", kind)
+			return refuse("%s trop étroit (%s m au moins)" % [vn[0], ms.replace(".", ",")], "%s too narrow (at least %s m)" % [vn[1], ms])
 	var other := _overlaps(doc, k, r, ignore_id)
 	if not other.is_empty():
 		var on := _name(other)

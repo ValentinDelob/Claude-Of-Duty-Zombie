@@ -647,7 +647,10 @@ func _creation(it: Dictionary, a: Vector2, b: Vector2) -> Dictionary:
 			if o.type == "escalier":
 				var d := b - a
 				o["monte"] = ("e" if d.x > 0 else "o") if absf(d.x) > absf(d.y) else ("s" if d.y > 0 else "n")
-			var res := MapRules.check_rect(ed.doc, k, String(o.type), r)
+				# Type choisi avec V avant de poser (format 6).
+				if ed.place_variant != "":
+					MapCatalog.set_variant(o, ed.place_variant)
+			var res := MapRules.check_rect(ed.doc, k, String(o.type), r, "", 0, MapCatalog.stair_kind(o))
 			res["obj"] = o
 			return res
 		"room_shape":
@@ -1139,6 +1142,9 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 	if t == "bloc_invisible":
 		_draw_clip(o, it, alpha)
 		return
+	if t == "escalier" and MapCatalog.stair_kind(o) != StairGen.DEFAULT_KIND:
+		_draw_stair_plan(o, alpha)
+		return
 	if t in ["escalier", "piege"] and MapGeom.rot_of(o) != 0:
 		_draw_rot_rect(o, it, alpha)
 		return
@@ -1269,6 +1275,77 @@ func _draw_clip(o: Dictionary, it: Dictionary, alpha: float) -> void:
 	var s := minf(minf(r.size.x, r.size.y) * zoom * 0.8, 40.0)
 	if s >= 12.0:
 		MapIcons.draw(self, it, Rect2(to_px(c) - Vector2(s, s) * 0.5, Vector2(s, s)))
+
+
+## Escalier d'un type (format 6 : palier, L, U, colimaçon, rampe...) : son
+## plan (StairGen, même géométrie que le jeu) : volées et leurs marches,
+## paliers, colimaçon, flèches de montée et pointillés du couloir des zombies.
+func _draw_stair_plan(o: Dictionary, alpha: float) -> void:
+	var pl := MapRaster.stair_plan(o, 0.0, 3.5)
+	var fill := Color(0.55, 0.35, 0.65, 0.55 * alpha)
+	var line := Color(1, 1, 1, 0.35 * alpha)
+	var arrow := Color(1, 1, 1, 0.9 * alpha)
+	for poly: PackedVector2Array in pl.polys:
+		var px := _px_poly(poly)
+		_fill(px, fill)
+		draw_polyline(px + PackedVector2Array([px[0]]), Color(0.85, 0.65, 0.95, 0.8 * alpha), 1.0)
+	for l in pl.landings:
+		_fill(_px_poly(l.poly), Color(0.7, 0.55, 0.8, 0.35 * alpha))
+	var ramp: bool = pl.kind == "rampe"
+	for f in pl.flights:
+		var a := Vector2(f.a.x, f.a.z)
+		var b := Vector2(f.b.x, f.b.z)
+		var d := (b - a).normalized()
+		var side := Vector2(-d.y, d.x) * (float(f.w) * 0.5)
+		if not ramp:
+			var n := StairGen.flight_steps(pl, float(f.b.y) - float(f.a.y))
+			for i in n + 1:
+				var q := a.lerp(b, float(i) / n)
+				draw_line(to_px(q - side), to_px(q + side), line, 1.0)
+		_arrow(to_px(a.lerp(b, 0.15)), to_px(a.lerp(b, 0.85)), arrow)
+	var sp: Dictionary = pl.spiral
+	if not sp.is_empty():
+		var c: Vector2 = sp.c
+		var e1: Vector2 = sp.e1
+		var e2: Vector2 = sp.e2
+		var pts := PackedVector2Array()
+		for i in 33:
+			var th := TAU * i / 32.0
+			pts.append(to_px(c + (e1 * cos(th) + e2 * sin(th)) * float(sp.r_out)))
+		draw_polyline(pts, Color(0.85, 0.65, 0.95, 0.9 * alpha), 1.5)
+		for i in 16:
+			var th := TAU * i / 16.0
+			var dir := e1 * cos(th) + e2 * sin(th)
+			draw_line(to_px(c + dir * float(sp.r_in)), to_px(c + dir * float(sp.r_out)), line, 1.0)
+		draw_circle(to_px(c), maxf(float(sp.r_in) * zoom, 2.0), Color(0.3, 0.2, 0.35, 0.9 * alpha))
+		var arc := PackedVector2Array()
+		for i in 25:
+			var th := TAU * 0.9 * i / 24.0
+			arc.append(to_px(c + (e1 * cos(th) + e2 * sin(th)) * float(sp.rm)))
+		draw_polyline(arc, arrow, 2.0)
+		_arrow(arc[arc.size() - 2], arc[arc.size() - 1], arrow)
+	# Couloir des zombies (ancres) en pointillés.
+	if zoom >= 10.0:
+		var prev := Vector2.INF
+		for e in pl.lane:
+			var q := to_px(Vector2(e[0].x, e[0].z))
+			if prev != Vector2.INF:
+				draw_dashed_line(prev, q, Color(1.0, 0.85, 0.3, 0.7 * alpha), 1.0, 4.0)
+			prev = q
+		var first: Vector3 = pl.lane[0][0]
+		var last: Vector3 = pl.lane[pl.lane.size() - 1][0]
+		draw_circle(to_px(Vector2(first.x, first.z)), 3.0, Color(1.0, 0.85, 0.3, 0.9 * alpha))
+		draw_circle(to_px(Vector2(last.x, last.z)), 3.0, Color(1.0, 0.55, 0.2, 0.9 * alpha))
+
+
+## Flèche de `a` à `b` (pixels).
+func _arrow(a: Vector2, b: Vector2, col: Color) -> void:
+	draw_line(a, b, col, 2.0)
+	var d := (b - a).normalized()
+	if d == Vector2.ZERO:
+		return
+	draw_line(b, b - d.rotated(0.5) * 8.0, col, 2.0)
+	draw_line(b, b - d.rotated(-0.5) * 8.0, col, 2.0)
 
 
 ## Escalier ou zone de piège tournés : contour, marches et flèche de montée

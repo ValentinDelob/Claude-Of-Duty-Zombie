@@ -157,7 +157,89 @@ const VARIANTS := {
 		["craie", "Craie sur le mur", "Chalk on the wall"],
 		["planche", "Craie sur une planche", "Chalk on a board"],
 	],
+	# Format 6 : types d'escaliers (StairGen.KINDS ; docs/MAP_OBJECTS.md §
+	# Escaliers). Contrairement aux autres variantes, le type change la forme
+	# des marches, leur collision et le trajet des zombies.
+	"escalier": [
+		["droit", "Escalier droit", "Straight stairs"],
+		["palier", "Droit avec palier", "Straight with landing"],
+		["quart", "En L (quart tournant)", "L-shaped (quarter turn)"],
+		["demi_tour", "En U (demi-tour)", "U-shaped (switchback)"],
+		["large", "Escalier d'honneur (large)", "Grand stairs (wide)"],
+		["service", "Escalier de service (étroit)", "Service stairs (narrow)"],
+		["colimacon", "En colimaçon", "Spiral stairs"],
+		["rampe", "Rampe (sans marches)", "Ramp (no steps)"],
+	],
 }
+
+## Réglages d'un escalier (format 6, objets.json) ; absents : valeur par
+## défaut, jamais écrite (une carte d'avant garde ses octets).
+##   sens         « droite » (défaut) ou « gauche » : côté du virage (L, U) ou
+##                sens du colimaçon, vu en montant
+##   marches      nombre de marches visibles (absent : ≈ 18 cm chacune)
+##   garde_corps  garde-corps sur les côtés (absent : oui pour l'escalier
+##                d'honneur, non pour les autres)
+##   cotes        « ouverts » (défaut) ou « fermes » : limons pleins
+const STAIR_STEPS := [3, 60]
+const STAIR_TURNS := ["droite", "gauche"]
+const STAIR_SIDES := ["ouverts", "fermes"]
+
+
+## Type d'un escalier posé (variante, StairGen.KINDS).
+static func stair_kind(o: Dictionary) -> String:
+	return variant_of(o) if String(o.get("type", "")) == "escalier" else ""
+
+
+## Largeur minimale (m, petit côté du rectangle TRACÉ) d'un escalier de ce
+## type : sa largeur de marche (StairGen.MIN_WIDTH) plus le trait (0,25 m de
+## chaque côté) ; l'escalier droit garde sa règle d'avant (1,5 m tracé).
+static func stair_min_width(kind: String) -> float:
+	if kind == StairGen.DEFAULT_KIND or kind == "":
+		return 1.5
+	return float(StairGen.MIN_WIDTH.get(kind, 1.5)) + MapGeom.WALL_HALF * 2.0
+
+
+## Garde-corps par défaut d'un type d'escalier.
+static func stair_rail_default(kind: String) -> bool:
+	return kind == "large"
+
+
+## Options de la description en maillage (StairGen) d'un escalier posé :
+## kind, turn, steps, rail, closed, seulement si elles ne sont pas par défaut.
+static func stair_layout_opts(o: Dictionary) -> Dictionary:
+	var out := {}
+	var kind := stair_kind(o)
+	if kind != "" and kind != StairGen.DEFAULT_KIND:
+		out["kind"] = kind
+	if String(o.get("sens", "droite")) == "gauche":
+		out["turn"] = -1
+	var n: Variant = o.get("marches")
+	if (n is int or n is float) and int(n) >= STAIR_STEPS[0]:
+		out["steps"] = clampi(int(n), STAIR_STEPS[0], STAIR_STEPS[1])
+	if o.has("garde_corps") and bool(o.garde_corps) != stair_rail_default(kind):
+		out["rail"] = bool(o.garde_corps)
+	if String(o.get("cotes", "ouverts")) == "fermes":
+		out["closed"] = true
+	return out
+
+
+## Réglages par défaut retirés d'un escalier (fichier écrit à la main ou
+## réglage remis à sa valeur par défaut) ; valeurs illisibles retirées.
+static func tidy_stair(o: Dictionary) -> void:
+	if String(o.get("type", "")) != "escalier":
+		return
+	if not STAIR_TURNS.has(o.get("sens", "droite")) or o.get("sens") == "droite":
+		o.erase("sens")
+	if not STAIR_SIDES.has(o.get("cotes", "ouverts")) or o.get("cotes") == "ouverts":
+		o.erase("cotes")
+	if o.has("marches"):
+		var n: Variant = o.marches
+		if (n is int or n is float) and is_finite(float(n)) and int(n) >= STAIR_STEPS[0]:
+			o["marches"] = clampi(int(n), STAIR_STEPS[0], STAIR_STEPS[1])
+		else:
+			o.erase("marches")
+	if o.has("garde_corps") and (not o.garde_corps is bool or o.garde_corps == stair_rail_default(stair_kind(o))):
+		o.erase("garde_corps")
 
 ## Barrière invisible (type « bloc_invisible ») : hauteur (m) réglable ;
 ## absente, du sol au plafond de l'étage.
@@ -251,7 +333,8 @@ static func _build() -> void:
 		"color": Color(0.45, 0.42, 0.4), "make": {"type": "pilier"}, "hint_fr": "Glisser un rectangle dans une pièce", "hint_en": "Drag a rectangle inside a room"})
 	_add({"id": "escalier", "cat": "construction", "fr": "Escalier", "en": "Stairs", "tool": "rect",
 		"color": Color(0.8, 0.55, 0.9), "make": {"type": "escalier", "monte": "n"},
-		"hint_fr": "Glisser du bas vers le haut de l'escalier (monte vers l'étage du dessus)", "hint_en": "Drag from the bottom to the top of the stairs (goes up one floor)"})
+		"hint_fr": "Glisser du bas vers le haut de l'escalier (monte vers l'étage du dessus) ; V : type (droit, palier, en L, en U, large, service, colimaçon, rampe)",
+		"hint_en": "Drag from the bottom to the top of the stairs (goes up one floor); V: type (straight, landing, L, U, wide, service, spiral, ramp)"})
 	# Barrière invisible (« clip » de BO1) : bloque joueurs et zombies, les
 	# balles et les grenades passent ; invisible en jeu (CollisionBox).
 	_add({"id": "bloc_invisible", "cat": "construction", "fr": "Barrière invisible", "en": "Invisible barrier", "tool": "rect",
@@ -431,6 +514,14 @@ static func variant_name(type: String, v: String) -> String:
 	return v
 
 
+## Noms [FR, EN] d'une variante (messages des règles de pose, dans les deux langues).
+static func variant_names(type: String, v: String) -> Array:
+	for e in VARIANTS.get(type, []):
+		if String(e[0]) == v:
+			return [String(e[1]), String(e[2])]
+	return [v, v]
+
+
 ## Emprise en cases : [le long du mur, profondeur] (objets muraux) ou [côté, côté].
 static func footprint(o: Dictionary) -> Vector2i:
 	var it := item_for(o)
@@ -573,7 +664,10 @@ static func allowed_kinds() -> Dictionary:
 	add.call("ouvertures.json", "fenetre", {"position": point, "largeur": {"t": "number", "min": 1.0, "max": 1.0}}, ["position"])
 	for t in ["pilier", "piege"]:
 		add.call("objets.json", t, {"rect": {"t": "rect"}, "rot": rot}, ["rect"])
-	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs, "rot": rot}, ["rect"])
+	# Format 6 : type (variante), sens du virage, marches, garde-corps, côtés.
+	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs, "rot": rot,
+		"sens": {"t": "enum", "values": STAIR_TURNS}, "marches": {"t": "int", "min": STAIR_STEPS[0], "max": STAIR_STEPS[1]},
+		"garde_corps": {"t": "bool"}, "cotes": {"t": "enum", "values": STAIR_SIDES}}, ["rect"])
 	# Format 5 : barrière invisible (rectangle, rotation, hauteur facultative).
 	add.call("objets.json", "bloc_invisible", {"rect": {"t": "rect"}, "rot": rot,
 		"hauteur": {"t": "number", "min": CLIP_HEIGHT[0], "max": CLIP_HEIGHT[1]}}, ["rect"])

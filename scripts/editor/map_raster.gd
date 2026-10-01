@@ -188,6 +188,52 @@ static func rect_inner_cells(o: Dictionary) -> Array:
 	return MapGeom.poly_cells(rect_poly(o))
 
 
+## Repère d'un escalier posé (m, plan de l'éditeur) : centre, taille,
+## rotation, direction de montée (`monte` tourné), longueur le long de la
+## montée et largeur en travers (rectangle avant rotation).
+static func stair_frame(o: Dictionary) -> Dictionary:
+	var r := MapGeom.rect_of(o.get("rect", [0, 0, 0, 0]))
+	var rot := MapGeom.rot_of(o)
+	var m := String(o.get("monte", "n"))
+	var along_x := m == "e" or m == "o"
+	return {"center": r.get_center(), "size": r.size, "rot": rot, "up": MapGeom.dir_vec(m).rotated(deg_to_rad(rot)),
+		"length": r.size.x if along_x else r.size.y, "width": r.size.y if along_x else r.size.x}
+
+
+## Plan StairGen d'un escalier posé, dans le plan de l'éditeur (x, z = x, y
+## en mètres ; y0 / y1 : sols du bas et du haut). Son emprise : le rectangle
+## tracé en retrait de 0,25 m (le tracé est « sur le trait », comme un mur :
+## les marches occupent ses cases intérieures, MapGeom.rect_cells_inside).
+static func stair_plan(o: Dictionary, y0: float, y1: float) -> Dictionary:
+	return StairGen.plan(stair_spec(o, y0, y1))
+
+
+## Entrée StairGen (sans décalage du monde) d'un escalier posé : voir stair_plan.
+static func stair_spec(o: Dictionary, y0: float, y1: float) -> Dictionary:
+	var fr := stair_frame(o)
+	var opts := MapCatalog.stair_layout_opts(o)
+	var kind := String(opts.get("kind", StairGen.DEFAULT_KIND))
+	opts.erase("kind")
+	var inset := MapGeom.WALL_HALF * 2.0
+	return StairGen.spec(fr.center, fr.up, maxf(float(fr.length) - inset, 0.5), maxf(float(fr.width) - inset, 0.5), y0, y1, kind, opts)
+
+
+## Cases d'un escalier (marches et paliers) : tout le rectangle, sauf l'escalier
+## en L (ses deux volées et le palier d'angle ; le coin libre reste du sol).
+static func stair_cells(o: Dictionary) -> Array:
+	if MapCatalog.stair_kind(o) != "quart":
+		return rect_inner_cells(o)
+	var pl := stair_plan(o, 0.0, 3.5)
+	var seen := {}
+	var out := []
+	for poly: PackedVector2Array in pl.polys:
+		for c in MapGeom.poly_cells(poly, false):
+			if not seen.has(c):
+				seen[c] = true
+				out.append(c)
+	return out
+
+
 ## Cases d'une barrière invisible : celles dont le centre est dans le
 ## rectangle (tourné) pris demi-ouvert dans son repère ([x0, x1[ × [y0, y1[) :
 ## autant de cases que de surface, même pour une barrière de 0,5 m posée sur
@@ -339,7 +385,7 @@ func _floor(k: int) -> void:
 	if k > 0:
 		for o in doc.objects_on(k - 1):
 			if String(o.type) == "escalier":
-				for c in rect_inner_cells(o):
+				for c in stair_cells(o):
 					f.put(c, K.TREMIE, "tremie")
 					f.ceil[c.y * f.w + c.x] = ceil_up
 	# (d) Ouvertures.
@@ -401,15 +447,23 @@ func _floor(k: int) -> void:
 	for o in doc.objects_on(k):
 		if String(o.type) == "escalier":
 			var key := "escalier#" + String(o.id)
-			var cells := rect_inner_cells(o)
+			var cells := stair_cells(o)
 			for c in cells:
 				f.put(c, K.ESCALIER, key, f.zone_of(c))
 			v.eid_of[key] = String(o.id)
 			cells_of[String(o.id)] = [k, cells]
-			if not rect_on_grid(o):
+			# Type et réglages (format 6) : validateur (pente, largeur) et export.
+			v.stair_opts[key] = MapCatalog.stair_layout_opts(o)
+			var shaped := StairGen.is_shaped(MapCatalog.stair_kind(o))
+			if shaped or not rect_on_grid(o):
+				# Tourné, hors de la grille, ou en L / U / colimaçon (sortie ailleurs
+				# qu'en face du pied) : vraie géométrie, sens de montée donné.
 				var r := MapGeom.rect_of(o.rect)
 				v.diag_stairs[key] = {"center": r.get_center(), "size": r.size, "rot": MapGeom.rot_of(o), "cells": cells, "floor": k,
 					"up": MapGeom.dir_vec(String(o.get("monte", "n"))).rotated(deg_to_rad(MapGeom.rot_of(o))), "eid": String(o.id)}
+				if shaped:
+					v.diag_stairs[key]["shaped"] = true
+					v.diag_stairs[key]["obj"] = o.duplicate(true)
 	# (g) Objets muraux et au sol.
 	for o in doc.objects_on(k):
 		var t := String(o.type)
