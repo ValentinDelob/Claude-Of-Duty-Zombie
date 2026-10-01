@@ -916,6 +916,36 @@ for x in (-BAIE_W / 2 - 3, BAIE_W / 2):
     blocks.append({"room": "projection", "box": gbox(x, -101, BAIE_Z[0], x + 3, -79, BAIE_Z[1]),
                    "mat": "dark_wood", "nocollide": True})
 
+# Haut des escaliers qui arrivent contre un mur : l'ouverture (porte ou passage)
+# descend sous le palier (z - 20 pour les portes) et l'escalier s'arrête avant le
+# mur ; il restait une fente de 0,1 à 0,25 m creusée jusqu'à 0,5 m sous le palier,
+# plus étroite que la capsule d'un zombie : son rayon de sol l'y faisait
+# retomber à chaque pas, coincé contre le bord du palier. Pavé plein (couche du
+# décor, invisible, au ras du haut des marches) de la fin des marches à l'autre
+# face du mur.
+for st in STAIRS:
+    (ax, ay, _az), (bx, by, bz) = st["a"], st["b"]
+    along_y = abs(by - ay) > abs(bx - ax)
+    rise = (by - ay) if along_y else (bx - ax)
+    sgn = 1 if rise > 0 else -1
+    top, mid = (by, bx) if along_y else (bx, by)
+    near = [w for w in wall_list
+            if w.get("_ori") == ("h" if along_y else "v") and 0 <= (w["_line"] - top) * sgn < 30
+            and w["_s"][0] < mid < w["_s"][1] and w["y0"] < (bz + 1) * K and w["y1"] > (bz - 30) * K]
+    # Fente : dessus du mur ou bas d'une ouverture sous le palier.
+    lo, hi = (bz - 30) * K, bz * K - 0.05
+    lines = [w["_line"] for w in near
+             if lo <= w["y1"] < hi or any(lo <= o["y0"] < hi for o in w["openings"])]
+    if not lines:
+        continue
+    end = min(lines, key=lambda ln: abs(ln - top)) + sgn * (WALL_T / 2 + 4)
+    u0, u1 = sorted((top, end))
+    v0, v1 = mid - st["w"] / 2, mid + st["w"] / 2
+    if along_y:
+        invisible(v0, u0, v1, u1, bz - 30, bz, barrier=False, surface="wood" if st["mat"] == "wood" else "concrete")
+    else:
+        invisible(u0, v0, u1, v1, bz - 30, bz, barrier=False, surface="wood" if st["mat"] == "wood" else "concrete")
+
 for w in wall_list:
     for k in ("_ori", "_line", "_s"):
         w.pop(k, None)

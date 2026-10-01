@@ -14511,6 +14511,141 @@
    "yaw": 0.0,
    "barrier": true,
    "surface": "wood"
+  },
+  {
+   "center": [
+    87.319,
+    7.747,
+    88.764
+   ],
+   "size": [
+    0.356,
+    0.762,
+    2.794
+   ],
+   "yaw": 0.0,
+   "barrier": false,
+   "surface": "concrete"
+  },
+  {
+   "center": [
+    40.736,
+    1.651,
+    81.754
+   ],
+   "size": [
+    0.559,
+    0.762,
+    2.032
+   ],
+   "yaw": 0.0,
+   "barrier": false,
+   "surface": "concrete"
+  },
+  {
+   "center": [
+    31.693,
+    4.064,
+    40.123
+   ],
+   "size": [
+    2.54,
+    0.762,
+    0.356
+   ],
+   "yaw": 0.0,
+   "barrier": false,
+   "surface": "wood"
+  },
+  {
+   "center": [
+    47.187,
+    3.886,
+    35.678
+   ],
+   "size": [
+    0.356,
+    0.762,
+    1.905
+   ],
+   "yaw": 0.0,
+   "barrier": false,
+   "surface": "wood"
+  },
+  {
+   "center": [
+    110.814,
+    7.747,
+    80.217
+   ],
+   "size": [
+    2.794,
+    0.762,
+    0.432
+   ],
+   "yaw": 0.0,
+   "barrier": false,
+   "surface": "wood"
+  },
+  {
+   "center": [
+    100.057,
+    3.81,
+    62.348
+   ],
+   "size": [
+    0.432,
+    0.762,
+    2.54
+   ],
+   "yaw": 0.0,
+   "barrier": false,
+   "surface": "wood"
+  },
+  {
+   "center": [
+    116.91,
+    3.81,
+    69.549
+   ],
+   "size": [
+    2.54,
+    0.762,
+    0.432
+   ],
+   "yaw": 0.0,
+   "barrier": false,
+   "surface": "wood"
+  },
+  {
+   "center": [
+    66.618,
+    -0.381,
+    48.505
+   ],
+   "size": [
+    5.08,
+    0.762,
+    0.356
+   ],
+   "yaw": 0.0,
+   "barrier": false,
+   "surface": "concrete"
+  },
+  {
+   "center": [
+    85.16,
+    -0.381,
+    48.505
+   ],
+   "size": [
+    5.08,
+    0.762,
+    0.356
+   ],
+   "yaw": 0.0,
+   "barrier": false,
+   "surface": "concrete"
   }
  ],
  "prop_materials": {
