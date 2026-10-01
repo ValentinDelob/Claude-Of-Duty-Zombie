@@ -189,8 +189,8 @@ func show_info() -> void:
 	var ips := Net.local_ipv4_addresses()
 	ed.set_status(Lang.t("Session ouverte : code %s, port %d", "Session open: code %s, port %d") % [c.session_code, c.port])
 	ed._info(Lang.t("Session ouverte", "Session open"), Lang.t(
-		"Code de session : %s\nAdresse de cet ordinateur : %s\nPort : %d\n\nLes autres : Collaboration > Rejoindre…, avec cette adresse, ce port et ce code.\nPar Internet : redirigez le port %d (TCP) vers cet ordinateur sur votre box.",
-		"Session code: %s\nThis computer's address: %s\nPort: %d\n\nThe others: Collaboration > Join…, with this address, port and code.\nOver the Internet: forward port %d (TCP) to this computer on your router.") % [
+		"Code de session : %s\nAdresse de cet ordinateur : %s\nPort : %d\n\nLes autres : Collaboration > Rejoindre…, avec cette adresse, ce port et ce code.\n▶ TESTER : tout le monde joue la carte ensemble, puis revient ici.\nPar Internet : redirigez le port %d (TCP et UDP) vers cet ordinateur sur votre box.",
+		"Session code: %s\nThis computer's address: %s\nPort: %d\n\nThe others: Collaboration > Join…, with this address, port and code.\n▶ PLAY TEST: everyone plays the map together, then comes back here.\nOver the Internet: forward port %d (TCP and UDP) to this computer on your router.") % [
 		c.session_code, ", ".join(ips) if not ips.is_empty() else "127.0.0.1", c.port, c.port])
 
 

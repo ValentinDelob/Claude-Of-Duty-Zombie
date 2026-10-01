@@ -118,8 +118,10 @@ Transport : TCP, une ligne JSON UTF-8 par message (`\n`), messages ≤ 2 Mo
 ### 5.1 Entre éditeurs (port 7790 par défaut)
 
 Invité → hôte :
-- `{t:"hello", proto:1, name, code, app_version}` (code de session : 6
-  caractères affichés chez l'hôte ; refus après 5 essais faux par IP).
+- `{t:"hello", proto:2, name, code, app_version}` (code de session : 6
+  caractères affichés chez l'hôte ; refus après 5 essais faux par IP ;
+  `proto` 2 depuis le TESTER à plusieurs, § 5.3 : un éditeur plus ancien est
+  refusé à l'arrivée).
 - `{t:"change", cid, label, ops, author?}` (`author` seulement pour son agent :
   `"<moi>:claude"`).
 - `{t:"presence", cursor:[x,y], floor, selection, tool, live?}`.
@@ -134,6 +136,42 @@ Hôte → invité :
 
 Limites : 8 participants humains, ≤ 30 changements/s et ≤ 20 présences/s par
 pair (au-delà ignorés), délai de poignée de main 5 s.
+
+### 5.3 TESTER à plusieurs (`CollabPlaytest`)
+
+L'hôte de la session appuie sur TESTER : tous les participants jouent la carte
+ensemble, puis reviennent dans l'éditeur, **dans la même session** (la
+connexion entre éditeurs n'est jamais coupée).
+
+1. Hôte : vérifie et enregistre la carte (comme en solo), ouvre une partie
+   réseau du jeu (`Net.host`) sur le **même numéro de port, en UDP** que la
+   session (7790 par défaut ; s'il est pris, les 9 suivants), annonce la
+   carte (`Net.set_lobby_map` : paquet `MapShare` envoyé et vérifié chez
+   chacun, comme une carte perso du salon) puis envoie
+   `{t:"playtest", port}` à tous.
+2. Invité : rejoint la partie sur l'adresse IP de la connexion à l'hôte et ce
+   port (`Net.join`). En cas d'échec (partie injoignable, déjà en partie,
+   adresse non IPv4, carte refusée) : `{t:"playtest_status", ok:false,
+   reason_fr, reason_en}` à l'hôte, et il reste dans l'éditeur avec le motif.
+   Un port hors 1024-65535 est un message invalide (session quittée).
+3. Hôte : lance la partie (`Net.start_match`) dès que tous les invités encore
+   là l'ont rejointe avec la carte ; après 30 s, les retardataires sont coupés
+   de la partie (pas de la session) et la partie démarre sans eux ; s'il ne
+   reste personne, il joue seul. Abandon avant le lancement (carte refusée,
+   session fermée, éditeur quitté) : `{t:"playtest_cancel"}`.
+4. Pendant la partie : au passage en chargement, le nœud `MapCollab` quitte
+   la scène de l'éditeur pour le nœud `CollabPlaytest` (sous la racine) avec
+   `keep_alive` (pas de `leave()` en sortant de l'arbre) ; la session continue
+   de tourner (changements, présences, empreintes).
+5. Retour (fin de partie, ou départ d'un joueur : `Router.return_scene`) :
+   l'éditeur reprend ce même nœud (`CollabPlaytest.take`) avec la carte,
+   l'historique, le dossier, la sélection et la vue d'avant le test. Si l'hôte
+   quitte en pleine partie, les invités reviennent aussi dans l'éditeur
+   (« Test terminé : l'hôte a quitté la partie »).
+
+Par Internet, l'hôte redirige donc le port de la session en TCP **et** en UDP.
+Test : `sh tools/mp_test.sh editorplay` (deux jeux, deux éditeurs, deux tests
+de suite) ; `tests/test_map_collab.gd` (messages, `keep_alive`, reprise).
 
 ### 5.2 Agent ↔ éditeur local (127.0.0.1, port 7791 ; si pris : 7792…7799)
 
@@ -289,9 +327,9 @@ restent les siennes.
 - Un changement reçu pendant un glissement est aussi appliqué à la copie du
   glissement (`MapCanvas.drag.snap`), pour ne pas l'effacer au relâchement.
 - Invité : Fichier > « Enregistrer une copie… » (nouveau dossier dans les
-  cartes du joueur) ; pas de sauvegarde automatique ; TESTER refusé (copie,
-  puis quitter la session). Hôte : TESTER change de scène et ferme la
-  session (les invités repassent seuls avec la carte).
+  cartes du joueur) ; pas de sauvegarde automatique ; TESTER réservé à
+  l'hôte (l'invité rejoint sa partie tout seul). Hôte : TESTER lance la
+  partie avec tous les participants et garde la session ouverte (§ 5.3).
 
 ### Rendu (§ 6)
 

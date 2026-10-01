@@ -129,6 +129,11 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
   des cartes reçues (`MapOps.check_elements`, `CustomMapGuard`) ; JSON
   seulement (`JSON.parse`), jamais de chemin ni de nom de fichier venu du
   réseau (« Enregistrer une copie » choisit son dossier lui-même).
+- TESTER à plusieurs (MAP_COLLAB.md § 5.3) : l'invité ne rejoint une partie
+  que sur l'adresse IP de sa connexion à l'hôte (jamais une adresse reçue) et
+  un port 1024-65535 ; la carte passe par `MapShare` et `CustomMapGuard`
+  comme dans le salon ; motifs de refus reçus bornés (160 caractères, sans
+  caractère de contrôle ni de direction du texte).
 
 ### Fils de travail
 

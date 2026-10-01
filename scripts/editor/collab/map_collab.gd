@@ -33,10 +33,19 @@ signal message(text: String, error: bool)
 signal session_changed
 ## L'hôte a enregistré la carte.
 signal saved(by: String)
+## TESTER à plusieurs (CollabPlaytest, docs/MAP_COLLAB.md § 5.3) : message de
+## test reçu, déjà contrôlé. Invité : {t: "playtest", port} (l'hôte lance une
+## partie de test, à rejoindre sur son adresse et ce port UDP) ou {t:
+## "playtest_cancel"} ; hôte : {t: "playtest_status", peer, ok, reason_fr,
+## reason_en} (un invité n'a pas pu rejoindre).
+signal playtest_message(m: Dictionary)
 
 enum Role { SOLO, HOST, GUEST }
 
-const PROTO := 1
+## 2 : messages du TESTER à plusieurs (§ 5.3) ; un éditeur de la v1 est
+## refusé à l'arrivée (« version de l'éditeur différente ») au lieu de quitter
+## la session au premier test.
+const PROTO := 2
 const DEFAULT_PORT := 7790
 const MAX_LINE := MapOps.MAX_BYTES
 const MAX_HUMANS := 8
@@ -84,6 +93,10 @@ var _presence_dirty := false
 var _presence_t := 0.0
 var _joining := false
 var _join_code := ""
+## Session gardée quand le nœud change de parent (partie de TESTER à
+## plusieurs : CollabPlaytest la tient pendant la partie) ; sinon, sortir de
+## l'arbre quitte la session.
+var keep_alive := false
 
 
 class Conn:
@@ -107,7 +120,8 @@ func _init(map: EditorMap = null) -> void:
 
 
 func _exit_tree() -> void:
-	leave()
+	if not keep_alive:
+		leave()
 
 
 # ------------------------------------------------------------------ état
@@ -330,6 +344,36 @@ func notify_saved() -> void:
 		_broadcast({"t": "saved", "by": my_name, "time": int(Time.get_unix_time_from_system())})
 
 
+## Invités humains de la session (ids), sans soi-même ni les Claude.
+func human_guests() -> Array:
+	return peers.keys().filter(func(id): return id != my_id and String(peers[id].kind) == "human")
+
+
+## Invité : adresse IP de l'hôte (celle de la connexion) ; "" hors session.
+func host_address() -> String:
+	if role != Role.GUEST or _conns.is_empty():
+		return ""
+	var c: Conn = _conns[0]
+	var a := c.tcp.get_connected_host() if c.tcp.get_status() == StreamPeerTCP.STATUS_CONNECTED else ""
+	return a if a != "" else c.ip
+
+
+## Hôte : la partie de TESTER est ouverte sur `game_port` (UDP) : les invités
+## la rejoignent (§ 5.3).
+func send_playtest(game_port: int) -> void:
+	_broadcast({"t": "playtest", "port": game_port})
+
+
+## Hôte : test abandonné avant le lancement (les invités quittent la partie).
+func send_playtest_cancel() -> void:
+	_broadcast({"t": "playtest_cancel"})
+
+
+## Invité : n'a pas pu rejoindre la partie de test (motif en deux langues).
+func send_playtest_status(ok: bool, fr := "", en := "") -> void:
+	_send_host({"t": "playtest_status", "ok": ok, "reason_fr": fr.left(160), "reason_en": en.left(160)})
+
+
 # ------------------------------------------------------------------ hôte
 
 ## Ouvre la session sur `p` (toutes les interfaces) : code de session tiré au
@@ -474,6 +518,12 @@ func _host_handle(c: Conn, m: Dictionary) -> void:
 			_broadcast(out, c)
 		"resync":
 			c.need_map = true
+		"playtest_status":
+			if not m.get("ok") is bool:
+				_kick(c)
+				return
+			playtest_message.emit({"t": "playtest_status", "peer": c.id, "ok": m.ok,
+				"reason_fr": _reason_text(m, "reason_fr"), "reason_en": _reason_text(m, "reason_en")})
 		"ping":
 			pass
 		"bye":
@@ -686,6 +736,14 @@ func _guest_handle(m: Dictionary) -> void:
 				map_replaced.emit()
 		"saved":
 			saved.emit(clean_name(String(m.get("by", ""))))
+		"playtest":
+			var gp: Variant = m.get("port")
+			if not ((gp is float or gp is int) and float(gp) == floorf(float(gp)) and Net.is_valid_port(int(gp))):
+				_lost(Lang.t("Message invalide de l'hôte : session quittée", "Invalid message from the host: session left"))
+				return
+			playtest_message.emit({"t": "playtest", "port": int(gp)})
+		"playtest_cancel":
+			playtest_message.emit({"t": "playtest_cancel"})
 		"bye":
 			_lost(Lang.t("Session terminée par l'hôte (%s)", "Session ended by the host (%s)") % _reason(m))
 		"ping", "pong":
@@ -777,6 +835,20 @@ func _lost(text: String) -> void:
 
 static func _reason(m: Dictionary) -> String:
 	return clean_name(Lang.t(String(m.get("reason_fr", "")), String(m.get("reason_en", ""))).left(80))
+
+
+## Motif reçu (`key`), borné : texte d'une ligne, 160 caractères au plus.
+static func _reason_text(m: Dictionary, key: String) -> String:
+	var v: Variant = m.get(key, "")
+	if not v is String:
+		return ""
+	var s: String = v
+	var out := ""
+	for i in mini(s.length(), 160):
+		var c := s.unicode_at(i)
+		if c >= 0x20 and c != 0x7F and not (c >= 0x200B and c <= 0x200F) and not (c >= 0x202A and c <= 0x202E) and not (c >= 0x2066 and c <= 0x2069):
+			out += s[i]
+	return out.strip_edges()
 
 
 # ------------------------------------------------------------------ commun

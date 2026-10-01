@@ -206,6 +206,10 @@ func _reset_between() -> void:
 	CustomMapGuard.source_override = {}
 	MapEditor.reopen_dir = ""
 	MapEditor.reopen_example = false
+	# TESTER à plusieurs resté en cours (session d'édition tenue hors scène).
+	if CollabPlaytest.current != null:
+		CollabPlaytest.current.queue_free()
+		CollabPlaytest.current = null
 	get_tree().change_scene_to_file(Router.MENU_SCENE)
 	var t := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - t < 15000:

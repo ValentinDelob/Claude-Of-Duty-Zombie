@@ -31,6 +31,9 @@ var dirty := false
 ## Session d'édition (docs/MAP_COLLAB.md) : seul, hôte ou invité ; tient
 ## l'historique (MapHistory, annuler / rétablir par auteur).
 var collab: MapCollab
+## Retour d'un TESTER à plusieurs (CollabPlaytest.take) : état de l'éditeur à
+## retrouver ({state, message, error}), traité par _start ; vide sinon.
+var _playtest_back: Dictionary = {}
 ## Liaison avec Claude (serveur MCP local, MapAgentLink) ; null si refusée.
 var agent_link: MapAgentLink
 ## Menu Collaboration et participants (CollabPanel).
@@ -145,6 +148,10 @@ func _cli_check(path: String) -> void:
 
 
 func _start() -> void:
+	if not _playtest_back.is_empty():
+		_resume_playtest(_playtest_back)
+		_playtest_back = {}
+		return
 	if reopen_dir != "":
 		var d := reopen_dir
 		var ex := reopen_example
@@ -975,11 +982,25 @@ func undo_entry(cid: String) -> Dictionary:
 # ------------------------------------------------------------------ collaboration
 
 func _setup_collab() -> void:
-	collab = MapCollab.new(doc)
-	collab.name = "Collab"
-	collab.my_name = CollabPanel.default_name()
-	collab._reset_peers()
-	add_child(collab)
+	# Retour d'un TESTER à plusieurs : la session d'édition, gardée pendant la
+	# partie (CollabPlaytest), est reprise telle quelle (carte, historique).
+	var pt := CollabPlaytest.take(self)
+	if pt != null:
+		collab = pt.collab
+		doc = collab.doc
+		var msg := pt.return_message()
+		# Session perdue pendant la partie : son message l'emporte sur celui
+		# de fin de partie.
+		if msg == "" and pt.last_error:
+			msg = pt.last_message
+		_playtest_back = {"state": pt.editor_state, "message": msg, "error": msg != "" and pt.last_error}
+	else:
+		collab = MapCollab.new(doc)
+		collab.name = "Collab"
+		collab.my_name = CollabPanel.default_name()
+		collab._reset_peers()
+		add_child(collab)
+	collab.playtest_message.connect(_on_playtest_message)
 	collab.applied.connect(_on_collab_applied)
 	collab.map_replaced.connect(_on_map_replaced)
 	collab.message.connect(func(t, err): set_status(t, err))
@@ -1686,9 +1707,18 @@ func focus_problem(m: Dictionary) -> void:
 
 func _reset(d: EditorMap) -> void:
 	doc = d
+	collab.reset_doc(d)
+	_doc_shown()
+	dirty = false
+	_update_title()
+	canvas.frame_all.call_deferred()
+
+
+## Nouvelle carte affichée (ouverte, ou reprise au retour d'un test) :
+## sélection, vérification, panneaux remis à zéro.
+func _doc_shown() -> void:
 	_hit_dirty = true
 	_before = {}
-	collab.reset_doc(d)
 	if collab_view != null:
 		collab_view.clear()
 		panels.history.mark_dirty()
@@ -1703,11 +1733,58 @@ func _reset(d: EditorMap) -> void:
 	object_list.mark_dirty()
 	_raster_dirty = true
 	validation_stale = true
-	dirty = false
 	_update_invalid()
 	panels.refresh()
+
+
+## État de l'éditeur gardé pendant un TESTER à plusieurs (CollabPlaytest),
+## retrouvé au retour par _resume_playtest.
+func playtest_state() -> Dictionary:
+	return {"map_dir": map_dir, "example": example, "dirty": dirty, "floor_k": floor_k, "selected": selected,
+		"zoom": canvas.zoom, "origin": canvas.origin}
+
+
+## Retour d'un TESTER à plusieurs : la session (carte, historique, autres
+## participants) n'a pas bougé ; la vue, l'étage et la sélection reviennent.
+func _resume_playtest(back: Dictionary) -> void:
+	var st: Dictionary = back.state
+	_doc_shown()
+	map_dir = String(st.get("map_dir", ""))
+	example = bool(st.get("example", false))
+	dirty = bool(st.get("dirty", false))
+	if collab.role == MapCollab.Role.GUEST:
+		map_dir = ""
+		example = false
+	floor_k = clampi(int(st.get("floor_k", 0)), 0, doc.floor_count() - 1)
+	var sel := String(st.get("selected", ""))
+	if sel != "" and not doc.find(sel).is_empty():
+		selected = sel
 	_update_title()
-	canvas.frame_all.call_deferred()
+	if st.has("zoom"):
+		canvas.zoom = float(st.zoom)
+		canvas.origin = st.origin
+	_refresh()
+	canvas.queue_redraw()
+	var text := String(back.get("message", ""))
+	var err := bool(back.get("error", false))
+	if Router.pending_message != "":
+		# Fin de la partie (« Partie terminée — ... ») ; sauf si l'hôte est
+		# parti en pleine partie ou la session perdue (message plus précis).
+		if text == "":
+			text = Router.pending_message
+			err = false
+		Router.pending_message = ""
+	if text == "":
+		text = Lang.t("Retour du test : session toujours ouverte (%d participant(s))", "Back from the play test: session still open (%d participant(s))") % collab.peers.size() \
+			if collab.is_session() else Lang.t("Retour du test", "Back from the play test")
+	set_status(text, err)
+
+
+## Message de TESTER à plusieurs reçu par la session : l'hôte invite à sa
+## partie de test (les autres messages vont à CollabPlaytest).
+func _on_playtest_message(m: Dictionary) -> void:
+	if String(m.get("t", "")) == "playtest" and collab.role == MapCollab.Role.GUEST and CollabPlaytest.current == null:
+		CollabPlaytest.guest_join(self, int(m.port))
 
 
 func new_map(force := false) -> void:
@@ -2060,12 +2137,17 @@ func quit_to_menu() -> void:
 	get_tree().change_scene_to_file(Router.MENU_SCENE)
 
 
-## TESTER : vérifie, enregistre, puis lance une partie solo sur la carte ; la
-## fin de partie ramène dans l'éditeur, sur la même carte.
+## TESTER : vérifie, enregistre, puis lance une partie sur la carte : solo,
+## ou avec tous les participants de la session (hôte, CollabPlaytest) ; la
+## fin de partie ramène dans l'éditeur, sur la même carte (et dans la même
+## session).
 func test_map() -> bool:
 	if collab.role == MapCollab.Role.GUEST:
-		_info(Lang.t("Tester", "Play test"), Lang.t("Invité d'une session : enregistrez une copie (Fichier), quittez la session, puis ouvrez la copie pour la tester.",
-			"Guest of a session: save a copy (File), leave the session, then open the copy to test it."))
+		_info(Lang.t("Tester", "Play test"), Lang.t("Seul l'hôte de la session lance le test : vous rejoindrez sa partie automatiquement.\nPour tester seul : enregistrez une copie (Fichier), quittez la session, puis ouvrez la copie.",
+			"Only the session host starts the play test: you will join their game automatically.\nTo test alone: save a copy (File), leave the session, then open the copy."))
+		return false
+	if CollabPlaytest.current != null:
+		set_status(Lang.t("Test déjà en préparation", "Play test already being prepared"), true)
 		return false
 	validate()
 	panels.show_tab("check")
@@ -2082,6 +2164,10 @@ func test_map() -> bool:
 		_info(Lang.t("Tester", "Play test"), Lang.t("La carte est refusée par le contrôle du jeu :\n%s", "The map is refused by the game's check:\n%s")
 			% CustomMapGuard.reasons_text(guard.reasons))
 		return false
+	# Session ouverte (même sans invité pour l'instant) : elle reste ouverte
+	# pendant le test, et ceux qui sont là jouent avec l'hôte.
+	if collab.role == MapCollab.Role.HOST:
+		return CollabPlaytest.host_start(self, map_dir)
 	reopen_dir = map_dir
 	reopen_example = false
 	Router.return_scene = SCENE

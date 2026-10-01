@@ -141,7 +141,7 @@ func test_invalid_message_disconnects() -> void:
 	var tcp := StreamPeerTCP.new()
 	tcp.connect_to_host("127.0.0.1", _port(4))
 	assert_true(await _until(func(): tcp.poll(); return tcp.get_status() == StreamPeerTCP.STATUS_CONNECTED), "connecté")
-	tcp.put_data((JSON.stringify({"t": "hello", "proto": 1, "name": "Mallory", "code": h.session_code}) + "\n").to_utf8_buffer())
+	tcp.put_data((JSON.stringify({"t": "hello", "proto": MapCollab.PROTO, "name": "Mallory", "code": h.session_code}) + "\n").to_utf8_buffer())
 	assert_true(await _until(func(): return h.peers.size() == 2), "accueilli")
 	# Changement avec un objet Godot sérialisé en texte et un id vide : invalide.
 	tcp.put_data((JSON.stringify({"t": "change", "cid": "x", "ops": [{"op": "put", "coll": "objets", "el": {"id": ""}}]}) + "\n").to_utf8_buffer())
@@ -151,7 +151,7 @@ func test_invalid_message_disconnects() -> void:
 	var t2 := StreamPeerTCP.new()
 	t2.connect_to_host("127.0.0.1", _port(4))
 	assert_true(await _until(func(): t2.poll(); return t2.get_status() == StreamPeerTCP.STATUS_CONNECTED))
-	t2.put_data((JSON.stringify({"t": "hello", "proto": 1, "name": "M2", "code": h.session_code}) + "\n{pas du json\n").to_utf8_buffer())
+	t2.put_data((JSON.stringify({"t": "hello", "proto": MapCollab.PROTO, "name": "M2", "code": h.session_code}) + "\n{pas du json\n").to_utf8_buffer())
 	assert_true(await _until(func(): t2.poll(); return h._conns.is_empty() and h.peers.size() == 1), "JSON illisible : déconnecté")
 	tcp.disconnect_from_host()
 	t2.disconnect_from_host()
@@ -201,5 +201,94 @@ func test_editor_shares_its_changes() -> void:
 	assert_true(await _until(func(): return _settled(ed.collab, g)))
 	assert_eq(MapOps.hash_of(g.doc), MapOps.hash_of(ed.doc), "cartes identiques")
 	await _end([g])
+	ed.queue_free()
+	await wait_frames(1)
+
+
+## TESTER à plusieurs (§ 5.3) : invitation de l'hôte (port contrôlé), refus
+## d'un invité (motif nettoyé), annulation ; port invalide = session quittée.
+func test_playtest_messages() -> void:
+	var p := await _pair(7)
+	var h: MapCollab = p[0]
+	var g: MapCollab = p[1]
+	var got_g := []
+	var got_h := []
+	g.playtest_message.connect(func(m): got_g.append(m))
+	h.playtest_message.connect(func(m): got_h.append(m))
+	assert_eq(g.host_address(), "127.0.0.1", "adresse de l'hôte connue de l'invité")
+	assert_eq(h.human_guests(), ["2"], "un invité humain chez l'hôte")
+	h.send_playtest(17800)
+	assert_true(await _until(func(): return got_g.size() == 1), "invitation reçue")
+	assert_eq(got_g[0], {"t": "playtest", "port": 17800})
+	g.send_playtest_status(false, "déjà" + char(0x202E) + " dans une partie", "already in a game\n")
+	assert_true(await _until(func(): return got_h.size() == 1), "refus de l'invité reçu")
+	assert_eq(got_h[0].peer, "2")
+	assert_false(got_h[0].ok)
+	assert_eq(got_h[0].reason_fr, "déjà dans une partie", "motif sans caractère de contrôle")
+	assert_eq(got_h[0].reason_en, "already in a game")
+	h.send_playtest_cancel()
+	assert_true(await _until(func(): return got_g.size() == 2), "annulation reçue")
+	assert_eq(got_g[1].t, "playtest_cancel")
+	assert_eq(g.role, MapCollab.Role.GUEST, "toujours dans la session")
+	# Port hors 1024-65535 : message invalide, l'invité quitte la session.
+	h._broadcast({"t": "playtest", "port": 80})
+	assert_true(await _until(func(): return g.role == MapCollab.Role.SOLO), "port invalide : session quittée")
+	assert_eq(got_g.size(), 2, "rien transmis à l'éditeur")
+	await _end(p)
+
+
+## Une session qui change de parent avec keep_alive (partie de TESTER) reste
+## ouverte ; sans, sortir de l'arbre la quitte.
+func test_keep_alive_survives_reparent() -> void:
+	var p := await _pair(8)
+	var h: MapCollab = p[0]
+	var g: MapCollab = p[1]
+	var holder := Node.new()
+	host.add_child(holder)
+	g.keep_alive = true
+	g.reparent(holder, false)
+	g.keep_alive = false
+	await wait_frames(2)
+	assert_eq(g.role, MapCollab.Role.GUEST, "invité toujours dans la session")
+	h.submit_ops(_put("k1", 3.0), "caisse")
+	assert_true(await _until(func(): return not g.doc.find("k1").is_empty()), "changement reçu après le changement de parent")
+	host.remove_child(h)
+	assert_eq(h.role, MapCollab.Role.SOLO, "sortie de l'arbre sans keep_alive : session fermée")
+	h.free()
+	assert_true(await _until(func(): return g.role == MapCollab.Role.SOLO), "l'invité est prévenu")
+	await _end([g])
+	holder.queue_free()
+
+
+## Retour d'un TESTER à plusieurs : l'éditeur qui revient reprend la session
+## tenue pendant la partie (même nœud, même carte, même historique), avec
+## son dossier, sa sélection et sa vue.
+func test_editor_takes_the_session_back() -> void:
+	var m := _map()
+	var c := MapCollab.new(m)
+	c.name = "Collab"
+	c.submit_ops(_put("t1", 4.0), "caisse")
+	var pt := CollabPlaytest.new()
+	pt.collab = c
+	pt.phase = CollabPlaytest.Phase.PLAYING
+	pt.editor_state = {"map_dir": "user://maps/essai", "example": false, "dirty": true, "floor_k": 0, "selected": "t1",
+		"zoom": 31.0, "origin": Vector2(12, 34)}
+	host.add_child(pt)
+	pt.add_child(c)
+	CollabPlaytest.current = pt
+	var ed: MapEditor = load(MapEditor.SCENE).instantiate()
+	host.add_child(ed)
+	await wait_frames(3)
+	assert_true(ed.collab == c and c.get_parent() == ed, "session reprise par l'éditeur")
+	assert_true(CollabPlaytest.current == null, "test terminé")
+	assert_true(ed.doc == m and not ed.doc.find("t1").is_empty(), "même carte")
+	assert_eq(c.history.undo_count(c.my_id), 1, "historique gardé")
+	assert_eq(ed.map_dir, "user://maps/essai")
+	assert_true(ed.dirty, "modifications non enregistrées gardées")
+	assert_eq(ed.selected, "t1", "sélection gardée")
+	assert_eq(ed.canvas.zoom, 31.0, "vue gardée")
+	assert_true(ed.status.text.contains("Retour du test") or ed.status.text.contains("Back from the play test"), "barre d'état : %s" % ed.status.text)
+	await wait_frames(1)
+	assert_false(is_instance_valid(pt), "nœud du test libéré")
 	ed.queue_free()
 	await wait_frames(1)
