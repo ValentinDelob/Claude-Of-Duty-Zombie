@@ -86,6 +86,8 @@ func finish_nav(world: Node3D) -> void:
 		var reach := float(m.data.depth) * 0.5 + 1.0
 		mn.add_link(m.block, m.pos - n * reach, m.pos + n * reach)
 	NavigationServer3D.map_force_update(mn.map)
+	# Couloirs d'ancres des escaliers (StairGen) : posés sur le navmesh cuit.
+	mn.set_stairs(data.get("stairs", []))
 
 
 func build(world: Node3D) -> RefCounted:

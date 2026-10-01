@@ -84,7 +84,7 @@ func nearest_walkable(c: Vector2i, max_radius := 4) -> Vector2i:
 
 
 ## Chemin lissé en coordonnées monde (y = 0). Vide si inaccessible.
-func find_path(from: Vector3, to: Vector3) -> PackedVector3Array:
+func find_path(from: Vector3, to: Vector3, _lane_bias := 0.0) -> PackedVector3Array:
 	var a := nearest_walkable(MapData.world_to_cell(from))
 	var b := nearest_walkable(MapData.world_to_cell(to))
 	var out := PackedVector3Array()

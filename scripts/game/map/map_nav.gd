@@ -4,10 +4,30 @@ extends RefCounted
 
 
 ## Chemin de `from` à `to` (points au sol) ; vide si `to` est inaccessible.
-func find_path(_from: Vector3, _to: Vector3) -> PackedVector3Array:
+## `lane_bias` (-1 à 1) : écart latéral de l'agent sur les couloirs d'ancres
+## des escaliers (MeshNav ; ignoré sur une grille, sans escalier).
+func find_path(_from: Vector3, _to: Vector3, _lane_bias := 0.0) -> PackedVector3Array:
 	return PackedVector3Array()
 
 
 ## Ligne de vue dégagée entre deux points au sol (murs, portes fermées, décor).
 func world_line_clear(_from: Vector3, _to: Vector3) -> bool:
 	return false
+
+
+## Escalier de chaque point du dernier chemin rendu par find_path (0 : aucun,
+## k + 1 : couloir d'ancres k). Vide : aucun point sur un escalier.
+func last_lane_marks() -> PackedByteArray:
+	return PackedByteArray()
+
+
+## Le segment à plat de `a` à `b` passe-t-il sur (ou contre) un escalier ? La
+## poursuite en ligne droite est alors interdite : le chemin passe par ses ancres.
+func crosses_stairs(_a: Vector3, _b: Vector3) -> bool:
+	return false
+
+
+## Poussée (x, z) qui ramène un agent sorti de la largeur permise du couloir
+## d'ancres `mark` (last_lane_marks) ; ZERO sinon.
+func lane_push(_mark: int, _pos: Vector3) -> Vector3:
+	return Vector3.ZERO

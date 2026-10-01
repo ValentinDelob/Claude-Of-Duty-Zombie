@@ -60,6 +60,17 @@ var crawl_t := -1.0
 var _path := PackedVector3Array()
 var _path_i := 0
 var _repath_t := 0.0
+## Escalier de chaque point du chemin (MapNav.last_lane_marks : 0 = aucun,
+## k + 1 = couloir d'ancres k). Les points d'un couloir ne sont jamais sautés.
+var _marks := PackedByteArray()
+## Séparation réduite sur un escalier : la horde monte en file sur son couloir.
+const LANE_SEPARATION := 0.35
+## Accélération de virage sur un escalier (m/s², 12 ailleurs).
+const LANE_TURN := 30.0
+## Vitesse au plus (m/s) à l'approche d'un virage serré d'escalier (palier
+## d'un L ou d'un U) : un sprinteur ne part plus vers le bord du palier.
+const LANE_CORNER_SPEED := 3.0
+var _lane_speed := 1.0
 ## Ligne de vue vers la cible, recalculée toutes les LOS_PERIOD secondes.
 const LOS_PERIOD := 0.1
 var _los_t := 0.0
@@ -322,27 +333,33 @@ func _chase(delta: float) -> void:
 		_los_t -= delta
 		if _los_t <= 0.0:
 			_los_t = LOS_PERIOD
-			_los_ok = dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, tpos)
+			# Jamais en ligne droite par-dessus le bord d'un escalier : par ses ancres.
+			_los_ok = dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, tpos) \
+				and not game.nav.crosses_stairs(global_position, tpos)
 		# En ligne droite seulement au même niveau (sinon : escaliers, par le chemin).
+		var sep_k := 0.9
+		_lane_speed = 1.0
 		if _los_ok and dist < DIRECT_RANGE and dy < 0.9:
 			dir = to / dist
 			_path.clear()
+			_marks.clear()
 		else:
 			if _repath_t <= 0.0 or _path_i >= _path.size():
-				_path = game.nav.find_path(global_position, tpos)
-				_path_i = 0
+				_set_path(game.nav.find_path(global_position, tpos, lane_bias()))
 				_repath_t = randf_range(0.35, 0.7)
-			while _path_i < _path.size() and (_waypoint_reached(_path[_path_i]) or _waypoint_passed(_path_i)):
-				_path_i += 1
-			if _path_i < _path.size():
-				var wp := _path[_path_i] - global_position
-				wp.y = 0.0
-				dir = wp.normalized()
+			dir = _follow_path()
+			if _on_lane():
+				sep_k = LANE_SEPARATION
+			if _mark_at(_path_i) > 0:
+				# Vers un escalier ou dessus : file derrière celui qui est juste
+				# devant (pas de bouchon de la horde qui pousse à l'entrée étroite).
+				_lane_speed *= _lane_yield(dir)
 		if _repath_t <= 0.0:
 			_repath_t = randf_range(0.35, 0.7)
-		desired = (dir + _separation() * 0.9).normalized() * move_speed() * speed_mult
+		desired = (dir + _separation() * sep_k).normalized() * move_speed() * speed_mult * _lane_speed
 		_check_stuck(delta)
-	var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(desired, 12.0 * delta)
+	# Sur un escalier, virage net aux paliers (pas d'élan qui porte au bord).
+	var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(desired, (LANE_TURN if _on_lane() else 12.0) * delta)
 	velocity.x = horiz.x
 	velocity.z = horiz.z
 	if horiz.length() > 0.1:
@@ -359,23 +376,25 @@ func _chase_lure(pos: Vector3, delta: float) -> void:
 	var dist := to.length()
 	var dir := Vector3.ZERO
 	if dist > ThrowableRules.LURE_STOP:
-		if dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, pos):
+		if dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, pos) and not game.nav.crosses_stairs(global_position, pos):
 			dir = to / dist
 			_path.clear()
+			_marks.clear()
 		else:
 			if _repath_t <= 0.0 or _path_i >= _path.size():
-				_path = game.nav.find_path(global_position, pos)
-				_path_i = 0
+				_set_path(game.nav.find_path(global_position, pos, lane_bias()))
 				_repath_t = randf_range(0.35, 0.7)
-			while _path_i < _path.size() and _flat_dist(_path[_path_i]) < 0.45:
+			while _path_i < _path.size() and (_flat_dist(_path[_path_i]) < 0.45 or (_mark_at(_path_i) > 0 and _lane_point_passed(_path_i))):
 				_path_i += 1
 			if _path_i < _path.size():
 				var wp := _path[_path_i] - global_position
 				wp.y = 0.0
 				dir = wp.normalized()
+				if _on_lane():
+					dir = (dir + game.nav.lane_push(_mark_at(_path_i), global_position) * 1.5).normalized()
 	if _repath_t <= 0.0:
 		_repath_t = randf_range(0.35, 0.7)
-	var desired: Vector3 = (dir + _separation() * 0.9).limit_length(1.0) * move_speed() * speed_mult
+	var desired: Vector3 = (dir + _separation() * (LANE_SEPARATION if _on_lane() else 0.9)).limit_length(1.0) * move_speed() * speed_mult
 	var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(desired, 12.0 * delta)
 	velocity.x = horiz.x
 	velocity.z = horiz.z
@@ -431,6 +450,31 @@ func _separation() -> Vector3:
 				if l2 < 0.8 and l2 > 0.0001:
 					push += d / l2 * 0.25
 	return push.limit_length(1.0)
+
+
+## Facteur de vitesse sur un couloir d'escalier : ralenti (file) si un autre
+## zombie est juste devant (à moins de 0,8 m, dans la direction suivie).
+func _lane_yield(dir: Vector3) -> float:
+	if _mgr == null or dir == Vector3.ZERO:
+		return 1.0
+	var grid := _mgr.separation_grid()
+	var pos := global_position
+	var row0 := ZombieManager.grid_key(floori(pos.x / ZombieManager.GRID_CELL) - 1, floori(pos.z / ZombieManager.GRID_CELL) - 1)
+	for gz in 3:
+		var row := row0 + gz * ZombieManager.GRID_ROW
+		for gx in 3:
+			var bucket: Array = grid.get(row + gx, ZombieManager.EMPTY)
+			for op: Vector3 in bucket:
+				var d := op - pos
+				if absf(d.y) > 1.0:
+					continue
+				d.y = 0.0
+				var l2 := d.length_squared()
+				if l2 < 0.0001 or l2 > 0.64:
+					continue
+				if d.dot(dir) > 0.8 * sqrt(l2):
+					return 0.3
+	return 1.0
 
 
 ## Coincé (contre un autre zombie, un angle...) : recalcul immédiat du chemin.
@@ -834,6 +878,10 @@ func _follow_floor() -> void:
 func _waypoint_passed(i: int) -> bool:
 	if i + 1 >= _path.size() or _flat_dist(_path[i]) > 1.2:
 		return false
+	# Couloir d'ancres d'un escalier : on suit chaque point (jamais de raccourci
+	# vers un point plus loin, qui couperait l'angle d'un palier ou le bord).
+	if _mark_at(i) > 0 or _mark_at(i + 1) > 0:
+		return false
 	for j in range(i + 1, mini(i + 5, _path.size())):
 		var nxt := _path[j]
 		if global_position.distance_to(nxt) < _path[i].distance_to(nxt) and game.nav.world_line_clear(global_position, nxt):
@@ -844,6 +892,74 @@ func _waypoint_passed(i: int) -> bool:
 ## Point de passage atteint (à plat, et au même niveau sur les cartes à étages).
 func _waypoint_reached(p: Vector3) -> bool:
 	return _flat_dist(p) < 0.45 and absf(p.y - global_position.y) < 1.0
+
+
+## Nouveau chemin (et l'escalier de chacun de ses points).
+func _set_path(p: PackedVector3Array) -> void:
+	_path = p
+	_marks = game.nav.last_lane_marks() if game and game.nav else PackedByteArray()
+	_path_i = 0
+
+
+func _mark_at(i: int) -> int:
+	return _marks[i] if i >= 0 and i < _marks.size() else 0
+
+
+## Écart latéral de ce zombie sur les couloirs d'ancres des escaliers (-1 à
+## 1, tiré de son identifiant : une horde se répartit sur la largeur).
+func lane_bias() -> float:
+	return fposmod(float(id) * 0.6180339, 1.0) * 2.0 - 1.0
+
+
+## Le point visé est sur un couloir d'ancres, et le précédent aussi (le zombie
+## est sur les marches ou à leurs ancres).
+func _on_lane() -> bool:
+	return _path_i < _path.size() and _mark_at(_path_i) > 0 and (_path_i == 0 or _mark_at(_path_i - 1) > 0)
+
+
+## Point d'un couloir dépassé : le zombie a franchi le plan perpendiculaire à
+## la direction d'arrivée sur ce point (une poussée de la horde qui l'écarte
+## d'un pas ne le fait pas revenir en arrière).
+func _lane_point_passed(i: int) -> bool:
+	var p := _path[i]
+	if _flat_dist(p) > 1.5 or absf(p.y - global_position.y) > 1.0:
+		return false
+	var prev := _path[i - 1] if i > 0 else global_position
+	var d := Vector2(p.x - prev.x, p.z - prev.z)
+	if d.length_squared() < 0.0001:
+		return false
+	var rel := Vector2(global_position.x - p.x, global_position.z - p.z)
+	# Franchi, et pas trop à côté (sinon : on le rejoint d'abord).
+	return rel.dot(d) > 0.0 and absf(rel.dot(Vector2(-d.y, d.x).normalized())) < 0.6
+
+
+## Suit le chemin : direction (à plat) vers le point visé, en passant chaque
+## point d'un couloir d'escalier dans l'ordre, ramené dans sa largeur permise.
+func _follow_path() -> Vector3:
+	while _path_i < _path.size():
+		var lane_pt := _mark_at(_path_i) > 0
+		# Point d'un couloir : atteint de plus près (0,25 m), ou dépassé.
+		var reached := _flat_dist(_path[_path_i]) < 0.25 and absf(_path[_path_i].y - global_position.y) < 1.0 if lane_pt \
+			else _waypoint_reached(_path[_path_i])
+		if not (reached or _waypoint_passed(_path_i) or (lane_pt and _lane_point_passed(_path_i))):
+			break
+		_path_i += 1
+	if _path_i >= _path.size():
+		return Vector3.ZERO
+	var wp := _path[_path_i] - global_position
+	wp.y = 0.0
+	var dir := wp.normalized()
+	_lane_speed = 1.0
+	if _on_lane():
+		dir = (dir + game.nav.lane_push(_mark_at(_path_i), global_position) * 1.5).normalized()
+		# Virage serré d'un palier (L, U, colimaçon) : on ralentit à l'approche
+		# de l'angle au lieu de partir vers le bord.
+		if _path_i + 1 < _path.size() and _mark_at(_path_i + 1) > 0 and wp.length() < 1.8:
+			var nxt := _path[_path_i + 1] - _path[_path_i]
+			nxt.y = 0.0
+			if nxt.length() > 0.05 and dir.dot(nxt.normalized()) < 0.5:
+				_lane_speed = LANE_CORNER_SPEED / maxf(move_speed() * speed_mult, LANE_CORNER_SPEED)
+	return dir
 
 
 ## La partie de ce zombie se joue-t-elle sur une carte à plusieurs niveaux ?
