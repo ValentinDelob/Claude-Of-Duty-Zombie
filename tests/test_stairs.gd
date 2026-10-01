@@ -289,6 +289,53 @@ func test_lane_contains_crosses_and_pushes_back() -> void:
 	assert_true(l.push_back(mid + Vector3(-1.2, 0, 0)).x > 0.1, "contre le bord gauche : ramené vers l'axe")
 
 
+## File à l'ouverture d'un escalier de service (1 m) : la horde arrive en
+## haut, deux zombies côte à côte à l'ouverture et un troisième derrière
+## (positions relevées sur un blocage de stairs_hordes). L'ancienne règle
+## (« plus près de SON point visé de 0,2 m, dans un cône de 45° ») ne faisait
+## céder aucun des deux de devant : ils se poussaient l'un contre l'autre et
+## personne ne descendait. Avec la mesure commune (StairLane.left_to), de deux
+## voisins un seul cède ; le plus avancé ne cède à personne, tous les autres
+## cèdent à quelqu'un, et celui qui cède n'avance plus vers lui.
+func test_queue_at_a_narrow_stair_mouth_never_deadlocks() -> void:
+	var l := StairLane.from_plan(StairGen.plan(_spec("service")))
+	var n := l.pts.size()
+	var edge := l.pts[n - 2]          # bord de la marche du haut
+	var anchor := l.pts[n - 1]        # ancre du haut, sur le palier
+	var back := Vector3(anchor.x - edge.x, 0.0, anchor.z - edge.z).normalized()
+	var side := Vector3(-back.z, 0.0, back.x)
+	var mouth := Vector3(edge.x, anchor.y, edge.z) + back * 0.3
+	var exit := l.pts[0]              # en descendant : ancre du bas
+	for layout: Array in [
+		[mouth - side * 0.3, mouth + side * 0.32, mouth + back * 0.5],
+		[mouth - side * 0.3 + back * 0.01, mouth + side * 0.3, mouth + back * 0.45 + side * 0.05],
+		[mouth - side * 0.35, mouth + side * 0.25 + back * 0.03, mouth + back * 0.6 - side * 0.3, mouth + back * 0.6 + side * 0.3],
+	]:
+		var zs: Array = layout
+		var left := zs.map(func(p): return l.left_to(p, exit))
+		var leaders := 0
+		for i in zs.size():
+			var a: Vector3 = zs[i]
+			var dir := Vector3(edge.x - a.x, 0.0, edge.z - a.z).normalized()
+			var gives := []
+			for j in zs.size():
+				var d: Vector3 = zs[j] - a
+				d.y = 0.0
+				if i != j and d.length_squared() <= Zombie.YIELD_RANGE2 and Zombie.yields_to(d, dir, left[i], left[j]):
+					gives.append(j)
+					var bdir := Vector3(edge.x - zs[j].x, 0.0, edge.z - zs[j].z).normalized()
+					assert_false(Zombie.yields_to(-d, bdir, left[j], left[i]), "%d et %d ne se cèdent pas l'un à l'autre" % [i, j])
+					var w := Zombie.give_way(dir, d.normalized())
+					assert_true(w.dot(d.normalized()) < 0.0, "%d cède à %d : il recule, sans avancer vers lui (%s)" % [i, j, w])
+			if gives.is_empty():
+				leaders += 1
+		assert_eq(leaders, 1, "un seul zombie en tête à l'ouverture (%s)" % [left])
+	# Mesure commune : plus avancé = moins de couloir à parcourir, et à côté
+	# de l'ouverture = plus loin que juste en face.
+	assert_true(l.left_to(mouth, exit) < l.left_to(mouth + back * 0.5, exit), "devant : moins de chemin que derrière")
+	assert_true(l.left_to(mouth, exit) < l.left_to(mouth + side * 0.4, exit), "en face de l'ouverture : moins de chemin qu'à côté")
+
+
 # ------------------------------------------------------------------ éditeur : format 6
 
 func test_format_6_saves_types_and_options_only_when_not_default() -> void:

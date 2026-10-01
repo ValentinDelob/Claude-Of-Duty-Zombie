@@ -31,3 +31,11 @@ func crosses_stairs(_a: Vector3, _b: Vector3) -> bool:
 ## d'ancres `mark` (last_lane_marks) ; ZERO sinon.
 func lane_push(_mark: int, _pos: Vector3) -> Vector3:
 	return Vector3.ZERO
+
+
+## Reste à parcourir (m) sur le couloir d'ancres `mark`, de `pos` jusqu'au
+## point `exit` du même couloir (écart d'abscisse, plus la distance de `pos`
+## à l'axe) : une même mesure pour toute la horde qui le prend dans ce sens.
+## INF : pas de couloir.
+func lane_left(_mark: int, _pos: Vector3, _exit: Vector3) -> float:
+	return INF

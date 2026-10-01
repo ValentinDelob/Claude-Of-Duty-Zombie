@@ -78,6 +78,11 @@ const LANE_TURN := 30.0
 ## Vitesse au plus (m/s) à l'approche d'un virage serré d'escalier (palier
 ## d'un L ou d'un U) : un sprinteur ne part plus vers le bord du palier.
 const LANE_CORNER_SPEED := 3.0
+## Recul (part de la direction) d'un zombie qui cède le passage (give_way).
+const GIVE_WAY_BACK := 0.35
+## Portée (au carré, m²) de la file sur un escalier : on cède à un voisin à
+## moins de 0,67 m.
+const YIELD_RANGE2 := 0.45
 var _lane_speed := 1.0
 ## Ligne de vue vers la cible, recalculée toutes les LOS_PERIOD secondes.
 const LOS_PERIOD := 0.1
@@ -362,7 +367,10 @@ func _chase(delta: float) -> void:
 			if _mark_at(_path_i) > 0:
 				# Vers un escalier ou dessus : file derrière celui qui est juste
 				# devant (pas de bouchon de la horde qui pousse à l'entrée étroite).
-				_lane_speed *= _lane_yield(dir, _path[_path_i] if _path_i < _path.size() else global_position)
+				var give := _lane_yield(dir, _path[_path_i] if _path_i < _path.size() else global_position)
+				if give != Vector3.ZERO:
+					_lane_speed *= 0.5
+					dir = give_way(dir, give)
 		if _repath_t <= 0.0:
 			_repath_t = randf_range(0.35, 0.7)
 		desired = (dir + _separation() * sep_k).normalized() * move_speed() * speed_mult * _lane_speed
@@ -461,13 +469,31 @@ func _separation() -> Vector3:
 	return push.limit_length(1.0)
 
 
-## Facteur de vitesse sur un couloir d'escalier : ralenti (file) si un autre
-## zombie est juste devant (à moins de 0,65 m) et plus près du point visé.
-func _lane_yield(dir: Vector3, goal: Vector3) -> float:
-	if _mgr == null or dir == Vector3.ZERO:
-		return 1.0
+## File sur un couloir d'escalier : direction (à plat, unitaire) du zombie à
+## laisser passer, ZERO sinon. On cède à un zombie juste à côté ou devant (à
+## moins de 0,67 m, dans le demi-plan de la direction suivie) et plus avancé
+## sur le couloir (StairLane.left_to : reste à parcourir jusqu'au bout du
+## couloir, même mesure pour toute la horde : de deux voisins, un seul cède
+## à l'autre). Ancienne règle (plus près de SON point visé de 0,2 m au moins,
+## dans un cône de 45°, et seulement ralenti) : deux zombies côte à côte à
+## l'ouverture d'un escalier de service (1 m) ne se cédaient pas le passage,
+## ou celui qui cédait avançait encore contre l'autre ; poussés vers l'axe,
+## ils se coinçaient et toute la horde restait en haut des marches.
+func _lane_yield(dir: Vector3, goal: Vector3) -> Vector3:
+	if _mgr == null or dir == Vector3.ZERO or game == null or game.nav == null:
+		return Vector3.ZERO
+	var mark := _mark_at(_path_i)
+	var j := _path_i
+	while j + 1 < _path.size() and _mark_at(j + 1) == mark:
+		j += 1
+	var exit := _path[j] if j < _path.size() else goal
+	var mine := game.nav.lane_left(mark, global_position, exit)
+	if mine == INF:
+		return Vector3.ZERO
 	var grid := _mgr.separation_grid()
 	var pos := global_position
+	var best := INF
+	var out := Vector3.ZERO
 	var row0 := ZombieManager.grid_key(floori(pos.x / ZombieManager.GRID_CELL) - 1, floori(pos.z / ZombieManager.GRID_CELL) - 1)
 	for gz in 3:
 		var row := row0 + gz * ZombieManager.GRID_ROW
@@ -479,16 +505,30 @@ func _lane_yield(dir: Vector3, goal: Vector3) -> float:
 					continue
 				d.y = 0.0
 				var l2 := d.length_squared()
-				if l2 < 0.0001 or l2 > 0.45:
+				if l2 >= best:
 					continue
-				# Devant, et plus près que soi du point visé : on le laisse passer.
-				if d.dot(dir) > 0.7 * sqrt(l2) and _flat_dist_from(op, goal) < _flat_dist(goal) - 0.2:
-					return 0.5
-	return 1.0
+				if l2 > 0.0001 and l2 <= YIELD_RANGE2 and yields_to(d, dir, mine, game.nav.lane_left(mark, op, exit)):
+					best = l2
+					out = d / sqrt(l2)
+	return out
 
 
-func _flat_dist_from(a: Vector3, b: Vector3) -> float:
-	return Vector2(a.x - b.x, a.z - b.z).length()
+## Règle de la file (_lane_yield) : un zombie de direction `dir`, à qui il
+## reste `mine` m de couloir, cède-t-il à un voisin à `d` (à plat, à moins de
+## √YIELD_RANGE2 m) à qui il en reste `theirs` ? Devant ou à côté, et plus
+## avancé que soi. Deux voisins ne se cèdent jamais l'un à l'autre, et le
+## plus avancé d'un groupe ne cède à personne (tests/test_stairs.gd).
+static func yields_to(d: Vector3, dir: Vector3, mine: float, theirs: float) -> bool:
+	return d.dot(dir) > 0.0 and theirs < mine
+
+
+## Direction d'un zombie qui cède le passage au zombie dans la direction
+## `give` (_lane_yield) : plus rien vers lui, et un léger recul qui lui
+## laisse la place (il ne reste pas coincé entre celui qui cède et le bord).
+static func give_way(dir: Vector3, give: Vector3) -> Vector3:
+	if give == Vector3.ZERO:
+		return dir
+	return dir - give * maxf(dir.dot(give), 0.0) - give * GIVE_WAY_BACK
 
 
 ## Coincé (contre un autre zombie, un angle...) : recalcul immédiat du chemin.
@@ -922,6 +962,13 @@ func _set_path(p: PackedVector3Array) -> void:
 	_path = p
 	_marks = game.nav.last_lane_marks() if game and game.nav else PackedByteArray()
 	_path_i = 0
+	# Chemin qui part d'un couloir d'escalier (déjà engagé) : son premier point
+	# est là où l'on est (ramené sur le navmesh), jamais un point à rejoindre ;
+	# le tronçon suivant est sur le couloir (_on_lane : poussée vers l'axe,
+	# séparation réduite). Sans cela, à chaque recalcul, un zombie arrivé à
+	# côté de l'ouverture d'un escalier étroit n'était plus ramené vers l'axe.
+	if _mark_at(0) > 0 and _path.size() > 1:
+		_path_i = 1
 
 
 func _mark_at(i: int) -> int:
