@@ -427,10 +427,37 @@ func _all(cells: Array, pred: Callable) -> bool:
 	return true
 
 
+## Case de sol d'une pièce sous un décor posé (MapRaster : case pleine, sans
+## zone ; format 7, docs/MAP_OBJECTS.md § 8).
+func _under_decor(f: Floor, c: Vector2i) -> bool:
+	return f.at(c) == K.MUR and f.key_at(c).begins_with("decor#") and f.room_of(c) != ""
+
+
+## Côté d'une ouverture : du sol (ou un objet posé au sol), ou le sol d'une
+## pièce sous un décor (signalé à part : _decor_in_front).
+func _side_floor(f: Floor, c: Vector2i) -> bool:
+	return _floorlike(f, c) or _under_decor(f, c)
+
+
+## Décor posé devant une porte, des débris ou une fenêtre : la carte reste
+## valable (le décor est libre) mais le passage est gêné : un avertissement
+## (les accès bloqués pour de bon sont des erreurs de _connectivity).
+func _decor_in_front(f: Floor, cells: Array, what: Array, w: Array) -> void:
+	var hit := cells.filter(func(c): return _under_decor(f, c))
+	if hit.is_empty():
+		return
+	if what[1] == "window":
+		_msg("attention", "fenêtre en %s : un décor posé devant gêne l'entrée des zombies (déplacez-le)" % w[0],
+			"window at %s: a prop placed in front of it blocks the zombies' way in (move it)" % w[1], f.index, hit)
+	else:
+		_msg("attention", "%s en %s : un décor posé devant gêne le passage (déplacez-le)" % [what[0], w[0]],
+			"%s at %s: a prop placed in front of it blocks the way (move it)" % [what[1], w[1]], f.index, hit)
+
+
 func _uniform_zone(f: Floor, cells: Array) -> String:
 	var z := ""
 	for c in cells:
-		var zz := f.zone_of(c)
+		var zz := String(room_zone.get(f.room_of(c), "")) if _under_decor(f, c) else f.zone_of(c)
 		if z == "":
 			z = zz
 		elif zz != z:
@@ -757,14 +784,15 @@ func _openings() -> void:
 			var width := r.size.y if axis.x != 0 else r.size.x
 			if b.kind == K.FENETRE:
 				var inward := Vector2i.ZERO
-				if _all(sa, func(c): return _floorlike(f, c)) and _all(sb, func(c): return f.at(c) == K.VIDE):
+				if _all(sa, func(c): return _side_floor(f, c)) and _all(sb, func(c): return f.at(c) == K.VIDE):
 					inward = -axis
-				elif _all(sb, func(c): return _floorlike(f, c)) and _all(sa, func(c): return f.at(c) == K.VIDE):
+				elif _all(sb, func(c): return _side_floor(f, c)) and _all(sa, func(c): return f.at(c) == K.VIDE):
 					inward = axis
 				else:
 					continue
 				found = true
 				var zone := _uniform_zone(f, _side(r, inward))
+				_decor_in_front(f, _side(r, inward), what, w)
 				if thick != 1 or width != 2:
 					_msg("erreur", "fenêtre en %s : une fenêtre fait 1 m le long d'un mur de 0,5 m" % w[0],
 						"window at %s: a window is 1 m wide in a 0.5 m wall" % w[1], k, b.cells)
@@ -790,9 +818,10 @@ func _openings() -> void:
 					pockets[k][c] = true
 				windows.append({"floor": k, "rect": r, "inward": inward, "zone": zone, "cells": b.cells, "pocket": _bbox(pocket), "eid": eid_of.get(b.key, "")})
 			else:
-				if not (_all(sa, func(c): return _floorlike(f, c)) and _all(sb, func(c): return _floorlike(f, c))):
+				if not (_all(sa, func(c): return _side_floor(f, c)) and _all(sb, func(c): return _side_floor(f, c))):
 					continue
 				found = true
+				_decor_in_front(f, sa + sb, what, w)
 				var za := _uniform_zone(f, sa)
 				var zb := _uniform_zone(f, sb)
 				if za == "?" or zb == "?":

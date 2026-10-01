@@ -718,7 +718,8 @@ func _update_preview() -> void:
 				if o.type in ["porte", "debris"]:
 					o["prix"] = ed.default_door_price()
 		"wall_item":
-			res = MapRules.place_wall_item(ed.doc, k, o, mouse_m)
+			# Décor mural : au centimètre sans grille, au quart de mètre sinon.
+			res = MapRules.place_wall_item(ed.doc, k, o, mouse_m, "", mode_now() != "libre")
 			if res.ok:
 				o["position"] = res.position
 				MapRules.apply_wall(o, res)

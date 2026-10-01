@@ -40,7 +40,12 @@ extends RefCounted
 ##      réglages facultatifs « sens », « marches », « garde_corps », « cotes »
 ##      (MapCatalog.tidy_stair : jamais écrits à leur valeur par défaut).
 ##      Formats 1 à 5 lus tels quels (un escalier sans ces clés est droit).
-const FORMAT := 6
+##   7  décor posé librement (docs/MAP_OBJECTS.md § 8) : « hauteur » d'une
+##      applique (luminaire mural, m au-dessus du sol ; absente : 2 m, jamais
+##      écrite à sa valeur par défaut). Le décor contre un mur, à moitié dedans
+##      ou au centimètre n'a pas de clé nouvelle (« position » en mètres,
+##      « rot », « mur », « angle » comme avant). Formats 1 à 6 lus tels quels.
+const FORMAT := 7
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -306,6 +311,10 @@ func _migrate(from: int) -> void:
 		# Format 5 -> 6 : rien à convertir (escalier sans « variante » : droit,
 		# sans réglage : comme avant).
 		pass
+	if from < 7:
+		# Format 6 -> 7 : rien à convertir (applique sans « hauteur » : à 2 m,
+		# comme avant ; le décor garde sa position).
+		pass
 
 
 ## Version du format lue dans carte.json (FORMAT pour une carte neuve).
@@ -346,6 +355,11 @@ func _normalize() -> void:
 	# Réglages d'escalier illisibles ou par défaut retirés (format 6).
 	for o in objets:
 		MapCatalog.tidy_stair(o)
+	# Hauteur d'une applique (format 7) : illisible, par défaut ou sur un
+	# luminaire qui n'est pas mural, retirée ; sinon bornée.
+	for o in objets:
+		if o.has("hauteur") and String(o.get("type", "")) == "luminaire":
+			MapCatalog.set_wall_light_height(o, float(o.hauteur) if (o.hauteur is float or o.hauteur is int) else NAN)
 	for list in [pieces, ouvertures, objets, zones]:
 		for e in list:
 			if String(e.get("id", "")) == "":

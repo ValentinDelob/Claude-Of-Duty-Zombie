@@ -404,11 +404,19 @@ func _floor(k: int) -> void:
 				var fp := MapCatalog.footprint(o)
 				var cells := _square(o, fp.x)
 				var key := "decor#" + String(o.id)
+				# Posé librement (format 7) : contre un mur, à moitié dedans, au
+				# centimètre. Seules ses cases de sol deviennent pleines : un mur
+				# qu'il touche reste un mur (jamais de trou), et son bloc suit sa
+				# vraie place (pas les cases arrondies).
+				var in_wall := false
 				for c in cells:
-					f.put(c, K.MUR, key)
+					if f.at(c) == K.SOL:
+						f.put(c, K.MUR, key)
+					else:
+						in_wall = true
 				v.eid_of[key] = String(o.id)
-				v.decor.append({"floor": k, "rect": MapValidator._bbox(cells), "h": 1.0 if o.type == "caisse" else 0.9,
-					"mat": "crate" if o.type == "caisse" else "barrel", "eid": String(o.id)})
+				v.decor.append({"floor": k, "rect": MapValidator._bbox(cells), "box": MapRules.footprint_rect(o), "in_wall": in_wall,
+					"h": 1.0 if o.type == "caisse" else 0.9, "mat": "crate" if o.type == "caisse" else "barrel", "eid": String(o.id)})
 				cells_of[String(o.id)] = [k, cells]
 			"prefab", "luminaire":
 				# Décor posé : ses cases bloquent le passage (validateur, trajets)
@@ -744,6 +752,8 @@ func _light(k: int, o: Dictionary) -> void:
 		var face := p - dv * MapGeom.CELL * 0.5
 		l["center"] = face / MapGeom.CELL + Vector2(0.5, 0.5)
 		l["wall"] = dv
+		# Hauteur choisie (format 7 ; absente : celle du luminaire, 2 m).
+		l["y"] = MapCatalog.wall_light_height(o)
 		# Lacet : l'axe +z de l'applique (du mur vers la pièce) vers -dv.
 		l["yaw"] = atan2(-dv.x, -dv.y)
 		cells = wall_item_cells(o)
