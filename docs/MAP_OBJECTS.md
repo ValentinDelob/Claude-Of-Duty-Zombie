@@ -281,8 +281,13 @@ une porte).
   atteint à 0,25 m, ou passé quand le zombie franchit le plan
   perpendiculaire à sa direction d'arrivée sans en être à plus de 0,6 m ;
   sur les marches, séparation réduite (0,35), virage net (30 m/s²), 3 m/s au
-  plus à l'approche d'un virage serré (L, U), file derrière le zombie juste
-  devant (pas de bouchon à l'entrée d'un escalier de service) et poussée
+  plus à l'approche d'un virage serré (L, U), file : on cède (moitié de la
+  vitesse, plus aucun pas vers lui, léger recul) à un voisin à moins de
+  0,67 m, devant ou à côté, plus avancé sur le couloir (`StairLane.left_to` :
+  reste à parcourir, même mesure pour toute la horde, donc de deux voisins
+  un seul cède et le plus avancé passe ; pas de bouchon à l'ouverture d'un
+  escalier de service), un chemin recalculé sur les marches restant « sur le
+  couloir » dès son premier tronçon, et poussée
   vers l'axe au-delà de la demi-largeur (`MeshNav.lane_push`). La poursuite en ligne droite est interdite si la
   ligne passe sur une emprise d'escalier (`MeshNav.crosses_stairs`) : plus de
   zombie qui fonce dans le flanc d'un escalier.

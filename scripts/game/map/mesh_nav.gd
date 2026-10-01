@@ -434,8 +434,11 @@ func _thread_lanes(path: PackedVector3Array, marks: PackedByteArray, goal: Vecto
 		var mid := l.points_between(s_from, s_to, bias, to_end, not start_in)
 		if mid.is_empty():
 			return [path, marks]
+		# Déjà engagé : le point de départ (là où est l'agent, ramené sur le
+		# navmesh) est marqué du couloir ; l'agent ne le vise pas
+		# (Zombie._set_path) mais le tronçon qui suit est « sur l'escalier ».
 		var head := PackedVector3Array([path[0]])
-		var head_m := PackedByteArray([0])
+		var head_m := PackedByteArray([l.index + 1 if start_in else 0])
 		if not start_in:
 			head = _sub_path(path[0], mid[0])
 			if head.is_empty():
@@ -585,3 +588,9 @@ func lane_push(mark: int, pos: Vector3) -> Vector3:
 	if mark <= 0 or mark > lanes.size():
 		return Vector3.ZERO
 	return lanes[mark - 1].push_back(pos)
+
+
+func lane_left(mark: int, pos: Vector3, exit: Vector3) -> float:
+	if mark <= 0 or mark > lanes.size():
+		return INF
+	return lanes[mark - 1].left_to(pos, exit)

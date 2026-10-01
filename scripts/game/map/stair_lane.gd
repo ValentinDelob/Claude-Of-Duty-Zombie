@@ -213,6 +213,17 @@ func points_between(s_from: float, s_to: float, bias: float, to_end: bool, from_
 	return out
 
 
+## Reste à parcourir (m) de `p` jusqu'au point `exit` du couloir : écart
+## d'abscisse, plus la distance de `p` à l'axe (un zombie à côté de
+## l'ouverture est plus loin que celui qui est en face). Même mesure pour
+## tous les zombies qui prennent le couloir dans ce sens : de deux voisins,
+## un seul est « devant » l'autre (Zombie._lane_yield), jamais les deux.
+func left_to(p: Vector3, exit: Vector3) -> float:
+	var pr := project(p)
+	var q: Vector3 = pr[4]
+	return absf(float(project(exit)[0]) - float(pr[0])) + Vector2(p.x - q.x, p.z - q.z).length()
+
+
 ## Bout (0 : bas, 1 : haut) le plus proche d'un point par sa hauteur.
 func end_of(p: Vector3) -> int:
 	return 0 if absf(p.y - pts[0].y) <= absf(p.y - pts[pts.size() - 1].y) else 1
