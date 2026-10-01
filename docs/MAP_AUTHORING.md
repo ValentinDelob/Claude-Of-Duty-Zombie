@@ -963,6 +963,11 @@ Preuves automatiques :
 
 ## 9. Conseils de conception (BO1)
 
+Les règles complètes de level design (surfaces vides, couloirs, lignes de vue,
+hauteur, obstacles, barrières invisibles, décor, circulation, fenêtres,
+économie, grille de contrôle) sont dans
+[`MAP_DESIGN_RULES.md`](MAP_DESIGN_RULES.md) ; elles priment sur ce résumé.
+
 - **Départ** : 150 à 250 m², 2 à 4 fenêtres à plus de 6 m du départ, deux
   sorties (Kino : hall avec deux portes à 750), une arme à 500 au mur (M14 ou
   Olympia), LAZARUS (Quick Revive).
