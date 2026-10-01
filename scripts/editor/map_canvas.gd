@@ -1385,6 +1385,14 @@ func _draw_rot_rect(o: Dictionary, it: Dictionary, alpha: float) -> void:
 
 func _draw_opening(o: Dictionary, font: Font) -> void:
 	var t := String(o.get("type", ""))
+	if t == "fenetre" and zoom >= 14.0 and MapCatalog.barricade_kind(o) != "fenetre":
+		# Porte à zombies (format 8) : son type écrit sur le plan.
+		var pp := to_px(MapGeom.v2(o.position))
+		var dn := Lang.t("PORTE", "DOOR") if MapCatalog.barricade_kind(o) == "porte" else Lang.t("DOUBLE PORTE", "DOUBLE DOOR")
+		var dw := font.get_string_size(dn, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10)).x
+		draw_string_outline(font, pp + Vector2(-dw * 0.5, _u(4)), dn, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), 3, Color(0, 0, 0, 0.9))
+		draw_string(font, pp + Vector2(-dw * 0.5, _u(4)), dn, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), Color(0.85, 0.95, 1.0))
+		return
 	if not t in ["porte", "debris"] or zoom < 10.0:
 		if t == "porte_courant" and zoom >= 10.0:
 			var p := to_px(MapGeom.v2(o.position))

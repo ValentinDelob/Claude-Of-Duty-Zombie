@@ -1,0 +1,5 @@
+{
+ "pieces": [
+  {"contour":[[17,15],[25.1,15],[25.1,19.5],[17,19.5]],"etage":0,"id":"p1","nom":"Pièce 1","zone":"z1","surface_plafond":"fabric","surface_murs":"wall_ritual"}
+ ]
+}

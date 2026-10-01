@@ -146,9 +146,29 @@ static func _subtract(a: Vector2, b: Vector2, cuts: Array) -> Array:
 
 # ------------------------------------------------------------------ ouvertures
 
-## Largeur (m) d'une ouverture.
+## Largeur (m) d'une ouverture. Entrée des zombies : celle de son type
+## (fenêtre et porte simple 1 m, porte double 2 m ; format 8).
 static func opening_width(o: Dictionary) -> float:
-	return 1.0 if String(o.get("type", "")) == "fenetre" else float(o.get("largeur", 2.0))
+	if String(o.get("type", "")) == "fenetre":
+		return MapCatalog.barricade_width(MapCatalog.barricade_kind(o))
+	return float(o.get("largeur", 2.0))
+
+
+## Change le type d'une entrée des zombies (ou la variante de tout autre
+## élément) si elle tient encore à sa place (une porte double est plus large) :
+## position recalée le long du mur ; sinon {ok: false, fr, en}, rien changé.
+static func apply_variant(doc: EditorMap, o: Dictionary, v: String) -> Dictionary:
+	if String(o.get("type", "")) != "fenetre":
+		return {"ok": MapCatalog.set_variant(o, v)}
+	var cand := o.duplicate(true)
+	if not MapCatalog.set_variant(cand, v):
+		return refuse("type inconnu", "unknown type")
+	var res := place_opening(doc, int(o.get("etage", 0)), "fenetre", MapGeom.v2(o.position), opening_width(cand), String(o.get("id", "")))
+	if not res.ok:
+		return res
+	MapCatalog.set_variant(o, v)
+	o["position"] = res.position
+	return {"ok": true}
 
 
 ## Ouverture : axe du mur (true : horizontal, y constant) et intervalle le long.
@@ -253,13 +273,15 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 		var poly := doc.room_poly(doc.find(best.room))
 		var out_dir := (_outside(poly, a, b, 0.3) - (a + b) * 0.5).normalized()
 		var side := Vector2(1, 0) if horizontal else Vector2(0, 1)
-		var c0 := pos + out_dir * 0.3 - side * POCKET.y * 0.5
-		var c1 := pos + out_dir * POCKET.x + side * POCKET.y * 0.5
+		# Cour : 1 m de plus que l'ouverture de chaque côté (porte double : 4 m).
+		var pw := pocket_width(w)
+		var c0 := pos + out_dir * 0.3 - side * pw * 0.5
+		var c1 := pos + out_dir * POCKET.x + side * pw * 0.5
 		var pocket := MapGeom.rect_poly(Rect2(c0, Vector2.ZERO).expand(c1))
 		for q in doc.rooms_on(k):
 			if MapGeom.overlap(pocket, doc.room_poly(q)):
-				return refuse("pas de place dehors pour les zombies : il faut 2,5 m × 3 m de vide derrière la fenêtre (gêné par « %s »)" % q.get("nom", q.id),
-					"no room outside for the zombies: 2.5 m × 3 m of empty space is needed behind the window (blocked by \"%s\")" % q.get("nom", q.id))
+				return refuse("pas de place dehors pour les zombies : il faut 2,5 m × %s m de vide derrière la fenêtre (gêné par « %s »)" % [_m(pw), q.get("nom", q.id)],
+					"no room outside for the zombies: 2.5 m × %s m of empty space is needed behind the window (blocked by \"%s\")" % [_m(pw, false), q.get("nom", q.id)])
 	else:
 		res["rooms"] = best.rooms
 	return res
@@ -307,7 +329,7 @@ static func _place_opening_oblique(doc: EditorMap, k: int, window: bool, mouse: 
 	var b: Vector2 = best.b
 	var seg_len := a.distance_to(b)
 	var t := (b - a) / seg_len
-	var w := 1.0 if window else maxi(1, roundi(width / MapGeom.CELL)) * MapGeom.CELL
+	var w := maxi(1, roundi(width / MapGeom.CELL)) * MapGeom.CELL
 	var s := MapGeom.snap_on_segment(a, b, (mouse - a).dot(t), w, END_MARGIN)
 	if s < 0.0:
 		return refuse("ce mur est trop court pour une ouverture de %s m (il faut %s m de mur, 0,5 m de chaque côté)" % [_m(w), _m(w + 2.0 * END_MARGIN)],
@@ -341,20 +363,27 @@ static func _place_opening_oblique(doc: EditorMap, k: int, window: bool, mouse: 
 		res["rooms"] = [best.room]
 		var poly := doc.room_poly(doc.find(best.room))
 		var out_dir := (_outside(poly, a, b, 0.3) - (a + b) * 0.5).normalized()
-		var pocket := pocket_poly(pos, out_dir)
+		var pocket := pocket_poly(pos, out_dir, w)
+		var pw := pocket_width(w)
 		for q in doc.rooms_on(k):
 			if MapGeom.overlap(pocket, doc.room_poly(q)):
-				return refuse("pas de place dehors pour les zombies : il faut 2,5 m × 3 m de vide derrière la fenêtre (gêné par « %s »)" % q.get("nom", q.id),
-					"no room outside for the zombies: 2.5 m × 3 m of empty space is needed behind the window (blocked by \"%s\")" % q.get("nom", q.id))
+				return refuse("pas de place dehors pour les zombies : il faut 2,5 m × %s m de vide derrière la fenêtre (gêné par « %s »)" % [_m(pw), q.get("nom", q.id)],
+					"no room outside for the zombies: 2.5 m × %s m of empty space is needed behind the window (blocked by \"%s\")" % [_m(pw, false), q.get("nom", q.id)])
 	else:
 		res["rooms"] = best.rooms
 	return res
 
 
+## Largeur (m) de la cour des zombies derrière une entrée de largeur `w` :
+## 1 m de plus de chaque côté (fenêtre et porte simple : 3 m ; double : 4 m).
+static func pocket_width(w: float) -> float:
+	return POCKET.y + w - 1.0
+
+
 ## Cour des zombies derrière une fenêtre en `pos` (sur le trait), `out_dir`
-## vers dehors : 3 m le long du mur, de 0,3 à 2,75 m du trait.
-static func pocket_poly(pos: Vector2, out_dir: Vector2) -> PackedVector2Array:
-	return MapGeom.oriented_rect(pos + out_dir * 0.3, out_dir, POCKET.y, POCKET.x - 0.3)
+## vers dehors : 3 m le long du mur (porte double : 4 m), de 0,3 à 2,75 m du trait.
+static func pocket_poly(pos: Vector2, out_dir: Vector2, w := 1.0) -> PackedVector2Array:
+	return MapGeom.oriented_rect(pos + out_dir * 0.3, out_dir, pocket_width(w), POCKET.x - 0.3)
 
 
 static func _m(v: float, fr := true) -> String:

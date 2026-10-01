@@ -1,0 +1,6 @@
+{
+ "depart": "z1",
+ "zones": [
+  {"id":"z1","nom":{"fr":"Pièce 1","en":"Room 1"}}
+ ]
+}

@@ -880,7 +880,7 @@ static func oblique_item_cells(o: Dictionary) -> Array:
 ## `horizontal` : mur est-ouest (y constant).
 static func opening_cells(o: Dictionary, horizontal: bool) -> Array:
 	var p := MapGeom.v2(o.position)
-	var n := maxi(1, roundi(float(o.get("largeur", 1.0 if o.type == "fenetre" else 2.0)) / MapGeom.CELL))
+	var n := maxi(1, roundi(MapRules.opening_width(o) / MapGeom.CELL))
 	var out := []
 	if horizontal:
 		var j := roundi(p.y / MapGeom.CELL)
@@ -963,14 +963,14 @@ func _opening_oblique(f: MapValidator.Floor, o: Dictionary, ow: Dictionary) -> v
 	var t := String(o.type)
 	var p := MapGeom.v2(o.position)
 	var dir: Vector2 = ow.t
-	var w := 1.0 if t == "fenetre" else maxi(1, roundi(float(o.get("largeur", 2.0)) / MapGeom.CELL)) * MapGeom.CELL
+	var w := maxi(1, roundi(MapRules.opening_width(o) / MapGeom.CELL)) * MapGeom.CELL
 	var cells := MapGeom.slab_cells(p - dir * w * 0.5, p + dir * w * 0.5, float(ow.half)).filter(func(c): return f.inside(c) and not _axis.has(c))
 	cells_of[String(o.id)] = [f.index, cells]
 	if cells.is_empty():
 		return
 	var key := "%s#%s" % ["fenetre" if t == "fenetre" else "porte", o.id]
 	v.eid_of[key] = String(o.id)
-	v.diag_open[key] = {"p": p, "t": dir, "n": ow.n, "w": w, "half": float(ow.half), "type": t, "eid": String(o.id),
+	v.diag_open[key] = {"p": p, "t": dir, "n": ow.n, "w": w, "half": float(ow.half), "type": t, "kind": MapCatalog.barricade_kind(o), "eid": String(o.id),
 		"floor": f.index, "cells": cells}
 	match t:
 		"fenetre":

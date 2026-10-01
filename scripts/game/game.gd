@@ -558,7 +558,7 @@ func barricades_need_repair() -> bool:
 	if barricades == null:
 		return false
 	for b in barricades.windows:
-		if b.mask != BarricadeRules.FULL_MASK:
+		if b.mask != b.full_mask():
 			return true
 	return false
 

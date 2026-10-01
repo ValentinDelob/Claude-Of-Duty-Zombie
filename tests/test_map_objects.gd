@@ -75,7 +75,8 @@ func test_catalog_variants_and_barrier_entry() -> void:
 	assert_true(MapCatalog.variants("debris").size() >= 2, "deux tas de débris")
 	assert_true(MapCatalog.variants("arme").size() >= 2, "deux cadres d'arme murale")
 	assert_eq(MapCatalog.default_variant("porte"), "blindee", "par défaut : la porte d'avant")
-	assert_eq(MapCatalog.variants("fenetre"), [], "une fenêtre n'a pas de variante")
+	# Format 8 : l'entrée des zombies a trois types (fenêtre d'avant par défaut).
+	assert_eq(MapCatalog.variants("fenetre"), ["fenetre", "porte", "porte_double"], "fenêtre, porte simple, porte double")
 	for t in MapCatalog.VARIANTS:
 		for v in MapCatalog.VARIANTS[t]:
 			assert_true(String(v[1]) != "" and String(v[2]) != "" and String(v[1]) != String(v[0]), "%s.%s : noms FR et EN" % [t, v[0]])
@@ -88,7 +89,7 @@ func test_catalog_variants_and_barrier_entry() -> void:
 	var kinds := MapCatalog.allowed_kinds()
 	assert_eq(kinds.porte.keys.variante.values, MapCatalog.variants("porte"), "variantes admises des portes")
 	assert_eq(kinds.arme.keys.variante.values, MapCatalog.variants("arme"), "variantes admises des armes")
-	assert_false(kinds.fenetre.keys.has("variante"), "pas de variante sur une fenêtre")
+	assert_eq(kinds.fenetre.keys.variante.values, MapCatalog.variants("fenetre"), "types admis des entrées des zombies (format 8)")
 	assert_true(kinds.has("bloc_invisible") and kinds.bloc_invisible.required.has("rect"), "barrière : type admis, rect obligatoire")
 	assert_eq(kinds.bloc_invisible.keys.keys().filter(func(k): return not k in ["id", "type", "etage"]), ["rect", "rot", "hauteur"])
 

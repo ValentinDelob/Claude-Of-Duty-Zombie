@@ -1,8 +1,8 @@
-# Objets de l'éditeur de cartes : variantes, barrière invisible, escaliers, décor libre
+# Objets de l'éditeur de cartes : variantes, barrière invisible, escaliers, décor libre, portes à zombies
 
 Complément de `docs/MAP_AUTHORING.md` (éditeur, format des cinq JSON,
-partage réseau) pour les ajouts des **formats 5, 6 et 7** des cartes
-(format 7 : décor posé librement, § 8) :
+partage réseau) pour les ajouts des **formats 5, 6, 7 et 8** des cartes
+(format 7 : décor posé librement, § 8 ; format 8 : portes à zombies, § 9) :
 
 1. les **variantes d'aspect** d'un type d'objet (plusieurs modèles de porte,
    de débris, d'arme murale) ;
@@ -38,8 +38,9 @@ Les modèles sont construits par le jeu, sans fichier importé
 (`WorldLook.SURFACES` : bois, bois sombre, acier, tôle rouillée, béton) —
 aucun élément graphique d'Activision.
 
-Pas de variante pour les fenêtres (barricade de BO1 : un seul aspect), les
-portes du courant, les passages, les atouts (chaque machine a déjà son
+Les fenêtres ont, depuis le format 8, trois **types** (fenêtre, porte à
+zombies simple, porte double : § 9) choisis comme une variante (V, liste
+**Type (V)**). Pas de variante pour les portes du courant, les passages, les atouts (chaque machine a déjà son
 modèle), le décor et les luminaires (chaque modèle est déjà un objet du
 catalogue : `MapCatalog.PREFABS`, `MapCatalog.LIGHTS`).
 
@@ -163,9 +164,11 @@ Une seule source, le catalogue (`MapCatalog.allowed_kinds()`), lue par
 
 - `variante` : `{"t": "enum", "values": MapCatalog.variants(type)}`, déclarée
   **seulement** pour les types qui ont des variantes (`porte`, `debris`,
-  `arme`). Refusés : une variante inconnue (`"titane"`), d'un autre type
-  (`"planche"` sur une porte), qui n'est pas un texte, un chemin
-  (`"res://…"`), une clé `variante` sur une fenêtre ou tout autre type.
+  `arme`, `escalier` et, format 8, `fenetre` : `fenetre`, `porte`,
+  `porte_double`). Refusés : une variante inconnue (`"titane"`), d'un autre
+  type (`"planche"` sur une porte, `"bois"` sur une fenêtre), qui n'est pas un
+  texte, un chemin (`"res://…"`), une clé `variante` sur tout autre type ; une
+  fenêtre garde `largeur` à 1 (la largeur d'une porte suit son type).
 - `bloc_invisible` : clés `id`, `type`, `etage`, `rect` (obligatoire,
   coordonnées bornées), `rot` (entier 0 à 359), `hauteur` (nombre fini de
   0,5 à 30) ; toute autre clé est refusée. Puis le validateur de jouabilité.
@@ -329,16 +332,18 @@ n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
 
 ## 5. Versions du format
 
-`EditorMap.FORMAT` = **7**. Toutes les nouvelles clés sont facultatives : une
-carte au format 1 à 6 se lit telle quelle (`EditorMap._migrate`, rien à
+`EditorMap.FORMAT` = **8**. Toutes les nouvelles clés sont facultatives : une
+carte au format 1 à 7 se lit telle quelle (`EditorMap._migrate`, rien à
 convertir ; un escalier sans `variante` est droit, une applique sans
-`hauteur` est à 2 m) et s'enregistre au format 7 ; DRAFT ARENA (format 1)
-reste identique octet pour octet dans sa description en maillage. Un jeu
-plus ancien signale une carte au format 7 comme « plus récente » (et son
-contrôle refuserait les clés qu'il ne connaît pas).
+`hauteur` est à 2 m, une fenêtre sans `variante` est la fenêtre d'avant) et
+s'enregistre au format 8 ; DRAFT ARENA (format 1) reste identique octet pour
+octet dans sa description en maillage. Un jeu plus ancien signale une carte
+au format 8 comme « plus récente » (et son contrôle refuserait les clés
+qu'il ne connaît pas).
 
 - Format 6 : types d'escaliers (§ 4).
 - Format 7 : décor posé librement, hauteur d'une applique (§ 8).
+- Format 8 : portes à zombies simple et double (§ 9).
 
 ## 6. Ajouter une variante ou un type à variantes
 
@@ -467,3 +472,141 @@ Clé facultative `"hauteur"` d'un luminaire **mural** (`objets.json`) :
   centimètre, hauteur réglée dans les propriétés ; enregistrée, rouverte,
   TESTER : collisions à la vraie place (rien à la place arrondie), mur
   mitoyen entier, applique éclairée à sa hauteur.
+
+## 9. Portes à zombies (format 8)
+
+### Les types
+
+L'entrée des zombies (« Fenêtre à zombies » de l'inventaire, type
+`fenetre`) a trois types, choisis comme une variante : touche **V** (objet
+tenu avant de le poser, ou objet choisi) ou liste **Type (V)** des
+propriétés ; le plan écrit PORTE ou DOUBLE PORTE sur l'ouverture.
+
+| Type (`variante`) | Nom | Largeur | Planches | Arrachent à la fois | Attendent derrière | Passages |
+|---|---|---|---|---|---|---|
+| `fenetre` (défaut, clé absente) | Fenêtre / Window | 1 m | 6 | 3 (milieu, gauche, droite) | 0 | 1 (enjambement) |
+| `porte` | Porte à zombies (simple) / Zombie door (single) | 1 m | 6 | **1** | 3 | 1 (on passe le seuil en marchant) |
+| `porte_double` | Porte à zombies double / Zombie double door | 2 m | 10 (5 par battant) | **2** (un par battant) | 4 | 2 (un par battant) |
+
+La fenêtre garde exactement son aspect, sa découpe et ses règles (KINO,
+BUNKER K-7 et les cartes d'avant ne changent pas). Les règles des planches
+sont celles des fenêtres de BO1 : réparation en maintenant [F] depuis
+l'intérieur (+10 points par planche, plafond de 500 par manche, bonus
+CHARPENTIER), coup à travers quand il reste 3 planches au plus, joueurs
+arrêtés par l'ouverture même sans planches (la cour reste hors jeu, comme
+derrière les fenêtres de BO1).
+
+### Aspect : une vraie porte de 10 cm
+
+Une **vraie porte** défoncée, pas un trou dans le mur
+(`scripts/game/barricades/zombie_door_model.gd`, construite par le jeu, sans
+fichier importé ni élément graphique d'Activision) :
+
+- ouverture découpée **du sol** à 2,1 m (`MapValidator.ZOMBIE_DOOR_TOP`,
+  `Barricade.DOOR_HEIGHT`), sans allège ; un seuil plein sous la porte
+  (bloc à fleur du sol, ou bas du mur en biais) ; mur au-dessus ;
+- bâti (montants et traverse de 7 cm), seuil, chambranle autour de
+  l'ouverture sur la face du mur, socles ;
+- porte simple : battant de planches debout, **pendu à sa penture du haut**
+  (gond du bas arraché, côté libre affaissé), le bas défoncé (planches
+  cassées à des hauteurs différentes, bouts éclatés en dents de scie, une
+  planche manquante, éclats restés en bas), barres et écharpe cassées ;
+- porte double : battant gauche pendu de la même façon, battant droit
+  **cassé en deux** (la moitié basse reste sur ses gonds, un morceau du haut
+  pend à sa penture) ;
+- planches de la barricade clouées en travers devant le battant (porte
+  double : 5 par battant, en miroir), arrachées une à une comme aux fenêtres ;
+- bois brun veiné avec restes de peinture vert-de-gris (bâti plus sombre ;
+  planches de la barricade grises), pentures en fer (`WorldLook.SURFACES`
+  « metal »).
+
+**Épaisseur** : tout l'assemblage (bâti, chambranle, battants, planches
+au repos) tient dans une tranche de **10 cm** (`ZombieDoorModel.Z_BACK` à
+`Z_FRONT` : de 16 à 26 cm du milieu du mur, côté salle). La porte est posée
+**dans la face intérieure du mur** (chambranle 1 cm en saillie, planches à
+fleur) : vue de la salle, c'est une porte dans son mur ; le reste de
+l'épaisseur du mur (0,4 m) est l'embrasure, côté cour des zombies. Les
+battants cassés restent dans leur plan (ils pendent en tournant autour de
+leur penture, sans s'ouvrir vers la salle). Mesuré sur la géométrie
+construite (`tests/test_zombie_doors.gd`).
+
+### Les zombies
+
+- Apparition : dans la cour derrière la porte (porte double : un point
+  derrière chaque battant, `Barricade.DOUBLE_SPAWN_SIDE`).
+- Places (`Barricade.TEAR_OFFSETS`, `WAIT_POINTS`) : porte simple, une place
+  devant les planches (dans l'embrasure, 0,62 m dehors) et trois places
+  d'attente derrière (deux à 1,15 m, une à 2,3 m, à l'écart du point
+  d'apparition) ; porte double, une place devant chaque battant (à ±0,5 m)
+  et quatre d'attente. Un zombie à une place d'attente s'agite (pose « de
+  folie ») et prend la première place libre devant les planches.
+- File (`BarricadeRules.queue_max`, `Barricade.queue_full`) : au plus 4
+  zombies rattachés à une porte simple (1 + 3), 6 à une double (2 + 4) ; le
+  point d'apparition est sauté tant que la file est pleine (fenêtres :
+  `WINDOW_QUEUE_MAX` = 3, inchangé).
+- Arrachage : même cycle que les fenêtres (`BarricadeRules.tear_tick` :
+  2,5 s par planche en moyenne, pause « de folie ») ; porte double, chacun
+  arrache d'abord les planches de son battant
+  (`BarricadeRules.plank_to_tear_lane`), puis aide l'autre : 10 planches en
+  ~12 s à deux, contre ~14 s pour les 6 d'une porte simple à un seul.
+- Passage : sans planche, le zombie passe le seuil **en marchant**
+  (`BarricadeRules.STEP_TIME` = 1,2 s, vitesse régulière, animation de
+  marche ; `Zombie._vault`, `ZombieAnim`) jusqu'à 1 m dedans, puis poursuit
+  le joueur. Une arrivée par passage (`exit_clear(z, lane)`) : deux zombies
+  passent de front une porte double.
+- Navigation : comme aux fenêtres, l'approche dans la cour et le passage sont
+  menés par la barricade (pas de chemin du navmesh à travers l'ouverture : la
+  barrière reste là pour les joueurs) ; dedans, le zombie reprend le navmesh
+  depuis l'arrivée.
+- Réseau : masque des planches (10 bits) diffusé comme celui des fenêtres
+  (`Interactable.broadcast_state` ; état complet au lancement en
+  `PackedInt32Array`) ; le passage suit l'état VAULT du zombie, les clients
+  animent la marche.
+
+### Règles de pose et vérification
+
+Comme une fenêtre : sur un mur **extérieur** (sol d'une pièce d'un côté, du
+vide de l'autre), **0,5 m de mur plein** à chaque bout, dans un mur de
+0,5 m, **cour libre** derrière : 2,5 m de profondeur sur 3 m (porte simple)
+ou **4 m** (porte double, `MapRules.pocket_width`). Changer le type d'une
+fenêtre posée est refusé si la porte double ne tient pas à sa place
+(`MapRules.apply_variant` ; V passe alors au type suivant qui tient ; message
+dans les deux langues). Le validateur revérifie la largeur (« elle fait 2 m
+le long d'un mur de 0,5 m »), la cour et les deux côtés.
+
+### Format
+
+```json
+{"type":"fenetre","position":[25.1,17.25],"etage":0,"id":"o1","variante":"porte_double"}
+```
+
+- `variante` absente : la fenêtre d'avant (jamais écrite) ; pas de clé
+  `largeur` (la largeur suit le type ; une `largeur` autre que 1 est
+  refusée par le contrôle).
+- Description en maillage (`markers.windows`) : `kind` (`porte`,
+  `porte_double`), `w` (largeur), `h` = 2,1 et une ou deux `spawns` ; une
+  fenêtre garde exactement ses clés d'avant (`p`, `in`, `h`, `zone`,
+  `spawns`). Chaîne : `MapRaster` (`variants`) → `MapValidator.windows`
+  (`kind`) → `MapLayoutExport` (découpe, marqueur) → `MeshMapLayout.windows()`
+  (`Opening.kind`, `width`) → `Barricade`.
+
+### Preuves automatiques
+
+- `tests/test_zombie_doors.gd` (unitaire) : règles par type (planches,
+  zombies qui arrachent, file, battants, réparation alternée), cadence
+  simulée (porte double ~2 fois plus rapide par planche), format 8 relu à
+  l'identique, fenêtre d'avant décrite à l'identique, type inconnu retiré,
+  contrôle (5 cas refusés), validateur (pose, 0,5 m de mur, cour de 4 m, mur
+  trop court, changement de type refusé), découpe sans allège sur la grille
+  et sur un mur hors grille (seuil plein, mur au-dessus), épaisseur de la
+  porte construite ≤ 10 cm, places écartées et hors des apparitions, fenêtre
+  construite comme avant.
+- Scénario `zombie_doors` (cartes `tests/fixtures/maps/smallest_door/` et
+  `smallest_double_door/`) : manche 1, file de 4 / 6 respectée ; porte
+  simple, un seul zombie arrache (jamais deux à la fois) ; porte double, deux
+  à la fois, 10 planches en ~12 s ; personne n'entre avant la dernière
+  planche ; toute la horde passe le seuil et entre (deux de front à la
+  double) ; le joueur ne sort pas ; réparation [F] (+10 par planche).
+- Captures (hors check, `## @niveau perf`) : `zombie_door_look` (fenêtre,
+  porte simple, double : de face, de biais, de près, à moitié arrachée,
+  ouverte, depuis la cour).

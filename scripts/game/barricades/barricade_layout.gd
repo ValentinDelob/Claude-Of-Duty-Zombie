@@ -21,6 +21,11 @@ class Opening:
 	var inward_dir := Vector3(0, 0, 1)
 	## Hauteur de l'ouverture (du sol au linteau).
 	var height := MapBuilder.WALL_HEIGHT
+	## Type d'entrée (BarricadeRules.KINDS) : fenêtre (cartes grille, et par
+	## défaut), porte à zombies simple ou double (cartes de l'éditeur, format 8).
+	var kind := BarricadeRules.WINDOW
+	## Largeur de l'ouverture le long du mur (m).
+	var width := 1.0
 	## Graine des planches (aspect déterministe sur toutes les machines).
 	@warning_ignore("shadowed_global_identifier")
 	var seed := 0

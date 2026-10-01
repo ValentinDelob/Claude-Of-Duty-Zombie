@@ -94,7 +94,7 @@ func pick_spawn_point() -> Variant:
 		# Derrière une fenêtre : au plus WINDOW_QUEUE_MAX zombies qui
 		# attendent (une place chacun, BO1 : attack_spots) ; les suivants
 		# attendent leur tour dans le quota de la manche.
-		if sp.window and BarricadeRules.queue_full(sp.window.waiting_count()):
+		if sp.window and sp.window.queue_full():
 			continue
 		# Un seul zombie à la fois par point (comme les points de sortie de
 		# BO1) : deux zombies apparus au même endroit se superposent

@@ -14,6 +14,14 @@ extends Interactable
 ##   Chaque changement est diffusé par l'InteractionSystem (RPC fiable par
 ##   fenêtre) ; toutes les machines animent les planches.
 ##
+## * Format 8 (cartes de l'éditeur) : PORTE À ZOMBIES simple ou double
+##   (`kind`, BarricadeRules.KINDS ; docs/MAP_OBJECTS.md § 9) : vraie porte
+##   défoncée de 10 cm d'épaisseur (ZombieDoorModel) dans la face intérieure
+##   du mur, planches clouées devant. Porte simple : un seul zombie arrache
+##   (TEAR_OFFSETS), trois attendent derrière lui (WAIT_POINTS) ; porte
+##   double : un zombie par battant (deux à la fois), quatre attendent, deux
+##   passages de front. Le zombie passe le seuil en marchant (STEP_TIME).
+##
 ## Repère local : +Z vers l'intérieur de la zone, X le long du mur.
 
 ## Couche physique « barrière » : bloque joueurs et zombies, pas les balles.
@@ -54,6 +62,45 @@ const LAYOUT := [
 	[1.93, 0.07, -0.012, 0.05],
 ]
 
+# --- Portes à zombies (format 8) -------------------------------------------
+## Haut de l'ouverture d'une porte (MapValidator.ZOMBIE_DOOR_TOP).
+const DOOR_HEIGHT := 2.1
+const DOOR_PLANK_SIZE := Vector3(1.04, 0.15, 0.04)
+## Plan des planches d'une porte : devant le battant, dans la tranche de
+## 10 cm de la porte (ZombieDoorModel.BOARD_Z), côté salle.
+const DOOR_PLANK_Z := 0.231
+## Le zombie qui arrache se tient dans l'embrasure, juste dehors.
+const DOOR_TEAR_DIST := 0.62
+## Places où l'on arrache (X local) : porte simple au milieu, double devant
+## chaque battant.
+const TEAR_OFFSETS := {"porte": [0.0], "porte_double": [-0.5, 0.5]}
+## Places d'attente derrière ceux qui arrachent : [X local, distance dehors
+## depuis le milieu du mur] ; à l'écart des points d'apparition (1,6 m dehors,
+## ±DOUBLE_SPAWN_SIDE pour la double) pour ne pas les boucher.
+const WAIT_POINTS := {
+	"porte": [[-0.75, 1.15], [0.75, 1.15], [0.0, 2.3]],
+	"porte_double": [[-1.4, 1.2], [1.4, 1.2], [-0.45, 2.3], [0.45, 2.3]],
+}
+## Apparitions derrière une porte double : une derrière chaque battant.
+const DOUBLE_SPAWN_SIDE := 0.75
+## [hauteur, roulis, décalage z, décalage x] des planches d'une porte simple
+## (6) et d'un battant de porte double (5, planches i paires à gauche).
+const DOOR_LAYOUT := [
+	[0.42, 0.09, 0.0, 0.02],
+	[1.86, -0.07, 0.004, -0.02],
+	[1.16, 0.42, -0.006, 0.0],
+	[1.16, -0.40, 0.006, 0.02],
+	[0.78, -0.06, 0.002, -0.03],
+	[1.52, 0.08, -0.002, 0.03],
+]
+const DOUBLE_LAYOUT := [
+	[0.45, 0.08, 0.0, 0.0],
+	[1.85, -0.06, 0.004, 0.0],
+	[1.15, 0.40, -0.006, 0.0],
+	[0.8, -0.07, 0.002, 0.0],
+	[1.5, 0.07, -0.002, 0.0],
+]
+
 var window_index := 0
 var cell := Vector2i.ZERO
 var inward := Vector3.FORWARD
@@ -63,11 +110,20 @@ var opening_height := MapBuilder.WALL_HEIGHT
 var seed := 0
 var zone := ""
 var spawn_cells: Array = []
+## Type d'entrée (BarricadeRules.KINDS) et largeur de l'ouverture (m).
+var kind := BarricadeRules.WINDOW
+var width := 1.0
+## Nombre de planches (6 ; porte double : 10).
+var plank_count := BarricadeRules.PLANKS
 ## Planches présentes (bit i = planche i).
 var mask := BarricadeRules.FULL_MASK
-## Serveur : zombie en train d'enjamber (un seul à la fois).
+## Serveur : zombie en train d'enjamber (un seul à la fois ; porte double :
+## celui du passage 0, les autres passages dans _vaulters).
 var vaulter: Zombie
-## Serveur : zombie posté à chaque place (SLOT_OFFSETS), ou null.
+## Serveur : zombie en train de passer, par passage (porte double : 2).
+var _vaulters: Array = [null]
+## Serveur : zombie posté à chaque place (places où l'on arrache, puis
+## places d'attente d'une porte), ou null.
 var _slots: Array = [null, null, null]
 ## Serveur : places dégagées (mesurées au premier besoin, _slot_open).
 var _slot_ok: Array = []
@@ -96,21 +152,59 @@ func setup(w: BarricadeLayout.Opening) -> void:
 	hold_time = BarricadeRules.REPAIR_TIME
 	position = w.pos
 	rotation.y = atan2(inward.x, inward.z)
+	kind = w.kind if BarricadeRules.KINDS.has(w.kind) else BarricadeRules.WINDOW
+	width = w.width if is_door() else 1.0
+	plank_count = BarricadeRules.planks_for(kind)
+	mask = full_mask()
+	_slots = []
+	_slots.resize(slot_count())
+	_vaulters = []
+	_vaulters.resize(BarricadeRules.lanes(kind))
+	if is_door():
+		opening_height = minf(opening_height, DOOR_HEIGHT)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
-	for i in BarricadeRules.PLANKS:
-		var l: Array = LAYOUT[i]
-		var b := Basis(Vector3.UP, rng.randf_range(-0.05, 0.05)) * Basis(Vector3.BACK, l[1] + rng.randf_range(-0.04, 0.04))
-		_rest.append(Transform3D(b, Vector3(l[3], l[0] + rng.randf_range(-0.03, 0.03), PLANK_Z + l[2])))
+	for i in plank_count:
+		if is_door():
+			_door_plank_rest(i, rng)
+		else:
+			var l: Array = LAYOUT[i]
+			var b := Basis(Vector3.UP, rng.randf_range(-0.05, 0.05)) * Basis(Vector3.BACK, l[1] + rng.randf_range(-0.04, 0.04))
+			_rest.append(Transform3D(b, Vector3(l[3], l[0] + rng.randf_range(-0.03, 0.03), PLANK_Z + l[2])))
 		# Planche arrachée : à plat sur le sol, dehors, en vrac.
 		var fb := Basis(Vector3.UP, rng.randf_range(-0.9, 0.9)) * Basis(Vector3.RIGHT, PI * 0.5)
-		_fallen.append(Transform3D(fb, Vector3(rng.randf_range(-0.55, 0.55), 0.03 + i * 0.012, -rng.randf_range(0.75, 1.25))))
+		var fx := rng.randf_range(-0.55, 0.55) * (width if is_door() else 1.0)
+		_fallen.append(Transform3D(fb, Vector3(fx, 0.03 + i * 0.012, -rng.randf_range(0.75, 1.25))))
 		_anim.append([0, 0.0])
+
+
+## Planche `i` d'une porte, au repos : clouée en travers de l'ouverture
+## (porte double : de son battant), dans la tranche de 10 cm de la porte.
+## Roulis tenu à ±0,42 rad et tirage léger : elle reste dans cette tranche.
+func _door_plank_rest(i: int, rng: RandomNumberGenerator) -> void:
+	var l: Array
+	var cx := 0.0
+	var dy := 0.0
+	var roll_sign := 1.0
+	if kind == BarricadeRules.DOUBLE_DOOR:
+		var lane := BarricadeRules.lane_of_plank(i, 2)
+		l = DOUBLE_LAYOUT[i >> 1]
+		cx = TEAR_OFFSETS[kind][lane]
+		# Battant droit : planches en miroir, un peu décalées en hauteur.
+		roll_sign = 1.0 if lane == 0 else -1.0
+		dy = 0.0 if lane == 0 else 0.08
+	else:
+		l = DOOR_LAYOUT[i]
+	var b := Basis(Vector3.BACK, (float(l[1]) + rng.randf_range(-0.03, 0.03)) * roll_sign)
+	_rest.append(Transform3D(b, Vector3(cx + float(l[3]), float(l[0]) + dy + rng.randf_range(-0.03, 0.03), DOOR_PLANK_Z + float(l[2]))))
 
 
 func _ready() -> void:
 	# L'encadrement fixe (allège, linteau, bois) est fusionné au décor par
 	# PropBuilder._windows() ; ici : les planches, la barrière et la lueur.
+	# Porte à zombies : le bâti et les battants défoncés (ZombieDoorModel).
+	if is_door():
+		add_child(ZombieDoorModel.build(kind, width, opening_height, seed))
 	_build_planks()
 	_build_barrier()
 	# Faible lueur froide « du dehors » : les planches se découpent en
@@ -137,15 +231,15 @@ func _ready() -> void:
 
 func _build_planks() -> void:
 	var bm := BoxMesh.new()
-	bm.size = PLANK_SIZE
+	bm.size = DOOR_PLANK_SIZE if is_door() else PLANK_SIZE
 	_mm = MultiMesh.new()
 	_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_mm.use_colors = true
 	_mm.mesh = bm
-	_mm.instance_count = BarricadeRules.PLANKS
+	_mm.instance_count = plank_count
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed + 7
-	for i in BarricadeRules.PLANKS:
+	for i in plank_count:
 		var v := rng.randf_range(0.72, 1.08)
 		_mm.set_instance_color(i, Color(v, v * rng.randf_range(0.9, 1.0), v * rng.randf_range(0.8, 0.95)))
 	var mmi := MultiMeshInstance3D.new()
@@ -172,7 +266,7 @@ func _build_barrier() -> void:
 	barrier.collision_mask = 0
 	var bcs := CollisionShape3D.new()
 	var bbox := BoxShape3D.new()
-	bbox.size = Vector3(1.0, opening_height, 1.0)
+	bbox.size = Vector3(width, opening_height, 1.0)
 	bcs.shape = bbox
 	bcs.position.y = opening_height * 0.5
 	barrier.add_child(bcs)
@@ -231,17 +325,17 @@ func apply_state(state: Dictionary, animate: bool) -> void:
 
 func set_mask(new_mask: int, animate := true) -> void:
 	var old := mask
-	mask = new_mask & BarricadeRules.FULL_MASK
+	mask = new_mask & full_mask()
 	if _mm == null:
 		return
 	if not animate:
-		for i in BarricadeRules.PLANKS:
+		for i in plank_count:
 			_anim[i] = [0, 0.0]
 		_refresh_all()
 		return
 	var torn := false
 	var fixed := false
-	for i in BarricadeRules.PLANKS:
+	for i in plank_count:
 		var was := (old >> i) & 1
 		var now := (mask >> i) & 1
 		if was == now:
@@ -253,7 +347,7 @@ func set_mask(new_mask: int, animate := true) -> void:
 		Audio.play_3d("barricade_tear_%d" % (1 + randi() % 3), global_position + Vector3.UP * 1.4, 0.0, 0.1, 4)
 		var fx: Fx = Game.instance.fx_root if Game.instance else null
 		if fx:
-			fx.dust.burst(to_global(Vector3(0, 1.5, PLANK_Z - 0.1)), -inward, 6, 1.2, 0.5, 0.7, Color(0.3, 0.24, 0.17, 0.5))
+			fx.dust.burst(to_global(Vector3(0, 1.2 if is_door() else 1.5, (DOOR_PLANK_Z if is_door() else PLANK_Z) - 0.1)), -inward, 6, 1.2, 0.5, 0.7, Color(0.3, 0.24, 0.17, 0.5))
 	# Le son du marteau part à l'arrivée de la planche (fin d'animation).
 	if torn or fixed:
 		_animating = true
@@ -262,7 +356,7 @@ func set_mask(new_mask: int, animate := true) -> void:
 
 func _process(delta: float) -> void:
 	var busy := false
-	for i in BarricadeRules.PLANKS:
+	for i in plank_count:
 		var a: Array = _anim[i]
 		if a[0] == 0:
 			continue
@@ -285,7 +379,7 @@ func _process(delta: float) -> void:
 
 
 func _refresh_all() -> void:
-	for i in BarricadeRules.PLANKS:
+	for i in plank_count:
 		_mm.set_instance_transform(i, _plank_xform(i))
 
 
@@ -320,16 +414,72 @@ func _plank_xform(i: int) -> Transform3D:
 # Repères (monde)
 # --------------------------------------------------------------------------
 
-## Là où se tient le zombie qui arrache les planches (dehors).
+## Là où se tient le zombie qui arrache les planches (dehors, au milieu).
 func tear_point() -> Vector3:
-	var p := global_position - inward * TEAR_DIST
+	var p := global_position - inward * (DOOR_TEAR_DIST if is_door() else TEAR_DIST)
 	return Vector3(p.x, global_position.y, p.z)
 
 
-## Arrivée de l'enjambement (dedans).
-func inside_point() -> Vector3:
-	var p := global_position + inward * INSIDE_DIST
+## Arrivée de l'enjambement (dedans) ; porte double : devant le battant du
+## passage `lane`.
+func inside_point(lane := 0) -> Vector3:
+	var p := global_position + inward * INSIDE_DIST + _side() * _lane_x(lane)
 	return Vector3(p.x, global_position.y, p.z)
+
+
+# --------------------------------------------------------------------------
+# Type d'entrée (format 8) : fenêtre, porte simple, porte double
+# --------------------------------------------------------------------------
+
+func is_door() -> bool:
+	return BarricadeRules.is_door(kind)
+
+
+## Masque de toutes les planches de cette entrée.
+func full_mask() -> int:
+	return (1 << plank_count) - 1
+
+
+## Places où l'on arrache (fenêtre : 3 ; porte : 1 ; porte double : 2).
+func tear_slots() -> int:
+	return SLOT_OFFSETS.size() if not is_door() else (TEAR_OFFSETS[kind] as Array).size()
+
+
+## Toutes les places : où l'on arrache, puis où l'on attend (portes).
+func slot_count() -> int:
+	return tear_slots() + ((WAIT_POINTS[kind] as Array).size() if is_door() else 0)
+
+
+## Zombies rattachés au plus (BarricadeRules.queue_max).
+func queue_max() -> int:
+	return BarricadeRules.WINDOW_QUEUE_MAX if not is_door() else BarricadeRules.queue_max(kind)
+
+
+## La file de cette entrée est-elle pleine (Spawner) ?
+func queue_full() -> bool:
+	return BarricadeRules.queue_full(waiting_count(), kind)
+
+
+## Passage de front de la place `i` (porte double : 0 à gauche, 1 à droite ;
+## sinon 0).
+func lane_of_slot(i: int) -> int:
+	return i if kind == BarricadeRules.DOUBLE_DOOR and i < 2 else 0
+
+
+func _lane_x(lane: int) -> float:
+	return float(TEAR_OFFSETS[kind][lane]) if kind == BarricadeRules.DOUBLE_DOOR else 0.0
+
+
+## Direction le long du mur (X local), à plat.
+func _side() -> Vector3:
+	var s := global_transform.basis.x if is_inside_tree() else Basis(Vector3.UP, rotation.y).x
+	s.y = 0.0
+	return s.normalized()
+
+
+## Durée du passage (fenêtre : enjambement ; porte : pas du seuil).
+func vault_time() -> float:
+	return BarricadeRules.STEP_TIME if is_door() else BarricadeRules.VAULT_TIME
 
 
 func interact_point() -> Vector3:
@@ -346,7 +496,7 @@ func is_inside(pos: Vector3) -> bool:
 # --------------------------------------------------------------------------
 
 func prompt(pid: int) -> String:
-	if mask == BarricadeRules.FULL_MASK:
+	if mask == full_mask():
 		return ""
 	var p: Player = system.game.players.get(pid) if system else null
 	if p and not is_inside(p.global_position):
@@ -378,7 +528,7 @@ func _physics_process(delta: float) -> void:
 				or not can_repair_from(p.srv_origin(), global_position, inward, interact_point()):
 			_repairers.erase(pid)
 			continue
-		if mask == BarricadeRules.FULL_MASK:
+		if mask == full_mask():
 			_repairers[pid] = 0.0
 			continue
 		_repairers[pid] += delta
@@ -393,7 +543,7 @@ func is_repairing(pid: int) -> bool:
 
 ## Serveur : repose une planche ; `pid` > 0 : réparation d'un joueur (points).
 func srv_add_plank(pid := 0) -> bool:
-	var i := BarricadeRules.plank_to_repair(mask)
+	var i := BarricadeRules.plank_to_repair(mask, plank_count)
 	if i < 0:
 		return false
 	set_mask(mask | (1 << i))
@@ -403,9 +553,10 @@ func srv_add_plank(pid := 0) -> bool:
 	return true
 
 
-## Serveur : un zombie arrache une planche.
-func srv_tear() -> bool:
-	var i := BarricadeRules.plank_to_tear(mask)
+## Serveur : un zombie arrache une planche (porte double : `lane`, celle de
+## son battant d'abord).
+func srv_tear(lane := 0) -> bool:
+	var i := BarricadeRules.plank_to_tear_lane(mask, plank_count, BarricadeRules.lanes(kind), lane)
 	if i < 0:
 		return false
 	set_mask(mask & ~(1 << i))
@@ -450,8 +601,9 @@ func srv_zombie_barrier(z: Zombie, delta: float) -> void:
 	# la sortie se libère se bousculait autour du point exact, aucun n'y
 	# arrivait.
 	if dist < (VAULT_REACH if mask == 0 else 0.5):
-		if slot < 0:
-			# En retrait : il s'agite en attendant une place.
+		if slot < 0 or slot >= tear_slots():
+			# En retrait, ou à une place d'attente d'une porte : il s'agite en
+			# attendant une place devant les planches.
 			_frenzy_wait(z, delta)
 			desired = to * 2.0
 		else:
@@ -460,12 +612,16 @@ func srv_zombie_barrier(z: Zombie, delta: float) -> void:
 				z.target = victim
 				z.barrier_attack()
 				return
+			var lane := lane_of_slot(slot)
 			if mask == 0:
-				if (vaulter == null or not is_instance_valid(vaulter) or not vaulter.is_alive() or vaulter.barricade != self) and exit_clear(z):
-					vaulter = z
+				var v: Variant = _vaulters[lane]
+				if (v == null or not is_instance_valid(v) or not (v as Zombie).is_alive() or (v as Zombie).barricade != self) and exit_clear(z, lane):
+					_vaulters[lane] = z
+					if lane == 0:
+						vaulter = z
 					_slots[slot] = null
 					z.tear_frenzy = false
-					z.start_vault(Vector3(z.global_position.x, tp.y, z.global_position.z), inside_point())
+					z.start_vault(Vector3(z.global_position.x, tp.y, z.global_position.z), inside_point(lane))
 					return
 				# Fenêtre ouverte, sortie prise : il s'agite en attendant.
 				_frenzy_wait(z, delta)
@@ -476,7 +632,7 @@ func srv_zombie_barrier(z: Zombie, delta: float) -> void:
 				z.tear_t = st.y
 				z.tear_pause = st.z
 				if st.w > 0.5:
-					srv_tear()
+					srv_tear(lane)
 			# Petit recentrage sur sa place.
 			desired = to * 2.0
 	else:
@@ -503,36 +659,58 @@ static func _frenzy_wait(z: Zombie, delta: float) -> void:
 
 
 ## Place `i` devant la fenêtre (dehors) : celle du milieu, puis à gauche et à
-## droite, le long du mur.
+## droite, le long du mur. Porte : les places où l'on arrache (TEAR_OFFSETS)
+## puis les places d'attente (WAIT_POINTS).
 func slot_point(i: int) -> Vector3:
-	var side := global_transform.basis.x
-	side.y = 0.0
-	return tear_point() + side.normalized() * SLOT_OFFSETS[i]
+	var side := _side()
+	if not is_door():
+		return tear_point() + side * SLOT_OFFSETS[i]
+	var nt := tear_slots()
+	if i < nt:
+		return tear_point() + side * float(TEAR_OFFSETS[kind][i])
+	var wp: Array = WAIT_POINTS[kind][i - nt]
+	var p := global_position - inward * float(wp[1]) + side * float(wp[0])
+	return Vector3(p.x, global_position.y, p.z)
 
 
 ## Serveur : place tenue par `z`, sinon la place libre (et dégagée) la plus
 ## proche de lui ; -1 s'il n'y en a pas. Une place se libère quand son
-## zombie meurt, enjambe ou quitte la fenêtre.
+## zombie meurt, enjambe ou quitte la fenêtre. Porte : un zombie à une place
+## d'attente prend la première place libre devant les planches (la plus
+## proche de lui) ; un nouveau venu prend d'abord une place devant les
+## planches, sinon une place d'attente.
 func _claim_slot(z: Zombie) -> int:
-	var free := -1
-	var free_d := INF
+	var nt := tear_slots()
+	var held := -1
+	var free_tear := -1
+	var free_wait := -1
+	var tear_d := INF
+	var wait_d := INF
 	for i in _slots.size():
 		var o: Variant = _slots[i]
 		if o != null and not _holds_slot(o):
 			_slots[i] = null
 			o = null
 		if o == z:
-			return i
-		if o == null and _slot_open(i):
+			held = i
+		elif o == null and _slot_open(i):
 			var d := _flat_dist(slot_point(i), z.global_position)
-			if d < free_d:
-				free_d = d
-				free = i
-	if free >= 0:
-		_slots[free] = z
+			if i < nt and d < tear_d:
+				tear_d = d
+				free_tear = i
+			elif i >= nt and d < wait_d:
+				wait_d = d
+				free_wait = i
+	if held >= 0 and (held < nt or free_tear < 0):
+		return held
+	var pick := free_tear if free_tear >= 0 else free_wait
+	if pick >= 0:
+		if held >= 0:
+			_slots[held] = null
+		_slots[pick] = z
 		z.tear_t = 0.0
 		z.tear_frenzy = false
-	return free
+	return pick
 
 
 ## La place est-elle encore tenue par `o` (vivant, rattaché, pas en train
@@ -553,7 +731,7 @@ func _slot_open(i: int) -> bool:
 	if _slot_ok.is_empty():
 		_slot_ok = [true]
 		var space := get_world_3d().direct_space_state if is_inside_tree() else null
-		for k in range(1, SLOT_OFFSETS.size()):
+		for k in range(1, slot_count()):
 			var ok := space != null
 			if ok:
 				var from := tear_point() + Vector3.UP
@@ -581,8 +759,9 @@ func waiting_count() -> int:
 ## attend là (joueur à terre, hors d'atteinte...), il le recouvrait, et la file
 ## ainsi tassée, alignée sur l'axe de la fenêtre, restait bloquée pour de bon
 ## (BUNKER K-7 : générateur à 1,5 m de la fenêtre sud).
-func exit_clear(z: Zombie) -> bool:
-	var ip := inside_point()
+## Porte double : une arrivée par passage (`lane`).
+func exit_clear(z: Zombie, lane := 0) -> bool:
+	var ip := inside_point(lane)
 	for o: Zombie in system.game.zombies.alive:
 		if o != z and absf(o.global_position.y - ip.y) < 1.0 and _flat_dist(o.global_position, ip) < EXIT_CLEARANCE:
 			return false
@@ -593,6 +772,9 @@ func exit_clear(z: Zombie) -> bool:
 func srv_vault_done(z: Zombie) -> void:
 	if vaulter == z:
 		vaulter = null
+	for i in _vaulters.size():
+		if _vaulters[i] == z:
+			_vaulters[i] = null
 
 
 ## Joueur debout collé à la fenêtre, à portée du zombie.
