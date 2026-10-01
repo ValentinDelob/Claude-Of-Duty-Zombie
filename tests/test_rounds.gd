@@ -36,11 +36,28 @@ func test_speed_distribution() -> void:
 	assert_eq(RoundRules.speed_for_roll(71), RoundRules.SPRINT)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1
+	# Ancien test : « manche 1 : surtout des marcheurs » (> 280/400, tirage de
+	# BO1). Règle demandée par le joueur : que des marcheurs aux manches 1 à 3.
 	var walkers := 0
 	for i in 400:
 		if RoundRules.pick_speed(1, rng) == RoundRules.WALK:
 			walkers += 1
-	assert_true(walkers > 280, "manche 1 : surtout des marcheurs (%d/400)" % walkers)
+	assert_eq(walkers, 400, "manche 1 : que des marcheurs (%d/400)" % walkers)
 	for i in 50:
 		assert_true(RoundRules.pick_speed(5, rng) != RoundRules.WALK, "manche 5 : plus de marcheurs")
 		assert_eq(RoundRules.pick_speed(10, rng), RoundRules.SPRINT, "manche 10 : tous sprinteurs")
+
+
+## Demande du joueur : on ne court qu'à partir de la manche 4.
+func test_walkers_only_until_round_3_runners_from_round_4() -> void:
+	assert_eq(RoundRules.RUNNERS_FROM_ROUND, 4)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	for r in [1, 2, 3]:
+		for i in 500:
+			assert_eq(RoundRules.pick_speed(r, rng), RoundRules.WALK, "manche %d : marcheurs seulement" % r)
+	var runners := 0
+	for i in 500:
+		if RoundRules.pick_speed(4, rng) != RoundRules.WALK:
+			runners += 1
+	assert_true(runners > 0 and runners < 500, "manche 4 : des coureurs apparaissent (%d/500), quelques marcheurs restent" % runners)

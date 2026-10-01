@@ -22,6 +22,11 @@ const MOVE_SPEED_MULT := 8
 const WALK := 0
 const RUN := 2
 const SPRINT := 3
+## Règle du joueur (demande explicite) : que des marcheurs aux manches 1 à 3,
+## des coureurs peuvent apparaître à partir de la manche 4. Le tirage de BO1
+## seul ([manche x 8, manche x 8 + 35]) en sortait déjà dès la manche 1
+## (tirages 36 à 43 : ~22 % de coureurs).
+const RUNNERS_FROM_ROUND := 4
 
 
 ## Nombre total de zombies de la manche.
@@ -76,6 +81,10 @@ static func speed_for_roll(roll: int) -> int:
 	return SPRINT
 
 
+## Classe de vitesse d'un nouveau zombie : marcheur avant RUNNERS_FROM_ROUND,
+## ensuite le tirage de BO1.
 static func pick_speed(round_n: int, rng: RandomNumberGenerator) -> int:
+	if round_n < RUNNERS_FROM_ROUND:
+		return WALK
 	var s := move_speed(round_n)
 	return speed_for_roll(rng.randi_range(s, s + 35))
