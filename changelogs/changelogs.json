@@ -1331,6 +1331,29 @@
     "en": "Zombie doors: vaulted over",
     "fr": "Portes à zombies : on les enjambe"
    }
+  },
+  "v0.2.0-snapshot.345": {
+   "channel": "snapshot",
+   "date": "2026-10-01",
+   "images": [],
+   "items": [
+    {
+     "en": "No more teddy bear on a map with a single box location: the box has nowhere to go.",
+     "fr": "Plus d'ours en peluche sur une carte qui n'a qu'un seul emplacement de boîte : la boîte n'a nulle part où aller."
+    },
+    {
+     "en": "After the box leaves, the host sees it again at its new location (it used to stay invisible while still usable).",
+     "fr": "Après le départ de la boîte, l'hôte la revoit bien à son nouvel emplacement (elle restait invisible tout en restant utilisable)."
+    },
+    {
+     "en": "The open lid no longer goes into the wall: the box sits a little further from the wall.",
+     "fr": "Le couvercle ouvert n'entre plus dans le mur : la boîte est posée un peu plus loin du mur."
+    }
+   ],
+   "title": {
+    "en": "Mystery Box fixes",
+    "fr": "Boîte mystère corrigée"
+   }
   }
  }
 }

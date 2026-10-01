@@ -42,9 +42,9 @@ func test_collision_et_point_d_interaction_inchanges() -> void:
 	assert_true(shape != null, "collision de la boîte")
 	assert_eq(shape.size, Vector3(1.8, 0.85, 0.85), "empreinte de collision")
 	assert_near(cs_y, 0.425, 0.0001, "collision posée au sol")
-	# Emplacement : marqueur + mur * 0,05 ; point d'interaction 0,7 m devant, à 0,9 m.
-	assert_true(box.global_position.is_equal_approx(Vector3(2.0, 0.0, 2.95)), "boîte posée à l'emplacement")
-	assert_true(box.interact_point().is_equal_approx(Vector3(2.0, 0.9, 3.65)), "point d'interaction (%s)" % box.interact_point())
+	# Emplacement : centre à SPOT_WALL_GAP du mur (z = 2,5) ; point d'interaction 0,7 m devant, à 0,9 m.
+	assert_true(box.global_position.is_equal_approx(Vector3(2.0, 0.0, 3.07)), "boîte posée à l'emplacement (%s)" % box.global_position)
+	assert_true(box.interact_point().is_equal_approx(Vector3(2.0, 0.9, 3.77)), "point d'interaction (%s)" % box.interact_point())
 	assert_eq(box.interact_range, 2.0, "portée d'interaction")
 
 
@@ -79,7 +79,50 @@ func test_couvercle_pivote_sur_la_charniere() -> void:
 	var box := await _box()
 	assert_eq(box._lid.position, MysteryBox.LID_HINGE, "pivot sur l'arête arrière haute")
 	assert_true(MysteryBox.LID_OPEN_ANGLE < -1.3 and MysteryBox.LID_OPEN_ANGLE > -1.65,
-			"ouvert presque à la verticale, sans entrer dans le mur (%.2f rad)" % MysteryBox.LID_OPEN_ANGLE)
+			"ouvert presque à la verticale (%.2f rad)" % MysteryBox.LID_OPEN_ANGLE)
+
+
+## Bug joueur : couvercle ouvert qui entrait dans le mur. Ouvert en grand,
+## toutes ses pièces restent devant le mur (à SPOT_WALL_GAP derrière le centre).
+func test_couvercle_ouvert_hors_du_mur() -> void:
+	var box := await _box()
+	box._lid.rotation.x = MysteryBox.LID_OPEN_ANGLE
+	var inv := box._root.global_transform.affine_inverse()
+	var back := 0.0
+	for mi: MeshInstance3D in box._lid.find_children("*", "MeshInstance3D", true, false):
+		var b := (inv * mi.global_transform) * mi.get_aabb()
+		back = minf(back, b.position.z)
+	assert_true(back < -0.5, "le couvercle bascule bien derrière le coffre (%.3f)" % back)
+	assert_true(back > -MysteryBox.SPOT_WALL_GAP + 0.02, "2 cm au moins devant le mur (arrière %.3f, mur %.3f)" % [back, -MysteryBox.SPOT_WALL_GAP])
+	var wall_z := 2.5
+	assert_near(box.global_position.z - MysteryBox.SPOT_WALL_GAP, wall_z, 0.0001, "mur à SPOT_WALL_GAP du centre")
+
+
+## Bug joueur : sur l'hôte, `state` et `location` sont déjà changés quand
+## l'état diffusé revient (call_local) ; après l'envol, la boîte doit
+## réapparaître quand même, au même endroit ou ailleurs.
+func test_boite_reapparait_apres_l_ours_sur_l_hote() -> void:
+	for target in [0, 1]:
+		var box := await _box()
+		box.state = MysteryBox.State.MOVING
+		box.apply_state(box.get_state(), false)
+		box._root.position.y = 6.0
+		box._root.visible = false
+		# Comme _process puis _close côté serveur.
+		box.location = target
+		box.state = MysteryBox.State.IDLE
+		box.apply_state(box.get_state(), true)
+		assert_true(box._root.visible, "boîte visible après l'envol (emplacement %d)" % target)
+		assert_eq(box._root.position.y, 0.0, "posée au sol")
+		assert_true(box.global_position.is_equal_approx(box.spots[target].pos), "à l'emplacement %d" % target)
+		assert_false(box._markers[target].visible, "pas de tas de planches sous la boîte")
+		after_each()
+
+
+func test_jamais_d_ours_avec_un_seul_emplacement() -> void:
+	for use in [1, 4, 8, 13, 40]:
+		assert_eq(MysteryBox.skull_chance(use, 0, 1), 0.0, "un seul emplacement : pas d'ours (tirage %d)" % use)
+	assert_near(MysteryBox.skull_chance(8, 0, 2), 1.0, 0.001, "deux emplacements : règles de BO1")
 
 
 ## Colonne de lumière et lampe « discrètes » (demande des joueurs : l'ancien

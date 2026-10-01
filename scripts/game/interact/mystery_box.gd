@@ -18,6 +18,7 @@ const MOVE_TIME := 9.0
 ## Ours en peluche (départ de la boîte), règles de BO1 (_zombiemode_weapons) :
 ## rien avant le 4e tirage, 15 % du 4e au 7e ; si la boîte n'a encore jamais
 ## bougé, départ forcé au 8e ; ensuite 30 % du 8e au 12e, 50 % à partir du 13e.
+## Jamais d'ours sur une carte à un seul emplacement (la boîte n'a nulle part où aller).
 const MIN_USES_BEFORE_SKULL := 4
 const SKULL_CHANCE := 0.15
 ## Liste et poids des armes : WeaponDB.box_pool() (CLAUDE-RAY plus rare).
@@ -26,6 +27,10 @@ const SKULL_CHANCE := 0.15
 ## ouvert presque à la verticale (au-delà, il entrerait dans le mur).
 const LID_HINGE := Vector3(0, 0.75, -0.42)
 const LID_OPEN_ANGLE := -1.5
+## Ouvert, le couvercle (11,5 cm d'épaisseur au-dessus de la charnière)
+## bascule derrière l'arrière du coffre : le centre de la boîte est posé à
+## SPOT_WALL_GAP du mur pour qu'il ne s'y enfonce pas.
+const SPOT_WALL_GAP := 0.57
 ## Colonne de lumière (BO1) : pâle, bleutée, douce ; posée sur le couvercle,
 ## elle s'éteint en montant (sommet à 3,2 m, sous les plafonds).
 const BEAM_COLOR := Color(0.62, 0.76, 1.0)
@@ -89,6 +94,10 @@ var _timer := 0.0
 var _cycle_t := 0.0
 var _rng := RandomNumberGenerator.new()
 var _markers: Array[Node3D] = []
+## État affiché (apply_state) : sur le serveur, `state` et `location` sont
+## déjà modifiés quand l'état diffusé revient (call_local).
+var _shown_state: State = State.IDLE
+var _fly_tween: Tween
 
 
 func setup(cells: Array, start: int, data: MapData) -> void:
@@ -103,7 +112,8 @@ func setup_spots(markers: Array[MapMarker], start: int) -> void:
 	name = "MysteryBox"
 	interact_range = 2.0
 	for m in markers:
-		spots.append({"pos": m.pos + m.wall * 0.05, "normal": m.wall})
+		# `wall` pointe vers le mur, dont m.pos est à m.wall_gap.
+		spots.append({"pos": m.pos + m.wall * (m.wall_gap - SPOT_WALL_GAP), "normal": m.wall})
 	location = clampi(start, 0, spots.size() - 1)
 	_rng.randomize()
 
@@ -363,7 +373,7 @@ func srv_use(pid: int) -> void:
 func _roll(pd: PlayerData) -> void:
 	skull = false
 	# Pas de crâne pendant une liquidation (la boîte ne déménage pas).
-	if force_result == "skull" or (force_result == "" and not fire_sale and not temporary and _rng.randf() < skull_chance(uses, moves)):
+	if force_result == "skull" or (force_result == "" and not fire_sale and not temporary and _rng.randf() < skull_chance(uses, moves, spots.size())):
 		skull = true
 		weapon = ""
 		force_result = ""
@@ -478,7 +488,7 @@ func get_state() -> Dictionary:
 
 
 func apply_state(s: Dictionary, animate: bool) -> void:
-	var prev := state
+	var prev := _shown_state
 	state = s.get("state", State.IDLE)
 	weapon = s.get("weapon", "")
 	owner_pid = s.get("owner", 0)
@@ -498,22 +508,30 @@ func apply_state(s: Dictionary, animate: bool) -> void:
 			_show_skull()
 			if animate:
 				Audio.play_3d("box_skull", global_position + Vector3.UP * 1.5, 2.0, 0.0)
+				if _fly_tween:
+					_fly_tween.kill()
 				var tw := create_tween()
+				_fly_tween = tw
 				tw.tween_interval(1.6)
 				tw.tween_property(_root, "position:y", 6.0, 1.8).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 				tw.tween_callback(func(): _root.visible = false)
 				tw.tween_callback(func(): Audio.play_3d("box_fly", global_position + Vector3.UP * 2.0, 0.0, 0.0))
 		State.IDLE:
 			_show_model("")
-			if prev == State.MOVING or loc != location:
+			if prev == State.MOVING or loc != location or not _root.visible:
+				if _fly_tween:
+					_fly_tween.kill()
+					_fly_tween = null
 				_root.position.y = 0.0
 				_root.visible = true
 				_move_to(loc)
 			if prev != State.IDLE and animate:
 				Audio.play_3d("box_open", global_position + Vector3.UP, -6.0, 0.1)
 			if _expiring:
+				_shown_state = state
 				_remove()
 				return
+	_shown_state = state
 	if loc != location and state != State.MOVING:
 		_move_to(loc)
 
@@ -585,9 +603,10 @@ func _show_skull() -> void:
 
 
 ## Probabilité de l'ours au tirage n° `use` (compté depuis le dernier
-## déplacement, 1 = premier), `moved` = déplacements déjà faits.
-static func skull_chance(use: int, moved: int) -> float:
-	if use < MIN_USES_BEFORE_SKULL:
+## déplacement, 1 = premier), `moved` = déplacements déjà faits,
+## `spot_count` = emplacements de la carte (un seul : jamais d'ours).
+static func skull_chance(use: int, moved: int, spot_count := 2) -> float:
+	if spot_count < 2 or use < MIN_USES_BEFORE_SKULL:
 		return 0.0
 	if use < 8:
 		return SKULL_CHANCE
