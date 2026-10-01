@@ -42,6 +42,19 @@ func test_better_pistol_preferred_with_two_extra_mags() -> void:
 	assert_true(pap.id == "m1911" and pap.pap, "M1911 amélioré avant un CZ75 normal (liste de BO1)")
 
 
+## Soak KINO : CZ75 à réserve pleine (105), mis à terre -> 135 / 105, et la
+## réserve trop pleine revenait avec l'arme après la réanimation.
+func test_extra_mags_never_exceed_max_reserve() -> void:
+	var cz_max := int(WeaponDB.stats("cz75").reserve)
+	var w := DownedSystem.last_stand_weapon([_w("cz75", false, 15, cz_max)])
+	assert_eq(w.reserve, cz_max, "réserve pleine : reste au maximum")
+	var near := DownedSystem.last_stand_weapon([_w("cz75", false, 15, cz_max - 10)])
+	assert_eq(near.reserve, cz_max, "presque pleine : complétée jusqu'au maximum seulement")
+	var pap_max := int(WeaponDB.stats("python", true).reserve)
+	var p := DownedSystem.last_stand_weapon([_w("python", true, 6, pap_max)])
+	assert_eq(p.reserve, pap_max, "arme améliorée : plafond de sa version améliorée")
+
+
 func test_input_not_modified() -> void:
 	var saved := [_w("python", false, 6, 10)]
 	var _w2 := DownedSystem.last_stand_weapon(saved)

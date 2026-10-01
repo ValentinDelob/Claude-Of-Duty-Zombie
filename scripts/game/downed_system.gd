@@ -99,12 +99,16 @@ static func last_stand_weapon(weapons: Array) -> Dictionary:
 		fresh.reserve = int(WeaponDB.stats(WeaponDB.STARTING_WEAPON).mag) * 2
 		return fresh
 	var out: Dictionary = (weapons[best] as Dictionary).duplicate()
-	var two_mags := int(WeaponDB.stats(out.id, out.pap).mag) * 2
+	var s := WeaponDB.stats(out.id, out.pap)
+	var two_mags := int(s.mag) * 2
 	if out.id == WeaponDB.STARTING_WEAPON and not out.pap:
 		# BO1 fixe la réserve du M1911 à deux chargeurs ; on ne retire rien.
 		out.reserve = maxi(int(out.reserve), two_mags)
 	elif out.id != "ray":
-		out.reserve = int(out.reserve) + two_mags
+		# Jamais au-delà de la réserve maximale de l'arme (SetWeaponAmmoStock
+		# de BO1 plafonne) : un CZ75 plein passait à 135 / 105, et revenait
+		# ainsi après la réanimation.
+		out.reserve = mini(int(out.reserve) + two_mags, int(s.reserve))
 	return out
 
 

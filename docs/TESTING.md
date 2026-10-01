@@ -44,6 +44,24 @@ Historique et mesures de la refonte : `docs/TESTING_PLAN.md`.
 | N3 bout-en-bout | `## @rendu` (rendu réel), `mp_<nom>_host/_client.gd` (hôte + client), `tools/net_smoke.sh` | rendu : temps réel ; multijoueur : `--fixed-fps 60` (sauf `@temps-reel`) | 15 à 60 s |
 | Carte dédiée | `## @carte kino` | seulement quand la carte change | — |
 | Perf | `perf_*`, `long_*`, `## @niveau perf` | `tools/perf.sh`, jamais dans le check | — |
+| Soak | `long_soak*` (solo), `mp_soak_*` (`## @niveau long`) | à la main (voir ci-dessous), jamais dans le check | 1 à 2 min par carte |
+
+### Soak (endurance avec invariants)
+
+Un bot joue de nombreuses manches en utilisant tout ce que la carte propose
+par le vrai chemin d'interaction (visée, [F], validation du serveur) :
+portes et débris, courant, armes murales, atouts, boîte, Pack-a-Punch,
+grenades, singes, téléporteur, pièges, chaque bonus, mise à terre puis
+LAZARUS, manche de chiens. En continu : positions finies, points jamais
+négatifs, munitions dans leurs bornes, aucune invite sur un objet épuisé,
+manche qui finit, « à terre » jamais bloqué, zombie immobile 20 s relevé
+(endroit du décor à revoir) et en échec s'il n'est pas retiré par le filet
+de BO1 ; à la fin, aucune erreur ni avertissement du moteur (Logger).
+
+```bash
+godot --headless --fixed-fps 60 --log-file tests/_out/logs/soak.log --path . -- --autotest=long_soak,long_soak_kino,long_soak_draft
+AUTOTEST_PORT_OFFSET=5500 sh tools/mp_test.sh soak   # hôte + client, départ et retour refusé
+```
 
 ### Écrire un test unitaire (N1)
 

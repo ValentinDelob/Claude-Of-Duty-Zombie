@@ -1,0 +1,24 @@
+{
+ "title": {
+  "fr": "Des zombies qui ne restent plus coincés",
+  "en": "Zombies no longer get stuck"
+ },
+ "items": [
+  {
+   "fr": "Deux zombies ne sortent plus de terre au même endroit : ils restaient coincés l'un dans l'autre et la manche ne finissait jamais.",
+   "en": "Two zombies no longer rise from the same spot: they stayed stuck inside each other and the round never ended."
+  },
+  {
+   "fr": "Comme dans Black Ops, un zombie qui n'a pas bougé depuis 30 secondes est retiré puis réapparaît ailleurs.",
+   "en": "As in Black Ops, a zombie that has not moved for 30 seconds is removed and comes back elsewhere."
+  },
+  {
+   "fr": "KINO : les zombies qui marchent montent et descendent enfin l'escalier du hall au lieu de piétiner en haut des marches.",
+   "en": "KINO: walking zombies now climb up and down the lobby stairs instead of shuffling on the top step."
+  },
+  {
+   "fr": "À terre, les chargeurs offerts au pistolet ne dépassent plus sa réserve maximale.",
+   "en": "When downed, the bonus pistol magazines no longer push its reserve above the maximum."
+  }
+ ]
+}

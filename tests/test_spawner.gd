@@ -27,3 +27,24 @@ func test_far_time_forgets_zombies_no_longer_alive() -> void:
 	assert_true(far.is_empty(), "plus aucun zombie : table vide")
 	a.free()
 	b.free()
+
+
+## Filet de BO1 (round_spawn_failsafe) : 30 s sans bouger, 40 s pour un
+## rampant (plus lent).
+func test_failsafe_after_30_seconds_40_for_crawlers() -> void:
+	assert_false(Spawner.failsafe_due(100.0, 129.0, false), "29 s : encore là")
+	assert_true(Spawner.failsafe_due(100.0, 130.0, false), "30 s : retiré")
+	assert_false(Spawner.failsafe_due(100.0, 135.0, true), "rampant à 35 s : encore là")
+	assert_true(Spawner.failsafe_due(100.0, 140.0, true), "rampant à 40 s : retiré")
+
+
+## Deux zombies apparus au même point se superposaient exactement (non
+## solides pendant l'émergence) et restaient ensuite bloqués l'un dans
+## l'autre toute la manche (soak BUNKER K-7) : un point occupé est sauté.
+func test_spawn_point_occupied_by_a_zombie_on_it() -> void:
+	var taken := PackedVector3Array([Vector3(48.5, 0.0, 10.5), Vector3(10.0, 3.5, 4.0)])
+	assert_true(Spawner.occupied(Vector3(48.5, 0.0, 10.5), taken), "zombie pile sur le point")
+	assert_true(Spawner.occupied(Vector3(48.9, 0.0, 10.2), taken), "zombie à 0,5 m : occupé")
+	assert_false(Spawner.occupied(Vector3(49.5, 0.0, 10.5), taken), "zombie à 1 m : libre")
+	assert_false(Spawner.occupied(Vector3(10.0, 0.0, 4.0), taken), "zombie à l'étage au-dessus : libre")
+	assert_false(Spawner.occupied(Vector3(1.0, 0.0, 1.0), PackedVector3Array()), "aucun zombie : libre")
