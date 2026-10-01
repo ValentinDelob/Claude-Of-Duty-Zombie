@@ -5,7 +5,9 @@ Les graphismes du jeu sont 100 % procéduraux (les modèles 3D de
 `tools/blender/`, aucun modèle téléchargé ; le lettrage des machines
 d'atouts utilise la police intégrée de Blender, licence libre ; les objets de la salle
 de théâtre, de la scène, des coulisses et de la cabine de projection de KINO V2, `assets/models/kino/`, sont
-générés par `tools/blender/props/kino_theater.py`, emblèmes et enseignes originaux). La plupart des bruitages
+générés par `tools/blender/props/kino_theater.py`, emblèmes et enseignes originaux ; la boîte mystère,
+`assets/models/props/mystery_box.glb`, par `tools/blender/props/mystery_box.py`, points d'interrogation
+au pochoir dessinés pour ce jeu, matières procédurales). La plupart des bruitages
 proviennent d'enregistrements **libres de droits** retravaillés pour le jeu ;
 l'identité sonore originale reste synthétisée par `tools/gen_audio.gd` et
 `tools/gen_audio_menu.gd` : musiques et ambiances, ritournelles des atouts,

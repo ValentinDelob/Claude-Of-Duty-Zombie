@@ -22,6 +22,31 @@ const MIN_USES_BEFORE_SKULL := 4
 const SKULL_CHANCE := 0.15
 ## Liste et poids des armes : WeaponDB.box_pool() (CLAUDE-RAY plus rare).
 
+## Apparence (BoxModel). Couvercle : charnière sur l'arête arrière haute,
+## ouvert presque à la verticale (au-delà, il entrerait dans le mur).
+const LID_HINGE := Vector3(0, 0.75, -0.42)
+const LID_OPEN_ANGLE := -1.5
+## Colonne de lumière (BO1) : pâle, bleutée, douce ; posée sur le couvercle,
+## elle s'éteint en montant (sommet à 3,2 m, sous les plafonds).
+const BEAM_COLOR := Color(0.62, 0.76, 1.0)
+const BEAM_INTENSITY := 0.06
+const BEAM_RADIUS := 0.3
+const BEAM_BOTTOM := 0.9
+const BEAM_HEIGHT := 2.3
+## Lumière : faible et froide fermée (lisible dans le noir sans tache sur
+## les murs), chaude et dorée quand le fond s'allume. Au-dessus de l'avant
+## du coffre, à l'écart de l'arme et de l'ours.
+const LIGHT_POS := Vector3(0, 1.5, 0.5)
+const LIGHT_RANGE := 3.0
+const LIGHT_IDLE_ENERGY := 0.3
+const LIGHT_OPEN_ENERGY := 1.0
+const LIGHT_IDLE_COLOR := Color(0.72, 0.82, 1.0)
+## Fond lumineux, halo et lampe du coffre ouvert.
+const GLOW_COLOR := Color(1.0, 0.86, 0.62)
+## Halo doré qui monte du coffre ouvert (pendant le tirage).
+const HAZE_INTENSITY := 0.16
+const HAZE_HEIGHT := 0.9
+
 var state: State = State.IDLE
 var location := 0
 var weapon := ""
@@ -51,7 +76,13 @@ var spots: Array = []   # [{pos, basis}]
 var _root: Node3D
 var _lid: Node3D
 var _beam: MeshInstance3D
+## Halo doré au-dessus du coffre ouvert.
+var _haze: MeshInstance3D
 var _light: OmniLight3D
+## Maillages qui s'éclairent à l'ouverture (fond lumineux, intérieur).
+var _open_meshes: Array[GeometryInstance3D] = []
+## 0 = fermée, 1 = ouverte (suit le couvercle, lissé).
+var _open_amount := 0.0
 var _display: Node3D
 var _display_model: Node3D
 var _timer := 0.0
@@ -80,47 +111,29 @@ func setup_spots(markers: Array[MapMarker], start: int) -> void:
 func _ready() -> void:
 	_root = Node3D.new()
 	add_child(_root)
-	var crate := WorldLook.surface("crate")
-	_part(_root, Vector3(1.8, 0.75, 0.85), Vector3(0, 0.375, 0), crate)
-	for x in [-0.86, 0.86]:
-		_part(_root, Vector3(0.08, 0.8, 0.9), Vector3(x, 0.4, 0), WorldLook.surface("steel"))
 	_lid = Node3D.new()
-	_lid.position = Vector3(0, 0.75, -0.42)
+	_lid.name = "Lid"
+	_lid.position = LID_HINGE
 	_root.add_child(_lid)
-	_part(_lid, Vector3(1.82, 0.1, 0.88), Vector3(0, 0.05, 0.42), crate)
-	for side in [-1.0, 1.0]:
-		var q := Label3D.new()
-		q.text = "?"
-		q.font = UiStyle.font("title")
-		q.font_size = 160
-		q.pixel_size = 0.003
-		q.modulate = Color(1.0, 0.6, 0.25)
-		q.position = Vector3(side * 0.45, 0.4, 0.43)
-		q.shaded = false
-		_root.add_child(q)
-	# Faisceau lumineux qui signale la boîte de loin.
-	_beam = MeshInstance3D.new()
-	var bm := CylinderMesh.new()
-	bm.top_radius = 0.5
-	bm.bottom_radius = 0.35
-	bm.height = 2.4
-	bm.radial_segments = 12
-	_beam.mesh = bm
-	var beam_mat := StandardMaterial3D.new()
-	beam_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	beam_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	beam_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	beam_mat.albedo_color = Color(1.0, 0.5, 0.2, 0.08)
-	beam_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_beam.material_override = beam_mat
-	_beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_beam.position = Vector3(0, 1.95, 0)
+	# Coffre de bois cerclé de fer (BoxModel) ; repli en boîtes sans modèle.
+	_open_meshes = BoxModel.build(_root, _lid)
+	if _open_meshes.is_empty():
+		_build_boxes()
+	# Colonne de lumière douce qui signale la boîte de loin (BO1).
+	_beam = BoxModel.build_beam()
 	_root.add_child(_beam)
+	_haze = BoxModel.build_haze()
+	_root.add_child(_haze)
+	# Lumière de lisibilité : faible et froide couvercle fermé, chaude quand
+	# le fond s'allume ; portée courte, presque rien dans la brume.
 	_light = OmniLight3D.new()
-	_light.light_color = Color(1.0, 0.55, 0.25)
-	_light.omni_range = 4.0
-	_light.light_energy = 1.0
-	_light.position = Vector3(0, 1.3, 0.3)
+	_light.light_color = LIGHT_IDLE_COLOR
+	_light.omni_range = LIGHT_RANGE
+	_light.omni_attenuation = 1.6
+	_light.light_energy = LIGHT_IDLE_ENERGY
+	_light.light_volumetric_fog_energy = 0.15
+	_light.light_specular = 0.3
+	_light.position = LIGHT_POS
 	_root.add_child(_light)
 	_display = Node3D.new()
 	_display.position = Vector3(0, 1.05, 0)
@@ -145,6 +158,7 @@ func _ready() -> void:
 			_fs_music.play()
 		return
 	# Emplacements vides : un simple tas de planches.
+	var crate := WorldLook.surface("crate")
 	for i in spots.size():
 		var m := Node3D.new()
 		_part(m, Vector3(1.5, 0.12, 0.7), Vector3(0, 0.06, 0), crate)
@@ -154,6 +168,24 @@ func _ready() -> void:
 		_markers.append(m)
 		_place(m, i)
 	_move_to(location)
+
+
+## Repli sans modèle (.glb absent) : caisse en boîtes et « ? » en texte.
+func _build_boxes() -> void:
+	var crate := WorldLook.surface("crate")
+	_part(_root, Vector3(1.8, 0.75, 0.85), Vector3(0, 0.375, 0), crate)
+	for x in [-0.86, 0.86]:
+		_part(_root, Vector3(0.08, 0.8, 0.9), Vector3(x, 0.4, 0), WorldLook.surface("steel"))
+	_part(_lid, Vector3(1.82, 0.1, 0.88), Vector3(0, 0.05, 0.42), crate)
+	for side in [-1.0, 1.0]:
+		var q := Label3D.new()
+		q.text = "?"
+		q.font = UiStyle.font("title")
+		q.font_size = 160
+		q.pixel_size = 0.003
+		q.modulate = Color(0.86, 0.8, 0.6)
+		q.position = Vector3(side * 0.45, 0.4, 0.43)
+		_root.add_child(q)
 
 
 func _part(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> void:
@@ -490,8 +522,19 @@ func _animate(delta: float) -> void:
 	if _lid == null:
 		return
 	var open := state == State.ROLLING or state == State.READY
-	_lid.rotation.x = lerp_angle(_lid.rotation.x, -1.9 if open else 0.0, 1.0 - exp(-delta * 6.0))
-	_light.light_energy = lerpf(_light.light_energy, 2.6 if open else 0.8, 1.0 - exp(-delta * 4.0))
+	_lid.rotation.x = lerp_angle(_lid.rotation.x, LID_OPEN_ANGLE if open else 0.0, 1.0 - exp(-delta * 6.0))
+	var target := 1.0 if open else 0.0
+	var amount := lerpf(_open_amount, target, 1.0 - exp(-delta * 4.0))
+	if absf(target - amount) < 0.002:
+		amount = target
+	if amount != _open_amount:
+		_open_amount = amount
+		_light.light_energy = lerpf(LIGHT_IDLE_ENERGY, LIGHT_OPEN_ENERGY, _open_amount)
+		_light.light_color = LIGHT_IDLE_COLOR.lerp(GLOW_COLOR, _open_amount)
+		for mi in _open_meshes:
+			mi.set_instance_shader_parameter("open", _open_amount)
+		_haze.set_instance_shader_parameter("fade", _open_amount)
+		_haze.visible = _open_amount > 0.0
 	_beam.visible = state != State.MOVING
 	if state == State.ROLLING:
 		# Défilement des armes : de plus en plus lent, monte hors de la boîte.

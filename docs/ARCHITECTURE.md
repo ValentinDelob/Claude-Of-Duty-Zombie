@@ -497,6 +497,23 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   sont en relief dans le modèle. Sans .glb : repli en boîtes (ancien rendu).
   Scénario `perk_look` : modèle, collision, joueur arrêté, balle arrêtée,
   allumage, captures de chaque machine sur les deux cartes.
+- **Boîte mystère** (`MysteryBox`, apparence dans `BoxModel`) : coffre de
+  bois cerclé de fer modélisé dans Blender, `sh tools/blender.sh
+  tools/blender/props/mystery_box.py [assets/models/props] [dossier
+  d'aperçus]` -> `assets/models/props/mystery_box.glb` (≈ 7 000 triangles,
+  LOD à l'import). Un objet par matériau (`wood`, `iron`, `brass`, `paint`,
+  `inner`, `glow`, et `lid_wood`, `lid_iron` pour le couvercle, rattachés au
+  pivot `MysteryBox._lid` sur la charnière `LID_HINGE`). UV en mètres dans
+  le sens du fil, UV2.x = tirage propre à chaque planche ; `mystery_box.gdshader`
+  dessine fil, cernes, nœuds, arêtes usées (faces de chanfrein), rouille,
+  peinture de pochoir écaillée et relief (dérivées écran, sans texture) ; le
+  paramètre d'instance `open` allume le fond. Colonne de lumière et halo
+  d'ouverture : `box_beam.gdshader` (additif, bords et sommet fondus, effacé
+  de près), réglages `BEAM_*`, `HAZE_*`, `LIGHT_*` de `MysteryBox` (bornés
+  par `test_mystery_box_look.gd`). La collision (1,8 x 0,85 x 0,85 m) et le
+  point d'interaction ne dépendent pas du modèle ; vraie boîte, boîtes de
+  LIQUIDATION et aperçu de l'éditeur partagent ce rendu. Sans .glb : repli
+  en boîtes. Captures : scénario `box_look` (`@niveau perf`, hors check).
 
 ## Fils de travail : aucun état partagé (`ThreadGuard`)
 
