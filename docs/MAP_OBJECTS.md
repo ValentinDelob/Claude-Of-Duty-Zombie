@@ -254,10 +254,14 @@ une porte).
 - Au chargement, `MeshNav.set_stairs` crée les couloirs ; dès que le serveur
   de navigation a synchronisé la carte (`ensure_anchors`), chaque ancre est
   posée sur le navmesh : à sa place, sinon décalée le long du bord (le décor
-  masque le milieu du pied), le premier point des marches suivant alors
-  l'ancre ; un escalier dont un bout n'a aucune place libre est signalé
-  dans le journal (`[MeshNav] escalier ... couloir d'ancres désactivé`) et
-  laissé au navmesh seul.
+  masque le milieu du pied), toute la volée droite qui part de ce bord
+  passant alors en face de l'ancre, sans écart ; un escalier dont un bout
+  n'a aucune place libre est signalé dans le journal (`[MeshNav] escalier
+  ... couloir d'ancres désactivé`) et laissé au navmesh seul. L'escalier
+  devient aussi un passage du navmesh (`NavigationLink3D` d'une ancre à
+  l'autre, coût = longueur du couloir, coupé tant qu'une porte payante sur
+  le couloir est fermée) : ses deux sols restent reliés même quand le
+  navmesh, rogné de 0,4 m, est trop mince sur des marches d'un mètre.
 - `MeshNav.find_path(from, to, lane_bias)` : un chemin du navmesh qui
   emprunte un escalier (il entre dans son emprise par un bout et en sort
   par l'autre) est réécrit : chemin jusqu'à l'ancre du bout d'arrivée,
@@ -271,11 +275,13 @@ une porte).
   demi-largeur de chaque point ; aux virages, l'écart suit l'onglet des deux
   volées. Une horde de 10 monte de front sans s'empiler contre un bord.
 - Suivi (`Zombie._follow_path`) : un point du couloir n'est jamais sauté par
-  la ligne de vue (pas de raccourci par l'angle d'un palier) ; il est passé
-  quand le zombie franchit le plan perpendiculaire à sa direction
-  d'arrivée ; sur les marches, séparation réduite (0,35), virage net
-  (30 m/s²) et poussée vers l'axe au-delà de la demi-largeur
-  (`MeshNav.lane_push`). La poursuite en ligne droite est interdite si la
+  la ligne de vue (pas de raccourci par l'angle d'un palier) ; il est
+  atteint à 0,25 m, ou passé quand le zombie franchit le plan
+  perpendiculaire à sa direction d'arrivée sans en être à plus de 0,6 m ;
+  sur les marches, séparation réduite (0,35), virage net (30 m/s²), 3 m/s au
+  plus à l'approche d'un virage serré (L, U), file derrière le zombie juste
+  devant (pas de bouchon à l'entrée d'un escalier de service) et poussée
+  vers l'axe au-delà de la demi-largeur (`MeshNav.lane_push`). La poursuite en ligne droite est interdite si la
   ligne passe sur une emprise d'escalier (`MeshNav.crosses_stairs`) : plus de
   zombie qui fonce dans le flanc d'un escalier.
 - Marcheurs, coureurs, sprinteurs, rampants et chiens de l'enfer (même
@@ -290,8 +296,9 @@ Les escaliers de KINO (layout.json, `stairs`) et de DRAFT ARENA ont leurs
 ancres sans rien changer à leur aspect ni à leurs données. Les marches de
 la scène de KINO : la première rangée de fauteuils masque le milieu de leur
 pied ; l'ancre d'entrée de l'escalier ouest se pose dans l'allée libre à
-côté (64,5 ; 51,4), celle de l'escalier est au milieu de l'allée qui lui fait
-face. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
+côté (64,5 ; 51,4) et les zombies montent en face d'elle ; celle de
+l'escalier est dans l'allée qui lui fait face (85,4 ; 51,4). Aucun décor
+n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
 
 ### Preuves automatiques
 
