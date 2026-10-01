@@ -1174,6 +1174,33 @@
     "en": "Stairs zombies know how to take",
     "fr": "Des escaliers que les zombies savent prendre"
    }
+  },
+  "v0.2.0-snapshot.312": {
+   "channel": "snapshot",
+   "date": "2026-10-01",
+   "images": [],
+   "items": [
+    {
+     "en": "Zombies keep coming even if you stand right at a window: a map with a single room and a single window is now playable.",
+     "fr": "Les zombies arrivent même si vous restez collé à une fenêtre : une carte d'une seule salle et d'une seule fenêtre se joue enfin."
+    },
+    {
+     "en": "At most three zombies wait behind a window, each in its own spot; the next ones arrive as soon as a spot frees up.",
+     "fr": "Trois zombies au plus attendent derrière une fenêtre, chacun à sa place ; les suivants arrivent dès qu'une place se libère."
+    },
+    {
+     "en": "Slower board tearing: about one board every 2.5 seconds per zombie, with a fit of rage against the window in between.",
+     "fr": "Arrachage des planches plus lent : une planche toutes les 2,5 secondes environ par zombie, avec une crise de rage contre la fenêtre entre deux."
+    },
+    {
+     "en": "Only walkers in rounds 1 to 3: the first runners show up in round 4.",
+     "fr": "Que des marcheurs aux manches 1 à 3 : les premiers coureurs arrivent à la manche 4."
+    }
+   ],
+   "title": {
+    "en": "Windows the BO1 way",
+    "fr": "Des fenêtres comme dans BO1"
+   }
   }
  }
 }
