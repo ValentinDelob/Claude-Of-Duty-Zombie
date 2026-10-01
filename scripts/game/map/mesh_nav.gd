@@ -454,9 +454,9 @@ func _thread_lanes(path: PackedVector3Array, marks: PackedByteArray, goal: Vecto
 			tail = raw_tail
 			tail_m = PackedByteArray()
 			tail_m.resize(tail.size())
-			var tr := _thread_lanes(tail, tail_m, goal, bias, depth + 1)
-			tail = tr[0]
-			tail_m = tr[1]
+			var tres := _thread_lanes(tail, tail_m, goal, bias, depth + 1)
+			tail = tres[0]
+			tail_m = tres[1]
 			# Premier point : l'ancre (sans écart), déjà rejointe par le couloir.
 			if tail.size() > 1:
 				tail.remove_at(0)
