@@ -39,6 +39,10 @@ cours dans `editor_map.gd`) :
 - `scripts/editor/collab/map_agent_link.gd` (`class_name MapAgentLink`, Node) :
   écoute agent locale, commandes requête/réponse (§ 5).
 - `scripts/editor/collab/collab_panel.gd` : interface (menu, participants…).
+- `scripts/editor/collab/collab_view.gd` (`class_name CollabView`) : rendu
+  sur le plan (curseurs, sélections, aperçus, clignotements, lots et
+  highlight de Claude) ; `collab_history.gd` (`CollabHistory`) : onglet
+  Historique.
 
 ## 2. Modèle de données et opérations
 
@@ -271,9 +275,8 @@ restent les siennes.
 - `screenshot` : plan dessiné hors écran (1280 × 960, règles en mètres
   comprises dans `bounds`) ; rend aussi `floor` ; erreur en mode sans
   affichage.
-- `highlight` : `{shown}` ; version simple (élément cadré, message dans la
-  barre d'état). Le rendu riche se branche sur les signaux
-  `MapAgentLink.highlight_requested(ids, message)` et
+- `highlight` : `{shown}` ; contour pulsé, bulle et cadrage (§ 9 « Rendu »).
+  Signaux `MapAgentLink.highlight_requested(ids, message)` et
   `animate_requested(ids, label)` (après un `apply` avec `animate`).
 - Événements poussés : `{event: "change", cid, author, label, seq, ids}`,
   `{event: "selection", ids}`, `{event: "peers", peers}`.
@@ -289,3 +292,51 @@ restent les siennes.
   cartes du joueur) ; pas de sauvegarde automatique ; TESTER refusé (copie,
   puis quitter la session). Hôte : TESTER change de scène et ferme la
   session (les invités repassent seuls avec la carte).
+
+### Rendu (§ 6)
+
+Code : `CollabView` (dessiné par `MapCanvas._draw_peers`), pastilles dans
+`CollabPanel`, onglet `CollabHistory`. Tests : `tests/test_collab_view.gd`.
+
+- Pastilles : une par participant, rangées directement dans la barre du
+  haut (elle passe à la ligne entre deux pastilles) : disque de sa couleur
+  avec son initiale (Claude : disque violet et étoile à huit branches ; moi :
+  anneau clair), pseudo (14 caractères au plus), « Étage N » s'il est sur un
+  autre étage que celui affiché ; info-bulle : pseudo, rôle (hôte, invité,
+  Claude rattaché à X), étage. Affichées dès qu'il y a deux participants
+  (Claude compris).
+- Curseurs : flèche de la couleur du pair et étiquette avec son pseudo,
+  seulement à l'étage affiché ; glissés vers chaque nouvelle présence
+  (lissage exponentiel), placés d'un coup à la première ou après un
+  changement d'étage. Claude n'a pas de curseur.
+- Sélection des autres : contour de leur couleur (forme exacte, sinon
+  rectangle écarté de 5 px).
+- `presence.live` = `{coll, el}` : l'élément glissé (déplacé, redimensionné,
+  tourné) tel qu'il est. L'émetteur l'envoie au plus toutes les 100 ms
+  (`MapEditor.send_live`, en plus de la limite de MapCollab) et le retire au
+  relâchement ou à l'abandon. Le récepteur ne le dessine que s'il passe les
+  règles des éléments reçus (`MapOps.check_elements`) : silhouette
+  semi-transparente de la couleur du pair.
+- Changement confirmé d'un autre (ou annulation par mon Claude) : les
+  éléments touchés clignotent 0,8 s dans la couleur de l'auteur ; ligne
+  d'état « Bob : Pièce posée ».
+- Lot de Claude (`animate`) : carte, historique et diffusion ont déjà le lot
+  entier ; seul le dessin cache les éléments pas encore apparus (les murs
+  générés de leurs pièces sont recouverts par le terrain). Un élément toutes
+  les 0,12 s, 1,5 s au plus pour le lot, et au moins un de plus par image
+  pour un gros lot ; contour pulsé violet et bulle « Claude : <label> » au
+  bord haut du groupe, effacés après 3 s. Tout changement confirmé pendant
+  l'apparition la termine (sauf l'écho du lot lui-même chez un invité). Si
+  aucun élément n'est visible (autre étage, hors champ), la vue y est amenée
+  (jamais pendant un glissement).
+- `highlight` : contour pulsé violet et bulle avec le message pendant 4 s ;
+  étage et vue amenés sur les éléments s'ils sont hors champ (dézoom si le
+  groupe est plus grand que la vue) ; la sélection ne change pas.
+- Onglet Historique (aussi Collaboration > Historique) : les 100 dernières
+  entrées, la plus récente en haut ; pastille de l'auteur, libellé, auteur et
+  heure locale ; entrées annulées grisées (« annulée ») ; « Annuler cette
+  action » sur mes entrées et celles de mon Claude encore actives
+  (`MapCollab.request_undo_of(cid)`, même règle de conflit que Ctrl+Z, mis
+  en attente chez un invité qui attend un écho) ; le message de conflit
+  s'affiche sous le titre. Survol d'une ligne : éléments touchés surlignés
+  sur le plan. Reconstruit seulement quand l'onglet est affiché.

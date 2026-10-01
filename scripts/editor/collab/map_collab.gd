@@ -255,10 +255,36 @@ func request_redo() -> Dictionary:
 	return r
 
 
+## Annule l'entrée `cid` (bouton « Annuler cette action » du panneau
+## Historique) si elle est à cet éditeur ou à son Claude et encore active.
+## Rend {} si impossible, {queued} si l'invité attend encore un écho, sinon
+## {undo, label, ops, skipped, skipped_by, cid}.
+func request_undo_of(cid: String) -> Dictionary:
+	var e := history.entry(cid)
+	if not history.owned_by(cid, my_id) or not bool(e.get("active", false)) or bool(e.get("remote", false)):
+		return {}
+	if role == Role.GUEST and not pending.is_empty():
+		_queued.append(["undo_of", cid])
+		return {"queued": true}
+	var u := history.make_undo_of(cid)
+	if u.is_empty():
+		return {}
+	var c := submit_ops(u.ops, u.label, my_id, {"undo": u.undo})
+	u["cid"] = c.cid
+	return u
+
+
 func _run_queued() -> void:
 	while pending.is_empty() and not _queued.is_empty():
 		var q: Array = _queued.pop_front()
-		var r := request_undo(bool(q[1])) if q[0] == "undo" else request_redo()
+		var r := {}
+		match String(q[0]):
+			"undo":
+				r = request_undo(bool(q[1]))
+			"undo_of":
+				r = request_undo_of(String(q[1]))
+			_:
+				r = request_redo()
 		if not r.is_empty():
 			message.emit(String(r.label), false)
 
