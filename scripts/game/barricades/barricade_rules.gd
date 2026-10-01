@@ -4,7 +4,8 @@ extends RefCounted
 ##
 ## Comme dans Black Ops 1 : 6 planches par fenêtre, +10 points par planche
 ## reposée (multiplicateur « double points » compris), 500 points de
-## réparation au plus par joueur et par manche.
+## réparation au plus par joueur et par manche. Portes à zombies (format 8) :
+## KINDS (planches, zombies qui arrachent à la fois, places d'attente).
 
 const PLANKS := 6
 const FULL_MASK := (1 << PLANKS) - 1
@@ -38,6 +39,87 @@ const TEAR_TIME_FAST := TEAR_TIME
 const WINDOW_QUEUE_MAX := 3
 ## Durée du passage de la fenêtre (enjambement).
 const VAULT_TIME := 1.1
+## Porte à zombies : le zombie passe le seuil en marchant (pas d'allège).
+const STEP_TIME := 1.2
+
+# --------------------------------------------------------------------------
+# Types d'entrée (format 8 des cartes de l'éditeur ; docs/MAP_OBJECTS.md § 9)
+# --------------------------------------------------------------------------
+## fenêtre (BO1, l'entrée d'avant), porte à zombies simple, porte double.
+const WINDOW := "fenetre"
+const DOOR := "porte"
+const DOUBLE_DOOR := "porte_double"
+## type -> {planks, width (m), tearers (zombies qui arrachent à la fois),
+## waiting (places d'attente derrière eux), lanes (passages de front)}.
+## Fenêtre : 3 places devant les planches, chacun arrache (BO1 attack_spots).
+## Porte simple : un seul zombie arrache à la fois, 3 attendent derrière lui.
+## Porte double : un zombie par battant (2 à la fois, cadence doublée),
+## 4 attendent ; 5 planches par battant ; deux passages de front.
+const KINDS := {
+	WINDOW: {"planks": 6, "width": 1.0, "tearers": 3, "waiting": 0, "lanes": 1},
+	DOOR: {"planks": 6, "width": 1.0, "tearers": 1, "waiting": 3, "lanes": 1},
+	DOUBLE_DOOR: {"planks": 10, "width": 2.0, "tearers": 2, "waiting": 4, "lanes": 2},
+}
+## Le plus de planches d'une entrée (masque sur 16 bits au plus).
+const MAX_PLANKS := 10
+
+
+static func _kind(kind: String) -> Dictionary:
+	return KINDS.get(kind, KINDS[WINDOW])
+
+
+static func is_door(kind: String) -> bool:
+	return kind == DOOR or kind == DOUBLE_DOOR
+
+
+static func planks_for(kind: String) -> int:
+	return int(_kind(kind).planks)
+
+
+static func full_mask_for(kind: String) -> int:
+	return (1 << planks_for(kind)) - 1
+
+
+static func width(kind: String) -> float:
+	return float(_kind(kind).width)
+
+
+static func tearers(kind: String) -> int:
+	return int(_kind(kind).tearers)
+
+
+static func lanes(kind: String) -> int:
+	return int(_kind(kind).lanes)
+
+
+## Zombies rattachés au plus à une entrée : ceux qui arrachent et ceux qui
+## attendent (fenêtre : WINDOW_QUEUE_MAX ; porte : 1 + 3 ; double : 2 + 4).
+static func queue_max(kind: String) -> int:
+	return tearers(kind) + int(_kind(kind).waiting)
+
+
+## Battant (passage) d'une planche : porte double, planches paires à gauche,
+## impaires à droite (la réparation, première manquante, alterne).
+static func lane_of_plank(i: int, n_lanes: int) -> int:
+	return i % maxi(n_lanes, 1)
+
+
+## Planche arrachée par le zombie du passage `lane` : la dernière posée de son
+## battant, sinon la dernière posée (il aide l'autre battant) ; -1 si aucune.
+static func plank_to_tear_lane(mask: int, n: int, n_lanes: int, lane: int) -> int:
+	for i in range(n - 1, -1, -1):
+		if mask & (1 << i) and lane_of_plank(i, n_lanes) == lane:
+			return i
+	return plank_to_tear(mask, n)
+
+
+## Planches présentes d'un battant.
+static func count_lane(mask: int, n: int, n_lanes: int, lane: int) -> int:
+	var c := 0
+	for i in n:
+		if mask & (1 << i) and lane_of_plank(i, n_lanes) == lane:
+			c += 1
+	return c
 
 
 ## Points gagnés pour une planche reposée, compte tenu de ce que le joueur a
@@ -80,29 +162,30 @@ static func tear_tick(frenzy: bool, t: float, pause: float, delta: float, u: flo
 
 
 ## La fenêtre a-t-elle déjà toutes ses places prises (zombies qui attendent) ?
-static func queue_full(waiting: int) -> bool:
-	return waiting >= WINDOW_QUEUE_MAX
+## `kind` : type d'entrée (porte : 4 zombies, porte double : 6).
+static func queue_full(waiting: int, kind := WINDOW) -> bool:
+	return waiting >= (WINDOW_QUEUE_MAX if kind == WINDOW else queue_max(kind))
 
 
 static func count(mask: int) -> int:
 	var n := 0
-	for i in PLANKS:
+	for i in MAX_PLANKS:
 		if mask & (1 << i):
 			n += 1
 	return n
 
 
 ## Planche arrachée : la dernière posée (indice le plus haut présent), -1 si aucune.
-static func plank_to_tear(mask: int) -> int:
-	for i in range(PLANKS - 1, -1, -1):
+static func plank_to_tear(mask: int, n := PLANKS) -> int:
+	for i in range(n - 1, -1, -1):
 		if mask & (1 << i):
 			return i
 	return -1
 
 
 ## Planche reposée : la première manquante, -1 si la fenêtre est complète.
-static func plank_to_repair(mask: int) -> int:
-	for i in PLANKS:
+static func plank_to_repair(mask: int, n := PLANKS) -> int:
+	for i in n:
 		if not (mask & (1 << i)):
 			return i
 	return -1

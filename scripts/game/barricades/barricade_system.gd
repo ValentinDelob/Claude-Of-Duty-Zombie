@@ -80,7 +80,7 @@ func srv_repair_all() -> void:
 	if not multiplayer.is_server():
 		return
 	for b in windows:
-		b.srv_set_mask(BarricadeRules.FULL_MASK)
+		b.srv_set_mask(b.full_mask())
 
 
 # --------------------------------------------------------------------------
@@ -93,8 +93,8 @@ func _on_all_loaded() -> void:
 	_cl_full_state.rpc(masks())
 
 
-func masks() -> PackedByteArray:
-	var out := PackedByteArray()
+func masks() -> PackedInt32Array:
+	var out := PackedInt32Array()
 	out.resize(windows.size())
 	for i in windows.size():
 		out[i] = windows[i].mask
@@ -102,6 +102,6 @@ func masks() -> PackedByteArray:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _cl_full_state(m: PackedByteArray) -> void:
+func _cl_full_state(m: PackedInt32Array) -> void:
 	for i in mini(m.size(), windows.size()):
 		windows[i].set_mask(m[i], false)

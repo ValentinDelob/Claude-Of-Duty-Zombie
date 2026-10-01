@@ -14,7 +14,8 @@ extends MapLayout
 ##   grenade_buys [{id, p, wall}], power {p, wall}, box [{p, wall}], pap {p, wall},
 ##   teleporter {pad, exit, mainframe {p, wall}, exit_zone},
 ##   traps [{id, lever {p, wall}, area [x0,y0,z0,x1,y1,z1], yaw? (zone tournée autour de son centre)}],
-##   windows [{p (au sol, dans l'ouverture), in (vers l'intérieur), h, zone, spawns [[x,y,z]]}],
+##   windows [{p (au sol, dans l'ouverture), in (vers l'intérieur), h, zone, spawns [[x,y,z]],
+##            kind? (« porte », « porte_double » ; absent : fenêtre), w? (largeur)}],
 ##   lamps [{p, range, energy}]
 ## Zones (clé « zones ») : {id: {boxes: [[x0,y0,z0,x1,y1,z1]...]}}, testées dans l'ordre.
 
@@ -269,6 +270,10 @@ func windows() -> Array:
 			o.height = float(w.get("h", 2.4))
 			o.seed = hash(Vector3i(roundi(o.pos.x * 10.0), roundi(o.pos.y * 10.0), roundi(o.pos.z * 10.0)))
 			o.zone = String(w.get("zone", zone_at(o.pos + o.inward_dir)))
+			# Format 8 : porte à zombies (simple ou double) ; absent : fenêtre.
+			var kind := String(w.get("kind", BarricadeRules.WINDOW))
+			o.kind = kind if BarricadeRules.KINDS.has(kind) else BarricadeRules.WINDOW
+			o.width = float(w.get("w", BarricadeRules.width(o.kind)))
 			for s in w.get("spawns", []):
 				o.spawn_points.append(vec(s))
 			_windows.append(o)

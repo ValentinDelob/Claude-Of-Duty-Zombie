@@ -560,8 +560,13 @@ func start_vault(from: Vector3, to: Vector3) -> void:
 
 
 func _vault() -> void:
-	var k := clampf(_state_time / BarricadeRules.VAULT_TIME, 0.0, 1.0)
-	global_position = _vault_from.lerp(_vault_to, ease(k, -1.6))
+	# Porte à zombies (format 8) : il passe le seuil en marchant, à vitesse
+	# régulière (vitesse donnée à l'animation de marche).
+	var door := is_instance_valid(barricade) and barricade.is_door()
+	var k := clampf(_state_time / (barricade.vault_time() if door else BarricadeRules.VAULT_TIME), 0.0, 1.0)
+	global_position = _vault_from.lerp(_vault_to, k if door else ease(k, -1.6))
+	if door:
+		velocity = (_vault_to - _vault_from) / BarricadeRules.STEP_TIME
 	if k >= 1.0:
 		if is_instance_valid(barricade):
 			barricade.srv_vault_done(self)
