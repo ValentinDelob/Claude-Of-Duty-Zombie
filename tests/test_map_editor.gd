@@ -344,6 +344,26 @@ func test_hand_written_json_is_read() -> void:
 	assert_false(bad.load_errors.is_empty(), "fichier illisible signalé")
 
 
+## Identifiant en double (carte « Quai 13 ») : réparé à la lecture, sinon le
+## contrôle du jeu refuse la carte et TESTER démarre sur la carte par défaut.
+func test_duplicate_ids_are_repaired() -> void:
+	var doc := _base()
+	var p := _obj(doc, {"type": "prefab", "prefab": "etagere", "position": [3, 3], "rot": 0})
+	var q := _obj(doc, {"type": "prefab", "prefab": "planches", "position": [5, 3], "rot": 0})
+	p["id"] = "d6"
+	q["id"] = "d6"
+	var texts := doc.file_texts()
+	assert_false(CustomMapGuard.check_texts(texts).ok, "doublon refusé par le contrôle du jeu")
+	var back := EditorMap.from_texts(texts)
+	var ids := {}
+	for list in [back.pieces, back.ouvertures, back.objets, back.zones]:
+		for e in list:
+			assert_false(ids.has(String(e.id)), "identifiant unique : %s" % e.id)
+			ids[String(e.id)] = true
+	assert_true(ids.has("d6") and ids.has("d1"), "le second reçoit le premier numéro libre du même préfixe")
+	assert_true(CustomMapGuard.check_texts(back.file_texts()).ok, "carte réparée acceptée :\n%s" % CustomMapGuard.reasons_text(CustomMapGuard.check_texts(back.file_texts()).reasons))
+
+
 # ------------------------------------------------------------------ éditeur (annuler / rétablir)
 
 func test_undo_redo_in_the_editor() -> void:

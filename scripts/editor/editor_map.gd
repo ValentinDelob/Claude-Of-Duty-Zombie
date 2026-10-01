@@ -372,6 +372,16 @@ func _normalize() -> void:
 		for e in list:
 			if String(e.get("id", "")) == "":
 				e["id"] = new_id("x")
+	# Identifiant en double (fichier écrit à la main) : le contrôle de
+	# légitimité refuserait la carte en jeu ; le second reçoit un numéro libre.
+	var seen := {}
+	for list in [pieces, ouvertures, objets, zones]:
+		for e in list:
+			var eid := String(e.id)
+			if seen.has(eid):
+				var prefix := eid.rstrip("0123456789")
+				e["id"] = new_id(prefix if prefix != "" else "x")
+			seen[String(e.id)] = true
 	if floors().is_empty():
 		carte["etages"] = [{"sol": 0.0, "hauteur": DEFAULT_CEILING}]
 	if zone(depart).is_empty() and not zones.is_empty():
