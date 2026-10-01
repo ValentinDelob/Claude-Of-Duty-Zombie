@@ -1369,6 +1369,21 @@
     "en": "Map editor: PLAY TEST fixed",
     "fr": "Éditeur de cartes : bouton TESTER corrigé"
    }
+  },
+  "v0.2.0-snapshot.349": {
+   "channel": "snapshot",
+   "date": "2026-10-01",
+   "images": [],
+   "items": [
+    {
+     "en": "The launcher keeps the same size on screen whatever its resolution (4K, 1440p, 1080p…): it is no longer tiny on a 4K screen. Enlarging the window still gives more room, without making the text bigger.",
+     "fr": "Le lanceur garde la même taille à l'écran quelle que soit sa résolution (4K, 1440p, 1080p…) : il n'est plus minuscule sur un écran 4K. Agrandir la fenêtre donne toujours plus de place, sans grossir les textes."
+    }
+   ],
+   "title": {
+    "en": "Launcher: same size on every screen",
+    "fr": "Lanceur : même taille sur tous les écrans"
+   }
   }
  }
 }
