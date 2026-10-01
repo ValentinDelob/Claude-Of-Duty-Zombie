@@ -390,6 +390,15 @@ func _opening_props(o: Dictionary) -> void:
 			else:
 				ed.canvas.show_refusal(res))
 		w.tooltip_text = Lang.t("BO1 : 1,5 à 3 m", "BO1: 1.5 to 3 m")
+	else:
+		# Format 8 : fenêtre, porte à zombies simple ou double (largeur du type).
+		_variant_row(o)
+		var bk := MapCatalog.barricade_kind(o)
+		_note(_props, Lang.t("%s m de large · %d planches · %s", "%s m wide · %d boards · %s") % [_m(MapRules.opening_width(o)),
+			BarricadeRules.planks_for(bk), Lang.t({"fenetre": "3 zombies arrachent à la fois", "porte": "1 zombie arrache à la fois, 3 attendent",
+				"porte_double": "2 zombies arrachent à la fois (un par battant), 4 attendent"}[bk],
+				{"fenetre": "3 zombies tear at once", "porte": "1 zombie tears at a time, 3 wait",
+				"porte_double": "2 zombies tear at once (one per leaf), 4 wait"}[bk])])
 	var res := MapRules.place_opening(ed.doc, k, t, MapGeom.v2(o.position), MapRules.opening_width(o), String(o.id))
 	if res.ok:
 		var rn: Array = res.rooms.map(func(rid): return String(ed.doc.find(rid).get("nom", rid)))
@@ -527,11 +536,27 @@ func _variant_row(o: Dictionary) -> void:
 	var ids := MapCatalog.variants(t)
 	if ids.size() < 2:
 		return
-	var opt := _option(_props, Lang.t("Aspect (V)", "Look (V)"), ids.map(func(x): return MapCatalog.variant_name(t, String(x))),
+	var opt := _option(_props, Lang.t("Type (V)", "Type (V)") if t == "fenetre" else Lang.t("Aspect (V)", "Look (V)"), ids.map(func(x): return MapCatalog.variant_name(t, String(x))),
 		maxi(0, ids.find(MapCatalog.variant_of(o))), func(i):
+			if t == "fenetre":
+				# Entrée des zombies : la porte double est plus large, elle doit tenir.
+				var cand := o.duplicate(true)
+				var res := MapRules.apply_variant(ed.doc, cand, String(ids[i]))
+				if not res.ok:
+					ed.canvas.show_refusal(res)
+					ed.changed()
+					return
+				ed.push_undo()
+				MapRules.apply_variant(ed.doc, o, String(ids[i]))
+				ed.changed()
+				return
 			ed.push_undo()
 			MapCatalog.set_variant(o, String(ids[i]))
 			ed.changed(false))
+	if t == "fenetre":
+		opt.tooltip_text = Lang.t("Fenêtre, porte à zombies simple (1 m) ou double (2 m). V : type suivant",
+			"Window, single (1 m) or double (2 m) zombie door. V: next type")
+		return
 	opt.tooltip_text = Lang.t("Modèle affiché en jeu ; même prix et même collision. V : aspect suivant",
 		"Model shown in game; same price and same collision. V: next look")
 

@@ -681,7 +681,9 @@ func element_shape(e: Dictionary) -> Dictionary:
 		var n := Vector2(-dir.y, dir.x)
 		var w := MapRules.opening_width(e) * 0.5
 		poly = PackedVector2Array([p - dir * w - n * 0.35, p + dir * w - n * 0.35, p + dir * w + n * 0.35, p - dir * w + n * 0.35])
-		if t == "fenetre":
+		if t == "fenetre" and MapCatalog.barricade_kind(e) != "fenetre":
+			y1 = sol + MapValidator.ZOMBIE_DOOR_TOP
+		elif t == "fenetre":
 			y0 = sol + MapValidator.SILL
 			y1 = sol + MapValidator.LINTEL
 		else:

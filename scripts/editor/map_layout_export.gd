@@ -311,9 +311,15 @@ func _walls(f: MapValidator.Floor) -> void:
 					continue
 				lo = "%s|%s" % [y0, wall_top(k, c)]
 			elif kd == Kd.FENETRE:
-				# Allège et linteau autour de l'ouverture (hauteurs de Barricade).
-				lo = "%s|%s" % [y0, f.sol + MapValidator.SILL]
-				hi = "%s|%s" % [f.sol + MapValidator.LINTEL, wall_top(k, c)]
+				if md.barricade_kind_of(f.key[i]) != "fenetre":
+					# Porte à zombies (format 8) : ouverte du sol (seuil : un
+					# bloc à fleur du sol de la pièce) à la traverse de la porte.
+					lo = "%s|%s" % [y0, f.sol]
+					hi = "%s|%s" % [f.sol + MapValidator.ZOMBIE_DOOR_TOP, wall_top(k, c)]
+				else:
+					# Allège et linteau autour de l'ouverture (hauteurs de Barricade).
+					lo = "%s|%s" % [y0, f.sol + MapValidator.SILL]
+					hi = "%s|%s" % [f.sol + MapValidator.LINTEL, wall_top(k, c)]
 			elif kd == Kd.PORTE or kd == Kd.DEBRIS:
 				var ce: float = ceil_at(k, c)[0]
 				if ce > f.sol + md.door_height + 0.05:
@@ -549,8 +555,12 @@ func _oblique_cuts(f: MapValidator.Floor, pa: Vector2, t: Vector2, seg_len: floa
 		var oy1 := top_y
 		match String(o.type):
 			"fenetre":
-				oy0 = f.sol + MapValidator.SILL
-				oy1 = f.sol + MapValidator.LINTEL
+				if String(o.get("kind", "fenetre")) in ["porte", "porte_double"]:
+					oy0 = f.sol
+					oy1 = f.sol + MapValidator.ZOMBIE_DOOR_TOP
+				else:
+					oy0 = f.sol + MapValidator.SILL
+					oy1 = f.sol + MapValidator.LINTEL
 			"passage":
 				# Passage libre : ouvert jusqu'au plus bas des deux plafonds.
 				var ce := INF
@@ -785,9 +795,22 @@ func _markers() -> Dictionary:
 		var p: Vector3 = ww.p
 		var sp: Vector3 = ww.spawn
 		var inn: Array = [_r(w.inward.x), 0, _r(w.inward.y)] if w.has("oblique") else [w.inward.x, 0, w.inward.y]
-		m.windows.append({"p": [_r(p.x), _r(p.y), _r(p.z)], "in": inn, "h": MapValidator.LINTEL,
-			"zone": w.zone, "spawns": [[_r(sp.x), _r(sp.y), _r(sp.z)]]})
-		m.zombie_spawns.append({"p": [_r(sp.x), _r(sp.y), _r(sp.z)], "zone": w.zone})
+		var bk := String(w.get("kind", "fenetre"))
+		var wj := {"p": [_r(p.x), _r(p.y), _r(p.z)], "in": inn, "h": MapValidator.LINTEL, "zone": w.zone}
+		var sps: Array = [sp]
+		if bk != "fenetre":
+			# Porte à zombies (format 8) : type, largeur, hauteur de l'ouverture.
+			wj["kind"] = bk
+			wj["w"] = MapCatalog.barricade_width(bk)
+			wj["h"] = MapValidator.ZOMBIE_DOOR_TOP
+			if bk == "porte_double":
+				# Une apparition derrière chaque battant.
+				var side := Vector3(-ww["in"].z, 0, ww["in"].x)
+				sps = [sp - side * Barricade.DOUBLE_SPAWN_SIDE, sp + side * Barricade.DOUBLE_SPAWN_SIDE]
+		wj["spawns"] = sps.map(func(q: Vector3): return [_r(q.x), _r(q.y), _r(q.z)])
+		m.windows.append(wj)
+		for q: Vector3 in sps:
+			m.zombie_spawns.append({"p": [_r(q.x), _r(q.y), _r(q.z)], "zone": w.zone})
 	for it in md.floor_items:
 		if it.base == "apparition":
 			m.zombie_spawns.append({"p": _p(it.floor, it.center), "zone": it.zone})

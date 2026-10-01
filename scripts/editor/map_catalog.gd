@@ -170,7 +170,31 @@ const VARIANTS := {
 		["colimacon", "En colimaçon", "Spiral stairs"],
 		["rampe", "Rampe (sans marches)", "Ramp (no steps)"],
 	],
+	# Format 8 : entrées des zombies (barricades) : fenêtre (l'aspect d'avant),
+	# porte simple ou double à moitié défoncée (docs/MAP_OBJECTS.md § 9).
+	# Comme pour les escaliers, le type change plus que l'aspect : largeur,
+	# découpe du mur (sans allège), planches et zombies qui arrachent à la fois.
+	"fenetre": [
+		["fenetre", "Fenêtre", "Window"],
+		["porte", "Porte à zombies (simple)", "Zombie door (single)"],
+		["porte_double", "Porte à zombies double", "Zombie double door"],
+	],
 }
+
+## Largeur (m) le long du mur d'une entrée des zombies de type `kind`
+## (variante du type « fenetre », format 8) : fenêtre et porte simple 1 m,
+## porte double 2 m (deux battants de 1 m).
+const BARRICADE_WIDTHS := {"fenetre": 1.0, "porte": 1.0, "porte_double": 2.0}
+
+
+static func barricade_width(kind: String) -> float:
+	return float(BARRICADE_WIDTHS.get(kind, 1.0))
+
+
+## Type d'entrée des zombies d'une fenêtre posée (« fenetre », « porte »,
+## « porte_double ») ; "" pour un autre élément.
+static func barricade_kind(o: Dictionary) -> String:
+	return variant_of(o) if String(o.get("type", "")) == "fenetre" else ""
 
 ## Réglages d'un escalier (format 6, objets.json) ; absents : valeur par
 ## défaut, jamais écrite (une carte d'avant garde ses octets).
@@ -355,7 +379,8 @@ static func _build() -> void:
 		"make": {"type": "passage", "largeur": 2.0}, "hint_fr": "Ouverture sans porte entre deux pièces", "hint_en": "Doorless opening between two rooms"})
 	_add({"id": "fenetre", "cat": "ouvertures", "fr": "Fenêtre à zombies", "en": "Zombie window", "tool": "opening", "color": Color(0.0, 0.4, 1.0),
 		"make": {"type": "fenetre", "largeur": 1.0},
-		"hint_fr": "Sur un mur extérieur ; les zombies arrivent de dehors", "hint_en": "On an outer wall; zombies come from outside"})
+		"hint_fr": "Sur un mur extérieur ; les zombies arrivent de dehors. V : fenêtre, porte simple ou double",
+		"hint_en": "On an outer wall; zombies come from outside. V: window, single or double door"})
 	# Atouts (PerkDB).
 	for id in PerkDB.PERKS:
 		_add({"id": "atout:" + id, "cat": "atouts", "fr": PerkDB.display_name(id), "en": PerkDB.display_name(id), "tool": "wall_item",

@@ -35,6 +35,9 @@ const MIN_CEILING := 2.8
 ## Barricade.SILL_TOP / LINTEL_BOTTOM : allège et linteau des fenêtres.
 const SILL := 0.95
 const LINTEL := 2.35
+## Porte à zombies (format 8) : haut de l'ouverture (traverse du bâti), m
+## au-dessus du sol ; pas d'allège (Barricade.DOOR_HEIGHT).
+const ZOMBIE_DOOR_TOP := 2.1
 ## Spawner.MIN_PLAYER_DIST : pas d'apparition plus près d'un joueur (zombies
 ## qui sortent du sol ; les fenêtres n'ont plus cette distance, comme dans BO1).
 const MIN_SPAWN_DIST := 7.0
@@ -794,16 +797,21 @@ func _openings() -> void:
 				found = true
 				var zone := _uniform_zone(f, _side(r, inward))
 				_decor_in_front(f, _side(r, inward), what, w)
-				if thick != 1 or width != 2:
-					_msg("erreur", "fenêtre en %s : une fenêtre fait 1 m le long d'un mur de 0,5 m" % w[0],
-						"window at %s: a window is 1 m wide in a 0.5 m wall" % w[1], k, b.cells)
+				# Format 8 : type de l'entrée (fenêtre, porte simple, porte double).
+				var bk := barricade_kind_of(b.key)
+				var need := roundi(MapCatalog.barricade_width(bk) / scale)
+				if thick != 1 or width != need:
+					var bn := MapCatalog.variant_names("fenetre", bk)
+					_msg("erreur", "%s en %s : elle fait %s m le long d'un mur de 0,5 m" % [String(bn[0]).to_lower(), w[0], _num(need * scale).replace(".", ",")],
+						"%s at %s: it is %s m wide in a 0.5 m wall" % [String(bn[1]).to_lower(), w[1], _num(need * scale)], k, b.cells)
 					break
-				# Cour des zombies derrière la fenêtre : du vide sur 2,5 × 3 m.
+				# Cour des zombies derrière la fenêtre : du vide sur 2,5 × 3 m
+				# (1 m de plus que l'ouverture de chaque côté : porte double 4 m).
 				var out := -inward
 				var pocket := []
 				var blocked := []
 				for dd in range(1, POCKET_DEPTH + 1):
-					for ll in range(-2, 4):
+					for ll in range(-2, width + 2):
 						var c: Vector2i = r.position + out * dd + perp * ll
 						pocket.append(c)
 						if f.at(c) != K.VIDE or pockets.get(k, {}).has(c):
@@ -817,7 +825,8 @@ func _openings() -> void:
 					pockets[k] = {}
 				for c in pocket:
 					pockets[k][c] = true
-				windows.append({"floor": k, "rect": r, "inward": inward, "zone": zone, "cells": b.cells, "pocket": _bbox(pocket), "eid": eid_of.get(b.key, "")})
+				windows.append({"floor": k, "rect": r, "inward": inward, "zone": zone, "cells": b.cells, "pocket": _bbox(pocket), "eid": eid_of.get(b.key, ""),
+					"kind": bk})
 			else:
 				if not (_all(sa, func(c): return _side_floor(f, c)) and _all(sb, func(c): return _side_floor(f, c))):
 					continue
@@ -855,6 +864,13 @@ func _openings() -> void:
 	for i in doors.size():
 		doors[i]["id"] = str(i + 1)
 		doors[i]["link_id"] = ""
+
+
+## Type d'entrée des zombies (format 8) de l'ouverture `key` (fenêtre) :
+## « fenetre » (par défaut), « porte » ou « porte_double » (variants).
+func barricade_kind_of(key: String) -> String:
+	var v := String(variants.get(String(eid_of.get(key, "")), ""))
+	return v if MapCatalog.BARRICADE_WIDTHS.has(v) else "fenetre"
 
 
 ## Ouvertures déjà traitées sur un mur en biais (une par clé, même si ses
@@ -916,7 +932,8 @@ func _diag_opening(b: Dictionary, what: Array, pockets: Dictionary) -> void:
 		# Cour des zombies : les cases dont le centre est dans la cour (hors
 		# des cases coupées par le mur) sont du vide.
 		var out := -inward
-		var poly := MapGeom.oriented_rect(p + out * MapGeom.WALL_HALF, out, 3.0, 2.5)
+		var bk := barricade_kind_of(b.key)
+		var poly := MapGeom.oriented_rect(p + out * MapGeom.WALL_HALF, out, MapRules.pocket_width(MapCatalog.barricade_width(bk)), 2.5)
 		var pocket := []
 		var blocked := []
 		var bb := MapGeom.bbox(poly)
@@ -938,7 +955,7 @@ func _diag_opening(b: Dictionary, what: Array, pockets: Dictionary) -> void:
 			pockets.get_or_add(k, {})[c] = true
 		windows.append({"floor": k, "rect": rect, "inward": inward, "zone": _uniform_zone(f, inside), "cells": cells,
 			"pocket": _bbox(pocket) if not pocket.is_empty() else rect, "pocket_poly": poly, "inside": inside, "p": p,
-			"oblique": true, "eid": eid_of.get(b.key, "")})
+			"oblique": true, "eid": eid_of.get(b.key, ""), "kind": bk})
 		return
 	if not (floor_a and floor_b):
 		_msg("erreur", "%s en %s : elle doit être sur le mur commun de deux pièces collées (mur aux deux bouts, sol de chaque côté)" % [what[0], w[0]],

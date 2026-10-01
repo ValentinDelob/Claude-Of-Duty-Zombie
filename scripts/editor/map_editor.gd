@@ -1258,6 +1258,24 @@ func cycle_variant() -> void:
 	if MapCatalog.variants(t).size() < 2:
 		set_status(Lang.t("Cet élément n'a qu'un seul aspect", "This element has only one look"))
 		return
+	if t == "fenetre":
+		# Entrée des zombies (format 8) : la porte double (2 m) doit tenir à sa
+		# place ; sinon le type suivant qui tient, ou rien.
+		var v := MapCatalog.variant_of(e)
+		var res := {}
+		for _i in MapCatalog.variants(t).size() - 1:
+			v = MapCatalog.next_variant(t, v)
+			res = MapRules.apply_variant(doc, e.duplicate(true), v)
+			if res.ok:
+				break
+		if not res.ok:
+			canvas.show_refusal(res)
+			return
+		push_undo()
+		MapRules.apply_variant(doc, e, v)
+		changed()
+		set_status(Lang.t("Type : %s (V : suivant)", "Type: %s (V: next)") % MapCatalog.variant_name(t, v))
+		return
 	push_undo()
 	MapCatalog.set_variant(e, MapCatalog.next_variant(t, MapCatalog.variant_of(e)))
 	MapCatalog.tidy_stair(e)

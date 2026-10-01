@@ -45,7 +45,11 @@ extends RefCounted
 ##      écrite à sa valeur par défaut). Le décor contre un mur, à moitié dedans
 ##      ou au centimètre n'a pas de clé nouvelle (« position » en mètres,
 ##      « rot », « mur », « angle » comme avant). Formats 1 à 6 lus tels quels.
-const FORMAT := 7
+##   8  portes à zombies (docs/MAP_OBJECTS.md § 9) : « variante » d'une
+##      fenêtre (« porte » : porte simple de 1 m, « porte_double » : 2 m ;
+##      absente : la fenêtre d'avant, jamais écrite). La largeur suit le type
+##      (pas de clé « largeur »). Formats 1 à 7 lus tels quels.
+const FORMAT := 8
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -314,6 +318,10 @@ func _migrate(from: int) -> void:
 	if from < 7:
 		# Format 6 -> 7 : rien à convertir (applique sans « hauteur » : à 2 m,
 		# comme avant ; le décor garde sa position).
+		pass
+	if from < 8:
+		# Format 7 -> 8 : rien à convertir (fenêtre sans « variante » : la
+		# fenêtre d'avant, même découpe, mêmes planches).
 		pass
 
 
