@@ -17,6 +17,18 @@
    "en": "KINO: walking zombies now climb up and down the lobby stairs instead of shuffling on the top step."
   },
   {
+   "fr": "KINO : les zombies franchissent le haut de l'escalier de la ruelle et celui de l'escalier du Foyer au lieu de buter contre le bord du palier.",
+   "en": "KINO: zombies now make it over the top of the alley stairs and the Foyer stairs instead of bumping into the landing edge."
+  },
+  {
+   "fr": "KINO : le zombie qui sortait des gravats dans le grand tas de la salle n'y reste plus coincé.",
+   "en": "KINO: the zombie rising from the rubble inside the big mound in the theatre no longer stays stuck in it."
+  },
+  {
+   "fr": "BUNKER K-7 : la caisse de la salle du générateur a été un peu déplacée ; les zombies qui entrent par la fenêtre sud ne font plus la queue devant elle.",
+   "en": "BUNKER K-7: the crate in the generator room moved slightly; zombies coming in through the south window no longer queue up in front of it."
+  },
+  {
    "fr": "À terre, les chargeurs offerts au pistolet ne dépassent plus sa réserve maximale.",
    "en": "When downed, the bonus pistol magazines no longer push its reserve above the maximum."
   }
