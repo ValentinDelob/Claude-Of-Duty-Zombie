@@ -353,7 +353,7 @@ func _chase(delta: float) -> void:
 			if _mark_at(_path_i) > 0:
 				# Vers un escalier ou dessus : file derrière celui qui est juste
 				# devant (pas de bouchon de la horde qui pousse à l'entrée étroite).
-				_lane_speed *= _lane_yield(dir)
+				_lane_speed *= _lane_yield(dir, _path[_path_i] if _path_i < _path.size() else global_position)
 		if _repath_t <= 0.0:
 			_repath_t = randf_range(0.35, 0.7)
 		desired = (dir + _separation() * sep_k).normalized() * move_speed() * speed_mult * _lane_speed
@@ -453,8 +453,8 @@ func _separation() -> Vector3:
 
 
 ## Facteur de vitesse sur un couloir d'escalier : ralenti (file) si un autre
-## zombie est juste devant (à moins de 0,8 m, dans la direction suivie).
-func _lane_yield(dir: Vector3) -> float:
+## zombie est juste devant (à moins de 0,65 m) et plus près du point visé.
+func _lane_yield(dir: Vector3, goal: Vector3) -> float:
 	if _mgr == null or dir == Vector3.ZERO:
 		return 1.0
 	var grid := _mgr.separation_grid()
@@ -470,11 +470,16 @@ func _lane_yield(dir: Vector3) -> float:
 					continue
 				d.y = 0.0
 				var l2 := d.length_squared()
-				if l2 < 0.0001 or l2 > 0.64:
+				if l2 < 0.0001 or l2 > 0.45:
 					continue
-				if d.dot(dir) > 0.8 * sqrt(l2):
-					return 0.3
+				# Devant, et plus près que soi du point visé : on le laisse passer.
+				if d.dot(dir) > 0.7 * sqrt(l2) and _flat_dist_from(op, goal) < _flat_dist(goal) - 0.2:
+					return 0.5
 	return 1.0
+
+
+func _flat_dist_from(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
 ## Coincé (contre un autre zombie, un angle...) : recalcul immédiat du chemin.
