@@ -191,3 +191,31 @@ func test_fx_batch_roundtrip() -> void:
 	assert_false(fx[2].pap)
 	# Tronqué : on garde les éléments complets.
 	assert_eq(NetCodec.decode_fx(buf.slice(0, buf.size() - 3)).size(), 2)
+
+
+## Pause « de folie » à la fenêtre : un bit du code d'animation (état et
+## vitesse intacts), seulement à la fenêtre ; la marionnette le reçoit.
+func test_frenzy_bit_in_anim_code() -> void:
+	var mgr := ZombieManager.new()
+	host.add_child(mgr)
+	var z := _zombie(mgr, 5, true, Vector3(3, 0, 3), 0.0)
+	z.state = Zombie.State.BARRIER
+	z.tear_frenzy = true
+	var code := z.anim_code()
+	assert_true(code & Zombie.FRENZY_BIT != 0, "bit de folie levé")
+	assert_eq(code & 7, Zombie.State.BARRIER, "état intact")
+	assert_eq((code >> 3) & 3, 2, "vitesse intacte")
+	assert_true(code <= 255, "tient dans l'octet du code")
+	z.state = Zombie.State.CHASE
+	assert_eq(z.anim_code() & Zombie.FRENZY_BIT, 0, "hors de la fenêtre : jamais")
+	z.state = Zombie.State.BARRIER
+	var buf := mgr.build_snapshot()
+	var mgr2 := ZombieManager.new()
+	host.add_child(mgr2)
+	var z2 := _zombie(mgr2, 5, false, Vector3(3, 0, 3), 0.0)
+	mgr2.net_q[5] = NetCodec.quantize_zombie(Vector3.ZERO, 0.0, 0)
+	mgr2.apply_snapshot(buf)
+	var snap: Array = z2.snapshot(0)
+	assert_true(int(snap[3]) & Zombie.FRENZY_BIT != 0, "bit reçu par la marionnette")
+	mgr.queue_free()
+	mgr2.queue_free()

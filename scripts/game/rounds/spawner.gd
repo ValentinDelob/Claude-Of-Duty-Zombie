@@ -4,7 +4,12 @@ extends RefCounted
 ##
 ## * Seuls les points des zones ACTIVES (ouvertes par les joueurs) servent.
 ## * On préfère les points à distance moyenne des joueurs et hors de leur vue :
-##   les zombies arrivent « d'ailleurs », pas sous le nez du joueur.
+##   les zombies arrivent « d'ailleurs », pas sous le nez du joueur. Un point
+##   à moins de MIN_PLAYER_DIST est exclu, sauf derrière une fenêtre (BO1 :
+##   le zombie apparaît dehors et vient à sa fenêtre, même si le joueur s'y
+##   tient).
+## * Fenêtre : au plus BarricadeRules.WINDOW_QUEUE_MAX zombies qui attendent
+##   derrière elle ; au-delà, son point est sauté (le zombie reste à venir).
 ## * Recyclage : un zombie resté loin de tout joueur trop longtemps est retiré
 ##   et remis dans le quota de la manche (il réapparaîtra plus près).
 
@@ -15,6 +20,8 @@ const RECYCLE_DIST := 38.0
 const RECYCLE_TIME := 18.0
 ## Distance (m, à plat) sous laquelle un point d'apparition est occupé.
 const SPAWN_CLEARANCE := 0.8
+## Même règle derrière une fenêtre : un zombie au contact (2 x Zombie.RADIUS).
+const WINDOW_SPAWN_CLEARANCE := 0.6
 ## Filet de BO1 (round_spawn_failsafe) : moins de 24 pouces (0,6 m) en 30 s,
 ## 10 s de plus pour un rampant.
 const FAILSAFE_TIME := 30.0
@@ -26,6 +33,8 @@ class SpawnPoint:
 	var zone: String
 	## Cellule d'origine (cartes grille seulement).
 	var cell: Vector2i
+	## Fenêtre devant laquelle ce point se trouve (dehors), ou null.
+	var window: Barricade
 
 var game: Game
 var points: Array[SpawnPoint] = []
@@ -37,6 +46,7 @@ var _rng := RandomNumberGenerator.new()
 var _far_time: Dictionary = {}
 ## Filet : zid -> [position de référence, instant (GameClock) où il y était].
 var _failsafe: Dictionary = {}
+var _windows_resolved := false
 
 
 func _init(g: Game) -> void:
@@ -79,12 +89,20 @@ func pick_spawn_point() -> Variant:
 	var best_score := -INF
 	var best: SpawnPoint = null
 	var taken := zombie_positions()
+	_resolve_windows()
 	for sp in candidates:
+		# Derrière une fenêtre : au plus WINDOW_QUEUE_MAX zombies qui
+		# attendent (une place chacun, BO1 : attack_spots) ; les suivants
+		# attendent leur tour dans le quota de la manche.
+		if sp.window and BarricadeRules.queue_full(sp.window.waiting_count()):
+			continue
 		# Un seul zombie à la fois par point (comme les points de sortie de
 		# BO1) : deux zombies apparus au même endroit se superposent
 		# exactement (non solides pendant l'émergence) et restent bloqués
 		# l'un dans l'autre ensuite (aucune direction pour se séparer).
-		if occupied(sp.pos, taken):
+		# Derrière une fenêtre, le zombie de la place du milieu se tient à
+		# 0,78 m du point : seul un zombie au contact (2 rayons) le bloque.
+		if occupied(sp.pos, taken, WINDOW_SPAWN_CLEARANCE if sp.window else SPAWN_CLEARANCE):
 			continue
 		var nearest := INF
 		var seen := false
@@ -93,7 +111,11 @@ func pick_spawn_point() -> Variant:
 			nearest = minf(nearest, d)
 			if not seen and _in_view(p, sp.pos, d):
 				seen = true
-		if nearest < MIN_PLAYER_DIST:
+		# Distance mini pour les zombies qui sortent du sol seulement : comme
+		# dans BO1, ceux d'une fenêtre apparaissent dehors et viennent à leur
+		# fenêtre même si le joueur s'y tient (sinon, collé à la seule
+		# fenêtre d'une petite salle, plus aucun zombie n'apparaissait).
+		if nearest < MIN_PLAYER_DIST and not sp.window:
 			continue
 		var score := 0.0
 		if nearest >= IDEAL_MIN and nearest <= IDEAL_MAX:
@@ -119,11 +141,21 @@ func zombie_positions() -> PackedVector3Array:
 
 
 ## Règle pure : un zombie (même niveau) se tient-il sur ce point ?
-static func occupied(pos: Vector3, taken: PackedVector3Array) -> bool:
+static func occupied(pos: Vector3, taken: PackedVector3Array, clearance := SPAWN_CLEARANCE) -> bool:
 	for q in taken:
-		if absf(q.y - pos.y) < 1.0 and Vector2(q.x - pos.x, q.z - pos.z).length() < SPAWN_CLEARANCE:
+		if absf(q.y - pos.y) < 1.0 and Vector2(q.x - pos.x, q.z - pos.z).length() < clearance:
 			return true
 	return false
+
+
+## Rattache chaque point à sa fenêtre (une fois : les fenêtres sont
+## construites après le Spawner).
+func _resolve_windows() -> void:
+	if _windows_resolved or game.barricades == null:
+		return
+	_windows_resolved = true
+	for sp in points:
+		sp.window = game.barricades.window_for_spawn(sp.pos)
 
 
 func _standing_players() -> Array:

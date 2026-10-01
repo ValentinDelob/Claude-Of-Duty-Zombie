@@ -13,7 +13,8 @@ extends RefCounted
 ## * Émergence : les mains crèvent le sol d'abord, puis la tête ; le zombie
 ##   prend appui sur le sol et s'extirpe.
 ## * Fenêtre : agrippe une planche, l'arrache en se jetant en arrière, la
-##   jette sur le côté ; enjambement de l'allège.
+##   jette sur le côté ; entre deux planches, pause « de folie » (frappe les
+##   planches à coups de bras alternés, tête secouée) ; enjambement de l'allège.
 ## * Morts variées : bascule avant/arrière, effondrement à genoux puis face
 ##   contre terre, vrille sur le côté, chute raide (tir à la tête).
 ##
@@ -29,6 +30,10 @@ const POSE_BONES := ["hips", "spine", "chest", "neck", "head", "jaw", "thigh_l",
 ## Tables de clés des poses (t, valeur) : constantes partagées, aucune
 ## allocation à chaque image (ZombieAnim._keys).
 const RUN_TARGET := [0.0, 0.65, 1.0, 1.0]
+## Pause de folie à la fenêtre : cadence des coups (rad/s, ~2,4 coups par
+## seconde et par bras) et nombre de valeurs de frenzy_pose.
+const FRENZY_RATE := 15.0
+const FRENZY_VALUES := 14
 const STIFF_BONES := ["thigh_l", "thigh_r", "shin_l", "shin_r", "spine", "chest"]
 const K_EMERGE_ROOT := [[0.0, -2.3], [0.18, -1.95], [0.42, -1.4], [0.78, -0.2], [1.0, 0.0]]
 const K_VAULT_THIGH_L := [[0.0, -0.3], [0.35, -1.4], [0.7, -0.6], [1.0, -0.1]]
@@ -72,6 +77,8 @@ var _t := 0.0
 ## Indices des os écrits à chaque pose (ordre de POSE_BONES), repos du bassin.
 var _bi := PackedInt32Array()
 var _hips_rest_y := 0.95
+## Pose de folie de l'image (frenzy_pose), réutilisée : aucune allocation.
+var _fz: Array = []
 
 
 func _init(zombie: Zombie) -> void:
@@ -94,10 +101,39 @@ func _init(zombie: Zombie) -> void:
 	var cls := z.speed_class
 	run_k = _run_target(cls)
 	sprint_k = 1.0 if cls >= 3 else 0.0
+	_fz.resize(FRENZY_VALUES)
+	_fz.fill(0.0)
 
 
 static func _q(x: float, y := 0.0, zr := 0.0) -> Quaternion:
 	return Quaternion.from_euler(Vector3(x, y, zr))
+
+
+## Pause « de folie » à la fenêtre, entre deux planches : le zombie frappe
+## les planches à coups de bras alternés (levés au-dessus de la tête, griffes
+## repliées, puis abattus), épaules qui vrillent, buste qui pompe à chaque
+## coup, tête secouée, mâchoire grande ouverte, genoux qui rebondissent.
+## Écrit dans `out` (FRENZY_VALUES valeurs) : bras g/d, avant-bras g/d,
+## écart des bras g/d, dos, buste (avant, torsion), tête (avant, roulis),
+## mâchoire, tibias g/d. `phase` décale chaque zombie (pas de cadence commune).
+static func frenzy_pose(out: Array, t: float, phase: float, tilt: float, jaw0: float) -> void:
+	var ph := t * FRENZY_RATE + phase
+	var raise_l := 0.5 + 0.5 * sin(ph)
+	var raise_r := 0.5 + 0.5 * sin(ph + PI * 0.9)
+	out[0] = lerpf(-1.35, -2.45, raise_l)
+	out[1] = lerpf(-1.35, -2.4, raise_r)
+	out[2] = lerpf(-0.25, -1.0, raise_l)
+	out[3] = lerpf(-0.25, -1.0, raise_r)
+	out[4] = -0.2 - 0.12 * sin(ph * 0.5 + 1.0)
+	out[5] = 0.2 + 0.12 * sin(ph * 0.5)
+	out[6] = 0.32 + 0.1 * absf(sin(ph))
+	out[7] = 0.15 + 0.08 * absf(sin(ph + 0.6))
+	out[8] = 0.22 * sin(ph)
+	out[9] = -0.5 + 0.15 * sin(ph * 2.0 + 0.4)
+	out[10] = tilt + 0.28 * sin(t * 7.3 + phase * 1.7)
+	out[11] = jaw0 + 0.3 + 0.12 * sin(t * 9.0 + phase)
+	out[12] = 0.35 + 0.12 * absf(sin(ph))
+	out[13] = 0.25 + 0.12 * absf(sin(ph + PI * 0.9))
 
 
 static func _run_target(cls: int) -> float:
@@ -257,14 +293,14 @@ func pose(delta: float) -> void:
 		fl = -0.35
 		fr = -0.35
 	elif tearing:
-		var period := BarricadeRules.tear_interval(z.speed_class)
-		var tt := fmod(z.state_time, period) / period
+		var tt := clampf(z.tear_t / BarricadeRules.TEAR_PULL, 0.0, 1.0)
 		# Agrippe (bras tendus vers la planche), tire en se jetant en
 		# arrière (coudes ramenés), puis jette la planche sur le côté.
 		al = _keys(tt, K_TEAR_ARM_L)
 		ar = _keys(tt, K_TEAR_ARM_R)
 		fl = _keys(tt, K_TEAR_FOREARM_L)
 		fr = _keys(tt, K_TEAR_FOREARM_R)
+		zl = -0.1
 		zr = _keys(tt, K_TEAR_ARM_R_Z)
 		spine_x = _keys(tt, K_TEAR_SPINE)
 		chest_x = _keys(tt, K_TEAR_CHEST_X)
@@ -278,6 +314,27 @@ func pose(delta: float) -> void:
 		sh_r = 0.25
 		hip_twist = 0.0
 		hip_roll = 0.0
+		# Pause « de folie » entre deux planches : fondu depuis la fin du geste
+		# (0,25 s), et retour fondu au début du geste suivant (0,2 s).
+		var fw := smoothstep(0.0, 0.25, z.tear_t) if z.tear_frenzy else 1.0 - smoothstep(0.0, 0.2, z.tear_t)
+		if fw > 0.0:
+			var f := _fz
+			frenzy_pose(f, _t, seed_phase, head_tilt, jaw_open)
+			al = lerpf(al, f[0], fw)
+			ar = lerpf(ar, f[1], fw)
+			fl = lerpf(fl, f[2], fw)
+			fr = lerpf(fr, f[3], fw)
+			zl = lerpf(zl, f[4], fw)
+			zr = lerpf(zr, f[5], fw)
+			spine_x = lerpf(spine_x, f[6], fw)
+			chest_x = lerpf(chest_x, f[7], fw)
+			chest_y = lerpf(chest_y, f[8], fw)
+			head_x = lerpf(head_x, f[9], fw)
+			head_z = lerpf(head_z, f[10], fw)
+			jaw = lerpf(jaw, f[11], fw)
+			sh_l = lerpf(sh_l, f[12], fw)
+			sh_r = lerpf(sh_r, f[13], fw)
+			hips_y -= 0.03 * fw * absf(sin(_t * FRENZY_RATE * 2.0 + seed_phase))
 
 	# --- Attaque : griffes à deux bras ---------------------------------------
 	if z.attack_t >= 0.0:

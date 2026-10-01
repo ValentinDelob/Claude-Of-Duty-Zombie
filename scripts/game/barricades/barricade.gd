@@ -4,7 +4,10 @@ extends Interactable
 ## ouverture du mur extérieur, comme dans Black Ops 1.
 ##
 ## * Les zombies apparus dans la poche extérieure viennent se placer devant la
-##   fenêtre, arrachent les planches une par une, puis l'enjambent.
+##   fenêtre, arrachent les planches une par une, puis l'enjambent. Trois
+##   places (BO1 : attack_spots ; milieu, gauche, droite), un zombie par
+##   place, chacun à son rythme : une planche toutes les 2,5 s en moyenne,
+##   pause « de folie » entre deux (BarricadeRules.tear_tick).
 ## * Les joueurs réparent en maintenant [F] depuis l'intérieur : une planche
 ##   toutes les 0,75 s, +10 points (plafond par manche : BarricadeSystem).
 ## * Serveur : état (masque de 6 bits), réparations, logique des zombies.
@@ -22,6 +25,12 @@ const PLANK_SIZE := Vector3(1.34, 0.17, 0.045)
 const PLANK_Z := -0.36
 ## Le zombie qui arrache se tient là (dehors, -Z).
 const TEAR_DIST := 0.82
+## Places devant la fenêtre (BO1 : attack_spots) : décalage le long du mur
+## (X local) de chacune ; un zombie par place, chacun arrache à son rythme.
+## 0,65 m : deux capsules (2 x 0,3 m) côte à côte sans se toucher.
+const SLOT_OFFSETS := [0.0, -0.65, 0.65]
+## Sans place libre : attente à cette distance derrière la place du milieu.
+const WAIT_BACK := 1.0
 ## Arrivée de l'enjambement (dedans, +Z).
 const INSIDE_DIST := 1.0
 ## Pas d'enjambement tant qu'un zombie se tient à moins de cela de l'arrivée.
@@ -58,6 +67,10 @@ var spawn_cells: Array = []
 var mask := BarricadeRules.FULL_MASK
 ## Serveur : zombie en train d'enjamber (un seul à la fois).
 var vaulter: Zombie
+## Serveur : zombie posté à chaque place (SLOT_OFFSETS), ou null.
+var _slots: Array = [null, null, null]
+## Serveur : places dégagées (mesurées au premier besoin, _slot_open).
+var _slot_ok: Array = []
 
 ## Serveur : pid -> temps de maintien cumulé.
 var _repairers: Dictionary = {}
@@ -423,7 +436,11 @@ static func _flat_dist(a: Vector3, b: Vector3) -> float:
 # --------------------------------------------------------------------------
 
 func srv_zombie_barrier(z: Zombie, delta: float) -> void:
-	var tp := tear_point()
+	# Une place par zombie (BO1 : attack_spots) ; sans place libre, il attend
+	# un peu en retrait (n'arrive pas en temps normal : le Spawner ne fait
+	# plus apparaître derrière une fenêtre dont les places sont prises).
+	var slot := _claim_slot(z)
+	var tp := slot_point(slot) if slot >= 0 else tear_point() - inward * WAIT_BACK
 	var to := tp - z.global_position
 	to.y = 0.0
 	var dist := to.length()
@@ -433,25 +450,38 @@ func srv_zombie_barrier(z: Zombie, delta: float) -> void:
 	# la sortie se libère se bousculait autour du point exact, aucun n'y
 	# arrivait.
 	if dist < (VAULT_REACH if mask == 0 else 0.5):
-		var victim := _victim_for(z)
-		if victim and planks() <= REACH_MAX_PLANKS:
-			z.target = victim
-			z.barrier_attack()
-			return
-		if mask == 0:
-			if (vaulter == null or not is_instance_valid(vaulter) or not vaulter.is_alive() or vaulter.barricade != self) and exit_clear(z):
-				vaulter = z
-				z.start_vault(Vector3(z.global_position.x, tp.y, z.global_position.z), inside_point())
-				return
+		if slot < 0:
+			# En retrait : il s'agite en attendant une place.
+			_frenzy_wait(z, delta)
+			desired = to * 2.0
 		else:
-			z.tear_t += delta
-			if z.tear_t >= BarricadeRules.tear_interval(z.speed_class):
-				z.tear_t = -randf() * BarricadeRules.TEAR_PAUSE_MAX
-				srv_tear()
-		# Petit recentrage sur le point d'arrachage.
-		desired = to * 2.0
+			var victim := _victim_for(z)
+			if victim and planks() <= REACH_MAX_PLANKS:
+				z.target = victim
+				z.barrier_attack()
+				return
+			if mask == 0:
+				if (vaulter == null or not is_instance_valid(vaulter) or not vaulter.is_alive() or vaulter.barricade != self) and exit_clear(z):
+					vaulter = z
+					_slots[slot] = null
+					z.tear_frenzy = false
+					z.start_vault(Vector3(z.global_position.x, tp.y, z.global_position.z), inside_point())
+					return
+				# Fenêtre ouverte, sortie prise : il s'agite en attendant.
+				_frenzy_wait(z, delta)
+			else:
+				# Agrippe-tire puis pause « de folie », à son propre rythme.
+				var st := BarricadeRules.tear_tick(z.tear_frenzy, z.tear_t, z.tear_pause, delta, randf())
+				z.tear_frenzy = st.x > 0.5
+				z.tear_t = st.y
+				z.tear_pause = st.z
+				if st.w > 0.5:
+					srv_tear()
+			# Petit recentrage sur sa place.
+			desired = to * 2.0
 	else:
 		z.tear_t = 0.0
+		z.tear_frenzy = false
 		var spd: float = Zombie.SPEEDS[z.speed_class] * z.speed_mult
 		desired = (to / dist + z.separation() * 0.6).normalized() * spd * clampf(dist * 1.5, 0.3, 1.0)
 		face = atan2(to.x, to.z)
@@ -460,6 +490,90 @@ func srv_zombie_barrier(z: Zombie, delta: float) -> void:
 	z.velocity.z = horiz.z
 	z.yaw = lerp_angle(z.yaw, face, 1.0 - exp(-delta * 8.0))
 	z.rotation.y = z.yaw
+
+
+## Serveur : attente sans planche à arracher (place prise, sortie occupée) :
+## pose de folie continue.
+static func _frenzy_wait(z: Zombie, delta: float) -> void:
+	if not z.tear_frenzy:
+		z.tear_frenzy = true
+		z.tear_t = 0.0
+		z.tear_pause = 0.0
+	z.tear_t += delta
+
+
+## Place `i` devant la fenêtre (dehors) : celle du milieu, puis à gauche et à
+## droite, le long du mur.
+func slot_point(i: int) -> Vector3:
+	var side := global_transform.basis.x
+	side.y = 0.0
+	return tear_point() + side.normalized() * SLOT_OFFSETS[i]
+
+
+## Serveur : place tenue par `z`, sinon la place libre (et dégagée) la plus
+## proche de lui ; -1 s'il n'y en a pas. Une place se libère quand son
+## zombie meurt, enjambe ou quitte la fenêtre.
+func _claim_slot(z: Zombie) -> int:
+	var free := -1
+	var free_d := INF
+	for i in _slots.size():
+		var o: Variant = _slots[i]
+		if o != null and not _holds_slot(o):
+			_slots[i] = null
+			o = null
+		if o == z:
+			return i
+		if o == null and _slot_open(i):
+			var d := _flat_dist(slot_point(i), z.global_position)
+			if d < free_d:
+				free_d = d
+				free = i
+	if free >= 0:
+		_slots[free] = z
+		z.tear_t = 0.0
+		z.tear_frenzy = false
+	return free
+
+
+## La place est-elle encore tenue par `o` (vivant, rattaché, pas en train
+## d'enjamber) ? `o` peut être un zombie déjà libéré (retiré du jeu).
+func _holds_slot(o: Variant) -> bool:
+	if not is_instance_valid(o):
+		return false
+	var zo := o as Zombie
+	return zo != null and zo.is_alive() and zo.barricade == self and zo.state != Zombie.State.VAULT
+
+
+## Serveur : la place `i` est-elle dégagée (pas dans le mur d'une poche
+## étroite) ? Mesuré une fois : rayon depuis la place du milieu, au niveau du
+## bassin, rayon du zombie compris.
+func _slot_open(i: int) -> bool:
+	if i == 0:
+		return true
+	if _slot_ok.is_empty():
+		_slot_ok = [true]
+		var space := get_world_3d().direct_space_state if is_inside_tree() else null
+		for k in range(1, SLOT_OFFSETS.size()):
+			var ok := space != null
+			if ok:
+				var from := tear_point() + Vector3.UP
+				var dir := slot_point(k) - tear_point()
+				var to := from + dir + dir.normalized() * (Zombie.RADIUS + 0.05)
+				var q := PhysicsRayQueryParameters3D.create(from, to, 1)
+				ok = space.intersect_ray(q).is_empty()
+			_slot_ok.append(ok)
+	return _slot_ok[i]
+
+
+## Serveur : zombies qui attendent derrière cette fenêtre (rattachés à elle,
+## pas encore en train d'enjamber). Le Spawner n'en ajoute plus au-delà de
+## BarricadeRules.WINDOW_QUEUE_MAX.
+func waiting_count() -> int:
+	var n := 0
+	for o: Zombie in system.game.zombies.alive:
+		if o.barricade == self and o.state != Zombie.State.VAULT:
+			n += 1
+	return n
 
 
 ## Serveur : l'arrivée de l'enjambement est-elle libre ? L'enjambement pose le

@@ -25,6 +25,8 @@ const EMERGE_TIME := 1.4
 ## Couche physique « zombies ».
 const BODY_LAYER := 1 << 2
 const INTERP_DELAY := 0.12
+## Bit du code d'animation (anim_code) : pause « de folie » entre deux planches.
+const FRENZY_BIT := 1 << 5
 const HITBOX_LAYER := 1 << 3
 const ATTACK_RANGE := 1.25
 const ATTACK_TIME := 0.9
@@ -48,8 +50,14 @@ var target: Player
 var lured := false
 ## Fenêtre à franchir avant d'entrer dans la zone (null : déjà dedans).
 var barricade: Barricade
-## Serveur : progression de l'arrachage de la planche en cours.
+## Arrachage à la fenêtre (BarricadeRules.tear_tick) : temps écoulé dans la
+## phase en cours (agrippe-tire, ou pause « de folie » si `tear_frenzy`).
+## Serveur : fait foi ; marionnette : bit FRENZY_BIT du code d'animation,
+## `tear_t` recompté sur place (purement visuel).
 var tear_t := 0.0
+var tear_frenzy := false
+## Serveur : durée de la pause en cours.
+var tear_pause := 0.0
 var _vault_from := Vector3.ZERO
 var _vault_to := Vector3.ZERO
 ## Membres arrachés (masque ZombieGibs) ; temps écoulé depuis la chute du
@@ -252,9 +260,10 @@ func is_alive() -> bool:
 	return state != State.DEAD
 
 
-## Code d'animation envoyé dans les instantanés : état (3 bits) | vitesse (2 bits).
+## Code d'animation envoyé dans les instantanés : état (3 bits) | vitesse
+## (2 bits) | pause « de folie » à la fenêtre (FRENZY_BIT).
 func anim_code() -> int:
-	return int(state) | (speed_class << 3)
+	return int(state) | (speed_class << 3) | (FRENZY_BIT if tear_frenzy and state == State.BARRIER else 0)
 
 
 # --------------------------------------------------------------------------
@@ -531,6 +540,7 @@ func _attack(delta: float) -> void:
 func enter_barricade(b: Barricade) -> void:
 	barricade = b
 	tear_t = 0.0
+	tear_frenzy = false
 	_set_state(State.BARRIER)
 	yaw = atan2(b.inward.x, b.inward.z)
 	rotation.y = yaw
@@ -700,6 +710,13 @@ func interpolate_at(render_t: float) -> void:
 	var code: int = _snap_code[ia]
 	var new_state: State = (code & 7) as State
 	speed_class = (code >> 3) & 3
+	# Arrachage : la phase (geste / pause) vient du serveur ; le temps dans la
+	# phase repart de zéro à chaque changement, et tant que le zombie marche
+	# encore vers sa place.
+	var frenzy := code & FRENZY_BIT != 0
+	if frenzy != tear_frenzy or new_state != State.BARRIER or anim_speed >= 0.4:
+		tear_t = 0.0
+	tear_frenzy = frenzy
 	if new_state != state and state != State.DEAD:
 		if new_state == State.ATTACK:
 			play_attack()
@@ -719,6 +736,7 @@ func _process(delta: float) -> void:
 	if not server_side:
 		_interpolate()
 		_state_time += delta
+		tear_t += delta
 	_groan(delta)
 	if crawl_t >= 0.0:
 		crawl_t += delta
