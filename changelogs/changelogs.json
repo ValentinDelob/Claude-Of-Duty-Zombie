@@ -1293,6 +1293,25 @@
     "en": "Map editor with friends (and with Claude)",
     "fr": "Éditeur de cartes à plusieurs (et avec Claude)"
    }
+  },
+  "v0.2.0-snapshot.342": {
+   "channel": "snapshot",
+   "date": "2026-10-01",
+   "images": [],
+   "items": [
+    {
+     "en": "You see what the others do: their selection outlined in their color, the object they are moving live, what they just changed blinking; what Claude places appears piece by piece with a bubble saying what it does. New History tab: every action, and \"Undo this action\" on yours, even old ones.",
+     "fr": "Vous voyez ce que font les autres : leur sélection entourée de leur couleur, l'objet qu'ils déplacent en direct, ce qu'ils viennent de changer qui clignote ; ce que pose Claude apparaît pièce par pièce avec une bulle qui dit ce qu'il fait. Nouvel onglet Historique : toutes les actions, et « Annuler cette action » sur les vôtres, même anciennes."
+    },
+    {
+     "en": "Claude can now draw a corridor to a room just by naming it.",
+     "fr": "Claude peut maintenant tracer un couloir vers une pièce en la désignant simplement par son nom."
+    }
+   ],
+   "title": {
+    "en": "Editor collaboration: see what the others do",
+    "fr": "Collaboration dans l'éditeur : voir ce que font les autres"
+   }
   }
  }
 }
