@@ -1097,6 +1097,33 @@
     "en": "Zombies no longer get stuck",
     "fr": "Des zombies qui ne restent plus coincés"
    }
+  },
+  "v0.2.0-snapshot.292": {
+   "channel": "snapshot",
+   "date": "2026-10-01",
+   "images": [],
+   "items": [
+    {
+     "en": "KINO: zombies now make it over the top of the alley stairs and the Foyer stairs instead of bumping into the landing edge.",
+     "fr": "KINO : les zombies franchissent le haut de l'escalier de la ruelle et celui de l'escalier du Foyer au lieu de buter contre le bord du palier."
+    },
+    {
+     "en": "KINO: the zombie rising from the rubble inside the big mound in the theatre no longer stays stuck in it.",
+     "fr": "KINO : le zombie qui sortait des gravats dans le grand tas de la salle n'y reste plus coincé."
+    },
+    {
+     "en": "BUNKER K-7: the crate in the generator room moved slightly; zombies coming in through the south window no longer queue up in front of it.",
+     "fr": "BUNKER K-7 : la caisse de la salle du générateur a été un peu déplacée ; les zombies qui entrent par la fenêtre sud ne font plus la queue devant elle."
+    },
+    {
+     "en": "Windows: a zombie now waits outside while the landing spot is taken instead of climbing into the zombie standing there; zombies that came in while you were downed no longer stay jammed in a line in front of the window.",
+     "fr": "Fenêtres : un zombie attend dehors tant que l'arrivée est occupée, au lieu d'enjamber dans le zombie qui s'y tient ; les zombies entrés pendant que vous étiez à terre ne restent plus bloqués en file devant la fenêtre."
+    }
+   ],
+   "title": {
+    "en": "No more zombies stuck in the scenery",
+    "fr": "Plus de zombies coincés dans le décor"
+   }
   }
  }
 }
