@@ -633,7 +633,19 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   1,3 s (la planche cède à 70 %), puis pause « de folie » de 0,9 à 1,5 s ;
   2,5 s par planche en moyenne, quelle que soit la vitesse du zombie. La
   phase est diffusée par `Zombie.FRENZY_BIT` du code d'animation.
+- Portes à zombies (format 8 des cartes de l'éditeur, `Barricade.kind`,
+  `BarricadeRules.KINDS`, docs/MAP_OBJECTS.md § 9) : porte simple, une
+  place où l'on arrache et 3 d'attente (file de 4) ; porte double, 2 places
+  (une par battant, `srv_tear(lane)`), 4 d'attente (file de 6), 10 planches,
+  deux passages (`_vaulters`, `inside_point(lane)`, `exit_clear(z, lane)`).
+  Les places d'attente sont des places du tableau `_slots` après celles où
+  l'on arrache (`tear_slots()`) ; le Spawner demande `Barricade.queue_full()`.
+  On passe le seuil en marchant (`vault_time()` = `STEP_TIME`, animation de
+  marche). Modèle : `ZombieDoorModel` (10 cm d'épaisseur, face intérieure
+  du mur). Masque des planches sur 10 bits (état complet en
+  `PackedInt32Array`).
 - Tests : `tests/test_rounds.gd`, `tests/test_barricades.gd`,
+  `tests/test_zombie_doors.gd` (scénario `zombie_doors`),
   `tests/test_spawner.gd` ; scénarios `smallest_window` et `smallest_speeds`
   sur la carte SMALLEST du joueur (copie : `tests/fixtures/maps/smallest/`,
   installée dans le dossier des cartes du scénario sous `tests/_out`).
