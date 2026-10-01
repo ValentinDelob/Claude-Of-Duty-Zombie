@@ -20,7 +20,8 @@ extends Interactable
 ##   du mur, planches clouées devant. Porte simple : un seul zombie arrache
 ##   (TEAR_OFFSETS), trois attendent derrière lui (WAIT_POINTS) ; porte
 ##   double : un zombie par battant (deux à la fois), quatre attendent, deux
-##   passages de front. Le zombie passe le seuil en marchant (STEP_TIME).
+##   passages de front. Le battant est cassé à mi-hauteur : le zombie
+##   l'enjambe comme une fenêtre (VAULT_TIME).
 ##
 ## Repère local : +Z vers l'intérieur de la zone, X le long du mur.
 
@@ -477,9 +478,9 @@ func _side() -> Vector3:
 	return s.normalized()
 
 
-## Durée du passage (fenêtre : enjambement ; porte : pas du seuil).
+## Durée du passage (enjambement, fenêtre ou porte).
 func vault_time() -> float:
-	return BarricadeRules.STEP_TIME if is_door() else BarricadeRules.VAULT_TIME
+	return BarricadeRules.VAULT_TIME
 
 
 func interact_point() -> Vector3:

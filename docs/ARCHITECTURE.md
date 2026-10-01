@@ -640,8 +640,8 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   deux passages (`_vaulters`, `inside_point(lane)`, `exit_clear(z, lane)`).
   Les places d'attente sont des places du tableau `_slots` après celles où
   l'on arrache (`tear_slots()`) ; le Spawner demande `Barricade.queue_full()`.
-  On passe le seuil en marchant (`vault_time()` = `STEP_TIME`, animation de
-  marche). Modèle : `ZombieDoorModel` (10 cm d'épaisseur, face intérieure
+  Battant cassé à mi-hauteur : on l'enjambe comme une fenêtre (`vault_time()`
+  = `VAULT_TIME`, même animation). Modèle : `ZombieDoorModel` (10 cm d'épaisseur, face intérieure
   du mur). Masque des planches sur 10 bits (état complet en
   `PackedInt32Array`).
 - Tests : `tests/test_rounds.gd`, `tests/test_barricades.gd`,

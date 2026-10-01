@@ -37,10 +37,8 @@ const TEAR_TIME_FAST := TEAR_TIME
 ## autant de zombies attendent derrière une fenêtre ; les suivants
 ## n'apparaissent pas tant qu'une place n'est pas libérée (enjambement, mort).
 const WINDOW_QUEUE_MAX := 3
-## Durée du passage de la fenêtre (enjambement).
+## Durée du passage d'une fenêtre ou d'une porte à zombies (enjambement).
 const VAULT_TIME := 1.1
-## Porte à zombies : le zombie passe le seuil en marchant (pas d'allège).
-const STEP_TIME := 1.2
 
 # --------------------------------------------------------------------------
 # Types d'entrée (format 8 des cartes de l'éditeur ; docs/MAP_OBJECTS.md § 9)

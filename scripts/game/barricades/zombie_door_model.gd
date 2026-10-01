@@ -1,9 +1,10 @@
 class_name ZombieDoorModel
 extends RefCounted
 ## Modèle d'une porte à zombies (format 8 des cartes ; docs/MAP_OBJECTS.md
-## § 9) : bâti (montants, traverse, chambranle, seuil) et battant(s) défoncé(s)
-## — pendu à sa penture du haut, planches cassées aux bouts éclatés — dans le
-## plan de la face INTÉRIEURE du mur. Les planches de la barricade
+## § 9) : bâti (montants, traverse, chambranle, seuil) et battant(s) cassé(s)
+## à mi-hauteur — seule la moitié basse reste sur ses gonds, planches aux
+## bouts éclatés, le haut vide : les zombies l'enjambent comme l'allège d'une
+## fenêtre — dans le plan de la face INTÉRIEURE du mur. Les planches de la barricade
 ## (Barricade, animées) sont clouées devant, dans la même tranche.
 ##
 ## Règle « vraie porte » : tout l'assemblage (bâti, battants, planches) tient
@@ -32,6 +33,9 @@ const LEDGE_Z := Vector2(0.162, 0.18)
 const STRAP_Z := Vector2(0.205, 0.209)
 ## Planches de la barricade (Barricade : plan des planches d'une porte).
 const BOARD_Z := Vector2(0.21, 0.252)
+## Haut moyen des battants cassés à mi-hauteur (bouts éclatés à ±10 cm) :
+## hauteur de l'allège d'une fenêtre, que les zombies enjambent pareil.
+const LEAF_TOP := 0.95
 
 
 ## Assemblage complet (nœud « DoorAssembly ») d'une porte de type `kind`
@@ -58,16 +62,18 @@ static func build(kind: String, width: float, height: float, seed_v: int) -> Nod
 		# Socle du chambranle (plinthe), un peu plus épais.
 		_box(parts, "frame", Vector3(CASING_W + 0.01, 0.16, cd), Vector3(sx * (hw + CASING_W * 0.5), 0.08, cz))
 	_box(parts, "casing", Vector3(width + CASING_W * 2.0 + 0.04, CASING_W, cd), Vector3(0, height + CASING_W * 0.5, cz))
-	# --- Battant(s) ---------------------------------------------------------
+	# --- Battant(s) : cassés à mi-hauteur, le haut vide (on enjambe) --------
 	var clear := width - FRAME_W * 2.0
+	var top_hinge := height - FRAME_W - 0.3
 	if kind == BarricadeRules.DOUBLE_DOOR:
 		var lw := clear * 0.5 - 0.01
-		# Battant gauche : pendu à sa penture du haut, affaissé côté milieu.
-		_hanging_leaf(parts, rng, Vector2(-clear * 0.5, height - FRAME_W), lw, height - FRAME_W - 0.03, 1.0)
-		# Battant droit : cassé en deux, la moitié basse reste sur ses gonds.
-		_smashed_leaf(parts, rng, Vector2(clear * 0.5, 0.03), lw, height - FRAME_W - 0.03)
+		_half_leaf(parts, rng, Vector2(-clear * 0.5, 0.03), lw, 1.0)
+		_half_leaf(parts, rng, Vector2(clear * 0.5, 0.03), lw, -1.0)
+		_torn_strap(parts, rng, Vector2(-clear * 0.5, top_hinge), 1.0)
+		_torn_strap(parts, rng, Vector2(clear * 0.5, top_hinge), -1.0)
 	else:
-		_hanging_leaf(parts, rng, Vector2(-clear * 0.5, height - FRAME_W), clear - 0.02, height - FRAME_W - 0.03, 1.0)
+		_half_leaf(parts, rng, Vector2(-clear * 0.5, 0.03), clear - 0.02, 1.0)
+		_torn_strap(parts, rng, Vector2(-clear * 0.5, top_hinge), 1.0)
 	for key in parts:
 		var st: SurfaceTool = parts[key]
 		var mi := MeshInstance3D.new()
@@ -134,71 +140,43 @@ static func material(key: String) -> Material:
 	return m
 
 
-## Battant pendu à sa seule penture du haut (gond du bas arraché) : pivoté
-## dans son plan autour de `pivot` (coin haut, côté gonds, `side` = +1 : gonds
-## à gauche), le côté libre affaissé ; le bas défoncé (planches cassées à des
-## hauteurs différentes, bouts éclatés), une planche manquante.
-static func _hanging_leaf(parts: Dictionary, rng: RandomNumberGenerator, pivot: Vector2, lw: float, lh: float, side: float) -> void:
-	var sag := -side * rng.randf_range(0.13, 0.17)
+## Moitié basse d'un battant cassé à mi-hauteur : planches debout du seuil à
+## LEAF_TOP environ, bouts du haut éclatés en dents de scie (hauteurs
+## différentes, une planche plus courte), barres du bas et du haut, gonds en
+## fer. `corner` : coin bas côté gonds ; `side` = +1 : gonds à gauche (le
+## battant s'étend vers +X), -1 : gonds à droite. Rien au-dessus.
+static func _half_leaf(parts: Dictionary, rng: RandomNumberGenerator, corner: Vector2, lw: float, side: float) -> void:
+	var tilt := rng.randf_range(-0.012, 0.012)
 	var xf := func(p: Vector2) -> Vector2:
-		return pivot + Vector2(p.x * side, p.y).rotated(sag)
+		return corner + Vector2(p.x * side, p.y).rotated(tilt)
 	var n := maxi(4, roundi(lw / 0.17))
 	var bw := lw / n
-	var missing := 1 + rng.randi() % (n - 2)
-	for i in n:
-		if i == missing:
-			continue
-		var x0 := bw * i + 0.004
-		var x1 := bw * (i + 1) - 0.004
-		# Cassée plus haut côté libre (là où les coups ont porté).
-		var broken := lh * rng.randf_range(0.28, 0.55) + float(i) / n * lh * 0.12
-		var outline := _jagged_board(rng, x0, x1, -lh + broken, 0.0, true, false)
-		_slab(parts, "leaf_a" if i % 2 == 0 else "leaf_b", Array(outline).map(xf), LEAF_Z.x, LEAF_Z.y)
-		# Éclats restés en bas, encore cloués à la barre du bas.
-		if i % 2 == 1 or rng.randf() < 0.4:
-			var stub := rng.randf_range(0.18, 0.42)
-			var so := _jagged_board(rng, x0, x1, -lh, -lh + stub, false, true)
-			_slab(parts, "leaf_b" if i % 2 == 0 else "leaf_a", PackedVector2Array(Array(so).map(xf)), LEAF_Z.x, LEAF_Z.y)
-	# Barres (côté dehors) : celle du haut entière, celle du milieu cassée.
-	_slab_rect(parts, "leaf_b", xf, Vector2(0.02, -0.38), Vector2(lw - 0.02, -0.22), LEDGE_Z)
-	var mid := -lh * 0.52
-	_slab(parts, "leaf_b", PackedVector2Array(Array(_jagged_board(rng, 0.02, lw * rng.randf_range(0.45, 0.65), mid - 0.08, mid + 0.08, false, false, true)).map(xf)), LEDGE_Z.x, LEDGE_Z.y)
-	# Écharpe (barre en biais) arrachée à mi-course.
-	var a := Vector2(0.06, -0.3)
-	var b := Vector2(lw * 0.55, mid + 0.02)
-	_slab(parts, "leaf_b", PackedVector2Array(Array(_bar(a, b, 0.11)).map(xf)), LEDGE_Z.x, LEDGE_Z.y)
-	# Penture du haut (bande de fer), côté salle, et gond du bas arraché.
-	_slab_rect(parts, "metal", xf, Vector2(-0.02, -0.33), Vector2(0.36, -0.27), STRAP_Z)
-	_slab_rect(parts, "metal", xf, Vector2(-0.02, -lh + 0.24), Vector2(0.12, -lh + 0.29), STRAP_Z)
-
-
-## Battant cassé en deux : la moitié basse (planches éclatées en haut) reste
-## sur ses gonds, un peu de travers ; gonds à droite (porte double).
-static func _smashed_leaf(parts: Dictionary, rng: RandomNumberGenerator, corner: Vector2, lw: float, lh: float) -> void:
-	var tilt := rng.randf_range(0.02, 0.05)
-	var xf := func(p: Vector2) -> Vector2:
-		return corner + Vector2(-p.x, p.y).rotated(tilt)
-	var n := maxi(4, roundi(lw / 0.17))
-	var bw := lw / n
+	var short := rng.randi() % n
 	for i in n:
 		var x0 := bw * i + 0.004
 		var x1 := bw * (i + 1) - 0.004
-		var top := lh * rng.randf_range(0.34, 0.62) - float(i) / n * lh * 0.1
+		# Cassée un peu plus bas côté libre (là où les coups ont porté).
+		var top := LEAF_TOP + rng.randf_range(-0.04, 0.06) - float(i) / n * 0.1
+		if i == short:
+			top -= rng.randf_range(0.12, 0.2)
 		var outline := _jagged_board(rng, x0, x1, 0.0, top, false, true)
-		_slab(parts, "leaf_a" if i % 2 == 1 else "leaf_b", PackedVector2Array(Array(outline).map(xf)), LEAF_Z.x, LEAF_Z.y)
-	_slab_rect(parts, "leaf_b", xf, Vector2(0.02, 0.2), Vector2(lw - 0.02, 0.36), LEDGE_Z)
-	# Morceau du haut resté pendu à la penture du haut (un tiers de battant).
-	var hang := Vector2(corner.x, corner.y + lh)
-	var swing := rng.randf_range(0.06, 0.09)
-	var hx := func(p: Vector2) -> Vector2:
-		return hang + Vector2(-p.x, p.y).rotated(swing)
-	for i in 2:
-		var x0 := bw * i + 0.004
-		var x1 := bw * (i + 1) - 0.004
-		var o := _jagged_board(rng, x0, x1, -lh * rng.randf_range(0.18, 0.3), 0.0, true, false)
-		_slab(parts, "leaf_a", PackedVector2Array(Array(o).map(hx)), LEAF_Z.x, LEAF_Z.y)
-	_slab_rect(parts, "metal", xf, Vector2(-0.02, 0.26), Vector2(0.34, 0.31), STRAP_Z)
-	_slab_rect(parts, "metal", hx, Vector2(-0.02, -0.12), Vector2(0.3, -0.07), STRAP_Z)
+		_slab(parts, "leaf_a" if i % 2 == 0 else "leaf_b", PackedVector2Array(Array(outline).map(xf)), LEAF_Z.x, LEAF_Z.y)
+	# Barres (côté dehors) : celle du bas entière, celle du haut cassée au bout.
+	_slab_rect(parts, "leaf_b", xf, Vector2(0.02, 0.16), Vector2(lw - 0.02, 0.3), LEDGE_Z)
+	var bar := LEAF_TOP - 0.3
+	_slab(parts, "leaf_b", PackedVector2Array(Array(_jagged_board(rng, 0.02, lw * rng.randf_range(0.7, 0.9), bar - 0.07, bar + 0.07, false, false, true)).map(xf)), LEDGE_Z.x, LEDGE_Z.y)
+	# Gonds (bandes de fer), côté salle.
+	_slab_rect(parts, "metal", xf, Vector2(-0.02, 0.2), Vector2(0.34, 0.25), STRAP_Z)
+	_slab_rect(parts, "metal", xf, Vector2(-0.02, bar - 0.03), Vector2(0.3, bar + 0.02), STRAP_Z)
+
+
+## Penture du haut restée sur le bâti, tordue, sans son battant (`side` comme
+## _half_leaf).
+static func _torn_strap(parts: Dictionary, rng: RandomNumberGenerator, hinge: Vector2, side: float) -> void:
+	var bend := -side * rng.randf_range(0.25, 0.45)
+	var xf := func(p: Vector2) -> Vector2:
+		return hinge + Vector2(p.x * side, p.y).rotated(bend)
+	_slab_rect(parts, "metal", xf, Vector2(-0.02, -0.05), Vector2(0.2, 0.0), STRAP_Z)
 
 
 ## Contour (sens trigonométrique) d'une planche de x0 à x1 et de y0 à y1, aux
@@ -224,13 +202,6 @@ static func _jagged_board(rng: RandomNumberGenerator, x0: float, x1: float, y0: 
 		out.append(Vector2(x1, y1))
 		out.append(Vector2(x0, y1))
 	return out
-
-
-## Barre droite de `a` à `b`, d'épaisseur `t`, bout `b` éclaté.
-static func _bar(a: Vector2, b: Vector2, t: float) -> PackedVector2Array:
-	var d := (b - a).normalized()
-	var n := Vector2(-d.y, d.x) * t * 0.5
-	return PackedVector2Array([a - n, b - n + d * 0.04, b - d * 0.03, b + n + d * 0.02, a + n])
 
 
 static func _slab_rect(parts: Dictionary, key: String, xf: Callable, p0: Vector2, p1: Vector2, z: Vector2) -> void:

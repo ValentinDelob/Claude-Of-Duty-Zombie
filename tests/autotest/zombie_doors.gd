@@ -8,7 +8,7 @@ extends AutotestScenario
 ## 2. arrachage : porte simple, jamais deux zombies qui arrachent à la fois
 ##    (un seul arrache toutes les planches) ; porte double, deux à la fois
 ##    (un par battant), plus vite ; personne n'entre tant qu'il reste une
-##    planche ; après la dernière, chacun passe le seuil en marchant et entre ;
+##    planche ; après la dernière, chacun enjambe le battant cassé et entre ;
 ## 3. le joueur ne passe pas par la porte ouverte ; il la reconstruit en
 ##    maintenant [F] (+10 par planche).
 
@@ -149,7 +149,7 @@ func _map(map_id: String) -> void:
 		at.check(dur > 5 * BarricadeRules.TEAR_TIME, "porte simple : 6 planches à 2,5 s chacune (%.1f s)" % dur)
 	at.check(max_waiting <= w.queue_max(), "file de la porte respectée (max %d)" % max_waiting)
 	at.check(not escaped, "personne n'entre tant qu'il reste une planche")
-	# Après la dernière planche : chacun passe le seuil en marchant et entre,
+	# Après la dernière planche : chacun enjambe le battant cassé et entre,
 	# puis va vers le joueur (de nouveau ciblable, invulnérable) : l'arrivée
 	# se libère pour le suivant.
 	p.untargetable = false
@@ -166,9 +166,9 @@ func _map(map_id: String) -> void:
 			if z:
 				print("[zombie_doors] zombie %d : état %d, fenêtre %s, dedans %s, à %.2f m" % [id, z.state, str(z.barricade != null), str(w.is_inside(z.global_position)),
 					(z.global_position - w.global_position).dot(w.inward)])
-	print("[zombie_doors] %s : %d passent le seuil à la fois au plus" % [map_id, max_stepping])
+	print("[zombie_doors] %s : %d enjambent à la fois au plus" % [map_id, max_stepping])
 	at.check(ok, "%s : tous les zombies passent la porte et entrent (%d)" % [map_id, crowd.size()])
-	at.check(max_stepping >= 1, "passage du seuil vu")
+	at.check(max_stepping >= 1, "enjambement vu")
 	await H.clear_zombies(self)
 	p.untargetable = false
 

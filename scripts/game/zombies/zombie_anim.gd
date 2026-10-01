@@ -276,10 +276,9 @@ func pose(delta: float) -> void:
 
 	# --- Fenêtre : arrachage des planches / enjambement ---------------------
 	var tearing := state == Zombie.State.BARRIER and spd < 0.4
-	# Porte à zombies (format 8) : pas d'allège, il passe le seuil en marchant
-	# (cycle de marche ci-dessus, vitesse du passage).
-	var step_through := state == Zombie.State.VAULT and is_instance_valid(z.barricade) and z.barricade.is_door()
-	if state == Zombie.State.VAULT and not step_through:
+	# Porte à zombies (format 8) : enjambée comme une fenêtre (battant cassé
+	# à mi-hauteur, à hauteur d'allège).
+	if state == Zombie.State.VAULT:
 		var vk := clampf(z.state_time / BarricadeRules.VAULT_TIME, 0.0, 1.0)
 		var v := sin(vk * PI)
 		root_y = v * 0.95

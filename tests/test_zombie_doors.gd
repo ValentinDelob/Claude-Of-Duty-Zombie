@@ -356,6 +356,33 @@ func test_built_door_is_at_most_10_cm_thick() -> void:
 	await wait_frames(1)
 
 
+## Battants cassés à mi-hauteur : du bois de battant en bas (à hauteur
+## d'allège), aucun au-dessus ; le haut de la porte est vide, on l'enjambe.
+func test_door_leaves_broken_at_half_height() -> void:
+	for id in ["smallest_door", "smallest_double_door"]:
+		var b := built(fixture(id))
+		await wait_frames(1)
+		var asm := b.get_node_or_null("DoorAssembly") as Node3D
+		assert_true(asm != null, "%s : battants construits" % id)
+		var ymax := -INF
+		var ymin := INF
+		if asm:
+			for key in ["leaf_a", "leaf_b"]:
+				var mi := asm.get_node_or_null("Door_" + key) as MeshInstance3D
+				assert_true(mi != null, "%s : bois du battant (%s)" % [id, key])
+				if mi == null:
+					continue
+				for vtx: Vector3 in mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+					var lp: Vector3 = b.to_local(mi.to_global(vtx))
+					ymax = maxf(ymax, lp.y)
+					ymin = minf(ymin, lp.y)
+		assert_true(ymin < 0.1, "%s : le battant part du seuil (%.2f)" % [id, ymin])
+		assert_true(ymax > 0.75, "%s : reste de battant à enjamber (%.2f)" % [id, ymax])
+		assert_true(ymax < ZombieDoorModel.LEAF_TOP + 0.2, "%s : rien au-dessus de la mi-hauteur (%.2f)" % [id, ymax])
+		b.queue_free()
+	await wait_frames(1)
+
+
 ## Places : porte simple = une place où l'on arrache et 3 d'attente ; porte
 ## double = deux (une par battant) et 4 d'attente ; places écartées les unes
 ## des autres et des apparitions ; deux passages pour la double.
@@ -384,7 +411,7 @@ func test_tear_and_wait_places() -> void:
 			assert_true(Barricade._flat_dist(b.inside_point(0), b.inside_point(1)) > 0.8, "deux arrivées, une par battant")
 			assert_eq(b.lane_of_slot(0), 0)
 			assert_eq(b.lane_of_slot(1), 1)
-		assert_near(b.vault_time(), BarricadeRules.STEP_TIME, 0.001, "on passe le seuil en marchant")
+		assert_near(b.vault_time(), BarricadeRules.VAULT_TIME, 0.001, "on enjambe le battant cassé")
 		b.queue_free()
 	await wait_frames(1)
 

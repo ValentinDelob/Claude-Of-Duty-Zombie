@@ -485,7 +485,7 @@ propriétés ; le plan écrit PORTE ou DOUBLE PORTE sur l'ouverture.
 | Type (`variante`) | Nom | Largeur | Planches | Arrachent à la fois | Attendent derrière | Passages |
 |---|---|---|---|---|---|---|
 | `fenetre` (défaut, clé absente) | Fenêtre / Window | 1 m | 6 | 3 (milieu, gauche, droite) | 0 | 1 (enjambement) |
-| `porte` | Porte à zombies (simple) / Zombie door (single) | 1 m | 6 | **1** | 3 | 1 (on passe le seuil en marchant) |
+| `porte` | Porte à zombies (simple) / Zombie door (single) | 1 m | 6 | **1** | 3 | 1 (enjambement du battant cassé) |
 | `porte_double` | Porte à zombies double / Zombie double door | 2 m | 10 (5 par battant) | **2** (un par battant) | 4 | 2 (un par battant) |
 
 La fenêtre garde exactement son aspect, sa découpe et ses règles (KINO,
@@ -507,13 +507,13 @@ fichier importé ni élément graphique d'Activision) :
   (bloc à fleur du sol, ou bas du mur en biais) ; mur au-dessus ;
 - bâti (montants et traverse de 7 cm), seuil, chambranle autour de
   l'ouverture sur la face du mur, socles ;
-- porte simple : battant de planches debout, **pendu à sa penture du haut**
-  (gond du bas arraché, côté libre affaissé), le bas défoncé (planches
-  cassées à des hauteurs différentes, bouts éclatés en dents de scie, une
-  planche manquante, éclats restés en bas), barres et écharpe cassées ;
-- porte double : battant gauche pendu de la même façon, battant droit
-  **cassé en deux** (la moitié basse reste sur ses gonds, un morceau du haut
-  pend à sa penture) ;
+- battant(s) **cassé(s) à mi-hauteur** : seule la moitié basse reste sur
+  ses gonds (planches debout cassées vers 0,95 m, `ZombieDoorModel.LEAF_TOP`,
+  à des hauteurs différentes, bouts éclatés en dents de scie, une planche
+  plus courte ; barre du bas entière, celle du haut cassée), le haut de
+  l'ouverture vide (la penture du haut, tordue, reste seule sur le bâti) ;
+  les zombies enjambent ce reste de battant comme une allège de fenêtre ;
+  porte double : deux moitiés basses, gonds de chaque côté ;
 - planches de la barricade clouées en travers devant le battant (porte
   double : 5 par battant, en miroir), arrachées une à une comme aux fenêtres ;
 - bois brun veiné avec restes de peinture vert-de-gris (bâti plus sombre ;
@@ -526,8 +526,7 @@ au repos) tient dans une tranche de **10 cm** (`ZombieDoorModel.Z_BACK` à
 **dans la face intérieure du mur** (chambranle 1 cm en saillie, planches à
 fleur) : vue de la salle, c'est une porte dans son mur ; le reste de
 l'épaisseur du mur (0,4 m) est l'embrasure, côté cour des zombies. Les
-battants cassés restent dans leur plan (ils pendent en tournant autour de
-leur penture, sans s'ouvrir vers la salle). Mesuré sur la géométrie
+battants cassés restent dans leur plan, sans s'ouvrir vers la salle. Mesuré sur la géométrie
 construite (`tests/test_zombie_doors.gd`).
 
 ### Les zombies
@@ -549,9 +548,9 @@ construite (`tests/test_zombie_doors.gd`).
   arrache d'abord les planches de son battant
   (`BarricadeRules.plank_to_tear_lane`), puis aide l'autre : 10 planches en
   ~12 s à deux, contre ~14 s pour les 6 d'une porte simple à un seul.
-- Passage : sans planche, le zombie passe le seuil **en marchant**
-  (`BarricadeRules.STEP_TIME` = 1,2 s, vitesse régulière, animation de
-  marche ; `Zombie._vault`, `ZombieAnim`) jusqu'à 1 m dedans, puis poursuit
+- Passage : sans planche, le zombie **enjambe** le battant cassé à
+  mi-hauteur, comme l'allège d'une fenêtre (`BarricadeRules.VAULT_TIME` =
+  1,1 s, même animation ; `Zombie._vault`, `ZombieAnim`) jusqu'à 1 m dedans, puis poursuit
   le joueur. Une arrivée par passage (`exit_clear(z, lane)`) : deux zombies
   passent de front une porte double.
 - Navigation : comme aux fenêtres, l'approche dans la cour et le passage sont
