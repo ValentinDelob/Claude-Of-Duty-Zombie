@@ -1251,6 +1251,25 @@
     "en": "Map editor: place props freely",
     "fr": "Éditeur de cartes : décor posé librement"
    }
+  },
+  "v0.2.0-snapshot.330": {
+   "channel": "snapshot",
+   "date": "2026-10-01",
+   "images": [],
+   "items": [
+    {
+     "en": "New: zombie doors. A zombie entrance can be a window, a single door (1 m) or a double door (2 m): V key or the Type list in the properties. A real smashed door, half torn off its hinges, with boards nailed across it; no thicker than a real door.",
+     "fr": "Nouveau : portes à zombies. Une entrée des zombies peut être une fenêtre, une porte simple (1 m) ou une porte double (2 m) : touche V ou liste Type dans les propriétés. Une vraie porte défoncée, à moitié arrachée de ses gonds, avec des planches clouées devant ; pas plus épaisse qu'une vraie porte."
+    },
+    {
+     "en": "Single door: only one zombie tears the boards off while three more wait behind it. Double door: two zombies tear at the same time (one per leaf), so it gives way almost twice as fast; four wait. Zombies then walk through the doorway. Boards are rebuilt just like windows (hold [F], +10 points per board).",
+     "fr": "Porte simple : un seul zombie arrache les planches, trois autres attendent derrière lui. Porte double : deux zombies arrachent en même temps (un par battant), elle cède presque deux fois plus vite ; quatre attendent. Les zombies passent ensuite le seuil en marchant. Les planches se reconstruisent comme aux fenêtres ([F] maintenu, +10 points par planche)."
+    }
+   ],
+   "title": {
+    "en": "Zombie doors",
+    "fr": "Portes à zombies"
+   }
   }
  }
 }
