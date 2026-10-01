@@ -12,6 +12,7 @@ couloir entre deux pièces (editor_plan_corridor), sans jamais rien appliquer.
 from __future__ import annotations
 
 import math
+import unicodedata
 
 EPS = 0.001
 JOIN_TOL = 0.03
@@ -500,6 +501,35 @@ def _rect_poly(x0, y0, x1, y1) -> list[Point]:
     return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 
 
+def _fold(text: str) -> str:
+    """Texte comparable : sans accents, sans casse, espaces réduits."""
+    t = unicodedata.normalize("NFKD", str(text))
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    return " ".join(t.casefold().split())
+
+
+def resolve_room(doc: dict, ref: str) -> str:
+    """Id d'une pièce désignée par son id ou par son NOM (insensible à la casse
+    et aux accents ; nom français ou anglais s'il est bilingue). Lève
+    PlanError si aucune pièce ne correspond ou si le nom est ambigu."""
+    rooms = [p for p in doc.get("pieces") or [] if isinstance(p, dict)]
+    for p in rooms:
+        if str(p.get("id")) == ref:
+            return ref
+    key = _fold(ref)
+    found = []
+    for p in rooms:
+        nom = p.get("nom")
+        names = [nom.get("fr", ""), nom.get("en", "")] if isinstance(nom, dict) else [nom]
+        if key != "" and any(_fold(n) == key for n in names if n is not None):
+            found.append(str(p.get("id")))
+    if len(found) == 1:
+        return found[0]
+    if len(found) > 1:
+        raise PlanError("nom de pièce ambigu : « %s » désigne %s (donner l'id)" % (ref, ", ".join(found)))
+    raise PlanError("pièce inconnue : %s" % ref)
+
+
 def plan_corridor(doc: dict, room_a: str, room_b: str, width: float = 2.5, price: int | None = None) -> dict:
     """Propose (sans rien appliquer) les ops d'un couloir entre deux pièces du
     même étage : couloir droit si leurs côtés se font face, en L sinon ; ou
@@ -507,8 +537,7 @@ def plan_corridor(doc: dict, room_a: str, room_b: str, width: float = 2.5, price
     dans la zone de room_a (passage libre côté A), porte payante côté B si B
     est d'une autre zone. Lève PlanError si aucun tracé simple n'est sûr."""
     rooms = {str(p.get("id")): p for p in doc.get("pieces") or [] if isinstance(p, dict)}
-    if room_a not in rooms or room_b not in rooms:
-        raise PlanError("pièce inconnue : %s" % ", ".join(i for i in (room_a, room_b) if i not in rooms))
+    room_a, room_b = resolve_room(doc, room_a), resolve_room(doc, room_b)
     if room_a == room_b:
         raise PlanError("room_a et room_b sont la même pièce")
     A, B = rooms[room_a], rooms[room_b]

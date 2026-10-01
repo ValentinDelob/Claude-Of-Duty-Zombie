@@ -439,6 +439,18 @@ class TestTools(BaseCase):
         self.assertTrue(e["isError"])
         self.assertIn("déjà reliées", body(e))
 
+    def test_plan_corridor_by_name(self):
+        # Nom de pièce au lieu de l'id : casse et accents ignorés.
+        by_id = body(self.mcp.call("editor_plan_corridor", {"room_a": "p2", "room_b": "p3"}))
+        by_name = body(self.mcp.call("editor_plan_corridor", {"room_a": "atelier", "room_b": "CAVE"}))
+        self.assertEqual(by_name["ops"], by_id["ops"])
+        e = self.mcp.call("editor_plan_corridor", {"room_a": "entree", "room_b": "Atelier"})
+        self.assertTrue(e["isError"])
+        self.assertIn("déjà reliées", body(e))
+        e = self.mcp.call("editor_plan_corridor", {"room_a": "Grenier", "room_b": "p3"})
+        self.assertTrue(e["isError"])
+        self.assertIn("inconnue", body(e))
+
 
 class TestConnection(BaseCase):
     def test_editor_absent(self):
@@ -520,6 +532,22 @@ class TestPure(unittest.TestCase):
         doc["pieces"][1]["etage"] = 1
         with self.assertRaises(map_geom.PlanError):
             map_geom.plan_corridor(doc, "p1", "p2")
+
+    def test_resolve_room(self):
+        doc = {"pieces": [
+            {"id": "p1", "nom": "Salle Électrique", "contour": []},
+            {"id": "p2", "nom": {"fr": "Théâtre", "en": "Theater"}, "contour": []},
+            {"id": "p3", "nom": "Cave", "contour": []},
+            {"id": "p4", "nom": "cave", "contour": []},
+        ]}
+        self.assertEqual(map_geom.resolve_room(doc, "p3"), "p3")
+        self.assertEqual(map_geom.resolve_room(doc, "salle  electrique"), "p1")
+        self.assertEqual(map_geom.resolve_room(doc, "THEATRE"), "p2")
+        self.assertEqual(map_geom.resolve_room(doc, "theater"), "p2")
+        with self.assertRaises(map_geom.PlanError):
+            map_geom.resolve_room(doc, "Cave")  # ambigu
+        with self.assertRaises(map_geom.PlanError):
+            map_geom.resolve_room(doc, "")
 
     def test_check_ops(self):
         self.assertEqual(map_editor_mcp.check_ops([{"op": "del", "coll": "objets", "id": "a1"}]), "")
