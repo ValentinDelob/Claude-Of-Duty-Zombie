@@ -372,6 +372,27 @@ static func room_at(doc: EditorMap, k: int, p: Vector2) -> Dictionary:
 	return {}
 
 
+## Pièce de l'étage dont le sol touche l'emprise `poly` (décor posé à cheval
+## sur un mur) : celle qui en couvre le plus de coins et le centre, {} sinon.
+static func room_touching(doc: EditorMap, k: int, poly: PackedVector2Array) -> Dictionary:
+	var best := {}
+	var best_n := 0
+	var pts := Array(poly)
+	pts.append(MapGeom.centroid(poly))
+	for r in doc.rooms_on(k):
+		var rp := doc.room_poly(r)
+		if not MapGeom.overlap(rp, poly):
+			continue
+		var n := 1
+		for p in pts:
+			if MapGeom.contains(rp, p):
+				n += 1
+		if n > best_n:
+			best_n = n
+			best = r
+	return best
+
+
 ## Emprise (m) d'un élément posé, pour le dessin, le clic et les chevauchements.
 static func footprint_rect(o: Dictionary) -> Rect2:
 	var t := String(o.get("type", ""))
@@ -577,7 +598,11 @@ static func inner_cells(poly: PackedVector2Array) -> Dictionary:
 
 
 ## Pose d'un objet contre un mur (atout, arme, boîte, Pack-a-Punch...).
-static func place_wall_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "") -> Dictionary:
+## Décor mural (appliques) : place_wall_decor (`grid` : position le long du
+## mur au quart de mètre ; sinon au centimètre, là où est le curseur).
+static func place_wall_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "", grid := false) -> Dictionary:
+	if MapCatalog.is_decor(tmpl):
+		return place_wall_decor(doc, k, tmpl, mouse, ignore_id, grid)
 	var room := room_at(doc, k, mouse)
 	var nm := _name(tmpl)
 	if room.is_empty():
@@ -698,6 +723,138 @@ static func _place_wall_item_oblique(doc: EditorMap, k: int, tmpl: Dictionary, m
 		var on := _name(other)
 		return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
 	return {"ok": true, "position": obj.position, "mur": obj.mur, "angle": obj.angle, "room": String(room.id)}
+
+
+# ------------------------------------------------------------------ décor mural (format 7)
+
+## Pas (m) d'un décor mural le long de son mur quand la grille est active.
+const WALL_DECOR_STEP := 0.25
+
+
+## Décor mural (applique) : contre le mur le plus proche du curseur (côté de
+## pièce droit ou en biais, ou face d'un mur libre), PARTOUT le long de ce mur
+## (jusque dans les angles, au-dessus d'une porte ou d'une fenêtre : sa
+## hauteur se règle à part, clé « hauteur ») ; position au centimètre, ou au
+## quart de mètre avec `grid`. Seul refus : loin de tout mur, hors des pièces,
+## ou sur un autre décor mural. « position » est sur le trait du mur (comme un
+## objet mural de jeu), « mur » / « angle » donnent la direction du mur.
+static func place_wall_decor(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "", grid := false) -> Dictionary:
+	var nm := _name(tmpl)
+	var room := room_at(doc, k, mouse)
+	if room.is_empty():
+		return refuse("%s se pose dans une pièce, contre un de ses murs" % nm[0], "%s goes inside a room, against one of its walls" % nm[1])
+	var wall := nearest_wall_trait(doc, k, room, mouse)
+	if wall.is_empty() or float(wall.d) > SNAP_DIST + 0.5:
+		return refuse("rapprochez-vous d'un mur : %s se pose contre un mur" % nm[0].to_lower(), "move closer to a wall: %s stands against a wall" % nm[1].to_lower())
+	var ta: Vector2 = wall.a
+	var tb: Vector2 = wall.b
+	var t := (tb - ta).normalized()
+	var dv: Vector2 = -Vector2(wall.inward)
+	var w := MapCatalog.footprint(tmpl).x * MapGeom.CELL
+	var u := wall_decor_along((mouse - ta).dot(t), ta.distance_to(tb), w, float(wall.margin))
+	var pos := ta + t * u
+	if grid:
+		if MapGeom.is_axis_seg(ta, tb):
+			var horizontal := absf(t.y) < MapGeom.EPS
+			var c := snappedf(pos.x if horizontal else pos.y, WALL_DECOR_STEP)
+			u = wall_decor_along((Vector2(c, ta.y) - ta).dot(t) if horizontal else (Vector2(ta.x, c) - ta).dot(t), ta.distance_to(tb), w, float(wall.margin))
+		else:
+			u = wall_decor_along(snappedf(u, WALL_DECOR_STEP), ta.distance_to(tb), w, float(wall.margin))
+		pos = ta + t * u
+	pos = MapGeom.round_mm(pos)
+	var obj := tmpl.duplicate()
+	obj["position"] = MapGeom.arr(pos)
+	obj["mur"] = MapGeom.cardinal_of(dv)
+	obj.erase("angle")
+	var horizontal_wall := MapGeom.is_axis_seg(ta, tb) and absf(t.y) < MapGeom.EPS
+	if not (MapGeom.is_axis_seg(ta, tb) and MapGeom.on_grid(ta.y if horizontal_wall else ta.x)):
+		obj["angle"] = snappedf(MapGeom.dir_deg(dv), 0.01)
+	var others := _overlaps_all(doc, k, footprint_rect(obj), ignore_id, layer_of(tmpl))
+	others = others.filter(func(q): return MapGeom.overlap(exact_poly(obj), exact_poly(q)))
+	if not others.is_empty():
+		var on := _name(others[0])
+		return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
+	var res := {"ok": true, "position": obj.position, "mur": obj.mur, "room": String(room.id)}
+	if obj.has("angle"):
+		res["angle"] = obj.angle
+	return res
+
+
+## Décor mural déjà posé : toujours sur le trait d'un mur (côté de sa pièce
+## ou face d'un mur libre), tourné vers la pièce comme lui (même au raccord de
+## deux murs, où le mur le plus proche du curseur serait ambigu).
+static func wall_decor_still_on_wall(doc: EditorMap, o: Dictionary) -> Dictionary:
+	var k := int(o.get("etage", 0))
+	var p := MapGeom.v2(o.get("position", [0, 0]))
+	var dv := MapGeom.item_wall_dir(o)
+	var front := p - dv * (MapGeom.WALL_HALF + 0.05)
+	var room := room_at(doc, k, front)
+	if not room.is_empty():
+		var traits := []
+		var poly := doc.room_poly(room)
+		for i in poly.size():
+			traits.append([poly[i], poly[(i + 1) % poly.size()]])
+		for s in free_wall_segments(doc, k):
+			# Trait de la face tournée vers l'objet (0,25 m derrière elle).
+			var off := (float(s.half) - MapGeom.WALL_HALF) * (-dv)
+			traits.append([Vector2(s.a) + off, Vector2(s.b) + off])
+		for seg in traits:
+			var a: Vector2 = seg[0]
+			var b: Vector2 = seg[1]
+			if a.distance_to(b) < 0.01 or MapGeom.dist_to_segment(p, a, b) > 0.02:
+				continue
+			var t := (b - a).normalized()
+			if absf(t.dot(dv)) < 0.01:
+				return {"ok": true, "room": String(room.id)}
+	return refuse("n'est plus contre un mur", "is no longer against a wall")
+
+
+## Position le long d'un mur de longueur `seg_len` (m depuis son début) d'un
+## objet de largeur `w` sous le curseur `u` : bornée pour que l'objet reste
+## sur la face du mur (`margin` à chaque bout : l'épaisseur du mur voisin
+## dans un angle de pièce) ; mur plus court que l'objet : son milieu.
+static func wall_decor_along(u: float, seg_len: float, w: float, margin: float) -> float:
+	var lo := w * 0.5 + margin
+	var hi := seg_len - w * 0.5 - margin
+	if hi < lo:
+		lo = w * 0.5
+		hi = seg_len - w * 0.5
+	if hi < lo:
+		return seg_len * 0.5
+	return clampf(u, lo, hi)
+
+
+## Trait du mur le plus proche du curseur dans la pièce `room` : un de ses
+## côtés (le trait est la ligne du contour) ou la face d'un mur libre (trait à
+## 0,25 m derrière sa face, comme pour un mur de pièce).
+## -> {a, b (trait), inward (vers la pièce), d (distance), margin} ou {}.
+static func nearest_wall_trait(doc: EditorMap, k: int, room: Dictionary, mouse: Vector2) -> Dictionary:
+	var best := {}
+	var best_d := INF
+	var poly := doc.room_poly(room)
+	for i in poly.size():
+		var a := poly[i]
+		var b := poly[(i + 1) % poly.size()]
+		if a.distance_to(b) < 0.01:
+			continue
+		var d := MapGeom.dist_to_segment(mouse, a, b)
+		if d < best_d:
+			var t := (b - a).normalized()
+			var n := Vector2(-t.y, t.x)
+			best_d = d
+			best = {"a": a, "b": b, "inward": n if (mouse - a).dot(n) >= 0.0 else -n, "d": d, "margin": MapGeom.WALL_HALF}
+	for s in free_wall_segments(doc, k):
+		var d := _free_wall_dist(mouse, s)
+		if d < best_d:
+			var a: Vector2 = s.a
+			var b: Vector2 = s.b
+			var t := (b - a).normalized()
+			var n := Vector2(-t.y, t.x)
+			var inward := n if (mouse - a).dot(n) >= 0.0 else -n
+			var off := float(s.half) - MapGeom.WALL_HALF
+			best_d = d
+			best = {"a": a + inward * off, "b": b + inward * off, "inward": inward, "d": d, "margin": 0.0}
+	return best
 
 
 # ------------------------------------------------------------------ murs libres
@@ -890,12 +1047,23 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 	obj["position"] = MapGeom.arr(pos)
 	var nm := _name(tmpl)
 	var room := room_at(doc, k, pos)
+	var decor := MapCatalog.is_decor(tmpl)
+	if room.is_empty() and decor:
+		# Décor (format 7) : centre sur un mur, ou à moitié dehors ; il suffit
+		# qu'il touche le sol d'une pièce.
+		room = room_touching(doc, k, exact_poly(obj))
 	if room.is_empty():
+		if decor:
+			return refuse("%s doit toucher le sol d'une pièce" % nm[0], "%s must touch a room floor" % nm[1])
 		return refuse("%s se pose à l'intérieur d'une pièce" % nm[0], "%s goes inside a room" % nm[1])
-	var inner := inner_cells(doc.room_poly(room))
-	for c in MapRaster.floor_cells(obj):
-		if not inner.has(c):
-			return refuse("%s touche un mur : posez-le plus au milieu de la pièce" % nm[0], "%s touches a wall: place it further inside the room" % nm[1])
+	# Objets de jeu (départ, apparition, téléporteur) : dans la pièce, loin du
+	# mur. Le décor se pose contre un mur, et même à moitié dedans (le mur reste
+	# entier : MapRaster ne rend pleines que ses cases de sol).
+	if not decor:
+		var inner := inner_cells(doc.room_poly(room))
+		for c in MapRaster.floor_cells(obj):
+			if not inner.has(c):
+				return refuse("%s touche un mur : posez-le plus au milieu de la pièce" % nm[0], "%s touches a wall: place it further inside the room" % nm[1])
 	var fr := footprint_rect(obj)
 	var layer := layer_of(tmpl)
 	var others := _overlaps_all(doc, k, fr, ignore_id, layer)
@@ -1003,6 +1171,8 @@ static func check_existing(doc: EditorMap, o: Dictionary) -> Dictionary:
 		if r.ok and MapGeom.v2(r.position).distance_to(MapGeom.v2(o.position)) > 0.3:
 			return refuse("n'est plus sur un mur valide", "is no longer on a valid wall")
 		return r
+	if MapCatalog.is_decor(o) and MapCatalog.tool_of(o) == "wall_item":
+		return wall_decor_still_on_wall(doc, o)
 	match MapCatalog.tool_of(o):
 		"wall_item":
 			# Curseur juste devant la face (0,05 m) : le mur de l'objet reste le plus
