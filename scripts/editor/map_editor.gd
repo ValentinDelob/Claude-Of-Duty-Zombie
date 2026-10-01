@@ -971,6 +971,8 @@ func _on_collab_applied(ops: Array, author: String, label: String, local: bool) 
 ## Carte entière reçue (arrivée dans une session, rattrapage).
 func _on_map_replaced() -> void:
 	_before = {}
+	# Glissement en cours abandonné SANS remettre sa copie (l'ancienne carte).
+	canvas.drag = {}
 	canvas.cancel()
 	floor_k = mini(floor_k, doc.floor_count() - 1)
 	if collab.role == MapCollab.Role.GUEST:
