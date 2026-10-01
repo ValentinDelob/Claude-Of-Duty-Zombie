@@ -1224,6 +1224,33 @@
     "en": "A new Mystery Box",
     "fr": "Une nouvelle boîte mystère"
    }
+  },
+  "v0.2.0-snapshot.323": {
+   "channel": "snapshot",
+   "date": "2026-10-01",
+   "images": [],
+   "items": [
+    {
+     "en": "Fixed: pushing an object (debris, crate, furniture…) against a wall no longer changes that wall's wallpaper, in the 3D preview or in game.",
+     "fr": "Corrigé : pousser un objet (débris, caisse, meuble…) contre un mur ne change plus le papier peint de ce mur, ni dans l'aperçu 3D ni en jeu."
+    },
+    {
+     "en": "Props (barrels, crates, furniture, rubble, light fixtures…) go wherever you want: against a wall, in a corner, half into the wall, to the centimetre (G key: no grid); the wall stays whole and the collision follows the object.",
+     "fr": "Le décor (barils, caisses, meubles, gravats, luminaires…) se pose où vous voulez : contre un mur, dans un angle, à moitié dans le mur, au centimètre près (touche G : sans grille) ; le mur reste entier et la collision suit l'objet."
+    },
+    {
+     "en": "Wall sconces go anywhere along a wall (even above a door or a window) and at any height (properties, Height field).",
+     "fr": "Les appliques murales se posent partout le long d'un mur (même au-dessus d'une porte ou d'une fenêtre) et à la hauteur de votre choix (propriétés, champ Hauteur)."
+    },
+    {
+     "en": "The map check warns (without blocking) when a prop is in the way of a door or a window.",
+     "fr": "La vérification prévient (sans bloquer) quand un décor gêne une porte ou une fenêtre."
+    }
+   ],
+   "title": {
+    "en": "Map editor: place props freely",
+    "fr": "Éditeur de cartes : décor posé librement"
+   }
   }
  }
 }
