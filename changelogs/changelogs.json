@@ -1384,6 +1384,21 @@
     "en": "Launcher: same size on every screen",
     "fr": "Lanceur : même taille sur tous les écrans"
    }
+  },
+  "v0.2.0-snapshot.350": {
+   "channel": "snapshot",
+   "date": "2026-10-01",
+   "images": [],
+   "items": [
+    {
+     "en": "Fixed: in multiplayer, a teammate's gun showed up the wrong way round (barrel backwards, upside down); it is now held properly, barrel pointing ahead of them.",
+     "fr": "Corrigé : en multijoueur, l'arme d'un coéquipier apparaissait à l'envers (canon vers l'arrière, tête en bas) ; elle est désormais tenue normalement, canon pointé devant lui."
+    }
+   ],
+   "title": {
+    "en": "Teammates hold their guns the right way",
+    "fr": "L'arme des coéquipiers à l'endroit"
+   }
   }
  }
 }

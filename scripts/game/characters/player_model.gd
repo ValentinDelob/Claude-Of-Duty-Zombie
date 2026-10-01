@@ -127,7 +127,7 @@ func set_weapon(id: String, pap: bool) -> void:
 	weapon_model = WeaponModels.build(WeaponDB.stats(id).model, false, pap)
 	# Dans la main : le canon suit l'avant-bras tendu vers l'avant.
 	weapon_model.position = Vector3(0, -0.3, 0.05)
-	weapon_model.rotation = Vector3(PI * 0.5, PI, 0)
+	weapon_model.rotation = Vector3(-PI * 0.5, PI, 0)
 	weapon_attach.add_child(weapon_model)
 
 
