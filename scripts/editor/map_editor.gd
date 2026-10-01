@@ -2075,6 +2075,13 @@ func test_map() -> bool:
 		return false
 	if not save():
 		return false
+	# Même contrôle que le jeu au lancement (EditorMapDef.custom) : une carte
+	# refusée là démarrerait sur la carte par défaut sans prévenir.
+	var guard := CustomMapGuard.load_local(map_dir, false)
+	if not guard.ok:
+		_info(Lang.t("Tester", "Play test"), Lang.t("La carte est refusée par le contrôle du jeu :\n%s", "The map is refused by the game's check:\n%s")
+			% CustomMapGuard.reasons_text(guard.reasons))
+		return false
 	reopen_dir = map_dir
 	reopen_example = false
 	Router.return_scene = SCENE

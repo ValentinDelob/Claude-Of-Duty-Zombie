@@ -1354,6 +1354,21 @@
     "en": "Mystery Box fixes",
     "fr": "Boîte mystère corrigée"
    }
+  },
+  "v0.2.0-snapshot.347": {
+   "channel": "snapshot",
+   "date": "2026-10-01",
+   "images": [],
+   "items": [
+    {
+     "en": "Map editor: the PLAY TEST button no longer starts on Bunker K-7 when the map contains a duplicate id; the editor repairs the duplicate when the map is opened and PLAY TEST explains why a map is refused.",
+     "fr": "Éditeur de cartes : le bouton TESTER ne démarre plus sur Bunker K-7 quand la carte contient un identifiant en double ; l'éditeur répare le doublon à l'ouverture de la carte et TESTER explique pourquoi une carte est refusée."
+    }
+   ],
+   "title": {
+    "en": "Map editor: PLAY TEST fixed",
+    "fr": "Éditeur de cartes : bouton TESTER corrigé"
+   }
   }
  }
 }
