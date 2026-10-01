@@ -419,8 +419,8 @@ static func _build() -> void:
 	# Luminaires : la lampe historique, puis les luminaires réglables.
 	_add({"id": "lampe", "cat": "lumieres", "fr": "Lampe", "en": "Lamp", "tool": "floor_item", "color": Color(1.0, 0.85, 0.5),
 		"make": {"type": "lampe"}, "fp": [1, 1], "hint_fr": "Lampe au plafond (en plus des lampes automatiques)", "hint_en": "Ceiling lamp (in addition to automatic lamps)"})
-	var mount_fr := {"plafond": "Au plafond d'une pièce", "mur": "Contre un mur, à 2 m du sol", "sol": "Au sol, ou sur un meuble (bureau, chariot, sacs de sable)"}
-	var mount_en := {"plafond": "On a room ceiling", "mur": "Against a wall, 2 m above the floor", "sol": "On the floor, or on furniture (desk, cart, sandbags)"}
+	var mount_fr := {"plafond": "Au plafond d'une pièce", "mur": "Contre un mur, partout et à la hauteur voulue (2 m par défaut)", "sol": "Au sol, ou sur un meuble (bureau, chariot, sacs de sable)"}
+	var mount_en := {"plafond": "On a room ceiling", "mur": "Against a wall, anywhere and at any height (2 m by default)", "sol": "On the floor, or on furniture (desk, cart, sandbags)"}
 	for lid in LIGHTS:
 		var d: Dictionary = LIGHTS[lid]
 		var mount := String(d.mount)
@@ -568,6 +568,44 @@ static func blocking(o: Dictionary) -> String:
 	return "non"
 
 
+## Décor (format 7, docs/MAP_OBJECTS.md § 8) : caisses, barils, prefabs,
+## lampes et luminaires. Il se pose librement (contre un mur, à moitié
+## dedans, au centimètre, tourné, par-dessus un autre décor) ; les objets de
+## jeu (portes, fenêtres, armes murales, atouts, boîte, départs...) gardent
+## leurs règles de pose.
+const DECOR_TYPES := ["caisse", "baril", "prefab", "luminaire", "lampe"]
+
+
+static func is_decor(o: Dictionary) -> bool:
+	return String(o.get("type", "")) in DECOR_TYPES
+
+
+## Hauteur d'une applique (format 7, clé « hauteur » d'un luminaire mural :
+## m au-dessus du sol, au centre de l'applique ; absente : `y` du luminaire,
+## 2 m). Bornée sous le plafond à la construction (MapLayoutExport).
+const WALL_LIGHT_HEIGHT := [0.2, 30.0]
+
+
+## Hauteur d'une applique posée (m au-dessus du sol), bornée à WALL_LIGHT_HEIGHT.
+static func wall_light_height(o: Dictionary) -> float:
+	var def := float(def_of(o).get("y", 2.0))
+	var hv: Variant = o.get("hauteur", def)
+	if not (hv is float or hv is int) or not is_finite(float(hv)):
+		return def
+	return clampf(float(hv), WALL_LIGHT_HEIGHT[0], WALL_LIGHT_HEIGHT[1])
+
+
+## Règle la hauteur d'une applique : la valeur par défaut, une valeur
+## illisible ou un luminaire qui n'est pas mural effacent la clé (une carte
+## d'avant garde ses octets) ; sinon bornée et arrondie au centimètre.
+static func set_wall_light_height(o: Dictionary, h: float) -> void:
+	var def := float(def_of(o).get("y", 2.0))
+	if light_mount(o) != "mur" or not is_finite(h) or absf(h - def) < 0.005:
+		o.erase("hauteur")
+		return
+	o["hauteur"] = snappedf(clampf(h, WALL_LIGHT_HEIGHT[0], WALL_LIGHT_HEIGHT[1]), 0.01)
+
+
 ## Montage d'un luminaire : plafond, mur, sol ("" : pas un luminaire). La
 ## lampe historique (« lampe ») est au plafond.
 static func light_mount(o: Dictionary) -> String:
@@ -692,7 +730,9 @@ static func allowed_kinds() -> Dictionary:
 	add.call("objets.json", "luminaire", {"luminaire": {"t": "enum", "values": LIGHTS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
 		"couleur": {"t": "color"}, "intensite": {"t": "number", "min": LIGHT_LIMITS.intensite[0], "max": LIGHT_LIMITS.intensite[1]},
 		"portee": {"t": "number", "min": LIGHT_LIMITS.portee[0], "max": LIGHT_LIMITS.portee[1]},
-		"courant": {"t": "bool"}, "vacille": {"t": "bool"}}, ["luminaire", "position"])
+		"courant": {"t": "bool"}, "vacille": {"t": "bool"},
+		# Format 7 : hauteur d'une applique (m au-dessus du sol).
+		"hauteur": {"t": "number", "min": WALL_LIGHT_HEIGHT[0], "max": WALL_LIGHT_HEIGHT[1]}}, ["luminaire", "position"])
 	return out
 
 

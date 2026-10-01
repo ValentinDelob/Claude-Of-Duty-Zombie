@@ -76,7 +76,7 @@ func wall_top(k: int, c: Vector2i) -> float:
 func _wall_mat(f: MapValidator.Floor, c: Vector2i) -> String:
 	var count := {}
 	for d in MapValidator.DIRS:
-		var z := f.zone_of(c + d)
+		var z := _side_zone(f, c + d)
 		if z != "":
 			count[z] = count.get(z, 0) + 1
 	var best := ""
@@ -244,9 +244,28 @@ func _half_wall_mat(f: MapValidator.Floor, c: Vector2i, sx: int, sy: int, whole:
 	var dx := -1 if sx == 0 else 1
 	var dy := -1 if sy == 0 else 1
 	for n in [c + Vector2i(dx, 0), c + Vector2i(0, dy), c + Vector2i(dx, dy)]:
-		if f.zone_of(n) != "" and f.at(n) in [Kd.SOL, Kd.MARQUEUR, Kd.ESCALIER]:
-			return surface_of(f.room_of(n), "murs", f.zone_of(n), "wall")
+		var z := _side_zone(f, n)
+		if z != "" and (f.at(n) in [Kd.SOL, Kd.MARQUEUR, Kd.ESCALIER] or _under_decor(f, n)):
+			return surface_of(f.room_of(n), "murs", z, "wall")
 	return whole
+
+
+## Case de sol d'une pièce sous un décor posé (prefab, caisse, baril,
+## luminaire, barrière invisible) : le raster en fait une case pleine sans
+## zone (trajets, validateur) mais, pour l'aspect des murs, c'est toujours le
+## sol de sa pièce. L'aspect d'un mur ne dépend que des pièces qui le
+## bordent, jamais d'un objet posé contre lui (sinon sa face prenait la
+## texture de la pièce d'à côté, ou celle par défaut).
+func _under_decor(f: MapValidator.Floor, n: Vector2i) -> bool:
+	return f.at(n) == Kd.MUR and f.key_at(n).begins_with("decor#") and f.room_of(n) != ""
+
+
+## Zone d'une case voisine d'un mur, pour sa texture : la sienne, ou celle de
+## la pièce sous un décor posé.
+func _side_zone(f: MapValidator.Floor, n: Vector2i) -> String:
+	if _under_decor(f, n):
+		return String(md.room_zone.get(f.room_of(n), ""))
+	return f.zone_of(n)
 
 
 ## Matériau d'une case de mur entière : la pièce la plus présente autour.
@@ -254,7 +273,7 @@ func _cell_wall_mat(f: MapValidator.Floor, c: Vector2i) -> String:
 	var count := {}
 	for d in MapValidator.DIRS:
 		var n: Vector2i = c + d
-		var z := f.zone_of(n)
+		var z := _side_zone(f, n)
 		if z != "":
 			var m := surface_of(f.room_of(n), "murs", z, "wall")
 			count[m] = count.get(m, 0) + 1
@@ -548,13 +567,23 @@ func _oblique_cuts(f: MapValidator.Floor, pa: Vector2, t: Vector2, seg_len: floa
 	return out
 
 
-## Décor bloquant (caisses, barils) : un bloc plein à sa hauteur.
+## Retrait (m) d'un bloc de décor qui entre dans un mur : ses faces ne sont
+## jamais dans le plan d'une face de mur (pas de scintillement, « z-fighting »,
+## de l'autre côté d'un mur mitoyen).
+const DECOR_WALL_INSET := 0.005
+
+
+## Décor bloquant (caisses, barils) : un bloc plein à sa hauteur, à sa vraie
+## place (posé au centimètre : pas sur les cases arrondies du validateur).
 func _decor() -> void:
 	for d in md.decor:
-		var r: Rect2i = d.rect
 		var sol: float = md.floors[d.floor].sol
-		blocks.append({"room": ref_room.get(d.floor, "x"), "box": [wx(r.position.x), _r(sol), wx(r.position.y),
-			wx(r.end.x), _r(sol + float(d.h)), wx(r.end.y)], "mat": String(d.mat)})
+		var r: Rect2 = d.box
+		if bool(d.get("in_wall", false)):
+			r = r.grow(-DECOR_WALL_INSET)
+		var a: Array = _xz(r.position)
+		var b: Array = _xz(r.end)
+		blocks.append({"room": ref_room.get(d.floor, "x"), "box": [a[0], _r(sol), a[1], b[0], _r(sol + float(d.h)), b[1]], "mat": String(d.mat)})
 
 
 ## Point du monde d'un point de l'éditeur (m) à l'étage k, `dy` au-dessus du sol.
@@ -880,7 +909,9 @@ func _fixture(l: Dictionary) -> Dictionary:
 			fix_y = h
 			light_y = h - float(d.get("drop", 0.4))
 		"mur":
-			fix_y = float(d.get("y", 2.0))
+			# Hauteur choisie (format 7), toujours sous le plafond de la pièce.
+			fix_y = float(l.get("y", d.get("y", 2.0)))
+			fix_y = clampf(fix_y, MapCatalog.WALL_LIGHT_HEIGHT[0], maxf(MapCatalog.WALL_LIGHT_HEIGHT[0], float(ceil_at(k, cell)[0]) - sol - 0.15))
 			light_y = fix_y
 		_:
 			fix_y = float(l.get("support", 0.0))

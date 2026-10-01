@@ -603,8 +603,13 @@ func _light_props(o: Dictionary) -> void:
 	_check(_props, Lang.t("Liée au courant (s'allume au courant)", "Tied to the power (lights up with the power)"), bool(o.get("courant", d.courant)),
 		func(on): o["courant"] = on)
 	_check(_props, Lang.t("Vacille", "Flickers"), bool(o.get("vacille", d.vacille)), func(on): o["vacille"] = on)
+	if mount == "mur":
+		# Format 7 : hauteur libre sur le mur (sous le plafond en jeu).
+		_spin(_props, Lang.t("Hauteur", "Height"), MapCatalog.wall_light_height(o), MapCatalog.WALL_LIGHT_HEIGHT[0], MapCatalog.WALL_LIGHT_HEIGHT[1], 0.05,
+			func(v): MapCatalog.set_wall_light_height(o, v))
 	var where: String = {"plafond": Lang.t("Accroché au plafond de la pièce.", "Hung from the room ceiling."),
-		"mur": Lang.t("Contre le mur, à 2 m du sol.", "Against the wall, 2 m above the floor."),
+		"mur": Lang.t("Contre le mur, n'importe où le long du mur ; hauteur au choix (2 m par défaut, toujours sous le plafond en jeu).",
+			"Against the wall, anywhere along it; any height (2 m by default, always below the ceiling in game)."),
 		"sol": Lang.t("Posé au sol, ou sur un meuble (bureau, chariot, sacs de sable).", "On the floor, or on furniture (desk, cart, sandbags).")}[mount]
 	_note(_props, where)
 	if mount == "sol":

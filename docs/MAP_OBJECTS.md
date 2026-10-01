@@ -1,7 +1,8 @@
-# Objets de l'éditeur de cartes : variantes, barrière invisible, escaliers
+# Objets de l'éditeur de cartes : variantes, barrière invisible, escaliers, décor libre
 
 Complément de `docs/MAP_AUTHORING.md` (éditeur, format des cinq JSON,
-partage réseau) pour les ajouts des **formats 5 et 6** des cartes :
+partage réseau) pour les ajouts des **formats 5, 6 et 7** des cartes
+(format 7 : décor posé librement, § 8) :
 
 1. les **variantes d'aspect** d'un type d'objet (plusieurs modèles de porte,
    de débris, d'arme murale) ;
@@ -323,13 +324,16 @@ n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
 
 ## 5. Versions du format
 
-`EditorMap.FORMAT` = **6**. Toutes les nouvelles clés sont facultatives : une
-carte au format 1 à 5 se lit telle quelle (`EditorMap._migrate`, rien à
-convertir ; un escalier sans `variante` est droit) et s'enregistre au
-format 6 ; DRAFT ARENA (format 1) reste identique octet pour octet dans sa
-description en maillage. Un jeu plus ancien signale une carte au format 6
-comme « plus récente » (et son contrôle refuserait les clés qu'il ne
-connaît pas).
+`EditorMap.FORMAT` = **7**. Toutes les nouvelles clés sont facultatives : une
+carte au format 1 à 6 se lit telle quelle (`EditorMap._migrate`, rien à
+convertir ; un escalier sans `variante` est droit, une applique sans
+`hauteur` est à 2 m) et s'enregistre au format 7 ; DRAFT ARENA (format 1)
+reste identique octet pour octet dans sa description en maillage. Un jeu
+plus ancien signale une carte au format 7 comme « plus récente » (et son
+contrôle refuserait les clés qu'il ne connaît pas).
+
+- Format 6 : types d'escaliers (§ 4).
+- Format 7 : décor posé librement, hauteur d'une applique (§ 8).
 
 ## 6. Ajouter une variante ou un type à variantes
 
@@ -362,3 +366,99 @@ connaît pas).
   barrière ;
 - éditeur : touche V sur l'objet choisi (boucle, retour à la clé absente,
   Ctrl+Z) et sur l'objet tenu (aperçu de pose), barrière de 0,5 m tracée.
+
+## 8. Décor posé librement (format 7)
+
+### Ce qui change
+
+Le **décor** (`MapCatalog.DECOR_TYPES` : caisse, baril, prefabs de la
+catégorie « Décor et obstacles », lampe, luminaires) se pose **où l'on
+veut** :
+
+| Avant | Maintenant |
+|---|---|
+| refusé s'il touchait la rangée de cases d'un mur (« touche un mur : posez-le plus au milieu de la pièce ») | contre un mur, dans un angle, à moitié dans le mur, centre sur le trait du mur ; il suffit qu'il touche le sol d'une pièce (`MapRules.room_touching`) |
+| caisse et baril construits et heurtés sur leurs cases arrondies (0,5 m) | bloc et collision à leur vraie place, au centimètre |
+| applique aimantée par cases le long du mur, refusée au-dessus d'une porte ou d'une fenêtre et près des angles, toujours à 2 m | partout le long du mur (jusqu'à la face du mur voisin dans un angle, au-dessus d'une porte ou d'une fenêtre), au centimètre sans grille, au quart de mètre avec ; **hauteur** au choix (propriétés, champ **Hauteur**) |
+
+Toujours refusés : un décor hors de toute pièce, posé sur un objet de jeu
+ou sur un autre décor (sauf la lampe posée sur un meuble porteur), une
+applique loin de tout mur. Rotation : comme avant (R : 90° ; poignée ronde,
+15°, Alt : au degré près) pour les prefabs et luminaires ; la caisse et le
+baril n'ont pas de rotation. Aimantation : touche **G** (grille 1 m, grille
+fine, libre au centimètre) ; **Maj** maintenu inverse le mode le temps d'un
+geste (pose fine sans changer de réglage).
+
+Les **objets de jeu** (portes, débris, fenêtres, passages, armes murales,
+atouts, boîte, Pack-a-Punch, interrupteur, leviers, pièges, départs,
+apparitions, téléporteur) gardent leurs règles de pose (un objet de jeu
+doit rester accessible, comme dans BO1).
+
+### Murs : aspect et intégrité
+
+- **Aspect** : la texture de chaque face de mur ne dépend que des pièces qui
+  le bordent, jamais d'un objet posé devant (`MapLayoutExport._side_zone`,
+  `_under_decor`). Avant le format 7, une case de sol sous un décor
+  bloquant était, pour l'export, une case pleine **sans zone** : la face de
+  mur qui la touchait prenait la texture de la pièce d'à côté (mur mitoyen)
+  ou la texture par défaut « wall » (mur extérieur). C'était le « papier
+  peint qui change » quand on poussait un décor contre un mur.
+- **Pas de trou** : une caisse ou un baril ne rend pleines que ses cases de
+  sol (comme les prefabs) ; une case de mur reste un mur.
+- **Pas de scintillement** : un bloc de caisse ou de baril qui entre dans un
+  mur est rentré de 5 mm de chaque côté (`MapLayoutExport.DECOR_WALL_INSET`) :
+  aucune de ses faces n'est dans le plan d'une face de mur (une caisse d'1 m
+  posée dans un mur mitoyen de 0,5 m a sa face sur celle de la pièce d'à
+  côté).
+- Les modèles et les pavés de collision des prefabs suivent déjà leur vraie
+  position (`MapLayoutExport._props`, `_blockers_of`) ; ils peuvent entrer
+  dans un mur, le mur reste entier.
+
+### Vérification
+
+Un décor contre ou dans un mur n'est jamais une erreur. Un décor posé
+**devant une porte, des débris ou une fenêtre** est signalé par un
+avertissement (onglet Vérification : « un décor posé devant gêne le
+passage », « gêne l'entrée des zombies ») ; la carte reste jouable. Une
+zone rendue inaccessible par du décor reste une erreur (accès, comme pour un
+mur). Le départ des joueurs garde sa règle (1 m libre autour).
+
+### Format
+
+Clé facultative `"hauteur"` d'un luminaire **mural** (`objets.json`) :
+
+```json
+{"id":"x7","type":"luminaire","luminaire":"applique","etage":0,"position":[6.37,0],"mur":"n","hauteur":0.65}
+```
+
+- m au-dessus du sol, au centre de l'applique, 0,2 à 30 m
+  (`MapCatalog.WALL_LIGHT_HEIGHT`) ; **absente** : 2 m (l'applique d'avant) ;
+  jamais écrite à 2 m (`MapCatalog.set_wall_light_height`).
+- En jeu, bornée à 15 cm sous le plafond de la pièce
+  (`MapLayoutExport._fixture`).
+- Lecture : valeur illisible, ou clé sur un luminaire qui n'est pas mural,
+  retirée (`EditorMap._normalize`). Contrôle des cartes reçues :
+  `{"t": "number", "min": 0.2, "max": 30}` (texte, négatif, 500 : refusés).
+- Le décor posé au centimètre ou dans un mur n'a pas de clé nouvelle
+  (`position` en mètres, `rot`, `mur`, `angle` comme avant) : seule la
+  hauteur demande le format 7.
+
+### Preuves automatiques
+
+- `tests/test_map_decor_free.gd` (unitaire) : textures de tous les murs
+  relevées (sondes 5 cm derrière chaque face) identiques avec 11 décors
+  poussés contre les murs (le test échouait avant la correction), arme
+  murale, atout, porte et débris aux bouts des murs ; règles de pose (décor
+  dans les murs, au centimètre, tourné ; objets de jeu refusés) ; applique
+  partout le long d'un mur, au centimètre ou au quart de mètre, calcul de
+  `wall_decor_along` ; hauteur (construite, bornée sous le plafond,
+  enregistrée, relue, contrôlée, format 6 inchangé) ; caisse et baril dans
+  les murs (murs entiers, bloc à sa place et en retrait, bloc sur la grille
+  identique à avant) ; avertissements du validateur.
+- Scénario `map_decor_free` (vrai éditeur, sans fenêtre) : bureau, caisse,
+  baril, arme murale et porte glissés à la souris contre les murs, textures
+  inchangées dans les données de l'aperçu 3D (`MapPreviewWorld.compute`) et
+  du jeu ; baril, caisse, étagère tournée de 37° et applique posés au
+  centimètre, hauteur réglée dans les propriétés ; enregistrée, rouverte,
+  TESTER : collisions à la vraie place (rien à la place arrondie), mur
+  mitoyen entier, applique éclairée à sa hauteur.

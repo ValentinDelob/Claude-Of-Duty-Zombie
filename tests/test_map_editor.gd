@@ -237,14 +237,20 @@ func test_validator_errors_point_at_the_problem() -> void:
 	doc.tidy_zones()
 	v = _check(doc)
 	assert_true(_errs(v).contains("même zone"), _errs(v))
-	# Départ collé à une fenêtre de la zone de départ.
+	# Départ collé à une fenêtre de la zone de départ : plus une erreur (les
+	# zombies des fenêtres n'ont plus de distance minimale aux joueurs, comme
+	# dans BO1 : ils viennent aussi à la fenêtre où l'on se tient), seulement
+	# un avertissement.
 	doc = _base()
 	doc.objets[0]["position"] = [3.0, 1.5]
 	v = _check(doc)
-	assert_true(_errs(v).contains("à moins de 7 m"), _errs(v))
-	# Message bilingue avec la position en mètres.
-	var m: Dictionary = v.errors()[0]
-	assert_true(String(m.fr) != String(m.en) and String(m.en).contains("m"), "message FR et EN")
+	assert_true(v.ok(), "départ près des fenêtres : pas d'erreur\n" + _errs(v))
+	assert_false(_errs(v).contains("à moins de 7 m"), _errs(v))
+	var near: Array = v.warnings().filter(func(m): return String(m.fr).contains("les premiers zombies arrivent aussitôt"))
+	assert_eq(near.size(), 1, "avertissement : fenêtre collée au départ")
+	# Message bilingue avec la distance en mètres.
+	var m: Dictionary = near[0] if not near.is_empty() else {"fr": "", "en": ""}
+	assert_true(String(m.fr) != String(m.en) and String(m.en).contains("m from a window"), "message FR et EN")
 
 
 func test_passage_merges_or_links_zones() -> void:
