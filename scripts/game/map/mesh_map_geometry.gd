@@ -246,9 +246,15 @@ func _build(L: Dictionary) -> Node3D:
 	_kind = "slab"
 	for sl in L.get("slabs", []):
 		_slab(_group(String(sl.get("mat", "wood")), String(sl.room)), sl.outline, float(sl.y), float(sl.get("thick", 0.25)))
-	# Escaliers : marches visibles, rampe de collision (coin plein).
+	# Escaliers : marches visibles, rampe de collision (coin plein). Types
+	# (palier, en L, en U, colimaçon, rampe...) et options (garde-corps, côtés
+	# fermés, nombre de marches) : StairGen, voir _stair.
 	_kind = "stair"
 	for st in L.get("stairs", []):
+		if StairGen.kind_of(st) != StairGen.DEFAULT_KIND or st.has("rail") or st.has("closed") or st.has("steps"):
+			_stair(st)
+			_kind = "stair"
+			continue
 		var a := Vector3(st.a[0], st.a[1], st.a[2])
 		var b := Vector3(st.b[0], st.b[1], st.b[2])
 		var w := float(st.get("w", 1.5))
@@ -289,6 +295,205 @@ func _build(L: Dictionary) -> Node3D:
 				_box(g, Vector3(p.x, y + h / 2.0, p.z), Vector3(0.05, h, 0.05), yaw, true, false)
 			_box(g, Vector3(c.x, y + h / 2.0, c.z), Vector3(seg.length(), h, 0.1), yaw, false, true)
 	return _nodes()
+
+
+## Pavé orienté quelconque (base `basis` orthonormée, `size` le long de ses axes).
+func _obox(g: Dictionary, center: Vector3, size: Vector3, basis: Basis) -> void:
+	var h := size * 0.5
+	var ax := [basis.x * h.x, basis.y * h.y, basis.z * h.z]
+	for k in 3:
+		var n: Vector3 = (ax[k] as Vector3).normalized()
+		var a: Vector3 = ax[(k + 1) % 3]
+		var b: Vector3 = ax[(k + 2) % 3]
+		for s in [1.0, -1.0]:
+			var c: Vector3 = center + ax[k] * s
+			_quad(g, [c - a - b, c + a - b, c + a + b, c - a + b], n * s)
+
+
+## Prisme convexe visible : contour du dessus `top` et du dessous `bot`
+## (mêmes points, même ordre), faces latérales comprises.
+static func _prism_visual(g: Dictionary, top: Array, bot: Array) -> void:
+	var c := Vector3.ZERO
+	for q in top + bot:
+		c += q
+	c /= float(top.size() + bot.size())
+	var n := top.size()
+	for i in range(1, n - 1):
+		_tri(g, top[0], top[i], top[i + 1], ((top[i] - top[0]).cross(top[i + 1] - top[0])).normalized() * _side_sign(top[0], top[i], top[i + 1], c), true, false)
+		_tri(g, bot[0], bot[i], bot[i + 1], ((bot[i] - bot[0]).cross(bot[i + 1] - bot[0])).normalized() * _side_sign(bot[0], bot[i], bot[i + 1], c), true, false)
+	for i in n:
+		var j := (i + 1) % n
+		var quad := [top[i], top[j], bot[j], bot[i]]
+		var nn: Vector3 = (quad[1] - quad[0]).cross(quad[3] - quad[0])
+		if nn.length() < 1e-6:
+			nn = ((quad[2] - quad[1]).cross(quad[3] - quad[1]))
+		if nn.length() < 1e-6:
+			continue
+		nn = nn.normalized()
+		if nn.dot((quad[0] + quad[2]) * 0.5 - c) < 0.0:
+			nn = -nn
+		_quad(g, quad, nn)
+
+
+## +1 si la normale (b - a) x (c - a) s'éloigne du centre `o`, -1 sinon.
+static func _side_sign(a: Vector3, b: Vector3, c: Vector3, o: Vector3) -> float:
+	var nn := (b - a).cross(c - a)
+	return 1.0 if nn.dot((a + b + c) / 3.0 - o) >= 0.0 else -1.0
+
+
+## Escalier d'un type (StairGen.plan) : volées en marches (rampe : plan
+## incliné), paliers pleins, noyau d'un U, colimaçon, garde-corps et limons.
+## Collisions : prisme plein en pente sous chaque volée, dalles à fleur.
+func _stair(st: Dictionary) -> void:
+	var pl := StairGen.plan(st)
+	var g := _group(String(st.get("mat", "wood")), String(st.get("room", "x")))
+	var y0 := float(pl.y0)
+	var ramp: bool = pl.kind == "rampe"
+	for f in pl.flights:
+		var a: Vector3 = f.a
+		var b: Vector3 = f.b
+		var w := float(f.w)
+		var base := float(f.base)
+		var run := Vector3(b.x - a.x, 0, b.z - a.z)
+		var d := run.normalized()
+		var yaw := atan2(-d.z, d.x)
+		var side := Vector3(d.z, 0, -d.x) * (w * 0.5)
+		var rise := b.y - a.y
+		var top := [a - side, b - side, b + side, a + side]
+		var bot := [Vector3(a.x, base, a.z) - side, Vector3(b.x, base, b.z) - side, Vector3(b.x, base, b.z) + side, Vector3(a.x, base, a.z) + side]
+		if ramp:
+			_prism_visual(g, top, bot)
+		else:
+			var n := StairGen.flight_steps(pl, rise)
+			var step := run.length() / n
+			for i in n:
+				var ty := a.y + rise * (i + 1) / n
+				var c := a + d * (step * (i + 0.5))
+				_box(g, Vector3(c.x, (base + ty) * 0.5, c.z), Vector3(step, ty - base, w), yaw, true, false)
+		var pts := PackedVector3Array(top)
+		for q in bot:
+			if not _near_any(pts, q):
+				pts.append(q)
+		g.convex.append(pts)
+	for l in pl.landings:
+		var outline := []
+		for q: Vector2 in l.poly:
+			outline.append([q.x, q.y])
+		var ly := float(l.y)
+		var th := (ly - y0) if pl.spiral.is_empty() else 0.2
+		_slab(g, outline, ly, maxf(th, 0.05))
+	for dv in pl.dividers:
+		var a2: Vector2 = dv.a
+		var b2: Vector2 = dv.b
+		var d2 := (b2 - a2).normalized()
+		var s := Vector3(-d2.y, 0, d2.x) * (StairGen.RAIL_T * 0.5)
+		var top := [Vector3(a2.x, dv.ya, a2.y) - s, Vector3(b2.x, dv.yb, b2.y) - s, Vector3(b2.x, dv.yb, b2.y) + s, Vector3(a2.x, dv.ya, a2.y) + s]
+		var bot := [Vector3(a2.x, dv.y0, a2.y) - s, Vector3(b2.x, dv.y0, b2.y) - s, Vector3(b2.x, dv.y0, b2.y) + s, Vector3(a2.x, dv.y0, a2.y) + s]
+		_prism_visual(g, top, bot)
+		g.convex.append(PackedVector3Array(top + bot))
+	if not (pl.spiral as Dictionary).is_empty():
+		_spiral(g, pl)
+	_kind = "rail"
+	var gr := _group("dark_wood", String(st.get("room", "x")))
+	for e in pl.edges:
+		_stair_edge(g if pl.closed else gr, pl, e)
+
+
+static func _near_any(pts: PackedVector3Array, q: Vector3) -> bool:
+	for p in pts:
+		if p.distance_to(q) < 0.001:
+			return true
+	return false
+
+
+## Bord ouvert d'un escalier : limon plein (côtés fermés) ou garde-corps
+## (main courante, lisse, barreaux) ; collision : panneau mince jusqu'à la
+## main courante.
+func _stair_edge(g: Dictionary, pl: Dictionary, e: Dictionary) -> void:
+	var a: Vector3 = e.a
+	var b: Vector3 = e.b
+	var seg := b - a
+	if Vector2(seg.x, seg.z).length() < 0.01:
+		return
+	var d2 := Vector2(seg.x, seg.z).normalized()
+	var s := Vector3(-d2.y, 0, d2.x) * (StairGen.RAIL_T * 0.5)
+	var H := StairGen.RAIL_H
+	var hang := not (pl.spiral as Dictionary).is_empty()
+	var lo_a := float(e.base) if (pl.closed or hang) else a.y - 0.05
+	var lo_b := (float(e.base) + (b.y - a.y) if hang else float(e.base)) if (pl.closed or hang) else b.y - 0.05
+	var top := [a + Vector3.UP * H - s, b + Vector3.UP * H - s, b + Vector3.UP * H + s, a + Vector3.UP * H + s]
+	var bot := [Vector3(a.x, lo_a, a.z) - s, Vector3(b.x, lo_b, b.z) - s, Vector3(b.x, lo_b, b.z) + s, Vector3(a.x, lo_a, a.z) + s]
+	g.convex.append(PackedVector3Array(top + bot))
+	if pl.closed:
+		_prism_visual(g, top, bot)
+		return
+	# Garde-corps : main courante et lisse le long de la pente, barreaux.
+	var fwd := seg.normalized()
+	var up := Vector3.UP
+	var lat := fwd.cross(up).normalized()
+	var bs := Basis(fwd, lat.cross(fwd).normalized(), lat)
+	var length := seg.length()
+	_obox(g, (a + b) * 0.5 + up * H, Vector3(length, 0.08, 0.1), bs)
+	_obox(g, (a + b) * 0.5 + up * 0.12, Vector3(length, 0.06, 0.08), bs)
+	var nb := maxi(1, int(Vector2(seg.x, seg.z).length() / 0.3))
+	for k in nb + 1:
+		var q := a + seg * (float(k) / nb)
+		_box(g, q + up * (H * 0.5), Vector3(0.05, H, 0.05), atan2(-d2.y, d2.x), true, false)
+
+
+## Colimaçon : noyau, marches en secteurs, collision en secteurs minces qui
+## suivent l'hélice (on passe dessous au pied, sous le dernier quart de tour).
+func _spiral(g: Dictionary, pl: Dictionary) -> void:
+	var sp: Dictionary = pl.spiral
+	var c: Vector2 = sp.c
+	var e1: Vector2 = sp.e1
+	var e2: Vector2 = sp.e2
+	var ri := float(sp.r_in)
+	var ro := float(sp.r_out)
+	var y0 := float(sp.y0)
+	var y1 := float(sp.y1)
+	var H := y1 - y0
+	var at := func(th: float, r: float, y: float) -> Vector3:
+		var q := c + (e1 * cos(th) + e2 * sin(th)) * r
+		return Vector3(q.x, y, q.y)
+	# Noyau (prisme à 12 pans).
+	var ct := []
+	var cb := []
+	for i in 12:
+		var th := TAU * i / 12.0
+		ct.append(at.call(th, ri, y1 + StairGen.RAIL_H))
+		cb.append(at.call(th, ri, y0))
+	_prism_visual(g, ct, cb)
+	g.convex.append(PackedVector3Array(ct + cb))
+	# Marches visibles.
+	var n := StairGen.flight_steps(pl, H)
+	for i in n:
+		var tha := TAU * i / n
+		var thb := TAU * (i + 1) / n
+		var ty := y0 + H * (i + 1) / n
+		var top := [at.call(tha, ri, ty), at.call(tha, ro, ty), at.call((tha + thb) * 0.5, ro, ty), at.call(thb, ro, ty), at.call(thb, ri, ty)]
+		var bot := []
+		for q: Vector3 in top:
+			bot.append(Vector3(q.x, maxf(y0, ty - 0.2), q.z))
+		_prism_visual(g, top, bot)
+	# Collision : secteurs minces le long de l'hélice, qui se chevauchent d'un
+	# demi-degré (un rayon de sol pile sur la jointure de deux secteurs ne
+	# passe jamais au travers).
+	var m := StairGen.SPIRAL_SECTORS
+	var eps := deg_to_rad(0.6)
+	for i in m:
+		var tha := maxf(TAU * i / m - eps, 0.0)
+		var thb := minf(TAU * (i + 1) / m + eps, TAU)
+		var ya := y0 + H * tha / TAU
+		var yb := y0 + H * thb / TAU
+		var pts := PackedVector3Array([at.call(tha, ri, ya), at.call(tha, ro, ya), at.call(thb, ro, yb), at.call(thb, ri, yb)])
+		for q in [at.call(tha, ri, ya), at.call(tha, ro, ya), at.call(thb, ro, yb), at.call(thb, ri, yb)]:
+			var lo := maxf(y0, (q as Vector3).y - StairGen.SPIRAL_T)
+			if lo < (q as Vector3).y - 0.001:
+				pts.append(Vector3(q.x, lo, q.z))
+		if pts.size() == 4:
+			pts.append(at.call((tha + thb) * 0.5, (ri + ro) * 0.5, y0 - 0.02))
+		g.convex.append(pts)
 
 
 func _nodes() -> Node3D:

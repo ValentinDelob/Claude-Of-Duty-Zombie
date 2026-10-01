@@ -66,6 +66,13 @@ func build(parent: Node3D) -> void:
 func _add_architecture(scene: Node3D) -> void:
 	scene.name = "Architecture"
 	root.add_child(scene)
+	# Tablier invisible au haut de chaque escalier (CollisionBox à fleur du
+	# palier) : aucune fente entre la dernière marche et le sol d'arrivée.
+	var stairs: Array = layout.get("stairs", [])
+	for i in stairs.size():
+		var cb := CollisionBox.from_dict(StairGen.apron(stairs[i]))
+		cb.name = "StairApron_%d" % i
+		scene.add_child(cb)
 	var floors: Dictionary = {}
 	for r in layout.get("rooms", []):
 		floors[r.id] = _room_floor(r)
