@@ -9,6 +9,8 @@ extends MapDef
 ## quai, 2 au couloir, 4 au laboratoire, 2 au générateur ; derrière chacune,
 ## une poche fermée avec son apparition Z. Quelques Z « sortie du sol »
 ## subsistent dans les salles (comme à Kino der Toten).
+## Salle du générateur : la caisse est en (61, 27), à l'écart de la sortie de
+## la fenêtre sud (en 60, 28 elle ne laissait qu'une file de zombies passer).
 
 func _init() -> void:
 	id = "bunker_k7"
@@ -77,8 +79,8 @@ func _init() -> void:
 		" #aaaaaaPaPaaaaaaa2bbbbbEEEbbLbbb3ccccccccccLccccccccc4ee,eeeee#",
 		" #aaaaaaaaaaaaaaaa#bbbbbEEEbbUbbb#cccccccccccccccccccc4eeeeeeeG#",
 		" #aaaaaaPaPaaaaaaa#####W##########cccccccccccccccccccc#eeeYYeee#",
-		" #aaaLaaaaaaaLaaaa#aa#bbb#    ####(cccNNNNccccNNNNcccc#)eeYYeee#",
-		" #aaaaaaaaaaaa,aaaWaZ#bZb#    #cc#cccccccccccccccccccc#eeeeeCLe#",
+		" #aaaLaaaaaaaLaaaa#aa#bbb#    ####(cccNNNNccccNNNNcccc#)eeYYeCe#",
+		" #aaaaaaaaaaaa,aaaWaZ#bZb#    #cc#cccccccccccccccccccc#eeeeeeLe#",
 		" #aaaaaaaaaaaaaaaa#aa#####    #ZcWccccLccccccccccLcccc#Zeeeeeee#",
 		" #aZaaaaa*aaRaaaaa####        #cc#ccccccccc,cccccccccM####W#####",
 		" #####W########W###           ####cccccccccccccccccccc# #eee#   ",

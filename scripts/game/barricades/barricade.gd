@@ -24,6 +24,10 @@ const PLANK_Z := -0.36
 const TEAR_DIST := 0.82
 ## Arrivée de l'enjambement (dedans, +Z).
 const INSIDE_DIST := 1.0
+## Pas d'enjambement tant qu'un zombie se tient à moins de cela de l'arrivée.
+const EXIT_CLEARANCE := 0.65
+## Fenêtre sans planches : l'enjambement part de moins de cela du point d'arrachage.
+const VAULT_REACH := 0.9
 ## Un joueur plus proche que cela du zombie à la fenêtre se fait frapper.
 const REACH := 1.8
 ## Le zombie frappe à travers la fenêtre s'il reste au plus ce nombre de planches.
@@ -425,16 +429,19 @@ func srv_zombie_barrier(z: Zombie, delta: float) -> void:
 	var dist := to.length()
 	var desired := Vector3.ZERO
 	var face := atan2(inward.x, inward.z)
-	if dist < 0.5:
+	# Fenêtre ouverte : on enjambe d'un peu plus loin. La file qui attend que
+	# la sortie se libère se bousculait autour du point exact, aucun n'y
+	# arrivait.
+	if dist < (VAULT_REACH if mask == 0 else 0.5):
 		var victim := _victim_for(z)
 		if victim and planks() <= REACH_MAX_PLANKS:
 			z.target = victim
 			z.barrier_attack()
 			return
 		if mask == 0:
-			if vaulter == null or not is_instance_valid(vaulter) or not vaulter.is_alive() or vaulter.barricade != self:
+			if (vaulter == null or not is_instance_valid(vaulter) or not vaulter.is_alive() or vaulter.barricade != self) and exit_clear(z):
 				vaulter = z
-				z.start_vault(tp, inside_point())
+				z.start_vault(Vector3(z.global_position.x, tp.y, z.global_position.z), inside_point())
 				return
 		else:
 			z.tear_t += delta
@@ -453,6 +460,19 @@ func srv_zombie_barrier(z: Zombie, delta: float) -> void:
 	z.velocity.z = horiz.z
 	z.yaw = lerp_angle(z.yaw, face, 1.0 - exp(-delta * 8.0))
 	z.rotation.y = z.yaw
+
+
+## Serveur : l'arrivée de l'enjambement est-elle libre ? L'enjambement pose le
+## zombie sur ce point sans tenir compte des autres : posé dans un zombie qui
+## attend là (joueur à terre, hors d'atteinte...), il le recouvrait, et la file
+## ainsi tassée, alignée sur l'axe de la fenêtre, restait bloquée pour de bon
+## (BUNKER K-7 : générateur à 1,5 m de la fenêtre sud).
+func exit_clear(z: Zombie) -> bool:
+	var ip := inside_point()
+	for o: Zombie in system.game.zombies.alive:
+		if o != z and absf(o.global_position.y - ip.y) < 1.0 and _flat_dist(o.global_position, ip) < EXIT_CLEARANCE:
+			return false
+	return true
 
 
 ## Serveur : fin de l'enjambement.
