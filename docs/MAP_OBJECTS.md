@@ -257,11 +257,12 @@ une porte).
   masque le milieu du pied), toute la volée droite qui part de ce bord
   passant alors en face de l'ancre, sans écart ; un escalier dont un bout
   n'a aucune place libre est signalé dans le journal (`[MeshNav] escalier
-  ... couloir d'ancres désactivé`) et laissé au navmesh seul. L'escalier
-  devient aussi un passage du navmesh (`NavigationLink3D` d'une ancre à
+  ... couloir d'ancres désactivé`) et laissé au navmesh seul. Quand le navmesh, rogné
+  de 0,4 m, ne relie pas les deux ancres par les marches (escalier d'un mètre),
+  l'escalier devient un passage du navmesh (`NavigationLink3D` d'une ancre à
   l'autre, coût = longueur du couloir, coupé tant qu'une porte payante sur
-  le couloir est fermée) : ses deux sols restent reliés même quand le
-  navmesh, rogné de 0,4 m, est trop mince sur des marches d'un mètre.
+  le couloir est fermée). Un chemin qui ne fait que longer le pied (bande
+  devant les marches de la scène de KINO) reste celui du navmesh.
 - `MeshNav.find_path(from, to, lane_bias)` : un chemin du navmesh qui
   emprunte un escalier (il entre dans son emprise par un bout et en sort
   par l'autre) est réécrit : chemin jusqu'à l'ancre du bout d'arrivée,

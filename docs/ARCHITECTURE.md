@@ -454,7 +454,8 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   `MeshMapLayout.finish_nav` donne les escaliers à `MeshNav.set_stairs` ;
   quand la carte de navigation est synchronisée (`ensure_anchors`, au premier
   chemin), chaque ancre est posée sur le navmesh (décalée le long du bord si
-  le décor masque le milieu) et l'escalier devient un `NavigationLink3D`
+  le décor masque le milieu) ; si le navmesh ne relie pas les deux ancres
+  par les marches (escalier étroit), l'escalier devient un `NavigationLink3D`
   d'une ancre à l'autre (coût = longueur du couloir ; coupé tant qu'une
   porte payante sur le couloir est fermée). `find_path(from, to, lane_bias)`
   réécrit tout chemin qui emprunte un escalier (par le navmesh ou par ce
