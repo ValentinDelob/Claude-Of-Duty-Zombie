@@ -33,8 +33,14 @@ extends RefCounted
 ##      portes, débris et armes murales, MapCatalog.VARIANTS ; absente :
 ##      l'aspect d'avant, jamais écrite pour l'aspect par défaut) et barrière
 ##      invisible (type « bloc_invisible » : rect, rot, hauteur). Toutes les
-##      nouvelles clés sont facultatives : formats 1 à 4 lus tels quels.
-const FORMAT := 5
+##      nouvelles clés sont facultatives : formats 1 à 4 lus tels quels ;
+##   6  types d'escaliers (docs/MAP_OBJECTS.md § Escaliers) : « variante »
+##      d'un escalier (droit, palier, quart, demi_tour, large, service,
+##      colimacon, rampe ; absente : droit, l'escalier d'avant) et ses
+##      réglages facultatifs « sens », « marches », « garde_corps », « cotes »
+##      (MapCatalog.tidy_stair : jamais écrits à leur valeur par défaut).
+##      Formats 1 à 5 lus tels quels (un escalier sans ces clés est droit).
+const FORMAT := 6
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -296,6 +302,10 @@ func _migrate(from: int) -> void:
 		# Format 4 -> 5 : rien à convertir (« variante » facultative : sans elle,
 		# l'aspect d'avant ; « bloc_invisible » : un nouveau type).
 		pass
+	if from < 6:
+		# Format 5 -> 6 : rien à convertir (escalier sans « variante » : droit,
+		# sans réglage : comme avant).
+		pass
 
 
 ## Version du format lue dans carte.json (FORMAT pour une carte neuve).
@@ -333,6 +343,9 @@ func _normalize() -> void:
 			if e.has("variante") and (not MapCatalog.variants(String(e.get("type", ""))).has(e.variante) \
 					or e.variante == MapCatalog.default_variant(String(e.get("type", "")))):
 				e.erase("variante")
+	# Réglages d'escalier illisibles ou par défaut retirés (format 6).
+	for o in objets:
+		MapCatalog.tidy_stair(o)
 	for list in [pieces, ouvertures, objets, zones]:
 		for e in list:
 			if String(e.get("id", "")) == "":

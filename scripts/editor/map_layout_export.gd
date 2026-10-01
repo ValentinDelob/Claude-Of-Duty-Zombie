@@ -672,6 +672,20 @@ func _rails(f: MapValidator.Floor) -> void:
 func _stairs() -> void:
 	for s in md.stairs:
 		var k: int = s.floor
+		# Type et réglages (format 6) : clés de la description seulement s'ils
+		# ne sont pas ceux d'avant (une carte d'avant garde sa description).
+		var opts: Dictionary = md.stair_opts.get(String(s.get("key", "")), {})
+		if s.has("diag") and s.diag.get("shaped", false):
+			# En L, en U, en colimaçon : l'emprise de ses cases (MapRaster.stair_spec),
+			# sens de montée donné.
+			var sp := MapRaster.stair_spec(s.diag.obj, md.floors[k].sol, md.floors[k + 1].sol)
+			var fa: Array = _xz(Vector2(float(sp.a[0]), float(sp.a[2])))
+			var fb: Array = _xz(Vector2(float(sp.b[0]), float(sp.b[2])))
+			var e := {"room": ref_room.get(k, "x"), "a": [fa[0], _r(md.floors[k].sol), fa[1]],
+				"b": [fb[0], _r(md.floors[k + 1].sol), fb[1]], "w": _r(float(sp.w)), "mat": "wood"}
+			e.merge(opts)
+			stairs.append(e)
+			continue
 		if s.has("diag"):
 			# Escalier tourné : du milieu du pied au milieu du haut des marches
 			# (0,25 m en retrait du contour tracé, comme sur la grille).
@@ -684,8 +698,10 @@ func _stairs() -> void:
 			var c: Vector2 = info.center
 			var foot: Array = _xz(c - u * half_run)
 			var head: Array = _xz(c + u * half_run)
-			stairs.append({"room": ref_room.get(k, "x"), "a": [foot[0], _r(md.floors[k].sol), foot[1]],
-				"b": [head[0], _r(md.floors[k + 1].sol), head[1]], "w": _r(tread), "mat": "wood"})
+			var ed := {"room": ref_room.get(k, "x"), "a": [foot[0], _r(md.floors[k].sol), foot[1]],
+				"b": [head[0], _r(md.floors[k + 1].sol), head[1]], "w": _r(tread), "mat": "wood"}
+			ed.merge(opts)
+			stairs.append(ed)
 			continue
 		var r: Rect2i = s.rect
 		var d: Vector2i = s.up
@@ -698,8 +714,10 @@ func _stairs() -> void:
 		else:
 			a.y = r.end.y if d.y < 0 else r.position.y
 			b.y = r.position.y if d.y < 0 else r.end.y
-		stairs.append({"room": ref_room.get(k, "x"), "a": [wx(a.x), _r(md.floors[k].sol), wx(a.y)],
-			"b": [wx(b.x), _r(md.floors[k + 1].sol), wx(b.y)], "w": _r(s.width * S), "mat": "wood"})
+		var eg := {"room": ref_room.get(k, "x"), "a": [wx(a.x), _r(md.floors[k].sol), wx(a.y)],
+			"b": [wx(b.x), _r(md.floors[k + 1].sol), wx(b.y)], "w": _r(s.width * S), "mat": "wood"}
+		eg.merge(opts)
+		stairs.append(eg)
 
 
 func _p(k: int, v: Vector2, dy := 0.0) -> Array:
