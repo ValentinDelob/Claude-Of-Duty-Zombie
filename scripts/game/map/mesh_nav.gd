@@ -237,9 +237,23 @@ func ensure_anchors() -> bool:
 		if not l.ok:
 			print("[MeshNav] escalier %d (%s) : %s ; couloir d'ancres désactivé" % [l.index, l.name, l.problem])
 			continue
-		_add_stair_link(l)
+		# Passage seulement si le navmesh ne relie pas déjà les deux ancres par
+		# les marches (escalier trop étroit, rogné) : ailleurs, les chemins
+		# restent ceux du navmesh, réécrits par le couloir.
+		var walk := _path_len_plain(_sub_path(l.pts[0], l.pts[l.pts.size() - 1]))
+		if walk > l.length() * 2.0 + 4.0:
+			_add_stair_link(l)
 	NavigationServer3D.map_force_update(map)
 	return true
+
+
+static func _path_len_plain(p: PackedVector3Array) -> float:
+	if p.is_empty():
+		return INF
+	var total := 0.0
+	for i in p.size() - 1:
+		total += p[i].distance_to(p[i + 1])
+	return total
 
 
 ## Passage du navmesh (NavigationLink3D) d'une ancre à l'autre : l'escalier
@@ -393,10 +407,31 @@ func _thread_lanes(path: PackedVector3Array, marks: PackedByteArray, goal: Vecto
 			var upw := (S - s_from) + _path_len(_tail(l, l.pts.size() - 1, goal), l)
 			if down < INF or upw < INF:
 				s_to = 0.0 if down <= upw else S
+			# Au ras du pied (ou du haut), et l'on repart de ce même côté : le
+			# chemin longe l'escalier sans le prendre (bande devant les marches
+			# de la scène de KINO), on le laisse au navmesh.
+			var foot_s := l.cum[1]
+			var top_s := l.cum[l.cum.size() - 2]
+			if (s_to == 0.0 and s_from <= foot_s + 0.5) or (s_to == S and s_from >= top_s - 0.5):
+				from_seg = int(hit.leave_seg) + 1
+				continue
 		if absf(s_to - s_from) < 0.3:
 			from_seg = int(hit.leave_seg) + 1
 			continue
-		var mid := l.points_between(s_from, s_to, bias, not end_in, not start_in)
+		# Après les marches, le chemin depuis l'ancre reviendrait sur l'escalier
+		# (il longe son pied, comme la bande devant les marches de la scène de
+		# KINO, au ras des fauteuils) : ce passage reste au navmesh, qui y suit
+		# la bande au plus près ; l'ancre y ferait un détour contre le décor.
+		var to_end := not end_in
+		var raw_tail := PackedVector3Array()
+		if not end_in:
+			raw_tail = _tail(l, l.pts.size() - 1 if s_to > s_from else 0, goal)
+			if raw_tail.is_empty():
+				return [path, marks]
+			if _path_len(raw_tail, l) == INF:
+				from_seg = int(hit.leave_seg) + 1
+				continue
+		var mid := l.points_between(s_from, s_to, bias, to_end, not start_in)
 		if mid.is_empty():
 			return [path, marks]
 		var head := PackedVector3Array([path[0]])
@@ -416,10 +451,7 @@ func _thread_lanes(path: PackedVector3Array, marks: PackedByteArray, goal: Vecto
 		var tail := PackedVector3Array([goal])
 		var tail_m := PackedByteArray([0])
 		if not end_in:
-			var end_i := l.pts.size() - 1 if s_to > s_from else 0
-			tail = _tail(l, end_i, goal)
-			if tail.is_empty():
-				return [path, marks]
+			tail = raw_tail
 			tail_m = PackedByteArray()
 			tail_m.resize(tail.size())
 			var tr := _thread_lanes(tail, tail_m, goal, bias, depth + 1)

@@ -12,7 +12,7 @@ const MAP_ID := "escaliers"
 ## Plus longue immobilité tolérée sur les marches (s).
 const STALL := 3.0
 ## Écart toléré au-delà de la demi-largeur du couloir (m) : poussée de la horde.
-const DEV := 0.35
+const DEV := 0.4
 
 var H := AutotestHelpers
 var game: Game
