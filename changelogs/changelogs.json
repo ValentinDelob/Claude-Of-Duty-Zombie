@@ -1399,6 +1399,37 @@
     "en": "Teammates hold their guns the right way",
     "fr": "L'arme des coéquipiers à l'endroit"
    }
+  },
+  "v0.2.0-snapshot.352": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [],
+   "items": [
+    {
+     "en": "In a shared editing session, the host's PLAY TEST button takes everyone into the same game, on the current map: nobody is left stuck in the editor any more.",
+     "fr": "Dans une session d'édition à plusieurs, le bouton TESTER de l'hôte emmène tout le monde dans la même partie, sur la carte en cours : plus personne ne reste bloqué dans l'éditeur."
+    },
+    {
+     "en": "The map is sent and checked automatically on every computer, like a custom map in the lobby.",
+     "fr": "La carte est envoyée et vérifiée automatiquement chez chacun, comme une carte perso dans le salon."
+    },
+    {
+     "en": "The editing session stays open for the whole game; at the end (or if the host quits), everyone comes back to the editor, on the same map, with the history, selection and view from before the test.",
+     "fr": "La session d'édition reste ouverte pendant toute la partie ; à la fin (ou si l'hôte quitte), tout le monde revient dans l'éditeur, sur la même carte, avec l'historique, la sélection et la vue d'avant le test."
+    },
+    {
+     "en": "If someone cannot join the test, they stay in the editor with the reason, and the host is told.",
+     "fr": "Si quelqu'un ne peut pas rejoindre le test, il reste dans l'éditeur avec la raison, et l'hôte en est prévenu."
+    },
+    {
+     "en": "Over the Internet, forward the session port in TCP and UDP. Everyone needs this version.",
+     "fr": "Par Internet, redirigez le port de la session en TCP et en UDP. Tout le monde doit avoir cette version."
+    }
+   ],
+   "title": {
+    "en": "Map editor: PLAY TEST together",
+    "fr": "Éditeur de cartes : TESTER ensemble"
+   }
   }
  }
 }
