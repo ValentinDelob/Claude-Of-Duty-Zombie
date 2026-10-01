@@ -236,8 +236,12 @@ func _decor_and_textures() -> void:
 	_pick("prefab:caisses")
 	await click(Vector2(24, 9.5))
 	at.check(ed.doc.objets.filter(func(o): return o.type == "prefab").size() == 4 and cv.refusal != "", "caisses sur les gravats refusées : « %s »" % cv.refusal)
+	# Format 7 : le décor se pose librement, même à cheval sur un mur
+	# (docs/MAP_OBJECTS.md § 8) ; annulé ensuite (Ctrl+Z).
 	await click(Vector2(18.1, 11))
-	at.check(ed.doc.objets.filter(func(o): return o.type == "prefab").size() == 4, "caisses dans le mur refusées")
+	at.check(ed.doc.objets.filter(func(o): return o.type == "prefab").size() == 5, "caisses à cheval sur le mur acceptées (décor libre) %s" % cv.refusal)
+	await key(KEY_Z, true)
+	at.check(ed.doc.objets.filter(func(o): return o.type == "prefab").size() == 4, "Ctrl+Z : caisses retirées")
 	# Luminaires.
 	var bureau: Dictionary = ed.doc.objets.filter(func(o): return o.get("prefab", "") == "bureau")[0]
 	for pick in [["luminaire:lampe_bureau", MapRules.footprint_rect(bureau).get_center()], ["luminaire:suspension", Vector2(11, 6)],

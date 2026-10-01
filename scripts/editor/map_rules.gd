@@ -798,9 +798,9 @@ static func wall_decor_still_on_wall(doc: EditorMap, o: Dictionary) -> Dictionar
 			# Trait de la face tournée vers l'objet (0,25 m derrière elle).
 			var off := (float(s.half) - MapGeom.WALL_HALF) * (-dv)
 			traits.append([Vector2(s.a) + off, Vector2(s.b) + off])
-		for tr in traits:
-			var a: Vector2 = tr[0]
-			var b: Vector2 = tr[1]
+		for seg in traits:
+			var a: Vector2 = seg[0]
+			var b: Vector2 = seg[1]
 			if a.distance_to(b) < 0.01 or MapGeom.dist_to_segment(p, a, b) > 0.02:
 				continue
 			var t := (b - a).normalized()
