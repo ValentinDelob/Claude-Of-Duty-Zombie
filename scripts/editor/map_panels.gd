@@ -3,9 +3,10 @@ extends TabContainer
 ## Panneaux de l'éditeur de cartes : Propriétés (élément choisi, sinon la
 ## carte), Pièces, Zones (regrouper, renommer FR/EN, fusionner, séparer, zone
 ## de départ), Étages (ajouter, hauteurs, étage du dessous en transparence) et
-## Vérification (validateur : clic sur un problème = vue centrée dessus).
+## Vérification (validateur : clic sur un problème = vue centrée dessus),
+## Historique (actions de la carte, par auteur : CollabHistory).
 
-const TABS := ["props", "rooms", "zones", "floors", "check"]
+const TABS := ["props", "rooms", "zones", "floors", "check", "history"]
 const PANEL_TEXT_W := 300.0
 const DIR_NAMES := {"n": ["Nord", "North"], "e": ["Est", "East"], "s": ["Sud", "South"], "o": ["Ouest", "West"]}
 
@@ -23,6 +24,8 @@ var _check_list: VBoxContainer
 var _check_summary: Label
 var _check_msgs: Array = []
 var _props_for := "?"
+## Onglet Historique (docs/MAP_COLLAB.md § 4).
+var history: CollabHistory
 
 
 func _ready() -> void:
@@ -66,9 +69,15 @@ func _ready() -> void:
 	_check_list = VBoxContainer.new()
 	_check_list.add_theme_constant_override("separation", 2)
 	cv.add_child(_check_list)
+	var hv := _tab("history", Lang.t("Historique", "History"))
+	history = CollabHistory.new()
+	history.name = "CollabHistory"
+	hv.add_child(history)
 	tab_changed.connect(func(t):
 		if TABS[t] == "check" and (ed.validation_stale or ed.validator == null):
-			ed.validate())
+			ed.validate()
+		elif TABS[t] == "history":
+			history.mark_dirty())
 
 
 func _tab(id: String, title_text: String) -> VBoxContainer:

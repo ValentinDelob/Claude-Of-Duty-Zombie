@@ -1,21 +1,29 @@
 class_name CollabPanel
 extends Node
-## Interface minimale de la collaboration (docs/MAP_COLLAB.md § 6) : menu
-## « Collaboration » de la barre du haut (Héberger…, Rejoindre…, Infos de la
-## session…, Quitter la session, Autoriser Claude (MCP)), pastilles colorées
-## des participants à côté. Le rendu riche (historique, sélections des
-## autres, bulles de Claude) viendra par-dessus.
+## Interface de la collaboration dans la barre du haut (docs/MAP_COLLAB.md
+## § 6) : menu « Collaboration » (Héberger…, Rejoindre…, Infos de la
+## session…, Quitter la session, Autoriser Claude (MCP), Historique) et
+## pastilles des participants à côté : disque de leur couleur avec leur
+## initiale (Claude : son icône), pseudo, « Étage N » s'ils sont sur un autre
+## étage que celui affiché ; info-bulle avec le rôle et l'étage. Chaque
+## pastille est un contrôle de la barre (HFlowContainer) : la barre passe à
+## la ligne entre deux pastilles plutôt que de déborder. Le rendu sur le plan
+## est dans CollabView, l'historique dans CollabHistory.
 
 const ID_HOST := 0
 const ID_JOIN := 1
 const ID_LEAVE := 2
 const ID_CLAUDE := 3
 const ID_INFO := 4
+const ID_HISTORY := 5
+## Pseudo coupé au-delà (pastille).
+const NAME_MAX := 14
 
 var ed: MapEditor
 var menu: MenuButton
-## Pastilles des participants (cachées sans session ni Claude).
-var pills: HBoxContainer
+## Pastilles des participants (aucune sans session ni Claude), rangées
+## dans la barre du haut juste après le menu.
+var pills: Array = []
 
 
 func setup(editor: MapEditor) -> void:
@@ -33,16 +41,13 @@ func setup(editor: MapEditor) -> void:
 	pm.add_item(Lang.t("Quitter la session", "Leave the session"), ID_LEAVE)
 	pm.add_separator()
 	pm.add_check_item(Lang.t("Autoriser Claude (MCP)", "Allow Claude (MCP)"), ID_CLAUDE)
+	pm.add_separator()
+	pm.add_item(Lang.t("Historique", "History"), ID_HISTORY)
 	pm.id_pressed.connect(_on_menu)
 	pm.about_to_popup.connect(_refresh_menu)
-	pills = HBoxContainer.new()
-	pills.name = "CollabPeers"
-	pills.visible = false
-	pills.add_theme_constant_override("separation", 8)
-	ed.top_bar.add_child(pills)
-	ed.top_bar.move_child(pills, menu.get_index() + 1)
 	ed.collab.peers_changed.connect(refresh)
 	ed.collab.session_changed.connect(refresh)
+	Settings.editor_ui_scale_changed.connect(func(_v): update_pills())
 	refresh()
 
 
@@ -71,23 +76,40 @@ func _on_menu(id: int) -> void:
 		ID_CLAUDE:
 			var on := not bool(MapEditor.pref("collab_claude", true))
 			ed.set_claude_allowed(on)
+		ID_HISTORY:
+			ed.panels.show_tab("history")
 
 
 ## Participants (pastilles) et libellé de Fichier > Enregistrer (invité :
 ## une copie).
 func refresh() -> void:
-	for c in pills.get_children():
-		c.queue_free()
+	for c in pills:
+		if is_instance_valid(c):
+			ed.top_bar.remove_child(c)
+			c.queue_free()
+	pills.clear()
 	var list := ed.collab.peer_list()
-	pills.visible = list.size() > 1
-	for p in list:
-		var l := Label.new()
-		var me := String(p.id) == ed.collab.my_id
-		l.text = ("◆ " if p.kind == "agent" else "● ") + String(p.name) + (Lang.t(" (vous)", " (you)") if me else "")
-		l.add_theme_color_override("font_color", Color.html(String(p.color)))
-		l.tooltip_text = Lang.t("Claude, rattaché à %s", "Claude, attached to %s") % ed.collab.peer_name(MapHistory.root_of(String(p.id))) if p.kind == "agent" else String(p.name)
-		l.mouse_filter = Control.MOUSE_FILTER_PASS
-		pills.add_child(l)
+	if list.size() > 1:
+		var at := menu.get_index() + 1
+		for p in list:
+			var pill := Pill.new()
+			pill.name = "CollabPeer_" + String(p.id).validate_node_name()
+			pill.panel = self
+			pill.peer_id = String(p.id)
+			pill.agent = p.kind == "agent"
+			pill.me = String(p.id) == ed.collab.my_id
+			pill.color = Color.html(String(p.color)) if Color.html_is_valid(String(p.color)) else Color.WHITE
+			var nm := String(p.name)
+			pill.initial = nm.left(1).to_upper() if nm != "" else "?"
+			pill.text = (nm.left(NAME_MAX - 1) + "…" if nm.length() > NAME_MAX else nm) + (Lang.t(" (vous)", " (you)") if pill.me else "")
+			pill.mouse_filter = Control.MOUSE_FILTER_PASS
+			# Tailles calculées en pixels à la taille de l'interface (EditorUi.px).
+			pill.set_meta(EditorUi.SKIP, true)
+			ed.top_bar.add_child(pill)
+			ed.top_bar.move_child(pill, at)
+			at += 1
+			pills.append(pill)
+		update_pills()
 	var fm := ed.file_menu.get_popup()
 	var i := fm.get_item_index(2)
 	if i >= 0:
@@ -198,3 +220,97 @@ func join_dialog() -> void:
 		ed.set_status(Lang.t("Connexion à %s:%d…", "Connecting to %s:%d…") % [a, int(port.value)]))
 	d.popup_centered()
 	code.grab_focus.call_deferred()
+
+
+## Étage et info-bulle des pastilles (présence reçue, étage affiché changé,
+## taille de l'interface).
+func update_pills() -> void:
+	for pill in pills:
+		if not is_instance_valid(pill):
+			continue
+		var id := String(pill.peer_id)
+		var p: Dictionary = ed.collab.peers.get(id, {})
+		var pr: Dictionary = p.get("presence", {})
+		var fl := int(pr.get("floor", -1)) if pr.has("cursor") else -1
+		pill.floor_text = Lang.t("Étage %d", "Floor %d") % fl if fl >= 0 and fl != ed.floor_k and not pill.me else ""
+		pill.tooltip_text = pill_tooltip(id)
+		pill.update_minimum_size()
+		pill.queue_redraw()
+
+
+## Info-bulle d'une pastille : pseudo, rôle, étage.
+func pill_tooltip(id: String) -> String:
+	var c := ed.collab
+	var p: Dictionary = c.peers.get(id, {})
+	var lines := [String(p.get("name", id))]
+	var role := ""
+	if p.get("kind", "") == "agent":
+		role = Lang.t("Claude (MCP), rattaché à %s", "Claude (MCP), attached to %s") % c.peer_name(MapHistory.root_of(id))
+	elif not c.is_session():
+		role = Lang.t("seul sur la carte", "alone on the map")
+	elif id == "1":
+		role = Lang.t("hôte (enregistre la carte)", "host (saves the map)")
+	else:
+		role = Lang.t("invité", "guest")
+	if id == c.my_id:
+		role += Lang.t(" — vous", " — you")
+	lines.append(role)
+	var pr: Dictionary = p.get("presence", {})
+	if id == c.my_id:
+		lines.append(Lang.t("Étage %d", "Floor %d") % ed.floor_k)
+	elif pr.has("cursor"):
+		lines.append(Lang.t("Étage %d", "Floor %d") % int(pr.get("floor", 0)))
+	return "\n".join(lines)
+
+
+## Pastille d'un participant : disque de sa couleur avec son initiale (Claude :
+## son icône ; vous : anneau clair), pseudo, puis « Étage N » s'il est sur un
+## autre étage que celui affiché. Dessinée à la taille de l'interface.
+class Pill extends Control:
+	var panel: CollabPanel
+	var peer_id := ""
+	var color := Color.WHITE
+	var initial := ""
+	var text := ""
+	var floor_text := ""
+	var agent := false
+	var me := false
+
+	func _font() -> Font:
+		return get_theme_font("font", "Label")
+
+	func _d() -> float:
+		return EditorUi.px(20)
+
+	func _get_minimum_size() -> Vector2:
+		var f := _font()
+		var w := _d() + EditorUi.px(5) + f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13)).x
+		if floor_text != "":
+			w += EditorUi.px(6) + f.get_string_size(floor_text, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11)).x + EditorUi.px(8)
+		return Vector2(ceilf(w + EditorUi.px(2)), maxf(_d(), EditorUi.fs(13) + EditorUi.px(8)))
+
+	func _draw() -> void:
+		var f := _font()
+		var d := _d()
+		var cy := size.y * 0.5
+		var c := Vector2(d * 0.5, cy)
+		if agent:
+			CollabView.draw_claude_icon(self, c, d * 0.5, color, Color.WHITE)
+		else:
+			draw_circle(c, d * 0.5, color)
+			var fs0 := EditorUi.fs(12)
+			var iw := f.get_string_size(initial, HORIZONTAL_ALIGNMENT_LEFT, -1, fs0).x
+			draw_string(f, Vector2(c.x - iw * 0.5, cy + fs0 * 0.36), initial, HORIZONTAL_ALIGNMENT_LEFT, -1, fs0, Color(0.06, 0.06, 0.07))
+		if me:
+			draw_arc(c, d * 0.5 + 1.0, 0, TAU, 24, Color(1, 1, 1, 0.85), 1.5, true)
+		var fs := EditorUi.fs(13)
+		var x := d + EditorUi.px(5)
+		draw_string(f, Vector2(x, cy + fs * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
+		if floor_text != "":
+			x += f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + EditorUi.px(6)
+			var fs2 := EditorUi.fs(11)
+			var tw := f.get_string_size(floor_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x
+			var box := Rect2(x, cy - (fs2 + EditorUi.px(4)) * 0.5, tw + EditorUi.px(8), fs2 + EditorUi.px(4))
+			draw_rect(box, Color(color, 0.18))
+			draw_rect(box, Color(color, 0.6), false, 1.0)
+			draw_string(f, Vector2(x + EditorUi.px(4), cy + fs2 * 0.36), floor_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, UiStyle.BONE)

@@ -35,6 +35,15 @@ var collab: MapCollab
 var agent_link: MapAgentLink
 ## Menu Collaboration et participants (CollabPanel).
 var collab_ui: CollabPanel
+## Rendu de la collaboration sur le plan (curseurs, sélections, aperçus,
+## lots de Claude…, CollabView).
+var collab_view: CollabView
+## Aperçu en direct envoyé aux autres pendant un glissement (presence.live :
+## {coll, el}) ; vide sinon.
+var live: Dictionary = {}
+var _live_ms := -1000000
+## Aperçu en direct : 10 envois par seconde au plus.
+const LIVE_EVERY_MS := 100
 ## Carte d'avant le changement en cours (push_undo) : le diff est calculé et
 ## inscrit par changed().
 var _before: Dictionary = {}
@@ -552,9 +561,49 @@ func show_cursor(m: Vector2) -> void:
 	var fr := not Lang.is_en()
 	var s := canvas.snap(m)
 	cursor_label.text = "x %s m · y %s m · %s %d" % [MapRules._m(snappedf(s.x, 0.01), fr), MapRules._m(snappedf(s.y, 0.01), fr), Lang.t("étage", "floor"), floor_k]
-	if collab != null and collab.is_session():
-		collab.set_presence({"cursor": [snappedf(m.x, 0.01), snappedf(m.y, 0.01)], "floor": floor_k,
-			"selection": [selected] if selected != "" else [], "tool": tool()})
+	_cursor_m = m
+	send_presence()
+
+
+var _cursor_m := Vector2.ZERO
+
+
+## Présence de cet éditeur pour les autres (curseur, étage, sélection, outil,
+## aperçu en direct) ; MapCollab l'envoie au plus 10 fois par seconde.
+func send_presence() -> void:
+	if collab == null or not collab.is_session():
+		return
+	var p := {"cursor": [snappedf(_cursor_m.x, 0.01), snappedf(_cursor_m.y, 0.01)], "floor": floor_k,
+		"selection": [selected] if selected != "" else [], "tool": tool()}
+	if not live.is_empty():
+		p["live"] = live
+	collab.set_presence(p)
+
+
+## Aperçu en direct de l'élément `eid` qu'on glisse (MapCanvas), envoyé au
+## plus toutes les LIVE_EVERY_MS ms ; `eid` vide : aperçu retiré (relâché).
+## Rend true si une présence a été préparée. `now_ms` : horloge (tests).
+func send_live(eid: String, now_ms := -1) -> bool:
+	if collab == null or not collab.is_session():
+		live = {}
+		return false
+	if eid == "":
+		if live.is_empty():
+			return false
+		live = {}
+		_live_ms = -1000000
+		send_presence()
+		return true
+	var now := now_ms if now_ms >= 0 else Time.get_ticks_msec()
+	if now - _live_ms < LIVE_EVERY_MS:
+		return false
+	var e := doc.find(eid)
+	if e.is_empty():
+		return false
+	_live_ms = now
+	live = {"coll": CollabView.coll_of(doc, eid), "el": e.duplicate(true)}
+	send_presence()
+	return true
 
 
 ## Mode d'aimantation changé (MapCanvas) : bouton de la barre du haut.
@@ -905,6 +954,24 @@ func redo() -> void:
 	set_status(Lang.t("Rétabli : %s", "Redone: %s") % String(collab.history.entry(String(r.redo)).get("label", "")) + ("  —  " + conflict if conflict != "" else ""), conflict != "")
 
 
+## « Annuler cette action » du panneau Historique : une de mes entrées ou
+## de mon Claude (même règle de conflit que Ctrl+Z). Rend le résultat de
+## MapCollab.request_undo_of ({} si impossible).
+func undo_entry(cid: String) -> Dictionary:
+	canvas.cancel()
+	_commit_change()
+	var r := collab.request_undo_of(cid)
+	if r.is_empty():
+		set_status(Lang.t("Cette action ne peut plus être annulée", "This action can no longer be undone"), true)
+		return r
+	if r.has("queued"):
+		set_status(Lang.t("Annulation dès la confirmation de l'hôte…", "Undo as soon as the host confirms…"))
+		return r
+	var conflict := collab.conflict_text(r)
+	set_status(Lang.t("Annulé : %s", "Undone: %s") % String(collab.history.entry(cid).get("label", "")) + ("  —  " + conflict if conflict != "" else ""), conflict != "")
+	return r
+
+
 # ------------------------------------------------------------------ collaboration
 
 func _setup_collab() -> void:
@@ -923,6 +990,11 @@ func _setup_collab() -> void:
 	collab_ui.name = "CollabUi"
 	add_child(collab_ui)
 	collab_ui.setup(self)
+	collab_view = CollabView.new()
+	collab_view.name = "CollabView"
+	add_child(collab_view)
+	collab_view.setup(self)
+	panels.history.setup(self)
 	# Claude (MCP) : jamais en mode sans affichage ni en autotest (tests,
 	# scénarios : le port 7791 reste à l'éditeur du joueur) ; sinon selon
 	# l'option, cochée par défaut.
@@ -990,24 +1062,20 @@ func _on_map_replaced() -> void:
 	canvas.queue_redraw()
 
 
-## Lot de Claude (apply avec animate) : version simple, les éléments posés
-## sont cadrés et le premier choisi ; le rendu riche (apparition un par un,
-## contour pulsé) se branchera sur MapAgentLink.animate_requested.
+## Lot de Claude (apply avec animate) : déjà sur la carte et dans
+## l'historique en entier ; les éléments apparaissent un par un sur le plan
+## (CollabView), bulle « Claude : <label> ».
 func _on_agent_animate(ids: Array, label: String) -> void:
 	if ids.is_empty():
 		return
-	if doc.find(String(ids[0])).has("etage"):
-		focus_element(String(ids[0]))
+	collab_view.animate(ids, label)
 	set_status(Lang.t("Claude : %s", "Claude: %s") % label)
 
 
-## Commande highlight de Claude : montre des éléments (version simple :
-## choisis et cadrés, message dans la barre d'état).
+## Commande highlight de Claude : contour pulsé et bulle avec le message,
+## vue amenée sur les éléments s'ils sont hors champ (CollabView).
 func agent_highlight(ids: Array, message: String) -> void:
-	if not ids.is_empty():
-		var e := doc.find(String(ids[0]))
-		if e.has("etage"):
-			zoom_to_element(String(ids[0]))
+	collab_view.highlight(ids, message)
 	set_status(Lang.t("Claude : %s", "Claude: %s") % message if message != "" else Lang.t("Claude montre %d élément(s)", "Claude shows %d element(s)") % ids.size())
 
 
@@ -1025,6 +1093,7 @@ func select(eid: String) -> void:
 	panels.refresh()
 	object_list.refresh_rows()
 	canvas.queue_redraw()
+	send_presence()
 
 
 ## Survol d'un élément sur la carte : sa ligne est surlignée dans la liste des
@@ -1556,6 +1625,7 @@ func set_floor(k: int) -> void:
 	panels.refresh()
 	_update_title()
 	canvas.queue_redraw()
+	send_presence()
 
 
 func add_floor() -> void:
@@ -1619,6 +1689,9 @@ func _reset(d: EditorMap) -> void:
 	_hit_dirty = true
 	_before = {}
 	collab.reset_doc(d)
+	if collab_view != null:
+		collab_view.clear()
+		panels.history.mark_dirty()
 	if agent_link != null:
 		agent_link.write_file()
 	selected = ""

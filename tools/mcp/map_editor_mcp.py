@@ -436,8 +436,8 @@ TOOLS = [
                        "Contrôle chevauchements et ouvertures existantes, signale les écarts aux règles (§ 3.2). "
                        "Relire puis passer les ops à editor_apply avec le label proposé.",
         "inputSchema": {"type": "object", "properties": {
-            "room_a": {"type": "string", "description": "Id de la pièce de départ (p1…)."},
-            "room_b": {"type": "string", "description": "Id de la pièce d'arrivée."},
+            "room_a": {"type": "string", "description": "Pièce de départ : id (p1…) ou nom (casse et accents ignorés)."},
+            "room_b": {"type": "string", "description": "Pièce d'arrivée : id ou nom."},
             "width": {"type": "number", "minimum": 1, "maximum": 6, "default": 2.5,
                       "description": "Largeur en m (multiple de 0,5 ; couloir principal 2 à 3 m)."},
             "price": {"type": "integer", "minimum": 0, "description": "Prix de la porte côté B (défaut : 750/1000/1250 selon les portes déjà posées)."},
@@ -578,7 +578,7 @@ class Tools:
     def t_plan_corridor(self, args):
         a, b = args.get("room_a"), args.get("room_b")
         if not isinstance(a, str) or not isinstance(b, str):
-            raise EditorError("room_a et room_b : ids de pièces (texte)")
+            raise EditorError("room_a et room_b : id ou nom de pièce (texte)")
         width = args.get("width", args.get("largeur", 2.5))
         if isinstance(width, bool) or not isinstance(width, (int, float)):
             raise EditorError("width : nombre (m)")
