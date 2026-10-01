@@ -63,6 +63,11 @@ var entry: Dictionary = {}
 var _snap_exclude := ""
 ## Pixels de la poignée de rotation au-dessus de l'élément choisi.
 const ROT_HANDLE_PX := 30.0
+## Vue dessinée hors écran (capture du plan pour Claude, MapAgentLink) : ni
+## outil, ni sélection, ni curseurs ; étage `floor_override` (-1 : celui de
+## l'éditeur).
+var offscreen := false
+var floor_override := -1
 
 
 ## Longueurs d'interface de la vue (règles, poignées, étiquettes, cotes) à la
@@ -81,6 +86,9 @@ func _hsz() -> float:
 
 func _ready() -> void:
 	clip_contents = true
+	if offscreen:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return
 	focus_mode = Control.FOCUS_CLICK
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_exited.connect(func():
@@ -94,6 +102,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if offscreen:
+		return
 	if _refusal_t > 0.0:
 		_refusal_t -= delta
 		if _refusal_t <= 0.0:
@@ -517,6 +527,7 @@ func zoom_by(f: float) -> void:
 ## Annule le tracé ou le glissement en cours.
 func cancel() -> void:
 	if drag.get("kind", "") in ["move", "handle", "rotate"]:
+		ed.send_live("")
 		ed.doc.restore(drag.snap)
 		ed.changed()
 	drag = {}
@@ -601,6 +612,7 @@ func _release() -> void:
 			return   # saisie au clavier en cours : Entrée termine
 		_finish_create(end)
 	elif kind in ["move", "handle", "rotate"]:
+		ed.send_live("")
 		if drag.moved:
 			ed.push_undo_snapshot(drag.snap)
 			ed.changed()
@@ -765,6 +777,7 @@ func _drag_update() -> void:
 		var res := ed.try_move(orig, drag.attached, delta, drag.snap)
 		if res.ok:
 			drag.moved = drag.moved or delta.length() > 0.001
+			ed.send_live(String(orig.id))
 		elif delta.length() > 0.001:
 			refusal = MapRules.why(res)
 			_refusal_t = 1.5
@@ -772,6 +785,7 @@ func _drag_update() -> void:
 		var res := ed.try_handle(orig, int(drag.handle), snap(mouse_m), drag.snap)
 		if res.ok:
 			drag.moved = true
+			ed.send_live(String(orig.id))
 		else:
 			refusal = MapRules.why(res)
 			_refusal_t = 1.5
@@ -787,6 +801,7 @@ func _drag_update() -> void:
 			drag.moved = true
 			drag.deg = deg
 			ed.moved_live()
+			ed.send_live(String(orig.id))
 			ed.set_status(Lang.t("Rotation : %d°", "Rotation: %d°") % MapGeom.norm_deg(deg))
 		else:
 			refusal = MapRules.why(res)
@@ -842,8 +857,10 @@ func _draw() -> void:
 	draw_rect(Rect2(tl.max(Vector2.ZERO), size - tl.max(Vector2.ZERO)), COL_TERRAIN)
 	_draw_grid()
 	var doc := ed.doc
-	var k := ed.floor_k
+	var k := ed.floor_k if floor_override < 0 else floor_override
 	var font := UiStyle.font("body")
+	# Éléments d'un lot de Claude pas encore apparus (CollabView) : pas dessinés.
+	var hid: Dictionary = ed.collab_view.hidden if ed.collab_view != null and not offscreen else {}
 	# Étage du dessous en transparence.
 	if ed.ghost_below and k > 0:
 		for p in doc.rooms_on(k - 1):
@@ -852,11 +869,15 @@ func _draw() -> void:
 			draw_polyline(poly + PackedVector2Array([poly[0]]), Color(0.6, 0.7, 1.0, 0.35), 1.0)
 	# Pièces (couleur de leur zone).
 	for p in doc.rooms_on(k):
+		if hid.has(String(p.id)):
+			continue
 		var poly := _px_poly(doc.room_poly(p))
 		if poly.size() >= 3:
 			_fill(poly, ed.zone_color(String(p.get("zone", ""))))
 	# Grille du validateur : murs générés, vides, ouvertures.
 	_draw_cells(k)
+	if not hid.is_empty():
+		_mask_hidden(hid, k)
 	# Escaliers de l'étage du dessous : ils arrivent ici.
 	if k > 0:
 		for o in doc.objects_on(k - 1):
@@ -864,12 +885,16 @@ func _draw() -> void:
 				_draw_object(o, font, 0.45)
 	# Objets.
 	for o in doc.objects_on(k):
-		_draw_object(o, font, 1.0)
+		if not hid.has(String(o.id)):
+			_draw_object(o, font, 1.0)
 	for o in doc.openings_on(k):
-		_draw_opening(o, font)
+		if not hid.has(String(o.id)):
+			_draw_opening(o, font)
 	# Noms des pièces.
 	if zoom >= 8.0:
 		for p in doc.rooms_on(k):
+			if hid.has(String(p.id)):
+				continue
 			var poly := doc.room_poly(p)
 			var c := to_px(MapGeom.centroid(poly))
 			var nm := String(p.get("nom", ""))
@@ -885,11 +910,14 @@ func _draw() -> void:
 	# Éléments devenus invalides (après un déplacement de pièce...).
 	for eid in ed.invalid:
 		var e := doc.find(eid)
-		if e.is_empty() or int(e.get("etage", 0)) != k:
+		if e.is_empty() or int(e.get("etage", 0)) != k or hid.has(String(eid)):
 			continue
 		var r := _elem_rect_px(e)
 		draw_rect(r.grow(3), COL_BAD, false, 2.0)
 		draw_string(font, r.position + Vector2(r.size.x + _u(4), _u(12)), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(16), COL_BAD)
+	if offscreen:
+		_draw_rulers(font)
+		return
 	# Sélection et poignées.
 	var sel := doc.find(ed.selected)
 	if not sel.is_empty() and int(sel.get("etage", 0)) == k:
@@ -926,7 +954,57 @@ func _draw() -> void:
 	# Aperçu 3D : repère de sa caméra (MapPreviewPanel).
 	if ed.preview != null:
 		ed.preview.draw_on_canvas(self)
+	_draw_peers(font, k)
 	_draw_rulers(font)
+
+
+## Rendu de la collaboration par-dessus le plan (CollabView) : aperçus en
+## direct et sélections des autres, clignotements, lots et highlight de
+## Claude, survol du panneau Historique, curseurs, bulle.
+func _draw_peers(font: Font, k: int) -> void:
+	if ed.collab_view != null:
+		ed.collab_view.draw_on(self, font, k)
+
+
+## Murs générés (grille du validateur) des pièces d'un lot de Claude pas
+## encore apparues : recouverts par le terrain le temps de l'apparition.
+func _mask_hidden(hid: Dictionary, k: int) -> void:
+	for p in ed.doc.rooms_on(k):
+		if not hid.has(String(p.id)):
+			continue
+		for poly in Geometry2D.offset_polygon(ed.doc.room_poly(p), MapGeom.CELL * 0.5 + 0.01, Geometry2D.JOIN_MITER):
+			_fill(_px_poly(poly), COL_TERRAIN)
+
+
+## Rectangle (m) d'un élément : pièce, ouverture (carré de sa largeur) ou objet.
+func elem_rect_m(e: Dictionary) -> Rect2:
+	if e.has("contour"):
+		return MapGeom.bbox(ed.doc.room_poly(e))
+	if String(e.get("type", "")) in MapRules.ouvertures_types():
+		var p := MapGeom.v2(e.position)
+		var w := MapRules.opening_width(e)
+		return Rect2(p - Vector2(w, w) * 0.5, Vector2(w, w))
+	return MapRules.footprint_rect(e)
+
+
+## Contour d'un élément (forme exacte, sinon son rectangle) de `width` px,
+## écarté de `grow` px pour un rectangle.
+func outline_elem(e: Dictionary, col: Color, width: float, grow: float) -> void:
+	var outline := _outline_of(e)
+	if outline.size() >= 2:
+		var poly := _px_poly(outline)
+		draw_polyline(poly + PackedVector2Array([poly[0]]), col, width)
+	else:
+		draw_rect(_elem_rect_px(e).grow(grow), col, false, width)
+
+
+## Élément rempli (silhouette d'un aperçu en direct, clignotement).
+func fill_elem(e: Dictionary, col: Color) -> void:
+	var outline := _outline_of(e)
+	if outline.size() >= 3:
+		_fill(_px_poly(outline), col)
+	else:
+		draw_rect(_elem_rect_px(e), col)
 
 
 ## Contour exact d'un élément quand il n'est pas un rectangle droit (pièce,
@@ -975,15 +1053,7 @@ func _px_poly(p: PackedVector2Array) -> PackedVector2Array:
 
 
 func _elem_rect_px(e: Dictionary) -> Rect2:
-	var r := Rect2()
-	if e.has("contour"):
-		r = MapGeom.bbox(ed.doc.room_poly(e))
-	elif String(e.get("type", "")) in MapRules.ouvertures_types():
-		var p := MapGeom.v2(e.position)
-		var w := MapRules.opening_width(e)
-		r = Rect2(p - Vector2(w, w) * 0.5, Vector2(w, w))
-	else:
-		r = MapRules.footprint_rect(e)
+	var r := elem_rect_m(e)
 	return Rect2(to_px(r.position), r.size * zoom)
 
 
@@ -1045,6 +1115,8 @@ func _draw_rulers(font: Font) -> void:
 		y += every
 	draw_rect(Rect2(0, 0, _ruler(), _ruler()), Color(0.07, 0.07, 0.08))
 	draw_string(font, Vector2(_u(3), _u(13)), "m", HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11), Color(1, 1, 1, 0.5))
+	if offscreen:
+		return
 	# Position du curseur sur les règles.
 	var cp := to_px(mouse_m)
 	draw_line(Vector2(cp.x, 0), Vector2(cp.x, _ruler()), COL_SEL, 1.0)

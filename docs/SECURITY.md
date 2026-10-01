@@ -119,6 +119,17 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
    avec des chemins construits par le code (jamais un texte reçu) ; dans un
    `.bat`, doubler les `%`.
 
+### Éditeur collaboratif (docs/MAP_COLLAB.md)
+
+- Transport à part (TCP, lignes JSON de 2 Mo au plus), pas le réseau du jeu.
+  Écoute des invités seulement après Collaboration > Héberger, code de session
+  obligatoire (refus après 5 essais faux par adresse) ; écoute de Claude sur
+  127.0.0.1 seulement, avec le jeton de `agent.json`.
+- Tout lot reçu passe `MapOps.validate` (sinon déconnexion) puis le contrôle
+  des cartes reçues (`MapOps.check_elements`, `CustomMapGuard`) ; JSON
+  seulement (`JSON.parse`), jamais de chemin ni de nom de fichier venu du
+  réseau (« Enregistrer une copie » choisit son dossier lui-même).
+
 ### Fils de travail
 
 - **Aucun état partagé modifiable dans un fil de travail** (`Thread`,

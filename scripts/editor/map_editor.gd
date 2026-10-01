@@ -4,8 +4,10 @@ extends Control
 ## inventaire façon Minecraft (barre rapide de 9 cases + inventaire complet,
 ## MapHotbar / MapInventory), panneaux (MapPanels : propriétés, pièces, zones,
 ## étages, vérification), fichiers (dossier de cinq JSON, archive .zip),
-## annuler / rétablir, sauvegarde automatique, bouton Tester (partie solo sur
-## la carte éditée). Lançable depuis le menu principal ou directement :
+## annuler / rétablir (par auteur, MapHistory), sauvegarde automatique, bouton
+## Tester (partie solo sur la carte éditée), édition à plusieurs et avec
+## Claude (menu Collaboration : MapCollab, MapAgentLink, docs/MAP_COLLAB.md).
+## Lançable depuis le menu principal ou directement :
 ##   godot --path . res://scenes/editor/map_editor.tscn
 
 const SCENE := "res://scenes/editor/map_editor.tscn"
@@ -16,14 +18,35 @@ const PANEL_W := 340.0
 static var reopen_dir := ""
 static var reopen_example := false
 
-var doc: EditorMap
+var doc: EditorMap:
+	set(v):
+		doc = v
+		if collab != null:
+			collab.doc = v
 ## Dossier d'enregistrement ("" : jamais enregistrée).
 var map_dir := ""
 ## Ouverte depuis un exemple livré (assets/maps/) : Enregistrer en fait une copie.
 var example := false
 var dirty := false
-var undo_stack: Array = []
-var redo_stack: Array = []
+## Session d'édition (docs/MAP_COLLAB.md) : seul, hôte ou invité ; tient
+## l'historique (MapHistory, annuler / rétablir par auteur).
+var collab: MapCollab
+## Liaison avec Claude (serveur MCP local, MapAgentLink) ; null si refusée.
+var agent_link: MapAgentLink
+## Menu Collaboration et participants (CollabPanel).
+var collab_ui: CollabPanel
+## Rendu de la collaboration sur le plan (curseurs, sélections, aperçus,
+## lots de Claude…, CollabView).
+var collab_view: CollabView
+## Aperçu en direct envoyé aux autres pendant un glissement (presence.live :
+## {coll, el}) ; vide sinon.
+var live: Dictionary = {}
+var _live_ms := -1000000
+## Aperçu en direct : 10 envois par seconde au plus.
+const LIVE_EVERY_MS := 100
+## Carte d'avant le changement en cours (push_undo) : le diff est calculé et
+## inscrit par changed().
+var _before: Dictionary = {}
 var floor_k := 0
 var selected := ""
 var clipboard: Dictionary = {}
@@ -100,6 +123,7 @@ func _ready() -> void:
 	Settings.editor_ui_scale_changed.connect(func(_v): apply_ui_scale())
 	get_tree().root.close_requested.connect(_on_close_requested)
 	doc = EditorMap.blank()
+	_setup_collab()
 	_start.call_deferred()
 
 
@@ -537,6 +561,49 @@ func show_cursor(m: Vector2) -> void:
 	var fr := not Lang.is_en()
 	var s := canvas.snap(m)
 	cursor_label.text = "x %s m · y %s m · %s %d" % [MapRules._m(snappedf(s.x, 0.01), fr), MapRules._m(snappedf(s.y, 0.01), fr), Lang.t("étage", "floor"), floor_k]
+	_cursor_m = m
+	send_presence()
+
+
+var _cursor_m := Vector2.ZERO
+
+
+## Présence de cet éditeur pour les autres (curseur, étage, sélection, outil,
+## aperçu en direct) ; MapCollab l'envoie au plus 10 fois par seconde.
+func send_presence() -> void:
+	if collab == null or not collab.is_session():
+		return
+	var p := {"cursor": [snappedf(_cursor_m.x, 0.01), snappedf(_cursor_m.y, 0.01)], "floor": floor_k,
+		"selection": [selected] if selected != "" else [], "tool": tool()}
+	if not live.is_empty():
+		p["live"] = live
+	collab.set_presence(p)
+
+
+## Aperçu en direct de l'élément `eid` qu'on glisse (MapCanvas), envoyé au
+## plus toutes les LIVE_EVERY_MS ms ; `eid` vide : aperçu retiré (relâché).
+## Rend true si une présence a été préparée. `now_ms` : horloge (tests).
+func send_live(eid: String, now_ms := -1) -> bool:
+	if collab == null or not collab.is_session():
+		live = {}
+		return false
+	if eid == "":
+		if live.is_empty():
+			return false
+		live = {}
+		_live_ms = -1000000
+		send_presence()
+		return true
+	var now := now_ms if now_ms >= 0 else Time.get_ticks_msec()
+	if now - _live_ms < LIVE_EVERY_MS:
+		return false
+	var e := doc.find(eid)
+	if e.is_empty():
+		return false
+	_live_ms = now
+	live = {"coll": CollabView.coll_of(doc, eid), "el": e.duplicate(true)}
+	send_presence()
+	return true
 
 
 ## Mode d'aimantation changé (MapCanvas) : bouton de la barre du haut.
@@ -784,18 +851,38 @@ func zone_color(zid: String) -> Color:
 	return Color(c, 0.3)
 
 
-## Annuler : pile de copies complètes de la carte (illimitée).
+## Annuler : la carte d'avant est mémorisée ici ; changed() calcule le diff
+## (MapOps) et l'inscrit dans l'historique de la session (MapHistory, par
+## auteur), qui l'envoie aux autres éditeurs. Plusieurs push_undo avant le
+## même changed() : la plus ancienne carte compte.
 func push_undo() -> void:
 	push_undo_snapshot(doc.snapshot())
 
 
 func push_undo_snapshot(s: Dictionary) -> void:
-	undo_stack.append(s)
-	redo_stack.clear()
+	if _before.is_empty():
+		_before = s
+
+
+## Changement en cours (push_undo puis modification) inscrit dans
+## l'historique s'il a vraiment changé la carte.
+func _commit_change() -> void:
+	if _before.is_empty() or collab == null:
+		return
+	var before := _before
+	_before = {}
+	var ops := MapOps.diff(before, doc)
+	if not ops.is_empty():
+		collab.submit_local(ops, MapOps.describe(ops, before), before)
 
 
 ## Après une modification : grille, vérification, dessin, panneaux.
 func changed(rebuild_panels := true) -> void:
+	_commit_change()
+	_refresh(rebuild_panels)
+
+
+func _refresh(rebuild_panels := true) -> void:
 	dirty = true
 	_hit_dirty = true
 	_raster_dirty = true
@@ -834,31 +921,167 @@ func _update_invalid() -> void:
 	MapRules.end_batch()
 
 
+## Ctrl+Z : annule ma dernière action encore active ou celle de mon Claude
+## (la plus récente des deux) ; un élément modifié entre-temps par un autre
+## participant n'est pas touché (message).
 func undo() -> void:
-	if undo_stack.is_empty():
+	canvas.cancel()
+	_commit_change()
+	var r := collab.request_undo()
+	if r.is_empty():
 		set_status(Lang.t("Rien à annuler", "Nothing to undo"))
 		return
-	canvas.cancel()
-	redo_stack.append(doc.snapshot())
-	doc.restore(undo_stack.pop_back())
-	floor_k = mini(floor_k, doc.floor_count() - 1)
-	changed()
-	set_status(Lang.t("Annulé (%d étape(s) restante(s))", "Undone (%d step(s) left)") % undo_stack.size())
+	if r.has("queued"):
+		set_status(Lang.t("Annulation dès la confirmation de l'hôte…", "Undo as soon as the host confirms…"))
+		return
+	var e := collab.history.entry(String(r.undo))
+	var conflict := collab.conflict_text(r)
+	var txt := Lang.t("Annulé : %s (%d étape(s) restante(s))", "Undone: %s (%d step(s) left)") % [String(e.get("label", "")), collab.history.undo_count(collab.my_id)]
+	set_status(txt + ("  —  " + conflict if conflict != "" else ""), conflict != "")
 
 
 func redo() -> void:
-	if redo_stack.is_empty():
+	canvas.cancel()
+	_commit_change()
+	var r := collab.request_redo()
+	if r.is_empty():
 		set_status(Lang.t("Rien à rétablir", "Nothing to redo"))
 		return
+	if r.has("queued"):
+		set_status(Lang.t("Rétablissement dès la confirmation de l'hôte…", "Redo as soon as the host confirms…"))
+		return
+	var conflict := collab.conflict_text(r)
+	set_status(Lang.t("Rétabli : %s", "Redone: %s") % String(collab.history.entry(String(r.redo)).get("label", "")) + ("  —  " + conflict if conflict != "" else ""), conflict != "")
+
+
+## « Annuler cette action » du panneau Historique : une de mes entrées ou
+## de mon Claude (même règle de conflit que Ctrl+Z). Rend le résultat de
+## MapCollab.request_undo_of ({} si impossible).
+func undo_entry(cid: String) -> Dictionary:
 	canvas.cancel()
-	undo_stack.append(doc.snapshot())
-	doc.restore(redo_stack.pop_back())
+	_commit_change()
+	var r := collab.request_undo_of(cid)
+	if r.is_empty():
+		set_status(Lang.t("Cette action ne peut plus être annulée", "This action can no longer be undone"), true)
+		return r
+	if r.has("queued"):
+		set_status(Lang.t("Annulation dès la confirmation de l'hôte…", "Undo as soon as the host confirms…"))
+		return r
+	var conflict := collab.conflict_text(r)
+	set_status(Lang.t("Annulé : %s", "Undone: %s") % String(collab.history.entry(cid).get("label", "")) + ("  —  " + conflict if conflict != "" else ""), conflict != "")
+	return r
+
+
+# ------------------------------------------------------------------ collaboration
+
+func _setup_collab() -> void:
+	collab = MapCollab.new(doc)
+	collab.name = "Collab"
+	collab.my_name = CollabPanel.default_name()
+	collab._reset_peers()
+	add_child(collab)
+	collab.applied.connect(_on_collab_applied)
+	collab.map_replaced.connect(_on_map_replaced)
+	collab.message.connect(func(t, err): set_status(t, err))
+	collab.presence_changed.connect(func(_p): canvas.queue_redraw())
+	collab.peers_changed.connect(canvas.queue_redraw)
+	collab.saved.connect(func(by): set_status(Lang.t("Carte enregistrée par %s (hôte)", "Map saved by %s (host)") % by))
+	collab_ui = CollabPanel.new()
+	collab_ui.name = "CollabUi"
+	add_child(collab_ui)
+	collab_ui.setup(self)
+	collab_view = CollabView.new()
+	collab_view.name = "CollabView"
+	add_child(collab_view)
+	collab_view.setup(self)
+	panels.history.setup(self)
+	# Claude (MCP) : jamais en mode sans affichage ni en autotest (tests,
+	# scénarios : le port 7791 reste à l'éditeur du joueur) ; sinon selon
+	# l'option, cochée par défaut.
+	if DisplayServer.get_name() != "headless" and not AutotestMode.is_running() and bool(pref("collab_claude", true)):
+		set_claude_allowed(true, false)
+
+
+## Option « Autoriser Claude (MCP) » : démarre ou arrête l'écoute locale.
+func set_claude_allowed(on: bool, remember := true) -> void:
+	if remember:
+		set_pref("collab_claude", on)
+	if on and agent_link == null:
+		agent_link = MapAgentLink.new()
+		agent_link.name = "AgentLink"
+		agent_link.collab = collab
+		agent_link.editor = self
+		add_child(agent_link)
+		agent_link.animate_requested.connect(_on_agent_animate)
+		if agent_link.start() != OK:
+			set_status(Lang.t("Claude (MCP) : aucun port libre de 7791 à 7799", "Claude (MCP): no free port from 7791 to 7799"), true)
+	elif not on and agent_link != null:
+		agent_link.stop()
+		agent_link.queue_free()
+		agent_link = null
+	if remember:
+		set_status(Lang.t("Claude (MCP) autorisé : écoute sur 127.0.0.1, port %d", "Claude (MCP) allowed: listening on 127.0.0.1, port %d") % agent_link.port
+			if agent_link != null else Lang.t("Claude (MCP) désactivé", "Claude (MCP) disabled"))
+
+
+## La session a changé la carte (autre participant, annulation, Claude) :
+## les copies tenues ici (carte d'avant un changement en cours, glissement)
+## reçoivent le même état, puis tout est redessiné.
+func _on_collab_applied(ops: Array, author: String, label: String, local: bool) -> void:
+	if not _before.is_empty():
+		MapOps.apply(_before, ops)
+	if canvas.drag.has("snap"):
+		MapOps.apply(canvas.drag.snap, ops)
 	floor_k = mini(floor_k, doc.floor_count() - 1)
-	changed()
-	set_status(Lang.t("Rétabli", "Redone"))
+	_refresh()
+	if not local and label != "":
+		set_status("%s : %s" % [collab.peer_name(author), label])
+	elif local and MapHistory.is_agent(author):
+		set_status(label)
+
+
+## Carte entière reçue (arrivée dans une session, rattrapage).
+func _on_map_replaced() -> void:
+	_before = {}
+	# Glissement en cours abandonné SANS remettre sa copie (l'ancienne carte).
+	canvas.drag = {}
+	canvas.cancel()
+	floor_k = mini(floor_k, doc.floor_count() - 1)
+	if collab.role == MapCollab.Role.GUEST:
+		map_dir = ""
+		example = false
+	if doc.find(selected).is_empty():
+		selected = ""
+	_hit_dirty = true
+	_raster_dirty = true
+	validation_stale = true
+	_update_invalid()
+	panels.refresh()
+	object_list.mark_dirty()
+	_update_title()
+	canvas.queue_redraw()
+
+
+## Lot de Claude (apply avec animate) : déjà sur la carte et dans
+## l'historique en entier ; les éléments apparaissent un par un sur le plan
+## (CollabView), bulle « Claude : <label> ».
+func _on_agent_animate(ids: Array, label: String) -> void:
+	if ids.is_empty():
+		return
+	collab_view.animate(ids, label)
+	set_status(Lang.t("Claude : %s", "Claude: %s") % label)
+
+
+## Commande highlight de Claude : contour pulsé et bulle avec le message,
+## vue amenée sur les éléments s'ils sont hors champ (CollabView).
+func agent_highlight(ids: Array, message: String) -> void:
+	collab_view.highlight(ids, message)
+	set_status(Lang.t("Claude : %s", "Claude: %s") % message if message != "" else Lang.t("Claude montre %d élément(s)", "Claude shows %d element(s)") % ids.size())
 
 
 func select(eid: String) -> void:
+	if agent_link != null and eid != selected:
+		agent_link.notify_selection([eid] if eid != "" else [])
 	selected = eid
 	var e := doc.find(eid)
 	if not e.is_empty() and e.has("etage") and int(e.etage) != floor_k:
@@ -870,6 +1093,7 @@ func select(eid: String) -> void:
 	panels.refresh()
 	object_list.refresh_rows()
 	canvas.queue_redraw()
+	send_presence()
 
 
 ## Survol d'un élément sur la carte : sa ligne est surlignée dans la liste des
@@ -1401,6 +1625,7 @@ func set_floor(k: int) -> void:
 	panels.refresh()
 	_update_title()
 	canvas.queue_redraw()
+	send_presence()
 
 
 func add_floor() -> void:
@@ -1462,8 +1687,13 @@ func focus_problem(m: Dictionary) -> void:
 func _reset(d: EditorMap) -> void:
 	doc = d
 	_hit_dirty = true
-	undo_stack.clear()
-	redo_stack.clear()
+	_before = {}
+	collab.reset_doc(d)
+	if collab_view != null:
+		collab_view.clear()
+		panels.history.mark_dirty()
+	if agent_link != null:
+		agent_link.write_file()
 	selected = ""
 	hover_id = ""
 	floor_k = 0
@@ -1508,6 +1738,9 @@ func open_example(ex_id: String) -> void:
 
 ## Enregistre (dans son dossier, sinon dans user://maps/<id>/).
 func save() -> bool:
+	# Invité d'une session : seul l'hôte enregistre le dossier de la carte.
+	if collab != null and collab.role == MapCollab.Role.GUEST:
+		return save_copy()
 	if map_dir == "" or example:
 		var mid := doc.id()
 		if example or mid == "nouvelle_carte" or mid == "":
@@ -1522,6 +1755,23 @@ func save() -> bool:
 	_add_recent(map_dir)
 	_update_title()
 	set_status(Lang.t("Enregistrée dans %s", "Saved to %s") % map_dir)
+	collab.notify_saved()
+	return true
+
+
+## Invité : copie de la carte de la session dans un nouveau dossier à lui
+## (la session continue, le dossier de l'hôte n'est pas touché).
+func save_copy() -> bool:
+	var mid := _free_id(EditorMap.slug(doc.id() + "_copie"))
+	var dir := EditorMap.map_dir(mid)
+	var copy := doc.duplicate_map()
+	copy.carte["id"] = mid
+	var err := copy.save_dir(dir)
+	if err != OK:
+		set_status(Lang.t("Échec de l'enregistrement (%s)", "Save failed (%s)") % error_string(err), true)
+		return false
+	_add_recent(dir)
+	set_status(Lang.t("Copie enregistrée dans %s (seul l'hôte enregistre la carte de la session)", "Copy saved to %s (only the host saves the session map)") % dir)
 	return true
 
 
@@ -1718,7 +1968,8 @@ static func _autosave_dir() -> String:
 
 ## Sauvegarde automatique (toutes les 60 s et à la fermeture) si la carte a changé.
 func autosave() -> void:
-	if not dirty:
+	# Invité : la carte de la session est chez l'hôte (sa sauvegarde à lui).
+	if not dirty or (collab != null and collab.role == MapCollab.Role.GUEST):
 		return
 	var dir := _autosave_dir()
 	if doc.save_dir(dir) != OK:
@@ -1812,6 +2063,10 @@ func quit_to_menu() -> void:
 ## TESTER : vérifie, enregistre, puis lance une partie solo sur la carte ; la
 ## fin de partie ramène dans l'éditeur, sur la même carte.
 func test_map() -> bool:
+	if collab.role == MapCollab.Role.GUEST:
+		_info(Lang.t("Tester", "Play test"), Lang.t("Invité d'une session : enregistrez une copie (Fichier), quittez la session, puis ouvrez la copie pour la tester.",
+			"Guest of a session: save a copy (File), leave the session, then open the copy to test it."))
+		return false
 	validate()
 	panels.show_tab("check")
 	if not validator.ok():

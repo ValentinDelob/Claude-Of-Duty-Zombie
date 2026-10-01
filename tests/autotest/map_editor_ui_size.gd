@@ -5,7 +5,8 @@ extends AutotestScenario
 ## (défaut), 60 % et 150 % : barre du haut dans la largeur (sur deux lignes
 ## au besoin) sans contrôles qui se chevauchent, liste, plan et panneaux côte
 ## à côte dans la fenêtre, barre rapide, inventaire et aide « ? » dans la vue
-## ou la fenêtre ; polices et panneaux à la bonne taille ; le zoom du plan ne
+## ou la fenêtre ; pastilles des participants de la collaboration dans la
+## barre ; polices et panneaux à la bonne taille ; le zoom du plan ne
 ## change pas et le plan ne bouge pas à l'écran. Puis le bouton ⚙ : options
 ## ouvertes sur la taille de l'interface, ► l'agrandit en direct derrière le
 ## voile, Échap : retour à l'éditeur (les touches ne vont pas à l'éditeur).
@@ -31,7 +32,14 @@ func run() -> void:
 	ed.object_list.set_expanded(true)
 	cv.frame_all()
 	ed.select(String(ed.doc.pieces[0].id))
+	# Pastilles de la collaboration (deux invités, dont un sur un autre
+	# étage, et Claude) : la barre passe à la ligne sans chevauchement.
+	ed.collab.peers["2"] = {"id": "2", "name": "Bérénice", "color": MapCollab.COLORS[1], "kind": "human", "presence": {"cursor": [4.0, 4.0], "floor": 1}}
+	ed.collab.peers["3"] = {"id": "3", "name": "Bob", "color": MapCollab.COLORS[2], "kind": "human", "presence": {}}
+	ed.collab.peers["1:claude"] = {"id": "1:claude", "name": "Claude", "color": MapCollab.AGENT_COLOR, "kind": "agent", "presence": {}}
+	ed.collab_ui.refresh()
 	await frames(4)
+	at.check(ed.collab_ui.pills.size() == 4, "quatre pastilles de participants (%d)" % ed.collab_ui.pills.size())
 	var zoom0 := cv.zoom
 	var spot := Vector2(10, 8)
 	var screen0 := cv.global_position + cv.to_px(spot)
