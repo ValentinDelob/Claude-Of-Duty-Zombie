@@ -55,7 +55,7 @@ func run() -> void:
 	at.check(ed.save(), "carte enregistrée")
 	var dir := ed.map_dir
 	var carte = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("carte.json")))
-	at.check(carte is Dictionary and int(carte.get("format", 0)) == EditorMap.FORMAT and EditorMap.FORMAT == 5, "fichier au format 5 (%s)" % str(carte.get("format", "?") if carte is Dictionary else "?"))
+	at.check(carte is Dictionary and int(carte.get("format", 0)) == EditorMap.FORMAT and EditorMap.FORMAT >= 5, "fichier au format courant, 5 et plus (%s)" % str(carte.get("format", "?") if carte is Dictionary else "?"))
 	at.check(FileAccess.get_file_as_string(dir.path_join("objets.json")).contains("bloc_invisible"), "barrière écrite dans objets.json")
 	ed.new_map(true)
 	ed.open_dir(dir)

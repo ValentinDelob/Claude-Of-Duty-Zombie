@@ -96,7 +96,7 @@ func test_catalog_variants_and_barrier_entry() -> void:
 # ------------------------------------------------------------------ JSON
 
 func test_variant_and_barrier_json_round_trip() -> void:
-	assert_eq(EditorMap.FORMAT, 5, "format 5 : variantes et barrière invisible")
+	assert_true(EditorMap.FORMAT >= 5, "format 5 et plus : variantes et barrière invisible (format %d)" % EditorMap.FORMAT)
 	var doc := objects_map()
 	doc.objets[-1]["rot"] = 30
 	doc.objets[-1]["hauteur"] = 2.5
@@ -127,7 +127,7 @@ func test_old_maps_keep_their_look() -> void:
 		o.erase("variante")
 	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
 	var texts := doc.file_texts()
-	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": 5", "\"format\": 4")
+	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 4")
 	var m := EditorMap.from_texts(texts)
 	assert_eq(m.load_errors, [], "format 4 lu sans erreur")
 	assert_eq(m.format_read, 4)
