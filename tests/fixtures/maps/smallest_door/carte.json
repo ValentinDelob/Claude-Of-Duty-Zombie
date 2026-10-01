@@ -1,0 +1,18 @@
+{
+ "format": 8,
+ "id": "smallest_door",
+ "nom": {
+  "fr": "SMALLEST PORTE",
+  "en": "SMALLEST DOOR"
+ },
+ "description": {
+  "fr": "",
+  "en": ""
+ },
+ "musique": "ambience_bunker",
+ "hauteur_portes": 2.5,
+ "lampes_auto": false,
+ "etages": [
+  {"sol":0,"hauteur":3.2}
+ ]
+}

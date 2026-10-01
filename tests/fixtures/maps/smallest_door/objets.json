@@ -1,0 +1,14 @@
+{
+ "objets": [
+  {"type":"luminaire","luminaire":"suspension","couleur":"#ffc88a","intensite":2.2,"portee":10,"courant":true,"vacille":false,"rot":0,"position":[22.1,17.08],"etage":0,"id":"lu1"},
+  {"type":"boite","depart":true,"position":[19.153,15],"mur":"n","etage":0,"id":"b1","angle":0},
+  {"type":"atout","atout":"titan","position":[21.175,15],"mur":"n","etage":0,"id":"a1","angle":0},
+  {"type":"atout","atout":"twin","position":[22.85,15],"mur":"n","etage":0,"id":"a2","angle":0},
+  {"type":"atout","atout":"rapid","position":[25.1,16],"mur":"e","etage":0,"id":"a3","angle":90},
+  {"type":"pap","position":[21.997,19.5],"mur":"s","etage":0,"id":"x1","angle":180},
+  {"type":"atout","atout":"lazarus","position":[23.549,19.5],"mur":"s","angle":180,"etage":0,"id":"a4"},
+  {"type":"courant","position":[17.759,15],"mur":"n","etage":0,"id":"x2","angle":0},
+  {"type":"depart","position":[18.5,18],"etage":0,"id":"s1"},
+  {"type":"arme","arme":"m14","position":[19.784,19.5],"mur":"s","angle":180,"etage":0,"id":"w1","variante":"planche"}
+ ]
+}
