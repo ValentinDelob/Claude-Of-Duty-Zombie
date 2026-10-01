@@ -1076,7 +1076,7 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 	else:
 		match MapCatalog.tool_of(orig):
 			"wall_item":
-				res = MapRules.place_wall_item(doc, k, orig, MapRules.footprint_rect(cand).get_center(), String(orig.id))
+				res = MapRules.place_wall_item(doc, k, orig, MapRules.footprint_rect(cand).get_center(), String(orig.id), canvas.mode_now() != "libre")
 				if res.ok:
 					cand.position = res.position
 					MapRules.apply_wall(cand, res)
@@ -1300,7 +1300,7 @@ func paste() -> void:
 	else:
 		match MapCatalog.tool_of(e):
 			"wall_item":
-				res = MapRules.place_wall_item(doc, floor_k, e, target)
+				res = MapRules.place_wall_item(doc, floor_k, e, target, "", canvas.mode_now() != "libre")
 				if res.ok:
 					e.position = res.position
 					MapRules.apply_wall(e, res)

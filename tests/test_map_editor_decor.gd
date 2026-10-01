@@ -236,8 +236,9 @@ func test_every_prefab_placed_or_refused_by_the_rules() -> void:
 		var tmpl := {"type": "prefab", "prefab": pid, "rot": 0}
 		var r := MapRules.place_floor_item(doc, 0, tmpl, Vector2(10, 10))
 		assert_true(r.ok, "%s posé au milieu d'une pièce : %s" % [pid, r.get("fr", "")])
+		# Format 7 : le décor se pose librement, même à cheval sur un mur.
 		r = MapRules.place_floor_item(doc, 0, tmpl, Vector2(0.05, 10))
-		assert_false(r.ok, "%s contre le mur : refusé" % pid)
+		assert_true(r.ok, "%s à cheval sur le mur : accepté (décor libre) : %s" % [pid, r.get("fr", "")])
 		r = MapRules.place_floor_item(doc, 0, tmpl, Vector2(30, 10))
 		assert_false(r.ok, "%s hors de toute pièce : refusé" % pid)
 	# Chevauchement et rotation.
