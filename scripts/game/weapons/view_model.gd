@@ -23,20 +23,33 @@ const HIP_POS := Vector3(0.25, -0.294, -0.95)
 ## dessus et le flanc gauche de l'arme, la crosse sort par le bas de l'écran).
 const HIP_ROT := Vector3(0.07, 0.06, 0.0)
 ## « Joue » de visée (weapon.gdshader, `vm_bend`) : en visée, ce qui passe
-## plus près de l'œil que les organes de visée (arrière du boîtier, crosse,
-## tube) est abaissé progressivement, de 0 à BEND_DROP m entre la profondeur
-## du cran moins BEND_MARGIN et BEND_END m : la carcasse file vers le bas de
-## l'écran au lieu d'emplir l'image ou de traverser le plan proche de la
-## caméra (comme la joue posée sur la crosse). Le cran et le guidon, plus
-## loin, ne bougent pas : l'alignement de visée est intact.
-const BEND_DROP := 0.2
-const BEND_END := 0.04
-const BEND_MARGIN := 0.03
+## plus près de l'œil que le cran moins BEND_MARGIN est abaissé, de 0 à ce
+## départ jusqu'à l'abaissement complet BEND_RAMP m plus près (rampe en s²).
+## L'abaissement est calculé pour CHAQUE modèle à partir de sa géométrie
+## réelle (bend_drop) : à la profondeur départ - BEND_EXIT * BEND_RAMP, le
+## dessus de tout ce qui est encore dans le champ (boîtier, poignée de
+## transport, crosse, tube) est déjà sous le bord bas de l'écran (champ de
+## visée VIEW_FOV_ADS, écran 21:9) avec BEND_SAFETY m de marge (recul,
+## balancement, pas). La crosse file ainsi par le bas de l'écran en un court
+## virage juste derrière le cran, comme dans BO1 : jamais une carcasse qui
+## grossit vers l'œil, ni un morceau coupé par le plan proche, ni une crosse
+## qui disparaît d'un coup. Une arme dont la carcasse ne passe jamais dans le
+## champ à moins de BEND_NEED m de l'œil (pistolets, PM à crosse courte)
+## n'est pas courbée : ses mains restent visibles. Le cran et le guidon ne
+## bougent pas : l'alignement de visée est intact.
+const BEND_MARGIN := 0.02
+const BEND_NEED := 0.15
+const BEND_RAMP := 0.05
+const BEND_EXIT := 0.6
+const BEND_SAFETY := 0.035
+## La joue s'installe entre cet avancement (lissé) de la mise en joue et la
+## visée complète : avant, l'arme est encore loin de l'œil (hanche intacte).
+const BEND_FROM_AK := 0.0
+## Écran le plus large pris en compte par bend_drop (21:9).
+const BEND_ASPECT := 21.0 / 9.0
 ## Mise en joue (brute) à partir de laquelle l'écran de lunette remplace
 ## l'arme (WeaponController.scoped).
 const SCOPE_ADS := 0.92
-## Avancement de visée (lissé) à partir duquel la crosse ("rear") est masquée.
-const REAR_HIDE_AK := 0.75
 ## Visée d'une arme sans organes de visée : décalage depuis la hanche.
 const NO_SIGHTS_ADS := Vector3(-0.06, 0.035, 0.05)
 const SPRINT_POS := Vector3(0.15, -0.3, -0.85)
@@ -223,6 +236,7 @@ func set_weapon(id: String, is_pap: bool) -> void:
 		_shell = _make_round(String(s.get("shell", "")) == "")
 		model.add_child(_shell)
 	ads_time = maxf(float(s.get("ads_time", 0.2)), 0.05)
+	bend_drop(mid)  # calcul (une fois par modèle) hors de la mise en joue
 	_slide_kick = 0.0
 	_cycle_t = -1.0
 
@@ -277,15 +291,68 @@ static func rest_pose(mid: String, ak: float) -> Array:
 static func bend_params(mid: String, ak: float) -> Vector3:
 	if WeaponModels.info(mid, "no_sights", false):
 		return Vector3.ZERO
-	var start := WeaponModels.anchor(mid, "ads").z - BEND_MARGIN
-	if start <= BEND_END + 0.01:
+	ak = clampf(ak, 0.0, 1.0)
+	var k := smoothstep(BEND_FROM_AK, 1.0, ak)
+	if k <= 0.0:
 		return Vector3.ZERO
-	return Vector3(start, BEND_END, BEND_DROP * clampf(ak, 0.0, 1.0))
+	# Le départ suit le cran pendant la mise en joue (jamais plus près que
+	# celui de la visée complète) : la carcasse qui arrive sous l'œil est
+	# courbée avant d'y être.
+	var sight_d := -(rest_transform(mid, ak) * WeaponModels.anchor(mid, "sight")).z
+	var start := maxf(bend_start(mid), sight_d - BEND_MARGIN)
+	return Vector3(start, start - bend_ramp(mid), bend_drop(mid) * k)
 
 
-## Groupe "rear" (crosse) affiché à l'avancement de visée lissé `ak`.
-static func rear_visible(mid: String, ak: float) -> bool:
-	return ak < REAR_HIDE_AK or WeaponModels.info(mid, "no_sights", false)
+## Longueur (m) de la rampe de la joue : BEND_RAMP, raccourcie quand le cran
+## est tout près de l'œil (lunettes des bullpups) pour que la carcasse sorte
+## de l'écran avant d'atteindre le plan proche.
+static func bend_ramp(mid: String) -> float:
+	return clampf(bend_start(mid) * 0.25, 0.015, BEND_RAMP)
+
+
+## Profondeur (m) où commence la joue de visée du modèle `mid`.
+static func bend_start(mid: String) -> float:
+	return WeaponModels.anchor(mid, "ads").z - BEND_MARGIN
+
+
+static var _drop_cache: Dictionary = {}
+
+
+## Abaissement complet (m) de la joue de visée du modèle `mid`, tiré de sa
+## géométrie dans la pose de visée (coins des boîtes de ses pièces, qui
+## englobent les maillages) : le point le plus haut de la carcasse plus
+## proche de l'œil que bend_start, dans le champ (en largeur) d'un écran
+## BEND_ASPECT, passe sous le bord bas de l'écran (VIEW_FOV_ADS) dès
+## l'avancement BEND_EXIT de la rampe, avec BEND_SAFETY m de marge.
+static func bend_drop(mid: String) -> float:
+	if _drop_cache.has(mid):
+		return _drop_cache[mid]
+	var start := bend_start(mid)
+	var th := tan(deg_to_rad(VIEW_FOV_ADS) * 0.5)
+	var tw := th * BEND_ASPECT
+	var xf := rest_transform(mid, 1.0)
+	var top := -INF
+	var intrudes := false
+	for part in WeaponModels.spec(mid).parts:
+		var b := WeaponModels._part_basis(part)
+		var lb := WeaponModels._local_box(part)
+		var c: Vector3 = part[2] + b * lb[0]
+		var h: Vector3 = lb[1] * 0.5
+		for corner in 8:
+			var o := Vector3(h.x if corner & 1 else -h.x, h.y if corner & 2 else -h.y, h.z if corner & 4 else -h.z)
+			var p := xf * (c + b * o)
+			var d := -p.z
+			if d < start and absf(p.x) < maxf(d, 0.03) * tw + 0.05:
+				top = maxf(top, p.y)
+				# Dans le champ (avec marge) à moins de BEND_NEED m.
+				if d < BEND_NEED and p.y > -maxf(d, 0.03) * th - 0.05:
+					intrudes = true
+	var drop := 0.0
+	if intrudes:
+		var exit_d := start - BEND_EXIT * bend_ramp(mid)
+		drop = maxf(top + th * maxf(exit_d, 0.0) + BEND_SAFETY, 0.0) / (BEND_EXIT * BEND_EXIT)
+	_drop_cache[mid] = drop
+	return drop
 
 
 ## Point du repère de la caméra tel que le dessine weapon.gdshader (joue de
@@ -582,10 +649,8 @@ func update(delta: float, p: Player) -> void:
 	model.rotation = rot
 	# Lunette : l'écran de lunette (HUD) remplace l'arme.
 	model.visible = not scoped
-	# Crosse sous la joue en visée : masquée pour ne pas boucher l'écran ;
-	# le reste de la carcasse proche de l'œil est abaissé (joue de visée).
-	if _groups.has("rear"):
-		_groups.rear.visible = rear_visible(model_id, ak)
+	# Joue de visée : la carcasse proche de l'œil (crosse comprise, jamais
+	# masquée d'un coup) file sous le bas de l'écran.
 	_set_bend(bend_params(model_id, ak) if not scoped else Vector3.ZERO)
 	for g in _groups:
 		if g == "body" or g == "rear" or g == "Hands":

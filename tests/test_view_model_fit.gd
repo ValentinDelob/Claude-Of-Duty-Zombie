@@ -10,13 +10,30 @@ extends TestCase
 ## 3. la joue de visée (ViewModel.bend) ne déplace ni le cran ni le guidon ;
 ## 4. les mains tiennent l'arme : chaque main est posée sur une pièce
 ##    (poignée, garde-main, poignée avant, main droite), la main d'appui n'est
-##    pas au-dessus de l'arme, et les avant-bras ne traversent pas l'arme.
+##    pas au-dessus de l'arme, et les avant-bras ne traversent pas l'arme ;
+## 5. actions lancées EN VISÉE (couteau, fente, changement d'arme, grenade,
+##    boisson, couteau de chasse, plongeon, sprint, visée depuis le sprint,
+##    marche, regard), armes normales ET Pack-a-Punch, champ de vision min /
+##    défaut / max : rien à moins de NEAR + NEAR_MARGIN de l'œil, la crosse
+##    (groupe "rear") n'est jamais masquée d'un coup ;
+## 6. la partie courbée par la joue est assez découpée (WeaponMesh.slice_z)
+##    pour que la déformation PAR SOMMET du shader suive la courbe : sinon un
+##    long flanc de crosse reste plat entre un bout intact et un bout abaissé
+##    et traverse les pièces voisines (crosse « ouverte » contre l'œil).
+## Toutes les profondeurs sont prises APRÈS la joue, avec la formule même du
+## shader (ViewModel.bend) ; le champ de l'arme ne dépend pas du champ de
+## vision réglé (vm_fov_scale), l'écran le plus large (21:9) couvre les autres.
 
 ## Plan proche de la caméra du joueur (Player : camera.near) + marge.
 const NEAR := 0.03
 const NEAR_MARGIN := 0.02
-## Visée complète : profondeur minimale de ce qui est visible (m).
-const ADS_MIN_DEPTH := 0.115
+## Visée complète : profondeur minimale de ce qui est visible (m). La joue
+## courbe la carcasse dès 2 cm derrière le cran : sur une arme dont le cran
+## est à 15 cm de l'œil (M16, FN FAL), le début de la courbe est visible
+## jusqu'à ~11 cm (la crosse sort de l'écran juste derrière).
+const ADS_MIN_DEPTH := 0.10
+## Champs de vision du menu des options (min, défaut, max).
+const FOVS := [60.0, 80.0, 110.0]
 ## Écran le plus large pris en compte (21:9), et 16:9 pour la visée.
 const WIDE := 21.0 / 9.0
 const NORMAL := 16.0 / 9.0
@@ -32,6 +49,7 @@ var _verts: Dictionary = {}
 func before_each() -> void:
 	_cam = Camera3D.new()
 	_cam.fov = Settings.fov
+	_base_fov = Settings.fov
 	_cam.near = NEAR
 	host.add_child(_cam)
 	_vm = ViewModel.new()
@@ -55,22 +73,39 @@ static func _scoped(s: Dictionary, ads: float) -> bool:
 	return WeaponDB.scope_kind(s) != "" and ads >= ViewModel.SCOPE_ADS
 
 
-func _equip(id: String) -> Dictionary:
-	var w := WeaponDB.new_instance(id)
+func _equip(id: String, pap := false) -> Dictionary:
+	var w := WeaponDB.new_instance(id, pap)
 	_p.weapons.weapons = [w]
 	_p.weapons.slot = 0
 	_p.aiming = false
 	_p.sprinting = false
-	_vm.set_weapon(id, false)
+	_p.diving = false
+	_p.velocity = Vector3.ZERO
+	_p.input = PlayerInput.new()
+	_vm.set_weapon(id, pap)
 	_vm.ads = 0.0
 	_vm.scoped = false
-	return WeaponDB.stats(id)
+	_vm.lowered = 0.0
+	return WeaponDB.stats(id, pap)
+
+
+## Champ de vision réglé (Settings.fov) pendant _step : la caméra suit le
+## jeu (zoom de visée, sprint), comme Player._update_camera_effects.
+var _base_fov := 80.0
 
 
 ## Un pas de simulation (horloge de jeu comprise : rechargement, changement).
 func _step(n := 1) -> void:
 	for i in n:
 		GameClock._t += DT
+		var s := _vm._stats
+		var target := _base_fov
+		if _p.aiming and not s.is_empty():
+			var k := clampf(_vm.ads, 0.0, 1.0)
+			target = lerpf(_base_fov, _base_fov * float(s.ads_zoom), k * k * (3.0 - 2.0 * k))
+		elif _p.sprinting:
+			target = _base_fov * 1.06
+		_cam.fov = lerpf(_cam.fov, target, 1.0 - exp(-DT * 14.0))
 		_vm.update(DT, _p)
 		# Écran de lunette : comme WeaponController (arme masquée).
 		_vm.apply_scope(_p.aiming and _scoped(_vm._stats, _vm.ads) and not _vm.is_busy())
@@ -86,6 +121,29 @@ func _mesh_verts(mi: MeshInstance3D) -> PackedVector3Array:
 	return _verts[key]
 
 
+var _chunks: Dictionary = {}
+## tan(demi-champ vertical de l'arme) de l'échantillon en cours (_near_tris).
+var _th := 1.0
+
+
+## Triangles d'un maillage par paquets de CHUNK sommets : [boîte, sommets].
+func _mesh_chunks(mi: MeshInstance3D) -> Array:
+	var key := mi.mesh.get_rid().get_id()
+	if _chunks.has(key):
+		return _chunks[key]
+	var all := _mesh_verts(mi)
+	var out := []
+	var chunk := 96
+	for s in range(0, all.size(), chunk):
+		var v := all.slice(s, mini(s + chunk, all.size()))
+		var box := AABB(v[0], Vector3.ZERO)
+		for p in v:
+			box = box.expand(p)
+		out.append([box, v])
+	_chunks[key] = out
+	return out
+
+
 ## Triangles (repère de la caméra, joue de visée appliquée) des maillages
 ## affichés de `n` dont une partie est à moins de `limit` m de l'œil.
 func _near_tris(n: Node3D, xf: Transform3D, b: Vector3, limit: float, out: PackedVector3Array) -> void:
@@ -96,11 +154,24 @@ func _near_tris(n: Node3D, xf: Transform3D, b: Vector3, limit: float, out: Packe
 		var mi := n as MeshInstance3D
 		var box := x * mi.mesh.get_aabb()
 		if -box.end.z < limit:
-			var v := x * _mesh_verts(mi)
-			if b.z > 0.0:
-				for i in v.size():
-					v[i] = ViewModel.bend(v[i], b)
-			out.append_array(v)
+			# Par paquets de triangles voisins (boîte englobante propre) : seuls
+			# ceux qui passent à moins de `limit` de l'œil sont courbés et
+			# découpés (la joue ne change pas la profondeur).
+			for ch: Array in _mesh_chunks(mi):
+				var cb := x * (ch[0] as AABB)
+				# Trop loin, tout entier plus près que le plan proche (ou
+				# derrière l'œil), ou tout entier sous le bas de l'écran avant
+				# même la joue (qui ne fait que l'abaisser) : invisible.
+				if -cb.end.z >= limit or -cb.position.z < NEAR:
+					continue
+				if cb.end.y < cb.position.z * _th and cb.end.y < cb.end.z * _th:
+					continue
+				var v := x * (ch[1] as PackedVector3Array)
+				if b.z > 0.0:
+					for i in v.size():
+						if -v[i].z < b.x:
+							v[i] = ViewModel.bend(v[i], b)
+				out.append_array(v)
 	for c in n.get_children():
 		if c is Node3D:
 			_near_tris(c, x, b, limit, out)
@@ -139,6 +210,16 @@ static func nearest_visible(tris: PackedVector3Array, fov: float, aspect: float,
 		i += 3
 		if -a.z >= best and -b.z >= best and -c.z >= best:
 			continue
+		# Rejet rapide : les trois sommets hors du même bord du champ (sous
+		# l'écran, le plus souvent : carcasse courbée par la joue).
+		if a.y < a.z * th and b.y < b.z * th and c.y < c.z * th:
+			continue
+		if a.y > -a.z * th and b.y > -b.z * th and c.y > -c.z * th:
+			continue
+		if a.x > -a.z * tw and b.x > -b.z * tw and c.x > -c.z * tw:
+			continue
+		if a.x < a.z * tw and b.x < b.z * tw and c.x < c.z * tw:
+			continue
 		var poly := [a, b, c]
 		for pl in planes:
 			poly = _clip(poly, pl)
@@ -156,6 +237,7 @@ func _nearest_now(aspect: float, limit: float) -> float:
 		return limit
 	var ak := _vm.ads * _vm.ads * (3.0 - 2.0 * _vm.ads)
 	var tris := PackedVector3Array()
+	_th = tan(deg_to_rad(_vm.view_fov()) * 0.5)
 	_near_tris(_vm.model, _vm.transform, ViewModel.bend_params(_vm.model_id, ak) if not _vm.scoped else Vector3.ZERO, limit, tris)
 	return nearest_visible(tris, _vm.view_fov(), aspect, limit)
 
@@ -274,6 +356,165 @@ func test_bend_keeps_sight_line() -> void:
 	assert_eq(ViewModel.bend_params(PowerupRules.DEATH_MACHINE_WEAPON, 1.0), Vector3.ZERO, "minigun : pas de joue (pas de visée)")
 	# Rien à la hanche.
 	assert_eq(ViewModel.bend_params("m14", 0.0).z, 0.0)
+
+
+## En visée complète, `start` lance une action ; échantillons toutes les
+## 3 images pendant `dur` s (pire profondeur dans `worst`), puis retour en
+## visée. La crosse ne doit jamais être masquée.
+func _ads_action(worst: Array, what: String, start: Callable, dur: float) -> void:
+	_p.aiming = true
+	_p.sprinting = false
+	_p.diving = false
+	_p.velocity = Vector3.ZERO
+	_settle()
+	start.call()
+	var t := 0.0
+	while t < dur:
+		_step(3)
+		t += DT * 3
+		_sample(worst, what)
+		if _vm._groups.has("rear") and _vm.model.visible and not (_vm._groups.rear as Node3D).visible and worst.size() < 4:
+			worst.append("crosse masquée (%s)" % what)
+	_p.aiming = true
+	_p.sprinting = false
+	_p.diving = false
+	_vm.lowered = 0.0
+	_p.velocity = Vector3.ZERO
+
+
+## Pas jusqu'au retour en visée complète, au repos (au plus 1,5 s).
+func _settle() -> void:
+	for k in 90:
+		if _vm.ads >= 1.0 and not _vm.is_busy() and not _vm.is_knife_busy() and not _vm.is_drinking() and _vm._lower <= 0.0 and _vm._sprint <= 0.0 and _vm._dive <= 0.0:
+			return
+		_step()
+
+
+func test_ads_actions_keep_the_stock_clear() -> void:
+	var limit := NEAR + NEAR_MARGIN
+	var i := 0
+	for id in weapon_ids():
+		for pap in ([false] if WeaponDB.is_powerup_weapon(id) else [false, true]):
+			# Champ de vision réglé : min, défaut, max à tour de rôle (le champ
+			# de l'arme n'en dépend pas : vm_fov_scale).
+			_base_fov = FOVS[i % FOVS.size()]
+			i += 1
+			var s := _equip(id, pap)
+			var worst := [0.1, ""]
+			_cam.fov = _base_fov
+			_step(10)
+			_p.aiming = true
+			_settle()
+			# Visée en marchant, en regardant en haut, en bas, sur les côtés.
+			_p.velocity = Vector3(3.0, 0.0, 2.0)
+			for j in 5:
+				_vm._bob += DT * 3 * 3.6 * 2.0
+				_step(3)
+				_sample(worst, "visée en marchant")
+			_p.velocity = Vector3.ZERO
+			for look in [Vector2(0, -900), Vector2(0, 900), Vector2(900, 0), Vector2(-900, 0)]:
+				_p.input.look = look
+				_step(6)
+				_sample(worst, "visée, regard %s" % look)
+			_p.input.look = Vector2.ZERO
+			# Animations propres au modèle (identiques après Pack-a-Punch, qui ne
+			# change que la cadence, le recul et la durée de mise en joue).
+			if not pap:
+				_ads_action(worst, "couteau en visée", func(): _vm.start_melee(false), ViewModel.MELEE_ANIM)
+				_ads_action(worst, "fente en visée", func(): _vm.start_melee(true), ViewModel.MELEE_ANIM)
+				_ads_action(worst, "changement d'arme en visée", func(): _vm.start_switch(WeaponController.SWITCH_TIME, func(): pass), WeaponController.SWITCH_TIME)
+				_ads_action(worst, "grenade en visée", func(): _vm.lowered = 1.0, 0.5)
+				_ads_action(worst, "boisson en visée", func(): _vm.start_drink(Color.RED, 1.0), 1.0)
+				_ads_action(worst, "couteau de chasse en visée", func(): _vm.start_knife_pickup(1.0), 1.0)
+			else:
+				# Tir en visée : recul de l'arme améliorée.
+				_settle()
+				var interval := WeaponDB.fire_interval(id, true)
+				var next := 0.0
+				var t := 0.0
+				while t < 0.6:
+					if t >= next:
+						_vm.fire(s, null, _p, false)
+						next += interval
+					_step(2)
+					t += DT * 2
+					_sample(worst, "tir en visée (PaP)")
+			# Plongeon et sprint : le jeu lâche la visée (Player._update_stance).
+			_ads_action(worst, "plongeon depuis la visée", func():
+				_p.aiming = false
+				_p.diving = true, 0.4)
+			_ads_action(worst, "sprint depuis la visée", func():
+				_p.aiming = false
+				_p.sprinting = true
+				_p.velocity = Vector3(0, 0, -6.5), 0.5)
+			# Visée en sortant du sprint.
+			_p.aiming = false
+			_p.sprinting = true
+			_step(30)
+			_p.sprinting = false
+			_p.velocity = Vector3.ZERO
+			_p.aiming = true
+			for j in 10:
+				_step(2)
+				_sample(worst, "visée depuis le sprint")
+			_vm.cancel_reload()
+			assert_true(worst[0] >= limit, "%s%s (champ %d) : arme ou main à %.3f m de l'œil (%s), sous le plan proche + marge (%.2f m)" % [id, " PaP" if pap else "", int(_base_fov), worst[0], worst[1], limit])
+			assert_true(worst.size() < 3, "%s%s : %s" % [id, " PaP" if pap else "", ", ".join(worst.slice(2))])
+	_base_fov = Settings.fov
+
+
+## Plus grand écart en z (repère du modèle) d'une arête de triangle dans la
+## partie courbée par la joue de visée.
+static func longest_bent_edge(mid: String) -> float:
+	var sight_z := WeaponModels.anchor(mid, "sight").z
+	# Profondeur du départ de la joue dans le repère du modèle (visée : l'axe
+	# de l'arme est celui de la caméra) : tout ce qui est plus en arrière.
+	var from := sight_z + WeaponModels.anchor(mid, "ads").z - ViewModel.bend_start(mid)
+	var worst := 0.0
+	var geo := WeaponModels.geometry(mid, true)
+	for g in geo:
+		var oz: float = (geo[g].pivot as Vector3).z
+		for mk in geo[g].meshes:
+			var m: ArrayMesh = geo[g].meshes[mk]
+			var v: PackedVector3Array = m.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+			var k := 0
+			while k + 2 < v.size():
+				for e in 3:
+					var a := v[k + e].z + oz
+					var b := v[k + (e + 1) % 3].z + oz
+					if maxf(a, b) > from:
+						worst = maxf(worst, absf(a - b))
+				k += 3
+	return worst
+
+
+func test_bent_part_is_finely_sliced() -> void:
+	for id in weapon_ids():
+		var mid: String = WeaponDB.stats(id).model
+		if ViewModel.bend_drop(mid) <= 0.0:
+			continue
+		var e := longest_bent_edge(mid)
+		assert_true(e <= WeaponModels.BEND_SLICE + 0.0005, "%s : arête de %.3f m le long de l'arme dans la partie courbée (max %.3f)" % [id, e, WeaponModels.BEND_SLICE])
+	# Découpe sans fissure : deux triangles qui partagent une arête sont
+	# coupés aux mêmes points (plans communs).
+	var arr := [PackedVector3Array([Vector3(0, 0, 0), Vector3(1, 0, 0.1), Vector3(0, 1, 0.1), Vector3(1, 0, 0.1), Vector3(1, 1, 0.0), Vector3(0, 1, 0.1)]),
+		PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP]),
+		PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE])]
+	var out: Array = WeaponMesh.slice_z(arr, 0.0, 0.03)
+	var pts := {}
+	for p: Vector3 in out[0]:
+		if absf(p.z - 0.03) < 0.0001 or absf(p.z - 0.06) < 0.0001 or absf(p.z - 0.09) < 0.0001:
+			pts[Vector3(snappedf(p.x, 0.0001), snappedf(p.y, 0.0001), snappedf(p.z, 0.0001))] = true
+	# Arête commune (1,0,0.1)-(0,1,0.1) à z constant : jamais coupée ; les
+	# arêtes de chaque côté sont coupées à 0,03 / 0,06 / 0,09.
+	assert_true(pts.size() >= 6, "points de découpe (%d)" % pts.size())
+	var area_in := 0.0
+	var area_out := 0.0
+	for k in range(0, 6, 3):
+		area_in += (arr[0][k + 1] - arr[0][k]).cross(arr[0][k + 2] - arr[0][k]).length()
+	for k in range(0, (out[0] as PackedVector3Array).size(), 3):
+		area_out += (out[0][k + 1] - out[0][k]).cross(out[0][k + 2] - out[0][k]).length()
+	assert_near(area_out, area_in, 0.0001, "découpe : même surface")
 
 
 # --------------------------------------------------------------------------

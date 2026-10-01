@@ -639,17 +639,29 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   visée (sauf fusils à pompe), champ `ads_zoom`, durée `ads_time`. Vérifié par
   `tests/autotest/weapon_aim.gd` (±2 px, impact à ±3 cm à 20 m pour chaque arme).
 - **Joue de visée** : en visée, ce qui passe plus près de l'œil que le cran
-  (arrière du boîtier, corps des bullpups, tube du LAW) est abaissé par le
-  shader (`vm_bend`, `ViewModel.bend_params` / `bend`) : la carcasse file vers
-  le bas de l'écran au lieu de l'emplir ou de traverser le plan proche ; la
-  crosse (groupe `rear`) est masquée en fin de mise en joue ; l'écran de
+  moins 2 cm (arrière du boîtier, crosse, corps des bullpups, tube du LAW)
+  est abaissé par le shader (`vm_bend`, `ViewModel.bend_params` / `bend`,
+  même formule) sur une courte rampe ; l'abaissement de chaque modèle est
+  tiré de sa géométrie (`ViewModel.bend_drop`) pour que la carcasse passe
+  sous le bord bas de l'écran (champ de visée, 21:9) juste derrière le cran.
+  Le départ suit le cran pendant la mise en joue. La crosse n'est plus
+  masquée (plus de crosse coupée ni de disparition d'un coup). La partie
+  courbée est découpée en tranches de 1 cm (`WeaponMesh.slice_z`,
+  `WeaponModels.BEND_SLICE`, avant-bras compris) : le shader déforme les
+  sommets, un long flanc de crosse non découpé restait plat et traversait
+  l'arme contre l'œil. Arme dont la carcasse ne passe jamais devant l'œil
+  (pistolets, PM) : pas de joue, mains visibles. L'écran de
   lunette masque l'arme dans l'image même où la mise en joue atteint
   `ViewModel.SCOPE_ADS` (`apply_scope`). Arme sans organes de visée (info
   `no_sights` : minigun) : reste à la hanche en visée, réticule affiché.
   Vérifié arme par arme sans partie par `tests/test_view_model_fit.gd` (rien à
   l'écran à moins de 5 cm de l'œil — hanche, visée, tir, rechargement, sprint,
-  changement d'arme —, rien à moins de 11,5 cm en visée, bouts de manche hors
-  de l'écran, mains posées sur l'arme, avant-bras hors de l'arme).
+  changement d'arme, et actions lancées en visée : couteau, grenade, boisson,
+  plongeon, sprint —, armes Pack-a-Punch et champs de vision min / défaut /
+  max, rien à moins de 10 cm en visée, découpe de la partie courbée, bouts de
+  manche hors de l'écran, mains posées sur l'arme, avant-bras hors de l'arme).
+  Captures rendues (correctif en cours, hors check) :
+  `tests/autotest/view_model_stock.gd`.
 - **Lunettes** : `scope` = `sniper` (L96A1, Dragunov : écran de lunette
   `ScopeOverlay` + `scope.gdshader`, zoom `scope_fov`, balancement, [Maj]
   pour retenir sa respiration) ou `optic` (AUG, G11 : lunette courte).

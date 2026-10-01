@@ -52,6 +52,10 @@ const MATERIALS := {
 	"bore": [Color(0.015, 0.015, 0.015), 0.9, 0.0, 0.0, 0.0],
 }
 
+## Vue FPS : épaisseur (m, selon Z) des tranches de la partie courbée par la
+## joue de visée (WeaponMesh.slice_z).
+const BEND_SLICE := 0.005
+
 ## Description de chaque modèle (id du modèle = id de l'arme par défaut).
 const SPECS := {
 	# ---------------------------------------------------------------- poing
@@ -305,12 +309,22 @@ static func geometry_arrays(model_id: String, viewmodel: bool) -> Dictionary:
 		acc.xf = Transform3D(b, part[2] - pivot)
 		acc.tone = fposmod(float(i) * 0.618034, 1.0)
 		_emit(acc, part)
+	# Vue FPS : la partie qui passe sous la joue de visée (ViewModel.bend :
+	# derrière le cran) est découpée en tranches de BEND_SLICE m le long de Z
+	# (avec 6 cm de marge en avant du cran pour le recul et la mise en joue),
+	# pour que le shader la courbe sans pans plats.
+	var slice_from := INF
+	if viewmodel and not sp.get("info", {}).get("no_sights", false):
+		slice_from = anchor(model_id, "sight").z - 0.06
 	var out := {}
 	for g in accs:
 		var arrays := {}
+		var gp: Vector3 = sp.anchors.get("pivot_" + g, Vector3.ZERO) if viewmodel else Vector3.ZERO
 		for mk in accs[g]:
 			if not accs[g][mk].is_empty():
 				arrays[mk] = accs[g][mk].arrays()
+				if slice_from < INF:
+					arrays[mk] = WeaponMesh.slice_z(arrays[mk], slice_from, BEND_SLICE, gp.z)
 		out[g] = {"pivot": sp.anchors.get("pivot_" + g, Vector3.ZERO) if viewmodel else Vector3.ZERO, "arrays": arrays}
 	return out
 

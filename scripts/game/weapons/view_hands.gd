@@ -231,6 +231,10 @@ static func piece_arrays(style: int, piece_name: String) -> Dictionary:
 	for k in accs:
 		if not accs[k].is_empty():
 			out[k] = accs[k].arrays()
+			# Avant-bras (long, vers l'œil) : tranches pour la joue de visée
+			# (ViewModel.bend, voir WeaponMesh.slice_z).
+			if piece_name == "forearm":
+				out[k] = WeaponMesh.slice_z(out[k], -ARM_LEN - 0.01, 0.02)
 	return out
 
 

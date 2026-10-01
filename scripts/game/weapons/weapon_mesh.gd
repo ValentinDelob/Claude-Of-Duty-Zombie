@@ -85,6 +85,74 @@ class Acc:
 		return make_mesh(arrays())
 
 
+## Découpe des triangles [sommets, normales, couleurs] par les plans
+## z = z_from + k * step (z du repère du modèle = z local + z_off), pour
+## z >= z_from : la joue de visée (weapon.gdshader, vm_bend) déforme les
+## SOMMETS selon leur profondeur ; un long triangle (flanc de crosse, tube)
+## resterait plat entre un bout intact et un bout abaissé et traverserait les
+## pièces voisines bien découpées (carcasse « ouverte », pan de crosse en
+## travers de l'écran). Les plans étant communs à tout le maillage, deux
+## triangles voisins sont coupés aux mêmes points : aucune fissure.
+static func slice_z(arr: Array, z_from: float, step: float, z_off := 0.0) -> Array:
+	var v: PackedVector3Array = arr[0]
+	var n: PackedVector3Array = arr[1]
+	var c: PackedColorArray = arr[2]
+	var ov := PackedVector3Array()
+	var on := PackedVector3Array()
+	var oc := PackedColorArray()
+	var i := 0
+	while i + 2 < v.size():
+		var zmax := maxf(v[i].z, maxf(v[i + 1].z, v[i + 2].z)) + z_off
+		var zmin := minf(v[i].z, minf(v[i + 1].z, v[i + 2].z)) + z_off
+		var k0 := floori((maxf(zmin, z_from) - z_from) / step) + 1
+		var k1 := ceili((zmax - z_from) / step) - 1
+		if zmax <= z_from or k1 < k0:
+			for j in 3:
+				ov.append(v[i + j])
+				on.append(n[i + j])
+				oc.append(c[i + j])
+			i += 3
+			continue
+		# Morceau courant : polygone convexe [p, n, c] ; on détache la tranche
+		# sous chaque plan, du plus petit z au plus grand.
+		var poly := [[v[i], n[i], c[i]], [v[i + 1], n[i + 1], c[i + 1]], [v[i + 2], n[i + 2], c[i + 2]]]
+		for k in range(k0, k1 + 1):
+			var zp := z_from + k * step - z_off
+			var below := []
+			var above := []
+			var cnt := poly.size()
+			for j in cnt:
+				var a: Array = poly[j]
+				var b: Array = poly[(j + 1) % cnt]
+				var da: float = (a[0] as Vector3).z - zp
+				var db: float = (b[0] as Vector3).z - zp
+				if da <= 0.0:
+					below.append(a)
+				if da >= 0.0:
+					above.append(a)
+				if (da < 0.0 and db > 0.0) or (da > 0.0 and db < 0.0):
+					var t := da / (da - db)
+					var q := [(a[0] as Vector3).lerp(b[0], t), (a[1] as Vector3).lerp(b[1], t).normalized(), (a[2] as Color).lerp(b[2], t)]
+					below.append(q)
+					above.append(q)
+			_fan(below, ov, on, oc)
+			poly = above
+			if poly.size() < 3:
+				break
+		_fan(poly, ov, on, oc)
+		i += 3
+	return [ov, on, oc]
+
+
+## Polygone convexe (sommets dans l'ordre du triangle d'origine) en éventail.
+static func _fan(poly: Array, ov: PackedVector3Array, on: PackedVector3Array, oc: PackedColorArray) -> void:
+	for j in range(1, poly.size() - 1):
+		for q in [poly[0], poly[j], poly[j + 1]]:
+			ov.append(q[0])
+			on.append(q[1])
+			oc.append(q[2])
+
+
 static func _v(x: float, p: Vector2) -> Vector3:
 	return Vector3(x, p.y, p.x)
 
