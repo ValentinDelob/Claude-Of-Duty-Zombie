@@ -791,7 +791,10 @@ theater_lamps.append({"p": G(0, -300, 440), "range": 9.0, "energy": 1.8})
 
 instances = [{"model": m, "items": items} for m, items in sorted(inst.items())]
 # Zombies qui sortent des gravats : au pied des tas, côté allée et bande de scène.
-RISERS = [(-180, -120, 0), (-185, 240, 0), (185, 10, 0), (182, 400, 0), (-420, 630, 0), (440, 630, 0),
+# (415, 693) : dans l'allée latérale au pied du grand tas ; à (440, 630) le zombie
+# sortait dans le bord bas du tas (pavé barrière de 0,2 m flottant au-dessus de la
+# pente) et restait coincé entre le tas et le rang de fauteuils.
+RISERS = [(-180, -120, 0), (-185, 240, 0), (185, 10, 0), (182, 400, 0), (-420, 630, 0), (415, 693, 0),
           (-420, -200, 0)]
 
 markers = {
