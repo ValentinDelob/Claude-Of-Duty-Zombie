@@ -5,4 +5,4 @@ extends RefCounted
 ## anciens se mettent à jour tout seuls. La release échoue si le lanceur a
 ## changé sans que ce numéro augmente.
 
-const LAUNCHER_VERSION := 8
+const LAUNCHER_VERSION := 9

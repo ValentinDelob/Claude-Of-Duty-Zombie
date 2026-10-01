@@ -5,8 +5,11 @@ extends RefCounted
 ## principal du jeu pourra reprendre les mêmes. Aucun logo pour l'instant :
 ## le nom seul, au pochoir ; aucun effet par-dessus l'interface.
 ##
-## Tailles : celles des maquettes telles qu'on les voit à l'écran (cadre de
-## ≈ 1190 px de large) ; taille fixe, jamais étirée avec la fenêtre.
+## Tailles : celles des maquettes telles qu'on les voit sur un écran 1920 × 1080
+## (cadre de ≈ 1190 px de large). Sur un autre écran, tout est multiplié par
+## screen_factor() (4K : × 2) : même rendu quelle que soit la résolution.
+## Jamais étirée avec la fenêtre (agrandie : plus de place, pas de textes plus
+## gros).
 
 ## Palette.
 const INK := Color("0e100c")        # nuit du bunker (fond)
@@ -34,6 +37,22 @@ const FOOT_H := 100
 const LIST_W := 305
 const GUTTER := 35           # marge gauche / droite de l'en-tête, des notes, du pied
 const BORDER := 2
+## Fenêtre au démarrage et taille minimale, en pixels des maquettes.
+const WINDOW := Vector2i(1190, 690)
+const WINDOW_MIN := Vector2i(900, 560)
+## Écran de référence des maquettes.
+const REF_SCREEN := Vector2(1920, 1080)
+
+
+## Échelle de l'interface pour un écran de cette taille (pixels physiques) :
+## celle qui garde la même part de l'écran qu'en 1920 × 1080 (4K : 2 ;
+## 2560 × 1440 : 1,33). Ne dépend pas du réglage d'échelle de Windows ;
+## bornée (écran inconnu ou minuscule).
+static func screen_factor(screen: Vector2i) -> float:
+	if screen.x <= 0 or screen.y <= 0:
+		return 1.0
+	var f := minf(screen.x / REF_SCREEN.x, screen.y / REF_SCREEN.y)
+	return clampf(snappedf(f, 0.05), 0.6, 4.0)
 
 ## Polices du système les plus proches des maquettes (pochoir condensé,
 ## étiquettes condensées, machine à écrire) ; repli si absentes.

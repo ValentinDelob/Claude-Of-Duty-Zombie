@@ -116,7 +116,12 @@ Les réglages et le dossier de combat du jeu restent communs à toutes les versi
   - la release démarre aussi le lanceur exporté hors écran (`--offline --capture=...`).
 - Options : `--capture=<png>`, `--changelogs=<json local>`, `--offline`,
   `--quit-after-update`, `--updated` / `--update-failed` (posées par le script
-  d'auto-mise à jour).
+  d'auto-mise à jour), `--ui-scale=<facteur>` (échelle imposée, avec
+  `--resolution` : vérifier le rendu 4K sur un écran 1080p).
+- Échelle : les tailles de `look.gd` sont celles d'un écran 1920 × 1080 ; au
+  démarrage tout est multiplié par `Look.screen_factor()` (résolution de
+  l'écran : 4K × 2, 1440p × 1,35), donc même rendu sur tous les écrans ;
+  agrandir la fenêtre donne plus de place, jamais des textes plus gros.
 
 ## Écrire les notes d'une nouvelle version
 

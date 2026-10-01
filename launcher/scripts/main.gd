@@ -38,6 +38,7 @@ var channel := "stable"         # canal affiché : Releases.STABLE ou Releases.S
 var _textures := {}             # nom d'image -> Texture2D
 var _image_queue: Array = []
 var _args := {}
+var _ui_scale := 1.0            # échelle de l'interface (_fit_screen)
 
 var _list: ItemList
 var _list_tags: Array = []
@@ -88,7 +89,7 @@ func _ready() -> void:
 	channel = String(settings.get("channel", Releases.STABLE))
 	selected = _selected_of(channel)
 	get_window().title = "Claude of Duty Zombie"
-	get_window().min_size = Vector2i(900, 560)
+	_fit_screen()
 	_build_ui()
 	_http_api = _new_http()
 	_http_notes = _new_http()
@@ -117,6 +118,37 @@ func _ready() -> void:
 	if not crashes.is_empty():
 		_show_crash_note(crashes[crashes.size() - 1])
 	_after_self_update()
+
+
+## Même rendu quelle que soit la résolution de l'écran : l'interface (tailles
+## des maquettes, Look) est multipliée par Look.screen_factor() de l'écran de
+## la fenêtre, textes rendus à leur taille finale (canvas_items, jamais une
+## image agrandie). L'échelle ne suit pas la taille de la fenêtre : agrandie,
+## elle donne plus de place (content_scale_size suit la fenêtre). Capture
+## (--capture) : échelle 1, image à la taille des maquettes ; --ui-scale=2
+## (avec --resolution) impose une échelle (vérifier le rendu 4K).
+func _fit_screen() -> void:
+	var w := get_window()
+	var screen := w.current_screen
+	_ui_scale = 1.0 if _args.has("capture") else Look.screen_factor(DisplayServer.screen_get_size(screen))
+	if _args.has("ui-scale"):
+		_ui_scale = clampf(float(_args["ui-scale"]), 0.6, 4.0)
+	w.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	w.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	w.min_size = Vector2i(Vector2(Look.WINDOW_MIN) * _ui_scale)
+	if w.mode == Window.MODE_WINDOWED and _ui_scale != 1.0 and not _args.has("capture"):
+		var area := DisplayServer.screen_get_usable_rect(screen)
+		var want := Vector2i(Vector2(Look.WINDOW) * _ui_scale).min(area.size)
+		w.size = want
+		w.position = area.position + (area.size - want) / 2
+	_follow_window_size()
+	w.size_changed.connect(_follow_window_size)
+	print("[launcher] écran %s : échelle %.2f" % [DisplayServer.screen_get_size(screen), _ui_scale])
+
+
+func _follow_window_size() -> void:
+	var w := get_window()
+	w.content_scale_size = Vector2i((Vector2(w.size) / _ui_scale).round())
 
 
 ## Démarrage après une auto-mise à jour (Store.update_script) : --updated,

@@ -175,6 +175,7 @@ func _init() -> void:
 	_tags_and_versions()
 	_sums_edge_cases()
 	_texts()
+	_screen_scale()
 	CrashLogTests.new().run(self)
 	ChannelTests.new().run(self)
 	print("LAUNCHER: %d échec(s)" % failures)
@@ -344,3 +345,17 @@ func _texts() -> void:
 				used[m.get_string(1)] = true
 	var missing := used.keys().filter(func(k): return not Texts.T.has(k))
 	check(used.size() >= 15 and missing.is_empty(), "textes utilisés par main.gd : %d, tous définis %s" % [used.size(), missing])
+
+
+## Échelle de l'interface selon l'écran (même rendu quelle que soit la
+## résolution) : 1080p = maquettes, 4K = double, 1440p = 4/3, écran étroit ou
+## inconnu borné.
+func _screen_scale() -> void:
+	const Look := preload("res://scripts/look.gd")
+	check(is_equal_approx(Look.screen_factor(Vector2i(1920, 1080)), 1.0), "écran 1080p : échelle 1")
+	check(is_equal_approx(Look.screen_factor(Vector2i(3840, 2160)), 2.0), "écran 4K : échelle 2")
+	check(is_equal_approx(Look.screen_factor(Vector2i(2560, 1440)), 1.35), "écran 1440p : échelle ≈ 1,33")
+	check(is_equal_approx(Look.screen_factor(Vector2i(3440, 1440)), 1.35), "écran ultra-large : suit la hauteur")
+	check(is_equal_approx(Look.screen_factor(Vector2i(1280, 1024)), 0.65), "écran 5:4 : suit la largeur")
+	check(is_equal_approx(Look.screen_factor(Vector2i.ZERO), 1.0), "écran inconnu : échelle 1")
+	check(Look.screen_factor(Vector2i(640, 360)) >= 0.6 and Look.screen_factor(Vector2i(15360, 8640)) <= 4.0, "échelle bornée")

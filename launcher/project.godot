@@ -30,7 +30,8 @@ file_logging/max_log_files.editor=5
 
 [display]
 
-; Taille fixe : l'interface garde la taille de la maquette quelle que soit la
+; Taille des maquettes sur un écran 1920 × 1080 ; mise à l'échelle de l'écran au
+; démarrage (main.gd _fit_screen), jamais selon la taille de la
 ; fenêtre (agrandie : plus de place, pas de textes plus gros).
 window/size/viewport_width=1190
 window/size/viewport_height=690
