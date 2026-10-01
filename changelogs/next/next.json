@@ -29,6 +29,10 @@
    "en": "BUNKER K-7: the crate in the generator room moved slightly; zombies coming in through the south window no longer queue up in front of it."
   },
   {
+   "fr": "Fenêtres : un zombie attend dehors tant que l'arrivée est occupée, au lieu d'enjamber dans le zombie qui s'y tient ; les zombies entrés pendant que vous étiez à terre ne restent plus bloqués en file devant la fenêtre.",
+   "en": "Windows: a zombie now waits outside while the landing spot is taken instead of climbing into the zombie standing there; zombies that came in while you were downed no longer stay jammed in a line in front of the window."
+  },
+  {
    "fr": "À terre, les chargeurs offerts au pistolet ne dépassent plus sa réserve maximale.",
    "en": "When downed, the bonus pistol magazines no longer push its reserve above the maximum."
   }
