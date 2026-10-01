@@ -1,0 +1,28 @@
+{
+ "title": {
+  "fr": "Des escaliers que les zombies savent prendre",
+  "en": "Stairs zombies know how to take"
+ },
+ "items": [
+  {
+   "fr": "Les zombies montent et descendent les escaliers par le milieu des marches, en suivant des repères posés en bas, sur les marches et sur le palier : ils ne restent plus coincés contre un bord, une rampe ou l'angle d'un palier.",
+   "en": "Zombies now climb up and down stairs through the middle of the steps, following markers placed at the bottom, along the steps and on the landing: they no longer get stuck against an edge, a railing or the corner of a landing."
+  },
+  {
+   "fr": "Une horde prend l'escalier de front, chacun dans sa file, sans s'entasser sur un côté ; les rampants et les chiens de l'enfer prennent le même chemin.",
+   "en": "A horde takes the stairs abreast, each zombie in its own lane, without piling up on one side; crawlers and hellhounds follow the same route."
+  },
+  {
+   "fr": "KINO : les zombies passent par l'allée entre les fauteuils pour monter sur la scène par ses marches, et franchissent le haut de tous les escaliers sans buter contre le bord.",
+   "en": "KINO: zombies now use the aisle between the seats to climb onto the stage by its steps, and get over the top of every staircase without bumping into the edge."
+  },
+  {
+   "fr": "Éditeur de cartes : huit types d'escaliers (touche V) : droit, droit avec palier, en L, en U, escalier d'honneur, escalier de service, en colimaçon et rampe, avec nombre de marches, garde-corps et côtés fermés au choix.",
+   "en": "Map editor: eight kinds of stairs (V key): straight, straight with a landing, L-shaped, U-shaped, grand stairs, service stairs, spiral and ramp, with a choice of step count, railing and closed sides."
+  },
+  {
+   "fr": "Éditeur de cartes : le plan montre les volées, les paliers et le trajet des zombies sur chaque escalier ; l'aperçu 3D construit le même escalier que la partie.",
+   "en": "Map editor: the plan shows the flights, the landings and the zombies' route on each staircase; the 3D preview builds the same stairs as the game."
+  }
+ ]
+}

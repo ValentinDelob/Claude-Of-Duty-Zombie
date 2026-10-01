@@ -1,12 +1,14 @@
-# Objets de l'éditeur de cartes : variantes et barrière invisible
+# Objets de l'éditeur de cartes : variantes, barrière invisible, escaliers
 
 Complément de `docs/MAP_AUTHORING.md` (éditeur, format des cinq JSON,
-partage réseau) pour deux ajouts du **format 5** des cartes :
+partage réseau) pour les ajouts des **formats 5 et 6** des cartes :
 
 1. les **variantes d'aspect** d'un type d'objet (plusieurs modèles de porte,
    de débris, d'arme murale) ;
 2. la **barrière invisible** (« clip » de BO1) : un pavé qui arrête joueurs et
-   zombies sans se voir en jeu.
+   zombies sans se voir en jeu ;
+3. (format 6) les **types d'escaliers** et leurs **ancres** pour les zombies
+   (§ 4).
 
 ![Portes blindée, en bois, grille ; débris en planches et en béton ; M14 à la craie et sur une planche](map_objects/variantes_3d.jpg)
 ![Dans l'éditeur : porte en bois (nom sous le prix), éboulement de béton, barrière invisible hachurée](map_objects/editeur.png)
@@ -172,16 +174,156 @@ Une seule source, le catalogue (`MapCatalog.allowed_kinds()`), lue par
 Les barrières et les variantes voyagent avec la carte (les cinq JSON du
 paquet canonique) : l'hôte et les invités construisent les mêmes objets.
 
-## 4. Versions du format
+Escaliers (format 6) : `variante` parmi les huit types, `sens` (`droite`,
+`gauche`), `marches` (entier de 3 à 60), `garde_corps` (booléen), `cotes`
+(`ouverts`, `fermes`) ; toute autre valeur est refusée (contrôle et tests :
+`tests/test_stairs.gd`).
 
-`EditorMap.FORMAT` = **5**. Toutes les nouvelles clés sont facultatives : une
-carte au format 1 à 4 se lit telle quelle (`EditorMap._migrate`, rien à
-convertir) et s'enregistre au format 5 ; DRAFT ARENA (format 1) reste
-identique octet pour octet dans sa description en maillage. Un jeu plus
-ancien signale une carte au format 5 comme « plus récente » (et son contrôle
-refuserait les clés qu'il ne connaît pas).
+## 4. Escaliers (format 6)
 
-## 5. Ajouter une variante ou un type à variantes
+### Les types
+
+L'escalier garde son outil (inventaire, Construction, glisser du bas vers
+le haut) ; son **type** est sa variante (touche **V**, liste **Type (V)**
+des propriétés). Contrairement aux autres variantes, le type change la
+forme des marches, leur collision et le trajet des zombies.
+
+| Type (`variante`) | Nom | Forme | Largeur tracée minimale |
+|---|---|---|---|
+| `droit` (défaut, clé absente) | Escalier droit / Straight stairs | une volée sur tout le rectangle | 1,5 m |
+| `palier` | Droit avec palier / Straight with landing | deux volées et un palier au milieu (1 à 2 m) | 2 m |
+| `quart` | En L (quart tournant) / L-shaped | volée, palier d'angle, volée tournée de 90° ; sortie sur le côté où il tourne, au bout ; le coin libre reste du sol | 3,5 m |
+| `demi_tour` | En U (demi-tour) / U-shaped | volée, palier sur toute la largeur, volée qui revient ; noyau plein entre les deux ; sortie du côté du pied | 3,5 m |
+| `large` | Escalier d'honneur / Grand stairs | une volée, garde-corps des deux côtés par défaut | 3,5 m |
+| `service` | Escalier de service / Service stairs | une volée étroite, en file indienne | 1,5 m |
+| `colimacon` | En colimaçon / Spiral stairs | un tour complet autour d'un noyau puis un palier de sortie au-dessus du début de la vis ; sortie en face du pied | 4,5 m de côté, 3,2 m entre les étages |
+| `rampe` | Rampe / Ramp | plan incliné sans marches | 2 m |
+
+Le rectangle tracé est « sur le trait » (comme un mur) : les marches
+occupent ses cases intérieures (0,25 m de retrait de chaque côté). Pente
+maximale : 40° (validateur), mesurée volée par volée (palier : volées plus
+courtes ; colimaçon : sur l'axe des zombies).
+
+Réglages (propriétés ; absents du fichier à leur valeur par défaut) :
+**Tourne vers** (`sens` : `droite` / `gauche`, types L, U et colimaçon),
+**Marches** (`marches` ; 0 = automatique, ≈ 18 cm ; jamais plus de 28 cm par
+marche, même réglé bas), **Garde-corps** (`garde_corps`), **Côtés fermés**
+(`cotes` : limons pleins jusqu'à la main courante). La hauteur est celle
+entre les deux étages (un escalier monte d'un étage).
+
+Dessin du plan : volées et leurs marches, paliers, colimaçon, flèches de
+montée et, au zoom, les pointillés du couloir des zombies avec ses deux
+ancres (point jaune : entrée ; orange : sortie). L'aperçu 3D et la partie
+construisent le même escalier (`MeshMapGeometry`, code commun).
+
+### Géométrie et collision (`StairGen`)
+
+`scripts/game/map/stair_gen.gd` : plan commun au jeu, à l'aperçu 3D, au
+validateur et au plan de l'éditeur. Entrée « stairs » de la description en
+maillage : `a` (milieu du bord du pied, sol du bas), `b` (milieu du bord
+opposé de l'emprise, sol du haut), `w`, et seulement s'ils ne sont pas par
+défaut `kind`, `turn` (-1 : à gauche), `steps`, `rail`, `closed` (un
+escalier d'avant garde exactement sa description et son aspect).
+
+- **Collision** : sous chaque volée, un prisme plein en pente douce (jamais
+  de marche de collision : le joueur n'a pas de montée de marche, les
+  zombies flottent 0,3 m au-dessus du sol) ; paliers pleins à fleur des
+  volées ; colimaçon en 32 secteurs minces qui se chevauchent d'un
+  demi-degré (on passe dessous au pied) ; garde-corps et limons en panneaux
+  minces jusqu'à la main courante.
+- **Tablier** : au haut de CHAQUE escalier (KINO compris), une
+  `CollisionBox` invisible (objet du projet, jamais un modèle Blender) de
+  0,6 m sur le palier, à fleur du sol d'arrivée : aucune fente entre la
+  dernière marche et le sol (la famille de bugs des hauts d'escalier de
+  KINO) ; posée par `MeshMapBuilder._add_architecture`, donc aussi dans
+  l'aperçu.
+- **Navmesh** : cuit sur ces collisions (surface continue, sans trou au
+  bord ; le rayon d'agent de 0,4 m garde le navmesh loin des garde-corps).
+
+### Ancres des zombies (`StairLane`, `MeshNav`)
+
+Chaque escalier porte un **couloir d'ancres** (`StairGen.plan(...).lane`) :
+une **ancre d'entrée** 0,75 m devant le pied (sol du bas), des points sur
+l'axe de chaque volée (au plus 1 m d'écart), à chaque palier et à chaque
+virage, et une **ancre de sortie** 0,9 m au-delà du haut, sur le palier
+d'arrivée. Chaque point a sa demi-largeur permise : largeur de la volée
+moins le garde-corps ou le noyau, le rayon de la capsule (0,3 m) et une
+marge (0,12 m) ; moitié moins aux ancres (la horde se resserre pour passer
+une porte).
+
+- Au chargement, `MeshNav.set_stairs` crée les couloirs ; dès que le serveur
+  de navigation a synchronisé la carte (`ensure_anchors`), chaque ancre est
+  posée sur le navmesh : à sa place, sinon décalée le long du bord (le décor
+  masque le milieu du pied), le premier point des marches suivant alors
+  l'ancre ; un escalier dont un bout n'a aucune place libre est signalé
+  dans le journal (`[MeshNav] escalier ... couloir d'ancres désactivé`) et
+  laissé au navmesh seul.
+- `MeshNav.find_path(from, to, lane_bias)` : un chemin du navmesh qui
+  emprunte un escalier (il entre dans son emprise par un bout et en sort
+  par l'autre) est réécrit : chemin jusqu'à l'ancre du bout d'arrivée,
+  points du couloir, puis chemin depuis l'ancre de l'autre bout (partagé
+  par la horde pendant un pas physique), dans les deux sens, plusieurs
+  escaliers à la suite. Un zombie déjà engagé entre une ancre et les marches,
+  ou déjà sur les marches, repart de sa place sur le couloir (jamais
+  renvoyé en arrière). `last_lane_marks()` donne l'escalier de chaque point.
+- Écart latéral : chaque zombie suit le couloir à son propre écart
+  (`Zombie.lane_bias()`, de -1 à 1 d'après son identifiant), borné à la
+  demi-largeur de chaque point ; aux virages, l'écart suit l'onglet des deux
+  volées. Une horde de 10 monte de front sans s'empiler contre un bord.
+- Suivi (`Zombie._follow_path`) : un point du couloir n'est jamais sauté par
+  la ligne de vue (pas de raccourci par l'angle d'un palier) ; il est passé
+  quand le zombie franchit le plan perpendiculaire à sa direction
+  d'arrivée ; sur les marches, séparation réduite (0,35), virage net
+  (30 m/s²) et poussée vers l'axe au-delà de la demi-largeur
+  (`MeshNav.lane_push`). La poursuite en ligne droite est interdite si la
+  ligne passe sur une emprise d'escalier (`MeshNav.crosses_stairs`) : plus de
+  zombie qui fonce dans le flanc d'un escalier.
+- Marcheurs, coureurs, sprinteurs, rampants et chiens de l'enfer (même
+  code, `Hellhound` hérite de `Zombie`) ; même vitesse et mêmes animations
+  qu'ailleurs (aucun déplacement forcé le long des marches). Multijoueur :
+  tout est calculé par le serveur, les clients voient les marionnettes
+  (rien de nouveau sur le réseau).
+
+### Cartes existantes
+
+Les escaliers de KINO (layout.json, `stairs`) et de DRAFT ARENA ont leurs
+ancres sans rien changer à leur aspect ni à leurs données. Les marches de
+la scène de KINO : la première rangée de fauteuils masque le milieu de leur
+pied ; l'ancre d'entrée de l'escalier ouest se pose dans l'allée libre à
+côté (64,5 ; 51,4), celle de l'escalier est au milieu de l'allée qui lui fait
+face. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
+
+### Preuves automatiques
+
+- `tests/test_stairs.gd` (unitaire) : marches ≤ 0,3 m et pente de chaque
+  type ; couloir à une capsule au moins de chaque bord, garde-corps et
+  noyau, pour tout écart ; ancres hors des marches ; collision construite
+  sans fente ni rebord (saut du sol ≤ 0,3 m le long du couloir) et sous toute
+  la largeur de marche, tablier à fleur ; escalier d'avant construit à
+  l'identique ; écart d'une horde (10 couloirs distincts, bornés), deux
+  sens, projection ; format 6 relu à l'identique, valeurs par défaut non
+  écrites, valeurs illisibles retirées, formats 1 et 5 lus sans changement ;
+  validateur (huit types acceptés et exportés, coin libre du L, sortie du U,
+  colimaçon trop petit refusé, largeurs) ; contrôle des cartes reçues.
+- Scénarios `stairs_types` (marcheur, sprinteur, rampant, chien) et
+  `stairs_hordes` (horde de 10 coureurs) sur la carte d'essai (un hall et
+  une mezzanine par type) : montée et descente de chaque type, tous
+  arrivés, jamais plus de 3 s immobiles sur les marches, dans la largeur du
+  couloir.
+- `kino_stair_lanes` (`## @carte kino`) : les onze escaliers de KINO, marches
+  de la scène comprises.
+
+## 5. Versions du format
+
+`EditorMap.FORMAT` = **6**. Toutes les nouvelles clés sont facultatives : une
+carte au format 1 à 5 se lit telle quelle (`EditorMap._migrate`, rien à
+convertir ; un escalier sans `variante` est droit) et s'enregistre au
+format 6 ; DRAFT ARENA (format 1) reste identique octet pour octet dans sa
+description en maillage. Un jeu plus ancien signale une carte au format 6
+comme « plus récente » (et son contrôle refuserait les clés qu'il ne
+connaît pas).
+
+## 6. Ajouter une variante ou un type à variantes
 
 1. `MapCatalog.VARIANTS` : `[identifiant, nom FR, nom EN]`, la première
    ligne étant l'aspect d'avant (par défaut). Le contrôle des cartes, la liste
@@ -192,7 +334,7 @@ refuserait les clés qu'il ne connaît pas).
    (`md.variants[eid]`, seulement si elle existe) et dans `MeshMapLayout`.
 4. Tests : `tests/test_map_objects.gd`.
 
-## 6. Preuves automatiques
+## 7. Preuves automatiques
 
 `tests/test_map_objects.gd` (unitaire, sans fenêtre) :
 - catalogue : variantes de chaque type (noms FR / EN), entrée « Barrière

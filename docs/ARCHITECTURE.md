@@ -440,6 +440,35 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   (`Zombie._follow_floor`) ; portée d'attaque, bonds, séparation et points de
   passage tiennent compte de la hauteur. Morceaux et particules retombent sur
   le sol sous leur point de départ (`Fx.floor_under`).
+- **Escaliers et couloirs d'ancres** (`StairGen`, `StairLane`,
+  docs/MAP_OBJECTS.md § 4) : une entrée « stairs » de la description
+  (`a`, `b`, `w`, et facultatifs `kind` parmi droit, palier, quart,
+  demi_tour, large, service, colimacon, rampe, `turn`, `steps`, `rail`,
+  `closed`) a un plan commun (`StairGen.plan`) : volées, paliers,
+  colimaçon, bords, pied, sortie et couloir des zombies. `MeshMapGeometry`
+  en construit les marches et les collisions (prisme plein en pente sous
+  chaque volée, jamais une marche de collision ; escalier d'avant sans type :
+  code et résultat inchangés) ; `MeshMapBuilder._add_architecture` pose au
+  haut de CHAQUE escalier (KINO compris, .glb ou non) un tablier
+  `CollisionBox` invisible à fleur du palier (aucune fente). Navigation :
+  `MeshMapLayout.finish_nav` donne les escaliers à `MeshNav.set_stairs` ;
+  quand la carte de navigation est synchronisée (`ensure_anchors`, au premier
+  chemin), chaque ancre est posée sur le navmesh (décalée le long du bord si
+  le décor masque le milieu) et l'escalier devient un `NavigationLink3D`
+  d'une ancre à l'autre (coût = longueur du couloir ; coupé tant qu'une
+  porte payante sur le couloir est fermée). `find_path(from, to, lane_bias)`
+  réécrit tout chemin qui emprunte un escalier (par le navmesh ou par ce
+  passage) : chemin jusqu'à l'ancre d'arrivée, points du couloir à l'écart
+  latéral de l'agent (borné à la demi-largeur permise), chemin depuis
+  l'ancre de l'autre bout (partagé par la horde pendant un pas physique) ;
+  un agent déjà sur les marches ou engagé entre une ancre et elles repart
+  de sa place, vers le bout le plus court. `last_lane_marks()` donne
+  l'escalier de chaque point ; `Zombie._follow_path` ne saute jamais un point
+  de couloir, le passe au plan perpendiculaire à sa direction d'arrivée,
+  réduit la séparation (0,35), vire net (30 m/s²) et revient vers l'axe
+  (`lane_push`) ; `crosses_stairs` interdit la poursuite en ligne droite
+  par-dessus le flanc d'un escalier. Serveur seulement, rien de plus sur le
+  réseau ; chiens (`Hellhound` hérite de `Zombie`) et rampants compris.
 - Décor de KINO (`MeshMapBuilder` + `TheaterLook`) : objets modélisés dans
   Blender (`tools/blender/props/kino_theater.py` -> `assets/models/kino/`),
   posés par la description (`props`, `instances` en MultiMesh pour les
