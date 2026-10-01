@@ -39,7 +39,8 @@ Encodage binaire dans `NetCodec` (`scripts/game/net_codec.gd`, fonctions pures t
 dans `tests/test_zombie_net.gd`). ENet compresse chaque datagramme (codeur de plage).
 
 - **Zombies** (`ZombieManager`, 15 Hz, `unreliable_ordered`) : état quantifié par zombie
-  `[x, z, y]` au cm (u16), lacet (u8, 256 pas), code d'animation (u8 : état | vitesse).
+  `[x, z, y]` au cm (u16), lacet (u8, 256 pas), code d'animation (u8 : état | vitesse
+  | bit 5 `Zombie.FRENZY_BIT` : pause « de folie » à la fenêtre).
   Instantané delta : `u16 n` puis par entrée `u16 id, u8 masque` et les seuls champs du
   masque. Un zombie inchangé n'est pas envoyé. Le serveur garde le dernier état envoyé
   (`net_q`) ; chaque entrée contient les champs modifiés depuis l'envoi précédent **et**
@@ -593,6 +594,33 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   (`Game.game_over_summary`, `Game.survived_text`, via `Lang`) et garde
   l'état, le dossier de combat et le retour au menu après `GAME_OVER_DELAY`.
 
+## Manches, apparitions et fenêtres (`RoundRules`, `Spawner`, `Barricade`)
+
+- Vitesse (`RoundRules.pick_speed`) : que des marcheurs aux manches 1 à 3
+  (`RUNNERS_FROM_ROUND` = 4, règle demandée par le joueur), puis le tirage de
+  BO1 (`[manche x 8, manche x 8 + 35]` : marche jusqu'à 35, course jusqu'à
+  70, sprint au-delà). Les chiens ont leur propre vitesse (`DogRules`).
+- Points d'apparition (`Spawner.pick_spawn_point`) : zones actives, un zombie
+  à la fois par point, de préférence à 9-26 m et hors de vue. Les points qui
+  sortent du sol sont exclus à moins de 7 m d'un joueur ; ceux d'une fenêtre
+  jamais (BO1 : le zombie apparaît dehors et vient à sa fenêtre même si le
+  joueur s'y tient — une carte d'une salle et d'une fenêtre reste jouable).
+- Fenêtre : 3 places devant les planches (`Barricade.SLOT_OFFSETS`, BO1 :
+  attack_spots ; milieu, gauche, droite, places fermées par le mur d'une
+  poche étroite écartées). Un zombie par place ; au plus 3 qui attendent
+  (`BarricadeRules.WINDOW_QUEUE_MAX`, `Barricade.waiting_count`) : le point
+  d'apparition de la fenêtre est sauté tant que la file est pleine (le zombie
+  reste dans le quota de la manche). Sans place (cas d'exception), attente
+  1 m en retrait.
+- Arrachage (`BarricadeRules.tear_tick`, par zombie) : geste agrippe-tire de
+  1,3 s (la planche cède à 70 %), puis pause « de folie » de 0,9 à 1,5 s ;
+  2,5 s par planche en moyenne, quelle que soit la vitesse du zombie. La
+  phase est diffusée par `Zombie.FRENZY_BIT` du code d'animation.
+- Tests : `tests/test_rounds.gd`, `tests/test_barricades.gd`,
+  `tests/test_spawner.gd` ; scénarios `smallest_window` et `smallest_speeds`
+  sur la carte SMALLEST du joueur (copie : `tests/fixtures/maps/smallest/`,
+  installée dans le dossier des cartes du scénario sous `tests/_out`).
+
 ## Tests
 
 - **Stratégie, niveaux, écriture des tests, couverture : `docs/TESTING.md`.**
@@ -761,7 +789,9 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   des décalques de sang).
 - `ZombieAnim` (un par zombie, cosmétique, toutes les machines) : marche
   traînante, trot/course, sprint, attaque à deux bras, émergence, arrachage de
-  planches, enjambement, morts variées (choix déterministe id + variante).
+  planches (geste réglé sur `BarricadeRules.TEAR_PULL`, puis pause « de
+  folie » `frenzy_pose` : coups de bras alternés sur les planches, tête
+  secouée), enjambement, morts variées (choix déterministe id + variante).
   `ZombieGibs.crawl_pose` anime les rampants. Voir docs/ART_DIRECTION.md.
 
 ## Bonus FAUCHEUSE et LIQUIDATION
