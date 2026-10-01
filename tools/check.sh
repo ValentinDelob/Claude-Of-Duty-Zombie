@@ -21,7 +21,8 @@
 #
 # Tests d'une carte précise (« ## @carte kino ») : lancés seulement quand un
 # fichier de cette carte change, même avec --full (--kino pour les forcer).
-# Hors check : scénarios long_*, perf_* et « ## @niveau perf » (tools/perf.sh).
+# Hors check : scénarios long_*, perf_* et « ## @niveau perf » (tools/perf.sh),
+# tests multijoueur « ## @niveau long » (soak : MP="soak" les lance).
 #
 # Usage : sh tools/check.sh [--full] [--fast] [--kino] [--no-retry]
 #   --full     tout relancer (obligatoire avant une release : tools/ship.sh)
@@ -109,7 +110,11 @@ for S in $SCN_LIST; do
 done
 if [ $FAST -eq 0 ] && { [ -z "$SCENARIOS" ] || [ -n "$MP" ]; }; then
   MPALL=$(ls tests/autotest/mp_*_host.gd 2>/dev/null | xargs -n1 basename | sed 's/^mp_//; s/_host\.gd$//')
-  for N in ${MP:-$MPALL}; do CANDIDATES+=("mp:$N"); done
+  for N in ${MP:-$MPALL}; do
+    # « ## @niveau long » (soak) : seulement si MP le nomme.
+    [ -z "$MP" ] && grep -q "^## @niveau long" "tests/autotest/mp_${N}_host.gd" 2>/dev/null && continue
+    CANDIDATES+=("mp:$N")
+  done
 fi
 
 # Faut-il relancer cette tâche ? (0 = oui)
