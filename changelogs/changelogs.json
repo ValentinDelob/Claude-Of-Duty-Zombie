@@ -1201,6 +1201,29 @@
     "en": "Windows the BO1 way",
     "fr": "Des fenêtres comme dans BO1"
    }
+  },
+  "v0.2.0-snapshot.315": {
+   "channel": "snapshot",
+   "date": "2026-10-01",
+   "images": [],
+   "items": [
+    {
+     "en": "The Mystery Box is now a proper weathered wooden chest: planks, riveted iron corners and straps, hinges, a brass lock and chipped stencilled question marks.",
+     "fr": "La boîte mystère est désormais un vrai coffre de bois usé : planches, cornières et sangles de fer rivetées, charnières, serrure en laiton et points d'interrogation peints au pochoir, écaillés."
+    },
+    {
+     "en": "The big orange beam is gone: a soft, pale light column marks the box from afar and nearly fades out when you stand in front of it.",
+     "fr": "Le grand faisceau orange a disparu : une colonne de lumière pâle et douce signale la boîte de loin, presque invisible quand on est devant."
+    },
+    {
+     "en": "No more orange glare on the walls: the box is softly lit at rest, and its inside lights up with a golden glow when the lid opens (now visible instead of vanishing into the wall).",
+     "fr": "Plus de tache orange sur les murs : la boîte est éclairée doucement au repos, et son fond s'illumine d'un halo doré quand le couvercle s'ouvre (désormais visible, au lieu de disparaître dans le mur)."
+    }
+   ],
+   "title": {
+    "en": "A new Mystery Box",
+    "fr": "Une nouvelle boîte mystère"
+   }
   }
  }
 }
