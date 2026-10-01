@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "map-editor": {
+      "type": "stdio",
+      "command": "py",
+      "args": ["tools/mcp/map_editor_mcp.py"]
+    }
+  }
+}
