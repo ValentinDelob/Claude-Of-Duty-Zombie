@@ -466,6 +466,8 @@ func _object_props(o: Dictionary) -> void:
 			_prefab_props(o)
 		"luminaire":
 			_light_props(o)
+		"effet":
+			_effect_props(o)
 		"mur", "mur_courbe":
 			var th := [0.5, 1.5, 2.5]
 			_option(_props, Lang.t("Épaisseur", "Thickness"), th.map(func(v): return _m(v) + " m"), maxi(0, th.find(float(o.get("epaisseur", 0.5)))), func(i):
@@ -688,6 +690,71 @@ func _light_props(o: Dictionary) -> void:
 			_note(_props, Lang.t("Posé sur : %s", "Standing on: %s") % MapCatalog.name_of(MapCatalog.item_for(sup)))
 	if not bool(o.get("courant", d.courant)):
 		_note(_props, Lang.t("Toujours allumé, même sans courant (bougies, feu).", "Always lit, even without power (candles, fire)."))
+
+
+## Effet (format 10) : autre effet du même sous-onglet et du même montage,
+## intensité, taille, couleur (effets qui se teintent), hauteur (au sol :
+## surélévation ; au mur : hauteur) ; jamais de collision.
+func _effect_props(o: Dictionary) -> void:
+	var d := MapCatalog.effect_def(o)
+	if d.is_empty():
+		return
+	var mount := String(d.mount)
+	var ids := MapCatalog.EFFECTS.keys().filter(func(x): return String(MapCatalog.EFFECTS[x].sub) == String(d.sub) and String(MapCatalog.EFFECTS[x].mount) == mount)
+	if ids.size() > 1:
+		_option(_props, Lang.t("Effet", "Effect"), ids.map(func(x): return Lang.t(String(MapCatalog.EFFECTS[x].fr), String(MapCatalog.EFFECTS[x].en))),
+			ids.find(String(o.get("effet", ""))), func(i):
+				var nid := String(ids[i])
+				var cand := o.duplicate(true)
+				cand["effet"] = nid
+				MapCatalog.tidy_effect(cand)
+				if MapCatalog.EFFECTS[nid].get("rotates", false) and not cand.has("rot"):
+					cand["rot"] = 0
+				var k := int(o.get("etage", 0))
+				var res := MapRules.place_floor_item(ed.doc, k, cand, MapGeom.v2(o.position), String(o.id), false) if mount != "mur" \
+					else MapRules.place_wall_item(ed.doc, k, cand, MapGeom.v2(o.position) - MapGeom.item_wall_dir(o) * 0.3, String(o.id))
+				if not res.ok:
+					ed.canvas.show_refusal(res)
+					_fill_props.call_deferred()
+					return
+				ed.push_undo()
+				o.clear()
+				o.merge(cand)
+				o["position"] = res.position
+				if mount == "mur":
+					MapRules.apply_wall(o, res)
+				ed.changed())
+	var lim: Dictionary = MapCatalog.EFFECT_LIMITS
+	_spin(_props, Lang.t("Intensité", "Intensity"), MapCatalog.effect_value(o, "intensite"), lim.intensite[0], lim.intensite[1], 0.05, func(v):
+		o["intensite"] = v
+		MapCatalog.tidy_effect(o), "×").tooltip_text = Lang.t("Quantité de particules et force de la lumière", "Amount of particles and strength of the light")
+	_spin(_props, Lang.t("Taille", "Size"), MapCatalog.effect_value(o, "taille"), lim.taille[0], lim.taille[1], 0.05, func(v):
+		o["taille"] = v
+		MapCatalog.tidy_effect(o), "×")
+	if mount != "plafond":
+		var hs := _spin(_props, Lang.t("Hauteur", "Height"), MapCatalog.effect_height(o), lim.hauteur[0], lim.hauteur[1], 0.05, func(v):
+			o["hauteur"] = v
+			MapCatalog.tidy_effect(o))
+		hs.tooltip_text = Lang.t("Au-dessus du sol (sur un baril, une table...)", "Above the floor (on a barrel, a table...)") if mount == "sol" \
+			else Lang.t("Hauteur sur le mur (toujours sous le plafond en jeu)", "Height on the wall (always below the ceiling in game)")
+	if MapCatalog.effect_tints(o):
+		var cp := ColorPickerButton.new()
+		cp.color = MapCatalog.effect_color(o)
+		cp.edit_alpha = false
+		cp.custom_minimum_size = Vector2(0, 26)
+		cp.get_popup().set_meta(EditorUi.SKIP, true)
+		cp.popup_closed.connect(func():
+			var html := "#" + cp.color.to_html(false)
+			if html != String(o.get("couleur", "")):
+				ed.push_undo()
+				o["couleur"] = html
+				MapCatalog.tidy_effect(o)
+				ed.changed(false))
+		_row(_props, Lang.t("Couleur", "Colour"), cp)
+	if MapCatalog.rotates(o):
+		_note(_props, Lang.t("Rotation : %d° (R)", "Rotation: %d° (R)") % int(o.get("rot", 0)))
+	_note(_props, Lang.t("Effet visuel seulement : aucune collision, ne blesse personne ; se pose par-dessus le décor et les objets de jeu. %d effets au plus par carte.",
+		"Visual effect only: no collision, hurts nobody; goes over props and game objects. At most %d effects per map.") % MapCatalog.MAX_EFFECTS)
 
 
 # ------------------------------------------------------------------ listes

@@ -321,6 +321,19 @@ par code (`MapIcons`).
 | Décor et obstacles | caisse, baril, tas de gravats, gros éboulement, mur effondré, débris épars, planches au sol, poutre tombée, lustre tombé, pile de caisses, tonneaux, sacs de sable, table et chaise renversées, chaise pliante, bureau, étagère, rangée de fauteuils de cinéma, fauteuil arraché, pupitre, projecteur de cinéma, chariot, épave de voiture | au sol, pivote avec R (90°) ou au degré près (poignée, Angle) |
 | Prefabs de la carte (format 10) | « + Créer… » (grouper du décor posé), « Importer… » (modèle .glb / .gltf), puis les prefabs de la carte ouverte (⚙ régler, ✕ supprimer) | comme le décor ; rangés dans le dossier de la carte (`docs/MAP_OBJECTS.md` § 11) |
 | Luminaires | lampe (historique), ampoule nue, suspension, néon, lustre, applique murale, lampe de bureau, projecteur de chantier, bougies, brasero | plafond, mur (applique) ou sol ; pivote avec R |
+| Effets (format 10, sous-onglets) | **Flammes** : petit feu, feu de camp / brasier, flammes de baril, torche murale, incendie ; **Fumées** : fumée légère, fumée noire épaisse, vapeur de tuyau, brouillard au sol ; **Étincelles** : pluie d'étincelles, gerbe de soudure, court-circuit ; **Électricité** : arc électrique, bobine Tesla, câble à nu ; **Eau** : goutte-à-goutte, fuite de tuyau, flaque ; **Ambiance** : poussière, braises, cendres, feux follets (115) | au sol, au mur ou au plafond, par-dessus n'importe quoi ; aucune collision |
+
+### Effets (format 10)
+
+Une rangée de sous-onglets au-dessus de la grille de l'inventaire range les
+22 effets (Flammes, Fumées, Étincelles, Électricité, Eau, Ambiance). Un effet
+est purement visuel : aucune collision, aucun dégât, il ne gêne ni la pose
+ni les trajets ; il se pose par-dessus le décor et les objets de jeu (des
+flammes de baril sur un baril, une fumée sur des gravats). Propriétés :
+intensité, taille, hauteur, couleur (effets qui se teintent : fumée légère,
+brouillard, électricité, feux follets), rotation (incendie, arc). 64 effets
+au plus par carte. L'aperçu 3D montre l'effet animé. Détails, budget de
+particules et format : `docs/MAP_OBJECTS.md` § 11.
 
 ### Décor (prefabs) et luminaires
 
@@ -656,9 +669,9 @@ au **format 1, 2 ou 3 se lit telle quelle** (toutes les nouvelles clés sont
 facultatives, `EditorMap._migrate`) et s'enregistre au format 4 ; DRAFT
 ARENA est restée au format 1 pour le prouver (sa description en maillage est
 identique octet pour octet, vérifié par son empreinte SHA-256).
-Formats 5 à 9 (variantes, barrière invisible, escaliers, décor libre, portes
-à zombies, barrière en polygone et chevauchements) : docs/MAP_OBJECTS.md ;
-le format courant est **9**.
+Formats 5 à 10 (variantes, barrière invisible, escaliers, décor libre, portes
+à zombies, barrière en polygone et chevauchements, effets) : docs/MAP_OBJECTS.md ;
+le format courant est **10**.
 Une carte d'un format plus récent que le jeu est signalée. `id` : dossier ; `musique` : un son
 `assets/audio/ambience_*` ; `hauteur_portes` (m) ; `lampes_auto` : une lampe
 tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
@@ -753,6 +766,8 @@ long du mur ; son orientation se lit sur le côté de pièce qui passe par là.
   (absente : jusqu'au plafond) :
   `{"id":"i1","type":"bloc_invisible","etage":0,"sommets":[[2,2],[6,2],[6,3],[3,3],[3,6],[2,6]],"hauteur":1.2}`
   (cartes d'avant : `rect` + `rot`, lus comme un polygone ; docs/MAP_OBJECTS.md § 2).
+- `effet` (format 10) : `effet` (identifiant de `MapCatalog.EFFECTS`), `position`, et facultatifs `rot`, `mur` / `angle` (effets muraux), `intensite`, `taille`, `hauteur`, `couleur` ; aucune collision :
+  `{"id":"fx1","type":"effet","etage":0,"effet":"brasier","position":[8,6],"intensite":1.5}` (docs/MAP_OBJECTS.md § 12).
 - `mur` libre : segment `a` → `b` (droit ou en biais), `epaisseur` 0,5, 1,5 ou 2,5 m.
 - `mur_courbe` (format 4) : arc de cercle en segments droits, `centre`,
   `rayon` (1 à 128 m), `debut` (direction du premier bout, degrés dans le sens

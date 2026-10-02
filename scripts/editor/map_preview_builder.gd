@@ -15,7 +15,7 @@ extends MeshMapBuilder
 ## Clés de la description qui alimentent chaque morceau (reconstruit si
 ## l'une d'elles change).
 const ARCH_KEYS := ["rooms", "walls", "blocks", "slabs", "stairs", "rails", "obliques", "prop_materials"]
-const DECOR_KEYS := ["props", "instances", "screens", "beams", "shafts", "blockers", "prop_materials", "models_dir", "rooms"]
+const DECOR_KEYS := ["props", "instances", "screens", "beams", "shafts", "blockers", "prop_materials", "models_dir", "rooms", "effects"]
 
 
 func _init(layout_data: Dictionary) -> void:

@@ -25,10 +25,11 @@ const FILTERS := [
 	["jeu", "Objets de jeu", "Game objects"],
 	["prefabs", "Décor et obstacles", "Props and obstacles"],
 	["lumieres", "Luminaires", "Light fixtures"],
+	["effets", "Effets", "Effects"],
 ]
 ## Catégorie du catalogue -> filtre.
 const CAT_FILTER := {"construction": "construction", "ouvertures": "ouvertures", "atouts": "jeu", "armes": "jeu", "boite": "jeu",
-	"machines": "jeu", "pieges": "jeu", "joueurs": "jeu", "prefabs": "prefabs", "lumieres": "lumieres"}
+	"machines": "jeu", "pieges": "jeu", "joueurs": "jeu", "prefabs": "prefabs", "lumieres": "lumieres", "effets": "effets"}
 
 var ed: MapEditor
 var expanded := false

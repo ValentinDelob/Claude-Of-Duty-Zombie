@@ -1259,7 +1259,7 @@ func add_object(o: Dictionary, k: int) -> Dictionary:
 		doc.ouvertures.append(e)
 	else:
 		var prefix: String = {"atout": "a", "arme": "w", "boite": "b", "depart": "s", "escalier": "e", "pilier": "x", "mur": "m", "mur_courbe": "m",
-			"piege": "t", "levier": "l", "prefab": "d", "luminaire": "lu", "bloc_invisible": "i"}.get(String(e.get("type", "")), "x")
+			"piege": "t", "levier": "l", "prefab": "d", "luminaire": "lu", "bloc_invisible": "i", "effet": "fx"}.get(String(e.get("type", "")), "x")
 		e["id"] = doc.new_id(prefix)
 		# Un seul départ de la boîte.
 		if String(e.type) == "boite" and e.get("depart", false):

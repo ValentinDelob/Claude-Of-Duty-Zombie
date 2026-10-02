@@ -47,6 +47,8 @@ const MAX_DEPTH := 6
 const MAX_ROOMS := 256
 const MAX_OPENINGS := 512
 const MAX_OBJECTS := 2048
+## Effets (type « effet », format 10) au plus par carte : coût des particules.
+const MAX_EFFECTS := 64
 const MAX_ZONES := 64
 const MAX_FLOORS := 8
 ## Sommets par pièce : un cercle de 64 points (MapShapes.MAX_POINTS) et de la
@@ -513,6 +515,7 @@ class Check:
 	var floors := 1
 	var area := 0.0
 	var vertices := 0
+	var effects := 0
 
 	func bad(fr: String, en: String) -> void:
 		if reasons.size() < CustomMapGuard.MAX_REASONS:
@@ -936,6 +939,11 @@ static func _check_object(c: Check, e: Dictionary, what: String) -> void:
 	if t == "bloc_invisible" and c.reasons.size() == before and not (e.has("sommets") or e.has("rect")):
 		# Barrière invisible : un polygone (format 9) ou un rectangle d'avant.
 		c.bad("%s : barrière sans « sommets » ni « rect »" % what, "%s: barrier without \"sommets\" nor \"rect\"" % what)
+	if t == "effet":
+		# Format 10 : nombre d'effets borné (particules, lumières).
+		c.effects += 1
+		if c.effects == MAX_EFFECTS + 1:
+			c.bad("objets.json : trop d'effets (au plus %d)" % MAX_EFFECTS, "objets.json: too many effects (at most %d)" % MAX_EFFECTS)
 	if t == "mur_courbe" and c.reasons.size() == before:
 		# Mur courbe : tout l'arc dans le terrain (0 à MAX_COORD).
 		var bb := MapGeom.bbox(MapShapes.wall_arc(e))

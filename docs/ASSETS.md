@@ -1,6 +1,7 @@
 # Assets externes (sons)
 
-Les graphismes du jeu sont 100 % procéduraux (les modèles 3D de
+Les graphismes du jeu sont procéduraux, sauf neuf textures de particules CC0
+des effets de carte (§ « Textures des effets de carte » ci-dessous ; les modèles 3D de
 `assets/models/` sont produits par nos scripts Blender, voir
 `tools/blender/`, aucun modèle téléchargé ; le lettrage des machines
 d'atouts utilise la police intégrée de Blender, licence libre ; les objets de la salle
@@ -15,6 +16,35 @@ début et fin de manche, annonces des bonus, boîte mystère, Pack-a-Punch,
 téléporteur, arme à rayons (CLAUDE-RAY, volontairement synthétique),
 interface. L'air du singe-tambour est lui aussi original (procédural,
 `tools/audio/synth_stems.gd`) ; seules ses cymbales sont enregistrées.
+
+## Textures des effets de carte (`assets/textures/fx/`)
+
+Seule exception aux graphismes procéduraux : neuf textures de particules
+(flammes, fumées, étincelles, arc électrique) des effets de l'éditeur de
+cartes (`MapEffects`, docs/MAP_OBJECTS.md § 11), tirées du **Particle Pack
+1.1 de Kenney** (<https://kenney.nl/assets/particle-pack>, par Kenney
+Vleugels), publié sous licence **Creative Commons Zero (CC0 1.0, domaine
+public)** : utilisation, modification et redistribution libres, y compris
+commerciales, sans attribution obligatoire (créditées tout de même). Licence
+d'origine copiée dans `assets/textures/fx/LICENSE_kenney_particle_pack.txt`.
+Fichiers du dossier « PNG (Transparent) », renommés, non modifiés (≈ 0,7 Mo
+en tout) :
+
+| Fichier | Original Kenney | Utilisé pour |
+|---|---|---|
+| `fire_billow.png` | `flame_02.png` | volutes des flammes |
+| `flame_tongue.png` | `flame_05.png` | langues de flammes |
+| `fire_core.png` | `fire_01.png` | cœur lumineux des feux, foyer de la fumée noire |
+| `smoke_a.png` | `smoke_04.png` | fumées, brouillard |
+| `smoke_b.png` | `smoke_07.png` | fumées, vapeur, brume des fuites |
+| `arc.png` | `spark_05.png` | arcs électriques |
+| `streak.png` | `trace_01.png` | étincelles étirées, gouttes, filet d'eau |
+| `flash.png` | `scorch_02.png` | éclair des courts-circuits et des pluies d'étincelles |
+| `twirl.png` | `twirl_02.png` | traînées des feux follets |
+
+Points doux (braises, poussière, cendres, lueurs) et anneaux (ronds dans
+l'eau) : dégradés calculés par le jeu (`MapEffects._gradient_tex`), comme
+toute texture absente du dossier.
 
 ## Voix des personnages
 

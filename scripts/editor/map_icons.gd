@@ -161,6 +161,8 @@ static func draw(ci: CanvasItem, it: Dictionary, r: Rect2) -> void:
 				_prefab(ci, id.substr(7), p, cx, s, c)
 			elif id.begins_with("luminaire:"):
 				_light(ci, id.substr(10), p, cx, s, c)
+			elif id.begins_with("effet:"):
+				_effect(ci, id.substr(6), cx, s, c)
 			elif id.begins_with("atout:"):
 				# Bouteille de la couleur de l'atout, initiale dessus.
 				ci.draw_rect(Rect2(cx + Vector2(-s * 0.2, -s * 0.15), Vector2(s * 0.4, s * 0.6)), c)
@@ -354,6 +356,126 @@ static func _light(ci: CanvasItem, kind: String, _p: Rect2, cx: Vector2, s: floa
 					cx + Vector2(q[0], -0.05 - q[1]) * s]), Color(1.0, 0.5, 0.1))
 		_:
 			ci.draw_circle(cx, s * 0.3, glow)
+
+
+## Fond rond d'un effet, teinté par son sous-onglet (EFFECT_TINT).
+const EFFECT_TINT := {"flammes": Color(0.35, 0.12, 0.04), "fumees": Color(0.2, 0.2, 0.22), "etincelles": Color(0.3, 0.22, 0.05),
+	"electricite": Color(0.1, 0.13, 0.32), "eau": Color(0.05, 0.16, 0.26), "ambiance": Color(0.16, 0.2, 0.1)}
+
+
+static func _flame(ci: CanvasItem, base: Vector2, w: float, h: float, outer: Color, inner: Color) -> void:
+	ci.draw_colored_polygon(PackedVector2Array([base + Vector2(-w, 0), base + Vector2(-w * 0.55, -h * 0.55), base + Vector2(-w * 0.1, -h * 0.75),
+		base + Vector2(0, -h), base + Vector2(w * 0.35, -h * 0.6), base + Vector2(w, -h * 0.35), base + Vector2(w, 0)]), outer)
+	ci.draw_colored_polygon(PackedVector2Array([base + Vector2(-w * 0.5, 0), base + Vector2(-w * 0.2, -h * 0.45), base + Vector2(0, -h * 0.62),
+		base + Vector2(w * 0.3, -h * 0.35), base + Vector2(w * 0.5, 0)]), inner)
+
+
+static func _zigzag(ci: CanvasItem, a: Vector2, b: Vector2, col: Color, width: float, kinks := 4) -> void:
+	var pts := PackedVector2Array([a])
+	var n := (b - a).orthogonal().normalized() * (b - a).length() * 0.12
+	for i in range(1, kinks):
+		pts.append(a.lerp(b, float(i) / kinks) + n * (1.0 if i % 2 == 0 else -1.0))
+	pts.append(b)
+	ci.draw_polyline(pts, col, width)
+
+
+## Icône d'un effet (MapCatalog.EFFECTS) : rond de la couleur du sous-onglet,
+## dessin de l'effet par-dessus.
+static func _effect(ci: CanvasItem, kind: String, cx: Vector2, s: float, c: Color) -> void:
+	var d: Dictionary = MapCatalog.EFFECTS.get(kind, {})
+	var sub := String(d.get("sub", ""))
+	ci.draw_circle(cx, s * 0.48, EFFECT_TINT.get(sub, Color(0.15, 0.15, 0.15)))
+	var hot := Color(1.0, 0.55, 0.12)
+	var core := Color(1.0, 0.88, 0.45)
+	var blue := Color(0.65, 0.8, 1.0)
+	var water := Color(0.55, 0.75, 1.0)
+	match kind:
+		"petit_feu", "brasier", "baril_feu":
+			var base := cx + Vector2(0, s * 0.28)
+			if kind == "baril_feu":
+				ci.draw_rect(Rect2(cx + Vector2(-s * 0.2, s * 0.08), Vector2(s * 0.4, s * 0.34)), Color(0.35, 0.18, 0.12))
+				base = cx + Vector2(0, s * 0.08)
+			_flame(ci, base, s * (0.32 if kind == "brasier" else 0.22), s * (0.62 if kind == "brasier" else 0.45), hot, core)
+			if kind != "baril_feu":
+				ci.draw_line(cx + Vector2(-s * 0.32, s * 0.36), cx + Vector2(s * 0.32, s * 0.24), Color(0.3, 0.18, 0.1), s * 0.07)
+				ci.draw_line(cx + Vector2(-s * 0.32, s * 0.24), cx + Vector2(s * 0.32, s * 0.36), Color(0.25, 0.15, 0.08), s * 0.07)
+			if kind == "brasier":
+				for i in 7:
+					ci.draw_circle(cx + Vector2(-s * 0.36 + i * s * 0.12, s * 0.4), s * 0.05, Color(0.45, 0.44, 0.42))
+		"torche":
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.42, -s * 0.4), Vector2(s * 0.08, s * 0.8)), Color(0.4, 0.4, 0.42))
+			ci.draw_line(cx + Vector2(-s * 0.34, s * 0.25), cx + Vector2(s * 0.05, -s * 0.05), Color(0.5, 0.32, 0.15), s * 0.08)
+			_flame(ci, cx + Vector2(s * 0.08, -s * 0.05), s * 0.14, s * 0.36, hot, core)
+		"incendie":
+			for i in 3:
+				_flame(ci, cx + Vector2(-s * 0.26 + i * s * 0.26, s * 0.32), s * 0.16, s * (0.45 + 0.15 * (i % 2)), hot, core)
+		"fumee_legere", "fumee_noire", "brouillard":
+			var col := Color(0.75, 0.75, 0.76) if kind != "fumee_noire" else Color(0.12, 0.12, 0.13)
+			if kind == "brouillard":
+				for i in 3:
+					ci.draw_line(cx + Vector2(-s * 0.4, s * (0.1 + i * 0.12)), cx + Vector2(s * 0.4, s * (0.04 + i * 0.12)), Color(col, 0.8), s * 0.08)
+			else:
+				for q in [[0.0, 0.25, 0.14], [0.1, 0.05, 0.17], [-0.05, -0.15, 0.2], [0.08, -0.32, 0.15]]:
+					ci.draw_circle(cx + Vector2(q[0], q[1]) * s, s * q[2], col)
+				if kind == "fumee_noire":
+					ci.draw_circle(cx + Vector2(0, s * 0.38), s * 0.07, hot)
+		"vapeur":
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.44, -s * 0.08), Vector2(s * 0.2, s * 0.16)), Color(0.45, 0.45, 0.46))
+			for i in 4:
+				ci.draw_circle(cx + Vector2(-s * 0.15 + i * s * 0.16, -i * s * 0.04), s * (0.07 + i * 0.03), Color(0.9, 0.92, 0.95, 0.85))
+		"pluie_etincelles", "soudure", "court_circuit":
+			var o := cx + Vector2(0, -s * 0.3) if kind == "pluie_etincelles" else cx + Vector2(-s * 0.3, 0)
+			if kind == "pluie_etincelles":
+				ci.draw_line(cx + Vector2(0, -s * 0.48), o, Color(0.1, 0.1, 0.1), s * 0.05)
+			elif kind == "court_circuit":
+				ci.draw_rect(Rect2(cx + Vector2(-s * 0.44, -s * 0.2), Vector2(s * 0.18, s * 0.4)), Color(0.35, 0.38, 0.33))
+			for i in 7:
+				var a := (PI * 0.5 if kind == "pluie_etincelles" else 0.0) + (i - 3) * 0.28
+				var dv := Vector2(cos(a), sin(a))
+				ci.draw_line(o + dv * s * 0.12, o + dv * s * (0.3 + fposmod(i * 0.37, 0.2)), core if i % 2 == 0 else hot, maxf(1.5, s * 0.04))
+			ci.draw_circle(o, s * 0.08, blue if kind == "soudure" else Color(1, 1, 0.85))
+		"arc":
+			for sx in [-0.34, 0.34]:
+				ci.draw_line(cx + Vector2(s * sx, -s * 0.05), cx + Vector2(s * sx, s * 0.4), Color(0.5, 0.5, 0.52), s * 0.06)
+				ci.draw_circle(cx + Vector2(s * sx, -s * 0.05), s * 0.07, Color(0.75, 0.5, 0.3))
+			_zigzag(ci, cx + Vector2(-s * 0.3, -s * 0.05), cx + Vector2(s * 0.3, -s * 0.05), blue, maxf(1.5, s * 0.05), 5)
+		"tesla":
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.08, -s * 0.05), Vector2(s * 0.16, s * 0.45)), Color(0.75, 0.48, 0.28))
+			ci.draw_circle(cx + Vector2(0, -s * 0.1), s * 0.11, Color(0.55, 0.55, 0.58))
+			for i in 4:
+				var a := -PI * 0.5 + (i - 1.5) * 0.7
+				_zigzag(ci, cx + Vector2(0, -s * 0.1), cx + Vector2(0, -s * 0.1) + Vector2(cos(a), sin(a)) * s * 0.38, Color(0.75, 0.7, 1.0), maxf(1.0, s * 0.035), 3)
+		"cable_nu":
+			ci.draw_line(cx + Vector2(0, -s * 0.48), cx + Vector2(s * 0.02, s * 0.05), Color(0.1, 0.1, 0.1), s * 0.06)
+			for i in 3:
+				var a := PI * 0.5 + (i - 1) * 0.9
+				_zigzag(ci, cx + Vector2(s * 0.02, s * 0.05), cx + Vector2(s * 0.02, s * 0.05) + Vector2(cos(a), sin(a)) * s * 0.3, blue, maxf(1.0, s * 0.035), 3)
+		"goutte", "fuite":
+			if kind == "fuite":
+				ci.draw_rect(Rect2(cx + Vector2(-s * 0.45, -s * 0.38), Vector2(s * 0.9, s * 0.14)), Color(0.5, 0.3, 0.18))
+				ci.draw_line(cx + Vector2(0, -s * 0.24), cx + Vector2(s * 0.08, s * 0.3), water, s * 0.07)
+			else:
+				ci.draw_colored_polygon(PackedVector2Array([cx + Vector2(0, -s * 0.38), cx + Vector2(s * 0.12, -s * 0.08), cx + Vector2(0, s * 0.02),
+					cx + Vector2(-s * 0.12, -s * 0.08)]), water)
+			ci.draw_arc(cx + Vector2(0, s * 0.32), s * 0.12, PI, TAU, 10, water, 1.5)
+			ci.draw_arc(cx + Vector2(0, s * 0.32), s * 0.24, PI * 1.1, PI * 1.9, 10, Color(water, 0.6), 1.5)
+		"flaque":
+			ci.draw_circle(cx, s * 0.36, Color(0.12, 0.2, 0.3))
+			for r in [0.1, 0.2, 0.3]:
+				ci.draw_arc(cx, s * r, 0, TAU, 16, Color(water, 0.8 - r), 1.5)
+		"poussiere", "cendres", "braises":
+			var col: Color = {"poussiere": Color(0.95, 0.88, 0.7), "cendres": Color(0.6, 0.58, 0.55), "braises": hot}[kind]
+			for i in 11:
+				var p := cx + Vector2(fposmod(i * 0.618, 1.0) - 0.5, fposmod(i * 0.377, 1.0) - 0.5) * s * 0.75
+				ci.draw_circle(p, s * (0.025 + fposmod(i * 0.13, 0.03)), col)
+		"feux_follets":
+			var g := Color(0.3, 1.0, 0.45)
+			for q in [[-0.15, 0.05, 0.13], [0.18, -0.12, 0.1], [0.05, 0.25, 0.08]]:
+				ci.draw_circle(cx + Vector2(q[0], q[1]) * s, s * q[2] * 1.6, Color(g, 0.25))
+				ci.draw_circle(cx + Vector2(q[0], q[1]) * s, s * q[2], g)
+				ci.draw_circle(cx + Vector2(q[0], q[1]) * s, s * q[2] * 0.4, Color(0.9, 1.0, 0.9))
+		_:
+			ci.draw_circle(cx, s * 0.25, c)
 
 
 ## Aperçu d'une surface du jeu (WorldLook.SURFACES) : petite image dessinée

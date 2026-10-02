@@ -500,6 +500,9 @@ func _floor(k: int) -> void:
 		if t == "luminaire":
 			_light(k, o)
 			continue
+		if t == "effet":
+			_effect(k, o)
+			continue
 		if t in ["caisse", "baril", "pilier", "mur", "mur_courbe", "escalier", "prefab", "bloc_invisible"]:
 			continue
 		var cells := []
@@ -801,6 +804,33 @@ func _light(k: int, o: Dictionary) -> void:
 			var sup := MapRules.support_under(doc, o)
 			l["support"] = MapRules.support_height(sup) if not sup.is_empty() else 0.0
 	v.lamps_extra.append(l)
+	cells_of[String(o.id)] = [k, cells]
+
+
+## Effet posé (format 10) -> v.effects : aucune case bloquée (ni collision,
+## ni marqueur) ; mural : sur la face du mur, tourné vers la pièce.
+func _effect(k: int, o: Dictionary) -> void:
+	var d := MapCatalog.effect_def(o)
+	if d.is_empty():
+		_err("effet inconnu « %s »" % o.get("effet", ""), "unknown effect \"%s\"" % o.get("effet", ""), k)
+		return
+	var p := MapGeom.v2(o.position)
+	var mount := String(d.mount)
+	var e := {"floor": k, "effet": String(o.effet), "mount": mount, "eid": String(o.id), "center": p,
+		"y": MapCatalog.effect_height(o), "yaw": -deg_to_rad(posmod(int(o.get("rot", 0)), 360)),
+		"intensity": MapCatalog.effect_value(o, "intensite"), "scale": MapCatalog.effect_value(o, "taille"),
+		"color": MapCatalog.effect_color(o).to_html(false) if MapCatalog.effect_tints(o) else ""}
+	var cells := []
+	if mount == "mur":
+		var dv := MapGeom.item_wall_dir(o) if MapGeom.item_oblique(o) else MapGeom.dir_vec(_cardinal(o))
+		e["center"] = p - dv * MapGeom.WALL_HALF
+		e["wall"] = dv
+		# Axe +z de l'effet (du mur vers la pièce) vers -dv.
+		e["yaw"] = atan2(-dv.x, -dv.y)
+		cells = wall_item_cells(o)
+	else:
+		cells = floor_cells(o)
+	v.effects.append(e)
 	cells_of[String(o.id)] = [k, cells]
 
 

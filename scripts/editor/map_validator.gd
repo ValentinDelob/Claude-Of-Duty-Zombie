@@ -154,6 +154,11 @@ var props: Array = []
 ## Format 10 : modèles importés des prefabs de la carte (pid -> .glb en
 ## base64, EditorMap.models), pour l'export (MapLayoutExport : « map_models »).
 var map_models: Dictionary = {}
+## Effets posés (format 10, MapRaster._effect) : [{floor, effet, mount,
+## center (m, repère de l'éditeur ; mur : sur la face du mur), wall (vers le
+## mur, Vector2), y (m au-dessus du sol), yaw, intensity, scale, color
+## (« rrggbb » ou ""), eid}]. Aucune case bloquée.
+var effects: Array = []
 var lamps_auto := true
 ## Murs en biais (MapRaster), par étage : [{a, b (m, repère de l'éditeur),
 ## t (direction), n (normale), half (demi-épaisseur, m), pos, neg (pièce du

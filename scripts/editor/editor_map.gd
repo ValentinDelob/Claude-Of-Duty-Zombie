@@ -58,9 +58,14 @@ extends RefCounted
 ##      (MapCatalog.OVERLAP_TYPES). Formats 1 à 8 lus tels quels.
 ##  10  prefabs de la carte (docs/MAP_OBJECTS.md § 11, MapPrefabLib) : dossier
 ##      prefabs/<pid>/ de la carte (prefab.json, et model.glb pour un modèle
-##      importé) ; un décor posé les cite par « prefab » : « map:<pid> ».
-##      Rien d'autre ne change : formats 1 à 9 lus tels quels (une carte sans
-##      prefab n'a pas de dossier prefabs/).
+##      importé) ; un décor posé les cite par « prefab » : « map:<pid> » (une
+##      carte sans prefab n'a pas de dossier prefabs/) ;
+##      et effets (docs/MAP_OBJECTS.md § 12) : type « effet » (clé « effet » :
+##      flammes, fumées, étincelles, électricité, eau, ambiance de
+##      MapCatalog.EFFECTS ; « position », et selon l'effet « rot », « mur »,
+##      « angle ») et ses réglages facultatifs « intensite », « taille »,
+##      « couleur », « hauteur » (MapCatalog.tidy_effect : jamais écrits à leur
+##      valeur par défaut). Aucune collision. Formats 1 à 9 lus tels quels.
 const FORMAT := 10
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
@@ -500,6 +505,8 @@ func _normalize() -> void:
 	# Réglages d'escalier illisibles ou par défaut retirés (format 6).
 	for o in objets:
 		MapCatalog.tidy_stair(o)
+		# Réglages d'un effet (format 10) : illisibles ou par défaut retirés.
+		MapCatalog.tidy_effect(o)
 	# Hauteur d'une applique (format 7) : illisible, par défaut ou sur un
 	# luminaire qui n'est pas mural, retirée ; sinon bornée.
 	for o in objets:
