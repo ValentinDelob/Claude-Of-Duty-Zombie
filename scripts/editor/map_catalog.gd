@@ -1368,14 +1368,19 @@ static func allowed_kinds() -> Dictionary:
 	# (« map:<pid> », qui doit exister dans son dossier prefabs/ :
 	# CustomMapGuard.check_texts).
 	# Format 11 : décor mural (« mur », « angle », « hauteur » comme une applique).
+	# Format 12 : « z » (décor posé au sol, sur un autre), « descente » (décor
+	# accroché au plafond).
+	var descente := {"t": "number", "min": MapVertical.DESCENTE[0], "max": MapVertical.DESCENTE[1]}
 	add.call("objets.json", "prefab", {"prefab": {"t": "prefab", "values": PREFABS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
-		"hauteur": {"t": "number", "min": WALL_LIGHT_HEIGHT[0], "max": WALL_LIGHT_HEIGHT[1]}}, ["prefab", "position"])
+		"hauteur": {"t": "number", "min": WALL_LIGHT_HEIGHT[0], "max": WALL_LIGHT_HEIGHT[1]},
+		"z": {"t": "number", "min": MapVertical.DECOR_Z[0], "max": MapVertical.DECOR_Z[1]}, "descente": descente}, ["prefab", "position"])
 	add.call("objets.json", "luminaire", {"luminaire": {"t": "enum", "values": LIGHTS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
 		"couleur": {"t": "color"}, "intensite": {"t": "number", "min": LIGHT_LIMITS.intensite[0], "max": LIGHT_LIMITS.intensite[1]},
 		"portee": {"t": "number", "min": LIGHT_LIMITS.portee[0], "max": LIGHT_LIMITS.portee[1]},
 		"courant": {"t": "bool"}, "vacille": {"t": "bool"},
-		# Format 7 : hauteur d'une applique (m au-dessus du sol).
-		"hauteur": {"t": "number", "min": WALL_LIGHT_HEIGHT[0], "max": WALL_LIGHT_HEIGHT[1]}}, ["luminaire", "position"])
+		# Format 7 : hauteur d'une applique (m au-dessus du sol) ; format 12 :
+		# aussi d'un luminaire au sol (0 : par terre), « descente » au plafond.
+		"hauteur": {"t": "number", "min": 0.0, "max": WALL_LIGHT_HEIGHT[1]}, "descente": descente}, ["luminaire", "position"])
 	# Format 10 : effets (flammes, fumées...), réglages facultatifs bornés ;
 	# format 11 : « zone » (2 ou 3 dimensions en m ; bornes propres à chaque
 	# effet : CustomMapGuard._check_object) ; « taille » d'avant encore lue.
@@ -1383,7 +1388,7 @@ static func allowed_kinds() -> Dictionary:
 		"couleur": {"t": "color"}, "intensite": {"t": "number", "min": EFFECT_LIMITS.intensite[0], "max": EFFECT_LIMITS.intensite[1]},
 		"zone": {"t": "dims", "min": 2, "max": 3, "lo": ZONE_LIMITS[0], "hi": ZONE_LIMITS[1]},
 		"taille": {"t": "number", "min": EFFECT_LIMITS.taille[0], "max": EFFECT_LIMITS.taille[1]},
-		"hauteur": {"t": "number", "min": EFFECT_LIMITS.hauteur[0], "max": EFFECT_LIMITS.hauteur[1]}}, ["effet", "position"])
+		"hauteur": {"t": "number", "min": EFFECT_LIMITS.hauteur[0], "max": EFFECT_LIMITS.hauteur[1]}, "descente": descente}, ["effet", "position"])
 	return out
 
 
@@ -1401,7 +1406,9 @@ static func room_keys() -> Dictionary:
 	# Format 4 : « forme » = forme de base d'origine (MapShapes) : {"t": "shape"}
 	# (type parmi MapShapes.TYPES, centre, rayons, points 3 à 64, angle, bras).
 	return {"id": {"t": "id"}, "nom": {"t": "text", "max": 64}, "etage": {"t": "int", "min": 0, "max": MAX_FLOORS - 1},
-		"zone": {"t": "id"}, "contour": {"t": "polygon", "min": 3, "max": CustomMapGuard.MAX_VERTICES}, "plafond": {"t": "number", "min": 2.0, "max": 20.0},
+		"zone": {"t": "id"}, "contour": {"t": "polygon", "min": 3, "max": CustomMapGuard.MAX_VERTICES},
+		# Plafond : mêmes bornes que le panneau et le validateur (MapVertical.ROOM_CEILING).
+		"plafond": {"t": "number", "min": MapVertical.ROOM_CEILING[0], "max": MapVertical.ROOM_CEILING[1]},
 		"double_hauteur": {"t": "bool"}, "surface_sol": surf, "surface_murs": surf, "surface_plafond": surf, "forme": {"t": "shape"}}
 
 

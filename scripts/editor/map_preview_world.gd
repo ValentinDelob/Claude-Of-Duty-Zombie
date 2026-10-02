@@ -704,21 +704,28 @@ func element_shape(e: Dictionary) -> Dictionary:
 		if t == "luminaire":
 			match MapCatalog.light_mount(e):
 				"plafond":
-					y0 = sol + h - 0.8
+					# Format 12 : à sa descente sous le plafond.
+					var dz := MapVertical.descente(e)
+					y0 = sol + h - dz - 0.4
 					y1 = sol + h
 				"mur":
-					y0 = sol + 1.5
-					y1 = sol + 2.5
+					# À la hauteur de l'applique (docs/EDITOR_VIEWS.md § 1.2 : corrigé).
+					var wy := MapCatalog.wall_light_height(e)
+					y0 = sol + wy - 0.4
+					y1 = sol + wy + 0.4
 				_:
-					y1 = sol + 1.4
+					var b := MapVertical.floor_light_base(m, e)
+					y0 = sol + b + 0.02
+					y1 = sol + b + 1.4
 		elif t == "effet":
 			# Effet (format 10) : autour de sa hauteur (plafond, mur, surélevé) ;
 			# format 11 : hauteur de sa zone (volume, effet mural).
 			var z := MapCatalog.effect_zone(e)
 			match MapCatalog.effect_mount(e):
 				"plafond":
-					y0 = sol + h - 0.8
-					y1 = sol + h
+					var dz := MapVertical.descente(e)
+					y0 = sol + h - dz - 0.8
+					y1 = sol + h - dz
 				"mur":
 					y0 = sol + MapCatalog.effect_height(e) - z.z * 0.5 - 0.2
 					y1 = sol + MapCatalog.effect_height(e) + z.z * 0.5 + 0.4
@@ -730,8 +737,13 @@ func element_shape(e: Dictionary) -> Dictionary:
 			y0 = sol + MapCatalog.wall_light_height(e) - 0.3
 			y1 = sol + MapCatalog.wall_light_height(e) + 0.4
 		elif t == "prefab" and MapCatalog.light_mount(e) == "plafond":
-			y0 = sol + h - 0.8
-			y1 = sol + h
+			y0 = sol + h - MapVertical.descente(e) - 0.8
+			y1 = sol + h - MapVertical.descente(e)
+		elif t == "prefab":
+			# Format 12 : posé sur un autre décor.
+			var dz := MapVertical.decor_z(e)
+			y0 = sol + dz + 0.02
+			y1 = sol + dz + maxf(float(MapCatalog.def_of(e).get("h", 1.4)), 0.2)
 		elif t == "escalier":
 			y1 = m.floor_sol(k + 1) if k + 1 < m.floor_count() else sol + h
 		elif t == "piege":

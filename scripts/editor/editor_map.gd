@@ -78,7 +78,15 @@ extends RefCounted
 ##      ancien est CONVERTIE au chargement (_migrate) : chaque effet qui
 ##      construisait un objet reçoit le décor équivalent au même endroit
 ##      (MapCatalog.split_legacy_effect), rien ne disparaît.
-const FORMAT := 11
+##  12  hauteurs de pose (docs/EDITOR_VIEWS.md § 7), toutes facultatives :
+##      « z » d'un décor posé au sol (m au-dessus du sol : posé sur un autre
+##      décor ; un décor qui bloque doit reposer sur un autre), « hauteur »
+##      d'un luminaire au sol (sinon : le dessus du meuble dessous),
+##      « descente » d'un luminaire, d'un effet ou d'un décor accrochés au
+##      plafond (m sous le plafond ; sinon : `drop` du catalogue ou 0).
+##      Jamais écrites à leur valeur par défaut (MapVertical.tidy). Aucune
+##      conversion : une carte au format 11 ou moins se lit telle quelle.
+const FORMAT := 12
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -483,6 +491,10 @@ func _migrate(from: int) -> void:
 		# au même endroit ; « taille » devient la zone (MapCatalog.tidy_effect,
 		# _normalize). Une seule fois : la carte est réécrite au format 11.
 		split_legacy_effects()
+	if from < 12:
+		# Format 11 -> 12 : rien à convertir (sans « z », « descente » ni
+		# « hauteur » au sol : les hauteurs d'avant).
+		pass
 
 
 ## Format 11 : décor de chaque effet d'avant (MapCatalog.split_legacy_effect),
@@ -558,7 +570,17 @@ func _normalize() -> void:
 				for key in ["mur", "angle", "hauteur"]:
 					o.erase(key)
 		if o.has("hauteur") and t in ["luminaire", "prefab"]:
-			MapCatalog.set_wall_light_height(o, float(o.hauteur) if (o.hauteur is float or o.hauteur is int) else NAN)
+			if t == "luminaire" and MapCatalog.light_mount(o) == "sol":
+				# Format 12 : hauteur d'un luminaire au sol (m), bornée.
+				var hv: Variant = o.hauteur
+				if (hv is float or hv is int) and is_finite(float(hv)):
+					o["hauteur"] = snappedf(clampf(float(hv), 0.0, MapCatalog.WALL_LIGHT_HEIGHT[1]), 0.01)
+				else:
+					o.erase("hauteur")
+			else:
+				MapCatalog.set_wall_light_height(o, float(o.hauteur) if (o.hauteur is float or o.hauteur is int) else NAN)
+		# Format 12 : « z », « descente » illisibles, hors de leur type ou par défaut retirées.
+		MapVertical.tidy(o)
 	# Barrière invisible (format 9) : un polygone « sommets » ; un rectangle
 	# d'avant (« rect », « rot ») devient le polygone de ses 4 coins.
 	for o in objets:

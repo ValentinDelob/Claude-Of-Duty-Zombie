@@ -627,8 +627,13 @@ func _props() -> void:
 				yaw = atan2(-wv.x, -wv.y)
 				origin = _world(k, c2, clampf(float(pr.y), MapCatalog.WALL_LIGHT_HEIGHT[0], maxf(MapCatalog.WALL_LIGHT_HEIGHT[0], room_h - 0.15)))
 			"plafond":
-				# Format 11 : accroché sous le plafond de la pièce (origine au plafond).
-				origin = _world(k, c2, room_h)
+				# Format 11 : accroché sous le plafond de la pièce (origine au plafond) ;
+				# format 12 : « descente » sous le plafond.
+				origin = _world(k, c2, room_h - float(pr.get("descente", 0.0)))
+			_:
+				# Format 12 : posé sur un autre décor (hauteur de pose) ; ses
+				# collisions (blockers) montent avec lui.
+				origin = _world(k, c2, float(pr.get("y", 0.0)))
 		if d.has("map"):
 			_map_prefab(pr, d, origin, yaw)
 			continue
@@ -716,7 +721,8 @@ func _effects() -> void:
 		var y := float(fx.y)
 		match String(fx.mount):
 			"plafond":
-				y = room_h - 0.02
+				# Format 12 : descente sous le plafond.
+				y = room_h - 0.02 - float(fx.get("descente", 0.0))
 			"mur":
 				# Toujours sous le plafond de la pièce.
 				y = clampf(y, 0.05, maxf(0.05, room_h - 0.2))
@@ -742,7 +748,10 @@ func _clips() -> void:
 		var sol: float = md.floors[k].sol
 		var h := float(cl.h)
 		if h <= 0.0:
-			h = maxf(top(k) - sol, 2.0)
+			# Jusqu'au plafond réel de la pièce (au milieu de la barrière), plus
+			# le haut de l'étage (docs/EDITOR_VIEWS.md § 1.2 : incohérence corrigée).
+			var cc: Vector2 = cl.center
+			h = maxf(float(ceil_at(k, Vector2i(floori(cc.x / MapGeom.CELL), floori(cc.y / MapGeom.CELL)))[0]) - sol, 2.0)
 		var sz: Vector2 = cl.size
 		var c: Vector2 = cl.center
 		var local := []
@@ -1016,8 +1025,12 @@ func _fixture(l: Dictionary) -> Dictionary:
 	match String(l.mount):
 		"plafond":
 			var h: float = float(ceil_at(k, cell)[0]) - sol
-			fix_y = h
-			light_y = h - float(d.get("drop", 0.4))
+			# Format 12 : descente choisie ; l'objet descend avec la lumière
+			# au-delà de son `drop` (jamais au-dessus du plafond).
+			var drop := float(d.get("drop", 0.4))
+			var desc := float(l.get("descente", drop))
+			fix_y = h - maxf(0.0, desc - drop)
+			light_y = h - desc
 		"mur":
 			# Hauteur choisie (format 7), toujours sous le plafond de la pièce.
 			fix_y = float(l.get("y", d.get("y", 2.0)))

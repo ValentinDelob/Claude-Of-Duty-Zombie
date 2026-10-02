@@ -509,3 +509,29 @@ Notés au fil des étapes (à valider avec l'utilisateur).
 - **Pilier et mur libre dans une double hauteur** : ils montent jusqu'en
   haut de l'étage du dessus (comme `MapRaster`, qui les prolonge dans la
   trémie).
+- **Étape 3 : aimants verticaux** actifs en grille fine et en libre (pas en
+  grille 1 m), rayon de 6 px : on les croise sans y rester collé (maquette :
+  linteau « croisé puis dépassé »). La valeur tapée pendant un glissement
+  (Tab, ou directement un chiffre ou « - ») ignore les aimants.
+- **Hauteurs de pose (format 12)** : en plus du § 7, la `descente` vaut aussi
+  pour le **décor accroché au plafond** (câble suspendu) ; la `hauteur` d'un
+  luminaire au sol va de 0 à 30 m (0 : par terre, même sur un meuble), le
+  contrôle des cartes reçues accepte donc 0 pour la `hauteur` d'un
+  luminaire. Un luminaire du plafond descendu au-delà de son `drop` descend
+  avec sa lumière (l'objet ne monte jamais au-dessus du plafond).
+- **Décor posé sur un autre** : un décor dont la tranche de hauteur est
+  au-dessus d'un autre ne le « chevauche » pas pour les règles de pose
+  (`MapRules._stacked`) ; un décor bloquant au-dessus du sol doit reposer
+  sur le dessus d'un autre (à 2 cm près), sinon « décor en l'air ».
+- **Plafond d'une pièce** : bornes 2,8 à 9 m partout (panneau, catalogue et
+  contrôle des cartes reçues, erreur du validateur) ; la poignée losange
+  s'arrête au dessous de la dalle quand une pièce de l'étage du dessus
+  couvre toute la pièce (sinon 9 m), message vérifié en direct au-dessus.
+- **Barrière invisible sans hauteur** : en jeu et en élévation, jusqu'au
+  plafond réel de la pièce à son milieu (et plus le haut de l'étage).
+- **Objets muraux et ouvertures** : en élévation, ils glissent sur l'axe de
+  l'écran seulement si leur mur est face à la vue ; en vue Dessus, seule la
+  flèche de l'axe de leur mur est montrée.
+- **Panneau Propriétés** : la ligne Position (X, Y, Z) est ajoutée en tête ;
+  les champs « Hauteur » existants (applique, effet, décor mural) restent
+  (scénarios et habitudes) et suivent la même valeur que Z.

@@ -376,6 +376,12 @@ func _floor(k: int) -> void:
 		v.room_zone[String(p.id)] = z
 		var ce := _ceil_of(p, k)
 		v.room_polys[k].append({"id": String(p.id), "poly": poly, "zone": z, "ceil": ce})
+		# Plafond de la pièce dans ses bornes (les mêmes que le panneau et le
+		# contrôle des cartes reçues, MapVertical.ROOM_CEILING).
+		if p.has("plafond"):
+			var pv: Variant = p.plafond
+			if not ((pv is float or pv is int) and float(pv) >= MapVertical.ROOM_CEILING[0] - 0.001 and float(pv) <= MapVertical.ROOM_CEILING[1] + 0.001):
+				_err("pièce « %s » : plafond hors des bornes (2,8 à 9 m)" % p.get("nom", p.id), "room \"%s\": ceiling out of bounds (2.8 to 9 m)" % p.get("nom", p.id), k)
 		var own := []
 		for c in rc[1]:
 			if inner_of.has(c):
@@ -474,6 +480,11 @@ func _floor(k: int) -> void:
 						cells = wall_item_cells(o)
 					elif pm == "plafond":
 						pr["mount"] = "plafond"
+						# Format 12 : descente sous le plafond.
+						pr["descente"] = MapVertical.descente(o)
+					else:
+						# Format 12 : hauteur de pose (posé sur un autre décor).
+						pr["y"] = MapVertical.decor_z(o)
 					v.props.append(pr)
 				if MapCatalog.blocking(o) != "non" and not cells.is_empty():
 					var key := "decor#" + String(o.id)
@@ -816,8 +827,11 @@ func _light(k: int, o: Dictionary) -> void:
 		l["center"] = p / MapGeom.CELL + Vector2(0.5, 0.5)
 		cells = floor_cells(o)
 		if mount == "sol":
-			var sup := MapRules.support_under(doc, o)
-			l["support"] = MapRules.support_height(sup) if not sup.is_empty() else 0.0
+			# Format 12 : « hauteur » choisie, sinon le dessus du meuble dessous.
+			l["support"] = MapVertical.floor_light_base(doc, o)
+		else:
+			# Format 12 : descente sous le plafond (sinon `drop` du luminaire).
+			l["descente"] = MapVertical.descente(o)
 	v.lamps_extra.append(l)
 	cells_of[String(o.id)] = [k, cells]
 
@@ -835,7 +849,8 @@ func _effect(k: int, o: Dictionary) -> void:
 	var e := {"floor": k, "effet": String(o.effet), "mount": mount, "eid": String(o.id), "center": p,
 		"y": MapCatalog.effect_height(o), "yaw": -deg_to_rad(posmod(int(o.get("rot", 0)), 360)),
 		"intensity": MapCatalog.effect_value(o, "intensite"), "zone": MapCatalog.effect_zone(o),
-		"color": MapCatalog.effect_color(o).to_html(false) if MapCatalog.effect_tints(o) else ""}
+		"color": MapCatalog.effect_color(o).to_html(false) if MapCatalog.effect_tints(o) else "",
+		"descente": MapVertical.descente(o) if mount == "plafond" else 0.0}
 	var cells := []
 	if mount == "mur":
 		var dv := MapGeom.item_wall_dir(o) if MapGeom.item_oblique(o) else MapGeom.dir_vec(_cardinal(o))

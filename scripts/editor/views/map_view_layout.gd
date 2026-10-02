@@ -249,6 +249,21 @@ func views_changed() -> void:
 	_dock.queue_redraw()
 
 
+## Touche pendant un glissement dans une élévation (verrou d'axe, valeur
+## tapée, Échap). Vrai si prise.
+func handle_drag_key(k: InputEventKey) -> bool:
+	for v in elevations():
+		var ev := v as MapElevation
+		if ev.tools != null and ev.tools.dragging():
+			return ev.tools.handle_key(k)
+	return false
+
+
+## Un glissement est-il en cours dans une élévation ?
+func elevation_dragging() -> bool:
+	return elevations().any(func(v): return (v as MapElevation).tools != null and (v as MapElevation).tools.dragging())
+
+
 ## Espace maintenu : toutes les vues.
 func set_space(on: bool) -> void:
 	for v in views():

@@ -1181,6 +1181,9 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 	elif support_height(tmpl) > 0.0:
 		# Meuble : les luminaires posés sur son dessus ne le gênent pas.
 		others = others.filter(func(q): return not (MapCatalog.light_mount(q) == "sol" and fr.grow(0.01).encloses(footprint_rect(q))))
+	# Format 12 : un décor posé SUR un autre (hauteur de pose) ne le chevauche pas.
+	if String(tmpl.get("type", "")) in ["prefab", "caisse", "baril"]:
+		others = others.filter(func(q): return not _stacked(tmpl, q))
 	# Format 9 : décor et obstacles qui se chevauchent (réglage de la carte).
 	others = _blocking_overlaps(doc, tmpl, others)
 	if not others.is_empty():
@@ -1190,6 +1193,16 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 	if not on_top.is_empty():
 		res["sur"] = String(on_top.id)
 	return res
+
+
+## Deux décors posés au sol l'un au-dessus de l'autre (format 12 : tranches de
+## hauteur disjointes, un dessus de meuble pouvant porter l'autre) ?
+static func _stacked(a: Dictionary, b: Dictionary) -> bool:
+	if not String(b.get("type", "")) in ["prefab", "caisse", "baril"] or MapVertical.mount_of(b) not in ["sol", ""]:
+		return false
+	var a0 := MapVertical.decor_z(a)
+	var b0 := MapVertical.decor_z(b)
+	return a0 >= MapVertical.decor_top(b) - MapVertical.REST_TOL or b0 >= MapVertical.decor_top(a) - MapVertical.REST_TOL
 
 
 ## Rectangle au sol (pilier, escalier, piège) : dans une seule pièce, sans

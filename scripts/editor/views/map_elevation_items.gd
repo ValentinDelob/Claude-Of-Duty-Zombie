@@ -172,8 +172,9 @@ static func _object(doc: EditorMap, v: MapValidator, o: Dictionary) -> Dictionar
 			return base
 		"bloc_invisible":
 			var h := float(o.get("hauteur", 0.0))
-			var z1 := sol + h if h > 0.0 else MapVertical.top(v, k)
-			base.merge({"kind": "clip", "poly": MapRaster.clip_poly(o), "z0": sol, "z1": z1})
+			var poly := MapRaster.clip_poly(o)
+			var z1 := sol + h if h > 0.0 else maxf(MapVertical.ceil_z(v, k, MapGeom.bbox(poly).get_center()), sol + 2.0)
+			base.merge({"kind": "clip", "poly": poly, "z0": sol, "z1": z1})
 			return base
 		"effet":
 			return _effect(doc, v, o, base)

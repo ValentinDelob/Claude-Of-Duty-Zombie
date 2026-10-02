@@ -290,6 +290,13 @@ static func _entry_char(k: InputEventKey) -> String:
 func handle_key(k: InputEventKey) -> bool:
 	if not k.pressed or k.ctrl_pressed or k.alt_pressed:
 		return false
+	# X / Y pendant un glissement : verrouille l'axe (la même touche le libère).
+	if k.keycode in [KEY_X, KEY_Y] and drag.get("kind", "") == "move" and entry.is_empty():
+		var ax := "X" if k.keycode == KEY_X else "Y"
+		drag["lock"] = "" if String(drag.get("lock", "")) == ax else ax
+		_drag_update()
+		queue_redraw()
+		return true
 	if k.keycode == KEY_G and entry.is_empty():
 		if k.shift_pressed:
 			cycle_fine()
@@ -534,6 +541,19 @@ func _press(double: bool) -> void:
 				_snap_exclude = ed.selected
 				drag = {"kind": "handle", "handle": h, "snap": ed.doc.snapshot(), "orig": ed.doc.find(ed.selected).duplicate(true), "moved": false}
 				return
+			# Traits de coupe des élévations : leurs poignées (§ 3.2).
+			var ch := _cut_handle_at(to_px(mouse_m))
+			if not ch.is_empty():
+				drag = {"kind": "cut", "ev": ch.ev, "i": ch.i}
+				return
+			# Flèches d'axe de l'élément choisi : glisser sur un seul axe (§ 6.1).
+			var ax := arrow_at(to_px(mouse_m))
+			if ax != "":
+				var sel2 := ed.doc.find(ed.selected)
+				_snap_exclude = ed.selected
+				drag = {"kind": "move", "start": snap(mouse_m), "raw": mouse_m, "snap": ed.doc.snapshot(), "orig": sel2.duplicate(true), "moved": false,
+					"attached": ed.attached_to(sel2), "lock": ax}
+				return
 			var e := ed.element_at(mouse_m)
 			ed.select(String(e.get("id", "")))
 			if not e.is_empty():
@@ -569,6 +589,9 @@ func _release() -> void:
 	if drag.is_empty():
 		return
 	var kind := String(drag.kind)
+	if kind == "cut":
+		drag = {}
+		return
 	if kind == "capture":
 		var rc := Rect2(drag.start, Vector2.ZERO).expand(mouse_m)
 		drag = {}
@@ -745,6 +768,9 @@ func _drag_update() -> void:
 	var kind := String(drag.kind)
 	if kind == "create" or kind == "capture":
 		return
+	if kind == "cut":
+		_drag_cut()
+		return
 	var orig: Dictionary = drag.orig
 	var e := ed.doc.find(String(orig.id))
 	if e.is_empty():
@@ -763,9 +789,16 @@ func _drag_update() -> void:
 			delta = MapGeom.round_cm(mouse_m - Vector2(drag.raw))
 			if orig.has("contour"):
 				delta = MapSnap.room_delta(ed.doc, ed.floor_k, MapGeom.poly(orig.contour), delta, magnet_radius(), String(orig.id))
+		# Verrouillage d'axe (flèche, ou X / Y pendant le glissement).
+		match String(drag.get("lock", "")):
+			"X":
+				delta.y = 0.0
+			"Y":
+				delta.x = 0.0
 		var res := ed.try_move(orig, drag.attached, delta, drag.snap)
 		if res.ok:
 			drag.moved = drag.moved or delta.length() > 0.001
+			drag["delta"] = delta
 			ed.send_live(String(orig.id))
 		elif delta.length() > 0.001:
 			refusal = MapRules.why(res)
@@ -948,6 +981,7 @@ func _draw() -> void:
 			var cp := to_px(MapGeom.cell_center(c))
 			draw_rect(Rect2(cp - Vector2.ONE * zoom * 0.25, Vector2.ONE * zoom * 0.5).grow(1.0), Color(1, 0.2, 0.2, 0.9), false, 2.0)
 	_draw_cuts(font)
+	_draw_axis_arrows(font)
 	_draw_tool(font)
 	# Aperçu 3D : repère de sa caméra (MapPreviewPanel).
 	if ed.preview != null:
@@ -955,6 +989,141 @@ func _draw() -> void:
 	_draw_peers(font, k)
 	_draw_rulers(font)
 	_draw_triad(font)
+
+
+# ------------------------------------------------------------------ flèches d'axe, coupes (vues multiples)
+
+## Centre (px) des flèches d'axe de l'élément choisi ; Vector2.INF sans flèches.
+func arrows_origin() -> Vector2:
+	if offscreen or ed.tool() != "select":
+		return Vector2.INF
+	var e := ed.doc.find(ed.selected)
+	if e.is_empty() or int(e.get("etage", 0)) != ed.floor_k:
+		return Vector2.INF
+	if e.has("position") and not e.has("rect"):
+		return to_px(MapGeom.v2(e.position))
+	return to_px(elem_rect_m(e).get_center() if not e.has("contour") else MapGeom.centroid(ed.doc.room_poly(e)))
+
+
+## Axes sur lesquels l'élément choisi glisse : un objet mural ou une ouverture
+## suit son mur (seulement l'axe du mur).
+func arrow_axes() -> Array:
+	var e := ed.doc.find(ed.selected)
+	var t := String(e.get("type", ""))
+	if t in MapRules.ouvertures_types() or MapCatalog.tool_of(e) == "wall_item":
+		if t in MapRules.ouvertures_types():
+			var poly := MapElevationItems.opening_poly(ed.doc, e)
+			var d := (poly[1] - poly[0]).normalized()
+			return ["X"] if absf(d.x) > 0.9 else (["Y"] if absf(d.y) > 0.9 else [])
+		var dv := MapGeom.item_wall_dir(e)
+		return ["Y"] if absf(dv.x) > 0.9 else (["X"] if absf(dv.y) > 0.9 else [])
+	return ["X", "Y"]
+
+
+## Flèche sous le pixel : « X », « Y » ; "" sinon.
+func arrow_at(px: Vector2) -> String:
+	var o := arrows_origin()
+	if o == Vector2.INF:
+		return ""
+	var axes := arrow_axes()
+	if "X" in axes and Rect2(o + Vector2(_u(14), -_u(5)), Vector2(_u(34), _u(10))).has_point(px):
+		return "X"
+	if "Y" in axes and Rect2(o + Vector2(-_u(5), _u(14)), Vector2(_u(10), _u(34))).has_point(px):
+		return "Y"
+	return ""
+
+
+## Flèches X (rouge) et Y (vert) sur l'élément choisi, puce Z (hauteur de
+## pose ou étage), Δ en or et trait de guide pendant un glissement (§ 3.3).
+func _draw_axis_arrows(font: Font) -> void:
+	var o := arrows_origin()
+	if o == Vector2.INF:
+		return
+	var lock := String(drag.get("lock", "")) if drag.get("kind", "") == "move" else ""
+	var axes := arrow_axes()
+	if lock == "X":
+		draw_dashed_line(Vector2(_ruler(), o.y), Vector2(size.x, o.y), Color(COL_X, 0.35), 1.0, _u(8))
+	elif lock == "Y":
+		draw_dashed_line(Vector2(o.x, _ruler()), Vector2(o.x, size.y), Color(COL_Y, 0.35), 1.0, _u(8))
+	if "X" in axes:
+		var a := 0.5 if lock == "Y" else 1.0
+		draw_line(o, o + Vector2(_u(40), 0), Color(COL_X, a), 3.0 if lock == "X" else 2.0)
+		var tip := o + Vector2(_u(46), 0)
+		draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-_u(7), -_u(4)), tip + Vector2(-_u(7), _u(4))]), Color(COL_X, a))
+	if "Y" in axes:
+		var a := 0.5 if lock == "X" else 1.0
+		draw_line(o, o + Vector2(0, _u(40)), Color(COL_Y, a), 3.0 if lock == "Y" else 2.0)
+		var tip := o + Vector2(0, _u(46))
+		draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-_u(4), -_u(7)), tip + Vector2(_u(4), -_u(7))]), Color(COL_Y, a))
+	# Puce Z : hauteur de pose (m au-dessus du sol) ; « É1 » pour un étage.
+	var e := ed.doc.find(ed.selected)
+	var zt := ""
+	if MapVertical.pose_kind(e) == "pose":
+		zt = "Z %s m" % MapView.num(MapVertical.pose_z(ed.doc, ed.raster().v, e), 2)
+	elif ed.doc.floor_count() > 1:
+		zt = "Z %s" % (Lang.t("É%d", "F%d") % int(e.get("etage", 0)))
+	if zt != "":
+		var bf := MapView.bold_font(600)
+		var fs := EditorUi.fs(11)
+		var w := bf.get_string_size(zt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + _u(10)
+		var r := Rect2(o + Vector2(_u(12), _u(10)), Vector2(w, _u(17)))
+		MapElevation._round_rect(self, r, Color("121214"), COL_Z)
+		draw_string(bf, r.position + Vector2(_u(5), _u(12)), zt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color("cfe0ff"))
+	# Écart pendant le glissement, en or.
+	if drag.get("kind", "") == "move" and drag.get("moved", false) and drag.has("delta"):
+		var d: Vector2 = drag.delta
+		var parts := []
+		if absf(d.x) > 0.0005:
+			parts.append("ΔX %s m" % MapElevationTools._signed(d.x))
+		if absf(d.y) > 0.0005:
+			parts.append("ΔY %s m" % MapElevationTools._signed(d.y))
+		if not parts.is_empty():
+			var t := " · ".join(parts)
+			var bf7 := MapView.bold_font(700)
+			var fs := EditorUi.fs(12)
+			var tw := bf7.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			var at := to_px(mouse_m) + Vector2(_u(18), -_u(26))
+			MapElevation._round_rect(self, Rect2(at - Vector2(0, _u(13)), Vector2(tw + _u(14), _u(19))), Color("2b2410"), Color("F2C759"))
+			draw_string(bf7, at + Vector2(_u(6), _u(1)), t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color("F2C759"))
+
+
+## Poignées des traits de coupe : [{ev, i (0 : début, 1 : fin), rect (px)}].
+func _cut_handles() -> Array:
+	var out := []
+	if ed.views == null or offscreen:
+		return out
+	for ev: MapElevation in ed.views.cuts():
+		var across := String(MapView.depth_axis(ev.plane)[0]) == "Y"
+		for i in 2:
+			var c := float(ev.coupe[i])
+			if across:
+				var y := to_px(Vector2(0, c)).y
+				out.append({"ev": ev, "i": i, "rect": Rect2(size.x - _u(58), y - _u(7), _u(10), _u(14))})
+			else:
+				var x := to_px(Vector2(c, 0)).x
+				out.append({"ev": ev, "i": i, "rect": Rect2(x - _u(7), size.y - _u(58), _u(14), _u(10))})
+	return out
+
+
+func _cut_handle_at(px: Vector2) -> Dictionary:
+	for h in _cut_handles():
+		if (h.rect as Rect2).grow(3.0).has_point(px):
+			return h
+	return {}
+
+
+## Trait de coupe glissé : la coupe devient « personnalisée ».
+func _drag_cut() -> void:
+	var ev: MapElevation = drag.ev
+	if not is_instance_valid(ev) or ev.coupe.size() != 2:
+		drag = {}
+		return
+	var across := String(MapView.depth_axis(ev.plane)[0]) == "Y"
+	var v := snappedf(mouse_m.y if across else mouse_m.x, step() if mode_now() != "libre" else 0.01)
+	var c := ev.coupe.duplicate()
+	c[int(drag.i)] = v
+	ev.set_cut(c, "perso")
+	ed.set_status(Lang.t("Coupe %s : %s (personnalisée)", "%s cut: %s (custom)") % [MapView.plane_name(ev.plane), ev.cut_text()])
 
 
 ## Coupes des élévations (docs/EDITOR_VIEWS.md, § 3.2) : tranche teintée,
@@ -975,11 +1144,15 @@ func _draw_cuts(font: Font) -> void:
 			for y in [a.y, b.y]:
 				draw_dashed_line(Vector2(_ruler(), y), Vector2(size.x, y), Color(col, 0.8), 1.2, _u(6))
 			draw_string(font, Vector2(_ruler() + _u(4), a.y + _u(13)), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), Color("e8b46a"))
+			for y in [a.y, b.y]:
+				draw_rect(Rect2(size.x - _u(58), y - _u(7), _u(10), _u(14)), col)
 		else:
 			draw_rect(Rect2(a.x, _ruler(), b.x - a.x, size.y - _ruler()), Color(col, 0.07))
 			for x in [a.x, b.x]:
 				draw_dashed_line(Vector2(x, _ruler()), Vector2(x, size.y), Color(col, 0.8), 1.2, _u(6))
 			draw_string(font, Vector2(a.x + _u(4), _ruler() + _u(12)), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), Color("e8b46a"))
+			for x in [a.x, b.x]:
+				draw_rect(Rect2(x - _u(7), size.y - _u(58), _u(14), _u(10)), col)
 
 
 ## Rendu de la collaboration par-dessus le plan (CollabView) : aperçus en

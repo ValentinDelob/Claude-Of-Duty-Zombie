@@ -816,6 +816,10 @@ func _input(event: InputEvent) -> void:
 			get_viewport().gui_release_focus()
 			get_viewport().set_input_as_handled()
 		return
+	# Glissement dans une élévation : verrou d'axe, valeur tapée, Échap.
+	if views.handle_drag_key(k):
+		get_viewport().set_input_as_handled()
+		return
 	# Aimantation (G), saisie au clavier du tracé, points d'une forme (+ / -).
 	if canvas.handle_key(k):
 		get_viewport().set_input_as_handled()
@@ -1495,6 +1499,49 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 				a["position"] = r.position
 				MapRules.apply_wall(a, r)
 	moved_live()
+	return res
+
+
+## Déplacement dans une élévation (docs/EDITOR_VIEWS.md, § 6.1) : `orig`
+## décalé de `delta` dans le plan, à l'étage `k_new` (une pièce emporte son
+## contenu), à la hauteur de pose `z_local` (m au-dessus du sol de l'étage ;
+## NAN : inchangée), depuis la carte `snap0` ; appliqué s'il est valide
+## (règles de pose de l'étage cible, MapRules ; bornes et décor posé sur un
+## autre, MapVertical.check_pose). Sinon la carte reste à `snap0`.
+func try_move_3d(orig: Dictionary, attached: Array, delta: Vector2, k_new: int, z_local: float, snap0: Dictionary) -> Dictionary:
+	var k0 := int(orig.get("etage", 0))
+	if k_new < 0 or k_new >= doc.floor_count():
+		return MapRules.refuse("pas d'étage à cette hauteur", "no floor at that height")
+	if String(orig.get("type", "")) == "escalier" and k_new >= doc.floor_count() - 1:
+		return MapRules.refuse("un escalier ne peut pas aller sur le dernier étage", "stairs cannot go on the top floor")
+	doc.restore(snap0)
+	var base := orig.duplicate(true)
+	# Hauteur de pose d'abord (un décor posé sur un autre ne le chevauche pas).
+	if not is_nan(z_local):
+		MapVertical.set_pose_z(doc, raster().v, base, z_local)
+	var snap1 := snap0
+	if k_new != k0 or not is_nan(z_local):
+		base["etage"] = k_new
+		_replace(base.duplicate(true))
+		for aid in attached:
+			var a := doc.find(aid)
+			if not a.is_empty():
+				a["etage"] = int(a.get("etage", 0)) + k_new - k0
+		snap1 = doc.snapshot()
+	var res := try_move(base, attached, delta, snap1)
+	if not res.ok:
+		doc.restore(snap0)
+		moved_live()
+		return res
+	if not is_nan(z_local):
+		var now := doc.find(String(orig.id))
+		MapVertical.set_pose_z(doc, raster().v, now, z_local)
+		var chk := MapVertical.check_pose(doc, raster().v, now)
+		if not chk.ok:
+			doc.restore(snap0)
+			moved_live()
+			return chk
+		moved_live()
 	return res
 
 

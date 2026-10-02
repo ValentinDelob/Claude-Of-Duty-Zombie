@@ -24,6 +24,8 @@ var _check_list: VBoxContainer
 var _check_summary: Label
 var _check_msgs: Array = []
 var _props_for := "?"
+## Champs de la ligne « Position » de l'élément choisi : {X, Y, Z: cadre du champ}.
+var _pos_fields: Dictionary = {}
 ## Onglet Historique (docs/MAP_COLLAB.md § 4).
 var history: CollabHistory
 
@@ -334,6 +336,7 @@ func _map_props() -> void:
 
 func _room_props(r: Dictionary) -> void:
 	_title(_props, Lang.t("Pièce", "Room"))
+	_position_row(r)
 	var old_name := String(r.get("nom", ""))
 	_line(_props, Lang.t("Nom", "Name"), old_name, func(t):
 		# Zone d'une seule pièce qui portait le nom de la pièce : renommée avec elle.
@@ -383,6 +386,7 @@ func _opening_props(o: Dictionary) -> void:
 	var t := String(o.type)
 	var it := MapCatalog.item_for(o)
 	_title(_props, MapCatalog.name_of(it))
+	_position_row(o)
 	var k := int(o.get("etage", 0))
 	if t != "fenetre":
 		var types := ["porte", "debris", "porte_courant", "passage"]
@@ -421,14 +425,13 @@ func _opening_props(o: Dictionary) -> void:
 	if res.ok:
 		var rn: Array = res.rooms.map(func(rid): return String(ed.doc.find(rid).get("nom", rid)))
 		_note(_props, (Lang.t("Relie : %s", "Links: %s") % " ↔ ".join(rn)) if t != "fenetre" else (Lang.t("Mur extérieur de « %s » ; les zombies arrivent de dehors", "Outer wall of \"%s\"; zombies come from outside") % rn[0]))
-	var p := MapGeom.v2(o.position)
-	_note(_props, Lang.t("Position : x %s m, y %s m, étage %d", "Position: x %s m, y %s m, floor %d") % [_m(p.x), _m(p.y), k])
 
 
 func _object_props(o: Dictionary) -> void:
 	var t := String(o.type)
 	var it := MapCatalog.item_for(o)
 	_title(_props, MapCatalog.name_of(it))
+	_position_row(o)
 	match t:
 		"atout":
 			var ids := PerkDB.PERKS.keys()
@@ -487,8 +490,6 @@ func _object_props(o: Dictionary) -> void:
 	var hint := Lang.t(String(it.get("hint_fr", "")), String(it.get("hint_en", "")))
 	if hint != "":
 		_note(_props, hint)
-	var r := MapRules.footprint_rect(o)
-	_note(_props, Lang.t("Position : x %s m, y %s m, étage %d", "Position: x %s m, y %s m, floor %d") % [_m(r.get_center().x), _m(r.get_center().y), int(o.get("etage", 0))])
 
 
 ## Barrière invisible (format 9 : polygone) : « Jusqu'au plafond » (pas de
@@ -801,6 +802,181 @@ func _effect_props(o: Dictionary) -> void:
 		_note(_props, Lang.t("Objet qui va avec : %s (onglet Décor).", "Matching object: %s (Props tab).") % ", ".join(decor.map(func(x): return MapCatalog.prefab_name(String(x)))))
 	_note(_props, Lang.t("Effet visuel seulement : aucun objet, aucune collision, ne blesse personne ; se pose par-dessus le décor et les objets de jeu. %d effets au plus par carte.",
 		"Visual effect only: no object, no collision, hurts nobody; goes over props and game objects. At most %d effects per map.") % MapCatalog.MAX_EFFECTS)
+
+
+# ------------------------------------------------------------------ position (X, Y, Z)
+
+## Point repère d'un élément pour les champs X et Y (m) : coin nord-ouest
+## d'une pièce ou d'une barrière, position d'un objet posé, milieu d'un
+## rectangle (pilier, escalier, piège) ou d'un mur.
+static func ref_point(doc: EditorMap, o: Dictionary) -> Vector2:
+	if o.has("contour"):
+		return MapGeom.bbox(doc.room_poly(o)).position
+	if String(o.get("type", "")) == "bloc_invisible":
+		return MapGeom.bbox(MapRaster.clip_poly(o)).position
+	if o.has("position"):
+		return MapGeom.v2(o.position)
+	if o.has("centre"):
+		return MapGeom.v2(o.centre)
+	if o.has("a") and o.has("b"):
+		return (MapGeom.v2(o.a) + MapGeom.v2(o.b)) * 0.5
+	return MapRules.footprint_rect(o).get_center()
+
+
+## Ligne « Position » (docs/EDITOR_VIEWS.md § 6.3, D11) : X, Y (m) et Z (hauteur
+## de pose au-dessus du sol de l'étage quand l'élément en a une, sinon la
+## liste des étages). Un champ validé = une étape d'annulation ; une valeur
+## refusée est remise et la raison s'affiche.
+func _position_row(o: Dictionary) -> void:
+	_pos_fields = {}
+	var h := HBoxContainer.new()
+	var l := Label.new()
+	l.text = Lang.t("Position", "Position")
+	# Colonne du libellé plus étroite : trois champs tiennent même à 150 %.
+	l.custom_minimum_size = Vector2(76, 0)
+	h.add_child(l)
+	var box := HBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 4)
+	h.add_child(box)
+	_props.add_child(h)
+	var p := ref_point(ed.doc, o)
+	var oid := String(o.id)
+	_axis_field(box, "X", p.x, func(v: float): _apply_xy(oid, "X", v))
+	_axis_field(box, "Y", p.y, func(v: float): _apply_xy(oid, "Y", v))
+	var kind := MapVertical.pose_kind(o)
+	if kind == "pose":
+		_axis_field(box, "Z", MapVertical.pose_z(ed.doc, ed.raster().v, o), func(v: float): _apply_z(oid, v))
+		var b := MapVertical.pose_bounds(ed.raster().v, o)
+		var room := MapRules.room_at(ed.doc, int(o.get("etage", 0)), MapVertical.anchor_of(o))
+		var note := Lang.t("Z : hauteur au-dessus du sol de l'étage, de %s à %s m ici", "Z: height above the floor, %s to %s m here") % [_m(snappedf(b.x, 0.01)), _m(snappedf(b.y, 0.01))]
+		if not room.is_empty():
+			note += Lang.t(" (plafond de « %s »).", " (\"%s\" ceiling).") % String(room.get("nom", ""))
+		_note(_props, note)
+	else:
+		var opt := OptionButton.new()
+		for k in ed.doc.floor_count():
+			opt.add_item(Lang.t("É%d", "F%d") % k)
+		opt.selected = int(o.get("etage", 0))
+		opt.fit_to_longest_item = false
+		opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		opt.tooltip_text = Lang.t("Z d'un élément sans hauteur de pose : son étage", "Z of an element without a placement height: its floor")
+		opt.disabled = kind == "fixe"
+		opt.item_selected.connect(func(i): _apply_floor(oid, i))
+		box.add_child(opt)
+		_pos_fields["Z"] = opt
+		if kind == "fixe":
+			_note(_props, Lang.t("Une ouverture suit son mur : pour changer d'étage, déplacez la pièce.", "An opening follows its wall: to change floor, move the room."))
+		elif o.has("contour"):
+			_note(_props, Lang.t("X, Y : coin nord-ouest. Z d'une pièce = son étage : la changer emporte son contenu.",
+				"X, Y: north-west corner. Z of a room = its floor: changing it carries its content."))
+
+
+## Champ d'un axe : sa lettre en couleur, la valeur (m).
+func _axis_field(box: Container, axis: String, value: float, apply: Callable) -> LineEdit:
+	var pc := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color("121214")
+	sb.border_color = Color("4D4D54")
+	sb.set_border_width_all(1)
+	sb.content_margin_left = 5
+	sb.content_margin_right = 3
+	pc.add_theme_stylebox_override("panel", sb)
+	pc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 3)
+	pc.add_child(hb)
+	var lab := Label.new()
+	lab.text = axis
+	lab.add_theme_color_override("font_color", MapView.axis_color(axis))
+	lab.add_theme_font_override("font", MapView.bold_font())
+	hb.add_child(lab)
+	var e := LineEdit.new()
+	e.flat = true
+	e.text = MapView.num(value, 2)
+	e.custom_minimum_size = Vector2(16, 0)
+	e.add_theme_constant_override("minimum_character_width", 1)
+	e.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	e.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	e.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	e.select_all_on_focus = true
+	e.set_meta("applied", e.text)
+	var commit := func(_t := ""):
+		if e.text == String(e.get_meta("applied")):
+			return
+		var s := e.text.replace(",", ".").strip_edges()
+		if not s.is_valid_float():
+			e.text = String(e.get_meta("applied"))
+			return
+		e.set_meta("applied", e.text)
+		apply.call(float(s))
+	e.text_submitted.connect(commit)
+	e.focus_exited.connect(commit)
+	hb.add_child(e)
+	box.add_child(pc)
+	_pos_fields[axis] = pc
+	return e
+
+
+## Déplacement de l'élément (champ X ou Y) : mêmes règles qu'un glissement.
+func _apply_xy(oid: String, axis: String, v: float) -> void:
+	var o := ed.doc.find(oid)
+	if o.is_empty():
+		return
+	var p := ref_point(ed.doc, o)
+	var d := Vector2(v - p.x, 0) if axis == "X" else Vector2(0, v - p.y)
+	_apply_3d(oid, d, int(o.get("etage", 0)), NAN)
+
+
+func _apply_z(oid: String, v: float) -> void:
+	var o := ed.doc.find(oid)
+	if not o.is_empty():
+		_apply_3d(oid, Vector2.ZERO, int(o.get("etage", 0)), v)
+
+
+func _apply_floor(oid: String, k: int) -> void:
+	var o := ed.doc.find(oid)
+	if not o.is_empty() and k != int(o.get("etage", 0)):
+		_apply_3d(oid, Vector2.ZERO, k, NAN)
+
+
+func _apply_3d(oid: String, delta: Vector2, k: int, z: float) -> void:
+	var o := ed.doc.find(oid)
+	var snap := ed.doc.snapshot()
+	var res := ed.try_move_3d(o.duplicate(true), ed.attached_to(o), delta, k, z, snap)
+	if res.ok:
+		ed.push_undo_snapshot(snap)
+		ed.changed()
+		if int(ed.doc.find(oid).get("etage", 0)) != ed.floor_k:
+			ed.select(oid)
+	else:
+		ed.canvas.show_refusal(res)
+		refresh()
+
+
+## Pendant un glissement : les champs X, Y, Z suivent l'élément (bord jaune).
+func live_position(on: bool) -> void:
+	var o := ed.doc.find(ed.selected)
+	if o.is_empty() or _pos_fields.is_empty():
+		return
+	var p := ref_point(ed.doc, o)
+	var vals := {"X": p.x, "Y": p.y}
+	if MapVertical.pose_kind(o) == "pose":
+		vals["Z"] = MapVertical.pose_z(ed.doc, ed.raster().v, o)
+	for axis in _pos_fields:
+		var c: Control = _pos_fields[axis]
+		if not is_instance_valid(c):
+			continue
+		if c is PanelContainer:
+			var sb := (c as PanelContainer).get_theme_stylebox("panel") as StyleBoxFlat
+			if sb != null:
+				sb.border_color = Color("FFD94D") if on else Color("4D4D54")
+			var le := c.get_child(0).get_child(1) as LineEdit
+			if vals.has(axis) and le != null and not le.has_focus():
+				le.text = MapView.num(float(vals[axis]), 2)
+				le.set_meta("applied", le.text)
+		elif c is OptionButton:
+			(c as OptionButton).selected = int(o.get("etage", 0))
 
 
 # ------------------------------------------------------------------ listes

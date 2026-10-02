@@ -966,6 +966,14 @@ static func _check_object(c: Check, e: Dictionary, what: String) -> void:
 			and MapCatalog.prefab_mount(String(e.get("prefab", ""))) != "mur":
 		# Format 11 : « mur », « angle », « hauteur » seulement pour un décor mural.
 		c.bad("%s : réglage de mur sur un décor qui n'est pas mural" % what, "%s: wall setting on a prop that is not wall-mounted" % what)
+	if t in ["prefab", "luminaire", "effet"] and c.reasons.size() == before:
+		# Format 12 : « z » seulement pour un décor posé au sol, « descente »
+		# seulement pour ce qui est accroché au plafond.
+		var m := MapVertical.mount_of(e)
+		if e.has("z") and (t != "prefab" or m != "sol"):
+			c.bad("%s : hauteur de pose « z » sur un élément qui n'est pas un décor au sol" % what, "%s: \"z\" height on an element that is not a floor prop" % what)
+		elif e.has("descente") and m != "plafond":
+			c.bad("%s : « descente » sur un élément qui n'est pas au plafond" % what, "%s: \"descente\" on an element that is not on the ceiling" % what)
 	if t == "mur_courbe" and c.reasons.size() == before:
 		# Mur courbe : tout l'arc dans le terrain (0 à MAX_COORD).
 		var bb := MapGeom.bbox(MapShapes.wall_arc(e))

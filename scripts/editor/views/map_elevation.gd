@@ -66,10 +66,13 @@ var _over: Control
 ## Clé du dessin du contenu et origine (px) à laquelle il a été fait.
 var _layer_key := ""
 var _layer_origin := Vector2.ZERO
+## Édition dans la vue (glissements, flèches, poignées, cotes).
+var tools: MapElevationTools
 
 
 func _ready() -> void:
 	clip_contents = true
+	tools = MapElevationTools.new(self)
 	_layer = Control.new()
 	_layer.name = "Content"
 	_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -332,9 +335,12 @@ func _gui_input(event: InputEvent) -> void:
 		if _pan:
 			origin += mm.relative
 			queue_redraw()
+		elif tools.dragging():
+			tools.update()
 		else:
 			_update_hover()
 			_over.queue_redraw()
+		mouse_default_cursor_shape = Control.CURSOR_DRAG if _pan else tools.cursor_at(mm.position)
 		ed.show_cursor_view(self, mouse_m)
 	elif event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
@@ -349,29 +355,35 @@ func _gui_input(event: InputEvent) -> void:
 			return
 		if mb.button_index == MOUSE_BUTTON_MIDDLE or (mb.button_index == MOUSE_BUTTON_LEFT and _space):
 			_pan = mb.pressed
+			mouse_default_cursor_shape = Control.CURSOR_DRAG if _pan else Control.CURSOR_ARROW
 			accept_event()
 			return
 		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-			ed.canvas.cancel()
-			if ed.tool() == "select":
-				ed.select("")
+			if tools.dragging():
+				tools.cancel()
+			else:
+				ed.canvas.cancel()
+				if ed.tool() == "select":
+					ed.select("")
 			accept_event()
 			return
-		if mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-			grab_focus()
-			_press()
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.pressed:
+				grab_focus()
+				_press(mb.position)
+			else:
+				tools.release()
 			accept_event()
 			_over.queue_redraw()
 
 
-func _press() -> void:
+func _press(px: Vector2) -> void:
 	if ed.tool() != "select":
 		# La pose reste en vue Dessus (D13).
 		ed.set_status(Lang.t("La pose se fait en vue Dessus ; ici : choisir, déplacer, mesurer (la souris : ²)",
 			"Placing is done in the Top view; here: pick, move, measure (the mouse: `)"))
 		return
-	var e := element_at(mouse_m)
-	ed.select(String(e.get("id", "")))
+	tools.press(px)
 
 
 func _update_hover() -> void:
@@ -414,6 +426,8 @@ func _draw_overlay() -> void:
 		return
 	var font := UiStyle.font("body")
 	_draw_selection(_over)
+	if not offscreen:
+		tools.draw(_over)
 	_over_rulers(font)
 
 
