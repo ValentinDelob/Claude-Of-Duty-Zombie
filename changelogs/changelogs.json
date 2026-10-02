@@ -1973,6 +1973,35 @@
     "en": "Muzzle flash fixed",
     "fr": "Flamme de bouche corrigée"
    }
+  },
+  "v0.2.0-snapshot.387": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [
+    "v0.2.0-snapshot.387/01_lanceur.jpg"
+   ],
+   "items": [
+    {
+     "en": "The launcher now shows a picture from the game: KINO's great cinema hall, darkened so the text stays easy to read.",
+     "fr": "Le lanceur s'habille d'une image du jeu : la grande salle de cinéma de KINO, assombrie pour que le texte reste bien lisible."
+    },
+    {
+     "en": "Release notes now appear in a bubble next to the version list, with a pointer showing the selected version. Screenshots still enlarge with a click.",
+     "fr": "Les notes de version s'affichent dans une bulle à côté de la liste des versions, avec une pointe qui montre la version choisie. Les captures s'agrandissent toujours d'un clic."
+    },
+    {
+     "en": "The launcher looks the same on every screen; enlarging the window shows more of the background picture instead of making everything bigger.",
+     "fr": "Le lanceur garde le même aspect sur tous les écrans ; en agrandissant la fenêtre, vous voyez davantage de l'image de fond plutôt que des éléments plus gros."
+    },
+    {
+     "en": "The launcher updates itself to this new version automatically.",
+     "fr": "Le lanceur se met à jour tout seul vers cette nouvelle version."
+    }
+   ],
+   "title": {
+    "en": "A new look for the launcher",
+    "fr": "Un nouvel accueil pour le lanceur"
+   }
   }
  }
 }

@@ -3,7 +3,8 @@ extends RefCounted
 ## années 60, caisses au pochoir, dossier classé, lampes d'alerte. Thème Godot
 ## réutilisable (Look.theme()), palette, tailles et styles nommés : le menu
 ## principal du jeu pourra reprendre les mêmes. Aucun logo pour l'instant :
-## le nom seul, au pochoir ; aucun effet par-dessus l'interface.
+## le nom seul, au pochoir ; aucun effet par-dessus l'interface. Accueil
+## refait le 02/10/2026 (maquette A) : image du jeu en fond, notes en bulle.
 ##
 ## Tailles : celles des maquettes telles qu'on les voit sur un écran 1920 × 1080
 ## (cadre de ≈ 1190 px de large). Sur un autre écran, tout est multiplié par
@@ -25,7 +26,7 @@ const BRASS := Color("c49a4a")      # laiton : stable, installé
 const SIZE_BODY := 16        # texte courant, notes, liste, état
 const SIZE_SMALL := 13       # dates, étiquettes, boutons discrets
 const SIZE_SWITCH := 15      # interrupteur de canal
-const SIZE_TITLE := 36       # titre des notes
+const SIZE_TITLE := 34       # titre des notes
 const SIZE_NAME_TOP := 18    # « CLAUDE OF DUTY »
 const SIZE_NAME := 49        # « ZOMBIE »
 const SIZE_PLAY := 37        # JOUER
@@ -35,8 +36,26 @@ const SIZE_HELP := 13        # aide d'un bloc des réglages
 const HEAD_H := 128
 const FOOT_H := 100
 const LIST_W := 305
-const GUTTER := 35           # marge gauche / droite de l'en-tête, des notes, du pied
+const GUTTER := 35           # marge gauche / droite de l'en-tête, de la colonne, du pied
 const BORDER := 2
+## Accueil sur l'image (maquette A du 02/10/2026) : colonne des versions
+## (haut : HEAD_H, bas : PANEL_BOTTOM du bord), bulle des notes, sa pointe,
+## voiles sombres du haut et du bas, captures des notes.
+const PANEL := Color(CONCRETE, 0.86)   # béton translucide
+const PANEL_BOTTOM := 116
+const BUBBLE_X := 372
+const BUBBLE_Y := 140
+const BUBBLE_W := 520
+const TAIL := 18             # côté du carré tourné de la pointe
+const TAIL_Y := 66           # pointe sans version visible
+const SCRIM_TOP := 152
+const SCRIM_BOTTOM := 235
+const THUMB := Vector2(168, 94)
+## Image de fond : agrandissement, point clair de l'image (fraction de l'image)
+## et où il tombe dans la fenêtre (fraction de la fenêtre).
+const BG_ZOOM := 1.3
+const BG_FOCUS := Vector2(0.62, 0.3)
+const BG_AT := Vector2(0.84, 0.4)
 ## Fenêtre au démarrage et taille minimale, en pixels des maquettes.
 const WINDOW := Vector2i(1190, 690)
 const WINDOW_MIN := Vector2i(900, 560)
@@ -135,7 +154,8 @@ static func theme() -> Theme:
 		th.set_color("font_hover_pressed_color", t, INK)
 		th.set_color("font_focus_color", t, PAPER)
 		th.set_color("font_disabled_color", t, Color(DIM, 0.5))
-		th.set_stylebox("normal", t, box(Color(0, 0, 0, 0), 12, 9, STEEL, BORDER))
+		# Fond voilé : lisible sur l'image de l'accueil.
+		th.set_stylebox("normal", t, box(Color(INK, 0.7), 12, 9, STEEL, BORDER))
 		th.set_stylebox("hover", t, box(Color(PAPER, 0.06), 12, 9, STEEL, BORDER))
 		th.set_stylebox("pressed", t, box(PAPER, 12, 9, PAPER, BORDER))
 		th.set_stylebox("hover_pressed", t, box(PAPER, 12, 9, PAPER, BORDER))

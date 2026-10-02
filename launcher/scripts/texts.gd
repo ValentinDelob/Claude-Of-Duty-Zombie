@@ -21,6 +21,7 @@ const T := {
 	"no_notes": {"fr": "Pas encore de notes pour cette version.", "en": "No notes for this version yet."},
 	"self_update": {"fr": "Mise à jour du lanceur…", "en": "Updating the launcher…"},
 	"deleted": {"fr": "%s supprimée.", "en": "%s deleted."},
+	"notes": {"fr": "NOTES DE VERSION", "en": "RELEASE NOTES"},
 	"click_zoom": {"fr": "Cliquez sur une capture pour l'agrandir.", "en": "Click a screenshot to enlarge it."},
 	"integrity_failed": {"fr": "Fichier de %s refusé : il ne correspond pas à la version publiée (téléchargement abîmé ou modifié). Réessayez.",
 		"en": "%s file rejected: it does not match the published version (damaged or altered download). Please try again."},

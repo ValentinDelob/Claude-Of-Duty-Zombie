@@ -18,6 +18,8 @@ const Version := preload("res://scripts/version.gd")
 const Downloader := preload("res://scripts/downloader.gd")
 
 const Look := preload("res://scripts/look.gd")
+## Image du jeu en fond de l'accueil.
+const BACKGROUND := "res://assets/background.jpg"
 
 # Couleurs (identité visuelle : scripts/look.gd).
 const BONE := Look.PAPER
@@ -46,7 +48,11 @@ var _title: Label
 var _date: Label
 var _items: VBoxContainer
 var _images: HFlowContainer
-var _hint: Label
+var _bg: TextureRect              # image du jeu (_frame_background)
+var _bubble: PanelContainer      # bulle des notes
+var _tail: Panel                 # sa pointe, en face de la version choisie
+var _notes_label: Label
+var _notes_scroll: ScrollContainer
 var _status: Label
 var _progress: ProgressBar
 var _play: Button
@@ -245,36 +251,44 @@ func _on_http(result: int, code: int, headers: PackedStringArray, body: PackedBy
 # Interface
 # --------------------------------------------------------------------------
 
-## Interface : dimensions des maquettes validées (Look, base 1280 × 720).
+## Accueil (maquette A validée le 02/10/2026) : image du jeu en fond, nom et
+## boutons par-dessus, versions dans une colonne à gauche, notes de la version
+## choisie dans une bulle à part (sa pointe suit la version choisie), état et
+## JOUER en bas. Placements fixes en pixels des maquettes (Look) : agrandie, la
+## fenêtre montre plus de fond, jamais des éléments plus gros.
 func _build_ui() -> void:
 	theme = Look.theme()
-	var bg := ColorRect.new()
-	bg.color = Look.INK
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-	var root := VBoxContainer.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 0)
-	add_child(root)
+	var ink := ColorRect.new()
+	ink.color = Look.INK
+	ink.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(ink)
+	_bg = TextureRect.new()
+	_bg.name = "Background"
+	_bg.texture = _background()
+	_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_bg.stretch_mode = TextureRect.STRETCH_SCALE
+	_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_bg)
+	_add_scrims()
 
 	# En-tête : le nom au pochoir (pas de logo), langue, réglages.
 	var head := _head_bar(true)
-	root.add_child(head)
-	root.add_child(_rule())
+	head.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	add_child(head)
 
-	# Corps : canal et versions à gauche, notes à droite.
-	var body := HBoxContainer.new()
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 0)
-	root.add_child(body)
+	# Colonne des versions : canal (un seul endroit, un interrupteur), liste.
 	var left_box := PanelContainer.new()
-	left_box.custom_minimum_size = Vector2(Look.LIST_W, 0)
-	left_box.add_theme_stylebox_override("panel", Look.box(Look.CONCRETE, 18, 21))
-	body.add_child(left_box)
+	left_box.name = "Versions"
+	left_box.add_theme_stylebox_override("panel", Look.box(Look.PANEL, 12, 12, Look.STEEL, Look.BORDER))
+	left_box.anchor_bottom = 1.0
+	left_box.offset_left = Look.GUTTER
+	left_box.offset_top = Look.HEAD_H
+	left_box.offset_right = Look.GUTTER + Look.LIST_W
+	left_box.offset_bottom = -Look.PANEL_BOTTOM
+	add_child(left_box)
 	var left := VBoxContainer.new()
 	left.add_theme_constant_override("separation", 8)
 	left_box.add_child(left)
-	# Canal : un seul endroit, un interrupteur ; la liste ne montre que ses versions.
 	var sw_box := PanelContainer.new()
 	sw_box.add_theme_stylebox_override("panel", Look.box(Color(0, 0, 0, 0), 0, 0, Look.STEEL, Look.BORDER))
 	left.add_child(sw_box)
@@ -296,51 +310,94 @@ func _build_ui() -> void:
 	_list = ItemList.new()
 	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_list.item_selected.connect(_on_select)
+	_list.get_v_scroll_bar().value_changed.connect(func(_v: float) -> void: _place_tail())
+	_list.resized.connect(_place_tail)
 	left.add_child(_list)
-	body.add_child(_vrule())
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	body.add_child(scroll)
+	# Bulle des notes : étiquette et numéro, titre, puces, captures.
+	_bubble = PanelContainer.new()
+	_bubble.name = "Notes"
+	var bs := Look.box(Color(Look.INK, 0.9), 0, 0, Look.STEEL, Look.BORDER)
+	bs.content_margin_left = 26
+	bs.content_margin_right = 26
+	bs.content_margin_top = 22
+	bs.content_margin_bottom = 24
+	bs.shadow_color = Color(0, 0, 0, 0.55)
+	bs.shadow_size = 20
+	bs.shadow_offset = Vector2(0, 18)
+	_bubble.add_theme_stylebox_override("panel", bs)
+	_bubble.position = Vector2(Look.BUBBLE_X, Look.BUBBLE_Y)
+	_bubble.custom_minimum_size = Vector2(Look.BUBBLE_W, 0)
+	add_child(_bubble)
+	# Pointe : carré tourné, bords gauche et bas, à cheval sur le bord gauche.
+	_tail = Panel.new()
+	_tail.name = "Tail"
+	var ts := Look.box(Look.INK)
+	ts.border_color = Look.STEEL
+	ts.border_width_left = Look.BORDER
+	ts.border_width_bottom = Look.BORDER
+	_tail.add_theme_stylebox_override("panel", ts)
+	_tail.size = Vector2(Look.TAIL, Look.TAIL)
+	_tail.pivot_offset = _tail.size / 2
+	_tail.rotation_degrees = 45
+	_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_tail)
 	var notes := VBoxContainer.new()
-	notes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	notes.add_theme_constant_override("separation", 13)
-	var notes_pad := _padded(notes, Look.GUTTER, 26)
-	notes_pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(notes_pad)
+	notes.add_theme_constant_override("separation", 10)
+	_bubble.add_child(notes)
+	var tag_row := HBoxContainer.new()
+	notes.add_child(tag_row)
+	_notes_label = Label.new()
+	_notes_label.add_theme_font_override("font", Look.spaced(Look.label_font(), 3))
+	_notes_label.add_theme_font_size_override("font_size", Look.SIZE_SMALL)
+	_notes_label.add_theme_color_override("font_color", Look.ALARM)
+	_notes_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tag_row.add_child(_notes_label)
+	_date = Label.new()
+	_date.add_theme_font_override("font", Look.file_font())
+	_date.add_theme_font_size_override("font_size", Look.SIZE_SMALL)
+	_date.add_theme_color_override("font_color", Look.DIM)
+	tag_row.add_child(_date)
 	_title = Label.new()
 	_title.add_theme_font_override("font", Look.display_font())
 	_title.add_theme_font_size_override("font_size", Look.SIZE_TITLE)
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	notes.add_child(_title)
-	_date = Label.new()
-	_date.add_theme_font_override("font", Look.file_font())
-	_date.add_theme_font_size_override("font_size", Look.SIZE_SMALL)
-	_date.add_theme_color_override("font_color", Look.DIM)
-	notes.add_child(_date)
+	# Puces et captures : défilent dans la bulle si elles dépassent.
+	_notes_scroll = ScrollContainer.new()
+	_notes_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	notes.add_child(_notes_scroll)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 16)
+	_notes_scroll.add_child(body)
 	# Nouveautés : une ligne par puce (carré d'alerte, texte en clair).
 	_items = VBoxContainer.new()
 	_items.add_theme_constant_override("separation", 9)
-	notes.add_child(_items)
+	body.add_child(_items)
 	_images = HFlowContainer.new()
 	_images.add_theme_constant_override("h_separation", 12)
 	_images.add_theme_constant_override("v_separation", 12)
-	notes.add_child(_images)
-	_hint = Label.new()
-	_hint.add_theme_color_override("font_color", Look.DIM)
-	_hint.add_theme_font_size_override("font_size", Look.SIZE_SMALL)
-	notes.add_child(_hint)
-	root.add_child(_rule())
+	body.add_child(_images)
 
 	# Pied : état, progression, supprimer, jouer.
 	var foot := _foot_bar()
-	root.add_child(foot)
+	foot.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	foot.offset_top = -Look.FOOT_H
+	add_child(foot)
+	var row: HBoxContainer = foot.get_child(0)
+	row.add_theme_constant_override("separation", 20)
+	# État sur ≈ 520 px (maquette), puis un vide jusqu'aux boutons.
 	var st := VBoxContainer.new()
 	st.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	st.size_flags_stretch_ratio = 2.0
 	st.alignment = BoxContainer.ALIGNMENT_CENTER
 	st.add_theme_constant_override("separation", 8)
-	foot.get_child(0).add_child(st)
+	row.add_child(st)
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(gap)
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	st.add_child(_status)
@@ -353,12 +410,15 @@ func _build_ui() -> void:
 	_delete = Button.new()
 	_delete.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_delete.pressed.connect(_on_delete)
-	foot.get_child(0).add_child(_delete)
+	row.add_child(_delete)
 	_play = Button.new()
 	_play.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	Look.play_button(_play)
 	_play.pressed.connect(_on_play)
-	foot.get_child(0).add_child(_play)
+	row.add_child(_play)
+	resized.connect(_fit_bubble_later)
+	resized.connect(_frame_background)
+	_frame_background.call_deferred()
 
 	_build_settings()
 
@@ -382,12 +442,98 @@ func _build_ui() -> void:
 	_apply_texts()
 
 
-## Bandeau du haut (141 px) : le nom au pochoir, puis, sur l'accueil, la
-## langue et RÉGLAGES ; sur les réglages, RETOUR.
+## Image de fond (assets/background.jpg) ; absente : nuit du bunker seule.
+func _background() -> Texture2D:
+	return load(BACKGROUND) as Texture2D if ResourceLoader.exists(BACKGROUND) else null
+
+
+## Cadrage de l'image : couvre la fenêtre, agrandie de Look.BG_ZOOM, et son
+## point clair (Look.BG_FOCUS : rayons, lustre) placé à Look.BG_AT de la
+## fenêtre, à droite de la bulle ; jamais de bord vide.
+func _frame_background() -> void:
+	if _bg == null or _bg.texture == null:
+		return
+	var tex := Vector2(_bg.texture.get_size())
+	var k := maxf(size.x / tex.x, size.y / tex.y) * Look.BG_ZOOM
+	var shown := tex * k
+	var pos := size * Look.BG_AT - shown * Look.BG_FOCUS
+	_bg.size = shown
+	_bg.position = pos.clamp(size - shown, Vector2.ZERO)
+
+
+## Voiles sombres sur l'image : de gauche à droite (colonne lisible), en haut
+## (nom, boutons) et en bas (état, JOUER), hauteurs fixes en pixels des maquettes.
+func _add_scrims() -> void:
+	var sides := [
+		[Control.PRESET_FULL_RECT, 0, false, PackedFloat32Array([0.0, 0.34, 0.7, 1.0]), [0.9, 0.55, 0.12, 0.3]],
+		[Control.PRESET_TOP_WIDE, Look.SCRIM_TOP, true, PackedFloat32Array([0.0, 1.0]), [0.85, 0.0]],
+		[Control.PRESET_BOTTOM_WIDE, Look.SCRIM_BOTTOM, true, PackedFloat32Array([0.0, 0.56, 1.0]), [0.0, 0.75, 0.97]],
+	]
+	for s: Array in sides:
+		var g := Gradient.new()
+		g.offsets = s[3]
+		var cols := PackedColorArray()
+		for a: float in s[4]:
+			cols.append(Color(Look.INK, a))
+		g.colors = cols
+		var tex := GradientTexture2D.new()
+		tex.gradient = g
+		tex.width = 4 if s[2] else 256
+		tex.height = 256 if s[2] else 4
+		tex.fill_to = Vector2(0, 1) if s[2] else Vector2(1, 0)
+		var r := TextureRect.new()
+		r.texture = tex
+		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		r.stretch_mode = TextureRect.STRETCH_SCALE
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		r.set_anchors_preset(s[0])
+		if s[0] == Control.PRESET_TOP_WIDE:
+			r.offset_bottom = s[1]
+		elif s[0] == Control.PRESET_BOTTOM_WIDE:
+			r.offset_top = -s[1]
+		add_child(r)
+
+
+## Après la mise en page (puces repliées à la largeur de la bulle) : deux images.
+func _fit_bubble_later() -> void:
+	for i in 2:
+		await get_tree().process_frame
+		_fit_bubble()
+
+
+## Hauteur de la bulle : celle de son contenu, bornée au-dessus du pied (au-delà,
+## les puces défilent) ; puis la pointe.
+func _fit_bubble() -> void:
+	if _bubble == null:
+		return
+	var room := size.y - Look.PANEL_BOTTOM - Look.BUBBLE_Y
+	var fixed := _bubble.get_combined_minimum_size().y - _notes_scroll.custom_minimum_size.y
+	var want := (_notes_scroll.get_child(0) as Control).get_combined_minimum_size().y
+	_notes_scroll.custom_minimum_size.y = clampf(want, 0.0, maxf(room - fixed, 40.0))
+	_bubble.size = Vector2(Look.BUBBLE_W, 0)
+	_place_tail()
+
+
+## Pointe de la bulle en face de la version choisie (bornée aux bords de la bulle).
+func _place_tail() -> void:
+	if _tail == null or _bubble == null:
+		return
+	var y := Look.TAIL_Y
+	var idx := _list_tags.find(selected)
+	if idx >= 0 and idx < _list.item_count:
+		var r := _list.get_item_rect(idx)
+		var row_mid := _list.global_position.y - global_position.y + r.position.y + r.size.y / 2 - _list.get_v_scroll_bar().value
+		y = row_mid - _bubble.position.y - Look.TAIL / 2.0
+	y = clampf(y, 14.0, maxf(_bubble.size.y - Look.TAIL - 14.0, 14.0))
+	_tail.position = Vector2(_bubble.position.x - Look.TAIL / 2.0 - 2, _bubble.position.y + y)
+
+
+## Bandeau du haut (128 px) : le nom au pochoir, puis, sur l'accueil (sans
+## fond : par-dessus l'image), la langue et RÉGLAGES ; sur les réglages, RETOUR.
 func _head_bar(home: bool) -> PanelContainer:
 	var box := PanelContainer.new()
 	box.custom_minimum_size = Vector2(0, Look.HEAD_H)
-	box.add_theme_stylebox_override("panel", Look.box(Color("151812"), Look.GUTTER, 0))
+	box.add_theme_stylebox_override("panel", Look.box(Color(0, 0, 0, 0) if home else Color("151812"), Look.GUTTER, 0))
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 12)
 	box.add_child(head)
@@ -747,28 +893,34 @@ func _show_notes() -> void:
 	var info := _info(tag)
 	var n := Releases.notes(changelogs, tag, lang, String(info.get("title", "")))
 	_title.text = String(n.title) if String(n.title) != "" else tag
+	_notes_label.text = Texts.t("notes", lang)
 	var d := String(info.get("date", ""))
 	_date.text = tag + ("  ·  " + Texts.date(d, lang) if d != "" else "")
-	# Nouveautés en texte simple (Label : aucune balise interprétée).
+	# Nouveautés en texte simple (Label : aucune balise interprétée). Anciennes
+	# lignes retirées tout de suite : la bulle se mesure sans elles.
 	for c in _items.get_children():
+		_items.remove_child(c)
 		c.queue_free()
 	for it in n.items:
 		_items.add_child(_note_line(String(it)))
 	if n.items.is_empty():
 		_items.add_child(_note_line(Texts.t("no_notes" if tag != "" else "no_versions", lang), true))
 	for c in _images.get_children():
+		_images.remove_child(c)
 		c.queue_free()
 	for img in n.images:
 		var b := TextureButton.new()
-		b.custom_minimum_size = Vector2(199, 112)
+		b.custom_minimum_size = Look.THUMB
+		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		b.tooltip_text = Texts.t("click_zoom", lang)
 		b.ignore_texture_size = true
 		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		b.set_meta("image", img)
 		b.pressed.connect(_on_zoom.bind(String(img)))
 		_images.add_child(b)
 		_fill_image(b, String(img))
-	_hint.text = Texts.t("click_zoom", lang) if not n.images.is_empty() else ""
 	_update_buttons()
+	_fit_bubble_later()
 
 
 func _update_buttons() -> void:

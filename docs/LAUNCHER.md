@@ -20,15 +20,17 @@ snapshot qui l'a modifié ; les notes de chaque snapshot donnent le lien) :
   (suit la plus récente du canal) ou n'importe quelle version publiée du canal ;
   un choix mémorisé par canal. ✓ = version installée ; SUPPRIMER libère sa
   place (et les paquets qu'aucune autre version n'utilise).
-- **Notes de version** de la version sélectionnée : titre, nouveautés en quelques
-  puces écrites pour les joueurs, captures (clic pour agrandir).
+- **Notes de version** de la version sélectionnée, dans une bulle à côté de la
+  liste (sa pointe montre la version choisie) : titre, nouveautés en quelques
+  puces écrites pour les joueurs, captures (clic pour agrandir). L'accueil a
+  pour fond une image du jeu (`launcher/assets/background.jpg`, salle du Kino).
 - **JOUER** : lance la version choisie (après son téléchargement si besoin) et
   ferme le lanceur.
 - Français ou anglais ; hors ligne, seules les versions installées sont proposées.
 - **RÉGLAGES** (en haut à droite) : langue, dossier des versions et place prise,
   nettoyage des paquets qu'aucune version n'utilise plus, dossier des journaux,
   à propos. Identité visuelle : `launcher/scripts/look.gd` (thème réutilisable,
-  maquettes validées le 30/09/2026 ; pas de logo pour l'instant).
+  maquettes validées le 30/09/2026, accueil refait le 02/10/2026 ; pas de logo pour l'instant).
 - Le lanceur **se met à jour lui-même** et **redémarre** ; si la nouvelle version
   ne démarre pas, l'ancienne est remise automatiquement.
 
