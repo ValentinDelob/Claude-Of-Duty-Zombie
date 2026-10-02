@@ -318,22 +318,42 @@ par code (`MapIcons`).
 | Machines | Pack-a-Punch, interrupteur du courant, téléporteur, arrivée du téléporteur, poste central | contre un mur, ou au sol (téléporteur, arrivée) |
 | Pièges | zone de piège électrique, levier | zone : glisser au sol ; levier : contre un mur, à moins de 10 m |
 | Joueurs et apparitions | départ des joueurs, zombie qui sort du sol | au sol |
-| Décor et obstacles | caisse, baril, tas de gravats, gros éboulement, mur effondré, débris épars, planches au sol, poutre tombée, lustre tombé, pile de caisses, tonneaux, sacs de sable, table et chaise renversées, chaise pliante, bureau, étagère, rangée de fauteuils de cinéma, fauteuil arraché, pupitre, projecteur de cinéma, chariot, épave de voiture | au sol, pivote avec R (90°) ou au degré près (poignée, Angle) |
+| Décor et obstacles | caisse, baril, tas de gravats, gros éboulement, mur effondré, débris épars, planches au sol, poutre tombée, lustre tombé, pile de caisses, tonneaux, sacs de sable, table et chaise renversées, chaise pliante, bureau, étagère, rangée de fauteuils de cinéma, fauteuil arraché, pupitre, projecteur de cinéma, chariot, épave de voiture ; format 11, objets des effets : bûches, foyer de pierres, planches calcinées, électrodes, bobine Tesla, flaque d'eau, petite flaque, torche murale, tuyau à vapeur, boîtier électrique ouvert, tuyau qui fuit, câble suspendu | au sol, pivote avec R (90°) ou au degré près (poignée, Angle) ; torche, tuyaux et boîtier contre un mur (hauteur réglable, comme une applique) ; câble au plafond |
 | Prefabs de la carte (format 10) | « + Créer… » (grouper du décor posé), « Importer… » (modèle .glb / .gltf), puis les prefabs de la carte ouverte (⚙ régler, ✕ supprimer) | comme le décor ; rangés dans le dossier de la carte (`docs/MAP_OBJECTS.md` § 11) |
 | Luminaires | lampe (historique), ampoule nue, suspension, néon, lustre, applique murale, lampe de bureau, projecteur de chantier, bougies, brasero | plafond, mur (applique) ou sol ; pivote avec R |
-| Effets (format 10, sous-onglets) | **Flammes** : petit feu, feu de camp / brasier, flammes de baril, torche murale, incendie ; **Fumées** : fumée légère, fumée noire épaisse, vapeur de tuyau, brouillard au sol ; **Étincelles** : pluie d'étincelles, gerbe de soudure, court-circuit ; **Électricité** : arc électrique, bobine Tesla, câble à nu ; **Eau** : goutte-à-goutte, fuite de tuyau, flaque ; **Ambiance** : poussière, braises, cendres, feux follets (115) | au sol, au mur ou au plafond, par-dessus n'importe quoi ; aucune collision |
+| Effets (format 10, sous-onglets ; effets purs et zones : format 11) | **Flammes** : petit feu, grand feu, flammes de baril, flamme de torche, incendie ; **Fumées** : fumée légère, fumée noire épaisse, jet de vapeur, brouillard au sol ; **Étincelles** : pluie d'étincelles, gerbe de soudure, court-circuit ; **Électricité** : arc électrique, arcs en boule, étincelles de câble ; **Eau** : goutte-à-goutte, filet d'eau, ronds dans l'eau ; **Ambiance** : poussière, braises, cendres, feux follets (115) | au sol, au mur ou au plafond, par-dessus n'importe quoi ; zone agrandie aux poignées ; aucun objet, aucune collision |
 
-### Effets (format 10)
+### Effets (format 10 ; effets purs et zones : format 11)
 
 Une rangée de sous-onglets au-dessus de la grille de l'inventaire range les
 22 effets (Flammes, Fumées, Étincelles, Électricité, Eau, Ambiance). Un effet
-est purement visuel : aucune collision, aucun dégât, il ne gêne ni la pose
-ni les trajets ; il se pose par-dessus le décor et les objets de jeu (des
-flammes de baril sur un baril, une fumée sur des gravats). Propriétés :
-intensité, taille, hauteur, couleur (effets qui se teintent : fumée légère,
-brouillard, électricité, feux follets), rotation (incendie, arc). 64 effets
-au plus par carte. L'aperçu 3D montre l'effet animé. Détails, budget de
-particules et format : `docs/MAP_OBJECTS.md` § 11.
+ne contient QUE de l'effet : particules, lumières animées, arcs électriques ;
+**aucun objet** (format 11) et aucune collision, aucun dégât ; il ne gêne ni
+la pose ni les trajets et se pose par-dessus le décor et les objets de jeu
+(des flammes de baril sur un baril, une fumée sur des gravats). L'objet qui
+va avec un effet est un **décor de l'onglet Décor** posé à part : bûches ou
+foyer de pierres sous un feu, torche murale sous la flamme de torche, tuyau à
+vapeur, boîtier électrique ouvert, électrodes, bobine Tesla, câble suspendu,
+tuyau qui fuit, flaque d'eau (le panneau des propriétés de l'effet le
+rappelle).
+
+Chaque effet a une **zone** en mètres, dessinée sur le plan (rectangle
+translucide en tirets, icône au milieu, dimensions écrites à côté quand il
+est choisi) et centrée sur sa position : au sol et au plafond, largeur ×
+profondeur, tournée avec lui (R, poignée ronde, champ Angle) ; au mur,
+largeur le long du mur et hauteur. On l'agrandit aux **poignées** (4 coins
+et 4 milieux ; au mur, ses 2 bouts : le côté opposé reste en place) ou dans
+les propriétés (Largeur, Profondeur, Hauteur de zone pour les volumes :
+brouillard, poussière, feux follets). Chaque effet a ses bornes (fumées de
+0,5 à 20 m, brouillard de 2 à 40 m, flamme de torche de 0,2 à 0,6 m…). En
+jeu, l'effet REMPLIT sa zone : une zone plus grande a plus de particules
+(même densité, × intensité), jamais de plus grosses, jusqu'au plafond de
+l'effet puis au budget de la carte ; ses lumières portent plus loin.
+Autres propriétés : intensité, hauteur de pose, couleur (effets qui se
+teintent : fumée légère, brouillard, électricité, feux follets). 64 effets
+au plus par carte. L'aperçu 3D montre l'effet animé, choisi : sa zone
+surlignée. Détails, budget de particules et format : `docs/MAP_OBJECTS.md` §
+12.
 
 ### Décor (prefabs) et luminaires
 
@@ -669,9 +689,12 @@ au **format 1, 2 ou 3 se lit telle quelle** (toutes les nouvelles clés sont
 facultatives, `EditorMap._migrate`) et s'enregistre au format 4 ; DRAFT
 ARENA est restée au format 1 pour le prouver (sa description en maillage est
 identique octet pour octet, vérifié par son empreinte SHA-256).
-Formats 5 à 10 (variantes, barrière invisible, escaliers, décor libre, portes
-à zombies, barrière en polygone et chevauchements, effets) : docs/MAP_OBJECTS.md ;
-le format courant est **10**.
+Formats 5 à 11 (variantes, barrière invisible, escaliers, décor libre, portes
+à zombies, barrière en polygone et chevauchements, effets, effets purs et
+zones) : docs/MAP_OBJECTS.md ;
+le format courant est **11**. Une carte d'un format plus ancien avec des effets
+est **convertie au chargement** (effet pur + décor équivalent au même endroit,
+docs/MAP_OBJECTS.md § 12) et réécrite au format 11 à l'enregistrement.
 Une carte d'un format plus récent que le jeu est signalée. `id` : dossier ; `musique` : un son
 `assets/audio/ambience_*` ; `hauteur_portes` (m) ; `lampes_auto` : une lampe
 tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
@@ -766,8 +789,10 @@ long du mur ; son orientation se lit sur le côté de pièce qui passe par là.
   (absente : jusqu'au plafond) :
   `{"id":"i1","type":"bloc_invisible","etage":0,"sommets":[[2,2],[6,2],[6,3],[3,3],[3,6],[2,6]],"hauteur":1.2}`
   (cartes d'avant : `rect` + `rot`, lus comme un polygone ; docs/MAP_OBJECTS.md § 2).
-- `effet` (format 10) : `effet` (identifiant de `MapCatalog.EFFECTS`), `position`, et facultatifs `rot`, `mur` / `angle` (effets muraux), `intensite`, `taille`, `hauteur`, `couleur` ; aucune collision :
-  `{"id":"fx1","type":"effet","etage":0,"effet":"brasier","position":[8,6],"intensite":1.5}` (docs/MAP_OBJECTS.md § 12).
+- `effet` (format 10 ; format 11 : `zone`) : `effet` (identifiant de `MapCatalog.EFFECTS`), `position`, et facultatifs `rot` (effets au sol et au plafond), `mur` / `angle` (effets muraux), `intensite`, `zone` (m : `[largeur, profondeur]` au sol et au plafond, `[largeur, profondeur, hauteur]` pour un volume — brouillard, poussière, feux follets —, `[largeur, hauteur]` au mur ; bornes propres à chaque effet ; absente : zone par défaut), `hauteur`, `couleur` ; aucun objet, aucune collision ; `taille` (avant le format 11) est encore lue, comme la zone par défaut × taille :
+  `{"id":"fx1","type":"effet","etage":0,"effet":"brouillard","position":[8,6],"rot":30,"zone":[10,6,0.8],"intensite":1.5}` (docs/MAP_OBJECTS.md § 12).
+- `prefab` mural (format 11 : torche murale, tuyau à vapeur, boîtier électrique, tuyau qui fuit) : `position` sur le trait du mur, `mur` / `angle` et `hauteur` facultative (m au-dessus du sol, comme une applique), sans `rot` :
+  `{"id":"d4","type":"prefab","prefab":"torche_murale","etage":0,"position":[2,0],"mur":"n","hauteur":2.1}`.
 - `mur` libre : segment `a` → `b` (droit ou en biais), `epaisseur` 0,5, 1,5 ou 2,5 m.
 - `mur_courbe` (format 4) : arc de cercle en segments droits, `centre`,
   `rayon` (1 à 128 m), `debut` (direction du premier bout, degrés dans le sens

@@ -1,10 +1,11 @@
 # Objets de l'éditeur de cartes : variantes, barrière invisible, escaliers, décor libre, portes à zombies, effets
 
 Complément de `docs/MAP_AUTHORING.md` (éditeur, format des cinq JSON,
-partage réseau) pour les ajouts des **formats 5 à 10** des cartes
+partage réseau) pour les ajouts des **formats 5 à 11** des cartes
 (format 7 : décor posé librement, § 8 ; format 8 : portes à zombies, § 9 ;
 format 9 : barrière invisible en polygone, § 2, et chevauchements du décor,
-§ 10 ; format 10 : prefabs de la carte, § 11, et effets, § 12) :
+§ 10 ; format 10 : prefabs de la carte, § 11, et effets, § 12 ; format 11 :
+effets purs et zones, § 12) :
 
 1. les **variantes d'aspect** d'un type d'objet (plusieurs modèles de porte,
    de débris, d'arme murale) ;
@@ -378,14 +379,15 @@ n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
 
 ## 5. Versions du format
 
-`EditorMap.FORMAT` = **10**. Toutes les nouvelles clés sont facultatives : une
-carte au format 1 à 9 se lit telle quelle (`EditorMap._migrate` ; un
+`EditorMap.FORMAT` = **11**. Toutes les nouvelles clés sont facultatives : une
+carte au format 1 à 10 se lit telle quelle (`EditorMap._migrate` ; un
 escalier sans `variante` est droit, une applique sans `hauteur` est à 2 m,
 une fenêtre sans `variante` est la fenêtre d'avant ; seule conversion : la
-barrière invisible rectangle devient un polygone de 4 sommets, § 2) et
-s'enregistre au format 10 ; DRAFT ARENA (format 1) reste identique octet pour
+barrière invisible rectangle devient un polygone de 4 sommets, § 2 ; format
+11 : un effet qui construisait un objet reçoit le décor équivalent, § 12) et
+s'enregistre au format 11 ; DRAFT ARENA (format 1) reste identique octet pour
 octet dans sa description en maillage. Un jeu plus ancien signale une carte
-au format 10 comme « plus récente » (et son contrôle refuserait les clés
+au format 11 comme « plus récente » (et son contrôle refuserait les clés
 qu'il ne connaît pas).
 
 - Format 6 : types d'escaliers (§ 4).
@@ -394,6 +396,8 @@ qu'il ne connaît pas).
 - Format 9 : barrière invisible en polygone (§ 2), réglage
   `chevauchement_decor` (§ 10).
 - Format 10 : effets (type `effet`, § 12).
+- Format 11 : effets purs (objets des effets devenus des décors, décor mural
+  et au plafond) et zone des effets (clé `zone`, § 12).
 
 ## 6. Ajouter une variante ou un type à variantes
 
@@ -880,7 +884,7 @@ refusée tant que posé, annulation, import et réglages.
 
 ---
 
-## 12. Effets (format 10)
+## 12. Effets (format 10 ; effets purs et zones : format 11)
 
 ### L'onglet et ses sous-onglets
 
@@ -888,16 +892,41 @@ Inventaire (E ou Tab) : catégorie **Effets** / Effects. Une rangée de
 sous-onglets s'affiche au-dessus de la grille (mécanisme générique : une
 catégorie de `MapCatalog.CATEGORIES` peut déclarer une liste de
 sous-onglets en 4e élément, `MapCatalog.subs_of`, `MapInventory._fill_subs` ;
-le sous-onglet choisi est gardé à la réouverture) :
+le sous-onglet choisi est gardé à la réouverture).
 
-| Sous-onglet | Effets (identifiant) | Pose |
-|---|---|---|
-| Flammes | petit feu (`petit_feu`), feu de camp / brasier (`brasier`), flammes de baril (`baril_feu`, 0,9 m de haut : à poser sur un baril), torche murale (`torche`), incendie 3 × 2 m (`incendie`, pivote) | sol, mur |
-| Fumées | fumée légère (`fumee_legere`, teinte), fumée noire épaisse (`fumee_noire`), vapeur de tuyau (`vapeur`), brouillard au sol 4 × 4 m (`brouillard`, teinte) | sol, mur |
-| Étincelles | pluie d'étincelles (`pluie_etincelles`), gerbe de soudure (`soudure`), court-circuit (`court_circuit`) | plafond, mur |
-| Électricité | arc électrique (`arc`, pivote, teinte), bobine Tesla (`tesla`, teinte), câble à nu (`cable_nu`, teinte) | sol, plafond |
-| Eau | goutte-à-goutte (`goutte`), fuite de tuyau (`fuite`), flaque (`flaque`) | plafond, mur, sol |
-| Ambiance | poussière en suspension (`poussiere`), braises flottantes (`braises`), cendres qui tombent (`cendres`), feux follets de l'élément 115 (`feux_follets`, vert, teinte) | sol |
+Format 11 : **un effet ne contient que de l'effet** (particules, lumières
+animées, arcs) : aucun objet solide. L'objet qui l'accompagnait avant (bûches,
+torche, tuyau...) est un **décor de l'onglet Décor**, posé à part (colonne
+« Décor qui va avec », clé `decor` de `MapCatalog.EFFECTS`). Les identifiants
+n'ont pas changé ; les noms qui évoquaient un objet, si.
+
+Zone (m) : défaut, puis bornes min – max ; « l » largeur, « p » profondeur,
+« h » hauteur (volume au sol ; étendue verticale d'un effet mural).
+
+| Sous-onglet | Effet (identifiant) : FR / EN | Pose | Zone par défaut (bornes) | Décor qui va avec |
+|---|---|---|---|---|
+| Flammes | `petit_feu` : Petit feu / Small fire | sol | 0,6 × 0,6 (l, p : 0,3 – 3) | bûches |
+| | `brasier` : Grand feu / Bonfire | sol | 1,2 × 1,2 (0,6 – 4) | foyer de pierres |
+| | `baril_feu` : Flammes de baril / Barrel flames (0,9 m de haut) | sol | 0,6 × 0,6 (0,3 – 1,5) | — (un baril) |
+| | `torche` : Flamme de torche / Torch flame | mur, 1,8 m | l 0,3 (0,2 – 0,6), h 0,4 (0,3 – 0,8) | torche murale |
+| | `incendie` : Incendie / Blaze | sol | 3 × 2 (1 – 12) | planches calcinées |
+| Fumées | `fumee_legere` : Fumée légère / Light smoke (teinte) | sol | 1 × 1 (0,5 – 20) | — |
+| | `fumee_noire` : Fumée noire épaisse / Thick black smoke | sol | 1,5 × 1,5 (0,5 – 20) | — |
+| | `vapeur` : Jet de vapeur / Steam jet | mur, 1,2 m | l 0,3 (0,2 – 4), h 0,3 (0,2 – 2) | tuyau à vapeur |
+| | `brouillard` : Brouillard au sol / Ground fog (teinte) | sol | 4 × 4 × 0,6 (l, p : 2 – 40 ; h : 0,3 – 3) | — |
+| Étincelles | `pluie_etincelles` : Pluie d'étincelles / Spark shower | plafond | 0,5 × 0,5 (0,3 – 6) | câble suspendu |
+| | `soudure` : Gerbe de soudure / Welding sparks | mur, 1,3 m | l 0,4 (0,2 – 3), h 0,4 (0,2 – 2) | — |
+| | `court_circuit` : Court-circuit / Short circuit | mur, 1,6 m | l 0,4 (0,2 – 2), h 0,5 (0,2 – 2) | boîtier électrique ouvert |
+| Électricité | `arc` : Arc électrique / Electric arc (teinte) | sol, 1 m | 1,5 × 0,4 (l : 0,5 – 6 ; p : 0,2 – 2) | électrodes |
+| | `tesla` : Arcs en boule / Arc burst (teinte) | sol, 1,4 m | 2,4 × 2,4 (0,6 – 6) | bobine Tesla |
+| | `cable_nu` : Étincelles de câble / Cable sparks (teinte) | plafond | 0,5 × 0,5 (0,3 – 3) | câble suspendu |
+| Eau | `goutte` : Goutte-à-goutte / Dripping water | plafond | 0,5 × 0,5 (0,3 – 6) | petite flaque |
+| | `fuite` : Filet d'eau / Water stream | mur, 2 m | l 0,3 (0,1 – 3), h 0,2 (0,1 – 1) | tuyau qui fuit, petite flaque |
+| | `flaque` : Ronds dans l'eau / Water ripples | sol | 1,5 × 1 (0,5 – 10) | flaque d'eau |
+| Ambiance | `poussiere` : Poussière en suspension / Floating dust | sol | 3 × 3 × 2 (l, p : 1 – 30 ; h : 0,5 – 8) | — |
+| | `braises` : Braises flottantes / Floating embers | sol | 2 × 2 (0,5 – 20) | — |
+| | `cendres` : Cendres qui tombent / Falling ash | sol | 3 × 3 (1 – 30) | — |
+| | `feux_follets` : Feux follets (115) / Will-o'-wisps (115) (vert, teinte) | sol | 1,5 × 1,5 × 1,2 (l, p : 0,5 – 10 ; h : 0,5 – 4) | — |
 
 Montages (`MapCatalog.EFFECTS[...].mount`) : **sol** (outil « au sol »,
 surélevé de `hauteur` m), **mur** (contre un mur comme une applique,
@@ -905,22 +934,87 @@ n'importe où le long du mur, à `hauteur` m, dirigé vers la pièce),
 **plafond** (sous le plafond de la pièce, la distance au sol est calculée :
 les étincelles rebondissent sur le sol, les gouttes y font des ronds).
 
+### Zone (format 11)
+
+Chaque effet a une zone rectangulaire en mètres, centrée sur `position` :
+
+- au sol et au plafond, largeur × profondeur, tournée avec `rot` (tous ces
+  effets pivotent : R, poignée ronde, champ Angle, au degré près) ; un
+  volume (brouillard, poussière, feux follets) a aussi une hauteur, au-dessus
+  de sa hauteur de pose ;
+- au mur, largeur le long du mur et hauteur (étendue verticale) ; il porte
+  dans la pièce sur une distance fixe (`reach`, dessin seulement).
+
+Éditeur : la zone réelle est dessinée (polygone translucide, contour en
+tirets, icône au milieu, diagonales en tirets au plafond ; choisi, ses
+dimensions à côté, « 3 × 2 m ») ; on clique n'importe où dedans pour le
+choisir (le plus petit élément sous le curseur l'emporte). Poignées
+(`MapTransform.effect_handles`, `effect_resized`) : 4 coins et 4 milieux,
+dans le repère tourné de l'effet, comme une pièce rectangle ; au mur, les 2
+bouts de la largeur. Le côté (ou le coin) opposé reste en place, chaque
+dimension est bornée à celles de l'effet (jamais retournée) et arrondie à
+5 cm (`MapCatalog.ZONE_STEP`) ; la pose est revérifiée
+(`MapRules.check_existing` : toucher le sol d'une pièce, rester contre le
+mur). Propriétés : Largeur, Profondeur, Hauteur de zone (selon l'effet).
+Emprise, clic, chevauchements, aperçu 3D (surlignage, cadrage) : la zone
+(`MapRules.effect_poly`).
+
+En jeu, l'émission (boîte des particules) **remplit la zone** ; le nombre de
+particules suit sa surface (son volume pour la poussière et les feux
+follets) : densité constante, × intensité, jusqu'au plafond de l'effet
+(`cap` du catalogue, 120 à 1500), puis le budget de la carte (9000) ; les
+particules gardent leur taille (plus de `body.scale` : une grande zone a plus
+de particules, pas de plus grosses ; seules les nappes de fumée grossissent
+un peu, ×2 au plus, quand le plafond est atteint, pour rester couvrantes).
+Lumières : portée selon la zone (× 0,7 à × 2,5, 20 m au plus), 1 à 3 pour un
+incendie selon sa longueur ; budget de 16 par carte inchangé. La flamme de
+torche reste petite : sa zone règle seulement la largeur et la hauteur de
+la flamme.
+
+### Décors des effets (onglet Décor, format 11)
+
+Dans `MapCatalog.PREFABS`, construits par le jeu (`EditorPrefabs`, mêmes
+maillages qu'avant dans `MapEffects`) ; un effet posé au même point naît là
+où il faut (bout de la torche, bout du câble, sortie du tuyau).
+
+| Décor (identifiant) | Montage | Collision |
+|---|---|---|
+| Bûches (`buches`) | sol | non (on marche dessus) |
+| Foyer de pierres (`foyer_pierres`) | sol | barrière (pavé de 1 m de haut : on n'entre pas dans le feu) |
+| Planches calcinées (`planches_brulees`) | sol | non |
+| Électrodes (`electrodes`, 1 m de haut) | sol | barrière (deux poteaux) |
+| Bobine Tesla (`bobine_tesla`, 1,55 m) | sol | solide |
+| Flaque d'eau (`flaque_eau`), petite flaque (`petite_flaque`) | sol | non |
+| Torche murale (`torche_murale`, 1,8 m) | mur | non |
+| Tuyau à vapeur (`tuyau_vapeur`, 1,2 m) | mur | non |
+| Boîtier électrique ouvert (`boitier_electrique`, 1,6 m) | mur | non |
+| Tuyau qui fuit (`tuyau_fuite`, 2 m) | mur | non |
+| Câble suspendu (`cable_suspendu`) | plafond | non |
+
+Décor mural (nouveau, clé `mount` d'un décor) : il se pose comme une
+applique (`MapRules.place_wall_decor` : partout le long du mur, au
+centimètre), hauteur réglable (clé `hauteur`, `MapCatalog.wall_light_height`,
+toujours sous le plafond en jeu), sans rotation propre ; il ne bloque aucune
+case. Décor au plafond : accroché sous le plafond de la pièce (couche
+« plafond » pour les chevauchements). Un prefab groupe de la carte (§ 11) ne
+contient que du décor posé au sol.
+
 ### Règles
 
-Aucune collision, aucun dégât (le feu ne brûle pas). Un effet se pose
-par-dessus n'importe quoi (décor, objets de jeu, autre effet) et ne gêne la
-pose de rien (`MapRules.NO_OVERLAP_CHECK`, `_blocking_overlaps`) ; il suffit
-qu'il touche le sol d'une pièce (comme le décor, `MapCatalog.DECOR_TYPES`).
-Il ne rend aucune case pleine (`MapRaster._effect`) : les trajets des
-zombies et la vérification ne changent pas. Au plus
-`MapCatalog.MAX_EFFECTS` = 64 effets par carte (refus à la pose ; contrôle
-des cartes reçues).
+Aucun objet, aucune collision, aucun dégât (le feu ne brûle pas). Un effet
+se pose par-dessus n'importe quoi (décor, objets de jeu, autre effet) et ne
+gêne la pose de rien (`MapRules.NO_OVERLAP_CHECK`, `_blocking_overlaps`) ; il
+suffit qu'il touche le sol d'une pièce (comme le décor,
+`MapCatalog.DECOR_TYPES`). Il ne rend aucune case pleine
+(`MapRaster._effect`) : les trajets des zombies et la vérification ne
+changent pas, quelle que soit sa zone. Au plus `MapCatalog.MAX_EFFECTS` = 64
+effets par carte (refus à la pose ; contrôle des cartes reçues).
 
-Propriétés : autre effet du même sous-onglet et du même montage, Intensité
-(×0,25 à ×2 : quantité de particules et force de la lumière), Taille (×0,5
-à ×2,5), Hauteur (sol, mur), Couleur (effets qui se teintent), rotation (R,
-effets allongés). Dessin sur le plan : zone translucide de la couleur de
-l'effet, contour en tirets, icône par effet (fond de la couleur du
+Propriétés : autre effet du même sous-onglet et du même montage (la zone
+est gardée, bornée au besoin), Intensité (×0,25 à ×2 : densité des
+particules et force de la lumière), zone, Hauteur de pose (sol, mur),
+Couleur (effets qui se teintent), rotation (sol, plafond) ; rappel du décor
+qui va avec. Icône par effet (l'effet seul, fond de la couleur du
 sous-onglet).
 
 ### En jeu (`MapEffects`, `MapEffect`)
@@ -934,17 +1028,17 @@ effet empile des couches :
   éclairée par les lampes et les feux, douce au contact des surfaces
   (proximity fade) ; étincelles étirées dans le sens de leur vitesse
   (`TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY`) qui rebondissent sur le sol
-  (`GPUParticlesCollisionBox3D`) ; gouttes qui disparaissent au sol, ronds
-  dans l'eau calés sur leur chute (préchauffage décalé du temps de chute) ;
+  (`GPUParticlesCollisionBox3D`, pour les particules seulement) ; gouttes qui
+  disparaissent au sol, ronds dans l'eau calés sur leur chute (préchauffage
+  décalé du temps de chute) ;
 - lumières sans ombre (`OmniLight3D`) : vacillement du feu, éclats de la
   soudure, crépitement électrique, éclair des salves, pulsation des feux
   follets ;
 - arcs électriques : panneaux texturés re-tirés au hasard toutes les 35 à
-  90 ms, tournés vers la caméra autour de l'axe de l'arc ;
-- salves (court-circuit, pluie d'étincelles, câble à nu : 1 à 3 coups
-  rapprochés) et cycles marche / pause (soudure) ;
-- petits objets sans collision : bûches rougeoyantes, cercle de pierres,
-  torche, tuyaux, boîtier électrique, électrodes, bobine, câble, flaques.
+  90 ms, tournés vers la caméra autour de l'axe de l'arc (le seul
+  `MeshInstance3D` d'un effet) ;
+- salves (court-circuit, pluie d'étincelles, étincelles de câble : 1 à 3
+  coups rapprochés) et cycles marche / pause (soudure).
 
 Performance : un seul `_process` léger par effet (aucune allocation par
 image) ; au-delà de 38 m de la caméra (27 m en qualité basse) l'effet se
@@ -953,33 +1047,80 @@ cache, n'émet plus et éteint ses lumières. Qualité graphique
 LOW), lumières secondaires éteintes en LOW. Budget de la carte :
 `MapEffects.PARTICLE_BUDGET` = 9000 particules (au-delà, toutes réduites
 d'autant), `MapEffects.LIGHT_BUDGET` = 16 lumières d'effets (les suivantes
-éteintes), 600 particules au plus par effet (test). Rien n'est synchronisé
-en réseau : chaque machine construit le même décor, le hasard est local.
+éteintes) ; par effet, 600 particules au plus à sa zone par défaut et son
+plafond `cap` à sa zone maximale (tests). Rien n'est synchronisé en réseau :
+chaque machine construit le même décor, le hasard est local.
 
 Textures : `assets/textures/fx/` (Kenney « Particle Pack », CC0,
 `docs/ASSETS.md`) ; texture absente : dégradé calculé.
 
 ### Format
 
-`objets.json` : `{"id": "fx1", "type": "effet", "effet": "brasier",
-"etage": 0, "position": [x, y]}` et, facultatifs, `rot` (effets qui
-pivotent), `mur` / `angle` (effets muraux, comme une applique),
-`intensite` (0,25 à 2), `taille` (0,5 à 2,5), `hauteur` (0 à 30 m),
-`couleur` (« #rrggbb », effets qui se teintent). Jamais écrits à leur valeur
-par défaut ; illisibles ou sans objet : retirés à la lecture
-(`MapCatalog.tidy_effect`). Description en maillage : clé `effects`
-(`[{fx, p, yaw, ground, room_h, intensity, scale, color, eid}]`), absente
-d'une carte sans effet (description inchangée).
+`objets.json` : `{"id": "fx1", "type": "effet", "effet": "brouillard",
+"etage": 0, "position": [x, y]}` et, facultatifs, `rot` (effets au sol et au
+plafond), `mur` / `angle` (effets muraux, comme une applique), `intensite`
+(0,25 à 2), `zone` (format 11, m : `[largeur, profondeur]` au sol et au
+plafond, `[largeur, profondeur, hauteur]` pour un volume, `[largeur,
+hauteur]` au mur ; bornes de l'effet), `hauteur` (0 à 30 m), `couleur`
+(« #rrggbb », effets qui se teintent). Jamais écrits à leur valeur par
+défaut ; illisibles ou sans objet : retirés à la lecture, zone bornée et
+arrondie à 5 cm (`MapCatalog.tidy_effect`). `taille` (formats 10 et moins,
+×0,5 à ×2,5) est encore acceptée et lue comme la zone par défaut × taille.
+Décor mural : `{"type": "prefab", "prefab": "torche_murale", "position":
+[x, y], "mur": "n", "hauteur": 2.1}` (`angle` contre un mur en biais).
+Description en maillage : clé `effects` (`[{fx, p, yaw, ground, room_h,
+intensity, zone: [largeur, profondeur, hauteur], color, eid}]` ; une
+description d'avant avec `scale` se lit encore), absente d'une carte sans
+effet (description inchangée) ; décor mural et au plafond : `props` à leur
+place (face du mur à leur hauteur, ou sous le plafond).
+
+### Conversion des cartes d'avant (format 10 et moins)
+
+Au chargement (`EditorMap._migrate`, donc aussi pour une carte jouée, une
+carte du cache multijoueur ou une archive importée), chaque effet qui
+construisait un objet reçoit le décor équivalent
+(`MapCatalog.split_legacy_effect`) : même étage, même place, même rotation ;
+au mur, même mur et même hauteur (la torche porte la flamme) ; la flaque d'un
+filet d'eau là où l'eau tombait. `taille` devient la zone. Rien ne
+disparaît, rien n'est posé deux fois (décor identique déjà au même endroit :
+rien), et la carte est réécrite au format 11 à l'enregistrement : une
+seconde lecture ne convertit plus rien. Décors sans réglage de taille : une
+ancienne `taille` agrandit l'effet, pas son décor ; les électrodes et la
+bobine Tesla ont une hauteur fixe (1 m et 1,4 m, celles des effets par
+défaut). Une carte reçue en multijoueur est envoyée déjà convertie (paquet
+canonique de l'hôte, format 11). Cartes du dépôt : aucune n'avait d'effet.
+
+### Contrôle des cartes reçues
+
+`zone` : 2 ou 3 nombres de 0,1 à 40 m (`{"t": "dims"}` du catalogue), puis,
+pour chaque effet, le bon nombre de dimensions dans SES bornes
+(`MapCatalog.effect_zone_ok`, `CustomMapGuard._check_object`) ; `taille`
+toujours bornée ; décor : `mur`, `angle`, `hauteur` seulement pour un décor
+mural ; les ops de la collaboration passent par le même contrôle
+(`MapOps.check_elements`). Catalogue de l'éditeur pour l'agent
+(`editor_catalog`) : `effects` (montage, dimensions et bornes de zone,
+décor qui va avec) et le montage de chaque décor.
 
 ### Preuves automatiques
 
 `tests/test_map_effects.gd` : 6 sous-onglets d'au moins 3 effets (22 en
-tout), noms FR / EN ; chaque effet se construit sans collision, sans ombre,
-600 particules au plus, aussi aux réglages extrêmes ; qualité basse et
-budget de la carte ; pose par-dessus la boîte, le départ, un décor et sous
-un objet de jeu ; nombre d'effets plafonné ; réglages relus, valeurs par
-défaut retirées, aller-retour à l'identique ; export (hauteur, teinte,
-taille, plafond, rotation) et construction par le jeu ; contrôle des cartes
-reçues (effet inconnu, bornes, clé inconnue, trop d'effets) ; sous-onglets
-de l'inventaire et propriétés dans le vrai éditeur. Captures de revue (hors
-check, ajout en cours) : `sh tools/scenario.sh map_effects_look`.
+tout), noms FR / EN, bornes de zone et décor de chaque effet ; chaque effet
+est PUR (aucun `MeshInstance3D` hors des arcs, aucune collision, jamais mis
+à l'échelle), 600 particules au plus, plafond respecté aux zones extrêmes ;
+densité selon la zone (4 fois la surface : 4 fois les particules, même
+taille, émission sur toute la zone), plafond, intensité, volume, portée des
+lumières, `scale` d'avant ; budget de la carte avec 64 zones immenses ;
+qualité basse ; poignées (coins, milieux, bornes, jamais retournée, zone
+tournée, effet mural, clic sur la zone, rotation) et réglages remis en
+ordre (`taille` convertie, zone bornée, arrondie, par défaut retirée) ;
+décors des effets (onglet, construction, pose murale, hauteur, export,
+collision, prefabs groupes) ; conversion d'une carte au format 10 (un décor
+par objet, à sa place, idempotente, jouable) ; pose par-dessus la boîte, le
+départ, un décor et sous un objet de jeu ; nombre d'effets plafonné ;
+aller-retour, export (zone, hauteur, teinte, plafond, rotation) et
+construction par le jeu ; contrôle des cartes reçues (zone hors bornes,
+mauvaises dimensions, réglage de mur sur un décor au sol, paquet
+multijoueur) ; zone dans le vrai éditeur (champs, poignées, bornes).
+Captures de revue (hors check, ajout en cours) : `sh tools/scenario.sh
+map_effects_look` (plan de l'éditeur avec les zones et les poignées, puis
+chaque colonne d'effets en jeu, zones de tailles variées, avec leurs décors).

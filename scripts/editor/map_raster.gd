@@ -297,6 +297,8 @@ static func pillar_box(o: Dictionary) -> Dictionary:
 
 ## Emprise au sol (m) d'un décor ou d'un luminaire posé au sol, rotation comprise.
 static func floor_poly(o: Dictionary) -> PackedVector2Array:
+	if String(o.get("type", "")) == "effet":
+		return MapRules.effect_poly(o)
 	var it := MapCatalog.item_for(o)
 	var fp: Array = it.get("fp", [1, 1])
 	var sz := Vector2(float(fp[0]), float(fp[1] if it.get("rotates", false) else fp[0])) * MapGeom.CELL
@@ -458,8 +460,21 @@ func _floor(k: int) -> void:
 					if MapCatalog.def_of(o).is_empty():
 						_err("décor inconnu « %s »" % o.get("prefab", ""), "unknown prop \"%s\"" % o.get("prefab", ""), k)
 						continue
-					v.props.append({"floor": k, "prefab": String(o.prefab), "center": MapGeom.v2(o.position),
-						"rot": posmod(int(o.get("rot", 0)), 360), "eid": String(o.id)})
+					var pr := {"floor": k, "prefab": String(o.prefab), "center": MapGeom.v2(o.position),
+						"rot": posmod(int(o.get("rot", 0)), 360), "eid": String(o.id)}
+					# Format 11 : décor mural (sur la face du mur, tourné vers la pièce,
+					# à sa hauteur) ou accroché au plafond.
+					var pm := MapCatalog.light_mount(o)
+					if pm == "mur":
+						var dv := MapGeom.item_wall_dir(o) if MapGeom.item_oblique(o) else MapGeom.dir_vec(_cardinal(o))
+						pr["mount"] = "mur"
+						pr["center"] = MapGeom.v2(o.position) - dv * MapGeom.WALL_HALF
+						pr["wall"] = dv
+						pr["y"] = MapCatalog.wall_light_height(o)
+						cells = wall_item_cells(o)
+					elif pm == "plafond":
+						pr["mount"] = "plafond"
+					v.props.append(pr)
 				if MapCatalog.blocking(o) != "non" and not cells.is_empty():
 					var key := "decor#" + String(o.id)
 					for c in cells:
@@ -816,9 +831,10 @@ func _effect(k: int, o: Dictionary) -> void:
 		return
 	var p := MapGeom.v2(o.position)
 	var mount := String(d.mount)
+	# Format 11 : zone (largeur, profondeur, hauteur en m) à la place de la taille.
 	var e := {"floor": k, "effet": String(o.effet), "mount": mount, "eid": String(o.id), "center": p,
 		"y": MapCatalog.effect_height(o), "yaw": -deg_to_rad(posmod(int(o.get("rot", 0)), 360)),
-		"intensity": MapCatalog.effect_value(o, "intensite"), "scale": MapCatalog.effect_value(o, "taille"),
+		"intensity": MapCatalog.effect_value(o, "intensite"), "zone": MapCatalog.effect_zone(o),
 		"color": MapCatalog.effect_color(o).to_html(false) if MapCatalog.effect_tints(o) else ""}
 	var cells := []
 	if mount == "mur":
@@ -827,7 +843,7 @@ func _effect(k: int, o: Dictionary) -> void:
 		e["wall"] = dv
 		# Axe +z de l'effet (du mur vers la pièce) vers -dv.
 		e["yaw"] = atan2(-dv.x, -dv.y)
-		cells = wall_item_cells(o)
+		cells = MapGeom.poly_cells(MapRules.effect_poly(o))
 	else:
 		cells = floor_cells(o)
 	v.effects.append(e)
@@ -887,7 +903,7 @@ static func _block(o: Dictionary, n: Vector2i) -> Array:
 ## Cases d'un objet au sol (rotation comprise : MapCatalog.floor_size ; tourné
 ## au degré près : cases dont le centre est dans l'emprise tournée).
 static func floor_cells(o: Dictionary) -> Array:
-	if free_rot(o) and MapCatalog.rotates(o):
+	if (free_rot(o) and MapCatalog.rotates(o)) or String(o.get("type", "")) == "effet":
 		return MapGeom.poly_cells(floor_poly(o))
 	return _block(o, MapCatalog.floor_size(o))
 

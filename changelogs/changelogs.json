@@ -2002,6 +2002,36 @@
     "en": "A new look for the launcher",
     "fr": "Un nouvel accueil pour le lanceur"
    }
+  },
+  "v0.2.1-snapshot.389": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [
+    "v0.2.1-snapshot.389/01_editeur_zone.jpg",
+    "v0.2.1-snapshot.389/02_feu_en_jeu.jpg"
+   ],
+   "items": [
+    {
+     "en": "The Effects tab now holds only effects: flames, smoke, steam, sparks, electric arcs, water… Some were renamed (Torch flame, Steam jet, Ball arcs, Cable sparks, Water trickle, Water ripples…).",
+     "fr": "L'onglet Effets ne contient plus que des effets : flammes, fumées, vapeur, étincelles, arcs électriques, eau… Certains ont changé de nom (Flamme de torche, Jet de vapeur, Arcs en boule, Étincelles de câble, Filet d'eau, Ronds dans l'eau…)."
+    },
+    {
+     "en": "The objects that went with them move to the Decor tab: logs, stone fire pit, burnt planks, wall torch, steam pipe, hanging cable, electrical box, electrodes, Tesla coil, leaking pipe and puddles. Decor can now be placed on walls and ceilings.",
+     "fr": "Les objets qui allaient avec arrivent dans l'onglet Décor : bûches, foyer de pierres, planches calcinées, torche murale, tuyau de vapeur, câble suspendu, boîtier électrique, électrodes, bobine Tesla, tuyau qui fuit et flaques. Le décor peut maintenant se poser au mur ou au plafond."
+    },
+    {
+     "en": "Each effect covers an area you can stretch, shrink and rotate with its handles, or set by width, depth and height in the properties. A large fire fills its whole area without slowing the game down.",
+     "fr": "Chaque effet occupe une zone que vous agrandissez, rétrécissez et tournez avec ses poignées, ou que vous réglez en largeur, profondeur et hauteur dans les propriétés. Un grand incendie remplit toute sa zone, sans alourdir la partie."
+    },
+    {
+     "en": "Your existing maps open with nothing lost: each old effect becomes an effect plus the matching decor object, in the same spot.",
+     "fr": "Vos anciennes cartes s'ouvrent sans rien perdre : chaque ancien effet devient un effet et l'objet de décor correspondant, au même endroit."
+    }
+   ],
+   "title": {
+    "en": "Map editor: effects in any size",
+    "fr": "Éditeur de cartes : des effets à la bonne taille"
+   }
   }
  }
 }

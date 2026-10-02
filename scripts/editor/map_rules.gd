@@ -429,6 +429,8 @@ static func footprint_rect(o: Dictionary) -> Rect2:
 	var t := String(o.get("type", ""))
 	if t == "bloc_invisible":
 		return MapGeom.bbox(MapRaster.clip_poly(o))
+	if t == "effet":
+		return MapGeom.bbox(effect_poly(o))
 	if o.has("rect"):
 		if MapGeom.rot_of(o) != 0:
 			return MapGeom.bbox(MapRaster.rect_poly(o))
@@ -463,10 +465,25 @@ static func footprint_rect(o: Dictionary) -> Rect2:
 ## Emprise exacte (4 sommets, m) d'un objet mural : de la face du mur (0,25 m
 ## du trait, côté pièce) vers l'intérieur, sur sa largeur le long du mur.
 static func wall_item_poly(o: Dictionary) -> PackedVector2Array:
+	if String(o.get("type", "")) == "effet":
+		return effect_poly(o)
 	var fp := MapCatalog.footprint(o)
 	var dv := MapGeom.item_wall_dir(o)
 	var face := MapGeom.v2(o.get("position", [0, 0])) - dv * MapGeom.WALL_HALF
 	return MapGeom.oriented_rect(face, -dv, fp.x * MapGeom.CELL, fp.y * MapGeom.CELL)
+
+
+## Format 11 : zone d'un effet (m), le rectangle qu'il remplit : au sol et au
+## plafond, largeur × profondeur centrées sur sa position, tournées de
+## « rot » ; mural, sur la face du mur (0,25 m du trait), largeur le long du
+## mur et sa portée dans la pièce.
+static func effect_poly(o: Dictionary) -> PackedVector2Array:
+	var z := MapCatalog.effect_zone(o)
+	var p := MapGeom.v2(o.get("position", [0, 0]))
+	if MapCatalog.effect_mount(o) == "mur":
+		var dv := MapGeom.item_wall_dir(o)
+		return MapGeom.oriented_rect(p - dv * MapGeom.WALL_HALF, -dv, z.x, z.y)
+	return MapGeom.rot_rect_poly(p, Vector2(z.x, z.y), MapGeom.rot_of(o))
 
 
 ## Reporte le mur visé d'un résultat de pose (place_wall_item) sur l'objet :
@@ -493,6 +510,10 @@ static func hit(doc: EditorMap, o: Dictionary, p: Vector2) -> bool:
 		return MapShapes.arc_segments(o).any(func(s): return MapGeom.dist_to_segment(p, s[0], s[1]) <= half)
 	if o.has("position") and not o.has("rect") and ouvertures_types().has(String(o.get("type", ""))):
 		return MapGeom.v2(o.position).distance_to(p) <= maxf(0.5, opening_width(o) * 0.5)
+	if String(o.get("type", "")) == "effet":
+		# Format 11 : toute la zone de l'effet (tournée).
+		var ep := effect_poly(o)
+		return MapGeom.contains(ep, p) or MapGeom.on_boundary(ep, p, 0.05)
 	if MapGeom.item_oblique(o) and MapCatalog.tool_of(o) == "wall_item":
 		var poly := wall_item_poly(o)
 		return MapGeom.contains(poly, p) or MapGeom.on_boundary(poly, p, 0.05)
@@ -815,6 +836,9 @@ static func place_wall_decor(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 	var t := (tb - ta).normalized()
 	var dv: Vector2 = -Vector2(wall.inward)
 	var w := MapCatalog.footprint(tmpl).x * MapGeom.CELL
+	if String(tmpl.get("type", "")) == "effet":
+		# Format 11 : largeur réelle de la zone de l'effet.
+		w = MapCatalog.effect_zone(tmpl).x
 	var u := wall_decor_along((mouse - ta).dot(t), ta.distance_to(tb), w, float(wall.margin))
 	var pos := ta + t * u
 	if grid:
@@ -1073,6 +1097,8 @@ static func exact_poly(o: Dictionary) -> PackedVector2Array:
 	var tool := MapCatalog.tool_of(o)
 	if tool == "poly":
 		return MapRaster.clip_poly(o)
+	if String(o.get("type", "")) == "effet":
+		return effect_poly(o)
 	if tool == "wall_item" and MapGeom.item_oblique(o):
 		return wall_item_poly(o)
 	if o.has("rect") and MapGeom.rot_of(o) != 0:

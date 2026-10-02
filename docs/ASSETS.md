@@ -21,7 +21,7 @@ interface. L'air du singe-tambour est lui aussi original (procédural,
 
 Seule exception aux graphismes procéduraux : neuf textures de particules
 (flammes, fumées, étincelles, arc électrique) des effets de l'éditeur de
-cartes (`MapEffects`, docs/MAP_OBJECTS.md § 11), tirées du **Particle Pack
+cartes (`MapEffects`, docs/MAP_OBJECTS.md § 12), tirées du **Particle Pack
 1.1 de Kenney** (<https://kenney.nl/assets/particle-pack>, par Kenney
 Vleugels), publié sous licence **Creative Commons Zero (CC0 1.0, domaine
 public)** : utilisation, modification et redistribution libres, y compris

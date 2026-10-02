@@ -1,5 +1,6 @@
 extends AutotestScenario
-## @rendu : captures des effets de l'éditeur (revue humaine, format 10).
+## @rendu : captures des effets de l'éditeur (revue humaine, format 11 : effets
+## purs, zones de tailles variées, décors des effets ; plan de l'éditeur).
 ## @niveau perf : hors check par défaut (captures d'un ajout en cours) ;
 ## lancer avec sh tools/scenario.sh map_effects_look.
 ## Une grande salle (44 × 12 m) : une colonne par sous-onglet (flammes,
@@ -14,7 +15,11 @@ const SW := preload("res://tests/autotest/smallest_window.gd")
 var H := AutotestHelpers
 
 
-## Carte de revue : effets rangés par sous-onglet.
+## Carte de revue : effets rangés par sous-onglet, zones de tailles variées
+## (format 11), chacun avec le décor qui l'accompagne (onglet Décor : bûches,
+## torche, tuyaux, câble, flaques...) posé comme le ferait la conversion d'une
+## carte d'avant (MapCatalog.split_legacy_effect).
+## Entrée : [effet, x dans la colonne, y, zone (facultative), rotation].
 static func review_map() -> EditorMap:
 	var doc := EditorMap.blank(MAP_ID, "EFFETS", "EFFECTS")
 	var z := String(doc.add_zone("Salle", "Hall").id)
@@ -24,13 +29,19 @@ static func review_map() -> EditorMap:
 	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [22.0, 10.5]})
 	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [30.0, 12.0], "mur": "s", "depart": true})
 	var place := {
-		"flammes": [["petit_feu", 1.6, 4.0], ["brasier", 4.6, 4.5], ["baril_feu", 1.6, 7.5], ["incendie", 4.6, 8.4], ["torche", 3.2, 0.0]],
-		"fumees": [["fumee_legere", 1.5, 4.0], ["fumee_noire", 5.0, 4.5], ["brouillard", 3.4, 8.5], ["vapeur", 3.0, 0.0]],
-		"etincelles": [["pluie_etincelles", 1.6, 5.0], ["soudure", 3.0, 0.0], ["court_circuit", 5.4, 0.0]],
-		"electricite": [["arc", 2.0, 4.5], ["tesla", 5.0, 5.0], ["cable_nu", 3.6, 8.0]],
-		"eau": [["goutte", 1.6, 5.0], ["fuite", 4.0, 0.0], ["flaque", 4.8, 6.5]],
-		"ambiance": [["poussiere", 3.6, 4.0], ["braises", 1.8, 7.5], ["cendres", 5.0, 7.5], ["feux_follets", 3.6, 6.0]],
+		"flammes": [["petit_feu", 1.6, 4.0], ["brasier", 4.6, 4.5, [1.6, 1.6]], ["baril_feu", 1.6, 7.5], ["incendie", 4.6, 8.6, [4.0, 2.0], 15],
+			["torche", 3.2, 0.0]],
+		"fumees": [["fumee_legere", 1.5, 4.0, [1.5, 1.0]], ["fumee_noire", 5.0, 4.5], ["brouillard", 3.4, 8.5, [6.5, 3.0, 0.8]], ["vapeur", 3.0, 0.0, [1.2, 0.3]]],
+		"etincelles": [["pluie_etincelles", 1.6, 5.0, [1.2, 1.2]], ["soudure", 3.0, 0.0, [0.8, 0.4]], ["court_circuit", 5.4, 0.0]],
+		"electricite": [["arc", 2.0, 4.5], ["tesla", 5.0, 5.0, [3.0, 3.0]], ["cable_nu", 3.6, 8.0]],
+		"eau": [["goutte", 1.6, 5.0, [1.0, 1.0]], ["fuite", 4.0, 0.0, [0.6, 0.2]], ["flaque", 4.8, 6.5]],
+		"ambiance": [["poussiere", 3.6, 4.0, [6.0, 5.0, 2.5]], ["braises", 1.8, 7.5, [2.5, 1.5]], ["cendres", 5.0, 7.5], ["feux_follets", 3.6, 6.0, [2.5, 2.0, 1.5]]],
 	}
+	# Identifiants des décors ajoutés (jamais deux fois le même).
+	var n := [0]
+	var next_id := func(p: String) -> String:
+		n[0] += 1
+		return "%s%d" % [p, 100 + n[0]]
 	var subs := MapCatalog.EFFECT_SUBS
 	for i in subs.size():
 		var x0 := 0.4 + i * COL
@@ -42,7 +53,13 @@ static func review_map() -> EditorMap:
 			o["position"] = [snappedf(x0 + float(e[1]), 0.25), float(e[2])]
 			if it.tool == "wall_item":
 				o["mur"] = "n"
+			if e.size() > 3:
+				o["zone"] = e[3]
+			if e.size() > 4:
+				o["rot"] = int(e[4])
+			MapCatalog.tidy_effect(o)
 			doc.objets.append(o)
+			doc.objets.append_array(MapCatalog.split_legacy_effect(o, doc.objets, next_id))
 			if String(e[0]) == "baril_feu":
 				doc.objets.append({"id": doc.new_id("x"), "type": "baril", "etage": 0, "position": o.position})
 	return doc
@@ -57,6 +74,7 @@ func run() -> void:
 		return
 	DirAccess.make_dir_recursive_absolute(dst)
 	at.check(review_map().save_dir(dst) == OK, "carte de revue enregistrée")
+	await _editor_shots()
 	var p := await H.start_solo_game(self, EditorMapDef.CUSTOM_PREFIX + MAP_ID)
 	if p == null:
 		return
@@ -91,3 +109,41 @@ func run() -> void:
 	Router.back_to_menu()
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 10.0, "retour au menu")
 	SW.remove_dir(dst)
+
+
+## Format 11 : le plan de l'éditeur avec la carte de revue : zones des
+## effets dessinées (polygone, tirets, icône), effet au sol choisi (poignées
+## aux coins et aux milieux, poignée de rotation, dimensions), effet mural
+## choisi (deux poignées), décors des effets ; puis retour au menu.
+func _editor_shots() -> void:
+	tree().change_scene_to_file(MapEditor.SCENE)
+	if not await until(func(): return tree().current_scene is MapEditor, 6.0, "éditeur ouvert"):
+		return
+	var ed: MapEditor = tree().current_scene
+	var cv := ed.canvas
+	await frames(3)
+	ed.new_map(true)
+	ed._reset(review_map())
+	await frames(2)
+	var by := {}
+	for o in ed.doc.objets:
+		if String(o.get("type", "")) == "effet":
+			by[String(o.effet)] = String(o.id)
+	cv.zoom = 46.0
+	cv.origin = Vector2(30, 30)
+	ed.select(String(by.incendie))
+	await frames(4)
+	at.check(cv.handles().size() == 8, "incendie choisi : 8 poignées de zone")
+	await at.screenshot("editeur_flammes")
+	ed.select(String(by.vapeur))
+	cv.origin = Vector2(-7.3 * 46.0 + 30, 30)
+	await frames(4)
+	at.check(cv.handles().size() == 2, "jet de vapeur choisi : 2 poignées le long du mur")
+	await at.screenshot("editeur_fumees")
+	ed.select(String(by.poussiere))
+	cv.zoom = 26.0
+	cv.origin = Vector2(-36.5 * 26.0 + 30, 40)
+	await frames(4)
+	await at.screenshot("editeur_ambiance")
+	Router.back_to_menu()
+	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 10.0, "retour au menu")

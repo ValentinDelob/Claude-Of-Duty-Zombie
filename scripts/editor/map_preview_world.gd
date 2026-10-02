@@ -689,7 +689,10 @@ func element_shape(e: Dictionary) -> Dictionary:
 		else:
 			y1 = sol + float(m.carte.get("hauteur_portes", 2.5))
 	else:
-		if MapGeom.item_oblique(e) and MapCatalog.tool_of(e) == "wall_item":
+		if t == "effet":
+			# Format 11 : la zone réelle de l'effet (tournée).
+			poly = MapRules.effect_poly(e)
+		elif MapGeom.item_oblique(e) and MapCatalog.tool_of(e) == "wall_item":
 			poly = MapRules.wall_item_poly(e)
 		else:
 			poly = MapGeom.rect_poly(MapRules.footprint_rect(e))
@@ -709,17 +712,26 @@ func element_shape(e: Dictionary) -> Dictionary:
 				_:
 					y1 = sol + 1.4
 		elif t == "effet":
-			# Effet (format 10) : autour de sa hauteur (plafond, mur, surélevé).
+			# Effet (format 10) : autour de sa hauteur (plafond, mur, surélevé) ;
+			# format 11 : hauteur de sa zone (volume, effet mural).
+			var z := MapCatalog.effect_zone(e)
 			match MapCatalog.effect_mount(e):
 				"plafond":
 					y0 = sol + h - 0.8
 					y1 = sol + h
 				"mur":
-					y0 = sol + MapCatalog.effect_height(e) - 0.4
-					y1 = y0 + 0.8
+					y0 = sol + MapCatalog.effect_height(e) - z.z * 0.5 - 0.2
+					y1 = sol + MapCatalog.effect_height(e) + z.z * 0.5 + 0.4
 				_:
 					y0 = sol + MapCatalog.effect_height(e) + 0.02
-					y1 = y0 + 1.2
+					y1 = y0 + maxf(1.2, z.z + 0.3)
+		elif t == "prefab" and MapCatalog.light_mount(e) == "mur":
+			# Format 11 : décor mural (torche, tuyau, boîtier) à sa hauteur.
+			y0 = sol + MapCatalog.wall_light_height(e) - 0.3
+			y1 = sol + MapCatalog.wall_light_height(e) + 0.4
+		elif t == "prefab" and MapCatalog.light_mount(e) == "plafond":
+			y0 = sol + h - 0.8
+			y1 = sol + h
 		elif t == "escalier":
 			y1 = m.floor_sol(k + 1) if k + 1 < m.floor_count() else sol + h
 		elif t == "piege":

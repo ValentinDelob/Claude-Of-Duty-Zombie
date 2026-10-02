@@ -2,8 +2,11 @@ class_name EditorPrefabs
 extends RefCounted
 ## Objets du décor et luminaires des cartes de l'éditeur construits par le jeu
 ## (formes simples, sans modèle) : sacs de sable, table et chaise renversées,
-## chariot, épave de voiture ; ampoule, suspension, néon, lampe de bureau,
-## projecteur de chantier, bougies, brasero. Les autres (gravats, caisses,
+## chariot, épave de voiture, et (format 11) les décors des effets : bûches,
+## foyer de pierres, planches calcinées, électrodes, bobine Tesla, flaques,
+## torche murale, tuyaux, boîtier électrique, câble suspendu ; ampoule,
+## suspension, néon, lampe de bureau, projecteur de chantier, bougies,
+## brasero. Les autres (gravats, caisses,
 ## fauteuils, applique, lustre...) sont des modèles de assets/models/kino/
 ## (MapCatalog.PREFABS et LIGHTS).
 ##
@@ -149,9 +152,90 @@ static func build(kind: String) -> Node3D:
 			_box(n, "steel", Vector3(0.08, 0.2, 1.8), Vector3(2.12, 0.42, 0))
 			_box(n, "steel", Vector3(0.08, 0.2, 1.8), Vector3(-2.12, 0.42, 0))
 		_:
-			n.free()
-			return null
+			if not _effect_decor(n, kind):
+				n.free()
+				return null
 	return n
+
+
+## Format 11 : décors qui accompagnent les effets (ils étaient construits avec
+## l'effet, MapEffects, avant le format 11) : bûches, foyer de pierres,
+## planches calcinées, électrodes, bobine Tesla, flaques (origine au sol) ;
+## torche murale, tuyaux, boîtier électrique (origine sur la face du mur, +z
+## vers la pièce) ; câble suspendu (origine au plafond). Les effets se posent
+## au même point et naissent là où il faut (bout de la torche, du câble...).
+static func _effect_decor(n: Node3D, kind: String) -> bool:
+	match kind:
+		"buches":
+			_logs(n, 0.26)
+		"foyer_pierres":
+			_logs(n, 0.45)
+			for i in 10:
+				var a := i * TAU / 10.0
+				var s := 0.45 * (0.16 + fposmod(i * 0.37, 0.08))
+				var st := _part(n, "stone", _sphere_mesh(snappedf(s, 0.001)), Vector3(cos(a) * 0.52, s * 0.5, sin(a) * 0.52))
+				st.scale = Vector3(1.2, 0.7, 1.0)
+		"planches_brulees":
+			# Planches calcinées (braises dans le bois) sous un incendie.
+			for i in 5:
+				var x := -1.0 + i * 0.5
+				_box(n, "charred", Vector3(0.9, 0.05, 0.16), Vector3(x, 0.025, fposmod(i * 0.47, 0.8) - 0.4), Vector3(0, 0.4 + i * 0.9, 0))
+		"electrodes":
+			for sx in [-0.62, 0.62]:
+				_part(n, "steel", _cyl_mesh(0.02, 0.03, 0.98, 8), Vector3(sx, 0.49, 0))
+				_part(n, "steel", _cyl_mesh(0.09, 0.1, 0.03, 10), Vector3(sx, 0.015, 0))
+				_part(n, "porcelain", _cyl_mesh(0.06, 0.06, 0.03, 10), Vector3(sx, 0.88, 0))
+				_part(n, "copper", _sphere_mesh(0.05), Vector3(sx, 1.0, 0))
+		"bobine_tesla":
+			_part(n, "steel", _cyl_mesh(0.2, 0.22, 0.05, 14), Vector3(0, 0.025, 0))
+			_part(n, "steel", _cyl_mesh(0.04, 0.05, 0.72, 8), Vector3(0, 0.41, 0))
+			_part(n, "copper", _cyl_mesh(0.1, 0.1, 0.5, 14), Vector3(0, 1.0, 0))
+			_part(n, "steel", _sphere_mesh(0.14), Vector3(0, 1.4, 0))
+		"flaque_eau":
+			_kind = "ns"
+			_part(n, "water", _cyl_mesh(0.65, 0.65, 0.004, 28), Vector3(0, 0.003, 0)).scale = Vector3(1.0, 1.0, 0.75)
+			_part(n, "water", _cyl_mesh(0.3, 0.3, 0.004, 18), Vector3(0.55, 0.002, 0.28)).scale = Vector3(1.0, 1.0, 0.6)
+		"petite_flaque":
+			_kind = "ns"
+			_part(n, "water", _cyl_mesh(0.5, 0.5, 0.004, 22), Vector3(0, 0.003, 0)).scale = Vector3(1.0, 1.0, 0.8)
+		"torche_murale":
+			# Patte de fixation au mur, manche incliné vers la pièce, tête goudronnée.
+			_box(n, "steel", Vector3(0.09, 0.16, 0.025), Vector3(0, -0.05, 0.012))
+			_part(n, "wood", _cyl_mesh(0.022, 0.016, 0.46, 8), Vector3(0, 0.02, 0.13), Vector3(0.55, 0, 0))
+			_part(n, "tar_glow", _cyl_mesh(0.035, 0.03, 0.09, 8), Vector3(0, 0.21, 0.255), Vector3(0.55, 0, 0))
+			_box(n, "steel", Vector3(0.05, 0.02, 0.06), Vector3(0, -0.02, 0.05))
+		"tuyau_vapeur":
+			_part(n, "steel", _cyl_mesh(0.05, 0.05, 0.18, 12), Vector3(0, 0, 0.09), Vector3(PI * 0.5, 0, 0))
+			_part(n, "steel", _cyl_mesh(0.075, 0.075, 0.025, 12), Vector3(0, 0, 0.015), Vector3(PI * 0.5, 0, 0))
+			_part(n, "rubber", _cyl_mesh(0.058, 0.058, 0.02, 12), Vector3(0, 0, 0.18), Vector3(PI * 0.5, 0, 0))
+		"boitier_electrique":
+			# Boîtier ouvert : porte arrachée de côté, intérieur noir, fils qui pendent.
+			_box(n, "paint_olive", Vector3(0.32, 0.42, 0.12), Vector3(0, 0, 0.06))
+			_box(n, "paint_olive", Vector3(0.3, 0.4, 0.015), Vector3(-0.2, 0, 0.22), Vector3(0, -0.7, 0))
+			_box(n, "rubber", Vector3(0.24, 0.3, 0.01), Vector3(0, 0, 0.122))
+			for i in 3:
+				_part(n, String(["cable_blue", "paint_red", "rubber"][i]), _cyl_mesh(0.006, 0.006, 0.16, 5), Vector3(-0.06 + i * 0.05, -0.13, 0.13), Vector3(0.3, 0, (i - 1) * 0.25))
+		"tuyau_fuite":
+			_part(n, "wall_rust", _cyl_mesh(0.065, 0.065, 1.0, 14), Vector3(0, 0, 0.09), Vector3(0, 0, PI * 0.5))
+			for sx in [-0.42, 0.42]:
+				_box(n, "steel", Vector3(0.05, 0.03, 0.09), Vector3(sx, 0.07, 0.045))
+		"cable_suspendu":
+			# Boîte de dérivation au plafond, câble arraché qui pend, brins de cuivre au bout.
+			_kind = "ns"
+			_box(n, "rubber", Vector3(0.08, 0.03, 0.08), Vector3(0, -0.015, 0.0))
+			_part(n, "rubber", _cyl_mesh(0.012, 0.012, 0.6, 6), Vector3(0, -0.3, 0.035), Vector3(0.12, 0, 0))
+			_part(n, "copper", _cyl_mesh(0.004, 0.004, 0.05, 5), Vector3(0.01, -0.6, 0.075), Vector3(0, 0, -0.5))
+			_part(n, "copper", _cyl_mesh(0.004, 0.004, 0.045, 5), Vector3(-0.008, -0.6, 0.07), Vector3(0, 0, 0.4))
+		_:
+			return false
+	return true
+
+
+## Quatre bûches croisées de rayon d'ensemble `r` (braises dans le bois).
+static func _logs(n: Node3D, r: float) -> void:
+	for i in 4:
+		var yaw := i * PI / 4.0 * 1.7 + 0.3
+		_part(n, "embers_wood", _cyl_mesh(r * 0.11, r * 0.13, r * 1.9, 7), Vector3(0, r * 0.18, 0), Vector3(PI * 0.5 - 0.18, yaw, 0))
 
 
 # ------------------------------------------------------------------ luminaires

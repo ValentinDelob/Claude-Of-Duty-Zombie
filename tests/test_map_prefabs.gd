@@ -127,7 +127,7 @@ func test_group_prefab_saved_in_map_folder_and_reloaded() -> void:
 	DecorFree._obj(doc, {"type": "prefab", "prefab": "map:barricade", "position": MapGeom.arr(res.center), "rot": 0})
 	var texts := doc.file_texts()
 	assert_true(texts.has("prefabs/barricade/prefab.json"), "entrée du prefab dans les textes de la carte")
-	assert_eq(int(JSON.parse_string(texts["carte.json"]).format), 10, "format 10")
+	assert_true(int(JSON.parse_string(texts["carte.json"]).format) >= 10, "format 10 et plus")
 	var dir := EditorMap.map_dir("avec_prefab")
 	assert_eq(doc.save_dir(dir), OK, "enregistrée")
 	assert_true(FileAccess.file_exists(dir.path_join("prefabs/barricade/prefab.json")), "prefab.json dans le dossier de la carte")

@@ -66,7 +66,19 @@ extends RefCounted
 ##      « angle ») et ses réglages facultatifs « intensite », « taille »,
 ##      « couleur », « hauteur » (MapCatalog.tidy_effect : jamais écrits à leur
 ##      valeur par défaut). Aucune collision. Formats 1 à 9 lus tels quels.
-const FORMAT := 10
+##  11  effets purs et zones (docs/MAP_OBJECTS.md § 12) : un effet ne
+##      construit plus aucun objet (bûches, torche, tuyau, boîtier, électrodes,
+##      bobine, câble, flaque...) : ce sont des décors du catalogue (type
+##      « prefab »), dont certains se posent contre un mur (« mur », « angle »,
+##      « hauteur » comme une applique) ou au plafond. Un effet a une « zone »
+##      ([largeur, profondeur] en m au sol et au plafond, [largeur,
+##      profondeur, hauteur] pour un volume, [largeur, hauteur] au mur),
+##      centrée sur « position », tournée avec « rot » ; « taille » (d'avant)
+##      est lue comme la zone par défaut × taille. Une carte d'un format plus
+##      ancien est CONVERTIE au chargement (_migrate) : chaque effet qui
+##      construisait un objet reçoit le décor équivalent au même endroit
+##      (MapCatalog.split_legacy_effect), rien ne disparaît.
+const FORMAT := 11
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -465,6 +477,32 @@ func _migrate(from: int) -> void:
 		# Format 9 -> 10 : rien à convertir (pas de dossier prefabs/ : aucun
 		# prefab de la carte ; le décor du catalogue garde sa clé « prefab »).
 		pass
+	if from < 11:
+		# Format 10 -> 11 : effets purs. Les objets que construisait un effet
+		# (bûches, torche, tuyau...) deviennent des décors posés à côté de lui,
+		# au même endroit ; « taille » devient la zone (MapCatalog.tidy_effect,
+		# _normalize). Une seule fois : la carte est réécrite au format 11.
+		split_legacy_effects()
+
+
+## Format 11 : décor de chaque effet d'avant (MapCatalog.split_legacy_effect),
+## ajouté à la carte ; jamais deux fois le même décor au même endroit.
+## Rend le nombre de décors ajoutés.
+func split_legacy_effects() -> int:
+	var added := []
+	# Identifiants libres : ni dans la carte, ni déjà donnés par la conversion.
+	var issued := {}
+	var next_id := func(prefix: String) -> String:
+		var i := 1
+		while issued.has("%s%d" % [prefix, i]) or not find("%s%d" % [prefix, i]).is_empty():
+			i += 1
+		issued["%s%d" % [prefix, i]] = true
+		return "%s%d" % [prefix, i]
+	for o in objets:
+		if o is Dictionary and String(o.get("type", "")) == "effet":
+			added.append_array(MapCatalog.split_legacy_effect(o, objets + added, next_id))
+	objets.append_array(added)
+	return added.size()
 
 
 ## Version du format lue dans carte.json (FORMAT pour une carte neuve).
@@ -509,8 +547,17 @@ func _normalize() -> void:
 		MapCatalog.tidy_effect(o)
 	# Hauteur d'une applique (format 7) : illisible, par défaut ou sur un
 	# luminaire qui n'est pas mural, retirée ; sinon bornée.
+	# Format 11 : de même pour un décor mural ; un décor qui n'est pas mural n'a
+	# ni « mur », ni « angle », ni « hauteur » ; un décor mural, pas de « rot ».
 	for o in objets:
-		if o.has("hauteur") and String(o.get("type", "")) == "luminaire":
+		var t := String(o.get("type", ""))
+		if t == "prefab":
+			if MapCatalog.light_mount(o) == "mur":
+				o.erase("rot")
+			else:
+				for key in ["mur", "angle", "hauteur"]:
+					o.erase(key)
+		if o.has("hauteur") and t in ["luminaire", "prefab"]:
 			MapCatalog.set_wall_light_height(o, float(o.hauteur) if (o.hauteur is float or o.hauteur is int) else NAN)
 	# Barrière invisible (format 9) : un polygone « sommets » ; un rectangle
 	# d'avant (« rect », « rot ») devient le polygone de ses 4 coins.

@@ -1494,6 +1494,10 @@ func try_handle(orig: Dictionary, h: int, p: Vector2, snap0: Dictionary) -> Dict
 	elif String(orig.get("type", "")) == "mur":
 		cand["a" if h == 0 else "b"] = MapGeom.arr(p)
 		res = MapRules.check_wall(MapGeom.v2(cand.a), MapGeom.v2(cand.b))
+	elif String(orig.get("type", "")) == "effet":
+		# Format 11 : zone de l'effet, le côté opposé reste en place, bornes de l'effet.
+		cand = MapTransform.effect_resized(orig, h, p)
+		res = MapRules.check_existing(doc, cand)
 	if not res.ok:
 		return res
 	doc.restore(snap0)

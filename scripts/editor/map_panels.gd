@@ -617,7 +617,7 @@ func _swap_kind(o: Dictionary, key: String, value: String) -> void:
 			cand[p] = d[p]
 	var k := int(o.get("etage", 0))
 	var res := MapRules.place_floor_item(ed.doc, k, cand, MapGeom.v2(o.position), String(o.id)) if MapCatalog.tool_of(cand) == "floor_item" \
-		else MapRules.place_wall_item(ed.doc, k, cand, MapGeom.v2(o.position) - MapGeom.dir_vec(String(o.get("mur", "n"))) * 0.6, String(o.id))
+		else MapRules.place_wall_item(ed.doc, k, cand, MapGeom.v2(o.position) - MapGeom.item_wall_dir(o) * 0.3, String(o.id))
 	if not res.ok:
 		ed.canvas.show_refusal(res)
 		_fill_props.call_deferred()
@@ -626,20 +626,33 @@ func _swap_kind(o: Dictionary, key: String, value: String) -> void:
 	for p in cand:
 		o[p] = cand[p]
 	o["position"] = res.position
+	if MapCatalog.tool_of(cand) == "wall_item":
+		MapRules.apply_wall(o, res)
 	ed.changed()
 
 
 func _prefab_props(o: Dictionary) -> void:
-	# Décors du catalogue, puis les prefabs de la carte (format 10).
-	var ids := MapCatalog.prefab_ids()
+	# Décors du catalogue, puis les prefabs de la carte (format 10) ; format
+	# 11 : seulement ceux du même montage (au sol, au mur, au plafond).
+	var mount := MapCatalog.prefab_mount(String(o.get("prefab", "")))
+	var ids := MapCatalog.prefab_ids().filter(func(x): return MapCatalog.prefab_mount(String(x)) == mount)
 	_option(_props, Lang.t("Décor", "Prop"), ids.map(func(x): return MapCatalog.prefab_name(String(x))),
 		ids.find(String(o.get("prefab", ""))), func(i): _swap_kind(o, "prefab", String(ids[i])))
 	if MapPrefabLib.is_ref(o.get("prefab")):
 		_note(_props, Lang.t("Prefab de la carte (inventaire, « Prefabs de la carte »).", "Map prefab (inventory, \"Map prefabs\")."))
 	var d := MapCatalog.def_of(o)
-	var n := MapCatalog.floor_size(o)
 	var block := MapCatalog.blocking(o)
-	_note(_props, Lang.t("Rotation : %d° (R) · emprise %s × %s m", "Rotation: %d° (R) · footprint %s × %s m") % [int(o.get("rot", 0)), _m(n.x * 0.5), _m(n.y * 0.5)])
+	if mount == "mur":
+		# Format 11 : décor mural, hauteur libre sur le mur (comme une applique).
+		_spin(_props, Lang.t("Hauteur", "Height"), MapCatalog.wall_light_height(o), MapCatalog.WALL_LIGHT_HEIGHT[0], MapCatalog.WALL_LIGHT_HEIGHT[1], 0.05,
+			func(v): MapCatalog.set_wall_light_height(o, v))
+		_note(_props, Lang.t("Contre le mur, n'importe où le long du mur ; hauteur au choix (toujours sous le plafond en jeu).",
+			"Against the wall, anywhere along it; any height (always below the ceiling in game)."))
+	else:
+		var n := MapCatalog.floor_size(o)
+		_note(_props, Lang.t("Rotation : %d° (R) · emprise %s × %s m", "Rotation: %d° (R) · footprint %s × %s m") % [int(o.get("rot", 0)), _m(n.x * 0.5), _m(n.y * 0.5)])
+		if mount == "plafond":
+			_note(_props, Lang.t("Accroché sous le plafond de la pièce.", "Hung under the room ceiling."))
 	_note(_props, {"solide": Lang.t("Bloque joueurs, zombies et balles.", "Blocks players, zombies and bullets."),
 		"barriere": Lang.t("Bloque joueurs et zombies ; les balles passent.", "Blocks players and zombies; bullets go through."),
 		"non": Lang.t("Décor : on marche dessus (aucune collision).", "Decoration: can be walked over (no collision).")}[block])
@@ -693,8 +706,10 @@ func _light_props(o: Dictionary) -> void:
 
 
 ## Effet (format 10) : autre effet du même sous-onglet et du même montage,
-## intensité, taille, couleur (effets qui se teintent), hauteur (au sol :
-## surélévation ; au mur : hauteur) ; jamais de collision.
+## intensité, zone (format 11 : largeur, profondeur, hauteur d'un volume ou
+## d'un effet mural), couleur (effets qui se teintent), hauteur de pose (au
+## sol : surélévation ; au mur : hauteur) ; décor qui va avec ; jamais de
+## collision.
 func _effect_props(o: Dictionary) -> void:
 	var d := MapCatalog.effect_def(o)
 	if d.is_empty():
@@ -707,8 +722,12 @@ func _effect_props(o: Dictionary) -> void:
 				var nid := String(ids[i])
 				var cand := o.duplicate(true)
 				cand["effet"] = nid
+				# Zone gardée si elle tient dans les bornes du nouvel effet (sinon bornée).
+				var zkeep := MapCatalog.effect_zone(o)
+				cand.erase("zone")
+				MapCatalog.set_effect_zone(cand, zkeep)
 				MapCatalog.tidy_effect(cand)
-				if MapCatalog.EFFECTS[nid].get("rotates", false) and not cand.has("rot"):
+				if mount != "mur" and not cand.has("rot"):
 					cand["rot"] = 0
 				var k := int(o.get("etage", 0))
 				var res := MapRules.place_floor_item(ed.doc, k, cand, MapGeom.v2(o.position), String(o.id), false) if mount != "mur" \
@@ -727,10 +746,30 @@ func _effect_props(o: Dictionary) -> void:
 	var lim: Dictionary = MapCatalog.EFFECT_LIMITS
 	_spin(_props, Lang.t("Intensité", "Intensity"), MapCatalog.effect_value(o, "intensite"), lim.intensite[0], lim.intensite[1], 0.05, func(v):
 		o["intensite"] = v
-		MapCatalog.tidy_effect(o), "×").tooltip_text = Lang.t("Quantité de particules et force de la lumière", "Amount of particles and strength of the light")
-	_spin(_props, Lang.t("Taille", "Size"), MapCatalog.effect_value(o, "taille"), lim.taille[0], lim.taille[1], 0.05, func(v):
-		o["taille"] = v
-		MapCatalog.tidy_effect(o), "×")
+		MapCatalog.tidy_effect(o), "×").tooltip_text = Lang.t("Quantité de particules (densité dans la zone) et force de la lumière",
+			"Amount of particles (density in the zone) and strength of the light")
+	# Format 11 : zone de l'effet (largeur, profondeur ; hauteur d'un volume ou
+	# d'un effet mural), dans les bornes de l'effet ; aussi aux poignées du plan.
+	var fid := String(o.get("effet", ""))
+	var z := MapCatalog.effect_zone(o)
+	var labels := {"l": [Lang.t("Largeur", "Width"), Lang.t("Le long du mur", "Along the wall") if mount == "mur" else Lang.t("Côté x de la zone (avant rotation)", "Zone x side (before rotation)")],
+		"p": [Lang.t("Profondeur", "Depth"), Lang.t("Côté y de la zone (avant rotation)", "Zone y side (before rotation)")],
+		"h": [Lang.t("Hauteur de zone", "Zone height"), Lang.t("Étendue verticale sur le mur", "Vertical extent on the wall") if mount == "mur"
+			else Lang.t("Épaisseur du volume, depuis sa hauteur de pose", "Thickness of the volume, from its placement height")]}
+	for key in MapCatalog.effect_dims(fid):
+		var b := MapCatalog.effect_zone_bounds(fid, key)
+		var cur: float = {"l": z.x, "p": z.y, "h": z.z}[key]
+		var sp := _spin(_props, String(labels[key][0]), cur, b[0], b[1], MapCatalog.ZONE_STEP, func(v):
+			var nz := MapCatalog.effect_zone(o)
+			match key:
+				"l":
+					nz.x = v
+				"p":
+					nz.y = v
+				"h":
+					nz.z = v
+			MapCatalog.set_effect_zone(o, nz))
+		sp.tooltip_text = "%s (%s – %s m)" % [labels[key][1], MapCatalog.short_num(b[0]), MapCatalog.short_num(b[1])]
 	if mount != "plafond":
 		var hs := _spin(_props, Lang.t("Hauteur", "Height"), MapCatalog.effect_height(o), lim.hauteur[0], lim.hauteur[1], 0.05, func(v):
 			o["hauteur"] = v
@@ -752,9 +791,16 @@ func _effect_props(o: Dictionary) -> void:
 				ed.changed(false))
 		_row(_props, Lang.t("Couleur", "Colour"), cp)
 	if MapCatalog.rotates(o):
-		_note(_props, Lang.t("Rotation : %d° (R)", "Rotation: %d° (R)") % int(o.get("rot", 0)))
-	_note(_props, Lang.t("Effet visuel seulement : aucune collision, ne blesse personne ; se pose par-dessus le décor et les objets de jeu. %d effets au plus par carte.",
-		"Visual effect only: no collision, hurts nobody; goes over props and game objects. At most %d effects per map.") % MapCatalog.MAX_EFFECTS)
+		_note(_props, Lang.t("Rotation : %d° (R, poignée ronde)", "Rotation: %d° (R, round handle)") % int(o.get("rot", 0)))
+	_note(_props, Lang.t("Zone : poignées aux coins et aux milieux sur le plan ; plus grande, plus de particules (même densité).",
+		"Zone: handles at the corners and midpoints on the plan; bigger means more particles (same density).") if mount != "mur"
+		else Lang.t("Zone : poignées aux deux bouts sur le plan ; plus large, plus de particules (même densité).",
+		"Zone: handles at both ends on the plan; wider means more particles (same density)."))
+	var decor: Array = d.get("decor", [])
+	if not decor.is_empty():
+		_note(_props, Lang.t("Objet qui va avec : %s (onglet Décor).", "Matching object: %s (Props tab).") % ", ".join(decor.map(func(x): return MapCatalog.prefab_name(String(x)))))
+	_note(_props, Lang.t("Effet visuel seulement : aucun objet, aucune collision, ne blesse personne ; se pose par-dessus le décor et les objets de jeu. %d effets au plus par carte.",
+		"Visual effect only: no object, no collision, hurts nobody; goes over props and game objects. At most %d effects per map.") % MapCatalog.MAX_EFFECTS)
 
 
 # ------------------------------------------------------------------ listes

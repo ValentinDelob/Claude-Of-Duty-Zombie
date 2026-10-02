@@ -416,7 +416,10 @@ static func catalog() -> Dictionary:
 	var prefabs := {}
 	for p in MapCatalog.PREFABS:
 		var d: Dictionary = MapCatalog.PREFABS[p]
-		prefabs[p] = {"fr": d.get("fr", ""), "en": d.get("en", ""), "fp": jsonable(d.get("fp", [1, 1])), "h": d.get("h", 0.0), "bloque": d.get("bloque", "")}
+		prefabs[p] = {"fr": d.get("fr", ""), "en": d.get("en", ""), "fp": jsonable(d.get("fp", [1, 1])), "h": d.get("h", 0.0), "bloque": d.get("bloque", ""),
+			"mount": d.get("mount", "sol")}
+		if d.has("y"):
+			prefabs[p]["y"] = d.y
 	# Format 10 : prefabs de la carte ouverte (« prefab » : « map:<pid> »).
 	for it in MapCatalog.map_items():
 		var d := MapCatalog.prefab_def(String(it.make.prefab))
@@ -425,6 +428,14 @@ static func catalog() -> Dictionary:
 	for l in MapCatalog.LIGHTS:
 		var d: Dictionary = MapCatalog.LIGHTS[l]
 		lights[l] = {"fr": d.get("fr", ""), "en": d.get("en", ""), "mount": d.get("mount", ""), "fp": jsonable(d.get("fp", [1, 1]))}
+	# Format 11 : effets purs (aucun objet : le décor qui va avec est dans
+	# « decor »), zone en m : « dims » = ordre de la clé « zone » de l'objet,
+	# « zone » = {dimension: [défaut, min, max]}.
+	var effects := {}
+	for f in MapCatalog.EFFECTS:
+		var d: Dictionary = MapCatalog.EFFECTS[f]
+		effects[f] = {"fr": d.fr, "en": d.en, "sub": d.sub, "mount": d.mount, "dims": MapCatalog.effect_dims(f), "zone": jsonable(d.zone),
+			"y": d.get("y", 0.0), "teinte": d.has("couleur"), "decor": jsonable(d.get("decor", []))}
 	var weapons := []
 	for w in WeaponDB.WEAPONS:
 		if WeaponDB.wall_cost(w) > 0:
@@ -433,7 +444,7 @@ static func catalog() -> Dictionary:
 	for p in PerkDB.PERKS:
 		perks.append({"id": p, "name": PerkDB.display_name(p)})
 	return {"kinds": jsonable(MapCatalog.allowed_kinds()), "room_keys": jsonable(MapCatalog.room_keys()), "zone_keys": jsonable(MapCatalog.zone_keys()),
-		"items": items, "prefabs": prefabs, "lights": lights, "weapons": weapons, "perks": perks, "variants": jsonable(MapCatalog.VARIANTS),
+		"items": items, "prefabs": prefabs, "lights": lights, "effects": effects, "weapons": weapons, "perks": perks, "variants": jsonable(MapCatalog.VARIANTS),
 		"door_prices": MapCatalog.DOOR_PRICES, "max_floors": MapCatalog.MAX_FLOORS, "max_coord": MapCatalog.MAX_COORD,
 		"id_prefixes": jsonable(MapOps.OBJ_PREFIX), "surfaces": MapCatalog.allowed_surfaces()}
 

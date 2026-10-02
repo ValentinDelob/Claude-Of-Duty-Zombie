@@ -144,7 +144,7 @@ static func reset_schema() -> void:
 
 
 ## Règle du contrôle tirée d'une spec du catalogue (format 2) :
-## {"t": id | int | number | bool | enum | point | rect | color | text | names | polygon | points}.
+## {"t": id | int | number | bool | enum | point | rect | color | text | names | polygon | points | dims}.
 static func _rule_of_spec(s: Variant) -> Variant:
 	if not s is Dictionary:
 		return ""
@@ -178,6 +178,10 @@ static func _rule_of_spec(s: Variant) -> Variant:
 			return "points:%d:%d" % [clampi(int(s.get("min", 3)), 1, MAX_VERTICES), clampi(int(s.get("max", MAX_VERTICES)), 1, MAX_VERTICES)]
 		"shape":
 			return "forme"
+		"dims":
+			# Format 11 : liste de min à max nombres, chacun de lo à hi (zone d'un effet).
+			return "dims:%d:%d:%s:%s" % [clampi(int(s.get("min", 1)), 1, 8), clampi(int(s.get("max", 3)), 1, 8),
+				str(float(s.get("lo", 0.0))), str(float(s.get("hi", 1000.0)))]
 		"prefab":
 			# Format 10 : décor du catalogue (values) ou prefab de la carte « map:<pid> ».
 			var d := {}
@@ -197,7 +201,8 @@ static func _enum_key(v: Variant) -> Variant:
 ##   room_keys, zone_keys : {clé: règle} ; règles : "bool", "pt", "rect", "id",
 ##   "dir", "prix", "color", "name", "names", "floor", "zone_ref", "polygon",
 ##   "surface", "num:<min>:<max>", "int:<min>:<max>", "text:<max>",
-##   "points:<min>:<max>" (liste de points, format 9), ou un dictionnaire de
+##   "points:<min>:<max>" (liste de points, format 9), "dims:<min>:<max>:<lo>:<hi>"
+##   (liste de nombres bornés, format 11), ou un dictionnaire de
 ##   valeurs permises.
 static func schema() -> Dictionary:
 	if not _schema.is_empty():
@@ -790,6 +795,16 @@ static func _rule(c: Check, rule: Variant, v: Variant, what: String) -> bool:
 			if not _pt(c, q, what):
 				return false
 		return true
+	if r.begins_with("dims:"):
+		# Liste de nombres bornés (format 11 : zone d'un effet, en m).
+		var p := r.split(":")
+		if not (v is Array and v.size() >= int(p[1]) and v.size() <= int(p[2])):
+			c.bad("%s : liste de %s à %s nombres attendue" % [what, p[1], p[2]], "%s: list of %s to %s numbers expected" % [what, p[1], p[2]])
+			return false
+		for x in v:
+			if not _num(c, x, float(p[3]), float(p[4]), what):
+				return false
+		return true
 	if r.begins_with("text:"):
 		if not (v is String and name_ok(v, int(r.substr(5)))):
 			c.bad("%s : texte refusé (trop long, caractère de contrôle, balise ou chemin)" % what,
@@ -944,6 +959,13 @@ static func _check_object(c: Check, e: Dictionary, what: String) -> void:
 		c.effects += 1
 		if c.effects == MAX_EFFECTS + 1:
 			c.bad("objets.json : trop d'effets (au plus %d)" % MAX_EFFECTS, "objets.json: too many effects (at most %d)" % MAX_EFFECTS)
+		# Format 11 : zone de l'effet dans SES bornes (dimensions et taille propres à l'effet).
+		if c.reasons.size() == before and e.has("zone") and not MapCatalog.effect_zone_ok(String(e.get("effet", "")), e.zone):
+			c.bad("%s : zone de l'effet hors de ses bornes" % what, "%s: effect zone out of its bounds" % what)
+	if t == "prefab" and c.reasons.size() == before and (e.has("mur") or e.has("angle") or e.has("hauteur")) \
+			and MapCatalog.prefab_mount(String(e.get("prefab", ""))) != "mur":
+		# Format 11 : « mur », « angle », « hauteur » seulement pour un décor mural.
+		c.bad("%s : réglage de mur sur un décor qui n'est pas mural" % what, "%s: wall setting on a prop that is not wall-mounted" % what)
 	if t == "mur_courbe" and c.reasons.size() == before:
 		# Mur courbe : tout l'arc dans le terrain (0 à MAX_COORD).
 		var bb := MapGeom.bbox(MapShapes.wall_arc(e))

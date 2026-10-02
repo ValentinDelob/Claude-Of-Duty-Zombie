@@ -190,7 +190,7 @@ static func check_def(d: Variant) -> Array:
 		if not (parts is Array and parts.size() >= 1 and parts.size() <= MAX_PARTS):
 			return _bad("prefab.json : 1 à %d parties attendues" % MAX_PARTS, "prefab.json: 1 to %d parts expected" % MAX_PARTS)
 		for p in parts:
-			if not (p is Dictionary and p.get("decor") is String and MapCatalog.PREFABS.has(p.decor)):
+			if not (p is Dictionary and p.get("decor") is String and MapCatalog.floor_prefab(p.decor)):
 				return _bad("prefab.json : partie : décor du catalogue attendu", "prefab.json: part: catalogue prop expected")
 			for k in p:
 				if not k in ["decor", "pos", "rot"]:
@@ -294,9 +294,10 @@ static func catalog_boxes(id: String) -> Array:
 
 
 ## Décor du catalogue qui peut entrer dans un prefab groupe : un « prefab » du
-## catalogue (pas un prefab de la carte, pas un luminaire).
+## catalogue posé au sol (pas un prefab de la carte, pas un luminaire ; format
+## 11 : pas un décor mural ou accroché au plafond).
 static func groupable(o: Dictionary) -> bool:
-	return String(o.get("type", "")) == "prefab" and MapCatalog.PREFABS.has(String(o.get("prefab", "")))
+	return String(o.get("type", "")) == "prefab" and MapCatalog.floor_prefab(String(o.get("prefab", "")))
 
 
 ## Prefab groupe tiré d'objets posés (décor du catalogue) : parties autour du

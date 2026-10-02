@@ -2,8 +2,9 @@ class_name MapEffect
 extends Node3D
 ## Un effet de carte posé dans l'éditeur (MapEffects le construit) : couches
 ## de particules GPU, lumières qui vacillent, arcs électriques qui crépitent,
-## salves (court-circuit, pluie d'étincelles) et cycles (soudure). AUCUNE
-## collision, rien à synchroniser en réseau (décor de la carte, hasard local).
+## salves (court-circuit, pluie d'étincelles) et cycles (soudure). AUCUN
+## objet solide (format 11 : ce sont des décors à part) ni collision, rien à
+## synchroniser en réseau (décor de la carte, hasard local).
 ##
 ## Coût : un seul _process léger par effet (lumières, arcs, minuteries ; aucune
 ## allocation par image). Loin de la caméra (FAR m, moins en qualité basse),
@@ -20,10 +21,13 @@ enum Light { STEADY, FIRE, WELD, CRACKLE, PULSE, FLASH }
 
 var fx_id := ""
 var intensity := 1.0
-## Corps de l'effet (particules, objets) : mis à l'échelle de la taille ; les
-## lumières restent sur la racine (portée multipliée à part).
+## Corps de l'effet (particules, arcs) ; les lumières restent sur la racine.
+## Format 11 : jamais mis à l'échelle (une grande zone a PLUS de particules,
+## pas de plus grosses).
 var body: Node3D
-var size := 1.0
+## Zone de l'effet (m) : largeur (x), profondeur (z ; effet mural : sa portée
+## dans la pièce), hauteur (volume ; effet mural : étendue verticale).
+var zone := Vector3.ONE
 
 var parts: Array[GPUParticles3D] = []
 ## Particules qui émettent en continu (mise en pause loin de la caméra).

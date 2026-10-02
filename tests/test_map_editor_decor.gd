@@ -233,6 +233,12 @@ func test_every_prefab_placed_or_refused_by_the_rules() -> void:
 	var doc := EditorMap.blank()
 	_room(doc, 0, 0, 20, 20)
 	for pid in MapCatalog.PREFABS:
+		if MapCatalog.prefab_mount(pid) == "mur":
+			# Format 11 : décor mural (torche, tuyau...) : contre un mur, comme une applique.
+			var rw := MapRules.place_wall_item(doc, 0, {"type": "prefab", "prefab": pid}, Vector2(10, 0.4))
+			assert_true(rw.ok, "%s contre le mur nord : %s" % [pid, rw.get("fr", "")])
+			assert_false(MapRules.place_wall_item(doc, 0, {"type": "prefab", "prefab": pid}, Vector2(10, 10)).ok, "%s loin de tout mur : refusé" % pid)
+			continue
 		var tmpl := {"type": "prefab", "prefab": pid, "rot": 0}
 		var r := MapRules.place_floor_item(doc, 0, tmpl, Vector2(10, 10))
 		assert_true(r.ok, "%s posé au milieu d'une pièce : %s" % [pid, r.get("fr", "")])

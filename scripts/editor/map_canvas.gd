@@ -814,6 +814,8 @@ func _drag_update() -> void:
 		if res.ok:
 			drag.moved = true
 			ed.send_live(String(orig.id))
+			if String(orig.get("type", "")) == "effet":
+				ed.set_status(Lang.t("Zone : %s", "Zone: %s") % effect_zone_text(ed.doc.find(String(orig.id))))
 		else:
 			refusal = MapRules.why(res)
 			_refusal_t = 1.5
@@ -859,6 +861,9 @@ func handles() -> PackedVector2Array:
 		return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
 	if String(e.get("type", "")) == "mur":
 		return PackedVector2Array([MapGeom.v2(e.a), MapGeom.v2(e.b)])
+	if String(e.get("type", "")) == "effet":
+		# Format 11 : zone de l'effet (coins et milieux ; mural : ses deux bouts).
+		return MapTransform.effect_handles(e)
 	return out
 
 
@@ -1045,6 +1050,8 @@ func _outline_of(e: Dictionary) -> PackedVector2Array:
 		return ed.doc.room_poly(e)
 	if String(e.get("type", "")) == "bloc_invisible":
 		return MapRaster.clip_poly(e)
+	if String(e.get("type", "")) == "effet":
+		return MapRules.effect_poly(e)
 	if e.has("rect") and MapGeom.rot_of(e) != 0:
 		return MapRaster.rect_poly(e)
 	var tool := MapCatalog.tool_of(e)
@@ -1285,7 +1292,7 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 		_draw_effect(o, it, col, rp, alpha)
 		return
 	var mount := MapCatalog.light_mount(o)
-	if (t == "prefab" or (t == "luminaire" and mount != "mur")) and MapRaster.free_rot(o):
+	if t in ["prefab", "luminaire"] and mount != "mur" and MapRaster.free_rot(o):
 		# Décor tourné au degré près : emprise tournée, icône, flèche du devant.
 		var poly := _px_poly(MapRaster.floor_poly(o))
 		var block := MapCatalog.blocking(o)
@@ -1303,7 +1310,7 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 		if t == "luminaire" and o.get("id", "") == ed.selected:
 			draw_arc(c, float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
 		return
-	if t == "prefab" or (t == "luminaire" and mount != "mur"):
+	if t in ["prefab", "luminaire"] and mount != "mur":
 		# Empreinte au sol (couleur du prefab, hachures s'il bloque), icône et
 		# flèche du devant (rotation R).
 		var block := MapCatalog.blocking(o)
@@ -1358,22 +1365,23 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 		draw_arc(rp.get_center(), float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
 
 
-## Effet (format 10) : zone translucide de sa couleur, contour en tirets (il
-## ne bloque rien), icône au milieu ; flèche du devant s'il pivote ; au
-## plafond, un rond en plus ; mural, sur la face du mur.
-func _draw_effect(o: Dictionary, it: Dictionary, col: Color, rp: Rect2, alpha: float) -> void:
-	var poly: PackedVector2Array
-	if MapCatalog.tool_of(o) == "wall_item":
-		poly = _px_poly(MapRules.wall_item_poly(o))
-	else:
-		poly = _px_poly(MapRaster.floor_poly(o))
+## Effet (format 10 ; zone : format 11) : sa ZONE réelle (polygone tourné)
+## translucide de sa couleur, contour en tirets (il ne bloque rien), icône au
+## milieu ; flèche du devant s'il pivote ; au plafond, des tirets croisés en
+## plus ; mural, sur la face du mur ; choisi, ses dimensions écrites à côté.
+func _draw_effect(o: Dictionary, it: Dictionary, col: Color, _rp: Rect2, alpha: float) -> void:
+	var poly := _px_poly(MapRules.effect_poly(o))
 	_fill(poly, Color(col, 0.16 * alpha))
+	var dash := maxf(3.0, zoom * 0.15)
 	for i in poly.size():
-		draw_dashed_line(poly[i], poly[(i + 1) % poly.size()], Color(col.lightened(0.25), 0.85 * alpha), 1.2, maxf(3.0, zoom * 0.15))
+		draw_dashed_line(poly[i], poly[(i + 1) % poly.size()], Color(col.lightened(0.25), 0.85 * alpha), 1.2, dash)
 	var c := MapGeom.centroid(poly)
+	var span := minf(poly[0].distance_to(poly[1]), poly[1].distance_to(poly[2]))
 	if MapCatalog.effect_mount(o) == "plafond":
-		draw_arc(c, maxf(5.0, minf(rp.size.x, rp.size.y) * 0.5), 0, TAU, 20, Color(col, 0.6 * alpha), 1.0)
-	var si := maxf(14.0, minf(minf(rp.size.x, rp.size.y) * 0.85, 48.0))
+		# Au plafond : diagonales en tirets (il pend au-dessus de la pièce).
+		draw_dashed_line(poly[0], poly[2], Color(col, 0.45 * alpha), 1.0, dash)
+		draw_dashed_line(poly[1], poly[3], Color(col, 0.45 * alpha), 1.0, dash)
+	var si := clampf(span * 0.85, 14.0, 48.0)
 	MapIcons.draw(self, it, Rect2(c - Vector2(si, si) * 0.5, Vector2(si, si)))
 	if MapCatalog.rotates(o) and zoom >= 8.0 and poly.size() == 4:
 		var dv := Vector2(0, 1).rotated(deg_to_rad(float(MapGeom.rot_of(o))))
@@ -1381,6 +1389,24 @@ func _draw_effect(o: Dictionary, it: Dictionary, col: Color, rp: Rect2, alpha: f
 		draw_line(edge - dv * 7.0, edge, Color(1, 1, 1, 0.8 * alpha), 2.0)
 		draw_line(edge, edge - dv.rotated(0.6) * 5.0, Color(1, 1, 1, 0.8 * alpha), 2.0)
 		draw_line(edge, edge - dv.rotated(-0.6) * 5.0, Color(1, 1, 1, 0.8 * alpha), 2.0)
+	if String(o.get("id", "")) == ed.selected and not offscreen and zoom >= 6.0:
+		var font := UiStyle.font("body")
+		var bb := MapGeom.bbox(poly)
+		_label_at(font, Vector2(bb.end.x + _u(6), bb.position.y + _u(2)), effect_zone_text(o))
+
+
+## Dimensions de la zone d'un effet : « 3 × 2 m », volume « 4 × 4 × 0,6 m »,
+## mural « 0,5 m × 0,4 m de haut ».
+static func effect_zone_text(o: Dictionary) -> String:
+	if o.is_empty():
+		return ""
+	var z := MapCatalog.effect_zone(o)
+	var m := func(v: float) -> String: return MapCatalog.short_num(v).replace(",", ".") if Lang.is_en() else MapCatalog.short_num(v)
+	if MapCatalog.effect_mount(o) == "mur":
+		return Lang.t("%s m, %s m de haut", "%s m, %s m high") % [m.call(z.x), m.call(z.z)]
+	if MapCatalog.effect_dims(String(o.get("effet", ""))).size() == 3:
+		return "%s × %s × %s m" % [m.call(z.x), m.call(z.y), m.call(z.z)]
+	return "%s × %s m" % [m.call(z.x), m.call(z.y)]
 
 
 ## Barrière invisible (format 9 : polygone) : surface translucide hachurée à

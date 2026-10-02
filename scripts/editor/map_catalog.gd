@@ -67,6 +67,12 @@ const DOOR_PRICES := [750, 1000, 1250]
 ##            CollisionBox, jamais une collision de modèle Blender
 ##   support  hauteur du dessus (m) : une lampe de bureau ou des bougies
 ##            peuvent y être posées
+##   mount    format 11 : « mur » (contre un mur, comme une applique : hauteur
+##            `y` par défaut, clé « hauteur » de l'objet posé ; origine de
+##            l'objet sur la face du mur, +z vers la pièce) ou « plafond »
+##            (accroché sous le plafond ; origine au plafond) ; absent : au sol
+## Format 11 : décors qui accompagnent les effets (ils étaient construits avec
+## l'effet avant, ils sont maintenant posés à part, MapCatalog.EFFECTS.decor).
 const RUBBLE_REMAP := {"wall_theater": "concrete", "velvet": "fabric", "ceiling_theater": "concrete_dark"}
 const PREFABS := {
 	"gravats": {"fr": "Tas de gravats", "en": "Rubble heap", "fp": [6, 6], "h": 1.5, "bloque": "solide",
@@ -112,6 +118,31 @@ const PREFABS := {
 		"boxes": [{"center": [0, 0.5, 0], "size": [1.3, 1.0, 0.75]}], "support": 0.85, "color": Color(0.4, 0.42, 0.45)},
 	"epave_voiture": {"fr": "Épave de voiture", "en": "Car wreck", "fp": [9, 4], "h": 1.5, "bloque": "solide", "build": "epave_voiture", "surface": "metal",
 		"boxes": [{"center": [0, 0.5, 0], "size": [4.3, 1.0, 1.8]}, {"center": [-0.2, 1.2, 0], "size": [2.2, 0.6, 1.6]}], "color": Color(0.35, 0.4, 0.35)},
+	# Format 11 : décors des effets (feu, électricité, eau), construits par le jeu.
+	"buches": {"fr": "Bûches (feu de bois)", "en": "Logs (wood fire)", "fp": [1, 1], "h": 0.15, "bloque": "non", "build": "buches", "surface": "wood",
+		"color": Color(0.4, 0.2, 0.1)},
+	"foyer_pierres": {"fr": "Foyer de pierres", "en": "Stone fire pit", "fp": [3, 3], "h": 0.3, "bloque": "barriere", "build": "foyer_pierres", "surface": "stone",
+		"boxes": [{"center": [0, 0.5, 0], "size": [1.3, 1.0, 1.3]}], "color": Color(0.45, 0.42, 0.4)},
+	"planches_brulees": {"fr": "Planches calcinées", "en": "Charred planks", "fp": [5, 2], "h": 0.1, "bloque": "non", "build": "planches_brulees",
+		"surface": "wood", "color": Color(0.2, 0.15, 0.12)},
+	"electrodes": {"fr": "Électrodes", "en": "Electrodes", "fp": [3, 1], "h": 1.1, "bloque": "barriere", "build": "electrodes", "surface": "metal",
+		"boxes": [{"center": [-0.62, 0.55, 0], "size": [0.2, 1.1, 0.2]}, {"center": [0.62, 0.55, 0], "size": [0.2, 1.1, 0.2]}], "color": Color(0.6, 0.45, 0.3)},
+	"bobine_tesla": {"fr": "Bobine Tesla", "en": "Tesla coil", "fp": [1, 1], "h": 1.55, "bloque": "solide", "build": "bobine_tesla", "surface": "metal",
+		"boxes": [{"center": [0, 0.78, 0], "size": [0.4, 1.55, 0.4]}], "color": Color(0.7, 0.45, 0.28)},
+	"flaque_eau": {"fr": "Flaque d'eau", "en": "Water puddle", "fp": [3, 3], "h": 0.01, "bloque": "non", "build": "flaque_eau", "surface": "tiles",
+		"color": Color(0.25, 0.38, 0.5)},
+	"petite_flaque": {"fr": "Petite flaque", "en": "Small puddle", "fp": [2, 2], "h": 0.01, "bloque": "non", "build": "petite_flaque", "surface": "tiles",
+		"color": Color(0.3, 0.45, 0.6)},
+	"torche_murale": {"fr": "Torche murale", "en": "Wall torch", "fp": [1, 1], "h": 0.5, "bloque": "non", "mount": "mur", "y": 1.8, "build": "torche_murale",
+		"surface": "wood", "color": Color(0.55, 0.35, 0.18)},
+	"tuyau_vapeur": {"fr": "Tuyau à vapeur", "en": "Steam pipe", "fp": [1, 1], "h": 0.2, "bloque": "non", "mount": "mur", "y": 1.2, "build": "tuyau_vapeur",
+		"surface": "metal", "color": Color(0.5, 0.5, 0.5)},
+	"boitier_electrique": {"fr": "Boîtier électrique ouvert", "en": "Open electrical box", "fp": [1, 1], "h": 0.45, "bloque": "non", "mount": "mur", "y": 1.6,
+		"build": "boitier_electrique", "surface": "metal", "color": Color(0.35, 0.4, 0.33)},
+	"tuyau_fuite": {"fr": "Tuyau qui fuit", "en": "Leaking pipe", "fp": [2, 1], "h": 0.2, "bloque": "non", "mount": "mur", "y": 2.0, "build": "tuyau_fuite",
+		"surface": "metal", "color": Color(0.5, 0.3, 0.18)},
+	"cable_suspendu": {"fr": "Câble suspendu", "en": "Hanging cable", "fp": [1, 1], "h": 0.65, "bloque": "non", "mount": "plafond", "build": "cable_suspendu",
+		"surface": "metal", "color": Color(0.2, 0.2, 0.22)},
 }
 
 ## Luminaires (type « luminaire » de objets.json). Ils passent par le code
@@ -155,73 +186,113 @@ const LIGHTS := {
 }
 
 ## Effets (format 10, type « effet » de objets.json, docs/MAP_OBJECTS.md §
-## 11) : flammes, fumées, étincelles, électricité, eau, ambiance. Construits
-## par le jeu (MapEffects : particules, lumière vacillante, petits objets) ;
-## AUCUNE collision, ils ne gênent ni ne blessent personne, et se posent
-## par-dessus n'importe quoi (décor, objets de jeu).
+## 12) : flammes, fumées, étincelles, électricité, eau, ambiance. Format 11 :
+## des EFFETS PURS, construits par le jeu (MapEffects) : particules, lumières
+## animées, arcs électriques ; AUCUN objet (bûches, torche, tuyau, flaque...
+## sont des décors de l'onglet Décor, PREFABS) et AUCUNE collision : ils ne
+## gênent ni ne blessent personne et se posent par-dessus n'importe quoi.
 ##   sub     sous-onglet (EFFECT_SUBS)
 ##   mount   « sol » (au sol, ou surélevé : `y`), « mur » (contre un mur, à la
 ##           hauteur `y`, dirigé vers la pièce) ou « plafond » (sous le plafond)
-##   fp      emprise en cases (dessin, clic)
+##   zone    ZONE de l'effet (format 11), en mètres : {dimension: [défaut,
+##           min, max]}. « l » largeur (axe x de l'effet ; le long du mur pour
+##           un effet mural), « p » profondeur (axe z, effets au sol et au
+##           plafond), « h » hauteur (volume d'un effet au sol : poussière,
+##           brouillard... ; étendue verticale d'un effet mural). Zone par
+##           défaut : l'étendue de l'effet d'avant le format 11.
+##   reach   effet mural : distance (m) où il porte dans la pièce (dessin)
+##   cap     particules au plus pour cet effet (la densité suit la surface
+##           de la zone jusqu'à ce plafond, MapEffects)
+##   decor   format 11 : décor (PREFABS) que construisait l'effet avant ; une
+##           carte d'un format plus ancien le reçoit à côté de l'effet
+##           (split_legacy_effect)
 ##   y       sol : hauteur par défaut au-dessus du sol ; mur : hauteur (m)
 ##   couleur teinte par défaut (« #rrggbb ») : seuls ces effets se teintent
-##   rotates pivote avec R (effets au sol allongés)
+## Les effets au sol et au plafond pivotent (R, poignée, angle libre) ; un
+## effet mural suit son mur.
 ## Réglages d'un effet posé (tous facultatifs, jamais écrits à leur valeur
 ## par défaut, tidy_effect) : intensite (x, quantité de particules et
-## lumière), taille (x), couleur, hauteur (m), rot.
+## lumière), zone, couleur, hauteur (m), rot. « taille » (x, avant le format
+## 11) est lue et convertie en zone (zone par défaut × taille).
 const EFFECT_LIMITS := {"intensite": [0.25, 2.0], "taille": [0.5, 2.5], "hauteur": [0.0, 30.0]}
+## Bornes absolues d'une dimension de zone (m) : celles de chaque effet sont
+## dans EFFECTS (clé « zone »). Pas d'une dimension réglée à la main.
+const ZONE_LIMITS := [0.1, 40.0]
+const ZONE_STEP := 0.05
 ## Effets au plus par carte (coût des particules, MapEffects.PARTICLE_BUDGET).
 const MAX_EFFECTS := CustomMapGuard.MAX_EFFECTS
 const EFFECTS := {
 	# Flammes.
-	"petit_feu": {"sub": "flammes", "fr": "Petit feu", "en": "Small fire", "mount": "sol", "fp": [2, 2], "color": Color(1.0, 0.55, 0.15),
-		"hint_fr": "Quelques bûches qui brûlent", "hint_en": "A few burning logs"},
-	"brasier": {"sub": "flammes", "fr": "Feu de camp / brasier", "en": "Campfire / bonfire", "mount": "sol", "fp": [3, 3], "color": Color(1.0, 0.45, 0.1),
-		"hint_fr": "Grand feu cerclé de pierres", "hint_en": "Big fire ringed with stones"},
-	"baril_feu": {"sub": "flammes", "fr": "Flammes de baril", "en": "Barrel flames", "mount": "sol", "fp": [1, 1], "y": 0.9, "color": Color(1.0, 0.5, 0.2),
+	"petit_feu": {"sub": "flammes", "fr": "Petit feu", "en": "Small fire", "mount": "sol", "zone": {"l": [0.6, 0.3, 3.0], "p": [0.6, 0.3, 3.0]},
+		"cap": 400, "decor": ["buches"], "color": Color(1.0, 0.55, 0.15),
+		"hint_fr": "Petites flammes et braises (bûches : onglet Décor)", "hint_en": "Small flames and embers (logs: Props tab)"},
+	"brasier": {"sub": "flammes", "fr": "Grand feu", "en": "Bonfire", "mount": "sol", "zone": {"l": [1.2, 0.6, 4.0], "p": [1.2, 0.6, 4.0]},
+		"cap": 600, "decor": ["foyer_pierres"], "color": Color(1.0, 0.45, 0.1),
+		"hint_fr": "Hautes flammes, braises et fumée (foyer de pierres : onglet Décor)", "hint_en": "Tall flames, embers and smoke (stone fire pit: Props tab)"},
+	"baril_feu": {"sub": "flammes", "fr": "Flammes de baril", "en": "Barrel flames", "mount": "sol", "y": 0.9, "zone": {"l": [0.6, 0.3, 1.5], "p": [0.6, 0.3, 1.5]},
+		"cap": 300, "color": Color(1.0, 0.5, 0.2),
 		"hint_fr": "Flammes à poser sur un baril (0,9 m de haut par défaut)", "hint_en": "Flames to put on a barrel (0.9 m high by default)"},
-	"torche": {"sub": "flammes", "fr": "Torche murale", "en": "Wall torch", "mount": "mur", "fp": [1, 1], "y": 1.8, "color": Color(1.0, 0.65, 0.25),
-		"hint_fr": "Torche fixée au mur", "hint_en": "Torch fixed to the wall"},
-	"incendie": {"sub": "flammes", "fr": "Incendie (large)", "en": "Large blaze", "mount": "sol", "fp": [6, 4], "rotates": true, "color": Color(0.95, 0.35, 0.08),
-		"hint_fr": "Nappe de feu de 3 × 2 m, épaisse fumée", "hint_en": "3 × 2 m sheet of fire, thick smoke"},
+	"torche": {"sub": "flammes", "fr": "Flamme de torche", "en": "Torch flame", "mount": "mur", "y": 1.8, "zone": {"l": [0.3, 0.2, 0.6], "h": [0.4, 0.3, 0.8]},
+		"reach": 0.5, "cap": 120, "decor": ["torche_murale"], "color": Color(1.0, 0.65, 0.25),
+		"hint_fr": "Flamme vive au bout d'une torche (torche murale : onglet Décor)", "hint_en": "Lively flame at the tip of a torch (wall torch: Props tab)"},
+	"incendie": {"sub": "flammes", "fr": "Incendie", "en": "Blaze", "mount": "sol", "zone": {"l": [3.0, 1.0, 12.0], "p": [2.0, 1.0, 12.0]},
+		"cap": 1200, "decor": ["planches_brulees"], "color": Color(0.95, 0.35, 0.08),
+		"hint_fr": "Nappe de feu et épaisse fumée, de la taille de sa zone", "hint_en": "Sheet of fire and thick smoke, as big as its zone"},
 	# Fumées.
-	"fumee_legere": {"sub": "fumees", "fr": "Fumée légère", "en": "Light smoke", "mount": "sol", "fp": [2, 2], "couleur": "#6e6c6a", "color": Color(0.65, 0.65, 0.65),
+	"fumee_legere": {"sub": "fumees", "fr": "Fumée légère", "en": "Light smoke", "mount": "sol", "zone": {"l": [1.0, 0.5, 20.0], "p": [1.0, 0.5, 20.0]},
+		"cap": 500, "couleur": "#6e6c6a", "color": Color(0.65, 0.65, 0.65),
 		"hint_fr": "Volutes grises qui montent lentement", "hint_en": "Grey wisps slowly rising"},
-	"fumee_noire": {"sub": "fumees", "fr": "Fumée noire épaisse", "en": "Thick black smoke", "mount": "sol", "fp": [3, 3], "color": Color(0.3, 0.3, 0.32),
+	"fumee_noire": {"sub": "fumees", "fr": "Fumée noire épaisse", "en": "Thick black smoke", "mount": "sol", "zone": {"l": [1.5, 0.5, 20.0], "p": [1.5, 0.5, 20.0]},
+		"cap": 600, "color": Color(0.3, 0.3, 0.32),
 		"hint_fr": "Colonne de fumée noire, braises au pied", "hint_en": "Column of black smoke, embers at its foot"},
-	"vapeur": {"sub": "fumees", "fr": "Vapeur de tuyau", "en": "Pipe steam", "mount": "mur", "fp": [1, 1], "y": 1.2, "color": Color(0.85, 0.9, 0.95),
-		"hint_fr": "Jet de vapeur sortant du mur", "hint_en": "Steam jet coming out of the wall"},
-	"brouillard": {"sub": "fumees", "fr": "Brouillard au sol", "en": "Ground fog", "mount": "sol", "fp": [8, 8], "couleur": "#8e9aa6", "color": Color(0.6, 0.68, 0.75),
-		"hint_fr": "Nappe de brume rampante de 4 × 4 m", "hint_en": "4 × 4 m creeping mist"},
+	"vapeur": {"sub": "fumees", "fr": "Jet de vapeur", "en": "Steam jet", "mount": "mur", "y": 1.2, "zone": {"l": [0.3, 0.2, 4.0], "h": [0.3, 0.2, 2.0]},
+		"reach": 1.5, "cap": 400, "decor": ["tuyau_vapeur"], "color": Color(0.85, 0.9, 0.95),
+		"hint_fr": "Jet de vapeur sous pression sortant du mur (tuyau : onglet Décor)", "hint_en": "Pressurised steam jet out of the wall (pipe: Props tab)"},
+	"brouillard": {"sub": "fumees", "fr": "Brouillard au sol", "en": "Ground fog", "mount": "sol",
+		"zone": {"l": [4.0, 2.0, 40.0], "p": [4.0, 2.0, 40.0], "h": [0.6, 0.3, 3.0]}, "cap": 700, "couleur": "#8e9aa6", "color": Color(0.6, 0.68, 0.75),
+		"hint_fr": "Nappe de brume rampante, sur toute sa zone", "hint_en": "Creeping mist over its whole zone"},
 	# Étincelles.
-	"pluie_etincelles": {"sub": "etincelles", "fr": "Pluie d'étincelles", "en": "Spark shower", "mount": "plafond", "fp": [1, 1], "color": Color(1.0, 0.8, 0.3),
-		"hint_fr": "Câble arraché au plafond : gerbes qui rebondissent au sol", "hint_en": "Torn cable on the ceiling: showers bouncing on the floor"},
-	"soudure": {"sub": "etincelles", "fr": "Gerbe de soudure", "en": "Welding sparks", "mount": "mur", "fp": [1, 1], "y": 1.3, "color": Color(0.75, 0.85, 1.0),
+	"pluie_etincelles": {"sub": "etincelles", "fr": "Pluie d'étincelles", "en": "Spark shower", "mount": "plafond", "zone": {"l": [0.5, 0.3, 6.0], "p": [0.5, 0.3, 6.0]},
+		"cap": 500, "decor": ["cable_suspendu"], "color": Color(1.0, 0.8, 0.3),
+		"hint_fr": "Gerbes d'étincelles qui tombent et rebondissent au sol (câble : onglet Décor)", "hint_en": "Showers of sparks falling and bouncing on the floor (cable: Props tab)"},
+	"soudure": {"sub": "etincelles", "fr": "Gerbe de soudure", "en": "Welding sparks", "mount": "mur", "y": 1.3, "zone": {"l": [0.4, 0.2, 3.0], "h": [0.4, 0.2, 2.0]},
+		"reach": 1.0, "cap": 500, "color": Color(0.75, 0.85, 1.0),
 		"hint_fr": "Gerbe continue et éclats bleutés, par à-coups", "hint_en": "Steady spray and bluish flashes, in bursts"},
-	"court_circuit": {"sub": "etincelles", "fr": "Court-circuit", "en": "Short circuit", "mount": "mur", "fp": [1, 1], "y": 1.6, "color": Color(0.9, 0.9, 0.5),
-		"hint_fr": "Boîtier électrique qui claque de temps en temps", "hint_en": "Electrical box that pops now and then"},
+	"court_circuit": {"sub": "etincelles", "fr": "Court-circuit", "en": "Short circuit", "mount": "mur", "y": 1.6, "zone": {"l": [0.4, 0.2, 2.0], "h": [0.5, 0.2, 2.0]},
+		"reach": 0.8, "cap": 400, "decor": ["boitier_electrique"], "color": Color(0.9, 0.9, 0.5),
+		"hint_fr": "Claquements, étincelles et arcs de temps en temps (boîtier : onglet Décor)", "hint_en": "Pops, sparks and arcs now and then (electrical box: Props tab)"},
 	# Électricité.
-	"arc": {"sub": "electricite", "fr": "Arc électrique", "en": "Electric arc", "mount": "sol", "fp": [3, 1], "y": 1.0, "rotates": true, "couleur": "#8fb4ff",
-		"color": Color(0.55, 0.7, 1.0), "hint_fr": "Arc crépitant entre deux électrodes", "hint_en": "Crackling arc between two electrodes"},
-	"tesla": {"sub": "electricite", "fr": "Bobine Tesla", "en": "Tesla coil", "mount": "sol", "fp": [2, 2], "y": 1.4, "couleur": "#a6b4ff",
-		"color": Color(0.65, 0.6, 1.0), "hint_fr": "Décharges dans toutes les directions", "hint_en": "Discharges in every direction"},
-	"cable_nu": {"sub": "electricite", "fr": "Câble à nu", "en": "Live wire", "mount": "plafond", "fp": [1, 1], "couleur": "#8fb4ff",
-		"color": Color(0.45, 0.6, 1.0), "hint_fr": "Câble pendant du plafond, son bout crépite", "hint_en": "Cable hanging from the ceiling, its end crackles"},
+	"arc": {"sub": "electricite", "fr": "Arc électrique", "en": "Electric arc", "mount": "sol", "y": 1.0, "zone": {"l": [1.5, 0.5, 6.0], "p": [0.4, 0.2, 2.0]},
+		"cap": 200, "decor": ["electrodes"], "couleur": "#8fb4ff", "color": Color(0.55, 0.7, 1.0),
+		"hint_fr": "Arc crépitant d'un bout à l'autre de sa zone (électrodes : onglet Décor)", "hint_en": "Crackling arc from one end of its zone to the other (electrodes: Props tab)"},
+	"tesla": {"sub": "electricite", "fr": "Arcs en boule", "en": "Arc burst", "mount": "sol", "y": 1.4, "zone": {"l": [2.4, 0.6, 6.0], "p": [2.4, 0.6, 6.0]},
+		"cap": 200, "decor": ["bobine_tesla"], "couleur": "#a6b4ff", "color": Color(0.65, 0.6, 1.0),
+		"hint_fr": "Décharges dans toutes les directions jusqu'au bord de sa zone (bobine Tesla : onglet Décor)", "hint_en": "Discharges in every direction up to the edge of its zone (Tesla coil: Props tab)"},
+	"cable_nu": {"sub": "electricite", "fr": "Étincelles de câble", "en": "Cable sparks", "mount": "plafond", "zone": {"l": [0.5, 0.3, 3.0], "p": [0.5, 0.3, 3.0]},
+		"cap": 200, "decor": ["cable_suspendu"], "couleur": "#8fb4ff", "color": Color(0.45, 0.6, 1.0),
+		"hint_fr": "Crépitements et étincelles au bout d'un câble pendant (câble : onglet Décor)", "hint_en": "Crackles and sparks at the tip of a hanging cable (cable: Props tab)"},
 	# Eau.
-	"goutte": {"sub": "eau", "fr": "Goutte-à-goutte", "en": "Dripping water", "mount": "plafond", "fp": [1, 1], "color": Color(0.5, 0.7, 0.95),
-		"hint_fr": "Gouttes du plafond et ronds dans l'eau au sol", "hint_en": "Drops from the ceiling and ripples on the floor"},
-	"fuite": {"sub": "eau", "fr": "Fuite de tuyau", "en": "Leaking pipe", "mount": "mur", "fp": [2, 1], "y": 2.0, "color": Color(0.4, 0.6, 0.85),
-		"hint_fr": "Filet d'eau qui tombe d'un tuyau et éclabousse", "hint_en": "Stream of water falling from a pipe and splashing"},
-	"flaque": {"sub": "eau", "fr": "Flaque", "en": "Puddle", "mount": "sol", "fp": [3, 3], "color": Color(0.3, 0.45, 0.6),
-		"hint_fr": "Flaque brillante parcourue de ronds", "hint_en": "Glossy puddle with ripples"},
+	"goutte": {"sub": "eau", "fr": "Goutte-à-goutte", "en": "Dripping water", "mount": "plafond", "zone": {"l": [0.5, 0.3, 6.0], "p": [0.5, 0.3, 6.0]},
+		"cap": 300, "decor": ["petite_flaque"], "color": Color(0.5, 0.7, 0.95),
+		"hint_fr": "Gouttes du plafond et ronds au sol, sur toute sa zone", "hint_en": "Drops from the ceiling and ripples on the floor, over its whole zone"},
+	"fuite": {"sub": "eau", "fr": "Filet d'eau", "en": "Water stream", "mount": "mur", "y": 2.0, "zone": {"l": [0.3, 0.1, 3.0], "h": [0.2, 0.1, 1.0]},
+		"reach": 1.0, "cap": 400, "decor": ["tuyau_fuite", "petite_flaque"], "color": Color(0.4, 0.6, 0.85),
+		"hint_fr": "Filet d'eau qui tombe du mur et éclabousse (tuyau, flaque : onglet Décor)", "hint_en": "Stream of water falling from the wall and splashing (pipe, puddle: Props tab)"},
+	"flaque": {"sub": "eau", "fr": "Ronds dans l'eau", "en": "Water ripples", "mount": "sol", "zone": {"l": [1.5, 0.5, 10.0], "p": [1.0, 0.5, 10.0]},
+		"cap": 200, "decor": ["flaque_eau"], "color": Color(0.3, 0.45, 0.6),
+		"hint_fr": "Ronds qui s'étalent sur l'eau (flaque : onglet Décor)", "hint_en": "Rings spreading on the water (puddle: Props tab)"},
 	# Ambiance.
-	"poussiere": {"sub": "ambiance", "fr": "Poussière en suspension", "en": "Floating dust", "mount": "sol", "fp": [6, 6], "color": Color(0.85, 0.8, 0.65),
-		"hint_fr": "Grains de poussière dans l'air, sur 3 × 3 m", "hint_en": "Dust motes in the air, over 3 × 3 m"},
-	"braises": {"sub": "ambiance", "fr": "Braises flottantes", "en": "Floating embers", "mount": "sol", "fp": [4, 4], "color": Color(1.0, 0.4, 0.1),
+	"poussiere": {"sub": "ambiance", "fr": "Poussière en suspension", "en": "Floating dust", "mount": "sol",
+		"zone": {"l": [3.0, 1.0, 30.0], "p": [3.0, 1.0, 30.0], "h": [2.0, 0.5, 8.0]}, "cap": 1500, "color": Color(0.85, 0.8, 0.65),
+		"hint_fr": "Grains de poussière dans l'air, dans tout le volume de sa zone", "hint_en": "Dust motes in the air, through its whole zone"},
+	"braises": {"sub": "ambiance", "fr": "Braises flottantes", "en": "Floating embers", "mount": "sol", "zone": {"l": [2.0, 0.5, 20.0], "p": [2.0, 0.5, 20.0]},
+		"cap": 800, "color": Color(1.0, 0.4, 0.1),
 		"hint_fr": "Braises qui s'élèvent en tourbillonnant", "hint_en": "Embers swirling upwards"},
-	"cendres": {"sub": "ambiance", "fr": "Cendres qui tombent", "en": "Falling ash", "mount": "sol", "fp": [6, 6], "color": Color(0.55, 0.53, 0.5),
+	"cendres": {"sub": "ambiance", "fr": "Cendres qui tombent", "en": "Falling ash", "mount": "sol", "zone": {"l": [3.0, 1.0, 30.0], "p": [3.0, 1.0, 30.0]},
+		"cap": 1200, "color": Color(0.55, 0.53, 0.5),
 		"hint_fr": "Flocons de cendre qui tombent du plafond", "hint_en": "Ash flakes falling from the ceiling"},
-	"feux_follets": {"sub": "ambiance", "fr": "Feux follets (115)", "en": "Will-o'-wisps (115)", "mount": "sol", "fp": [3, 3], "couleur": "#3dff6a",
+	"feux_follets": {"sub": "ambiance", "fr": "Feux follets (115)", "en": "Will-o'-wisps (115)", "mount": "sol",
+		"zone": {"l": [1.5, 0.5, 10.0], "p": [1.5, 0.5, 10.0], "h": [1.2, 0.5, 4.0]}, "cap": 400, "couleur": "#3dff6a",
 		"color": Color(0.25, 1.0, 0.45), "hint_fr": "Lueurs vertes de l'élément 115 qui dérivent", "hint_en": "Drifting green glows of element 115"},
 }
 
@@ -634,9 +705,18 @@ static func _build() -> void:
 	var block_en := {"solide": "Blocks players, zombies and bullets", "barriere": "Blocks players and zombies (bullets go through)", "non": "Decoration: can be walked over"}
 	for pid in PREFABS:
 		var d: Dictionary = PREFABS[pid]
+		# Format 11 : décor mural (comme une applique) ou accroché au plafond.
+		var pm := String(d.get("mount", "sol"))
+		if pm == "mur":
+			_add({"id": "prefab:" + pid, "cat": "prefabs", "fr": d.fr, "en": d.en, "tool": "wall_item", "color": d.color,
+				"make": {"type": "prefab", "prefab": pid}, "fp": d.fp,
+				"hint_fr": "Contre un mur, partout et à la hauteur voulue (%s m par défaut) · %s" % [short_num(float(d.y)), block_fr[d.bloque]],
+				"hint_en": "Against a wall, anywhere and at any height (%s m by default) · %s" % [short_num(float(d.y)).replace(",", "."), block_en[d.bloque]]})
+			continue
 		_add({"id": "prefab:" + pid, "cat": "prefabs", "fr": d.fr, "en": d.en, "tool": "floor_item", "color": d.color,
 			"make": {"type": "prefab", "prefab": pid, "rot": 0}, "fp": d.fp, "rotates": true,
-			"hint_fr": String(block_fr[d.bloque]) + " · R : pivoter", "hint_en": String(block_en[d.bloque]) + " · R: rotate"})
+			"hint_fr": ("Sous le plafond d'une pièce · " if pm == "plafond" else "") + String(block_fr[d.bloque]) + " · R : pivoter",
+			"hint_en": ("Under a room ceiling · " if pm == "plafond" else "") + String(block_en[d.bloque]) + " · R: rotate"})
 	# Luminaires : la lampe historique, puis les luminaires réglables.
 	_add({"id": "lampe", "cat": "lumieres", "fr": "Lampe", "en": "Lamp", "tool": "floor_item", "color": Color(1.0, 0.85, 0.5),
 		"make": {"type": "lampe"}, "fp": [1, 1], "hint_fr": "Lampe au plafond (en plus des lampes automatiques)", "hint_en": "Ceiling lamp (in addition to automatic lamps)"})
@@ -663,12 +743,23 @@ static func _build() -> void:
 				continue
 			var mount := String(d.mount)
 			var mk := {"type": "effet", "effet": fid}
-			if d.get("rotates", false):
+			# Format 11 : les effets au sol et au plafond pivotent (zone tournée).
+			if mount != "mur":
 				mk["rot"] = 0
+			var z := effect_default_zone(fid)
+			var zs := ("%s × %s m" % [short_num(z.x), short_num(z.y)]) if mount != "mur" else ("%s m" % short_num(z.x))
 			_add({"id": "effet:" + fid, "cat": "effets", "sub": String(d.sub), "fr": d.fr, "en": d.en, "tool": "wall_item" if mount == "mur" else "floor_item",
-				"color": d.color, "make": mk, "fp": d.fp, "rotates": bool(d.get("rotates", false)),
-				"hint_fr": "%s · %s ; aucune collision · intensité, taille%s dans les propriétés" % [d.hint_fr, fx_fr[mount], ", couleur" if d.has("couleur") else ""],
-				"hint_en": "%s · %s; no collision · intensity, size%s in the properties" % [d.hint_en, fx_en[mount], ", colour" if d.has("couleur") else ""]})
+				"color": d.color, "make": mk, "fp": effect_cells(fid, z), "rotates": mount != "mur",
+				"hint_fr": "%s · %s ; zone de %s, poignées pour l'agrandir ; aucune collision · intensité%s dans les propriétés" % [d.hint_fr, fx_fr[mount], zs, ", couleur" if d.has("couleur") else ""],
+				"hint_en": "%s · %s; %s zone, drag its handles to resize; no collision · intensity%s in the properties" % [d.hint_en, fx_en[mount], zs.replace(",", "."), ", colour" if d.has("couleur") else ""]})
+
+
+## Nombre écrit au plus court, à la française (1,5 ; 3).
+static func short_num(v: float) -> String:
+	var s := str(snappedf(v, 0.01))
+	if s.ends_with(".0"):
+		s = s.substr(0, s.length() - 2)
+	return s.replace(".", ",")
 
 
 ## Objet du catalogue correspondant à un élément de la carte (icône, nom).
@@ -762,7 +853,11 @@ static func variant_names(type: String, v: String) -> Array:
 
 
 ## Emprise en cases : [le long du mur, profondeur] (objets muraux) ou [côté, côté].
+## Effet (format 11) : les cases qui couvrent sa zone.
 static func footprint(o: Dictionary) -> Vector2i:
+	if String(o.get("type", "")) == "effet":
+		var c := effect_cells(String(o.get("effet", "")), effect_zone(o))
+		return Vector2i(int(c[0]), int(c[1]))
 	var it := item_for(o)
 	var fp: Array = it.get("fp", [1, 1])
 	return Vector2i(int(fp[0]), int(fp[1]))
@@ -774,6 +869,8 @@ static func footprint(o: Dictionary) -> Vector2i:
 static func floor_size(o: Dictionary) -> Vector2i:
 	var it := item_for(o)
 	var fp: Array = it.get("fp", [1, 1])
+	if String(o.get("type", "")) == "effet":
+		fp = effect_cells(String(o.get("effet", "")), effect_zone(o))
 	if not it.get("rotates", false):
 		return Vector2i(int(fp[0]), int(fp[0]))
 	var r := posmod(roundi(float(o.get("rot", 0)) / 90.0) * 90, 360)
@@ -783,6 +880,16 @@ static func floor_size(o: Dictionary) -> Vector2i:
 ## L'objet pivote-t-il avec R (prefabs, luminaires au sol ou au plafond) ?
 static func rotates(o: Dictionary) -> bool:
 	return bool(item_for(o).get("rotates", false))
+
+
+## Montage d'un décor du catalogue (format 11) : « sol », « mur » ou « plafond ».
+static func prefab_mount(id: String) -> String:
+	return String(prefab_def(id).get("mount", "sol"))
+
+
+## Décor du catalogue posé au sol (les seuls qui entrent dans un prefab groupe).
+static func floor_prefab(id: String) -> bool:
+	return PREFABS.has(id) and String(PREFABS[id].get("mount", "sol")) == "sol"
 
 
 ## Définition d'un prefab ou d'un luminaire posé ({} sinon).
@@ -845,6 +952,119 @@ static func effect_color(o: Dictionary) -> Color:
 	return Color.html(c) if Color.html_is_valid(c) else Color.WHITE
 
 
+## Dimensions de la zone d'un effet, dans l'ordre de la clé « zone » :
+## effet mural [l, h] ; au sol ou au plafond [l, p], plus « h » pour un volume.
+static func effect_dims(fid: String) -> Array:
+	var d: Dictionary = EFFECTS.get(fid, {})
+	if d.is_empty():
+		return []
+	var z: Dictionary = d.get("zone", {})
+	if String(d.mount) == "mur":
+		return ["l", "h"]
+	return ["l", "p", "h"] if z.has("h") else ["l", "p"]
+
+
+## Bornes [min, max] (m) d'une dimension de la zone d'un effet.
+static func effect_zone_bounds(fid: String, key: String) -> Array:
+	var z: Dictionary = EFFECTS.get(fid, {}).get("zone", {})
+	var s: Array = z.get(key, [1.0, ZONE_LIMITS[0], ZONE_LIMITS[1]])
+	return [float(s[1]), float(s[2])]
+
+
+## Zone par défaut d'un effet : Vector3(largeur, profondeur, hauteur) en m.
+## Mural : profondeur = sa portée dans la pièce (« reach », fixe). Effet
+## sans volume : hauteur 0.
+static func effect_default_zone(fid: String) -> Vector3:
+	var d: Dictionary = EFFECTS.get(fid, {})
+	var z: Dictionary = d.get("zone", {})
+	var out := Vector3(float(z.get("l", [1.0])[0]), float(z.get("p", [1.0])[0]), float(z.get("h", [0.0])[0]))
+	if String(d.get("mount", "")) == "mur":
+		out.y = float(d.get("reach", 0.5))
+	return out
+
+
+## Zone d'un effet posé (format 11, clé « zone ») : Vector3(largeur,
+## profondeur, hauteur) en m, chaque dimension bornée à celles de l'effet ;
+## absente ou illisible : la zone par défaut.
+static func effect_zone(o: Dictionary) -> Vector3:
+	var fid := String(o.get("effet", ""))
+	var out := effect_default_zone(fid)
+	var v: Variant = o.get("zone")
+	var dims := effect_dims(fid)
+	if not (v is Array and v.size() == dims.size()):
+		return out
+	for i in dims.size():
+		var x: Variant = v[i]
+		if not ((x is float or x is int) and is_finite(float(x))):
+			return effect_default_zone(fid)
+		var b := effect_zone_bounds(fid, dims[i])
+		var f := clampf(float(x), b[0], b[1])
+		match String(dims[i]):
+			"l":
+				out.x = f
+			"p":
+				out.y = f
+			"h":
+				out.z = f
+	return out
+
+
+## Règle la zone d'un effet (bornée, arrondie à ZONE_STEP) ; la zone par
+## défaut efface la clé (jamais écrite à sa valeur par défaut).
+static func set_effect_zone(o: Dictionary, z: Vector3) -> void:
+	var fid := String(o.get("effet", ""))
+	var dims := effect_dims(fid)
+	if dims.is_empty():
+		o.erase("zone")
+		return
+	var def := effect_default_zone(fid)
+	var arr := []
+	var same := true
+	for key in dims:
+		var b := effect_zone_bounds(fid, key)
+		var raw: float = {"l": z.x, "p": z.y, "h": z.z}[key]
+		var f := snap_zone(clampf(raw if is_finite(raw) else b[0], b[0], b[1]))
+		f = clampf(f, b[0], b[1])
+		var dv: float = {"l": def.x, "p": def.y, "h": def.z}[key]
+		if absf(f - dv) > 0.001:
+			same = false
+		arr.append(f)
+	if same:
+		o.erase("zone")
+	else:
+		o["zone"] = arr
+
+
+## Dimension de zone arrondie au pas ZONE_STEP (division exacte : 0,6 et
+## pas 0,6000000000000001).
+static func snap_zone(v: float) -> float:
+	var inv := roundf(1.0 / ZONE_STEP)
+	return roundf(v * inv) / inv
+
+
+## Clé « zone » lisible pour cet effet (contrôle des cartes reçues) : autant
+## de nombres que ses dimensions, chacun dans ses bornes (à 1 cm près).
+static func effect_zone_ok(fid: String, v: Variant) -> bool:
+	var dims := effect_dims(fid)
+	if not (v is Array and v.size() == dims.size()):
+		return false
+	for i in dims.size():
+		var x: Variant = v[i]
+		if not ((x is float or x is int) and is_finite(float(x))):
+			return false
+		var b := effect_zone_bounds(fid, dims[i])
+		if float(x) < b[0] - 0.01 or float(x) > b[1] + 0.01:
+			return false
+	return true
+
+
+## Cases (0,5 m) qui couvrent une zone d'effet : [largeur, profondeur].
+static func effect_cells(fid: String, z: Vector3) -> Array:
+	if not EFFECTS.has(fid):
+		return [1, 1]
+	return [maxi(1, ceili(z.x / MapGeom.CELL - 0.001)), maxi(1, ceili(z.y / MapGeom.CELL - 0.001))]
+
+
 ## Réglage numérique d'un effet (intensite, taille), borné ; absent : 1.
 static func effect_value(o: Dictionary, key: String) -> float:
 	var v: Variant = o.get(key, 1.0)
@@ -870,17 +1090,35 @@ static func effect_height(o: Dictionary) -> float:
 ## Réglages d'un effet remis en ordre (fichier écrit à la main, valeur remise
 ## par défaut) : valeur illisible ou par défaut retirée, sinon bornée ;
 ## couleur seulement pour les effets qui se teintent, hauteur jamais au plafond.
+## Format 11 : « taille » (d'avant) devient la zone (zone par défaut ×
+## taille, si l'effet n'a pas déjà une zone) ; zone illisible retirée, sinon
+## bornée ; rotation retirée d'un effet mural (il suit son mur).
 static func tidy_effect(o: Dictionary) -> void:
 	if String(o.get("type", "")) != "effet":
 		return
 	var d := effect_def(o)
-	for key in ["intensite", "taille"]:
-		if o.has(key):
-			var v: Variant = o[key]
-			if not (v is float or v is int) or not is_finite(float(v)) or absf(float(v) - 1.0) < 0.005:
-				o.erase(key)
+	if o.has("taille"):
+		var tv: Variant = o.taille
+		o.erase("taille")
+		if not d.is_empty() and not o.has("zone") and (tv is float or tv is int) and is_finite(float(tv)):
+			set_effect_zone(o, effect_default_zone(String(o.effet)) * clampf(float(tv), EFFECT_LIMITS.taille[0], EFFECT_LIMITS.taille[1]))
+	if o.has("zone"):
+		if d.is_empty():
+			o.erase("zone")
+		else:
+			var zv: Variant = o.zone
+			var ok: bool = zv is Array and (zv as Array).size() == effect_dims(String(o.effet)).size() \
+				and (zv as Array).all(func(x): return (x is float or x is int) and is_finite(float(x)))
+			if ok:
+				set_effect_zone(o, effect_zone(o))
 			else:
-				o[key] = snappedf(clampf(float(v), EFFECT_LIMITS[key][0], EFFECT_LIMITS[key][1]), 0.01)
+				o.erase("zone")
+	if o.has("intensite"):
+		var v: Variant = o.intensite
+		if not (v is float or v is int) or not is_finite(float(v)) or absf(float(v) - 1.0) < 0.005:
+			o.erase("intensite")
+		else:
+			o["intensite"] = snappedf(clampf(float(v), EFFECT_LIMITS.intensite[0], EFFECT_LIMITS.intensite[1]), 0.01)
 	if o.has("hauteur"):
 		var hv: Variant = o.hauteur
 		if d.is_empty() or String(d.mount) == "plafond" or not (hv is float or hv is int) or not is_finite(float(hv)) \
@@ -892,8 +1130,60 @@ static func tidy_effect(o: Dictionary) -> void:
 		var c: Variant = o.couleur
 		if not d.has("couleur") or not (c is String and Color.html_is_valid(c)) or Color.html(c).is_equal_approx(Color.html(String(d.couleur))):
 			o.erase("couleur")
-	if o.has("rot") and not d.get("rotates", false):
+	if o.has("rot") and (d.is_empty() or String(d.mount) == "mur"):
 		o.erase("rot")
+
+
+## Format 11 : décors qu'un effet d'une carte plus ancienne construisait avec
+## lui (bûches, torche, tuyau, boîtier, électrodes, flaque...), à poser à côté
+## de l'effet devenu pur : même étage, même place (même mur, même hauteur) et
+## même rotation ; la flaque d'un filet d'eau là où l'eau tombait. Rien si
+## l'effet n'en avait pas, ou si un décor identique est déjà là (`objets` :
+## les objets de la carte ; rien n'est posé deux fois). `new_id(préfixe)`
+## donne les identifiants.
+static func split_legacy_effect(o: Dictionary, objets: Array, new_id: Callable) -> Array:
+	var d := effect_def(o)
+	if d.is_empty() or not o.get("position") is Array or (o.position as Array).size() != 2:
+		return []
+	var p := MapGeom.v2(o.position)
+	var out := []
+	for pid in d.get("decor", []):
+		var pd: Dictionary = PREFABS.get(String(pid), {})
+		if pd.is_empty():
+			continue
+		var dec := {"type": "prefab", "prefab": String(pid), "etage": int(o.get("etage", 0))}
+		var at := p
+		var mount := String(pd.get("mount", "sol"))
+		if mount == "mur":
+			# Même mur, même hauteur que l'effet (la torche porte la flamme).
+			at = p
+			dec["mur"] = String(o.get("mur", "n"))
+			if o.has("angle"):
+				dec["angle"] = o.angle
+			var hv: Variant = o.get("hauteur")
+			if (hv is float or hv is int) and is_finite(float(hv)):
+				dec["hauteur"] = float(hv)
+		else:
+			if String(d.mount) == "mur":
+				# Flaque du filet d'eau : là où l'eau touche le sol (chute depuis la
+				# hauteur de l'effet, jet de 1 m/s vers la pièce).
+				var dv := MapGeom.item_wall_dir(o)
+				var fall := sqrt(2.0 * maxf(0.1, effect_height(o)) / 9.8)
+				at = p - dv * (MapGeom.WALL_HALF + 0.15 + 1.05 * fall)
+			dec["rot"] = posmod(int(o.get("rot", 0)), 360) if (o.get("rot") is int or o.get("rot") is float) else 0
+		at = MapGeom.round_mm(at)
+		dec["position"] = MapGeom.arr(at)
+		var dup := false
+		for q in objets:
+			if String(q.get("type", "")) == "prefab" and String(q.get("prefab", "")) == String(pid) and int(q.get("etage", 0)) == int(dec.etage) \
+					and q.get("position") is Array and MapGeom.v2(q.position).distance_to(at) < 0.05:
+				dup = true
+				break
+		if dup:
+			continue
+		dec["id"] = String(new_id.call("d"))
+		out.append(dec)
+	return out
 
 
 ## Nombre d'effets d'une carte (MAX_EFFECTS au plus).
@@ -923,7 +1213,8 @@ static func may_overlap(o: Dictionary) -> bool:
 
 ## Hauteur d'une applique (format 7, clé « hauteur » d'un luminaire mural :
 ## m au-dessus du sol, au centre de l'applique ; absente : `y` du luminaire,
-## 2 m). Bornée sous le plafond à la construction (MapLayoutExport).
+## 2 m). Bornée sous le plafond à la construction (MapLayoutExport). Format
+## 11 : de même pour un décor mural (torche, tuyau, boîtier : `y` du décor).
 const WALL_LIGHT_HEIGHT := [0.2, 30.0]
 
 
@@ -948,7 +1239,8 @@ static func set_wall_light_height(o: Dictionary, h: float) -> void:
 
 
 ## Montage d'un luminaire : plafond, mur, sol ("" : pas un luminaire). La
-## lampe historique (« lampe ») est au plafond.
+## lampe historique (« lampe ») est au plafond. Format 11 : aussi le montage
+## d'un décor mural ou accroché au plafond (« mur », « plafond » ; "" au sol).
 static func light_mount(o: Dictionary) -> String:
 	if String(o.get("type", "")) == "lampe":
 		return "plafond"
@@ -1016,7 +1308,8 @@ const MAX_FLOORS := CustomMapGuard.MAX_FLOORS
 ##   {"t": "bool"} ; {"t": "enum", "values": [...]} ; {"t": "point"} [x, y] en
 ##   mètres (0 à MAX_COORD) ; {"t": "rect"} [x0, y0, x1, y1] ; {"t": "points",
 ##   "min", "max"} liste de points [x, y] (format 9) ; {"t": "color"}
-##   « #rrggbb ». Les clés communes (id, type, etage) sont dans chaque entrée.
+##   « #rrggbb » ; {"t": "dims", "min", "max", "lo", "hi"} liste de min à max
+##   nombres, chacun de lo à hi (format 11 : zone d'un effet). Les clés communes (id, type, etage) sont dans chaque entrée.
 static func allowed_kinds() -> Dictionary:
 	var dirs := {"t": "enum", "values": ["n", "e", "s", "o"]}
 	# Format 3 : objet mural contre un mur en biais (degrés, sens horaire depuis
@@ -1074,16 +1367,21 @@ static func allowed_kinds() -> Dictionary:
 	# Format 10 : « prefab » : un décor du catalogue ou un prefab de la carte
 	# (« map:<pid> », qui doit exister dans son dossier prefabs/ :
 	# CustomMapGuard.check_texts).
-	add.call("objets.json", "prefab", {"prefab": {"t": "prefab", "values": PREFABS.keys()}, "position": point, "rot": rot}, ["prefab", "position"])
+	# Format 11 : décor mural (« mur », « angle », « hauteur » comme une applique).
+	add.call("objets.json", "prefab", {"prefab": {"t": "prefab", "values": PREFABS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
+		"hauteur": {"t": "number", "min": WALL_LIGHT_HEIGHT[0], "max": WALL_LIGHT_HEIGHT[1]}}, ["prefab", "position"])
 	add.call("objets.json", "luminaire", {"luminaire": {"t": "enum", "values": LIGHTS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
 		"couleur": {"t": "color"}, "intensite": {"t": "number", "min": LIGHT_LIMITS.intensite[0], "max": LIGHT_LIMITS.intensite[1]},
 		"portee": {"t": "number", "min": LIGHT_LIMITS.portee[0], "max": LIGHT_LIMITS.portee[1]},
 		"courant": {"t": "bool"}, "vacille": {"t": "bool"},
 		# Format 7 : hauteur d'une applique (m au-dessus du sol).
 		"hauteur": {"t": "number", "min": WALL_LIGHT_HEIGHT[0], "max": WALL_LIGHT_HEIGHT[1]}}, ["luminaire", "position"])
-	# Format 10 : effets (flammes, fumées...), réglages facultatifs bornés.
+	# Format 10 : effets (flammes, fumées...), réglages facultatifs bornés ;
+	# format 11 : « zone » (2 ou 3 dimensions en m ; bornes propres à chaque
+	# effet : CustomMapGuard._check_object) ; « taille » d'avant encore lue.
 	add.call("objets.json", "effet", {"effet": {"t": "enum", "values": EFFECTS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
 		"couleur": {"t": "color"}, "intensite": {"t": "number", "min": EFFECT_LIMITS.intensite[0], "max": EFFECT_LIMITS.intensite[1]},
+		"zone": {"t": "dims", "min": 2, "max": 3, "lo": ZONE_LIMITS[0], "hi": ZONE_LIMITS[1]},
 		"taille": {"t": "number", "min": EFFECT_LIMITS.taille[0], "max": EFFECT_LIMITS.taille[1]},
 		"hauteur": {"t": "number", "min": EFFECT_LIMITS.hauteur[0], "max": EFFECT_LIMITS.hauteur[1]}}, ["effet", "position"])
 	return out

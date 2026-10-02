@@ -23,7 +23,8 @@ var stairs: Array = []
 var obliques: Array = []
 var props: Array = []   # décor posé : [{id, model | build, p, yaw, scale, remap, nocollide}]
 var blockers: Array = []   # collisions du décor et des luminaires : [{center, size, yaw, barrier, surface}]
-## Effets (format 10) : [{fx, p, yaw, ground, intensity, scale, color, eid}]
+## Effets (format 10 ; zone : format 11) : [{fx, p, yaw, ground, room_h,
+## intensity, zone [largeur, profondeur, hauteur] (m), color, eid}]
 ## (MapEffects ; aucune collision). « ground » : distance (m) de l'effet au sol.
 var effects: Array = []
 var zone_boxes: Array = []   # [étage, volume, zone, boîte]
@@ -636,6 +637,18 @@ func _props() -> void:
 		var yaw := -deg_to_rad(float(pr.rot))
 		var origin := _world(k, pr.center)
 		var block := String(d.bloque)
+		var c2: Vector2 = pr.center
+		var room_h: float = float(ceil_at(k, Vector2i(floori(c2.x / MapGeom.CELL), floori(c2.y / MapGeom.CELL)))[0]) - float(md.floors[k].sol)
+		match String(pr.get("mount", "")):
+			"mur":
+				# Format 11 : décor mural sur la face du mur, +z vers la pièce, à sa
+				# hauteur (toujours sous le plafond de la pièce).
+				var wv: Vector2 = pr.wall
+				yaw = atan2(-wv.x, -wv.y)
+				origin = _world(k, c2, clampf(float(pr.y), MapCatalog.WALL_LIGHT_HEIGHT[0], maxf(MapCatalog.WALL_LIGHT_HEIGHT[0], room_h - 0.15)))
+			"plafond":
+				# Format 11 : accroché sous le plafond de la pièce (origine au plafond).
+				origin = _world(k, c2, room_h)
 		if d.has("map"):
 			_map_prefab(pr, d, origin, yaw)
 			continue
@@ -727,8 +740,9 @@ func _effects() -> void:
 			"mur":
 				# Toujours sous le plafond de la pièce.
 				y = clampf(y, 0.05, maxf(0.05, room_h - 0.2))
+		var z: Vector3 = fx.zone
 		var e := {"fx": String(fx.effet), "p": _v3(_world(k, c, y)), "yaw": _r(float(fx.yaw)), "ground": _r(maxf(0.0, y)),
-			"room_h": _r(room_h), "intensity": _r(float(fx.intensity)), "scale": _r(float(fx.scale)), "eid": String(fx.eid)}
+			"room_h": _r(room_h), "intensity": _r(float(fx.intensity)), "zone": [_r(z.x), _r(z.y), _r(z.z)], "eid": String(fx.eid)}
 		if String(fx.color) != "":
 			e["color"] = String(fx.color)
 		effects.append(e)

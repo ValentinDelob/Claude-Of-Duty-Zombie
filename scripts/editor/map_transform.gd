@@ -180,7 +180,7 @@ static func on_free_wall(doc: EditorMap, e: Dictionary) -> Array:
 ## Emprise d'un objet au sol ré-aimantée sur la grille après un quart de tour
 ## (un décor 3 × 2 devient 2 × 3) ; tourné au degré près : position gardée.
 static func resnap(o: Dictionary) -> void:
-	if MapCatalog.tool_of(o) != "floor_item" or not o.has("position") or MapRaster.free_rot(o):
+	if MapCatalog.tool_of(o) != "floor_item" or not o.has("position") or MapRaster.free_rot(o) or String(o.get("type", "")) == "effet":
 		return
 	var n := MapCatalog.floor_size(o)
 	var p := MapGeom.v2(o.position)
@@ -251,3 +251,74 @@ static func regenerate(doc: EditorMap, room: Dictionary, forme: Dictionary) -> D
 		doc.restore(before)
 		return MapRules.refuse("pièce introuvable", "room not found")
 	return {"ok": true}
+
+
+# ------------------------------------------------------------------ zone d'un effet (format 11)
+
+## Poignées de la zone d'un effet (m) : au sol et au plafond, les 4 coins
+## (haut-gauche, haut-droit, bas-droit, bas-gauche dans le repère de
+## l'effet) puis les 4 milieux (haut, droite, bas, gauche), tournés avec
+## lui, comme une pièce rectangle ; mural, les 2 bouts de sa largeur sur la
+## face du mur.
+static func effect_handles(o: Dictionary) -> PackedVector2Array:
+	var poly := MapRules.effect_poly(o)
+	if MapCatalog.effect_mount(o) == "mur":
+		return PackedVector2Array([poly[0], poly[1]])
+	var out := poly.duplicate()
+	for i in 4:
+		out.append((poly[i] + poly[(i + 1) % 4]) * 0.5)
+	return out
+
+
+## Effet dont la poignée `h` (effect_handles) est tirée en `p` : le côté (ou
+## le coin) opposé reste en place, chaque dimension bornée à celles de
+## l'effet (jamais retournée) et arrondie à MapCatalog.ZONE_STEP ; copie.
+static func effect_resized(o: Dictionary, h: int, p: Vector2) -> Dictionary:
+	var e := o.duplicate(true)
+	var fid := String(o.get("effet", ""))
+	var z := MapCatalog.effect_zone(o)
+	var c := MapGeom.v2(o.get("position", [0, 0]))
+	if MapCatalog.effect_mount(o) == "mur":
+		# Largeur le long du mur : l'autre bout reste en place, l'objet glisse le
+		# long du mur (même trait, même direction).
+		var dv := MapGeom.item_wall_dir(o)
+		var t := Vector2(dv.y, -dv.x)   # sens de effect_poly : poly[0] = face - t × l/2
+		var u := (p - c).dot(t)
+		var lo := -z.x * 0.5
+		var hi := z.x * 0.5
+		var b := MapCatalog.effect_zone_bounds(fid, "l")
+		if h == 0:
+			lo = hi - _span(hi - u, b)
+		else:
+			hi = lo + _span(u - lo, b)
+		z.x = hi - lo
+		e["position"] = MapGeom.arr(MapGeom.round_mm(c + t * (lo + hi) * 0.5))
+		MapCatalog.set_effect_zone(e, z)
+		return e
+	var rot := deg_to_rad(float(MapGeom.rot_of(o)))
+	var local := (p - c).rotated(-rot)
+	var x0 := -z.x * 0.5
+	var x1 := z.x * 0.5
+	var y0 := -z.y * 0.5
+	var y1 := z.y * 0.5
+	var bl := MapCatalog.effect_zone_bounds(fid, "l")
+	var bp := MapCatalog.effect_zone_bounds(fid, "p")
+	# Coins 0-3 (haut-gauche, haut-droit, bas-droit, bas-gauche), milieux 4-7 (haut, droite, bas, gauche).
+	if h in [0, 3, 7]:
+		x0 = x1 - _span(x1 - local.x, bl)
+	if h in [1, 2, 5]:
+		x1 = x0 + _span(local.x - x0, bl)
+	if h in [0, 1, 4]:
+		y0 = y1 - _span(y1 - local.y, bp)
+	if h in [2, 3, 6]:
+		y1 = y0 + _span(local.y - y0, bp)
+	z.x = x1 - x0
+	z.y = y1 - y0
+	e["position"] = MapGeom.arr(MapGeom.round_mm(c + Vector2((x0 + x1) * 0.5, (y0 + y1) * 0.5).rotated(rot)))
+	MapCatalog.set_effect_zone(e, z)
+	return e
+
+
+## Longueur tirée à la poignée, arrondie au pas de la zone et bornée.
+static func _span(v: float, b: Array) -> float:
+	return clampf(MapCatalog.snap_zone(v), float(b[0]), float(b[1]))
