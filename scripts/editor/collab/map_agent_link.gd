@@ -210,6 +210,8 @@ func _handle(c: Client, text: String) -> void:
 			res = collab.doc.snapshot()
 		"get_selection":
 			res = _selection()
+		"get_elements":
+			res = cmd_get_elements(args)
 		"apply":
 			res = cmd_apply(args)
 		"undo":
@@ -338,9 +340,55 @@ func cmd_validate() -> Dictionary:
 	return {"ok": v.ok(), "errors": v.errors().size(), "warnings": v.warnings().size(), "text": v.report_text(), "problems": problems}
 
 
+## Éléments complets d'après leurs ids, avec leur collection et leurs
+## hauteurs (docs/EDITOR_VIEWS.md § 6.4) : `z_min` / `z_max` (m, absolus :
+## la boîte de l'élément, plafond réel compris), `z_monde` (altitude de son
+## point de pose : sol de l'étage + hauteur de pose), `hauteur_pose` (m
+## au-dessus du sol, quand le type en a une) et `glissement_vertical`
+## (« pose », « niveau » ou « fixe »).
+func cmd_get_elements(args: Dictionary) -> Dictionary:
+	var ids: Array = (args.get("ids") as Array).slice(0, 500) if args.get("ids") is Array else []
+	var doc := collab.doc
+	var v := MapRaster.build(doc).v
+	var found := {}
+	var missing := []
+	for eid in ids:
+		if not eid is String:
+			continue
+		var e := doc.find(eid)
+		if e.is_empty():
+			missing.append(eid)
+			continue
+		var coll := CollabView.coll_of(doc, eid)
+		var d := {"coll": coll, "el": e}
+		if coll != "zones":
+			var it := MapElevationItems.item_of(doc, v, e)
+			if not it.is_empty():
+				d["z_min"] = snappedf(float(it.z0), 0.01)
+				d["z_max"] = snappedf(float(it.z1), 0.01)
+			var k := int(e.get("etage", 0))
+			var sol := doc.floor_sol(k) if k < doc.floor_count() else 0.0
+			var kind := MapVertical.pose_kind(e)
+			d["glissement_vertical"] = kind
+			if kind == "pose":
+				var z := MapVertical.pose_z(doc, v, e)
+				d["hauteur_pose"] = snappedf(z, 0.01)
+				d["z_monde"] = snappedf(sol + z, 0.01)
+			else:
+				d["z_monde"] = snappedf(sol, 0.01)
+		found[eid] = d
+	return {"elements": found, "absents": missing}
+
+
 ## Image du plan à l'étage demandé (cadrée sur `ids` s'il est donné), dessinée
-## hors écran (SubViewport) : ne dépend pas de ce qui est affiché.
+## hors écran (SubViewport) : ne dépend pas de ce qui est affiché. `view`
+## (docs/EDITOR_VIEWS.md § 6.4) : « dessus » (défaut) ou une élévation
+## (« avant », « arriere », « gauche », « droite », « dessous »), avec une
+## `coupe` [p0, p1] facultative (tranche de profondeur, m).
 func cmd_screenshot(args: Dictionary) -> Dictionary:
+	var view := String(args.get("view", "dessus")) if args.get("view") is String else "dessus"
+	if view != "dessus":
+		return await _screenshot_view(args, view)
 	if DisplayServer.get_name() == "headless":
 		return {"error": Lang.t("capture impossible : éditeur lancé sans affichage (--headless)", "screenshot unavailable: editor started without display (--headless)")}
 	if editor == null:
@@ -393,6 +441,71 @@ func cmd_screenshot(args: Dictionary) -> Dictionary:
 	var png := img.save_png_to_buffer()
 	return {"png_base64": Marshalls.raw_to_base64(png), "width": img.get_width(), "height": img.get_height(), "floor": k,
 		"bounds": [snappedf(m0.x, 0.01), snappedf(m0.y, 0.01), snappedf(m1.x, 0.01), snappedf(m1.y, 0.01)]}
+
+
+## Capture d'une élévation (hors écran) cadrée sur `ids` ou sur toute la carte.
+func _screenshot_view(args: Dictionary, view: String) -> Dictionary:
+	if not view in MapView.PLANES:
+		return {"error": Lang.t("vue inconnue « %s » (dessus, avant, arriere, gauche, droite, dessous)", "unknown view \"%s\" (dessus, avant, arriere, gauche, droite, dessous)") % view.left(24)}
+	if DisplayServer.get_name() == "headless":
+		return {"error": Lang.t("capture impossible : éditeur lancé sans affichage (--headless)", "screenshot unavailable: editor started without display (--headless)")}
+	if editor == null:
+		return {"error": Lang.t("capture impossible sans éditeur", "screenshot unavailable without the editor")}
+	var vp := SubViewport.new()
+	vp.size = SHOT_SIZE
+	vp.transparent_bg = false
+	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	vp.set_meta(EditorUi.SKIP, true)
+	var ev := MapElevation.new()
+	ev.ed = editor
+	ev.offscreen = true
+	ev.plane = view
+	ev.size = Vector2(SHOT_SIZE)
+	vp.add_child(ev)
+	add_child(vp)
+	var c: Variant = args.get("coupe")
+	if c is Array and (c as Array).size() == 2 and (c[0] is float or c[0] is int) and (c[1] is float or c[1] is int):
+		ev.coupe = [minf(float(c[0]), float(c[1])), maxf(float(c[0]), float(c[1]))]
+		ev.coupe_mode = "perso"
+	# Cadrage : les éléments demandés, sinon toute la carte.
+	var ids: Array = args.get("ids") if args.get("ids") is Array else []
+	var bb := Rect2()
+	var first := true
+	for eid in ids.slice(0, 500):
+		var e := ev.projected_of(String(eid))
+		if e.is_empty():
+			continue
+		var r := Rect2(float(e.u0), float(e.v0), float(e.u1) - float(e.u0), float(e.v1) - float(e.v0))
+		bb = r if first else bb.merge(r)
+		first = false
+	if first:
+		ev.frame_all()
+	else:
+		bb = bb.grow(3.0)
+		ev.zoom = clampf(minf(SHOT_SIZE.x / maxf(bb.size.x, 1.0), SHOT_SIZE.y / maxf(bb.size.y, 1.0)), 1.0, 120.0)
+		ev.origin = Vector2(SHOT_SIZE) * 0.5 - bb.get_center() * ev.zoom
+	ev.queue_redraw()
+	for i in 3:
+		await RenderingServer.frame_post_draw
+	var img := vp.get_texture().get_image()
+	var m0 := ev.to_m(Vector2.ZERO)
+	var m1 := ev.to_m(Vector2(SHOT_SIZE))
+	vp.queue_free()
+	if img == null or img.is_empty():
+		return {"error": Lang.t("capture vide", "empty screenshot")}
+	var hs := float(MapView.h_axis(view)[1])
+	var out := {"png_base64": Marshalls.raw_to_base64(img.save_png_to_buffer()), "width": img.get_width(), "height": img.get_height(), "view": view}
+	if MapView.is_elevation(view):
+		# Bornes : l'axe horizontal de l'écran (vraies coordonnées, de gauche à
+		# droite) et Z (du bas vers le haut).
+		out["axe_horizontal"] = String(MapView.h_axis(view)[0])
+		out["bounds_h"] = [snappedf(m0.x * hs, 0.01), snappedf(m1.x * hs, 0.01)]
+		out["bounds_z"] = [snappedf(-m1.y, 0.01), snappedf(-m0.y, 0.01)]
+	else:
+		out["bounds"] = [snappedf(-m0.x, 0.01), snappedf(m0.y, 0.01), snappedf(-m1.x, 0.01), snappedf(m1.y, 0.01)]
+	if ev.coupe.size() == 2:
+		out["coupe"] = ev.coupe
+	return out
 
 
 ## highlight : montre des éléments à la personne (version simple : choix et

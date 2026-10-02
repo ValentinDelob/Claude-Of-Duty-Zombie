@@ -124,7 +124,10 @@ Invité → hôte :
   refusé à l'arrivée).
 - `{t:"change", cid, label, ops, author?}` (`author` seulement pour son agent :
   `"<moi>:claude"`).
-- `{t:"presence", cursor:[x,y], floor, selection, tool, live?}`.
+- `{t:"presence", cursor:[x,y], floor, selection, tool, live?, vue?, z?}`
+  (`vue` : plan de la vue survolée quand c'est une élévation, `z` : hauteur
+  du curseur en m ; docs/EDITOR_VIEWS.md § 6.4 ; ignorées par une version
+  plus ancienne).
 - `{t:"resync"}`, `{t:"ping"}`.
 
 Hôte → invité :
@@ -191,10 +194,11 @@ L'éditeur peut aussi pousser `{event:"change"|"selection"|"peers", ...}`.
 | `status` | — | idem + `floor`, `selection`, `dirty` |
 | `get_map` | — | snapshot complet |
 | `get_selection` | — | `{ids, elements, floor, cursor}` (curseur souris en mètres) |
+| `get_elements` | `ids` | `{elements: {id: {coll, el, z_min, z_max, z_monde, hauteur_pose?, glissement_vertical}}, absents}` (hauteurs en m) |
 | `apply` | `label`, `ops`, `animate` (défaut true) | `{cid, ids:{"$1":"p7",...}, invalid:{id:raison}}` |
 | `undo` | — | annule le dernier changement de Claude encore actif |
 | `validate` | — | rapport `MapValidator` (texte + liste des problèmes) |
-| `screenshot` | `floor?`, `ids?` (cadrer sur ces éléments) | `{png_base64, width, height, bounds:[x0,y0,x1,y1]}` |
+| `screenshot` | `floor?`, `ids?` (cadrer sur ces éléments), `view?` (`dessus` par défaut, `avant`, `arriere`, `gauche`, `droite`, `dessous`), `coupe?` [p0, p1] | `{png_base64, width, height, bounds:[x0,y0,x1,y1]}` ; élévation : `{…, view, axe_horizontal, bounds_h, bounds_z, coupe?}` |
 | `highlight` | `ids`, `message` | montre ces éléments à l'utilisateur (contour pulsé + bulle) |
 | `catalog` | — | types admis (`MapCatalog`), prefabs, luminaires, armes, atouts |
 
@@ -205,7 +209,10 @@ L'éditeur peut aussi pousser `{event:"change"|"selection"|"peers", ...}`.
   participants (Claude compris, avec une icône distincte).
 - Curseurs des autres sur le plan (couleur + pseudo), leur sélection en
   contour de leur couleur, leur étage indiqué ; aperçu en direct d'un objet
-  qu'ils glissent (`presence.live`, 10/s).
+  qu'ils glissent (`presence.live`, 10/s). Dans les élévations (vues
+  multiples) : leurs sélections et aperçus projetés, leur curseur à sa vraie
+  hauteur s'ils sont dans une élévation du même plan, sinon un trait
+  vertical pointillé dans la colonne de leur position.
 - Changement reçu : les éléments touchés clignotent brièvement dans la couleur
   de l'auteur ; ligne d'état « Bob : Pièce posée ».
 - Lot de Claude (`animate`) : éléments apparaissent un par un (≤ 1,5 s au

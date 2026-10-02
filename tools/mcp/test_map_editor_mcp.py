@@ -172,8 +172,17 @@ class FakeEditor:
         if cmd == "validate":
             return {"text": "1 avertissement", "problems": [{"level": "warning", "fr": "impasse", "pos": [5, 4]}]}
         if cmd == "screenshot":
+            self.last_shot = dict(args)
+            if args.get("view", "dessus") != "dessus":
+                return {"png_base64": base64.b64encode(tiny_png()).decode(), "width": 1, "height": 1, "view": args["view"],
+                        "axe_horizontal": "X", "bounds_h": [0, 32], "bounds_z": [-2, 8]}
             return {"png_base64": base64.b64encode(tiny_png()).decode(), "width": 1, "height": 1,
                     "bounds": [0, 0, 32, 9], "floor": args.get("floor", 0)}
+        if cmd == "get_elements" and getattr(self, "heights", False):
+            found = map_geom.find_elements(self.doc, args.get("ids", []))
+            for d in found["elements"].values():
+                d.update({"z_min": 0.0, "z_max": 3.2, "z_monde": 0.0, "glissement_vertical": "niveau"})
+            return found
         if cmd == "highlight":
             return {"shown": args.get("ids"), "message": args.get("message")}
         if cmd == "catalog":
@@ -421,6 +430,33 @@ class TestTools(BaseCase):
         self.assertEqual(img["mimeType"], "image/png")
         self.assertTrue(base64.b64decode(img["data"]).startswith(b"\x89PNG"))
         self.assertEqual(body(r)["bounds"], [0, 0, 32, 9])
+
+    def test_screenshot_views(self):
+        r = self.mcp.call("editor_screenshot", {"view": "avant", "coupe": [4.5, 17]})
+        self.assertFalse(r["isError"], r)
+        self.assertEqual(self.editor.last_shot, {"view": "avant", "coupe": [4.5, 17.0]})
+        info = body(r)
+        self.assertEqual(info["bounds_z"], [-2, 8])
+        self.assertIn("altitude", info["unites"])
+        r = self.mcp.call("editor_screenshot", {})
+        self.assertEqual(self.editor.last_shot, {}, "vue Dessus : rien d'envoyé de plus")
+        self.assertTrue(self.mcp.call("editor_screenshot", {"view": "biais"})["isError"])
+        self.assertTrue(self.mcp.call("editor_screenshot", {"view": "avant", "coupe": [1]})["isError"])
+        self.assertTrue(self.mcp.call("editor_screenshot", {"view": "avant", "coupe": [1, "x"]})["isError"])
+
+    def test_get_element_heights(self):
+        # Éditeur récent : les hauteurs viennent de l'éditeur ; ancien : la carte seule.
+        self.editor.heights = True
+        el = body(self.mcp.call("editor_get_element", {"ids": ["p1"]}))
+        self.assertEqual(el["elements"]["p1"]["z_max"], 3.2)
+        self.assertEqual(el["elements"]["p1"]["glissement_vertical"], "niveau")
+        self.editor.heights = False
+        el = body(self.mcp.call("editor_get_element", {"ids": ["p1"]}))
+        self.assertNotIn("z_max", el["elements"]["p1"])
+
+    def test_instructions_describe_heights(self):
+        self.assertIn("descente", map_editor_mcp.INSTRUCTIONS)
+        self.assertIn("view", map_editor_mcp.INSTRUCTIONS)
 
     def test_plan_corridor(self):
         r = body(self.mcp.call("editor_plan_corridor", {"room_a": "p2", "room_b": "p3", "width": 2.5}))

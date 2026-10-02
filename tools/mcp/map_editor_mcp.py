@@ -43,7 +43,8 @@ COLLS = ("pieces", "ouvertures", "objets", "zones")
 CONNECT_TIMEOUT = 3.0
 REQUEST_TIMEOUT = float(os.environ.get("CLAUDE_MAP_EDITOR_TIMEOUT", "30"))
 # Commandes sans effet sur la carte : on peut les renvoyer après une reconnexion.
-SAFE_CMDS = {"hello", "status", "get_map", "get_selection", "validate", "screenshot", "catalog", "highlight"}
+SAFE_CMDS = {"hello", "status", "get_map", "get_selection", "get_elements", "validate", "screenshot", "catalog", "highlight"}
+VIEWS = ("dessus", "avant", "arriere", "gauche", "droite", "dessous")
 
 OPEN_EDITOR_FR = "Ouvre l'éditeur de cartes du jeu (Collaboration > Autoriser Claude coché)"
 
@@ -53,7 +54,8 @@ INSTRUCTIONS = """Pilote en direct l'éditeur de cartes de Claude of Duty Zombie
 - editor_apply : un lot d'opérations (put / del / carte / depart / add). Pour créer, utilise « add » sans id ou avec un id provisoire "$1", "$2"… réutilisable dans le même lot (ex. zone d'une pièce) ; pour modifier, « put » de l'élément complet relu avant. Un appel editor_apply = UNE étape d'annulation (un Ctrl+Z) pour l'utilisateur : regroupe ce qui va ensemble, sépare ce qui est indépendant. Donne toujours un « label » clair en français (« Couloir entre l'entrée et l'atelier »).
 - Après chaque modification : editor_validate (erreurs bloquantes à corriger) et editor_screenshot pour voir le résultat ; editor_highlight pour montrer à l'utilisateur ce dont tu parles. editor_undo_last annule ta dernière action.
 - Respecte docs/MAP_DESIGN_RULES.md (surface vide < 15 m², couloirs 2-3 m et 12 m max en ligne droite, boucles, fenêtres, prix des portes, décor) et l'esprit de BO1 Zombies.
-- L'utilisateur (et d'autres participants) éditent en même temps : relis la carte avant de modifier un élément, ne refais pas ce qu'il vient de défaire."""
+- L'utilisateur (et d'autres participants) éditent en même temps : relis la carte avant de modifier un élément, ne refais pas ce qu'il vient de défaire.
+- Hauteurs (format 12, docs/EDITOR_VIEWS.md § 7) : z vers le haut, en m. Un décor posé au sol a une hauteur de pose « z » (sur un autre décor : un décor qui bloque doit reposer sur le dessus d'un autre) ; un luminaire au sol une « hauteur » (sinon le dessus du meuble dessous) ; ce qui est accroché au plafond (luminaire, effet, décor) une « descente » sous le plafond ; appliques, décors et effets muraux une « hauteur » sur le mur. Ces clés ne s'écrivent jamais à leur valeur par défaut. editor_get_element rend z_min / z_max / z_monde de chaque élément ; editor_screenshot montre aussi les élévations (view : avant, arriere, gauche, droite, dessous ; coupe [p0, p1] pour isoler une tranche)."""
 
 
 def log(*args) -> None:
@@ -352,7 +354,9 @@ TOOLS = [
     {
         "name": "editor_get_element",
         "description": "Éléments complets (toutes leurs clés) d'après leurs ids, avec leur collection (pieces, ouvertures, "
-                       "objets, zones). À relire avant un « put » qui modifie un élément.",
+                       "objets, zones) et leurs hauteurs : z_min / z_max (m, absolus : la boîte de l'élément, plafond réel "
+                       "compris), z_monde (altitude du point de pose), hauteur_pose (m au-dessus du sol de l'étage, si le type "
+                       "en a une) et glissement_vertical (pose, niveau, fixe). À relire avant un « put » qui modifie un élément.",
         "inputSchema": {"type": "object", "properties": {"ids": _ids_schema("Ids des éléments (p3, o1, a2, z1…).")},
                         "required": ["ids"], "additionalProperties": False},
     },
@@ -398,11 +402,17 @@ TOOLS = [
     },
     {
         "name": "editor_screenshot",
-        "description": "Image PNG du plan de l'éditeur (un étage, éventuellement cadré sur des éléments) pour voir le résultat ; "
-                       "le texte joint donne les bornes en mètres [x0,y0,x1,y1] de l'image.",
+        "description": "Image PNG de l'éditeur pour voir le résultat : le plan d'un étage (view \"dessus\", défaut) ou une "
+                       "élévation qui montre tous les étages empilés à leur vraie hauteur (view \"avant\" : caméra au sud, "
+                       "regard vers le nord ; \"arriere\", \"gauche\", \"droite\", \"dessous\"), éventuellement cadrée sur des "
+                       "éléments. coupe [p0, p1] (élévations) : ne garder nettes que les éléments dans cette tranche de "
+                       "profondeur (y en avant/arriere, x en gauche/droite). Le texte joint donne les bornes en mètres.",
         "inputSchema": {"type": "object", "properties": {
-            "floor": {"type": "integer", "minimum": 0, "description": "Étage (défaut : celui affiché)."},
+            "floor": {"type": "integer", "minimum": 0, "description": "Étage (défaut : celui affiché ; plan seulement)."},
             "ids": _ids_schema("Cadrer sur ces éléments (facultatif)."),
+            "view": {"type": "string", "enum": list(VIEWS), "default": "dessus", "description": "Plan ou élévation."},
+            "coupe": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"},
+                      "description": "Tranche de profondeur [p0, p1] en m (élévations, facultatif)."},
         }, "additionalProperties": False},
     },
     {
@@ -501,7 +511,14 @@ class Tools:
         return [text(map_geom.summarize(doc, floor))]
 
     def t_get_element(self, args):
-        return [text(map_geom.find_elements(self._map(), self._ids(args)))]
+        ids = self._ids(args)
+        try:
+            return [text(self.link.request("get_elements", {"ids": ids}))]
+        except EditorError as e:
+            # Éditeur d'avant les vues multiples : les éléments sans hauteurs.
+            if "inconnu" not in str(e) and "unknown" not in str(e):
+                raise
+        return [text(map_geom.find_elements(self._map(), ids))]
 
     def t_get_selection(self, args):
         return [text(self.link.request("get_selection"))]
@@ -541,6 +558,16 @@ class Tools:
         ids = self._ids(args, required=False)
         if ids:
             a["ids"] = ids
+        view = args.get("view", "dessus")
+        if view not in VIEWS:
+            raise EditorError("view : " + ", ".join(VIEWS))
+        if view != "dessus":
+            a["view"] = view
+        if "coupe" in args:
+            c = args["coupe"]
+            if (not isinstance(c, list) or len(c) != 2 or not all(_finite(x) and not isinstance(x, bool) for x in c)):
+                raise EditorError("coupe : [p0, p1] en mètres")
+            a["coupe"] = [float(c[0]), float(c[1])]
         res = self.link.request("screenshot", a, timeout=max(REQUEST_TIMEOUT, 30))
         if not isinstance(res, dict) or not isinstance(res.get("png_base64"), str):
             raise EditorError("réponse screenshot inattendue de l'éditeur")
@@ -552,7 +579,10 @@ class Tools:
         if not raw.startswith(b"\x89PNG"):
             raise EditorError("l'éditeur n'a pas renvoyé un PNG")
         info = {k: v for k, v in res.items() if k != "png_base64"}
-        info["unites"] = "bounds = [x0, y0, x1, y1] en mètres (x vers l'est, y vers le sud)"
+        if "bounds_z" in info:
+            info["unites"] = "bounds_h = axe horizontal de l'écran (vraies coordonnées, gauche → droite), bounds_z = altitude (bas → haut), en mètres"
+        else:
+            info["unites"] = "bounds = [x0, y0, x1, y1] en mètres (x vers l'est, y vers le sud)"
         return [{"type": "image", "data": data, "mimeType": "image/png"}, text(info)]
 
     def t_highlight(self, args):

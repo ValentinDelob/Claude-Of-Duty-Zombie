@@ -55,6 +55,13 @@ func setup(editor: MapEditor) -> void:
 	ed.collab.map_replaced.connect(clear)
 
 
+## Vue Dessus et élévations (couches du dessus) redessinées.
+func _redraw() -> void:
+	ed.canvas.queue_redraw()
+	if ed.views != null:
+		ed.views.redraw_overlays()
+
+
 ## Tout oublié (autre carte, carte entière reçue).
 func clear() -> void:
 	flashes.clear()
@@ -79,7 +86,7 @@ func _process(delta: float) -> void:
 			ed.collab_ui.update_pills()
 	var redraw := advance(delta)
 	if redraw:
-		ed.canvas.queue_redraw()
+		_redraw()
 
 
 ## Avance les effets de `delta` s ; rend true s'il faut redessiner.
@@ -147,7 +154,7 @@ func on_presence(peer: String) -> void:
 			live[peer] = {"coll": lv.coll, "el": lv.el}
 	if ed.collab_ui != null:
 		ed.collab_ui.update_pills()
-	ed.canvas.queue_redraw()
+	_redraw()
 
 
 func _on_peers() -> void:
@@ -157,7 +164,7 @@ func _on_peers() -> void:
 	for id in live.keys():
 		if not ed.collab.peers.has(id):
 			live.erase(id)
-	ed.canvas.queue_redraw()
+	_redraw()
 
 
 ## Collection d'un élément de la carte ("" s'il n'existe pas).
@@ -192,7 +199,7 @@ func on_committed(change: Dictionary) -> void:
 		var e := ed.doc.find(String(id))
 		if not e.is_empty() and e.has("etage"):
 			flashes[String(id)] = {"color": col, "t": 0.0}
-	ed.canvas.queue_redraw()
+	_redraw()
 
 
 func peer_color(author: String) -> Color:
@@ -228,7 +235,7 @@ func animate(ids: Array, label: String) -> void:
 	pulse = {"ids": drawn, "t": 0.0, "life": BUBBLE_SEC}
 	bubble = {"text": Lang.t("Claude : %s", "Claude: %s") % label, "ids": drawn, "t": 0.0, "life": BUBBLE_SEC}
 	_bring_into_view(drawn, false)
-	ed.canvas.queue_redraw()
+	_redraw()
 
 
 ## Fin immédiate de l'apparition en cours : tout est montré.
@@ -237,7 +244,7 @@ func finish_animation() -> void:
 		return
 	anim = {}
 	hidden.clear()
-	ed.canvas.queue_redraw()
+	_redraw()
 
 
 ## Commande highlight de Claude : contour pulsé, bulle avec le message, vue
@@ -252,7 +259,7 @@ func highlight(ids: Array, message: String) -> void:
 	var text := Lang.t("Claude : %s", "Claude: %s") % message if message != "" else Lang.t("Claude montre %d élément(s)", "Claude shows %d element(s)") % drawn.size()
 	bubble = {"text": text, "ids": drawn, "t": 0.0, "life": HIGHLIGHT_SEC}
 	_bring_into_view(drawn, true)
-	ed.canvas.queue_redraw()
+	_redraw()
 
 
 ## Rectangle (m) des éléments `ids` à l'étage `k` ; NONE si aucun n'y est.
@@ -310,6 +317,79 @@ func draw_on(cv: MapCanvas, font: Font, k: int) -> void:
 			_idx[String(e.get("id", ""))] = e
 	_draw_all(cv, font, k)
 	_idx = {}
+
+
+## Dessine par-dessus une élévation (docs/EDITOR_VIEWS.md § 6.4 ; couche du
+## dessus de MapElevation) à travers sa projection : aperçus en direct et
+## sélections des autres, clignotements, contour pulsé de Claude, curseurs
+## (à leur vraie hauteur s'ils sont dans une élévation, sinon un trait
+## vertical dans la colonne de leur position).
+func draw_on_elevation(ev: MapElevation, c: CanvasItem, font: Font) -> void:
+	var session := ed.collab.is_session()
+	if session:
+		for id in live:
+			var el: Dictionary = live[id].el
+			var r := ev.element_rect_px(el)
+			if r.size == Vector2.ZERO:
+				continue
+			var col := peer_color(id)
+			c.draw_rect(r, Color(col, 0.28))
+			c.draw_rect(r, Color(col, 0.85), false, 1.5)
+		for id in ed.collab.peers:
+			if id == ed.collab.my_id:
+				continue
+			var pr: Dictionary = ed.collab.peers[id].get("presence", {})
+			for sid in pr.get("selection", []):
+				var e := ev.projected_of(String(sid))
+				if not e.is_empty():
+					c.draw_rect(ev.rect_px(e).grow(5.0), peer_color(id), false, 2.0)
+	for id in flashes:
+		var e := ev.projected_of(String(id))
+		if e.is_empty():
+			continue
+		var f: Dictionary = flashes[id]
+		var a := (1.0 - float(f.t) / FLASH_SEC) * (0.55 + 0.45 * cos(float(f.t) * TAU * 3.0))
+		c.draw_rect(ev.rect_px(e), Color(f.color, 0.18 * a))
+		c.draw_rect(ev.rect_px(e).grow(3.0), Color(f.color, a), false, 3.0)
+	if not pulse.is_empty():
+		var fade := clampf((float(pulse.life) - float(pulse.t)) / FADE_SEC, 0.0, 1.0)
+		var a := (0.6 + 0.4 * sin(float(pulse.t) * TAU * 1.5)) * fade
+		for id in pulse.ids:
+			var e := ev.projected_of(String(id))
+			if not e.is_empty() and not hidden.has(id):
+				c.draw_rect(ev.rect_px(e).grow(4.0), Color(CLAUDE_COLOR, a), false, 2.5)
+	if not session:
+		return
+	var s := EditorUi.factor() / Settings.EDITOR_UI_SCALE_DEFAULT
+	for id in cursors:
+		if id == ed.collab.my_id or not ed.collab.peers.has(id):
+			continue
+		var cur: Dictionary = cursors[id]
+		var pr: Dictionary = ed.collab.peers[id].get("presence", {})
+		var col := peer_color(id)
+		var pos: Vector2 = cur.pos
+		var nm := String(ed.collab.peers[id].name)
+		var fs := EditorUi.fs(12)
+		var w := font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		if String(pr.get("vue", "")) == ev.plane and pr.has("z"):
+			var at := ev.project(Vector3(pos.x, pos.y, float(pr.z)))
+			var arrow := PackedVector2Array()
+			for v in [Vector2(0, 0), Vector2(0, 17), Vector2(4.5, 13), Vector2(7.5, 19.5), Vector2(10, 18.5), Vector2(7, 12), Vector2(12.5, 12)]:
+				arrow.append(at + v * s)
+			c.draw_colored_polygon(arrow, col)
+			c.draw_polyline(arrow + PackedVector2Array([arrow[0]]), Color(0, 0, 0, 0.9), 1.0)
+			var box := Rect2(at + Vector2(13, 17) * s, Vector2(w + 8 * s, fs + 5 * s))
+			c.draw_rect(box, col)
+			c.draw_string(font, box.position + Vector2(4 * s, fs + 1 * s), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.05, 0.05, 0.06))
+		else:
+			# Pas dans cette vue : un trait vertical dans la colonne de sa position.
+			var x := ev.project(Vector3(pos.x, pos.y, 0.0)).x
+			if x < ev._ruler() or x > ev.size.x:
+				continue
+			c.draw_dashed_line(Vector2(x, ev._ruler()), Vector2(x, ev.size.y), Color(col, 0.6), 1.0, EditorUi.px(5))
+			var box := Rect2(Vector2(x + 3 * s, ev._ruler() + 2 * s), Vector2(w + 8 * s, fs + 5 * s))
+			c.draw_rect(box, Color(col, 0.85))
+			c.draw_string(font, box.position + Vector2(4 * s, fs + 1 * s), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.05, 0.05, 0.06))
 
 
 ## Élément `eid` (index du dessin en cours, sinon recherche dans la carte).

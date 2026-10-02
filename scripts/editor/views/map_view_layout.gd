@@ -501,6 +501,12 @@ func elevation_dragging() -> bool:
 	return elevations().any(func(v): return (v as MapElevation).tools != null and (v as MapElevation).tools.dragging())
 
 
+## Couches du dessus des élévations redessinées (collaboration, curseurs).
+func redraw_overlays() -> void:
+	for v in elevations():
+		(v as MapElevation).redraw_overlay()
+
+
 ## Espace maintenu : toutes les vues.
 func set_space(on: bool) -> void:
 	for v in views():

@@ -46,6 +46,17 @@ func run() -> void:
 	if not await until(func(): return ed.collab.role == MapCollab.Role.GUEST and not ed.collab._joining and ed.doc.pieces.size() == 5, 20.0, "session de l'hôte rejointe"):
 		return
 	MpHelpers.signal_peer("rejoint")
+	# Vues multiples (docs/EDITOR_VIEWS.md § 6.4) : le curseur de l'hôte, dans sa
+	# vue Avant, arrive avec son plan et sa hauteur ; dessiné dans mon élévation.
+	var host_cursor := func() -> bool:
+		var pr: Dictionary = ed.collab.peers.get("1", {}).get("presence", {})
+		return String(pr.get("vue", "")) == "avant" and absf(float(pr.get("z", -9.0)) - 2.0) < 0.05
+	if await until(host_cursor, 20.0, "curseur de l'hôte dans la vue Avant, à 2 m"):
+		var av := ed.views.panes[1].view as MapElevation
+		av.redraw_overlay()
+		await frames(2)
+		at.check(ed.collab_view.cursors.has("1"), "curseur de l'hôte suivi dans les vues")
+		MpHelpers.signal_peer("curseur_vu")
 
 	# ---------------------------------------------------------------- 1er test
 	if not await until(_in_game, 60.0, "invité entré seul dans la partie de test"):

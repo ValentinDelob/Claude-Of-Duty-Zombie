@@ -281,3 +281,35 @@ func test_guest_batch_echo_keeps_the_animation() -> void:
 	h.leave()
 	h.queue_free()
 	await _end(ed)
+
+
+## Vues multiples (docs/EDITOR_VIEWS.md § 6.4) : la présence porte le plan de
+## la vue survolée et la hauteur du curseur (gardés au tri, ignorés s'ils
+## sont illisibles) ; les élévations dessinent les curseurs et sélections des
+## autres à travers leur projection (sans erreur).
+func test_presence_in_elevations() -> void:
+	var p := MapCollab.clean_presence({"cursor": [3.0, 4.0], "floor": 0, "vue": "avant", "z": 2.5})
+	assert_eq(String(p.vue), "avant")
+	assert_near(float(p.z), 2.5, 0.001)
+	p = MapCollab.clean_presence({"cursor": [3.0, 4.0], "floor": 0, "vue": "biais", "z": "haut"})
+	assert_false(p.has("vue") or p.has("z"), "plan ou hauteur illisible : ignorés")
+	var ed := await _editor()
+	ed._reset(EditorMap.load_dir("res://assets/maps/draft_arena/"))
+	await wait_frames(2)
+	assert_eq(ed.collab.host(_port(5), "Alice"), OK)
+	var av: MapElevation = ed.views.panes[1].view
+	# Mon curseur dans la vue Avant : la présence dit « avant » et la hauteur.
+	ed.show_cursor_view(av, Vector2(9.0, -2.0))
+	assert_eq(String(ed.collab._presence_out.get("vue", "")), "avant")
+	assert_near(float(ed.collab._presence_out.get("z", -1.0)), 2.0, 0.01, "hauteur du curseur")
+	ed.show_cursor(Vector2(5, 5))
+	assert_false(ed.collab._presence_out.has("vue"), "vue Dessus : pas de clé « vue »")
+	# Un autre participant dans la vue Avant, et sa sélection.
+	ed.collab.peers["2"] = {"id": "2", "name": "Bob", "color": "#4aa8e8", "kind": "human",
+		"presence": {"cursor": [9.0, 4.5], "floor": 0, "vue": "avant", "z": 2.0, "selection": ["p3"], "tool": ""}}
+	ed.collab_view.on_presence("2")
+	av.redraw_overlay()
+	await wait_frames(2)
+	assert_true(ed.collab_view.cursors.has("2"), "curseur de Bob suivi")
+	assert_near(av.project(Vector3(9.0, 4.5, 2.0)).y, av.to_px(Vector2(0, -2.0)).y, 0.01, "à sa hauteur dans l'élévation")
+	await _end(ed)

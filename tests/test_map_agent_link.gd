@@ -117,3 +117,29 @@ func test_agent_link_commands() -> void:
 	collab.queue_free()
 	MapAgentLink.dir_override = ""
 	await host.get_tree().process_frame
+
+
+## Vues multiples (docs/EDITOR_VIEWS.md § 6.4) : get_elements rend les
+## hauteurs (boîte, altitude de pose, type de glissement) ; une vue inconnue
+## est refusée pour la capture.
+func test_elements_with_heights_and_views() -> void:
+	var m := EditorMap.load_dir("res://assets/maps/draft_arena/")
+	m.objets.append({"id": "fx1", "type": "effet", "effet": "torche", "etage": 0, "position": [9.5, 4.5], "mur": "n", "hauteur": 2.4})
+	var collab := MapCollab.new(m)
+	host.add_child(collab)
+	var link := MapAgentLink.new()
+	link.collab = collab
+	host.add_child(link)
+	var r := link.cmd_get_elements({"ids": ["p3", "p5", "fx1", "o5", "zz"]})
+	assert_near(float(r.elements.p3.z_max), 6.8, 0.001, "entrepôt en double hauteur : jusqu'à 6,80 m")
+	assert_near(float(r.elements.p5.z_monde), 3.5, 0.001, "passerelle : sol de l'étage 1")
+	assert_eq(String(r.elements.p5.glissement_vertical), "niveau")
+	assert_near(float(r.elements.fx1.hauteur_pose), 2.4, 0.001, "torche : hauteur de pose")
+	assert_near(float(r.elements.fx1.z_monde), 2.4, 0.001)
+	assert_eq(String(r.elements.o5.glissement_vertical), "fixe")
+	assert_near(float(r.elements.o5.z_min), MapValidator.SILL, 0.001, "fenêtre : de l'allège")
+	assert_eq(r.absents, ["zz"])
+	var s: Dictionary = await link.cmd_screenshot({"view": "biais"})
+	assert_true(s.has("error") and String(s.error).contains("biais"), "vue inconnue refusée : %s" % s)
+	link.queue_free()
+	collab.queue_free()

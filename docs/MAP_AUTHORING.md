@@ -41,9 +41,9 @@ automatique non enregistrée, il propose de la reprendre.
 
 | Zone | Rôle |
 |---|---|
-| Barre du haut | **Fichier** (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, exporter / importer l'archive .zip, cartes récentes, options, retour au menu), **Édition** (annuler, rétablir, copier, coller, pivoter, supprimer, inventaire, recadrer), étage courant (◄ ►), **▶ TESTER**, état de la vérification, aimantation, aperçu 3D, **⚙** (options du jeu), nom de la carte, **?** (raccourcis). Elle passe sur deux lignes si elle ne tient pas en largeur (grande taille d'interface). |
-| Vue de dessus | Grille de 1 m (traits forts tous les 5 m ; traits fins au pas de la grille fine), règles graduées en mètres en haut et à gauche, coordonnées du curseur aimanté en bas à droite. |
-| Barre rapide | 9 cases au bas de la vue (touches 1 à 9, molette) : l'objet tenu. À gauche, la case fixe **Souris** (outil Sélection) : outil au démarrage, jamais remplacée ; une case vide se comporte comme la souris. |
+| Barre du haut | **Fichier** (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, exporter / importer l'archive .zip, cartes récentes, options, retour au menu), **Édition** (annuler, rétablir, copier, coller, pivoter, supprimer, inventaire, recadrer), étage courant (◄ ►), **▶ TESTER**, état de la vérification, aimantation, aperçu 3D, **Disposition** (1 à 4 fenêtres de vue, §2 quater), **⚙** (options du jeu), nom de la carte, **?** (raccourcis). Elle passe sur deux lignes si elle ne tient pas en largeur (grande taille d'interface). |
+| Vues | Par défaut **deux vues empilées** : la vue **Dessus** (le plan, grille de 1 m, traits forts tous les 5 m, traits fins au pas de la grille fine) au-dessus de la vue **Avant** (élévation : tous les étages à leur vraie hauteur). Règles graduées en vraies coordonnées, en-tête de 22 px (plan, étages, axes, coupe, zoom, ⛶), **ViewCube** en haut à droite, trièdre en bas à gauche ; coordonnées du curseur aimanté en bas à droite. 1 à 4 fenêtres au choix (menu **Disposition**) : §2 quater. |
+| Barre rapide | 9 cases (touches 1 à 9, molette) : l'objet tenu ; posée au bas de la vue en 1 vue, ancrée dans une bande de 48 px sous les vues dès 2 vues (outil à gauche, aimantation à droite). À gauche, la case fixe **Souris** (outil Sélection) : outil au démarrage, jamais remplacée ; une case vide se comporte comme la souris. |
 | Inventaire | Touche **E** ou **Tab** : toutes les catégories ; cliquer un objet le met dans la case choisie (souris en main : la première case vide, sinon la dernière case choisie), ou le glisser sur une case. |
 | Panneaux | **Propriétés** (élément choisi, sinon la carte), **Pièces**, **Zones**, **Étages**, **Vérification**. |
 | Objets sur la carte | Onglet déployable à gauche de la vue (languette, bouton ◂ ou touche **L** ; ouvert / replié : mémorisé) : voir §2 bis. |
@@ -95,6 +95,11 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Étage du dessous / du dessus | Page préc. / Page suiv. |
 | Recadrer sur la carte | Origine |
 | Fermer un polygone | double-clic, clic sur le premier point, ou Entrée ; Retour arrière retire le dernier point |
+| Disposition des vues | bouton **Disposition** (1 vue, 2 côte à côte, 2 empilées, 3 : 1 + 2, 3 : 2 + 1, 4 vues) ; **Ctrl+Alt+Q** : 4 vues ; **Ctrl+Espace**, ⛶ ou double-clic sur l'en-tête : agrandir la vue active (une seconde fois : retour) ; séparateurs : glisser, double-clic : partage égal |
+| Changer le plan d'une vue | **ViewCube** (face voisine, ◄ ► : façade suivante, maison : vue d'origine, ▾ : menu) ; souris sur la vue : **pavé 7** Dessus, **1** Avant, **3** Droite (Ctrl : la vue opposée), **5** : 3D ; ailleurs le pavé choisit une case de la barre rapide |
+| Déplacer en élévation | glisser l'élément (deux axes de la vue : hauteur de pose ou étage) ; **flèches d'axe** (X rouge, Y vert, Z bleu) : un seul axe ; **X / Y / Z** pendant le glissement : verrouiller ; chiffres ou **Tab** : taper l'écart, **Entrée** ; Échap ou clic droit : annuler |
+| Plafond, hauteur, sol d'un étage | en élévation : **losange** du haut (plafond d'une pièce, hauteur d'une barrière ou d'une zone d'effet), carrés des côtés (largeur sur l'axe de la vue), **étiquette « É1 »** de la règle Z (sol de l'étage) |
+| Coupe d'une élévation | **K** : autour de la sélection (de nouveau K : enlevée) ; puce « Coupe ▾ » de l'en-tête ; poignées des traits pointillés dans la vue Dessus |
 
 Outil **Sélection** (la **Souris**, case fixe à gauche de la barre) : clic sur un élément pour le choisir, glisser
 pour le déplacer (une ouverture ou un objet mural suit le curseur, dans tous les
@@ -623,11 +628,12 @@ multijoueur ».
   | Archive .zip | 30 Mo, 160 entrées, tailles décompressées lues avant d'extraire |
   | Prefabs de la carte (format 10) | 32 prefabs, 8 modèles .glb de 8 Mo (24 Mo en tout), 150 000 triangles et images de 4096 px par modèle, aucune adresse externe (`docs/MAP_OBJECTS.md` § 11) |
   | Profondeur JSON | 6 (lue avant l'analyse) |
-  | Pièces / ouvertures / objets / zones / étages | 256 / 512 / 1024 / 64 / 6 |
+  | Pièces / ouvertures / objets / zones / étages | 256 / 512 / 2048 / 64 / 8 |
   | Sommets | 128 par pièce (un cercle de 64 points et de la marge), 4096 en tout |
   | Coordonnées | nombres finis, 0 à 256 m ; surface des pièces (rectangles englobants) 100 000 m² au plus |
   | Formes (format 4) | forme d'une pièce : type connu, centre dans le terrain, rayons 0,1 à 128 m, 3 à 64 points (entier), angle 0 à 360, branches 0,2 à 0,8, aucune autre clé ; mur courbe : rayon 1 à 128 m, ouverture 5 à 360°, 1 à 64 segments, arc dans le terrain ; rotation `rot` : entier de 0 à 359 |
-  | Étages | sol -20 à 200 m, hauteur 2 à 30 m ; plafond 1,5 à 30 m ; portes 1,5 à 10 m |
+  | Étages | sol -20 à 200 m, hauteur 2 à 30 m ; plafond d'une pièce 2,8 à 9 m ; portes 1,5 à 10 m |
+  | Hauteurs de pose (format 12) | `z` d'un décor 0 à 30 m, `descente` 0 à 3 m, `hauteur` d'un luminaire 0 à 30 m |
   | Prix | entiers, 0 à 100 000 |
   | Textes | identifiants 32 caractères (lettres, chiffres, `_`, `-`) ; identifiant de carte en minuscules, chiffres et `_` ; noms 64 caractères ; descriptions 600 |
 
@@ -645,7 +651,7 @@ multijoueur ».
   `MapCatalog.zone_keys()` et `MapCatalog.allowed_surfaces()` (préfabriqués,
   luminaires, textures par pièce, plafond de zone) ; sinon le schéma est
   déduit des objets du catalogue. Les limites dures ci-dessus s'appliquent en
-  plus (elles sont plus strictes que celles de l'éditeur : 256 m et 6 étages). **Noms** : pas de
+  plus (elles sont plus strictes que celles de l'éditeur : 256 m et 8 étages). **Noms** : pas de
   caractère de contrôle ni de contrôle bidirectionnel, pas de `[` `]` (BBCode),
   `<` `>`, `{` `}`, `\` ni `..` ; affichés dans des `Label` (jamais
   interprétés), nettoyés une seconde fois à l'affichage. Enfin la carte doit
@@ -660,6 +666,45 @@ plus, format 10, le dossier `prefabs/` des prefabs de la carte s'il y en a
 de l'éditeur : x vers l'est, y vers le sud, x et y positifs ; le jeu place la
 carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
 (`p1`, `o3`, `a2`…). Les nombres entiers s'écrivent sans décimale.
+
+## 2 quater. Vues multiples : élévations, ViewCube, dispositions
+
+Conception complète et écarts de la réalisation : `docs/EDITOR_VIEWS.md`.
+
+- **Plans** : Dessus (le plan, où l'on pose), **élévations** Avant (caméra au
+  sud, regard vers le nord), Arrière, Gauche, Droite, et Dessous ; **3D**
+  (l'aperçu en direct, intégré dans une fenêtre : une seule 3D, le panneau
+  flottant revient quand aucune fenêtre n'est en 3D).
+- **Élévation** : tous les étages empilés, chaque élément à sa vraie
+  hauteur (plafond réel sous la dalle du dessus, double hauteur, portes de
+  `hauteur_portes`, fenêtres de l'allège au linteau, escaliers d'un sol à
+  l'autre, objets muraux, décor d'après sa hauteur, luminaires et effets à
+  leur hauteur avec un trait jusqu'à leur accroche), dessinés du plus
+  lointain au plus proche, les lointains estompés ; lignes de niveau (sols
+  pleins, plafonds en tirets) et étiquettes « É0 0,00 », « É1 +3,50 »
+  (étage courant en or) ; « étages : » de l'en-tête : tous, jusqu'à l'étage
+  courant, l'étage courant ; **coupe** (tranche de profondeur, le reste à
+  15 % et sans clic). Un clic choisit (sélection commune à toutes les
+  vues) ; la **pose reste en vue Dessus**.
+- **Édition verticale** (en élévation) : un glissement déplace sur les deux
+  axes de la vue. Hauteur de pose continue pour les effets, luminaires et
+  décors (aimants nommés en grille fine et en libre : sols, plafonds,
+  dessous de dalle, haut des portes, allège, linteau, dessus du décor sous
+  l'élément ; changer d'étage en passant un sol ou un plafond) ; étage
+  aimanté sur les sols pour les pièces (avec leur contenu), escaliers,
+  piliers, murs, pièges, objets de jeu ; les ouvertures suivent leur mur.
+  Cotes en direct (hauteur au-dessus du sol, écart en or, distance au mur),
+  position d'avant en pointillés ; une action = un Ctrl+Z.
+- **Panneau Propriétés** : ligne **Position** X, Y, Z (Z : hauteur de pose en
+  m au-dessus du sol, sinon la liste des étages) ; un champ validé = une
+  annulation.
+- **Vues liées** (menu Disposition, cochée par défaut) : zoom commun, centre
+  commun sur l'axe partagé (X entre Dessus et Avant, Y entre Dessus et
+  Droite, Z entre Avant et Droite). **Coupe partagée** entre les élévations
+  de même direction (option).
+- **Mémorisé** dans `_editeur.cfg` (clé `vues`) : disposition, plan et plan
+  d'origine de chaque fenêtre, proportions, liaison, coupes, étages montrés
+  (pas le zoom ni le centre : chaque vue se recadre à l'ouverture).
 
 **`carte.json`** — la carte :
 
@@ -692,9 +737,12 @@ identique octet pour octet, vérifié par son empreinte SHA-256).
 Formats 5 à 11 (variantes, barrière invisible, escaliers, décor libre, portes
 à zombies, barrière en polygone et chevauchements, effets, effets purs et
 zones) : docs/MAP_OBJECTS.md ;
-le format courant est **11**. Une carte d'un format plus ancien avec des effets
-est **convertie au chargement** (effet pur + décor équivalent au même endroit,
-docs/MAP_OBJECTS.md § 12) et réécrite au format 11 à l'enregistrement.
+le format courant est **12** (hauteurs de pose : `z` du décor posé au sol,
+`hauteur` d'un luminaire au sol, `descente` de ce qui est accroché au
+plafond ; docs/MAP_OBJECTS.md § 13 ; aucune conversion). Une carte d'un
+format plus ancien avec des effets est **convertie au chargement** (effet pur
++ décor équivalent au même endroit, docs/MAP_OBJECTS.md § 12) et réécrite au
+format courant à l'enregistrement.
 Une carte d'un format plus récent que le jeu est signalée. `id` : dossier ; `musique` : un son
 `assets/audio/ambience_*` ; `hauteur_portes` (m) ; `lampes_auto` : une lampe
 tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
@@ -714,7 +762,9 @@ chevaucher entre eux, docs/MAP_OBJECTS.md § 10).
 ```
 
 `contour` : les sommets (au moins 3) du trait des murs ; `zone` : un `id` de
-`zones.json` ; facultatifs : `plafond` (hauteur sous plafond, m),
+`zones.json` ; facultatifs : `plafond` (hauteur sous plafond, m, de 2,8 à 9 :
+les mêmes bornes dans le panneau, le contrôle des cartes reçues et le
+validateur),
 `double_hauteur` (true), et (format 2) les **textures** `surface_sol`,
 `surface_murs`, `surface_plafond` : clés de `WorldLook.SURFACES` ; absentes,
 celles de la zone. Une pièce rectangle a 4 sommets alignés sur les axes ; un

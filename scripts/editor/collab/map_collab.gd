@@ -951,6 +951,13 @@ static func clean_presence(m: Dictionary) -> Dictionary:
 		out["live"] = m.live
 	if m.has("agent") and m.agent is bool:
 		out["agent"] = m.agent
+	# Vues multiples (docs/EDITOR_VIEWS.md § 6.4) : plan de la vue survolée et
+	# hauteur du curseur (m) ; une version plus ancienne les ignore.
+	if m.get("vue") is String and String(m.vue) in MapView.PLANES:
+		out["vue"] = String(m.vue)
+	var zv: Variant = m.get("z")
+	if (zv is float or zv is int) and is_finite(float(zv)):
+		out["z"] = clampf(float(zv), -100.0, 300.0)
 	return out
 
 

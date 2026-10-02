@@ -59,6 +59,14 @@ func run() -> void:
 		return
 	if not await MpHelpers.wait_peer(self, "rejoint", 20.0):
 		return
+	# Vues multiples (docs/EDITOR_VIEWS.md § 6.4) : mon curseur dans la vue Avant
+	# (à 2 m) arrive chez l'invité avec son plan et sa hauteur.
+	var av := ed.views.panes[1].view as MapElevation
+	ed.show_cursor_view(av, Vector2(9.0, -2.0))
+	if not await MpHelpers.wait_peer(self, "curseur_vu", 25.0):
+		return
+	at.check(true, "curseur de l'hôte reçu en élévation chez l'invité")
+	ed.show_cursor(Vector2(9.0, 6.0))
 
 	# Un changement de l'hôte avant le test : son historique doit survivre.
 	var avant_cid := String(ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "avant_test", "type": "caisse", "etage": 0, "position": [12.0, 10.0]}}], "caisse").cid)

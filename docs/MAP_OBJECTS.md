@@ -379,16 +379,16 @@ n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
 
 ## 5. Versions du format
 
-`EditorMap.FORMAT` = **11**. Toutes les nouvelles clés sont facultatives : une
-carte au format 1 à 10 se lit telle quelle (`EditorMap._migrate` ; un
+`EditorMap.FORMAT` = **12**. Toutes les nouvelles clés sont facultatives : une
+carte au format 1 à 11 se lit telle quelle (`EditorMap._migrate` ; un
 escalier sans `variante` est droit, une applique sans `hauteur` est à 2 m,
 une fenêtre sans `variante` est la fenêtre d'avant ; seule conversion : la
 barrière invisible rectangle devient un polygone de 4 sommets, § 2 ; format
 11 : un effet qui construisait un objet reçoit le décor équivalent, § 12) et
-s'enregistre au format 11 ; DRAFT ARENA (format 1) reste identique octet pour
-octet dans sa description en maillage. Un jeu plus ancien signale une carte
-au format 11 comme « plus récente » (et son contrôle refuserait les clés
-qu'il ne connaît pas).
+s'enregistre au format courant ; DRAFT ARENA (format 1) reste identique octet
+pour octet dans sa description en maillage. Un jeu plus ancien signale une
+carte d'un format plus récent que le sien comme « plus récente » (et son
+contrôle refuserait les clés qu'il ne connaît pas).
 
 - Format 6 : types d'escaliers (§ 4).
 - Format 7 : décor posé librement, hauteur d'une applique (§ 8).
@@ -398,6 +398,7 @@ qu'il ne connaît pas).
 - Format 10 : effets (type `effet`, § 12).
 - Format 11 : effets purs (objets des effets devenus des décors, décor mural
   et au plafond) et zone des effets (clé `zone`, § 12).
+- Format 12 : hauteurs de pose (`z`, `hauteur` au sol, `descente`, § 13).
 
 ## 6. Ajouter une variante ou un type à variantes
 
@@ -1124,3 +1125,42 @@ multijoueur) ; zone dans le vrai éditeur (champs, poignées, bornes).
 Captures de revue (hors check, ajout en cours) : `sh tools/scenario.sh
 map_effects_look` (plan de l'éditeur avec les zones et les poignées, puis
 chaque colonne d'effets en jeu, zones de tailles variées, avec leurs décors).
+
+## 13. Hauteurs de pose (format 12)
+
+Les élévations de l'éditeur (`docs/EDITOR_VIEWS.md`) déplacent les éléments
+en hauteur. Trois clés, toutes facultatives, jamais écrites à leur valeur
+par défaut (`MapVertical.set_pose_z`, `MapVertical.tidy`) ; aucune
+conversion : une carte au format 11 ou moins se lit telle quelle.
+
+| Type | Clé | Sens | Bornes | Par défaut |
+|---|---|---|---|---|
+| `prefab` (au sol) | `z` | hauteur de pose du décor au-dessus du sol (m) | 0 à 30 | 0 (au sol) |
+| `luminaire` (au sol) | `hauteur` | pied du luminaire au-dessus du sol (m) ; même clé que l'applique | 0 à 30 | dessus du meuble dessous (`support`) |
+| `luminaire`, `effet`, `prefab` (au plafond) | `descente` | distance sous le plafond réel (m) | 0 à 3 | `drop` du luminaire, 0 sinon |
+
+- **Décor posé sur un autre** : un décor qui bloque (`solide`, `barriere`)
+  au-dessus du sol doit reposer sur le dessus d'un autre décor sous lui
+  (`support` s'il en a un, sinon le haut de son modèle `h`, à 2 cm près) ;
+  sinon il est refusé (« décor en l'air : posez-le sur un autre »). Un décor
+  sans collision (`non`) peut flotter. Deux décors dont les tranches de
+  hauteur ne se recouvrent pas ne se « chevauchent » pas pour les règles de
+  pose (`MapRules._stacked`). Les cases du dessous restent pleines (trajets
+  des zombies) ; les collisions (`CollisionBox`) montent avec le décor.
+- **Bornes sous le plafond** (comme l'export en jeu) : applique et décor
+  mural jusqu'au plafond réel − 0,15 m, effet mural − 0,2 m, effet au sol
+  − 0,1 m, décor au sol jusqu'au plafond moins sa hauteur, luminaire au sol
+  moins sa hauteur de lumière.
+- **En jeu** (`MapLayoutExport`) : le décor au sol est posé à `z` (modèle et
+  collisions), le décor du plafond descend de `descente`, la lumière d'un
+  luminaire du plafond est à `descente` sous le plafond (l'objet descend avec
+  elle au-delà de son `drop`), un effet du plafond descend de `descente`.
+- **Contrôle des cartes reçues** : bornes du tableau (`MapCatalog.allowed_kinds`),
+  `z` seulement sur un décor au sol, `descente` seulement sur ce qui est au
+  plafond (`CustomMapGuard._check_object`).
+- **Preuves** : `tests/test_map_views_edit.gd` (aller-retour du format 12,
+  valeurs par défaut retirées, carte au format 11 lue telle quelle, carte
+  reçue hors bornes refusée, export des hauteurs, décor empilé),
+  `tests/autotest/map_decor_stack.gd` (en partie : collisions empilées à
+  0,45 et 1,35 m, un rayon s'arrête sur le décor du dessus, le joueur est
+  arrêté par la pile).

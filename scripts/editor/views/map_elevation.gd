@@ -105,10 +105,10 @@ func _process(_delta: float) -> void:
 		queue_redraw()
 
 
-## Redessine la vue : la grille ici ; le contenu seulement s'il a changé
-## (sinon simplement décalé) ; le dessus toujours (léger).
-func queue_redraw_all() -> void:
-	queue_redraw()
+## Redessine seulement la couche du dessus (sélection, collaboration, règles).
+func redraw_overlay() -> void:
+	if _over != null:
+		_over.queue_redraw()
 
 
 func _notification(what: int) -> void:
@@ -318,6 +318,21 @@ func element_at(m: Vector2) -> Dictionary:
 	return hit.get("e", {}) if not hit.is_empty() else {}
 
 
+## Rectangle (px) d'un élément qui n'est pas (forcément) dans la carte :
+## aperçu en direct d'un autre participant (CollabView) ; vide sinon.
+func element_rect_px(el: Dictionary) -> Rect2:
+	var it := MapElevationItems.item_of(ed.doc, ed.raster().v, el)
+	if it.is_empty() or (it.poly as PackedVector2Array).is_empty():
+		return Rect2()
+	var u0 := INF
+	var u1 := -INF
+	for q in (it.poly as PackedVector2Array):
+		var uv := uv_of(plane, Vector3(q.x, q.y, float(it.z0)))
+		u0 = minf(u0, uv.x)
+		u1 = maxf(u1, uv.x)
+	return rect_px({"u0": u0, "u1": u1, "v0": -float(it.z1), "v1": -float(it.z0)})
+
+
 ## Élément projeté d'un identifiant ({} s'il n'est pas dans la vue).
 func projected_of(eid: String) -> Dictionary:
 	for e in projected():
@@ -427,6 +442,8 @@ func _draw_overlay() -> void:
 	var font := UiStyle.font("body")
 	_draw_selection(_over)
 	if not offscreen:
+		if ed.collab_view != null:
+			ed.collab_view.draw_on_elevation(self, _over, font)
 		tools.draw(_over)
 	_over_rulers(font)
 

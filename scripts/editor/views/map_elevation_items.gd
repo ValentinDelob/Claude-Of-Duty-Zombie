@@ -55,6 +55,17 @@ static func build(doc: EditorMap, v: MapValidator) -> Array:
 	return out
 
 
+## Boîte d'un seul élément (pièce, ouverture ou objet) ; {} s'il n'en a pas.
+static func item_of(doc: EditorMap, v: MapValidator, e: Dictionary) -> Dictionary:
+	if doc == null or v == null or e.is_empty():
+		return {}
+	if e.has("contour"):
+		return _room(doc, v, e)
+	if String(e.get("type", "")) in MapRules.ouvertures_types():
+		return _opening(doc, v, e)
+	return _object(doc, v, e)
+
+
 static func _floor_ok(v: MapValidator, k: int) -> bool:
 	return k >= 0 and k < v.floors.size()
 

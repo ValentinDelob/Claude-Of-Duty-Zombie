@@ -98,6 +98,18 @@ func run() -> void:
 		av.queue_redraw()
 		await RenderingServer.frame_post_draw
 	print("[views] 10 images en %d ms" % ((Time.get_ticks_usec() - t0) / 1000))
+	# Capture d'une élévation pour Claude (MCP : editor_screenshot, view « avant »).
+	var link := MapAgentLink.new()
+	link.collab = ed.collab
+	link.editor = ed
+	ed.add_child(link)
+	var shot: Dictionary = await link.cmd_screenshot({"view": "avant", "coupe": [4.5, 17.0]})
+	at.check(shot.has("png_base64") and shot.get("bounds_z", []).size() == 2, "capture MCP de la vue Avant (%s)" % str(shot.get("bounds_z", shot.get("error", ""))))
+	if shot.has("png_base64"):
+		var f := FileAccess.open(ProjectSettings.globalize_path("res://tests/_out/shots/map_views_mcp_avant.png"), FileAccess.WRITE)
+		f.store_buffer(Marshalls.base64_to_raw(String(shot.png_base64)))
+		f.close()
+	link.queue_free()
 	Settings.editor_ui_scale = Settings.EDITOR_UI_SCALE_DEFAULT
 	_clean(EditorMap.maps_root())
 

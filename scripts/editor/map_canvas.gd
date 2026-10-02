@@ -457,6 +457,7 @@ func _gui_input(event: InputEvent) -> void:
 		else:
 			_update_preview()
 			_hover_dirty = true
+		mouse_default_cursor_shape = cursor_at(mm.position)
 		ed.show_cursor(mouse_m)
 		queue_redraw()
 	elif event is InputEventMouseButton:
@@ -994,6 +995,45 @@ func _draw() -> void:
 
 
 # ------------------------------------------------------------------ flèches d'axe, coupes (vues multiples)
+
+## Curseur de la souris selon ce qui est dessous (docs/EDITOR_VIEWS.md § 6.3) :
+## main fermée (vue déplacée), ↔ / ↕ (flèche d'axe, trait de coupe),
+## redimensionnement orienté (poignée), déplacement (élément déplaçable).
+func cursor_at(px: Vector2) -> Control.CursorShape:
+	if _pan:
+		return Control.CURSOR_DRAG
+	if not drag.is_empty():
+		match String(drag.get("kind", "")):
+			"move":
+				return Control.CURSOR_HSIZE if drag.get("lock", "") == "X" else (Control.CURSOR_VSIZE if drag.get("lock", "") == "Y" else Control.CURSOR_MOVE)
+			"handle", "cut":
+				return mouse_default_cursor_shape
+		return Control.CURSOR_ARROW
+	if offscreen or ed.tool() != "select":
+		return Control.CURSOR_ARROW
+	var m := to_m(px)
+	var rh := rot_handle()
+	if not rh.is_empty() and to_px(rh.p).distance_to(px) <= _hsz() + 4.0:
+		return Control.CURSOR_POINTING_HAND
+	var h := _handle_at(m)
+	if h >= 0:
+		var sel := ed.doc.find(ed.selected)
+		if sel.has("contour") and handles().size() == 8:
+			return [Control.CURSOR_FDIAGSIZE, Control.CURSOR_BDIAGSIZE, Control.CURSOR_FDIAGSIZE, Control.CURSOR_BDIAGSIZE,
+				Control.CURSOR_VSIZE, Control.CURSOR_HSIZE, Control.CURSOR_VSIZE, Control.CURSOR_HSIZE][h]
+		return Control.CURSOR_FDIAGSIZE
+	var ch := _cut_handle_at(px)
+	if not ch.is_empty():
+		return Control.CURSOR_VSIZE if String(MapView.depth_axis((ch.ev as MapElevation).plane)[0]) == "Y" else Control.CURSOR_HSIZE
+	match arrow_at(px):
+		"X":
+			return Control.CURSOR_HSIZE
+		"Y":
+			return Control.CURSOR_VSIZE
+	if not ed.element_at(m).is_empty():
+		return Control.CURSOR_MOVE
+	return Control.CURSOR_ARROW
+
 
 ## Centre (px) des flèches d'axe de l'élément choisi ; Vector2.INF sans flèches.
 func arrows_origin() -> Vector2:

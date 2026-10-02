@@ -1,6 +1,10 @@
 # Vues multiples de l'éditeur : élévations, ViewCube, dispositions
 
-Spécification de conception (à valider avant tout code). Maquette :
+Spécification de conception, **réalisée** (étapes 1 à 6 du § 9 ; écarts et
+précisions : § 11). Code : `scripts/editor/views/` (`MapView`,
+`MapElevation`, `MapElevationItems`, `MapElevationTools`, `MapViewCube`,
+`MapViewLayout`, `MapViewLayoutMenu`, `MapViewPane`, `MapView3D`),
+`scripts/editor/map_vertical.gd`. Maquette :
 `docs/editor_views_mockup/index.html` (taille réelle 1280 × 720, carte
 DRAFT ARENA). Elle contient 4 écrans et une planche de composants :
 1. 4 vues avec ViewCube ;
@@ -559,3 +563,14 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   étroit : le texte des étages s'efface avant les axes. La barre du haut,
   avec le bouton Disposition, passe sur deux lignes à 100 % (elle le
   faisait déjà à 150 %).
+- **Étape 6 : collaboration et MCP**. La présence porte `vue` et `z` ; depuis
+  une élévation, la coordonnée de profondeur du curseur garde sa dernière
+  valeur (celle de la vue Dessus). Les élévations dessinent aussi les
+  clignotements des changements reçus et le contour pulsé des lots de
+  Claude. `editor_get_element` passe par une nouvelle commande de l'éditeur
+  (`get_elements`, qui calcule les hauteurs avec le validateur) ; face à un
+  éditeur plus ancien, le pont MCP retombe sur la carte seule (sans
+  hauteurs). `editor_screenshot` accepte aussi `dessous`. Le scénario
+  collaboratif hôte + invité est ajouté au test multijoueur existant
+  `mp_editorplay` (curseur de l'hôte dans sa vue Avant, reçu à 2 m chez
+  l'invité) plutôt qu'un nouveau couple de scénarios.

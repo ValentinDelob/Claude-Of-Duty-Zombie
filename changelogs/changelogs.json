@@ -2032,6 +2032,37 @@
     "en": "Map editor: effects in any size",
     "fr": "Éditeur de cartes : des effets à la bonne taille"
    }
+  },
+  "v0.2.1-snapshot.396": {
+   "channel": "snapshot",
+   "date": "2026-10-03",
+   "images": [],
+   "items": [
+    {
+     "en": "Two views by default: the plan above the Front view, which shows every floor at its true height (ceilings, double height, catwalks, stairs, doors, windows, props, lights and effects). Back, Left, Right and Bottom views too, with a cut to isolate a room hidden behind another (K key).",
+     "fr": "Deux vues par défaut : le plan au-dessus de la vue Avant, qui montre tous les étages à leur vraie hauteur (plafonds, double hauteur, passerelles, escaliers, portes, fenêtres, décor, luminaires et effets). Aussi les vues Arrière, Gauche, Droite et Dessous, avec une coupe pour isoler une salle cachée derrière une autre (touche K)."
+    },
+    {
+     "en": "Move elements up and down in the side views: a torch on its wall, a chandelier under the ceiling, a crate stacked on another, a room raised by one floor with everything in it. Coloured axis arrows, X / Y / Z locks, live dimensions, named magnets (lintel, ceiling, top of a piece of furniture) and typed values.",
+     "fr": "Déplacez les éléments en hauteur dans les vues de côté : une torche sur son mur, un lustre sous le plafond, une caisse posée sur une autre, une pièce montée d'un étage avec tout son contenu. Flèches d'axe colorées, verrouillage X / Y / Z, cotes en direct, aimants nommés (linteau, plafond, dessus d'un meuble) et valeur tapée au clavier."
+    },
+    {
+     "en": "Raise a room's ceiling by dragging its diamond, set a door's width or a floor's level from the side view; the Properties panel now has X, Y and Z fields.",
+     "fr": "Agrandissez le plafond d'une pièce en tirant son losange, réglez la largeur d'une porte ou le niveau d'un étage depuis la vue de côté ; le panneau Propriétés a maintenant des champs X, Y et Z."
+    },
+    {
+     "en": "A ViewCube in every view, like in CAD software: click a face to switch view, a corner for 3D; numpad 7, 1, 3 and 5 while the mouse is over a view.",
+     "fr": "Un ViewCube dans chaque vue, comme dans les logiciels de CAO : cliquez une face pour changer de vue, un coin pour la 3D ; pavé numérique 7, 1, 3 et 5 quand la souris est sur une vue."
+    },
+    {
+     "en": "New Layout menu: 1 to 4 windows (Ctrl+Alt+Q for four views, Ctrl+Space to maximize the active view), linked views, 3D preview inside a window; your layout is remembered.",
+     "fr": "Nouveau menu Disposition : 1 à 4 fenêtres (Ctrl+Alt+Q pour quatre vues, Ctrl+Espace pour agrandir la vue active), vues liées, aperçu 3D intégré dans une fenêtre ; votre disposition est retenue."
+    }
+   ],
+   "title": {
+    "en": "Map editor: side views, ViewCube and layouts",
+    "fr": "Éditeur de cartes : vues de côté, ViewCube et dispositions"
+   }
   }
  }
 }

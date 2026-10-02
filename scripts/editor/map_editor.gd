@@ -638,6 +638,14 @@ func show_cursor_view(v: MapView, m: Vector2) -> void:
 	var p := MapView.point_of(v.plane, m, 0.0)
 	var axis := String(MapView.h_axis(v.plane)[0])
 	var h := p.x if axis == "X" else p.y
+	# Présence : l'axe montré change, la profondeur garde sa dernière valeur.
+	if axis == "X":
+		_cursor_m.x = p.x
+	else:
+		_cursor_m.y = p.y
+	_cursor_view = v.plane
+	_cursor_z = p.z
+	send_presence()
 	cursor_label.text = "%s %s m · z %s m · %s %d" % [axis.to_lower(), MapRules._m(snappedf(h, 0.01), fr), MapRules._m(snappedf(p.z - doc.floor_sol(floor_k), 0.01), fr), Lang.t("étage", "floor"), floor_k]
 
 
@@ -668,6 +676,8 @@ func elevation_items() -> Array:
 
 
 func show_cursor(m: Vector2) -> void:
+	_cursor_view = "dessus"
+	_cursor_z = NAN
 	var fr := not Lang.is_en()
 	var s := canvas.snap(m)
 	cursor_label.text = "x %s m · y %s m · %s %d" % [MapRules._m(snappedf(s.x, 0.01), fr), MapRules._m(snappedf(s.y, 0.01), fr), Lang.t("étage", "floor"), floor_k]
@@ -676,6 +686,9 @@ func show_cursor(m: Vector2) -> void:
 
 
 var _cursor_m := Vector2.ZERO
+## Plan de la vue où est le curseur, sa hauteur (m) dans une élévation.
+var _cursor_view := "dessus"
+var _cursor_z := NAN
 
 
 ## Présence de cet éditeur pour les autres (curseur, étage, sélection, outil,
@@ -685,6 +698,11 @@ func send_presence() -> void:
 		return
 	var p := {"cursor": [snappedf(_cursor_m.x, 0.01), snappedf(_cursor_m.y, 0.01)], "floor": floor_k,
 		"selection": [selected] if selected != "" else [], "tool": tool()}
+	# Curseur dans une élévation : son plan et sa hauteur (§ 6.4).
+	if _cursor_view != "" and _cursor_view != "dessus":
+		p["vue"] = _cursor_view
+		if not is_nan(_cursor_z):
+			p["z"] = snappedf(_cursor_z, 0.01)
 	if not live.is_empty():
 		p["live"] = live
 	collab.set_presence(p)
@@ -742,8 +760,8 @@ func _update_title() -> void:
 
 func _show_help() -> void:
 	_info(Lang.t("Raccourcis", "Shortcuts"), Lang.t(
-		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nCtrl + « + » / Ctrl + « - » / Ctrl + 0 : taille de l'interface de l'éditeur (aussi dans les options, bouton ⚙)\nMolette ou 1 à 9 : case de la barre rapide · ² ou Échap : la souris (case à gauche de la barre) · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu",
-		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nCtrl + \"+\" / Ctrl + \"-\" / Ctrl + 0: map editor UI size (also in the options, ⚙ button)\nWheel or 1 to 9: hotbar slot · ` (key left of 1) or Esc: the mouse (slot left of the hotbar) · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there"))
+		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nCtrl + « + » / Ctrl + « - » / Ctrl + 0 : taille de l'interface de l'éditeur (aussi dans les options, bouton ⚙)\nMolette ou 1 à 9 : case de la barre rapide · ² ou Échap : la souris (case à gauche de la barre) · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu\nVues : bouton Disposition (1 à 4 fenêtres) · Ctrl+Alt+Q : 4 vues · Ctrl+Espace ou ⛶ : agrandir la vue active · séparateurs : glisser, double-clic : partage égal\nViewCube (coin haut droit de chaque vue) : face : changer de plan · coin : la 3D vue de ce coin · maison : vue d'origine · ◄ ► : façade suivante · pavé 7 / 1 / 3 : Dessus / Avant / Droite (Ctrl : la vue opposée), pavé 5 : 3D (souris sur la vue)\nÉlévations (Avant, Droite…) : glisser : déplacer sur les deux axes de la vue (hauteur de pose, ou étage) · flèches d'axe : un seul axe · X / Y / Z pendant le glissement : verrouiller · chiffres ou Tab : taper l'écart, Entrée · losange : plafond, hauteur · étiquette « É1 » : sol de l'étage · K : coupe autour de la sélection · la pose reste en vue Dessus",
+		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nCtrl + \"+\" / Ctrl + \"-\" / Ctrl + 0: map editor UI size (also in the options, ⚙ button)\nWheel or 1 to 9: hotbar slot · ` (key left of 1) or Esc: the mouse (slot left of the hotbar) · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there\nViews: Layout button (1 to 4 windows) · Ctrl+Alt+Q: 4 views · Ctrl+Space or ⛶: maximize the active view · splitters: drag, double-click: equal split\nViewCube (top right of each view): face: switch plane · corner: 3D from that corner · home: home view · ◄ ►: next side · numpad 7 / 1 / 3: Top / Front / Right (Ctrl: opposite view), numpad 5: 3D (mouse over the view)\nElevations (Front, Right…): drag: move on the two axes of the view (placement height, or floor) · axis arrows: a single axis · X / Y / Z while dragging: lock · digits or Tab: type the offset, Enter · diamond: ceiling, height · \"F1\" tag: floor level · K: cut around the selection · placing stays in the Top view"))
 
 
 func _info(title_text: String, text: String) -> void:
@@ -1187,7 +1205,9 @@ func _setup_collab() -> void:
 	collab.applied.connect(_on_collab_applied)
 	collab.map_replaced.connect(_on_map_replaced)
 	collab.message.connect(func(t, err): set_status(t, err))
-	collab.presence_changed.connect(func(_p): canvas.queue_redraw())
+	collab.presence_changed.connect(func(_p):
+		canvas.queue_redraw()
+		views.redraw_overlays())
 	collab.peers_changed.connect(canvas.queue_redraw)
 	collab.saved.connect(func(by): set_status(Lang.t("Carte enregistrée par %s (hôte)", "Map saved by %s (host)") % by))
 	collab_ui = CollabPanel.new()

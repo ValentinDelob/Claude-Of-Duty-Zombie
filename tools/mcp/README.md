@@ -33,12 +33,12 @@ réponse de l'éditeur, 30 s par défaut).
 |---|---|
 | `editor_status` | carte ouverte, rôle (solo / hôte / invité), participants, étage, sélection |
 | `editor_get_map` | résumé calculé (pièces, voisines, pièces proches, ouvertures, objets, zones) ou carte complète (`format: "full"`) |
-| `editor_get_element` | éléments complets d'après leurs ids |
+| `editor_get_element` | éléments complets d'après leurs ids, avec leurs hauteurs (`z_min`, `z_max`, `z_monde`, hauteur de pose) |
 | `editor_get_selection` | sélection de l'utilisateur et position de la souris (m) |
 | `editor_apply` | lot d'opérations (`add`, `put`, `del`, `carte`, `depart`) = une étape d'annulation, avec un libellé |
 | `editor_undo_last` | annule la dernière action de Claude |
 | `editor_validate` | validateur de l'éditeur (erreurs, avertissements BO1) |
-| `editor_screenshot` | image du plan, bornes en mètres |
+| `editor_screenshot` | image du plan (`view` « dessus ») ou d'une élévation (`avant`, `arriere`, `gauche`, `droite`, `dessous`, `coupe` [p0, p1] facultative), bornes en mètres |
 | `editor_highlight` | montre des éléments à l'utilisateur (contour pulsé + bulle) |
 | `editor_catalog` | types d'objets admis, décors, luminaires, armes, atouts |
 | `editor_events` | derniers changements faits par les autres |
