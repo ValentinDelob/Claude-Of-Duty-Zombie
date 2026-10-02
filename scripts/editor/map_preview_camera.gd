@@ -195,6 +195,20 @@ func follow(target: Vector3, delta: float) -> void:
 				_apply()
 
 
+## ViewCube (docs/EDITOR_VIEWS.md § 4) : orbite placée sur la direction `dir`
+## (monde, du point visé vers la caméra), visant `target` ; même distance.
+func look_from(dir: Vector3, target: Vector3) -> void:
+	if dir.length() < 0.001:
+		return
+	if mode != Mode.ORBIT:
+		set_mode(Mode.ORBIT)
+	var d := dir.normalized()
+	pivot = target
+	yaw = atan2(d.x, d.z)
+	pitch = clampf(-asin(clampf(d.y, -1.0, 1.0)), -PITCH_LIMIT, 0.2)
+	_apply()
+
+
 ## Double-clic sur la carte 2D : la caméra va à ce point (au sol de l'étage).
 func place_at(p: Vector3) -> void:
 	match mode:

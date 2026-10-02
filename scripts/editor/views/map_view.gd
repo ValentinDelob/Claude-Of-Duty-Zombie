@@ -49,6 +49,8 @@ var _pan := false
 @warning_ignore("unused_private_class_variable")
 var _pan_from := Vector2.ZERO
 var _space := false
+## ViewCube de la vue (§ 4 ; null hors d'une fenêtre de la disposition).
+var cube: MapViewCube
 ## Support des règles, du trièdre et du curseur (null : la vue ; une couche
 ## du dessus pour les élévations).
 var _over_target: CanvasItem = null
@@ -248,6 +250,36 @@ func _zoom_at(px: Vector2, f: float) -> void:
 
 func zoom_by(f: float) -> void:
 	_zoom_at(size * 0.5, f)
+
+
+## Met en place le ViewCube de la vue (en haut à droite) ; ses clics vont à la
+## disposition (MapViewLayout.cube_action).
+func setup_cube() -> void:
+	if cube != null or offscreen:
+		return
+	cube = MapViewCube.new()
+	cube.name = "ViewCube"
+	add_child(cube)
+	cube.target_clicked.connect(_on_cube)
+	resized.connect(place_cube)
+	place_cube()
+
+
+func _on_cube(id: String) -> void:
+	if ed != null and ed.views != null:
+		ed.views.cube_action(self, id)
+
+
+## Le ViewCube suit le plan de la vue et son coin haut droit (maquette : net à
+## 82 px du bord droit, 24 px du haut en vue Dessus, 14 px sinon).
+func place_cube() -> void:
+	if cube == null:
+		return
+	cube.plane = plane
+	cube.size = cube.wanted_size()
+	var f := EditorUi.factor()
+	cube.position = Vector2(size.x - 82.0 * f - 20.0 * f, (24.0 if plane == "dessus" else 14.0) * f - 10.0 * f)
+	cube.queue_redraw()
 
 
 ## Cadre la carte dans la vue (Origine).

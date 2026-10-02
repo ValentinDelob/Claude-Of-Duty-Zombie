@@ -535,3 +535,13 @@ Notés au fil des étapes (à valider avec l'utilisateur).
 - **Panneau Propriétés** : la ligne Position (X, Y, Z) est ajoutée en tête ;
   les champs « Hauteur » existants (applique, effet, décor mural) restent
   (scénarios et habitudes) et suivent la même valeur que Z.
+- **Étape 4 : ViewCube**. Opacité : 75 % hors de la fenêtre active, 100 %
+  dans la fenêtre active et au survol (valeurs de la maquette, au lieu de
+  60 % au repos). Le jeu n'a pas d'option « Réduire les animations » : la
+  transition de 180 ms est toujours jouée (fondu de l'image d'avant et
+  glissement le long de l'axe qui change). Le cube isométrique est aussi
+  sur le panneau flottant de l'aperçu 3D : une face y tourne la caméra de
+  face (dans une fenêtre 3D de la disposition, elle bascule la fenêtre vers
+  ce plan) ; arête et coin : caméra en orbite sur cette direction, même
+  point visé. Pavé 5 : la 3D vue du coin avant-droite-dessus du plan montré
+  (ou de la face, en Dessus et Dessous).

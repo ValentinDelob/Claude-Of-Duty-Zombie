@@ -74,12 +74,19 @@ func set_view(v: MapView) -> void:
 		add_child(v)
 	v.visible = true
 	move_child(_frame, -1)
+	v.setup_cube()
+	v.place_cube()
+	if v.cube != null:
+		v.cube.active = active
 	v.set_anchors_preset(Control.PRESET_FULL_RECT)
 	v.offset_top = header_h()
 	queue_redraw()
 
 
 func set_active(on: bool) -> void:
+	if view != null and view.cube != null:
+		view.cube.active = on
+		view.cube.queue_redraw()
 	if on == active:
 		return
 	active = on

@@ -42,6 +42,9 @@ var pause_unfocused := true
 ## Images demandées au rendu (tests : aucune quand l'aperçu est masqué).
 var renders := 0
 var window: Window
+## Fenêtre de la disposition qui montre l'aperçu (MapView3D) ; null : le
+## panneau flottant.
+var pane_host: Control
 
 var frame: PanelContainer
 var content: VBoxContainer
@@ -71,6 +74,8 @@ var _capture_at := Vector2.ZERO
 ## relâché, perte du focus), sinon le curseur reste invisible sur le plan.
 var _captured := false
 var _last_status := ""
+## ViewCube isométrique sur l'aperçu (docs/EDITOR_VIEWS.md § 4) : il suit la caméra.
+var cube: MapViewCube
 
 
 ## Vue : le rendu du SubViewport, qui reçoit souris et touches (aussi dans
@@ -204,6 +209,12 @@ func _build_ui() -> void:
 	view.mouse_entered.connect(func(): _mouse_in_view = true)
 	view.mouse_exited.connect(func(): _mouse_in_view = false)
 	content.add_child(view)
+	cube = MapViewCube.new()
+	cube.name = "ViewCube"
+	cube.plane = "3d"
+	cube.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	cube.target_clicked.connect(_on_cube)
+	view.add_child(cube)
 	info = Label.new()
 	info.name = "Info"
 	info.position = Vector2(6, 4)
@@ -796,6 +807,8 @@ func _process(delta: float) -> void:
 	var moved := world.rig.take_moved()
 	if moved and ed.canvas != null:
 		ed.canvas.queue_redraw()
+	if moved or cube.size.x <= 0.0:
+		_place_cube()
 	_update_info()
 	# Rendu : taille, pause sans focus, cadence.
 	if pause_unfocused and not _app_focused():
@@ -810,6 +823,31 @@ func _process(delta: float) -> void:
 		_render_t = 1.0 / IDLE_FPS
 		world.viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 		renders += 1
+
+
+## Le cube suit la caméra (direction du point visé vers la caméra, repère de la carte).
+func _place_cube() -> void:
+	var s := Vector2(EditorUi.px(120), EditorUi.px(96))
+	cube.size = s
+	cube.position = Vector2(view.size.x - s.x - EditorUi.px(4), EditorUi.px(4))
+	if world.rig.cam != null:
+		var b := world.rig.cam.global_transform.basis.z
+		cube.set_view_dir(Vector3(b.x, b.z, b.y))
+
+
+## Clic sur le ViewCube de l'aperçu : face (dans une fenêtre : bascule vers ce
+## plan ; flottant : caméra de face), arête ou coin (caméra sur cette
+## direction), maison (toute la carte).
+func _on_cube(id: String) -> void:
+	if id == "home":
+		world.frame_map()
+	elif id.begins_with("f:") and pane_host != null and ed != null:
+		ed.views.set_pane_plane(ed.views.pane_of(pane_host as MapView), id.substr(2), true)
+	else:
+		var d := MapViewCube.target_dir(id)
+		if d != Vector3.ZERO:
+			world.rig.look_from(Vector3(d.x, d.z, d.y), world.rig.pivot)
+	_request_render()
 
 
 func _request_render() -> void:

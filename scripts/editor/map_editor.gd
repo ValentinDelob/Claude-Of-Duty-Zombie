@@ -770,6 +770,11 @@ func _input(event: InputEvent) -> void:
 		return
 	if k.echo and not (k.keycode in [KEY_Z, KEY_Y]):
 		return
+	# Pavé numérique sur une vue (7, 1, 3, 5 ; Ctrl : la vue opposée) : le
+	# plan de la vue ; ailleurs il garde la barre rapide (§ 4).
+	if k.keycode in [KEY_KP_1, KEY_KP_3, KEY_KP_5, KEY_KP_7] and not _typing() and not k.alt_pressed and views.numpad(k, views.hovered_pane()):
+		get_viewport().set_input_as_handled()
+		return
 	if k.ctrl_pressed:
 		match k.keycode:
 			KEY_S:

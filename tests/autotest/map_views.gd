@@ -67,6 +67,26 @@ func run() -> void:
 		await frames(2)
 		await at.screenshot(pl)
 	ed.views.set_pane_plane(low, "avant")
+	# ViewCube : survol de la face Dessus (bulle), puis clic : bascule animée.
+	await frames(2)
+	var cube: MapViewCube = low.view.cube
+	at.check(cube != null and cube.visible, "ViewCube sur la vue Avant")
+	cube.hover = "f:dessus"
+	cube.queue_redraw()
+	await frames(2)
+	await at.screenshot("cube_survol")
+	cube.hover = ""
+	ed.views.cube_action(low.view, "f:droite")
+	await frames(3)
+	await at.screenshot("cube_transition")
+	await seconds(0.3)
+	at.check(low.plane() == "droite", "face Droite : vue Droite")
+	ed.views.cube_action(low.view, "c:avant+droite+dessus")
+	await seconds(1.0)
+	await at.screenshot("cube_coin_3d")
+	ed.preview.set_shown(false)
+	ed.views.cube_action(low.view, "home")
+	await seconds(0.3)
 	# Étages : l'étage courant seulement.
 	av.header_menu_pressed("floors", 10 + MapElevation.Floors.ONLY)
 	await frames(2)

@@ -190,15 +190,195 @@ func pane_of(v: MapView) -> MapViewPane:
 	return null
 
 
-## Change le plan d'une fenêtre (ViewCube, menu).
-func set_pane_plane(pn: MapViewPane, pl: String) -> void:
+## Change le plan d'une fenêtre (ViewCube, menu) ; `animate` : transition
+## de 180 ms (fondu croisé et glissement le long de l'axe qui change, § 4).
+func set_pane_plane(pn: MapViewPane, pl: String, animate := false) -> void:
 	if pn == null or pl == pn.plane():
 		return
+	var old := pn.plane()
+	if animate:
+		_transition(pn, old, pl)
 	if pn.view == ed.canvas and pl != "dessus":
 		_park_canvas()
 	_assign(pn, pl)
 	_sort()
 	views_changed()
+	if pn.view is MapElevation and old != pl:
+		_frame_like_top.call_deferred(pn.view)
+
+
+## Transition (§ 4) : l'image d'avant se fond et glisse le long de l'axe qui
+## change (l'axe commun aux deux plans reste fixe) ; 180 ms.
+const TRANSITION := 0.18
+
+
+func _transition(pn: MapViewPane, from: String, to: String) -> void:
+	if DisplayServer.get_name() == "headless" or pn.view == null or not pn.is_visible_in_tree():
+		return
+	var tex := get_viewport().get_texture()
+	if tex == null:
+		return
+	var img := tex.get_image()
+	if img == null or img.is_empty():
+		return
+	var vr := Rect2i(pn.view.get_global_rect()).intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+	if vr.size.x <= 0 or vr.size.y <= 0:
+		return
+	var tr := TextureRect.new()
+	tr.name = "Transition"
+	tr.texture = ImageTexture.create_from_image(img.get_region(vr))
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.position = Vector2(0, pn.header_h())
+	tr.size = Vector2(vr.size)
+	pn.add_child(tr)
+	# Axe commun : l'axe horizontal (Dessus <-> Avant : X) reste ; sinon l'autre.
+	var same_h := String(MapView.h_axis(from)[0]) == String(MapView.h_axis(to)[0])
+	var slide := Vector2(0, -EditorUi.px(28)) if same_h else Vector2(-EditorUi.px(28), 0)
+	var tw := tr.create_tween().set_parallel(true)
+	tw.tween_property(tr, "modulate:a", 0.0, TRANSITION)
+	tw.tween_property(tr, "position", tr.position + slide, TRANSITION)
+	tw.chain().tween_callback(tr.queue_free)
+
+
+## Fenêtre sous la souris (null : aucune).
+func hovered_pane() -> MapViewPane:
+	if not is_visible_in_tree():
+		return null
+	var p := get_local_mouse_position()
+	for pn in panes:
+		if pn.visible and Rect2(pn.position, pn.size).has_point(p):
+			return pn
+	return null
+
+
+## Pavé numérique (§ 4) quand la souris est sur une vue : 7 Dessus, 1 Avant,
+## 3 Droite ; Ctrl : la vue opposée ; 5 : la 3D. Rend false sinon (les
+## chiffres du pavé choisissent alors une case de la barre rapide).
+func numpad(k: InputEventKey, pn: MapViewPane) -> bool:
+	if pn == null or pn.view == null:
+		return false
+	var pl := ""
+	match k.keycode:
+		KEY_KP_7:
+			pl = "dessous" if k.ctrl_pressed else "dessus"
+		KEY_KP_1:
+			pl = "arriere" if k.ctrl_pressed else "avant"
+		KEY_KP_3:
+			pl = "gauche" if k.ctrl_pressed else "droite"
+		KEY_KP_5:
+			# La 3D vue d'un coin du plan montré (avant-droite-dessus pour Dessus).
+			var face := pn.plane() if pn.plane() in MapView.PLANES else "dessus"
+			var corner := MapViewCube.net_corner(face, 1)
+			cube_action(pn.view, corner)
+			return true
+		_:
+			return false
+	set_pane_plane(pn, pl, true)
+	return true
+
+
+## Centre de la carte (repère de la carte : pièces de tous les étages).
+func map_center() -> Vector3:
+	var bb := Rect2()
+	var first := true
+	for p in ed.doc.pieces:
+		var r := MapGeom.bbox(ed.doc.room_poly(p))
+		bb = r if first else bb.merge(r)
+		first = false
+	if first:
+		bb = Rect2(0, 0, 20, 20)
+	var top := ed.doc.floor_sol(ed.doc.floor_count() - 1) + ed.doc.floor_height(ed.doc.floor_count() - 1)
+	return Vector3(bb.get_center().x, bb.get_center().y, top * 0.5)
+
+
+## Point de la carte au milieu d'une vue (profondeur : le milieu de la carte).
+func view_target(v: MapView) -> Vector3:
+	var c := map_center()
+	if v == null or v.plane == "3d":
+		return c
+	var p := MapView.point_of(v.plane, v.to_m(v.size * 0.5), MapView.depth_of(v.plane, c))
+	if v.plane == "dessus":
+		p.z = ed.doc.floor_sol(ed.floor_k)
+	return p
+
+
+## Clic sur le ViewCube d'une vue (§ 4) : face (bascule du plan), arête ou
+## coin (la 3D vue de cette direction), maison, menu, façade suivante.
+func cube_action(v: MapView, id: String) -> void:
+	var pn := pane_of(v)
+	if id.begins_with("f:"):
+		if pn != null:
+			set_pane_plane(pn, id.substr(2), true)
+		return
+	if id.begins_with("e:") or id.begins_with("c:"):
+		show_3d_from(MapViewCube.target_dir(id), view_target(v))
+		return
+	match id:
+		"home":
+			if pn != null:
+				set_pane_plane(pn, pn.home_plane, true)
+				if pn.view is MapElevation:
+					_frame_like_top.call_deferred(pn.view)
+				elif pn.view == ed.canvas:
+					ed.canvas.frame_all()
+		"prev", "next":
+			if pn != null:
+				set_pane_plane(pn, MapViewCube.next_facade(pn.plane(), 1 if id == "next" else -1), true)
+		"menu":
+			if pn != null:
+				_cube_menu(pn)
+
+
+## La 3D vue de la direction `dir` (repère de la carte, vers la caméra),
+## visant `target` : l'aperçu 3D (panneau flottant).
+func show_3d_from(dir: Vector3, target: Vector3) -> void:
+	var pv := ed.preview
+	if pv == null:
+		return
+	if not pv.shown:
+		pv.set_shown(true)
+	var off := MapGeom.WORLD_OFFSET
+	pv.world.rig.look_from(Vector3(dir.x, dir.z, dir.y), Vector3(target.x + off, target.z, target.y + off))
+	pv._request_render()
+
+
+var _menu: PopupMenu
+
+
+## Menu ▾ du ViewCube : plan au choix, « Définir comme vue d'origine »,
+## « Recadrer (Origine) ».
+func _cube_menu(pn: MapViewPane) -> void:
+	if _menu == null:
+		_menu = PopupMenu.new()
+		_menu.name = "CubeMenu"
+		add_child(_menu)
+		_menu.id_pressed.connect(_on_cube_menu)
+	_menu.clear()
+	for i in MapView.PLANES.size():
+		var pl: String = MapView.PLANES[i]
+		_menu.add_radio_check_item(MapView.plane_name(pl), i)
+		_menu.set_item_checked(i, pn.plane() == pl)
+	_menu.add_separator()
+	_menu.add_item(Lang.t("Définir comme vue d'origine", "Set as home view"), 20)
+	_menu.add_item(Lang.t("Recadrer (Origine)", "Frame (Home)"), 21)
+	_menu.set_meta("pane", pn)
+	_menu.reset_size()
+	var c := pn.view.cube
+	_menu.position = Vector2i(c.get_screen_position() + Vector2(c.size.x - _menu.size.x, c.size.y))
+	_menu.popup()
+
+
+func _on_cube_menu(i: int) -> void:
+	var pn: MapViewPane = _menu.get_meta("pane")
+	if not is_instance_valid(pn):
+		return
+	if i < MapView.PLANES.size():
+		set_pane_plane(pn, MapView.PLANES[i], true)
+	elif i == 20:
+		pn.home_plane = pn.plane()
+		ed.set_status(Lang.t("Vue d'origine de cette fenêtre : %s", "This window's home view: %s") % MapView.plane_name(pn.home_plane))
+	elif i == 21:
+		pn.view.frame_all()
 
 
 func pane_count() -> int:
