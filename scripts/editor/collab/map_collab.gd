@@ -574,9 +574,26 @@ func _host_change(c: Conn, m: Dictionary) -> void:
 		var chk := MapOps.check_elements(doc, ops)
 		if not chk.invalid.is_empty():
 			push_warning("[MapCollab] éléments refusés de %s : %s" % [c.id, str(chk.invalid)])
-		ops = chk.ops
+		ops = host_only_guard(doc, chk.ops)
 	change["ops"] = ops
 	_commit(change, false)
+
+
+## Ouvrir ou enregistrer la carte est l'affaire de l'hôte : un invité n'envoie
+## que des changements d'éléments (« change ») ; tout autre message (carte
+## entière « map », « saved »...) le déconnecte (_host_handle). Dans un
+## « carte » venu d'un invité, l'identifiant de la carte (nom de son dossier
+## à l'enregistrement) reste celui de l'hôte.
+static func host_only_guard(host_doc: Variant, ops: Array) -> Array:
+	var cur: Dictionary = MapOps._carte(host_doc)
+	for op in ops:
+		if String(op.get("op", "")) == "carte" and op.get("carte") is Dictionary:
+			var cd: Dictionary = op.carte
+			if cur.has("id"):
+				cd["id"] = cur.id
+			else:
+				cd.erase("id")
+	return ops
 
 
 func _broadcast(msg: Dictionary, except: Conn = null) -> void:

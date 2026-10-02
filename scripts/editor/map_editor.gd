@@ -219,7 +219,7 @@ func _build_ui() -> void:
 	fm.add_item(Lang.t("Nouvelle carte", "New map") + "   Ctrl+N", 0)
 	fm.add_item(Lang.t("Ouvrir…", "Open…") + "   Ctrl+O", 1)
 	fm.add_item(Lang.t("Enregistrer", "Save") + "   Ctrl+S", 2)
-	fm.add_item(Lang.t("Enregistrer sous…", "Save as…"), 3)
+	fm.add_item(Lang.t("Enregistrer sous…", "Save as…") + "   Ctrl+Maj+S", 3)
 	fm.add_separator()
 	fm.add_item(Lang.t("Exporter l'archive .zip…", "Export .zip archive…"), 4)
 	fm.add_item(Lang.t("Importer une archive .zip…", "Import .zip archive…"), 5)
@@ -234,6 +234,7 @@ func _build_ui() -> void:
 	fm.add_item(Lang.t("Retour au menu principal", "Back to main menu"), 7)
 	fm.id_pressed.connect(_on_file_menu)
 	fm.about_to_popup.connect(_fill_recent)
+	fm.about_to_popup.connect(update_file_menu)
 	edit_menu = MenuButton.new()
 	edit_menu.text = Lang.t("Édition", "Edit")
 	edit_menu.flat = false
@@ -656,13 +657,15 @@ func _info(title_text: String, text: String) -> void:
 	_dialog.popup_centered()
 
 
-func _confirm(title_text: String, text: String, on_ok: Callable, on_cancel := Callable()) -> ConfirmationDialog:
+func _confirm(title_text: String, text: String, on_ok: Callable, on_cancel := Callable(), parent: Node = null) -> ConfirmationDialog:
 	var d := ConfirmationDialog.new()
 	d.title = title_text
 	d.dialog_text = text
 	d.ok_button_text = Lang.t("Oui", "Yes")
 	d.cancel_button_text = Lang.t("Non", "No")
-	add_child(d)
+	# Par-dessus une autre fenêtre : sa fille (une seule fenêtre exclusive par parent).
+	var under: Node = parent if parent != null else self
+	under.add_child(d)
 	d.confirmed.connect(func():
 		d.queue_free()
 		on_ok.call())
@@ -699,7 +702,10 @@ func _input(event: InputEvent) -> void:
 	if k.ctrl_pressed:
 		match k.keycode:
 			KEY_S:
-				save()
+				if k.shift_pressed:
+					save_as_dialog()
+				else:
+					save()
 			KEY_Z:
 				if k.shift_pressed:
 					redo()
@@ -1805,6 +1811,8 @@ func _on_playtest_message(m: Dictionary) -> void:
 
 
 func new_map(force := false) -> void:
+	if refuse_guest():
+		return
 	if dirty and not force:
 		_confirm(Lang.t("Nouvelle carte", "New map"), Lang.t("Les modifications non enregistrées seront perdues. Continuer ?", "Unsaved changes will be lost. Continue?"), func(): new_map(true))
 		return
@@ -1815,6 +1823,8 @@ func new_map(force := false) -> void:
 
 
 func open_dir(dir: String, is_example := false) -> void:
+	if refuse_guest():
+		return
 	var d := EditorMap.load_dir(dir)
 	if not d.load_errors.is_empty():
 		_info(Lang.t("Ouverture", "Open"), "\n".join(d.load_errors.map(func(e): return Lang.t(e[0], e[1]))))
@@ -1832,9 +1842,9 @@ func open_example(ex_id: String) -> void:
 
 ## Enregistre (dans son dossier, sinon dans user://maps/<id>/).
 func save() -> bool:
-	# Invité d'une session : seul l'hôte enregistre le dossier de la carte.
-	if collab != null and collab.role == MapCollab.Role.GUEST:
-		return save_copy()
+	# Invité d'une session : seul l'hôte enregistre la carte.
+	if refuse_guest():
+		return false
 	if map_dir == "" or example:
 		var mid := doc.id()
 		if example or mid == "nouvelle_carte" or mid == "":
@@ -1853,20 +1863,38 @@ func save() -> bool:
 	return true
 
 
-## Invité : copie de la carte de la session dans un nouveau dossier à lui
-## (la session continue, le dossier de l'hôte n'est pas touché).
-func save_copy() -> bool:
-	var mid := _free_id(EditorMap.slug(doc.id() + "_copie"))
-	var dir := EditorMap.map_dir(mid)
-	var copy := doc.duplicate_map()
-	copy.carte["id"] = mid
-	var err := copy.save_dir(dir)
-	if err != OK:
-		set_status(Lang.t("Échec de l'enregistrement (%s)", "Save failed (%s)") % error_string(err), true)
+## Fichier > éléments réservés à l'hôte quand on a rejoint une session
+## (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, Exporter, Importer,
+## Cartes récentes) : ouvrir ou enregistrer la carte est l'affaire de l'hôte.
+const HOST_ONLY_FILE_IDS := [0, 1, 2, 3, 4, 5, 6]
+
+
+## Invité d'une session (rejointe, ou en train de la rejoindre).
+func is_guest() -> bool:
+	return collab != null and collab.role == MapCollab.Role.GUEST
+
+
+## Invité : refuse l'action (message dans la barre d'état) et rend true.
+func refuse_guest() -> bool:
+	if not is_guest():
 		return false
-	_add_recent(dir)
-	set_status(Lang.t("Copie enregistrée dans %s (seul l'hôte enregistre la carte de la session)", "Copy saved to %s (only the host saves the session map)") % dir)
+	set_status(Lang.t("Réservé à l'hôte de la session : seul l'hôte ouvre et enregistre la carte", "Host only: only the session host opens and saves the map"), true)
 	return true
+
+
+## Fichier : éléments réservés à l'hôte grisés (avec une bulle) chez l'invité,
+## actifs sinon (appelé à l'ouverture du menu et à chaque changement de session).
+func update_file_menu() -> void:
+	if file_menu == null:
+		return
+	var fm := file_menu.get_popup()
+	var guest := is_guest()
+	for id in HOST_ONLY_FILE_IDS:
+		var i := fm.get_item_index(id)
+		if i < 0:
+			continue
+		fm.set_item_disabled(i, guest)
+		fm.set_item_tooltip(i, Lang.t("Réservé à l'hôte de la session", "Host only") if guest else "")
 
 
 func _free_id(base: String) -> String:
@@ -1879,6 +1907,8 @@ func _free_id(base: String) -> String:
 
 
 func save_as(map_id: String) -> bool:
+	if refuse_guest():
+		return false
 	var mid := EditorMap.slug(map_id)
 	doc.carte["id"] = mid
 	map_dir = EditorMap.map_dir(mid)
@@ -1887,6 +1917,8 @@ func save_as(map_id: String) -> bool:
 
 
 func save_as_dialog() -> void:
+	if refuse_guest():
+		return
 	var d := ConfirmationDialog.new()
 	d.title = Lang.t("Enregistrer sous", "Save as")
 	var box := VBoxContainer.new()
@@ -1909,28 +1941,70 @@ func save_as_dialog() -> void:
 	e.grab_focus.call_deferred()
 
 
-func open_dialog() -> void:
+## Fenêtre Ouvrir (exemples livrés + cartes du joueur) ; « Supprimer » (ou
+## la touche Suppr) efface une carte du joueur après confirmation, jamais un
+## exemple. Rend la fenêtre (tests).
+func open_dialog() -> ConfirmationDialog:
+	if refuse_guest():
+		return null
 	var d := ConfirmationDialog.new()
+	d.name = "OpenDialog"
 	d.title = Lang.t("Ouvrir une carte", "Open a map")
 	var box := VBoxContainer.new()
 	d.add_child(box)
 	var list := ItemList.new()
+	list.name = "Maps"
 	list.custom_minimum_size = Vector2(460, 300)
 	box.add_child(list)
 	var entries := []
-	for ex in EditorMap.EXAMPLES:
-		entries.append([EditorMap.EXAMPLES[ex], true])
-		list.add_item(Lang.t("Exemple : %s", "Example: %s") % ex.to_upper())
-	for m in EditorMap.list_maps():
-		entries.append([m.dir, false])
-		list.add_item("%s   (%s)" % [m.name, m.id])
 	var hint := Label.new()
 	hint.text = Lang.t("Dossier des cartes : %s", "Maps folder: %s") % ProjectSettings.globalize_path(EditorMap.maps_root())
 	hint.add_theme_color_override("font_color", UiStyle.DIM)
 	box.add_child(hint)
 	d.ok_button_text = Lang.t("Ouvrir", "Open")
 	d.cancel_button_text = Lang.t("Annuler", "Cancel")
+	var del := d.add_button(Lang.t("Supprimer", "Delete"), false, "delete")
+	d.set_meta("list", list)
+	d.set_meta("delete", del)
 	add_child(d)
+	# Entrées : [dossier, exemple ?, nom affiché].
+	var fill := func():
+		list.clear()
+		entries.clear()
+		for ex in EditorMap.EXAMPLES:
+			entries.append([EditorMap.EXAMPLES[ex], true, ex.to_upper()])
+			list.add_item(Lang.t("Exemple : %s", "Example: %s") % ex.to_upper())
+		for m in EditorMap.list_maps():
+			entries.append([m.dir, false, String(m.name)])
+			list.add_item("%s   (%s)" % [m.name, m.id])
+	var update_del := func():
+		var sel := list.get_selected_items()
+		var own := not sel.is_empty() and not bool(entries[sel[0]][1])
+		del.disabled = not own
+		del.tooltip_text = "" if own or sel.is_empty() else Lang.t("Les exemples livrés avec le jeu ne peuvent pas être supprimés", "Examples shipped with the game cannot be deleted")
+	var ask_delete := func():
+		var sel := list.get_selected_items()
+		if sel.is_empty() or bool(entries[sel[0]][1]):
+			return
+		var en: Array = entries[sel[0]]
+		var on_ok := func():
+			delete_map(String(en[0]))
+			if is_instance_valid(list):
+				fill.call()
+				update_del.call()
+		_confirm(Lang.t("Supprimer la carte", "Delete the map"),
+			Lang.t("Supprimer définitivement la carte « %s » ?\n(%s)", "Permanently delete the map \"%s\"?\n(%s)") % [String(en[2]), String(en[0]).get_file()],
+			on_ok, Callable(), d)
+	fill.call()
+	update_del.call()
+	list.item_selected.connect(func(_i): update_del.call())
+	list.gui_input.connect(func(ev):
+		if ev is InputEventKey and ev.pressed and not ev.echo and ev.keycode == KEY_DELETE:
+			ask_delete.call()
+			list.accept_event())
+	d.custom_action.connect(func(action):
+		if action == "delete":
+			ask_delete.call())
 	var go := func():
 		var sel := list.get_selected_items()
 		if not sel.is_empty():
@@ -1941,9 +2015,40 @@ func open_dialog() -> void:
 	list.item_activated.connect(func(_i): go.call())
 	d.canceled.connect(d.queue_free)
 	d.popup_centered()
+	return d
+
+
+## Supprime la carte du joueur rangée dans `dir` (EditorMap.delete_map :
+## dossier des cartes seulement, jamais un exemple). Carte ouverte ici : elle
+## reste à l'écran, sans dossier (le prochain Enregistrer lui en redonne un) ;
+## sa sauvegarde automatique est effacée.
+func delete_map(dir: String) -> bool:
+	if refuse_guest():
+		return false
+	var name_shown := dir.get_file()
+	if not EditorMap.delete_map(dir):
+		set_status(Lang.t("Impossible de supprimer la carte « %s »", "Could not delete the map \"%s\"") % name_shown, true)
+		return false
+	var gone := EditorMap._abs(dir).trim_suffix("/")
+	var meta: Variant = _read_meta(_autosave_dir())
+	var auto_src := String(meta.get("source", "")) if meta is Dictionary else ""
+	if map_dir != "" and EditorMap._abs(map_dir).trim_suffix("/") == gone:
+		map_dir = ""
+		example = false
+		dirty = true
+		_drop_autosave()
+		_update_title()
+		set_status(Lang.t("Carte « %s » supprimée : elle reste ouverte, non enregistrée", "Map \"%s\" deleted: it stays open, not saved") % name_shown)
+	else:
+		if auto_src != "" and EditorMap._abs(auto_src).trim_suffix("/") == gone:
+			_drop_autosave()
+		set_status(Lang.t("Carte « %s » supprimée", "Map \"%s\" deleted") % name_shown)
+	return true
 
 
 func _zip_dialog(save_mode: bool) -> void:
+	if refuse_guest():
+		return
 	if _file_dialog != null:
 		_file_dialog.queue_free()
 	_file_dialog = FileDialog.new()
@@ -1966,6 +2071,8 @@ func _zip_dialog(save_mode: bool) -> void:
 
 
 func export_zip(path: String) -> bool:
+	if refuse_guest():
+		return false
 	var err := doc.export_zip(path)
 	if err != OK:
 		set_status(Lang.t("Échec de l'export (%s)", "Export failed (%s)") % error_string(err), true)
@@ -1975,6 +2082,8 @@ func export_zip(path: String) -> bool:
 
 
 func import_zip(path: String) -> bool:
+	if refuse_guest():
+		return false
 	var d := EditorMap.import_zip(path)
 	if not d.load_errors.is_empty() and d.pieces.is_empty():
 		_info(Lang.t("Import", "Import"), "\n".join(d.load_errors.map(func(e): return Lang.t(e[0], e[1]))))

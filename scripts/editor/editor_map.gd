@@ -683,6 +683,75 @@ static func list_maps() -> Array:
 	return out
 
 
+## Chemin absolu normalisé (user://, res:// globalisés ; « \ » en « / »).
+static func _abs(p: String) -> String:
+	return ProjectSettings.globalize_path(p).replace("\\", "/").simplify_path()
+
+
+## Supprime définitivement la carte du joueur rangée dans `dir` (dossier
+## entier). Refusé (false, message dans la console) hors du dossier des cartes
+## (maps_root : enfant direct seulement, jamais « .. »), pour les exemples
+## (EXAMPLES), les dossiers internes (« _autosave »...), les noms non admis
+## (valid_id) et tout lien symbolique dedans (jamais suivi hors du dossier).
+static func delete_map(dir: String) -> bool:
+	var refuse := func(why: String) -> bool:
+		push_warning("[EditorMap] suppression refusée (%s) : %s" % [why, dir])
+		return false
+	if dir.strip_edges() == "" or dir.contains(".."):
+		return refuse.call("chemin")
+	var target := _abs(dir).trim_suffix("/")
+	var root := _abs(maps_root()).trim_suffix("/")
+	for ex in EXAMPLES.values():
+		if target == _abs(String(ex)).trim_suffix("/"):
+			return refuse.call("exemple")
+	var id := target.get_file()
+	if root == "" or target.get_base_dir() != root or not valid_id(id) or id.begins_with("_"):
+		return refuse.call("hors du dossier des cartes")
+	var parent := DirAccess.open(root)
+	if parent == null or not parent.dir_exists(id):
+		return refuse.call("introuvable")
+	if parent.is_link(id) or _has_link(target):
+		return refuse.call("lien symbolique")
+	if not is_map_dir(target):
+		return refuse.call("pas une carte")
+	var err := _remove_tree(target)
+	if err != OK:
+		push_warning("[EditorMap] suppression incomplète (%s) : %s" % [error_string(err), target])
+		return false
+	return true
+
+
+## Un lien symbolique quelque part dans `dir` (sous-dossiers compris) ?
+static func _has_link(dir: String) -> bool:
+	var d := DirAccess.open(dir)
+	if d == null:
+		return true
+	d.include_hidden = true
+	for f in d.get_files():
+		if d.is_link(f):
+			return true
+	for s in d.get_directories():
+		if d.is_link(s) or _has_link(dir.path_join(s)):
+			return true
+	return false
+
+
+static func _remove_tree(dir: String) -> Error:
+	var d := DirAccess.open(dir)
+	if d == null:
+		return DirAccess.get_open_error()
+	d.include_hidden = true
+	for s in d.get_directories():
+		var e := _remove_tree(dir.path_join(s))
+		if e != OK:
+			return e
+	for f in d.get_files():
+		var e := DirAccess.remove_absolute(dir.path_join(f))
+		if e != OK:
+			return e
+	return DirAccess.remove_absolute(dir)
+
+
 ## Identifiant de dossier tiré d'un nom (minuscules, chiffres et _).
 static func slug(s: String) -> String:
 	var t := s.strip_edges().to_lower()
