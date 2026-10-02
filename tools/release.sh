@@ -219,7 +219,9 @@ echo "== build local : $((N_FILES + 1)) fichier(s) à publier, $TOTAL Mo ($FILES
 echo "   lanceur $LVER_M : $([ $LAUNCHER_NEW -eq 1 ] && echo "publié avec $TAG" || echo "repris de $LREL")"
 [ "$1" = "--local" ] && exit 0
 
-if git status --porcelain | grep -q .; then
+# Chemins laissés hors du commit (COMMIT_EXCLUDE, comme tools/commit.sh) : ignorés ici aussi.
+EXCL_RE=$(set -f; printf '%s\n' $COMMIT_EXCLUDE | sed 's/[.]/\./g; s/[*]/.*/g' | paste -sd'|' -)
+if git status --porcelain | { [ -n "$EXCL_RE" ] && grep -vE "$EXCL_RE" || cat; } | grep -q .; then
   echo "== arbre de travail modifié : committer avant de publier"; exit 1
 fi
 git fetch -q origin
