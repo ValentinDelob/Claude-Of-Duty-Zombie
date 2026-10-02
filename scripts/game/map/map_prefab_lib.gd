@@ -617,18 +617,18 @@ static func _be32(b: PackedByteArray, i: int) -> int:
 ## sons, animations) ; null si illisible (journalisé).
 static func instantiate(glb: PackedByteArray) -> Node3D:
 	if not check_glb(glb).is_empty():
-		push_error("[MapPrefabLib] modèle refusé : " + str(check_glb(glb)[0]))
+		push_warning("[MapPrefabLib] modèle refusé : " + str(check_glb(glb)[0]))
 		return null
 	var doc := GLTFDocument.new()
 	var st := GLTFState.new()
 	if doc.append_from_buffer(glb, "", st) != OK:
-		push_error("[MapPrefabLib] modèle illisible (GLTFDocument)")
+		push_warning("[MapPrefabLib] modèle illisible (GLTFDocument)")
 		return null
 	var scene := doc.generate_scene(st)
 	if not scene is Node3D:
 		if scene != null:
 			scene.free()
-		push_error("[MapPrefabLib] modèle sans scène 3D")
+		push_warning("[MapPrefabLib] modèle sans scène 3D")
 		return null
 	for n in scene.find_children("*", "", true, false):
 		if not is_instance_valid(n):

@@ -258,7 +258,7 @@ func _map_model(pr: Dictionary) -> Node3D:
 		if b64 is String and MapPrefabLib.pid_ok(pid):
 			tpl = MapPrefabLib.instantiate(Marshalls.base64_to_raw(b64))
 		if tpl == null:
-			push_error("[MeshMapBuilder] modèle du prefab « %s » absent ou illisible : boîte à la place" % pid.left(32))
+			push_warning("[MeshMapBuilder] modèle du prefab « %s » absent ou illisible : boîte à la place" % pid.left(32))
 		_map_scenes[pid] = tpl
 	var t: Node3D = _map_scenes[pid]
 	if t != null:
