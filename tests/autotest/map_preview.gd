@@ -107,7 +107,7 @@ func run() -> void:
 	print("[apercu] luminaire ajouté : délai total %.0f ms (construction %.0f ms)" % [w.last_times.total, w.last_times.apply])
 
 	# Clic dans l'aperçu : la pièce est choisie dans l'éditeur.
-	await key(KEY_1)
+	await key(KEY_QUOTELEFT)
 	ed.select("")
 	pv.set_option("ceil", true)
 	w.rig.pivot = Vector3(30.0 + OFF, 0.0, 10.0 + OFF)

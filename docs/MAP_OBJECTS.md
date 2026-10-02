@@ -1,13 +1,15 @@
-# Objets de l'éditeur de cartes : variantes, barrière invisible, escaliers, décor libre, portes à zombies
+# Objets de l'éditeur de cartes : variantes, barrière invisible, escaliers, décor libre, portes à zombies, effets
 
 Complément de `docs/MAP_AUTHORING.md` (éditeur, format des cinq JSON,
-partage réseau) pour les ajouts des **formats 5, 6, 7 et 8** des cartes
-(format 7 : décor posé librement, § 8 ; format 8 : portes à zombies, § 9) :
+partage réseau) pour les ajouts des **formats 5 à 10** des cartes
+(format 7 : décor posé librement, § 8 ; format 8 : portes à zombies, § 9 ;
+format 9 : barrière invisible en polygone, § 2, et chevauchements du décor,
+§ 10 ; format 10 : prefabs de la carte, § 11, et effets, § 12) :
 
 1. les **variantes d'aspect** d'un type d'objet (plusieurs modèles de porte,
    de débris, d'arme murale) ;
-2. la **barrière invisible** (« clip » de BO1) : un pavé qui arrête joueurs et
-   zombies sans se voir en jeu ;
+2. la **barrière invisible** (« clip » de BO1) : un volume tracé en polygone
+   qui arrête joueurs et zombies sans se voir en jeu ;
 3. (format 6) les **types d'escaliers** et leurs **ancres** pour les zombies
    (§ 4).
 
@@ -107,55 +109,94 @@ C'est le même comportement que les décors dont le blocage est « barrière »
 ### Dans l'éditeur
 
 - Inventaire (E), catégorie **Construction** : **Barrière invisible** /
-  Invisible barrier. Tracée comme un pilier : glisser, ou clic puis clic,
-  saisie au clavier (largeur, Tab, hauteur du rectangle, Entrée), poignées
-  des coins, poignée ronde de rotation (15°, Alt : au degré près), R (90°).
-- Règles de pose (`MapRules.check_rect`) : dans une seule pièce, **0,5 m** de
-  côté au moins (1 m pour un pilier), sans chevaucher un autre objet posé au
-  sol.
-- Dessin : rectangle bleu clair translucide, **hachuré** à 45° (les hachures
-  tournent avec lui), contour en tirets, icône au milieu.
-- Propriétés : **Hauteur** (0 = du sol au plafond de l'étage ; sinon 0,5 à
-  30 m), Angle, Pivoter, Supprimer, et le rappel de ce qu'elle bloque.
-- Vérification : ses cases (0,5 m) sont **pleines** pour le validateur
-  (passages, accessibilité, trajets à pied) comme un décor qui bloque ; une
-  barrière qui coupe une zone en deux est donc signalée comme un mur.
-- **Aperçu 3D** : un pavé bleu translucide à sa place ; menu **Affichage ▾ >
-  Montrer les barrières invisibles** (coché par défaut, mémorisé avec les
-  autres réglages de l'aperçu, clé `clips`).
+  Invisible barrier (outil `poly`, format 9). Tracée comme une pièce
+  polygone : un **clic par sommet** (côtés à 0, 45 ou 90° sur la grille ;
+  Alt : angle libre ; G : grille fine ou libre ; saisie au clavier de la
+  longueur et de l'angle du côté), fermée par un **double-clic**, un clic sur
+  le **premier point** ou **Entrée** ; Retour arrière retire le dernier
+  point, Échap ou clic droit annule. Un L, une croix, un contour qui épouse un
+  meuble tourné : une seule barrière.
+- Règles de pose (`MapRules.check_clip`) : **n'importe où** — dans une pièce,
+  à cheval sur un mur, dehors, par-dessus n'importe quel objet (et un objet
+  peut se poser par-dessus elle : elle n'entre jamais dans les
+  chevauchements, `MapRules.NO_OVERLAP_CHECK`). Seuls refus : moins de 3 ou
+  plus de 64 sommets, un côté de moins de 5 cm, des côtés qui se croisent,
+  moins de 0,04 m², hors du terrain (x, y < 0 ou au-delà de
+  `MapCatalog.MAX_COORD`).
+- Édition (outil Sélection) : une **poignée carrée par sommet** (glisser :
+  le sommet suit, refusé si le contour se croise), glisser la barrière la
+  déplace, poignée ronde de rotation (15°, Alt : au degré près), R (90°),
+  Ctrl+C / Ctrl+V, Suppr, Ctrl+Z. Elle bouge et tourne avec la pièce qui
+  contient son centre, comme les autres objets.
+- Dessin : polygone bleu clair translucide, **hachuré** à 45° (hachures
+  coupées au contour, même concave), contour en tirets, sommets marqués,
+  icône au milieu, hauteur écrite dessous quand elle n'est pas « jusqu'au
+  plafond ».
+- Propriétés : case **Jusqu'au plafond (hauteur de l'étage)** (cochée par
+  défaut : pas de clé `hauteur`) ; décochée, champ **Hauteur** de 0,5 à 30 m
+  au **dixième de mètre** (`MapCatalog.CLIP_HEIGHT_STEP`) ; la hauteur en jeu
+  est rappelée dessous, avec le nombre de sommets et la surface ; Pivoter,
+  Supprimer, et le rappel de ce qu'elle bloque.
+- Vérification : ses cases (0,5 m) dont le centre est dans le polygone
+  (`MapRaster.clip_cells`, un bord droit sur la grille compte comme [x0,
+  x1[ : 0,5 m posé sur la grille = une rangée de cases) sont **pleines**
+  pour le validateur (passages, accessibilité, trajets à pied) comme un
+  décor qui bloque ; une barrière qui coupe une zone en deux est donc
+  signalée comme un mur. Posées après tout le reste, elles ne changent
+  jamais une case de mur, d'escalier ou d'objet de jeu qu'elles recouvrent.
+- **Aperçu 3D** : le prisme bleu translucide du polygone, à sa hauteur ; menu
+  **Affichage ▾ > Montrer les barrières invisibles** (coché par défaut,
+  mémorisé avec les autres réglages de l'aperçu, clé `clips`).
 
 ### En jeu
 
 Une `CollisionBox` (objet Godot du projet, `scripts/game/map/collision_box.gd`,
 **jamais** une collision de modèle Blender) avec `barrier = true` : couche
 `Barricade.BARRIER_LAYER`, **aucun maillage**. Elle passe par la clé
-`blockers` de la description en maillage, comme les collisions du décor :
+`blockers` de la description en maillage, comme les collisions du décor.
+Format 9 : `poly` donne les sommets en x, z autour de `center` ; la
+`CollisionBox` en fait un **prisme** de hauteur `size[1]`, découpé en
+morceaux convexes (`Geometry2D.decompose_polygon_in_convex`), une
+`ConvexPolygonShape3D` par morceau (un L = deux formes). `size` x et z : son
+rectangle englobant ; `center` : le centre de ce rectangle, à mi-hauteur.
 
 ```json
-{"center":[20.75,1.6,9.75],"size":[1,3.2,5],"yaw":0,"barrier":true,"surface":"concrete","clip":true,"eid":"i1"}
+{"center":[20.75,1.6,9.75],"size":[1,3.2,5],"yaw":0,"poly":[[-0.5,-2.5],[0.5,-2.5],[0.5,2.5],[-0.5,2.5]],"barrier":true,"surface":"concrete","clip":true,"eid":"i1"}
 ```
 
-`clip` et `eid` servent seulement à l'aperçu 3D (`MapPreviewBuilder` y pose le
-pavé translucide) ; `CollisionBox.from_dict` les ignore et `MeshMapBuilder`
-ne construit rien de visible.
+Hauteur : `hauteur` de l'objet (m depuis le sol de l'étage) ; absente, du
+sol jusqu'au plafond de l'étage (au moins 2 m). Le navmesh est cuit sur ces
+formes : les zombies contournent le polygone exact. `clip` et `eid` servent
+seulement à l'aperçu 3D (`MapPreviewBuilder` y pose le prisme translucide,
+`prism_mesh`) ; `CollisionBox.from_dict` les ignore et `MeshMapBuilder` ne
+construit rien de visible. Sans `poly` (collisions du décor, tabliers
+d'escalier), la `CollisionBox` reste le pavé `size` d'avant.
 
 ### Format
 
 Type `bloc_invisible` de `objets.json` (identifiants `i1`, `i2`…) :
 
+Format 9 (écrit par l'éditeur) :
+
 ```json
-{"id":"i1","type":"bloc_invisible","etage":0,"rect":[16,3,17,8]}
-{"id":"i2","type":"bloc_invisible","etage":0,"rect":[5,5,5.5,8],"rot":30,"hauteur":1.2}
+{"id":"i1","type":"bloc_invisible","etage":0,"sommets":[[16,3],[17,3],[17,8],[16,8]]}
+{"id":"i2","type":"bloc_invisible","etage":0,"sommets":[[2,2],[6,2],[6,3],[3,3],[3,6],[2,6]],"hauteur":1.2}
 ```
 
-- `rect` = [x0, y0, x1, y1] (m) : le **vrai** pavé (pas un contour sur le
-  trait comme un pilier) ; `rot` (facultatif) : rotation autour du centre,
-  entier de 0 à 359, sens horaire vu de dessus ; `hauteur` (facultative,
-  m, 0,5 à 30) : absente, du sol au plafond de l'étage.
-- Cases pour le validateur (`MapRaster.clip_cells`) : celles dont le centre
-  est dans le rectangle pris demi-ouvert dans son repère ([x0, x1[ × [y0,
-  y1[) : une barrière de 0,5 m posée sur la grille prend une rangée de cases,
-  pas deux.
+- `sommets` = [[x, y], ...] (m, 3 à 64 points, `MapCatalog.CLIP_POINTS`) :
+  le **vrai** contour (pas un contour sur le trait comme un pilier), dans
+  l'ordre du tracé ; `hauteur` (facultative, m, 0,5 à 30, au centimètre) :
+  absente, du sol au plafond de l'étage.
+- **Cartes d'avant** (formats 5 à 8) : `rect` = [x0, y0, x1, y1] et `rot`
+  (entier de 0 à 359, sens horaire vu de dessus). À la lecture
+  (`EditorMap.normalize_clip`, appelé par `_normalize` pour toute carte,
+  même écrite à la main), le rectangle devient le polygone de ses 4 coins
+  (rotation comprise, au millimètre) et `rect` / `rot` disparaissent : même
+  place, même collision, mêmes cases ; la carte s'enregistre ensuite au
+  format 9. Le jeu, le validateur et l'éditeur savent aussi lire une barrière
+  `rect` qui n'est pas passée par la lecture (`MapRaster.clip_poly`).
+- `hauteur` illisible ou sous 0,5 m : retirée (jusqu'au plafond) ; au-dessus
+  de 30 m : bornée.
 
 ## 3. Contrôle des cartes reçues (réseau, archives)
 
@@ -169,9 +210,14 @@ Une seule source, le catalogue (`MapCatalog.allowed_kinds()`), lue par
   type (`"planche"` sur une porte, `"bois"` sur une fenêtre), qui n'est pas un
   texte, un chemin (`"res://…"`), une clé `variante` sur tout autre type ; une
   fenêtre garde `largeur` à 1 (la largeur d'une porte suit son type).
-- `bloc_invisible` : clés `id`, `type`, `etage`, `rect` (obligatoire,
-  coordonnées bornées), `rot` (entier 0 à 359), `hauteur` (nombre fini de
-  0,5 à 30) ; toute autre clé est refusée. Puis le validateur de jouabilité.
+- `bloc_invisible` : clés `id`, `type`, `etage`, `sommets` (format 9 :
+  `{"t": "points", "min": 3, "max": 64}`, chaque point [x, y] borné au
+  terrain) **ou** `rect` (cartes d'avant, coordonnées bornées) — l'un des
+  deux est obligatoire (`CustomMapGuard._check_object`) —, `rot` (entier 0
+  à 359), `hauteur` (nombre fini de 0,5 à 30) ; toute autre clé est refusée.
+  Puis le validateur de jouabilité.
+- `carte.json` : `chevauchement_decor` (format 9, § 10), vrai / faux
+  seulement.
 - Une variante n'est jamais un nom de fichier ni un chemin : le jeu choisit
   son modèle dans une liste fixe écrite dans le code.
 
@@ -332,18 +378,22 @@ n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
 
 ## 5. Versions du format
 
-`EditorMap.FORMAT` = **8**. Toutes les nouvelles clés sont facultatives : une
-carte au format 1 à 7 se lit telle quelle (`EditorMap._migrate`, rien à
-convertir ; un escalier sans `variante` est droit, une applique sans
-`hauteur` est à 2 m, une fenêtre sans `variante` est la fenêtre d'avant) et
-s'enregistre au format 8 ; DRAFT ARENA (format 1) reste identique octet pour
+`EditorMap.FORMAT` = **10**. Toutes les nouvelles clés sont facultatives : une
+carte au format 1 à 9 se lit telle quelle (`EditorMap._migrate` ; un
+escalier sans `variante` est droit, une applique sans `hauteur` est à 2 m,
+une fenêtre sans `variante` est la fenêtre d'avant ; seule conversion : la
+barrière invisible rectangle devient un polygone de 4 sommets, § 2) et
+s'enregistre au format 10 ; DRAFT ARENA (format 1) reste identique octet pour
 octet dans sa description en maillage. Un jeu plus ancien signale une carte
-au format 8 comme « plus récente » (et son contrôle refuserait les clés
+au format 10 comme « plus récente » (et son contrôle refuserait les clés
 qu'il ne connaît pas).
 
 - Format 6 : types d'escaliers (§ 4).
 - Format 7 : décor posé librement, hauteur d'une applique (§ 8).
 - Format 8 : portes à zombies simple et double (§ 9).
+- Format 9 : barrière invisible en polygone (§ 2), réglage
+  `chevauchement_decor` (§ 10).
+- Format 10 : effets (type `effet`, § 12).
 
 ## 6. Ajouter une variante ou un type à variantes
 
@@ -377,6 +427,22 @@ qu'il ne connaît pas).
 - éditeur : touche V sur l'objet choisi (boucle, retour à la clé absente,
   Ctrl+Z) et sur l'objet tenu (aperçu de pose), barrière de 0,5 m tracée.
 
+`tests/test_map_clip_polygon.gd` (unitaire, format 9) : barrière acceptée
+partout (en L, dehors, à cheval sur un mur, sur la boîte et l'atout, 0,2 m
+d'épaisseur) et contours refusés (2 sommets, côtés croisés, x négatif,
+minuscule, côté de 1 cm, plat, 65 sommets) ; objets sous elle toujours
+valides ; rectangle d'avant relu en polygone (coins, surface, mêmes cases,
+même collision), relu à l'identique, accepté par le contrôle ; polygones
+piégés refusés (6 cas) ; en jeu, L concave = plusieurs formes convexes sur
+la couche BARRIER, rayons arrêtés sur les bras et libres dans le creux, au-
+dessus de la hauteur réglée et pour les balles ; prisme de l'aperçu à la
+bonne hauteur ; dans l'éditeur, tracé clic par clic (fermé sur le premier
+point ou par Entrée), poignées de sommets, contour croisé refusé,
+déplacement, R, Ctrl+Z, suppression, « Jusqu'au plafond » et Hauteur au pas
+de 0,1 m appliquée en jeu ; réglage `chevauchement_decor` (§ 10). Scénario
+`map_objects_play` : barrière tracée à la souris en polygone, enregistrée,
+rouverte, joueur arrêté et zombie qui la contourne en partie.
+
 ## 8. Décor posé librement (format 7)
 
 ### Ce qui change
@@ -392,8 +458,9 @@ veut** :
 | applique aimantée par cases le long du mur, refusée au-dessus d'une porte ou d'une fenêtre et près des angles, toujours à 2 m | partout le long du mur (jusqu'à la face du mur voisin dans un angle, au-dessus d'une porte ou d'une fenêtre), au centimètre sans grille, au quart de mètre avec ; **hauteur** au choix (propriétés, champ **Hauteur**) |
 
 Toujours refusés : un décor hors de toute pièce, posé sur un objet de jeu
-ou sur un autre décor (sauf la lampe posée sur un meuble porteur), une
-applique loin de tout mur. Rotation : comme avant (R : 90° ; poignée ronde,
+ou sur un autre décor (sauf la lampe posée sur un meuble porteur, et sauf
+si la carte autorise les chevauchements, § 10), une applique loin de tout
+mur. Rotation : comme avant (R : 90° ; poignée ronde,
 15°, Alt : au degré près) pour les prefabs et luminaires ; la caisse et le
 baril n'ont pas de rotation. Aimantation : touche **G** (grille 1 m, grille
 fine, libre au centimètre) ; **Maj** maintenu inverse le mode le temps d'un
@@ -620,3 +687,299 @@ le long d'un mur de 0,5 m »), la cour et les deux côtés.
 - Captures (hors check, `## @niveau perf`) : `zombie_door_look` (fenêtre,
   porte simple, double : de face, de biais, de près, à moitié arrachée,
   ouverte, depuis la cour).
+
+## 10. Chevauchements du décor et des obstacles (format 9)
+
+### Le réglage
+
+Onglet Propriétés, rien de choisi (réglages de la carte) : case
+**Autoriser les chevauchements décor / obstacles** / Allow decor / obstacle
+overlaps. Clé `"chevauchement_decor": true` de `carte.json`
+(`MapCatalog.OVERLAP_KEY`) ; décochée, la clé disparaît (une carte d'avant
+garde ses octets et ses règles de pose). Valeur illisible ou `false` écrite à
+la main : retirée à la lecture (`EditorMap._normalize`) ; contrôle des cartes
+reçues : vrai / faux seulement.
+
+### Ce qui peut se chevaucher
+
+Coché, les objets de `MapCatalog.OVERLAP_TYPES` peuvent se recouvrir
+**entre eux** :
+
+| Peut chevaucher un autre objet de cette liste | Types |
+|---|---|
+| Décor (format 7) | `caisse`, `baril`, `prefab` (catégorie « Décor et obstacles »), `lampe`, `luminaire` (au plafond, au mur ou au sol, chacun dans sa couche : plafond, applique, sol) |
+| Obstacles | `pilier` (« Pilier / obstacle ») |
+
+Les **objets de jeu** gardent toutes leurs règles, dans les deux sens : un
+décor ne se pose jamais sur eux et ils ne se posent jamais sur un décor
+(`MapRules._blocking_overlaps`) : portes, débris, portes du courant,
+passages, fenêtres et portes à zombies, armes murales, grenades, atouts,
+boîte mystère, Pack-a-Punch, interrupteur du courant, poste central,
+leviers, pièges électriques, départs des joueurs, apparitions, téléporteurs
+et arrivées, escaliers. Ainsi la carte reste jouable (un atout ou une arme
+toujours accessibles, des escaliers et des pièges dégagés). Les murs libres
+gardent leurs règles. La **barrière invisible** (§ 2) se pose toujours
+n'importe où, avec ou sans ce réglage.
+
+### Où c'est appliqué
+
+- Pose et déplacement : `MapRules.place_floor_item` (caisses, barils,
+  décor, luminaires au sol et au plafond), `place_wall_decor` (appliques),
+  `check_rect` (piliers) ; la lampe posée sur un meuble porteur garde sa clé
+  `sur` (hauteur du dessus du meuble).
+- Éléments déjà posés (`MapRules.check_existing`, dessin en rouge,
+  rotation) : mêmes fonctions, donc rien de rouge pour un chevauchement
+  permis ; décocher le réglage remet en rouge les objets qui se recouvrent.
+- Vérification (`MapRaster`, `MapValidator`) : le décor et les piliers ne
+  rendent pleines que des cases ; deux décors qui se recouvrent ne sont
+  jamais une erreur. Un objet de jeu posé sur une case pleine reste une
+  erreur (« doit être posé sur le sol d'une pièce »).
+- En jeu : chaque objet garde ses collisions (`CollisionBox` du catalogue) ;
+  des collisions qui se recouvrent ne gênent pas la physique.
+
+### Preuves automatiques
+
+`tests/test_map_clip_polygon.gd` : caisse sur caisse, bureau sur caisse,
+pilier sur caisse refusés par défaut et acceptés avec le réglage ; caisse
+sur le départ, départ sur une caisse, escalier sur une caisse toujours
+refusés ; objets posés valides, carte valide et jouable ; réglage retiré :
+chevauchement de nouveau signalé ; clé écrite, relue, contrôlée (valeur
+texte refusée), `false` retiré, carte neuve décochée.
+
+---
+
+## 11. Prefabs de la carte (format 10)
+
+Décor **propre à une carte**, rangé **dans son dossier** à côté des cinq
+JSON, réutilisable autant de fois qu'on veut sur la carte. Code :
+`scripts/game/map/map_prefab_lib.gd` (format, contrôle, chargement),
+`scripts/editor/map_prefab_tools.gd` (inventaire, dialogues).
+
+### Dans l'éditeur
+
+Inventaire (E), catégorie **Prefabs de la carte** / Map prefabs :
+
+- **+ Créer…** : l'inventaire se ferme ; glisser un **rectangle** sur le
+  plan autour du décor à grouper (le décor du catalogue, « Décor et
+  obstacles », de l'étage affiché, dont le centre est dans le rectangle :
+  il s'entoure en jaune pendant le glissé ; clic droit : annuler). Nom du
+  prefab, case **Remplacer ce décor par le prefab** (cochée : les décors
+  choisis disparaissent, un seul prefab est posé à leur place ; Ctrl+Z les
+  ramène). Chaque partie garde sa place et sa rotation ; la collision est
+  celle des parties (leurs pavés `CollisionBox`, à leur place).
+- **Importer…** : un fichier **.glb** ou **.gltf** du disque (8 Mo au
+  plus). Il est **copié** dans la carte (`prefabs/<pid>/model.glb`, écrit à
+  l'enregistrement : le fichier d'origine n'est plus lu). Un .gltf n'est
+  accepté qu'avec ses données intégrées (adresses `data:`) ; il est réécrit
+  en .glb. Emprise et hauteur viennent de la boîte englobante du modèle ; la
+  collision est **un pavé** de cette boîte. Le dialogue ⚙ s'ouvre ensuite.
+- Sous chaque prefab : **⚙** (nom ; pour un modèle : **échelle**, et
+  **collision** solide / barrière / aucune : emprise et pavé recalculés) et
+  **✕** (supprimer ; s'il est posé, une confirmation propose de supprimer
+  aussi ses objets posés).
+
+Un prefab posé est un **décor** comme les autres (`type` « prefab ») : pose
+au sol, rotation (R, poignée ronde, au degré près), règles du décor (posé
+librement, contre un mur, chevauchements du § 10), propriétés (le menu
+« Décor » propose aussi les prefabs de la carte), liste des objets, aperçu
+3D, vérification, jeu.
+
+La bibliothèque des prefabs ne passe pas par l'historique (Ctrl+Z annule la
+pose et le remplacement, pas la création ni la suppression d'un prefab). En
+session collaborative, **seul l'hôte** change la bibliothèque ; la carte
+entière est alors renvoyée aux invités (`MapCollab.broadcast_map`). Les
+**modèles importés ne passent pas** par la session (trop lourds pour ses
+messages de 2 Mo) : un invité voit une boîte grise à leur place dans son
+aperçu 3D ; l'enregistrement et le jeu (carte de l'hôte) ont le modèle.
+
+### Format
+
+Dossier de la carte :
+
+```
+prefabs/<pid>/prefab.json   définition
+prefabs/<pid>/model.glb     modèle importé (seulement un prefab modèle)
+```
+
+`<pid>` : 1 à 32 caractères parmi a-z, 0-9, `_` (`MapPrefabLib.pid_ok`).
+Objet posé (objets.json) : `{"type": "prefab", "prefab": "map:<pid>",
+"position", "rot"}`. `prefab.json` :
+
+| Clé | Valeur |
+|---|---|
+| `format` | 1 |
+| `nom` | `{"fr", "en"}` (64 caractères, sans balise) |
+| `fp` | emprise en cases de 0,5 m `[x, y]` (1 à 40) |
+| `h` | hauteur (m) |
+| `bloque` | `solide`, `barriere` ou `non` (comme le décor du catalogue) |
+| `surface`, `couleur` | matière des impacts (clé de `WorldLook.SURFACES`), couleur dans l'éditeur `#rrggbb` |
+| `boxes` | pavés de collision `[{center [x,y,z], size [x,y,z], yaw (rad), barrier}]` en coordonnées du prefab (32 au plus) : **toujours des `CollisionBox`**, jamais une collision du modèle |
+| `parties` (groupe) | `[{decor (id de MapCatalog.PREFABS), pos [x, y] (m, autour du centre, y vers le sud), rot (degrés)}]` (48 au plus) |
+| `modele` (modèle) | `{echelle (0,01 à 100), aabb [x0,y0,z0,x1,y1,z1] du modèle brut, sha256 du .glb}` |
+
+Une carte sans prefab n'a pas de dossier `prefabs/` (formats 1 à 9 lus tels
+quels). Dans les textes d'une carte (`EditorMap.file_texts`, archive, paquet
+réseau, cache), un prefab est une entrée de plus : `prefabs/<pid>/prefab.json`
+(texte) et `prefabs/<pid>/model.glb` (base64 en mémoire et dans le paquet
+réseau, fichier binaire sur le disque et dans l'archive .zip).
+
+### En jeu
+
+`MapLayoutExport._map_prefab` : un **groupe** devient ses parties (chaque
+décor du catalogue à sa place, modèle ou objet construit, sans collision
+propre) ; un **modèle** devient un objet `map_model` (décalé pour être
+centré et posé au sol, à son échelle) et la description emporte les modèles
+posés (`map_models`). Collision : les `boxes` du prefab (`blockers`). Le jeu
+charge le .glb avec **GLTFDocument** (aucun pipeline d'import : marche dans
+le jeu exporté), sans ses collisions, lumières, caméras, sons ni animations
+(`MapPrefabLib.instantiate`). Un modèle absent ou illisible devient une
+**boîte grise** de sa taille, avec une erreur au journal (jamais d'arrêt).
+
+### Sûreté (cartes d'autres joueurs)
+
+Contrôle des cartes reçues (`CustomMapGuard.check_texts` →
+`MapPrefabLib.check_entries`), avant tout décodage par le moteur :
+
+- noms d'entrée exacts (`prefabs/<pid>/prefab.json` ou `model.glb` : pas de
+  `..`, de `/` en trop, de majuscules, d'autre fichier) ;
+- au plus **32 prefabs**, **8 modèles**, **8 Mo par modèle**, **24 Mo** en
+  tout ; `prefab.json` de 64 Ko au plus, profondeur JSON bornée, clés et
+  valeurs en liste blanche (`check_def`), noms sans balise ;
+- modèle : base64 strict, **empreinte SHA-256** égale à celle de
+  `prefab.json`, en-tête **GLB** (glTF 2 binaire, morceaux JSON puis BIN,
+  tailles exactes), **aucune adresse `uri`** (tout dans le .glb), extensions
+  obligatoires en liste blanche (pas de Draco ni meshopt), images **PNG ou
+  JPEG** intégrées de **4096 px** de côté au plus (lu dans leur en-tête),
+  **150 000 triangles** au plus, nombres de nœuds, maillages, accesseurs,
+  matériaux bornés (`check_glb`) ;
+- chaque prefab cité par un objet posé existe ; un prefab modèle a son
+  modèle (et seulement lui).
+
+Paquet réseau : format 2 quand la carte a des prefabs (40 Mo au plus,
+`CustomMapGuard.MAX_TRANSFER_BYTES`) ; une carte sans prefab garde
+exactement son paquet et son empreinte d'avant (format 1, 2 Mo). Archive
+.zip : 30 Mo au plus avec des prefabs (2 Mo sans), entrées de prefab bornées
+avant extraction.
+
+### Preuves automatiques
+
+`tests/test_map_prefabs.gd` : prefab groupe tiré du décor posé (parties,
+rotation, emprise, collision), enregistré dans le dossier de la carte, relu
+et réécrit à l'identique, dossier d'un prefab retiré effacé, format 9 lu tel
+quel ; export (une partie = un objet du jeu, collision = pavés du prefab,
+tournés avec lui) ; modèle .glb importé (fabriqué par le test avec
+GLTFDocument), copié, relu, échelle, export (`map_model`, posé au sol,
+CollisionBox barrière), chargé sans collision ; .gltf aux données intégrées
+converti, .gltf avec un .bin refusé ; modèle illisible ou absent : boîte ;
+contrôle : chemin `..`, fichier en trop, majuscules, prefab cité absent,
+modèle trop gros, mal encodé, empreinte fausse, adresse externe, extension
+Draco, trop de triangles, clé inconnue, nom avec balise, extension .obj,
+fichier de plus de 8 Mo refusés ; paquet réseau (format 2), cache et archive
+avec prefabs ; éditeur : capture, remplacement, inventaire, suppression
+refusée tant que posé, annulation, import et réglages.
+
+---
+
+## 12. Effets (format 10)
+
+### L'onglet et ses sous-onglets
+
+Inventaire (E ou Tab) : catégorie **Effets** / Effects. Une rangée de
+sous-onglets s'affiche au-dessus de la grille (mécanisme générique : une
+catégorie de `MapCatalog.CATEGORIES` peut déclarer une liste de
+sous-onglets en 4e élément, `MapCatalog.subs_of`, `MapInventory._fill_subs` ;
+le sous-onglet choisi est gardé à la réouverture) :
+
+| Sous-onglet | Effets (identifiant) | Pose |
+|---|---|---|
+| Flammes | petit feu (`petit_feu`), feu de camp / brasier (`brasier`), flammes de baril (`baril_feu`, 0,9 m de haut : à poser sur un baril), torche murale (`torche`), incendie 3 × 2 m (`incendie`, pivote) | sol, mur |
+| Fumées | fumée légère (`fumee_legere`, teinte), fumée noire épaisse (`fumee_noire`), vapeur de tuyau (`vapeur`), brouillard au sol 4 × 4 m (`brouillard`, teinte) | sol, mur |
+| Étincelles | pluie d'étincelles (`pluie_etincelles`), gerbe de soudure (`soudure`), court-circuit (`court_circuit`) | plafond, mur |
+| Électricité | arc électrique (`arc`, pivote, teinte), bobine Tesla (`tesla`, teinte), câble à nu (`cable_nu`, teinte) | sol, plafond |
+| Eau | goutte-à-goutte (`goutte`), fuite de tuyau (`fuite`), flaque (`flaque`) | plafond, mur, sol |
+| Ambiance | poussière en suspension (`poussiere`), braises flottantes (`braises`), cendres qui tombent (`cendres`), feux follets de l'élément 115 (`feux_follets`, vert, teinte) | sol |
+
+Montages (`MapCatalog.EFFECTS[...].mount`) : **sol** (outil « au sol »,
+surélevé de `hauteur` m), **mur** (contre un mur comme une applique,
+n'importe où le long du mur, à `hauteur` m, dirigé vers la pièce),
+**plafond** (sous le plafond de la pièce, la distance au sol est calculée :
+les étincelles rebondissent sur le sol, les gouttes y font des ronds).
+
+### Règles
+
+Aucune collision, aucun dégât (le feu ne brûle pas). Un effet se pose
+par-dessus n'importe quoi (décor, objets de jeu, autre effet) et ne gêne la
+pose de rien (`MapRules.NO_OVERLAP_CHECK`, `_blocking_overlaps`) ; il suffit
+qu'il touche le sol d'une pièce (comme le décor, `MapCatalog.DECOR_TYPES`).
+Il ne rend aucune case pleine (`MapRaster._effect`) : les trajets des
+zombies et la vérification ne changent pas. Au plus
+`MapCatalog.MAX_EFFECTS` = 64 effets par carte (refus à la pose ; contrôle
+des cartes reçues).
+
+Propriétés : autre effet du même sous-onglet et du même montage, Intensité
+(×0,25 à ×2 : quantité de particules et force de la lumière), Taille (×0,5
+à ×2,5), Hauteur (sol, mur), Couleur (effets qui se teintent), rotation (R,
+effets allongés). Dessin sur le plan : zone translucide de la couleur de
+l'effet, contour en tirets, icône par effet (fond de la couleur du
+sous-onglet).
+
+### En jeu (`MapEffects`, `MapEffect`)
+
+Construits en code par `MeshMapBuilder._build_effects` (partie « décor »,
+partagée avec l'aperçu 3D : l'aperçu montre le vrai effet, animé). Chaque
+effet empile des couches :
+
+- particules GPU (`GPUParticles3D`, `ParticleProcessMaterial`) : flammes en
+  volutes et en langues, cœur lumineux, braises (turbulence), fumée fondue
+  éclairée par les lampes et les feux, douce au contact des surfaces
+  (proximity fade) ; étincelles étirées dans le sens de leur vitesse
+  (`TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY`) qui rebondissent sur le sol
+  (`GPUParticlesCollisionBox3D`) ; gouttes qui disparaissent au sol, ronds
+  dans l'eau calés sur leur chute (préchauffage décalé du temps de chute) ;
+- lumières sans ombre (`OmniLight3D`) : vacillement du feu, éclats de la
+  soudure, crépitement électrique, éclair des salves, pulsation des feux
+  follets ;
+- arcs électriques : panneaux texturés re-tirés au hasard toutes les 35 à
+  90 ms, tournés vers la caméra autour de l'axe de l'arc ;
+- salves (court-circuit, pluie d'étincelles, câble à nu : 1 à 3 coups
+  rapprochés) et cycles marche / pause (soudure) ;
+- petits objets sans collision : bûches rougeoyantes, cercle de pierres,
+  torche, tuyaux, boîtier électrique, électrodes, bobine, câble, flaques.
+
+Performance : un seul `_process` léger par effet (aucune allocation par
+image) ; au-delà de 38 m de la caméra (27 m en qualité basse) l'effet se
+cache, n'émet plus et éteint ses lumières. Qualité graphique
+(`RenderQuality.GROUP`) : densité des particules (`amount_ratio`, moitié en
+LOW), lumières secondaires éteintes en LOW. Budget de la carte :
+`MapEffects.PARTICLE_BUDGET` = 9000 particules (au-delà, toutes réduites
+d'autant), `MapEffects.LIGHT_BUDGET` = 16 lumières d'effets (les suivantes
+éteintes), 600 particules au plus par effet (test). Rien n'est synchronisé
+en réseau : chaque machine construit le même décor, le hasard est local.
+
+Textures : `assets/textures/fx/` (Kenney « Particle Pack », CC0,
+`docs/ASSETS.md`) ; texture absente : dégradé calculé.
+
+### Format
+
+`objets.json` : `{"id": "fx1", "type": "effet", "effet": "brasier",
+"etage": 0, "position": [x, y]}` et, facultatifs, `rot` (effets qui
+pivotent), `mur` / `angle` (effets muraux, comme une applique),
+`intensite` (0,25 à 2), `taille` (0,5 à 2,5), `hauteur` (0 à 30 m),
+`couleur` (« #rrggbb », effets qui se teintent). Jamais écrits à leur valeur
+par défaut ; illisibles ou sans objet : retirés à la lecture
+(`MapCatalog.tidy_effect`). Description en maillage : clé `effects`
+(`[{fx, p, yaw, ground, room_h, intensity, scale, color, eid}]`), absente
+d'une carte sans effet (description inchangée).
+
+### Preuves automatiques
+
+`tests/test_map_effects.gd` : 6 sous-onglets d'au moins 3 effets (22 en
+tout), noms FR / EN ; chaque effet se construit sans collision, sans ombre,
+600 particules au plus, aussi aux réglages extrêmes ; qualité basse et
+budget de la carte ; pose par-dessus la boîte, le départ, un décor et sous
+un objet de jeu ; nombre d'effets plafonné ; réglages relus, valeurs par
+défaut retirées, aller-retour à l'identique ; export (hauteur, teinte,
+taille, plafond, rotation) et construction par le jeu ; contrôle des cartes
+reçues (effet inconnu, bornes, clé inconnue, trop d'effets) ; sous-onglets
+de l'inventaire et propriétés dans le vrai éditeur. Captures de revue (hors
+check, ajout en cours) : `sh tools/scenario.sh map_effects_look`.

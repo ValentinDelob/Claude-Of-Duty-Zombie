@@ -134,7 +134,7 @@ func run() -> void:
 	at.check(cv.trace_end().is_equal_approx(Vector2(27, 3)), "tracé en cours aimanté à 45° (%s)" % cv.trace_end())
 	await at.screenshot("editeur")
 	await key(KEY_ESCAPE)
-	await key(KEY_1)
+	await key(KEY_QUOTELEFT)
 	at.check(cv.poly_pts.is_empty() and ed.doc.pieces.size() == 2, "Échap : tracé annulé")
 
 	# Ctrl+S : format 3, clé angle ; rechargement identique.

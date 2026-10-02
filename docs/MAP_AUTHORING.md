@@ -43,8 +43,8 @@ automatique non enregistrée, il propose de la reprendre.
 |---|---|
 | Barre du haut | **Fichier** (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, exporter / importer l'archive .zip, cartes récentes, options, retour au menu), **Édition** (annuler, rétablir, copier, coller, pivoter, supprimer, inventaire, recadrer), étage courant (◄ ►), **▶ TESTER**, état de la vérification, aimantation, aperçu 3D, **⚙** (options du jeu), nom de la carte, **?** (raccourcis). Elle passe sur deux lignes si elle ne tient pas en largeur (grande taille d'interface). |
 | Vue de dessus | Grille de 1 m (traits forts tous les 5 m ; traits fins au pas de la grille fine), règles graduées en mètres en haut et à gauche, coordonnées du curseur aimanté en bas à droite. |
-| Barre rapide | 9 cases au bas de la vue (touches 1 à 9, molette) : l'objet tenu. |
-| Inventaire | Touche **E** ou **Tab** : toutes les catégories ; cliquer un objet le met dans la case choisie, ou le glisser sur une case. |
+| Barre rapide | 9 cases au bas de la vue (touches 1 à 9, molette) : l'objet tenu. À gauche, la case fixe **Souris** (outil Sélection) : outil au démarrage, jamais remplacée ; une case vide se comporte comme la souris. |
+| Inventaire | Touche **E** ou **Tab** : toutes les catégories ; cliquer un objet le met dans la case choisie (souris en main : la première case vide, sinon la dernière case choisie), ou le glisser sur une case. |
 | Panneaux | **Propriétés** (élément choisi, sinon la carte), **Pièces**, **Zones**, **Étages**, **Vérification**. |
 | Objets sur la carte | Onglet déployable à gauche de la vue (languette, bouton ◂ ou touche **L** ; ouvert / replié : mémorisé) : voir §2 bis. |
 | Aperçu 3D | Bouton **APERÇU 3D** de la barre du haut ou touche **P** : la carte telle qu'en jeu, en direct, dans un panneau flottant ou une fenêtre séparée : voir §2 ter. |
@@ -80,7 +80,8 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Points d'un cercle ou d'une ellipse, segments d'un mur courbe | molette ou + / - pendant le tracé ; puis dans l'onglet Propriétés |
 | Rotation libre | **poignée ronde** au-dessus de l'élément choisi : pas de 15°, au degré près avec Alt ; champ « Angle » des propriétés |
 | Rectangle à 45° | Pièce rectangle en main : R (le glisser va d'un coin au coin opposé du losange) |
-| Case de la barre rapide | 1 à 9, molette |
+| Case de la barre rapide | 1 à 9, molette (la souris est la position avant la case 1) |
+| Souris (outil Sélection) | ² (touche à gauche du 1, ` en QWERTY), clic sur sa case, ou Échap (après l'annulation du tracé en cours et de la sélection) |
 | Inventaire | E ou Tab |
 | Pivoter de 90° | R (une pièce pivote avec son contenu ; un décor ou un luminaire tenu pivote avant d'être posé) |
 | Liste des objets sur la carte | L |
@@ -89,12 +90,13 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Supprimer | Suppr (une pièce emporte ses objets et ses ouvertures) |
 | Copier / coller sous le curseur | Ctrl+C / Ctrl+V |
 | Annuler / rétablir (illimité) | Ctrl+Z / Ctrl+Y (ou Ctrl+Maj+Z) |
-| Enregistrer | Ctrl+S |
+| Enregistrer / Enregistrer sous | Ctrl+S / Ctrl+Maj+S |
+| Nouvelle carte / Ouvrir | Ctrl+N / Ctrl+O (Suppr dans la fenêtre Ouvrir : supprimer la carte choisie) |
 | Étage du dessous / du dessus | Page préc. / Page suiv. |
 | Recadrer sur la carte | Origine |
 | Fermer un polygone | double-clic, clic sur le premier point, ou Entrée ; Retour arrière retire le dernier point |
 
-Outil **Sélection** (case 1) : clic sur un élément pour le choisir, glisser
+Outil **Sélection** (la **Souris**, case fixe à gauche de la barre) : clic sur un élément pour le choisir, glisser
 pour le déplacer (une ouverture ou un objet mural suit le curseur, dans tous les
 modes d'aimantation, et reste accroché à son mur, calé sur les cases de 0,5 m
 d'un mur de la grille), **poignées** jaunes pour
@@ -308,7 +310,7 @@ par code (`MapIcons`).
 
 | Catégorie | Objets | Pose |
 |---|---|---|
-| Construction | Sélection, Gomme, Pièce rectangle, Pièce polygone, Mur, Cercle / polygone régulier, Ellipse, Pièce triangle, Pièce en L, Mur courbe, Pilier / obstacle, Escalier | glisser ou clic-clic (rectangle, formes, mur, mur courbe, pilier, escalier), clics successifs (polygone) ; saisie au clavier |
+| Construction | Gomme, Pièce rectangle, Pièce polygone, Mur, Cercle / polygone régulier, Ellipse, Pièce triangle, Pièce en L, Mur courbe, Pilier / obstacle, Escalier, Barrière invisible | glisser ou clic-clic (rectangle, formes, mur, mur courbe, pilier, escalier), clics successifs (polygone, barrière invisible : n'importe où) ; saisie au clavier |
 | Ouvertures | Porte payante, Débris à dégager, Porte ouverte par le courant, Passage libre, Fenêtre à zombies | sur un mur (voir les règles) |
 | Atouts | un distributeur par atout du jeu | contre un mur |
 | Armes murales | chaque arme à prix mural, couteau de chasse, grenades | contre un mur |
@@ -317,7 +319,21 @@ par code (`MapIcons`).
 | Pièges | zone de piège électrique, levier | zone : glisser au sol ; levier : contre un mur, à moins de 10 m |
 | Joueurs et apparitions | départ des joueurs, zombie qui sort du sol | au sol |
 | Décor et obstacles | caisse, baril, tas de gravats, gros éboulement, mur effondré, débris épars, planches au sol, poutre tombée, lustre tombé, pile de caisses, tonneaux, sacs de sable, table et chaise renversées, chaise pliante, bureau, étagère, rangée de fauteuils de cinéma, fauteuil arraché, pupitre, projecteur de cinéma, chariot, épave de voiture | au sol, pivote avec R (90°) ou au degré près (poignée, Angle) |
+| Prefabs de la carte (format 10) | « + Créer… » (grouper du décor posé), « Importer… » (modèle .glb / .gltf), puis les prefabs de la carte ouverte (⚙ régler, ✕ supprimer) | comme le décor ; rangés dans le dossier de la carte (`docs/MAP_OBJECTS.md` § 11) |
 | Luminaires | lampe (historique), ampoule nue, suspension, néon, lustre, applique murale, lampe de bureau, projecteur de chantier, bougies, brasero | plafond, mur (applique) ou sol ; pivote avec R |
+| Effets (format 10, sous-onglets) | **Flammes** : petit feu, feu de camp / brasier, flammes de baril, torche murale, incendie ; **Fumées** : fumée légère, fumée noire épaisse, vapeur de tuyau, brouillard au sol ; **Étincelles** : pluie d'étincelles, gerbe de soudure, court-circuit ; **Électricité** : arc électrique, bobine Tesla, câble à nu ; **Eau** : goutte-à-goutte, fuite de tuyau, flaque ; **Ambiance** : poussière, braises, cendres, feux follets (115) | au sol, au mur ou au plafond, par-dessus n'importe quoi ; aucune collision |
+
+### Effets (format 10)
+
+Une rangée de sous-onglets au-dessus de la grille de l'inventaire range les
+22 effets (Flammes, Fumées, Étincelles, Électricité, Eau, Ambiance). Un effet
+est purement visuel : aucune collision, aucun dégât, il ne gêne ni la pose
+ni les trajets ; il se pose par-dessus le décor et les objets de jeu (des
+flammes de baril sur un baril, une fumée sur des gravats). Propriétés :
+intensité, taille, hauteur, couleur (effets qui se teintent : fumée légère,
+brouillard, électricité, feux follets), rotation (incendie, arc). 64 effets
+au plus par carte. L'aperçu 3D montre l'effet animé. Détails, budget de
+particules et format : `docs/MAP_OBJECTS.md` § 11.
 
 ### Décor (prefabs) et luminaires
 
@@ -348,13 +364,26 @@ jeu (`EditorPrefabs` : sacs de sable, table et chaise renversées, chariot,
 
 Règles de pose en plus (`MapRules.layer_of`) :
 - décor et luminaires au sol : dans une pièce, sans toucher ses murs, sans
-  chevauchement ; une **lampe de bureau** ou des **bougies** peuvent se poser
+  chevauchement (sauf réglage « chevauchements décor / obstacles » de la
+  carte, format 9) ; une **lampe de bureau** ou des **bougies** peuvent se poser
   **sur un meuble** qui a un dessus (`support` : bureau, chariot, sacs de
   sable) : la lumière monte à sa hauteur ;
 - luminaires du plafond : dans une pièce ; ils surplombent le décor mais pas
   un autre luminaire du plafond ;
 - applique : contre un mur plein de la pièce, face vers l'intérieur, à 2 m du
   sol (elle ne gêne pas les objets posés dessous).
+
+### Prefabs de la carte (format 10)
+
+En plus du catalogue, chaque carte peut avoir **ses propres prefabs**, rangés
+dans son dossier (`prefabs/<pid>/prefab.json`, et `model.glb` pour un modèle
+importé) : un **groupe** de décors du catalogue (« + Créer… » : rectangle
+autour du décor posé) ou un **modèle** .glb / .gltf importé du disque
+(« Importer… », copié dans la carte, 8 Mo au plus, collision : un pavé de
+sa boîte englobante, solide, barrière ou aucune). Posés, ce sont des décors
+comme les autres ; ils voyagent avec la carte (Enregistrer, Enregistrer sous,
+copie d'un invité, archive .zip, carte partagée en multijoueur). Détails,
+format et limites de sûreté : `docs/MAP_OBJECTS.md` § 11.
 
 ### Règles imposées à la pose
 
@@ -396,7 +425,15 @@ raison à côté du curseur (`MapRules`) :
   pièce, sans toucher ses murs, sans chevauchement (les lampes, au plafond,
   peuvent surplomber un objet ; un élément tourné compte par son rectangle
   englobant). L'escalier monte à l'étage du dessus : il faut un étage
-  au-dessus.
+  au-dessus. Réglage de la carte **Autoriser les chevauchements décor /
+  obstacles** (format 9, onglet Propriétés sans rien de choisi) : le décor
+  (caisses, barils, prefabs, luminaires) et les piliers peuvent alors se
+  recouvrir entre eux ; les objets de jeu jamais (docs/MAP_OBJECTS.md § 10).
+- **Barrière invisible** (format 9) : polygone de 3 à 64 sommets posé
+  **n'importe où** (dehors, à cheval sur un mur, par-dessus un objet) ;
+  seuls refus : côtés qui se croisent, côté de moins de 5 cm, moins de
+  0,04 m², hors du terrain. Hauteur : jusqu'au plafond, ou 0,5 à 30 m au
+  dixième de mètre (docs/MAP_OBJECTS.md § 2).
 - **Mur courbe** : 1 m de rayon au moins, ouverture de 5 à 360°, 1 à 64
   segments, tout l'arc dans le terrain.
 
@@ -470,6 +507,23 @@ départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
   depuis le `.exe`. `<id>` est tiré du nom de la carte ; **Enregistrer sous**
   choisit le dossier. Un exemple livré (DRAFT ARENA) s'ouvre en lecture seule :
   Enregistrer en fait une copie.
+- **Supprimer une carte** : Fichier > Ouvrir, choisir une de ses cartes puis
+  **Supprimer** (ou la touche Suppr) ; confirmation « Supprimer
+  définitivement la carte « X » ? ». Le dossier entier part
+  (`EditorMap.delete_map`) ; refusé (et noté dans la console) pour les
+  exemples livrés (bouton grisé), les dossiers internes (`_autosave`...), tout
+  chemin qui n'est pas un dossier de carte directement dans le dossier des
+  cartes (`..`, ailleurs sur le disque) et tout dossier contenant un lien
+  symbolique. Si c'est la carte ouverte, elle reste à l'écran, non enregistrée
+  et sans dossier (le prochain Enregistrer en redonne un) ; sa sauvegarde
+  automatique est effacée.
+- **Session de collaboration** (docs/MAP_COLLAB.md) : ouvrir ou enregistrer
+  la carte est l'affaire de l'**hôte**. Chez un invité, Fichier > Nouvelle,
+  Ouvrir, Enregistrer, Enregistrer sous, Exporter / Importer et Cartes
+  récentes sont grisés (« Réservé à l'hôte de la session ») et leurs
+  raccourcis (Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Maj+S) refusés avec un message dans
+  la barre d'état ; pas de sauvegarde automatique non plus. Tout redevient
+  possible dès que l'invité quitte la session.
 - **Sauvegarde automatique** toutes les 60 s et à la fermeture si la carte a
   changé (`user://maps/_autosave/`) ; au démarrage suivant, l'éditeur propose
   de reprendre le travail non enregistré. **Cartes récentes** : menu Fichier
@@ -483,7 +537,11 @@ départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
   fichier 2 Mo au plus une fois décompressé (bombe zip refusée) ; sinon elle
   est refusée avec la raison. Les fichiers d'un dossier de carte sont lus
   avec la même limite (`EditorMap.read_text`), le `meta.json` de la
-  sauvegarde automatique avec 256 Ko.
+  sauvegarde automatique avec 256 Ko. Format 10 : l'archive porte aussi les
+  prefabs de la carte (`prefabs/<pid>/prefab.json`, `model.glb`, dans le
+  même dossier que les cinq JSON) ; elle peut alors peser 30 Mo (8 Mo par
+  modèle, 24 Mo de modèles en tout, 64 Ko par `prefab.json`), les entrées de
+  prefab ne comptent pas dans les 32 entrées (128 au plus en tout).
 - **Identifiant de carte** (nom de dossier) : 1 à 48 caractères parmi `a-z`,
   `0-9` et `_` (`EditorMap.valid_id`) ; `EditorMap.map_dir` refuse tout autre
   identifiant (« perso:../x » n'est pas une carte).
@@ -518,7 +576,11 @@ multijoueur ».
   **SHA-256** identifie la carte : même carte = même empreinte sur toutes les
   machines. Tout le monde, hôte compris, joue la carte depuis son cache
   `user://maps_cache/<sha256>/` (identifiant de jeu `partage:<sha256>`) : les
-  géométries sont identiques partout.
+  géométries sont identiques partout. Format 10 : une carte avec des
+  **prefabs de la carte** a un paquet au format 2 (les entrées
+  `prefabs/<pid>/prefab.json` et `prefabs/<pid>/model.glb` en base64 en plus,
+  40 Mo au plus) ; une carte sans prefab garde exactement le paquet et
+  l'empreinte d'avant. Contrôle des prefabs : `docs/MAP_OBJECTS.md` § 11.
 - **Cache** : le dossier est nommé par l'empreinte (jamais par un nom venu de
   l'hôte) ; une carte déjà en cache n'est pas retéléchargée (elle est
   revérifiée : empreinte recalculée, contrôle complet) ; 32 cartes au plus,
@@ -528,13 +590,18 @@ multijoueur ».
   jouer. Une carte n'est **que des données** : jamais `load()`,
   `ResourceLoader`, `.tres`, `.tscn`, script ni image venant du réseau ou d'une
   archive (une ressource Godot peut embarquer du code) ; les textes sont lus en
-  UTF-8 strict puis par le lecteur JSON du moteur. Limites dures :
+  UTF-8 strict puis par le lecteur JSON du moteur. Seule exception (format
+  10) : les modèles `.glb` des prefabs de la carte, vérifiés octet par octet
+  (en-tête, JSON, aucune adresse externe, images PNG / JPEG bornées,
+  triangles) puis lus par `GLTFDocument`, qui ne crée ni script ni ressource
+  du projet. Limites dures :
 
   | Limite | Valeur |
   |---|---|
-  | Paquet (et total des cinq fichiers) | 2 Mo |
+  | Paquet (et total des cinq fichiers) | 2 Mo (avec des prefabs, format 10 : 40 Mo, dont 24 Mo de modèles) |
   | Morceaux réseau | 16 Ko (1 Ko au moins) |
-  | Archive .zip | 4 Mo, 64 entrées, tailles décompressées lues avant d'extraire |
+  | Archive .zip | 30 Mo, 160 entrées, tailles décompressées lues avant d'extraire |
+  | Prefabs de la carte (format 10) | 32 prefabs, 8 modèles .glb de 8 Mo (24 Mo en tout), 150 000 triangles et images de 4096 px par modèle, aucune adresse externe (`docs/MAP_OBJECTS.md` § 11) |
   | Profondeur JSON | 6 (lue avant l'analyse) |
   | Pièces / ouvertures / objets / zones / étages | 256 / 512 / 1024 / 64 / 6 |
   | Sommets | 128 par pièce (un cercle de 64 points et de la marge), 4096 en tout |
@@ -567,8 +634,9 @@ multijoueur ».
 
 ### Format des fichiers
 
-Cinq fichiers JSON dans le dossier de la carte (ou à la racine de l'archive).
-Une entrée par ligne (diffs lisibles). Coordonnées en **mètres** dans le plan
+Cinq fichiers JSON dans le dossier de la carte (ou à la racine de l'archive),
+plus, format 10, le dossier `prefabs/` des prefabs de la carte s'il y en a
+(`docs/MAP_OBJECTS.md` § 11). Une entrée par ligne (diffs lisibles). Coordonnées en **mètres** dans le plan
 de l'éditeur : x vers l'est, y vers le sud, x et y positifs ; le jeu place la
 carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
 (`p1`, `o3`, `a2`…). Les nombres entiers s'écrivent sans décimale.
@@ -601,10 +669,15 @@ au **format 1, 2 ou 3 se lit telle quelle** (toutes les nouvelles clés sont
 facultatives, `EditorMap._migrate`) et s'enregistre au format 4 ; DRAFT
 ARENA est restée au format 1 pour le prouver (sa description en maillage est
 identique octet pour octet, vérifié par son empreinte SHA-256).
+Formats 5 à 10 (variantes, barrière invisible, escaliers, décor libre, portes
+à zombies, barrière en polygone et chevauchements, effets) : docs/MAP_OBJECTS.md ;
+le format courant est **10**.
 Une carte d'un format plus récent que le jeu est signalée. `id` : dossier ; `musique` : un son
 `assets/audio/ambience_*` ; `hauteur_portes` (m) ; `lampes_auto` : une lampe
 tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
-`hauteur` sous plafond (m) des pièces sans rien au-dessus.
+`hauteur` sous plafond (m) des pièces sans rien au-dessus ; format 9 :
+`chevauchement_decor` (facultatif, vrai : le décor et les piliers peuvent se
+chevaucher entre eux, docs/MAP_OBJECTS.md § 10).
 
 **`pieces.json`** — les pièces :
 
@@ -688,6 +761,13 @@ long du mur ; son orientation se lit sur le côté de pièce qui passe par là.
   Format 4 : `rot` (facultatif) = rotation du rectangle autour de son centre,
   entier de 0 à 359, sens horaire vu de dessus (`monte` se lit avant la
   rotation) : `{"id":"x1","type":"pilier","etage":0,"rect":[9,17,11,19],"rot":30}`.
+- `bloc_invisible` (barrière invisible, format 9) : polygone `sommets`
+  [[x, y], ...] (3 à 64 points, posé n'importe où), `hauteur` facultative
+  (absente : jusqu'au plafond) :
+  `{"id":"i1","type":"bloc_invisible","etage":0,"sommets":[[2,2],[6,2],[6,3],[3,3],[3,6],[2,6]],"hauteur":1.2}`
+  (cartes d'avant : `rect` + `rot`, lus comme un polygone ; docs/MAP_OBJECTS.md § 2).
+- `effet` (format 10) : `effet` (identifiant de `MapCatalog.EFFECTS`), `position`, et facultatifs `rot`, `mur` / `angle` (effets muraux), `intensite`, `taille`, `hauteur`, `couleur` ; aucune collision :
+  `{"id":"fx1","type":"effet","etage":0,"effet":"brasier","position":[8,6],"intensite":1.5}` (docs/MAP_OBJECTS.md § 12).
 - `mur` libre : segment `a` → `b` (droit ou en biais), `epaisseur` 0,5, 1,5 ou 2,5 m.
 - `mur_courbe` (format 4) : arc de cercle en segments droits, `centre`,
   `rayon` (1 à 128 m), `debut` (direction du premier bout, degrés dans le sens

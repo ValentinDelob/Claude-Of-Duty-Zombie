@@ -45,6 +45,10 @@ static func letter(n: int) -> String:
 
 func _build() -> void:
 	v = MapValidator.new()
+	# Format 10 : prefabs de la carte connus du catalogue (fil principal ; un
+	# fil de travail lit ceux mis en place avant son lancement).
+	doc.activate_prefabs()
+	v.map_models = doc.models
 	var c: Dictionary = doc.carte
 	v.id = doc.id()
 	v.display_name = doc.display_name()
@@ -95,6 +99,11 @@ func _build() -> void:
 				var rb := MapGeom.bbox(rect_poly(o))
 				hi = hi.max(rb.end)
 				neg = neg or rb.position.x < -0.001 or rb.position.y < -0.001
+		if o.get("sommets") is Array:
+			# Barrière invisible en polygone (format 9).
+			var sb := MapGeom.bbox(clip_poly(o))
+			hi = hi.max(sb.end)
+			neg = neg or sb.position.x < -0.001 or sb.position.y < -0.001
 		if String(o.get("type", "")) == "mur_courbe":
 			var ab := MapGeom.bbox(MapShapes.wall_arc(o))
 			hi = hi.max(ab.end)
@@ -180,6 +189,15 @@ static func rect_poly(o: Dictionary) -> PackedVector2Array:
 	return MapGeom.rot_rect_poly(r.get_center(), r.size, MapGeom.rot_of(o))
 
 
+## Contour (m) d'une barrière invisible : ses « sommets » (format 9), sinon
+## le rectangle tourné d'une barrière d'avant (« rect », « rot »).
+static func clip_poly(o: Dictionary) -> PackedVector2Array:
+	var s: Variant = o.get("sommets")
+	if s is Array:
+		return MapGeom.poly(s)
+	return rect_poly(o)
+
+
 ## Cases intérieures d'un escalier ou d'un piège (marches, zone électrifiée) :
 ## centres strictement dans le rectangle (tourné).
 static func rect_inner_cells(o: Dictionary) -> Array:
@@ -239,6 +257,20 @@ static func stair_cells(o: Dictionary) -> Array:
 ## autant de cases que de surface, même pour une barrière de 0,5 m posée sur
 ## la grille (une rangée de cases, pas deux).
 static func clip_cells(o: Dictionary) -> Array:
+	if o.get("sommets") is Array:
+		# Format 9 : cases dont le centre, poussé d'un millimètre vers le
+		# sud-est, est dans le polygone : un côté droit sur la grille compte
+		# comme le bord [x0, x1[ d'un rectangle d'avant (barrière de 0,5 m sur
+		# la grille : une rangée de cases). Une barrière plus mince qu'une case
+		# peut n'en couvrir aucune : le jeu la construit quand même, à sa forme.
+		var poly := clip_poly(o)
+		var pb := MapGeom.bbox(poly)
+		var cells := []
+		for j in range(floori(pb.position.y / MapGeom.CELL) - 1, ceili(pb.end.y / MapGeom.CELL) + 2):
+			for i in range(floori(pb.position.x / MapGeom.CELL) - 1, ceili(pb.end.x / MapGeom.CELL) + 2):
+				if MapGeom.contains(poly, MapGeom.cell_center(Vector2i(i, j)) + Vector2(0.001, 0.0007)):
+					cells.append(Vector2i(i, j))
+		return cells
 	var r := MapGeom.rect_of(o.get("rect", [0, 0, 0, 0]))
 	var c := r.get_center()
 	var h := r.size * 0.5
@@ -435,22 +467,6 @@ func _floor(k: int) -> void:
 							f.put(c, K.MUR, key)
 					v.eid_of[key] = String(o.id)
 				cells_of[String(o.id)] = [k, cells]
-			"bloc_invisible":
-				# Barrière invisible : ses cases bloquent le passage (validateur,
-				# trajets) comme un décor ; le jeu y pose une CollisionBox sans
-				# maillage (MapLayoutExport._clips).
-				var cells := clip_cells(o)
-				var key := "decor#" + String(o.id)
-				for c in cells:
-					if f.at(c) == K.SOL:
-						f.put(c, K.MUR, key)
-				v.eid_of[key] = String(o.id)
-				var r := MapGeom.rect_of(o.get("rect", [0, 0, 0, 0]))
-				var hv: Variant = o.get("hauteur", 0.0)
-				v.clips.append({"floor": k, "center": r.get_center(), "size": r.size, "rot": MapGeom.rot_of(o),
-					"h": clampf(float(hv), 0.0, MapCatalog.CLIP_HEIGHT[1]) if (hv is float or hv is int) and is_finite(float(hv)) else 0.0,
-					"eid": String(o.id)})
-				cells_of[String(o.id)] = [k, cells]
 	# (f) Escaliers de cet étage (tournés : vraie géométrie, MapValidator.diag_stairs).
 	for o in doc.objects_on(k):
 		if String(o.type) == "escalier":
@@ -483,6 +499,9 @@ func _floor(k: int) -> void:
 			continue
 		if t == "luminaire":
 			_light(k, o)
+			continue
+		if t == "effet":
+			_effect(k, o)
 			continue
 		if t in ["caisse", "baril", "pilier", "mur", "mur_courbe", "escalier", "prefab", "bloc_invisible"]:
 			continue
@@ -517,6 +536,27 @@ func _floor(k: int) -> void:
 		elif tool == "wall_item":
 			v.wall_hint[key] = MapGeom.DIRS.get(_cardinal(o), Vector2i(0, -1))
 		v.eid_of[key] = String(o.id)
+		cells_of[String(o.id)] = [k, cells]
+	# (h) Barrières invisibles (format 9 : polygones posés n'importe où), après
+	# tout le reste : seules leurs cases de SOL deviennent pleines (validateur,
+	# trajets, comme un décor) ; un mur, un escalier ou un objet de jeu
+	# qu'elles recouvrent garde sa case. Le jeu y pose une CollisionBox sans
+	# maillage, à la forme exacte du polygone (MapLayoutExport._clips).
+	for o in doc.objects_on(k):
+		if String(o.type) != "bloc_invisible":
+			continue
+		var cells := clip_cells(o)
+		var key := "decor#" + String(o.id)
+		for c in cells:
+			if f.inside(c) and f.at(c) == K.SOL:
+				f.put(c, K.MUR, key)
+		v.eid_of[key] = String(o.id)
+		var poly := clip_poly(o)
+		var bb := MapGeom.bbox(poly)
+		var hv: Variant = o.get("hauteur", 0.0)
+		v.clips.append({"floor": k, "poly": poly, "center": bb.get_center(), "size": bb.size,
+			"h": clampf(float(hv), 0.0, MapCatalog.CLIP_HEIGHT[1]) if (hv is float or hv is int) and is_finite(float(hv)) else 0.0,
+			"eid": String(o.id)})
 		cells_of[String(o.id)] = [k, cells]
 	_finish_diag(k)
 
@@ -764,6 +804,33 @@ func _light(k: int, o: Dictionary) -> void:
 			var sup := MapRules.support_under(doc, o)
 			l["support"] = MapRules.support_height(sup) if not sup.is_empty() else 0.0
 	v.lamps_extra.append(l)
+	cells_of[String(o.id)] = [k, cells]
+
+
+## Effet posé (format 10) -> v.effects : aucune case bloquée (ni collision,
+## ni marqueur) ; mural : sur la face du mur, tourné vers la pièce.
+func _effect(k: int, o: Dictionary) -> void:
+	var d := MapCatalog.effect_def(o)
+	if d.is_empty():
+		_err("effet inconnu « %s »" % o.get("effet", ""), "unknown effect \"%s\"" % o.get("effet", ""), k)
+		return
+	var p := MapGeom.v2(o.position)
+	var mount := String(d.mount)
+	var e := {"floor": k, "effet": String(o.effet), "mount": mount, "eid": String(o.id), "center": p,
+		"y": MapCatalog.effect_height(o), "yaw": -deg_to_rad(posmod(int(o.get("rot", 0)), 360)),
+		"intensity": MapCatalog.effect_value(o, "intensite"), "scale": MapCatalog.effect_value(o, "taille"),
+		"color": MapCatalog.effect_color(o).to_html(false) if MapCatalog.effect_tints(o) else ""}
+	var cells := []
+	if mount == "mur":
+		var dv := MapGeom.item_wall_dir(o) if MapGeom.item_oblique(o) else MapGeom.dir_vec(_cardinal(o))
+		e["center"] = p - dv * MapGeom.WALL_HALF
+		e["wall"] = dv
+		# Axe +z de l'effet (du mur vers la pièce) vers -dv.
+		e["yaw"] = atan2(-dv.x, -dv.y)
+		cells = wall_item_cells(o)
+	else:
+		cells = floor_cells(o)
+	v.effects.append(e)
 	cells_of[String(o.id)] = [k, cells]
 
 

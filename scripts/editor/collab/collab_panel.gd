@@ -80,8 +80,8 @@ func _on_menu(id: int) -> void:
 			ed.panels.show_tab("history")
 
 
-## Participants (pastilles) et libellé de Fichier > Enregistrer (invité :
-## une copie).
+## Participants (pastilles) et éléments de Fichier réservés à l'hôte (grisés
+## chez l'invité, MapEditor.update_file_menu).
 func refresh() -> void:
 	for c in pills:
 		if is_instance_valid(c):
@@ -110,10 +110,8 @@ func refresh() -> void:
 			at += 1
 			pills.append(pill)
 		update_pills()
-	var fm := ed.file_menu.get_popup()
-	var i := fm.get_item_index(2)
-	if i >= 0:
-		fm.set_item_text(i, Lang.t("Enregistrer une copie…", "Save a copy…") if ed.collab.role == MapCollab.Role.GUEST else Lang.t("Enregistrer", "Save") + "   Ctrl+S")
+	# Invité : Nouvelle, Ouvrir, Enregistrer... grisés (réservés à l'hôte).
+	ed.update_file_menu()
 
 
 ## Pseudo par défaut : celui des réglages du jeu.

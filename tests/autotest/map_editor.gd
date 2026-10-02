@@ -34,7 +34,7 @@ func run() -> void:
 	ed = tree().current_scene
 	cv = ed.canvas
 	await frames(4)
-	at.check(ed.hotbar_ui.slots.size() == 9 and ed.current_item().id == "select", "barre rapide de 9 cases, Sélection en main")
+	at.check(ed.hotbar_ui.slots.size() == 9 and ed.mouse_active() and ed.hot_index == MapEditor.MOUSE, "barre rapide de 9 cases, souris en main")
 	ed.new_map(true)
 	ed.doc.carte.nom = {"fr": "ESSAI ÉDITEUR", "en": "EDITOR TEST"}
 	await frames(2)
@@ -110,7 +110,7 @@ func run() -> void:
 	ed.panels.show_tab("check")
 	ed.select("")
 	cv.frame_all()
-	await key(KEY_1)
+	await key(KEY_QUOTELEFT)
 	await frames(3)
 	await at.screenshot("editeur")
 	ed.panels.show_tab("zones")
@@ -152,7 +152,7 @@ func run() -> void:
 	var poly: Dictionary = ed.doc.pieces[-1]
 	at.check(ed.doc.pieces.size() == 4 and poly.contour.size() == 6, "pièce polygone en L (%d sommets)" % poly.contour.size())
 	# Copier / coller sous le curseur.
-	await key(KEY_1)
+	await key(KEY_QUOTELEFT)
 	await click(Vector2(4, 22))
 	await key(KEY_C, true)
 	_motion(Vector2(22, 20))
@@ -258,7 +258,7 @@ func _decor_and_textures() -> void:
 	var sconce: Array = lights.filter(func(o): return o.luminaire == "applique")
 	at.check(not sconce.is_empty() and sconce[0].get("mur", "") == "o", "applique contre le mur ouest")
 	# Réglages d'un luminaire : couleur et vacillement dans les propriétés.
-	await key(KEY_1)
+	await key(KEY_QUOTELEFT)
 	var sus: Dictionary = lights.filter(func(o): return o.luminaire == "suspension")[0]
 	await click(MapGeom.v2(sus.position))
 	at.check(ed.selected == String(sus.id), "suspension choisie")

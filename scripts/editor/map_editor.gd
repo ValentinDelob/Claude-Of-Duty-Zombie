@@ -23,6 +23,11 @@ var doc: EditorMap:
 		doc = v
 		if collab != null:
 			collab.doc = v
+		# Format 10 : les prefabs de cette carte dans le catalogue (inventaire).
+		if v != null:
+			v.activate_prefabs()
+## Prefabs de la carte (format 10) : création, import, renommage (MapPrefabTools).
+var prefab_tools: MapPrefabTools
 ## Dossier d'enregistrement ("" : jamais enregistrée).
 var map_dir := ""
 ## Ouverte depuis un exemple livré (assets/maps/) : Enregistrer en fait une copie.
@@ -54,8 +59,13 @@ var floor_k := 0
 var selected := ""
 var clipboard: Dictionary = {}
 var ghost_below := true
-var hotbar: Array = MapCatalog.DEFAULT_HOTBAR.duplicate()
-var hot_index := 0
+var hotbar: Array = MapHotbar.migrate(MapCatalog.DEFAULT_HOTBAR)
+## Case choisie de la barre rapide ; MOUSE (-1) : la souris (outil Sélection),
+## case fixe à gauche de la barre, jamais remplacée. L'éditeur démarre dessus.
+var hot_index := MOUSE
+## Dernière case (0 à 8) choisie : un objet pris dans l'inventaire souris en
+## main y va quand la barre est pleine.
+var last_slot := 0
 ## Rotation (degrés) de l'objet tenu (prefabs, luminaires) : R avant de poser.
 var place_rot := 0
 ## Variante de l'objet tenu (portes, débris, armes murales : V avant de
@@ -219,7 +229,7 @@ func _build_ui() -> void:
 	fm.add_item(Lang.t("Nouvelle carte", "New map") + "   Ctrl+N", 0)
 	fm.add_item(Lang.t("Ouvrir…", "Open…") + "   Ctrl+O", 1)
 	fm.add_item(Lang.t("Enregistrer", "Save") + "   Ctrl+S", 2)
-	fm.add_item(Lang.t("Enregistrer sous…", "Save as…"), 3)
+	fm.add_item(Lang.t("Enregistrer sous…", "Save as…") + "   Ctrl+Maj+S", 3)
 	fm.add_separator()
 	fm.add_item(Lang.t("Exporter l'archive .zip…", "Export .zip archive…"), 4)
 	fm.add_item(Lang.t("Importer une archive .zip…", "Import .zip archive…"), 5)
@@ -234,6 +244,7 @@ func _build_ui() -> void:
 	fm.add_item(Lang.t("Retour au menu principal", "Back to main menu"), 7)
 	fm.id_pressed.connect(_on_file_menu)
 	fm.about_to_popup.connect(_fill_recent)
+	fm.about_to_popup.connect(update_file_menu)
 	edit_menu = MenuButton.new()
 	edit_menu.text = Lang.t("Édition", "Edit")
 	edit_menu.flat = false
@@ -352,6 +363,10 @@ func _build_ui() -> void:
 	inventory.ed = self
 	inventory.visible = false
 	canvas.add_child(inventory)
+	prefab_tools = MapPrefabTools.new()
+	prefab_tools.ed = self
+	prefab_tools.name = "PrefabTools"
+	add_child(prefab_tools)
 	_dialog = AcceptDialog.new()
 	# Texte du message dans une zone qui défile (aide « ? » à grande taille) ;
 	# sa taille est calculée par _info.
@@ -637,8 +652,8 @@ func _update_title() -> void:
 
 func _show_help() -> void:
 	_info(Lang.t("Raccourcis", "Shortcuts"), Lang.t(
-		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nCtrl + « + » / Ctrl + « - » / Ctrl + 0 : taille de l'interface de l'éditeur (aussi dans les options, bouton ⚙)\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu",
-		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nCtrl + \"+\" / Ctrl + \"-\" / Ctrl + 0: map editor UI size (also in the options, ⚙ button)\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there"))
+		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nCtrl + « + » / Ctrl + « - » / Ctrl + 0 : taille de l'interface de l'éditeur (aussi dans les options, bouton ⚙)\nMolette ou 1 à 9 : case de la barre rapide · ² ou Échap : la souris (case à gauche de la barre) · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu",
+		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nCtrl + \"+\" / Ctrl + \"-\" / Ctrl + 0: map editor UI size (also in the options, ⚙ button)\nWheel or 1 to 9: hotbar slot · ` (key left of 1) or Esc: the mouse (slot left of the hotbar) · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there"))
 
 
 func _info(title_text: String, text: String) -> void:
@@ -656,13 +671,15 @@ func _info(title_text: String, text: String) -> void:
 	_dialog.popup_centered()
 
 
-func _confirm(title_text: String, text: String, on_ok: Callable, on_cancel := Callable()) -> ConfirmationDialog:
+func _confirm(title_text: String, text: String, on_ok: Callable, on_cancel := Callable(), parent: Node = null) -> ConfirmationDialog:
 	var d := ConfirmationDialog.new()
 	d.title = title_text
 	d.dialog_text = text
 	d.ok_button_text = Lang.t("Oui", "Yes")
 	d.cancel_button_text = Lang.t("Non", "No")
-	add_child(d)
+	# Par-dessus une autre fenêtre : sa fille (une seule fenêtre exclusive par parent).
+	var under: Node = parent if parent != null else self
+	under.add_child(d)
 	d.confirmed.connect(func():
 		d.queue_free()
 		on_ok.call())
@@ -699,7 +716,10 @@ func _input(event: InputEvent) -> void:
 	if k.ctrl_pressed:
 		match k.keycode:
 			KEY_S:
-				save()
+				if k.shift_pressed:
+					save_as_dialog()
+				else:
+					save()
 			KEY_Z:
 				if k.shift_pressed:
 					redo()
@@ -747,6 +767,9 @@ func _input(event: InputEvent) -> void:
 	var pk := k.physical_keycode
 	if pk >= KEY_1 and pk <= KEY_9:
 		select_slot(pk - KEY_1)
+	elif pk == KEY_QUOTELEFT:
+		# Touche à gauche du 1 (² en AZERTY, ` en QWERTY) : la souris.
+		select_mouse()
 	elif k.keycode >= KEY_KP_1 and k.keycode <= KEY_KP_9:
 		select_slot(k.keycode - KEY_KP_1)
 	else:
@@ -758,8 +781,11 @@ func _input(event: InputEvent) -> void:
 					toggle_inventory()
 				elif not canvas.drag.is_empty() or not canvas.poly_pts.is_empty():
 					canvas.cancel()
-				else:
+				elif selected != "" or mouse_active():
 					select("")
+				else:
+					# Échap suivant (rien en cours) : retour à la souris.
+					select_mouse()
 			KEY_R:
 				rotate_selected()
 			KEY_V:
@@ -794,8 +820,16 @@ func _input(event: InputEvent) -> void:
 
 # ------------------------------------------------------------------ barre rapide
 
+const MOUSE := -1
+
+
+## La souris est-elle en main (case Souris, ou case vide de la barre) ?
+func mouse_active() -> bool:
+	return String(current_item().get("id", "")) == "select"
+
+
 func current_item() -> Dictionary:
-	var id := String(hotbar[hot_index]) if hot_index < hotbar.size() else ""
+	var id := String(hotbar[hot_index]) if hot_index >= 0 and hot_index < hotbar.size() else ""
 	var it := MapCatalog.item(id)
 	return it if not it.is_empty() else MapCatalog.item("select")
 
@@ -804,8 +838,11 @@ func tool() -> String:
 	return String(current_item().get("tool", "select"))
 
 
+## i : case 0 à 8, ou MOUSE (-1) pour la souris.
 func select_slot(i: int) -> void:
-	hot_index = clampi(i, 0, 8)
+	hot_index = clampi(i, MOUSE, 8)
+	if hot_index >= 0:
+		last_slot = hot_index
 	place_rot = 0
 	place_variant = ""
 	canvas.cancel()
@@ -817,17 +854,49 @@ func select_slot(i: int) -> void:
 	canvas.queue_redraw()
 
 
+## Souris en main (case fixe à gauche de la barre).
+func select_mouse() -> void:
+	select_slot(MOUSE)
+
+
+## Molette : la souris est la position avant la case 1 (10 positions en boucle).
 func cycle_hotbar(d: int) -> void:
-	select_slot(posmod(hot_index + d, 9))
+	select_slot(posmod(hot_index + 1 + d, 10) - 1)
 
 
 func set_hotbar(i: int, item_id: String) -> void:
+	# La souris n'est pas un objet de la barre : elle a sa case fixe.
+	if item_id == "select":
+		select_mouse()
+		return
 	if i < 0 or i >= 9:
 		return
 	while hotbar.size() < 9:
 		hotbar.append("")
 	hotbar[i] = item_id
 	select_slot(i)
+
+
+## Objet pris dans l'inventaire : dans la case choisie ; souris en main, dans
+## la première case vide (sinon la dernière case choisie), qui devient la case
+## en main. La souris garde toujours sa case.
+func pick_item(item_id: String) -> void:
+	if item_id == "select":
+		select_mouse()
+		return
+	var i := hot_index
+	if i < 0:
+		i = hotbar.find("")
+		if i < 0 or i >= 9:
+			i = last_slot
+	set_hotbar(i, item_id)
+
+
+## Barre rapide relue (préférences, ancienne sauvegarde) : MapHotbar.migrate.
+func load_hotbar(items: Array) -> void:
+	hotbar = MapHotbar.migrate(items)
+	if hotbar_ui != null:
+		hotbar_ui.queue_redraw_slots()
 
 
 func toggle_inventory() -> void:
@@ -1190,7 +1259,7 @@ func add_object(o: Dictionary, k: int) -> Dictionary:
 		doc.ouvertures.append(e)
 	else:
 		var prefix: String = {"atout": "a", "arme": "w", "boite": "b", "depart": "s", "escalier": "e", "pilier": "x", "mur": "m", "mur_courbe": "m",
-			"piege": "t", "levier": "l", "prefab": "d", "luminaire": "lu", "bloc_invisible": "i"}.get(String(e.get("type", "")), "x")
+			"piege": "t", "levier": "l", "prefab": "d", "luminaire": "lu", "bloc_invisible": "i", "effet": "fx"}.get(String(e.get("type", "")), "x")
 		e["id"] = doc.new_id(prefix)
 		# Un seul départ de la boîte.
 		if String(e.type) == "boite" and e.get("depart", false):
@@ -1295,6 +1364,12 @@ static func _shift(o: Dictionary, delta: Vector2) -> Dictionary:
 		e.contour = pts
 		if e.has("forme") and MapShapes.valid(e.forme):
 			e.forme = MapShapes.shifted(e.forme, delta)
+	if e.has("sommets"):
+		# Barrière invisible en polygone (format 9).
+		var pts := []
+		for p in e.sommets:
+			pts.append(MapGeom.arr(MapGeom.v2(p) + delta))
+		e.sommets = pts
 	for key in ["position", "a", "b", "centre"]:
 		if e.has(key):
 			e[key] = MapGeom.arr(MapGeom.v2(e[key]) + delta)
@@ -1331,6 +1406,8 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 					cand.position = res.position
 			"rect":
 				res = MapRules.check_rect(doc, k, t, MapGeom.rect_of(cand.rect), String(orig.id), MapGeom.rot_of(cand))
+			"poly":
+				res = MapRules.check_clip(MapRaster.clip_poly(cand))
 			"wall":
 				res = MapRules.check_wall(MapGeom.v2(cand.a), MapGeom.v2(cand.b))
 			"arc":
@@ -1389,6 +1466,13 @@ func try_handle(orig: Dictionary, h: int, p: Vector2, snap0: Dictionary) -> Dict
 		# Sommet déplacé à la main : la forme de base d'origine ne se régénère plus.
 		cand.erase("forme")
 		res = MapRules.check_room(doc, k, np, String(orig.id))
+	elif orig.has("sommets"):
+		# Barrière invisible en polygone (format 9) : le sommet `h` suit le curseur.
+		var np := MapGeom.poly(orig.sommets)
+		if h >= 0 and h < np.size():
+			np[h] = p
+		cand.sommets = MapGeom.poly_arr(np)
+		res = MapRules.check_clip(np)
 	elif orig.has("rect") and MapGeom.rot_of(orig) != 0:
 		# Rectangle tourné : le coin opposé reste en place, dans le repère du rectangle.
 		var rot := float(MapGeom.rot_of(orig))
@@ -1573,6 +1657,8 @@ func paste() -> void:
 					e.position = res.position
 			"rect":
 				res = MapRules.check_rect(doc, floor_k, t, MapGeom.rect_of(e.rect), "", MapGeom.rot_of(e), MapCatalog.stair_kind(e))
+			"poly":
+				res = MapRules.check_clip(MapRaster.clip_poly(e))
 			"wall":
 				res = MapRules.check_wall(MapGeom.v2(e.a), MapGeom.v2(e.b))
 			"arc":
@@ -1788,6 +1874,8 @@ func _on_playtest_message(m: Dictionary) -> void:
 
 
 func new_map(force := false) -> void:
+	if refuse_guest():
+		return
 	if dirty and not force:
 		_confirm(Lang.t("Nouvelle carte", "New map"), Lang.t("Les modifications non enregistrées seront perdues. Continuer ?", "Unsaved changes will be lost. Continue?"), func(): new_map(true))
 		return
@@ -1798,6 +1886,8 @@ func new_map(force := false) -> void:
 
 
 func open_dir(dir: String, is_example := false) -> void:
+	if refuse_guest():
+		return
 	var d := EditorMap.load_dir(dir)
 	if not d.load_errors.is_empty():
 		_info(Lang.t("Ouverture", "Open"), "\n".join(d.load_errors.map(func(e): return Lang.t(e[0], e[1]))))
@@ -1815,9 +1905,9 @@ func open_example(ex_id: String) -> void:
 
 ## Enregistre (dans son dossier, sinon dans user://maps/<id>/).
 func save() -> bool:
-	# Invité d'une session : seul l'hôte enregistre le dossier de la carte.
-	if collab != null and collab.role == MapCollab.Role.GUEST:
-		return save_copy()
+	# Invité d'une session : seul l'hôte enregistre la carte.
+	if refuse_guest():
+		return false
 	if map_dir == "" or example:
 		var mid := doc.id()
 		if example or mid == "nouvelle_carte" or mid == "":
@@ -1836,20 +1926,38 @@ func save() -> bool:
 	return true
 
 
-## Invité : copie de la carte de la session dans un nouveau dossier à lui
-## (la session continue, le dossier de l'hôte n'est pas touché).
-func save_copy() -> bool:
-	var mid := _free_id(EditorMap.slug(doc.id() + "_copie"))
-	var dir := EditorMap.map_dir(mid)
-	var copy := doc.duplicate_map()
-	copy.carte["id"] = mid
-	var err := copy.save_dir(dir)
-	if err != OK:
-		set_status(Lang.t("Échec de l'enregistrement (%s)", "Save failed (%s)") % error_string(err), true)
+## Fichier > éléments réservés à l'hôte quand on a rejoint une session
+## (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, Exporter, Importer,
+## Cartes récentes) : ouvrir ou enregistrer la carte est l'affaire de l'hôte.
+const HOST_ONLY_FILE_IDS := [0, 1, 2, 3, 4, 5, 6]
+
+
+## Invité d'une session (rejointe, ou en train de la rejoindre).
+func is_guest() -> bool:
+	return collab != null and collab.role == MapCollab.Role.GUEST
+
+
+## Invité : refuse l'action (message dans la barre d'état) et rend true.
+func refuse_guest() -> bool:
+	if not is_guest():
 		return false
-	_add_recent(dir)
-	set_status(Lang.t("Copie enregistrée dans %s (seul l'hôte enregistre la carte de la session)", "Copy saved to %s (only the host saves the session map)") % dir)
+	set_status(Lang.t("Réservé à l'hôte de la session : seul l'hôte ouvre et enregistre la carte", "Host only: only the session host opens and saves the map"), true)
 	return true
+
+
+## Fichier : éléments réservés à l'hôte grisés (avec une bulle) chez l'invité,
+## actifs sinon (appelé à l'ouverture du menu et à chaque changement de session).
+func update_file_menu() -> void:
+	if file_menu == null:
+		return
+	var fm := file_menu.get_popup()
+	var guest := is_guest()
+	for id in HOST_ONLY_FILE_IDS:
+		var i := fm.get_item_index(id)
+		if i < 0:
+			continue
+		fm.set_item_disabled(i, guest)
+		fm.set_item_tooltip(i, Lang.t("Réservé à l'hôte de la session", "Host only") if guest else "")
 
 
 func _free_id(base: String) -> String:
@@ -1862,6 +1970,8 @@ func _free_id(base: String) -> String:
 
 
 func save_as(map_id: String) -> bool:
+	if refuse_guest():
+		return false
 	var mid := EditorMap.slug(map_id)
 	doc.carte["id"] = mid
 	map_dir = EditorMap.map_dir(mid)
@@ -1870,6 +1980,8 @@ func save_as(map_id: String) -> bool:
 
 
 func save_as_dialog() -> void:
+	if refuse_guest():
+		return
 	var d := ConfirmationDialog.new()
 	d.title = Lang.t("Enregistrer sous", "Save as")
 	var box := VBoxContainer.new()
@@ -1892,28 +2004,70 @@ func save_as_dialog() -> void:
 	e.grab_focus.call_deferred()
 
 
-func open_dialog() -> void:
+## Fenêtre Ouvrir (exemples livrés + cartes du joueur) ; « Supprimer » (ou
+## la touche Suppr) efface une carte du joueur après confirmation, jamais un
+## exemple. Rend la fenêtre (tests).
+func open_dialog() -> ConfirmationDialog:
+	if refuse_guest():
+		return null
 	var d := ConfirmationDialog.new()
+	d.name = "OpenDialog"
 	d.title = Lang.t("Ouvrir une carte", "Open a map")
 	var box := VBoxContainer.new()
 	d.add_child(box)
 	var list := ItemList.new()
+	list.name = "Maps"
 	list.custom_minimum_size = Vector2(460, 300)
 	box.add_child(list)
 	var entries := []
-	for ex in EditorMap.EXAMPLES:
-		entries.append([EditorMap.EXAMPLES[ex], true])
-		list.add_item(Lang.t("Exemple : %s", "Example: %s") % ex.to_upper())
-	for m in EditorMap.list_maps():
-		entries.append([m.dir, false])
-		list.add_item("%s   (%s)" % [m.name, m.id])
 	var hint := Label.new()
 	hint.text = Lang.t("Dossier des cartes : %s", "Maps folder: %s") % ProjectSettings.globalize_path(EditorMap.maps_root())
 	hint.add_theme_color_override("font_color", UiStyle.DIM)
 	box.add_child(hint)
 	d.ok_button_text = Lang.t("Ouvrir", "Open")
 	d.cancel_button_text = Lang.t("Annuler", "Cancel")
+	var del := d.add_button(Lang.t("Supprimer", "Delete"), false, "delete")
+	d.set_meta("list", list)
+	d.set_meta("delete", del)
 	add_child(d)
+	# Entrées : [dossier, exemple ?, nom affiché].
+	var fill := func():
+		list.clear()
+		entries.clear()
+		for ex in EditorMap.EXAMPLES:
+			entries.append([EditorMap.EXAMPLES[ex], true, ex.to_upper()])
+			list.add_item(Lang.t("Exemple : %s", "Example: %s") % ex.to_upper())
+		for m in EditorMap.list_maps():
+			entries.append([m.dir, false, String(m.name)])
+			list.add_item("%s   (%s)" % [m.name, m.id])
+	var update_del := func():
+		var sel := list.get_selected_items()
+		var own := not sel.is_empty() and not bool(entries[sel[0]][1])
+		del.disabled = not own
+		del.tooltip_text = "" if own or sel.is_empty() else Lang.t("Les exemples livrés avec le jeu ne peuvent pas être supprimés", "Examples shipped with the game cannot be deleted")
+	var ask_delete := func():
+		var sel := list.get_selected_items()
+		if sel.is_empty() or bool(entries[sel[0]][1]):
+			return
+		var en: Array = entries[sel[0]]
+		var on_ok := func():
+			delete_map(String(en[0]))
+			if is_instance_valid(list):
+				fill.call()
+				update_del.call()
+		_confirm(Lang.t("Supprimer la carte", "Delete the map"),
+			Lang.t("Supprimer définitivement la carte « %s » ?\n(%s)", "Permanently delete the map \"%s\"?\n(%s)") % [String(en[2]), String(en[0]).get_file()],
+			on_ok, Callable(), d)
+	fill.call()
+	update_del.call()
+	list.item_selected.connect(func(_i): update_del.call())
+	list.gui_input.connect(func(ev):
+		if ev is InputEventKey and ev.pressed and not ev.echo and ev.keycode == KEY_DELETE:
+			ask_delete.call()
+			list.accept_event())
+	d.custom_action.connect(func(action):
+		if action == "delete":
+			ask_delete.call())
 	var go := func():
 		var sel := list.get_selected_items()
 		if not sel.is_empty():
@@ -1924,9 +2078,40 @@ func open_dialog() -> void:
 	list.item_activated.connect(func(_i): go.call())
 	d.canceled.connect(d.queue_free)
 	d.popup_centered()
+	return d
+
+
+## Supprime la carte du joueur rangée dans `dir` (EditorMap.delete_map :
+## dossier des cartes seulement, jamais un exemple). Carte ouverte ici : elle
+## reste à l'écran, sans dossier (le prochain Enregistrer lui en redonne un) ;
+## sa sauvegarde automatique est effacée.
+func delete_map(dir: String) -> bool:
+	if refuse_guest():
+		return false
+	var name_shown := dir.get_file()
+	if not EditorMap.delete_map(dir):
+		set_status(Lang.t("Impossible de supprimer la carte « %s »", "Could not delete the map \"%s\"") % name_shown, true)
+		return false
+	var gone := EditorMap._abs(dir).trim_suffix("/")
+	var meta: Variant = _read_meta(_autosave_dir())
+	var auto_src := String(meta.get("source", "")) if meta is Dictionary else ""
+	if map_dir != "" and EditorMap._abs(map_dir).trim_suffix("/") == gone:
+		map_dir = ""
+		example = false
+		dirty = true
+		_drop_autosave()
+		_update_title()
+		set_status(Lang.t("Carte « %s » supprimée : elle reste ouverte, non enregistrée", "Map \"%s\" deleted: it stays open, not saved") % name_shown)
+	else:
+		if auto_src != "" and EditorMap._abs(auto_src).trim_suffix("/") == gone:
+			_drop_autosave()
+		set_status(Lang.t("Carte « %s » supprimée", "Map \"%s\" deleted") % name_shown)
+	return true
 
 
 func _zip_dialog(save_mode: bool) -> void:
+	if refuse_guest():
+		return
 	if _file_dialog != null:
 		_file_dialog.queue_free()
 	_file_dialog = FileDialog.new()
@@ -1949,6 +2134,8 @@ func _zip_dialog(save_mode: bool) -> void:
 
 
 func export_zip(path: String) -> bool:
+	if refuse_guest():
+		return false
 	var err := doc.export_zip(path)
 	if err != OK:
 		set_status(Lang.t("Échec de l'export (%s)", "Export failed (%s)") % error_string(err), true)
@@ -1958,6 +2145,8 @@ func export_zip(path: String) -> bool:
 
 
 func import_zip(path: String) -> bool:
+	if refuse_guest():
+		return false
 	var d := EditorMap.import_zip(path)
 	if not d.load_errors.is_empty() and d.pieces.is_empty():
 		_info(Lang.t("Import", "Import"), "\n".join(d.load_errors.map(func(e): return Lang.t(e[0], e[1]))))

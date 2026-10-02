@@ -23,6 +23,9 @@ var stairs: Array = []
 var obliques: Array = []
 var props: Array = []   # décor posé : [{id, model | build, p, yaw, scale, remap, nocollide}]
 var blockers: Array = []   # collisions du décor et des luminaires : [{center, size, yaw, barrier, surface}]
+## Effets (format 10) : [{fx, p, yaw, ground, intensity, scale, color, eid}]
+## (MapEffects ; aucune collision). « ground » : distance (m) de l'effet au sol.
+var effects: Array = []
 var zone_boxes: Array = []   # [étage, volume, zone, boîte]
 ## Boîtes de zone des morceaux de sol le long des murs obliques : testées après
 ## celles des salles de la grille (une boîte englobante déborde un peu du mur).
@@ -142,6 +145,7 @@ func _build() -> Dictionary:
 		_rails(f)
 	_decor()
 	_props()
+	_effects()
 	_clips()
 	_stairs()
 	var markers := _markers()
@@ -164,6 +168,12 @@ func _build() -> Dictionary:
 	}
 	if not obliques.is_empty():
 		out["obliques"] = obliques
+	# Format 10 : modèles des prefabs importés posés (pid -> .glb en base64),
+	# construits par le jeu (MeshMapBuilder, GLTFDocument).
+	if not map_models.is_empty():
+		out["map_models"] = map_models
+	if not effects.is_empty():
+		out["effects"] = effects
 	return out
 
 
@@ -619,13 +629,16 @@ func _blockers_of(boxes: Array, origin: Vector3, yaw: float, barrier: bool, surf
 ## construit par EditorPrefabs) et leurs collisions (« blockers »).
 func _props() -> void:
 	for pr in md.props:
-		var d: Dictionary = MapCatalog.PREFABS.get(String(pr.prefab), {})
+		var d: Dictionary = MapCatalog.prefab_def(String(pr.prefab))
 		if d.is_empty():
 			continue
 		var k: int = pr.floor
 		var yaw := -deg_to_rad(float(pr.rot))
 		var origin := _world(k, pr.center)
 		var block := String(d.bloque)
+		if d.has("map"):
+			_map_prefab(pr, d, origin, yaw)
+			continue
 		var copies: Array = d.get("copies", [[0, 0, 0]])
 		for i in copies.size():
 			var cp: Array = copies[i]
@@ -648,11 +661,87 @@ func _props() -> void:
 			_blockers_of(d.boxes, origin, yaw, block == "barriere", String(d.get("surface", "concrete")))
 
 
-## Barrières invisibles (format 5) : un pavé de collision chacune, sur la
-## couche BARRIER (joueurs et zombies arrêtés, navmesh cuit autour ; balles et
-## grenades passent), du sol jusqu'au plafond de l'étage (ou sa hauteur),
-## JAMAIS de maillage en jeu. « clip » et « eid » : l'aperçu 3D peut les
-## montrer (MapPreviewBuilder) ; CollisionBox.from_dict les ignore.
+## Modèles des prefabs de la carte posés (pid -> base64) : « map_models ».
+var map_models: Dictionary = {}
+
+
+## Prefab de la carte posé (format 10, MapPrefabLib) : groupe -> chaque partie
+## comme le décor du catalogue (modèle ou objet construit, à sa place et sa
+## rotation dans le prefab, sans collision propre) ; modèle importé -> un objet
+## « map_model » (son .glb, décalé pour être centré et posé au sol, à son
+## échelle). Collision : les pavés du prefab (CollisionBox), jamais le modèle.
+func _map_prefab(pr: Dictionary, d: Dictionary, origin: Vector3, yaw: float) -> void:
+	var pid := String(d.map)
+	var basis := Basis(Vector3.UP, yaw)
+	if d.has("modele"):
+		var md2: Dictionary = d.modele
+		var e := {"id": String(pr.eid), "p": _v3(origin + basis * MapPrefabLib.model_offset(d)), "yaw": _r(yaw),
+			"map_model": pid, "sig": String(md2.sha256).left(16), "aabb": md2.aabb}
+		if absf(float(md2.echelle) - 1.0) > 0.0001:
+			e["scale"] = float(md2.echelle)
+		props.append(e)
+		if md.map_models.has(pid):
+			map_models[pid] = md.map_models[pid]
+	else:
+		var parts: Array = d.get("parties", [])
+		for i in parts.size():
+			var part: Dictionary = parts[i]
+			var cd: Dictionary = MapCatalog.PREFABS.get(String(part.decor), {})
+			if cd.is_empty():
+				continue
+			var pp: Array = part.pos
+			var pyaw := yaw - deg_to_rad(float(part.get("rot", 0)))
+			var po := origin + basis * Vector3(float(pp[0]), 0.0, float(pp[1]))
+			var copies: Array = cd.get("copies", [[0, 0, 0]])
+			for j in copies.size():
+				var cp: Array = copies[j]
+				var e := {"id": "%s_%d_%d" % [pr.eid, i, j], "p": _v3(po + Basis(Vector3.UP, pyaw) * Vector3(cp[0], 0, cp[1])), "yaw": _r(pyaw + float(cp[2]))}
+				if cd.has("model"):
+					e["model"] = String(cd.model)
+					if cd.has("scale"):
+						e["scale"] = float(cd.scale)
+					if cd.has("remap"):
+						e["remap"] = cd.remap
+					e["nocollide"] = true
+				else:
+					e["build"] = String(cd.build)
+				props.append(e)
+	if String(d.bloque) != "non":
+		_blockers_of(d.get("boxes", []), origin, yaw, String(d.bloque) == "barriere", String(d.get("surface", "concrete")))
+## Effets posés (format 10) : point d'origine dans le monde (au sol, surélevé,
+## sur la face d'un mur ou sous le plafond de la pièce), lacet, distance au
+## sol (étincelles qui rebondissent, gouttes), réglages bornés. Au plus
+## MapCatalog.MAX_EFFECTS (le reste est ignoré).
+func _effects() -> void:
+	for fx in md.effects:
+		if effects.size() >= MapCatalog.MAX_EFFECTS:
+			break
+		var k: int = fx.floor
+		var c: Vector2 = fx.center
+		var cell := Vector2i(floori(c.x / MapGeom.CELL), floori(c.y / MapGeom.CELL))
+		var room_h: float = float(ceil_at(k, cell)[0]) - float(md.floors[k].sol)
+		var y := float(fx.y)
+		match String(fx.mount):
+			"plafond":
+				y = room_h - 0.02
+			"mur":
+				# Toujours sous le plafond de la pièce.
+				y = clampf(y, 0.05, maxf(0.05, room_h - 0.2))
+		var e := {"fx": String(fx.effet), "p": _v3(_world(k, c, y)), "yaw": _r(float(fx.yaw)), "ground": _r(maxf(0.0, y)),
+			"room_h": _r(room_h), "intensity": _r(float(fx.intensity)), "scale": _r(float(fx.scale)), "eid": String(fx.eid)}
+		if String(fx.color) != "":
+			e["color"] = String(fx.color)
+		effects.append(e)
+
+
+## Barrières invisibles : une collision chacune, sur la couche BARRIER
+## (joueurs et zombies arrêtés, navmesh cuit autour ; balles et grenades
+## passent), du sol jusqu'au plafond de l'étage (ou sa hauteur), JAMAIS de
+## maillage en jeu. Format 9 : « poly » = les sommets du polygone en x, z
+## autour de « center » (CollisionBox en fait un prisme, une forme convexe par
+## morceau) ; « size » = son rectangle englobant et la hauteur. « clip » et
+## « eid » : l'aperçu 3D peut les montrer (MapPreviewBuilder) ;
+## CollisionBox.from_dict les ignore.
 func _clips() -> void:
 	for cl in md.clips:
 		var k: int = cl.floor
@@ -661,8 +750,12 @@ func _clips() -> void:
 		if h <= 0.0:
 			h = maxf(top(k) - sol, 2.0)
 		var sz: Vector2 = cl.size
-		blockers.append({"center": _v3(_world(k, cl.center, h * 0.5)), "size": [_r(sz.x), _r(h), _r(sz.y)],
-			"yaw": _r(-deg_to_rad(float(cl.rot))), "barrier": true, "surface": "concrete", "clip": true, "eid": String(cl.eid)})
+		var c: Vector2 = cl.center
+		var local := []
+		for p: Vector2 in cl.poly:
+			local.append([_r(p.x - c.x), _r(p.y - c.y)])
+		blockers.append({"center": _v3(_world(k, c, h * 0.5)), "size": [_r(sz.x), _r(h), _r(sz.y)],
+			"yaw": 0.0, "poly": local, "barrier": true, "surface": "concrete", "clip": true, "eid": String(cl.eid)})
 
 
 ## Garde-corps : bord d'un plancher d'étage sur un vide (sauf en haut d'escalier).

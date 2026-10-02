@@ -9,8 +9,9 @@ extends RefCounted
 ## posé), fp (emprise en cases de 0,5 m : [le long du mur, profondeur] ou
 ## [côté, côté]), color, price}.
 ## Outils : select, erase, room_rect, room_poly, wall, rect (pilier, escalier,
-## zone de piège), opening (porte, débris, fenêtre...), wall_item (contre un
-## mur), floor_item (au sol, dans une pièce).
+## zone de piège), poly (objet tracé en polygone : barrière invisible), opening
+## (porte, débris, fenêtre...), wall_item (contre un mur), floor_item (au sol,
+## dans une pièce).
 ##
 ## Décor (PREFABS) et luminaires (LIGHTS) sont décrits ICI seulement : l'éditeur
 ## (pose, icônes, propriétés), le validateur, l'export en maillage et le jeu
@@ -19,6 +20,18 @@ extends RefCounted
 ## allowed_surfaces(), room_keys() et zone_keys() (contrôle des cartes
 ## partagées, docs/MAP_AUTHORING.md §6).
 
+## Sous-onglets des effets (format 10) : [identifiant, nom FR, nom EN].
+const EFFECT_SUBS := [
+	["flammes", "Flammes", "Flames"],
+	["fumees", "Fumées", "Smoke"],
+	["etincelles", "Étincelles", "Sparks"],
+	["electricite", "Électricité", "Electricity"],
+	["eau", "Eau", "Water"],
+	["ambiance", "Ambiance", "Atmosphere"],
+]
+## Catégories de l'inventaire : [identifiant, nom FR, nom EN] et, en option,
+## une liste de sous-onglets [[identifiant, FR, EN], ...] (subs_of) : les
+## objets de la catégorie ont alors une clé « sub ».
 const CATEGORIES := [
 	["construction", "Construction", "Building"],
 	["ouvertures", "Ouvertures", "Openings"],
@@ -29,10 +42,14 @@ const CATEGORIES := [
 	["pieges", "Pièges", "Traps"],
 	["joueurs", "Joueurs et apparitions", "Players and spawns"],
 	["prefabs", "Décor et obstacles", "Props and obstacles"],
+	# Format 10 : prefabs propres à la carte (dossier prefabs/ de la carte, MapPrefabLib).
+	["prefabs_carte", "Prefabs de la carte", "Map prefabs"],
 	["lumieres", "Luminaires", "Light fixtures"],
+	["effets", "Effets", "Effects", EFFECT_SUBS],
 ]
-## Barre rapide par défaut (9 cases).
-const DEFAULT_HOTBAR := ["select", "piece_rect", "piece_poly", "mur", "porte", "fenetre", "boite", "depart", "arme:m14"]
+## Barre rapide par défaut (9 cases). La souris (« select ») n'y est pas : elle
+## a sa case fixe à gauche de la barre (MapHotbar).
+const DEFAULT_HOTBAR := ["escalier", "piece_rect", "piece_poly", "mur", "porte", "fenetre", "boite", "depart", "arme:m14"]
 ## Prix BO1 des portes successives (750, puis 1000, puis 1250).
 const DOOR_PRICES := [750, 1000, 1250]
 
@@ -135,6 +152,77 @@ const LIGHTS := {
 	"feu": {"fr": "Brasero (feu)", "en": "Fire barrel", "mount": "sol", "fp": [2, 2], "y": 1.15,
 		"couleur": "#ff7a2a", "intensite": 2.4, "portee": 9.0, "courant": false, "vacille": true, "build": "feu", "bloque": "solide",
 		"boxes": [{"center": [0, 0.45, 0], "size": [0.62, 0.9, 0.62]}], "color": Color(1.0, 0.45, 0.1)},
+}
+
+## Effets (format 10, type « effet » de objets.json, docs/MAP_OBJECTS.md §
+## 11) : flammes, fumées, étincelles, électricité, eau, ambiance. Construits
+## par le jeu (MapEffects : particules, lumière vacillante, petits objets) ;
+## AUCUNE collision, ils ne gênent ni ne blessent personne, et se posent
+## par-dessus n'importe quoi (décor, objets de jeu).
+##   sub     sous-onglet (EFFECT_SUBS)
+##   mount   « sol » (au sol, ou surélevé : `y`), « mur » (contre un mur, à la
+##           hauteur `y`, dirigé vers la pièce) ou « plafond » (sous le plafond)
+##   fp      emprise en cases (dessin, clic)
+##   y       sol : hauteur par défaut au-dessus du sol ; mur : hauteur (m)
+##   couleur teinte par défaut (« #rrggbb ») : seuls ces effets se teintent
+##   rotates pivote avec R (effets au sol allongés)
+## Réglages d'un effet posé (tous facultatifs, jamais écrits à leur valeur
+## par défaut, tidy_effect) : intensite (x, quantité de particules et
+## lumière), taille (x), couleur, hauteur (m), rot.
+const EFFECT_LIMITS := {"intensite": [0.25, 2.0], "taille": [0.5, 2.5], "hauteur": [0.0, 30.0]}
+## Effets au plus par carte (coût des particules, MapEffects.PARTICLE_BUDGET).
+const MAX_EFFECTS := CustomMapGuard.MAX_EFFECTS
+const EFFECTS := {
+	# Flammes.
+	"petit_feu": {"sub": "flammes", "fr": "Petit feu", "en": "Small fire", "mount": "sol", "fp": [2, 2], "color": Color(1.0, 0.55, 0.15),
+		"hint_fr": "Quelques bûches qui brûlent", "hint_en": "A few burning logs"},
+	"brasier": {"sub": "flammes", "fr": "Feu de camp / brasier", "en": "Campfire / bonfire", "mount": "sol", "fp": [3, 3], "color": Color(1.0, 0.45, 0.1),
+		"hint_fr": "Grand feu cerclé de pierres", "hint_en": "Big fire ringed with stones"},
+	"baril_feu": {"sub": "flammes", "fr": "Flammes de baril", "en": "Barrel flames", "mount": "sol", "fp": [1, 1], "y": 0.9, "color": Color(1.0, 0.5, 0.2),
+		"hint_fr": "Flammes à poser sur un baril (0,9 m de haut par défaut)", "hint_en": "Flames to put on a barrel (0.9 m high by default)"},
+	"torche": {"sub": "flammes", "fr": "Torche murale", "en": "Wall torch", "mount": "mur", "fp": [1, 1], "y": 1.8, "color": Color(1.0, 0.65, 0.25),
+		"hint_fr": "Torche fixée au mur", "hint_en": "Torch fixed to the wall"},
+	"incendie": {"sub": "flammes", "fr": "Incendie (large)", "en": "Large blaze", "mount": "sol", "fp": [6, 4], "rotates": true, "color": Color(0.95, 0.35, 0.08),
+		"hint_fr": "Nappe de feu de 3 × 2 m, épaisse fumée", "hint_en": "3 × 2 m sheet of fire, thick smoke"},
+	# Fumées.
+	"fumee_legere": {"sub": "fumees", "fr": "Fumée légère", "en": "Light smoke", "mount": "sol", "fp": [2, 2], "couleur": "#6e6c6a", "color": Color(0.65, 0.65, 0.65),
+		"hint_fr": "Volutes grises qui montent lentement", "hint_en": "Grey wisps slowly rising"},
+	"fumee_noire": {"sub": "fumees", "fr": "Fumée noire épaisse", "en": "Thick black smoke", "mount": "sol", "fp": [3, 3], "color": Color(0.3, 0.3, 0.32),
+		"hint_fr": "Colonne de fumée noire, braises au pied", "hint_en": "Column of black smoke, embers at its foot"},
+	"vapeur": {"sub": "fumees", "fr": "Vapeur de tuyau", "en": "Pipe steam", "mount": "mur", "fp": [1, 1], "y": 1.2, "color": Color(0.85, 0.9, 0.95),
+		"hint_fr": "Jet de vapeur sortant du mur", "hint_en": "Steam jet coming out of the wall"},
+	"brouillard": {"sub": "fumees", "fr": "Brouillard au sol", "en": "Ground fog", "mount": "sol", "fp": [8, 8], "couleur": "#8e9aa6", "color": Color(0.6, 0.68, 0.75),
+		"hint_fr": "Nappe de brume rampante de 4 × 4 m", "hint_en": "4 × 4 m creeping mist"},
+	# Étincelles.
+	"pluie_etincelles": {"sub": "etincelles", "fr": "Pluie d'étincelles", "en": "Spark shower", "mount": "plafond", "fp": [1, 1], "color": Color(1.0, 0.8, 0.3),
+		"hint_fr": "Câble arraché au plafond : gerbes qui rebondissent au sol", "hint_en": "Torn cable on the ceiling: showers bouncing on the floor"},
+	"soudure": {"sub": "etincelles", "fr": "Gerbe de soudure", "en": "Welding sparks", "mount": "mur", "fp": [1, 1], "y": 1.3, "color": Color(0.75, 0.85, 1.0),
+		"hint_fr": "Gerbe continue et éclats bleutés, par à-coups", "hint_en": "Steady spray and bluish flashes, in bursts"},
+	"court_circuit": {"sub": "etincelles", "fr": "Court-circuit", "en": "Short circuit", "mount": "mur", "fp": [1, 1], "y": 1.6, "color": Color(0.9, 0.9, 0.5),
+		"hint_fr": "Boîtier électrique qui claque de temps en temps", "hint_en": "Electrical box that pops now and then"},
+	# Électricité.
+	"arc": {"sub": "electricite", "fr": "Arc électrique", "en": "Electric arc", "mount": "sol", "fp": [3, 1], "y": 1.0, "rotates": true, "couleur": "#8fb4ff",
+		"color": Color(0.55, 0.7, 1.0), "hint_fr": "Arc crépitant entre deux électrodes", "hint_en": "Crackling arc between two electrodes"},
+	"tesla": {"sub": "electricite", "fr": "Bobine Tesla", "en": "Tesla coil", "mount": "sol", "fp": [2, 2], "y": 1.4, "couleur": "#a6b4ff",
+		"color": Color(0.65, 0.6, 1.0), "hint_fr": "Décharges dans toutes les directions", "hint_en": "Discharges in every direction"},
+	"cable_nu": {"sub": "electricite", "fr": "Câble à nu", "en": "Live wire", "mount": "plafond", "fp": [1, 1], "couleur": "#8fb4ff",
+		"color": Color(0.45, 0.6, 1.0), "hint_fr": "Câble pendant du plafond, son bout crépite", "hint_en": "Cable hanging from the ceiling, its end crackles"},
+	# Eau.
+	"goutte": {"sub": "eau", "fr": "Goutte-à-goutte", "en": "Dripping water", "mount": "plafond", "fp": [1, 1], "color": Color(0.5, 0.7, 0.95),
+		"hint_fr": "Gouttes du plafond et ronds dans l'eau au sol", "hint_en": "Drops from the ceiling and ripples on the floor"},
+	"fuite": {"sub": "eau", "fr": "Fuite de tuyau", "en": "Leaking pipe", "mount": "mur", "fp": [2, 1], "y": 2.0, "color": Color(0.4, 0.6, 0.85),
+		"hint_fr": "Filet d'eau qui tombe d'un tuyau et éclabousse", "hint_en": "Stream of water falling from a pipe and splashing"},
+	"flaque": {"sub": "eau", "fr": "Flaque", "en": "Puddle", "mount": "sol", "fp": [3, 3], "color": Color(0.3, 0.45, 0.6),
+		"hint_fr": "Flaque brillante parcourue de ronds", "hint_en": "Glossy puddle with ripples"},
+	# Ambiance.
+	"poussiere": {"sub": "ambiance", "fr": "Poussière en suspension", "en": "Floating dust", "mount": "sol", "fp": [6, 6], "color": Color(0.85, 0.8, 0.65),
+		"hint_fr": "Grains de poussière dans l'air, sur 3 × 3 m", "hint_en": "Dust motes in the air, over 3 × 3 m"},
+	"braises": {"sub": "ambiance", "fr": "Braises flottantes", "en": "Floating embers", "mount": "sol", "fp": [4, 4], "color": Color(1.0, 0.4, 0.1),
+		"hint_fr": "Braises qui s'élèvent en tourbillonnant", "hint_en": "Embers swirling upwards"},
+	"cendres": {"sub": "ambiance", "fr": "Cendres qui tombent", "en": "Falling ash", "mount": "sol", "fp": [6, 6], "color": Color(0.55, 0.53, 0.5),
+		"hint_fr": "Flocons de cendre qui tombent du plafond", "hint_en": "Ash flakes falling from the ceiling"},
+	"feux_follets": {"sub": "ambiance", "fr": "Feux follets (115)", "en": "Will-o'-wisps (115)", "mount": "sol", "fp": [3, 3], "couleur": "#3dff6a",
+		"color": Color(0.25, 1.0, 0.45), "hint_fr": "Lueurs vertes de l'élément 115 qui dérivent", "hint_en": "Drifting green glows of element 115"},
 }
 
 ## Variantes d'aspect d'un type d'élément (format 5, clé « variante » de
@@ -268,6 +356,13 @@ static func tidy_stair(o: Dictionary) -> void:
 ## Barrière invisible (type « bloc_invisible ») : hauteur (m) réglable ;
 ## absente, du sol au plafond de l'étage.
 const CLIP_HEIGHT := [0.5, 30.0]
+## Pas du champ Hauteur d'une barrière (m).
+const CLIP_HEIGHT_STEP := 0.1
+## Format 9 : barrière tracée en polygone (clé « sommets », 3 à 64 points) ;
+## surface minimale (m²) et côté minimal (m) de son contour.
+const CLIP_POINTS := [3, 64]
+const CLIP_MIN_AREA := 0.04
+const CLIP_MIN_SIDE := 0.05
 
 static var _items: Array = []
 static var _by_id: Dictionary = {}
@@ -299,11 +394,110 @@ static func _freeze(v: Variant) -> void:
 
 static func item(id: String) -> Dictionary:
 	items()
-	return _by_id.get(id, {})
+	var it: Dictionary = _by_id.get(id, {})
+	return it if not it.is_empty() else _map_items.get(id, {})
 
 
-static func in_category(cat: String) -> Array:
-	return items().filter(func(it): return it.cat == cat)
+## Objets d'une catégorie ; `sub` : seulement ceux de ce sous-onglet.
+static func in_category(cat: String, sub := "") -> Array:
+	if cat == MAP_CAT:
+		return map_items()
+	# « hidden » : la souris, case fixe de la barre rapide, hors inventaire.
+	return items().filter(func(it): return (it.cat == cat and not it.get("hidden", false)
+			and (sub == "" or String(it.get("sub", "")) == sub)))
+
+
+# ------------------------------------------------------------------ prefabs de la carte (format 10)
+
+## Catégorie de l'inventaire des prefabs de la carte ouverte.
+const MAP_CAT := "prefabs_carte"
+## Prefabs de la carte ouverte (MapPrefabLib) : pid -> définition au format
+## de PREFABS (fr, en, fp, h, bloque, boxes, surface, color, plus « map »,
+## « parties » ou « modele »), et leurs objets d'inventaire
+## (« prefab:map:<pid> »). Remplacés d'un bloc (jamais modifiés en place) par
+## le fil principal, figés en lecture seule : l'aperçu 3D les lit sans risque
+## depuis son fil (comme le reste du catalogue).
+static var _map_defs: Dictionary = {}
+static var _map_items: Dictionary = {}
+static var _map_sig := 0
+
+
+## Prefabs de la carte ouverte (EditorMap.prefabs : pid -> prefab.json lu).
+## Appelé par la carte (chargement, modification de sa bibliothèque) ; sans
+## effet hors du fil principal ou si rien n'a changé.
+static func set_map_prefabs(defs: Dictionary) -> void:
+	if ThreadGuard.worker():
+		return
+	var sig := hash(defs)
+	if sig == _map_sig and _map_defs.size() == defs.size():
+		return
+	_map_sig = sig
+	var nd := {}
+	var ni := {}
+	var block_fr := {"solide": "Bloque joueurs, zombies et balles", "barriere": "Bloque joueurs et zombies (les balles passent)", "non": "Décor : on marche dessus"}
+	var block_en := {"solide": "Blocks players, zombies and bullets", "barriere": "Blocks players and zombies (bullets go through)", "non": "Decoration: can be walked over"}
+	for pid in defs:
+		var d: Dictionary = (defs[pid] as Dictionary).duplicate(true)
+		var nom: Dictionary = d.get("nom", {})
+		var fr := String(nom.get("fr", nom.get("en", pid)))
+		var en := String(nom.get("en", fr))
+		var cd := {"fr": fr, "en": en, "fp": d.fp, "h": float(d.h), "bloque": String(d.bloque), "surface": String(d.get("surface", "concrete")),
+			"boxes": d.get("boxes", []), "color": MapPrefabLib.color_of(d), "map": String(pid)}
+		for k in ["parties", "modele"]:
+			if d.has(k):
+				cd[k] = d[k]
+		_freeze(cd)
+		nd[pid] = cd
+		var kind_fr := "Modèle importé" if d.has("modele") else "Groupe de %d décors" % (d.get("parties", []) as Array).size()
+		var kind_en := "Imported model" if d.has("modele") else "Group of %d props" % (d.get("parties", []) as Array).size()
+		var iid := "prefab:" + MapPrefabLib.ref(pid)
+		var it := {"id": iid, "cat": MAP_CAT, "fr": fr, "en": en, "tool": "floor_item", "color": cd.color,
+			"make": {"type": "prefab", "prefab": MapPrefabLib.ref(pid), "rot": 0}, "fp": d.fp, "rotates": true, "price": 0,
+			"hint_fr": "%s · %s · R : pivoter" % [kind_fr, block_fr.get(String(d.bloque), "")],
+			"hint_en": "%s · %s · R: rotate" % [kind_en, block_en.get(String(d.bloque), "")], "map": String(pid)}
+		_freeze(it)
+		ni[iid] = it
+	nd.make_read_only()
+	ni.make_read_only()
+	_map_defs = nd
+	_map_items = ni
+
+
+## Objets d'inventaire des prefabs de la carte, triés par nom.
+static func map_items() -> Array:
+	var out: Array = _map_items.values()
+	out.sort_custom(func(a, b): return name_of(a).naturalnocasecmp_to(name_of(b)) < 0)
+	return out
+
+
+## Définition d'un décor posé (clé « prefab ») : du catalogue, ou un prefab de
+## la carte (« map:<pid> ») ; {} s'il est inconnu.
+static func prefab_def(id: String) -> Dictionary:
+	if id.begins_with(MapPrefabLib.REF):
+		return _map_defs.get(id.substr(MapPrefabLib.REF.length()), {})
+	return PREFABS.get(id, {})
+
+
+## Décors qu'un objet posé peut devenir (panneau des propriétés) : ceux du
+## catalogue puis les prefabs de la carte.
+static func prefab_ids() -> Array:
+	var out: Array = PREFABS.keys()
+	for it in map_items():
+		out.append(String(it.make.prefab))
+	return out
+
+
+static func prefab_name(id: String) -> String:
+	var d := prefab_def(id)
+	return Lang.t(String(d.get("fr", id)), String(d.get("en", d.get("fr", id))))
+
+
+## Sous-onglets d'une catégorie ([[identifiant, FR, EN], ...] ; [] : aucun).
+static func subs_of(cat: String) -> Array:
+	for c in CATEGORIES:
+		if String(c[0]) == cat:
+			return c[3] if c.size() > 3 else []
+	return []
 
 
 static func name_of(it: Dictionary) -> String:
@@ -318,7 +512,7 @@ static func _add(d: Dictionary) -> void:
 
 static func _build() -> void:
 	# Construction.
-	_add({"id": "select", "cat": "construction", "fr": "Sélection", "en": "Select", "tool": "select", "color": Color(0.9, 0.9, 0.9),
+	_add({"id": "select", "cat": "construction", "fr": "Souris", "en": "Mouse", "tool": "select", "hidden": true, "color": Color(0.9, 0.9, 0.9),
 		"hint_fr": "Clic : choisir un élément ; glisser : déplacer ; poignées : redimensionner", "hint_en": "Click: pick an element; drag: move; handles: resize"})
 	_add({"id": "gomme", "cat": "construction", "fr": "Gomme", "en": "Eraser", "tool": "erase", "color": Color(0.95, 0.55, 0.6),
 		"hint_fr": "Clic : supprimer l'élément sous le curseur", "hint_en": "Click: delete the element under the cursor"})
@@ -361,10 +555,12 @@ static func _build() -> void:
 		"hint_en": "Drag from the bottom to the top of the stairs (goes up one floor); V: type (straight, landing, L, U, wide, service, spiral, ramp)"})
 	# Barrière invisible (« clip » de BO1) : bloque joueurs et zombies, les
 	# balles et les grenades passent ; invisible en jeu (CollisionBox).
-	_add({"id": "bloc_invisible", "cat": "construction", "fr": "Barrière invisible", "en": "Invisible barrier", "tool": "rect",
+	# Format 9 : tracée en polygone, posée n'importe où (à cheval sur un mur,
+	# dehors, par-dessus un objet).
+	_add({"id": "bloc_invisible", "cat": "construction", "fr": "Barrière invisible", "en": "Invisible barrier", "tool": "poly",
 		"color": Color(0.35, 0.85, 1.0), "make": {"type": "bloc_invisible"},
-		"hint_fr": "Glisser un rectangle dans une pièce (0,5 m de côté au moins) ; invisible en jeu, bloque joueurs et zombies, les balles passent",
-		"hint_en": "Drag a rectangle inside a room (at least 0.5 m per side); invisible in game, blocks players and zombies, bullets go through"})
+		"hint_fr": "Clics successifs (Alt : angle libre), double-clic, clic sur le premier point ou Entrée pour fermer ; n'importe où, même sur un mur ou un objet ; invisible en jeu, bloque joueurs et zombies, les balles passent",
+		"hint_en": "Click each corner (Alt: free angle), double-click, click the first point or Enter to close; anywhere, even over a wall or an object; invisible in game, blocks players and zombies, bullets go through"})
 	# Ouvertures (sur un mur de pièce).
 	_add({"id": "porte", "cat": "ouvertures", "fr": "Porte payante", "en": "Buyable door", "tool": "opening", "color": Color(1.0, 0.67, 0.0),
 		"make": {"type": "porte", "largeur": 2.0}, "price": DOOR_PRICES[0],
@@ -457,6 +653,22 @@ static func _build() -> void:
 			"color": d.color, "make": mk, "fp": d.fp, "rotates": mount != "mur",
 			"hint_fr": String(mount_fr[mount]) + " ; couleur, intensité, portée, courant et vacillement dans les propriétés",
 			"hint_en": String(mount_en[mount]) + "; colour, intensity, range, power and flicker in the properties"})
+	# Effets (format 10), rangés par sous-onglet.
+	var fx_fr := {"sol": "Au sol, n'importe où (même sur un objet)", "mur": "Contre un mur, à la hauteur voulue", "plafond": "Sous le plafond d'une pièce"}
+	var fx_en := {"sol": "On the floor, anywhere (even over an object)", "mur": "Against a wall, at any height", "plafond": "Under a room ceiling"}
+	for s in EFFECT_SUBS:
+		for fid in EFFECTS:
+			var d: Dictionary = EFFECTS[fid]
+			if String(d.sub) != String(s[0]):
+				continue
+			var mount := String(d.mount)
+			var mk := {"type": "effet", "effet": fid}
+			if d.get("rotates", false):
+				mk["rot"] = 0
+			_add({"id": "effet:" + fid, "cat": "effets", "sub": String(d.sub), "fr": d.fr, "en": d.en, "tool": "wall_item" if mount == "mur" else "floor_item",
+				"color": d.color, "make": mk, "fp": d.fp, "rotates": bool(d.get("rotates", false)),
+				"hint_fr": "%s · %s ; aucune collision · intensité, taille%s dans les propriétés" % [d.hint_fr, fx_fr[mount], ", couleur" if d.has("couleur") else ""],
+				"hint_en": "%s · %s; no collision · intensity, size%s in the properties" % [d.hint_en, fx_en[mount], ", colour" if d.has("couleur") else ""]})
 
 
 ## Objet du catalogue correspondant à un élément de la carte (icône, nom).
@@ -469,6 +681,8 @@ static func item_for(o: Dictionary) -> Dictionary:
 			return item("prefab:" + String(o.get("prefab", "")))
 		"luminaire":
 			return item("luminaire:" + String(o.get("luminaire", "")))
+		"effet":
+			return item("effet:" + String(o.get("effet", "")))
 		"arme":
 			return item("arme:" + String(o.get("arme", "")))
 		"boite":
@@ -575,7 +789,7 @@ static func rotates(o: Dictionary) -> bool:
 static func def_of(o: Dictionary) -> Dictionary:
 	match String(o.get("type", "")):
 		"prefab":
-			return PREFABS.get(String(o.get("prefab", "")), {})
+			return prefab_def(String(o.get("prefab", "")))
 		"luminaire":
 			return LIGHTS.get(String(o.get("luminaire", "")), {})
 	return {}
@@ -598,11 +812,113 @@ static func blocking(o: Dictionary) -> String:
 ## dedans, au centimètre, tourné, par-dessus un autre décor) ; les objets de
 ## jeu (portes, fenêtres, armes murales, atouts, boîte, départs...) gardent
 ## leurs règles de pose.
-const DECOR_TYPES := ["caisse", "baril", "prefab", "luminaire", "lampe"]
+## Format 10 : les effets se posent comme le décor (et par-dessus tout,
+## MapRules.NO_OVERLAP_CHECK).
+const DECOR_TYPES := ["caisse", "baril", "prefab", "luminaire", "lampe", "effet"]
 
 
 static func is_decor(o: Dictionary) -> bool:
 	return String(o.get("type", "")) in DECOR_TYPES
+
+
+# ------------------------------------------------------------------ effets (format 10)
+
+## Définition d'un effet posé (EFFECTS ; {} si ce n'en est pas un).
+static func effect_def(o: Dictionary) -> Dictionary:
+	if String(o.get("type", "")) != "effet":
+		return {}
+	return EFFECTS.get(String(o.get("effet", "")), {})
+
+
+## Montage d'un effet : « sol », « mur », « plafond » ("" : pas un effet).
+static func effect_mount(o: Dictionary) -> String:
+	return String(effect_def(o).get("mount", ""))
+
+
+## L'effet se teinte-t-il (clé « couleur ») ?
+static func effect_tints(o: Dictionary) -> bool:
+	return effect_def(o).has("couleur")
+
+
+static func effect_color(o: Dictionary) -> Color:
+	var c := String(o.get("couleur", effect_def(o).get("couleur", "#ffffff")))
+	return Color.html(c) if Color.html_is_valid(c) else Color.WHITE
+
+
+## Réglage numérique d'un effet (intensite, taille), borné ; absent : 1.
+static func effect_value(o: Dictionary, key: String) -> float:
+	var v: Variant = o.get(key, 1.0)
+	if not (v is float or v is int) or not is_finite(float(v)):
+		return 1.0
+	var lim: Array = EFFECT_LIMITS[key]
+	return clampf(float(v), lim[0], lim[1])
+
+
+## Hauteur d'un effet (m au-dessus du sol : surélévation d'un effet au sol,
+## hauteur d'un effet mural) ; absente : `y` de l'effet. 0 au plafond.
+static func effect_height(o: Dictionary) -> float:
+	var d := effect_def(o)
+	if String(d.get("mount", "")) == "plafond":
+		return 0.0
+	var def := float(d.get("y", 0.0))
+	var hv: Variant = o.get("hauteur", def)
+	if not (hv is float or hv is int) or not is_finite(float(hv)):
+		return def
+	return clampf(float(hv), EFFECT_LIMITS.hauteur[0], EFFECT_LIMITS.hauteur[1])
+
+
+## Réglages d'un effet remis en ordre (fichier écrit à la main, valeur remise
+## par défaut) : valeur illisible ou par défaut retirée, sinon bornée ;
+## couleur seulement pour les effets qui se teintent, hauteur jamais au plafond.
+static func tidy_effect(o: Dictionary) -> void:
+	if String(o.get("type", "")) != "effet":
+		return
+	var d := effect_def(o)
+	for key in ["intensite", "taille"]:
+		if o.has(key):
+			var v: Variant = o[key]
+			if not (v is float or v is int) or not is_finite(float(v)) or absf(float(v) - 1.0) < 0.005:
+				o.erase(key)
+			else:
+				o[key] = snappedf(clampf(float(v), EFFECT_LIMITS[key][0], EFFECT_LIMITS[key][1]), 0.01)
+	if o.has("hauteur"):
+		var hv: Variant = o.hauteur
+		if d.is_empty() or String(d.mount) == "plafond" or not (hv is float or hv is int) or not is_finite(float(hv)) \
+				or absf(float(hv) - float(d.get("y", 0.0))) < 0.005:
+			o.erase("hauteur")
+		else:
+			o["hauteur"] = snappedf(clampf(float(hv), EFFECT_LIMITS.hauteur[0], EFFECT_LIMITS.hauteur[1]), 0.01)
+	if o.has("couleur"):
+		var c: Variant = o.couleur
+		if not d.has("couleur") or not (c is String and Color.html_is_valid(c)) or Color.html(c).is_equal_approx(Color.html(String(d.couleur))):
+			o.erase("couleur")
+	if o.has("rot") and not d.get("rotates", false):
+		o.erase("rot")
+
+
+## Nombre d'effets d'une carte (MAX_EFFECTS au plus).
+static func effect_count(doc: EditorMap) -> int:
+	var n := 0
+	for o in doc.objets:
+		if String(o.get("type", "")) == "effet":
+			n += 1
+	return n
+
+
+## Format 9 : réglage de la carte « chevauchement_decor » (carte.json, vrai /
+## faux ; absent : faux, les règles d'avant). Coché, le décor et les obstacles
+## (OVERLAP_TYPES : le décor de DECOR_TYPES et les piliers) peuvent se
+## chevaucher entre eux. Les objets de jeu (portes, fenêtres, atouts, armes
+## murales, boîte, Pack-a-Punch, interrupteur, leviers, pièges, départs,
+## apparitions, téléporteurs, escaliers) gardent leurs règles : ils ne
+## chevauchent rien et rien ne les chevauche (la carte reste jouable). La
+## barrière invisible, elle, se pose toujours n'importe où (MapRules.check_clip).
+const OVERLAP_KEY := "chevauchement_decor"
+const OVERLAP_TYPES := ["caisse", "baril", "prefab", "luminaire", "lampe", "pilier"]
+
+
+static func may_overlap(o: Dictionary) -> bool:
+	return String(o.get("type", "")) in OVERLAP_TYPES
 
 
 ## Hauteur d'une applique (format 7, clé « hauteur » d'un luminaire mural :
@@ -698,7 +1014,8 @@ const MAX_FLOORS := CustomMapGuard.MAX_FLOORS
 ## spec : {"t": "id"} identifiant (lettres, chiffres, _ ; 32 caractères au
 ##   plus) ; {"t": "int", "min", "max"} ; {"t": "number", "min", "max"} ;
 ##   {"t": "bool"} ; {"t": "enum", "values": [...]} ; {"t": "point"} [x, y] en
-##   mètres (0 à MAX_COORD) ; {"t": "rect"} [x0, y0, x1, y1] ; {"t": "color"}
+##   mètres (0 à MAX_COORD) ; {"t": "rect"} [x0, y0, x1, y1] ; {"t": "points",
+##   "min", "max"} liste de points [x, y] (format 9) ; {"t": "color"}
 ##   « #rrggbb ». Les clés communes (id, type, etage) sont dans chaque entrée.
 static func allowed_kinds() -> Dictionary:
 	var dirs := {"t": "enum", "values": ["n", "e", "s", "o"]}
@@ -731,9 +1048,12 @@ static func allowed_kinds() -> Dictionary:
 	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs, "rot": rot,
 		"sens": {"t": "enum", "values": STAIR_TURNS}, "marches": {"t": "int", "min": STAIR_STEPS[0], "max": STAIR_STEPS[1]},
 		"garde_corps": {"t": "bool"}, "cotes": {"t": "enum", "values": STAIR_SIDES}}, ["rect"])
-	# Format 5 : barrière invisible (rectangle, rotation, hauteur facultative).
-	add.call("objets.json", "bloc_invisible", {"rect": {"t": "rect"}, "rot": rot,
-		"hauteur": {"t": "number", "min": CLIP_HEIGHT[0], "max": CLIP_HEIGHT[1]}}, ["rect"])
+	# Format 5 : barrière invisible (rectangle, rotation, hauteur facultative) ;
+	# format 9 : polygone « sommets » (3 à 64 points). L'un des deux est
+	# obligatoire (CustomMapGuard._check_object) ; l'éditeur lit un rectangle
+	# d'avant comme un polygone de 4 sommets (EditorMap._normalize).
+	add.call("objets.json", "bloc_invisible", {"sommets": {"t": "points", "min": CLIP_POINTS[0], "max": CLIP_POINTS[1]},
+		"rect": {"t": "rect"}, "rot": rot, "hauteur": {"t": "number", "min": CLIP_HEIGHT[0], "max": CLIP_HEIGHT[1]}}, [])
 	add.call("objets.json", "mur", {"a": point, "b": point, "epaisseur": thick}, ["a", "b"])
 	# Format 4 : mur courbe (arc de cercle en segments, MapShapes).
 	add.call("objets.json", "mur_courbe", {"centre": point, "rayon": {"t": "number", "min": 1.0, "max": MapShapes.MAX_RADIUS},
@@ -751,13 +1071,21 @@ static func allowed_kinds() -> Dictionary:
 		add.call("objets.json", t, {"position": point, "mur": dirs, "angle": angle}, ["position"])
 	for t in ["depart", "apparition", "teleporteur", "arrivee", "lampe", "caisse", "baril"]:
 		add.call("objets.json", t, {"position": point}, ["position"])
-	add.call("objets.json", "prefab", {"prefab": {"t": "enum", "values": PREFABS.keys()}, "position": point, "rot": rot}, ["prefab", "position"])
+	# Format 10 : « prefab » : un décor du catalogue ou un prefab de la carte
+	# (« map:<pid> », qui doit exister dans son dossier prefabs/ :
+	# CustomMapGuard.check_texts).
+	add.call("objets.json", "prefab", {"prefab": {"t": "prefab", "values": PREFABS.keys()}, "position": point, "rot": rot}, ["prefab", "position"])
 	add.call("objets.json", "luminaire", {"luminaire": {"t": "enum", "values": LIGHTS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
 		"couleur": {"t": "color"}, "intensite": {"t": "number", "min": LIGHT_LIMITS.intensite[0], "max": LIGHT_LIMITS.intensite[1]},
 		"portee": {"t": "number", "min": LIGHT_LIMITS.portee[0], "max": LIGHT_LIMITS.portee[1]},
 		"courant": {"t": "bool"}, "vacille": {"t": "bool"},
 		# Format 7 : hauteur d'une applique (m au-dessus du sol).
 		"hauteur": {"t": "number", "min": WALL_LIGHT_HEIGHT[0], "max": WALL_LIGHT_HEIGHT[1]}}, ["luminaire", "position"])
+	# Format 10 : effets (flammes, fumées...), réglages facultatifs bornés.
+	add.call("objets.json", "effet", {"effet": {"t": "enum", "values": EFFECTS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
+		"couleur": {"t": "color"}, "intensite": {"t": "number", "min": EFFECT_LIMITS.intensite[0], "max": EFFECT_LIMITS.intensite[1]},
+		"taille": {"t": "number", "min": EFFECT_LIMITS.taille[0], "max": EFFECT_LIMITS.taille[1]},
+		"hauteur": {"t": "number", "min": EFFECT_LIMITS.hauteur[0], "max": EFFECT_LIMITS.hauteur[1]}}, ["effet", "position"])
 	return out
 
 

@@ -411,6 +411,9 @@ func test_catalog_comes_from_the_game_databases() -> void:
 	assert_eq(int(MapCatalog.item("arme:bowie").price), KnifeDB.wall_cost("bowie"), "couteau de chasse")
 	assert_eq(int(MapCatalog.item("boite").price), MysteryBox.COST)
 	for c in MapCatalog.CATEGORIES:
+		# Prefabs de la carte (format 10) : vide tant que la carte n'en a pas.
+		if String(c[0]) == MapCatalog.MAP_CAT:
+			continue
 		assert_false(MapCatalog.in_category(String(c[0])).is_empty(), "catégorie %s remplie" % c[0])
 	assert_near(MapValidator.SILL, Barricade.SILL_TOP, 0.0001, "allège des fenêtres")
 	assert_near(MapValidator.LINTEL, Barricade.LINTEL_BOTTOM, 0.0001, "linteau des fenêtres")

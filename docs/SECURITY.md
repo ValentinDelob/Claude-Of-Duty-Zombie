@@ -115,7 +115,19 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
    version `v0.1.116`, identifiant de carte en `[a-z0-9_]`).
 5. **Archives** (.zip) : n'extraire que les noms attendus (`get_file()`, jamais
    le chemin de l'archive), borner le nombre d'entrées et la taille.
-6. **Processus** : `OS.execute` / `OS.create_process` / `OS.shell_open` seulement
+6. **Modèles 3D venus d'une carte** (prefabs de la carte, format 10,
+   `MapPrefabLib`) : jamais `load()` ni `ResourceLoader` ; seulement des
+   `.glb` vérifiés AVANT le moteur (`MapPrefabLib.check_glb` : en-tête et
+   morceaux GLB exacts, aucune clé `uri`, extensions obligatoires en liste
+   blanche, images PNG / JPEG intégrées de 4096 px au plus lues dans leur
+   en-tête, 150 000 triangles, comptes bornés, 8 Mo par modèle, 24 Mo par
+   carte, empreinte SHA-256 de `prefab.json`), puis lus par `GLTFDocument`
+   (aucun script, aucune ressource du projet) ; collisions, lumières, caméras,
+   sons et animations du modèle retirés ; collision du jeu : seulement les
+   `CollisionBox` de `prefab.json`. Un modèle illisible devient une boîte
+   (erreur au journal, jamais d'arrêt). Un `.gltf` importé du disque doit avoir
+   ses données intégrées (`data:`) ; il est réécrit en `.glb`.
+7. **Processus** : `OS.execute` / `OS.create_process` / `OS.shell_open` seulement
    avec des chemins construits par le code (jamais un texte reçu) ; dans un
    `.bat`, doubler les `%`.
 
@@ -128,7 +140,12 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
 - Tout lot reçu passe `MapOps.validate` (sinon déconnexion) puis le contrôle
   des cartes reçues (`MapOps.check_elements`, `CustomMapGuard`) ; JSON
   seulement (`JSON.parse`), jamais de chemin ni de nom de fichier venu du
-  réseau (« Enregistrer une copie » choisit son dossier lui-même).
+  réseau ; un invité n'ouvre ni n'enregistre la carte (réservé à l'hôte) et
+  ne peut pas changer l'identifiant (dossier) de la carte de l'hôte.
+- Suppression d'une carte (éditeur, Fichier > Ouvrir > Supprimer) :
+  `EditorMap.delete_map` n'efface qu'un dossier de carte directement dans le
+  dossier des cartes (jamais `..`, un exemple livré, `_autosave` ni un
+  dossier contenant un lien symbolique).
 - TESTER à plusieurs (MAP_COLLAB.md § 5.3) : l'invité ne rejoint une partie
   que sur l'adresse IP de sa connexion à l'hôte (jamais une adresse reçue) et
   un port 1024-65535 ; la carte passe par `MapShare` et `CustomMapGuard`

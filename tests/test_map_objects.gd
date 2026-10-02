@@ -82,7 +82,7 @@ func test_catalog_variants_and_barrier_entry() -> void:
 			assert_true(String(v[1]) != "" and String(v[2]) != "" and String(v[1]) != String(v[0]), "%s.%s : noms FR et EN" % [t, v[0]])
 	assert_eq(MapCatalog.next_variant("porte", "grille"), "blindee", "V revient au premier aspect")
 	var it := MapCatalog.item("bloc_invisible")
-	assert_eq(String(it.get("tool", "")), "rect", "barrière : tracée comme un pilier")
+	assert_eq(String(it.get("tool", "")), "poly", "barrière : tracée en polygone (format 9)")
 	assert_eq(String(it.get("cat", "")), "construction")
 	assert_true(String(it.fr) != "" and String(it.en) != "" and String(it.hint_fr) != "" and String(it.hint_en) != "", "textes FR / EN")
 	assert_eq(MapCatalog.item_for({"type": "bloc_invisible"}).get("id"), "bloc_invisible")
@@ -90,8 +90,8 @@ func test_catalog_variants_and_barrier_entry() -> void:
 	assert_eq(kinds.porte.keys.variante.values, MapCatalog.variants("porte"), "variantes admises des portes")
 	assert_eq(kinds.arme.keys.variante.values, MapCatalog.variants("arme"), "variantes admises des armes")
 	assert_eq(kinds.fenetre.keys.variante.values, MapCatalog.variants("fenetre"), "types admis des entrées des zombies (format 8)")
-	assert_true(kinds.has("bloc_invisible") and kinds.bloc_invisible.required.has("rect"), "barrière : type admis, rect obligatoire")
-	assert_eq(kinds.bloc_invisible.keys.keys().filter(func(k): return not k in ["id", "type", "etage"]), ["rect", "rot", "hauteur"])
+	assert_true(kinds.has("bloc_invisible") and kinds.bloc_invisible.required == ["id", "type"], "barrière : type admis (sommets ou rect : CustomMapGuard)")
+	assert_eq(kinds.bloc_invisible.keys.keys().filter(func(k): return not k in ["id", "type", "etage"]), ["sommets", "rect", "rot", "hauteur"])
 
 
 # ------------------------------------------------------------------ JSON
@@ -105,13 +105,21 @@ func test_variant_and_barrier_json_round_trip() -> void:
 	assert_true(String(texts["ouvertures.json"]).contains("\"variante\":\"bois\""), "variante écrite")
 	var back := EditorMap.from_texts(texts)
 	assert_eq(back.load_errors, [], "relue sans erreur")
-	assert_eq(back.file_texts(), texts, "relue puis réécrite à l'identique")
+	# Format 9 : la barrière rectangle d'avant est relue comme le polygone de
+	# ses 4 coins (même place) ; ensuite le fichier se relit à l'identique.
+	var again := back.file_texts()
+	assert_eq(EditorMap.from_texts(again).file_texts(), again, "relue puis réécrite à l'identique")
+	assert_eq(texts["ouvertures.json"], again["ouvertures.json"], "ouvertures inchangées")
 	assert_eq(MapCatalog.variant_of(back.find("o1")), "bois")
 	assert_eq(MapCatalog.variant_of(back.find("o4")), "gravats")
 	assert_eq(MapCatalog.variant_of(back.find("w1")), "planche")
 	var clip := back.find("i1")
-	assert_eq(clip.rect.map(func(x): return float(x)), [16.0, 3.0, 17.0, 8.0])
-	assert_eq(int(clip.rot), 30)
+	assert_false(clip.has("rect") or clip.has("rot"), "rect et rot remplacés par les sommets")
+	var want := MapGeom.rot_rect_poly(Vector2(16.5, 5.5), Vector2(1, 5), 30)
+	var got := MapGeom.poly(clip.sommets)
+	assert_eq(got.size(), 4, "4 sommets")
+	for i in 4:
+		assert_true(got[i].distance_to(want[i]) < 0.002, "coin %d à sa place (%s / %s)" % [i, got[i], want[i]])
 	assert_near(float(clip.hauteur), 2.5, 0.0001)
 	# Aspect par défaut : la clé disparaît (fichier identique à une carte d'avant).
 	var door := back.find("o1")
@@ -197,11 +205,11 @@ func test_barrier_cells_are_solid_for_the_validator() -> void:
 	cut.find("i1")["rect"] = [17, 0, 17.5, 10]
 	var vc := _check(cut)
 	assert_false(vc.errors().is_empty(), "barrière qui coupe la salle : signalée par le validateur")
-	# Règles de pose : 0,5 m suffit, hors d'une pièce refusé.
+	# Règles de pose (format 9) : n'importe où, même dehors ou sur un objet.
 	assert_true(MapRules.check_rect(doc, 0, "bloc_invisible", Rect2(20, 2, 0.5, 3)).ok, "0,5 m d'épaisseur accepté")
 	assert_false(MapRules.check_rect(doc, 0, "pilier", Rect2(20, 2, 0.5, 3)).ok, "un pilier garde 1 m au moins")
-	assert_false(MapRules.check_rect(doc, 0, "bloc_invisible", Rect2(30, 2, 1, 1)).ok, "hors d'une pièce refusé")
-	assert_false(MapRules.check_rect(doc, 0, "bloc_invisible", Rect2(16.5, 4, 1, 1)).ok, "chevauchement refusé")
+	assert_true(MapRules.check_rect(doc, 0, "bloc_invisible", Rect2(30, 2, 1, 1)).ok, "hors d'une pièce accepté")
+	assert_true(MapRules.check_rect(doc, 0, "bloc_invisible", Rect2(16.5, 4, 1, 1)).ok, "par-dessus une autre barrière accepté")
 
 
 # ------------------------------------------------------------------ jeu
@@ -395,10 +403,11 @@ func test_v_key_cycles_the_look_in_the_editor() -> void:
 	ed.canvas.mouse_m = Vector2(14.0, 2.75)
 	ed.canvas._update_preview()
 	assert_eq(MapCatalog.variant_of(ed.canvas.preview.get("obj", {})), "bois", "l'aperçu de pose porte la variante")
-	ed.select_slot(0)
+	ed.select_mouse()
 	assert_eq(ed.place_variant, "", "changer d'objet : aspect par défaut")
-	# Barrière invisible tracée au glisser (0,5 m d'épaisseur).
-	var res: Dictionary = ed.canvas._creation(MapCatalog.item("bloc_invisible"), Vector2(20, 2), Vector2(20.5, 6))
+	# Barrière invisible tracée en polygone (format 9 ; 0,5 m d'épaisseur).
+	var res: Dictionary = ed.canvas._poly_creation(MapCatalog.item("bloc_invisible"),
+		PackedVector2Array([Vector2(20, 2), Vector2(20.5, 2), Vector2(20.5, 6), Vector2(20, 6)]))
 	assert_true(res.ok, "barrière de 0,5 m acceptée : %s" % MapRules.why(res))
 	var o := ed.add_object(res.obj, 0)
 	assert_true(String(o.id).begins_with("i"), "identifiant i… (%s)" % o.id)

@@ -452,7 +452,7 @@ func test_rotation_handle_in_the_editor() -> void:
 	var cv := ed.canvas
 	ed.doc = _room_with_content()
 	ed.changed()
-	ed.select_slot(0)
+	ed.select_mouse()
 	ed.select("d1")
 	var rh := cv.rot_handle()
 	assert_false(rh.is_empty(), "poignée de rotation sur le décor choisi")

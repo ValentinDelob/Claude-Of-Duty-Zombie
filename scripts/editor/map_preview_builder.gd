@@ -15,7 +15,7 @@ extends MeshMapBuilder
 ## Clés de la description qui alimentent chaque morceau (reconstruit si
 ## l'une d'elles change).
 const ARCH_KEYS := ["rooms", "walls", "blocks", "slabs", "stairs", "rails", "obliques", "prop_materials"]
-const DECOR_KEYS := ["props", "instances", "screens", "beams", "shafts", "blockers", "prop_materials", "models_dir", "rooms"]
+const DECOR_KEYS := ["props", "instances", "screens", "beams", "shafts", "blockers", "prop_materials", "models_dir", "rooms", "effects"]
 
 
 func _init(layout_data: Dictionary) -> void:
@@ -36,20 +36,48 @@ func build_decor(parent: Node3D) -> void:
 
 ## Barrières invisibles (blockers « clip ») : un pavé translucide dans
 ## l'aperçu seulement (option « Montrer les barrières invisibles ») ; en jeu,
-## MeshMapBuilder n'en construit que la CollisionBox.
+## MeshMapBuilder n'en construit que la CollisionBox. Format 9 : le prisme du
+## polygone (« poly »), à la hauteur de la barrière (« size » y).
 func _build_clip_views() -> void:
 	for d in layout.get("blockers", []):
 		if not bool(d.get("clip", false)):
 			continue
 		var mi := MeshInstance3D.new()
 		mi.name = "ClipView_" + String(d.get("eid", ""))
-		var bm := BoxMesh.new()
-		bm.size = MeshMapLayout.vec(d.size)
-		mi.mesh = bm
+		var sz := MeshMapLayout.vec(d.size)
+		var poly := CollisionBox.poly_of(d)
+		if poly.size() >= 3:
+			mi.mesh = prism_mesh(poly, sz.y)
+		else:
+			var bm := BoxMesh.new()
+			bm.size = sz
+			mi.mesh = bm
 		mi.material_override = _clip_material()
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.transform = Transform3D(Basis(Vector3.UP, float(d.get("yaw", 0.0))), MeshMapLayout.vec(d.center))
 		root.add_child(mi)
+
+
+## Prisme d'un contour (x, z, centré) de hauteur `h` (de -h/2 à +h/2) :
+## dessus, dessous et côtés (matériau sans faces cachées).
+static func prism_mesh(poly: PackedVector2Array, h: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var lo := -h * 0.5
+	var hi := h * 0.5
+	var idx := Geometry2D.triangulate_polygon(poly)
+	for i in range(0, idx.size(), 3):
+		for y in [lo, hi]:
+			for j in 3:
+				var v := poly[idx[i + j]]
+				st.add_vertex(Vector3(v.x, y, v.y))
+	for i in poly.size():
+		var a := poly[i]
+		var b := poly[(i + 1) % poly.size()]
+		for v in [Vector3(a.x, lo, a.y), Vector3(b.x, lo, b.y), Vector3(b.x, hi, b.y), Vector3(a.x, lo, a.y), Vector3(b.x, hi, b.y), Vector3(a.x, hi, a.y)]:
+			st.add_vertex(v)
+	st.generate_normals()
+	return st.commit()
 
 
 static var _clip_mat: StandardMaterial3D

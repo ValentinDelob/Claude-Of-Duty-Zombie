@@ -8,7 +8,9 @@ extends RefCounted
 ##   - fenêtre : sur un mur extérieur, avec la place des zombies dehors ;
 ##   - objet mural : contre un mur de la pièce, face vers l'intérieur ;
 ##   - objet au sol, pilier, escalier, piège : à l'intérieur d'une pièce, sans
-##     chevauchement.
+##     chevauchement (format 9 : réglage de la carte « chevauchement_decor »,
+##     le décor et les piliers peuvent se chevaucher entre eux) ;
+##   - barrière invisible (format 9, polygone) : n'importe où (check_clip).
 ## Le validateur (MapValidator) revérifie tout à la fin (onglet Vérification).
 
 ## Distance maximale du curseur au mur visé (m).
@@ -425,6 +427,8 @@ static func room_touching(doc: EditorMap, k: int, poly: PackedVector2Array) -> D
 ## Emprise (m) d'un élément posé, pour le dessin, le clic et les chevauchements.
 static func footprint_rect(o: Dictionary) -> Rect2:
 	var t := String(o.get("type", ""))
+	if t == "bloc_invisible":
+		return MapGeom.bbox(MapRaster.clip_poly(o))
 	if o.has("rect"):
 		if MapGeom.rot_of(o) != 0:
 			return MapGeom.bbox(MapRaster.rect_poly(o))
@@ -479,6 +483,9 @@ static func apply_wall(o: Dictionary, res: Dictionary) -> void:
 static func hit(doc: EditorMap, o: Dictionary, p: Vector2) -> bool:
 	if o.has("contour"):
 		return MapGeom.contains(doc.room_poly(o), p)
+	if String(o.get("type", "")) == "bloc_invisible":
+		var cp := MapRaster.clip_poly(o)
+		return MapGeom.contains(cp, p) or MapGeom.on_boundary(cp, p, 0.05)
 	if String(o.get("type", "")) == "mur":
 		return MapGeom.dist_to_segment(p, MapGeom.v2(o.a), MapGeom.v2(o.b)) <= maxf(0.3, float(o.get("epaisseur", 0.5)) * 0.5)
 	if String(o.get("type", "")) == "mur_courbe":
@@ -528,7 +535,7 @@ static func begin_batch(doc: EditorMap) -> void:
 	_batch = {}
 	_batch_doc = doc
 	for o in doc.objets:
-		if String(o.get("type", "")) in ["mur", "mur_courbe"]:
+		if String(o.get("type", "")) in NO_OVERLAP_CHECK:
 			continue
 		var r := footprint_rect(o)
 		var e := [o, r, layer_of(o)]
@@ -568,9 +575,34 @@ static func _near(doc: EditorMap, k: int, r: Rect2) -> Array:
 		return out
 	var out := []
 	for o in doc.objects_on(k):
-		if not String(o.get("type", "")) in ["mur", "mur_courbe"]:
+		if not String(o.get("type", "")) in NO_OVERLAP_CHECK:
 			out.append([o, footprint_rect(o), layer_of(o)])
 	return out
+
+
+## Éléments jamais comptés dans les chevauchements : murs libres (ils ont
+## leurs règles) et barrières invisibles (format 9 : posées n'importe où, par
+## dessus n'importe quoi, elles ne gênent jamais la pose d'un autre objet) et
+## effets (format 10 : sans collision, ils ne gênent rien et rien ne les gêne).
+const NO_OVERLAP_CHECK := ["mur", "mur_courbe", "bloc_invisible", "effet"]
+
+
+## Réglage de la carte (format 9, MapCatalog.OVERLAP_KEY) : le décor et les
+## obstacles peuvent-ils se chevaucher ?
+static func overlaps_allowed(doc: EditorMap) -> bool:
+	return doc != null and bool(doc.carte.get(MapCatalog.OVERLAP_KEY, false))
+
+
+## Objets que `tmpl` chevauche vraiment : réglage « chevauchement_decor »
+## coché, un décor ou un obstacle (MapCatalog.OVERLAP_TYPES) ne compte pas
+## les autres décors et obstacles ; les objets de jeu restent comptés.
+static func _blocking_overlaps(doc: EditorMap, tmpl: Dictionary, others: Array) -> Array:
+	# Effet (format 10) : se pose par-dessus n'importe quoi.
+	if String(tmpl.get("type", "")) == "effet":
+		return []
+	if not (overlaps_allowed(doc) and MapCatalog.may_overlap(tmpl)):
+		return others
+	return others.filter(func(q): return not MapCatalog.may_overlap(q))
 
 
 ## Premier objet de la couche `layer` qui chevauche `r` ({} sinon).
@@ -768,6 +800,9 @@ const WALL_DECOR_STEP := 0.25
 ## ou sur un autre décor mural. « position » est sur le trait du mur (comme un
 ## objet mural de jeu), « mur » / « angle » donnent la direction du mur.
 static func place_wall_decor(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "", grid := false) -> Dictionary:
+	var full := _effects_full(doc, tmpl, ignore_id)
+	if not full.is_empty():
+		return full
 	var nm := _name(tmpl)
 	var room := room_at(doc, k, mouse)
 	if room.is_empty():
@@ -800,6 +835,7 @@ static func place_wall_decor(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 		obj["angle"] = snappedf(MapGeom.dir_deg(dv), 0.01)
 	var others := _overlaps_all(doc, k, footprint_rect(obj), ignore_id, layer_of(tmpl))
 	others = others.filter(func(q): return MapGeom.overlap(exact_poly(obj), exact_poly(q)))
+	others = _blocking_overlaps(doc, tmpl, others)
 	if not others.is_empty():
 		var on := _name(others[0])
 		return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
@@ -807,6 +843,14 @@ static func place_wall_decor(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 	if obj.has("angle"):
 		res["angle"] = obj.angle
 	return res
+
+
+## Nouvel effet (format 10) sur une carte qui en a déjà MapCatalog.MAX_EFFECTS :
+## le refus ; {} sinon (autre objet, ou effet déjà posé qu'on déplace).
+static func _effects_full(doc: EditorMap, tmpl: Dictionary, ignore_id: String) -> Dictionary:
+	if String(tmpl.get("type", "")) != "effet" or ignore_id != "" or MapCatalog.effect_count(doc) < MapCatalog.MAX_EFFECTS:
+		return {}
+	return refuse("%d effets au plus par carte" % MapCatalog.MAX_EFFECTS, "at most %d effects per map" % MapCatalog.MAX_EFFECTS)
 
 
 ## Décor mural déjà posé : toujours sur le trait d'un mur (côté de sa pièce
@@ -1027,6 +1071,8 @@ static func _place_wall_item_free(doc: EditorMap, k: int, tmpl: Dictionary, mous
 ## contre un mur en biais, un décor, un pilier... tournés ; son rectangle sinon.
 static func exact_poly(o: Dictionary) -> PackedVector2Array:
 	var tool := MapCatalog.tool_of(o)
+	if tool == "poly":
+		return MapRaster.clip_poly(o)
 	if tool == "wall_item" and MapGeom.item_oblique(o):
 		return wall_item_poly(o)
 	if o.has("rect") and MapGeom.rot_of(o) != 0:
@@ -1067,6 +1113,9 @@ static func _free_wall_room_check(_doc: EditorMap, _k: int, obj: Dictionary, pol
 ## luminaires du plafond ; un luminaire posé au sol peut se poser sur un
 ## meuble qui a un dessus (support : bureau, chariot...).
 static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "", grid := true) -> Dictionary:
+	var full := _effects_full(doc, tmpl, ignore_id)
+	if not full.is_empty():
+		return full
 	var n := MapCatalog.floor_size(tmpl)
 	var pos := Vector2(MapGeom.snap_along(mouse.x, n.x), MapGeom.snap_along(mouse.y, n.y))
 	if not grid or MapRaster.free_rot(tmpl):
@@ -1106,6 +1155,8 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 	elif support_height(tmpl) > 0.0:
 		# Meuble : les luminaires posés sur son dessus ne le gênent pas.
 		others = others.filter(func(q): return not (MapCatalog.light_mount(q) == "sol" and fr.grow(0.01).encloses(footprint_rect(q))))
+	# Format 9 : décor et obstacles qui se chevauchent (réglage de la carte).
+	others = _blocking_overlaps(doc, tmpl, others)
 	if not others.is_empty():
 		var on := _name(others[0])
 		return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
@@ -1122,10 +1173,9 @@ static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id
 	var nm := _name(o)
 	var sz0 := r.size   # taille avant rotation (largeur d'un escalier)
 	if type == "bloc_invisible":
-		# Barrière invisible : une case (0,5 m) d'épaisseur suffit.
-		if r.size.x < MapGeom.CELL - MapGeom.EPS or r.size.y < MapGeom.CELL - MapGeom.EPS:
-			return refuse("%s trop petite (0,5 m de côté au moins)" % nm[0], "%s too small (at least 0.5 m per side)" % nm[1])
-	elif r.size.x < MapGeom.CELL * 2 - MapGeom.EPS or r.size.y < MapGeom.CELL * 2 - MapGeom.EPS:
+		# Barrière d'avant le format 9 (rectangle) : mêmes règles qu'un polygone.
+		return check_clip(MapGeom.rot_rect_poly(r.get_center(), r.size, posmod(rot, 360)))
+	if r.size.x < MapGeom.CELL * 2 - MapGeom.EPS or r.size.y < MapGeom.CELL * 2 - MapGeom.EPS:
 		return refuse("%s trop petit (1 m de côté au moins)" % nm[0], "%s too small (at least 1 m per side)" % nm[1])
 	var room := room_at(doc, k, r.get_center())
 	if room.is_empty():
@@ -1157,11 +1207,40 @@ static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id
 			var ms := ("%s" % snappedf(mw, 0.1)).trim_suffix(".0")
 			var vn := MapCatalog.variant_names("escalier", kind)
 			return refuse("%s trop étroit (%s m au moins)" % [vn[0], ms.replace(".", ",")], "%s too narrow (at least %s m)" % [vn[1], ms])
-	var other := _overlaps(doc, k, r, ignore_id)
-	if not other.is_empty():
-		var on := _name(other)
+	var others := _blocking_overlaps(doc, o, _overlaps_all(doc, k, r, ignore_id))
+	if not others.is_empty():
+		var on := _name(others[0])
 		return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
 	return {"ok": true, "room": String(room.id)}
+
+
+# ------------------------------------------------------------------ barrière invisible (format 9)
+
+## Contour d'une barrière invisible (polygone, m) : elle se pose N'IMPORTE
+## OÙ (dans une pièce, à cheval sur un mur, dehors, par-dessus n'importe quel
+## objet). Seules règles : 3 à 64 sommets, côtés de 5 cm au moins, côtés qui
+## ne se croisent pas, 0,04 m² au moins, dans le terrain (x, y ≥ 0).
+static func check_clip(poly: PackedVector2Array) -> Dictionary:
+	var lim: Array = MapCatalog.CLIP_POINTS
+	if poly.size() < int(lim[0]):
+		return refuse("barrière invisible : 3 sommets au moins", "invisible barrier: at least 3 corners")
+	if poly.size() > int(lim[1]):
+		return refuse("barrière invisible : %d sommets au plus" % int(lim[1]), "invisible barrier: at most %d corners" % int(lim[1]))
+	for i in poly.size():
+		if poly[i].distance_to(poly[(i + 1) % poly.size()]) < MapCatalog.CLIP_MIN_SIDE:
+			return refuse("barrière invisible : côté trop court (5 cm au moins)", "invisible barrier: side too short (at least 5 cm)")
+	if not MapGeom.is_simple(poly):
+		return refuse("barrière invisible : contour invalide (ses côtés se croisent)", "invisible barrier: invalid outline (its sides cross)")
+	if MapGeom.area(poly) < MapCatalog.CLIP_MIN_AREA:
+		return refuse("barrière invisible trop petite (0,04 m² au moins)", "invisible barrier too small (at least 0.04 m²)")
+	var bb := MapGeom.bbox(poly)
+	if bb.position.x < -MapGeom.EPS or bb.position.y < -MapGeom.EPS:
+		return refuse("hors du terrain : x et y doivent rester positifs", "off the board: x and y must stay positive")
+	if bb.end.x > MapCatalog.MAX_COORD or bb.end.y > MapCatalog.MAX_COORD:
+		return refuse("hors du terrain (%d m au plus)" % int(MapCatalog.MAX_COORD), "off the board (%d m at most)" % int(MapCatalog.MAX_COORD))
+	if Geometry2D.decompose_polygon_in_convex(poly).is_empty():
+		return refuse("barrière invisible : contour invalide", "invisible barrier: invalid outline")
+	return {"ok": true}
 
 
 static func check_wall(a: Vector2, b: Vector2) -> Dictionary:
@@ -1218,6 +1297,8 @@ static func check_existing(doc: EditorMap, o: Dictionary) -> Dictionary:
 			return place_floor_item(doc, k, o, MapGeom.v2(o.position), String(o.id), false)
 		"rect":
 			return check_rect(doc, k, t, MapGeom.rect_of(o.rect), String(o.id), MapGeom.rot_of(o))
+		"poly":
+			return check_clip(MapRaster.clip_poly(o))
 		"wall":
 			return check_wall(MapGeom.v2(o.a), MapGeom.v2(o.b))
 		"arc":

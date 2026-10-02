@@ -215,7 +215,7 @@ func test_items_follow_their_free_wall() -> void:
 	assert_false(att.has("b1"), "la boîte du mur de la pièce n'en fait pas partie")
 	# Glisser le mur de 2 m vers l'est : les armes suivent, toujours valides.
 	var cv := ed.canvas
-	ed.select_slot(0)
+	ed.select_mouse()
 	_drag(ed, Vector2(12, 11.2), Vector2(14, 11.2))
 	assert_eq(MapGeom.v2(ed.doc.find("m1").a), Vector2(14, 6), "mur déplacé")
 	assert_near(MapGeom.v2(ed.doc.find(String(west.id)).position).x, 14.0, 0.001, "l'arme suit son mur")
@@ -327,7 +327,7 @@ func test_windows_move_along_their_wall_in_every_snap_mode() -> void:
 				ed.changed()
 				cv.fine_step = mode[1]
 				cv.set_snap_mode(mode[0])
-				ed.select_slot(0)
+				ed.select_mouse()
 				var p0 := MapGeom.v2(r.position)
 				var dl := 2.0 if MapRules.place_opening(doc, 0, "fenetre", p0 + _along(r) * 2.0, 1.0, "o9").ok else -2.0
 				_drag(ed, p0 + Vector2(0.1, 0.1), p0 + _along(r) * dl + Vector2(0.1, 0.1))
@@ -352,7 +352,7 @@ func test_window_moves_to_another_outer_wall() -> void:
 			ed.changed()
 			cv.fine_step = mode[1]
 			cv.set_snap_mode(mode[0])
-			ed.select_slot(0)
+			ed.select_mouse()
 			var p0 := MapGeom.v2(r.position)
 			var east := float(geo[1][0])
 			_drag(ed, p0, Vector2(east + 0.2, 6.0), 16)
@@ -381,7 +381,7 @@ func test_windows_placed_with_the_tool_in_every_snap_mode() -> void:
 		assert_eq(ws.size(), 1, "%s : fenêtre posée à l'outil (%s)" % [str(mode), cv.refusal])
 		if ws.is_empty():
 			continue
-		ed.select_slot(0)
+		ed.select_mouse()
 		var p0 := MapGeom.v2(ws[0].position)
 		_drag(ed, p0 + Vector2(0.1, 0.1), p0 + Vector2(3.1, 0.2))
 		var p1 := MapGeom.v2(ed.doc.find(String(ws[0].id)).position)
@@ -429,7 +429,7 @@ func test_doors_and_wall_items_move_in_every_snap_mode() -> void:
 				ed.changed()
 				cv.fine_step = mode[1]
 				cv.set_snap_mode(mode[0])
-				ed.select_slot(0)
+				ed.select_mouse()
 				var o := doc.find("o9")
 				var grab := MapGeom.v2(o.position) if kind != "arme" else MapRules.footprint_rect(o).get_center()
 				var t: Vector2 = attempt[2]
@@ -459,7 +459,7 @@ func test_wall_item_moves_along_a_free_wall_in_every_snap_mode() -> void:
 		ed.changed()
 		cv.fine_step = mode[1]
 		cv.set_snap_mode(mode[0])
-		ed.select_slot(0)
+		ed.select_mouse()
 		var grab := MapRules.footprint_rect(o).get_center()
 		_drag(ed, grab, grab + Vector2(0, 3.0))
 		var p1 := MapGeom.v2(ed.doc.find(String(o.id)).position)
@@ -534,7 +534,7 @@ func test_slow_drags_in_every_snap_mode() -> void:
 					ed.changed()
 					cv.fine_step = mode[1]
 					cv.set_snap_mode(mode[0])
-					ed.select_slot(0)
+					ed.select_mouse()
 					_slow_drag(ed, grab + Vector2(0.04, 0.03), grab + t * dl + Vector2(0.04, 0.03), step)
 					var p1 := MapGeom.v2(ed.doc.find("o9").position)
 					tried += 1
