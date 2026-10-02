@@ -1,5 +1,5 @@
 class_name MapCanvas
-extends Control
+extends MapView
 ## Vue de dessus de l'éditeur de cartes : grille de 1 m (règles en mètres),
 ## pièces, murs générés (grille du validateur), ouvertures, objets ; outils de
 ## pose avec aperçu vert / rouge et la raison d'un refus. Zoom : Ctrl + molette ;
@@ -7,25 +7,17 @@ extends Control
 ## 1 m, grille fine ou libre (touche G ; Maj inverse), aimants aux sommets et aux
 ## côtés en libre ; saisie au clavier de la longueur et de l'angle pendant le
 ## tracé ; formes de base (MapShapes) ; poignée de rotation (MapTransform).
+## Repères, zoom, grille et règles : MapView (plan « dessus »).
 
-const RULER := 20.0
 const HANDLE := 7.0
-const MIN_ZOOM := 4.0
-const MAX_ZOOM := 120.0
 const COL_BG := Color(0.1, 0.105, 0.115)
 const COL_TERRAIN := Color(0.135, 0.14, 0.15)
-const COL_GRID := Color(1, 1, 1, 0.045)
-const COL_GRID5 := Color(1, 1, 1, 0.11)
 const COL_WALL := Color(0.62, 0.62, 0.66)
 const COL_VOID := Color(0.1, 0.16, 0.3, 0.55)
 const COL_OK := Color(0.25, 0.95, 0.35)
 const COL_BAD := Color(1.0, 0.25, 0.2)
 const COL_SEL := Color(1.0, 0.85, 0.3)
 
-var ed: MapEditor
-var zoom := 18.0
-var origin := Vector2(60, 50)
-var mouse_m := Vector2.ZERO
 var _pan := false
 @warning_ignore("unused_private_class_variable")
 var _pan_from := Vector2.ZERO
@@ -66,21 +58,9 @@ var entry: Dictionary = {}
 var _snap_exclude := ""
 ## Pixels de la poignée de rotation au-dessus de l'élément choisi.
 const ROT_HANDLE_PX := 30.0
-## Vue dessinée hors écran (capture du plan pour Claude, MapAgentLink) : ni
-## outil, ni sélection, ni curseurs ; étage `floor_override` (-1 : celui de
-## l'éditeur).
-var offscreen := false
+## Vue dessinée hors écran (capture du plan pour Claude, MapAgentLink,
+## `offscreen` de MapView) : étage `floor_override` (-1 : celui de l'éditeur).
 var floor_override := -1
-
-
-## Longueurs d'interface de la vue (règles, poignées, étiquettes, cotes) à la
-## taille de l'interface de l'éditeur (EditorUi) ; le zoom du plan n'en dépend pas.
-func _u(v: float) -> float:
-	return EditorUi.px(v)
-
-
-func _ruler() -> float:
-	return EditorUi.px(RULER)
 
 
 func _hsz() -> float:
@@ -126,15 +106,7 @@ func update_hover() -> void:
 	ed.map_hovered(String(e.get("id", "")))
 
 
-# ------------------------------------------------------------------ repères
-
-func to_m(px: Vector2) -> Vector2:
-	return (px - origin) / zoom
-
-
-func to_px(m: Vector2) -> Vector2:
-	return origin + m * zoom
-
+# ------------------------------------------------------------------ aimantation
 
 ## Mode d'aimantation appliqué maintenant (Maj inverse le mode choisi).
 func mode_now() -> String:
@@ -426,12 +398,6 @@ static func rect45_poly(a: Vector2, b: Vector2) -> PackedVector2Array:
 	return PackedVector2Array([a, a + Vector2(s, s), b, a + Vector2(t, -t)])
 
 
-## Centre la vue sur un point (m).
-func center_on(m: Vector2) -> void:
-	origin = size * 0.5 - m * zoom
-	queue_redraw()
-
-
 ## Cadre toute la carte de l'étage dans la vue.
 func frame_all() -> void:
 	var bb := Rect2()
@@ -514,17 +480,6 @@ func set_space(on: bool) -> void:
 	_space = on
 	if not on:
 		_pan = false
-
-
-func _zoom_at(px: Vector2, f: float) -> void:
-	var m := to_m(px)
-	zoom = clampf(zoom * f, MIN_ZOOM, MAX_ZOOM)
-	origin = px - m * zoom
-	queue_redraw()
-
-
-func zoom_by(f: float) -> void:
-	_zoom_at(size * 0.5, f)
 
 
 ## Annule le tracé ou le glissement en cours.
@@ -1097,32 +1052,13 @@ func _elem_rect_px(e: Dictionary) -> Rect2:
 	return Rect2(to_px(r.position), r.size * zoom)
 
 
+## Grille fine (mode « fine ») : au pas choisi.
+func _fine_grid() -> float:
+	return fine_step if snap_mode == "fine" else 0.0
+
+
 func _draw_grid() -> void:
-	var m0 := to_m(Vector2.ZERO)
-	var m1 := to_m(size)
-	var fine := 1.0 if zoom >= 9.0 else 5.0
-	var x := floorf(m0.x / fine) * fine
-	while x <= m1.x:
-		var major := is_equal_approx(fmod(absf(x), 5.0), 0.0)
-		draw_line(Vector2(to_px(Vector2(x, 0)).x, 0), Vector2(to_px(Vector2(x, 0)).x, size.y), COL_GRID5 if major else COL_GRID, 1.0)
-		x += fine
-	var y := floorf(m0.y / fine) * fine
-	while y <= m1.y:
-		var major := is_equal_approx(fmod(absf(y), 5.0), 0.0)
-		draw_line(Vector2(0, to_px(Vector2(0, y)).y), Vector2(size.x, to_px(Vector2(0, y)).y), COL_GRID5 if major else COL_GRID, 1.0)
-		y += fine
-	# Grille fine (mode « fine ») : traits légers au pas choisi, si lisibles.
-	if snap_mode == "fine" and fine_step * zoom >= 8.0 and fine_step < 0.99:
-		var fx := floorf(m0.x / fine_step) * fine_step
-		while fx <= m1.x:
-			if absf(fx - roundf(fx)) > 0.001:
-				draw_line(Vector2(to_px(Vector2(fx, 0)).x, 0), Vector2(to_px(Vector2(fx, 0)).x, size.y), Color(1, 1, 1, 0.022), 1.0)
-			fx += fine_step
-		var fy := floorf(m0.y / fine_step) * fine_step
-		while fy <= m1.y:
-			if absf(fy - roundf(fy)) > 0.001:
-				draw_line(Vector2(0, to_px(Vector2(0, fy)).y), Vector2(size.x, to_px(Vector2(0, fy)).y), Color(1, 1, 1, 0.022), 1.0)
-			fy += fine_step
+	super()
 	# Axes : bord du terrain (x = 0, y = 0).
 	var o := to_px(Vector2.ZERO)
 	draw_line(Vector2(o.x, 0), Vector2(o.x, size.y), Color(0.9, 0.5, 0.3, 0.5), 1.5)
@@ -1130,31 +1066,7 @@ func _draw_grid() -> void:
 
 
 func _draw_rulers(font: Font) -> void:
-	draw_rect(Rect2(0, 0, size.x, _ruler()), Color(0.07, 0.07, 0.08, 0.95))
-	draw_rect(Rect2(0, 0, _ruler(), size.y), Color(0.07, 0.07, 0.08, 0.95))
-	var every := 1.0
-	for e in [1.0, 2.0, 5.0, 10.0, 20.0, 50.0]:
-		every = e
-		if e * zoom >= _u(34.0):
-			break
-	var m0 := to_m(Vector2.ZERO)
-	var m1 := to_m(size)
-	var x := floorf(m0.x / every) * every
-	while x <= m1.x:
-		var px := to_px(Vector2(x, 0)).x
-		if px > _ruler():
-			draw_line(Vector2(px, _ruler() - _u(6)), Vector2(px, _ruler()), Color(1, 1, 1, 0.5), 1.0)
-			draw_string(font, Vector2(px + 2, _u(13)), "%d" % roundi(x), HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11), Color(1, 1, 1, 0.65))
-		x += every
-	var y := floorf(m0.y / every) * every
-	while y <= m1.y:
-		var py := to_px(Vector2(0, y)).y
-		if py > _ruler():
-			draw_line(Vector2(_ruler() - _u(6), py), Vector2(_ruler(), py), Color(1, 1, 1, 0.5), 1.0)
-			draw_string(font, Vector2(1, py - 2), "%d" % roundi(y), HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), Color(1, 1, 1, 0.65))
-		y += every
-	draw_rect(Rect2(0, 0, _ruler(), _ruler()), Color(0.07, 0.07, 0.08))
-	draw_string(font, Vector2(_u(3), _u(13)), "m", HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11), Color(1, 1, 1, 0.5))
+	super(font)
 	if offscreen:
 		return
 	# Position du curseur sur les règles.

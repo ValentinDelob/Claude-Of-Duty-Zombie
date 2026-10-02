@@ -83,6 +83,8 @@ var _autosave_t := 0.0
 var _validate_t := -1.0
 
 var canvas: MapCanvas
+## Zone des vues (MapViewLayout) : vues, barre rapide, inventaire.
+var views: MapViewLayout
 var panels: MapPanels
 ## Onglet déployable « Objets sur la carte » (à gauche de la vue).
 var object_list: MapObjectList
@@ -333,10 +335,14 @@ func _build_ui() -> void:
 	object_list = MapObjectList.new()
 	object_list.ed = self
 	mid.add_child(object_list)
+	views = MapViewLayout.new()
+	views.name = "Views"
+	views.ed = self
+	views.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid.add_child(views)
 	canvas = MapCanvas.new()
 	canvas.ed = self
-	canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mid.add_child(canvas)
+	views.add_view(canvas)
 	panels = MapPanels.new()
 	panels.ed = self
 	# Largeur à l'échelle, bornée pour laisser la place au plan (side_width).
@@ -355,14 +361,14 @@ func _build_ui() -> void:
 	cursor_label = Label.new()
 	cursor_label.add_theme_color_override("font_color", UiStyle.DIM)
 	sbh.add_child(cursor_label)
-	# Barre rapide (au bas de la vue) et inventaire.
+	# Barre rapide (au bas de la zone des vues) et inventaire.
 	hotbar_ui = MapHotbar.new()
 	hotbar_ui.ed = self
-	canvas.add_child(hotbar_ui)
+	views.add_child(hotbar_ui)
 	inventory = MapInventory.new()
 	inventory.ed = self
 	inventory.visible = false
-	canvas.add_child(inventory)
+	views.add_child(inventory)
 	prefab_tools = MapPrefabTools.new()
 	prefab_tools.ed = self
 	prefab_tools.name = "PrefabTools"

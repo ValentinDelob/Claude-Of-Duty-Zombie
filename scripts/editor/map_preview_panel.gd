@@ -740,7 +740,7 @@ func place_camera(m: Vector2) -> void:
 
 ## Repère de la caméra de l'aperçu sur la vue 2D : point, champ de vision et
 ## direction (estompé si la caméra est à un autre étage).
-func draw_on_canvas(cv: MapCanvas) -> void:
+func draw_on_canvas(cv: MapView) -> void:
 	if not is_on_screen() or world.rig.cam == null:
 		return
 	var eye := world.rig.eye()
