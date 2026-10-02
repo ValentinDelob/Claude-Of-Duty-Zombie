@@ -89,7 +89,8 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Supprimer | Suppr (une pièce emporte ses objets et ses ouvertures) |
 | Copier / coller sous le curseur | Ctrl+C / Ctrl+V |
 | Annuler / rétablir (illimité) | Ctrl+Z / Ctrl+Y (ou Ctrl+Maj+Z) |
-| Enregistrer | Ctrl+S |
+| Enregistrer / Enregistrer sous | Ctrl+S / Ctrl+Maj+S |
+| Nouvelle carte / Ouvrir | Ctrl+N / Ctrl+O (Suppr dans la fenêtre Ouvrir : supprimer la carte choisie) |
 | Étage du dessous / du dessus | Page préc. / Page suiv. |
 | Recadrer sur la carte | Origine |
 | Fermer un polygone | double-clic, clic sur le premier point, ou Entrée ; Retour arrière retire le dernier point |
@@ -479,6 +480,23 @@ départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
   depuis le `.exe`. `<id>` est tiré du nom de la carte ; **Enregistrer sous**
   choisit le dossier. Un exemple livré (DRAFT ARENA) s'ouvre en lecture seule :
   Enregistrer en fait une copie.
+- **Supprimer une carte** : Fichier > Ouvrir, choisir une de ses cartes puis
+  **Supprimer** (ou la touche Suppr) ; confirmation « Supprimer
+  définitivement la carte « X » ? ». Le dossier entier part
+  (`EditorMap.delete_map`) ; refusé (et noté dans la console) pour les
+  exemples livrés (bouton grisé), les dossiers internes (`_autosave`...), tout
+  chemin qui n'est pas un dossier de carte directement dans le dossier des
+  cartes (`..`, ailleurs sur le disque) et tout dossier contenant un lien
+  symbolique. Si c'est la carte ouverte, elle reste à l'écran, non enregistrée
+  et sans dossier (le prochain Enregistrer en redonne un) ; sa sauvegarde
+  automatique est effacée.
+- **Session de collaboration** (docs/MAP_COLLAB.md) : ouvrir ou enregistrer
+  la carte est l'affaire de l'**hôte**. Chez un invité, Fichier > Nouvelle,
+  Ouvrir, Enregistrer, Enregistrer sous, Exporter / Importer et Cartes
+  récentes sont grisés (« Réservé à l'hôte de la session ») et leurs
+  raccourcis (Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Maj+S) refusés avec un message dans
+  la barre d'état ; pas de sauvegarde automatique non plus. Tout redevient
+  possible dès que l'invité quitte la session.
 - **Sauvegarde automatique** toutes les 60 s et à la fermeture si la carte a
   changé (`user://maps/_autosave/`) ; au démarrage suivant, l'éditeur propose
   de reprendre le travail non enregistré. **Cartes récentes** : menu Fichier

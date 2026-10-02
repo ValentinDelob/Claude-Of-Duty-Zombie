@@ -216,8 +216,14 @@ L'éditeur peut aussi pousser `{event:"change"|"selection"|"peers", ...}`.
 ## 7. Enregistrement
 
 Seul l'hôte enregistre le dossier de la carte (Ctrl+S) ; il prévient les
-invités (`saved`). Un invité a « Enregistrer une copie… ». Sauvegarde
-automatique : hôte seulement, comme aujourd'hui.
+invités (`saved`). Ouvrir ou enregistrer la carte est l'affaire de l'hôte :
+chez un invité, Fichier > Nouvelle, Ouvrir, Enregistrer, Enregistrer sous,
+Exporter / Importer et Cartes récentes sont grisés (« Réservé à l'hôte de la
+session », `MapEditor.update_file_menu`, `refuse_guest`), raccourcis compris.
+Côté hôte, un invité n'envoie que des `change` (tout autre message, `map` ou
+`saved` compris, le déconnecte) et l'identifiant de la carte (nom de son
+dossier) d'un `carte` venu d'un invité reste celui de l'hôte
+(`MapCollab.host_only_guard`). Sauvegarde automatique : hôte seulement.
 
 ## 8. Sécurité
 
@@ -326,8 +332,8 @@ restent les siennes.
   session (`MapCollab.submit_local`) seulement s'il n'est pas vide.
 - Un changement reçu pendant un glissement est aussi appliqué à la copie du
   glissement (`MapCanvas.drag.snap`), pour ne pas l'effacer au relâchement.
-- Invité : Fichier > « Enregistrer une copie… » (nouveau dossier dans les
-  cartes du joueur) ; pas de sauvegarde automatique ; TESTER réservé à
+- Invité : ni Ouvrir ni Enregistrer (§ 7, réservés à l'hôte) ; pas de
+  sauvegarde automatique ; TESTER réservé à
   l'hôte (l'invité rejoint sa partie tout seul). Hôte : TESTER lance la
   partie avec tous les participants et garde la session ouverte (§ 5.3).
 

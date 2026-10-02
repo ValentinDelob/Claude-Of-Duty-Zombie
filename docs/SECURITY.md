@@ -128,7 +128,12 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
 - Tout lot reçu passe `MapOps.validate` (sinon déconnexion) puis le contrôle
   des cartes reçues (`MapOps.check_elements`, `CustomMapGuard`) ; JSON
   seulement (`JSON.parse`), jamais de chemin ni de nom de fichier venu du
-  réseau (« Enregistrer une copie » choisit son dossier lui-même).
+  réseau ; un invité n'ouvre ni n'enregistre la carte (réservé à l'hôte) et
+  ne peut pas changer l'identifiant (dossier) de la carte de l'hôte.
+- Suppression d'une carte (éditeur, Fichier > Ouvrir > Supprimer) :
+  `EditorMap.delete_map` n'efface qu'un dossier de carte directement dans le
+  dossier des cartes (jamais `..`, un exemple livré, `_autosave` ni un
+  dossier contenant un lien symbolique).
 - TESTER à plusieurs (MAP_COLLAB.md § 5.3) : l'invité ne rejoint une partie
   que sur l'adresse IP de sa connexion à l'hôte (jamais une adresse reçue) et
   un port 1024-65535 ; la carte passe par `MapShare` et `CustomMapGuard`
