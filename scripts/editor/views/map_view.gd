@@ -255,7 +255,8 @@ func zoom_by(f: float) -> void:
 ## Met en place le ViewCube de la vue (en haut à droite) ; ses clics vont à la
 ## disposition (MapViewLayout.cube_action).
 func setup_cube() -> void:
-	if cube != null or offscreen:
+	# La 3D a son cube isométrique sur l'aperçu (MapPreviewPanel).
+	if cube != null or offscreen or plane == "3d":
 		return
 	cube = MapViewCube.new()
 	cube.name = "ViewCube"

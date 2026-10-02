@@ -347,6 +347,12 @@ func toggle() -> void:
 
 
 func set_shown(on: bool) -> void:
+	if pane_host != null:
+		# La 3D est dans une fenêtre de la disposition : le panneau flottant reste caché.
+		if ed != null:
+			ed.set_status(Lang.t("La 3D est affichée dans une fenêtre de la disposition (menu Disposition, ViewCube)",
+				"The 3D is shown in a layout window (Layout menu, ViewCube)"))
+		return
 	if on == shown:
 		return
 	shown = on
@@ -368,9 +374,52 @@ func set_shown(on: bool) -> void:
 	_save_soon()
 
 
-## L'aperçu est-il à l'écran (panneau ou fenêtre détachée) ?
+## L'aperçu est-il à l'écran (fenêtre de la disposition, panneau ou fenêtre détachée) ?
 func is_on_screen() -> bool:
+	if pane_host != null:
+		return pane_host.is_visible_in_tree()
 	return shown and (visible if not detached else window != null and window.visible)
+
+
+## Fenêtre 3D de la disposition (docs/EDITOR_VIEWS.md, D14) : le contenu de
+## l'aperçu (sa vue) y passe ; le panneau flottant se cache (une seule 3D) ;
+## la barre d'outils est remplacée par l'en-tête de la fenêtre.
+func attach_to(host: Control) -> void:
+	if pane_host == host:
+		return
+	if detached:
+		set_detached(false)
+	if pane_host != null:
+		detach_from_pane()
+	pane_host = host
+	content.reparent(host, false)
+	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.offset_left = 0
+	content.offset_top = 0
+	content.offset_right = 0
+	content.offset_bottom = 0
+	(content.get_node("Tools") as Control).visible = false
+	visible = false
+	world.active = true
+	_request_render()
+	if ed != null and ed.canvas != null:
+		ed.canvas.queue_redraw()
+
+
+## La 3D quitte sa fenêtre : retour au panneau flottant (affiché s'il l'était).
+func detach_from_pane() -> void:
+	if pane_host == null:
+		return
+	pane_host = null
+	content.reparent(frame.get_node("Outer"), false)
+	content.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	(content.get_node("Tools") as Control).visible = true
+	visible = shown and not detached
+	world.active = shown
+	_release_mouse()
+	if shown:
+		_clamp_rect()
+		_request_render()
 
 
 func set_maximized(on: bool) -> void:
@@ -484,10 +533,11 @@ func _clamp_rect() -> void:
 	position = position.clamp(Vector2(-size.x + 80, top), (area - Vector2(80, 30)).max(Vector2(0, top)))
 
 
-## Haut de la vue 2D dans l'éditeur (sous la barre du haut) ; 0 sans éditeur.
+## Haut de la zone des vues dans l'éditeur (sous la barre du haut) ; 0 sans éditeur.
 func _top_limit() -> float:
-	if ed != null and ed.canvas != null and ed.canvas.is_inside_tree() and ed.canvas.size.x > 0.0:
-		return ed.canvas.global_position.y - (get_parent() as Control).global_position.y if get_parent() is Control else ed.canvas.global_position.y
+	var zone: Control = ed.views if ed != null and ed.views != null else null
+	if zone != null and zone.is_inside_tree() and zone.size.x > 0.0:
+		return zone.global_position.y - (get_parent() as Control).global_position.y if get_parent() is Control else zone.global_position.y
 	return 0.0
 
 
@@ -497,8 +547,8 @@ func _default_rect() -> Rect2:
 	# En haut à droite de la vue 2D (à gauche des panneaux).
 	var right := area.x - EditorUi.px(MapEditor.PANEL_W)
 	var top := maxf(EditorUi.px(44.0), _top_limit() + 8.0)
-	if ed != null and ed.canvas != null and ed.canvas.is_inside_tree() and ed.canvas.size.x > 0.0:
-		right = ed.canvas.get_global_rect().end.x
+	if ed != null and ed.views != null and ed.views.is_inside_tree() and ed.views.size.x > 0.0:
+		right = ed.views.get_global_rect().end.x
 	return Rect2(Vector2(right - s.x - 12, top), s)
 
 
@@ -791,10 +841,10 @@ func _process(delta: float) -> void:
 		_save_t -= delta
 		if _save_t <= 0.0:
 			save_prefs()
-	if not shown:
+	if not shown and pane_host == null:
 		world.viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 		return
-	if not detached:
+	if not detached and pane_host == null:
 		_clamp_rect()
 	world.set_view_floor(ed.floor_k)
 	_update_hover()

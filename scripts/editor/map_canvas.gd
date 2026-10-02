@@ -429,7 +429,9 @@ func frame_all() -> void:
 	if first:
 		bb = Rect2(0, 0, 30, 20)
 	bb = bb.grow(3.0)
-	var avail := size - Vector2(_ruler() + _u(20), _ruler() + _u(90))
+	# Marge du bas : la barre rapide posée sur la vue (pas quand elle est ancrée).
+	var docked := ed.views != null and ed.views.docked()
+	var avail := size - Vector2(_ruler() + _u(20), _ruler() + _u(20 if docked else 90))
 	zoom = clampf(minf(avail.x / maxf(bb.size.x, 1.0), avail.y / maxf(bb.size.y, 1.0)), MIN_ZOOM, 40.0)
 	origin = Vector2.ONE * (_ruler() + _u(10)) + (avail - bb.size * zoom) * 0.5 - bb.position * zoom
 	queue_redraw()

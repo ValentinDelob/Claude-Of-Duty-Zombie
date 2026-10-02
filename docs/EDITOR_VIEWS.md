@@ -545,3 +545,17 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   ce plan) ; arête et coin : caméra en orbite sur cette direction, même
   point visé. Pavé 5 : la 3D vue du coin avant-droite-dessus du plan montré
   (ou de la face, en Dessus et Dessous).
+- **Étape 5 : dispositions**. Changer de disposition donne aux fenêtres les
+  plans par défaut de la nouvelle disposition ; dans une disposition, une
+  fenêtre garde le plan qu'on lui a donné (et il est mémorisé) jusqu'à
+  « Réinitialiser ». La vue active est celle que survole la souris (sinon
+  la dernière cliquée) : Ctrl+Espace, le pavé numérique et la molette vont
+  à elle. Vues liées : zoom commun à toutes les vues orthographiques (la
+  maquette, écran 3, montre des zooms différents : contradiction avec D7 ;
+  D7 fait foi). Fenêtre 3D : en-tête « Caméra ▾ » (orbite, vol, joueur,
+  recadrer), « ⌖ Sélection », « Affichage ▾ » (la barre d'outils du panneau
+  flottant est cachée) ; la touche P et le bouton APERÇU 3D n'agissent que
+  sur le panneau flottant (message si la 3D est dans une fenêtre). En-tête
+  étroit : le texte des étages s'efface avant les axes. La barre du haut,
+  avec le bouton Disposition, passe sur deux lignes à 100 % (elle le
+  faisait déjà à 150 %).

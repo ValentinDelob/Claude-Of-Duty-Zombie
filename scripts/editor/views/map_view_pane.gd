@@ -63,7 +63,7 @@ func header_h() -> float:
 func set_view(v: MapView) -> void:
 	# L'élévation propre à la fenêtre reste son enfant, cachée (jamais orpheline).
 	if view != null and view != v and view.get_parent() == self:
-		if view is MapElevation:
+		if view is MapElevation or view is MapView3D:
 			view.visible = false
 		else:
 			remove_child(view)
@@ -78,7 +78,7 @@ func set_view(v: MapView) -> void:
 	v.place_cube()
 	if v.cube != null:
 		v.cube.active = active
-	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	v.offset_top = header_h()
 	queue_redraw()
 
@@ -124,6 +124,10 @@ func _draw() -> void:
 	x = _spaced(MapView.bold_font(), Vector2(x, base), MapView.plane_name(pl), fs, COL_BONE, fs * 0.06) + gap
 	# Étages, sens du regard (élévations : clic, menu des étages).
 	var sub := view.header_sub()
+	# Fenêtre étroite : le texte des étages laisse la place aux axes et à ⛶.
+	var axes_w := MapView.bold_font(600).get_string_size("X → · Z ↑", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x if pl != "3d" else 0.0
+	if sub != "" and x + font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + gap + axes_w > size.x - EditorUi.px(30):
+		sub = ""
 	if sub != "":
 		var w := font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var r := Rect2(x - 2, 2, w + 4, h - 4)
@@ -133,7 +137,10 @@ func _draw() -> void:
 				draw_rect(r, COL_CHIP)
 		draw_string(font, Vector2(x, base), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, COL_DIM)
 		x += w + gap
-	# Axes de l'écran, en couleurs.
+	# Axes de l'écran, en couleurs (pas en 3D).
+	if pl == "3d":
+		_draw_right(font, fs, base, x, gap)
+		return
 	var ha := MapView.h_axis(pl)
 	var va := MapView.v_axis(pl)
 	var sf := MapView.bold_font(600)
@@ -145,6 +152,13 @@ func _draw() -> void:
 	draw_string(sf, Vector2(x, base), " · ", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, COL_BONE)
 	x += sf.get_string_size(" · ", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	draw_string(sf, Vector2(x, base), t2, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, MapView.axis_color(String(va[0])))
+	x += sf.get_string_size(t2, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	_draw_right(font, fs, base, x, gap)
+
+
+## Partie droite de l'en-tête : agrandir, puis les puces (de droite à gauche).
+func _draw_right(font: Font, fs: int, base: float, x: float, gap: float) -> void:
+	var h := header_h()
 	# À droite : agrandir, puis les puces (de droite à gauche).
 	var right := size.x - EditorUi.px(6)
 	var iw := EditorUi.px(18)
@@ -229,6 +243,8 @@ func _gui_input(event: InputEvent) -> void:
 func _open_menu(id: String, at: Vector2) -> void:
 	var items: Array = view.header_menu(id)
 	if items.is_empty():
+		# Puce sans menu (« ⌖ Sélection », « Affichage ▾ » de la 3D) : action directe.
+		view.header_menu_pressed(id, -1)
 		return
 	if _menu == null:
 		_menu = PopupMenu.new()

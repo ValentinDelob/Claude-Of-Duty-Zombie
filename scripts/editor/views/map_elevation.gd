@@ -845,6 +845,7 @@ func header_menu_pressed(id: String, i: int) -> void:
 		"floors":
 			floors_mode = clampi(i - 10, 0, 2) as Floors
 			ed.views.views_changed()
+			ed.views.save_soon()
 			queue_redraw()
 		_:
 			super(id, i)
@@ -861,7 +862,9 @@ func set_cut(c: Array, mode: String, label := "") -> void:
 	coupe_mode = mode if not coupe.is_empty() else "aucune"
 	coupe_label = label if not coupe.is_empty() else ""
 	if ed != null and ed.views != null:
+		ed.views.share_cut(self)
 		ed.views.views_changed()
+		ed.views.save_soon()
 	queue_redraw()
 
 

@@ -106,6 +106,8 @@ var floor_label: Label
 var check_button: Button
 ## Mode d'aimantation (clic ou G : grille 1 m, grille fine, libre).
 var snap_button: Button
+## Menu Disposition (MapViewLayoutMenu).
+var layout_button: Button
 var file_menu: MenuButton
 var edit_menu: MenuButton
 var _recent_menu: PopupMenu
@@ -312,6 +314,19 @@ func _build_ui() -> void:
 	preview_button.toggled.connect(func(on): preview.set_shown(on))
 	bar.add_child(preview_button)
 	# --- fin aperçu 3D
+	# Disposition des vues (docs/EDITOR_VIEWS.md § 5) : menu à 6 vignettes.
+	layout_button = Button.new()
+	layout_button.name = "LayoutButton"
+	layout_button.text = Lang.t("Disposition ▾", "Layout ▾")
+	layout_button.icon = _grid_icon()
+	layout_button.focus_mode = Control.FOCUS_NONE
+	layout_button.toggle_mode = true
+	layout_button.tooltip_text = Lang.t("Disposition des vues : 1 à 4 fenêtres (Ctrl+Alt+Q : 4 vues ; Ctrl+Espace : agrandir la vue active)",
+		"View layout: 1 to 4 windows (Ctrl+Alt+Q: 4 views; Ctrl+Space: maximize the active view)")
+	layout_button.pressed.connect(func():
+		views.open_menu(layout_button.get_screen_position() + Vector2(0, layout_button.size.y + 2))
+		layout_button.set_pressed_no_signal(true))
+	bar.add_child(layout_button)
 	var opt := Button.new()
 	opt.name = "OptionsButton"
 	opt.text = "⚙"
@@ -350,7 +365,6 @@ func _build_ui() -> void:
 	canvas = MapCanvas.new()
 	canvas.name = "Canvas"
 	canvas.ed = self
-	views.setup(MapViewLayout.DEFAULT)
 	panels = MapPanels.new()
 	panels.ed = self
 	# Largeur à l'échelle, bornée pour laisser la place au plan (side_width).
@@ -400,6 +414,25 @@ func _build_ui() -> void:
 	add_child(preview)
 	preview.shown_changed.connect(func(on): preview_button.set_pressed_no_signal(on))
 	# --- fin aperçu 3D
+	# Disposition mémorisée (_editeur.cfg, clé « vues ») ; premier lancement :
+	# deux vues empilées (Dessus au-dessus d'Avant). Après l'aperçu (fenêtre 3D).
+	views.apply_state(pref(MapViewLayout.PREF_KEY, {}))
+
+
+## Icône du bouton Disposition : un quadrillage (maquette).
+static func _grid_icon() -> Texture2D:
+	var img := Image.create(14, 12, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var c := Color("E0DBCC")
+	for x in 14:
+		img.set_pixel(x, 0, c)
+		img.set_pixel(x, 11, c)
+		img.set_pixel(x, 6, c)
+	for y in 12:
+		img.set_pixel(0, y, c)
+		img.set_pixel(13, y, c)
+		img.set_pixel(7, y, c)
+	return ImageTexture.create_from_image(img)
 
 
 ## Thème de l'éditeur à la taille d'interface `f` (EditorUi) : styles écrits
@@ -762,6 +795,11 @@ func _input(event: InputEvent) -> void:
 	if options_open():
 		return
 	var k := event as InputEventKey
+	# Ctrl+Espace : agrandir la vue active (une seconde fois : la disposition).
+	if k.keycode == KEY_SPACE and k.ctrl_pressed and k.pressed and not k.echo and not _typing():
+		views.toggle_maximized(views.active_pane)
+		get_viewport().set_input_as_handled()
+		return
 	if k.keycode == KEY_SPACE and not _typing():
 		views.set_space(k.pressed)
 		get_viewport().set_input_as_handled()
@@ -773,6 +811,11 @@ func _input(event: InputEvent) -> void:
 	# Pavé numérique sur une vue (7, 1, 3, 5 ; Ctrl : la vue opposée) : le
 	# plan de la vue ; ailleurs il garde la barre rapide (§ 4).
 	if k.keycode in [KEY_KP_1, KEY_KP_3, KEY_KP_5, KEY_KP_7] and not _typing() and not k.alt_pressed and views.numpad(k, views.hovered_pane()):
+		get_viewport().set_input_as_handled()
+		return
+	# Ctrl+Alt+Q : quatre vues.
+	if k.ctrl_pressed and k.alt_pressed and k.keycode == KEY_Q:
+		views.set_layout("4")
 		get_viewport().set_input_as_handled()
 		return
 	if k.ctrl_pressed:

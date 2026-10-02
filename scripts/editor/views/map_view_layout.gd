@@ -12,7 +12,11 @@ extends Control
 
 ## Dispositions : identifiant -> plans par défaut des fenêtres.
 const LAYOUTS := {"1": ["dessus"], "2h": ["dessus", "avant"], "2v": ["dessus", "avant"],
-	"3a": ["dessus", "avant", "droite"], "3b": ["avant", "droite", "dessus"], "4": ["dessus", "avant", "avant", "droite"]}
+	"3a": ["dessus", "avant", "droite"], "3b": ["avant", "droite", "dessus"], "4": ["dessus", "3d", "avant", "droite"]}
+## Plans uniques : la vue Dessus (outils de pose) et la 3D (un seul aperçu).
+const UNIQUE := ["dessus", "3d"]
+## Réglages mémorisés (_editeur.cfg).
+const PREF_KEY := "vues"
 const ORDER := ["1", "2h", "2v", "3a", "3b", "4"]
 ## Disposition au premier lancement (revue du 03/10/2026) : Dessus au-dessus d'Avant.
 const DEFAULT := "2v"
@@ -34,6 +38,14 @@ var panes: Array[MapViewPane] = []
 ## Fenêtre agrandie à toute la zone (null : la disposition).
 var maximized: MapViewPane
 var active_pane: MapViewPane
+## Vues liées (D7) : zoom commun, centre commun sur l'axe partagé.
+var linked := true
+## Coupe partagée entre les élévations de même direction.
+var shared_cut := false
+## État des vues à la dernière synchronisation (liaison) : vue -> [zoom, origine, taille].
+var _link_seen: Dictionary = {}
+var _save_t := -1.0
+var _menu_ui: MapViewLayoutMenu
 ## Séparateurs : contrôles (MapViewLayout.Split).
 var _splits: Array = []
 var _dock: Control
@@ -96,17 +108,17 @@ func setup(id: String, planes: Array = []) -> void:
 	layout_id = id
 	maximized = null
 	var want: Array = planes if planes.size() == (LAYOUTS[id] as Array).size() else LAYOUTS[id]
-	# La vue Dessus est unique : un seul « dessus » dans la liste.
-	var seen_top := false
+	# La vue Dessus et la 3D sont uniques : une seule de chaque dans la liste.
+	var seen := {}
 	var fixed := []
 	for pl in want:
 		var p := String(pl)
-		if not p in MapView.PLANES:
+		if not (p in MapView.PLANES or p == "3d"):
 			p = "avant"
-		if p == "dessus":
-			if seen_top:
+		if p in UNIQUE:
+			if seen.has(p):
 				p = "avant"
-			seen_top = true
+			seen[p] = true
 		fixed.append(p)
 	while panes.size() > fixed.size():
 		var old: MapViewPane = panes.pop_back()
@@ -126,6 +138,7 @@ func setup(id: String, planes: Array = []) -> void:
 		_assign(panes[i], String(fixed[i]))
 	if not fixed.has("dessus"):
 		_park_canvas()
+	_link_seen = {}
 	if active_pane == null or not panes.has(active_pane):
 		active_pane = panes[0]
 	for p in panes:
@@ -139,6 +152,7 @@ func setup(id: String, planes: Array = []) -> void:
 ## avec la fenêtre qui l'avait).
 func _assign(pn: MapViewPane, pl: String) -> void:
 	if pl == "dessus":
+		_leave_3d(pn)
 		if pn.view == ed.canvas:
 			return
 		var other := pane_of(ed.canvas)
@@ -150,6 +164,24 @@ func _assign(pn: MapViewPane, pl: String) -> void:
 			pn.set_view(ed.canvas)
 		ed.canvas.visible = true
 		return
+	if pl == "3d":
+		var other3 := _pane_3d()
+		if other3 != null and other3 != pn:
+			var mine3 := pn.plane()
+			_assign(other3, mine3 if mine3 != "3d" else "avant")
+		var v3: MapView3D = pn.get_meta("v3d") if pn.has_meta("v3d") else null
+		if v3 == null:
+			v3 = MapView3D.new()
+			v3.ed = ed
+			v3.preview = ed.preview
+			v3.name = "View3D"
+			pn.set_meta("v3d", v3)
+		if pn.view != null and pn.view != v3 and pn.view.plane != "3d":
+			pn.set_meta("last_plane", pn.view.plane)
+		pn.set_view(v3)
+		v3.attach()
+		return
+	_leave_3d(pn)
 	var ev: MapElevation = pn.get_meta("elev") if pn.has_meta("elev") else null
 	if ev == null:
 		ev = MapElevation.new()
@@ -180,6 +212,21 @@ func _park_canvas() -> void:
 func _release(pn: MapViewPane) -> void:
 	if pn.view == ed.canvas:
 		_park_canvas()
+	_leave_3d(pn)
+
+
+## La fenêtre quitte la 3D : l'aperçu retourne à son panneau flottant.
+func _leave_3d(pn: MapViewPane) -> void:
+	if pn.view is MapView3D:
+		(pn.view as MapView3D).detach()
+
+
+## Fenêtre qui montre la 3D (null : aucune ; l'aperçu est le panneau flottant).
+func _pane_3d() -> MapViewPane:
+	for p in panes:
+		if p.view is MapView3D:
+			return p
+	return null
 
 
 ## Fenêtre qui montre une vue (null : aucune).
@@ -196,13 +243,14 @@ func set_pane_plane(pn: MapViewPane, pl: String, animate := false) -> void:
 	if pn == null or pl == pn.plane():
 		return
 	var old := pn.plane()
-	if animate:
+	if animate and old != "3d" and pl != "3d":
 		_transition(pn, old, pl)
 	if pn.view == ed.canvas and pl != "dessus":
 		_park_canvas()
 	_assign(pn, pl)
 	_sort()
 	views_changed()
+	save_soon()
 	if pn.view is MapElevation and old != pl:
 		_frame_like_top.call_deferred(pn.view)
 
@@ -266,10 +314,14 @@ func numpad(k: InputEventKey, pn: MapViewPane) -> bool:
 		KEY_KP_3:
 			pl = "gauche" if k.ctrl_pressed else "droite"
 		KEY_KP_5:
-			# La 3D vue d'un coin du plan montré (avant-droite-dessus pour Dessus).
-			var face := pn.plane() if pn.plane() in MapView.PLANES else "dessus"
-			var corner := MapViewCube.net_corner(face, 1)
-			cube_action(pn.view, corner)
+			# Bascule 3D / dernier plan de la fenêtre.
+			if pn.plane() == "3d":
+				set_pane_plane(pn, String(pn.get_meta("last_plane", pn.home_plane if pn.home_plane != "3d" else "avant")))
+			else:
+				var target := view_target(pn.view)
+				var face := pn.plane()
+				set_pane_plane(pn, "3d")
+				show_3d_from(MapViewCube.target_dir(MapViewCube.net_corner(face, 1)), target)
 			return true
 		_:
 			return false
@@ -335,7 +387,8 @@ func show_3d_from(dir: Vector3, target: Vector3) -> void:
 	var pv := ed.preview
 	if pv == null:
 		return
-	if not pv.shown:
+	# Une seule 3D : celle d'une fenêtre si elle existe, sinon le panneau flottant.
+	if _pane_3d() == null and not pv.shown:
 		pv.set_shown(true)
 	var off := MapGeom.WORLD_OFFSET
 	pv.world.rig.look_from(Vector3(dir.x, dir.z, dir.y), Vector3(target.x + off, target.z, target.y + off))
@@ -358,6 +411,8 @@ func _cube_menu(pn: MapViewPane) -> void:
 		var pl: String = MapView.PLANES[i]
 		_menu.add_radio_check_item(MapView.plane_name(pl), i)
 		_menu.set_item_checked(i, pn.plane() == pl)
+	_menu.add_radio_check_item("3D", 10)
+	_menu.set_item_checked(_menu.get_item_index(10), pn.plane() == "3d")
 	_menu.add_separator()
 	_menu.add_item(Lang.t("Définir comme vue d'origine", "Set as home view"), 20)
 	_menu.add_item(Lang.t("Recadrer (Origine)", "Frame (Home)"), 21)
@@ -374,6 +429,8 @@ func _on_cube_menu(i: int) -> void:
 		return
 	if i < MapView.PLANES.size():
 		set_pane_plane(pn, MapView.PLANES[i], true)
+	elif i == 10:
+		set_pane_plane(pn, "3d")
 	elif i == 20:
 		pn.home_plane = pn.plane()
 		ed.set_status(Lang.t("Vue d'origine de cette fenêtre : %s", "This window's home view: %s") % MapView.plane_name(pn.home_plane))
@@ -480,6 +537,7 @@ func set_ratio(axis: String, v: float) -> void:
 	else:
 		ry = v
 	_sort()
+	save_soon()
 
 
 ## Rectangles des fenêtres et des séparateurs pour la disposition courante.
@@ -489,11 +547,14 @@ func compute() -> Dictionary:
 	var mn := Vector2(EditorUi.px(MIN_VIEW.x), EditorUi.px(MIN_VIEW.y))
 	var fx := clampf(rx, 0.0, 1.0)
 	var fy := clampf(ry, 0.0, 1.0)
-	# Bornes : chaque vue garde sa taille minimale (si la place le permet).
-	if a.size.x > mn.x * 2.0 + g:
-		fx = clampf(fx, mn.x / a.size.x, 1.0 - (mn.x + g) / a.size.x)
-	if a.size.y > mn.y * 2.0 + g:
-		fy = clampf(fy, mn.y / a.size.y, 1.0 - (mn.y + g) / a.size.y)
+	# Bornes : chaque vue garde sa taille minimale (la moitié de la place si
+	# elle manque).
+	if a.size.x > g:
+		var lo := minf((mn.x + g * 0.5) / a.size.x, 0.5)
+		fx = clampf(fx, lo, 1.0 - lo)
+	if a.size.y > g:
+		var lo := minf((mn.y + g * 0.5) / a.size.y, 0.5)
+		fy = clampf(fy, lo, 1.0 - lo)
 	var xs := roundf(a.position.x + a.size.x * fx - g * 0.5)
 	var ys := roundf(a.position.y + a.size.y * fy - g * 0.5)
 	var left := Rect2(a.position, Vector2(xs - a.position.x, a.size.y))
@@ -568,7 +629,7 @@ func _sort() -> void:
 
 ## Agrandit une fenêtre à toute la zone des vues ; une seconde fois : retour.
 func toggle_maximized(pn: MapViewPane) -> void:
-	if panes.size() < 2:
+	if panes.size() < 2 or pn == null:
 		return
 	maximized = null if maximized == pn else pn
 	if maximized != null:
@@ -582,6 +643,191 @@ func ui_scale_changed() -> void:
 	for p in panes:
 		p.ui_scale_changed()
 	_sort()
+
+
+# ------------------------------------------------------------------ dispositions, liaison, mémorisation
+
+## Change de disposition (menu, Ctrl+Alt+Q) ; chaque fenêtre garde son plan
+## si elle existe encore, les nouvelles prennent les plans par défaut.
+func set_layout(id: String) -> void:
+	if not LAYOUTS.has(id):
+		return
+	if id == layout_id:
+		return
+	setup(id)
+	frame_all()
+	save_soon()
+	ed.set_status(Lang.t("Disposition : %s", "Layout: %s") % MapViewLayoutMenu._label(ORDER.find(id)))
+
+
+## Réinitialiser : disposition par défaut, plans et proportions d'origine.
+func reset_layout() -> void:
+	rx = 0.5
+	ry = 0.5
+	for pn in panes:
+		for v in elevations():
+			(v as MapElevation).set_cut([], "aucune")
+			(v as MapElevation).floors_mode = MapElevation.Floors.ALL
+	var id := layout_id
+	layout_id = ""
+	setup(id)
+	frame_all()
+	save_soon()
+
+
+func set_linked(on: bool) -> void:
+	linked = on
+	_link_seen = {}
+	if on:
+		_sync_from(active_view())
+	_dock.queue_redraw()
+	save_soon()
+
+
+func set_shared_cut(on: bool) -> void:
+	shared_cut = on
+	save_soon()
+
+
+## Coupe partagée : la même tranche pour les autres élévations de même direction.
+func share_cut(src: MapElevation) -> void:
+	if not shared_cut:
+		return
+	var axis := String(MapView.depth_axis(src.plane)[0])
+	for v in elevations():
+		var ev := v as MapElevation
+		if ev != src and String(MapView.depth_axis(ev.plane)[0]) == axis and ev.plane != "dessous":
+			ev.coupe = src.coupe.duplicate()
+			ev.coupe_mode = src.coupe_mode
+			ev.coupe_label = src.coupe_label
+			ev.queue_redraw()
+
+
+func _process(delta: float) -> void:
+	if _save_t > 0.0:
+		_save_t -= delta
+		if _save_t <= 0.0:
+			save_prefs()
+	if linked:
+		_link_step()
+
+
+## Vues liées (D7) : la vue qui a bougé (zoom, déplacement) entraîne les
+## autres vues orthographiques : même zoom, même centre sur l'axe partagé.
+func _link_step() -> void:
+	var list := views().filter(func(v): return v.plane != "3d" and v.is_visible_in_tree())
+	var moved: MapView = null
+	for v in list:
+		var st := [v.zoom, v.origin, v.size]
+		if _link_seen.get(v, []) != st:
+			if _link_seen.has(v) and (moved == null or v == active_view()):
+				moved = v
+	if moved != null:
+		_sync_from(moved)
+	for v in list:
+		_link_seen[v] = [v.zoom, v.origin, v.size]
+
+
+func _sync_from(src: MapView) -> void:
+	if src == null or src.plane == "3d" or src.size.x <= 0.0:
+		return
+	var c := MapView.point_of(src.plane, src.to_m(src.size * 0.5), 0.0)
+	var shared := [String(MapView.h_axis(src.plane)[0]), String(MapView.v_axis(src.plane)[0])]
+	for v in views():
+		if v == src or v.plane == "3d" or v.size.x <= 0.0:
+			continue
+		var cur := MapView.point_of(v.plane, v.to_m(v.size * 0.5), 0.0)
+		for axis in [String(MapView.h_axis(v.plane)[0]), String(MapView.v_axis(v.plane)[0])]:
+			if axis in shared:
+				match axis:
+					"X":
+						cur.x = c.x
+					"Y":
+						cur.y = c.y
+					"Z":
+						cur.z = c.z
+		v.zoom = src.zoom
+		v.origin = v.size * 0.5 - MapView.uv_of(v.plane, cur) * v.zoom
+		v.queue_redraw()
+		_link_seen[v] = [v.zoom, v.origin, v.size]
+
+
+func save_soon() -> void:
+	_save_t = 0.5
+
+
+## État mémorisé (_editeur.cfg, clé « vues ») : disposition, plan et plan
+## d'origine de chaque fenêtre, proportions, liaison, coupes, étages montrés.
+## Ni le zoom ni le centre (chaque vue se recadre à l'ouverture d'une carte).
+func state() -> Dictionary:
+	var pl := []
+	var homes := []
+	var cuts := []
+	var floors := []
+	for pn in panes:
+		pl.append(pn.plane())
+		homes.append(pn.home_plane)
+		var ev := pn.view as MapElevation
+		cuts.append([ev.coupe.duplicate(), ev.coupe_mode] if ev != null and ev.coupe.size() == 2 else [])
+		floors.append(int(ev.floors_mode) if ev != null else 0)
+	return {"disposition": layout_id, "plans": pl, "origines": homes, "rx": snappedf(rx, 0.001), "ry": snappedf(ry, 0.001),
+		"liees": linked, "coupe_partagee": shared_cut, "coupes": cuts, "etages": floors}
+
+
+func save_prefs() -> void:
+	_save_t = -1.0
+	MapEditor.set_pref(PREF_KEY, state())
+
+
+## Réglages relus (valeurs invalides ignorées) ; premier lancement : DEFAULT.
+func apply_state(p: Dictionary) -> void:
+	var id := String(p.get("disposition", DEFAULT))
+	if not LAYOUTS.has(id):
+		id = DEFAULT
+	var num := func(v: Variant, d: float) -> float: return clampf(float(v), 0.05, 0.95) if (v is float or v is int) else d
+	rx = num.call(p.get("rx"), 0.5)
+	ry = num.call(p.get("ry"), 0.5)
+	linked = bool(p.get("liees", true)) if p.get("liees") is bool else true
+	shared_cut = bool(p.get("coupe_partagee", false)) if p.get("coupe_partagee") is bool else false
+	var pl: Array = p.get("plans", []) if p.get("plans") is Array else []
+	var planes := []
+	for v in pl:
+		planes.append(String(v) if v is String else "avant")
+	layout_id = ""
+	setup(id, planes)
+	var homes: Array = p.get("origines", []) if p.get("origines") is Array else []
+	for i in mini(homes.size(), panes.size()):
+		if homes[i] is String and (String(homes[i]) in MapView.PLANES or homes[i] == "3d"):
+			panes[i].home_plane = String(homes[i])
+	var cuts: Array = p.get("coupes", []) if p.get("coupes") is Array else []
+	var floors: Array = p.get("etages", []) if p.get("etages") is Array else []
+	for i in panes.size():
+		var ev := panes[i].view as MapElevation
+		if ev == null:
+			continue
+		if i < cuts.size() and cuts[i] is Array and (cuts[i] as Array).size() == 2 and cuts[i][0] is Array and (cuts[i][0] as Array).size() == 2:
+			var c: Array = cuts[i][0]
+			if (c[0] is float or c[0] is int) and (c[1] is float or c[1] is int):
+				ev.set_cut([float(c[0]), float(c[1])], String(cuts[i][1]) if cuts[i][1] is String else "perso")
+		if i < floors.size() and (floors[i] is int or floors[i] is float):
+			ev.floors_mode = clampi(int(floors[i]), 0, 2) as MapElevation.Floors
+	_save_t = -1.0
+
+
+## Bouton Disposition de la barre du haut : le menu, sous le bouton.
+func open_menu(at: Vector2) -> void:
+	if _menu_ui == null:
+		_menu_ui = MapViewLayoutMenu.new()
+		_menu_ui.layout = self
+		add_child(_menu_ui)
+		_menu_ui.popup_hide.connect(func():
+			if ed.layout_button != null:
+				ed.layout_button.set_pressed_no_signal(false))
+	_menu_ui.open_at(at)
+
+
+func menu_open() -> bool:
+	return _menu_ui != null and _menu_ui.visible
 
 
 ## Vue active d'après la souris (survol) : clavier et molette y vont.
@@ -605,6 +851,9 @@ func frame_all() -> void:
 	ed.canvas.frame_all()
 	for v in elevations():
 		_frame_like_top(v)
+	# Cadrage fait : rien à propager (liaison).
+	for v in views():
+		_link_seen[v] = [v.zoom, v.origin, v.size]
 
 
 func _frame_like_top(ev: MapElevation) -> void:
@@ -619,8 +868,9 @@ func _frame_like_top(ev: MapElevation) -> void:
 	var vmid := ev.to_m(ev.size * 0.5).y
 	ev.zoom = c.zoom
 	ev.origin.y = ev.size.y * 0.5 - vmid * ev.zoom
-	if ev.plane == "avant":
-		ev.origin.x = c.origin.x + c.global_position.x - ev.global_position.x
+	if ev.plane == "avant" and absf(c.global_position.x - ev.global_position.x) < 1.0 and absf(c.size.x - ev.size.x) < 1.0:
+		# Avant sous la vue Dessus : mêmes colonnes X à l'écran.
+		ev.origin.x = c.origin.x
 	else:
 		var m := c.to_m(c.size * 0.5)
 		var u := MapView.uv_of(ev.plane, Vector3(m.x, m.y, 0.0)).x
@@ -660,7 +910,10 @@ func dock_left() -> String:
 ## Texte de droite : l'aimantation.
 func dock_right() -> String:
 	var t := MapSnap.label(ed.canvas.snap_mode, ed.canvas.fine_step)
-	return t.left(1).to_upper() + t.substr(1)
+	t = t.left(1).to_upper() + t.substr(1)
+	if linked and panes.size() > 1:
+		t += Lang.t(" · vues liées", " · linked views")
+	return t
 
 
 func dock_redraw() -> void:
