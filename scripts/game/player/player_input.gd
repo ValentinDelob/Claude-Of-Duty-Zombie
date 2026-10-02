@@ -79,6 +79,15 @@ static func right_stick() -> Vector2:
 	return best
 
 
+## Action maintenue, ou appuyée depuis l'image physique précédente : un cran
+## de molette (appui et relâche dans la même image, Settings.WHEEL_BUTTONS)
+## compte ainsi comme un appui d'une image (grenade lancée, visée d'un
+## instant). Les fronts (saut, couteau, recharge...) passent par
+## Input.is_action_just_pressed, vrai à une seule image physique par cran.
+static func held(action: StringName) -> bool:
+	return Input.is_action_pressed(action) or Input.is_action_just_pressed(action)
+
+
 ## Lecture des périphériques (joueur humain local), `delta` : durée de l'image.
 func read_devices(delta := 0.0) -> void:
 	# Analogique au stick gauche (les touches donnent 0 ou 1).
@@ -90,13 +99,13 @@ func read_devices(delta := 0.0) -> void:
 		_sprint_latch = true
 	if move.y < 0.3:
 		_sprint_latch = false
-	sprint = Input.is_action_pressed("sprint") or _sprint_latch
-	crouch = Input.is_action_pressed("crouch")
-	fire = Input.is_action_pressed("fire")
-	aim = Input.is_action_pressed("aim")
-	interact = Input.is_action_pressed("interact")
-	grenade = Input.is_action_pressed("grenade")
-	tactical = Input.is_action_pressed("tactical")
+	sprint = held("sprint") or _sprint_latch
+	crouch = held("crouch")
+	fire = held("fire")
+	aim = held("aim")
+	interact = held("interact")
+	grenade = held("grenade")
+	tactical = held("tactical")
 	if Input.is_action_just_pressed("jump"):
 		jump = true
 	if Input.is_action_just_pressed("fire"):

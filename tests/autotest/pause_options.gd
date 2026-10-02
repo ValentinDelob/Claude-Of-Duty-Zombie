@@ -2,8 +2,9 @@ extends AutotestScenario
 ## OPTIONS en jeu (solo), avec de vraies entrées clavier : Échap ouvre le menu
 ## pause (partie suspendue), OPTIONS ouvre l'écran d'options du menu
 ## principal par-dessus la partie, onglet COMMANDES, RECHARGER réaffecté à T
-## (une seule touche ; InputMap et settings.cfg vérifiés), conflit avec
-## GRENADE, Échap qui annule une saisie, case manette (A, Y, conflit avec
+## (première case ; InputMap et settings.cfg vérifiés), conflit avec
+## GRENADE, Échap qui annule une saisie, deuxième touche sur un cran de
+## molette (qui ne change plus d'arme) puis effacée, case manette (A, Y, conflit avec
 ## CHANGER D'ARME, Start qui annule, invites manette puis clavier),
 ## commandes par défaut, RETOUR au menu pause et reprise.
 
@@ -76,7 +77,7 @@ func run() -> void:
 	await key(KEY_T)
 	at.check(not opt.capturing(), "touche reçue")
 	@warning_ignore("static_called_on_instance")
-	at.check(Settings.bindings.reload == Settings.key_code(KEY_T), "Settings : RECHARGER = T (%s)" % str(Settings.bindings.reload))
+	at.check(Settings.bindings.reload == [Settings.key_code(KEY_T)], "Settings : RECHARGER = T (%s)" % str(Settings.bindings.reload))
 	at.check(_has_key("reload", KEY_T) and not _has_key("reload", KEY_R), "InputMap : T recharge, R ne recharge plus")
 	var cfg := ConfigFile.new()
 	var ok := cfg.load(Settings.path) == OK
@@ -88,8 +89,8 @@ func run() -> void:
 	await action("ui_accept")
 	await key(KEY_G)
 	@warning_ignore("static_called_on_instance")
-	at.check(Settings.bindings.reload == Settings.key_code(KEY_G), "RECHARGER = G")
-	at.check(Settings.bindings.grenade == "" and not _has_key("grenade", KEY_G), "G retiré de GRENADE")
+	at.check(Settings.bindings.reload == [Settings.key_code(KEY_G)], "RECHARGER = G")
+	at.check(Settings.bindings.grenade == [] and not _has_key("grenade", KEY_G), "G retiré de GRENADE")
 	at.check(pm._hint.text.contains("GRENADE"), "conflit affiché : « %s »" % pm._hint.text)
 
 	# Échap pendant une saisie : annule, l'écran reste ouvert.
@@ -97,7 +98,36 @@ func run() -> void:
 	await key(KEY_ESCAPE)
 	at.check(not opt.capturing() and pm.current == opt, "Échap : saisie annulée, options toujours ouvertes")
 	@warning_ignore("static_called_on_instance")
-	at.check(Settings.bindings.reload == Settings.key_code(KEY_G), "rien n'a changé")
+	at.check(Settings.bindings.reload == [Settings.key_code(KEY_G)], "rien n'a changé")
+
+	# Quatre cases par ligne (deux touches, deux boutons), dans la page.
+	var last_slot := MenuBindRow.slot_rect(MenuBindRow.SLOT_PAD2).end.x
+	at.check(row.position.x + last_slot <= opt.scroll.size.x - opt.scroll.get_v_scroll_bar().size.x,
+			"quatre cases dans la page (fin %.0f, page %.0f)" % [row.position.x + last_slot, opt.scroll.size.x])
+	# Deuxième touche : ► puis Entrée, cran de molette bas -> RECHARGER = G
+	# et molette bas ; ce cran ne change plus d'arme. L'invite reste G.
+	await action("ui_right")
+	at.check(row.slot == MenuBindRow.SLOT_KEY2, "► : deuxième case touche")
+	await action("ui_accept")
+	at.check(opt.capturing() and row.capturing == MenuBindRow.SLOT_KEY2, "Entrée : attente d'une deuxième touche")
+	await wheel(row, MOUSE_BUTTON_WHEEL_DOWN)
+	at.check(not opt.capturing(), "cran de molette reçu")
+	@warning_ignore("static_called_on_instance")
+	var wd := Settings.mouse_code(MOUSE_BUTTON_WHEEL_DOWN)
+	@warning_ignore("static_called_on_instance")
+	at.check(Settings.bindings.reload == [Settings.key_code(KEY_G), wd], "RECHARGER = G + molette bas (%s)" % str(Settings.bindings.reload))
+	at.check(_has_mouse("reload", MOUSE_BUTTON_WHEEL_DOWN) and not _has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_DOWN)
+			and _has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_UP), "molette bas : recharge ; molette haut : change d'arme")
+	at.check(pm._hint.text.contains("molette") or pm._hint.text.contains("wheel"), "aide : « %s »" % pm._hint.text)
+	at.check(Settings.action_label("reload") == "G", "invite : la première touche (%s)" % Settings.action_label("reload"))
+	cfg = ConfigFile.new()
+	at.check(cfg.load(Settings.path) == OK and Array(cfg.get_value("bindings", "reload", [])) == Settings.bindings.reload,
+			"deux touches enregistrées")
+	# Retour arrière : la deuxième case est vidée, la molette rechange d'arme.
+	await key(KEY_BACKSPACE)
+	@warning_ignore("static_called_on_instance")
+	at.check(Settings.bindings.reload == [Settings.key_code(KEY_G)] and _has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_DOWN),
+			"deuxième touche effacée, molette bas : changement d'arme")
 
 	# Manette : ► case manette, A lance la saisie, Y est affecté à RECHARGER
 	# et retiré de CHANGER D'ARME ; l'invite du HUD passe à la manette.
@@ -109,16 +139,16 @@ func run() -> void:
 	at.check(opt.capturing(), "une touche ne répond pas à la case manette")
 	await pad(JOY_BUTTON_Y)
 	at.check(not opt.capturing(), "bouton reçu")
-	at.check(Settings.pad_bindings.reload == "joy:%d" % JOY_BUTTON_Y and Settings.pad_bindings.switch_weapon == "",
+	at.check(Settings.pad_bindings.reload == ["joy:%d" % JOY_BUTTON_Y] and Settings.pad_bindings.switch_weapon == [],
 			"RECHARGER = Y, retiré de CHANGER D'ARME (%s)" % str(Settings.pad_bindings.reload))
 	@warning_ignore("static_called_on_instance")
-	at.check(Settings.bindings.reload == Settings.key_code(KEY_G), "la touche reste")
+	at.check(Settings.bindings.reload == [Settings.key_code(KEY_G)], "la touche reste")
 	at.check(Settings.using_pad and Settings.action_label("reload") == "Y", "invites manette : « %s »" % Settings.action_label("reload"))
 	# Start annule une saisie à la manette (B, lui, s'affecte).
 	await pad(JOY_BUTTON_A)
 	await pad(JOY_BUTTON_START)
 	at.check(not opt.capturing() and pm.current == opt, "Start : saisie annulée, options toujours ouvertes")
-	at.check(Settings.pad_bindings.reload == "joy:%d" % JOY_BUTTON_Y, "rien n'a changé")
+	at.check(Settings.pad_bindings.reload == ["joy:%d" % JOY_BUTTON_Y], "rien n'a changé")
 
 	# Rétablir les commandes par défaut (les deux colonnes).
 	opt.reset_button.grab_focus()
@@ -229,6 +259,13 @@ func wheel(c: Control, b: MouseButton) -> void:
 func _has_key(a: String, k: Key) -> bool:
 	for ev in InputMap.action_get_events(a):
 		if ev is InputEventKey and (ev as InputEventKey).physical_keycode == k:
+			return true
+	return false
+
+
+func _has_mouse(a: String, b: MouseButton) -> bool:
+	for ev in InputMap.action_get_events(a):
+		if ev is InputEventMouseButton and (ev as InputEventMouseButton).button_index == b:
 			return true
 	return false
 

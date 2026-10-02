@@ -187,29 +187,46 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   molette au défilement (`MenuOptionRow.wheel_nudges = false` ; lignes en
   `MOUSE_FILTER_PASS`). Chaque changement : `Settings.apply()` puis
   `save_settings()`.
-- **Touches et manette** : une seule commande par action et par colonne.
-  `Settings.bindings` = action -> touche (`key:<physical_keycode>`,
-  `mouse:<bouton>`, `""` : aucune) ; `Settings.pad_bindings` = action ->
-  bouton de manette (`joy:<JoyButton>`, `joyaxis:<JoyAxis>:<-1|1>` pour les
-  gâchettes et le stick gauche ; événements `device = -1` : toutes manettes,
-  branchement à chaud). Actions de `Settings.REBINDABLE` ; dispositions
+- **Touches et manette** : deux commandes au plus par action et par colonne
+  (`Settings.SLOTS_PER_COLUMN`). `Settings.bindings` = action -> liste de 0 à
+  2 touches (`key:<physical_keycode>`, `mouse:<bouton>`, crans de molette
+  compris : `mouse:4` à `mouse:7`) ; `Settings.pad_bindings` = action -> liste
+  de boutons de manette (`joy:<JoyButton>`, `joyaxis:<JoyAxis>:<-1|1>` pour
+  les gâchettes et le stick gauche ; événements `device = -1` : toutes
+  manettes, branchement à chaud). Listes sans case vide au milieu (la
+  deuxième remonte quand la première est effacée) ; défauts : une commande,
+  deuxième case vide. Actions de `Settings.REBINDABLE` ; dispositions
   d'origine `DEFAULT_BINDINGS` / `MOUSE_BINDINGS` / `DEFAULT_PAD_BUTTONS` /
   `DEFAULT_PAD_AXES` (Xbox et PlayStation partagent la disposition standard
-  SDL de Godot : une seule table). `bind(action, code)` range le code dans la
-  colonne de son périphérique et le retire de toute autre action de cette
-  colonne (retourne laquelle, affiché dans l'aide) ; `clear_binding(action,
-  pad)`, `reset_bindings()` (les deux colonnes) ; `apply_bindings()`
-  reconstruit l'InputMap (la molette reste liée à `switch_weapon`, Échap et
-  Start à `pause` ; zone morte `MOVE_DEADZONE` des déplacements). Guide et
-  Start, le stick droit (la vue) ne se réaffectent pas. `settings.cfg` :
-  `[bindings]` (liste d'une touche, format relu par les versions
-  précédentes) et `[pad_bindings]` ; relecture filtrée par colonne (première
-  valeur valide : les anciens fichiers à deux touches gardent la première,
-  sans doublon ; action absente : sa commande d'origine si elle est libre).
-  Ligne `MenuBindRow` (`scripts/ui/bind_row.gd`, cases `SLOT_KEY` /
-  `SLOT_PAD`, ligne de titres `make_header()`) ; la saisie est faite par
-  `OptionsScreen._input` : case touche = touche ou bouton de souris (molette
-  exclue), Échap ou B annule ; case manette = bouton, gâchette ou stick gauche
+  SDL de Godot : une seule table). `binding(action, pad, slot)` lit une case,
+  `bindings_of(action, pad)` la liste ; `bind(action, code, slot)` range le
+  code dans la case `slot` de la colonne de son périphérique, le retire de
+  toute autre action de cette colonne (retourne laquelle, affiché dans
+  l'aide) et, s'il est déjà dans l'autre case de l'action, échange les deux
+  cases ; `clear_binding(action, pad, slot)`, `reset_bindings()` (les deux
+  colonnes) ; `apply_bindings()` reconstruit l'InputMap (Échap et Start à
+  `pause` ; zone morte `MOVE_DEADZONE` des déplacements). Molette :
+  `wheel_switch_events()` lie haut / bas à `switch_weapon` sauf un cran
+  affecté à une action (déjà présent s'il l'est à `switch_weapon`). Un cran
+  arrive en appui + relâche dans la même image : `Input.is_action_just_pressed`
+  (Godot 4.7, sans le comportement « legacy ») reste vrai à une seule image
+  physique par cran, donc les fronts de `PlayerInput` (saut, couteau,
+  recharge, interaction, changement d'arme, tir au coup par coup) partent une
+  fois ; les actions maintenues passent par `PlayerInput.held()` (enfoncée OU
+  appuyée à cette image) : sur la molette, un appui d'une image (grenade
+  dégoupillée puis lancée, visée d'un instant). Guide et Start, le stick
+  droit (la vue) ne se réaffectent pas. `settings.cfg` : `[bindings]` et
+  `[pad_bindings]` en listes de deux codes au plus ; relecture filtrée par
+  colonne (deux premières valeurs valides, sans doublon ; texte seul ou liste
+  d'un code de la version précédente relus tels quels ; fichier sans
+  `[pad_bindings]`, d'avant la manette : première touche seulement ; action
+  absente : sa commande d'origine si elle est libre). Une version précédente
+  relit la première valeur valide de chaque liste.
+  Ligne `MenuBindRow` (`scripts/ui/bind_row.gd`, quatre cases `SLOT_KEY` /
+  `SLOT_KEY2` / `SLOT_PAD` / `SLOT_PAD2`, `is_pad_slot()` / `slot_index()`,
+  noms longs en police réduite `fit_size()`, ligne de titres `make_header()`)
+  ; la saisie est faite par `OptionsScreen._input` : case touche = touche,
+  bouton de souris ou cran de molette, Échap ou B annule ; case manette = bouton, gâchette ou stick gauche
   enfoncé à `CAPTURE_AXIS_THRESHOLD`, Échap ou Start annule. Menus à la
   manette : `_register_inputs` ajoute A / B / LB / RB à `ui_accept` /
   `ui_cancel` / `ui_page_up` / `ui_page_down` (absents des ui_* de Godot).
@@ -221,8 +238,8 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   l'écran d'options pendant une saisie) -> `using_pad`, `pad_device`, signal
   `input_device_changed` ; une manette débranchée sans autre manette rend les
   invites au clavier. `Settings.action_label(action)` (pur :
-  `prompt_label`) donne le bouton si la manette a servi en dernier, sinon la
-  touche ; les invites du HUD (`Hud.bo1_prompt(raw, key)`) sont recalculées
+  `prompt_label`) donne le premier bouton si la manette a servi en dernier, sinon la
+  première touche ; les invites du HUD (`Hud.bo1_prompt(raw, key)`) sont recalculées
   quand ce nom change.
 - **Manette en jeu** : `PlayerInput.read_devices(delta)` lit le déplacement en
   analogique (`get_action_raw_strength`, zone morte radiale

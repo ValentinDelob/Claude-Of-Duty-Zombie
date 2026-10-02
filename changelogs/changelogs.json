@@ -1835,6 +1835,33 @@
     "en": "Zombies: reaching through the boards",
     "fr": "Zombies : le bras à travers les planches"
    }
+  },
+  "v0.2.0-snapshot.360": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [],
+   "items": [
+    {
+     "en": "Every action now takes two keys and two controller buttons (OPTIONS > CONTROLS). The default controls stay the same: the second box is empty.",
+     "fr": "Chaque action accepte maintenant deux touches et deux boutons de manette (OPTIONS > COMMANDES). Les commandes par défaut ne changent pas : la deuxième case est vide."
+    },
+    {
+     "en": "The mouse wheel can be bound like a key: for example, you can put the knife on both V and wheel down.",
+     "fr": "La molette se règle comme une touche : vous pouvez par exemple donner le couteau à V et à la molette vers le bas."
+    },
+    {
+     "en": "A wheel direction given to an action no longer switches weapons; the other direction still does.",
+     "fr": "Un cran de molette donné à une action ne change plus d'arme ; l'autre sens, lui, change toujours d'arme."
+    },
+    {
+     "en": "On-screen prompts (\"Press F\") show the action's first key.",
+     "fr": "Les messages à l'écran (« Appuyez sur F ») montrent la première touche de l'action."
+    }
+   ],
+   "title": {
+    "en": "Two keys per action",
+    "fr": "Deux touches par action"
+   }
   }
  }
 }

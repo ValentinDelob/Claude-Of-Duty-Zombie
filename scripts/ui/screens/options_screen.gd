@@ -438,10 +438,11 @@ func bind_hint(action: String) -> String:
 	var style := Settings.pad_style()
 	var a := PadNames.button_label(JOY_BUTTON_A, style)
 	var x := PadNames.button_label(JOY_BUTTON_X, style)
-	var hint := Lang.t("Entrée, %s ou clic : changer. ◄ / ► : touche ou manette. Retour arrière ou %s : effacer." % [a, x],
-			"Enter, %s or click: change. ◄ / ►: key or controller. Backspace or %s: clear." % [a, x])
+	var hint := Lang.t("Entrée, %s ou clic : changer. ◄ / ► : choisir la case (deux touches, deux boutons). Retour arrière ou %s : effacer." % [a, x],
+			"Enter, %s or click: change. ◄ / ►: pick a box (two keys, two buttons). Backspace or %s: clear." % [a, x])
 	if action == "switch_weapon":
-		hint += Lang.t(" La molette change aussi d'arme.", " The mouse wheel also switches weapons.")
+		hint += Lang.t(" La molette change aussi d'arme, sauf un cran affecté à une action.",
+				" The mouse wheel also switches weapons, except a notch bound to an action.")
 	elif action in Settings.MOVE_ACTIONS:
 		hint += Lang.t(" Stick gauche : déplacement progressif.", " Left stick: analog movement.")
 	return hint
@@ -455,22 +456,23 @@ func _on_rebind_requested(row: MenuBindRow, slot: int) -> void:
 	_capture_slot = slot
 	_capture_frame = Engine.get_process_frames()
 	row.set_capturing(slot)
-	if slot == MenuBindRow.SLOT_PAD:
+	if MenuBindRow.is_pad_slot(slot):
 		var start := PadNames.button_label(JOY_BUTTON_START, Settings.pad_style())
 		menu.set_hint(Lang.t("%s : appuyez sur un bouton ou une gâchette de la manette (%s ou Échap : annuler)." % [row.label_text, start],
 				"%s: press a controller button or trigger (%s or Esc: cancel)." % [row.label_text, start]))
 	else:
 		var b := PadNames.button_label(JOY_BUTTON_B, Settings.pad_style())
-		menu.set_hint(Lang.t("%s : appuyez sur une touche ou un bouton de la souris (Échap ou %s : annuler)." % [row.label_text, b],
-				"%s: press a key or a mouse button (Esc or %s: cancel)." % [row.label_text, b]))
+		menu.set_hint(Lang.t("%s : appuyez sur une touche, un bouton de la souris ou tournez la molette (Échap ou %s : annuler)." % [row.label_text, b],
+				"%s: press a key or a mouse button, or roll the wheel (Esc or %s: cancel)." % [row.label_text, b]))
 
 
 func _on_clear_requested(row: MenuBindRow, slot: int) -> void:
-	var pad := slot == MenuBindRow.SLOT_PAD
-	if Settings.binding(row.action, pad) == "":
+	var pad := MenuBindRow.is_pad_slot(slot)
+	var i := MenuBindRow.slot_index(slot)
+	if Settings.binding(row.action, pad, i) == "":
 		Audio.play_ui("ui_error", -14.0)
 		return
-	Settings.clear_binding(row.action, pad)
+	Settings.clear_binding(row.action, pad, i)
 	Settings.save_settings()
 	Audio.play_ui(MenuStyle.SND_BACK, -8.0)
 	row.flash()
@@ -490,7 +492,7 @@ func _input(event: InputEvent) -> void:
 	# L'appui qui a lancé la saisie n'est pas une réponse.
 	if Engine.get_process_frames() == _capture_frame:
 		return
-	var pad := _capture_slot == MenuBindRow.SLOT_PAD
+	var pad := MenuBindRow.is_pad_slot(_capture_slot)
 	if event is InputEventKey and event.pressed and not event.echo:
 		if (event as InputEventKey).physical_keycode == KEY_ESCAPE or (event as InputEventKey).keycode == KEY_ESCAPE:
 			_cancel_capture()
@@ -526,21 +528,27 @@ func _finish_capture(code: String) -> void:
 	if code == "":
 		return
 	var row := _capture
+	var slot := _capture_slot
 	_end_capture()
-	var taken := Settings.bind(row.action, code)
+	var taken := Settings.bind(row.action, code, MenuBindRow.slot_index(slot))
 	Settings.save_settings()
 	Audio.play_ui(MenuStyle.SND_SELECT, MenuStyle.VOL_SELECT)
 	row.flash()
 	row.grab_focus()
 	@warning_ignore("static_called_on_instance")
 	var key := Settings.code_label(code, Settings.pad_style())
+	var hint := Lang.t("%s : %s." % [row.label_text, key], "%s: %s." % [row.label_text, key])
 	if taken != "":
 		if bind_rows.has(taken):
 			bind_rows[taken].flash()
-		menu.set_hint(Lang.t("« %s » affectée à %s et retirée de %s." % [key, row.label_text, action_name(taken)],
-				"\"%s\" bound to %s and removed from %s." % [key, row.label_text, action_name(taken)]))
-	else:
-		menu.set_hint(Lang.t("%s : %s." % [row.label_text, key], "%s: %s." % [row.label_text, key]))
+		hint = Lang.t("« %s » affectée à %s et retirée de %s." % [key, row.label_text, action_name(taken)],
+				"\"%s\" bound to %s and removed from %s." % [key, row.label_text, action_name(taken)])
+	# Molette haut / bas sur une autre action : ce sens ne change plus d'arme.
+	@warning_ignore("static_called_on_instance")
+	if row.action != "switch_weapon" and (code == Settings.mouse_code(MOUSE_BUTTON_WHEEL_UP)
+			or code == Settings.mouse_code(MOUSE_BUTTON_WHEEL_DOWN)):
+		hint += Lang.t(" Ce cran de molette ne change plus d'arme.", " This wheel notch no longer switches weapons.")
+	menu.set_hint(hint)
 
 
 func _end_capture() -> void:

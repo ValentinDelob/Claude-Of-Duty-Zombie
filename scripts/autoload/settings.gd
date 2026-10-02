@@ -86,7 +86,8 @@ var _applied_fullscreen = null
 
 ## Actions -> touche par défaut (clavier AZERTY et QWERTY : on mappe par
 ## keycode physique pour que ZQSD/WASD tombe au même endroit). Une seule
-## touche par action : « Appuyez sur F » désigne toujours LA touche.
+## touche d'origine par action (la deuxième case est vide) : « Appuyez sur
+## F » désigne toujours la première.
 const DEFAULT_BINDINGS := {
 	"move_forward": KEY_W,
 	"move_back": KEY_S,
@@ -136,13 +137,23 @@ const DEFAULT_PAD_AXES := {
 
 ## Actions réaffectables, dans l'ordre de l'écran OPTIONS > COMMANDES.
 ## « pause » (Échap, Start / Options) reste fixe : c'est aussi ce qui annule
-## une réaffectation. La molette change toujours d'arme, en plus de la touche.
+## une réaffectation. La molette change d'arme, en plus de la touche, sauf
+## dans un sens affecté à une action (wheel_switch_events).
 const REBINDABLE := ["move_forward", "move_back", "move_left", "move_right", "jump", "crouch",
 	"sprint", "fire", "aim", "reload", "interact", "melee", "grenade", "tactical",
 	"switch_weapon", "scoreboard"]
-## Boutons de souris acceptés en réaffectation (la molette est exclue).
+## Commandes par action et par colonne (clavier / souris, manette) : deux
+## cases, la première est celle des invites.
+const SLOTS_PER_COLUMN := 2
+## Crans de molette, affectables à une action comme un bouton (un cran = un
+## appui bref) ; haut / bas changent d'arme tant qu'ils ne sont pas affectés.
+const WHEEL_BUTTONS := [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN,
+	MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]
+const WHEEL_SWITCHES_WEAPON := [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]
+## Boutons de souris acceptés en réaffectation (molette comprise).
 const BINDABLE_MOUSE := [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE,
-	MOUSE_BUTTON_XBUTTON1, MOUSE_BUTTON_XBUTTON2]
+	MOUSE_BUTTON_XBUTTON1, MOUSE_BUTTON_XBUTTON2, MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN,
+	MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]
 ## Boutons de manette réservés : Guide / PS (système) et Start / Options
 ## (pause, annule une réaffectation à la manette).
 const RESERVED_PAD_BUTTONS := [JOY_BUTTON_GUIDE, JOY_BUTTON_START]
@@ -159,12 +170,14 @@ const PAD_MOVE_THRESHOLD := 0.5
 const MOVE_DEADZONE := 0.15
 const MOVE_ACTIONS := ["move_forward", "move_back", "move_left", "move_right"]
 
-## Touche courante (clavier / souris) de chaque action : action -> code
-## (« key:<physical_keycode> », « mouse:<bouton> », « » : aucune).
+## Touches courantes (clavier / souris) de chaque action : action -> liste
+## de 0 à SLOTS_PER_COLUMN codes dans l'ordre des cases (« key:<physical_keycode> »,
+## « mouse:<bouton> », molette comprise). Jamais de case vide au milieu : la
+## deuxième remonte si la première est effacée.
 ## Voir bind(), reset_bindings(), apply_bindings().
 var bindings := {}
-## Bouton de manette de chaque action : action -> code (« joy:<JoyButton> »,
-## « joyaxis:<JoyAxis>:<-1|1> », « » : aucun). Deuxième colonne des options.
+## Boutons de manette de chaque action : action -> liste de codes
+## (« joy:<JoyButton> », « joyaxis:<JoyAxis>:<-1|1> »). Deuxième colonne des options.
 var pad_bindings := {}
 
 ## Sensibilité de la vue au stick droit (multiplicateur, voir PlayerInput).
@@ -292,35 +305,44 @@ static func is_pad_code(code: String) -> bool:
 	return code.begins_with("joy")
 
 
-## Touche d'origine (clavier / souris) de chaque action réaffectable.
+## Touche d'origine (clavier / souris) de chaque action réaffectable : une
+## liste d'un code (deuxième case vide).
 static func default_bindings() -> Dictionary:
 	var d := {}
 	for action in REBINDABLE:
 		if MOUSE_BINDINGS.has(action):
-			d[action] = mouse_code(MOUSE_BINDINGS[action])
+			d[action] = [mouse_code(MOUSE_BINDINGS[action])]
 		elif DEFAULT_BINDINGS.has(action):
-			d[action] = key_code(DEFAULT_BINDINGS[action])
+			d[action] = [key_code(DEFAULT_BINDINGS[action])]
 		else:
-			d[action] = ""
+			d[action] = []
 	return d
 
 
-## Bouton de manette d'origine de chaque action réaffectable.
+## Bouton de manette d'origine de chaque action réaffectable (liste d'un code).
 static func default_pad_bindings() -> Dictionary:
 	var d := {}
 	for action in REBINDABLE:
 		if DEFAULT_PAD_BUTTONS.has(action):
-			d[action] = pad_button_code(DEFAULT_PAD_BUTTONS[action])
+			d[action] = [pad_button_code(DEFAULT_PAD_BUTTONS[action])]
 		elif DEFAULT_PAD_AXES.has(action):
-			d[action] = pad_axis_code(DEFAULT_PAD_AXES[action][0], DEFAULT_PAD_AXES[action][1])
+			d[action] = [pad_axis_code(DEFAULT_PAD_AXES[action][0], DEFAULT_PAD_AXES[action][1])]
 		else:
-			d[action] = ""
+			d[action] = []
 	return d
 
 
+## Cran de molette (souris) ?
+static func is_wheel_code(code: String) -> bool:
+	for b in WHEEL_BUTTONS:
+		if code == mouse_code(b):
+			return true
+	return false
+
+
 ## Code d'une touche, d'un bouton de souris ou de manette, d'une gâchette ou
-## du stick gauche bien enfoncés (« » si non réaffectable : Échap, molette,
-## Start, Guide, stick droit, axe à peine incliné...).
+## du stick gauche bien enfoncés, d'un cran de molette (« » si non
+## réaffectable : Échap, Start, Guide, stick droit, axe à peine incliné...).
 static func code_from_event(ev: InputEvent) -> String:
 	if ev is InputEventKey:
 		var k := ev as InputEventKey
@@ -427,6 +449,10 @@ static func code_label(code: String, pad_style := PadNames.XBOX) -> String:
 			MOUSE_BUTTON_MIDDLE: return Lang.t("CLIC MOLETTE", "MIDDLE CLICK")
 			MOUSE_BUTTON_XBUTTON1: return Lang.t("SOURIS 4", "MOUSE 4")
 			MOUSE_BUTTON_XBUTTON2: return Lang.t("SOURIS 5", "MOUSE 5")
+			MOUSE_BUTTON_WHEEL_UP: return Lang.t("MOLETTE HAUT", "WHEEL UP")
+			MOUSE_BUTTON_WHEEL_DOWN: return Lang.t("MOLETTE BAS", "WHEEL DOWN")
+			MOUSE_BUTTON_WHEEL_LEFT: return Lang.t("MOLETTE GAUCHE", "WHEEL LEFT")
+			MOUSE_BUTTON_WHEEL_RIGHT: return Lang.t("MOLETTE DROITE", "WHEEL RIGHT")
 	if ev is InputEventKey:
 		var pk := (ev as InputEventKey).physical_keycode
 		if KEY_NAMES.has(pk):
@@ -442,7 +468,8 @@ static func code_label(code: String, pad_style := PadNames.XBOX) -> String:
 
 ## Nom de la commande d'une action pour les invites du HUD (« Appuyer sur
 ## F », « Appuyer sur X », « Press Square ») : le bouton de la manette si
-## elle a servi en dernier (et que l'action en a un), sinon la touche.
+## elle a servi en dernier (et que l'action en a un), sinon la touche. Deux
+## commandes dans une colonne : la première.
 func action_label(action: String) -> String:
 	return prompt_label(binding(action), binding(action, true), using_pad, pad_style())
 
@@ -456,9 +483,16 @@ static func prompt_label(key: String, pad: String, use_pad: bool, style := PadNa
 	return code_label(pad, style) if pad != "" else "?"
 
 
-## Code de l'action : touche (clavier / souris) ou bouton de manette (`pad`).
-func binding(action: String, pad := false) -> String:
-	return String((pad_bindings if pad else bindings).get(action, ""))
+## Code de la case `slot` (0 : la première) de l'action, touche (clavier /
+## souris) ou bouton de manette (`pad`) ; « » : case vide.
+func binding(action: String, pad := false, slot := 0) -> String:
+	var list: Array = (pad_bindings if pad else bindings).get(action, [])
+	return String(list[slot]) if slot >= 0 and slot < list.size() else ""
+
+
+## Toutes les commandes de l'action dans une colonne (copie).
+func bindings_of(action: String, pad := false) -> Array:
+	return ((pad_bindings if pad else bindings).get(action, []) as Array).duplicate()
 
 
 ## Noms de boutons de la manette courante : PlayStation (DualShock, DualSense)
@@ -469,29 +503,50 @@ func pad_style() -> String:
 	return PadNames.style_of(Input.get_joy_name(dev)) if dev >= 0 else PadNames.XBOX
 
 
-## Affecte `code` à `action`, dans la colonne de son périphérique (touche ou
-## manette ; une seule commande par action et par colonne). La commande est
-## retirée de toute autre action de la même colonne (conflit). Retourne
-## l'action qui l'a perdue (« » sinon).
-func bind(action: String, code: String) -> String:
+## Affecte `code` à la case `slot` (0 ou 1) de `action`, dans la colonne de
+## son périphérique (touche ou manette). La commande est retirée de toute
+## autre action de la même colonne (conflit) ; déjà dans l'autre case de la
+## même action, elle change de place (l'ancienne commande de la case visée
+## prend la sienne). Case 1 alors que la première est vide : elle va en
+## première case. Retourne l'action qui l'a perdue (« » sinon).
+func bind(action: String, code: String, slot := 0) -> String:
 	if not action in REBINDABLE or event_from_code(code) == null:
 		return ""
+	slot = clampi(slot, 0, SLOTS_PER_COLUMN - 1)
 	var col := pad_bindings if is_pad_code(code) else bindings
 	var taken := ""
 	for a in REBINDABLE:
-		if a != action and col.get(a, "") == code:
-			col[a] = ""
+		var other: Array = col.get(a, [])
+		if a != action and code in other:
+			other.erase(code)
 			taken = a
-	col[action] = code
+	var cases := []
+	for i in SLOTS_PER_COLUMN:
+		cases.append(binding(action, is_pad_code(code), i))
+	var old := cases.find(code)
+	if old >= 0 and old != slot:
+		cases[old] = cases[slot]
+	cases[slot] = code
+	col[action] = _compact(cases)
 	apply_bindings()
 	return taken
 
 
-## Vide la touche (ou le bouton de manette, `pad`) de `action`.
-func clear_binding(action: String, pad := false) -> void:
-	var col := pad_bindings if pad else bindings
-	if col.get(action, "") != "":
-		col[action] = ""
+## Codes sans case vide ni doublon (ordre conservé), SLOTS_PER_COLUMN au plus.
+static func _compact(cases: Array) -> Array:
+	var out := []
+	for c in cases:
+		if c is String and c != "" and not c in out and out.size() < SLOTS_PER_COLUMN:
+			out.append(c)
+	return out
+
+
+## Vide la case `slot` de la touche (ou du bouton de manette, `pad`) de
+## `action` ; la deuxième commande remonte alors en première case.
+func clear_binding(action: String, pad := false, slot := 0) -> void:
+	var list: Array = (pad_bindings if pad else bindings).get(action, [])
+	if slot >= 0 and slot < list.size():
+		list.remove_at(slot)
 		apply_bindings()
 
 
@@ -510,25 +565,41 @@ func apply_bindings() -> void:
 			InputMap.add_action(action)
 		InputMap.action_erase_events(action)
 		InputMap.action_set_deadzone(action, MOVE_DEADZONE if action in MOVE_ACTIONS else 0.5)
-		for code in [binding(action), binding(action, true)]:
+		for code in bindings_of(action) + bindings_of(action, true):
 			var ev := event_from_code(code)
 			if ev:
 				InputMap.action_add_event(action, ev)
-	# Molette : changement d'arme (fixe).
-	for dir in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
-		var w := InputEventMouseButton.new()
-		w.button_index = dir
+	for w in wheel_switch_events(bindings):
 		InputMap.action_add_event("switch_weapon", w)
 	bindings_changed.emit()
 
 
+## Molette : changement d'arme (haut / bas), sauf pour un cran affecté à une
+## action dans `keys` (colonne des touches ; affecté à CHANGER D'ARME, il y
+## est déjà). Pure (tests).
+static func wheel_switch_events(keys: Dictionary) -> Array[InputEventMouseButton]:
+	var used := {}
+	for a in keys:
+		for c in keys[a]:
+			used[c] = true
+	var out: Array[InputEventMouseButton] = []
+	for dir in WHEEL_SWITCHES_WEAPON:
+		if not used.has(mouse_code(dir)):
+			var w := InputEventMouseButton.new()
+			w.button_index = dir
+			out.append(w)
+	return out
+
+
 ## Commandes lues d'un fichier, pour une colonne (section « bindings » :
-## touches, « pad_bindings » : manette). Une seule par action : la première
-## valide de la bonne colonne (les anciens fichiers en avaient deux), sans
-## doublon ; action absente du fichier (nouvelle version) : sa commande
-## d'origine, sauf si une autre action l'a déjà.
-static func _bindings_from_cfg(cfg: ConfigFile, section: String, defaults: Dictionary, pad: bool) -> Dictionary:
-	var d := defaults.duplicate()
+## touches, « pad_bindings » : manette). `max_codes` au plus par action (deux
+## par défaut) : les premières valides de la bonne colonne, sans doublon
+## (une version précédente en écrivait une seule, en liste ou en texte :
+## relue telle quelle) ; action absente du fichier (nouvelle version) : ses
+## commandes d'origine, sauf celles qu'une autre action a déjà.
+static func _bindings_from_cfg(cfg: ConfigFile, section: String, defaults: Dictionary, pad: bool,
+		max_codes := SLOTS_PER_COLUMN) -> Dictionary:
+	var d := defaults.duplicate(true)
 	var used := {}
 	for action in REBINDABLE:
 		if not cfg.has_section_key(section, action):
@@ -539,22 +610,23 @@ static func _bindings_from_cfg(cfg: ConfigFile, section: String, defaults: Dicti
 			list = [raw]
 		elif raw is Array or raw is PackedStringArray:
 			list = Array(raw).slice(0, 8)  # fichier piégé : quelques valeurs au plus
-		var pick := ""
+		var picks := []
 		for c in list:
 			var code := str(c)
 			if is_pad_code(code) == pad and event_from_code(code) != null and not used.has(code):
-				pick = code
-				break
-		if pick != "":
-			used[pick] = true
-		d[action] = pick
+				picks.append(code)
+				used[code] = true
+				if picks.size() >= max_codes:
+					break
+		d[action] = picks
 	for action in REBINDABLE:
 		if not cfg.has_section_key(section, action):
-			var code: String = d[action]
-			if code != "" and used.has(code):
-				d[action] = ""
-			elif code != "":
-				used[code] = true
+			var keep := []
+			for code in d[action]:
+				if not used.has(code):
+					used[code] = true
+					keep.append(code)
+			d[action] = keep
 	return d
 
 
@@ -653,7 +725,11 @@ func load_from(file: String) -> bool:
 	invert_y = SafeConfig.get_bool(cfg, "controls", "invert_y", invert_y)
 	pad_look_sensitivity = SafeConfig.get_float(cfg, "controls", "pad_look_sensitivity", pad_look_sensitivity,
 			PAD_SENSITIVITY_RANGE.x, PAD_SENSITIVITY_RANGE.y)
-	bindings = _bindings_from_cfg(cfg, "bindings", default_bindings(), false)
+	# Fichier sans colonne manette : versions d'avant la manette, qui
+	# mettaient deux touches d'origine à certaines actions (E interagissait
+	# aussi) : seule la première est gardée, comme dans les versions suivantes.
+	var keys_max := SLOTS_PER_COLUMN if cfg.has_section("pad_bindings") else 1
+	bindings = _bindings_from_cfg(cfg, "bindings", default_bindings(), false, keys_max)
 	pad_bindings = _bindings_from_cfg(cfg, "pad_bindings", default_pad_bindings(), true)
 	fov = SafeConfig.get_float(cfg, "video", "fov", fov, 40.0, 130.0)
 	fullscreen = SafeConfig.get_bool(cfg, "video", "fullscreen", fullscreen)
@@ -697,10 +773,10 @@ func save_to(file: String) -> void:
 	cfg.set_value("controls", "invert_y", invert_y)
 	cfg.set_value("controls", "pad_look_sensitivity", pad_look_sensitivity)
 	for action in REBINDABLE:
-		# Touche : liste d'une valeur (format des versions précédentes, qui la relisent).
-		var key := binding(action)
-		cfg.set_value("bindings", action, PackedStringArray([key] if key != "" else []))
-		cfg.set_value("pad_bindings", action, binding(action, true))
+		# Listes de deux codes au plus (une version précédente relit la
+		# première commande valide de sa colonne).
+		cfg.set_value("bindings", action, PackedStringArray(bindings_of(action)))
+		cfg.set_value("pad_bindings", action, PackedStringArray(bindings_of(action, true)))
 	cfg.set_value("video", "fov", fov)
 	cfg.set_value("video", "fullscreen", fullscreen)
 	cfg.set_value("video", "vsync", vsync)

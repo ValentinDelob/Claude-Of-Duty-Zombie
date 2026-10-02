@@ -1,6 +1,6 @@
 extends TestCase
-## Réglages : touches et boutons de manette réaffectables (une commande par
-## action et par colonne, conflits, InputMap, anciens fichiers), noms des
+## Réglages : touches et boutons de manette réaffectables (deux commandes par
+## action et par colonne, molette, conflits, InputMap, anciens fichiers), noms des
 ## boutons Xbox / PlayStation et invites, sticks (zone morte, vue), options
 ## graphiques et de contrôle ajoutées, enregistrement puis rechargement.
 ## Tout se fait dans un fichier temporaire : les réglages du joueur ne sont
@@ -62,28 +62,51 @@ func _k(key: Key) -> String:
 	return "key:%d" % key
 
 
+func _w(button: MouseButton) -> String:
+	return "mouse:%d" % button
+
+
+## Cran de molette injecté (appui puis relâche dans la même image, comme le
+## pilote de la souris), hors image physique comme les événements du
+## système (lus au début de l'image suivante).
+func _wheel_notch(button: MouseButton) -> void:
+	await host.get_tree().process_frame
+	var ev := InputEventMouseButton.new()
+	ev.button_index = button
+	ev.pressed = true
+	ev.factor = 1.0
+	Input.parse_input_event(ev)
+	var up := ev.duplicate() as InputEventMouseButton
+	up.pressed = false
+	Input.parse_input_event(up)
+
+
 func test_one_key_per_action_by_default() -> void:
 	@warning_ignore("static_called_on_instance")
 	var d := Settings.default_bindings()
 	assert_eq(d.size(), Settings.REBINDABLE.size())
-	assert_eq(d.crouch, _k(KEY_C), "S'ACCROUPIR : C seulement")
-	assert_eq(d.interact, _k(KEY_F), "INTERAGIR : F seulement (l'invite dit F)")
-	assert_eq(d.switch_weapon, _k(KEY_1), "CHANGER D'ARME : 1 (+ molette)")
-	assert_eq(d.fire, "mouse:%d" % MOUSE_BUTTON_LEFT)
-	assert_eq(d.aim, "mouse:%d" % MOUSE_BUTTON_RIGHT)
+	assert_eq(Settings.SLOTS_PER_COLUMN, 2, "deux cases par colonne")
+	assert_eq(d.crouch, [_k(KEY_C)], "S'ACCROUPIR : C seulement, deuxième case vide")
+	assert_eq(d.interact, [_k(KEY_F)], "INTERAGIR : F seulement (l'invite dit F)")
+	assert_eq(d.switch_weapon, [_k(KEY_1)], "CHANGER D'ARME : 1 (+ molette)")
+	assert_eq(d.fire, ["mouse:%d" % MOUSE_BUTTON_LEFT])
+	assert_eq(d.aim, ["mouse:%d" % MOUSE_BUTTON_RIGHT])
+	assert_eq(Settings.binding("melee", false, 1), "", "deuxième case vide")
+	assert_eq(Settings.binding("melee", true, 1), "", "deuxième case manette vide")
 	assert_true(_has_key("move_forward", KEY_W), "Z/W avance")
 	assert_true(_has_key("interact", KEY_F) and not _has_key("interact", KEY_E), "F interagit, E ne fait plus rien")
 	assert_false(_has_key("crouch", KEY_CTRL), "Ctrl libre")
 	assert_false(_has_key("switch_weapon", KEY_2), "2 libre")
 	assert_true(_has_mouse("fire", MOUSE_BUTTON_LEFT), "clic gauche tire")
 	assert_true(_has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_UP), "molette : changement d'arme")
+	assert_true(_has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_DOWN))
 	assert_true(_has_key("pause", KEY_ESCAPE), "Échap : pause (fixe)")
-	# Une seule commande par colonne : jamais deux actions sur la même.
+	# Une seule commande d'origine par action : jamais deux actions sur la même.
 	var seen := {}
 	for a in Settings.REBINDABLE:
-		assert_true(d[a] is String and d[a] != "", "%s : une touche" % a)
-		assert_false(seen.has(d[a]), "%s : touche unique" % a)
-		seen[d[a]] = true
+		assert_true(d[a] is Array and d[a].size() == 1, "%s : une touche" % a)
+		assert_false(seen.has(d[a][0]), "%s : touche unique" % a)
+		seen[d[a][0]] = true
 
 
 func test_default_pad_layout() -> void:
@@ -100,11 +123,13 @@ func test_default_pad_layout() -> void:
 		"move_forward": "joyaxis:%d:-1" % JOY_AXIS_LEFT_Y, "move_back": "joyaxis:%d:1" % JOY_AXIS_LEFT_Y,
 		"move_left": "joyaxis:%d:-1" % JOY_AXIS_LEFT_X, "move_right": "joyaxis:%d:1" % JOY_AXIS_LEFT_X,
 	}
-	assert_eq(p, expect)
+	for a in expect:
+		assert_eq(p[a], [expect[a]], "%s : un bouton, deuxième case vide" % a)
 	var seen := {}
 	for a in Settings.REBINDABLE:
-		assert_false(seen.has(p[a]), "%s : bouton unique" % a)
-		seen[p[a]] = true
+		assert_eq(p[a].size(), 1)
+		assert_false(seen.has(p[a][0]), "%s : bouton unique" % a)
+		seen[p[a][0]] = true
 	assert_true(_has_pad_button("jump", JOY_BUTTON_A), "A / Croix saute")
 	assert_true(_has_pad_axis("fire", JOY_AXIS_TRIGGER_RIGHT, 1.0), "RT / R2 tire")
 	assert_true(_has_pad_axis("move_forward", JOY_AXIS_LEFT_Y, -1.0), "stick gauche vers le haut : avancer")
@@ -129,10 +154,6 @@ func test_codes_roundtrip() -> void:
 	esc.physical_keycode = KEY_ESCAPE
 	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.code_from_event(esc), "", "Échap : jamais affectable")
-	var wheel := InputEventMouseButton.new()
-	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
-	@warning_ignore("static_called_on_instance")
-	assert_eq(Settings.code_from_event(wheel), "", "molette exclue")
 	var mb := InputEventMouseButton.new()
 	mb.button_index = MOUSE_BUTTON_XBUTTON1
 	@warning_ignore("static_called_on_instance")
@@ -141,9 +162,181 @@ func test_codes_roundtrip() -> void:
 	assert_true(Settings.event_from_code(_k(KEY_T)) is InputEventKey)
 	@warning_ignore("static_called_on_instance")
 	assert_true(Settings.event_from_code("mouse:%d" % MOUSE_BUTTON_MIDDLE) is InputEventMouseButton)
-	for bad in ["", "key:", "key:abc", "mouse:4", "pad:1", _k(KEY_ESCAPE)]:
+	for bad in ["", "key:", "key:abc", "mouse:0", "mouse:10", "mouse:-4", "pad:1", _k(KEY_ESCAPE)]:
 		@warning_ignore("static_called_on_instance")
 		assert_true(Settings.event_from_code(bad) == null, "code invalide « %s »" % bad)
+
+
+func test_wheel_codes_roundtrip_and_names() -> void:
+	# Chaque cran de molette s'affecte comme un bouton, aller-retour exact.
+	for b in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = b
+		ev.pressed = true
+		@warning_ignore("static_called_on_instance")
+		var code := Settings.code_from_event(ev)
+		assert_eq(code, _w(b), "cran %d affectable" % b)
+		@warning_ignore("static_called_on_instance")
+		var back := Settings.event_from_code(code) as InputEventMouseButton
+		assert_true(back != null and back.button_index == b, "cran %d relu" % b)
+		@warning_ignore("static_called_on_instance")
+		assert_true(Settings.is_wheel_code(code))
+	@warning_ignore("static_called_on_instance")
+	assert_false(Settings.is_wheel_code(_w(MOUSE_BUTTON_MIDDLE)), "clic molette : un bouton, pas un cran")
+	Settings.language = "fr"
+	@warning_ignore("static_called_on_instance")
+	assert_eq(Settings.code_label(_w(MOUSE_BUTTON_WHEEL_DOWN)), "MOLETTE BAS")
+	@warning_ignore("static_called_on_instance")
+	assert_eq(Settings.code_label(_w(MOUSE_BUTTON_WHEEL_UP)), "MOLETTE HAUT")
+	@warning_ignore("static_called_on_instance")
+	assert_eq(Settings.code_label(_w(MOUSE_BUTTON_WHEEL_LEFT)), "MOLETTE GAUCHE")
+	Settings.language = "en"
+	@warning_ignore("static_called_on_instance")
+	assert_eq(Settings.code_label(_w(MOUSE_BUTTON_WHEEL_DOWN)), "WHEEL DOWN")
+	@warning_ignore("static_called_on_instance")
+	assert_eq(Settings.code_label(_w(MOUSE_BUTTON_WHEEL_RIGHT)), "WHEEL RIGHT")
+	# Un cran est une touche : jamais dans la colonne manette.
+	@warning_ignore("static_called_on_instance")
+	assert_false(Settings.is_pad_code(_w(MOUSE_BUTTON_WHEEL_DOWN)))
+
+
+func test_two_keys_per_action() -> void:
+	# L'exemple du joueur : couteau sur V ET sur molette bas.
+	assert_eq(Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1), "", "aucune action ne perd la molette")
+	assert_eq(Settings.bindings.melee, [_k(KEY_V), _w(MOUSE_BUTTON_WHEEL_DOWN)])
+	assert_true(_has_key("melee", KEY_V) and _has_mouse("melee", MOUSE_BUTTON_WHEEL_DOWN), "V et molette bas dans l'InputMap")
+	assert_eq(Settings.action_label("melee"), "V", "invite : la première")
+	assert_eq(Settings.binding("melee", false, 1), _w(MOUSE_BUTTON_WHEEL_DOWN))
+	# Deuxième bouton de manette, sans toucher au premier.
+	Settings.bind("melee", "joy:%d" % JOY_BUTTON_DPAD_DOWN, 1)
+	assert_eq(Settings.pad_bindings.melee, ["joy:%d" % JOY_BUTTON_RIGHT_STICK, "joy:%d" % JOY_BUTTON_DPAD_DOWN])
+	assert_true(_has_pad_button("melee", JOY_BUTTON_RIGHT_STICK) and _has_pad_button("melee", JOY_BUTTON_DPAD_DOWN))
+	# Remplacer une case : seule celle-là change.
+	Settings.bind("melee", _k(KEY_B), 1)
+	assert_eq(Settings.bindings.melee, [_k(KEY_V), _k(KEY_B)])
+	assert_false(_has_mouse("melee", MOUSE_BUTTON_WHEEL_DOWN), "molette bas libérée")
+	Settings.bind("melee", _k(KEY_N), 0)
+	assert_eq(Settings.bindings.melee, [_k(KEY_N), _k(KEY_B)])
+	assert_false(_has_key("melee", KEY_V))
+	# Case 2 alors que la première est vide : en première case.
+	Settings.clear_binding("reload")
+	Settings.bind("reload", _k(KEY_T), 1)
+	assert_eq(Settings.bindings.reload, [_k(KEY_T)])
+	# Case hors limites : ramenée à la dernière.
+	Settings.bind("reload", _k(KEY_Y), 7)
+	assert_eq(Settings.bindings.reload, [_k(KEY_T), _k(KEY_Y)])
+
+
+func test_bind_to_other_slot_of_same_action_moves_it() -> void:
+	Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1)
+	# V dans la deuxième case : les deux commandes échangent leur place.
+	assert_eq(Settings.bind("melee", _k(KEY_V), 1), "", "pas de conflit avec soi-même")
+	assert_eq(Settings.bindings.melee, [_w(MOUSE_BUTTON_WHEEL_DOWN), _k(KEY_V)])
+	assert_eq(Settings.action_label("melee"), "MOLETTE BAS" if Settings.language == "fr" else "WHEEL DOWN")
+	# Même case : rien ne change.
+	Settings.bind("melee", _k(KEY_V), 1)
+	assert_eq(Settings.bindings.melee, [_w(MOUSE_BUTTON_WHEEL_DOWN), _k(KEY_V)])
+	# Seule commande, mise en case 2 : reste unique, en première case.
+	Settings.bind("jump", _k(KEY_SPACE), 1)
+	assert_eq(Settings.bindings.jump, [_k(KEY_SPACE)])
+
+
+func test_conflict_with_second_slot() -> void:
+	Settings.bind("melee", _k(KEY_B), 1)
+	# B pris par RECHARGER : retiré de la deuxième case du couteau, V reste.
+	assert_eq(Settings.bind("reload", _k(KEY_B), 1), "melee")
+	assert_eq(Settings.bindings.melee, [_k(KEY_V)])
+	assert_eq(Settings.bindings.reload, [_k(KEY_R), _k(KEY_B)])
+	# V (première case du couteau) pris : la deuxième remonte, ici aucune.
+	Settings.bind("melee", _k(KEY_N), 1)
+	assert_eq(Settings.bind("reload", _k(KEY_V), 0), "melee")
+	assert_eq(Settings.bindings.melee, [_k(KEY_N)], "N remonte en première case")
+	assert_eq(Settings.bindings.reload, [_k(KEY_V), _k(KEY_B)], "R remplacé par V")
+	assert_false(_has_key("reload", KEY_R))
+	# Colonne manette : même règle, case par case.
+	Settings.bind("jump", "joy:%d" % JOY_BUTTON_Y, 1)
+	assert_eq(Settings.pad_bindings.switch_weapon, [], "Y retiré de CHANGER D'ARME")
+	assert_eq(Settings.pad_bindings.jump, ["joy:%d" % JOY_BUTTON_A, "joy:%d" % JOY_BUTTON_Y])
+
+
+func test_clear_each_slot() -> void:
+	Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1)
+	Settings.clear_binding("melee", false, 1)
+	assert_eq(Settings.bindings.melee, [_k(KEY_V)], "deuxième case effacée")
+	assert_false(_has_mouse("melee", MOUSE_BUTTON_WHEEL_DOWN))
+	assert_true(_has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_DOWN), "la molette bas change de nouveau d'arme")
+	Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1)
+	Settings.clear_binding("melee", false, 0)
+	assert_eq(Settings.bindings.melee, [_w(MOUSE_BUTTON_WHEEL_DOWN)], "première effacée : la deuxième remonte")
+	Settings.clear_binding("melee", false, 1)
+	assert_eq(Settings.bindings.melee, [_w(MOUSE_BUTTON_WHEEL_DOWN)], "case déjà vide : rien")
+	Settings.bind("melee", "joy:%d" % JOY_BUTTON_DPAD_UP, 1)
+	Settings.clear_binding("melee", true, 0)
+	assert_eq(Settings.pad_bindings.melee, ["joy:%d" % JOY_BUTTON_DPAD_UP])
+	assert_false(_has_pad_button("melee", JOY_BUTTON_RIGHT_STICK))
+	# Reset : une seule commande d'origine, deuxièmes cases vides.
+	Settings.reset_bindings()
+	assert_eq(Settings.bindings.melee, [_k(KEY_V)])
+	assert_eq(Settings.pad_bindings.melee, ["joy:%d" % JOY_BUTTON_RIGHT_STICK])
+	assert_false(_has_mouse("melee", MOUSE_BUTTON_WHEEL_DOWN))
+
+
+func test_wheel_notch_bound_no_longer_switches_weapon() -> void:
+	@warning_ignore("static_called_on_instance")
+	assert_eq(Settings.wheel_switch_events(Settings.default_bindings()).size(), 2, "par défaut : haut et bas")
+	Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1)
+	assert_false(_has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_DOWN), "molette bas : couteau, plus changement d'arme")
+	assert_true(_has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_UP), "molette haut : change toujours d'arme")
+	assert_true(_has_mouse("melee", MOUSE_BUTTON_WHEEL_DOWN))
+	# Molette haut sur CHANGER D'ARME : affectée, une seule fois dans l'InputMap.
+	Settings.bind("switch_weapon", _w(MOUSE_BUTTON_WHEEL_UP), 1)
+	var n := 0
+	for ev in InputMap.action_get_events("switch_weapon"):
+		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_WHEEL_UP:
+			n += 1
+	assert_eq(n, 1, "molette haut une seule fois")
+	# Molette gauche / droite : jamais de changement d'arme d'origine.
+	assert_false(_has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_LEFT))
+	# Colonne manette : n'y change rien.
+	Settings.reset_bindings()
+	assert_true(_has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_DOWN), "reset : la molette change d'arme")
+
+
+func test_wheel_bound_actions_fire_once_per_notch() -> void:
+	# Couteau sur molette bas : un cran = un coup, lu par PlayerInput à
+	# l'image physique (comme Player), et plus de changement d'arme.
+	Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1)
+	Settings.bind("grenade", _w(MOUSE_BUTTON_WHEEL_LEFT))
+	var tree := host.get_tree()
+	var counts := {"melee": 0, "switch": 0, "grenade": 0, "grenade_frames": 0}
+	var inp := PlayerInput.new()
+	var read := func():
+		inp.read_devices(1.0 / 60.0)
+		counts.melee += int(inp.melee)
+		counts.switch += int(inp.switch_weapon)
+		counts.grenade_frames += int(inp.grenade)
+		inp.clear_edges()
+	tree.physics_frame.connect(read)
+	for notch in 3:
+		await tree.physics_frame
+		await _wheel_notch(MOUSE_BUTTON_WHEEL_DOWN)
+		for i in 4:
+			await tree.physics_frame
+	assert_eq(counts.melee, 3, "un coup de couteau par cran (%d)" % counts.melee)
+	assert_eq(counts.switch, 0, "molette bas : plus de changement d'arme")
+	# Molette haut : change toujours d'arme, une fois par cran.
+	await _wheel_notch(MOUSE_BUTTON_WHEEL_UP)
+	for i in 4:
+		await tree.physics_frame
+	assert_eq(counts.switch, 1, "molette haut : un changement d'arme")
+	assert_eq(counts.melee, 3)
+	# Action maintenue (grenade) sur un cran : un appui d'une seule image
+	# (dégoupillée puis lancée par ThrowController).
+	await _wheel_notch(MOUSE_BUTTON_WHEEL_LEFT)
+	for i in 4:
+		await tree.physics_frame
+	assert_eq(counts.grenade_frames, 1, "grenade : appui d'une image (%d)" % counts.grenade_frames)
+	tree.physics_frame.disconnect(read)
 
 
 func test_pad_codes_roundtrip_and_sanitized() -> void:
@@ -193,28 +386,28 @@ func test_pad_codes_roundtrip_and_sanitized() -> void:
 func test_rebind_updates_input_map() -> void:
 	var taken := Settings.bind("reload", _k(KEY_T))
 	assert_eq(taken, "")
-	assert_eq(Settings.bindings.reload, _k(KEY_T), "une seule touche : T remplace R")
+	assert_eq(Settings.bindings.reload, [_k(KEY_T)], "première case : T remplace R")
 	assert_true(_has_key("reload", KEY_T) and not _has_key("reload", KEY_R), "R -> T dans l'InputMap")
-	assert_eq(Settings.pad_bindings.reload, "joy:%d" % JOY_BUTTON_RIGHT_SHOULDER, "le bouton de manette reste")
+	assert_eq(Settings.pad_bindings.reload, ["joy:%d" % JOY_BUTTON_RIGHT_SHOULDER], "le bouton de manette reste")
 	Settings.bind("reload", "mouse:%d" % MOUSE_BUTTON_XBUTTON2)
-	assert_eq(Settings.bindings.reload, "mouse:%d" % MOUSE_BUTTON_XBUTTON2)
+	assert_eq(Settings.bindings.reload, ["mouse:%d" % MOUSE_BUTTON_XBUTTON2])
 	assert_true(_has_mouse("reload", MOUSE_BUTTON_XBUTTON2) and not _has_key("reload", KEY_T), "bouton 5 de la souris")
 	# Colonne manette : ne touche pas à la touche.
 	Settings.bind("reload", "joy:%d" % JOY_BUTTON_DPAD_UP)
-	assert_eq(Settings.pad_bindings.reload, "joy:%d" % JOY_BUTTON_DPAD_UP)
-	assert_eq(Settings.bindings.reload, "mouse:%d" % MOUSE_BUTTON_XBUTTON2)
+	assert_eq(Settings.pad_bindings.reload, ["joy:%d" % JOY_BUTTON_DPAD_UP])
+	assert_eq(Settings.bindings.reload, ["mouse:%d" % MOUSE_BUTTON_XBUTTON2])
 	assert_true(_has_pad_button("reload", JOY_BUTTON_DPAD_UP) and not _has_pad_button("reload", JOY_BUTTON_RIGHT_SHOULDER))
 	assert_eq(Settings.bind("reload", "joy:bogus"), "", "code invalide refusé")
-	assert_eq(Settings.pad_bindings.reload, "joy:%d" % JOY_BUTTON_DPAD_UP)
+	assert_eq(Settings.pad_bindings.reload, ["joy:%d" % JOY_BUTTON_DPAD_UP])
 
 
 func test_conflict_removes_key_from_other_action() -> void:
 	var taken := Settings.bind("reload", _k(KEY_G))
 	assert_eq(taken, "grenade", "G retiré de GRENADE")
-	assert_eq(Settings.bindings.grenade, "")
+	assert_eq(Settings.bindings.grenade, [])
 	assert_false(_has_key("grenade", KEY_G), "plus de G sur la grenade")
 	assert_true(_has_key("reload", KEY_G))
-	assert_eq(Settings.pad_bindings.grenade, "joy:%d" % JOY_BUTTON_LEFT_SHOULDER, "la manette n'est pas touchée")
+	assert_eq(Settings.pad_bindings.grenade, ["joy:%d" % JOY_BUTTON_LEFT_SHOULDER], "la manette n'est pas touchée")
 	# Tir sur une touche : le clic gauche reste libre de toute action.
 	assert_eq(Settings.bind("aim", "mouse:%d" % MOUSE_BUTTON_LEFT), "fire")
 	assert_false(_has_mouse("fire", MOUSE_BUTTON_LEFT))
@@ -224,23 +417,23 @@ func test_pad_conflict_stays_in_pad_column() -> void:
 	# Y (changer d'arme) sur RECHARGER : retiré de CHANGER D'ARME, côté manette seulement.
 	var taken := Settings.bind("reload", "joy:%d" % JOY_BUTTON_Y)
 	assert_eq(taken, "switch_weapon")
-	assert_eq(Settings.pad_bindings.switch_weapon, "")
-	assert_eq(Settings.bindings.switch_weapon, _k(KEY_1), "la touche 1 reste")
+	assert_eq(Settings.pad_bindings.switch_weapon, [])
+	assert_eq(Settings.bindings.switch_weapon, [_k(KEY_1)], "la touche 1 reste")
 	assert_false(_has_pad_button("switch_weapon", JOY_BUTTON_Y))
 	# Gâchette : même règle.
 	assert_eq(Settings.bind("melee", "joyaxis:%d:1" % JOY_AXIS_TRIGGER_RIGHT), "fire")
-	assert_eq(Settings.pad_bindings.fire, "")
+	assert_eq(Settings.pad_bindings.fire, [])
 	assert_true(_has_pad_axis("melee", JOY_AXIS_TRIGGER_RIGHT, 1.0))
 	assert_true(_has_mouse("fire", MOUSE_BUTTON_LEFT), "le clic gauche tire toujours")
 
 
 func test_clear_binding_per_column() -> void:
 	Settings.clear_binding("crouch")
-	assert_eq(Settings.bindings.crouch, "")
+	assert_eq(Settings.bindings.crouch, [])
 	assert_false(_has_key("crouch", KEY_C))
 	assert_true(_has_pad_button("crouch", JOY_BUTTON_B), "B accroupit toujours")
 	Settings.clear_binding("crouch", true)
-	assert_eq(Settings.pad_bindings.crouch, "")
+	assert_eq(Settings.pad_bindings.crouch, [])
 	assert_true(InputMap.action_get_events("crouch").is_empty())
 	assert_eq(Settings.action_label("crouch"), "?", "aucune commande : « ? »")
 
@@ -248,20 +441,27 @@ func test_clear_binding_per_column() -> void:
 func test_reset_bindings() -> void:
 	Settings.bind("jump", _k(KEY_W))
 	Settings.bind("jump", "joy:%d" % JOY_BUTTON_X)
+	Settings.bind("jump", _k(KEY_J), 1)
+	Settings.bind("jump", "joy:%d" % JOY_BUTTON_DPAD_LEFT, 1)
 	assert_false(_has_key("move_forward", KEY_W))
 	Settings.reset_bindings()
 	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.bindings, Settings.default_bindings())
 	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.pad_bindings, Settings.default_pad_bindings(), "colonne manette rétablie aussi")
-	assert_true(_has_key("move_forward", KEY_W) and _has_key("jump", KEY_SPACE))
+	assert_eq(Settings.binding("jump", false, 1), "", "deuxième case vide")
+	assert_eq(Settings.binding("jump", true, 1), "")
+	assert_true(_has_key("move_forward", KEY_W) and _has_key("jump", KEY_SPACE) and not _has_key("jump", KEY_J))
 	assert_true(_has_pad_button("interact", JOY_BUTTON_X) and _has_pad_button("jump", JOY_BUTTON_A))
+	assert_false(_has_pad_button("jump", JOY_BUTTON_DPAD_LEFT))
 
 
 func test_save_and_reload() -> void:
 	Settings.bind("reload", _k(KEY_T))
 	Settings.bind("melee", "mouse:%d" % MOUSE_BUTTON_MIDDLE)
+	Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1)
 	Settings.bind("reload", "joy:%d" % JOY_BUTTON_DPAD_DOWN)
+	Settings.bind("reload", "joy:%d" % JOY_BUTTON_DPAD_LEFT, 1)
 	Settings.bind("grenade", "joyaxis:%d:1" % JOY_AXIS_TRIGGER_LEFT)
 	Settings.render_scale = 0.7
 	Settings.max_fps = 144
@@ -271,8 +471,12 @@ func test_save_and_reload() -> void:
 	Settings.save_to(TMP)
 	var cfg := ConfigFile.new()
 	assert_eq(cfg.load(TMP), OK)
-	assert_eq(Array(cfg.get_value("bindings", "reload")), [_k(KEY_T)], "touche dans settings.cfg (format des versions précédentes)")
-	assert_eq(cfg.get_value("pad_bindings", "reload"), "joy:%d" % JOY_BUTTON_DPAD_DOWN, "bouton de manette dans settings.cfg")
+	assert_eq(Array(cfg.get_value("bindings", "reload")), [_k(KEY_T)], "une touche : liste d'une valeur")
+	assert_eq(Array(cfg.get_value("bindings", "melee")), ["mouse:%d" % MOUSE_BUTTON_MIDDLE, _w(MOUSE_BUTTON_WHEEL_DOWN)],
+			"deux touches : liste de deux valeurs")
+	assert_eq(Array(cfg.get_value("pad_bindings", "reload")), ["joy:%d" % JOY_BUTTON_DPAD_DOWN, "joy:%d" % JOY_BUTTON_DPAD_LEFT],
+			"boutons de manette dans settings.cfg")
+	assert_eq(Array(cfg.get_value("bindings", "grenade")), [_k(KEY_G)])
 	# Retour aux valeurs d'origine, puis rechargement du fichier.
 	Settings.reset_bindings()
 	Settings.render_scale = 1.0
@@ -282,13 +486,15 @@ func test_save_and_reload() -> void:
 	Settings.pad_look_sensitivity = 1.0
 	assert_true(Settings.load_from(TMP), "fichier relu")
 	Settings.apply_bindings()
-	assert_eq(Settings.bindings.reload, _k(KEY_T))
-	assert_eq(Settings.bindings.melee, "mouse:%d" % MOUSE_BUTTON_MIDDLE)
-	assert_eq(Settings.pad_bindings.reload, "joy:%d" % JOY_BUTTON_DPAD_DOWN)
-	assert_eq(Settings.pad_bindings.grenade, "joyaxis:%d:1" % JOY_AXIS_TRIGGER_LEFT)
-	assert_eq(Settings.pad_bindings.aim, "", "LT pris par GRENADE")
+	assert_eq(Settings.bindings.reload, [_k(KEY_T)])
+	assert_eq(Settings.bindings.melee, ["mouse:%d" % MOUSE_BUTTON_MIDDLE, _w(MOUSE_BUTTON_WHEEL_DOWN)])
+	assert_eq(Settings.pad_bindings.reload, ["joy:%d" % JOY_BUTTON_DPAD_DOWN, "joy:%d" % JOY_BUTTON_DPAD_LEFT])
+	assert_eq(Settings.pad_bindings.grenade, ["joyaxis:%d:1" % JOY_AXIS_TRIGGER_LEFT])
+	assert_eq(Settings.pad_bindings.aim, [], "LT pris par GRENADE")
 	assert_true(_has_key("reload", KEY_T) and not _has_key("reload", KEY_R), "InputMap rechargée")
 	assert_true(_has_pad_axis("grenade", JOY_AXIS_TRIGGER_LEFT, 1.0))
+	assert_true(_has_mouse("melee", MOUSE_BUTTON_WHEEL_DOWN) and not _has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_DOWN),
+			"molette bas : couteau après rechargement")
 	assert_near(Settings.render_scale, 0.7)
 	assert_eq(Settings.max_fps, 144)
 	assert_near(Settings.brightness, 1.25)
@@ -296,10 +502,38 @@ func test_save_and_reload() -> void:
 	assert_near(Settings.pad_look_sensitivity, 1.7)
 
 
+func test_one_slot_file_loads_unchanged() -> void:
+	# Fichier de la version précédente (une commande par colonne : touche en
+	# liste d'une valeur, bouton de manette en texte) : relu tel quel.
+	var cfg := ConfigFile.new()
+	@warning_ignore("static_called_on_instance")
+	var dk := Settings.default_bindings()
+	@warning_ignore("static_called_on_instance")
+	var dp := Settings.default_pad_bindings()
+	for a in Settings.REBINDABLE:
+		cfg.set_value("bindings", a, PackedStringArray(dk[a]))
+		cfg.set_value("pad_bindings", a, dp[a][0] if not dp[a].is_empty() else "")
+	cfg.set_value("bindings", "reload", PackedStringArray([_k(KEY_T)]))
+	cfg.set_value("bindings", "melee", PackedStringArray([]))
+	cfg.set_value("pad_bindings", "reload", "joy:%d" % JOY_BUTTON_DPAD_UP)
+	cfg.set_value("pad_bindings", "crouch", "")
+	cfg.save(TMP)
+	assert_true(Settings.load_from(TMP))
+	Settings.apply_bindings()
+	assert_eq(Settings.bindings.reload, [_k(KEY_T)], "une touche, deuxième case vide")
+	assert_eq(Settings.bindings.melee, [], "touche effacée : reste vide")
+	assert_eq(Settings.pad_bindings.reload, ["joy:%d" % JOY_BUTTON_DPAD_UP], "bouton en texte relu")
+	assert_eq(Settings.pad_bindings.crouch, [], "bouton effacé : reste vide")
+	assert_eq(Settings.pad_bindings.jump, ["joy:%d" % JOY_BUTTON_A])
+	assert_eq(Settings.bindings.interact, [_k(KEY_F)])
+	for a in Settings.REBINDABLE:
+		assert_true(Settings.bindings[a].size() <= 1 and Settings.pad_bindings[a].size() <= 1, "%s : une seule commande" % a)
+
+
 func test_old_two_key_file_migrates() -> void:
-	# Fichier d'une version précédente : deux touches par action, pas de
-	# colonne manette. La première touche valide est gardée, la manette a
-	# sa disposition d'origine.
+	# Fichier d'avant la manette : deux touches par action, pas de colonne
+	# manette. La première touche valide est gardée (E n'interagit plus), la
+	# manette a sa disposition d'origine.
 	var cfg := ConfigFile.new()
 	cfg.set_value("bindings", "crouch", PackedStringArray([_k(KEY_CTRL), _k(KEY_C)]))
 	cfg.set_value("bindings", "interact", PackedStringArray([_k(KEY_F), _k(KEY_E)]))
@@ -309,12 +543,12 @@ func test_old_two_key_file_migrates() -> void:
 	cfg.save(TMP)
 	assert_true(Settings.load_from(TMP))
 	Settings.apply_bindings()
-	assert_eq(Settings.bindings.crouch, _k(KEY_CTRL), "première touche gardée")
-	assert_eq(Settings.bindings.interact, _k(KEY_F))
-	assert_eq(Settings.bindings.switch_weapon, _k(KEY_1))
-	assert_eq(Settings.bindings.reload, _k(KEY_T), "première touche VALIDE")
-	assert_eq(Settings.bindings.melee, "", "touche effacée par le joueur : reste vide")
-	assert_eq(Settings.bindings.grenade, _k(KEY_G), "action absente : touche d'origine")
+	assert_eq(Settings.bindings.crouch, [_k(KEY_CTRL)], "première touche gardée")
+	assert_eq(Settings.bindings.interact, [_k(KEY_F)])
+	assert_eq(Settings.bindings.switch_weapon, [_k(KEY_1)])
+	assert_eq(Settings.bindings.reload, [_k(KEY_T)], "première touche VALIDE")
+	assert_eq(Settings.bindings.melee, [], "touche effacée par le joueur : reste vide")
+	assert_eq(Settings.bindings.grenade, [_k(KEY_G)], "action absente : touche d'origine")
 	assert_false(_has_key("interact", KEY_E), "E n'interagit plus")
 	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.pad_bindings, Settings.default_pad_bindings(), "manette : disposition d'origine")
@@ -330,33 +564,41 @@ func test_invalid_file_values_are_sanitized() -> void:
 	# touche d'origine Q, déjà prise par « jump », n'est pas remise.
 	cfg.set_value("bindings", "jump", PackedStringArray([_k(KEY_Q), "bogus", _k(KEY_Q)]))
 	cfg.set_value("bindings", "reload", PackedStringArray([_k(KEY_R), _k(KEY_T), _k(KEY_Y)]))
+	# Molette : comme une touche ; deux fois la même : une seule ; déjà
+	# prise par une action précédente (VISER) : refusée.
+	cfg.set_value("bindings", "aim", PackedStringArray(["mouse:99", _w(MOUSE_BUTTON_WHEEL_DOWN)]))
+	cfg.set_value("bindings", "melee", PackedStringArray(["joy:%d" % JOY_BUTTON_A, _w(MOUSE_BUTTON_WHEEL_DOWN),
+		_w(MOUSE_BUTTON_WHEEL_LEFT), _w(MOUSE_BUTTON_WHEEL_LEFT), _k(KEY_V)]))
 	# Code de manette dans la colonne des touches (et l'inverse) : refusé.
-	cfg.set_value("bindings", "melee", PackedStringArray(["joy:%d" % JOY_BUTTON_A]))
 	cfg.set_value("pad_bindings", "melee", _k(KEY_V))
 	# Manette : doublon (A déjà pris par « jump »), codes piégés, mauvais type.
 	cfg.set_value("pad_bindings", "jump", "joy:%d" % JOY_BUTTON_A)
-	cfg.set_value("pad_bindings", "interact", "joy:%d" % JOY_BUTTON_A)
+	cfg.set_value("pad_bindings", "interact", PackedStringArray(["joy:%d" % JOY_BUTTON_A, _w(MOUSE_BUTTON_WHEEL_UP)]))
 	cfg.set_value("pad_bindings", "fire", "joyaxis:%d:1" % JOY_AXIS_RIGHT_X)
 	cfg.set_value("pad_bindings", "aim", 42)
-	cfg.set_value("pad_bindings", "reload", PackedStringArray(["joy:%d" % JOY_BUTTON_START, "joy:%d" % JOY_BUTTON_DPAD_UP]))
+	cfg.set_value("pad_bindings", "reload", PackedStringArray(["joy:%d" % JOY_BUTTON_START, "joy:%d" % JOY_BUTTON_DPAD_UP,
+		"joy:%d" % JOY_BUTTON_DPAD_DOWN, "joy:%d" % JOY_BUTTON_DPAD_LEFT]))
 	cfg.save(TMP)
 	assert_true(Settings.load_from(TMP))
 	assert_near(Settings.render_scale, Settings.RENDER_SCALE_RANGE.y)
 	assert_eq(Settings.max_fps, 0, "limite inconnue -> illimitée")
 	assert_near(Settings.brightness, Settings.BRIGHTNESS_RANGE.x)
 	assert_near(Settings.pad_look_sensitivity, Settings.PAD_SENSITIVITY_RANGE.y)
-	assert_eq(Settings.bindings.jump, _k(KEY_Q))
-	assert_eq(Settings.bindings.reload, _k(KEY_R), "une seule touche")
-	assert_eq(Settings.bindings.tactical, "", "Q déjà pris")
-	assert_eq(Settings.bindings.grenade, _k(KEY_G), "action absente : touche d'origine")
-	assert_eq(Settings.bindings.melee, "", "bouton de manette refusé dans la colonne des touches")
-	assert_eq(Settings.pad_bindings.melee, "", "touche refusée dans la colonne manette")
-	assert_eq(Settings.pad_bindings.jump, "joy:%d" % JOY_BUTTON_A)
-	assert_eq(Settings.pad_bindings.interact, "", "A déjà pris")
-	assert_eq(Settings.pad_bindings.fire, "", "stick droit refusé")
-	assert_eq(Settings.pad_bindings.aim, "", "mauvais type")
-	assert_eq(Settings.pad_bindings.reload, "joy:%d" % JOY_BUTTON_DPAD_UP, "Start refusé, valeur suivante")
-	assert_eq(Settings.pad_bindings.switch_weapon, "joy:%d" % JOY_BUTTON_Y, "action absente : bouton d'origine")
+	assert_eq(Settings.bindings.jump, [_k(KEY_Q)], "doublon retiré")
+	assert_eq(Settings.bindings.reload, [_k(KEY_R), _k(KEY_T)], "deux touches au plus : les deux premières")
+	assert_eq(Settings.bindings.tactical, [], "Q déjà pris")
+	assert_eq(Settings.bindings.grenade, [_k(KEY_G)], "action absente : touche d'origine")
+	assert_eq(Settings.bindings.aim, [_w(MOUSE_BUTTON_WHEEL_DOWN)], "bouton inconnu refusé, molette bas gardée")
+	assert_eq(Settings.bindings.melee, [_w(MOUSE_BUTTON_WHEEL_LEFT), _k(KEY_V)],
+			"bouton de manette refusé dans la colonne des touches, molette bas déjà prise, molette gauche une fois")
+	assert_eq(Settings.pad_bindings.melee, [], "touche refusée dans la colonne manette")
+	assert_eq(Settings.pad_bindings.jump, ["joy:%d" % JOY_BUTTON_A])
+	assert_eq(Settings.pad_bindings.interact, [], "A déjà pris, molette refusée côté manette")
+	assert_eq(Settings.pad_bindings.fire, [], "stick droit refusé")
+	assert_eq(Settings.pad_bindings.aim, [], "mauvais type")
+	assert_eq(Settings.pad_bindings.reload, ["joy:%d" % JOY_BUTTON_DPAD_UP, "joy:%d" % JOY_BUTTON_DPAD_DOWN],
+			"Start refusé, deux valeurs suivantes")
+	assert_eq(Settings.pad_bindings.switch_weapon, ["joy:%d" % JOY_BUTTON_Y], "action absente : bouton d'origine")
 
 
 # ------------------------------------------------------------------ taille de l'interface de l'éditeur

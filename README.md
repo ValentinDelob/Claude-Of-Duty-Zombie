@@ -101,9 +101,10 @@ le dossier.
 
 ## Commandes
 
-Une seule touche et un seul bouton de manette par action. Manettes Xbox et
-PlayStation (et toute manette reconnue en disposition standard), branchées
-à chaud.
+Par défaut, une seule touche et un seul bouton de manette par action (le
+tableau ci-dessous) ; chaque action en accepte deux de chaque (voir plus
+bas). Manettes Xbox et PlayStation (et toute manette reconnue en disposition
+standard), branchées à chaud.
 
 | Action | Clavier / souris | Manette Xbox | Manette PlayStation |
 |---|---|---|---|
@@ -118,14 +119,15 @@ PlayStation (et toute manette reconnue en disposition standard), branchées
 | Couteau (fente si un zombie visé est à ~3 m) | V | RS | R3 |
 | Grenade (maintenir = cuire, relâcher = lancer) | G (touche physique) | LB | L1 |
 | SINGE-TAMBOUR | Q (touche physique) | flèche droite | flèche droite |
-| Changer d'arme | 1, molette | Y | Triangle |
+| Changer d'arme | 1, molette (haut / bas) | Y | Triangle |
 | Interagir (acheter, réanimer : maintenir) | F | X | Carré |
 | Tableau des scores | Tab (maintenu) | Back (maintenu) | Share / Create (maintenu) |
 | Pause (REPRENDRE, OPTIONS, QUITTER LA PARTIE) | Échap | Start | Options |
 
 Les invites (« Appuyer sur F pour acheter… ») montrent le bouton de la
 manette (« Appuyer sur X », « Press SQUARE ») dès qu'elle sert, et reviennent
-à la touche dès qu'on touche au clavier ou à la souris. Les noms Xbox ou
+à la touche dès qu'on touche au clavier ou à la souris. Une action à deux
+touches (ou deux boutons) montre la première. Les noms Xbox ou
 PlayStation suivent le nom de la manette branchée.
 
 Dans les menus, à la manette : croix directionnelle ou stick gauche pour se
@@ -134,15 +136,24 @@ pour changer d'onglet dans les options.
 
 Toutes ces commandes (sauf Échap et Start / Options) se réaffectent dans
 **OPTIONS > COMMANDES**, depuis le menu principal ou en pleine partie
-(Échap > OPTIONS) : deux colonnes, CLAVIER / SOURIS et MANETTE (◄ / ►).
-Clic, Entrée ou A sur une case, puis la nouvelle touche (ou bouton de
-souris), ou le nouveau bouton, gâchette ou direction du stick gauche. Échap
-annule ; dans la colonne clavier, B annule aussi ; dans la colonne manette,
-Start / Options annule (B se réaffecte). Retour arrière ou X / Carré efface.
+(Échap > OPTIONS) : deux colonnes, CLAVIER / SOURIS et MANETTE, de deux cases
+chacune (◄ / ► choisissent la case) : deux touches et deux boutons au plus
+par action, la deuxième case est vide par défaut. Clic, Entrée ou A sur une
+case, puis la nouvelle touche, bouton de souris ou cran de molette (haut,
+bas, gauche, droite), ou le nouveau bouton, gâchette ou direction du stick
+gauche. Échap annule ; dans la colonne clavier, B annule aussi ; dans la
+colonne manette, Start / Options annule (B se réaffecte). Retour arrière ou
+X / Carré efface la case (la deuxième remonte si la première est effacée).
+Exemple : le couteau sur V et sur la molette vers le bas. Un cran de molette
+affecté à une action ne change plus d'arme (l'autre sens, si). Un cran de
+molette est un appui bref : un coup de couteau, un saut, une recharge, une
+grenade lancée par cran.
 Une commande déjà prise est retirée de l'autre action de la même colonne
-(message affiché) ; « Rétablir les commandes par défaut » remet les deux
-colonnes. Enregistré dans `settings.cfg` (les anciens fichiers à deux touches
-par action gardent la première).
+(message affiché) ; mise dans l'autre case de la même action, elle change de
+case. « Rétablir les commandes par défaut » remet les deux colonnes.
+Enregistré dans `settings.cfg` (les fichiers de la version à une commande
+par action se relisent tels quels ; les anciens fichiers à deux touches
+d'origine, d'avant la manette, gardent la première).
 
 ## Options
 
