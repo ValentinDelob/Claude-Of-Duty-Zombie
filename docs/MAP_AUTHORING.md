@@ -317,6 +317,7 @@ par code (`MapIcons`).
 | Pièges | zone de piège électrique, levier | zone : glisser au sol ; levier : contre un mur, à moins de 10 m |
 | Joueurs et apparitions | départ des joueurs, zombie qui sort du sol | au sol |
 | Décor et obstacles | caisse, baril, tas de gravats, gros éboulement, mur effondré, débris épars, planches au sol, poutre tombée, lustre tombé, pile de caisses, tonneaux, sacs de sable, table et chaise renversées, chaise pliante, bureau, étagère, rangée de fauteuils de cinéma, fauteuil arraché, pupitre, projecteur de cinéma, chariot, épave de voiture | au sol, pivote avec R (90°) ou au degré près (poignée, Angle) |
+| Prefabs de la carte (format 10) | « + Créer… » (grouper du décor posé), « Importer… » (modèle .glb / .gltf), puis les prefabs de la carte ouverte (⚙ régler, ✕ supprimer) | comme le décor ; rangés dans le dossier de la carte (`docs/MAP_OBJECTS.md` § 11) |
 | Luminaires | lampe (historique), ampoule nue, suspension, néon, lustre, applique murale, lampe de bureau, projecteur de chantier, bougies, brasero | plafond, mur (applique) ou sol ; pivote avec R |
 
 ### Décor (prefabs) et luminaires
@@ -356,6 +357,18 @@ Règles de pose en plus (`MapRules.layer_of`) :
   un autre luminaire du plafond ;
 - applique : contre un mur plein de la pièce, face vers l'intérieur, à 2 m du
   sol (elle ne gêne pas les objets posés dessous).
+
+### Prefabs de la carte (format 10)
+
+En plus du catalogue, chaque carte peut avoir **ses propres prefabs**, rangés
+dans son dossier (`prefabs/<pid>/prefab.json`, et `model.glb` pour un modèle
+importé) : un **groupe** de décors du catalogue (« + Créer… » : rectangle
+autour du décor posé) ou un **modèle** .glb / .gltf importé du disque
+(« Importer… », copié dans la carte, 8 Mo au plus, collision : un pavé de
+sa boîte englobante, solide, barrière ou aucune). Posés, ce sont des décors
+comme les autres ; ils voyagent avec la carte (Enregistrer, Enregistrer sous,
+copie d'un invité, archive .zip, carte partagée en multijoueur). Détails,
+format et limites de sûreté : `docs/MAP_OBJECTS.md` § 11.
 
 ### Règles imposées à la pose
 
@@ -492,7 +505,11 @@ départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
   fichier 2 Mo au plus une fois décompressé (bombe zip refusée) ; sinon elle
   est refusée avec la raison. Les fichiers d'un dossier de carte sont lus
   avec la même limite (`EditorMap.read_text`), le `meta.json` de la
-  sauvegarde automatique avec 256 Ko.
+  sauvegarde automatique avec 256 Ko. Format 10 : l'archive porte aussi les
+  prefabs de la carte (`prefabs/<pid>/prefab.json`, `model.glb`, dans le
+  même dossier que les cinq JSON) ; elle peut alors peser 30 Mo (8 Mo par
+  modèle, 24 Mo de modèles en tout, 64 Ko par `prefab.json`), les entrées de
+  prefab ne comptent pas dans les 32 entrées (128 au plus en tout).
 - **Identifiant de carte** (nom de dossier) : 1 à 48 caractères parmi `a-z`,
   `0-9` et `_` (`EditorMap.valid_id`) ; `EditorMap.map_dir` refuse tout autre
   identifiant (« perso:../x » n'est pas une carte).
@@ -527,7 +544,11 @@ multijoueur ».
   **SHA-256** identifie la carte : même carte = même empreinte sur toutes les
   machines. Tout le monde, hôte compris, joue la carte depuis son cache
   `user://maps_cache/<sha256>/` (identifiant de jeu `partage:<sha256>`) : les
-  géométries sont identiques partout.
+  géométries sont identiques partout. Format 10 : une carte avec des
+  **prefabs de la carte** a un paquet au format 2 (les entrées
+  `prefabs/<pid>/prefab.json` et `prefabs/<pid>/model.glb` en base64 en plus,
+  40 Mo au plus) ; une carte sans prefab garde exactement le paquet et
+  l'empreinte d'avant. Contrôle des prefabs : `docs/MAP_OBJECTS.md` § 11.
 - **Cache** : le dossier est nommé par l'empreinte (jamais par un nom venu de
   l'hôte) ; une carte déjà en cache n'est pas retéléchargée (elle est
   revérifiée : empreinte recalculée, contrôle complet) ; 32 cartes au plus,
@@ -537,13 +558,18 @@ multijoueur ».
   jouer. Une carte n'est **que des données** : jamais `load()`,
   `ResourceLoader`, `.tres`, `.tscn`, script ni image venant du réseau ou d'une
   archive (une ressource Godot peut embarquer du code) ; les textes sont lus en
-  UTF-8 strict puis par le lecteur JSON du moteur. Limites dures :
+  UTF-8 strict puis par le lecteur JSON du moteur. Seule exception (format
+  10) : les modèles `.glb` des prefabs de la carte, vérifiés octet par octet
+  (en-tête, JSON, aucune adresse externe, images PNG / JPEG bornées,
+  triangles) puis lus par `GLTFDocument`, qui ne crée ni script ni ressource
+  du projet. Limites dures :
 
   | Limite | Valeur |
   |---|---|
-  | Paquet (et total des cinq fichiers) | 2 Mo |
+  | Paquet (et total des cinq fichiers) | 2 Mo (avec des prefabs, format 10 : 40 Mo, dont 24 Mo de modèles) |
   | Morceaux réseau | 16 Ko (1 Ko au moins) |
-  | Archive .zip | 4 Mo, 64 entrées, tailles décompressées lues avant d'extraire |
+  | Archive .zip | 30 Mo, 160 entrées, tailles décompressées lues avant d'extraire |
+  | Prefabs de la carte (format 10) | 32 prefabs, 8 modèles .glb de 8 Mo (24 Mo en tout), 150 000 triangles et images de 4096 px par modèle, aucune adresse externe (`docs/MAP_OBJECTS.md` § 11) |
   | Profondeur JSON | 6 (lue avant l'analyse) |
   | Pièces / ouvertures / objets / zones / étages | 256 / 512 / 1024 / 64 / 6 |
   | Sommets | 128 par pièce (un cercle de 64 points et de la marge), 4096 en tout |
@@ -576,8 +602,9 @@ multijoueur ».
 
 ### Format des fichiers
 
-Cinq fichiers JSON dans le dossier de la carte (ou à la racine de l'archive).
-Une entrée par ligne (diffs lisibles). Coordonnées en **mètres** dans le plan
+Cinq fichiers JSON dans le dossier de la carte (ou à la racine de l'archive),
+plus, format 10, le dossier `prefabs/` des prefabs de la carte s'il y en a
+(`docs/MAP_OBJECTS.md` § 11). Une entrée par ligne (diffs lisibles). Coordonnées en **mètres** dans le plan
 de l'éditeur : x vers l'est, y vers le sud, x et y positifs ; le jeu place la
 carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
 (`p1`, `o3`, `a2`…). Les nombres entiers s'écrivent sans décimale.

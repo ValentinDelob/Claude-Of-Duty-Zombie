@@ -628,9 +628,12 @@ func _swap_kind(o: Dictionary, key: String, value: String) -> void:
 
 
 func _prefab_props(o: Dictionary) -> void:
-	var ids := MapCatalog.PREFABS.keys()
-	_option(_props, Lang.t("Décor", "Prop"), ids.map(func(x): return Lang.t(String(MapCatalog.PREFABS[x].fr), String(MapCatalog.PREFABS[x].en))),
+	# Décors du catalogue, puis les prefabs de la carte (format 10).
+	var ids := MapCatalog.prefab_ids()
+	_option(_props, Lang.t("Décor", "Prop"), ids.map(func(x): return MapCatalog.prefab_name(String(x))),
 		ids.find(String(o.get("prefab", ""))), func(i): _swap_kind(o, "prefab", String(ids[i])))
+	if MapPrefabLib.is_ref(o.get("prefab")):
+		_note(_props, Lang.t("Prefab de la carte (inventaire, « Prefabs de la carte »).", "Map prefab (inventory, \"Map prefabs\")."))
 	var d := MapCatalog.def_of(o)
 	var n := MapCatalog.floor_size(o)
 	var block := MapCatalog.blocking(o)

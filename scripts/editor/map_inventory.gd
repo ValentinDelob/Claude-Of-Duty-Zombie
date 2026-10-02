@@ -98,6 +98,10 @@ func show_category(c: String) -> void:
 	for n in _grid.get_children():
 		n.queue_free()
 	cells.clear()
+	# Prefabs de la carte (format 10) : cases « Créer… » et « Importer… » d'abord.
+	var map_cat := c == MapCatalog.MAP_CAT and ed != null and ed.prefab_tools != null
+	if map_cat:
+		ed.prefab_tools.add_inventory_actions(_grid)
 	for it in MapCatalog.in_category(c):
 		var box := VBoxContainer.new()
 		box.custom_minimum_size = Vector2(84, 0)
@@ -115,6 +119,9 @@ func show_category(c: String) -> void:
 		l.custom_minimum_size = Vector2(84, 0)
 		l.add_theme_font_size_override("font_size", 11)
 		box.add_child(l)
+		if map_cat:
+			# Renommer / régler, supprimer (MapPrefabTools).
+			ed.prefab_tools.add_item_buttons(box, it)
 		_grid.add_child(box)
 		cells.append(s)
 

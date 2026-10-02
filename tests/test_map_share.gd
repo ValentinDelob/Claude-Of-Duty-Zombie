@@ -169,7 +169,7 @@ func test_transfer_refusals() -> void:
 	bad.chunks += 1
 	assert_eq(MapTransfer.new().begin(bad), "offre", "nombre de morceaux incohérent")
 	bad = o.duplicate(true)
-	bad.size = CustomMapGuard.MAX_PACKAGE_BYTES + 1
+	bad.size = CustomMapGuard.MAX_TRANSFER_BYTES + 1
 	bad.chunks = ceili(float(bad.size) / bad.chunk)
 	assert_eq(MapTransfer.new().begin(bad), "trop_gros", "carte annoncée trop grosse")
 	bad = o.duplicate(true)

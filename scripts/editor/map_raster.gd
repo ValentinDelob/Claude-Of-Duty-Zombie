@@ -45,6 +45,10 @@ static func letter(n: int) -> String:
 
 func _build() -> void:
 	v = MapValidator.new()
+	# Format 10 : prefabs de la carte connus du catalogue (fil principal ; un
+	# fil de travail lit ceux mis en place avant son lancement).
+	doc.activate_prefabs()
+	v.map_models = doc.models
 	var c: Dictionary = doc.carte
 	v.id = doc.id()
 	v.display_name = doc.display_name()

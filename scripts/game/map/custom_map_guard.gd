@@ -26,16 +26,22 @@ extends RefCounted
 ## SHA-256 identifie la carte. Cache : user://maps_cache/<sha256>/ (le nom du
 ## dossier est le hash, jamais un nom fourni par l'hôte).
 
-## Version du paquet réseau.
+## Version du paquet réseau (2 : carte avec des prefabs de la carte, format 10).
 const PACKAGE_FORMAT := 1
-## Taille maximale du paquet (et de l'ensemble des cinq fichiers).
+const PACKAGE_FORMAT_PREFABS := 2
+## Taille maximale du paquet sans prefab (et de l'ensemble des cinq fichiers).
 const MAX_PACKAGE_BYTES := 2 * 1024 * 1024
+## Taille maximale d'un paquet avec des prefabs (modèles en base64 compris :
+## MapPrefabLib.MAX_MODELS_BYTES) : annonces et transferts (MapShare).
+const MAX_TRANSFER_BYTES := 40 * 1024 * 1024
 ## Taille des morceaux envoyés sur le réseau (et plus petite taille acceptée).
 const CHUNK_BYTES := 16 * 1024
 const MIN_CHUNK_BYTES := 1024
 ## Archive .zip : taille du fichier et nombre d'entrées lus avant d'extraire.
-const MAX_ZIP_BYTES := 4 * 1024 * 1024
-const MAX_ZIP_ENTRIES := 64
+## Format 10 : de quoi contenir les prefabs de la carte (MapPrefabLib : 32
+## prefabs, 24 Mo de modèles au plus).
+const MAX_ZIP_BYTES := 30 * 1024 * 1024
+const MAX_ZIP_ENTRIES := 160
 ## Profondeur d'imbrication JSON (pieces.json : {pieces:[{contour:[[x,y]]}]} = 4).
 const MAX_DEPTH := 6
 const MAX_ROOMS := 256
@@ -170,6 +176,12 @@ static func _rule_of_spec(s: Variant) -> Variant:
 			return "points:%d:%d" % [clampi(int(s.get("min", 3)), 1, MAX_VERTICES), clampi(int(s.get("max", MAX_VERTICES)), 1, MAX_VERTICES)]
 		"shape":
 			return "forme"
+		"prefab":
+			# Format 10 : décor du catalogue (values) ou prefab de la carte « map:<pid> ».
+			var d := {}
+			for v in s.get("values", []):
+				d[String(v)] = true
+			return {"prefab_ref": d}
 	return ""
 
 
@@ -518,7 +530,7 @@ static func check_texts(texts: Dictionary) -> Dictionary:
 	var parsed := {}
 	var total := 0
 	for k in texts:
-		if not (k is String and String(k) in EditorMap.FILES):
+		if not (k is String and (String(k) in EditorMap.FILES or not MapPrefabLib.parse_key(k).is_empty())):
 			c.bad("fichier non autorisé dans la carte : %s" % clean_display(str(k), 40), "file not allowed in the map: %s" % clean_display(str(k), 40))
 	for f in EditorMap.FILES:
 		if not texts.has(f) or not texts[f] is String:
@@ -550,6 +562,15 @@ static func check_texts(texts: Dictionary) -> Dictionary:
 		c.bad("trop de sommets de pièces (%d, au plus %d)" % [c.vertices, MAX_TOTAL_VERTICES], "too many room vertices (%d, at most %d)" % [c.vertices, MAX_TOTAL_VERTICES])
 	if c.area > MAX_ROOM_AREA:
 		c.bad("pièces trop grandes (%d m², au plus %d)" % [int(c.area), int(MAX_ROOM_AREA)], "rooms too large (%d m², at most %d)" % [int(c.area), int(MAX_ROOM_AREA)])
+	if c.failed():
+		return {"ok": false, "reasons": c.reasons}
+	# Format 10 : prefabs de la carte (définitions, modèles, prefabs cités).
+	var refs := {}
+	for o in (parsed["objets.json"] as Dictionary).get("objets", []):
+		if o is Dictionary and String(o.get("type", "")) == "prefab" and MapPrefabLib.is_ref(o.get("prefab")):
+			refs[MapPrefabLib.pid_of(o.prefab)] = true
+	for r in MapPrefabLib.check_entries(texts, refs):
+		c.bad(String(r[0]), String(r[1]))
 	if c.failed():
 		return {"ok": false, "reasons": c.reasons}
 	var m := EditorMap.from_texts(texts)
@@ -689,6 +710,13 @@ static func _floor_index(c: Check, v: Variant, what: String) -> bool:
 ## Valeur selon une règle du schéma.
 static func _rule(c: Check, rule: Variant, v: Variant, what: String) -> bool:
 	var sc := schema()
+	if rule is Dictionary and rule.has("prefab_ref"):
+		# Format 10 : un décor du catalogue, ou un prefab de la carte « map:<pid> »
+		# (son existence est vérifiée avec les fichiers de prefab, check_texts).
+		if not (v is String and ((rule.prefab_ref as Dictionary).has(v) or MapPrefabLib.is_ref(v))):
+			c.bad("%s : décor inconnu « %s »" % [what, clean_display(str(v), 24)], "%s: unknown prop \"%s\"" % [what, clean_display(str(v), 24)])
+			return false
+		return true
 	if rule is Dictionary:
 		# Valeurs permises (texte, nombre, vrai / faux) : jamais un tableau ni un objet.
 		if not ((v is String or v is bool or v is float or v is int) and rule.has(_enum_key(v))):
@@ -965,12 +993,20 @@ static func _check_zones(c: Check, d: Dictionary) -> void:
 
 # ------------------------------------------------------------------ paquet réseau
 
-## Paquet canonique des cinq textes : JSON trié, UTF-8.
+## Paquet canonique des cinq textes : JSON trié, UTF-8. Carte avec des
+## prefabs (format 10) : paquet au format 2, les entrées de prefab en plus
+## (prefabs/<pid>/prefab.json, prefabs/<pid>/model.glb en base64) ; une carte
+## sans prefab garde exactement le paquet (et l'empreinte) d'avant.
 static func pack(texts: Dictionary) -> PackedByteArray:
 	var files := {}
 	for f in EditorMap.FILES:
 		files[f] = String(texts.get(f, ""))
-	return JSON.stringify({"format": PACKAGE_FORMAT, "fichiers": files}, "", true).to_utf8_buffer()
+	var fmt := PACKAGE_FORMAT
+	for k in texts:
+		if not MapPrefabLib.parse_key(k).is_empty():
+			files[k] = String(texts[k])
+			fmt = PACKAGE_FORMAT_PREFABS
+	return JSON.stringify({"format": fmt, "fichiers": files}, "", true).to_utf8_buffer()
 
 
 ## Paquet d'une carte déjà contrôlée : {bytes, sha, texts}.
@@ -985,7 +1021,7 @@ static func package_of(m: EditorMap) -> Dictionary:
 ## l'identique : même empreinte sur toutes les machines).
 static func unpack(b: PackedByteArray) -> Dictionary:
 	var bad := func(fr: String, en: String) -> Dictionary: return {"ok": false, "reasons": [[fr, en]]}
-	if b.is_empty() or b.size() > MAX_PACKAGE_BYTES:
+	if b.is_empty() or b.size() > MAX_TRANSFER_BYTES:
 		return bad.call("paquet de carte vide ou trop volumineux", "map package empty or too large")
 	var s: Variant = decode_utf8(b)
 	if s == null:
@@ -994,15 +1030,22 @@ static func unpack(b: PackedByteArray) -> Dictionary:
 	if d < 0 or d > 2:
 		return bad.call("paquet de carte : JSON mal formé", "map package: malformed JSON")
 	var v: Variant = parse_json(s)
-	if not (v is Dictionary and v.size() == 2 and v.get("format") is float and int(v.format) == PACKAGE_FORMAT and v.get("fichiers") is Dictionary):
+	if not (v is Dictionary and v.size() == 2 and v.get("format") is float and int(v.format) in [PACKAGE_FORMAT, PACKAGE_FORMAT_PREFABS] and v.get("fichiers") is Dictionary):
 		return bad.call("paquet de carte : format inconnu", "map package: unknown format")
+	# Format 1 (carte sans prefab) : 2 Mo au plus, comme avant.
+	if int(v.format) == PACKAGE_FORMAT and b.size() > MAX_PACKAGE_BYTES:
+		return bad.call("paquet de carte vide ou trop volumineux", "map package empty or too large")
 	var files: Dictionary = v.fichiers
 	var texts := {}
+	var extra := 0
 	for k in files:
-		if not (k is String and k in EditorMap.FILES and files[k] is String):
+		var is_prefab := not MapPrefabLib.parse_key(k).is_empty()
+		if not (k is String and (k in EditorMap.FILES or (is_prefab and int(v.format) == PACKAGE_FORMAT_PREFABS)) and files[k] is String):
 			return bad.call("paquet de carte : fichier non autorisé", "map package: file not allowed")
+		if is_prefab:
+			extra += 1
 		texts[k] = files[k]
-	if texts.size() != EditorMap.FILES.size():
+	if texts.size() - extra != EditorMap.FILES.size():
 		return bad.call("paquet de carte : fichiers manquants", "map package: missing files")
 	if pack(texts) != b:
 		return bad.call("paquet de carte non canonique", "map package not canonical")
@@ -1042,7 +1085,7 @@ static func check_offer(o: Variant) -> String:
 		return "offre"
 	if not (size is int and chunk is int and chunks is int and o["n"] is int and o["n"] >= 0):
 		return "offre"
-	if size < 1 or size > MAX_PACKAGE_BYTES:
+	if size < 1 or size > MAX_TRANSFER_BYTES:
 		return "trop_gros"
 	if chunk < MIN_CHUNK_BYTES or chunk > CHUNK_BYTES or chunks != ceili(float(size) / chunk):
 		return "offre"
@@ -1094,6 +1137,10 @@ static func store(sha: String, texts: Dictionary) -> Error:
 			return FileAccess.get_open_error()
 		fa.store_string(String(texts[f]))
 		fa.close()
+	# Format 10 : prefabs de la carte (prefabs/<pid>/prefab.json et model.glb).
+	var perr := MapPrefabLib.write_dir(dir, texts)
+	if perr != OK:
+		return perr
 	prune_cache(sha)
 	return OK
 
@@ -1116,6 +1163,7 @@ static func prune_cache(keep := "") -> void:
 		var dir := root.path_join(String(dirs[i][1]))
 		for f in EditorMap.FILES:
 			DirAccess.remove_absolute(dir.path_join(f))
+		MapPrefabLib.remove_all(dir)
 		DirAccess.remove_absolute(dir)
 
 
@@ -1139,6 +1187,11 @@ static func read_dir_texts(dir: String) -> Dictionary:
 		if s == null:
 			return {"texts": {}, "reasons": [["%s : texte UTF-8 invalide" % f, "%s: invalid UTF-8 text" % f]]}
 		texts[f] = s
+	# Format 10 : prefabs de la carte (tailles bornées avant lecture).
+	var pf := MapPrefabLib.read_dir(dir)
+	if not (pf.reasons as Array).is_empty():
+		return {"texts": {}, "reasons": pf.reasons}
+	texts.merge(pf.texts)
 	return {"texts": texts, "reasons": []}
 
 
@@ -1177,8 +1230,10 @@ static func _u32(b: PackedByteArray, i: int) -> int:
 
 ## Archive .zip -> {texts, reasons}. Le répertoire central est lu AVANT toute
 ## extraction : taille de l'archive, nombre d'entrées, tailles décompressées
-## (archive « bombe » refusée). Seuls les cinq JSON sont extraits, en mémoire
-## (jamais sur le disque), le reste de l'archive est ignoré.
+## (archive « bombe » refusée). Seuls les cinq JSON (et, format 10, les
+## fichiers de prefab prefabs/<pid>/prefab.json et model.glb, aux tailles
+## bornées par MapPrefabLib) sont extraits, en mémoire (jamais sur le disque),
+## le reste de l'archive est ignoré.
 static func read_zip_texts(path: String) -> Dictionary:
 	var bad := func(fr: String, en: String) -> Dictionary: return {"texts": {}, "reasons": [[fr, en]]}
 	var fa := FileAccess.open(path, FileAccess.READ)
@@ -1203,6 +1258,9 @@ static func read_zip_texts(path: String) -> Dictionary:
 	var wanted := {}   # nom dans l'archive -> taille décompressée
 	var seen := {}
 	var total := 0
+	var prefab_entries := {}   # nom dans l'archive -> [clé, taille, dossier]
+	var pf_total := 0
+	var folder := ""
 	for n in entries:
 		if off < 0 or off + 46 > b.size() or _u32(b, off) != 0x02014b50:
 			return bad.call("archive .zip invalide", "invalid .zip archive")
@@ -1217,8 +1275,27 @@ static func read_zip_texts(path: String) -> Dictionary:
 		if name == null:
 			continue
 		var base := String(name).get_file()
+		# Format 10 : prefabs de la carte (prefabs/<pid>/prefab.json, model.glb),
+		# à la racine ou dans le dossier de l'archive.
+		var rel := String(name)
+		var pk := MapPrefabLib.parse_key(rel)
+		if pk.is_empty() and rel.count("/") == 3:
+			rel = rel.substr(rel.find("/") + 1)
+			pk = MapPrefabLib.parse_key(rel)
+		if not pk.is_empty():
+			if usize == 0xFFFFFFFF or usize > (MapPrefabLib.MAX_MODEL_BYTES if pk[1] == MapPrefabLib.MODEL_FILE else MapPrefabLib.MAX_DEF_BYTES):
+				return bad.call("archive : prefab %s trop volumineux" % pk[0], "archive: prefab %s too large" % pk[0])
+			if pk[1] == MapPrefabLib.MODEL_FILE:
+				pf_total += usize
+				if pf_total > MapPrefabLib.MAX_MODELS_BYTES:
+					return bad.call("archive : modèles trop volumineux", "archive: models too large")
+			if not seen.has(rel):
+				seen[rel] = true
+				prefab_entries[String(name)] = [rel, usize, String(name).trim_suffix(rel)]
+			continue
 		if not base in EditorMap.FILES or seen.has(base):
 			continue
+		folder = String(name).trim_suffix(base)
 		if usize == 0xFFFFFFFF or usize > MAX_PACKAGE_BYTES:
 			return bad.call("archive : %s trop volumineux" % base, "archive: %s too large" % base)
 		total += usize
@@ -1240,5 +1317,22 @@ static func read_zip_texts(path: String) -> Dictionary:
 			r.close()
 			return bad.call("archive : %s n'est pas du texte UTF-8" % String(name).get_file(), "archive: %s is not UTF-8 text" % String(name).get_file())
 		texts[String(name).get_file()] = s
+	for name in prefab_entries:
+		var e: Array = prefab_entries[name]
+		# Seulement les prefabs du dossier des cinq fichiers.
+		if String(e[2]) != folder:
+			continue
+		var data := r.read_file(name)
+		if data.size() != int(e[1]):
+			r.close()
+			return bad.call("archive : taille de %s incorrecte" % String(e[0]), "archive: wrong size for %s" % String(e[0]))
+		if String(e[0]).ends_with(MapPrefabLib.MODEL_FILE):
+			texts[String(e[0])] = Marshalls.raw_to_base64(data)
+		else:
+			var s: Variant = decode_utf8(data)
+			if s == null:
+				r.close()
+				return bad.call("archive : %s n'est pas du texte UTF-8" % String(e[0]), "archive: %s is not UTF-8 text" % String(e[0]))
+			texts[String(e[0])] = s
 	r.close()
 	return {"texts": texts, "reasons": []}

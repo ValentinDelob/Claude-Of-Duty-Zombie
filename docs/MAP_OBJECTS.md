@@ -4,7 +4,7 @@ Complément de `docs/MAP_AUTHORING.md` (éditeur, format des cinq JSON,
 partage réseau) pour les ajouts des **formats 5 à 9** des cartes
 (format 7 : décor posé librement, § 8 ; format 8 : portes à zombies, § 9 ;
 format 9 : barrière invisible en polygone, § 2, et chevauchements du décor,
-§ 10) :
+§ 10 ; format 10 : prefabs de la carte, § 11) :
 
 1. les **variantes d'aspect** d'un type d'objet (plusieurs modèles de porte,
    de débris, d'arme murale) ;
@@ -744,3 +744,135 @@ sur le départ, départ sur une caisse, escalier sur une caisse toujours
 refusés ; objets posés valides, carte valide et jouable ; réglage retiré :
 chevauchement de nouveau signalé ; clé écrite, relue, contrôlée (valeur
 texte refusée), `false` retiré, carte neuve décochée.
+
+---
+
+## 11. Prefabs de la carte (format 10)
+
+Décor **propre à une carte**, rangé **dans son dossier** à côté des cinq
+JSON, réutilisable autant de fois qu'on veut sur la carte. Code :
+`scripts/game/map/map_prefab_lib.gd` (format, contrôle, chargement),
+`scripts/editor/map_prefab_tools.gd` (inventaire, dialogues).
+
+### Dans l'éditeur
+
+Inventaire (E), catégorie **Prefabs de la carte** / Map prefabs :
+
+- **+ Créer…** : l'inventaire se ferme ; glisser un **rectangle** sur le
+  plan autour du décor à grouper (le décor du catalogue, « Décor et
+  obstacles », de l'étage affiché, dont le centre est dans le rectangle :
+  il s'entoure en jaune pendant le glissé ; clic droit : annuler). Nom du
+  prefab, case **Remplacer ce décor par le prefab** (cochée : les décors
+  choisis disparaissent, un seul prefab est posé à leur place ; Ctrl+Z les
+  ramène). Chaque partie garde sa place et sa rotation ; la collision est
+  celle des parties (leurs pavés `CollisionBox`, à leur place).
+- **Importer…** : un fichier **.glb** ou **.gltf** du disque (8 Mo au
+  plus). Il est **copié** dans la carte (`prefabs/<pid>/model.glb`, écrit à
+  l'enregistrement : le fichier d'origine n'est plus lu). Un .gltf n'est
+  accepté qu'avec ses données intégrées (adresses `data:`) ; il est réécrit
+  en .glb. Emprise et hauteur viennent de la boîte englobante du modèle ; la
+  collision est **un pavé** de cette boîte. Le dialogue ⚙ s'ouvre ensuite.
+- Sous chaque prefab : **⚙** (nom ; pour un modèle : **échelle**, et
+  **collision** solide / barrière / aucune : emprise et pavé recalculés) et
+  **✕** (supprimer ; s'il est posé, une confirmation propose de supprimer
+  aussi ses objets posés).
+
+Un prefab posé est un **décor** comme les autres (`type` « prefab ») : pose
+au sol, rotation (R, poignée ronde, au degré près), règles du décor (posé
+librement, contre un mur, chevauchements du § 10), propriétés (le menu
+« Décor » propose aussi les prefabs de la carte), liste des objets, aperçu
+3D, vérification, jeu.
+
+La bibliothèque des prefabs ne passe pas par l'historique (Ctrl+Z annule la
+pose et le remplacement, pas la création ni la suppression d'un prefab). En
+session collaborative, **seul l'hôte** change la bibliothèque ; la carte
+entière est alors renvoyée aux invités (`MapCollab.broadcast_map`). Les
+**modèles importés ne passent pas** par la session (trop lourds pour ses
+messages de 2 Mo) : un invité voit une boîte grise à leur place dans son
+aperçu 3D ; l'enregistrement et le jeu (carte de l'hôte) ont le modèle.
+
+### Format
+
+Dossier de la carte :
+
+```
+prefabs/<pid>/prefab.json   définition
+prefabs/<pid>/model.glb     modèle importé (seulement un prefab modèle)
+```
+
+`<pid>` : 1 à 32 caractères parmi a-z, 0-9, `_` (`MapPrefabLib.pid_ok`).
+Objet posé (objets.json) : `{"type": "prefab", "prefab": "map:<pid>",
+"position", "rot"}`. `prefab.json` :
+
+| Clé | Valeur |
+|---|---|
+| `format` | 1 |
+| `nom` | `{"fr", "en"}` (64 caractères, sans balise) |
+| `fp` | emprise en cases de 0,5 m `[x, y]` (1 à 40) |
+| `h` | hauteur (m) |
+| `bloque` | `solide`, `barriere` ou `non` (comme le décor du catalogue) |
+| `surface`, `couleur` | matière des impacts (clé de `WorldLook.SURFACES`), couleur dans l'éditeur `#rrggbb` |
+| `boxes` | pavés de collision `[{center [x,y,z], size [x,y,z], yaw (rad), barrier}]` en coordonnées du prefab (32 au plus) : **toujours des `CollisionBox`**, jamais une collision du modèle |
+| `parties` (groupe) | `[{decor (id de MapCatalog.PREFABS), pos [x, y] (m, autour du centre, y vers le sud), rot (degrés)}]` (48 au plus) |
+| `modele` (modèle) | `{echelle (0,01 à 100), aabb [x0,y0,z0,x1,y1,z1] du modèle brut, sha256 du .glb}` |
+
+Une carte sans prefab n'a pas de dossier `prefabs/` (formats 1 à 9 lus tels
+quels). Dans les textes d'une carte (`EditorMap.file_texts`, archive, paquet
+réseau, cache), un prefab est une entrée de plus : `prefabs/<pid>/prefab.json`
+(texte) et `prefabs/<pid>/model.glb` (base64 en mémoire et dans le paquet
+réseau, fichier binaire sur le disque et dans l'archive .zip).
+
+### En jeu
+
+`MapLayoutExport._map_prefab` : un **groupe** devient ses parties (chaque
+décor du catalogue à sa place, modèle ou objet construit, sans collision
+propre) ; un **modèle** devient un objet `map_model` (décalé pour être
+centré et posé au sol, à son échelle) et la description emporte les modèles
+posés (`map_models`). Collision : les `boxes` du prefab (`blockers`). Le jeu
+charge le .glb avec **GLTFDocument** (aucun pipeline d'import : marche dans
+le jeu exporté), sans ses collisions, lumières, caméras, sons ni animations
+(`MapPrefabLib.instantiate`). Un modèle absent ou illisible devient une
+**boîte grise** de sa taille, avec une erreur au journal (jamais d'arrêt).
+
+### Sûreté (cartes d'autres joueurs)
+
+Contrôle des cartes reçues (`CustomMapGuard.check_texts` →
+`MapPrefabLib.check_entries`), avant tout décodage par le moteur :
+
+- noms d'entrée exacts (`prefabs/<pid>/prefab.json` ou `model.glb` : pas de
+  `..`, de `/` en trop, de majuscules, d'autre fichier) ;
+- au plus **32 prefabs**, **8 modèles**, **8 Mo par modèle**, **24 Mo** en
+  tout ; `prefab.json` de 64 Ko au plus, profondeur JSON bornée, clés et
+  valeurs en liste blanche (`check_def`), noms sans balise ;
+- modèle : base64 strict, **empreinte SHA-256** égale à celle de
+  `prefab.json`, en-tête **GLB** (glTF 2 binaire, morceaux JSON puis BIN,
+  tailles exactes), **aucune adresse `uri`** (tout dans le .glb), extensions
+  obligatoires en liste blanche (pas de Draco ni meshopt), images **PNG ou
+  JPEG** intégrées de **4096 px** de côté au plus (lu dans leur en-tête),
+  **150 000 triangles** au plus, nombres de nœuds, maillages, accesseurs,
+  matériaux bornés (`check_glb`) ;
+- chaque prefab cité par un objet posé existe ; un prefab modèle a son
+  modèle (et seulement lui).
+
+Paquet réseau : format 2 quand la carte a des prefabs (40 Mo au plus,
+`CustomMapGuard.MAX_TRANSFER_BYTES`) ; une carte sans prefab garde
+exactement son paquet et son empreinte d'avant (format 1, 2 Mo). Archive
+.zip : 30 Mo au plus avec des prefabs (2 Mo sans), entrées de prefab bornées
+avant extraction.
+
+### Preuves automatiques
+
+`tests/test_map_prefabs.gd` : prefab groupe tiré du décor posé (parties,
+rotation, emprise, collision), enregistré dans le dossier de la carte, relu
+et réécrit à l'identique, dossier d'un prefab retiré effacé, format 9 lu tel
+quel ; export (une partie = un objet du jeu, collision = pavés du prefab,
+tournés avec lui) ; modèle .glb importé (fabriqué par le test avec
+GLTFDocument), copié, relu, échelle, export (`map_model`, posé au sol,
+CollisionBox barrière), chargé sans collision ; .gltf aux données intégrées
+converti, .gltf avec un .bin refusé ; modèle illisible ou absent : boîte ;
+contrôle : chemin `..`, fichier en trop, majuscules, prefab cité absent,
+modèle trop gros, mal encodé, empreinte fausse, adresse externe, extension
+Draco, trop de triangles, clé inconnue, nom avec balise, extension .obj,
+fichier de plus de 8 Mo refusés ; paquet réseau (format 2), cache et archive
+avec prefabs ; éditeur : capture, remplacement, inventaire, suppression
+refusée tant que posé, annulation, import et réglages.

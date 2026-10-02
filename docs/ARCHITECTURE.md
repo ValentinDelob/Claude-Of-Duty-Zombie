@@ -98,7 +98,10 @@ multijoueur »).
    l'annonce) puis
    `Net._cl_lobby_map("partage:<sha>")`. Un nouvel arrivant reçoit les deux à
    la fin de `_srv_hello`. Carte officielle : `_cl_offer({})`.
-2. Client : annonce vérifiée (types, empreinte hexadécimale, taille ≤ 2 Mo,
+2. Client : annonce vérifiée (types, empreinte hexadécimale, taille ≤ 40 Mo
+   (`CustomMapGuard.MAX_TRANSFER_BYTES` ; le paquet d'une carte sans prefab
+   reste à 2 Mo au plus, celui d'une carte avec des prefabs de la carte,
+   format 2, porte leurs fichiers, modèles en base64),
    morceaux de 1 à 16 Ko, `chunks == ceil(size / chunk)`, nom sans balise).
    Hash déjà en cache et revérifié → `_srv_status(sha, "prete")` sans
    téléchargement ; sinon `_srv_request(sha)`.
@@ -129,7 +132,9 @@ exigent un expéditeur connu (jamais l'hôte lui-même) et le hash annoncé,
 bornent les acquittements, limitent les demandes (3 par carte) et le débit
 (seau de 240 messages, 120 par seconde, par client) ; les `_cl_*` exigent
 l'expéditeur 1 et vérifient chaque type reçu. Aucune ressource Godot n'est
-jamais chargée depuis le réseau ou une archive (données JSON seulement).
+jamais chargée depuis le réseau ou une archive (données JSON seulement ; les
+modèles .glb des prefabs de la carte, format 10, sont vérifiés octet par
+octet puis lus par `GLTFDocument`, jamais par `load()` : docs/MAP_OBJECTS.md § 11).
 
 ## Référence à la partie (`game`)
 
@@ -467,7 +472,16 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   piliers se chevaucher : docs/MAP_OBJECTS.md § 2 et § 10), annuler / rétablir,
   sauvegarde automatique. Une carte = cinq JSON (`EditorMap` : `carte`,
   `pieces`, `ouvertures`, `objets`, `zones`) dans `user://maps/<id>/` ou une
-  archive .zip. Chaîne : `MapRaster` (grille de 0,5 m) -> `MapValidator`
+  archive .zip, plus (format 10) ses **prefabs** dans `prefabs/<pid>/`
+  (`MapPrefabLib` : groupe de décors du catalogue ou modèle .glb importé,
+  collision en `CollisionBox` ; éditeur : `MapPrefabTools`, catégorie
+  « Prefabs de la carte »). Les prefabs de la carte ouverte sont mis dans le
+  catalogue par `MapCatalog.set_map_prefabs` (fil principal, tables figées
+  remplacées d'un bloc : l'aperçu 3D les lit depuis son fil), appelé par
+  `EditorMap` (lecture, `restore`, `activate_prefabs`) et `MapRaster.build` ;
+  un décor posé les cite par `"prefab": "map:<pid>"` (docs/MAP_OBJECTS.md § 11).
+  En jeu, un modèle importé est lu par `GLTFDocument` (`MeshMapBuilder._map_model`,
+  boîte grise et erreur au journal s'il est illisible). Chaîne : `MapRaster` (grille de 0,5 m) -> `MapValidator`
   (erreurs en mètres, indicateurs BO1, FR/EN) -> `MapLayoutExport` (description
   au format de `MeshMapLayout`, en mémoire) -> `MeshMapGeometry` (architecture
   construite par le jeu, sans Blender : jouable aussitôt, même dans le .exe).

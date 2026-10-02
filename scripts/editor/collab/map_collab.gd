@@ -179,6 +179,14 @@ func reset_doc(map: EditorMap) -> void:
 		_broadcast({"t": "map", "map": doc.snapshot(), "seq": seq, "reset": true})
 
 
+## Hôte : la carte entière renvoyée aux invités, même numéro, historique
+## gardé (format 10 : bibliothèque des prefabs de la carte changée, qui ne
+## passe pas par les opérations). Rien pour un invité ou en solo.
+func broadcast_map() -> void:
+	if role == Role.HOST:
+		_broadcast({"t": "map", "map": doc.snapshot(), "seq": seq})
+
+
 func _new_cid() -> String:
 	_cid_n += 1
 	return "%s-%d-%d" % [my_id, Time.get_ticks_msec() % 100000, _cid_n]
