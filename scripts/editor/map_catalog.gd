@@ -403,8 +403,8 @@ static func in_category(cat: String, sub := "") -> Array:
 	if cat == MAP_CAT:
 		return map_items()
 	# « hidden » : la souris, case fixe de la barre rapide, hors inventaire.
-	return items().filter(func(it): return it.cat == cat and not it.get("hidden", false)
-			and (sub == "" or String(it.get("sub", "")) == sub))
+	return items().filter(func(it): return (it.cat == cat and not it.get("hidden", false)
+			and (sub == "" or String(it.get("sub", "")) == sub)))
 
 
 # ------------------------------------------------------------------ prefabs de la carte (format 10)
