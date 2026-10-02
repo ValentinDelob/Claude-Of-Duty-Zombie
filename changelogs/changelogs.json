@@ -1877,6 +1877,21 @@
     "en": "Zombie doors: collision fixed",
     "fr": "Portes à zombies : collision corrigée"
    }
+  },
+  "v0.2.0-snapshot.364": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [],
+   "items": [
+    {
+     "en": "Mystery Box: when it leaves, a real plush teddy bear now shows up (button eyes, red bow, stitches) instead of a plain cube.",
+     "fr": "Boîte mystère : quand elle part, c'est maintenant un vrai nounours en peluche qui apparaît (yeux-boutons, nœud rouge, coutures) au lieu d'un simple cube."
+    }
+   ],
+   "title": {
+    "en": "Mystery Box: a real teddy bear",
+    "fr": "Boîte mystère : un vrai nounours"
+   }
   }
  }
 }
