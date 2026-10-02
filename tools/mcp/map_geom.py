@@ -325,6 +325,11 @@ def _obj_place(o: dict) -> dict:
             out["rect"] = [r2(float(v)) for v in o["rect"]]
         except (TypeError, ValueError):
             out["rect"] = o["rect"]
+    if isinstance(o.get("sommets"), list):
+        # Format 9 : barrière invisible en polygone.
+        sp = pts(o["sommets"])
+        if sp:
+            out["sommets"] = [rp(p) for p in sp]
     if isinstance(o.get("a"), list) and isinstance(o.get("b"), list):
         ab = pts([o["a"], o["b"]])
         if len(ab) == 2:

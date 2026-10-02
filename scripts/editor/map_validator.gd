@@ -178,8 +178,9 @@ var diag_traps: Dictionary = {}
 ## Format 5 : variante d'aspect des éléments qui en ont une autre que celle
 ## par défaut : id de l'élément -> variante (MapCatalog.VARIANTS).
 var variants: Dictionary = {}
-## Barrières invisibles (type « bloc_invisible ») : [{floor, center (m),
-## size (m, avant rotation), rot (degrés), h (m, 0 : jusqu'au plafond), eid}].
+## Barrières invisibles (type « bloc_invisible », format 9 : polygones) :
+## [{floor, poly (PackedVector2Array, m), center, size (m, rectangle
+## englobant), h (m, 0 : jusqu'au plafond), eid}].
 var clips: Array = []
 
 ## Messages : {level ("erreur" | "attention" | "info"), fr, en, text, floor, cells}
