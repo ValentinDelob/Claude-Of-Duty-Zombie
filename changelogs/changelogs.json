@@ -1958,6 +1958,21 @@
     "en": "Map editor: effects, prefabs and mouse",
     "fr": "Éditeur de cartes : effets, prefabs et souris"
    }
+  },
+  "v0.2.0-snapshot.386": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [],
+   "items": [
+    {
+     "en": "Muzzle flash: it no longer draws over the weapon (even when aiming, only the part in front of the barrel shows) and its orientation changes with every shot.",
+     "fr": "Flamme de bouche : elle ne passe plus par-dessus l'arme (même en visant, seule la partie devant le canon est visible) et change d'orientation à chaque tir."
+    }
+   ],
+   "title": {
+    "en": "Muzzle flash fixed",
+    "fr": "Flamme de bouche corrigée"
+   }
   }
  }
 }
