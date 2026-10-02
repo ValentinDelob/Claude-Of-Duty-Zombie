@@ -648,11 +648,14 @@ func _props() -> void:
 			_blockers_of(d.boxes, origin, yaw, block == "barriere", String(d.get("surface", "concrete")))
 
 
-## Barrières invisibles (format 5) : un pavé de collision chacune, sur la
-## couche BARRIER (joueurs et zombies arrêtés, navmesh cuit autour ; balles et
-## grenades passent), du sol jusqu'au plafond de l'étage (ou sa hauteur),
-## JAMAIS de maillage en jeu. « clip » et « eid » : l'aperçu 3D peut les
-## montrer (MapPreviewBuilder) ; CollisionBox.from_dict les ignore.
+## Barrières invisibles : une collision chacune, sur la couche BARRIER
+## (joueurs et zombies arrêtés, navmesh cuit autour ; balles et grenades
+## passent), du sol jusqu'au plafond de l'étage (ou sa hauteur), JAMAIS de
+## maillage en jeu. Format 9 : « poly » = les sommets du polygone en x, z
+## autour de « center » (CollisionBox en fait un prisme, une forme convexe par
+## morceau) ; « size » = son rectangle englobant et la hauteur. « clip » et
+## « eid » : l'aperçu 3D peut les montrer (MapPreviewBuilder) ;
+## CollisionBox.from_dict les ignore.
 func _clips() -> void:
 	for cl in md.clips:
 		var k: int = cl.floor
@@ -661,8 +664,12 @@ func _clips() -> void:
 		if h <= 0.0:
 			h = maxf(top(k) - sol, 2.0)
 		var sz: Vector2 = cl.size
-		blockers.append({"center": _v3(_world(k, cl.center, h * 0.5)), "size": [_r(sz.x), _r(h), _r(sz.y)],
-			"yaw": _r(-deg_to_rad(float(cl.rot))), "barrier": true, "surface": "concrete", "clip": true, "eid": String(cl.eid)})
+		var c: Vector2 = cl.center
+		var local := []
+		for p: Vector2 in cl.poly:
+			local.append([_r(p.x - c.x), _r(p.y - c.y)])
+		blockers.append({"center": _v3(_world(k, c, h * 0.5)), "size": [_r(sz.x), _r(h), _r(sz.y)],
+			"yaw": 0.0, "poly": local, "barrier": true, "surface": "concrete", "clip": true, "eid": String(cl.eid)})
 
 
 ## Garde-corps : bord d'un plancher d'étage sur un vide (sauf en haut d'escalier).

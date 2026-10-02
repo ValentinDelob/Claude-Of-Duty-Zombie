@@ -462,7 +462,9 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   1 m), pièces rectangles ou polygones dont les murs sont générés (bord commun
   = un seul mur), inventaire façon Minecraft tiré des bases du jeu
   (`MapCatalog`), règles de pose (`MapRules` : porte seulement entre deux
-  pièces collées, fenêtre sur un mur extérieur...), annuler / rétablir,
+  pièces collées, fenêtre sur un mur extérieur... ; barrière invisible en
+  polygone posée n'importe où, réglage de la carte qui laisse le décor et les
+  piliers se chevaucher : docs/MAP_OBJECTS.md § 2 et § 10), annuler / rétablir,
   sauvegarde automatique. Une carte = cinq JSON (`EditorMap` : `carte`,
   `pieces`, `ouvertures`, `objets`, `zones`) dans `user://maps/<id>/` ou une
   archive .zip. Chaîne : `MapRaster` (grille de 0,5 m) -> `MapValidator`
@@ -551,7 +553,10 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   projecteur liés au courant par `PowerGrid.add_hook` ; collisions invisibles
   (ruines, rangées, baies) en `CollisionBox` décrites en données (`blockers`,
   `<modèle>.collision.json`), jamais des modèles Blender ; barrière
-  joueurs/zombies que les balles traversent (couche BARRIER). Cartes grille :
+  joueurs/zombies que les balles traversent (couche BARRIER). Une entrée de
+  `blockers` avec `poly` (barrière invisible de l'éditeur, format 9) devient
+  un prisme : `CollisionBox` découpe le polygone en morceaux convexes, une
+  `ConvexPolygonShape3D` chacun. Cartes grille :
   décor de `PropBuilder` (caisses, barils, lits, paillasses, générateur,
   tuyauteries, lampes grillagées, flaques de sang).
 - **Machines d'atouts** (`PerkMachine`) : un modèle Blender par atout,

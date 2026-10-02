@@ -319,6 +319,15 @@ func _map_props() -> void:
 		ed.changed(false))
 	_spin(_props, Lang.t("Hauteur portes", "Door height"), float(c.get("hauteur_portes", 2.5)), 2.2, 3.5, 0.1, func(v): c["hauteur_portes"] = v)
 	_check(_props, Lang.t("Lampes automatiques (une tous les 6 m)", "Automatic lamps (one every 6 m)"), bool(c.get("lampes_auto", true)), func(on): c["lampes_auto"] = on)
+	# Format 9 : décor et obstacles qui se chevauchent (MapCatalog.OVERLAP_TYPES).
+	var ov := _check(_props, Lang.t("Autoriser les chevauchements décor / obstacles", "Allow decor / obstacle overlaps"),
+		MapRules.overlaps_allowed(ed.doc), func(on):
+			if on:
+				c[MapCatalog.OVERLAP_KEY] = true
+			else:
+				c.erase(MapCatalog.OVERLAP_KEY))
+	ov.tooltip_text = Lang.t("Coché : caisses, barils, décor, luminaires et piliers peuvent se recouvrir entre eux. Les objets de jeu (portes, fenêtres, atouts, armes, boîte, départs, escaliers...) ne se chevauchent jamais.",
+		"Checked: crates, barrels, props, light fixtures and pillars may overlap each other. Gameplay objects (doors, windows, perks, weapons, box, starts, stairs...) never overlap.")
 	_note(_props, Lang.t("Dossier : %s\n%d pièce(s), %d ouverture(s), %d objet(s)", "Folder: %s\n%d room(s), %d opening(s), %d object(s)") % [
 		ed.doc.id(), ed.doc.pieces.size(), ed.doc.ouvertures.size(), ed.doc.objets.size()])
 
@@ -436,14 +445,7 @@ func _object_props(o: Dictionary) -> void:
 				ed.changed())
 			_variant_row(o)
 		"bloc_invisible":
-			var hs := _spin(_props, Lang.t("Hauteur", "Height"), float(o.get("hauteur", 0.0)), 0.0, MapCatalog.CLIP_HEIGHT[1], 0.5, func(v):
-				if v < MapCatalog.CLIP_HEIGHT[0]:
-					o.erase("hauteur")
-				else:
-					o["hauteur"] = v)
-			hs.tooltip_text = Lang.t("0 : du sol au plafond de l'étage", "0: from the floor up to the ceiling")
-			_note(_props, Lang.t("Invisible en jeu. Bloque les joueurs et les zombies (leurs trajets la contournent) ; les balles et les grenades passent, comme les barrières invisibles de BO1. Hauteur 0 : du sol au plafond.",
-				"Invisible in game. Blocks players and zombies (their paths go around it); bullets and grenades go through, like BO1 invisible clips. Height 0: floor to ceiling."))
+			_clip_props(o)
 		"boite":
 			_check(_props, Lang.t("Départ de la boîte (un seul)", "Box start (only one)"), bool(o.get("depart", false)), func(on):
 				if on:
@@ -472,7 +474,8 @@ func _object_props(o: Dictionary) -> void:
 				ed.changed())
 			if t == "mur_courbe":
 				MapPanelsShape.arc_props(self, o)
-	if MapTransform.can_rotate(o):
+	if MapTransform.can_rotate(o) and not o.has("sommets"):
+		# Polygone (barrière invisible) : pas d'angle propre ; poignée ronde ou R.
 		MapPanelsShape.angle_row(self, o)
 	var price := int(it.get("price", 0))
 	if t == "atout":
@@ -484,6 +487,36 @@ func _object_props(o: Dictionary) -> void:
 		_note(_props, hint)
 	var r := MapRules.footprint_rect(o)
 	_note(_props, Lang.t("Position : x %s m, y %s m, étage %d", "Position: x %s m, y %s m, floor %d") % [_m(r.get_center().x), _m(r.get_center().y), int(o.get("etage", 0))])
+
+
+## Barrière invisible (format 9 : polygone) : « Jusqu'au plafond » (pas de
+## clé « hauteur ») ou une hauteur de 0,5 à 30 m au dixième de mètre ;
+## hauteur en jeu, sommets et surface ; rappel de ce qu'elle bloque.
+func _clip_props(o: Dictionary) -> void:
+	var k := int(o.get("etage", 0))
+	var to_ceiling := not o.has("hauteur")
+	var lim: Array = MapCatalog.CLIP_HEIGHT
+	_check(_props, Lang.t("Jusqu'au plafond (hauteur de l'étage)", "Up to the ceiling (floor height)"), to_ceiling, func(on):
+		if on:
+			o.erase("hauteur")
+		else:
+			# Hauteur de départ : celle de l'étage, à modifier ensuite.
+			o["hauteur"] = snappedf(clampf(ed.doc.floor_height(k), float(lim[0]), float(lim[1])), 0.1)
+		refresh())
+	var hs := _spin(_props, Lang.t("Hauteur", "Height"), float(o.get("hauteur", ed.doc.floor_height(k))), float(lim[0]), float(lim[1]),
+		MapCatalog.CLIP_HEIGHT_STEP, func(v):
+			o["hauteur"] = snappedf(clampf(v, float(lim[0]), float(lim[1])), 0.01))
+	hs.editable = not to_ceiling
+	hs.tooltip_text = Lang.t("Du sol au haut de la barrière, %s à %s m (pas de 0,1 m). Décochez « Jusqu'au plafond » pour la régler." % [_m(float(lim[0])), _m(float(lim[1]))],
+		"From the floor to the top of the barrier, %s to %s m (0.1 m steps). Untick \"Up to the ceiling\" to set it." % [_m(float(lim[0])), _m(float(lim[1]))])
+	if to_ceiling:
+		_note(_props, Lang.t("Hauteur en jeu : jusqu'au plafond de l'étage (%s m ou plus sous une pièce plus haute)", "In-game height: up to the floor's ceiling (%s m, or more under a taller room)") % _m(ed.doc.floor_height(k)))
+	else:
+		_note(_props, Lang.t("Hauteur en jeu : %s m depuis le sol", "In-game height: %s m from the floor") % _m(float(o.hauteur)))
+	var poly := MapRaster.clip_poly(o)
+	_note(_props, Lang.t("%d sommets · %s m² · poignées carrées : déplacer un sommet", "%d corners · %s m² · square handles: move a corner") % [poly.size(), _m(snappedf(MapGeom.area(poly), 0.01))])
+	_note(_props, Lang.t("Invisible en jeu. Se pose n'importe où (à cheval sur un mur, dehors, par-dessus un objet). Bloque les joueurs et les zombies (leurs trajets la contournent) ; les balles et les grenades passent, comme les barrières invisibles de BO1.",
+		"Invisible in game. Goes anywhere (across a wall, outside, over an object). Blocks players and zombies (their paths go around it); bullets and grenades go through, like BO1 invisible clips."))
 
 
 ## Escalier (format 6) : type (V), sens du virage, marches, garde-corps,
