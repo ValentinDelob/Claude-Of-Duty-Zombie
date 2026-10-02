@@ -417,6 +417,10 @@ static func catalog() -> Dictionary:
 	for p in MapCatalog.PREFABS:
 		var d: Dictionary = MapCatalog.PREFABS[p]
 		prefabs[p] = {"fr": d.get("fr", ""), "en": d.get("en", ""), "fp": jsonable(d.get("fp", [1, 1])), "h": d.get("h", 0.0), "bloque": d.get("bloque", "")}
+	# Format 10 : prefabs de la carte ouverte (« prefab » : « map:<pid> »).
+	for it in MapCatalog.map_items():
+		var d := MapCatalog.prefab_def(String(it.make.prefab))
+		prefabs[String(it.make.prefab)] = {"fr": d.get("fr", ""), "en": d.get("en", ""), "fp": jsonable(d.get("fp", [1, 1])), "h": d.get("h", 0.0), "bloque": d.get("bloque", ""), "map": true}
 	var lights := {}
 	for l in MapCatalog.LIGHTS:
 		var d: Dictionary = MapCatalog.LIGHTS[l]

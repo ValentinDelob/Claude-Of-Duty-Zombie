@@ -164,6 +164,10 @@ func _build() -> Dictionary:
 	}
 	if not obliques.is_empty():
 		out["obliques"] = obliques
+	# Format 10 : modèles des prefabs importés posés (pid -> .glb en base64),
+	# construits par le jeu (MeshMapBuilder, GLTFDocument).
+	if not map_models.is_empty():
+		out["map_models"] = map_models
 	return out
 
 
@@ -619,13 +623,16 @@ func _blockers_of(boxes: Array, origin: Vector3, yaw: float, barrier: bool, surf
 ## construit par EditorPrefabs) et leurs collisions (« blockers »).
 func _props() -> void:
 	for pr in md.props:
-		var d: Dictionary = MapCatalog.PREFABS.get(String(pr.prefab), {})
+		var d: Dictionary = MapCatalog.prefab_def(String(pr.prefab))
 		if d.is_empty():
 			continue
 		var k: int = pr.floor
 		var yaw := -deg_to_rad(float(pr.rot))
 		var origin := _world(k, pr.center)
 		var block := String(d.bloque)
+		if d.has("map"):
+			_map_prefab(pr, d, origin, yaw)
+			continue
 		var copies: Array = d.get("copies", [[0, 0, 0]])
 		for i in copies.size():
 			var cp: Array = copies[i]
@@ -646,6 +653,55 @@ func _props() -> void:
 			props.append(e)
 		if block != "non" and d.has("boxes"):
 			_blockers_of(d.boxes, origin, yaw, block == "barriere", String(d.get("surface", "concrete")))
+
+
+## Modèles des prefabs de la carte posés (pid -> base64) : « map_models ».
+var map_models: Dictionary = {}
+
+
+## Prefab de la carte posé (format 10, MapPrefabLib) : groupe -> chaque partie
+## comme le décor du catalogue (modèle ou objet construit, à sa place et sa
+## rotation dans le prefab, sans collision propre) ; modèle importé -> un objet
+## « map_model » (son .glb, décalé pour être centré et posé au sol, à son
+## échelle). Collision : les pavés du prefab (CollisionBox), jamais le modèle.
+func _map_prefab(pr: Dictionary, d: Dictionary, origin: Vector3, yaw: float) -> void:
+	var pid := String(d.map)
+	var basis := Basis(Vector3.UP, yaw)
+	if d.has("modele"):
+		var md2: Dictionary = d.modele
+		var e := {"id": String(pr.eid), "p": _v3(origin + basis * MapPrefabLib.model_offset(d)), "yaw": _r(yaw),
+			"map_model": pid, "sig": String(md2.sha256).left(16), "aabb": md2.aabb}
+		if absf(float(md2.echelle) - 1.0) > 0.0001:
+			e["scale"] = float(md2.echelle)
+		props.append(e)
+		if md.map_models.has(pid):
+			map_models[pid] = md.map_models[pid]
+	else:
+		var parts: Array = d.get("parties", [])
+		for i in parts.size():
+			var part: Dictionary = parts[i]
+			var cd: Dictionary = MapCatalog.PREFABS.get(String(part.decor), {})
+			if cd.is_empty():
+				continue
+			var pp: Array = part.pos
+			var pyaw := yaw - deg_to_rad(float(part.get("rot", 0)))
+			var po := origin + basis * Vector3(float(pp[0]), 0.0, float(pp[1]))
+			var copies: Array = cd.get("copies", [[0, 0, 0]])
+			for j in copies.size():
+				var cp: Array = copies[j]
+				var e := {"id": "%s_%d_%d" % [pr.eid, i, j], "p": _v3(po + Basis(Vector3.UP, pyaw) * Vector3(cp[0], 0, cp[1])), "yaw": _r(pyaw + float(cp[2]))}
+				if cd.has("model"):
+					e["model"] = String(cd.model)
+					if cd.has("scale"):
+						e["scale"] = float(cd.scale)
+					if cd.has("remap"):
+						e["remap"] = cd.remap
+					e["nocollide"] = true
+				else:
+					e["build"] = String(cd.build)
+				props.append(e)
+	if String(d.bloque) != "non":
+		_blockers_of(d.get("boxes", []), origin, yaw, String(d.bloque) == "barriere", String(d.get("surface", "concrete")))
 
 
 ## Barrières invisibles : une collision chacune, sur la couche BARRIER

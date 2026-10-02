@@ -151,6 +151,9 @@ var lamps_extra: Array = []
 ## Décor posé (prefabs) : [{floor, prefab, center (Vector2, m, repère de
 ## l'éditeur), rot (degrés), eid}].
 var props: Array = []
+## Format 10 : modèles importés des prefabs de la carte (pid -> .glb en
+## base64, EditorMap.models), pour l'export (MapLayoutExport : « map_models »).
+var map_models: Dictionary = {}
 var lamps_auto := true
 ## Murs en biais (MapRaster), par étage : [{a, b (m, repère de l'éditeur),
 ## t (direction), n (normale), half (demi-épaisseur, m), pos, neg (pièce du

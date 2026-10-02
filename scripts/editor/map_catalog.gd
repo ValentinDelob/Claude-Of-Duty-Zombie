@@ -30,6 +30,8 @@ const CATEGORIES := [
 	["pieges", "Pièges", "Traps"],
 	["joueurs", "Joueurs et apparitions", "Players and spawns"],
 	["prefabs", "Décor et obstacles", "Props and obstacles"],
+	# Format 10 : prefabs propres à la carte (dossier prefabs/ de la carte, MapPrefabLib).
+	["prefabs_carte", "Prefabs de la carte", "Map prefabs"],
 	["lumieres", "Luminaires", "Light fixtures"],
 ]
 ## Barre rapide par défaut (9 cases). La souris (« select ») n'y est pas : elle
@@ -308,12 +310,100 @@ static func _freeze(v: Variant) -> void:
 
 static func item(id: String) -> Dictionary:
 	items()
-	return _by_id.get(id, {})
+	var it: Dictionary = _by_id.get(id, {})
+	return it if not it.is_empty() else _map_items.get(id, {})
 
 
 static func in_category(cat: String) -> Array:
+	if cat == MAP_CAT:
+		return map_items()
 	# « hidden » : la souris, case fixe de la barre rapide, hors inventaire.
 	return items().filter(func(it): return it.cat == cat and not it.get("hidden", false))
+
+
+# ------------------------------------------------------------------ prefabs de la carte (format 10)
+
+## Catégorie de l'inventaire des prefabs de la carte ouverte.
+const MAP_CAT := "prefabs_carte"
+## Prefabs de la carte ouverte (MapPrefabLib) : pid -> définition au format
+## de PREFABS (fr, en, fp, h, bloque, boxes, surface, color, plus « map »,
+## « parties » ou « modele »), et leurs objets d'inventaire
+## (« prefab:map:<pid> »). Remplacés d'un bloc (jamais modifiés en place) par
+## le fil principal, figés en lecture seule : l'aperçu 3D les lit sans risque
+## depuis son fil (comme le reste du catalogue).
+static var _map_defs: Dictionary = {}
+static var _map_items: Dictionary = {}
+static var _map_sig := 0
+
+
+## Prefabs de la carte ouverte (EditorMap.prefabs : pid -> prefab.json lu).
+## Appelé par la carte (chargement, modification de sa bibliothèque) ; sans
+## effet hors du fil principal ou si rien n'a changé.
+static func set_map_prefabs(defs: Dictionary) -> void:
+	if ThreadGuard.worker():
+		return
+	var sig := hash(defs)
+	if sig == _map_sig and _map_defs.size() == defs.size():
+		return
+	_map_sig = sig
+	var nd := {}
+	var ni := {}
+	var block_fr := {"solide": "Bloque joueurs, zombies et balles", "barriere": "Bloque joueurs et zombies (les balles passent)", "non": "Décor : on marche dessus"}
+	var block_en := {"solide": "Blocks players, zombies and bullets", "barriere": "Blocks players and zombies (bullets go through)", "non": "Decoration: can be walked over"}
+	for pid in defs:
+		var d: Dictionary = (defs[pid] as Dictionary).duplicate(true)
+		var nom: Dictionary = d.get("nom", {})
+		var fr := String(nom.get("fr", nom.get("en", pid)))
+		var en := String(nom.get("en", fr))
+		var cd := {"fr": fr, "en": en, "fp": d.fp, "h": float(d.h), "bloque": String(d.bloque), "surface": String(d.get("surface", "concrete")),
+			"boxes": d.get("boxes", []), "color": MapPrefabLib.color_of(d), "map": String(pid)}
+		for k in ["parties", "modele"]:
+			if d.has(k):
+				cd[k] = d[k]
+		_freeze(cd)
+		nd[pid] = cd
+		var kind_fr := "Modèle importé" if d.has("modele") else "Groupe de %d décors" % (d.get("parties", []) as Array).size()
+		var kind_en := "Imported model" if d.has("modele") else "Group of %d props" % (d.get("parties", []) as Array).size()
+		var iid := "prefab:" + MapPrefabLib.ref(pid)
+		var it := {"id": iid, "cat": MAP_CAT, "fr": fr, "en": en, "tool": "floor_item", "color": cd.color,
+			"make": {"type": "prefab", "prefab": MapPrefabLib.ref(pid), "rot": 0}, "fp": d.fp, "rotates": true, "price": 0,
+			"hint_fr": "%s · %s · R : pivoter" % [kind_fr, block_fr.get(String(d.bloque), "")],
+			"hint_en": "%s · %s · R: rotate" % [kind_en, block_en.get(String(d.bloque), "")], "map": String(pid)}
+		_freeze(it)
+		ni[iid] = it
+	nd.make_read_only()
+	ni.make_read_only()
+	_map_defs = nd
+	_map_items = ni
+
+
+## Objets d'inventaire des prefabs de la carte, triés par nom.
+static func map_items() -> Array:
+	var out: Array = _map_items.values()
+	out.sort_custom(func(a, b): return name_of(a).naturalnocasecmp_to(name_of(b)) < 0)
+	return out
+
+
+## Définition d'un décor posé (clé « prefab ») : du catalogue, ou un prefab de
+## la carte (« map:<pid> ») ; {} s'il est inconnu.
+static func prefab_def(id: String) -> Dictionary:
+	if id.begins_with(MapPrefabLib.REF):
+		return _map_defs.get(id.substr(MapPrefabLib.REF.length()), {})
+	return PREFABS.get(id, {})
+
+
+## Décors qu'un objet posé peut devenir (panneau des propriétés) : ceux du
+## catalogue puis les prefabs de la carte.
+static func prefab_ids() -> Array:
+	var out: Array = PREFABS.keys()
+	for it in map_items():
+		out.append(String(it.make.prefab))
+	return out
+
+
+static func prefab_name(id: String) -> String:
+	var d := prefab_def(id)
+	return Lang.t(String(d.get("fr", id)), String(d.get("en", d.get("fr", id))))
 
 
 static func name_of(it: Dictionary) -> String:
@@ -587,7 +677,7 @@ static func rotates(o: Dictionary) -> bool:
 static func def_of(o: Dictionary) -> Dictionary:
 	match String(o.get("type", "")):
 		"prefab":
-			return PREFABS.get(String(o.get("prefab", "")), {})
+			return prefab_def(String(o.get("prefab", "")))
 		"luminaire":
 			return LIGHTS.get(String(o.get("luminaire", "")), {})
 	return {}
@@ -783,7 +873,10 @@ static func allowed_kinds() -> Dictionary:
 		add.call("objets.json", t, {"position": point, "mur": dirs, "angle": angle}, ["position"])
 	for t in ["depart", "apparition", "teleporteur", "arrivee", "lampe", "caisse", "baril"]:
 		add.call("objets.json", t, {"position": point}, ["position"])
-	add.call("objets.json", "prefab", {"prefab": {"t": "enum", "values": PREFABS.keys()}, "position": point, "rot": rot}, ["prefab", "position"])
+	# Format 10 : « prefab » : un décor du catalogue ou un prefab de la carte
+	# (« map:<pid> », qui doit exister dans son dossier prefabs/ :
+	# CustomMapGuard.check_texts).
+	add.call("objets.json", "prefab", {"prefab": {"t": "prefab", "values": PREFABS.keys()}, "position": point, "rot": rot}, ["prefab", "position"])
 	add.call("objets.json", "luminaire", {"luminaire": {"t": "enum", "values": LIGHTS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
 		"couleur": {"t": "color"}, "intensite": {"t": "number", "min": LIGHT_LIMITS.intensite[0], "max": LIGHT_LIMITS.intensite[1]},
 		"portee": {"t": "number", "min": LIGHT_LIMITS.portee[0], "max": LIGHT_LIMITS.portee[1]},

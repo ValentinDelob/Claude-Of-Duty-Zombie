@@ -537,6 +537,8 @@ func cancel() -> void:
 	entry = {}
 	_snap_exclude = ""
 	poly_pts.clear()
+	if ed.prefab_tools != null:
+		ed.prefab_tools.cancel_capture()
 	queue_redraw()
 
 
@@ -548,6 +550,10 @@ func _press(double: bool) -> void:
 	var it := _item()
 	var tool := String(it.get("tool", "select"))
 	var k := ed.floor_k
+	# Format 10 : rectangle autour du décor à grouper en prefab de la carte.
+	if ed.prefab_tools != null and ed.prefab_tools.capturing:
+		drag = {"kind": "capture", "start": mouse_m}
+		return
 	# Tracé commencé d'un simple clic (sans glisser) : ce clic le termine.
 	if drag.get("kind", "") == "create" and drag.get("sticky", false):
 		_finish_create(trace_end())
@@ -602,6 +608,11 @@ func _release() -> void:
 	if drag.is_empty():
 		return
 	var kind := String(drag.kind)
+	if kind == "capture":
+		var rc := Rect2(drag.start, Vector2.ZERO).expand(mouse_m)
+		drag = {}
+		ed.prefab_tools.finish_capture(rc)
+		return
 	if kind == "create":
 		if drag.get("sticky", false):
 			return
@@ -771,7 +782,7 @@ func _update_preview() -> void:
 
 func _drag_update() -> void:
 	var kind := String(drag.kind)
-	if kind == "create":
+	if kind == "create" or kind == "capture":
 		return
 	var orig: Dictionary = drag.orig
 	var e := ed.doc.find(String(orig.id))
@@ -1565,6 +1576,15 @@ func _draw_tool(font: Font) -> void:
 	var tool := String(it.get("tool", "select"))
 	var col := COL_OK
 	var msg := ""
+	if drag.get("kind", "") == "capture" or (ed.prefab_tools != null and ed.prefab_tools.capturing):
+		# Format 10 : rectangle de capture du décor à grouper (prefab de la carte).
+		if drag.get("kind", "") == "capture":
+			var rc := Rect2(to_px(drag.start), Vector2.ZERO).expand(to_px(mouse_m))
+			draw_rect(rc, Color(1.0, 0.85, 0.3, 0.12))
+			draw_rect(rc, Color(1.0, 0.85, 0.3, 0.9), false, 2.0)
+			for o in ed.prefab_tools.captured(Rect2(drag.start, Vector2.ZERO).expand(mouse_m)):
+				outline_elem(o, Color(1.0, 0.85, 0.3), 2.0, 2.0)
+		return
 	if drag.get("kind", "") == "create":
 		var end := trace_end()
 		var res := _creation(it, drag.start, end)

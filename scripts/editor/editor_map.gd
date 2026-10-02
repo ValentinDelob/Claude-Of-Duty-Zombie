@@ -56,7 +56,12 @@ extends RefCounted
 ##      même collision. Réglage de la carte « chevauchement_decor » (carte.json,
 ##      vrai / faux, absent : faux) : décor et obstacles peuvent se chevaucher
 ##      (MapCatalog.OVERLAP_TYPES). Formats 1 à 8 lus tels quels.
-const FORMAT := 9
+##  10  prefabs de la carte (docs/MAP_OBJECTS.md § 11, MapPrefabLib) : dossier
+##      prefabs/<pid>/ de la carte (prefab.json, et model.glb pour un modèle
+##      importé) ; un décor posé les cite par « prefab » : « map:<pid> ».
+##      Rien d'autre ne change : formats 1 à 9 lus tels quels (une carte sans
+##      prefab n'a pas de dossier prefabs/).
+const FORMAT := 10
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -71,6 +76,10 @@ var zones: Array = []
 var depart := ""
 ## Problèmes de lecture (fichier absent, JSON illisible...) : [fr, en].
 var load_errors: Array = []
+## Format 10 : prefabs de la carte (MapPrefabLib) : pid -> définition
+## (prefab.json nettoyé) ; modèles importés : pid -> octets du .glb en base64.
+var prefabs: Dictionary = {}
+var models: Dictionary = {}
 
 
 static func blank(map_id := "nouvelle_carte", name_fr := "NOUVELLE CARTE", name_en := "NEW MAP") -> EditorMap:
@@ -205,8 +214,14 @@ func tidy_zones() -> void:
 
 # ------------------------------------------------------------------ copie (annuler / rétablir)
 
+## Les définitions des prefabs de la carte (format 10) en font partie (clé
+## « prefabs », seulement s'il y en a : une carte sans prefab garde la forme
+## d'avant) ; leurs modèles (base64, lourds) non : ils restent dans `models`.
 func to_dict() -> Dictionary:
-	return {"carte": carte, "pieces": pieces, "ouvertures": ouvertures, "objets": objets, "zones": zones, "depart": depart}
+	var d := {"carte": carte, "pieces": pieces, "ouvertures": ouvertures, "objets": objets, "zones": zones, "depart": depart}
+	if not prefabs.is_empty():
+		d["prefabs"] = prefabs
+	return d
 
 
 func snapshot() -> Dictionary:
@@ -221,17 +236,118 @@ func restore(s: Dictionary) -> void:
 	objets = d.get("objets", [])
 	zones = d.get("zones", [])
 	depart = String(d.get("depart", ""))
+	# Prefabs (carte entière reçue d'une session : contrôlés un par un).
+	prefabs = {}
+	var pf: Variant = d.get("prefabs", {})
+	if pf is Dictionary:
+		for pid in pf:
+			if MapPrefabLib.pid_ok(pid) and prefabs.size() < MapPrefabLib.MAX_PREFABS:
+				var def := MapPrefabLib.sanitize(pf[pid])
+				if not def.is_empty():
+					prefabs[pid] = def
+	activate_prefabs()
 
 
 func duplicate_map() -> EditorMap:
 	var m := EditorMap.new()
 	m.restore(snapshot())
+	m.models = models.duplicate()
 	return m
 
 
-## Deux cartes identiques (contenu des cinq fichiers) ?
+## Deux cartes identiques (contenu des cinq fichiers et des prefabs) ?
 func same_as(other: EditorMap) -> bool:
 	return file_texts() == other.file_texts()
+
+
+# ------------------------------------------------------------------ prefabs de la carte (format 10)
+
+## Rend les prefabs de cette carte visibles du catalogue (inventaire, pose,
+## validateur, export) : MapCatalog.set_map_prefabs (fil principal seulement).
+func activate_prefabs() -> void:
+	MapCatalog.set_map_prefabs(prefabs)
+
+
+## Ajoute (ou remplace) le prefab `pid` ; `glb` : octets du modèle importé.
+func set_prefab(pid: String, def: Dictionary, glb := PackedByteArray()) -> bool:
+	var s := MapPrefabLib.sanitize(def)
+	if s.is_empty() or not MapPrefabLib.pid_ok(pid) or (not prefabs.has(pid) and prefabs.size() >= MapPrefabLib.MAX_PREFABS):
+		return false
+	if MapPrefabLib.is_model(s):
+		if not glb.is_empty():
+			if model_count() >= MapPrefabLib.MAX_MODELS and not models.has(pid):
+				return false
+			models[pid] = Marshalls.raw_to_base64(glb)
+		elif not models.has(pid):
+			return false
+	else:
+		models.erase(pid)
+	prefabs[pid] = s
+	activate_prefabs()
+	return true
+
+
+func remove_prefab(pid: String) -> void:
+	prefabs.erase(pid)
+	models.erase(pid)
+	activate_prefabs()
+
+
+func model_count() -> int:
+	return prefabs.keys().filter(func(p): return MapPrefabLib.is_model(prefabs[p])).size()
+
+
+## Octets du modèle importé du prefab `pid` (vide s'il n'en a pas).
+func model_bytes(pid: String) -> PackedByteArray:
+	return Marshalls.base64_to_raw(String(models[pid])) if models.has(pid) else PackedByteArray()
+
+
+## Objets posés qui citent le prefab `pid`.
+func prefab_users(pid: String) -> Array:
+	var r := MapPrefabLib.ref(pid)
+	return objets.filter(func(o): return String(o.get("type", "")) == "prefab" and String(o.get("prefab", "")) == r)
+
+
+## Entrées de prefab des textes de la carte (MapPrefabLib.def_key / model_key).
+func prefab_texts() -> Dictionary:
+	var out := {}
+	var ids := prefabs.keys()
+	ids.sort()
+	for pid in ids:
+		out[MapPrefabLib.def_key(pid)] = MapPrefabLib.def_text(prefabs[pid])
+		if MapPrefabLib.is_model(prefabs[pid]) and models.has(pid):
+			out[MapPrefabLib.model_key(pid)] = String(models[pid])
+	return out
+
+
+## Lit les entrées de prefab parmi des textes (from_texts) ; les illisibles
+## sont ignorées avec un message (load_errors).
+func _read_prefab_texts(texts: Dictionary) -> void:
+	prefabs = {}
+	models = {}
+	var keys := texts.keys().filter(func(k): return not MapPrefabLib.parse_key(k).is_empty())
+	keys.sort()
+	for k in keys:
+		var pk := MapPrefabLib.parse_key(k)
+		if pk[1] != MapPrefabLib.DEF_FILE:
+			continue
+		var pid := String(pk[0])
+		if prefabs.size() >= MapPrefabLib.MAX_PREFABS:
+			load_errors.append(["trop de prefabs (%d au plus) : %s ignoré" % [MapPrefabLib.MAX_PREFABS, pid], "too many prefabs (%d at most): %s ignored" % [MapPrefabLib.MAX_PREFABS, pid]])
+			continue
+		var j := JSON.new()
+		var bad: Array = ["JSON illisible", "unreadable JSON"] if j.parse(String(texts[k])) != OK else MapPrefabLib.check_def(j.data)
+		if not bad.is_empty():
+			load_errors.append(["prefab %s ignoré : %s" % [pid, bad[0]], "prefab %s ignored: %s" % [pid, bad[1]]])
+			continue
+		var def := MapPrefabLib.sanitize(j.data)
+		prefabs[pid] = def
+		var mk := MapPrefabLib.model_key(pid)
+		if MapPrefabLib.is_model(def):
+			if texts.has(mk) and texts[mk] is String:
+				models[pid] = String(texts[mk])
+			else:
+				load_errors.append(["prefab %s : modèle %s absent (boîte à la place)" % [pid, MapPrefabLib.MODEL_FILE], "prefab %s: model %s missing (box instead)" % [pid, MapPrefabLib.MODEL_FILE]])
 
 
 # ------------------------------------------------------------------ fichiers
@@ -242,13 +358,16 @@ func same_as(other: EditorMap) -> bool:
 func file_texts() -> Dictionary:
 	var c := carte.duplicate(true)
 	c["format"] = FORMAT
-	return {
+	var out := {
 		"carte.json": dump(_ints(c)),
 		"pieces.json": dump(_ints({"pieces": pieces})),
 		"ouvertures.json": dump(_ints({"ouvertures": ouvertures})),
 		"objets.json": dump(_ints({"objets": objets})),
 		"zones.json": dump(_ints({"depart": depart, "zones": zones})),
 	}
+	# Format 10 : prefabs de la carte, après les cinq fichiers (aucun : rien de plus).
+	out.merge(prefab_texts())
+	return out
 
 
 static func _ints(v: Variant) -> Variant:
@@ -294,8 +413,10 @@ static func from_texts(texts: Dictionary) -> EditorMap:
 	m.zones = parsed["zones.json"].get("zones", [])
 	m.depart = String(parsed["zones.json"].get("depart", ""))
 	m.format_read = int(m.carte.get("format", FORMAT))
+	m._read_prefab_texts(texts)
 	m._migrate(m.format_read)
 	m._normalize()
+	m.activate_prefabs()
 	return m
 
 
@@ -334,6 +455,10 @@ func _migrate(from: int) -> void:
 		# Format 8 -> 9 : barrière invisible rectangle -> polygone de ses 4
 		# coins (fait par _normalize pour tout fichier, même écrit à la main) ;
 		# pas de « chevauchement_decor » : les règles de pose d'avant.
+		pass
+	if from < 10:
+		# Format 9 -> 10 : rien à convertir (pas de dossier prefabs/ : aucun
+		# prefab de la carte ; le décor du catalogue garde sa clé « prefab »).
 		pass
 
 
@@ -444,13 +569,15 @@ func save_dir(dir: String) -> Error:
 	if err != OK and not DirAccess.dir_exists_absolute(dir):
 		return err
 	var texts := file_texts()
-	for f in texts:
+	for f in FILES:
 		var fa := FileAccess.open(dir.path_join(f), FileAccess.WRITE)
 		if fa == null:
 			return FileAccess.get_open_error()
 		fa.store_string(texts[f])
 		fa.close()
-	return OK
+	# Format 10 : prefabs/<pid>/prefab.json et model.glb (les prefabs retirés
+	# de la carte sont effacés du dossier).
+	return MapPrefabLib.write_dir(dir, texts)
 
 
 ## Limites des fichiers lus (cartes reçues, archives : jamais de lecture sans
@@ -458,6 +585,11 @@ func save_dir(dir: String) -> Error:
 const MAX_FILE_BYTES := 2 * 1024 * 1024
 const MAX_ARCHIVE_BYTES := 2 * 1024 * 1024
 const MAX_ARCHIVE_ENTRIES := 32
+## Format 10 : une archive qui porte des prefabs de la carte (MapPrefabLib :
+## 24 Mo de modèles au plus, 32 prefabs) peut être plus grosse ; les entrées
+## de prefab ne comptent pas dans MAX_ARCHIVE_ENTRIES.
+const MAX_ARCHIVE_BYTES_PREFABS := 30 * 1024 * 1024
+const MAX_ARCHIVE_ENTRIES_PREFABS := 128
 
 
 ## Texte d'un fichier de `max_bytes` au plus ; null s'il est absent, illisible
@@ -480,9 +612,13 @@ static func load_dir(dir: String) -> EditorMap:
 				too_big.append(f)
 				continue
 			texts[f] = t
+	# Format 10 : prefabs de la carte (tailles bornées avant lecture).
+	var pf := MapPrefabLib.read_dir(dir)
+	texts.merge(pf.texts)
 	var m := from_texts(texts)
 	for f in too_big:
 		m.load_errors.append(["%s trop gros (2 Mo au plus) ou illisible" % f, "%s too big (2 MB at most) or unreadable" % f])
+	m.load_errors.append_array(pf.reasons)
 	return m
 
 
@@ -497,9 +633,10 @@ func export_zip(path: String) -> Error:
 	if err != OK:
 		return err
 	var texts := file_texts()
-	for f in FILES:
+	for f in texts:
 		z.start_file(f)
-		z.write_file(String(texts[f]).to_utf8_buffer())
+		# Format 10 : un modèle importé est écrit en binaire (.glb).
+		z.write_file(Marshalls.base64_to_raw(String(texts[f])) if String(f).ends_with(MapPrefabLib.MODEL_FILE) else String(texts[f]).to_utf8_buffer())
 		z.close_file()
 	return z.close()
 
@@ -533,27 +670,59 @@ static func _precheck_zip(path: String) -> Array:
 	if fa == null:
 		return ["archive illisible : %s" % path, "unreadable archive: %s" % path]
 	var n := fa.get_length()
-	if n > MAX_ARCHIVE_BYTES:
+	@warning_ignore("integer_division")
+	var kb := n / 1024  # Ko entiers (troncature voulue)
+	if n > MAX_ARCHIVE_BYTES_PREFABS:
 		@warning_ignore("integer_division")
-		var kb := n / 1024  # Ko entiers (troncature voulue)
-		return ["archive trop grosse (%d Ko, 2 Mo au plus)" % kb, "archive too big (%d KB, 2 MB at most)" % kb]
+		return ["archive trop grosse (%d Ko, %d Mo au plus)" % [kb, MAX_ARCHIVE_BYTES_PREFABS / 1048576], "archive too big (%d KB, %d MB at most)" % [kb, MAX_ARCHIVE_BYTES_PREFABS / 1048576]]
 	var listing := zip_entries(fa.get_buffer(n))
 	fa.close()
 	if listing.has("error"):
 		return listing.error
+	# Sans prefab (format 10) : la limite d'avant, 2 Mo.
+	var with_prefabs := (listing.entries as Array).any(func(e): return String(e.name).contains(MapPrefabLib.DIR + "/"))
+	if n > MAX_ARCHIVE_BYTES and not with_prefabs:
+		return ["archive trop grosse (%d Ko, 2 Mo au plus)" % kb, "archive too big (%d KB, 2 MB at most)" % kb]
 	return check_zip_entries(listing.entries, {})
 
 
 ## Vérifie les entrées d'une archive (zip_entries) ; remplit `wanted` (nom de
 ## base -> chemin) ; rend [fr, en] si l'archive est refusée, [] sinon.
 static func check_zip_entries(entries: Array, wanted: Dictionary) -> Array:
-	if entries.size() > MAX_ARCHIVE_ENTRIES:
-		return ["trop d'entrées dans l'archive (%d, 32 au plus)" % entries.size(), "too many entries in the archive (%d, 32 at most)" % entries.size()]
+	var plain := entries.filter(func(e): return not String(e.name).contains(MapPrefabLib.DIR + "/")).size()
+	if plain > MAX_ARCHIVE_ENTRIES or entries.size() > MAX_ARCHIVE_ENTRIES_PREFABS:
+		return ["trop d'entrées dans l'archive (%d, %d au plus)" % [entries.size(), MAX_ARCHIVE_ENTRIES], "too many entries in the archive (%d, %d at most)" % [entries.size(), MAX_ARCHIVE_ENTRIES]]
 	var folder = null
+	# Dossier des cinq fichiers (racine ou un dossier) : les prefabs y sont rangés.
+	for e in entries:
+		var nm := String(e.name)
+		if nm.get_file() in FILES and not nm.get_base_dir().contains("/"):
+			folder = nm.get_base_dir()
+			break
+	var models_total := 0
 	for e in entries:
 		var name := String(e.name)
 		if name.contains("..") or name.begins_with("/") or name.contains("\\") or name.contains(":"):
 			return ["chemin interdit dans l'archive : %s" % name.left(80), "forbidden path in the archive: %s" % name.left(80)]
+		# Format 10 : prefabs de la carte (prefabs/, prefabs/<pid>/, et leurs
+		# deux fichiers), dans le dossier des cinq fichiers.
+		var rel := name.trim_prefix(String(folder) + "/") if folder != null and String(folder) != "" else name
+		if folder != null and String(folder) != "" and not name.begins_with(String(folder) + "/") and name != String(folder) + "/":
+			rel = ""
+		if rel == MapPrefabLib.DIR + "/" or (rel.begins_with(MapPrefabLib.DIR + "/") and rel.ends_with("/") and rel.count("/") == 2
+				and MapPrefabLib.pid_ok(rel.split("/")[1])):
+			continue
+		var pk := MapPrefabLib.parse_key(rel)
+		if not pk.is_empty():
+			var lim := MapPrefabLib.MAX_MODEL_BYTES if pk[1] == MapPrefabLib.MODEL_FILE else MapPrefabLib.MAX_DEF_BYTES
+			if int(e.size) > lim or wanted.has(rel):
+				return ["prefab trop gros ou en double dans l'archive : %s" % name.left(80), "prefab too big or duplicated in the archive: %s" % name.left(80)]
+			if pk[1] == MapPrefabLib.MODEL_FILE:
+				models_total += int(e.size)
+				if models_total > MapPrefabLib.MAX_MODELS_BYTES:
+					return ["modèles trop gros dans l'archive", "models too big in the archive"]
+			wanted[rel] = name
+			continue
 		if name.ends_with("/"):
 			if name.count("/") > 1:
 				return ["dossier inattendu dans l'archive : %s" % name.left(80), "unexpected folder in the archive: %s" % name.left(80)]

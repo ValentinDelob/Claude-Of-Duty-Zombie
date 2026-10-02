@@ -23,6 +23,11 @@ var doc: EditorMap:
 		doc = v
 		if collab != null:
 			collab.doc = v
+		# Format 10 : les prefabs de cette carte dans le catalogue (inventaire).
+		if v != null:
+			v.activate_prefabs()
+## Prefabs de la carte (format 10) : création, import, renommage (MapPrefabTools).
+var prefab_tools: MapPrefabTools
 ## Dossier d'enregistrement ("" : jamais enregistrée).
 var map_dir := ""
 ## Ouverte depuis un exemple livré (assets/maps/) : Enregistrer en fait une copie.
@@ -358,6 +363,10 @@ func _build_ui() -> void:
 	inventory.ed = self
 	inventory.visible = false
 	canvas.add_child(inventory)
+	prefab_tools = MapPrefabTools.new()
+	prefab_tools.ed = self
+	prefab_tools.name = "PrefabTools"
+	add_child(prefab_tools)
 	_dialog = AcceptDialog.new()
 	# Texte du message dans une zone qui défile (aide « ? » à grande taille) ;
 	# sa taille est calculée par _info.

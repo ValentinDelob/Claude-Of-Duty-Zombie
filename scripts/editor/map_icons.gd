@@ -267,7 +267,43 @@ static func _prefab(ci: CanvasItem, kind: String, p: Rect2, cx: Vector2, s: floa
 			for sx in [-0.28, 0.28]:
 				ci.draw_circle(cx + Vector2(s * sx, s * 0.2), s * 0.1, INK)
 		_:
-			ci.draw_rect(p.grow(-s * 0.1), c)
+			if kind.begins_with(MapPrefabLib.REF):
+				_map_prefab(ci, kind, p, cx, s, c)
+			else:
+				ci.draw_rect(p.grow(-s * 0.1), c)
+
+
+## Icône d'un prefab de la carte (format 10) : un groupe montre ses parties
+## vues de dessus (rectangles de leur emprise, à leur place) ; un modèle
+## importé, un cube en perspective.
+static func _map_prefab(ci: CanvasItem, ref: String, p: Rect2, cx: Vector2, s: float, c: Color) -> void:
+	var d := MapCatalog.prefab_def(ref)
+	if d.has("parties"):
+		var fp: Array = d.fp
+		var span := maxf(float(fp[0]), float(fp[1])) * MapGeom.CELL
+		var k := s * 0.9 / maxf(span, 0.5)
+		ci.draw_rect(p, c.darkened(0.7), false, 1.0)
+		for part in d.parties:
+			var cd: Dictionary = MapCatalog.PREFABS.get(String(part.decor), {})
+			if cd.is_empty():
+				continue
+			var sz := Vector2(float(cd.fp[0]), float(cd.fp[1])) * MapGeom.CELL * k
+			var at := cx + Vector2(float(part.pos[0]), float(part.pos[1])) * k
+			var pts := MapGeom.rot_rect_poly(at, sz, int(part.get("rot", 0)))
+			ci.draw_colored_polygon(pts, Color(cd.color))
+			ci.draw_polyline(pts + PackedVector2Array([pts[0]]), INK, 1.0)
+	else:
+		var a := cx + Vector2(-s * 0.32, -s * 0.12)
+		var w := s * 0.48
+		var dz := Vector2(s * 0.18, -s * 0.18)
+		var front := PackedVector2Array([a, a + Vector2(w, 0), a + Vector2(w, w), a + Vector2(0, w)])
+		var top := PackedVector2Array([a, a + dz, a + dz + Vector2(w, 0), a + Vector2(w, 0)])
+		var side := PackedVector2Array([a + Vector2(w, 0), a + dz + Vector2(w, 0), a + dz + Vector2(w, w), a + Vector2(w, w)])
+		ci.draw_colored_polygon(front, c)
+		ci.draw_colored_polygon(top, c.lightened(0.3))
+		ci.draw_colored_polygon(side, c.darkened(0.3))
+		for poly in [front, top, side]:
+			ci.draw_polyline(poly + PackedVector2Array([poly[0]]), INK, 1.5)
 
 
 ## Icône d'un luminaire (MapCatalog.LIGHTS).

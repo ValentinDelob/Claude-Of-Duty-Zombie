@@ -172,7 +172,11 @@ static func _xf(p: Vector3, yaw: float, scale := 1.0, tilt := 0.0) -> Transform3
 func _build_props() -> void:
 	for pr in layout.get("props", []):
 		var inst: Node3D = null
-		if pr.has("build"):
+		if pr.has("map_model"):
+			# Format 10 : modèle importé d'un prefab de la carte (son .glb,
+			# chargé par GLTFDocument) ; illisible : une boîte à sa place.
+			inst = _map_model(pr)
+		elif pr.has("build"):
 			# Objet construit par le jeu (décor de l'éditeur : sacs de sable, chariot...).
 			inst = EditorPrefabs.build(String(pr.build))
 		else:
@@ -204,6 +208,59 @@ func _build_props() -> void:
 		if pr.has("model") and not pr.get("nocollide", false):
 			for d in _collision_boxes(String(pr.model)):
 				inst.add_child(CollisionBox.from_dict(d))
+
+
+## Modèles des prefabs de la carte déjà chargés : pid -> scène modèle (copiée
+## pour chaque objet posé) ou null (illisible).
+var _map_scenes: Dictionary = {}
+
+
+## Objet d'un modèle importé (prefab de la carte, « map_model » : pid) ; une
+## boîte grise de sa taille si le modèle manque ou ne se lit pas (journalisé,
+## jamais d'arrêt du jeu).
+func _map_model(pr: Dictionary) -> Node3D:
+	var pid := String(pr.map_model)
+	if not _map_scenes.has(pid):
+		var tpl: Node3D = null
+		var b64: Variant = (layout.get("map_models", {}) as Dictionary).get(pid)
+		if b64 is String and MapPrefabLib.pid_ok(pid):
+			tpl = MapPrefabLib.instantiate(Marshalls.base64_to_raw(b64))
+		if tpl == null:
+			push_error("[MeshMapBuilder] modèle du prefab « %s » absent ou illisible : boîte à la place" % pid.left(32))
+		_map_scenes[pid] = tpl
+	var t: Node3D = _map_scenes[pid]
+	if t != null:
+		return t.duplicate() as Node3D
+	return _placeholder(pr.get("aabb", []))
+
+
+## Boîte grise à la place d'un modèle illisible (taille de sa boîte englobante).
+static func _placeholder(aabb: Variant) -> Node3D:
+	var size := Vector3.ONE
+	var center := Vector3(0, 0.5, 0)
+	if aabb is Array and aabb.size() == 6:
+		var lo := Vector3(float(aabb[0]), float(aabb[1]), float(aabb[2]))
+		var hi := Vector3(float(aabb[3]), float(aabb[4]), float(aabb[5]))
+		size = (hi - lo).abs().clamp(Vector3.ONE * 0.05, Vector3.ONE * 30.0)
+		center = (lo + hi) * 0.5
+	var mi := MeshInstance3D.new()
+	mi.name = "concrete__prefab__ns"
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.position = center
+	var root := Node3D.new()
+	root.add_child(mi)
+	return root
+
+
+## Modèles chargés (hors de l'arbre) libérés avec le constructeur.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		for t in _map_scenes.values():
+			if t != null and is_instance_valid(t):
+				t.free()
+		_map_scenes.clear()
 
 
 ## Objets répétés : un MultiMesh par maillage du modèle (sans collision : les
