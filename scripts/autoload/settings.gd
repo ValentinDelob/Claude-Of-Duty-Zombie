@@ -80,6 +80,9 @@ var _probe: QualityProbe
 ## Limite d'images imposée par la ligne de commande (--max-fps, tests) : elle
 ## l'emporte sur l'option.
 var _cmdline_max_fps := 0
+## Valeur de `fullscreen` déjà appliquée à la fenêtre (null : jamais) : le mode
+## de la fenêtre n'est touché que si l'option change (voir window_mode_for).
+var _applied_fullscreen = null
 
 ## Actions -> touches par défaut (clavier AZERTY et QWERTY : on mappe par
 ## keycode physique pour que ZQSD/WASD tombe au même endroit).
@@ -509,11 +512,13 @@ func save_to(file: String) -> void:
 ## à chaque Settings.changed.
 func apply() -> void:
 	if DisplayServer.get_name() != "headless":
-		var want := DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
 		# En autotest, la fenêtre est gérée par Autotest (réduite puis hors écran).
-		if DisplayServer.window_get_mode() != want and not _cmdline_has("--windowed") \
+		if fullscreen != _applied_fullscreen and not _cmdline_has("--windowed") \
 				and not AutotestMode.is_running():
-			DisplayServer.window_set_mode(want)
+			var want := window_mode_for(fullscreen, DisplayServer.window_get_mode())
+			if want >= 0:
+				DisplayServer.window_set_mode(want)
+		_applied_fullscreen = fullscreen
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
 	# --max-fps (tests, check.sh) l'emporte sur l'option.
 	if _cmdline_max_fps == 0:
@@ -523,6 +528,17 @@ func apply() -> void:
 	_set_bus_volume("SFX", sfx_volume)
 	_set_bus_volume("Voice", voice_volume)
 	changed.emit()
+
+
+## Mode à donner à la fenêtre pour l'option plein écran, -1 : la laisser telle
+## quelle. Une fenêtre agrandie ou réduite reste ainsi quand le plein écran est
+## désactivé, et un plein écran exclusif reste plein écran.
+static func window_mode_for(want_fullscreen: bool, current: int) -> int:
+	var is_full := current == DisplayServer.WINDOW_MODE_FULLSCREEN \
+			or current == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+	if want_fullscreen == is_full:
+		return -1
+	return DisplayServer.WINDOW_MODE_FULLSCREEN if want_fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
 
 
 func _set_bus_volume(bus: String, linear: float) -> void:

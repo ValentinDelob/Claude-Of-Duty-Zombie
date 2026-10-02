@@ -314,3 +314,19 @@ func test_character_jojo_saved_and_reloaded() -> void:
 	Settings.character = CharacterDB.AUTO
 	assert_true(Settings.load_from(TMP), "fichier relu")
 	assert_eq(Settings.character, "jojo", "septième personnage relu")
+
+
+# ------------------------------------------------------------------ fenêtre
+
+func test_window_mode_untouched_unless_fullscreen_differs() -> void:
+	var DS := DisplayServer
+	# Plein écran désactivé : une fenêtre agrandie, réduite ou normale reste ainsi.
+	for m in [DS.WINDOW_MODE_WINDOWED, DS.WINDOW_MODE_MAXIMIZED, DS.WINDOW_MODE_MINIMIZED]:
+		assert_eq(Settings.window_mode_for(false, m), -1, "fenêtre laissée (mode %d)" % m)
+	assert_eq(Settings.window_mode_for(false, DS.WINDOW_MODE_FULLSCREEN), DS.WINDOW_MODE_WINDOWED)
+	assert_eq(Settings.window_mode_for(false, DS.WINDOW_MODE_EXCLUSIVE_FULLSCREEN), DS.WINDOW_MODE_WINDOWED)
+	# Plein écran activé : déjà plein écran (même exclusif), rien ne change.
+	assert_eq(Settings.window_mode_for(true, DS.WINDOW_MODE_FULLSCREEN), -1)
+	assert_eq(Settings.window_mode_for(true, DS.WINDOW_MODE_EXCLUSIVE_FULLSCREEN), -1)
+	assert_eq(Settings.window_mode_for(true, DS.WINDOW_MODE_MAXIMIZED), DS.WINDOW_MODE_FULLSCREEN)
+	assert_eq(Settings.window_mode_for(true, DS.WINDOW_MODE_WINDOWED), DS.WINDOW_MODE_FULLSCREEN)
