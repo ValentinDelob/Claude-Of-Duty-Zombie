@@ -1759,6 +1759,21 @@
     "en": "Character choice and three new survivors",
     "fr": "Choix du personnage et trois nouveaux survivants"
    }
+  },
+  "v0.2.0-snapshot.355": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [],
+   "items": [
+    {
+     "en": "The emblem (the skull in a helmet) is gone from the main menu: only the title \"Claude of Duty Zombie\" remains.",
+     "fr": "L'emblème (le crâne casqué) disparaît du menu principal : seul le titre « Claude of Duty Zombie » reste affiché."
+    }
+   ],
+   "title": {
+    "en": "Cleaner main menu",
+    "fr": "Menu principal épuré"
+   }
   }
  }
 }
