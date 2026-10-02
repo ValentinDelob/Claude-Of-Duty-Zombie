@@ -16,6 +16,9 @@ var fixed := false
 ## Touche affichée dans le coin (case fixe ; les cases de la barre montrent
 ## leur numéro).
 var key_label := ""
+## Case de la barre ancrée sous les vues (plusieurs vues) : style de la
+## maquette (fond #222326, bord fin, choisie : bord or de 2 px).
+var docked := false
 
 
 func _init(size_px := 48.0) -> void:
@@ -43,6 +46,18 @@ func set_item(id: String) -> void:
 
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
+	if docked:
+		draw_rect(r, Color("222326"))
+		MapIcons.draw(self, MapCatalog.item(item_id), r.grow(-EditorUi.px(5.0)))
+		if selected:
+			draw_rect(r.grow(-1.0), Color("F2C759"), false, 2.0)
+		else:
+			draw_rect(r.grow(-0.5), Color("3a3b40"), false, 1.0)
+		var num := str(index + 1) if index >= 0 else ""
+		if num != "":
+			var f := UiStyle.font("body")
+			draw_string(f, Vector2(EditorUi.px(2.0), EditorUi.px(10.0)), num, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), Color("dddddd"))
+		return
 	draw_rect(r, Color(0.07, 0.07, 0.08, 0.92))
 	draw_rect(r.grow(-2), Color(0.16, 0.16, 0.17, 0.95))
 	MapIcons.draw(self, MapCatalog.item(item_id), r.grow(-3))

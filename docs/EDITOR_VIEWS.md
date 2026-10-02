@@ -472,3 +472,40 @@ Hors périmètre (à proposer plus tard si besoin) :
 - demi-niveaux dans un étage ;
 - sélection multiple et sélection par rectangle (la présence l'accepte déjà) ;
 - pose d'éléments directement en élévation.
+
+## 11. Réalisation : écarts et précisions
+
+Notés au fil des étapes (à valider avec l'utilisateur).
+
+- **Étape 2 : disposition par défaut directement**. La disposition
+  provisoire « 2 côte à côte » est sautée : la revue du 03/10/2026 a fixé
+  le premier lancement à 2 vues empilées (Dessus au-dessus d'Avant), mise en
+  place dès l'étape 2 avec la bande de la barre rapide.
+- **Vue Dessus unique**. La vue Dessus (`MapCanvas`) porte les outils de
+  pose, l'aimantation et le tracé en cours : il n'y en a qu'une. Donner le
+  plan Dessus à une fenêtre (ViewCube, menu) **échange** les plans des deux
+  fenêtres. Une disposition sans vue Dessus la garde cachée (ses réglages
+  restent ceux de l'éditeur).
+- **Menu des étages** : l'en-tête n'a pas de puce « Étages ▾ » en plus ; un
+  clic sur le texte « étages : tous » (surligné au survol) ouvre le menu,
+  pour garder l'en-tête de la maquette.
+- **Zoom affiché** : 100 % = 15 px par mètre (valeurs de la maquette : 22
+  px/m → 147 %).
+- **Choix au clic en élévation** : ouvertures d'abord, puis le plus petit
+  objet sous le curseur, puis la pièce la plus proche ; exception : une
+  pièce d'un autre étage contenue dans le volume de la plus proche (la
+  passerelle dans l'entrepôt en double hauteur) est choisie à sa place. En
+  Avant, la caméra est au sud : la salle des machines (au sud) est DEVANT
+  l'atelier et l'entrepôt (la légende de l'écran 3 de la maquette dit
+  l'inverse ; le tableau du § 3.1 fait foi).
+- **Performances** (mesurées par `test_map_vertical`, carte de 50 pièces et
+  2000 objets) : dessin du contenu d'une élévation ≈ 2,2 ms (objectif 4 ms) ;
+  projection (une fois par version de la carte et par plan) ≈ 30 ms. Le
+  contenu est une couche à part, redessinée seulement quand la carte, le
+  zoom, la coupe ou l'étage changent ; un déplacement de la vue la décale ;
+  la souris ne redessine que la couche du dessus (règles, sélection,
+  survol). Deux boîtes de même rectangle à l'écran ne sont dessinées qu'une
+  fois (la plus proche).
+- **Pilier et mur libre dans une double hauteur** : ils montent jusqu'en
+  haut de l'étage du dessus (comme `MapRaster`, qui les prolonge dans la
+  trémie).

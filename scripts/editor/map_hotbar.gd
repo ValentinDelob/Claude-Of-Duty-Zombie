@@ -11,6 +11,9 @@ var slots: Array[MapSlot] = []
 var mouse_slot: MapSlot
 var _gap: Control
 var _name: Label
+## Cadre de la barre posée sur la vue ; aucun dans la bande sous les vues.
+var _sb: StyleBoxFlat
+var _sb_dock: StyleBoxEmpty
 
 
 ## Barre rapide relue (défaut, préférences, ancienne sauvegarde) : 9 cases,
@@ -29,6 +32,9 @@ func _ready() -> void:
 	sb.bg_color = Color(0.05, 0.05, 0.06, 0.8)
 	sb.set_content_margin_all(4)
 	sb.set_corner_radius_all(4)
+	_sb = sb
+	_sb_dock = StyleBoxEmpty.new()
+	_sb_dock.set_content_margin_all(4)
 	add_theme_stylebox_override("panel", sb)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 2)
@@ -71,6 +77,8 @@ func _ready() -> void:
 ## Case à 100 % ; plus petite si la barre ne tient pas dans la vue (grande
 ## taille d'interface, liste des objets ouverte).
 const SLOT := 50.0
+## Case dans la bande sous les vues (plusieurs vues), à 100 %.
+const DOCK_SLOT := 36.0
 ## Écart (px à 100 %) entre la case de la souris et la case 1.
 const GAP := 6.0
 
@@ -82,16 +90,31 @@ func _place() -> void:
 	# Largeur de la barre hors cases : 10 séparations (souris, écart, 9 cases),
 	# l'écart et les marges du cadre.
 	var extra := EditorUi.px(3.0 * 10.0 + GAP + 2.0 * 4.0)
-	var s := clampf(floorf((p.size.x - 16.0 - extra) / 10.0), 24.0, roundf(SLOT * f))
+	# Plusieurs vues : ancrée dans la bande sous les vues (cases de 36 px, sans
+	# le nom au-dessus : il est écrit à gauche de la bande).
+	var lay := p as MapViewLayout
+	var dock := lay != null and lay.docked()
+	_name.visible = not dock
+	if get_theme_stylebox("panel") != (_sb_dock if dock else _sb):
+		add_theme_stylebox_override("panel", _sb_dock if dock else _sb)
+	var s := clampf(floorf((p.size.x - 16.0 - extra) / 10.0), 24.0, roundf((DOCK_SLOT if dock else SLOT) * f))
 	var all := slots.duplicate()
 	all.append(mouse_slot)
 	for slot in all:
 		if slot.custom_minimum_size.x != s:
 			slot.custom_minimum_size = Vector2(s, s)
+		if slot.docked != dock:
+			slot.docked = dock
+			slot.queue_redraw()
 	var want := get_combined_minimum_size()
 	if size != want:
 		size = want
-	position = Vector2((p.size.x - size.x) * 0.5, p.size.y - size.y - EditorUi.px(8.0))
+	if dock:
+		var dr := lay.dock_rect()
+		position = Vector2((p.size.x - size.x) * 0.5, dr.position.y + (dr.size.y - size.y) * 0.5)
+		lay.dock_redraw()
+	else:
+		position = Vector2((p.size.x - size.x) * 0.5, p.size.y - size.y - EditorUi.px(8.0))
 
 
 ## Taille de l'interface changée (MapEditor.apply_ui_scale).

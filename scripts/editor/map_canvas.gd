@@ -16,12 +16,7 @@ const COL_WALL := Color(0.62, 0.62, 0.66)
 const COL_VOID := Color(0.1, 0.16, 0.3, 0.55)
 const COL_OK := Color(0.25, 0.95, 0.35)
 const COL_BAD := Color(1.0, 0.25, 0.2)
-const COL_SEL := Color(1.0, 0.85, 0.3)
 
-var _pan := false
-@warning_ignore("unused_private_class_variable")
-var _pan_from := Vector2.ZERO
-var _space := false
 ## Opération de glissement en cours : {kind, start, ...}.
 var drag: Dictionary = {}
 ## Points du polygone en cours de tracé.
@@ -398,6 +393,24 @@ static func rect45_poly(a: Vector2, b: Vector2) -> PackedVector2Array:
 	return PackedVector2Array([a, a + Vector2(s, s), b, a + Vector2(t, -t)])
 
 
+## En-tête de la vue Dessus : l'étage affiché.
+func header_sub() -> String:
+	return Lang.t("Étage %d", "Floor %d") % ed.floor_k
+
+
+## Puces : les coupes des élévations (traits pointillés de cette vue), le zoom.
+func header_chips() -> Array:
+	var out := []
+	var cuts: Array = ed.views.cuts() if ed.views != null else []
+	if cuts.is_empty():
+		out.append({"id": "cuts", "text": Lang.t("Coupes : aucune", "Cuts: none")})
+	else:
+		var c: MapElevation = cuts[0]
+		out.append({"id": "cuts", "text": Lang.t("Coupe %s : %s", "%s cut: %s") % [MapView.plane_name(c.plane), c.cut_text()], "hl": true})
+	out.append_array(super())
+	return out
+
+
 ## Cadre toute la carte de l'étage dans la vue.
 func frame_all() -> void:
 	var bb := Rect2()
@@ -473,13 +486,6 @@ func _gui_input(event: InputEvent) -> void:
 				_release()
 			accept_event()
 			queue_redraw()
-
-
-## Espace maintenu (déplacement de la vue) ; appelé par l'éditeur.
-func set_space(on: bool) -> void:
-	_space = on
-	if not on:
-		_pan = false
 
 
 ## Annule le tracé ou le glissement en cours.
@@ -941,12 +947,39 @@ func _draw() -> void:
 		for c in highlight:
 			var cp := to_px(MapGeom.cell_center(c))
 			draw_rect(Rect2(cp - Vector2.ONE * zoom * 0.25, Vector2.ONE * zoom * 0.5).grow(1.0), Color(1, 0.2, 0.2, 0.9), false, 2.0)
+	_draw_cuts(font)
 	_draw_tool(font)
 	# Aperçu 3D : repère de sa caméra (MapPreviewPanel).
 	if ed.preview != null:
 		ed.preview.draw_on_canvas(self)
 	_draw_peers(font, k)
 	_draw_rulers(font)
+	_draw_triad(font)
+
+
+## Coupes des élévations (docs/EDITOR_VIEWS.md, § 3.2) : tranche teintée,
+## deux traits pointillés or et le nom de l'élévation.
+func _draw_cuts(font: Font) -> void:
+	if ed.views == null:
+		return
+	var col := Color("D99940")
+	for ev: MapElevation in ed.views.cuts():
+		var c0 := float(ev.coupe[0])
+		var c1 := float(ev.coupe[1])
+		var across := String(MapView.depth_axis(ev.plane)[0]) == "Y"
+		var a := to_px(Vector2(0, c0) if across else Vector2(c0, 0))
+		var b := to_px(Vector2(0, c1) if across else Vector2(c1, 0))
+		var lbl := Lang.t("coupe %s", "%s cut") % MapView.plane_name(ev.plane)
+		if across:
+			draw_rect(Rect2(_ruler(), a.y, size.x - _ruler(), b.y - a.y), Color(col, 0.07))
+			for y in [a.y, b.y]:
+				draw_dashed_line(Vector2(_ruler(), y), Vector2(size.x, y), Color(col, 0.8), 1.2, _u(6))
+			draw_string(font, Vector2(_ruler() + _u(4), a.y + _u(13)), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), Color("e8b46a"))
+		else:
+			draw_rect(Rect2(a.x, _ruler(), b.x - a.x, size.y - _ruler()), Color(col, 0.07))
+			for x in [a.x, b.x]:
+				draw_dashed_line(Vector2(x, _ruler()), Vector2(x, size.y), Color(col, 0.8), 1.2, _u(6))
+			draw_string(font, Vector2(a.x + _u(4), _ruler() + _u(12)), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), Color("e8b46a"))
 
 
 ## Rendu de la collaboration par-dessus le plan (CollabView) : aperçus en
@@ -1070,9 +1103,7 @@ func _draw_rulers(font: Font) -> void:
 	if offscreen:
 		return
 	# Position du curseur sur les règles.
-	var cp := to_px(mouse_m)
-	draw_line(Vector2(cp.x, 0), Vector2(cp.x, _ruler()), COL_SEL, 1.0)
-	draw_line(Vector2(0, cp.y), Vector2(_ruler(), cp.y), COL_SEL, 1.0)
+	_draw_ruler_cursor(mouse_m)
 
 
 func _draw_cells(k: int) -> void:

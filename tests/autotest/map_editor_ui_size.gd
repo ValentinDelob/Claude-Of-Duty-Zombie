@@ -5,7 +5,8 @@ extends AutotestScenario
 ## (défaut), 60 % et 150 % : barre du haut dans la largeur (sur deux lignes
 ## au besoin) sans contrôles qui se chevauchent, liste, plan et panneaux côte
 ## à côte dans la fenêtre, barre rapide, inventaire et aide « ? » dans la vue
-## ou la fenêtre ; pastilles des participants de la collaboration dans la
+## ou la fenêtre (barre rapide dans sa bande sous les vues : deux vues par
+## défaut) ; pastilles des participants de la collaboration dans la
 ## barre ; polices et panneaux à la bonne taille ; le zoom du plan ne
 ## change pas et le plan ne bouge pas à l'écran. Puis le bouton ⚙ : options
 ## ouvertes sur la taille de l'interface, ► l'agrandit en direct derrière le
@@ -67,7 +68,8 @@ func run() -> void:
 		# Inventaire et aide « ? » dans la vue / la fenêtre.
 		ed.toggle_inventory()
 		await frames(3)
-		at.check(_inside(ed.inventory.get_global_rect(), cv.get_global_rect()), "%s %% : inventaire dans la vue %s / %s" % [tag, ed.inventory.get_global_rect(), cv.get_global_rect()])
+		# Inventaire au-dessus de la zone des vues (docs/EDITOR_VIEWS.md, § 5).
+		at.check(_inside(ed.inventory.get_global_rect(), ed.views.get_global_rect()), "%s %% : inventaire dans la zone des vues %s / %s" % [tag, ed.inventory.get_global_rect(), ed.views.get_global_rect()])
 		if f > 1.0:
 			await at.screenshot("inventaire_" + tag)
 		ed.toggle_inventory()
@@ -154,7 +156,12 @@ func _check_layout(tag: String) -> void:
 	at.check(lr.end.x <= cr.position.x + 0.5 and cr.end.x <= pr.position.x + 0.5 and pr.end.x <= vp.end.x + 0.5 and cr.size.x > 150.0,
 		"%s %% : liste | plan | panneaux côte à côte (%d, %d, %d px)" % [tag, roundi(lr.size.x), roundi(cr.size.x), roundi(pr.size.x)])
 	at.check(pr.end.y <= vp.end.y + 0.5 and lr.end.y <= vp.end.y + 0.5, "%s %% : panneaux dans la hauteur" % tag)
-	at.check(_inside(ed.hotbar_ui.get_global_rect(), cr), "%s %% : barre rapide dans la vue (%s)" % [tag, ed.hotbar_ui.get_global_rect()])
+	# Barre rapide dans la zone des vues (ancrée sous les vues dès qu'il y en a deux).
+	var vr := ed.views.get_global_rect()
+	at.check(_inside(ed.hotbar_ui.get_global_rect(), vr), "%s %% : barre rapide dans la zone des vues (%s)" % [tag, ed.hotbar_ui.get_global_rect()])
+	if ed.views.docked():
+		at.check(_inside(ed.hotbar_ui.get_global_rect(), Rect2(ed.views.global_position + ed.views.dock_rect().position, ed.views.dock_rect().size)),
+			"%s %% : barre rapide dans sa bande sous les vues" % tag)
 	at.check(bar.get_global_rect().end.y <= cr.position.y + 0.5, "%s %% : la barre du haut ne recouvre pas le plan" % tag)
 
 

@@ -49,32 +49,19 @@ func wx(px: float) -> float:
 	return _r(MapValidator.ORIGIN + px * S)
 
 
+## Haut de l'étage, plafond réel d'une case, haut des murs : MapVertical
+## (partagé avec les élévations de l'éditeur).
 func top(k: int) -> float:
-	return md.floors[k + 1].sol - MapValidator.DALLE if k < n_floors - 1 else md.floors[k].plafond
+	return MapVertical.top(md, k)
 
 
 ## Plafond au-dessus d'une case : [hauteur, plafond dessiné (sinon : dessous de dalle)].
 func ceil_at(k: int, c: Vector2i) -> Array:
-	var own := md.floors[k].ceil_at(c)
-	if k == n_floors - 1:
-		return [own if own > 0.0 else top(k), true]
-	var above := md.floors[k + 1].at(c)
-	if above == Kd.TREMIE:
-		return ceil_at(k + 1, c)
-	if above == Kd.VIDE:
-		return [own if own > 0.0 else top(k), true]
-	return [md.floors[k + 1].sol - MapValidator.DALLE, false]
+	return MapVertical.ceil_at(md, k, c)
 
 
 func wall_top(k: int, c: Vector2i) -> float:
-	if k < n_floors - 1:
-		var above := md.floors[k + 1].at(c)
-		if above == Kd.TREMIE:
-			return wall_top(k + 1, c)
-		if above != Kd.VIDE:
-			return top(k)
-	var own := md.floors[k].ceil_at(c)
-	return own if own > 0.0 else top(k)
+	return MapVertical.wall_top(md, k, c)
 
 
 func _wall_mat(f: MapValidator.Floor, c: Vector2i) -> String:
@@ -369,14 +356,7 @@ static func _xz(m: Vector2) -> Array:
 ## Plafond d'une case pour une pièce de plafond `own` (m) : comme ceil_at, mais
 ## avec le plafond de CETTE pièce (un mur mitoyen porte le plus haut des deux).
 func _ceil_room(k: int, c: Vector2i, own: float) -> Array:
-	if k == n_floors - 1:
-		return [own, true]
-	var above := md.floors[k + 1].at(c)
-	if above == Kd.TREMIE:
-		return ceil_at(k + 1, c)
-	if above == Kd.VIDE:
-		return [own, true]
-	return [md.floors[k + 1].sol - MapValidator.DALLE, false]
+	return MapVertical.ceil_room(md, k, c, own)
 
 
 ## Salle (sol, plafond) d'un morceau de contour `outline` ([[x, z]...], monde).

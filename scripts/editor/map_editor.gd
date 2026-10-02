@@ -79,6 +79,13 @@ var validator: MapValidator
 var validation_stale := true
 var _raster: MapRaster
 var _raster_dirty := true
+## Version de la carte : augmente à chaque modification (caches des vues :
+## boîtes des élévations, MapElevation).
+var doc_version := 0
+## Ce que montrent les vues a changé (coupe, étages, plan) : elles se redessinent.
+var views_stamp := 0
+var _elev_items: Array = []
+var _elev_ver := -1
 var _autosave_t := 0.0
 var _validate_t := -1.0
 
@@ -341,8 +348,9 @@ func _build_ui() -> void:
 	views.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mid.add_child(views)
 	canvas = MapCanvas.new()
+	canvas.name = "Canvas"
 	canvas.ed = self
-	views.add_view(canvas)
+	views.setup(MapViewLayout.DEFAULT)
 	panels = MapPanels.new()
 	panels.ed = self
 	# Largeur à l'échelle, bornée pour laisser la place au plan (side_width).
@@ -487,6 +495,8 @@ func apply_ui_scale() -> void:
 	if hotbar_ui != null:
 		hotbar_ui.queue_redraw_slots()
 		hotbar_ui.ui_scale_changed()
+	if views != null:
+		views.ui_scale_changed()
 	if object_list != null:
 		object_list.ui_scale_changed()
 	if inventory != null:
@@ -570,7 +580,7 @@ func open_options() -> void:
 	if options_open():
 		return
 	canvas.cancel()
-	canvas.set_space(false)
+	views.set_space(false)
 	options = EditorOptions.open_in(self)
 	options.closed.connect(func(): options = null)
 
@@ -583,6 +593,45 @@ func set_status(text: String, error := false) -> void:
 	status.text = text
 	_status_error = error
 	status.add_theme_color_override("font_color", Color(1, 0.55, 0.45) if error else Color(0.8, 0.8, 0.75))
+
+
+## Curseur sur une élévation (`m` : coordonnées de l'écran, m) : les deux
+## axes qu'elle montre, l'altitude au-dessus du sol de l'étage courant.
+func show_cursor_view(v: MapView, m: Vector2) -> void:
+	if v == canvas or not MapView.is_elevation(v.plane):
+		show_cursor(m if v == canvas else Vector2(-m.x, m.y))
+		return
+	var fr := not Lang.is_en()
+	var p := MapView.point_of(v.plane, m, 0.0)
+	var axis := String(MapView.h_axis(v.plane)[0])
+	var h := p.x if axis == "X" else p.y
+	cursor_label.text = "%s %s m · z %s m · %s %d" % [axis.to_lower(), MapRules._m(snappedf(h, 0.01), fr), MapRules._m(snappedf(p.z - doc.floor_sol(floor_k), 0.01), fr), Lang.t("étage", "floor"), floor_k]
+
+
+## K : coupe autour de la sélection dans l'élévation active (dans toutes les
+## élévations si la vue active n'en est pas une) ; de nouveau K : enlevée.
+func toggle_cut() -> void:
+	var av := views.active_view()
+	var targets: Array = [av] if av is MapElevation else views.elevations()
+	if targets.is_empty():
+		set_status(Lang.t("Coupe : aucune élévation affichée", "Cut: no elevation shown"))
+		return
+	var on := targets.any(func(e): return (e as MapElevation).coupe_mode == "selection")
+	for e in targets:
+		if on:
+			(e as MapElevation).set_cut([], "aucune")
+		else:
+			(e as MapElevation).cut_around_selection()
+	if on:
+		set_status(Lang.t("Coupe enlevée", "Cut removed"))
+
+
+## Boîtes des élévations (MapElevationItems), une fois par version de la carte.
+func elevation_items() -> Array:
+	if _elev_ver != doc_version:
+		_elev_ver = doc_version
+		_elev_items = MapElevationItems.build(doc, raster().v)
+	return _elev_items
 
 
 func show_cursor(m: Vector2) -> void:
@@ -638,6 +687,8 @@ func send_live(eid: String, now_ms := -1) -> bool:
 func snap_changed() -> void:
 	if snap_button != null and canvas != null:
 		snap_button.text = Lang.t("Aimantation : %s", "Snapping: %s") % MapSnap.label(canvas.snap_mode, canvas.fine_step)
+	if views != null:
+		views.dock_redraw()
 
 
 func _update_title() -> void:
@@ -712,7 +763,7 @@ func _input(event: InputEvent) -> void:
 		return
 	var k := event as InputEventKey
 	if k.keycode == KEY_SPACE and not _typing():
-		canvas.set_space(k.pressed)
+		views.set_space(k.pressed)
 		get_viewport().set_input_as_handled()
 		return
 	if not k.pressed:
@@ -813,7 +864,9 @@ func _input(event: InputEvent) -> void:
 			KEY_PAGEDOWN:
 				set_floor(floor_k + 1)
 			KEY_HOME:
-				canvas.frame_all()
+				views.frame_all()
+			KEY_K:
+				toggle_cut()
 			KEY_EQUAL, KEY_KP_ADD, KEY_PLUS:
 				canvas.zoom_by(1.25)
 			KEY_MINUS, KEY_KP_SUBTRACT:
@@ -858,6 +911,7 @@ func select_slot(i: int) -> void:
 	set_status("%s — %s" % [MapCatalog.name_of(it), Lang.t(String(it.get("hint_fr", "")), String(it.get("hint_en", "")))])
 	hotbar_ui.queue_redraw_slots()
 	canvas.queue_redraw()
+	views.dock_redraw()
 
 
 ## Souris en main (case fixe à gauche de la barre).
@@ -965,6 +1019,7 @@ func changed(rebuild_panels := true) -> void:
 
 
 func _refresh(rebuild_panels := true) -> void:
+	doc_version += 1
 	dirty = true
 	_hit_dirty = true
 	_raster_dirty = true
@@ -984,6 +1039,7 @@ func _refresh(rebuild_panels := true) -> void:
 
 ## Modification en direct (glissement) : dessin seulement.
 func moved_live() -> void:
+	doc_version += 1
 	dirty = true
 	_hit_dirty = true
 	_raster_dirty = true
@@ -1148,6 +1204,7 @@ func _on_map_replaced() -> void:
 		example = false
 	if doc.find(selected).is_empty():
 		selected = ""
+	doc_version += 1
 	_hit_dirty = true
 	_raster_dirty = true
 	validation_stale = true
@@ -1807,12 +1864,13 @@ func _reset(d: EditorMap) -> void:
 	_doc_shown()
 	dirty = false
 	_update_title()
-	canvas.frame_all.call_deferred()
+	views.frame_all.call_deferred()
 
 
 ## Nouvelle carte affichée (ouverte, ou reprise au retour d'un test) :
 ## sélection, vérification, panneaux remis à zéro.
 func _doc_shown() -> void:
+	doc_version += 1
 	_hit_dirty = true
 	_before = {}
 	if collab_view != null:
@@ -2326,7 +2384,7 @@ func _on_edit_menu(id: int) -> void:
 		6:
 			toggle_inventory()
 		7:
-			canvas.frame_all()
+			views.frame_all()
 		8:
 			cycle_variant()
 
