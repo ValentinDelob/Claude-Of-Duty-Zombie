@@ -172,6 +172,19 @@ func teammates(pid: int) -> Array[int]:
 	return out
 
 
+## Taquineries possibles de `pid` envers ses coéquipiers en vie : une par
+## personnage différent du sien (deux joueurs peuvent avoir choisi le même)
+## pour lequel il a des répliques (personnage sans fichier : aucune).
+func tease_categories(pid: int) -> Array[String]:
+	var me := CharacterDB.id_of(pid)
+	var out: Array[String] = []
+	for id in teammates(pid):
+		var cat := "tease_" + CharacterDB.id_of(id)
+		if CharacterDB.id_of(id) != me and not cat in out and CharacterDB.variants(me, cat) > 0:
+			out.append(cat)
+	return out
+
+
 func _draw(ch: String, category: String, n: int) -> int:
 	var key := ch + ":" + category
 	var bag: Array = _bags.get(key, [])
@@ -272,9 +285,9 @@ func _on_round_started(n: int) -> void:
 		return
 	if game.rounds.dogs and game.rounds.dogs.cl_active:
 		return  # la manche des chiens a sa propre réplique
-	var others := teammates(pid)
-	if not others.is_empty() and randf() < 0.35:
-		later(2.5, pid, "tease_" + CharacterDB.id_of(others.pick_random()))
+	var teases := tease_categories(pid)
+	if not teases.is_empty() and randf() < 0.35:
+		later(2.5, pid, teases.pick_random())
 	else:
 		later(2.5, pid, "round_start", 0.7)
 

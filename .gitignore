@@ -38,6 +38,8 @@ desktop.ini
 # Synthèse vocale (environnement Python, moteurs et modèles téléchargés, voir docs/ASSETS.md)
 tools/piper/
 tools/tts/
+# Essais de voix (WAV volumineux et mesures, docs/ASSETS.md) : locaux
+tools/voices/bakeoff/
 
 # Cartes dessinées : rapports et aperçus régénérés par tools/maps/build_map.sh
 assets/maps/*/dessin/rapport_etage*.png

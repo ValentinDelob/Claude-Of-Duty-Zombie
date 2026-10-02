@@ -1,5 +1,5 @@
 {
- "note": "Voix des personnages (tools/voices/make_voices.py). kokoro = voix de référence synthétique (Kokoro-82M, Apache 2.0) ; ref_semitones = décalage de hauteur de la référence (identité plus grave ou plus aiguë) ; exaggeration, cfg, temperature = réglages de Chatterbox Multilingual (MIT) : expressivité, fidélité au texte, variété ; ref = phrase dite par la voix de référence.",
+ "note": "Voix des personnages (tools/voices/make_voices.py). kokoro = voix de référence synthétique (Kokoro-82M, Apache 2.0) ; ref_semitones = décalage de hauteur de la référence (identité plus grave ou plus aiguë) ; exaggeration, cfg, temperature = réglages de Chatterbox Multilingual (MIT) : expressivité, fidélité au texte, variété ; ref = phrase dite par la voix de référence. engine = moteur (défaut chatterbox) ; qwen_clone = clonage Qwen3-TTS 1.7B-Base (Apache 2.0) d'une référence par langue (ref_fr/ref_en, WAV 24 kHz, et leurs transcriptions exactes ref_text_fr/ref_text_en), échantillonnage temperature/top_k/repetition_penalty, lots de batch prises et batch_chars caractères au plus, takes prises par réplique (la plus éraillée parmi celles validées est gardée), tries essais au plus par réplique ratée au contrôle Whisper, ogg_compression = niveau de compression Ogg Vorbis 0 (meilleur) à 1 (tools/voices/qwen_clone.py). pending_audio = voix pas encore générées : tests/test_vox.gd n'exige pas ses fichiers (à retirer une fois les voix générées).",
  "characters": {
   "callahan": {
    "kokoro": "am_fenrir", "ref_semitones": 0.0, "exaggeration": 0.65, "cfg": 0.45, "temperature": 0.8,
@@ -16,6 +16,24 @@
   "weissmann": {
    "kokoro": "bm_fable", "ref_semitones": 1.0, "exaggeration": 0.85, "cfg": 0.4, "temperature": 0.85,
    "ref": "Marvelous! Simply marvelous! Do you see how they twitch? My machines are awake, my children are hungry, and the experiment has only just begun!"
+  },
+  "mercer": {
+   "engine": "qwen_clone",
+   "ref_fr": "tools/voices/refs/mercer_fr.wav", "ref_text_fr": "Pas assez de fric... Il me faut plus d'argent, bon sang !",
+   "ref_en": "tools/voices/refs/mercer_en.wav", "ref_text_en": "Not enough cash... I need more money, dammit!",
+   "temperature": 0.9, "top_k": 50, "repetition_penalty": 1.05, "batch": 8, "batch_chars": 260, "tries": 4, "takes": 4, "ogg_compression": 0.2
+  },
+  "berg": {
+   "engine": "qwen_clone",
+   "ref_fr": "tools/voices/refs/berg_fr.wav", "ref_text_fr": "Pff... plus un rond. Quelqu'un veut bien jouer les gentlemen ?",
+   "ref_en": "tools/voices/refs/berg_en.wav", "ref_text_en": "Ugh... totally broke. Any gentlemen wanna help a girl out?",
+   "temperature": 0.9, "top_k": 50, "repetition_penalty": 1.05, "batch": 8, "batch_chars": 260, "tries": 4, "takes": 4, "ogg_compression": 0.2
+  },
+  "jojo": {
+   "engine": "qwen_clone",
+   "ref_fr": "tools/voices/refs/jojo_fr.wav", "ref_text_fr": "Wesh, écoute-moi bien, sale merde. Tu touches à mon fric, j'te démonte la gueule, sur la vie de ma mère.",
+   "ref_en": "tools/voices/refs/jojo_en.wav", "ref_text_en": "Yo, listen up good, you piece of shit. You touch my money, I'll smash your face in, swear on my mother.",
+   "temperature": 0.9, "top_k": 50, "repetition_penalty": 1.05, "batch": 4, "batch_chars": 200, "tries": 4, "takes": 4, "ogg_compression": 0.2
   }
  }
 }

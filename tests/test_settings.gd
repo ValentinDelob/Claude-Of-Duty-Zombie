@@ -6,7 +6,7 @@ extends TestCase
 
 const TMP := "user://settings_unittest.cfg"
 const SAVED_KEYS := ["bindings", "render_scale", "max_fps", "brightness", "ads_sensitivity",
-	"mouse_sensitivity", "invert_y", "language", "fov", "film_grain", "quality", "editor_ui_scale"]
+	"mouse_sensitivity", "invert_y", "language", "fov", "film_grain", "quality", "editor_ui_scale", "character"]
 
 var _saved := {}
 
@@ -265,3 +265,52 @@ func test_render_scale_multiplies_preset() -> void:
 	Settings.render_scale = 0.5
 	assert_near(RenderQuality.scale_3d(RenderQuality.preset(Settings.Quality.MEDIUM)), 0.5)
 	assert_near(RenderQuality.scale_3d(RenderQuality.preset(Settings.Quality.LOW)), 0.425)
+
+
+# ------------------------------------------------------------------ personnage
+
+func test_character_default_saved_and_reloaded() -> void:
+	var fresh: Node = (Settings.get_script() as GDScript).new()
+	assert_eq(fresh.character, CharacterDB.AUTO, "par défaut : automatique")
+	fresh.free()
+	Settings.character = "mercer"
+	Settings.save_to(TMP)
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(TMP), OK)
+	assert_eq(cfg.get_value("player", "character"), "mercer", "choix dans settings.cfg")
+	Settings.character = CharacterDB.AUTO
+	assert_true(Settings.load_from(TMP), "fichier relu")
+	assert_eq(Settings.character, "mercer", "choix relu")
+
+
+func test_character_invalid_file_values_become_auto() -> void:
+	for bad in ["zorg", "", "../mercer", 42, ["orlov"], "MERCER"]:
+		var cfg := ConfigFile.new()
+		cfg.set_value("player", "character", bad)
+		cfg.save(TMP)
+		Settings.character = "orlov"
+		assert_true(Settings.load_from(TMP))
+		assert_eq(Settings.character, CharacterDB.AUTO, "valeur refusée : %s" % str(bad))
+	# Fichier d'une version précédente, sans la clé : automatique.
+	var old := ConfigFile.new()
+	old.set_value("video", "fov", 80.0)
+	old.save(TMP)
+	Settings.character = CharacterDB.AUTO
+	assert_true(Settings.load_from(TMP))
+	assert_eq(Settings.character, CharacterDB.AUTO)
+
+
+func test_character_berg_saved_and_reloaded() -> void:
+	Settings.character = "berg"
+	Settings.save_to(TMP)
+	Settings.character = CharacterDB.AUTO
+	assert_true(Settings.load_from(TMP), "fichier relu")
+	assert_eq(Settings.character, "berg", "sixième personnage relu")
+
+
+func test_character_jojo_saved_and_reloaded() -> void:
+	Settings.character = "jojo"
+	Settings.save_to(TMP)
+	Settings.character = CharacterDB.AUTO
+	assert_true(Settings.load_from(TMP), "fichier relu")
+	assert_eq(Settings.character, "jojo", "septième personnage relu")

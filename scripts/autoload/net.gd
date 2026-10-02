@@ -57,6 +57,7 @@ func _ready() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	Settings.changed.connect(send_character)
 	_connect_timer = Timer.new()
 	_connect_timer.one_shot = true
 	_connect_timer.timeout.connect(_on_connect_timeout)
@@ -148,10 +149,13 @@ var loaded_peers: Dictionary = {}
 
 ## Carte de la partie en cours (choisie par le serveur).
 var current_map := ""
-## Rotation des personnages de la partie (CharacterDB) : tirée par l'hôte au
-## lancement, comme le tirage des personnages de BO1 ; 0 pendant les tests
-## automatiques (emplacement 0 = Callahan, reproductible).
-var cast_offset := 0
+## Personnages de la partie en cours : pid -> index dans CharacterDB.IDS.
+## Calculé par l'hôte au lancement (CharacterDB.resolve_cast : choix de chaque
+## joueur, rotation tirée pour les « automatique », 0 pendant les tests
+## automatiques : emplacement 0 = Callahan) et reçu avec l'ordre de chargement.
+var cast: Dictionary = {}
+## Client : dernier choix de personnage envoyé à l'hôte (voir send_character).
+var _sent_character := ""
 
 
 ## Carte choisie par l'hôte dans le salon (affichée aux clients).
@@ -217,12 +221,21 @@ func start_match(map_id: String) -> bool:
 		return false
 	match_started = true
 	loaded_peers.clear()
-	_cl_load_game.rpc(map_id, 0 if Autotest.active else randi() % CharacterDB.IDS.size())
+	_cl_load_game.rpc(map_id, srv_resolve_cast(0 if Autotest.active else randi() % CharacterDB.IDS.size()))
 	return true
 
 
+## Serveur : distribution des personnages de la partie qui se lance (choix
+## de l'hôte lu dans ses réglages, ceux des invités reçus par
+## _srv_set_character).
+func srv_resolve_cast(rotation: int) -> Dictionary:
+	if players.has(1):
+		players[1]["char"] = CharacterDB.clean_choice(Settings.character)
+	return CharacterDB.resolve_cast(players, rotation)
+
+
 @rpc("authority", "call_local", "reliable")
-func _cl_load_game(map_id: Variant, cast: Variant = 0) -> void:
+func _cl_load_game(map_id: Variant, new_cast: Variant = {}) -> void:
 	# Carte inconnue, identifiant invalide, carte partagée absente ou refusée
 	# ici : on ne charge jamais autre chose (la partie serait désynchronisée).
 	if not can_load_map(map_id):
@@ -234,7 +247,7 @@ func _cl_load_game(map_id: Variant, cast: Variant = 0) -> void:
 		return
 	match_started = true
 	current_map = map_id
-	cast_offset = posmod(int(cast), CharacterDB.IDS.size()) if (cast is int or cast is float) else 0
+	cast = CharacterDB.clean_cast(new_cast)
 	GameState.set_state(GameState.State.LOADING)
 	get_tree().change_scene_to_file(GAME_SCENE)
 
@@ -360,6 +373,37 @@ func _on_connected_to_server() -> void:
 	# Connexion ENet établie : on se présente au serveur, qui peut encore refuser.
 	print("[Net] connecté au transport, envoi du hello")
 	_srv_hello.rpc_id(1, _pending_name, PROTOCOL_VERSION, build_version())
+	# Choix de personnage dans un message à part, juste après (même canal
+	# fiable : il arrive après le bonjour). Le bonjour garde sa forme pour
+	# qu'un hôte d'une autre version puisse toujours répondre « version
+	# différente ».
+	_sent_character = CharacterDB.clean_choice(Settings.character)
+	_srv_set_character.rpc_id(1, _sent_character)
+
+
+## Client : renvoie son choix de personnage à l'hôte s'il a changé depuis le
+## dernier envoi (OPTIONS > JEU, au salon ou en partie : pris en compte au
+## prochain lancement). Appelé à chaque Settings.changed.
+func send_character() -> void:
+	if mode != Mode.CLIENT or not _handshake_done:
+		return
+	var c := CharacterDB.clean_choice(Settings.character)
+	if c != _sent_character:
+		_sent_character = c
+		_srv_set_character.rpc_id(1, c)
+
+
+## Serveur : choix de personnage d'un joueur accepté (identifiant inconnu ou
+## valeur d'un autre type : « auto »). Nom choisi pour être trié APRÈS les
+## RPC existants de Net : les numéros des RPC (ordre alphabétique) d'avant
+## restent les mêmes, le bonjour d'une autre version est toujours compris.
+@rpc("any_peer", "reliable")
+func _srv_set_character(choice: Variant) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if players.has(sender):
+		players[sender]["char"] = CharacterDB.clean_choice(choice)
 
 
 @rpc("any_peer", "reliable")
@@ -393,7 +437,8 @@ func _srv_hello(wanted_name: Variant, version: Variant, build_v: Variant) -> voi
 			if multiplayer.multiplayer_peer is ENetMultiplayerPeer and sender in multiplayer.get_peers():
 				(multiplayer.multiplayer_peer as ENetMultiplayerPeer).disconnect_peer(sender))
 		return
-	players[sender] = {"name": _unique_name(_clean_name(wanted_name)), "slot": _free_slot()}
+	players[sender] = {"name": _unique_name(_clean_name(wanted_name)), "slot": _free_slot(),
+		"char": CharacterDB.AUTO}  # choix envoyé juste après : _srv_set_character
 	print("[Net] %s a rejoint (peer %d)" % [players[sender].name, sender])
 	_cl_welcome.rpc_id(sender, max_players)
 	_cl_players.rpc(players)

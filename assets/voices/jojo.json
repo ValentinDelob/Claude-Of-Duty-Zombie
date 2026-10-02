@@ -1,0 +1,404 @@
+{
+  "character": "jojo",
+  "lines": {
+    "kill_headshot": [
+      {"fr": "Pan, dans la tronche ! T'as vu ça, bouffon ?", "en": "Bang, right in the face! You see that, clown?"},
+      {"fr": "En pleine tête. Ça, c'était moi, hein. Pas les autres.", "en": "Right in the head. That was me, yeah? Not them."},
+      {"fr": "Ta gueule, toi. Ah bah t'en as plus, de gueule.", "en": "Shut your face. Oh right, you ain't got one no more."},
+      {"fr": "Boum, la cervelle au plafond ! Sale merde.", "en": "Boom, brains on the ceiling! Piece of shit."},
+      {"fr": "Dans le mille ! J'ai même pas visé, sur la vie de ma mère.", "en": "Bullseye! And I didn't even aim, swear on my mother."},
+      {"fr": "Y avait rien dedans de toute façon, tête de con.", "en": "Nothin' in there anyway, you dumb fuck."}
+    ],
+    "kill_melee": [
+      {"fr": "Tiens, prends ça dans ta gueule !", "en": "Here, take that in the face!"},
+      {"fr": "Le couteau, c'est gratuit. Comme tout ce que je prends.", "en": "Knife's free. Like everythin' I take."},
+      {"fr": "Viens là que je te fasse les poches. Rien ? Enculé.", "en": "C'mere, lemme check your pockets. Nothin'? Asshole."},
+      {"fr": "Mange tes morts ! Mange-les, j'te dis !", "en": "Eat shit! Eat it, I said!"},
+      {"fr": "Fallait pas me chercher, sale merde !", "en": "Shouldn't have messed with me, you piece of shit!"}
+    ],
+    "kill_bowie": [
+      {"fr": "Ce surin, je l'ai payé, pour une fois. Alors il bosse !", "en": "Paid for this blade, for once. So it better work!"},
+      {"fr": "Vlan ! Le grand couteau, ça calme tout le monde.", "en": "Wham! The big knife calms everybody down."}
+    ],
+    "kill_explosive": [
+      {"fr": "Boum ! Des morceaux partout, putain, j'adore !", "en": "Boom! Bits everywhere, fuck yeah, I love it!"},
+      {"fr": "Tout le paquet d'un coup ! Ça, c'est du gros business !", "en": "The whole bunch at once! Now that's big business!"},
+      {"fr": "Vous avez vu ? Tous d'un coup. Applaudissez, bande de bouffons !", "en": "See that? All at once. Clap, you clowns!"}
+    ],
+    "kill_streak": [
+      {"fr": "Allez, venez ! Venez tous, j'vous nique tous !", "en": "C'mon! Come on, all of you, I'll fuck you all up!"},
+      {"fr": "Je les vends à la douzaine, ceux-là !", "en": "I'm sellin' these by the dozen!"},
+      {"fr": "Suivant ! Faites la queue, bande de sales merdes !", "en": "Next! Get in line, you pieces of shit!"},
+      {"fr": "Tous les miens, ceux-là. Ceux d'avant aussi, d'ailleurs.", "en": "All mine, those. The ones before too, by the way."},
+      {"fr": "C'est qui le patron ? C'est Jojo, le patron !", "en": "Who's the boss? Jojo's the boss!"}
+    ],
+    "kill_close": [
+      {"fr": "Recule, tu pues de la gueule !", "en": "Back off, your breath stinks!"},
+      {"fr": "Pas si près, frère, je fais pas crédit !", "en": "Not so close, bro, I don't do credit!"},
+      {"fr": "Dans ta face, enculé !", "en": "In your face, asshole!"}
+    ],
+    "crawler_made": [
+      {"fr": "Plus de jambes ! Allez, rampe, comme un cafard.", "en": "No more legs! Go on, crawl, like a roach."},
+      {"fr": "Tes pompes, je te les prends. T'en as plus besoin.", "en": "I'll take your shoes. You won't need 'em."},
+      {"fr": "Rampe, sale merde ! Rampe à mes pieds !", "en": "Crawl, you piece of shit! Crawl at my feet!"}
+    ],
+    "kill_dog": [
+      {"fr": "Couché, le clebs ! Pour de bon.", "en": "Down, mutt! For good."},
+      {"fr": "Sale cabot ! Je te vends au boucher, toi.", "en": "Filthy mutt! I'm sellin' you to the butcher."},
+      {"fr": "Va mordre ta mère, fils de chien !", "en": "Go bite your mother, you son of a bitch!"}
+    ],
+    "kill_ray": [
+      {"fr": "Grillés ! Le joujou, il est à moi, hein.", "en": "Fried! This toy's mine, got it?"},
+      {"fr": "Ce truc, je le revends une fortune après la guerre !", "en": "I'm sellin' this thing for a fortune after the war!"},
+      {"fr": "Fondus ! Ah, ça, c'est de la marchandise !", "en": "Melted! Now that's quality merchandise!"}
+    ],
+    "kill_thunder": [
+      {"fr": "Dégagez ! Tous, du balai !", "en": "Get lost! All of you, out!"},
+      {"fr": "Un grand coup de vent ! Envolés, les pourris !", "en": "One big gust! Blown away, you rotten fucks!"},
+      {"fr": "Ça décoiffe, hein, bande de bâtards ?", "en": "Messes your hair up, huh, you bastards?"}
+    ],
+    "kill_trap": [
+      {"fr": "Grillés comme des saucisses à la fête foraine !", "en": "Grilled like sausages at the fair!"},
+      {"fr": "Mon piège, mes points. Touchez à rien, vous autres.", "en": "My trap, my points. Hands off, you lot."}
+    ],
+    "kill_generic": [
+      {"fr": "Crève, sale merde.", "en": "Die, you piece of shit."},
+      {"fr": "Celui-là, je le note pour moi.", "en": "That one goes on my tab."},
+      {"fr": "Ferme-la, et reste couché.", "en": "Shut it and stay down."},
+      {"fr": "Encore un. Le compteur tourne, frère.", "en": "Another one. Meter's runnin', bro."},
+      {"fr": "Va te faire foutre, toi aussi.", "en": "Go fuck yourself, you too."},
+      {"fr": "Pff. Même pas un portefeuille sur lui.", "en": "Pfft. Not even a wallet on him."}
+    ],
+    "ammo_low": [
+      {"fr": "Ça sent la fin du chargeur, putain.", "en": "Mag's runnin' dry, fuck."},
+      {"fr": "Plus beaucoup de balles. Quelqu'un m'en prête ? Je rends, promis.", "en": "Low on bullets. Somebody lend me some? I'll pay you back, promise."},
+      {"fr": "J'ai presque plus rien, là, les gars !", "en": "Almost nothin' left here, guys!"},
+      {"fr": "Les balles, ça se trouve où, ici ? Ça se pique où, plutôt ?", "en": "Where do you get bullets 'round here? Or steal 'em?"}
+    ],
+    "ammo_out": [
+      {"fr": "À sec ! Nique sa mère !", "en": "Empty! Motherfucker!"},
+      {"fr": "Plus une balle, putain de merde !", "en": "Not one bullet left, fuckin' hell!"},
+      {"fr": "Vide ! Quelqu'un m'a piqué mes balles, j'en suis sûr !", "en": "Empty! Somebody stole my bullets, I know it!"},
+      {"fr": "Clic, clic... Fais pas chier, toi !", "en": "Click, click... Piece of junk!"}
+    ],
+    "buy_wall": [
+      {"fr": "Payé rubis sur l'ongle. Pour une fois.", "en": "Paid in full. For once."},
+      {"fr": "Je le prends. Si on demande, je l'ai trouvé.", "en": "I'll take it. Anybody asks, I found it."},
+      {"fr": "Bon flingue. Je le revendrai plus cher.", "en": "Nice piece. I'll flip it for more."}
+    ],
+    "buy_bowie": [
+      {"fr": "Un vrai surin, ça. Là, on cause.", "en": "Now that's a real blade. Now we're talkin'."},
+      {"fr": "Avec ça, je découpe les macchabées et les clients.", "en": "With this I can carve up stiffs and customers."}
+    ],
+    "box_good": [
+      {"fr": "Ha ! Je savais qu'en la secouant un peu...", "en": "Ha! Knew a little shake would do it..."},
+      {"fr": "Belle pièce ! Elle est à moi, bas les pattes !", "en": "Nice piece! It's mine, hands off!"},
+      {"fr": "La boîte m'aime. Normal, je l'ai graissée.", "en": "The box loves me. Course it does, I greased it."},
+      {"fr": "Ouais ! Ça, c'est du matos de qualité, frère !", "en": "Yeah! That's quality gear, bro!"}
+    ],
+    "box_bad": [
+      {"fr": "Qu'est-ce que c'est que cette merde ?", "en": "What the fuck is this shit?"},
+      {"fr": "Arnaque ! Je veux être remboursé, sale boîte !", "en": "Ripoff! I want a refund, you crappy box!"},
+      {"fr": "Moi aussi, je fourgue de la camelote. Mais pas à Jojo !", "en": "I sell junk too. But not to Jojo!"},
+      {"fr": "Nique ta mère, la boîte ! Tu m'arnaques, moi ?", "en": "Fuck you, box! You're scammin' me? Me?"}
+    ],
+    "box_shotgun": [
+      {"fr": "Un gros calibre pour un gros bonhomme.", "en": "A big gun for a big man."},
+      {"fr": "À bout portant, ça va faire de la purée !", "en": "Point blank, this'll make mashed potatoes!"}
+    ],
+    "box_sniper": [
+      {"fr": "Un fusil à lunette ? J'suis pas un tireur, moi, j'suis un cogneur !", "en": "A scope rifle? I ain't a shooter, I'm a brawler!"},
+      {"fr": "De loin, comme ça, personne voit rien. Parfait.", "en": "From way back. That way nobody sees nothin'. Perfect."}
+    ],
+    "box_lmg": [
+      {"fr": "La grosse sulfateuse ! Ça, c'est pour moi !", "en": "The big chopper! Now that's for me!"},
+      {"fr": "Lourde comme moi, et méchante comme moi.", "en": "Heavy like me, and mean like me."}
+    ],
+    "box_launcher": [
+      {"fr": "Des roquettes ! Écartez-vous, je promets rien !", "en": "Rockets! Stand back, I ain't promisin' nothin'!"},
+      {"fr": "Un lance-patates ! Ça va faire du bruit, putain !", "en": "A tater cannon! This is gonna be loud as fuck!"}
+    ],
+    "box_ray": [
+      {"fr": "Le Claude-Ray ! Celui-là, je le revends jamais. Enfin, jamais...", "en": "The Claude-Ray! Never sellin' this one. Well, never..."},
+      {"fr": "Le Claude-Ray ! Il est à moi, bande de jaloux !", "en": "The Claude-Ray! It's mine, you jealous bastards!"}
+    ],
+    "box_thunder": [
+      {"fr": "Le Tonnerre-Sept ! Ça va souffler, bande de bâtards !", "en": "The Thunder-Seven! It's gonna blow, you bastards!"},
+      {"fr": "Le Tonnerre-Sept ? Avec ma grande gueule, j'en avais déjà un.", "en": "The Thunder-Seven? With my big mouth, I already had one."}
+    ],
+    "box_monkey": [
+      {"fr": "Des singes ? Je les revends au cirque, moi.", "en": "Monkeys? I'll sell 'em to the circus."},
+      {"fr": "Des singes qui font boum. Ça, c'est un bon plan.", "en": "Monkeys that go boom. Now that's a sweet deal."}
+    ],
+    "box_teddy": [
+      {"fr": "L'ours ! Nique ta mère, le nounours !", "en": "The bear! Fuck you, teddy!"},
+      {"fr": "Reviens, la boîte ! J'ai rien fait, j'te jure !", "en": "Come back, box! I didn't do nothin', I swear!"},
+      {"fr": "Qui l'a secouée trop fort ? C'est pas moi, hein !", "en": "Who shook it too hard? Wasn't me, okay!"},
+      {"fr": "Fils de pute de boîte ! Elle se barre avec ma thune !", "en": "Son of a bitch box! It's runnin' off with my cash!"}
+    ],
+    "box_firesale": [
+      {"fr": "Liquidation ! Ah, ça, c'est mon métier !", "en": "Fire Sale! Now that's my line of work!"},
+      {"fr": "Des soldes ? J'arrive, poussez-vous !", "en": "Bargains? Comin' through, move it!"}
+    ],
+    "pap_upgrade": [
+      {"fr": "Allez, la machine, fais-moi un truc qui vaut cher.", "en": "C'mon, machine, make me somethin' worth a lot."},
+      {"fr": "Fais gaffe, elle est pas volée. Enfin, plus maintenant.", "en": "Careful, it ain't stolen. Well, not anymore."},
+      {"fr": "Améliore-la, et pas d'entourloupe, hein.", "en": "Upgrade it, and no funny business, yeah?"}
+    ],
+    "pap_wait": [
+      {"fr": "Grouille, la ferraille ! J'ai pas toute la nuit !", "en": "Hurry up, scrap heap! I ain't got all night!"},
+      {"fr": "Ça fait un boucan... Ça doit valoir une fortune, ce truc.", "en": "What a racket... Must be worth a fortune, this thing."}
+    ],
+    "pap_take": [
+      {"fr": "Ça brille ! Celle-là, je la revends une fortune !", "en": "Shiny! I'll sell this one for a fortune!"},
+      {"fr": "Ah, la belle bête ! Personne y touche !", "en": "Oh, what a beauty! Nobody touches it!"},
+      {"fr": "Ça, c'est de la marchandise de luxe, frère.", "en": "That's luxury merchandise, bro."}
+    ],
+    "no_money": [
+      {"fr": "Fauché ! Qui c'est qui m'a fait les poches ?", "en": "Broke! Who picked my pockets?"},
+      {"fr": "Plus un rond, putain ! Prêtez-moi, je rends, sur la vie de ma mère !", "en": "Not a dime, fuck! Spot me, I'll pay it back, swear on my mother!"}
+    ],
+    "no_power": [
+      {"fr": "Pas de jus. Même moi, j'arrive pas à le voler.", "en": "No juice. Even I can't steal it."},
+      {"fr": "C'est éteint, bordel ! Qui c'est qui paie pas l'électricité ?", "en": "It's dead, dammit! Who didn't pay the electric bill?"}
+    ],
+    "buy_ammo": [
+      {"fr": "Des balles. Je paie, mais c'est parce qu'y a du monde.", "en": "Bullets. I'm payin', but only 'cause people are watchin'."},
+      {"fr": "Le plein. Et un ou deux chargeurs pour plus tard.", "en": "Fill her up. Plus a couple mags for later."}
+    ],
+    "reload": [
+      {"fr": "Je recharge ! Couvrez-moi, bande de feignasses !", "en": "Reloadin'! Cover me, you lazy bums!"},
+      {"fr": "Chargeur ! Bougez pas, je reviens !", "en": "Reloadin'! Don't move, I'll be right back!"},
+      {"fr": "Je recharge, ta gueule !", "en": "Reloadin', shut up!"},
+      {"fr": "Une seconde, je recharge ! Et touchez pas à mes points !", "en": "One sec, reloadin'! And don't touch my points!"}
+    ],
+    "perk_titan": [
+      {"fr": "Titan Brew ! J'étais déjà costaud, là je suis un mur.", "en": "Titan Brew! I was already big, now I'm a wall."},
+      {"fr": "Beurk, ça a un goût de pieds. Mais j'encaisse mieux.", "en": "Yuck, tastes like feet. But I can take a beatin'."}
+    ],
+    "perk_rapid": [
+      {"fr": "Rapid Fizz ! Des doigts de pickpocket, maintenant.", "en": "Rapid Fizz! Pickpocket fingers now."},
+      {"fr": "Rapid Fizz. Ça pétille dans le nez, putain.", "en": "Rapid Fizz. Burns up my nose, fuck."}
+    ],
+    "perk_twin": [
+      {"fr": "Twin Shot. Deux fois plus de balles, deux fois plus de points pour Jojo.", "en": "Twin Shot. Twice the bullets, twice the points for Jojo."},
+      {"fr": "Twin Shot ! Ça arrache la gueule, cette merde !", "en": "Twin Shot! This shit burns your throat!"}
+    ],
+    "perk_lazarus": [
+      {"fr": "Lazarus Tonic. Je vous relève plus vite. Contre un pourboire.", "en": "Lazarus Tonic. I'll pick you up faster. For a tip."},
+      {"fr": "Lazarus Tonic. Ça a le goût de l'eau du caniveau.", "en": "Lazarus Tonic. Tastes like gutter water."}
+    ],
+    "perk_stride": [
+      {"fr": "Stride Soda ! Parfait pour me barrer en courant.", "en": "Stride Soda! Perfect for runnin' off."},
+      {"fr": "Cent kilos qui courent vite. Faites gaffe !", "en": "Two hundred pounds movin' fast. Watch out!"}
+    ],
+    "perk_nova": [
+      {"fr": "Nova Flop ! Je plonge, et tout le monde saute.", "en": "Nova Flop! I dive, and everybody goes boom."},
+      {"fr": "Avec mon poids, ça va faire un sacré cratère.", "en": "With my weight, that's gonna leave a hell of a crater."}
+    ],
+    "perk_deadeye": [
+      {"fr": "Deadeye Dram. Je vois tout, même dans vos poches.", "en": "Deadeye Dram. I see everythin', even in your pockets."},
+      {"fr": "Ça pique les yeux, ce truc. Mais je vise mieux, je crois.", "en": "Stings my eyes, this stuff. But I aim better, I think."}
+    ],
+    "pw_max_ammo": [
+      {"fr": "Munitions max ! Gratos, mon mot préféré !", "en": "Max Ammo! Free, my favorite word!"},
+      {"fr": "Munitions max ! Je prends double part, personne compte.", "en": "Max Ammo! I'm takin' a double share, nobody's countin'."}
+    ],
+    "pw_insta_kill": [
+      {"fr": "Mort instantanée ! Même une baffe, ça les tue !", "en": "Insta-Kill! Even a slap kills 'em!"},
+      {"fr": "Mort instantanée ! Venez, les pourris, venez !", "en": "Insta-Kill! C'mon, you rotten fucks, c'mon!"}
+    ],
+    "pw_double_points": [
+      {"fr": "Points doubles ! Le business reprend !", "en": "Double Points! Business is boomin'!"},
+      {"fr": "Points doubles. Et moi, je compte triple.", "en": "Double Points. And I count triple."}
+    ],
+    "pw_nuke": [
+      {"fr": "Bombe nucléaire ! Tous rasés, j'adore !", "en": "Nuke! All flattened, love it!"},
+      {"fr": "Boum ! C'est moi qui l'ai ramassée, notez bien.", "en": "Boom! I picked that up, write it down."}
+    ],
+    "pw_carpenter": [
+      {"fr": "Charpentier ! Des planches toutes neuves. Je les revends ?", "en": "Carpenter! Brand new boards. Should I sell 'em?"},
+      {"fr": "Charpentier ! Les travaux gratos, comme j'aime.", "en": "Carpenter! Free repairs, just how I like it."}
+    ],
+    "pw_fire_sale": [
+      {"fr": "Liquidation ! Tout doit disparaître, comme chez moi !", "en": "Fire Sale! Everythin' must go, just like at my place!"},
+      {"fr": "Liquidation ! Poussez-vous, bande de nazes !", "en": "Fire Sale! Move it, you losers!"}
+    ],
+    "pw_death_machine": [
+      {"fr": "La Faucheuse ! Approchez, je vous fais un prix !", "en": "Death Machine! Step right up, special price!"},
+      {"fr": "La Faucheuse ! Ça, c'est un argument de vente !", "en": "Death Machine! Now that's a sales pitch!"}
+    ],
+    "downed": [
+      {"fr": "Putain de merde ! Je suis à terre !", "en": "Fuckin' hell! I'm down!"},
+      {"fr": "Aïe ! Ils m'ont eu, les enculés !", "en": "Ow! They got me, the assholes!"},
+      {"fr": "À terre ! Cent kilos par terre, venez m'aider !", "en": "I'm down! Two hundred pounds on the floor, help me up!"},
+      {"fr": "Mange tes morts ! Je suis par terre, bordel !", "en": "Eat shit! I'm on the floor, dammit!"}
+    ],
+    "revive_start": [
+      {"fr": "Bouge pas, frère, je te relève.", "en": "Hold still, bro, I'm gettin' you up."},
+      {"fr": "Allez, debout. Tu me devras un service.", "en": "C'mon, up. You'll owe me a favor."},
+      {"fr": "Je te relève, mais je garde ce que t'as dans les poches.", "en": "I'm gettin' you up, but I'm keepin' what's in your pockets."},
+      {"fr": "Respire, bouffon. Jojo est là.", "en": "Breathe, clown. Jojo's here."}
+    ],
+    "revived": [
+      {"fr": "Merci, frère. Je te dois rien, hein, on est d'accord ?", "en": "Thanks, bro. I owe you nothin', we clear?"},
+      {"fr": "Pas trop tôt, bande de bras cassés !", "en": "About time, you useless bunch!"},
+      {"fr": "Ouais, ouais, merci. Ça reste entre nous.", "en": "Yeah, yeah, thanks. That stays between us."},
+      {"fr": "T'as touché à mon portefeuille ? Non ? Bon, merci.", "en": "You touch my wallet? No? Okay, thanks."}
+    ],
+    "downed_help": [
+      {"fr": "Hé ! Ramenez vos fesses, je crève, là !", "en": "Hey! Get your asses over here, I'm dyin'!"},
+      {"fr": "Venez m'aider, bordel ! Je paie ! Enfin, je promets.", "en": "Help me, dammit! I'll pay! Well, I promise."},
+      {"fr": "Vous m'entendez, bande d'enculés ? Venez !", "en": "You hear me, you assholes? Get over here!"}
+    ],
+    "death": [
+      {"fr": "Mon fric... Personne touche à mon fric...", "en": "My cash... Nobody touches my cash..."},
+      {"fr": "Argh ! C'était pas moi... j'te jure...", "en": "Argh! Wasn't me... I swear..."},
+      {"fr": "Nique... ta mère...", "en": "Fuck... you..."}
+    ],
+    "teammate_down": [
+      {"fr": "Il est à terre ! Bon, j'arrive. Doucement.", "en": "He's down! Okay, I'm comin'. Slowly."},
+      {"fr": "Merde, un de moins ! Tiens bon, j'arrive !", "en": "Shit, one down! Hang on, I'm comin'!"},
+      {"fr": "Wesh, t'es à terre ? Je te couvre ! De loin.", "en": "Yo, you're down? I got you covered! From way back here."}
+    ],
+    "teammate_dead": [
+      {"fr": "Il est mort... Bon. Qui prend ses points ? Moi.", "en": "He's dead... Well. Who gets his points? Me."},
+      {"fr": "Putain, il est parti... Il était con, mais il était des nôtres.", "en": "Fuck, he's gone... Dumb as hell, but he was one of us."}
+    ],
+    "last_alive": [
+      {"fr": "Plus que moi ! Bon, tout le butin est à moi, au moins.", "en": "Just me left! Well, all the loot's mine, at least."},
+      {"fr": "Tout seul ? Venez, bande de sales merdes, Jojo vous attend !", "en": "All alone? C'mon, you pieces of shit, Jojo's waitin'!"}
+    ],
+    "game_start": [
+      {"fr": "Bon, écoutez-moi, bande de bras cassés. Le pognon, c'est moi qui le garde.", "en": "Okay, listen up, you useless bunch. I'm holdin' the money."},
+      {"fr": "J'étais venu vendre de la ferraille. Et me voilà avec des macchabées.", "en": "I came here to sell scrap. And now I'm stuck with stiffs."},
+      {"fr": "Wesh, l'Institut ! Vous allez me le payer, sur la vie de ma mère !", "en": "Yo, Institute! You're gonna pay for this, swear on my mother!"}
+    ],
+    "round_start": [
+      {"fr": "Ils reviennent, les pourris ! Allez, au boulot !", "en": "Here they come, the rotten fucks! C'mon, to work!"},
+      {"fr": "Encore une vague ? Nique sa mère, l'Institut !", "en": "Another wave? Fuck the Institute!"},
+      {"fr": "Venez, venez ! Jojo fait crédit à personne !", "en": "C'mon, c'mon! Jojo don't give credit to nobody!"},
+      {"fr": "Allez, sales merdes. Plus vous êtes, plus je gagne.", "en": "Come on, you shits. The more of you, the more I make."},
+      {"fr": "Ça recommence. Planquez votre fric, moi je planque le mien.", "en": "Here we go again. Hide your cash, I'm hidin' mine."},
+      {"fr": "Encore eux ? Ils crèvent jamais, ces fils de pute !", "en": "Them again? Don't these sons of bitches ever die?"}
+    ],
+    "dog_round": [
+      {"fr": "Des clebs ! Putain, j'ai horreur des clebs !", "en": "Dogs! Fuck, I hate dogs!"},
+      {"fr": "Les chiens ! Ça sent le gros bordel !", "en": "The dogs! This is gonna be a fuckin' mess!"},
+      {"fr": "Les cabots de l'enfer ! Lâchez mes mollets !", "en": "The hellhounds! Keep off my legs!"}
+    ],
+    "door_open": [
+      {"fr": "Ouvert ! Allez, on va voir ce qu'il y a à piquer.", "en": "Open! C'mon, let's see what there is to swipe."},
+      {"fr": "Une porte de plus. J'en ai forcé des plus dures.", "en": "One more door. I've cracked tougher ones."},
+      {"fr": "Passez devant, vous. Moi, je surveille les arrières.", "en": "You go first. I'll watch the rear."}
+    ],
+    "power_on": [
+      {"fr": "Le jus est revenu ! Branchez tout, ça me coûte rien !", "en": "Power's back! Plug it all in, costs me nothin'!"},
+      {"fr": "Courant rétabli ! Maintenant, on peut braquer les machines.", "en": "Power's on! Now we can rob the machines."}
+    ],
+    "teleporter_link": [
+      {"fr": "Branché ! Si ça pète, c'est pas moi qui l'ai touché.", "en": "Hooked up! If it blows, I never touched it."},
+      {"fr": "C'est relié. Je sais pas comment, mais c'est relié.", "en": "It's linked. Dunno how, but it's linked."}
+    ],
+    "teleport_out": [
+      {"fr": "Putain, j'ai le bide à l'envers !", "en": "Fuck, my gut's inside out!"},
+      {"fr": "Je suis où, là ? Quelqu'un a vu mon portefeuille ?", "en": "Where am I? Anybody seen my wallet?"}
+    ],
+    "teleport_back": [
+      {"fr": "Retour ! J'ai rien perdu en route ? Si, mon dîner.", "en": "Back! Lose anythin' on the way? Yeah, my dinner."},
+      {"fr": "Encore entier. Enfin, je crois. Faut que je recompte.", "en": "Still in one piece. I think. Gotta recount."}
+    ],
+    "trap_on": [
+      {"fr": "Allez, grillez-moi tout ça !", "en": "C'mon, fry 'em all!"},
+      {"fr": "Piège en marche. Les points, c'est pour moi, hein.", "en": "Trap's on. The points are mine, got it?"}
+    ],
+    "low_health": [
+      {"fr": "Je pisse le sang, putain !", "en": "I'm bleedin' like a pig, fuck!"},
+      {"fr": "Ça va pas, là. Ça va pas du tout !", "en": "Not good. Not good at all!"},
+      {"fr": "J'ai mal partout, bordel de merde !", "en": "I hurt all over, goddammit!"},
+      {"fr": "Quelqu'un ! Je lâche ma part ! Enfin, un bout.", "en": "Somebody! I'll give up my share! Well, part of it."}
+    ],
+    "surrounded": [
+      {"fr": "Reculez, sales merdes, reculez !", "en": "Back off, you shits, back off!"},
+      {"fr": "Ils sont partout, nique sa mère !", "en": "They're everywhere, motherfucker!"},
+      {"fr": "Wesh ! Faites la queue comme tout le monde !", "en": "Yo! Wait in line like everybody else!"},
+      {"fr": "Lâchez-moi, bande de pourris ! Je suis pas à vendre !", "en": "Get off me, you rotten bastards! I ain't for sale!"}
+    ],
+    "hurt": [
+      {"fr": "Aïe ! Mange tes morts, toi ! Nique ta mère, sale merde !", "en": "Ow! Eat shit, motherfucker! Fuck you, you piece of shit!"},
+      {"fr": "Ta gueule !", "en": "Fuck you!"},
+      {"fr": "Aïe, enculé !", "en": "Ow, asshole!"},
+      {"fr": "Fils de pute !", "en": "Son of a bitch!"},
+      {"fr": "Lâche-moi, connard !", "en": "Get off, dickhead!"},
+      {"fr": "Putain de merde !", "en": "Fuckin' hell!"}
+    ],
+    "exert_melee": [
+      {"fr": "Dans ta gueule !", "en": "In your face!"},
+      {"fr": "Tiens !", "en": "Take that!"},
+      {"fr": "Prends ça !", "en": "Eat this!"},
+      {"fr": "Han ! Crève !", "en": "Hah! Die!"}
+    ],
+    "oh_shit": [
+      {"fr": "Putain ! Il sort d'où, lui ?", "en": "Fuck! Where'd he come from?"},
+      {"fr": "Derrière moi ! Nique ta mère !", "en": "Behind me! Motherfucker!"},
+      {"fr": "Hé ! On prend pas Jojo par-derrière !", "en": "Hey! Nobody sneaks up on Jojo!"}
+    ],
+    "crawler_near": [
+      {"fr": "Y en a un par terre, il me bave sur les pompes !", "en": "One on the floor, he's droolin' on my shoes!"},
+      {"fr": "Lâche mes chevilles, sale merde !", "en": "Let go of my ankles, you piece of shit!"}
+    ],
+    "throw_grenade": [
+      {"fr": "Grenade ! Cadeau de la maison !", "en": "Grenade! On the house!"},
+      {"fr": "Attrape, bouffon !", "en": "Catch, clown!"},
+      {"fr": "Planquez-vous ! Ou pas, je m'en fous !", "en": "Take cover! Or don't, I don't give a shit!"}
+    ],
+    "throw_monkey": [
+      {"fr": "Va, le singe ! Fais ton numéro !", "en": "Go, monkey! Do your act!"},
+      {"fr": "Le singe, il est volé, mais il marche !", "en": "Monkey's stolen, but it works!"}
+    ],
+    "idle": [
+      {"fr": "Si on sort d'ici, je vous fais un prix sur tout.", "en": "We get outta here, I'll give you a deal on everythin'."},
+      {"fr": "Qui a bouffé mon sandwich ? Personne ? Bon, c'était moi.", "en": "Who ate my sandwich? Nobody? Okay, it was me."},
+      {"fr": "Moi, j'étais venu vendre de la ferraille. Pas cogner des macchabées.", "en": "I came to sell scrap. Not to punch stiffs."},
+      {"fr": "L'Institut me doit du pognon. Beaucoup de pognon.", "en": "The Institute owes me money. Lots of money."},
+      {"fr": "Ma mère disait que je finirais mal. Elle avait pas prévu les macchabées.", "en": "My mother said I'd end up bad. She didn't see the stiffs comin'."},
+      {"fr": "Les points, ça s'échange contre des vrais billets, vous croyez ?", "en": "Think points trade for real cash?"},
+      {"fr": "Tiens, une montre. Ah non, c'est la mienne. Enfin, maintenant.", "en": "Hey, a watch. Oh wait, it's mine. Well, it is now."},
+      {"fr": "J'ai la dalle, putain. Je boufferais un cheval. Pas un macchabée, hein.", "en": "I'm starvin', fuck. I could eat a horse. Not a stiff, though."},
+      {"fr": "Je compte mes points... Tiens, j'en ai plus que tout à l'heure. Bizarre.", "en": "Countin' my points... Huh, more than before. Weird."},
+      {"fr": "Le marché noir à Paris, c'était peinard. Ici, c'est le bordel.", "en": "The black market in Paris was easy. This place is a fuckin' mess."}
+    ],
+    "resp_box_bad": [
+      {"fr": "Ha ! T'as tiré de la merde, bouffon !", "en": "Ha! You pulled crap, clown!"},
+      {"fr": "Ta camelote, je te la rachète pour trois fois rien.", "en": "I'll buy that junk off you for peanuts."}
+    ],
+    "resp_wonder": [
+      {"fr": "Elle est à moi, celle-là ! Donne, je te la garde.", "en": "That one's mine! Gimme, I'll hold it for you."},
+      {"fr": "Pourquoi lui ? C'est moi qui l'avais secouée, cette boîte !", "en": "Why him? I'm the one who shook that box!"}
+    ],
+    "tease_callahan": [
+      {"fr": "Le cow-boy en plastique, là. Il a jamais vu une vache de sa vie.", "en": "The plastic cowboy over there. Never seen a cow in his life."},
+      {"fr": "Callahan, ton cigare, il est éteint comme ta cervelle.", "en": "Callahan, your cigar's as dead as your brain."}
+    ],
+    "tease_orlov": [
+      {"fr": "Orlov, le gros nounours qui chiale. Arrête avec ta neige, frère.", "en": "Orlov, the big crybaby teddy bear. Enough with the snow, bro."},
+      {"fr": "Hé, le nounours ! Tu pleures encore ta maman ? Moi aussi, j'te jure.", "en": "Hey, teddy! Still cryin' for your mama? Me too, I swear."}
+    ],
+    "tease_arakawa": [
+      {"fr": "Le prof de politesse, là. Dis-moi merci quand je te vole, au moins.", "en": "Mister Manners over there. At least say thanks when I rob you."},
+      {"fr": "Arakawa, détends-toi, frère. T'as un balai dans le cul.", "en": "Arakawa, loosen up, bro. You got a stick up your ass."}
+    ],
+    "tease_weissmann": [
+      {"fr": "Weissmann, le savant fou de mes deux. Tes machines, je les revends en pièces.", "en": "Weissmann, mad scientist my ass. I'll sell your machines for parts."},
+      {"fr": "Hé, le savant fou ! C'est toi qui m'as enfermé ? Tu vas me le payer.", "en": "Hey, mad scientist! You locked me up? You're gonna pay for that."}
+    ],
+    "tease_mercer": [
+      {"fr": "Mercer, le radin. Il compte ses points, moi je les lui pique.", "en": "Mercer, the cheapskate. He counts his points, I swipe 'em."},
+      {"fr": "Hé, le comptable ! Y a une page qui manque à ton carnet. Je dis ça, je dis rien.", "en": "Hey, bookkeeper! Your notebook's missin' a page. Just sayin'."}
+    ],
+    "tease_berg": [
+      {"fr": "Madame je-sais-tout. Elle a réponse à tout, sauf à mes blagues.", "en": "Miss Know-It-All. Got an answer for everythin' but my jokes."},
+      {"fr": "Hé, Madame je-sais-tout ! Calcule-moi combien je t'ai piqué.", "en": "Hey, Miss Know-It-All! Work out how much I swiped from you."}
+    ]
+  }
+}

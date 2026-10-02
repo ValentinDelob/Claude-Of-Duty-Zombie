@@ -1,0 +1,4 @@
+# Prises enregistrées et conversions (tools/voices/convert_take.py) : locales, hors git.
+*
+!.gitignore
+!.gdignore

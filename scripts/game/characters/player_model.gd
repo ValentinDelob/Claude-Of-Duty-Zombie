@@ -5,6 +5,8 @@ extends Node3D
 ## accroupi, visée (le buste suit le regard), tir, joueur à terre.
 
 const SKIN := Color(0.52, 0.4, 0.32)
+## Peau claire (Berg, cohérente avec ses mains en vue FPS).
+const SKIN_FAIR := Color(0.62, 0.48, 0.41)
 const UNIFORM := Color(0.2, 0.22, 0.15)
 const PANTS := Color(0.16, 0.17, 0.12)
 const VEST := Color(0.12, 0.13, 0.1)
@@ -34,7 +36,7 @@ static func material() -> ShaderMaterial:
 	return _material
 
 
-## Tenues des quatre personnages (CharacterDB, docs/CHARACTERS.md), cohérentes
+## Tenues des sept personnages (CharacterDB, docs/CHARACTERS.md), cohérentes
 ## avec leurs mains en vue FPS (ViewHands.STYLES) :
 ## [veste, pantalon, manches (avant-bras), mains, coiffe].
 const OUTFITS := [
@@ -46,7 +48,20 @@ const OUTFITS := [
 	[Color(0.33, 0.32, 0.19), Color(0.3, 0.29, 0.18), Color(0.33, 0.32, 0.19), SKIN, Color(0.31, 0.3, 0.18)],
 	# Weissmann : combinaison de protection jaunâtre, gants de caoutchouc noirs.
 	[Color(0.55, 0.5, 0.32), Color(0.5, 0.46, 0.3), Color(0.55, 0.5, 0.32), Color(0.04, 0.04, 0.04), Color(0.55, 0.55, 0.55)],
+	# Mercer : treillis olive à chevrons, manches retroussées (avant-bras nus),
+	# casquette de treillis à huit pans.
+	[Color(0.27, 0.3, 0.19), Color(0.24, 0.27, 0.17), SKIN, SKIN, Color(0.25, 0.28, 0.17)],
+	# Berg : veste de terrain bleu canard sombre, pantalon taille haute,
+	# peau claire ; « coiffe » = cheveux blond platine relevés.
+	[Color(0.12, 0.3, 0.31), Color(0.25, 0.22, 0.18), Color(0.12, 0.3, 0.31), SKIN_FAIR, Color(0.94, 0.88, 0.7)],
+	# Jojo : maillot de corps gris-blanc taché, pantalon de laine brun,
+	# manches roulées (avant-bras nus), casquette plate en laine.
+	[Color(0.72, 0.68, 0.58), Color(0.22, 0.18, 0.14), SKIN, SKIN, Color(0.3, 0.27, 0.22)],
 ]
+## Taille de Berg (petite et mince) par rapport aux autres.
+const BERG_SCALE := 0.92
+## Taille de Jojo (une grosse brute d'une centaine de kilos).
+const JOJO_SCALE := 1.1
 
 
 func build(slot_color: Color, character := 0) -> void:
@@ -56,13 +71,19 @@ func build(slot_color: Color, character := 0) -> void:
 	var sleeve: Color = o[2]
 	var hand: Color = o[3]
 	var hat: Color = o[4]
-	var big := 1.12 if character == 1 else 1.0  # Orlov : un gabarit au-dessus
+	var fem := character == 5
+	var fat := character == 6
+	# Orlov : un gabarit au-dessus ; Mercer : trapu ; Berg : mince (et
+	# plus petite : BERG_SCALE), épaules étroites, taille marquée ; Jojo :
+	# énorme (et plus grand : JOJO_SCALE), gros ventre, cou de taureau.
+	var big := 1.12 if character == 1 else (1.06 if character == 4 else (0.86 if fem else (1.2 if fat else 1.0)))
+	var skin := SKIN_FAIR if fem else SKIN
 	var p: Array = []
-	p.append(["hips", Vector3(0.34 * big, 0.2, 0.21), Vector3.ZERO, pants, 0.0])
-	p.append(["spine", Vector3(0.33 * big, 0.27, 0.21 * big), Vector3(0, 0.12, 0), jacket, 0.0])
+	p.append(["hips", Vector3(0.34 * (1.0 if fem else big), 0.2, 0.21), Vector3.ZERO, pants, 0.0])
+	p.append(["spine", Vector3((0.28 if fem else 0.33 * big), 0.27, 0.21 * big), Vector3(0, 0.12, 0), jacket, 0.0])
 	p.append(["chest", Vector3(0.42 * big, 0.3, 0.25 * big), Vector3(0, 0.1, 0), jacket, 0.0])
-	p.append(["neck", Vector3(0.1, 0.1, 0.1), Vector3(0, 0.03, 0), SKIN, 0.0])
-	p.append(["head", Vector3(0.21, 0.24, 0.22), Vector3(0, 0.13, 0), SKIN, 0.0])
+	p.append(["neck", Vector3(0.1 * (0.85 if fem else 1.0), 0.1, 0.1 * (0.85 if fem else 1.0)), Vector3(0, 0.03, 0), skin, 0.0])
+	p.append(["head", Vector3(0.21 * (0.95 if fem else 1.0), 0.24, 0.22), Vector3(0, 0.13, 0), skin, 0.0])
 	p.append(["head", Vector3(0.16, 0.03, 0.02), Vector3(0, 0.15, 0.112), Color(0.05, 0.05, 0.05), 0.0])
 	match character:
 		0:  # Callahan : casque, bandoulière, cigare, barbe de trois jours
@@ -94,6 +115,77 @@ func build(slot_color: Color, character := 0) -> void:
 				p.append(["head", Vector3(0.06, 0.045, 0.02), Vector3(side * 0.05, 0.22, 0.125), Color(0.55, 0.42, 0.16), 0.3])
 			p.append(["hips", Vector3(0.16, 0.16, 0.08), Vector3(-0.2, -0.02, 0.06), Color(0.26, 0.17, 0.09), 0.0])
 			p.append(["arm_l", Vector3(0.125, 0.07, 0.125), Vector3(0, -0.2, 0), Color(0.75, 0.72, 0.62), 0.0])
+		4:  # Mercer : casquette à huit pans, tempes et barbe grises, plaques, poches de poitrine, manches roulées
+			var grey := Color(0.5, 0.49, 0.47)
+			p.append(["head", Vector3(0.235, 0.1, 0.24), Vector3(0, 0.27, 0.0), hat, 0.0])
+			p.append(["head", Vector3(0.25, 0.025, 0.25), Vector3(0, 0.325, 0.0), hat.darkened(0.1), 0.0])
+			p.append(["head", Vector3(0.2, 0.02, 0.07), Vector3(0, 0.23, 0.14), hat.darkened(0.25), 0.0])
+			for side in [-1.0, 1.0]:
+				p.append(["head", Vector3(0.014, 0.06, 0.05), Vector3(side * 0.106, 0.18, 0.02), grey, 0.0])
+				p.append(["chest", Vector3(0.1, 0.08, 0.015), Vector3(side * 0.1, 0.13, 0.13 * big), jacket.darkened(0.15), 0.0])
+			p.append(["head", Vector3(0.22, 0.05, 0.2), Vector3(0, 0.2, -0.03), grey, 0.0])
+			p.append(["head", Vector3(0.18, 0.06, 0.02), Vector3(0, 0.05, 0.108), grey.darkened(0.2), 0.0])
+			p.append(["chest", Vector3(0.03, 0.045, 0.01), Vector3(0, 0.2, 0.135 * big), Color(0.62, 0.62, 0.6), 0.3])
+			for side in ["l", "r"]:
+				p.append(["forearm_" + side, Vector3(0.1 * big, 0.05, 0.1 * big), Vector3(0, -0.01, 0), jacket.darkened(0.1), 0.0])
+		5:  # Berg : cheveux platine en « victory rolls », rouge à lèvres, chemisier crème, sacoche, crayon
+			var cream := Color(0.86, 0.82, 0.7)
+			# Chevelure : calotte, deux rouleaux sur le dessus, chignon relevé à l'arrière.
+			p.append(["head", Vector3(0.215, 0.07, 0.23), Vector3(0, 0.255, -0.01), hat, 0.0])
+			p.append(["head", Vector3(0.21, 0.13, 0.05), Vector3(0, 0.17, -0.105), hat, 0.0])
+			for side in [-1.0, 1.0]:
+				p.append(["head", Vector3(0.075, 0.07, 0.15), Vector3(side * 0.055, 0.29, 0.03), hat.lightened(0.08), 0.0, Vector3(0, 0, side * -18.0)])
+				p.append(["head", Vector3(0.02, 0.1, 0.12), Vector3(side * 0.104, 0.2, -0.03), hat, 0.0])
+				# Petites boucles d'oreilles rondes (dorées).
+				p.append(["head", Vector3(0.016, 0.016, 0.016), Vector3(side * 0.112, 0.085, 0.0), Color(0.8, 0.63, 0.25), 0.0])
+			p.append(["head", Vector3(0.12, 0.08, 0.06), Vector3(0, 0.25, -0.12), hat.darkened(0.06), 0.0])
+			# Racine des cheveux sur le front.
+			p.append(["head", Vector3(0.2, 0.035, 0.02), Vector3(0, 0.235, 0.105), hat, 0.0])
+			# Rouge à lèvres.
+			p.append(["head", Vector3(0.05, 0.014, 0.012), Vector3(0, 0.06, 0.11), Color(0.62, 0.06, 0.08), 0.0])
+			# Crayon derrière l'oreille droite.
+			p.append(["head", Vector3(0.012, 0.012, 0.09), Vector3(0.122, 0.15, -0.01), Color(0.85, 0.66, 0.15), 0.0, Vector3(25, 0, 0)])
+			# Chemisier crème dans l'encolure de la veste.
+			p.append(["chest", Vector3(0.11, 0.16, 0.012), Vector3(0, 0.14, 0.126 * big + 0.002), cream, 0.0])
+			# Taille haute : ceinture du pantalon au-dessus des hanches.
+			p.append(["spine", Vector3(0.29, 0.05, 0.22 * big), Vector3(0, 0.0, 0), pants, 0.0])
+			# Sacoche de cuir sur la hanche gauche, bandoulière en travers.
+			p.append(["hips", Vector3(0.05, 0.17, 0.2), Vector3(-0.2, -0.04, 0.02), Color(0.36, 0.22, 0.12), 0.0])
+			p.append(["chest", Vector3(0.04, 0.48, 0.02), Vector3(0, 0.05, 0.128 * big + 0.004), Color(0.3, 0.18, 0.1), 0.0, Vector3(0, 0, -38)])
+		6:  # Jojo : casquette plate, barbe de trois jours, nez cassé, dent en or,
+			# cou épais, gros ventre, bretelles, col ouvert, chaîne en or, valise.
+			var gold := Color(0.85, 0.65, 0.2)
+			var braces := Color(0.36, 0.13, 0.1)
+			var front := 0.125 * big
+			# Casquette plate : calotte aplatie qui avance sur le front, visière courte.
+			p.append(["head", Vector3(0.235, 0.06, 0.26), Vector3(0, 0.27, 0.015), hat, 0.0, Vector3(-6, 0, 0)])
+			p.append(["head", Vector3(0.2, 0.02, 0.07), Vector3(0, 0.245, 0.15), hat.darkened(0.2), 0.0, Vector3(-10, 0, 0)])
+			# Barbe de trois jours, nez cassé (de travers), bouche et dent en or.
+			p.append(["head", Vector3(0.2, 0.075, 0.025), Vector3(0, 0.05, 0.103), SKIN.darkened(0.35), 0.0])
+			p.append(["head", Vector3(0.035, 0.05, 0.035), Vector3(0.008, 0.115, 0.118), SKIN.darkened(0.08), 0.0, Vector3(0, 0, 12)])
+			p.append(["head", Vector3(0.07, 0.014, 0.012), Vector3(0, 0.068, 0.116), Color(0.12, 0.05, 0.05), 0.0])
+			p.append(["head", Vector3(0.014, 0.014, 0.012), Vector3(0.016, 0.069, 0.119), gold, 0.4])
+			# Cou de taureau.
+			p.append(["neck", Vector3(0.17, 0.1, 0.15), Vector3(0, 0.03, 0.0), SKIN, 0.0])
+			# Gros ventre sous le maillot, avec ses taches.
+			p.append(["spine", Vector3(0.38, 0.28, 0.22), Vector3(0, 0.07, 0.12), jacket, 0.0])
+			p.append(["hips", Vector3(0.36, 0.1, 0.17), Vector3(0, 0.08, 0.11), jacket, 0.0])
+			p.append(["spine", Vector3(0.07, 0.05, 0.01), Vector3(-0.06, 0.1, 0.232), jacket.darkened(0.3), 0.0])
+			p.append(["chest", Vector3(0.05, 0.04, 0.01), Vector3(0.08, 0.03, front + 0.002), jacket.darkened(0.25), 0.0])
+			# Col ouvert (peau) et chaîne en or avec sa médaille.
+			p.append(["chest", Vector3(0.12, 0.08, 0.012), Vector3(0, 0.19, front + 0.002), SKIN, 0.0])
+			p.append(["chest", Vector3(0.13, 0.012, 0.012), Vector3(0, 0.2, front + 0.008), gold, 0.4])
+			p.append(["chest", Vector3(0.022, 0.026, 0.01), Vector3(0, 0.18, front + 0.01), gold, 0.4])
+			# Bretelles : par-dessus les épaules, sur la poitrine puis sur le ventre.
+			for side in [-1.0, 1.0]:
+				p.append(["chest", Vector3(0.035, 0.32, 0.012), Vector3(side * 0.11, 0.06, front + 0.006), braces, 0.0])
+				p.append(["chest", Vector3(0.035, 0.012, 0.27 * big), Vector3(side * 0.11, 0.215, 0.0), braces, 0.0])
+				p.append(["spine", Vector3(0.035, 0.27, 0.012), Vector3(side * 0.11, 0.07, 0.233), braces, 0.0])
+				p.append(["chest", Vector3(0.035, 0.32, 0.012), Vector3(side * 0.08, 0.06, -front - 0.006), braces, 0.0])
+			# Valise de contrebande sanglée dans le dos.
+			p.append(["chest", Vector3(0.34, 0.26, 0.1), Vector3(0, 0.03, -front - 0.06), Color(0.33, 0.2, 0.11), 0.0])
+			p.append(["chest", Vector3(0.35, 0.02, 0.105), Vector3(0, 0.1, -front - 0.06), Color(0.2, 0.12, 0.07), 0.0])
+			p.append(["chest", Vector3(0.02, 0.02, 0.02), Vector3(0, 0.16, -front - 0.115), gold.darkened(0.3), 0.3])
 	for side in ["l", "r"]:
 		p.append(["arm_" + side, Vector3(0.11 * big, 0.3, 0.11 * big), Vector3(0, -0.14, 0), jacket, 0.0])
 		# Brassard à la couleur du joueur (repérage des coéquipiers).
@@ -106,6 +198,10 @@ func build(slot_color: Color, character := 0) -> void:
 	skel = RigBuilder.build(p, material())
 	# Le modèle regarde vers +Z ; le joueur vers -Z.
 	skel.rotation.y = PI
+	if fem:
+		skel.scale = Vector3.ONE * BERG_SCALE
+	elif fat:
+		skel.scale = Vector3.ONE * JOJO_SCALE
 	add_child(skel)
 	bones = RigBuilder.bone_indices(skel)
 	weapon_attach = BoneAttachment3D.new()

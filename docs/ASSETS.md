@@ -18,7 +18,7 @@ interface. L'air du singe-tambour est lui aussi original (procédural,
 
 ## Voix des personnages
 
-Les répliques de Callahan, Orlov, Arakawa et Weissmann (textes originaux,
+Les répliques de Callahan, Orlov, Arakawa, Weissmann, Mercer, Berg et Jojo (textes originaux,
 `assets/voices/*.json`, voir `docs/CHARACTERS.md`) sont des voix de **synthèse**
 générées hors ligne par `tools/voices/make_voices.py`, en français et en anglais,
 dans `assets/audio/vox/<langue>/<personnage>/` (Ogg Vorbis, 24 kHz) :
@@ -38,7 +38,133 @@ dans `assets/audio/vox/<langue>/<personnage>/` (Ogg Vorbis, 24 kHz) :
   https://download.pytorch.org/whl/cu124 chatterbox-tts kokoro soundfile "setuptools<81"`
   et le modèle spaCy `en_core_web_sm` 3.8.0 (MIT).
 - Génération : `tools/tts/.venv/Scripts/python.exe tools/voices/make_voices.py`
-  (`--sample 3` pour un échantillon d'écoute ; reprend là où elle s'est arrêtée).
+  (`--sample 3` pour un échantillon d'écoute ; reprend là où elle s'est arrêtée ;
+  `--only callahan --category idle` pour ne faire qu'une catégorie ;
+  `--force` pour refaire des fichiers existants). Le moteur de chaque personnage
+  est la clé `engine` de `tools/voices/cast.json` (`chatterbox` par défaut).
+
+### Mercer : clonage Qwen3-TTS
+
+La voix de Mercer (FR et EN) vient de deux références choisies à l'écoute,
+`tools/voices/refs/mercer_fr.wav` (« Pas assez de fric... Il me faut plus
+d'argent, bon sang ! ») et `tools/voices/refs/mercer_en.wav` ("Not enough
+cash... I need more money, dammit!"), générées avec **Qwen3-TTS 12Hz 1.7B
+VoiceDesign** (voix décrite en texte, aucune personne réelle) et gardées dans git
+car elles définissent le personnage. Les deux langues sont deux timbres
+différents (une seule est entendue en jeu).
+
+- **Qwen3-TTS 12Hz 1.7B-Base** ([Qwen/Qwen3-TTS-12Hz-1.7B-Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base),
+  Alibaba Qwen, licence **Apache 2.0**, usage commercial autorisé ; garder la
+  mention de licence) : clonage « ICL » (audio de référence + sa transcription
+  exacte) de la référence de la langue, pour chaque réplique ;
+  `tools/voices/qwen_clone.py`, appelé par `make_voices.py` pour les personnages
+  `"engine": "qwen_clone"` (réglages dans `cast.json`). Mêmes nettoyage,
+  niveau (-19 dBFS) et encodage Ogg Vorbis 24 kHz que les autres voix.
+- Le modèle Base n'a pas de consigne d'émotion (contrairement à VoiceDesign) :
+  il reprend le ton de la référence (agacé, bourru, ce qui colle au personnage)
+  et l'adapte à la ponctuation et au texte (exclamations courtes pour les cris,
+  phrases sèches pour le reste). Les références de 3 à 4 s suffisent : timbre
+  stable d'une réplique à l'autre (mesuré, voir ci-dessous).
+- Contrôle qualité automatique de chaque prise, dans le même processus :
+  **Whisper large-v3-turbo** (OpenAI, MIT ; outil seulement) transcrit et
+  compare au texte, vérifie la langue (français reconnu comme français, p ≥ 0,9) ;
+  hauteur médiane (librosa, ISC) à moins de 6 demi-tons de la référence
+  (FR ~212 Hz, EN ~237 Hz) ; empreinte de timbre (encodeur de locuteur de
+  Qwen3-TTS) proche de la référence. Une prise ratée est refaite avec une autre
+  graine (4 essais au plus), la meilleure est gardée ; rapport par fichier dans
+  `tools/tts/qa/mercer_<langue>.json` (hors git).
+- Grain de la voix : le clone sort souvent plus lisse que la référence. Chaque
+  réplique est tirée en plusieurs prises (`"takes"`, 4 pour Mercer) et, parmi
+  celles que le contrôle valide, on garde la plus éraillée (rapport
+  harmonique/percussif et platitude spectrale les plus proches de la
+  référence) ; Ogg Vorbis moins compressé pour Mercer (`"ogg_compression": 0.2`,
+  fichiers ~1,5 fois plus gros) pour ne pas lisser le souffle. Essais et mesures :
+  `tools/voices/bakeoff/mercer_rasp/README.md`.
+- Environnement : `tools/tts/qwen3tts/` (hors git) : venv Python 3.11,
+  PyTorch 2.6 cu124, `qwen-tts` (Apache 2.0), `openai-whisper` (MIT, installé
+  `--no-deps` avec `tiktoken` et `more-itertools`), `num2words` (LGPL, outil
+  seulement) ; sans FlashAttention (attention `sdpa`). Environ 7 Go de mémoire
+  GPU avec Whisper, par lots de 8 répliques.
+- Génération : `tools/tts/.venv/Scripts/python.exe tools/voices/make_voices.py
+  --only mercer` ou directement `tools/tts/qwen3tts/Scripts/python.exe
+  tools/voices/qwen_clone.py --only mercer` (`--category`, `--lang`, `--force`,
+  `--sample N`, `--qa-only` pour mesurer les fichiers existants).
+- `convert_take.py` (Seed-VC) n'a pas de référence `tools/tts/refs/mercer.wav` :
+  pour Mercer, lui passer la référence de la langue voulue.
+
+### Berg : clonage Qwen3-TTS
+
+Même moteur et mêmes réglages que Mercer (`cast.json`, `"engine": "qwen_clone"`),
+avec ses deux références : `tools/voices/refs/berg_fr.wav` (« Pff... plus
+un rond. Quelqu'un veut bien jouer les gentlemen ? ») et
+`tools/voices/refs/berg_en.wav` ("Ugh... totally broke. Any gentlemen
+wanna help a girl out?", clone interlangue de la référence française), hauteur
+de référence ~334 Hz (FR) et ~324 Hz (EN). Le critère de grain garde la prise
+la plus proche de SA référence (voix soufflée, lisse), pas la plus éraillée.
+Génération : `tools/voices/qwen_clone.py --only berg` (environ 2 h 45 pour
+les deux langues) ; rapport dans `tools/tts/qa/berg_<langue>.json`.
+
+### Jojo : clonage Qwen3-TTS
+
+Même moteur et mêmes réglages que Mercer et Berg, avec ses deux références :
+`tools/voices/refs/jojo_fr.wav` (« Wesh, écoute-moi bien, sale merde. Tu
+touches à mon fric, j'te démonte la gueule, sur la vie de ma mère. ») et
+`tools/voices/refs/jojo_en.wav` ("Yo, listen up good, you piece of shit. You
+touch my money, I'll smash your face in, swear on my mother.", clone
+interlangue de la référence française). La référence française vient de
+Qwen3-TTS 1.7B VoiceDesign (brute parisienne d'une centaine de kilos, voix de
+basse rauque) dite **grondée à voix basse**, pas criée : une consigne
+« furieux, crie » fait monter la hauteur à 300-550 Hz, alors que le clone d'une
+référence grave garde le timbre grave même sur une réplique criée. Candidates,
+mesures (hauteur médiane, grain) et scripts : `tools/voices/bakeoff/jojo/`
+(`scripts/jojo_design.py`, `scripts/jojo_metrics.py`, `scripts/jojo_en_ref.py`).
+Hauteur de référence ~116 Hz (FR) et ~112 Hz (EN). Lots plus petits que Mercer
+(`"batch": 4`, `"batch_chars": 200`) : sa référence est plus longue (9 s) et les
+lots de 8 prises débordaient des 8 Go du GPU. Génération :
+`tools/voices/qwen_clone.py --only jojo` (environ 2 h 25 pour les deux langues) ;
+rapport dans `tools/tts/qa/jojo_<langue>.json`. Le contrôle compare « j'te » à
+« je te » et « wesh » à « ouais » (comme Whisper les écrit). En anglais, la
+plupart des prises gardées malgré le contrôle le sont pour la langue détectée
+(accent français du clone interlangue, p de 0,5 à 0,9), le texte étant juste.
+
+### Répliques jouées puis converties (Seed-VC)
+
+Pour les répliques qui demandent un vrai jeu d'acteur (cris, peur, rage, souffle,
+grognements), on enregistre sa propre voix en jouant la réplique, puis
+`tools/voices/convert_take.py` remplace le timbre par celui du personnage en
+gardant le jeu (rythme, intonation, souffles) :
+
+- **Seed-VC** ([Plachtaa/seed-vc](https://github.com/Plachtaa/seed-vc), code et
+  poids [Plachta/Seed-VC](https://huggingface.co/Plachta/Seed-VC) sous licence
+  **GPL-3.0**) : outil hors ligne seulement, rien n'en est livré avec le jeu ; les
+  sons produits ne sont pas soumis à la GPL. Modules téléchargés au premier
+  lancement : Whisper-small (OpenAI, Apache 2.0), CAM++ (FunASR, Apache 2.0),
+  BigVGAN v2 44 kHz (NVIDIA, MIT), RMVPE (MIT).
+- Timbre cible : la voix de référence **synthétique** du personnage
+  (`tools/tts/refs/<personnage>.wav`, Kokoro) ; aucune voix de personne réelle
+  n'est clonée, la voix de l'acteur disparaît.
+- Réglages (détaillés dans le script) : modèle 44 kHz conditionné par la hauteur
+  de la prise (courbe d'intonation suivie), hauteur moyenne ramenée sur celle du
+  personnage, durée inchangée, 40 pas de diffusion. Environ 2,3 Go de mémoire
+  GPU et 8 à 12 s de calcul par réplique sur la RTX A2000 (chargement du modèle :
+  25 s, plusieurs prises en une commande pour ne le payer qu'une fois).
+- Environnement : `tools/tts/seed-vc/` (hors git) : dépôt cloné, venv à part
+  (`tools/tts/bin/uv.exe venv --python 3.11 tools/tts/seed-vc/.venv`, puis PyTorch
+  2.6 cu124, `transformers==4.46.3`, `librosa==0.10.2`, `descript-audio-codec`,
+  `munch`, `einops`, `hydra-core`, `imageio-ffmpeg` pour décoder m4a/mp3) ; poids
+  dans `tools/tts/seed-vc/checkpoints/`.
+- Conversion (une réplique par fichier, wav/m4a/mp3/ogg/flac) :
+  `tools/tts/seed-vc/.venv/Scripts/python.exe tools/voices/convert_take.py
+  tools/voices/takes/peur_01.m4a --character callahan` → WAV 44,1 kHz,
+  silences coupés, parole à -19 dBFS, dans `tools/voices/takes/out/`
+  (`--semitones N` pour monter ou descendre la voix, `--out` pour choisir le
+  fichier). Les prises et conversions de `tools/voices/takes/` restent hors git ;
+  on copie le résultat retenu dans `assets/audio/vox/<langue>/<personnage>/`.
+- Conseils d'enregistrement : pièce calme et peu sonore (rideaux, placard), micro
+  ou téléphone à 15-20 cm de la bouche, légèrement de côté pour éviter les
+  plosives, sans saturer sur les cris ; une seule prise par fichier, mono,
+  0,3 s de silence avant et après ; jouer franchement, l'émotion passe telle quelle
+  mais la hauteur moyenne est ramenée sur celle du personnage.
 
 ## Licence
 

@@ -25,8 +25,10 @@ Moteur : **Godot 4.7** (GDScript, rendu Forward+). Cible : GTX 1050 à 60 FPS en
   bonjour est ignoré, `_srv_loaded` d'un inconnu ignoré, noms de joueurs sans
   caractère de contrôle ni contrôle bidirectionnel (`_clean_name`) ; côté
   client, registre des joueurs borné (`clean_players` : 8 entrées, clés
-  entières, places 0 à 7), nombre de places borné, rotation des personnages
-  `posmod`, identifiants de carte bornés (`CustomMapGuard.game_map_id_ok`) et
+  entières, places 0 à 7), nombre de places borné, distribution des
+  personnages bornée (`CharacterDB.clean_cast`) et choix de personnage d'un
+  invité ramené à « auto » s'il est inconnu (`CharacterDB.clean_choice`),
+  identifiants de carte bornés (`CustomMapGuard.game_map_id_ok`) et
   carte chargée seulement si elle est connue (`Net.can_load_map`). Au
   chargement, atouts et armes murales vérifiés dans `PerkDB` / `WeaponDB` /
   `KnifeDB`, dossier et noms des modèles de `MeshMapBuilder` filtrés
@@ -210,6 +212,28 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   `Settings.language`. Traduits : écran d'options, menu pause, noms des
   touches ; le reste du jeu est en français. Changer la langue reconstruit
   l'écran d'options.
+- **Personnages** (`CharacterDB`, docs/CHARACTERS.md) : sept personnages,
+  `IDS` = callahan, orlov, arakawa, weissmann, mercer, berg, jojo ; l'index (0 à 6) choisit
+  aussi la tenue FPS (`ViewHands.STYLES`) et l'apparence vue par les autres
+  (`PlayerModel.OUTFITS`). Choix du joueur : `Settings.character` (section
+  `[player]` de `settings.cfg`, « auto » par défaut, valeur inconnue -> « auto »),
+  ligne PERSONNAGE de l'onglet JEU (noms courts `CharacterDB.short_name`, nom
+  complet dans l'aide). Réseau : le client envoie son choix juste après le
+  bonjour (`_srv_set_character`, RPC séparé trié après les autres : le bonjour
+  et les numéros des RPC existants ne changent pas) puis à chaque changement
+  (`Net.send_character` sur `Settings.changed`) ; l'hôte le
+  garde dans `Net.players[pid].char`. Au lancement (`Net.start_match`), l'hôte
+  calcule la distribution (`CharacterDB.resolve_cast`) : choix explicites
+  respectés, doublons permis ; joueurs « auto » par emplacement croissant :
+  personnage de (emplacement + rotation tirée, 0 en autotest), sinon le
+  suivant libre, sinon celui de l'emplacement (plus de 5 joueurs). La
+  distribution `{pid: index}` part avec `_cl_load_game` (`Net.cast`, bornée
+  par `CharacterDB.clean_cast`) ; `CharacterDB.index_of(pid)` la lit, à
+  défaut l'emplacement. Un changement en cours de partie vaut pour la
+  suivante. Répliques : fichier `assets/voices/<id>.json` absent -> aucune
+  réplique (personnage muet) ; taquineries (`VoxSystem.tease_categories`)
+  seulement envers un coéquipier d'un autre personnage et si la catégorie
+  existe. Tests : `tests/test_characters.gd`.
 
 ## Rendu et performances
 

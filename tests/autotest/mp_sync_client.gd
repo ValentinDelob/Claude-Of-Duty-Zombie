@@ -1,18 +1,25 @@
 extends AutotestScenario
 ## [MP] Client : observe l'hôte (position interpolée, tirs, accroupi, arme,
-## nom) et se déplace lui-même.
+## nom) et se déplace lui-même ; son personnage choisi (Mercer) est respecté
+## par la distribution de l'hôte.
 
 const PORT := 17812
 
 
 func run() -> void:
 	timeout_sec = 100
+	# Personnage choisi dans les options : envoyé à l'hôte avec le bonjour.
+	Settings.character = "mercer"
 	if not await MpHelpers.join_game(self, PORT):
+		Settings.character = CharacterDB.AUTO
 		return
+	Settings.character = CharacterDB.AUTO
 	var game := Game.instance
 	var p := game.local_player
 	p.bot_controlled = true
 	var host: Player = game.players.get(1)
+	at.check(CharacterDB.id_of(p.peer_id) == "mercer" and CharacterDB.id_of(1) == "callahan",
+			"distribution reçue de l'hôte : moi %s, l'hôte %s" % [CharacterDB.id_of(p.peer_id), CharacterDB.id_of(1)])
 	at.check(host != null and host.visual is PlayerModel and host.visual.visible, "l'hôte est affiché (soldat low-poly)")
 	at.check(host.name_tag.text == "Hote", "étiquette de nom : %s" % host.name_tag.text)
 	var shots := [0]

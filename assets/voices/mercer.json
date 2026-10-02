@@ -1,0 +1,396 @@
+{
+  "character": "mercer",
+  "lines": {
+    "kill_headshot": [
+      {"fr": "Une balle, une tête. Ça, c'est économique.", "en": "One round, one head. Now that's thrifty."},
+      {"fr": "Propre. Note ça dans le carnet.", "en": "Clean. Put that one in the book."},
+      {"fr": "En plein dans le crâne. Zéro gaspillage.", "en": "Right in the skull. No waste."},
+      {"fr": "Voilà comment on vise, les bleus. Regardez et apprenez.", "en": "That's how you aim, rookies. Watch and learn."},
+      {"fr": "Adieu la tête. Ça, ça rapporte.", "en": "There goes the head. That pays good."},
+      {"fr": "Y avait rien là-dedans, de toute façon. Comme mes recrues.", "en": "Nothin' in there anyway. Just like my recruits."}
+    ],
+    "kill_melee": [
+      {"fr": "Et une balle d'économisée.", "en": "That's one bullet saved."},
+      {"fr": "Le couteau, c'est gratuit. Et moi, j'adore le gratuit.", "en": "Knife's free. And I love free."},
+      {"fr": "Corps à corps, comme à l'instruction, mon gars.", "en": "Hand to hand, just like boot camp, pal."},
+      {"fr": "Reste par terre, putain ! C'est un ordre !", "en": "Stay down, goddammit! That's an order!"},
+      {"fr": "Tu voulais du contact ? Tiens, en v'là !", "en": "Wanted it up close? There ya go!"}
+    ],
+    "kill_bowie": [
+      {"fr": "Ce couteau m'a coûté un bras. Au moins, il bosse.", "en": "This knife cost me an arm. At least it earns its keep."},
+      {"fr": "Ça, c'est de l'argent bien dépensé.", "en": "Now that's money well spent."}
+    ],
+    "kill_explosive": [
+      {"fr": "Une grenade, tout un paquet. Ça, c'est rentable !", "en": "One grenade, a whole bunch. Now that pays!"},
+      {"fr": "Tout le monde d'un coup ! Allez, ramassez les morceaux.", "en": "All at once! Somebody sweep that up."},
+      {"fr": "Prix de gros ! Ça, j'aime bien.", "en": "Bulk discount! That's what I like."}
+    ],
+    "kill_streak": [
+      {"fr": "Je les empile comme des caisses au dépôt, moi !", "en": "Stackin' 'em like crates at the depot!"},
+      {"fr": "Suivant ! En rang, et on la ferme !", "en": "Next! Line up and shut up!"},
+      {"fr": "Ça remplit le carnet, ça ! Allez, venez !", "en": "That's fillin' the book! C'mon, keep comin'!"},
+      {"fr": "Vingt ans dans les Marines. Vous croyez me faire peur ?", "en": "Twenty years a Marine. You think you scare me?"},
+      {"fr": "Du boulot propre. Pas de médaille, juste des points.", "en": "Clean work. No medals, just points."}
+    ],
+    "kill_close": [
+      {"fr": "Trop près. Recule ou crève. Ah, trop tard.", "en": "Too close. Back off or die. Ah, too late."},
+      {"fr": "Ta gueule ! Et arrête de baver sur mes bottes !", "en": "Shut up! And quit droolin' on my boots!"},
+      {"fr": "À bout portant. Pas une balle de perdue.", "en": "Point blank. Not one round wasted."}
+    ],
+    "crawler_made": [
+      {"fr": "Sans les jambes, tu fais moins le malin.", "en": "No legs, huh? Not so tough now."},
+      {"fr": "Allez, rampe, deuxième classe ! Comme à l'entraînement !", "en": "C'mon, crawl, Private! Just like training!"},
+      {"fr": "À plat ventre. Enfin une position correcte.", "en": "Flat on your belly. Finally, some decent form."}
+    ],
+    "kill_dog": [
+      {"fr": "On m'appelle Bulldog. Toi, t'étais qu'un roquet.", "en": "They call me Bulldog. You're just a mutt."},
+      {"fr": "Couché. Pour de bon.", "en": "Down, boy. For good."},
+      {"fr": "Le clebs du dépôt était plus coriace que toi.", "en": "The guard dog back at the depot was tougher than you."}
+    ],
+    "kill_ray": [
+      {"fr": "Ce truc bouffe pas de balles. Il me plaît bien.", "en": "Thing doesn't eat bullets. I like it."},
+      {"fr": "Grillé. Gratuit. Parfait.", "en": "Fried. Free. Perfect."},
+      {"fr": "Un éclair, et plus de zombie. Je pose pas de questions.", "en": "One flash, no more zombie. I don't ask questions."}
+    ],
+    "kill_thunder": [
+      {"fr": "Balayés ! Comme une chambrée avant l'inspection !", "en": "Swept out! Like a barracks before inspection!"},
+      {"fr": "Toute la rangée d'un coup ! Ça, c'est du travail !", "en": "The whole row at once! Now that's work!"},
+      {"fr": "Envolés comme des feuilles mortes. Au suivant !", "en": "Blown away like dead leaves. Next!"}
+    ],
+    "kill_trap": [
+      {"fr": "Ce piège m'a coûté cher. Là, il me rembourse.", "en": "That trap cost me plenty. Now it's payin' me back."},
+      {"fr": "Cuits à point. Et j'ai pas tiré une balle.", "en": "Cooked through. And I didn't fire a shot."}
+    ],
+    "kill_generic": [
+      {"fr": "Un de moins. Le compte est bon.", "en": "One less. Count's good."},
+      {"fr": "Reste couché. Je repasserai pas.", "en": "Stay down. I ain't comin' back for ya."},
+      {"fr": "Rompez, soldat.", "en": "Dismissed, soldier."},
+      {"fr": "Allez, encore des points pour le carnet.", "en": "More points for the book."},
+      {"fr": "Un zombie en moins. On avance.", "en": "One zombie down. Keep movin'."},
+      {"fr": "T'étais déjà mort. J'ai juste fait la paperasse.", "en": "You were already dead. I just did the paperwork."}
+    ],
+    "ammo_low": [
+      {"fr": "Ça baisse, les munitions ! Arrêtez de gaspiller, putain !", "en": "Ammo's gettin' low! Quit wastin' it, goddammit!"},
+      {"fr": "Plus que quelques balles. Faut pas les gâcher.", "en": "Few rounds left. Don't blow 'em."},
+      {"fr": "Ça sonne creux, ce chargeur. J'aime pas ça.", "en": "This mag's feelin' light. I don't like it."},
+      {"fr": "Presque à sec ! Bordel, qui a pillé mes stocks ?", "en": "Almost dry! Who the fuck raided my stock?"}
+    ],
+    "ammo_out": [
+      {"fr": "Vide ! Putain, pas une balle !", "en": "Empty! Fuck, not one round!"},
+      {"fr": "À sec ! Quelqu'un a un flingue à me vendre ?", "en": "Dry! Somebody sell me a gun!"},
+      {"fr": "Plus de munitions. Bon. Les poings, c'est gratuit.", "en": "Outta ammo. Fine. Fists are free."},
+      {"fr": "Clic. Et merde. Le bruit le plus cher du monde.", "en": "Click. Shit. Most expensive sound in the world."}
+    ],
+    "buy_wall": [
+      {"fr": "Payée cash. T'as intérêt à valoir le coup, ma belle.", "en": "Paid cash. You better be worth it, sweetheart."},
+      {"fr": "Hors de prix, ce truc. Bon, je prends.", "en": "Way overpriced. Fine, I'll take it."},
+      {"fr": "Encore des points qui s'envolent. Note-le, Mercer.", "en": "There go more points. Write it down, Mercer."}
+    ],
+    "buy_bowie": [
+      {"fr": "Un couteau à ce prix-là ? Il a intérêt à couper.", "en": "A knife at that price? It better cut."},
+      {"fr": "Une bonne lame. Au moins, ça s'enraye jamais.", "en": "Good blade. At least it never jams."}
+    ],
+    "box_good": [
+      {"fr": "Enfin, la boîte rend la monnaie.", "en": "Finally, the box pays out."},
+      {"fr": "Ah, ça, c'est une arme ! Ça valait le coup.", "en": "Now that's a gun! Worth it."},
+      {"fr": "Pas mal. Je retire une partie de ce que j'ai dit.", "en": "Not bad. I take back some of what I said."},
+      {"fr": "Du bon matos. Personne y touche sans signer !", "en": "Good gear. Nobody touches it without signin' for it!"}
+    ],
+    "box_bad": [
+      {"fr": "Tout ce fric pour ça ? Putain, je veux être remboursé !", "en": "All that cash for this? Fuck, I want a refund!"},
+      {"fr": "C'est du vol ! Cette boîte, c'est une arnaque !", "en": "That's robbery! This box is a scam!"},
+      {"fr": "Au dépôt, ça partait direct à la poubelle.", "en": "Back at the depot, this went straight in the trash."},
+      {"fr": "Elle se fout de moi, cette putain de boîte !", "en": "This goddamn box is laughin' at me!"}
+    ],
+    "box_shotgun": [
+      {"fr": "Un fusil à pompe. Simple, solide. Comme moi.", "en": "A shotgun. Simple, tough. Like me."},
+      {"fr": "On pompe, on vise le bide. Simple.", "en": "Pump it, aim for the gut. Easy."}
+    ],
+    "box_sniper": [
+      {"fr": "Un fusil à lunette. Avec eux collés à moi. Merci, la boîte.", "en": "A scoped rifle. With 'em right in my face. Thanks, box."},
+      {"fr": "Une balle, un mort. Enfin, ça rapporte.", "en": "One shot, one kill. Finally, some return."}
+    ],
+    "box_lmg": [
+      {"fr": "Une mitrailleuse ! Ça bouffe des balles, mais ça remplit le carnet.", "en": "A machine gun! Eats ammo, but it fills the book."},
+      {"fr": "Lourde. Bruyante. Exactement ce qu'il me faut.", "en": "Heavy. Loud. Just what I need."}
+    ],
+    "box_launcher": [
+      {"fr": "Un lance-roquettes ! Tout le monde à couvert, et pas devant moi !", "en": "A launcher! Everybody take cover, and stay outta my way!"},
+      {"fr": "De l'explosif ! Ça va me faire des économies de balles.", "en": "Explosives! That'll save me a fortune on bullets."}
+    ],
+    "box_ray": [
+      {"fr": "Le Claude-Ray ! La boîte paie enfin ses dettes !", "en": "The Claude-Ray! Box finally paid its debts!"},
+      {"fr": "Un flingue de science-fiction ? Je signe le reçu, et vite !", "en": "A space gun? I'm signin' for it, right now!"}
+    ],
+    "box_thunder": [
+      {"fr": "Le Tonnerre-Sept ! Essayez un peu de me le reprendre !", "en": "The Thunder-Seven! Just try and take it off me!"},
+      {"fr": "Une tempête dans les mains. Et sans supplément !", "en": "A storm in my hands. And no extra charge!"}
+    ],
+    "box_monkey": [
+      {"fr": "Des singes-tambours ? Putain, j'ai payé pour des jouets !", "en": "Drum monkeys? I paid for fuckin' toys!"},
+      {"fr": "Bon. Au moins, ils explosent.", "en": "Fine. At least they blow up."}
+    ],
+    "box_teddy": [
+      {"fr": "L'ours. Évidemment. Putain de merde ! Et mes points ?", "en": "The bear. Of course. Son of a bitch! What about my points?"},
+      {"fr": "Rends-moi mon fric, saloperie de peluche !", "en": "Gimme my money back, you goddamn stuffed toy!"},
+      {"fr": "Elle se tire avec mon argent. Comme mon ex-femme.", "en": "Runnin' off with my money. Just like my ex-wife."},
+      {"fr": "Je note : l'ours me doit du fric. Beaucoup de fric.", "en": "Noted: that bear owes me money. Lots of it."}
+    ],
+    "box_firesale": [
+      {"fr": "À ce prix-là ? Enfin un tarif honnête !", "en": "At that price? Finally, an honest deal!"},
+      {"fr": "Des soldes ? Je fais des stocks, moi !", "en": "A sale? I'm stockin' up!"}
+    ],
+    "pap_upgrade": [
+      {"fr": "Vu ce que ça coûte, t'as intérêt à la rendre méchante.", "en": "For what this costs, you better make her mean."},
+      {"fr": "Fais gaffe à mon arme. Je connais son numéro de série.", "en": "Careful with my gun. I know the serial number."},
+      {"fr": "Allez, la machine, au boulot ! T'es payée pour ça.", "en": "C'mon, machine, get to work! You're gettin' paid."}
+    ],
+    "pap_wait": [
+      {"fr": "Je paie une fortune, et en plus faut attendre !", "en": "I pay a fortune, and now I gotta wait!"},
+      {"fr": "Ça cogne, ça siffle. Si tu me l'abîmes, tu paies.", "en": "Bangin', hissin'. Break it and you pay for it."}
+    ],
+    "pap_take": [
+      {"fr": "La voilà ! Bien plus méchante. Ça, c'est du placement.", "en": "There she is! Way meaner. Now that's an investment."},
+      {"fr": "Elle ronronne. Ça vaut chaque point.", "en": "She purrs. Worth every point."},
+      {"fr": "Rendue en bon état. Bon, je signe.", "en": "Back in one piece. Fine, I'll sign for it."}
+    ],
+    "no_money": [
+      {"fr": "Pas assez de fric... Il me faut plus d'argent, bon sang !", "en": "Not enough cash... I need more money, dammit!"},
+      {"fr": "Fait chier ! Le carnet est dans le rouge !", "en": "Shit! Book's in the red!"}
+    ],
+    "no_power": [
+      {"fr": "Pas de jus. Fait chier ! Je paie pas pour une machine éteinte.", "en": "No juice. Shit! I ain't payin' for a dead machine."},
+      {"fr": "Rien. Allez rétablir le courant, bande de tire-au-flanc.", "en": "Nothin'. Go get the power on, you slackers."}
+    ],
+    "buy_ammo": [
+      {"fr": "Le plein est fait. Et on gaspille pas !", "en": "Restocked. And no wastin' it!"},
+      {"fr": "Des munitions au prix fort. Le marché noir était moins cher.", "en": "Full price for ammo. Black market was cheaper."}
+    ],
+    "reload": [
+      {"fr": "Je recharge. Couvrez-moi.", "en": "Reloading. Cover me."},
+      {"fr": "Chargeur ! Tenez-les loin de moi, bordel !", "en": "Mag change! Keep 'em the hell off me!"},
+      {"fr": "Je recharge ! Personne bouge !", "en": "Reloadin'! Nobody move!"},
+      {"fr": "Une seconde, putain ! Je recharge !", "en": "Hang on, goddammit! Reloadin'!"}
+    ],
+    "perk_titan": [
+      {"fr": "Titan Brew. Ça a un goût de rouille et de facture.", "en": "Titan Brew. Tastes like rust and a bill."},
+      {"fr": "Plus dur à tuer. Ça, c'est un bon placement.", "en": "Harder to kill. Now that's a good deal."}
+    ],
+    "perk_rapid": [
+      {"fr": "Rapid Fizz. Mes mains vont plus vite que ma tête.", "en": "Rapid Fizz. My hands are faster than my brain."},
+      {"fr": "Recharger plus vite, c'est gaspiller plus vite. Bah.", "en": "Faster reloads. Faster waste. Bah."}
+    ],
+    "perk_twin": [
+      {"fr": "Twin Shot. Deux fois plus de balles, deux fois plus de frais.", "en": "Twin Shot. Twice the bullets, twice the bill."},
+      {"fr": "Ça pétille comme du soda pas cher. Mais ça marche.", "en": "Fizzy like cheap soda. Works, though."}
+    ],
+    "perk_lazarus": [
+      {"fr": "Lazarus Tonic. Je vous relève plus vite. De rien.", "en": "Lazarus Tonic. I pick you up faster now. You're welcome."},
+      {"fr": "Ça a le goût du sirop de l'infirmerie. Rien a changé.", "en": "Tastes like sick bay syrup. Nothin' changes."}
+    ],
+    "perk_stride": [
+      {"fr": "Stride Soda. Je cours comme un gamin de vingt ans.", "en": "Stride Soda. I run like a twenty-year-old kid."},
+      {"fr": "Mes genoux vous disent merci.", "en": "My knees say thank you."}
+    ],
+    "perk_nova": [
+      {"fr": "Nova Flop. Je plonge, ça pète. J'ai vu pire.", "en": "Nova Flop. I dive, it blows. Seen worse."},
+      {"fr": "Un soda qui explose. Toujours meilleur que la gamelle de l'armée.", "en": "Explodin' soda. Still beats army chow."}
+    ],
+    "perk_deadeye": [
+      {"fr": "Deadeye Dram. Mes yeux fatiguaient. Plus maintenant.", "en": "Deadeye Dram. My eyes were goin'. Not anymore."},
+      {"fr": "Moins de balles perdues. Enfin quelqu'un qui pense au budget !", "en": "Less wasted rounds. Finally, somebody thinkin' about the budget!"}
+    ],
+    "pw_max_ammo": [
+      {"fr": "Munitions max ! Et c'est gratuit, en plus !", "en": "Max Ammo! And it's free!"},
+      {"fr": "Les caisses sont pleines. Allez pas tout cramer d'un coup !", "en": "Crates are full. Don't blow it all at once!"}
+    ],
+    "pw_insta_kill": [
+      {"fr": "Mort instantanée ! Une balle par tête, pas une de plus !", "en": "Insta-Kill! One round a head, not one more!"},
+      {"fr": "Ils tombent comme des mouches. Économisez vos chargeurs !", "en": "They're droppin' like flies. Save your mags!"}
+    ],
+    "pw_double_points": [
+      {"fr": "Points doubles ! Ça, c'est une prime !", "en": "Double Points! Now that's a bonus!"},
+      {"fr": "Doubles ! Allez, tuez vite, le carnet attend !", "en": "Double! C'mon, kill fast, the book's waitin'!"}
+    ],
+    "pw_nuke": [
+      {"fr": "Tout est rasé. Et ça m'a rien coûté.", "en": "All flattened. Didn't cost me a dime."},
+      {"fr": "Bombe nucléaire. Bien. Enfin un peu de calme.", "en": "Nuke. Good. Finally, some quiet."}
+    ],
+    "pw_carpenter": [
+      {"fr": "Les planches sont revenues. Gratos, pour une fois.", "en": "Boards are back. Free, for once."},
+      {"fr": "Charpentier. Moi, j'aurais fait payer ça très cher.", "en": "Carpenter. I'd have charged good money for that."}
+    ],
+    "pw_fire_sale": [
+      {"fr": "Liquidation ! Tout doit disparaître !", "en": "Fire Sale! Everything must go!"},
+      {"fr": "Soldes à la boîte ! Courez, avant que ça remonte !", "en": "Box is on sale! Run, before prices go back up!"}
+    ],
+    "pw_death_machine": [
+      {"fr": "La Faucheuse. Celle-là, je la rends pas.", "en": "Death Machine. Not givin' this one back."},
+      {"fr": "Des balles à volonté ? J'en pleurerais presque.", "en": "Unlimited ammo? I could cry."}
+    ],
+    "downed": [
+      {"fr": "Argh ! Je suis à terre ! Bougez-vous !", "en": "Argh! I'm down! Move it!"},
+      {"fr": "Putain, ils m'ont eu ! Relevez-moi !", "en": "Goddammit, they got me! Get me up!"},
+      {"fr": "Mes genoux ont lâché ! Hé, quelqu'un !", "en": "My knees gave out! Hey, somebody!"},
+      {"fr": "À terre, bordel de merde ! Venez me chercher !", "en": "I'm down, son of a bitch! Come get me!"}
+    ],
+    "revive_start": [
+      {"fr": "Debout, soldat. C'est pas l'heure de la sieste.", "en": "On your feet, soldier. Nap time's over."},
+      {"fr": "Je te relève. Tu me paieras plus tard.", "en": "I'm picking you up. You'll pay me later."},
+      {"fr": "Serre les dents. J'ai vu pire à l'instruction.", "en": "Grit your teeth. I've seen worse in boot camp."},
+      {"fr": "Arrête de geindre, je m'en occupe.", "en": "Quit whinin', I got you."}
+    ],
+    "revived": [
+      {"fr": "Merci. Je te rembourserai. Peut-être.", "en": "Thanks. I'll pay you back. Maybe."},
+      {"fr": "Pas trop tôt. Je commençais à prendre racine.", "en": "About time. I was growing roots down there."},
+      {"fr": "Le vieux chien est debout. Retour au boulot.", "en": "The old dog's up. Back to work."},
+      {"fr": "Bon boulot. Vous habituez pas aux compliments.", "en": "Good work. Don't get used to compliments."}
+    ],
+    "downed_help": [
+      {"fr": "Je saigne, là ! Quelqu'un va se bouger ?", "en": "I'm bleedin' here! Anybody gonna move?"},
+      {"fr": "Remuez-vous, vous autres ! Venez me ramasser !", "en": "Move it, people! Come pick me up!"},
+      {"fr": "J'ai pas toute la nuit, putain ! À l'aide !", "en": "I ain't got all night, goddammit! Help!"}
+    ],
+    "death": [
+      {"fr": "Mon carnet... Personne ne touche à mon carnet...", "en": "My ledger... Nobody touches my ledger..."},
+      {"fr": "Argh ! Vingt ans de service, pour crever comme ça, putain !", "en": "Argh! Twenty years in, to die like this, goddammit!"},
+      {"fr": "Continuez... sans moi.", "en": "Carry on... without me."}
+    ],
+    "teammate_down": [
+      {"fr": "Homme à terre ! Tiens bon, j'arrive !", "en": "Man down! Hang on, I'm coming!"},
+      {"fr": "Reste avec moi ! Je viens te chercher !", "en": "Stay with me! I'm coming to get you!"},
+      {"fr": "Lâchez mon soldat, bande de charognes !", "en": "Get off my soldier, you vultures!"}
+    ],
+    "teammate_dead": [
+      {"fr": "On a perdu un gars. Ça, ça se rachète pas.", "en": "We lost one. That's somethin' you can't buy back."},
+      {"fr": "Repose en paix, soldat. Je garde ta part.", "en": "Rest easy, soldier. I'll hold on to your share."}
+    ],
+    "last_alive": [
+      {"fr": "Plus que moi. Bon. Plus personne pour gaspiller mes balles.", "en": "Just me. Fine. Nobody left to waste my ammo."},
+      {"fr": "Le dernier debout. Comme d'habitude.", "en": "Last one standing. As usual."}
+    ],
+    "game_start": [
+      {"fr": "Bon. On fait l'inventaire, et on tient la position.", "en": "Alright. Check your gear, and hold the line."},
+      {"fr": "Écoutez-moi bien. Ici, tout se paie. Alors tuez, et encaissez.", "en": "Listen up. Everything costs here. So kill, and cash in."},
+      {"fr": "Personne pour nous payer, personne pour nous sortir de là. Super.", "en": "Nobody payin' us, nobody comin' for us. Great."}
+    ],
+    "round_start": [
+      {"fr": "Les revoilà. Planches en place, chargeurs pleins, et on gaspille pas.", "en": "Here they come. Boards up, mags full, and no wastin'."},
+      {"fr": "Nouvelle manche. Nouveaux points. Au travail.", "en": "New round. New points. Get to work."},
+      {"fr": "Encore une vague. J'ai connu des matins plus calmes à Parris Island.", "en": "Another wave. I've had quieter mornings on Parris Island."},
+      {"fr": "Debout, les bleus ! C'est des points sur pattes, ça !", "en": "Look alive, rookies! That's points on legs!"},
+      {"fr": "Y en a encore plus. Tant mieux. Plus de cibles, plus de fric.", "en": "Even more of 'em. Good. More targets, more cash."},
+      {"fr": "On tient la ligne. Le premier qui recule, cinquante pompes !", "en": "We hold the line. First man back gives me fifty!"}
+    ],
+    "dog_round": [
+      {"fr": "Des chiens. Un bulldog a peur d'aucun chien.", "en": "Dogs. A bulldog ain't scared of no dog."},
+      {"fr": "Ça pue le soufre. Dos au mur, tout le monde !", "en": "Smells like sulfur. Backs to the wall, everybody!"},
+      {"fr": "Les chiens arrivent ! Visez bas, et courez pas !", "en": "Dogs comin'! Aim low, and don't run!"}
+    ],
+    "door_open": [
+      {"fr": "C'est ouvert. Et c'est encore moi qui paie.", "en": "It's open. And I'm payin', again."},
+      {"fr": "Une porte de plus. Des points en moins.", "en": "One more door. Fewer points."},
+      {"fr": "Avancez. Fouillez tout, on manque de tout.", "en": "Move in. Search everything, we're short on everything."}
+    ],
+    "power_on": [
+      {"fr": "Le courant est revenu. Les machines vont pouvoir me ruiner.", "en": "Power's back. Now the machines can bleed me dry."},
+      {"fr": "De la lumière. Enfin, je vois ce que j'achète.", "en": "Lights. Finally, I can see what I'm buying."}
+    ],
+    "teleporter_link": [
+      {"fr": "C'est relié. J'espère que le voyage est gratuit.", "en": "Linked. I hope the ride is free."},
+      {"fr": "C'est branché. Si ça m'éparpille, je porte plainte.", "en": "Hooked up. If it scatters me, I'm filing a complaint."}
+    ],
+    "teleport_out": [
+      {"fr": "Ça me tourne la tête. On est où, là ?", "en": "My head's spinnin'. Where the hell are we?"},
+      {"fr": "Bon. Fouillez le coin, y a peut-être du matos.", "en": "Alright. Search the place, could be supplies."}
+    ],
+    "teleport_back": [
+      {"fr": "De retour. Il me manque rien ? Bon.", "en": "Back. Nothing missing? Good."},
+      {"fr": "Aller-retour. Mon estomac demande un remboursement.", "en": "Round trip. My stomach wants a refund."}
+    ],
+    "trap_on": [
+      {"fr": "Piège activé ! Il m'a coûté cher, alors venez !", "en": "Trap's live! Cost me plenty, so come on in!"},
+      {"fr": "Allez-y, entrez. C'est moi qui régale, pour une fois.", "en": "Go on in. It's on me, for once."}
+    ],
+    "low_health": [
+      {"fr": "Je suis touché. Ça va. Non, putain, ça va pas.", "en": "I'm hit. I'm fine. No, shit, I'm not fine."},
+      {"fr": "Je pisse le sang comme un tonneau percé.", "en": "Leakin' like a busted barrel."},
+      {"fr": "Ce vieux corps en peut plus. Trouvez-moi un coin.", "en": "This old body's had enough. Find me a corner."},
+      {"fr": "Des pansements ! Il me faut des pansements !", "en": "Bandages! I need bandages!"}
+    ],
+    "surrounded": [
+      {"fr": "Ils m'encerclent ! Serrez les rangs !", "en": "They're all around me! Close ranks!"},
+      {"fr": "Ta gueule ! Faites de la place, bordel !", "en": "Shut up! Get the hell back!"},
+      {"fr": "Encerclé ! Putain, ça va me coûter une fortune en balles !", "en": "Surrounded! Fuck, this is gonna cost a fortune in ammo!"},
+      {"fr": "Reculez ! Tous ! C'est un ordre !", "en": "Back off! All of you! That's an order!"}
+    ],
+    "hurt": [
+      {"fr": "Argh ! Putain !", "en": "Argh! Fuck!"},
+      {"fr": "Aïe ! Sale bête !", "en": "Ow! Filthy thing!"},
+      {"fr": "Putain, mes côtes !", "en": "Shit, my ribs!"},
+      {"fr": "Lâche-moi !", "en": "Get off me!"},
+      {"fr": "Tu vas me le payer, putain !", "en": "You'll pay for that, fucker!"},
+      {"fr": "Ouille ! Pas le bras !", "en": "Ugh! Not the arm!"}
+    ],
+    "exert_melee": [
+      {"fr": "Dégage !", "en": "Get lost!"},
+      {"fr": "Au tapis !", "en": "Hit the deck!"},
+      {"fr": "Prends ça !", "en": "Eat this!"},
+      {"fr": "Crève, putain !", "en": "Die, you fuck!"}
+    ],
+    "oh_shit": [
+      {"fr": "Putain ! Derrière moi !", "en": "Shit! Behind me!"},
+      {"fr": "Hé ! Qui t'a dit d'approcher ?", "en": "Hey! Who said you could get that close?"},
+      {"fr": "Sacré nom ! Annonce-toi, la prochaine fois !", "en": "Holy hell! Announce yourself next time!"}
+    ],
+    "crawler_near": [
+      {"fr": "Un rampant ! Au ras du sol, à mes pieds !", "en": "Crawler! Down low, by my boots!"},
+      {"fr": "Ça rampe comme une recrue sous les barbelés.", "en": "Crawling like a recruit under barbed wire."}
+    ],
+    "throw_grenade": [
+      {"fr": "Grenade ! À couvert !", "en": "Grenade! Take cover!"},
+      {"fr": "Tiens, un cadeau. Celui-là, il est gratuit.", "en": "Here, a gift. This one's free."},
+      {"fr": "Ça va péter ! Dégagez !", "en": "Fire in the hole! Clear out!"}
+    ],
+    "throw_monkey": [
+      {"fr": "Va, le singe. Gagne tes bananes.", "en": "Go on, monkey. Earn your bananas."},
+      {"fr": "Allez, la troupe, voilà votre fanfare !", "en": "Go on, maggots, there's your marching band!"}
+    ],
+    "idle": [
+      {"fr": "Tout se paie, ici. Même l'air qu'on respire.", "en": "Everything has a price here. Even the air we breathe."},
+      {"fr": "Je recompte mes points. Encore. Ça me calme.", "en": "Counting my points. Again. It calms me down."},
+      {"fr": "Vingt ans à distribuer des chaussettes. Et voilà où je finis.", "en": "Twenty years handing out socks. And this is where I end up."},
+      {"fr": "Une allumette, ça se mâchouille longtemps. Et ça coûte rien.", "en": "A matchstick chews a long time. And it costs nothin'."},
+      {"fr": "À Parris Island, je faisais pleurer des gaillards de deux mètres.", "en": "On Parris Island, I made six-foot farm boys cry."},
+      {"fr": "Si l'Institut m'envoie la facture, je la renvoie avec une grenade.", "en": "If the Institute sends me a bill, I'm sending it back with a grenade."},
+      {"fr": "C'est calme. Profitez-en pour compter vos balles.", "en": "It's quiet. Use it to count your ammo."},
+      {"fr": "Quand on sort, je veux ma solde, une prime et des excuses.", "en": "When we get out, I want back pay, a bonus and an apology."},
+      {"fr": "Qui a payé pour tout ce bazar ? Sûrement pas moi.", "en": "Who paid for all this junk? Sure wasn't me."},
+      {"fr": "Pas de rations, pas de café. Même la pire cantine valait mieux.", "en": "No rations, no coffee. Even the worst mess hall beat this."}
+    ],
+    "resp_box_bad": [
+      {"fr": "Ha ! Du fric jeté par la fenêtre.", "en": "Ha! Money straight out the window."},
+      {"fr": "Belle affaire, soldat. Tu t'es fait avoir.", "en": "Nice deal, soldier. You got swindled."}
+    ],
+    "resp_wonder": [
+      {"fr": "Celle-là, tu me la loues combien ?", "en": "How much to rent that off you?"},
+      {"fr": "Signe le registre. Cette arme appartient à l'intendance.", "en": "Sign the ledger. That weapon is supply property."}
+    ],
+    "tease_callahan": [
+      {"fr": "Callahan ! Tu gueules toujours comme à l'instruction, deuxième classe.", "en": "Callahan! Still yellin' like it's boot camp, Private."},
+      {"fr": "Le deuxième classe Callahan se prend pour un sergent. Je l'ai formé, je sais ce qu'il vaut.", "en": "Private Callahan thinks he's a sergeant now. I trained him. I know better."}
+    ],
+    "tease_orlov": [
+      {"fr": "Hé, Rayon de soleil ! Souris, Orlov, ça coûte rien.", "en": "Hey, Sunshine! Smile, Orlov. It's free."},
+      {"fr": "Orlov partage son pain avec tout le monde. Il sait pas gérer un stock, celui-là.", "en": "Orlov shares his bread with everybody. Guy can't run a stockroom."}
+    ],
+    "tease_arakawa": [
+      {"fr": "Le lieutenant salue les zombies. Moi, je salue même pas les officiers.", "en": "The lieutenant bows to the zombies. I don't even salute officers."},
+      {"fr": "Arakawa entretient son sabre mieux que vous vos fusils. Prenez exemple.", "en": "Arakawa keeps his sword cleaner than you keep your rifles. Learn somethin'."}
+    ],
+    "tease_weissmann": [
+      {"fr": "Le Professeur nous doit des années de solde. Je tiens les comptes.", "en": "The Professor owes us years of back pay. I'm keepin' count."},
+      {"fr": "Weissmann, chaque machine ici me coûte des points. Je t'enverrai la note.", "en": "Weissmann, every machine in here costs me points. You'll get the bill."}
+    ]
+  }
+}

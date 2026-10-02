@@ -1430,6 +1430,37 @@
     "en": "Map editor: PLAY TEST together",
     "fr": "Éditeur de cartes : TESTER ensemble"
    }
+  },
+  "v0.2.0-snapshot.353": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [],
+   "items": [
+    {
+     "en": "Pick your character: OPTIONS > GAME > CHARACTER (automatic by default, applies from the next game).",
+     "fr": "Choisissez votre personnage : OPTIONS > JEU > PERSONNAGE (automatique par défaut, pris en compte à la partie suivante)."
+    },
+    {
+     "en": "New: Gunnery Sergeant Frank \"Bulldog\" Mercer, a gruff Marine who counts every penny.",
+     "fr": "Nouveau : le sergent-chef Frank « Bulldog » Mercer, Marine bourru qui compte chaque sou."
+    },
+    {
+     "en": "New: Dr Ella Berg, a brilliant and mischievous Swedish chemist and codebreaker.",
+     "fr": "Nouvelle : la docteure Ella Berg, chimiste et briseuse de codes suédoise, brillante et espiègle."
+    },
+    {
+     "en": "New: Georges \"Jojo the Hustler\" Ferrand, a crude and dishonest Parisian black-market crook.",
+     "fr": "Nouveau : Georges « Jojo la Magouille » Ferrand, trafiquant parisien du marché noir, grossier et malhonnête."
+    },
+    {
+     "en": "All three fully voiced in French and English, with new, more expressive voices.",
+     "fr": "Tous trois entièrement doublés en français et en anglais, avec de nouvelles voix plus expressives."
+    }
+   ],
+   "title": {
+    "en": "Character choice and three new survivors",
+    "fr": "Choix du personnage et trois nouveaux survivants"
+   }
   }
  }
 }

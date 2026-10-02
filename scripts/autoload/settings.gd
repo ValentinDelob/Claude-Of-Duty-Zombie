@@ -16,6 +16,10 @@ signal changed
 signal bindings_changed
 
 var player_name := "Claude"
+## Personnage incarné (OPTIONS > JEU > PERSONNAGE) : « auto » (personnage
+## libre tiré par l'hôte, comme BO1) ou un identifiant de CharacterDB.IDS.
+## Pris en compte au lancement de la partie suivante.
+var character := CharacterDB.AUTO
 var mouse_sensitivity := 0.25
 ## Multiplicateur de la sensibilité en visée (1 = celle de l'arme, comme BO1).
 var ads_sensitivity := 1.0
@@ -428,6 +432,7 @@ func load_from(file: String) -> bool:
 	if cfg == null:
 		return false
 	player_name = SafeConfig.get_string(cfg, "player", "name", player_name, 64)
+	character = CharacterDB.clean_choice(SafeConfig.get_string(cfg, "player", "character", CharacterDB.AUTO, 16))
 	mouse_sensitivity = SafeConfig.get_float(cfg, "controls", "mouse_sensitivity", mouse_sensitivity, 0.01, 5.0)
 	ads_sensitivity = SafeConfig.get_float(cfg, "controls", "ads_sensitivity", ads_sensitivity,
 			ADS_SENSITIVITY_RANGE.x, ADS_SENSITIVITY_RANGE.y)
@@ -469,6 +474,7 @@ func save_settings() -> void:
 func save_to(file: String) -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("player", "name", player_name)
+	cfg.set_value("player", "character", character)
 	cfg.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	cfg.set_value("controls", "ads_sensitivity", ads_sensitivity)
 	cfg.set_value("controls", "invert_y", invert_y)

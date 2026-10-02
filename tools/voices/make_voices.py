@@ -1,59 +1,55 @@
-# Génère les répliques vocales des personnages (docs/CHARACTERS.md) :
+# Génère les répliques vocales des personnages (docs/CHARACTERS.md). Deux moteurs,
+# choisis par personnage dans tools/voices/cast.json (clé "engine") :
+#
+# - "chatterbox" (défaut ; Callahan, Orlov, Arakawa, Weissmann) :
 #   1. une voix de référence synthétique par personnage avec Kokoro-82M
 #      (Apache 2.0 ; aucune voix de personne réelle n'est clonée) ;
 #   2. chaque réplique, en français et en anglais, avec Chatterbox Multilingual
 #      (MIT, Resemble AI ; même voix dans les deux langues, expressivité réglable) ;
-#   3. nettoyage, niveau et encodage Ogg Vorbis.
+# - "qwen_clone" (Mercer) : clonage Qwen3-TTS 1.7B-Base d'une référence par
+#   langue, dans un autre environnement Python : ce script délègue alors à
+#   tools/voices/qwen_clone.py (voir son en-tête) ;
 #
-#   tools/tts/.venv/Scripts/python.exe tools/voices/make_voices.py [--lang fr|en] [--only callahan,orlov] [--sample N] [--out DOSSIER] [--refs]
+# puis, pour tous : nettoyage, niveau et encodage Ogg Vorbis (vox_common.py).
+#
+#   tools/tts/.venv/Scripts/python.exe tools/voices/make_voices.py [--lang fr|en] [--only callahan,orlov]
+#       [--category idle,hurt] [--sample N] [--out DOSSIER] [--refs] [--force]
 #
 # - textes : assets/voices/<personnage>.json ; réglages : tools/voices/cast.json ;
 # - environnement (Python, PyTorch, modèles) : tools/tts/ (hors git, voir docs/ASSETS.md) ;
 # - sortie : assets/audio/vox/<langue>/<personnage>/<catégorie>_<n>.ogg ;
+# - les fichiers existants sont gardés (reprise) sauf avec --force ;
+# - --category : seulement ces catégories (ex. une nouvelle catégorie de taquinerie) ;
 # - --sample N : N répliques par personnage et un fichier d'écoute par langue ;
-# - --refs : régénère les voix de référence (tools/tts/refs/<personnage>.wav).
-import hashlib, json, math, os, re, sys, time
+# - --refs : régénère les voix de référence Kokoro (tools/tts/refs/<personnage>.wav).
+import hashlib, os, subprocess, sys, time
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-TTS = os.path.join(ROOT, "tools", "tts")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from vox_common import ROOT, TTS, speakable, process, write_ogg, load_cast, load_lines  # noqa: E402
+
 os.environ.setdefault("HF_HOME", os.path.join(TTS, "hf"))
 
-import numpy as np
-import soundfile as sf
-import torch
+import numpy as np  # noqa: E402
+import soundfile as sf  # noqa: E402
 
-NUM = {"fr": ["zéro", "un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix"],
-       "en": ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]}
+QWEN_PY = os.path.join(TTS, "qwen3tts", "Scripts", "python.exe")
 
 
 def args():
     a = sys.argv[1:]
-    opt = {"lang": None, "only": None, "sample": 0, "out": os.path.join(ROOT, "assets", "audio", "vox"), "refs": False}
+    opt = {"lang": None, "only": None, "category": None, "sample": 0,
+           "out": os.path.join(ROOT, "assets", "audio", "vox"), "refs": False, "force": False}
     i = 0
     while i < len(a):
         k = a[i].lstrip("-")
-        if k == "refs":
-            opt["refs"] = True
+        if k in ("refs", "force"):
+            opt[k] = True
             i += 1
             continue
         opt[k] = a[i + 1]
         i += 2
     opt["sample"] = int(opt["sample"])
     return opt
-
-
-def speakable(text, lang):
-    """Texte prêt pour la synthèse : noms en majuscules en casse normale (sinon
-    épelés), chiffres en toutes lettres."""
-    def cap(m):
-        return "-".join(p.capitalize() for p in m.group(0).split("-"))
-    text = re.sub(r"\b[A-ZÀ-Ý][A-ZÀ-Ý&'-]{2,}\b", cap, text)
-
-    def num(m):
-        n = int(m.group(2))
-        w = NUM[lang][n] if n <= 10 else m.group(2)
-        return m.group(1) + (w.capitalize() if m.group(1) == "-" else w)
-    return re.sub(r"(-?)(\d+)", num, text)
 
 
 def shift(x, semitones):
@@ -77,34 +73,11 @@ def make_ref(ch, spec, path):
     print("[vox] référence %s : %s, %.1f s" % (ch, voice, len(x) / 24000))
 
 
-def process(x, sr):
-    """Silences coupés, passe-haut léger, niveau des parties parlées à -19 dBFS,
-    crêtes adoucies, fondus."""
-    env = np.convolve(np.abs(x), np.ones(256) / 256, "same")
-    idx = np.where(env > 10 ** (-45 / 20))[0]
-    if len(idx):
-        pad = int(0.03 * sr)
-        x = x[max(0, idx[0] - pad):min(len(x), idx[-1] + pad)]
-    n = 1 << int(math.ceil(math.log2(len(x) + 1024)))
-    f = np.fft.rfftfreq(n, 1 / sr)
-    g = 1.0 / np.sqrt(1.0 + (80.0 / np.maximum(f, 1.0)) ** 4)
-    x = np.fft.irfft(np.fft.rfft(x, n) * g, n)[:len(x)].astype(np.float32)
-    frame = int(0.05 * sr)
-    rms = np.sqrt(np.convolve(x * x, np.ones(frame) / frame, "same"))
-    speech = rms > np.max(rms) * 0.1
-    level = np.sqrt(np.mean(x[speech] ** 2)) if np.any(speech) else 1e-3
-    x = x * (10 ** (-19 / 20) / max(level, 1e-4))
-    x = np.tanh(x * 1.2) / np.tanh(1.2)
-    fade = int(0.012 * sr)
-    x[:fade] *= np.linspace(0, 1, fade)
-    x[-fade:] *= np.linspace(1, 0, fade)
-    return np.clip(x, -0.98, 0.98).astype(np.float32)
-
-
 def synth(model, text, lang, spec, key):
     """Synthèse d'une réplique, graine fixe par réplique (une régénération donne le
     même résultat). Chatterbox échoue parfois sur les cris très courts (« Back! ») :
     autres graines, puis texte légèrement allongé (points de suspension, répétition)."""
+    import torch
     base = int(hashlib.md5(key.encode()).hexdigest()[:8], 16)
     for attempt, t in enumerate([text, text, text, text.rstrip("!.?") + "...", text + " " + text]):
         torch.manual_seed(base + attempt)
@@ -121,16 +94,31 @@ def synth(model, text, lang, spec, key):
     return None
 
 
-def write_ogg(x, sr, path):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    sf.write(path, x, sr, format="OGG", subtype="VORBIS")
+def run_qwen(chars, opt):
+    """Personnages clonés avec Qwen3-TTS : autre venv, autre script."""
+    cmd = [QWEN_PY, os.path.join(ROOT, "tools", "voices", "qwen_clone.py"), "--only", ",".join(chars)]
+    for k in ("lang", "category", "out"):
+        if opt[k]:
+            cmd += ["--" + k, str(opt[k])]
+    if opt["sample"]:
+        cmd += ["--sample", str(opt["sample"])]
+    if opt["force"]:
+        cmd += ["--force"]
+    print("[vox] Qwen3-TTS : %s" % " ".join(cmd), flush=True)
+    return subprocess.call(cmd)
 
 
 def main():
     opt = args()
-    cast = json.load(open(os.path.join(ROOT, "tools", "voices", "cast.json"), encoding="utf-8"))["characters"]
+    cast = load_cast()
     langs = [opt["lang"]] if opt["lang"] else ["fr", "en"]
+    cats = set(opt["category"].split(",")) if opt["category"] else None
     chars = opt["only"].split(",") if opt["only"] else list(cast.keys())
+    qwen = [ch for ch in chars if cast[ch].get("engine", "chatterbox") == "qwen_clone"]
+    chars = [ch for ch in chars if ch not in qwen]
+    if not chars:
+        sys.exit(run_qwen(qwen, opt) if qwen else 0)
+    import torch
     refs = {}
     for ch in chars:
         refs[ch] = os.path.join(TTS, "refs", ch + ".wav")
@@ -145,15 +133,16 @@ def main():
         preview = []
         for ch in chars:
             spec = cast[ch]
-            lines = json.load(open(os.path.join(ROOT, "assets", "voices", ch + ".json"), encoding="utf-8"))["lines"]
-            jobs = [(cat, i, speakable(v[lang], lang)) for cat, vs in lines.items() for i, v in enumerate(vs)]
+            lines = load_lines(ch)
+            jobs = [(cat, i, speakable(v[lang], lang)) for cat, vs in lines.items() for i, v in enumerate(vs)
+                    if cats is None or cat in cats]
             if opt["sample"]:
                 step = max(1, len(jobs) // opt["sample"])
                 jobs = jobs[::step][:opt["sample"]]
             model.prepare_conditionals(refs[ch], exaggeration=spec["exaggeration"])
             for cat, i, text in jobs:
                 out = os.path.join(opt["out"], lang, ch, "%s_%d.ogg" % (cat, i))
-                if not opt["sample"] and os.path.exists(out):
+                if not opt["sample"] and not opt["force"] and os.path.exists(out):
                     continue  # reprise d'une génération interrompue
                 wav = synth(model, text, lang, spec, "%s/%s/%s/%d" % (lang, ch, cat, i))
                 if wav is None:
@@ -169,6 +158,10 @@ def main():
             # Fichier d'écoute en WAV : libsndfile plante sur les longs Ogg Vorbis.
             sf.write(os.path.join(opt["out"], "ecoute_%s.wav" % lang), np.concatenate(preview), sr)
     print("[vox] %d fichiers -> %s" % (total, opt["out"]))
+    if qwen:
+        del model
+        torch.cuda.empty_cache()
+        run_qwen(qwen, opt)  # après Chatterbox : un seul gros calcul GPU à la fois
 
 
 main()

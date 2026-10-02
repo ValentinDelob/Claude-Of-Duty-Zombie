@@ -2,7 +2,8 @@ extends TestCase
 ## Utilitaires et garde-fous de Net sans vrai réseau : adresses locales et
 ## plages privées 172.16-31, refus du bonjour (_srv_hello : version, build,
 ## partie lancée, serveur plein, appel reçu par un client), noms en double,
-## places pleines, échec et délai de connexion. Les appels passent par une
+## places pleines, choix du personnage (bonjour, _srv_set_character), échec et
+## délai de connexion. Les appels passent par une
 ## instance neuve de net.gd sous `host`, avec son propre SceneMultiplayer :
 ## l'autoload Net et le pair du jeu ne sont jamais touchés, aucun port ouvert.
 ## Net est chargé comme simple Node (pas l'autoload) : ses fonctions statiques
@@ -186,6 +187,38 @@ func test_hello_ignored_on_client() -> void:
 	n.players = {}
 	assert_eq(_hello_reason(n, "X", 0, "x"), "", "aucun refus émis par un client")
 	assert_true(n.players.is_empty(), "client : aucun joueur ajouté")
+
+
+func test_hello_and_character_choice() -> void:
+	var n := _make_net()
+	n.players = {1: {"name": "Hote", "slot": 0}}
+	n.max_players = 4
+	# Hors RPC, l'expéditeur vaut 0.
+	n._srv_hello("Invite", Net.PROTOCOL_VERSION, Net.build_version())
+	assert_eq(n.players[0].char, CharacterDB.AUTO, "avant le choix : automatique")
+	n._srv_set_character("mercer")
+	assert_eq(n.players[0].char, "mercer", "choix envoyé juste après le bonjour")
+	n._srv_set_character("orlov")
+	assert_eq(n.players[0].char, "orlov", "choix changé au salon")
+	for bad in ["zorg", 7, null, {"x": 1}, "../callahan"]:
+		n._srv_set_character(bad)
+		assert_eq(n.players[0].char, CharacterDB.AUTO, "valeur invalide -> auto : %s" % str(bad))
+	n.players.erase(0)
+	n._srv_set_character("orlov")
+	assert_false(n.players.has(0), "joueur inconnu (refusé ou pas encore présenté) : ignoré")
+	# Le bonjour garde sa forme d'avant (trois valeurs) et _srv_set_character
+	# est trié après les RPC existants : leurs numéros ne bougent pas, un hôte
+	# d'une autre version répond toujours « version différente ».
+	var names: Array = []
+	for m in n.get_script().get_rpc_config():
+		names.append(String(m))
+	names.sort()
+	assert_eq(names[-1], "_srv_set_character", "nouveau RPC en dernier : %s" % [names])
+	var hello_args := -1
+	for m in n.get_method_list():
+		if m.name == "_srv_hello":
+			hello_args = (m.args as Array).size()
+	assert_eq(hello_args, 3, "bonjour à trois valeurs")
 
 
 # ------------------------------------------------------------------ échecs de connexion
