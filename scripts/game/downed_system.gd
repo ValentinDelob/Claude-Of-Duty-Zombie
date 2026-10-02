@@ -64,7 +64,7 @@ func srv_down(pid: int) -> void:
 		if mates.size() == 1 and game.session.data.size() > 1:
 			game.vox.later(3.8, mates[0], "last_alive")
 	game.combat.cancel_reload(pid)
-	var entry := {"bleed_end": GameClock.now() + bleedout_time, "reviver": 0, "revive_start": 0.0, "revive_dur": 0.0, "self_revive": 0.0, "lost": lost}
+	var entry := {"bleed_end": GameClock.now() + bleedout_time, "bleed_total": bleedout_time, "reviver": 0, "revive_start": 0.0, "revive_dur": 0.0, "self_revive": 0.0, "lost": lost}
 	if Net.mode == Net.Mode.SOLO and had_lazarus:
 		entry.self_revive = GameClock.now() + SOLO_SELF_REVIVE
 	downed[pid] = entry
@@ -258,7 +258,9 @@ func _cl_state(pid: int, is_down: bool, bleed_time: float, reviver: int, progres
 	var was_down := _was_shown.has(pid)
 	if not multiplayer.is_server():
 		if is_down:
-			downed[pid] = {"bleed_end": t + bleed_time, "reviver": reviver, "revive_start": t - progress, "revive_dur": dur, "self_revive": 0.0}
+			# Durée totale : celle du premier état reçu pour cette mise à terre.
+			var total: float = downed.get(pid, {}).get("bleed_total", bleed_time)
+			downed[pid] = {"bleed_end": t + bleed_time, "bleed_total": total, "reviver": reviver, "revive_start": t - progress, "revive_dur": dur, "self_revive": 0.0}
 		else:
 			downed.erase(pid)
 	var p: Player = game.players.get(pid)
@@ -297,6 +299,14 @@ func _cl_revived(pid: int) -> void:
 func bleed_left(pid: int) -> float:
 	var e: Dictionary = downed.get(pid, {})
 	return maxf(e.get("bleed_end", 0.0) - GameClock.now(), 0.0)
+
+
+## Part du saignement écoulée (0 : vient de tomber, 1 : mort imminente).
+func bleed_fraction(pid: int) -> float:
+	var total: float = downed.get(pid, {}).get("bleed_total", 0.0)
+	if total <= 0.0:
+		return 0.0
+	return 1.0 - clampf(bleed_left(pid) / total, 0.0, 1.0)
 
 
 func revive_progress(pid: int) -> float:

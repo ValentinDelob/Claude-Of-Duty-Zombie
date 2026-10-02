@@ -40,12 +40,20 @@ func run() -> void:
 	game.combat.shot_validated.connect(func(_pid): shots[0] += 1)
 	await H.shoot(self, p)
 	at.check(shots[0] == 1, "tir possible à terre")
-	# HUD : la barre d'auto-réanimation se remplit (pas de compte à rebours
-	# de saignement de 45 s alors qu'on se relève en 10 s).
+	# Coup de couteau à terre (au contact, sans fente).
+	var z: Zombie = await H.dummy_zombie(self, p.global_position - p.global_transform.basis.z * 1.1, 5000)
+	H.aim_at(p, z.global_position + Vector3.UP * 0.6)
+	await frames(2)
+	p.input.melee = true
+	await until(func(): return z.health < 5000, 2.0, "coup de couteau à terre")
+	at.check(z.health < 5000, "couteau possible à terre (%d PV)" % z.health)
+	at.check(not p.weapons.lunging, "pas de fente à terre")
+	await H.clear_zombies(self)
+	# HUD : la barre d'auto-réanimation se remplit, et la vision ne vire pas
+	# au noir et blanc (on se relève en 10 s, on ne va pas mourir).
 	var ov := game.hud._downed
-	at.check(ov._revive.text.contains("█") and ov._time.text == "",
-		"HUD : barre d'auto-réanimation (« %s », « %s »)" % [ov._revive.text, ov._time.text])
-	# Auto-réanimation LAZARUS (10 s, comme BO1).
+	at.check(ov._revive.visible and ov._revive.progress > 0.0 and ov.grayness() == 0.0,
+		"HUD : barre d'auto-réanimation (%.2f, gris %.2f)" % [ov._revive.progress, ov.grayness()])	# Auto-réanimation LAZARUS (10 s, comme BO1).
 	await until(func(): return pd.life == PlayerData.Life.ALIVE, DownedSystem.SOLO_SELF_REVIVE + 3.0, "réanimation")
 	at.check(pd.life == PlayerData.Life.ALIVE and pd.health == 100, "réanimé par LAZARUS (%d PV)" % pd.health)
 	at.check(pd.has_weapon("m14") >= 0 and pd.weapons.size() == 2, "armes rendues")

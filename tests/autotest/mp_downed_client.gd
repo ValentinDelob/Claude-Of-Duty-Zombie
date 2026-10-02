@@ -20,7 +20,7 @@ func run() -> void:
 	at.check(game.hud._downed._title.text == Lang.t("À TERRE", "DOWNED"), "HUD : À TERRE")
 	var saw_bar := [false]
 	var ok: bool = await until(func():
-		if game.hud._downed._revive.text.contains("█"):
+		if game.hud._downed._revive.visible and game.hud._downed._revive.progress > 0.0:
 			saw_bar[0] = true
 		return pd.life == PlayerData.Life.ALIVE, 20.0, "réanimé")
 	at.check(ok and saw_bar[0], "barre de réanimation affichée puis réanimé")

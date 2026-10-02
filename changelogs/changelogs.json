@@ -1892,6 +1892,29 @@
     "en": "Mystery Box: a real teddy bear",
     "fr": "Boîte mystère : un vrai nounours"
    }
+  },
+  "v0.2.0-snapshot.365": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [],
+   "items": [
+    {
+     "en": "While downed, you can knife zombies again (close range, no lunge).",
+     "fr": "À terre, on peut de nouveau donner des coups de couteau aux zombies (au contact, sans fente)."
+    },
+    {
+     "en": "No more countdown: colours slowly fade, and once everything is black and white, you die.",
+     "fr": "Plus de compte à rebours : les couleurs s'éteignent peu à peu, et quand tout est en noir et blanc, c'est la mort."
+    },
+    {
+     "en": "New revive bar, slimmer and easier to read.",
+     "fr": "Nouvelle barre de réanimation, plus fine et plus lisible."
+    }
+   ],
+   "title": {
+    "en": "Downed: knife and black-and-white vision",
+    "fr": "À terre : couteau et vision en noir et blanc"
+   }
   }
  }
 }

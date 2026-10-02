@@ -486,11 +486,14 @@ func _cl_hit_confirm(killed: bool, headshot: bool) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_melee(origin: Vector3, dir: Vector3) -> void:
-	var pid := NetGuard.alive_sender(self, game)
+	# À terre, on garde le couteau (comme le pistolet) : seul un mort est refusé.
+	var pid := NetGuard.known_sender(self, game)
 	var t := GameClock.now()
 	if pid == NetGuard.NO_SENDER or t < _melee_ready.get(pid, 0.0):
 		return
 	var pd := session.get_data(pid)
+	if pd.life == PlayerData.Life.DEAD:
+		return
 	var p: Player = game.players.get(pid)
 	if not NetGuard.finite_vec(origin) or not NetGuard.valid_dir(dir):
 		return

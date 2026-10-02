@@ -408,7 +408,8 @@ func _melee() -> void:
 	_reload_end = -1.0
 	view.cancel_reload()
 	_burst_left = 0
-	var target := _lunge_target()
+	# À terre : pas de fente (le joueur rampe), coup au contact seulement.
+	var target := _lunge_target() if not player.downed else null
 	var lunge := target != null
 	view.start_melee(lunge)
 	Audio.play_2d("knife_swing", -4.0, 0.1)
@@ -427,7 +428,7 @@ func _melee() -> void:
 
 func _strike() -> void:
 	var pd := session.get_data(player.peer_id)
-	if pd == null or pd.life != PlayerData.Life.ALIVE:
+	if pd == null or pd.life == PlayerData.Life.DEAD:
 		return
 	combat.srv_melee.rpc_id(1, player.camera.global_position, player.aim_direction())
 
