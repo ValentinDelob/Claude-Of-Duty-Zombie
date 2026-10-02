@@ -161,3 +161,27 @@ func test_ouverture_allume_le_fond() -> void:
 	assert_eq(box._open_amount, 0.0, "refermée")
 	assert_false(box._haze.visible, "halo éteint")
 	assert_near(box._light.light_energy, MysteryBox.LIGHT_IDLE_ENERGY, 0.0001, "lampe au repos")
+
+
+## Bug joueur : l'ours n'était qu'un cube. Nounours modélisé, face au joueur,
+## posé au-dessus du coffre (pas dans le couvercle ni le coffre).
+func test_nounours_au_depart() -> void:
+	var box := await _box()
+	box._display.rotation.y = 2.0  # laissé tourné par l'arme précédente
+	box.state = MysteryBox.State.MOVING
+	box.apply_state(box.get_state(), false)
+	var teddy := box._display_model
+	assert_true(teddy != null and teddy.name == "Teddy", "nounours affiché")
+	assert_true(teddy.get_node_or_null("Head") != null, "tête du nounours")
+	assert_true(teddy.find_children("*", "MeshInstance3D", true, false).size() >= 20, "modèle détaillé, pas un cube")
+	assert_near(box._display.rotation.y, 0.0, 0.0001, "face au joueur")
+	var inv := box._root.global_transform.affine_inverse()
+	var aabb := AABB()
+	var first := true
+	for mi: MeshInstance3D in teddy.find_children("*", "MeshInstance3D", true, false):
+		var a: AABB = (inv * mi.global_transform) * mi.get_aabb()
+		aabb = a if first else aabb.merge(a)
+		first = false
+	assert_true(aabb.position.y >= 0.75, "au-dessus du coffre (bas à %.2f m)" % aabb.position.y)
+	assert_true(aabb.size.y > 0.5 and aabb.size.y < 0.8, "hauteur lisible (%.2f m)" % aabb.size.y)
+	assert_true(aabb.end.z > absf(aabb.position.z), "tourné vers l'avant de la boîte")

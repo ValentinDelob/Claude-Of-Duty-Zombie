@@ -14,7 +14,6 @@ const ROLL_TIME := 4.2
 ## Arme offerte : reprise possible 12 s (treasure_chest_timeout de BO1).
 const READY_TIME := 12.0
 const MOVE_TIME := 9.0
-## Nombre d'utilisations avant que le crâne puisse apparaître.
 ## Ours en peluche (départ de la boîte), règles de BO1 (_zombiemode_weapons) :
 ## rien avant le 4e tirage, 15 % du 4e au 7e ; si la boîte n'a encore jamais
 ## bougé, départ forcé au 8e ; ensuite 30 % du 8e au 12e, 50 % à partir du 13e.
@@ -51,6 +50,8 @@ const GLOW_COLOR := Color(1.0, 0.86, 0.62)
 ## Halo doré qui monte du coffre ouvert (pendant le tirage).
 const HAZE_INTENSITY := 0.16
 const HAZE_HEIGHT := 0.9
+## Nounours (TeddyModel, 0,5 m) agrandi : bien lisible au-dessus du coffre.
+const TEDDY_SCALE := 1.3
 
 var state: State = State.IDLE
 var location := 0
@@ -505,7 +506,7 @@ func apply_state(s: Dictionary, animate: bool) -> void:
 			_show_model(weapon)
 		State.MOVING:
 			_show_model("")
-			_show_skull()
+			_show_teddy()
 			if animate:
 				Audio.play_3d("box_skull", global_position + Vector3.UP * 1.5, 2.0, 0.0)
 				if _fly_tween:
@@ -588,17 +589,13 @@ func _show_model(id: String) -> void:
 	_display.add_child(_display_model)
 
 
-func _show_skull() -> void:
-	# Crâne de fortune : boîtes blanchâtres et orbites rouges.
-	_display_model = Node3D.new()
-	var bone := StandardMaterial3D.new()
-	bone.albedo_color = Color(0.8, 0.76, 0.65)
-	var eye := PropBuilder._emissive(Color(1.0, 0.1, 0.05), 5.0)
-	_part(_display_model, Vector3(0.36, 0.32, 0.36), Vector3(0, 0.1, 0), bone)
-	_part(_display_model, Vector3(0.26, 0.12, 0.26), Vector3(0, -0.12, 0.04), bone)
-	for x in [-0.08, 0.08]:
-		_part(_display_model, Vector3(0.08, 0.08, 0.02), Vector3(x, 0.12, 0.185), eye)
-	_display.position.y = 1.0
+func _show_teddy() -> void:
+	# Nounours assis au-dessus de la boîte ouverte, face au joueur (le
+	# défilement a pu laisser l'affichage tourné).
+	_display_model = TeddyModel.build()
+	_display_model.scale = Vector3.ONE * TEDDY_SCALE
+	_display.position.y = 0.8
+	_display.rotation.y = 0.0
 	_display.add_child(_display_model)
 
 
