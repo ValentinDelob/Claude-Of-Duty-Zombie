@@ -529,6 +529,15 @@ l'épaisseur du mur (0,4 m) est l'embrasure, côté cour des zombies. Les
 battants cassés restent dans leur plan, sans s'ouvrir vers la salle. Mesuré sur la géométrie
 construite (`tests/test_zombie_doors.gd`).
 
+**Collision** : une seule, la barrière invisible (couche BARRIER, joueurs et
+zombies arrêtés, balles qui passent) : toute la largeur de l'ouverture, du
+sol à 2,1 m, et **exactement l'épaisseur du mur** (0,5 m,
+`Barricade.DOOR_BARRIER_DEPTH`), centrée sur son milieu. Rien ne dépasse du
+mur, ni dans la salle (le joueur s'approche de la porte comme d'un mur), ni
+dans la cour (le zombie tient à sa place, 0,62 m dehors). Le bâti, les
+battants et les planches n'ont pas de collision. (La fenêtre garde sa
+barrière de 1 m, l'épaisseur d'un mur des cartes grille.)
+
 ### Les zombies
 
 - Apparition : dans la cour derrière la porte (porte double : un point
@@ -599,7 +608,9 @@ le long d'un mur de 0,5 m »), la cour et les deux côtés.
   trop court, changement de type refusé), découpe sans allège sur la grille
   et sur un mur hors grille (seuil plein, mur au-dessus), épaisseur de la
   porte construite ≤ 10 cm, places écartées et hors des apparitions, fenêtre
-  construite comme avant.
+  construite comme avant ; collisions de la porte (simple, double ; mur de
+  la grille, hors grille, en biais) dans l'épaisseur du mur mesurée sur la
+  maçonnerie exportée, ouverture fermée sur toute sa largeur et sa hauteur.
 - Scénario `zombie_doors` (cartes `tests/fixtures/maps/smallest_door/` et
   `smallest_double_door/`) : manche 1, file de 4 / 6 respectée ; porte
   simple, un seul zombie arrache (jamais deux à la fois) ; porte double, deux

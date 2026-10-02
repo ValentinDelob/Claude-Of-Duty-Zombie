@@ -70,6 +70,11 @@ const DOOR_PLANK_SIZE := Vector3(1.04, 0.15, 0.04)
 const DOOR_PLANK_Z := 0.231
 ## Le zombie qui arrache se tient dans l'embrasure, juste dehors.
 const DOOR_TEAR_DIST := 0.62
+## Profondeur de la barrière d'une porte : l'épaisseur du mur (0,5 m, seule
+## épaisseur où l'éditeur pose une porte), jamais plus. Celle d'une fenêtre
+## (1 m, murs des cartes grille) dépassait de 25 cm de chaque côté du mur :
+## elle arrêtait le joueur devant la porte, et le zombie avant sa place.
+const DOOR_BARRIER_DEPTH := MapGeom.WALL_HALF * 2.0
 ## Places où l'on arrache (X local) : porte simple au milieu, double devant
 ## chaque battant.
 const TEAR_OFFSETS := {"porte": [0.0], "porte_double": [-0.5, 0.5]}
@@ -257,7 +262,8 @@ func _build_planks() -> void:
 
 
 ## Ouverture : infranchissable à pied (les zombies l'enjambent par script),
-## mais les balles passent entre les planches.
+## mais les balles passent entre les planches. Porte : la barrière tient dans
+## l'épaisseur du mur (DOOR_BARRIER_DEPTH), centrée sur son milieu.
 func _build_barrier() -> void:
 	var barrier := StaticBody3D.new()
 	barrier.name = "Barrier"
@@ -265,7 +271,7 @@ func _build_barrier() -> void:
 	barrier.collision_mask = 0
 	var bcs := CollisionShape3D.new()
 	var bbox := BoxShape3D.new()
-	bbox.size = Vector3(width, opening_height, 1.0)
+	bbox.size = Vector3(width, opening_height, DOOR_BARRIER_DEPTH if is_door() else 1.0)
 	bcs.shape = bbox
 	bcs.position.y = opening_height * 0.5
 	barrier.add_child(bcs)

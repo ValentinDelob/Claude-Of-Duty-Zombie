@@ -429,5 +429,101 @@ func test_window_unchanged() -> void:
 	var mm := (b.get_node("Planks") as MultiMeshInstance3D).multimesh
 	assert_eq((mm.mesh as BoxMesh).size, Barricade.PLANK_SIZE)
 	assert_near((b._rest[0] as Transform3D).origin.z, Barricade.PLANK_Z + float(Barricade.LAYOUT[0][2]), 0.001, "plan des planches d'avant")
+	var shape := (b.get_node("Barrier").get_child(0) as CollisionShape3D).shape as BoxShape3D
+	assert_near(shape.size.z, 1.0, 0.001, "barrière d'avant (1 m)")
 	b.queue_free()
+	await wait_frames(1)
+
+
+# ------------------------------------------------------------------ collisions dans le mur
+
+## Octogone de 16 m, une entrée de type `kind` au milieu du mur en biais
+## nord-ouest (mur oblique, hors grille), posée par les règles de l'éditeur.
+static func oblique_map(kind: String) -> EditorMap:
+	var doc := EditorMap.blank("biais_" + kind, "BIAIS", "OBLIQUE")
+	var z := String(doc.add_zone("Salle", "Room").id)
+	doc.pieces.append({"id": "p1", "nom": "Salle", "etage": 0, "zone": z,
+		"contour": [[6, 2], [14, 2], [18, 6], [18, 14], [14, 18], [6, 18], [2, 14], [2, 6]]})
+	doc.depart = z
+	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [10.0, 10.0]})
+	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [10.0, 18.0], "mur": "s", "depart": true})
+	var o := {"id": "o1", "type": "fenetre", "etage": 0, "position": [4.0, 4.0]}
+	MapCatalog.set_variant(o, kind)
+	var res := MapRules.place_opening(doc, 0, "fenetre", Vector2(4.0, 4.0), MapRules.opening_width(o))
+	o["position"] = res.position
+	doc.ouvertures.append(o)
+	return doc
+
+
+## Faces du mur autour d'une entrée, mesurées sur la maçonnerie exportée à
+## côté de l'ouverture : (face côté cour, face côté salle), en m le long de
+## `inn` depuis `p`.
+static func wall_faces(data: Dictionary, p: Vector3, inn: Vector3, side: Vector3, w: float) -> Vector2:
+	var q := p + Vector3(0, 1.0, 0) + side * (w * 0.5 + 0.25)
+	var lo := 0.0
+	var hi := 0.0
+	while lo > -2.0 and solid_at(data, q + inn * (lo - 0.005)):
+		lo -= 0.005
+	while hi < 2.0 and solid_at(data, q + inn * (hi + 0.005)):
+		hi += 0.005
+	return Vector2(lo, hi)
+
+
+## Régression (« la hitbox de la porte des zombies dépasse du mur et bloque
+## le joueur ») : toute collision d'une porte à zombies, simple ou double, sur
+## un mur de la grille, hors grille ou en biais, reste dans l'épaisseur du
+## mur ; elle ferme quand même toute l'ouverture (largeur, hauteur) et le
+## zombie tient à sa place devant les planches sans la toucher.
+func test_door_collisions_stay_inside_the_wall() -> void:
+	var maps := {"smallest_door": fixture("smallest_door"), "smallest_double_door": fixture("smallest_double_door"),
+		"grille_porte": grid_map("porte"), "grille_double": grid_map("porte_double"),
+		"biais_porte": oblique_map("porte"), "biais_double": oblique_map("porte_double")}
+	const TOL := 0.01
+	for id in maps:
+		var doc: EditorMap = maps[id]
+		var def := EditorMapDef.from_map(doc, "perso:" + String(id))
+		assert_true(def.is_valid(), "%s : jouable (%s)" % [id, _errs(def.validator)])
+		if not def.is_valid():
+			continue
+		var b := built(doc)
+		await wait_frames(1)
+		assert_true(b.is_door(), "%s : porte" % id)
+		var p := b.global_position
+		var inn := b.inward.normalized()
+		var side := Vector3(-inn.z, 0, inn.x)
+		var faces := wall_faces(def.layout_data, p, inn, side, b.width)
+		assert_near(faces.y - faces.x, MapGeom.WALL_HALF * 2.0, 0.02, "%s : mur de 0,5 m mesuré (%s)" % [id, faces])
+		var shapes := b.find_children("*", "CollisionShape3D", true, false)
+		assert_true(shapes.size() >= 1, "%s : une barrière" % id)
+		var dmin := INF
+		var dmax := -INF
+		for cs: CollisionShape3D in shapes:
+			var box := cs.shape as BoxShape3D
+			assert_true(box != null, "%s : barrière en pavé" % id)
+			if box == null:
+				continue
+			var h := box.size * 0.5
+			# Repère de la porte : (le long du mur, hauteur, vers la salle).
+			var lo := Vector3(INF, INF, INF)
+			var hi := -lo
+			for sx in [-1, 1]:
+				for sy in [-1, 1]:
+					for sz in [-1, 1]:
+						var c: Vector3 = cs.global_transform * Vector3(h.x * sx, h.y * sy, h.z * sz) - p
+						var l := Vector3(c.dot(side), c.y, c.dot(inn))
+						lo = lo.min(l)
+						hi = hi.max(l)
+			dmin = minf(dmin, lo.z)
+			dmax = maxf(dmax, hi.z)
+			assert_true(lo.z >= faces.x - TOL, "%s : collision à %.2f m dans la cour, face du mur à %.2f m" % [id, -lo.z, -faces.x])
+			assert_true(hi.z <= faces.y + TOL, "%s : collision à %.2f m dans la salle, face du mur à %.2f m" % [id, hi.z, faces.y])
+			assert_true(lo.x >= -b.width * 0.5 - TOL and hi.x <= b.width * 0.5 + TOL, "%s : pas plus large que l'ouverture" % id)
+			assert_true(lo.x <= -b.width * 0.5 + TOL and hi.x >= b.width * 0.5 - TOL, "%s : toute la largeur de l'ouverture fermée" % id)
+			assert_true(lo.y <= TOL and hi.y >= Barricade.DOOR_HEIGHT - TOL, "%s : du sol au haut de la porte" % id)
+		assert_true(dmax - dmin >= 0.3, "%s : barrière assez épaisse pour arrêter les joueurs (%.2f m)" % [id, dmax - dmin])
+		# Le zombie qui arrache tient à sa place sans toucher la barrière.
+		for lane in b.tear_slots():
+			var sp := b.slot_point(lane) - p
+			assert_true(sp.dot(inn) + Zombie.RADIUS < dmin, "%s : place %d devant la barrière (%.2f m)" % [id, lane, sp.dot(inn)])
+		b.queue_free()
 	await wait_frames(1)
