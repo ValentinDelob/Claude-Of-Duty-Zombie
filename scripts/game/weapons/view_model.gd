@@ -161,13 +161,13 @@ func _ready() -> void:
 	var q := QuadMesh.new()
 	q.size = Vector2.ONE
 	_flash_mesh.mesh = q
-	_flash_mesh.material_override = flash_material(_flash_texture(), true)
+	_flash_mesh.material_override = flash_material(_flash_texture(), true, true)
 	_flash_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_flash_rig.add_child(_flash_mesh)
 	# Pointes : deux quads croisés couchés le long de l'axe du canon.
 	_flash_side = MeshInstance3D.new()
 	_flash_side.mesh = prong_mesh()
-	_flash_side.material_override = flash_material(prong_texture(), false)
+	_flash_side.material_override = flash_material(prong_texture(), false, true)
 	_flash_side.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_flash_rig.add_child(_flash_side)
 	_flash_light = OmniLight3D.new()
@@ -397,11 +397,10 @@ func fire(s: Dictionary, fx: Fx, p: Player, eject := true) -> void:
 	var muzzle := muzzle_global()
 	if not fl.is_empty():
 		_flash_t = 0.05
-		_flash_energy = fl[3]
+		_flash_energy = fl[3] * randf_range(0.8, 1.2)
 		var k := randf_range(0.8, 1.25) * (0.6 if ads > 0.5 else 1.0)
 		_flash_mesh.scale = Vector3.ONE * fl[0] * 1.8 * k
-		(_flash_mesh.material_override as StandardMaterial3D).albedo_texture = flash_variant(randi() % 4)
-		_flash_mesh.rotation = Vector3(0, 0, randf() * TAU)
+		reroll_flash(_flash_mesh.material_override as ShaderMaterial)
 		_flash_side.scale = Vector3(fl[2], fl[2], fl[1]) * k
 		_flash_side.rotation.z = randf() * TAU
 		if fx:
@@ -880,20 +879,22 @@ static var _prong_tex: Texture2D
 static var _prong_mesh: ArrayMesh
 
 
-## Matériau additif non éclairé de la flamme de bouche.
-static func flash_material(tex: Texture2D, billboard: bool) -> StandardMaterial3D:
-	var fm := StandardMaterial3D.new()
-	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	fm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	fm.albedo_texture = tex
-	fm.albedo_color = Color(1.0, 0.9, 0.75)
-	fm.no_depth_test = true
-	fm.cull_mode = BaseMaterial3D.CULL_DISABLED
-	if billboard:
-		fm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		fm.billboard_keep_scale = true
+## Matériau additif non éclairé de la flamme de bouche (muzzle_flash.gdshader).
+## `viewmodel` : flamme de la vue FPS, cachée par l'arme là où elle passe derrière.
+static func flash_material(tex: Texture2D, billboard: bool, viewmodel := false) -> ShaderMaterial:
+	var fm := ShaderMaterial.new()
+	fm.shader = preload("res://assets/shaders/muzzle_flash.gdshader")
+	fm.set_shader_parameter("tex", tex)
+	fm.set_shader_parameter("billboard", 1.0 if billboard else 0.0)
+	fm.set_shader_parameter("viewmodel", 1.0 if viewmodel else 0.0)
 	return fm
+
+
+## Nouvelle variante de flamme face caméra : dessin tiré au hasard, tourné d'un
+## angle aléatoire autour de l'axe de vue.
+static func reroll_flash(fm: ShaderMaterial) -> void:
+	fm.set_shader_parameter("tex", flash_variant(randi() % 4))
+	fm.set_shader_parameter("spin", randf() * TAU)
 
 
 ## Deux quads croisés (plans XZ et YZ) de z = 0 à z = -1, largeur 1.

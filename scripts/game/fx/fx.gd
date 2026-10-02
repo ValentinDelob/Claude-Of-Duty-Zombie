@@ -157,7 +157,6 @@ func _ready() -> void:
 		q.size = Vector2.ONE
 		f.mesh = q
 		f.material_override = ViewModel.flash_material(ViewModel._flash_texture(), true)
-		(f.material_override as StandardMaterial3D).no_depth_test = false
 		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		f.visible = false
 		f.top_level = true
@@ -458,7 +457,7 @@ func muzzle_flash(pos: Vector3, dir := Vector3.ZERO) -> void:
 	var f := _flashes[i]
 	f.global_position = pos + dir * 0.05
 	f.scale = Vector3.ONE * randf_range(0.18, 0.26)
-	(f.material_override as StandardMaterial3D).albedo_texture = ViewModel.flash_variant(randi() % 4)
+	ViewModel.reroll_flash(f.material_override as ShaderMaterial)
 	f.visible = true
 	_flash_life[i] = 0.05
 	if dir != Vector3.ZERO:
