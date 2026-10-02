@@ -934,6 +934,304 @@
     "fr": "Nouvelles machines d'atouts"
    }
   },
+  "v0.2.0": {
+   "channel": "stable",
+   "date": "2026-10-02",
+   "from": "v0.2.0-snapshot.353",
+   "images": [
+    "v0.2.0-snapshot.180/01_variantes.jpg"
+   ],
+   "items": [
+    {
+     "en": "Buyable doors now come in three looks: armoured door, wooden door or iron gate. Pick one in the properties or with the V key.",
+     "fr": "Les portes payantes existent maintenant en trois aspects : porte blindée, porte en bois ou grille en fer. Choisissez-le dans les propriétés ou avec la touche V."
+    },
+    {
+     "en": "Debris can be planks or a concrete cave-in, and wall weapons can be drawn on a board nailed to the wall.",
+     "fr": "Les débris à dégager peuvent être des planches ou un éboulement de béton, et les armes murales peuvent être dessinées sur une planche clouée au mur."
+    },
+    {
+     "en": "New invisible barrier: it stops players and zombies, who walk around it, but lets bullets and grenades through. Hatched in the editor, optionally shown in the 3D preview, invisible in game.",
+     "fr": "Nouvelle barrière invisible : elle arrête les joueurs et les zombies, qui la contournent, mais laisse passer les balles et les grenades. Hachurée dans l'éditeur, visible au choix dans l'aperçu 3D, invisible en jeu."
+    },
+    {
+     "en": "Maps shared in multiplayer keep their looks and barriers; older maps open and play exactly as before.",
+     "fr": "Les cartes partagées en multijoueur gardent leurs aspects et leurs barrières ; les anciennes cartes s'ouvrent et se jouent exactement comme avant."
+    },
+    {
+     "en": "The Death Machine is finally held with both hands: rear grip and side grip, no more hand resting on top.",
+     "fr": "La Faucheuse se tient enfin à deux mains : poignée arrière et poignée latérale, plus de main posée au-dessus."
+    },
+    {
+     "en": "When aiming, stocks and the rear of weapons no longer poke into the camera: the gun drops below the screen like in BO1, sights stay perfectly aligned.",
+     "fr": "En visant, la crosse et l'arrière des armes ne rentrent plus dans la caméra : l'arme descend sous l'écran comme dans BO1, la mire reste parfaitement alignée."
+    },
+    {
+     "en": "LAW and HS10 hands sit where they should, and no more sleeve ends showing while reloading or sprinting.",
+     "fr": "Mains du LAW et du HS10 bien placées, et plus de bout de manche visible pendant les rechargements et la course."
+    },
+    {
+     "en": "Going down costs 5% of your points, and the teammate who revives you gets them. When a player bleeds out, everyone else loses 10% of their points.",
+     "fr": "À terre, vous perdez 5 % de vos points ; le coéquipier qui vous relève les récupère. Si un joueur succombe, les autres perdent 10 % de leurs points."
+    },
+    {
+     "en": "When downed you pull out your best pistol (the CLAUDE-RAY first) with two extra magazines, instead of a sometimes empty M1911.",
+     "fr": "À terre, vous sortez votre meilleur pistolet (le CLAUDE-RAY en premier) avec deux chargeurs de plus, au lieu d'un M1911 parfois vide."
+    },
+    {
+     "en": "In solo with LAZARUS TONIC, a bar shows your self-revive instead of a misleading countdown.",
+     "fr": "En solo avec LAZARUS TONIC, une barre montre votre auto-réanimation au lieu d'un compte à rebours trompeur."
+    },
+    {
+     "en": "The mystery box weapon now waits 12 seconds, the Pack-a-Punch weapon 15 seconds.",
+     "fr": "L'arme de la boîte mystère reste 12 secondes, celle du Pack-a-Punch 15 secondes."
+    },
+    {
+     "en": "No more second THUNDER-7 while its owner is downed, no more two boxes on the same spot, no more double FIRE SALE or REAPER.",
+     "fr": "Plus de second TONNERRE-7 quand son propriétaire est à terre, plus de deux boîtes au même endroit, plus de LIQUIDATION ou de FAUCHEUSE en double."
+    },
+    {
+     "en": "The REAPER no longer drops before the power is on (in solo: once LAZARUS TONIC has been bought).",
+     "fr": "La FAUCHEUSE n'apparaît plus avant le courant (en solo : une fois LAZARUS TONIC bu)."
+    },
+    {
+     "en": "Window repair points now bring the next power-up closer, and dog rounds have up to 32 dogs with four players.",
+     "fr": "Les points de réparation des fenêtres rapprochent le prochain bonus, et les manches de chiens comptent jusqu'à 32 chiens à quatre."
+    },
+    {
+     "en": "The flown-away LAZARUS TONIC machine no longer blocks anything.",
+     "fr": "La machine LAZARUS TONIC envolée ne bloque plus rien."
+    },
+    {
+     "en": "The whole game now follows the language chosen in the options (French or English): buy prompts, perks, power-ups, weapons, downed and game over screens, scoreboard, menus, lobby, network messages and credits.",
+     "fr": "Tout le jeu suit la langue choisie dans les options (français ou anglais) : invites d'achat, atouts, bonus, armes, écran à terre et de fin de partie, tableau des scores, menus, salon, messages réseau et générique."
+    },
+    {
+     "en": "In English, prompts use the Black Ops wording: \"Press F to buy M14 [Cost: 500]\".",
+     "fr": "En anglais, les invites reprennent la forme de Black Ops : « Press F to buy M14 [Cost: 500] »."
+    },
+    {
+     "en": "In multiplayer, REAPER shots are no longer refused by the host during a short network hiccup.",
+     "fr": "En multijoueur, les tirs de la FAUCHEUSE ne sont plus refusés par l'hôte lors d'un petit ralentissement du réseau."
+    },
+    {
+     "en": "On a custom map, a weapon with no wall price (such as the CLAUDE-RAY) can no longer be bought for free.",
+     "fr": "Sur une carte personnalisée, une arme sans prix au mur (comme le CLAUDE-RAY) ne s'achète plus gratuitement."
+    },
+    {
+     "en": "Multiplayer: with lag, the host no longer wrongly refuses a player's shots, knife hits, grenade throws, purchases and dives, nor wrongly stops their barricade repairs, revives and power-up pickups (it compared them to a delayed display position).",
+     "fr": "Multijoueur : avec de la latence, l'hôte ne refuse plus à tort les tirs, coups de couteau, lancers de grenade, achats et plongeons d'un joueur, et ne coupe plus à tort ses réparations de barricade, ses réanimations ni ses ramassages de bonus (il comparait à une position affichée en retard)."
+    },
+    {
+     "en": "Two zombies no longer rise from the same spot: they stayed stuck inside each other and the round never ended.",
+     "fr": "Deux zombies ne sortent plus de terre au même endroit : ils restaient coincés l'un dans l'autre et la manche ne finissait jamais."
+    },
+    {
+     "en": "As in Black Ops, a zombie that has not moved for 30 seconds is removed and comes back elsewhere.",
+     "fr": "Comme dans Black Ops, un zombie qui n'a pas bougé depuis 30 secondes est retiré puis réapparaît ailleurs."
+    },
+    {
+     "en": "KINO: walking zombies now climb up and down the lobby stairs instead of shuffling on the top step.",
+     "fr": "KINO : les zombies qui marchent montent et descendent enfin l'escalier du hall au lieu de piétiner en haut des marches."
+    },
+    {
+     "en": "When downed, the bonus pistol magazines no longer push its reserve above the maximum.",
+     "fr": "À terre, les chargeurs offerts au pistolet ne dépassent plus sa réserve maximale."
+    },
+    {
+     "en": "KINO: zombies now make it over the top of the alley stairs and the Foyer stairs instead of bumping into the landing edge.",
+     "fr": "KINO : les zombies franchissent le haut de l'escalier de la ruelle et celui de l'escalier du Foyer au lieu de buter contre le bord du palier."
+    },
+    {
+     "en": "KINO: the zombie rising from the rubble inside the big mound in the theatre no longer stays stuck in it.",
+     "fr": "KINO : le zombie qui sortait des gravats dans le grand tas de la salle n'y reste plus coincé."
+    },
+    {
+     "en": "BUNKER K-7: the crate in the generator room moved slightly; zombies coming in through the south window no longer queue up in front of it.",
+     "fr": "BUNKER K-7 : la caisse de la salle du générateur a été un peu déplacée ; les zombies qui entrent par la fenêtre sud ne font plus la queue devant elle."
+    },
+    {
+     "en": "Windows: a zombie now waits outside while the landing spot is taken instead of climbing into the zombie standing there; zombies that came in while you were downed no longer stay jammed in a line in front of the window.",
+     "fr": "Fenêtres : un zombie attend dehors tant que l'arrivée est occupée, au lieu d'enjamber dans le zombie qui s'y tient ; les zombies entrés pendant que vous étiez à terre ne restent plus bloqués en file devant la fenêtre."
+    },
+    {
+     "en": "When aiming, the stock and the back of the gun now slide cleanly off the bottom of the screen right behind the sights, like in BO1: no more cut-off stock, no more slab of stock across the view, no more stock vanishing halfway through raising the gun. Sights, zoom and the hip view are unchanged.",
+     "fr": "En visant, la crosse et l'arrière de l'arme filent proprement sous le bas de l'écran juste derrière la mire, comme dans BO1 : plus de crosse coupée, plus de pan de crosse qui traverse l'image, plus de crosse qui disparaît d'un coup en milieu de mise en joue. La mire, le zoom et l'arme à la hanche ne changent pas."
+    },
+    {
+     "en": "This also holds while firing, walking, looking up or down, and when you knife, throw a grenade, drink, dive or sprint out of aiming, for every weapon (Pack-a-Punched too), at any field of view and screen shape.",
+     "fr": "Vrai aussi en tirant, en marchant, en levant ou baissant les yeux, et quand on lance couteau, grenade, boisson, plongeon ou sprint depuis la visée, pour toutes les armes (Pack-a-Punch compris), quel que soit le champ de vision et le format d'écran."
+    },
+    {
+     "en": "Zombies now climb up and down stairs through the middle of the steps, following markers placed at the bottom, along the steps and on the landing: they no longer get stuck against an edge, a railing or the corner of a landing.",
+     "fr": "Les zombies montent et descendent les escaliers par le milieu des marches, en suivant des repères posés en bas, sur les marches et sur le palier : ils ne restent plus coincés contre un bord, une rampe ou l'angle d'un palier."
+    },
+    {
+     "en": "A horde takes the stairs abreast, each zombie in its own lane, without piling up on one side; crawlers and hellhounds follow the same route.",
+     "fr": "Une horde prend l'escalier de front, chacun dans sa file, sans s'entasser sur un côté ; les rampants et les chiens de l'enfer prennent le même chemin."
+    },
+    {
+     "en": "KINO: zombies now use the aisle between the seats to climb onto the stage by its steps, and get over the top of every staircase without bumping into the edge.",
+     "fr": "KINO : les zombies passent par l'allée entre les fauteuils pour monter sur la scène par ses marches, et franchissent le haut de tous les escaliers sans buter contre le bord."
+    },
+    {
+     "en": "Map editor: eight kinds of stairs (V key): straight, straight with a landing, L-shaped, U-shaped, grand stairs, service stairs, spiral and ramp, with a choice of step count, railing and closed sides.",
+     "fr": "Éditeur de cartes : huit types d'escaliers (touche V) : droit, droit avec palier, en L, en U, escalier d'honneur, escalier de service, en colimaçon et rampe, avec nombre de marches, garde-corps et côtés fermés au choix."
+    },
+    {
+     "en": "Map editor: the plan shows the flights, the landings and the zombies' route on each staircase; the 3D preview builds the same stairs as the game.",
+     "fr": "Éditeur de cartes : le plan montre les volées, les paliers et le trajet des zombies sur chaque escalier ; l'aperçu 3D construit le même escalier que la partie."
+    },
+    {
+     "en": "Zombies keep coming even if you stand right at a window: a map with a single room and a single window is now playable.",
+     "fr": "Les zombies arrivent même si vous restez collé à une fenêtre : une carte d'une seule salle et d'une seule fenêtre se joue enfin."
+    },
+    {
+     "en": "At most three zombies wait behind a window, each in its own spot; the next ones arrive as soon as a spot frees up.",
+     "fr": "Trois zombies au plus attendent derrière une fenêtre, chacun à sa place ; les suivants arrivent dès qu'une place se libère."
+    },
+    {
+     "en": "Slower board tearing: about one board every 2.5 seconds per zombie, with a fit of rage against the window in between.",
+     "fr": "Arrachage des planches plus lent : une planche toutes les 2,5 secondes environ par zombie, avec une crise de rage contre la fenêtre entre deux."
+    },
+    {
+     "en": "Only walkers in rounds 1 to 3: the first runners show up in round 4.",
+     "fr": "Que des marcheurs aux manches 1 à 3 : les premiers coureurs arrivent à la manche 4."
+    },
+    {
+     "en": "The Mystery Box is now a proper weathered wooden chest: planks, riveted iron corners and straps, hinges, a brass lock and chipped stencilled question marks.",
+     "fr": "La boîte mystère est désormais un vrai coffre de bois usé : planches, cornières et sangles de fer rivetées, charnières, serrure en laiton et points d'interrogation peints au pochoir, écaillés."
+    },
+    {
+     "en": "The big orange beam is gone: a soft, pale light column marks the box from afar and nearly fades out when you stand in front of it.",
+     "fr": "Le grand faisceau orange a disparu : une colonne de lumière pâle et douce signale la boîte de loin, presque invisible quand on est devant."
+    },
+    {
+     "en": "No more orange glare on the walls: the box is softly lit at rest, and its inside lights up with a golden glow when the lid opens (now visible instead of vanishing into the wall).",
+     "fr": "Plus de tache orange sur les murs : la boîte est éclairée doucement au repos, et son fond s'illumine d'un halo doré quand le couvercle s'ouvre (désormais visible, au lieu de disparaître dans le mur)."
+    },
+    {
+     "en": "Fixed: pushing an object (debris, crate, furniture…) against a wall no longer changes that wall's wallpaper, in the 3D preview or in game.",
+     "fr": "Corrigé : pousser un objet (débris, caisse, meuble…) contre un mur ne change plus le papier peint de ce mur, ni dans l'aperçu 3D ni en jeu."
+    },
+    {
+     "en": "Props (barrels, crates, furniture, rubble, light fixtures…) go wherever you want: against a wall, in a corner, half into the wall, to the centimetre (G key: no grid); the wall stays whole and the collision follows the object.",
+     "fr": "Le décor (barils, caisses, meubles, gravats, luminaires…) se pose où vous voulez : contre un mur, dans un angle, à moitié dans le mur, au centimètre près (touche G : sans grille) ; le mur reste entier et la collision suit l'objet."
+    },
+    {
+     "en": "Wall sconces go anywhere along a wall (even above a door or a window) and at any height (properties, Height field).",
+     "fr": "Les appliques murales se posent partout le long d'un mur (même au-dessus d'une porte ou d'une fenêtre) et à la hauteur de votre choix (propriétés, champ Hauteur)."
+    },
+    {
+     "en": "The map check warns (without blocking) when a prop is in the way of a door or a window.",
+     "fr": "La vérification prévient (sans bloquer) quand un décor gêne une porte ou une fenêtre."
+    },
+    {
+     "en": "New: zombie doors. A zombie entrance can be a window, a single door (1 m) or a double door (2 m): V key or the Type list in the properties. A real smashed door, half torn off its hinges, with boards nailed across it; no thicker than a real door.",
+     "fr": "Nouveau : portes à zombies. Une entrée des zombies peut être une fenêtre, une porte simple (1 m) ou une porte double (2 m) : touche V ou liste Type dans les propriétés. Une vraie porte défoncée, à moitié arrachée de ses gonds, avec des planches clouées devant ; pas plus épaisse qu'une vraie porte."
+    },
+    {
+     "en": "Single door: only one zombie tears the boards off while three more wait behind it. Double door: two zombies tear at the same time (one per leaf), so it gives way almost twice as fast; four wait. Zombies then walk through the doorway. Boards are rebuilt just like windows (hold [F], +10 points per board).",
+     "fr": "Porte simple : un seul zombie arrache les planches, trois autres attendent derrière lui. Porte double : deux zombies arrachent en même temps (un par battant), elle cède presque deux fois plus vite ; quatre attendent. Les zombies passent ensuite le seuil en marchant. Les planches se reconstruisent comme aux fenêtres ([F] maintenu, +10 points par planche)."
+    },
+    {
+     "en": "Map editor: new Collaboration menu. Host opens a session (a 6-character code and your computer's address are shown); your friends use Join with the address, port and code, and everyone edits the same map at the same time, seeing the others' cursors.",
+     "fr": "Éditeur de cartes : nouveau menu Collaboration. Héberger ouvre une session (un code à 6 caractères et l'adresse de votre ordinateur s'affichent) ; vos amis font Rejoindre avec l'adresse, le port et le code, et tout le monde modifie la même carte en même temps, en voyant les curseurs des autres."
+    },
+    {
+     "en": "Ctrl+Z only undoes YOUR actions: if someone touched an element meanwhile, it is left alone (a message says so). Only the host saves the map; a guest can save a copy.",
+     "fr": "Ctrl+Z annule seulement VOS actions : si quelqu'un a retouché un élément entre-temps, il n'est pas défait (un message le dit). Seul l'hôte enregistre la carte ; un invité peut en enregistrer une copie."
+    },
+    {
+     "en": "\"Allow Claude (MCP)\" (on by default): Claude Code can read the map and place rooms and objects, on this computer only. Each batch from Claude is undone with a single Ctrl+Z.",
+     "fr": "« Autoriser Claude (MCP) » (coché par défaut) : Claude Code peut lire la carte et y poser des pièces et des objets, sur cet ordinateur seulement. Chaque lot de Claude s'annule d'un seul Ctrl+Z."
+    },
+    {
+     "en": "You see what the others do: their selection outlined in their color, the object they are moving live, what they just changed blinking; what Claude places appears piece by piece with a bubble saying what it does. New History tab: every action, and \"Undo this action\" on yours, even old ones.",
+     "fr": "Vous voyez ce que font les autres : leur sélection entourée de leur couleur, l'objet qu'ils déplacent en direct, ce qu'ils viennent de changer qui clignote ; ce que pose Claude apparaît pièce par pièce avec une bulle qui dit ce qu'il fait. Nouvel onglet Historique : toutes les actions, et « Annuler cette action » sur les vôtres, même anciennes."
+    },
+    {
+     "en": "Claude can now draw a corridor to a room just by naming it.",
+     "fr": "Claude peut maintenant tracer un couloir vers une pièce en la désignant simplement par son nom."
+    },
+    {
+     "en": "Single and double zombie doors are broken at half height: the top is open, the bottom stays on its hinges.",
+     "fr": "Les portes à zombies simples et doubles sont cassées à mi-hauteur : le haut est ouvert, le bas reste sur ses gonds."
+    },
+    {
+     "en": "Zombies vault over the broken door like a window instead of walking through it.",
+     "fr": "Les zombies enjambent la porte cassée comme une fenêtre au lieu de la traverser."
+    },
+    {
+     "en": "No more teddy bear on a map with a single box location: the box has nowhere to go.",
+     "fr": "Plus d'ours en peluche sur une carte qui n'a qu'un seul emplacement de boîte : la boîte n'a nulle part où aller."
+    },
+    {
+     "en": "After the box leaves, the host sees it again at its new location (it used to stay invisible while still usable).",
+     "fr": "Après le départ de la boîte, l'hôte la revoit bien à son nouvel emplacement (elle restait invisible tout en restant utilisable)."
+    },
+    {
+     "en": "The open lid no longer goes into the wall: the box sits a little further from the wall.",
+     "fr": "Le couvercle ouvert n'entre plus dans le mur : la boîte est posée un peu plus loin du mur."
+    },
+    {
+     "en": "Map editor: the PLAY TEST button no longer starts on Bunker K-7 when the map contains a duplicate id; the editor repairs the duplicate when the map is opened and PLAY TEST explains why a map is refused.",
+     "fr": "Éditeur de cartes : le bouton TESTER ne démarre plus sur Bunker K-7 quand la carte contient un identifiant en double ; l'éditeur répare le doublon à l'ouverture de la carte et TESTER explique pourquoi une carte est refusée."
+    },
+    {
+     "en": "The launcher keeps the same size on screen whatever its resolution (4K, 1440p, 1080p…): it is no longer tiny on a 4K screen. Enlarging the window still gives more room, without making the text bigger.",
+     "fr": "Le lanceur garde la même taille à l'écran quelle que soit sa résolution (4K, 1440p, 1080p…) : il n'est plus minuscule sur un écran 4K. Agrandir la fenêtre donne toujours plus de place, sans grossir les textes."
+    },
+    {
+     "en": "Fixed: in multiplayer, a teammate's gun showed up the wrong way round (barrel backwards, upside down); it is now held properly, barrel pointing ahead of them.",
+     "fr": "Corrigé : en multijoueur, l'arme d'un coéquipier apparaissait à l'envers (canon vers l'arrière, tête en bas) ; elle est désormais tenue normalement, canon pointé devant lui."
+    },
+    {
+     "en": "In a shared editing session, the host's PLAY TEST button takes everyone into the same game, on the current map: nobody is left stuck in the editor any more.",
+     "fr": "Dans une session d'édition à plusieurs, le bouton TESTER de l'hôte emmène tout le monde dans la même partie, sur la carte en cours : plus personne ne reste bloqué dans l'éditeur."
+    },
+    {
+     "en": "The map is sent and checked automatically on every computer, like a custom map in the lobby.",
+     "fr": "La carte est envoyée et vérifiée automatiquement chez chacun, comme une carte perso dans le salon."
+    },
+    {
+     "en": "The editing session stays open for the whole game; at the end (or if the host quits), everyone comes back to the editor, on the same map, with the history, selection and view from before the test.",
+     "fr": "La session d'édition reste ouverte pendant toute la partie ; à la fin (ou si l'hôte quitte), tout le monde revient dans l'éditeur, sur la même carte, avec l'historique, la sélection et la vue d'avant le test."
+    },
+    {
+     "en": "If someone cannot join the test, they stay in the editor with the reason, and the host is told.",
+     "fr": "Si quelqu'un ne peut pas rejoindre le test, il reste dans l'éditeur avec la raison, et l'hôte en est prévenu."
+    },
+    {
+     "en": "Over the Internet, forward the session port in TCP and UDP. Everyone needs this version.",
+     "fr": "Par Internet, redirigez le port de la session en TCP et en UDP. Tout le monde doit avoir cette version."
+    },
+    {
+     "en": "Pick your character: OPTIONS > GAME > CHARACTER (automatic by default, applies from the next game).",
+     "fr": "Choisissez votre personnage : OPTIONS > JEU > PERSONNAGE (automatique par défaut, pris en compte à la partie suivante)."
+    },
+    {
+     "en": "New: Gunnery Sergeant Frank \"Bulldog\" Mercer, a gruff Marine who counts every penny.",
+     "fr": "Nouveau : le sergent-chef Frank « Bulldog » Mercer, Marine bourru qui compte chaque sou."
+    },
+    {
+     "en": "New: Dr Ella Berg, a brilliant and mischievous Swedish chemist and codebreaker.",
+     "fr": "Nouvelle : la docteure Ella Berg, chimiste et briseuse de codes suédoise, brillante et espiègle."
+    },
+    {
+     "en": "New: Georges \"Jojo the Hustler\" Ferrand, a crude and dishonest Parisian black-market crook.",
+     "fr": "Nouveau : Georges « Jojo la Magouille » Ferrand, trafiquant parisien du marché noir, grossier et malhonnête."
+    },
+    {
+     "en": "All three fully voiced in French and English, with new, more expressive voices.",
+     "fr": "Tous trois entièrement doublés en français et en anglais, avec de nouvelles voix plus expressives."
+    }
+   ],
+   "title": {
+    "en": "Stable version v0.2.0",
+    "fr": "Version stable v0.2.0"
+   }
+  },
   "v0.2.0-snapshot.180": {
    "channel": "snapshot",
    "date": "2026-09-30",
