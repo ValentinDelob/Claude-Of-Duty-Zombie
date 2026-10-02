@@ -34,6 +34,9 @@ var _space := false
 var drag: Dictionary = {}
 ## Points du polygone en cours de tracé.
 var poly_pts := PackedVector2Array()
+## Outils tracés en polygone, clic après clic : pièce polygone et objet
+## polygone (format 9 : barrière invisible).
+const POLY_TOOLS := ["room_poly", "poly"]
 ## Aperçu de pose (survol) : {ok, fr, en, obj}.
 var preview: Dictionary = {}
 ## Message de refus affiché près du curseur.
@@ -212,7 +215,7 @@ func trace_end() -> Vector2:
 func _cursor_end(tool: String) -> Vector2:
 	if tool == "wall" and drag.get("kind", "") == "create":
 		return snap_from(drag.start, mouse_m)
-	if tool == "room_poly" and not poly_pts.is_empty():
+	if tool in POLY_TOOLS and not poly_pts.is_empty():
 		return snap_from(poly_pts[-1], mouse_m)
 	if tool == "room_rect" and drag.get("kind", "") == "create" and ed.place_rot == 45:
 		var b := snap(mouse_m)
@@ -225,7 +228,7 @@ func _cursor_end(tool: String) -> Vector2:
 ## Un tracé est-il en cours (saisie au clavier possible) ?
 func tracing() -> bool:
 	var tool := String(_item().get("tool", ""))
-	if tool == "room_poly":
+	if tool in POLY_TOOLS:
 		return not poly_pts.is_empty()
 	return drag.get("kind", "") == "create" and tool in ["room_rect", "wall", "rect", "room_shape", "arc"]
 
@@ -265,7 +268,7 @@ func _entry_end(tool: String, cursor: Vector2) -> Vector2:
 	var v0: Variant = entry_value(0)
 	var v1: Variant = entry_value(1)
 	match tool:
-		"wall", "room_poly":
+		"wall", "room_poly", "poly":
 			var from: Vector2 = drag.start if tool == "wall" else poly_pts[-1]
 			var d := cursor - from
 			var length: float = absf(v0) if v0 != null else d.length()
@@ -378,7 +381,7 @@ func commit_entry() -> void:
 	var tool := String(_item().get("tool", ""))
 	var end := trace_end()
 	entry = {}
-	if tool == "room_poly":
+	if tool in POLY_TOOLS:
 		if poly_pts.is_empty() or poly_pts[-1].distance_to(end) > 0.01:
 			poly_pts.append(end)
 		queue_redraw()
@@ -576,7 +579,7 @@ func _press(double: bool) -> void:
 				ed.delete_element(String(e.id))
 		"room_rect", "wall", "rect", "room_shape", "arc":
 			drag = {"kind": "create", "start": p}
-		"room_poly":
+		"room_poly", "poly":
 			if poly_pts.size() >= 3 and (double or to_px(p).distance_to(to_px(poly_pts[0])) < 10.0):
 				_finish_poly()
 				return
@@ -685,11 +688,25 @@ func _creation(it: Dictionary, a: Vector2, b: Vector2) -> Dictionary:
 func _finish_poly() -> void:
 	var poly := poly_pts.duplicate()
 	poly_pts.clear()
-	var res := MapRules.check_room(ed.doc, ed.floor_k, poly)
+	var res := _poly_creation(_item(), poly)
 	if not res.ok:
 		show_refusal(res)
 		return
-	ed.add_object({"contour": MapGeom.poly_arr(poly)}, ed.floor_k)
+	ed.add_object(res.obj, ed.floor_k)
+
+
+## Élément tracé en polygone (`poly` : ses sommets) : une pièce, ou un objet
+## polygone (format 9 : barrière invisible, posée n'importe où, MapRules.check_clip).
+func _poly_creation(it: Dictionary, poly: PackedVector2Array) -> Dictionary:
+	if String(it.get("tool", "")) == "poly":
+		var o: Dictionary = it.make.duplicate(true)
+		o["sommets"] = MapGeom.poly_arr(poly)
+		var r := MapRules.check_clip(poly)
+		r["obj"] = o
+		return r
+	var res := MapRules.check_room(ed.doc, ed.floor_k, poly)
+	res["obj"] = {"contour": MapGeom.poly_arr(poly)}
+	return res
 
 
 ## Fin du polygone au clavier (Entrée).
@@ -821,6 +838,9 @@ func handles() -> PackedVector2Array:
 			return PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y),
 				Vector2(r.get_center().x, r.position.y), Vector2(r.end.x, r.get_center().y), Vector2(r.get_center().x, r.end.y), Vector2(r.position.x, r.get_center().y)])
 		return poly
+	if e.has("sommets"):
+		# Barrière invisible en polygone (format 9) : une poignée par sommet.
+		return MapGeom.poly(e.sommets)
 	if e.has("rect"):
 		if MapGeom.rot_of(e) != 0:
 			return MapRaster.rect_poly(e)
@@ -1012,6 +1032,8 @@ func fill_elem(e: Dictionary, col: Color) -> void:
 func _outline_of(e: Dictionary) -> PackedVector2Array:
 	if e.has("contour"):
 		return ed.doc.room_poly(e)
+	if String(e.get("type", "")) == "bloc_invisible":
+		return MapRaster.clip_poly(e)
 	if e.has("rect") and MapGeom.rot_of(e) != 0:
 		return MapRaster.rect_poly(e)
 	var tool := MapCatalog.tool_of(e)
@@ -1322,32 +1344,44 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 		draw_arc(rp.get_center(), float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
 
 
-## Barrière invisible : rectangle (tourné) translucide et hachuré, contour
-## en tirets, icône au milieu (elle n'existe pas à l'œil en jeu).
+## Barrière invisible (format 9 : polygone) : surface translucide hachurée à
+## 45°, contour en tirets, sommets marqués, icône au milieu (elle n'existe pas
+## à l'œil en jeu), hauteur écrite à côté quand elle n'est pas « jusqu'au
+## plafond ».
 func _draw_clip(o: Dictionary, it: Dictionary, alpha: float) -> void:
-	var r := MapGeom.rect_of(o.get("rect", [0, 0, 0, 0]))
-	var c := r.get_center()
-	var h := r.size * 0.5
-	var rot := deg_to_rad(float(MapGeom.rot_of(o)))
+	var poly := MapRaster.clip_poly(o)
+	if poly.size() < 3:
+		return
+	var bb := MapGeom.bbox(poly)
 	var col: Color = it.get("color", Color(0.35, 0.85, 1.0))
-	var px := _px_poly(MapRaster.rect_poly(o))
+	var px := _px_poly(poly)
 	_fill(px, Color(col, 0.16 * alpha))
-	# Hachures à 45° dans le repère du rectangle (elles tournent avec lui).
+	# Hachures à 45°, coupées au contour (polygone quelconque, même concave).
 	var step := maxf(0.25, 7.0 / maxf(zoom, 0.01))
-	var k := -h.x - h.y + step * 0.5
-	while k < h.x + h.y:
-		var y0 := maxf(-h.y, -h.x - k)
-		var y1 := minf(h.y, h.x - k)
-		if y1 > y0:
-			var a := c + Vector2(y0 + k, y0).rotated(rot)
-			var b := c + Vector2(y1 + k, y1).rotated(rot)
-			draw_line(to_px(a), to_px(b), Color(col, 0.45 * alpha), 1.0)
+	var k := bb.position.x - bb.size.y + step * 0.5
+	while k < bb.end.x:
+		var line := PackedVector2Array([Vector2(k, bb.position.y), Vector2(k + bb.size.y, bb.end.y)])
+		for seg: PackedVector2Array in Geometry2D.intersect_polyline_with_polygon(line, poly):
+			if seg.size() >= 2:
+				draw_line(to_px(seg[0]), to_px(seg[seg.size() - 1]), Color(col, 0.45 * alpha), 1.0)
 		k += step
-	for i in 4:
-		draw_dashed_line(px[i], px[(i + 1) % 4], Color(col.lightened(0.2), 0.95 * alpha), 1.5, 6.0)
-	var s := minf(minf(r.size.x, r.size.y) * zoom * 0.8, 40.0)
+	for i in px.size():
+		draw_dashed_line(px[i], px[(i + 1) % px.size()], Color(col.lightened(0.2), 0.95 * alpha), 1.5, 6.0)
+	if zoom >= 10.0:
+		for q in px:
+			draw_circle(q, 2.0, Color(col.lightened(0.3), 0.9 * alpha))
+	var c := MapGeom.centroid(poly)
+	if not MapGeom.contains(poly, c):
+		c = bb.get_center()
+	var s := minf(minf(bb.size.x, bb.size.y) * zoom * 0.8, 40.0)
 	if s >= 12.0:
 		MapIcons.draw(self, it, Rect2(to_px(c) - Vector2(s, s) * 0.5, Vector2(s, s)))
+	if o.has("hauteur") and zoom >= 14.0:
+		var font := UiStyle.font("body")
+		var lbl := "%s m" % MapRules._m(float(o.hauteur), not Lang.is_en())
+		var p := to_px(c) + Vector2(-font.get_string_size(lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10)).x * 0.5, s * 0.5 + _u(12))
+		draw_string_outline(font, p, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), 3, Color(0, 0, 0, 0.9))
+		draw_string(font, p, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), Color(0.85, 0.95, 1.0, alpha))
 
 
 ## Escalier d'un type (format 6 : palier, L, U, colimaçon, rampe...) : son
@@ -1586,13 +1620,13 @@ func _draw_tool(font: Font) -> void:
 				var sz := (end - Vector2(drag.start)).abs()
 				var lbl := "%s × %s m" % [MapRules._m(sz.x, not Lang.is_en()), MapRules._m(sz.y, not Lang.is_en())]
 				_label_at(font, b + Vector2(_u(10), -_u(8)), lbl)
-	elif tool == "room_poly" and not poly_pts.is_empty():
+	elif tool in POLY_TOOLS and not poly_pts.is_empty():
 		var end := trace_end()
 		var pts := _px_poly(poly_pts)
 		pts.append(to_px(end))
 		var test := poly_pts.duplicate()
 		test.append(end)
-		var res := MapRules.check_room(ed.doc, ed.floor_k, test) if test.size() >= 3 else {"ok": true}
+		var res := _poly_creation(it, test) if test.size() >= 3 else {"ok": true}
 		col = COL_OK if res.ok else COL_BAD
 		if test.size() >= 3:
 			_fill(pts, Color(col, 0.15))

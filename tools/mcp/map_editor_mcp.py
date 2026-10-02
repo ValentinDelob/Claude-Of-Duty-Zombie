@@ -342,7 +342,7 @@ TOOLS = [
                        "(id, nom, zone, bbox [x0,y0,x1,y1] en m, surface m², contour si non rectangulaire, voisines par mur "
                        "commun avec le bord partagé, pièces proches non collées avec les points les plus proches), "
                        "ouvertures (type, position, largeur, prix, pièces reliées), objets regroupés par type (id, position "
-                       "ou rect, atout/arme/prefab, mur), zones et zone de départ, totaux. format \"full\" : la carte "
+                       "ou rect, sommets d'une barrière invisible, atout/arme/prefab, mur), zones et zone de départ, totaux. format \"full\" : la carte "
                        "complète {carte, pieces, ouvertures, objets, zones, depart} (format docs/MAP_AUTHORING.md).",
         "inputSchema": {"type": "object", "properties": {
             "format": {"type": "string", "enum": ["summary", "full"], "default": "summary"},
