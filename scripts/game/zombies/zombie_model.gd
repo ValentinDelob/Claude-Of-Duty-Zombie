@@ -126,7 +126,31 @@ static func variant_of(arch: int, n := 0) -> int:
 	return 0
 
 
+## Zombies modélisés dans Blender (en cours, voir ZombieGlb) : activés par
+## l'argument `--zombie-model` (après `--`), sinon zombies procéduraux.
+const MODEL_PATH := "res://assets/models/zombies/zombie_base.glb"
+static var use_model := "--zombie-model" in OS.get_cmdline_user_args()
+static var _model_skin: Skin
+
+
+static func _build_model() -> Skeleton3D:
+	var m := ZombieGlb.load_model(MODEL_PATH)
+	if m.is_empty():
+		return null
+	if _model_skin == null:
+		var tmp := RigBuilder.build_skeleton(m.overrides)
+		_model_skin = tmp.create_skin_from_rest_transforms()
+		tmp.free()
+	var skel := RigBuilder.instantiate(m.mesh, material(), m.overrides, _model_skin)
+	(skel.get_node("Mesh") as MeshInstance3D).layers = RENDER_LAYERS
+	return skel
+
+
 static func build(variant: int) -> Skeleton3D:
+	if use_model:
+		var ms := _build_model()
+		if ms:
+			return ms
 	var key := look_key(variant)
 	if _skin == null:
 		var tmp := RigBuilder.build_skeleton()
