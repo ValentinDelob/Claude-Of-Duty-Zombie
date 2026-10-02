@@ -101,26 +101,48 @@ le dossier.
 
 ## Commandes
 
-| Action | Touche |
-|---|---|
-| Se déplacer | ZQSD / WASD (touches physiques) |
-| Sauter / S'accroupir / Sprint | Espace / Ctrl ou C / Maj |
-| S'allonger / Plonger | maintenir Ctrl ou C à l'arrêt / Ctrl ou C en sprintant |
-| Tirer / Viser | Clic gauche / Clic droit |
-| Retenir sa respiration (lunette du L96A1, de la Dragunov) | Maj (maintenu, 4 s au plus) |
-| Recharger / Couteau (fente si un zombie visé est à ~3 m) | R / V |
-| Grenade (maintenir = cuire, relâcher = lancer) / SINGE-TAMBOUR | G / Q (touches physiques) |
-| Changer d'arme | 1, 2, molette |
-| Interagir (acheter, réanimer : maintenir) | F ou E |
-| Tableau des scores | Tab (maintenu) |
-| Pause (REPRENDRE, OPTIONS, QUITTER LA PARTIE) | Échap |
+Une seule touche et un seul bouton de manette par action. Manettes Xbox et
+PlayStation (et toute manette reconnue en disposition standard), branchées
+à chaud.
 
-Toutes ces touches (sauf Échap) se réaffectent dans **OPTIONS > COMMANDES**,
-depuis le menu principal ou en pleine partie (Échap > OPTIONS) : clic ou
-Entrée sur une action, puis la nouvelle touche ou le bouton de souris (Échap
-annule, Retour arrière efface) ; deux touches par action ; une touche déjà
-prise est retirée de l'autre action (message affiché) ; « Rétablir les touches
-par défaut ». Enregistré dans `settings.cfg`.
+| Action | Clavier / souris | Manette Xbox | Manette PlayStation |
+|---|---|---|---|
+| Se déplacer | ZQSD / WASD (touches physiques) | stick gauche (progressif) | stick gauche |
+| Regarder | souris | stick droit | stick droit |
+| Sauter | Espace | A | Croix |
+| S'accroupir (maintenir à l'arrêt : s'allonger ; en sprintant : plonger) | C | B | Rond |
+| Sprint | Maj (maintenu) | LS (un clic : sprint tant qu'on avance, comme BO1) | L3 |
+| Tirer / Viser | Clic gauche / Clic droit | RT / LT | R2 / L2 |
+| Retenir sa respiration (lunette du L96A1, de la Dragunov) | Maj (maintenu, 4 s au plus) | LS (maintenu) | L3 (maintenu) |
+| Recharger | R | RB | R1 |
+| Couteau (fente si un zombie visé est à ~3 m) | V | RS | R3 |
+| Grenade (maintenir = cuire, relâcher = lancer) | G (touche physique) | LB | L1 |
+| SINGE-TAMBOUR | Q (touche physique) | flèche droite | flèche droite |
+| Changer d'arme | 1, molette | Y | Triangle |
+| Interagir (acheter, réanimer : maintenir) | F | X | Carré |
+| Tableau des scores | Tab (maintenu) | Back (maintenu) | Share / Create (maintenu) |
+| Pause (REPRENDRE, OPTIONS, QUITTER LA PARTIE) | Échap | Start | Options |
+
+Les invites (« Appuyer sur F pour acheter… ») montrent le bouton de la
+manette (« Appuyer sur X », « Press SQUARE ») dès qu'elle sert, et reviennent
+à la touche dès qu'on touche au clavier ou à la souris. Les noms Xbox ou
+PlayStation suivent le nom de la manette branchée.
+
+Dans les menus, à la manette : croix directionnelle ou stick gauche pour se
+déplacer, A / Croix pour valider, B / Rond pour revenir, LB / RB (L1 / R1)
+pour changer d'onglet dans les options.
+
+Toutes ces commandes (sauf Échap et Start / Options) se réaffectent dans
+**OPTIONS > COMMANDES**, depuis le menu principal ou en pleine partie
+(Échap > OPTIONS) : deux colonnes, CLAVIER / SOURIS et MANETTE (◄ / ►).
+Clic, Entrée ou A sur une case, puis la nouvelle touche (ou bouton de
+souris), ou le nouveau bouton, gâchette ou direction du stick gauche. Échap
+annule ; dans la colonne clavier, B annule aussi ; dans la colonne manette,
+Start / Options annule (B se réaffecte). Retour arrière ou X / Carré efface.
+Une commande déjà prise est retirée de l'autre action de la même colonne
+(message affiché) ; « Rétablir les commandes par défaut » remet les deux
+colonnes. Enregistré dans `settings.cfg` (les anciens fichiers à deux touches
+par action gardent la première).
 
 ## Options
 
@@ -131,8 +153,8 @@ Page suiv.) :
 
 - **JEU** : nom du joueur, LANGUE / LANGUAGE (interface des options et du menu
   pause, voix des personnages).
-- **COMMANDES** : sensibilité de la souris, sensibilité en visée, inversion de
-  l'axe vertical, réaffectation des touches.
+- **COMMANDES** : sensibilité de la souris, de la manette (stick droit), en visée, inversion de
+  l'axe vertical (souris et manette), réaffectation des touches et des boutons de manette.
 - **GRAPHISMES** : plein écran, synchro verticale, limite d'images par seconde
   (illimitée, 30, 60, 120, 144, 240), échelle de rendu 3D (50 à 100 %), qualité
   (basse, moyenne, haute), champ de vision, luminosité (gamma, comme BO1),

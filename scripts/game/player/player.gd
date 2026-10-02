@@ -199,7 +199,7 @@ func _local_physics(delta: float) -> void:
 		# bouge plus, ne vise plus et ne tire plus.
 		var menu_open := Game.instance != null and Game.instance.menu_open()
 		if input_enabled and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not menu_open:
-			input.read_devices()
+			input.read_devices(delta)
 		else:
 			var keep_look := input.look
 			input = PlayerInput.new()
@@ -223,13 +223,15 @@ func _local_physics(delta: float) -> void:
 	input.clear_edges()
 
 
+## Souris (pixels) et stick droit (radians, déjà proportionnels au temps,
+## PlayerInput.pad_look_step) : même sensibilité en visée, même inversion.
 func _apply_look() -> void:
-	var sens := Settings.mouse_sensitivity * 0.01
+	var mult := 1.0
 	if aiming:
-		sens *= (weapons.ads_look_mult() if weapons else 0.6) * Settings.ads_sensitivity
-	yaw -= input.look.x * sens
-	var dy := input.look.y * sens
-	pitch -= -dy if Settings.invert_y else dy
+		mult = (weapons.ads_look_mult() if weapons else 0.6) * Settings.ads_sensitivity
+	var turn := (input.look * Settings.mouse_sensitivity * 0.01 + input.look_pad) * mult
+	yaw -= turn.x
+	pitch -= -turn.y if Settings.invert_y else turn.y
 	pitch = clampf(pitch, -PITCH_LIMIT, PITCH_LIMIT)
 	rotation.y = yaw
 	head.rotation.x = pitch

@@ -247,34 +247,36 @@ func _page_game() -> void:
 
 func _page_controls() -> void:
 	var pct := func(v): return "%d %%" % int(round(v * 100.0))
-	_section(Lang.t("SOURIS", "MOUSE"))
+	_section(Lang.t("VISÉE", "LOOK"))
 	_add("mouse_sensitivity", MenuOptionRow.make_range(Lang.t("SENSIBILITÉ SOURIS", "MOUSE SENSITIVITY"),
 			Settings.mouse_sensitivity, 0.05, 1.0, 0.05, func(v): return "%.2f" % v),
 			Lang.t("Vitesse de rotation de la vue à la souris.", "How fast the view turns with the mouse."))
+	_add("pad_look_sensitivity", MenuOptionRow.make_range(Lang.t("SENSIBILITÉ MANETTE", "CONTROLLER SENSITIVITY"),
+			Settings.pad_look_sensitivity, Settings.PAD_SENSITIVITY_RANGE.x, Settings.PAD_SENSITIVITY_RANGE.y, 0.1, pct),
+			Lang.t("Vitesse de rotation de la vue au stick droit de la manette.", "How fast the view turns with the controller's right stick."))
 	_add("ads_sensitivity", MenuOptionRow.make_range(Lang.t("SENSIBILITÉ EN VISÉE", "AIM SENSITIVITY"),
 			Settings.ads_sensitivity, Settings.ADS_SENSITIVITY_RANGE.x, Settings.ADS_SENSITIVITY_RANGE.y, 0.05, pct),
-			Lang.t("Vitesse de la vue en visée, par rapport à celle de l'arme (100 % : comme BO1).",
-				"View speed while aiming, relative to the weapon's own (100%: like BO1)."))
+			Lang.t("Vitesse de la vue en visée, par rapport à celle de l'arme (100 % : comme BO1). Souris et manette.",
+				"View speed while aiming, relative to the weapon's own (100%: like BO1). Mouse and controller."))
 	_add("invert_y", MenuOptionRow.make_toggle(Lang.t("INVERSER L'AXE VERTICAL", "INVERT VERTICAL AXIS"), Settings.invert_y),
-			Lang.t("Pousser la souris vers l'avant fait baisser la vue.", "Pushing the mouse forward looks down."))
+			Lang.t("Pousser la souris ou le stick droit vers l'avant fait baisser la vue.",
+				"Pushing the mouse or the right stick forward looks down."))
 	for r in rows.values():
 		r.wheel_nudges = false  # la page défile à la molette
-	_section(Lang.t("TOUCHES", "KEYS"))
+	_section(Lang.t("TOUCHES ET BOUTONS", "KEYS AND BUTTONS"))
+	page.add_child(MenuBindRow.make_header())
 	for action in Settings.REBINDABLE:
 		var br := MenuBindRow.make(action, action_name(action))
 		br.rebind_requested.connect(_on_rebind_requested)
 		br.clear_requested.connect(_on_clear_requested)
-		var hint := Lang.t("Entrée ou clic : changer la touche. ◄ / ► : case. Retour arrière : effacer.",
-				"Enter or click: change the key. ◄ / ►: slot. Backspace: clear.")
-		if action == "switch_weapon":
-			hint += Lang.t(" La molette change aussi d'arme.", " The mouse wheel also switches weapons.")
-		br.focus_entered.connect(func(): menu.set_hint(hint))
+		br.focus_entered.connect(func(): menu.set_hint(bind_hint(action)))
 		bind_rows[action] = br
 		page.add_child(br)
 		_focusables.append(br)
 	page.add_child(text("", 4))
-	reset_button = button(Lang.t("RÉTABLIR LES TOUCHES PAR DÉFAUT", "RESTORE DEFAULT KEYS"), reset_keys,
-			Lang.t("Toutes les actions reprennent leurs touches d'origine.", "Every action gets its original keys back."))
+	reset_button = button(Lang.t("RÉTABLIR LES COMMANDES PAR DÉFAUT", "RESTORE DEFAULT CONTROLS"), reset_keys,
+			Lang.t("Toutes les actions reprennent leur touche et leur bouton de manette d'origine.",
+				"Every action gets its original key and controller button back."))
 	(reset_button as MenuActionButton).font_size = 24
 	page.add_child(reset_button)
 	_focusables.append(reset_button)
@@ -431,6 +433,20 @@ func capturing() -> bool:
 	return _capture != null
 
 
+## Aide d'une ligne de commande (noms des boutons de la manette courante).
+func bind_hint(action: String) -> String:
+	var style := Settings.pad_style()
+	var a := PadNames.button_label(JOY_BUTTON_A, style)
+	var x := PadNames.button_label(JOY_BUTTON_X, style)
+	var hint := Lang.t("Entrée, %s ou clic : changer. ◄ / ► : touche ou manette. Retour arrière ou %s : effacer." % [a, x],
+			"Enter, %s or click: change. ◄ / ►: key or controller. Backspace or %s: clear." % [a, x])
+	if action == "switch_weapon":
+		hint += Lang.t(" La molette change aussi d'arme.", " The mouse wheel also switches weapons.")
+	elif action in Settings.MOVE_ACTIONS:
+		hint += Lang.t(" Stick gauche : déplacement progressif.", " Left stick: analog movement.")
+	return hint
+
+
 func _on_rebind_requested(row: MenuBindRow, slot: int) -> void:
 	if _capture != null:
 		return
@@ -439,43 +455,63 @@ func _on_rebind_requested(row: MenuBindRow, slot: int) -> void:
 	_capture_slot = slot
 	_capture_frame = Engine.get_process_frames()
 	row.set_capturing(slot)
-	menu.set_hint(Lang.t("%s : appuyez sur une touche ou un bouton de la souris (Échap : annuler)." % row.label_text,
-			"%s: press a key or a mouse button (Esc: cancel)." % row.label_text))
+	if slot == MenuBindRow.SLOT_PAD:
+		var start := PadNames.button_label(JOY_BUTTON_START, Settings.pad_style())
+		menu.set_hint(Lang.t("%s : appuyez sur un bouton ou une gâchette de la manette (%s ou Échap : annuler)." % [row.label_text, start],
+				"%s: press a controller button or trigger (%s or Esc: cancel)." % [row.label_text, start]))
+	else:
+		var b := PadNames.button_label(JOY_BUTTON_B, Settings.pad_style())
+		menu.set_hint(Lang.t("%s : appuyez sur une touche ou un bouton de la souris (Échap ou %s : annuler)." % [row.label_text, b],
+				"%s: press a key or a mouse button (Esc or %s: cancel)." % [row.label_text, b]))
 
 
 func _on_clear_requested(row: MenuBindRow, slot: int) -> void:
-	if slot >= (Settings.bindings.get(row.action, []) as Array).size():
+	var pad := slot == MenuBindRow.SLOT_PAD
+	if Settings.binding(row.action, pad) == "":
 		Audio.play_ui("ui_error", -14.0)
 		return
-	Settings.clear_binding(row.action, slot)
+	Settings.clear_binding(row.action, pad)
 	Settings.save_settings()
 	Audio.play_ui(MenuStyle.SND_BACK, -8.0)
 	row.flash()
-	menu.set_hint(Lang.t("%s : touche effacée." % row.label_text, "%s: key cleared." % row.label_text))
+	menu.set_hint(Lang.t("%s : bouton de manette effacé." % row.label_text, "%s: controller button cleared." % row.label_text) if pad
+			else Lang.t("%s : touche effacée." % row.label_text, "%s: key cleared." % row.label_text))
 
 
 ## Pendant une réaffectation, toutes les entrées reviennent à l'écran : la
-## touche (ou le bouton de souris) suivante est affectée, Échap annule.
+## commande suivante du bon périphérique est affectée. Case touche : touche
+## ou bouton de souris, Échap ou B / Rond annule. Case manette : bouton,
+## gâchette ou stick gauche, Échap ou Start / Options annule (B se réaffecte).
 func _input(event: InputEvent) -> void:
 	if _capture == null:
 		return
 	get_viewport().set_input_as_handled()
+	Settings.note_input(event)
+	# L'appui qui a lancé la saisie n'est pas une réponse.
+	if Engine.get_process_frames() == _capture_frame:
+		return
+	var pad := _capture_slot == MenuBindRow.SLOT_PAD
 	if event is InputEventKey and event.pressed and not event.echo:
 		if (event as InputEventKey).physical_keycode == KEY_ESCAPE or (event as InputEventKey).keycode == KEY_ESCAPE:
 			_cancel_capture()
-		else:
+		elif not pad:
 			@warning_ignore("static_called_on_instance")
 			_finish_capture(Settings.code_from_event(event))
 	elif event is InputEventMouseButton and event.pressed:
-		# Le clic qui a lancé la saisie n'est pas une réponse.
-		if Engine.get_process_frames() == _capture_frame:
-			return
+		if not pad:
+			@warning_ignore("static_called_on_instance")
+			_finish_capture(Settings.code_from_event(event))
+	elif event is InputEventJoypadButton and event.pressed:
+		var jb := (event as InputEventJoypadButton).button_index
+		if jb == JOY_BUTTON_START or (not pad and jb == JOY_BUTTON_B):
+			_cancel_capture()
+		elif pad:
+			@warning_ignore("static_called_on_instance")
+			_finish_capture(Settings.code_from_event(event))
+	elif event is InputEventJoypadMotion and pad:
+		# Gâchette ou stick gauche bien enfoncés (code « » en deçà).
 		@warning_ignore("static_called_on_instance")
-		var code := Settings.code_from_event(event)
-		if code != "":
-			_finish_capture(code)
-	elif event is InputEventJoypadButton and event.is_action_pressed("ui_cancel"):
-		_cancel_capture()  # manette : B annule (les boutons ne s'affectent pas)
+		_finish_capture(Settings.code_from_event(event))
 
 
 func _cancel_capture() -> void:
@@ -490,15 +526,14 @@ func _finish_capture(code: String) -> void:
 	if code == "":
 		return
 	var row := _capture
-	var slot := _capture_slot
 	_end_capture()
-	var taken := Settings.bind(row.action, slot, code)
+	var taken := Settings.bind(row.action, code)
 	Settings.save_settings()
 	Audio.play_ui(MenuStyle.SND_SELECT, MenuStyle.VOL_SELECT)
 	row.flash()
 	row.grab_focus()
 	@warning_ignore("static_called_on_instance")
-	var key := Settings.code_label(code)
+	var key := Settings.code_label(code, Settings.pad_style())
 	if taken != "":
 		if bind_rows.has(taken):
 			bind_rows[taken].flash()
@@ -520,7 +555,7 @@ func reset_keys() -> void:
 	Settings.save_settings()
 	for r in bind_rows.values():
 		r.flash()
-	menu.set_hint(Lang.t("Touches par défaut rétablies.", "Default keys restored."))
+	menu.set_hint(Lang.t("Commandes par défaut rétablies (clavier et manette).", "Default controls restored (keyboard and controller)."))
 
 
 func back() -> void:

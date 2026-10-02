@@ -2,8 +2,10 @@ extends AutotestScenario
 ## OPTIONS en jeu (solo), avec de vraies entrées clavier : Échap ouvre le menu
 ## pause (partie suspendue), OPTIONS ouvre l'écran d'options du menu
 ## principal par-dessus la partie, onglet COMMANDES, RECHARGER réaffecté à T
-## (InputMap et settings.cfg vérifiés), conflit avec GRENADE, Échap qui annule
-## une saisie, touches par défaut, RETOUR au menu pause et reprise.
+## (une seule touche ; InputMap et settings.cfg vérifiés), conflit avec
+## GRENADE, Échap qui annule une saisie, case manette (A, Y, conflit avec
+## CHANGER D'ARME, Start qui annule, invites manette puis clavier),
+## commandes par défaut, RETOUR au menu pause et reprise.
 
 var H := AutotestHelpers
 
@@ -47,8 +49,8 @@ func run() -> void:
 	await action("ui_right")
 	at.check(opt.tab == "controls" and opt.bind_rows.size() == Settings.REBINDABLE.size(),
 			"► : onglet COMMANDES, %d actions réaffectables" % opt.bind_rows.size())
-	at.check(opt.rows.has("mouse_sensitivity") and opt.rows.has("ads_sensitivity") and opt.rows.has("invert_y"),
-			"sensibilité, sensibilité en visée, inversion")
+	at.check(opt.rows.has("mouse_sensitivity") and opt.rows.has("pad_look_sensitivity") and opt.rows.has("ads_sensitivity") and opt.rows.has("invert_y"),
+			"sensibilités souris, manette et en visée, inversion")
 	# Molette sur la liste des touches : la page défile (ni les lignes de
 	# touches ni les jauges de cette page ne la consomment).
 	var sv0: int = opt.scroll.scroll_vertical
@@ -68,13 +70,13 @@ func run() -> void:
 	var sr := opt.scroll.get_global_rect() as Rect2
 	at.check(sr.grow(2.0).encloses(row.get_global_rect()), "ligne visible dans la page qui défile (défilement %d)" % opt.scroll.scroll_vertical)
 
-	# Entrée -> « Appuyez sur une touche… » -> T.
+	# Entrée -> « Appuyez sur une touche… » -> T (une seule touche : R remplacée).
 	await action("ui_accept")
-	at.check(opt.capturing() and row.capturing == 0, "Entrée : attente d'une touche")
+	at.check(opt.capturing() and row.capturing == MenuBindRow.SLOT_KEY, "Entrée : attente d'une touche")
 	await key(KEY_T)
 	at.check(not opt.capturing(), "touche reçue")
 	@warning_ignore("static_called_on_instance")
-	at.check(Settings.bindings.reload == [Settings.key_code(KEY_T)], "Settings : RECHARGER = T (%s)" % str(Settings.bindings.reload))
+	at.check(Settings.bindings.reload == Settings.key_code(KEY_T), "Settings : RECHARGER = T (%s)" % str(Settings.bindings.reload))
 	at.check(_has_key("reload", KEY_T) and not _has_key("reload", KEY_R), "InputMap : T recharge, R ne recharge plus")
 	var cfg := ConfigFile.new()
 	var ok := cfg.load(Settings.path) == OK
@@ -82,29 +84,53 @@ func run() -> void:
 	at.check(ok and Array(cfg.get_value("bindings", "reload", [])) == [Settings.key_code(KEY_T)], "enregistré dans %s" % Settings.path)
 	at.check(pm.visible and tree().paused, "la saisie ne ferme pas le menu")
 
-	# Conflit : G sur RECHARGER (case 2) est retiré de GRENADE, et c'est affiché.
-	await action("ui_right")
-	at.check(row.slot == 1, "► : deuxième case")
+	# Conflit : G sur RECHARGER est retiré de GRENADE, et c'est affiché.
 	await action("ui_accept")
 	await key(KEY_G)
 	@warning_ignore("static_called_on_instance")
-	at.check(Settings.bindings.reload == [Settings.key_code(KEY_T), Settings.key_code(KEY_G)], "RECHARGER = T, G")
-	at.check(Settings.bindings.grenade.is_empty() and not _has_key("grenade", KEY_G), "G retiré de GRENADE")
+	at.check(Settings.bindings.reload == Settings.key_code(KEY_G), "RECHARGER = G")
+	at.check(Settings.bindings.grenade == "" and not _has_key("grenade", KEY_G), "G retiré de GRENADE")
 	at.check(pm._hint.text.contains("GRENADE"), "conflit affiché : « %s »" % pm._hint.text)
 
 	# Échap pendant une saisie : annule, l'écran reste ouvert.
 	await action("ui_accept")
 	await key(KEY_ESCAPE)
 	at.check(not opt.capturing() and pm.current == opt, "Échap : saisie annulée, options toujours ouvertes")
-	at.check(Settings.bindings.reload.size() == 2, "rien n'a changé")
+	@warning_ignore("static_called_on_instance")
+	at.check(Settings.bindings.reload == Settings.key_code(KEY_G), "rien n'a changé")
 
-	# Rétablir les touches par défaut.
+	# Manette : ► case manette, A lance la saisie, Y est affecté à RECHARGER
+	# et retiré de CHANGER D'ARME ; l'invite du HUD passe à la manette.
+	await action("ui_right")
+	at.check(row.slot == MenuBindRow.SLOT_PAD, "► : case manette")
+	await pad(JOY_BUTTON_A)
+	at.check(opt.capturing() and row.capturing == MenuBindRow.SLOT_PAD, "A : attente d'un bouton de manette")
+	await key(KEY_J)
+	at.check(opt.capturing(), "une touche ne répond pas à la case manette")
+	await pad(JOY_BUTTON_Y)
+	at.check(not opt.capturing(), "bouton reçu")
+	at.check(Settings.pad_bindings.reload == "joy:%d" % JOY_BUTTON_Y and Settings.pad_bindings.switch_weapon == "",
+			"RECHARGER = Y, retiré de CHANGER D'ARME (%s)" % str(Settings.pad_bindings.reload))
+	@warning_ignore("static_called_on_instance")
+	at.check(Settings.bindings.reload == Settings.key_code(KEY_G), "la touche reste")
+	at.check(Settings.using_pad and Settings.action_label("reload") == "Y", "invites manette : « %s »" % Settings.action_label("reload"))
+	# Start annule une saisie à la manette (B, lui, s'affecte).
+	await pad(JOY_BUTTON_A)
+	await pad(JOY_BUTTON_START)
+	at.check(not opt.capturing() and pm.current == opt, "Start : saisie annulée, options toujours ouvertes")
+	at.check(Settings.pad_bindings.reload == "joy:%d" % JOY_BUTTON_Y, "rien n'a changé")
+
+	# Rétablir les commandes par défaut (les deux colonnes).
 	opt.reset_button.grab_focus()
 	await frames(2)
 	await action("ui_accept")
 	@warning_ignore("static_called_on_instance")
-	at.check(Settings.bindings == Settings.default_bindings(), "touches par défaut rétablies")
+	at.check(Settings.bindings == Settings.default_bindings() and Settings.pad_bindings == Settings.default_pad_bindings(),
+			"commandes par défaut rétablies")
 	at.check(_has_key("reload", KEY_R) and _has_key("grenade", KEY_G), "InputMap : R et G d'origine")
+	at.check(Settings.action_label("reload") == "RB", "invite manette : RB recharge (%s)" % Settings.action_label("reload"))
+	await key(KEY_J)
+	at.check(not Settings.using_pad and Settings.action_label("reload") == "R", "clavier : invites clavier")
 
 	# Onglet GRAPHISMES : nouvelles options appliquées tout de suite.
 	opt.switch_tab(1)
@@ -220,3 +246,16 @@ func _focused_label() -> String:
 	if f is MenuActionButton:
 		return f.label
 	return str(f)
+
+
+## Appui puis relâche d'un bouton de manette.
+func pad(b: JoyButton) -> void:
+	var ev := InputEventJoypadButton.new()
+	ev.button_index = b
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	await frames(2)
+	var up := ev.duplicate() as InputEventJoypadButton
+	up.pressed = false
+	Input.parse_input_event(up)
+	await frames(3)

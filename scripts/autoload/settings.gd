@@ -84,45 +84,100 @@ var _cmdline_max_fps := 0
 ## de la fenêtre n'est touché que si l'option change (voir window_mode_for).
 var _applied_fullscreen = null
 
-## Actions -> touches par défaut (clavier AZERTY et QWERTY : on mappe par
-## keycode physique pour que ZQSD/WASD tombe au même endroit).
+## Actions -> touche par défaut (clavier AZERTY et QWERTY : on mappe par
+## keycode physique pour que ZQSD/WASD tombe au même endroit). Une seule
+## touche par action : « Appuyez sur F » désigne toujours LA touche.
 const DEFAULT_BINDINGS := {
-	"move_forward": [KEY_W],
-	"move_back": [KEY_S],
-	"move_left": [KEY_A],
-	"move_right": [KEY_D],
-	"jump": [KEY_SPACE],
-	"sprint": [KEY_SHIFT],
-	"crouch": [KEY_CTRL, KEY_C],
-	"interact": [KEY_F, KEY_E],
-	"reload": [KEY_R],
-	"melee": [KEY_V],
-	"grenade": [KEY_G],
-	"tactical": [KEY_Q],
-	"switch_weapon": [KEY_1, KEY_2],
-	"scoreboard": [KEY_TAB],
-	"pause": [KEY_ESCAPE],
+	"move_forward": KEY_W,
+	"move_back": KEY_S,
+	"move_left": KEY_A,
+	"move_right": KEY_D,
+	"jump": KEY_SPACE,
+	"sprint": KEY_SHIFT,
+	"crouch": KEY_C,
+	"interact": KEY_F,
+	"reload": KEY_R,
+	"melee": KEY_V,
+	"grenade": KEY_G,
+	"tactical": KEY_Q,
+	"switch_weapon": KEY_1,
+	"scoreboard": KEY_TAB,
+	"pause": KEY_ESCAPE,
 }
 const MOUSE_BINDINGS := {
 	"fire": MOUSE_BUTTON_LEFT,
 	"aim": MOUSE_BUTTON_RIGHT,
 }
+## Manette par défaut. Xbox et PlayStation : JoyButton / JoyAxis suivent la
+## disposition standard SDL, une seule table sert aux deux. Proche de la
+## disposition « par défaut » de BO1 sur console, une seule commande par
+## bouton (README.md, « Commandes ») : boutons...
+const DEFAULT_PAD_BUTTONS := {
+	"jump": JOY_BUTTON_A,
+	"crouch": JOY_BUTTON_B,
+	"interact": JOY_BUTTON_X,
+	"switch_weapon": JOY_BUTTON_Y,
+	"reload": JOY_BUTTON_RIGHT_SHOULDER,
+	"grenade": JOY_BUTTON_LEFT_SHOULDER,
+	"tactical": JOY_BUTTON_DPAD_RIGHT,
+	"sprint": JOY_BUTTON_LEFT_STICK,
+	"melee": JOY_BUTTON_RIGHT_STICK,
+	"scoreboard": JOY_BUTTON_BACK,
+}
+## ... et axes [axe, sens] : stick gauche (déplacement analogique), gâchettes.
+const DEFAULT_PAD_AXES := {
+	"move_forward": [JOY_AXIS_LEFT_Y, -1],
+	"move_back": [JOY_AXIS_LEFT_Y, 1],
+	"move_left": [JOY_AXIS_LEFT_X, -1],
+	"move_right": [JOY_AXIS_LEFT_X, 1],
+	"aim": [JOY_AXIS_TRIGGER_LEFT, 1],
+	"fire": [JOY_AXIS_TRIGGER_RIGHT, 1],
+}
 
 ## Actions réaffectables, dans l'ordre de l'écran OPTIONS > COMMANDES.
-## « pause » (Échap) reste fixe : c'est aussi la touche qui annule une
-## réaffectation. La molette change toujours d'arme, en plus des touches.
+## « pause » (Échap, Start / Options) reste fixe : c'est aussi ce qui annule
+## une réaffectation. La molette change toujours d'arme, en plus de la touche.
 const REBINDABLE := ["move_forward", "move_back", "move_left", "move_right", "jump", "crouch",
 	"sprint", "fire", "aim", "reload", "interact", "melee", "grenade", "tactical",
 	"switch_weapon", "scoreboard"]
-## Touches par action (deux cases, comme les options de BO1 sur PC).
-const MAX_KEYS := 2
 ## Boutons de souris acceptés en réaffectation (la molette est exclue).
 const BINDABLE_MOUSE := [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_MIDDLE,
 	MOUSE_BUTTON_XBUTTON1, MOUSE_BUTTON_XBUTTON2]
+## Boutons de manette réservés : Guide / PS (système) et Start / Options
+## (pause, annule une réaffectation à la manette).
+const RESERVED_PAD_BUTTONS := [JOY_BUTTON_GUIDE, JOY_BUTTON_START]
+## Axes de manette affectables : stick gauche et gâchettes (le stick droit
+## tourne la vue, il n'est pas réaffectable).
+const BINDABLE_PAD_AXES := [JOY_AXIS_LEFT_X, JOY_AXIS_LEFT_Y, JOY_AXIS_TRIGGER_LEFT, JOY_AXIS_TRIGGER_RIGHT]
+## Inclinaison d'un axe retenue en réaffectation (gâchette ou stick bien
+## enfoncé) ; au-delà de PAD_MOVE_THRESHOLD, la manette devient le
+## périphérique courant (invites).
+const CAPTURE_AXIS_THRESHOLD := 0.6
+const PAD_MOVE_THRESHOLD := 0.5
+## Zone morte des actions de déplacement (le stick gauche est lu en
+## analogique par PlayerInput, qui applique sa propre zone morte radiale).
+const MOVE_DEADZONE := 0.15
+const MOVE_ACTIONS := ["move_forward", "move_back", "move_left", "move_right"]
 
-## Touches courantes : action -> codes (« key:<physical_keycode> »,
-## « mouse:<bouton> »). Voir bind(), reset_bindings(), apply_bindings().
+## Touche courante (clavier / souris) de chaque action : action -> code
+## (« key:<physical_keycode> », « mouse:<bouton> », « » : aucune).
+## Voir bind(), reset_bindings(), apply_bindings().
 var bindings := {}
+## Bouton de manette de chaque action : action -> code (« joy:<JoyButton> »,
+## « joyaxis:<JoyAxis>:<-1|1> », « » : aucun). Deuxième colonne des options.
+var pad_bindings := {}
+
+## Sensibilité de la vue au stick droit (multiplicateur, voir PlayerInput).
+var pad_look_sensitivity := 1.0
+const PAD_SENSITIVITY_RANGE := Vector2(0.3, 3.0)
+
+## Dernier périphérique utilisé : les invites du HUD montrent le bouton de la
+## manette (« Appuyer sur X ») ou la touche (« Appuyer sur F »). Voir note_input().
+signal input_device_changed(pad: bool)
+var using_pad := false
+## Manette qui a servi en dernier (-1 : aucune) : son nom choisit les noms
+## des boutons, Xbox ou PlayStation (PadNames.style_of).
+var pad_device := -1
 
 
 ## Taille de l'interface de l'éditeur ramenée dans la plage et au pas de 5 %
@@ -135,6 +190,9 @@ static func clamp_editor_ui_scale(v: float) -> float:
 
 func _ready() -> void:
 	_cmdline_max_fps = Engine.max_fps
+	# Suivi du périphérique courant même partie suspendue (menu pause).
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	Input.joy_connection_changed.connect(_on_joy_connection_changed)
 	_register_inputs()
 	load_settings()
 	_apply_cmdline_quality()
@@ -183,14 +241,30 @@ func _register_inputs() -> void:
 	for action in MOUSE_BINDINGS:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
-	# Échap : menu pause (fixe).
+	# Échap / Start (Options) : menu pause (fixe).
 	InputMap.action_erase_events("pause")
-	for key in DEFAULT_BINDINGS.pause:
-		var ev := InputEventKey.new()
-		ev.physical_keycode = key
-		InputMap.action_add_event("pause", ev)
+	var esc := InputEventKey.new()
+	esc.physical_keycode = DEFAULT_BINDINGS.pause
+	InputMap.action_add_event("pause", esc)
+	InputMap.action_add_event("pause", _pad_button_event(JOY_BUTTON_START))
 	bindings = default_bindings()
-	# Navigation des menus à la manette/clavier : on garde les ui_* par défaut.
+	pad_bindings = default_pad_bindings()
+	# Navigation des menus : les ui_* par défaut (flèches, croix et stick
+	# gauche) plus, à la manette, A / Croix (valider), B / Rond (retour) et
+	# LB / RB (onglet précédent / suivant), absents des ui_* de Godot.
+	for pair in [["ui_accept", JOY_BUTTON_A], ["ui_cancel", JOY_BUTTON_B],
+			["ui_page_up", JOY_BUTTON_LEFT_SHOULDER], ["ui_page_down", JOY_BUTTON_RIGHT_SHOULDER]]:
+		var ev := _pad_button_event(pair[1])
+		if InputMap.has_action(pair[0]) and not InputMap.action_has_event(pair[0], ev):
+			InputMap.action_add_event(pair[0], ev)
+
+
+## Bouton de manette, toutes manettes confondues (device -1).
+static func _pad_button_event(button: int) -> InputEventJoypadButton:
+	var ev := InputEventJoypadButton.new()
+	ev.device = -1
+	ev.button_index = button as JoyButton
+	return ev
 
 
 # --------------------------------------------------------------------------
@@ -205,21 +279,48 @@ static func mouse_code(button: int) -> String:
 	return "mouse:%d" % button
 
 
-## Touches d'origine de chaque action réaffectable.
+static func pad_button_code(button: int) -> String:
+	return "joy:%d" % button
+
+
+static func pad_axis_code(axis: int, sign_: int) -> String:
+	return "joyaxis:%d:%d" % [axis, 1 if sign_ >= 0 else -1]
+
+
+## Code de manette (deuxième colonne) ?
+static func is_pad_code(code: String) -> bool:
+	return code.begins_with("joy")
+
+
+## Touche d'origine (clavier / souris) de chaque action réaffectable.
 static func default_bindings() -> Dictionary:
 	var d := {}
 	for action in REBINDABLE:
-		var list := []
 		if MOUSE_BINDINGS.has(action):
-			list.append(mouse_code(MOUSE_BINDINGS[action]))
-		for key in DEFAULT_BINDINGS.get(action, []):
-			list.append(key_code(key))
-		d[action] = list
+			d[action] = mouse_code(MOUSE_BINDINGS[action])
+		elif DEFAULT_BINDINGS.has(action):
+			d[action] = key_code(DEFAULT_BINDINGS[action])
+		else:
+			d[action] = ""
 	return d
 
 
-## Code d'une touche ou d'un bouton de souris (« » si non réaffectable :
-## Échap, molette...).
+## Bouton de manette d'origine de chaque action réaffectable.
+static func default_pad_bindings() -> Dictionary:
+	var d := {}
+	for action in REBINDABLE:
+		if DEFAULT_PAD_BUTTONS.has(action):
+			d[action] = pad_button_code(DEFAULT_PAD_BUTTONS[action])
+		elif DEFAULT_PAD_AXES.has(action):
+			d[action] = pad_axis_code(DEFAULT_PAD_AXES[action][0], DEFAULT_PAD_AXES[action][1])
+		else:
+			d[action] = ""
+	return d
+
+
+## Code d'une touche, d'un bouton de souris ou de manette, d'une gâchette ou
+## du stick gauche bien enfoncés (« » si non réaffectable : Échap, molette,
+## Start, Guide, stick droit, axe à peine incliné...).
 static func code_from_event(ev: InputEvent) -> String:
 	if ev is InputEventKey:
 		var k := ev as InputEventKey
@@ -230,12 +331,38 @@ static func code_from_event(ev: InputEvent) -> String:
 	if ev is InputEventMouseButton:
 		var b := int((ev as InputEventMouseButton).button_index)
 		return mouse_code(b) if b in BINDABLE_MOUSE else ""
+	if ev is InputEventJoypadButton:
+		var jb := int((ev as InputEventJoypadButton).button_index)
+		return pad_button_code(jb) if _pad_button_ok(jb) else ""
+	if ev is InputEventJoypadMotion:
+		var jm := ev as InputEventJoypadMotion
+		if int(jm.axis) in BINDABLE_PAD_AXES and absf(jm.axis_value) >= CAPTURE_AXIS_THRESHOLD:
+			return pad_axis_code(jm.axis, 1 if jm.axis_value > 0.0 else -1)
+		return ""
 	return ""
 
 
+static func _pad_button_ok(b: int) -> bool:
+	return b >= 0 and b < JOY_BUTTON_SDL_MAX and not b in RESERVED_PAD_BUTTONS
+
+
 ## Événement d'entrée (pour l'InputMap) d'un code, null s'il est invalide.
+## Manette : toutes manettes confondues (device -1, branchement à chaud).
 static func event_from_code(code: String) -> InputEvent:
 	var parts := code.split(":")
+	if parts.size() == 3 and parts[0] == "joyaxis":
+		if not parts[1].is_valid_int() or not parts[2] in ["1", "-1"]:
+			return null
+		var axis := parts[1].to_int()
+		var sign_ := parts[2].to_int()
+		# Gâchettes : enfoncées seulement (repos à 0).
+		if not axis in BINDABLE_PAD_AXES or (sign_ < 0 and axis in [JOY_AXIS_TRIGGER_LEFT, JOY_AXIS_TRIGGER_RIGHT]):
+			return null
+		var jm := InputEventJoypadMotion.new()
+		jm.device = -1
+		jm.axis = axis as JoyAxis
+		jm.axis_value = float(sign_)
+		return jm
 	if parts.size() != 2 or not parts[1].is_valid_int():
 		return null
 	var v := parts[1].to_int()
@@ -252,6 +379,10 @@ static func event_from_code(code: String) -> InputEvent:
 			var mb := InputEventMouseButton.new()
 			mb.button_index = v as MouseButton
 			return mb
+		"joy":
+			if not _pad_button_ok(v):
+				return null
+			return _pad_button_event(v)
 	return null
 
 
@@ -280,9 +411,15 @@ const KEY_NAMES := {
 
 
 ## Nom affiché d'un code (touche selon la disposition du clavier : la touche
-## physique W s'affiche Z en AZERTY).
-static func code_label(code: String) -> String:
+## physique W s'affiche Z en AZERTY ; bouton de manette selon `pad_style`,
+## Xbox ou PlayStation, voir PadNames).
+static func code_label(code: String, pad_style := PadNames.XBOX) -> String:
 	var ev := event_from_code(code)
+	if ev is InputEventJoypadButton:
+		return PadNames.button_label((ev as InputEventJoypadButton).button_index, pad_style)
+	if ev is InputEventJoypadMotion:
+		var jm := ev as InputEventJoypadMotion
+		return PadNames.axis_label(jm.axis, int(jm.axis_value), pad_style)
 	if ev is InputEventMouseButton:
 		match (ev as InputEventMouseButton).button_index:
 			MOUSE_BUTTON_LEFT: return Lang.t("CLIC GAUCHE", "LEFT CLICK")
@@ -303,58 +440,77 @@ static func code_label(code: String) -> String:
 	return "—"
 
 
-## Nom de la première touche d'une action (invites du HUD : « Appuyer sur F »).
+## Nom de la commande d'une action pour les invites du HUD (« Appuyer sur
+## F », « Appuyer sur X », « Press Square ») : le bouton de la manette si
+## elle a servi en dernier (et que l'action en a un), sinon la touche.
 func action_label(action: String) -> String:
-	var list: Array = bindings.get(action, [])
-	return code_label(list[0]) if not list.is_empty() else "?"
+	return prompt_label(binding(action), binding(action, true), using_pad, pad_style())
 
 
-## Affecte `code` à la case `slot` de `action`. La touche est retirée de toute
-## autre action (conflit) ; déjà dans l'autre case de la même action, les deux
-## cases sont échangées. Retourne l'action qui l'a perdue (« » sinon).
-func bind(action: String, slot: int, code: String) -> String:
+## Pure (tests) : nom à afficher d'après les deux codes d'une action.
+static func prompt_label(key: String, pad: String, use_pad: bool, style := PadNames.XBOX) -> String:
+	if use_pad and pad != "":
+		return code_label(pad, style)
+	if key != "":
+		return code_label(key)
+	return code_label(pad, style) if pad != "" else "?"
+
+
+## Code de l'action : touche (clavier / souris) ou bouton de manette (`pad`).
+func binding(action: String, pad := false) -> String:
+	return String((pad_bindings if pad else bindings).get(action, ""))
+
+
+## Noms de boutons de la manette courante : PlayStation (DualShock, DualSense)
+## ou Xbox (toutes les autres, disposition standard). Sans manette : Xbox.
+func pad_style() -> String:
+	var pads := Input.get_connected_joypads()
+	var dev := pad_device if pad_device in pads else (pads[0] if not pads.is_empty() else -1)
+	return PadNames.style_of(Input.get_joy_name(dev)) if dev >= 0 else PadNames.XBOX
+
+
+## Affecte `code` à `action`, dans la colonne de son périphérique (touche ou
+## manette ; une seule commande par action et par colonne). La commande est
+## retirée de toute autre action de la même colonne (conflit). Retourne
+## l'action qui l'a perdue (« » sinon).
+func bind(action: String, code: String) -> String:
 	if not action in REBINDABLE or event_from_code(code) == null:
 		return ""
+	var col := pad_bindings if is_pad_code(code) else bindings
 	var taken := ""
 	for a in REBINDABLE:
-		if a != action and code in bindings[a]:
-			(bindings[a] as Array).erase(code)
+		if a != action and col.get(a, "") == code:
+			col[a] = ""
 			taken = a
-	var list: Array = bindings[action]
-	slot = clampi(slot, 0, MAX_KEYS - 1)
-	var idx := list.find(code)
-	if idx < 0:
-		if slot < list.size():
-			list[slot] = code
-		else:
-			list.append(code)
-	elif idx != slot and slot < list.size():
-		list[idx] = list[slot]
-		list[slot] = code
+	col[action] = code
 	apply_bindings()
 	return taken
 
 
-## Vide la case `slot` de `action` (la touche suivante remonte).
-func clear_binding(action: String, slot: int) -> void:
-	var list: Array = bindings.get(action, [])
-	if slot >= 0 and slot < list.size():
-		list.remove_at(slot)
+## Vide la touche (ou le bouton de manette, `pad`) de `action`.
+func clear_binding(action: String, pad := false) -> void:
+	var col := pad_bindings if pad else bindings
+	if col.get(action, "") != "":
+		col[action] = ""
 		apply_bindings()
 
 
+## Rétablit les deux colonnes (touches et manette).
 func reset_bindings() -> void:
 	bindings = default_bindings()
+	pad_bindings = default_pad_bindings()
 	apply_bindings()
 
 
-## Reconstruit l'InputMap des actions réaffectables d'après `bindings`.
+## Reconstruit l'InputMap des actions réaffectables d'après `bindings` et
+## `pad_bindings`.
 func apply_bindings() -> void:
 	for action in REBINDABLE:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
 		InputMap.action_erase_events(action)
-		for code in bindings.get(action, []):
+		InputMap.action_set_deadzone(action, MOVE_DEADZONE if action in MOVE_ACTIONS else 0.5)
+		for code in [binding(action), binding(action, true)]:
 			var ev := event_from_code(code)
 			if ev:
 				InputMap.action_add_event(action, ev)
@@ -366,33 +522,88 @@ func apply_bindings() -> void:
 	bindings_changed.emit()
 
 
-## Touches lues d'un fichier : codes valides, sans doublon, deux au plus ;
-## action absente du fichier (nouvelle version) : ses touches d'origine, sauf
-## celles déjà prises par une autre action.
-func _bindings_from_cfg(cfg: ConfigFile) -> Dictionary:
-	var d := default_bindings()
+## Commandes lues d'un fichier, pour une colonne (section « bindings » :
+## touches, « pad_bindings » : manette). Une seule par action : la première
+## valide de la bonne colonne (les anciens fichiers en avaient deux), sans
+## doublon ; action absente du fichier (nouvelle version) : sa commande
+## d'origine, sauf si une autre action l'a déjà.
+static func _bindings_from_cfg(cfg: ConfigFile, section: String, defaults: Dictionary, pad: bool) -> Dictionary:
+	var d := defaults.duplicate()
 	var used := {}
 	for action in REBINDABLE:
-		if not cfg.has_section_key("bindings", action):
+		if not cfg.has_section_key(section, action):
 			continue
-		var raw: Variant = cfg.get_value("bindings", action, [])
-		var list := []
-		if raw is Array or raw is PackedStringArray:
-			for c in raw:
-				var code := str(c)
-				if event_from_code(code) != null and not used.has(code) and list.size() < MAX_KEYS:
-					list.append(code)
-					used[code] = true
-		d[action] = list
+		var raw: Variant = cfg.get_value(section, action, "")
+		var list: Array = []
+		if raw is String or raw is StringName:
+			list = [raw]
+		elif raw is Array or raw is PackedStringArray:
+			list = Array(raw).slice(0, 8)  # fichier piégé : quelques valeurs au plus
+		var pick := ""
+		for c in list:
+			var code := str(c)
+			if is_pad_code(code) == pad and event_from_code(code) != null and not used.has(code):
+				pick = code
+				break
+		if pick != "":
+			used[pick] = true
+		d[action] = pick
 	for action in REBINDABLE:
-		if not cfg.has_section_key("bindings", action):
-			var keep := []
-			for code in d[action]:
-				if not used.has(code):
-					keep.append(code)
-					used[code] = true
-			d[action] = keep
+		if not cfg.has_section_key(section, action):
+			var code: String = d[action]
+			if code != "" and used.has(code):
+				d[action] = ""
+			elif code != "":
+				used[code] = true
 	return d
+
+
+# --------------------------------------------------------------------------
+# Périphérique courant (invites clavier ou manette)
+# --------------------------------------------------------------------------
+
+func _input(event: InputEvent) -> void:
+	note_input(event)
+
+
+## Retient le dernier périphérique utilisé (appelée aussi par l'écran des
+## options pendant une réaffectation, qui consomme les entrées). Une manette
+## à peine effleurée (stick au repos qui dérive) ne compte pas.
+func note_input(event: InputEvent) -> void:
+	var pad := using_pad
+	if event is InputEventJoypadButton and event.pressed:
+		pad = true
+	elif event is InputEventJoypadMotion and absf((event as InputEventJoypadMotion).axis_value) >= PAD_MOVE_THRESHOLD:
+		pad = true
+	elif (event is InputEventKey or event is InputEventMouseButton) and event.pressed:
+		pad = false
+	elif event is InputEventMouseMotion and (event as InputEventMouseMotion).relative.length() > 3.0:
+		pad = false
+	else:
+		return
+	if pad:
+		pad_device = event.device
+	_set_using_pad(pad)
+
+
+func _set_using_pad(pad: bool) -> void:
+	if pad == using_pad:
+		return
+	using_pad = pad
+	input_device_changed.emit(pad)
+
+
+## Manette branchée ou débranchée en cours de partie : jamais d'erreur ; la
+## dernière débranchée sans autre manette rend les invites au clavier.
+func _on_joy_connection_changed(device: int, connected: bool) -> void:
+	if connected:
+		return
+	var pads := Input.get_connected_joypads()
+	if device == pad_device:
+		pad_device = pads[0] if not pads.is_empty() else -1
+	if pads.is_empty():
+		_set_using_pad(false)
+	input_device_changed.emit(using_pad)
 
 
 func _exit_tree() -> void:
@@ -440,7 +651,10 @@ func load_from(file: String) -> bool:
 	ads_sensitivity = SafeConfig.get_float(cfg, "controls", "ads_sensitivity", ads_sensitivity,
 			ADS_SENSITIVITY_RANGE.x, ADS_SENSITIVITY_RANGE.y)
 	invert_y = SafeConfig.get_bool(cfg, "controls", "invert_y", invert_y)
-	bindings = _bindings_from_cfg(cfg)
+	pad_look_sensitivity = SafeConfig.get_float(cfg, "controls", "pad_look_sensitivity", pad_look_sensitivity,
+			PAD_SENSITIVITY_RANGE.x, PAD_SENSITIVITY_RANGE.y)
+	bindings = _bindings_from_cfg(cfg, "bindings", default_bindings(), false)
+	pad_bindings = _bindings_from_cfg(cfg, "pad_bindings", default_pad_bindings(), true)
 	fov = SafeConfig.get_float(cfg, "video", "fov", fov, 40.0, 130.0)
 	fullscreen = SafeConfig.get_bool(cfg, "video", "fullscreen", fullscreen)
 	vsync = SafeConfig.get_bool(cfg, "video", "vsync", vsync)
@@ -481,8 +695,12 @@ func save_to(file: String) -> void:
 	cfg.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	cfg.set_value("controls", "ads_sensitivity", ads_sensitivity)
 	cfg.set_value("controls", "invert_y", invert_y)
+	cfg.set_value("controls", "pad_look_sensitivity", pad_look_sensitivity)
 	for action in REBINDABLE:
-		cfg.set_value("bindings", action, PackedStringArray(bindings.get(action, [])))
+		# Touche : liste d'une valeur (format des versions précédentes, qui la relisent).
+		var key := binding(action)
+		cfg.set_value("bindings", action, PackedStringArray([key] if key != "" else []))
+		cfg.set_value("pad_bindings", action, binding(action, true))
 	cfg.set_value("video", "fov", fov)
 	cfg.set_value("video", "fullscreen", fullscreen)
 	cfg.set_value("video", "vsync", vsync)

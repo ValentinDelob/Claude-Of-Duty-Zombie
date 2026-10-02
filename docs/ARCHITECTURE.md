@@ -187,19 +187,51 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   molette au défilement (`MenuOptionRow.wheel_nudges = false` ; lignes en
   `MOUSE_FILTER_PASS`). Chaque changement : `Settings.apply()` puis
   `save_settings()`.
-- **Touches** : `Settings.bindings` = action -> codes (`key:<physical_keycode>`,
-  `mouse:<bouton>`), deux cases par action (`MAX_KEYS`), actions de
-  `Settings.REBINDABLE`. `bind(action, case, code)` retire le code de toute
-  autre action (retourne laquelle, affiché dans l'aide) ou échange les deux
-  cases ; `clear_binding`, `reset_bindings` ; `apply_bindings()` reconstruit
-  l'InputMap (la molette reste liée à `switch_weapon`, Échap à `pause`).
-  Section `[bindings]` de `settings.cfg` ; relecture filtrée (codes valides,
-  sans doublon ; action absente : ses touches d'origine si elles sont libres).
-  Ligne `MenuBindRow` (`scripts/ui/bind_row.gd`) ; la saisie (« Appuyez sur une
-  touche… ») est faite par `OptionsScreen._input` : touche ou bouton de souris
-  (molette exclue), Échap annule. Noms affichés : `Settings.code_label`
-  (disposition du clavier : la touche physique W s'affiche Z en AZERTY). Les
-  invites du HUD utilisent la touche courante (`Hud.bo1_prompt(raw, key)`).
+- **Touches et manette** : une seule commande par action et par colonne.
+  `Settings.bindings` = action -> touche (`key:<physical_keycode>`,
+  `mouse:<bouton>`, `""` : aucune) ; `Settings.pad_bindings` = action ->
+  bouton de manette (`joy:<JoyButton>`, `joyaxis:<JoyAxis>:<-1|1>` pour les
+  gâchettes et le stick gauche ; événements `device = -1` : toutes manettes,
+  branchement à chaud). Actions de `Settings.REBINDABLE` ; dispositions
+  d'origine `DEFAULT_BINDINGS` / `MOUSE_BINDINGS` / `DEFAULT_PAD_BUTTONS` /
+  `DEFAULT_PAD_AXES` (Xbox et PlayStation partagent la disposition standard
+  SDL de Godot : une seule table). `bind(action, code)` range le code dans la
+  colonne de son périphérique et le retire de toute autre action de cette
+  colonne (retourne laquelle, affiché dans l'aide) ; `clear_binding(action,
+  pad)`, `reset_bindings()` (les deux colonnes) ; `apply_bindings()`
+  reconstruit l'InputMap (la molette reste liée à `switch_weapon`, Échap et
+  Start à `pause` ; zone morte `MOVE_DEADZONE` des déplacements). Guide et
+  Start, le stick droit (la vue) ne se réaffectent pas. `settings.cfg` :
+  `[bindings]` (liste d'une touche, format relu par les versions
+  précédentes) et `[pad_bindings]` ; relecture filtrée par colonne (première
+  valeur valide : les anciens fichiers à deux touches gardent la première,
+  sans doublon ; action absente : sa commande d'origine si elle est libre).
+  Ligne `MenuBindRow` (`scripts/ui/bind_row.gd`, cases `SLOT_KEY` /
+  `SLOT_PAD`, ligne de titres `make_header()`) ; la saisie est faite par
+  `OptionsScreen._input` : case touche = touche ou bouton de souris (molette
+  exclue), Échap ou B annule ; case manette = bouton, gâchette ou stick gauche
+  enfoncé à `CAPTURE_AXIS_THRESHOLD`, Échap ou Start annule. Menus à la
+  manette : `_register_inputs` ajoute A / B / LB / RB à `ui_accept` /
+  `ui_cancel` / `ui_page_up` / `ui_page_down` (absents des ui_* de Godot).
+- **Noms et invites** : `Settings.code_label(code, style)` (disposition du
+  clavier : la touche physique W s'affiche Z en AZERTY ; manette :
+  `PadNames`, `scripts/ui/pad_names.gd`, noms Xbox ou PlayStation choisis par
+  `PadNames.style_of(Input.get_joy_name())`, PS5 : « CREATE »). Dernier
+  périphérique utilisé : `Settings.note_input` (via `Settings._input`, et par
+  l'écran d'options pendant une saisie) -> `using_pad`, `pad_device`, signal
+  `input_device_changed` ; une manette débranchée sans autre manette rend les
+  invites au clavier. `Settings.action_label(action)` (pur :
+  `prompt_label`) donne le bouton si la manette a servi en dernier, sinon la
+  touche ; les invites du HUD (`Hud.bo1_prompt(raw, key)`) sont recalculées
+  quand ce nom change.
+- **Manette en jeu** : `PlayerInput.read_devices(delta)` lit le déplacement en
+  analogique (`get_action_raw_strength`, zone morte radiale
+  `stick_deadzone`) et la vue au stick droit (`pad_look_step` : zone morte,
+  courbe, `PAD_LOOK_SPEED` x `Settings.pad_look_sensitivity` x delta, donc
+  indépendante des images par seconde) dans `look_pad` (radians) ;
+  `Player._apply_look` y applique la sensibilité en visée et l'inversion de
+  l'axe vertical, comme pour la souris. Sprint à la manette : un clic (BO1),
+  tenu tant qu'on avance.
 - **Graphismes** : `Settings.render_scale` (x la résolution 3D du préréglage,
   `RenderQuality.scale_3d`), `Settings.max_fps` (`Engine.max_fps` ; un
   `--max-fps` de la ligne de commande l'emporte), `Settings.brightness` (gamma

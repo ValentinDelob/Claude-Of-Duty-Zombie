@@ -25,6 +25,8 @@ var _heart_t := 0.0
 var _scores: ScorePanel
 var _prompt: Label
 var _prompt_view: Label
+## Touche INTERAGIR affichée dans l'invite (change avec le périphérique : F / X / CARRÉ).
+var _prompt_key := ""
 var _banner_tw: Tween
 var _flash: Label
 ## Nom de l'arme : affiché au changement d'arme puis estompé (BO1).
@@ -299,9 +301,12 @@ func _process(delta: float) -> void:
 		_crosshair.queue_redraw()
 	var focus := game.interact.focused
 	var raw := focus.prompt(player.peer_id) if focus else ""
-	if raw != _prompt.text:
+	# Recalculée aussi quand la touche change (clavier <-> manette, réaffectation).
+	var key := Settings.action_label("interact") if raw != "" else _prompt_key
+	if raw != _prompt.text or key != _prompt_key:
 		_prompt.text = raw
-		_prompt_view.text = bo1_prompt(raw, Settings.action_label("interact"))
+		_prompt_key = key
+		_prompt_view.text = bo1_prompt(raw, key)
 	if _flash_t > 0.0:
 		_flash_t -= delta
 		_flash.modulate.a = clampf(_flash_t, 0.0, 1.0)

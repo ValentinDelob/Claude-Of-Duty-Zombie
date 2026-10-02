@@ -1789,6 +1789,37 @@
     "en": "Options: the window no longer shrinks",
     "fr": "Options : la fenêtre ne rétrécit plus"
    }
+  },
+  "v0.2.0-snapshot.358": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [],
+   "items": [
+    {
+     "en": "Xbox and PlayStation controllers are supported: smooth movement on the left stick, looking around on the right stick, and menus you can use with the controller.",
+     "fr": "Manettes Xbox et PlayStation prises en charge : déplacement progressif au stick gauche, vue au stick droit, menus utilisables à la manette."
+    },
+    {
+     "en": "A layout close to Black Ops on console: aim and fire with the triggers, jump with A or Cross, interact with X or Square, reload with RB or R1.",
+     "fr": "Disposition proche de Black Ops sur console : viser et tirer aux gâchettes, sauter avec A ou Croix, interagir avec X ou Carré, recharger avec RB ou R1."
+    },
+    {
+     "en": "On-screen prompts show the right button for your controller, and switch back to keyboard keys as soon as you use it again.",
+     "fr": "Les messages à l'écran indiquent le bon bouton de votre manette, puis reviennent aux touches du clavier dès que vous le reprenez."
+    },
+    {
+     "en": "One key per action: the mystery box and purchases use F, and the key shown on screen is always the right one.",
+     "fr": "Une seule touche par action : la boîte mystère et les achats s'ouvrent avec F, et la touche affichée est toujours la bonne."
+    },
+    {
+     "en": "New CONTROLLER column in OPTIONS > CONTROLS to change every button, plus a new controller sensitivity setting.",
+     "fr": "Nouvelle colonne MANETTE dans OPTIONS > COMMANDES pour changer chaque bouton, et nouveau réglage de sensibilité de la manette."
+    }
+   ],
+   "title": {
+    "en": "Play with a controller",
+    "fr": "Jouez à la manette"
+   }
   }
  }
 }
