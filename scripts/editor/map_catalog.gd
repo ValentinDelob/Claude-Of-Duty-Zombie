@@ -32,8 +32,9 @@ const CATEGORIES := [
 	["prefabs", "Décor et obstacles", "Props and obstacles"],
 	["lumieres", "Luminaires", "Light fixtures"],
 ]
-## Barre rapide par défaut (9 cases).
-const DEFAULT_HOTBAR := ["select", "piece_rect", "piece_poly", "mur", "porte", "fenetre", "boite", "depart", "arme:m14"]
+## Barre rapide par défaut (9 cases). La souris (« select ») n'y est pas : elle
+## a sa case fixe à gauche de la barre (MapHotbar).
+const DEFAULT_HOTBAR := ["escalier", "piece_rect", "piece_poly", "mur", "porte", "fenetre", "boite", "depart", "arme:m14"]
 ## Prix BO1 des portes successives (750, puis 1000, puis 1250).
 const DOOR_PRICES := [750, 1000, 1250]
 
@@ -311,7 +312,8 @@ static func item(id: String) -> Dictionary:
 
 
 static func in_category(cat: String) -> Array:
-	return items().filter(func(it): return it.cat == cat)
+	# « hidden » : la souris, case fixe de la barre rapide, hors inventaire.
+	return items().filter(func(it): return it.cat == cat and not it.get("hidden", false))
 
 
 static func name_of(it: Dictionary) -> String:
@@ -326,7 +328,7 @@ static func _add(d: Dictionary) -> void:
 
 static func _build() -> void:
 	# Construction.
-	_add({"id": "select", "cat": "construction", "fr": "Sélection", "en": "Select", "tool": "select", "color": Color(0.9, 0.9, 0.9),
+	_add({"id": "select", "cat": "construction", "fr": "Souris", "en": "Mouse", "tool": "select", "hidden": true, "color": Color(0.9, 0.9, 0.9),
 		"hint_fr": "Clic : choisir un élément ; glisser : déplacer ; poignées : redimensionner", "hint_en": "Click: pick an element; drag: move; handles: resize"})
 	_add({"id": "gomme", "cat": "construction", "fr": "Gomme", "en": "Eraser", "tool": "erase", "color": Color(0.95, 0.55, 0.6),
 		"hint_fr": "Clic : supprimer l'élément sous le curseur", "hint_en": "Click: delete the element under the cursor"})

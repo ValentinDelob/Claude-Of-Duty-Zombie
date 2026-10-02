@@ -53,7 +53,7 @@ func run() -> void:
 		return
 	var rect := MapGeom.poly(clips[0].get("sommets", []))
 	at.check(rect == PackedVector2Array(corners), "barrière de 1 m sur 5 m à sa place (%s)" % str(rect))
-	ed.select_slot(0)
+	ed.select_mouse()
 
 	# Enregistrée puis rouverte depuis le disque.
 	at.check(ed.save(), "carte enregistrée")

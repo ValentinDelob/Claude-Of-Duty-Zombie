@@ -43,8 +43,8 @@ automatique non enregistrée, il propose de la reprendre.
 |---|---|
 | Barre du haut | **Fichier** (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, exporter / importer l'archive .zip, cartes récentes, options, retour au menu), **Édition** (annuler, rétablir, copier, coller, pivoter, supprimer, inventaire, recadrer), étage courant (◄ ►), **▶ TESTER**, état de la vérification, aimantation, aperçu 3D, **⚙** (options du jeu), nom de la carte, **?** (raccourcis). Elle passe sur deux lignes si elle ne tient pas en largeur (grande taille d'interface). |
 | Vue de dessus | Grille de 1 m (traits forts tous les 5 m ; traits fins au pas de la grille fine), règles graduées en mètres en haut et à gauche, coordonnées du curseur aimanté en bas à droite. |
-| Barre rapide | 9 cases au bas de la vue (touches 1 à 9, molette) : l'objet tenu. |
-| Inventaire | Touche **E** ou **Tab** : toutes les catégories ; cliquer un objet le met dans la case choisie, ou le glisser sur une case. |
+| Barre rapide | 9 cases au bas de la vue (touches 1 à 9, molette) : l'objet tenu. À gauche, la case fixe **Souris** (outil Sélection) : outil au démarrage, jamais remplacée ; une case vide se comporte comme la souris. |
+| Inventaire | Touche **E** ou **Tab** : toutes les catégories ; cliquer un objet le met dans la case choisie (souris en main : la première case vide, sinon la dernière case choisie), ou le glisser sur une case. |
 | Panneaux | **Propriétés** (élément choisi, sinon la carte), **Pièces**, **Zones**, **Étages**, **Vérification**. |
 | Objets sur la carte | Onglet déployable à gauche de la vue (languette, bouton ◂ ou touche **L** ; ouvert / replié : mémorisé) : voir §2 bis. |
 | Aperçu 3D | Bouton **APERÇU 3D** de la barre du haut ou touche **P** : la carte telle qu'en jeu, en direct, dans un panneau flottant ou une fenêtre séparée : voir §2 ter. |
@@ -80,7 +80,8 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Points d'un cercle ou d'une ellipse, segments d'un mur courbe | molette ou + / - pendant le tracé ; puis dans l'onglet Propriétés |
 | Rotation libre | **poignée ronde** au-dessus de l'élément choisi : pas de 15°, au degré près avec Alt ; champ « Angle » des propriétés |
 | Rectangle à 45° | Pièce rectangle en main : R (le glisser va d'un coin au coin opposé du losange) |
-| Case de la barre rapide | 1 à 9, molette |
+| Case de la barre rapide | 1 à 9, molette (la souris est la position avant la case 1) |
+| Souris (outil Sélection) | ² (touche à gauche du 1, ` en QWERTY), clic sur sa case, ou Échap (après l'annulation du tracé en cours et de la sélection) |
 | Inventaire | E ou Tab |
 | Pivoter de 90° | R (une pièce pivote avec son contenu ; un décor ou un luminaire tenu pivote avant d'être posé) |
 | Liste des objets sur la carte | L |
@@ -95,7 +96,7 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Recadrer sur la carte | Origine |
 | Fermer un polygone | double-clic, clic sur le premier point, ou Entrée ; Retour arrière retire le dernier point |
 
-Outil **Sélection** (case 1) : clic sur un élément pour le choisir, glisser
+Outil **Sélection** (la **Souris**, case fixe à gauche de la barre) : clic sur un élément pour le choisir, glisser
 pour le déplacer (une ouverture ou un objet mural suit le curseur, dans tous les
 modes d'aimantation, et reste accroché à son mur, calé sur les cases de 0,5 m
 d'un mur de la grille), **poignées** jaunes pour
@@ -309,7 +310,7 @@ par code (`MapIcons`).
 
 | Catégorie | Objets | Pose |
 |---|---|---|
-| Construction | Sélection, Gomme, Pièce rectangle, Pièce polygone, Mur, Cercle / polygone régulier, Ellipse, Pièce triangle, Pièce en L, Mur courbe, Pilier / obstacle, Escalier, Barrière invisible | glisser ou clic-clic (rectangle, formes, mur, mur courbe, pilier, escalier), clics successifs (polygone, barrière invisible : n'importe où) ; saisie au clavier |
+| Construction | Gomme, Pièce rectangle, Pièce polygone, Mur, Cercle / polygone régulier, Ellipse, Pièce triangle, Pièce en L, Mur courbe, Pilier / obstacle, Escalier, Barrière invisible | glisser ou clic-clic (rectangle, formes, mur, mur courbe, pilier, escalier), clics successifs (polygone, barrière invisible : n'importe où) ; saisie au clavier |
 | Ouvertures | Porte payante, Débris à dégager, Porte ouverte par le courant, Passage libre, Fenêtre à zombies | sur un mur (voir les règles) |
 | Atouts | un distributeur par atout du jeu | contre un mur |
 | Armes murales | chaque arme à prix mural, couteau de chasse, grenades | contre un mur |

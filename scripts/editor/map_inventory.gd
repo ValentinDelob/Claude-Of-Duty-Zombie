@@ -119,7 +119,8 @@ func show_category(c: String) -> void:
 		cells.append(s)
 
 
-## Case cliquée : l'objet va dans la case choisie de la barre rapide.
+## Case cliquée : l'objet va dans la case choisie de la barre rapide (souris
+## en main : la première case vide, MapEditor.pick_item).
 func _pick(s: MapSlot) -> void:
-	ed.set_hotbar(ed.hot_index, s.item_id)
+	ed.pick_item(s.item_id)
 	ed.toggle_inventory()

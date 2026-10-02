@@ -41,7 +41,7 @@ func run() -> void:
 	cv.zoom = 26.0
 	cv.origin = Vector2(40, 40)
 	cv.set_snap_mode("libre")
-	ed.select_slot(0)
+	ed.select_mouse()
 
 	# 1. Objets glissés contre (et dans) les murs : textures des murs inchangées.
 	await drag(Vector2(4.0, 5.0), Vector2(0.9, 5.0))      # bureau contre le mur ouest (à 0,15 m dans le mur)
@@ -90,7 +90,7 @@ func run() -> void:
 	if placed.size() < 4:
 		return
 	# Hauteur de l'applique : propriétés (outil Sélection), champ « Hauteur ».
-	ed.select_slot(0)
+	ed.select_mouse()
 	ed.select(String(placed.applique.id))
 	await frames(2)
 	var spin := _spin_of(Lang.t("Hauteur", "Height"))
