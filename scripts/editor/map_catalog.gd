@@ -9,8 +9,9 @@ extends RefCounted
 ## posé), fp (emprise en cases de 0,5 m : [le long du mur, profondeur] ou
 ## [côté, côté]), color, price}.
 ## Outils : select, erase, room_rect, room_poly, wall, rect (pilier, escalier,
-## zone de piège), opening (porte, débris, fenêtre...), wall_item (contre un
-## mur), floor_item (au sol, dans une pièce).
+## zone de piège), poly (objet tracé en polygone : barrière invisible), opening
+## (porte, débris, fenêtre...), wall_item (contre un mur), floor_item (au sol,
+## dans une pièce).
 ##
 ## Décor (PREFABS) et luminaires (LIGHTS) sont décrits ICI seulement : l'éditeur
 ## (pose, icônes, propriétés), le validateur, l'export en maillage et le jeu
@@ -268,6 +269,13 @@ static func tidy_stair(o: Dictionary) -> void:
 ## Barrière invisible (type « bloc_invisible ») : hauteur (m) réglable ;
 ## absente, du sol au plafond de l'étage.
 const CLIP_HEIGHT := [0.5, 30.0]
+## Pas du champ Hauteur d'une barrière (m).
+const CLIP_HEIGHT_STEP := 0.1
+## Format 9 : barrière tracée en polygone (clé « sommets », 3 à 64 points) ;
+## surface minimale (m²) et côté minimal (m) de son contour.
+const CLIP_POINTS := [3, 64]
+const CLIP_MIN_AREA := 0.04
+const CLIP_MIN_SIDE := 0.05
 
 static var _items: Array = []
 static var _by_id: Dictionary = {}
@@ -361,10 +369,12 @@ static func _build() -> void:
 		"hint_en": "Drag from the bottom to the top of the stairs (goes up one floor); V: type (straight, landing, L, U, wide, service, spiral, ramp)"})
 	# Barrière invisible (« clip » de BO1) : bloque joueurs et zombies, les
 	# balles et les grenades passent ; invisible en jeu (CollisionBox).
-	_add({"id": "bloc_invisible", "cat": "construction", "fr": "Barrière invisible", "en": "Invisible barrier", "tool": "rect",
+	# Format 9 : tracée en polygone, posée n'importe où (à cheval sur un mur,
+	# dehors, par-dessus un objet).
+	_add({"id": "bloc_invisible", "cat": "construction", "fr": "Barrière invisible", "en": "Invisible barrier", "tool": "poly",
 		"color": Color(0.35, 0.85, 1.0), "make": {"type": "bloc_invisible"},
-		"hint_fr": "Glisser un rectangle dans une pièce (0,5 m de côté au moins) ; invisible en jeu, bloque joueurs et zombies, les balles passent",
-		"hint_en": "Drag a rectangle inside a room (at least 0.5 m per side); invisible in game, blocks players and zombies, bullets go through"})
+		"hint_fr": "Clics successifs (Alt : angle libre), double-clic, clic sur le premier point ou Entrée pour fermer ; n'importe où, même sur un mur ou un objet ; invisible en jeu, bloque joueurs et zombies, les balles passent",
+		"hint_en": "Click each corner (Alt: free angle), double-click, click the first point or Enter to close; anywhere, even over a wall or an object; invisible in game, blocks players and zombies, bullets go through"})
 	# Ouvertures (sur un mur de pièce).
 	_add({"id": "porte", "cat": "ouvertures", "fr": "Porte payante", "en": "Buyable door", "tool": "opening", "color": Color(1.0, 0.67, 0.0),
 		"make": {"type": "porte", "largeur": 2.0}, "price": DOOR_PRICES[0],
@@ -605,6 +615,22 @@ static func is_decor(o: Dictionary) -> bool:
 	return String(o.get("type", "")) in DECOR_TYPES
 
 
+## Format 9 : réglage de la carte « chevauchement_decor » (carte.json, vrai /
+## faux ; absent : faux, les règles d'avant). Coché, le décor et les obstacles
+## (OVERLAP_TYPES : le décor de DECOR_TYPES et les piliers) peuvent se
+## chevaucher entre eux. Les objets de jeu (portes, fenêtres, atouts, armes
+## murales, boîte, Pack-a-Punch, interrupteur, leviers, pièges, départs,
+## apparitions, téléporteurs, escaliers) gardent leurs règles : ils ne
+## chevauchent rien et rien ne les chevauche (la carte reste jouable). La
+## barrière invisible, elle, se pose toujours n'importe où (MapRules.check_clip).
+const OVERLAP_KEY := "chevauchement_decor"
+const OVERLAP_TYPES := ["caisse", "baril", "prefab", "luminaire", "lampe", "pilier"]
+
+
+static func may_overlap(o: Dictionary) -> bool:
+	return String(o.get("type", "")) in OVERLAP_TYPES
+
+
 ## Hauteur d'une applique (format 7, clé « hauteur » d'un luminaire mural :
 ## m au-dessus du sol, au centre de l'applique ; absente : `y` du luminaire,
 ## 2 m). Bornée sous le plafond à la construction (MapLayoutExport).
@@ -698,7 +724,8 @@ const MAX_FLOORS := CustomMapGuard.MAX_FLOORS
 ## spec : {"t": "id"} identifiant (lettres, chiffres, _ ; 32 caractères au
 ##   plus) ; {"t": "int", "min", "max"} ; {"t": "number", "min", "max"} ;
 ##   {"t": "bool"} ; {"t": "enum", "values": [...]} ; {"t": "point"} [x, y] en
-##   mètres (0 à MAX_COORD) ; {"t": "rect"} [x0, y0, x1, y1] ; {"t": "color"}
+##   mètres (0 à MAX_COORD) ; {"t": "rect"} [x0, y0, x1, y1] ; {"t": "points",
+##   "min", "max"} liste de points [x, y] (format 9) ; {"t": "color"}
 ##   « #rrggbb ». Les clés communes (id, type, etage) sont dans chaque entrée.
 static func allowed_kinds() -> Dictionary:
 	var dirs := {"t": "enum", "values": ["n", "e", "s", "o"]}
@@ -731,9 +758,12 @@ static func allowed_kinds() -> Dictionary:
 	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs, "rot": rot,
 		"sens": {"t": "enum", "values": STAIR_TURNS}, "marches": {"t": "int", "min": STAIR_STEPS[0], "max": STAIR_STEPS[1]},
 		"garde_corps": {"t": "bool"}, "cotes": {"t": "enum", "values": STAIR_SIDES}}, ["rect"])
-	# Format 5 : barrière invisible (rectangle, rotation, hauteur facultative).
-	add.call("objets.json", "bloc_invisible", {"rect": {"t": "rect"}, "rot": rot,
-		"hauteur": {"t": "number", "min": CLIP_HEIGHT[0], "max": CLIP_HEIGHT[1]}}, ["rect"])
+	# Format 5 : barrière invisible (rectangle, rotation, hauteur facultative) ;
+	# format 9 : polygone « sommets » (3 à 64 points). L'un des deux est
+	# obligatoire (CustomMapGuard._check_object) ; l'éditeur lit un rectangle
+	# d'avant comme un polygone de 4 sommets (EditorMap._normalize).
+	add.call("objets.json", "bloc_invisible", {"sommets": {"t": "points", "min": CLIP_POINTS[0], "max": CLIP_POINTS[1]},
+		"rect": {"t": "rect"}, "rot": rot, "hauteur": {"t": "number", "min": CLIP_HEIGHT[0], "max": CLIP_HEIGHT[1]}}, [])
 	add.call("objets.json", "mur", {"a": point, "b": point, "epaisseur": thick}, ["a", "b"])
 	# Format 4 : mur courbe (arc de cercle en segments, MapShapes).
 	add.call("objets.json", "mur_courbe", {"centre": point, "rayon": {"t": "number", "min": 1.0, "max": MapShapes.MAX_RADIUS},

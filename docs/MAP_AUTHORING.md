@@ -308,7 +308,7 @@ par code (`MapIcons`).
 
 | Catégorie | Objets | Pose |
 |---|---|---|
-| Construction | Sélection, Gomme, Pièce rectangle, Pièce polygone, Mur, Cercle / polygone régulier, Ellipse, Pièce triangle, Pièce en L, Mur courbe, Pilier / obstacle, Escalier | glisser ou clic-clic (rectangle, formes, mur, mur courbe, pilier, escalier), clics successifs (polygone) ; saisie au clavier |
+| Construction | Sélection, Gomme, Pièce rectangle, Pièce polygone, Mur, Cercle / polygone régulier, Ellipse, Pièce triangle, Pièce en L, Mur courbe, Pilier / obstacle, Escalier, Barrière invisible | glisser ou clic-clic (rectangle, formes, mur, mur courbe, pilier, escalier), clics successifs (polygone, barrière invisible : n'importe où) ; saisie au clavier |
 | Ouvertures | Porte payante, Débris à dégager, Porte ouverte par le courant, Passage libre, Fenêtre à zombies | sur un mur (voir les règles) |
 | Atouts | un distributeur par atout du jeu | contre un mur |
 | Armes murales | chaque arme à prix mural, couteau de chasse, grenades | contre un mur |
@@ -348,7 +348,8 @@ jeu (`EditorPrefabs` : sacs de sable, table et chaise renversées, chariot,
 
 Règles de pose en plus (`MapRules.layer_of`) :
 - décor et luminaires au sol : dans une pièce, sans toucher ses murs, sans
-  chevauchement ; une **lampe de bureau** ou des **bougies** peuvent se poser
+  chevauchement (sauf réglage « chevauchements décor / obstacles » de la
+  carte, format 9) ; une **lampe de bureau** ou des **bougies** peuvent se poser
   **sur un meuble** qui a un dessus (`support` : bureau, chariot, sacs de
   sable) : la lumière monte à sa hauteur ;
 - luminaires du plafond : dans une pièce ; ils surplombent le décor mais pas
@@ -396,7 +397,15 @@ raison à côté du curseur (`MapRules`) :
   pièce, sans toucher ses murs, sans chevauchement (les lampes, au plafond,
   peuvent surplomber un objet ; un élément tourné compte par son rectangle
   englobant). L'escalier monte à l'étage du dessus : il faut un étage
-  au-dessus.
+  au-dessus. Réglage de la carte **Autoriser les chevauchements décor /
+  obstacles** (format 9, onglet Propriétés sans rien de choisi) : le décor
+  (caisses, barils, prefabs, luminaires) et les piliers peuvent alors se
+  recouvrir entre eux ; les objets de jeu jamais (docs/MAP_OBJECTS.md § 10).
+- **Barrière invisible** (format 9) : polygone de 3 à 64 sommets posé
+  **n'importe où** (dehors, à cheval sur un mur, par-dessus un objet) ;
+  seuls refus : côtés qui se croisent, côté de moins de 5 cm, moins de
+  0,04 m², hors du terrain. Hauteur : jusqu'au plafond, ou 0,5 à 30 m au
+  dixième de mètre (docs/MAP_OBJECTS.md § 2).
 - **Mur courbe** : 1 m de rayon au moins, ouverture de 5 à 360°, 1 à 64
   segments, tout l'arc dans le terrain.
 
@@ -601,10 +610,15 @@ au **format 1, 2 ou 3 se lit telle quelle** (toutes les nouvelles clés sont
 facultatives, `EditorMap._migrate`) et s'enregistre au format 4 ; DRAFT
 ARENA est restée au format 1 pour le prouver (sa description en maillage est
 identique octet pour octet, vérifié par son empreinte SHA-256).
+Formats 5 à 9 (variantes, barrière invisible, escaliers, décor libre, portes
+à zombies, barrière en polygone et chevauchements) : docs/MAP_OBJECTS.md ;
+le format courant est **9**.
 Une carte d'un format plus récent que le jeu est signalée. `id` : dossier ; `musique` : un son
 `assets/audio/ambience_*` ; `hauteur_portes` (m) ; `lampes_auto` : une lampe
 tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
-`hauteur` sous plafond (m) des pièces sans rien au-dessus.
+`hauteur` sous plafond (m) des pièces sans rien au-dessus ; format 9 :
+`chevauchement_decor` (facultatif, vrai : le décor et les piliers peuvent se
+chevaucher entre eux, docs/MAP_OBJECTS.md § 10).
 
 **`pieces.json`** — les pièces :
 
@@ -688,6 +702,11 @@ long du mur ; son orientation se lit sur le côté de pièce qui passe par là.
   Format 4 : `rot` (facultatif) = rotation du rectangle autour de son centre,
   entier de 0 à 359, sens horaire vu de dessus (`monte` se lit avant la
   rotation) : `{"id":"x1","type":"pilier","etage":0,"rect":[9,17,11,19],"rot":30}`.
+- `bloc_invisible` (barrière invisible, format 9) : polygone `sommets`
+  [[x, y], ...] (3 à 64 points, posé n'importe où), `hauteur` facultative
+  (absente : jusqu'au plafond) :
+  `{"id":"i1","type":"bloc_invisible","etage":0,"sommets":[[2,2],[6,2],[6,3],[3,3],[3,6],[2,6]],"hauteur":1.2}`
+  (cartes d'avant : `rect` + `rot`, lus comme un polygone ; docs/MAP_OBJECTS.md § 2).
 - `mur` libre : segment `a` → `b` (droit ou en biais), `epaisseur` 0,5, 1,5 ou 2,5 m.
 - `mur_courbe` (format 4) : arc de cercle en segments droits, `centre`,
   `rayon` (1 à 128 m), `debut` (direction du premier bout, degrés dans le sens

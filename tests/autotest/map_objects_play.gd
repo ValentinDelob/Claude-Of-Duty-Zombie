@@ -1,8 +1,8 @@
 extends AutotestScenario
 ## Objets du format 5 de l'éditeur de bout en bout (docs/MAP_OBJECTS.md) :
 ## dans le vrai éditeur, touche V sur une porte, des débris et une arme
-## murale, barrière invisible tracée à la souris ; carte enregistrée (format
-## 5), rouverte depuis le disque (tout est relu, barrière montrée par
+## murale, barrière invisible tracée à la souris (polygone, format 9) ; carte
+## enregistrée, rouverte depuis le disque (tout est relu, barrière montrée par
 ## l'aperçu 3D de l'éditeur), puis TESTER : bons modèles en jeu, barrière
 ## sans rien de visible, qui arrête le joueur et que les zombies contournent.
 
@@ -40,15 +40,19 @@ func run() -> void:
 		await key(KEY_V)
 		at.check(MapCatalog.variant_of(ed.doc.find(c[0])) == c[1], "V sur %s : %s (%s)" % [c[0], c[1], MapCatalog.variant_of(ed.doc.find(c[0]))])
 
-	# Barrière invisible tracée à la souris, comme un pilier.
+	# Barrière invisible tracée à la souris en polygone (format 9) : un clic
+	# par sommet, fermée en recliquant le premier.
 	ed.set_hotbar(8, "bloc_invisible")
-	await drag(Vector2(16, 3), Vector2(17, 8))
+	cv.set_snap_mode("grille")
+	var corners := [Vector2(16, 3), Vector2(17, 3), Vector2(17, 8), Vector2(16, 8)]
+	for c: Vector2 in corners + [corners[0]]:
+		await click(c)
 	var clips: Array = ed.doc.objets.filter(func(o): return o.type == "bloc_invisible")
 	at.check(clips.size() == 1, "barrière invisible posée (%d) %s" % [clips.size(), cv.refusal])
 	if clips.size() != 1:
 		return
-	var rect: Array = clips[0].rect.map(func(x): return float(x))
-	at.check(rect == [16.0, 3.0, 17.0, 8.0], "barrière de 1 m sur 5 m à sa place (%s)" % str(rect))
+	var rect := MapGeom.poly(clips[0].get("sommets", []))
+	at.check(rect == PackedVector2Array(corners), "barrière de 1 m sur 5 m à sa place (%s)" % str(rect))
 	ed.select_slot(0)
 
 	# Enregistrée puis rouverte depuis le disque.
@@ -63,7 +67,7 @@ func run() -> void:
 	at.check(MapCatalog.variant_of(ed.doc.find("o1")) == "bois" and MapCatalog.variant_of(ed.doc.find("o4")) == "gravats" and MapCatalog.variant_of(ed.doc.find("w1")) == "planche",
 		"relue : porte en bois, éboulement de béton, arme sur une planche")
 	var back: Array = ed.doc.objets.filter(func(o): return o.type == "bloc_invisible")
-	at.check(back.size() == 1 and back[0].rect.map(func(x): return float(x)) == rect, "relue : barrière invisible")
+	at.check(back.size() == 1 and MapGeom.poly(back[0].get("sommets", [])) == rect, "relue : barrière invisible")
 	# Visible dans l'éditeur : pavé de l'aperçu 3D (mêmes données que le jeu).
 	var pv := Node3D.new()
 	tree().root.add_child(pv)
@@ -152,6 +156,13 @@ func _button(m: Vector2, pressed: bool) -> void:
 	e.button_index = MOUSE_BUTTON_LEFT
 	e.pressed = pressed
 	cv._gui_input(e)
+
+
+func click(m: Vector2) -> void:
+	_motion(m)
+	_button(m, true)
+	_button(m, false)
+	await frames(1)
 
 
 func drag(a: Vector2, b: Vector2) -> void:

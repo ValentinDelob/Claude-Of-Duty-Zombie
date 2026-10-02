@@ -136,7 +136,7 @@ static func reset_schema() -> void:
 
 
 ## Règle du contrôle tirée d'une spec du catalogue (format 2) :
-## {"t": id | int | number | bool | enum | point | rect | color | text | names | polygon}.
+## {"t": id | int | number | bool | enum | point | rect | color | text | names | polygon | points}.
 static func _rule_of_spec(s: Variant) -> Variant:
 	if not s is Dictionary:
 		return ""
@@ -166,6 +166,8 @@ static func _rule_of_spec(s: Variant) -> Variant:
 			return "names"
 		"polygon":
 			return "polygon"
+		"points":
+			return "points:%d:%d" % [clampi(int(s.get("min", 3)), 1, MAX_VERTICES), clampi(int(s.get("max", MAX_VERTICES)), 1, MAX_VERTICES)]
 		"shape":
 			return "forme"
 	return ""
@@ -180,8 +182,9 @@ static func _enum_key(v: Variant) -> Variant:
 ##   kinds[type] = {file, keys: {clé: règle}, required: [clés]} ;
 ##   room_keys, zone_keys : {clé: règle} ; règles : "bool", "pt", "rect", "id",
 ##   "dir", "prix", "color", "name", "names", "floor", "zone_ref", "polygon",
-##   "surface", "num:<min>:<max>", "int:<min>:<max>", "text:<max>", ou un
-##   dictionnaire de valeurs permises.
+##   "surface", "num:<min>:<max>", "int:<min>:<max>", "text:<max>",
+##   "points:<min>:<max>" (liste de points, format 9), ou un dictionnaire de
+##   valeurs permises.
 static func schema() -> Dictionary:
 	if not _schema.is_empty():
 		return _schema
@@ -744,6 +747,18 @@ static func _rule(c: Check, rule: Variant, v: Variant, what: String) -> bool:
 	if r.begins_with("int:"):
 		var p := r.split(":")
 		return _int(c, v, int(float(p[1])), int(float(p[2])), what)
+	if r.begins_with("points:"):
+		# Liste de points [x, y] (format 9 : sommets d'une barrière invisible).
+		var p := r.split(":")
+		var lo := int(p[1])
+		var hi := int(p[2])
+		if not (v is Array and v.size() >= lo and v.size() <= hi):
+			c.bad("%s : liste de %d à %d points attendue" % [what, lo, hi], "%s: list of %d to %d points expected" % [what, lo, hi])
+			return false
+		for q in v:
+			if not _pt(c, q, what):
+				return false
+		return true
 	if r.begins_with("text:"):
 		if not (v is String and name_ok(v, int(r.substr(5)))):
 			c.bad("%s : texte refusé (trop long, caractère de contrôle, balise ou chemin)" % what,
@@ -795,7 +810,8 @@ static func _forme(c: Check, v: Variant, what: String) -> bool:
 
 static func _check_carte(c: Check, d: Dictionary) -> void:
 	var what := "carte.json"
-	if not _keys(c, d, {"format": 1, "id": 1, "nom": 1, "description": 1, "musique": 1, "hauteur_portes": 1, "lampes_auto": 1, "etages": 1}, what):
+	if not _keys(c, d, {"format": 1, "id": 1, "nom": 1, "description": 1, "musique": 1, "hauteur_portes": 1, "lampes_auto": 1, "etages": 1,
+			MapCatalog.OVERLAP_KEY: 1}, what):
 		return
 	if d.has("format"):
 		_int(c, d.format, 1, EditorMap.FORMAT, what + " (format)")
@@ -811,6 +827,9 @@ static func _check_carte(c: Check, d: Dictionary) -> void:
 		_num(c, d.hauteur_portes, 1.5, 10.0, what + " (hauteur_portes)")
 	if d.has("lampes_auto"):
 		_rule(c, "bool", d.lampes_auto, what + " (lampes_auto)")
+	if d.has(MapCatalog.OVERLAP_KEY):
+		# Format 9 : décor et obstacles qui peuvent se chevaucher (vrai / faux).
+		_rule(c, "bool", d[MapCatalog.OVERLAP_KEY], what + " (%s)" % MapCatalog.OVERLAP_KEY)
 	var et: Variant = d.get("etages", [])
 	if not (et is Array and et.size() <= MAX_FLOORS):
 		c.bad("carte.json : étages (au plus %d)" % MAX_FLOORS, "carte.json: floors (at most %d)" % MAX_FLOORS)
@@ -886,6 +905,9 @@ static func _check_object(c: Check, e: Dictionary, what: String) -> void:
 		return
 	var before := c.reasons.size()
 	_check_element(c, e, sc.kinds[t], what)
+	if t == "bloc_invisible" and c.reasons.size() == before and not (e.has("sommets") or e.has("rect")):
+		# Barrière invisible : un polygone (format 9) ou un rectangle d'avant.
+		c.bad("%s : barrière sans « sommets » ni « rect »" % what, "%s: barrier without \"sommets\" nor \"rect\"" % what)
 	if t == "mur_courbe" and c.reasons.size() == before:
 		# Mur courbe : tout l'arc dans le terrain (0 à MAX_COORD).
 		var bb := MapGeom.bbox(MapShapes.wall_arc(e))

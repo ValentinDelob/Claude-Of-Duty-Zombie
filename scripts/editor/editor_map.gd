@@ -49,7 +49,14 @@ extends RefCounted
 ##      fenêtre (« porte » : porte simple de 1 m, « porte_double » : 2 m ;
 ##      absente : la fenêtre d'avant, jamais écrite). La largeur suit le type
 ##      (pas de clé « largeur »). Formats 1 à 7 lus tels quels.
-const FORMAT := 8
+##   9  barrière invisible en polygone (docs/MAP_OBJECTS.md § 2) : clé
+##      « sommets » ([[x, y], ...], 3 à 64 points) à la place de « rect » /
+##      « rot » ; posée n'importe où. Une barrière d'avant (rectangle tourné)
+##      est lue comme le polygone de ses 4 coins (_normalize) : même place,
+##      même collision. Réglage de la carte « chevauchement_decor » (carte.json,
+##      vrai / faux, absent : faux) : décor et obstacles peuvent se chevaucher
+##      (MapCatalog.OVERLAP_TYPES). Formats 1 à 8 lus tels quels.
+const FORMAT := 9
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -323,6 +330,11 @@ func _migrate(from: int) -> void:
 		# Format 7 -> 8 : rien à convertir (fenêtre sans « variante » : la
 		# fenêtre d'avant, même découpe, mêmes planches).
 		pass
+	if from < 9:
+		# Format 8 -> 9 : barrière invisible rectangle -> polygone de ses 4
+		# coins (fait par _normalize pour tout fichier, même écrit à la main) ;
+		# pas de « chevauchement_decor » : les règles de pose d'avant.
+		pass
 
 
 ## Version du format lue dans carte.json (FORMAT pour une carte neuve).
@@ -368,6 +380,14 @@ func _normalize() -> void:
 	for o in objets:
 		if o.has("hauteur") and String(o.get("type", "")) == "luminaire":
 			MapCatalog.set_wall_light_height(o, float(o.hauteur) if (o.hauteur is float or o.hauteur is int) else NAN)
+	# Barrière invisible (format 9) : un polygone « sommets » ; un rectangle
+	# d'avant (« rect », « rot ») devient le polygone de ses 4 coins.
+	for o in objets:
+		if String(o.get("type", "")) == "bloc_invisible":
+			normalize_clip(o)
+	# Réglage « chevauchement_decor » illisible ou faux : retiré (règles d'avant).
+	if carte.has(MapCatalog.OVERLAP_KEY) and not (carte[MapCatalog.OVERLAP_KEY] is bool and carte[MapCatalog.OVERLAP_KEY]):
+		carte.erase(MapCatalog.OVERLAP_KEY)
 	for list in [pieces, ouvertures, objets, zones]:
 		for e in list:
 			if String(e.get("id", "")) == "":
@@ -386,6 +406,37 @@ func _normalize() -> void:
 		carte["etages"] = [{"sol": 0.0, "hauteur": DEFAULT_CEILING}]
 	if zone(depart).is_empty() and not zones.is_empty():
 		depart = String(zones[0].id)
+
+
+## Barrière invisible lue d'un fichier (format 9) : ses « sommets » lisibles
+## gardés au millimètre ; sinon le rectangle d'avant (« rect », « rot »)
+## devient le polygone de ses 4 coins (même place, même collision) et ces deux
+## clés disparaissent. Hauteur illisible ou trop basse retirée (jusqu'au
+## plafond), trop haute bornée.
+static func normalize_clip(o: Dictionary) -> void:
+	var num := func(x: Variant) -> bool: return (x is float or x is int) and is_finite(float(x))
+	var pts := []
+	var s: Variant = o.get("sommets")
+	if s is Array:
+		for p in s:
+			if p is Array and p.size() == 2 and num.call(p[0]) and num.call(p[1]):
+				pts.append(MapGeom.arr(Vector2(float(p[0]), float(p[1]))))
+		o["sommets"] = pts
+	else:
+		var r: Variant = o.get("rect")
+		if r is Array and r.size() == 4 and r.all(func(x): return num.call(x)):
+			o["sommets"] = MapGeom.poly_arr(MapRaster.rect_poly(o))
+			o.erase("rect")
+			o.erase("rot")
+	if o.has("sommets"):
+		o.erase("rect")
+		o.erase("rot")
+	if o.has("hauteur"):
+		var hv: Variant = o.hauteur
+		if not num.call(hv) or float(hv) < MapCatalog.CLIP_HEIGHT[0]:
+			o.erase("hauteur")
+		else:
+			o["hauteur"] = snappedf(minf(float(hv), MapCatalog.CLIP_HEIGHT[1]), 0.01)
 
 
 func save_dir(dir: String) -> Error:
