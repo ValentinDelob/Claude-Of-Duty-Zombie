@@ -1270,6 +1270,9 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 			MapIcons.draw(self, it, Rect2(rp.get_center() - Vector2(s, s) * 0.5, Vector2(s, s)))
 			return
 	var col: Color = it.get("color", Color.WHITE)
+	if t == "effet":
+		_draw_effect(o, it, col, rp, alpha)
+		return
 	var mount := MapCatalog.light_mount(o)
 	if (t == "prefab" or (t == "luminaire" and mount != "mur")) and MapRaster.free_rot(o):
 		# Décor tourné au degré près : emprise tournée, icône, flèche du devant.
@@ -1342,6 +1345,31 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 	draw_rect(rp, Color(col, 0.8 * alpha), false, 1.0)
 	if t == "luminaire" and o.get("id", "") == ed.selected:
 		draw_arc(rp.get_center(), float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
+
+
+## Effet (format 10) : zone translucide de sa couleur, contour en tirets (il
+## ne bloque rien), icône au milieu ; flèche du devant s'il pivote ; au
+## plafond, un rond en plus ; mural, sur la face du mur.
+func _draw_effect(o: Dictionary, it: Dictionary, col: Color, rp: Rect2, alpha: float) -> void:
+	var poly: PackedVector2Array
+	if MapCatalog.tool_of(o) == "wall_item":
+		poly = _px_poly(MapRules.wall_item_poly(o))
+	else:
+		poly = _px_poly(MapRaster.floor_poly(o))
+	_fill(poly, Color(col, 0.16 * alpha))
+	for i in poly.size():
+		draw_dashed_line(poly[i], poly[(i + 1) % poly.size()], Color(col.lightened(0.25), 0.85 * alpha), 1.2, maxf(3.0, zoom * 0.15))
+	var c := MapGeom.centroid(poly)
+	if MapCatalog.effect_mount(o) == "plafond":
+		draw_arc(c, maxf(5.0, minf(rp.size.x, rp.size.y) * 0.5), 0, TAU, 20, Color(col, 0.6 * alpha), 1.0)
+	var si := maxf(14.0, minf(minf(rp.size.x, rp.size.y) * 0.85, 48.0))
+	MapIcons.draw(self, it, Rect2(c - Vector2(si, si) * 0.5, Vector2(si, si)))
+	if MapCatalog.rotates(o) and zoom >= 8.0 and poly.size() == 4:
+		var dv := Vector2(0, 1).rotated(deg_to_rad(float(MapGeom.rot_of(o))))
+		var edge := (poly[2] + poly[3]) * 0.5
+		draw_line(edge - dv * 7.0, edge, Color(1, 1, 1, 0.8 * alpha), 2.0)
+		draw_line(edge, edge - dv.rotated(0.6) * 5.0, Color(1, 1, 1, 0.8 * alpha), 2.0)
+		draw_line(edge, edge - dv.rotated(-0.6) * 5.0, Color(1, 1, 1, 0.8 * alpha), 2.0)
 
 
 ## Barrière invisible (format 9 : polygone) : surface translucide hachurée à

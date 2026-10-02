@@ -151,6 +151,11 @@ var lamps_extra: Array = []
 ## Décor posé (prefabs) : [{floor, prefab, center (Vector2, m, repère de
 ## l'éditeur), rot (degrés), eid}].
 var props: Array = []
+## Effets posés (format 10, MapRaster._effect) : [{floor, effet, mount,
+## center (m, repère de l'éditeur ; mur : sur la face du mur), wall (vers le
+## mur, Vector2), y (m au-dessus du sol), yaw, intensity, scale, color
+## (« rrggbb » ou ""), eid}]. Aucune case bloquée.
+var effects: Array = []
 var lamps_auto := true
 ## Murs en biais (MapRaster), par étage : [{a, b (m, repère de l'éditeur),
 ## t (direction), n (normale), half (demi-épaisseur, m), pos, neg (pièce du

@@ -708,6 +708,18 @@ func element_shape(e: Dictionary) -> Dictionary:
 					y1 = sol + 2.5
 				_:
 					y1 = sol + 1.4
+		elif t == "effet":
+			# Effet (format 10) : autour de sa hauteur (plafond, mur, surélevé).
+			match MapCatalog.effect_mount(e):
+				"plafond":
+					y0 = sol + h - 0.8
+					y1 = sol + h
+				"mur":
+					y0 = sol + MapCatalog.effect_height(e) - 0.4
+					y1 = y0 + 0.8
+				_:
+					y0 = sol + MapCatalog.effect_height(e) + 0.02
+					y1 = y0 + 1.2
 		elif t == "escalier":
 			y1 = m.floor_sol(k + 1) if k + 1 < m.floor_count() else sol + h
 		elif t == "piege":

@@ -10,6 +10,11 @@ var _grid: GridContainer
 var _cats: VBoxContainer
 var _title: Label
 var cells: Array[MapSlot] = []
+## Sous-onglets (MapCatalog.subs_of) : rangée de boutons au-dessus de la
+## grille, montrée seulement pour une catégorie qui en a (Effets : flammes,
+## fumées...). Sous-onglet choisi de chaque catégorie (gardé à la réouverture).
+var _subs: HFlowContainer
+var sub_of: Dictionary = {}
 
 
 func _ready() -> void:
@@ -48,10 +53,20 @@ func _ready() -> void:
 		b.name = String(c[0])
 		b.pressed.connect(show_category.bind(String(c[0])))
 		_cats.add_child(b)
+	# À droite : sous-onglets de la catégorie (s'il y en a) au-dessus de la grille.
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(right)
+	_subs = HFlowContainer.new()
+	_subs.add_theme_constant_override("h_separation", 4)
+	_subs.add_theme_constant_override("v_separation", 4)
+	_subs.visible = false
+	right.add_child(_subs)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	h.add_child(scroll)
+	right.add_child(scroll)
 	_grid = GridContainer.new()
 	_grid.columns = 5
 	_grid.add_theme_constant_override("h_separation", 8)
@@ -98,7 +113,7 @@ func show_category(c: String) -> void:
 	for n in _grid.get_children():
 		n.queue_free()
 	cells.clear()
-	for it in MapCatalog.in_category(c):
+	for it in MapCatalog.in_category(c, _fill_subs(c)):
 		var box := VBoxContainer.new()
 		box.custom_minimum_size = Vector2(84, 0)
 		box.add_theme_constant_override("separation", 2)
@@ -117,6 +132,37 @@ func show_category(c: String) -> void:
 		box.add_child(l)
 		_grid.add_child(box)
 		cells.append(s)
+
+
+## Sous-onglets de la catégorie `c` (rangée cachée si elle n'en a pas) ;
+## rend le sous-onglet montré ("" : tous les objets de la catégorie).
+func _fill_subs(c: String) -> String:
+	for n in _subs.get_children():
+		_subs.remove_child(n)
+		n.queue_free()
+	var subs := MapCatalog.subs_of(c)
+	_subs.visible = not subs.is_empty()
+	if subs.is_empty():
+		return ""
+	var cur := String(sub_of.get(c, subs[0][0]))
+	if not subs.any(func(s): return String(s[0]) == cur):
+		cur = String(subs[0][0])
+	sub_of[c] = cur
+	for s in subs:
+		var b := Button.new()
+		b.text = Lang.t(String(s[1]), String(s[2]))
+		b.toggle_mode = true
+		b.button_pressed = String(s[0]) == cur
+		b.name = String(s[0])
+		b.pressed.connect(show_sub.bind(String(s[0])))
+		_subs.add_child(b)
+	return cur
+
+
+## Montre le sous-onglet `s` de la catégorie ouverte.
+func show_sub(s: String) -> void:
+	sub_of[cat] = s
+	show_category(cat)
 
 
 ## Case cliquée : l'objet va dans la case choisie de la barre rapide.

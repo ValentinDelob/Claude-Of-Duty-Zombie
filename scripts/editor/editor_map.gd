@@ -56,7 +56,13 @@ extends RefCounted
 ##      même collision. Réglage de la carte « chevauchement_decor » (carte.json,
 ##      vrai / faux, absent : faux) : décor et obstacles peuvent se chevaucher
 ##      (MapCatalog.OVERLAP_TYPES). Formats 1 à 8 lus tels quels.
-const FORMAT := 9
+##   10 effets (docs/MAP_OBJECTS.md § 11) : type « effet » (clé « effet » :
+##      flammes, fumées, étincelles, électricité, eau, ambiance de
+##      MapCatalog.EFFECTS ; « position », et selon l'effet « rot », « mur »,
+##      « angle ») et ses réglages facultatifs « intensite », « taille »,
+##      « couleur », « hauteur » (MapCatalog.tidy_effect : jamais écrits à leur
+##      valeur par défaut). Aucune collision. Formats 1 à 9 lus tels quels.
+const FORMAT := 10
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -375,6 +381,8 @@ func _normalize() -> void:
 	# Réglages d'escalier illisibles ou par défaut retirés (format 6).
 	for o in objets:
 		MapCatalog.tidy_stair(o)
+		# Réglages d'un effet (format 10) : illisibles ou par défaut retirés.
+		MapCatalog.tidy_effect(o)
 	# Hauteur d'une applique (format 7) : illisible, par défaut ou sur un
 	# luminaire qui n'est pas mural, retirée ; sinon bornée.
 	for o in objets:

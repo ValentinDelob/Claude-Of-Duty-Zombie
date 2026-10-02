@@ -582,8 +582,9 @@ static func _near(doc: EditorMap, k: int, r: Rect2) -> Array:
 
 ## Éléments jamais comptés dans les chevauchements : murs libres (ils ont
 ## leurs règles) et barrières invisibles (format 9 : posées n'importe où, par
-## dessus n'importe quoi, elles ne gênent jamais la pose d'un autre objet).
-const NO_OVERLAP_CHECK := ["mur", "mur_courbe", "bloc_invisible"]
+## dessus n'importe quoi, elles ne gênent jamais la pose d'un autre objet) et
+## effets (format 10 : sans collision, ils ne gênent rien et rien ne les gêne).
+const NO_OVERLAP_CHECK := ["mur", "mur_courbe", "bloc_invisible", "effet"]
 
 
 ## Réglage de la carte (format 9, MapCatalog.OVERLAP_KEY) : le décor et les
@@ -596,6 +597,9 @@ static func overlaps_allowed(doc: EditorMap) -> bool:
 ## coché, un décor ou un obstacle (MapCatalog.OVERLAP_TYPES) ne compte pas
 ## les autres décors et obstacles ; les objets de jeu restent comptés.
 static func _blocking_overlaps(doc: EditorMap, tmpl: Dictionary, others: Array) -> Array:
+	# Effet (format 10) : se pose par-dessus n'importe quoi.
+	if String(tmpl.get("type", "")) == "effet":
+		return []
 	if not (overlaps_allowed(doc) and MapCatalog.may_overlap(tmpl)):
 		return others
 	return others.filter(func(q): return not MapCatalog.may_overlap(q))
@@ -796,6 +800,9 @@ const WALL_DECOR_STEP := 0.25
 ## ou sur un autre décor mural. « position » est sur le trait du mur (comme un
 ## objet mural de jeu), « mur » / « angle » donnent la direction du mur.
 static func place_wall_decor(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "", grid := false) -> Dictionary:
+	var full := _effects_full(doc, tmpl, ignore_id)
+	if not full.is_empty():
+		return full
 	var nm := _name(tmpl)
 	var room := room_at(doc, k, mouse)
 	if room.is_empty():
@@ -836,6 +843,14 @@ static func place_wall_decor(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 	if obj.has("angle"):
 		res["angle"] = obj.angle
 	return res
+
+
+## Nouvel effet (format 10) sur une carte qui en a déjà MapCatalog.MAX_EFFECTS :
+## le refus ; {} sinon (autre objet, ou effet déjà posé qu'on déplace).
+static func _effects_full(doc: EditorMap, tmpl: Dictionary, ignore_id: String) -> Dictionary:
+	if String(tmpl.get("type", "")) != "effet" or ignore_id != "" or MapCatalog.effect_count(doc) < MapCatalog.MAX_EFFECTS:
+		return {}
+	return refuse("%d effets au plus par carte" % MapCatalog.MAX_EFFECTS, "at most %d effects per map" % MapCatalog.MAX_EFFECTS)
 
 
 ## Décor mural déjà posé : toujours sur le trait d'un mur (côté de sa pièce
@@ -1098,6 +1113,9 @@ static func _free_wall_room_check(_doc: EditorMap, _k: int, obj: Dictionary, pol
 ## luminaires du plafond ; un luminaire posé au sol peut se poser sur un
 ## meuble qui a un dessus (support : bureau, chariot...).
 static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "", grid := true) -> Dictionary:
+	var full := _effects_full(doc, tmpl, ignore_id)
+	if not full.is_empty():
+		return full
 	var n := MapCatalog.floor_size(tmpl)
 	var pos := Vector2(MapGeom.snap_along(mouse.x, n.x), MapGeom.snap_along(mouse.y, n.y))
 	if not grid or MapRaster.free_rot(tmpl):

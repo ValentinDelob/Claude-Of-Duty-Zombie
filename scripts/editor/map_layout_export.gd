@@ -23,6 +23,9 @@ var stairs: Array = []
 var obliques: Array = []
 var props: Array = []   # décor posé : [{id, model | build, p, yaw, scale, remap, nocollide}]
 var blockers: Array = []   # collisions du décor et des luminaires : [{center, size, yaw, barrier, surface}]
+## Effets (format 10) : [{fx, p, yaw, ground, intensity, scale, color, eid}]
+## (MapEffects ; aucune collision). « ground » : distance (m) de l'effet au sol.
+var effects: Array = []
 var zone_boxes: Array = []   # [étage, volume, zone, boîte]
 ## Boîtes de zone des morceaux de sol le long des murs obliques : testées après
 ## celles des salles de la grille (une boîte englobante déborde un peu du mur).
@@ -142,6 +145,7 @@ func _build() -> Dictionary:
 		_rails(f)
 	_decor()
 	_props()
+	_effects()
 	_clips()
 	_stairs()
 	var markers := _markers()
@@ -164,6 +168,8 @@ func _build() -> Dictionary:
 	}
 	if not obliques.is_empty():
 		out["obliques"] = obliques
+	if not effects.is_empty():
+		out["effects"] = effects
 	return out
 
 
@@ -646,6 +652,32 @@ func _props() -> void:
 			props.append(e)
 		if block != "non" and d.has("boxes"):
 			_blockers_of(d.boxes, origin, yaw, block == "barriere", String(d.get("surface", "concrete")))
+
+
+## Effets posés (format 10) : point d'origine dans le monde (au sol, surélevé,
+## sur la face d'un mur ou sous le plafond de la pièce), lacet, distance au
+## sol (étincelles qui rebondissent, gouttes), réglages bornés. Au plus
+## MapCatalog.MAX_EFFECTS (le reste est ignoré).
+func _effects() -> void:
+	for fx in md.effects:
+		if effects.size() >= MapCatalog.MAX_EFFECTS:
+			break
+		var k: int = fx.floor
+		var c: Vector2 = fx.center
+		var cell := Vector2i(floori(c.x / MapGeom.CELL), floori(c.y / MapGeom.CELL))
+		var room_h: float = float(ceil_at(k, cell)[0]) - float(md.floors[k].sol)
+		var y := float(fx.y)
+		match String(fx.mount):
+			"plafond":
+				y = room_h - 0.02
+			"mur":
+				# Toujours sous le plafond de la pièce.
+				y = clampf(y, 0.05, maxf(0.05, room_h - 0.2))
+		var e := {"fx": String(fx.effet), "p": _v3(_world(k, c, y)), "yaw": _r(float(fx.yaw)), "ground": _r(maxf(0.0, y)),
+			"room_h": _r(room_h), "intensity": _r(float(fx.intensity)), "scale": _r(float(fx.scale)), "eid": String(fx.eid)}
+		if String(fx.color) != "":
+			e["color"] = String(fx.color)
+		effects.append(e)
 
 
 ## Barrières invisibles : une collision chacune, sur la couche BARRIER

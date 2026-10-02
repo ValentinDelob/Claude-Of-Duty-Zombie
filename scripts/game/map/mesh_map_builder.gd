@@ -86,6 +86,38 @@ func _build_decor_parts() -> void:
 	_build_instances()
 	_build_screens()
 	_build_blockers()
+	_build_effects()
+
+
+## Effets de l'éditeur (format 10, clé « effects ») : particules, lumières
+## vacillantes, petits objets SANS collision (MapEffects). Budget de la carte :
+## au plus MapCatalog.MAX_EFFECTS effets, MapEffects.LIGHT_BUDGET lumières et
+## MapEffects.PARTICLE_BUDGET particules (au-delà, toutes réduites d'autant).
+func _build_effects() -> void:
+	var list: Array = layout.get("effects", [])
+	if list.is_empty():
+		return
+	var made: Array[MapEffect] = []
+	var lights := 0
+	var total := 0
+	for e in list.slice(0, MapCatalog.MAX_EFFECTS):
+		if not e is Dictionary:
+			continue
+		var fx := MapEffects.build(String(e.get("fx", "")), e)
+		if fx == null:
+			continue
+		fx.name = "Effect_" + String(e.get("eid", made.size()))
+		fx.position = MeshMapLayout.vec(e.get("p", [0, 0, 0]))
+		fx.rotation.y = float(e.get("yaw", 0.0))
+		# Lumières des effets : au plus LIGHT_BUDGET par carte (les suivantes éteintes).
+		lights = fx.limit_lights(MapEffects.LIGHT_BUDGET - lights) + lights
+		total += fx.particle_count()
+		root.add_child(fx)
+		made.append(fx)
+	if total > MapEffects.PARTICLE_BUDGET:
+		var k := float(MapEffects.PARTICLE_BUDGET) / total
+		for fx in made:
+			fx.set_budget(k)
 
 
 ## Lampes automatiques (une sur cinq grésille) et luminaires de l'éditeur.

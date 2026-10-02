@@ -20,6 +20,18 @@ extends RefCounted
 ## allowed_surfaces(), room_keys() et zone_keys() (contrôle des cartes
 ## partagées, docs/MAP_AUTHORING.md §6).
 
+## Sous-onglets des effets (format 10) : [identifiant, nom FR, nom EN].
+const EFFECT_SUBS := [
+	["flammes", "Flammes", "Flames"],
+	["fumees", "Fumées", "Smoke"],
+	["etincelles", "Étincelles", "Sparks"],
+	["electricite", "Électricité", "Electricity"],
+	["eau", "Eau", "Water"],
+	["ambiance", "Ambiance", "Atmosphere"],
+]
+## Catégories de l'inventaire : [identifiant, nom FR, nom EN] et, en option,
+## une liste de sous-onglets [[identifiant, FR, EN], ...] (subs_of) : les
+## objets de la catégorie ont alors une clé « sub ».
 const CATEGORIES := [
 	["construction", "Construction", "Building"],
 	["ouvertures", "Ouvertures", "Openings"],
@@ -31,6 +43,7 @@ const CATEGORIES := [
 	["joueurs", "Joueurs et apparitions", "Players and spawns"],
 	["prefabs", "Décor et obstacles", "Props and obstacles"],
 	["lumieres", "Luminaires", "Light fixtures"],
+	["effets", "Effets", "Effects", EFFECT_SUBS],
 ]
 ## Barre rapide par défaut (9 cases).
 const DEFAULT_HOTBAR := ["select", "piece_rect", "piece_poly", "mur", "porte", "fenetre", "boite", "depart", "arme:m14"]
@@ -136,6 +149,77 @@ const LIGHTS := {
 	"feu": {"fr": "Brasero (feu)", "en": "Fire barrel", "mount": "sol", "fp": [2, 2], "y": 1.15,
 		"couleur": "#ff7a2a", "intensite": 2.4, "portee": 9.0, "courant": false, "vacille": true, "build": "feu", "bloque": "solide",
 		"boxes": [{"center": [0, 0.45, 0], "size": [0.62, 0.9, 0.62]}], "color": Color(1.0, 0.45, 0.1)},
+}
+
+## Effets (format 10, type « effet » de objets.json, docs/MAP_OBJECTS.md §
+## 11) : flammes, fumées, étincelles, électricité, eau, ambiance. Construits
+## par le jeu (MapEffects : particules, lumière vacillante, petits objets) ;
+## AUCUNE collision, ils ne gênent ni ne blessent personne, et se posent
+## par-dessus n'importe quoi (décor, objets de jeu).
+##   sub     sous-onglet (EFFECT_SUBS)
+##   mount   « sol » (au sol, ou surélevé : `y`), « mur » (contre un mur, à la
+##           hauteur `y`, dirigé vers la pièce) ou « plafond » (sous le plafond)
+##   fp      emprise en cases (dessin, clic)
+##   y       sol : hauteur par défaut au-dessus du sol ; mur : hauteur (m)
+##   couleur teinte par défaut (« #rrggbb ») : seuls ces effets se teintent
+##   rotates pivote avec R (effets au sol allongés)
+## Réglages d'un effet posé (tous facultatifs, jamais écrits à leur valeur
+## par défaut, tidy_effect) : intensite (x, quantité de particules et
+## lumière), taille (x), couleur, hauteur (m), rot.
+const EFFECT_LIMITS := {"intensite": [0.25, 2.0], "taille": [0.5, 2.5], "hauteur": [0.0, 30.0]}
+## Effets au plus par carte (coût des particules, MapEffects.PARTICLE_BUDGET).
+const MAX_EFFECTS := CustomMapGuard.MAX_EFFECTS
+const EFFECTS := {
+	# Flammes.
+	"petit_feu": {"sub": "flammes", "fr": "Petit feu", "en": "Small fire", "mount": "sol", "fp": [2, 2], "color": Color(1.0, 0.55, 0.15),
+		"hint_fr": "Quelques bûches qui brûlent", "hint_en": "A few burning logs"},
+	"brasier": {"sub": "flammes", "fr": "Feu de camp / brasier", "en": "Campfire / bonfire", "mount": "sol", "fp": [3, 3], "color": Color(1.0, 0.45, 0.1),
+		"hint_fr": "Grand feu cerclé de pierres", "hint_en": "Big fire ringed with stones"},
+	"baril_feu": {"sub": "flammes", "fr": "Flammes de baril", "en": "Barrel flames", "mount": "sol", "fp": [1, 1], "y": 0.9, "color": Color(1.0, 0.5, 0.2),
+		"hint_fr": "Flammes à poser sur un baril (0,9 m de haut par défaut)", "hint_en": "Flames to put on a barrel (0.9 m high by default)"},
+	"torche": {"sub": "flammes", "fr": "Torche murale", "en": "Wall torch", "mount": "mur", "fp": [1, 1], "y": 1.8, "color": Color(1.0, 0.65, 0.25),
+		"hint_fr": "Torche fixée au mur", "hint_en": "Torch fixed to the wall"},
+	"incendie": {"sub": "flammes", "fr": "Incendie (large)", "en": "Large blaze", "mount": "sol", "fp": [6, 4], "rotates": true, "color": Color(0.95, 0.35, 0.08),
+		"hint_fr": "Nappe de feu de 3 × 2 m, épaisse fumée", "hint_en": "3 × 2 m sheet of fire, thick smoke"},
+	# Fumées.
+	"fumee_legere": {"sub": "fumees", "fr": "Fumée légère", "en": "Light smoke", "mount": "sol", "fp": [2, 2], "couleur": "#6e6c6a", "color": Color(0.65, 0.65, 0.65),
+		"hint_fr": "Volutes grises qui montent lentement", "hint_en": "Grey wisps slowly rising"},
+	"fumee_noire": {"sub": "fumees", "fr": "Fumée noire épaisse", "en": "Thick black smoke", "mount": "sol", "fp": [3, 3], "color": Color(0.3, 0.3, 0.32),
+		"hint_fr": "Colonne de fumée noire, braises au pied", "hint_en": "Column of black smoke, embers at its foot"},
+	"vapeur": {"sub": "fumees", "fr": "Vapeur de tuyau", "en": "Pipe steam", "mount": "mur", "fp": [1, 1], "y": 1.2, "color": Color(0.85, 0.9, 0.95),
+		"hint_fr": "Jet de vapeur sortant du mur", "hint_en": "Steam jet coming out of the wall"},
+	"brouillard": {"sub": "fumees", "fr": "Brouillard au sol", "en": "Ground fog", "mount": "sol", "fp": [8, 8], "couleur": "#8e9aa6", "color": Color(0.6, 0.68, 0.75),
+		"hint_fr": "Nappe de brume rampante de 4 × 4 m", "hint_en": "4 × 4 m creeping mist"},
+	# Étincelles.
+	"pluie_etincelles": {"sub": "etincelles", "fr": "Pluie d'étincelles", "en": "Spark shower", "mount": "plafond", "fp": [1, 1], "color": Color(1.0, 0.8, 0.3),
+		"hint_fr": "Câble arraché au plafond : gerbes qui rebondissent au sol", "hint_en": "Torn cable on the ceiling: showers bouncing on the floor"},
+	"soudure": {"sub": "etincelles", "fr": "Gerbe de soudure", "en": "Welding sparks", "mount": "mur", "fp": [1, 1], "y": 1.3, "color": Color(0.75, 0.85, 1.0),
+		"hint_fr": "Gerbe continue et éclats bleutés, par à-coups", "hint_en": "Steady spray and bluish flashes, in bursts"},
+	"court_circuit": {"sub": "etincelles", "fr": "Court-circuit", "en": "Short circuit", "mount": "mur", "fp": [1, 1], "y": 1.6, "color": Color(0.9, 0.9, 0.5),
+		"hint_fr": "Boîtier électrique qui claque de temps en temps", "hint_en": "Electrical box that pops now and then"},
+	# Électricité.
+	"arc": {"sub": "electricite", "fr": "Arc électrique", "en": "Electric arc", "mount": "sol", "fp": [3, 1], "y": 1.0, "rotates": true, "couleur": "#8fb4ff",
+		"color": Color(0.55, 0.7, 1.0), "hint_fr": "Arc crépitant entre deux électrodes", "hint_en": "Crackling arc between two electrodes"},
+	"tesla": {"sub": "electricite", "fr": "Bobine Tesla", "en": "Tesla coil", "mount": "sol", "fp": [2, 2], "y": 1.4, "couleur": "#a6b4ff",
+		"color": Color(0.65, 0.6, 1.0), "hint_fr": "Décharges dans toutes les directions", "hint_en": "Discharges in every direction"},
+	"cable_nu": {"sub": "electricite", "fr": "Câble à nu", "en": "Live wire", "mount": "plafond", "fp": [1, 1], "couleur": "#8fb4ff",
+		"color": Color(0.45, 0.6, 1.0), "hint_fr": "Câble pendant du plafond, son bout crépite", "hint_en": "Cable hanging from the ceiling, its end crackles"},
+	# Eau.
+	"goutte": {"sub": "eau", "fr": "Goutte-à-goutte", "en": "Dripping water", "mount": "plafond", "fp": [1, 1], "color": Color(0.5, 0.7, 0.95),
+		"hint_fr": "Gouttes du plafond et ronds dans l'eau au sol", "hint_en": "Drops from the ceiling and ripples on the floor"},
+	"fuite": {"sub": "eau", "fr": "Fuite de tuyau", "en": "Leaking pipe", "mount": "mur", "fp": [2, 1], "y": 2.0, "color": Color(0.4, 0.6, 0.85),
+		"hint_fr": "Filet d'eau qui tombe d'un tuyau et éclabousse", "hint_en": "Stream of water falling from a pipe and splashing"},
+	"flaque": {"sub": "eau", "fr": "Flaque", "en": "Puddle", "mount": "sol", "fp": [3, 3], "color": Color(0.3, 0.45, 0.6),
+		"hint_fr": "Flaque brillante parcourue de ronds", "hint_en": "Glossy puddle with ripples"},
+	# Ambiance.
+	"poussiere": {"sub": "ambiance", "fr": "Poussière en suspension", "en": "Floating dust", "mount": "sol", "fp": [6, 6], "color": Color(0.85, 0.8, 0.65),
+		"hint_fr": "Grains de poussière dans l'air, sur 3 × 3 m", "hint_en": "Dust motes in the air, over 3 × 3 m"},
+	"braises": {"sub": "ambiance", "fr": "Braises flottantes", "en": "Floating embers", "mount": "sol", "fp": [4, 4], "color": Color(1.0, 0.4, 0.1),
+		"hint_fr": "Braises qui s'élèvent en tourbillonnant", "hint_en": "Embers swirling upwards"},
+	"cendres": {"sub": "ambiance", "fr": "Cendres qui tombent", "en": "Falling ash", "mount": "sol", "fp": [6, 6], "color": Color(0.55, 0.53, 0.5),
+		"hint_fr": "Flocons de cendre qui tombent du plafond", "hint_en": "Ash flakes falling from the ceiling"},
+	"feux_follets": {"sub": "ambiance", "fr": "Feux follets (115)", "en": "Will-o'-wisps (115)", "mount": "sol", "fp": [3, 3], "couleur": "#3dff6a",
+		"color": Color(0.25, 1.0, 0.45), "hint_fr": "Lueurs vertes de l'élément 115 qui dérivent", "hint_en": "Drifting green glows of element 115"},
 }
 
 ## Variantes d'aspect d'un type d'élément (format 5, clé « variante » de
@@ -310,8 +394,17 @@ static func item(id: String) -> Dictionary:
 	return _by_id.get(id, {})
 
 
-static func in_category(cat: String) -> Array:
-	return items().filter(func(it): return it.cat == cat)
+## Objets d'une catégorie ; `sub` : seulement ceux de ce sous-onglet.
+static func in_category(cat: String, sub := "") -> Array:
+	return items().filter(func(it): return it.cat == cat and (sub == "" or String(it.get("sub", "")) == sub))
+
+
+## Sous-onglets d'une catégorie ([[identifiant, FR, EN], ...] ; [] : aucun).
+static func subs_of(cat: String) -> Array:
+	for c in CATEGORIES:
+		if String(c[0]) == cat:
+			return c[3] if c.size() > 3 else []
+	return []
 
 
 static func name_of(it: Dictionary) -> String:
@@ -467,6 +560,22 @@ static func _build() -> void:
 			"color": d.color, "make": mk, "fp": d.fp, "rotates": mount != "mur",
 			"hint_fr": String(mount_fr[mount]) + " ; couleur, intensité, portée, courant et vacillement dans les propriétés",
 			"hint_en": String(mount_en[mount]) + "; colour, intensity, range, power and flicker in the properties"})
+	# Effets (format 10), rangés par sous-onglet.
+	var fx_fr := {"sol": "Au sol, n'importe où (même sur un objet)", "mur": "Contre un mur, à la hauteur voulue", "plafond": "Sous le plafond d'une pièce"}
+	var fx_en := {"sol": "On the floor, anywhere (even over an object)", "mur": "Against a wall, at any height", "plafond": "Under a room ceiling"}
+	for s in EFFECT_SUBS:
+		for fid in EFFECTS:
+			var d: Dictionary = EFFECTS[fid]
+			if String(d.sub) != String(s[0]):
+				continue
+			var mount := String(d.mount)
+			var mk := {"type": "effet", "effet": fid}
+			if d.get("rotates", false):
+				mk["rot"] = 0
+			_add({"id": "effet:" + fid, "cat": "effets", "sub": String(d.sub), "fr": d.fr, "en": d.en, "tool": "wall_item" if mount == "mur" else "floor_item",
+				"color": d.color, "make": mk, "fp": d.fp, "rotates": bool(d.get("rotates", false)),
+				"hint_fr": "%s · %s ; aucune collision · intensité, taille%s dans les propriétés" % [d.hint_fr, fx_fr[mount], ", couleur" if d.has("couleur") else ""],
+				"hint_en": "%s · %s; no collision · intensity, size%s in the properties" % [d.hint_en, fx_en[mount], ", colour" if d.has("couleur") else ""]})
 
 
 ## Objet du catalogue correspondant à un élément de la carte (icône, nom).
@@ -479,6 +588,8 @@ static func item_for(o: Dictionary) -> Dictionary:
 			return item("prefab:" + String(o.get("prefab", "")))
 		"luminaire":
 			return item("luminaire:" + String(o.get("luminaire", "")))
+		"effet":
+			return item("effet:" + String(o.get("effet", "")))
 		"arme":
 			return item("arme:" + String(o.get("arme", "")))
 		"boite":
@@ -608,11 +719,97 @@ static func blocking(o: Dictionary) -> String:
 ## dedans, au centimètre, tourné, par-dessus un autre décor) ; les objets de
 ## jeu (portes, fenêtres, armes murales, atouts, boîte, départs...) gardent
 ## leurs règles de pose.
-const DECOR_TYPES := ["caisse", "baril", "prefab", "luminaire", "lampe"]
+## Format 10 : les effets se posent comme le décor (et par-dessus tout,
+## MapRules.NO_OVERLAP_CHECK).
+const DECOR_TYPES := ["caisse", "baril", "prefab", "luminaire", "lampe", "effet"]
 
 
 static func is_decor(o: Dictionary) -> bool:
 	return String(o.get("type", "")) in DECOR_TYPES
+
+
+# ------------------------------------------------------------------ effets (format 10)
+
+## Définition d'un effet posé (EFFECTS ; {} si ce n'en est pas un).
+static func effect_def(o: Dictionary) -> Dictionary:
+	if String(o.get("type", "")) != "effet":
+		return {}
+	return EFFECTS.get(String(o.get("effet", "")), {})
+
+
+## Montage d'un effet : « sol », « mur », « plafond » ("" : pas un effet).
+static func effect_mount(o: Dictionary) -> String:
+	return String(effect_def(o).get("mount", ""))
+
+
+## L'effet se teinte-t-il (clé « couleur ») ?
+static func effect_tints(o: Dictionary) -> bool:
+	return effect_def(o).has("couleur")
+
+
+static func effect_color(o: Dictionary) -> Color:
+	var c := String(o.get("couleur", effect_def(o).get("couleur", "#ffffff")))
+	return Color.html(c) if Color.html_is_valid(c) else Color.WHITE
+
+
+## Réglage numérique d'un effet (intensite, taille), borné ; absent : 1.
+static func effect_value(o: Dictionary, key: String) -> float:
+	var v: Variant = o.get(key, 1.0)
+	if not (v is float or v is int) or not is_finite(float(v)):
+		return 1.0
+	var lim: Array = EFFECT_LIMITS[key]
+	return clampf(float(v), lim[0], lim[1])
+
+
+## Hauteur d'un effet (m au-dessus du sol : surélévation d'un effet au sol,
+## hauteur d'un effet mural) ; absente : `y` de l'effet. 0 au plafond.
+static func effect_height(o: Dictionary) -> float:
+	var d := effect_def(o)
+	if String(d.get("mount", "")) == "plafond":
+		return 0.0
+	var def := float(d.get("y", 0.0))
+	var hv: Variant = o.get("hauteur", def)
+	if not (hv is float or hv is int) or not is_finite(float(hv)):
+		return def
+	return clampf(float(hv), EFFECT_LIMITS.hauteur[0], EFFECT_LIMITS.hauteur[1])
+
+
+## Réglages d'un effet remis en ordre (fichier écrit à la main, valeur remise
+## par défaut) : valeur illisible ou par défaut retirée, sinon bornée ;
+## couleur seulement pour les effets qui se teintent, hauteur jamais au plafond.
+static func tidy_effect(o: Dictionary) -> void:
+	if String(o.get("type", "")) != "effet":
+		return
+	var d := effect_def(o)
+	for key in ["intensite", "taille"]:
+		if o.has(key):
+			var v: Variant = o[key]
+			if not (v is float or v is int) or not is_finite(float(v)) or absf(float(v) - 1.0) < 0.005:
+				o.erase(key)
+			else:
+				o[key] = snappedf(clampf(float(v), EFFECT_LIMITS[key][0], EFFECT_LIMITS[key][1]), 0.01)
+	if o.has("hauteur"):
+		var hv: Variant = o.hauteur
+		if d.is_empty() or String(d.mount) == "plafond" or not (hv is float or hv is int) or not is_finite(float(hv)) \
+				or absf(float(hv) - float(d.get("y", 0.0))) < 0.005:
+			o.erase("hauteur")
+		else:
+			o["hauteur"] = snappedf(clampf(float(hv), EFFECT_LIMITS.hauteur[0], EFFECT_LIMITS.hauteur[1]), 0.01)
+	if o.has("couleur"):
+		var c: Variant = o.couleur
+		if not d.has("couleur") or not (c is String and Color.html_is_valid(c)) or Color.html(c).is_equal_approx(Color.html(String(d.couleur))):
+			o.erase("couleur")
+	if o.has("rot") and not d.get("rotates", false):
+		o.erase("rot")
+
+
+## Nombre d'effets d'une carte (MAX_EFFECTS au plus).
+static func effect_count(doc: EditorMap) -> int:
+	var n := 0
+	for o in doc.objets:
+		if String(o.get("type", "")) == "effet":
+			n += 1
+	return n
 
 
 ## Format 9 : réglage de la carte « chevauchement_decor » (carte.json, vrai /
@@ -788,6 +985,11 @@ static func allowed_kinds() -> Dictionary:
 		"courant": {"t": "bool"}, "vacille": {"t": "bool"},
 		# Format 7 : hauteur d'une applique (m au-dessus du sol).
 		"hauteur": {"t": "number", "min": WALL_LIGHT_HEIGHT[0], "max": WALL_LIGHT_HEIGHT[1]}}, ["luminaire", "position"])
+	# Format 10 : effets (flammes, fumées...), réglages facultatifs bornés.
+	add.call("objets.json", "effet", {"effet": {"t": "enum", "values": EFFECTS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
+		"couleur": {"t": "color"}, "intensite": {"t": "number", "min": EFFECT_LIMITS.intensite[0], "max": EFFECT_LIMITS.intensite[1]},
+		"taille": {"t": "number", "min": EFFECT_LIMITS.taille[0], "max": EFFECT_LIMITS.taille[1]},
+		"hauteur": {"t": "number", "min": EFFECT_LIMITS.hauteur[0], "max": EFFECT_LIMITS.hauteur[1]}}, ["effet", "position"])
 	return out
 
 
