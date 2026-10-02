@@ -1862,6 +1862,21 @@
     "en": "Two keys per action",
     "fr": "Deux touches par action"
    }
+  },
+  "v0.2.0-snapshot.362": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [],
+   "items": [
+    {
+     "en": "The invisible collision of zombie doors no longer sticks out of the wall: you no longer bump into thin air in front of the door, and zombies line up right at the boards.",
+     "fr": "La collision invisible des portes à zombies ne dépasse plus du mur : on ne bute plus sur du vide devant la porte, et les zombies se placent bien devant les planches."
+    }
+   ],
+   "title": {
+    "en": "Zombie doors: collision fixed",
+    "fr": "Portes à zombies : collision corrigée"
+   }
   }
  }
 }
