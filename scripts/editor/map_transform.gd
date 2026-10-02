@@ -17,7 +17,7 @@ const STEP := 15
 ## suivent leur mur : ils tournent seulement avec leur pièce.
 static func can_rotate(e: Dictionary) -> bool:
 	var t := String(e.get("type", ""))
-	return e.has("contour") or e.has("rect") or t in ["mur", "mur_courbe"] or MapCatalog.rotates(e)
+	return e.has("contour") or e.has("rect") or e.has("sommets") or t in ["mur", "mur_courbe"] or MapCatalog.rotates(e)
 
 
 ## Centre de rotation d'un élément : centre de sa forme, de son rectangle
@@ -30,6 +30,9 @@ static func pivot(doc: EditorMap, e: Dictionary) -> Vector2:
 		return MapGeom.bbox(doc.room_poly(e)).get_center()
 	if e.has("rect"):
 		return MapGeom.rect_of(e.rect).get_center()
+	if e.has("sommets"):
+		# Barrière invisible en polygone (format 9) : centre de son rectangle englobant.
+		return MapGeom.bbox(MapGeom.poly(e.sommets)).get_center()
 	match String(e.get("type", "")):
 		"mur":
 			return (MapGeom.v2(e.a) + MapGeom.v2(e.b)) * 0.5
@@ -71,6 +74,12 @@ static func rotated(o: Dictionary, c: Vector2, deg: float) -> Dictionary:
 				e.forme = MapShapes.rotated(e.forme, c, d)
 			else:
 				e.erase("forme")
+	if e.has("sommets"):
+		# Barrière invisible en polygone (format 9) : chaque sommet tourne.
+		var pts := []
+		for p in e.sommets:
+			pts.append(MapGeom.arr(MapGeom.rotate_about(MapGeom.v2(p), c, d)))
+		e.sommets = pts
 	for key in ["position", "a", "b", "centre"]:
 		if e.has(key):
 			e[key] = MapGeom.arr(MapGeom.rotate_about(MapGeom.v2(e[key]), c, d))

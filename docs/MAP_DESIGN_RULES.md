@@ -286,9 +286,12 @@ pour monter dessus et échapper aux zombies : c'est de l'anti-jeu.
 - Marge : chaque barrière déborde de l'emprise de l'objet d'au moins
   **0,1 m** de chaque côté.
 - Même **rotation** que l'objet : une barrière droite sous un objet tourné
-  laisse dépasser ses angles. Pour un objet qui n'est pas un simple
-  rectangle (en L, en croix, irrégulier), plusieurs barrières qui **se
-  chevauchent** : jamais de jour entre deux barrières.
+  laisse dépasser ses angles. La barrière se trace en **polygone** (format
+  9) : pour un objet tourné ou qui n'est pas un simple rectangle (en L, en
+  croix, irrégulier), un seul polygone qui épouse son emprise (marge
+  comprise) ; si l'on en pose plusieurs, elles **se chevauchent** : jamais
+  de jour entre deux barrières. Elle se pose n'importe où, même à cheval sur
+  un mur ou par-dessus l'objet.
 - Hauteur : du sol au plafond (hauteur par défaut), ou au moins **1 m
   au-dessus du point le plus haut** de l'objet.
 - La barrière compte comme obstacle : passages, dégagements (§6.3) et

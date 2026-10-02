@@ -1295,6 +1295,12 @@ static func _shift(o: Dictionary, delta: Vector2) -> Dictionary:
 		e.contour = pts
 		if e.has("forme") and MapShapes.valid(e.forme):
 			e.forme = MapShapes.shifted(e.forme, delta)
+	if e.has("sommets"):
+		# Barrière invisible en polygone (format 9).
+		var pts := []
+		for p in e.sommets:
+			pts.append(MapGeom.arr(MapGeom.v2(p) + delta))
+		e.sommets = pts
 	for key in ["position", "a", "b", "centre"]:
 		if e.has(key):
 			e[key] = MapGeom.arr(MapGeom.v2(e[key]) + delta)
@@ -1331,6 +1337,8 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 					cand.position = res.position
 			"rect":
 				res = MapRules.check_rect(doc, k, t, MapGeom.rect_of(cand.rect), String(orig.id), MapGeom.rot_of(cand))
+			"poly":
+				res = MapRules.check_clip(MapRaster.clip_poly(cand))
 			"wall":
 				res = MapRules.check_wall(MapGeom.v2(cand.a), MapGeom.v2(cand.b))
 			"arc":
@@ -1389,6 +1397,13 @@ func try_handle(orig: Dictionary, h: int, p: Vector2, snap0: Dictionary) -> Dict
 		# Sommet déplacé à la main : la forme de base d'origine ne se régénère plus.
 		cand.erase("forme")
 		res = MapRules.check_room(doc, k, np, String(orig.id))
+	elif orig.has("sommets"):
+		# Barrière invisible en polygone (format 9) : le sommet `h` suit le curseur.
+		var np := MapGeom.poly(orig.sommets)
+		if h >= 0 and h < np.size():
+			np[h] = p
+		cand.sommets = MapGeom.poly_arr(np)
+		res = MapRules.check_clip(np)
 	elif orig.has("rect") and MapGeom.rot_of(orig) != 0:
 		# Rectangle tourné : le coin opposé reste en place, dans le repère du rectangle.
 		var rot := float(MapGeom.rot_of(orig))
@@ -1573,6 +1588,8 @@ func paste() -> void:
 					e.position = res.position
 			"rect":
 				res = MapRules.check_rect(doc, floor_k, t, MapGeom.rect_of(e.rect), "", MapGeom.rot_of(e), MapCatalog.stair_kind(e))
+			"poly":
+				res = MapRules.check_clip(MapRaster.clip_poly(e))
 			"wall":
 				res = MapRules.check_wall(MapGeom.v2(e.a), MapGeom.v2(e.b))
 			"arc":
