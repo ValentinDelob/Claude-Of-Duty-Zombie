@@ -17,6 +17,23 @@ func test_repair_points_and_round_cap() -> void:
 	assert_eq(earned, BarricadeRules.ROUND_CAP)
 
 
+## BO1 : deux planches arrachées suffisent pour que le zombie passe le bras
+## par le trou et attrape le joueur (porte double : planches de son battant).
+func test_reach_through_after_two_planks() -> void:
+	var door := BarricadeRules.full_mask_for(BarricadeRules.DOOR)
+	assert_false(BarricadeRules.can_reach_through(door, 6, 1, 0), "porte intacte : pas de bras")
+	door &= ~(1 << BarricadeRules.plank_to_tear(door, 6))
+	assert_false(BarricadeRules.can_reach_through(door, 6, 1, 0), "une seule planche arrachée")
+	door &= ~(1 << BarricadeRules.plank_to_tear(door, 6))
+	assert_true(BarricadeRules.can_reach_through(door, 6, 1, 0), "deux planches arrachées : le bras passe")
+	assert_true(BarricadeRules.can_reach_through(0, 6, 1, 0), "porte ouverte")
+	assert_true(BarricadeRules.can_reach_through(BarricadeRules.FULL_MASK & ~0b110000, 6, 1, 0), "fenêtre : pareil")
+	# Porte double : deux planches du battant gauche (paires) arrachées.
+	var dbl := BarricadeRules.full_mask_for(BarricadeRules.DOUBLE_DOOR) & ~((1 << 8) | (1 << 6))
+	assert_true(BarricadeRules.can_reach_through(dbl, 10, 2, 0), "battant gauche ouvert de deux planches")
+	assert_false(BarricadeRules.can_reach_through(dbl, 10, 2, 1), "battant droit encore intact")
+
+
 func test_repair_speed() -> void:
 	assert_near(BarricadeRules.repair_interval(1.0), BarricadeRules.REPAIR_TIME)
 	assert_near(BarricadeRules.repair_interval(0.5), BarricadeRules.REPAIR_TIME * 0.5, 0.001, "RAPID FIZZ : 2x plus vite")

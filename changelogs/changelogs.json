@@ -1820,6 +1820,21 @@
     "en": "Play with a controller",
     "fr": "Jouez à la manette"
    }
+  },
+  "v0.2.0-snapshot.359": {
+   "channel": "snapshot",
+   "date": "2026-10-02",
+   "images": [],
+   "items": [
+    {
+     "en": "Zombie windows and doors: once two boards are torn off, the zombie reaches its arm through the gap to grab and hit a player standing close.",
+     "fr": "Fenêtres et portes à zombies : dès deux planches arrachées, le zombie passe le bras par le trou pour attraper et frapper le joueur collé à l'entrée."
+    }
+   ],
+   "title": {
+    "en": "Zombies: reaching through the boards",
+    "fr": "Zombies : le bras à travers les planches"
+   }
   }
  }
 }

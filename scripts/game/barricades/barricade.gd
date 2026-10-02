@@ -48,8 +48,6 @@ const EXIT_CLEARANCE := 0.65
 const VAULT_REACH := 0.9
 ## Un joueur plus proche que cela du zombie à la fenêtre se fait frapper.
 const REACH := 1.8
-## Le zombie frappe à travers la fenêtre s'il reste au plus ce nombre de planches.
-const REACH_MAX_PLANKS := 3
 const REPAIR_RANGE := 2.4
 const TEAR_ANIM := 0.5
 const REPAIR_ANIM := 0.32
@@ -608,12 +606,14 @@ func srv_zombie_barrier(z: Zombie, delta: float) -> void:
 			_frenzy_wait(z, delta)
 			desired = to * 2.0
 		else:
+			var lane := lane_of_slot(slot)
+			# Deux planches arrachées de son battant : le bras passe par le
+			# trou et attrape le joueur collé à l'entrée (BO1).
 			var victim := _victim_for(z)
-			if victim and planks() <= REACH_MAX_PLANKS:
+			if victim and BarricadeRules.can_reach_through(mask, plank_count, BarricadeRules.lanes(kind), lane):
 				z.target = victim
 				z.barrier_attack()
 				return
-			var lane := lane_of_slot(slot)
 			if mask == 0:
 				var v: Variant = _vaulters[lane]
 				if (v == null or not is_instance_valid(v) or not (v as Zombie).is_alive() or (v as Zombie).barricade != self) and exit_clear(z, lane):

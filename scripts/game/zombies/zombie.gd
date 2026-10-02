@@ -161,6 +161,9 @@ var attack_t: float:
 		return _attack_t
 	set(value):
 		_attack_t = value
+## L'attaque en cours part d'une fenêtre ou d'une porte barricadée : le
+## zombie passe le bras par le trou des planches (pose propre, ZombieAnim).
+var attack_through := false
 ## Inclinaison de tête propre à ce zombie (rad).
 var head_tilt: float:
 	get:
@@ -799,6 +802,7 @@ func flash_hit() -> void:
 
 func play_attack() -> void:
 	_attack_t = 0.0
+	attack_through = barricade != null
 	Audio.play_3d("zombie_attack_%d" % (1 + randi() % ZombieVoice.ATTACKS), global_position + Vector3.UP * 1.5, 0.0, 0.08, 3, 1.0, ZombieVoice.GROUP)
 	_groan_t = maxf(_groan_t, 1.5)
 

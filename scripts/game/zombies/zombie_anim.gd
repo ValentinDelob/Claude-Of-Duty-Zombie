@@ -56,6 +56,16 @@ const K_ATTACK_FOREARM_L := [[0.0, -0.3], [0.3, -0.9], [0.55, -0.15], [1.0, -0.3
 const K_ATTACK_FOREARM_R := [[0.0, -0.3], [0.26, -0.9], [0.48, -0.12], [1.0, -0.3]]
 const K_ATTACK_SPINE := [[0.0, 0.3], [0.28, 0.1], [0.5, 0.5], [1.0, 0.35]]
 const K_ATTACK_CHEST_Y := [[0.0, 0.0], [0.28, 0.2], [0.5, -0.25], [1.0, 0.0]]
+## À travers les planches (BO1) : le bras droit plonge dans le trou vers le
+## joueur, la main se referme (coup porté à 0,6, Zombie.ATTACK_HIT_TIME) puis
+## le bras revient ; le gauche reste en appui sur les planches, buste penché
+## vers l'entrée, épaule droite en avant.
+const K_REACH_ARM_R := [[0.0, -1.3], [0.3, -1.85], [0.6, -1.65], [0.8, -1.5], [1.0, -1.25]]
+const K_REACH_FOREARM_R := [[0.0, -0.3], [0.3, -0.05], [0.55, -0.1], [0.7, -1.1], [1.0, -0.3]]
+const K_REACH_ARM_L := [[0.0, -1.3], [0.3, -1.6], [0.8, -1.55], [1.0, -1.3]]
+const K_REACH_FOREARM_L := [[0.0, -0.3], [0.3, -0.7], [0.8, -0.7], [1.0, -0.3]]
+const K_REACH_SPINE := [[0.0, 0.35], [0.3, 0.6], [0.65, 0.55], [1.0, 0.35]]
+const K_REACH_CHEST_Y := [[0.0, 0.0], [0.3, -0.35], [0.65, -0.3], [1.0, 0.0]]
 
 
 var z: Zombie
@@ -343,16 +353,27 @@ func pose(delta: float) -> void:
 		z.attack_t += delta / 0.7
 		var at := clampf(z.attack_t, 0.0, 1.0)
 		var w := smoothstep(0.0, 0.12, at) * (1.0 - smoothstep(0.8, 1.0, at))
-		var a_r := _keys(at, K_ATTACK_ARM_R)
-		var a_l := _keys(at, K_ATTACK_ARM_L)
-		al = lerpf(al, a_l, w)
-		ar = lerpf(ar, a_r, w)
-		fl = lerpf(fl, _keys(at, K_ATTACK_FOREARM_L), w)
-		fr = lerpf(fr, _keys(at, K_ATTACK_FOREARM_R), w)
-		zl = lerpf(zl, -0.2, w)
-		zr = lerpf(zr, 0.2, w)
-		spine_x = lerpf(spine_x, _keys(at, K_ATTACK_SPINE), w)
-		chest_y = lerpf(chest_y, _keys(at, K_ATTACK_CHEST_Y), w)
+		if z.attack_through:
+			# Bras passé par le trou des planches, vers le joueur.
+			al = lerpf(al, _keys(at, K_REACH_ARM_L), w)
+			ar = lerpf(ar, _keys(at, K_REACH_ARM_R), w)
+			fl = lerpf(fl, _keys(at, K_REACH_FOREARM_L), w)
+			fr = lerpf(fr, _keys(at, K_REACH_FOREARM_R), w)
+			zl = lerpf(zl, -0.15, w)
+			zr = lerpf(zr, 0.05, w)
+			spine_x = lerpf(spine_x, _keys(at, K_REACH_SPINE), w)
+			chest_y = lerpf(chest_y, _keys(at, K_REACH_CHEST_Y), w)
+		else:
+			var a_r := _keys(at, K_ATTACK_ARM_R)
+			var a_l := _keys(at, K_ATTACK_ARM_L)
+			al = lerpf(al, a_l, w)
+			ar = lerpf(ar, a_r, w)
+			fl = lerpf(fl, _keys(at, K_ATTACK_FOREARM_L), w)
+			fr = lerpf(fr, _keys(at, K_ATTACK_FOREARM_R), w)
+			zl = lerpf(zl, -0.2, w)
+			zr = lerpf(zr, 0.2, w)
+			spine_x = lerpf(spine_x, _keys(at, K_ATTACK_SPINE), w)
+			chest_y = lerpf(chest_y, _keys(at, K_ATTACK_CHEST_Y), w)
 		head_x = lerpf(head_x, -0.45, w)
 		jaw = lerpf(jaw, 0.62, w)
 		if z.attack_t >= 1.0:

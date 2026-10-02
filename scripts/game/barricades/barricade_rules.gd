@@ -60,6 +60,9 @@ const KINDS := {
 }
 ## Le plus de planches d'une entrée (masque sur 16 bits au plus).
 const MAX_PLANKS := 10
+## Le zombie passe le bras par le trou (BO1 : il attrape le joueur collé à
+## l'entrée) dès que ce nombre de planches de son passage est arraché.
+const REACH_MIN_TORN := 2
 
 
 static func _kind(kind: String) -> Dictionary:
@@ -118,6 +121,16 @@ static func count_lane(mask: int, n: int, n_lanes: int, lane: int) -> int:
 		if mask & (1 << i) and lane_of_plank(i, n_lanes) == lane:
 			c += 1
 	return c
+
+
+## Le zombie du passage `lane` peut-il passer le bras à travers (au moins
+## REACH_MIN_TORN planches arrachées de son battant ; fenêtre : de l'entrée) ?
+static func can_reach_through(mask: int, n: int, n_lanes: int, lane: int) -> bool:
+	var lane_total := 0
+	for i in n:
+		if lane_of_plank(i, n_lanes) == lane:
+			lane_total += 1
+	return lane_total - count_lane(mask, n, n_lanes, lane) >= REACH_MIN_TORN
 
 
 ## Points gagnés pour une planche reposée, compte tenu de ce que le joueur a
