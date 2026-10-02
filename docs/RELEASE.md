@@ -162,7 +162,9 @@ le paquet des voix) ; sans le paquet des voix, il échoue (contre-épreuve).
 
 - `tools/ship.sh` publie une **snapshot** (défaut). Première série :
   `v0.2.0-snapshot.<n>` ; après une stable `v0.2.0`, les snapshots deviennent
-  `v0.2.1-snapshot.<n>` (version visée par la prochaine stable).
+  `v0.2.1-snapshot.<n>` (version visée par la prochaine stable) : `promote.sh`
+  passe `config/version` de `project.godot` à la stable suivante, et
+  `release.sh` refuse de publier une snapshot d'une stable déjà publiée.
 - `tools/promote.sh <snapshot> [<version>]` crée la **stable** : même commit,
   manifeste recopié avec `"channel": "stable"` (les paquets restent dans les
   releases qui les portent : rien n'est republié pour les nouveaux lanceurs).

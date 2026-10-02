@@ -26,6 +26,10 @@ GH=${GH:-gh}
 W() { cygpath -m "$1" 2>/dev/null || echo "$1"; }
 TARGET=$(sed -n 's/^config\/version="\([0-9]*\.[0-9]*\.[0-9]*\)".*/\1/p' project.godot)
 [ -n "$TARGET" ] || { echo "== config/version de project.godot doit être M.m.p (ex. 0.2.0)"; exit 1; }
+# Stable v$TARGET déjà publiée (promote.sh) : les snapshots visent la suivante.
+if git rev-parse -q --verify "refs/tags/v$TARGET" > /dev/null || git ls-remote --exit-code --tags origin "refs/tags/v$TARGET" > /dev/null 2>&1; then
+  echo "== la stable v$TARGET existe déjà : passer config/version de project.godot à la prochaine stable (ex. ${TARGET%.*}.$(( ${TARGET##*.} + 1 )))"; exit 1
+fi
 N=$(git rev-list --count HEAD)
 TAG="v$TARGET-snapshot.$N"
 BUILD="${TAG#v}"

@@ -19,7 +19,8 @@
 #      manifeste et les sommes ;
 #   6. notes des joueurs : les snapshots depuis la stable précédente sont
 #      rassemblées sous le numéro stable (changelogs/changelogs.json), commit
-#      et push de ce seul fichier.
+#      et push de ce fichier ; config/version de project.godot passe à la
+#      stable suivante (snapshots v<M.m.p+1>-snapshot.<n>).
 # DRY_RUN=1 : tout sauf la publication (fichiers dans build/promote) ; avec
 # GH=<faux gh> et COMMIT=<sha>, essai entièrement hors ligne.
 # Une release référencée par un manifeste ne doit jamais être supprimée.
@@ -170,9 +171,16 @@ NOTES="$OUT/notes.md"
 "$GH" release create "$STABLE" "$OUT/ClaudeOfDutyZombie-$STABLE.exe" "$OUT/ClaudeOfDutyZombie-Launcher.exe" \
     "$OUT/CallOfClaudeZombie-Launcher.exe" "$OUT/launcher_version.txt" "$OUT/manifest.json" "$OUT/SHA256SUMS.txt" \
     --target "$COMMIT" --latest --title "$STABLE — version stable" --notes-file "$NOTES" || { echo "== PUBLICATION ECHEC"; exit 1; }
-if ! git diff --quiet -- changelogs/changelogs.json; then
-  git add changelogs/changelogs.json
-  git commit -q -m "docs: player notes for $STABLE (stable, promoted from $SNAP)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- changelogs/changelogs.json
+# Les snapshots suivantes visent la prochaine stable (v0.2.0 -> v0.2.1-snapshot.<n>).
+CUR="v$(sed -n 's/^config\/version="\([0-9]*\.[0-9]*\.[0-9]*\)".*/\1/p' project.godot)"
+if [ "$CUR" = "$STABLE" ]; then
+  NEXT="${STABLE#v}"; NEXT="${NEXT%.*}.$(( ${NEXT##*.} + 1 ))"
+  sed -i "s/^config\/version=.*/config\/version=\"$NEXT\"/" project.godot
+  echo "   prochaines snapshots : v$NEXT-snapshot.<n>"
+fi
+if ! git diff --quiet -- changelogs/changelogs.json project.godot; then
+  git add changelogs/changelogs.json project.godot
+  git commit -q -m "docs: player notes for $STABLE (stable, promoted from $SNAP)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" -- changelogs/changelogs.json project.godot
   git push -q origin HEAD:main || echo "== notes committées mais PUSH ECHEC (à pousser)"
 fi
 echo "== stable publiée : $STABLE (depuis $SNAP ; https://github.com/$REPO/releases/tag/$STABLE)"
