@@ -146,7 +146,7 @@ func run() -> void:
 	await click(mid + Vector2(4.0, -0.9))
 	at.check(ed.doc.objets.filter(func(o): return o.type == "boite").size() == 1, "boîte contre le mur de l'annexe (%s)" % cv.refusal)
 	# Pilier tourné de 30° avec la poignée de rotation (pas de 15°).
-	await key(KEY_1)
+	await key(KEY_QUOTELEFT)
 	await click(Vector2(10, 18))
 	at.check(not pil.is_empty() and ed.selected == String(pil[0].id), "pilier choisi")
 	var rh := cv.rot_handle()
@@ -276,7 +276,7 @@ func _move_window_free(cpoly: PackedVector2Array) -> void:
 			side = i
 	var j := (side + 1) % cpoly.size()
 	var target := (cpoly[j] + cpoly[(j + 1) % cpoly.size()]) * 0.5
-	await key(KEY_1)
+	await key(KEY_QUOTELEFT)
 	await click(p0)
 	at.check(ed.selected == String(win.id), "fenêtre choisie")
 	await drag(p0, target + (target - Vector2(16, 16)).normalized() * 0.15)

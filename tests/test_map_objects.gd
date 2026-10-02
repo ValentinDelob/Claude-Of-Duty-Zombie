@@ -403,7 +403,7 @@ func test_v_key_cycles_the_look_in_the_editor() -> void:
 	ed.canvas.mouse_m = Vector2(14.0, 2.75)
 	ed.canvas._update_preview()
 	assert_eq(MapCatalog.variant_of(ed.canvas.preview.get("obj", {})), "bois", "l'aperçu de pose porte la variante")
-	ed.select_slot(0)
+	ed.select_mouse()
 	assert_eq(ed.place_variant, "", "changer d'objet : aspect par défaut")
 	# Barrière invisible tracée en polygone (format 9 ; 0,5 m d'épaisseur).
 	var res: Dictionary = ed.canvas._poly_creation(MapCatalog.item("bloc_invisible"),

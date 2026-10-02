@@ -54,8 +54,13 @@ var floor_k := 0
 var selected := ""
 var clipboard: Dictionary = {}
 var ghost_below := true
-var hotbar: Array = MapCatalog.DEFAULT_HOTBAR.duplicate()
-var hot_index := 0
+var hotbar: Array = MapHotbar.migrate(MapCatalog.DEFAULT_HOTBAR)
+## Case choisie de la barre rapide ; MOUSE (-1) : la souris (outil Sélection),
+## case fixe à gauche de la barre, jamais remplacée. L'éditeur démarre dessus.
+var hot_index := MOUSE
+## Dernière case (0 à 8) choisie : un objet pris dans l'inventaire souris en
+## main y va quand la barre est pleine.
+var last_slot := 0
 ## Rotation (degrés) de l'objet tenu (prefabs, luminaires) : R avant de poser.
 var place_rot := 0
 ## Variante de l'objet tenu (portes, débris, armes murales : V avant de
@@ -637,8 +642,8 @@ func _update_title() -> void:
 
 func _show_help() -> void:
 	_info(Lang.t("Raccourcis", "Shortcuts"), Lang.t(
-		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nCtrl + « + » / Ctrl + « - » / Ctrl + 0 : taille de l'interface de l'éditeur (aussi dans les options, bouton ⚙)\nMolette ou 1 à 9 : case de la barre rapide · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu",
-		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nCtrl + \"+\" / Ctrl + \"-\" / Ctrl + 0: map editor UI size (also in the options, ⚙ button)\nWheel or 1 to 9: hotbar slot · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there"))
+		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nCtrl + « + » / Ctrl + « - » / Ctrl + 0 : taille de l'interface de l'éditeur (aussi dans les options, bouton ⚙)\nMolette ou 1 à 9 : case de la barre rapide · ² ou Échap : la souris (case à gauche de la barre) · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu",
+		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nCtrl + \"+\" / Ctrl + \"-\" / Ctrl + 0: map editor UI size (also in the options, ⚙ button)\nWheel or 1 to 9: hotbar slot · ` (key left of 1) or Esc: the mouse (slot left of the hotbar) · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there"))
 
 
 func _info(title_text: String, text: String) -> void:
@@ -747,6 +752,9 @@ func _input(event: InputEvent) -> void:
 	var pk := k.physical_keycode
 	if pk >= KEY_1 and pk <= KEY_9:
 		select_slot(pk - KEY_1)
+	elif pk == KEY_QUOTELEFT:
+		# Touche à gauche du 1 (² en AZERTY, ` en QWERTY) : la souris.
+		select_mouse()
 	elif k.keycode >= KEY_KP_1 and k.keycode <= KEY_KP_9:
 		select_slot(k.keycode - KEY_KP_1)
 	else:
@@ -758,8 +766,11 @@ func _input(event: InputEvent) -> void:
 					toggle_inventory()
 				elif not canvas.drag.is_empty() or not canvas.poly_pts.is_empty():
 					canvas.cancel()
-				else:
+				elif selected != "" or mouse_active():
 					select("")
+				else:
+					# Échap suivant (rien en cours) : retour à la souris.
+					select_mouse()
 			KEY_R:
 				rotate_selected()
 			KEY_V:
@@ -794,8 +805,16 @@ func _input(event: InputEvent) -> void:
 
 # ------------------------------------------------------------------ barre rapide
 
+const MOUSE := -1
+
+
+## La souris est-elle en main (case Souris, ou case vide de la barre) ?
+func mouse_active() -> bool:
+	return String(current_item().get("id", "")) == "select"
+
+
 func current_item() -> Dictionary:
-	var id := String(hotbar[hot_index]) if hot_index < hotbar.size() else ""
+	var id := String(hotbar[hot_index]) if hot_index >= 0 and hot_index < hotbar.size() else ""
 	var it := MapCatalog.item(id)
 	return it if not it.is_empty() else MapCatalog.item("select")
 
@@ -804,8 +823,11 @@ func tool() -> String:
 	return String(current_item().get("tool", "select"))
 
 
+## i : case 0 à 8, ou MOUSE (-1) pour la souris.
 func select_slot(i: int) -> void:
-	hot_index = clampi(i, 0, 8)
+	hot_index = clampi(i, MOUSE, 8)
+	if hot_index >= 0:
+		last_slot = hot_index
 	place_rot = 0
 	place_variant = ""
 	canvas.cancel()
@@ -817,17 +839,49 @@ func select_slot(i: int) -> void:
 	canvas.queue_redraw()
 
 
+## Souris en main (case fixe à gauche de la barre).
+func select_mouse() -> void:
+	select_slot(MOUSE)
+
+
+## Molette : la souris est la position avant la case 1 (10 positions en boucle).
 func cycle_hotbar(d: int) -> void:
-	select_slot(posmod(hot_index + d, 9))
+	select_slot(posmod(hot_index + 1 + d, 10) - 1)
 
 
 func set_hotbar(i: int, item_id: String) -> void:
+	# La souris n'est pas un objet de la barre : elle a sa case fixe.
+	if item_id == "select":
+		select_mouse()
+		return
 	if i < 0 or i >= 9:
 		return
 	while hotbar.size() < 9:
 		hotbar.append("")
 	hotbar[i] = item_id
 	select_slot(i)
+
+
+## Objet pris dans l'inventaire : dans la case choisie ; souris en main, dans
+## la première case vide (sinon la dernière case choisie), qui devient la case
+## en main. La souris garde toujours sa case.
+func pick_item(item_id: String) -> void:
+	if item_id == "select":
+		select_mouse()
+		return
+	var i := hot_index
+	if i < 0:
+		i = hotbar.find("")
+		if i < 0 or i >= 9:
+			i = last_slot
+	set_hotbar(i, item_id)
+
+
+## Barre rapide relue (préférences, ancienne sauvegarde) : MapHotbar.migrate.
+func load_hotbar(items: Array) -> void:
+	hotbar = MapHotbar.migrate(items)
+	if hotbar_ui != null:
+		hotbar_ui.queue_redraw_slots()
 
 
 func toggle_inventory() -> void:
