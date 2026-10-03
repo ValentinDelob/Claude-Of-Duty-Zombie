@@ -29,6 +29,7 @@ func run() -> void:
 	await _shot_scale()
 	await _shot_blocked()
 	await _shot_rings()
+	await _shot_3d()
 	ed._reset(game_map())
 	await frames(3)
 	await _game_shots()
@@ -225,3 +226,47 @@ func _shot_rings() -> void:
 
 func _mouse_px(v: MapView, px: Vector2, press: int) -> void:
 	_mouse(v, v.to_m(px), press)
+
+
+## Écran 2 : vue 3D (anneaux X, Y, Z de la poutre) à gauche, Dessus et Avant à
+## droite ; anneau Y tourné de 30° dans la 3D.
+func _shot_3d() -> void:
+	await _editor_open("3b", ["3d", "dessus", "avant"])
+	var pv := ed.preview
+	if pv == null or pv.gizmo == null:
+		at.fail("aperçu 3D absent")
+		return
+	pv.world.rebuild_now()
+	ed.select("d91")
+	pv.center_on_selection()
+	await frames(10)
+	var gz := pv.gizmo
+	var c := gz.center3(ed.doc.find("d91"))
+	var pts := gz.ring_px(c, gz.radius_m(c), 1)
+	if pts.size() < 10:
+		at.fail("anneau Y non projeté")
+		return
+	for press in [[pts[0], -1], [pts[0], 1]]:
+		_mouse3(pv, press[0], press[1])
+	for i in range(1, 7):
+		_mouse3(pv, pts[i], -1)
+		await frames(1)
+	await frames(3)
+	await at.screenshot("ecran2_3d_geste")
+	_mouse3(pv, pts[6], 0)
+	await until(func(): return pv.world.idle() and not pv.world.is_stale(), 15.0, "aperçu reconstruit")
+	await frames(5)
+	await at.screenshot("ecran2_3d")
+
+
+func _mouse3(pv: MapPreviewPanel, px: Vector2, press: int) -> void:
+	if press < 0:
+		var mm := InputEventMouseMotion.new()
+		mm.position = px
+		pv._view_input(mm)
+		return
+	var mb := InputEventMouseButton.new()
+	mb.position = px
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = press == 1
+	pv._view_input(mb)

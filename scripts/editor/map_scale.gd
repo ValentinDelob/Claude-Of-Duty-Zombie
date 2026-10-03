@@ -674,8 +674,9 @@ static func carries(o: Dictionary) -> bool:
 ## permise, décor porteur (« un décor est posé dessus »), hauteur sous le
 ## plafond réel, décor bloquant qui reste posé, règles de pose (emprise
 ## orientée : chevauchements, pièce). `before` : l'élément avant le
-## changement (décors qui reposaient dessus). -> {ok} ou {ok: false, fr, en}.
-static func check(doc: EditorMap, v: MapValidator, e: Dictionary, before: Dictionary = {}) -> Dictionary:
+## changement (décors qui reposaient dessus) ; `held` : ces décors s'ils sont
+## déjà connus (geste en cours : calculés une fois). -> {ok} ou {ok: false, fr, en}.
+static func check(doc: EditorMap, v: MapValidator, e: Dictionary, before: Dictionary = {}, held: Variant = null) -> Dictionary:
 	var t := String(e.get("type", ""))
 	if t != "prefab" and (e.has("echelle") or e.has("incl")):
 		var rf := scale_refusal(e) if e.has("echelle") else tilt_refusal(e)
@@ -693,7 +694,8 @@ static func check(doc: EditorMap, v: MapValidator, e: Dictionary, before: Dictio
 			return MapRules.refuse(r[0], r[1])
 	if not before.is_empty():
 		var changed := not scale_of(before).is_equal_approx(scale_of(e)) or not incl_of(before).is_equal_approx(incl_of(e))
-		if changed and not MapVertical.resting_on(doc, before).is_empty():
+		var on_it: Array = held if held is Array else MapVertical.resting_on(doc, before)
+		if changed and not on_it.is_empty():
 			return MapRules.refuse("un décor est posé dessus : sélectionnez-les ensemble", "a prop stands on it: select them together")
 	if v != null:
 		if t == "prefab" and mount_of(e) == "sol" and MapVertical.decor_z(e) + height(e) > MapVertical.room_h(v, e) + 0.011:

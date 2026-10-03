@@ -205,13 +205,14 @@ func _try(cand: Dictionary) -> void:
 		return
 	if not d.has("v"):
 		d["v"] = ed().raster().v   # plafonds inchangés pendant le geste (une fois)
-	var res := MapScale.check(doc, d.v, cand, o0)
+		d["held"] = MapVertical.resting_on(doc, o0)
+	var res := MapScale.check(doc, d.v, cand, o0, d.held)
 	if not res.ok:
 		cv.refusal = MapRules.why(res)
 		cv.refusal_marks = []
 		cv._refusal_t = 1.5
 		return
-	doc.restore(d.snap)
+	# Seul cet élément change : remplacé sur place (pas de carte remise : rapide sur 2000 objets).
 	MapTransform.replace(doc, cand)
 	d.moved = cand != o0
 	ed().moved_live()

@@ -76,6 +76,8 @@ var _captured := false
 var _last_status := ""
 ## ViewCube isométrique sur l'aperçu (docs/EDITOR_VIEWS.md § 4) : il suit la caméra.
 var cube: MapViewCube
+## Format 14 : anneaux de rotation du décor choisi (MapGizmo3D), sur l'aperçu.
+var gizmo: MapGizmo3D
 
 
 ## Vue : le rendu du SubViewport, qui reçoit souris et touches (aussi dans
@@ -203,6 +205,9 @@ func _build_ui() -> void:
 	view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	view.stretch_mode = TextureRect.STRETCH_SCALE
 	view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	gizmo = MapGizmo3D.new(self)
+	gizmo.name = "Gizmo3D"
+	view.add_child(gizmo)
 	view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	view.mouse_filter = Control.MOUSE_FILTER_STOP
 	view.focus_mode = Control.FOCUS_CLICK
@@ -645,6 +650,16 @@ func _view_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_MIDDLE:
 				_mmb = mb.pressed
 			MOUSE_BUTTON_LEFT:
+				# Format 14 : anneau du décor choisi (geste de rotation).
+				if mb.pressed and gizmo != null and gizmo.press(mb.position):
+					view.grab_focus()
+					view.accept_event()
+					return
+				if not mb.pressed and gizmo != null and not gizmo.drag.is_empty():
+					gizmo.release()
+					view.accept_event()
+					_request_render()
+					return
 				if mb.pressed:
 					view.grab_focus()
 					_lmb_at = mb.position
@@ -665,6 +680,16 @@ func _view_input(event: InputEvent) -> void:
 		_request_render()
 	elif event is InputEventMouseMotion:
 		var mm := event as InputEventMouseMotion
+		if gizmo != null:
+			if not gizmo.drag.is_empty():
+				gizmo.update(mm.position)
+				view.accept_event()
+				return
+			var hv := gizmo.ring_at(mm.position)
+			if hv != gizmo.hover:
+				gizmo.hover = hv
+				gizmo.queue_redraw()
+			view.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if hv >= 0 else Control.CURSOR_ARROW
 		# Fenêtre de l'éditeur : souris capturée, regard déjà lu (et consommé) par
 		# _input ; fenêtre détachée : l'événement arrive seulement ici.
 		if _rmb:
@@ -764,6 +789,11 @@ func _view_key(event: InputEvent) -> void:
 	if not event is InputEventKey or (ed != null and ed.options_open()):
 		return
 	var k := event as InputEventKey
+	# Format 14 : valeur tapée, Entrée, Échap pendant un geste d'anneau.
+	if gizmo != null and gizmo.key(k):
+		view.get_viewport().set_input_as_handled()
+		_request_render()
+		return
 	# P dans la fenêtre détachée (celle de l'éditeur : _input).
 	if detached and k.pressed and not k.echo and k.keycode == KEY_P and not k.ctrl_pressed and not k.alt_pressed and not _typing():
 		set_shown(false)

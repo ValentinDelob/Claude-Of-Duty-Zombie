@@ -741,7 +741,14 @@ func element_shape(e: Dictionary) -> Dictionary:
 			y1 = m.floor_sol(k + 1) if k + 1 < m.floor_count() else sol + h
 		elif t == "piege":
 			y1 = sol + 0.25
-	return {"poly": poly, "y0": y0, "y1": y1, "floor": k}
+	var out := {"poly": poly, "y0": y0, "y1": y1, "floor": k}
+	if t == "prefab" and MapScale.is_tilted(e):
+		# Format 14 : décor incliné, sa boîte orientée (8 coins, monde).
+		var box := []
+		for q in MapScale.corners(e):
+			box.append(Vector3((q as Vector3).x + OFF, sol + (q as Vector3).z, (q as Vector3).y + OFF))
+		out["box3"] = box
+	return out
 
 
 ## Boîte d'un effet en hauteur (m au-dessus du sol de son étage) : son volume
@@ -793,6 +800,15 @@ func update_overlay() -> void:
 		var sh: Dictionary = s[0]
 		var col: Color = s[1]
 		im.surface_set_color(col)
+		if sh.has("box3"):
+			# Arêtes de la boîte orientée : coins qui ne diffèrent que d'un axe.
+			var bx: Array = sh.box3
+			for i in 8:
+				for bit in [1, 2, 4]:
+					if i & bit == 0:
+						im.surface_add_vertex(bx[i])
+						im.surface_add_vertex(bx[i | bit])
+			continue
 		var p: PackedVector2Array = sh.poly
 		for i in p.size():
 			var a := p[i]
@@ -808,6 +824,13 @@ func update_overlay() -> void:
 		var sh: Dictionary = s[0]
 		var col: Color = s[1]
 		im.surface_set_color(Color(col, 0.16))
+		if sh.has("box3"):
+			var bx: Array = sh.box3
+			# Six faces (coins : indice = 4 x + 2 y + z).
+			for f in [[0, 1, 3, 2], [4, 5, 7, 6], [0, 1, 5, 4], [2, 3, 7, 6], [0, 2, 6, 4], [1, 3, 7, 5]]:
+				for j in [0, 1, 2, 0, 2, 3]:
+					im.surface_add_vertex(bx[f[j]])
+			continue
 		var p: PackedVector2Array = sh.poly
 		for i in p.size():
 			var a := p[i]

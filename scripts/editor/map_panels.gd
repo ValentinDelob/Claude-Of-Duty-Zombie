@@ -1046,8 +1046,17 @@ func live_scale(on: bool) -> void:
 	if o.is_empty():
 		return
 	MapPanelsScale.live(self, o, on)
-	# La position suit (le centre bouge) sans bord jaune (maquette, écran 1).
-	live_position(false)
+	# La position suit (le centre bouge) sans bord jaune (maquette, écran 1) ;
+	# X et Y seulement (Z demanderait la grille de la carte : trop lent pendant
+	# un geste sur une grande carte).
+	var p := ref_point(ed.doc, o)
+	for axis in ["X", "Y"]:
+		var c: Variant = _pos_fields.get(axis)
+		if c is PanelContainer and is_instance_valid(c):
+			var le := (c as PanelContainer).get_child(0).get_child(1) as LineEdit
+			if le != null and not le.has_focus():
+				le.text = MapView.num(p.x if axis == "X" else p.y, 2)
+				le.set_meta("applied", le.text)
 
 
 ## Pendant un glissement : les champs X, Y, Z suivent l'élément (bord jaune).
