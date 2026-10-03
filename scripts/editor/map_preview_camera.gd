@@ -106,6 +106,7 @@ func take_moved() -> bool:
 
 
 func set_mode(m: Mode, ground: Callable = Callable()) -> void:
+	end_glide()
 	if m == mode:
 		return
 	var from := eye()
@@ -139,6 +140,7 @@ func set_mode(m: Mode, ground: Callable = Callable()) -> void:
 
 ## Clic droit glissé : tourner (orbite) ou regarder (vol, joueur).
 func look(rel: Vector2) -> void:
+	end_glide()
 	yaw -= rel.x * LOOK_SENS
 	pitch = clampf(pitch - rel.y * LOOK_SENS, -PITCH_LIMIT, PITCH_LIMIT if mode != Mode.ORBIT else 0.2)
 	_apply()
@@ -146,6 +148,7 @@ func look(rel: Vector2) -> void:
 
 ## Clic milieu glissé : déplacer le point visé (ou la caméra) dans le plan de la vue.
 func pan(rel: Vector2) -> void:
+	end_glide()
 	var b := basis_now()
 	var k := PAN_SENS * (dist if mode == Mode.ORBIT else 8.0)
 	var d := (-b.x * rel.x + b.y * rel.y) * k
@@ -158,6 +161,7 @@ func pan(rel: Vector2) -> void:
 
 ## Molette : rapprocher / éloigner (orbite), avancer / reculer (vol).
 func zoom(steps: float) -> void:
+	end_glide()
 	if mode == Mode.ORBIT:
 		dist = clampf(dist * pow(0.87, steps), MIN_DIST, MAX_DIST)
 	elif mode == Mode.FLY:
@@ -165,21 +169,28 @@ func zoom(steps: float) -> void:
 	_apply()
 
 
-## Cadre un point (monde) et un rayon : orbite autour, vol libre en face.
-func focus(center: Vector3, radius: float) -> void:
+## Cadre un point (monde) et un rayon : orbite autour, vol libre en face
+## (la vue joueur passe en orbite). `animate` : glissement (maison du ViewCube).
+func focus(center: Vector3, radius: float, animate := false) -> void:
+	end_glide()
 	var d := clampf(radius * 2.4, 4.0, MAX_DIST)
 	if mode == Mode.WALK:
 		set_mode(Mode.ORBIT)
+	var from := _pose()
 	pivot = center
 	dist = d
 	if mode == Mode.FLY:
 		fly_pos = center + basis_now().z * d
+	if animate:
+		_glide(from)
 	_apply()
 
 
 ## Vise un point (suivre la vue 2D) : l'orbite y déplace son point, le vol
 ## libre se décale d'autant. Sans effet en vue joueur.
 func follow(target: Vector3, delta: float) -> void:
+	if gliding():
+		return
 	var k := clampf(delta * 10.0, 0.0, 1.0)
 	match mode:
 		Mode.ORBIT:
@@ -195,22 +206,115 @@ func follow(target: Vector3, delta: float) -> void:
 				_apply()
 
 
-## ViewCube (docs/EDITOR_VIEWS.md § 4) : orbite placée sur la direction `dir`
-## (monde, du point visé vers la caméra), visant `target` ; même distance.
-func look_from(dir: Vector3, target: Vector3) -> void:
+## ViewCube (docs/EDITOR_VIEWS.md § 4) : la caméra regarde depuis la
+## direction `dir` (monde, du point visé vers la caméra), SANS changer de mode :
+##   ORBIT : orbite sur cette direction autour de `target`, même distance ;
+##   FLY   : la caméra libre se place sur cette direction, à la distance
+##           d'orbite (au moins 4 m) du point visé, et le regarde ;
+##   WALK  : le joueur reste où il est et tourne le regard (pas de
+##           téléportation ; `target` ignoré).
+## `target` null : le point visé actuel (orbite : son point ; vol libre : le
+## point à `dist` devant la caméra). `animate` : glissement de GLIDE s.
+func look_from(dir: Vector3, target: Variant = null, animate := false) -> void:
 	if dir.length() < 0.001:
 		return
-	if mode != Mode.ORBIT:
-		set_mode(Mode.ORBIT)
+	end_glide()
 	var d := dir.normalized()
-	pivot = target
-	yaw = atan2(d.x, d.z)
-	pitch = clampf(-asin(clampf(d.y, -1.0, 1.0)), -PITCH_LIMIT, 0.2)
+	var from := _pose()
+	# Cap : vers -d à l'horizontale ; vue de dessus ou de dessous : le nord en haut.
+	yaw = atan2(d.x, d.z) if Vector2(d.x, d.z).length() > 0.001 else 0.0
+	var p := -asin(clampf(d.y, -1.0, 1.0))
+	match mode:
+		Mode.ORBIT:
+			if target is Vector3:
+				pivot = target
+			pitch = clampf(p, -PITCH_LIMIT, 0.2)
+		Mode.FLY:
+			var r := clampf(dist, 4.0, MAX_DIST)
+			var t: Vector3 = target if target is Vector3 else eye() + forward() * r
+			dist = r
+			pivot = t
+			pitch = clampf(p, -PITCH_LIMIT, PITCH_LIMIT)
+			fly_pos = t + basis_now().z * r
+		Mode.WALK:
+			pitch = clampf(p, -PITCH_LIMIT, PITCH_LIMIT)
+	if animate:
+		_glide(from)
+	_apply()
+
+
+# ------------------------------------------------------------------ transition
+
+## Transition du ViewCube (s) : la caméra glisse de son ancienne pose vers la
+## nouvelle (cap par le plus court chemin) ; toute entrée de l'utilisateur
+## (regard, déplacement, molette, changement de mode) la termine net.
+const GLIDE := 0.25
+
+var _glide_t := -1.0
+var _glide_from := {}
+var _glide_to := {}
+
+
+func _pose() -> Dictionary:
+	return {"yaw": yaw, "pitch": pitch, "pivot": pivot, "fly_pos": fly_pos, "dist": dist}
+
+
+func _set_pose(p: Dictionary) -> void:
+	yaw = p.yaw
+	pitch = p.pitch
+	pivot = p.pivot
+	fly_pos = p.fly_pos
+	dist = p.dist
+
+
+## Glissement de la pose `from` vers la pose actuelle (la pose de fin).
+func _glide(from: Dictionary) -> void:
+	_glide_to = _pose()
+	_glide_from = from
+	_glide_from.yaw = float(_glide_to.yaw) - wrapf(float(_glide_to.yaw) - float(from.yaw), -PI, PI)
+	# Vol libre : point regardé au départ (la caméra tourne autour, sans
+	# traverser la carte en ligne droite).
+	_glide_from.aim = (from.fly_pos as Vector3) + Basis.from_euler(Vector3(from.pitch, from.yaw, 0.0)).z * -float(_glide_to.dist)
+	_glide_t = 0.0
+	_set_pose(_glide_from)
+
+
+func gliding() -> bool:
+	return _glide_t >= 0.0
+
+
+## Termine la transition en cours : la caméra est à sa pose de fin.
+func end_glide() -> void:
+	if _glide_t < 0.0:
+		return
+	_glide_t = -1.0
+	_set_pose(_glide_to)
+	_apply()
+
+
+func _step_glide(delta: float) -> void:
+	_glide_t += delta
+	var k := clampf(_glide_t / GLIDE, 0.0, 1.0)
+	if k >= 1.0:
+		end_glide()
+		return
+	k = k * k * (3.0 - 2.0 * k)
+	var a := _glide_from
+	var b := _glide_to
+	yaw = lerpf(a.yaw, b.yaw, k)
+	pitch = lerpf(a.pitch, b.pitch, k)
+	dist = lerpf(a.dist, b.dist, k)
+	match mode:
+		Mode.ORBIT:
+			pivot = (a.pivot as Vector3).lerp(b.pivot, k)
+		Mode.FLY:
+			fly_pos = (a.aim as Vector3).lerp(b.pivot, k) + basis_now().z * float(b.dist)
 	_apply()
 
 
 ## Double-clic sur la carte 2D : la caméra va à ce point (au sol de l'étage).
 func place_at(p: Vector3) -> void:
+	end_glide()
 	match mode:
 		Mode.ORBIT:
 			pivot = p
@@ -223,6 +327,12 @@ func place_at(p: Vector3) -> void:
 
 
 func _process(delta: float) -> void:
+	if gliding():
+		# Une touche de déplacement termine la transition (pose de fin).
+		if move != Vector2.ZERO or rise != 0.0:
+			end_glide()
+		else:
+			_step_glide(delta)
 	if mode == Mode.FLY and (move != Vector2.ZERO or rise != 0.0):
 		var b := basis_now()
 		var v := (b.x * move.x - b.z * move.y + Vector3.UP * rise)

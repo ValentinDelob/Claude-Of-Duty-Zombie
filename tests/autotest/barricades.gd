@@ -27,7 +27,7 @@ func _view(inside: bool, dist := 2.2) -> void:
 
 
 func _hold_repair() -> void:
-	p.teleport_to(w.global_position + w.inward * 1.25 + Vector3(0, 0.05, 0))
+	p.teleport_to(w.repair_spot() + Vector3(0, 0.05, 0))
 	H.aim_at(p, w.global_position + Vector3.UP * 1.4)
 	await seconds(0.2)  # le joueur se pose avant d'appuyer
 	p.input.interact = true
@@ -116,6 +116,14 @@ func run() -> void:
 	await at.screenshot("broken_outside")
 	var pts0 := pd.points
 	var team0 := game.points.team_earned
+	# Portée : il faut être collé à la barrière (à 1,5 m : ni invite ni réparation).
+	p.teleport_to(w.global_position + w.inward * (w.barrier_half_depth() + 1.5) + Vector3(0, 0.05, 0))
+	H.aim_at(p, w.global_position + Vector3.UP * 1.4)
+	await seconds(0.2)  # le joueur se pose avant d'appuyer
+	at.check(game.interact.focused != w, "à 1,5 m de la fenêtre : pas d'invite")
+	w.srv_use(1)
+	await seconds(1.0)  # plus qu'un intervalle de réparation
+	at.check(w.planks() == 0 and not w.is_repairing(1), "à 1,5 m : le serveur refuse la réparation (%d planche(s))" % w.planks())
 	await _hold_repair()
 	at.check(game.interact.focused == w and game.hud._prompt.text == Lang.t("Maintenir [F] pour reconstruire la barricade", "Hold [F] to rebuild the barrier"), "invite : « %s »" % game.hud._prompt.text)
 	ok = await until(func(): return w.planks() >= 3, 4.0, "3 planches reposées")

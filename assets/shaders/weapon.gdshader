@@ -113,7 +113,7 @@ void fragment() {
 		float top = clamp(NORMAL.y, 0.0, 1.0);
 		emi += (col * 0.3 + vec3(0.012, 0.012, 0.011)) * (0.22 + 0.5 * facing + 0.22 * top);
 		// Liseré de contre-jour sur les bords (lecture des silhouettes).
-		float rim = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
+		float rim = pow(clamp(1.0 - dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
 		emi += col * rim * 0.2;
 	}
 	ALBEDO = col;

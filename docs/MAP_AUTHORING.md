@@ -5,7 +5,8 @@ aussitôt. L'**éditeur de cartes** est une scène du jeu (menu principal >
 ÉDITEUR DE CARTES) : on y dessine les pièces vues de dessus, on pose portes,
 fenêtres, atouts, armes, boîte… depuis un inventaire façon Minecraft, un
 validateur vérifie la carte avec des règles « façon BO1 », et le bouton
-**TESTER** lance une partie solo dessus. La carte est enregistrée en cinq
+**TESTER** lance une partie solo dessus (sans l'enregistrer). La carte est
+enregistrée (seulement par Fichier > Enregistrer, Ctrl+S) en cinq
 fichiers JSON lisibles et écrivables à la main (un outil peut aussi les
 écrire), exportables en archive `.zip`.
 
@@ -34,8 +35,9 @@ menus, `--map=draft_arena`) est faite dans ce format et se joue (scénarios
   `godot --headless --path . res://scenes/editor/map_editor.tscn -- --check=<dossier ou archive.zip>`
   affiche le rapport du validateur ; code de sortie 0 si la carte est jouable.
 
-Au démarrage, l'éditeur rouvre la dernière carte ; s'il reste une sauvegarde
-automatique non enregistrée, il propose de la reprendre.
+Au démarrage, l'éditeur rouvre la dernière carte ; s'il reste une copie de
+récupération (plantage, fermeture forcée), il propose de la récupérer
+(§ 6, « Enregistrement explicite et récupération »).
 
 ## 2. L'écran
 
@@ -70,7 +72,12 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 |---|---|
 | Poser / choisir | clic gauche |
 | Tracer (pièce, forme, mur, pilier, escalier, piège) | glisser, ou clic puis clic (le tracé suit le curseur entre les deux) |
-| Annuler le tracé, désélectionner | clic droit, Échap |
+| Annuler le tracé ou le glissement en cours | clic droit, Échap |
+| Menu du clic droit (rien en cours) | clic droit, dans toutes les vues : Créer une prefab…, Dupliquer, Copier, Couper, Coller ici, Pivoter, Supprimer, Tout sélectionner, Désélectionner (voir « Sélection multiple et groupes ») |
+| Désélectionner | Échap, clic dans le vide |
+| Sélection multiple | **Maj + clic** : ajouter / retirer un élément (vue Dessus, élévations, 3D, liste des objets) ; **rectangle** : glisser depuis le vide (ou Maj + glisser n'importe où) ; **Ctrl+A** : tout l'étage |
+| Groupe choisi | glisser l'un de ses éléments ; **flèches** : d'un pas de grille ; **R** / poignée ronde : pivoter autour du centre ; **Ctrl+D** : dupliquer ; **Ctrl+X** : couper ; Suppr |
+| Créer une prefab de la sélection | **Ctrl+G**, clic droit > Créer une prefab…, ou le panneau Propriétés |
 | Zoom | Ctrl + molette (ou + / -) |
 | Taille de l'interface de l'éditeur | Ctrl + « + » / Ctrl + « - » (pas de 5 %, de 60 à 150 %), Ctrl + 0 : 80 % ; aussi OPTIONS > JEU (bouton ⚙) |
 | Déplacer la vue | clic milieu + glisser, ou Espace + glisser |
@@ -88,7 +95,7 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Aperçu 3D (afficher / masquer) | P (voir §2 ter pour ses caméras) |
 | Placer la caméra de l'aperçu à un endroit | Ctrl + double-clic sur la carte (aperçu affiché) |
 | Supprimer | Suppr (une pièce emporte ses objets et ses ouvertures) |
-| Copier / coller sous le curseur | Ctrl+C / Ctrl+V |
+| Copier / couper / coller sous le curseur | Ctrl+C / Ctrl+X / Ctrl+V (un élément ou tout un groupe) |
 | Annuler / rétablir (illimité) | Ctrl+Z / Ctrl+Y (ou Ctrl+Maj+Z) |
 | Enregistrer / Enregistrer sous | Ctrl+S / Ctrl+Maj+S |
 | Nouvelle carte / Ouvrir | Ctrl+N / Ctrl+O (Suppr dans la fenêtre Ouvrir : supprimer la carte choisie) |
@@ -110,6 +117,63 @@ polygone ou d'une forme, coins d'un pilier, d'un escalier ou d'un piège, même
 tournés, bouts d'un mur), **poignée ronde** au-dessus pour tourner. Un
 élément devenu invalide (une fenêtre restée sur l'ancien mur d'une pièce
 agrandie…) est entouré de rouge avec la raison dans la barre d'état.
+
+### Sélection multiple et groupes
+
+Plusieurs éléments se choisissent ensemble et s'éditent d'un bloc
+(`scripts/editor/map_group.gd`, `map_context_menu.gd`) :
+
+- **Maj + clic** sur un élément l'ajoute à la sélection, ou l'en retire ;
+  marche dans la vue Dessus, les élévations, la 3D et la liste des objets.
+  Maj ne sert à la sélection qu'**au moment de l'appui** : pendant un
+  glissement commencé sans Maj, Maj garde son rôle (inverser l'aimantation).
+- **Rectangle de sélection** (vue Dessus) : glisser depuis le vide, ou Maj +
+  glisser n'importe où (il s'ajoute alors à la sélection). Comme dans les
+  logiciels de CAO (Fusion, AutoCAD) : tracé **de gauche à droite**, il prend
+  les éléments **entièrement dedans** (cadre bleu plein) ; **de droite à
+  gauche**, ceux qu'il **touche** (cadre vert en tirets). Les éléments qu'il
+  prendrait sont entourés pendant le tracé, avec leur nombre. Un simple clic
+  dans le vide désélectionne.
+- **Ctrl+A** : tous les éléments de l'étage affiché ; **Échap** : désélectionner.
+- La sélection est **commune à toutes les vues** : chaque élément est surligné
+  (Dessus, élévations, 3D, liste des objets), un **cadre en tirets** entoure le
+  groupe avec son nombre d'éléments et sa **poignée ronde** de rotation ; le
+  panneau Propriétés affiche « N éléments sélectionnés » : ce qu'ils sont,
+  l'étage et la rotation quand ils sont communs, l'encombrement, les éléments
+  invalides, les actions de groupe et la liste (un clic : cet élément seul).
+
+**Actions de groupe** : **glisser** un de ses éléments déplace tout le groupe
+(au pas de l'aimantation ; flèches d'axe, X / Y : verrouiller ; dans une
+élévation : sur l'axe de la vue et d'**étage**, ou en hauteur de pose si tout
+le groupe est du décor posé) ; un simple clic sans bouger sur un élément du
+groupe le choisit seul. **Flèches** : d'un pas de grille (0,1 m sans grille).
+**R** ou la poignée ronde : pivoter autour du **centre du groupe** (pas de
+15°, Alt : au degré). **Ctrl+D** : dupliquer à côté (à droite, sinon dessous,
+à gauche, dessus : la première place où tout tient). **Ctrl+C / Ctrl+X /
+Ctrl+V** : copier, couper, coller sous la souris (le centre du groupe va au
+point aimanté ; pièces renommées, une zone neuve par zone d'origine).
+**Suppr** : supprimer. Comme pour un seul élément, une pièce emporte son
+contenu et les portes de ses bords (déplacer, pivoter, supprimer) ; copier ne
+prend que ce qui est choisi.
+
+**Tout ou rien** : chaque action vérifie TOUT le groupe à sa nouvelle place
+(règles de pose : les éléments du groupe se voient les uns les autres) ; si
+un seul élément ne tient pas, rien ne change : son nom et la raison sont
+affichés près du curseur et dans la barre d'état, et il est entouré de rouge à
+la place refusée. **Une action = une étape d'annulation** (Ctrl+Z), et un seul
+lot d'opérations pour les autres participants d'une session ; la sélection
+multiple est montrée chez eux (présence) ; Claude la lit
+(`editor_get_selection`) et peut la donner (`editor_highlight` avec
+`select: true`).
+
+**Menu du clic droit** (toutes les vues, quand aucun tracé ni glissement
+n'est en cours : sinon le clic droit les annule ; dans la 3D, un clic droit
+sans tourner la caméra) : sur un élément non choisi, il est choisi d'abord.
+Entrées avec leur raccourci, grisées (bulle : pourquoi) quand elles sont
+impossibles : **Créer une prefab…** (Ctrl+G), Dupliquer (Ctrl+D), Copier
+(Ctrl+C), Couper (Ctrl+X), Coller ici (Ctrl+V ; vue Dessus), Pivoter de 90°
+(R), Supprimer (Suppr), Tout sélectionner (Ctrl+A), Désélectionner (Échap).
+Les mêmes actions sont dans le menu **Édition**.
 
 ### Murs en biais
 
@@ -315,7 +379,7 @@ par code (`MapIcons`).
 
 | Catégorie | Objets | Pose |
 |---|---|---|
-| Construction | Gomme, Pièce rectangle, Pièce polygone, Mur, Cercle / polygone régulier, Ellipse, Pièce triangle, Pièce en L, Mur courbe, Pilier / obstacle, Escalier, Barrière invisible | glisser ou clic-clic (rectangle, formes, mur, mur courbe, pilier, escalier), clics successifs (polygone, barrière invisible : n'importe où) ; saisie au clavier |
+| Construction | Gomme, Pièce rectangle, Pièce polygone, Mur, Cercle / polygone régulier, Ellipse, Pièce triangle, Pièce en L, Mur courbe, Pilier / obstacle, Escalier qui monte (↑), Escalier qui descend (↓), Barrière invisible | glisser ou clic-clic (rectangle, formes, mur, mur courbe, pilier, escalier), clics successifs (polygone, barrière invisible : n'importe où) ; saisie au clavier |
 | Ouvertures | Porte payante, Débris à dégager, Porte ouverte par le courant, Passage libre, Fenêtre à zombies | sur un mur (voir les règles) |
 | Atouts | un distributeur par atout du jeu | contre un mur |
 | Armes murales | chaque arme à prix mural, couteau de chasse, grenades | contre un mur |
@@ -405,13 +469,39 @@ Règles de pose en plus (`MapRules.layer_of`) :
 
 En plus du catalogue, chaque carte peut avoir **ses propres prefabs**, rangés
 dans son dossier (`prefabs/<pid>/prefab.json`, et `model.glb` pour un modèle
-importé) : un **groupe** de décors du catalogue (« + Créer… » : rectangle
-autour du décor posé) ou un **modèle** .glb / .gltf importé du disque
+importé) : un **groupe** de décors du catalogue ou un **modèle** .glb / .gltf importé du disque
 (« Importer… », copié dans la carte, 8 Mo au plus, collision : un pavé de
 sa boîte englobante, solide, barrière ou aucune). Posés, ce sont des décors
 comme les autres ; ils voyagent avec la carte (Enregistrer, Enregistrer sous,
 copie d'un invité, archive .zip, carte partagée en multijoueur). Détails,
 format et limites de sûreté : `docs/MAP_OBJECTS.md` § 11.
+
+**Créer une prefab (groupe)** :
+
+1. sélectionner le décor posé au sol à grouper (Maj + clic, ou un rectangle ;
+   choisir une pièce prend aussi son contenu) ;
+2. clic droit > **Créer une prefab…** (ou Ctrl+G, le bouton du panneau
+   Propriétés, « + Créer… » de l'inventaire ; sans sélection, « + Créer… »
+   fait glisser un rectangle autour du décor) ;
+3. la boîte donne le **nom**, le **contenu** (nombre et liste des décors), ce
+   qui **n'est pas repris et pourquoi**, le point d'ancrage, et « Remplacer ce
+   décor par la prefab, à la même place » (coché : le décor devient une prefab
+   posée, Ctrl+Z le rend ; décoché : la prefab est mise **en main**) ;
+4. **poser** : la prefab est dans l'inventaire (E), catégorie « Prefabs de la
+   carte » ; la prendre, puis cliquer sur le plan, comme un décor (R :
+   pivoter).
+
+Ce qu'une prefab peut contenir (format 10, `prefab.json` : des « parties »
+de décor du catalogue) : **seulement du décor du catalogue posé au sol**. Sont
+exclus, et listés avec leur raison dans la boîte : les **pièces** (une prefab
+se pose dans une pièce : ni sol, ni murs, ni zone), les **portes, fenêtres et
+passages** (ils relient des pièces ou donnent dehors), les **murs, piliers et
+barrières invisibles** (construction), les **objets de jeu** (armes, atouts,
+boîte, pièges, escaliers… : le jeu gère chacun), les **effets** et les
+**luminaires** (ils ont leur propre zone ou leur lumière), le **décor mural
+ou au plafond** et les **autres prefabs de la carte**. Le point d'ancrage est
+le **centre de l'emprise** : la prefab se pose, s'aimante et pivote autour de
+lui (le format ne garde pas d'autre point).
 
 ### Règles imposées à la pose
 
@@ -421,7 +511,9 @@ raison à côté du curseur (`MapRules`) :
 - **Pièce** : contour simple (les côtés ne se croisent pas), 1,5 m de côté au
   moins, côtés de 10 cm au moins, 128 sommets au plus, x et y positifs ; deux
   pièces peuvent **se toucher, jamais se recouvrir** (sans grille : une bande
-  de recouvrement de moins de 1,5 cm compte comme un contact). Ses murs sont
+  de recouvrement de moins de 1,5 cm compte comme un contact) ; une pièce
+  **tracée par-dessus** d'autres les **découpe**, après confirmation
+  (ci-dessous, « Pièce tracée sur une autre »). Ses murs sont
   générés sur son contour ; le bord commun de deux pièces collées (côtés
   parallèles à moins de 3 cm) devient **un seul mur mitoyen**. Par défaut,
   chaque pièce a sa propre zone.
@@ -452,8 +544,11 @@ raison à côté du curseur (`MapRules`) :
 - **Objets au sol, pilier, escalier, zone de piège** : à l'intérieur d'une
   pièce, sans toucher ses murs, sans chevauchement (les lampes, au plafond,
   peuvent surplomber un objet ; un élément tourné compte par son rectangle
-  englobant). L'escalier monte à l'étage du dessus : il faut un étage
-  au-dessus. Réglage de la carte **Autoriser les chevauchements décor /
+  englobant). L'escalier relie deux étages : départ (pied) sur le sol
+  libre de sa pièce, arrivée sur le plancher libre d'une pièce de l'étage du
+  dessus, rien au-dessus des marches (trémie), ni dans la trémie, ni sur le
+  départ ou l'arrivée d'un autre escalier (docs/MAP_OBJECTS.md § 4,
+  « Plusieurs étages »). Réglage de la carte **Autoriser les chevauchements décor /
   obstacles** (format 9, onglet Propriétés sans rien de choisi) : le décor
   (caisses, barils, prefabs, luminaires) et les piliers peuvent alors se
   recouvrir entre eux ; les objets de jeu jamais (docs/MAP_OBJECTS.md § 10).
@@ -464,6 +559,81 @@ raison à côté du curseur (`MapRules`) :
   dixième de mètre (docs/MAP_OBJECTS.md § 2).
 - **Mur courbe** : 1 m de rayon au moins, ouverture de 5 à 360°, 1 à 64
   segments, tout l'arc dans le terrain.
+
+### Pièce tracée sur une autre (découpe)
+
+Tous les outils de pièce (rectangle, rectangle à 45°, polygone, cercle,
+ellipse, triangle, L) peuvent tracer une pièce **par-dessus** une ou
+plusieurs pièces du même étage : la nouvelle « gratte » leur territoire
+(`MapCarve`, soustraction de polygones `Geometry2D.clip_polygons`).
+
+- **Pendant le tracé** : la partie qui sera retirée de chaque pièce est
+  **hachurée en orange**, avec son nom et la surface retirée sous le curseur
+  (« découpe « Atelier » : −12 m² ») ; une pièce qui sera supprimée est
+  hachurée **en rouge** ; une ouverture qui sera retirée est entourée de rouge.
+  Une découpe impossible (escalier, contour) met le tracé en rouge avec la
+  raison.
+- **Au relâcher** (ou au clic qui ferme le polygone) : boîte **« Découper des
+  pièces »** (français / anglais) qui dit tout ce qui va changer : « La pièce
+  « Atelier » sera découpée (12 m² retirés). », pièce coupée en morceaux,
+  pièce supprimée, ouvertures déplacées ou retirées, objets supprimés,
+  éléments à revoir. **Découper** (Entrée) ou **Annuler** (Échap, croix) :
+  Annuler ne crée rien. Le tracé et les hachures restent affichés tant que la
+  boîte est ouverte.
+- **Découper** : la nouvelle pièce est posée et chaque pièce recouverte perd
+  la partie recouverte. **Une seule étape d'annulation** (Ctrl+Z défait tout)
+  et un seul lot d'opérations pour la session de collaboration.
+
+Choix faits (le format n'a **pas de trou** : une pièce est un contour simple) :
+
+- **Nouvelle pièce entièrement dedans** (l'ancienne ferait un anneau) :
+  l'ancienne est coupée en **deux morceaux** par une ligne de la grille de
+  0,5 m qui traverse la nouvelle pièce ; la ligne choisie laisse la place
+  d'un passage des deux côtés, ne coupe aucun objet et passe au plus près du
+  milieu. Les deux morceaux gardent la **même zone** et sont reliés par un
+  **passage libre** (aussi large que possible, 0,5 m de mur à chaque bout) sur
+  chaque bord commun : la pièce reste d'un seul tenant pour le validateur.
+- **Ancienne pièce coupée en plusieurs morceaux** (la nouvelle la traverse) :
+  **une pièce par morceau**, mêmes réglages (plafond, double hauteur,
+  textures), noms « Atelier », « Atelier (2) »… ; le plus grand morceau garde
+  l'identifiant. Un morceau qui ne touche pas les autres (ou sans place pour
+  un passage) reçoit **sa propre zone**, copie de celle de la pièce (nom du
+  morceau) : la boîte le dit.
+- **Morceau trop petit** (moins de 1,5 m de côté ou 2 m², règles de
+  `MapRules.check_room`) ou **trop mince** (moins de 0,6 m de large en
+  moyenne) : retiré ; plus aucun morceau : la pièce est **supprimée** (pièce
+  avalée), sa zone vide aussi. Un morceau dont le contour serait invalide
+  (côté de moins de 10 cm, plus de 128 sommets) fait **refuser** la découpe
+  (déplacer un peu la nouvelle pièce).
+- **Zone de la nouvelle pièce** : la sienne, comme toute pièce posée (une
+  zone par pièce) ; une porte la relie ensuite aux autres.
+- **Contenu** (objets, décor, effets, luminaires, objets muraux) : il suit sa
+  position ; celui de la partie découpée est désormais **dans la nouvelle
+  pièce** (il bouge avec elle). Celui d'un morceau retiré, hors de toute pièce,
+  est supprimé (compté dans la boîte).
+- **Ouvertures** dont le mur disparaît : **déplacées** sur le bord commun le
+  plus proche (1,6 m au plus) qui relie **les mêmes zones**, sinon **retirées**
+  (listées dans la boîte). Une ouverture dont le mur devient celui de la
+  nouvelle pièce reste où elle est (elle donne alors sur la nouvelle pièce) :
+  la boîte le signale (« « Porte payante 750 » (Atelier ↔ Couloir) donnera
+  désormais sur : Couloir ↔ Réserve »).
+- **Zone de départ** : si la pièce avalée portait la zone de départ, celle-ci
+  devient la zone de la nouvelle pièce (annoncé dans la boîte).
+- **Plafonds de la carte** (256 pièces, 512 ouvertures, 64 zones) : une
+  découpe qui les dépasserait (morceaux, passages, zones propres compris) est
+  refusée.
+- **Escaliers et trémies** : un escalier que la découpe rendrait invalide
+  (pied, arrivée ou trémie) fait **refuser** la découpe, avec l'endroit et la
+  raison. Les autres éléments devenus invalides sont gardés (en rouge) et
+  listés « à revoir ».
+- Déplacer, coller ou pivoter une pièce sur une autre reste **refusé** (seuls
+  les outils de tracé découpent).
+- **Claude (MCP)** : `editor_apply` d'une pièce qui en recouvre d'autres est
+  refusé avec l'explication, sauf avec `"decouper": true` (la pièce passe
+  alors les mêmes contrôles que le tracé : contour simple, dans le terrain,
+  1,5 m de côté ; sinon tout le lot est refusé) : la découpe est
+  faite dans le **même lot** (une annulation) et détaillée dans le résultat
+  (`decoupe`).
 
 ## 4. Pièces, zones, étages
 
@@ -487,10 +657,14 @@ raison à côté du curseur (`MapRules`) :
 - **Étage** (onglet Étages) : hauteur du sol, hauteur sous plafond ; ajouter un
   étage au-dessus, supprimer le dernier s'il est vide ; l'étage du dessous
   s'affiche en transparence (réglable), ses escaliers aussi. Entre deux sols :
-  3,1 m au moins (2,8 m sous plafond + dalle de 0,3 m). Un escalier dessiné
-  sur l'étage du bas **monte dans le sens du glisser** (du pied vers le haut) ;
-  le vide au-dessus des marches est automatique ; son haut doit arriver sur le
-  plancher d'une pièce de l'étage du dessus.
+  3,1 m au moins (2,8 m sous plafond + dalle de 0,3 m). **Escalier qui
+  monte** (↑) : tracé sur l'étage du bas, il monte dans le sens du glisser
+  (du pied vers le haut). **Escalier qui descend** (↓) : tracé depuis l'étage
+  du haut, du haut (où l'on est) vers le bas ; il est enregistré comme un
+  escalier de l'étage du dessous qui monte jusqu'ici. Le vide au-dessus des
+  marches est automatique ; son haut doit arriver sur le plancher d'une pièce
+  de l'étage du dessus. Un escalier se voit (« monte à l'étage n » / « descend à l'étage n ») et
+  se choisit depuis ses deux étages.
 
 ## 5. Vérification (onglet Vérification)
 
@@ -514,8 +688,11 @@ Erreurs (la carte est refusée) :
   du même atout, téléporteur sans arrivée, levier sans piège à moins de 10 m,
   piège sans levier ;
 - passage de 0,5 m (trop étroit pour les zombies et les joueurs) ;
-- escalier sans palier, sens ambigu, trop étroit (1,5 m), trop raide (40°),
-  recouvert par l'étage du dessus ; vide d'étage ouvert sur le vide ;
+- escalier dont le départ ou l'arrivée tombe dans un mur, le vide, une
+  trémie ou un autre escalier (le message dit quoi, où, et à quel étage ;
+  les cases en cause sont montrées), sens ambigu (fichier sans « monte »),
+  trop étroit (1,5 m), trop raide (40°), trémie occupée (escalier, pilier,
+  décor au-dessus des marches) ; vide d'étage ouvert sur le vide ;
 - étages trop rapprochés, plafond trop bas.
 
 Avertissements et indicateurs d'amusement (BO1, jamais bloquants) : boucles
@@ -529,6 +706,61 @@ départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
 
 ## 6. Enregistrer, reprendre, partager
 
+### Enregistrement explicite et récupération
+
+Le dossier de la carte n'est écrit **que** par Fichier > **Enregistrer**
+(Ctrl+S), **Enregistrer sous** (Ctrl+Maj+S) et le premier enregistrement
+d'une nouvelle carte (`MapUnsaved`, `MapEditor.save`). Rien d'autre n'y
+touche : ni les modifications (les siennes, celles des autres participants,
+celles de Claude par MCP, qui marquent seulement la carte modifiée ; il n'y
+a pas d'outil MCP d'enregistrement), ni TESTER, ni la fermeture.
+
+- **Étoile « * »** après le nom de la carte (barre du haut) : modifications
+  non enregistrées. Elle compare le contenu de la carte à celui du dernier
+  enregistrement (empreinte `MapUnsaved.signature`, indépendante de l'ordre
+  des éléments) : annuler (Ctrl+Z) jusqu'à l'état enregistré l'efface ; une
+  archive importée ou la carte ouverte supprimée du disque restent « à
+  enregistrer » jusqu'au prochain Enregistrer.
+- **Confirmation** avant de perdre des modifications non enregistrées :
+  fermer la fenêtre (croix, Alt+F4), Retour au menu principal, Nouvelle carte,
+  Ouvrir (ou Cartes récentes) une autre carte, Importer une archive,
+  Collaboration > Rejoindre (la carte de l'hôte remplacerait la vôtre). Boîte
+  « Modifications non enregistrées » : **Enregistrer** (Entrée), **Quitter
+  sans enregistrer**, **Annuler** (Échap). Si l'enregistrement échoue, on
+  reste ; une carte jamais enregistrée (ou un exemple livré) ouvre
+  Enregistrer sous et l'action n'a pas lieu (enregistrer, puis recommencer).
+  Quitter la session en tant qu'hôte ne perd rien (la carte reste ouverte) :
+  pas de confirmation.
+- **TESTER** n'enregistre pas : la carte telle qu'elle est est écrite dans une
+  copie de travail (`user://maps/_tester/`, jouée sous l'identifiant
+  `perso:_tester`, effacée au retour) ; en solo, la session d'édition (carte,
+  historique d'annulation) est gardée pendant la partie et reprise au retour,
+  étoile comprise (comme TESTER à plusieurs, docs/MAP_COLLAB.md § 5.3).
+- **Copie de récupération** (`user://maps/_recuperation/` : cinq JSON et
+  `meta.json` avec le dossier d'origine, le nom et la date ; jamais dans la
+  carte) : écrite toutes les 60 s s'il y a des modifications non enregistrées
+  nouvelles, et juste avant TESTER. Effacée après un enregistrement réussi,
+  « Quitter sans enregistrer » et toute sortie sans modification en attente.
+  Si elle est encore là au lancement suivant (plantage, fermeture forcée, jeu
+  fermé pendant un TESTER), l'éditeur propose **Récupérer** (Entrée, et aussi
+  Échap ou la croix : rien n'est perdu) ou **Ignorer** (la copie est
+  effacée), avec le nom de la carte et la date de la copie. Récupérée, la
+  carte revient dans son dossier d'origine, modifiée (étoile) : Enregistrer
+  l'y écrit (dossier d'origine repris seulement s'il est une carte du
+  dossier des cartes, `MapUnsaved.source_ok` ; sinon elle revient non
+  enregistrée). Tant que la question est posée, la copie n'est ni écrasée ni
+  effacée ; une copie périmée (annulé jusqu'à l'état enregistré, autre carte
+  ouverte) est effacée.
+- **Enregistrer sous** propose un nom libre (`nouvelle_carte_2`...) et
+  demande « La carte « X » existe déjà. La remplacer ? » avant d'écrire dans
+  le dossier d'une AUTRE carte. L'ancien dossier `_autosave` des versions d'avant est proposé de
+  la même façon.
+- **Collaboration** : seul l'hôte enregistre. Un invité ne peut pas écrire la
+  carte de l'hôte, n'a ni confirmation (la carte n'est pas la sienne) ni
+  copie de récupération ; son étoile suit les enregistrements de l'hôte
+  (message « saved »). Un invité qui quitte la session garde une copie sans
+  dossier, sans étoile (rien à lui à confirmer tant qu'il ne la modifie pas).
+
 - **Enregistrer** (Ctrl+S) : dans le dossier des cartes du joueur,
   `user://maps/<id>/` (sous Windows :
   `%APPDATA%\Godot\app_userdata\Call of Claude Zombie\maps\<id>\`), aussi
@@ -539,23 +771,33 @@ départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
   **Supprimer** (ou la touche Suppr) ; confirmation « Supprimer
   définitivement la carte « X » ? ». Le dossier entier part
   (`EditorMap.delete_map`) ; refusé (et noté dans la console) pour les
-  exemples livrés (bouton grisé), les dossiers internes (`_autosave`...), tout
+  exemples livrés (bouton grisé), les dossiers internes (`_recuperation`,
+  `_tester`, `_autosave`...), tout
   chemin qui n'est pas un dossier de carte directement dans le dossier des
   cartes (`..`, ailleurs sur le disque) et tout dossier contenant un lien
   symbolique. Si c'est la carte ouverte, elle reste à l'écran, non enregistrée
-  et sans dossier (le prochain Enregistrer en redonne un) ; sa sauvegarde
-  automatique est effacée.
+  et sans dossier (le prochain Enregistrer en redonne un) ; sa copie de
+  récupération est effacée (puis réécrite sans dossier d'origine).
 - **Session de collaboration** (docs/MAP_COLLAB.md) : ouvrir ou enregistrer
   la carte est l'affaire de l'**hôte**. Chez un invité, Fichier > Nouvelle,
   Ouvrir, Enregistrer, Enregistrer sous, Exporter / Importer et Cartes
   récentes sont grisés (« Réservé à l'hôte de la session ») et leurs
   raccourcis (Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Maj+S) refusés avec un message dans
-  la barre d'état ; pas de sauvegarde automatique non plus. Tout redevient
+  la barre d'état ; pas de copie de récupération non plus. Tout redevient
   possible dès que l'invité quitte la session.
-- **Sauvegarde automatique** toutes les 60 s et à la fermeture si la carte a
-  changé (`user://maps/_autosave/`) ; au démarrage suivant, l'éditeur propose
-  de reprendre le travail non enregistré. **Cartes récentes** : menu Fichier
-  (`user://maps/_editeur.cfg`).
+- **Cartes récentes** : menu Fichier (`user://maps/_editeur.cfg`).
+- **Choix d'un fichier du disque** (Exporter / Importer une archive, Importer
+  un modèle de prefab) : l'**explorateur du système** s'ouvre (Explorateur
+  Windows, Finder, portail du bureau sous Linux ; `FilePick`,
+  `DisplayServer.file_dialog_show`), avec le filtre d'extension, le dossier
+  Documents au départ et, à l'export, le nom proposé (`<id>.zip`, extension
+  ajoutée si elle manque). Il est asynchrone et rend un chemin absolu, qui
+  repasse par les contrôles habituels ; annulé : rien ne change. La fenêtre
+  de fichiers de Godot ne sert que de repli quand le système n'a pas de
+  dialogue natif (lancement `--headless`, Linux sans portail). Ouvrir et
+  Enregistrer sous restent les fenêtres de l'éditeur : elles listent le
+  dossier des cartes, pas le disque. Tests : `FilePick.native_override` et
+  `FilePick.native_show` simulent l'explorateur, jamais de vraie fenêtre.
 - **Archive .zip** : Fichier > Exporter / Importer ; l'archive contient les cinq
   JSON à la racine (ZIPPacker / ZIPReader). Une archive importée s'enregistre
   comme une nouvelle carte. Elle est contrôlée **avant** toute décompression
@@ -565,7 +807,7 @@ départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
   fichier 2 Mo au plus une fois décompressé (bombe zip refusée) ; sinon elle
   est refusée avec la raison. Les fichiers d'un dossier de carte sont lus
   avec la même limite (`EditorMap.read_text`), le `meta.json` de la
-  sauvegarde automatique avec 256 Ko. Format 10 : l'archive porte aussi les
+  copie de récupération avec 256 Ko. Format 10 : l'archive porte aussi les
   prefabs de la carte (`prefabs/<pid>/prefab.json`, `model.glb`, dans le
   même dossier que les cinq JSON) ; elle peut alors peser 30 Mo (8 Mo par
   modèle, 24 Mo de modèles en tout, 64 Ko par `prefab.json`), les entrées de
@@ -573,9 +815,10 @@ départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
 - **Identifiant de carte** (nom de dossier) : 1 à 48 caractères parmi `a-z`,
   `0-9` et `_` (`EditorMap.valid_id`) ; `EditorMap.map_dir` refuse tout autre
   identifiant (« perso:../x » n'est pas une carte).
-- **Jouer** : ▶ **TESTER** vérifie, enregistre et lance une partie solo sur la
-  carte (`perso:<id>`) ; la fin de la partie ramène dans l'éditeur, sur la même
-  carte. Les cartes jouables de `user://maps` apparaissent aussi dans l'écran
+- **Jouer** : ▶ **TESTER** vérifie et lance une partie solo sur la carte telle
+  qu'elle est, sans l'enregistrer (copie de travail `perso:_tester`) ; la fin
+  de la partie ramène dans l'éditeur, sur la même carte, avec son historique
+  d'annulation. Les cartes jouables de `user://maps` apparaissent aussi dans l'écran
   **SOLO**, sous « CARTES PERSO », et dans le **salon multijoueur** de l'hôte
   (ligne CARTE, « (perso) ») : voir « Cartes perso en multijoueur » ci-dessous.
 - **Contrôle de légitimité** : une carte perso qui vient d'ailleurs (archive
@@ -926,6 +1169,8 @@ celui du jeu aussi.
 | `scripts/editor/map_geom.gd` | `MapGeom` : géométrie 2D (contours, bords communs avec tolérance, cases, rotations). |
 | `scripts/editor/map_shapes.gd`, `map_snap.gd`, `map_transform.gd`, `map_panels_shape.gd` | Formes libres : `MapShapes` (cercle, ellipse, triangle, L, mur courbe), `MapSnap` (grille, grille fine, libre, aimants), `MapTransform` (rotations libres, régénération d'une forme), propriétés des formes et angles. |
 | `scripts/editor/map_rules.gd` | `MapRules` : règles de pose et leurs raisons (FR/EN). |
+| `scripts/editor/map_carve.gd` | `MapCarve` : pièce tracée sur d'autres (§ 3) : découpe prévue (aperçu hachuré, texte de la confirmation), soustraction sans trou, morceaux, passages, ouvertures déplacées ou retirées, refus d'un escalier ; lot de l'agent (`decouper`). |
+| `scripts/editor/map_group.gd`, `map_context_menu.gd` | `MapGroup` : sélection multiple (rectangle) et actions de groupe validées en entier (déplacer, pivoter, dupliquer, copier / coller, supprimer) ; `MapContextMenu` : menu du clic droit. |
 | `scripts/editor/map_catalog.gd`, `map_icons.gd` | Inventaire tiré des bases du jeu, décor (`PREFABS`), luminaires (`LIGHTS`), types admis (`allowed_kinds`…), icônes et aperçus des textures. |
 | `scripts/editor/map_object_list.gd` | `MapObjectList` : l'onglet « Objets sur la carte » (pages de 50, filtres, survol). |
 | `scripts/game/map/editor_prefabs.gd` | `EditorPrefabs` : décor et luminaires construits par le jeu (sans modèle). |
@@ -1053,6 +1298,16 @@ Preuves automatiques :
   copier / coller, poignée ; puis une salle décorée (décor et luminaires de
   l'inventaire, R, refus, couleur, textures), l'onglet « Objets sur la
   carte » (survol, page 2) et la pièce en jeu (TESTER).
+- `tests/test_map_carve.gd` : pièce tracée sur une autre (`MapCarve`) :
+  découpe simple, nouvelle pièce au centre (deux morceaux, même zone,
+  passages), pièce coupée en deux (zone propre), pièce avalée, plusieurs
+  pièces, contenu transféré ou supprimé, porte déplacée puis retirée, refus
+  d'un escalier coupé, éditeur (découpe prévue au tracé, boîte, Annuler sans
+  rien créer, un seul lot, Ctrl+Z / Ctrl+Y), agent (refus sans `decouper`,
+  découpe dans le même lot avec, annulation).
+- `tests/autotest/map_carve_look.gd` (captures, FR et EN) : tracé hachuré,
+  boîte « Découper des pièces », résultat (dessus, avant, droite, 3D),
+  pièce à cheval sur deux pièces (porte retirée) et sa boîte.
 - `tests/test_map_editor_diagonal.gd` : aimantation d'angle (0, 45, 90°,
   angle libre, rectangle à 45°), mur mitoyen en biais unique, porte, fenêtre
   et objets muraux sur un mur en biais acceptés et refusés selon les règles,
@@ -1103,8 +1358,18 @@ Preuves automatiques :
   touche d'avance du jeu, vue joueur posée par Ctrl + double-clic et arrêtée
   par le mur, repère sur la 2D, fenêtre détachée (hors écran, sans focus) et
   refermée, P : plus aucun rendu.
-- `tests/autotest/map_editor_play.gd` : TESTER sur DRAFT ARENA, partie solo sur
-  la carte de l'éditeur, retour dans l'éditeur.
+- `tests/autotest/map_editor_play.gd` : TESTER sur DRAFT ARENA modifiée, partie
+  solo sur la carte de l'éditeur telle qu'elle est, rien d'enregistré, retour
+  dans l'éditeur avec la modification et l'historique (Ctrl+Z : plus d'étoile).
+- `tests/test_map_unsaved.gd` : aucune écriture de la carte sans Enregistrer
+  (modifications, annulations, Claude, minuterie de récupération), étoile
+  exacte avec l'annulation, confirmation à chaque façon de quitter (menu,
+  fermeture, nouvelle, récente, Ouvrir, import, rejoindre) et choix
+  Enregistrer / Quitter sans enregistrer / Annuler (échec, jamais enregistrée),
+  récupération après un « plantage » (Récupérer, Ignorer, Échap, ancien
+  `_autosave`), session gardée pendant TESTER, collaboration hôte / invité.
+- `tests/autotest/map_unsaved_look.gd` (@rendu) : capture de la boîte
+  « Modifications non enregistrées » et de la boîte de récupération.
 - `tests/autotest/draft_arena.gd` : la carte se joue (zombies aux fenêtres,
   portes, débris, escalier, tout accessible à pied).
 - `tests/test_map_share.gd` : paquet canonique et empreinte stable, morceaux

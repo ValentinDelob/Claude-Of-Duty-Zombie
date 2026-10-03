@@ -475,11 +475,11 @@ func test_map_ids_are_slugs_only() -> void:
 	var fa := FileAccess.open(dir.path_join("meta.json"), FileAccess.WRITE)
 	fa.store_string("{\"name\": \"%s\"}" % "x".repeat(300000))
 	fa.close()
-	assert_eq(MapEditor._read_meta(dir), {}, "meta.json de plus de 256 Ko ignoré")
+	assert_eq(MapUnsaved.read_meta(dir), {}, "meta.json de plus de 256 Ko ignoré")
 	fa = FileAccess.open(dir.path_join("meta.json"), FileAccess.WRITE)
 	fa.store_string("{\"name\": \"ok\"}")
 	fa.close()
-	assert_eq(MapEditor._read_meta(dir).get("name"), "ok")
+	assert_eq(MapUnsaved.read_meta(dir).get("name"), "ok")
 
 
 # ------------------------------------------------------------------ catalogue (types admis)

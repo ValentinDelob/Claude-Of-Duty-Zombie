@@ -46,6 +46,12 @@ func clear_edges() -> void:
 	jump = false
 
 
+## Endurance épuisée : le sprint verrouillé au clic de L3 se relâche (BO1 :
+## il faut recliquer pour repartir).
+func release_sprint() -> void:
+	_sprint_latch = false
+
+
 ## Zone morte radiale d'un stick, puis remise à l'échelle (juste après la
 ## zone morte : 0 ; à fond : 1, jamais plus). Pure (tests).
 static func stick_deadzone(v: Vector2, deadzone: float) -> Vector2:

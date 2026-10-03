@@ -85,7 +85,9 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
    `InteractionSystem.srv_interact`, point visé `Interactable.srv_point()` : pour
    une réanimation, la référence du joueur à terre), et toute position de joueur
    lue par le serveur pour autoriser une action (réparation
-   `Barricade.can_repair_from`, réanimation `DownedSystem.in_revive_range` avec
+   `Barricade.can_repair_from`, jugée par `Barricade.srv_use` puis à chaque
+   image, collé à la barrière : l'`in_reach` large de l'InteractionSystem ne
+   suffit pas ; réanimation `DownedSystem.in_revive_range` avec
    la référence du sauveteur ET du joueur à terre, ramassage de bonus
    `PowerupRules.within_pickup`) se juge par rapport à `Player.srv_origin()` :
    le DERNIER état reçu et accepté par `_srv_accept_state` (déjà passé par

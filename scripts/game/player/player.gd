@@ -26,12 +26,20 @@ const JUMP_VELOCITY := 5.0
 const GRAVITY := 16.0
 const EYE_HEIGHT := 1.62
 const CROUCH_EYE_HEIGHT := 1.05
-const DOWNED_EYE_HEIGHT := 0.55
+## À terre (assis au sol, buste renversé) : yeux à la hauteur de la tête du
+## modèle (PlayerModel.DOWN_EYE_Y, selon la taille du personnage).
+const DOWNED_EYE_HEIGHT := PlayerModel.DOWN_EYE_Y
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.2
+## Capsule à terre : un homme assis (tête vers 0,8 m).
+const DOWNED_HEIGHT := 1.0
 const RADIUS := 0.35
 const SPRINT_DURATION := 4.0
 const SPRINT_RECOVERY := 1.6  # secondes de sprint regagnées par seconde de repos... (x/s)
+## Endurance minimale (s) pour (re)lancer un sprint : pas de sprint d'une image.
+const SPRINT_RESTART_MIN := 0.5
+## Passage marche <-> sprint du balancement de la caméra (1/s : ~0,2 s).
+const SPRINT_BLEND_RATE := 5.0
 const PITCH_LIMIT := deg_to_rad(88.0)
 ## Allongé (prone) : touche accroupie maintenue à l'arrêt, ou fin de plongeon.
 const PRONE_SPEED := 1.0
@@ -75,6 +83,13 @@ var sprinting := false
 var aiming := false
 var downed := false
 var stamina := SPRINT_DURATION
+## Endurance épuisée en plein sprint : plus de sprint tant que la touche
+## n'est pas relâchée (BO1). Sans ce verrou, l'endurance regagnée à chaque
+## image relançait le sprint aussitôt : sprint et marche alternaient toutes
+## les deux ou trois images (vitesse, FOV, balancement : tremblement).
+var _sprint_spent := false
+## Part du sprint dans le balancement de la caméra (0 marche, 1 sprint).
+var _sprint_k := 0.0
 var sprint_duration_bonus := 0.0
 var speed_multiplier := 1.0
 ## Ignoré par les zombies (téléportation, cinématique...).
@@ -104,6 +119,8 @@ var _collision: CollisionShape3D
 var _capsule: CapsuleShape3D
 var _eye_height := EYE_HEIGHT
 var _bob_t := 0.0
+## Amplitude courante du balancement de la caméra (m), amortie.
+var _bob_amp := 0.0
 var _step_accum := 0.0
 var _was_on_floor := true
 var _send_accum := 0.0
@@ -259,9 +276,16 @@ func _update_stance(delta: float) -> void:
 		aiming = input.aim and not sprinting
 		var moving_forward := input.move.y > 0.3
 		var want_sprint := input.sprint and moving_forward and not crouching and not prone and not downed and not aiming
-		if want_sprint and stamina > 0.05:
+		if not input.sprint:
+			_sprint_spent = false
+		if want_sprint and not _sprint_spent and (sprinting or stamina >= SPRINT_RESTART_MIN):
 			sprinting = true
 			stamina = maxf(stamina - delta, 0.0)
+			if stamina <= 0.0:
+				# À bout de souffle : fin du sprint franche, retour à la marche.
+				sprinting = false
+				_sprint_spent = true
+				input.release_sprint()
 		else:
 			sprinting = false
 			stamina = minf(stamina + SPRINT_RECOVERY * delta, SPRINT_DURATION + sprint_duration_bonus)
@@ -269,20 +293,26 @@ func _update_stance(delta: float) -> void:
 	var target_h := STAND_HEIGHT
 	if prone:
 		target_h = PRONE_HEIGHT
-	elif crouching or downed or diving:
+	elif downed:
+		target_h = DOWNED_HEIGHT
+	elif crouching or diving:
 		target_h = CROUCH_HEIGHT
 	_capsule.height = move_toward(_capsule.height, target_h, delta * 6.0)
 	_collision.position.y = _capsule.height * 0.5
 	var target_eye := EYE_HEIGHT
+	var eye_rate := 16.0 if diving else 12.0
 	if downed:
-		target_eye = DOWNED_EYE_HEIGHT
+		# Hauteur de la tête du modèle assis (vue par les autres), atteinte
+		# au rythme de la chute du modèle.
+		target_eye = downed_eye()
+		eye_rate = 5.0
 	elif diving:
 		target_eye = DIVE_EYE_HEIGHT
 	elif prone:
 		target_eye = PRONE_EYE_HEIGHT
 	elif crouching:
 		target_eye = CROUCH_EYE_HEIGHT
-	_eye_height = lerpf(_eye_height, target_eye, 1.0 - exp(-delta * (16.0 if diving else 12.0)))
+	_eye_height = lerpf(_eye_height, target_eye, 1.0 - exp(-delta * eye_rate))
 
 
 ## Allongé : on s'y met en maintenant la touche accroupie à l'arrêt (BO1) ;
@@ -420,20 +450,22 @@ func _move(delta: float) -> void:
 
 func _update_camera_effects(delta: float) -> void:
 	var horiz_speed := Vector2(velocity.x, velocity.z).length()
-	var bob_offset := Vector3.ZERO
+	# Rythme et amplitude passent en douceur de la marche au sprint (et
+	# retour) : pas de saut de la caméra à la fin du sprint.
+	_sprint_k = move_toward(_sprint_k, 1.0 if sprinting else 0.0, delta * SPRINT_BLEND_RATE)
+	var amp_target := 0.0
 	if is_on_floor() and horiz_speed > 0.5:
-		var freq := 1.9 if not sprinting else 2.6
+		var freq := lerpf(1.9, 2.6, _sprint_k)
 		_bob_t += delta * freq * TAU * clampf(horiz_speed / WALK_SPEED, 0.5, 1.6) * 0.5
-		var amp := 0.035 if not aiming else 0.008
-		if sprinting:
-			amp = 0.06
-		bob_offset = Vector3(cos(_bob_t) * amp * 0.6, absf(sin(_bob_t)) * amp, 0.0)
+		amp_target = lerpf(0.035 if not aiming else 0.008, 0.06, _sprint_k)
 		_step_accum += horiz_speed * delta
 		if _step_accum > (2.2 if not sprinting else 2.7):
 			_step_accum = 0.0
 			footstep.emit()
-	else:
-		_bob_t = lerpf(_bob_t, 0.0, delta * 4.0)
+	# Amplitude amortie (départ, arrêt, saut, visée) : la caméra ne saute
+	# jamais d'une position du balancement au repos ou l'inverse.
+	_bob_amp = lerpf(_bob_amp, amp_target, 1.0 - exp(-delta * 12.0))
+	var bob_offset := Vector3(cos(_bob_t) * _bob_amp * 0.6, absf(sin(_bob_t)) * _bob_amp, 0.0)
 	head.position = Vector3(bob_offset.x, _eye_height + bob_offset.y, 0.0)
 	_flinch = _flinch.lerp(Vector2.ZERO, 1.0 - exp(-delta * 9.0))
 	var sway := weapons.aim_offset() if weapons else Vector2.ZERO
@@ -592,6 +624,55 @@ static func origin_reference(local: bool, accepted: Vector3, shown: Vector3) -> 
 	return shown if local or accepted == Vector3.INF else accepted
 
 
+## Au-delà (m/s) entre deux états acceptés : saut voulu (téléporteur, test),
+## pas une course ; la vitesse estimée retombe à 0.
+const NET_SPEED_WARP := 12.0
+## Sans nouvel état depuis ce délai (s), le joueur est immobile : il n'envoie
+## plus rien quand il ne bouge pas (_send_state), sa référence est exacte.
+const NET_SPEED_STALE := 0.3
+## Serveur : vitesse horizontale entre les deux derniers états acceptés.
+var _srv_speed := 0.0
+
+
+## Règle pure : vitesse horizontale (m/s) de `from` à `to` en `dt` s ; 0 pour
+## un saut (NET_SPEED_WARP) ou un intervalle nul.
+static func move_speed(from: Vector3, to: Vector3, dt: float) -> float:
+	if dt <= 0.001:
+		return 0.0
+	var v := Vector2(to.x - from.x, to.z - from.z).length() / dt
+	return 0.0 if v > NET_SPEED_WARP else v
+
+
+## Règle pure : retard probable (m) de la référence du serveur sur la vraie
+## position d'un joueur à `speed` m/s, `rtt` s de latence aller-retour : un
+## intervalle d'envoi plus le trajet, borné à `cap`.
+static func lag_slack(speed: float, rtt: float, cap: float) -> float:
+	return clampf(speed * (rtt + 1.0 / NET_SEND_RATE), 0.0, cap)
+
+
+## Serveur : marge (m) à accorder aux contrôles de portée serrés (réparation
+## de barricade) pour ce joueur : 0 pour l'hôte ou un joueur immobile.
+func srv_lag_slack(cap: float) -> float:
+	if is_local or _srv_ok_pos == Vector3.INF:
+		return 0.0
+	if Time.get_ticks_usec() / 1000000.0 - _srv_ok_t > NET_SPEED_STALE:
+		return 0.0
+	return lag_slack(_srv_speed, _srv_rtt(), cap)
+
+
+## Serveur : latence aller-retour ENet de ce joueur (s, bornée à 0,5).
+func _srv_rtt() -> float:
+	var mp: ENetMultiplayerPeer = null
+	if is_inside_tree():
+		mp = multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	if mp == null:
+		return 0.1
+	var pp := mp.get_peer(peer_id)
+	if pp == null:
+		return 0.1
+	return clampf(pp.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME) / 1000.0, 0.0, 0.5)
+
+
 ## Serveur : yeux du joueur à la position de référence (srv_origin).
 func srv_eye() -> Vector3:
 	return srv_origin() + (eye_position() - global_position)
@@ -603,6 +684,7 @@ func srv_eye() -> Vector3:
 func _srv_accept_state(pos: Vector3, t: float) -> bool:
 	if Autotest.active or _srv_ok_pos == Vector3.INF or t < _srv_grace_until \
 			or plausible_move(_srv_ok_pos, pos, t - _srv_ok_t):
+		_srv_speed = 0.0 if _srv_ok_pos == Vector3.INF else move_speed(_srv_ok_pos, pos, t - _srv_ok_t)
 		_srv_ok_pos = pos
 		_srv_ok_t = t
 		return true
@@ -657,7 +739,9 @@ func _apply_remote(pos: Vector3, r_yaw: float, r_pitch: float, flags: int) -> vo
 	if was_diving and not diving:
 		Audio.play_3d("dive_land", pos, -4.0, 0.05, 6)
 	head.position.y = CROUCH_EYE_HEIGHT if crouching else EYE_HEIGHT
-	if prone:
+	if downed:
+		head.position.y = downed_eye()
+	elif prone:
 		head.position.y = PRONE_EYE_HEIGHT
 	elif diving:
 		head.position.y = DIVE_EYE_HEIGHT
@@ -690,6 +774,12 @@ func add_flinch(kick: Vector2) -> void:
 	_flinch += kick
 
 
+## Hauteur des yeux à terre : celle de la tête du modèle assis (selon le
+## personnage), pour que la vue du joueur corresponde à ce que voient les autres.
+func downed_eye() -> float:
+	return visual.downed_eye_height() if visual else DOWNED_EYE_HEIGHT
+
+
 ## Hauteur des yeux debout (réapparition après la chute de la mort).
 func reset_eye_height() -> void:
 	_eye_height = EYE_HEIGHT
@@ -703,8 +793,15 @@ func clear_snapshots() -> void:
 
 ## Mort du joueur (toutes les machines) : plus de contrôle, caméra au sol.
 func set_dead(is_dead: bool) -> void:
+	var was_dead := dead
+	# Lu par PlayerModel.animate (pose couchée sur le dos des autres joueurs).
+	dead = is_dead
 	input_enabled = not is_dead
 	untargetable = is_dead
+	if was_dead and not is_dead and visual:
+		# Réapparition : debout tout de suite au point d'apparition, sans se
+		# relever depuis la pose « mort » sous les yeux des autres.
+		visual.reset_pose()
 	if is_dead:
 		input = PlayerInput.new()
 		velocity = Vector3.ZERO
@@ -713,15 +810,11 @@ func set_dead(is_dead: bool) -> void:
 		tw.tween_property(camera, "rotation:z", 0.9, 0.9)
 		if weapons:
 			weapons.view.visible = false
-		if not is_local:
-			visual.rotation.x = -PI * 0.5
-			visual.position.y = 0.3
+		# Le modèle se couche sur le dos de lui-même (PlayerModel.animate).
 	else:
 		camera.rotation = Vector3.ZERO
 		if weapons:
 			weapons.view.visible = true
-		visual.rotation.x = 0.0
-		visual.position.y = 0.0
 
 
 var _down_marker: Label3D

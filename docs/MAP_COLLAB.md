@@ -146,7 +146,8 @@ L'hôte de la session appuie sur TESTER : tous les participants jouent la carte
 ensemble, puis reviennent dans l'éditeur, **dans la même session** (la
 connexion entre éditeurs n'est jamais coupée).
 
-1. Hôte : vérifie et enregistre la carte (comme en solo), ouvre une partie
+1. Hôte : vérifie la carte et l'écrit dans une copie de travail, sans
+   l'enregistrer (comme en solo, `user://maps/_tester/`), ouvre une partie
    réseau du jeu (`Net.host`) sur le **même numéro de port, en UDP** que la
    session (7790 par défaut ; s'il est pris, les 9 suivants), annonce la
    carte (`Net.set_lobby_map` : paquet `MapShare` envoyé et vérifié chez
@@ -195,7 +196,7 @@ L'éditeur peut aussi pousser `{event:"change"|"selection"|"peers", ...}`.
 | `get_map` | — | snapshot complet |
 | `get_selection` | — | `{ids, elements, floor, cursor}` (curseur souris en mètres) |
 | `get_elements` | `ids` | `{elements: {id: {coll, el, z_min, z_max, z_monde, hauteur_pose?, glissement_vertical}}, absents}` (hauteurs en m) |
-| `apply` | `label`, `ops`, `animate` (défaut true) | `{cid, ids:{"$1":"p7",...}, invalid:{id:raison}}` |
+| `apply` | `label`, `ops`, `animate` (défaut true), `decouper` (défaut false) | `{cid, ids:{"$1":"p7",...}, invalid:{id:raison}, decoupe?}` |
 | `undo` | — | annule le dernier changement de Claude encore actif |
 | `validate` | — | rapport `MapValidator` (texte + liste des problèmes) |
 | `screenshot` | `floor?`, `ids?` (cadrer sur ces éléments), `view?` (`dessus` par défaut, `avant`, `arriere`, `gauche`, `droite`, `dessous`), `coupe?` [p0, p1] | `{png_base64, width, height, bounds:[x0,y0,x1,y1]}` ; élévation : `{…, view, axe_horizontal, bounds_h, bounds_z, coupe?}` |
@@ -230,7 +231,10 @@ session », `MapEditor.update_file_menu`, `refuse_guest`), raccourcis compris.
 Côté hôte, un invité n'envoie que des `change` (tout autre message, `map` ou
 `saved` compris, le déconnecte) et l'identifiant de la carte (nom de son
 dossier) d'un `carte` venu d'un invité reste celui de l'hôte
-(`MapCollab.host_only_guard`). Sauvegarde automatique : hôte seulement.
+(`MapCollab.host_only_guard`). Copie de récupération : hôte seulement ; les
+changements des invités et de Claude marquent la carte de l'hôte modifiée
+(étoile) sans l'enregistrer ; l'hôte confirme avant de la perdre, jamais
+l'invité (docs/MAP_AUTHORING.md § 6).
 
 ## 8. Sécurité
 
@@ -318,7 +322,16 @@ restent les siennes.
   `can_undo`.
 - `apply` : `{cid, ids, invalid}` ; `cid` vide si aucun élément n'a été
   admis. `invalid` liste les éléments refusés (non appliqués) ET ceux posés
-  mais mal placés (règles de pose de l'éditeur, dessinés en rouge).
+  mais mal placés (règles de pose de l'éditeur, dessinés en rouge). Une pièce
+  du lot (`put` ou `add`) qui recouvre une pièce du même étage fait refuser
+  le lot entier (`error` qui explique), sauf avec `decouper: true` : les
+  pièces recouvertes sont découpées dans le MÊME lot (une annulation ;
+  `MapCarve.carve_ops`, docs/MAP_AUTHORING.md § 3, « Pièce tracée sur une
+  autre ») et `decoupe` détaille chaque découpe (`decoupees` : id, nom,
+  `retire_m2`, `supprimee`, `morceaux`, `zone_propre`, `passages` ;
+  `ouvertures_deplacees`, `ouvertures_retirees`, `ouvertures_reliees`,
+  `zone_depart_deplacee`, `objets_supprimes`,
+  `a_revoir`, `texte`).
 - `undo` : `{cid, undone, label, skipped, conflict}` (ou `{queued: true}`
   chez un invité en attente d'écho).
 - `validate` : `{ok, errors, warnings, text, problems: [{level, text, floor,
@@ -340,7 +353,7 @@ restent les siennes.
 - Un changement reçu pendant un glissement est aussi appliqué à la copie du
   glissement (`MapCanvas.drag.snap`), pour ne pas l'effacer au relâchement.
 - Invité : ni Ouvrir ni Enregistrer (§ 7, réservés à l'hôte) ; pas de
-  sauvegarde automatique ; TESTER réservé à
+  copie de récupération ni confirmation de sortie ; TESTER réservé à
   l'hôte (l'invité rejoint sa partie tout seul). Hôte : TESTER lance la
   partie avec tous les participants et garde la session ouverte (§ 5.3).
 

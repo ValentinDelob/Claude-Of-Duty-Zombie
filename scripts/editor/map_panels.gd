@@ -281,6 +281,9 @@ func _surface_option(box: Container, label: String, target: Dictionary, key: Str
 func _fill_props() -> void:
 	_props_for = ed.selected
 	_clear(_props)
+	if ed.group.size() >= 2:
+		_group_props()
+		return
 	var e := ed.doc.find(ed.selected)
 	if e.is_empty():
 		_map_props()
@@ -300,6 +303,72 @@ func _fill_props() -> void:
 	if MapTransform.can_rotate(e):
 		_button(h, Lang.t("Pivoter (R)", "Rotate (R)"), ed.rotate_selected)
 	_button(h, Lang.t("Supprimer (Suppr)", "Delete (Del)"), func(): ed.delete_element(String(e.id)))
+
+
+## Sélection multiple (MapGroup) : « N éléments sélectionnés », ce qu'ils
+## sont, l'étage et la rotation quand ils sont communs, les éléments
+## invalides, les actions de groupe et la liste (un clic : cet élément seul).
+func _group_props() -> void:
+	var ids: Array = ed.group
+	_title(_props, Lang.t("%d éléments sélectionnés", "%d elements selected") % ids.size())
+	var kinds := {}
+	var order := []
+	var floors := {}
+	var rots := {}
+	var bad := []
+	var els := []
+	for id in ids:
+		var e := ed.doc.find(String(id))
+		if e.is_empty():
+			continue
+		els.append(e)
+		var nm := Lang.t("pièce(s)", "room(s)") if e.has("contour") else MapCatalog.name_of(MapCatalog.item_for(e))
+		if not kinds.has(nm):
+			order.append(nm)
+		kinds[nm] = int(kinds.get(nm, 0)) + 1
+		floors[int(e.get("etage", 0))] = true
+		rots[MapTransform.angle_of(e)] = true
+		if ed.invalid.has(String(id)):
+			bad.append(e)
+	_note(_props, ", ".join(order.map(func(nm): return "%d × %s" % [kinds[nm], nm])))
+	# Champs communs (lecture seule) : seulement quand tous ont la même valeur.
+	if floors.size() == 1:
+		_note(_props, Lang.t("Étage : %d (commun)", "Floor: %d (common)") % int(floors.keys()[0]))
+	else:
+		_note(_props, Lang.t("Étages : %s", "Floors: %s") % ", ".join(floors.keys().map(func(k): return str(k))))
+	if rots.size() == 1:
+		_note(_props, Lang.t("Rotation : %d° (commune)", "Rotation: %d° (common)") % int(rots.keys()[0]))
+	var bb := MapGroup.bounds(ed.doc, ids)
+	_note(_props, Lang.t("Encombrement : %s × %s m", "Extent: %s × %s m") % [_m(bb.size.x), _m(bb.size.y)])
+	for e in bad:
+		var l := _note(_props, "⚠ %s : %s" % [ed._label(e), String(ed.invalid[String(e.id)])])
+		l.add_theme_color_override("font_color", Color(1, 0.5, 0.4))
+	var h := HFlowContainer.new()
+	_props.add_child(h)
+	_button(h, Lang.t("Créer une prefab… (Ctrl+G)", "Create a prefab… (Ctrl+G)"), ed.create_prefab_from_selection)
+	_button(h, Lang.t("Dupliquer (Ctrl+D)", "Duplicate (Ctrl+D)"), ed.duplicate_selection)
+	_button(h, Lang.t("Pivoter (R)", "Rotate (R)"), ed.rotate_selection)
+	_button(h, Lang.t("Copier (Ctrl+C)", "Copy (Ctrl+C)"), ed.copy_selected)
+	_button(h, Lang.t("Couper (Ctrl+X)", "Cut (Ctrl+X)"), ed.cut_selected)
+	_button(h, Lang.t("Supprimer (Suppr)", "Delete (Del)"), ed.delete_selection)
+	_button(h, Lang.t("Désélectionner (Échap)", "Deselect (Esc)"), func(): ed.select(""))
+	_note(_props, Lang.t("Glisser un des éléments sur le plan déplace tout le groupe ; flèches : d'un pas ; Maj + clic : ajouter / retirer.",
+		"Drag one of the elements on the plan to move the whole group; arrow keys: one step; Shift + click: add / remove."))
+	_title(_props, Lang.t("Éléments", "Elements"))
+	var shown := 0
+	for e in els:
+		if shown >= 30:
+			_note(_props, Lang.t("… et %d autre(s)", "… and %d more") % (els.size() - shown))
+			break
+		var eid := String(e.id)
+		var b := Button.new()
+		b.flat = true
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.text = "%s  (%s)" % [ed._label(e), eid]
+		b.tooltip_text = Lang.t("Choisir cet élément seul", "Pick this element alone")
+		b.pressed.connect(func(): ed.focus_element(eid))
+		_props.add_child(b)
+		shown += 1
 
 
 func _map_props() -> void:
@@ -463,6 +532,17 @@ func _object_props(o: Dictionary) -> void:
 				ed.push_undo()
 				o["monte"] = dirs[i]
 				ed.changed())
+			# « Monte vers » qui contredit la forme : le jeu prend le seul sens
+			# possible (MapRules.pick_stair_dir) ; on propose de l'écrire.
+			var eff := String(MapRules.check_existing(ed.doc, o).get("monte", o.get("monte", "n")))
+			if eff != String(o.get("monte", "n")) and DIR_NAMES.has(eff):
+				var en := Lang.t(DIR_NAMES[eff][0], DIR_NAMES[eff][1])
+				_note(_props, Lang.t("« Monte vers » ne correspond pas à la forme de l'escalier : le jeu le fait monter vers « %s » (seul sens où le départ et l'arrivée sont libres).",
+					"\"Goes up to\" does not match the shape of the stairs: the game makes them go up to \"%s\" (the only way with a clear start and arrival).") % en)
+				_button(_props, Lang.t("Corriger : monte vers « %s »", "Fix: goes up to \"%s\"") % en, func():
+					ed.push_undo()
+					o["monte"] = eff
+					ed.changed())
 			_note(_props, Lang.t("Relie l'étage %d à l'étage %d. Le haut arrive sur le plancher d'une pièce de l'étage du dessus ; le vide au-dessus des marches est automatique.",
 				"Links floor %d to floor %d. The top lands on a room floor of the floor above; the opening above the steps is automatic.") % [int(o.etage), int(o.etage) + 1])
 		"prefab":

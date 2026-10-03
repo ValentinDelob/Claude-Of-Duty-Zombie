@@ -631,10 +631,19 @@ static func _build() -> void:
 		"hint_en": "Drag from the centre to the first end (90° clockwise arc); wheel or + / -: segments; keyboard: radius, Tab, opening"})
 	_add({"id": "pilier", "cat": "construction", "fr": "Pilier / obstacle", "en": "Pillar / obstacle", "tool": "rect",
 		"color": Color(0.45, 0.42, 0.4), "make": {"type": "pilier"}, "hint_fr": "Glisser un rectangle dans une pièce", "hint_en": "Drag a rectangle inside a room"})
-	_add({"id": "escalier", "cat": "construction", "fr": "Escalier", "en": "Stairs", "tool": "rect",
+	# Deux escaliers dans l'inventaire (flèche ↑ / ↓) : celui qui monte de
+	# l'étage courant, celui qui y descend de l'étage du dessous. Un seul objet
+	# « escalier » dans la carte : celui qui descend est enregistré comme un
+	# escalier de l'étage du dessous qui monte jusqu'ici (« descend » : outil
+	# seulement, MapCanvas._creation, MapRules.stair_dir).
+	_add({"id": "escalier", "cat": "construction", "fr": "Escalier qui monte", "en": "Stairs going up", "tool": "rect",
 		"color": Color(0.8, 0.55, 0.9), "make": {"type": "escalier", "monte": "n"},
-		"hint_fr": "Glisser du bas vers le haut de l'escalier (monte vers l'étage du dessus) ; V : type (droit, palier, en L, en U, large, service, colimaçon, rampe)",
-		"hint_en": "Drag from the bottom to the top of the stairs (goes up one floor); V: type (straight, landing, L, U, wide, service, spiral, ramp)"})
+		"hint_fr": "Glisser du bas (ici) vers le haut de l'escalier : il monte à l'étage du dessus, son arrivée sur le plancher d'une pièce de cet étage ; V : type (droit, palier, en L, en U, large, service, colimaçon, rampe)",
+		"hint_en": "Drag from the bottom (here) to the top of the stairs: they go up to the floor above, arriving on a room floor there; V: type (straight, landing, L, U, wide, service, spiral, ramp)"})
+	_add({"id": "escalier_bas", "cat": "construction", "fr": "Escalier qui descend", "en": "Stairs going down", "tool": "rect",
+		"color": Color(0.55, 0.7, 0.98), "make": {"type": "escalier", "monte": "n"}, "descend": true,
+		"hint_fr": "Glisser du haut (ici) vers le bas de l'escalier : il descend à l'étage du dessous, dans une pièce de cet étage ; V : type",
+		"hint_en": "Drag from the top (here) to the bottom of the stairs: they go down to the floor below, into a room there; V: type"})
 	# Barrière invisible (« clip » de BO1) : bloque joueurs et zombies, les
 	# balles et les grenades passent ; invisible en jeu (CollisionBox).
 	# Format 9 : tracée en polygone, posée n'importe où (à cheval sur un mur,

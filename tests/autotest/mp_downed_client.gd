@@ -18,6 +18,9 @@ func run() -> void:
 	await until(func(): return GameState.state == GameState.State.PLAYER_DOWN and game.hud._downed._title.text == Lang.t("À TERRE", "DOWNED"), 2.0, "écran À TERRE")
 	at.check(GameState.state == GameState.State.PLAYER_DOWN, "état PLAYER_DOWN")
 	at.check(game.hud._downed._title.text == Lang.t("À TERRE", "DOWNED"), "HUD : À TERRE")
+	# Caméra au ras du sol : hauteur de la tête du modèle assis vu par l'hôte.
+	await until(func(): return absf(p.head.position.y - p.downed_eye()) < 0.03, 2.0, "caméra à terre")
+	at.check(absf(p.head.position.y - p.downed_eye()) < 0.03, "caméra à terre à %.2f m (tête assise à %.2f m)" % [p.head.position.y, p.downed_eye()])
 	var saw_bar := [false]
 	var ok: bool = await until(func():
 		if game.hud._downed._revive.visible and game.hud._downed._revive.progress > 0.0:

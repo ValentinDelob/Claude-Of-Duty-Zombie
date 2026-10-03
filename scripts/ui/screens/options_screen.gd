@@ -267,9 +267,11 @@ func _page_controls() -> void:
 	page.add_child(MenuBindRow.make_header())
 	for action in Settings.REBINDABLE:
 		var br := MenuBindRow.make(action, action_name(action))
+		br.action_names = action_name
 		br.rebind_requested.connect(_on_rebind_requested)
 		br.clear_requested.connect(_on_clear_requested)
-		br.focus_entered.connect(func(): menu.set_hint(bind_hint(action)))
+		br.focus_entered.connect(func(): menu.set_hint(bind_hint(action, br.shared_note(br.slot))))
+		br.slot_changed.connect(func(r: MenuBindRow): menu.set_hint(bind_hint(action, r.shared_note(r.slot))))
 		bind_rows[action] = br
 		page.add_child(br)
 		_focusables.append(br)
@@ -434,7 +436,11 @@ func capturing() -> bool:
 
 
 ## Aide d'une ligne de commande (noms des boutons de la manette courante).
-func bind_hint(action: String) -> String:
+## `shared` : phrase de la case choisie si sa commande sert aussi à d'autres
+## actions (MenuBindRow.shared_note), qui passe alors avant l'aide.
+func bind_hint(action: String, shared := "") -> String:
+	if shared != "":
+		return shared
 	var style := Settings.pad_style()
 	var a := PadNames.button_label(JOY_BUTTON_A, style)
 	var x := PadNames.button_label(JOY_BUTTON_X, style)
@@ -530,7 +536,9 @@ func _finish_capture(code: String) -> void:
 	var row := _capture
 	var slot := _capture_slot
 	_end_capture()
-	var taken := Settings.bind(row.action, code, MenuBindRow.slot_index(slot))
+	# Commande déjà utilisée ailleurs : partagée (rien n'est retiré), les
+	# lignes qui l'ont aussi s'éclairent et l'aide le dit.
+	var others := Settings.bind(row.action, code, MenuBindRow.slot_index(slot))
 	Settings.save_settings()
 	Audio.play_ui(MenuStyle.SND_SELECT, MenuStyle.VOL_SELECT)
 	row.flash()
@@ -538,11 +546,15 @@ func _finish_capture(code: String) -> void:
 	@warning_ignore("static_called_on_instance")
 	var key := Settings.code_label(code, Settings.pad_style())
 	var hint := Lang.t("%s : %s." % [row.label_text, key], "%s: %s." % [row.label_text, key])
-	if taken != "":
-		if bind_rows.has(taken):
-			bind_rows[taken].flash()
-		hint = Lang.t("« %s » affectée à %s et retirée de %s." % [key, row.label_text, action_name(taken)],
-				"\"%s\" bound to %s and removed from %s." % [key, row.label_text, action_name(taken)])
+	if not others.is_empty():
+		var names := PackedStringArray()
+		for a in others:
+			names.append(action_name(a))
+			if bind_rows.has(a):
+				bind_rows[a].flash()
+		var list := ", ".join(names)
+		hint = Lang.t("« %s » affectée à %s, et toujours à %s : un même appui déclenche chacune. Pour la retirer, effacez-la sur l'autre ligne." % [key, row.label_text, list],
+				"\"%s\" bound to %s, and still to %s: one press triggers each. To remove it, clear it on the other row." % [key, row.label_text, list])
 	# Molette haut / bas sur une autre action : ce sens ne change plus d'arme.
 	@warning_ignore("static_called_on_instance")
 	if row.action != "switch_weapon" and (code == Settings.mouse_code(MOUSE_BUTTON_WHEEL_UP)

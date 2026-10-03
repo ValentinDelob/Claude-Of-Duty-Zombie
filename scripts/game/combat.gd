@@ -61,7 +61,7 @@ var session: Session
 ## Cadence de tir : seau de jetons au débit et à la rafale de l'arme en main
 ## (_validate_fire).
 var _fire_limit := NetGuard.Limiter.new(0.0, FIRE_BURST_TOKENS)
-var _reload_end: Dictionary = {}    # pid -> [slot, end_time]
+var _reload_end: Dictionary = {}    # pid -> [slot, end_time, start_time, durée]
 var _last_hurt: Dictionary = {}     # pid -> sec
 var _melee_ready: Dictionary = {}   # pid -> sec
 ## Resynchronisations après un tir refusé (4 par seconde au plus et par joueur).
@@ -390,7 +390,9 @@ func damage_zombie(zid: int, dmg: int, pid: int, headshot: bool, dir: Vector3, k
 	if killed and fling != Vector3.ZERO:
 		game.zombies.kill_flung(zid, fling)
 	elif killed:
-		game.zombies.kill(zid, headshot, dir, kind == HitKind.SPLASH or kind == HitKind.TRAP)
+		# Force du coup (ragdoll) dans la longueur de `dir` : même chute partout.
+		var impulse := ZombieRagdoll.kill_impulse(kind, _gib_weapon, headshot, dir, randf_range(-1.0, 1.0))
+		game.zombies.kill(zid, headshot, impulse, kind == HitKind.SPLASH or kind == HitKind.TRAP)
 	else:
 		NetCodec.append_zombie_hit(_fx_buf, zid, headshot)
 	zombie_damaged.emit(pid, zid, dmg, killed, headshot, kind)
@@ -502,7 +504,7 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 	if not origin_ok(ref, origin, MAX_ORIGIN_ERROR + 1.7):
 		return
 	_melee_ready[pid] = t + WeaponDB.MELEE_COOLDOWN * 0.8
-	_reload_end.erase(pid)  # le couteau interrompt le rechargement (BO1)
+	cancel_reload(pid, true)  # le couteau interrompt le rechargement (BO1)
 	VoxSystem.say(pid, "exert_melee", 0.3)
 	dir = Vector3(dir.x, 0.0, dir.z).normalized()
 	# Après une fente, le client frappe depuis sa nouvelle position (`origin`,
@@ -565,18 +567,23 @@ func _cl_melee_fx(pos: Vector3) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func srv_reload(slot: int) -> void:
-	# Limiteur en dernier : une demande sans effet ne consomme pas de jeton.
+	# Limiteur avant les refus signalés au client (une demande refusée lui
+	# renvoie un message : pas d'amplification d'une inondation).
 	var pid := NetGuard.server_sender(self)
 	if pid == NetGuard.NO_SENDER:
 		return
 	var pd := session.get_data(pid)
-	if pd == null or slot != pd.slot or _reload_end.has(pid) or not _action_limit.allow(pid):
+	if pd == null or _reload_end.has(pid) or not _action_limit.allow(pid):
 		return
 	var w: Dictionary = pd.current_weapon()
-	var s := WeaponDB.stats(w.id, w.pap)
-	if w.mag >= s.mag or w.reserve <= 0:
+	if slot != pd.slot or w.is_empty() or w.mag >= WeaponDB.stats(w.id, w.pap).mag or w.reserve <= 0:
+		# Refusé (arme changée ou chargeur déjà plein ici : achat de munitions
+		# croisé...) : le client arrête le rechargement qu'il a prédit.
+		_notify_reload_cancelled(pid)
 		return
-	_reload_end[pid] = [slot, GameClock.now() + reload_time(pid, w) * RELOAD_LENIENCY]
+	var t := GameClock.now()
+	var dur := reload_time(pid, w)
+	_reload_end[pid] = [slot, t + dur * RELOAD_LENIENCY, t, dur]
 	_cl_reload_fx.rpc(pid)
 	if w.mag == 0:
 		VoxSystem.say(pid, "reload", 0.2)
@@ -607,6 +614,9 @@ func srv_switch(slot: int) -> void:
 	var pd := session.get_data(pid)
 	if pd == null or slot < 0 or slot >= pd.weapons.size() or slot == pd.slot or not _action_limit.allow(pid):
 		return
+	# Changer d'arme annule le rechargement (BO1) : rien n'est remis dans le
+	# chargeur, sauf les cartouches déjà poussées (fusil à pompe).
+	_keep_loaded_shells(pid, _reload_end.get(pid, []))
 	_reload_end.erase(pid)
 	pd.slot = slot
 	session.sync_inventory(pid)
@@ -622,8 +632,58 @@ func _cl_reload_fx(pid: int) -> void:
 
 
 ## Serveur : annule un rechargement en cours (changement d'arme, achat...).
-func cancel_reload(pid: int) -> void:
+## `keep_shells` : interruption par le joueur sur la même arme (couteau,
+## grenade) : les cartouches déjà poussées une à une restent, comme côté
+## client (WeaponController.abort_reload), et l'inventaire est resynchronisé
+## (même sans cartouche : la prédiction du client, à quelques ms près, est
+## corrigée).
+func cancel_reload(pid: int, keep_shells := false) -> void:
+	var r: Array = _reload_end.get(pid, [])
 	_reload_end.erase(pid)
+	if keep_shells and not r.is_empty():
+		_keep_loaded_shells(pid, r)
+		session.sync_inventory(pid)
+	elif not keep_shells and not r.is_empty():
+		# Annulation décidée par le serveur (achat de munitions, mise à terre,
+		# bonus...) sans forcément changer d'arme : le client, qui prédit son
+		# rechargement, doit l'arrêter aussi, sinon il remplirait son chargeur
+		# à l'échéance (chargeur plein affiché, tirs refusés ici).
+		_notify_reload_cancelled(pid)
+
+
+## Serveur : prévient le joueur `pid` que son rechargement n'a pas (ou plus)
+## lieu ici (WeaponController.server_cancelled_reload).
+func _notify_reload_cancelled(pid: int) -> void:
+	if not is_inside_tree():
+		return
+	if pid == multiplayer.get_unique_id():
+		_cl_reload_cancelled()
+	else:
+		_cl_reload_cancelled.rpc_id(pid)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _cl_reload_cancelled() -> void:
+	var p: Player = game.local_player if game else null
+	if p and p.weapons:
+		p.weapons.server_cancelled_reload()
+
+
+## Rechargement coup par coup `r` ([slot, fin, début, durée]) interrompu :
+## les cartouches insérées jusque-là passent de la réserve au chargeur.
+## Vrai si des munitions ont bougé.
+func _keep_loaded_shells(pid: int, r: Array) -> bool:
+	var pd := session.get_data(pid)
+	if r.size() < 4 or pd == null or int(r[0]) != pd.slot or float(r[3]) <= 0.0:
+		return false
+	var w: Dictionary = pd.current_weapon()
+	if w.is_empty():
+		return false
+	var frac := (GameClock.now() - float(r[2])) / float(r[3])
+	var n := WeaponController.shells_loaded(WeaponDB.stats(w.id, w.pap), w, frac)
+	w.mag += n
+	w.reserve -= n
+	return n > 0
 
 
 func is_reloading(pid: int) -> bool:

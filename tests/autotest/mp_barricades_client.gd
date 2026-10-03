@@ -1,6 +1,7 @@
 extends AutotestScenario
 ## [MP] Client : voit les planches arrachées par le serveur, répare en
-## maintenant [F] (requête validée par l'hôte), voit un zombie de fenêtre
+## maintenant [F] collé à la fenêtre (requête validée par l'hôte ; demande
+## forcée à 1,5 m refusée), voit un zombie de fenêtre
 ## arracher les planches.
 
 const PORT := 17820
@@ -24,15 +25,33 @@ func run() -> void:
 	MpHelpers.signal_peer("fenetres")
 	var ok: bool = await until(func(): return w.planks() == 2, 25.0, "planches arrachées reçues")
 	at.check(ok, "état des planches répliqué (%d planches)" % w.planks())
-	p.teleport_to(w.global_position + w.inward * 1.25 + Vector3(0, 0.05, 0))
+	# À 1,5 m de la barrière : pas d'invite ; une demande forcée (client
+	# modifié) est refusée par l'hôte, qui juge la portée lui-même.
+	p.teleport_to(w.global_position + w.inward * (w.barrier_half_depth() + 1.5) + Vector3(0, 0.05, 0))
 	AutotestHelpers.aim_at(p, w.global_position + Vector3.UP * 1.4)
-	MpHelpers.signal_peer("devant_fenetre")
-	# Le serveur voit la nouvelle position (sinon il refuse : trop loin).
-	if not await MpHelpers.wait_peer(self, "vu_devant_fenetre", 20.0):
+	MpHelpers.signal_peer("loin_fenetre")
+	if not await MpHelpers.wait_peer(self, "vu_loin_fenetre", 20.0):
 		return
+	at.check(game.interact.focused != w, "à 1,5 m de la fenêtre : pas d'invite")
+	game.interact.srv_interact.rpc_id(1, w.interact_id)
+	MpHelpers.signal_peer("demande_loin")
+	if not await MpHelpers.wait_peer(self, "refus_loin", 20.0):
+		return
+	game.interact.srv_release.rpc_id(1, w.interact_id)
+	at.check(w.planks() == 2, "demande de loin refusée : toujours %d planches" % w.planks())
+	# Le joueur AVANCE vers la fenêtre et appuie sur [F] dès que l'invite
+	# apparaît (position prédite du client) : le serveur, qui juge sur une
+	# position en retard, accepte quand même (marge de latence, demande
+	# renvoyée tant que [F] reste maintenu).
+	MpHelpers.signal_peer("devant_fenetre")
 	var pts0 := pd.points
+	p.input.move = Vector2(0, 1)
+	ok = await until(func(): return game.interact.focused == w, 6.0, "invite de réparation en avançant")
+	at.check(ok, "en avançant vers la fenêtre : invite de réparation")
 	p.input.interact = true
 	p.input.interact_pressed = true
+	await frames(3)
+	p.input.move = Vector2.ZERO
 	ok = await until(func(): return w.planks() == 6, 12.0, "fenêtre reconstruite")
 	p.input.interact = false
 	at.check(ok, "maintenir [F] reconstruit la fenêtre côté client")

@@ -9,9 +9,14 @@ extends Control
 ## une case. La saisie de la nouvelle commande est faite par l'écran
 ## d'options (signal rebind_requested).
 ## `header` : ligne de titres des deux colonnes (ni focus ni saisie).
+## Une commande peut servir à plusieurs actions : sa case l'indique sans rien
+## bloquer (« AUSSI : COUTEAU » en petit, en or, sous le nom de la touche ;
+## détail dans la barre d'aide quand la case est choisie, voir shared_note()).
 
 signal rebind_requested(row: MenuBindRow, slot: int)
 signal clear_requested(row: MenuBindRow, slot: int)
+## Autre case choisie (◄ / ►, souris) : l'écran met l'aide à jour.
+signal slot_changed(row: MenuBindRow)
 
 const HEIGHT := 34.0
 ## Début des cases (le libellé le plus long, « S'ACCROUPIR / S'ALLONGER »,
@@ -30,6 +35,9 @@ const SLOTS := 4
 
 var action := ""
 var label_text := ""
+## Nom affiché d'une action (action -> texte), donné par l'écran d'options ;
+## sans lui, l'identifiant en capitales.
+var action_names: Callable
 var header := false
 ## Case sélectionnée (SLOT_KEY à SLOT_PAD2).
 var slot := 0
@@ -84,7 +92,7 @@ func _ready() -> void:
 	Settings.input_device_changed.connect(_on_device_changed)
 
 
-## Éclat bref (commande changée, ou retirée par un conflit).
+## Éclat bref (commande changée, ou partagée avec la ligne réaffectée).
 func flash() -> void:
 	_flash = 1.0
 	set_process(true)
@@ -141,8 +149,11 @@ func _select(s: int, sound := true) -> void:
 	s = clampi(s, 0, SLOTS - 1)
 	if s != slot and sound:
 		Audio.play_ui(MenuStyle.SND_MOVE, MenuStyle.VOL_MOVE + 2.0)
+	var moved := s != slot
 	slot = s
 	queue_redraw()
+	if moved:
+		slot_changed.emit(self)
 
 
 ## Case sous l'abscisse `x` (-1 : libellé).
@@ -170,12 +181,56 @@ func code(i: int) -> String:
 	return Settings.binding(action, is_pad_slot(i), slot_index(i))
 
 
+## Autres actions qui ont aussi la commande de la case `i` ([] : aucune).
+func shared(i: int) -> Array:
+	return Settings.shared_with(action, code(i))
+
+
+func _name_of(a: String) -> String:
+	return String(action_names.call(a)) if action_names.is_valid() else a.to_upper()
+
+
+## Petite mention de la case : « AUSSI : COUTEAU », « AUSSI : COUTEAU +1 »
+## (plusieurs autres actions) ; « » si la commande n'est pas partagée.
+static func shared_label(names: Array) -> String:
+	if names.is_empty():
+		return ""
+	var t := Lang.t("AUSSI : %s", "ALSO: %s") % names[0]
+	return t + (" +%d" % (names.size() - 1) if names.size() > 1 else "")
+
+
+## Phrase de la barre d'aide pour la case `i` partagée (« » sinon) : toutes
+## les actions, et comment ne garder la commande que sur une seule.
+func shared_note(i: int) -> String:
+	var others := shared(i)
+	if others.is_empty():
+		return ""
+	var names := PackedStringArray()
+	for a in others:
+		names.append(_name_of(a))
+	@warning_ignore("static_called_on_instance")
+	var key := Settings.code_label(code(i), Settings.pad_style())
+	var list := ", ".join(names)
+	return Lang.t("« %s » sert aussi à : %s (un même appui déclenche chacune). Pour la retirer, effacez-la sur l'autre ligne." % [key, list],
+			"\"%s\" is also used for: %s (one press triggers each). To remove it, clear it on the other row." % [key, list])
+
+
 ## Taille de police (au plus `size`) pour que `text` tienne dans `width`.
 static func fit_size(font: Font, text: String, width: float, size: int, min_size := 11) -> int:
 	var fs := size
 	while fs > min_size and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > width:
 		fs -= 1
 	return fs
+
+
+## `text` raccourci (« … ») pour tenir dans `width` à la taille `size`.
+static func fit_text(font: Font, text: String, width: float, size: int) -> String:
+	if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x <= width:
+		return text
+	var t := text
+	while t.length() > 1 and font.get_string_size(t + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, size).x > width:
+		t = t.substr(0, t.length() - 1)
+	return t.strip_edges() + "…"
 
 
 func _draw() -> void:
@@ -221,10 +276,25 @@ func _draw() -> void:
 		var t := Settings.code_label(c, style) if c != "" else "—"
 		var tc := UiStyle.BONE if c != "" else MenuStyle.DIM_TEXT
 		tc = tc.lerp(Color(1, 0.55, 0.45), _flash)
-		# Nom long (« MOLETTE DROITE ») : police réduite pour tenir dans la case.
-		var ts := fit_size(mono, t, r.size.x - 10, 18)
-		draw_string(mono, Vector2(r.position.x + 5, base_y - 1), t, HORIZONTAL_ALIGNMENT_CENTER,
-				r.size.x - 10, ts, tc)
+		var others := shared(i)
+		if others.is_empty():
+			# Nom long (« MOLETTE DROITE ») : police réduite pour tenir dans la case.
+			var ts := fit_size(mono, t, r.size.x - 10, 18)
+			draw_string(mono, Vector2(r.position.x + 5, base_y - 1), t, HORIZONTAL_ALIGNMENT_CENTER,
+					r.size.x - 10, ts, tc)
+			continue
+		# Commande partagée : nom de la touche remonté, mention en or dessous.
+		var names := []
+		for a in others:
+			names.append(_name_of(a))
+		var ts2 := fit_size(mono, t, r.size.x - 10, 15)
+		draw_string(mono, Vector2(r.position.x + 5, r.position.y + 14), t, HORIZONTAL_ALIGNMENT_CENTER,
+				r.size.x - 10, ts2, tc)
+		var note := shared_label(names)
+		var ns := fit_size(font, note, r.size.x - 8, 11, 9)
+		note = fit_text(font, note, r.size.x - 8, ns)
+		draw_string(font, Vector2(r.position.x + 4, r.end.y - 3), note, HORIZONTAL_ALIGNMENT_CENTER,
+				r.size.x - 8, ns, UiStyle.GOLD.lerp(Color(1, 0.55, 0.45), _flash))
 
 
 func _on_device_changed(_pad: bool) -> void:

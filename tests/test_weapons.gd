@@ -81,7 +81,7 @@ func test_special_mechanics() -> void:
 	assert_eq(String(WeaponDB.stats("olympia").reload_kind), "break")
 	assert_eq(String(WeaponDB.stats("stakeout").reload_kind), "shells")
 	# Rechargement cartouche par cartouche : un son par cartouche + la pompe.
-	var steps := WeaponController.reload_sounds(WeaponDB.stats("stakeout"), {"mag": 3})
+	var steps := WeaponController.reload_sounds(WeaponDB.stats("stakeout"), {"mag": 3, "reserve": 30})
 	assert_eq(steps.size(), 4, "3 cartouches + pompe")
 
 

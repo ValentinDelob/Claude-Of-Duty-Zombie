@@ -148,9 +148,16 @@ Exemple : le couteau sur V et sur la molette vers le bas. Un cran de molette
 affecté à une action ne change plus d'arme (l'autre sens, si). Un cran de
 molette est un appui bref : un coup de couteau, un saut, une recharge, une
 grenade lancée par cran.
-Une commande déjà prise est retirée de l'autre action de la même colonne
-(message affiché) ; mise dans l'autre case de la même action, elle change de
-case. « Rétablir les commandes par défaut » remet les deux colonnes.
+Une même commande peut servir à plusieurs actions (par exemple F pour
+INTERAGIR et RECHARGER) : l'affecter ne la retire d'aucune autre action, et un
+appui les déclenche toutes. La case l'indique en petit, en or (« AUSSI :
+COUTEAU »), et la barre d'aide nomme les autres actions quand la case est
+choisie ; pour ne la garder que sur une action, effacez-la sur l'autre ligne.
+Avec la même touche pour RECHARGER et INTERAGIR, devant un objet utilisable
+(arme au mur, porte, atout…) l'appui sert à l'objet et ne recharge pas, comme
+X / Carré dans BO1 sur console ; ailleurs il recharge. Mise dans l'autre case
+de la même action, une commande change de case. « Rétablir les commandes par
+défaut » remet les deux colonnes (aucune commande partagée).
 Enregistré dans `settings.cfg` (les fichiers de la version à une commande
 par action se relisent tels quels ; les anciens fichiers à deux touches
 d'origine, d'avant la manette, gardent la première).

@@ -9,6 +9,9 @@ extends RefCounted
 ## d'une zone d'effet), étiquettes de niveau (sol d'un étage), aimants
 ## verticaux nommés, cotes (hauteur au-dessus du sol, écart, distance au mur),
 ## fantôme de la position d'avant, saisie d'une valeur (Tab), curseurs.
+## Sélection multiple : Maj + clic ajoute ou retire un élément ; un élément
+## du groupe choisi glisse tout le groupe (MapGroup.move : axe de la vue,
+## hauteur de pose ou étage).
 ## Un glissement = une étape d'annulation (au relâché).
 
 ## Flèches d'axe (px à 100 %, maquette, écran 2).
@@ -205,7 +208,7 @@ func level_at(px: Vector2) -> String:
 func cursor_at(px: Vector2) -> Control.CursorShape:
 	if not drag.is_empty():
 		match String(drag.kind):
-			"move":
+			"move", "gmove":
 				return Control.CURSOR_FORBIDDEN if drag.lock == "both" else Control.CURSOR_VSIZE if drag.lock == "v" else (Control.CURSOR_HSIZE if drag.lock == "h" else Control.CURSOR_MOVE)
 			"side":
 				return Control.CURSOR_HSIZE
@@ -232,6 +235,20 @@ func cursor_at(px: Vector2) -> Control.CursorShape:
 func press(px: Vector2) -> bool:
 	ev.hover = ""
 	ed().map_hovered("")
+	# Sélection multiple : Maj + clic ajoute ou retire l'élément ; un élément
+	# du groupe choisi : tout le groupe glisse (sur l'axe de la vue, et d'étage).
+	if ed().canvas.shift_held():
+		var sh := ev.element_at(ev.to_m(px))
+		if not sh.is_empty():
+			ed().toggle_selected(String(sh.id))
+		return true
+	if ed().group.size() >= 2:
+		var gh := ev.element_at(ev.to_m(px))
+		if not gh.is_empty() and ed().group.has(String(gh.id)):
+			var pg := ev.projected_of(String(gh.id))
+			if not pg.is_empty():
+				_begin_group(pg)
+				return true
 	var t := target_at(px)
 	var e := sel()
 	if t in ["side_l", "side_r", "top"]:
@@ -285,6 +302,67 @@ func _begin(kind: String, e: Dictionary, extra: Dictionary) -> void:
 	refusal = ""
 
 
+## Glissement du GROUPE choisi depuis l'élément projeté `e` (MapGroup.move) :
+## sur l'axe horizontal de la vue ; verticalement, la hauteur de pose si tous
+## les éléments sont posés (décor, luminaires), sinon l'étage (aimanté sur
+## les sols, comme une pièce).
+func _begin_group(e: Dictionary) -> void:
+	var o: Dictionary = e.it.e
+	var doc := ed().doc
+	var ids: Array = ed().group.duplicate()
+	var z0 := {}
+	if ids.all(func(i): return MapVertical.pose_kind(doc.find(String(i))) == "pose"):
+		var v := ed().raster().v
+		for i in ids:
+			z0[String(i)] = MapVertical.pose_z(doc, v, doc.find(String(i)))
+	drag = {"kind": "gmove", "start_m": ev.mouse_m, "snap": doc.snapshot(), "all": MapGroup.movers(doc, ids), "ids": ids,
+		"click": String(o.id), "k0": int(o.get("etage", 0)), "z0": z0, "moved": false, "lock": "", "can_h": true,
+		"can_v": not z0.is_empty() or doc.floor_count() > 1, "rect0": ev.rect_px(e), "box0": e.duplicate()}
+	drag["lock"] = _allowed_lock("")
+	entry = ""
+	entering = false
+	refusal = ""
+
+
+## Mouvement du groupe : écart sur l'axe de la vue au pas de l'aimantation ;
+## vertical : hauteur de pose (tous posés) ou étage le plus proche.
+func _update_group() -> void:
+	var doc := ed().doc
+	var d := _delta()
+	var dh := d.x * h_sign()
+	if _typed() == null:
+		dh = snappedf(dh, _step())
+	var delta2 := Vector2(dh, 0.0) if h_letter() == "X" else Vector2(0.0, dh)
+	var dz := -d.y
+	var dk := 0
+	var dzz := NAN
+	var k0 := int(drag.k0)
+	if not (drag.z0 as Dictionary).is_empty():
+		dzz = dz if _typed() != null else snappedf(dz, _step())
+	elif bool(drag.can_v):
+		dk = MapVertical.nearest_floor(doc, doc.floor_sol(k0) + dz) - k0
+	var res := MapGroup.move(ed(), drag.all, delta2, dk, drag.snap, dzz, drag.z0)
+	if res.ok:
+		refusal = ""
+		drag.moved = drag.moved or delta2.length() > 0.001 or dk != 0 or (not is_nan(dzz) and absf(dzz) > 0.0005)
+		drag["dh"] = dh
+		drag["dz"] = dzz if not is_nan(dzz) else doc.floor_sol(k0 + dk) - doc.floor_sol(k0)
+		drag["dk"] = dk
+		ed().send_live(String(drag.click))
+		var parts := []
+		if absf(dh) > 0.0005:
+			parts.append("Δ%s %s m" % [h_letter(), _signed(dh * h_sign())])
+		if dk != 0:
+			parts.append(Lang.t("étage %d → %d", "floor %d → %d") % [k0, k0 + dk])
+		elif not is_nan(dzz) and absf(dzz) > 0.0005:
+			parts.append("ΔZ %s m" % _signed(dzz))
+		ed().set_status(Lang.t("Groupe de %d éléments", "Group of %d elements") % (drag.ids as Array).size()
+			+ (" : " + " · ".join(parts) if not parts.is_empty() else "") + Lang.t(" · relâcher pour valider, Échap pour annuler", " · release to apply, Esc to cancel"))
+	else:
+		refusal = MapRules.why(res)
+		ed().canvas.refusal_elems = [res.el] if res.get("el") is Dictionary else []
+
+
 ## Grandeur de la poignée du haut au début : plafond, hauteur de barrière ou de zone.
 func _top_value(o: Dictionary) -> float:
 	var k := int(o.get("etage", 0))
@@ -333,6 +411,8 @@ func update() -> void:
 	match String(drag.kind):
 		"move":
 			_update_move()
+		"gmove":
+			_update_group()
 		"side":
 			_update_side()
 		"top":
@@ -649,6 +729,22 @@ func release() -> void:
 	if drag.is_empty():
 		return
 	ed().send_live("")
+	if String(drag.kind) == "gmove":
+		# Groupe : une étape d'annulation s'il a bougé ; sinon (simple clic sur
+		# un de ses éléments) cet élément seul est choisi.
+		var g := drag
+		drag = {}
+		if g.moved:
+			ed().push_undo_snapshot(g.snap)
+			ed().changed()
+		else:
+			ed().select(String(g.click))
+		magnet = {}
+		entry = ""
+		entering = false
+		refusal = ""
+		ev.queue_redraw()
+		return
 	var moved_floor := false
 	if drag.moved:
 		ed().push_undo_snapshot(drag.snap)
@@ -707,7 +803,7 @@ func handle_key(k: InputEventKey) -> bool:
 			update()
 			return true
 		KEY_X, KEY_Y, KEY_Z:
-			if drag.kind != "move":
+			if not String(drag.kind) in ["move", "gmove"]:
 				return true
 			var letter := OS.get_keycode_string(k.keycode)
 			var lk := "v" if letter == "Z" else ("h" if letter == h_letter() else "")
@@ -739,6 +835,12 @@ func draw(c: CanvasItem) -> void:
 	var e := sel()
 	if not drag.is_empty() and String(drag.kind) in ["level", "topceil"]:
 		_draw_level_drag(c)
+	if not drag.is_empty() and String(drag.kind) == "gmove":
+		# Groupe glissé : place d'avant de l'élément tenu en pointillés, refus.
+		if drag.moved:
+			_dashed_rect(c, ev.rect_px(drag.box0), Color(COL_BONE, 0.55), 1.0)
+		_draw_refusal(c)
+		return
 	if e.is_empty():
 		return
 	var r := ev.rect_px(e)

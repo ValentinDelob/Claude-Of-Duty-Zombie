@@ -48,13 +48,22 @@ func header_chips() -> Array:
 		{"id": "disp", "text": Lang.t("Affichage ▾", "Display ▾")}]
 
 
+## Menu « Caméra ▾ » : identifiants des plans (Dessus, Dessous…).
+const PLANE_0 := 20
+
+
 func header_menu(id: String) -> Array:
 	if id == "cam" and preview != null:
 		var m := int(preview.world.rig.mode)
-		return [{"id": MapPreviewCamera.Mode.ORBIT, "text": Lang.t("Orbite", "Orbit"), "radio": m == MapPreviewCamera.Mode.ORBIT},
+		var out: Array = [{"id": MapPreviewCamera.Mode.ORBIT, "text": Lang.t("Orbite", "Orbit"), "radio": m == MapPreviewCamera.Mode.ORBIT},
 			{"id": MapPreviewCamera.Mode.FLY, "text": Lang.t("Vol libre", "Free flight"), "radio": m == MapPreviewCamera.Mode.FLY},
 			{"id": MapPreviewCamera.Mode.WALK, "text": Lang.t("Joueur", "Player"), "radio": m == MapPreviewCamera.Mode.WALK},
 			{"sep": ""}, {"id": 10, "text": Lang.t("Recadrer sur la carte", "Frame the map")}]
+		# Retour en vue orthographique (les faces du ViewCube tournent la caméra).
+		out.append({"sep": Lang.t("Passer en vue", "Switch to view")})
+		for j in MapView.PLANES.size():
+			out.append({"id": PLANE_0 + j, "text": MapView.plane_name(MapView.PLANES[j])})
+		return out
 	return []
 
 
@@ -63,8 +72,11 @@ func header_menu_pressed(id: String, i: int) -> void:
 		return
 	match id:
 		"cam":
-			if i == 10:
-				preview.world.frame_map()
+			if i >= PLANE_0 and i < PLANE_0 + MapView.PLANES.size():
+				if ed != null:
+					ed.views.set_pane_plane(ed.views.pane_of(self), MapView.PLANES[i - PLANE_0], true)
+			elif i == 10:
+				preview.frame_map()
 			else:
 				preview.set_camera_mode(i)
 		"sel":
@@ -78,7 +90,7 @@ func header_menu_pressed(id: String, i: int) -> void:
 
 func frame_all() -> void:
 	if preview != null:
-		preview.world.frame_map()
+		preview.frame_map()
 
 
 func _draw() -> void:

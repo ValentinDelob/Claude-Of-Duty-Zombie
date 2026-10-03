@@ -44,7 +44,7 @@ func run() -> void:
 		return true, 25.0, "zombies tués par le tir du client")
 	var flung := 0
 	for z: Zombie in zs:
-		if z.get_node_or_null("Fling") is ZombieFling:
+		if z.is_flung():
 			flung += 1
 	at.check(ok and flung == 4, "serveur : %d/4 zombies de manche 30 tués et projetés" % flung)
 	await until(func(): return cpd.points - points0 >= 4 * PointsRules.KILL, 1.0, "points du client")

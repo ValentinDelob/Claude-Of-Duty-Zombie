@@ -50,7 +50,13 @@ vec3 bump(vec3 n, vec3 pos, float h, float k) {
 	vec3 r2 = cross(n, dp1);
 	float det = dot(dp1, r1);
 	vec3 grad = sign(det) * (dh1 * r1 + dh2 * r2);
-	return normalize(abs(det) * n - grad * k);
+	// Dérivées dégénérées (bords de triangle en MSAA, qualité HAUTE) : le
+	// vecteur peut être nul, et normalize() d'un nul donne NaN, que le glow
+	// étale en tache blanche. Repli sur la normale sans relief. Seuil absolu
+	// minuscule : |b|² vaut ~1e-12 pour un pixel de 1 mm (det ~ pixel²).
+	vec3 b = abs(det) * n - grad * k;
+	float l2 = dot(b, b);
+	return l2 > 1e-30 ? b * inversesqrt(l2) : n;
 }
 
 void fragment() {

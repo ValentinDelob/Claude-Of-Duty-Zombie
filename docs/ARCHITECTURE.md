@@ -136,6 +136,58 @@ jamais chargée depuis le réseau ou une archive (données JSON seulement ; les
 modèles .glb des prefabs de la carte, format 10, sont vérifiés octet par
 octet puis lus par `GLTFDocument`, jamais par `load()` : docs/MAP_OBJECTS.md § 11).
 
+## Fin de partie multijoueur : le groupe reste ensemble (`LobbyReturn`, protocole v5)
+
+Comme dans BO1, une partie multijoueur terminée ne dissout pas le groupe :
+tout le monde revient au **salon**, toujours connecté, prêt à relancer
+(`scripts/game/lobby_return.gd`, nœud `/root/Net/LobbyReturn`). Seul un départ
+volontaire (QUITTER au salon, Quitter du menu pause) ou une vraie coupure
+déconnecte.
+
+1. GAME OVER (`Game._cl_game_over`) : chacun affiche l'écran de fin et garde
+   son résumé (`Router.lobby_message` : manche et zombies abattus, dans sa
+   langue). Après `Game.GAME_OVER_DELAY`, **le serveur** ordonne le retour :
+   `LobbyReturn.srv_return_all` note tous les joueurs « pas encore revenus »
+   (`away`) puis diffuse `_cl_return`.
+2. Chaque machine (`Router.back_to_lobby`) : état `GAME_OVER -> LOBBY`,
+   `Net.end_match` (partie lancée, chargements, distribution des personnages
+   et carte en cours oubliés ; session, joueurs, choix de personnage et carte
+   du salon gardés), musique coupée, scène du menu. La scène de jeu est
+   libérée en entier : points, manche, armes, atouts, zombies, bonus, portes
+   et courant repartent de zéro au prochain chargement (les signaux branchés
+   par la partie sur les autoloads partent avec ses nœuds).
+3. Le menu (`MainMenu._ready`, état `LOBBY` et session en ligne) ouvre
+   directement l'écran du salon (hôte ou invité), avec le résumé de la
+   partie. L'hôte réannonce la carte du salon : carte perso reprise du cache
+   de chaque invité (empreinte inchangée : aucun renvoi).
+4. L'écran du salon dit au serveur qu'il est revenu
+   (`report_in_lobby` -> `_srv_in_lobby`, ignoré hors retour ou d'un inconnu).
+   Tant qu'un joueur n'est pas revenu, `Net.start_match` refuse et DÉMARRER est
+   grisé (« Retour au salon de : … ») : un ordre de chargement ne croise jamais
+   un retour en cours. Un joueur qui part pendant le retour n'est plus attendu.
+5. `Net.match_started` repasse à faux : de nouveaux joueurs peuvent rejoindre
+   le salon entre deux parties.
+
+Départs :
+
+- invité qui quitte (salon ou partie) : seul lui est déconnecté ; les autres
+  continuent (`Net._on_peer_disconnected`, partie et retour au salon compris) ;
+- hôte qui quitte avec des invités connectés (`Net.leave`) : avis
+  `_cl_host_closing` envoyé et poussé tout de suite (`ENetConnection.flush`),
+  connexion fermée `Net.HOST_CLOSING_DELAY` (0,3 s) plus tard ; chaque invité
+  termine sa session (`Net.end_session`) et revient au menu avec « L'hôte a
+  quitté la partie. » (perte réelle de l'hôte : « Connexion perdue avec
+  l'hôte. ») ;
+- solo : retour au menu principal comme avant ; TESTER à plusieurs de
+  l'éditeur (`Router.return_scene`) : retour dans l'éditeur comme avant (la
+  partie de test se referme, la session d'édition continue).
+
+Tests : `tests/test_lobby_return.gd` (transitions, `end_match`, attente du
+groupe, départs) et `sh tools/mp_test.sh rematch` (deux parties d'affilée
+jusqu'au GAME OVER sur une carte perso partagée : retour au salon des deux
+côtés, mêmes identifiants de pairs, état neuf, carte reprise du cache, ni
+nœud orphelin ni connexion de signal en plus).
+
 ## Référence à la partie (`game`)
 
 Chaque objet de la partie reçoit son `Game` de celui qui le crée, dans un champ
@@ -165,7 +217,7 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
 | `GameClock` | Horloge de jeu : somme des pas de physique (`now()`, `msec()`). Tous les minuteurs de gameplay (cadence, rechargements, réanimation, mèches, répliques, téléporteur) la lisent : figés par la pause solo, insensibles aux images bloquées, accélérés dans les tests (`--fixed-fps`). L'interpolation réseau et les mesures de coût restent en temps réel (`Time`). |
 | `GameState` | Machine à états unique de la session (`MAIN_MENU`, `LOBBY`, `CONNECTING`, `LOADING`, `PLAYING`, `ROUND_END`, `PLAYER_DOWN`, `GAME_OVER`, `DISCONNECTING`) avec transitions validées. |
 | `Settings` | Options persistantes (`user://settings.cfg`), actions d'entrée et touches réaffectables (voir « Menus, options et touches »). |
-| `Net` | Host / Join / Solo, poignée de main (version, serveur plein, partie lancée), registre des joueurs, erreurs de connexion lisibles, carte du salon et envoi des cartes perso (enfant `MapShare`). |
+| `Net` | Host / Join / Solo, poignée de main (version, serveur plein, partie lancée), registre des joueurs, erreurs de connexion lisibles, carte du salon et envoi des cartes perso (enfant `MapShare`), retour du groupe au salon après une partie (enfant `LobbyReturn`). |
 | `Autotest` | Scénarios de test automatisés dans le vrai jeu (`-- --autotest=<nom>`), mesures de perf, captures d'écran. Savoir si l'on tourne sous autotest : `AutotestMode.is_running()` (classe statique qui lit la ligne de commande, valable avant le `_ready` des autoloads, donc dans `Settings` et les fonctions statiques ; `AutotestMode.scenario_name()` pour le scénario en cours d'une série) ; `Autotest.active` en est le reflet une fois l'autoload prêt. |
 
 ## Menus, options et touches
@@ -205,10 +257,14 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   `DEFAULT_PAD_AXES` (Xbox et PlayStation partagent la disposition standard
   SDL de Godot : une seule table). `binding(action, pad, slot)` lit une case,
   `bindings_of(action, pad)` la liste ; `bind(action, code, slot)` range le
-  code dans la case `slot` de la colonne de son périphérique, le retire de
-  toute autre action de cette colonne (retourne laquelle, affiché dans
-  l'aide) et, s'il est déjà dans l'autre case de l'action, échange les deux
-  cases ; `clear_binding(action, pad, slot)`, `reset_bindings()` (les deux
+  code dans la case `slot` de la colonne de son périphérique sans le retirer
+  d'aucune autre action (une commande peut être partagée : l'InputMap la met
+  sur chaque action, un appui les déclenche toutes ; retourne les autres
+  actions qui l'ont, `shared_with(action, code)`, affichées dans l'aide et
+  sous la case, « AUSSI : … ») et, s'il est déjà dans l'autre case de
+  l'action, échange les deux cases. Touche partagée RECHARGER + INTERAGIR :
+  devant un objet utilisable, `WeaponController.use_takes_press()` ne
+  recharge pas (BO1 console) ; `clear_binding(action, pad, slot)`, `reset_bindings()` (les deux
   colonnes) ; `apply_bindings()` reconstruit l'InputMap (Échap et Start à
   `pause` ; zone morte `MOVE_DEADZONE` des déplacements). Molette :
   `wheel_switch_events()` lie haut / bas à `switch_weapon` sauf un cran
@@ -222,11 +278,13 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   dégoupillée puis lancée, visée d'un instant). Guide et Start, le stick
   droit (la vue) ne se réaffectent pas. `settings.cfg` : `[bindings]` et
   `[pad_bindings]` en listes de deux codes au plus ; relecture filtrée par
-  colonne (deux premières valeurs valides, sans doublon ; texte seul ou liste
+  colonne (deux premières valeurs valides, sans doublon dans l'action, une
+  commande partagée restant sur chaque action ; texte seul ou liste
   d'un code de la version précédente relus tels quels ; fichier sans
   `[pad_bindings]`, d'avant la manette : première touche seulement ; action
-  absente : sa commande d'origine si elle est libre). Une version précédente
-  relit la première valeur valide de chaque liste.
+  absente : sa commande d'origine si aucune action du fichier ne l'a). Une
+  version précédente relit la première valeur valide de chaque liste (et
+  retire un partage de l'action la plus bas dans l'écran).
   Ligne `MenuBindRow` (`scripts/ui/bind_row.gd`, quatre cases `SLOT_KEY` /
   `SLOT_KEY2` / `SLOT_PAD` / `SLOT_PAD2`, `is_pad_slot()` / `slot_index()`,
   noms longs en police réduite `fit_size()`, ligne de titres `make_header()`)
@@ -701,7 +759,9 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   de spectateur (`Hud.set_spectating`) ; `Game._cl_game_over` reçoit le
   nombre de zombies tués, écrit les textes dans la langue du joueur
   (`Game.game_over_summary`, `Game.survived_text`, via `Lang`) et garde
-  l'état, le dossier de combat et le retour au menu après `GAME_OVER_DELAY`.
+  l'état, le dossier de combat et, après `GAME_OVER_DELAY`, le retour au menu
+  (solo, TESTER de l'éditeur) ou au salon avec tout le groupe (multijoueur :
+  « Fin de partie multijoueur » plus haut).
 
 ## Manches, apparitions et fenêtres (`RoundRules`, `Spawner`, `Barricade`)
 
@@ -877,9 +937,28 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   (20 m, 60°, règles pures testées), en vue du tireur (pas à travers les
   murs), et les tue tous d'un coup (`Combat.damage_zombie(..., fling)`, 50
   points). `ZombieManager.kill_flung` diffuse un RPC fiable de mort projetée
-  avec la vitesse initiale : chaque machine joue le même vol procédural
-  (`ZombieFling`, enfant du zombie mort : parabole, culbute, ricochets,
-  rebonds, pose allongée). Aucun dégât aux joueurs.
+  avec la vitesse initiale : chaque machine lance le ragdoll du corps à cette
+  vitesse (`ZombieRagdoll`, ci-dessous), ou à défaut (qualité BASSE, plafond
+  plein) le vol procédural `ZombieFling`. Aucun dégât aux joueurs.
+
+## Ragdolls des zombies tués (`ZombieRagdoll`)
+
+- Purement visuel, calculé par chaque machine : `PhysicalBoneSimulator3D`
+  ajouté au squelette du mort (`Zombie.die`), 11 `PhysicalBone3D` en capsules
+  (bassin, colonne, cou + tête, bras, avant-bras, cuisses, tibias), cônes et
+  charnières limitées. Départ de la pose courante, élan du zombie gardé.
+- Force du coup : calculée par le serveur (`ZombieRagdoll.kill_impulse` :
+  type de coup, classe d'arme, tête) et transmise par la LONGUEUR du vecteur
+  `dir` du message de mort existant (`ZombieManager._cl_die`) ; TONNERRE-7 :
+  vitesse de `_cl_die_flung`. Aucun état physique synchronisé.
+- Couche 7 (« ragdolls »), masque 1 : ne heurte que le décor, invisible pour
+  les joueurs, les zombies, les tirs et les autres corps.
+- Coût borné : `ZombieRagdoll.CAPS` ragdolls simulés au plus (BASSE 0 : chute
+  procédurale, MOYENNE 8, HAUTE 12) ; corps figé au repos ou après 3 s (pose
+  recopiée dans le squelette, corps physiques retirés) ; au-delà du plafond,
+  le plus ancien figeable l'est, sinon chute procédurale. Détection continue
+  pour les corps lancés vite (pas de traversée des murs).
+- Captures et mesures : scénario `ragdoll_look` (hors check).
 - Effet visuel (toutes les machines) : cône de distorsion d'air (texture
   d'écran), anneaux de choc, poussière, lumière ; son `thunder_fire`.
 ## Démembrement et rampants (`ZombieGibs`, `GibPool`)

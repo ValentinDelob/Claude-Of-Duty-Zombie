@@ -419,7 +419,8 @@ func test_validator_refuses_bad_shapes() -> void:
 	var e := _errs(_check(doc))
 	assert_true(e.contains("colimaçon") or e.contains("Colimaçon") or e.contains("En colimaçon"), "colimaçon trop petit refusé :\n" + e)
 	assert_false(MapRules.check_rect(stairs_map(), 0, "escalier", Rect2(3, 9, 1, 7), "", 0, "droit").ok, "droit de 1 m refusé")
-	var sv := MapRules.check_rect(stairs_map(), 0, "escalier", Rect2(3, 18, 1.5, 4), "", 0, "service")
+	# Arrivée sur le bord de la mezzanine de la baie « droit » (règles des deux étages).
+	var sv := MapRules.check_rect(stairs_map(), 0, "escalier", Rect2(7, 9, 1.5, 7), "", 0, "service")
 	assert_true(sv.ok, "escalier de service de 1 m (1,5 m tracé) admis (%s)" % sv.get("fr", ""))
 	var r := MapRules.check_rect(stairs_map(), 0, "escalier", Rect2(3, 18, 2, 4), "", 0, "large")
 	assert_false(r.ok, "escalier d'honneur de 2 m refusé")

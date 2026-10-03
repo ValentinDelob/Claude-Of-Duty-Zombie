@@ -131,7 +131,7 @@ niveau, recouvrements) : sera repris dans `docs/TESTING.md`.
 
 1. boot ⊂ menu_navigation ; map_select refait le chemin SOLO de menu_navigation.
 2. pause_scoreboard et pause_options testent tous deux la pause ; test_settings
-   couvre déjà réaffectation / conflits / réinitialisation.
+   couvre déjà réaffectation / commandes partagées / réinitialisation.
 3. map_tour et visual_look utilisent **la même liste de vues** du Bunker ;
    render_quality, visual_look et render_perf basculent les mêmes préréglages.
 4. fire_sale_kino ≈ section vente de feu de powerups.

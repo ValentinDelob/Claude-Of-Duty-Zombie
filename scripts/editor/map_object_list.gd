@@ -393,7 +393,7 @@ class Rows extends Control:
 			if eid == list.hover_id or i == _hover_row:
 				draw_rect(r, Color(0.2, 0.55, 0.65, 0.45))
 				draw_rect(r, Color(0.35, 0.9, 1.0, 0.9), false, 1.0)
-			elif eid == sel:
+			elif eid == sel or list.ed.group.has(eid):
 				draw_rect(r, Color(0.45, 0.35, 0.1, 0.5))
 			elif i % 2 == 1:
 				draw_rect(r, Color(1, 1, 1, 0.03))
@@ -427,7 +427,10 @@ class Rows extends Control:
 			if i < 0:
 				return
 			var eid := String(items[i].id)
-			if event.double_click:
+			if event.shift_pressed or list.ed.canvas.shift_select:
+				# Maj + clic : ajouté à la sélection, ou retiré (sélection multiple).
+				list.ed.toggle_selected(eid)
+			elif event.double_click:
 				list.ed.zoom_to_element(eid)
 			else:
 				list.ed.focus_element(eid)

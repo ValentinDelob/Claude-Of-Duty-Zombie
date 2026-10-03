@@ -6,7 +6,10 @@ extends MapView
 ## déplacement : clic milieu ou Espace + glisser ; aimantation (MapSnap) : grille
 ## 1 m, grille fine ou libre (touche G ; Maj inverse), aimants aux sommets et aux
 ## côtés en libre ; saisie au clavier de la longueur et de l'angle pendant le
-## tracé ; formes de base (MapShapes) ; poignée de rotation (MapTransform).
+## tracé ; formes de base (MapShapes) ; poignée de rotation (MapTransform) ;
+## sélection multiple (Maj + clic, rectangle de gauche à droite : éléments
+## dedans, de droite à gauche : éléments touchés) et glissement, rotation du
+## groupe (MapGroup) ; clic droit : menu (MapContextMenu) ou annulation.
 ## Repères, zoom, grille et règles : MapView (plan « dessus »).
 
 const HANDLE := 7.0
@@ -28,6 +31,16 @@ const POLY_TOOLS := ["room_poly", "poly"]
 var preview: Dictionary = {}
 ## Message de refus affiché près du curseur.
 var refusal := ""
+## Zones d'un refus d'escalier (MapRules.check_stair) : [{floor, cells, role}].
+var refusal_marks: Array = []
+## Éléments d'une action de groupe refusée, à la place refusée (MapGroup.named) :
+## entourés de rouge le temps du message.
+var refusal_elems: Array = []
+## Rectangle de sélection (docs/MAP_AUTHORING.md § 2) : à partir de ce nombre
+## de pixels, un appui glissé trace un rectangle (sinon : un clic).
+const BAND_PX := 4.0
+const COL_WINDOW := Color(0.35, 0.65, 1.0)
+const COL_CROSSING := Color(0.4, 0.95, 0.5)
 var _refusal_t := 0.0
 ## Cases mises en évidence (problème choisi dans l'onglet Vérification).
 var highlight: Array = []
@@ -86,6 +99,8 @@ func _process(delta: float) -> void:
 		_refusal_t -= delta
 		if _refusal_t <= 0.0:
 			refusal = ""
+			refusal_marks = []
+			refusal_elems = []
 			queue_redraw()
 	if _hover_dirty:
 		update_hover()
@@ -102,6 +117,17 @@ func update_hover() -> void:
 
 
 # ------------------------------------------------------------------ aimantation
+
+## Maj imposée pour la sélection (tests) : Maj + clic, Maj + glisser.
+var shift_select := false
+
+
+## Maj tenue AU MOMENT DE L'APPUI : sélection multiple (Maj + clic : ajouter /
+## retirer, Maj + glisser : rectangle qui ajoute). Pendant un glissement
+## commencé sans Maj, Maj garde son rôle : inverser l'aimantation.
+func shift_held() -> bool:
+	return shift_select or Input.is_key_pressed(KEY_SHIFT)
+
 
 ## Mode d'aimantation appliqué maintenant (Maj inverse le mode choisi).
 func mode_now() -> String:
@@ -291,7 +317,7 @@ func handle_key(k: InputEventKey) -> bool:
 	if not k.pressed or k.ctrl_pressed or k.alt_pressed:
 		return false
 	# X / Y pendant un glissement : verrouille l'axe (la même touche le libère).
-	if k.keycode in [KEY_X, KEY_Y] and drag.get("kind", "") == "move" and entry.is_empty():
+	if k.keycode in [KEY_X, KEY_Y] and drag.get("kind", "") in ["move", "gmove"] and entry.is_empty():
 		var ax := "X" if k.keycode == KEY_X else "Y"
 		drag["lock"] = "" if String(drag.get("lock", "")) == ax else ax
 		_drag_update()
@@ -439,6 +465,8 @@ func frame_all() -> void:
 
 func show_refusal(r: Dictionary) -> void:
 	refusal = MapRules.why(r)
+	# Escalier : zones en cause (départ, arrivée, trémie, cases fautives).
+	refusal_marks = r.get("marks", [])
 	_refusal_t = 3.0
 	ed.set_status(refusal, true)
 	queue_redraw()
@@ -479,9 +507,12 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 			return
 		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-			cancel()
-			if ed.tool() == "select":
-				ed.select("")
+			# Tracé, glissement, capture en cours : le clic droit les annule ;
+			# sinon le menu du clic droit (MapContextMenu).
+			if busy():
+				cancel()
+			elif not offscreen:
+				ed.open_context_menu(get_screen_position() + mb.position, mouse_m, String(ed.element_at(mouse_m).get("id", "")))
 			accept_event()
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
@@ -498,9 +529,15 @@ func _gui_input(event: InputEvent) -> void:
 			queue_redraw()
 
 
+## Un tracé, un glissement, une saisie ou une capture est-il en cours ? (le
+## clic droit les annule au lieu d'ouvrir le menu).
+func busy() -> bool:
+	return not drag.is_empty() or not poly_pts.is_empty() or not entry.is_empty() or (ed.prefab_tools != null and ed.prefab_tools.capturing)
+
+
 ## Annule le tracé ou le glissement en cours.
 func cancel() -> void:
-	if drag.get("kind", "") in ["move", "handle", "rotate"]:
+	if drag.get("kind", "") in ["move", "handle", "rotate", "gmove", "grotate"]:
 		ed.send_live("")
 		ed.doc.restore(drag.snap)
 		ed.changed()
@@ -532,8 +569,18 @@ func _press(double: bool) -> void:
 	var p := snap(mouse_m)
 	match tool:
 		"select":
+			# Maj : un clic ajoute ou retire l'élément de la sélection, un glissé
+			# trace un rectangle qui y ajoute (décidé au relâché / au mouvement).
+			if shift_held():
+				drag = {"kind": "band", "start": mouse_m, "add": true, "click": String(ed.element_at(mouse_m).get("id", ""))}
+				return
 			# Poignée de rotation, poignées de l'élément choisi, puis l'élément sous le curseur.
 			var rh := rot_handle()
+			if not rh.is_empty() and rh.get("group", false) and to_px(rh.p).distance_to(to_px(mouse_m)) <= _hsz() + 4.0:
+				# Groupe : rotation autour du centre du groupe (pas de 15°, Alt : au degré).
+				drag = {"kind": "grotate", "c": rh.c, "a0": (mouse_m - Vector2(rh.c)).angle(), "snap": ed.doc.snapshot(),
+					"all": MapGroup.movers(ed.doc, ed.group), "moved": false, "deg": 0}
+				return
 			if not rh.is_empty() and to_px(rh.p).distance_to(to_px(mouse_m)) <= _hsz() + 4.0:
 				var sel := ed.doc.find(ed.selected)
 				drag = {"kind": "rotate", "c": rh.c, "a0": (mouse_m - Vector2(rh.c)).angle(), "snap": ed.doc.snapshot(),
@@ -551,6 +598,9 @@ func _press(double: bool) -> void:
 				return
 			# Flèches d'axe de l'élément choisi : glisser sur un seul axe (§ 6.1).
 			var ax := arrow_at(to_px(mouse_m))
+			if ax != "" and ed.group.size() >= 2:
+				_begin_group_move("", ax)
+				return
 			if ax != "":
 				var sel2 := ed.doc.find(ed.selected)
 				_snap_exclude = ed.selected
@@ -558,6 +608,15 @@ func _press(double: bool) -> void:
 					"attached": ed.attached_to(sel2), "lock": ax}
 				return
 			var e := ed.element_at(mouse_m)
+			# Élément d'un groupe choisi : tout le groupe glisse (un simple clic
+			# sans bouger le choisit seul, au relâché).
+			if not e.is_empty() and ed.group.size() >= 2 and ed.group.has(String(e.id)):
+				_begin_group_move(String(e.id), "")
+				return
+			# Appui sur le vide : rectangle de sélection (un simple clic désélectionne).
+			if e.is_empty():
+				drag = {"kind": "band", "start": mouse_m, "add": false, "click": ""}
+				return
 			ed.select(String(e.get("id", "")))
 			if not e.is_empty():
 				_snap_exclude = String(e.id)
@@ -588,12 +647,71 @@ func _press(double: bool) -> void:
 			ed.add_object(preview.obj, k)
 
 
+## Glissement du groupe choisi (MapGroup.move) : `click` : l'élément appuyé
+## (choisi seul si le groupe n'a pas bougé au relâché) ; `lock` : flèche d'axe.
+func _begin_group_move(click: String, lock: String) -> void:
+	drag = {"kind": "gmove", "start": snap(mouse_m), "raw": mouse_m, "snap": ed.doc.snapshot(), "all": MapGroup.movers(ed.doc, ed.group),
+		"ids": ed.group.duplicate(), "moved": false, "click": click, "lock": lock}
+
+
+## Rectangle de sélection relâché (`r`, m) : de gauche à droite, les éléments
+## entièrement dedans ; de droite à gauche, ceux qu'il touche ; Maj : ajoutés
+## à la sélection. Rend les éléments pris.
+func finish_band(r: Rect2, crossing: bool, add: bool) -> Array:
+	var got := MapGroup.in_rect(ed.doc, ed.floor_k, r, crossing)
+	var ids := ed.sel_ids() if add else []
+	for id in got:
+		if not ids.has(id):
+			ids.append(id)
+	ed.select_many(ids)
+	if got.is_empty() and not add:
+		ed.set_status(Lang.t("Rectangle : aucun élément %s", "Rectangle: no element %s") % (Lang.t("touché", "touched") if crossing else Lang.t("entièrement dedans", "entirely inside")))
+	return got
+
+
+## Un rectangle commencé en `start` prend-il les éléments touchés (tracé de
+## droite à gauche jusqu'à la souris) ?
+func band_crossing_from(start: Vector2) -> bool:
+	return mouse_m.x < start.x
+
+
+func _band_active() -> bool:
+	return drag.get("kind", "") == "band" and to_px(mouse_m).distance_to(to_px(drag.start)) >= BAND_PX
+
+
 func _release() -> void:
 	if drag.is_empty():
 		return
 	var kind := String(drag.kind)
 	if kind == "cut":
 		drag = {}
+		return
+	if kind == "band":
+		var d := drag
+		var band := _band_active()
+		drag = {}
+		if band:
+			finish_band(Rect2(d.start, Vector2.ZERO).expand(mouse_m), band_crossing_from(d.start), bool(d.add))
+		elif bool(d.add):
+			# Maj + clic : ajoute ou retire l'élément.
+			ed.toggle_selected(String(d.click))
+		else:
+			ed.select("")
+		queue_redraw()
+		return
+	if kind in ["gmove", "grotate"]:
+		ed.send_live("")
+		var click := String(drag.get("click", ""))
+		var was_moved := bool(drag.moved)
+		if was_moved:
+			ed.push_undo_snapshot(drag.snap)
+			ed.changed()
+			var n := (drag.ids as Array).size() if drag.has("ids") else ed.group.size()
+			ed.set_status(Lang.t("Groupe de %d éléments déplacé (Ctrl+Z : annuler)", "Group of %d elements moved (Ctrl+Z: undo)") % n if kind == "gmove"
+				else Lang.t("Groupe pivoté de %d° (Ctrl+Z : annuler)", "Group rotated %d° (Ctrl+Z: undo)") % MapGeom.norm_deg(float(drag.deg)))
+		drag = {}
+		if kind == "gmove" and click != "" and not was_moved:
+			ed.select(click)
 		return
 	if kind == "capture":
 		var rc := Rect2(drag.start, Vector2.ZERO).expand(mouse_m)
@@ -633,7 +751,15 @@ func _finish_create(end: Vector2) -> void:
 	if not res.ok:
 		show_refusal(res)
 		return
-	ed.add_object(res.obj, ed.floor_k)
+	var fk := int(res.get("floor", ed.floor_k))
+	# Pièce tracée sur d'autres : confirmation, puis découpe (MapCarve).
+	if res.has("carve"):
+		ed.confirm_carve(res.obj, fk, res.carve)
+		return
+	ed.add_object(res.obj, fk)
+	if fk != ed.floor_k:
+		# Escalier qui descend : enregistré à l'étage du dessous.
+		ed.set_status(Lang.t("Escalier qui descend posé : il relie l'étage %d (en bas) à l'étage %d (ici)", "Stairs going down placed: they link floor %d (below) to floor %d (here)") % [fk, ed.floor_k])
 
 
 ## Élément créé par un glissement de `a` à `b` (pièce, mur, pilier, escalier, piège).
@@ -643,7 +769,7 @@ func _creation(it: Dictionary, a: Vector2, b: Vector2) -> Dictionary:
 		"room_rect":
 			var r := Rect2(a, Vector2.ZERO).expand(b)
 			var poly := MapGeom.rect_poly(r) if ed.place_rot != 45 else rect45_poly(a, b)
-			var res := MapRules.check_room(ed.doc, k, poly)
+			var res := room_check(k, poly)
 			res["obj"] = {"contour": MapGeom.poly_arr(poly)}
 			return res
 		"wall":
@@ -658,11 +784,22 @@ func _creation(it: Dictionary, a: Vector2, b: Vector2) -> Dictionary:
 			var o: Dictionary = it.make.duplicate(true)
 			o["rect"] = MapGeom.rect_arr(r)
 			if o.type == "escalier":
-				var d := b - a
-				o["monte"] = ("e" if d.x > 0 else "o") if absf(d.x) > absf(d.y) else ("s" if d.y > 0 else "n")
+				# Escalier qui descend : tracé du haut (ici) vers le bas, enregistré
+				# à l'étage du dessous, montant jusqu'ici (aucun champ de plus).
+				var down := bool(it.get("descend", false))
+				o["monte"] = MapRules.stair_dir(a, b, down)
 				# Type choisi avec V avant de poser (format 6).
 				if ed.place_variant != "":
 					MapCatalog.set_variant(o, ed.place_variant)
+				var kk := k - 1 if down else k
+				# Contrôlé à chaque image du tracé : les étages lus resservent tant
+				# que la carte ne change pas (version de la carte).
+				MapRules.stair_cache_tag = ed.doc_version
+				var rs := MapRules.check_rect(ed.doc, kk, "escalier", r, "", 0, MapCatalog.stair_kind(o), o, down)
+				MapRules.stair_cache_tag = -1
+				rs["obj"] = o
+				rs["floor"] = kk
+				return rs
 			var res := MapRules.check_rect(ed.doc, k, String(o.type), r, "", 0, MapCatalog.stair_kind(o))
 			res["obj"] = o
 			return res
@@ -672,7 +809,7 @@ func _creation(it: Dictionary, a: Vector2, b: Vector2) -> Dictionary:
 			if forme.is_empty() or float(forme.rx) < 0.05:
 				return {"ok": false, "fr": "forme trop petite", "en": "shape too small"}
 			var poly := MapShapes.outline(forme)
-			var res := MapRules.check_room(ed.doc, k, poly)
+			var res := room_check(k, poly)
 			res["obj"] = {"contour": MapGeom.poly_arr(poly), "forme": forme}
 			return res
 		"arc":
@@ -690,7 +827,37 @@ func _finish_poly() -> void:
 	if not res.ok:
 		show_refusal(res)
 		return
+	if res.has("carve"):
+		ed.confirm_carve(res.obj, ed.floor_k, res.carve)
+		return
 	ed.add_object(res.obj, ed.floor_k)
+
+
+## Pièce de contour `poly` posable à l'étage `k` ? Par-dessus d'autres pièces :
+## oui si leur découpe est possible (MapCarve.plan, gardé tant que la carte et
+## le contour ne changent pas) ; le résultat porte alors « carve » (aperçu
+## hachuré, confirmation au relâcher).
+func room_check(k: int, poly: PackedVector2Array) -> Dictionary:
+	var res := MapRules.check_room(ed.doc, k, poly, "", true)
+	if not res.ok:
+		return res
+	var key := "%d|%d|%s" % [ed.doc_version, k, str(poly)]
+	if key != String(_carve_cache.get("key", "")):
+		_carve_cache = {"key": key, "plan": MapCarve.plan(ed.doc, k, poly)}
+	var pl: Dictionary = _carve_cache.plan
+	if not pl.get("carve", false):
+		return res
+	if not pl.ok:
+		return MapRules.refuse(String(pl.fr), String(pl.en))
+	res["carve"] = pl
+	return res
+
+
+## Découpe prévue du dernier contour essayé (room_check) : {key, plan}.
+var _carve_cache: Dictionary = {}
+## Découpe en attente de la réponse de l'utilisateur (MapEditor.confirm_carve) :
+## {poly, plan}, dessinée tant que la boîte est ouverte.
+var carve_pending: Dictionary = {}
 
 
 ## Élément tracé en polygone (`poly` : ses sommets) : une pièce, ou un objet
@@ -702,7 +869,7 @@ func _poly_creation(it: Dictionary, poly: PackedVector2Array) -> Dictionary:
 		var r := MapRules.check_clip(poly)
 		r["obj"] = o
 		return r
-	var res := MapRules.check_room(ed.doc, ed.floor_k, poly)
+	var res := room_check(ed.floor_k, poly)
 	res["obj"] = {"contour": MapGeom.poly_arr(poly)}
 	return res
 
@@ -774,6 +941,14 @@ func _drag_update() -> void:
 	if kind == "cut":
 		_drag_cut()
 		return
+	if kind == "band":
+		return
+	if kind == "gmove":
+		_drag_group_move()
+		return
+	if kind == "grotate":
+		_drag_group_rotate()
+		return
 	var orig: Dictionary = drag.orig
 	var e := ed.doc.find(String(orig.id))
 	if e.is_empty():
@@ -805,6 +980,7 @@ func _drag_update() -> void:
 			ed.send_live(String(orig.id))
 		elif delta.length() > 0.001:
 			refusal = MapRules.why(res)
+			refusal_marks = res.get("marks", [])
 			_refusal_t = 1.5
 	elif kind == "handle":
 		var res := ed.try_handle(orig, int(drag.handle), snap(mouse_m), drag.snap)
@@ -815,6 +991,7 @@ func _drag_update() -> void:
 				ed.set_status(Lang.t("Zone : %s", "Zone: %s") % effect_zone_text(ed.doc.find(String(orig.id))))
 		else:
 			refusal = MapRules.why(res)
+			refusal_marks = res.get("marks", [])
 			_refusal_t = 1.5
 	elif kind == "rotate":
 		# Poignée de rotation : pas de 15°, au degré près avec Alt.
@@ -832,7 +1009,58 @@ func _drag_update() -> void:
 			ed.set_status(Lang.t("Rotation : %d°", "Rotation: %d°") % MapGeom.norm_deg(deg))
 		else:
 			refusal = MapRules.why(res)
+			refusal_marks = res.get("marks", [])
 			_refusal_t = 1.5
+
+
+## Glissement du groupe : décalage au pas de l'aimantation (au centimètre sans
+## grille), verrou d'axe (flèche, X / Y) ; tout le groupe validé à chaque pas
+## (MapGroup.move) ; refusé : il reste à sa dernière place valide, l'élément
+## fautif est nommé près du curseur.
+func _drag_group_move() -> void:
+	var delta := snap(mouse_m) - Vector2(drag.start)
+	if mode_now() == "libre":
+		delta = MapGeom.round_cm(mouse_m - Vector2(drag.raw))
+	match String(drag.get("lock", "")):
+		"X":
+			delta.y = 0.0
+		"Y":
+			delta.x = 0.0
+	if drag.has("delta") and (Vector2(drag.delta) - delta).length() < 0.0005:
+		return
+	var res := MapGroup.move(ed, drag.all, delta, 0, drag.snap)
+	if res.ok:
+		drag.moved = drag.moved or delta.length() > 0.001
+		drag["delta"] = delta
+		refusal_elems = []
+		var live_id := String(drag.get("click", ""))
+		ed.send_live(live_id if live_id != "" else String((drag.ids as Array)[0]))
+	elif delta.length() > 0.001:
+		refusal = MapRules.why(res)
+		refusal_marks = res.get("marks", [])
+		refusal_elems = [res.el] if res.get("el") is Dictionary else []
+		_refusal_t = 1.5
+
+
+## Poignée de rotation du groupe : pas de 15°, au degré près avec Alt, autour
+## du centre du groupe (MapGroup.rotate).
+func _drag_group_rotate() -> void:
+	var c: Vector2 = drag.c
+	var deg := rad_to_deg(angle_difference(float(drag.a0), (mouse_m - c).angle()))
+	deg = roundf(deg) if angle_free() else snappedf(deg, MapTransform.STEP)
+	if absf(deg - float(drag.deg)) < 0.001:
+		return
+	var res := MapGroup.rotate(ed, drag.all, c, deg, drag.snap)
+	if res.ok:
+		drag.moved = true
+		drag.deg = deg
+		refusal_elems = []
+		ed.set_status(Lang.t("Rotation du groupe : %d°", "Group rotation: %d°") % MapGeom.norm_deg(deg))
+	else:
+		refusal = MapRules.why(res)
+		refusal_marks = res.get("marks", [])
+		refusal_elems = [res.el] if res.get("el") is Dictionary else []
+		_refusal_t = 1.5
 
 
 ## Poignées de l'élément choisi : points (m).
@@ -866,7 +1094,14 @@ func handles() -> PackedVector2Array:
 
 ## Poignée de rotation de l'élément choisi : {p (m), c (centre de rotation)},
 ## {} si l'élément ne tourne pas (objets muraux : ils suivent leur mur).
+## Groupe : au-dessus de son cadre, centre du groupe, « group » : true.
 func rot_handle() -> Dictionary:
+	if ed.group.size() >= 2:
+		var gb := group_box()
+		if gb.size == Vector2.ZERO:
+			return {}
+		return {"p": Vector2(gb.get_center().x, gb.position.y - EditorUi.px(ROT_HANDLE_PX) / zoom),
+			"c": MapGroup.pivot(ed.doc, ed.group, mode_now() == "libre"), "group": true}
 	var e := ed.doc.find(ed.selected)
 	if e.is_empty() or int(e.get("etage", 0)) != ed.floor_k or not MapTransform.can_rotate(e):
 		return {}
@@ -911,15 +1146,19 @@ func _draw() -> void:
 	_draw_cells(k)
 	if not hid.is_empty():
 		_mask_hidden(hid, k)
-	# Escaliers de l'étage du dessous : ils arrivent ici.
+	# Escaliers de l'étage du dessous : ils arrivent ici (trémie). Vus d'en
+	# haut, ils descendent : « descend à l'étage k - 1 ».
 	if k > 0:
 		for o in doc.objects_on(k - 1):
-			if String(o.get("type", "")) == "escalier":
+			if String(o.get("type", "")) == "escalier" and not hid.has(String(o.get("id", ""))):
 				_draw_object(o, font, 0.45)
+				_stair_floor_label(font, o, Lang.t("descend à l'étage %d", "down to floor %d") % (k - 1), Color(0.75, 0.85, 1.0))
 	# Objets.
 	for o in doc.objects_on(k):
 		if not hid.has(String(o.id)):
 			_draw_object(o, font, 1.0)
+			if String(o.get("type", "")) == "escalier":
+				_stair_floor_label(font, o, Lang.t("monte à l'étage %d", "up to floor %d") % (k + 1), Color(0.95, 0.85, 1.0))
 	for o in doc.openings_on(k):
 		if not hid.has(String(o.id)):
 			_draw_opening(o, font)
@@ -948,12 +1187,17 @@ func _draw() -> void:
 		var r := _elem_rect_px(e)
 		draw_rect(r.grow(3), COL_BAD, false, 2.0)
 		draw_string(font, r.position + Vector2(r.size.x + _u(4), _u(12)), "!", HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(16), COL_BAD)
+	# Refus d'un escalier : départ, arrivée, trémie et cases fautives.
+	if not refusal_marks.is_empty():
+		_draw_stair_marks(font, refusal_marks)
 	if offscreen:
 		_draw_rulers(font)
 		return
 	# Sélection et poignées.
 	var sel := doc.find(ed.selected)
-	if not sel.is_empty() and int(sel.get("etage", 0)) == k:
+	# Un escalier se voit choisi aussi depuis l'étage où il arrive.
+	var sel_k := int(sel.get("etage", 0)) + (1 if String(sel.get("type", "")) == "escalier" and int(sel.get("etage", 0)) == k - 1 else 0)
+	if not sel.is_empty() and sel_k == k:
 		var outline := _outline_of(sel)
 		if not outline.is_empty():
 			var poly := _px_poly(outline)
@@ -974,6 +1218,13 @@ func _draw() -> void:
 			if drag.get("kind", "") == "rotate":
 				draw_circle(to_px(drag.c), 3.0, COL_SEL)
 				_label_at(font, hp + Vector2(_u(12), -_u(6)), "%d°" % MapGeom.norm_deg(float(drag.get("deg", 0))))
+	# Sélection multiple : chaque élément, cadre du groupe et sa poignée.
+	_draw_group(font, k)
+	# Action de groupe refusée : l'élément fautif, à la place refusée.
+	for el in refusal_elems:
+		if int(el.get("etage", 0)) == k:
+			outline_elem(el, COL_BAD, 3.0, 3.0)
+			fill_elem(el, Color(COL_BAD, 0.18))
 	# Élément survolé (dans la liste des objets ou sur la carte) : contour lumineux.
 	var hov := doc.find(ed.hover_id) if ed.hover_id != "" else {}
 	if not hov.is_empty() and int(hov.get("etage", 0)) == k:
@@ -994,6 +1245,103 @@ func _draw() -> void:
 	_draw_triad(font)
 
 
+# ------------------------------------------------------------------ sélection multiple (MapGroup)
+
+## Cadre (m) des éléments du groupe sur l'étage affiché ; vide sans groupe.
+func group_box() -> Rect2:
+	var k := ed.floor_k if floor_override < 0 else floor_override
+	var bb := Rect2()
+	var first := true
+	for id in ed.group:
+		var e := ed.doc.find(String(id))
+		if e.is_empty() or int(e.get("etage", 0)) != k:
+			continue
+		var r := elem_rect_m(e)
+		bb = r if first else bb.merge(r)
+		first = false
+	return bb
+
+
+## Groupe choisi (au moins deux éléments) : chaque élément entouré, cadre du
+## groupe en tirets (marges de 0,25 m) avec ses coins, nombre d'éléments, poignée
+## de rotation ronde au-dessus (le centre marqué pendant la rotation).
+func _draw_group(font: Font, k: int) -> void:
+	if ed.group.size() < 2 or offscreen:
+		return
+	var n_here := 0
+	for id in ed.group:
+		var e := ed.doc.find(String(id))
+		if e.is_empty() or int(e.get("etage", 0)) != k:
+			continue
+		n_here += 1
+		fill_elem(e, Color(COL_SEL, 0.1))
+		outline_elem(e, COL_SEL, 2.0, 3.0)
+	if n_here == 0:
+		return
+	var gb := group_box()
+	var r := Rect2(to_px(gb.position), gb.size * zoom).grow(_u(8))
+	var pts := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
+	for i in 4:
+		draw_dashed_line(pts[i], pts[(i + 1) % 4], Color(COL_SEL, 0.85), 1.5, _u(6))
+	# Coins du cadre (repères, comme une sélection de logiciel de dessin).
+	var cl := _u(10)
+	for i in 4:
+		var p: Vector2 = pts[i]
+		var a: Vector2 = pts[(i + 1) % 4]
+		var b: Vector2 = pts[(i + 3) % 4]
+		draw_line(p, p + (a - p).normalized() * cl, COL_SEL, 2.5)
+		draw_line(p, p + (b - p).normalized() * cl, COL_SEL, 2.5)
+	var lbl := Lang.t("%d éléments", "%d elements") % ed.group.size()
+	if n_here < ed.group.size():
+		lbl += Lang.t(" (%d à cet étage)", " (%d on this floor)") % n_here
+	var fs := EditorUi.fs(12)
+	var bf := MapView.bold_font(600)
+	var tw := bf.get_string_size(lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	# Sous le cadre, à gauche (la poignée de rotation est au-dessus).
+	var lr := Rect2(Vector2(r.position.x, r.end.y + _u(4)), Vector2(tw + _u(12), _u(18)))
+	MapElevation._round_rect(self, lr, Color("2b2410"), COL_SEL)
+	draw_string(bf, lr.position + Vector2(_u(6), _u(13)), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, COL_SEL)
+	var rh := rot_handle()
+	if not rh.is_empty():
+		var hp := to_px(rh.p)
+		draw_line(Vector2(hp.x, r.position.y), hp, Color(COL_SEL, 0.7), 1.0)
+		draw_circle(hp, _hsz() * 0.8, COL_SEL)
+		draw_arc(hp, _hsz() * 0.45, -PI * 0.8, PI * 0.5, 10, Color.BLACK, 1.5)
+		if drag.get("kind", "") == "grotate":
+			var cp := to_px(drag.c)
+			draw_circle(cp, 3.5, COL_SEL)
+			draw_arc(cp, _u(9), 0, TAU, 20, Color(COL_SEL, 0.6), 1.0)
+			_label_at(font, hp + Vector2(_u(12), -_u(6)), "%d°" % MapGeom.norm_deg(float(drag.get("deg", 0))))
+
+
+## Rectangle de sélection en cours : de gauche à droite, cadre bleu plein
+## (éléments entièrement dedans) ; de droite à gauche, cadre vert en tirets
+## (éléments touchés) ; les éléments qu'il prendrait sont entourés.
+func _draw_band(font: Font) -> void:
+	if not _band_active():
+		return
+	var crossing := band_crossing_from(drag.start)
+	var col := COL_CROSSING if crossing else COL_WINDOW
+	var rm := Rect2(drag.start, Vector2.ZERO).expand(mouse_m)
+	var r := Rect2(to_px(rm.position), rm.size * zoom)
+	draw_rect(r, Color(col, 0.1))
+	if crossing:
+		var pts := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
+		for i in 4:
+			draw_dashed_line(pts[i], pts[(i + 1) % 4], col, 1.5, _u(6))
+	else:
+		draw_rect(r, col, false, 1.5)
+	var got := MapGroup.in_rect(ed.doc, ed.floor_k, rm, crossing)
+	for id in got:
+		var e := ed.doc.find(String(id))
+		if not e.is_empty():
+			outline_elem(e, col, 2.0, 2.0)
+	var lbl := (Lang.t("Touchés : %d", "Touched: %d") if crossing else Lang.t("Entièrement dedans : %d", "Entirely inside: %d")) % got.size()
+	if bool(drag.get("add", false)):
+		lbl += Lang.t(" (ajoutés)", " (added)")
+	_label_at(font, to_px(mouse_m) + Vector2(_u(14), _u(20)), lbl)
+
+
 # ------------------------------------------------------------------ flèches d'axe, coupes (vues multiples)
 
 ## Curseur de la souris selon ce qui est dessous (docs/EDITOR_VIEWS.md § 6.3) :
@@ -1004,8 +1352,10 @@ func cursor_at(px: Vector2) -> Control.CursorShape:
 		return Control.CURSOR_DRAG
 	if not drag.is_empty():
 		match String(drag.get("kind", "")):
-			"move":
+			"move", "gmove":
 				return Control.CURSOR_HSIZE if drag.get("lock", "") == "X" else (Control.CURSOR_VSIZE if drag.get("lock", "") == "Y" else Control.CURSOR_MOVE)
+			"band":
+				return Control.CURSOR_CROSS
 			"handle", "cut":
 				return mouse_default_cursor_shape
 		return Control.CURSOR_ARROW
@@ -1039,6 +1389,9 @@ func cursor_at(px: Vector2) -> Control.CursorShape:
 func arrows_origin() -> Vector2:
 	if offscreen or ed.tool() != "select":
 		return Vector2.INF
+	if ed.group.size() >= 2:
+		var gb := group_box()
+		return to_px(gb.get_center()) if gb.size != Vector2.ZERO else Vector2.INF
 	var e := ed.doc.find(ed.selected)
 	if e.is_empty() or int(e.get("etage", 0)) != ed.floor_k:
 		return Vector2.INF
@@ -1050,6 +1403,8 @@ func arrows_origin() -> Vector2:
 ## Axes sur lesquels l'élément choisi glisse : un objet mural ou une ouverture
 ## suit son mur (seulement l'axe du mur).
 func arrow_axes() -> Array:
+	if ed.group.size() >= 2:
+		return ["X", "Y"]
 	var e := ed.doc.find(ed.selected)
 	var t := String(e.get("type", ""))
 	if t in MapRules.ouvertures_types() or MapCatalog.tool_of(e) == "wall_item":
@@ -1081,7 +1436,7 @@ func _draw_axis_arrows(font: Font) -> void:
 	var o := arrows_origin()
 	if o == Vector2.INF:
 		return
-	var lock := String(drag.get("lock", "")) if drag.get("kind", "") == "move" else ""
+	var lock := String(drag.get("lock", "")) if drag.get("kind", "") in ["move", "gmove"] else ""
 	var axes := arrow_axes()
 	if lock == "X":
 		draw_dashed_line(Vector2(_ruler(), o.y), Vector2(size.x, o.y), Color(COL_X, 0.35), 1.0, _u(8))
@@ -1100,7 +1455,9 @@ func _draw_axis_arrows(font: Font) -> void:
 	# Puce Z : hauteur de pose (m au-dessus du sol) ; « É1 » pour un étage.
 	var e := ed.doc.find(ed.selected)
 	var zt := ""
-	if MapVertical.pose_kind(e) == "pose":
+	if e.is_empty():
+		zt = ""
+	elif MapVertical.pose_kind(e) == "pose":
 		zt = "Z %s m" % MapView.num(MapVertical.pose_z(ed.doc, ed.raster().v, e), 2)
 	elif ed.doc.floor_count() > 1:
 		zt = "Z %s" % (Lang.t("É%d", "F%d") % int(e.get("etage", 0)))
@@ -1112,7 +1469,7 @@ func _draw_axis_arrows(font: Font) -> void:
 		MapElevation._round_rect(self, r, Color("121214"), COL_Z)
 		draw_string(bf, r.position + Vector2(_u(5), _u(12)), zt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color("cfe0ff"))
 	# Écart pendant le glissement, en or.
-	if drag.get("kind", "") == "move" and drag.get("moved", false) and drag.has("delta"):
+	if drag.get("kind", "") in ["move", "gmove"] and drag.get("moved", false) and drag.has("delta"):
 		var d: Vector2 = drag.delta
 		var parts := []
 		if absf(d.x) > 0.0005:
@@ -1747,6 +2104,133 @@ func _draw_opening(o: Dictionary, font: Font) -> void:
 
 
 ## Étiquette sur fond sombre (mesures du tracé).
+## Étage où mène un escalier, écrit sous sa flèche (zoom suffisant).
+func _stair_floor_label(font: Font, o: Dictionary, lbl: String, col: Color) -> void:
+	if zoom < 8.0:
+		return
+	var fs := EditorUi.fs(11)
+	var lw := font.get_string_size(lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var fr := MapRules.footprint_rect(o)
+	if lw > fr.size.x * zoom + _u(8):
+		return   # trop serré : lisible en zoomant
+	var lp := to_px(fr.get_center()) + Vector2(-lw * 0.5, _u(16))
+	draw_string_outline(font, lp, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 3, Color(0, 0, 0, 0.85))
+	draw_string(font, lp, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+
+
+## Escalier tracé (posé à l'étage `k`, il monte à k + 1) : flèche de montée,
+## cases du départ et de l'arrivée (MapRules.stair_parts), zones du refus.
+func _draw_stair_trace(font: Font, o: Dictionary, k: int, res: Dictionary) -> void:
+	var r := MapGeom.rect_of(o.rect)
+	var d := MapGeom.dir_vec(String(o.get("monte", "n")))
+	var half := (r.size.x if absf(d.x) > 0.5 else r.size.y) * 0.4
+	var c := r.get_center()
+	var col := Color(1, 1, 1, 0.95)
+	var a := to_px(c - d * half)
+	var b := to_px(c + d * half)
+	draw_line(a, b, col, 3.0)
+	draw_line(b, b - d.rotated(0.5) * 10.0, col, 3.0)
+	draw_line(b, b - d.rotated(-0.5) * 10.0, col, 3.0)
+	if res.ok and not res.has("marks"):
+		var parts := MapRules.stair_parts(o)
+		_draw_stair_marks(font, [{"floor": k, "cells": parts.foot.keys(), "role": "depart"},
+			{"floor": k + 1, "cells": parts.exit.keys(), "role": "arrivee"}], k)
+	else:
+		_draw_stair_marks(font, res.get("marks", []), k)
+
+
+## Zones d'un escalier sur le plan : [{floor, cells, role}] ; role « depart »
+## (vert), « arrivee » (bleu), « tremie » (contour violet), « faute » (rouge).
+## Celles d'un autre étage que l'étage affiché : en pointillés, avec leur étage.
+func _draw_stair_marks(font: Font, marks: Array, _k := -1) -> void:
+	var cols := {"depart": Color(0.35, 0.95, 0.45), "arrivee": Color(0.35, 0.75, 1.0), "tremie": Color(0.8, 0.55, 0.95), "faute": COL_BAD}
+	var names := {"depart": Lang.t("départ", "start"), "arrivee": Lang.t("arrivée", "arrival"), "tremie": Lang.t("trémie", "stairwell"), "faute": ""}
+	for m: Dictionary in marks:
+		var cells: Array = m.get("cells", [])
+		if cells.is_empty():
+			continue
+		var role := String(m.get("role", "faute"))
+		var here := int(m.get("floor", -1)) == ed.floor_k
+		var col: Color = cols.get(role, COL_BAD)
+		var bb := Rect2()
+		for i in cells.size():
+			var cr := Rect2(to_px((Vector2(cells[i]) - Vector2.ONE * 0.5) * MapGeom.CELL), Vector2.ONE * MapGeom.CELL * zoom)
+			bb = cr if i == 0 else bb.merge(cr)
+			if role == "faute":
+				draw_rect(cr, Color(col, 0.55 if here else 0.3))
+			elif role != "tremie":
+				draw_rect(cr, Color(col, 0.22 if here else 0.1))
+		if role == "faute":
+			draw_rect(bb.grow(2), col, false, 2.5)
+		elif here:
+			draw_rect(bb, col, false, 2.0)
+		else:
+			var pts := [bb.position, Vector2(bb.end.x, bb.position.y), bb.end, Vector2(bb.position.x, bb.end.y)]
+			for i in 4:
+				draw_dashed_line(pts[i], pts[(i + 1) % 4], col, 1.5, 6.0)
+		var nm := String(names.get(role, ""))
+		if zoom >= 8.0 and nm != "":
+			if not here:
+				nm += Lang.t(" (étage %d)", " (floor %d)") % int(m.get("floor", 0))
+			var fs := EditorUi.fs(11)
+			var w := font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			# Départ, arrivée : au-dessus de leur bande ; trémie : en son milieu.
+			var p := Vector2(bb.get_center().x - w * 0.5, bb.get_center().y if role == "tremie" else bb.position.y - _u(4))
+			draw_string_outline(font, p, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 3, Color(0, 0, 0, 0.9))
+			draw_string(font, p, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col.lightened(0.3))
+
+
+const COL_CARVE := Color(1.0, 0.62, 0.15)
+
+
+## Découpe prévue pendant le tracé d'une pièce (MapCarve.plan) : la partie
+## retirée de chaque pièce recouverte est hachurée en orange (en rouge : la
+## pièce entière, qui sera supprimée), avec son nom et la surface retirée
+## sous le curseur (`at`, px).
+func _draw_carve(font: Font, pl: Dictionary, at: Vector2) -> void:
+	var deleted := {}
+	for v in pl.get("victims", []):
+		if v.deleted:
+			deleted[String(v.id)] = true
+	var y := at.y + _u(14)
+	for h in pl.get("cut", []):
+		var gone := deleted.has(String(h.id))
+		var col := COL_BAD if gone else COL_CARVE
+		var polys: Array = h.parts
+		if gone:
+			var r := ed.doc.find(String(h.id))
+			if not r.is_empty():
+				polys = [ed.doc.room_poly(r)]
+		for part in polys:
+			var pts := _px_poly(part)
+			_fill(pts, Color(col, 0.16))
+			_carve_hatch(pts, Color(col, 0.85))
+			draw_polyline(pts + PackedVector2Array([pts[0]]), col, 2.0)
+		var fr := not Lang.is_en()
+		var lbl := (Lang.t("« %s » sera supprimée", "\"%s\" will be deleted") % h.nom) if gone else \
+			(Lang.t("découpe « %s » : −%s m²", "cut \"%s\": −%s m²") % [h.nom, MapRules._m(snappedf(float(h.area), 0.1), fr)])
+		draw_string_outline(font, Vector2(at.x + _u(10), y), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13), 4, Color.BLACK)
+		draw_string(font, Vector2(at.x + _u(10), y), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13), col.lightened(0.3))
+		y += _u(17)
+	# Ouvertures qui seront retirées (leur mur disparaît) : entourées de rouge.
+	for oid in pl.get("removed_ids", []):
+		var o := ed.doc.find(String(oid))
+		if not o.is_empty():
+			outline_elem(o, COL_BAD, 2.5, 3.0)
+
+
+## Hachures à 45° (tous les 8 px) dans le polygone `pts` (px).
+func _carve_hatch(pts: PackedVector2Array, col: Color) -> void:
+	var bb := MapGeom.bbox(pts)
+	var step := maxf(_u(8), 4.0)
+	var d := -bb.size.y
+	while d < bb.size.x:
+		var line := PackedVector2Array([Vector2(bb.position.x + d, bb.position.y), Vector2(bb.position.x + d + bb.size.y, bb.end.y)])
+		for s in Geometry2D.intersect_polyline_with_polygon(line, pts):
+			draw_polyline(s, col, 1.5)
+		d += step
+
+
 func _label_at(font: Font, p: Vector2, lbl: String) -> void:
 	draw_string_outline(font, p, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13), 4, Color.BLACK)
 	draw_string(font, p, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13), Color.WHITE)
@@ -1793,6 +2277,9 @@ func _draw_tool(font: Font) -> void:
 	var tool := String(it.get("tool", "select"))
 	var col := COL_OK
 	var msg := ""
+	if drag.get("kind", "") == "band":
+		_draw_band(font)
+		return
 	if drag.get("kind", "") == "capture" or (ed.prefab_tools != null and ed.prefab_tools.capturing):
 		# Format 10 : rectangle de capture du décor à grouper (prefab de la carte).
 		if drag.get("kind", "") == "capture":
@@ -1802,6 +2289,14 @@ func _draw_tool(font: Font) -> void:
 			for o in ed.prefab_tools.captured(Rect2(drag.start, Vector2.ZERO).expand(mouse_m)):
 				outline_elem(o, Color(1.0, 0.85, 0.3), 2.0, 2.0)
 		return
+	# Découpe en attente de confirmation (boîte ouverte) : la pièce et les
+	# parties retirées restent affichées.
+	if not carve_pending.is_empty():
+		var q: PackedVector2Array = carve_pending.poly
+		var qp := _px_poly(q)
+		_fill(qp, Color(COL_OK, 0.2))
+		draw_polyline(qp + PackedVector2Array([qp[0]]), COL_OK, 2.0)
+		_draw_carve(font, carve_pending.plan, to_px(MapGeom.bbox(q).end))
 	if drag.get("kind", "") == "create":
 		var end := trace_end()
 		var res := _creation(it, drag.start, end)
@@ -1854,9 +2349,16 @@ func _draw_tool(font: Font) -> void:
 				var r := Rect2(a, Vector2.ZERO).expand(b)
 				draw_rect(r, Color(col, 0.2))
 				draw_rect(r, col, false, 2.0)
+				var so: Dictionary = res.get("obj", {})
+				if String(so.get("type", "")) == "escalier":
+					# Escalier en cours de tracé : flèche, départ et arrivée (sur les
+					# deux étages), et ce qui gêne s'il est refusé.
+					_draw_stair_trace(font, so, int(res.get("floor", ed.floor_k)), res)
 				var sz := (end - Vector2(drag.start)).abs()
 				var lbl := "%s × %s m" % [MapRules._m(sz.x, not Lang.is_en()), MapRules._m(sz.y, not Lang.is_en())]
 				_label_at(font, b + Vector2(_u(10), -_u(8)), lbl)
+			if res.has("carve"):
+				_draw_carve(font, res.carve, b)
 	elif tool in POLY_TOOLS and not poly_pts.is_empty():
 		var end := trace_end()
 		var pts := _px_poly(poly_pts)
@@ -1872,6 +2374,8 @@ func _draw_tool(font: Font) -> void:
 			draw_circle(q, 4.0, col)
 		draw_arc(to_px(poly_pts[0]), 10.0, 0, TAU, 20, Color(1, 1, 1, 0.6), 1.5)
 		_trace_label(font, poly_pts[-1], end)
+		if res.has("carve"):
+			_draw_carve(font, res.carve, to_px(end) + Vector2(0, _u(14)))
 	elif tool in ["opening", "wall_item", "floor_item"] and not preview.is_empty():
 		var o: Dictionary = preview.obj
 		col = COL_OK if preview.ok else COL_BAD

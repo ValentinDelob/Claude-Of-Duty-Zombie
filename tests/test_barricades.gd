@@ -182,3 +182,105 @@ func test_pockets_only_reachable_through_windows() -> void:
 		var sp := MapData.cell_to_world(w.spawns[0])
 		assert_true(nav.find_path(start, sp).is_empty(), "poche de la fenêtre %s isolée" % w.cell)
 		assert_false(nav.find_path(start, MapData.cell_to_world(w.cell + w.inward)).is_empty(), "intérieur de la fenêtre %s accessible" % w.cell)
+
+
+# --------------------------------------------------------------------------
+# Portée de la réparation (BO1 : collé aux planches, de l'intérieur)
+# --------------------------------------------------------------------------
+
+## Entrée construite comme par BarricadeSystem, dans l'arbre de test.
+func _opening(kind: String, pos: Vector3, inward: Vector3) -> Barricade:
+	var o := BarricadeLayout.Opening.new()
+	o.pos = pos
+	o.inward_dir = inward
+	o.kind = kind
+	o.width = BarricadeRules.width(kind)
+	o.height = 2.6
+	var b := Barricade.new()
+	b.setup(o)
+	host.add_child(b)
+	return b
+
+
+## Marge réseau du serveur : proportionnelle à la vitesse et à la latence,
+## nulle pour un joueur immobile, bornée (REPAIR_NET_SLACK_MAX).
+func test_repair_net_slack() -> void:
+	var cap := Barricade.REPAIR_NET_SLACK_MAX
+	assert_eq(Player.lag_slack(0.0, 0.15, cap), 0.0, "immobile : aucune marge")
+	assert_near(Player.lag_slack(4.0, 0.05, cap), 4.0 * (0.05 + 1.0 / Player.NET_SEND_RATE), 0.001, "marche : vitesse × (RTT + envoi)")
+	assert_eq(Player.lag_slack(7.0, 0.5, cap), cap, "bornée")
+	assert_near(Player.move_speed(Vector3.ZERO, Vector3(0.2, 5.0, 0.0), 0.05), 4.0, 0.001, "vitesse horizontale entre deux états")
+	assert_eq(Player.move_speed(Vector3.ZERO, Vector3(5.0, 0, 0), 0.05), 0.0, "saut voulu : pas une vitesse")
+	assert_eq(Player.move_speed(Vector3.ZERO, Vector3(1, 0, 0), 0.0), 0.0, "intervalle nul")
+	# Joueur qui avance : sa référence (en retard) est un peu au-delà de la
+	# portée ; avec la marge elle passe, à 1,5 m immobile jamais.
+	var w := Vector3.ZERO
+	var n := Vector3(0, 0, 1)
+	var lagging := Vector3(0, 0, 0.5 + Barricade.REPAIR_REACH + 0.2)
+	assert_false(Barricade.can_repair_from(lagging, w, n), "référence en retard : hors portée stricte")
+	assert_true(Barricade.can_repair_from(lagging, w, n, 0.5, 0.5 + Player.lag_slack(4.0, 0.05, cap)), "avec la marge de latence : acceptée")
+	assert_false(Barricade.can_repair_from(Vector3(0, 0, 0.5 + 1.5), w, n, 0.5, 0.5 + cap), "à 1,5 m, même avec la marge maximale : refusée")
+
+
+## Règle pure : fenêtre au milieu d'un mur en (0 ; 0 ; 0), intérieur vers +z,
+## face intérieure de la barrière à 0,5 m.
+func test_repair_range_rule() -> void:
+	var w := Vector3.ZERO
+	var n := Vector3(0, 0, 1)
+	var contact := 0.5 + Player.RADIUS
+	assert_true(Barricade.can_repair_from(Vector3(0, 0, contact), w, n), "collé à la barrière : réparable")
+	assert_true(Barricade.can_repair_from(Vector3(0, 0, 0.5 + Barricade.REPAIR_REACH - 0.01), w, n), "bord de la portée")
+	assert_false(Barricade.can_repair_from(Vector3(0, 0, 0.5 + 1.5), w, n), "à 1,5 m de la barrière : refusé")
+	assert_false(Barricade.can_repair_from(Vector3(0, 0, 0.5 + Barricade.REPAIR_REACH + 0.05), w, n), "juste au-delà de la portée : refusé")
+	# Ancienne portée : 2,4 m autour d'un point à 0,55 m devant l'ouverture.
+	assert_false(Barricade.can_repair_from(Vector3(0, 0, 2.5), w, n), "réparable de 2,5 m avant : plus maintenant")
+	assert_false(Barricade.can_repair_from(Vector3(0, 0, -contact), w, n), "de l'autre côté (dehors) : refusé")
+	assert_false(Barricade.can_repair_from(Vector3(0, 0, 0.1), w, n), "dans le mur : refusé")
+	# Le long du mur : derrière le mur voisin (au-delà du bord + un rayon), non.
+	assert_true(Barricade.can_repair_from(Vector3(0.5 + 0.3, 0, contact), w, n), "épaule encore devant l'ouverture")
+	assert_false(Barricade.can_repair_from(Vector3(1.4, 0, contact), w, n), "devant le mur voisin : refusé")
+	# À travers un mur perpendiculaire collé au bord de l'ouverture (0,5 m
+	# d'épaisseur) : le joueur de la pièce voisine est à 0,5 + RADIUS du bord.
+	assert_false(Barricade.can_repair_from(Vector3(0.5 + 0.5 + Player.RADIUS, 0, contact), w, n), "à travers le mur voisin : refusé")
+	# Autre étage.
+	assert_false(Barricade.can_repair_from(Vector3(0, 3.0, contact), w, n), "étage du dessus : refusé")
+	assert_false(Barricade.can_repair_from(Vector3(0, -3.0, contact), w, n), "étage du dessous : refusé")
+	assert_true(Barricade.can_repair_from(Vector3(0, 0.4, contact), w, n), "petite marche : réparable")
+	# Mur de biais : même règle, dans le repère de l'ouverture.
+	var d := Vector3(1, 0, 1).normalized()
+	var s := Vector3(d.z, 0, -d.x)
+	assert_true(Barricade.can_repair_from(w + d * contact + s * 0.3, w, d), "mur en biais : collé")
+	assert_false(Barricade.can_repair_from(w + d * 2.0, w, d), "mur en biais : trop loin")
+
+
+## Instances : fenêtre, porte simple, porte double de 2 m (mesure depuis le
+## segment de l'ouverture : réparable sur toute sa largeur), murs tournés.
+func test_repair_range_by_kind() -> void:
+	var win := _opening(BarricadeRules.WINDOW, Vector3(4, 0, 2), Vector3(-1, 0, 0))
+	var door := _opening(BarricadeRules.DOOR, Vector3(-3, 0, 5), Vector3(0, 0, -1))
+	var dbl := _opening(BarricadeRules.DOUBLE_DOOR, Vector3(0, 0, 0), Vector3(0, 0, 1))
+	for b: Barricade in [win, door, dbl]:
+		var name_k := b.kind
+		var side := Vector3(b.inward.z, 0, -b.inward.x)
+		var face := b.global_position + b.inward * b.barrier_half_depth()
+		assert_true(b.in_repair_range(b.repair_spot()), "%s : place de réparation" % name_k)
+		assert_true(b.in_repair_range(face + b.inward * Player.RADIUS), "%s : collé" % name_k)
+		assert_false(b.in_repair_range(face + b.inward * 1.5), "%s : 1,5 m de la barrière, refusé" % name_k)
+		assert_false(b.in_repair_range(b.global_position - b.inward * (b.barrier_half_depth() + Player.RADIUS)), "%s : dehors, refusé" % name_k)
+		# Sur toute la largeur de l'ouverture.
+		var half := b.width * 0.5
+		for k in [-1.0, -0.5, 0.0, 0.5, 1.0]:
+			assert_true(b.in_repair_range(face + b.inward * 0.5 + side * half * k), "%s : réparable à %.0f %% de la largeur" % [name_k, k * 100.0])
+		assert_false(b.in_repair_range(face + b.inward * 0.5 + side * (half + 0.6)), "%s : devant le mur voisin, refusé" % name_k)
+		# Visée : vers l'ouverture oui, dos tourné non.
+		assert_true(b.faces_opening(-b.inward), "%s : face à l'ouverture" % name_k)
+		assert_true(b.faces_opening((-b.inward + side * 2.0).normalized()), "%s : de biais (bout d'une large ouverture)" % name_k)
+		assert_false(b.faces_opening(side), "%s : le long du mur, pas d'invite" % name_k)
+		assert_false(b.faces_opening(b.inward), "%s : dos tourné, pas d'invite" % name_k)
+		assert_true(b.faces_opening(Vector3.DOWN), "%s : regard vers le sol (planches basses)" % name_k)
+	assert_near(win.barrier_half_depth(), 0.5, 0.001, "barrière de fenêtre : 1 m")
+	assert_near(door.barrier_half_depth(), MapGeom.WALL_HALF, 0.001, "barrière de porte : l'épaisseur du mur")
+	assert_true(dbl.in_repair_range(Vector3(-1.0, 0, 0.25 + Player.RADIUS)), "porte double : bout gauche, collé")
+	assert_true(dbl.in_repair_range(Vector3(1.0, 0, 0.25 + Player.RADIUS)), "porte double : bout droit, collé")
+	for b: Barricade in [win, door, dbl]:
+		b.free()

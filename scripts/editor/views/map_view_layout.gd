@@ -348,8 +348,10 @@ func hovered_pane() -> MapViewPane:
 
 
 ## Pavé numérique (§ 4) quand la souris est sur une vue : 7 Dessus, 1 Avant,
-## 3 Droite ; Ctrl : la vue opposée ; 5 : la 3D. Rend false sinon (les
-## chiffres du pavé choisissent alors une case de la barre rapide).
+## 3 Droite ; Ctrl : la vue opposée ; 5 : la 3D. Sur la fenêtre 3D, 7 / 1 / 3
+## tournent la caméra vers cette face (comme le ViewCube, même mode) et 5
+## rend le dernier plan. Rend false sinon (les chiffres du pavé choisissent
+## alors une case de la barre rapide).
 func numpad(k: InputEventKey, pn: MapViewPane) -> bool:
 	if pn == null or pn.view == null:
 		return false
@@ -375,6 +377,9 @@ func numpad(k: InputEventKey, pn: MapViewPane) -> bool:
 			return true
 		_:
 			return false
+	if pn.plane() == "3d":
+		show_3d_from(MapViewCube.target_dir("f:" + pl))
+		return true
 	set_pane_plane(pn, pl, true)
 	return true
 
@@ -408,6 +413,11 @@ func view_target(v: MapView) -> Vector3:
 ## coin (la 3D vue de cette direction), maison, menu, façade suivante.
 func cube_action(v: MapView, id: String) -> void:
 	var pn := pane_of(v)
+	if v is MapView3D:
+		# Fenêtre 3D : le cube de l'aperçu (orientation de la caméra, même mode).
+		if ed.preview != null and id != "menu" and id != "prev" and id != "next":
+			ed.preview._on_cube(id)
+		return
 	if id.begins_with("f:"):
 		if pn != null:
 			set_pane_plane(pn, id.substr(2), true)
@@ -436,17 +446,16 @@ func cube_action(v: MapView, id: String) -> void:
 
 
 ## La 3D vue de la direction `dir` (repère de la carte, vers la caméra),
-## visant `target` : l'aperçu 3D (panneau flottant).
-func show_3d_from(dir: Vector3, target: Vector3) -> void:
+## visant `target` (repère de la carte ; null : le point visé actuel) :
+## l'aperçu 3D. La caméra garde son mode (orbite, vol libre, joueur).
+func show_3d_from(dir: Vector3, target: Variant = null) -> void:
 	var pv := ed.preview
 	if pv == null:
 		return
 	# Une seule 3D : celle d'une fenêtre si elle existe, sinon le panneau flottant.
 	if _pane_3d() == null and not pv.shown:
 		pv.set_shown(true)
-	var off := MapGeom.WORLD_OFFSET
-	pv.world.rig.look_from(Vector3(dir.x, dir.z, dir.y), Vector3(target.x + off, target.z, target.y + off))
-	pv._request_render()
+	pv.look_from_map(dir, target)
 
 
 var _menu: PopupMenu

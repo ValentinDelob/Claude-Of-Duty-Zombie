@@ -2103,6 +2103,77 @@
     "en": "Editor: effects neatly kept in their box, and three fixes",
     "fr": "Éditeur : effets bien rangés dans leur boîte, et trois corrections"
    }
+  },
+  "v0.2.1-snapshot.400": {
+   "channel": "snapshot",
+   "date": "2026-10-03",
+   "images": [
+    "v0.2.1-snapshot.400/01_joueur_a_terre.jpg",
+    "v0.2.1-snapshot.400/02_selection_et_menu.jpg",
+    "v0.2.1-snapshot.400/03_decoupe_de_piece.jpg"
+   ],
+   "items": [
+    {
+     "en": "Lights that were too dazzling in High quality are fixed (mystery box, editor preview).",
+     "fr": "Les lumières trop éblouissantes en qualité Haute sont corrigées (boîte mystère, aperçu de l'éditeur)."
+    },
+    {
+     "en": "You now have to stand right next to a barricade to repair it.",
+     "fr": "Pour réparer une barricade, il faut maintenant être collé à elle."
+    },
+    {
+     "en": "In multiplayer, the group stays together in the lobby after a game ends.",
+     "fr": "En multijoueur, le groupe reste ensemble au salon après la fin d'une partie."
+    },
+    {
+     "en": "Sprinting is smooth: no more shaking when you run out of breath.",
+     "fr": "La course est fluide : plus de tremblement quand on est à bout de souffle."
+    },
+    {
+     "en": "One key can now be used for several actions.",
+     "fr": "Une même touche peut servir à plusieurs commandes."
+    },
+    {
+     "en": "Switching weapons cancels the reload.",
+     "fr": "Changer d'arme annule le rechargement."
+    },
+    {
+     "en": "New pose when you are down: sitting, leaning on one hand, weapon still in hand.",
+     "fr": "Nouvelle pose du joueur à terre : assis, appuyé sur une main, arme toujours en main."
+    },
+    {
+     "en": "Zombie bodies fall realistically and get blown away by explosions and the THUNDER-7.",
+     "fr": "Les corps des zombies tombent de façon réaliste et sont soufflés par les explosions et le TONNERRE-7."
+    },
+    {
+     "en": "Editor: the Windows file explorer opens to pick a file.",
+     "fr": "Éditeur : l'explorateur Windows s'ouvre pour choisir un fichier."
+    },
+    {
+     "en": "Editor: reliable stairs up to 5 floors, with clear error messages; choose stairs going up or going down.",
+     "fr": "Éditeur : escaliers fiables jusqu'à 5 étages, avec des messages d'erreur clairs ; on choisit un escalier qui monte ou qui descend."
+    },
+    {
+     "en": "Editor: the map is only saved when you ask, with a confirmation before leaving and your work recovered after a crash.",
+     "fr": "Éditeur : la carte n'est enregistrée que quand vous le demandez, avec une confirmation avant de quitter et la récupération de votre travail après un plantage."
+    },
+    {
+     "en": "Editor: multiple selection (Shift+click or rectangle), actions on the whole group and a right-click menu with \"Create a prefab\".",
+     "fr": "Éditeur : sélection multiple (Maj+clic ou rectangle), actions sur tout le groupe et menu du clic droit avec « Créer une prefab »."
+    },
+    {
+     "en": "Editor: drawing a room over another one cuts it, after confirmation.",
+     "fr": "Éditeur : tracer une pièce sur une autre la découpe, après confirmation."
+    },
+    {
+     "en": "Editor: the orientation cube keeps free flight in the 3D view.",
+     "fr": "Éditeur : le cube d'orientation garde le vol libre dans la vue 3D."
+    }
+   ],
+   "title": {
+    "en": "Big update: a pro editor and game fixes",
+    "fr": "Grosse mise à jour : éditeur pro et corrections de jeu"
+   }
   }
  }
 }

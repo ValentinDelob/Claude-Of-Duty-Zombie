@@ -234,8 +234,10 @@ Escaliers (format 6) : `variante` parmi les huit types, `sens` (`droite`,
 
 ### Les types
 
-L'escalier garde son outil (inventaire, Construction, glisser du bas vers
-le haut) ; son **type** est sa variante (touche **V**, liste **Type (V)**
+Deux outils dans l'inventaire (Construction) : **Escalier qui monte**
+(icône ↑, glisser du bas, à l'étage courant, vers le haut) et **Escalier qui
+descend** (icône ↓, glisser du haut, à l'étage courant, vers le bas). Son
+**type** est sa variante (touche **V**, liste **Type (V)**
 des propriétés). Contrairement aux autres variantes, le type change la
 forme des marches, leur collision et le trajet des zombies.
 
@@ -266,6 +268,58 @@ Dessin du plan : volées et leurs marches, paliers, colimaçon, flèches de
 montée et, au zoom, les pointillés du couloir des zombies avec ses deux
 ancres (point jaune : entrée ; orange : sortie). L'aperçu 3D et la partie
 construisent le même escalier (`MeshMapGeometry`, code commun).
+
+### Plusieurs étages, escalier qui descend
+
+Un objet `escalier` appartient à l'étage du BAS (`etage` = k) et monte à
+l'étage k + 1 ; `monte` donne le sens de la montée. L'**escalier qui
+descend** n'ajoute aucun champ : posé depuis l'étage k, il est enregistré à
+l'étage k - 1 avec `monte` inversé (`MapRules.stair_dir`), son arrivée là où
+le tracé a commencé ; refusé au rez-de-chaussée (« pas d'étage sous le
+rez-de-chaussée »). Les cartes d'avant et le contrôle des cartes reçues
+(`CustomMapGuard`) sont donc inchangés.
+
+Cases d'un escalier (`MapRules.stair_parts`, les mêmes que le validateur) :
+marches (et trémie, à l'étage du dessus), **départ** (sol de son étage devant
+la première marche) et **arrivée** (plancher de l'étage du dessus au-delà de
+la dernière). À la pose (`MapRules.check_stair`, aussi pour les éléments
+envoyés par le serveur MCP et les éléments devenus invalides) :
+
+- pas dans la trémie d'un escalier de l'étage du dessous, ni sur son arrivée ;
+  pas sur le départ d'un autre escalier de l'étage ;
+- trémie (étage du dessus) libre : ni escalier, ni son départ, ni l'arrivée
+  d'un autre escalier, ni pilier ou décor ;
+- départ sur le sol libre de la pièce ; arrivée sur le plancher libre d'une
+  pièce de l'étage du dessus (bord d'une mezzanine au-dessus d'une double
+  hauteur compris) ; un étage du dessus encore sans pièce est admis (le
+  validateur le rappelle) ;
+- 40° au plus (droit, large, service, rampe : « allongez-le à … m »).
+
+Chaque refus dit quoi et où, en français et en anglais (« pas de pièce à
+l'étage 3 au-dessus de l'arrivée de l'escalier (x 12 m, y 8 m) », « l'arrivée
+(en haut, étage 2) tombe dans un mur de l'étage 2 … », « le départ (au pied,
+étage 1) chevauche l'escalier de l'étage 1 vers l'étage 2 … », « pas d'étage
+au-dessus de l'étage 4 : ajoutez d'abord un étage (onglet Étages) ») ; le plan
+montre le départ (vert), l'arrivée (bleu), la trémie et les cases fautives
+(rouge), sur l'étage affiché et, en pointillés, sur l'autre. Pendant le tracé,
+départ et arrivée sont montrés en continu.
+
+Validateur : le sens tracé (`monte`, `MapValidator.stair_up`) départage les
+étages empilés (chaque étage couvre celui du dessous : du sol aux deux bouts,
+en bas comme en haut ; avant, « sens de montée ambigu » dès le 3e étage) ;
+sans lui, le seul sens possible (cartes écrites à la main). Messages précis :
+« son arrivée (en haut, étage 3) tombe sur la trémie de l'escalier qui monte
+de l'étage 2 en (…) », « le vide au-dessus de ses marches (trémie, étage 2)
+est occupé par l'escalier de l'étage 2 vers l'étage 3 … » ; les cases en
+cause sont celles de l'étage concerné. Cage d'escalier : volées côte à côte
+(alternées, un étage sur deux au même endroit), jamais deux volées l'une
+au-dessus de l'autre.
+
+Tests : `tests/test_stairs_floors.gd` (immeuble de 5 étages : cage, volées
+décalées, hauteurs différentes, double hauteur, petite pièce d'arrivée ;
+chaque refus et son message ; escalier qui descend), scénario
+`stairs_floors` (le joueur monte à pied du rez-de-chaussée au 5e étage et
+redescend ; un zombie qui court le suit dans les deux sens).
 
 ### Géométrie et collision (`StairGen`)
 
@@ -563,7 +617,11 @@ propriétés ; le plan écrit PORTE ou DOUBLE PORTE sur l'ouverture.
 La fenêtre garde exactement son aspect, sa découpe et ses règles (KINO,
 BUNKER K-7 et les cartes d'avant ne changent pas). Les règles des planches
 sont celles des fenêtres de BO1 : réparation en maintenant [F] depuis
-l'intérieur (+10 points par planche, plafond de 500 par manche, bonus
+l'intérieur, collé aux planches et tourné vers elles (portée
+`Barricade.REPAIR_REACH` = 0,8 m du centre du joueur à la face intérieure
+de la barrière, sur toute la largeur de l'ouverture plus 0,35 m de chaque
+côté, même étage ; vérifiée aussi par l'hôte en multijoueur)
+(+10 points par planche, plafond de 500 par manche, bonus
 CHARPENTIER), coup à travers quand il reste 3 planches au plus, joueurs
 arrêtés par l'ouverture même sans planches (la cour reste hors jeu, comme
 derrière les fenêtres de BO1).

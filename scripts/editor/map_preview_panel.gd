@@ -166,7 +166,7 @@ func _build_ui() -> void:
 	whole.text = Lang.t("Carte", "Map")
 	whole.tooltip_text = Lang.t("Recadrer sur toute la carte", "Frame the whole map")
 	whole.focus_mode = Control.FOCUS_NONE
-	whole.pressed.connect(func(): world.frame_map())
+	whole.pressed.connect(func(): frame_map())
 	tools.add_child(whole)
 	follow_box = CheckBox.new()
 	follow_box.text = Lang.t("Suivre la 2D", "Follow 2D")
@@ -636,9 +636,12 @@ func _view_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_RIGHT:
 				_rmb = mb.pressed
 				if mb.pressed:
+					_rmb_click = true
+					_rmb_travel = 0.0
 					_capture(mb.position)
 				else:
 					_release_mouse()
+					_rmb_up()
 			MOUSE_BUTTON_MIDDLE:
 				_mmb = mb.pressed
 			MOUSE_BUTTON_LEFT:
@@ -652,7 +655,11 @@ func _view_input(event: InputEvent) -> void:
 							center_on_selection()
 				elif _lmb_at.x >= 0.0 and mb.position.distance_to(_lmb_at) < 5.0:
 					var id := world.pick(_in_view_px(mb.position))
-					_select(id)
+					# Maj + clic : ajouté à la sélection de l'éditeur, ou retiré.
+					if (mb.shift_pressed or (ed != null and ed.canvas.shift_select)) and id != "" and ed != null:
+						ed.toggle_selected(id)
+					else:
+						_select(id)
 					_lmb_at = Vector2(-1, -1)
 		view.accept_event()
 		_request_render()
@@ -662,10 +669,33 @@ func _view_input(event: InputEvent) -> void:
 		# _input ; fenêtre détachée : l'événement arrive seulement ici.
 		if _rmb:
 			rig.look(mm.relative)
+			_rmb_moved(mm.relative)
 		elif _mmb:
 			rig.pan(mm.relative)
 		if _rmb or _mmb:
 			view.accept_event()
+
+
+## Clic droit sans tourner la caméra (moins de 6 px de mouvement) : le menu du
+## clic droit de l'éditeur (MapContextMenu) sur l'élément visé ; un clic droit
+## glissé reste le regard.
+var _rmb_click := false
+var _rmb_travel := 0.0
+
+
+func _rmb_moved(rel: Vector2) -> void:
+	_rmb_travel += rel.length()
+	if _rmb_travel > 6.0:
+		_rmb_click = false
+
+
+func _rmb_up() -> void:
+	if not _rmb_click or ed == null:
+		_rmb_click = false
+		return
+	_rmb_click = false
+	var id := world.pick(_in_view_px(_capture_at))
+	ed.open_context_menu(view.get_screen_position() + _capture_at, Vector2.INF, id)
 
 
 ## Choisit un élément de l'éditeur depuis l'aperçu ("" : désélectionner).
@@ -707,10 +737,12 @@ func _captured_mouse_input(event: InputEvent) -> bool:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_RIGHT and not mb.pressed:
 			_release_mouse()
+			_rmb_up()
 			_request_render()
 		return true
 	if event is InputEventMouseMotion:
 		world.rig.look((event as InputEventMouseMotion).relative)
+		_rmb_moved((event as InputEventMouseMotion).relative)
 		_request_render()
 		return true
 	return false
@@ -853,6 +885,7 @@ func _process(delta: float) -> void:
 	world.set_view_floor(ed.floor_k)
 	_update_hover()
 	world.selected_id = ed.selected
+	world.selected_ids = ed.group
 	world.update_overlay()
 	_read_keys()
 	if follow and ed.canvas != null:
@@ -889,18 +922,49 @@ func _place_cube() -> void:
 		cube.set_view_dir(Vector3(b.x, b.z, b.y))
 
 
-## Clic sur le ViewCube de l'aperçu : face (dans une fenêtre : bascule vers ce
-## plan ; flottant : caméra de face), arête ou coin (caméra sur cette
-## direction), maison (toute la carte).
+## Clic sur le ViewCube de l'aperçu (panneau flottant ou fenêtre 3D de la
+## disposition) : face, arête ou coin (la caméra regarde depuis cette
+## direction), maison (toute la carte). Le mode de la caméra (orbite, vol
+## libre, joueur) ne change jamais (docs/EDITOR_VIEWS.md § 4).
 func _on_cube(id: String) -> void:
 	if id == "home":
-		world.frame_map()
-	elif id.begins_with("f:") and pane_host != null and ed != null:
-		ed.views.set_pane_plane(ed.views.pane_of(pane_host as MapView), id.substr(2), true)
-	else:
-		var d := MapViewCube.target_dir(id)
-		if d != Vector3.ZERO:
-			world.rig.look_from(Vector3(d.x, d.z, d.y), world.rig.pivot)
+		if world.rig.mode == MapPreviewCamera.Mode.WALK:
+			# Vue joueur : pas de recadrage possible à hauteur d'yeux sans
+			# téléporter le joueur ; il se tourne vers le centre de la carte.
+			var back := world.rig.eye() - world.map_bounds().get_center()
+			back.y = 0.0
+			if back.length() > 0.5:
+				look_from_map(Vector3(back.x, back.z, 0.0))
+		else:
+			frame_map(true)
+		return
+	var d := MapViewCube.target_dir(id)
+	if d != Vector3.ZERO:
+		look_from_map(d)
+
+
+## La caméra regarde depuis la direction `dir` (repère de la carte : x est,
+## y sud, z haut ; du point visé vers la caméra), visant `target` (repère de
+## la carte ; null : le point visé actuel), avec une transition ; même mode.
+func look_from_map(dir: Vector3, target: Variant = null) -> void:
+	var t: Variant = null
+	if target is Vector3:
+		t = Vector3(target.x + OFF, target.z, target.y + OFF)
+	world.rig.look_from(Vector3(dir.x, dir.z, dir.y), t, true)
+	_camera_changed()
+
+
+## Toute la carte (maison du ViewCube : avec une transition).
+func frame_map(animate := false) -> void:
+	world.frame_map(animate)
+	_camera_changed()
+
+
+## Après un mouvement de caméra demandé par l'éditeur : sélecteur de mode,
+## aide et rendu à jour.
+func _camera_changed() -> void:
+	_refresh_menu()
+	_refresh_hint()
 	_request_render()
 
 

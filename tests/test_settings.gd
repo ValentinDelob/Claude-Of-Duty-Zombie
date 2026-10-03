@@ -1,6 +1,6 @@
 extends TestCase
 ## Réglages : touches et boutons de manette réaffectables (deux commandes par
-## action et par colonne, molette, conflits, InputMap, anciens fichiers), noms des
+## action et par colonne, molette, commande partagée entre actions, InputMap, anciens fichiers), noms des
 ## boutons Xbox / PlayStation et invites, sticks (zone morte, vue), options
 ## graphiques et de contrôle ajoutées, enregistrement puis rechargement.
 ## Tout se fait dans un fichier temporaire : les réglages du joueur ne sont
@@ -15,6 +15,10 @@ var _saved := {}
 
 
 func before_each() -> void:
+	# Événements injectés par un test précédent (Input.parse_input_event) et
+	# pas encore lus : appliqués maintenant, avant la sauvegarde, et non au
+	# milieu de ce test (indépendance de l'ordre des tests).
+	Input.flush_buffered_events()
 	for k in SAVED_KEYS:
 		var v = Settings.get(k)
 		_saved[k] = v.duplicate(true) if v is Dictionary else v
@@ -79,6 +83,21 @@ func _wheel_notch(button: MouseButton) -> void:
 	var up := ev.duplicate() as InputEventMouseButton
 	up.pressed = false
 	Input.parse_input_event(up)
+
+
+## Appui ou relâche injecté hors image physique, puis attente de sa lecture.
+## Input met les événements en mémoire tampon et ne les lit qu'au début de
+## l'itération suivante du moteur ; or, après une image lente (machine
+## chargée, série complète), le moteur rattrape plusieurs images physiques
+## dans la MÊME itération : compter des images physiques juste après
+## parse_input_event peut alors se faire sans que l'événement soit lu (appui
+## et relâche lus ensemble ensuite : action « maintenue » une seule image).
+## Après process_frame, toute image physique suivante appartient à une
+## itération qui a déjà lu l'événement.
+func _inject(ev: InputEvent) -> void:
+	await host.get_tree().process_frame
+	Input.parse_input_event(ev)
+	await host.get_tree().process_frame
 
 
 func test_one_key_per_action_by_default() -> void:
@@ -202,7 +221,7 @@ func test_wheel_codes_roundtrip_and_names() -> void:
 
 func test_two_keys_per_action() -> void:
 	# L'exemple du joueur : couteau sur V ET sur molette bas.
-	assert_eq(Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1), "", "aucune action ne perd la molette")
+	assert_eq(Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1), [], "molette bas : aucune autre action ne l'a")
 	assert_eq(Settings.bindings.melee, [_k(KEY_V), _w(MOUSE_BUTTON_WHEEL_DOWN)])
 	assert_true(_has_key("melee", KEY_V) and _has_mouse("melee", MOUSE_BUTTON_WHEEL_DOWN), "V et molette bas dans l'InputMap")
 	assert_eq(Settings.action_label("melee"), "V", "invite : la première")
@@ -230,7 +249,7 @@ func test_two_keys_per_action() -> void:
 func test_bind_to_other_slot_of_same_action_moves_it() -> void:
 	Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1)
 	# V dans la deuxième case : les deux commandes échangent leur place.
-	assert_eq(Settings.bind("melee", _k(KEY_V), 1), "", "pas de conflit avec soi-même")
+	assert_eq(Settings.bind("melee", _k(KEY_V), 1), [], "pas de partage avec soi-même")
 	assert_eq(Settings.bindings.melee, [_w(MOUSE_BUTTON_WHEEL_DOWN), _k(KEY_V)])
 	assert_eq(Settings.action_label("melee"), "MOLETTE BAS" if Settings.language == "fr" else "WHEEL DOWN")
 	# Même case : rien ne change.
@@ -241,22 +260,114 @@ func test_bind_to_other_slot_of_same_action_moves_it() -> void:
 	assert_eq(Settings.bindings.jump, [_k(KEY_SPACE)])
 
 
-func test_conflict_with_second_slot() -> void:
+func test_shared_with_second_slot() -> void:
 	Settings.bind("melee", _k(KEY_B), 1)
-	# B pris par RECHARGER : retiré de la deuxième case du couteau, V reste.
-	assert_eq(Settings.bind("reload", _k(KEY_B), 1), "melee")
-	assert_eq(Settings.bindings.melee, [_k(KEY_V)])
+	# B aussi sur RECHARGER : gardée dans la deuxième case du couteau.
+	assert_eq(Settings.bind("reload", _k(KEY_B), 1), ["melee"])
+	assert_eq(Settings.bindings.melee, [_k(KEY_V), _k(KEY_B)])
 	assert_eq(Settings.bindings.reload, [_k(KEY_R), _k(KEY_B)])
-	# V (première case du couteau) pris : la deuxième remonte, ici aucune.
-	Settings.bind("melee", _k(KEY_N), 1)
-	assert_eq(Settings.bind("reload", _k(KEY_V), 0), "melee")
-	assert_eq(Settings.bindings.melee, [_k(KEY_N)], "N remonte en première case")
+	assert_true(_has_key("melee", KEY_B) and _has_key("reload", KEY_B), "B dans l'InputMap des deux actions")
+	# V (première case du couteau) aussi sur RECHARGER : le couteau la garde.
+	assert_eq(Settings.bind("reload", _k(KEY_V), 0), ["melee"])
+	assert_eq(Settings.bindings.melee, [_k(KEY_V), _k(KEY_B)], "le couteau garde V et B")
 	assert_eq(Settings.bindings.reload, [_k(KEY_V), _k(KEY_B)], "R remplacé par V")
 	assert_false(_has_key("reload", KEY_R))
+	assert_eq(Settings.action_label("melee"), "V", "invite du couteau : toujours V")
+	assert_eq(Settings.action_label("reload"), "V", "invite de RECHARGER : V")
 	# Colonne manette : même règle, case par case.
-	Settings.bind("jump", "joy:%d" % JOY_BUTTON_Y, 1)
-	assert_eq(Settings.pad_bindings.switch_weapon, [], "Y retiré de CHANGER D'ARME")
+	assert_eq(Settings.bind("jump", "joy:%d" % JOY_BUTTON_Y, 1), ["switch_weapon"])
+	assert_eq(Settings.pad_bindings.switch_weapon, ["joy:%d" % JOY_BUTTON_Y], "Y reste sur CHANGER D'ARME")
 	assert_eq(Settings.pad_bindings.jump, ["joy:%d" % JOY_BUTTON_A, "joy:%d" % JOY_BUTTON_Y])
+	# Effacer sur une ligne ne touche pas l'autre.
+	Settings.clear_binding("reload", false, 1)
+	assert_eq(Settings.bindings.melee, [_k(KEY_V), _k(KEY_B)])
+	assert_eq(Settings.shared_with("melee", _k(KEY_B)), [], "B n'est plus partagée")
+	assert_eq(Settings.shared_with("melee", _k(KEY_V)), ["reload"])
+
+
+func test_shared_with_lists_other_actions_in_screen_order() -> void:
+	Settings.bind("reload", _k(KEY_F), 1)
+	Settings.bind("melee", _k(KEY_F), 1)
+	assert_eq(Settings.shared_with("interact", _k(KEY_F)), ["reload", "melee"], "ordre de l'écran")
+	assert_eq(Settings.shared_with("reload", _k(KEY_F)), ["interact", "melee"])
+	assert_eq(Settings.shared_with("reload", ""), [], "case vide")
+	assert_eq(Settings.shared_with("reload", _k(KEY_R)), [], "R : seulement RECHARGER")
+	# Même code dans l'autre colonne : jamais confondu.
+	@warning_ignore("static_called_on_instance")
+	var shared := Settings.codes_shared({"jump": [_k(KEY_SPACE)]}, {"crouch": ["joy:0"], "jump": ["joy:0"]}, "jump", "joy:0")
+	assert_eq(shared, ["crouch"])
+	# Mention de la case (écran COMMANDES).
+	var lang: String = Settings.language
+	Settings.language = "fr"
+	assert_eq(MenuBindRow.shared_label([]), "")
+	assert_eq(MenuBindRow.shared_label(["COUTEAU"]), "AUSSI : COUTEAU")
+	assert_eq(MenuBindRow.shared_label(["COUTEAU", "RECHARGER"]), "AUSSI : COUTEAU +1")
+	Settings.language = "en"
+	assert_eq(MenuBindRow.shared_label(["KNIFE"]), "ALSO: KNIFE")
+	Settings.language = lang
+
+
+## Le même évènement (une touche, un bouton de manette) déclenche chaque
+## action qui l'a, lu par PlayerInput à l'image physique comme Player.
+func test_shared_key_triggers_every_action() -> void:
+	Settings.bind("reload", _k(KEY_F), 1)
+	Settings.bind("melee", _k(KEY_F), 1)
+	Settings.bind("sprint", "joy:%d" % JOY_BUTTON_A, 1)
+	var tree := host.get_tree()
+	var counts := {"interact": 0, "reload": 0, "melee": 0, "jump": 0, "sprint_frames": 0}
+	var inp := PlayerInput.new()
+	var read := func():
+		inp.read_devices(1.0 / 60.0)
+		counts.interact += int(inp.interact_pressed)
+		counts.reload += int(inp.reload)
+		counts.melee += int(inp.melee)
+		counts.jump += int(inp.jump)
+		counts.sprint_frames += int(inp.sprint)
+		inp.clear_edges()
+	tree.physics_frame.connect(read)
+	# Chaque événement passe par _inject : lu par Input AVANT les images
+	# physiques comptées (sinon, machine chargée, appui et relâche peuvent
+	# être lus ensemble après coup : sprint « maintenu » une seule image).
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_F
+	key.pressed = true
+	await _inject(key)
+	for i in 3:
+		await tree.physics_frame
+	var up := key.duplicate() as InputEventKey
+	up.pressed = false
+	await _inject(up)
+	for i in 3:
+		await tree.physics_frame
+	assert_eq(counts.interact, 1, "F : INTERAGIR une fois")
+	assert_eq(counts.reload, 1, "F : RECHARGER une fois")
+	assert_eq(counts.melee, 1, "F : COUTEAU une fois")
+	# Manette : A saute ET sprinte (maintenu tant que A est enfoncé).
+	var a := InputEventJoypadButton.new()
+	a.button_index = JOY_BUTTON_A
+	a.pressed = true
+	await _inject(a)
+	for i in 3:
+		await tree.physics_frame
+	var held_frames: int = counts.sprint_frames
+	var a_up := a.duplicate() as InputEventJoypadButton
+	a_up.pressed = false
+	await _inject(a_up)
+	for i in 3:
+		await tree.physics_frame
+	tree.physics_frame.disconnect(read)
+	assert_eq(counts.jump, 1, "A : un saut")
+	assert_true(held_frames >= 3, "A : sprint maintenu (%d images)" % held_frames)
+	assert_false(inp.sprint, "A relâché : plus de sprint")
+	Settings.using_pad = false
+
+
+func test_shared_reload_and_use_prefers_use_near_an_object() -> void:
+	# Même appui pour RECHARGER et INTERAGIR : devant un objet, l'achat
+	# l'emporte (BO1 console) ; ailleurs, l'arme est rechargée.
+	assert_true(WeaponController.use_takes_press(true, true), "objet visé : pas de rechargement")
+	assert_false(WeaponController.use_takes_press(true, false), "rien à utiliser : rechargement")
+	assert_false(WeaponController.use_takes_press(false, true), "touche de rechargement seule : rechargement")
 
 
 func test_clear_each_slot() -> void:
@@ -385,7 +496,7 @@ func test_pad_codes_roundtrip_and_sanitized() -> void:
 
 func test_rebind_updates_input_map() -> void:
 	var taken := Settings.bind("reload", _k(KEY_T))
-	assert_eq(taken, "")
+	assert_eq(taken, [])
 	assert_eq(Settings.bindings.reload, [_k(KEY_T)], "première case : T remplace R")
 	assert_true(_has_key("reload", KEY_T) and not _has_key("reload", KEY_R), "R -> T dans l'InputMap")
 	assert_eq(Settings.pad_bindings.reload, ["joy:%d" % JOY_BUTTON_RIGHT_SHOULDER], "le bouton de manette reste")
@@ -397,34 +508,74 @@ func test_rebind_updates_input_map() -> void:
 	assert_eq(Settings.pad_bindings.reload, ["joy:%d" % JOY_BUTTON_DPAD_UP])
 	assert_eq(Settings.bindings.reload, ["mouse:%d" % MOUSE_BUTTON_XBUTTON2])
 	assert_true(_has_pad_button("reload", JOY_BUTTON_DPAD_UP) and not _has_pad_button("reload", JOY_BUTTON_RIGHT_SHOULDER))
-	assert_eq(Settings.bind("reload", "joy:bogus"), "", "code invalide refusé")
+	assert_eq(Settings.bind("reload", "joy:bogus"), [], "code invalide refusé")
 	assert_eq(Settings.pad_bindings.reload, ["joy:%d" % JOY_BUTTON_DPAD_UP])
 
 
-func test_conflict_removes_key_from_other_action() -> void:
-	var taken := Settings.bind("reload", _k(KEY_G))
-	assert_eq(taken, "grenade", "G retiré de GRENADE")
-	assert_eq(Settings.bindings.grenade, [])
-	assert_false(_has_key("grenade", KEY_G), "plus de G sur la grenade")
-	assert_true(_has_key("reload", KEY_G))
+func test_used_key_is_kept_on_both_actions() -> void:
+	var others := Settings.bind("reload", _k(KEY_G))
+	assert_eq(others, ["grenade"], "G partagée avec GRENADE")
+	assert_eq(Settings.bindings.grenade, [_k(KEY_G)], "la grenade garde G")
+	assert_eq(Settings.bindings.reload, [_k(KEY_G)])
+	assert_true(_has_key("grenade", KEY_G) and _has_key("reload", KEY_G), "G dans l'InputMap des deux actions")
 	assert_eq(Settings.pad_bindings.grenade, ["joy:%d" % JOY_BUTTON_LEFT_SHOULDER], "la manette n'est pas touchée")
-	# Tir sur une touche : le clic gauche reste libre de toute action.
-	assert_eq(Settings.bind("aim", "mouse:%d" % MOUSE_BUTTON_LEFT), "fire")
-	assert_false(_has_mouse("fire", MOUSE_BUTTON_LEFT))
+	assert_eq(Settings.action_label("grenade"), "G", "invite de la grenade : G")
+	assert_eq(Settings.action_label("reload"), "G", "invite de RECHARGER : G")
+	# Clic gauche aussi sur VISER : TIRER le garde.
+	assert_eq(Settings.bind("aim", "mouse:%d" % MOUSE_BUTTON_LEFT), ["fire"])
+	assert_true(_has_mouse("fire", MOUSE_BUTTON_LEFT) and _has_mouse("aim", MOUSE_BUTTON_LEFT))
+	# Une troisième action sur G : les deux premières la gardent.
+	assert_eq(Settings.bind("melee", _k(KEY_G), 1), ["reload", "grenade"])
+	assert_true(_has_key("grenade", KEY_G) and _has_key("reload", KEY_G) and _has_key("melee", KEY_G))
 
 
-func test_pad_conflict_stays_in_pad_column() -> void:
-	# Y (changer d'arme) sur RECHARGER : retiré de CHANGER D'ARME, côté manette seulement.
-	var taken := Settings.bind("reload", "joy:%d" % JOY_BUTTON_Y)
-	assert_eq(taken, "switch_weapon")
-	assert_eq(Settings.pad_bindings.switch_weapon, [])
+func test_pad_shared_stays_in_pad_column() -> void:
+	# Y (changer d'arme) aussi sur RECHARGER, côté manette seulement.
+	var others := Settings.bind("reload", "joy:%d" % JOY_BUTTON_Y)
+	assert_eq(others, ["switch_weapon"])
+	assert_eq(Settings.pad_bindings.switch_weapon, ["joy:%d" % JOY_BUTTON_Y], "CHANGER D'ARME garde Y")
 	assert_eq(Settings.bindings.switch_weapon, [_k(KEY_1)], "la touche 1 reste")
-	assert_false(_has_pad_button("switch_weapon", JOY_BUTTON_Y))
+	assert_true(_has_pad_button("switch_weapon", JOY_BUTTON_Y) and _has_pad_button("reload", JOY_BUTTON_Y))
+	assert_eq(Settings.shared_with("reload", _k(KEY_R)), [], "colonne des touches : rien de partagé")
 	# Gâchette : même règle.
-	assert_eq(Settings.bind("melee", "joyaxis:%d:1" % JOY_AXIS_TRIGGER_RIGHT), "fire")
-	assert_eq(Settings.pad_bindings.fire, [])
-	assert_true(_has_pad_axis("melee", JOY_AXIS_TRIGGER_RIGHT, 1.0))
+	assert_eq(Settings.bind("melee", "joyaxis:%d:1" % JOY_AXIS_TRIGGER_RIGHT), ["fire"])
+	assert_eq(Settings.pad_bindings.fire, ["joyaxis:%d:1" % JOY_AXIS_TRIGGER_RIGHT])
+	assert_true(_has_pad_axis("melee", JOY_AXIS_TRIGGER_RIGHT, 1.0) and _has_pad_axis("fire", JOY_AXIS_TRIGGER_RIGHT, 1.0))
 	assert_true(_has_mouse("fire", MOUSE_BUTTON_LEFT), "le clic gauche tire toujours")
+
+
+func test_shared_wheel_notch() -> void:
+	# Molette bas sur COUTEAU et GRENADE : les deux l'ont, plus de changement
+	# d'arme dans ce sens ; un cran déclenche les deux.
+	assert_eq(Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1), [])
+	assert_eq(Settings.bind("grenade", _w(MOUSE_BUTTON_WHEEL_DOWN), 1), ["melee"])
+	assert_true(_has_mouse("melee", MOUSE_BUTTON_WHEEL_DOWN) and _has_mouse("grenade", MOUSE_BUTTON_WHEEL_DOWN))
+	assert_false(_has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_DOWN), "molette bas : plus de changement d'arme")
+	# Aussi sur CHANGER D'ARME : une seule fois dans son InputMap.
+	assert_eq(Settings.bind("switch_weapon", _w(MOUSE_BUTTON_WHEEL_DOWN), 1), ["melee", "grenade"])
+	var n := 0
+	for ev in InputMap.action_get_events("switch_weapon"):
+		if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			n += 1
+	assert_eq(n, 1, "molette bas une seule fois sur CHANGER D'ARME")
+	var tree := host.get_tree()
+	var counts := {"melee": 0, "switch": 0, "grenade_frames": 0}
+	var inp := PlayerInput.new()
+	var read := func():
+		inp.read_devices(1.0 / 60.0)
+		counts.melee += int(inp.melee)
+		counts.switch += int(inp.switch_weapon)
+		counts.grenade_frames += int(inp.grenade)
+		inp.clear_edges()
+	tree.physics_frame.connect(read)
+	await tree.physics_frame
+	await _wheel_notch(MOUSE_BUTTON_WHEEL_DOWN)
+	for i in 4:
+		await tree.physics_frame
+	tree.physics_frame.disconnect(read)
+	assert_eq(counts.melee, 1, "un cran : un coup de couteau")
+	assert_eq(counts.switch, 1, "un cran : un changement d'arme")
+	assert_eq(counts.grenade_frames, 1, "un cran : grenade une image")
 
 
 func test_clear_binding_per_column() -> void:
@@ -443,8 +594,14 @@ func test_reset_bindings() -> void:
 	Settings.bind("jump", "joy:%d" % JOY_BUTTON_X)
 	Settings.bind("jump", _k(KEY_J), 1)
 	Settings.bind("jump", "joy:%d" % JOY_BUTTON_DPAD_LEFT, 1)
-	assert_false(_has_key("move_forward", KEY_W))
+	assert_true(_has_key("move_forward", KEY_W) and _has_key("jump", KEY_W), "W partagée")
+	assert_eq(Settings.shared_with("jump", "joy:%d" % JOY_BUTTON_X), ["interact"])
 	Settings.reset_bindings()
+	assert_eq(Settings.shared_with("jump", _k(KEY_SPACE)), [], "par défaut : aucun partage")
+	for a in Settings.REBINDABLE:
+		for pad in [false, true]:
+			for c in Settings.bindings_of(a, pad):
+				assert_eq(Settings.shared_with(a, c), [], "par défaut : %s seule sur %s" % [c, a])
 	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.bindings, Settings.default_bindings())
 	@warning_ignore("static_called_on_instance")
@@ -490,7 +647,7 @@ func test_save_and_reload() -> void:
 	assert_eq(Settings.bindings.melee, ["mouse:%d" % MOUSE_BUTTON_MIDDLE, _w(MOUSE_BUTTON_WHEEL_DOWN)])
 	assert_eq(Settings.pad_bindings.reload, ["joy:%d" % JOY_BUTTON_DPAD_DOWN, "joy:%d" % JOY_BUTTON_DPAD_LEFT])
 	assert_eq(Settings.pad_bindings.grenade, ["joyaxis:%d:1" % JOY_AXIS_TRIGGER_LEFT])
-	assert_eq(Settings.pad_bindings.aim, [], "LT pris par GRENADE")
+	assert_eq(Settings.pad_bindings.aim, ["joyaxis:%d:1" % JOY_AXIS_TRIGGER_LEFT], "LT partagé : VISER le garde")
 	assert_true(_has_key("reload", KEY_T) and not _has_key("reload", KEY_R), "InputMap rechargée")
 	assert_true(_has_pad_axis("grenade", JOY_AXIS_TRIGGER_LEFT, 1.0))
 	assert_true(_has_mouse("melee", MOUSE_BUTTON_WHEEL_DOWN) and not _has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_DOWN),
@@ -500,6 +657,42 @@ func test_save_and_reload() -> void:
 	assert_near(Settings.brightness, 1.25)
 	assert_near(Settings.ads_sensitivity, 0.6)
 	assert_near(Settings.pad_look_sensitivity, 1.7)
+
+
+func test_shared_keys_saved_and_reloaded() -> void:
+	# F sur INTERAGIR et RECHARGER (case 2), molette bas sur COUTEAU et
+	# GRENADE, X sur INTERAGIR et SAUTER : même format de fichier (listes de
+	# codes par action), relu tel quel.
+	Settings.bind("reload", _k(KEY_F), 1)
+	Settings.bind("melee", _w(MOUSE_BUTTON_WHEEL_DOWN), 1)
+	Settings.bind("grenade", _w(MOUSE_BUTTON_WHEEL_DOWN), 1)
+	Settings.bind("jump", "joy:%d" % JOY_BUTTON_X, 1)
+	Settings.save_to(TMP)
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(TMP), OK)
+	assert_eq(Array(cfg.get_value("bindings", "interact")), [_k(KEY_F)])
+	assert_eq(Array(cfg.get_value("bindings", "reload")), [_k(KEY_R), _k(KEY_F)])
+	Settings.reset_bindings()
+	assert_true(Settings.load_from(TMP), "fichier relu")
+	Settings.apply_bindings()
+	assert_eq(Settings.bindings.interact, [_k(KEY_F)], "INTERAGIR garde F")
+	assert_eq(Settings.bindings.reload, [_k(KEY_R), _k(KEY_F)], "RECHARGER garde F en case 2")
+	assert_eq(Settings.bindings.melee, [_k(KEY_V), _w(MOUSE_BUTTON_WHEEL_DOWN)])
+	assert_eq(Settings.bindings.grenade, [_k(KEY_G), _w(MOUSE_BUTTON_WHEEL_DOWN)])
+	assert_eq(Settings.pad_bindings.interact, ["joy:%d" % JOY_BUTTON_X])
+	assert_eq(Settings.pad_bindings.jump, ["joy:%d" % JOY_BUTTON_A, "joy:%d" % JOY_BUTTON_X])
+	assert_true(_has_key("interact", KEY_F) and _has_key("reload", KEY_F), "F dans l'InputMap des deux actions")
+	assert_false(_has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_DOWN), "molette bas : toujours sans changement d'arme")
+	assert_eq(Settings.action_label("interact"), "F", "invite « Appuyez sur F » d'INTERAGIR")
+	assert_eq(Settings.action_label("reload"), "R", "invite de RECHARGER : sa première case")
+	# Action absente du fichier (nouvelle version) : sa touche d'origine
+	# n'est pas remise si une action du fichier l'a déjà (partage non choisi).
+	cfg.set_value("bindings", "jump", PackedStringArray([_k(KEY_Q)]))
+	cfg.erase_section_key("bindings", "tactical")
+	cfg.save(TMP)
+	assert_true(Settings.load_from(TMP))
+	assert_eq(Settings.bindings.tactical, [], "Q déjà sur SAUTER : pas remise sur GRENADE SPÉCIALE")
+	assert_eq(Settings.bindings.jump, [_k(KEY_Q)])
 
 
 func test_one_slot_file_loads_unchanged() -> void:
@@ -565,13 +758,13 @@ func test_invalid_file_values_are_sanitized() -> void:
 	cfg.set_value("bindings", "jump", PackedStringArray([_k(KEY_Q), "bogus", _k(KEY_Q)]))
 	cfg.set_value("bindings", "reload", PackedStringArray([_k(KEY_R), _k(KEY_T), _k(KEY_Y)]))
 	# Molette : comme une touche ; deux fois la même : une seule ; déjà
-	# prise par une action précédente (VISER) : refusée.
+	# sur une action précédente (VISER) : gardée sur les deux (partage).
 	cfg.set_value("bindings", "aim", PackedStringArray(["mouse:99", _w(MOUSE_BUTTON_WHEEL_DOWN)]))
 	cfg.set_value("bindings", "melee", PackedStringArray(["joy:%d" % JOY_BUTTON_A, _w(MOUSE_BUTTON_WHEEL_DOWN),
 		_w(MOUSE_BUTTON_WHEEL_LEFT), _w(MOUSE_BUTTON_WHEEL_LEFT), _k(KEY_V)]))
 	# Code de manette dans la colonne des touches (et l'inverse) : refusé.
 	cfg.set_value("pad_bindings", "melee", _k(KEY_V))
-	# Manette : doublon (A déjà pris par « jump »), codes piégés, mauvais type.
+	# Manette : A aussi sur « jump » (partage gardé), codes piégés, mauvais type.
 	cfg.set_value("pad_bindings", "jump", "joy:%d" % JOY_BUTTON_A)
 	cfg.set_value("pad_bindings", "interact", PackedStringArray(["joy:%d" % JOY_BUTTON_A, _w(MOUSE_BUTTON_WHEEL_UP)]))
 	cfg.set_value("pad_bindings", "fire", "joyaxis:%d:1" % JOY_AXIS_RIGHT_X)
@@ -589,11 +782,11 @@ func test_invalid_file_values_are_sanitized() -> void:
 	assert_eq(Settings.bindings.tactical, [], "Q déjà pris")
 	assert_eq(Settings.bindings.grenade, [_k(KEY_G)], "action absente : touche d'origine")
 	assert_eq(Settings.bindings.aim, [_w(MOUSE_BUTTON_WHEEL_DOWN)], "bouton inconnu refusé, molette bas gardée")
-	assert_eq(Settings.bindings.melee, [_w(MOUSE_BUTTON_WHEEL_LEFT), _k(KEY_V)],
-			"bouton de manette refusé dans la colonne des touches, molette bas déjà prise, molette gauche une fois")
+	assert_eq(Settings.bindings.melee, [_w(MOUSE_BUTTON_WHEEL_DOWN), _w(MOUSE_BUTTON_WHEEL_LEFT)],
+			"bouton de manette refusé dans la colonne des touches, molette bas partagée avec VISER, molette gauche une fois")
 	assert_eq(Settings.pad_bindings.melee, [], "touche refusée dans la colonne manette")
 	assert_eq(Settings.pad_bindings.jump, ["joy:%d" % JOY_BUTTON_A])
-	assert_eq(Settings.pad_bindings.interact, [], "A déjà pris, molette refusée côté manette")
+	assert_eq(Settings.pad_bindings.interact, ["joy:%d" % JOY_BUTTON_A], "A partagé avec SAUTER, molette refusée côté manette")
 	assert_eq(Settings.pad_bindings.fire, [], "stick droit refusé")
 	assert_eq(Settings.pad_bindings.aim, [], "mauvais type")
 	assert_eq(Settings.pad_bindings.reload, ["joy:%d" % JOY_BUTTON_DPAD_UP, "joy:%d" % JOY_BUTTON_DPAD_DOWN],

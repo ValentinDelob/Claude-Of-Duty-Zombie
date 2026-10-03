@@ -17,6 +17,9 @@ var _list: Array[Interactable] = []
 ## Objet actuellement visé par le joueur local.
 var focused: Interactable
 var _holding: Interactable
+## Renvoi de la demande tant que [F] reste maintenu (Interactable.resend_while_held).
+const HOLD_RESEND_INTERVAL := 0.25
+var _resend_t := 0.0
 ## Serveur : demandes d'interaction par joueur (un humain en fait 5 à 10 / s).
 var _limit := NetGuard.Limiter.new(20.0, 20.0)
 ## Serveur : fins d'interaction (une par demande acceptée, même cadence).
@@ -65,10 +68,19 @@ func local_tick(p: Player) -> void:
 	var inp := p.input
 	if focused and inp.interact_pressed:
 		_holding = focused
+		_resend_t = 0.0
 		srv_interact.rpc_id(1, focused.interact_id)
 	if _holding and (not inp.interact or focused != _holding):
 		srv_release.rpc_id(1, _holding.interact_id)
 		_holding = null
+	elif _holding and _holding.resend_while_held():
+		# [F] maintenu sur un objet à maintien idempotent (barricade) : la
+		# demande est renvoyée, au cas où le serveur, qui juge la portée sur une
+		# position en retard, aurait refusé l'appui fait dès l'invite.
+		_resend_t += p.get_physics_process_delta_time()
+		if _resend_t >= HOLD_RESEND_INTERVAL:
+			_resend_t = 0.0
+			srv_interact.rpc_id(1, _holding.interact_id)
 
 
 func _find_focus(p: Player) -> Interactable:

@@ -80,6 +80,10 @@ func enter(args := {}) -> void:
 		_map_label = text(Lang.t("CARTE : %s", "MAP: %s") % _map_name(Net.lobby_map), 22, UiStyle.GOLD)
 		col.add_child(_map_label)
 		Net.lobby_map_changed.connect(_on_lobby_map)
+	# Retour après une partie : son résumé (le groupe est resté ensemble).
+	if Router.lobby_message != "":
+		col.add_child(text(Router.lobby_message, 20, UiStyle.BONE))
+		Router.lobby_message = ""
 	_status = text("" if is_host else Lang.t("En attente du lancement...", "Waiting for the host to start..."), 20, UiStyle.DIM)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.custom_minimum_size = Vector2(520, 0)
@@ -93,10 +97,14 @@ func enter(args := {}) -> void:
 	Net.map_share.states_changed.connect(_refresh)
 	Net.map_share.offer_changed.connect(_refresh_map)
 	Net.map_share.local_failed.connect(_on_local_failed)
+	Net.lobby_return.changed.connect(_refresh_start)
 	if is_host:
 		_apply_map(map_id)
 	_refresh()
 	_refresh_map()
+	# Après une partie : « je suis revenu au salon » (l'hôte attend tout le
+	# groupe avant de relancer, LobbyReturn).
+	Net.lobby_return.report_in_lobby()
 
 
 ## Dossier de la carte à droite : nom, aperçu (plan), taille et état.
@@ -227,6 +235,8 @@ func exit() -> void:
 		share.offer_changed.disconnect(_refresh_map)
 	if share.local_failed.is_connected(_on_local_failed):
 		share.local_failed.disconnect(_on_local_failed)
+	if Net.lobby_return.changed.is_connected(_refresh_start):
+		Net.lobby_return.changed.disconnect(_refresh_start)
 
 
 func _refresh() -> void:
@@ -258,11 +268,14 @@ func _refresh() -> void:
 	_refresh_start()
 
 
-## Hôte : [DÉMARRER] grisé avec la raison tant qu'un joueur n'a pas la carte.
+## Hôte : [DÉMARRER] grisé avec la raison tant qu'un joueur n'a pas la carte
+## ou n'est pas encore revenu au salon après la partie précédente.
 func _refresh_start() -> void:
 	if not _start or _launching:
 		return
-	var st := Net.map_share.can_start()
+	var st := Net.lobby_return.can_start()
+	if st[0]:
+		st = Net.map_share.can_start()
 	_start.disabled = not st[0]
 	if not st[0]:
 		_status.text = st[1]

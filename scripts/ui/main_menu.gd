@@ -102,7 +102,11 @@ func _ready() -> void:
 	Net.connection_error.connect(_on_connection_error)
 	Net.session_ended.connect(_on_session_ended)
 	Net.joined_server.connect(_on_joined)
-	if Router.pending_message != "":
+	if GameState.state == GameState.State.LOBBY and Net.is_online():
+		# Fin d'une partie multijoueur (Router.back_to_lobby) : tout le groupe
+		# revient au salon, toujours connecté.
+		show_screen("lobby", {"host": Net.mode == Net.Mode.HOST})
+	elif Router.pending_message != "":
 		show_screen("main")
 		show_message(Lang.t("PARTIE TERMINÉE", "GAME OVER"), Router.pending_message)
 		Router.pending_message = ""

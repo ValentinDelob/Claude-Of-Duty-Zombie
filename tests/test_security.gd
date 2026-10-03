@@ -208,14 +208,14 @@ func test_repair_revive_pickup_use_last_accepted_state() -> void:
 	var shown := Vector3(2.5, 0, 7.5)     # position interpolée, en retard
 	var accepted := Vector3(8.0, 0, 7.5)  # dernier état reçu et accepté
 	var ref := Player.origin_reference(false, accepted, shown)
-	# Barricade : fenêtre en (8 ; 0 ; 6), intérieur vers +z.
-	var window := Vector3(8.0, 0, 6.0)
+	# Barricade : fenêtre en (8 ; 0 ; 6,3), intérieur vers +z (joueur collé :
+	# 0,7 m de la face intérieure de la barrière).
+	var window := Vector3(8.0, 0, 6.3)
 	var inward := Vector3(0, 0, 1)
-	var point := window + inward * 0.55 + Vector3.UP * 1.3
-	assert_false(Barricade.can_repair_from(shown, window, inward, point), "l'ancienne référence (en retard) arrêtait la réparation")
-	assert_true(Barricade.can_repair_from(ref, window, inward, point), "réparation honnête sous le lag")
-	assert_false(Barricade.can_repair_from(ref - inward * 3.0, window, inward, point), "côté extérieur : refusée")
-	assert_false(Barricade.can_repair_from(ref + Vector3(Barricade.REPAIR_RANGE + 0.5, 0, 0), window, inward, point), "trop loin : refusée")
+	assert_false(Barricade.can_repair_from(shown, window, inward), "l'ancienne référence (en retard) arrêtait la réparation")
+	assert_true(Barricade.can_repair_from(ref, window, inward), "réparation honnête sous le lag")
+	assert_false(Barricade.can_repair_from(ref - inward * 3.0, window, inward), "côté extérieur : refusée")
+	assert_false(Barricade.can_repair_from(ref + Vector3(Barricade.REPAIR_REACH + 0.5, 0, 0), window, inward), "trop loin : refusée")
 	# Réanimation : sauveteur et joueur à terre jugés chacun sur son dernier état.
 	var downed := Vector3(9.5, 0, 7.5)
 	assert_false(DownedSystem.in_revive_range(shown, downed), "l'ancienne référence (en retard) aurait refusé")

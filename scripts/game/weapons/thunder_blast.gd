@@ -249,12 +249,14 @@ float noise(vec2 p) {
 }
 
 void fragment() {
-	float rim = 1.0 - abs(dot(normalize(NORMAL), normalize(VIEW)));
+	// Borné : un produit scalaire à peine > 1 (arrondi, MSAA) rendrait rim
+	// négatif (pas de pow() de négatif : NaN étalé par le glow).
+	float rim = 1.0 - clamp(abs(dot(normalize(NORMAL), normalize(VIEW))), 0.0, 1.0);
 	vec2 uv = UV * vec2(9.0, 4.0) + vec2(0.0, -TIME * 6.0);
 	vec2 n = vec2(noise(uv), noise(uv + 17.3)) - 0.5;
 	vec2 offs = n * 0.06 * strength * fade * (0.35 + rim);
 	vec3 bg = textureLod(screen_tex, SCREEN_UV + offs, 1.5 * fade).rgb;
-	float glow = pow(rim, 3.0) * 0.9 * fade * strength;
+	float glow = rim * rim * rim * 0.9 * fade * strength;
 	ALBEDO = bg * (1.0 + 0.25 * fade) + tint.rgb * glow;
 	ALPHA = clamp(fade * (0.4 + rim * 0.5), 0.0, 1.0);
 }

@@ -52,6 +52,35 @@ func test_host_and_leave_frees_port() -> void:
 	assert_eq(Net.host(17777, 4, "Hote"), OK)
 
 
+## L'hôte qui part AVEC des invités garde son pair ouvert HOST_CLOSING_DELAY
+## (avis de départ) : QUITTER puis HÉBERGER aussitôt sur le même port doit
+## réussir (l'ancien pair est fermé avant la nouvelle session).
+func test_host_with_guest_leave_then_host_again() -> void:
+	var port := 17971 + OS.get_environment("AUTOTEST_PORT_OFFSET").to_int()
+	assert_eq(Net.host(port, 4, "Hote"), OK, "hébergement")
+	# Un pair ENet brut connecté au transport (vu par Net comme un invité).
+	var c := ENetConnection.new()
+	c.create_host(1)
+	c.compress(ENetConnection.COMPRESS_RANGE_CODER)
+	c.connect_to_host("127.0.0.1", port, 0, 424243)
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 5000 and Net.multiplayer.get_peers().is_empty():
+		c.service(0)
+		await wait_frames(1)
+	assert_false(Net.multiplayer.get_peers().is_empty(), "invité connecté")
+	Net.leave()
+	assert_true(Net._closing_peer != null, "départ avec invité : ancien pair encore ouvert (avis de départ)")
+	assert_eq(Net.host(port, 4, "Hote"), OK, "HÉBERGER aussitôt sur le même port")
+	assert_true(Net._closing_peer == null, "ancien pair fermé avant la nouvelle session")
+	assert_eq(Net.mode, Net.Mode.HOST)
+	c.destroy()
+	# L'échéance prévue pour l'ancien pair ne ferme pas le nouveau.
+	await wait_seconds(Net.HOST_CLOSING_DELAY + 0.15)
+	var now := Net.multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	assert_true(now != null and now.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED, "nouveau serveur toujours ouvert")
+	assert_eq(Net.mode, Net.Mode.HOST)
+
+
 func test_join_invalid_address_reports_error() -> void:
 	var errors := []
 	var cb := func(t, _m): errors.append(t)

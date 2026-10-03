@@ -44,7 +44,7 @@ func run() -> void:
 	await at.screenshot("flight")
 	var flung := 0
 	for z: Zombie in zs:
-		if is_instance_valid(z) and z.get_node_or_null("Fling") is ZombieFling:
+		if is_instance_valid(z) and (z as Zombie).is_flung():
 			flung += 1
 	at.check(ok and flung == 4, "client : %d/4 zombies projetés" % flung)
 	var moved := 0
@@ -52,7 +52,7 @@ func run() -> void:
 		var n := 0
 		for i in zs.size():
 			var z: Variant = zs[i]  # non typé : le corps peut avoir été libéré
-			if is_instance_valid(z) and (z as Zombie).global_position.x - start_pos[i].x > 1.5:
+			if is_instance_valid(z) and (z as Zombie).body_position().x - start_pos[i].x > 1.5:
 				n += 1
 		return n
 	# Vol des corps (≈ 1 s).

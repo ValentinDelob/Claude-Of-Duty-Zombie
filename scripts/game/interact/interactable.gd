@@ -41,6 +41,12 @@ func srv_use(_pid: int) -> void:
 	pass
 
 
+## Client : renvoyer la demande tant que [F] reste maintenu sur l'objet ?
+## Seulement pour un srv_use idempotent (rien à payer, rien à rejouer).
+func resend_while_held() -> bool:
+	return false
+
+
 ## Serveur : le joueur relâche [F] (objets à maintien).
 func srv_release(_pid: int) -> void:
 	pass

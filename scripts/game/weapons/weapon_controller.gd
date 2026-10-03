@@ -8,6 +8,10 @@ extends Node
 ## écrase la prédiction locale.
 
 const SWITCH_TIME := 0.55
+## Changement d'arme demandé au serveur : arme bloquée (ni tir ni
+## rechargement) jusqu'à l'inventaire qui l'applique, au plus ce délai (s)
+## si le serveur refuse.
+const SWITCH_REQUEST_TIMEOUT := 0.5
 const RAY_LENGTH := 150.0
 const HITBOX_LAYER := 1 << 3
 
@@ -27,7 +31,14 @@ var weapons: Array = []
 var slot := 0
 var _next_fire := 0.0
 var _reload_end := -1.0
+## Début et durée du rechargement en cours (cartouches déjà poussées).
+var _reload_start := -1.0
+var _reload_dur := 0.0
+## Numéro du rechargement : ses sons différés ne jouent que s'il est encore
+## en cours (jamais sur l'arme sortie après une annulation).
+var _reload_serial := 0
 var _switch_end := -1.0
+var _switch_req_end := -1.0
 var _melee_ready := 0.0
 var _trigger_released := true
 var _drink_end := -1.0
@@ -113,10 +124,9 @@ func _on_inventory_changed(pid: int) -> void:
 			_switch_end = GameClock.now() + SWITCH_TIME
 			view.start_switch(SWITCH_TIME, func(): view.set_weapon(w.id, w.pap))
 			Audio.play_2d("weapon_switch", -6.0)
-		_reload_end = -1.0
-		_burst_left = 0
+		_switch_req_end = -1.0
+		_stop_reload()
 		feel.reset()
-		view.cancel_reload()
 	ammo_changed.emit()
 
 
@@ -135,6 +145,128 @@ func is_reloading() -> bool:
 	return _reload_end > 0.0
 
 
+## Avancement du rechargement en cours (0 au début, 1 à la fin ; 0 sans
+## rechargement).
+func reload_progress() -> float:
+	if _reload_end <= 0.0 or _reload_dur <= 0.0:
+		return 0.0
+	return clampf((GameClock.now() - _reload_start) / _reload_dur, 0.0, 1.0)
+
+
+## Fin de rechargement (prédite) : le chargeur se remplit à l'échéance.
+## Rien après une annulation (_reload_end remis à -1) : jamais de remplissage
+## différé sur l'arme sortie entre-temps.
+func update_reload(t: float) -> void:
+	if _reload_end <= 0.0 or t < _reload_end:
+		return
+	_reload_end = -1.0
+	var w := current()
+	if w.is_empty():
+		return
+	var take: int = mini(int(current_stats().mag) - int(w.mag), int(w.reserve))
+	w.mag += take
+	w.reserve -= take
+	ammo_changed.emit()
+
+
+## Rien n'empêche de changer d'arme : un rechargement en cours n'en empêche
+## pas (il est annulé), un changement, une boisson, un coup de couteau, la
+## récupération du couteau ou une grenade, si.
+func can_switch(t: float) -> bool:
+	return t >= _switch_end and t >= _switch_req_end and t >= _drink_end \
+		and t >= _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3 and t >= _pickup_end \
+		and not (throws != null and throws.busy())
+
+
+## Changement d'arme (touche, molette, bouton de manette) : le rechargement en
+## cours est annulé sur-le-champ (animation, sons, aucun remplissage), puis le
+## serveur change l'emplacement (Combat.srv_switch) et l'inventaire reçu lance
+## l'animation de changement.
+func request_switch(to_slot: int) -> void:
+	abort_reload()
+	_switch_req_end = GameClock.now() + SWITCH_REQUEST_TIMEOUT
+	if combat:
+		combat.srv_switch.rpc_id(1, to_slot)
+
+
+## Rechargement interrompu par le joueur (changement d'arme, couteau,
+## grenade) : chargeur et réserve inchangés, sauf les cartouches déjà poussées
+## une à une (fusil à pompe, comme BO1). Le serveur fait le même calcul
+## (Combat.cancel_reload) et resynchronise l'inventaire.
+func abort_reload() -> void:
+	if _reload_end > 0.0:
+		var w := current()
+		if not w.is_empty():
+			var n := shells_loaded(current_stats(), w, reload_progress())
+			if n > 0:
+				w.mag += n
+				w.reserve -= n
+				ammo_changed.emit()
+	_stop_reload()
+
+
+## Le serveur a annulé (achat de munitions, mise à terre, bonus...) ou refusé
+## le rechargement de ce joueur, sans forcément changer d'arme
+## (Combat._cl_reload_cancelled) : la prédiction s'arrête net, sans remplir
+## le chargeur ; l'inventaire envoyé par le serveur fait foi.
+func server_cancelled_reload() -> void:
+	if _reload_end > 0.0:
+		_stop_reload()
+		ammo_changed.emit()
+
+
+## Arrête net le rechargement (animation, sons à venir) sans toucher aux
+## munitions.
+func _stop_reload() -> void:
+	_reload_end = -1.0
+	_reload_serial += 1
+	_burst_left = 0
+	if view:
+		view.cancel_reload()
+
+
+## Rechargement coup par coup : les poussées de cartouche occupent
+## [SHELL_START, SHELL_START + SHELL_SPAN] de la durée, découpées en
+## shell_steps() poussées égales (au plus SHELL_MAX_STEPS : au-delà, chaque
+## poussée compte pour plusieurs cartouches, sans déluge de sons).
+const SHELL_START := 0.12
+const SHELL_SPAN := 0.65
+const SHELL_MAX_STEPS := 6
+
+
+## Cartouches à pousser (manque du chargeur, borné par la réserve). Pure.
+static func shells_needed(s: Dictionary, w: Dictionary) -> int:
+	return maxi(mini(int(s.get("mag", 0)) - int(w.get("mag", 0)), int(w.get("reserve", 0))), 0)
+
+
+## Nombre de poussées (sons « shell_in », gestes de l'animation) : une par
+## cartouche, SHELL_MAX_STEPS au plus, 1 au moins. Pure.
+static func shell_steps(s: Dictionary, w: Dictionary) -> int:
+	return clampi(shells_needed(s, w), 1, SHELL_MAX_STEPS)
+
+
+## Instant (fraction de la durée) de la poussée `j` sur `steps` : milieu de
+## son geste dans l'animation (main au fond de la fenêtre de chargement).
+static func shell_step_time(j: int, steps: int) -> float:
+	return SHELL_START + SHELL_SPAN * (float(j) + 0.5) / float(steps)
+
+
+## Cartouches déjà insérées à l'avancement `frac` d'un rechargement coup par
+## coup (reload_kind « shells ») : celles des poussées déjà faites, aux
+## instants mêmes des sons (reload_sounds) et de l'animation ; 0 pour les
+## autres mécanismes (chargeur, barillet...). Pure (tests, serveur).
+static func shells_loaded(s: Dictionary, w: Dictionary, frac: float) -> int:
+	if String(s.get("reload_kind", "")) != "shells":
+		return 0
+	var need := shells_needed(s, w)
+	if need <= 0:
+		return 0
+	var steps := shell_steps(s, w)
+	# Poussées faites : j tel que shell_step_time(j, steps) <= frac.
+	var done := clampi(floori((frac - SHELL_START) * steps / SHELL_SPAN - 0.5 + 0.0001) + 1, 0, steps)
+	return need * done / steps
+
+
 ## Appelé par Player._local_physics à chaque image physique.
 func tick(delta: float) -> void:
 	var w := current()
@@ -145,16 +277,10 @@ func tick(delta: float) -> void:
 	var s := current_stats()
 	var inp := player.input
 
-	# Fin de rechargement (prédite)
-	if _reload_end > 0.0 and t >= _reload_end:
-		_reload_end = -1.0
-		var take: int = mini(s.mag - w.mag, w.reserve)
-		w.mag += take
-		w.reserve -= take
-		ammo_changed.emit()
+	update_reload(t)
 
-	var busy := _reload_end > 0.0 or t < _switch_end or t < _drink_end or t < _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3 or t < _pickup_end \
-		or throws.busy()
+	# Le rechargement ne bloque pas le changement d'arme (il l'annule, BO1).
+	var busy := _reload_end > 0.0 or not can_switch(t)
 	var dead := false
 	var pd := session.get_data(player.peer_id)
 	if pd:
@@ -170,9 +296,9 @@ func tick(delta: float) -> void:
 		elif t >= _next_fire:
 			_fire(w, s)
 	elif not dead:
-		if inp.switch_weapon and weapons.size() > 1 and not busy:
-			combat.srv_switch.rpc_id(1, (slot + 1) % weapons.size())
-		elif inp.reload and not busy:
+		if inp.switch_weapon and weapons.size() > 1 and can_switch(t):
+			request_switch((slot + 1) % weapons.size())
+		elif inp.reload and not busy and not use_takes_press(inp.interact_pressed, _use_focused()):
 			_try_reload(w, s)
 		elif inp.melee and t >= _melee_ready and t >= _pickup_end and not throws.busy():
 			_melee()
@@ -372,16 +498,34 @@ static func _spread_dir(fwd: Vector3, spread_angle: float) -> Vector3:
 	return (fwd + (right * cos(a) + up * sin(a)) * tan(r)).normalized()
 
 
+## Même appui pour RECHARGER et INTERAGIR (touche partagée, comme X / Carré
+## sur console dans BO1) devant un objet utilisable : l'achat ou l'action
+## l'emporte, l'arme n'est pas rechargée par cet appui. Loin de tout objet,
+## l'appui recharge. Pure (tests).
+static func use_takes_press(interact_pressed: bool, has_focus: bool) -> bool:
+	return interact_pressed and has_focus
+
+
+## Un objet utilisable est visé (InteractionSystem.focused, image précédente).
+func _use_focused() -> bool:
+	return game != null and game.interact != null and game.interact.focused != null
+
+
 func _try_reload(w: Dictionary, s: Dictionary) -> void:
 	if _reload_end > 0.0 or w.mag >= s.mag or w.reserve <= 0:
 		return
 	var dur := combat.reload_time(player.peer_id, w)
-	_reload_end = GameClock.now() + dur
+	_reload_start = GameClock.now()
+	_reload_dur = dur
+	_reload_end = _reload_start + dur
+	_reload_serial += 1
+	var serial := _reload_serial
 	view.start_reload(dur)
 	_burst_left = 0
 	for step in reload_sounds(s, w):
+		# Rechargement annulé (ou remplacé par un autre) : son abandonné.
 		get_tree().create_timer(maxf(dur * float(step[0]), 0.001)).timeout.connect(func():
-			if _reload_end > 0.0:
+			if _reload_serial == serial and _reload_end > 0.0:
 				Audio.play_2d(step[1], -3.0))
 	combat.srv_reload.rpc_id(1, slot)
 
@@ -392,10 +536,11 @@ static func reload_sounds(s: Dictionary, w: Dictionary) -> Array:
 	var kind: String = s.get("reload_kind", "mag")
 	if kind != "shells":
 		return RELOAD_SOUNDS.get(kind, RELOAD_SOUNDS.mag)
-	var n := clampi(int(s.mag) - int(w.get("mag", 0)), 1, 6)
+	# Mêmes instants que le compte des cartouches (shells_loaded).
+	var n := shell_steps(s, w)
 	var out := []
 	for i in n:
-		out.append([0.12 + 0.65 * float(i) / n, "shell_in"])
+		out.append([shell_step_time(i, n), "shell_in"])
 	out.append([0.88, "pump"])
 	return out
 
@@ -405,9 +550,7 @@ static func reload_sounds(s: Dictionary, w: Dictionary) -> Array:
 ## valide le coup depuis la position d'arrivée.
 func _melee() -> void:
 	_melee_ready = GameClock.now() + WeaponDB.MELEE_COOLDOWN
-	_reload_end = -1.0
-	view.cancel_reload()
-	_burst_left = 0
+	abort_reload()
 	# À terre : pas de fente (le joueur rampe), coup au contact seulement.
 	var target := _lunge_target() if not player.downed else null
 	var lunge := target != null
@@ -464,9 +607,7 @@ func _on_knife_changed(id: String) -> void:
 	if first:
 		return
 	_pickup_end = GameClock.now() + KnifeDB.PICKUP_TIME
-	_reload_end = -1.0
-	_burst_left = 0
-	view.cancel_reload()
+	_stop_reload()
 	view.start_knife_pickup(KnifeDB.PICKUP_TIME)
 	Audio.play_2d("bowie_draw", -3.0)
 
@@ -485,14 +626,11 @@ func is_knifing() -> bool:
 ## Lancer de grenade : le rechargement en cours est abandonné (comme BO1 ;
 ## le serveur l'annule aussi, voir ThrowableSystem.srv_cook).
 func cancel_reload_local() -> void:
-	_reload_end = -1.0
-	_burst_left = 0
-	view.cancel_reload()
+	abort_reload()
 
 
 ## Boisson d'un atout : l'arme est baissée, une bouteille apparaît.
 func drink(color: Color, duration: float) -> void:
 	_drink_end = GameClock.now() + duration
-	_reload_end = -1.0
-	view.cancel_reload()
+	_stop_reload()
 	view.start_drink(color, duration)

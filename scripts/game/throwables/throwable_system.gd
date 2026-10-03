@@ -139,7 +139,8 @@ func srv_cook(kind: int) -> void:
 		_:
 			return
 	_cooking[pid] = [kind, GameClock.now()]
-	game.combat.cancel_reload(pid)
+	# Cartouches déjà poussées gardées, comme ThrowController côté client.
+	game.combat.cancel_reload(pid, true)
 	game.session.sync_stats(pid)
 	_cl_pin.rpc(pid, kind)
 

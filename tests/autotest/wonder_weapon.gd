@@ -28,10 +28,15 @@ func all_landed(front: Array, start_pos: Array) -> bool:
 		var z = front[i]
 		if not is_instance_valid(z):
 			return false
-		var f = z.get_node_or_null("Fling")
-		if f == null or f.flying or absf(z.global_position.y - start_pos[i].y) >= 0.05:
+		if not z.is_flung() or not on_ground(z, start_pos[i].y):
 			return false
 	return true
+
+
+## Corps projeté retombé : ragdoll figé (bassin couché au sol) ou vol
+## procédural terminé (pieds au sol).
+func on_ground(z: Zombie, y0: float) -> bool:
+	return z.body_landed() and absf(z.body_position().y - y0) < (0.45 if z.ragdolled else 0.05)
 
 
 func spawn_still(pos: Vector3, health: int) -> Zombie:
@@ -98,24 +103,24 @@ func run() -> void:
 	at.check(behind.is_alive() and behind.health == hp, "zombie derrière le joueur intact (%d PV)" % behind.health)
 	var flung := 0
 	for z: Zombie in front:
-		if z.get_node_or_null("Fling") is ZombieFling:
+		if z.is_flung():
 			flung += 1
-	at.check(flung == 7, "%d/7 zombies projetés (vol procédural)" % flung)
+	at.check(flung == 7, "%d/7 zombies projetés (ragdoll ou vol procédural)" % flung)
 	await seconds(0.25)  # capture : corps en vol
 	await at.screenshot("flight")
-	await until(func(): return all_landed(front, start_pos), 3.0, "corps retombés au sol")
+	await until(func(): return all_landed(front, start_pos), 4.0, "corps retombés au sol")
 	var moved := 0
 	var landed := 0
 	for i in front.size():
 		var z: Zombie = front[i]
 		if not is_instance_valid(z):
 			continue
-		var d := Vector2(z.global_position.x - start_pos[i].x, z.global_position.z - start_pos[i].z)
+		var bp := z.body_position()
+		var d := Vector2(bp.x - start_pos[i].x, bp.z - start_pos[i].z)
 		if d.length() > 1.5 and d.x > 0.0:
 			moved += 1
 		print("[wonder] zombie %d : déplacé de %s" % [i, d])
-		var f := z.get_node_or_null("Fling") as ZombieFling
-		if f and not f.flying and absf(z.global_position.y - start_pos[i].y) < 0.05:
+		if on_ground(z, start_pos[i].y):
 			landed += 1
 	at.check(moved == 7, "%d/7 corps projetés vers l'arrière (> 1,5 m)" % moved)
 	at.check(landed == 7, "%d/7 corps retombés au sol" % landed)

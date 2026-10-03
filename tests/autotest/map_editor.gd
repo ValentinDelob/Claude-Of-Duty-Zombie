@@ -48,8 +48,15 @@ func run() -> void:
 	await drag(Vector2(16, 2), Vector2(26, 12))
 	await drag(Vector2(26, 4), Vector2(34, 10))
 	at.check(ed.doc.pieces.size() == 3 and ed.doc.zones.size() == 3, "3 pièces, une zone chacune (%d, %d)" % [ed.doc.pieces.size(), ed.doc.zones.size()])
+	# Pièce tracée sur deux autres : confirmation de la découpe (MapCarve) ;
+	# Annuler ne crée rien.
 	await drag(Vector2(10, 6), Vector2(20, 9))
-	at.check(ed.doc.pieces.size() == 3 and cv.refusal.contains(Lang.t("chevauche", "overlaps")), "pièce qui en recouvre une autre refusée : %s" % cv.refusal)
+	var cd: ConfirmationDialog = ed.carve_dialog
+	at.check(cd != null and cd.visible and ed.doc.pieces.size() == 3, "pièce qui en recouvre d'autres : confirmation de la découpe")
+	if cd != null:
+		cd.get_cancel_button().pressed.emit()
+	await frames(2)
+	at.check(ed.doc.pieces.size() == 3 and ed.doc.zones.size() == 3, "découpe annulée : rien de créé")
 	var f: MapValidator.Floor = ed.raster().v.floors[0]
 	at.check(f.at(Vector2i(32, 12)) == MapValidator.K.MUR and f.at(Vector2i(31, 12)) == MapValidator.K.SOL and f.at(Vector2i(33, 12)) == MapValidator.K.SOL,
 		"bord commun de deux pièces : un seul mur de 0,5 m")

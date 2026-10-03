@@ -244,7 +244,8 @@ Elle reste la vue d'aujourd'hui. On ajoute :
   | Cible | Effet |
   |---|---|
   | Clic sur une face | bascule la vue vers ce plan |
-  | Clic sur une arête ou un coin | la vue passe en 3D, caméra en orbite placée sur cette direction (isométrique pour un coin), visant le centre de la vue quittée |
+  | Clic sur une arête ou un coin | la vue passe en 3D, caméra placée sur cette direction (isométrique pour un coin), visant le centre de la vue quittée ; la caméra garde son mode (orbite, vol libre, joueur) |
+  | Clic sur une face, une arête, un coin ou la maison du cube de la 3D | la caméra tourne vers cette direction (transition de 0,25 s), SANS changer de mode : orbite autour du même point ; vol libre placé sur cette direction, à la même distance du point regardé ; joueur : il reste où il est et tourne le regard (maison : vers le centre de la carte). La fenêtre reste en 3D (retour en élévation : pavé 5 ou « Caméra ▾ > Passer en vue ») |
   | Flèches ◄ ► (sous le cube, vue de côté) | façade suivante : Avant → Droite → Arrière → Gauche |
   | Flèches en vue Dessus | inutiles, masquées (le nord reste en haut) |
   | Maison ⌂ | vue d'origine de cette fenêtre (son plan dans la disposition par défaut), recadrée sur la carte |
@@ -262,6 +263,8 @@ Elle reste la vue d'aujourd'hui. On ajoute :
   | 3 du pavé | Droite |
   | Ctrl + 1 / 3 / 7 du pavé | vue opposée |
   | 5 du pavé | bascule 3D / dernier plan |
+
+  Sur la fenêtre 3D, 7, 1, 3 (et Ctrl) tournent la caméra vers cette face, comme le cube (même mode) ; 5 rend le dernier plan de la fenêtre.
 
   Les chiffres du pavé choisissent aujourd'hui une case de la barre rapide. Ils la gardent quand la souris n'est sur aucune vue, et les chiffres du haut du clavier la gardent toujours.
 
@@ -477,8 +480,15 @@ Hors périmètre (à proposer plus tard si besoin) :
 - hauteur propre des murs et piliers (murets) ;
 - hauteur par porte ;
 - demi-niveaux dans un étage ;
-- sélection multiple et sélection par rectangle (la présence l'accepte déjà) ;
-- pose d'éléments directement en élévation.
+- pose d'éléments directement en élévation ;
+- rectangle de sélection dans les élévations (il existe dans la vue Dessus).
+
+Réalisé depuis : **sélection multiple** (Maj + clic dans toutes les vues,
+rectangle dans la vue Dessus, Ctrl+A), commune à toutes les vues (chaque
+élément surligné, cadre du groupe), glissement du groupe dans les élévations
+(axe de la vue, étage, ou hauteur de pose si tout le groupe est du décor
+posé), menu du clic droit : `docs/MAP_AUTHORING.md` § 2, « Sélection
+multiple et groupes ».
 
 ## 11. Réalisation : écarts et précisions
 
@@ -548,10 +558,10 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   transition de 180 ms est toujours jouée (fondu de l'image d'avant et
   glissement le long de l'axe qui change). Le cube isométrique est aussi
   sur le panneau flottant de l'aperçu 3D : une face y tourne la caméra de
-  face (dans une fenêtre 3D de la disposition, elle bascule la fenêtre vers
-  ce plan) ; arête et coin : caméra en orbite sur cette direction, même
-  point visé. Pavé 5 : la 3D vue du coin avant-droite-dessus du plan montré
-  (ou de la face, en Dessus et Dessous).
+  face ; arête et coin : caméra sur cette direction, même point visé (voir
+  « Retours du 03/10/2026 » : le mode de la caméra est gardé). Pavé 5 :
+  la 3D vue du coin avant-droite-dessus du plan montré (ou de la face, en
+  Dessus et Dessous).
 - **Étape 5 : dispositions**. Changer de disposition donne aux fenêtres les
   plans par défaut de la nouvelle disposition ; dans une disposition, une
   fenêtre garde le plan qu'on lui a donné (et il est mémorisé) jusqu'à
@@ -605,4 +615,15 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   tableau du § 4), ou la fenêtre 3D existante tourne (D14). Aucune musique
   dans l'éditeur : à son ouverture (depuis le menu, au retour de TESTER),
   la musique et les sons du menu en cours sont coupés net ; le menu la
-  relance à son retour (scénario `editor_silence`).
+  relance à son retour (scénario `editor_silence`). Le ViewCube et le pavé
+  numérique ne changent jamais le mode de la caméra 3D (bug : un clic sur
+  une face faisait quitter le vol libre, et le sélecteur restait sur « Vol
+  libre ») : orbite, vol libre et joueur gardent leur mode, la caméra glisse
+  vers la nouvelle direction (0,25 s ; une entrée de l'utilisateur la
+  termine net). Vol libre : la caméra tourne autour du point qu'elle regarde
+  (à `dist` devant elle, 4 m au moins) et reste à la même distance ; joueur :
+  pas de téléportation, seul le regard tourne (maison : vers le centre de la
+  carte ; « Recadrer sur la carte » passe toujours en orbite). Dans une
+  fenêtre 3D, une face tourne aussi la caméra (au lieu de rebasculer la
+  fenêtre en élévation) ; on en sort par le pavé 5 ou « Caméra ▾ > Passer en
+  vue ». L'en-tête de la fenêtre 3D est redessiné quand le mode change.

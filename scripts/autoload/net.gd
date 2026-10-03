@@ -14,7 +14,7 @@ const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 4
 const MAX_SUPPORTED_PLAYERS := 8
 ## Incrémenter à chaque changement incompatible du protocole réseau.
-const PROTOCOL_VERSION := 4
+const PROTOCOL_VERSION := 5
 const CONNECT_TIMEOUT_SEC := 8.0
 
 enum Mode { NONE, SOLO, HOST, CLIENT }
@@ -44,12 +44,21 @@ var _connect_timer: Timer
 var _handshake_done := false
 ## Envoi des cartes perso de l'hôte aux invités (chemin réseau /root/Net/MapShare).
 var map_share: MapShare
+## Retour du groupe au salon après une partie (chemin réseau /root/Net/LobbyReturn).
+var lobby_return: LobbyReturn
+## Pair ENet de l'hôte qui vient de partir, encore ouvert HOST_CLOSING_DELAY
+## (Net.leave) : il garde son port ; fermé tout de suite si une nouvelle
+## session démarre avant (_reset_peer), sinon HÉBERGER aussitôt échouerait.
+var _closing_peer: ENetMultiplayerPeer
 
 
 func _ready() -> void:
 	map_share = MapShare.new()
 	map_share.name = "MapShare"
 	add_child(map_share)
+	lobby_return = LobbyReturn.new()
+	lobby_return.name = "LobbyReturn"
+	add_child(lobby_return)
 	# Jamais d'objet décodé depuis le réseau (un objet peut porter un script).
 	(multiplayer as SceneMultiplayer).allow_object_decoding = false
 	multiplayer.peer_connected.connect(_on_peer_connected)
@@ -219,6 +228,11 @@ func start_match(map_id: String) -> bool:
 		# Les invités n'ont pas les cartes de l'hôte : passer par set_lobby_map.
 		print("[Net] lancement refusé : carte perso non partagée")
 		return false
+	# Après une partie : tout le groupe doit être revenu au salon.
+	var back := lobby_return.can_start()
+	if not back[0]:
+		print("[Net] lancement refusé : %s" % back[1])
+		return false
 	match_started = true
 	loaded_peers.clear()
 	_cl_load_game.rpc(map_id, srv_resolve_cast(0 if Autotest.active else randi() % CharacterDB.IDS.size()))
@@ -277,12 +291,65 @@ func is_everyone_loaded() -> bool:
 	return true
 
 
-## Quitte proprement la session (depuis n'importe quel mode).
+## Fin d'une partie multijoueur, retour au salon (chaque machine) : la
+## session, les joueurs (et leurs personnages), la carte du salon restent ;
+## tout ce qui ne valait que pour la partie est oublié.
+func end_match() -> void:
+	match_started = false
+	loaded_peers.clear()
+	current_map = ""
+	cast = {}
+
+
+## Délai entre l'avis de départ de l'hôte et la coupure (le message part avant).
+const HOST_CLOSING_DELAY := 0.3
+
+
+## Quitte proprement la session (depuis n'importe quel mode). L'hôte qui part
+## avec des invités les prévient d'abord (LobbyReturn.srv_notify_closing) :
+## message envoyé tout de suite, connexion fermée HOST_CLOSING_DELAY plus tard
+## (fermer aussitôt jetterait le message encore en file d'attente d'ENet).
 func leave() -> void:
 	if mode == Mode.NONE:
 		return
 	print("[Net] fin de session (%s)" % Mode.keys()[mode])
+	var old := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	if mode == Mode.HOST and not multiplayer.get_peers().is_empty() and old != null and old.host != null and is_inside_tree():
+		lobby_return.srv_notify_closing()
+		old.host.flush()
+		_reset_peer(false)
+		_closing_peer = old
+		# Le lambda garde l'ancien pair en vie jusqu'à sa fermeture (arbre en
+		# pause ou non) ; déjà fermé par une nouvelle session : rien à faire.
+		get_tree().create_timer(HOST_CLOSING_DELAY, true, false, true).timeout.connect(func(): _close_lingering(old))
+		return
 	_reset_peer()
+
+
+## Ferme l'ancien pair de l'hôte encore ouvert (Net.leave) : à l'échéance de
+## HOST_CLOSING_DELAY (`only` : ce pair-là seulement), ou tout de suite avant
+## une nouvelle session (le message de départ est envoyé au mieux).
+func _close_lingering(only: ENetMultiplayerPeer = null) -> void:
+	if _closing_peer == null or (only != null and _closing_peer != only):
+		return
+	var p := _closing_peer
+	_closing_peer = null
+	if p.host != null:
+		p.host.flush()
+	p.close()
+
+
+## Client : la session s'arrête à l'initiative de l'hôte (`reason` déjà
+## traduite) : connexion fermée, puis session_ended (retour au menu).
+func end_session(reason: String) -> void:
+	if mode != Mode.CLIENT:
+		return
+	var was_joined := _handshake_done
+	_reset_peer()
+	if was_joined:
+		session_ended.emit(reason)
+	else:
+		connection_error.emit(Lang.t("Connexion impossible", "Cannot connect"), reason)
 
 
 func is_server() -> bool:
@@ -532,6 +599,8 @@ func _on_peer_disconnected(id: int) -> void:
 		loaded_peers.erase(id)
 		# Un joueur qui part pendant le transfert ne bloque pas les autres.
 		map_share.srv_peer_left(id)
+		# Ni pendant le retour au salon.
+		lobby_return.srv_peer_left(id)
 		_cl_players.rpc(players)
 		player_left.emit(id)
 		# Un joueur qui part pendant le chargement ne doit pas bloquer les autres.
@@ -567,10 +636,13 @@ func _on_server_disconnected() -> void:
 # Utilitaires internes
 # --------------------------------------------------------------------------
 
-func _reset_peer() -> void:
+## `close_peer` faux : l'appelant ferme lui-même l'ancien pair (Net.leave).
+func _reset_peer(close_peer := true) -> void:
 	_connect_timer.stop()
+	# Hôte parti à l'instant : son port est libéré avant toute nouvelle session.
+	_close_lingering()
 	var peer := multiplayer.multiplayer_peer
-	if peer != null and not (peer is OfflineMultiplayerPeer):
+	if close_peer and peer != null and not (peer is OfflineMultiplayerPeer):
 		peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	mode = Mode.NONE
@@ -581,6 +653,8 @@ func _reset_peer() -> void:
 	lobby_map = ""
 	if map_share:
 		map_share.reset()
+	if lobby_return:
+		lobby_return.reset()
 
 
 # --------------------------------------------------------------------------

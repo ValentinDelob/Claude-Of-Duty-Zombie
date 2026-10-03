@@ -2,9 +2,9 @@ extends AutotestScenario
 ## OPTIONS en jeu (solo), avec de vraies entrées clavier : Échap ouvre le menu
 ## pause (partie suspendue), OPTIONS ouvre l'écran d'options du menu
 ## principal par-dessus la partie, onglet COMMANDES, RECHARGER réaffecté à T
-## (première case ; InputMap et settings.cfg vérifiés), conflit avec
+## (première case ; InputMap et settings.cfg vérifiés), touche partagée avec
 ## GRENADE, Échap qui annule une saisie, deuxième touche sur un cran de
-## molette (qui ne change plus d'arme) puis effacée, case manette (A, Y, conflit avec
+## molette (qui ne change plus d'arme) puis effacée, case manette (A, Y, partagé avec
 ## CHANGER D'ARME, Start qui annule, invites manette puis clavier),
 ## commandes par défaut, RETOUR au menu pause et reprise.
 
@@ -85,13 +85,16 @@ func run() -> void:
 	at.check(ok and Array(cfg.get_value("bindings", "reload", [])) == [Settings.key_code(KEY_T)], "enregistré dans %s" % Settings.path)
 	at.check(pm.visible and tree().paused, "la saisie ne ferme pas le menu")
 
-	# Conflit : G sur RECHARGER est retiré de GRENADE, et c'est affiché.
+	# Touche déjà utilisée : G sur RECHARGER reste aussi sur GRENADE
+	# (partagée), et c'est affiché.
 	await action("ui_accept")
 	await key(KEY_G)
 	@warning_ignore("static_called_on_instance")
 	at.check(Settings.bindings.reload == [Settings.key_code(KEY_G)], "RECHARGER = G")
-	at.check(Settings.bindings.grenade == [] and not _has_key("grenade", KEY_G), "G retiré de GRENADE")
-	at.check(pm._hint.text.contains("GRENADE"), "conflit affiché : « %s »" % pm._hint.text)
+	@warning_ignore("static_called_on_instance")
+	at.check(Settings.bindings.grenade == [Settings.key_code(KEY_G)] and _has_key("grenade", KEY_G)
+			and _has_key("reload", KEY_G), "G partagée : GRENADE la garde")
+	at.check(pm._hint.text.contains("GRENADE"), "partage affiché : « %s »" % pm._hint.text)
 
 	# Échap pendant une saisie : annule, l'écran reste ouvert.
 	await action("ui_accept")
@@ -130,7 +133,7 @@ func run() -> void:
 			"deuxième touche effacée, molette bas : changement d'arme")
 
 	# Manette : ► case manette, A lance la saisie, Y est affecté à RECHARGER
-	# et retiré de CHANGER D'ARME ; l'invite du HUD passe à la manette.
+	# et garde CHANGER D'ARME (partagé) ; l'invite du HUD passe à la manette.
 	await action("ui_right")
 	at.check(row.slot == MenuBindRow.SLOT_PAD, "► : case manette")
 	await pad(JOY_BUTTON_A)
@@ -139,8 +142,8 @@ func run() -> void:
 	at.check(opt.capturing(), "une touche ne répond pas à la case manette")
 	await pad(JOY_BUTTON_Y)
 	at.check(not opt.capturing(), "bouton reçu")
-	at.check(Settings.pad_bindings.reload == ["joy:%d" % JOY_BUTTON_Y] and Settings.pad_bindings.switch_weapon == [],
-			"RECHARGER = Y, retiré de CHANGER D'ARME (%s)" % str(Settings.pad_bindings.reload))
+	at.check(Settings.pad_bindings.reload == ["joy:%d" % JOY_BUTTON_Y] and Settings.pad_bindings.switch_weapon == ["joy:%d" % JOY_BUTTON_Y],
+			"RECHARGER = Y, partagé avec CHANGER D'ARME (%s)" % str(Settings.pad_bindings.reload))
 	@warning_ignore("static_called_on_instance")
 	at.check(Settings.bindings.reload == [Settings.key_code(KEY_G)], "la touche reste")
 	at.check(Settings.using_pad and Settings.action_label("reload") == "Y", "invites manette : « %s »" % Settings.action_label("reload"))

@@ -33,6 +33,12 @@ func run() -> void:
 	AutotestHelpers.aim_at(p, client.global_position + Vector3.UP * 0.4)
 	await until(func(): return game.interact.focused == client.revive_target, 2.0, "invite de réanimation")
 	at.check(game.interact.focused == client.revive_target, "invite de réanimation : %s" % game.hud._prompt.text)
+	# L'hôte voit le client assis au sol (PlayerModel), tête à la hauteur de
+	# la caméra du client à terre.
+	await until(func(): return client.visual._down_k >= 1.0, 2.0, "pose à terre vue par l'hôte")
+	var hips_y: float = client.visual.skel.get_bone_pose_position(client.visual.bones.hips).y
+	at.check(client.visual._down_k >= 1.0 and hips_y < 0.2, "client vu assis au sol (bassin à %.2f m)" % hips_y)
+	at.check(absf(client.head.position.y - client.downed_eye()) < 0.01, "tête du client à la hauteur de sa caméra à terre (%.2f m)" % client.head.position.y)
 	p.input.interact_pressed = true
 	p.input.interact = true
 	await seconds(2.0)  # [F] maintenu (la réanimation dure 4 s)
@@ -45,6 +51,8 @@ func run() -> void:
 	# Le client a vu sa réanimation ; saignement jusqu'à la mort.
 	if not await MpHelpers.wait_peer(self, "releve", 15.0):
 		return
+	await until(func(): return client.visual._down_k <= 0.0, 2.0, "client vu debout")
+	at.check(client.visual._down_k <= 0.0 and client.visual.skel.get_bone_pose_position(client.visual.bones.hips).y > 0.8, "client réanimé vu debout")
 	game.downed.bleedout_time = 3.0
 	game.combat.damage_player(cid, 500, client.global_position)
 	await until(func(): return cpd.life == PlayerData.Life.DEAD, 6.0, "mort par saignement")

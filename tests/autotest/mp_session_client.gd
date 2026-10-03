@@ -1,6 +1,7 @@
 extends AutotestScenario
 ## [MP] Client : mort -> spectateur de l'hôte ; réapparition -> sa propre vue ;
-## l'hôte quitte -> retour au menu avec « Connexion perdue avec l'hôte ».
+## l'hôte quitte -> retour au menu avec « L'hôte a quitté la partie » (avis
+## envoyé par l'hôte avant de couper : LobbyReturn).
 
 const PORT := 17815
 
@@ -28,6 +29,6 @@ func run() -> void:
 		var menu: MainMenu = tree().current_scene
 		at.check(menu.current_name == "message", "écran de message")
 		var body: String = menu.current.get_child(0).get_child(1).text if menu.current_name == "message" else ""
-		at.check(body.contains(Lang.t("Connexion perdue", "Connection to the host lost")), "message : %s" % body)
+		at.check(body.contains(Lang.t("L'hôte a quitté la partie", "The host left the game")), "message : %s" % body)
 		await at.screenshot("host_lost")
 	await MpHelpers.finish(self)

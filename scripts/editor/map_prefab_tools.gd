@@ -2,9 +2,14 @@ class_name MapPrefabTools
 extends Node
 ## PREFABS DE LA CARTE dans l'éditeur (format 10, docs/MAP_OBJECTS.md § 11,
 ## MapPrefabLib) : catégorie « Prefabs de la carte » de l'inventaire.
-##   - « Créer… » : glisser un rectangle sur le plan autour du décor à grouper
-##     (décor du catalogue de l'étage affiché) ; nom ; le décor choisi peut
-##     être remplacé par un seul prefab posé à sa place (annulable : Ctrl+Z) ;
+##   - « Créer une prefab… » (clic droit, Ctrl+G, panneau Propriétés, ou
+##     « + Créer… » de l'inventaire) : depuis la SÉLECTION (Maj + clic,
+##     rectangle : MapGroup) ; sans sélection, « + Créer… » fait glisser un
+##     rectangle sur le plan autour du décor. Boîte : nom, contenu, ce qui
+##     n'est pas repris et pourquoi (EXCLUDED : seul le décor du catalogue posé
+##     au sol entre dans une prefab, format 10), ancrage au centre ; le décor
+##     peut être remplacé par la prefab posée à sa place (annulable : Ctrl+Z),
+##     sinon la prefab est mise en main pour être posée ;
 ##   - « Importer… » : un fichier .glb ou .gltf du disque, COPIÉ dans le
 ##     dossier de la carte (prefabs/<pid>/model.glb, à l'enregistrement) ;
 ##     emprise et collision (un pavé de sa boîte englobante) calculées ;
@@ -26,10 +31,14 @@ var _file_dialog: FileDialog
 ## Cases « Créer… » et « Importer… » en tête de la grille de l'inventaire.
 func add_inventory_actions(grid: GridContainer) -> void:
 	grid.add_child(_action(Lang.t("+ Créer…", "+ Create…"),
-		Lang.t("Grouper du décor posé en un prefab : glissez un rectangle autour sur le plan", "Group placed props into a prefab: drag a rectangle around them on the plan"),
+		Lang.t("Grouper du décor posé en une prefab : sélectionnez-le sur le plan (Maj + clic, ou un rectangle), puis clic droit > Créer une prefab… (Ctrl+G). Sans sélection : glissez un rectangle autour du décor",
+			"Group placed props into a prefab: select them on the plan (Shift + click, or a rectangle), then right click > Create a prefab… (Ctrl+G). With nothing selected: drag a rectangle around the props"),
 		func():
 			ed.toggle_inventory()
-			start_capture()))
+			if ed.sel_ids().is_empty():
+				start_capture()
+			else:
+				create_dialog_for(ed.sel_ids())))
 	grid.add_child(_action(Lang.t("Importer…", "Import…"),
 		Lang.t("Importer un modèle .glb ou .gltf (copié dans le dossier de la carte ; %d Mo au plus)", "Import a .glb or .gltf model (copied into the map folder; %d MB at most)") % (MapPrefabLib.MAX_MODEL_BYTES >> 20),
 		func():
@@ -126,39 +135,216 @@ func finish_capture(r: Rect2) -> void:
 	create_dialog(objs)
 
 
-func create_dialog(objs: Array) -> void:
+func create_dialog(objs: Array) -> ConfirmationDialog:
+	return create_dialog_for(objs.map(func(o): return String(o.id)))
+
+
+## Catégories d'éléments qu'une prefab ne peut pas contenir (format 10 : une
+## prefab groupe n'a que des « parties » de décor du catalogue posé au sol,
+## MapPrefabLib.check_def) : clé -> [nom fr, nom en, raison fr, raison en].
+const EXCLUDED := {
+	"piece": ["pièce(s)", "room(s)", "une prefab se pose DANS une pièce : elle n'a ni sol, ni murs, ni zone",
+		"a prefab is placed INSIDE a room: it has no floor, walls or zone"],
+	"ouverture": ["porte(s), fenêtre(s) ou passage(s)", "door(s), window(s) or passage(s)", "elles relient deux pièces ou donnent dehors : elles restent sur leur mur",
+		"they join two rooms or open outside: they stay on their wall"],
+	"structure": ["mur(s), pilier(s) ou barrière(s) invisible(s)", "wall(s), pillar(s) or invisible barrier(s)", "construction de la carte, pas du décor",
+		"map construction, not props"],
+	"jeu": ["objet(s) de jeu", "game object(s)", "armes, atouts, boîte, pièges, escaliers… : le jeu gère chacun (prix, règles, apparitions)",
+		"weapons, perks, box, traps, stairs…: the game handles each one (price, rules, spawns)"],
+	"effet": ["effet(s)", "effect(s)", "un effet a sa propre zone et son animation ; le format des prefabs ne garde que du décor",
+		"an effect has its own zone and animation; the prefab format only keeps props"],
+	"lumiere": ["luminaire(s)", "light(s)", "la lumière est calculée à part par le jeu ; le format des prefabs ne garde que du décor",
+		"light is computed separately by the game; the prefab format only keeps props"],
+	"mural": ["décor mural ou au plafond", "wall or ceiling prop(s)", "une prefab se pose au sol : le décor accroché n'y entre pas",
+		"a prefab stands on the floor: hung props cannot go in"],
+	"prefab_carte": ["prefab(s) de la carte", "map prefab(s)", "une prefab ne contient pas d'autre prefab ni de modèle importé",
+		"a prefab cannot hold another prefab or an imported model"],
+}
+
+
+## Catégorie d'exclusion d'un élément (EXCLUDED) ; "" s'il entre dans une prefab.
+static func excluded_kind(e: Dictionary) -> String:
+	if MapPrefabLib.groupable(e):
+		return ""
+	if e.has("contour"):
+		return "piece"
+	var t := String(e.get("type", ""))
+	if t in MapRules.ouvertures_types():
+		return "ouverture"
+	match t:
+		"mur", "mur_courbe", "pilier", "bloc_invisible":
+			return "structure"
+		"effet":
+			return "effet"
+		"luminaire":
+			return "lumiere"
+		"prefab":
+			return "prefab_carte" if MapPrefabLib.is_ref(e.get("prefab", "")) else "mural"
+	return "jeu"
+
+
+## Ce que la sélection `ids` donne pour une prefab : les décors qui y entrent
+## (« parts », objets ; le contenu des pièces choisies compris, comme quand
+## elles bougent) et ce qui n'y entre pas (« excluded » : clé -> nombre).
+static func analyze(doc: EditorMap, ids: Array) -> Dictionary:
+	var parts := []
+	var excluded := {}
+	for id in MapGroup.movers(doc, ids):
+		var e := doc.find(String(id))
+		var k := excluded_kind(e)
+		if k == "":
+			parts.append(e)
+		else:
+			excluded[k] = int(excluded.get(k, 0)) + 1
+	return {"parts": parts, "excluded": excluded}
+
+
+## Texte du contenu d'une prefab : « 2 × Sacs de sable, 1 × Table » (ordre
+## d'apparition).
+static func parts_text(parts: Array) -> String:
+	var n := {}
+	var order := []
+	for o in parts:
+		var nm := MapCatalog.name_of(MapCatalog.item_for(o))
+		if not n.has(nm):
+			order.append(nm)
+		n[nm] = int(n.get(nm, 0)) + 1
+	return ", ".join(order.map(func(nm): return "%d × %s" % [n[nm], nm]))
+
+
+## « Créer une prefab… » (clic droit, Ctrl+G, panneau Propriétés, « + Créer… »
+## de l'inventaire) : boîte au style de l'éditeur pour la sélection `ids` —
+## aide, nom, contenu (nombre et liste des décors), ce qui n'est pas repris et
+## pourquoi, point d'ancrage, « remplacer ce décor par la prefab ». Rend la
+## boîte (null si refusée).
+func create_dialog_for(ids: Array) -> ConfirmationDialog:
+	if not _can_edit():
+		return null
+	var an := analyze(ed.doc, ids)
+	var parts: Array = an.parts
+	if floors_of(parts).size() > 1:
+		ed.set_status(multi_floor_text(), true)
+		return null
 	var d := ConfirmationDialog.new()
-	d.title = Lang.t("Créer un prefab", "Create a prefab")
+	d.name = "CreatePrefabDialog"
+	d.title = Lang.t("Créer une prefab", "Create a prefab")
 	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
 	d.add_child(box)
+	var w := 440.0
+	var help := Label.new()
+	help.name = "Help"
+	help.text = Lang.t("Une prefab regroupe du décor posé au sol en UN objet réutilisable. Elle rejoint l'inventaire (E), catégorie « Prefabs de la carte » : prenez-la puis cliquez sur le plan pour la poser (R : pivoter), comme un décor.",
+		"A prefab groups props placed on the floor into ONE reusable object. It joins the inventory (E), \"Map prefabs\" category: take it, then click on the plan to place it (R: rotate), like a prop.")
+	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	help.custom_minimum_size = Vector2(w, 0)
+	help.add_theme_color_override("font_color", UiStyle.DIM)
+	box.add_child(help)
 	var l := Label.new()
-	l.text = Lang.t("%d décor(s) groupé(s). Nom du prefab :", "%d prop(s) grouped. Prefab name:") % objs.size()
+	l.text = Lang.t("Nom de la prefab :", "Prefab name:")
 	box.add_child(l)
 	var e := LineEdit.new()
+	e.name = "Name"
 	e.text = Lang.t("Prefab %d", "Prefab %d") % (ed.doc.prefabs.size() + 1)
 	e.max_length = CustomMapGuard.MAX_NAME
-	e.custom_minimum_size = Vector2(360, 0)
+	e.custom_minimum_size = Vector2(w, 0)
 	box.add_child(e)
+	var c := Label.new()
+	c.name = "Content"
+	c.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	c.custom_minimum_size = Vector2(w, 0)
+	if parts.is_empty():
+		c.text = Lang.t("Contenu : aucun décor du catalogue posé au sol — rien à grouper.", "Content: no catalogue prop placed on the floor — nothing to group.")
+		c.add_theme_color_override("font_color", Color(1, 0.55, 0.45))
+	elif parts.size() > MapPrefabLib.MAX_PARTS:
+		c.text = Lang.t("Contenu : %d décors — trop pour une prefab (%d au plus).", "Content: %d props — too many for a prefab (%d at most).") % [parts.size(), MapPrefabLib.MAX_PARTS]
+		c.add_theme_color_override("font_color", Color(1, 0.55, 0.45))
+	else:
+		c.text = Lang.t("Contenu : %d décor(s) — %s", "Content: %d prop(s) — %s") % [parts.size(), parts_text(parts)]
+	box.add_child(c)
+	var ex: Dictionary = an.excluded
+	if not ex.is_empty():
+		var x := Label.new()
+		x.name = "Excluded"
+		x.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		x.custom_minimum_size = Vector2(w, 0)
+		var lines := [Lang.t("Non repris (une prefab ne garde que du décor du catalogue posé au sol) :", "Not included (a prefab only keeps catalogue props placed on the floor):")]
+		for k in EXCLUDED:
+			if ex.has(k):
+				var en: Array = EXCLUDED[k]
+				lines.append(Lang.t("• %d %s : %s" % [int(ex[k]), en[0], en[2]], "• %d %s: %s" % [int(ex[k]), en[1], en[3]]))
+		x.text = "\n".join(lines)
+		x.add_theme_color_override("font_color", Color(0.95, 0.8, 0.55))
+		box.add_child(x)
+	var anchor := Label.new()
+	anchor.name = "Anchor"
+	anchor.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	anchor.custom_minimum_size = Vector2(w, 0)
+	anchor.text = Lang.t("Point d'ancrage : centre de l'emprise (la prefab se pose, s'aimante sur la grille et pivote autour de son centre).",
+		"Anchor point: centre of the footprint (the prefab is placed, snapped to the grid and rotated around its centre).")
+	anchor.add_theme_color_override("font_color", UiStyle.DIM)
+	box.add_child(anchor)
 	var rep := CheckBox.new()
-	rep.text = Lang.t("Remplacer ce décor par le prefab (à la même place)", "Replace these props with the prefab (same place)")
+	rep.name = "Replace"
+	rep.text = Lang.t("Remplacer ce décor par la prefab, à la même place (sinon : la prefab en main, à poser)", "Replace these props with the prefab, in the same place (otherwise: the prefab in hand, to place)")
 	rep.button_pressed = true
 	box.add_child(rep)
 	d.ok_button_text = Lang.t("Créer", "Create")
 	d.cancel_button_text = Lang.t("Annuler", "Cancel")
+	d.get_ok_button().disabled = parts.is_empty() or parts.size() > MapPrefabLib.MAX_PARTS
 	ed.add_child(d)
 	d.confirmed.connect(func():
-		create_from_objects(objs, e.text, rep.button_pressed)
-		d.queue_free())
+		d.queue_free()
+		create_from_selection(ids, e.text, rep.button_pressed))
 	d.canceled.connect(d.queue_free)
 	d.popup_centered()
 	e.grab_focus.call_deferred()
+	e.select_all.call_deferred()
+	return d
 
 
 ## Prefab groupe tiré de `objs` (décor du catalogue posé), nommé `name` ;
 ## `replace` : ces objets remplacés par un prefab posé à leur place. Rend
 ## l'identifiant du prefab ("" : refusé, raison dans la barre d'état).
+## Étages (indices) des décors `parts`.
+static func floors_of(parts: Array) -> Array:
+	var out := []
+	for o in parts:
+		var k := int(o.get("etage", 0))
+		if not out.has(k):
+			out.append(k)
+	return out
+
+
+static func multi_floor_text() -> String:
+	return Lang.t("Créer une prefab : la sélection est sur plusieurs étages ; une prefab se pose à un seul étage (sélectionnez le décor d'un étage)",
+		"Create a prefab: the selection spans several floors; a prefab stands on a single floor (select the props of one floor)")
+
+
+## « Créer » de la boîte : la sélection `ids` est RELUE dans la carte telle
+## qu'elle est au moment de valider (un autre participant ou Claude a pu
+## supprimer ou déplacer des éléments depuis l'ouverture) : les décors
+## restants, à leur place actuelle ; refusé (message) s'il n'en reste aucun
+## ou s'ils sont sur plusieurs étages. Rend le pid ("" : refusé).
+func create_from_selection(ids: Array, name: String, replace := true) -> String:
+	var parts: Array = analyze(ed.doc, ids).parts
+	if parts.is_empty():
+		ed.set_status(Lang.t("Créer une prefab : la sélection n'a plus de décor posé au sol (supprimé ou changé entre-temps)",
+			"Create a prefab: the selection no longer has props placed on the floor (deleted or changed meanwhile)"), true)
+		return ""
+	if floors_of(parts).size() > 1:
+		ed.set_status(multi_floor_text(), true)
+		return ""
+	if ed.edit_blocked():
+		return ""
+	return create_from_objects(parts, name, replace)
+
+
 func create_from_objects(objs: Array, name: String, replace := true) -> String:
 	if not _can_edit():
+		return ""
+	if floors_of(objs).size() > 1:
+		ed.set_status(multi_floor_text(), true)
 		return ""
 	var nm := clean_name(name)
 	if nm == "" or not CustomMapGuard.name_ok(nm):
@@ -182,31 +368,34 @@ func create_from_objects(objs: Array, name: String, replace := true) -> String:
 			ed.doc.remove(String(o.id))
 		ed.add_object({"type": "prefab", "prefab": MapPrefabLib.ref(pid), "position": MapGeom.arr(res.center), "rot": 0}, k)
 	_library_changed()
-	ed.set_status(Lang.t("Prefab « %s » créé (%d décors) : inventaire, « Prefabs de la carte »", "Prefab \"%s\" created (%d props): inventory, \"Map prefabs\"") % [nm, (res.def.parties as Array).size()])
+	if not replace:
+		# Prefab en main : un clic sur le plan la pose (R : pivoter).
+		ed.pick_item("prefab:" + MapPrefabLib.ref(pid))
+		ed.set_status(Lang.t("Prefab « %s » créée (%d décors), en main : cliquez sur le plan pour la poser (R : pivoter) ; inventaire, « Prefabs de la carte »",
+			"Prefab \"%s\" created (%d props), in hand: click on the plan to place it (R: rotate); inventory, \"Map prefabs\"") % [nm, (res.def.parties as Array).size()])
+		return pid
+	ed.set_status(Lang.t("Prefab « %s » créée (%d décors), posée à leur place : inventaire, « Prefabs de la carte », pour en poser d'autres",
+		"Prefab \"%s\" created (%d props), placed in their stead: inventory, \"Map prefabs\", to place more") % [nm, (res.def.parties as Array).size()])
 	return pid
 
 
 # ------------------------------------------------------------------ importer (modèle)
 
+## « Importer… » : explorateur du système (FilePick ; la fenêtre de Godot
+## seulement sans dialogue natif). Le fichier choisi (chemin absolu) passe par
+## import_file et ses contrôles (extension, taille, contenu).
 func import_dialog() -> void:
 	if not _can_edit():
 		return
-	if _file_dialog != null:
+	if is_instance_valid(_file_dialog):
 		_file_dialog.queue_free()
-	_file_dialog = FileDialog.new()
-	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-	_file_dialog.filters = PackedStringArray(["*.glb, *.gltf ; " + Lang.t("Modèle 3D glTF", "glTF 3D model")])
-	_file_dialog.title = Lang.t("Importer un modèle (prefab de la carte)", "Import a model (map prefab)")
-	_file_dialog.current_dir = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
-	_file_dialog.set_meta(EditorUi.SKIP, true)
-	_file_dialog.size = Vector2i((Vector2(760, 480) * ed.ui_scale).min(ed.get_viewport_rect().size - Vector2(40, 40)))
-	ed.add_child(_file_dialog)
-	_file_dialog.file_selected.connect(func(path):
+	var chosen := func(path: String):
 		var pid := import_file(path)
 		if pid != "":
-			edit_dialog(pid))
-	_file_dialog.popup_centered()
+			edit_dialog(pid)
+	_file_dialog = FilePick.pick(ed, Lang.t("Importer un modèle (prefab de la carte)", "Import a model (map prefab)"),
+		FilePick.Mode.OPEN, PackedStringArray(["*.glb, *.gltf ; " + Lang.t("Modèle 3D glTF", "glTF 3D model")]),
+		chosen, "", "", ed.ui_scale)
 
 
 ## Importe le modèle `path` (.glb ou .gltf) : contrôlé, copié dans la carte

@@ -100,7 +100,7 @@ func run() -> void:
 	ed = tree().current_scene
 	await frames(3)
 	at.check(ed.collab.role == MapCollab.Role.HOST and ed.collab.get_parent() == ed and ed.collab.human_guests().size() == 1, "même session, invité toujours là")
-	at.check(ed.map_dir.get_file() == "draft_arena" and not ed.example and ed.doc.pieces.size() == 5, "même carte (%s)" % ed.map_dir)
+	at.check(ed.example and ed.map_dir == "" and ed.doc.pieces.size() == 5, "même carte, jamais enregistrée par TESTER (%s)" % ed.map_dir)
 	at.check(not ed.doc.find("pendant_test").is_empty(), "changement fait pendant la partie gardé")
 	at.check(ed.status.text.contains("Partie terminée") or ed.status.text.contains("Game over"), "barre d'état : « %s »" % ed.status.text)
 	at.check(Net.mode == Net.Mode.NONE and CollabPlaytest.current == null and Router.return_scene == "", "partie de test refermée proprement")

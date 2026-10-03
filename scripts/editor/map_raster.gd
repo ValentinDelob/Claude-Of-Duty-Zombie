@@ -426,7 +426,7 @@ func _floor(k: int) -> void:
 		for o in doc.objects_on(k - 1):
 			if String(o.type) == "escalier":
 				for c in stair_cells(o):
-					f.put(c, K.TREMIE, "tremie")
+					f.put(c, K.TREMIE, "tremie#" + String(o.id))
 					f.ceil[c.y * f.w + c.x] = ceil_up
 	# (d) Ouvertures.
 	for o in doc.openings_on(k):
@@ -508,6 +508,10 @@ func _floor(k: int) -> void:
 			cells_of[String(o.id)] = [k, cells]
 			# Type et réglages (format 6) : validateur (pente, largeur) et export.
 			v.stair_opts[key] = MapCatalog.stair_layout_opts(o)
+			# Sens tracé : départage un escalier qui a du sol aux deux bouts, en
+			# bas comme en haut (étages empilés, MapValidator._stairs).
+			var dv := MapGeom.dir_vec(String(o.get("monte", "n")))
+			v.stair_up[key] = Vector2i(roundi(dv.x), roundi(dv.y))
 			var shaped := StairGen.is_shaped(MapCatalog.stair_kind(o))
 			if shaped or not rect_on_grid(o):
 				# Tourné, hors de la grille, ou en L / U / colimaçon (sortie ailleurs

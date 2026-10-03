@@ -48,7 +48,36 @@ const EXIT_CLEARANCE := 0.65
 const VAULT_REACH := 0.9
 ## Un joueur plus proche que cela du zombie à la fenêtre se fait frapper.
 const REACH := 1.8
-const REPAIR_RANGE := 2.4
+## Portée de la réparation (BO1 : on répare collé aux planches, face à
+## l'ouverture, de l'intérieur). Mesurée à plat, du centre du joueur à la face
+## intérieure de la barrière (là où il bute : barrier_half_depth()), pas au
+## centre de l'ouverture : collé, le centre du joueur en est à Player.RADIUS
+## (0,35 m) ; 0,8 m lui laisse 45 cm, un avant-bras qui cloue une planche.
+## Soit 1,3 m du milieu du mur pour une fenêtre (barrière de 1 m), 1,05 m pour
+## une porte (barrière de 0,5 m). Ancienne portée : 2,4 m autour d'un point à
+## 0,55 m devant l'ouverture (réparable à près de 3 m, de biais).
+const REPAIR_REACH := 0.8
+## Le long du mur : toute la largeur de l'ouverture (mesure depuis son
+## segment, pas son centre : une porte double de 2 m se répare d'un bout à
+## l'autre), plus un rayon de joueur au-delà de chaque bord (épaule encore
+## devant l'ouverture), jamais derrière le mur voisin.
+const REPAIR_SIDE_SLACK := Player.RADIUS
+## Serveur : marge réseau ajoutée à REPAIR_REACH pour un joueur en mouvement
+## (Player.srv_lag_slack : vitesse × (RTT + intervalle d'envoi), bornée ici).
+## Sa position de référence a 50 à 150 ms de retard sur celle où le client
+## voit l'invite ; immobile, aucune marge : la règle « collé » reste stricte.
+const REPAIR_NET_SLACK_MAX := 0.5
+## Écart de hauteur maximal (pieds du joueur / sol de l'ouverture) : pas de
+## réparation depuis l'étage du dessus ou du dessous.
+const REPAIR_HEIGHT := 1.0
+## Invite seulement si le joueur regarde vers l'ouverture : visée à plat à
+## moins de ~78° de la normale du mur (dos ou épaule tournés : rien).
+const REPAIR_FACING := 0.2
+## Côté intérieur : au-delà de cela du milieu du mur (is_inside, réparation).
+const INSIDE_MIN := 0.2
+## Profondeur de la barrière d'une fenêtre (murs de 1 m des cartes grille ;
+## dépasse de 25 cm de chaque côté des murs de 0,5 m de l'éditeur).
+const WINDOW_BARRIER_DEPTH := 1.0
 const TEAR_ANIM := 0.5
 const REPAIR_ANIM := 0.32
 ## [hauteur, roulis, décalage z, décalage x] des 6 planches (de travers).
@@ -271,7 +300,7 @@ func _build_barrier() -> void:
 	barrier.collision_mask = 0
 	var bcs := CollisionShape3D.new()
 	var bbox := BoxShape3D.new()
-	bbox.size = Vector3(width, opening_height, DOOR_BARRIER_DEPTH if is_door() else 1.0)
+	bbox.size = Vector3(width, opening_height, barrier_half_depth() * 2.0)
 	bcs.shape = bbox
 	bcs.position.y = opening_height * 0.5
 	barrier.add_child(bcs)
@@ -493,7 +522,39 @@ func interact_point() -> Vector3:
 
 ## Le point `pos` est-il du côté intérieur de la fenêtre ?
 func is_inside(pos: Vector3) -> bool:
-	return (pos - global_position).dot(inward) > 0.2  # même seuil que can_repair_from
+	return (pos - global_position).dot(inward) > INSIDE_MIN  # même seuil que can_repair_from
+
+
+## Demi-profondeur de la barrière : du milieu du mur à sa face intérieure,
+## là où le joueur bute.
+func barrier_half_depth() -> float:
+	return (DOOR_BARRIER_DEPTH if is_door() else WINDOW_BARRIER_DEPTH) * 0.5
+
+
+## Joueur aux pieds en `pos` à portée de réparation (can_repair_from) ?
+## `slack` : marge réseau du serveur (srv_repair_range), 0 côté client.
+func in_repair_range(pos: Vector3, slack := 0.0) -> bool:
+	return can_repair_from(pos, global_position, inward, width * 0.5, barrier_half_depth() + slack)
+
+
+## Serveur : portée de réparation jugée sur la référence du serveur
+## (Player.srv_origin, en retard), plus la marge de latence d'un joueur qui
+## avance (REPAIR_NET_SLACK_MAX au plus, rien s'il est immobile).
+func srv_repair_range(p: Player) -> bool:
+	return in_repair_range(p.srv_origin(), p.srv_lag_slack(REPAIR_NET_SLACK_MAX))
+
+
+## Place de réparation au milieu de l'ouverture, collé à la barrière (tests).
+func repair_spot() -> Vector3:
+	return global_position + inward * (barrier_half_depth() + Player.RADIUS + 0.1)
+
+
+## Visée `aim` tournée vers l'ouverture (à plat ; regard vertical : accepté).
+func faces_opening(aim: Vector3) -> bool:
+	var flat := Vector2(aim.x, aim.z)
+	if flat.length() < 0.1:
+		return true
+	return flat.normalized().dot(-Vector2(inward.x, inward.z).normalized()) >= REPAIR_FACING
 
 
 # --------------------------------------------------------------------------
@@ -503,13 +564,21 @@ func is_inside(pos: Vector3) -> bool:
 func prompt(pid: int) -> String:
 	if mask == full_mask():
 		return ""
+	# Invite seulement collé à l'ouverture, côté intérieur, tourné vers elle
+	# (règle du serveur, plus l'orientation, propre à l'affichage).
 	var p: Player = system.game.players.get(pid) if system else null
-	if p and not is_inside(p.global_position):
+	if p and not (in_repair_range(p.global_position) and faces_opening(p.aim_direction())):
 		return ""
 	return Lang.t("Maintenir [F] pour reconstruire la barricade", "Hold [F] to rebuild the barrier")
 
 
 func srv_use(pid: int) -> void:
+	# L'InteractionSystem n'a vérifié qu'une distance large (in_reach) : la
+	# portée de réparation se juge ici, sur la référence du serveur.
+	var p: Player = system.game.players.get(pid) if system else null
+	if p == null or not srv_repair_range(p):
+		print("[Barricade] %d hors de portée de réparation de %s" % [pid, interact_id])
+		return
 	if not _repairers.has(pid):
 		_repairers[pid] = 0.0
 	set_physics_process(true)
@@ -517,6 +586,12 @@ func srv_use(pid: int) -> void:
 
 func srv_release(pid: int) -> void:
 	_repairers.erase(pid)
+
+
+## Réparation : srv_use est idempotent (déjà en train de réparer : rien) ; le
+## client renvoie sa demande tant que [F] reste maintenu (InteractionSystem).
+func resend_while_held() -> bool:
+	return true
 
 
 func _physics_process(delta: float) -> void:
@@ -530,7 +605,7 @@ func _physics_process(delta: float) -> void:
 		# Position de référence du serveur (dernier état accepté), pas la
 		# position interpolée qui traîne derrière le joueur avec de la latence.
 		if p == null or pd == null or pd.life != PlayerData.Life.ALIVE \
-				or not can_repair_from(p.srv_origin(), global_position, inward, interact_point()):
+				or not srv_repair_range(p):
 			_repairers.erase(pid)
 			continue
 		if mask == full_mask():
@@ -577,10 +652,20 @@ func srv_set_mask(m: int) -> void:
 	broadcast_state()
 
 
-## Règle pure de la réparation : joueur en `pos` du côté intérieur de la
-## fenêtre (`window`, normale `inward`) et à REPAIR_RANGE (à plat) de `point`.
-static func can_repair_from(pos: Vector3, window: Vector3, inward_dir: Vector3, point: Vector3) -> bool:
-	return (pos - window).dot(inward_dir) > 0.2 and _flat_dist(pos, point) <= REPAIR_RANGE
+## Règle pure de la réparation : joueur aux pieds en `pos` ; ouverture au
+## milieu du mur en `window` (au sol), normale `inward_dir` vers l'intérieur,
+## demi-largeur `half_width`, face intérieure de la barrière à `face` du
+## milieu. Réparable : côté intérieur, à REPAIR_REACH au plus de cette face,
+## devant le segment de l'ouverture (REPAIR_SIDE_SLACK au-delà de chaque
+## bord), au même étage (REPAIR_HEIGHT).
+static func can_repair_from(pos: Vector3, window: Vector3, inward_dir: Vector3, half_width := 0.5, face := WINDOW_BARRIER_DEPTH * 0.5) -> bool:
+	var d := pos - window
+	if absf(d.y) > REPAIR_HEIGHT:
+		return false
+	var n := Vector2(inward_dir.x, inward_dir.z).normalized()
+	var depth := d.x * n.x + d.z * n.y
+	var lateral := absf(d.x * n.y - d.z * n.x)
+	return depth > INSIDE_MIN and depth - face <= REPAIR_REACH and lateral <= half_width + REPAIR_SIDE_SLACK
 
 
 static func _flat_dist(a: Vector3, b: Vector3) -> float:

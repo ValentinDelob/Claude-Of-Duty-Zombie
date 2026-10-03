@@ -4,19 +4,24 @@ extends Control
 ## inventaire façon Minecraft (barre rapide de 9 cases + inventaire complet,
 ## MapHotbar / MapInventory), panneaux (MapPanels : propriétés, pièces, zones,
 ## étages, vérification), fichiers (dossier de cinq JSON, archive .zip),
-## annuler / rétablir (par auteur, MapHistory), sauvegarde automatique, bouton
+## annuler / rétablir (par auteur, MapHistory), enregistrement explicite
+## seulement, avec confirmation avant de perdre des modifications et copie de
+## récupération (MapUnsaved), sélection multiple et actions de groupe
+## (MapGroup), menu du clic droit (MapContextMenu), bouton
 ## Tester (partie solo sur la carte éditée), édition à plusieurs et avec
 ## Claude (menu Collaboration : MapCollab, MapAgentLink, docs/MAP_COLLAB.md).
 ## Lançable depuis le menu principal ou directement :
 ##   godot --path . res://scenes/editor/map_editor.tscn
 
 const SCENE := "res://scenes/editor/map_editor.tscn"
-const AUTOSAVE_EVERY := 60.0
+## Copie de récupération (MapUnsaved) : toutes les 60 s s'il y a du nouveau.
+const RECOVERY_EVERY := 60.0
 const RECENT_MAX := 8
 const PANEL_W := 340.0
-## Carte à rouvrir au retour d'une partie lancée par Tester.
-static var reopen_dir := ""
-static var reopen_example := false
+## TESTER en solo : session d'édition (MapCollab : carte, historique) et état
+## de l'éditeur gardés pendant la partie, repris au retour ({collab, state}) ;
+## vide sinon.
+static var _test_keep: Dictionary = {}
 
 var doc: EditorMap:
 	set(v):
@@ -32,7 +37,31 @@ var prefab_tools: MapPrefabTools
 var map_dir := ""
 ## Ouverte depuis un exemple livré (assets/maps/) : Enregistrer en fait une copie.
 var example := false
-var dirty := false
+## Modifications non enregistrées (étoile du titre) : empreinte de la carte
+## (MapUnsaved.signature) différente de celle de l'état enregistré, recalculée
+## quand la carte a changé (doc_version). `dirty = false` : l'état courant
+## devient l'état enregistré ; `dirty = true` : modifiée quoi qu'il arrive
+## (carte importée, supprimée du disque) jusqu'au prochain enregistrement.
+var dirty: bool:
+	get:
+		if _dirty_ver != doc_version:
+			_dirty_ver = doc_version
+			_dirty = _saved_sig == "" or MapUnsaved.signature(doc) != _saved_sig
+		return _dirty
+	set(v):
+		_saved_sig = "" if v else MapUnsaved.signature(doc)
+		_dirty_ver = -1
+var _dirty := false
+var _dirty_ver := -1
+## Empreinte de l'état enregistré ("" : à enregistrer quoi qu'il arrive).
+var _saved_sig := ""
+## Empreinte de la dernière copie de récupération écrite.
+var _recovery_sig := ""
+## Une copie de récupération attend la réponse de l'utilisateur (Récupérer /
+## Ignorer) : rien ne l'écrase ni ne l'efface d'ici là.
+var _recovery_pending := false
+## Invité d'une session au dernier changement de session (départ de l'invité).
+var _was_guest := false
 ## Session d'édition (docs/MAP_COLLAB.md) : seul, hôte ou invité ; tient
 ## l'historique (MapHistory, annuler / rétablir par auteur).
 var collab: MapCollab
@@ -56,7 +85,17 @@ const LIVE_EVERY_MS := 100
 ## inscrit par changed().
 var _before: Dictionary = {}
 var floor_k := 0
+## Élément choisi quand UN seul l'est ("" sinon ; sélection multiple : `group`).
 var selected := ""
+## Sélection multiple (docs/MAP_AUTHORING.md § 2, MapGroup) : identifiants des
+## éléments choisis quand il y en a au moins deux (`selected` vaut alors "") ;
+## vide sinon. sel_ids() rend la sélection dans les deux cas.
+var group: Array = []
+## Change à chaque changement de sélection (redessin des élévations).
+var sel_version := 0
+## Menu du clic droit (MapContextMenu), créé au premier usage.
+var context_menu: MapContextMenu
+## Presse-papiers : un élément (Ctrl+C sur un seul), ou {"items": [...]} (groupe).
 var clipboard: Dictionary = {}
 var ghost_below := true
 var hotbar: Array = MapHotbar.migrate(MapCatalog.DEFAULT_HOTBAR)
@@ -86,7 +125,7 @@ var doc_version := 0
 var views_stamp := 0
 var _elev_items: Array = []
 var _elev_ver := -1
-var _autosave_t := 0.0
+var _recovery_t := 0.0
 var _validate_t := -1.0
 
 var canvas: MapCanvas
@@ -150,7 +189,9 @@ func _ready() -> void:
 	get_tree().node_added.connect(_on_node_added)
 	resized.connect(_fit_side_panels)
 	Settings.editor_ui_scale_changed.connect(func(_v): apply_ui_scale())
-	get_tree().root.close_requested.connect(_on_close_requested)
+	# Fermeture de la fenêtre : demandée à l'éditeur d'abord (modifications non
+	# enregistrées : confirmation) ; rétabli en quittant l'éditeur (_exit_tree).
+	get_tree().set_auto_accept_quit(false)
 	doc = EditorMap.blank()
 	_setup_collab()
 	_start.call_deferred()
@@ -178,26 +219,16 @@ func _start() -> void:
 		_resume_playtest(_playtest_back)
 		_playtest_back = {}
 		return
-	if reopen_dir != "":
-		var d := reopen_dir
-		var ex := reopen_example
-		reopen_dir = ""
-		open_dir(d, ex)
-		# Fin de la partie lancée par TESTER (« Partie terminée — ... »).
-		if Router.pending_message != "":
-			set_status(Router.pending_message)
-			Router.pending_message = ""
+	# Copie de récupération restée d'un plantage ou d'une fermeture forcée.
+	if MapUnsaved.pending_dir() != "":
+		_open_last()
+		offer_recovery()
 		return
-	var auto := _autosave_dir()
-	if EditorMap.is_map_dir(auto):
-		new_map(true)
-		var meta: Variant = _read_meta(auto)
-		var nm := String(meta.get("name", "")) if meta is Dictionary else ""
-		var when := Time.get_datetime_string_from_unix_time(int(meta.get("time", 0)) if meta is Dictionary else 0, true)
-		_confirm(Lang.t("Reprendre le travail non enregistré", "Resume unsaved work"),
-			Lang.t("Une sauvegarde automatique de « %s » (%s) contient des modifications non enregistrées.\nLa reprendre ?", "An autosave of \"%s\" (%s) has unsaved changes.\nResume it?") % [nm, when],
-			func(): _resume_autosave(), func(): _drop_autosave())
-		return
+	_open_last()
+
+
+## Démarrage : la dernière carte ouverte (cartes récentes), sinon une nouvelle.
+func _open_last() -> void:
 	var recent := recent_maps()
 	if not recent.is_empty() and EditorMap.is_map_dir(recent[0]):
 		open_dir(recent[0])
@@ -206,10 +237,10 @@ func _start() -> void:
 
 
 func _process(delta: float) -> void:
-	_autosave_t += delta
-	if _autosave_t >= AUTOSAVE_EVERY:
-		_autosave_t = 0.0
-		autosave()
+	_recovery_t += delta
+	if _recovery_t >= RECOVERY_EVERY:
+		_recovery_t = 0.0
+		write_recovery()
 	if _validate_t > 0.0:
 		_validate_t -= delta
 		if _validate_t <= 0.0 and panels.is_check_tab():
@@ -254,7 +285,9 @@ func _build_ui() -> void:
 	_recent_menu.name = "Recent"
 	fm.add_child(_recent_menu)
 	fm.add_submenu_item(Lang.t("Cartes récentes", "Recent maps"), "Recent", 6)
-	_recent_menu.index_pressed.connect(func(i): open_dir(recent_maps()[i]))
+	_recent_menu.index_pressed.connect(func(i):
+		var dir: String = recent_maps()[i]
+		confirm_unsaved(Lang.t("ouvrir une autre carte", "open another map"), func(): open_dir(dir)))
 	fm.add_separator()
 	fm.add_item(Lang.t("Options (taille de l'interface…)", "Options (interface size…)"), 8)
 	fm.add_item(Lang.t("Retour au menu principal", "Back to main menu"), 7)
@@ -270,10 +303,15 @@ func _build_ui() -> void:
 	em.add_item(Lang.t("Rétablir", "Redo") + "   Ctrl+Y", 1)
 	em.add_separator()
 	em.add_item(Lang.t("Copier", "Copy") + "   Ctrl+C", 2)
+	em.add_item(Lang.t("Couper", "Cut") + "   Ctrl+X", 9)
 	em.add_item(Lang.t("Coller", "Paste") + "   Ctrl+V", 3)
+	em.add_item(Lang.t("Dupliquer", "Duplicate") + "   Ctrl+D", 10)
 	em.add_item(Lang.t("Pivoter de 90°", "Rotate 90°") + "   R", 4)
 	em.add_item(Lang.t("Aspect suivant", "Next look") + "   V", 8)
 	em.add_item(Lang.t("Supprimer", "Delete") + "   Suppr", 5)
+	em.add_separator()
+	em.add_item(Lang.t("Tout sélectionner (étage)", "Select all (floor)") + "   Ctrl+A", 11)
+	em.add_item(Lang.t("Créer une prefab…", "Create a prefab…") + "   Ctrl+G", 12)
 	em.add_separator()
 	em.add_item(Lang.t("Inventaire", "Inventory") + "   E / Tab", 6)
 	em.add_item(Lang.t("Recadrer la vue", "Frame the view") + "   Origine", 7)
@@ -296,7 +334,7 @@ func _build_ui() -> void:
 	bar.add_child(VSeparator.new())
 	var test := Button.new()
 	test.text = Lang.t("▶  TESTER", "▶  PLAY TEST")
-	test.tooltip_text = Lang.t("Enregistre la carte et lance une partie solo dessus", "Saves the map and starts a solo game on it")
+	test.tooltip_text = Lang.t("Lance une partie solo sur la carte telle qu'elle est (sans l'enregistrer)", "Starts a solo game on the map as it is (without saving it)")
 	test.add_theme_color_override("font_color", Color(0.5, 1.0, 0.55))
 	test.pressed.connect(test_map)
 	bar.add_child(test)
@@ -702,7 +740,7 @@ func send_presence() -> void:
 	if collab == null or not collab.is_session():
 		return
 	var p := {"cursor": [snappedf(_cursor_m.x, 0.01), snappedf(_cursor_m.y, 0.01)], "floor": floor_k,
-		"selection": [selected] if selected != "" else [], "tool": tool()}
+		"selection": sel_ids(), "tool": tool()}
 	# Curseur dans une élévation : son plan et sa hauteur (§ 6.4).
 	if _cursor_view != "" and _cursor_view != "dessus":
 		p["vue"] = _cursor_view
@@ -751,6 +789,10 @@ func _update_title() -> void:
 	var where := Lang.t("exemple (copie à l'enregistrement)", "example (copied when saved)") if example else (map_dir if map_dir != "" else Lang.t("non enregistrée", "not saved"))
 	title_label.text = "%s%s  —  %s" % [doc.display_name(), " *" if dirty else "", where]
 	title_label.tooltip_text = title_label.text
+	# Plus rien à enregistrer (annulé jusqu'à l'état enregistré, autre carte
+	# ouverte) : la copie de récupération écrite d'ici est périmée.
+	if not dirty and _recovery_sig != "" and not is_guest():
+		_drop_recovery()
 	floor_label.text = Lang.t("Étage %d / %d", "Floor %d / %d") % [floor_k, doc.floor_count() - 1]
 	snap_changed()
 	if validation_stale or validator == null:
@@ -765,8 +807,8 @@ func _update_title() -> void:
 
 func _show_help() -> void:
 	_info(Lang.t("Raccourcis", "Shortcuts"), Lang.t(
-		"Clic gauche : poser / choisir · clic droit : annuler\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nCtrl + « + » / Ctrl + « - » / Ctrl + 0 : taille de l'interface de l'éditeur (aussi dans les options, bouton ⚙)\nMolette ou 1 à 9 : case de la barre rapide · ² ou Échap : la souris (case à gauche de la barre) · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+V : copier / coller\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu\nVues : bouton Disposition (1 à 4 fenêtres) · Ctrl+Alt+Q : 4 vues · Ctrl+Espace ou ⛶ : agrandir la vue active · séparateurs : glisser, double-clic : partage égal\nViewCube (coin haut droit de chaque vue) : face : changer de plan · coin : la 3D vue de ce coin · maison : vue d'origine · ◄ ► : façade suivante · pavé 7 / 1 / 3 : Dessus / Avant / Droite (Ctrl : la vue opposée), pavé 5 : 3D (souris sur la vue)\nÉlévations (Avant, Droite…) : glisser : déplacer sur les deux axes de la vue (hauteur de pose, ou étage) · flèches d'axe : un seul axe · X / Y / Z pendant le glissement : verrouiller · chiffres ou Tab : taper l'écart, Entrée · losange : plafond, hauteur · étiquette « É1 » : sol de l'étage · K : coupe autour de la sélection · la pose reste en vue Dessus",
-		"Left click: place / pick · right click: cancel\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nCtrl + \"+\" / Ctrl + \"-\" / Ctrl + 0: map editor UI size (also in the options, ⚙ button)\nWheel or 1 to 9: hotbar slot · ` (key left of 1) or Esc: the mouse (slot left of the hotbar) · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+V: copy / paste\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there\nViews: Layout button (1 to 4 windows) · Ctrl+Alt+Q: 4 views · Ctrl+Space or ⛶: maximize the active view · splitters: drag, double-click: equal split\nViewCube (top right of each view): face: switch plane · corner: 3D from that corner · home: home view · ◄ ►: next side · numpad 7 / 1 / 3: Top / Front / Right (Ctrl: opposite view), numpad 5: 3D (mouse over the view)\nElevations (Front, Right…): drag: move on the two axes of the view (placement height, or floor) · axis arrows: a single axis · X / Y / Z while dragging: lock · digits or Tab: type the offset, Enter · diamond: ceiling, height · \"F1\" tag: floor level · K: cut around the selection · placing stays in the Top view"))
+		"Clic gauche : poser / choisir · clic droit : menu (Créer une prefab…, Dupliquer, Copier, Couper, Coller ici, Pivoter, Supprimer, Tout sélectionner, Désélectionner) ; pendant un tracé ou un glissement, le clic droit l'annule\nSélection multiple : Maj + clic ajoute ou retire un élément · glisser depuis le vide (ou Maj + glisser n'importe où) : rectangle ; de gauche à droite, il prend les éléments ENTIÈREMENT dedans (cadre bleu), de droite à gauche, ceux qu'il TOUCHE (cadre vert en tirets) ; avec Maj, il ajoute à la sélection · Ctrl+A : tout l'étage · Échap : désélectionner\nGroupe (plusieurs éléments choisis) : glisser l'un d'eux déplace tout (élévations : aussi d'étage) · flèches : d'un pas de grille · R ou poignée ronde : pivoter autour du centre · Ctrl+D : dupliquer à côté · Ctrl+C / Ctrl+X / Ctrl+V : copier, couper, coller sous la souris · Suppr · une seule annulation par action ; un élément refusé (entouré de rouge, nommé) annule toute l'action\nPrefab : sélectionnez du décor posé au sol, puis clic droit > Créer une prefab… (Ctrl+G) ; elle rejoint l'inventaire (E), catégorie « Prefabs de la carte » : prenez-la et cliquez sur le plan pour la poser, R pour la pivoter\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nPièce tracée sur une autre : la partie retirée est hachurée en orange (en rouge : pièce supprimée) ; au relâcher, confirmation (Entrée : Découper, Échap : Annuler) ; l'ancienne pièce perd la partie recouverte (coupée en morceaux si besoin, reliés par un passage libre), son contenu passe à la nouvelle ; une seule annulation\nEscaliers : « qui monte » (flèche vers le haut) se trace du bas (cet étage) vers le haut, « qui descend » (flèche vers le bas) du haut (cet étage) vers le bas ; départ et arrivée montrés pendant le tracé, ce qui gêne en rouge ; un escalier se choisit depuis ses deux étages\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nCtrl + « + » / Ctrl + « - » / Ctrl + 0 : taille de l'interface de l'éditeur (aussi dans les options, bouton ⚙)\nMolette ou 1 à 9 : case de la barre rapide · ² ou Échap : la souris (case à gauche de la barre) · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+X / Ctrl+V : copier / couper / coller · Ctrl+D : dupliquer\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer (seule façon d'écrire la carte ; « * » au titre : modifications non enregistrées, confirmation avant de les perdre ; TESTER joue la carte sans l'enregistrer)\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu\nVues : bouton Disposition (1 à 4 fenêtres) · Ctrl+Alt+Q : 4 vues · Ctrl+Espace ou ⛶ : agrandir la vue active · séparateurs : glisser, double-clic : partage égal\nViewCube (coin haut droit de chaque vue) : face : changer de plan · coin : la 3D vue de ce coin · maison : vue d'origine · ◄ ► : façade suivante · pavé 7 / 1 / 3 : Dessus / Avant / Droite (Ctrl : la vue opposée), pavé 5 : 3D (souris sur la vue)\nÉlévations (Avant, Droite…) : glisser : déplacer sur les deux axes de la vue (hauteur de pose, ou étage) · flèches d'axe : un seul axe · X / Y / Z pendant le glissement : verrouiller · chiffres ou Tab : taper l'écart, Entrée · losange : plafond, hauteur · étiquette « É1 » : sol de l'étage · K : coupe autour de la sélection · la pose reste en vue Dessus",
+		"Left click: place / pick · right click: menu (Create a prefab…, Duplicate, Copy, Cut, Paste here, Rotate, Delete, Select all, Deselect); while drawing or dragging, right click cancels it\nMultiple selection: Shift + click adds or removes an element · drag from an empty spot (or Shift + drag anywhere): rectangle; left to right it takes the elements ENTIRELY inside (blue frame), right to left those it TOUCHES (dashed green frame); with Shift it adds to the selection · Ctrl+A: whole floor · Esc: deselect\nGroup (several elements picked): dragging one of them moves them all (elevations: also between floors) · arrow keys: one grid step · R or round handle: rotate around the centre · Ctrl+D: duplicate next to it · Ctrl+C / Ctrl+X / Ctrl+V: copy, cut, paste under the mouse · Del · one undo per action; a refused element (outlined in red, named) cancels the whole action\nPrefab: select props placed on the floor, then right click > Create a prefab… (Ctrl+G); it joins the inventory (E), \"Map prefabs\" category: take it and click on the plan to place it, R to rotate it\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nRoom drawn over another: the removed part is hatched in orange (in red: room deleted); on release, confirmation (Enter: Cut, Esc: Cancel); the old room loses the covered part (split into parts if needed, linked by an open passage), its content goes to the new one; a single undo\nStairs: going up (arrow up) are drawn from the bottom (this floor) to the top, going down (arrow down) from the top (this floor) to the bottom; start and arrival shown while drawing, what is in the way in red; stairs can be picked from both their floors\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nCtrl + \"+\" / Ctrl + \"-\" / Ctrl + 0: map editor UI size (also in the options, ⚙ button)\nWheel or 1 to 9: hotbar slot · ` (key left of 1) or Esc: the mouse (slot left of the hotbar) · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+X / Ctrl+V: copy / cut / paste · Ctrl+D: duplicate\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save (the only way the map is written; \"*\" in the title: unsaved changes, confirmation before losing them; PLAY TEST plays the map without saving it)\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there\nViews: Layout button (1 to 4 windows) · Ctrl+Alt+Q: 4 views · Ctrl+Space or ⛶: maximize the active view · splitters: drag, double-click: equal split\nViewCube (top right of each view): face: switch plane · corner: 3D from that corner · home: home view · ◄ ►: next side · numpad 7 / 1 / 3: Top / Front / Right (Ctrl: opposite view), numpad 5: 3D (mouse over the view)\nElevations (Front, Right…): drag: move on the two axes of the view (placement height, or floor) · axis arrows: a single axis · X / Y / Z while dragging: lock · digits or Tab: type the offset, Enter · diamond: ceiling, height · \"F1\" tag: floor level · K: cut around the selection · placing stays in the Top view"))
 
 
 func _info(title_text: String, text: String) -> void:
@@ -811,6 +853,40 @@ func _typing() -> bool:
 	return f is LineEdit or f is TextEdit
 
 
+## Une boîte de l'éditeur est-elle ouverte (Ouvrir, Créer une prefab…) ?
+## Ses listes gardent alors les flèches.
+func _dialog_open() -> bool:
+	for c in get_children():
+		if c is AcceptDialog and (c as AcceptDialog).visible:
+			return true
+	return false
+
+
+## Les flèches vont-elles aux vues (déplacer la sélection) ? Oui si le focus
+## clavier est sur une vue (MapView), ou s'il n'est nulle part et que la souris
+## est sur une vue ; jamais avec une boîte ouverte. Une liste (Pièces, Zones,
+## Étages), un champ, un menu gardent leurs flèches.
+func arrows_to_views() -> bool:
+	if _dialog_open() or (context_menu != null and context_menu.visible):
+		return false
+	var f := get_viewport().gui_get_focus_owner()
+	if f != null:
+		return f is MapView
+	return views != null and views.hovered_pane() != null
+
+
+## Un glissement ou un tracé est-il en cours (vue Dessus, élévations) ? Les
+## actions qui changent la carte (flèches, R, Suppr, Ctrl+V / X / D, prefab)
+## attendent alors : le glissement remettrait sa carte de départ au mouvement
+## suivant. Vrai : refusé, message dans la barre d'état.
+func edit_blocked() -> bool:
+	if views == null or not views.busy():
+		return false
+	set_status(Lang.t("Terminez d'abord le glissement ou le tracé en cours (relâcher), ou annulez-le (Échap, clic droit)",
+		"Finish the drag or drawing in progress first (release), or cancel it (Esc, right click)"), true)
+	return true
+
+
 func _input(event: InputEvent) -> void:
 	if not event is InputEventKey:
 		return
@@ -831,7 +907,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if not k.pressed:
 		return
-	if k.echo and not (k.keycode in [KEY_Z, KEY_Y]):
+	if k.echo and not (k.keycode in [KEY_Z, KEY_Y, KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN]):
 		return
 	# Pavé numérique sur une vue (7, 1, 3, 5 ; Ctrl : la vue opposée) : le
 	# plan de la vue ; ailleurs il garde la barre rapide (§ 4). Pendant un tracé
@@ -871,6 +947,24 @@ func _input(event: InputEvent) -> void:
 				if _typing():
 					return
 				paste()
+			# Sélection multiple (MapGroup) : couper, dupliquer, tout l'étage,
+			# créer une prefab de la sélection.
+			KEY_X:
+				if _typing():
+					return
+				cut_selected()
+			KEY_D:
+				if _typing():
+					return
+				duplicate_selection()
+			KEY_A:
+				if _typing():
+					return
+				select_all()
+			KEY_G:
+				if _typing():
+					return
+				create_prefab_from_selection()
 			# Taille de l'interface (Ctrl + molette reste le zoom du plan) ; pas
 			# pendant une saisie (AltGr = Ctrl+Alt : AltGr+à = « @ » en AZERTY).
 			KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
@@ -908,6 +1002,15 @@ func _input(event: InputEvent) -> void:
 		return
 	var handled := true
 	var pk := k.physical_keycode
+	# Flèches : la sélection avance d'un pas de la grille, seulement quand le
+	# clavier est à une vue (focus sur une vue, ou aucun focus et la souris sur
+	# une vue) ; une liste, un champ, une boîte gardent leurs flèches ; pas
+	# avec la 3D survolée (ses touches de déplacement).
+	if k.keycode in [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN] and not k.alt_pressed and not (preview != null and preview.nav_active()) and arrows_to_views():
+		if not sel_ids().is_empty():
+			nudge_selection({KEY_LEFT: Vector2.LEFT, KEY_RIGHT: Vector2.RIGHT, KEY_UP: Vector2.UP, KEY_DOWN: Vector2.DOWN}[k.keycode])
+			get_viewport().set_input_as_handled()
+		return
 	if pk >= KEY_1 and pk <= KEY_9:
 		select_slot(pk - KEY_1)
 	elif pk == KEY_QUOTELEFT:
@@ -924,7 +1027,9 @@ func _input(event: InputEvent) -> void:
 					toggle_inventory()
 				elif not canvas.drag.is_empty() or not canvas.poly_pts.is_empty():
 					canvas.cancel()
-				elif selected != "" or mouse_active():
+				elif context_menu != null and context_menu.visible:
+					context_menu.hide()
+				elif not sel_ids().is_empty() or mouse_active():
 					select("")
 				else:
 					# Échap suivant (rien en cours) : retour à la souris.
@@ -936,13 +1041,12 @@ func _input(event: InputEvent) -> void:
 			KEY_L:
 				object_list.toggle()
 			KEY_DELETE:
-				if selected != "":
-					delete_element(selected)
+				delete_selection()
 			KEY_BACKSPACE:
 				if not canvas.poly_pts.is_empty():
 					canvas.undo_point()
-				elif selected != "":
-					delete_element(selected)
+				else:
+					delete_selection()
 			KEY_ENTER, KEY_KP_ENTER:
 				canvas.finish_polygon()
 			KEY_PAGEUP:
@@ -1105,14 +1209,15 @@ func changed(rebuild_panels := true) -> void:
 
 
 func _refresh(rebuild_panels := true) -> void:
+	# doc_version : l'étoile « non enregistrée » est recalculée (dirty).
 	doc_version += 1
-	dirty = true
 	_hit_dirty = true
 	_raster_dirty = true
 	validation_stale = true
 	_validate_t = 1.0
 	if doc.find(selected).is_empty():
 		selected = ""
+	_prune_group()
 	if hover_id != "" and doc.find(hover_id).is_empty():
 		hover_id = ""
 	_update_invalid()
@@ -1126,7 +1231,6 @@ func _refresh(rebuild_panels := true) -> void:
 ## Modification en direct (glissement) : dessin seulement.
 func moved_live() -> void:
 	doc_version += 1
-	dirty = true
 	_hit_dirty = true
 	_raster_dirty = true
 	validation_stale = true
@@ -1214,7 +1318,17 @@ func _setup_collab() -> void:
 		if msg == "" and pt.last_error:
 			msg = pt.last_message
 		_playtest_back = {"state": pt.editor_state, "message": msg, "error": msg != "" and pt.last_error}
+	elif not _test_keep.is_empty() and is_instance_valid(_test_keep.get("collab")):
+		# Retour d'un TESTER en solo : même session (carte et historique
+		# d'annulation intacts, rien n'a été enregistré).
+		collab = _test_keep.collab
+		var st: Dictionary = _test_keep.state
+		_test_keep = {}
+		add_child(collab)
+		doc = collab.doc
+		_playtest_back = {"state": st, "message": "", "error": false}
 	else:
+		_test_keep = {}
 		collab = MapCollab.new(doc)
 		collab.name = "Collab"
 		collab.my_name = CollabPanel.default_name()
@@ -1228,7 +1342,15 @@ func _setup_collab() -> void:
 		canvas.queue_redraw()
 		views.redraw_overlays())
 	collab.peers_changed.connect(canvas.queue_redraw)
-	collab.saved.connect(func(by): set_status(Lang.t("Carte enregistrée par %s (hôte)", "Map saved by %s (host)") % by))
+	collab.saved.connect(func(by):
+		# Invité : la carte de la session vient d'être enregistrée chez l'hôte.
+		if is_guest():
+			dirty = false
+			_update_title()
+		set_status(Lang.t("Carte enregistrée par %s (hôte)", "Map saved by %s (host)") % by))
+	collab.session_changed.connect(_on_session_changed)
+	_was_guest = is_guest()
+	_host_map_shown = _was_guest
 	collab_ui = CollabPanel.new()
 	collab_ui.name = "CollabUi"
 	add_child(collab_ui)
@@ -1300,7 +1422,13 @@ func _on_map_replaced() -> void:
 		example = false
 	if doc.find(selected).is_empty():
 		selected = ""
+	_prune_group()
 	doc_version += 1
+	# Invité : carte de l'hôte, rien à enregistrer ici (étoile d'après les
+	# enregistrements de l'hôte, signal « saved »).
+	if collab.role == MapCollab.Role.GUEST:
+		dirty = false
+		_host_map_shown = true
 	_hit_dirty = true
 	_raster_dirty = true
 	validation_stale = true
@@ -1309,6 +1437,27 @@ func _on_map_replaced() -> void:
 	object_list.mark_dirty()
 	_update_title()
 	canvas.queue_redraw()
+
+
+## Session ouverte, rejointe ou quittée. Un invité qui part garde une copie
+## de la carte de l'hôte, sans dossier : elle n'est pas « à lui », rien n'est
+## à enregistrer tant qu'il ne la modifie pas. Tentative de rejoindre
+## échouée (carte de l'hôte jamais reçue) : sa propre carte reste telle quelle
+## (dossier, étoile, récupération).
+func _on_session_changed() -> void:
+	var guest := is_guest()
+	if _was_guest and not guest and _host_map_shown:
+		map_dir = ""
+		example = false
+		dirty = false
+		_update_title()
+	if not guest:
+		_host_map_shown = false
+	_was_guest = guest
+
+
+## Invité : la carte de l'hôte a remplacé la carte d'ici (map_replaced).
+var _host_map_shown := false
 
 
 ## Lot de Claude (apply avec animate) : déjà sur la carte et dans
@@ -1329,9 +1478,11 @@ func agent_highlight(ids: Array, message: String) -> void:
 
 
 func select(eid: String) -> void:
-	if agent_link != null and eid != selected:
+	if agent_link != null and (eid != selected or not group.is_empty()):
 		agent_link.notify_selection([eid] if eid != "" else [])
 	selected = eid
+	group = []
+	sel_version += 1
 	var e := doc.find(eid)
 	if not e.is_empty() and e.has("etage") and int(e.etage) != floor_k:
 		floor_k = int(e.etage)
@@ -1343,6 +1494,201 @@ func select(eid: String) -> void:
 	object_list.refresh_rows()
 	canvas.queue_redraw()
 	send_presence()
+
+
+# ------------------------------------------------------------------ sélection multiple (MapGroup)
+
+## La sélection : les éléments du groupe, l'élément choisi seul, ou [].
+func sel_ids() -> Array:
+	if group.size() >= 2:
+		return group.duplicate()
+	return [selected] if selected != "" else []
+
+
+func is_selected(eid: String) -> bool:
+	return eid != "" and (eid == selected or group.has(eid))
+
+
+## Choisit plusieurs éléments (rectangle, Ctrl+A, collage, Claude) ; un seul :
+## comme select ; aucun : désélectionne. Les zones et les identifiants
+## inconnus sont ignorés. L'étage courant ne change pas.
+func select_many(ids: Array) -> void:
+	var list := MapGroup.clean_ids(doc, ids)
+	if list.size() <= 1:
+		select(String(list[0]) if list.size() == 1 else "")
+		return
+	if agent_link != null and list != group:
+		agent_link.notify_selection(list)
+	group = list
+	selected = ""
+	sel_version += 1
+	panels.refresh()
+	object_list.refresh_rows()
+	canvas.queue_redraw()
+	views.redraw_overlays()
+	send_presence()
+	var bad := list.filter(func(i): return invalid.has(i))
+	if not bad.is_empty():
+		set_status(Lang.t("%d éléments sélectionnés — %s", "%d elements selected — %s") % [list.size(), invalid[bad[0]]], true)
+	else:
+		set_status(Lang.t("%d éléments sélectionnés (glisser : déplacer · R : pivoter · Ctrl+D : dupliquer · clic droit : menu)",
+			"%d elements selected (drag: move · R: rotate · Ctrl+D: duplicate · right click: menu)") % list.size())
+
+
+## Maj + clic : ajoute l'élément à la sélection, ou l'en retire.
+func toggle_selected(eid: String) -> void:
+	if eid == "":
+		return
+	var ids := sel_ids()
+	if ids.has(eid):
+		ids.erase(eid)
+	else:
+		ids.append(eid)
+	select_many(ids)
+
+
+## Ctrl+A : tous les éléments de l'étage affiché (pièces, ouvertures, objets).
+func select_all() -> void:
+	var ids := []
+	for list in [doc.rooms_on(floor_k), doc.openings_on(floor_k), doc.objects_on(floor_k)]:
+		for e in list:
+			ids.append(String(e.id))
+	if ids.is_empty():
+		set_status(Lang.t("Rien à sélectionner à l'étage %d", "Nothing to select on floor %d") % floor_k)
+		return
+	select_many(ids)
+
+
+## Sélection retirée des éléments disparus (annulation, autre participant) ;
+## un seul restant : il redevient l'élément choisi.
+func _prune_group() -> void:
+	if group.is_empty():
+		return
+	var kept := MapGroup.clean_ids(doc, group)
+	if kept.size() == group.size():
+		return
+	sel_version += 1
+	if kept.size() >= 2:
+		group = kept
+	else:
+		group = []
+		selected = String(kept[0]) if kept.size() == 1 else ""
+
+
+## Refus d'une action de groupe : message près du curseur et dans la barre
+## d'état, élément fautif entouré de rouge à la place refusée (MapGroup.named).
+func show_group_refusal(r: Dictionary) -> void:
+	canvas.show_refusal(r)
+	canvas.refusal_elems = [r.el] if r.get("el") is Dictionary else []
+	views.redraw_overlays()
+
+
+## Supprime la sélection (un élément : delete_element, avec son contenu ;
+## un groupe : MapGroup, en une étape d'annulation).
+func delete_selection() -> void:
+	var ids := sel_ids()
+	if ids.is_empty():
+		return
+	if edit_blocked():
+		return
+	if ids.size() == 1:
+		delete_element(ids[0])
+		return
+	var r := MapGroup.delete_ids(self, ids)
+	if not r.ok:
+		show_group_refusal(r)
+		return
+	set_status(Lang.t("%d éléments supprimés (Ctrl+Z : annuler)", "%d elements deleted (Ctrl+Z: undo)") % int(r.n))
+
+
+## Flèches : la sélection avance d'un pas (grille 1 m, grille fine ; 0,1 m
+## sans grille), en une étape d'annulation par appui.
+func nudge_selection(dir: Vector2) -> void:
+	var ids := sel_ids()
+	if ids.is_empty() or edit_blocked():
+		return
+	var s := canvas.step() if canvas.mode_now() != "libre" else 0.1
+	var delta := dir * s
+	var snap := doc.snapshot()
+	var res := {}
+	if ids.size() == 1:
+		var e := doc.find(ids[0])
+		res = try_move(e.duplicate(true), attached_to(e), delta, snap)
+		if not res.ok:
+			doc.restore(snap)
+			moved_live()
+	else:
+		res = MapGroup.move(self, MapGroup.movers(doc, ids), delta, 0, snap)
+	if not res.ok:
+		if res.has("el"):
+			show_group_refusal(res)
+		else:
+			canvas.show_refusal(res)
+		return
+	push_undo_snapshot(snap)
+	changed()
+	set_status(Lang.t("Déplacé de %s m (flèches)", "Moved by %s m (arrow keys)") % MapRules._m(s, not Lang.is_en()))
+
+
+## Ctrl+D : copie de la sélection posée à côté d'elle (MapGroup.duplicate_ids),
+## qui devient la sélection.
+func duplicate_selection() -> void:
+	var ids := sel_ids()
+	if ids.is_empty():
+		set_status(Lang.t("Dupliquer : choisissez d'abord un ou plusieurs éléments", "Duplicate: pick one or more elements first"))
+		return
+	if edit_blocked():
+		return
+	var r := MapGroup.duplicate_ids(self, ids)
+	if not r.ok:
+		show_group_refusal(r)
+		return
+	set_status(Lang.t("Dupliqué %s : %d élément(s) (Ctrl+Z : annuler)", "Duplicated %s: %d element(s) (Ctrl+Z: undo)") % [Lang.t(r.dir[0], r.dir[1]), (r.ids as Array).size()])
+
+
+## Ctrl+X : copie EXACTEMENT ce qui va être supprimé (la sélection et ses
+## rattachés : contenu d'une pièce, portes de ses bords), puis supprime (une
+## étape d'annulation) ; Ctrl+V rend le tout (identifiants neufs). Suppression
+## refusée : le presse-papiers n'est pas touché.
+func cut_selected() -> void:
+	var ids := sel_ids()
+	if ids.is_empty() or edit_blocked():
+		return
+	var items := MapGroup.copies(doc, MapGroup.movers(doc, ids))
+	var before := doc_version
+	delete_selection()
+	if doc_version == before or not MapGroup.clean_ids(doc, ids).is_empty():
+		return
+	clipboard = {"items": items}
+	set_status(Lang.t("Coupé : %d élément(s), contenu compris (Ctrl+V pour coller sous le curseur)", "Cut: %d element(s), content included (Ctrl+V to paste under the cursor)") % items.size())
+
+
+## Créer une prefab de la sélection (Ctrl+G, clic droit, propriétés) : la
+## boîte de MapPrefabTools.
+func create_prefab_from_selection() -> void:
+	if edit_blocked():
+		return
+	var ids := sel_ids()
+	if ids.is_empty():
+		set_status(Lang.t("Créer une prefab : sélectionnez d'abord du décor posé (Maj + clic, ou un rectangle)",
+			"Create a prefab: select placed props first (Shift + click, or a rectangle)"), true)
+		return
+	prefab_tools.create_dialog_for(ids)
+
+
+## Clic droit sans tracé ni glissement en cours (toutes les vues) : sur un
+## élément non choisi, il est choisi d'abord ; puis le menu (MapContextMenu)
+## en `screen_pos` (pixels de l'écran). `at_m` : point du plan pour « Coller
+## ici » (Vector2.INF hors de la vue Dessus).
+func open_context_menu(screen_pos: Vector2, at_m: Vector2, eid: String) -> MapContextMenu:
+	if eid != "" and not is_selected(eid):
+		select(eid)
+	if context_menu == null:
+		context_menu = MapContextMenu.new()
+		context_menu.ed = self
+		add_child(context_menu)
+	context_menu.open(screen_pos, at_m)
+	return context_menu
 
 
 ## Survol d'un élément sur la carte : sa ligne est surlignée dans la liste des
@@ -1398,6 +1744,92 @@ func add_object(o: Dictionary, k: int) -> Dictionary:
 	push_undo()
 	var e := o.duplicate(true)
 	e["etage"] = k
+	insert_element(e)
+	selected = String(e.id)
+	group = []
+	sel_version += 1
+	canvas.refusal = ""
+	changed()
+	set_status(Lang.t("%s posé", "%s placed") % _label(e))
+	return e
+
+
+## Boîte de confirmation de la découpe (MapCarve, docs/MAP_AUTHORING.md § 3) :
+## pièce `obj` tracée à l'étage `k` par-dessus d'autres (`plan` : la découpe
+## prévue). « Découper » (Entrée) : carve_room ; « Annuler » (Échap, croix) :
+## rien n'est créé.
+func confirm_carve(obj: Dictionary, k: int, plan: Dictionary) -> ConfirmationDialog:
+	if is_instance_valid(carve_dialog):
+		carve_dialog.queue_free()
+	var d := ConfirmationDialog.new()
+	d.name = "CarveDialog"
+	d.title = Lang.t("Découper des pièces", "Cut rooms")
+	d.dialog_text = MapCarve.describe(plan) + "\n\n" + Lang.t("Continuer ?", "Continue?")
+	d.dialog_autowrap = true
+	d.min_size = Vector2i(int(EditorUi.px(520.0)), 0)
+	d.ok_button_text = Lang.t("Découper", "Cut")
+	d.cancel_button_text = Lang.t("Annuler", "Cancel")
+	add_child(d)
+	# Pièce et parties retirées affichées tant que la boîte est ouverte.
+	canvas.carve_pending = {"poly": MapGeom.poly(obj.get("contour", [])), "plan": plan}
+	canvas.queue_redraw()
+	var state := {"done": false}
+	d.confirmed.connect(func():
+		if state.done:
+			return
+		state.done = true
+		d.queue_free()
+		canvas.carve_pending = {}
+		carve_room(obj, k))
+	d.canceled.connect(func():
+		if state.done:
+			return
+		state.done = true
+		d.queue_free()
+		canvas.carve_pending = {}
+		canvas.queue_redraw()
+		set_status(Lang.t("Découpe annulée : rien n'a été créé", "Cut cancelled: nothing was created")))
+	d.popup_centered()
+	# Entrée = Découper : le bouton a le focus.
+	d.get_ok_button().grab_focus.call_deferred()
+	carve_dialog = d
+	return d
+
+
+## Boîte « Découper des pièces » ouverte (null sinon).
+var carve_dialog: ConfirmationDialog
+
+
+## Pose la pièce `obj` à l'étage `k` et découpe celles qu'elle recouvre : UNE
+## étape d'annulation (et un seul lot d'opérations pour la session). Rend le
+## résultat de MapCarve.carve (refus : rien n'est changé, raison affichée).
+func carve_room(obj: Dictionary, k: int) -> Dictionary:
+	push_undo()
+	var back := doc.snapshot()
+	var e := obj.duplicate(true)
+	e["etage"] = k
+	insert_element(e)
+	var rep := MapCarve.carve(doc, e)
+	if not rep.ok:
+		doc.restore(back)
+		_commit_change()
+		canvas.show_refusal(rep)
+		_refresh()
+		return rep
+	selected = String(e.id)
+	group = []
+	sel_version += 1
+	canvas.refusal = ""
+	changed()
+	set_status(Lang.t("%s posée ; %s (Ctrl+Z : tout annuler)", "%s placed; %s (Ctrl+Z: undo all)") % [_label(e), MapCarve.short(rep)])
+	return rep
+
+
+## Ajoute l'élément `e` (son « etage » déjà mis) à la carte, sans étape
+## d'annulation ni rafraîchissement (add_object, collage d'un groupe) :
+## identifiant neuf ; pièce : nom et zone par défaut ; porte : prix par
+## défaut ; boîte de départ : la seule.
+func insert_element(e: Dictionary) -> void:
 	if e.has("contour"):
 		e["id"] = doc.new_id("p")
 		var n := doc.pieces.size() + 1
@@ -1426,11 +1858,6 @@ func add_object(o: Dictionary, k: int) -> Dictionary:
 				if String(q.get("type", "")) == "boite":
 					q["depart"] = false
 		doc.objets.append(e)
-	selected = String(e.id)
-	canvas.refusal = ""
-	changed()
-	set_status(Lang.t("%s posé", "%s placed") % _label(e))
-	return e
 
 
 func _label(e: Dictionary) -> String:
@@ -1481,10 +1908,15 @@ func _hit_candidates(m: Vector2) -> Array:
 		_hit_index = {}
 		for o in doc.objets:
 			var r := MapRules.footprint_rect(o).grow(0.35)
-			var grid: Dictionary = _hit_index.get_or_add(int(o.get("etage", 0)), {})
-			for j in range(floori(r.position.y / HIT_BUCKET), floori(r.end.y / HIT_BUCKET) + 1):
-				for i in range(floori(r.position.x / HIT_BUCKET), floori(r.end.x / HIT_BUCKET) + 1):
-					grid.get_or_add(Vector2i(i, j), []).append(o)
+			# Un escalier se choisit aussi depuis l'étage où il arrive.
+			var ks := [int(o.get("etage", 0))]
+			if String(o.get("type", "")) == "escalier":
+				ks.append(ks[0] + 1)
+			for kk in ks:
+				var grid: Dictionary = _hit_index.get_or_add(kk, {})
+				for j in range(floori(r.position.y / HIT_BUCKET), floori(r.end.y / HIT_BUCKET) + 1):
+					for i in range(floori(r.position.x / HIT_BUCKET), floori(r.end.x / HIT_BUCKET) + 1):
+						grid.get_or_add(Vector2i(i, j), []).append(o)
 	return _hit_index.get(floor_k, {}).get(Vector2i(floori(m.x / HIT_BUCKET), floori(m.y / HIT_BUCKET)), [])
 
 
@@ -1791,6 +2223,25 @@ func rotate_selected() -> void:
 		canvas.queue_redraw()
 		set_status(Lang.t("%s : rotation %d°", "%s: rotation %d°") % [MapCatalog.name_of(held), place_rot])
 		return
+	rotate_selection()
+
+
+## Pivote la sélection de 90° : un élément autour de son centre (une pièce
+## avec son contenu), un groupe autour du centre du groupe (MapGroup.rotate).
+func rotate_selection() -> void:
+	if edit_blocked():
+		return
+	if group.size() >= 2:
+		var snap := doc.snapshot()
+		var c := MapGroup.pivot(doc, group, canvas.mode_now() == "libre")
+		var r := MapGroup.rotate(self, MapGroup.movers(doc, group), c, 90.0, snap)
+		if not r.ok:
+			show_group_refusal(r)
+			return
+		push_undo_snapshot(snap)
+		changed()
+		set_status(Lang.t("Groupe pivoté de 90° autour de son centre", "Group rotated 90° around its centre"))
+		return
 	var e := doc.find(selected)
 	if e.is_empty():
 		set_status(Lang.t("Choisissez d'abord un élément (outil Sélection)", "Pick an element first (Select tool)"))
@@ -1876,6 +2327,10 @@ func cycle_variant() -> void:
 
 
 func copy_selected() -> void:
+	if group.size() >= 2:
+		clipboard = {"items": MapGroup.copies(doc, group)}
+		set_status(Lang.t("Copié : %d éléments (Ctrl+V pour coller sous le curseur)", "Copied: %d elements (Ctrl+V to paste under the cursor)") % (clipboard.items as Array).size())
+		return
 	var e := doc.find(selected)
 	if e.is_empty():
 		return
@@ -1883,9 +2338,22 @@ func copy_selected() -> void:
 	set_status(Lang.t("Copié : %s (Ctrl+V pour coller sous le curseur)", "Copied: %s (Ctrl+V to paste under the cursor)") % _label(e))
 
 
-func paste() -> void:
+## Ctrl+V : colle sous le curseur de la vue Dessus (`at` : point du plan, m ;
+## Vector2.INF : la souris). Un groupe copié : MapGroup.paste (tout ou rien,
+## les copies deviennent la sélection).
+func paste(at := Vector2.INF) -> void:
 	if clipboard.is_empty():
 		set_status(Lang.t("Rien à coller", "Nothing to paste"))
+		return
+	if edit_blocked():
+		return
+	var where: Vector2 = canvas.mouse_m if at == Vector2.INF else at
+	if clipboard.has("items"):
+		var r := MapGroup.paste(self, clipboard.items, where)
+		if not r.ok:
+			show_group_refusal(r)
+			return
+		set_status(Lang.t("Collé : %d éléments (Ctrl+Z : annuler)", "Pasted: %d elements (Ctrl+Z: undo)") % (r.ids as Array).size())
 		return
 	var e := clipboard.duplicate(true)
 	var c := MapRules.footprint_rect(e).get_center()
@@ -1893,7 +2361,7 @@ func paste() -> void:
 		c = MapGeom.bbox(MapGeom.poly(e.contour)).get_center()
 	elif e.has("position"):
 		c = MapGeom.v2(e.position)
-	var target := canvas.snap(canvas.mouse_m)
+	var target := canvas.snap(where)
 	var delta := target - (c if canvas.mode_now() == "libre" else Vector2(snappedf(c.x, 0.5), snappedf(c.y, 0.5)))
 	e = _shift(e, delta)
 	e.erase("id")
@@ -1919,7 +2387,8 @@ func paste() -> void:
 				if res.ok:
 					e.position = res.position
 			"rect":
-				res = MapRules.check_rect(doc, floor_k, t, MapGeom.rect_of(e.rect), "", MapGeom.rot_of(e), MapCatalog.stair_kind(e))
+				# Escalier collé : son sens (« monte ») et son type comptent.
+				res = MapRules.check_rect(doc, floor_k, t, MapGeom.rect_of(e.rect), "", MapGeom.rot_of(e), MapCatalog.stair_kind(e), e if t == "escalier" else {})
 			"poly":
 				res = MapRules.check_clip(MapRaster.clip_poly(e))
 			"wall":
@@ -1991,6 +2460,8 @@ func set_floor(k: int) -> void:
 	floor_k = nk
 	canvas.cancel()
 	selected = ""
+	group = []
+	sel_version += 1
 	_raster_dirty = true
 	panels.refresh()
 	_update_title()
@@ -2075,6 +2546,8 @@ func _doc_shown() -> void:
 	if agent_link != null:
 		agent_link.write_file()
 	selected = ""
+	group = []
+	sel_version += 1
 	hover_id = ""
 	floor_k = 0
 	validator = null
@@ -2087,21 +2560,28 @@ func _doc_shown() -> void:
 	panels.refresh()
 
 
-## État de l'éditeur gardé pendant un TESTER à plusieurs (CollabPlaytest),
-## retrouvé au retour par _resume_playtest.
+## État de l'éditeur gardé pendant un TESTER (solo : _test_keep ; à
+## plusieurs : CollabPlaytest), retrouvé au retour par _resume_playtest ;
+## « saved_sig » : empreinte de l'état enregistré (étoile exacte au retour).
 func playtest_state() -> Dictionary:
-	return {"map_dir": map_dir, "example": example, "dirty": dirty, "floor_k": floor_k, "selected": selected,
+	return {"map_dir": map_dir, "example": example, "dirty": dirty, "saved_sig": _saved_sig, "floor_k": floor_k, "selected": selected,
 		"zoom": canvas.zoom, "origin": canvas.origin}
 
 
-## Retour d'un TESTER à plusieurs : la session (carte, historique, autres
-## participants) n'a pas bougé ; la vue, l'étage et la sélection reviennent.
+## Retour d'un TESTER : la session (carte, historique, autres participants)
+## n'a pas bougé ; la vue, l'étage et la sélection reviennent. La copie de
+## travail jouée (MapUnsaved.test_dir) est effacée.
 func _resume_playtest(back: Dictionary) -> void:
 	var st: Dictionary = back.state
 	_doc_shown()
 	map_dir = String(st.get("map_dir", ""))
 	example = bool(st.get("example", false))
-	dirty = bool(st.get("dirty", false))
+	if st.get("saved_sig") is String:
+		_saved_sig = String(st.saved_sig)
+		_dirty_ver = -1
+	else:
+		dirty = bool(st.get("dirty", false))
+	MapUnsaved._remove(MapUnsaved.test_dir())
 	if collab.role == MapCollab.Role.GUEST:
 		map_dir = ""
 		example = false
@@ -2140,8 +2620,8 @@ func _on_playtest_message(m: Dictionary) -> void:
 func new_map(force := false) -> void:
 	if refuse_guest():
 		return
-	if dirty and not force:
-		_confirm(Lang.t("Nouvelle carte", "New map"), Lang.t("Les modifications non enregistrées seront perdues. Continuer ?", "Unsaved changes will be lost. Continue?"), func(): new_map(true))
+	if not force:
+		confirm_unsaved(Lang.t("créer une nouvelle carte", "create a new map"), func(): new_map(true))
 		return
 	map_dir = ""
 	example = false
@@ -2182,7 +2662,7 @@ func save() -> bool:
 		set_status(Lang.t("Échec de l'enregistrement (%s)", "Save failed (%s)") % error_string(err), true)
 		return false
 	dirty = false
-	_drop_autosave()
+	_drop_recovery()
 	_add_recent(map_dir)
 	_update_title()
 	set_status(Lang.t("Enregistrée dans %s", "Saved to %s") % map_dir)
@@ -2243,10 +2723,13 @@ func save_as(map_id: String) -> bool:
 	return save()
 
 
-func save_as_dialog() -> void:
+## Fenêtre Enregistrer sous : nom proposé libre (_free_id), sauf la carte
+## elle-même ; rendue (tests), null chez un invité.
+func save_as_dialog() -> ConfirmationDialog:
 	if refuse_guest():
-		return
+		return null
 	var d := ConfirmationDialog.new()
+	d.name = "SaveAsDialog"
 	d.title = Lang.t("Enregistrer sous", "Save as")
 	var box := VBoxContainer.new()
 	d.add_child(box)
@@ -2254,18 +2737,39 @@ func save_as_dialog() -> void:
 	l.text = Lang.t("Nom du dossier (dans %s) :", "Folder name (in %s):") % EditorMap.maps_root()
 	box.add_child(l)
 	var e := LineEdit.new()
-	e.text = doc.id()
+	e.name = "Name"
+	var own := map_dir != "" and not example and _same_dir(map_dir, EditorMap.map_dir(doc.id()))
+	e.text = doc.id() if own else _free_id(EditorMap.slug(doc.id()) if doc.id() != "" else "carte")
 	e.custom_minimum_size = Vector2(360, 0)
 	box.add_child(e)
 	d.ok_button_text = Lang.t("Enregistrer", "Save")
 	d.cancel_button_text = Lang.t("Annuler", "Cancel")
+	d.set_meta("name", e)
 	add_child(d)
 	d.confirmed.connect(func():
-		save_as(e.text)
-		d.queue_free())
+		d.queue_free()
+		request_save_as(e.text))
 	d.canceled.connect(d.queue_free)
 	d.popup_centered()
 	e.grab_focus.call_deferred()
+	return d
+
+
+## Enregistrer sous `map_id` : un AUTRE dossier de carte du même nom existe
+## déjà : confirmation d'écrasement d'abord (rendue ; null : enregistrée ou
+## refusée tout de suite).
+func request_save_as(map_id: String) -> ConfirmationDialog:
+	var target := EditorMap.map_dir(EditorMap.slug(map_id))
+	if target != "" and EditorMap.is_map_dir(target) and not (map_dir != "" and not example and _same_dir(map_dir, target)):
+		return _confirm(Lang.t("Enregistrer sous", "Save as"),
+			Lang.t("La carte « %s » existe déjà. La remplacer ?", "The map \"%s\" already exists. Replace it?") % target.get_file(),
+			func(): save_as(map_id))
+	save_as(map_id)
+	return null
+
+
+static func _same_dir(a: String, b: String) -> bool:
+	return a != "" and b != "" and EditorMap._abs(a).trim_suffix("/") == EditorMap._abs(b).trim_suffix("/")
 
 
 ## Fenêtre Ouvrir (exemples livrés + cartes du joueur) ; « Supprimer » (ou
@@ -2334,10 +2838,14 @@ func open_dialog() -> ConfirmationDialog:
 			ask_delete.call())
 	var go := func():
 		var sel := list.get_selected_items()
+		# Fenêtre Ouvrir (exclusive) cachée AVANT la confirmation (double-clic :
+		# deux fenêtres exclusives à la fois sinon).
+		d.hide()
+		d.queue_free()
 		if not sel.is_empty():
 			var en: Array = entries[sel[0]]
-			open_dir(String(en[0]), bool(en[1]))
-		d.queue_free()
+			# Modifications non enregistrées : confirmation avant de la remplacer.
+			confirm_unsaved(Lang.t("ouvrir une autre carte", "open another map"), func(): open_dir(String(en[0]), bool(en[1])))
 	d.confirmed.connect(go)
 	list.item_activated.connect(func(_i): go.call())
 	d.canceled.connect(d.queue_free)
@@ -2348,7 +2856,8 @@ func open_dialog() -> ConfirmationDialog:
 ## Supprime la carte du joueur rangée dans `dir` (EditorMap.delete_map :
 ## dossier des cartes seulement, jamais un exemple). Carte ouverte ici : elle
 ## reste à l'écran, sans dossier (le prochain Enregistrer lui en redonne un) ;
-## sa sauvegarde automatique est effacée.
+## sa copie de récupération est effacée (puis réécrite, sans dossier
+## d'origine, au prochain passage : la carte est à enregistrer).
 func delete_map(dir: String) -> bool:
 	if refuse_guest():
 		return false
@@ -2357,44 +2866,40 @@ func delete_map(dir: String) -> bool:
 		set_status(Lang.t("Impossible de supprimer la carte « %s »", "Could not delete the map \"%s\"") % name_shown, true)
 		return false
 	var gone := EditorMap._abs(dir).trim_suffix("/")
-	var meta: Variant = _read_meta(_autosave_dir())
-	var auto_src := String(meta.get("source", "")) if meta is Dictionary else ""
+	var auto_src := String(MapUnsaved.read_meta(MapUnsaved.recovery_dir()).get("source", ""))
 	if map_dir != "" and EditorMap._abs(map_dir).trim_suffix("/") == gone:
 		map_dir = ""
 		example = false
 		dirty = true
-		_drop_autosave()
+		_drop_recovery()
 		_update_title()
 		set_status(Lang.t("Carte « %s » supprimée : elle reste ouverte, non enregistrée", "Map \"%s\" deleted: it stays open, not saved") % name_shown)
 	else:
-		if auto_src != "" and EditorMap._abs(auto_src).trim_suffix("/") == gone:
-			_drop_autosave()
+		if auto_src != "" and EditorMap._abs(auto_src).trim_suffix("/") == gone and not _recovery_pending:
+			_drop_recovery()
 		set_status(Lang.t("Carte « %s » supprimée", "Map \"%s\" deleted") % name_shown)
 	return true
 
 
+## Importer / Exporter une archive : explorateur du système (FilePick ; la
+## fenêtre de Godot seulement sans dialogue natif). Le chemin choisi (absolu)
+## repasse par export_zip / import_zip et leurs contrôles.
 func _zip_dialog(save_mode: bool) -> void:
 	if refuse_guest():
 		return
-	if _file_dialog != null:
+	if is_instance_valid(_file_dialog):
 		_file_dialog.queue_free()
-	_file_dialog = FileDialog.new()
-	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE if save_mode else FileDialog.FILE_MODE_OPEN_FILE
-	_file_dialog.filters = PackedStringArray(["*.zip ; " + Lang.t("Archive de carte", "Map archive")])
-	_file_dialog.title = Lang.t("Exporter l'archive", "Export the archive") if save_mode else Lang.t("Importer une archive", "Import an archive")
-	_file_dialog.current_file = doc.id() + ".zip"
-	_file_dialog.current_dir = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
-	# Fenêtre de Godot (contenu interne) : seule sa taille suit l'interface.
-	_file_dialog.set_meta(EditorUi.SKIP, true)
-	_file_dialog.size = Vector2i((Vector2(760, 480) * ui_scale).min(get_viewport_rect().size - Vector2(40, 40)))
-	add_child(_file_dialog)
-	_file_dialog.file_selected.connect(func(path):
+	var chosen := func(path: String):
 		if save_mode:
 			export_zip(path)
 		else:
-			import_zip(path))
-	_file_dialog.popup_centered()
+			# L'archive remplace la carte ouverte : confirmation avant.
+			confirm_unsaved(Lang.t("importer une archive", "import an archive"), func(): import_zip(path))
+	_file_dialog = FilePick.pick(self,
+		Lang.t("Exporter l'archive", "Export the archive") if save_mode else Lang.t("Importer une archive", "Import an archive"),
+		FilePick.Mode.SAVE if save_mode else FilePick.Mode.OPEN,
+		PackedStringArray(["*.zip ; " + Lang.t("Archive de carte", "Map archive")]),
+		chosen, doc.id() + ".zip" if save_mode else "", "", ui_scale)
 
 
 func export_zip(path: String) -> bool:
@@ -2424,7 +2929,7 @@ func import_zip(path: String) -> bool:
 	return true
 
 
-# ------------------------------------------------------------------ récents, sauvegarde auto
+# ------------------------------------------------------------------ récents
 
 static func _cfg_path() -> String:
 	return EditorMap.maps_root().path_join("_editeur.cfg")
@@ -2480,65 +2985,188 @@ func _fill_recent() -> void:
 		_recent_menu.set_item_disabled(0, true)
 
 
-## Taille maximale du meta.json de la sauvegarde automatique.
-const MAX_META_BYTES := 256 * 1024
+# ------------------------------------------------------------------ non enregistré, récupération
+
+## Modifications à confirmer avant de les perdre : jamais chez un invité (la
+## carte de la session est celle de l'hôte, qui l'enregistre).
+func needs_save_prompt() -> bool:
+	return dirty and not is_guest()
 
 
-## meta.json de la sauvegarde automatique (source, nom, date) : {} s'il est
-## absent, illisible ou trop gros (256 Ko au plus).
-static func _read_meta(dir: String) -> Variant:
-	var txt: Variant = EditorMap.read_text(dir.path_join("meta.json"), MAX_META_BYTES)
-	var meta: Variant = JSON.parse_string(txt) if txt != null else null
-	return meta if meta is Dictionary else {}
+## Avant une action qui remplacerait ou fermerait la carte (`what` : « quitter
+## l'éditeur », « ouvrir une autre carte »...) : sans modification non
+## enregistrée, `proceed` tout de suite ; sinon la boîte « Enregistrer /
+## Quitter sans enregistrer / Annuler » (MapUnsaved.ask), rendue (null sans
+## boîte). Enregistrer : `proceed` seulement si l'enregistrement réussit ; une
+## carte jamais enregistrée (ou un exemple) ouvre Enregistrer sous et l'action
+## n'a pas lieu. Quitter sans enregistrer : copie de récupération effacée.
+func confirm_unsaved(what: String, proceed: Callable) -> ConfirmationDialog:
+	if not needs_save_prompt():
+		proceed.call()
+		return null
+	var text := Lang.t("La carte « %s » a des modifications non enregistrées.\nLes enregistrer avant de %s ?", "The map \"%s\" has unsaved changes.\nSave them before you %s?") % [doc.display_name(), what]
+	# Boîte déjà ouverte (ex. Alt+F4 pendant une autre confirmation) : elle
+	# sert à la DERNIÈRE action demandée (texte et rappel remplacés).
+	_unsaved_proceed = proceed
+	if is_instance_valid(_unsaved_dialog):
+		_unsaved_dialog.dialog_text = text
+		_unsaved_dialog.grab_focus()
+		return _unsaved_dialog
+	canvas.cancel()
+	views.cancel_drags()
+	_unsaved_dialog = MapUnsaved.ask(self, Lang.t("Modifications non enregistrées", "Unsaved changes"), text,
+		func(choice: String): _on_unsaved_choice(choice, _unsaved_proceed))
+	return _unsaved_dialog
 
 
-static func _autosave_dir() -> String:
-	return EditorMap.maps_root().path_join("_autosave")
+## Boîte « non enregistrée » ouverte (null sinon) : une seule à la fois ;
+## `_unsaved_proceed` : l'action qu'elle confirme (la dernière demandée).
+var _unsaved_dialog: ConfirmationDialog
+var _unsaved_proceed: Callable
 
 
-## Sauvegarde automatique (toutes les 60 s et à la fermeture) si la carte a changé.
-func autosave() -> void:
-	# Invité : la carte de la session est chez l'hôte (sa sauvegarde à lui).
-	if not dirty or (collab != null and collab.role == MapCollab.Role.GUEST):
+func _on_unsaved_choice(choice: String, proceed: Callable) -> void:
+	_unsaved_dialog = null
+	match choice:
+		"save":
+			if map_dir == "" or example:
+				save_as_dialog()
+				set_status(Lang.t("Choisissez un nom, enregistrez, puis recommencez", "Choose a name, save, then try again"))
+				return
+			if save():
+				proceed.call()
+		"discard":
+			_drop_recovery()
+			_recovery_sig = ""
+			proceed.call()
+		_:
+			set_status(Lang.t("Annulé : la carte reste ouverte", "Cancelled: the map stays open"))
+
+
+## Copie de récupération (MapUnsaved) : écrite s'il y a des modifications non
+## enregistrées et du nouveau depuis la dernière ; jamais chez un invité, ni
+## tant qu'une copie restée d'un plantage attend sa réponse. Rend vrai si la
+## copie est à jour.
+func write_recovery() -> bool:
+	if _recovery_pending or is_guest() or doc == null or not dirty:
+		return false
+	var sig := MapUnsaved.signature(doc)
+	if sig == _recovery_sig:
+		return true
+	if MapUnsaved.write_recovery(doc, map_dir, example) != OK:
+		push_warning("[MapEditor] copie de récupération non écrite")
+		return false
+	_recovery_sig = sig
+	return true
+
+
+func _drop_recovery() -> void:
+	if _recovery_pending:
 		return
-	var dir := _autosave_dir()
-	if doc.save_dir(dir) != OK:
-		return
-	var f := FileAccess.open(dir.path_join("meta.json"), FileAccess.WRITE)
-	if f != null:
-		f.store_string(JSON.stringify({"source": map_dir, "example": example, "name": doc.display_name(), "time": int(Time.get_unix_time_from_system())}))
-		f.close()
+	MapUnsaved.drop_recovery()
+	_recovery_sig = ""
 
 
-func _resume_autosave() -> void:
-	var dir := _autosave_dir()
-	var meta: Variant = _read_meta(dir)
+## Copie de récupération restée d'un plantage ou d'une fermeture forcée :
+## « Récupérer » (Entrée ; aussi Échap ou la croix : rien n'est perdu) la
+## rouvre, modifiée, avec son dossier d'origine ; « Ignorer » l'efface. Rend
+## la boîte (null sans copie).
+func offer_recovery() -> ConfirmationDialog:
+	var dir := MapUnsaved.pending_dir()
+	if dir == "":
+		return null
+	_recovery_pending = true
+	var meta := MapUnsaved.read_meta(dir)
+	var nm := String(meta.get("name", "")).left(80)
+	var d := ConfirmationDialog.new()
+	d.name = "RecoveryDialog"
+	d.title = Lang.t("Récupération", "Recovery")
+	d.dialog_text = Lang.t("L'éditeur s'est fermé sans enregistrer la carte « %s ».\nUne copie de récupération du %s contient ses modifications non enregistrées.\nLa récupérer ?",
+		"The editor closed without saving the map \"%s\".\nA recovery copy from %s holds its unsaved changes.\nRecover it?") % [nm, MapUnsaved.when_text(meta)]
+	d.dialog_autowrap = true
+	d.min_size = Vector2i(int(EditorUi.px(460.0)), 0)
+	d.ok_button_text = Lang.t("Récupérer", "Recover")
+	# « Ignorer » efface la copie : bouton à part, jamais Échap ni la croix.
+	d.get_cancel_button().visible = false
+	d.add_button(Lang.t("Ignorer", "Ignore"), true, "ignore").name = "Ignore"
+	add_child(d)
+	var state := {"done": false}
+	var finish := func(recover: bool) -> void:
+		if state.done:
+			return
+		state.done = true
+		d.queue_free()
+		_recovery_pending = false
+		if recover:
+			_resume_recovery(dir)
+		else:
+			_drop_recovery()
+			set_status(Lang.t("Copie de récupération ignorée (effacée)", "Recovery copy ignored (deleted)"))
+	d.confirmed.connect(func(): finish.call(true))
+	d.canceled.connect(func(): finish.call(true))
+	d.custom_action.connect(func(action: StringName):
+		if action == &"ignore":
+			finish.call(false))
+	d.popup_centered()
+	d.get_ok_button().grab_focus.call_deferred()
+	return d
+
+
+## Rouvre la copie de récupération `dir` : contenu de la copie, dossier
+## d'origine (l'enregistrer y écrit) ; l'étoile compare au fichier d'origine.
+## La copie reste sur le disque jusqu'au prochain enregistrement.
+func _resume_recovery(dir: String) -> void:
+	var meta := MapUnsaved.read_meta(dir)
 	var d := EditorMap.load_dir(dir)
+	var src := String(meta.get("source", ""))
+	var ex := bool(meta.get("example", false))
+	# meta.json venu du disque : le dossier d'origine n'est repris que s'il est
+	# une carte du dossier des cartes (enfant direct, identifiant admis, pas un
+	# dossier interne « _ ») ; sinon la carte revient non enregistrée.
+	if not MapUnsaved.source_ok(src):
+		src = ""
+	map_dir = src
+	example = ex
 	_reset(d)
-	if meta is Dictionary:
-		map_dir = String(meta.get("source", ""))
-		example = bool(meta.get("example", false))
-	dirty = true
+	var on_disk := src if src != "" and EditorMap.is_map_dir(src) else ""
+	if ex:
+		map_dir = ""
+	if on_disk != "":
+		_saved_sig = MapUnsaved.signature(EditorMap.load_dir(on_disk))
+		_dirty_ver = -1
+	else:
+		dirty = true
+	_recovery_sig = ""
+	write_recovery()
 	_update_title()
-	set_status(Lang.t("Travail non enregistré repris", "Unsaved work resumed"))
+	set_status(Lang.t("Travail non enregistré récupéré : enregistrez-le (Ctrl+S) pour le garder", "Unsaved work recovered: save it (Ctrl+S) to keep it"))
 
 
-func _drop_autosave() -> void:
-	var dir := _autosave_dir()
-	if DirAccess.dir_exists_absolute(dir):
-		for f in DirAccess.get_files_at(dir):
-			DirAccess.remove_absolute(dir.path_join(f))
-		DirAccess.remove_absolute(dir)
-
-
-func _on_close_requested() -> void:
-	autosave()
+## Sortie de l'éditeur sans rien à perdre (enregistré, ou abandonné) : la
+## copie de récupération n'a plus lieu d'être.
+func _leaving() -> void:
+	_flush_prefs()
+	if not is_guest():
+		_drop_recovery()
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		autosave()
-		_flush_prefs()
+		request_close()
+
+
+## Fermeture de la fenêtre (croix, Alt+F4) : confirmation s'il y a des
+## modifications non enregistrées. Rend la boîte (null : fermeture lancée).
+func request_close() -> ConfirmationDialog:
+	return confirm_unsaved(Lang.t("quitter l'éditeur", "quit the editor"), func():
+		_leaving()
+		get_tree().quit())
+
+
+func _exit_tree() -> void:
+	# Hors de l'éditeur (menu, partie de TESTER) : la fenêtre se ferme de nouveau
+	# directement.
+	get_tree().set_auto_accept_quit(true)
 
 
 ## Disposition des vues et aperçu 3D : réglages en attente écrits avant de partir.
@@ -2584,30 +3212,41 @@ func _on_edit_menu(id: int) -> void:
 		4:
 			rotate_selected()
 		5:
-			if selected != "":
-				delete_element(selected)
+			delete_selection()
 		6:
 			toggle_inventory()
 		7:
 			views.frame_all()
 		8:
 			cycle_variant()
+		9:
+			cut_selected()
+		10:
+			duplicate_selection()
+		11:
+			select_all()
+		12:
+			create_prefab_from_selection()
 
 
-func quit_to_menu() -> void:
-	autosave()
-	_flush_prefs()
-	get_tree().change_scene_to_file(Router.MENU_SCENE)
+## Fichier > Retour au menu principal (confirmation s'il y a des modifications
+## non enregistrées). Rend la boîte (null : retour lancé).
+func quit_to_menu() -> ConfirmationDialog:
+	return confirm_unsaved(Lang.t("revenir au menu principal", "go back to the main menu"), func():
+		_leaving()
+		get_tree().change_scene_to_file(Router.MENU_SCENE))
 
 
-## TESTER : vérifie, enregistre, puis lance une partie sur la carte : solo,
-## ou avec tous les participants de la session (hôte, CollabPlaytest) ; la
-## fin de partie ramène dans l'éditeur, sur la même carte (et dans la même
-## session).
+## TESTER : vérifie, puis lance une partie sur la carte TELLE QU'ELLE EST,
+## sans l'enregistrer : une copie de travail (MapUnsaved.test_dir, « perso:_tester »)
+## est jouée, le dossier de la carte n'est pas touché ; copie de récupération
+## écrite avant. Solo, ou avec tous les participants de la session (hôte,
+## CollabPlaytest) ; la fin de partie ramène dans l'éditeur, sur la même
+## carte, avec son historique d'annulation et son étoile « non enregistrée ».
 func test_map() -> bool:
 	if collab.role == MapCollab.Role.GUEST:
-		_info(Lang.t("Tester", "Play test"), Lang.t("Seul l'hôte de la session lance le test : vous rejoindrez sa partie automatiquement.\nPour tester seul : enregistrez une copie (Fichier), quittez la session, puis ouvrez la copie.",
-			"Only the session host starts the play test: you will join their game automatically.\nTo test alone: save a copy (File), leave the session, then open the copy."))
+		_info(Lang.t("Tester", "Play test"), Lang.t("Seul l'hôte de la session lance le test : vous rejoindrez sa partie automatiquement.\nPour tester seul : quittez la session (la carte reste ici), puis TESTER.",
+			"Only the session host starts the play test: you will join their game automatically.\nTo test alone: leave the session (the map stays here), then PLAY TEST."))
 		return false
 	if CollabPlaytest.current != null:
 		set_status(Lang.t("Test déjà en préparation", "Play test already being prepared"), true)
@@ -2618,11 +3257,18 @@ func test_map() -> bool:
 		_info(Lang.t("Tester", "Play test"), Lang.t("La carte n'est pas jouable : %d erreur(s). Corrigez-les (onglet Vérification, clic sur une erreur pour la voir).",
 			"The map is not playable: %d error(s). Fix them (Check tab, click an error to see it).") % validator.errors().size())
 		return false
-	if not save():
+	# Plantage pendant la partie : le travail non enregistré reste récupérable.
+	write_recovery()
+	# Copie de travail jouée (jamais le dossier de la carte du joueur).
+	var tdir := MapUnsaved.test_dir()
+	MapUnsaved._remove(tdir)
+	var err := doc.save_dir(tdir)
+	if err != OK:
+		set_status(Lang.t("Test impossible : copie de travail non écrite (%s)", "Cannot play test: working copy not written (%s)") % error_string(err), true)
 		return false
 	# Même contrôle que le jeu au lancement (EditorMapDef.custom) : une carte
 	# refusée là démarrerait sur la carte par défaut sans prévenir.
-	var guard := CustomMapGuard.load_local(map_dir, false)
+	var guard := CustomMapGuard.load_local(tdir, false)
 	if not guard.ok:
 		_info(Lang.t("Tester", "Play test"), Lang.t("La carte est refusée par le contrôle du jeu :\n%s", "The map is refused by the game's check:\n%s")
 			% CustomMapGuard.reasons_text(guard.reasons))
@@ -2630,10 +3276,43 @@ func test_map() -> bool:
 	# Session ouverte (même sans invité pour l'instant) : elle reste ouverte
 	# pendant le test, et ceux qui sont là jouent avec l'hôte.
 	if collab.role == MapCollab.Role.HOST:
-		return CollabPlaytest.host_start(self, map_dir)
-	reopen_dir = map_dir
-	reopen_example = false
+		return CollabPlaytest.host_start(self, tdir)
 	Router.return_scene = SCENE
-	CrashGuard.context("éditeur de cartes : TESTER « %s »" % map_dir.get_file(), true)
-	Router.start_solo(EditorMapDef.CUSTOM_PREFIX + map_dir.get_file())
+	CrashGuard.context("éditeur de cartes : TESTER « %s »" % doc.display_name(), true)
+	# Router.start_solo, avec le refus du lancement pris en compte (on reste
+	# alors dans l'éditeur).
+	Net.start_solo(Settings.player_name)
+	if not Net.start_match(EditorMapDef.CUSTOM_PREFIX + MapUnsaved.TEST_ID):
+		Net.leave()
+		Router.return_scene = ""
+		set_status(Lang.t("Test impossible : la partie n'a pas pu démarrer", "Cannot play test: the game could not start"), true)
+		return false
+	# La partie se charge (changement de scène différé) : la session part avec elle.
+	_keep_for_test()
 	return true
+
+
+## TESTER en solo : la session d'édition (carte, historique d'annulation)
+## quitte l'éditeur, qui va disparaître, sans être fermée ; l'éditeur qui
+## revient la reprend (_setup_collab). Plus aucun lien vers cet éditeur.
+func _keep_for_test() -> void:
+	var st := playtest_state()
+	for s in collab.get_signal_list():
+		for c in collab.get_signal_connection_list(s.name):
+			var cb: Callable = c.callable
+			var o: Object = cb.get_object()
+			if o == null or o == self or (o is Node and is_ancestor_of(o)):
+				collab.disconnect(s.name, cb)
+	collab.keep_alive = true
+	remove_child(collab)
+	collab.keep_alive = false
+	_test_keep = {"collab": collab, "state": st}
+
+
+## Session gardée pendant un TESTER en solo, jamais reprise (tests, retour
+## ailleurs que dans l'éditeur) : libérée.
+static func drop_test_keep() -> void:
+	var c: Variant = _test_keep.get("collab")
+	_test_keep = {}
+	if c is Node and is_instance_valid(c) and not (c as Node).is_inside_tree():
+		(c as Node).free()

@@ -71,12 +71,26 @@ static func draw(ci: CanvasItem, it: Dictionary, r: Rect2) -> void:
 			var pts := [q.position, Vector2(q.end.x, q.position.y), q.end, Vector2(q.position.x, q.end.y)]
 			for i in 4:
 				ci.draw_dashed_line(pts[i], pts[(i + 1) % 4], c.lightened(0.3), 2.0, maxf(2.0, s * 0.1))
-		"escalier":
-			for i in 5:
-				ci.draw_rect(Rect2(p.position + Vector2(s * 0.15, s * (0.1 + i * 0.16)), Vector2(s * 0.7, s * 0.1)), c)
-			ci.draw_line(cx + Vector2(0, s * 0.4), cx - Vector2(0, s * 0.4), WHITE, 2.0)
-			ci.draw_line(cx - Vector2(0, s * 0.4), cx + Vector2(-s * 0.15, -s * 0.22), WHITE, 2.0)
-			ci.draw_line(cx - Vector2(0, s * 0.4), cx + Vector2(s * 0.15, -s * 0.22), WHITE, 2.0)
+		"escalier", "escalier_bas":
+			# Marches vues de côté (profil en escalier) et grosse flèche : ↑ pour
+			# l'escalier qui monte, ↓ pour celui qui descend.
+			var up := id == "escalier"
+			var steps := PackedVector2Array([p.position + Vector2(0 if up else s, s)])
+			for i in 4:
+				var y := s - (i + 1) * 0.25 * s
+				for x in [i * 0.25 * s, (i + 1) * 0.25 * s]:
+					steps.append(p.position + Vector2(x if up else s - x, y))
+			steps.append(p.position + Vector2(s if up else 0, s))
+			ci.draw_colored_polygon(steps, c.darkened(0.25))
+			ci.draw_polyline(steps + PackedVector2Array([steps[0]]), c.lightened(0.3), 1.5)
+			var tip := cx + Vector2(0, -s * 0.42 if up else s * 0.42)
+			var tail := cx + Vector2(0, s * 0.3 if up else -s * 0.3)
+			var dirv := (tip - tail).normalized()
+			var head := PackedVector2Array([tip, tip - dirv * s * 0.3 + Vector2(s * 0.22, 0), tip - dirv * s * 0.3 - Vector2(s * 0.22, 0)])
+			ci.draw_line(tail, tip - dirv * s * 0.2, INK, maxf(4.0, s * 0.2))
+			ci.draw_line(tail, tip - dirv * s * 0.2, WHITE, maxf(2.0, s * 0.11))
+			ci.draw_colored_polygon(head, WHITE)
+			ci.draw_polyline(head + PackedVector2Array([head[0]]), INK, 1.5)
 		"porte", "porte_courant":
 			ci.draw_rect(Rect2(cx - Vector2(s * 0.3, s * 0.45), Vector2(s * 0.6, s * 0.9)), c.darkened(0.2))
 			ci.draw_rect(Rect2(cx - Vector2(s * 0.3, s * 0.45), Vector2(s * 0.6, s * 0.9)), INK, false, 2.0)

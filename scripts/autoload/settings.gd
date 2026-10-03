@@ -504,22 +504,18 @@ func pad_style() -> String:
 
 
 ## Affecte `code` à la case `slot` (0 ou 1) de `action`, dans la colonne de
-## son périphérique (touche ou manette). La commande est retirée de toute
-## autre action de la même colonne (conflit) ; déjà dans l'autre case de la
-## même action, elle change de place (l'ancienne commande de la case visée
-## prend la sienne). Case 1 alors que la première est vide : elle va en
-## première case. Retourne l'action qui l'a perdue (« » sinon).
-func bind(action: String, code: String, slot := 0) -> String:
+## son périphérique (touche ou manette). Une même commande peut servir à
+## plusieurs actions : elle n'est retirée d'aucune autre (un appui les
+## déclenche toutes). Déjà dans l'autre case de la même action, elle change
+## de place (l'ancienne commande de la case visée prend la sienne). Case 1
+## alors que la première est vide : elle va en première case. Retourne les
+## autres actions qui ont aussi cette commande (shared_with) ; [] sinon, ou
+## pour un code refusé.
+func bind(action: String, code: String, slot := 0) -> Array:
 	if not action in REBINDABLE or event_from_code(code) == null:
-		return ""
+		return []
 	slot = clampi(slot, 0, SLOTS_PER_COLUMN - 1)
 	var col := pad_bindings if is_pad_code(code) else bindings
-	var taken := ""
-	for a in REBINDABLE:
-		var other: Array = col.get(a, [])
-		if a != action and code in other:
-			other.erase(code)
-			taken = a
 	var cases := []
 	for i in SLOTS_PER_COLUMN:
 		cases.append(binding(action, is_pad_code(code), i))
@@ -529,7 +525,25 @@ func bind(action: String, code: String, slot := 0) -> String:
 	cases[slot] = code
 	col[action] = _compact(cases)
 	apply_bindings()
-	return taken
+	return shared_with(action, code)
+
+
+## Autres actions réaffectables (dans l'ordre de l'écran) qui ont aussi
+## `code` dans sa colonne ; [] pour un code vide.
+func shared_with(action: String, code: String) -> Array:
+	return codes_shared(bindings, pad_bindings, action, code)
+
+
+## Pure (tests) : shared_with() d'après les deux colonnes données.
+static func codes_shared(keys: Dictionary, pads: Dictionary, action: String, code: String) -> Array:
+	var out := []
+	if code == "":
+		return out
+	var col := pads if is_pad_code(code) else keys
+	for a in REBINDABLE:
+		if a != action and code in (col.get(a, []) as Array):
+			out.append(a)
+	return out
 
 
 ## Codes sans case vide ni doublon (ordre conservé), SLOTS_PER_COLUMN au plus.
@@ -593,10 +607,13 @@ static func wheel_switch_events(keys: Dictionary) -> Array[InputEventMouseButton
 
 ## Commandes lues d'un fichier, pour une colonne (section « bindings » :
 ## touches, « pad_bindings » : manette). `max_codes` au plus par action (deux
-## par défaut) : les premières valides de la bonne colonne, sans doublon
+## par défaut) : les premières valides de la bonne colonne, sans doublon dans
+## l'action ; une commande partagée par plusieurs actions reste sur chacune
 ## (une version précédente en écrivait une seule, en liste ou en texte :
-## relue telle quelle) ; action absente du fichier (nouvelle version) : ses
-## commandes d'origine, sauf celles qu'une autre action a déjà.
+## relue telle quelle ; les fichiers d'avant le partage n'en ont aucune).
+## Action absente du fichier (nouvelle version) : ses commandes d'origine,
+## sauf celles qu'une action du fichier a déjà (aucun partage que le joueur
+## n'a pas choisi).
 static func _bindings_from_cfg(cfg: ConfigFile, section: String, defaults: Dictionary, pad: bool,
 		max_codes := SLOTS_PER_COLUMN) -> Dictionary:
 	var d := defaults.duplicate(true)
@@ -613,7 +630,7 @@ static func _bindings_from_cfg(cfg: ConfigFile, section: String, defaults: Dicti
 		var picks := []
 		for c in list:
 			var code := str(c)
-			if is_pad_code(code) == pad and event_from_code(code) != null and not used.has(code):
+			if is_pad_code(code) == pad and event_from_code(code) != null and not code in picks:
 				picks.append(code)
 				used[code] = true
 				if picks.size() >= max_codes:

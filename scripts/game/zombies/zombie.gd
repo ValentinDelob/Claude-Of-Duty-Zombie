@@ -110,6 +110,14 @@ var _state_time := 0.0
 var _attack_t := -1.0
 var _death_t := -1.0
 var _death_dir := 1.0
+## Ragdoll de la chute (ZombieRagdoll), null si chute procédurale ou figé
+## puis libéré ; `ragdolled` reste vrai une fois parti en ragdoll.
+var ragdoll: ZombieRagdoll
+var ragdolled := false
+## Position du bassin au figement du ragdoll (ZombieRagdoll.freeze).
+var ragdoll_rest := Vector3.ZERO
+## Mort projetée en cours (die_flung) : vitesse du vol.
+var _fling_vel := Vector3.ZERO
 var _flash := 0.0
 var _head_tilt := 0.0
 ## Clients : instantanés reçus (tampon circulaire, voir push_snapshot).
@@ -811,10 +819,14 @@ func head_position() -> Vector3:
 	return hit_head.global_position
 
 
-## Mort (toutes les machines). `dir` : direction du coup fatal.
+## Mort (toutes les machines). `dir` : direction du coup fatal ; sa longueur
+## est la force du coup (ZombieRagdoll.kill_impulse, m/s).
 func die(dir: Vector3, headshot: bool) -> void:
 	if state == State.DEAD:
 		return
+	# Élan au moment de la mort (serveur : vitesse simulée ; marionnette :
+	# vitesse déduite des instantanés), gardé par le ragdoll.
+	var carry := velocity if server_side else _last_vel
 	state = State.DEAD
 	_state_time = 0.0
 	_death_t = 0.0
@@ -843,19 +855,48 @@ func die(dir: Vector3, headshot: bool) -> void:
 		var neck := skel.global_transform * skel.get_bone_global_pose(bones.neck).origin
 		if game:
 			game.fx_root.blood_hit(neck, Vector3.UP, 3.0)
-		ZombieGibs.head_pop(self, neck, dir)
+		ZombieGibs.head_pop(self, neck, dir.normalized())
 		Audio.play_3d("headshot", neck, 0.0, 0.08)
 	else:
 		Audio.play_3d("zombie_death_%d" % (1 + randi() % ZombieVoice.DEATHS), global_position + Vector3.UP * 1.4, -1.0, 0.08, 3, 1.0, ZombieVoice.GROUP)
+	# Chute physique depuis la pose courante (sinon : chute procédurale).
+	if _fling_vel != Vector3.ZERO:
+		ragdoll = ZombieRagdoll.start(self, Vector3.ZERO, carry, false, _fling_vel)
+	else:
+		ragdoll = ZombieRagdoll.start(self, dir, carry, headshot)
+	ragdolled = ragdoll != null
 
 
 ## Mort projetée (onde de choc du TONNERRE-7) : le corps s'envole à la vitesse
-## `vel` calculée par le serveur (vol procédural : ZombieFling).
+## `vel` calculée par le serveur (ragdoll, sinon vol procédural ZombieFling).
 func die_flung(vel: Vector3) -> void:
 	if state == State.DEAD:
 		return
-	die(vel, false)
-	add_child(ZombieFling.new(vel))
+	_fling_vel = vel
+	die(vel.normalized(), false)
+	if not ragdolled:
+		add_child(ZombieFling.new(vel))
+
+
+## Mort projetée par le TONNERRE-7 (ragdoll ou vol procédural).
+func is_flung() -> bool:
+	return _fling_vel != Vector3.ZERO
+
+
+## Position du corps mort : bassin du ragdoll (le zombie, lui, reste où il
+## est mort), sinon celle du zombie (chute procédurale, vol ZombieFling).
+func body_position() -> Vector3:
+	if not ragdolled:
+		return global_position
+	return ragdoll.hips_position() if is_instance_valid(ragdoll) and not ragdoll.frozen else ragdoll_rest
+
+
+## Le corps est retombé : ragdoll figé, ou vol procédural terminé.
+func body_landed() -> bool:
+	if ragdolled:
+		return not is_instance_valid(ragdoll) or ragdoll.frozen
+	var f := get_node_or_null("Fling") as ZombieFling
+	return f == null or not f.flying
 
 
 func _q(x: float, y := 0.0, z := 0.0) -> Quaternion:
@@ -906,12 +947,17 @@ func _process_death(delta: float) -> void:
 	_death_t += delta
 	# Chute et membres qui retombent mollement ; ensuite le corps est immobile
 	# (les rotations ont convergé) : plus aucune écriture d'os.
-	if before <= DEATH_SETTLE_TIME:
+	# En ragdoll, la physique (ZombieRagdoll) pose le corps.
+	if before <= DEATH_SETTLE_TIME and not ragdolled:
 		anim.death(delta, _death_t, _death_dir)
-	if before < 0.6 and _death_t >= 0.6:
-		Audio.play_3d("body_fall", global_position, -6.0, 0.1, 3)
+	if before < 0.6 and _death_t >= 0.6 and _fling_vel == Vector3.ZERO:
+		var at := global_position + Vector3(sin(yaw), 0, cos(yaw)) * _death_dir * 0.8
+		if ragdolled:
+			at = body_position()
+			at.y = global_position.y
+		Audio.play_3d("body_fall", at, -6.0, 0.1, 3)
 		if game:
-			game.fx_root.blood_decal(global_position + Vector3.UP * 0.1 + Vector3(sin(yaw), 0, cos(yaw)) * _death_dir * 0.8, Vector3.UP, randf_range(0.8, 1.4))
+			game.fx_root.blood_decal(at + Vector3.UP * 0.1, Vector3.UP, randf_range(0.8, 1.4))
 	if _death_t > DISSOLVE_DELAY:
 		ZombieModel.set_dissolve(mesh, clampf((_death_t - DISSOLVE_DELAY) / DISSOLVE_TIME, 0.0, 1.0))
 		if before <= DISSOLVE_DELAY:

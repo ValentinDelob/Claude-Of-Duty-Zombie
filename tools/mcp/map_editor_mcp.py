@@ -55,7 +55,9 @@ INSTRUCTIONS = """Pilote en direct l'éditeur de cartes de Claude of Duty Zombie
 - Après chaque modification : editor_validate (erreurs bloquantes à corriger) et editor_screenshot pour voir le résultat ; editor_highlight pour montrer à l'utilisateur ce dont tu parles. editor_undo_last annule ta dernière action.
 - Respecte docs/MAP_DESIGN_RULES.md (surface vide < 15 m², couloirs 2-3 m et 12 m max en ligne droite, boucles, fenêtres, prix des portes, décor) et l'esprit de BO1 Zombies.
 - L'utilisateur (et d'autres participants) éditent en même temps : relis la carte avant de modifier un élément, ne refais pas ce qu'il vient de défaire.
-- Hauteurs (format 12, docs/EDITOR_VIEWS.md § 7) : z vers le haut, en m. Un décor posé au sol a une hauteur de pose « z » (sur un autre décor : un décor qui bloque doit reposer sur le dessus d'un autre) ; un luminaire au sol une « hauteur » (sinon le dessus du meuble dessous) ; ce qui est accroché au plafond (luminaire, effet, décor) une « descente » sous le plafond ; appliques, décors et effets muraux une « hauteur » sur le mur. Ces clés ne s'écrivent jamais à leur valeur par défaut. editor_get_element rend z_min / z_max / z_monde de chaque élément ; editor_screenshot montre aussi les élévations (view : avant, arriere, gauche, droite, dessous ; coupe [p0, p1] pour isoler une tranche)."""
+- Hauteurs (format 12, docs/EDITOR_VIEWS.md § 7) : z vers le haut, en m. Un décor posé au sol a une hauteur de pose « z » (sur un autre décor : un décor qui bloque doit reposer sur le dessus d'un autre) ; un luminaire au sol une « hauteur » (sinon le dessus du meuble dessous) ; ce qui est accroché au plafond (luminaire, effet, décor) une « descente » sous le plafond ; appliques, décors et effets muraux une « hauteur » sur le mur. Ces clés ne s'écrivent jamais à leur valeur par défaut. editor_get_element rend z_min / z_max / z_monde de chaque élément ; editor_screenshot montre aussi les élévations (view : avant, arriere, gauche, droite, dessous ; coupe [p0, p1] pour isoler une tranche).
+- Escaliers (docs/MAP_OBJECTS.md § 4) : un objet « escalier » appartient à l'étage du BAS (« etage » = k) et monte à l'étage k + 1 ; « monte » (n, e, s, o) = sens de la montée. Pied (départ) : sol libre de la pièce de l'étage k devant la première marche ; arrivée : plancher libre d'une pièce de l'étage k + 1 au-delà du haut ; rien au-dessus des marches à l'étage k + 1 (trémie). Un escalier qui DESCEND de l'étage k s'écrit comme un escalier de l'étage k - 1 qui monte vers k (pas de champ « descend » : l'objet « escalier_bas » du catalogue est l'outil de l'utilisateur). Cage d'escalier sur plusieurs étages : volées côte à côte, jamais au même endroit. Un refus (invalid) dit quoi et où (départ, arrivée, trémie, coordonnées).
+- Pièces qui se recouvrent : deux pièces se touchent, jamais ne se recouvrent. Un lot editor_apply dont une pièce (add ou put) recouvre une pièce du même étage est REFUSÉ en entier, sauf avec « decouper »: true : les pièces recouvertes perdent la partie sous la nouvelle (coupées en morceaux reliés par un passage libre si besoin, supprimées s'il n'en reste presque rien ; contenu de la partie découpée rattaché à la nouvelle pièce ; ouvertures dont le mur disparaît déplacées ou retirées), dans le MÊME lot (une seule annulation). Le résultat « decoupe » détaille tout : vérifie-le et préviens l'utilisateur. Un escalier rendu invalide fait refuser la découpe."""
 
 
 def log(*args) -> None:
@@ -362,7 +364,7 @@ TOOLS = [
     },
     {
         "name": "editor_get_selection",
-        "description": "Ce que l'utilisateur a sélectionné dans l'éditeur : ids, éléments complets, étage affiché et position "
+        "description": "Ce que l'utilisateur a sélectionné dans l'éditeur : ids (plusieurs en sélection multiple), éléments complets, étage affiché et position "
                        "de la souris sur le plan (m). « ça », « cette pièce », « ici » désignent souvent la sélection ou le curseur.",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
@@ -386,6 +388,10 @@ TOOLS = [
             }, "required": ["op"]}},
             "animate": {"type": "boolean", "default": True,
                         "description": "Faire apparaître les éléments un par un chez l'utilisateur (défaut true)."},
+            "decouper": {"type": "boolean", "default": False,
+                         "description": "Une pièce du lot recouvre des pièces existantes du même étage : true les découpe "
+                                        "(la partie recouverte leur est retirée, dans le même lot ; détail dans « decoupe ») ; "
+                                        "false (défaut) : le lot est refusé avec l'explication."},
         }, "required": ["label", "ops"], "additionalProperties": False},
     },
     {
@@ -418,10 +424,13 @@ TOOLS = [
     {
         "name": "editor_highlight",
         "description": "Montre des éléments à l'utilisateur dans l'éditeur (contour pulsé + bulle avec le message). "
-                       "Pour désigner ce dont tu parles ou poser une question sur un endroit précis.",
+                       "Pour désigner ce dont tu parles ou poser une question sur un endroit précis. Avec select: true, "
+                       "ils deviennent aussi la sélection de l'utilisateur (plusieurs ids : sélection multiple, prête pour "
+                       "un clic droit > Créer une prefab…, Dupliquer…).",
         "inputSchema": {"type": "object", "properties": {
             "ids": _ids_schema("Éléments à montrer."),
             "message": {"type": "string", "maxLength": 200, "description": "Bulle affichée (français)."},
+            "select": {"type": "boolean", "description": "Sélectionner aussi ces éléments dans l'éditeur (défaut : non)."},
         }, "required": ["ids"], "additionalProperties": False},
     },
     {
@@ -534,8 +543,17 @@ class Tools:
         animate = args.get("animate", True)
         if not isinstance(animate, bool):
             raise EditorError("animate : true ou false")
-        res = self.link.request("apply", {"label": label.strip()[:120], "ops": ops, "animate": animate})
+        cut = args.get("decouper", False)
+        if not isinstance(cut, bool):
+            raise EditorError("decouper : true ou false")
+        req = {"label": label.strip()[:120], "ops": ops, "animate": animate}
+        if cut:
+            req["decouper"] = True
+        res = self.link.request("apply", req)
         out = [text(res)]
+        if isinstance(res, dict) and res.get("decoupe"):
+            out.append(text("Découpe faite : %s Préviens l'utilisateur."
+                            % " ".join(str(d.get("texte", "")) for d in res["decoupe"] if isinstance(d, dict))))
         if isinstance(res, dict) and res.get("invalid"):
             out.append(text("Attention : %d élément(s) refusé(s) par l'éditeur (voir « invalid ») ; le reste du lot est appliqué."
                             % len(res["invalid"])))
@@ -594,7 +612,13 @@ class Tools:
         msg = args.get("message", "")
         if not isinstance(msg, str):
             raise EditorError("message : texte")
-        return [text(self.link.request("highlight", {"ids": ids, "message": msg[:200]}))]
+        sel = args.get("select", False)
+        if not isinstance(sel, bool):
+            raise EditorError("select : vrai ou faux")
+        req = {"ids": ids, "message": msg[:200]}
+        if sel:
+            req["select"] = True
+        return [text(self.link.request("highlight", req))]
 
     def t_catalog(self, args):
         return [text(self.link.request("catalog"))]

@@ -37,7 +37,10 @@ void fragment() {
 	float facing = abs(dot(normalize(NORMAL), normalize(VIEW)));
 	float soft = facing * facing * facing;
 	// Fondu en bas (posé sur le couvercle) et vers le haut (s'éteint au plafond).
-	float vert = smoothstep(0.0, 0.18, h01) * pow(1.0 - h01, 1.3);
+	// Base bornée à 0 : avec le MSAA (qualité HAUTE), les varyings sont
+	// extrapolés hors du triangle sur ses bords (h01 un peu > 1) ; pow() d'un
+	// négatif donne NaN, que le glow étale en énorme tache blanche aveuglante.
+	float vert = smoothstep(0.0, 0.18, h01) * pow(max(1.0 - h01, 0.0), 1.3);
 	// Frémissement lent qui monte (poussière dans la lumière).
 	float shimmer = 0.75 + 0.25 * noise2(vec2(ang.x * 5.0 + ang.y * 3.0, h01 * 4.0 - TIME * 0.35));
 	// Presque invisible de près (on est dessus), un peu plus nette au loin

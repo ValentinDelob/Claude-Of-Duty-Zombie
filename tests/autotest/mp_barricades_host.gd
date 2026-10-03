@@ -1,6 +1,7 @@
 extends AutotestScenario
 ## [MP] Hôte : arrache 4 planches d'une fenêtre (diffusion fiable), vérifie
-## que la réparation du CLIENT est validée ici (+10 par planche), puis fait
+## que la réparation du CLIENT est validée ici (refusée à 1,5 m de la
+## barrière, acceptée collé à elle, +10 par planche), puis fait
 ## apparaître un zombie derrière la fenêtre.
 
 const PORT := 17820
@@ -33,16 +34,25 @@ func run() -> void:
 		await seconds(0.3)  # cadence d'arrachage d'un zombie
 	at.check(w.planks() == 2, "4 planches arrachées côté serveur")
 	var pts0 := cpd.points
-	# Le client se téléporte devant la fenêtre : il ne répare qu'une fois que
-	# le serveur le voit à cet endroit (sinon « trop loin », position répliquée
-	# avec le délai d'interpolation réseau).
+	var client: Player = game.players[client_id]
+	# Portée vérifiée par l'hôte : le client, à 1,5 m de la barrière, force
+	# une demande de réparation (son invite n'apparaît pas) ; refusée ici.
+	if not await MpHelpers.wait_peer(self, "loin_fenetre", 20.0):
+		return
+	var far := w.global_position + w.inward * (w.barrier_half_depth() + 1.5)
+	if not await until(func(): return Vector2(client.srv_origin().x - far.x, client.srv_origin().z - far.z).length() < 0.3, 5.0, "client vu loin de la fenêtre"):
+		return
+	MpHelpers.signal_peer("vu_loin_fenetre")
+	if not await MpHelpers.wait_peer(self, "demande_loin", 20.0):
+		return
+	await seconds(1.2)  # plus qu'un intervalle de réparation
+	at.check(w.planks() == 2 and not w.is_repairing(client_id), "à 1,5 m : réparation du client refusée par l'hôte (%d planches)" % w.planks())
+	MpHelpers.signal_peer("refus_loin")
+	# Le client avance vers la fenêtre et appuie dès son invite : la demande
+	# part avant que l'hôte ne reçoive sa position (en retard), elle doit
+	# quand même être acceptée (marge de latence, renvoi tant que [F] tenu).
 	if not await MpHelpers.wait_peer(self, "devant_fenetre", 20.0):
 		return
-	var client: Player = game.players[client_id]
-	var spot := w.global_position + w.inward * 1.25
-	if not await until(func(): return Vector2(client.global_position.x - spot.x, client.global_position.z - spot.z).length() < 0.3, 5.0, "client vu devant la fenêtre"):
-		return
-	MpHelpers.signal_peer("vu_devant_fenetre")
 	var ok: bool = await until(func(): return w.planks() == 6, 30.0, "réparation par le client")
 	at.check(ok, "le client a reconstruit la fenêtre (validé par le serveur)")
 	await until(func(): return cpd.points - pts0 >= 40, 2.0, "points de réparation")

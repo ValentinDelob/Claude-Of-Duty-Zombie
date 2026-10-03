@@ -99,7 +99,7 @@ func _process(_delta: float) -> void:
 	if ed == null:
 		return
 	# Redessin seulement si ce que la vue montre a changé.
-	var st := "%d|%s|%s|%d|%d" % [ed.doc_version, ed.selected, ed.hover_id, ed.floor_k, ed.views_stamp]
+	var st := "%d|%s|%s|%d|%d|%d" % [ed.doc_version, ed.selected, ed.hover_id, ed.floor_k, ed.views_stamp, ed.sel_version]
 	if st != _state:
 		_state = st
 		queue_redraw()
@@ -377,12 +377,13 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 			return
 		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+			# Glissement ou tracé en cours : annulé ; sinon le menu du clic droit.
 			if tools.dragging():
 				tools.cancel()
-			else:
+			elif ed.canvas.busy():
 				ed.canvas.cancel()
-				if ed.tool() == "select":
-					ed.select("")
+			elif not offscreen:
+				ed.open_context_menu(get_screen_position() + mb.position, Vector2.INF, String(element_at(mouse_m).get("id", "")))
 			accept_event()
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
@@ -761,11 +762,35 @@ func _draw_below(c: CanvasItem, list: Array, font: Font, area: Rect2) -> void:
 func _draw_selection(c: CanvasItem) -> void:
 	if offscreen:
 		return
-	var hov := projected_of(ed.hover_id) if ed.hover_id != "" and ed.hover_id != ed.selected else {}
+	var hov := projected_of(ed.hover_id) if ed.hover_id != "" and not ed.is_selected(ed.hover_id) else {}
 	if not hov.is_empty() and floor_shown(int(hov.f)):
 		var r := rect_px(hov)
 		for i in 3:
 			c.draw_rect(r.grow(4 + (2 - i) * 2), Color(COL_HOVER, 0.18 + i * 0.3), false, 7.0 - i * 2.5)
+	# Action de groupe refusée : l'élément fautif à la place refusée, en rouge.
+	for el in ed.canvas.refusal_elems:
+		var rr := element_rect_px(el)
+		if rr.size != Vector2.ZERO:
+			c.draw_rect(rr.grow(3.0), Color(1.0, 0.25, 0.2), false, 3.0)
+	# Sélection multiple : chaque élément, et le cadre du groupe en tirets.
+	if ed.group.size() >= 2:
+		var gb := Rect2()
+		var first := true
+		for id in ed.group:
+			var ge := projected_of(String(id))
+			if ge.is_empty() or not floor_shown(int(ge.f)):
+				continue
+			var gr := rect_px(ge)
+			c.draw_rect(gr, Color(COL_SEL, 0.1))
+			c.draw_rect(gr.grow(1.0), COL_SEL, false, 2.0)
+			gb = gr if first else gb.merge(gr)
+			first = false
+		if not first:
+			gb = gb.grow(_u(8))
+			var pts := [gb.position, Vector2(gb.end.x, gb.position.y), gb.end, Vector2(gb.position.x, gb.end.y)]
+			for i in 4:
+				c.draw_dashed_line(pts[i], pts[(i + 1) % 4], Color(COL_SEL, 0.85), 1.5, _u(6))
+		return
 	var sel := projected_of(ed.selected) if ed.selected != "" else {}
 	if sel.is_empty() or not floor_shown(int(sel.f)):
 		return

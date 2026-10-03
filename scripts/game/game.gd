@@ -350,9 +350,32 @@ func _cl_game_over(kills: int) -> void:
 	var summary := game_over_summary(kills)
 	hud.show_game_over(summary, survived_text(rounds.round_n))
 	capture_mouse(false)
-	# Le serveur part en dernier pour que les clients ne voient pas « connexion perdue ».
+	if returns_to_lobby():
+		# Multijoueur : le groupe reste ensemble et revient au salon, sur
+		# l'ordre du serveur après l'écran de fin (LobbyReturn).
+		Router.lobby_message = Lang.t("Dernière partie : %s, %s", "Last game: %s, %s") \
+			% [Lang.t("manche %d", "round %d") % rounds.round_n, summary]
+		if multiplayer.is_server():
+			get_tree().create_timer(GAME_OVER_DELAY).timeout.connect(_return_to_lobby)
+		return
+	# Solo, ou test à plusieurs lancé par l'éditeur (retour dans l'éditeur) :
+	# fin de la session. Le serveur part en dernier pour que les clients ne
+	# voient pas « connexion perdue ».
 	var delay := GAME_OVER_DELAY + (0.8 if multiplayer.is_server() else 0.0)
 	get_tree().create_timer(delay).timeout.connect(_leave_after_game_over.bind(summary))
+
+
+## Fin de partie suivie d'un retour au salon (multijoueur hors TESTER de
+## l'éditeur, qui ramène dans l'éditeur : Router.return_scene).
+static func returns_to_lobby() -> bool:
+	return Net.is_online() and Router.return_scene == ""
+
+
+## Serveur : écran de fin terminé, tout le groupe revient au salon.
+func _return_to_lobby() -> void:
+	if _session_over or not Net.is_online():
+		return
+	Net.lobby_return.srv_return_all()
 
 
 func _leave_after_game_over(summary: String) -> void:

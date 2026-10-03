@@ -182,7 +182,7 @@ func _map(map_id: String) -> void:
 	# Réparation : maintien de [F], +10 par planche.
 	var pd := game.session.local_data()
 	var pts0 := pd.points
-	p.teleport_to(w.global_position + w.inward * 1.25 + Vector3(0, 0.05, 0))
+	p.teleport_to(w.repair_spot() + Vector3(0, 0.05, 0))
 	H.aim_at(p, w.global_position + Vector3.UP * 1.2)
 	await seconds(0.2)  # le joueur se pose avant d'appuyer
 	p.input.interact = true

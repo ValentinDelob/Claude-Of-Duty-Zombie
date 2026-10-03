@@ -184,7 +184,7 @@ class FakeEditor:
                 d.update({"z_min": 0.0, "z_max": 3.2, "z_monde": 0.0, "glissement_vertical": "niveau"})
             return found
         if cmd == "highlight":
-            return {"shown": args.get("ids"), "message": args.get("message")}
+            return {"shown": args.get("ids"), "message": args.get("message"), "select": args.get("select", False)}
         if cmd == "catalog":
             return {"types": ["porte", "fenetre", "atout"], "atouts": ["lazarus", "titan"]}
         raise ValueError("commande inconnue : %s" % cmd)
@@ -239,8 +239,12 @@ class FakeEditor:
             elif op["op"] == "depart":
                 self.doc["depart"] = op["id"]
         self.history.append((args.get("label"), before))
-        return {"cid": "1-%d" % len(self.history), "ids": {k: v for k, v in ids.items() if not k.startswith("$auto")},
-                "invalid": {}}
+        self.last_apply = dict(args)
+        res = {"cid": "1-%d" % len(self.history), "ids": {k: v for k, v in ids.items() if not k.startswith("$auto")},
+               "invalid": {}}
+        if args.get("decouper"):
+            res["decoupe"] = [{"piece": "p4", "texte": "La pièce « Atelier » sera découpée (12,5 m² retirés)."}]
+        return res
 
 
 class McpProcess:
@@ -361,6 +365,11 @@ class TestTools(BaseCase):
         h = body(self.mcp.call("editor_highlight", {"ids": ["p1"], "message": "Ici ?"}))
         self.assertEqual(h["shown"], ["p1"])
         self.assertTrue(self.mcp.call("editor_highlight", {"ids": "p1"})["isError"])
+        # select : les éléments deviennent la sélection (multiple) de l'utilisateur.
+        self.assertFalse(h["select"], "sans select : la sélection ne change pas")
+        h2 = body(self.mcp.call("editor_highlight", {"ids": ["p1", "p2"], "select": True}))
+        self.assertTrue(h2["select"])
+        self.assertTrue(self.mcp.call("editor_highlight", {"ids": ["p1"], "select": "oui"})["isError"])
         self.assertEqual(self.editor.hellos, 1)  # une seule connexion pour tous les appels
 
     def test_get_map_summary_full_element(self):
@@ -411,6 +420,20 @@ class TestTools(BaseCase):
         self.assertEqual(len(self.editor.doc["pieces"]), 3)
         self.assertTrue(self.mcp.call("editor_undo_last")["isError"])  # erreur de l'éditeur relayée
 
+    def test_apply_decouper(self):
+        """« decouper » : transmis seulement s'il vaut true, booléen exigé, découpe rapportée à Claude."""
+        room = [{"op": "add", "coll": "pieces", "el": {"nom": "Cagibi", "etage": 0, "contour": [[2, 2], [5, 2], [5, 5], [2, 5]]}}]
+        self.assertFalse(self.mcp.call("editor_apply", {"label": "Cagibi", "ops": room})["isError"])
+        self.assertNotIn("decouper", self.editor.last_apply)
+        self.assertTrue(self.mcp.call("editor_apply", {"label": "Cagibi", "ops": room, "decouper": "oui"})["isError"])
+        r = self.mcp.call("editor_apply", {"label": "Cagibi", "ops": room, "decouper": True})
+        self.assertFalse(r["isError"], r)
+        self.assertTrue(self.editor.last_apply.get("decouper"))
+        self.assertIn("Atelier", r["content"][-1]["text"])
+        schema = next(t for t in map_editor_mcp.TOOLS if t["name"] == "editor_apply")["inputSchema"]
+        self.assertIn("decouper", schema["properties"])
+        self.assertIn("decouper", map_editor_mcp.INSTRUCTIONS)
+
     def test_apply_rejected_locally(self):
         for ops, needle in (([{"op": "put", "coll": "pieces", "el": {"nom": "x"}}], "add"),
                             ([{"op": "add", "coll": "trucs", "el": {}}], "coll"),
@@ -457,6 +480,12 @@ class TestTools(BaseCase):
     def test_instructions_describe_heights(self):
         self.assertIn("descente", map_editor_mcp.INSTRUCTIONS)
         self.assertIn("view", map_editor_mcp.INSTRUCTIONS)
+
+    def test_instructions_describe_stairs(self):
+        # Escalier : objet de l'étage du bas ; celui qui descend s'écrit à l'étage du dessous.
+        self.assertIn("étage du BAS", map_editor_mcp.INSTRUCTIONS)
+        self.assertIn("DESCEND", map_editor_mcp.INSTRUCTIONS)
+        self.assertIn("trémie", map_editor_mcp.INSTRUCTIONS)
 
     def test_plan_corridor(self):
         r = body(self.mcp.call("editor_plan_corridor", {"room_a": "p2", "room_b": "p3", "width": 2.5}))

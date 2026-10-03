@@ -193,8 +193,13 @@ func show_info() -> void:
 
 
 ## Rejoindre : adresse, port, code, pseudo. La carte de l'hôte remplace celle
-## d'ici (elle reste dans la sauvegarde automatique).
+## d'ici : modifications non enregistrées ici, confirmation d'abord
+## (MapEditor.confirm_unsaved : Enregistrer / Quitter sans enregistrer / Annuler).
 func join_dialog() -> void:
+	ed.confirm_unsaved(Lang.t("rejoindre une session (la carte de l'hôte remplacera celle-ci)", "join a session (the host's map will replace this one)"), _join_dialog)
+
+
+func _join_dialog() -> void:
 	var d := _dialog(Lang.t("Rejoindre une session", "Join a session"), Lang.t("Rejoindre", "Join"))
 	var g := _grid(d)
 	var addr := _field(g, Lang.t("Adresse de l'hôte", "Host address"), String(MapEditor.pref("collab_addr", "192.168.1.")))
@@ -210,7 +215,6 @@ func join_dialog() -> void:
 		MapEditor.set_pref("collab_addr", a)
 		MapEditor.set_pref("collab_port", int(port.value))
 		MapEditor.set_pref("collab_name", nm.text.strip_edges())
-		ed.autosave()
 		var err := ed.collab.join(a, int(port.value), code.text.strip_edges().to_upper(), nm.text)
 		if err != OK:
 			ed.set_status(Lang.t("Connexion impossible (%s)", "Cannot connect (%s)") % error_string(err), true)

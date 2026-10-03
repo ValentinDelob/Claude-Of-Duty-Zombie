@@ -267,9 +267,13 @@ func _selection() -> Dictionary:
 	var floor_k := 0
 	var cursor := [0.0, 0.0]
 	if editor != null:
-		var sel := String(editor.get("selected"))
-		if sel != "":
-			ids.append(sel)
+		# Sélection multiple (MapGroup) : tous les éléments choisis.
+		if editor.has_method("sel_ids"):
+			ids = editor.sel_ids()
+		else:
+			var sel := String(editor.get("selected"))
+			if sel != "":
+				ids.append(sel)
 		floor_k = int(editor.get("floor_k"))
 		var cv: Variant = editor.get("canvas")
 		if cv != null:
@@ -300,6 +304,13 @@ func cmd_apply(args: Dictionary) -> Dictionary:
 	var chk := MapOps.check_elements(collab.doc, res.ops)
 	var invalid: Dictionary = chk.invalid
 	var good: Array = chk.ops
+	# Pièce posée par-dessus d'autres (MapCarve) : refus expliqué, ou avec
+	# « decouper »: true, découpe des pièces recouvertes dans le MÊME lot (une
+	# seule annulation).
+	var cut := MapCarve.carve_ops(collab.doc, good, args.get("decouper") is bool and bool(args.decouper))
+	if not cut.ok:
+		return {"error": MapRules.why(cut)}
+	good = cut.ops
 	var cid := ""
 	if not good.is_empty():
 		cid = String(collab.submit_ops(good, Lang.t("Claude : %s", "Claude: %s") % label, collab.my_id + ":claude").cid)
@@ -315,7 +326,10 @@ func cmd_apply(args: Dictionary) -> Dictionary:
 	MapRules.end_batch()
 	if bool(args.get("animate", true)) and not ids.is_empty():
 		animate_requested.emit(ids, label)
-	return {"cid": cid, "ids": res.ids, "invalid": invalid}
+	var out := {"cid": cid, "ids": res.ids, "invalid": invalid}
+	if not (cut.reports as Array).is_empty():
+		out["decoupe"] = (cut.reports as Array).map(func(r): return MapCarve.summary(r))
+	return out
 
 
 func cmd_undo() -> Dictionary:
@@ -510,13 +524,19 @@ func _screenshot_view(args: Dictionary, view: String) -> Dictionary:
 
 ## highlight : montre des éléments à la personne (version simple : choix et
 ## cadrage du premier, message dans la barre d'état ; signal pour le rendu riche).
+## « select » vrai : ils deviennent aussi la sélection de l'éditeur (plusieurs :
+## sélection multiple), pour que la personne agisse dessus (clic droit...).
 func cmd_highlight(args: Dictionary) -> Dictionary:
 	var ids: Array = (args.get("ids") as Array).filter(func(x): return x is String and not collab.doc.find(x).is_empty()) if args.get("ids") is Array else []
 	var msg := String(args.get("message", "")).left(300) if args.get("message") is String else ""
 	if editor != null and editor.has_method("agent_highlight"):
 		editor.agent_highlight(ids, msg)
 	highlight_requested.emit(ids, msg)
-	return {"shown": ids.size()}
+	var out := {"shown": ids.size()}
+	if args.get("select") is bool and bool(args.select) and editor != null and editor.has_method("select_many"):
+		editor.select_many(ids)
+		out["selected"] = editor.sel_ids()
+	return out
 
 
 ## Types admis et listes de choix (MapCatalog) : de quoi écrire des opérations
@@ -524,8 +544,13 @@ func cmd_highlight(args: Dictionary) -> Dictionary:
 static func catalog() -> Dictionary:
 	var items := []
 	for it in MapCatalog.items():
-		items.append({"id": it.id, "cat": it.cat, "fr": it.get("fr", ""), "en": it.get("en", ""), "tool": it.get("tool", ""),
-			"make": jsonable(it.get("make", {})), "price": it.get("price", 0)})
+		var entry := {"id": it.id, "cat": it.cat, "fr": it.get("fr", ""), "en": it.get("en", ""), "tool": it.get("tool", ""),
+			"make": jsonable(it.get("make", {})), "price": it.get("price", 0)}
+		if it.get("descend", false):
+			# Outil de l'éditeur seulement : la carte n'a qu'un type d'escalier.
+			entry["descend"] = true
+			entry["note"] = "escalier qui descend de l'étage k : écrire un « escalier » d'etage k - 1 dont « monte » pointe vers l'endroit où l'on arrive en haut"
+		items.append(entry)
 	var prefabs := {}
 	for p in MapCatalog.PREFABS:
 		var d: Dictionary = MapCatalog.PREFABS[p]

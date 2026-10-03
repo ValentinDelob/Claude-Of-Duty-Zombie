@@ -503,7 +503,7 @@ func update(delta: float, p: Player) -> void:
 		var w: Dictionary = p.weapons.current() if p.weapons else {}
 		_reload_kind = String(_stats.get("reload_kind", "mag"))
 		_reload_empty = int(w.get("mag", 1)) == 0
-		_reload_count = clampi(int(_stats.get("mag", 1)) - int(w.get("mag", 0)), 1, 6)
+		_reload_count = WeaponController.shell_steps(_stats, w)  # mêmes poussées que les sons et le compte
 	# Visée
 	var want_ads := 1.0 if p.aiming and _reload_t < 0.0 and _switch_t < 0.0 else 0.0
 	ads = move_toward(ads, want_ads, delta / ads_time)
@@ -521,8 +521,10 @@ func update(delta: float, p: Player) -> void:
 	# Bob : pas lents en marche, grands huit en sprint (comme BO1).
 	var speed := Vector2(p.velocity.x, p.velocity.z).length()
 	if p.is_on_floor() and speed > 0.5:
-		_bob += delta * speed * (1.7 if p.sprinting else 2.0)
-	var bob_amp := (0.014 if not p.sprinting else 0.034) * (1.0 - ads * 0.85) * clampf(speed / 4.0, 0.0, 1.5)
+		_bob += delta * speed * lerpf(2.0, 1.7, _sprint)
+	# Amplitude fondue avec la pose de sprint (_sprint) : l'arme ne saute pas
+	# quand le sprint s'arrête.
+	var bob_amp := lerpf(0.014, 0.034, _sprint) * (1.0 - ads * 0.85) * clampf(speed / 4.0, 0.0, 1.5)
 
 	# Visée : la ligne de mire se pose sur l'axe de la caméra (ads_pose).
 	var ak := ads * ads * (3.0 - 2.0 * ads)
@@ -751,8 +753,8 @@ func _reload_anim(t: float, g_off: Dictionary, g_rot: Dictionary, travel: float,
 			rot += Vector3(0.12, 0.1, 0.36) * tilt
 			pos += Vector3(-0.04, 0.03, 0.02) * tilt
 			var n := _reload_count
-			var span := 0.65
-			var k := clampf((t - 0.12) / span, 0.0, 0.9999)
+			var span := WeaponController.SHELL_SPAN
+			var k := clampf((t - WeaponController.SHELL_START) / span, 0.0, 0.9999)
 			var phase := fposmod(k * n, 1.0)
 			var port := mag_top + Vector3(0, -0.015, 0.03) - support
 			var push := _hump(phase, 0.1, 0.45, 0.6, 0.95)

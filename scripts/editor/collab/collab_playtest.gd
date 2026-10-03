@@ -48,7 +48,8 @@ var _status_t := 0.0
 
 # ------------------------------------------------------------------ API
 
-## Hôte d'une session, carte enregistrée dans `map_dir` (déjà vérifiée) :
+## Hôte d'une session, carte écrite dans `map_dir` (copie de travail de
+## TESTER, MapUnsaved.test_dir : jamais le dossier de la carte ; déjà vérifiée) :
 ## ouvre la partie de test et invite les participants. Faux si impossible
 ## (message dans la barre d'état).
 static func host_start(ed: MapEditor, map_dir: String) -> bool:
@@ -80,7 +81,7 @@ static func host_start(ed: MapEditor, map_dir: String) -> bool:
 			% CustomMapGuard.reasons_text(r.reasons), false)
 		return false
 	Router.return_scene = MapEditor.SCENE
-	CrashGuard.context("éditeur de cartes : TESTER à plusieurs « %s »" % map_dir.get_file(), true)
+	CrashGuard.context("éditeur de cartes : TESTER à plusieurs « %s »" % ed.doc.display_name(), true)
 	ed.collab.send_playtest(pt.game_port)
 	print("[Playtest] partie de test ouverte sur le port %d, %d invité(s) attendu(s)" % [pt.game_port, guests])
 	pt._show_wait()

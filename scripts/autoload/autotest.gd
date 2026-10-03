@@ -151,8 +151,16 @@ func _seed_scenario() -> void:
 
 func _on_node_added(n: Node) -> void:
 	if n.get_script() != null:
-		# Après le _ready du nœud (qui appelle souvent randomize()).
-		_seed_rngs.call_deferred(n, "")
+		# Après le _ready du nœud (qui appelle souvent randomize()). Par son
+		# identifiant : un nœud créé puis libéré dans la même image (corps d'un
+		# zombie mort aussitôt nettoyé) ne peut pas être passé à l'appel différé.
+		_seed_rngs_id.call_deferred(n.get_instance_id())
+
+
+func _seed_rngs_id(id: int) -> void:
+	var o := instance_from_id(id)
+	if o != null:
+		_seed_rngs(o, "")
 
 
 ## Donne une graine déterminée (graine du scénario, script, variable, rang de
@@ -204,8 +212,8 @@ func _reset_between() -> void:
 	EditorMap.root_override = ""
 	CustomMapGuard.cache_override = ""
 	CustomMapGuard.source_override = {}
-	MapEditor.reopen_dir = ""
-	MapEditor.reopen_example = false
+	# TESTER en solo resté en cours (session d'édition gardée hors scène).
+	MapEditor.drop_test_keep()
 	# TESTER à plusieurs resté en cours (session d'édition tenue hors scène).
 	if CollabPlaytest.current != null:
 		CollabPlaytest.current.queue_free()

@@ -5,13 +5,17 @@ extends TestCase
 ## détection au pixel (faces, coins, maison, flèches, menu), tour des
 ## façades, cube isométrique (faces visibles), clic sur une face : bascule de
 ## la fenêtre, maison : vue d'origine, pavé numérique quand la souris est sur
-## une vue (et barre rapide sinon).
+## une vue (et barre rapide sinon), mode de la caméra 3D (orbite, vol libre,
+## joueur) gardé par le cube et le pavé dans les deux hôtes de l'aperçu.
 
 const TMP := "res://tests/_out/test_map_view_cube"
 
 
 func before_each() -> void:
 	EditorMap.root_override = ProjectSettings.globalize_path(TMP + "/maps")
+	# Chaque test part des réglages par défaut (disposition, plans, caméra) :
+	# ceux qu'un test précédent a mémorisés sont oubliés.
+	DirAccess.remove_absolute(EditorMap.root_override.path_join("_editeur.cfg"))
 
 
 func after_each() -> void:
@@ -119,6 +123,7 @@ func test_cube_actions_in_the_editor() -> void:
 	await wait_frames(2)
 	assert_eq(ed.views.panes[1].plane(), "3d", "coin : la fenêtre passe en 3D")
 	assert_true(ed.preview.is_on_screen() and ed.preview.pane_host == ed.views.panes[1].view, "l'aperçu est dans la fenêtre")
+	ed.preview.world.rig.end_glide()
 	var f := ed.preview.world.rig.forward()
 	assert_true(f.x < -0.3 and f.y < -0.3 and f.z < -0.3, "caméra vue de l'avant-droite-dessus (regard %s)" % f)
 	ed.queue_free()
@@ -212,14 +217,22 @@ func test_cube_changes_only_its_own_view() -> void:
 	await wait_frames(6)
 	assert_eq(low.plane(), "3d", "arête : la fenêtre passe en 3D")
 	_others_unchanged(lay, before2, low, "arête vers la 3D")
+	ed.preview.world.rig.end_glide()
 	var f := ed.preview.world.rig.forward()
 	assert_true(f.x < -0.3 and f.z < -0.3 and absf(f.y) < 0.3, "caméra vue de l'arête avant-droite, à l'horizontale (regard %s)" % f)
-	# Face du cube de la fenêtre 3D : retour en élévation, Dessus inchangée.
+	# Face du cube de la fenêtre 3D : la caméra tourne, la fenêtre reste en 3D
+	# (test_cube_keeps_the_camera_mode) ; « Caméra ▾ > Passer en vue » : retour
+	# en élévation, Dessus inchangée.
 	before2 = _frames(lay)
 	ed.preview._on_cube("f:avant")
 	await wait_frames(6)
-	assert_eq(low.plane(), "avant")
+	assert_eq(low.plane(), "3d", "face depuis la 3D : la fenêtre reste en 3D")
 	_others_unchanged(lay, before2, low, "face depuis la 3D")
+	before2 = _frames(lay)
+	low.view.header_menu_pressed("cam", MapView3D.PLANE_0 + MapView.PLANES.find("avant"))
+	await wait_frames(6)
+	assert_eq(low.plane(), "avant", "Caméra ▾ > Passer en vue : Avant")
+	_others_unchanged(lay, before2, low, "retour en élévation depuis la 3D")
 	# La liaison reste active pour un vrai zoom de l'utilisateur (molette).
 	var top := ed.canvas
 	var av: MapElevation = low.view
@@ -228,5 +241,123 @@ func test_cube_changes_only_its_own_view() -> void:
 	top._zoom_at(top.size * 0.5, 1.5)
 	await wait_frames(2)
 	assert_near(av.zoom, za * 1.5, 0.01, "zoom à la molette : propagé aux vues liées")
+	ed.queue_free()
+	await wait_frames(1)
+
+
+## Fin de la transition du ViewCube (glissement de la caméra).
+func _end_glide(rig: MapPreviewCamera) -> void:
+	rig.end_glide()
+
+
+## Vrai si la caméra regarde le long de -`dir` (repère de la carte).
+func _looks_from(rig: MapPreviewCamera, dir: Vector3) -> bool:
+	var w := Vector3(dir.x, dir.z, dir.y).normalized()
+	return rig.forward().dot(-w) > 0.99
+
+
+## Bug signalé (03/10/2026) : dans l'aperçu 3D, un clic sur une face du
+## ViewCube faisait quitter le vol libre (la caméra repassait en orbite, et le
+## sélecteur montrait encore « Vol libre »). Le ViewCube et le pavé numérique
+## changent l'orientation de la caméra, jamais son mode, dans les deux hôtes
+## (panneau flottant, fenêtre de la disposition) ; les autres fenêtres ne
+## bougent pas.
+func test_cube_keeps_the_camera_mode() -> void:
+	var ed: MapEditor = load(MapEditor.SCENE).instantiate()
+	host.add_child(ed)
+	await wait_frames(2)
+	ed._reset(EditorMap.load_dir("res://assets/maps/draft_arena/"))
+	await wait_frames(2)
+	var lay := ed.views
+	var pv := ed.preview
+	var rig := pv.world.rig
+	var k := InputEventKey.new()
+	k.pressed = true
+	var actions := ["f:dessus", "f:avant", "f:droite", "f:arriere", "e:avant+droite", "e:arriere+dessus",
+		"c:avant+droite+dessus", "c:arriere+gauche+dessus", "home", "kp7", "kp1", "kp3c"]
+	var dirs := {"kp7": "f:dessus", "kp1": "f:avant", "kp3c": "f:gauche"}
+	for host_id in ["flottant", "fenêtre"]:
+		var pn3: MapViewPane = null
+		if host_id == "flottant":
+			lay.set_layout("2v")
+			await wait_frames(4)
+			pv.set_shown(true)
+		else:
+			lay.set_layout("4")
+			await wait_frames(4)
+			pn3 = lay._pane_3d()
+			assert_true(pn3 != null and pv.pane_host == pn3.view, "fenêtre 3D de la disposition")
+		await wait_frames(2)
+		for m in [MapPreviewCamera.Mode.ORBIT, MapPreviewCamera.Mode.FLY, MapPreviewCamera.Mode.WALK]:
+			pv.world.frame_map()
+			pv.set_camera_mode(m)
+			await wait_frames(2)
+			for id in actions:
+				if id.begins_with("kp") and pn3 == null:
+					continue	# pavé numérique : fenêtres de la disposition seulement
+				var what := "%s, %s, %s" % [host_id, ["orbite", "vol libre", "joueur"][m], id]
+				var before := _frames(lay)
+				var pivot0 := rig.pivot
+				var r0 := clampf(rig.dist, 4.0, MapPreviewCamera.MAX_DIST)
+				var aim0 := rig.eye() + rig.forward() * r0
+				var walk0 := rig.walker.global_position
+				if id.begins_with("kp"):
+					k.keycode = {"kp7": KEY_KP_7, "kp1": KEY_KP_1, "kp3c": KEY_KP_3}[id]
+					k.ctrl_pressed = id.ends_with("c")
+					assert_true(lay.numpad(k, pn3), what)
+				else:
+					pv._on_cube(id)
+				assert_eq(rig.mode, m, "%s : le mode de la caméra ne change pas" % what)
+				_end_glide(rig)
+				await wait_frames(2)
+				assert_eq(rig.mode, m, "%s : mode gardé après la transition" % what)
+				assert_eq(pv.cam_mode.get_selected_id(), int(m), "%s : le sélecteur montre le mode réel" % what)
+				if pn3 != null:
+					assert_eq(pn3.plane(), "3d", "%s : la fenêtre reste en 3D" % what)
+					assert_eq(pn3.view.header_sub(), [Lang.t("Orbite", "Orbit"), Lang.t("Vol libre", "Free flight"), Lang.t("Joueur", "Player")][m], "%s : en-tête de la fenêtre" % what)
+					_others_unchanged(lay, before, pn3, what)
+				var tid := String(dirs.get(id, id))
+				if id == "home":
+					continue
+				assert_true(_looks_from(rig, MapViewCube.target_dir(tid)) or (m == MapPreviewCamera.Mode.ORBIT and tid == "f:dessous"),
+					"%s : caméra tournée vers la direction demandée (regard %s)" % [what, rig.forward()])
+				match m:
+					MapPreviewCamera.Mode.ORBIT:
+						assert_true(rig.pivot.is_equal_approx(pivot0), "%s : même point visé" % what)
+					MapPreviewCamera.Mode.FLY:
+						var aim := rig.eye() + rig.forward() * rig.dist
+						assert_true(aim.distance_to(aim0) < 0.05, "%s : vol libre : même point regardé (%s -> %s)" % [what, aim0, aim])
+						var r := rig.eye().distance_to(aim0)
+						assert_near(r, r0, 0.05, "%s : vol libre : même distance du point regardé" % what)
+					MapPreviewCamera.Mode.WALK:
+						var dw := Vector2(rig.walker.global_position.x - walk0.x, rig.walker.global_position.z - walk0.z)
+						assert_true(dw.length() < 0.3, "%s : joueur : pas de téléportation (%.2f m)" % [what, dw.length()])
+	# Pavé 5 : la fenêtre 3D repasse en élévation, puis revient en 3D ; arête
+	# ou coin d'une élévation vers la 3D : le mode de la caméra reste.
+	for m in [MapPreviewCamera.Mode.FLY, MapPreviewCamera.Mode.WALK]:
+		lay.set_layout("4")
+		await wait_frames(4)
+		var pn3: MapViewPane = lay._pane_3d()
+		pv.set_camera_mode(m)
+		k.keycode = KEY_KP_5
+		k.ctrl_pressed = false
+		assert_true(lay.numpad(k, pn3))
+		await wait_frames(2)
+		assert_true(pn3.plane() != "3d", "pavé 5 : la fenêtre quitte la 3D")
+		assert_true(lay.numpad(k, pn3))
+		_end_glide(rig)
+		await wait_frames(2)
+		assert_eq(pn3.plane(), "3d", "pavé 5 : retour en 3D")
+		assert_eq(rig.mode, m, "pavé 5 : le mode de la caméra reste")
+		lay.set_layout("2v")
+		await wait_frames(4)
+		var low: MapViewPane = lay.panes[1]
+		lay.cube_action(low.view, "c:avant+droite+dessus")
+		_end_glide(rig)
+		await wait_frames(2)
+		assert_eq(low.plane(), "3d", "coin d'une élévation : la fenêtre passe en 3D")
+		assert_eq(rig.mode, m, "coin d'une élévation : le mode de la caméra reste")
+		assert_eq(pv.cam_mode.get_selected_id(), int(m), "coin d'une élévation : sélecteur à jour")
+		assert_true(_looks_from(rig, MapViewCube.target_dir("c:avant+droite+dessus")), "coin : regard %s" % rig.forward())
 	ed.queue_free()
 	await wait_frames(1)

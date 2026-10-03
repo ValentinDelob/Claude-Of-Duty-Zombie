@@ -96,8 +96,8 @@ func test_deleting_the_open_map_keeps_it_unsaved() -> void:
 	ed.open_dir(dir)
 	assert_eq(ed.map_dir, dir)
 	ed.add_object({"contour": [[2, 2], [10, 2], [10, 8], [2, 8]]}, 0)
-	ed.autosave()
-	assert_true(EditorMap.is_map_dir(MapEditor._autosave_dir()), "sauvegarde automatique écrite")
+	ed.write_recovery()
+	assert_true(EditorMap.is_map_dir(MapUnsaved.recovery_dir()), "copie de récupération écrite")
 	# Fenêtre Ouvrir : Supprimer grisé sur un exemple, actif sur une carte.
 	var d := ed.open_dialog()
 	var list: ItemList = d.get_meta("list")
@@ -116,7 +116,7 @@ func test_deleting_the_open_map_keeps_it_unsaved() -> void:
 	assert_eq(ed.map_dir, "", "plus de dossier : Enregistrer en redemande un")
 	assert_true(ed.dirty, "non enregistrée")
 	assert_eq(ed.doc.pieces.size(), 1, "carte gardée en mémoire")
-	assert_false(EditorMap.is_map_dir(MapEditor._autosave_dir()), "sauvegarde automatique effacée")
+	assert_false(EditorMap.is_map_dir(MapUnsaved.recovery_dir()), "copie de récupération effacée")
 	assert_true(EditorMap.is_map_dir(other), "l'autre carte reste")
 	assert_false(ed.delete_map(EditorMap.EXAMPLES.values()[0]), "exemple : refus")
 	ed.queue_free()
@@ -166,8 +166,8 @@ func test_guest_cannot_open_or_save() -> void:
 	assert_false(ed.delete_map(dir), "suppression refusée")
 	assert_true(EditorMap.is_map_dir(dir))
 	assert_eq(ed.collab.role, MapCollab.Role.GUEST, "toujours dans la session")
-	ed.autosave()
-	assert_false(EditorMap.is_map_dir(MapEditor._autosave_dir()), "invité : pas de sauvegarde automatique")
+	ed.write_recovery()
+	assert_false(EditorMap.is_map_dir(MapUnsaved.recovery_dir()), "invité : pas de copie de récupération")
 	# Raccourci clavier : Ctrl+S passe par save() (refusé).
 	var ev := InputEventKey.new()
 	ev.keycode = KEY_S

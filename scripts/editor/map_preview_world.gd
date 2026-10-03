@@ -53,6 +53,8 @@ var floors_mode := Floors.ALL
 ## Étage affiché dans la vue 2D (options « jusqu'à » / « seulement »).
 var view_floor := 0
 var selected_id := ""
+## Sélection multiple de l'éditeur (MapGroup) : chaque élément surligné.
+var selected_ids: Array = []
 var hover_id := ""
 
 # ------------------------------------------------------------------ état
@@ -646,9 +648,9 @@ func map_bounds() -> AABB:
 	return AABB(Vector3(bb.position.x + OFF, 0.0, bb.position.y + OFF), Vector3(bb.size.x, top, bb.size.y))
 
 
-func frame_map() -> void:
+func frame_map(animate := false) -> void:
 	var bb := map_bounds()
-	rig.focus(bb.get_center() * Vector3(1, 0, 1), maxf(bb.size.x, bb.size.z) * 0.5)
+	rig.focus(bb.get_center() * Vector3(1, 0, 1), maxf(bb.size.x, bb.size.z) * 0.5, animate)
 
 
 # ------------------------------------------------------------------ éléments (surlignage, sélection)
@@ -768,7 +770,7 @@ func element_focus(e: Dictionary) -> Array:
 ## Surlignage de l'élément choisi (jaune) et survolé (bleu) : prisme en
 ## traits et faces transparentes, vu à travers les murs.
 func update_overlay() -> void:
-	var key := "%s|%s|%d|%d" % [selected_id, hover_id, _built_hash, int(floors_mode) * 100 + view_floor]
+	var key := "%s|%s|%s|%d|%d" % [selected_id, ",".join(selected_ids), hover_id, _built_hash, int(floors_mode) * 100 + view_floor]
 	if key == _overlay_key or _overlay == null:
 		return
 	_overlay_key = key
@@ -778,7 +780,10 @@ func update_overlay() -> void:
 	if doc != null:
 		if selected_id != "":
 			shapes.append([element_shape(doc.find(selected_id)), COL_SEL])
-		if hover_id != "" and hover_id != selected_id:
+		for sid in selected_ids:
+			if String(sid) != selected_id:
+				shapes.append([element_shape(doc.find(String(sid))), COL_SEL])
+		if hover_id != "" and hover_id != selected_id and not selected_ids.has(hover_id):
 			shapes.append([element_shape(doc.find(hover_id)), COL_HOVER])
 	shapes = shapes.filter(func(s): return not s[0].is_empty() and (s[0].poly as PackedVector2Array).size() >= 3)
 	if shapes.is_empty():
