@@ -315,3 +315,79 @@ func test_server_cancel_notifies_client() -> void:
 	assert_eq(combat.sent.size(), 1, "couteau / grenade : pas de message")
 	combat.free()
 	s.queue_free()
+
+
+## Boisson d'un atout pendant un rechargement (BO1) : le serveur
+## l'abandonne comme une interruption (Combat.srv_hands_busy) : chargeur et
+## réserve inchangés, sauf les cartouches déjà poussées une à une ;
+## l'inventaire est toujours renvoyé, aucun nouveau rechargement accepté
+## pendant la boisson.
+func test_drink_cancels_server_reload() -> void:
+	var s := Session.new()
+	host.add_child(s)
+	var pd := s.create(1)
+	pd.weapons = [WeaponDB.new_instance("stakeout"), WeaponDB.new_instance("m1911")]
+	pd.weapons[0].mag = 1
+	pd.weapons[0].reserve = 30
+	pd.slot = 0
+	var syncs := [0]
+	s.inventory_changed.connect(func(_pid): syncs[0] += 1)
+	var combat := NotifyingCombat.new()
+	combat.session = s
+	var dur := float(WeaponDB.stats("stakeout").reload)
+	var t := GameClock.now()
+	# Fusil à pompe à mi-course (2 cartouches poussées).
+	combat._reload_end[1] = [0, t + dur * Combat.RELOAD_LENIENCY, t - dur * (0.12 + 0.65 * 0.4), dur]
+	combat.srv_hands_busy(1, PerkSystem.DRINK_TIME)
+	assert_false(combat.is_reloading(1), "boisson : rechargement serveur annulé")
+	assert_eq([int(pd.weapons[0].mag), int(pd.weapons[0].reserve)], [3, 28], "cartouches poussées gardées, rien d'autre")
+	assert_eq(syncs[0], 1, "inventaire renvoyé une fois")
+	assert_eq(combat.sent.size(), 0, "le client l'apprend par la boisson, pas par un refus")
+	assert_true(combat.hands_busy(1), "mains prises pendant la boisson")
+	assert_false(combat.hands_busy(2), "autre joueur libre")
+	# Sans rechargement ici (déjà fini côté serveur, encore prédit chez le
+	# client) : inventaire renvoyé quand même, munitions intactes.
+	combat.srv_hands_busy(1, PerkSystem.DRINK_TIME)
+	assert_eq(syncs[0], 2, "inventaire renvoyé sans rechargement en cours")
+	assert_eq([int(pd.weapons[0].mag), int(pd.weapons[0].reserve)], [3, 28])
+	# Arme à chargeur : rien ne bouge.
+	pd.slot = 1
+	pd.weapons[1].mag = 2
+	var res: int = pd.weapons[1].reserve
+	combat._reload_end[1] = [1, t + 1.0, t - 1.0, 1.6]
+	combat.srv_hands_busy(1, 0.0)
+	assert_false(combat.is_reloading(1))
+	assert_eq([int(pd.weapons[1].mag), int(pd.weapons[1].reserve)], [2, res], "M1911 : chargeur inchangé")
+	assert_false(combat.hands_busy(1), "boisson finie : mains libres")
+	combat.forget_player(1)
+	assert_false(combat._hands_busy_end.has(1), "joueur parti : oublié")
+	combat.free()
+	s.queue_free()
+
+
+## Même boisson côté client (WeaponController.drink) : la prédiction s'arrête
+## avec le même calcul que le serveur, aucun remplissage différé ; l'arme
+## reste bloquée pendant la boisson puis il faut recharger de nouveau.
+func test_drink_cancels_client_reload() -> void:
+	var wc := _wc(["stakeout", "m1911"], 1, 30)
+	var dur := float(WeaponDB.stats("stakeout").reload)
+	_reloading(wc, dur * (0.12 + 0.65 * 0.4), dur)
+	var serial := wc._reload_serial
+	wc.drink(Color.RED, PerkSystem.DRINK_TIME)
+	var t := GameClock.now()
+	assert_false(wc.is_reloading(), "boisson : rechargement client annulé")
+	assert_true(wc._reload_serial != serial, "sons de rechargement à venir abandonnés")
+	assert_eq([int(wc.weapons[0].mag), int(wc.weapons[0].reserve)], [3, 28], "mêmes cartouches gardées que le serveur")
+	wc.update_reload(t + dur * 3.0)
+	assert_eq([int(wc.weapons[0].mag), int(wc.weapons[0].reserve)], [3, 28], "pas de remplissage différé")
+	assert_false(wc.can_switch(t), "arme bloquée pendant la boisson (ni tir ni rechargement)")
+	assert_true(wc.can_switch(t + PerkSystem.DRINK_TIME + 0.01), "libre après la boisson")
+	assert_true(int(wc.weapons[0].mag) < int(WeaponDB.stats("stakeout").mag), "à recharger de nouveau")
+	wc.free()
+	# Arme à chargeur : rien ne bouge.
+	wc = _wc(["m1911"], 2, 50)
+	_reloading(wc, 1.2, 1.6)
+	wc.drink(Color.RED, PerkSystem.DRINK_TIME)
+	assert_false(wc.is_reloading())
+	assert_eq([int(wc.weapons[0].mag), int(wc.weapons[0].reserve)], [2, 50], "M1911 : chargeur inchangé")
+	wc.free()

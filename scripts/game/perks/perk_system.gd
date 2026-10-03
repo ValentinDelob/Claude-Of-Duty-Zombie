@@ -30,6 +30,10 @@ func srv_grant(pid: int, perk: String) -> void:
 	pd.health = pd.max_health
 	game.session.sync_stats(pid)
 	_cl_granted.rpc(pid, perk)
+	# Boire interrompt le rechargement (BO1), ici comme chez le client
+	# (WeaponController.drink) : après _cl_granted, pour que le client arrête
+	# sa prédiction avant de recevoir l'inventaire corrigé.
+	game.combat.srv_hands_busy(pid, DRINK_TIME)
 	VoxSystem.say_later(2.6, pid, "perk_" + perk)
 	print("[Perks] %s boit %s" % [Net.player_name(pid), PerkDB.display_name(perk)])
 

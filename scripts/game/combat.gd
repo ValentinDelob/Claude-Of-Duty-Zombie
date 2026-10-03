@@ -64,6 +64,9 @@ var _fire_limit := NetGuard.Limiter.new(0.0, FIRE_BURST_TOKENS)
 var _reload_end: Dictionary = {}    # pid -> [slot, end_time, start_time, durée]
 var _last_hurt: Dictionary = {}     # pid -> sec
 var _melee_ready: Dictionary = {}   # pid -> sec
+## Mains occupées sans changer d'arme (boisson, récupération du couteau) :
+## pas de rechargement accepté avant cet instant (srv_hands_busy).
+var _hands_busy_end: Dictionary = {}  # pid -> sec
 ## Resynchronisations après un tir refusé (4 par seconde au plus et par joueur).
 var _resync_limit := NetGuard.Limiter.new(4.0, 4.0)
 ## Requêtes de rechargement / changement d'arme (bien au-delà d'un humain).
@@ -576,9 +579,12 @@ func srv_reload(slot: int) -> void:
 	if pd == null or _reload_end.has(pid) or not _action_limit.allow(pid):
 		return
 	var w: Dictionary = pd.current_weapon()
-	if slot != pd.slot or w.is_empty() or w.mag >= WeaponDB.stats(w.id, w.pap).mag or w.reserve <= 0:
+	if slot != pd.slot or w.is_empty() or w.mag >= WeaponDB.stats(w.id, w.pap).mag or w.reserve <= 0 \
+			or hands_busy(pid):
 		# Refusé (arme changée ou chargeur déjà plein ici : achat de munitions
-		# croisé...) : le client arrête le rechargement qu'il a prédit.
+		# croisé... ; boisson d'un atout en cours, demande partie avant que le
+		# client ne l'apprenne) : le client arrête le rechargement qu'il a
+		# prédit.
 		_notify_reload_cancelled(pid)
 		return
 	var t := GameClock.now()
@@ -649,6 +655,28 @@ func cancel_reload(pid: int, keep_shells := false) -> void:
 		# rechargement, doit l'arrêter aussi, sinon il remplirait son chargeur
 		# à l'échéance (chargeur plein affiché, tirs refusés ici).
 		_notify_reload_cancelled(pid)
+
+
+## Serveur : le joueur `pid` a les mains prises `duration` s sans changer
+## d'arme (boisson d'un atout, récupération du couteau ; BO1) : son
+## rechargement est abandonné avec la règle des interruptions (chargeur et
+## réserve inchangés, sauf les cartouches déjà poussées une à une : même
+## calcul que WeaponController.drink -> abort_reload) et aucun nouveau n'est accepté
+## avant la fin. L'inventaire est toujours renvoyé : la prédiction du client
+## peut être en retard sur le serveur (RELOAD_LENIENCY : chargeur déjà rempli
+## ici, rechargement encore en cours chez lui, qu'il vient d'abandonner).
+func srv_hands_busy(pid: int, duration: float) -> void:
+	_hands_busy_end[pid] = GameClock.now() + duration
+	if _reload_end.has(pid):
+		cancel_reload(pid, true)  # resynchronise l'inventaire
+	else:
+		session.sync_inventory(pid)
+
+
+## Serveur : vrai tant que le joueur `pid` a les mains prises (boisson,
+## récupération du couteau).
+func hands_busy(pid: int) -> bool:
+	return GameClock.now() < float(_hands_busy_end.get(pid, -INF))
 
 
 ## Serveur : prévient le joueur `pid` que son rechargement n'a pas (ou plus)
@@ -748,6 +776,7 @@ func forget_player(pid: int) -> void:
 	_reload_end.erase(pid)
 	_last_hurt.erase(pid)
 	_melee_ready.erase(pid)
+	_hands_busy_end.erase(pid)
 	_dive_last.erase(pid)
 	_resync_limit.forget(pid)
 	_action_limit.forget(pid)

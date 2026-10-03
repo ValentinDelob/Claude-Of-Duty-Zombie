@@ -109,10 +109,20 @@ func run() -> void:
 	at.check(pd.knife == "knife" and pd.points == 2999, "refusé à 2999 points")
 	pd.points = 3000
 	game.session.sync_stats(1)
+	# Achat pendant un rechargement : la récupération l'annule des deux côtés
+	# (BO1), le chargeur reste entamé.
+	var w0: Dictionary = pd.current_weapon()
+	w0.mag = 2
+	var res0: int = w0.reserve
+	game.session.sync_inventory(1)
+	await until(func(): return int(p.weapons.current().mag) == 2, 1.0, "chargeur entamé")
+	p.input.reload = true
+	await until(func(): return p.weapons.is_reloading() and game.combat.is_reloading(1), 1.0, "rechargement avant l'achat")
 	p.input.interact_pressed = true
 	await until(func(): return pd.knife == "bowie" and p.weapons.knife_id == "bowie", 2.0, "couteau de chasse acheté")
 	at.check(pd.knife == "bowie" and pd.points == 0, "couteau de chasse acheté (points %d)" % pd.points)
 	at.check(p.weapons.knife_id == "bowie" and p.weapons.is_picking_up_knife(), "animation de récupération")
+	at.check(not p.weapons.is_reloading() and not game.combat.is_reloading(1), "achat du couteau : rechargement annulé (client et serveur)")
 	p.pitch = 0.0
 	# Pendant la récupération : ni tir ni couteau (vérifié tout de suite : les
 	# captures peuvent durer plus que les 2 s de récupération sous charge).
@@ -128,6 +138,9 @@ func run() -> void:
 	await at.screenshot("bowie_pickup_look")
 	await seconds(1.2)  # durée mesurée : récupération finie ~2 s après l'achat
 	at.check(not p.weapons.is_picking_up_knife(), "récupération terminée (~2 s)")
+	var cur: Dictionary = p.weapons.current()
+	at.check(int(cur.mag) == 2 and int(cur.reserve) == res0 and int(w0.mag) == 2 and int(w0.reserve) == res0,
+		"rechargement annulé : chargeur pas rempli (client %d, serveur %d)" % [int(cur.mag), int(w0.mag)])
 	at.check(game.hud._prompt.text == "", "plus d'invite une fois acheté (%s)" % game.hud._prompt.text)
 
 	# 6. Manche 10 : un coup de couteau de chasse (avec fente) suffit.

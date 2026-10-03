@@ -2175,26 +2175,33 @@
     "fr": "Grosse mise à jour : éditeur pro et corrections de jeu"
    }
   },
-  "v0.2.1-snapshot.407": {
+  "v0.2.1-snapshot.409": {
    "channel": "snapshot",
    "date": "2026-10-03",
-   "images": [],
+   "images": [
+    "v0.2.1-snapshot.409/01_rotation_et_prefab_bloquee.jpg",
+    "v0.2.1-snapshot.409/02_poutre_inclinee_en_jeu.jpg"
+   ],
    "items": [
     {
-     "en": "Map editor: enlarge, shrink or stretch props and prefabs with handles (corners, faces, height) or in the Properties panel, from ×0.25 to ×4.",
-     "fr": "Éditeur de cartes : agrandir, rétrécir ou étirer le décor et les prefabs par poignées (coins, faces, hauteur) ou dans le panneau Propriétés, de ×0,25 à ×4."
+     "en": "Map editor: enlarge, shrink or stretch props and prefabs with handles or in the Properties panel (×0.25 to ×4), with a lock to keep proportions.",
+     "fr": "Éditeur de cartes : agrandir, rétrécir ou étirer le décor et les prefabs par poignées ou dans le panneau Propriétés (×0,25 à ×4), avec un cadenas pour garder les proportions."
     },
     {
-     "en": "Fusion 360-style rotation with three rings: Z in the top view, Y and X in the elevations, all three in the 3D view; floor props can tilt and stay grounded.",
-     "fr": "Rotation à trois anneaux façon Fusion 360 : Z en vue de dessus, Y et X dans les élévations, les trois dans la vue 3D ; le décor posé au sol peut s'incliner et reste posé."
+     "en": "Fusion 360-style rotation with three rings in every view; floor props can tilt and stay grounded.",
+     "fr": "Rotation à trois anneaux façon Fusion 360 dans toutes les vues ; le décor posé au sol peut s'incliner et reste posé."
     },
     {
      "en": "In game, enlarged or tilted props keep accurate collisions and zombies walk around tilted beams.",
      "fr": "En jeu, le décor agrandi ou incliné garde des collisions justes et les zombies contournent les poutres inclinées."
     },
     {
-     "en": "Game objects (perks, Pack-a-Punch, box…) keep their size; a prefab containing one cannot be scaled and the editor says so.",
-     "fr": "Les objets de jeu (atouts, Pack-a-Punch, boîte…) gardent leur taille ; un prefab qui en contient un ne change pas d'échelle et l'éditeur le dit."
+     "en": "Game objects (perks, Pack-a-Punch, box…) keep their size; a prefab containing one cannot be scaled and the editor explains why.",
+     "fr": "Les objets de jeu (atouts, Pack-a-Punch, boîte…) gardent leur taille ; un prefab qui en contient un ne change pas d'échelle et l'éditeur explique pourquoi."
+    },
+    {
+     "en": "Drinking a perk cancels the reload in progress, multiplayer included.",
+     "fr": "Boire un atout annule le rechargement en cours, y compris en multijoueur."
     }
    ],
    "title": {

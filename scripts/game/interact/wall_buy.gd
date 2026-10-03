@@ -145,7 +145,10 @@ func srv_use(pid: int) -> void:
 		pd.knife = weapon_id
 		VoxSystem.say(pid, "buy_bowie" if weapon_id == "bowie" else "buy_wall", 0.8)
 		system.purchase_fx(self)
-		session.sync_inventory(pid)
+		# La récupération du couteau occupe les mains et interrompt le
+		# rechargement, ici comme chez le client (_on_knife_changed) ;
+		# l'inventaire (couteau, cartouches déjà poussées) est renvoyé.
+		system.game.combat.srv_hands_busy(pid, KnifeDB.PICKUP_TIME)
 		return
 	var slot := pd.has_weapon(weapon_id)
 	if slot >= 0:

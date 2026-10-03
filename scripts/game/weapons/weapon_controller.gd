@@ -629,8 +629,13 @@ func cancel_reload_local() -> void:
 	abort_reload()
 
 
-## Boisson d'un atout : l'arme est baissée, une bouteille apparaît.
+## Boisson d'un atout : l'arme est baissée, une bouteille apparaît. Le
+## rechargement en cours est abandonné (BO1) avec la règle des interruptions
+## (cartouches déjà poussées gardées) ; le serveur fait le même calcul
+## (Combat.srv_hands_busy) et renvoie l'inventaire qui fait foi : il faudra
+## recharger de nouveau après la boisson.
 func drink(color: Color, duration: float) -> void:
 	_drink_end = GameClock.now() + duration
-	_stop_reload()
-	view.start_drink(color, duration)
+	abort_reload()
+	if view:  # null : contrôleur seul des tests unitaires
+		view.start_drink(color, duration)
