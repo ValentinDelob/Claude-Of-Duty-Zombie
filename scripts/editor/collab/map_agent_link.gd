@@ -302,10 +302,27 @@ func cmd_apply(args: Dictionary) -> Dictionary:
 	MapOps.normalize(ops)
 	var res := MapOps.resolve_adds(collab.doc, ops)
 	var chk := MapOps.check_elements(collab.doc, res.ops)
-	# Format 14 : échelle et inclinaison arrondies à leur pas, défauts retirés.
+	# Format 14 : échelle et inclinaison arrondies à leur pas, défauts retirés ;
+	# mêmes règles que dans l'éditeur (MapScale.check : plafond, décor posé
+	# dessus, chevauchements) quand elles changent : refus nommé sinon.
+	var scale_v: MapValidator = null
+	var kept := []
 	for op in chk.ops:
 		if op is Dictionary and String(op.get("coll", "")) == "objets" and op.get("el") is Dictionary:
-			MapScale.tidy(op.el)
+			var el: Dictionary = op.el
+			MapScale.tidy(el)
+			var before := collab.doc.find(String(el.get("id", "")))
+			var changed := MapScale.transformed(el) and (before.is_empty() or not MapScale.scale_of(before).is_equal_approx(MapScale.scale_of(el))
+				or not MapScale.incl_of(before).is_equal_approx(MapScale.incl_of(el)))
+			if changed:
+				if scale_v == null:
+					scale_v = MapRaster.build(collab.doc).v
+				var r := MapScale.check(collab.doc, scale_v, el, before)
+				if not r.get("ok", false):
+					chk.invalid[String(el.get("id", ""))] = MapRules.why(r)
+					continue
+		kept.append(op)
+	chk.ops = kept
 	var invalid: Dictionary = chk.invalid
 	var good: Array = chk.ops
 	# Pièce posée par-dessus d'autres (MapCarve) : refus expliqué, ou avec

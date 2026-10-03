@@ -202,6 +202,9 @@ func _update_scale() -> void:
 			var v := s0[axis] * maxf(k, 0.0)
 			if t.entry != "":
 				v = MapGizmo.typed_factor(t.entry, MapScale.dims(o0)[axis], s0[axis])
+			# Valeur tapée illisible (« m », « . », « - »…) : rien ne change.
+			if not is_finite(v):
+				return
 			var sn := MapGizmo.snap_scale(v, mode, MapGizmo.neighbour_magnets(ed().doc, o0, axis)) if t.entry == "" else {"v": v, "label": ""}
 			d["label"] = String(sn.label)
 			d["axes"] = [axis]
@@ -213,6 +216,9 @@ func _update_scale() -> void:
 			var v := s0.z * maxf(k, 0.0)
 			if t.entry != "":
 				v = MapGizmo.typed_factor(t.entry, MapScale.dims(o0).z, s0.z)
+			# Valeur tapée illisible (« m », « . », « - »…) : rien ne change.
+			if not is_finite(v):
+				return
 			var sn := MapGizmo.snap_scale(v, mode, MapGizmo.neighbour_magnets(ed().doc, o0, 2)) if t.entry == "" else {"v": v, "label": ""}
 			d["label"] = String(sn.label)
 			d["axes"] = [2]
@@ -233,6 +239,9 @@ func _update_scale() -> void:
 			var v := s0.x * k
 			if t.entry != "":
 				v = MapGizmo.typed_factor(t.entry, MapScale.dims(o0).x, s0.x)
+			# Valeur tapée illisible (« m », « . », « - »…) : rien ne change.
+			if not is_finite(v):
+				return
 			var sn := MapGizmo.snap_scale(v, mode) if t.entry == "" else {"v": v, "label": ""}
 			d["label"] = String(sn.label)
 			d["axes"] = [0, 1, 2]

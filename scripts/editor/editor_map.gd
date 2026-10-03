@@ -412,6 +412,9 @@ func file_texts() -> Dictionary:
 static func _ints(v: Variant) -> Variant:
 	if v is float:
 		var f: float = v
+		# Jamais NaN ni infini dans un fichier (JSON invalide) : 0.
+		if not is_finite(f):
+			return 0
 		if f == floorf(f) and absf(f) < 1e12:
 			return int(f)
 		return snappedf(f, 0.0001)

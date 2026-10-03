@@ -118,8 +118,53 @@ func run() -> void:
 			await _drag_px(av, p, p + Vector2(0, -0.75 * av.zoom))
 			c1 = ed.doc.find("c1")
 			at.check(is_equal_approx(MapScale.scale_of(c1).z, 2.0) and MapVertical.decor_z(c1) == 0.0, "Z ×2, base au sol (%s)" % str(MapScale.scale_of(c1)))
+			# Revue : « - » puis Entrée en élévation : rien ne change, jamais de NaN.
+			e = av.projected_of("c1")
+			top = av.tools.gizmo.handles_of(e).filter(func(h): return h.kind == "top")
+			var s1 := MapScale.scale_of(ed.doc.find("c1"))
+			var tp: Vector2 = top[0].p
+			_mouse(av, av.to_m(tp), -1)
+			_mouse(av, av.to_m(tp), 1)
+			for kc in [KEY_MINUS, KEY_ENTER]:
+				var k := InputEventKey.new()
+				k.pressed = true
+				k.keycode = kc
+				k.unicode = "-".unicode_at(0) if kc == KEY_MINUS else 0
+				av.tools.handle_key(k)
+			_mouse(av, av.to_m(tp), 0)
+			await frames(1)
+			var c2 := ed.doc.find("c1")
+			at.check(MapScale.scale_of(c2).is_equal_approx(s1) and (c2.get("echelle", []) as Array).all(func(x): return is_finite(float(x))), "élévation, « - » : échelle inchangée (%s)" % str(c2.get("echelle", "—")))
 	else:
 		at.fail("vue Avant absente")
+
+	# Revue : saisie illisible (« m », « . », « 1,5, ») puis Entrée : jamais de NaN.
+	for typed in [[KEY_M], [KEY_PERIOD], [KEY_1, KEY_COMMA, KEY_5, KEY_COMMA]]:
+		var s0 := MapScale.scale_of(ed.doc.find("c1"))
+		var se2: Vector2 = MapGizmo.frame(ed.doc.find("c1")).c + Vector2(MapScale.dims(ed.doc.find("c1")).x, MapScale.dims(ed.doc.find("c1")).y) * 0.5
+		_mouse(cv, se2, -1)
+		_mouse(cv, se2, 1)
+		await frames(1)
+		for kc in typed:
+			_key(cv, kc)
+		_key(cv, KEY_ENTER)
+		_mouse(cv, se2, 0)
+		await frames(1)
+		var cc := ed.doc.find("c1")
+		var ok := (cc.get("echelle", [1, 1, 1]) as Array).all(func(x): return is_finite(float(x)))
+		# « 1,5, » : la dernière valeur lisible (1,5) reste ; « m », « . » : rien ne change.
+		var want := s0 if typed.size() == 1 else Vector3.ONE * 1.5 * (s0 / s0.x)
+		at.check(ok and MapScale.scale_of(cc).distance_to(want) < 0.011, "saisie illisible %s : jamais de NaN (%s)" % [str(typed), str(cc.get("echelle", "—"))])
+	at.check(not String(ed.doc.file_texts()["objets.json"]).contains("nan"), "aucun NaN dans le fichier")
+
+func _key(cv: MapCanvas, kc: int) -> void:
+	var k := InputEventKey.new()
+	k.pressed = true
+	k.keycode = kc
+	var chars := {KEY_PERIOD: ".", KEY_COMMA: ",", KEY_1: "1", KEY_5: "5", KEY_M: "m"}
+	if chars.has(kc):
+		k.unicode = String(chars[kc]).unicode_at(0)
+	cv.handle_key(k)
 
 
 func _drag(cv: MapView, a: Vector2, b: Vector2) -> void:

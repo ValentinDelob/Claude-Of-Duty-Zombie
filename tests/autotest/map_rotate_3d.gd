@@ -66,6 +66,47 @@ func run() -> void:
 	at.check(ed.collab.history.undo_count(ed.collab.my_id) == undo0 + 1, "une annulation au relâché")
 	await until(func(): return pv.world.idle() and not pv.world.is_stale(), 15.0, "aperçu reconstruit")
 	await frames(5)
+	# Revue : angle tapé puis Entrée sans bouger la souris.
+	await until(func(): return pv.world.idle() and not pv.world.is_stale(), 15.0, "aperçu reconstruit")
+	c = gz.center3(ed.doc.find("d91"))
+	pts = gz.ring_px(c, gz.radius_m(c), 2)
+	# Prise à 45° sur l'anneau Z (à 0° et 90° il croise les anneaux X et Y).
+	_mouse(pv, pts[9], -1)
+	_mouse(pv, pts[9], 1)
+	for kc in [KEY_4, KEY_5, KEY_ENTER]:
+		_key(pv, kc)
+	await frames(2)
+	at.check(MapGeom.rot_of(ed.doc.find("d91")) == 45 and gz.drag.is_empty(), "Z tapé « 45 » + Entrée sans bouger : 45° (%d)" % MapGeom.rot_of(ed.doc.find("d91")))
+	_mouse(pv, pts[9], 0)
+	# Revue : changement d'un autre (Claude) pendant le geste : gardé après Échap,
+	# le geste n'est pas compté avec lui.
+	c = gz.center3(ed.doc.find("d91"))
+	pts = gz.ring_px(c, gz.radius_m(c), 1)
+	var undo1 := ed.collab.history.undo_count(ed.collab.my_id)
+	_mouse(pv, pts[6], -1)
+	_mouse(pv, pts[6], 1)
+	for i in range(7, 11):
+		_mouse(pv, pts[i], -1)
+		await frames(1)
+	ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "d96", "type": "caisse", "etage": 0, "position": [10.0, 8.0]}}], "caisse de Claude", ed.collab.my_id + ":claude")
+	await frames(1)
+	_key(pv, KEY_ESCAPE)
+	await frames(2)
+	at.check(not ed.doc.find("d96").is_empty(), "changement de Claude gardé après Échap")
+	at.check(MapScale.incl_of(ed.doc.find("d91")).is_equal_approx(Vector2(0, 30)), "geste annulé : inclinaison d'avant")
+	at.check(ed.collab.history.undo_count(ed.collab.my_id) == undo1 + 1 and String(ed.collab.history.entries[-1].label).contains("caisse de Claude"),
+		"historique : le seul changement de Claude (le geste annulé n'y est pas)")
+	# Revue : disposition changée pendant le geste : geste annulé, aperçu jamais figé.
+	_mouse(pv, pts[6], -1)
+	_mouse(pv, pts[6], 1)
+	_mouse(pv, pts[9], -1)
+	await frames(1)
+	ed.views.set_layout("2v")
+	await frames(3)
+	at.check(gz.drag.is_empty() and pv.world.auto, "disposition changée : geste annulé, aperçu repart")
+	at.check(MapScale.incl_of(ed.doc.find("d91")).is_equal_approx(Vector2(0, 30)), "rien d'écrit")
+	ed.views.set_layout("3b")
+	await frames(5)
 	ed.select("d94")
 	await frames(2)
 	at.check(gz.target().is_empty(), "décor mural : pas d'anneau en 3D")
@@ -110,6 +151,15 @@ func run() -> void:
 	_mouse(pv, p2[39 % p2.size()], 0)
 	print("    gizmo 3D, 2000 objets : %.2f ms par mouvement en moyenne (pire %.2f ms)" % [total / 1000.0 / n, worst / 1000.0])
 	at.check(total / 1000.0 / n < 2.0, "moins de 2 ms par mouvement de souris (%.2f ms en moyenne)" % (total / 1000.0 / n))
+
+
+func _key(pv: MapPreviewPanel, kc: int) -> void:
+	var k := InputEventKey.new()
+	k.pressed = true
+	k.keycode = kc
+	if kc in [KEY_4, KEY_5]:
+		k.unicode = ("4" if kc == KEY_4 else "5").unicode_at(0)
+	pv._view_key(k)
 
 
 ## Souris dans l'aperçu (px de la vue) : `press` -1 mouvement, 1 appui, 0 relâché.

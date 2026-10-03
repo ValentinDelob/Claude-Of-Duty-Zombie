@@ -180,3 +180,28 @@ func test_scale_through_the_agent_link() -> void:
 	assert_true(bool(cat.prefabs.poutre.inclinaison) and not bool(cat.prefabs.torche_murale.inclinaison), "catalogue : inclinaison au sol seulement")
 	link.queue_free()
 	collab.queue_free()
+
+
+## Revue : Claude (MCP) passe par les mêmes règles que l'éditeur (plafond,
+## décor posé dessus).
+func test_mcp_scale_follows_editor_rules() -> void:
+	var m := EditorMap.load_dir("res://assets/maps/draft_arena/")
+	m.objets.append({"id": "d80", "type": "prefab", "prefab": "etagere", "etage": 0, "position": [20.0, 9.0]})
+	m.objets.append({"id": "d81", "type": "prefab", "prefab": "sacs_sable", "etage": 0, "position": [19.0, 14.5]})
+	m.objets.append({"id": "d82", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [19.0, 14.5], "z": 0.9})
+	var collab := MapCollab.new(m)
+	host.add_child(collab)
+	var link := MapAgentLink.new()
+	link.collab = collab
+	host.add_child(link)
+	var tall: Dictionary = m.find("d80").duplicate(true)
+	tall["echelle"] = [4, 4, 4]
+	var a := link.cmd_apply({"ops": [{"op": "put", "coll": "objets", "el": tall}], "label": "Étagère géante", "animate": false})
+	assert_true((a.invalid as Dictionary).has("d80"), "étagère × 4 sous le plafond : refusée (%s)" % str(a))
+	assert_false(collab.doc.find("d80").has("echelle"), "carte inchangée")
+	var tilt: Dictionary = m.find("d81").duplicate(true)
+	tilt["incl"] = [0, 20]
+	var b := link.cmd_apply({"ops": [{"op": "put", "coll": "objets", "el": tilt}], "label": "Sacs inclinés", "animate": false})
+	assert_true((b.invalid as Dictionary).has("d81") and String(b.invalid.d81).contains("posé dessus"), "porteur incliné : refusé (%s)" % str(b))
+	link.queue_free()
+	collab.queue_free()

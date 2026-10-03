@@ -148,6 +148,8 @@ static func axis_col(axis: int) -> Color:
 ## Copie.
 static func scale_axis(o0: Dictionary, axis: int, v: float, side: int, alt: bool) -> Dictionary:
 	var o := o0.duplicate(true)
+	if not is_finite(v):
+		return o   # valeur illisible : rien ne change
 	var s := MapScale.scale_of(o0)
 	var s1 := s
 	s1[axis] = clampf(v, MapScale.LO, MapScale.HI)
@@ -172,6 +174,8 @@ static func scale_axis(o0: Dictionary, axis: int, v: float, side: int, alt: bool
 ## (plafond) fixes ; mural : `fz` (-1 bas, 0 centre, 1 haut). Copie.
 static func scale_uniform(o0: Dictionary, k: float, fixed: Vector2, fz := 0.0) -> Dictionary:
 	var o := o0.duplicate(true)
+	if not (is_finite(k) and k > 0.0 and is_finite(fixed.x) and is_finite(fixed.y)):
+		return o   # valeur illisible : rien ne change
 	var s := MapScale.scale_of(o0)
 	MapScale.set_scale(o, s * k)
 	var kk := MapScale.scale_of(o).x / maxf(s.x, 0.0001)
@@ -217,14 +221,18 @@ static func ratio(fixed: Vector2, h0: Vector2, m: Vector2) -> float:
 ## courante `s0`). -> nouveau facteur, NAN si illisible.
 static func typed_factor(t: String, dim_now: float, s_now: float) -> float:
 	var s := t.strip_edges().replace(",", ".").replace("×", "").replace(" ", "")
+	var out := NAN
 	if s.ends_with("m"):
 		var mv := s.trim_suffix("m")
-		if not mv.is_valid_float() or dim_now <= 0.0:
-			return NAN
-		return s_now * float(mv) / dim_now
-	if s.begins_with("x"):
-		s = s.substr(1)
-	return float(s) if s.is_valid_float() else NAN
+		if mv.is_valid_float() and dim_now > 0.0:
+			out = s_now * float(mv) / dim_now
+	else:
+		if s.begins_with("x"):
+			s = s.substr(1)
+		if s.is_valid_float():
+			out = float(s)
+	# Illisible, nul, négatif ou infini : NAN (le geste garde sa dernière valeur).
+	return out if is_finite(out) and out > 0.0 else NAN
 
 
 # ------------------------------------------------------------------ anneaux (§ 3.2)

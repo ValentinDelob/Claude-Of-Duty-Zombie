@@ -158,15 +158,57 @@ func press(px: Vector2) -> bool:
 	var e := target()
 	var c := center3(e)
 	drag = {"axis": axis, "a0": angle_at(px, axis, c), "deg": 0.0, "orig": e.duplicate(true), "snap": ed().doc.snapshot(), "c": c,
-		"nodes": _nodes_of(String(e.id)), "f0": frame3(e), "entry": "", "moved": false, "r": radius_m(c)}
+		"nodes": _nodes_of(String(e.id)), "f0": frame3(e), "entry": "", "moved": false, "r": radius_m(c), "px": px}
 	panel.world.auto = false
-	# Emprises de la carte rangées une fois pour tout le geste (2000 objets).
-	MapRules.begin_batch(ed().doc)
-	drag["v"] = ed().raster().v
-	drag["held"] = MapVertical.resting_on(ed().doc, e)
-	drag["idx"] = ed().doc.objets.find(ed().doc.find(String(e.id)))
+	_cache_map()
 	queue_redraw()
 	return true
+
+
+## Emprises de la carte rangées une fois pour tout le geste (2000 objets),
+## plafonds, décors posés dessus, place de l'élément dans la liste ; refait
+## quand la carte change pendant le geste (map_changed).
+func _cache_map() -> void:
+	var doc := ed().doc
+	MapRules.end_batch()
+	MapRules.begin_batch(doc)
+	drag["v"] = ed().raster().v
+	drag["held"] = MapVertical.resting_on(doc, drag.orig)
+	drag["idx"] = doc.objets.find(doc.find(String(drag.orig.id)))
+	drag["tried"] = false
+
+
+## Changement reçu pendant le geste (autre participant, Claude) : la carte de
+## départ le reçoit aussi (MapEditor._on_collab_applied) ; si l'élément tenu
+## a été changé ou retiré, le geste s'arrête sans rien écrire.
+func map_changed(ops: Array) -> void:
+	if drag.is_empty():
+		return
+	MapOps.apply(drag.snap, ops)
+	var oid := String(drag.orig.id)
+	if MapOps.ids_of(ops).has(oid):
+		drop()
+		return
+	_cache_map()
+
+
+## Carte entière remplacée (ou élément tenu changé par un autre) : le geste
+## est abandonné SANS remettre sa carte de départ.
+func drop() -> void:
+	if drag.is_empty():
+		return
+	drag = {}
+	MapRules.end_batch()
+	panel.world.auto = true
+	if is_instance_valid(panel) and is_instance_valid(panel.ed):
+		ed().send_live("")
+		ed().panels.live_scale(false)
+	queue_redraw()
+
+
+## Geste en cours ?
+func dragging() -> bool:
+	return not drag.is_empty()
 
 
 ## Nœuds de l'aperçu du décor `eid` (son modèle, ses copies, ses parties) et
@@ -195,6 +237,7 @@ func frame3(e: Dictionary) -> Transform3D:
 func update(px: Vector2) -> void:
 	if drag.is_empty():
 		return
+	drag["px"] = px
 	var axis := int(drag.axis)
 	var o0: Dictionary = drag.orig
 	var deg := rad_to_deg(angle_difference(deg_to_rad(float(drag.a0)), deg_to_rad(angle_at(px, axis, Vector3(drag.c)))))
@@ -267,11 +310,14 @@ func cancel() -> void:
 		if is_instance_valid(n):
 			(n as Node3D).global_transform = drag.nodes[n]
 	MapRules.end_batch()
-	ed().doc.restore(drag.snap)
-	ed().changed()
+	var snap: Dictionary = drag.snap
 	drag = {}
 	panel.world.auto = true
-	ed().panels.live_scale(false)
+	if is_instance_valid(panel) and is_instance_valid(panel.ed):
+		ed().send_live("")
+		ed().doc.restore(snap)
+		ed().changed()
+		ed().panels.live_scale(false)
 	queue_redraw()
 
 
@@ -284,16 +330,37 @@ func key(k: InputEventKey) -> bool:
 			cancel()
 			return true
 		KEY_ENTER, KEY_KP_ENTER:
+			# La valeur tapée s'applique même sans bouger la souris.
+			drag["tried"] = false
+			update(Vector2(drag.px))
 			release()
 			return true
 		KEY_BACKSPACE:
 			drag.entry = String(drag.entry).left(maxi(0, String(drag.entry).length() - 1))
+			drag["tried"] = false
+			update(Vector2(drag.px))
 			return true
 	var ch := MapCanvas._entry_char(k)
 	if ch != "":
 		drag.entry = String(drag.entry) + ch
+		drag["tried"] = false
+		update(Vector2(drag.px))
 		return true
 	return false
+
+
+## Geste qui ne peut pas se terminer normalement (aperçu masqué, fenêtre qui
+## perd le focus, vue retirée de la disposition, éditeur fermé) : annulé,
+## l'aperçu repart (jamais figé).
+func _notification(what: int) -> void:
+	if drag.is_empty():
+		return
+	match what:
+		NOTIFICATION_VISIBILITY_CHANGED:
+			if not is_visible_in_tree():
+				cancel()
+		NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_WINDOW_FOCUS_OUT, NOTIFICATION_EXIT_TREE:
+			cancel()
 
 
 # ------------------------------------------------------------------ dessin

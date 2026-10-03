@@ -259,6 +259,12 @@ static func pose_bounds(v: MapValidator, e: Dictionary) -> Vector2:
 					var lo := float(MapCatalog.WALL_LIGHT_HEIGHT[0])
 					return Vector2(lo + an, maxf(lo, h - WALL_MARGIN) + an)
 				return Vector2(0.05, maxf(0.05, h - WALL_FX_MARGIN))
+			if t == "prefab" and MapScale.is_scaled(e):
+				# Format 14 : décor mural mis à l'échelle (« hauteur » au centre) :
+				# tout entier entre le sol et le plafond (marge de l'export).
+				var half := MapScale.dims(e).z * 0.5
+				var lo := maxf(MapCatalog.WALL_LIGHT_HEIGHT[0], half)
+				return Vector2(lo, maxf(lo, h - WALL_MARGIN - half))
 			return Vector2(MapCatalog.WALL_LIGHT_HEIGHT[0], maxf(MapCatalog.WALL_LIGHT_HEIGHT[0], h - WALL_MARGIN))
 	match t:
 		"effet":

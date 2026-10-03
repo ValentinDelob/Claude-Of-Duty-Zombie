@@ -631,7 +631,13 @@ func _props() -> void:
 				# hauteur (toujours sous le plafond de la pièce).
 				var wv: Vector2 = pr.wall
 				yaw = atan2(-wv.x, -wv.y)
-				origin = _world(k, c2, clampf(float(pr.y), MapCatalog.WALL_LIGHT_HEIGHT[0], maxf(MapCatalog.WALL_LIGHT_HEIGHT[0], room_h - 0.15)))
+				var wy := clampf(float(pr.y), MapCatalog.WALL_LIGHT_HEIGHT[0], maxf(MapCatalog.WALL_LIGHT_HEIGHT[0], room_h - 0.15))
+				if pr.has("obj") and MapScale.is_scaled(pr.obj):
+					# Format 14 : décor mural agrandi, tout entier sous le plafond et sur le sol.
+					var half := MapScale.dims(pr.obj).z * 0.5
+					var lo := maxf(MapCatalog.WALL_LIGHT_HEIGHT[0], half)
+					wy = clampf(float(pr.y), lo, maxf(lo, room_h - 0.15 - half))
+				origin = _world(k, c2, wy)
 			"plafond":
 				# Format 11 : accroché sous le plafond de la pièce (origine au plafond) ;
 				# format 12 : « descente » sous le plafond.

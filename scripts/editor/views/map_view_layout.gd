@@ -567,7 +567,12 @@ func elevation_dragging() -> bool:
 
 ## Un tracé ou un glissement est-il en cours dans une vue ?
 func busy() -> bool:
-	return ed.canvas.tracing() or not ed.canvas.drag.is_empty() or elevation_dragging()
+	return ed.canvas.tracing() or not ed.canvas.drag.is_empty() or elevation_dragging() or _gizmo_3d_dragging()
+
+
+## Format 14 : geste d'anneau de la vue 3D en cours (MapGizmo3D) ?
+func _gizmo_3d_dragging() -> bool:
+	return ed.preview != null and ed.preview.gizmo != null and ed.preview.gizmo.dragging()
 
 
 ## Annule tracé et glissements en cours (la carte d'avant revient) : avant de
@@ -580,6 +585,8 @@ func cancel_drags() -> void:
 		var ev := v as MapElevation
 		if ev.tools != null and ev.tools.dragging():
 			ev.tools.cancel()
+	if _gizmo_3d_dragging():
+		ed.preview.gizmo.cancel()
 
 
 ## Cartes de départ des glissements en cours dans les élévations (un
@@ -599,6 +606,8 @@ func drop_drags() -> void:
 		var ev := v as MapElevation
 		if ev.tools != null and ev.tools.dragging():
 			ev.tools.drop()
+	if _gizmo_3d_dragging():
+		ed.preview.gizmo.drop()
 
 
 ## Couches du dessus des élévations redessinées (collaboration, curseurs).

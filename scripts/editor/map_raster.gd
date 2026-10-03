@@ -119,6 +119,32 @@ func _build() -> void:
 		v.room_polys.append([])
 	for k in n:
 		_floor(k)
+	_scaled_heights()
+
+
+## Format 14 : décor mis à l'échelle ou incliné (fichier écrit à la main,
+## carte reçue, Claude) : tout entier sous le plafond réel (les plafonds de
+## tous les étages sont connus ici). Le décor posé sur un décor incliné est
+## déjà signalé « en l'air » (un décor incliné ne porte rien).
+func _scaled_heights() -> void:
+	for o in doc.objets:
+		if not (o is Dictionary and String(o.get("type", "")) == "prefab" and MapScale.transformed(o)) or MapCatalog.def_of(o).is_empty():
+			continue
+		var k := int(o.get("etage", 0))
+		if k < 0 or k >= v.floors.size():
+			continue
+		var rh := MapVertical.room_h(v, o)
+		var top := 0.0
+		match MapScale.mount_of(o):
+			"sol":
+				top = MapVertical.decor_z(o) + MapScale.height(o)
+			"mur":
+				top = MapCatalog.wall_light_height(o) + MapScale.dims(o).z * 0.5 + MapVertical.WALL_MARGIN
+			_:
+				top = MapVertical.descente(o) + MapScale.dims(o).z
+		if top > rh + 0.011:
+			_err("décor « %s » trop haut pour le plafond (%s m ici)" % [o.get("prefab", ""), ("%.2f" % rh).replace(".", ",")],
+				"prop \"%s\" too tall for the ceiling (%.2f m here)" % [o.get("prefab", ""), rh], k, [MapVertical.cell(MapGeom.v2(o.get("position", [0, 0])))])
 
 
 func _err(fr: String, en: String, k := -1, cells: Array = []) -> void:

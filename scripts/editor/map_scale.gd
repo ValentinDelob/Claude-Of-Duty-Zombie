@@ -103,17 +103,21 @@ static func is_uniform(s: Vector3) -> bool:
 
 ## Facteur arrondi au pas et borné.
 static func snap_factor(v: float) -> float:
+	# Jamais NaN ni infini dans la carte : valeur non finie -> ×1.
+	if not is_finite(v):
+		return 1.0
 	# Division exacte (1,23 et non 1,2300000000000002 : valeur propre au fichier).
 	return clampf(roundf(v / STEP) / roundf(1.0 / STEP), LO, HI)
 
 
 ## Écrit l'échelle (bornée, au pas de 0,01) ; [1, 1, 1] retire la clé.
 static func set_scale(o: Dictionary, s: Vector3) -> void:
-	var q := Vector3(snap_factor(s.x), snap_factor(s.y), snap_factor(s.z))
-	if q.is_equal_approx(Vector3.ONE):
+	# Nombres en double précision (pas ceux d'un Vector3 : 1,13 et non 1,1299999952).
+	var q := [snap_factor(s.x), snap_factor(s.y), snap_factor(s.z)]
+	if q.all(func(x): return is_equal_approx(float(x), 1.0)):
 		o.erase("echelle")
 	else:
-		o["echelle"] = [q.x, q.y, q.z]
+		o["echelle"] = q
 
 
 ## Écrit l'inclinaison (bornée, au dixième de degré) ; [0, 0] retire la clé.
@@ -127,6 +131,8 @@ static func set_incl(o: Dictionary, v: Vector2) -> void:
 
 ## Angle d'inclinaison ramené dans ]-180, 180] et arrondi au dixième.
 static func snap_deg(a: float) -> float:
+	if not is_finite(a):
+		return 0.0
 	var w := wrapf(a, -180.0, 180.0)
 	if w <= -180.0 + 0.0001:
 		w = 180.0

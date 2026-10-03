@@ -1403,6 +1403,9 @@ func _on_collab_applied(ops: Array, author: String, label: String, local: bool) 
 	# carte de départ reçoit le changement (sinon il serait effacé).
 	for snap in views.drag_snaps():
 		MapOps.apply(snap, ops)
+	# Format 14 : geste d'anneau de la vue 3D (sa carte de départ, ses caches).
+	if preview != null and preview.gizmo != null:
+		preview.gizmo.map_changed(ops)
 	floor_k = mini(floor_k, doc.floor_count() - 1)
 	_refresh()
 	if not local and label != "":

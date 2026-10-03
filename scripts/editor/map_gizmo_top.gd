@@ -169,6 +169,9 @@ func _update_scale() -> void:
 		var v := s0[axis] * maxf(k, 0.0)
 		if typed != "":
 			v = MapGizmo.typed_factor(typed, MapScale.dims(o0)[axis], s0[axis])
+		# Valeur tapée illisible (« m », « . », « - »…) : rien ne change.
+		if not is_finite(v):
+			return
 		var sn := MapGizmo.snap_scale(v, mode, MapGizmo.neighbour_magnets(ed().doc, o0, axis)) if typed == "" else {"v": v, "label": ""}
 		d["label"] = String(sn.label)
 		d["axes"] = [axis]
@@ -184,13 +187,14 @@ func _update_scale() -> void:
 		var v := s0.x * k
 		if typed != "":
 			v = MapGizmo.typed_factor(typed, MapScale.dims(o0).x, s0.x)
+		# Valeur tapée illisible (« m », « . », « - »…) : rien ne change.
+		if not is_finite(v):
+			return
 		var sn := MapGizmo.snap_scale(v, mode) if typed == "" else {"v": v, "label": ""}
 		d["label"] = String(sn.label)
 		d["axes"] = [0, 1, 2]
 		d["fixed"] = fixed
 		cand = MapGizmo.scale_uniform(o0, float(sn.v) / maxf(s0.x, 0.0001), fixed, 0.0)
-	if is_nan(MapScale.scale_of(cand).x):
-		return
 	_try(cand)
 
 

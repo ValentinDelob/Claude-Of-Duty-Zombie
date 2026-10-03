@@ -131,6 +131,7 @@ func test_bounds_and_tidy() -> void:
 
 static func _scaled_map() -> EditorMap:
 	var doc := DecorFree.two_rooms()
+	doc.pieces[1]["plafond"] = 6.8   # poutre inclinée de 30° : 5,06 m
 	DecorFree._obj(doc, {"type": "prefab", "prefab": "caisses", "position": [4.0, 4.0], "echelle": [1.5, 1.5, 1.5]})
 	DecorFree._obj(doc, {"type": "prefab", "prefab": "poutre", "position": [19.0, 5.5], "incl": [0, 30], "rot": 37})
 	DecorFree._obj(doc, {"type": "prefab", "prefab": "torche_murale", "position": [2.0, 10.0], "mur": "s", "echelle": [1, 1, 2]})
@@ -355,6 +356,7 @@ static func _find(list: Array, id: String) -> Dictionary:
 
 func test_scaled_and_tilted_props_in_the_game_layout() -> void:
 	var doc := DecorFree.two_rooms()
+	doc.pieces[1]["plafond"] = 6.8   # poutre inclinée de 30° : 5,06 m
 	var c := DecorFree._obj(doc, {"type": "prefab", "prefab": "caisses", "position": [4.0, 4.0], "echelle": [1.5, 1.5, 1.5]})
 	var b := DecorFree._obj(doc, {"type": "prefab", "prefab": "poutre", "position": [19.0, 5.5], "incl": [0, 30]})
 	var s := DecorFree._obj(doc, {"type": "prefab", "prefab": "sacs_sable", "position": [10.0, 4.0], "echelle": [2, 1, 1]})
@@ -484,3 +486,47 @@ func test_rings_senses_and_rest() -> void:
 	var x := MapGizmo.rotated(_o("poutre", {"rot": 90}), 0, 20.0, true)
 	assert_eq(MapGeom.rot_of(x), 90)
 	assert_near(MapScale.incl_of(x).y, -20.0, 0.05)
+
+
+# ------------------------------------------------------------------ revue : valeurs non finies, bornes, validateur
+
+func test_never_nan_in_the_map() -> void:
+	for t in ["m", ".", "1,5,", "-", "x", "0", "-2", "inf", ""]:
+		assert_true(is_nan(MapGizmo.typed_factor(t, 2.5, 1.0)), "« %s » : illisible" % t)
+	var o := _o("caisses")
+	assert_eq(MapGizmo.scale_axis(o, 0, NAN, 1, false), o, "scale_axis(NaN) : rien ne change")
+	assert_eq(MapGizmo.scale_uniform(o, NAN, Vector2(1, 1)), o, "scale_uniform(NaN) : rien ne change")
+	assert_eq(MapGizmo.scale_uniform(o, INF, Vector2(1, 1)), o, "infini : rien ne change")
+	var c := o.duplicate(true)
+	MapScale.set_scale(c, Vector3(NAN, INF, 2))
+	assert_true((c.echelle as Array).all(func(x): return is_finite(float(x))), "set_scale : jamais NaN (%s)" % str(c.echelle))
+	MapScale.set_incl(c, Vector2(NAN, -INF))
+	assert_false(c.has("incl"), "set_incl(NaN) : retirée")
+	# Écriture : un nombre non fini ne passe jamais dans le fichier.
+	var doc := DecorFree.two_rooms()
+	DecorFree._obj(doc, {"type": "prefab", "prefab": "caisses", "position": [4.0, 4.0], "echelle": [NAN, 1, 1]})
+	var txt := String(doc.file_texts()["objets.json"])
+	assert_false(txt.contains("nan") or txt.contains("inf"), "JSON valide")
+	assert_true(JSON.parse_string(txt) is Dictionary, "relisible")
+
+
+func test_scaled_wall_prop_stays_between_floor_and_ceiling() -> void:
+	var doc := DecorFree.two_rooms()
+	var t := DecorFree._obj(doc, {"type": "prefab", "prefab": "torche_murale", "position": [2.0, 10.0], "mur": "s", "hauteur": 2.5})
+	var v := MapRaster.build(doc).v
+	var big := t.duplicate(true)
+	MapScale.set_scale(big, Vector3(1, 1, 4))   # 0,5 m -> 2 m de haut, centre à 2,5 m : haut à 3,5 m
+	assert_false(MapScale.check(doc, v, big, t).ok, "décor mural agrandi qui traverse le plafond : refusé")
+	var b := MapVertical.pose_bounds(v, big)
+	assert_near(b.y, 3.2 - MapVertical.WALL_MARGIN - 1.0, 0.001, "centre au plus sous le plafond moins sa demi-hauteur")
+	assert_near(b.x, 1.0, 0.001, "et au moins à sa demi-hauteur du sol")
+	big["hauteur"] = 1.5
+	assert_true(MapScale.check(doc, v, big, t).ok, "à 1,5 m : tient (%s)" % str(MapScale.check(doc, v, big, t)))
+
+
+func test_validator_flags_a_scaled_prop_through_the_ceiling() -> void:
+	var doc := DecorFree.two_rooms()
+	DecorFree._obj(doc, {"type": "prefab", "prefab": "etagere", "position": [4.0, 4.0], "echelle": [1, 1, 4]})
+	var v := MapRaster.build(doc).v
+	v.analyze()
+	assert_true(v.errors().any(func(e): return String(e.fr).contains("trop haut pour le plafond")), "étagère de 7,2 m sous 3,2 m : erreur (%s)" % str(v.errors().map(func(e): return e.fr)))
