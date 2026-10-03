@@ -581,10 +581,48 @@ static func check_texts(texts: Dictionary) -> Dictionary:
 		c.bad(String(r[0]), String(r[1]))
 	if c.failed():
 		return {"ok": false, "reasons": c.reasons}
+	# Format 14 : échelle et inclinaison du décor, selon sa définition
+	# (catalogue ou prefab.json lu) : inclinaison au sol seulement, dimensions
+	# finales bornées, prefab qui contient un objet de jeu jamais redimensionné.
+	_check_scales(c, parsed["objets.json"], texts)
+	if c.failed():
+		return {"ok": false, "reasons": c.reasons}
 	var m := EditorMap.from_texts(texts)
 	if not m.load_errors.is_empty():
 		return {"ok": false, "reasons": m.load_errors.slice(0, MAX_REASONS)}
 	return {"ok": true, "reasons": [], "map": m}
+
+
+## Format 14 (§ 5.3 de docs/EDITOR_SCALE_ROTATE.md) : « echelle » et « incl »
+## des décors posés, contrôlées avec la définition de leur décor.
+static func _check_scales(c: Check, objets: Dictionary, texts: Dictionary) -> void:
+	var defs := {}
+	for k in texts:
+		var pk := MapPrefabLib.parse_key(k)
+		if not pk.is_empty() and pk[1] == MapPrefabLib.DEF_FILE:
+			var d: Variant = parse_json(String(texts[k]))
+			if d is Dictionary:
+				defs[pk[0]] = d
+	var fixed_of := {}
+	for o in objets.get("objets", []):
+		if not (o is Dictionary and (o.has("echelle") or o.has("incl"))):
+			continue
+		var id := String(o.get("prefab", ""))
+		var d: Dictionary = {}
+		var fixed := []
+		var pid := MapPrefabLib.pid_of(id)
+		if pid != "":
+			d = defs.get(pid, {})
+			if not fixed_of.has(pid):
+				fixed_of[pid] = MapScale.unscalable_parts(d, defs)
+			fixed = fixed_of[pid]
+		else:
+			d = MapCatalog.PREFABS.get(id, {})
+		var bad := MapScale.check_object(o, d, fixed)
+		if not bad.is_empty():
+			var what := "objets.json (%s)" % clean_display(str(o.get("id", "?")), 24)
+			c.bad("%s : %s" % [what, bad[0]], "%s: %s" % [what, bad[1]])
+			return
 
 
 ## La carte passe le validateur de jouabilité de l'éditeur ? Raisons des

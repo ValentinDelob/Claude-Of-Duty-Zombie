@@ -293,6 +293,13 @@ static func catalog_boxes(id: String) -> Array:
 	return [{"center": [0.0, h * 0.5, 0.0], "size": [float(fp[0]) * 0.5, h, float(fp[1]) * 0.5]}]
 
 
+## Format 14 : objets non redimensionnables d'une définition (noms [fr, en,
+## nom fr, nom en] des objets de jeu qu'elle contient, récursif) ; [] : le
+## prefab change d'échelle. Voir MapScale.unscalable_parts.
+static func unscalable_parts(d: Dictionary) -> Array:
+	return MapScale.unscalable_parts(d)
+
+
 ## Décor du catalogue qui peut entrer dans un prefab groupe : un « prefab » du
 ## catalogue posé au sol (pas un prefab de la carte, pas un luminaire ; format
 ## 11 : pas un décor mural ou accroché au plafond).
@@ -308,6 +315,11 @@ static func from_objects(name_fr: String, name_en: String, objs: Array) -> Dicti
 	var parts := objs.filter(func(o): return groupable(o))
 	if parts.is_empty():
 		return {"error": ["aucun décor du catalogue dans la sélection", "no catalogue prop in the selection"]}
+	# Format 14 : une partie de prefab n'a ni échelle ni inclinaison propres.
+	for o in parts:
+		if MapScale.transformed(o):
+			return {"error": ["« %s » est mis à l'échelle ou incliné : remettez-le à ×1 et droit avant d'en faire un prefab" % MapScale.label_of(o)[0],
+				"\"%s\" is scaled or tilted: reset it to ×1 and upright before making a prefab" % MapScale.label_of(o)[1]]}
 	if parts.size() > MAX_PARTS:
 		return {"error": ["trop de décors (%d, au plus %d)" % [parts.size(), MAX_PARTS], "too many props (%d, at most %d)" % [parts.size(), MAX_PARTS]]}
 	var bb := Rect2()

@@ -267,7 +267,7 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 		var op := MapGeom.v2(o.position)
 		if (d in ["n", "s"]) != horizontal or absf((op.y if horizontal else op.x) - line) > MapGeom.EPS:
 			continue
-		var half := MapCatalog.footprint(o).x * MapGeom.CELL * 0.5
+		var half := MapScale.foot_m(o).x * 0.5
 		var oc := op.x if horizontal else op.y
 		if oc - half < span.y - MapGeom.EPS and oc + half > span.x + MapGeom.EPS:
 			var nm := _name(o)
@@ -359,7 +359,7 @@ static func _place_opening_oblique(doc: EditorMap, k: int, window: bool, mouse: 
 		var op := MapGeom.v2(o.position)
 		if _line_dist(op, a, t) > MapGeom.JOIN_TOL or absf(MapGeom.item_wall_dir(o).dot(t)) > 0.05:
 			continue
-		var half := MapCatalog.footprint(o).x * MapGeom.CELL * 0.5
+		var half := MapScale.foot_m(o).x * 0.5
 		var oc := (op - a).dot(t)
 		if oc - half < s + w * 0.5 - MapGeom.EPS and oc + half > s - w * 0.5 + MapGeom.EPS:
 			var nm := _name(o)
@@ -444,7 +444,6 @@ static func footprint_rect(o: Dictionary) -> Rect2:
 		return Rect2(MapGeom.v2(o.a), Vector2.ZERO).expand(MapGeom.v2(o.b)).grow(half)
 	if t == "mur_courbe":
 		return MapGeom.bbox(MapShapes.wall_arc(o)).grow(float(o.get("epaisseur", 0.5)) * 0.5)
-	var fp := MapCatalog.footprint(o)
 	var p := MapGeom.v2(o.get("position", [0, 0]))
 	var tool := MapCatalog.tool_of(o)
 	if tool == "floor_item" and MapRaster.free_rot(o) and MapCatalog.rotates(o):
@@ -454,8 +453,10 @@ static func footprint_rect(o: Dictionary) -> Rect2:
 		return MapGeom.bbox(wall_item_poly(o))
 	if tool == "wall_item":
 		var d := MapGeom.dir_vec(String(o.get("mur", "n")))
-		var along := fp.x * MapGeom.CELL
-		var depth := fp.y * MapGeom.CELL
+		# Format 14 : emprise d'un décor mural mis à l'échelle (MapScale).
+		var fm := MapScale.foot_m(o)
+		var along := fm.x
+		var depth := fm.y
 		# Face du mur à 0,25 m du trait, objet devant (côté intérieur).
 		var face := p - d * MapGeom.CELL * 0.5
 		var back := face - d * depth
@@ -471,10 +472,10 @@ static func footprint_rect(o: Dictionary) -> Rect2:
 static func wall_item_poly(o: Dictionary) -> PackedVector2Array:
 	if String(o.get("type", "")) == "effet":
 		return effect_poly(o)
-	var fp := MapCatalog.footprint(o)
+	var fm := MapScale.foot_m(o)
 	var dv := MapGeom.item_wall_dir(o)
 	var face := MapGeom.v2(o.get("position", [0, 0])) - dv * MapGeom.WALL_HALF
-	return MapGeom.oriented_rect(face, -dv, fp.x * MapGeom.CELL, fp.y * MapGeom.CELL)
+	return MapGeom.oriented_rect(face, -dv, fm.x, fm.y)
 
 
 ## Format 11 : zone d'un effet (m), le rectangle qu'il remplit : au sol et au
@@ -659,7 +660,12 @@ static func _overlaps_all(doc: EditorMap, k: int, r: Rect2, ignore_id: String, l
 ## Hauteur du dessus d'un meuble (m), 0 s'il n'en a pas (un luminaire posé au
 ## sol peut se poser dessus : lampe de bureau sur un bureau).
 static func support_height(o: Dictionary) -> float:
-	return float(MapCatalog.def_of(o).get("support", 0.0)) if String(o.get("type", "")) == "prefab" else (1.0 if String(o.get("type", "")) == "caisse" else 0.0)
+	if String(o.get("type", "")) == "prefab":
+		# Format 14 : le dessus monte avec l'échelle ; un décor incliné ne porte rien.
+		if not MapScale.carries(o):
+			return 0.0
+		return float(MapCatalog.def_of(o).get("support", 0.0)) * MapScale.scale_of(o).z
+	return 1.0 if String(o.get("type", "")) == "caisse" else 0.0
 
 
 ## Meuble sous un luminaire posé au sol ({} : posé par terre).
@@ -848,7 +854,7 @@ static func place_wall_decor(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 	var tb: Vector2 = wall.b
 	var t := (tb - ta).normalized()
 	var dv: Vector2 = -Vector2(wall.inward)
-	var w := MapCatalog.footprint(tmpl).x * MapGeom.CELL
+	var w := MapScale.foot_m(tmpl).x
 	if String(tmpl.get("type", "")) == "effet":
 		# Format 11 : largeur réelle de la zone de l'effet.
 		w = MapCatalog.effect_zone(tmpl).x

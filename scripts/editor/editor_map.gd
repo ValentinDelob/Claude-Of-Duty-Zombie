@@ -93,7 +93,14 @@ extends RefCounted
 ##      arc, bobine Tesla : la hauteur est le bas ou le milieu du volume). Une
 ##      carte d'un format plus ancien est CONVERTIE au chargement (_migrate,
 ##      MapCatalog.migrate_effect_13) : chaque effet garde sa taille et sa place.
-const FORMAT := 13
+##  14  échelle et rotation 3D du décor (docs/EDITOR_SCALE_ROTATE.md, MapScale),
+##      clés facultatives d'un objet « prefab », jamais écrites à leur valeur
+##      par défaut : « echelle » [sx, sy, sz] (0,25 à 4, repère de l'objet :
+##      largeur, profondeur, hauteur) et « incl » [x, y] (degrés, -180 à 180,
+##      décor posé au sol seulement : inclinaisons autour des axes X et Y ;
+##      « rot » reste le lacet, en degrés entiers). Aucune conversion : une
+##      carte au format 13 ou moins se lit telle quelle et s'affiche à l'identique.
+const FORMAT := 14
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -449,6 +456,7 @@ static func from_texts(texts: Dictionary) -> EditorMap:
 	m._migrate(m.format_read)
 	m._normalize()
 	m.activate_prefabs()
+	m._tidy_scale()
 	return m
 
 
@@ -509,6 +517,21 @@ func _migrate(from: int) -> void:
 		for o in objets:
 			if o is Dictionary:
 				MapCatalog.migrate_effect_13(o)
+	if from < 14:
+		# Format 13 -> 14 : rien à convertir (sans « echelle » ni « incl » : le
+		# décor garde sa taille et reste droit, comme avant).
+		pass
+
+
+## Format 14 : « echelle » et « incl » remises en ordre (MapScale.tidy), après
+## l'activation des prefabs de la carte (un prefab qui contient un objet de
+## jeu ne change pas d'échelle : clé retirée, avec un message de chargement).
+func _tidy_scale() -> void:
+	for o in objets:
+		if o is Dictionary:
+			var msg := MapScale.tidy(o)
+			if not msg.is_empty():
+				load_errors.append(msg)
 
 
 ## Format 11 : décor de chaque effet d'avant (MapCatalog.split_legacy_effect),

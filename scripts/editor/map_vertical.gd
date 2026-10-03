@@ -248,7 +248,8 @@ static func pose_bounds(v: MapValidator, e: Dictionary) -> Vector2:
 	var d := MapCatalog.def_of(e)
 	match mount_of(e):
 		"plafond":
-			var size_h := float(d.get("h", 0.0)) if t == "prefab" else 0.0
+			# Format 14 : hauteur du décor mis à l'échelle.
+			var size_h := MapScale.dims(e).z if t == "prefab" else 0.0
 			return Vector2(maxf(h - DESCENTE[1], size_h), h - DESCENTE[0])
 		"mur":
 			if t == "effet":
@@ -265,7 +266,8 @@ static func pose_bounds(v: MapValidator, e: Dictionary) -> Vector2:
 		"luminaire":
 			return Vector2(0.0, maxf(0.0, h - float(d.get("y", 0.5)) - 0.15))
 		"prefab":
-			return Vector2(0.0, maxf(0.0, h - float(d.get("h", 1.0))))
+			# Format 14 : hauteur de la boîte orientée (échelle, inclinaison).
+			return Vector2(0.0, maxf(0.0, h - MapScale.height(e)))
 	return Vector2(0.0, h)
 
 
@@ -329,14 +331,17 @@ static func tidy(o: Dictionary) -> void:
 
 
 ## Dessus (m au-dessus du sol) d'un décor : son `support` s'il en a un, sinon
-## le haut de son modèle (`h`), depuis sa hauteur de pose.
+## le haut de son modèle (`h`), depuis sa hauteur de pose. Format 14 : × son
+## échelle en hauteur ; incliné, son point le plus haut (il ne porte rien).
 static func decor_top(o: Dictionary) -> float:
 	var t := String(o.get("type", ""))
 	if t in ["caisse", "baril"]:
 		return MapElevationItems.FLOOR_H[t]
+	if MapScale.is_tilted(o):
+		return decor_z(o) + MapScale.height(o)
 	var d := MapCatalog.def_of(o)
 	var top := float(d.get("support", d.get("h", 0.0)))
-	return decor_z(o) + top
+	return decor_z(o) + top * MapScale.scale_of(o).z
 
 
 ## Dessus des décors posés au sol sous l'emprise de `o` (m au-dessus du sol, triés).
@@ -347,7 +352,8 @@ static func tops_under(doc: EditorMap, o: Dictionary) -> Array:
 	for q in doc.objects_on(k):
 		if String(q.get("id", "")) == String(o.get("id", "")) or not String(q.get("type", "")) in ["prefab", "caisse", "baril"]:
 			continue
-		if mount_of(q) not in ["sol", ""]:
+		# Format 14 : un décor incliné ne porte rien (§ 3.4).
+		if mount_of(q) not in ["sol", ""] or not MapScale.carries(q):
 			continue
 		if MapRules.footprint_rect(q).grow(-0.01).intersects(r.grow(-0.01)):
 			out.append(decor_top(q))
@@ -385,7 +391,7 @@ static func rests_ok(doc: EditorMap, e: Dictionary) -> bool:
 ## tomberaient « en l'air » si `o` bougeait ou disparaissait.
 static func resting_on(doc: EditorMap, o: Dictionary, skip: Array = []) -> Array:
 	var out := []
-	if not String(o.get("type", "")) in ["prefab", "caisse", "baril"] or mount_of(o) not in ["sol", ""]:
+	if not String(o.get("type", "")) in ["prefab", "caisse", "baril"] or mount_of(o) not in ["sol", ""] or not MapScale.carries(o):
 		return out
 	var top := decor_top(o)
 	var r := MapRules.footprint_rect(o)

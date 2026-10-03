@@ -299,15 +299,21 @@ static func pillar_box(o: Dictionary) -> Dictionary:
 static func floor_poly(o: Dictionary) -> PackedVector2Array:
 	if String(o.get("type", "")) == "effet":
 		return MapRules.effect_poly(o)
+	if MapScale.transformed(o):
+		# Format 14 : rectangle mis à l'échelle ; incliné, projection au sol de
+		# sa boîte orientée (MapScale.ground_poly).
+		return MapScale.ground_poly(o)
 	var it := MapCatalog.item_for(o)
 	var fp: Array = it.get("fp", [1, 1])
 	var sz := Vector2(float(fp[0]), float(fp[1] if it.get("rotates", false) else fp[0])) * MapGeom.CELL
 	return MapGeom.rot_rect_poly(MapGeom.v2(o.get("position", [0, 0])), sz, MapGeom.rot_of(o))
 
 
-## Rotation « au degré près » (pas un quart de tour) ?
+## Rotation « au degré près » (pas un quart de tour) ? Format 14 : aussi un
+## décor mis à l'échelle ou incliné (emprise traitée comme un polygone, au
+## centimètre, jamais ré-aimantée sur les cases).
 static func free_rot(o: Dictionary) -> bool:
-	return MapGeom.rot_of(o) % 90 != 0
+	return MapGeom.rot_of(o) % 90 != 0 or (MapScale.transformed(o) and MapScale.mount_of(o) != "mur")
 
 
 ## Contour -> [cases du bord (dictionnaire), cases intérieures (tableau)].
@@ -468,6 +474,13 @@ func _floor(k: int) -> void:
 						continue
 					var pr := {"floor": k, "prefab": String(o.prefab), "center": MapGeom.v2(o.position),
 						"rot": posmod(int(o.get("rot", 0)), 360), "eid": String(o.id)}
+					# Format 14 : échelle et inclinaison (export : MapScale) ; une
+					# valeur interdite (fichier modifié à la main) est une erreur.
+					var sbad := MapScale.check_object(o, MapCatalog.def_of(o), MapScale.blockers_of(o))
+					if not sbad.is_empty():
+						_err("décor « %s » : %s" % [o.get("prefab", ""), sbad[0]], "prop \"%s\": %s" % [o.get("prefab", ""), sbad[1]], k, cells)
+					if MapScale.transformed(o):
+						pr["obj"] = o.duplicate(true)
 					# Format 11 : décor mural (sur la face du mur, tourné vers la pièce,
 					# à sa hauteur) ou accroché au plafond.
 					var pm := MapCatalog.light_mount(o)
@@ -926,6 +939,10 @@ static func _block(o: Dictionary, n: Vector2i) -> Array:
 ## Cases d'un objet au sol (rotation comprise : MapCatalog.floor_size ; tourné
 ## au degré près : cases dont le centre est dans l'emprise tournée).
 static func floor_cells(o: Dictionary) -> Array:
+	if MapScale.is_tilted(o):
+		# Format 14 : décor incliné, toutes les cases que touche la projection de
+		# sa boîte orientée (prudent : une pente n'est jamais un passage, R3).
+		return MapGeom.poly_touched_cells(floor_poly(o))
 	if (free_rot(o) and MapCatalog.rotates(o)) or String(o.get("type", "")) == "effet":
 		return MapGeom.poly_cells(floor_poly(o))
 	return _block(o, MapCatalog.floor_size(o))
@@ -938,7 +955,7 @@ static func wall_item_cells(o: Dictionary) -> Array:
 		return oblique_item_cells(o)
 	var p := MapGeom.v2(o.position)
 	var d: Vector2i = MapGeom.DIRS.get(_cardinal(o), Vector2i(0, -1))
-	var n := MapCatalog.footprint(o).x
+	var n := MapScale.wall_cells(o)
 	var out := []
 	if d.x == 0:
 		var j := roundi(p.y / MapGeom.CELL) - d.y

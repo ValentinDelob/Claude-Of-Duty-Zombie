@@ -528,11 +528,23 @@ static func set_map_prefabs(defs: Dictionary) -> void:
 		for k in ["parties", "modele"]:
 			if d.has(k):
 				cd[k] = d[k]
+		# Format 14 : objets non redimensionnables qu'il contient (noms [fr, en],
+		# jamais écrits dans prefab.json) et échelle uniforme seulement (parties
+		# ou pavés tournés en biais), calculés à la lecture de la bibliothèque.
+		var fixed := MapScale.unscalable_parts(d, defs)
+		if not fixed.is_empty():
+			cd["fixe"] = fixed
+		cd["uniforme"] = MapScale.def_uniform_only(d)
 		_freeze(cd)
 		nd[pid] = cd
 		var kind_fr := "Modèle importé" if d.has("modele") else "Groupe de %d décors" % (d.get("parties", []) as Array).size()
 		var kind_en := "Imported model" if d.has("modele") else "Group of %d props" % (d.get("parties", []) as Array).size()
 		var iid := "prefab:" + MapPrefabLib.ref(pid)
+		if not fixed.is_empty():
+			# Bulle de l'inventaire : échelle fixe, en nommant l'objet de jeu.
+			var ft := MapScale.names_text(fixed, true)
+			kind_fr += " · échelle fixe (%s)" % ft[0]
+			kind_en += " · fixed scale (%s)" % ft[1]
 		var it := {"id": iid, "cat": MAP_CAT, "fr": fr, "en": en, "tool": "floor_item", "color": cd.color,
 			"make": {"type": "prefab", "prefab": MapPrefabLib.ref(pid), "rot": 0}, "fp": d.fp, "rotates": true, "price": 0,
 			"hint_fr": "%s · %s · R : pivoter" % [kind_fr, block_fr.get(String(d.bloque), "")],
@@ -1487,7 +1499,11 @@ static func allowed_kinds() -> Dictionary:
 	var descente := {"t": "number", "min": MapVertical.DESCENTE[0], "max": MapVertical.DESCENTE[1]}
 	add.call("objets.json", "prefab", {"prefab": {"t": "prefab", "values": PREFABS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
 		"hauteur": {"t": "number", "min": WALL_LIGHT_HEIGHT[0], "max": WALL_LIGHT_HEIGHT[1]},
-		"z": {"t": "number", "min": MapVertical.DECOR_Z[0], "max": MapVertical.DECOR_Z[1]}, "descente": descente}, ["prefab", "position"])
+		"z": {"t": "number", "min": MapVertical.DECOR_Z[0], "max": MapVertical.DECOR_Z[1]}, "descente": descente,
+		# Format 14 : échelle [sx, sy, sz] (0,25 à 4) et inclinaison [x, y]
+		# (degrés, -180 à 180) ; règles propres au décor : CustomMapGuard (MapScale.check_object).
+		"echelle": {"t": "dims", "min": 3, "max": 3, "lo": MapScale.LO, "hi": MapScale.HI},
+		"incl": {"t": "dims", "min": 2, "max": 2, "lo": -MapScale.INCL_MAX, "hi": MapScale.INCL_MAX}}, ["prefab", "position"])
 	add.call("objets.json", "luminaire", {"luminaire": {"t": "enum", "values": LIGHTS.keys()}, "position": point, "rot": rot, "mur": dirs, "angle": angle,
 		"couleur": {"t": "color"}, "intensite": {"t": "number", "min": LIGHT_LIMITS.intensite[0], "max": LIGHT_LIMITS.intensite[1]},
 		"portee": {"t": "number", "min": LIGHT_LIMITS.portee[0], "max": LIGHT_LIMITS.portee[1]},

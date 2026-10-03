@@ -237,7 +237,10 @@ static func _decor(doc: EditorMap, v: MapValidator, o: Dictionary, base: Diction
 	var k := int(base.floor)
 	var sol := _sol(v, k)
 	var d := MapCatalog.def_of(o)
-	var h := float(d.get("h", 1.0))
+	# Format 14 : hauteur mise à l'échelle ; inclinée, celle de sa boîte orientée.
+	var h := float(d.get("h", 1.0)) * MapScale.scale_of(o).z
+	if MapScale.is_tilted(o):
+		h = MapScale.height(o)
 	var p := MapGeom.v2(o.get("position", [0, 0]))
 	match MapVertical.mount_of(o):
 		"mur":

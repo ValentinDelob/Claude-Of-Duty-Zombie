@@ -1,0 +1,858 @@
+<meta charset="utf-8">
+<title>Échelle et rotation du décor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap">
+<style>
+/* Maquette à taille réelle (1280 × 720) de l'éditeur de cartes : un seul thème sombre, celui de l'éditeur. */
+:root{
+  color-scheme: dark;
+  --page:#121214; --page-text:#DBD6C7; --page-dim:#8C8575; --rule:#2C2D31;
+  --panel:#212225; --panel-b:#38383D; --btn:#333338; --btn-h:#4D4233; --btn-p:#73241A;
+  --field:#121214; --field-b:#4D4D54; --focus:#D99940; --tab:#29292B; --tab-sel:#4D1F14;
+  --bone:#DBD1B8; --dim:#8C8575; --gold:#F2C759; --label:#DBD6C7;
+  --canvas:#1A1B1D; --sel:#FFD94D; --ok:#40F259;
+  --ax-x:#E5484D; --ax-y:#46A758; --ax-z:#3E7BFA;
+  --ui:"Bahnschrift","Barlow Semi Condensed","Segoe UI",Arial,sans-serif;
+  --mono:Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--page-text);font-family:var(--ui);font-size:15px;line-height:1.5}
+.wrap{max-width:1312px;margin:0 auto;padding-inline:16px;padding-block:28px 56px}
+.intro{max-width:72ch}
+.intro h1{font-size:30px;font-weight:600;letter-spacing:.02em;margin:0 0 6px;text-wrap:balance;color:var(--bone)}
+.intro p{margin:0 0 8px;color:var(--page-text)}
+.intro .meta{color:var(--page-dim);font-size:13px}
+section.shot{margin-top:40px}
+section.shot h2{font-size:19px;font-weight:600;margin:0 0 4px;color:var(--gold);letter-spacing:.02em;text-wrap:balance}
+section.shot .lede{margin:0 0 12px;color:var(--page-text);max-width:80ch}
+.scroll{overflow-x:auto;border:1px solid var(--rule);background:#000}
+.frame{position:relative;width:1280px;height:720px;overflow:hidden;background:#141417;font-family:var(--ui);font-size:13px;color:var(--label);user-select:none}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px 28px;margin:14px 0 0;padding:0;list-style:none;counter-reset:n}
+.notes li{position:relative;padding-left:30px;font-size:14px;min-width:0}
+.notes li::before{counter-increment:n;content:counter(n);position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:50%;background:var(--focus);color:#1a1209;font-weight:700;font-size:12px;display:grid;place-items:center}
+.callout{position:absolute;width:20px;height:20px;border-radius:50%;background:var(--focus);color:#1a1209;font-weight:700;font-size:12px;display:grid;place-items:center;box-shadow:0 0 0 2px #141417;z-index:50;pointer-events:none}
+
+/* --- chrome de l'éditeur --- */
+.topbar{position:absolute;left:0;top:0;width:1280px;height:40px;background:var(--panel);border-bottom:1px solid var(--panel-b);display:flex;align-items:center;gap:6px;padding:0 6px}
+.b{background:var(--btn);border-radius:3px;padding:5px 9px;color:#E0DBCC;white-space:nowrap;font-size:13.5px;line-height:18px}
+.b.on{background:var(--btn-p)}
+.b.hov{background:var(--btn-h);color:#FFF2D9}
+.b.flat{background:none}
+.vsep{width:1px;height:26px;background:var(--panel-b);margin:0 2px}
+.floorlbl{min-width:92px;text-align:center}
+.title{margin-left:auto;color:var(--bone);white-space:nowrap}
+.statusbar{position:absolute;left:0;top:694px;width:1280px;height:26px;background:var(--panel);border-top:1px solid var(--panel-b);display:flex;align-items:center;padding:0 8px;gap:8px;font-size:13px}
+.statusbar .st{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#CCCCBF}
+.statusbar .cur{color:var(--dim);white-space:nowrap;font-variant-numeric:tabular-nums}
+.side{position:absolute;left:940px;top:40px;width:340px;height:654px;background:var(--panel);border-left:1px solid var(--panel-b)}
+.tabs{display:flex;gap:2px;padding:4px 4px 0;background:#1d1e21}
+.tabs span{background:var(--tab);padding:5px 7px;font-size:13px}
+.tabs span.sel{background:var(--tab-sel);color:#fff}
+.props{padding:8px 8px}
+.props h3{font-family:Impact,"Barlow Semi Condensed",sans-serif;font-weight:400;font-size:17px;letter-spacing:.02em;color:var(--gold);margin:0 0 8px}
+.row{display:flex;align-items:center;gap:6px;margin:0 0 6px;min-height:26px}
+.row .k{width:104px;flex:none;color:var(--label)}
+.fld{background:var(--field);border:1px solid var(--field-b);padding:3px 6px;min-width:0;flex:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.fld.focus{border-color:var(--focus)}
+.fld.live{border-color:var(--sel);color:#fff}
+.fld .u{color:var(--dim);margin-left:4px}
+.xyz{display:flex;gap:4px;flex:1;min-width:0}
+.xyz .fld{display:flex;gap:4px;padding:3px 5px}
+.xyz .ax{font-weight:700}
+.dd{background:var(--btn);border-radius:3px;padding:3px 8px;flex:1;display:flex;justify-content:space-between}
+.note{color:var(--dim);font-size:12.5px;margin:2px 0 6px;line-height:1.35}
+.chk{display:inline-block;width:13px;height:13px;border:1px solid var(--field-b);background:var(--field);vertical-align:-2px;margin-right:6px}
+.chk.on{background:var(--btn-p);border-color:#b45a3c}
+.secttl{font-size:11.5px;letter-spacing:.08em;color:var(--dim);text-transform:uppercase;margin:10px 0 6px;border-top:1px solid var(--panel-b);padding-top:8px}
+
+.objtab{position:absolute;left:0;top:40px;width:18px;height:606px;background:#1d1e21;border-right:1px solid var(--panel-b);display:flex;align-items:flex-start;justify-content:center}
+.objtab span{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;letter-spacing:.06em;color:var(--gold);font-weight:700;margin-top:10px}
+
+.pane{position:absolute;background:var(--canvas);overflow:hidden}
+.pane.active{box-shadow:inset 0 0 0 1px var(--focus)}
+.ph{position:absolute;left:0;top:0;right:0;height:22px;background:#1C1D20;border-bottom:1px solid #2C2D31;display:flex;align-items:center;gap:8px;padding:0 6px;font-size:12px;white-space:nowrap;z-index:2}
+.pane.active .ph{background:#26272B}
+.ph .nm{font-weight:700;letter-spacing:.06em;color:var(--bone)}
+.ph .sub{color:var(--dim)}
+.ph .axs{font-weight:600}
+.ph .sp{flex:1}
+.ph .chip{background:#2A2B2F;border-radius:2px;padding:0 6px;color:#CFC9B8;line-height:17px}
+.ph .chip.hl{background:#3a2f22;color:#FFD9A0}
+.ph .ic{width:18px;text-align:center;color:#CFC9B8}
+.pane svg{position:absolute;left:0;top:22px;display:block}
+.split{position:absolute;background:#0E0E10}
+.split::after{content:"";position:absolute;left:50%;top:50%;width:3px;height:3px;border-radius:50%;background:#55555c;transform:translate(-50%,-50%);box-shadow:0 -6px 0 #55555c,0 6px 0 #55555c}
+.split.h::after{box-shadow:-6px 0 0 #55555c,6px 0 0 #55555c}
+
+.dock{position:absolute;left:18px;top:646px;width:922px;height:48px;background:#18191B;border-top:1px solid var(--panel-b);display:flex;align-items:center;padding:0 10px;gap:10px}
+.dock .l,.dock .r{flex:1;min-width:0;font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dock .r{text-align:right}
+.hotbar{display:flex;gap:3px}
+.slot{width:36px;height:36px;background:#222326;border:1px solid #3a3b40;position:relative}
+.slot.sel{border:2px solid var(--gold)}
+.slot b{position:absolute;left:2px;top:0;font-size:10px;color:#ddd}
+.slot svg{position:absolute;left:5px;top:6px}
+
+.menu{position:absolute;background:#1A1A1C;border:1px solid var(--panel-b);box-shadow:0 8px 24px rgba(0,0,0,.55);z-index:20;padding:8px}
+.menu h4{margin:0 0 8px;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-weight:600}
+.lay{display:grid;grid-template-columns:repeat(3,96px);gap:6px}
+.lay div{background:#222326;border:1px solid #333338;padding:6px 6px 4px;text-align:center;font-size:11.5px;color:#CFC9B8;line-height:1.25}
+.lay div.sel{border-color:var(--focus);background:#2b2621;color:#FFE2B5}
+.lay div.hov{background:var(--btn-h)}
+.lay svg{display:block;margin:0 auto 4px}
+.mi{display:flex;justify-content:space-between;gap:18px;padding:4px 6px;font-size:13px;white-space:nowrap}
+.mi .kbd{color:var(--dim);font-family:var(--mono);font-size:12px}
+.mi.hov{background:var(--btn-h)}
+.msep{height:1px;background:var(--panel-b);margin:6px 0}
+.tip{position:absolute;background:#1A1A1C;border:1px solid var(--panel-b);padding:3px 7px;font-size:12px;color:var(--label);z-index:30;white-space:nowrap}
+
+/* --- planche de composants --- */
+.sheet{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:12px}
+.card{background:#18191B;border:1px solid var(--rule);padding:14px;min-width:0}
+.card h3{margin:0 0 8px;font-size:14px;font-weight:600;letter-spacing:.04em;color:var(--bone)}
+.card p{margin:8px 0 0;font-size:13px;color:var(--page-dim);line-height:1.45}
+.card svg{max-width:100%;height:auto;display:block}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* --- ajouts : échelle et rotation --- */
+.fld.dis{opacity:.42}
+.lk{display:inline-grid;place-items:center;width:26px;height:24px;flex:none;background:var(--btn);border-radius:3px}
+.lk.on{background:#3a2f22;box-shadow:inset 0 0 0 1px var(--focus)}
+.lk.dis{background:#262629}
+.bs{background:var(--btn);border-radius:3px;padding:2px 8px;font-size:12.5px;white-space:nowrap;color:#E0DBCC}
+.bs.dis{opacity:.42}
+.warn{background:#2e2412;border:1px solid var(--focus);color:#FFD9A0;padding:6px 8px;font-size:12.5px;line-height:1.38;margin:0 0 8px}
+.warn b{color:#FFE7B8}
+.parts{margin:0;padding:0;list-style:none;font-size:12.5px}
+.parts li{display:flex;align-items:center;gap:6px;padding:3px 4px;border-bottom:1px solid #2C2D31}
+.parts li .sw{width:10px;height:10px;flex:none}
+.parts li .st{margin-left:auto;color:var(--dim);white-space:nowrap}
+.parts li.bad{background:#2e2412;color:#FFE7B8}
+.parts li.bad .st{color:#FFD9A0}
+.deg .fld{justify-content:space-between}
+/* rendu d'un seul écran (?frame=N) pour les captures */
+body.solo{background:#141417}
+body.solo .wrap{padding:0;margin:0;max-width:none}
+body.solo .intro,body.solo section.shot>:not(.scroll),body.solo section.shot:not(.on){display:none}
+body.solo section.shot{margin:0}
+body.solo .scroll{border:0;overflow:hidden}
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Échelle et rotation 3D du décor</h1>
+    <p>Maquette de l'échelle (uniforme et par axe) du décor et des prefabs, et de la rotation à trois anneaux façon Fusion 360. Chaque écran est à la taille réelle de l'éditeur (1280 × 720), dans le style des vues multiples. La carte est DRAFT ARENA (<code>assets/maps/draft_arena</code>) ; le décor montré est ajouté pour l'exemple (pile de caisses, poutre tombée, prefab « Coin Pack-a-Punch »).</p>
+    <p class="meta">Spécification : docs/EDITOR_SCALE_ROTATE.md. Conventions reprises de docs/EDITOR_VIEWS.md : axes X rouge, Y vert, Z bleu ; cotes en pastille sombre, écart en or ; poignées carrées, hauteur en losange.</p>
+  </div>
+
+  <section class="shot" id="s1">
+    <h2>1 · Agrandir une pile de caisses (vue Dessus)</h2>
+    <p class="lede">Deux vues empilées. La pile de caisses (2,50 × 2,00 × 1,50 m) est agrandie par son coin sud-est : échelle uniforme ×1,50, coin nord-ouest fixe. La vue Avant et le panneau suivent en direct.</p>
+    <div class="scroll"><div class="frame" id="f1"></div></div>
+    <ol class="notes">
+      <li>Poignée de coin (carré jaune) : échelle <b>uniforme</b> des trois axes. Le coin opposé reste fixe (croix) ; Alt : depuis le centre.</li>
+      <li>Poignées de face aux couleurs de l'axe : X rouge (est, ouest), Y vert (nord, sud) : un seul axe. Estompées pendant le geste.</li>
+      <li>Cotes de chaque dimension, ancien contour en pointillés, facteur en or près du curseur. Grille fine : pas de 0,05 (Maj : libre).</li>
+      <li>Anneau de rotation Z, estompé pendant le redimensionnement ; puce de hauteur « H 2,25 m ».</li>
+      <li>Vue Avant : la hauteur suit (base fixe : la pile reste au sol). Losange bleu : hauteur seule ; carrés rouges : largeur X.</li>
+      <li>Panneau : <b>Échelle</b> uniforme avec cadenas (fermé : les trois axes ensemble), champs X / Y / Z, dimensions, ↺ ×1.</li>
+      <li>Panneau : <b>Rotation</b> X / Y / Z en degrés et « Rester posé ». Un geste ou un champ validé = une annulation.</li>
+    </ol>
+  </section>
+
+  <section class="shot" id="s2">
+    <h2>2 · Incliner une poutre avec le gizmo 3D</h2>
+    <p class="lede">Disposition « 3 : 1 + 2 », la 3D en grand. La poutre tombée est tournée autour de l'axe Y (sud) par l'anneau vert : +30°, au cran de 15°. Son point le plus bas reste posé sur le sol ; les vues Dessus et Avant suivent.</p>
+    <div class="scroll"><div class="frame" id="f2"></div></div>
+    <ol class="notes">
+      <li>Gizmo à trois anneaux sur les axes du monde : X rouge, Y vert, Z bleu. L'anneau tiré s'épaissit, les autres s'estompent ; la moitié arrière est plus pâle.</li>
+      <li>Secteur balayé, graduations tous les 15° (longues tous les 45°), angle en or près du curseur. Maj : libre au degré ; un nombre tapé puis Entrée : angle exact.</li>
+      <li>Position d'avant en pointillés. « Rester posé » : le point le plus bas reste sur le sol (Z 0,00), le haut monte à 5,06 m.</li>
+      <li>Vue Avant : l'anneau Y y est vu de face ; même angle, même sens (horaire à l'écran = positif).</li>
+      <li>Vue Dessus : emprise projetée de la poutre inclinée ; anneau Z seulement. Objet incliné : poignées de coin (uniforme) seulement.</li>
+      <li>Panneau : le champ Rotation Y s'allume pendant le geste ; collision inclinée avec la poutre.</li>
+    </ol>
+  </section>
+
+  <section class="shot" id="s3">
+    <h2>3 · Prefab avec un Pack-a-Punch : échelle bloquée</h2>
+    <p class="lede">Une vue. Le prefab de la carte « Coin Pack-a-Punch » groupe un Pack-a-Punch, deux sacs de sable et des tonneaux. Le Pack-a-Punch est un objet de jeu à taille fixe : le prefab ne change pas d'échelle et ne s'incline pas ; il tourne autour de Z.</p>
+    <div class="scroll"><div class="frame" id="f3"></div></div>
+    <ol class="notes">
+      <li>Pas de poignée d'échelle : des cadenas gris aux coins (curseur interdit au survol).</li>
+      <li>Message au survol ou au premier essai : il nomme l'objet qui bloque.</li>
+      <li>L'anneau Z reste : le prefab tourne en entier autour de son centre. Flèches de déplacement inchangées.</li>
+      <li>Panneau : encadré d'avertissement, champs Échelle grisés, inclinaison X / Y grisée.</li>
+      <li>Liste des parties : celle qui bloque est signalée.</li>
+      <li>Barre d'état : même message, aussi rendu par le MCP à Claude.</li>
+    </ol>
+  </section>
+
+  <section class="shot">
+    <h2>Planche de composants</h2>
+    <div class="sheet" id="sheet"></div>
+  </section>
+</div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- données (DRAFT ARENA, assets/maps/draft_arena)
+const FLOORS=[{sol:0,h:3.2},{sol:3.5,h:3.3}];
+const DALLE=0.3, DOOR_H=2.5, SILL=0.95, LINTEL=2.35;
+const ROOMS=[
+  {id:"p1",nom:"Salle des machines",e:0,r:[2.5,21.5,17,33],z:"z1"},
+  {id:"p2",nom:"Couloir de service",e:0,r:[17,4.5,20.5,33],z:"z2"},
+  {id:"p3",nom:"Entrepôt",e:0,r:[2.5,4.5,17,17],z:"z3",dh:true},
+  {id:"p4",nom:"Atelier",e:0,r:[2.5,17,17,21.5],z:"z4"},
+  {id:"p5",nom:"Passerelle",e:1,r:[2.5,4.5,7.5,9.5],z:"z5"}];
+const ZC={z1:[214,178,64],z2:[128,150,70],z3:[70,140,85],z4:[45,130,140],z5:[55,80,170]};
+const OPEN=[ // orientation : h = mur le long de X, v = mur le long de Y
+  {id:"o1",t:"porte",e:0,p:[17,26.75],w:2,prix:750,o:"v"},{id:"o2",t:"porte",e:0,p:[17,7.75],w:2,prix:1000,o:"v"},
+  {id:"o3",t:"debris",e:0,p:[5.75,21.5],w:2,prix:1250,o:"h"},{id:"o4",t:"passage",e:0,p:[11.75,17],w:4,o:"h"},
+  {id:"o5",t:"fenetre",e:0,p:[11.25,4.5],w:1,o:"h"},{id:"o6",t:"fenetre",e:0,p:[15.25,4.5],w:1,o:"h"},
+  {id:"o7",t:"fenetre",e:0,p:[20.5,19.25],w:1,o:"v"},{id:"o8",t:"fenetre",e:0,p:[2.5,19.25],w:1,o:"v"},
+  {id:"o9",t:"fenetre",e:0,p:[2.5,28.25],w:1,o:"v"},{id:"o10",t:"fenetre",e:0,p:[7.25,33],w:1,o:"h"},
+  {id:"o11",t:"fenetre",e:1,p:[5.75,4.5],w:1,o:"h"}];
+const WALLOBJ={atout:{w:1.2,d:0.9,z:[0,2.1],c:"#b8322a",prix:""},arme:{w:1.5,d:0.06,z:[1.1,1.8],c:"#d8d2bf"},boite:{w:2,d:0.8,z:[0,1.0],c:"#d9a520"},courant:{w:0.6,d:0.25,z:[1.0,1.8],c:"#c9c24a"}};
+const OBJ=[
+  {id:"x1",t:"pilier",e:0,rect:[9,9.5,11.5,12]},{id:"x2",t:"escalier",e:0,rect:[2.5,9.5,5,16],monte:"n"},
+  {id:"s1",t:"depart",e:0,p:[12,26]},
+  {id:"a1",t:"atout",e:0,p:[14,21.5],mur:"n",prix:2000},{id:"a2",t:"atout",e:0,p:[17,14],mur:"e",prix:2500},
+  {id:"w1",t:"arme",e:0,p:[13.25,33],mur:"s",prix:500},{id:"w2",t:"arme",e:0,p:[20.5,12.25],mur:"e",prix:1000},
+  {id:"b1",t:"boite",e:0,p:[6.75,17],mur:"s",prix:950},{id:"b2",t:"boite",e:0,p:[20.5,29.25],mur:"e",prix:950},
+  {id:"b3",t:"boite",e:1,p:[3.75,4.5],mur:"n",prix:950},{id:"c1",t:"courant",e:1,p:[2.5,7.5],mur:"o"}];
+
+const C={wall:"#9E9EA8",sel:"#FFD94D",hover:"#59E6FF",door:"#FFAB00",debris:"#AB6626",win:"#1A73FF",passage:"#2B2B30",
+  x:"#E5484D",y:"#46A758",z:"#3E7BFA",bone:"#DBD1B8",dim:"#8C8575",gold:"#F2C759",ok:"#40F259",cam:"#FF8C26",stair:"rgba(140,90,165,.55)"};
+const fr=(n,d=2)=>n.toFixed(d).replace(".",",").replace("-","−");
+const rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const roomTop=r=>r.plafond!=null?FLOORS[r.e].sol+r.plafond:(r.dh?FLOORS[r.e+1].sol+FLOORS[r.e+1].h:FLOORS[r.e].sol+FLOORS[r.e].h);
+let UID=0;
+
+// ---------------------------------------------------------------- projections
+// u = axe horizontal de l'écran, v = axe vertical de l'écran (vers le bas), en mètres.
+function proj(pl,x,y,z){ if(pl==="top")return[x,y]; if(pl==="front")return[x,-z]; return[-y,-z]; }
+function boxUV(pl,b,z){ // b=[x0,y0,x1,y1] ; z=[z0,z1]
+  if(pl==="front")return{u0:b[0],u1:b[2],v0:-z[1],v1:-z[0],near:b[3],far:b[1]};
+  return{u0:-b[3],u1:-b[1],v0:-z[1],v1:-z[0],near:b[2],far:b[0]};
+}
+function mkView(pl,w,h,zoom,cu,cv){ const R=18; const v={pl,w,h,zoom,R}; v.ox=R+(w-R)/2-cu*zoom; v.oy=R+(h-R)/2-cv*zoom; v.X=u=>v.ox+u*v.zoom; v.Y=t=>v.oy+t*v.zoom; return v; }
+const P=(v,u,t)=>`${v.X(u).toFixed(1)},${v.Y(t).toFixed(1)}`;
+function rect(v,u0,t0,u1,t1,attr){ const x=v.X(Math.min(u0,u1)),y=v.Y(Math.min(t0,t1)); return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(Math.abs(u1-u0)*v.zoom).toFixed(1)}" height="${(Math.abs(t1-t0)*v.zoom).toFixed(1)}" ${attr}/>`; }
+const txt=(x,y,s,attr="")=>`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" ${attr}>${s}</text>`;
+const outl=`paint-order="stroke" stroke="rgba(0,0,0,.8)" stroke-width="3" stroke-linejoin="round"`;
+
+// ---------------------------------------------------------------- grille et règles
+function grid(v){
+  let s=""; const u0=Math.floor((0-v.ox)/v.zoom), u1=Math.ceil((v.w-v.ox)/v.zoom), t0=Math.floor((0-v.oy)/v.zoom), t1=Math.ceil((v.h-v.oy)/v.zoom);
+  const st=v.zoom>=9?1:5;
+  for(let u=Math.ceil(u0/st)*st;u<=u1;u+=st){const maj=u%5===0; s+=`<line x1="${v.X(u)}" y1="0" x2="${v.X(u)}" y2="${v.h}" stroke="rgba(255,255,255,${maj?.11:.045})"/>`;}
+  for(let t=Math.ceil(t0/st)*st;t<=t1;t+=st){const maj=t%5===0; s+=`<line x1="0" y1="${v.Y(t)}" x2="${v.w}" y2="${v.Y(t)}" stroke="rgba(255,255,255,${maj?.11:.045})"/>`;}
+  return s;
+}
+function rulers(v,hl){ // hl : {u, t} position du curseur à marquer
+  const R=v.R; let s=`<rect x="0" y="0" width="${v.w}" height="${R}" fill="rgba(18,18,20,.95)"/><rect x="0" y="0" width="${R}" height="${v.h}" fill="rgba(18,18,20,.95)"/>`;
+  const lab=v.zoom>=20?2:5;
+  const hv=u=>v.pl==="right"?-u:u, vv=t=>v.pl==="top"?t:-t;
+  for(let u=Math.ceil((R-v.ox)/v.zoom);u<=(v.w-v.ox)/v.zoom;u++){const x=v.X(u); const big=u%lab===0; s+=`<line x1="${x}" y1="${big?8:13}" x2="${x}" y2="${R}" stroke="#77736a"/>`; if(big)s+=txt(x+2,10,String(hv(u)).replace("-","−"),`fill="#a49d8c" font-size="10"`);}
+  for(let t=Math.ceil((R-v.oy)/v.zoom);t<=(v.h-v.oy)/v.zoom;t++){const y=v.Y(t); const big=t%lab===0; s+=`<line x1="${big?8:13}" y1="${y}" x2="${R}" y2="${y}" stroke="#77736a"/>`; if(big)s+=txt(2,y-2,String(vv(t)).replace("-","−"),`fill="#a49d8c" font-size="10"`);}
+  if(hl){ if(hl.u!=null)s+=`<path d="M${v.X(hl.u)-4},0 h8 l-4,7z" fill="${C.sel}"/>`; if(hl.t!=null)s+=`<path d="M0,${v.Y(hl.t)-4} v8 l7,-4z" fill="${C.sel}"/>`; }
+  const ha=v.pl==="top"?["X",C.x]:v.pl==="front"?["X",C.x]:["Y",C.y], va=v.pl==="top"?["Y",C.y]:["Z",C.z];
+  s+=`<rect x="0" y="0" width="${R}" height="${R}" fill="#0f0f11"/>`+txt(2,9,ha[0],`fill="${ha[1]}" font-size="9" font-weight="700"`)+txt(9,16,va[0],`fill="${va[1]}" font-size="9" font-weight="700"`);
+  return s;
+}
+function triad(v){
+  const x=v.R+14, y=v.h-14; let s="";
+  const arrow=(dx,dy,col,l)=>{const ex=x+dx*22, ey=y+dy*22; return `<line x1="${x}" y1="${y}" x2="${ex}" y2="${ey}" stroke="${col}" stroke-width="2"/><path d="M${ex+dx*5},${ey+dy*5} L${ex-dy*3.5},${ey+dx*3.5} L${ex+dy*3.5},${ey-dx*3.5}z" fill="${col}"/>`+txt(ex+dx*9-3+(dy?7:0),ey+dy*9+4+(dx?-6:0),l,`fill="${col}" font-size="10" font-weight="700"`);};
+  if(v.pl==="top"){s+=arrow(1,0,C.x,"X")+arrow(0,1,C.y,"Y")+`<circle cx="${x}" cy="${y}" r="3.5" fill="none" stroke="${C.z}" stroke-width="1.5"/><circle cx="${x}" cy="${y}" r="1" fill="${C.z}"/>`;}
+  else if(v.pl==="front"){s+=arrow(1,0,C.x,"X")+arrow(0,-1,C.z,"Z")+`<circle cx="${x}" cy="${y}" r="3.5" fill="none" stroke="${C.y}" stroke-width="1.5"/><circle cx="${x}" cy="${y}" r="1" fill="${C.y}"/>`;}
+  else {s+=arrow(1,0,C.y,"−Y")+arrow(0,-1,C.z,"Z")+`<circle cx="${x}" cy="${y}" r="3.5" fill="none" stroke="${C.x}" stroke-width="1.5"/><circle cx="${x}" cy="${y}" r="1" fill="${C.x}"/>`;}
+  return s;
+}
+
+// ---------------------------------------------------------------- ViewCube
+const FACE={top:"DESSUS",front:"AVANT",right:"DROITE",back:"ARRIÈRE",left:"GAUCHE",bottom:"DESSOUS"};
+const NEIGH={top:["back","front","left","right"],front:["top","bottom","left","right"],right:["top","bottom","front","back"]};
+function cubeNet(face,x,y,o={}){
+  const S=40,D=11,T=S+2*D; const n=NEIGH[face]; const hv=o.hover;
+  const f=(k)=>hv===k?"#4D4233":"#2A2B2F", sk=(k)=>hv===k?"#D99940":"#4D4D54";
+  let s=`<g opacity="${o.dim?0.75:1}">`;
+  s+=`<polygon points="${x},${y} ${x+T},${y} ${x+D+S},${y+D} ${x+D},${y+D}" fill="${f(n[0])}" stroke="${sk(n[0])}"/>`;
+  s+=`<polygon points="${x+D},${y+D+S} ${x+D+S},${y+D+S} ${x+T},${y+T} ${x},${y+T}" fill="${f(n[1])}" stroke="${sk(n[1])}"/>`;
+  s+=`<polygon points="${x},${y} ${x+D},${y+D} ${x+D},${y+D+S} ${x},${y+T}" fill="${f(n[2])}" stroke="${sk(n[2])}"/>`;
+  s+=`<polygon points="${x+T},${y} ${x+T},${y+T} ${x+D+S},${y+D+S} ${x+D+S},${y+D}" fill="${f(n[3])}" stroke="${sk(n[3])}"/>`;
+  s+=`<rect x="${x+D}" y="${y+D}" width="${S}" height="${S}" fill="#3A3B40" stroke="#6a6a72"/>`;
+  for(const [cx,cy] of [[x,y],[x+T-6,y],[x,y+T-6],[x+T-6,y+T-6]]) s+=`<rect x="${cx}" y="${cy}" width="6" height="6" fill="${hv==="corner"&&cx===x+T-6&&cy===y?"#4D4233":"#323338"}" stroke="#55555c" stroke-width=".8"/>`;
+  s+=txt(x+T/2,y+T/2+3.5,FACE[face],`fill="${C.bone}" font-size="${FACE[face].length>6?7.5:8.5}" font-weight="700" text-anchor="middle" letter-spacing=".3"`);
+  // maison
+  s+=`<path d="M${x-15},${y+8} l6,-5.5 l6,5.5 v6 h-12z" fill="none" stroke="#A9A291" stroke-width="1.2"/><rect x="${x-11}" y="${y+10}" width="4" height="4" fill="#A9A291"/>`;
+  // menu
+  s+=txt(x+T+3,y+T+1,"▾",`fill="#A9A291" font-size="11"`);
+  if(face!=="top"){ // flèches de façade
+    s+=`<path d="M${x+2},${y+T+9} l7,-4 v8z" fill="#A9A291"/><path d="M${x+T-2},${y+T+9} l-7,-4 v8z" fill="#A9A291"/>`;
+  } else { // rose
+    s+=txt(x+T/2,y-4,"N",`fill="${C.bone}" font-size="9" text-anchor="middle" font-weight="700"`)+txt(x+T/2,y+T+11,"S",`fill="#A9A291" font-size="9" text-anchor="middle"`)+txt(x+T+7,y+T/2+3,"E",`fill="#A9A291" font-size="9" text-anchor="middle"`)+txt(x-7,y+T/2+3,"O",`fill="#A9A291" font-size="9" text-anchor="middle"`);
+  }
+  return s+"</g>";
+}
+function cubeIso(cx,cy,a,o={}){
+  const pr=(x,y,z)=>[cx+(x-y)*0.866*a, cy+(x+y)*0.5*a-z*a];
+  const poly=(pts,fill,k)=>`<polygon points="${pts.map(p=>pr(...p).map(n=>n.toFixed(1)).join(",")).join(" ")}" fill="${o.hover===k?"#4D4233":fill}" stroke="${o.hover===k?"#D99940":"#6a6a72"}" stroke-width="1"/>`;
+  let s=poly([[-.5,-.5,.5],[.5,-.5,.5],[.5,.5,.5],[-.5,.5,.5]],"#34353a","top")+poly([[-.5,.5,.5],[.5,.5,.5],[.5,.5,-.5],[-.5,.5,-.5]],"#2c2d31","front")+poly([[.5,-.5,.5],[.5,.5,.5],[.5,.5,-.5],[.5,-.5,-.5]],"#26272b","right");
+  // étiquettes posées dans le plan de chaque face
+  const lt=(p,t,m)=>{const q=pr(...p);return `<text transform="matrix(${m.join(",")},${q[0].toFixed(1)},${q[1].toFixed(1)})" y="2.5" fill="${C.bone}" font-size="${(a*0.3).toFixed(1)}" font-weight="700" text-anchor="middle">${t}</text>`;};
+  s+=lt([0,0,.5],"DESSUS",[0.866,0.5,-0.866,0.5])+lt([0,.5,0],"AVANT",[0.866,0.5,0,1])+lt([.5,0,0],"DROITE",[0.866,-0.5,0,1]);
+  const c=pr(.5,.5,.5); s+=`<circle cx="${c[0]}" cy="${c[1]}" r="3" fill="${o.hover==="corner"?"#D99940":"#55555c"}"/>`;
+  s+=`<path d="M${cx-a*1.5-6},${cy-a*1.05} l6,-5.5 l6,5.5 v6 h-12z" fill="none" stroke="#A9A291" stroke-width="1.2"/>`;
+  return s;
+}
+
+// ---------------------------------------------------------------- vue Dessus
+function drawTop(v,o){
+  const k=o.floor; let s="";
+  const pid="h"+(UID++);
+  s+=`<defs><pattern id="${pid}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="rgba(255,255,255,.18)" stroke-width="1.6"/></pattern></defs>`;
+  s+=rect(v,0,0,60,60,`fill="#222426"`);
+  s+=grid(v);
+  s+=`<line x1="${v.X(0)}" y1="0" x2="${v.X(0)}" y2="${v.h}" stroke="rgba(230,128,77,.5)"/><line x1="0" y1="${v.Y(0)}" x2="${v.w}" y2="${v.Y(0)}" stroke="rgba(230,128,77,.5)"/>`;
+  if(k>0) for(const r of ROOMS.filter(r=>r.e===k-1)) s+=rect(v,r.r[0],r.r[1],r.r[2],r.r[3],`fill="rgba(153,178,255,.07)" stroke="rgba(153,178,255,.35)"`);
+  const rs=ROOMS.filter(r=>r.e===k);
+  for(const r of rs) s+=rect(v,r.r[0],r.r[1],r.r[2],r.r[3],`fill="${rgba(ZC[r.z],.3)}"`);
+  if(k>0){ // escalier venu d'en dessous
+    const st=OBJ.find(q=>q.t==="escalier"); s+=rect(v,st.rect[0],st.rect[1],st.rect[2],st.rect[3],`fill="url(#${pid})" stroke="rgba(160,110,190,.45)"`);
+  }
+  for(const r of rs) s+=rect(v,r.r[0],r.r[1],r.r[2],r.r[3],`fill="none" stroke="${C.wall}" stroke-width="${(0.5*v.zoom).toFixed(1)}"`);
+  if(k===0){
+    const p=OBJ.find(q=>q.t==="pilier"); s+=rect(v,...p.rect,`fill="#B4B4BC"`);
+    const st=OBJ.find(q=>q.t==="escalier"); s+=rect(v,...st.rect,`fill="${C.stair}"`);
+    for(let i=1;i<18;i++){const y=st.rect[3]-i*(st.rect[3]-st.rect[1])/18; s+=`<line x1="${v.X(st.rect[0])}" y1="${v.Y(y)}" x2="${v.X(st.rect[2])}" y2="${v.Y(y)}" stroke="rgba(230,210,240,.45)"/>`;}
+    const mx=(st.rect[0]+st.rect[2])/2; s+=`<line x1="${v.X(mx)}" y1="${v.Y(st.rect[3]-.6)}" x2="${v.X(mx)}" y2="${v.Y(st.rect[1]+.8)}" stroke="#fff" stroke-width="2"/><path d="M${v.X(mx)},${v.Y(st.rect[1]+.4)} l-5,8 h10z" fill="#fff"/>`;
+  }
+  for(const q of OBJ.filter(q=>q.e===k&&q.mur)){
+    const d=WALLOBJ[q.t]; const b=wallBox(q,Math.max(d.d,.45));
+    const fill=q.t==="atout"?"#2a1a1a":q.t==="boite"?"#2b2614":"#26282b";
+    s+=rect(v,b[0],b[1],b[2],b[3],`fill="${fill}" stroke="${d.c}" stroke-width="1.5"`);
+    if(v.zoom>=14&&q.prix) s+=txt(v.X((b[0]+b[2])/2),v.Y((b[1]+b[3])/2)+4,q.prix,`fill="${q.t==="boite"?"#f2c94c":"#e9e3d2"}" font-size="9" font-weight="700" text-anchor="middle" ${outl}`);
+  }
+  for(const q of OBJ.filter(q=>q.e===k&&q.t==="depart")) s+=rect(v,q.p[0]-.35,q.p[1]-.35,q.p[0]+.35,q.p[1]+.35,`fill="#1d3a20" stroke="${C.ok}" stroke-width="1.5"`);
+  for(const op of OPEN.filter(q=>q.e===k)){
+    const h=op.w/2,b=op.o==="h"?[op.p[0]-h,op.p[1]-.25,op.p[0]+h,op.p[1]+.25]:[op.p[0]-.25,op.p[1]-h,op.p[0]+.25,op.p[1]+h];
+    const col={porte:C.door,debris:C.debris,fenetre:C.win,passage:"#2B2B30"}[op.t];
+    s+=rect(v,...b,`fill="${col}"`);
+    if(op.prix) s+=txt(v.X(op.p[0])+(op.o==="v"?0:0),v.Y(op.p[1])+(op.o==="h"?-6:4),op.prix,`fill="#fff" font-size="10.5" font-weight="700" text-anchor="middle" ${outl}`);
+  }
+  for(const r of rs){ const cx=(r.r[0]+r.r[2])/2, cy=(r.r[1]+r.r[3])/2; if(v.X(cx)<0||v.X(cx)>v.w||v.Y(cy)<0||v.Y(cy)>v.h)continue; s+=txt(v.X(cx),v.Y(cy),r.nom,`fill="rgba(255,255,255,.9)" font-size="12.5" text-anchor="middle" ${outl}`); }
+  return s;
+}
+function wallBox(q,d){ const w=WALLOBJ[q.t].w/2,[x,y]=q.p; return {n:[x-w,y,x+w,y+d],s:[x-w,y-d,x+w,y],e:[x-d,y-w,x,y+w],o:[x,y-w,x+d,y+w]}[q.mur]; }
+function selHandlesRect(v,b){ let s=`<rect x="${v.X(b[0])-1}" y="${v.Y(b[1])-1}" width="${(b[2]-b[0])*v.zoom+2}" height="${(b[3]-b[1])*v.zoom+2}" fill="none" stroke="${C.sel}" stroke-width="2.5"/>`;
+  const pts=[[b[0],b[1]],[b[2],b[1]],[b[2],b[3]],[b[0],b[3]],[(b[0]+b[2])/2,b[1]],[b[2],(b[1]+b[3])/2],[(b[0]+b[2])/2,b[3]],[b[0],(b[1]+b[3])/2]];
+  for(const p of pts) s+=hnd(v.X(p[0]),v.Y(p[1])); return s; }
+const hnd=(x,y,c=C.sel)=>`<rect x="${(x-3.5).toFixed(1)}" y="${(y-3.5).toFixed(1)}" width="7" height="7" fill="${c}" stroke="#000"/>`;
+const dia=(x,y,act)=>`<path d="M${x},${y-6} l6,6 l-6,6 l-6,-6z" fill="${C.sel}" stroke="${act?"#fff":"#000"}" stroke-width="${act?1.5:1}"/>`;
+
+// ---------------------------------------------------------------- élévations
+function elemsElev(extra){
+  const L=[];
+  for(const r of ROOMS) L.push({id:r.id,k:"room",r,b:r.r,z:[FLOORS[r.e].sol,roomTop(r)],e:r.e});
+  for(const q of OBJ){
+    const sol=FLOORS[q.e].sol;
+    if(q.t==="pilier")L.push({id:q.id,k:"pillar",b:q.rect,z:[0,FLOORS[1].sol+FLOORS[1].h],e:0});
+    else if(q.t==="escalier")L.push({id:q.id,k:"stairs",b:q.rect,z:[0,FLOORS[1].sol],e:0});
+    else if(q.t==="depart")L.push({id:q.id,k:"start",b:[q.p[0]-.3,q.p[1]-.3,q.p[0]+.3,q.p[1]+.3],z:[sol,sol+1.8],e:q.e});
+    else if(q.mur){const d=WALLOBJ[q.t]; L.push({id:q.id,k:"wobj",q,b:wallBox(q,d.d),z:[sol+d.z[0],sol+d.z[1]],e:q.e,c:d.c});}
+  }
+  for(const op of OPEN){
+    const sol=FLOORS[op.e].sol, h=op.w/2;
+    const b=op.o==="h"?[op.p[0]-h,op.p[1]-.25,op.p[0]+h,op.p[1]+.25]:[op.p[0]-.25,op.p[1]-h,op.p[0]+.25,op.p[1]+h];
+    const z=op.t==="fenetre"?[sol+SILL,sol+LINTEL]:op.t==="passage"?[sol,sol+3.2]:[sol,sol+DOOR_H];
+    L.push({id:op.id,k:"open",op,b,z,e:op.e});
+  }
+  return L.concat(extra||[]);
+}
+function drawElev(v,o){
+  const pl=v.pl; let s=""; const pid="e"+(UID++);
+  s+=`<defs><pattern id="${pid}g" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="rgba(255,255,255,.07)" stroke-width="2"/></pattern>
+  <pattern id="${pid}s" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="4" stroke="rgba(200,200,210,.35)" stroke-width="1.2"/></pattern></defs>`;
+  s+=grid(v);
+  // sol de la carte et terrain
+  s+=`<rect x="0" y="${v.Y(0)}" width="${v.w}" height="${Math.max(0,v.h-v.Y(0))}" fill="#161719"/><rect x="0" y="${v.Y(0)}" width="${v.w}" height="${Math.max(0,v.h-v.Y(0))}" fill="url(#${pid}g)"/>`;
+  const L=elemsElev(o.extra).map(el=>Object.assign(el,boxUV(pl,el.b,el.z)));
+  const ds=L.map(e=>e.near), dmin=Math.min(...ds), dmax=Math.max(...ds);
+  const vis=(el)=>{ let a=0.38+0.62*(el.near-dmin)/(dmax-dmin||1); if(o.floorFocus!=null&&el.e!==o.floorFocus)a*=0.8; if(o.coupe){const lo=Math.min(el.far,el.near),hi=Math.max(el.far,el.near); if(hi<=o.coupe[0]||lo>=o.coupe[1])a=0.15;} return a; };
+  const order=L.slice().sort((a,b)=>a.near-b.near);
+  // pièces : remplissage, murs de profil, dalles
+  for(const el of order.filter(e=>e.k==="room")){
+    const a=vis(el), r=el.r;
+    s+=rect(v,el.u0,el.v0,el.u1,el.v1,`fill="${rgba(ZC[r.z],0.08+0.16*a)}" stroke="rgba(158,158,168,${(0.3+0.55*a).toFixed(2)})" stroke-width="1.2"`);
+    for(const u of [el.u0,el.u1]) s+=rect(v,u-.25,el.v0,u+.25,el.v1,`fill="rgba(158,158,168,${(0.25+0.6*a).toFixed(2)})"`);
+    s+=rect(v,el.u0-.25,el.v0-.12,el.u1+.25,el.v0+.12,`fill="rgba(158,158,168,${(0.2+0.5*a).toFixed(2)})"`);
+    if(r.e>0) s+=rect(v,el.u0-.25,-(FLOORS[r.e].sol-DALLE),el.u1+.25,-FLOORS[r.e].sol,`fill="url(#${pid}s)" stroke="rgba(200,200,210,${(0.3+0.5*a).toFixed(2)})"`);
+  }
+  // éléments
+  for(const el of order.filter(e=>e.k!=="room")){
+    const a=vis(el);
+    if(el.k==="pillar") s+=rect(v,el.u0,el.v0,el.u1,el.v1,`fill="rgba(180,180,188,${(0.35+0.6*a).toFixed(2)})" stroke="rgba(0,0,0,.35)"`);
+    else if(el.k==="stairs"){
+      const n=18, rise=(el.z[1]-el.z[0])/n;
+      if(pl==="front"){ s+=rect(v,el.u0,el.v0,el.u1,el.v1,`fill="rgba(140,90,165,${(0.25+0.4*a).toFixed(2)})" stroke="rgba(190,140,215,${a.toFixed(2)})"`); for(let i=1;i<n;i++)s+=`<line x1="${v.X(el.u0)}" y1="${v.Y(-i*rise)}" x2="${v.X(el.u1)}" y2="${v.Y(-i*rise)}" stroke="rgba(220,190,235,${(0.35*a).toFixed(2)})"/>`; }
+      else { const run=(el.u1-el.u0)/n; let pts=[[el.u0,0]]; for(let i=0;i<n;i++){pts.push([el.u0+i*run,-(i+1)*rise]);pts.push([el.u0+(i+1)*run,-(i+1)*rise]);} pts.push([el.u1,-(el.z[1]-.3)]); pts.push([el.u0+.5,0]);
+        s+=`<polygon points="${pts.map(p=>P(v,p[0],p[1])).join(" ")}" fill="rgba(140,90,165,${(0.3+0.45*a).toFixed(2)})" stroke="rgba(200,150,225,${a.toFixed(2)})" stroke-linejoin="round"/>`; }
+    }
+    else if(el.k==="wobj") s+=rect(v,el.u0,el.v0,el.u1,el.v1,`fill="rgba(30,30,32,${(0.5*a).toFixed(2)})" stroke="${el.c}" stroke-opacity="${a.toFixed(2)}" stroke-width="1.4"`);
+    else if(el.k==="start"){ const x=v.X((el.u0+el.u1)/2), y0=v.Y(el.v1), hh=1.8*v.zoom; s+=`<g opacity="${a.toFixed(2)}" fill="${C.ok}"><circle cx="${x}" cy="${y0-hh+hh*0.1}" r="${hh*0.09}"/><rect x="${x-hh*0.12}" y="${y0-hh*0.78}" width="${hh*0.24}" height="${hh*0.42}" rx="2"/><rect x="${x-hh*0.1}" y="${y0-hh*0.38}" width="${hh*0.08}" height="${hh*0.38}"/><rect x="${x+hh*0.02}" y="${y0-hh*0.38}" width="${hh*0.08}" height="${hh*0.38}"/></g>`; }
+    else if(el.k==="fx") { s+=drawTorch(v,el,1); }
+    else if(el.k==="open"){
+      const col={porte:C.door,debris:C.debris,fenetre:C.win,passage:"#0f0f11"}[el.op.t];
+      s+=rect(v,el.u0,el.v0,el.u1,el.v1,`fill="${col}" fill-opacity="${(el.op.t==="passage"?0.7:0.45+0.5*a).toFixed(2)}"`);
+      if(el.op.prix&&el.u1-el.u0>1 && a>0.3) s+=txt(v.X((el.u0+el.u1)/2),v.Y(el.v0)-4,el.op.prix,`fill="#fff" font-size="10" font-weight="700" text-anchor="middle" ${outl}`);
+      else if(el.op.prix && a>0.3) s+=txt(v.X((el.u0+el.u1)/2),v.Y(el.v0)-4,el.op.prix,`fill="#fff" font-size="9.5" font-weight="700" text-anchor="middle" ${outl}`);
+    }
+  }
+  // lignes de niveau
+  for(let i=0;i<FLOORS.length;i++){ const f=FLOORS[i];
+    s+=`<line x1="${v.R}" y1="${v.Y(-f.sol)}" x2="${v.w}" y2="${v.Y(-f.sol)}" stroke="rgba(219,209,184,${i===0?.0:.28})"/>`;
+    s+=`<line x1="${v.R}" y1="${v.Y(-(f.sol+f.h))}" x2="${v.w}" y2="${v.Y(-(f.sol+f.h))}" stroke="rgba(219,209,184,.22)" stroke-dasharray="6 5"/>`;
+  }
+  s+=`<line x1="0" y1="${v.Y(0)}" x2="${v.w}" y2="${v.Y(0)}" stroke="rgba(230,128,77,.65)"/>`;
+  // noms des pièces (si elles ne sont pas cachées par une plus proche)
+  for(const el of L.filter(e=>e.k==="room")){
+    const hidden=L.some(o2=>o2.k==="room"&&o2!==el&&o2.near>el.near&&o2.u0<=el.u0+.01&&o2.u1>=el.u1-.01&&o2.v0<=el.v0+.01&&o2.v1>=el.v1-.01);
+    if(hidden&&!(o.coupe&&vis(el)>0.2))continue;
+    const a=vis(el); if(a<0.2)continue;
+    const cx=v.X((el.u0+el.u1)/2), y=v.Y(el.v0)+15; if(cx<v.R+20||cx>v.w-20)continue;
+    s+=txt(cx,y,el.r.nom,`fill="rgba(255,255,255,${(0.45+0.5*a).toFixed(2)})" font-size="12" text-anchor="middle" ${outl}`);
+  }
+  return {s,L,vis};
+}
+function drawTorch(v,el,a){
+  const x=v.X((el.u0+el.u1)/2), y=v.Y(-(el.z[0]+el.z[1])/2); const g=el.ghost;
+  return `<g opacity="${g?0.45:a}"><line x1="${x}" y1="${y+4}" x2="${x}" y2="${y+15}" stroke="#7a5a3a" stroke-width="3" ${g?'stroke-dasharray="2 2"':""}/>
+    <path d="M${x},${y-11} C${x+7},${y-3} ${x+5},${y+5} ${x},${y+5} C${x-5},${y+5} ${x-7},${y-3} ${x},${y-11}z" fill="${g?"none":"#ff9a3c"}" stroke="${g?"#ffb066":"#ffd28a"}" ${g?'stroke-dasharray="3 2"':""}/>
+    ${g?"":`<path d="M${x},${y-4} C${x+3},${y} ${x+2},${y+3} ${x},${y+3} C${x-2},${y+3} ${x-3},${y} ${x},${y-4}z" fill="#ffe7a8"/>`}</g>`;
+}
+function levelTags(v,cur){
+  let s="";
+  for(let i=0;i<FLOORS.length;i++){ const y=v.Y(-FLOORS[i].sol); const lbl=v.w<400?`É${i}`:`É${i}  ${i?"+":""}${fr(FLOORS[i].sol)}`; const w=lbl.length*5.6+10; const c=i===cur;
+    s+=`<rect x="${v.R+2}" y="${y-8}" width="${w}" height="15" rx="2" fill="${c?"#3a3020":"#232427"}" stroke="${c?C.gold:"#4D4D54"}"/>`+txt(v.R+7,y+3,lbl,`fill="${c?C.gold:"#CFC9B8"}" font-size="10.5" font-weight="${c?700:500}" xml:space="preserve"`); }
+  return s;
+}
+
+// ---------------------------------------------------------------- composition d'un volet
+function pane(o){
+  const H=o.h-22, W=o.w; let svg="", v=null;
+  if(o.plane==="3d"){ svg=draw3D(W,H,o.iso); }
+  else {
+    v=mkView(o.plane,W,H,o.zoom,o.cu,o.cv);
+    if(o.plane==="top"){ svg+=drawTop(v,o); }
+    else { const r=drawElev(v,o); svg+=r.s; v.L=r.L; }
+    if(o.over) svg+=o.over(v);
+    svg+=rulers(v,o.hl);
+    if(o.plane!=="top") svg+=levelTags(v,o.floor);
+    svg+=triad(v);
+  }
+  // ViewCube
+  if(o.plane==="3d") svg+=cubeIso(W-50,56,22,{});
+  else svg+=cubeNet(o.plane,W-82,o.plane==="top"?24:14,{dim:!o.active,hover:o.cubeHover});
+  const head=`<div class="ph"><span class="nm">${o.name}</span><span class="sub">${o.sub||""}</span><span class="axs">${o.axes||""}</span><span class="sp"></span>${o.right||""}<span class="ic">⛶</span></div>`;
+  return `<div class="pane${o.active?" active":""}" style="left:${o.x}px;top:${o.y}px;width:${o.w}px;height:${o.h}px">${head}<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Bahnschrift, 'Barlow Semi Condensed', 'Segoe UI', sans-serif">${svg}</svg></div>`;
+}
+const AX={top:`<span style="color:${C.x}">X →</span> · <span style="color:${C.y}">Y ↓</span>`,front:`<span style="color:${C.x}">X →</span> · <span style="color:${C.z}">Z ↑</span>`,right:`<span style="color:${C.y}">Y ←</span> · <span style="color:${C.z}">Z ↑</span>`};
+
+// ---------------------------------------------------------------- chrome
+function topbar(o={}){
+  return `<div class="topbar"><span class="b">Fichier</span><span class="b">Édition</span><span class="vsep"></span><span class="b">◄</span><span class="floorlbl">Étage ${o.floor??0} / 1</span><span class="b">►</span><span class="vsep"></span>
+  <span class="b" style="color:#80FF8C">▶&nbsp; TESTER</span><span style="color:#7ee08a;white-space:nowrap">✔ jouable (3 avert.)</span>
+  <span class="b">Aimantation : ${o.snap||"grille 1 m"}</span><span class="b">APERÇU 3D</span>
+  <span class="b${o.layOpen?" on":""}" style="display:flex;align-items:center;gap:6px"><svg width="14" height="12"><rect x=".5" y=".5" width="13" height="11" fill="none" stroke="#E0DBCC"/><line x1="7" y1="0" x2="7" y2="12" stroke="#E0DBCC"/><line x1="0" y1="6" x2="14" y2="6" stroke="#E0DBCC"/></svg>Disposition ▾</span>
+  <span class="b">⚙</span><span class="title">DRAFT ARENA &nbsp;—&nbsp; exemple</span><span class="b">?</span></div>`;
+}
+function statusbar(t,cur){ return `<div class="statusbar"><span class="st">${t}</span><span class="cur">${cur}</span></div>`; }
+const ICON=[
+ `<path d="M4,2 L4,22 L9,17 L13,25 L16,23.5 L12,16 L19,16z" fill="#fff" stroke="#000"/>`,
+ `<rect x="3" y="3" width="20" height="20" fill="none" stroke="#7fb2e6" stroke-width="3"/>`,
+ `<polygon points="13,2 24,10 20,23 6,23 2,10" fill="none" stroke="#6fe0c4" stroke-width="2.5"/>`,
+ `<rect x="2" y="10" width="22" height="6" fill="#9a9aa2" transform="rotate(-35 13 13)"/>`,
+ `<rect x="7" y="2" width="12" height="20" fill="#cc7a1a" stroke="#5a3307"/><circle cx="16" cy="12" r="1.3" fill="#2a1a08"/>`,
+ `<rect x="3" y="5" width="20" height="16" fill="none" stroke="#2f7cf0" stroke-width="2"/><line x1="3" y1="10" x2="23" y2="10" stroke="#c09050" stroke-width="2"/><line x1="3" y1="15" x2="23" y2="15" stroke="#c09050" stroke-width="2"/>`,
+ `<rect x="3" y="6" width="20" height="13" fill="#2b2614" stroke="#f2c94c" stroke-width="2"/><text x="13" y="17" font-size="10" fill="#f2c94c" text-anchor="middle" font-weight="700">?</text>`,
+ `<circle cx="13" cy="5" r="3.5" fill="#40e060"/><rect x="9" y="9" width="8" height="9" rx="2" fill="#40e060"/><rect x="9.5" y="17" width="3" height="7" fill="#40e060"/><rect x="13.5" y="17" width="3" height="7" fill="#40e060"/>`,
+ `<path d="M2,12 h18 l3,-2 v4 h-4 l-2,6 h-4 l1,-5 h-12z" fill="#dcdcdc"/>`,
+ `<path d="M3,20 h20 M5,20 l4,-14 l4,14 M13,20 l4,-9 l4,9" fill="none" stroke="#b591c9" stroke-width="2"/>`];
+function dock(left,right){
+  let slots=`<div class="slot sel"><svg width="26" height="26">${ICON[0]}</svg></div>`;
+  for(let i=1;i<=9;i++) slots+=`<div class="slot"><b>${i}</b><svg width="26" height="26">${ICON[i]}</svg></div>`;
+  return `<div class="dock"><span class="l">${left}</span><div class="hotbar">${slots}</div><span class="r">${right}</span></div>`;
+}
+function sidePanel(inner,tab="Propriétés"){
+  const tabs=["Propriétés","Pièces","Zones","Étages","Vérification"].map(t=>`<span class="${t===tab?"sel":""}">${t}</span>`).join("");
+  return `<div class="side"><div class="tabs">${tabs}</div><div class="props">${inner}</div></div>`;
+}
+const objtab=`<div class="objtab"><span>▾ OBJETS SUR LA CARTE</span></div>`;
+const xyz=(x,y,z,live)=>`<div class="row"><span class="k">Position</span><div class="xyz"><span class="fld"><span class="ax" style="color:${C.x}">X</span>${x}</span><span class="fld"><span class="ax" style="color:${C.y}">Y</span>${y}</span><span class="fld${live?" live":""}"><span class="ax" style="color:${C.z}">Z</span>${z}</span></div></div>`;
+const callouts=(list)=>list.map((c,i)=>`<div class="callout" style="left:${c[0]-10}px;top:${c[1]-10}px">${i+1}</div>`).join("");
+
+// ================================================================ ÉCHELLE ET ROTATION : composants
+const GREY="#55555C";
+const lockSvg=(x,y,c="#A9A291",open=false,s=1)=>`<g transform="translate(${x},${y}) scale(${s})"><path d="M2,6 V3.6 a3,3 0 0 1 6,0 ${open?"V2.6":"V6"}" transform="${open?"translate(3,0)":""}" fill="none" stroke="${c}" stroke-width="1.5"/><rect x="0" y="5.5" width="10" height="7.5" rx="1.2" fill="${c}"/><rect x="4.3" y="8" width="1.4" height="2.6" fill="#1A1B1D"/></g>`;
+const LOCK=(open=false,c="#E0DBCC")=>`<svg width="12" height="14" viewBox="0 0 12 14">${lockSvg(1,0.5,c,open)}</svg>`;
+const hndA=(x,y)=>`<rect x="${(x-5).toFixed(1)}" y="${(y-5).toFixed(1)}" width="10" height="10" fill="${C.sel}" stroke="#fff" stroke-width="1.5"/>`;
+const diaZ=(x,y,a=1)=>`<path d="M${x},${y-6} l6,6 l-6,6 l-6,-6z" fill="${C.z}" stroke="#000" opacity="${a}"/>`;
+const lockH=(x,y,hov)=>`<rect x="${x-7}" y="${y-7}" width="14" height="14" rx="1.5" fill="${hov?"#3a3020":"#2A2B2F"}" stroke="${hov?C.focus||"#D99940":GREY}"/>`+lockSvg(x-4,y-5.5,hov?"#D99940":"#8C8575",false,0.8);
+const pill=(x,y,t,o={})=>{ const w=o.w||t.replace(/<[^>]+>/g,"").length*6.6+12; return `<rect x="${x}" y="${y-13}" width="${w}" height="19" rx="2" fill="${o.bg||"#121214"}" stroke="${o.st||"#38383D"}"/>`+txt(x+6,y+1,t,`fill="${o.c||C.bone}" font-size="12" font-weight="${o.fw||600}"`); };
+// cote : trait avec flèches entre deux points (écran), étiquette centrée
+function dimLine(x1,y1,x2,y2,label,o={}){
+  const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy), ux=dx/L, uy=dy/L, c=o.c||C.bone;
+  let s=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}"/>`;
+  const ah=(x,y,sx,sy)=>`<path d="M${x},${y} l${(sx*7-sy*3.5).toFixed(1)},${(sy*7+sx*3.5).toFixed(1)} l${(sy*7).toFixed(1)},${(-sx*7).toFixed(1)}z" fill="${c}"/>`;
+  s+=ah(x1,y1,ux,uy)+ah(x2,y2,-ux,-uy);
+  const w=label.length*6.6+12, mx=(x1+x2)/2+(o.ox||0), my=(y1+y2)/2+(o.oy||0);
+  s+=`<rect x="${mx-w/2}" y="${my-9}" width="${w}" height="18" rx="2" fill="#121214" stroke="#38383D"/>`+txt(mx,my+4,label,`fill="${c}" font-size="12" text-anchor="middle" font-weight="600"`);
+  return s;
+}
+// anneau de rotation à l'écran (vues planes) ; a0, a1 en degrés écran (0 = +x, sens horaire positif, y vers le bas)
+function ring2D(cx,cy,r,col,o={}){
+  let s=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="${o.active?3:1.6}" opacity="${o.a??0.9}"/>`;
+  if(o.ticks) for(let d=0;d<360;d+=15){ const big=d%45===0, a=d*Math.PI/180, r0=r-(big?7:4), r1=r+(big?7:4); s+=`<line x1="${(cx+r0*Math.cos(a)).toFixed(1)}" y1="${(cy+r0*Math.sin(a)).toFixed(1)}" x2="${(cx+r1*Math.cos(a)).toFixed(1)}" y2="${(cy+r1*Math.sin(a)).toFixed(1)}" stroke="${col}" stroke-width="${big?1.6:1}" opacity=".85"/>`; }
+  if(o.sweep){ const [a0,a1]=o.sweep; let pts=[[cx,cy]]; const n=24; for(let i=0;i<=n;i++){const a=(a0+(a1-a0)*i/n)*Math.PI/180; pts.push([cx+r*Math.cos(a),cy+r*Math.sin(a)]);}
+    s+=`<polygon points="${pts.map(p=>p.map(n=>n.toFixed(1)).join(",")).join(" ")}" fill="${col}" fill-opacity=".25"/>`;
+    const p0=[cx+r*Math.cos(a0*Math.PI/180),cy+r*Math.sin(a0*Math.PI/180)], p1=[cx+r*Math.cos(a1*Math.PI/180),cy+r*Math.sin(a1*Math.PI/180)];
+    s+=`<line x1="${cx}" y1="${cy}" x2="${p0[0].toFixed(1)}" y2="${p0[1].toFixed(1)}" stroke="${C.bone}" stroke-opacity=".6" stroke-dasharray="3 3"/><line x1="${cx}" y1="${cy}" x2="${p1[0].toFixed(1)}" y2="${p1[1].toFixed(1)}" stroke="${col}" stroke-width="1.5"/>`;
+    s+=`<circle cx="${p1[0].toFixed(1)}" cy="${p1[1].toFixed(1)}" r="5.5" fill="${col}" stroke="#fff" stroke-width="1.5"/>`;
+  } else if(o.grip!==false){ const a=(o.gripA??-90)*Math.PI/180; s+=`<circle cx="${(cx+r*Math.cos(a)).toFixed(1)}" cy="${(cy+r*Math.sin(a)).toFixed(1)}" r="4.5" fill="${col}" stroke="#000" opacity="${o.a??0.9}"/>`; }
+  s+=`<circle cx="${cx}" cy="${cy}" r="2.5" fill="#fff" stroke="#000" opacity="${Math.min(1,(o.a??0.9)+0.1)}"/>`;
+  return s;
+}
+const anglePill=(x,y,ax,col,val)=>`<rect x="${x}" y="${y-13}" width="${ax?70:56}" height="19" rx="2" fill="#2b2410" stroke="${C.gold}"/>`+(ax?txt(x+6,y+1,ax,`fill="${col}" font-size="12" font-weight="700"`):"")+txt(x+(ax?18:6),y+1,val,`fill="${C.gold}" font-size="12" font-weight="700"`);
+// curseur de rotation (flèche courbe)
+const rotCursor=(x,y)=>`<g transform="translate(${x},${y})"><path d="M-7,3 A8,8 0 1 1 3,7" fill="none" stroke="#000" stroke-width="4"/><path d="M-7,3 A8,8 0 1 1 3,7" fill="none" stroke="#fff" stroke-width="2"/><path d="M0,10 l6,-6 l1,7z" fill="#fff" stroke="#000" stroke-width=".8"/></g>`;
+const diagCursor=(x,y)=>`<path d="M${x},${y} l9,0 l-3,3 l7,7 l3,-3 l0,9 l-9,0 l3,-3 l-7,-7 l-3,3z" fill="#fff" stroke="#000" stroke-width="1"/>`;
+const noCursor=(x,y)=>`<circle cx="${x}" cy="${y}" r="7" fill="#fff" stroke="#000" stroke-width="1"/><circle cx="${x}" cy="${y}" r="4.6" fill="none" stroke="#c0392b" stroke-width="2"/><line x1="${x-3.3}" y1="${y+3.3}" x2="${x+3.3}" y2="${y-3.3}" stroke="#c0392b" stroke-width="2"/>`;
+const moveArrows=(x,y,a=1)=>`<g opacity="${a}"><line x1="${x}" y1="${y}" x2="${x+30}" y2="${y}" stroke="${C.x}" stroke-width="2"/><path d="M${x+37},${y} l-8,-4.5 v9z" fill="${C.x}"/><line x1="${x}" y1="${y}" x2="${x}" y2="${y+30}" stroke="${C.y}" stroke-width="2"/><path d="M${x},${y+37} l-4.5,-8 h9z" fill="${C.y}"/><rect x="${x+4}" y="${y+4}" width="9" height="9" fill="${C.x}" fill-opacity=".35" stroke="${C.y}" stroke-opacity=".7"/></g>`;
+// pile de caisses vue de dessus (rect écran)
+function crateTop(x0,y0,x1,y1,nx,ny){ let s=`<rect x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" fill="#5f6b5c" stroke="#26302a" stroke-width="1.5"/>`;
+  for(let i=1;i<nx;i++){const x=x0+(x1-x0)*i/nx; s+=`<line x1="${x}" y1="${y0}" x2="${x}" y2="${y1}" stroke="#2f3a30" stroke-width="1.5"/>`;}
+  for(let j=1;j<ny;j++){const y=y0+(y1-y0)*j/ny; s+=`<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="#2f3a30" stroke-width="1.5"/>`;}
+  for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){const a=x0+(x1-x0)*i/nx+3,b=y0+(y1-y0)*j/ny+3,c=x0+(x1-x0)*(i+1)/nx-3,d=y0+(y1-y0)*(j+1)/ny-3; s+=`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="#7b8877" stroke-opacity=".55"/>`;}
+  return s; }
+const fvx=(X0,v,u)=>X0+v.X(u), fvy=(Y0,v,t)=>Y0+22+v.Y(t);
+const lockRow=(k,inner)=>`<div class="row"><span class="k">${k}</span>${inner}</div>`;
+const axf=(a,val,cls="")=>`<span class="fld${cls}"><span class="ax" style="color:${a==="X"?C.x:a==="Y"?C.y:C.z}">${a}</span>${val}</span>`;
+
+// ================================================================ 3D (aperçu intégré, rendu simplifié, recadré)
+function draw3D(w,h,o){
+  const k=o.k, cx=w/2+(o.dx||0), cy=h/2+(o.dy||0), [cmx,cmy,cmz]=o.cm;
+  const pr=(x,y,z)=>[cx+((x-cmx)-(y-cmy))*0.866*k, cy+((x-cmx)+(y-cmy))*0.5*k-(z-cmz)*k];
+  const poly=(pts,fill,extra="")=>`<polygon points="${pts.map(p=>pr(...p).map(n=>n.toFixed(1)).join(",")).join(" ")}" fill="${fill}" ${extra}/>`;
+  const box=(x0,y0,x1,y1,z0,z1,top,s1,s2,extra="")=>poly([[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],top,extra)+poly([[x0,y1,z1],[x1,y1,z1],[x1,y1,z0],[x0,y1,z0]],s1,extra)+poly([[x1,y0,z1],[x1,y1,z1],[x1,y1,z0],[x1,y0,z0]],s2,extra);
+  let s=`<defs><radialGradient id="g3d" cx=".5" cy=".45" r=".7"><stop offset="0" stop-color="#1d1f22"/><stop offset="1" stop-color="#0c0c0e"/></radialGradient></defs><rect width="${w}" height="${h}" fill="url(#g3d)"/>`;
+  s+=poly([[-2,1,0],[25,1,0],[25,36,0],[-2,36,0]],"#17181a");
+  for(const r of ROOMS.filter(r=>r.e===0)){const [x0,y0,x1,y1]=r.r; const c=ZC[r.z]; s+=poly([[x0,y0,0],[x1,y0,0],[x1,y1,0],[x0,y1,0]],`rgb(${c.map(n=>Math.round(n*0.32+18)).join(",")})`,`stroke="#2a2b2e"`);}
+  // grille au sol de l'entrepôt (1 m)
+  for(let x=3;x<17;x++){const a=pr(x,4.5,0),b=pr(x,17,0); s+=`<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="rgba(255,255,255,.05)"/>`;}
+  for(let y=5;y<17;y++){const a=pr(2.5,y,0),b=pr(17,y,0); s+=`<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="rgba(255,255,255,.05)"/>`;}
+  const nwall=(x0,x1,y,top,f)=>poly([[x0,y,0],[x1,y,0],[x1,y,top],[x0,y,top]],f,`stroke="#38393d"`);
+  const wwall=(y0,y1,x,top,f)=>poly([[x,y0,0],[x,y1,0],[x,y1,top],[x,y0,top]],f,`stroke="#38393d"`);
+  s+=nwall(2.5,17,4.5,6.8,"#5d5e64")+nwall(17,20.5,4.5,3.2,"#5a5c55");
+  s+=wwall(4.5,17,2.5,6.8,"#4a4b50")+wwall(17,21.5,2.5,3.2,"#465052");
+  for(const xw of [11.25,15.25]) s+=poly([[xw-.5,4.5,SILL],[xw+.5,4.5,SILL],[xw+.5,4.5,LINTEL],[xw-.5,4.5,LINTEL]],"#1A73FF");
+  s+=poly([[5.25,4.5,3.5+SILL],[6.25,4.5,3.5+SILL],[6.25,4.5,3.5+LINTEL],[5.25,4.5,3.5+LINTEL]],"#1A73FF");
+  s+=poly([[2.5,18.75,SILL],[2.5,19.75,SILL],[2.5,19.75,LINTEL],[2.5,18.75,LINTEL]],"#1A73FF");
+  s+=box(2.5,4.5,7.5,9.5,3.2,3.5,"rgb(46,58,96)","#33384a","#2b3040");
+  s+=`<polyline points="${[[2.5,9.5,4.5],[7.5,9.5,4.5],[7.5,4.5,4.5]].map(p=>pr(...p).join(",")).join(" ")}" fill="none" stroke="#8d8f96" stroke-width="1.3"/>`;
+  for(const p of [[2.5,9.5],[5,9.5],[7.5,9.5],[7.5,7],[7.5,4.5]]){const a=pr(p[0],p[1],3.5),b=pr(p[0],p[1],4.5); s+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#8d8f96"/>`;}
+  s+=poly([[2.5,16,0],[5,16,0],[5,9.5,3.5],[2.5,9.5,3.5]],"rgb(110,74,130)",`stroke="#b591c9" stroke-width=".8"`)+poly([[5,16,0],[5,9.5,3.5],[5,9.5,0]],"#4a3456");
+  for(let i=1;i<18;i++){const y=16-i*6.5/18,z=i*3.5/18; const a=pr(2.5,y,z),b=pr(5,y,z); s+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="rgba(230,200,245,.4)"/>`;}
+  s+=box(9,9.5,11.5,12,0,6.8,"#9a9aa2","#7b7b83","#66666d");
+  if(o.mid) s+=o.mid(pr);
+  const stubX=(x0,x1,y,z,f)=>box(x0,y-.15,x1,y+.15,0,z,"#8d8d95",f,"#5c5c62");
+  s+=stubX(2.5,9.75,17,1,"#6e6e75")+stubX(13.75,17,17,1,"#6e6e75");
+  s+=box(5.75,16.2,7.75,17,0,1,"#8a6a1c","#6b5216","#5a4512");
+  const stubY=(y0,y1,x,z)=>box(x-.15,y0,x+.15,y1,0,z,"#8d8d95","#6e6e75","#5c5c62");
+  s+=stubY(4.5,6.75,17,1)+box(16.85,6.75,17.15,8.75,0,0.25,"#FFAB00","#c98700","#a86f00")+stubY(8.75,13.4,17,1)+box(16.1,13.4,17,14.6,0,2.1,"#7a2a24","#5e211c","#4e1b17")+stubY(14.6,21,17,1);
+  if(o.top) s+=o.top(pr);
+  return s;
+}
+
+// ---------------------------------------------------------------- poutre tombée (7 × 2 × 1,8 m), inclinée de th° autour de Y
+const BEAM={c:[11.5,14.5],L:3.5,D:1,H:0.9};
+function beamCorners(th){
+  const t=th*Math.PI/180, c=Math.cos(t), s=Math.sin(t), zc=BEAM.L*Math.abs(s)+BEAM.H*c; const P=[];
+  for(const x of [-BEAM.L,BEAM.L])for(const y of [-BEAM.D,BEAM.D])for(const z of [-BEAM.H,BEAM.H]) P.push([BEAM.c[0]+x*c+z*s, BEAM.c[1]+y, zc+z*c-x*s]);
+  return {P,zc,c,s};
+}
+// index : x(0/1)*4 + y(0/1)*2 + z(0/1)
+const BFACES=[{i:[1,3,7,5],n:[0,0,1],f:"#8a888d"},{i:[0,2,6,4],n:[0,0,-1],f:"#46464b"},{i:[4,5,7,6],n:[1,0,0],f:"#6c6a70"},{i:[0,1,3,2],n:[-1,0,0],f:"#77757b"},{i:[2,3,7,6],n:[0,1,0],f:"#5d5b61"},{i:[0,1,5,4],n:[0,-1,0],f:"#54525a"}];
+function beam3D(pr,th,o={}){
+  const {P,c,s}=beamCorners(th); let out="";
+  for(const f of BFACES){ const n=[f.n[0]*c+f.n[2]*s, f.n[1], f.n[2]*c-f.n[0]*s]; if(n[0]+n[1]+n[2]<=0.001)continue;
+    out+=`<polygon points="${f.i.map(i=>pr(...P[i]).map(n=>n.toFixed(1)).join(",")).join(" ")}" fill="${f.f}" stroke="${o.sel?C.sel:"#2a2a2e"}" stroke-width="${o.sel?1.6:1}" stroke-linejoin="round"/>`;
+  }
+  return out;
+}
+function beamGhost3D(pr){
+  const {P}=beamCorners(0); const E=[[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]];
+  return E.map(([a,b])=>{const p=pr(...P[a]),q=pr(...P[b]); return `<line x1="${p[0].toFixed(1)}" y1="${p[1].toFixed(1)}" x2="${q[0].toFixed(1)}" y2="${q[1].toFixed(1)}" stroke="${C.bone}" stroke-opacity=".55" stroke-dasharray="4 3"/>`;}).join("");
+}
+// anneau 3D : axe 'x' | 'y' | 'z' ; moitié arrière plus pâle
+function ring3D(pr,C3,R,ax,col,o={}){
+  const pt=t=>{const a=t*Math.PI/180, u=R*Math.cos(a), w=R*Math.sin(a); return ax==="z"?[C3[0]+u,C3[1]+w,C3[2]]:ax==="y"?[C3[0]+u,C3[1],C3[2]+w]:[C3[0],C3[1]+u,C3[2]+w];};
+  const dep=p=>(p[0]-C3[0])+(p[1]-C3[1])+(p[2]-C3[2]);
+  let s=""; const n=96;
+  for(let i=0;i<n;i++){ const p=pt(i*360/n), q=pt((i+1)*360/n); const back=dep(p)+dep(q)<0; const a=pr(...p), b=pr(...q);
+    s+=`<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${col}" stroke-width="${o.active?3:1.7}" stroke-linecap="round" opacity="${(back?0.38:1)*(o.a??1)}"/>`; }
+  if(o.ticks) for(let d=0;d<360;d+=15){ const big=d%45===0, a=d*Math.PI/180; const f=(r)=>{const u=r*Math.cos(a),w=r*Math.sin(a); return pr(...(ax==="y"?[C3[0]+u,C3[1],C3[2]+w]:ax==="z"?[C3[0]+u,C3[1]+w,C3[2]]:[C3[0],C3[1]+u,C3[2]+w]));};
+    const p=f(R*(big?0.88:0.93)), q=f(R*(big?1.12:1.07)); s+=`<line x1="${p[0].toFixed(1)}" y1="${p[1].toFixed(1)}" x2="${q[0].toFixed(1)}" y2="${q[1].toFixed(1)}" stroke="${col}" stroke-width="${big?1.7:1.1}"/>`; }
+  if(o.sweep){ const [t0,t1]=o.sweep; const c=pr(...C3); let pts=[c]; for(let i=0;i<=20;i++) pts.push(pr(...pt(t0+(t1-t0)*i/20)));
+    s+=`<polygon points="${pts.map(p=>p.map(n=>n.toFixed(1)).join(",")).join(" ")}" fill="${col}" fill-opacity=".26"/>`;
+    const p0=pr(...pt(t0)), p1=pr(...pt(t1));
+    s+=`<line x1="${c[0].toFixed(1)}" y1="${c[1].toFixed(1)}" x2="${p0[0].toFixed(1)}" y2="${p0[1].toFixed(1)}" stroke="${C.bone}" stroke-opacity=".6" stroke-dasharray="3 3"/><line x1="${c[0].toFixed(1)}" y1="${c[1].toFixed(1)}" x2="${p1[0].toFixed(1)}" y2="${p1[1].toFixed(1)}" stroke="${col}" stroke-width="1.5"/>`;
+    s+=`<circle cx="${p1[0].toFixed(1)}" cy="${p1[1].toFixed(1)}" r="6" fill="${col}" stroke="#fff" stroke-width="1.6"/>`; }
+  if(o.grip!=null){ const g=pr(...pt(o.grip)); s+=`<circle cx="${g[0].toFixed(1)}" cy="${g[1].toFixed(1)}" r="4.5" fill="${col}" stroke="#000" opacity="${o.a??1}"/>`; }
+  if(o.label){ const g=pr(...pt(o.label[0])); s+=txt(g[0]+o.label[1],g[1]+o.label[2],ax.toUpperCase(),`fill="${col}" font-size="11" font-weight="700" ${outl}`); }
+  return {s,pt};
+}
+
+// ================================================================ ÉCRAN 1 : agrandir une pile de caisses (2 vues empilées)
+(function(){
+  const X0=18,Y0=40,W=922,ph=301,z=22;
+  const B0=[11,6,13.5,8], B1=[11,6,14.75,9], H1=2.25;
+  const cx=(B1[0]+B1[2])/2, cy=(B1[1]+B1[3])/2;
+  let h=topbar({floor:0,snap:"grille fine 0,1 m"})+objtab;
+  const overTop=v=>{
+    let s=""; const X=v.X, Y=v.Y;
+    s+=`<rect x="${X(B0[0])}" y="${Y(B0[1])}" width="${(B0[2]-B0[0])*z}" height="${(B0[3]-B0[1])*z}" fill="none" stroke="${C.bone}" stroke-opacity=".6" stroke-dasharray="5 4"/>`;
+    s+=crateTop(X(B1[0]),Y(B1[1]),X(B1[2]),Y(B1[3]),3,2);
+    // anneau Z estompé
+    const rr=Math.hypot(B1[2]-B1[0],B1[3]-B1[1])/2*z+14;
+    s+=ring2D(X(cx),Y(cy),rr,C.z,{a:0.25});
+    s+=`<rect x="${X(B1[0])-1}" y="${Y(B1[1])-1}" width="${(B1[2]-B1[0])*z+2}" height="${(B1[3]-B1[1])*z+2}" fill="none" stroke="${C.sel}" stroke-width="2.5"/>`;
+    // faces (estompées pendant le geste)
+    s+=`<g opacity=".4">`+hnd(X(cx),Y(B1[1]),C.y)+hnd(X(cx),Y(B1[3]),C.y)+hnd(X(B1[0]),Y(cy),C.x)+hnd(X(B1[2]),Y(cy),C.x)+`</g>`;
+    // coins
+    s+=hnd(X(B1[2]),Y(B1[1]))+hnd(X(B1[0]),Y(B1[3]))+hndA(X(B1[2]),Y(B1[3]));
+    // point fixe
+    const fx=X(B1[0]), fy=Y(B1[1]); s+=hnd(fx,fy)+`<path d="M${fx-9},${fy-9} l-5,-5 M${fx-14},${fy-9} l5,-5" stroke="${C.bone}" stroke-width="1.6"/>`;
+    // cotes
+    s+=`<line x1="${X(B1[0])}" y1="${Y(B1[1])-6}" x2="${X(B1[0])}" y2="${Y(B1[1])-30}" stroke="${C.bone}" stroke-opacity=".5"/><line x1="${X(B1[2])}" y1="${Y(B1[1])-6}" x2="${X(B1[2])}" y2="${Y(B1[1])-30}" stroke="${C.bone}" stroke-opacity=".5"/>`;
+    s+=dimLine(X(B1[0]),Y(B1[1])-24,X(B1[2]),Y(B1[1])-24,"3,75 m");
+    s+=`<line x1="${X(B1[0])-6}" y1="${Y(B1[1])}" x2="${X(B1[0])-34}" y2="${Y(B1[1])}" stroke="${C.bone}" stroke-opacity=".5"/><line x1="${X(B1[0])-6}" y1="${Y(B1[3])}" x2="${X(B1[0])-34}" y2="${Y(B1[3])}" stroke="${C.bone}" stroke-opacity=".5"/>`;
+    s+=dimLine(X(B1[0])-28,Y(B1[1]),X(B1[0])-28,Y(B1[3]),"3,00 m",{ox:-32,oy:8});
+    // puce de hauteur
+    s+=`<rect x="${X(B1[0])+4}" y="${Y(B1[3])+8}" width="66" height="17" rx="2" fill="#121214" stroke="${C.z}"/>`+txt(X(B1[0])+9,Y(B1[3])+20,"H 2,25 m",`fill="#cfe0ff" font-size="11" font-weight="600"`);
+    // facteur près du curseur
+    const mx=X(B1[2])+16, my=Y(B1[3])+30;
+    s+=`<rect x="${mx}" y="${my-13}" width="56" height="19" rx="2" fill="#2b2410" stroke="${C.gold}"/>`+txt(mx+6,my+1,"×1,50",`fill="${C.gold}" font-size="12" font-weight="700"`);
+    s+=txt(mx+62,my+1,"uniforme · Alt : depuis le centre",`fill="${C.dim}" font-size="10.5"`);
+    s+=diagCursor(X(B1[2])+3,Y(B1[3])+3);
+    return s;
+  };
+  h+=pane({x:X0,y:Y0,w:W,h:ph,plane:"top",name:"DESSUS",sub:"Étage 0",axes:AX.top,floor:0,zoom:z,cu:12,cv:9.6,active:true,
+    right:`<span class="chip">Coupes : aucune</span><span class="chip">147 %</span>`,over:overTop,hl:{u:14.75,t:9}});
+  const overFront=v=>{
+    const X=v.X, Y=v.Y; let s="";
+    s+=rect(v,B1[0],-H1,B1[2],0,`fill="#56614f" stroke="#26302a" stroke-width="1.5"`);
+    for(let i=1;i<3;i++){const x=X(B1[0]+(B1[2]-B1[0])*i/3); s+=`<line x1="${x}" y1="${Y(-H1)}" x2="${x}" y2="${Y(0)}" stroke="#2f3a30" stroke-width="1.5"/>`;}
+    s+=`<line x1="${X(B1[0])}" y1="${Y(-H1/2)}" x2="${X(B1[2])}" y2="${Y(-H1/2)}" stroke="#2f3a30" stroke-width="1.5"/>`;
+    s+=rect(v,B0[0],-1.5,B0[2],0,`fill="none" stroke="${C.bone}" stroke-opacity=".6" stroke-dasharray="5 4"`);
+    s+=`<rect x="${X(B1[0])-1}" y="${Y(-H1)-1}" width="${(B1[2]-B1[0])*z+2}" height="${H1*z+2}" fill="none" stroke="${C.sel}" stroke-width="2.5"/>`;
+    s+=hnd(X(B1[0]),Y(-H1))+hnd(X(B1[2]),Y(-H1))+hnd(X(B1[0]),Y(0))+hnd(X(B1[2]),Y(0));
+    s+=hnd(X(B1[0]),Y(-H1/2),C.x)+hnd(X(B1[2]),Y(-H1/2),C.x)+diaZ(X(cx),Y(-H1));
+    const lx=X(B1[0])-26;
+    s+=`<line x1="${lx-6}" y1="${Y(-H1)}" x2="${X(B1[0])-6}" y2="${Y(-H1)}" stroke="${C.bone}" stroke-opacity=".5"/>`;
+    s+=dimLine(lx,Y(0),lx,Y(-H1),"2,25 m",{ox:-34});
+    s+=txt(X(B1[0]),Y(0)+16,"base fixe : reste au sol",`fill="${C.dim}" font-size="10.5"`);
+    return s;
+  };
+  h+=pane({x:X0,y:Y0+ph+4,w:W,h:ph,plane:"front",name:"AVANT",sub:"regard vers le nord · étages : tous",axes:AX.front,floor:0,zoom:z,cu:12,cv:-3.3,coupe:[4.5,17],
+    right:`<span class="chip hl">Coupe : Y 4,5 → 17 (Entrepôt) ▾</span><span class="chip">147 %</span>`,over:overFront,hl:{u:14.75,t:-2.25}});
+  h+=`<div class="split h" style="left:${X0}px;top:${Y0+ph}px;width:${W}px;height:4px"></div>`;
+  h+=dock("Coin : échelle uniforme · face : un axe · Alt : depuis le centre · Maj : libre","Grille fine : échelle au pas de 0,05 · aimants ×1, ×0,5, ×2");
+  h+=sidePanel(`<h3>PILE DE CAISSES</h3>
+    <div class="row"><span class="k">Décor</span><span class="dd">Pile de caisses <span>▾</span></span></div>
+    ${xyz("12,88","7,50","0,00")}
+    <div class="secttl">Échelle</div>
+    ${lockRow("Uniforme",`<span class="fld live">×1,50</span><span class="lk on" title="Cadenas fermé">${LOCK(false,"#FFD9A0")}</span>`)}
+    ${lockRow("X · Y · Z",`<div class="xyz">${axf("X","1,50"," live")}${axf("Y","1,50"," live")}${axf("Z","1,50"," live")}</div>`)}
+    <div class="note">3,75 × 3,00 × 2,25 m (d'origine 2,50 × 2,00 × 1,50). De 0,25 à 4 par axe.</div>
+    <div class="row"><span class="k"></span><span class="bs">↺ ×1</span></div>
+    <div class="secttl">Rotation</div>
+    ${lockRow("X · Y · Z",`<div class="xyz deg">${axf("X","0°")}${axf("Y","0°")}${axf("Z","0°")}</div>`)}
+    <div class="row"><span class="k"></span><span><span class="chk on"></span>Rester posé</span><span class="bs" style="margin-left:auto">↺ Remettre droit</span></div>
+    <div class="note">Z : lacet, sens horaire vu de dessus. X, Y : inclinaison (décor au sol) ; le point le plus bas reste sur son support.</div>
+    <div class="row"><span class="k">Collision</span><span class="fld" style="color:var(--dim)">solide · pavés à l'échelle</span></div>`);
+  h+=statusbar("Échelle uniforme : ×1,00 → ×1,50 · 2,50 × 2,00 × 1,50 → 3,75 × 3,00 × 2,25 m · relâcher pour valider, Échap pour annuler","x 14,75 m · y 9 m · étage 0");
+  const vT=mkView("top",W,ph-22,z,12,9.6), vF=mkView("front",W,ph-22,z,12,-3.3);
+  const yF=Y0+ph+4;
+  h+=callouts([
+    [564,183],[568,148],[406,197],[449,113],[483,522],
+    [1262,198],[1262,372]]);
+  document.getElementById("f1").innerHTML=h;
+})();
+
+// ================================================================ ÉCRAN 2 : incliner une poutre (3 : 1 grande 3D + 2)
+(function(){
+  const X0=18,Y0=40,lw=546,rw=922-lw-4,H=606,rh=301, TH=30;
+  const {zc}=beamCorners(TH);
+  let h=topbar({floor:0,snap:"grille fine 0,1 m"})+objtab;
+  const k=24, iso={k,cm:[11.5,13,2.6],dx:-6,dy:14};
+  iso.mid=pr=>beamGhost3D(pr)+beam3D(pr,TH,{sel:true});
+  iso.top=pr=>{
+    const C3=[11.5,14.5,zc], R=3.4; let s="";
+    const rz=ring3D(pr,C3,R,"z",C.z,{a:.45,grip:-90,label:[-40,4,-6]}), rx=ring3D(pr,C3,R,"x",C.x,{a:.45,grip:90,label:[-90,-14,4]});
+    const ry=ring3D(pr,C3,R,"y","#62C474",{active:true,ticks:true,sweep:[60,30],label:[180,-14,4]});
+    s+=rz.s+rx.s+ry.s;
+    const c=pr(...C3); s+=`<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="3" fill="#fff" stroke="#000"/>`;
+    // pastille d'angle près du curseur
+    const e=pr(...ry.pt(30)); s+=anglePill(e[0]+14,e[1]-6,"Y","#62C474","+30°");
+    s+=txt(e[0]+14,e[1]+14,"cran 15° · Maj : libre",`fill="${C.dim}" font-size="10.5" ${outl}`);
+    s+=rotCursor(e[0]+2,e[1]+22);
+    // point le plus bas posé
+    const lo=pr(BEAM.c[0]+BEAM.L*Math.cos(TH*Math.PI/180)-BEAM.H*Math.sin(TH*Math.PI/180),BEAM.c[1]+BEAM.D,0);
+    s+=`<path d="M${lo[0]},${lo[1]-6} l6,6 l-6,6 l-6,-6z" fill="${C.hover}" stroke="#000"/>`;
+    s+=`<rect x="${lo[0]+10}" y="${lo[1]+4}" width="128" height="17" rx="2" fill="#0f2a33" stroke="${C.hover}"/>`+txt(lo[0]+16,lo[1]+16,"Posé sur le sol · Z 0,00",`fill="#bff4ff" font-size="10.5"`);
+    return s;
+  };
+  h+=pane({x:X0,y:Y0,w:lw,h:H,plane:"3d",name:"3D",sub:"Orbite",axes:"",iso,active:true,
+    right:`<span class="chip hl">Anneaux : axes du monde</span><span class="chip">⌖ Sélection</span><span class="chip">Affichage ▾</span>`});
+  // vue Dessus
+  const t=TH*Math.PI/180, cc=Math.cos(t), ss=Math.sin(t);
+  const xw0=BEAM.c[0]-BEAM.L*cc-BEAM.H*ss, xw1=BEAM.c[0]-BEAM.L*cc+BEAM.H*ss, xe=BEAM.c[0]+BEAM.L*cc+BEAM.H*ss;
+  const zT=15;
+  h+=pane({x:X0+lw+4,y:Y0,w:rw,h:rh,plane:"top",name:"DESSUS",sub:"Étage 0",axes:AX.top,floor:0,zoom:zT,cu:11.2,cv:11.2,
+    right:`<span class="chip">100 %</span>`,
+    over:v=>{ let s=""; const y0=BEAM.c[1]-BEAM.D, y1=BEAM.c[1]+BEAM.D;
+      s+=rect(v,xw0,y0,xw1,y1,`fill="#55535a"`)+rect(v,xw1,y0,xe,y1,`fill="#8a888d"`);
+      for(const q of [y0+0.6,y1-0.6]) s+=`<line x1="${v.X(xw1)+3}" y1="${v.Y(q)}" x2="${v.X(xe)-3}" y2="${v.Y(q)}" stroke="#6c6a70"/>`;
+      s+=rect(v,BEAM.c[0]-BEAM.L,y0,BEAM.c[0]+BEAM.L,y1,`fill="none" stroke="${C.bone}" stroke-opacity=".6" stroke-dasharray="5 4"`);
+      s+=`<rect x="${v.X(xw0)-1}" y="${v.Y(y0)-1}" width="${(xe-xw0)*zT+2}" height="${(y1-y0)*zT+2}" fill="none" stroke="${C.sel}" stroke-width="2.5"/>`;
+      s+=hnd(v.X(xw0),v.Y(y0))+hnd(v.X(xe),v.Y(y0))+hnd(v.X(xw0),v.Y(y1))+hnd(v.X(xe),v.Y(y1));
+      s+=ring2D(v.X(BEAM.c[0]),v.Y(BEAM.c[1]),Math.hypot(xe-xw0,2)/2*zT+14,C.z,{a:.35});
+      s+=`<rect x="${v.X(xw0)}" y="${v.Y(y1)+8}" width="96" height="17" rx="2" fill="#121214" stroke="${C.y}"/>`+txt(v.X(xw0)+6,v.Y(y1)+20,"Inclinée · Y +30°",`fill="#c9f0d0" font-size="11" font-weight="600"`);
+      return s; }});
+  // vue Avant
+  const zA=15;
+  h+=pane({x:X0+lw+4,y:Y0+rh+4,w:rw,h:H-rh-4,plane:"front",name:"AVANT",sub:"étages : tous",axes:AX.front,floor:0,zoom:zA,cu:11.5,cv:-3.6,coupe:[13.5,15.5],
+    right:`<span class="chip hl">Coupe : sélection ▾</span><span class="chip">100 %</span>`,
+    over:v=>{ let s=""; const Pc=beamCorners(TH).P;
+      // face y = +D (index x*4+2+z) : 2,3,7,6
+      s+=rect(v,BEAM.c[0]-BEAM.L,-2*BEAM.H,BEAM.c[0]+BEAM.L,0,`fill="none" stroke="${C.bone}" stroke-opacity=".6" stroke-dasharray="5 4"`);
+      s+=`<polygon points="${[2,3,7,6].map(i=>P(v,Pc[i][0],-Pc[i][2])).join(" ")}" fill="#6c6a70" stroke="${C.sel}" stroke-width="2.5" stroke-linejoin="round"/>`;
+      const ccx=v.X(BEAM.c[0]), ccy=v.Y(-zc);
+      s+=ring2D(ccx,ccy,64,"#62C474",{active:true,ticks:true,sweep:[-60,-30]});
+      const ea=-30*Math.PI/180; const ex=ccx+64*Math.cos(ea), ey=ccy+64*Math.sin(ea);
+      s+=anglePill(ex+12,ey-2,"Y","#62C474","+30°");
+      return s; },hl:{u:11.5,t:-zc}});
+  h+=`<div class="split" style="left:${X0+lw}px;top:${Y0}px;width:4px;height:${H}px"></div><div class="split h" style="left:${X0+lw+4}px;top:${Y0+rh}px;width:${rw}px;height:4px"></div>`;
+  h+=dock("Anneau : glisser pour tourner · Maj : libre · R : +90° autour de Z","Cran 15° · anneaux sur les axes du monde");
+  h+=sidePanel(`<h3>POUTRE TOMBÉE</h3>
+    <div class="row"><span class="k">Décor</span><span class="dd">Poutre tombée <span>▾</span></span></div>
+    ${xyz("11,50","14,50","0,00")}
+    <div class="secttl">Échelle</div>
+    ${lockRow("Uniforme",`<span class="fld">×1,00</span><span class="lk on">${LOCK(false,"#FFD9A0")}</span>`)}
+    ${lockRow("X · Y · Z",`<div class="xyz">${axf("X","1,00")}${axf("Y","1,00")}${axf("Z","1,00")}</div>`)}
+    <div class="note">7,00 × 2,00 × 1,80 m. Objet incliné : poignées de coin seulement dans les vues ; par axe ici.</div>
+    <div class="secttl">Rotation</div>
+    ${lockRow("X · Y · Z",`<div class="xyz deg">${axf("X","0°")}${axf("Y","+30°"," live")}${axf("Z","0°")}</div>`)}
+    <div class="row"><span class="k"></span><span><span class="chk on"></span>Rester posé</span><span class="bs" style="margin-left:auto">↺ Remettre droit</span></div>
+    <div class="note">Point le plus bas gardé sur le sol : le haut de la poutre monte à 5,06 m (plafond de l'entrepôt : 6,80 m).</div>
+    <div class="row"><span class="k">Collision</span><span class="fld" style="color:var(--dim)">solide · pavés inclinés avec elle</span></div>`);
+  h+=statusbar("Rotation Y (axe sud) : 0° → +30° · cran 15° · Maj : libre · tapez une valeur puis Entrée · Échap : annuler","Y +30° · étage 0");
+  // repères
+  const W3=lw, H3=H-22, cx3=W3/2-6, cy3=H3/2+14;
+  const p3=(x,y,zz)=>[X0+cx3+((x-11.5)-(y-13))*0.866*k, Y0+22+cy3+((x-11.5)+(y-13))*0.5*k-(zz-2.6)*k];
+  const vT=mkView("top",rw,rh-22,zT,11.8,11.2), vA=mkView("front",rw,H-rh-4-22,zA,12.2,-3.6);
+  const g1=p3(11.5,14.5,zc+3.4), ge=p3(11.5+3.4*Math.cos(Math.PI/6),14.5,zc+3.4*Math.sin(Math.PI/6)), gh=p3(9.5,13.5,1.0);
+  h+=callouts([[g1[0]+18,g1[1]-6],[ge[0]+100,ge[1]-30],[gh[0]-30,gh[1]+30],[X0+lw+4+vA.X(11.5)+86,Y0+rh+4+22+vA.Y(-zc)-58],[X0+lw+4+vT.X(9)-18,Y0+22+vT.Y(13)-14],[1262,338]]);
+  document.getElementById("f2").innerHTML=h;
+})();
+
+// ================================================================ ÉCRAN 3 : prefab avec un Pack-a-Punch (1 vue)
+(function(){
+  const X0=18,Y0=40,W=922,H=606,z=34, cu=9, cv=26;
+  const PB=[2.6,24.0,7.4,28.4], pc=[(PB[0]+PB[2])/2,(PB[1]+PB[3])/2];
+  let h=topbar({floor:0,snap:"grille 1 m"})+objtab;
+  const over=v=>{
+    const X=v.X,Y=v.Y,Yd=t=>Y(t+1.4); let s="";
+    // parties du prefab
+    s+=rect(v,4.2,24.2,6.2,25.0,`fill="#8f8360" stroke="#4a4330" stroke-width="1.2"`); for(let i=1;i<4;i++) s+=`<line x1="${X(4.2+i*0.5)}" y1="${Yd(22.8)}" x2="${X(4.2+i*0.5)}" y2="${Yd(23.6)}" stroke="#5f563d"/>`;
+    s+=rect(v,6.4,25.3,7.2,27.3,`fill="#8f8360" stroke="#4a4330" stroke-width="1.2"`); for(let i=1;i<4;i++) s+=`<line x1="${X(6.4)}" y1="${Yd(23.9+i*0.5)}" x2="${X(7.2)}" y2="${Yd(23.9+i*0.5)}" stroke="#5f563d"/>`;
+    for(const [bx,by] of [[4.75,25.55],[5.65,25.55],[4.75,26.45],[5.65,26.45]]) s+=`<circle cx="${X(bx)}" cy="${Yd(by)}" r="${0.42*z}" fill="#2b4a8a" stroke="#152a52" stroke-width="1.5"/><circle cx="${X(bx)}" cy="${Yd(by)}" r="${0.14*z}" fill="#1d3566"/>`;
+    s+=rect(v,2.75,25.15,3.75,26.65,`fill="#2a1840" stroke="#7a3cff" stroke-width="2"`);
+    s+=`<path d="M${X(3.0)},${Yd(24.5)} l${0.5*z},-${0.35*z} v${0.7*z}z" fill="#7a3cff" opacity=".8"/>`;
+    s+=txt(X(2.25),Yd(24.5)+4,"Pack-a-Punch",`fill="#d9c6ff" font-size="11" text-anchor="end" font-weight="600" ${outl}`);
+    s+=txt(X(5.2),Yd(23.6)+13,"Sacs de sable",`fill="#e8dfc4" font-size="10.5" text-anchor="middle" ${outl}`);
+    s+=txt(X(5.2),Yd(27.0)+14,"Tonneaux",`fill="#c8d6ff" font-size="10.5" text-anchor="middle" ${outl}`);
+    // contour du prefab et sélection
+    s+=`<rect x="${X(PB[0])-1}" y="${Y(PB[1])-1}" width="${(PB[2]-PB[0])*z+2}" height="${(PB[3]-PB[1])*z+2}" fill="none" stroke="${C.sel}" stroke-width="2.5"/>`;
+    s+=txt(X(PB[0])+2,Y(PB[1])-7,"PREFAB · Coin Pack-a-Punch",`fill="${C.sel}" font-size="11" font-weight="700" letter-spacing=".04em" ${outl}`);
+    // anneau Z (rotation permise)
+    const rr=Math.min(140,Math.hypot(PB[2]-PB[0],PB[3]-PB[1])/2*z+14);
+    s+=ring2D(X(pc[0]),Y(pc[1]),rr,C.z,{a:.9});
+    s+=moveArrows(X(pc[0]),Y(pc[1]));
+    // cadenas gris aux coins
+    s+=lockH(X(PB[0]),Y(PB[1]))+lockH(X(PB[0]),Y(PB[3]))+lockH(X(PB[2]),Y(PB[3]))+lockH(X(PB[2]),Y(PB[1]),true);
+    s+=noCursor(X(PB[2])+9,Y(PB[1])+11);
+    // bulle d'avertissement accrochée au cadenas survolé
+    const bx=X(PB[2])+30, by=Y(PB[1])-58;
+    s+=`<line x1="${X(PB[2])+7}" y1="${Y(PB[1])-7}" x2="${bx}" y2="${by+20}" stroke="#D99940"/>`;
+    s+=`<rect x="${bx}" y="${by}" width="318" height="62" rx="2" fill="#2e2412" stroke="#D99940"/>`;
+    s+=txt(bx+10,by+19,"⚠  Échelle impossible pour ce prefab",`fill="#FFE7B8" font-size="13" font-weight="700"`);
+    s+=txt(bx+10,by+37,"Il contient un Pack-a-Punch : les objets de jeu",`fill="#FFD9A0" font-size="12"`);
+    s+=txt(bx+10,by+53,"gardent leur taille. Rotation Z permise.",`fill="#FFD9A0" font-size="12"`);
+    return s;
+  };
+  h+=pane({x:X0,y:Y0,w:W,h:H,plane:"top",name:"DESSUS",sub:"Étage 0",axes:AX.top,floor:0,zoom:z,cu,cv,active:true,
+    right:`<span class="chip">Coupes : aucune</span><span class="chip">227 %</span>`,over,hl:{u:7.4,t:24}});
+  h+=dock("Prefab choisi : glisser pour déplacer · anneau : tourner autour de Z","Grille 1 m · échelle : bloquée (Pack-a-Punch)");
+  h+=sidePanel(`<h3>COIN PACK-A-PUNCH</h3>
+    <div class="row"><span class="k">Prefab</span><span class="dd">Coin Pack-a-Punch (carte) <span>▾</span></span></div>
+    ${xyz("5,00","26,20","0,00")}
+    <div class="secttl">Échelle</div>
+    <div class="warn"><b>⚠ Ce prefab ne peut pas changer d'échelle :</b> il contient un <b>Pack-a-Punch</b>. Les objets de jeu (atouts, armes murales, boîte, Pack-a-Punch, portes, fenêtres…) gardent leur taille.</div>
+    ${lockRow("Uniforme",`<span class="fld dis">×1,00</span><span class="lk dis">${LOCK(false,"#8C8575")}</span>`)}
+    ${lockRow("X · Y · Z",`<div class="xyz">${axf("X","1,00"," dis")}${axf("Y","1,00"," dis")}${axf("Z","1,00"," dis")}</div>`)}
+    <div class="secttl">Rotation</div>
+    ${lockRow("X · Y · Z",`<div class="xyz deg">${axf("X","—"," dis")}${axf("Y","—"," dis")}${axf("Z","0°")}</div>`)}
+    <div class="note">Inclinaison X / Y : objet de jeu, reste droit. Rotation Z : le prefab tourne en entier autour de son centre.</div>
+    <div class="secttl">Parties (4)</div>
+    <ul class="parts">
+      <li class="bad"><span class="sw" style="background:#7a3cff"></span>Pack-a-Punch<span class="st">${LOCK(false,"#FFD9A0")} taille fixe</span></li>
+      <li><span class="sw" style="background:#8f8360"></span>Sacs de sable<span class="st">× 2</span></li>
+      <li><span class="sw" style="background:#2b4a8a"></span>Tonneaux<span class="st">× 1</span></li>
+    </ul>`);
+  h+=statusbar("Échelle impossible : « Coin Pack-a-Punch » contient un Pack-a-Punch (objet de jeu à taille fixe)","x 7,4 m · y 24 m · étage 0");
+  const v=mkView("top",W,H-22,z,cu,cv);
+  const fx=u=>X0+v.X(u), fy=t=>Y0+22+v.Y(t);
+  h+=callouts([[fx(PB[2])+18,fy(PB[3])+16],[fx(PB[2])+30+318+16,fy(PB[1])-58+12],[fx(pc[0])-102,fy(pc[1])+102],[1262,268],[1262,505],[585,707]]);
+  document.getElementById("f3").innerHTML=h;
+})();
+
+// ================================================================ planche de composants
+(function(){
+  const card=(t,svg,p,w=260,hh=130)=>`<div class="card"><h3>${t}</h3><svg viewBox="0 0 ${w} ${hh}" width="${w}" height="${hh}" font-family="Bahnschrift, 'Barlow Semi Condensed', sans-serif">${svg}</svg><p>${p}</p></div>`;
+  let h="";
+  h+=card("Poignées d'échelle",`<rect width="260" height="130" fill="#1A1B1D"/>
+    ${hnd(26,26)}<text x="40" y="30" fill="#DBD6C7" font-size="11">coin : uniforme</text>
+    ${hnd(26,54,C.x)}<text x="40" y="58" fill="#DBD6C7" font-size="11">face X</text>${hnd(110,54,C.y)}<text x="124" y="58" fill="#DBD6C7" font-size="11">face Y</text>
+    ${diaZ(26,84)}<text x="40" y="88" fill="#DBD6C7" font-size="11">hauteur Z (élévations)</text>
+    ${lockH(26,112)}<text x="40" y="116" fill="#DBD6C7" font-size="11">bloquée (objet de jeu)</text>${hndA(196,30)}<text x="208" y="34" fill="#8C8575" font-size="11">tirée</text>`,"Coins jaunes : uniforme ; faces aux couleurs de l'axe ; losange bleu : hauteur ; cadenas gris : échelle impossible.");
+  h+=card("Anneau de rotation (vue plane)",`<rect width="260" height="130" fill="#1A1B1D"/>${ring2D(80,66,46,C.z,{active:true,ticks:true,sweep:[-90,-45]})}${anglePill(140,50,"Z",C.z,"+45°")}<text x="140" y="74" fill="#8C8575" font-size="10.5">cran 15° · Maj : libre</text>`,"Secteur balayé, graduations tous les 15°, angle en or. Dessus : Z ; Avant : Y ; Droite : X.");
+  h+=card("Gizmo 3D",(()=>{ const pr=(x,y,zz)=>[130+(x-y)*0.866*15, 70+(x+y)*0.5*15-zz*15]; const C3=[0,0,0];
+    return `<rect width="260" height="130" fill="#1A1B1D"/>`+ring3D(pr,C3,3,"z",C.z,{grip:-90,label:[-40,4,-6]}).s+ring3D(pr,C3,3,"x",C.x,{grip:90,label:[-90,-12,4]}).s+ring3D(pr,C3,3,"y",C.y,{grip:90,label:[180,-12,4]}).s+`<circle cx="130" cy="70" r="3" fill="#fff" stroke="#000"/>`; })(),"Trois anneaux sur les axes du monde ; moitié arrière pâle. X et Y seulement pour le décor qui s'incline.");
+  h+=card("Cotes d'échelle",`<rect width="260" height="130" fill="#1A1B1D"/>${dimLine(20,36,170,36,"3,75 m")}
+    <rect x="20" y="60" width="56" height="19" rx="2" fill="#2b2410" stroke="${C.gold}"/><text x="26" y="74" fill="${C.gold}" font-size="12" font-weight="700">×1,50</text>
+    <rect x="90" y="60" width="80" height="19" rx="2" fill="#0f2a33" stroke="${C.hover}"/><text x="96" y="74" fill="#bff4ff" font-size="11">aimant ×1,00</text>
+    <rect x="20" y="96" width="66" height="17" rx="2" fill="#121214" stroke="${C.z}"/><text x="25" y="108" fill="#cfe0ff" font-size="11" font-weight="600">H 2,25 m</text>`,"Dimension sur trait de cote, facteur en or près du curseur, aimant en bleu, puce de hauteur en vue Dessus.");
+  h+=card("Cadenas d'échelle",`<rect width="260" height="130" fill="#1A1B1D"/>
+    <g transform="translate(20,26)">${lockSvg(0,0,"#FFD9A0",false,1.4)}</g><text x="46" y="42" fill="#DBD6C7" font-size="11">fermé : X, Y, Z ensemble</text>
+    <g transform="translate(20,62)">${lockSvg(0,0,"#E0DBCC",true,1.4)}</g><text x="46" y="78" fill="#DBD6C7" font-size="11">ouvert : par axe</text>
+    <g transform="translate(20,98)">${lockSvg(0,0,"#8C8575",false,1.4)}</g><text x="46" y="114" fill="#DBD6C7" font-size="11">gris : échelle impossible</text>`,"Préférence d'interface (non enregistrée dans la carte), fermé par défaut ; forcé pour un objet à parties en biais.");
+  h+=card("Avertissement",`<rect width="260" height="130" fill="#1A1B1D"/><rect x="10" y="30" width="240" height="62" rx="2" fill="#2e2412" stroke="#D99940"/>
+    <text x="20" y="49" fill="#FFE7B8" font-size="12.5" font-weight="700">⚠  Échelle impossible pour ce prefab</text><text x="20" y="67" fill="#FFD9A0" font-size="11.5">Il contient un Pack-a-Punch : les objets</text><text x="20" y="83" fill="#FFD9A0" font-size="11.5">de jeu gardent leur taille.</text>`,"Nomme toujours l'objet qui bloque (2 noms au plus, puis « et 3 autres »).");
+  document.getElementById("sheet").innerHTML=h;
+})();
+
+// rendu d'un seul écran : ?frame=1, 2 ou 3
+(function(){ const m=/frame=(\d)/.exec(location.search+location.hash+(window.FRAME?"frame="+window.FRAME:"")); if(!m)return; document.body.classList.add("solo"); const s=document.getElementById("s"+m[1]); if(s)s.classList.add("on"); })();
+</script>
