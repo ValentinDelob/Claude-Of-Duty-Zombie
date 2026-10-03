@@ -34,6 +34,11 @@ func run() -> void:
 	lay.frame_all()
 	await seconds(1.5)
 	at.check(lay.panes[1].view is MapView3D and ed.preview.pane_host != null, "3D intégrée dans la fenêtre en haut à droite")
+	# Barre du haut sur une ligne à 100 % (maquette) ; zoom de chaque vue
+	# qui cadre la carte (pas celui de la vue Dessus en quart d'écran).
+	var bh := (ed.top_bar.get_child(0) as Control).size.y
+	at.check(ed.top_bar.size.y < bh * 1.5, "barre du haut sur une ligne (%d px)" % roundi(ed.top_bar.size.y))
+	at.check(not ed.preview.visible and not ed.preview.detached, "aperçu flottant caché (3D dans la disposition)")
 	await at.screenshot("quatre_vues")
 	# Écran 3 : 3 (1 + 2), Avant à gauche, coupe autour de la salle des machines.
 	lay.set_layout("3a")

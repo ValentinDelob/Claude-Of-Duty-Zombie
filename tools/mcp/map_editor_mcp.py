@@ -516,7 +516,7 @@ class Tools:
             return [text(self.link.request("get_elements", {"ids": ids}))]
         except EditorError as e:
             # Éditeur d'avant les vues multiples : les éléments sans hauteurs.
-            if "inconnu" not in str(e) and "unknown" not in str(e):
+            if "commande inconnue" not in str(e) and "unknown command" not in str(e):
                 raise
         return [text(map_geom.find_elements(self._map(), ids))]
 
@@ -565,12 +565,16 @@ class Tools:
             a["view"] = view
         if "coupe" in args:
             c = args["coupe"]
-            if (not isinstance(c, list) or len(c) != 2 or not all(_finite(x) and not isinstance(x, bool) for x in c)):
+            if (not isinstance(c, list) or len(c) != 2 or not all(
+                    isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) for x in c)):
                 raise EditorError("coupe : [p0, p1] en mètres")
             a["coupe"] = [float(c[0]), float(c[1])]
         res = self.link.request("screenshot", a, timeout=max(REQUEST_TIMEOUT, 30))
         if not isinstance(res, dict) or not isinstance(res.get("png_base64"), str):
             raise EditorError("réponse screenshot inattendue de l'éditeur")
+        # Éditeur d'avant les vues multiples : il ignore `view` et rend le plan.
+        if view != "dessus" and res.get("view") != view:
+            raise EditorError("cet éditeur ne sait pas montrer la vue « %s » (mettez-le à jour) ; seule la vue dessus est disponible" % view)
         data = res["png_base64"]
         try:
             raw = base64.b64decode(data, validate=True)

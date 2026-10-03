@@ -28,7 +28,7 @@ rendu est celui d'un éditeur professionnel.
 | D4 | **ViewCube** en haut à droite de chaque vue. Face = bascule du plan. Arête ou coin = passage en 3D vue de ce coin. Flèches ◄ ► = tour des façades. Maison = vue d'origine de la fenêtre. |
 | D5 | Dispositions : **1 vue**, **2 côte à côte**, **2 empilées**, **3 (1 + 2)**, **3 (2 + 1)**, **4 en quadrillage**. Séparateurs déplaçables, vue active encadrée, **Ctrl+Espace** agrandit la vue active (bascule), **Ctrl+Alt+Q** passe en 4 vues. Tout est mémorisé (`_editeur.cfg`). |
 | D6 | **Sélection commune** à toutes les vues (un seul `MapEditor.selected`, comme aujourd'hui). |
-| D7 | **Vues liées** (option, activée par défaut) : axes communs synchronisés (X entre Dessus et Avant, Y entre Dessus et Droite, Z entre Avant et Droite : centre et zoom). |
+| D7 | **Vues liées** (option, activée par défaut) : axes communs synchronisés (X entre Dessus et Avant, Y entre Dessus et Droite, Z entre Avant et Droite) : centre commun ; chaque vue garde le zoom qui cadre la carte et un zoom fait dans une vue s'applique aux autres dans la même proportion (révisé après la revue, § 11). |
 | D8 | Axes colorés : **X rouge** (est), **Y vert** (sud), **Z bleu** (haut). Ils servent aux règles, au trièdre et aux flèches de déplacement. |
 | D9 | Verrouillage d'axe : **flèches colorées** sur l'élément choisi (glisser une flèche = un seul axe), ou **X / Y / Z** pendant un glissement (comme dans Blender). **Maj garde son rôle actuel** (inverser l'aimantation). |
 | D10 | Cotes affichées pendant tout glissement (hauteur au-dessus du sol, écart, largeur), dans toutes les vues, y compris la vue du dessus (nouveau). |
@@ -289,7 +289,7 @@ Elle reste la vue d'aujourd'hui. On ajoute :
   - à droite : « Étages ▾ », « Coupe ▾ » (élévations), zoom en %, bouton ⛶ (agrandir).
 - **Agrandir** : Ctrl+Espace ou ⛶ agrandit la vue active à toute la zone des vues ; une seconde fois, retour à la disposition. Double-clic sur l'en-tête : même effet.
 - **Liaison** (D7) :
-  - zoom commun pour toutes les vues orthographiques ;
+  - chaque vue garde le zoom qui cadre la carte (maquette, écran 3) ; un zoom fait dans une vue s'applique aux autres dans la même proportion ;
   - centre commun sur l'axe partagé ;
   - glisser la vue Dessus vers l'est fait glisser Avant ;
   - désactivée, chaque vue est libre.
@@ -320,6 +320,9 @@ Elle reste la vue d'aujourd'hui. On ajoute :
 
 - **Composante horizontale** en élévation : elle déplace sur l'axe de la vue, la profondeur restant inchangée. Une ouverture ou un objet mural glisse **le long de son mur** si ce mur est face à la vue ; sinon l'axe horizontal est verrouillé.
 - Le refus éventuel s'affiche comme aujourd'hui (contour rouge, raison dans la barre d'état), et l'élément reste à la dernière place valide.
+- Un élément « hauteur de pose » sous le plafond réel de sa pièce (double hauteur, dernier étage plus haut) reste à son étage ; il n'en change qu'en quittant ce volume.
+- Une pièce qui change d'étage n'y va que si tout son contenu y est valide (portes, escalier jamais sur le dernier étage, objets muraux).
+- Un décor sur lequel repose un décor bloquant ne bouge pas, ne pivote pas et ne se supprime pas seul (« un décor est posé dessus ») ; le validateur signale un décor bloquant en l'air (cartes reçues comprises).
 
 ### 6.2 Redimensionner (agrandir les zones)
 
@@ -554,15 +557,17 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   fenêtre garde le plan qu'on lui a donné (et il est mémorisé) jusqu'à
   « Réinitialiser ». La vue active est celle que survole la souris (sinon
   la dernière cliquée) : Ctrl+Espace, le pavé numérique et la molette vont
-  à elle. Vues liées : zoom commun à toutes les vues orthographiques (la
-  maquette, écran 3, montre des zooms différents : contradiction avec D7 ;
-  D7 fait foi). Fenêtre 3D : en-tête « Caméra ▾ » (orbite, vol, joueur,
+  à elle. Vues liées : centre commun sur l'axe partagé ; chaque vue garde
+  son zoom (D7 révisé après la revue, comme la maquette, écran 3 : un zoom
+  commun réduisait les élévations à celui d'une vue Dessus en quart
+  d'écran, 43 %). Fenêtre 3D : en-tête « Caméra ▾ » (orbite, vol, joueur,
   recadrer), « ⌖ Sélection », « Affichage ▾ » (la barre d'outils du panneau
   flottant est cachée) ; la touche P et le bouton APERÇU 3D n'agissent que
   sur le panneau flottant (message si la 3D est dans une fenêtre). En-tête
-  étroit : le texte des étages s'efface avant les axes. La barre du haut,
-  avec le bouton Disposition, passe sur deux lignes à 100 % (elle le
-  faisait déjà à 150 %).
+  étroit : le texte des étages s'efface avant les axes. La barre du haut
+  tient sur une ligne à 100 % (titre de la carte coupé plus tôt,
+  « À vérifier » au lieu de « Vérification : à faire ») ; à 150 %, elle
+  passe sur deux lignes.
 - **Étape 6 : collaboration et MCP**. La présence porte `vue` et `z` ; depuis
   une élévation, la coordonnée de profondeur du curseur garde sa dernière
   valeur (celle de la vue Dessus). Les élévations dessinent aussi les
@@ -574,3 +579,18 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   collaboratif hôte + invité est ajouté au test multijoueur existant
   `mp_editorplay` (curseur de l'hôte dans sa vue Avant, reçu à 2 m chez
   l'invité) plutôt qu'un nouveau couple de scénarios.
+- **Revue (correctifs)**. Un changement reçu pendant un glissement en
+  élévation est reporté sur sa carte de départ (il n'est plus effacé) ;
+  Ctrl+Z, une carte entière reçue, un changement de plan ou de disposition
+  annulent ou abandonnent le glissement en cours. Un refus garde l'élément
+  à sa dernière place valide. Verrous d'axe : un élément sans axe permis
+  (porte de profil) ne bouge pas ; X / Y / Z ne libèrent jamais un axe
+  interdit. Poignée de hauteur d'un effet : la zone telle qu'elle est
+  dessinée (au mur : centrée sur sa hauteur ; au plafond : poignée en bas).
+  Après un changement d'étage, l'étage courant suit l'élément. Les deux
+  traits d'une coupe gardent 10 cm d'écart. La vue Dessous ne choisit que
+  l'étage montré. Les noms de pièces d'une élévation sont coupés à la
+  largeur de leur boîte et ne se superposent plus. Au lancement avec la 3D
+  dans la disposition, ni message, ni bouton APERÇU 3D enfoncé, ni fenêtre
+  séparée mémorisée qui lui prendrait la vue ; les réglages en attente sont
+  écrits à la fermeture.

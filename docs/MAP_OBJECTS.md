@@ -1142,7 +1142,9 @@ conversion : une carte au format 11 ou moins se lit telle quelle.
 - **Décor posé sur un autre** : un décor qui bloque (`solide`, `barriere`)
   au-dessus du sol doit reposer sur le dessus d'un autre décor sous lui
   (`support` s'il en a un, sinon le haut de son modèle `h`, à 2 cm près) ;
-  sinon il est refusé (« décor en l'air : posez-le sur un autre »). Un décor
+  sinon il est refusé (« décor en l'air : posez-le sur un autre » ; le
+  validateur le signale aussi, cartes reçues comprises), et celui qui le
+  porte ne bouge, ne pivote ni ne se supprime seul. Un décor
   sans collision (`non`) peut flotter. Deux décors dont les tranches de
   hauteur ne se recouvrent pas ne se « chevauchent » pas pour les règles de
   pose (`MapRules._stacked`). Les cases du dessous restent pleines (trajets

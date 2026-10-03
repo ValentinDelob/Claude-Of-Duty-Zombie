@@ -318,9 +318,48 @@ static func check_pose(doc: EditorMap, v: MapValidator, e: Dictionary) -> Dictio
 	if z < b.x - 0.011 or z > b.y + 0.011:
 		return MapRules.refuse("hauteur hors des bornes (%s à %s m ici)" % [MapRules._m(b.x), MapRules._m(b.y)],
 			"height out of bounds (%s to %s m here)" % [MapRules._m(b.x, false), MapRules._m(b.y, false)])
-	if String(e.get("type", "")) == "prefab" and mount_of(e) == "sol" and z > REST_TOL and MapCatalog.blocking(e) != "non":
-		if not tops_under(doc, e).any(func(top): return absf(float(top) - z) <= REST_TOL):
-			return MapRules.refuse("décor en l'air : posez-le sur un autre", "prop in mid-air: put it on another one")
+	if not rests_ok(doc, e):
+		return MapRules.refuse("décor en l'air : posez-le sur un autre", "prop in mid-air: put it on another one")
+	return {"ok": true}
+
+
+## § 7 : un décor bloquant posé au sol, au-dessus du sol (`z`), repose-t-il
+## sur le dessus d'un autre décor ? (Vrai pour tout autre élément.)
+static func rests_ok(doc: EditorMap, e: Dictionary) -> bool:
+	if String(e.get("type", "")) != "prefab" or mount_of(e) != "sol" or MapCatalog.blocking(e) == "non":
+		return true
+	var z := decor_z(e)
+	if z <= REST_TOL:
+		return true
+	return tops_under(doc, e).any(func(top): return absf(float(top) - z) <= REST_TOL)
+
+
+## Décors bloquants posés sur `o` (identifiants, hors `skip`) : ceux qui
+## tomberaient « en l'air » si `o` bougeait ou disparaissait.
+static func resting_on(doc: EditorMap, o: Dictionary, skip: Array = []) -> Array:
+	var out := []
+	if not String(o.get("type", "")) in ["prefab", "caisse", "baril"] or mount_of(o) not in ["sol", ""]:
+		return out
+	var top := decor_top(o)
+	var r := MapRules.footprint_rect(o)
+	for q in doc.objects_on(int(o.get("etage", 0))):
+		var qid := String(q.get("id", ""))
+		if qid == String(o.get("id", "")) or qid in skip or String(q.get("type", "")) != "prefab" or mount_of(q) != "sol":
+			continue
+		if MapCatalog.blocking(q) == "non" or decor_z(q) <= REST_TOL or absf(decor_z(q) - top) > REST_TOL:
+			continue
+		if MapRules.footprint_rect(q).grow(-0.01).intersects(r.grow(-0.01)):
+			out.append(qid)
+	return out
+
+
+## Refus si l'un des décors `ids` (posés sur un autre avant un changement)
+## n'y repose plus ; {ok: true} sinon.
+static func check_rests(doc: EditorMap, ids: Array) -> Dictionary:
+	for qid in ids:
+		var q := doc.find(String(qid))
+		if not q.is_empty() and not rests_ok(doc, q):
+			return MapRules.refuse("un décor est posé dessus : déplacez-le d'abord", "a prop stands on it: move that one first")
 	return {"ok": true}
 
 

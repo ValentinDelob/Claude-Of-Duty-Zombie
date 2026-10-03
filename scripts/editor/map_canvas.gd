@@ -1163,6 +1163,11 @@ func _drag_cut() -> void:
 	var across := String(MapView.depth_axis(ev.plane)[0]) == "Y"
 	var v := snappedf(mouse_m.y if across else mouse_m.x, step() if mode_now() != "libre" else 0.01)
 	var c := ev.coupe.duplicate()
+	# Un trait s'arrête avant l'autre (écart minimal) : la coupe ne s'inverse pas.
+	if int(drag.i) == 0:
+		v = minf(v, float(c[1]) - MapElevation.CUT_MIN)
+	else:
+		v = maxf(v, float(c[0]) + MapElevation.CUT_MIN)
 	c[int(drag.i)] = v
 	ev.set_cut(c, "perso")
 	ed.set_status(Lang.t("Coupe %s : %s (personnalisée)", "%s cut: %s (custom)") % [MapView.plane_name(ev.plane), ev.cut_text()])

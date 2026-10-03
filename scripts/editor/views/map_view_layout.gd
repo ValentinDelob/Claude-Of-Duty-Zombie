@@ -242,6 +242,7 @@ func pane_of(v: MapView) -> MapViewPane:
 func set_pane_plane(pn: MapViewPane, pl: String, animate := false) -> void:
 	if pn == null or pl == pn.plane():
 		return
+	cancel_drags()
 	var old := pn.plane()
 	if animate and old != "3d" and pl != "3d":
 		_transition(pn, old, pl)
@@ -288,14 +289,16 @@ func _transition(pn: MapViewPane, from: String, to: String) -> void:
 	tw.chain().tween_callback(tr.queue_free)
 
 
-## Fenêtre sous la souris (null : aucune).
+## Fenêtre sous la souris (null : aucune, ou un panneau posé par-dessus :
+## aperçu 3D flottant, inventaire, menu).
 func hovered_pane() -> MapViewPane:
 	if not is_visible_in_tree():
 		return null
 	var p := get_local_mouse_position()
+	var over := get_viewport().gui_get_hovered_control()
 	for pn in panes:
 		if pn.visible and Rect2(pn.position, pn.size).has_point(p):
-			return pn
+			return pn if over != null and (over == pn or pn.is_ancestor_of(over)) else null
 	return null
 
 
@@ -321,7 +324,9 @@ func numpad(k: InputEventKey, pn: MapViewPane) -> bool:
 				var target := view_target(pn.view)
 				var face := pn.plane()
 				set_pane_plane(pn, "3d")
-				show_3d_from(MapViewCube.target_dir(MapViewCube.net_corner(face, 1)), target)
+				# Dessus / Dessous : vue de la face ; façades : du coin avant-droite-dessus.
+				var aim := "f:" + face if face in ["dessus", "dessous"] else MapViewCube.net_corner(face, 1)
+				show_3d_from(MapViewCube.target_dir(aim), target)
 			return true
 		_:
 			return false
@@ -501,6 +506,42 @@ func elevation_dragging() -> bool:
 	return elevations().any(func(v): return (v as MapElevation).tools != null and (v as MapElevation).tools.dragging())
 
 
+## Un tracé ou un glissement est-il en cours dans une vue ?
+func busy() -> bool:
+	return ed.canvas.tracing() or not ed.canvas.drag.is_empty() or elevation_dragging()
+
+
+## Annule tracé et glissements en cours (la carte d'avant revient) : avant de
+## changer de plan, de disposition ou d'agrandir une vue, qui cacherait la vue
+## où ils se font (sinon : carte modifiée sans étape d'annulation).
+func cancel_drags() -> void:
+	if ed.canvas.tracing() or not ed.canvas.drag.is_empty():
+		ed.canvas.cancel()
+	for v in elevations():
+		var ev := v as MapElevation
+		if ev.tools != null and ev.tools.dragging():
+			ev.tools.cancel()
+
+
+## Cartes de départ des glissements en cours dans les élévations (un
+## changement reçu y est reporté, MapEditor._on_collab_applied).
+func drag_snaps() -> Array:
+	var out := []
+	for v in elevations():
+		var ev := v as MapElevation
+		if ev.tools != null and ev.tools.drag.has("snap"):
+			out.append(ev.tools.drag.snap)
+	return out
+
+
+## Carte entière remplacée : glissements abandonnés SANS remettre leur copie.
+func drop_drags() -> void:
+	for v in elevations():
+		var ev := v as MapElevation
+		if ev.tools != null and ev.tools.dragging():
+			ev.tools.drop()
+
+
 ## Couches du dessus des élévations redessinées (collaboration, curseurs).
 func redraw_overlays() -> void:
 	for v in elevations():
@@ -637,6 +678,7 @@ func _sort() -> void:
 func toggle_maximized(pn: MapViewPane) -> void:
 	if panes.size() < 2 or pn == null:
 		return
+	cancel_drags()
 	maximized = null if maximized == pn else pn
 	if maximized != null:
 		set_active_pane(maximized)
@@ -660,6 +702,7 @@ func set_layout(id: String) -> void:
 		return
 	if id == layout_id:
 		return
+	cancel_drags()
 	setup(id)
 	frame_all()
 	save_soon()
@@ -737,6 +780,11 @@ func _link_step() -> void:
 func _sync_from(src: MapView) -> void:
 	if src == null or src.plane == "3d" or src.size.x <= 0.0:
 		return
+	# Zoom (D7, révisé) : chaque vue garde son cadrage (une vue Dessus en
+	# quart d'écran ne réduit pas les élévations) ; un zoom fait dans une vue
+	# s'applique aux autres dans la même proportion.
+	var seen: Array = _link_seen.get(src, [])
+	var ratio := float(src.zoom) / float(seen[0]) if seen.size() == 3 and float(seen[0]) > 0.0 else 1.0
 	var c := MapView.point_of(src.plane, src.to_m(src.size * 0.5), 0.0)
 	var shared := [String(MapView.h_axis(src.plane)[0]), String(MapView.v_axis(src.plane)[0])]
 	for v in views():
@@ -752,7 +800,7 @@ func _sync_from(src: MapView) -> void:
 						cur.y = c.y
 					"Z":
 						cur.z = c.z
-		v.zoom = src.zoom
+		v.zoom = clampf(v.zoom * ratio, MapView.MIN_ZOOM, MapView.MAX_ZOOM)
 		v.origin = v.size * 0.5 - MapView.uv_of(v.plane, cur) * v.zoom
 		v.queue_redraw()
 		_link_seen[v] = [v.zoom, v.origin, v.size]
@@ -778,6 +826,12 @@ func state() -> Dictionary:
 		floors.append(int(ev.floors_mode) if ev != null else 0)
 	return {"disposition": layout_id, "plans": pl, "origines": homes, "rx": snappedf(rx, 0.001), "ry": snappedf(ry, 0.001),
 		"liees": linked, "coupe_partagee": shared_cut, "coupes": cuts, "etages": floors}
+
+
+## Réglages en attente écrits tout de suite (fermeture de l'éditeur).
+func flush_prefs() -> void:
+	if _save_t > 0.0:
+		save_prefs()
 
 
 func save_prefs() -> void:
@@ -851,8 +905,8 @@ func _input(event: InputEvent) -> void:
 
 # ------------------------------------------------------------------ cadrage
 
-## Cadre toutes les vues sur la carte ; une élévation prend le zoom et les
-## colonnes de la vue Dessus quand elles partagent l'axe horizontal.
+## Cadre toutes les vues sur la carte : chaque élévation à son zoom, au
+## centre de la vue Dessus sur l'axe commun.
 func frame_all() -> void:
 	ed.canvas.frame_all()
 	for v in elevations():
@@ -869,18 +923,12 @@ func _frame_like_top(ev: MapElevation) -> void:
 	var c := ed.canvas
 	if c.size.x <= 0.0 or not c.is_visible_in_tree() or ev.plane == "dessous":
 		return
-	# Même zoom que la vue Dessus, même centre sur l'axe commun ; Avant : mêmes
-	# colonnes X à l'écran (vue placée sous la vue Dessus).
-	var vmid := ev.to_m(ev.size * 0.5).y
-	ev.zoom = c.zoom
-	ev.origin.y = ev.size.y * 0.5 - vmid * ev.zoom
-	if ev.plane == "avant" and absf(c.global_position.x - ev.global_position.x) < 1.0 and absf(c.size.x - ev.size.x) < 1.0:
-		# Avant sous la vue Dessus : mêmes colonnes X à l'écran.
-		ev.origin.x = c.origin.x
-	else:
-		var m := c.to_m(c.size * 0.5)
-		var u := MapView.uv_of(ev.plane, Vector3(m.x, m.y, 0.0)).x
-		ev.origin.x = ev.size.x * 0.5 - u * ev.zoom
+	# Chaque élévation garde le zoom qui cadre la carte (une vue Dessus en
+	# quart d'écran ne la réduit pas, maquette écran 3) ; même centre que la
+	# vue Dessus sur l'axe commun.
+	var m := c.to_m(c.size * 0.5)
+	var u := MapView.uv_of(ev.plane, Vector3(m.x, m.y, 0.0)).x
+	ev.origin.x = ev.size.x * 0.5 - u * ev.zoom
 	ev.queue_redraw()
 
 

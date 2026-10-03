@@ -372,3 +372,252 @@ func test_stack_decor_by_dragging_in_front_view() -> void:
 	assert_near(MapVertical.decor_z(d2), 0.9, 0.005, "aimanté sur le dessus des sacs (%s)" % refusal)
 	ed.queue_free()
 	await wait_frames(1)
+
+
+# ------------------------------------------------------------------ correctifs de relecture
+
+## Glissement « déplacer » commencé sur `id` dans la vue (outils de la vue).
+func _begin_move(ed: MapEditor, ev: MapElevation, id: String, lock := "") -> void:
+	ed.select(id)
+	var e := ev.projected_of(id)
+	ev.mouse_m = Vector2((float(e.u0) + float(e.u1)) * 0.5, (float(e.v0) + float(e.v1)) * 0.5)
+	ev.tools._begin("move", e, {"lock": lock})
+
+
+## Souris amenée à `dm` (m, uv) du début du glissement.
+func _move_to(ev: MapElevation, dm: Vector2) -> void:
+	ev.mouse_m = Vector2(ev.tools.drag.start_m) + dm
+	ev.tools.update()
+
+
+## Point (uv, m) de la vue Dessous au-dessus du point `p` du plan.
+static func _below_uv(p: Vector2) -> Vector2:
+	return MapView.uv_of("dessous", Vector3(p.x, p.y, 0.0))
+
+
+func test_collab_change_during_elevation_drag_is_kept() -> void:
+	var ed := await _editor(_arena())
+	var ev := _view(ed)
+	ed.canvas.set_snap_mode("grille")
+	_begin_move(ed, ev, "d1", "h")
+	_move_to(ev, Vector2(2.0, 0.0))
+	assert_near(float(ed.doc.find("d1").position[0]), 10.0, 0.001, "d1 glissé de 2 m")
+	# Un invité déplace le bureau pendant le glissement.
+	var desk := ed.doc.find("d2").duplicate(true)
+	desk["position"] = [14.75, 30.0]
+	var ops := [{"op": "put", "coll": "objets", "el": desk}]
+	MapOps.apply(ed.doc, ops)
+	ed._on_collab_applied(ops, "invite", "bureau", false)
+	_move_to(ev, Vector2(3.0, 0.0))
+	assert_eq(ed.doc.find("d2").position, [14.75, 30.0], "le changement reçu n'est pas effacé par le glissement")
+	ev.tools.release()
+	ed.undo()
+	assert_near(float(ed.doc.find("d1").position[0]), 8.0, 0.001, "Ctrl+Z : d1 revient")
+	assert_eq(ed.doc.find("d2").position, [14.75, 30.0], "Ctrl+Z ne défait pas le changement de l'invité")
+	ed.queue_free()
+	await wait_frames(1)
+
+
+func test_undo_and_map_replaced_during_elevation_drag() -> void:
+	var ed := await _editor(_arena())
+	var ev := _view(ed)
+	ed.canvas.set_snap_mode("grille")
+	ed.select("d1")
+	ed.rotate_selected()
+	var n := ed.collab.history.undo_count(ed.collab.my_id)
+	_begin_move(ed, ev, "d1", "h")
+	_move_to(ev, Vector2(2.0, 0.0))
+	# Ctrl+Z pendant le glissement : le glissement est annulé d'abord.
+	ed.undo()
+	assert_false(ev.tools.dragging(), "Ctrl+Z annule le glissement")
+	assert_near(float(ed.doc.find("d1").position[0]), 8.0, 0.001)
+	assert_eq(ed.collab.history.undo_count(ed.collab.my_id), n - 1, "puis défait la rotation")
+	# Carte entière remplacée : glissement abandonné sans remettre l'ancienne carte.
+	_begin_move(ed, ev, "d1", "h")
+	_move_to(ev, Vector2(2.0, 0.0))
+	var fresh := _arena()
+	fresh.find("d1")["position"] = [6.0, 30.0]
+	ed.doc.restore(fresh.snapshot())
+	ed._on_map_replaced()
+	assert_false(ev.tools.dragging(), "glissement abandonné")
+	ev.tools.release()
+	ev.tools.cancel()
+	assert_eq(ed.doc.find("d1").position, [6.0, 30.0], "la carte reçue reste")
+	ed.queue_free()
+	await wait_frames(1)
+
+
+func test_object_under_double_height_ceiling_keeps_its_floor() -> void:
+	var doc := _arena()
+	# Lampe de bureau dans l'entrepôt (double hauteur), loin de la passerelle.
+	doc.objets.append({"id": "lb", "type": "luminaire", "luminaire": "lampe_bureau", "etage": 0, "position": [14.0, 14.0], "rot": 0})
+	var ed := await _editor(doc)
+	var ev := _view(ed)
+	ed.canvas.set_snap_mode("grille")
+	_begin_move(ed, ev, "lb", "v")
+	_move_to(ev, Vector2(0.0, -4.0))
+	ev.tools.release()
+	var lb := ed.doc.find("lb")
+	assert_eq(int(lb.etage), 0, "sous le plafond réel de l'entrepôt : reste à l'étage 0")
+	var z := MapVertical.pose_z(ed.doc, ed.raster().v, lb)
+	assert_true(z > ed.doc.floor_sol(1) and z < ed.doc.floor_sol(1) + 3.0, "posée au-dessus du sol de l'étage 1 (%s m)" % z)
+	ed.queue_free()
+	await wait_frames(1)
+
+
+func test_refused_move_keeps_last_valid_place() -> void:
+	var ed := await _editor(_arena())
+	var ev := _view(ed)
+	ed.canvas.set_snap_mode("grille")
+	_begin_move(ed, ev, "d1", "h")
+	_move_to(ev, Vector2(2.0, 0.0))
+	assert_near(float(ed.doc.find("d1").position[0]), 10.0, 0.001)
+	_move_to(ev, Vector2(30.0, 0.0))
+	assert_true(ev.tools.refusal != "", "hors de la carte : refusé")
+	assert_near(float(ed.doc.find("d1").position[0]), 10.0, 0.001, "reste à sa dernière place valide (§ 6.1)")
+	ev.tools.release()
+	assert_near(float(ed.doc.find("d1").position[0]), 10.0, 0.001)
+	ed.queue_free()
+	await wait_frames(1)
+
+
+func test_axis_locks_follow_allowed_axes() -> void:
+	var ed := await _editor(_arena())
+	var ev := _view(ed)
+	# Porte du mur est vue en Avant : ni horizontal ni vertical, immobile.
+	var p0: Array = ed.doc.find("o2").position.duplicate()
+	_begin_move(ed, ev, "o2")
+	assert_eq(ev.tools.drag.lock, "both", "aucun axe permis")
+	_move_to(ev, Vector2(1.0, -1.0))
+	ev.tools.release()
+	assert_eq(ed.doc.find("o2").position, p0, "la porte ne glisse pas hors de son mur")
+	# Torche du mur nord vue de Droite : seulement Z ; la touche de l'axe
+	# horizontal (Y) ne libère pas cet axe.
+	ev = _view(ed, "droite")
+	_begin_move(ed, ev, "fx1")
+	assert_eq(ev.tools.drag.lock, "v")
+	var k := InputEventKey.new()
+	k.pressed = true
+	k.keycode = KEY_Y
+	ev.tools.handle_key(k)
+	assert_eq(ev.tools.drag.lock, "v", "Y refusé : la torche ne quitte pas son mur")
+	k.keycode = KEY_Z
+	ev.tools.handle_key(k)
+	assert_eq(ev.tools.drag.lock, "v", "Z : reste verrouillé sur Z (seul axe permis)")
+	var x0: Array = ed.doc.find("fx1").position.duplicate()
+	_move_to(ev, Vector2(2.0, 0.0))
+	ev.tools.cancel()
+	assert_eq(ed.doc.find("fx1").position, x0)
+	ed.queue_free()
+	await wait_frames(1)
+
+
+func test_room_floor_change_checks_its_content() -> void:
+	var doc := _arena()
+	doc.carte.etages.append({"sol": 7.0, "hauteur": 3.2})
+	# Escalier dans la passerelle (étage 1 : l'étage 2 existe au-dessus).
+	doc.objets.append({"id": "st", "type": "escalier", "etage": 1, "rect": [3.0, 5.0, 5.0, 9.0], "rot": 0})
+	var ed := await _editor(doc)
+	var p5 := ed.doc.find("p5")
+	var att := ed.attached_to(p5)
+	assert_true("st" in att, "l'escalier part avec la passerelle")
+	var snap := ed.doc.snapshot()
+	var res := ed.try_move_3d(p5.duplicate(true), att, Vector2.ZERO, 2, NAN, snap)
+	assert_false(res.ok, "escalier sur le dernier étage : refusé")
+	assert_eq(int(ed.doc.find("p5").etage), 1, "la passerelle reste à l'étage 1")
+	assert_eq(int(ed.doc.find("st").etage), 1)
+	ed.queue_free()
+	await wait_frames(1)
+
+
+func test_support_of_a_stacked_decor_cannot_go_alone() -> void:
+	var doc := _arena()
+	doc.find("d2")["position"] = [8.0, 28.0]
+	doc.find("d2")["z"] = 1.5
+	var ed := await _editor(doc)
+	assert_eq(MapVertical.resting_on(ed.doc, ed.doc.find("d1")), ["d2"], "le bureau repose sur les caisses")
+	# Dessus : déplacer ou supprimer les caisses seules est refusé.
+	var snap := ed.doc.snapshot()
+	var res := ed.try_move(ed.doc.find("d1").duplicate(true), [], Vector2(-3.0, 0.0), snap)
+	assert_false(res.ok, "déplacer le support : refusé")
+	assert_eq(ed.doc.find("d1").position, [8.0, 28.0])
+	ed.delete_element("d1")
+	assert_false(ed.doc.find("d1").is_empty(), "supprimer le support : refusé")
+	# Élévation : pareil.
+	var ev := _view(ed)
+	ed.canvas.set_snap_mode("grille")
+	_begin_move(ed, ev, "d1", "h")
+	_move_to(ev, Vector2(-3.0, 0.0))
+	ev.tools.release()
+	assert_eq(ed.doc.find("d1").position, [8.0, 28.0], "élévation : refusé aussi")
+	# Validateur (et donc cartes reçues) : un décor bloquant en l'air est une erreur.
+	ed.doc.find("d2")["z"] = 0.7
+	var v := MapRaster.build(ed.doc).v
+	v.analyze()
+	assert_true(v.errors().any(func(e): return String(e.fr).contains("en l'air")), "validateur : décor en l'air")
+	assert_false(CustomMapGuard.check_playable(ed.doc).is_empty(), "carte reçue : injouable")
+	ed.queue_free()
+	await wait_frames(1)
+
+
+func test_cut_lines_keep_a_minimal_gap() -> void:
+	var ed := await _editor(_arena())
+	var ev := _view(ed)
+	ev.set_cut([5.0, 5.04], "perso")
+	assert_eq(ev.coupe.size(), 2, "coupe gardée")
+	assert_near(float(ev.coupe[1]) - float(ev.coupe[0]), MapElevation.CUT_MIN, 0.001)
+	ev.set_cut([10.0, 14.0], "perso")
+	# Trait avant tiré au-delà de l'autre (vue Avant : coupe sur Y).
+	ed.canvas.drag = {"kind": "cut", "ev": ev, "i": 0}
+	ed.canvas.mouse_m = Vector2(0.0, 20.0)
+	ed.canvas._drag_cut()
+	assert_eq(ev.coupe.size(), 2, "la coupe ne disparaît pas")
+	assert_near(float(ev.coupe[0]), 14.0 - MapElevation.CUT_MIN, 0.011)
+	assert_near(float(ev.coupe[1]), 14.0, 0.001)
+	ed.canvas.drag = {}
+	ed.queue_free()
+	await wait_frames(1)
+
+
+func test_below_view_picks_only_the_current_floor() -> void:
+	var ed := await _editor(_arena())
+	var ev := _view(ed, "dessous")
+	ed.floor_k = 0
+	var e := ev.element_at(_below_uv(Vector2(5.0, 7.0)))
+	assert_eq(String(e.get("id", "")), "p3", "étage 0 : l'entrepôt, pas la passerelle de l'étage 1")
+	ed.floor_k = 1
+	e = ev.element_at(_below_uv(Vector2(5.0, 7.0)))
+	assert_eq(String(e.get("id", "")), "p5", "étage 1 : la passerelle")
+	ed.queue_free()
+	await wait_frames(1)
+
+
+func test_numpad_and_layout_change_during_a_drag() -> void:
+	var ed := await _editor(_arena())
+	var lay := ed.views
+	# Tracé en cours : le pavé numérique ne change pas de plan.
+	ed.pick_item("piece_poly")
+	ed.canvas.poly_pts.append(Vector2(2, 6))
+	assert_true(lay.busy(), "tracé : vues occupées")
+	var planes := lay.panes.map(func(p): return p.plane())
+	var k := InputEventKey.new()
+	k.pressed = true
+	k.keycode = KEY_KP_3
+	ed._input(k)
+	assert_eq(lay.panes.map(func(p): return p.plane()), planes, "pavé 3 pendant le tracé : aucun plan changé")
+	ed.canvas.cancel()
+	ed.pick_item("select")
+	# Glissement en élévation puis changement de disposition : annulé, sans
+	# carte modifiée ni étape d'annulation.
+	var ev := _view(ed)
+	ed.canvas.set_snap_mode("grille")
+	var n := ed.collab.history.undo_count(ed.collab.my_id)
+	_begin_move(ed, ev, "d1", "h")
+	_move_to(ev, Vector2(2.0, 0.0))
+	assert_true(lay.busy())
+	lay.set_layout("4")
+	assert_false(lay.elevation_dragging(), "glissement annulé")
+	assert_near(float(ed.doc.find("d1").position[0]), 8.0, 0.001, "la carte d'avant revient")
+	assert_eq(ed.collab.history.undo_count(ed.collab.my_id), n, "aucune étape d'annulation")
+	ed.queue_free()
+	await wait_frames(1)

@@ -341,7 +341,7 @@ func _build_ui() -> void:
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	title_label.custom_minimum_size = Vector2(140, 0)
+	title_label.custom_minimum_size = Vector2(70, 0)
 	title_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	bar.add_child(title_label)
 	var help := Button.new()
@@ -749,7 +749,7 @@ func _update_title() -> void:
 	floor_label.text = Lang.t("Étage %d / %d", "Floor %d / %d") % [floor_k, doc.floor_count() - 1]
 	snap_changed()
 	if validation_stale or validator == null:
-		check_button.text = Lang.t("Vérification : à faire", "Check: pending")
+		check_button.text = Lang.t("À vérifier", "Not checked")
 		check_button.add_theme_color_override("font_color", UiStyle.DIM)
 	else:
 		var ne := validator.errors().size()
@@ -814,8 +814,10 @@ func _input(event: InputEvent) -> void:
 		return
 	var k := event as InputEventKey
 	# Ctrl+Espace : agrandir la vue active (une seconde fois : la disposition).
-	if k.keycode == KEY_SPACE and k.ctrl_pressed and k.pressed and not k.echo and not _typing():
-		views.toggle_maximized(views.active_pane)
+	# Touche tenue (répétition) : prise aussi, sans passer en main (Espace).
+	if k.keycode == KEY_SPACE and k.ctrl_pressed and k.pressed and not _typing():
+		if not k.echo:
+			views.toggle_maximized(views.active_pane)
 		get_viewport().set_input_as_handled()
 		return
 	if k.keycode == KEY_SPACE and not _typing():
@@ -827,12 +829,14 @@ func _input(event: InputEvent) -> void:
 	if k.echo and not (k.keycode in [KEY_Z, KEY_Y]):
 		return
 	# Pavé numérique sur une vue (7, 1, 3, 5 ; Ctrl : la vue opposée) : le
-	# plan de la vue ; ailleurs il garde la barre rapide (§ 4).
-	if k.keycode in [KEY_KP_1, KEY_KP_3, KEY_KP_5, KEY_KP_7] and not _typing() and not k.alt_pressed and views.numpad(k, views.hovered_pane()):
+	# plan de la vue ; ailleurs il garde la barre rapide (§ 4). Pendant un tracé
+	# ou un glissement, les chiffres du pavé sont la valeur tapée.
+	if k.keycode in [KEY_KP_1, KEY_KP_3, KEY_KP_5, KEY_KP_7] and not _typing() and not k.alt_pressed and not views.busy() and views.numpad(k, views.hovered_pane()):
 		get_viewport().set_input_as_handled()
 		return
-	# Ctrl+Alt+Q : quatre vues.
-	if k.ctrl_pressed and k.alt_pressed and k.keycode == KEY_Q:
+	# Ctrl+Alt+Q : quatre vues (pas pendant une saisie : AltGr+Q = « @ » sur
+	# certains claviers).
+	if k.ctrl_pressed and k.alt_pressed and k.keycode == KEY_Q and not _typing():
 		views.set_layout("4")
 		get_viewport().set_input_as_handled()
 		return
@@ -862,16 +866,23 @@ func _input(event: InputEvent) -> void:
 				if _typing():
 					return
 				paste()
-			# Taille de l'interface (Ctrl + molette reste le zoom du plan).
+			# Taille de l'interface (Ctrl + molette reste le zoom du plan) ; pas
+			# pendant une saisie (AltGr = Ctrl+Alt : AltGr+à = « @ » en AZERTY).
 			KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
+				if _typing():
+					return
 				step_ui_scale(1)
 			KEY_MINUS, KEY_KP_SUBTRACT:
+				if _typing():
+					return
 				step_ui_scale(-1)
 			KEY_0, KEY_KP_0:
+				if _typing():
+					return
 				step_ui_scale(0)
 			_:
 				# Ctrl 0 sur un clavier AZERTY (touche « à / 0 »).
-				if k.physical_keycode == KEY_0:
+				if k.physical_keycode == KEY_0 and not _typing():
 					step_ui_scale(0)
 				else:
 					return
@@ -1134,6 +1145,7 @@ func _update_invalid() -> void:
 ## participant n'est pas touché (message).
 func undo() -> void:
 	canvas.cancel()
+	views.cancel_drags()
 	_commit_change()
 	var r := collab.request_undo()
 	if r.is_empty():
@@ -1150,6 +1162,7 @@ func undo() -> void:
 
 func redo() -> void:
 	canvas.cancel()
+	views.cancel_drags()
 	_commit_change()
 	var r := collab.request_redo()
 	if r.is_empty():
@@ -1167,6 +1180,7 @@ func redo() -> void:
 ## MapCollab.request_undo_of ({} si impossible).
 func undo_entry(cid: String) -> Dictionary:
 	canvas.cancel()
+	views.cancel_drags()
 	_commit_change()
 	var r := collab.request_undo_of(cid)
 	if r.is_empty():
@@ -1256,6 +1270,10 @@ func _on_collab_applied(ops: Array, author: String, label: String, local: bool) 
 		MapOps.apply(_before, ops)
 	if canvas.drag.has("snap"):
 		MapOps.apply(canvas.drag.snap, ops)
+	# Glissements en élévation (élément, étiquette de niveau, plafond) : leur
+	# carte de départ reçoit le changement (sinon il serait effacé).
+	for snap in views.drag_snaps():
+		MapOps.apply(snap, ops)
 	floor_k = mini(floor_k, doc.floor_count() - 1)
 	_refresh()
 	if not local and label != "":
@@ -1270,6 +1288,7 @@ func _on_map_replaced() -> void:
 	# Glissement en cours abandonné SANS remettre sa copie (l'ancienne carte).
 	canvas.drag = {}
 	canvas.cancel()
+	views.drop_drags()
 	floor_k = mini(floor_k, doc.floor_count() - 1)
 	if collab.role == MapCollab.Role.GUEST:
 		map_dir = ""
@@ -1468,6 +1487,10 @@ func delete_element(eid: String) -> void:
 	var e := doc.find(eid)
 	if e.is_empty():
 		return
+	# § 7 : un décor qui en porte un autre ne disparaît pas seul.
+	if not MapVertical.resting_on(doc, e, attached_to(e)).is_empty():
+		canvas.show_refusal(MapRules.refuse("un décor est posé dessus : supprimez-le d'abord", "a prop stands on it: delete that one first"))
+		return
 	push_undo()
 	var n := 1
 	for a in attached_to(e):
@@ -1549,12 +1572,28 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 				res = MapRules.check_arc(cand)
 	if not res.ok:
 		return res
+	# § 7 : les décors posés dessus le restent (sinon refus, dernière place gardée).
+	var held := MapVertical.resting_on(doc, orig, attached)
+	var last := {}
+	if not held.is_empty():
+		for eid in [String(orig.id)] + attached:
+			var cur := doc.find(String(eid))
+			if not cur.is_empty():
+				last[String(eid)] = cur.duplicate(true)
 	doc.restore(snap0)
 	_replace(cand)
 	for aid in attached:
 		var a := doc.find(aid)
 		if not a.is_empty():
 			_replace(_shift(a, delta))
+	if not held.is_empty():
+		var rest := MapVertical.check_rests(doc, held)
+		if not rest.ok:
+			doc.restore(snap0)
+			for eid in last:
+				_replace(last[eid].duplicate(true))
+			moved_live()
+			return rest
 	if t in ["mur", "mur_courbe"]:
 		# Objets accrochés au mur libre : raccrochés à sa face (un mur déplacé
 		# hors de la grille devient un vrai mur oblique).
@@ -1582,7 +1621,21 @@ func try_move_3d(orig: Dictionary, attached: Array, delta: Vector2, k_new: int, 
 		return MapRules.refuse("pas d'étage à cette hauteur", "no floor at that height")
 	if String(orig.get("type", "")) == "escalier" and k_new >= doc.floor_count() - 1:
 		return MapRules.refuse("un escalier ne peut pas aller sur le dernier étage", "stairs cannot go on the top floor")
+	# Refus : l'élément (et son contenu) reste à sa DERNIÈRE place valide (§ 6.1),
+	# pas à celle du début du glissement.
+	var last := {}
+	for eid in [String(orig.id)] + attached:
+		var cur := doc.find(String(eid))
+		if not cur.is_empty():
+			last[String(eid)] = cur.duplicate(true)
+	var refuse := func(r: Dictionary) -> Dictionary:
+		doc.restore(snap0)
+		for eid in last:
+			_replace(last[eid].duplicate(true))
+		moved_live()
+		return r
 	doc.restore(snap0)
+	var held := MapVertical.resting_on(doc, orig, attached)
 	var base := orig.duplicate(true)
 	# Hauteur de pose d'abord (un décor posé sur un autre ne le chevauche pas).
 	if not is_nan(z_local):
@@ -1598,18 +1651,38 @@ func try_move_3d(orig: Dictionary, attached: Array, delta: Vector2, k_new: int, 
 		snap1 = doc.snapshot()
 	var res := try_move(base, attached, delta, snap1)
 	if not res.ok:
-		doc.restore(snap0)
-		moved_live()
-		return res
+		return refuse.call(res)
+	if k_new != k0:
+		# Contenu emporté (pièce) : valide aussi sur l'étage visé (portes sur un
+		# bord commun, escalier jamais sur le dernier étage, objets contre un mur).
+		MapRules.begin_batch(doc)
+		var bad := {}
+		for aid in attached:
+			var a := doc.find(aid)
+			if a.is_empty():
+				continue
+			if String(a.get("type", "")) == "escalier" and int(a.get("etage", 0)) >= doc.floor_count() - 1:
+				bad = MapRules.refuse("son escalier ne peut pas aller sur le dernier étage", "its stairs cannot go on the top floor")
+				break
+			var r := MapRules.check_existing(doc, a)
+			if not r.ok:
+				bad = MapRules.refuse("son contenu ne tient pas à l'étage %d : %s (%s)" % [k_new, _label(a), MapRules.why(r)],
+					"its content does not fit on floor %d: %s (%s)" % [k_new, _label(a), MapRules.why(r)])
+				break
+		MapRules.end_batch()
+		if not bad.is_empty():
+			return refuse.call(bad)
 	if not is_nan(z_local):
 		var now := doc.find(String(orig.id))
 		MapVertical.set_pose_z(doc, raster().v, now, z_local)
 		var chk := MapVertical.check_pose(doc, raster().v, now)
 		if not chk.ok:
-			doc.restore(snap0)
-			moved_live()
-			return chk
+			return refuse.call(chk)
 		moved_live()
+	# § 7 : un décor qui en porte un autre (bloquant) ne bouge pas seul.
+	var rest := MapVertical.check_rests(doc, held)
+	if not rest.ok:
+		return refuse.call(rest)
 	return res
 
 
@@ -1728,6 +1801,7 @@ func rotate_selected() -> void:
 	if not e.has("position") and canvas.mode_now() != "libre" and not (e.has("forme") or String(e.get("type", "")) == "mur_courbe"):
 		c = Vector2(snappedf(c.x, 0.5), snappedf(c.y, 0.5))
 	var attached := attached_to(e)
+	var held_on := MapVertical.resting_on(doc, e, attached)
 	var re := _rot(e, c)
 	_resnap(re)
 	_replace(re)
@@ -1737,6 +1811,8 @@ func rotate_selected() -> void:
 		_replace(ra)
 	var ne := doc.find(selected)
 	var res := MapRules.check_existing(doc, ne)
+	if res.ok:
+		res = MapVertical.check_rests(doc, held_on)
 	if not res.ok:
 		doc.restore(before)
 		_hit_dirty = true
@@ -2457,6 +2533,15 @@ func _on_close_requested() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		autosave()
+		_flush_prefs()
+
+
+## Disposition des vues et aperçu 3D : réglages en attente écrits avant de partir.
+func _flush_prefs() -> void:
+	if views != null:
+		views.flush_prefs()
+	if preview != null:
+		preview.flush_prefs()
 
 
 # ------------------------------------------------------------------ menus
@@ -2506,6 +2591,7 @@ func _on_edit_menu(id: int) -> void:
 
 func quit_to_menu() -> void:
 	autosave()
+	_flush_prefs()
 	get_tree().change_scene_to_file(Router.MENU_SCENE)
 
 

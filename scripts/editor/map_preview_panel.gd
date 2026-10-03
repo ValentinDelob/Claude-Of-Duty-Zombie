@@ -348,10 +348,12 @@ func toggle() -> void:
 
 func set_shown(on: bool) -> void:
 	if pane_host != null:
-		# La 3D est dans une fenêtre de la disposition : le panneau flottant reste caché.
-		if ed != null:
+		# La 3D est dans une fenêtre de la disposition : le panneau flottant
+		# reste caché (le bouton APERÇU 3D ne reste pas enfoncé).
+		if ed != null and not _applying:
 			ed.set_status(Lang.t("La 3D est affichée dans une fenêtre de la disposition (menu Disposition, ViewCube)",
 				"The 3D is shown in a layout window (Layout menu, ViewCube)"))
+		shown_changed.emit(false)
 		return
 	if on == shown:
 		return
@@ -401,6 +403,7 @@ func attach_to(host: Control) -> void:
 	(content.get_node("Tools") as Control).visible = false
 	visible = false
 	world.active = true
+	shown_changed.emit(false)
 	_request_render()
 	if ed != null and ed.canvas != null:
 		ed.canvas.queue_redraw()
@@ -416,6 +419,7 @@ func detach_from_pane() -> void:
 	(content.get_node("Tools") as Control).visible = true
 	visible = shown and not detached
 	world.active = shown
+	shown_changed.emit(shown)
 	_release_mouse()
 	if shown:
 		_clamp_rect()
@@ -951,6 +955,12 @@ func _save_soon() -> void:
 	_save_t = 0.5
 
 
+## Réglages en attente écrits tout de suite (fermeture de l'éditeur).
+func flush_prefs() -> void:
+	if _save_t > 0.0:
+		save_prefs()
+
+
 func state() -> Dictionary:
 	var r := _free_rect if (maximized or detached) and _free_rect.size.x > 0.0 else Rect2(position, size)
 	var d := {
@@ -976,6 +986,16 @@ func _load_prefs() -> void:
 
 ## Réglages relus (valeurs invalides ignorées).
 func apply_state(p: Dictionary) -> void:
+	_applying = true
+	_apply_state(p)
+	_applying = false
+
+
+## Relecture en cours (apply_state) : pas de message d'état.
+var _applying := false
+
+
+func _apply_state(p: Dictionary) -> void:
 	var r: Array = p.get("rect", []) if p.get("rect") is Array else []
 	_free_rect = _default_rect()
 	if r.size() == 4 and r.all(func(v): return v is float or v is int):
@@ -996,6 +1016,14 @@ func apply_state(p: Dictionary) -> void:
 		set_maximized(true)
 	_refresh_menu()
 	_refresh_hint()
+	if pane_host != null:
+		# La 3D est déjà dans une fenêtre de la disposition (relue avant) : la
+		# fenêtre séparée mémorisée ne lui prend pas son contenu ; l'état
+		# « affiché » du panneau flottant sert quand la 3D quitte la disposition.
+		shown = bool(p.get("visible", false))
+		shown_changed.emit(false)
+		_save_t = -1.0
+		return
 	if bool(p.get("detached", false)) and can_detach():
 		var w: Array = p.get("window", []) if p.get("window") is Array else []
 		var wr := Rect2i()

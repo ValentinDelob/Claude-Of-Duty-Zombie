@@ -485,6 +485,10 @@ func _floor(k: int) -> void:
 					else:
 						# Format 12 : hauteur de pose (posé sur un autre décor).
 						pr["y"] = MapVertical.decor_z(o)
+						# § 7 : un décor qui bloque ne flotte pas (il repose sur un autre).
+						if not MapVertical.rests_ok(doc, o):
+							_err("décor « %s » en l'air : il doit reposer sur le sol ou sur un autre décor" % o.get("prefab", ""),
+								"prop \"%s\" in mid-air: it must stand on the floor or on another prop" % o.get("prefab", ""), k, cells)
 					v.props.append(pr)
 				if MapCatalog.blocking(o) != "non" and not cells.is_empty():
 					var key := "decor#" + String(o.id)

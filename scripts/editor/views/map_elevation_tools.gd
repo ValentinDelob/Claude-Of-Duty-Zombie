@@ -25,7 +25,7 @@ const COL_CHIP_LINE := Color("38383D")
 
 var ev: MapElevation
 ## Glissement en cours : {kind (move, side, top, level, topceil), start_m,
-## snap, orig, attached, moved, lock ("", "h", "v"), ...} ; vide sinon.
+## snap, orig, attached, moved, lock ("", "h", "v", "both" : immobile), ...} ; vide sinon.
 var drag: Dictionary = {}
 ## Valeur tapée pendant le glissement (Tab, chiffres, Entrée).
 var entry := ""
@@ -124,7 +124,9 @@ func handles(e: Dictionary) -> Array:
 		out.append({"id": "side_r", "p": Vector2(r.end.x, mid)})
 	var top := _top_kind(o)
 	if top != "":
-		out.append({"id": "top", "p": Vector2(r.get_center().x, r.position.y), "lock": top == "lock"})
+		# Effet au plafond : sa zone pend sous le plafond, la poignée est en bas.
+		var y := r.end.y if top == "zone" and MapCatalog.effect_mount(o) == "plafond" else r.position.y
+		out.append({"id": "top", "p": Vector2(r.get_center().x, y), "lock": top == "lock"})
 	return out
 
 
@@ -204,7 +206,7 @@ func cursor_at(px: Vector2) -> Control.CursorShape:
 	if not drag.is_empty():
 		match String(drag.kind):
 			"move":
-				return Control.CURSOR_VSIZE if drag.lock == "v" else (Control.CURSOR_HSIZE if drag.lock == "h" else Control.CURSOR_MOVE)
+				return Control.CURSOR_FORBIDDEN if drag.lock == "both" else Control.CURSOR_VSIZE if drag.lock == "v" else (Control.CURSOR_HSIZE if drag.lock == "h" else Control.CURSOR_MOVE)
 			"side":
 				return Control.CURSOR_HSIZE
 		return Control.CURSOR_VSIZE
@@ -273,10 +275,11 @@ func _begin(kind: String, e: Dictionary, extra: Dictionary) -> void:
 	drag["za0"] = doc.floor_sol(k) + (MapVertical.pose_z(doc, v, o) if MapVertical.pose_kind(o) == "pose" else 0.0)
 	if kind == "top":
 		drag["v0"] = _top_value(o)
-	if not can_h(e) and drag.lock == "":
-		drag["lock"] = "v" if can_v(e) else ""
-	if not can_v(e) and drag.lock == "":
-		drag["lock"] = "h"
+	# Axes permis (un objet mural face à la vue ne quitte pas son mur, une
+	# ouverture ne change pas d'étage) : verrou forcé ; « both » : immobile.
+	drag["can_h"] = can_h(e)
+	drag["can_v"] = can_v(e)
+	drag["lock"] = _allowed_lock(String(drag.lock))
 	entry = ""
 	entering = false
 	refusal = ""
@@ -292,8 +295,35 @@ func _top_value(o: Dictionary) -> float:
 	return MapCatalog.effect_zone(o).z
 
 
+## Verrou d'axe `want` ("", "h", "v") ramené aux axes permis du glissement.
+func _allowed_lock(want: String) -> String:
+	var ch := bool(drag.get("can_h", true))
+	var cv := bool(drag.get("can_v", true))
+	if not ch and not cv:
+		return "both"
+	if not ch:
+		return "v"
+	if not cv:
+		return "h"
+	return want
+
+
 func dragging() -> bool:
 	return not drag.is_empty()
+
+
+## Carte entière remplacée (MapEditor._on_map_replaced) : le glissement est
+## abandonné sans remettre sa carte de départ (l'ancienne carte).
+func drop() -> void:
+	if drag.is_empty():
+		return
+	ed().send_live("")
+	drag = {}
+	magnet = {}
+	entry = ""
+	entering = false
+	refusal = ""
+	ev.queue_redraw()
 
 
 ## Mouvement de la souris pendant un glissement.
@@ -320,6 +350,8 @@ func _delta() -> Vector2:
 			d.y = 0.0
 		"v":
 			d.x = 0.0
+		"both":
+			return Vector2.ZERO
 	var typed: Variant = _typed()
 	if typed != null:
 		# Valeur tapée : l'écart sur l'axe verrouillé (vertical par défaut).
@@ -362,9 +394,17 @@ func _update_move() -> void:
 	match kind:
 		"pose":
 			var za := float(drag.za0) + dz
+			var probe := MapEditor._shift(orig, delta2)
 			if _typed() == null:
-				za = _snap_z(za, k0, MapEditor._shift(orig, delta2))
-			k_new = MapVertical.floor_at(doc, za)
+				za = _snap_z(za, k0, probe)
+			# Sous le plafond réel de sa pièce (double hauteur, dernier étage
+			# plus haut que l'étage) : il reste à son étage ; il n'en change
+			# qu'en quittant ce volume.
+			var sol0 := doc.floor_sol(k0)
+			if za >= sol0 - 0.001 and za <= sol0 + MapVertical.room_h(ed().raster().v, probe) + 0.001:
+				k_new = k0
+			else:
+				k_new = MapVertical.floor_at(doc, za)
 			if k_new < 0:
 				refusal = Lang.t("pas d'étage à cette hauteur", "no floor at that height")
 				return
@@ -548,10 +588,23 @@ func _update_top() -> void:
 		h = clampf(snappedf(h, MapCatalog.CLIP_HEIGHT_STEP), MapCatalog.CLIP_HEIGHT[0], MapCatalog.CLIP_HEIGHT[1])
 		o["hauteur"] = h
 	else:
+		# Hauteur de la zone, comme elle est dessinée (MapElevationItems._effect) :
+		# au sol, du pied au haut ; murale, centrée sur sa hauteur ; au
+		# plafond, pendue sous lui (poignée en bas).
 		var z := MapCatalog.effect_zone(o)
-		z.z = h - MapCatalog.effect_height(o)
+		var eh := MapCatalog.effect_height(o)
+		if typed != null:
+			z.z = float(drag.v0) + float(typed)
+		else:
+			match MapCatalog.effect_mount(o):
+				"mur":
+					z.z = 2.0 * (h - eh)
+				"plafond":
+					z.z = MapVertical.pose_z(doc, ed().raster().v, o) - h
+				_:
+					z.z = h - eh
 		MapCatalog.set_effect_zone(o, z)
-		h = MapCatalog.effect_zone(o).z + MapCatalog.effect_height(o)
+		h = MapCatalog.effect_zone(o).z
 	drag["value"] = h
 	drag.moved = true
 	ed().moved_live()
@@ -596,10 +649,18 @@ func release() -> void:
 	if drag.is_empty():
 		return
 	ed().send_live("")
+	var moved_floor := false
 	if drag.moved:
 		ed().push_undo_snapshot(drag.snap)
 		ed().changed()
+		if String(drag.kind) == "move":
+			var now := ed().doc.find(String(drag.orig.id))
+			moved_floor = not now.is_empty() and int(now.get("etage", 0)) != int(drag.k0)
+	var oid := String(drag.get("orig", {}).get("id", ""))
 	drag = {}
+	if moved_floor:
+		# Changé d'étage : l'étage courant le suit (plan du dessus, panneaux).
+		ed().select(oid)
 	magnet = {}
 	entry = ""
 	entering = false
@@ -653,7 +714,10 @@ func handle_key(k: InputEventKey) -> bool:
 			if lk == "":
 				ed().set_status(Lang.t("Axe %s : celui de la profondeur dans cette vue", "%s axis: the depth axis in this view") % letter)
 				return true
-			drag["lock"] = "" if drag.lock == lk else lk
+			if not bool(drag.get("can_h" if lk == "h" else "can_v", true)):
+				ed().set_status(Lang.t("Cet élément ne bouge pas sur l'axe %s dans cette vue", "This element cannot move on the %s axis in this view") % letter)
+				return true
+			drag["lock"] = _allowed_lock("" if drag.lock == lk else lk)
 			update()
 			return true
 	var ch := MapCanvas._entry_char(k)
@@ -854,7 +918,7 @@ func _draw_top_cotes(c: CanvasItem, e: Dictionary, r: Rect2) -> void:
 	c.draw_colored_polygon(PackedVector2Array([Vector2(cx, top), Vector2(cx - u(3.5), top + u(7)), Vector2(cx + u(3.5), top + u(7))]), COL_BONE)
 	c.draw_colored_polygon(PackedVector2Array([Vector2(cx, y0), Vector2(cx - u(3.5), y0 - u(7)), Vector2(cx + u(3.5), y0 - u(7))]), COL_BONE)
 	var fr := not Lang.is_en()
-	var name := Lang.t("Plafond", "Ceiling") if orig.has("contour") else Lang.t("Hauteur", "Height")
+	var name := Lang.t("Plafond", "Ceiling") if orig.has("contour") else (Lang.t("Hauteur de zone", "Zone height") if String(orig.get("type", "")) == "effet" else Lang.t("Hauteur", "Height"))
 	var t := "%s %s m" % [name, m2(float(drag.get("value", 0.0)))]
 	var fs := EditorUi.fs(12)
 	var tw := bf.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x

@@ -129,11 +129,17 @@ func test_linked_views_share_zoom_and_axis() -> void:
 	var dr: MapElevation = lay.panes[2].view
 	assert_true(lay.linked, "vues liées par défaut")
 	lay.set_active_pane(lay.panes[0])
+	# Zoom (D7 révisé) : chaque vue garde son cadrage, un zoom s'applique aux
+	# autres dans la même proportion.
+	var zt0 := top.zoom
+	var za0 := av.zoom
+	var zd0 := dr.zoom
 	top._zoom_at(top.size * 0.5, 1.5)
 	top.origin.x += 40.0
 	await wait_frames(2)
-	assert_near(av.zoom, top.zoom, 0.0001, "zoom commun")
-	assert_near(dr.zoom, top.zoom, 0.0001)
+	var f := top.zoom / zt0
+	assert_near(av.zoom, za0 * f, 0.0001, "zoom lié (même proportion)")
+	assert_near(dr.zoom, zd0 * f, 0.0001)
 	var cx := MapView.point_of("dessus", top.to_m(top.size * 0.5), 0.0).x
 	assert_near(MapView.point_of("avant", av.to_m(av.size * 0.5), 0.0).x, cx, 0.01, "Dessus et Avant : même centre en X")
 	var cy := MapView.point_of("dessus", top.to_m(top.size * 0.5), 0.0).y

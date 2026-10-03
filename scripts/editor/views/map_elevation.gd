@@ -289,6 +289,9 @@ func element_at(m: Vector2) -> Dictionary:
 		var e: Dictionary = list[i]
 		if not floor_shown(int(e.f)) or not in_cut(e):
 			continue
+		# De dessous, seul l'étage courant est dessiné (_draw_below) : seul lui se choisit.
+		if plane == "dessous" and (int(e.f) != ed.floor_k or not e.has("poly")):
+			continue
 		var r := Rect2(float(e.u0), float(e.v0), float(e.u1) - float(e.u0), float(e.v1) - float(e.v0)).grow(tol)
 		if not r.has_point(m):
 			continue
@@ -498,9 +501,13 @@ func _draw_side(c: CanvasItem, _list: Array, font: Font, area: Rect2) -> void:
 		var yc := to_px(Vector2(0, -(sol + doc.floor_height(i)))).y
 		c.draw_dashed_line(Vector2(x0, yc), Vector2(area.end.x, yc), Color(COL_LEVEL, 0.22), 1.0, _u(6))
 	c.draw_line(Vector2(area.position.x, y0), Vector2(area.end.x, y0), Color(COL_GROUND, 0.65), 1.0)
-	# Noms des pièces (pas ceux cachés par une pièce plus proche, sauf coupe).
+	# Noms des pièces (pas ceux cachés par une pièce plus proche, sauf coupe) :
+	# coupés à la largeur de leur boîte, jamais l'un sur l'autre (le plus
+	# proche d'abord ; un nom qui en toucherait un autre est omis).
 	var fs := EditorUi.fs(12)
-	for e in _rooms:
+	var placed: Array[Rect2] = []
+	for i in range(_rooms.size() - 1, -1, -1):
+		var e: Dictionary = _rooms[i]
 		if not shown[int(e.f)]:
 			continue
 		var a := _alpha(e, k_cur, cut)
@@ -510,10 +517,30 @@ func _draw_side(c: CanvasItem, _list: Array, font: Font, area: Rect2) -> void:
 		var nm := String(e.it.get("name", ""))
 		if nm == "" or not r.intersects(area):
 			continue
+		nm = fit_text(font, nm, fs, r.size.x - _u(8))
+		if nm == "":
+			continue
 		var w := font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var at := Vector2(r.get_center().x - w * 0.5, r.position.y + _u(15))
+		var box := Rect2(at.x - _u(3), at.y - fs, w + _u(6), fs + _u(4))
+		if placed.any(func(q: Rect2): return q.intersects(box)):
+			continue
+		placed.append(box)
 		c.draw_string_outline(font, at, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 3, Color(0, 0, 0, 0.8))
 		c.draw_string(font, at, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 1, 1, 0.45 + 0.5 * a))
+
+
+## Texte coupé (« … ») pour tenir dans `max_w` px ; "" s'il n'en reste pas 3 lettres.
+static func fit_text(font: Font, t: String, fs: int, max_w: float) -> String:
+	if font.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= max_w:
+		return t
+	var n := t.length() - 1
+	while n >= 3:
+		var s := t.left(n).strip_edges() + "…"
+		if font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= max_w:
+			return s
+		n -= 1
+	return ""
 
 
 ## Opacité (alpha_of sans appels : boucle de dessin).
@@ -869,13 +896,18 @@ func header_menu_pressed(id: String, i: int) -> void:
 
 
 ## Coupe [p0, p1] (vide : aucune), son origine et son libellé.
+## Épaisseur minimale d'une tranche de coupe (m).
+const CUT_MIN := 0.1
+
+
 func set_cut(c: Array, mode: String, label := "") -> void:
 	coupe = []
 	if c.size() == 2:
 		var a := minf(float(c[0]), float(c[1]))
 		var b := maxf(float(c[0]), float(c[1]))
-		if b - a >= 0.1:
-			coupe = [snappedf(a, 0.01), snappedf(b, 0.01)]
+		# Écart minimal (un trait passé sur l'autre ne fait pas disparaître la coupe).
+		b = maxf(b, a + CUT_MIN)
+		coupe = [snappedf(a, 0.01), snappedf(b, 0.01)]
 	coupe_mode = mode if not coupe.is_empty() else "aucune"
 	coupe_label = label if not coupe.is_empty() else ""
 	if ed != null and ed.views != null:
