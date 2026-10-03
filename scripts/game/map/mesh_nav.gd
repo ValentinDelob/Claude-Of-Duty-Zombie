@@ -81,7 +81,7 @@ func setup(world: Node3D) -> void:
 
 ## Cuit le navmesh d'après les collisions présentes sous `world` (appelé une
 ## fois la carte, les portes et les fenêtres construites).
-func bake() -> void:
+func bake(blocks: Array = []) -> void:
 	var nm := NavigationMesh.new()
 	nm.cell_size = CELL_SIZE
 	nm.cell_height = CELL_HEIGHT
@@ -95,6 +95,16 @@ func bake() -> void:
 	var src := NavigationMeshSourceGeometryData3D.new()
 	var t0 := Time.get_ticks_msec()
 	NavigationServer3D.parse_source_geometry_data(nm, src, _world)
+	# Format 14 : emprise au sol projetée des décors inclinés qui bloquent
+	# (« nav_blocks ») : jamais un passage, même si la pente se gravirait.
+	for nb in blocks:
+		var pts := PackedVector3Array()
+		if nb is Dictionary and nb.get("poly") is Array:
+			for q in nb.poly:
+				if q is Array and q.size() >= 2:
+					pts.append(Vector3(float(q[0]), 0.0, float(q[1])))
+		if pts.size() >= 3:
+			src.add_projected_obstruction(pts, float(nb.get("y", 0.0)) - 0.05, float(nb.get("h", 1.0)) + 0.1, false)
 	NavigationServer3D.bake_from_source_geometry_data(nm, src)
 	region.navigation_mesh = nm
 	NavigationServer3D.map_force_update(map)

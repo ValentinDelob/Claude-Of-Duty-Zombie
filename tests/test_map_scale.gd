@@ -295,3 +295,118 @@ func test_rules_with_scale_and_tilt() -> void:
 	var v2 := MapRaster.build(doc2).v
 	v2.analyze()
 	assert_eq(v2.errors().map(func(e): return e.fr), [], "carte au format 14 valide")
+
+
+# ------------------------------------------------------------------ jeu (étape 2)
+
+const Prefabs := preload("res://tests/test_map_prefabs.gd")
+## Description en jeu de golden_map() produite AVANT le format 14 (référence).
+const GOLDEN := "res://tests/fixtures/scale_layout_golden.json"
+
+
+## Décor varié sans échelle ni inclinaison : catalogue (tourné, copies, posé
+## sur un autre, mural, au plafond), prefab modèle et prefab groupe.
+static func golden_map() -> EditorMap:
+	var doc := DecorFree.two_rooms()
+	var glb := Prefabs.box_glb()
+	doc.set_prefab("boite_bleue", MapPrefabLib.from_model("Boîte", "Box", glb).def, glb)
+	var grp := MapPrefabLib.from_objects("Barricade", "Barricade", [
+		{"type": "prefab", "prefab": "caisses", "position": [2.0, 2.0]}, {"type": "prefab", "prefab": "sacs_sable", "position": [4.5, 2.0], "rot": 90}])
+	doc.set_prefab("barricade", grp.def)
+	for o in [
+		{"type": "prefab", "prefab": "caisses", "position": [3.0, 3.0], "rot": 90},
+		{"type": "prefab", "prefab": "fauteuils", "position": [9.0, 3.0], "rot": 15},
+		{"type": "prefab", "prefab": "sacs_sable", "position": [3.0, 7.5]},
+		{"type": "prefab", "prefab": "caisses", "position": [3.0, 7.5], "z": 0.9},
+		{"type": "prefab", "prefab": "torche_murale", "position": [6.0, 10.0], "mur": "s"},
+		{"type": "prefab", "prefab": "cable_suspendu", "position": [11.0, 8.0], "descente": 0.3},
+		{"type": "prefab", "prefab": "poutre", "position": [19.0, 5.0], "rot": 37},
+		{"type": "prefab", "prefab": "map:boite_bleue", "position": [16.0, 8.0], "rot": 90},
+		{"type": "prefab", "prefab": "map:barricade", "position": [21.0, 8.0]},
+		{"type": "prefab", "prefab": "table_renversee", "position": [11.0, 5.0], "rot": 180},
+	]:
+		DecorFree._obj(doc, o)
+	return doc
+
+
+func test_layout_identical_without_the_new_keys() -> void:
+	var lay := DecorFree.layout(golden_map())
+	assert_eq(JSON.stringify(lay, "", true), FileAccess.get_file_as_string(GOLDEN), "description en jeu octet pour octet la même qu'avant le format 14")
+	# Clés à leur valeur par défaut (fichier écrit à la main) : retirées, même description.
+	var doc := golden_map()
+	for o in doc.objets:
+		if String(o.type) == "prefab":
+			o["echelle"] = [1, 1, 1]
+			o["incl"] = [0, 0]
+	var back := EditorMap.from_texts(doc.file_texts())
+	assert_eq(JSON.stringify(DecorFree.layout(back), "", true), FileAccess.get_file_as_string(GOLDEN), "défauts retirés : même description")
+	assert_false(lay.has("nav_blocks"), "aucune emprise retirée du navmesh")
+
+
+static func _find(list: Array, id: String) -> Dictionary:
+	for e in list:
+		if String(e.get("id", "")) == id:
+			return e
+	return {}
+
+
+func test_scaled_and_tilted_props_in_the_game_layout() -> void:
+	var doc := DecorFree.two_rooms()
+	var c := DecorFree._obj(doc, {"type": "prefab", "prefab": "caisses", "position": [4.0, 4.0], "echelle": [1.5, 1.5, 1.5]})
+	var b := DecorFree._obj(doc, {"type": "prefab", "prefab": "poutre", "position": [19.0, 5.5], "incl": [0, 30]})
+	var s := DecorFree._obj(doc, {"type": "prefab", "prefab": "sacs_sable", "position": [10.0, 4.0], "echelle": [2, 1, 1]})
+	var lay := DecorFree.layout(doc)
+	var off := MapGeom.WORLD_OFFSET
+	# Pile de caisses × 1,5 : lacet et échelle (uniforme), collisions du modèle mises à l'échelle.
+	var pc := _find(lay.props, String(c.id))
+	assert_near(float(pc.get("scale", 0.0)), 1.5 * float(MapCatalog.PREFABS.caisses.get("scale", 1.0)), 0.0001, "échelle uniforme")
+	assert_false(pc.has("basis"), "uniforme, droite : pas de base")
+	assert_true(bool(pc.get("nocollide", false)), "collisions : pavés mis à l'échelle à part")
+	var cb: Array = MapPrefabLib.catalog_boxes("caisses")
+	var top := 0.0
+	for bx in cb:
+		top = maxf(top, float(bx.center[1]) + float(bx.size[1]) * 0.5)
+	var ltop := 0.0
+	var n := 0
+	for bl in lay.blockers:
+		var bc := MeshMapLayout.vec(bl.center)
+		if Vector2(bc.x - off - 4.0, bc.z - off - 4.0).length() < 2.0:
+			ltop = maxf(ltop, bc.y + float(bl.size[1]) * 0.5)
+			n += 1
+	assert_eq(n, cb.size(), "un pavé par pavé du modèle")
+	assert_near(ltop, top * 1.5, 0.01, "haut des collisions × 1,5")
+	# Sacs de sable × 2 en largeur : base (échelle non uniforme), pavé élargi.
+	var ps := _find(lay.props, String(s.id))
+	assert_true(ps.has("basis") and not ps.has("yaw"), "échelle non uniforme : base")
+	var bb: Variant = MeshMapBuilder.basis_of(ps.basis)
+	assert_true(bb is Basis and (bb as Basis).x.is_equal_approx(Vector3(2, 0, 0)), "colonne x doublée")
+	# Poutre inclinée de 30° : base, origine décalée (point le plus bas au sol), pavés orientés, navmesh.
+	var pb := _find(lay.props, String(b.id))
+	var basis: Basis = MeshMapBuilder.basis_of(pb.basis)
+	var p := MeshMapLayout.vec(pb.p)
+	var dims := MapScale.dims(b)
+	var lo := INF
+	var hi := -INF
+	for sx in [-0.5, 0.5]:
+		for sy in [0.0, 1.0]:
+			for sz in [-0.5, 0.5]:
+				var w := p + basis * Vector3(dims.x * sx, dims.z * sy, dims.y * sz)
+				lo = minf(lo, w.y)
+				hi = maxf(hi, w.y)
+	assert_near(lo, 0.0, 0.01, "point le plus bas du modèle au sol")
+	assert_near(hi, MapScale.height(b), 0.01, "haut à %.2f m" % MapScale.height(b))
+	var tilted_boxes := (lay.blockers as Array).filter(func(bl): return bl.has("basis"))
+	assert_eq(tilted_boxes.size(), MapPrefabLib.catalog_boxes("poutre").size(), "pavés de la poutre orientés")
+	var cbx := CollisionBox.from_dict(tilted_boxes[0])
+	var gb := MapScale.game_basis(b)
+	var cb3 := cbx.transform.basis
+	assert_true((cb3.x - gb.x).length() < 0.001 and (cb3.y - gb.y).length() < 0.001 and (cb3.z - gb.z).length() < 0.001, "CollisionBox : base de la poutre (taille à part)")
+	cbx.free()
+	assert_eq((lay.get("nav_blocks", []) as Array).size(), 1, "emprise de la poutre retirée du navmesh")
+	var nb: Dictionary = lay.nav_blocks[0]
+	assert_near(float(nb.h), MapScale.height(b), 0.01)
+	# Validateur : cases bloquées sous la projection inclinée.
+	var v := MapRaster.build(doc).v
+	var cells := MapRaster.floor_cells(b)
+	var blocked := cells.filter(func(cc): return v.floors[0].at(cc) == MapValidator.K.MUR)
+	assert_eq(blocked.size(), cells.size(), "toutes les cases de la projection bloquées")

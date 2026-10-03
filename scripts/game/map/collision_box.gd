@@ -23,18 +23,27 @@ var polygon := PackedVector2Array()
 
 ## `center` et `yaw` dans le repère du parent ; `size` en mètres.
 static func make(center: Vector3, box_size: Vector3, yaw := 0.0, is_barrier := false, surf := "concrete") -> CollisionBox:
+	return make_basis(center, box_size, Basis(Vector3.UP, yaw), is_barrier, surf)
+
+
+## Pavé orienté (format 14 : décor incliné) : `basis` est une rotation (remise
+## orthonormée : la taille porte l'échelle, jamais la base).
+static func make_basis(center: Vector3, box_size: Vector3, basis: Basis, is_barrier := false, surf := "concrete") -> CollisionBox:
 	var b := CollisionBox.new()
 	b.size = box_size
 	b.barrier = is_barrier
 	b.surface = surf
-	b.transform = Transform3D(Basis(Vector3.UP, yaw), center)
+	b.transform = Transform3D(basis.orthonormalized(), center)
 	return b
 
 
 ## D'après une entrée de données : {center, size, yaw, barrier, surface} et,
 ## pour un prisme, « poly » [[x, z], ...] autour du centre.
 static func from_dict(d: Dictionary) -> CollisionBox:
-	var b := make(MeshMapLayout.vec(d.center), MeshMapLayout.vec(d.size), float(d.get("yaw", 0.0)),
+	var basis: Variant = MeshMapBuilder.basis_of(d.get("basis"))
+	if basis == null:
+		basis = Basis(Vector3.UP, float(d.get("yaw", 0.0)))
+	var b := make_basis(MeshMapLayout.vec(d.center), MeshMapLayout.vec(d.size), basis,
 			bool(d.get("barrier", false)), String(d.get("surface", "concrete")))
 	b.polygon = poly_of(d)
 	return b

@@ -202,6 +202,29 @@ static func _xf(p: Vector3, yaw: float, scale := 1.0, tilt := 0.0) -> Transform3
 	return Transform3D(b.scaled(Vector3.ONE * scale), p)
 
 
+## Base « basis » d'une entrée de la description (format 14 des cartes de
+## l'éditeur : 9 nombres, colonnes x, y, z, rotation × échelle) ; null si elle
+## manque ou ne se lit pas (nombres finis, base non dégénérée).
+static func basis_of(v: Variant) -> Variant:
+	if not (v is Array and v.size() == 9):
+		return null
+	for x in v:
+		if not ((x is float or x is int) and is_finite(float(x)) and absf(float(x)) <= 1000.0):
+			return null
+	var b := Basis(Vector3(v[0], v[1], v[2]), Vector3(v[3], v[4], v[5]), Vector3(v[6], v[7], v[8]))
+	if absf(b.determinant()) < 0.000001:
+		return null
+	return b
+
+
+## Transformation d'un objet posé : « basis » en priorité, sinon lacet, échelle, bascule.
+static func prop_xf(pr: Dictionary, pos: Vector3) -> Transform3D:
+	var b: Variant = basis_of(pr.get("basis"))
+	if b != null:
+		return Transform3D(b, pos)
+	return _xf(pos, float(pr.get("yaw", 0.0)), float(pr.get("scale", 1.0)), float(pr.get("tilt", 0.0)))
+
+
 func _build_props() -> void:
 	for pr in layout.get("props", []):
 		var inst: Node3D = null
@@ -220,7 +243,7 @@ func _build_props() -> void:
 			continue
 		inst.name = String(pr.get("id", pr.get("model", pr.get("build", "prop"))))
 		var pos := MeshMapLayout.vec(pr.p)
-		inst.transform = _xf(pos, float(pr.get("yaw", 0.0)), float(pr.get("scale", 1.0)), float(pr.get("tilt", 0.0)))
+		inst.transform = prop_xf(pr, pos)
 		root.add_child(inst)
 		# Matériaux propres à cet objet (« remap » de la description), en plus de ceux de la carte.
 		var map_mats := _prop_mats

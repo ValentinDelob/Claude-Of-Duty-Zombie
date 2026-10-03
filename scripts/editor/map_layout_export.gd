@@ -21,8 +21,12 @@ var stairs: Array = []
 ## Murs en biais : [{a, b ([x, z]), y0, y1, thick, mat_n, mat_m, room, openings}]
 ## (MeshMapGeometry : pavés obliques, collisions en CollisionBox tournées).
 var obliques: Array = []
-var props: Array = []   # décor posé : [{id, model | build, p, yaw, scale, remap, nocollide}]
-var blockers: Array = []   # collisions du décor et des luminaires : [{center, size, yaw, barrier, surface}]
+var props: Array = []   # décor posé : [{id, model | build, p, yaw, scale, remap, nocollide}] ; format 14 : « basis »
+var blockers: Array = []   # collisions du décor et des luminaires : [{center, size, yaw, barrier, surface}] ; format 14 : « basis »
+## Format 14 : emprises au sol des décors inclinés qui bloquent, retirées du
+## navmesh des zombies (MeshNav : obstruction projetée) : [{poly [[x, z]...],
+## y (bas), h}]. Une pente n'est jamais un passage (prudent).
+var nav_blocks: Array = []
 ## Effets (format 10 ; zone : format 11) : [{fx, p, yaw, ground, room_h,
 ## intensity, zone [largeur, profondeur, hauteur] (m), color, eid}]
 ## (MapEffects ; aucune collision). « ground » : distance (m) de l'effet au sol.
@@ -162,6 +166,8 @@ func _build() -> Dictionary:
 		out["map_models"] = map_models
 	if not effects.is_empty():
 		out["effects"] = effects
+	if not nav_blocks.is_empty():
+		out["nav_blocks"] = nav_blocks
 	return out
 
 
@@ -634,6 +640,10 @@ func _props() -> void:
 				# Format 12 : posé sur un autre décor (hauteur de pose) ; ses
 				# collisions (blockers) montent avec lui.
 				origin = _world(k, c2, float(pr.get("y", 0.0)))
+		if pr.has("obj"):
+			# Format 14 : mis à l'échelle ou incliné.
+			_prop_xf(pr, d, origin, yaw)
+			continue
 		if d.has("map"):
 			_map_prefab(pr, d, origin, yaw)
 			continue
@@ -657,6 +667,113 @@ func _props() -> void:
 			props.append(e)
 		if block != "non" and d.has("boxes"):
 			_blockers_of(d.boxes, origin, yaw, block == "barriere", String(d.get("surface", "concrete")))
+
+
+## Base 3 × 3 -> 9 nombres (colonnes x, y, z), clé « basis » de la description.
+static func basis9(b: Basis) -> Array:
+	var out := []
+	for c in [b.x, b.y, b.z]:
+		out.append_array([snappedf(c.x, 0.0001), snappedf(c.y, 0.0001), snappedf(c.z, 0.0001)])
+	return out
+
+
+## Orientation d'un objet de la description : « basis » (`b`, rotation ×
+## échelle) quand la base n'est pas un simple lacet uniforme (`plain` faux),
+## sinon « yaw » et « scale » comme avant le format 14.
+func _put_xf(e: Dictionary, b: Basis, plain: bool, yaw: float, scale: float) -> void:
+	if plain:
+		e["yaw"] = _r(yaw)
+		if absf(scale - 1.0) > 0.0001:
+			e["scale"] = snappedf(scale, 0.0001)
+	else:
+		e["basis"] = basis9(b)
+
+
+## Format 14 (docs/EDITOR_SCALE_ROTATE.md § 5.2) : décor mis à l'échelle ou
+## incliné (MapScale). Base complète = orientation (lacet du mur, du plafond
+## ou Rz · Ry · Rx au sol) × échelle dans le repère de l'objet ; au sol,
+## l'origine du modèle est décalée pour que son point le plus bas reste à
+## sa hauteur de pose. Collisions : ses pavés (catalogue, sinon
+## <modèle>.collision.json, sinon ceux du prefab de la carte), mis à
+## l'échelle et orientés avec lui (CollisionBox, jamais le modèle) ; incliné
+## et bloquant, son emprise au sol projetée est retirée du navmesh.
+func _prop_xf(pr: Dictionary, d: Dictionary, origin: Vector3, yaw: float) -> void:
+	var o: Dictionary = pr.obj
+	var rot := Basis(Vector3.UP, yaw)
+	var floor_mount := String(pr.get("mount", "")) == ""
+	if floor_mount:
+		rot = MapScale.game_basis(o)
+		origin += MapScale.floor_offset(o)
+	var gs := MapScale.game_scale(o)
+	var full := rot * Basis.from_scale(gs)
+	var tilted := floor_mount and MapScale.is_tilted(o)
+	var plain := not tilted and MapScale.is_uniform(gs)
+	var block := String(d.bloque)
+	var surface := String(d.get("surface", "concrete"))
+	if d.has("map"):
+		var pid := String(d.map)
+		if d.has("modele"):
+			var md2: Dictionary = d.modele
+			var e := {"id": String(pr.eid), "p": _v3(origin + full * MapPrefabLib.model_offset(d)), "map_model": pid,
+				"sig": String(md2.sha256).left(16), "aabb": md2.aabb}
+			_put_xf(e, full * float(md2.echelle), plain, yaw, gs.x * float(md2.echelle))
+			props.append(e)
+			if md.map_models.has(pid):
+				map_models[pid] = md.map_models[pid]
+		else:
+			var parts: Array = d.get("parties", [])
+			for i in parts.size():
+				var part: Dictionary = parts[i]
+				var cd: Dictionary = MapCatalog.PREFABS.get(String(part.decor), {})
+				if cd.is_empty():
+					continue
+				var pp: Array = part.pos
+				var prot := -deg_to_rad(float(part.get("rot", 0)))
+				var po := origin + full * Vector3(float(pp[0]), 0.0, float(pp[1]))
+				var pb := full * Basis(Vector3.UP, prot)
+				_copies(cd, "%s_%d" % [pr.eid, i], po, pb, plain, yaw + prot, gs.x, true)
+	else:
+		_copies(d, String(pr.eid), origin, full, plain, yaw, gs.x, false)
+	if block == "non":
+		return
+	var boxes: Array = d.get("boxes", []) if (d.has("boxes") or d.has("map")) else MapPrefabLib.catalog_boxes(String(pr.prefab))
+	for bx in boxes:
+		var sb := MapScale.scaled_box(o, bx)
+		var e := {"center": _v3(origin + rot * (sb.center as Vector3)), "size": _v3(sb.size), "barrier": block == "barriere" or bool(bx.get("barrier", false)),
+			"surface": surface}
+		if tilted:
+			e["basis"] = basis9(rot * Basis(Vector3.UP, float(sb.yaw)))
+		else:
+			e["yaw"] = _r(yaw + float(sb.yaw))
+		blockers.append(e)
+	if tilted:
+		var k: int = pr.floor
+		var poly := []
+		for q in MapScale.ground_poly(o):
+			poly.append([_r(q.x + MapGeom.WORLD_OFFSET), _r(q.y + MapGeom.WORLD_OFFSET)])
+		nav_blocks.append({"poly": poly, "y": _r(md.floors[k].sol + MapVertical.decor_z(o)), "h": _r(MapScale.height(o))})
+
+
+## Objets d'un décor du catalogue (ses « copies ») à l'origine `origin`, de
+## base `b` (rotation × échelle), pour _prop_xf. `part` : partie d'un prefab
+## groupe (identifiants « <eid>_<partie>_<copie> », jamais de collision propre).
+func _copies(cd: Dictionary, base_id: String, origin: Vector3, b: Basis, plain: bool, yaw: float, s: float, part: bool) -> void:
+	var copies: Array = cd.get("copies", [[0, 0, 0]])
+	for j in copies.size():
+		var cp: Array = copies[j]
+		var eid := "%s_%d" % [base_id, j] if (part or copies.size() > 1) else base_id
+		var e := {"id": eid, "p": _v3(origin + b * Vector3(float(cp[0]), 0.0, float(cp[1])))}
+		var ms := float(cd.get("scale", 1.0)) if cd.has("model") else 1.0
+		_put_xf(e, b * Basis(Vector3.UP, float(cp[2])) * ms, plain, yaw + float(cp[2]), s * ms)
+		if cd.has("model"):
+			e["model"] = String(cd.model)
+			if cd.has("remap"):
+				e["remap"] = cd.remap
+			# Collisions : les pavés mis à l'échelle (blockers), jamais le modèle.
+			e["nocollide"] = true
+		else:
+			e["build"] = String(cd.build)
+		props.append(e)
 
 
 ## Modèles des prefabs de la carte posés (pid -> base64) : « map_models ».

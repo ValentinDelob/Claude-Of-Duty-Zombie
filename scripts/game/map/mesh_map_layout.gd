@@ -81,7 +81,7 @@ func finish_nav(world: Node3D) -> void:
 	if mn == null:
 		return
 	mn.setup(world)
-	mn.bake()
+	mn.bake(data.get("nav_blocks", []))
 	for m in _door_markers:
 		var n := Basis(Vector3.UP, float(m.data.yaw)).z
 		var reach := float(m.data.depth) * 0.5 + 1.0
