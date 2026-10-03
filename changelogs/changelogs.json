@@ -2033,10 +2033,13 @@
     "fr": "Éditeur de cartes : des effets à la bonne taille"
    }
   },
-  "v0.2.1-snapshot.396": {
+  "v0.2.1-snapshot.398": {
    "channel": "snapshot",
    "date": "2026-10-03",
-   "images": [],
+   "images": [
+    "v0.2.1-snapshot.398/01_plan_et_vue_avant.jpg",
+    "v0.2.1-snapshot.398/02_quatre_vues.jpg"
+   ],
    "items": [
     {
      "en": "Two views by default: the plan above the Front view, which shows every floor at its true height (ceilings, double height, catwalks, stairs, doors, windows, props, lights and effects). Back, Left, Right and Bottom views too, with a cut to isolate a room hidden behind another (K key).",
