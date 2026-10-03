@@ -477,6 +477,20 @@ class TestTools(BaseCase):
         el = body(self.mcp.call("editor_get_element", {"ids": ["p1"]}))
         self.assertNotIn("z_max", el["elements"]["p1"])
 
+    def test_instructions_describe_scale_and_tilt(self):
+        # Format 14 : clés, bornes, sens des angles, règle des prefabs.
+        for word in ("echelle", "incl", "0,25 à 4", "Pack-a-Punch", "echelle_possible", "le bout est descend"):
+            self.assertIn(word, map_editor_mcp.INSTRUCTIONS)
+
+    def test_summary_keeps_scale_and_tilt(self):
+        doc = {"carte": {"etages": [{"sol": 0, "hauteur": 3.2}]}, "pieces": [], "ouvertures": [], "zones": [],
+               "objets": [{"id": "d1", "type": "prefab", "prefab": "poutre", "etage": 0, "position": [5, 5],
+                           "echelle": [1.5, 1.5, 1.5], "incl": [0, 30]}]}
+        s = map_geom.summarize(doc)
+        d1 = s["etages"][0]["objets"]["prefab"][0]
+        self.assertEqual(d1["echelle"], [1.5, 1.5, 1.5])
+        self.assertEqual(d1["incl"], [0, 30])
+
     def test_instructions_describe_heights(self):
         self.assertIn("descente", map_editor_mcp.INSTRUCTIONS)
         self.assertIn("view", map_editor_mcp.INSTRUCTIONS)

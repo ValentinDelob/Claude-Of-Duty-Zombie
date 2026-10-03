@@ -66,6 +66,10 @@ func run() -> void:
 	at.check(game.map_def.id.begins_with(EditorMapDef.SHARED_PREFIX) and CustomMapGuard.is_cached(game.map_def.id.trim_prefix(EditorMapDef.SHARED_PREFIX)),
 		"carte de l'éditeur reçue et vérifiée (%s)" % game.map_def.id)
 	at.check(game.barricades.windows.size() == 7, "géométrie de DRAFT ARENA (7 fenêtres)")
+	# Format 14 : le décor mis à l'échelle par l'hôte, à son échelle chez l'invité.
+	var scaled := (game.world as Node).find_children("echelle_test", "Node3D", true, false)
+	at.check(not scaled.is_empty() and absf((scaled[0] as Node3D).transform.basis.x.length() - 2.0) < 0.01,
+		"décor mis à l'échelle par l'hôte : × 2 chez l'invité (%s)" % (str((scaled[0] as Node3D).transform.basis.x.length()) if not scaled.is_empty() else "absent"))
 	var pt := CollabPlaytest.current
 	at.check(pt != null and pt.collab.get_parent() == pt and pt.collab.role == MapCollab.Role.GUEST, "session d'édition gardée pendant la partie")
 	if not await MpHelpers.wait_peer(self, "en_jeu", 20.0):

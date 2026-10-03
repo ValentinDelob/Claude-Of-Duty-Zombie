@@ -404,3 +404,38 @@ Les trois questions ouvertes ont été tranchées par l'utilisateur
 Hors périmètre : miroir (échelle négative), échelle des objets de jeu, des
 ouvertures et de la construction, rotation d'un décor mural dans le plan du
 mur, pose directe en élévation (D13).
+
+## 9. Réalisation (03/10/2026) : écarts et précisions
+
+Réalisé en 7 étapes (un commit chacune). Fichiers : `MapScale` (logique),
+`MapGizmo` (géométrie des poignées et des anneaux), `MapGizmoTop` (vue
+Dessus), `MapGizmoElev` (élévations), `MapGizmo3D` (vue 3D),
+`MapPanelsScale` (panneau). Écarts à valider :
+
+- **Groupes** : la rotation Z d'un groupe reste celle de la poignée ronde
+  (MapGroup) ; l'échelle et l'inclinaison d'un groupe par poignées ne sont
+  pas faites (la règle Q2 existe : `MapScale.group_refusal`).
+- **Prefab qui contient un objet de jeu** : aujourd'hui `prefab.json` ne
+  peut pas en contenir (`MapPrefabLib.check_def` : décor du catalogue au sol
+  seulement). Toute la chaîne (blocage, cadenas, encadré, messages, MCP,
+  contrôle) est en place et testée avec une définition injectée ; le refus
+  d'une définition modifiée qui deviendrait bloquée alors que des copies sont
+  redimensionnées (§ 1.2) viendra avec ce contenu.
+- **Pavés en biais** (pile de caisses : pavés du modèle légèrement tournés) :
+  échelle par axe permise ; un tel pavé devient sa boîte englobante droite
+  mise à l'échelle (un peu plus grande, jamais cisaillée) au lieu d'imposer
+  l'échelle uniforme.
+- **Hauteur d'origine sous 5 cm** (flaques) : la borne de 5 cm ne vaut que
+  pour un axe réduit (× < 1), celle de 30 m pour un axe agrandi.
+- **Panneau** : libellés de 76 px (le panneau de l'éditeur est plus étroit
+  que celui de la maquette) ; la note « Z : hauteur… » du décor passe en
+  bulle du champ Z ; « Collision » : « pavés du décor », « pavés à
+  l'échelle » ou « pavés inclinés avec lui / elle ».
+- **Zombies** : l'emprise d'un décor incliné qui bloque est retirée du
+  navmesh (obstruction projetée) ; un zombie peut frôler son bord (rayon de
+  0,4 m) mais ne monte jamais sur la pente.
+- **Vue 3D** : pendant le geste, le surlignage reste celui d'avant (il suit
+  au relâché, avec la reconstruction) ; mesure : 0,9 ms par mouvement en
+  moyenne sur 2000 objets (pire ≈ 2,5 ms quand l'angle change de cran).
+- **Aimant « taille d'un décor voisin »** : sur les faces et le losange (un
+  axe), pas sur les coins.

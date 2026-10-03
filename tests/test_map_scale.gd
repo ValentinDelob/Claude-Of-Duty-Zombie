@@ -109,6 +109,9 @@ func test_bounds_and_tidy() -> void:
 	assert_true(MapScale.check_scale(_o("epave_voiture"), Vector3(4, 4, 4)).is_empty(), "18 m de long")
 	# Flaque (1 cm de haut) × 0,25 : sous 5 cm de haut.
 	assert_false(MapScale.check_scale(_o("flaque_eau"), Vector3(1, 1, 0.25)).is_empty(), "dimension finale sous 5 cm")
+	# Mais une flaque (1 cm de haut d'origine) s'élargit sans changer de hauteur.
+	assert_true(MapScale.check_scale(_o("flaque_eau"), Vector3(2, 2, 1)).is_empty(), "flaque × 2 en largeur : permise")
+	assert_true(MapScale.check_object(_o("flaque_eau", {"echelle": [2, 2, 1]}), MapCatalog.PREFABS.flaque_eau, []).is_empty(), "et acceptée par le contrôle")
 	# Remise en ordre d'un fichier écrit à la main.
 	var bad := [_o("caisses", {"echelle": "x"}), _o("caisses", {"echelle": [1, 1, 1]}), _o("caisses", {"echelle": [NAN, 1, 1]}),
 		_o("torche_murale", {"incl": [10, 0]}), _o("caisses", {"incl": [0, 0.02]}), {"id": "a", "type": "pap", "position": [1, 1], "echelle": [2, 2, 2]}]

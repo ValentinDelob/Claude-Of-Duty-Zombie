@@ -69,7 +69,10 @@ func run() -> void:
 	ed.show_cursor(Vector2(9.0, 6.0))
 
 	# Un changement de l'hôte avant le test : son historique doit survivre.
-	var avant_cid := String(ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "avant_test", "type": "caisse", "etage": 0, "position": [12.0, 10.0]}}], "caisse").cid)
+	# Format 14 : avec un décor mis à l'échelle (flaque × 2 en largeur et
+	# profondeur), vu par l'invité en jeu ; une seule action.
+	var avant_cid := String(ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "avant_test", "type": "caisse", "etage": 0, "position": [12.0, 10.0]}},
+		{"op": "put", "coll": "objets", "el": {"id": "echelle_test", "type": "prefab", "prefab": "flaque_eau", "etage": 0, "position": [12.0, 8.0], "echelle": [2, 2, 1]}}], "caisse").cid)
 
 	# ---------------------------------------------------------------- 1er test : fin de partie
 	at.check(ed.test_map(), "TESTER lancé (session avec un invité)")

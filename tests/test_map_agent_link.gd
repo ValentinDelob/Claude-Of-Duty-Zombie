@@ -143,3 +143,40 @@ func test_elements_with_heights_and_views() -> void:
 	assert_true(s.has("error") and String(s.error).contains("biais"), "vue inconnue refusée : %s" % s)
 	link.queue_free()
 	collab.queue_free()
+
+
+## Format 14 (docs/EDITOR_SCALE_ROTATE.md § 6) : dimensions et possibilités
+## d'échelle des éléments, « put » d'une échelle (arrondie au pas), refus qui
+## nomme l'objet de jeu d'un prefab bloqué, catalogue.
+func test_scale_through_the_agent_link() -> void:
+	var m := EditorMap.load_dir("res://assets/maps/draft_arena/")
+	m.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [12.0, 7.5]})
+	m.prefabs["coin_pap"] = preload("res://tests/test_map_scale.gd").PAP_DEF.duplicate(true)
+	m.objets.append({"id": "d93", "type": "prefab", "prefab": "map:coin_pap", "etage": 0, "position": [5.0, 26.0]})
+	m.activate_prefabs()
+	var collab := MapCollab.new(m)
+	host.add_child(collab)
+	var link := MapAgentLink.new()
+	link.collab = collab
+	host.add_child(link)
+	var r := link.cmd_get_elements({"ids": ["d90", "d93", "b1"]})
+	assert_eq(r.elements.d90.dimensions, [2.5, 2.0, 1.5], "dimensions finales")
+	assert_true(bool(r.elements.d90.echelle_possible) and bool(r.elements.d90.inclinaison_possible), "décor : échelle et inclinaison")
+	assert_false(bool(r.elements.d93.echelle_possible), "prefab avec un Pack-a-Punch : bloqué")
+	assert_true(String(r.elements.d93.get("raison", "")).contains("Pack-a-Punch"), "raison qui nomme l'objet : %s" % r.elements.d93.get("raison", ""))
+	var el: Dictionary = m.find("d90").duplicate(true)
+	el["echelle"] = [1.234, 1.234, 1.234]
+	var a := link.cmd_apply({"ops": [{"op": "put", "coll": "objets", "el": el}], "label": "Pile agrandie", "animate": false})
+	assert_false(a.has("error"), str(a))
+	assert_true(MapScale.scale_of(collab.doc.find("d90")).is_equal_approx(Vector3.ONE * 1.23), "arrondie au pas de 0,01 (%s)" % str(collab.doc.find("d90").get("echelle")))
+	var k: Dictionary = m.find("d93").duplicate(true)
+	k["echelle"] = [2, 2, 2]
+	var b := link.cmd_apply({"ops": [{"op": "put", "coll": "objets", "el": k}], "label": "Coin agrandi", "animate": false})
+	assert_true((b.invalid as Dictionary).has("d93") and String(b.invalid.d93).contains("Pack-a-Punch"), "refus nommé : %s" % str(b.invalid))
+	assert_false(collab.doc.find("d93").has("echelle"), "prefab bloqué : inchangé")
+	var cat := MapAgentLink.catalog()
+	var pap: Array = (cat.items as Array).filter(func(it): return String(it.id) == "pap")
+	assert_true(not pap.is_empty() and pap[0].get("echelle", true) == false, "catalogue : le Pack-a-Punch garde sa taille")
+	assert_true(bool(cat.prefabs.poutre.inclinaison) and not bool(cat.prefabs.torche_murale.inclinaison), "catalogue : inclinaison au sol seulement")
+	link.queue_free()
+	collab.queue_free()

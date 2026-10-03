@@ -503,6 +503,37 @@ ou au plafond** et les **autres prefabs de la carte**. Le point d'ancrage est
 le **centre de l'emprise** : la prefab se pose, s'aimante et pivote autour de
 lui (le format ne garde pas d'autre point).
 
+### Échelle et rotation 3D du décor (format 14)
+
+Le décor (catalogue au sol, mural ou au plafond, prefabs de la carte) change
+d'**échelle** et s'**incline**, comme dans Fusion 360 ou SolidWorks
+(spécification `docs/EDITOR_SCALE_ROTATE.md`, maquette
+`docs/editor_scale_rotate_mockup/`, détails `docs/MAP_OBJECTS.md` § 14) :
+
+- **Poignées d'échelle** du décor choisi : en vue Dessus, coins jaunes
+  (uniforme, coin opposé fixe ; Alt : depuis le centre), faces X rouges et Y
+  vertes (un axe) ; en élévation, coins, côtés de l'axe de la vue et losange
+  bleu de la hauteur. Au sol la base reste sur son support, un décor mural
+  garde la face du mur, un décor du plafond son attache. Pas : 0,25 en grille
+  1 m, 0,05 en grille fine, 0,01 sans grille (aimants ×1, ×0,5, ×2 et taille
+  d'un décor voisin) ; Maj inverse ; taper « 1,5 » (facteur) ou « 3m »
+  (dimension) pendant le geste, Entrée ; Échap annule.
+- **Anneaux de rotation** : anneau Z bleu en vue Dessus (à la place de la
+  poignée ronde du décor, des luminaires et des effets), anneau Y vert en
+  vue Avant / Arrière, anneau X rouge en vue Droite / Gauche, les trois dans la
+  vue 3D ; crans de 15° (Maj ou Alt : au degré), valeur tapée puis Entrée.
+  Les anneaux tournent autour des axes du monde ; sens positif horaire vu de
+  l'axe de bout. **R** : +90° autour de Z.
+- **Panneau Propriétés** : Échelle (Uniforme et cadenas, X / Y / Z, « ↺ ×1 »)
+  et Rotation (X / Y / Z, « Rester posé », « ↺ Remettre droit »). Un champ
+  validé, un geste = une annulation.
+- **Ce qui ne change jamais d'échelle** : objets de jeu, ouvertures,
+  construction, luminaires, effets. Un prefab de la carte qui contient un
+  objet de jeu est bloqué (cadenas gris, message qui nomme l'objet) ; une
+  sélection qui mêle décor et objet de jeu aussi. Seul le décor posé au sol
+  s'incline ; incliné, il reste posé (point le plus bas sur son support) et ne
+  porte rien.
+
 ### Règles imposées à la pose
 
 L'aperçu est **vert** si l'élément peut être posé, **rouge** sinon, avec la

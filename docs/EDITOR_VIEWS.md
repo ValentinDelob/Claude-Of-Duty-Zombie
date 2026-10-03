@@ -378,6 +378,16 @@ aujourd'hui.
   Les mêmes curseurs sont ajoutés à la vue Dessus.
 - **Annulation** : inchangée, un glissement = un `push_undo_snapshot` + `changed()` au relâché.
 
+### 6.4 bis Échelle et rotation 3D du décor (format 14)
+
+Les vues portent aussi les poignées d'échelle (Dessus et élévations) et les
+anneaux de rotation (Dessus : Z ; Avant / Arrière : Y ; Droite / Gauche : X ;
+3D : les trois, premier geste d'édition de la vue 3D) du décor choisi :
+`docs/EDITOR_SCALE_ROTATE.md` (décisions E1 à E11) et
+`docs/MAP_AUTHORING.md` (« Échelle et rotation 3D du décor »). Mêmes axes et
+couleurs qu'ici ; l'anneau Z remplace la poignée ronde du décor, des
+luminaires et des effets.
+
 ### 6.4 Collaboration et MCP
 
 - **Ops** : aucune nouvelle. Un déplacement vertical produit des `put` d'éléments, plus un `carte` pour les étages.

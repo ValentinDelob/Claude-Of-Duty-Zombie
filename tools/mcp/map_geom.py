@@ -345,7 +345,7 @@ def _obj_place(o: dict) -> dict:
 
 # Clés qui précisent un objet (ce qu'il est, contre quel mur).
 _OBJ_DETAIL_KEYS = ("atout", "arme", "prefab", "luminaire", "variante", "mur", "angle", "rot",
-                    "monte", "depart", "epaisseur", "hauteur", "courant")
+                    "monte", "depart", "epaisseur", "hauteur", "courant", "echelle", "incl", "z")
 
 
 def _name(v) -> str:

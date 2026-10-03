@@ -302,6 +302,10 @@ func cmd_apply(args: Dictionary) -> Dictionary:
 	MapOps.normalize(ops)
 	var res := MapOps.resolve_adds(collab.doc, ops)
 	var chk := MapOps.check_elements(collab.doc, res.ops)
+	# Format 14 : échelle et inclinaison arrondies à leur pas, défauts retirés.
+	for op in chk.ops:
+		if op is Dictionary and String(op.get("coll", "")) == "objets" and op.get("el") is Dictionary:
+			MapScale.tidy(op.el)
 	var invalid: Dictionary = chk.invalid
 	var good: Array = chk.ops
 	# Pièce posée par-dessus d'autres (MapCarve) : refus expliqué, ou avec
@@ -390,8 +394,27 @@ func cmd_get_elements(args: Dictionary) -> Dictionary:
 				d["z_monde"] = snappedf(sol + z, 0.01)
 			else:
 				d["z_monde"] = snappedf(sol, 0.01)
+			# Format 14 : dimensions finales, échelle et inclinaison possibles (raison sinon).
+			if coll == "objets" and e.has("type"):
+				d.merge(scale_info(e))
 		found[eid] = d
 	return {"elements": found, "absents": missing}
+
+
+## Format 14 (docs/EDITOR_SCALE_ROTATE.md § 6) : `dimensions` [l, p, h] finales
+## (m, décor), `echelle_possible`, `inclinaison_possible` et `raison` (qui
+## nomme l'objet de jeu d'un prefab bloqué).
+static func scale_info(e: Dictionary) -> Dictionary:
+	var out := {"echelle_possible": MapScale.scalable(e), "inclinaison_possible": MapScale.tiltable(e)}
+	if String(e.get("type", "")) == "prefab" and not MapScale.def_of(e).is_empty():
+		var dm := MapScale.dims(e)
+		out["dimensions"] = [snappedf(dm.x, 0.01), snappedf(dm.y, 0.01), snappedf(MapScale.height(e), 0.01)]
+	var why := MapScale.scale_refusal(e)
+	if why.is_empty():
+		why = MapScale.tilt_refusal(e)
+	if not why.is_empty():
+		out["raison"] = Lang.t(String(why[0]), String(why[1]))
+	return out
 
 
 ## Image du plan à l'étage demandé (cadrée sur `ids` s'il est donné), dessinée
@@ -546,6 +569,9 @@ static func catalog() -> Dictionary:
 	for it in MapCatalog.items():
 		var entry := {"id": it.id, "cat": it.cat, "fr": it.get("fr", ""), "en": it.get("en", ""), "tool": it.get("tool", ""),
 			"make": jsonable(it.get("make", {})), "price": it.get("price", 0)}
+		# Format 14 : objets qui ne changent jamais d'échelle (tout sauf le décor).
+		if not MapScale.scalable(it.get("make", {})):
+			entry["echelle"] = false
 		if it.get("descend", false):
 			# Outil de l'éditeur seulement : la carte n'a qu'un type d'escalier.
 			entry["descend"] = true
@@ -555,13 +581,18 @@ static func catalog() -> Dictionary:
 	for p in MapCatalog.PREFABS:
 		var d: Dictionary = MapCatalog.PREFABS[p]
 		prefabs[p] = {"fr": d.get("fr", ""), "en": d.get("en", ""), "fp": jsonable(d.get("fp", [1, 1])), "h": d.get("h", 0.0), "bloque": d.get("bloque", ""),
-			"mount": d.get("mount", "sol")}
+			"mount": d.get("mount", "sol"), "inclinaison": String(d.get("mount", "sol")) == "sol"}
 		if d.has("y"):
 			prefabs[p]["y"] = d.y
 	# Format 10 : prefabs de la carte ouverte (« prefab » : « map:<pid> »).
 	for it in MapCatalog.map_items():
 		var d := MapCatalog.prefab_def(String(it.make.prefab))
 		prefabs[String(it.make.prefab)] = {"fr": d.get("fr", ""), "en": d.get("en", ""), "fp": jsonable(d.get("fp", [1, 1])), "h": d.get("h", 0.0), "bloque": d.get("bloque", ""), "map": true}
+		if d.has("fixe"):
+			# Format 14 : prefab qui contient un objet de jeu : échelle bloquée.
+			prefabs[String(it.make.prefab)]["echelle"] = false
+			prefabs[String(it.make.prefab)]["inclinaison"] = false
+			prefabs[String(it.make.prefab)]["raison"] = MapScale.names_text(d.fixe)[0 if not Lang.is_en() else 1]
 	var lights := {}
 	for l in MapCatalog.LIGHTS:
 		var d: Dictionary = MapCatalog.LIGHTS[l]

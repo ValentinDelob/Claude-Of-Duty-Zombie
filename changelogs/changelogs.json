@@ -2174,6 +2174,33 @@
     "en": "Big update: a pro editor and game fixes",
     "fr": "Grosse mise à jour : éditeur pro et corrections de jeu"
    }
+  },
+  "v0.2.1-snapshot.407": {
+   "channel": "snapshot",
+   "date": "2026-10-03",
+   "images": [],
+   "items": [
+    {
+     "en": "Map editor: enlarge, shrink or stretch props and prefabs with handles (corners, faces, height) or in the Properties panel, from ×0.25 to ×4.",
+     "fr": "Éditeur de cartes : agrandir, rétrécir ou étirer le décor et les prefabs par poignées (coins, faces, hauteur) ou dans le panneau Propriétés, de ×0,25 à ×4."
+    },
+    {
+     "en": "Fusion 360-style rotation with three rings: Z in the top view, Y and X in the elevations, all three in the 3D view; floor props can tilt and stay grounded.",
+     "fr": "Rotation à trois anneaux façon Fusion 360 : Z en vue de dessus, Y et X dans les élévations, les trois dans la vue 3D ; le décor posé au sol peut s'incliner et reste posé."
+    },
+    {
+     "en": "In game, enlarged or tilted props keep accurate collisions and zombies walk around tilted beams.",
+     "fr": "En jeu, le décor agrandi ou incliné garde des collisions justes et les zombies contournent les poutres inclinées."
+    },
+    {
+     "en": "Game objects (perks, Pack-a-Punch, box…) keep their size; a prefab containing one cannot be scaled and the editor says so.",
+     "fr": "Les objets de jeu (atouts, Pack-a-Punch, boîte…) gardent leur taille ; un prefab qui en contient un ne change pas d'échelle et l'éditeur le dit."
+    }
+   ],
+   "title": {
+    "en": "Editor: scale and 3D rotation of props",
+    "fr": "Éditeur : échelle et rotation 3D du décor"
+   }
   }
  }
 }

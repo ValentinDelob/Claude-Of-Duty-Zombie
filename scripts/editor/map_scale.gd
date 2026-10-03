@@ -103,7 +103,8 @@ static func is_uniform(s: Vector3) -> bool:
 
 ## Facteur arrondi au pas et borné.
 static func snap_factor(v: float) -> float:
-	return clampf(snappedf(v, STEP), LO, HI)
+	# Division exacte (1,23 et non 1,2300000000000002 : valeur propre au fichier).
+	return clampf(roundf(v / STEP) / roundf(1.0 / STEP), LO, HI)
 
 
 ## Écrit l'échelle (bornée, au pas de 0,01) ; [1, 1, 1] retire la clé.
@@ -129,7 +130,7 @@ static func snap_deg(a: float) -> float:
 	var w := wrapf(a, -180.0, 180.0)
 	if w <= -180.0 + 0.0001:
 		w = 180.0
-	var s := snappedf(w, INCL_STEP)
+	var s := roundf(w / INCL_STEP) / roundf(1.0 / INCL_STEP)
 	return 0.0 if absf(s) < INCL_STEP * 0.5 else s
 
 
@@ -392,7 +393,7 @@ static func check_scale(o: Dictionary, s: Vector3) -> Array:
 		return ["parties tournées en biais : échelle uniforme seulement", "parts turned at an angle: uniform scale only"]
 	var f := base_dims(o) * s
 	for i in 3:
-		if base_dims(o)[i] > 0.0 and (f[i] < MIN_DIM - 0.0001 or f[i] > MAX_DIM + 0.0001):
+		if base_dims(o)[i] > 0.0 and ((s[i] < 1.0 and f[i] < MIN_DIM - 0.0001) or (s[i] > 1.0 and f[i] > MAX_DIM + 0.0001)):
 			return ["dimension finale hors des bornes (%s à %s m)" % [MapCatalog.short_num(MIN_DIM), MapCatalog.short_num(MAX_DIM)],
 				"final size out of bounds (%s to %s m)" % [str(MIN_DIM), str(MAX_DIM)]]
 	if f.x > MAX_FOOT + 0.0001 or f.y > MAX_FOOT + 0.0001:
@@ -655,7 +656,7 @@ static func check_object(o: Dictionary, d: Dictionary, fixed: Array) -> Array:
 		if f.x > MAX_FOOT + 0.0001 or f.y > MAX_FOOT + 0.0001:
 			return ["emprise du décor mis à l'échelle trop grande (%s m au plus)" % MapCatalog.short_num(MAX_FOOT), "scaled prop footprint too large (%s m at most)" % str(MAX_FOOT)]
 		for i in 3:
-			if f[i] < MIN_DIM - 0.0001 or f[i] > MAX_DIM + 0.0001:
+			if (s[i] < 1.0 and f[i] < MIN_DIM - 0.0001) or (s[i] > 1.0 and f[i] > MAX_DIM + 0.0001):
 				return ["dimension du décor mis à l'échelle hors des bornes (%s à %s m)" % [MapCatalog.short_num(MIN_DIM), MapCatalog.short_num(MAX_DIM)],
 					"scaled prop size out of bounds (%s to %s m)" % [str(MIN_DIM), str(MAX_DIM)]]
 	return []

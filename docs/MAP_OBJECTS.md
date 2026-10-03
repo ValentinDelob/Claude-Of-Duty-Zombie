@@ -433,8 +433,9 @@ n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
 
 ## 5. Versions du format
 
-`EditorMap.FORMAT` = **12**. Toutes les nouvelles clés sont facultatives : une
-carte au format 1 à 11 se lit telle quelle (`EditorMap._migrate` ; un
+`EditorMap.FORMAT` = **14** (format 13 : volume des effets, § 12 ; format 14 :
+`echelle` et `incl` du décor, § 14). Toutes les nouvelles clés sont
+facultatives : une carte au format 1 à 13 se lit telle quelle (`EditorMap._migrate` ; un
 escalier sans `variante` est droit, une applique sans `hauteur` est à 2 m,
 une fenêtre sans `variante` est la fenêtre d'avant ; seule conversion : la
 barrière invisible rectangle devient un polygone de 4 sommets, § 2 ; format
@@ -1258,3 +1259,62 @@ conversion : une carte au format 11 ou moins se lit telle quelle.
   `tests/autotest/map_decor_stack.gd` (en partie : collisions empilées à
   0,45 et 1,35 m, un rayon s'arrête sur le décor du dessus, le joueur est
   arrêté par la pile).
+
+## 14. Échelle et rotation 3D du décor (format 14)
+
+Spécification : `docs/EDITOR_SCALE_ROTATE.md` (décisions E1 à E11, questions
+tranchées le 03/10/2026) ; maquette : `docs/editor_scale_rotate_mockup/`.
+
+### Ce qui change d'échelle, ce qui pivote
+
+- **Seul le décor** (type `prefab`) change d'échelle : décor du catalogue au
+  sol, mural (depuis la face du mur) ou au plafond (depuis l'attache), et les
+  prefabs de la carte (groupe ou modèle importé). Échelle **par axe** (X
+  largeur, Y profondeur, Z hauteur, dans le repère de l'objet) ou **uniforme**
+  (cadenas), de ×0,25 à ×4 ; dimension finale de 5 cm à 30 m, emprise de 20 m
+  au plus par côté. Une partie, une copie ou un pavé tourné en biais dans le
+  décor impose l'échelle uniforme.
+- **Jamais** : objets de jeu (atouts, armes murales, boîte, Pack-a-Punch,
+  courant, leviers, téléporteurs, départs, apparitions), ouvertures,
+  construction, luminaires (Q1 : pas dans cette version), effets (ils ont leur
+  zone), caisse et baril historiques. Un **prefab de la carte qui contient un
+  objet de jeu** est bloqué : cadenas gris, et le message **nomme l'objet**
+  (« Échelle impossible : « Coin Pack-a-Punch » contient un Pack-a-Punch
+  (objet de jeu à taille fixe) »). Sélection mixte : bloquée de même (Q2).
+- **Inclinaison** (rotation autour des axes X et Y) : seulement le décor posé
+  au sol qui change d'échelle. Orientation = Rz(rot) · Ry(incl Y) · Rx(incl
+  X), sens positif horaire dans la vue qui regarde l'axe de bout (Dessus pour
+  Z, Avant pour Y, Droite pour X). Les anneaux tournent autour des **axes du
+  monde** (Q3).
+- **Rester posé** (coché par défaut) : le point le plus bas d'un décor incliné
+  reste sur son support ; `z` est toujours la hauteur de ce point. Un décor
+  incliné ne porte rien ; un décor qui en porte un autre ne s'incline pas et
+  ne change pas d'échelle seul.
+
+### En jeu
+
+Modèle mis à l'échelle et incliné (`basis` de la description, seulement quand
+il le faut : une carte sans ces clés donne la même description octet pour
+octet) ; collisions : ses pavés (`CollisionBox`, jamais le modèle) mis à
+l'échelle et orientés avec lui ; trajets des zombies : toutes les cases que
+touche la projection au sol d'un décor incliné qui bloque, et son emprise
+retirée du navmesh (une pente n'est jamais un passage).
+
+### Format
+
+Clés facultatives d'un objet `prefab`, jamais écrites à leur valeur par
+défaut : `echelle` [sx, sy, sz] (0,25 à 4, pas de 0,01) et `incl` [x, y]
+(degrés, -180 à 180, au dixième ; décor au sol seulement). Contrôle des cartes
+reçues : bornes, inclinaison d'un décor au sol seulement, dimensions finales,
+uniforme exigée pour les parties en biais, échelle d'un prefab qui contient un
+objet de jeu refusée.
+
+### Preuves automatiques
+
+`tests/test_map_scale.gd` (tableau type par type, prefab avec un Pack-a-Punch,
+bornes, aller-retour, carte 13 inchangée, carte reçue hors bornes, boîte
+orientée, sens des axes, description en jeu identique, poignées, anneaux) ;
+scénarios `map_decor_scale` (partie : collisions d'un décor agrandi et d'un
+décor incliné, zombie qui contourne), `map_scale_panel`, `map_scale_handles`,
+`map_rotate_rings`, `map_rotate_3d` ; captures de développement
+`map_scale_look` (hors check).

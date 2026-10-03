@@ -56,6 +56,7 @@ INSTRUCTIONS = """Pilote en direct l'éditeur de cartes de Claude of Duty Zombie
 - Respecte docs/MAP_DESIGN_RULES.md (surface vide < 15 m², couloirs 2-3 m et 12 m max en ligne droite, boucles, fenêtres, prix des portes, décor) et l'esprit de BO1 Zombies.
 - L'utilisateur (et d'autres participants) éditent en même temps : relis la carte avant de modifier un élément, ne refais pas ce qu'il vient de défaire.
 - Hauteurs (format 12, docs/EDITOR_VIEWS.md § 7) : z vers le haut, en m. Un décor posé au sol a une hauteur de pose « z » (sur un autre décor : un décor qui bloque doit reposer sur le dessus d'un autre) ; un luminaire au sol une « hauteur » (sinon le dessus du meuble dessous) ; ce qui est accroché au plafond (luminaire, effet, décor) une « descente » sous le plafond ; appliques, décors et effets muraux une « hauteur » sur le mur. Ces clés ne s'écrivent jamais à leur valeur par défaut. editor_get_element rend z_min / z_max / z_monde de chaque élément ; editor_screenshot montre aussi les élévations (view : avant, arriere, gauche, droite, dessous ; coupe [p0, p1] pour isoler une tranche).
+- Échelle et rotation 3D du décor (format 14, docs/EDITOR_SCALE_ROTATE.md) : sur un objet « prefab » seulement, « echelle » [sx, sy, sz] (facteurs de 0,25 à 4 dans le repère de l'objet : largeur, profondeur, hauteur ; dimensions finales de 0,05 à 30 m, emprise de 20 m au plus) et « incl » [x, y] (degrés, -180 à 180, au dixième ; décor posé au sol seulement), jamais écrites à leur valeur par défaut ([1, 1, 1], [0, 0]). Orientation = Rz(rot) · Ry(incl y) · Rx(incl x), X est, Y sud, Z haut ; sens positif horaire vu de l'axe de bout (Dessus pour rot, Avant pour Y : le bout est descend, Droite pour X : le bout nord descend). Un décor incliné reste posé : « z » est la hauteur de son point le plus bas ; il ne porte rien. Ne changent JAMAIS d'échelle : objets de jeu (atouts, armes murales, boîte, Pack-a-Punch…), ouvertures, construction, luminaires, effets ; un prefab de la carte qui contient un objet de jeu non plus (le refus le nomme). editor_get_element rend dimensions, echelle_possible, inclinaison_possible et raison ; editor_catalog marque « echelle »: false.
 - Escaliers (docs/MAP_OBJECTS.md § 4) : un objet « escalier » appartient à l'étage du BAS (« etage » = k) et monte à l'étage k + 1 ; « monte » (n, e, s, o) = sens de la montée. Pied (départ) : sol libre de la pièce de l'étage k devant la première marche ; arrivée : plancher libre d'une pièce de l'étage k + 1 au-delà du haut ; rien au-dessus des marches à l'étage k + 1 (trémie). Un escalier qui DESCEND de l'étage k s'écrit comme un escalier de l'étage k - 1 qui monte vers k (pas de champ « descend » : l'objet « escalier_bas » du catalogue est l'outil de l'utilisateur). Cage d'escalier sur plusieurs étages : volées côte à côte, jamais au même endroit. Un refus (invalid) dit quoi et où (départ, arrivée, trémie, coordonnées).
 - Pièces qui se recouvrent : deux pièces se touchent, jamais ne se recouvrent. Un lot editor_apply dont une pièce (add ou put) recouvre une pièce du même étage est REFUSÉ en entier, sauf avec « decouper »: true : les pièces recouvertes perdent la partie sous la nouvelle (coupées en morceaux reliés par un passage libre si besoin, supprimées s'il n'en reste presque rien ; contenu de la partie découpée rattaché à la nouvelle pièce ; ouvertures dont le mur disparaît déplacées ou retirées), dans le MÊME lot (une seule annulation). Le résultat « decoupe » détaille tout : vérifie-le et préviens l'utilisateur. Un escalier rendu invalide fait refuser la découpe."""
 
@@ -358,7 +359,8 @@ TOOLS = [
         "description": "Éléments complets (toutes leurs clés) d'après leurs ids, avec leur collection (pieces, ouvertures, "
                        "objets, zones) et leurs hauteurs : z_min / z_max (m, absolus : la boîte de l'élément, plafond réel "
                        "compris), z_monde (altitude du point de pose), hauteur_pose (m au-dessus du sol de l'étage, si le type "
-                       "en a une) et glissement_vertical (pose, niveau, fixe). À relire avant un « put » qui modifie un élément.",
+                       "en a une) et glissement_vertical (pose, niveau, fixe) ; objets : dimensions [l, p, h] finales (décor), "
+                       "echelle_possible, inclinaison_possible et raison (format 14). À relire avant un « put » qui modifie un élément.",
         "inputSchema": {"type": "object", "properties": {"ids": _ids_schema("Ids des éléments (p3, o1, a2, z1…).")},
                         "required": ["ids"], "additionalProperties": False},
     },
@@ -436,7 +438,8 @@ TOOLS = [
     {
         "name": "editor_catalog",
         "description": "Catalogue de l'éditeur : types d'objets et d'ouvertures admis avec leurs clés (MapCatalog), décors "
-                       "(prefabs), luminaires, armes, atouts, textures. À lire avant de créer un type d'objet inconnu.",
+                       "(prefabs), luminaires, armes, atouts, textures ; « echelle »: false sur ce qui ne change jamais d'échelle "
+                       "(format 14). À lire avant de créer un type d'objet inconnu.",
         "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
     },
     {

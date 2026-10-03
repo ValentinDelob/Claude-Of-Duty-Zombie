@@ -393,6 +393,8 @@ static func check_elements(doc: Variant, ops: Array) -> Dictionary:
 						CustomMapGuard._check_opening(c, el, id)
 					"objets":
 						CustomMapGuard._check_object(c, el, id)
+						if not c.failed():
+							_check_scale(c, el)
 					"zones":
 						_check_zone(c, el, id)
 				if not c.failed() and not present.has(key_of(coll, id)):
@@ -418,6 +420,20 @@ static func check_elements(doc: Variant, ops: Array) -> Dictionary:
 		else:
 			out.append(op)
 	return {"ops": out, "invalid": invalid}
+
+
+## Format 14 : échelle et inclinaison d'un décor, avec sa définition (prefab
+## de la carte bloqué : le refus nomme l'objet de jeu qu'il contient).
+static func _check_scale(c: CustomMapGuard.Check, el: Dictionary) -> void:
+	if not (el.has("echelle") or el.has("incl")) or String(el.get("type", "")) != "prefab":
+		return
+	if el.has("echelle") and not MapScale.read_scale(el.echelle).is_equal_approx(Vector3.ONE) and not MapScale.blockers_of(el).is_empty():
+		var r := MapScale.scale_refusal(el)
+		c.bad(String(r[0]).to_lower().left(1) + String(r[0]).substr(1), String(r[1]).to_lower().left(1) + String(r[1]).substr(1))
+		return
+	var bad := MapScale.check_object(el, MapScale.def_of(el), MapScale.blockers_of(el))
+	if not bad.is_empty():
+		c.bad(String(bad[0]), String(bad[1]))
 
 
 static func _check_zone(c: CustomMapGuard.Check, z: Dictionary, what: String) -> void:
