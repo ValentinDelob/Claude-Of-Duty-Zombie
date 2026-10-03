@@ -44,6 +44,9 @@ var linked := true
 var shared_cut := false
 ## État des vues à la dernière synchronisation (liaison) : vue -> [zoom, origine, taille].
 var _link_seen: Dictionary = {}
+## Vues recadrées par l'éditeur : vue -> image jusqu'à laquelle la liaison ne
+## les propage pas (_settle).
+var _link_quiet: Dictionary = {}
 var _save_t := -1.0
 var _menu_ui: MapViewLayoutMenu
 ## Séparateurs : contrôles (MapViewLayout.Split).
@@ -246,14 +249,56 @@ func set_pane_plane(pn: MapViewPane, pl: String, animate := false) -> void:
 	var old := pn.plane()
 	if animate and old != "3d" and pl != "3d":
 		_transition(pn, old, pl)
+	# Cadrage des fenêtres avant le changement : celles qui changent de plan
+	# (celle-ci, et celle qui lui cède la vue Dessus) gardent leur zoom et
+	# visent le même point ; les autres ne bougent pas (§ 4 : seul le plan de
+	# la fenêtre change, aucun saut de zoom propagé par la liaison).
+	var keep := _pane_frames()
 	if pn.view == ed.canvas and pl != "dessus":
 		_park_canvas()
 	_assign(pn, pl)
 	_sort()
 	views_changed()
 	save_soon()
-	if pn.view is MapElevation and old != pl:
-		_frame_like_top.call_deferred(pn.view)
+	_keep_frames.call_deferred(keep)
+
+
+## Cadrage des fenêtres orthographiques : fenêtre -> [vue, plan, zoom, point visé].
+func _pane_frames() -> Dictionary:
+	var out := {}
+	for p in panes:
+		if p.view != null and p.view.plane != "3d" and p.view.size.x > 0.0:
+			out[p] = [p.view, p.view.plane, p.view.zoom, view_target(p.view)]
+	return out
+
+
+## Après un changement de plan : chaque fenêtre dont la vue ou le plan a
+## changé reprend le zoom qu'elle avait et vise le même point (une fenêtre qui
+## sort de la 3D garde le cadrage de son élévation) ; ces recadrages ne sont
+## pas propagés par la liaison (ce n'est pas un zoom de l'utilisateur).
+func _keep_frames(keep: Dictionary) -> void:
+	for p in panes:
+		var v := p.view
+		if v == null or v.plane == "3d" or not keep.has(p) or v.size.x <= 0.0:
+			continue
+		var k: Array = keep[p]
+		if k[0] == v and String(k[1]) == v.plane:
+			continue
+		v.zoom = clampf(float(k[2]), MapView.MIN_ZOOM, MapView.MAX_ZOOM)
+		v.origin = v.size * 0.5 - MapView.uv_of(v.plane, k[3]) * v.zoom
+		v.queue_redraw()
+		_settle(v)
+
+
+## Recadrage fait par l'éditeur (pas par l'utilisateur) : la liaison des vues
+## l'enregistre sans l'appliquer aux autres vues, ni pendant les quelques
+## images suivantes (taille de la vue ajustée par la disposition).
+const SETTLE_FRAMES := 3
+
+
+func _settle(v: MapView) -> void:
+	_link_seen[v] = [v.zoom, v.origin, v.size]
+	_link_quiet[v] = Engine.get_process_frames() + SETTLE_FRAMES
 
 
 ## Transition (§ 4) : l'image d'avant se fond et glisse le long de l'axe qui
@@ -368,16 +413,20 @@ func cube_action(v: MapView, id: String) -> void:
 			set_pane_plane(pn, id.substr(2), true)
 		return
 	if id.begins_with("e:") or id.begins_with("c:"):
-		show_3d_from(MapViewCube.target_dir(id), view_target(v))
+		# La fenêtre passe en 3D vue de cette direction, visant le centre de la
+		# vue quittée ; si la 3D est déjà dans une autre fenêtre, c'est elle qui
+		# tourne (une seule 3D, D14). Les autres fenêtres ne bougent pas.
+		var target := view_target(v)
+		if pn != null and pn.plane() != "3d" and _pane_3d() == null:
+			set_pane_plane(pn, "3d")
+		show_3d_from(MapViewCube.target_dir(id), target)
 		return
 	match id:
 		"home":
 			if pn != null:
 				set_pane_plane(pn, pn.home_plane, true)
-				if pn.view is MapElevation:
-					_frame_like_top.call_deferred(pn.view)
-				elif pn.view == ed.canvas:
-					ed.canvas.frame_all()
+				# Après le cadrage gardé par set_pane_plane (appel différé).
+				_frame_home.call_deferred(pn)
 		"prev", "next":
 			if pn != null:
 				set_pane_plane(pn, MapViewCube.next_facade(pn.plane(), 1 if id == "next" else -1), true)
@@ -441,6 +490,7 @@ func _on_cube_menu(i: int) -> void:
 		ed.set_status(Lang.t("Vue d'origine de cette fenêtre : %s", "This window's home view: %s") % MapView.plane_name(pn.home_plane))
 	elif i == 21:
 		pn.view.frame_all()
+		_settle(pn.view)
 
 
 func pane_count() -> int:
@@ -637,6 +687,9 @@ func _rebuild_splits() -> void:
 		s.layout = self
 		s.axis = String(sp[0])
 		add_child(s)
+		# Juste au-dessus des fenêtres, SOUS la bande de la barre rapide, la
+		# barre rapide et l'inventaire (enfants suivants) : dessin et clics.
+		move_child(s, _dock.get_index())
 		_splits.append(s)
 
 
@@ -766,10 +819,12 @@ func _process(delta: float) -> void:
 func _link_step() -> void:
 	var list := views().filter(func(v): return v.plane != "3d" and v.is_visible_in_tree())
 	var moved: MapView = null
+	var now := Engine.get_process_frames()
 	for v in list:
 		var st := [v.zoom, v.origin, v.size]
 		if _link_seen.get(v, []) != st:
-			if _link_seen.has(v) and (moved == null or v == active_view()):
+			# Une vue que l'éditeur vient de recadrer n'entraîne pas les autres.
+			if _link_seen.has(v) and int(_link_quiet.get(v, -1)) < now and (moved == null or v == active_view()):
 				moved = v
 	if moved != null:
 		_sync_from(moved)
@@ -920,6 +975,7 @@ func _frame_like_top(ev: MapElevation) -> void:
 	if not is_instance_valid(ev) or ev.size.x <= 0.0:
 		return
 	ev.frame_all()
+	_settle(ev)
 	var c := ed.canvas
 	if c.size.x <= 0.0 or not c.is_visible_in_tree() or ev.plane == "dessous":
 		return
@@ -930,6 +986,18 @@ func _frame_like_top(ev: MapElevation) -> void:
 	var u := MapView.uv_of(ev.plane, Vector3(m.x, m.y, 0.0)).x
 	ev.origin.x = ev.size.x * 0.5 - u * ev.zoom
 	ev.queue_redraw()
+	_settle(ev)
+
+
+## Maison : la fenêtre recadrée sur la carte (elle seule).
+func _frame_home(pn: MapViewPane) -> void:
+	if not is_instance_valid(pn) or pn.view == null:
+		return
+	if pn.view is MapElevation:
+		_frame_like_top(pn.view)
+	elif pn.view == ed.canvas:
+		ed.canvas.frame_all()
+		_settle(ed.canvas)
 
 
 # ------------------------------------------------------------------ bande de la barre rapide

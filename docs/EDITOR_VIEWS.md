@@ -401,7 +401,7 @@ aujourd'hui.
   - `MapCatalog.allowed_kinds()` déclare les clés (le contrôle des cartes reçues `CustomMapGuard` s'en sert) ;
   - `MapLayoutExport` (`_fixture`, `_effects`, décor : `_world(k, c, z)` et pavés de collision décalés de `z`) ;
   - surbrillance de l'aperçu 3D.
-- Une carte au format 12 est refusée par un jeu au format 11 (règle actuelle `format ≤ FORMAT`).
+- Une carte au format 12 est refusée par un jeu au format 11 (règle actuelle `format ≤ FORMAT`). Format 13 (volume des effets, `docs/MAP_OBJECTS.md` § 12) : les boîtes des effets dans les vues (élévations, aperçu 3D) sont leur volume (`MapVertical.effect_span`) ; une carte au format 12 ou moins est convertie au chargement (`MapCatalog.migrate_effect_13`).
 - **Décor surélevé** (Q1) :
   - un décor « solide » ou « barrière » posé à `z > 0` doit reposer sur le `support` (ou le haut `h`) d'un autre décor sous lui, aimanté ;
   - sinon il est refusé avec la raison « décor en l'air : posez-le sur un autre » ;
@@ -594,3 +594,15 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   dans la disposition, ni message, ni bouton APERÇU 3D enfoncé, ni fenêtre
   séparée mémorisée qui lui prendrait la vue ; les réglages en attente sont
   écrits à la fermeture.
+- **Retours du 03/10/2026**. Les séparateurs sont dessinés juste au-dessus
+  des fenêtres, sous la bande de la barre rapide, la barre rapide et
+  l'inventaire (ni clic ni curseur de redimensionnement à travers
+  l'inventaire). Le ViewCube (faces, arêtes, coins, ◄ ►, maison, menu) et le
+  pavé numérique ne changent que la fenêtre concernée : une fenêtre qui
+  change de plan garde son zoom et vise le même point ; ces recadrages ne
+  sont pas propagés par les vues liées (seuls les zooms et déplacements de
+  l'utilisateur le sont). Arête ou coin : la fenêtre passe en 3D (comme le
+  tableau du § 4), ou la fenêtre 3D existante tourne (D14). Aucune musique
+  dans l'éditeur : à son ouverture (depuis le menu, au retour de TESTER),
+  la musique et les sons du menu en cours sont coupés net ; le menu la
+  relance à son retour (scénario `editor_silence`).

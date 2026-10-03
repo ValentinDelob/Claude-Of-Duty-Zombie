@@ -170,6 +170,48 @@ static func room_h(v: MapValidator, e: Dictionary) -> float:
 	return ceil_z(v, k, anchor_of(e)) - v.floors[k].sol
 
 
+## Hauteur (m) de l'origine d'un effet au-dessus du sol de l'étage, en jeu
+## comme dans l'éditeur (MapLayoutExport, élévations, aperçu 3D) : au
+## plafond, plafond − 2 cm − descente ; mural, sous le plafond ; au sol, sa
+## hauteur de pose. `y` : MapCatalog.effect_height ; `rh` : hauteur sous plafond ;
+## `anchor` : MapCatalog.effect_anchor (flamme posée au bout d'un décor mural).
+static func effect_ground(mount: String, y: float, desc: float, rh: float, anchor := 0.0) -> float:
+	match mount:
+		"plafond":
+			return maxf(0.0, rh - 0.02 - desc)
+		"mur":
+			if anchor != 0.0:
+				# Porté par un décor mural (flamme de torche, `anchor` m au-dessus
+				# de lui) : bornée comme lui (applique), elle reste à son bout.
+				var lo := float(MapCatalog.WALL_LIGHT_HEIGHT[0])
+				return clampf(y - anchor, lo, maxf(lo, rh - WALL_MARGIN)) + anchor
+			return clampf(y, 0.05, maxf(0.05, rh - WALL_FX_MARGIN))
+	return maxf(0.0, y)
+
+
+## Hauteur sous plafond (m) d'un effet posé, au point où le jeu le pose
+## (mural : sur la face du mur, comme MapRaster._effect).
+static func effect_room_h(v: MapValidator, e: Dictionary) -> float:
+	var k := int(e.get("etage", 0))
+	if v == null or k < 0 or k >= v.floors.size():
+		return EditorMap.DEFAULT_CEILING
+	var p := MapGeom.v2(e.get("position", [0, 0]))
+	if MapCatalog.effect_mount(e) == "mur":
+		p -= MapGeom.item_wall_dir(e) * MapGeom.WALL_HALF
+	return ceil_z(v, k, p) - v.floors[k].sol
+
+
+## Boîte d'un effet posé en hauteur : Vector2(bas, haut), m au-dessus du sol
+## de l'étage, = son VOLUME (MapCatalog.effect_volume) posé à sa hauteur.
+## `rh` : hauteur sous plafond à son point (effect_room_h).
+static func effect_span(e: Dictionary, rh: float) -> Vector2:
+	var fid := String(e.get("effet", ""))
+	var mount := MapCatalog.effect_mount(e)
+	var g := effect_ground(mount, MapCatalog.effect_height(e), descente(e) if mount == "plafond" else 0.0, rh, MapCatalog.effect_anchor(fid))
+	var vol := MapCatalog.effect_volume(fid, MapCatalog.effect_zone(e), g, rh)
+	return Vector2(g + vol.position.y, g + vol.end.y)
+
+
 ## Point (m, plan) où un élément est posé : sa position (mural : contre la face du mur).
 static func anchor_of(e: Dictionary) -> Vector2:
 	var p := MapGeom.v2(e.get("position", [0, 0]))
@@ -210,6 +252,11 @@ static func pose_bounds(v: MapValidator, e: Dictionary) -> Vector2:
 			return Vector2(maxf(h - DESCENTE[1], size_h), h - DESCENTE[0])
 		"mur":
 			if t == "effet":
+				var an := MapCatalog.effect_anchor(String(e.get("effet", "")))
+				if an != 0.0:
+					# Flamme de torche : bornée comme sa torche (effect_ground).
+					var lo := float(MapCatalog.WALL_LIGHT_HEIGHT[0])
+					return Vector2(lo + an, maxf(lo, h - WALL_MARGIN) + an)
 				return Vector2(0.05, maxf(0.05, h - WALL_FX_MARGIN))
 			return Vector2(MapCatalog.WALL_LIGHT_HEIGHT[0], maxf(MapCatalog.WALL_LIGHT_HEIGHT[0], h - WALL_MARGIN))
 	match t:

@@ -200,6 +200,17 @@ const LIGHTS := {
 ##           plafond), « h » hauteur (volume d'un effet au sol : poussière,
 ##           brouillard... ; étendue verticale d'un effet mural). Zone par
 ##           défaut : l'étendue de l'effet d'avant le format 11.
+##   vol     VOLUME de l'effet (effect_volume) : TOUT ce qu'il affiche y
+##           reste, et c'est la boîte dessinée dans l'éditeur. Hauteur (m)
+##           d'un effet au sol sans « h » (de sa hauteur de pose vers le
+##           haut) ou au plafond (du plafond vers le bas) ; « sol » : jusqu'au
+##           sol (effet au plafond ou mural dont les gouttes ou étincelles
+##           tombent par terre) ; « plafond » : jusqu'au plafond (effet au
+##           sol : cendres). Sans « vol » : la hauteur « h » de la zone.
+##   ancre   effet mural porté par un décor mural : sa hauteur est celle du
+##           décor + `ancre` m, bornée comme lui (flamme de torche)
+##   appui   effet au sol posé SUR quelque chose (flammes de baril) : le bas
+##           de son volume est caché comme le sol (MapEffects)
 ##   reach   effet mural : distance (m) où il porte dans la pièce (dessin)
 ##   cap     particules au plus pour cet effet (la densité suit la surface
 ##           de la zone jusqu'à ce plafond, MapEffects)
@@ -223,72 +234,72 @@ const ZONE_STEP := 0.05
 const MAX_EFFECTS := CustomMapGuard.MAX_EFFECTS
 const EFFECTS := {
 	# Flammes.
-	"petit_feu": {"sub": "flammes", "fr": "Petit feu", "en": "Small fire", "mount": "sol", "zone": {"l": [0.6, 0.3, 3.0], "p": [0.6, 0.3, 3.0]},
+	"petit_feu": {"sub": "flammes", "fr": "Petit feu", "en": "Small fire", "mount": "sol", "vol": 1.5, "zone": {"l": [0.6, 0.3, 3.0], "p": [0.6, 0.3, 3.0]},
 		"cap": 400, "decor": ["buches"], "color": Color(1.0, 0.55, 0.15),
 		"hint_fr": "Petites flammes et braises (bûches : onglet Décor)", "hint_en": "Small flames and embers (logs: Props tab)"},
-	"brasier": {"sub": "flammes", "fr": "Grand feu", "en": "Bonfire", "mount": "sol", "zone": {"l": [1.2, 0.6, 4.0], "p": [1.2, 0.6, 4.0]},
+	"brasier": {"sub": "flammes", "fr": "Grand feu", "en": "Bonfire", "mount": "sol", "vol": 2.6, "zone": {"l": [1.2, 0.6, 4.0], "p": [1.2, 0.6, 4.0]},
 		"cap": 600, "decor": ["foyer_pierres"], "color": Color(1.0, 0.45, 0.1),
 		"hint_fr": "Hautes flammes, braises et fumée (foyer de pierres : onglet Décor)", "hint_en": "Tall flames, embers and smoke (stone fire pit: Props tab)"},
-	"baril_feu": {"sub": "flammes", "fr": "Flammes de baril", "en": "Barrel flames", "mount": "sol", "y": 0.9, "zone": {"l": [0.6, 0.3, 1.5], "p": [0.6, 0.3, 1.5]},
+	"baril_feu": {"sub": "flammes", "fr": "Flammes de baril", "en": "Barrel flames", "mount": "sol", "y": 0.9, "vol": 1.3, "appui": true, "zone": {"l": [0.6, 0.3, 1.5], "p": [0.6, 0.3, 1.5]},
 		"cap": 300, "color": Color(1.0, 0.5, 0.2),
 		"hint_fr": "Flammes à poser sur un baril (0,9 m de haut par défaut)", "hint_en": "Flames to put on a barrel (0.9 m high by default)"},
-	"torche": {"sub": "flammes", "fr": "Flamme de torche", "en": "Torch flame", "mount": "mur", "y": 1.8, "zone": {"l": [0.3, 0.2, 0.6], "h": [0.4, 0.3, 0.8]},
+	"torche": {"sub": "flammes", "fr": "Flamme de torche", "en": "Torch flame", "mount": "mur", "y": 2.25, "ancre": 0.45, "zone": {"l": [0.3, 0.2, 0.6], "h": [0.6, 0.3, 0.8]},
 		"reach": 0.5, "cap": 120, "decor": ["torche_murale"], "color": Color(1.0, 0.65, 0.25),
 		"hint_fr": "Flamme vive au bout d'une torche (torche murale : onglet Décor)", "hint_en": "Lively flame at the tip of a torch (wall torch: Props tab)"},
-	"incendie": {"sub": "flammes", "fr": "Incendie", "en": "Blaze", "mount": "sol", "zone": {"l": [3.0, 1.0, 12.0], "p": [2.0, 1.0, 12.0]},
+	"incendie": {"sub": "flammes", "fr": "Incendie", "en": "Blaze", "mount": "sol", "vol": 3.2, "zone": {"l": [3.0, 1.0, 12.0], "p": [2.0, 1.0, 12.0]},
 		"cap": 1200, "decor": ["planches_brulees"], "color": Color(0.95, 0.35, 0.08),
 		"hint_fr": "Nappe de feu et épaisse fumée, de la taille de sa zone", "hint_en": "Sheet of fire and thick smoke, as big as its zone"},
 	# Fumées.
-	"fumee_legere": {"sub": "fumees", "fr": "Fumée légère", "en": "Light smoke", "mount": "sol", "zone": {"l": [1.0, 0.5, 20.0], "p": [1.0, 0.5, 20.0]},
+	"fumee_legere": {"sub": "fumees", "fr": "Fumée légère", "en": "Light smoke", "mount": "sol", "vol": 2.5, "zone": {"l": [2.0, 0.5, 20.0], "p": [2.0, 0.5, 20.0]},
 		"cap": 500, "couleur": "#6e6c6a", "color": Color(0.65, 0.65, 0.65),
 		"hint_fr": "Volutes grises qui montent lentement", "hint_en": "Grey wisps slowly rising"},
-	"fumee_noire": {"sub": "fumees", "fr": "Fumée noire épaisse", "en": "Thick black smoke", "mount": "sol", "zone": {"l": [1.5, 0.5, 20.0], "p": [1.5, 0.5, 20.0]},
+	"fumee_noire": {"sub": "fumees", "fr": "Fumée noire épaisse", "en": "Thick black smoke", "mount": "sol", "vol": 3.5, "zone": {"l": [2.5, 0.5, 20.0], "p": [2.5, 0.5, 20.0]},
 		"cap": 600, "color": Color(0.3, 0.3, 0.32),
 		"hint_fr": "Colonne de fumée noire, braises au pied", "hint_en": "Column of black smoke, embers at its foot"},
-	"vapeur": {"sub": "fumees", "fr": "Jet de vapeur", "en": "Steam jet", "mount": "mur", "y": 1.2, "zone": {"l": [0.3, 0.2, 4.0], "h": [0.3, 0.2, 2.0]},
+	"vapeur": {"sub": "fumees", "fr": "Jet de vapeur", "en": "Steam jet", "mount": "mur", "y": 1.2, "zone": {"l": [0.6, 0.2, 4.0], "h": [0.6, 0.2, 2.0]},
 		"reach": 1.5, "cap": 400, "decor": ["tuyau_vapeur"], "color": Color(0.85, 0.9, 0.95),
 		"hint_fr": "Jet de vapeur sous pression sortant du mur (tuyau : onglet Décor)", "hint_en": "Pressurised steam jet out of the wall (pipe: Props tab)"},
 	"brouillard": {"sub": "fumees", "fr": "Brouillard au sol", "en": "Ground fog", "mount": "sol",
 		"zone": {"l": [4.0, 2.0, 40.0], "p": [4.0, 2.0, 40.0], "h": [0.6, 0.3, 3.0]}, "cap": 700, "couleur": "#8e9aa6", "color": Color(0.6, 0.68, 0.75),
 		"hint_fr": "Nappe de brume rampante, sur toute sa zone", "hint_en": "Creeping mist over its whole zone"},
 	# Étincelles.
-	"pluie_etincelles": {"sub": "etincelles", "fr": "Pluie d'étincelles", "en": "Spark shower", "mount": "plafond", "zone": {"l": [0.5, 0.3, 6.0], "p": [0.5, 0.3, 6.0]},
+	"pluie_etincelles": {"sub": "etincelles", "fr": "Pluie d'étincelles", "en": "Spark shower", "mount": "plafond", "vol": "sol", "zone": {"l": [1.5, 0.3, 6.0], "p": [1.5, 0.3, 6.0]},
 		"cap": 500, "decor": ["cable_suspendu"], "color": Color(1.0, 0.8, 0.3),
 		"hint_fr": "Gerbes d'étincelles qui tombent et rebondissent au sol (câble : onglet Décor)", "hint_en": "Showers of sparks falling and bouncing on the floor (cable: Props tab)"},
-	"soudure": {"sub": "etincelles", "fr": "Gerbe de soudure", "en": "Welding sparks", "mount": "mur", "y": 1.3, "zone": {"l": [0.4, 0.2, 3.0], "h": [0.4, 0.2, 2.0]},
-		"reach": 1.0, "cap": 500, "color": Color(0.75, 0.85, 1.0),
+	"soudure": {"sub": "etincelles", "fr": "Gerbe de soudure", "en": "Welding sparks", "mount": "mur", "y": 1.3, "vol": "sol", "zone": {"l": [1.0, 0.2, 3.0], "h": [0.4, 0.2, 2.0]},
+		"reach": 1.6, "cap": 500, "color": Color(0.75, 0.85, 1.0),
 		"hint_fr": "Gerbe continue et éclats bleutés, par à-coups", "hint_en": "Steady spray and bluish flashes, in bursts"},
-	"court_circuit": {"sub": "etincelles", "fr": "Court-circuit", "en": "Short circuit", "mount": "mur", "y": 1.6, "zone": {"l": [0.4, 0.2, 2.0], "h": [0.5, 0.2, 2.0]},
-		"reach": 0.8, "cap": 400, "decor": ["boitier_electrique"], "color": Color(0.9, 0.9, 0.5),
+	"court_circuit": {"sub": "etincelles", "fr": "Court-circuit", "en": "Short circuit", "mount": "mur", "y": 1.6, "vol": "sol", "zone": {"l": [0.8, 0.2, 2.0], "h": [0.5, 0.2, 2.0]},
+		"reach": 1.2, "cap": 400, "decor": ["boitier_electrique"], "color": Color(0.9, 0.9, 0.5),
 		"hint_fr": "Claquements, étincelles et arcs de temps en temps (boîtier : onglet Décor)", "hint_en": "Pops, sparks and arcs now and then (electrical box: Props tab)"},
 	# Électricité.
-	"arc": {"sub": "electricite", "fr": "Arc électrique", "en": "Electric arc", "mount": "sol", "y": 1.0, "zone": {"l": [1.5, 0.5, 6.0], "p": [0.4, 0.2, 2.0]},
+	"arc": {"sub": "electricite", "fr": "Arc électrique", "en": "Electric arc", "mount": "sol", "y": 0.7, "vol": 0.6, "zone": {"l": [1.5, 0.5, 6.0], "p": [0.4, 0.2, 2.0]},
 		"cap": 200, "decor": ["electrodes"], "couleur": "#8fb4ff", "color": Color(0.55, 0.7, 1.0),
 		"hint_fr": "Arc crépitant d'un bout à l'autre de sa zone (électrodes : onglet Décor)", "hint_en": "Crackling arc from one end of its zone to the other (electrodes: Props tab)"},
-	"tesla": {"sub": "electricite", "fr": "Arcs en boule", "en": "Arc burst", "mount": "sol", "y": 1.4, "zone": {"l": [2.4, 0.6, 6.0], "p": [2.4, 0.6, 6.0]},
+	"tesla": {"sub": "electricite", "fr": "Arcs en boule", "en": "Arc burst", "mount": "sol", "y": 0.6, "vol": 1.6, "zone": {"l": [2.4, 0.6, 6.0], "p": [2.4, 0.6, 6.0]},
 		"cap": 200, "decor": ["bobine_tesla"], "couleur": "#a6b4ff", "color": Color(0.65, 0.6, 1.0),
 		"hint_fr": "Décharges dans toutes les directions jusqu'au bord de sa zone (bobine Tesla : onglet Décor)", "hint_en": "Discharges in every direction up to the edge of its zone (Tesla coil: Props tab)"},
-	"cable_nu": {"sub": "electricite", "fr": "Étincelles de câble", "en": "Cable sparks", "mount": "plafond", "zone": {"l": [0.5, 0.3, 3.0], "p": [0.5, 0.3, 3.0]},
+	"cable_nu": {"sub": "electricite", "fr": "Étincelles de câble", "en": "Cable sparks", "mount": "plafond", "vol": "sol", "zone": {"l": [1.0, 0.3, 3.0], "p": [1.0, 0.3, 3.0]},
 		"cap": 200, "decor": ["cable_suspendu"], "couleur": "#8fb4ff", "color": Color(0.45, 0.6, 1.0),
 		"hint_fr": "Crépitements et étincelles au bout d'un câble pendant (câble : onglet Décor)", "hint_en": "Crackles and sparks at the tip of a hanging cable (cable: Props tab)"},
 	# Eau.
-	"goutte": {"sub": "eau", "fr": "Goutte-à-goutte", "en": "Dripping water", "mount": "plafond", "zone": {"l": [0.5, 0.3, 6.0], "p": [0.5, 0.3, 6.0]},
+	"goutte": {"sub": "eau", "fr": "Goutte-à-goutte", "en": "Dripping water", "mount": "plafond", "vol": "sol", "zone": {"l": [0.5, 0.3, 6.0], "p": [0.5, 0.3, 6.0]},
 		"cap": 300, "decor": ["petite_flaque"], "color": Color(0.5, 0.7, 0.95),
 		"hint_fr": "Gouttes du plafond et ronds au sol, sur toute sa zone", "hint_en": "Drops from the ceiling and ripples on the floor, over its whole zone"},
-	"fuite": {"sub": "eau", "fr": "Filet d'eau", "en": "Water stream", "mount": "mur", "y": 2.0, "zone": {"l": [0.3, 0.1, 3.0], "h": [0.2, 0.1, 1.0]},
-		"reach": 1.0, "cap": 400, "decor": ["tuyau_fuite", "petite_flaque"], "color": Color(0.4, 0.6, 0.85),
+	"fuite": {"sub": "eau", "fr": "Filet d'eau", "en": "Water stream", "mount": "mur", "y": 2.0, "vol": "sol", "zone": {"l": [0.3, 0.1, 3.0], "h": [0.4, 0.1, 1.0]},
+		"reach": 1.2, "cap": 400, "decor": ["tuyau_fuite", "petite_flaque"], "color": Color(0.4, 0.6, 0.85),
 		"hint_fr": "Filet d'eau qui tombe du mur et éclabousse (tuyau, flaque : onglet Décor)", "hint_en": "Stream of water falling from the wall and splashing (pipe, puddle: Props tab)"},
-	"flaque": {"sub": "eau", "fr": "Ronds dans l'eau", "en": "Water ripples", "mount": "sol", "zone": {"l": [1.5, 0.5, 10.0], "p": [1.0, 0.5, 10.0]},
+	"flaque": {"sub": "eau", "fr": "Ronds dans l'eau", "en": "Water ripples", "mount": "sol", "vol": 0.15, "zone": {"l": [1.5, 0.5, 10.0], "p": [1.0, 0.5, 10.0]},
 		"cap": 200, "decor": ["flaque_eau"], "color": Color(0.3, 0.45, 0.6),
 		"hint_fr": "Ronds qui s'étalent sur l'eau (flaque : onglet Décor)", "hint_en": "Rings spreading on the water (puddle: Props tab)"},
 	# Ambiance.
 	"poussiere": {"sub": "ambiance", "fr": "Poussière en suspension", "en": "Floating dust", "mount": "sol",
 		"zone": {"l": [3.0, 1.0, 30.0], "p": [3.0, 1.0, 30.0], "h": [2.0, 0.5, 8.0]}, "cap": 1500, "color": Color(0.85, 0.8, 0.65),
 		"hint_fr": "Grains de poussière dans l'air, dans tout le volume de sa zone", "hint_en": "Dust motes in the air, through its whole zone"},
-	"braises": {"sub": "ambiance", "fr": "Braises flottantes", "en": "Floating embers", "mount": "sol", "zone": {"l": [2.0, 0.5, 20.0], "p": [2.0, 0.5, 20.0]},
+	"braises": {"sub": "ambiance", "fr": "Braises flottantes", "en": "Floating embers", "mount": "sol", "vol": 2.5, "zone": {"l": [2.0, 0.5, 20.0], "p": [2.0, 0.5, 20.0]},
 		"cap": 800, "color": Color(1.0, 0.4, 0.1),
 		"hint_fr": "Braises qui s'élèvent en tourbillonnant", "hint_en": "Embers swirling upwards"},
-	"cendres": {"sub": "ambiance", "fr": "Cendres qui tombent", "en": "Falling ash", "mount": "sol", "zone": {"l": [3.0, 1.0, 30.0], "p": [3.0, 1.0, 30.0]},
+	"cendres": {"sub": "ambiance", "fr": "Cendres qui tombent", "en": "Falling ash", "mount": "sol", "vol": "plafond", "zone": {"l": [3.0, 1.0, 30.0], "p": [3.0, 1.0, 30.0]},
 		"cap": 1200, "color": Color(0.55, 0.53, 0.5),
 		"hint_fr": "Flocons de cendre qui tombent du plafond", "hint_en": "Ash flakes falling from the ceiling"},
 	"feux_follets": {"sub": "ambiance", "fr": "Feux follets (115)", "en": "Will-o'-wisps (115)", "mount": "sol",
@@ -983,6 +994,51 @@ static func effect_default_zone(fid: String) -> Vector3:
 	return out
 
 
+## Effet mural porté par un décor mural (« ancre » : la flamme de torche est
+## posée tant de m au-dessus de sa torche) ; 0 : aucun.
+static func effect_anchor(fid: String) -> float:
+	return float(EFFECTS.get(fid, {}).get("ancre", 0.0))
+
+
+## Hauteur minimale (m) du volume d'un effet.
+const EFFECT_MIN_VOL := 0.1
+
+
+## VOLUME d'un effet (boîte, m) dans son repère : origine au point posé, y
+## vers le haut ; effet mural : x le long du mur, +z du mur vers la pièce.
+## SEULE source de vérité : le jeu y contient tout ce que l'effet affiche
+## (MapEffects : émission, vitesses, gravité, taille des particules, arcs,
+## sol de collision, source des lumières) et l'éditeur la dessine (aperçu 3D,
+## élévations, clic). `zone` : effect_zone ; `ground` : distance (m) de
+## l'origine au sol ; `room_h` : hauteur sous plafond (m) au point posé.
+##   sol      la zone au sol (largeur × profondeur), de la hauteur de pose
+##            vers le haut, jamais au-dessus du plafond ;
+##   plafond  la zone sous le plafond, du point posé vers le bas ;
+##   mur      largeur × hauteur de la zone centrées sur la hauteur, portée
+##            (« reach ») vers la pièce ; « sol » : jusqu'au sol.
+static func effect_volume(fid: String, zone: Vector3, ground: float, room_h: float) -> AABB:
+	var d: Dictionary = EFFECTS.get(fid, {})
+	var vol: Variant = d.get("vol", 0.0)
+	ground = maxf(0.0, ground)
+	var up := maxf(EFFECT_MIN_VOL, room_h - ground) if room_h > 0.0 else INF
+	match String(d.get("mount", "sol")):
+		"mur":
+			var top := minf(zone.z * 0.5, up)
+			# Jamais sous le sol (effet mural posé bas).
+			var bot := -ground if vol is String and vol == "sol" else maxf(-zone.z * 0.5, -ground)
+			bot = minf(bot, top - EFFECT_MIN_VOL)
+			return AABB(Vector3(-zone.x * 0.5, bot, 0.0), Vector3(zone.x, top - bot, zone.y))
+		"plafond":
+			var h := ground if vol is String and vol == "sol" else float(vol)
+			h = maxf(EFFECT_MIN_VOL, minf(h, ground)) if ground > 0.0 else maxf(EFFECT_MIN_VOL, h)
+			return AABB(Vector3(-zone.x * 0.5, -h, -zone.y * 0.5), Vector3(zone.x, h, zone.y))
+	var hh := zone.z
+	if hh <= 0.0:
+		hh = up if vol is String and vol == "plafond" else float(vol)
+	hh = clampf(hh, EFFECT_MIN_VOL, maxf(EFFECT_MIN_VOL, up))
+	return AABB(Vector3(-zone.x * 0.5, 0.0, -zone.y * 0.5), Vector3(zone.x, hh, zone.y))
+
+
 ## Zone d'un effet posé (format 11, clé « zone ») : Vector3(largeur,
 ## profondeur, hauteur) en m, chaque dimension bornée à celles de l'effet ;
 ## absente ou illisible : la zone par défaut.
@@ -1093,6 +1149,55 @@ static func effect_height(o: Dictionary) -> float:
 ## Format 11 : « taille » (d'avant) devient la zone (zone par défaut ×
 ## taille, si l'effet n'a pas déjà une zone) ; zone illisible retirée, sinon
 ## bornée ; rotation retirée d'un effet mural (il suit son mur).
+## Format 13 : zones par défaut d'avant (format 12 et moins) des effets dont
+## la zone par défaut a grandi (le volume les contient désormais tout
+## entiers), dans l'ordre de leurs dimensions (effect_dims).
+const EFFECT_ZONE_12 := {"torche": [0.3, 0.4], "fumee_legere": [1.0, 1.0], "fumee_noire": [1.5, 1.5], "vapeur": [0.3, 0.3],
+	"pluie_etincelles": [0.5, 0.5], "soudure": [0.4, 0.4], "court_circuit": [0.4, 0.5], "cable_nu": [0.5, 0.5], "fuite": [0.3, 0.2]}
+## Format 13 : décalage (m) de la « hauteur » des effets dont le dessin a
+## bougé par rapport à elle (volume posé à sa hauteur) : flamme de torche
+## (0,45 m au-dessus de sa torche), arc (au milieu de son volume, 0,3 m),
+## boule de la bobine Tesla (0,8 m).
+const EFFECT_SHIFT_13 := {"torche": 0.45, "arc": -0.3, "tesla": -0.8}
+
+
+## Conversion d'un effet d'une carte au format 12 ou moins (EditorMap._migrate) :
+## il reste au même endroit et de la même taille. Sans « zone » : la zone par
+## défaut d'avant (EFFECT_ZONE_12), aussi pour « taille » (format 10 et
+## moins : zone par défaut d'avant × taille) ; « hauteur » écrite : décalée
+## de EFFECT_SHIFT_13 (sans elle, la nouvelle hauteur par défaut dessine
+## l'effet au même endroit). Une seule fois : la carte est réécrite au format 13.
+static func migrate_effect_13(o: Dictionary) -> void:
+	if String(o.get("type", "")) != "effet":
+		return
+	var fid := String(o.get("effet", ""))
+	if not EFFECTS.has(fid):
+		return
+	if EFFECT_ZONE_12.has(fid) and not o.has("zone"):
+		var old: Array = EFFECT_ZONE_12[fid]
+		var dims := effect_dims(fid)
+		var k := 1.0
+		if o.has("taille"):
+			var tv: Variant = o.taille
+			o.erase("taille")
+			if (tv is float or tv is int) and is_finite(float(tv)):
+				k = clampf(float(tv), EFFECT_LIMITS.taille[0], EFFECT_LIMITS.taille[1])
+		var z := effect_default_zone(fid)
+		for i in dims.size():
+			match String(dims[i]):
+				"l":
+					z.x = float(old[i]) * k
+				"p":
+					z.y = float(old[i]) * k
+				"h":
+					z.z = float(old[i]) * k
+		set_effect_zone(o, z)
+	if EFFECT_SHIFT_13.has(fid) and o.has("hauteur"):
+		var hv: Variant = o.hauteur
+		if (hv is float or hv is int) and is_finite(float(hv)):
+			o["hauteur"] = snappedf(clampf(float(hv) + float(EFFECT_SHIFT_13[fid]), EFFECT_LIMITS.hauteur[0], EFFECT_LIMITS.hauteur[1]), 0.01)
+
+
 static func tidy_effect(o: Dictionary) -> void:
 	if String(o.get("type", "")) != "effet":
 		return

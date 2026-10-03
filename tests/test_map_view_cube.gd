@@ -114,13 +114,13 @@ func test_cube_actions_in_the_editor() -> void:
 	assert_eq(pn.plane(), "dessus")
 	assert_eq(ed.views.panes[0].plane(), "avant", "échange avec la fenêtre qui l'avait")
 	ed.views.cube_action(pn.view, "home")
-	# Coin : l'aperçu 3D vu de ce coin.
+	# Coin : la fenêtre passe en 3D, vue de ce coin (§ 4, D4).
 	ed.views.cube_action(ed.views.panes[1].view, "c:avant+droite+dessus")
 	await wait_frames(2)
-	assert_true(ed.preview.shown, "coin : la 3D s'affiche")
+	assert_eq(ed.views.panes[1].plane(), "3d", "coin : la fenêtre passe en 3D")
+	assert_true(ed.preview.is_on_screen() and ed.preview.pane_host == ed.views.panes[1].view, "l'aperçu est dans la fenêtre")
 	var f := ed.preview.world.rig.forward()
 	assert_true(f.x < -0.3 and f.y < -0.3 and f.z < -0.3, "caméra vue de l'avant-droite-dessus (regard %s)" % f)
-	ed.preview.set_shown(false)
 	ed.queue_free()
 	await wait_frames(1)
 
@@ -144,5 +144,89 @@ func test_numpad_goes_to_the_view_under_the_mouse() -> void:
 	# Souris sur aucune vue : la barre rapide garde le pavé.
 	k.ctrl_pressed = false
 	assert_false(ed.views.numpad(k, null), "hors des vues : pas pris")
+	ed.queue_free()
+	await wait_frames(1)
+
+
+## Cadrage (zoom, origine) de chaque fenêtre orthographique : fenêtre -> [vue, zoom, origine].
+func _frames(lay: MapViewLayout) -> Dictionary:
+	var out := {}
+	for p in lay.panes:
+		if p.view != null and p.view.plane != "3d":
+			out[p] = [p.view, p.view.zoom, p.view.origin]
+	return out
+
+
+## Les fenêtres autres que `pn` n'ont bougé ni en zoom ni en centre.
+func _others_unchanged(lay: MapViewLayout, before: Dictionary, pn: MapViewPane, what: String) -> void:
+	for p in before:
+		if p == pn or p.view != before[p][0]:
+			continue
+		assert_near(p.view.zoom, float(before[p][1]), 0.0001, "%s : zoom de la fenêtre %s inchangé" % [what, p.name])
+		assert_true((p.view.origin as Vector2).is_equal_approx(before[p][2]), "%s : centre de la fenêtre %s inchangé (%s -> %s)" % [what, p.name, before[p][2], p.view.origin])
+
+
+## Bug signalé (03/10/2026) : un clic sur le ViewCube changeait le zoom de
+## toutes les fenêtres (l'élévation recadrée sur son nouveau plan entraînait
+## les autres par la liaison des vues). Seule la fenêtre cliquée change.
+func test_cube_changes_only_its_own_view() -> void:
+	var ed: MapEditor = load(MapEditor.SCENE).instantiate()
+	host.add_child(ed)
+	await wait_frames(2)
+	ed._reset(EditorMap.load_dir("res://assets/maps/draft_arena/"))
+	await wait_frames(2)
+	var lay := ed.views
+	lay.set_layout("4")
+	await wait_frames(4)
+	assert_true(lay.linked, "vues liées")
+	var k := InputEventKey.new()
+	k.pressed = true
+	# [fenêtre, action] : faces, flèches, maison, arêtes et coins, sur des
+	# élévations, la vue Dessus et la fenêtre 3D (Dessus, 3D, Avant, Droite).
+	for a in [[2, "f:droite"], [2, "f:dessous"], [3, "next"], [3, "prev"], [2, "home"],
+			[2, "e:avant+droite"], [3, "c:avant+droite+dessus"], [0, "e:avant+dessus"], [1, "e:avant+droite"],
+			[2, "kp1"], [3, "kp3"], [2, "kp7c"], [2, "home"]]:
+		var pn: MapViewPane = lay.panes[a[0]]
+		var before := _frames(lay)
+		var z0 := pn.view.zoom
+		var plane0 := pn.plane()
+		var id := String(a[1])
+		if id.begins_with("kp"):
+			k.keycode = {"kp1": KEY_KP_1, "kp3": KEY_KP_3, "kp7c": KEY_KP_7}[id]
+			k.ctrl_pressed = id.ends_with("c")
+			assert_true(lay.numpad(k, pn))
+		else:
+			lay.cube_action(pn.view, id)
+		await wait_frames(6)
+		var what := "%s sur %s" % [id, plane0]
+		_others_unchanged(lay, before, pn, what)
+		if id != "home" and pn.plane() != "3d" and plane0 != "3d" and plane0 != pn.plane():
+			assert_near(pn.view.zoom, z0, 0.0001, "%s : la fenêtre garde son zoom" % what)
+	# Une arête depuis une élévation sans fenêtre 3D : la fenêtre passe en 3D,
+	# les autres ne bougent pas.
+	lay.set_layout("2v")
+	await wait_frames(4)
+	var low: MapViewPane = lay.panes[1]
+	var before2 := _frames(lay)
+	lay.cube_action(low.view, "e:avant+droite")
+	await wait_frames(6)
+	assert_eq(low.plane(), "3d", "arête : la fenêtre passe en 3D")
+	_others_unchanged(lay, before2, low, "arête vers la 3D")
+	var f := ed.preview.world.rig.forward()
+	assert_true(f.x < -0.3 and f.z < -0.3 and absf(f.y) < 0.3, "caméra vue de l'arête avant-droite, à l'horizontale (regard %s)" % f)
+	# Face du cube de la fenêtre 3D : retour en élévation, Dessus inchangée.
+	before2 = _frames(lay)
+	ed.preview._on_cube("f:avant")
+	await wait_frames(6)
+	assert_eq(low.plane(), "avant")
+	_others_unchanged(lay, before2, low, "face depuis la 3D")
+	# La liaison reste active pour un vrai zoom de l'utilisateur (molette).
+	var top := ed.canvas
+	var av: MapElevation = low.view
+	var za := av.zoom
+	lay.set_active_pane(lay.panes[0])
+	top._zoom_at(top.size * 0.5, 1.5)
+	await wait_frames(2)
+	assert_near(av.zoom, za * 1.5, 0.01, "zoom à la molette : propagé aux vues liées")
 	ed.queue_free()
 	await wait_frames(1)

@@ -30,8 +30,6 @@ const FLOOR_H := {"depart": 1.8, "apparition": 1.8, "teleporteur": 2.6, "arrivee
 const TRAP_H := 2.5
 ## Épaisseur (m) d'une ouverture dans son mur (vue de dessus).
 const OPENING_DEPTH := 0.5
-## Hauteur minimale (m) dessinée d'un effet sans volume.
-const EFFECT_MIN_H := 0.6
 
 
 ## Toutes les boîtes de la carte (`v` : grille du validateur de cette carte,
@@ -282,19 +280,14 @@ static func _effect(_doc: EditorMap, v: MapValidator, o: Dictionary, base: Dicti
 	var k := int(base.floor)
 	var sol := _sol(v, k)
 	var p := MapGeom.v2(o.get("position", [0, 0]))
-	var zone := MapCatalog.effect_zone(o)
 	var poly := MapRules.effect_poly(o)
 	base["col"] = MapCatalog.effect_color(o) if MapCatalog.effect_tints(o) else base.col
-	match MapCatalog.effect_mount(o):
-		"mur":
-			var c := sol + MapCatalog.effect_height(o)
-			var hh := maxf(zone.z, 0.3) * 0.5
-			base.merge({"kind": "effect", "poly": poly, "z0": c - hh, "z1": c + hh, "z": c, "hook": NAN})
-		"plafond":
-			var ce := MapVertical.ceil_z(v, k, p)
-			var top := ce - MapVertical.descente(o)
-			base.merge({"kind": "effect", "poly": poly, "z0": top - maxf(zone.z, EFFECT_MIN_H), "z1": top, "z": top, "hook": ce})
-		_:
-			var z0 := sol + MapCatalog.effect_height(o)
-			base.merge({"kind": "effect", "poly": poly, "z0": z0, "z1": z0 + maxf(zone.z, EFFECT_MIN_H), "z": z0, "hook": sol})
+	# Boîte = VOLUME de l'effet (MapCatalog.effect_volume), celui où le jeu
+	# contient tout ce qu'il affiche, à la hauteur où le jeu le pose.
+	var mount := MapCatalog.effect_mount(o)
+	var rh := MapVertical.effect_room_h(v, o)
+	var span := MapVertical.effect_span(o, rh)
+	var z := sol + MapVertical.effect_ground(mount, MapCatalog.effect_height(o), MapVertical.descente(o) if mount == "plafond" else 0.0, rh, MapCatalog.effect_anchor(String(o.get("effet", ""))))
+	var hook: float = NAN if mount == "mur" else (MapVertical.ceil_z(v, k, p) if mount == "plafond" else sol)
+	base.merge({"kind": "effect", "poly": poly, "z0": sol + span.x, "z1": sol + span.y, "z": z, "hook": hook})
 	return base

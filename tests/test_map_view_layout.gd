@@ -221,3 +221,60 @@ func test_four_views_on_a_big_map_redraw_only_the_hovered_one() -> void:
 	assert_eq(canvas_draws[0], 0, "la vue Dessus n'est pas redessinée")
 	ed.queue_free()
 	await wait_frames(1)
+
+
+## Bug signalé (03/10/2026) : les séparateurs passaient par-dessus
+## l'inventaire (dessin, clic, curseur de redimensionnement). Ils restent
+## sous la bande de la barre rapide, la barre rapide et l'inventaire, dans
+## toutes les dispositions.
+func test_splitters_stay_under_the_inventory() -> void:
+	var ed := await _editor()
+	var lay := ed.views
+	ed.toggle_inventory()
+	await wait_frames(2)
+	assert_true(ed.inventory.visible, "inventaire ouvert")
+	for id in ["2h", "2v", "3a", "3b", "4"]:
+		lay.set_layout(id)
+		await wait_frames(2)
+		var inv := ed.inventory.get_index()
+		var covered := 0
+		for s in lay._splits:
+			var sp := s as Control
+			assert_true(sp.get_index() < inv and sp.get_index() < ed.hotbar_ui.get_index(), "%s : séparateur dessiné sous l'inventaire et la barre rapide" % id)
+			assert_true(sp.get_index() > lay.panes.map(func(p): return p.get_index()).max(), "%s : séparateur au-dessus des fenêtres" % id)
+			# Point du séparateur couvert par l'inventaire : la souris y trouve
+			# l'inventaire (clic, curseur), pas le séparateur.
+			var r := sp.get_global_rect().intersection(ed.inventory.get_global_rect())
+			if r.size.x > 0.0 and r.size.y > 0.0:
+				covered += 1
+				var over := _pick(ed, r.get_center())
+				assert_true(over != null and (over == ed.inventory or ed.inventory.is_ancestor_of(over)), "%s : sous la souris, l'inventaire et non le séparateur (%s)" % [id, over])
+			# Hors de l'inventaire, le séparateur reste attrapable.
+			var out := sp.global_position + Vector2(2, 2)
+			if not ed.inventory.get_global_rect().has_point(out):
+				assert_true(_pick(ed, out) == sp, "%s : séparateur attrapable hors de l'inventaire (%s)" % [id, _pick(ed, out)])
+		assert_true(covered > 0, "%s : un séparateur passe sous l'inventaire" % id)
+	ed.queue_free()
+	await wait_frames(1)
+
+
+## Contrôle qui reçoit la souris au point `gp` (écran) : même parcours que le
+## Viewport de Godot (enfants du dernier dessiné au premier, contrôles qui
+## laissent passer la souris ignorés, clip_contents respecté).
+func _pick(c: Control, gp: Vector2) -> Control:
+	if not c.visible:
+		return null
+	var lp := c.get_global_transform().affine_inverse() * gp
+	var inside := Rect2(Vector2.ZERO, c.size).has_point(lp)
+	if c.clip_contents and not inside:
+		return null
+	for i in range(c.get_child_count() - 1, -1, -1):
+		var ch := c.get_child(i) as Control
+		if ch == null or ch.top_level:
+			continue
+		var hit := _pick(ch, gp)
+		if hit != null:
+			return hit
+	if c.mouse_filter != Control.MOUSE_FILTER_IGNORE and inside:
+		return c
+	return null

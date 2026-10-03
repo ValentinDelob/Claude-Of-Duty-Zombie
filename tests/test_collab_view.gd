@@ -8,6 +8,20 @@ extends TestCase
 ## AUTOTEST_PORT_OFFSET).
 
 const BASE := 17880
+const TMP := "res://tests/_out/test_collab_view"
+
+
+## Dossier des cartes et réglages (_editeur.cfg) propres au test : jamais ceux
+## du joueur (sa disposition des vues changeait les fenêtres attendues).
+func before_each() -> void:
+	EditorMap.root_override = ProjectSettings.globalize_path(TMP + "/maps")
+	var cfg := EditorMap.maps_root().path_join("_editeur.cfg")
+	if FileAccess.file_exists(cfg):
+		DirAccess.remove_absolute(cfg)
+
+
+func after_each() -> void:
+	EditorMap.root_override = ""
 
 
 func _port(i: int) -> int:

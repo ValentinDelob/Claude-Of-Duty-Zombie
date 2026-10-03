@@ -2066,6 +2066,43 @@
     "en": "Map editor: side views, ViewCube and layouts",
     "fr": "Éditeur de cartes : vues de côté, ViewCube et dispositions"
    }
+  },
+  "v0.2.1-snapshot.399": {
+   "channel": "snapshot",
+   "date": "2026-10-03",
+   "images": [
+    "v0.2.1-snapshot.399/01_effet_dans_sa_boite.jpg"
+   ],
+   "items": [
+    {
+     "en": "Every effect now stays fully inside its box: sparks no longer fall out of the bottom. The box is the same in the game, the 3D preview, the side views and when clicking.",
+     "fr": "Chaque effet reste maintenant entièrement dans sa boîte : les étincelles ne passent plus dessous. La boîte est la même dans le jeu, l'aperçu 3D, les vues de côté et au clic."
+    },
+    {
+     "en": "Falling effects (spark shower, cable, drips, welding, short circuit, water trickle) get a box that reaches the floor.",
+     "fr": "Les effets qui tombent (pluie d'étincelles, câble, gouttes, soudure, court-circuit, filet d'eau) ont une boîte qui descend jusqu'au sol."
+    },
+    {
+     "en": "Existing maps are converted when opened and keep their effects exactly as they were.",
+     "fr": "Les cartes existantes sont converties à l'ouverture et gardent exactement leurs effets."
+    },
+    {
+     "en": "The handles that resize the windows now sit under the inventory.",
+     "fr": "Les poignées qui redimensionnent les fenêtres passent sous l'inventaire."
+    },
+    {
+     "en": "The orientation cube no longer changes the zoom of the other windows; clicking an edge or a corner switches the window to 3D.",
+     "fr": "Le cube d'orientation ne change plus le zoom des autres fenêtres ; cliquer une arête ou un coin passe la fenêtre en 3D."
+    },
+    {
+     "en": "No more menu music or sounds in the editor; the music comes back when you return to the menu.",
+     "fr": "Plus de musique ni de son du menu dans l'éditeur ; la musique revient au retour au menu."
+    }
+   ],
+   "title": {
+    "en": "Editor: effects neatly kept in their box, and three fixes",
+    "fr": "Éditeur : effets bien rangés dans leur boîte, et trois corrections"
+   }
   }
  }
 }

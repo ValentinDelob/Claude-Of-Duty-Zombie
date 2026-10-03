@@ -286,7 +286,7 @@ func test_format_12_round_trip_and_older_maps() -> void:
 	var dir := ProjectSettings.globalize_path(TMP + "/f12")
 	assert_eq(doc.save_dir(dir), OK)
 	var carte: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("carte.json")))
-	assert_eq(int(carte.format), 12, "carte enregistrée au format 12")
+	assert_eq(int(carte.format), EditorMap.FORMAT, "carte enregistrée au format courant (12 et plus)")
 	var back := EditorMap.load_dir(dir)
 	assert_true(back.same_as(EditorMap.from_texts(doc.file_texts())), "relue à l'identique")
 	assert_near(float(back.find("d2").z), 1.5, 0.001)

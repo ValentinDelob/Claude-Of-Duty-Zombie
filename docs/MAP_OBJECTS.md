@@ -909,20 +909,20 @@ Zone (m) : défaut, puis bornes min – max ; « l » largeur, « p » profondeu
 | Flammes | `petit_feu` : Petit feu / Small fire | sol | 0,6 × 0,6 (l, p : 0,3 – 3) | bûches |
 | | `brasier` : Grand feu / Bonfire | sol | 1,2 × 1,2 (0,6 – 4) | foyer de pierres |
 | | `baril_feu` : Flammes de baril / Barrel flames (0,9 m de haut) | sol | 0,6 × 0,6 (0,3 – 1,5) | — (un baril) |
-| | `torche` : Flamme de torche / Torch flame | mur, 1,8 m | l 0,3 (0,2 – 0,6), h 0,4 (0,3 – 0,8) | torche murale |
+| | `torche` : Flamme de torche / Torch flame | mur, 2,25 m | l 0,3 (0,2 – 0,6), h 0,6 (0,3 – 0,8) | torche murale (0,45 m plus bas) |
 | | `incendie` : Incendie / Blaze | sol | 3 × 2 (1 – 12) | planches calcinées |
-| Fumées | `fumee_legere` : Fumée légère / Light smoke (teinte) | sol | 1 × 1 (0,5 – 20) | — |
-| | `fumee_noire` : Fumée noire épaisse / Thick black smoke | sol | 1,5 × 1,5 (0,5 – 20) | — |
-| | `vapeur` : Jet de vapeur / Steam jet | mur, 1,2 m | l 0,3 (0,2 – 4), h 0,3 (0,2 – 2) | tuyau à vapeur |
+| Fumées | `fumee_legere` : Fumée légère / Light smoke (teinte) | sol | 2 × 2 (0,5 – 20) | — |
+| | `fumee_noire` : Fumée noire épaisse / Thick black smoke | sol | 2,5 × 2,5 (0,5 – 20) | — |
+| | `vapeur` : Jet de vapeur / Steam jet | mur, 1,2 m | l 0,6 (0,2 – 4), h 0,6 (0,2 – 2) | tuyau à vapeur |
 | | `brouillard` : Brouillard au sol / Ground fog (teinte) | sol | 4 × 4 × 0,6 (l, p : 2 – 40 ; h : 0,3 – 3) | — |
-| Étincelles | `pluie_etincelles` : Pluie d'étincelles / Spark shower | plafond | 0,5 × 0,5 (0,3 – 6) | câble suspendu |
-| | `soudure` : Gerbe de soudure / Welding sparks | mur, 1,3 m | l 0,4 (0,2 – 3), h 0,4 (0,2 – 2) | — |
-| | `court_circuit` : Court-circuit / Short circuit | mur, 1,6 m | l 0,4 (0,2 – 2), h 0,5 (0,2 – 2) | boîtier électrique ouvert |
-| Électricité | `arc` : Arc électrique / Electric arc (teinte) | sol, 1 m | 1,5 × 0,4 (l : 0,5 – 6 ; p : 0,2 – 2) | électrodes |
-| | `tesla` : Arcs en boule / Arc burst (teinte) | sol, 1,4 m | 2,4 × 2,4 (0,6 – 6) | bobine Tesla |
-| | `cable_nu` : Étincelles de câble / Cable sparks (teinte) | plafond | 0,5 × 0,5 (0,3 – 3) | câble suspendu |
+| Étincelles | `pluie_etincelles` : Pluie d'étincelles / Spark shower | plafond | 1,5 × 1,5 (0,3 – 6) | câble suspendu |
+| | `soudure` : Gerbe de soudure / Welding sparks | mur, 1,3 m | l 1 (0,2 – 3), h 0,4 (0,2 – 2) | — |
+| | `court_circuit` : Court-circuit / Short circuit | mur, 1,6 m | l 0,8 (0,2 – 2), h 0,5 (0,2 – 2) | boîtier électrique ouvert |
+| Électricité | `arc` : Arc électrique / Electric arc (teinte) | sol, 0,7 m (arc à 1 m) | 1,5 × 0,4 (l : 0,5 – 6 ; p : 0,2 – 2) | électrodes |
+| | `tesla` : Arcs en boule / Arc burst (teinte) | sol, 0,6 m (boule à 1,4 m) | 2,4 × 2,4 (0,6 – 6) | bobine Tesla |
+| | `cable_nu` : Étincelles de câble / Cable sparks (teinte) | plafond | 1 × 1 (0,3 – 3) | câble suspendu |
 | Eau | `goutte` : Goutte-à-goutte / Dripping water | plafond | 0,5 × 0,5 (0,3 – 6) | petite flaque |
-| | `fuite` : Filet d'eau / Water stream | mur, 2 m | l 0,3 (0,1 – 3), h 0,2 (0,1 – 1) | tuyau qui fuit, petite flaque |
+| | `fuite` : Filet d'eau / Water stream | mur, 2 m | l 0,3 (0,1 – 3), h 0,4 (0,1 – 1) | tuyau qui fuit, petite flaque |
 | | `flaque` : Ronds dans l'eau / Water ripples | sol | 1,5 × 1 (0,5 – 10) | flaque d'eau |
 | Ambiance | `poussiere` : Poussière en suspension / Floating dust | sol | 3 × 3 × 2 (l, p : 1 – 30 ; h : 0,5 – 8) | — |
 | | `braises` : Braises flottantes / Floating embers | sol | 2 × 2 (0,5 – 20) | — |
@@ -971,6 +971,40 @@ Lumières : portée selon la zone (× 0,7 à × 2,5, 20 m au plus), 1 à 3 pour 
 incendie selon sa longueur ; budget de 16 par carte inchangé. La flamme de
 torche reste petite : sa zone règle seulement la largeur et la hauteur de
 la flamme.
+
+### Volume : l'effet reste dans sa boîte
+
+Chaque effet a un **volume** (`MapCatalog.effect_volume`, seule source de
+vérité) : la zone au sol, de la hauteur de pose vers le haut (hauteur `h` de
+la zone, sinon `vol` du catalogue : 0,15 m pour les ronds dans l'eau, 1,5 m
+pour un petit feu, 3,5 m pour la fumée noire..., jamais au-dessus du
+plafond ; `"plafond"` : jusqu'au plafond, cendres) ; au plafond, du plafond
+vers le bas (`"sol"` : jusqu'au sol, pluie d'étincelles, câble, gouttes) ;
+au mur, largeur × hauteur de la zone centrées sur la hauteur, portée
+(`reach`) vers la pièce (`"sol"` : jusqu'au sol, soudure, court-circuit,
+filet d'eau). C'est la boîte dessinée par l'éditeur (aperçu 3D, élévations,
+clic : `MapVertical.effect_span`) et le jeu y garde **tout** ce que l'effet
+affiche (`MapEffects.Builder.contain`) : émission, vitesse, gravité,
+amortissement, turbulence (vitesse bornée), rebonds, taille des particules
+(`MapEffects.part_reach`, trajectoires simulées comme le shader de Godot),
+bouts et largeur des arcs, source des lumières (leur éclairage porte
+au-delà). Une couche qui déborderait est resserrée : émission d'abord, puis
+mouvement (même trajectoire en plus petit), puis taille. Le sol sous un
+volume qui y descend (et le dessus d'un baril, `appui`) et le mur derrière
+un effet mural cachent ce qui passe au-delà ; le sol de collision des
+étincelles et des gouttes est le bas du volume. Tests :
+`tests/test_map_effect_volume.gd` ; captures : `sh tools/scenario.sh
+map_effects_box_look` (hors check).
+
+Format 13 (`EditorMap._migrate`, `MapCatalog.migrate_effect_13`) : une carte
+au format 12 ou moins est convertie au chargement, chaque effet garde sa
+taille et sa place. Sans `zone`, un effet dont la zone par défaut a grandi
+reçoit l'ancienne (`EFFECT_ZONE_12` ; `taille` d'une carte au format 10 et
+moins : ancienne zone × taille) ; une `hauteur` écrite est décalée de
+`EFFECT_SHIFT_13` (flamme de torche + 0,45 m : elle est posée 0,45 m
+au-dessus de sa torche, clé `ancre`, et bornée comme elle sous un plafond
+bas ; arc − 0,3 m ; bobine Tesla − 0,8 m). Les portées (`reach`) sont les
+nouvelles. Les fichiers ne sont réécrits qu'à l'enregistrement.
 
 ### Décors des effets (onglet Décor, format 11)
 

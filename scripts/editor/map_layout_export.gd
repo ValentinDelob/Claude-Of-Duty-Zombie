@@ -718,14 +718,9 @@ func _effects() -> void:
 		var c: Vector2 = fx.center
 		var cell := Vector2i(floori(c.x / MapGeom.CELL), floori(c.y / MapGeom.CELL))
 		var room_h: float = float(ceil_at(k, cell)[0]) - float(md.floors[k].sol)
-		var y := float(fx.y)
-		match String(fx.mount):
-			"plafond":
-				# Format 12 : descente sous le plafond.
-				y = room_h - 0.02 - float(fx.get("descente", 0.0))
-			"mur":
-				# Toujours sous le plafond de la pièce.
-				y = clampf(y, 0.05, maxf(0.05, room_h - 0.2))
+		# Au plafond : descente sous le plafond (format 12) ; mural : toujours
+		# sous le plafond de la pièce (les mêmes que l'éditeur, MapVertical).
+		var y := MapVertical.effect_ground(String(fx.mount), float(fx.y), float(fx.get("descente", 0.0)), room_h, MapCatalog.effect_anchor(String(fx.effet)))
 		var z: Vector3 = fx.zone
 		var e := {"fx": String(fx.effet), "p": _v3(_world(k, c, y)), "yaw": _r(float(fx.yaw)), "ground": _r(maxf(0.0, y)),
 			"room_h": _r(room_h), "intensity": _r(float(fx.intensity)), "zone": [_r(z.x), _r(z.y), _r(z.z)], "eid": String(fx.eid)}

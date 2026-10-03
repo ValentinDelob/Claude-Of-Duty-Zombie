@@ -718,20 +718,11 @@ func element_shape(e: Dictionary) -> Dictionary:
 					y0 = sol + b + 0.02
 					y1 = sol + b + 1.4
 		elif t == "effet":
-			# Effet (format 10) : autour de sa hauteur (plafond, mur, surélevé) ;
-			# format 11 : hauteur de sa zone (volume, effet mural).
-			var z := MapCatalog.effect_zone(e)
-			match MapCatalog.effect_mount(e):
-				"plafond":
-					var dz := MapVertical.descente(e)
-					y0 = sol + h - dz - 0.8
-					y1 = sol + h - dz
-				"mur":
-					y0 = sol + MapCatalog.effect_height(e) - z.z * 0.5 - 0.2
-					y1 = sol + MapCatalog.effect_height(e) + z.z * 0.5 + 0.4
-				_:
-					y0 = sol + MapCatalog.effect_height(e) + 0.02
-					y1 = y0 + maxf(1.2, z.z + 0.3)
+			# Le VOLUME de l'effet (MapCatalog.effect_volume), là où le jeu
+			# contient tout ce qu'il affiche (étincelles qui tombent comprises).
+			var sp := effect_span(e, data, h)
+			y0 = sol + sp.x
+			y1 = sol + sp.y
 		elif t == "prefab" and MapCatalog.light_mount(e) == "mur":
 			# Format 11 : décor mural (torche, tuyau, boîtier) à sa hauteur.
 			y0 = sol + MapCatalog.wall_light_height(e) - 0.3
@@ -749,6 +740,19 @@ func element_shape(e: Dictionary) -> Dictionary:
 		elif t == "piege":
 			y1 = sol + 0.25
 	return {"poly": poly, "y0": y0, "y1": y1, "floor": k}
+
+
+## Boîte d'un effet en hauteur (m au-dessus du sol de son étage) : son volume
+## (MapVertical.effect_span) sous le plafond réel lu dans la description
+## construite (`d`, clé « effects » : room_h de l'export) ; à défaut, la
+## hauteur `h` de l'étage.
+static func effect_span(e: Dictionary, d: Dictionary, h: float) -> Vector2:
+	var rh := h
+	for fx in d.get("effects", []):
+		if fx is Dictionary and String(fx.get("eid", "")) == String(e.get("id", "")):
+			rh = float(fx.get("room_h", h))
+			break
+	return MapVertical.effect_span(e, rh)
 
 
 ## Centre (monde) et rayon d'un élément, pour y centrer la caméra.

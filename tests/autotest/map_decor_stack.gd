@@ -58,7 +58,7 @@ func run() -> void:
 	at.check(ed.save(), "carte enregistrée")
 	var dir := ed.map_dir
 	var carte = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("carte.json")))
-	at.check(carte is Dictionary and int(carte.get("format", 0)) == 12, "format 12")
+	at.check(carte is Dictionary and int(carte.get("format", 0)) == EditorMap.FORMAT and EditorMap.FORMAT >= 12, "format courant, 12 et plus")
 	ed.new_map(true)
 	ed.open_dir(dir)
 	await frames(2)

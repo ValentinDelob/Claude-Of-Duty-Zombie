@@ -136,6 +136,11 @@ func _ready() -> void:
 			_cli_check(a.substr(8))
 			return
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Aucune musique dans l'éditeur : celle du menu principal (ou de la partie
+	# lancée par TESTER) est coupée net, ainsi que les sons du menu encore en
+	# cours ; le menu la relance à son retour.
+	Audio.cut_music()
+	Audio.stop_sounds("menu_")
 	if GameState.state != GameState.State.MAIN_MENU:
 		GameState.reset_to_menu()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

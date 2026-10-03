@@ -18,6 +18,9 @@ var _next_2d := 0
 var _music: AudioStreamPlayer
 var _music_b: AudioStreamPlayer
 var _music_name := ""
+## Fondu en cours de chaque lecteur de musique (lecteur -> Tween) : un
+## lecteur relancé perd le fondu de sortie qui allait l'arrêter.
+var _fades: Dictionary = {}
 ## Limite le nombre de lectures simultanées d'un même son (ex. 20 zombies qui grognent).
 var _recent: Dictionary = {}
 var _shutdown := false
@@ -227,6 +230,7 @@ func play_music(sound: String, volume_db := 0.0, fade := 2.0) -> void:
 	_music_b = old
 	if old.playing:
 		var tw_out := create_tween()
+		_set_fade(old, tw_out)
 		tw_out.tween_property(old, "volume_db", -60.0, fade)
 		tw_out.tween_callback(old.stop)
 	if sound == "":
@@ -237,11 +241,54 @@ func play_music(sound: String, volume_db := 0.0, fade := 2.0) -> void:
 	_music.stream = st
 	_music.volume_db = -60.0
 	_music.play()
-	create_tween().tween_property(_music, "volume_db", volume_db, fade)
+	var tw_in := create_tween()
+	_set_fade(_music, tw_in)
+	tw_in.tween_property(_music, "volume_db", volume_db, fade)
 
 
 func stop_music(fade := 1.5) -> void:
 	play_music("", 0.0, fade)
+
+
+## Fondu `tw` du lecteur `p` : celui qu'il avait est arrêté (sans quoi un fondu
+## de sortie encore en cours couperait la musique que l'on vient d'y relancer).
+func _set_fade(p: AudioStreamPlayer, tw: Tween) -> void:
+	var prev: Tween = _fades.get(p)
+	if prev != null and prev.is_valid():
+		prev.kill()
+	_fades[p] = tw
+
+
+## Coupe la musique tout de suite, sans fondu (entrée dans l'éditeur de
+## cartes : aucune musique n'y est jouée) ; la prochaine play_music la
+## relance normalement (retour au menu principal).
+func cut_music() -> void:
+	for t: Tween in _fades.values():
+		if t.is_valid():
+			t.kill()
+	_fades.clear()
+	for m in [_music, _music_b]:
+		m.stop()
+		m.stream = null
+	_music_name = ""
+
+
+## Arrête les sons 2D en cours dont le nom commence par `prefix` (ex.
+## « menu_ » : râle de la silhouette, souffle des transitions du menu).
+func stop_sounds(prefix: String) -> void:
+	for p in _pool_2d:
+		if p.playing and p.stream != null and p.stream.resource_path.get_file().begins_with(prefix):
+			p.stop()
+
+
+## Musique en cours ("" : aucune).
+func music_name() -> String:
+	return _music_name
+
+
+## Un lecteur de musique joue-t-il encore (fondu de sortie compris) ?
+func music_playing() -> bool:
+	return _music.playing or _music_b.playing
 
 
 ## Coupe immédiatement tous les sons (sortie du jeu, fin d'autotest) et

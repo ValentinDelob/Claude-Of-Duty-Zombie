@@ -357,7 +357,10 @@ l'effet puis au budget de la carte ; ses lumières portent plus loin.
 Autres propriétés : intensité, hauteur de pose, couleur (effets qui se
 teintent : fumée légère, brouillard, électricité, feux follets). 64 effets
 au plus par carte. L'aperçu 3D montre l'effet animé, choisi : sa zone
-surlignée. Détails, budget de particules et format : `docs/MAP_OBJECTS.md` §
+surlignée : la boîte de son VOLUME (format 13), où tout ce qu'il affiche
+reste (étincelles et gouttes jusqu'au sol compris) ; une carte au format 12
+ou moins est convertie au chargement (même taille, même place). Détails,
+budget de particules et format : `docs/MAP_OBJECTS.md` §
 12.
 
 ### Décor (prefabs) et luminaires

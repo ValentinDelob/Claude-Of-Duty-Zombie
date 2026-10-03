@@ -28,6 +28,20 @@ var body: Node3D
 ## Zone de l'effet (m) : largeur (x), profondeur (z ; effet mural : sa portée
 ## dans la pièce), hauteur (volume ; effet mural : étendue verticale).
 var zone := Vector3.ONE
+## VOLUME de l'effet (repère du corps, MapCatalog.effect_volume) : tout ce
+## qu'il affiche y reste (MapEffects.Builder.contain) ; c'est aussi la boîte
+## dessinée dans l'éditeur.
+var volume := AABB(Vector3(-0.5, 0.0, -0.5), Vector3.ONE)
+## Sol sous l'effet (y, repère du corps) quand le bas du volume est le sol :
+## rien n'est visible dessous ; NAN : le volume ne descend pas jusqu'au sol.
+var floor_y := NAN
+## Sol de collision des particules (étincelles, gouttes) au bas du volume.
+var collider := false
+## Effet mural : le mur au fond du volume (z, repère du corps) ; il cache ce
+## qui passe derrière lui. NAN : pas de mur.
+var wall_z := NAN
+## Plus grande largeur d'un arc par rapport à sa largeur de base (tirage).
+const ARC_W_MAX := 1.25
 
 var parts: Array[GPUParticles3D] = []
 ## Particules qui émettent en continu (mise en pause loin de la caméra).
@@ -270,6 +284,15 @@ func _aim_arc(i: int) -> void:
 		if dir.length_squared() < 0.01:
 			dir = Vector3.UP
 		b = a + dir.normalized() * _rng.randf_range(_arc_b[i].x, _arc_b[i].y)
+	# Les deux bouts restent dans le volume, à une demi-largeur d'arc du bord.
+	# La largeur ne s'étend qu'en travers de l'arc : marge par axe selon sa
+	# direction, recalculée après chaque resserrement (au plus large des deux).
+	var box := volume
+	for n in 3:
+		var dv := b - a
+		box = box.intersection(arc_bounds(_arc_w[i], dv.normalized() if dv.length() > 0.001 else Vector3.ZERO))
+		a = a.clamp(box.position, box.end)
+		b = b.clamp(box.position, box.end)
 	var axis := b - a
 	var span := maxf(axis.length(), 0.01)
 	var y := axis / span
@@ -284,10 +307,32 @@ func _aim_arc(i: int) -> void:
 		x = y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT)
 	x = x.normalized()
 	var z := x.cross(y)
-	var w := _arc_w[i] * _rng.randf_range(0.7, 1.25)
-	mi.transform = Transform3D(Basis(x * w, y * span * _rng.randf_range(1.0, 1.12), z), (a + b) * 0.5)
+	var w := _arc_w[i] * _rng.randf_range(0.7, ARC_W_MAX)
+	mi.transform = Transform3D(Basis(x * w, y * span, z), (a + b) * 0.5)
 	if not arc_mats.is_empty():
 		mi.material_override = arc_mats[_rng.randi() % arc_mats.size()]
+
+
+## Étendue visible de la couche de particules `p` (MapEffects.part_reach,
+## avec le sol et le mur de l'effet) ; `fine` : simulation au pas d'une image.
+func part_reach(p: GPUParticles3D, fine := false) -> AABB:
+	return MapEffects.part_reach(p, floor_y, fine, wall_z)
+
+
+## Boîte où restent les bouts d'un arc de largeur `w` et de direction `dir`
+## (unitaire ; zéro : toutes) : le volume moins une demi-largeur d'arc (au
+## plus large) en travers de l'arc ; un axe trop court : son milieu.
+func arc_bounds(w: float, dir := Vector3.ZERO) -> AABB:
+	var m := Vector3.ONE * w * ARC_W_MAX * 0.5
+	for k in 3:
+		m[k] *= sqrt(maxf(0.0, 1.0 - dir[k] * dir[k]))
+	var lo := volume.position + m
+	var hi := volume.end - m
+	for k in 3:
+		if lo[k] > hi[k]:
+			lo[k] = (volume.position[k] + volume.end[k]) * 0.5
+			hi[k] = lo[k]
+	return AABB(lo, hi - lo)
 
 
 ## Pause loin de la caméra (rien n'est émis ni éclairé), reprise en approchant.

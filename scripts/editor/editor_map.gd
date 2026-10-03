@@ -86,7 +86,14 @@ extends RefCounted
 ##      plafond (m sous le plafond ; sinon : `drop` du catalogue ou 0).
 ##      Jamais écrites à leur valeur par défaut (MapVertical.tidy). Aucune
 ##      conversion : une carte au format 11 ou moins se lit telle quelle.
-const FORMAT := 12
+##  13  VOLUME des effets (docs/MAP_OBJECTS.md § 12, MapCatalog.effect_volume) :
+##      tout ce qu'un effet affiche reste dans sa boîte, celle que dessine
+##      l'éditeur. Zones par défaut agrandies (fumées, vapeur, étincelles,
+##      câble, filet d'eau, torche) et hauteurs par défaut changées (torche,
+##      arc, bobine Tesla : la hauteur est le bas ou le milieu du volume). Une
+##      carte d'un format plus ancien est CONVERTIE au chargement (_migrate,
+##      MapCatalog.migrate_effect_13) : chaque effet garde sa taille et sa place.
+const FORMAT := 13
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -495,6 +502,13 @@ func _migrate(from: int) -> void:
 		# Format 11 -> 12 : rien à convertir (sans « z », « descente » ni
 		# « hauteur » au sol : les hauteurs d'avant).
 		pass
+	if from < 13:
+		# Format 12 -> 13 : volume des effets. Chaque effet garde sa taille
+		# (zone par défaut d'avant écrite, « taille » d'avant convertie) et sa
+		# place (« hauteur » écrite décalée) : MapCatalog.migrate_effect_13.
+		for o in objets:
+			if o is Dictionary:
+				MapCatalog.migrate_effect_13(o)
 
 
 ## Format 11 : décor de chaque effet d'avant (MapCatalog.split_legacy_effect),

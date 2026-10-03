@@ -109,23 +109,24 @@ func test_every_effect_is_pure_without_any_mesh_or_collision() -> void:
 
 
 func test_particle_density_follows_the_zone_up_to_the_cap() -> void:
-	# Brouillard : 4 × 4 m par défaut ; 8 × 8 m : 4 fois plus de particules,
-	# même taille de particule, boîte d'émission 2 fois plus large.
-	var a := MapEffects.build("brouillard", {"zone": [4.0, 4.0, 0.6]})
-	var b := MapEffects.build("brouillard", {"zone": [8.0, 8.0, 0.6]})
+	# Brouillard : 6 × 6 m puis 12 × 12 m : 4 fois plus de particules,
+	# même taille de particule (assez de place dans les deux volumes), boîte
+	# d'émission plus de 2 fois plus large.
+	var a := MapEffects.build("brouillard", {"zone": [6.0, 6.0, 0.6]})
+	var b := MapEffects.build("brouillard", {"zone": [12.0, 12.0, 0.6]})
 	assert_near(float(b.particle_count()) / a.particle_count(), 4.0, 0.3, "densité constante (%d -> %d)" % [a.particle_count(), b.particle_count()])
 	var pa := a.parts[0].process_material as ParticleProcessMaterial
 	var pb := b.parts[0].process_material as ParticleProcessMaterial
 	assert_near(pb.scale_min, pa.scale_min, 0.001, "particules de même taille")
-	assert_true(pb.emission_box_extents.x > pa.emission_box_extents.x * 1.8, "émission sur toute la zone")
-	assert_true(b.parts[0].visibility_aabb.size.x >= 8.0, "boîte de visibilité de la zone")
+	assert_true(pb.emission_box_extents.x > pa.emission_box_extents.x * 2.0, "émission sur toute la zone")
+	assert_true(b.parts[0].visibility_aabb.size.x >= 12.0, "boîte de visibilité : le volume")
 	# Plafond de l'effet : 40 × 40 m, au plus « cap » particules ; la nappe
 	# grossit un peu pour rester couvrante.
 	var c := MapEffects.build("brouillard", {"zone": [40.0, 40.0, 0.6]})
 	assert_true(c.particle_count() <= int(MapCatalog.EFFECTS.brouillard.cap), "plafond de l'effet (%d)" % c.particle_count())
 	assert_true((c.parts[0].process_material as ParticleProcessMaterial).scale_min > pa.scale_min, "nappe plus large au plafond")
 	# Intensité : × 2 particules.
-	var d := MapEffects.build("brouillard", {"zone": [4.0, 4.0, 0.6], "intensity": 2.0})
+	var d := MapEffects.build("brouillard", {"zone": [6.0, 6.0, 0.6], "intensity": 2.0})
 	assert_near(float(d.particle_count()) / a.particle_count(), 2.0, 0.2, "intensité 2 : deux fois plus")
 	# Poussière : volume (hauteur de zone comprise).
 	var e1 := MapEffects.build("poussiere", {"zone": [3.0, 3.0, 2.0]})
@@ -222,7 +223,7 @@ func test_zone_handles_resize_with_bounds_and_rotation() -> void:
 	var wh := MapTransform.effect_handles(steam)
 	assert_eq(wh.size(), 2, "effet mural : 2 poignées")
 	var ws := MapTransform.effect_resized(steam, 1, wh[1] + (wh[1] - wh[0]).normalized() * 1.7 + Vector2(0, 0.4))
-	assert_near(MapCatalog.effect_zone(ws).x, 2.0, 0.001, "jet de vapeur large de 2 m")
+	assert_near(MapCatalog.effect_zone(ws).x, MapCatalog.effect_default_zone("vapeur").x + 1.7, 0.001, "jet de vapeur élargi de 1,7 m")
 	assert_true(MapTransform.effect_handles(ws)[0].distance_to(wh[0]) < 0.001, "l'autre bout reste fixe")
 	assert_near(float(ws.position[1]), 0.0, 0.001, "toujours sur le trait du mur")
 	assert_true(MapRules.check_existing(doc, ws).ok, "toujours contre le mur")
@@ -242,7 +243,8 @@ func test_zone_settings_are_tidied_and_old_size_converted() -> void:
 	var o := {"type": "effet", "effet": "fumee_legere", "position": [3, 3], "taille": 2.0}
 	MapCatalog.tidy_effect(o)
 	assert_false(o.has("taille"), "« taille » d'avant retirée")
-	assert_eq(o.zone, [2.0, 2.0], "taille 2 : zone par défaut × 2")
+	var dz := MapCatalog.effect_default_zone("fumee_legere") * 2.0
+	assert_eq(o.zone, [dz.x, dz.y], "taille 2 : zone par défaut × 2")
 	var w := {"type": "effet", "effet": "torche", "position": [3, 0], "mur": "n", "taille": 2.5, "rot": 90}
 	MapCatalog.tidy_effect(w)
 	assert_eq(w.zone, [0.6, 0.8], "torche : bornée à 0,6 × 0,8 m")
@@ -443,8 +445,8 @@ func test_effect_settings_round_trip_and_export() -> void:
 	assert_false(by.feux_follets.has("scale"), "plus de taille")
 	assert_eq(by.petit_feu.zone, [0.6, 0.6, 0.0], "zone par défaut exportée")
 	assert_false(by.petit_feu.has("color"), "le feu ne se teint pas")
-	assert_near(float(by.torche.p[1]), 1.8, 0.01, "flamme de torche à 1,8 m")
-	assert_eq(by.torche.zone, [0.3, 0.5, 0.4], "zone murale : largeur, portée, hauteur")
+	assert_near(float(by.torche.p[1]), 2.25, 0.01, "flamme de torche à 2,25 m (volume centré sur sa hauteur)")
+	assert_eq(by.torche.zone, [0.3, 0.5, 0.6], "zone murale : largeur, portée, hauteur")
 	assert_near(float(by.pluie_etincelles.p[1]), float(by.pluie_etincelles.room_h) - 0.02, 0.01, "pluie d'étincelles sous le plafond")
 	assert_near(float(by.pluie_etincelles.ground), float(by.pluie_etincelles.p[1]), 0.01, "distance au sol")
 	assert_near(float(by.incendie.yaw), -PI * 0.5, 0.001, "incendie tourné")
