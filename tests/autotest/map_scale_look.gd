@@ -3,6 +3,8 @@ extends AutotestScenario
 ## docs/EDITOR_SCALE_ROTATE.md, maquette docs/editor_scale_rotate_mockup).
 ## @niveau perf : hors check par défaut (captures d'un ajout en cours) ;
 ## lancer avec SCENARIOS="map_scale_look" JOBS=1 GUI_JOBS=1 bash tools/check.sh.
+## Éditeur : panneau Propriétés (Échelle, Rotation) d'une pile × 1,5, d'une
+## poutre inclinée et d'un prefab qui contient un Pack-a-Punch.
 ## En jeu (TESTER) : pile de caisses × 1,5 et poutre inclinée de 30°, vues
 ## par le joueur. Captures : tests/_out/shots/map_scale_look_*.png.
 
@@ -22,6 +24,7 @@ func run() -> void:
 	ed = tree().current_scene
 	await frames(3)
 	ed.new_map(true)
+	await _shot_panel()
 	ed._reset(game_map())
 	await frames(3)
 	await _game_shots()
@@ -73,3 +76,64 @@ func _clean(dir: String) -> void:
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))
 	DirAccess.remove_absolute(dir)
+
+
+# ------------------------------------------------------------------ éditeur (écrans de la maquette)
+
+const Scale := preload("res://tests/test_map_scale.gd")
+
+
+## Carte de l'éditeur des écrans : entrepôt haut (6,80 m), pile de caisses,
+## poutre tombée, prefab « Coin Pack-a-Punch ».
+static func editor_map() -> EditorMap:
+	var doc := Objects.objects_map()
+	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
+	doc.pieces[0]["plafond"] = 6.8
+	doc.find("s1")["position"] = [6.0, 8.5]
+	doc.prefabs["coin_pap"] = Scale.PAP_DEF.duplicate(true)
+	doc.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [10.0, 6.5]})
+	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "etage": 0, "position": [5.0, 3.5]})
+	doc.objets.append({"id": "d93", "type": "prefab", "prefab": "map:coin_pap", "etage": 0, "position": [19.0, 4.5]})
+	return doc
+
+
+func _editor_open(layout: String, planes: Array) -> void:
+	ed.new_map(true)
+	ed._reset(editor_map())
+	ed.doc.activate_prefabs()
+	ed.views.setup(layout, planes)
+	await frames(4)
+
+
+func _mouse(v: MapView, m: Vector2, press: int) -> void:
+	if press < 0:
+		var mm := InputEventMouseMotion.new()
+		mm.position = v.to_px(m)
+		v._gui_input(mm)
+		return
+	var mb := InputEventMouseButton.new()
+	mb.position = v.to_px(m)
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = press == 1
+	v._gui_input(mb)
+
+
+## Panneau Propriétés (étape 3) : pile × 1,5, poutre inclinée, prefab bloqué.
+func _shot_panel() -> void:
+	await _editor_open("2v", ["dessus", "avant"])
+	ed.canvas.zoom = 34.0
+	ed.canvas.origin = Vector2(40, 40)
+	var c := ed.doc.find("d90")
+	MapScale.set_scale(c, Vector3.ONE * 1.5)
+	var b := ed.doc.find("d91")
+	MapScale.set_incl(b, Vector2(0, 30))
+	ed.changed()
+	ed.select("d90")
+	await frames(4)
+	await at.screenshot("panneau_caisses")
+	ed.select("d91")
+	await frames(4)
+	await at.screenshot("panneau_poutre")
+	ed.select("d93")
+	await frames(4)
+	await at.screenshot("panneau_bloque")

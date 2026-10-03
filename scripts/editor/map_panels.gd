@@ -26,6 +26,8 @@ var _check_msgs: Array = []
 var _props_for := "?"
 ## Champs de la ligne « Position » de l'élément choisi : {X, Y, Z: cadre du champ}.
 var _pos_fields: Dictionary = {}
+## Format 14 : champs des sections Échelle et Rotation d'un décor (MapPanelsScale).
+var _scale_fields: Dictionary = {}
 ## Onglet Historique (docs/MAP_COLLAB.md § 4).
 var history: CollabHistory
 
@@ -499,8 +501,10 @@ func _opening_props(o: Dictionary) -> void:
 func _object_props(o: Dictionary) -> void:
 	var t := String(o.type)
 	var it := MapCatalog.item_for(o)
-	_title(_props, MapCatalog.name_of(it))
-	_position_row(o)
+	_title(_props, MapCatalog.name_of(it).to_upper() if t == "prefab" else MapCatalog.name_of(it))
+	_scale_fields = {}
+	if t != "prefab":
+		_position_row(o)
 	match t:
 		"atout":
 			var ids := PerkDB.PERKS.keys()
@@ -559,6 +563,9 @@ func _object_props(o: Dictionary) -> void:
 				ed.changed())
 			if t == "mur_courbe":
 				MapPanelsShape.arc_props(self, o)
+	if t == "prefab":
+		# Format 14 : sections Échelle, Rotation (X, Y, Z), Collision (MapPanelsScale).
+		return
 	if MapTransform.can_rotate(o) and not o.has("sommets"):
 		# Polygone (barrière invisible) : pas d'angle propre ; poignée ronde ou R.
 		MapPanelsShape.angle_row(self, o)
@@ -717,27 +724,21 @@ func _prefab_props(o: Dictionary) -> void:
 	# 11 : seulement ceux du même montage (au sol, au mur, au plafond).
 	var mount := MapCatalog.prefab_mount(String(o.get("prefab", "")))
 	var ids := MapCatalog.prefab_ids().filter(func(x): return MapCatalog.prefab_mount(String(x)) == mount)
-	_option(_props, Lang.t("Décor", "Prop"), ids.map(func(x): return MapCatalog.prefab_name(String(x))),
+	var is_map := MapPrefabLib.is_ref(o.get("prefab"))
+	# Prefab de la carte : « Prefab », son nom suivi de « (carte) » (maquette, écran 3).
+	_option(_props, Lang.t("Prefab", "Prefab") if is_map else Lang.t("Décor", "Prop"),
+		ids.map(func(x): return MapCatalog.prefab_name(String(x)) + (Lang.t(" (carte)", " (map)") if MapPrefabLib.is_ref(x) else "")),
 		ids.find(String(o.get("prefab", ""))), func(i): _swap_kind(o, "prefab", String(ids[i])))
-	if MapPrefabLib.is_ref(o.get("prefab")):
-		_note(_props, Lang.t("Prefab de la carte (inventaire, « Prefabs de la carte »).", "Map prefab (inventory, \"Map prefabs\")."))
 	var d := MapCatalog.def_of(o)
-	var block := MapCatalog.blocking(o)
+	# Maquette (format 14) : Décor, puis Position (sa note Z en bulle du champ Z).
+	_position_row(o)
 	if mount == "mur":
 		# Format 11 : décor mural, hauteur libre sur le mur (comme une applique).
 		_spin(_props, Lang.t("Hauteur", "Height"), MapCatalog.wall_light_height(o), MapCatalog.WALL_LIGHT_HEIGHT[0], MapCatalog.WALL_LIGHT_HEIGHT[1], 0.05,
 			func(v): MapCatalog.set_wall_light_height(o, v))
-		_note(_props, Lang.t("Contre le mur, n'importe où le long du mur ; hauteur au choix (toujours sous le plafond en jeu).",
-			"Against the wall, anywhere along it; any height (always below the ceiling in game)."))
-	else:
-		var n := MapCatalog.floor_size(o)
-		_note(_props, Lang.t("Rotation : %d° (R) · emprise %s × %s m", "Rotation: %d° (R) · footprint %s × %s m") % [int(o.get("rot", 0)), _m(n.x * 0.5), _m(n.y * 0.5)])
-		if mount == "plafond":
-			_note(_props, Lang.t("Accroché sous le plafond de la pièce.", "Hung under the room ceiling."))
-	_note(_props, {"solide": Lang.t("Bloque joueurs, zombies et balles.", "Blocks players, zombies and bullets."),
-		"barriere": Lang.t("Bloque joueurs et zombies ; les balles passent.", "Blocks players and zombies; bullets go through."),
-		"non": Lang.t("Décor : on marche dessus (aucune collision).", "Decoration: can be walked over (no collision).")}[block])
-	if float(d.get("support", 0.0)) > 0.0:
+	# Format 14 : Échelle, Rotation, Collision, Parties (docs/EDITOR_SCALE_ROTATE.md § 2.5).
+	MapPanelsScale.build(self, o)
+	if float(d.get("support", 0.0)) > 0.0 and MapScale.carries(o):
 		_note(_props, Lang.t("Une lampe de bureau ou des bougies peuvent être posées dessus.", "A desk lamp or candles can be placed on top."))
 
 
@@ -932,7 +933,11 @@ func _position_row(o: Dictionary) -> void:
 		var note := Lang.t("Z : hauteur au-dessus du sol de l'étage, de %s à %s m ici", "Z: height above the floor, %s to %s m here") % [_m(snappedf(b.x, 0.01)), _m(snappedf(b.y, 0.01))]
 		if not room.is_empty():
 			note += Lang.t(" (plafond de « %s »).", " (\"%s\" ceiling).") % String(room.get("nom", ""))
-		_note(_props, note)
+		if String(o.get("type", "")) == "prefab":
+			# Format 14 (maquette) : la note du décor est la bulle du champ Z.
+			(_pos_fields["Z"] as Control).tooltip_text = note
+		else:
+			_note(_props, note)
 	else:
 		var opt := OptionButton.new()
 		for k in ed.doc.floor_count():
@@ -1032,6 +1037,16 @@ func _apply_3d(oid: String, delta: Vector2, k: int, z: float) -> void:
 	else:
 		ed.canvas.show_refusal(res)
 		refresh()
+
+
+## Format 14 : pendant un geste d'échelle ou de rotation, les champs
+## Échelle et Rotation (et la position) suivent l'élément, bord jaune.
+func live_scale(on: bool) -> void:
+	var o := ed.doc.find(ed.selected)
+	if o.is_empty():
+		return
+	MapPanelsScale.live(self, o, on)
+	live_position(on)
 
 
 ## Pendant un glissement : les champs X, Y, Z suivent l'élément (bord jaune).
