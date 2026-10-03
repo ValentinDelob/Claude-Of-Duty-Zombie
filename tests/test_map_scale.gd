@@ -452,3 +452,32 @@ func test_scale_handle_geometry() -> void:
 	assert_true(MapGizmo.top_handles(_o("poutre", {"incl": [0, 30]})).all(func(h): return h.kind == "corner"))
 
 
+
+func test_rings_senses_and_rest() -> void:
+	assert_eq(MapGizmo.ring_axis("dessus"), 2)
+	assert_eq(MapGizmo.ring_axis("avant"), 1)
+	assert_eq(MapGizmo.ring_axis("droite"), 0)
+	assert_eq(MapGizmo.screen_sign("arriere"), -1.0)
+	assert_eq(MapGizmo.screen_sign("gauche"), -1.0)
+	# Crans de 15° ; libre au degré.
+	var c := Vector2(100, 100)
+	assert_eq(MapGizmo.ring_angle(c, 0.0, c + Vector2(cos(deg_to_rad(37.0)), sin(deg_to_rad(37.0))) * 50.0, false), 30.0)
+	assert_eq(MapGizmo.ring_angle(c, 0.0, c + Vector2(cos(deg_to_rad(37.0)), sin(deg_to_rad(37.0))) * 50.0, true), 37.0)
+	# Anneau Y de +30 : poutre inclinée, point le plus bas au sol (Rester posé).
+	var o := _o("poutre")
+	var t := MapGizmo.rotated(o, 1, 30.0, true)
+	assert_true(MapScale.incl_of(t).is_equal_approx(Vector2(0, 30)))
+	assert_eq(MapVertical.decor_z(t), 0.0, "posée")
+	# Sans Rester posé : le centre reste, le point le plus bas descendrait sous le sol.
+	assert_true(MapGizmo.rotated(o, 1, 30.0, false).has("_sous_sol"), "traverserait le sol")
+	var high := _o("poutre", {"z": 2.0})
+	var t2 := MapGizmo.rotated(high, 1, 30.0, false)
+	assert_near(MapVertical.decor_z(t2) + MapScale.half_z(t2), 2.0 + 0.9, 0.011, "centre de la boîte fixe")
+	# Anneau Z : le lacet seul (comme la poignée ronde d'avant).
+	var z := MapGizmo.rotated(_o("caisses", {"rot": 350}), 2, 30.0, true)
+	assert_eq(MapGeom.rot_of(z), 20)
+	assert_false(z.has("incl"))
+	# Anneau X du monde sur un décor tourné de 90° : inclinaison Y dans son repère.
+	var x := MapGizmo.rotated(_o("poutre", {"rot": 90}), 0, 20.0, true)
+	assert_eq(MapGeom.rot_of(x), 90)
+	assert_near(MapScale.incl_of(x).y, -20.0, 0.05)

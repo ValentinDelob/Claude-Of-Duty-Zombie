@@ -15,8 +15,9 @@ extends RefCounted
 ##     flèches et anneau estompés, valeur tapée au clavier, barre d'état.
 ## Un geste = une étape d'annulation (au relâché) ; Échap annule.
 
-## Anneaux de rotation (étape 5 du plan) : actifs.
-const RINGS := false
+## Anneaux de rotation (§ 3.2) : à la place de la poignée ronde du décor,
+## des luminaires et des effets.
+const RINGS := true
 
 var cv: MapCanvas
 ## Cadenas survolé (indice du coin, -1 : aucun).
@@ -202,7 +203,9 @@ func _try(cand: Dictionary) -> void:
 		cv.refusal = Lang.t("le décor traverserait le sol : cochez « Rester posé »", "the prop would go through the floor: tick \"Stay grounded\"")
 		cv._refusal_t = 1.5
 		return
-	var res := MapScale.check(doc, ed().raster().v, cand, o0)
+	if not d.has("v"):
+		d["v"] = ed().raster().v   # plafonds inchangés pendant le geste (une fois)
+	var res := MapScale.check(doc, d.v, cand, o0)
 	if not res.ok:
 		cv.refusal = MapRules.why(res)
 		cv.refusal_marks = []
@@ -370,7 +373,8 @@ func draw(font: Font) -> void:
 			var hov: bool = hit(cv.to_px(cv.mouse_m)).get("kind", "") == "ring" and dk == ""
 			MapGizmo.draw_ring(cv, Vector2(rg.c), float(rg.r), MapGizmo.COL_Z, {"alpha": 0.25 if scaling else 0.9, "active": hov})
 	# Poignées d'échelle (ou cadenas).
-	var hs := handles_of(e)
+	# Pendant un geste d'anneau : l'anneau seul (maquette, écran 2).
+	var hs := [] if rotating else handles_of(e)
 	for h in hs:
 		var p: Vector2 = h.p
 		if h.lock:

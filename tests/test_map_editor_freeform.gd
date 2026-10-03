@@ -454,22 +454,24 @@ func test_rotation_handle_in_the_editor() -> void:
 	ed.changed()
 	ed.select_mouse()
 	ed.select("d1")
-	var rh := cv.rot_handle()
-	assert_false(rh.is_empty(), "poignée de rotation sur le décor choisi")
+	# Format 14 : l'anneau Z (prise au nord) remplace la poignée ronde du décor.
+	assert_true(cv.rot_handle().is_empty(), "pas de poignée ronde : l'anneau Z")
+	var rh := _ring_grip(cv, ed.doc.find("d1"))
+	assert_false(rh.is_empty(), "anneau Z sur le décor choisi")
 	if rh.is_empty():
 		ed.queue_free()
 		return
 	var c: Vector2 = rh.c
 	cv.mouse_m = rh.p
 	cv._press(false)
-	assert_eq(String(cv.drag.get("kind", "")), "rotate", "poignée attrapée")
+	assert_eq(String(cv.drag.get("kind", "")), "ring", "anneau attrapé")
 	# Déplacée de 32° autour du centre : pas de 15° -> 30°.
 	cv.mouse_m = c + (Vector2(rh.p) - c).rotated(deg_to_rad(32.0))
 	cv._drag_update()
 	cv._release()
 	assert_eq(int(ed.doc.find("d1").rot), 30, "rotation aimantée à 15° : 30°")
 	# Alt : au degré près.
-	rh = cv.rot_handle()
+	rh = _ring_grip(cv, ed.doc.find("d1"))
 	cv.mouse_m = rh.p
 	cv._press(false)
 	cv.free_angle = true
@@ -482,9 +484,17 @@ func test_rotation_handle_in_the_editor() -> void:
 	assert_eq(int(ed.doc.find("d1").rot), 30, "Ctrl+Z : rotation annulée")
 	# Objet mural : pas de poignée (il suit son mur).
 	ed.select("a1")
-	assert_true(cv.rot_handle().is_empty(), "atout : pas de poignée de rotation")
+	assert_true(cv.rot_handle().is_empty() and cv.gizmo.ring_of(ed.doc.find("a1")).is_empty(), "atout : ni poignée ni anneau")
 	ed.queue_free()
 	await wait_frames(1)
+
+
+## Prise de l'anneau Z d'un élément (m) : {p (prise au nord), c (centre)} ; {} sans anneau.
+static func _ring_grip(cv: MapCanvas, e: Dictionary) -> Dictionary:
+	var rg := cv.gizmo.ring_of(e)
+	if rg.is_empty():
+		return {}
+	return {"p": cv.to_m(Vector2(rg.c) + Vector2(0, -float(rg.r))), "c": cv.to_m(Vector2(rg.c))}
 
 
 # ------------------------------------------------------------------ murs mitoyens hors de la grille

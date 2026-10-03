@@ -268,7 +268,9 @@ func _try(cand: Dictionary) -> void:
 	if cand.has("_sous_sol"):
 		t.refusal = Lang.t("le décor traverserait le sol : cochez « Rester posé »", "the prop would go through the floor: tick \"Stay grounded\"")
 		return
-	var res := MapScale.check(doc, ed().raster().v, cand, o0)
+	if not d.has("v"):
+		d["v"] = ed().raster().v   # plafonds inchangés pendant le geste (une fois)
+	var res := MapScale.check(doc, d.v, cand, o0)
 	if not res.ok:
 		t.refusal = MapRules.why(res)
 		return
@@ -329,7 +331,8 @@ func draw(c: CanvasItem) -> void:
 		else:
 			var hov: bool = hit(ev().to_px(ev().mouse_m)).get("kind", "") == "ring" and dk == ""
 			MapGizmo.draw_ring(c, Vector2(rg.c), float(rg.r), col, {"alpha": 0.25 if dk == "scale" else 0.9, "active": hov})
-	for h in handles_of(e):
+	# Pendant un geste d'anneau : l'anneau seul (maquette, écran 2).
+	for h in ([] if dk == "ring" else handles_of(e)):
 		var p: Vector2 = h.p
 		if h.get("lock", false):
 			MapGizmo.draw_lock_square(c, p, hit(ev().to_px(ev().mouse_m)).get("h", {}).get("id", "") == h.id and dk == "")

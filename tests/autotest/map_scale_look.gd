@@ -28,6 +28,7 @@ func run() -> void:
 	await _shot_panel()
 	await _shot_scale()
 	await _shot_blocked()
+	await _shot_rings()
 	ed._reset(game_map())
 	await frames(3)
 	await _game_shots()
@@ -188,3 +189,39 @@ func _shot_blocked() -> void:
 		_mouse(cv, lp, -1)
 	await frames(3)
 	await at.screenshot("ecran3_bloque")
+
+
+## Anneaux (étape 5) : anneau Z en vue Dessus, anneau Y en vue Avant pendant
+## le geste (poutre à +30°).
+func _shot_rings() -> void:
+	await _editor_open("2v", ["dessus", "avant"])
+	var cv := ed.canvas
+	cv.zoom = 30.0
+	cv.origin = cv.size * 0.5 - Vector2(6.0, 4.5) * cv.zoom
+	ed.select("d91")
+	await frames(3)
+	var av: MapElevation = ed.views.panes[1].view
+	av.zoom = 30.0
+	av.origin = Vector2(av.size.x * 0.5 - 6.0 * 30.0, av.size.y - 30.0)
+	await frames(3)
+	var e := av.projected_of("d91")
+	var rg := av.tools.gizmo.ring_of(e)
+	if rg.is_empty():
+		at.fail("anneau Y absent")
+		return
+	var c: Vector2 = rg.c
+	var g := c + Vector2(0, -float(rg.r))
+	_mouse_px(av, g, -1)
+	_mouse_px(av, g, 1)
+	for i in 6:
+		_mouse_px(av, c + (g - c).rotated(deg_to_rad(31.0 * (i + 1) / 6.0)), -1)
+		await frames(1)
+	await frames(3)
+	await at.screenshot("ecran2_anneau_avant")
+	_mouse_px(av, c + (g - c).rotated(deg_to_rad(31.0)), 0)
+	await frames(3)
+	await at.screenshot("ecran2_relache")
+
+
+func _mouse_px(v: MapView, px: Vector2, press: int) -> void:
+	_mouse(v, v.to_m(px), press)

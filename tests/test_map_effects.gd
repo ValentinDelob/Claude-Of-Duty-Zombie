@@ -560,6 +560,6 @@ func test_inventory_sub_tabs_and_properties_in_the_editor() -> void:
 	assert_near(MapCatalog.effect_zone(ed.doc.find(String(o.id))).x, 6.0, 0.001, "zone élargie à 6 m (bord gauche fixe)")
 	var big := ed.try_handle(ed.doc.find(String(o.id)).duplicate(true), 5, Vector2(80.0, 6.0), ed.doc.snapshot())
 	assert_true(big.ok and MapCatalog.effect_zone(ed.doc.find(String(o.id))).x <= 10.0, "bornée à 10 m")
-	assert_false(ed.canvas.rot_handle().is_empty(), "poignée de rotation")
+	assert_false(ed.canvas.gizmo.ring_of(ed.doc.find(String(o.id))).is_empty(), "anneau Z (rotation)")
 	ed.queue_free()
 	await wait_frames(2)
