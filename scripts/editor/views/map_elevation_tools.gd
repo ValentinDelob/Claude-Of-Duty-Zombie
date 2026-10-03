@@ -27,6 +27,8 @@ const COL_CHIP := Color("121214")
 const COL_CHIP_LINE := Color("38383D")
 
 var ev: MapElevation
+## Format 14 : poignées d'échelle et anneau d'inclinaison (MapGizmoElev).
+var gizmo: MapGizmoElev
 ## Glissement en cours : {kind (move, side, top, level, topceil), start_m,
 ## snap, orig, attached, moved, lock ("", "h", "v", "both" : immobile), ...} ; vide sinon.
 var drag: Dictionary = {}
@@ -41,6 +43,7 @@ var refusal := ""
 
 func _init(view: MapElevation) -> void:
 	ev = view
+	gizmo = MapGizmoElev.new(self)
 
 
 func ed() -> MapEditor:
@@ -206,6 +209,9 @@ func level_at(px: Vector2) -> String:
 
 ## Curseur de la souris selon ce qui est dessous (§ 6.3).
 func cursor_at(px: Vector2) -> Control.CursorShape:
+	var gc := gizmo.cursor(px)
+	if gc >= 0:
+		return gc as Control.CursorShape
 	if not drag.is_empty():
 		match String(drag.kind):
 			"move", "gmove":
@@ -249,6 +255,9 @@ func press(px: Vector2) -> bool:
 			if not pg.is_empty():
 				_begin_group(pg)
 				return true
+	# Format 14 : poignées d'échelle, cadenas, anneau du décor choisi.
+	if gizmo.press(px):
+		return true
 	var t := target_at(px)
 	var e := sel()
 	if t in ["side_l", "side_r", "top"]:
@@ -419,6 +428,8 @@ func update() -> void:
 			_update_top()
 		"level", "topceil":
 			_update_level()
+		"scale", "ring":
+			gizmo.update()
 	ev.queue_redraw()
 
 
@@ -728,6 +739,10 @@ func _update_level() -> void:
 func release() -> void:
 	if drag.is_empty():
 		return
+	if String(drag.kind) in ["scale", "ring"]:
+		gizmo.release()
+		ev.queue_redraw()
+		return
 	ed().send_live("")
 	if String(drag.kind) == "gmove":
 		# Groupe : une étape d'annulation s'il a bougé ; sinon (simple clic sur
@@ -771,6 +786,7 @@ func cancel() -> void:
 	ed().doc.restore(drag.snap)
 	ed().changed(false)
 	ed().panels.live_position(false)
+	ed().panels.live_scale(false)
 	drag = {}
 	magnet = {}
 	entry = ""
@@ -842,6 +858,10 @@ func draw(c: CanvasItem) -> void:
 		_draw_refusal(c)
 		return
 	if e.is_empty():
+		return
+	# Format 14 : poignées d'échelle et anneau (un geste en cours : eux seuls).
+	gizmo.draw(c)
+	if not drag.is_empty() and String(drag.kind) in ["scale", "ring"]:
 		return
 	var r := ev.rect_px(e)
 	var o := anchor_px(e)

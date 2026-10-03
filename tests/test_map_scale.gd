@@ -410,3 +410,45 @@ func test_scaled_and_tilted_props_in_the_game_layout() -> void:
 	var cells := MapRaster.floor_cells(b)
 	var blocked := cells.filter(func(cc): return v.floors[0].at(cc) == MapValidator.K.MUR)
 	assert_eq(blocked.size(), cells.size(), "toutes les cases de la projection bloquées")
+
+
+# ------------------------------------------------------------------ poignées et anneaux (étapes 4 et 5)
+
+func test_scale_handle_geometry() -> void:
+	var o := _o("caisses", {"position": [4.0, 4.0]})
+	var hs := MapGizmo.top_handles(o)
+	assert_eq(hs.size(), 8, "4 coins, 4 faces")
+	assert_true((hs[2].p as Vector2).is_equal_approx(Vector2(5.25, 5.0)), "coin sud-est")
+	# Coin : ×1,5 autour du coin opposé ; le coin nord-ouest reste.
+	var u := MapGizmo.scale_uniform(o, 1.5, Vector2(2.75, 3.0))
+	assert_true(MapScale.scale_of(u).is_equal_approx(Vector3.ONE * 1.5))
+	assert_true(MapGeom.v2(u.position).is_equal_approx(Vector2(4.625, 4.5)), "centre déplacé (%s)" % str(u.position))
+	# Face est : X seul, côté ouest fixe ; Alt : centre fixe.
+	var fx := MapGizmo.scale_axis(o, 0, 2.0, 1, false)
+	assert_true(MapScale.scale_of(fx).is_equal_approx(Vector3(2, 1, 1)))
+	assert_near(float(fx.position[0]) - MapScale.dims(fx).x * 0.5, 2.75, 0.001, "ouest fixe")
+	assert_true(MapGeom.v2(MapGizmo.scale_axis(o, 0, 2.0, 1, true).position).is_equal_approx(Vector2(4, 4)), "Alt : centre fixe")
+	# Tourné de 90° : la face « X » du décor est vers le sud.
+	var r := _o("caisses", {"position": [4.0, 4.0], "rot": 90})
+	var fr := MapGizmo.scale_axis(r, 0, 2.0, 1, false)
+	assert_true(MapGeom.v2(fr.position).is_equal_approx(Vector2(4.0, 5.25)), "tourné : le centre glisse vers le sud (%s)" % str(fr.position))
+	# Mural : la face du mur reste (profondeur), la hauteur au centre suit le bas fixe.
+	var w := _o("torche_murale", {"position": [2.0, 10.0], "mur": "s"})
+	var wy := MapGizmo.scale_axis(w, 1, 2.0, 1, false)
+	assert_true(MapGeom.v2(wy.position).is_equal_approx(Vector2(2.0, 10.0)), "mural : position sur le trait inchangée")
+	var wz := MapGizmo.scale_axis(w, 2, 2.0, 1, false)
+	assert_near(MapCatalog.wall_light_height(wz), MapCatalog.wall_light_height(w) + 0.25, 0.011, "mural : bas fixe, le centre monte de h/2")
+	# Pas et aimants.
+	assert_eq(MapGizmo.snap_scale(1.37, "grille").v, 1.25)
+	assert_eq(MapGizmo.snap_scale(1.37, "fine").v, 1.35)
+	assert_eq(MapGizmo.snap_scale(1.374, "libre").v, 1.37)
+	assert_eq(MapGizmo.snap_scale(0.985, "fine").label, "×" + MapView.num(1.0, 2), "aimant ×1")
+	assert_eq(MapGizmo.snap_scale(1.0, "fine", [{"f": 1.6, "label": "= Bureau"}]).v, 1.0)
+	assert_eq(MapGizmo.snap_scale(1.59, "libre", [{"f": 1.6, "label": "= Bureau"}]).label, "= Bureau")
+	# Valeur tapée : facteur ou dimension.
+	assert_near(MapGizmo.typed_factor("1,5", 2.5, 1.0), 1.5, 0.0001)
+	assert_near(MapGizmo.typed_factor("3m", 2.5, 1.0), 1.2, 0.0001)
+	# Incliné : coins seulement (emprise à l'écran).
+	assert_true(MapGizmo.top_handles(_o("poutre", {"incl": [0, 30]})).all(func(h): return h.kind == "corner"))
+
+

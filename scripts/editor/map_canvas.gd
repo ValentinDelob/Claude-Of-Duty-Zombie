@@ -66,6 +66,8 @@ var entry: Dictionary = {}
 var _snap_exclude := ""
 ## Pixels de la poignée de rotation au-dessus de l'élément choisi.
 const ROT_HANDLE_PX := 30.0
+## Format 14 : poignées d'échelle et anneau Z du décor choisi (MapGizmoTop).
+var gizmo: MapGizmoTop
 ## Vue dessinée hors écran (capture du plan pour Claude, MapAgentLink,
 ## `offscreen` de MapView) : étage `floor_override` (-1 : celui de l'éditeur).
 var floor_override := -1
@@ -77,6 +79,7 @@ func _hsz() -> float:
 
 func _ready() -> void:
 	clip_contents = true
+	gizmo = MapGizmoTop.new(self)
 	if offscreen:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		return
@@ -316,6 +319,9 @@ static func _entry_char(k: InputEventKey) -> String:
 func handle_key(k: InputEventKey) -> bool:
 	if not k.pressed or k.ctrl_pressed or k.alt_pressed:
 		return false
+	# Format 14 : valeur tapée pendant un geste d'échelle ou de rotation.
+	if drag.get("kind", "") in ["scale", "ring"]:
+		return gizmo.key(k)
 	# X / Y pendant un glissement : verrouille l'axe (la même touche le libère).
 	if k.keycode in [KEY_X, KEY_Y] and drag.get("kind", "") in ["move", "gmove"] and entry.is_empty():
 		var ax := "X" if k.keycode == KEY_X else "Y"
@@ -537,7 +543,9 @@ func busy() -> bool:
 
 ## Annule le tracé ou le glissement en cours.
 func cancel() -> void:
-	if drag.get("kind", "") in ["move", "handle", "rotate", "gmove", "grotate"]:
+	if drag.get("kind", "") in ["scale", "ring"]:
+		ed.panels.live_scale(false)
+	if drag.get("kind", "") in ["move", "handle", "rotate", "gmove", "grotate", "scale", "ring"]:
 		ed.send_live("")
 		ed.doc.restore(drag.snap)
 		ed.changed()
@@ -573,6 +581,9 @@ func _press(double: bool) -> void:
 			# trace un rectangle qui y ajoute (décidé au relâché / au mouvement).
 			if shift_held():
 				drag = {"kind": "band", "start": mouse_m, "add": true, "click": String(ed.element_at(mouse_m).get("id", ""))}
+				return
+			# Format 14 : poignées d'échelle, cadenas, anneau Z du décor choisi.
+			if gizmo.press(to_px(mouse_m)):
 				return
 			# Poignée de rotation, poignées de l'élément choisi, puis l'élément sous le curseur.
 			var rh := rot_handle()
@@ -730,6 +741,8 @@ func _release() -> void:
 		if not entry.is_empty():
 			return   # saisie au clavier en cours : Entrée termine
 		_finish_create(end)
+	elif kind in ["scale", "ring"]:
+		gizmo.release()
 	elif kind in ["move", "handle", "rotate"]:
 		ed.send_live("")
 		if drag.moved:
@@ -949,6 +962,9 @@ func _drag_update() -> void:
 	if kind == "grotate":
 		_drag_group_rotate()
 		return
+	if kind in ["scale", "ring"]:
+		gizmo.update()
+		return
 	var orig: Dictionary = drag.orig
 	var e := ed.doc.find(String(orig.id))
 	if e.is_empty():
@@ -1105,6 +1121,9 @@ func rot_handle() -> Dictionary:
 	var e := ed.doc.find(ed.selected)
 	if e.is_empty() or int(e.get("etage", 0)) != ed.floor_k or not MapTransform.can_rotate(e):
 		return {}
+	# Format 14 : le décor, les luminaires et les effets ont l'anneau Z (MapGizmoTop).
+	if MapGizmoTop.RINGS and MapGizmoTop.has_ring(e):
+		return {}
 	var bb := MapGeom.bbox(ed.doc.room_poly(e)) if e.has("contour") else MapRules.footprint_rect(e)
 	return {"p": Vector2(bb.get_center().x, bb.position.y - EditorUi.px(ROT_HANDLE_PX) / zoom), "c": MapTransform.pivot(ed.doc, e)}
 
@@ -1218,6 +1237,9 @@ func _draw() -> void:
 			if drag.get("kind", "") == "rotate":
 				draw_circle(to_px(drag.c), 3.0, COL_SEL)
 				_label_at(font, hp + Vector2(_u(12), -_u(6)), "%d°" % MapGeom.norm_deg(float(drag.get("deg", 0))))
+	# Format 14 : poignées d'échelle et anneau Z du décor choisi.
+	if not sel.is_empty() and sel_k == k:
+		gizmo.draw(font)
 	# Sélection multiple : chaque élément, cadre du groupe et sa poignée.
 	_draw_group(font, k)
 	# Action de groupe refusée : l'élément fautif, à la place refusée.
@@ -1361,6 +1383,9 @@ func cursor_at(px: Vector2) -> Control.CursorShape:
 		return Control.CURSOR_ARROW
 	if offscreen or ed.tool() != "select":
 		return Control.CURSOR_ARROW
+	var gc := gizmo.cursor(px)
+	if gc >= 0:
+		return gc as Control.CursorShape
 	var m := to_m(px)
 	var rh := rot_handle()
 	if not rh.is_empty() and to_px(rh.p).distance_to(px) <= _hsz() + 4.0:
@@ -1442,13 +1467,15 @@ func _draw_axis_arrows(font: Font) -> void:
 		draw_dashed_line(Vector2(_ruler(), o.y), Vector2(size.x, o.y), Color(COL_X, 0.35), 1.0, _u(8))
 	elif lock == "Y":
 		draw_dashed_line(Vector2(o.x, _ruler()), Vector2(o.x, size.y), Color(COL_Y, 0.35), 1.0, _u(8))
+	# Format 14 : estompées (25 %) pendant un geste d'échelle (MapGizmoTop).
+	var fade := 0.25 if gizmo != null and gizmo.busy_scale() else 1.0
 	if "X" in axes:
-		var a := 0.5 if lock == "Y" else 1.0
+		var a := (0.5 if lock == "Y" else 1.0) * fade
 		draw_line(o, o + Vector2(_u(40), 0), Color(COL_X, a), 3.0 if lock == "X" else 2.0)
 		var tip := o + Vector2(_u(46), 0)
 		draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-_u(7), -_u(4)), tip + Vector2(-_u(7), _u(4))]), Color(COL_X, a))
 	if "Y" in axes:
-		var a := 0.5 if lock == "X" else 1.0
+		var a := (0.5 if lock == "X" else 1.0) * fade
 		draw_line(o, o + Vector2(0, _u(40)), Color(COL_Y, a), 3.0 if lock == "Y" else 2.0)
 		var tip := o + Vector2(0, _u(46))
 		draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-_u(4), -_u(7)), tip + Vector2(_u(4), -_u(7))]), Color(COL_Y, a))

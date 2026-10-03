@@ -3,7 +3,8 @@ extends AutotestScenario
 ## docs/EDITOR_SCALE_ROTATE.md, maquette docs/editor_scale_rotate_mockup).
 ## @niveau perf : hors check par défaut (captures d'un ajout en cours) ;
 ## lancer avec SCENARIOS="map_scale_look" JOBS=1 GUI_JOBS=1 bash tools/check.sh.
-## Éditeur : panneau Propriétés (Échelle, Rotation) d'une pile × 1,5, d'une
+## Éditeur : écran 1 (pile de caisses agrandie par son coin, geste en
+## cours), écran 3 (prefab bloqué, cadenas survolé), panneau Propriétés (Échelle, Rotation) d'une pile × 1,5, d'une
 ## poutre inclinée et d'un prefab qui contient un Pack-a-Punch.
 ## En jeu (TESTER) : pile de caisses × 1,5 et poutre inclinée de 30°, vues
 ## par le joueur. Captures : tests/_out/shots/map_scale_look_*.png.
@@ -25,6 +26,8 @@ func run() -> void:
 	await frames(3)
 	ed.new_map(true)
 	await _shot_panel()
+	await _shot_scale()
+	await _shot_blocked()
 	ed._reset(game_map())
 	await frames(3)
 	await _game_shots()
@@ -137,3 +140,51 @@ func _shot_panel() -> void:
 	ed.select("d93")
 	await frames(4)
 	await at.screenshot("panneau_bloque")
+
+
+## Écran 1 : pile de caisses agrandie par son coin sud-est (×1,50), geste en cours.
+func _shot_scale() -> void:
+	await _editor_open("2v", ["dessus", "avant"])
+	var cv := ed.canvas
+	cv.set_snap_mode("fine")
+	cv.zoom = 30.0
+	cv.origin = cv.size * 0.5 - Vector2(10.0, 6.2) * cv.zoom
+	var av: MapElevation = ed.views.panes[1].view
+	av.zoom = 30.0
+	av.origin = Vector2(av.size.x * 0.5 - 10.0 * 30.0, av.size.y - 50.0)
+	ed.select("d90")
+	await frames(3)
+	var o := ed.doc.find("d90")
+	var se: Vector2 = MapGizmo.frame(o).c + Vector2(MapScale.dims(o).x, MapScale.dims(o).y) * 0.5
+	var nw: Vector2 = MapGizmo.frame(o).c - Vector2(MapScale.dims(o).x, MapScale.dims(o).y) * 0.5
+	_mouse(cv, se, -1)
+	_mouse(cv, se, 1)
+	for i in 6:
+		_mouse(cv, se.lerp(nw + (se - nw) * 1.5, (i + 1) / 6.0), -1)
+		await frames(1)
+	await frames(3)
+	await at.screenshot("ecran1_echelle")
+	_mouse(cv, nw + (se - nw) * 1.5, 0)
+	await frames(2)
+	await at.screenshot("ecran1_relache")
+
+
+## Écran 3 : prefab qui contient un Pack-a-Punch, cadenas survolé.
+func _shot_blocked() -> void:
+	await _editor_open("1", ["dessus"])
+	var cv := ed.canvas
+	cv.set_snap_mode("grille")
+	cv.zoom = 60.0
+	cv.origin = Vector2(-700, 40)
+	ed.select("d93")
+	await frames(3)
+	var hs := cv.gizmo.handles_of(ed.doc.find("d93"))
+	if hs.size() == 4:
+		var lp: Vector2 = hs[1].m
+		_mouse(cv, lp, -1)
+		cv.mouse_default_cursor_shape = cv.cursor_at(cv.to_px(lp))
+		_mouse(cv, lp, 1)
+		_mouse(cv, lp, 0)
+		_mouse(cv, lp, -1)
+	await frames(3)
+	await at.screenshot("ecran3_bloque")

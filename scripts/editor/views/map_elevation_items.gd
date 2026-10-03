@@ -252,6 +252,12 @@ static func _decor(doc: EditorMap, v: MapValidator, o: Dictionary, base: Diction
 		_:
 			var z0 := sol + MapVertical.decor_z(o)
 			base.merge({"kind": "decor", "poly": MapRaster.floor_poly(o), "z0": z0, "z1": z0 + maxf(h, 0.02)})
+			if MapScale.is_tilted(o):
+				# Format 14 : les 8 coins de la boîte orientée (x, y, z absolu).
+				var box := []
+				for q in MapScale.corners(o):
+					box.append(Vector3(q.x, q.y, q.z + sol))
+				base["box3"] = box
 	return base
 
 

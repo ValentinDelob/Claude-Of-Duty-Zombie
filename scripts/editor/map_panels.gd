@@ -1046,7 +1046,8 @@ func live_scale(on: bool) -> void:
 	if o.is_empty():
 		return
 	MapPanelsScale.live(self, o, on)
-	live_position(on)
+	# La position suit (le centre bouge) sans bord jaune (maquette, écran 1).
+	live_position(false)
 
 
 ## Pendant un glissement : les champs X, Y, Z suivent l'élément (bord jaune).

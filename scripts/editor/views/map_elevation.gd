@@ -180,6 +180,16 @@ func projected() -> Array:
 			if below:
 				pts.append(uv)
 		var e := {"it": it, "k": String(it.kind), "f": int(it.floor), "u0": u0, "u1": u1, "v0": -z1, "v1": -z0, "near": near, "lo": lo, "hi": hi}
+		if it.has("box3") and not below:
+			# Format 14 : décor incliné, contour de sa boîte orientée projetée.
+			var sp := PackedVector2Array()
+			for q3 in it.box3:
+				var uv3 := uv_of(plane, q3)
+				sp.append(Vector2(uv3.x, -(q3 as Vector3).z))
+			var hull := Geometry2D.convex_hull(sp)
+			if hull.size() > 1:
+				hull.remove_at(hull.size() - 1)
+			e["shape"] = hull
 		if below:
 			# Vu de dessous : le contour en miroir, le bas le plus près.
 			var bb := MapGeom.bbox(pts)
@@ -616,6 +626,14 @@ func _draw_item(c: CanvasItem, e: Dictionary, r: Rect2, a: float) -> void:
 				_icon(c, it, r, a)
 		"decor":
 			var block := MapCatalog.blocking(it.e)
+			if e.has("shape"):
+				# Format 14 : décor incliné, sa boîte orientée.
+				var sp := PackedVector2Array()
+				for q in (e.shape as PackedVector2Array):
+					sp.append(to_px(q))
+				c.draw_colored_polygon(sp, Color(col.darkened(0.35), (0.5 if block != "non" else 0.28) * a))
+				c.draw_polyline(sp + PackedVector2Array([sp[0]]), Color(col.lightened(0.2), 0.9 * a), 1.4 if block != "non" else 1.0)
+				return
 			c.draw_rect(r, Color(col.darkened(0.35), (0.5 if block != "non" else 0.28) * a))
 			c.draw_rect(r, Color(col.lightened(0.2), 0.9 * a), false, 1.4 if block != "non" else 1.0)
 			_hook(c, it, r, a)
@@ -801,6 +819,13 @@ func _draw_selection(c: CanvasItem) -> void:
 			pts.append(to_px(q))
 		if pts.size() >= 2:
 			c.draw_polyline(pts + PackedVector2Array([pts[0]]), COL_SEL, 2.5)
+		return
+	if sel.has("shape"):
+		# Format 14 : décor incliné, contour de sa boîte orientée.
+		var sp := PackedVector2Array()
+		for q in (sel.shape as PackedVector2Array):
+			sp.append(to_px(q))
+		c.draw_polyline(sp + PackedVector2Array([sp[0]]), COL_SEL, 2.5)
 		return
 	c.draw_rect(r.grow(1.0), COL_SEL, false, 2.5)
 
