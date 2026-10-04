@@ -121,6 +121,10 @@ func request(cmd: String, args: Dictionary) -> Variant:
 		return Err.new(str(r.error) if str(r.error) != "" else "erreur inconnue de l'éditeur")
 	if r == null:
 		return Err.new("l'éditeur n'a pas répondu à « %s »" % cmd)
+	# Résultat vide : la commande a échoué en route (erreur de script) ; ne
+	# jamais le faire passer pour un succès.
+	if r is Dictionary and (r as Dictionary).is_empty():
+		return Err.new("l'éditeur a échoué sur « %s » (erreur interne, voir le journal du jeu) : rien n'a été appliqué, vérifie avec editor_get_map" % cmd)
 	return r
 
 

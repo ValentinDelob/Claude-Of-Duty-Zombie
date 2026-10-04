@@ -71,7 +71,7 @@ ou coupe le serveur ; le réglage est gardé dans les options du jeu
 - **Prompt** `concevoir_carte` (argument facultatif `demande`) : la demande,
   puis les règles de conception et les consignes jointes en entier.
 
-Les cinq documents sont embarqués dans les deux paquets
+Les cinq documents (le sixième, `CONSIGNES_MCP.md`, est un texte du code : `McpDocs.CONSIGNES`) sont embarqués dans les deux paquets
 (`export_presets.cfg` : `include_filter` ; les autres docs et les dossiers
 d'images ou de maquettes restent exclus par `docs/*/*` et parce qu'un `.md`
 n'est pas une ressource). `tools/pack_check.gd` les admet nommément
@@ -94,6 +94,22 @@ n'est pas une ressource). `tools/pack_check.gd` les admet nommément
 | `editor_catalog` | types d'objets admis, décors, luminaires, armes, atouts |
 | `editor_events` | derniers événements de l'éditeur (changements des autres, sélection, participants ; 100 gardés par le serveur) |
 | `editor_plan_corridor` | **propose** un couloir (droit ou en L) entre deux pièces, sans l'appliquer |
+| `editor_prefab_list` | prefabs de la carte (référence `map:<pid>`, emprise, collision, modèle, nombre de poses) |
+| `editor_prefab_sources` | autres cartes de l'utilisateur et leurs prefabs importables |
+| `editor_prefab_create` | prefab groupe depuis des objets posés (`ids`, `remplacer`) ou des `parties` du catalogue |
+| `editor_prefab_import_model` | modèle 3D `.glb` / `.gltf` depuis un `chemin` local ou `data_base64` |
+| `editor_prefab_import` | prefabs d'une autre carte ou d'un dossier |
+| `editor_prefab_update` / `editor_prefab_delete` | régler (nom, échelle, collision) / supprimer (`avec_objets`) |
+| `editor_texture_list` | textures du jeu et de la carte (référence `map:<id>`, où elles sont utilisées) |
+| `editor_texture_import` | texture PNG / JPEG depuis un `chemin` local ou `data_base64` (`taille` du motif en m…) |
+| `editor_texture_update` / `editor_texture_delete` | régler / supprimer (`forcer` : surfaces remises par défaut, annulable) |
+| `editor_texture_import_from_map` | textures d'une autre carte de l'utilisateur |
+
+Prefabs, modèles et textures sont rangés dans le dossier de la carte, sans
+limite de nombre ni de taille (docs/MAP_OBJECTS.md § 11, docs/MAP_AUTHORING.md
+« Textures de la carte »). Leurs bibliothèques ne changent qu'en solo ou chez
+l'hôte et ne sont pas dans l'historique d'annulation ; appliquer une texture
+ou poser une prefab passe par `editor_apply` (annulable).
 
 Noms, schémas, contrôles d'arguments (`McpTools.check_ops`…) et messages
 d'erreur sont ceux de l'ancien pont Python (`tools/mcp/`, supprimé).
@@ -179,8 +195,10 @@ que tu viens de faire. »
   (docs/MAP_COLLAB.md § 5.2).
 - `scripts/editor/collab/map_summary.gd` (`MapSummary`, portage de l'ancien
   `map_geom.py`) : résumé de `editor_get_map`, repli d'`editor_get_element`,
-  `editor_plan_corridor` ; chargé s'il existe (sinon erreur d'outil
-  « Résumé indisponible »).
+  `editor_plan_corridor`.
+- `scripts/editor/collab/map_agent_prefabs.gd` (`MapAgentPrefabs`) et
+  `map_agent_textures.gd` (`MapAgentTextures`) : commandes et outils des
+  prefabs et des textures de la carte (`tool_defs()` ajoutés au registre).
 - `scripts/editor/collab/mcp_dialog.gd` (`McpDialog`) : fenêtre
   « Connecter une IA (MCP)… ».
 - Tests : `tests/test_mcp_server.gd` (HTTP brut, sécurité, sessions, outils

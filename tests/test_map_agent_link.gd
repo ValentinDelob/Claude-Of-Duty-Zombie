@@ -48,6 +48,13 @@ func test_agent_link_commands() -> void:
 	r = await link.handle("prefab_list", {})
 	assert_true(r.has("error"), "prefab_list sans éditeur : refusé")
 	assert_true(String(r.get("error", "")).contains("éditeur") or String(r.get("error", "")).contains("editor"), "message : %s" % r.get("error", ""))
+	# Nom de pièce d'un mauvais type : refus expliqué, jamais un résultat vide.
+	var bad: Dictionary = await link.handle("apply", {"label": "nom objet", "ops": [
+		{"op": "add", "coll": "pieces", "el": {"id": "$1", "nom": {"fr": "Hall", "en": "Hall"}, "contour": [[20, 2], [26, 2], [26, 8], [20, 8]]}}]})
+	assert_false(bad.is_empty(), "jamais {} : %s" % str(bad))
+	assert_true(bad.has("error") or not (bad.get("invalid", {}) as Dictionary).is_empty(), "nom objet refusé : %s" % str(bad))
+	if bad.has("cid") and String(bad.cid) != "":
+		await link.handle("undo", {})
 	# undo : le lot de Claude entier.
 	r = await link.handle("undo", {})
 	assert_false(r.has("error"), "undo accepté : %s" % str(r))

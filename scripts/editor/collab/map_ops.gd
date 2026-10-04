@@ -546,14 +546,17 @@ static func resolve_adds(doc: Variant, ops: Array) -> Dictionary:
 		match String(op.coll):
 			"pieces":
 				n_rooms += 1
+				# Nom d'une pièce : un texte (un autre type est refusé ensuite
+				# par check_elements, jamais lu ici).
 				var named := el.has("nom")
+				var nm: String = String(el.nom) if el.get("nom") is String else ""
 				if not named:
 					el["nom"] = Lang.t("Pièce %d", "Room %d") % n_rooms
 				if not zones.has(String(el.get("zone", ""))):
 					var zid := _free_id(used, "z")
 					zones[zid] = true
 					extra.append({"op": "put", "coll": "zones", "el": {"id": zid, "nom": {
-						"fr": String(el.nom) if named else "Pièce %d" % n_rooms, "en": String(el.nom) if named else "Room %d" % n_rooms}}})
+						"fr": nm if nm != "" else "Pièce %d" % n_rooms, "en": nm if nm != "" else "Room %d" % n_rooms}}})
 					el["zone"] = zid
 					if depart == "":
 						depart = zid
