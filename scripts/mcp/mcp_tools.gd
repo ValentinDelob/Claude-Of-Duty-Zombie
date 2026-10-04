@@ -21,10 +21,8 @@ const COLLS := ["pieces", "ouvertures", "objets", "zones"]
 const VIEWS := ["dessus", "avant", "arriere", "gauche", "droite", "dessous"]
 const MAX_EVENTS := 100
 ## Résumé de carte (portage GDScript de map_geom.py), chargé s'il existe.
-const SUMMARY_PATH := "res://scripts/editor/collab/map_summary.gd"
 
 const OPEN_EDITOR := "Éditeur de cartes non ouvert : ouvre l'éditeur de cartes du jeu (menu principal > ÉDITEUR DE CARTES) avec une carte, puis réessaie. (Le serveur MCP répond tant que le jeu tourne ; les outils de carte ont besoin de l'éditeur.)"
-const NO_SUMMARY := "Résumé indisponible : cette version du jeu n'a pas le calcul du résumé (MapSummary). Utilise format \"full\"."
 
 
 ## Erreur d'outil (résultat isError) ; tout autre retour d'un `fn` est du contenu.
@@ -222,13 +220,7 @@ static func _ids(args: Dictionary, required := true) -> Variant:
 	return ids
 
 
-## MapSummary (map_summary.gd) s'il fait partie du jeu ; null sinon.
-static func summary_script() -> Script:
-	if not ResourceLoader.exists(SUMMARY_PATH):
-		return null
-	return load(SUMMARY_PATH) as Script
-
-
+## Carte complète de l'éditeur ouvert (ou Err).
 func _map() -> Variant:
 	var doc: Variant = await request("get_map", {})
 	if doc is Err:
@@ -252,10 +244,7 @@ func _t_get_map(args: Dictionary) -> Variant:
 		return doc
 	if fmt == "full":
 		return [text(doc)]
-	var ms := summary_script()
-	if ms == null:
-		return Err.new(NO_SUMMARY)
-	return [text(ms.call("summarize", doc, -1 if floor_v == null else int(floor_v)))]
+	return [text(MapSummary.summarize(doc, -1 if floor_v == null else int(floor_v)))]
 
 
 func _t_get_element(args: Dictionary) -> Variant:
@@ -271,10 +260,7 @@ func _t_get_element(args: Dictionary) -> Variant:
 	var doc: Variant = await _map()
 	if doc is Err:
 		return doc
-	var ms := summary_script()
-	if ms == null:
-		return Err.new(NO_SUMMARY)
-	return [text(ms.call("find_elements", doc, ids))]
+	return [text(MapSummary.find_elements(doc, ids))]
 
 
 func _t_apply(args: Dictionary) -> Variant:
@@ -396,13 +382,10 @@ func _t_plan_corridor(args: Dictionary) -> Variant:
 	var price: Variant = args.get("price")
 	if price != null and not (is_int(price) and float(price) >= 0):
 		return Err.new("price : entier ≥ 0")
-	var ms := summary_script()
-	if ms == null:
-		return Err.new(NO_SUMMARY)
 	var doc: Variant = await _map()
 	if doc is Err:
 		return doc
-	var plan: Variant = ms.call("plan_corridor", doc, String(a), String(b), float(width), -1 if price == null else int(price))
+	var plan: Variant = MapSummary.plan_corridor(doc, String(a), String(b), float(width), -1 if price == null else int(price))
 	if plan is Dictionary and (plan as Dictionary).has("error"):
 		return Err.new("Pas de proposition : %s" % str(plan.error))
 	return [text(plan)]

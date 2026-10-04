@@ -327,9 +327,10 @@ func test_mcp_session_and_tools() -> void:
 	assert_true(int(fake.calls[-1][1].floor) == 0 and fake.calls[-1][1].floor is int, "étage entier transmis")
 	var v := await _tool("editor_screenshot", {"view": "biais"})
 	assert_true(bool(v.isError) and _texts(v).begins_with("view : dessus"), _texts(v))
-	# get_element : repli sur le résumé (absent ici) -> erreur claire.
+	# get_element : éditeur sans get_elements -> repli sur MapSummary.find_elements.
 	var ge := await _tool("editor_get_element", {"ids": ["p1"]})
-	assert_true(bool(ge.isError), _texts(ge))
+	assert_false(bool(ge.isError), _texts(ge))
+	assert_true(_texts(ge).contains("p1"), _texts(ge))
 	ge = await _tool("editor_get_element", {"ids": []})
 	assert_true(_texts(ge).contains("« ids » doit être une liste"), _texts(ge))
 	# get_map : complet transmis ; floor contrôlé.
@@ -337,9 +338,12 @@ func test_mcp_session_and_tools() -> void:
 	assert_true(JSON.parse_string(_texts(gm)).has("pieces"), "carte complète")
 	gm = await _tool("editor_get_map", {"floor": -1})
 	assert_eq(_texts(gm), "floor : entier ≥ 0")
-	if McpTools.summary_script() == null:
-		gm = await _tool("editor_get_map", {})
-		assert_true(bool(gm.isError) and _texts(gm).begins_with("Résumé indisponible"), _texts(gm))
+	# Résumé calculé (MapSummary) par défaut.
+	gm = await _tool("editor_get_map", {})
+	assert_false(bool(gm.isError), _texts(gm))
+	assert_true(JSON.parse_string(_texts(gm)) is Dictionary, "résumé en JSON")
+	var pc := await _tool("editor_plan_corridor", {"room_a": "p1", "room_b": "p9"})
+	assert_true(bool(pc.isError) and _texts(pc).begins_with("Pas de proposition"), _texts(pc))
 	# Événements gardés par le serveur.
 	var ev := await _tool("editor_events")
 	assert_true(_texts(ev).begins_with("Aucun événement"), _texts(ev))
