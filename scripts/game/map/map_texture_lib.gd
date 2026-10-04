@@ -240,7 +240,37 @@ static func check_header(b: PackedByteArray, file: String) -> Array:
 	if s.x > MAX_SIDE or s.y > MAX_SIDE:
 		return ["%s : image trop grande (%d × %d px, %d px de côté au plus)" % [file, s.x, s.y, MAX_SIDE],
 			"%s: image too large (%d × %d px, %d px per side at most)" % [file, s.x, s.y, MAX_SIDE]]
+	if not (_png_complete(b) if file.ends_with(".png") else _jpg_complete(b)):
+		return ["%s : image tronquée ou abîmée" % file, "%s: truncated or damaged image" % file]
 	return []
+
+
+## PNG entier : blocs (longueur, type, données, CRC) tous dans le fichier, au
+## moins un IDAT, IEND en dernier. Évite de donner au décodeur du moteur un
+## fichier tronqué (il l'écrirait en erreur au journal).
+static func _png_complete(b: PackedByteArray) -> bool:
+	var i := 8
+	var idat := false
+	while i + 12 <= b.size():
+		var n := (b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]
+		var kind := b.slice(i + 4, i + 8).get_string_from_ascii()
+		if n < 0 or i + 12 + n > b.size():
+			return false
+		if kind == "IDAT":
+			idat = true
+		i += 12 + n
+		if kind == "IEND":
+			return idat
+	return false
+
+
+## JPEG entier : marqueur de fin (FF D9) parmi les derniers octets (certains
+## fichiers ont quelques octets de bourrage après).
+static func _jpg_complete(b: PackedByteArray) -> bool:
+	for i in range(b.size() - 2, maxi(b.size() - 66, 1), -1):
+		if b[i] == 0xFF and b[i + 1] == 0xD9:
+			return true
+	return false
 
 
 ## Image décodée depuis ses octets (vrai décodage par le moteur, après

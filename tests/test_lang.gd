@@ -32,6 +32,9 @@ const DISPLAY_PATTERNS := [
 const ALLOW := {
 	# Rapport de plantage : texte « français / English » sur la même ligne.
 	"res://scripts/game/crash_log.gd": ["/ Session start", "/ Last update", "/ Detected at next start", "/ Last screen", "/ Last log lines"],
+	# Serveur MCP : réponses d'outils destinées à l'IA (McpTools.text), jamais
+	# affichées au joueur ; en français comme toutes les consignes MCP.
+	"res://scripts/mcp/mcp_tools.gd": ["Erreur interne du serveur MCP", "Découpe faite", "élément(s) refusé(s) par l'éditeur", "Aucun événement reçu de l'éditeur"],
 }
 
 

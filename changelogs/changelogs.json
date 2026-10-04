@@ -2262,6 +2262,43 @@
     "en": "Game and editor fixes",
     "fr": "Corrections de jeu et d'éditeur"
    }
+  },
+  "v0.2.1-snapshot.424": {
+   "channel": "snapshot",
+   "date": "2026-10-04",
+   "images": [
+    "v0.2.1-snapshot.424/01_textures_personnalisees.png"
+   ],
+   "items": [
+    {
+     "en": "The game itself is now the map editor's MCP server: an AI such as Claude Code connects to it with just the game, no sources or Python needed. Collaboration > \"Connect an AI (MCP)…\" gives the command to copy (this computer only, protected by a token).",
+     "fr": "Le jeu est lui-même le serveur MCP de l'éditeur de cartes : une IA comme Claude Code s'y connecte avec le jeu seul, sans les sources ni Python. Collaboration > « Connecter une IA (MCP)… » donne la commande à copier (accès limité à cet ordinateur, protégé par un jeton)."
+    },
+    {
+     "en": "The AI receives the map design rules on its very first call and can read the editor documentation shipped with the game.",
+     "fr": "L'IA reçoit les règles de conception des cartes dès son premier appel et peut relire la documentation de l'éditeur livrée avec le jeu."
+    },
+    {
+     "en": "Custom textures: import your own PNG or JPEG images for the floors, walls and ceilings of rooms and zones. They are stored in the map's folder and travel with it.",
+     "fr": "Textures personnalisées : importez vos images PNG ou JPEG pour les sols, murs et plafonds des pièces et des zones. Elles sont rangées dans le dossier de la carte et voyagent avec elle."
+    },
+    {
+     "en": "No more limit on the number or size of a map's 3D models and prefabs: managing resources is up to the map maker. Received files are still checked before being opened.",
+     "fr": "Plus de limite au nombre ni à la taille des modèles 3D et des prefabs d'une carte : c'est au concepteur de gérer ses ressources. Les fichiers reçus restent vérifiés avant d'être ouverts."
+    },
+    {
+     "en": "Through MCP, the AI can also create and import prefabs, import .glb / .gltf models and textures, then place and apply them.",
+     "fr": "Par MCP, l'IA peut aussi créer et importer des prefabs, importer des modèles .glb / .gltf et des textures, puis les poser et les appliquer."
+    },
+    {
+     "en": "Multiplayer TEST: a participant downloading a large map is no longer dropped after 30 seconds.",
+     "fr": "TESTER à plusieurs : un participant qui télécharge une grosse carte n'est plus écarté au bout de 30 secondes."
+    }
+   ],
+   "title": {
+    "en": "Map editor: Claude without the sources, textures and models galore",
+    "fr": "Éditeur de cartes : Claude sans les sources, textures et modèles à volonté"
+   }
   }
  }
 }

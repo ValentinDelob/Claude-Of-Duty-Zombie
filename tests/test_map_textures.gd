@@ -103,10 +103,14 @@ func test_image_checks() -> void:
 	assert_eq(MapTextureLib.check_image(jpg(), "image.jpg"), [], "JPEG valide")
 	assert_false(MapTextureLib.check_image(png(), "image.jpg").is_empty(), "PNG nommé .jpg refusé")
 	assert_false(MapTextureLib.check_image("pas une image".to_utf8_buffer(), "image.png").is_empty(), "texte refusé")
-	# PNG tronqué : en-tête lisible, données abîmées : le vrai décodage refuse.
+	# Image tronquée : refusée AVANT le décodeur du moteur (blocs PNG / fin
+	# JPEG contrôlés), sans erreur du moteur au journal.
 	var cut := png().slice(0, 40)
-	assert_true(MapTextureLib.check_header(cut, "image.png").is_empty(), "en-tête du PNG tronqué lisible")
-	assert_false(MapTextureLib.check_image(cut, "image.png").is_empty(), "PNG tronqué refusé au décodage")
+	assert_false(MapTextureLib.check_header(cut, "image.png").is_empty(), "PNG tronqué refusé dès l'en-tête")
+	assert_false(MapTextureLib.check_image(cut, "image.png").is_empty(), "PNG tronqué refusé")
+	assert_true(MapTextureLib.decode(cut, "image.png") == null, "PNG tronqué jamais décodé")
+	var jcut := jpg().slice(0, jpg().size() / 2)
+	assert_false(MapTextureLib.check_header(jcut, "image.jpg").is_empty(), "JPEG tronqué refusé dès l'en-tête")
 	# Côté plus grand que la limite du moteur (lu dans l'en-tête, jamais décodé).
 	var big := png()
 	big.encode_u32(16, 0)
