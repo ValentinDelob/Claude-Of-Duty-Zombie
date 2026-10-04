@@ -312,8 +312,15 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   courbe, `PAD_LOOK_SPEED` x `Settings.pad_look_sensitivity` x delta, donc
   indépendante des images par seconde) dans `look_pad` (radians) ;
   `Player._apply_look` y applique la sensibilité en visée et l'inversion de
-  l'axe vertical, comme pour la souris. Sprint à la manette : un clic (BO1),
-  tenu tant qu'on avance.
+  l'axe vertical, comme pour la souris. Sprint : au clavier, touche enfoncée ;
+  à la manette, un clic (BO1) verrouille la course tant qu'on avance (seul
+  un appui de la manette verrouille : `Settings.sprint_press_pad`) ; le
+  verrou tombe à l'arrêt, en reculant, de côté, et dès que la course
+  s'arrête. Jamais de reprise sans nouvel appui (`Player._sprint_spent`) :
+  épuisement, souffle insuffisant au départ, visée (qui coupe le sprint),
+  accroupi, à terre, pause, menu, perte de focus ou contrôle coupé
+  (`_forget_sprint`) demandent de relâcher puis réappuyer. Tests :
+  `test_sprint_input.gd`, scénario `sprint_restart`.
 - **Graphismes** : `Settings.render_scale` (x la résolution 3D du préréglage,
   `RenderQuality.scale_3d`), `Settings.max_fps` (`Engine.max_fps` ; un
   `--max-fps` de la ligne de commande l'emporte), `Settings.brightness` (gamma
@@ -798,7 +805,15 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   = `VAULT_TIME`, même animation). Modèle : `ZombieDoorModel` (10 cm d'épaisseur, face intérieure
   du mur). Masque des planches sur 10 bits (état complet en
   `PackedInt32Array`).
+- Barrière de collision (`Barricade.barrier_depth`, `barrier_mid`,
+  `barrier_width`, `barrier_face()`) : cartes en maillage, ajustée au mur
+  réellement percé (`BarricadeFit`, appelé par `MeshMapLayout.windows()` :
+  épaisseur et milieu mesurés dans l'allège ou à côté de l'ouverture,
+  largeur découpée) ; elle bouche exactement le trou, faces au nu du mur
+  (rien qui dépasse, rien où la capsule accroche). Cartes grille : 1 m.
+  La portée de réparation se mesure depuis `barrier_face()`.
 - Tests : `tests/test_rounds.gd`, `tests/test_barricades.gd`,
+  `tests/test_barricade_wall_fit.gd` (scénario `barricade_wall_slide`),
   `tests/test_zombie_doors.gd` (scénario `zombie_doors`),
   `tests/test_spawner.gd` ; scénarios `smallest_window` et `smallest_speeds`
   sur la carte SMALLEST du joueur (copie : `tests/fixtures/maps/smallest/`,
@@ -942,6 +957,61 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   avec la vitesse initiale : chaque machine lance le ragdoll du corps à cette
   vitesse (`ZombieRagdoll`, ci-dessous), ou à défaut (qualité BASSE, plafond
   plein) le vol procédural `ZombieFling`. Aucun dégât aux joueurs.
+
+## Couches physiques
+
+Une couche par usage, jamais partagée (vérifié par `tests/test_physics_layers.gd`) :
+
+| Couche | Bit | Constante | Usage |
+|---|---|---|---|
+| 1 | `1` | — | Monde (murs, sols, portes fermées, décor, machines) |
+| 2 | `1 << 1` | — | Joueurs |
+| 3 | `1 << 2` | `Zombie.BODY_LAYER` | Capsules des zombies et des chiens |
+| 4 | `1 << 3` | `Zombie.HITBOX_LAYER` | Zones de tir (zombies, chiens) |
+| 5 | `1 << 4` | `Barricade.BARRIER_LAYER` | Fenêtres et boîtes « barrière » (bloquent les corps, pas les balles) |
+| 6 | `1 << 5` | — | Libre |
+| 7 | `1 << 6` | `ZombieRagdoll.LAYER` | Ragdolls (ne heurtent que le décor) |
+| 8 | `1 << 7` | `MeshNav.LOW_LAYER` | Obstacles bas (boîte au sol, tas de planches) : rayon genou de `MeshNav.world_line_clear` |
+
+Le rayon genou ne voit QUE la couche 8 : un corps qui tombe ne coupe jamais
+la ligne de vue des zombies, la poursuite des chiens ni le test « vu par un
+joueur » des apparitions (`Spawner._in_view`, rayon des yeux seul :
+`eye_line_clear`).
+
+## Formes de collision des zombies (déplacement et tirs)
+
+Deux familles de formes, jamais mêlées (`tests/test_zombie_hitbox.gd`) :
+
+- **Déplacement** : une capsule par `CharacterBody3D` (couche « zombies »),
+  le TRONC sans les bras : `Zombie.RADIUS` 0,22 m (torse 0,19 à 0,21 m de
+  demi-largeur sur tous les looks), hauteur 1,75 m. Les épaules
+  (`Zombie.SHOULDER_RADIUS` 0,3 m, l'ancienne capsule) et les bras dépassent :
+  deux voisins se frôlent des bras, et une horde passe en file dans un
+  couloir de 1,5 m au lieu d'y former une voûte coincée à l'entrée. La
+  séparation entre zombies agit à moins de `Zombie.SEPARATION_RANGE` 0,74 m
+  (deux troncs au contact et 0,3 m), sans pousser dans le mur touché
+  (`_wall_safe`) ; les zombies glissent le long d'un mur même abordé presque
+  de face (`wall_min_slide_angle` 0). Ce qui reste aux épaules : l'érosion du
+  navmesh (`MeshNav`, 0,4 m : aucun chemin par une fente de moins de 0,8 m),
+  la ligne droite vers la cible (`_body_fits` : sphère des épaules lancée sur
+  la ligne, jamais par une fente entre un pilier et un mur ; joueur à moins
+  de `Zombie.SLIM_RANGE` 3 m ou hors du navmesh, chemin qui n'arrive pas à
+  portée d'attaque : sphère du tronc et 3 cm, un joueur réfugié dans une
+  fente de 0,7 à 0,8 m reste attaquable ; départ contre un mur longé : la
+  sphère part d'un point recentré, `_sweep_clear`), les couloirs
+  d'escalier (`StairGen.AGENT_RADIUS`), les places d'attente aux fenêtres et
+  les apparitions derrière elles (`Barricade`, `Spawner`). Un angle du
+  chemin atteint « à peu près » n'est passé que si le tronc file droit vers
+  le point suivant (`_leg_clear`, aussi pour un point « dépassé »). Chiens :
+  capsule de 0,3 m (balayages à mi-hauteur du chien, 0,3 m), séparation
+  0,9 m (`Hellhound.RADIUS_DOG`, `SEPARATION_DOG`). Scénario
+  `zombie_corridors` : horde de 20 dans des couloirs de 1,5 / 2 / 2,5 m, un
+  coude, une porte, un escalier, une fente de 0,5 m (débit, bouchons,
+  zombies coincés, personne par la fente).
+- **Tirs** : `Area3D` sur `Zombie.HITBOX_LAYER`, ni masque ni détection :
+  corps (capsule de 0,28 m, zone 0), tête (sphère de 0,16 m sur l'os de la
+  tête, zone 1), avant-bras (capsules de 0,075 m sur les os des avant-bras,
+  zone 2 : un tir au bras touche le bras et l'arrache, comme BO1).
 
 ## Ragdolls des zombies tués (`ZombieRagdoll`)
 

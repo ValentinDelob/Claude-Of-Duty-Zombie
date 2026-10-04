@@ -134,6 +134,27 @@ func test_scale_through_the_agent_link() -> void:
 	collab.queue_free()
 
 
+## Nombre de marches d'un escalier : plus réglable. Claude (editor_apply) qui
+## en écrit un est refusé avec un message clair ; le schéma d'écriture
+## (catalogue) ne le propose plus ; la LECTURE des cartes d'avant l'admet.
+func test_stair_steps_refused_through_the_agent_link() -> void:
+	var m := EditorMap.load_dir("res://assets/maps/draft_arena/")
+	var collab := MapCollab.new(m)
+	host.add_child(collab)
+	var link := MapAgentLink.new()
+	link.collab = collab
+	host.add_child(link)
+	var st := {"id": "e70", "type": "escalier", "etage": 0, "rect": [4.0, 4.0, 6.0, 8.0], "monte": "n", "marches": 12}
+	var a := link.cmd_apply({"ops": [{"op": "put", "coll": "objets", "el": st}], "label": "Escalier", "animate": false})
+	assert_true((a.invalid as Dictionary).has("e70") and String(a.invalid.e70).contains("marches"), "refus nommé : %s" % str(a))
+	assert_true(collab.doc.find("e70").is_empty(), "escalier non appliqué")
+	var cat := MapAgentLink.catalog()
+	assert_false((cat.kinds.escalier.keys as Dictionary).has("marches"), "schéma d'écriture : plus de « marches »")
+	assert_true((MapCatalog.allowed_kinds().escalier.keys as Dictionary).has("marches"), "lecture des cartes d'avant : admis")
+	link.queue_free()
+	collab.queue_free()
+
+
 ## Revue : Claude (MCP) passe par les mêmes règles que l'éditeur (plafond,
 ## décor posé dessus).
 func test_mcp_scale_follows_editor_rules() -> void:

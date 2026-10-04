@@ -100,7 +100,8 @@ static func rotated(o: Dictionary, c: Vector2, deg: float) -> Dictionary:
 			e["rot"] = MapGeom.norm_deg(MapGeom.rot_of(e) + d)
 			if int(e.rot) == 0:
 				e.erase("rot")
-	elif e.has("rot"):
+	elif e.has("rot") or MapCatalog.floor_box(e):
+		# Format 15 : une boîte au sol tourne même sans « rot » écrit (0).
 		e["rot"] = MapGeom.norm_deg(MapGeom.rot_of(e) + d)
 	if e.has("mur") and not e.has("rect"):
 		# Objet mural (ou applique) : il reste collé à son mur, face vers l'intérieur.

@@ -1,5 +1,5 @@
 extends AutotestScenario
-## @rendu : captures des textures de la carte (format 15, MapTextureLib) dans
+## @rendu : captures des textures de la carte (format 16, MapTextureLib) dans
 ## l'aperçu 3D de l'éditeur (fenêtre hors écran).
 ## @niveau perf : hors check par défaut (captures d'un ajout en cours) ;
 ## lancer avec SCENARIOS="map_textures_look" JOBS=1 GUI_JOBS=1 bash tools/check.sh.

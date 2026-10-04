@@ -239,7 +239,7 @@ Chaque obstacle qui bloque a une fonction :
 |---|---|
 | une fenêtre à zombies (côté intérieur) | 2 m de profondeur × 2 m de large |
 | une porte, des débris, un passage | 1,5 m de chaque côté, sur toute la largeur |
-| un atout, le Pack-a-Punch, la boîte | 1,5 m devant |
+| un atout, le Pack-a-Punch, la boîte | 1,5 m devant (boîte posée au sol, format 15 : 1,5 m devant, 1 m sur les autres côtés — on l'achète de partout) |
 | une arme murale, un levier, l'interrupteur | 1 m devant |
 | le pied et le haut d'un escalier | 2 m |
 | le départ des joueurs | 2 m autour |
@@ -410,7 +410,7 @@ pour monter dessus et échapper aux zombies : c'est de l'anti-jeu.
 | Armes murales à 1 200-1 500 | une par branche, derrière la 1ʳᵉ ou la 2ᵉ porte |
 | Arme lourde, fusil à pompe | à mi-parcours |
 | Couteau de chasse | loin du départ, dans une zone dangereuse |
-| Boîte mystère | **6 à 9 emplacements** dans **4 zones** au moins ; premier emplacement une porte après le départ |
+| Boîte mystère | **6 à 9 emplacements** dans **4 zones** au moins ; premier emplacement une porte après le départ ; contre un mur le plus souvent (BO1), au milieu d'une grande salle quand elle se voit de loin (format 15 : au sol, avant tourné vers l'entrée de la salle) |
 | TITAN BREW (endurance) | **2 à 3 portes** du départ, coin défendable mais pas une impasse sans fenêtre ; jamais au départ |
 | Autres atouts | répartis sur les branches, un seul par pièce |
 | Pack-a-Punch | le plus loin, après le courant ; exposé pendant l'amélioration |

@@ -23,6 +23,15 @@ const CELL_HEIGHT := 0.1
 const REACH_TOLERANCE := 0.8
 ## Hauteur des rayons de ligne de vue (poitrine).
 const EYE := 1.1
+## Obstacles bas qui ne cachent pas la cible mais barrent la ligne droite
+## (boîte mystère posée au sol, format 15) : couche de collision testée par
+## un second rayon à hauteur de genou ; touchée, le zombie suit le navmesh
+## (qui contourne l'obstacle) au lieu de foncer dedans. Couche 8, réservée à
+## cet usage : la couche 7 est celle des ragdolls (ZombieRagdoll.LAYER), que
+## ce rayon ne doit jamais voir (ARCHITECTURE.md, « Couches physiques »).
+const LOW_LAYER := 1 << 7
+const KNEE := 0.5
+var _low_q: PhysicsRayQueryParameters3D
 
 var map: RID
 var region: NavigationRegion3D
@@ -85,6 +94,9 @@ func bake(blocks: Array = []) -> void:
 	var nm := NavigationMesh.new()
 	nm.cell_size = CELL_SIZE
 	nm.cell_height = CELL_HEIGHT
+	# Érosion : les épaules du modèle (Zombie.SHOULDER_RADIUS) et 0,1 m, pas la
+	# capsule du tronc (Zombie.RADIUS) : aucun chemin par une fente de moins
+	# de 0,8 m (entre un pilier et un mur), chemins au milieu des couloirs.
 	nm.agent_radius = 0.4
 	nm.agent_height = 1.7
 	nm.agent_max_climb = 0.3
@@ -187,6 +199,18 @@ func goal_point(to: Vector3) -> Vector3:
 
 ## Ligne de vue dégagée à hauteur de poitrine (murs, portes, fenêtres, décor).
 func world_line_clear(from: Vector3, to: Vector3) -> bool:
+	if not eye_line_clear(from, to):
+		return false
+	var space := _world.get_world_3d().direct_space_state
+	if _low_q == null:
+		_low_q = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.UP, LOW_LAYER)
+	_low_q.from = from + Vector3.UP * KNEE
+	_low_q.to = to + Vector3.UP * KNEE
+	return space.intersect_ray(_low_q).is_empty()
+
+
+## Rayon des yeux seul (poitrine) : on voit par-dessus un obstacle bas.
+func eye_line_clear(from: Vector3, to: Vector3) -> bool:
 	if _los_q == null:
 		_los_q = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.UP, 1 | Barricade.BARRIER_LAYER)
 	_los_q.from = from + Vector3.UP * EYE

@@ -20,6 +20,7 @@ func setup_marker(m: MapMarker) -> void:
 	name = "PowerSwitch"
 	_normal = m.wall
 	position = m.on_wall(0.12, 1.3)
+	mount_height = 1.3  # au mur : son étage est 1,3 m plus bas (InteractionSystem.same_level)
 	interact_range = 1.9
 
 

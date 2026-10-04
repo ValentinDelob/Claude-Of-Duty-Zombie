@@ -343,7 +343,6 @@ func test_format_6_saves_types_and_options_only_when_not_default() -> void:
 	var doc := stairs_map()
 	var o: Dictionary = doc.objets.filter(func(x): return x.type == "escalier" and MapCatalog.stair_kind(x) == "quart")[0]
 	o["sens"] = "gauche"
-	o["marches"] = 22
 	o["garde_corps"] = true
 	o["cotes"] = "fermes"
 	var t := doc.file_texts()
@@ -352,16 +351,18 @@ func test_format_6_saves_types_and_options_only_when_not_default() -> void:
 	assert_eq(back.load_errors, [], "relue sans erreur")
 	assert_eq(back.file_texts(), t, "relue puis réécrite à l'identique")
 	var ob := back.find(String(o.id))
-	assert_eq([MapCatalog.stair_kind(ob), ob.get("sens"), ob.get("marches"), ob.get("garde_corps"), ob.get("cotes")], ["quart", "gauche", 22, true, "fermes"], "type et réglages relus")
+	assert_eq([MapCatalog.stair_kind(ob), ob.get("sens"), ob.get("garde_corps"), ob.get("cotes")], ["quart", "gauche", true, "fermes"], "type et réglages relus")
 	var droit: Dictionary = back.objets.filter(func(x): return x.type == "escalier" and MapCatalog.stair_kind(x) == "droit")[0]
 	assert_false(droit.has("variante") or droit.has("sens") or droit.has("marches") or droit.has("garde_corps") or droit.has("cotes"), "escalier droit : aucune clé nouvelle")
 	# Valeurs par défaut et illisibles retirées (fichier écrit à la main).
 	var hand := t.duplicate()
-	hand["objets.json"] = String(t["objets.json"]).replace("\"sens\":\"gauche\"", "\"sens\":\"haut\"").replace("\"marches\":22", "\"marches\":999") \
+	hand["objets.json"] = String(t["objets.json"]).replace("\"sens\":\"gauche\"", "\"sens\":\"haut\",\"marches\":22") \
 		.replace("\"cotes\":\"fermes\"", "\"cotes\":\"ouverts\"")
+	assert_true(String(hand["objets.json"]).contains("\"marches\":22"), "ancien réglage de marches préparé")
 	var h := EditorMap.from_texts(hand).find(String(o.id))
 	assert_false(h.has("sens"), "sens illisible retiré")
-	assert_eq(h.get("marches"), MapCatalog.STAIR_STEPS[1], "marches bornées")
+	assert_false(h.has("marches"), "nombre de marches (plus réglable) retiré à la relecture")
+	assert_false(MapCatalog.stair_layout_opts(h).has("steps"), "marches toujours automatiques en jeu")
 	assert_false(h.has("cotes"), "côtés ouverts (par défaut) non écrits")
 	var large := {"type": "escalier", "variante": "large", "garde_corps": true}
 	MapCatalog.tidy_stair(large)
@@ -430,7 +431,6 @@ func test_guard_accepts_stairs_and_refuses_bad_values() -> void:
 	var doc := stairs_map()
 	var q: Dictionary = doc.objets.filter(func(x): return x.type == "escalier" and MapCatalog.stair_kind(x) == "quart")[0]
 	q["cotes"] = "fermes"
-	q["marches"] = 20
 	var texts := doc.file_texts()
 	assert_eq(CustomMapGuard.check_texts(texts).reasons, [], "carte aux huit escaliers acceptée")
 	var full := CustomMapGuard.check_full(texts)
@@ -440,9 +440,8 @@ func test_guard_accepts_stairs_and_refuses_bad_values() -> void:
 		["\"variante\":\"quart\"", "\"variante\":\"bois\"", "variante d'un autre type"],
 		["\"variante\":\"quart\"", "\"variante\":\"quart\",\"sens\":3", "sens qui n'est pas un texte"],
 		["\"variante\":\"quart\"", "\"variante\":\"quart\",\"sens\":\"haut\"", "sens inconnu"],
-		["\"marches\":20", "\"marches\":2", "trop peu de marches"],
 		["\"cotes\":\"fermes\"", "\"cotes\":true", "côtés qui ne sont pas un texte"],
-		["\"marches\":20", "\"marches\":1000", "trop de marches"],
+		["\"cotes\":\"fermes\"", "\"cotes\":\"fermes\",\"marches\":1000", "ancien réglage de marches hors bornes"],
 		["\"cotes\":\"fermes\"", "\"cotes\":\"res://x\"", "côtés inconnus"],
 		["\"variante\":\"quart\"", "\"variante\":\"quart\",\"garde_corps\":\"oui\"", "garde-corps qui n'est pas un booléen"],
 	]

@@ -370,7 +370,8 @@ static func barricade_kind(o: Dictionary) -> String:
 ## défaut, jamais écrite (une carte d'avant garde ses octets).
 ##   sens         « droite » (défaut) ou « gauche » : côté du virage (L, U) ou
 ##                sens du colimaçon, vu en montant
-##   marches      nombre de marches visibles (absent : ≈ 18 cm chacune)
+##   marches      ancien réglage du nombre de marches (retiré le 04/10/2026 :
+##                toujours automatique, ≈ 18 cm chacune) ; lu puis effacé
 ##   garde_corps  garde-corps sur les côtés (absent : oui pour l'escalier
 ##                d'honneur, non pour les autres)
 ##   cotes        « ouverts » (défaut) ou « fermes » : limons pleins
@@ -407,9 +408,6 @@ static func stair_layout_opts(o: Dictionary) -> Dictionary:
 		out["kind"] = kind
 	if String(o.get("sens", "droite")) == "gauche":
 		out["turn"] = -1
-	var n: Variant = o.get("marches")
-	if (n is int or n is float) and int(n) >= STAIR_STEPS[0]:
-		out["steps"] = clampi(int(n), STAIR_STEPS[0], STAIR_STEPS[1])
 	if o.has("garde_corps") and bool(o.garde_corps) != stair_rail_default(kind):
 		out["rail"] = bool(o.garde_corps)
 	if String(o.get("cotes", "ouverts")) == "fermes":
@@ -426,12 +424,9 @@ static func tidy_stair(o: Dictionary) -> void:
 		o.erase("sens")
 	if not STAIR_SIDES.has(o.get("cotes", "ouverts")) or o.get("cotes") == "ouverts":
 		o.erase("cotes")
-	if o.has("marches"):
-		var n: Variant = o.marches
-		if (n is int or n is float) and is_finite(float(n)) and int(n) >= STAIR_STEPS[0]:
-			o["marches"] = clampi(int(n), STAIR_STEPS[0], STAIR_STEPS[1])
-		else:
-			o.erase("marches")
+	# Nombre de marches : plus réglable (toujours automatique) ; une carte
+	# d'avant qui l'avait le perd à sa relecture.
+	o.erase("marches")
 	if o.has("garde_corps") and (not o.garde_corps is bool or o.garde_corps == stair_rail_default(stair_kind(o))):
 		o.erase("garde_corps")
 
@@ -699,13 +694,17 @@ static func _build() -> void:
 	_add({"id": "grenades", "cat": "armes", "fr": "Grenades", "en": "Grenades", "tool": "wall_item", "color": Color(0.45, 0.5, 0.3),
 		"make": {"type": "grenades"}, "fp": [1, 1], "price": ThrowableRules.FRAG_WALL_COST,
 		"hint_fr": "Recharge les grenades", "hint_en": "Refills grenades"})
-	# Boîte mystère.
-	_add({"id": "boite", "cat": "boite", "fr": "Emplacement de boîte", "en": "Box location", "tool": "wall_item", "color": Color(1.0, 0.9, 0.2),
-		"make": {"type": "boite", "depart": false}, "fp": [4, 2], "price": MysteryBox.COST,
-		"hint_fr": "Contre un mur ; la boîte se déplace entre ses emplacements", "hint_en": "Against a wall; the box moves between its locations"})
-	_add({"id": "boite_depart", "cat": "boite", "fr": "Boîte (départ)", "en": "Box (start)", "tool": "wall_item", "color": Color(0.8, 0.7, 0.1),
-		"make": {"type": "boite", "depart": true}, "fp": [4, 2], "price": MysteryBox.COST,
-		"hint_fr": "L'emplacement où la boîte commence", "hint_en": "Where the box starts"})
+	# Boîte mystère. Format 15 : posée au sol n'importe où dans une pièce
+	# (« rot » : son avant), ou contre un mur (« mur », comme avant) : près
+	# d'un mur, l'outil l'y colle face à la pièce (MapRules.place_box,
+	# « wall_snap »). L'outil d'une boîte posée dépend de sa pose (tool_of).
+	_add({"id": "boite", "cat": "boite", "fr": "Emplacement de boîte", "en": "Box location", "tool": "floor_item", "color": Color(1.0, 0.9, 0.2),
+		"make": {"type": "boite", "depart": false}, "fp": [4, 2], "price": MysteryBox.COST, "rotates": true, "wall_snap": true,
+		"hint_fr": "Au sol, n'importe où dans une pièce (R, poignée ronde : pivoter ; la flèche montre l'avant) ; près d'un mur, elle s'y colle face à la pièce (Alt : sans aimant) ; la boîte se déplace entre ses emplacements",
+		"hint_en": "On the floor, anywhere in a room (R, round handle: rotate; the arrow shows the front); near a wall, it snaps to it facing the room (Alt: no magnet); the box moves between its locations"})
+	_add({"id": "boite_depart", "cat": "boite", "fr": "Boîte (départ)", "en": "Box (start)", "tool": "floor_item", "color": Color(0.8, 0.7, 0.1),
+		"make": {"type": "boite", "depart": true}, "fp": [4, 2], "price": MysteryBox.COST, "rotates": true, "wall_snap": true,
+		"hint_fr": "L'emplacement où la boîte commence ; au sol ou contre un mur, comme les autres", "hint_en": "Where the box starts; on the floor or against a wall, like the others"})
 	# Machines.
 	_add({"id": "pap", "cat": "machines", "fr": "Pack-a-Punch", "en": "Pack-a-Punch", "tool": "wall_item", "color": Color(0.4, 0.1, 1.0),
 		"make": {"type": "pap"}, "fp": [3, 2], "price": PackAPunch.COST, "hint_fr": "Marche avec le courant", "hint_en": "Needs the power"})
@@ -903,15 +902,26 @@ static func floor_size(o: Dictionary) -> Vector2i:
 	var fp: Array = it.get("fp", [1, 1])
 	if String(o.get("type", "")) == "effet":
 		fp = effect_cells(String(o.get("effet", "")), effect_zone(o))
-	if not it.get("rotates", false):
+	if not rotates(o):
 		return Vector2i(int(fp[0]), int(fp[0]))
 	var r := posmod(roundi(float(o.get("rot", 0)) / 90.0) * 90, 360)
 	return Vector2i(int(fp[1]), int(fp[0])) if r == 90 or r == 270 else Vector2i(int(fp[0]), int(fp[1]))
 
 
-## L'objet pivote-t-il avec R (prefabs, luminaires au sol ou au plafond) ?
+## L'objet pivote-t-il avec R (prefabs, luminaires au sol ou au plafond,
+## boîte posée au sol) ?
 static func rotates(o: Dictionary) -> bool:
+	if String(o.get("type", "")) == "boite":
+		return floor_box(o)
 	return bool(item_for(o).get("rotates", false))
+
+
+## Format 15 : boîte mystère posée au sol (sans « mur ») : « position » est
+## son centre, « rot » son orientation (degrés entiers, sens horaire vu de
+## dessus ; à 0, l'avant est au sud, comme un décor). Avec « mur » : contre
+## un mur, comme avant le format 15.
+static func floor_box(o: Dictionary) -> bool:
+	return String(o.get("type", "")) == "boite" and not o.has("mur")
 
 
 ## Montage d'un décor du catalogue (format 11) : « sol », « mur » ou « plafond ».
@@ -1381,6 +1391,9 @@ static func light_color(o: Dictionary) -> Color:
 
 ## Type d'emplacement d'un élément : wall_item, floor_item, rect, wall, opening.
 static func tool_of(o: Dictionary) -> String:
+	if String(o.get("type", "")) == "boite":
+		# Format 15 : boîte murale ou au sol selon sa pose (floor_box).
+		return "floor_item" if floor_box(o) else "wall_item"
 	return String(item_for(o).get("tool", ""))
 
 
@@ -1464,6 +1477,9 @@ static func allowed_kinds() -> Dictionary:
 	for t in ["pilier", "piege"]:
 		add.call("objets.json", t, {"rect": {"t": "rect"}, "rot": rot}, ["rect"])
 	# Format 6 : type (variante), sens du virage, marches, garde-corps, côtés.
+	# « marches » : admis à la LECTURE seulement (cartes d'avant ou reçues ;
+	# tidy_stair l'efface) ; retiré du schéma d'écriture de Claude
+	# (MapAgentLink.catalog) et refusé par editor_apply (MapAgentLink.cmd_apply).
 	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs, "rot": rot,
 		"sens": {"t": "enum", "values": STAIR_TURNS}, "marches": {"t": "int", "min": STAIR_STEPS[0], "max": STAIR_STEPS[1]},
 		"garde_corps": {"t": "bool"}, "cotes": {"t": "enum", "values": STAIR_SIDES}}, ["rect"])
@@ -1485,7 +1501,9 @@ static func allowed_kinds() -> Dictionary:
 		if String(it.id).begins_with("arme:"):
 			arms.append(String(it.id).substr(5))
 	add.call("objets.json", "arme", {"arme": {"t": "enum", "values": arms}, "position": point, "mur": dirs, "angle": angle}, ["arme", "position"])
-	add.call("objets.json", "boite", {"position": point, "mur": dirs, "angle": angle, "depart": {"t": "bool"}}, ["position"])
+	# Format 15 : « rot » d'une boîte posée au sol (jamais avec « mur » ni
+	# « angle » : CustomMapGuard._check_object).
+	add.call("objets.json", "boite", {"position": point, "mur": dirs, "angle": angle, "rot": rot, "depart": {"t": "bool"}}, ["position"])
 	for t in ["grenades", "pap", "courant", "poste_central", "levier"]:
 		add.call("objets.json", t, {"position": point, "mur": dirs, "angle": angle}, ["position"])
 	for t in ["depart", "apparition", "teleporteur", "arrivee", "lampe", "caisse", "baril"]:

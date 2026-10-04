@@ -185,6 +185,20 @@ func surface_of(room_id: String, part: String, zone: String, fallback: String) -
 	return String(zm.get(zone, fallback))
 
 
+## Écart (m) entre le plafond d'une pièce et le dessous de la dalle de l'étage
+## du dessus : assez pour éviter le z-fighting, invisible au joueur.
+const UNDER_SLAB := 0.01
+
+
+## Plafond d'une pièce sous une pièce (ou un mur) de l'étage du dessus : juste
+## sous le dessous de la dalle `slab_bottom`. Toujours dessiné, avec la
+## texture de plafond de la pièce du bas (même par défaut) : sans lui, on
+## voyait d'en bas le dessous de la dalle, qui porte la texture du SOL de la
+## pièce du dessus (MeshMapGeometry._slab).
+static func under_slab(slab_bottom: float) -> float:
+	return snappedf(slab_bottom - UNDER_SLAB, 0.001)
+
+
 ## Case de sol d'une pièce, y compris sous le décor posé (prefabs, caisses).
 func _floor_cell(f: MapValidator.Floor, c: Vector2i) -> bool:
 	if md._walk(f, c):
@@ -228,11 +242,7 @@ func _rooms(f: MapValidator.Floor) -> void:
 		var room := {"id": rid, "outline": _outline(r), "floor": _r(f.sol), "ceiling": _r(inf[2][0]),
 			"floor_mat": String(inf[3]), "ceiling_mat": String(inf[4])}
 		if not inf[2][1]:
-			if String(inf[4]) != "ceiling":
-				# Plafond choisi sous l'étage du dessus : dessiné juste sous sa dalle.
-				room["ceiling"] = _r(float(inf[2][0]) - 0.01)
-			else:
-				room["no_ceiling"] = true
+			room["ceiling"] = under_slab(float(inf[2][0]))
 		if k > 0:
 			room["floor_slab"] = MapValidator.DALLE
 		rooms.append(room)
@@ -292,6 +302,37 @@ func _cell_wall_mat(f: MapValidator.Floor, c: Vector2i) -> String:
 	return best if best != "" else _wall_mat(f, c)
 
 
+## Retombée au-dessus d'une case de passage libre (sol hors pièce, entre deux
+## pièces en vis-à-vis) : le passage est ouvert jusqu'au plafond le plus BAS
+## des deux pièces (MapRaster.passage_ceil) ; au-dessus, le mur continue
+## jusqu'au plus haut, chaque face avec la texture de murs de sa pièce.
+## -> [bas, haut, [matériau côté ouest/nord, côté est/sud], axe (0 : mur
+## nord-sud, pièces à l'ouest et à l'est ; 1 : mur est-ouest)], [] sinon.
+## Le bas est UNDER_SLAB sous le plafond du passage : le dessous de la
+## retombée (texture du mur) n'est jamais dans le plan de ce plafond.
+func _passage_lintel(f: MapValidator.Floor, c: Vector2i) -> Array:
+	if f.room_of(c) != "" or f.key_at(c) != "zone":
+		return []
+	var k := f.index
+	for axis in 2:
+		var d := Vector2i(1, 0) if axis == 0 else Vector2i(0, 1)
+		var a := c - d
+		var b := c + d
+		if f.room_of(a) == "" or f.room_of(b) == "":
+			continue
+		var low: float = ceil_at(k, c)[0]
+		var top := maxf(float(ceil_at(k, a)[0]), float(ceil_at(k, b)[0]))
+		# Mur ou sol de l'étage du dessus au droit du passage : il commence au
+		# dessous de la dalle (pas deux murs l'un dans l'autre, z-fighting).
+		if k < n_floors - 1 and not md.floors[k + 1].at(c) in [Kd.VIDE, Kd.TREMIE]:
+			top = minf(top, MapVertical.top(md, k))
+		if top <= low + 0.005:
+			return []
+		var mats := [surface_of(f.room_of(a), "murs", f.zone_of(a), "wall"), surface_of(f.room_of(b), "murs", f.zone_of(b), "wall")]
+		return [under_slab(low), top, mats, axis]
+	return []
+
+
 ## Murs, allèges et linteaux : blocs fusionnés sur une grille de demi-cases
 ## (0,25 m) pour que chaque face d'un mur ait la texture de sa pièce.
 func _walls(f: MapValidator.Floor) -> void:
@@ -312,6 +353,7 @@ func _walls(f: MapValidator.Floor) -> void:
 				continue   # mur en biais : vrai mur oblique (_obliques)
 			var kd := f.at(c)
 			var lo := ""   # grille principale : "bas|haut"
+			var lintel := []   # retombée d'un passage : [bas, haut, [matériau ouest/nord, est/sud], axe]
 			var hi := ""   # grille du haut (linteaux)
 			if kd == Kd.MUR:
 				# Décor bloquant : ses propres blocs (_decor) ou objets, pas un mur.
@@ -332,12 +374,20 @@ func _walls(f: MapValidator.Floor) -> void:
 				var ce: float = ceil_at(k, c)[0]
 				if ce > f.sol + md.door_height + 0.05:
 					hi = "%s|%s" % [f.sol + md.door_height, ce]
+			elif kd == Kd.SOL:
+				# Passage libre entre deux pièces de plafonds différents : retombée
+				# du plafond le plus bas au plus haut.
+				lintel = _passage_lintel(f, c)
+				if not lintel.is_empty():
+					hi = "%s|%s" % [lintel[0], lintel[1]]
 			if lo == "" and hi == "":
 				continue
 			var whole := _cell_wall_mat(f, c)
 			for sy in 2:
 				for sx in 2:
 					var mat := _half_wall_mat(f, c, sx, sy, whole)
+					if not lintel.is_empty():
+						mat = lintel[2][sx if lintel[3] == 0 else sy]
 					var j := (y * 2 + sy) * w2 + x * 2 + sx
 					if lo != "":
 						main[j] = mat + "|" + lo
@@ -373,10 +423,7 @@ func _ceil_room(k: int, c: Vector2i, own: float) -> Array:
 func _room_entry(rid: String, outline: Array, f: MapValidator.Floor, ce: Array, fm: String, cm: String) -> Dictionary:
 	var room := {"id": rid, "outline": outline, "floor": _r(f.sol), "ceiling": _r(ce[0]), "floor_mat": fm, "ceiling_mat": cm}
 	if not ce[1]:
-		if cm != "ceiling":
-			room["ceiling"] = _r(float(ce[0]) - 0.01)
-		else:
-			room["no_ceiling"] = true
+		room["ceiling"] = under_slab(float(ce[0]))
 	if f.index > 0:
 		room["floor_slab"] = MapValidator.DALLE
 	return room
@@ -1074,6 +1121,15 @@ func _markers() -> Dictionary:
 			continue
 		match it.base:
 			"boite", "boite_depart":
+				if it.get("floor_box", false):
+					# Format 15 : boîte posée au sol (mur fictif derrière elle,
+					# MapValidator._floor_box_marker) ; chaque emplacement est
+					# retiré du navmesh des zombies (boîte ou tas de planches).
+					wi["floor"] = true
+					var poly := []
+					for q in MapGeom.rot_rect_poly(it.box_center, Vector2(MysteryBox.BODY_SIZE.x, MysteryBox.BODY_SIZE.z), float(it.rot)):
+						poly.append(_xz(q))
+					nav_blocks.append({"poly": poly, "y": _r(md.floors[it.floor].sol), "h": MysteryBox.BODY_SIZE.y})
 				m.box.append(wi)
 			"courant":
 				m["power"] = wi
@@ -1190,7 +1246,7 @@ func _lamps() -> Array:
 			for y in f.h:
 				for x in f.w:
 					var c := Vector2i(x, y)
-					if f.zone_of(c) == z and f.at(c) in [Kd.SOL, Kd.MARQUEUR]:
+					if _lamp_zone(f, c) == z:
 						cells.append(c)
 						lo = Vector2i(mini(lo.x, x), mini(lo.y, y))
 						hi = Vector2i(maxi(hi.x, x), maxi(hi.y, y))
@@ -1202,7 +1258,7 @@ func _lamps() -> Array:
 			for iy in ny:
 				for ix in nx:
 					var c := Vector2i(lo.x + int((ix + 0.5) * (hi.x - lo.x + 1) / nx), lo.y + int((iy + 0.5) * (hi.y - lo.y + 1) / ny))
-					if f.zone_of(c) != z or not f.at(c) in [Kd.SOL, Kd.MARQUEUR]:
+					if _lamp_zone(f, c) != z:
 						continue
 					out.append(_lamp(k, c))
 					got += 1
@@ -1214,6 +1270,17 @@ func _lamps() -> Array:
 				cells.sort_custom(func(a, b): return (Vector2(a) - mean).length() < (Vector2(b) - mean).length())
 				out.append(_lamp(k, cells[0]))
 	return out
+
+
+## Zone d'une case qui reçoit une lampe automatique ("" : aucune) : sol libre
+## ou objet posé, et sol sous une barrière invisible (la lampe est au
+## plafond : poser une barrière ne retire ni ne déplace les lampes).
+func _lamp_zone(f: MapValidator.Floor, c: Vector2i) -> String:
+	if f.at(c) in [Kd.SOL, Kd.MARQUEUR]:
+		return f.zone_of(c)
+	if md._under_clip(f, c):
+		return String(md.room_zone.get(f.room_of(c), ""))
+	return ""
 
 
 func _lamp(k: int, c: Vector2i) -> Dictionary:

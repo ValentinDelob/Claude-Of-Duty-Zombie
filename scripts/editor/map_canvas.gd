@@ -628,11 +628,15 @@ func _press(double: bool) -> void:
 			if e.is_empty():
 				drag = {"kind": "band", "start": mouse_m, "add": false, "click": ""}
 				return
+			# Reclic : un simple clic (sans glisser, pas un double-clic) sur
+			# l'élément déjà choisi seul le désélectionne au relâché, comme
+			# dans les élévations et la 3D ; glissé, il est déplacé.
+			var reclick := not double and ed.selected == String(e.get("id", "")) and ed.group.is_empty()
 			ed.select(String(e.get("id", "")))
 			if not e.is_empty():
 				_snap_exclude = String(e.id)
 				drag = {"kind": "move", "start": snap(mouse_m), "raw": mouse_m, "snap": ed.doc.snapshot(), "orig": e.duplicate(true), "moved": false,
-					"attached": ed.attached_to(e)}
+					"attached": ed.attached_to(e), "reclick": reclick}
 		"erase":
 			var e := ed.element_at(mouse_m)
 			if not e.is_empty():
@@ -748,8 +752,12 @@ func _release() -> void:
 		if drag.moved:
 			ed.push_undo_snapshot(drag.snap)
 			ed.changed()
+		# Reclic sans bouger (moins de 4 px) : l'élément est désélectionné.
+		var unselect: bool = bool(drag.get("reclick", false)) and not drag.moved and to_px(mouse_m).distance_to(to_px(Vector2(drag.raw))) < 4.0
 		drag = {}
 		_snap_exclude = ""
+		if unselect:
+			ed.select("")
 
 
 ## Termine le tracé en cours (glisser, clic-clic ou saisie au clavier) en `end`.
@@ -933,9 +941,16 @@ func _update_preview() -> void:
 		"floor_item":
 			# Sans grille : là où est le curseur (au centimètre).
 			var free := mode_now() == "libre"
-			res = MapRules.place_floor_item(ed.doc, k, o, MapGeom.round_cm(mouse_m) if free else mouse_m, "", not free)
-			if res.ok:
-				o["position"] = res.position
+			if it.get("wall_snap", false):
+				# Boîte mystère (format 15) : au sol, ou collée au mur proche
+				# face à la pièce (Alt : sans aimant).
+				res = MapRules.place_box(ed.doc, k, o, MapGeom.round_cm(mouse_m) if free else mouse_m, "", not free, not angle_free())
+				if res.ok:
+					MapRules.apply_box(o, res)
+			else:
+				res = MapRules.place_floor_item(ed.doc, k, o, MapGeom.round_cm(mouse_m) if free else mouse_m, "", not free)
+				if res.ok:
+					o["position"] = res.position
 	if not res.ok:
 		o["position"] = MapGeom.arr(snap(mouse_m))
 		if tool == "wall_item":
@@ -1838,6 +1853,9 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 	if t == "effet":
 		_draw_effect(o, it, col, rp, alpha)
 		return
+	if MapCatalog.floor_box(o):
+		_draw_floor_box(o, it, col, alpha)
+		return
 	var mount := MapCatalog.light_mount(o)
 	if t in ["prefab", "luminaire"] and mount != "mur" and MapRaster.free_rot(o):
 		# Décor tourné au degré près : emprise tournée, icône, flèche du devant.
@@ -1910,6 +1928,28 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 	draw_rect(rp, Color(col, 0.8 * alpha), false, 1.0)
 	if t == "luminaire" and o.get("id", "") == ed.selected:
 		draw_arc(rp.get_center(), float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
+
+
+## Boîte mystère au sol (format 15) : emprise tournée (2 × 1 m), icône, avant
+## de la boîte (côté où s'ouvre le couvercle) en trait épais et flèche.
+func _draw_floor_box(o: Dictionary, it: Dictionary, col: Color, alpha: float) -> void:
+	var poly := _px_poly(MapRaster.floor_poly(o))
+	_fill(poly, Color(0, 0, 0, 0.35 * alpha))
+	var c := MapGeom.centroid(poly)
+	var span := minf(poly[0].distance_to(poly[1]), poly[1].distance_to(poly[2]))
+	var si := clampf(span * 1.1, 12.0, 56.0)
+	MapIcons.draw(self, it, Rect2(c - Vector2(si, si) * 0.5, Vector2(si, si)))
+	draw_polyline(poly + PackedVector2Array([poly[0]]), Color(col, 0.8 * alpha), 1.0)
+	# Avant : côté +y à rot = 0 (MapGeom.rot_rect_poly : sommets 2 et 3).
+	draw_line(poly[2], poly[3], Color(col.lightened(0.3), 0.95 * alpha), 3.0)
+	if zoom >= 4.0:
+		var dv := MapRules.box_front(o)
+		var edge := (poly[2] + poly[3]) * 0.5
+		var tip := edge + dv * maxf(6.0, zoom * 0.35)
+		var w := Color(1, 1, 1, 0.9 * alpha)
+		draw_line(edge, tip, w, 2.0)
+		draw_line(tip, tip - dv.rotated(0.6) * 6.0, w, 2.0)
+		draw_line(tip, tip - dv.rotated(-0.6) * 6.0, w, 2.0)
 
 
 ## Effet (format 10 ; zone : format 11) : sa ZONE réelle (polygone tourné)
@@ -2423,9 +2463,14 @@ func _draw_tool(font: Font) -> void:
 			var r := Rect2(p - (Vector2(w, zoom * 0.5) if horiz else Vector2(zoom * 0.5, w)) * 0.5, Vector2(w, zoom * 0.5) if horiz else Vector2(zoom * 0.5, w))
 			draw_rect(r.grow(2), Color(col, 0.55))
 			draw_rect(r.grow(2), col, false, 2.0)
-		elif MapGeom.item_oblique(o) and tool == "wall_item":
+		elif MapGeom.item_oblique(o) and MapCatalog.tool_of(o) == "wall_item":
 			_draw_object(o, font, 0.8)
 			var poly := _px_poly(MapRules.wall_item_poly(o))
+			draw_polyline(poly + PackedVector2Array([poly[0]]), col, 2.0)
+		elif MapCatalog.floor_box(o):
+			# Boîte au sol (format 15) : son emprise tournée exacte.
+			_draw_object(o, font, 0.8)
+			var poly := _px_poly(MapRaster.floor_poly(o))
 			draw_polyline(poly + PackedVector2Array([poly[0]]), col, 2.0)
 		else:
 			_draw_object(o, font, 0.8)

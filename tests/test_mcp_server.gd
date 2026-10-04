@@ -524,3 +524,21 @@ func test_connect_dialog() -> void:
 	assert_true(auto.editor() == null, "éditeur retiré en sortant")
 	auto.dir = old_dir
 	auto.token = old_token
+
+
+func test_checks_ported_from_main() -> void:
+	# Nombre de marches automatique : « marches » refusé avant envoi (put ou add).
+	var st := {"type": "escalier", "etage": 0, "rect": [2, 2, 4, 6], "monte": "n"}
+	var put_el := st.duplicate()
+	put_el["id"] = "e1"
+	put_el["marches"] = 12
+	var add_el := st.duplicate()
+	add_el["marches"] = 12
+	assert_true(McpTools.check_ops([{"op": "put", "coll": "objets", "el": put_el}]).contains("n'est plus réglable"))
+	assert_true(McpTools.check_ops([{"op": "add", "coll": "objets", "el": add_el}]).contains("n'est plus réglable"))
+	var ok_el := st.duplicate()
+	ok_el["id"] = "e1"
+	assert_eq(McpTools.check_ops([{"op": "put", "coll": "objets", "el": ok_el}]), "")
+	# Sélection pendant un geste : « busy » décrit ; boîte au sol dans les consignes.
+	assert_true(String(McpTools.new().find("editor_highlight").description).contains("busy"))
+	assert_true(McpDocs.CONSIGNES.contains("Boîte mystère (format 15") and McpDocs.CONSIGNES.contains("jamais de « marches »"))

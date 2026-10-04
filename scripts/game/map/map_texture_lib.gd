@@ -1,6 +1,6 @@
 class_name MapTextureLib
 extends RefCounted
-## TEXTURES DE LA CARTE (format 15, docs/MAP_AUTHORING.md § Textures de la
+## TEXTURES DE LA CARTE (format 16, docs/MAP_AUTHORING.md § Textures de la
 ## carte) : images importées du disque, rangées DANS le dossier de la carte, à
 ## côté des cinq JSON :
 ##   textures/<tid>/texture.json   définition (nom, taille du motif...)

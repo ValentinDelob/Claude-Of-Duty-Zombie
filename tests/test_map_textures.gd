@@ -1,5 +1,5 @@
 extends TestCase
-## Textures de la carte (format 15, MapTextureLib, MapTextureTools,
+## Textures de la carte (format 16, MapTextureLib, MapTextureTools,
 ## MapAgentTextures) : définition (texture.json) contrôlée clé par clé, images
 ## PNG / JPEG (fabriquées ici par Image : aucun binaire dans le dépôt)
 ## vérifiées puis décodées à la réception, enregistrement et relecture du
@@ -135,7 +135,7 @@ func test_save_load_dir() -> void:
 	assert_true(FileAccess.file_exists(dir.path_join("textures/carreaux/normal.png")), "normal.png dans le dossier")
 	assert_eq(FileAccess.get_file_as_bytes(dir.path_join("textures/carreaux/image.png")), MapTextureLib.image_bytes(doc.texture_files, "carreaux"), "octets de l'image identiques")
 	var c: Variant = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("carte.json")))
-	assert_eq(int(c.format), 15, "écrite au format 15")
+	assert_eq(int(c.format), EditorMap.FORMAT, "écrite au format courant")
 	var back := EditorMap.load_dir(dir)
 	assert_eq(back.load_errors, [], "relue sans erreur")
 	assert_eq(back.textures, doc.textures, "définitions relues")

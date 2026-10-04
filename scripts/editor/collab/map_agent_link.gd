@@ -166,6 +166,13 @@ func cmd_apply(args: Dictionary) -> Dictionary:
 	for op in chk.ops:
 		if op is Dictionary and String(op.get("coll", "")) == "objets" and op.get("el") is Dictionary:
 			var el: Dictionary = op.el
+			# Nombre de marches d'un escalier : plus réglable (toujours
+			# automatique) ; refus nommé plutôt qu'un réglage ignoré en silence.
+			if String(el.get("type", "")) == "escalier" and el.has("marches"):
+				chk.invalid[String(el.get("id", ""))] = Lang.t("le nombre de marches n'est plus réglable (toujours automatique, ≈ 18 cm par marche) : retire « marches »",
+					"the number of steps can no longer be set (always automatic, ≈ 18 cm per step): remove \"marches\"")
+				continue
+			MapCatalog.tidy_stair(el)
 			MapScale.tidy(el)
 			var before := collab.doc.find(String(el.get("id", "")))
 			var changed := MapScale.transformed(el) and (before.is_empty() or not MapScale.scale_of(before).is_equal_approx(MapScale.scale_of(el))
@@ -430,6 +437,13 @@ func cmd_highlight(args: Dictionary) -> Dictionary:
 	highlight_requested.emit(ids, msg)
 	var out := {"shown": ids.size()}
 	if args.get("select") is bool and bool(args.select) and editor != null and editor.has_method("select_many"):
+		if editor.has_method("gesture_busy") and editor.gesture_busy():
+			# Geste en cours (déplacement, anneau, poignée, tracé) : changer la
+			# sélection l'annulerait et remettrait la carte. Sélection inchangée,
+			# Claude réessaie plus tard ; seuls les éléments sont montrés.
+			out["selected"] = editor.sel_ids()
+			out["busy"] = "l'utilisateur est en train de modifier la carte (geste en cours) : sélection inchangée, réessaie dans un instant"
+			return out
 		editor.select_many(ids)
 		out["selected"] = editor.sel_ids()
 	return out
@@ -449,6 +463,9 @@ static func catalog() -> Dictionary:
 			# Outil de l'éditeur seulement : la carte n'a qu'un type d'escalier.
 			entry["descend"] = true
 			entry["note"] = "escalier qui descend de l'étage k : écrire un « escalier » d'etage k - 1 dont « monte » pointe vers l'endroit où l'on arrive en haut"
+		if it.get("wall_snap", false):
+			# Format 15 : boîte mystère au sol ou contre un mur.
+			entry["note"] = "au sol : « position » = centre et « rot » (0 : avant au sud), sans « mur » ; contre un mur : « position » sur le trait et « mur » (+ « angle »), sans « rot »"
 		items.append(entry)
 	var prefabs := {}
 	for p in MapCatalog.PREFABS:
@@ -485,7 +502,11 @@ static func catalog() -> Dictionary:
 	var perks := []
 	for p in PerkDB.PERKS:
 		perks.append({"id": p, "name": PerkDB.display_name(p)})
-	return {"kinds": jsonable(MapCatalog.allowed_kinds()), "room_keys": jsonable(MapCatalog.room_keys()), "zone_keys": jsonable(MapCatalog.zone_keys()),
+	# Schéma d'ÉCRITURE : « marches » (nombre de marches) n'est plus réglable ;
+	# allowed_kinds le garde pour LIRE les cartes d'avant (tidy_stair l'efface).
+	var kinds := MapCatalog.allowed_kinds()
+	(kinds.escalier.keys as Dictionary).erase("marches")
+	return {"kinds": jsonable(kinds), "room_keys": jsonable(MapCatalog.room_keys()), "zone_keys": jsonable(MapCatalog.zone_keys()),
 		"items": items, "prefabs": prefabs, "lights": lights, "effects": effects, "weapons": weapons, "perks": perks, "variants": jsonable(MapCatalog.VARIANTS),
 		"door_prices": MapCatalog.DOOR_PRICES, "max_floors": MapCatalog.MAX_FLOORS, "max_coord": MapCatalog.MAX_COORD,
 		"id_prefixes": jsonable(MapOps.OBJ_PREFIX), "surfaces": MapCatalog.allowed_surfaces()}

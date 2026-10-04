@@ -64,8 +64,9 @@ window/stretch/aspect="expand"
 3d_physics/layer_2="players"
 3d_physics/layer_3="zombies"
 3d_physics/layer_4="hitboxes"
-3d_physics/layer_5="interactables"
-3d_physics/layer_6="triggers"
+3d_physics/layer_5="barriers"
+3d_physics/layer_7="ragdolls"
+3d_physics/layer_8="low_obstacles"
 
 [physics]
 

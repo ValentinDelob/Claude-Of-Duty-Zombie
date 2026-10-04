@@ -204,6 +204,38 @@ func test_highlight_brings_the_elements_into_view() -> void:
 	await _end(ed)
 
 
+## Sélection demandée par Claude (highlight « select ») pendant un geste de
+## l'utilisateur : le geste n'est pas annulé, la sélection reste, Claude est
+## prévenu ; une fois le geste fini, la sélection passe.
+func test_agent_select_waits_for_the_user_gesture() -> void:
+	var ed := await _editor()
+	ed.collab.submit_ops(_crate("c1", 4.0) + _crate("c2", 9.0), "x")
+	var link := _link(ed)
+	ed.select("c1")
+	var orig := ed.doc.find("c1").duplicate(true)
+	ed.canvas.drag = {"kind": "move", "start": Vector2(4, 3), "raw": Vector2(4, 3), "snap": ed.doc.snapshot(), "orig": orig, "moved": true}
+	ed.doc.find("c1")["position"] = [6.0, 3.0]
+	var out := link.cmd_highlight({"ids": ["c2"], "select": true})
+	assert_true(out.has("busy"), "Claude prévenu du geste en cours (%s)" % str(out))
+	assert_eq(out.get("selected"), ["c1"], "sélection inchangée")
+	assert_eq(ed.selected, "c1", "toujours c1 choisi")
+	assert_false(ed.canvas.drag.is_empty(), "geste de l'utilisateur gardé")
+	assert_eq(ed.doc.find("c1").position, [6.0, 3.0], "carte du geste gardée (pas remise)")
+	# Geste fini : la sélection de Claude passe.
+	ed.canvas.drag = {}
+	out = link.cmd_highlight({"ids": ["c2"], "select": true})
+	assert_false(out.has("busy"), "plus de geste")
+	assert_eq(ed.selected, "c2", "c2 choisi")
+	# Reclic local pendant un geste : annulé comme avant (carte remise).
+	ed.select("c1")
+	ed.canvas.drag = {"kind": "move", "start": Vector2(6, 3), "raw": Vector2(6, 3), "snap": ed.doc.snapshot(), "orig": ed.doc.find("c1").duplicate(true), "moved": true}
+	ed.doc.find("c1")["position"] = [7.0, 3.0]
+	ed.select("c2")
+	assert_true(ed.canvas.drag.is_empty(), "sélection locale : geste annulé")
+	link.queue_free()
+	await _end(ed)
+
+
 func test_pills_show_role_and_floor() -> void:
 	var ed := await _editor()
 	var ui := ed.collab_ui

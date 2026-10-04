@@ -39,7 +39,7 @@ func run() -> void:
 	# une demande de réparation (son invite n'apparaît pas) ; refusée ici.
 	if not await MpHelpers.wait_peer(self, "loin_fenetre", 20.0):
 		return
-	var far := w.global_position + w.inward * (w.barrier_half_depth() + 1.5)
+	var far := w.global_position + w.inward * (w.barrier_face() + 1.5)
 	if not await until(func(): return Vector2(client.srv_origin().x - far.x, client.srv_origin().z - far.z).length() < 0.3, 5.0, "client vu loin de la fenêtre"):
 		return
 	MpHelpers.signal_peer("vu_loin_fenetre")

@@ -83,11 +83,18 @@ var sprinting := false
 var aiming := false
 var downed := false
 var stamina := SPRINT_DURATION
-## Endurance épuisée en plein sprint : plus de sprint tant que la touche
-## n'est pas relâchée (BO1). Sans ce verrou, l'endurance regagnée à chaque
-## image relançait le sprint aussitôt : sprint et marche alternaient toutes
-## les deux ou trois images (vitesse, FOV, balancement : tremblement).
+## Demande de course perdue : plus de sprint tant que la touche n'est pas
+## relâchée puis réappuyée (BO1). Posé quand l'endurance s'épuise en plein
+## sprint (sans quoi l'endurance regagnée à chaque image relançait le sprint
+## aussitôt : tremblement sprint/marche), quand la course est impossible au
+## moment où on la demande (visée, accroupi, allongé, à terre, souffle
+## insuffisant) et quand la lecture des commandes s'interrompt (pause, menu,
+## perte de focus, contrôle coupé) : sinon la touche gardée relançait la
+## course toute seule une fois l'obstacle levé.
 var _sprint_spent := false
+## Commandes lues cette image (faux : pause, menu, contrôle coupé) : un
+## relâchement n'y compte pas, la touche n'a pas été relue.
+var _input_live := true
 ## Part du sprint dans le balancement de la caméra (0 marche, 1 sprint).
 var _sprint_k := 0.0
 var sprint_duration_bonus := 0.0
@@ -193,6 +200,27 @@ func _unhandled_input(event: InputEvent) -> void:
 		input.look += event.relative
 
 
+## Pause (solo : arbre en pause, le joueur n'est plus traité) et perte de
+## focus de la fenêtre : aucun sprint gardé en mémoire au retour.
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_PAUSED, NOTIFICATION_UNPAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_FOCUS_IN:
+			if is_local:
+				_forget_sprint()
+
+
+## Lecture des commandes interrompue (pause, menu, focus, contrôle coupé) :
+## la course s'arrête et la demande en cours est perdue ; au retour, la
+## touche est relue et il faut la relâcher puis la réappuyer (ou recliquer
+## sur L3) pour repartir.
+func _forget_sprint() -> void:
+	sprinting = false
+	_sprint_spent = true
+	_input_live = false
+	if input:
+		input.release_sprint()
+
+
 func _physics_process(delta: float) -> void:
 	if is_local:
 		_local_physics(delta)
@@ -206,8 +234,10 @@ func _physics_process(delta: float) -> void:
 # --------------------------------------------------------------------------
 
 func _local_physics(delta: float) -> void:
+	_input_live = true
 	if not input_enabled:
 		input = PlayerInput.new()
+		_forget_sprint()
 		_move(delta)
 		_update_camera_effects(delta)
 		return
@@ -221,6 +251,7 @@ func _local_physics(delta: float) -> void:
 			var keep_look := input.look
 			input = PlayerInput.new()
 			input.look = keep_look if input_enabled and not menu_open else Vector2.ZERO
+			_forget_sprint()
 
 	_apply_look()
 	_update_stance(delta)
@@ -273,22 +304,41 @@ func _update_stance(delta: float) -> void:
 		if crouching and not want_crouch and not prone and not _can_stand():
 			want_crouch = true
 		crouching = want_crouch
-		aiming = input.aim and not sprinting
-		var moving_forward := input.move.y > 0.3
-		var want_sprint := input.sprint and moving_forward and not crouching and not prone and not downed and not aiming
+		# Viser coupe le sprint (BO1) : la visée l'emporte.
+		aiming = input.aim
+		var moving_forward := input.move.y > PlayerInput.SPRINT_FORWARD
+		# Course impossible (visée, accroupi, allongé, à terre) : la demande
+		# est perdue, il faudra relâcher puis réappuyer. Sans cela, la touche
+		# gardée (ou le verrou de L3) relançait la course toute seule en fin
+		# de visée (retenir son souffle : même touche), en se relevant ou une
+		# fois réanimé.
+		var blocked := crouching or prone or downed or aiming
 		if not input.sprint:
-			_sprint_spent = false
-		if want_sprint and not _sprint_spent and (sprinting or stamina >= SPRINT_RESTART_MIN):
+			# Touche relâchée (relue cette image) : un nouvel appui relancera.
+			if _input_live:
+				_sprint_spent = false
+		elif blocked:
+			_sprint_spent = true
+		var want_sprint := input.sprint and moving_forward and not blocked and not _sprint_spent
+		if want_sprint and not sprinting and stamina < SPRINT_RESTART_MIN:
+			# Pas assez de souffle pour partir : appui perdu (sinon la course
+			# partait d'elle-même une fois l'endurance remontée).
+			_sprint_spent = true
+			want_sprint = false
+		if want_sprint:
 			sprinting = true
 			stamina = maxf(stamina - delta, 0.0)
 			if stamina <= 0.0:
 				# À bout de souffle : fin du sprint franche, retour à la marche.
 				sprinting = false
 				_sprint_spent = true
-				input.release_sprint()
 		else:
 			sprinting = false
 			stamina = minf(stamina + SPRINT_RECOVERY * delta, SPRINT_DURATION + sprint_duration_bonus)
+	if not sprinting:
+		# Le verrou de L3 ne tient que pendant la course : arrêtée pour
+		# n'importe quelle raison, il faut recliquer.
+		input.release_sprint()
 
 	var target_h := STAND_HEIGHT
 	if prone:

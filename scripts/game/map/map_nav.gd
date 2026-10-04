@@ -15,6 +15,12 @@ func world_line_clear(_from: Vector3, _to: Vector3) -> bool:
 	return false
 
 
+## Ligne de vue des yeux seule : on voit par-dessus les obstacles bas qui
+## barrent la ligne droite. Par défaut, la même que world_line_clear.
+func eye_line_clear(from: Vector3, to: Vector3) -> bool:
+	return world_line_clear(from, to)
+
+
 ## Escalier de chaque point du dernier chemin rendu par find_path (0 : aucun,
 ## k + 1 : couloir d'ancres k). Vide : aucun point sur un escalier.
 func last_lane_marks() -> PackedByteArray:

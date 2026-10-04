@@ -181,7 +181,7 @@ static func _ref_separation(z: Zombie) -> Vector3:
 					continue
 				d.y = 0.0
 				var l2 := d.length_squared()
-				if l2 < 0.8 and l2 > 0.0001:
+				if l2 < z.sep_range * z.sep_range and l2 > 0.0001:
 					push += d / l2 * 0.25
 	return push.limit_length(1.0)
 

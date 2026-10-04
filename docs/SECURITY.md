@@ -137,7 +137,7 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
    recevoir ou de contrôler un paquet (`CustomMapGuard.memory_ok`, refus
    « memoire »), archive lue par son seul répertoire central, bombe zip
    refusée (`CustomMapGuard.zip_bomb`).
-7. **Images venues d'une carte** (textures de la carte, format 15,
+7. **Images venues d'une carte** (textures de la carte, format 16,
    `MapTextureLib`) : jamais `load()` ni `ResourceLoader` ; seulement des
    PNG / JPEG dont la signature correspond au nom du fichier (`image.png`,
    `image.jpg`, `normal.png`, `normal.jpg`), les côtés lus dans l'en-tête et

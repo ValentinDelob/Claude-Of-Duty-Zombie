@@ -262,11 +262,11 @@ func test_repair_range_by_kind() -> void:
 	for b: Barricade in [win, door, dbl]:
 		var name_k := b.kind
 		var side := Vector3(b.inward.z, 0, -b.inward.x)
-		var face := b.global_position + b.inward * b.barrier_half_depth()
+		var face := b.global_position + b.inward * b.barrier_face()
 		assert_true(b.in_repair_range(b.repair_spot()), "%s : place de réparation" % name_k)
 		assert_true(b.in_repair_range(face + b.inward * Player.RADIUS), "%s : collé" % name_k)
 		assert_false(b.in_repair_range(face + b.inward * 1.5), "%s : 1,5 m de la barrière, refusé" % name_k)
-		assert_false(b.in_repair_range(b.global_position - b.inward * (b.barrier_half_depth() + Player.RADIUS)), "%s : dehors, refusé" % name_k)
+		assert_false(b.in_repair_range(b.global_position - b.inward * (b.barrier_face() + Player.RADIUS)), "%s : dehors, refusé" % name_k)
 		# Sur toute la largeur de l'ouverture.
 		var half := b.width * 0.5
 		for k in [-1.0, -0.5, 0.0, 0.5, 1.0]:
@@ -278,8 +278,8 @@ func test_repair_range_by_kind() -> void:
 		assert_false(b.faces_opening(side), "%s : le long du mur, pas d'invite" % name_k)
 		assert_false(b.faces_opening(b.inward), "%s : dos tourné, pas d'invite" % name_k)
 		assert_true(b.faces_opening(Vector3.DOWN), "%s : regard vers le sol (planches basses)" % name_k)
-	assert_near(win.barrier_half_depth(), 0.5, 0.001, "barrière de fenêtre : 1 m")
-	assert_near(door.barrier_half_depth(), MapGeom.WALL_HALF, 0.001, "barrière de porte : l'épaisseur du mur")
+	assert_near(win.barrier_face(), 0.5, 0.001, "barrière de fenêtre : 1 m")
+	assert_near(door.barrier_face(), MapGeom.WALL_HALF, 0.001, "barrière de porte : l'épaisseur du mur")
 	assert_true(dbl.in_repair_range(Vector3(-1.0, 0, 0.25 + Player.RADIUS)), "porte double : bout gauche, collé")
 	assert_true(dbl.in_repair_range(Vector3(1.0, 0, 0.25 + Player.RADIUS)), "porte double : bout droit, collé")
 	for b: Barricade in [win, door, dbl]:

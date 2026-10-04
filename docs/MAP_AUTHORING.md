@@ -74,7 +74,7 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Tracer (pièce, forme, mur, pilier, escalier, piège) | glisser, ou clic puis clic (le tracé suit le curseur entre les deux) |
 | Annuler le tracé ou le glissement en cours | clic droit, Échap |
 | Menu du clic droit (rien en cours) | clic droit, dans toutes les vues : Créer une prefab…, Dupliquer, Copier, Couper, Coller ici, Pivoter, Supprimer, Tout sélectionner, Désélectionner (voir « Sélection multiple et groupes ») |
-| Désélectionner | Échap, clic dans le vide |
+| Désélectionner | Échap, clic dans le vide, **reclic** : simple clic (sans glisser) sur l'élément déjà choisi seul, dans la vue Dessus, les élévations et la 3D (glissé, il est déplacé). Poignées, flèches et anneaux suivent toujours la sélection ; un geste en cours sur l'élément quitté est annulé |
 | Sélection multiple | **Maj + clic** : ajouter / retirer un élément (vue Dessus, élévations, 3D, liste des objets) ; **rectangle** : glisser depuis le vide (ou Maj + glisser n'importe où) ; **Ctrl+A** : tout l'étage |
 | Groupe choisi | glisser l'un de ses éléments ; **flèches** : d'un pas de grille ; **R** / poignée ronde : pivoter autour du centre ; **Ctrl+D** : dupliquer ; **Ctrl+X** : couper ; Suppr |
 | Créer une prefab de la sélection | **Ctrl+G**, clic droit > Créer une prefab…, ou le panneau Propriétés |
@@ -134,7 +134,10 @@ Plusieurs éléments se choisissent ensemble et s'éditent d'un bloc
   gauche**, ceux qu'il **touche** (cadre vert en tirets). Les éléments qu'il
   prendrait sont entourés pendant le tracé, avec leur nombre. Un simple clic
   dans le vide désélectionne.
-- **Ctrl+A** : tous les éléments de l'étage affiché ; **Échap** : désélectionner.
+- **Ctrl+A** : tous les éléments de l'étage affiché ; **Échap** : désélectionner ;
+  un **simple clic sur l'élément déjà choisi seul** (sans glisser, pas un
+  double-clic) le désélectionne aussi, dans la vue Dessus, les élévations et
+  la 3D.
 - La sélection est **commune à toutes les vues** : chaque élément est surligné
   (Dessus, élévations, 3D, liste des objets), un **cadre en tirets** entoure le
   groupe avec son nombre d'éléments et sa **poignée ronde** de rotation ; le
@@ -383,7 +386,7 @@ par code (`MapIcons`).
 | Ouvertures | Porte payante, Débris à dégager, Porte ouverte par le courant, Passage libre, Fenêtre à zombies | sur un mur (voir les règles) |
 | Atouts | un distributeur par atout du jeu | contre un mur |
 | Armes murales | chaque arme à prix mural, couteau de chasse, grenades | contre un mur |
-| Boîte mystère | emplacement, emplacement de départ | contre un mur |
+| Boîte mystère | emplacement, emplacement de départ | format 15 : au sol n'importe où dans une pièce, tournée librement (R, anneau, Angle ; flèche = avant) ; près d'un mur (1,3 m), elle s'y colle face à la pièce (Alt : sans aimant) |
 | Machines | Pack-a-Punch, interrupteur du courant, téléporteur, arrivée du téléporteur, poste central | contre un mur, ou au sol (téléporteur, arrivée) |
 | Pièges | zone de piège électrique, levier | zone : glisser au sol ; levier : contre un mur, à moins de 10 m |
 | Joueurs et apparitions | départ des joueurs, zombie qui sort du sol | au sol |
@@ -556,7 +559,9 @@ raison à côté du curseur (`MapRules`) :
   bout et entre deux ouvertures. Prix réglable ; par défaut ceux de BO1 : la
   première 750, la deuxième 1000, les suivantes 1250. Largeur réglable (2 m par
   défaut ; BO1 : 1,5 à 3 m). Le passage libre n'a pas de porte : les deux
-  zones sont « ouvertes l'une sur l'autre » (ou n'en font qu'une).
+  zones sont « ouvertes l'une sur l'autre » (ou n'en font qu'une). Il est
+  ouvert jusqu'au plafond le plus **bas** des deux pièces ; au-dessus, le mur
+  continue jusqu'au plus haut (chaque face avec la texture de sa pièce).
 - **Fenêtre à zombies** (barricade de 6 planches) : 1 m, sur un **mur
   extérieur** d'une pièce (pas un mur commun, pas le bord d'une mezzanine), avec
   2,5 × 3 m de vide dehors : le jeu y construit la cour où les zombies
@@ -573,6 +578,13 @@ raison à côté du curseur (`MapRules`) :
   un autre mur libre (ni, dans le creux d'un mur courbe, ses segments voisins).
   Ils suivent leur mur libre quand on le déplace ou le tourne (et partent avec
   lui s'il est supprimé).
+- **Boîte mystère** (format 15, docs/MAP_OBJECTS.md § 15) : au sol, n'importe
+  où dans une pièce et tournée librement (emprise de 2 × 1 m tournée, à
+  0,1 m au moins de la face des murs, sans chevauchement), ou contre un mur
+  comme un objet mural : l'outil (et le glisser) la colle au mur quand le
+  curseur en est à moins de 1,3 m, face à la pièce (Alt : sans aimant) ; si
+  ce mur la refuse, elle reste au sol. En jeu, une boîte au sol s'achète de
+  tous les côtés ; aucune boîte ne s'achète à travers un mur.
 - **Objets au sol, pilier, escalier, zone de piège** : à l'intérieur d'une
   pièce, sans toucher ses murs, sans chevauchement (les lampes, au plafond,
   peuvent surplomber un objet ; un élément tourné compte par son rectangle
@@ -677,9 +689,11 @@ Choix faits (le format n'a **pas de trou** : une pièce est un contour simple) :
   **Textures** : sol, murs et plafond, parmi les surfaces du jeu
   (`WorldLook.SURFACES` : plâtre, béton, brique, bois, parquet, carrelage,
   pierre, pavés, moquette…) ou parmi les **textures de la carte** (images
-  importées, format 15 : voir plus bas), avec un aperçu ; par défaut, celles
+  importées, format 16 : voir plus bas), avec un aperçu ; par défaut, celles
   de la zone. Un **mur mitoyen montre de chaque côté la texture de sa pièce**
-  (le jeu construit les murs par demi-cases de 0,25 m).
+  (le jeu construit les murs par demi-cases de 0,25 m). Sous une pièce de
+  l'étage du dessus, on voit d'en bas le **plafond de la pièce du bas** (sa
+  texture, juste sous la dalle) et, d'en haut, le sol de la pièce du dessus.
 - **Zone** (onglet Zones) : un groupe de pièces qui s'ouvre d'un coup (ses
   fenêtres s'activent ensemble, comme les zones de BO1). Par défaut une zone
   par pièce. Renommer en français et en anglais (noms affichés en jeu selon la
@@ -699,7 +713,7 @@ Choix faits (le format n'a **pas de trou** : une pièce est un contour simple) :
   de l'étage du dessus. Un escalier se voit (« monte à l'étage n » / « descend à l'étage n ») et
   se choisit depuis ses deux étages.
 
-### Textures de la carte (format 15)
+### Textures de la carte (format 16)
 
 Des **images à soi** (PNG ou JPEG) pour les sols, murs et plafonds, rangées
 **dans le dossier de la carte** et transportées avec elle (Enregistrer,
@@ -1052,7 +1066,7 @@ multijoueur ».
 
 Cinq fichiers JSON dans le dossier de la carte (ou à la racine de l'archive),
 plus, format 10, le dossier `prefabs/` des prefabs de la carte s'il y en a
-(`docs/MAP_OBJECTS.md` § 11) et, format 15, le dossier `textures/` des
+(`docs/MAP_OBJECTS.md` § 11) et, format 16, le dossier `textures/` des
 textures de la carte (§ 4, « Textures de la carte »). Une entrée par ligne (diffs lisibles). Coordonnées en **mètres** dans le plan
 de l'éditeur : x vers l'est, y vers le sud, x et y positifs ; le jeu place la
 carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
@@ -1128,9 +1142,13 @@ identique octet pour octet, vérifié par son empreinte SHA-256).
 Formats 5 à 11 (variantes, barrière invisible, escaliers, décor libre, portes
 à zombies, barrière en polygone et chevauchements, effets, effets purs et
 zones) : docs/MAP_OBJECTS.md ;
-le format courant est **12** (hauteurs de pose : `z` du décor posé au sol,
+format 12 : hauteurs de pose (`z` du décor posé au sol,
 `hauteur` d'un luminaire au sol, `descente` de ce qui est accroché au
-plafond ; docs/MAP_OBJECTS.md § 13 ; aucune conversion). Une carte d'un
+plafond ; docs/MAP_OBJECTS.md § 13 ; aucune conversion) ; 13 : volume des
+effets (§ 12) ; 14 : échelle et inclinaison du décor (§ 14) ; le format
+courant est **15** (boîte mystère posée au sol : `boite` sans `mur`, avec
+`rot`, docs/MAP_OBJECTS.md § 15 ; une boîte sans `mur` d'une carte plus
+ancienne reçoit `mur` : `n`, comme le jeu la posait). Une carte d'un
 format plus ancien avec des effets est **convertie au chargement** (effet pur
 + décor équivalent au même endroit, docs/MAP_OBJECTS.md § 12) et réécrite au
 format courant à l'enregistrement.
@@ -1252,6 +1270,12 @@ long du mur ; son orientation se lit sur le côté de pièce qui passe par là.
 - Objets au sol (`depart`, `apparition`, `teleporteur`, `arrivee`, `lampe`,
   `caisse`, `baril`) : `position` = centre. Un seul départ : les 4 joueurs se
   placent autour ; 2 à 4 départs : un joueur sur chacun.
+- `boite` posée au sol (format 15) : `position` = centre, `rot` = entier de 0
+  à 359 (sens horaire vu de dessus ; à 0, l'avant, où s'ouvre le couvercle,
+  est au sud), **sans** `mur` ni `angle` (c'est l'absence de `mur` qui la met
+  au sol) ; contre un mur : comme les objets muraux ci-dessus, sans `rot` :
+  `{"id":"b4","type":"boite","etage":0,"position":[7,28],"rot":45,"depart":false}`
+  (docs/MAP_OBJECTS.md § 15).
 - `prefab` (format 2) : `prefab` = une clé de `MapCatalog.PREFABS`
   (`gravats`, `gros_gravats`, `eboulis`, `debris_epars`, `planches`, `poutre`,
   `lustre_tombe`, `caisses`, `tonneaux`, `sacs_sable`, `table_renversee`,

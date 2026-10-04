@@ -50,12 +50,13 @@ const VAULT_REACH := 0.9
 const REACH := 1.8
 ## Portée de la réparation (BO1 : on répare collé aux planches, face à
 ## l'ouverture, de l'intérieur). Mesurée à plat, du centre du joueur à la face
-## intérieure de la barrière (là où il bute : barrier_half_depth()), pas au
-## centre de l'ouverture : collé, le centre du joueur en est à Player.RADIUS
-## (0,35 m) ; 0,8 m lui laisse 45 cm, un avant-bras qui cloue une planche.
-## Soit 1,3 m du milieu du mur pour une fenêtre (barrière de 1 m), 1,05 m pour
-## une porte (barrière de 0,5 m). Ancienne portée : 2,4 m autour d'un point à
-## 0,55 m devant l'ouverture (réparable à près de 3 m, de biais).
+## intérieure de la barrière (là où il bute : barrier_face(), le nu du mur
+## côté salle), pas au centre de l'ouverture : collé, le centre du joueur en
+## est à Player.RADIUS (0,35 m) ; 0,8 m lui laisse 45 cm, un avant-bras qui
+## cloue une planche. Soit 1,05 m du milieu d'un mur de 0,5 m (éditeur),
+## 1,0 m d'un mur de KINO (0,41 m), 1,3 m d'un mur de 1 m (cartes grille).
+## Ancienne portée : 2,4 m autour d'un point à 0,55 m devant l'ouverture
+## (réparable à près de 3 m, de biais).
 const REPAIR_REACH := 0.8
 ## Le long du mur : toute la largeur de l'ouverture (mesure depuis son
 ## segment, pas son centre : une porte double de 2 m se répare d'un bout à
@@ -75,8 +76,9 @@ const REPAIR_HEIGHT := 1.0
 const REPAIR_FACING := 0.2
 ## Côté intérieur : au-delà de cela du milieu du mur (is_inside, réparation).
 const INSIDE_MIN := 0.2
-## Profondeur de la barrière d'une fenêtre (murs de 1 m des cartes grille ;
-## dépasse de 25 cm de chaque côté des murs de 0,5 m de l'éditeur).
+## Profondeur de la barrière d'une fenêtre sans mesure du mur (cartes
+## grille : murs de 1 m). Cartes en maillage : l'épaisseur du mur percé
+## mesurée (BarricadeFit), jamais plus (voir barrier_depth).
 const WINDOW_BARRIER_DEPTH := 1.0
 const TEAR_ANIM := 0.5
 const REPAIR_ANIM := 0.32
@@ -99,10 +101,11 @@ const DOOR_PLANK_SIZE := Vector3(1.04, 0.15, 0.04)
 const DOOR_PLANK_Z := 0.231
 ## Le zombie qui arrache se tient dans l'embrasure, juste dehors.
 const DOOR_TEAR_DIST := 0.62
-## Profondeur de la barrière d'une porte : l'épaisseur du mur (0,5 m, seule
-## épaisseur où l'éditeur pose une porte), jamais plus. Celle d'une fenêtre
-## (1 m, murs des cartes grille) dépassait de 25 cm de chaque côté du mur :
-## elle arrêtait le joueur devant la porte, et le zombie avant sa place.
+## Profondeur de la barrière d'une porte sans mesure du mur : l'épaisseur du
+## mur (0,5 m, seule épaisseur où l'éditeur pose une porte), jamais plus.
+## Celle d'une fenêtre (1 m, murs des cartes grille) dépassait de 25 cm de
+## chaque côté du mur : elle arrêtait le joueur devant la porte, et le zombie
+## avant sa place.
 const DOOR_BARRIER_DEPTH := MapGeom.WALL_HALF * 2.0
 ## Places où l'on arrache (X local) : porte simple au milieu, double devant
 ## chaque battant.
@@ -146,6 +149,16 @@ var spawn_cells: Array = []
 ## Type d'entrée (BarricadeRules.KINDS) et largeur de l'ouverture (m).
 var kind := BarricadeRules.WINDOW
 var width := 1.0
+## Barrière de collision (repère local) : profondeur (m, le long de +Z),
+## milieu (Z local) et largeur. Elle remplit EXACTEMENT le trou du mur :
+## ses faces affleurent les deux nus du mur, le joueur qui longe le mur ne
+## rencontre ni saillie ni coin (BarricadeFit ; avant : 1 m de profondeur
+## partout, 30 cm de saillie dans les salles de KINO).
+var barrier_depth := WINDOW_BARRIER_DEPTH
+var barrier_mid := 0.0
+var barrier_width := 1.0
+## Milieu de la barrière le long de X local : découpe décalée de la fenêtre.
+var barrier_off := 0.0
 ## Nombre de planches (6 ; porte double : 10).
 var plank_count := BarricadeRules.PLANKS
 ## Planches présentes (bit i = planche i).
@@ -195,6 +208,12 @@ func setup(w: BarricadeLayout.Opening) -> void:
 	_vaulters.resize(BarricadeRules.lanes(kind))
 	if is_door():
 		opening_height = minf(opening_height, DOOR_HEIGHT)
+	# Barrière : l'épaisseur et la découpe mesurées du mur percé (cartes en
+	# maillage), sinon celles du type (cartes grille, tests).
+	barrier_depth = w.wall_depth if w.wall_depth > 0.0 else (DOOR_BARRIER_DEPTH if is_door() else WINDOW_BARRIER_DEPTH)
+	barrier_mid = w.wall_mid if w.wall_depth > 0.0 else 0.0
+	barrier_width = w.cut_width if w.cut_width > 0.0 else width
+	barrier_off = w.cut_off if w.cut_width > 0.0 else 0.0
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	for i in plank_count:
@@ -291,8 +310,9 @@ func _build_planks() -> void:
 
 
 ## Ouverture : infranchissable à pied (les zombies l'enjambent par script),
-## mais les balles passent entre les planches. Porte : la barrière tient dans
-## l'épaisseur du mur (DOOR_BARRIER_DEPTH), centrée sur son milieu.
+## mais les balles passent entre les planches. La barrière bouche le trou du
+## mur, ni plus large ni plus profonde : ses faces dans le plan des nus du
+## mur (barrier_depth, barrier_mid, barrier_width).
 func _build_barrier() -> void:
 	var barrier := StaticBody3D.new()
 	barrier.name = "Barrier"
@@ -300,9 +320,9 @@ func _build_barrier() -> void:
 	barrier.collision_mask = 0
 	var bcs := CollisionShape3D.new()
 	var bbox := BoxShape3D.new()
-	bbox.size = Vector3(width, opening_height, barrier_half_depth() * 2.0)
+	bbox.size = Vector3(barrier_width, opening_height, barrier_depth)
 	bcs.shape = bbox
-	bcs.position.y = opening_height * 0.5
+	bcs.position = Vector3(barrier_off, opening_height * 0.5, barrier_mid)
 	barrier.add_child(bcs)
 	add_child(barrier)
 
@@ -525,16 +545,16 @@ func is_inside(pos: Vector3) -> bool:
 	return (pos - global_position).dot(inward) > INSIDE_MIN  # même seuil que can_repair_from
 
 
-## Demi-profondeur de la barrière : du milieu du mur à sa face intérieure,
-## là où le joueur bute.
-func barrier_half_depth() -> float:
-	return (DOOR_BARRIER_DEPTH if is_door() else WINDOW_BARRIER_DEPTH) * 0.5
+## Face intérieure de la barrière (le nu du mur côté salle), en m depuis
+## le point de l'ouverture le long de `inward` : là où le joueur bute.
+func barrier_face() -> float:
+	return barrier_mid + barrier_depth * 0.5
 
 
 ## Joueur aux pieds en `pos` à portée de réparation (can_repair_from) ?
 ## `slack` : marge réseau du serveur (srv_repair_range), 0 côté client.
 func in_repair_range(pos: Vector3, slack := 0.0) -> bool:
-	return can_repair_from(pos, global_position, inward, width * 0.5, barrier_half_depth() + slack)
+	return can_repair_from(pos, global_position, inward, width * 0.5, barrier_face() + slack)
 
 
 ## Serveur : portée de réparation jugée sur la référence du serveur
@@ -546,7 +566,7 @@ func srv_repair_range(p: Player) -> bool:
 
 ## Place de réparation au milieu de l'ouverture, collé à la barrière (tests).
 func repair_spot() -> Vector3:
-	return global_position + inward * (barrier_half_depth() + Player.RADIUS + 0.1)
+	return global_position + inward * (barrier_face() + Player.RADIUS + 0.1)
 
 
 ## Visée `aim` tournée vers l'ouverture (à plat ; regard vertical : accepté).
@@ -828,7 +848,9 @@ func _slot_open(i: int) -> bool:
 			if ok:
 				var from := tear_point() + Vector3.UP
 				var dir := slot_point(k) - tear_point()
-				var to := from + dir + dir.normalized() * (Zombie.RADIUS + 0.05)
+				# Épaules (pas le seul tronc de la capsule) : une place d'attente
+				# contre un mur n'y enfonce pas les bras.
+				var to := from + dir + dir.normalized() * (Zombie.SHOULDER_RADIUS + 0.05)
 				var q := PhysicsRayQueryParameters3D.create(from, to, 1)
 				ok = space.intersect_ray(q).is_empty()
 			_slot_ok.append(ok)

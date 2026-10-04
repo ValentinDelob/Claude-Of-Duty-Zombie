@@ -68,6 +68,9 @@ var _mouse_in_view := false
 var _rmb := false
 var _mmb := false
 var _lmb_at := Vector2(-1, -1)
+## Élément choisi seul à l'appui du clic gauche ("" : aucun ; double-clic :
+## jamais un reclic) : un simple clic dessus le désélectionne.
+var _lmb_was := ""
 var _capture_at := Vector2.ZERO
 ## Vrai tant que l'aperçu tient la souris capturée (regard au clic droit) :
 ## elle doit TOUJOURS être rendue (relâchement vu n'importe où, bouton déjà
@@ -663,6 +666,7 @@ func _view_input(event: InputEvent) -> void:
 				if mb.pressed:
 					view.grab_focus()
 					_lmb_at = mb.position
+					_lmb_was = ed.selected if ed != null and ed.group.is_empty() and not mb.double_click else ""
 					if mb.double_click:
 						var id := world.pick(_in_view_px(mb.position))
 						if id != "":
@@ -673,6 +677,10 @@ func _view_input(event: InputEvent) -> void:
 					# Maj + clic : ajouté à la sélection de l'éditeur, ou retiré.
 					if (mb.shift_pressed or (ed != null and ed.canvas.shift_select)) and id != "" and ed != null:
 						ed.toggle_selected(id)
+					elif id != "" and id == _lmb_was:
+						# Reclic sur l'élément déjà choisi seul : désélectionné
+						# (comme la vue Dessus et les élévations).
+						_select("")
 					else:
 						_select(id)
 					_lmb_at = Vector2(-1, -1)

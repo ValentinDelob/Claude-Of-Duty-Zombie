@@ -11,7 +11,9 @@ extends MapLayout
 ##   player_spawns [[x,y,z]], zombie_spawns [{p, zone}],
 ##   doors [{id, p (milieu de l'ouverture, au sol), yaw, w, h, depth, cost, zones, debris?}],
 ##   wall_buys [{id, p, wall, weapon}], perks [{id, p, wall, perk}],
-##   grenade_buys [{id, p, wall}], power {p, wall}, box [{p, wall}], pap {p, wall},
+##   grenade_buys [{id, p, wall}], power {p, wall}, box [{p, wall, floor?}], pap {p, wall},
+##   (box « floor » : boîte posée au sol, format 15 de l'éditeur ; `wall` = son
+##   arrière, `p` à MysteryBox.SPOT_WALL_GAP derrière son centre)
 ##   teleporter {pad, exit, mainframe {p, wall}, exit_zone},
 ##   traps [{id, lever {p, wall}, area [x0,y0,z0,x1,y1,z1], yaw? (zone tournée autour de son centre)}],
 ##   windows [{p (au sol, dans l'ouverture), in (vers l'intérieur), h, zone, spawns [[x,y,z]],
@@ -213,7 +215,12 @@ func box_spots() -> Array[MapMarker]:
 	var out: Array[MapMarker] = []
 	var spots: Array = _markers.get("box", [])
 	for i in spots.size():
-		out.append(_wall_marker("box_%d" % i, spots[i]))
+		var mk := _wall_marker("box_%d" % i, spots[i])
+		# Format 15 (éditeur) : boîte posée au sol, « wall » = son arrière
+		# (mur fictif) ; achetable de tous les côtés (MysteryBox.interact_point).
+		if bool(spots[i].get("floor", false)):
+			mk.data["floor"] = true
+		out.append(mk)
 	return out
 
 
@@ -277,6 +284,9 @@ func windows() -> Array:
 			for s in w.get("spawns", []):
 				o.spawn_points.append(vec(s))
 			_windows.append(o)
+		# Barrière de collision ajustée au mur percé (épaisseur, découpe) :
+		# rien ne dépasse du nu du mur (BarricadeFit).
+		BarricadeFit.fit(data, _windows)
 	return _windows
 
 

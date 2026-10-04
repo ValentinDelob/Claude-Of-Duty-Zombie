@@ -19,7 +19,26 @@ const POSE_STEP_FAR := 1.0 / 60.0
 const POSE_STEP_VERY_FAR := 1.0 / 30.0
 ## Les membres d'un corps ont fini de retomber après ce délai.
 const DEATH_SETTLE_TIME := 1.5
-const RADIUS := 0.3
+## Forme de DÉPLACEMENT (capsule du CharacterBody3D) : le tronc SANS les bras
+## (demi-largeur du torse 0,19 à 0,21 m sur tous les looks, mesurée par
+## tests/test_zombie_hitbox.gd). Les épaules et les bras dépassent : deux
+## voisins se frôlent des bras, comme dans BO1, et une horde passe en file
+## dans un couloir de 1,5 m (0,3 m, la largeur aux épaules, formait des
+## voûtes de zombies coincés à l'entrée des couloirs et des portes).
+## Les zones de TOUCHE des tirs (hit_body, hit_head, hit_arms) sont des Area3D
+## à part (HITBOX_LAYER), jamais dans le déplacement.
+const RADIUS := 0.22
+## Demi-largeur aux épaules (deltoïdes, bras pendants : 0,29 à 0,33 m selon
+## le look ; l'ancienne capsule) : jamais de ligne droite par une fente plus
+## étroite que les épaules (_body_fits) ; le navmesh (MeshNav, érosion 0,4 m)
+## ne passe déjà pas par une fente de moins de 0,8 m. Places d'attente aux
+## fenêtres et apparitions derrière elles : écart des épaules (Barricade,
+## Spawner).
+const SHOULDER_RADIUS := 0.3
+## Portée de la séparation entre zombies (m, entre centres) : deux troncs au
+## contact (2 RADIUS) et 0,3 m de marge. 0,9 m avec l'ancienne capsule : la
+## horde serrée devant un goulet se repoussait contre ses bords.
+const SEPARATION_RANGE := 0.74
 const HEIGHT := 1.75
 const EMERGE_TIME := 1.4
 ## Couche physique « zombies ».
@@ -88,6 +107,18 @@ var _lane_speed := 1.0
 const LOS_PERIOD := 0.1
 var _los_t := 0.0
 var _los_ok := false
+## Même cache pour la ligne droite vers le SINGE-TAMBOUR (_chase_lure).
+var _lure_t := 0.0
+var _lure_ok := false
+## Le dernier chemin vers le joueur s'arrête avant la portée d'attaque (ou
+## n'existe pas) : joueur hors du navmesh, ligne droite du tronc permise.
+var _path_short := false
+## Joueur à moins de cette distance (à plat) : la ligne droite est permise dès
+## que le TRONC passe (sphère RADIUS + SLIM_MARGIN), les épaules frôlent. Un
+## joueur réfugié dans une fente de 0,7 à 0,8 m (trop étroite pour le navmesh,
+## érodé de 0,4 m, assez large pour lui) reste ainsi attaquable.
+const SLIM_RANGE := 3.0
+const SLIM_MARGIN := 0.03
 ## Carte à plusieurs niveaux : le zombie suit le sol (sinon y = 0).
 var _multilevel := false
 ## Écart de hauteur au-delà duquel une cible est « à un autre niveau ».
@@ -150,6 +181,12 @@ var game: Game
 var _pose_accum := 0.0
 ## Rayon de sol réutilisé par _follow_floor (cartes à étages).
 var _floor_q: PhysicsRayQueryParameters3D
+## Sphères des épaules (_body_fits) et du tronc (_leg_clear), réutilisées.
+var _fit_q: PhysicsShapeQueryParameters3D
+var _slim_q: PhysicsShapeQueryParameters3D
+var _leg_q: PhysicsShapeQueryParameters3D
+## Portée de la séparation de ce corps (SEPARATION_RANGE ; chien : plus large).
+var sep_range := SEPARATION_RANGE
 
 ## Accès publics pour les animations (ZombieAnim, ZombieGibs) : mêmes valeurs
 ## que les champs privés ci-dessus.
@@ -208,6 +245,10 @@ func _ready() -> void:
 	# 3 glissements suffisent (angle de deux murs) ; les 6 par défaut
 	# doublaient le coût des zombies coincés dans la horde.
 	max_slides = 3
+	# Glisse le long d'un mur même abordé presque de face : avec les 15° par
+	# défaut, un zombie qui visait l'entrée d'un couloir en frôlant l'angle
+	# restait collé au mur d'à côté (pas de glissement sous 15°).
+	wall_min_slide_angle = 0.0
 	# Cartes à étages : capsule plus haute que les petits rebords (<= 0,3 m,
 	# comme la marche maximale du navmesh) ; le sol est suivi par _follow_floor.
 	cs.position.y = HEIGHT * 0.5 + floor_gap()
@@ -358,9 +399,11 @@ func _chase(delta: float) -> void:
 		_los_t -= delta
 		if _los_t <= 0.0:
 			_los_t = LOS_PERIOD
-			# Jamais en ligne droite par-dessus le bord d'un escalier : par ses ancres.
+			# Jamais en ligne droite par-dessus le bord d'un escalier (par ses ancres),
+			# ni par une fente plus étroite que les épaules (par le navmesh) ; près
+			# du joueur, le tronc suffit (jamais par une fente plus étroite que lui).
 			_los_ok = dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, tpos) \
-				and not game.nav.crosses_stairs(global_position, tpos)
+				and not game.nav.crosses_stairs(global_position, tpos) and _body_fits(tpos, dist < SLIM_RANGE or _path_short)
 		# En ligne droite seulement au même niveau (sinon : escaliers, par le chemin).
 		var sep_k := 0.9
 		_lane_speed = 1.0
@@ -371,6 +414,9 @@ func _chase(delta: float) -> void:
 		else:
 			if _repath_t <= 0.0 or _path_i >= _path.size():
 				_set_path(game.nav.find_path(global_position, tpos, lane_bias()))
+				# Cible hors du navmesh (fente étroite) : le chemin n'arrive pas à
+				# portée d'attaque ; la ligne droite du tronc reste alors permise.
+				_path_short = _path.is_empty() or Vector2(_path[-1].x - tpos.x, _path[-1].z - tpos.z).length() > ATTACK_RANGE - 0.2
 				_repath_t = randf_range(0.35, 0.7)
 			dir = _follow_path()
 			if _on_lane():
@@ -384,7 +430,7 @@ func _chase(delta: float) -> void:
 					dir = give_way(dir, give)
 		if _repath_t <= 0.0:
 			_repath_t = randf_range(0.35, 0.7)
-		desired = (dir + _separation() * sep_k).normalized() * move_speed() * speed_mult * _lane_speed
+		desired = (dir + _wall_safe(_separation()) * sep_k).normalized() * move_speed() * speed_mult * _lane_speed
 		_check_stuck(delta)
 	# Sur un escalier, virage net aux paliers (pas d'élan qui porte au bord).
 	var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(desired, (LANE_TURN if _on_lane() else 12.0) * delta)
@@ -404,7 +450,13 @@ func _chase_lure(pos: Vector3, delta: float) -> void:
 	var dist := to.length()
 	var dir := Vector3.ZERO
 	if dist > ThrowableRules.LURE_STOP:
-		if dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, pos) and not game.nav.crosses_stairs(global_position, pos):
+		# Ligne droite mise en cache (LOS_PERIOD), comme en poursuite.
+		_lure_t -= delta
+		if _lure_t <= 0.0:
+			_lure_t = LOS_PERIOD
+			_lure_ok = dist < DIRECT_RANGE and game.nav.world_line_clear(global_position, pos) \
+				and not game.nav.crosses_stairs(global_position, pos) and _body_fits(pos)
+		if _lure_ok and dist < DIRECT_RANGE:
 			dir = to / dist
 			_path.clear()
 			_marks.clear()
@@ -447,7 +499,95 @@ func _flat_dist(p: Vector3) -> float:
 	return Vector2(p.x - global_position.x, p.z - global_position.z).length()
 
 
-## Répulsion douce des zombies voisins (rayon √0,8 ≈ 0,9 m). Seules les 9
+## Le corps passe-t-il en ligne droite jusqu'à `to` ? Sphère des épaules
+## (_fit_radius) lancée à hauteur de poitrine (décor, murs, fenêtres) : la
+## capsule du tronc (RADIUS) tiendrait dans une fente entre un pilier et un
+## mur où le modèle ne passe pas ; le zombie la contourne alors par le navmesh.
+## `slim` (joueur proche) : sphère du tronc et d'une petite marge seulement,
+## les épaules peuvent frôler ; jamais par une fente plus étroite que le tronc.
+func _body_fits(to: Vector3, slim := false) -> bool:
+	if slim:
+		if _slim_q == null:
+			_slim_q = _sweep_query(_fit_radius(true))
+		return _sweep_clear(_slim_q, to)
+	if _fit_q == null:
+		_fit_q = _sweep_query(_fit_radius(false))
+	return _sweep_clear(_fit_q, to)
+
+
+## Rayon de la sphère de _body_fits : épaules, ou tronc et marge (`slim`).
+func _fit_radius(slim: bool) -> float:
+	return RADIUS + SLIM_MARGIN if slim else SHOULDER_RADIUS
+
+
+## Rayon de la capsule de déplacement (sphère de _leg_clear).
+func _leg_radius() -> float:
+	return RADIUS
+
+
+## Hauteur (au-dessus des pieds) des sphères de balayage : la poitrine.
+func _fit_height() -> float:
+	return MeshNav.EYE
+
+
+## Le tronc (RADIUS) file-t-il droit d'ici au point du chemin qui suit `i` ?
+## Un angle du navmesh atteint « à peu près » (0,45 m) depuis le mauvais côté
+## (entrée d'un couloir, d'une porte) faisait viser le point d'après à travers
+## le coin : le zombie frottait le mur d'à côté presque de face, au pas.
+## Il rejoint alors d'abord l'angle. Un point d'escalier : pas de test.
+func _leg_clear(i: int) -> bool:
+	if i + 1 >= _path.size() or _flat_dist(_path[i]) < 0.15 or absf(_path[i + 1].y - global_position.y) > 0.5:
+		return true
+	if _leg_q == null:
+		_leg_q = _sweep_query(_leg_radius())
+	return _sweep_clear(_leg_q, _path[i + 1])
+
+
+## Requête de balayage d'une sphère de rayon `r` (décor, murs, fenêtres).
+static func _sweep_query(r: float) -> PhysicsShapeQueryParameters3D:
+	var q := PhysicsShapeQueryParameters3D.new()
+	var s := SphereShape3D.new()
+	s.radius = r
+	q.shape = s
+	q.collision_mask = 1 | Barricade.BARRIER_LAYER
+	return q
+
+
+## La sphère de `q`, lancée à hauteur de poitrine d'ici jusqu'au-dessus de
+## `to`, ne touche rien en route. Contact au DÉPART (zombie qui longe un mur,
+## wall_min_slide_angle = 0 : cast_motion rendait 0 et toute la horde décalée
+## repassait par find_path) : la sphère part d'un point recentré, écarté du
+## mur touché de ce qui dépasse de la capsule (0,1 m au plus) ; plus enfoncée
+## (vrai obstacle) ou encore au contact (angle de deux murs) : refusé.
+func _sweep_clear(q: PhysicsShapeQueryParameters3D, to: Vector3) -> bool:
+	var h := _fit_height()
+	var from := global_position + Vector3.UP * h
+	var space := get_world_3d().direct_space_state
+	q.transform = Transform3D(Basis.IDENTITY, from)
+	q.motion = to + Vector3.UP * h - from
+	var res := space.cast_motion(q)
+	if res[0] >= 1.0:
+		return true
+	if res[0] > 0.0:
+		return false  # obstacle en route
+	q.motion = Vector3.ZERO
+	var info := space.get_rest_info(q)
+	if info.is_empty():
+		return false
+	var away: Vector3 = from - (info["point"] as Vector3)
+	away.y = 0.0
+	var d := away.length()
+	var r := (q.shape as SphereShape3D).radius
+	var push := r - d + 0.01
+	if d < 0.001 or push > maxf(r - _leg_radius(), 0.0) + 0.03:
+		return false
+	from += away / d * push
+	q.transform = Transform3D(Basis.IDENTITY, from)
+	q.motion = to + Vector3.UP * h - from
+	return space.cast_motion(q)[0] >= 1.0
+
+
+## Répulsion douce des zombies voisins (à moins de sep_range). Seules les 9
 ## cases de la grille spatiale du ZombieManager autour du zombie sont lues,
 ## au lieu de tous les zombies vivants.
 func separation() -> Vector3:
@@ -475,9 +615,23 @@ func _separation() -> Vector3:
 					continue  # autre niveau (balcon, escalier)
 				d.y = 0.0
 				var l2 := d.length_squared()
-				if l2 < 0.8 and l2 > 0.0001:
+				if l2 < sep_range * sep_range and l2 > 0.0001:
 					push += d / l2 * 0.25
 	return push.limit_length(1.0)
+
+
+## Séparation `push` sans sa part qui pousse dans le mur touché au dernier pas
+## (normale du contact, move_and_slide) : la horde serrée devant un goulet ne
+## plaque plus contre l'angle de l'entrée un zombie qui attend son tour.
+func _wall_safe(push: Vector3) -> Vector3:
+	if push == Vector3.ZERO or not is_on_wall():
+		return push
+	var n := get_wall_normal()
+	n.y = 0.0
+	var k := push.dot(n)
+	if k >= 0.0 or n.length_squared() < 0.01:
+		return push
+	return push - n.normalized() * k
 
 
 ## File sur un couloir d'escalier : direction (à plat, unitaire) du zombie à
@@ -544,6 +698,11 @@ static func give_way(dir: Vector3, give: Vector3) -> Vector3:
 
 ## Coincé (contre un autre zombie, un angle...) : recalcul immédiat du chemin.
 func _check_stuck(delta: float) -> void:
+	# Immobile voulu (vitesse nulle : zombie figé des tests) : pas coincé, pas
+	# de poussée au hasard (il dérivait le long des murs, sans frottement).
+	if speed_mult <= 0.0:
+		_stuck_t = 0.0
+		return
 	_stuck_t += delta
 	if _stuck_t < 1.2:
 		return
@@ -1061,8 +1220,10 @@ func _follow_path() -> Vector3:
 		var lane_pt := _mark_at(_path_i) > 0
 		# Point d'un couloir : atteint de plus près (0,25 m), ou dépassé.
 		var reached := _flat_dist(_path[_path_i]) < 0.25 and absf(_path[_path_i].y - global_position.y) < 1.0 if lane_pt \
-			else _waypoint_reached(_path[_path_i])
-		if not (reached or _waypoint_passed(_path_i) or (lane_pt and _lane_point_passed(_path_i))):
+			else _waypoint_reached(_path[_path_i]) and _leg_clear(_path_i)
+		# Point « dépassé » : sauté seulement si le tronc file droit vers le
+		# suivant (sinon le coin du navmesh était coupé, comme ci-dessus).
+		if not (reached or (_waypoint_passed(_path_i) and _leg_clear(_path_i)) or (lane_pt and _lane_point_passed(_path_i))):
 			break
 		_path_i += 1
 	if _path_i >= _path.size():

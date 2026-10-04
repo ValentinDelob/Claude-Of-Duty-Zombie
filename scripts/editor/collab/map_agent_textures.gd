@@ -1,7 +1,7 @@
 class_name MapAgentTextures
 extends RefCounted
 ## TEXTURES DE LA CARTE pilotées par Claude (MCP, docs/MAP_COLLAB.md § 5.2 ;
-## format 15 : MapTextureLib, MapTextureTools). Commandes de la liaison agent
+## format 16 : MapTextureLib, MapTextureTools). Commandes de la liaison agent
 ## (MapAgentLink._handle les délègue ici) :
 ##   texture_list            textures du jeu ET de la carte, référence à écrire,
 ##                           où chacune est utilisée

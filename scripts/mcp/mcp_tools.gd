@@ -44,7 +44,7 @@ func _init(srv: Node = null) -> void:
 	# Prefabs et modèles 3D de la carte (commandes de MapAgentPrefabs).
 	for d in MapAgentPrefabs.tool_defs():
 		add_tool(d)
-	# Textures de la carte (format 15, MapAgentTextures).
+	# Textures de la carte (format 16, MapAgentTextures).
 	for d in MapAgentTextures.tool_defs():
 		add_tool(d)
 
@@ -210,6 +210,11 @@ static func check_ops(ops: Variant) -> String:
 					return "%s : depart demande « id » (id de zone)" % where
 			_:
 				return "%s : op inconnue %s (put, add, del, carte, depart)" % [where, _repr(kind)]
+		var el: Variant = op.get("el")
+		if kname in ["put", "add"] and el is Dictionary and String((el as Dictionary).get("type", "")) == "escalier" and (el as Dictionary).has("marches"):
+			# Nombre de marches : toujours automatique (≈ 18 cm chacune) ; une
+			# carte d'avant qui l'avait le perd à sa relecture (tidy_stair).
+			return "%s : le nombre de marches n'est plus réglable (toujours automatique, ≈ 18 cm par marche) : retire « marches »" % where
 		if _depth(op) > MAX_DEPTH:
 			return "%s : trop profond (%d niveaux au plus)" % [where, MAX_DEPTH]
 		if not _finite(op):
@@ -534,7 +539,9 @@ func _builtin() -> Array:
 			"description": "Montre des éléments à l'utilisateur dans l'éditeur (contour pulsé + bulle avec le message). "
 				+ "Pour désigner ce dont tu parles ou poser une question sur un endroit précis. Avec select: true, "
 				+ "ils deviennent aussi la sélection de l'utilisateur (plusieurs ids : sélection multiple, prête pour "
-				+ "un clic droit > Créer une prefab…, Dupliquer…).",
+				+ "un clic droit > Créer une prefab…, Dupliquer…). Si l'utilisateur est en plein geste (déplacement, "
+				+ "rotation, poignée, tracé), la sélection n'est PAS changée (le geste serait annulé) : le résultat "
+				+ "porte « busy » ; réessaie un peu plus tard.",
 			"inputSchema": {"type": "object", "properties": {
 				"ids": _ids_schema("Éléments à montrer."),
 				"message": {"type": "string", "maxLength": 200, "description": "Bulle affichée (français)."},

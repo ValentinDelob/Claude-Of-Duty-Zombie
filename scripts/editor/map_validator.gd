@@ -41,6 +41,12 @@ const ZOMBIE_DOOR_TOP := 2.1
 ## Spawner.MIN_PLAYER_DIST : pas d'apparition plus près d'un joueur (zombies
 ## qui sortent du sol ; les fenêtres n'ont plus cette distance, comme dans BO1).
 const MIN_SPAWN_DIST := 7.0
+## Objets sans lesquels la partie ne se joue pas : enfermés par une barrière
+## invisible, c'est une erreur (les autres : un avertissement, la barrière ne
+## retire jamais un objet). Interrupteur du courant (portes du courant jamais
+## ouvertes), boîte de départ (une seule par carte), départ des joueurs. Le
+## Pack-a-Punch n'est pas exigé par la carte : avertissement seulement.
+const SHUT_NEEDED := ["courant", "boite_depart", "depart"]
 
 enum K { VIDE, MUR, TREMIE, ESCALIER, PORTE, DEBRIS, FENETRE, SOL, MARQUEUR }
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
@@ -175,6 +181,8 @@ var diag_cells: Array = []
 var diag_open: Dictionary = {}
 ## Objets muraux contre un mur en biais : clé -> {p (m, sur le trait), wall (vers le mur), eid}.
 var diag_items: Dictionary = {}
+## Format 15 : boîtes mystère posées au sol : clé -> {center (m), rot (degrés), eid}.
+var floor_boxes: Dictionary = {}
 ## Pièces par étage : [{id, poly (m), zone, ceil (m, absolu)}] (sols des murs en biais).
 var room_polys: Array = []
 ## Escaliers tournés ou hors de la grille (MapRaster) : clé de case ->
@@ -410,6 +418,17 @@ func _marker_zones() -> void:
 				if z != "":
 					count[z] = count.get(z, 0) + 1
 		if count.is_empty():
+			# Entouré de décor ou d'une barrière invisible posés par-dessus
+			# (cases pleines « decor# » sur le sol d'une pièce) : la zone de
+			# cette pièce, comme pour les ouvertures (_uniform_zone). Sans
+			# cela l'objet était refusé puis absent de l'aperçu 3D et du jeu.
+			for c in b.cells:
+				for d in DIRS:
+					if _under_decor(f, c + d):
+						var z := String(room_zone.get(f.room_of(c + d), ""))
+						if z != "":
+							count[z] = count.get(z, 0) + 1
+		if count.is_empty():
 			var e := entry(b.key)
 			var w := _at(b.floor, b.cells[0])
 			_msg("erreur", "%s en %s : posé hors de tout sol de pièce" % [e.fr, w[0]], "%s at %s: placed outside every room floor" % [e.en, w[1]], b.floor, b.cells)
@@ -452,6 +471,44 @@ func _all(cells: Array, pred: Callable) -> bool:
 ## zone ; format 7, docs/MAP_OBJECTS.md § 8).
 func _under_decor(f: Floor, c: Vector2i) -> bool:
 	return f.at(c) == K.MUR and f.key_at(c).begins_with("decor#") and f.room_of(c) != ""
+
+
+## Case de sol d'une pièce sous une BARRIÈRE INVISIBLE (MapRaster (h) : case
+## pleine « decor#<id> » comme un décor). Outil d'édition posé n'importe où,
+## par-dessus les objets : il arrête les joueurs mais ne doit jamais retirer
+## un objet de jeu, un escalier ou une lampe de la carte (avant : refusés par
+## le validateur, ils disparaissaient de l'aperçu 3D et du jeu).
+func _under_clip(f: Floor, c: Vector2i) -> bool:
+	return _under_decor(f, c) and clip_keys().has(f.key_at(c))
+
+
+var _clip_keys: Dictionary = {}
+var _clip_keys_n := -1
+
+
+## Clés de case des barrières invisibles (« decor#<id> », MapRaster (h)).
+func clip_keys() -> Dictionary:
+	if _clip_keys_n != clips.size():
+		_clip_keys_n = clips.size()
+		_clip_keys = {}
+		for cl in clips:
+			_clip_keys["decor#" + String(cl.eid)] = true
+	return _clip_keys
+
+
+## Sol au bout d'un escalier : du sol libre, ou le sol sous une barrière
+## invisible (signalé à part : _stair_clip_warn).
+func _stair_floor(f: Floor, c: Vector2i) -> bool:
+	return _floorlike(f, c) or _under_clip(f, c)
+
+
+## Barrière invisible posée au pied ou à l'arrivée d'un escalier : il reste
+## construit, un avertissement dit que le passage est gêné.
+func _stair_clip_warn(w: Array, f: Floor, cells: Array) -> void:
+	var hit := cells.filter(func(c): return _under_clip(f, c))
+	if not hit.is_empty():
+		_msg("attention", "escalier en %s : une barrière invisible posée à un bout gêne le passage (déplacez-la)" % w[0],
+			"stairs at %s: an invisible barrier placed at one end blocks the way (move it)" % w[1], f.index, hit)
 
 
 ## Côté d'une ouverture : du sol (ou un objet posé au sol), ou le sol d'une
@@ -516,7 +573,7 @@ func _stairs() -> void:
 		for d in DIRS:
 			var bottom := _side(r, -d)
 			var top := _side(r, d)
-			if _all(bottom, func(c): return _floorlike(f, c)) and _all(top, func(c): return _floorlike(up, c)):
+			if _all(bottom, func(c): return _stair_floor(f, c)) and _all(top, func(c): return _stair_floor(up, c)):
 				cands.append(d)
 		# Sens tracé (« monte ») s'il convient ; sinon le seul sens possible
 		# (cartes d'avant) ; sinon le message dit quel bout ne va pas, et où.
@@ -534,6 +591,8 @@ func _stairs() -> void:
 				_msg("erreur", "escalier en %s : sens de montée ambigu (du sol en haut et en bas des deux côtés)" % w[0],
 					"stairs at %s: ambiguous direction (floor at the top and bottom on both sides)" % w[1], k, b.cells)
 			continue
+		_stair_clip_warn(w, f, _side(r, -d))
+		_stair_clip_warn(w, up, _side(r, d))
 		var run := absi(r.size.x) if d.x != 0 else r.size.y
 		var width := r.size.y if d.x != 0 else r.size.x
 		var rise := up.sol - f.sol
@@ -596,7 +655,7 @@ func _cell_what(f: Floor, c: Vector2i) -> Array:
 ## précis (quoi, où) et les cases fautives en rouge ; `hint` : [fr, en] ajouté ;
 ## `nm` : nom de l'escalier [fr, en] (son type, pour un L, un U, un colimaçon).
 func _stair_end_ok(w: Array, k: int, f: Floor, cells: Array, top: bool, hint: Array = [], nm: Array = ["escalier", "stairs"]) -> bool:
-	var bad := cells.filter(func(c): return not _floorlike(f, c))
+	var bad := cells.filter(func(c): return not _stair_floor(f, c))
 	if bad.is_empty():
 		return true
 	var c0: Vector2i = bad[0]
@@ -699,8 +758,8 @@ func _shaped_stair(b: Dictionary) -> void:
 				top[q] = true
 				if not links.get_or_add(c, []).has(q):
 					links[c].append(q)
-	var foot_ok := not foot.is_empty() and _all(foot.keys(), func(c): return _floorlike(f, c))
-	var top_ok := not top.is_empty() and _all(top.keys(), func(c): return _floorlike(up, c))
+	var foot_ok := not foot.is_empty() and _all(foot.keys(), func(c): return _stair_floor(f, c))
+	var top_ok := not top.is_empty() and _all(top.keys(), func(c): return _stair_floor(up, c))
 	if not (foot_ok and top_ok):
 		var where_fr: String = {"quart": "sur le côté où il tourne, au bout", "demi_tour": "du côté du pied, à côté du départ", "colimacon": "du côté opposé au pied"}.get(kind, "")
 		var where_en: String = {"quart": "on the side it turns to, at the far end", "demi_tour": "on the foot side, next to the start", "colimacon": "on the side opposite the foot"}.get(kind, "")
@@ -710,6 +769,8 @@ func _shaped_stair(b: Dictionary) -> void:
 		elif _stair_end_ok(w, k, f, foot.keys(), false, [], vn):
 			_stair_end_ok(w, k, up, top.keys(), true, [where_fr, where_en], vn)
 		return
+	_stair_clip_warn(w, f, foot.keys())
+	_stair_clip_warn(w, up, top.keys())
 	var walk := StairGen.walk_width(pl)
 	if walk < 0.95:
 		_msg("erreur", "%s en %s : trop étroit (passage de %s m ; agrandissez-le)" % [vn[0], w[0], _num(walk).replace(".", ",")],
@@ -805,8 +866,8 @@ func _diag_stair(b: Dictionary) -> void:
 				top[q] = true
 				if not links.get_or_add(c, []).has(q):
 					links[c].append(q)
-	var foot_ok := not foot.is_empty() and _all(foot.keys(), func(c): return _floorlike(f, c))
-	var top_ok := not top.is_empty() and _all(top.keys(), func(c): return _floorlike(up, c))
+	var foot_ok := not foot.is_empty() and _all(foot.keys(), func(c): return _stair_floor(f, c))
+	var top_ok := not top.is_empty() and _all(top.keys(), func(c): return _stair_floor(up, c))
 	if not (foot_ok and top_ok):
 		if foot.is_empty() or top.is_empty():
 			_msg("erreur", "escalier en %s : il faut du sol au pied (étage %d) d'un seul petit côté et le plancher d'une pièce en haut (étage %d) du côté opposé" % [w[0], k, k + 1],
@@ -814,6 +875,8 @@ func _diag_stair(b: Dictionary) -> void:
 		elif _stair_end_ok(w, k, f, foot.keys(), false):
 			_stair_end_ok(w, k, up, top.keys(), true)
 		return
+	_stair_clip_warn(w, f, foot.keys())
+	_stair_clip_warn(w, up, top.keys())
 	var run := roundi((length - MapGeom.CELL) / scale)
 	var width := roundi((wide - MapGeom.CELL) / scale)
 	var rise := up.sol - f.sol
@@ -1101,6 +1164,42 @@ func _diag_wall_marker(b: Dictionary, e: Dictionary) -> void:
 		"face": face, "center": center, "oblique": true})
 
 
+## Format 15 : boîte mystère posée au sol (la grille a vérifié que ses cases
+## sont du sol). Elle rejoint les objets muraux (même description en jeu) avec
+## un mur FICTIF derrière elle : `wall` = son arrière (vecteur unitaire),
+## `face` = le point à MysteryBox.SPOT_WALL_GAP derrière son centre ; le jeu
+## pose ainsi la boîte exactement sur son centre, tournée comme dans
+## l'éditeur. Elle bloque le passage (toutes ses cases) ; un obstacle devant
+## son avant (côté du couvercle) est signalé.
+func _floor_box_marker(b: Dictionary, e: Dictionary) -> void:
+	var info: Dictionary = floor_boxes[b.key]
+	var k: int = b.floor
+	var f := floors[k]
+	var c_m: Vector2 = info.center
+	var front := Vector2(0, 1).rotated(deg_to_rad(float(info.rot)))
+	var back := -front
+	var side := Vector2(-front.y, front.x)
+	var blocked := []
+	for s in [-0.8, -0.4, 0.0, 0.4, 0.8]:
+		var c := MapGeom.cell_of(c_m + front * 0.8 + side * s)
+		if not (f.at(c) in [K.SOL, K.MARQUEUR] or b.cells.has(c)) and not blocked.has(c):
+			blocked.append(c)
+	if not blocked.is_empty():
+		var w := _at(k, b.cells[0])
+		_msg("attention", "%s en %s : son avant (où s'ouvre le couvercle) donne sur un mur ou un obstacle — tournez-la vers la pièce" % [e.fr, w[0]],
+			"%s at %s: its front (where the lid opens) faces a wall or an obstacle — turn it towards the room" % [e.en, w[1]], k, blocked)
+	var cx := 0.0
+	var cy := 0.0
+	for c in b.cells:
+		cx += c.x + 0.5
+		cy += c.y + 0.5
+		_obstacles[k][c] = true
+	var face_m: Vector2 = c_m + back * MysteryBox.SPOT_WALL_GAP
+	wall_items.append({"key": b.key, "base": b.base, "entry": e, "floor": k, "cells": b.cells, "zone": b.zone, "wall": back,
+		"face": face_m / scale + Vector2(0.5, 0.5), "center": Vector2(cx / b.cells.size(), cy / b.cells.size()),
+		"oblique": true, "floor_box": true, "box_center": c_m, "rot": int(info.rot)})
+
+
 func _wall_markers() -> void:
 	for f in floors:
 		_obstacles.append({})
@@ -1114,6 +1213,12 @@ func _wall_markers() -> void:
 			if not _diag_done.has(b.key):
 				_diag_done[b.key] = true
 				_diag_wall_marker(b, e)
+			continue
+		if floor_boxes.has(b.key):
+			# Format 15 : boîte posée au sol (une seule fois, même en morceaux).
+			if not _diag_done.has(b.key):
+				_diag_done[b.key] = true
+				_floor_box_marker(b, e)
 			continue
 		var k: int = b.floor
 		var f := floors[k]
@@ -1172,19 +1277,30 @@ func _wall_markers() -> void:
 		var lc := center.x if lat.x != 0 else center.y
 		var l0 := floori(lc - fp[0] / 2.0 + 0.01)
 		var bad := []
+		# Sol d'une pièce sous une barrière invisible posée par-dessus, devant
+		# l'objet : pas un refus — l'objet reste construit (aperçu 3D et jeu),
+		# un avertissement signale l'accès gêné. Avant, l'erreur le retirait
+		# de la description : il disparaissait de l'aperçu dès qu'une
+		# barrière le recouvrait. Un décor devant reste une erreur.
+		var hidden := []
 		for l in range(l0, l0 + fp[0]):
 			var wall_c := Vector2i(l, row + best.y) if lat.x != 0 else Vector2i(row + best.x, l)
 			if f.at(wall_c) != K.MUR:
 				bad.append(wall_c)
 			for dd in fp[1]:
 				var c := Vector2i(l, row - best.y * dd) if lat.x != 0 else Vector2i(row - best.x * dd, l)
-				if not (f.at(c) == K.SOL or b.cells.has(c)):
+				if _under_clip(f, c):
+					hidden.append(c)
+				elif not (f.at(c) == K.SOL or b.cells.has(c)):
 					bad.append(c)
 		if not bad.is_empty():
 			var wb := _at(k, bad[0])
 			_msg("erreur", "%s en %s : pas la place (il faut %s m de mur derrière et %s × %s m de sol libre devant ; gêné en %s)" % [e.fr, w[0], _num(fp[0] * scale).replace(".", ","), _num(fp[0] * scale).replace(".", ","), _num(fp[1] * scale).replace(".", ","), wb[0]],
 				"%s at %s: not enough room (needs %s m of wall behind and %s × %s m of free floor in front; blocked at %s)" % [e.en, w[1], _num(fp[0] * scale), _num(fp[0] * scale), _num(fp[1] * scale), wb[1]], k, bad)
 			continue
+		if not hidden.is_empty():
+			_msg("attention", "%s en %s : une barrière invisible posée devant gêne son accès (déplacez-la)" % [e.fr, w[0]],
+				"%s at %s: an invisible barrier placed in front of it blocks access (move it)" % [e.en, w[1]], k, hidden)
 		# Objets pleins (boîte, distributeurs...) : leur emprise gêne le passage.
 		if fp[1] >= 2:
 			for l in range(l0, l0 + fp[0]):
@@ -1232,7 +1348,10 @@ func _floor_markers() -> void:
 		# Le joueur (rayon ~0,4 m) doit tenir : la case et ses voisines sont du sol.
 		var clear := true
 		for d in [Vector2i.ZERO, Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-			if not _floorlike(f, cell + d):
+			# Ni mur ni boîte posée au sol (format 15 : ses apparitions, à 0,6 m,
+			# tomberaient dans la boîte). Les objets muraux profonds gardent la
+			# règle d'avant (cartes existantes inchangées).
+			if not _floorlike(f, cell + d) or floor_boxes.has(f.key_at(cell + d)):
 				clear = false
 		if not clear:
 			var w := _at(p[0], cell)
@@ -1322,6 +1441,12 @@ func _walk(f: Floor, c: Vector2i) -> bool:
 	return f.at(c) in [K.SOL, K.MARQUEUR, K.PORTE, K.DEBRIS, K.ESCALIER]
 
 
+## Case sous un objet plein (_obstacles : boîte au sol, objet mural profond) :
+## le joueur ne la traverse pas.
+func _solid(k: int, c: Vector2i) -> bool:
+	return k < _obstacles.size() and (_obstacles[k] as Dictionary).has(c)
+
+
 ## Regroupe des cases voisines (8-connexité) ; les plus gros groupes d'abord.
 func _groups(cells: Array) -> Array:
 	var left := {}
@@ -1354,6 +1479,16 @@ func _groups(cells: Array) -> Array:
 func _neighbors(k: int, c: Vector2i, doors_open: bool) -> Array:
 	var f := floors[k]
 	var out := []
+	# Emprise d'un objet plein (boîte au sol, distributeur...) : on l'atteint
+	# (on l'utilise depuis la case voisine) et on en parcourt les cases, mais
+	# on n'en ressort jamais sur le sol : on ne la traverse pas. Avant, ses
+	# cases restaient du sol marchable : une boîte posée en travers d'un
+	# couloir le bouchait sans aucune erreur.
+	if _solid(k, c):
+		for d in DIRS:
+			if _solid(k, c + d) and _walk(f, c + d):
+				out.append([k, c + d])
+		return out
 	var here := f.at(c)
 	var st_here: int = _stair_at[k].get(c, -1)
 	for d in DIRS:
@@ -1489,6 +1624,52 @@ func _connectivity() -> void:
 				elif f.zone_of(c) != tp_exit or tp_exit == "":
 					lost.get_or_add(f.index, []).append(c)
 		reach.append(arr)
+	_floor_box_blocks()
+	# Objets (cases d'objet seulement, aucun sol) enfermés par une barrière
+	# invisible posée par-dessus : la barrière arrête les joueurs, mais
+	# l'objet reste construit (utilisable à portée de main par-dessus une
+	# barrière mince) : un avertissement, pas une erreur qui rendrait la
+	# carte injouable (ni une zone « coupée en morceaux » ci-dessous).
+	var islands := {}
+	var shut_boxes := []   # [étage, cases] des boîtes enfermées
+	for k in lost:
+		var f := floors[k]
+		var rest := []
+		for group in _groups(lost[k]):
+			var shut: bool = group.all(func(c): return f.at(c) == K.MARQUEUR) and group.any(func(c):
+				return DIRS.any(func(d): return _under_clip(f, c + d)))
+			if not shut:
+				rest.append_array(group)
+				continue
+			for c in group:
+				islands[_key(k, c)] = true
+			# Un message par objet du groupe : avertissement, mais ERREUR pour un
+			# objet sans lequel la partie ne se joue pas (_shut_needed).
+			var keys := {}
+			for c in group:
+				keys[f.key_at(c)] = true
+			for key: String in keys:
+				var e := entry(key)
+				var cells: Array = group.filter(func(c): return f.key_at(c) == key)
+				var w := _at(k, cells[0])
+				var base := base_of(key)
+				if base in ["boite", "boite_depart"]:
+					shut_boxes.append([k, cells])
+				if base in SHUT_NEEDED:
+					_msg("erreur", "%s en %s : entouré d'une barrière invisible, les joueurs ne peuvent pas l'atteindre — indispensable à la partie, réduisez ou déplacez la barrière" % [e.fr, w[0]],
+						"%s at %s: surrounded by an invisible barrier, players cannot reach it — the game needs it, shrink or move the barrier" % [e.en, w[1]], k, cells)
+				else:
+					_msg("attention", "%s en %s : entouré d'une barrière invisible, les joueurs ne peuvent pas marcher jusqu'à lui (réduisez-la s'il doit rester utilisable)" % [e.fr, w[0]],
+						"%s at %s: surrounded by an invisible barrier, players cannot walk up to it (shrink it if it must stay usable)" % [e.en, w[1]], k, cells)
+		lost[k] = rest
+	# Toutes les boîtes enfermées : la boîte mystère n'est jamais utilisable.
+	var all_boxes := {}
+	for it in wall_items + floor_items:
+		if it.base in ["boite", "boite_depart"]:
+			all_boxes[it.key] = true
+	if not shut_boxes.is_empty() and shut_boxes.size() >= all_boxes.size():
+		_msg("erreur", "toutes les boîtes mystère sont entourées d'une barrière invisible : aucune n'est utilisable (libérez-en au moins une)",
+			"every mystery box is surrounded by an invisible barrier: none can be used (free at least one)", shut_boxes[0][0], shut_boxes[0][1])
 	for k in lost:
 		for group in _groups(lost[k]):
 			var z := floors[k].zone_of(group[0])
@@ -1504,9 +1685,13 @@ func _connectivity() -> void:
 			for y in f.h:
 				for x in f.w:
 					var c := Vector2i(x, y)
-					if _walk(f, c) and f.zone_of(c) == z:
+					if _walk(f, c) and f.zone_of(c) == z and not islands.has(_key(f.index, c)):
 						cells.append([f.index, c])
-		var part := _bfs([cells[0]], false, func(_a, n): return floors[n[0]].zone_of(n[1]) == z)
+		# Départ du parcours hors d'un objet plein (cul-de-sac : _neighbors).
+		var src: Array = cells.filter(func(kc): return not _solid(kc[0], kc[1]))
+		if src.is_empty():
+			continue
+		var part := _bfs([src[0]], false, func(_a, n): return floors[n[0]].zone_of(n[1]) == z)
 		var rest := cells.filter(func(kc): return not part.has(_key(kc[0], kc[1])))
 		if not rest.is_empty():
 			var w0 := _at(cells[0][0], cells[0][1])
@@ -1532,13 +1717,39 @@ func _connectivity() -> void:
 		window_dist.append(arr)
 
 
+## Boîte posée au sol qui bouche un passage : le sol libre autour d'elle doit
+## rester d'un seul tenant (toutes portes ouvertes) quand on ne la traverse
+## plus. Sinon (boîte en travers d'un couloir) : erreur qui la désigne, en
+## plus de la zone inaccessible ou coupée qui en découle.
+func _floor_box_blocks() -> void:
+	for it in wall_items:
+		if not it.get("floor_box", false):
+			continue
+		var k: int = it.floor
+		var f := floors[k]
+		var around := []
+		for c in it.cells:
+			for d in DIRS:
+				var n: Vector2i = c + d
+				if _walk(f, n) and not _solid(k, n) and not around.has(n):
+					around.append(n)
+		if around.size() < 2:
+			continue
+		var seen := _bfs([[k, around[0]]], true)
+		if around.all(func(n): return seen.has(_key(k, n))):
+			continue
+		var w := _at(k, it.cells[0])
+		_msg("erreur", "%s en %s : elle bouche le passage (le sol de part et d'autre n'est plus relié) — laissez au moins 1 m libre à côté" % [it.entry.fr, w[0]],
+			"%s at %s: it blocks the way (the floor on either side is no longer connected) — leave at least 1 m free beside it" % [it.entry.en, w[1]], k, it.cells)
+
+
 func _counts() -> void:
 	var n := {}
 	for it in wall_items + floor_items:
 		n[it.base] = n.get(it.base, 0) + 1
 	var boxes: int = n.get("boite", 0) + n.get("boite_depart", 0)
 	if boxes == 0:
-		_msg("erreur", "aucun emplacement de boîte mystère (inventaire : Boîte mystère, contre un mur)", "no mystery box location (inventory: Mystery box, against a wall)")
+		_msg("erreur", "aucun emplacement de boîte mystère (inventaire : Boîte mystère, au sol ou contre un mur)", "no mystery box location (inventory: Mystery box, on the floor or against a wall)")
 	elif boxes < 3:
 		_msg("attention", "%d emplacement(s) de boîte seulement : la boîte se déplace entre au moins 3 emplacements (BO1 : 6 à 9 selon la taille)" % boxes,
 			"only %d box location(s): the box moves between at least 3 locations (BO1: 6 to 9 depending on size)" % boxes)

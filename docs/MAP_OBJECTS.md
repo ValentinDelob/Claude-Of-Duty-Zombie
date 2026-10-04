@@ -5,7 +5,7 @@ partage réseau) pour les ajouts des **formats 5 à 11** des cartes
 (format 7 : décor posé librement, § 8 ; format 8 : portes à zombies, § 9 ;
 format 9 : barrière invisible en polygone, § 2, et chevauchements du décor,
 § 10 ; format 10 : prefabs de la carte, § 11, et effets, § 12 ; format 11 :
-effets purs et zones, § 12) :
+effets purs et zones, § 12 ; format 15 : boîte mystère posée au sol, § 15) :
 
 1. les **variantes d'aspect** d'un type d'objet (plusieurs modèles de porte,
    de débris, d'arme murale) ;
@@ -173,6 +173,17 @@ seulement à l'aperçu 3D (`MapPreviewBuilder` y pose le prisme translucide,
 construit rien de visible. Sans `poly` (collisions du décor, tabliers
 d'escalier), la `CollisionBox` reste le pavé `size` d'avant.
 
+Une barrière invisible ne retire **jamais** un élément de la carte (aperçu 3D
+et jeu) : un objet de jeu qu'elle recouvre reste construit, avec un simple
+avertissement « une barrière invisible posée devant gêne son accès » ; un
+escalier dont un bout est sous une barrière reste construit, avec un
+avertissement ; les lampes automatiques ignorent les barrières (elles sont
+au plafond). Exception : un objet **indispensable** que la barrière enferme
+(les joueurs ne peuvent plus l'atteindre) est une **erreur** — interrupteur
+du courant, boîte de départ, départ des joueurs, ou toutes les boîtes
+mystère à la fois ; le Pack-a-Punch et les autres objets (non exigés par
+la carte) restent un avertissement.
+
 ### Format
 
 Type `bloc_invisible` de `objets.json` (identifiants `i1`, `i2`…) :
@@ -226,9 +237,14 @@ Les barrières et les variantes voyagent avec la carte (les cinq JSON du
 paquet canonique) : l'hôte et les invités construisent les mêmes objets.
 
 Escaliers (format 6) : `variante` parmi les huit types, `sens` (`droite`,
-`gauche`), `marches` (entier de 3 à 60), `garde_corps` (booléen), `cotes`
-(`ouverts`, `fermes`) ; toute autre valeur est refusée (contrôle et tests :
-`tests/test_stairs.gd`).
+`gauche`), `garde_corps` (booléen), `cotes` (`ouverts`, `fermes`) ; toute
+autre valeur est refusée (contrôle et tests : `tests/test_stairs.gd`).
+L'ancien réglage `marches` (nombre de marches) n'existe plus depuis le
+04/10/2026 : les marches sont toujours automatiques (≈ 18 cm, comme en jeu,
+élévations comprises). Une carte qui l'avait le perd à sa relecture ; une
+carte reçue qui le porte reste acceptée s'il est entre 3 et 60. Claude
+(serveur MCP, `editor_apply`) ne peut plus l'écrire : refus « le nombre de
+marches n'est plus réglable » (absent du schéma de `editor_catalog`).
 
 ## 4. Escaliers (format 6)
 
@@ -259,10 +275,10 @@ courtes ; colimaçon : sur l'axe des zombies).
 
 Réglages (propriétés ; absents du fichier à leur valeur par défaut) :
 **Tourne vers** (`sens` : `droite` / `gauche`, types L, U et colimaçon),
-**Marches** (`marches` ; 0 = automatique, ≈ 18 cm ; jamais plus de 28 cm par
-marche, même réglé bas), **Garde-corps** (`garde_corps`), **Côtés fermés**
-(`cotes` : limons pleins jusqu'à la main courante). La hauteur est celle
-entre les deux étages (un escalier monte d'un étage).
+**Garde-corps** (`garde_corps`), **Côtés fermés** (`cotes` : limons pleins
+jusqu'à la main courante). Le nombre de marches n'est pas réglable : il est
+automatique (≈ 18 cm par marche). La hauteur est celle entre les deux étages
+(un escalier monte d'un étage).
 
 Dessin du plan : volées et leurs marches, paliers, colimaçon, flèches de
 montée et, au zoom, les pointillés du couloir des zombies avec ses deux
@@ -434,9 +450,10 @@ n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
 ## 5. Versions du format
 
 `EditorMap.FORMAT` = **15** (format 13 : volume des effets, § 12 ; format 14 :
-`echelle` et `incl` du décor, § 14 ; format 15 : textures de la carte,
-docs/MAP_AUTHORING.md § 4). Toutes les nouvelles clés sont
-facultatives : une carte au format 1 à 13 se lit telle quelle (`EditorMap._migrate` ; un
+`echelle` et `incl` du décor, § 14 ; format 15 : boîte mystère au sol, § 15 ;
+format 16 : textures de la carte, docs/MAP_AUTHORING.md § 4).
+Toutes les nouvelles clés sont
+facultatives : une carte au format 1 à 15 se lit telle quelle (`EditorMap._migrate` ; un
 escalier sans `variante` est droit, une applique sans `hauteur` est à 2 m,
 une fenêtre sans `variante` est la fenêtre d'avant ; seule conversion : la
 barrière invisible rectangle devient un polygone de 4 sommets, § 2 ; format
@@ -455,7 +472,10 @@ contrôle refuserait les clés qu'il ne connaît pas).
 - Format 11 : effets purs (objets des effets devenus des décors, décor mural
   et au plafond) et zone des effets (clé `zone`, § 12).
 - Format 12 : hauteurs de pose (`z`, `hauteur` au sol, `descente`, § 13).
-- Format 15 : textures de la carte (dossier `textures/<id>/`, surfaces
+- Format 14 : échelle et inclinaison du décor (§ 14).
+- Format 15 : boîte mystère posée au sol (`boite` sans `mur`, avec `rot`,
+  § 15) ; une boîte sans `mur` d'une carte plus ancienne reçoit `mur` : `n`.
+- Format 16 : textures de la carte (dossier `textures/<id>/`, surfaces
   « map:<id> », docs/MAP_AUTHORING.md § 4).
 
 ## 6. Ajouter une variante ou un type à variantes
@@ -669,8 +689,25 @@ sol à 2,1 m, et **exactement l'épaisseur du mur** (0,5 m,
 `Barricade.DOOR_BARRIER_DEPTH`), centrée sur son milieu. Rien ne dépasse du
 mur, ni dans la salle (le joueur s'approche de la porte comme d'un mur), ni
 dans la cour (le zombie tient à sa place, 0,62 m dehors). Le bâti, les
-battants et les planches n'ont pas de collision. (La fenêtre garde sa
-barrière de 1 m, l'épaisseur d'un mur des cartes grille.)
+battants et les planches n'ont pas de collision.
+
+**Fenêtres comprises** (toutes les cartes en maillage : KINO, cartes de
+l'éditeur) : la barrière de chaque entrée est ajustée au mur réellement
+percé (`BarricadeFit`, mesuré sur la description de la carte : épaisseur,
+milieu de l'épaisseur, largeur découpée). Elle bouche exactement le trou :
+ses faces dans le plan des deux nus du mur, sa largeur celle de la découpe
+(1,07 m à KINO). Le joueur qui longe le mur, collé, en diagonale, en sprint
+ou à reculons, glisse devant l'ouverture sans arrêt ni accroche. Avant, la
+barrière d'une fenêtre faisait 1 m de profondeur partout (murs de 1 m des
+cartes grille) : 30 cm de saillie dans les salles de KINO (murs de
+0,41 m ; 43 cm à la fenêtre des loges, posée hors du milieu du mur), 25 cm
+sur les murs de 0,5 m de l'éditeur, deux coins vifs où le joueur s'arrêtait
+net. Les cartes grille (BUNKER K-7) gardent leur barrière de 1 m (murs de
+1 m). Tests : `tests/test_barricade_wall_fit.gd` (unitaire, toutes les
+entrées de KINO, fenêtre / porte / porte double sur les 4 murs de la grille
+et 4 murs en biais) et le scénario `barricade_wall_slide` (KINO et cartes
+de l'éditeur : courses le long de chaque entrée, vitesse et normales de
+contact mesurées à chaque pas de physique).
 
 ### Les zombies
 
@@ -1367,3 +1404,123 @@ scénarios `map_decor_scale` (partie : collisions d'un décor agrandi et d'un
 décor incliné, zombie qui contourne), `map_scale_panel`, `map_scale_handles`,
 `map_rotate_rings`, `map_rotate_3d` ; captures de développement
 `map_scale_look` (hors check).
+
+## 15. Boîte mystère posée au sol (format 15)
+
+Dans BO1, la boîte est un coffre posé par terre, souvent contre un mur mais
+pas toujours. Depuis le format 15, l'emplacement d'une boîte (`boite`, avec
+ou sans `depart`) se pose **au sol, n'importe où dans une pièce**, tourné
+librement, ou **contre un mur** comme avant.
+
+### Dans l'éditeur
+
+- **Outil Boîte** (inventaire : Boîte mystère) : la boîte suit le curseur,
+  posée au sol, au centimètre (à la grille : son emprise de 2 × 1 m calée sur
+  les cases pour un quart de tour). **R** la pivote de 90° en main.
+- **Aimant de mur** : curseur à moins de **1,3 m** du trait d'un mur (côté de
+  pièce, droit ou en biais, ou mur libre de l'outil Mur), elle s'y colle,
+  **face à la pièce**, comme un objet mural (mêmes règles : mur plein
+  derrière, place devant). **Alt** maintenu : sans aimant. Si ce mur la
+  refuse (fenêtre ou porte derrière, mur trop court), elle reste au sol.
+- **Glisser** une boîte posée : près d'un mur elle s'y colle, loin d'un mur
+  elle se pose au sol ; une boîte murale décollée garde son orientation
+  (avant vers la pièce).
+- **Orientation** d'une boîte au sol : anneau Z de la vue Dessus (pas de
+  15°, Maj ou Alt : au degré près, valeur tapée puis Entrée), champ
+  **Angle** des propriétés, R (90°). Une boîte murale suit son mur (pas
+  d'anneau).
+- **Dessin** (vue Dessus) : son emprise tournée, l'icône, et l'**avant** de
+  la boîte (côté où s'ouvre le couvercle, où l'arme apparaît face au
+  joueur) en trait épais avec une flèche. Élévations et aperçu 3D : son
+  emprise tournée, à 1 m de haut ; l'aperçu 3D construit la vraie boîte (les
+  fonctions de construction du jeu).
+- **Règles de pose** : dans une seule pièce, emprise de 2 × 1 m tournée,
+  **à 0,1 m au moins de la face des murs** (le couvercle ouvert bascule
+  derrière la boîte) et de tout mur libre, sans chevaucher un autre objet ;
+  refusée dans un mur, à cheval sur deux pièces ou dehors ; refusée aussi
+  quand elle est serrée entre deux murs sur deux côtés opposés, à moins de
+  **1,5 m** de chacun (elle boucherait un couloir : MAP_DESIGN_RULES §3.2 et
+  §6.3). Taille fixe (objet de jeu : jamais d'échelle).
+- **Vérification** : comme les autres emplacements (au moins 3, un seul
+  départ) ; ses cases sont **pleines** pour le parcours (on l'atteint, on ne
+  la traverse pas) : une boîte qui sépare le sol de part et d'autre est une
+  erreur (« elle bouche le passage »), de même qu'une boîte à moins de 1 m
+  des apparitions du départ ; un avant tourné vers un mur ou un obstacle est
+  signalé (« attention »).
+
+### En jeu
+
+- La boîte est posée **sur son centre**, tournée comme dans l'éditeur ; même
+  modèle, même collision (1,8 × 0,85 × 0,85 m), même colonne de lumière et
+  même lampe (au-dessus de l'avant), couvercle qui s'ouvre vers l'arrière.
+- **Achat de tous les côtés**, comme le déclencheur de BO1 tout autour du
+  coffre : le point visé est le milieu du coffre (au lieu de 0,7 m devant
+  pour une boîte murale) ; l'arme tourne au-dessus du coffre, visible de
+  partout. **Jamais à travers un mur** : il faut une ligne de vue de l'œil du
+  joueur au-dessus du couvercle (murs, portes fermées, machines ; ni joueurs
+  ni zombies). Ce contrôle vaut pour toutes les boîtes (une boîte murale ne
+  s'achète plus depuis l'autre côté d'un mur mince) et il est refait par le
+  serveur à la position de référence du joueur (client modifié).
+- **Jamais depuis un autre étage** (toutes les boîtes et tous les objets
+  utilisables : atouts, armes murales, grenades, Pack-a-Punch, courant,
+  portes, barricades, pièges et leviers, téléporteur, poste central,
+  réanimation) : les pieds du joueur doivent être à 1,2 m au plus du sol de
+  l'objet (`InteractionSystem.LEVEL_HEIGHT`, `Interactable.level_y` ; un
+  objet mural compte son sol, pas sa hauteur d'accroche). Une marche
+  d'escalier ou un saut passent ; depuis un escalier raide, l'écart permis
+  croît avec la distance à plat (pente de 40° et 0,25 m, `level_gap`, borné à
+  1,9 m, sous toute hauteur d'étage) avec une ligne de vue sans dalle
+  (`stair_sight_ok`) : portes de KINO en haut des marches, coéquipier à terre
+  sur l'escalier ; l'étage du dessous ou du dessus, non. Le
+  client n'affiche pas l'invite et le serveur refuse la demande (portée
+  mesurée en 3D jusque-là, sans limite de hauteur : un joueur sous la
+  passerelle pouvait acheter la boîte posée dessus).
+- **Déplacement** (ours en peluche, LIQUIDATION) : inchangé, entre tous les
+  emplacements, au sol ou au mur ; un emplacement vide garde son tas de
+  planches (au sol : même obstacle bas que la boîte pour la ligne droite des
+  zombies, `MeshNav.LOW_LAYER`).
+- **Zombies** : l'emprise de chaque emplacement au sol est retirée du navmesh
+  (`nav_blocks`), qu'il porte la boîte ou le tas de planches : ils la
+  contournent.
+
+### Format
+
+`objets.json`, type `boite` :
+
+- **au sol** : `position` = centre de la boîte, `rot` = orientation (degrés
+  entiers 0 à 359, sens horaire vu de dessus ; à 0 l'avant est au **sud**,
+  comme un décor), **sans** `mur` ni `angle` :
+  `{"id":"b4","type":"boite","etage":0,"position":[7,28],"rot":45,"depart":false}` ;
+- **contre un mur** (inchangé) : `position` sur le trait du mur, `mur` (et
+  `angle` contre un mur en biais), **sans** `rot`.
+
+C'est l'absence de `mur` qui fait une boîte au sol (`MapCatalog.floor_box`) :
+aucune nouvelle clé hors `rot`. Conversion : une carte d'un format plus
+ancien dont une boîte n'a pas de `mur` (fichier écrit à la main ; le jeu la
+mettait contre le mur nord) reçoit `mur` : `n` au chargement ; une carte
+écrite à la main **sans** clé `format` aussi, si la boîte n'a ni `mur` ni
+`rot` (avec `rot`, c'est une boîte au sol) — toutes les
+autres boîtes sont lues telles quelles et la description en jeu des cartes
+existantes est identique. Contrôle des cartes reçues : `rot` entier de 0 à
+359, jamais avec `mur` ou `angle`, aucune `echelle`.
+
+Description en jeu : la boîte au sol rejoint les autres emplacements
+(`markers.box`) avec un **mur fictif** derrière elle (`wall` = son arrière,
+`p` à `MysteryBox.SPOT_WALL_GAP` derrière son centre) et `"floor": true`
+(achat de tous les côtés) ; son emprise s'ajoute à `nav_blocks`.
+
+### Preuves automatiques
+
+`tests/test_map_box_rules.gd` (couloir bouché, départ, grande salle,
+objets indispensables enfermés, carte sans `format`) ;
+`tests/test_mystery_box_floor.gd` (pose au sol, aimant de mur et mur libre,
+refus dans un mur ou dehors, rotation à l'anneau et valeur tapée, boîte
+murale décollée, aller-retour du fichier et conversion des cartes d'avant,
+contrôle des cartes reçues, validateur et description en jeu, avant face à
+un mur signalé, invite de tous les côtés et jamais à travers un mur, boîte
+murale non plus) ; `tests/test_map_scale.gd` (description en jeu des boîtes
+murales identique) ; scénario `map_box_floor_play` (sans rendu : outil
+Boîte, aimant, TESTER, ours en peluche vers l'emplacement au sol, achat par
+l'avant, couvercle, arme obtenue, invite derrière et sur le côté, collision,
+zombie qui contourne) ; `mp_editorplay` (l'invité achète à la boîte posée au
+sol) ; captures de développement `map_box_floor_look` (hors check).

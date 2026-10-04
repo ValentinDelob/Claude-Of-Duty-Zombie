@@ -1,6 +1,6 @@
 class_name MapTextureTools
 extends Node
-## TEXTURES DE LA CARTE dans l'éditeur (format 15, MapTextureLib,
+## TEXTURES DE LA CARTE dans l'éditeur (format 16, MapTextureLib,
 ## docs/MAP_AUTHORING.md § Textures de la carte) :
 ##   - choix de texture (Propriétés d'une pièce, formulaire d'une zone :
 ##     MapPanels._surface_option) : surfaces du jeu, puis la section « Textures

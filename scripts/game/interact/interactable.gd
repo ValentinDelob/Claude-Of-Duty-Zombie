@@ -13,6 +13,17 @@ var interact_range := 2.2
 ## Durée de maintien de [F] requise (0 = appui simple).
 var hold_time := 0.0
 var system: InteractionSystem
+## Hauteur (m) du nœud au-dessus du sol de son étage : 0 pour un objet posé au
+## sol (porte, boîte, machines) ; un achat mural est accroché plus haut.
+var mount_height := 0.0
+## Collisions propres (own_rids), gardées.
+var _own_rid_cache: Array[RID] = []
+
+
+## Altitude du sol de l'objet : on ne l'utilise que depuis cet étage
+## (InteractionSystem.same_level), jamais depuis l'étage du dessous ou du dessus.
+func level_y() -> float:
+	return global_position.y - mount_height
 
 
 ## Point de référence pour la distance et la visée.
@@ -34,6 +45,22 @@ func prompt(_pid: int) -> String:
 
 func can_interact(pid: int) -> bool:
 	return prompt(pid) != ""
+
+
+## Collisions propres de l'objet (porte, machine...), exclues des rayons de
+## ligne de vue vers lui (InteractionSystem.stair_sight_ok). Liste gardée :
+## construite au premier appel (pas de parcours de l'arbre à chaque image).
+func own_rids() -> Array[RID]:
+	if _own_rid_cache.is_empty():
+		for n in find_children("*", "CollisionObject3D", true, false):
+			_own_rid_cache.append((n as CollisionObject3D).get_rid())
+	return _own_rid_cache
+
+
+## Utilisable depuis l'œil `eye` (ligne de vue) ? Par défaut oui ; la boîte
+## mystère vérifie qu'aucun mur n'est entre le joueur et elle (MysteryBox).
+func sight_ok(_eye: Vector3) -> bool:
+	return true
 
 
 ## Serveur : le joueur `pid` utilise l'objet (distance déjà validée).

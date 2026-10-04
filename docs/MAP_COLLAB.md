@@ -229,7 +229,7 @@ rappelle dans `note`) ; le remplacement du décor (`prefab_create` avec
 `remplacer`) et la suppression des objets posés (`prefab_delete` avec
 `avec_objets`) sont des lots de Claude, annulables par `undo`.
 
-Textures de la carte (format 15, `MapAgentTextures`, docs/MAP_AUTHORING.md
+Textures de la carte (format 16, `MapAgentTextures`, docs/MAP_AUTHORING.md
 § 4) : les cinq commandes `texture_*` sont déléguées par `MapAgentLink` à
 `MapAgentTextures.handle(editor, cmd, args)` ; `MapAgentTextures.tool_defs()`
 donne leurs outils MCP (`editor_texture_list`, `editor_texture_import`,
@@ -259,7 +259,7 @@ UN changement de Claude (annulable) avant le retrait.
 - Lot de Claude (`animate`) : éléments apparaissent un par un (≤ 1,5 s au
   total), contour pulsé violet, bulle « Claude : couloir A→B » ; UNE entrée
   d'historique, donc un seul Ctrl+Z.
-- Textures de la carte (format 15) : l'hôte (seul à pouvoir importer,
+- Textures de la carte (format 16) : l'hôte (seul à pouvoir importer,
   régler ou supprimer) renvoie la carte entière aux invités à chaque
   changement de la bibliothèque, **sans les images** (trop lourdes pour les
   messages de la session, comme les modèles des prefabs). Un invité voit les

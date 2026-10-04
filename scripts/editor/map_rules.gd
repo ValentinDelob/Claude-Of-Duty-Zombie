@@ -1152,6 +1152,148 @@ static func _free_wall_room_check(_doc: EditorMap, _k: int, obj: Dictionary, pol
 	return {"ok": true}
 
 
+# ------------------------------------------------------------------ boîte mystère (format 15)
+
+## Aimant de l'outil Boîte : curseur à moins de BOX_MAGNET m du trait d'un mur
+## (côté de la pièce ou mur libre) -> la boîte se colle à ce mur (son centre
+## est alors à 0,75 m du trait).
+const BOX_MAGNET := 1.3
+## Boîte au sol : jeu (m) entre son emprise et la face d'un mur, pour que le
+## couvercle ouvert (il bascule derrière la boîte, MysteryBox.LID_OPEN_ANGLE)
+## n'entre pas dans le mur.
+const BOX_WALL_CLEAR := 0.1
+## Boîte au sol : passage libre (m) qu'elle doit laisser d'un côté au moins
+## (MAP_DESIGN_RULES §3.2 et §6.3 : 1,5 m au moins entre un obstacle et un
+## mur). Serrée entre deux murs sur deux côtés opposés, elle bouche un couloir.
+const BOX_MIN_PASS := 1.5
+
+
+## Orientation (« rot », degrés) d'une boîte au sol dont l'avant regarde `front`
+## (à 0 : vers le sud, +y ; sens horaire vu de dessus, comme un décor).
+static func rot_facing(front: Vector2) -> int:
+	return MapGeom.norm_deg(rad_to_deg(atan2(-front.x, front.y)))
+
+
+## Avant (vecteur unitaire, m) d'une boîte : au sol, d'après « rot » ; murale,
+## à l'opposé de son mur (vers la pièce).
+static func box_front(o: Dictionary) -> Vector2:
+	if MapCatalog.floor_box(o):
+		return Vector2(0, 1).rotated(deg_to_rad(float(MapGeom.rot_of(o))))
+	return -MapGeom.item_wall_dir(o)
+
+
+## Le point `p` est-il à moins de `r` m du trait d'un mur de sa pièce ou d'un
+## mur libre de l'étage ?
+static func near_wall(doc: EditorMap, k: int, p: Vector2, r: float) -> bool:
+	var room := room_at(doc, k, p)
+	if not room.is_empty():
+		var poly := doc.room_poly(room)
+		for i in poly.size():
+			if MapGeom.dist_to_segment(p, poly[i], poly[(i + 1) % poly.size()]) < r:
+				return true
+	for s in free_wall_segments(doc, k):
+		if _free_wall_dist(p, s) < r:
+			return true
+	return false
+
+
+## Format 15 : pose d'une boîte mystère (outil « wall_snap »). Près d'un mur
+## (curseur à moins de BOX_MAGNET m de son trait ; `magnet` faux : Alt, jamais),
+## elle s'y colle face à la pièce, comme un objet mural (place_wall_item) ;
+## sinon (ou si ce mur la refuse : ouverture derrière, mur trop court), elle
+## se pose au sol, à sa rotation (place_floor_box). Une boîte murale qu'on
+## décolle garde son orientation (avant vers la pièce).
+## -> {ok, position, room, mur (+ angle) | rot} ou la raison du refus.
+static func place_box(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "", grid := false, magnet := true) -> Dictionary:
+	var wall_res := {}
+	if magnet and near_wall(doc, k, mouse, BOX_MAGNET):
+		var wt := tmpl.duplicate()
+		wt["mur"] = String(tmpl.get("mur", "n"))
+		wt.erase("rot")
+		wall_res = place_wall_item(doc, k, wt, mouse, ignore_id, grid)
+		if wall_res.ok:
+			return wall_res
+	var ft := tmpl.duplicate()
+	ft["rot"] = MapGeom.rot_of(tmpl) if MapCatalog.floor_box(tmpl) else rot_facing(box_front(tmpl))
+	ft.erase("mur")
+	ft.erase("angle")
+	var res := place_floor_box(doc, k, ft, mouse, ignore_id, grid)
+	if res.ok or wall_res.is_empty():
+		return res
+	return wall_res
+
+
+## Boîte au sol (format 15) : comme un objet de jeu au sol (dans une pièce,
+## sans chevauchement, place_floor_item) et, au centimètre près, son emprise
+## tournée (2 × 1 m) dans la pièce, à BOX_WALL_CLEAR m au moins de la face
+## de ses murs et de tout mur libre. `tmpl` : boîte sans « mur », avec « rot ».
+static func place_floor_box(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "", grid := false) -> Dictionary:
+	var res := place_floor_item(doc, k, tmpl, mouse, ignore_id, grid)
+	if not res.ok:
+		return res
+	var nm := _name(tmpl)
+	var obj := tmpl.duplicate()
+	obj["position"] = res.position
+	var fpoly := MapRaster.floor_poly(obj)
+	var room := room_at(doc, k, MapGeom.v2(res.position))
+	var rp := doc.room_poly(room)
+	for c in fpoly:
+		if not MapGeom.contains(rp, c):
+			return refuse("%s dépasse de la pièce : posez-la plus au milieu" % nm[0], "%s sticks out of the room: place it further inside" % nm[1])
+	for i in rp.size():
+		if _poly_seg_dist(fpoly, rp[i], rp[(i + 1) % rp.size()]) < MapGeom.WALL_HALF + BOX_WALL_CLEAR - 0.001:
+			return refuse("%s touche un mur : écartez-la, ou approchez-la pour la coller au mur" % nm[0],
+				"%s touches a wall: move it away, or closer to snap it to the wall" % nm[1])
+	for s in free_wall_segments(doc, k):
+		if _poly_seg_dist(fpoly, s.a, s.b) < float(s.half) + BOX_WALL_CLEAR - 0.001:
+			return refuse("%s touche un mur : écartez-la, ou approchez-la pour la coller au mur" % nm[0],
+				"%s touches a wall: move it away, or closer to snap it to the wall" % nm[1])
+	if _box_squeezed(fpoly, rp, free_wall_segments(doc, k)):
+		return refuse("%s bouche le passage : laissez %s m libres d'un côté (couloir trop étroit pour elle)" % [nm[0], str(BOX_MIN_PASS).replace(".", ",")],
+			"%s blocks the way: leave %s m free on one side (corridor too narrow for it)" % [nm[1], str(BOX_MIN_PASS)])
+	res["rot"] = MapGeom.rot_of(tmpl)
+	return res
+
+
+## Boîte au sol serrée entre deux murs : sur deux côtés OPPOSÉS de son emprise
+## `fpoly`, un mur (de la pièce `rp` ou libre `segs`) à moins de BOX_MIN_PASS m
+## de sa face. Une boîte en travers d'un couloir de 3 m (0,35 m de chaque
+## côté) le bouchait sans que rien ne le dise (le validateur le signale aussi).
+static func _box_squeezed(fpoly: PackedVector2Array, rp: PackedVector2Array, segs: Array) -> bool:
+	var walls := []
+	for i in rp.size():
+		walls.append({"a": rp[i], "b": rp[(i + 1) % rp.size()], "half": MapGeom.WALL_HALF})
+	walls.append_array(segs)
+	var mid := Vector2.ZERO
+	for p in fpoly:
+		mid += p
+	mid /= fpoly.size()
+	var tight := []
+	for i in fpoly.size():
+		var p := fpoly[i]
+		var q := fpoly[(i + 1) % fpoly.size()]
+		var nrm := (q - p).orthogonal().normalized()
+		if nrm.dot((p + q) * 0.5 - mid) < 0.0:
+			nrm = -nrm
+		# Bande de BOX_MIN_PASS m devant ce côté : un mur y entre -> côté serré.
+		var strip := PackedVector2Array([p, q, q + nrm * BOX_MIN_PASS, p + nrm * BOX_MIN_PASS])
+		tight.append(walls.any(func(s): return _poly_seg_dist(strip, s.a, s.b) < float(s.half) - 0.001))
+	return fpoly.size() == 4 and ((tight[0] and tight[2]) or (tight[1] and tight[3]))
+
+
+## Reporte un résultat de place_box sur la boîte `o` : contre un mur (« mur »,
+## « angle », sans « rot ») ou au sol (« rot », sans « mur » ni « angle »).
+static func apply_box(o: Dictionary, res: Dictionary) -> void:
+	o["position"] = res.position
+	if res.has("mur"):
+		apply_wall(o, res)
+		o.erase("rot")
+	else:
+		o.erase("mur")
+		o.erase("angle")
+		o["rot"] = int(res.get("rot", 0))
+
+
 ## Pose d'un objet au sol (départ, apparition, téléporteur, lampe, caisse,
 ## prefab, luminaire...). Emprise rectangulaire, rotation comprise (prefabs).
 ## Couches (layer_of) : un luminaire du plafond ne gêne que les autres
@@ -1940,6 +2082,9 @@ static func check_existing(doc: EditorMap, o: Dictionary) -> Dictionary:
 					return refuse("n'est plus contre un mur", "is no longer against a wall")
 			return r
 		"floor_item":
+			if MapCatalog.floor_box(o):
+				# Format 15 : boîte au sol, à sa place et sa rotation exactes.
+				return place_floor_box(doc, k, o, MapGeom.v2(o.position), String(o.id), false)
 			return place_floor_item(doc, k, o, MapGeom.v2(o.position), String(o.id), false)
 		"rect":
 			# Escalier : lui-même (sens, type), sans le rechercher dans la carte.

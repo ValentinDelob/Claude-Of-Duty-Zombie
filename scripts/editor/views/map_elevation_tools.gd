@@ -277,16 +277,19 @@ func press(px: Vector2) -> bool:
 			"v0": ed().doc.floor_sol(k) if lv.begins_with("level:") else ed().doc.floor_height(k)}
 		return true
 	# L'élément choisi d'abord (des boîtes se recouvrent en élévation).
+	# Reclic : un simple clic sans bouger sur l'élément déjà choisi seul le
+	# désélectionne au relâché (comme la vue Dessus et la 3D).
 	if not e.is_empty() and ev.rect_px(e).grow(3.0).has_point(px):
-		_begin("move", e, {"lock": ""})
+		_begin("move", e, {"lock": "", "reclick": ed().group.is_empty()})
 		return true
 	var hit := ev.element_at(ev.to_m(px))
+	var again := not hit.is_empty() and String(hit.id) == ed().selected and ed().group.is_empty()
 	ed().select(String(hit.get("id", "")))
 	if hit.is_empty():
 		return true
 	var pe := ev.projected_of(String(hit.id))
 	if not pe.is_empty():
-		_begin("move", pe, {"lock": ""})
+		_begin("move", pe, {"lock": "", "reclick": again})
 	return true
 
 
@@ -768,10 +771,14 @@ func release() -> void:
 			var now := ed().doc.find(String(drag.orig.id))
 			moved_floor = not now.is_empty() and int(now.get("etage", 0)) != int(drag.k0)
 	var oid := String(drag.get("orig", {}).get("id", ""))
+	# Reclic sans bouger (moins de 4 px) : l'élément est désélectionné.
+	var unselect: bool = bool(drag.get("reclick", false)) and not drag.moved and ev.to_px(ev.mouse_m).distance_to(ev.to_px(Vector2(drag.start_m))) < 4.0
 	drag = {}
 	if moved_floor:
 		# Changé d'étage : l'étage courant le suit (plan du dessus, panneaux).
 		ed().select(oid)
+	elif unselect:
+		ed().select("")
 	magnet = {}
 	entry = ""
 	entering = false

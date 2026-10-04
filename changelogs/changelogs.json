@@ -2208,6 +2208,60 @@
     "en": "Editor: scale and 3D rotation of props",
     "fr": "Éditeur : échelle et rotation 3D du décor"
    }
+  },
+  "v0.2.1-snapshot.410": {
+   "channel": "snapshot",
+   "date": "2026-10-04",
+   "images": [
+    "v0.2.1-snapshot.410/01_boite_au_sol_en_jeu.jpg",
+    "v0.2.1-snapshot.410/02_boite_tournee_dans_editeur.jpg"
+   ],
+   "items": [
+    {
+     "en": "You no longer snag on the edges of barricaded windows.",
+     "fr": "On ne s'accroche plus sur les bords des fenêtres barricadées."
+    },
+    {
+     "en": "Zombies walk single file through narrow corridors, without jams and without going through slits; their bodies no longer block their sight.",
+     "fr": "Les zombies passent en file dans les couloirs étroits, sans bouchons et sans traverser les fentes ; leurs corps ne gênent plus leur vue."
+    },
+    {
+     "en": "Sprinting no longer restarts on its own.",
+     "fr": "La course ne repart plus toute seule."
+    },
+    {
+     "en": "The box and other objects can no longer be used from another floor, but still from a staircase.",
+     "fr": "On ne peut plus utiliser la boîte ni aucun objet depuis un autre étage, mais toujours depuis un escalier."
+    },
+    {
+     "en": "Editor: the mystery box can be placed anywhere on the floor and turned; it can be bought from every side, never through a wall or a floor.",
+     "fr": "Éditeur : la boîte mystère se pose au sol n'importe où et se tourne ; elle s'achète de tous les côtés, jamais à travers un mur ni un plancher."
+    },
+    {
+     "en": "Editor: an invisible barrier no longer hides the objects it covers.",
+     "fr": "Éditeur : une barrière invisible ne fait plus disparaître les objets qu'elle recouvre."
+    },
+    {
+     "en": "Editor: the ceiling shows under the floor above; an open passage between two rooms stops at the lower ceiling; above a staircase, it follows the room height.",
+     "fr": "Éditeur : le plafond s'affiche sous l'étage du dessus ; un passage libre entre deux pièces s'arrête au plafond le plus bas ; au-dessus d'un escalier, il suit la hauteur de la pièce."
+    },
+    {
+     "en": "Editor: the number of steps is now automatic.",
+     "fr": "Éditeur : le nombre de marches est maintenant automatique."
+    },
+    {
+     "en": "Editor: rotation axes disappear on deselection (clicking again deselects); a click in 3D selects what you see, even under a ceiling.",
+     "fr": "Éditeur : les axes de rotation disparaissent quand on désélectionne (un nouveau clic désélectionne) ; un clic en 3D sélectionne ce qu'on voit, même sous un plafond."
+    },
+    {
+     "en": "Editor: new checks for a box blocking a corridor or a required object shut in by a barrier.",
+     "fr": "Éditeur : nouvelles vérifications, une boîte qui bouche un couloir ou un objet indispensable enfermé par une barrière."
+    }
+   ],
+   "title": {
+    "en": "Game and editor fixes",
+    "fr": "Corrections de jeu et d'éditeur"
+   }
   }
  }
 }

@@ -52,6 +52,13 @@ static func put_item(doc: EditorMap, item_id: String, mouse: Vector2, rot := 0, 
 	if rot != 0:
 		o["rot"] = rot
 	var r := {}
+	if it.get("wall_snap", false):
+		# Boîte mystère (format 15) : au sol, ou collée au mur proche.
+		r = MapRules.place_box(doc, k, o, mouse)
+		if not r.ok:
+			return {}
+		MapRules.apply_box(o, r)
+		return _add(doc, doc.objets, o, "x", k)
 	if String(it.tool) == "wall_item":
 		r = MapRules.place_wall_item(doc, k, o, mouse)
 		if r.ok:

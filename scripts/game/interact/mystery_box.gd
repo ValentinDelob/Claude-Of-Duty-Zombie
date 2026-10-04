@@ -30,6 +30,14 @@ const LID_OPEN_ANGLE := -1.5
 ## bascule derrière l'arrière du coffre : le centre de la boîte est posé à
 ## SPOT_WALL_GAP du mur pour qu'il ne s'y enfonce pas.
 const SPOT_WALL_GAP := 0.57
+## Collision du coffre (longueur, hauteur, profondeur), centrée sur la boîte
+## et posée au sol ; l'éditeur retire aussi cette emprise du navmesh pour une
+## boîte posée au sol (MapLayoutExport, « nav_blocks »).
+const BODY_SIZE := Vector3(1.8, 0.85, 0.85)
+## Point visé au-dessus du milieu du coffre (juste au-dessus du couvercle
+## fermé) : invite et achat d'une boîte posée au sol, et la ligne de vue de
+## toutes les boîtes (jamais à travers un mur, sight_ok).
+const SIGHT_HEIGHT := 0.95
 ## Colonne de lumière (BO1) : pâle, bleutée, douce ; posée sur le couvercle,
 ## elle s'éteint en montant (sommet à 3,2 m, sous les plafonds).
 const BEAM_COLOR := Color(0.62, 0.76, 1.0)
@@ -80,6 +88,8 @@ var _fs_music: AudioStreamPlayer3D
 
 var spots: Array = []   # [{pos, basis}]
 var _root: Node3D
+## Collision du coffre (couche du monde ; au sol, aussi MeshNav.LOW_LAYER).
+var _body: StaticBody3D
 var _lid: Node3D
 var _beam: MeshInstance3D
 ## Halo doré au-dessus du coffre ouvert.
@@ -95,6 +105,9 @@ var _timer := 0.0
 var _cycle_t := 0.0
 var _rng := RandomNumberGenerator.new()
 var _markers: Array[Node3D] = []
+## Collisions de la boîte et de ses tas de planches (créées une fois, _collider) :
+## exclues du rayon de sight_ok, sans parcourir l'arbre à chaque image de visée.
+var _own_rids: Array[RID] = []
 ## État affiché (apply_state) : sur le serveur, `state` et `location` sont
 ## déjà modifiés quand l'état diffusé revient (call_local).
 var _shown_state: State = State.IDLE
@@ -113,8 +126,9 @@ func setup_spots(markers: Array[MapMarker], start: int) -> void:
 	name = "MysteryBox"
 	interact_range = 2.0
 	for m in markers:
-		# `wall` pointe vers le mur, dont m.pos est à m.wall_gap.
-		spots.append({"pos": m.pos + m.wall * (m.wall_gap - SPOT_WALL_GAP), "normal": m.wall})
+		# `wall` pointe vers le mur, dont m.pos est à m.wall_gap. Boîte posée
+		# au sol (éditeur, format 15) : mur fictif derrière elle, « floor ».
+		spots.append({"pos": m.pos + m.wall * (m.wall_gap - SPOT_WALL_GAP), "normal": m.wall, "floor": bool(m.data.get("floor", false))})
 	location = clampi(start, 0, spots.size() - 1)
 	_rng.randomize()
 
@@ -149,7 +163,8 @@ func _ready() -> void:
 	_display = Node3D.new()
 	_display.position = Vector3(0, 1.05, 0)
 	_root.add_child(_display)
-	_root.add_child(_collider(Vector3(1.8, 0.85, 0.85)))
+	_body = _collider(BODY_SIZE)
+	_root.add_child(_body)
 	if temporary:
 		_place(self, location)
 		# Arrivée : la boîte se déploie, avec la ritournelle de la liquidation.
@@ -175,6 +190,14 @@ func _ready() -> void:
 		_part(m, Vector3(1.5, 0.12, 0.7), Vector3(0, 0.06, 0), crate)
 		_part(m, Vector3(0.9, 0.1, 0.5), Vector3(0.2, 0.17, 0.05), crate)
 		m.add_child(_collider(Vector3(1.5, 0.3, 0.7)))
+		if bool(spots[i].get("floor", false)):
+			# Emplacement au sol : même obstacle bas que la boîte (rayon genou de
+			# MeshNav, couche LOW_LAYER seule, volume de la boîte) ; le navmesh
+			# contourne déjà son emprise : le zombie ne fonce plus dedans en
+			# ligne droite ni ne monte sur les planches.
+			var low := _collider(BODY_SIZE)
+			low.collision_layer = MeshNav.LOW_LAYER
+			m.add_child(low)
 		get_parent().add_child.call_deferred(m)
 		_markers.append(m)
 		_place(m, i)
@@ -214,6 +237,7 @@ func _collider(size: Vector3) -> StaticBody3D:
 	body.collision_layer = 1
 	body.collision_mask = 0
 	body.set_meta("surface", "wood")  # impacts de balles (Fx.surface_at)
+	_own_rids.append(body.get_rid())
 	var cs := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = size
@@ -312,6 +336,9 @@ func _place(node: Node3D, i: int) -> void:
 	var s: Dictionary = spots[i]
 	node.position = s.pos
 	node.basis = Basis.looking_at(-s.normal, Vector3.UP).rotated(Vector3.UP, PI)
+	if node == self and _body != null:
+		# Posée au sol : obstacle bas que les zombies contournent (MeshNav.LOW_LAYER).
+		_body.collision_layer = 1 | (MeshNav.LOW_LAYER if bool(s.get("floor", false)) else 0)
 
 
 func _move_to(i: int) -> void:
@@ -326,7 +353,34 @@ func _move_to(i: int) -> void:
 # --------------------------------------------------------------------------
 
 func interact_point() -> Vector3:
+	if bool(spots[location].get("floor", false)):
+		# Boîte posée au sol (format 15) : on l'achète de tous les côtés, comme
+		# dans BO1 (déclencheur autour du coffre) : le point visé est son milieu.
+		return global_position + Vector3.UP * SIGHT_HEIGHT
 	return global_position - (spots[location].normal as Vector3) * 0.7 + Vector3.UP * 0.9
+
+
+## Ligne de vue de l'œil `eye` jusqu'au-dessus du coffre (couche du monde :
+## murs, portes fermées, machines ; ni joueurs ni zombies ; la boîte et ses
+## emplacements vides ne comptent pas) : jamais d'achat à travers un mur.
+func sight_ok(eye: Vector3) -> bool:
+	if not is_inside_tree():
+		return true
+	var space := get_world_3d().direct_space_state
+	if space == null:
+		return true
+	var q := PhysicsRayQueryParameters3D.create(eye, global_position + Vector3.UP * SIGHT_HEIGHT, 1, _own_bodies())
+	return space.intersect_ray(q).is_empty()
+
+
+## Collisions de la boîte et des tas de planches de ses emplacements (liste
+## gardée : _own_rids).
+func _own_bodies() -> Array[RID]:
+	return _own_rids
+
+
+func own_rids() -> Array[RID]:
+	return _own_rids
 
 
 func prompt(pid: int) -> String:
