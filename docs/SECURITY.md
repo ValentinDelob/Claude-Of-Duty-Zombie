@@ -129,7 +129,18 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
    `CollisionBox` de `prefab.json`. Un modèle illisible devient une boîte
    (erreur au journal, jamais d'arrêt). Un `.gltf` importé du disque doit avoir
    ses données intégrées (`data:`) ; il est réécrit en `.glb`.
-7. **Processus** : `OS.execute` / `OS.create_process` / `OS.shell_open` seulement
+7. **Images venues d'une carte** (textures de la carte, format 15,
+   `MapTextureLib`) : jamais `load()` ni `ResourceLoader` ; seulement des
+   PNG / JPEG dont la signature correspond au nom du fichier (`image.png`,
+   `image.jpg`, `normal.png`, `normal.jpg`), les côtés lus dans l'en-tête et
+   bornés à 16384 px (la plus grande texture du moteur) AVANT tout décodage,
+   puis décodés par `Image.load_png_from_buffer` / `load_jpg_from_buffer`
+   (aucune ressource Godot). `texture.json` vérifié clé par clé (liste
+   blanche, nombres bornés, noms sans balise). Base64 strict. Aucun quota de
+   nombre ni de taille (choix du concepteur de la carte) : seules les bornes
+   générales du paquet réseau et des archives s'appliquent. Image illisible en
+   jeu : surface par défaut (journal, jamais d'arrêt).
+8. **Processus** : `OS.execute` / `OS.create_process` / `OS.shell_open` seulement
    avec des chemins construits par le code (jamais un texte reçu) ; dans un
    `.bat`, doubler les `%`.
 

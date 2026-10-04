@@ -457,3 +457,97 @@ func test_tool_defs() -> void:
 	assert_true(names.has("editor_texture_list") and names.has("editor_texture_import"))
 	# JSON pur (aucun type Godot) : sérialisable tel quel par le serveur MCP.
 	assert_eq(JSON.parse_string(JSON.stringify(MapAgentTextures.tool_defs())).size(), 5)
+
+
+# ------------------------------------------------------------------ éditeur
+
+func _editor() -> MapEditor:
+	var ed: MapEditor = load(MapEditor.SCENE).instantiate()
+	host.add_child(ed)
+	await wait_frames(3)
+	ed.new_map(true)
+	return ed
+
+
+## Listes de surfaces (OptionButton) du panneau Propriétés, dans l'ordre.
+static func _surface_options(ed: MapEditor) -> Array:
+	return ed.panels._props.find_children("*", "OptionButton", true, false).filter(func(o):
+		for i in o.item_count:
+			if str(o.get_item_metadata(i)) == "#importer":
+				return true
+		return false)
+
+
+static func _index(o: OptionButton, v: String) -> int:
+	for i in o.item_count:
+		if not o.is_item_separator(i) and str(o.get_item_metadata(i)) == v:
+			return i
+	return -1
+
+
+func test_editor_picker_import_delete() -> void:
+	var calls := []
+	FilePick.native_override = 1
+	FilePick.native_show = func(title, _dir, _file, _hidden, _mode, filters, cb):
+		calls.append([title, filters, cb])
+		return OK
+	var ed := await _editor()
+	ed.doc = textured_map()
+	ed.collab.reset_doc(ed.doc)
+	ed.changed()
+	var room: Dictionary = ed.doc.pieces[0]
+	ed.select(String(room.id))
+	ed.panels.refresh_now()
+	var opts := _surface_options(ed)
+	assert_eq(opts.size(), 3, "trois listes : sol, murs, plafond")
+	if opts.size() == 3:
+		var sol: OptionButton = opts[0]
+		assert_eq(String(sol.get_item_metadata(sol.selected)), "map:carreaux", "sol : la texture de la carte choisie")
+		assert_true(sol.get_parent().get_children().any(func(c): return c is Button and not c is OptionButton and c.text == "⚙"), "⚙ à côté d'une texture de la carte")
+		# Plafond : la texture de la carte (une modification annulable).
+		var ceil: OptionButton = opts[2]
+		var i := _index(ceil, "map:carreaux")
+		assert_true(i > 0, "texture de la carte proposée au plafond")
+		ceil.select(i)
+		ceil.item_selected.emit(i)
+		assert_eq(String(room.get("surface_plafond", "")), "map:carreaux", "plafond texturé")
+		ed.undo()
+		assert_false(ed.doc.pieces[0].has("surface_plafond"), "Ctrl+Z : plafond d'avant")
+	# Import depuis la liste : explorateur du système (simulé), image copiée,
+	# texture posée sur la partie.
+	ed.panels.refresh_now()
+	opts = _surface_options(ed)
+	var path := ProjectSettings.globalize_path(TMP + "/import/pierre_grise.jpg")
+	_write(path, jpg(32, 32))
+	if opts.size() == 3:
+		var murs: OptionButton = opts[1]
+		murs.item_selected.emit(_index(murs, "#importer"))
+		assert_eq(calls.size(), 1, "explorateur ouvert")
+		if calls.size() == 1:
+			assert_eq((calls[0][1] as PackedStringArray)[0], "*.png, *.jpg, *.jpeg ; " + Lang.t("Image PNG ou JPEG", "PNG or JPEG image"), "filtre images")
+			(calls[0][2] as Callable).call(true, PackedStringArray([path]), 0)
+			await wait_frames(2)
+		assert_true(ed.doc.textures.has("pierre_grise"), "texture importée : %s" % str(ed.doc.textures.keys()))
+		assert_eq(String(ed.doc.pieces[0].get("surface_murs", "")), "map:pierre_grise", "posée sur les murs")
+		ed.undo()
+		assert_eq(String(ed.doc.pieces[0].get("surface_murs", "")), "brick", "Ctrl+Z : murs d'avant (la texture reste dans la bibliothèque)")
+	# Suppression : refusée tant qu'utilisée, sauf confirmation (surface par défaut).
+	var tt := ed.texture_tools
+	assert_false(tt.delete_texture("carreaux"), "utilisée : refusée")
+	assert_true(tt.delete_texture("carreaux", true), "forcée")
+	assert_false(ed.doc.textures.has("carreaux") or ed.doc.pieces[0].has("surface_sol"), "surface par défaut remise")
+	ed.undo()
+	assert_eq(String(ed.doc.pieces[0].get("surface_sol", "")), "map:carreaux", "Ctrl+Z : la référence revient")
+	ed.validate()
+	assert_true(ed.validator != null and _has_warning(ed.validator, "carreaux"), "texture absente : avertissement du validateur")
+	# Invité : la bibliothèque est à l'hôte.
+	ed.collab.role = MapCollab.Role.GUEST
+	assert_eq(tt.import_file(path), "", "invité : import refusé")
+	assert_false(tt.set_settings("pierre_grise", {"taille": 3.0}), "invité : réglages refusés")
+	ed.collab.role = MapCollab.Role.SOLO
+	assert_true(tt.set_settings("pierre_grise", {"taille": 3.0}), "solo : réglages")
+	assert_eq(ed.doc.textures.pierre_grise.taille, 3.0)
+	FilePick.native_override = -1
+	FilePick.native_show = Callable()
+	ed.queue_free()
+	await wait_frames(1)
