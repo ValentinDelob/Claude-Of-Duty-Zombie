@@ -26,6 +26,17 @@ class Opening:
 	var kind := BarricadeRules.WINDOW
 	## Largeur de l'ouverture le long du mur (m).
 	var width := 1.0
+	## Mur percé, mesuré sur la carte (BarricadeFit, cartes en maillage) :
+	## épaisseur (m), milieu de cette épaisseur (m le long de inward_dir
+	## depuis pos) et largeur réellement découpée (m). 0 : inconnu, barrière
+	## par défaut du type (Barricade.WINDOW_BARRIER_DEPTH : murs de 1 m des
+	## cartes grille ; DOOR_BARRIER_DEPTH).
+	var wall_depth := 0.0
+	var wall_mid := 0.0
+	var cut_width := 0.0
+	## Milieu de la découpe le long de l'axe X local de la barricade (m depuis
+	## pos) : ouverture décalée de son repère (BarricadeFit.cut_span).
+	var cut_off := 0.0
 	## Graine des planches (aspect déterministe sur toutes les machines).
 	@warning_ignore("shadowed_global_identifier")
 	var seed := 0

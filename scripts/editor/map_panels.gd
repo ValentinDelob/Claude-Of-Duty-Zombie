@@ -529,6 +529,11 @@ func _object_props(o: Dictionary) -> void:
 						if String(q.get("type", "")) == "boite":
 							q["depart"] = false
 				o["depart"] = on)
+			# Format 15 : pose de la boîte (au sol ou contre un mur).
+			_note(_props, Lang.t("Posée au sol : l'avant (flèche) est le côté où s'ouvre le couvercle ; en jeu, elle s'achète de tous les côtés, jamais à travers un mur. Glissez-la près d'un mur pour l'y coller (Alt : sans aimant).",
+				"On the floor: the front (arrow) is the side where the lid opens; in game it can be bought from every side, never through a wall. Drag it near a wall to snap it there (Alt: no magnet).") if MapCatalog.floor_box(o)
+				else Lang.t("Contre un mur, face à la pièce. Glissez-la loin du mur pour la poser au sol (puis l'anneau ou « Angle » pour la tourner).",
+				"Against a wall, facing the room. Drag it away from the wall to put it on the floor (then the ring or \"Angle\" to turn it)."))
 		"escalier":
 			_stair_props(o)
 			var dirs := ["n", "e", "s", "o"]
@@ -609,8 +614,8 @@ func _clip_props(o: Dictionary) -> void:
 		"Invisible in game. Goes anywhere (across a wall, outside, over an object). Blocks players and zombies (their paths go around it); bullets and grenades go through, like BO1 invisible clips."))
 
 
-## Escalier (format 6) : type (V), sens du virage, marches, garde-corps,
-## côtés fermés ; rappel de ce qu'exige le type.
+## Escalier (format 6) : type (V), sens du virage, garde-corps, côtés
+## fermés ; rappel de ce qu'exige le type. Marches : toujours automatiques.
 func _stair_props(o: Dictionary) -> void:
 	var ids := MapCatalog.variants("escalier")
 	var kind := MapCatalog.stair_kind(o)
@@ -630,14 +635,6 @@ func _stair_props(o: Dictionary) -> void:
 				o["sens"] = turns[i]
 				MapCatalog.tidy_stair(o)
 				ed.changed())
-	if kind != "rampe":
-		var set_steps := func(v: float) -> void:
-			if int(v) < MapCatalog.STAIR_STEPS[0]:
-				o.erase("marches")
-			else:
-				o["marches"] = int(v)
-		var ms := _spin(_props, Lang.t("Marches", "Steps"), float(o.get("marches", 0)), 0, MapCatalog.STAIR_STEPS[1], 1, set_steps, "")
-		ms.tooltip_text = Lang.t("0 : automatique (≈ 18 cm par marche)", "0: automatic (about 18 cm per step)")
 	_check(_props, Lang.t("Garde-corps", "Railing"), bool(o.get("garde_corps", MapCatalog.stair_rail_default(kind))), func(on):
 		o["garde_corps"] = on
 		MapCatalog.tidy_stair(o))

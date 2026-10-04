@@ -11,8 +11,10 @@ extends TestCase
 
 const TMP := "res://tests/_out/test_map_editor_freeform"
 ## Empreinte SHA-256 de la description en maillage de DRAFT ARENA (JSON trié,
-## noms en français) : la même qu'avant les formes libres (format 3).
-const DRAFT_LAYOUT_SHA := "f4958fe52877b631e64933c3f1c525806255d6f7b61aba59f231ad1bd2fb33e8"
+## noms en français) : la même qu'avant les formes libres (format 3), sauf le
+## plafond de l'entrepôt sous la passerelle (toujours dessiné sous la dalle de
+## l'étage du dessus, MapLayoutExport.under_slab).
+const DRAFT_LAYOUT_SHA := "635bde5afb60fa4ac18bf88b109beae983a6729170991cbc4e0e0e4390134b94"
 
 
 func before_each() -> void:

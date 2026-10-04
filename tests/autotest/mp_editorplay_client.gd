@@ -72,6 +72,44 @@ func run() -> void:
 		"décor mis à l'échelle par l'hôte : × 2 chez l'invité (%s)" % (str((scaled[0] as Node3D).transform.basis.x.length()) if not scaled.is_empty() else "absent"))
 	var pt := CollabPlaytest.current
 	at.check(pt != null and pt.collab.get_parent() == pt and pt.collab.role == MapCollab.Role.GUEST, "session d'édition gardée pendant la partie")
+	# Format 15 : achat à la boîte posée au sol (tournée de 45°), par l'avant.
+	if not await MpHelpers.wait_peer(self, "boite_prete", 30.0):
+		return
+	var want := FileAccess.get_file_as_string(MpHelpers.sync_dir().path_join("arme.txt"))
+	var box: MysteryBox = game.interact.get_obj("box")
+	if not await until(func(): return bool(box.spots[box.location].get("floor", false)), 10.0, "boîte à son emplacement au sol chez l'invité"):
+		return
+	var p := game.local_player
+	p.bot_controlled = true
+	var front := box.global_transform.basis.z
+	at.check(front.distance_to(Vector3(0, 0, 1).rotated(Vector3.UP, -deg_to_rad(45.0))) < 0.01, "boîte tournée de 45° chez l'invité")
+	p.teleport_to(box.global_position + front * 1.3 + Vector3.UP * 0.05)
+	await seconds(0.3)
+	AutotestHelpers.aim_at(p, box.global_position + Vector3.UP * MysteryBox.SIGHT_HEIGHT)
+	await until(func(): return game.interact.focused == box, 5.0, "invite de la boîte chez l'invité")
+	p.input.interact_pressed = true
+	if not await until(func(): return box.state == MysteryBox.State.READY and box.owner_pid == p.peer_id, 15.0, "arme prête pour l'invité"):
+		return
+	p.input.interact_pressed = true
+	var pd := game.session.local_data()
+	var got: bool = await until(func(): return pd.has_weapon(want) >= 0, 5.0, "arme prise")
+	at.check(got, "invité : arme obtenue à la boîte au sol (%s)" % want)
+	MpHelpers.signal_peer("boite_achetee")
+	# Boîte sur la passerelle (étage 1) : dessous, à l'étage 0, pas d'invite ;
+	# la demande envoyée quand même est refusée par l'hôte.
+	if not await MpHelpers.wait_peer(self, "boite_haut", 20.0):
+		return
+	if not await until(func(): return (box.spots[box.location].pos as Vector3).y > 2.0, 10.0, "boîte sur la passerelle chez l'invité"):
+		return
+	var c := box.global_position
+	p.teleport_to(Vector3(c.x, 0.05, c.z) - (box.spots[box.location].normal as Vector3) * 0.4)
+	await seconds(0.6)
+	AutotestHelpers.aim_at(p, box.interact_point())
+	await frames(4)
+	at.check(game.interact.focused != box, "invité sous la boîte : pas d'invite")
+	game.interact.srv_interact.rpc_id(1, "box")
+	await seconds(0.3)
+	MpHelpers.signal_peer("tente_dessous")
 	if not await MpHelpers.wait_peer(self, "en_jeu", 20.0):
 		return
 	pt.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "pendant_test", "type": "caisse", "etage": 0, "position": [13.0, 10.0]}}], "caisse")

@@ -188,6 +188,17 @@ func zone_letter(p: Dictionary) -> String:
 	return letters.get(zid if zid != "" else "_" + String(p.id), "a")
 
 
+## Plafond d'un passage libre entre deux pièces de plafonds `a` et `b` (m,
+## 0 : pas de pièce de ce côté) : le plus BAS des deux. Au-dessus, le mur
+## continue jusqu'au plus haut (retombée, MapLayoutExport._passage_lintels).
+static func passage_ceil(a: float, b: float) -> float:
+	if a <= 0.0:
+		return b
+	if b <= 0.0:
+		return a
+	return minf(a, b)
+
+
 func _ceil_of(p: Dictionary, k: int) -> float:
 	return doc.floor_sol(k) + float(p.get("plafond", doc.floor_height(k)))
 
@@ -453,13 +464,17 @@ func _floor(k: int) -> void:
 	# Murs en biais : côtés obliques fusionnés (un seul mur mitoyen), pièce de
 	# chaque côté.
 	v.oblique_walls[k].append_array(_merge_obliques(raw, void_polys))
-	# (c) Escaliers de l'étage du dessous : vide au-dessus des marches.
+	# (c) Escaliers de l'étage du dessous : vide au-dessus des marches. Le
+	# plafond au-dessus de la trémie est celui de la pièce de cet étage où
+	# elle débouche (plafond réglé compris), sinon celui de l'étage : jamais un
+	# faux plafond plus bas (ou plus haut) que la pièce autour.
 	if k > 0:
 		for o in doc.objects_on(k - 1):
 			if String(o.type) == "escalier":
 				for c in stair_cells(o):
 					f.put(c, K.TREMIE, "tremie#" + String(o.id))
-					f.ceil[c.y * f.w + c.x] = ceil_up
+					if f.inside(c):
+						f.ceil[c.y * f.w + c.x] = _ceil_of(inner_of[c], k) if inner_of.has(c) else maxf(f.ceil_at(c), ceil_up)
 	# (d) Ouvertures.
 	for o in doc.openings_on(k):
 		_opening(f, o)
@@ -608,6 +623,9 @@ func _floor(k: int) -> void:
 			v.diag_items[key] = {"p": MapGeom.v2(o.position), "wall": MapGeom.item_wall_dir(o), "eid": String(o.id)}
 		elif tool == "wall_item":
 			v.wall_hint[key] = MapGeom.DIRS.get(_cardinal(o), Vector2i(0, -1))
+		elif MapCatalog.floor_box(o):
+			# Format 15 : boîte posée au sol (centre et rotation exacts, m).
+			v.floor_boxes[key] = {"center": MapGeom.v2(o.position), "rot": MapGeom.rot_of(o), "eid": String(o.id)}
 		v.eid_of[key] = String(o.id)
 		cells_of[String(o.id)] = [k, cells]
 	# (h) Barrières invisibles (format 9 : polygones posés n'importe où), après
@@ -1097,7 +1115,7 @@ func _opening(f: MapValidator.Floor, o: Dictionary) -> void:
 				f.put(c, K.SOL, "zone", z)
 				var i: int = c.y * f.w + c.x
 				if f.inside(c):
-					f.ceil[i] = maxf(f.ceil_at(c + side), f.ceil_at(c - side))
+					f.ceil[i] = passage_ceil(f.ceil_at(c + side), f.ceil_at(c - side))
 		_:
 			for c in cells:
 				f.put(c, K.DEBRIS if t == "debris" else K.PORTE, key)
@@ -1126,7 +1144,7 @@ func _opening_oblique(f: MapValidator.Floor, o: Dictionary, ow: Dictionary) -> v
 			for c in cells:
 				f.put(c, K.FENETRE, key)
 		"passage":
-			# Sol de la pièce d'un côté du mur (sinon de l'autre), plafond le plus haut.
+			# Sol de la pièce d'un côté du mur (sinon de l'autre), plafond le plus bas.
 			var z := String(v.room_zone.get(String(ow.pos), "")) if ow.pos != "" else ""
 			if z == "":
 				z = String(v.room_zone.get(String(ow.neg), ""))
@@ -1134,10 +1152,11 @@ func _opening_oblique(f: MapValidator.Floor, o: Dictionary, ow: Dictionary) -> v
 			for rid in [ow.pos, ow.neg]:
 				var r := doc.find(String(rid))
 				if not r.is_empty():
-					ce = maxf(ce, _ceil_of(r, f.index))
+					ce = passage_ceil(ce, _ceil_of(r, f.index))
 			for c in cells:
 				f.put(c, K.SOL, "zone", z)
-				f.ceil[c.y * f.w + c.x] = maxf(f.ceil_at(c), ce)
+				if f.inside(c):
+					f.ceil[c.y * f.w + c.x] = ce if ce > 0.0 else f.ceil_at(c)
 				_diag_pass[c] = true
 		_:
 			for c in cells:

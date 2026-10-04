@@ -34,6 +34,7 @@ func setup_marker(m: MapMarker, weapon: String) -> void:
 	_normal = m.wall
 	# Plaqué contre le mur, à hauteur de poitrine.
 	position = m.on_wall(0.02, 1.45)
+	mount_height = 1.45  # au mur : son étage est 1,45 m plus bas (InteractionSystem.same_level)
 	interact_range = 1.8
 
 

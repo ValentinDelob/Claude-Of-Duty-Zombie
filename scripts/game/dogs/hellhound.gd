@@ -13,6 +13,11 @@ const LUNGE_TIME := 0.28
 const BITE_TIME := 0.3
 const BITE_REACH := 1.9
 const DOG_ATTACK_TIME := 0.8
+## Capsule de déplacement (corps de profil, debout) et portée de la séparation
+## entre deux chiens ou un chien et un zombie : deux corps au contact et 0,3 m
+## (comme Zombie.SEPARATION_RANGE).
+const RADIUS_DOG := 0.3
+const SEPARATION_DOG := 0.9
 const DEATH_BURN := 0.9
 ## Flammes : particules par seconde (image proche) et couleur.
 const FLAME_RATE := 26.0
@@ -34,14 +39,17 @@ func _ready() -> void:
 	_multilevel = map_is_multilevel()
 	speed_class = 3
 	speed_mult = DogRules.RUN_SPEED / Zombie.SPEEDS[3]
+	sep_range = SEPARATION_DOG
 	collision_layer = 0
 	collision_mask = 1 | (1 << 1) | (1 << 2)
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
-	cap.radius = 0.3
+	cap.radius = RADIUS_DOG
 	cap.height = 0.9
 	cs.shape = cap
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+	# Glisse le long d'un mur abordé presque de face (comme Zombie).
+	wall_min_slide_angle = 0.0
 	cs.position.y = 0.45 + floor_gap()
 	_body_shape = cs
 	add_child(cs)
@@ -120,6 +128,21 @@ func _chase(delta: float) -> void:
 			_start_attack()
 			return
 	super(delta)
+
+
+## Balayages de Zombie._body_fits / _leg_clear : capsule du chien (0,3 m, pas
+## d'épaules plus larges), au milieu de sa hauteur (0,9 m), pas à la poitrine
+## d'un zombie (1,1 m, au-dessus du chien).
+func _fit_radius(_slim: bool) -> float:
+	return RADIUS_DOG
+
+
+func _leg_radius() -> float:
+	return RADIUS_DOG
+
+
+func _fit_height() -> float:
+	return 0.45 + floor_gap()
 
 
 func _nearest_player() -> Player:

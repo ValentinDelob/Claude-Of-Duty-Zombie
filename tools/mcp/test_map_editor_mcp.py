@@ -501,6 +501,31 @@ class TestTools(BaseCase):
         self.assertIn("DESCEND", map_editor_mcp.INSTRUCTIONS)
         self.assertIn("trémie", map_editor_mcp.INSTRUCTIONS)
 
+    def test_highlight_select_waits_for_user_gesture(self):
+        # Une sélection pendant un geste de l'utilisateur ne passe pas : « busy ».
+        tool = [t for t in map_editor_mcp.TOOLS if t["name"] == "editor_highlight"][0]
+        self.assertIn("busy", tool["description"])
+
+    def test_stair_steps_not_settable(self):
+        # Le nombre de marches est automatique : « marches » refusé avant envoi
+        # (put ou add), avec un message clair ; le reste d'un escalier passe.
+        self.assertIn("jamais de « marches »", map_editor_mcp.INSTRUCTIONS)
+        st = {"type": "escalier", "etage": 0, "rect": [2, 2, 4, 6], "monte": "n"}
+        for op in ({"op": "put", "coll": "objets", "el": dict(st, id="e1", marches=12)},
+                   {"op": "add", "coll": "objets", "el": dict(st, marches=12)}):
+            self.assertIn("n'est plus réglable", map_editor_mcp.check_ops([op]))
+        self.assertEqual(map_editor_mcp.check_ops([{"op": "put", "coll": "objets", "el": dict(st, id="e1")}]), "")
+        r = self.mcp.call("editor_apply", {"label": "x", "ops": [{"op": "add", "coll": "objets", "el": dict(st, marches=8)}]})
+        self.assertTrue(r["isError"])
+        self.assertIn("marches", body(r))
+        self.assertNotIn("apply", self.editor.commands)
+
+    def test_instructions_describe_floor_box(self):
+        # Format 15 : boîte mystère au sol (« rot », sans « mur ») ou contre un mur.
+        self.assertIn("Boîte mystère (format 15", map_editor_mcp.INSTRUCTIONS)
+        self.assertIn("SANS « mur »", map_editor_mcp.INSTRUCTIONS)
+        self.assertIn("SANS « rot »", map_editor_mcp.INSTRUCTIONS)
+
     def test_plan_corridor(self):
         r = body(self.mcp.call("editor_plan_corridor", {"room_a": "p2", "room_b": "p3", "width": 2.5}))
         self.assertEqual(r["type"], "droit")

@@ -362,3 +362,107 @@ func test_overlap_setting_frees_decor_and_obstacles_only() -> void:
 	off["carte.json"] = String(off["carte.json"]).replace("\"chevauchement_decor\": true", "\"chevauchement_decor\": false")
 	assert_false(EditorMap.from_texts(off).carte.has(MapCatalog.OVERLAP_KEY), "faux : clé retirée (règles d'avant)")
 	assert_false(EditorMap.blank().carte.has(MapCatalog.OVERLAP_KEY), "carte neuve : réglage décoché")
+
+
+# ------------------------------------------------------------------ objets recouverts par une barrière
+
+## Pack-a-Punch contre le mur nord de la salle A (x 4,25..5,75), sans la
+## barrière d'avant de la carte d'essai.
+static func _pap_map() -> EditorMap:
+	var doc := _map()
+	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
+	doc.objets.append({"id": "pp", "type": "pap", "etage": 0, "position": [5.0, 0.0], "mur": "n"})
+	return doc
+
+
+## Empreinte de la description d'une carte : nombre de chaque sorte d'objet
+## de jeu, de lampes, d'escaliers, de décors, d'effets.
+static func _counts(d: Dictionary) -> Dictionary:
+	var out := {}
+	var mk: Dictionary = d.get("markers", {})
+	for k in mk:
+		out["m." + k] = (mk[k] as Array).size() if mk[k] is Array else (1 if mk[k] != null else 0)
+	for k in ["props", "instances", "stairs", "effects", "screens"]:
+		out[k] = (d.get(k, []) as Array).size() if d.get(k) is Array else 0
+	return out
+
+
+func test_barrier_over_pack_a_punch_keeps_it_in_preview_and_game() -> void:
+	# Bogue : une barrière posée sur un Pack-a-Punch le rendait invisible
+	# dans l'aperçu 3D (refusé par le validateur : « pas la place » devant,
+	# « posé hors de tout sol », puis retiré de la description).
+	var cases := [
+		["devant seulement", [[4.5, 0.5], [5.5, 0.5], [5.5, 1.5], [4.5, 1.5]]],
+		["à cheval sur un bord", [[3.5, 0], [5, 0], [5, 2], [3.5, 2]]],
+		["qui le recouvre tout entier", [[4, 0], [6.5, 0], [6.5, 2.5], [4, 2.5]]],
+	]
+	var base := _pap_map()
+	var e0 := ObjectsTest._check(base).errors().size()
+	for c in cases:
+		var doc := _pap_map()
+		_clip(doc, c[1])
+		var v := ObjectsTest._check(doc)
+		assert_eq(v.errors().size(), e0, "%s : pas d'erreur de plus\n%s" % [c[0], "\n".join(v.errors().map(func(m): return String(m.fr)))])
+		assert_true(v.warnings().any(func(m): return String(m.fr).begins_with("Pack-a-Punch") and String(m.fr).contains("barrière invisible")),
+			"%s : un avertissement nomme la barrière" % c[0])
+		# Jeu : le Pack-a-Punch est dans la description, la barrière n'a
+		# qu'une collision (aucun maillage).
+		var lay: Dictionary = EditorMapDef.from_map(doc, "perso:pap").layout_data
+		assert_true(lay.get("markers", {}).has("pap"), "%s : Pack-a-Punch construit en jeu" % c[0])
+		assert_eq(lay.blockers.filter(func(b): return b.get("clip", false)).size(), 1, "%s : la barrière en jeu" % c[0])
+		# Aperçu 3D : construit et visible, barrières montrées ou cachées.
+		var w := MapPreviewWorld.new()
+		host.add_child(w)
+		w.doc = doc
+		w.auto = false
+		w.rebuild_now()
+		await wait_frames(2)
+		assert_eq(w.errors, 0, "%s : aperçu sans erreur" % c[0])
+		var pap: Node3D = (w.groups.stuff as Node).get_node_or_null("PackAPunch")
+		var clip: Node3D = (w.groups.decor as Node).find_child("ClipView_i*", true, false)
+		assert_true(pap != null and clip != null, "%s : Pack-a-Punch et pavé de la barrière dans l'aperçu" % c[0])
+		if pap != null and clip != null:
+			for show in [true, false]:
+				w.set_options({"clips": show})
+				assert_true(pap.is_visible_in_tree(), "%s, barrières %s : Pack-a-Punch visible" % [c[0], "montrées" if show else "cachées"])
+				assert_eq(clip.is_visible_in_tree(), show, "%s : pavé de la barrière %s" % [c[0], "montré" if show else "caché"])
+		w.queue_free()
+		await wait_frames(2)
+
+
+func test_barrier_removes_no_element_of_any_kind() -> void:
+	# Toute la classe : chaque élément de DRAFT ARENA (atouts, armes, boîtes,
+	# courant, portes, débris, fenêtres, escalier, pilier) puis des objets
+	# ajoutés (Pack-a-Punch, grenades, piège et levier, lampe, luminaire,
+	# effet, décors), un de chaque sorte, recouverts tour à tour d'une barrière
+	# (1,5 m autour) : la description de l'aperçu 3D garde les mêmes objets de jeu,
+	# escaliers, lampes, décors et effets. Seul le départ des joueurs (ses
+	# quatre points écartés) dépend de la place libre autour de lui.
+	var maps := [EditorMap.load_dir("res://assets/maps/draft_arena/"), _pap_map()]
+	for o in [{"type": "grenades", "position": [14.0, 2.0], "mur": "e"}, {"type": "lampe", "position": [4.5, 6.5]},
+			{"type": "piege", "rect": [5, 12, 7, 14]}, {"type": "levier", "position": [8.0, 16.0], "mur": "s"},
+			{"type": "effet", "effet": "torche", "position": [2.0, 10.0], "mur": "s", "hauteur": 2.4},
+			{"type": "luminaire", "luminaire": "suspension", "position": [6.0, 6.0], "rot": 0},
+			{"type": "prefab", "prefab": "etagere", "position": [20.0, 8.5]}, {"type": "caisse", "position": [11.5, 7.5]}]:
+		o["id"] = maps[1].new_id("x")
+		o["etage"] = 0
+		maps[1].objets.append(o)
+	var tried := 0
+	for doc: EditorMap in maps:
+		var want := _counts(MapPreviewWorld.compute(doc.duplicate_map()).data)
+		want.erase("m.player_spawns")
+		var seen := {}
+		for e in doc.objets + doc.ouvertures:
+			if String(e.type) == "depart" or seen.has(String(e.type)):
+				continue
+			seen[String(e.type)] = true
+			var r := MapGeom.rect_of(e.rect) if e.has("rect") else Rect2(MapGeom.v2(e.position), Vector2.ZERO)
+			var g := r.grow(1.5)
+			g.position = g.position.max(Vector2.ZERO)
+			var m := doc.duplicate_map()
+			_clip(m, [[g.position.x, g.position.y], [g.end.x, g.position.y], [g.end.x, g.end.y], [g.position.x, g.end.y]], {"etage": int(e.get("etage", 0))})
+			var got := _counts(MapPreviewWorld.compute(m).data)
+			got.erase("m.player_spawns")
+			assert_eq(got, want, "%s %s sous une barrière : rien ne disparaît" % [e.type, e.id])
+			tried += 1
+	assert_true(tried >= 18, "%d cas essayés" % tried)

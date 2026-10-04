@@ -39,7 +39,8 @@ var snapshot_bytes := 0
 var _rng := RandomNumberGenerator.new()
 
 ## Grille spatiale des zombies vivants pour la séparation (serveur), refaite
-## une fois par pas de physique. Case de 1 m >= rayon de répulsion (0,9 m) :
+## une fois par pas de physique. Case de 1 m >= portée de la répulsion
+## (Zombie.SEPARATION_RANGE, 0,74 m ; chien : Hellhound.SEPARATION_DOG, 0,9 m) :
 ## les 9 cases autour d'un zombie contiennent tous ses voisins.
 const GRID_CELL := 1.0
 const EMPTY: Array = []

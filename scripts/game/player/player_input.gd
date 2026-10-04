@@ -13,6 +13,8 @@ const PAD_LOOK_SPEED := Vector2(3.2, 2.2)
 const PAD_LOOK_CURVE := 2.0
 ## Stick gauche (déplacement) : zone morte radiale.
 const MOVE_DEADZONE := 0.2
+## Marche avant minimale (move.y) pour courir et garder le verrou de L3.
+const SPRINT_FORWARD := 0.3
 
 var move := Vector2.ZERO        # x = droite, y = avant
 var look := Vector2.ZERO        # delta souris (pixels) accumulé depuis la dernière image
@@ -46,10 +48,25 @@ func clear_edges() -> void:
 	jump = false
 
 
-## Endurance épuisée : le sprint verrouillé au clic de L3 se relâche (BO1 :
-## il faut recliquer pour repartir).
+## Course arrêtée (épuisement, visée, accroupi, à terre, pause...) : le
+## sprint verrouillé au clic de L3 se relâche (BO1 : il faut recliquer pour
+## repartir).
 func release_sprint() -> void:
 	_sprint_latch = false
+
+
+## Demande de course de l'image : commande maintenue (`held_now`) ou sprint
+## verrouillé par un clic de manette (`pad_click`). Le verrou tombe dès qu'on
+## n'avance plus franchement (arrêt, stick relâché, recul, pas de côté) ;
+## Player le relâche aussi dès que la course ne tient pas (visée, accroupi,
+## à terre, souffle, pause...). Appelée par read_devices ; les tests
+## l'appellent à chaque image pour simuler la manette.
+func update_sprint(held_now: bool, pad_click: bool) -> void:
+	if pad_click:
+		_sprint_latch = true
+	if move.y <= SPRINT_FORWARD:
+		_sprint_latch = false
+	sprint = held_now or _sprint_latch
 
 
 ## Zone morte radiale d'un stick, puis remise à l'échelle (juste après la
@@ -94,6 +111,22 @@ static func held(action: StringName) -> bool:
 	return Input.is_action_pressed(action) or Input.is_action_just_pressed(action)
 
 
+## Une touche du clavier (ou un bouton de souris) de `action` est-elle
+## enfoncée ? Les commandes de la manette ne comptent pas.
+static func keys_down(action: StringName) -> bool:
+	if not InputMap.has_action(action):
+		return false
+	for ev in InputMap.action_get_events(action):
+		if ev is InputEventKey:
+			var k := ev as InputEventKey
+			if (k.physical_keycode != KEY_NONE and Input.is_physical_key_pressed(k.physical_keycode)) \
+					or (k.keycode != KEY_NONE and Input.is_key_pressed(k.keycode)):
+				return true
+		elif ev is InputEventMouseButton and Input.is_mouse_button_pressed((ev as InputEventMouseButton).button_index):
+			return true
+	return false
+
+
 ## Lecture des périphériques (joueur humain local), `delta` : durée de l'image.
 func read_devices(delta := 0.0) -> void:
 	# Analogique au stick gauche (les touches donnent 0 ou 1).
@@ -101,11 +134,14 @@ func read_devices(delta := 0.0) -> void:
 		Input.get_action_raw_strength("move_right") - Input.get_action_raw_strength("move_left"),
 		Input.get_action_raw_strength("move_forward") - Input.get_action_raw_strength("move_back")), MOVE_DEADZONE)
 	look_pad += pad_look_step(right_stick(), Settings.pad_look_sensitivity, delta)
-	if Input.is_action_just_pressed("sprint") and Settings.using_pad:
-		_sprint_latch = true
-	if move.y < 0.3:
-		_sprint_latch = false
-	sprint = held("sprint") or _sprint_latch
+	# Verrou seulement pour un appui venu de la manette (Settings.sprint_press_pad) :
+	# une touche du clavier (encore enfoncée ou appui très bref) ne verrouille
+	# jamais, même si le drapeau « manette » est resté levé (manette branchée
+	# qui dérive, clavier et manette mélangés) ; sinon, Maj relâchée, la
+	# course continuait toute seule.
+	var pad_click := Input.is_action_just_pressed("sprint") and Settings.sprint_press_pad \
+			and not keys_down("sprint")
+	update_sprint(held("sprint"), pad_click)
 	crouch = held("crouch")
 	fire = held("fire")
 	aim = held("aim")

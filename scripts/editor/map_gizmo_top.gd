@@ -46,9 +46,10 @@ func target() -> Dictionary:
 	return e
 
 
-## L'élément a-t-il l'anneau Z (décor, luminaire, effet qui tournent) ?
+## L'élément a-t-il l'anneau Z (décor, luminaire, effet qui tournent ;
+## format 15 : boîte mystère posée au sol) ?
 static func has_ring(e: Dictionary) -> bool:
-	if not RINGS or e.is_empty() or not MapCatalog.is_decor(e) or not MapTransform.can_rotate(e):
+	if not RINGS or e.is_empty() or not (MapCatalog.is_decor(e) or MapCatalog.floor_box(e)) or not MapTransform.can_rotate(e):
 		return false
 	return MapCatalog.tool_of(e) != "wall_item" and MapVertical.mount_of(e) != "mur"
 

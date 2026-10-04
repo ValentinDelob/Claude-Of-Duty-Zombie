@@ -160,7 +160,10 @@ func run() -> void:
 	at.check(ed.doc.pieces.size() == 4 and poly.contour.size() == 6, "pièce polygone en L (%d sommets)" % poly.contour.size())
 	# Copier / coller sous le curseur.
 	await key(KEY_QUOTELEFT)
+	# La pièce posée est déjà choisie : un reclic la désélectionnerait.
+	ed.select("")
 	await click(Vector2(4, 22))
+	at.check(ed.selected == String(poly.id), "clic : pièce polygone choisie")
 	await key(KEY_C, true)
 	_motion(Vector2(22, 20))
 	await key(KEY_V, true)

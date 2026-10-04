@@ -430,7 +430,9 @@ func test_window_unchanged() -> void:
 	assert_eq((mm.mesh as BoxMesh).size, Barricade.PLANK_SIZE)
 	assert_near((b._rest[0] as Transform3D).origin.z, Barricade.PLANK_Z + float(Barricade.LAYOUT[0][2]), 0.001, "plan des planches d'avant")
 	var shape := (b.get_node("Barrier").get_child(0) as CollisionShape3D).shape as BoxShape3D
-	assert_near(shape.size.z, 1.0, 0.001, "barrière d'avant (1 m)")
+	# Barrière : l'épaisseur du mur de 0,5 m (avant : 1 m, 25 cm de saillie
+	# de chaque côté ; tests/test_barricade_wall_fit.gd).
+	assert_near(shape.size.z, MapGeom.WALL_HALF * 2.0, 0.001, "barrière dans l'épaisseur du mur")
 	b.queue_free()
 	await wait_frames(1)
 

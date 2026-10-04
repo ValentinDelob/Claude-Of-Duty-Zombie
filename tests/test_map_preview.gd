@@ -237,6 +237,61 @@ func test_display_options() -> void:
 	await _free(w)
 
 
+## Le clic choisit ce que l'utilisateur VOIT : un plafond vu d'au-dessus (face
+## non rendue) est traversé, le sol vu d'en haut reste la pièce, un étage
+## masqué est ignoré.
+func test_pick_sees_through_unrendered_faces() -> void:
+	var doc := _base()
+	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [19.0, 5.0]})
+	var w := _world(doc)
+	w.rebuild_now()
+	w.set_options({"ceil": false, "floors": MapPreviewWorld.Floors.ALL})
+	var rig := w.rig
+	rig.yaw = 0.0
+	rig.pitch = -1.5
+	rig.dist = 15.0
+	var center := Vector2(w.viewport.size) * 0.5
+	# Plafonds affichés, caméra au-dessus : le décor sous le plafond.
+	rig.pivot = Vector3(19.0 + OFF, 0.0, 5.0 + OFF)
+	rig._apply()
+	await host.get_tree().physics_frame
+	await host.get_tree().physics_frame
+	assert_eq(w.pick(center), "d1", "décor sous un plafond vu d'au-dessus")
+	# Le sol nu vu d'en haut : la pièce.
+	rig.pivot = Vector3(16.0 + OFF, 0.0, 8.0 + OFF)
+	rig._apply()
+	await host.get_tree().physics_frame
+	assert_eq(w.pick(center), String(doc.pieces[1].id), "sol de la salle B : la pièce")
+	# Le rayon passe le plafond (vu de dos) et s'arrête au sol.
+	var hit := w.ray(center)
+	assert_true(not hit.is_empty() and hit.position.y < 0.5, "d'en haut, le rayon s'arrête au sol")
+	await _free(w)
+	# Étage du dessus au-dessus de la salle B : choisi en vue de tous les
+	# étages, ignoré quand seul le rez-de-chaussée est montré.
+	var doc2 := _base()
+	doc2.objets.append({"id": "d1", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [19.0, 5.0]})
+	doc2.carte.etages.append({"sol": EditorMap.FLOOR_STEP, "hauteur": EditorMap.DEFAULT_CEILING})
+	var z := doc2.add_zone("Haut", "Up")
+	doc2.pieces.append({"id": "p_haut", "nom": "Haut", "etage": 1, "zone": String(z.id), "contour": [[14, 0], [24, 0], [24, 10], [14, 10]]})
+	var w2 := _world(doc2)
+	w2.rebuild_now()
+	w2.set_options({"ceil": false, "floors": MapPreviewWorld.Floors.ALL})
+	w2.rig.yaw = 0.0
+	w2.rig.pitch = -1.5
+	w2.rig.dist = 15.0
+	w2.rig.pivot = Vector3(19.0 + OFF, 0.0, 5.0 + OFF)
+	w2.rig._apply()
+	await host.get_tree().physics_frame
+	await host.get_tree().physics_frame
+	var c2 := Vector2(w2.viewport.size) * 0.5
+	assert_eq(w2.pick(c2), "p_haut", "tous les étages : le sol de l'étage du dessus")
+	w2.view_floor = 0
+	w2.set_options({"floors": MapPreviewWorld.Floors.ONLY})
+	await host.get_tree().physics_frame
+	assert_eq(w2.pick(c2), "d1", "étage du dessus masqué : ignoré, le décor du rez-de-chaussée")
+	await _free(w2)
+
+
 func test_pick_and_highlight() -> void:
 	var doc := _base()
 	var w := _world(doc)

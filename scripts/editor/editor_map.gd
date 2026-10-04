@@ -100,7 +100,14 @@ extends RefCounted
 ##      décor posé au sol seulement : inclinaisons autour des axes X et Y ;
 ##      « rot » reste le lacet, en degrés entiers). Aucune conversion : une
 ##      carte au format 13 ou moins se lit telle quelle et s'affiche à l'identique.
-const FORMAT := 14
+##  15  boîte mystère posée au sol (docs/MAP_OBJECTS.md § 15) : une « boite »
+##      SANS « mur » est au sol, « position » = son centre, « rot » = son
+##      orientation (degrés entiers, sens horaire vu de dessus ; à 0 l'avant
+##      est au sud). Avec « mur » (et « angle ») : contre un mur, comme avant.
+##      Conversion : une boîte d'une carte plus ancienne sans « mur » (fichier
+##      écrit à la main : le jeu la mettait contre le mur nord) reçoit
+##      « mur » : « n » ; toutes les autres sont lues telles quelles.
+const FORMAT := 15
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -455,6 +462,7 @@ static func from_texts(texts: Dictionary) -> EditorMap:
 	m.zones = parsed["zones.json"].get("zones", [])
 	m.depart = String(parsed["zones.json"].get("depart", ""))
 	m.format_read = int(m.carte.get("format", FORMAT))
+	m.format_given = m.carte.has("format")
 	m._read_prefab_texts(texts)
 	m._migrate(m.format_read)
 	m._normalize()
@@ -524,6 +532,20 @@ func _migrate(from: int) -> void:
 		# Format 13 -> 14 : rien à convertir (sans « echelle » ni « incl » : le
 		# décor garde sa taille et reste droit, comme avant).
 		pass
+	for o in objets:
+		if not (o is Dictionary and String(o.get("type", "")) == "boite"):
+			continue
+		# Sans « format » (fichier écrit à la main) : une boîte sans « mur » ni
+		# « rot » est lue comme avant le format 15 (contre le mur nord) ; avec
+		# « rot » (clé du format 15), c'est bien une boîte au sol.
+		var old_box: bool = from < 15 or (not format_given and not o.has("rot"))
+		if old_box and not o.has("mur"):
+			# Format 14 -> 15 : une boîte sans « mur » (fichier écrit à la main)
+			# était contre le mur nord ; au format 15 elle serait au sol.
+			o["mur"] = "n"
+		if o.has("mur"):
+			# Boîte murale : jamais de « rot » (celle-ci est pour la boîte au sol).
+			o.erase("rot")
 
 
 ## Format 14 : « echelle » et « incl » remises en ordre (MapScale.tidy), après
@@ -559,6 +581,10 @@ func split_legacy_effects() -> int:
 
 ## Version du format lue dans carte.json (FORMAT pour une carte neuve).
 var format_read := FORMAT
+## Faux : carte.json sans clé « format » (écrite à la main). Lue au format
+## courant, sauf pour la boîte mystère (_migrate) : le cas ambigu se lit comme
+## avant le format 15.
+var format_given := true
 
 
 ## Valeurs lues du JSON remises au bon type (étages entiers, identifiants en texte).

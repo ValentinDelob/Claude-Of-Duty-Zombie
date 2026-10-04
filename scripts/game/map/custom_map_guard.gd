@@ -263,6 +263,9 @@ static func schema() -> Dictionary:
 				kinds[t] = {"file": "ouvertures.json" if tool == "opening" else "objets.json",
 					"keys": (tool_keys.get(tool, generic) as Dictionary).duplicate(), "required": []}
 			var keys: Dictionary = kinds[t].keys
+			if it.get("wall_snap", false):
+				# Format 15 : la boîte mystère se pose au sol OU contre un mur.
+				keys.merge(tool_keys.wall_item)
 			for k in make:
 				if k == "type":
 					continue
@@ -1004,6 +1007,10 @@ static func _check_object(c: Check, e: Dictionary, what: String) -> void:
 			and MapCatalog.prefab_mount(String(e.get("prefab", ""))) != "mur":
 		# Format 11 : « mur », « angle », « hauteur » seulement pour un décor mural.
 		c.bad("%s : réglage de mur sur un décor qui n'est pas mural" % what, "%s: wall setting on a prop that is not wall-mounted" % what)
+	if t == "boite" and c.reasons.size() == before and e.has("rot") and (e.has("mur") or e.has("angle")):
+		# Format 15 : « rot » seulement pour une boîte posée au sol (sans « mur »).
+		# La boîte de départ (outil boite_depart) a le même type « boite ».
+		c.bad("%s : rotation au sol sur une boîte contre un mur" % what, "%s: floor rotation on a box against a wall" % what)
 	if t in ["prefab", "luminaire", "effet"] and c.reasons.size() == before:
 		# Format 12 : « z » seulement pour un décor posé au sol, « descente »
 		# seulement pour ce qui est accroché au plafond.

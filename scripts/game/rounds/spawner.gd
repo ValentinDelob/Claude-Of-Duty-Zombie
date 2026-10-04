@@ -20,8 +20,10 @@ const RECYCLE_DIST := 38.0
 const RECYCLE_TIME := 18.0
 ## Distance (m, à plat) sous laquelle un point d'apparition est occupé.
 const SPAWN_CLEARANCE := 0.8
-## Même règle derrière une fenêtre : un zombie au contact (2 x Zombie.RADIUS).
-const WINDOW_SPAWN_CLEARANCE := 0.6
+## Même règle derrière une fenêtre : un zombie au contact, épaules contre
+## épaules (2 x Zombie.SHOULDER_RADIUS ; le tronc seul laisserait deux
+## modèles apparaître l'un dans l'autre).
+const WINDOW_SPAWN_CLEARANCE := 2.0 * Zombie.SHOULDER_RADIUS
 ## Filet de BO1 (round_spawn_failsafe) : moins de 24 pouces (0,6 m) en 30 s,
 ## 10 s de plus pour un rampant.
 const FAILSAFE_TIME := 30.0
@@ -176,7 +178,8 @@ func _in_view(p: Player, pos: Vector3, dist: float) -> bool:
 	to.y = 0.0
 	if fwd.dot(to.normalized()) < 0.35:
 		return false
-	return game.nav.world_line_clear(p.global_position, pos)
+	# Rayon des yeux seul : la boîte posée au sol ne cache pas le point.
+	return game.nav.eye_line_clear(p.global_position, pos)
 
 
 ## Serveur, appelé régulièrement : recycle les zombies égarés. Retourne le

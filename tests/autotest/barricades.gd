@@ -117,7 +117,7 @@ func run() -> void:
 	var pts0 := pd.points
 	var team0 := game.points.team_earned
 	# Portée : il faut être collé à la barrière (à 1,5 m : ni invite ni réparation).
-	p.teleport_to(w.global_position + w.inward * (w.barrier_half_depth() + 1.5) + Vector3(0, 0.05, 0))
+	p.teleport_to(w.global_position + w.inward * (w.barrier_face() + 1.5) + Vector3(0, 0.05, 0))
 	H.aim_at(p, w.global_position + Vector3.UP * 1.4)
 	await seconds(0.2)  # le joueur se pose avant d'appuyer
 	at.check(game.interact.focused != w, "à 1,5 m de la fenêtre : pas d'invite")

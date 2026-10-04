@@ -126,7 +126,7 @@ Altitude dans le monde = `etages[k].sol` + hauteur locale. Un étage :
 | **Pièce** | `etage` ; `plafond` (hauteur sous plafond ; interface 2,8 à 9, catalogue 2 à 20) ; `double_hauteur` (ouverte sur l'étage du dessus) | sol = sol de l'étage | décalage de sol dans un étage (mezzanine, demi-niveau) |
 | **Mur libre, mur courbe, pilier** | `etage` | du sol au plafond (`wall_top`) | hauteur propre (muret) |
 | **Porte, débris, porte du courant** | `carte.hauteur_portes` (une valeur pour toute la carte, 2,2 à 3,5) | linteau au-dessus | hauteur par porte |
-| **Passage** | — | ouvert jusqu'au plafond | — |
+| **Passage** | — | ouvert jusqu'au plus bas des plafonds des deux pièces (au-dessus : retombée du mur) | — |
 | **Fenêtre** | `variante` | allège 0,95, linteau 2,35 (`SILL`, `LINTEL`) ; porte à zombies 2,1 | — |
 | **Escalier** | `etage` | monte de `sol(k)` à `sol(k+1)` | escalier sur plusieurs étages |
 | **Objets muraux** (atout, arme, boîte, Pack-a-Punch, courant, poste central, levier, grenades) | `etage` | au sol ; tableau d'arme 1,45, tableau de la boîte 1,65, levier 1,3 | — (gameplay fixe) |
@@ -209,7 +209,7 @@ Dessous, la vue montre l'étage courant vu par en dessous, plafonds compris.
   | Murs vus de profil (perpendiculaires à la vue) | barres de 0,5 m (#9E9EA8) du bas de la dalle au plafond |
   | Dalles d'étage | bandes hachurées de 0,3 m sous chaque pièce d'un étage > 0 |
   | Sol de la carte | trait Z = 0 orange (comme les axes du plan), terrain hachuré dessous |
-  | Ouvertures | rectangles colorés à leur vraie hauteur : porte de 0 à `hauteur_portes`, fenêtre de 0,95 à 2,35, passage jusqu'au plafond ; prix au-dessus de la porte |
+  | Ouvertures | rectangles colorés à leur vraie hauteur : porte de 0 à `hauteur_portes`, fenêtre de 0,95 à 2,35, passage jusqu'au plus bas des deux plafonds ; prix au-dessus de la porte |
   | Escalier | profil en marches quand on le voit de côté, bandes de contremarches quand on le voit de face |
   | Objets muraux et au sol | boîte à leur hauteur réelle (tableaux, machines, décor d'après `h` et `boxes`), icône du plan si la place le permet |
   | Luminaires, effets | icône à leur hauteur de lumière, trait fin pointillé jusqu'à leur point d'accroche (plafond, mur, sol) |

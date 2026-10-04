@@ -27,7 +27,7 @@ func run() -> void:
 	at.check(ok, "état des planches répliqué (%d planches)" % w.planks())
 	# À 1,5 m de la barrière : pas d'invite ; une demande forcée (client
 	# modifié) est refusée par l'hôte, qui juge la portée lui-même.
-	p.teleport_to(w.global_position + w.inward * (w.barrier_half_depth() + 1.5) + Vector3(0, 0.05, 0))
+	p.teleport_to(w.global_position + w.inward * (w.barrier_face() + 1.5) + Vector3(0, 0.05, 0))
 	AutotestHelpers.aim_at(p, w.global_position + Vector3.UP * 1.4)
 	MpHelpers.signal_peer("loin_fenetre")
 	if not await MpHelpers.wait_peer(self, "vu_loin_fenetre", 20.0):

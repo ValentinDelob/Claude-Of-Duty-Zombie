@@ -141,7 +141,7 @@ static func _scaled_map() -> EditorMap:
 func test_format_14_round_trip_and_older_maps() -> void:
 	var doc := _scaled_map()
 	var texts := doc.file_texts()
-	assert_true(String(texts["carte.json"]).contains("\"format\": 14"), "format 14")
+	assert_true(String(texts["carte.json"]).contains("\"format\": %d" % EditorMap.FORMAT) and EditorMap.FORMAT >= 14, "format 14 et plus")
 	assert_true(String(texts["objets.json"]).contains("\"echelle\":[1.5,1.5,1.5]"), "échelle écrite")
 	assert_true(String(texts["objets.json"]).contains("\"incl\":[0,30]"), "inclinaison écrite (entiers sans décimale)")
 	var back := EditorMap.from_texts(texts)

@@ -25,7 +25,7 @@ const LINTEL := MapValidator.LINTEL
 const WALL_Z := {"atout": [0.0, 2.1], "arme": [1.1, 1.8], "grenades": [1.1, 1.8], "boite": [0.0, 1.0],
 	"courant": [1.0, 1.8], "pap": [0.0, 1.9], "poste_central": [0.0, 2.0], "levier": [1.0, 1.6]}
 ## Objets au sol : hauteur (m).
-const FLOOR_H := {"depart": 1.8, "apparition": 1.8, "teleporteur": 2.6, "arrivee": 0.15, "caisse": 1.0, "baril": 1.2}
+const FLOOR_H := {"depart": 1.8, "apparition": 1.8, "teleporteur": 2.6, "arrivee": 0.15, "caisse": 1.0, "baril": 1.2, "boite": 1.0}
 ## Hauteur (m) de la zone électrifiée d'un piège.
 const TRAP_H := 2.5
 ## Épaisseur (m) d'une ouverture dans son mur (vue de dessus).
@@ -174,7 +174,9 @@ static func _object(doc: EditorMap, v: MapValidator, o: Dictionary) -> Dictionar
 			var up := MapGeom.dir_vec(String(o.get("monte", "n"))).rotated(deg_to_rad(float(MapGeom.rot_of(o))))
 			var z1 := v.floors[k + 1].sol if k + 1 < v.floors.size() else MapVertical.top(v, k)
 			base.merge({"kind": "stairs", "poly": MapRaster.rect_poly(o), "z0": sol, "z1": z1, "up": up,
-				"steps": int(o.get("marches", maxi(2, roundi((z1 - sol) / 0.19))))})
+				# Nombre de marches automatique, comme en jeu (StairGen.flight_steps :
+				# ≈ 18 cm chacune) ; « marches » d'une carte ancienne est ignoré.
+				"steps": maxi(2, StairGen.flight_steps({"y0": sol, "y1": z1, "steps": 0}, z1 - sol))})
 			return base
 		"piege":
 			base.merge({"kind": "trap", "poly": MapRaster.rect_poly(o), "z0": sol, "z1": sol + TRAP_H})
@@ -195,6 +197,9 @@ static func _object(doc: EditorMap, v: MapValidator, o: Dictionary) -> Dictionar
 			base.merge({"kind": "decor", "poly": MapGeom.rect_poly(MapRules.footprint_rect(o)), "z0": sol, "z1": sol + float(FLOOR_H[t])})
 			return base
 	var poly := MapRules.wall_item_poly(o) if MapCatalog.tool_of(o) == "wall_item" else MapGeom.rect_poly(MapRules.footprint_rect(o))
+	if MapCatalog.floor_box(o):
+		# Format 15 : boîte posée au sol, son emprise tournée exacte.
+		poly = MapRaster.floor_poly(o)
 	if MapCatalog.tool_of(o) == "wall_item":
 		var z: Array = WALL_Z.get(t, [0.0, 2.0])
 		base.merge({"kind": "wobj", "poly": poly, "z0": sol + float(z[0]), "z1": sol + float(z[1])})

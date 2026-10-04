@@ -48,7 +48,8 @@ const SHAPED := ["quart", "demi_tour", "colimacon"]
 const STEP_HEIGHT := 0.3
 ## Hauteur visée d'une marche visible.
 const STEP_RISE := 0.18
-## Rayon de la capsule d'un zombie (Zombie.RADIUS) et marge aux côtés.
+## Demi-largeur d'un zombie aux épaules (Zombie.SHOULDER_RADIUS : sur les
+## marches, ni bras ni épaules dans le garde-corps) et marge aux côtés.
 const AGENT_RADIUS := 0.3
 const LANE_MARGIN := 0.12
 ## Épaisseur d'un garde-corps ou d'un limon plein.

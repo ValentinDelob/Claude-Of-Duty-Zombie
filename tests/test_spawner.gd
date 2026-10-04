@@ -60,5 +60,5 @@ func test_window_spawn_clearance() -> void:
 	assert_true(Spawner.occupied(spawn, taken), "règle générale (0,8 m) : occupé")
 	assert_false(Spawner.occupied(spawn, taken, Spawner.WINDOW_SPAWN_CLEARANCE), "fenêtre : zombie à sa place, point libre")
 	assert_true(Spawner.occupied(spawn, PackedVector3Array([spawn + Vector3(0.3, 0, 0)]), Spawner.WINDOW_SPAWN_CLEARANCE), "fenêtre : zombie sur le point, occupé")
-	assert_near(Spawner.WINDOW_SPAWN_CLEARANCE, 2.0 * Zombie.RADIUS, 0.0001)
+	assert_near(Spawner.WINDOW_SPAWN_CLEARANCE, 2.0 * Zombie.SHOULDER_RADIUS, 0.0001)
 	assert_true(MapValidator.SPAWN_OUT - Barricade.TEAR_DIST > Spawner.WINDOW_SPAWN_CLEARANCE, "place du milieu hors du point d'apparition des cartes de l'éditeur")

@@ -365,8 +365,44 @@ func _notification(what: int) -> void:
 
 # ------------------------------------------------------------------ dessin
 
+## Décor dont les anneaux sont dessinés ("" : aucun). Quand il change (autre
+## élément choisi, désélection, élément supprimé), la couche est redessinée
+## une fois de plus, même vide : sans cela le dernier dessin restait affiché,
+## figé à l'écran pendant que la caméra bouge (le dessin d'un Control persiste
+## tant qu'il n'est pas redemandé).
+var shown_id := ""
+
+
+## L'élément du geste n'est plus le seul choisi (désélection, autre élément,
+## sélection multiple, élément supprimé) ?
+func lost_selection() -> bool:
+	if drag.is_empty() or panel == null or not is_instance_valid(panel.ed):
+		return false
+	var e := target()
+	return e.is_empty() or String(e.id) != String(drag.orig.id)
+
+
+## Suit la sélection courante : geste annulé (carte de départ remise) si son
+## élément n'est plus le seul choisi ; survol oublié et couche redessinée dès
+## que le décor montré change.
+func sync_selection() -> void:
+	if panel == null or not is_instance_valid(panel.ed):
+		return
+	if lost_selection():
+		cancel()
+	var id := String(target().get("id", ""))
+	if id != shown_id:
+		shown_id = id
+		# Anneau survolé de l'élément d'avant : oublié, curseur remis.
+		if hover >= 0 and panel.view != null:
+			panel.view.mouse_default_cursor_shape = Control.CURSOR_ARROW
+		hover = -1
+		queue_redraw()
+
+
 func _process(_delta: float) -> void:
-	if not drag.is_empty() or not target().is_empty():
+	sync_selection()
+	if not drag.is_empty() or shown_id != "":
 		queue_redraw()
 
 

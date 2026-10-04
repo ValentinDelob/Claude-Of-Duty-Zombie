@@ -245,6 +245,21 @@ Après la ligne Position (X, Y, Z) existante, deux sections :
   ronde) : libre au degré près. Taper un nombre pendant le geste puis
   Entrée : angle exact ; Échap : annule. **R** garde son effet : +90° autour
   de Z (Maj+R : −90°).
+- **Le gizmo suit toujours la sélection** (correctif du 04/10/2026) :
+  anneaux, poignées d'échelle, flèches et cotes ne sont dessinés que pour
+  l'élément choisi seul, dans toutes les vues (Dessus, élévations, 3D
+  intégrée ou flottante) ; à la désélection (reclic, clic dans le vide,
+  Échap, Maj + clic qui le retire, suppression, Ctrl+Z, changement d'étage,
+  autre élément, élément retiré par un autre participant ou Claude), rien ne
+  reste à l'écran. Un geste en cours dont l'élément n'est plus le seul choisi
+  est annulé (carte d'avant remise, aucune étape d'annulation) :
+  `MapViewLayout.sync_selection` (appelé par `MapEditor.select`,
+  `select_many`, `set_floor` et à chaque image), `MapGizmo3D.sync_selection`.
+  Pendant un geste d'anneau de la 3D, ses touches (chiffres, Entrée, Échap)
+  passent avant celles de l'éditeur.
+- **Reclic** : un simple clic (sans glisser, pas un double-clic) sur
+  l'élément déjà choisi seul le désélectionne, dans les trois sortes de vue ;
+  glissé, il est déplacé comme avant.
 
 ### 3.3 Pivot
 

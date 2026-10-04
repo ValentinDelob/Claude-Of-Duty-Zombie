@@ -551,12 +551,16 @@ func views_changed() -> void:
 
 
 ## Touche pendant un glissement dans une élévation (verrou d'axe, valeur
-## tapée, Échap). Vrai si prise.
+## tapée, Échap). Vrai si prise. Geste d'anneau de la 3D : ses touches
+## (chiffres, Entrée, Échap) passent avant celles de l'éditeur (Échap ne
+## désélectionne pas, les chiffres ne changent pas de case de la barre).
 func handle_drag_key(k: InputEventKey) -> bool:
 	for v in elevations():
 		var ev := v as MapElevation
 		if ev.tools != null and ev.tools.dragging():
 			return ev.tools.handle_key(k)
+	if _gizmo_3d_dragging():
+		return ed.preview.gizmo.key(k)
 	return false
 
 
@@ -608,6 +612,36 @@ func drop_drags() -> void:
 			ev.tools.drop()
 	if _gizmo_3d_dragging():
 		ed.preview.gizmo.drop()
+
+
+## La sélection a changé (MapEditor.select, select_many, set_floor ; chaque
+## image aussi, pour un élément retiré par une annulation ou un autre
+## participant) : le gizmo suit TOUJOURS la sélection courante. Un geste sur
+## un élément seul (anneau, poignée d'échelle, flèche, déplacement, poignée)
+## dont l'élément n'est plus le seul choisi est annulé, sa carte de départ
+## remise, dans chaque vue ; `redraw` : toutes les vues sont redessinées
+## (aucune trace ; pas à chaque image, où seul le geste est vérifié).
+func sync_selection(redraw := true) -> void:
+	var cd: Dictionary = ed.canvas.drag
+	if cd.get("orig") is Dictionary and not sole_selected(String(cd.orig.get("id", ""))):
+		ed.canvas.cancel()
+	for v in elevations():
+		var ev := v as MapElevation
+		if ev.tools != null and ev.tools.drag.get("orig") is Dictionary and not sole_selected(String(ev.tools.drag.orig.get("id", ""))):
+			ev.tools.cancel()
+	if ed.preview != null and ed.preview.gizmo != null:
+		ed.preview.gizmo.sync_selection()
+	if redraw:
+		# Cadenas survolé de l'élément d'avant : oublié (bulle jamais orpheline).
+		if ed.canvas.gizmo != null:
+			ed.canvas.gizmo.hover_lock = -1
+		ed.canvas.queue_redraw()
+		redraw_overlays()
+
+
+## L'élément `eid` est-il l'élément choisi seul ?
+func sole_selected(eid: String) -> bool:
+	return eid != "" and ed.selected == eid and ed.group.size() < 2
 
 
 ## Couches du dessus des élévations redessinées (collaboration, curseurs).
@@ -830,6 +864,10 @@ func _process(delta: float) -> void:
 			save_prefs()
 	if linked:
 		_link_step()
+	# Élément d'un geste retiré sans passer par select (annulation, autre
+	# participant, suppression) : le geste ne survit pas à sa sélection.
+	if ed != null and ed.canvas != null:
+		sync_selection(false)
 
 
 ## Vues liées (D7) : la vue qui a bougé (zoom, déplacement) entraîne les

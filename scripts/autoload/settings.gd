@@ -191,6 +191,10 @@ var using_pad := false
 ## Manette qui a servi en dernier (-1 : aucune) : son nom choisit les noms
 ## des boutons, Xbox ou PlayStation (PadNames.style_of).
 var pad_device := -1
+## Le dernier appui de COURIR venait-il de la manette ? Seul un appui de la
+## manette verrouille le sprint (clic de L3, PlayerInput) : une touche du
+## clavier, même brève, jamais (drapeau using_pad resté sur la manette).
+var sprint_press_pad := false
 
 
 ## Taille de l'interface de l'éditeur ramenée dans la plage et au pas de 5 %
@@ -659,6 +663,8 @@ func _input(event: InputEvent) -> void:
 ## options pendant une réaffectation, qui consomme les entrées). Une manette
 ## à peine effleurée (stick au repos qui dérive) ne compte pas.
 func note_input(event: InputEvent) -> void:
+	if InputMap.has_action("sprint") and event.is_action_pressed("sprint"):
+		sprint_press_pad = event is InputEventJoypadButton or event is InputEventJoypadMotion
 	var pad := using_pad
 	if event is InputEventJoypadButton and event.pressed:
 		pad = true

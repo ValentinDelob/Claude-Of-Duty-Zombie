@@ -696,6 +696,9 @@ func element_shape(e: Dictionary) -> Dictionary:
 			poly = MapRules.effect_poly(e)
 		elif MapGeom.item_oblique(e) and MapCatalog.tool_of(e) == "wall_item":
 			poly = MapRules.wall_item_poly(e)
+		elif MapCatalog.floor_box(e):
+			# Format 15 : boîte posée au sol, emprise tournée.
+			poly = MapRaster.floor_poly(e)
 		else:
 			poly = MapGeom.rect_poly(MapRules.footprint_rect(e))
 		match MapCatalog.tool_of(e):
@@ -869,12 +872,51 @@ func ray(px: Vector2) -> Dictionary:
 		var hit := space.intersect_ray(q)
 		if hit.is_empty():
 			return {}
-		if hit.collider is Node and unit_hidden(hit.collider):
+		if see_through(hit, dir):
 			exclude.append(hit.rid)
 			continue
 		hit.position += dir * 0.05
 		return hit
 	return {}
+
+
+## Surface touchée par un rayon de direction `dir` que l'utilisateur ne VOIT
+## pas : le clic la traverse. Nœud caché (plafond masqué, étage non montré),
+## maillage visible du morceau caché, ou face simple vue de dos : un plafond
+## vu d'au-dessus, un sol vu d'en dessous ne sont pas rendus (faces sans
+## revers, MeshMapGeometry._polygon), mais leur collision les arrête
+## (backface_collision). Les murs, dalles et blocs (boîtes) restent visibles
+## de tous côtés.
+func see_through(hit: Dictionary, dir: Vector3) -> bool:
+	var col: Variant = hit.get("collider")
+	if not col is Node:
+		return false
+	if unit_hidden(col):
+		return true
+	if not col is StaticBody3D:
+		return false
+	var body := col as StaticBody3D
+	var nm := String(body.name)
+	if nm.ends_with("__col") and body.get_parent() != null:
+		var vis := body.get_parent().get_node_or_null(NodePath(nm.trim_suffix("__col")))
+		if vis is Node3D and not (vis as Node3D).is_visible_in_tree():
+			return true
+	# Face simple (surface concave) : sa face rendue est du côté de la normale
+	# visible n = -(b - a) × (c - a) (sens des triangles de MeshMapGeometry._tri).
+	var fi := int(hit.get("face_index", -1))
+	var owner_id := body.shape_find_owner(int(hit.get("shape", 0)))
+	if fi < 0 or owner_id < 0:
+		return false
+	var shape := body.shape_owner_get_shape(owner_id, 0)
+	if not shape is ConcavePolygonShape3D:
+		return false
+	var faces := (shape as ConcavePolygonShape3D).get_faces()
+	if fi * 3 + 2 >= faces.size():
+		return false
+	var a := faces[fi * 3]
+	var n := -(faces[fi * 3 + 1] - a).cross(faces[fi * 3 + 2] - a)
+	n = body.global_transform.basis * n
+	return n.dot(dir) > 0.0
 
 
 ## Sol sous le point `p` (plafonds et nœuds cachés traversés), null s'il n'y

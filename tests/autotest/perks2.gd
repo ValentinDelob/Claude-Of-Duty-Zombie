@@ -71,11 +71,12 @@ func sprint_dive() -> Vector3:
 
 
 ## Zombies immobiles (santé de la manche 10) autour du point d'atterrissage
-## prévu, hors de la trajectoire du plongeon.
+## prévu, hors de la trajectoire du plongeon et hors du décor (la paillasse
+## de z 21 à 22 : un zombie posé dedans en était éjecté au premier pas).
 func ring_of_zombies() -> Array:
 	var hp := RoundRules.zombie_health(10)
 	var out := []
-	for pos in [lab(41.5, 21.5), lab(41.0, 25.6), lab(42.6, 25.3)]:
+	for pos in [lab(41.5, 22.5), lab(41.0, 25.6), lab(42.6, 25.3)]:
 		var zid := game.zombies.spawn(pos, 0, hp)
 		game.zombies.get_zombie(zid).speed_mult = 0.0
 		out.append(game.zombies.get_zombie(zid))
