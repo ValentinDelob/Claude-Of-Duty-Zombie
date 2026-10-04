@@ -229,6 +229,8 @@ static func copy_doc(doc: EditorMap) -> EditorMap:
 	m.depart = String(s.depart)
 	m.prefabs = doc.prefabs
 	m.models = doc.models
+	m.textures = doc.textures
+	m.texture_files = doc.texture_files
 	return m
 
 

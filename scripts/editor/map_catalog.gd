@@ -1523,7 +1523,9 @@ static func allowed_kinds() -> Dictionary:
 
 
 ## Surfaces (textures) admises pour les sols, murs et plafonds des pièces et
-## des zones : clés de WorldLook.SURFACES, triées.
+## des zones : clés de WorldLook.SURFACES, triées. Format 15 : la règle des
+## champs de surface ({"t": "enum", ..., "map": true}) admet aussi une texture
+## de la carte « map:<tid> » (MapTextureLib, CustomMapGuard._rule).
 static func allowed_surfaces() -> Array:
 	return materials()
 
@@ -1532,7 +1534,7 @@ static func allowed_surfaces() -> Array:
 ## en plus : {"t": "text", "max"} texte libre, {"t": "polygon", "min", "max"}
 ## liste de points, {"t": "shape"} forme de base (MapShapes).
 static func room_keys() -> Dictionary:
-	var surf := {"t": "enum", "values": allowed_surfaces()}
+	var surf := {"t": "enum", "values": allowed_surfaces(), "map": true}
 	# Format 4 : « forme » = forme de base d'origine (MapShapes) : {"t": "shape"}
 	# (type parmi MapShapes.TYPES, centre, rayons, points 3 à 64, angle, bras).
 	return {"id": {"t": "id"}, "nom": {"t": "text", "max": 64}, "etage": {"t": "int", "min": 0, "max": MAX_FLOORS - 1},
@@ -1544,7 +1546,7 @@ static func room_keys() -> Dictionary:
 
 ## Clés admises d'une zone (zones.json) ; {"t": "names", "max"} : {fr, en}.
 static func zone_keys() -> Dictionary:
-	var surf := {"t": "enum", "values": allowed_surfaces()}
+	var surf := {"t": "enum", "values": allowed_surfaces(), "map": true}
 	return {"id": {"t": "id"}, "nom": {"t": "names", "max": 64}, "sol": surf, "murs": surf, "plafond": surf}
 
 

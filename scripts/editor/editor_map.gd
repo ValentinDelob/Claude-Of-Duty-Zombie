@@ -100,7 +100,12 @@ extends RefCounted
 ##      décor posé au sol seulement : inclinaisons autour des axes X et Y ;
 ##      « rot » reste le lacet, en degrés entiers). Aucune conversion : une
 ##      carte au format 13 ou moins se lit telle quelle et s'affiche à l'identique.
-const FORMAT := 14
+##  15  textures de la carte (MapTextureLib, docs/MAP_AUTHORING.md § Textures de
+##      la carte) : dossier textures/<tid>/ (texture.json, image.png ou
+##      image.jpg, normal.png|jpg facultative) ; une pièce ou une zone les cite
+##      dans ses champs de surface par « map:<tid> » (une carte sans texture n'a
+##      pas de dossier textures/). Aucune conversion : formats 1 à 14 lus tels quels.
+const FORMAT := 15
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 const FLOOR_STEP := 3.5
@@ -119,6 +124,10 @@ var load_errors: Array = []
 ## (prefab.json nettoyé) ; modèles importés : pid -> octets du .glb en base64.
 var prefabs: Dictionary = {}
 var models: Dictionary = {}
+## Format 15 : textures de la carte (MapTextureLib) : tid -> définition
+## (texture.json nettoyé) ; images : clé de texte -> octets en base64.
+var textures: Dictionary = {}
+var texture_files: Dictionary = {}
 
 
 static func blank(map_id := "nouvelle_carte", name_fr := "NOUVELLE CARTE", name_en := "NEW MAP") -> EditorMap:
@@ -260,6 +269,9 @@ func to_dict() -> Dictionary:
 	var d := {"carte": carte, "pieces": pieces, "ouvertures": ouvertures, "objets": objets, "zones": zones, "depart": depart}
 	if not prefabs.is_empty():
 		d["prefabs"] = prefabs
+	# Format 15 : définitions des textures (leurs images restent dans texture_files).
+	if not textures.is_empty():
+		d["textures"] = textures
 	return d
 
 
@@ -285,12 +297,14 @@ func restore(s: Dictionary) -> void:
 				if not def.is_empty():
 					prefabs[pid] = def
 	activate_prefabs()
+	textures = MapTextureLib.read_snapshot(d.get("textures", {}))
 
 
 func duplicate_map() -> EditorMap:
 	var m := EditorMap.new()
 	m.restore(snapshot())
 	m.models = models.duplicate()
+	m.texture_files = texture_files.duplicate()
 	return m
 
 
@@ -406,6 +420,8 @@ func file_texts() -> Dictionary:
 	}
 	# Format 10 : prefabs de la carte, après les cinq fichiers (aucun : rien de plus).
 	out.merge(prefab_texts())
+	# Format 15 : textures de la carte.
+	out.merge(MapTextureLib.texts_of(self))
 	return out
 
 
@@ -456,6 +472,7 @@ static func from_texts(texts: Dictionary) -> EditorMap:
 	m.depart = String(parsed["zones.json"].get("depart", ""))
 	m.format_read = int(m.carte.get("format", FORMAT))
 	m._read_prefab_texts(texts)
+	MapTextureLib.read_texts(m, texts)
 	m._migrate(m.format_read)
 	m._normalize()
 	m.activate_prefabs()
@@ -523,6 +540,10 @@ func _migrate(from: int) -> void:
 	if from < 14:
 		# Format 13 -> 14 : rien à convertir (sans « echelle » ni « incl » : le
 		# décor garde sa taille et reste droit, comme avant).
+		pass
+	if from < 15:
+		# Format 14 -> 15 : rien à convertir (pas de dossier textures/ : aucune
+		# texture de la carte ; les surfaces du jeu restent des clés de WorldLook).
 		pass
 
 
@@ -693,7 +714,11 @@ func save_dir(dir: String) -> Error:
 		fa.close()
 	# Format 10 : prefabs/<pid>/prefab.json et model.glb (les prefabs retirés
 	# de la carte sont effacés du dossier).
-	return MapPrefabLib.write_dir(dir, texts)
+	var perr := MapPrefabLib.write_dir(dir, texts)
+	if perr != OK:
+		return perr
+	# Format 15 : textures/<tid>/texture.json et ses images.
+	return MapTextureLib.write_dir(dir, texts)
 
 
 ## Limites des fichiers lus (cartes reçues, archives : jamais de lecture sans
@@ -731,6 +756,10 @@ static func load_dir(dir: String) -> EditorMap:
 	# Format 10 : prefabs de la carte (tailles bornées avant lecture).
 	var pf := MapPrefabLib.read_dir(dir)
 	texts.merge(pf.texts)
+	# Format 15 : textures de la carte.
+	var tx := MapTextureLib.read_dir(dir)
+	texts.merge(tx.texts)
+	(pf.reasons as Array).append_array(tx.reasons)
 	var m := from_texts(texts)
 	for f in too_big:
 		m.load_errors.append(["%s trop gros (2 Mo au plus) ou illisible" % f, "%s too big (2 MB at most) or unreadable" % f])
@@ -752,7 +781,7 @@ func export_zip(path: String) -> Error:
 	for f in texts:
 		z.start_file(f)
 		# Format 10 : un modèle importé est écrit en binaire (.glb).
-		z.write_file(Marshalls.base64_to_raw(String(texts[f])) if String(f).ends_with(MapPrefabLib.MODEL_FILE) else String(texts[f]).to_utf8_buffer())
+		z.write_file(Marshalls.base64_to_raw(String(texts[f])) if String(f).ends_with(MapPrefabLib.MODEL_FILE) or MapTextureLib.is_binary_key(f) else String(texts[f]).to_utf8_buffer())
 		z.close_file()
 	return z.close()
 
@@ -796,7 +825,7 @@ static func _precheck_zip(path: String) -> Array:
 	if listing.has("error"):
 		return listing.error
 	# Sans prefab (format 10) : la limite d'avant, 2 Mo.
-	var with_prefabs := (listing.entries as Array).any(func(e): return String(e.name).contains(MapPrefabLib.DIR + "/"))
+	var with_prefabs := (listing.entries as Array).any(func(e): return String(e.name).contains(MapPrefabLib.DIR + "/") or String(e.name).contains(MapTextureLib.DIR + "/"))
 	if n > MAX_ARCHIVE_BYTES and not with_prefabs:
 		return ["archive trop grosse (%d Ko, 2 Mo au plus)" % kb, "archive too big (%d KB, 2 MB at most)" % kb]
 	return check_zip_entries(listing.entries, {})
@@ -805,7 +834,7 @@ static func _precheck_zip(path: String) -> Array:
 ## Vérifie les entrées d'une archive (zip_entries) ; remplit `wanted` (nom de
 ## base -> chemin) ; rend [fr, en] si l'archive est refusée, [] sinon.
 static func check_zip_entries(entries: Array, wanted: Dictionary) -> Array:
-	var plain := entries.filter(func(e): return not String(e.name).contains(MapPrefabLib.DIR + "/")).size()
+	var plain := entries.filter(func(e): return not String(e.name).contains(MapPrefabLib.DIR + "/") and not String(e.name).contains(MapTextureLib.DIR + "/")).size()
 	if plain > MAX_ARCHIVE_ENTRIES or entries.size() > MAX_ARCHIVE_ENTRIES_PREFABS:
 		return ["trop d'entrées dans l'archive (%d, %d au plus)" % [entries.size(), MAX_ARCHIVE_ENTRIES], "too many entries in the archive (%d, %d at most)" % [entries.size(), MAX_ARCHIVE_ENTRIES]]
 	var folder = null
@@ -837,6 +866,16 @@ static func check_zip_entries(entries: Array, wanted: Dictionary) -> Array:
 				models_total += int(e.size)
 				if models_total > MapPrefabLib.MAX_MODELS_BYTES:
 					return ["modèles trop gros dans l'archive", "models too big in the archive"]
+			wanted[rel] = name
+			continue
+		# Format 15 : textures de la carte (textures/, textures/<tid>/ et leurs
+		# fichiers admis), sans quota de taille (l'archive est bornée en tout).
+		if rel == MapTextureLib.DIR + "/" or (rel.begins_with(MapTextureLib.DIR + "/") and rel.ends_with("/") and rel.count("/") == 2
+				and MapTextureLib.tid_ok(rel.split("/")[1])):
+			continue
+		if not MapTextureLib.parse_key(rel).is_empty():
+			if wanted.has(rel):
+				return ["texture en double dans l'archive : %s" % name.left(80), "texture duplicated in the archive: %s" % name.left(80)]
 			wanted[rel] = name
 			continue
 		if name.ends_with("/"):

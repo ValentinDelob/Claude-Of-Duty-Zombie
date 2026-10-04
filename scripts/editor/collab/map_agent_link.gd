@@ -226,6 +226,10 @@ func _handle(c: Client, text: String) -> void:
 			res = cmd_highlight(args)
 		"catalog":
 			res = catalog()
+			# Format 15 : textures de la carte ouverte (« map:<tid> »).
+			res["textures_carte"] = MapAgentTextures.catalog_textures(collab.doc)
+		"texture_list", "texture_import", "texture_update", "texture_delete", "texture_import_from_map":
+			res = MapAgentTextures.handle(editor if editor != null else self, cmd, args)
 		_:
 			res = {"error": Lang.t("commande inconnue : %s", "unknown command: %s") % cmd.left(40)}
 	if res is Dictionary and (res as Dictionary).size() == 1 and (res as Dictionary).has("error"):

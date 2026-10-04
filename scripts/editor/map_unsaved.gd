@@ -133,6 +133,14 @@ static func signature(m: EditorMap) -> String:
 	pids.sort()
 	for pid in pids:
 		parts.append("%s:%s" % [pid, model_sha(String(m.models[pid]))])
+	# Format 15 : textures de la carte (définitions et images écrites).
+	if not m.textures.is_empty():
+		parts.append(JSON.stringify(EditorMap._ints(m.textures), "", true))
+		var tk := MapTextureLib.texts_of(m)
+		var keys := tk.keys().filter(func(k): return MapTextureLib.is_binary_key(k))
+		keys.sort()
+		for k in keys:
+			parts.append("%s:%s" % [k, model_sha(String(tk[k]))])
 	return "\n".join(parts).sha256_text()
 
 

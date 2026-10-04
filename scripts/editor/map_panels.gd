@@ -243,13 +243,36 @@ static func _m(v: float) -> String:
 ## un aperçu dans la liste et à côté ; premier choix : la valeur par défaut
 ## (`default_key`, celle de la zone pour une pièce), qui efface la clé.
 func _surface_option(box: Container, label: String, target: Dictionary, key: String, default_key: String, of_zone := false) -> OptionButton:
-	var keys := MapCatalog.allowed_surfaces()
+	var tt := ed.texture_tools
+	# Format 15 : surfaces du jeu, puis les textures de la carte (« map:<tid> »),
+	# « Importer une texture… » et « Gérer les textures… » (MapTextureTools).
+	var keys: Array = MapCatalog.allowed_surfaces().duplicate()
+	var tids := ed.doc.textures.keys()
+	tids.sort()
 	var o := OptionButton.new()
-	var def_txt := (Lang.t("(%s)", "(%s)") if of_zone else Lang.t("(zone : %s)", "(zone: %s)")) % MapCatalog.surface_name(default_key)
-	o.add_icon_item(MapIcons.surface_texture(default_key), def_txt)
+	var def_txt := (Lang.t("(%s)", "(%s)") if of_zone else Lang.t("(zone : %s)", "(zone: %s)")) % tt.surface_name(default_key)
+	o.add_icon_item(tt.icon(default_key), def_txt)
+	o.set_item_metadata(0, "")
 	for k in keys:
 		o.add_icon_item(MapIcons.surface_texture(String(k)), MapCatalog.surface_name(String(k)))
-	o.selected = keys.find(String(target.get(key, ""))) + 1
+		o.set_item_metadata(o.item_count - 1, String(k))
+	o.add_separator(Lang.t("Textures de la carte", "Map textures"))
+	var cur := String(target.get(key, ""))
+	if MapTextureLib.is_ref(cur) and not ed.doc.textures.has(MapTextureLib.tid_of(cur)):
+		tids.append(MapTextureLib.tid_of(cur))   # citée mais absente : montrée telle quelle
+	for tid in tids:
+		o.add_icon_item(tt.icon(MapTextureLib.ref(tid)), tt.surface_name(MapTextureLib.ref(tid)))
+		o.set_item_metadata(o.item_count - 1, MapTextureLib.ref(tid))
+	o.add_item(Lang.t("Importer une texture…", "Import a texture…"))
+	o.set_item_metadata(o.item_count - 1, "#importer")
+	o.add_item(Lang.t("Gérer les textures…", "Manage textures…"))
+	o.set_item_metadata(o.item_count - 1, "#gerer")
+	var index_of := func(v: String) -> int:
+		for i in o.item_count:
+			if not o.is_item_separator(i) and String(o.get_item_metadata(i)) == v:
+				return i
+		return 0
+	o.selected = index_of.call(cur)
 	o.fit_to_longest_item = false
 	o.clip_text = true
 	var h := HBoxContainer.new()
@@ -261,20 +284,43 @@ func _surface_option(box: Container, label: String, target: Dictionary, key: Str
 	sw.custom_minimum_size = Vector2(40, 24)
 	sw.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sw.stretch_mode = TextureRect.STRETCH_SCALE
-	sw.texture = MapIcons.surface_texture(String(target.get(key, default_key)))
+	sw.texture = tt.icon(String(target.get(key, default_key)))
 	sw.tooltip_text = Lang.t("Aperçu de la texture", "Texture preview")
 	h.add_child(sw)
 	o.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(o)
+	# Texture de la carte choisie : ⚙ ouvre ses réglages.
+	if MapTextureLib.is_ref(cur) and ed.doc.textures.has(MapTextureLib.tid_of(cur)):
+		var gear := Button.new()
+		gear.text = "⚙"
+		gear.tooltip_text = Lang.t("Régler cette texture de la carte (nom, taille du motif, rugosité…)", "Adjust this map texture (name, pattern size, roughness…)")
+		gear.pressed.connect(func(): tt.edit_dialog(MapTextureLib.tid_of(cur)))
+		h.add_child(gear)
 	box.add_child(h)
-	o.item_selected.connect(func(i):
+	# Choix d'une surface : une modification annulable (Ctrl+Z) ; l'élément est
+	# relu par son id (import asynchrone : le panneau a pu être reconstruit).
+	var eid := String(target.get("id", ""))
+	var choose := func(v: String, rebuild: bool) -> void:
+		var t: Dictionary = ed.doc.find(eid) if eid != "" else target
+		if t.is_empty():
+			return
 		ed.push_undo()
-		if i == 0:
-			target.erase(key)
+		if v == "":
+			t.erase(key)
 		else:
-			target[key] = String(keys[i - 1])
-		sw.texture = MapIcons.surface_texture(String(target.get(key, default_key)))
-		ed.changed(false))
+			t[key] = v
+		ed.changed(rebuild)
+	o.item_selected.connect(func(i):
+		var v := String(o.get_item_metadata(i))
+		if v.begins_with("#"):
+			o.selected = index_of.call(String(target.get(key, "")))
+			if v == "#importer":
+				tt.import_dialog(func(tid): choose.call(MapTextureLib.ref(tid), true))
+			else:
+				tt.manage_dialog()
+			return
+		sw.texture = tt.icon(v if v != "" else default_key)
+		choose.call(v, false))
 	return o
 
 
