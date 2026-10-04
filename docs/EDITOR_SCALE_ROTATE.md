@@ -339,14 +339,14 @@ Après la ligne Position (X, Y, Z) existante, deux sections :
   (`echelle`, `incl`, `rot`, `position`, `z`). La présence `live` (geste en
   cours) porte l'élément transitoire ; les autres voient l'objet changer en
   direct, en contour pulsé comme aujourd'hui.
-- **MCP** (`map_agent_link.gd`, `tools/mcp/map_editor_mcp.py`) :
+- **MCP** (`map_agent_link.gd`, serveur MCP du jeu `scripts/mcp/`, docs/MCP.md) :
   - `editor_apply` : `put` avec `echelle` / `incl` ; un refus rend la raison
     qui nomme l'objet (« échelle impossible : contient un Pack-a-Punch ») ;
   - `editor_get_element` ajoute `dimensions` [l, p, h] finales,
     `echelle_possible`, `inclinaison_possible` et `raison` ;
   - `editor_catalog` marque `echelle: false` sur les objets non
     redimensionnables ;
-  - instructions du serveur : clés, bornes, sens des angles, règle des
+  - consignes du serveur (`editor_guide` « consignes ») : clés, bornes, sens des angles, règle des
     prefabs ;
   - `editor_screenshot` dessine les objets mis à l'échelle et inclinés (vues
     et 3D).
@@ -365,7 +365,7 @@ droit et la création de prefab (mêmes fichiers).
 | **4. Poignées d'échelle** | Dessus et élévations, aimantation, Alt, cotes, valeur tapée, cadenas gris | `map_canvas.gd`, `views/map_elevation_tools.gd`, `map_editor.gd` | unitaires de géométrie des poignées ; scénario `map_scale_handles` (coin ×1,5, face X, losange Z, prefab bloqué) |
 | **5. Anneaux en vue plane** | Anneau Z (Dessus, à la place de la poignée ronde du décor), Y / X (élévations), crans, saisie, groupe | `map_canvas.gd`, `views/map_elevation_tools.gd`, `map_transform.gd` | unitaires : sens des 3 axes, décomposition, Rester posé ; scénario `map_rotate_rings` |
 | **6. Gizmo 3D** | Prise rayon / anneau, geste, rafraîchissement d'un seul objet dans l'aperçu | `views/map_view_3d.gd`, `map_preview_world.gd`, `map_preview_camera.gd` | scénario @rendu `map_rotate_3d` ; mesure : < 2 ms par mouvement de souris sur la carte de 2000 objets |
-| **7. MCP, collaboration, docs** | Clés MCP, instructions, captures ; docs `MAP_AUTHORING.md`, `MAP_OBJECTS.md`, aide « ? », notes de version | `map_agent_link.gd`, `tools/mcp/*`, docs | `test_map_agent_link`, `tools/mcp/test_map_editor_mcp.py`, `mp_editorplay` (échelle vue chez l'invité) |
+| **7. MCP, collaboration, docs** | Clés MCP, instructions, captures ; docs `MAP_AUTHORING.md`, `MAP_OBJECTS.md`, aide « ? », notes de version | `map_agent_link.gd`, pont MCP (aujourd'hui `scripts/mcp/`), docs | `test_map_agent_link`, `test_mcp_server` (autrefois le test du pont Python), `mp_editorplay` (échelle vue chez l'invité) |
 
 Les captures de scénario servent pendant le développement de chaque étape
 puis sont retirées ; une instance du jeu à la fois, hors écran.

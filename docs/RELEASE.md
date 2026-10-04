@@ -18,7 +18,8 @@
 Chaque mise à jour re-télécharge donc **168 Mo, dont 65 % de moteur inchangé**
 et presque tout le reste en voix inchangées.
 
-Contenu du paquet (`export_presets.cfg`) : pas de `.blend`, `.zip` ni `.md`
+Contenu du paquet (`export_presets.cfg`) : pas de `.blend`, `.zip` ni `.md` (sauf
+les cinq documents du serveur MCP, docs/MCP.md)
 (les sources Blender et Python sont sous `tools/`, exclu). Les tests
 unitaires y partaient : exclus depuis ce jour (`tests/test_*`,
 `tests/parse_all.gd`, `tests/net_smoke.*`) ; `tests/autotest/` reste (scénario
@@ -246,7 +247,9 @@ core 13,5 Mo, voix 24,8 / 23,8 Mo, moteur et lanceur 104,2 / 104,3 Mo, jeu compl
   (`.ctex`, `.oggvorbisstr`, `.sample`, `.mesh`, `.scn`…), `.import`,
   `.json` des cartes, polices, `project.binary`, caches Godot ; tout autre
   type (`.blend`, `.py`, `.md`, `.png` hors import, `.zip`, `.log`…) ou un
-  paquet au-delà de la taille maximale fait échouer la release.
+  paquet au-delà de la taille maximale fait échouer la release. Seule
+  exception : les cinq documents livrés à l'IA par le serveur MCP du jeu
+  (`EMBEDDED_DOCS`, docs/MCP.md § 2).
 - Démarrage vérifié sur l'installation que font les nouveaux lanceurs
   (moteur officiel + core au même nom + voix montées) : scénario `boot` avec
   rendu (fenêtre sans focus, hors écran) et numéro de build affiché, puis

@@ -10,9 +10,10 @@ que les autres ont créé.
 
 ```
  Éditeur A (HÔTE, autorité)  <── TCP 7790 (LAN/Internet) ──>  Éditeur B (invité)
-   │  écoute 127.0.0.1:7791                                     │ écoute 127.0.0.1:7791 (ou suivant libre)
-   │                                                            │
- pont MCP (tools/mcp/map_editor_mcp.py) <── stdio ──> Claude Code
+   │  MapAgentLink.handle()                                     │ MapAgentLink.handle()
+ jeu A : serveur MCP McpServer                                jeu B : serveur MCP McpServer
+   │  HTTP 127.0.0.1:7791/mcp (jeton)                           │ 127.0.0.1:7791 (ou suivant libre)
+ Claude Code (ou autre client MCP)                            Claude Code
 ```
 
 - **Hôte** : l'éditeur qui a ouvert la carte et choisi Collaboration > Héberger.
@@ -20,11 +21,12 @@ que les autres ont créé.
   le fichier. Une carte éditée seul = un hôte sans invité : même code.
 - **Invité** : Collaboration > Rejoindre (adresse, port, code de session, pseudo).
   Reçoit la carte complète, puis le flux des changements.
-- **Agent (Claude)** : se connecte TOUJOURS à l'éditeur local (127.0.0.1, port
-  agent), jamais directement à l'hôte distant. L'éditeur local relaie ses
-  changements comme ceux d'un auteur « Claude » rattaché à lui (« parrain »).
-  Option Collaboration > « Autoriser Claude (MCP) », activée par défaut sur
-  127.0.0.1 uniquement (jamais d'écoute agent sur une autre interface).
+- **Agent (Claude)** : passe TOUJOURS par le serveur MCP du jeu local
+  (docs/MCP.md : 127.0.0.1, port 7791, jeton), jamais directement par l'hôte
+  distant. L'éditeur local relaie ses changements comme ceux d'un auteur
+  « Claude » rattaché à lui (« parrain »). Option Collaboration > « Autoriser
+  Claude (MCP) » (réglage du jeu, activé par défaut) ; 127.0.0.1 uniquement
+  (jamais d'écoute agent sur une autre interface).
 
 Fichiers Godot (nouveaux, pour ne pas entrer en conflit avec un travail en
 cours dans `editor_map.gd`) :
@@ -37,7 +39,8 @@ cours dans `editor_map.gd`) :
   l'interface : fonctionne sur un `EditorMap` + signaux, testable sans fenêtre
   (deux MapCollab dans le même processus).
 - `scripts/editor/collab/map_agent_link.gd` (`class_name MapAgentLink`, Node) :
-  écoute agent locale, commandes requête/réponse (§ 5).
+  commandes de l'agent (§ 5.2), appelées par le serveur MCP du jeu
+  (`scripts/autoload/mcp_server.gd`, docs/MCP.md).
 - `scripts/editor/collab/collab_panel.gd` : interface (menu, participants…).
 - `scripts/editor/collab/collab_view.gd` (`class_name CollabView`) : rendu
   sur le plan (curseurs, sélections, aperçus, clignotements, lots et
@@ -112,8 +115,8 @@ comportement en solo, tests existants à garder verts).
 
 ## 5. Protocole
 
-Transport : TCP, une ligne JSON UTF-8 par message (`\n`), messages ≤ 2 Mo
-(au-delà : déconnexion). Champ `t` = type.
+Transport entre éditeurs : TCP, une ligne JSON UTF-8 par message (`\n`), messages ≤ 2 Mo
+(au-delà : déconnexion). Champ `t` = type. L'agent : MCP en HTTP (§ 5.2).
 
 ### 5.1 Entre éditeurs (port 7790 par défaut)
 
@@ -177,21 +180,20 @@ Par Internet, l'hôte redirige donc le port de la session en TCP **et** en UDP.
 Test : `sh tools/mp_test.sh editorplay` (deux jeux, deux éditeurs, deux tests
 de suite) ; `tests/test_map_collab.gd` (messages, `keep_alive`, reprise).
 
-### 5.2 Agent ↔ éditeur local (127.0.0.1, port 7791 ; si pris : 7792…7799)
+### 5.2 Agent ↔ éditeur local (serveur MCP du jeu, 127.0.0.1, port 7791 ; si pris : 7792…7799)
 
-Le port réel et un jeton aléatoire sont écrits dans
-`user://editor_collab/agent.json` = `{port, token, pid, map_id}`
-(`%APPDATA%\Godot\app_userdata\Call of Claude Zombie\editor_collab\agent.json`).
-Le fichier est supprimé à la fermeture de l'éditeur.
-
-Requête : `{id, cmd, args}` ; réponse : `{id, ok:true, result}` ou
-`{id, ok:false, error}`. Première requête obligatoire :
-`{id, cmd:"hello", args:{token, client:"claude-mcp"}}`.
-L'éditeur peut aussi pousser `{event:"change"|"selection"|"peers", ...}`.
+L'agent parle MCP en HTTP au **jeu** (autoload `McpServer`, docs/MCP.md :
+jeton stable de `user://mcp/token`, Host et Origin contrôlés). Le serveur
+appelle l'éditeur ouvert par `MapAgentLink.handle(cmd, args)` (coroutine)
+-> le résultat, ou `{error}` (texte dans la langue du jeu) ; il n'y a plus
+de transport propre à l'éditeur (ni TCP, ni `agent.json`). Les outils MCP à
+`cmd` (`McpTools`) passent leurs arguments tels quels.
+L'éditeur pousse aussi `{event:"change"|"selection"|"peers", ...}` au
+serveur (`McpServer.push_event`, outil `editor_events`).
 
 | cmd | args | result |
 |---|---|---|
-| `hello` | `token` | `{map_id, map_name, role:"host"/"guest"/"solo", peers, editor_version}` |
+| `hello` | — | `{map_id, map_name, role:"host"/"guest"/"solo", peers, editor_version}` |
 | `status` | — | idem + `floor`, `selection`, `dirty` |
 | `get_map` | — | snapshot complet |
 | `get_selection` | — | `{ids, elements, floor, cursor}` (curseur souris en mètres) |
@@ -206,7 +208,7 @@ L'éditeur peut aussi pousser `{event:"change"|"selection"|"peers", ...}`.
 ## 6. Ce que voient les utilisateurs
 
 - Barre du haut : bouton « Collaboration » (Héberger…, Rejoindre…, Quitter la
-  session, Autoriser Claude (MCP) ✓, Historique) et pastilles colorées des
+  session, Autoriser Claude (MCP) ✓, Connecter une IA (MCP)…, Historique) et pastilles colorées des
   participants (Claude compris, avec une icône distincte).
 - Curseurs des autres sur le plan (couleur + pseudo), leur sélection en
   contour de leur couleur, leur étage indiqué ; aperçu en direct d'un objet
@@ -238,7 +240,8 @@ l'invité (docs/MAP_AUTHORING.md § 6).
 
 ## 8. Sécurité
 
-- Écoute agent : 127.0.0.1 seulement + jeton. Écoute invités : seulement
+- Agent : serveur MCP du jeu, 127.0.0.1 seulement + jeton, Host et Origin
+  contrôlés (docs/MCP.md § 4). Écoute invités : seulement
   quand l'hôte l'a demandé, code de session obligatoire.
 - Tout message est validé (§ 2) ; un message invalide = déconnexion du pair.
 - Jamais d'objet Godot décodé, jamais de chemin de fichier venu du réseau.
@@ -246,9 +249,10 @@ l'invité (docs/MAP_AUTHORING.md § 6).
 ## 9. Précisions de l'implémentation (v1)
 
 Ce qui suit complète les sections précédentes sans en changer les noms
-(commandes, champs, ports, `agent.json`). Code : `scripts/editor/collab/`.
+(commandes, champs, ports). Code : `scripts/editor/collab/` ; serveur MCP :
+`scripts/autoload/mcp_server.gd`, `scripts/mcp/`.
 Tests : `tests/test_map_ops.gd`, `test_map_history.gd`, `test_map_collab.gd`,
-`test_map_agent_link.gd`.
+`test_map_agent_link.gd`, `test_mcp_server.gd`.
 
 ### Identifiants de participants
 
@@ -310,13 +314,15 @@ restent les siennes.
 
 ### Agent (§ 5.2)
 
-- `agent.json` : en autotest, dans `tests/_out/editor_collab_<scénario>/` ;
-  les tests unitaires utilisent `MapAgentLink.dir_override`. Supprimé à
-  l'arrêt seulement s'il porte encore le `pid` et le `port` de cet éditeur
-  (un deuxième éditeur ouvert l'a remplacé : le dernier ouvert gagne).
-- L'écoute ne démarre jamais en mode `--headless` ni en autotest ; 4 clients
-  au plus ; un client sans `hello` valide en 5 s est coupé ; un mauvais
-  jeton ou une autre commande avant `hello` = réponse d'erreur puis coupure.
+- Transport : serveur MCP du jeu (docs/MCP.md). L'éditeur crée toujours
+  sa liaison (`MapEditor.agent_link`) ; elle s'inscrit auprès de `McpServer`
+  en entrant dans l'arbre (`attach_editor` : la dernière ouverte gagne) et
+  se retire en sortant. Sans éditeur ouvert, les outils de carte rendent une
+  erreur claire.
+- Le serveur n'écoute jamais en mode `--headless` ni en autotest (les tests
+  en démarrent un sur leur plage de ports) ; 8 clients au plus.
+- Pastille « Claude » : tant qu'une session MCP a servi depuis moins de
+  30 min (`McpServer.has_agent`).
 - `error` : texte dans la langue du jeu.
 - `hello` rend aussi `you` (`"<moi>:claude"`) ; `status` rend aussi `seq` et
   `can_undo`.
@@ -342,7 +348,7 @@ restent les siennes.
 - `highlight` : `{shown}` ; contour pulsé, bulle et cadrage (§ 9 « Rendu »).
   Signaux `MapAgentLink.highlight_requested(ids, message)` et
   `animate_requested(ids, label)` (après un `apply` avec `animate`).
-- Événements poussés : `{event: "change", cid, author, label, seq, ids}`,
+- Événements poussés au serveur MCP (`McpServer.push_event`, avec `time`) : `{event: "change", cid, author, label, seq, ids}`,
   `{event: "selection", ids}`, `{event: "peers", peers}`.
 
 ### Éditeur

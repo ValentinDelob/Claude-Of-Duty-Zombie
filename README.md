@@ -200,6 +200,10 @@ Chaque réglage s'applique tout de suite et est enregistré.
   `tools/map_editor.bat`) : pièces vues de dessus, inventaire façon Minecraft,
   vérification façon BO1, bouton TESTER ; cinq JSON lisibles dans
   `user://maps/<id>/` ou une archive .zip. Voir `docs/MAP_AUTHORING.md`.
+  Une IA (Claude Code ou tout client MCP HTTP) peut piloter l'éditeur : le
+  jeu est lui-même le serveur MCP (127.0.0.1:7791, jeton), sans les sources
+  ni Python ; éditeur > Collaboration > Connecter une IA (MCP)… donne la
+  commande à copier. Voir `docs/MCP.md`.
   Vérifier une carte sans fenêtre :
   `godot --headless --path . res://scenes/editor/map_editor.tscn -- --check=<dossier>`.
 - `sh tools/check.sh` : vérification avant commit. Par défaut, seules les

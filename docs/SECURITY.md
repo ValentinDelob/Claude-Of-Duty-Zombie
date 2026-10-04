@@ -137,8 +137,7 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
 
 - Transport à part (TCP, lignes JSON de 2 Mo au plus), pas le réseau du jeu.
   Écoute des invités seulement après Collaboration > Héberger, code de session
-  obligatoire (refus après 5 essais faux par adresse) ; écoute de Claude sur
-  127.0.0.1 seulement, avec le jeton de `agent.json`.
+  obligatoire (refus après 5 essais faux par adresse).
 - Tout lot reçu passe `MapOps.validate` (sinon déconnexion) puis le contrôle
   des cartes reçues (`MapOps.check_elements`, `CustomMapGuard`) ; JSON
   seulement (`JSON.parse`), jamais de chemin ni de nom de fichier venu du
@@ -153,6 +152,25 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
   un port 1024-65535 ; la carte passe par `MapShare` et `CustomMapGuard`
   comme dans le salon ; motifs de refus reçus bornés (160 caractères, sans
   caractère de contrôle ni de direction du texte).
+
+### Serveur MCP du jeu (docs/MCP.md)
+
+- Une IA (Claude Code…) pilote l'éditeur par HTTP (`McpServer`) :
+  127.0.0.1 SEULEMENT (port 7791 à 7799), désactivable (réglage
+  `[mcp] enabled`), jamais en `--headless` ni en autotest.
+- `Authorization: Bearer <jeton>` obligatoire : 32 hex tirés par `Crypto`,
+  stables dans `user://mcp/token`, régénérables (sessions fermées),
+  comparés sans sortie anticipée. 401 sans `WWW-Authenticate`,
+  `/.well-known/*` -> 404 (pas d'OAuth).
+- Anti DNS rebinding et pages web : `Host` doit être `127.0.0.1:<port>` ou
+  `localhost:<port>` (403) ; une `Origin` présente et non locale -> 403 ;
+  aucun en-tête CORS ; POST en `application/json` seulement (415).
+- HTTP borné : 8 connexions, en-têtes 16 Kio, corps 64 Mio, `Content-Length`
+  seulement, délais (requête incomplète 10 s, inactivité 120 s, outil 120 s),
+  envoi non bloquant. JSON seulement (`JSON.parse`) ; les lots passent ensuite
+  `McpTools.check_ops`, `MapOps.validate` et les contrôles de l'éditeur comme
+  ceux d'un participant. Ressources : seulement les cinq documents embarqués
+  et les consignes (`zombie://docs/<fichier>`, aucune lecture de chemin reçu).
 
 ### Fils de travail
 
