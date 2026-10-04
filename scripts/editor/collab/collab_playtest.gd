@@ -7,7 +7,9 @@ extends Node
 ##   ou le suivant s'il est pris), annonce la carte (MapShare : envoyée et
 ##   vérifiée chez chacun) et prévient les invités par la session
 ##   (MapCollab.send_playtest). Lance la partie quand tous l'ont rejointe avec
-##   la carte (30 s au plus : les retardataires restent dans l'éditeur).
+##   la carte (30 s au plus sans progrès de son téléchargement : les
+##   retardataires restent dans l'éditeur ; une grosse carte qui arrive
+##   encore prolonge l'attente).
 ## - Invité : rejoint la partie sur l'adresse de l'hôte (Net.join) ; en cas
 ##   d'échec, il le dit à l'hôte et reste dans l'éditeur.
 ## - Pendant la partie, ce nœud (sous la racine, hors de la scène) tient la
@@ -19,7 +21,9 @@ extends Node
 
 enum Phase { PREPARING, JOINING, PLAYING }
 
-## Attente des invités par l'hôte avant de lancer sans les retardataires.
+## Attente des invités par l'hôte avant de lancer sans les retardataires
+## (comptée depuis le dernier progrès d'un téléchargement de la carte :
+## _download_mark).
 const WAIT_SEC := 30.0
 ## Ports essayés pour la partie : celui de la session, puis les suivants.
 const PORT_TRIES := 10
@@ -44,6 +48,8 @@ var ended_by_host := false
 var _editor: MapEditor
 var _t := 0.0
 var _status_t := 0.0
+## Dernier état des téléchargements de la carte (_download_mark).
+var _mark := 0
 
 
 # ------------------------------------------------------------------ API
@@ -152,10 +158,31 @@ func _process(delta: float) -> void:
 	if phase == Phase.PLAYING:
 		return
 	_t += delta
+	# Grosse carte (modèles importés, aucun quota) : tant que son
+	# téléchargement avance quelque part, l'attente repart de zéro.
+	var mark := _download_mark()
+	if mark != _mark:
+		_mark = mark
+		_t = 0.0
 	if is_host:
 		_host_wait(delta)
 	elif _t > WAIT_SEC + 15.0:
 		_guest_failed(Lang.t("la partie n'a pas démarré à temps", "the game did not start in time"), "partie non démarrée à temps", "game did not start in time")
+
+
+## Avancement des téléchargements de la carte : morceaux reçus ici et
+## pourcentages des joueurs qui la téléchargent (états diffusés par l'hôte).
+## Change tant qu'une carte arrive quelque part.
+func _download_mark() -> int:
+	var share: MapShare = Net.map_share
+	if share == null:
+		return 0
+	var m := share.local_received()
+	for pid in share.states:
+		var st: Dictionary = share.states[pid]
+		if String(st.get("etat", "")) == "telechargement":
+			m += 1000003 * (int(st.get("pct", 0)) + 1) + int(pid)
+	return m
 
 
 ## Hôte : invités de la session encore attendus (ni partis, ni en échec).

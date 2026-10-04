@@ -159,9 +159,11 @@ connexion entre éditeurs n'est jamais coupée).
    reason_fr, reason_en}` à l'hôte, et il reste dans l'éditeur avec le motif.
    Un port hors 1024-65535 est un message invalide (session quittée).
 3. Hôte : lance la partie (`Net.start_match`) dès que tous les invités encore
-   là l'ont rejointe avec la carte ; après 30 s, les retardataires sont coupés
-   de la partie (pas de la session) et la partie démarre sans eux ; s'il ne
-   reste personne, il joue seul. Abandon avant le lancement (carte refusée,
+   là l'ont rejointe avec la carte ; après 30 s sans progrès d'un
+   téléchargement de la carte (une grosse carte qui arrive encore prolonge
+   l'attente, chez l'hôte comme chez les invités : `_download_mark`), les
+   retardataires sont coupés de la partie (pas de la session) et la partie
+   démarre sans eux ; s'il ne reste personne, il joue seul. Abandon avant le lancement (carte refusée,
    session fermée, éditeur quitté) : `{t:"playtest_cancel"}`.
 4. Pendant la partie : au passage en chargement, le nœud `MapCollab` quitte
    la scène de l'éditeur pour le nœud `CollabPlaytest` (sous la racine) avec
@@ -201,7 +203,24 @@ L'éditeur peut aussi pousser `{event:"change"|"selection"|"peers", ...}`.
 | `validate` | — | rapport `MapValidator` (texte + liste des problèmes) |
 | `screenshot` | `floor?`, `ids?` (cadrer sur ces éléments), `view?` (`dessus` par défaut, `avant`, `arriere`, `gauche`, `droite`, `dessous`), `coupe?` [p0, p1] | `{png_base64, width, height, bounds:[x0,y0,x1,y1]}` ; élévation : `{…, view, axe_horizontal, bounds_h, bounds_z, coupe?}` |
 | `highlight` | `ids`, `message` | montre ces éléments à l'utilisateur (contour pulsé + bulle) |
-| `catalog` | — | types admis (`MapCatalog`), prefabs, luminaires, armes, atouts |
+| `catalog` | — | types admis (`MapCatalog`), prefabs, luminaires, armes, atouts ; `prefabs_carte` : prefabs de la carte ouverte (pid, ref, nom, sorte, emprise, hauteur, bloque, pose) |
+| `prefab_list` | — | `{prefabs: [fiche], nombre, modeles, peut_modifier, note}` ; fiche : `pid`, `ref` (« map:<pid> »), `objet` à poser, `nom`, `sorte` (groupe / modele), `emprise_cases`, `emprise_m`, `hauteur`, `bloque`, `collision`, `pose`, `objets_poses` ; groupe : `parties` ; modèle : `echelle`, `taille_modele_m` [x, y, hauteur], `aabb_brute`, `sha256`, `octets`, `triangles`, `sommets`, `maillages`, `materiaux`, `images` |
+| `prefab_sources` | — | `{cartes: [{carte, nom, dossier, ouverte, prefabs: [{pid, nom, sorte, emprise_cases, hauteur, octets?}]}], cartes_sans_prefab, dossier_des_cartes}` |
+| `prefab_create` | `nom`, `ids` + `remplacer` (défaut true) OU `parties` [{decor, pos [x, y], rot}], `label` | fiche + `contenu`, `exclus` [{sorte, nombre, raison}], `absents`, `parties_reprises`, `remplace`, `objet_pose`, `cid` |
+| `prefab_import_model` | `chemin` (fichier local) OU `data_base64` (+ `format` glb / gltf), `nom`, `echelle` (0,01 à 100), `bloque` (solide / barriere / non) | fiche du modèle importé |
+| `prefab_import` | `carte` (id d'une carte de l'utilisateur) OU `chemin` (dossier de prefab ou de carte), `pids` | `{importes: [{pid_source, pid, ref, renomme, nom, sorte}], refuses: [{pid, raison}], source}` |
+| `prefab_update` | `pid`, `nom`, `echelle`, `bloque` (ces deux : modèle seulement) | fiche + `objets_mal_places` |
+| `prefab_delete` | `pid`, `avec_objets` (défaut false), `label` | `{supprime, nom, objets_supprimes, cid}` |
+
+Outils MCP des prefabs : `MapAgentPrefabs.tool_defs()` (`editor_prefab_list`,
+`editor_prefab_sources`, `editor_prefab_create`, `editor_prefab_import_model`,
+`editor_prefab_import`, `editor_prefab_update`, `editor_prefab_delete` ; format
+`{name, description, inputSchema, cmd}`, transmis tels quels). Règles (§ 9,
+« Prefabs ») : la bibliothèque ne change qu'en solo ou chez l'hôte (invité :
+`error`), elle n'est pas dans l'historique d'annulation (chaque résultat le
+rappelle dans `note`) ; le remplacement du décor (`prefab_create` avec
+`remplacer`) et la suppression des objets posés (`prefab_delete` avec
+`avec_objets`) sont des lots de Claude, annulables par `undo`.
 
 ## 6. Ce que voient les utilisateurs
 
@@ -344,6 +363,25 @@ restent les siennes.
   `animate_requested(ids, label)` (après un `apply` avec `animate`).
 - Événements poussés : `{event: "change", cid, author, label, seq, ids}`,
   `{event: "selection", ids}`, `{event: "peers", peers}`.
+
+### Prefabs (§ 5.2, `scripts/editor/collab/map_agent_prefabs.gd`)
+
+- `MapAgentLink` délègue les commandes `prefab_*` à
+  `MapAgentPrefabs.handle(editor, cmd, args)` (sans éditeur : `error`) ;
+  `MapAgentPrefabs.tool_defs()` donne les outils MCP.
+- Mêmes fonctions que l'interface (`MapPrefabTools.make_group`,
+  `import_file` / `import_glb`, `update_prefab`, `delete_prefab` ; refus
+  gardé dans `MapPrefabTools.last_error`), sans boîte de dialogue ; mêmes
+  contrôles (`MapPrefabLib.read_import` / `import_bytes`, `check_glb`,
+  `from_objects`, `from_model`) ; inventaire, rendu et invités mis à jour
+  comme à la main (`_library_changed` : `broadcast_map`), carte marquée
+  modifiée.
+- `prefab_import` : chaque prefab de la source passe
+  `MapPrefabLib.check_entries` (comme une carte reçue) ; pid déjà pris →
+  `MapPrefabLib.new_pid` (« statue » → « statue_2 »).
+- `data_base64` passe par la ligne JSON de la liaison (2 Mo au plus avec le
+  transport TCP) : pour un gros modèle, `chemin`.
+- Tests : `tests/test_map_agent_prefabs.gd`.
 
 ### Éditeur
 

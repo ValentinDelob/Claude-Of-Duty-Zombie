@@ -226,8 +226,14 @@ func _handle(c: Client, text: String) -> void:
 			res = cmd_highlight(args)
 		"catalog":
 			res = catalog()
+			# Prefabs de la carte ouverte, en détail (MapAgentPrefabs).
+			res["prefabs_carte"] = MapAgentPrefabs.catalog_info(editor)
 		_:
-			res = {"error": Lang.t("commande inconnue : %s", "unknown command: %s") % cmd.left(40)}
+			# Prefabs de la carte : lister, créer, importer, régler, supprimer.
+			if MapAgentPrefabs.handles(cmd):
+				res = MapAgentPrefabs.handle(editor, cmd, args)
+			else:
+				res = {"error": Lang.t("commande inconnue : %s", "unknown command: %s") % cmd.left(40)}
 	if res is Dictionary and (res as Dictionary).size() == 1 and (res as Dictionary).has("error"):
 		_reply(c, {"id": id, "ok": false, "error": String(res.error)})
 	else:

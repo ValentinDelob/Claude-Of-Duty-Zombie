@@ -470,7 +470,8 @@ Règles de pose en plus (`MapRules.layer_of`) :
 En plus du catalogue, chaque carte peut avoir **ses propres prefabs**, rangés
 dans son dossier (`prefabs/<pid>/prefab.json`, et `model.glb` pour un modèle
 importé) : un **groupe** de décors du catalogue ou un **modèle** .glb / .gltf importé du disque
-(« Importer… », copié dans la carte, 8 Mo au plus, collision : un pavé de
+(« Importer… », copié dans la carte, sans limite de taille ni de nombre :
+c'est au concepteur de gérer ses ressources ; collision : un pavé de
 sa boîte englobante, solide, barrière ou aucune). Posés, ce sont des décors
 comme les autres ; ils voyagent avec la carte (Enregistrer, Enregistrer sous,
 copie d'un invité, archive .zip, carte partagée en multijoueur). Détails,
@@ -840,9 +841,12 @@ a pas d'outil MCP d'enregistrement), ni TESTER, ni la fermeture.
   avec la même limite (`EditorMap.read_text`), le `meta.json` de la
   copie de récupération avec 256 Ko. Format 10 : l'archive porte aussi les
   prefabs de la carte (`prefabs/<pid>/prefab.json`, `model.glb`, dans le
-  même dossier que les cinq JSON) ; elle peut alors peser 30 Mo (8 Mo par
-  modèle, 24 Mo de modèles en tout, 64 Ko par `prefab.json`), les entrées de
-  prefab ne comptent pas dans les 32 entrées (128 au plus en tout).
+  même dossier que les cinq JSON) ; elle n'a alors pas de taille maximale
+  (aucun quota de modèles ; seulement la structure .zip sans ZIP64 : 4 Go,
+  65 535 entrées ; 64 Ko par `prefab.json`) et seul son répertoire central est
+  lu avant d'extraire (`EditorMap.zip_directory`, jamais l'archive entière) ;
+  les entrées de prefab ne comptent pas dans les 32 entrées. Un modèle de
+  plus de 16 Mo comprimé plus de 100 fois est refusé (bombe zip).
 - **Identifiant de carte** (nom de dossier) : 1 à 48 caractères parmi `a-z`,
   `0-9` et `_` (`EditorMap.valid_id`) ; `EditorMap.map_dir` refuse tout autre
   identifiant (« perso:../x » n'est pas une carte).
@@ -881,7 +885,10 @@ multijoueur ».
   géométries sont identiques partout. Format 10 : une carte avec des
   **prefabs de la carte** a un paquet au format 2 (les entrées
   `prefabs/<pid>/prefab.json` et `prefabs/<pid>/model.glb` en base64 en plus,
-  40 Mo au plus) ; une carte sans prefab garde exactement le paquet et
+  1 Gio au plus : borne technique d'un paquet en un seul bloc ; avant de le
+  recevoir ou de le contrôler, chacun vérifie qu'il a la mémoire libre, environ
+  20 fois la taille du paquet, sinon refus « pas assez de mémoire ») ; une
+  carte sans prefab garde exactement le paquet et
   l'empreinte d'avant. Contrôle des prefabs : `docs/MAP_OBJECTS.md` § 11.
 - **Cache** : le dossier est nommé par l'empreinte (jamais par un nom venu de
   l'hôte) ; une carte déjà en cache n'est pas retéléchargée (elle est
@@ -894,16 +901,16 @@ multijoueur ».
   archive (une ressource Godot peut embarquer du code) ; les textes sont lus en
   UTF-8 strict puis par le lecteur JSON du moteur. Seule exception (format
   10) : les modèles `.glb` des prefabs de la carte, vérifiés octet par octet
-  (en-tête, JSON, aucune adresse externe, images PNG / JPEG bornées,
-  triangles) puis lus par `GLTFDocument`, qui ne crée ni script ni ressource
+  (en-tête, JSON, aucune adresse externe, images PNG / JPEG de 16384 px de
+  côté au plus) puis lus par `GLTFDocument`, qui ne crée ni script ni ressource
   du projet. Limites dures :
 
   | Limite | Valeur |
   |---|---|
-  | Paquet (et total des cinq fichiers) | 2 Mo (avec des prefabs, format 10 : 40 Mo, dont 24 Mo de modèles) |
+  | Paquet (et total des cinq fichiers) | 2 Mo (avec des prefabs, format 10 : 1 Gio, borne technique, et assez de mémoire libre : `CustomMapGuard.memory_ok`) |
   | Morceaux réseau | 16 Ko (1 Ko au moins) |
-  | Archive .zip | 30 Mo, 160 entrées, tailles décompressées lues avant d'extraire |
-  | Prefabs de la carte (format 10) | 32 prefabs, 8 modèles .glb de 8 Mo (24 Mo en tout), 150 000 triangles et images de 4096 px par modèle, aucune adresse externe (`docs/MAP_OBJECTS.md` § 11) |
+  | Archive .zip | sans prefab 2 Mo ; avec des prefabs, structure .zip seulement (4 Go, 65 535 entrées, pas de ZIP64) ; tailles décompressées lues avant d'extraire, bombe zip refusée |
+  | Prefabs de la carte (format 10) | **aucun quota** (nombre de prefabs et de modèles, taille, triangles) ; sûreté : structure .glb, aucune adresse externe, extensions admises, images PNG / JPEG de 16384 px au plus (`docs/MAP_OBJECTS.md` § 11) |
   | Profondeur JSON | 6 (lue avant l'analyse) |
   | Pièces / ouvertures / objets / zones / étages | 256 / 512 / 2048 / 64 / 8 |
   | Sommets | 128 par pièce (un cercle de 64 points et de la marge), 4096 en tout |

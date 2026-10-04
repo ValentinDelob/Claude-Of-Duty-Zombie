@@ -31,17 +31,26 @@ const PACKAGE_FORMAT := 1
 const PACKAGE_FORMAT_PREFABS := 2
 ## Taille maximale du paquet sans prefab (et de l'ensemble des cinq fichiers).
 const MAX_PACKAGE_BYTES := 2 * 1024 * 1024
-## Taille maximale d'un paquet avec des prefabs (modèles en base64 compris :
-## MapPrefabLib.MAX_MODELS_BYTES) : annonces et transferts (MapShare).
-const MAX_TRANSFER_BYTES := 40 * 1024 * 1024
+## Paquet avec des prefabs (modèles en base64 compris) : aucun quota de
+## modèles ; seule borne, TECHNIQUE : le paquet est un seul bloc en mémoire
+## (octets, puis texte JSON), 1 Gio au plus (annonces et transferts, MapShare).
+## Avant de le recevoir ou de le contrôler, la mémoire libre est vérifiée
+## (memory_ok) : refus propre plutôt qu'un arrêt du jeu faute de mémoire.
+const MAX_TRANSFER_BYTES := 1024 * 1024 * 1024
+## Mémoire demandée par le contrôle d'un paquet, en multiple de sa taille
+## (texte UTF-32 du moteur, JSON lu, paquet refait pour la forme canonique,
+## modèles décodés : ≈ 16 mesurés, marge comprise).
+const PACKAGE_MEMORY_FACTOR := 20
 ## Taille des morceaux envoyés sur le réseau (et plus petite taille acceptée).
 const CHUNK_BYTES := 16 * 1024
 const MIN_CHUNK_BYTES := 1024
-## Archive .zip : taille du fichier et nombre d'entrées lus avant d'extraire.
-## Format 10 : de quoi contenir les prefabs de la carte (MapPrefabLib : 32
-## prefabs, 24 Mo de modèles au plus).
-const MAX_ZIP_BYTES := 30 * 1024 * 1024
-const MAX_ZIP_ENTRIES := 160
+## Archive .zip : seulement sa structure (sans ZIP64 : 65 535 entrées, tailles
+## sur 32 bits), lue dans le répertoire central avant d'extraire ; aucune
+## taille maximale de modèle (pas de quota). Sûreté : une entrée de plus de
+## ZIP_BOMB_MIN octets décompressés ne peut pas l'être plus de ZIP_BOMB_RATIO
+## fois (« bombe » de décompression).
+const ZIP_BOMB_MIN := 16 * 1024 * 1024
+const ZIP_BOMB_RATIO := 100
 ## Profondeur d'imbrication JSON (pieces.json : {pieces:[{contour:[[x,y]]}]} = 4).
 const MAX_DEPTH := 6
 const MAX_ROOMS := 256
@@ -81,6 +90,7 @@ const REASONS := {
 	"contenu": ["contenu de carte refusé (données non autorisées)", "map content refused (data not allowed)"],
 	"injouable": ["carte refusée par le validateur (injouable)", "map refused by the validator (unplayable)"],
 	"cache": ["impossible d'enregistrer la carte", "could not save the map"],
+	"memoire": ["pas assez de mémoire libre pour recevoir et vérifier cette carte", "not enough free memory to receive and check this map"],
 }
 
 ## Cache des cartes reçues (tests : dossier de tests/_out, jamais celui du joueur).
@@ -1304,22 +1314,39 @@ static func _u32(b: PackedByteArray, i: int) -> int:
 	return b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)
 
 
+## Entrée d'archive « bombe » de décompression : plus de ZIP_BOMB_MIN octets
+## décompressés et plus de ZIP_BOMB_RATIO fois sa taille compressée (sûreté,
+## pas un quota : un vrai modèle ne se comprime jamais autant).
+static func zip_bomb(usize: int, csize: int) -> bool:
+	return usize > ZIP_BOMB_MIN and usize > maxi(csize, 1) * ZIP_BOMB_RATIO
+
+
+## Assez de mémoire libre pour recevoir et contrôler un paquet de `bytes`
+## octets (PACKAGE_MEMORY_FACTOR fois sa taille) ? Vrai si le système ne dit
+## pas ce qui reste (OS.get_memory_info sans « available »).
+static func memory_ok(bytes: int) -> bool:
+	var info := OS.get_memory_info()
+	var avail := int(info.get("available", -1))
+	if avail <= 0:
+		avail = int(info.get("free", -1))
+	return avail <= 0 or bytes * PACKAGE_MEMORY_FACTOR <= avail
+
+
 ## Archive .zip -> {texts, reasons}. Le répertoire central est lu AVANT toute
-## extraction : taille de l'archive, nombre d'entrées, tailles décompressées
-## (archive « bombe » refusée). Seuls les cinq JSON (et, format 10, les
-## fichiers de prefab prefabs/<pid>/prefab.json et model.glb, aux tailles
-## bornées par MapPrefabLib) sont extraits, en mémoire (jamais sur le disque),
-## le reste de l'archive est ignoré.
+## extraction (EditorMap.zip_directory : sans charger l'archive entière) :
+## nombre d'entrées, tailles décompressées (archive « bombe » refusée). Seuls
+## les cinq JSON (et, format 10, les fichiers de prefab
+## prefabs/<pid>/prefab.json et model.glb, sans taille maximale de modèle) sont
+## extraits, en mémoire (jamais sur le disque), le reste de l'archive est
+## ignoré.
 static func read_zip_texts(path: String) -> Dictionary:
 	var bad := func(fr: String, en: String) -> Dictionary: return {"texts": {}, "reasons": [[fr, en]]}
-	var fa := FileAccess.open(path, FileAccess.READ)
-	if fa == null:
+	if not FileAccess.file_exists(path):
 		return bad.call("archive illisible", "unreadable archive")
-	if fa.get_length() > MAX_ZIP_BYTES or fa.get_length() < 22:
-		fa.close()
-		return bad.call("archive trop volumineuse ou vide", "archive too large or empty")
-	var b := fa.get_buffer(fa.get_length())
-	fa.close()
+	var zd := EditorMap.zip_directory(path)
+	if zd.has("error"):
+		return bad.call("archive .zip invalide", "invalid .zip archive")
+	var b: PackedByteArray = zd.bytes
 	var eocd := -1
 	for i in range(b.size() - 22, maxi(-1, b.size() - 22 - 65536), -1):
 		if b[i] == 0x50 and b[i + 1] == 0x4b and b[i + 2] == 0x05 and b[i + 3] == 0x06:
@@ -1329,17 +1356,18 @@ static func read_zip_texts(path: String) -> Dictionary:
 		return bad.call("archive .zip invalide", "invalid .zip archive")
 	var entries := _u16(b, eocd + 10)
 	var off := _u32(b, eocd + 16)
-	if entries > MAX_ZIP_ENTRIES:
+	# 0xFFFF : archive ZIP64 (non lue).
+	if entries == 0xFFFF:
 		return bad.call("archive : trop de fichiers (%d)" % entries, "archive: too many files (%d)" % entries)
 	var wanted := {}   # nom dans l'archive -> taille décompressée
 	var seen := {}
 	var total := 0
 	var prefab_entries := {}   # nom dans l'archive -> [clé, taille, dossier]
-	var pf_total := 0
 	var folder := ""
 	for n in entries:
 		if off < 0 or off + 46 > b.size() or _u32(b, off) != 0x02014b50:
 			return bad.call("archive .zip invalide", "invalid .zip archive")
+		var csize := _u32(b, off + 20)
 		var usize := _u32(b, off + 24)
 		var nlen := _u16(b, off + 28)
 		var next := off + 46 + nlen + _u16(b, off + 30) + _u16(b, off + 32)
@@ -1359,12 +1387,12 @@ static func read_zip_texts(path: String) -> Dictionary:
 			rel = rel.substr(rel.find("/") + 1)
 			pk = MapPrefabLib.parse_key(rel)
 		if not pk.is_empty():
-			if usize == 0xFFFFFFFF or usize > (MapPrefabLib.MAX_MODEL_BYTES if pk[1] == MapPrefabLib.MODEL_FILE else MapPrefabLib.MAX_DEF_BYTES):
+			# prefab.json : borné (définition valide) ; model.glb : sans
+			# taille maximale, seulement pas de « bombe » ni de ZIP64.
+			if usize == 0xFFFFFFFF or csize == 0xFFFFFFFF or (pk[1] == MapPrefabLib.DEF_FILE and usize > MapPrefabLib.MAX_DEF_BYTES):
 				return bad.call("archive : prefab %s trop volumineux" % pk[0], "archive: prefab %s too large" % pk[0])
-			if pk[1] == MapPrefabLib.MODEL_FILE:
-				pf_total += usize
-				if pf_total > MapPrefabLib.MAX_MODELS_BYTES:
-					return bad.call("archive : modèles trop volumineux", "archive: models too large")
+			if zip_bomb(usize, csize):
+				return bad.call("archive : modèle %s trop compressé (« bombe » de décompression)" % pk[0], "archive: model %s compressed too much (decompression bomb)" % pk[0])
 			if not seen.has(rel):
 				seen[rel] = true
 				prefab_entries[String(name)] = [rel, usize, String(name).trim_suffix(rel)]

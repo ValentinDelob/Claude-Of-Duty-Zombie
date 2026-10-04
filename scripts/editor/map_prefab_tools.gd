@@ -19,10 +19,17 @@ extends Node
 ## La bibliothèque des prefabs n'est pas dans l'historique d'annulation (comme
 ## un fichier) ; en session, seul l'hôte la change (la carte est renvoyée aux
 ## invités ; les modèles importés n'y passent pas : une boîte à leur place).
+## Aucun quota de prefabs ni de modèles (nombre, taille, triangles) : c'est au
+## concepteur de la carte de gérer ses ressources.
+## Claude passe par les mêmes fonctions, sans boîte de dialogue
+## (MapAgentPrefabs) : chaque refus est aussi gardé dans `last_error`.
 
 var ed: MapEditor
 ## Rectangle de capture en cours (« Créer… » : le prochain glissé sur le plan).
 var capturing := false
+## Dernier refus (texte dans la langue du jeu, aussi dans la barre d'état) :
+## rendu à Claude par MapAgentPrefabs. Vidé au début de chaque action.
+var last_error := ""
 var _file_dialog: FileDialog
 
 
@@ -40,7 +47,7 @@ func add_inventory_actions(grid: GridContainer) -> void:
 			else:
 				create_dialog_for(ed.sel_ids())))
 	grid.add_child(_action(Lang.t("Importer…", "Import…"),
-		Lang.t("Importer un modèle .glb ou .gltf (copié dans le dossier de la carte ; %d Mo au plus)", "Import a .glb or .gltf model (copied into the map folder; %d MB at most)") % (MapPrefabLib.MAX_MODEL_BYTES >> 20),
+		Lang.t("Importer un modèle .glb ou .gltf (copié dans le dossier de la carte)", "Import a .glb or .gltf model (copied into the map folder)"),
 		func():
 			ed.toggle_inventory()
 			import_dialog()))
@@ -83,10 +90,17 @@ func _refresh_inventory() -> void:
 
 ## La bibliothèque peut-elle être changée ? (en session : l'hôte seulement)
 func _can_edit() -> bool:
+	last_error = ""
 	if ed.collab != null and ed.collab.role == MapCollab.Role.GUEST:
-		ed.set_status(Lang.t("Seul l'hôte de la session change les prefabs de la carte", "Only the session host changes the map prefabs"), true)
+		_fail(Lang.t("Seul l'hôte de la session change les prefabs de la carte", "Only the session host changes the map prefabs"))
 		return false
 	return true
+
+
+## Refus : barre d'état (en rouge) et `last_error`.
+func _fail(msg: String) -> void:
+	last_error = msg
+	ed.set_status(msg, true)
 
 
 ## Après un changement de la bibliothèque : carte modifiée, panneaux,
@@ -303,9 +317,6 @@ func create_dialog_for(ids: Array) -> ConfirmationDialog:
 	return d
 
 
-## Prefab groupe tiré de `objs` (décor du catalogue posé), nommé `name` ;
-## `replace` : ces objets remplacés par un prefab posé à leur place. Rend
-## l'identifiant du prefab ("" : refusé, raison dans la barre d'état).
 ## Étages (indices) des décors `parts`.
 static func floors_of(parts: Array) -> Array:
 	var out := []
@@ -327,56 +338,74 @@ static func multi_floor_text() -> String:
 ## restants, à leur place actuelle ; refusé (message) s'il n'en reste aucun
 ## ou s'ils sont sur plusieurs étages. Rend le pid ("" : refusé).
 func create_from_selection(ids: Array, name: String, replace := true) -> String:
+	last_error = ""
 	var parts: Array = analyze(ed.doc, ids).parts
 	if parts.is_empty():
-		ed.set_status(Lang.t("Créer une prefab : la sélection n'a plus de décor posé au sol (supprimé ou changé entre-temps)",
-			"Create a prefab: the selection no longer has props placed on the floor (deleted or changed meanwhile)"), true)
+		_fail(Lang.t("Créer une prefab : la sélection n'a plus de décor posé au sol (supprimé ou changé entre-temps)",
+			"Create a prefab: the selection no longer has props placed on the floor (deleted or changed meanwhile)"))
 		return ""
 	if floors_of(parts).size() > 1:
-		ed.set_status(multi_floor_text(), true)
+		_fail(multi_floor_text())
 		return ""
 	if ed.edit_blocked():
+		last_error = ed.status.text
 		return ""
 	return create_from_objects(parts, name, replace)
 
 
-func create_from_objects(objs: Array, name: String, replace := true) -> String:
-	if not _can_edit():
+## Prefab groupe tiré de `objs` (décor du catalogue posé), nommé `name` ;
+## `replace` : ces objets remplacés par un prefab posé à leur place
+## (annulable : Ctrl+Z) ; sinon `hand` : la prefab mise en main. Rend
+## l'identifiant du prefab ("" : refusé, raison dans `last_error`).
+func create_from_objects(objs: Array, name: String, replace := true, hand := true) -> String:
+	var made := make_group(objs, name)
+	if made.is_empty():
 		return ""
-	if floors_of(objs).size() > 1:
-		ed.set_status(multi_floor_text(), true)
-		return ""
-	var nm := clean_name(name)
-	if nm == "" or not CustomMapGuard.name_ok(nm):
-		ed.set_status(Lang.t("Nom de prefab refusé", "Prefab name refused"), true)
-		return ""
-	if ed.doc.prefabs.size() >= MapPrefabLib.MAX_PREFABS:
-		ed.set_status(Lang.t("Trop de prefabs dans la carte (%d au plus)", "Too many prefabs in the map (%d at most)") % MapPrefabLib.MAX_PREFABS, true)
-		return ""
-	var res := MapPrefabLib.from_objects(nm, nm, objs)
-	if res.has("error"):
-		ed.set_status(Lang.t("Prefab refusé : %s", "Prefab refused: %s") % Lang.t(res.error[0], res.error[1]), true)
-		return ""
-	var pid := MapPrefabLib.new_pid(nm, ed.doc.prefabs)
-	if not ed.doc.set_prefab(pid, res.def):
-		ed.set_status(Lang.t("Prefab refusé", "Prefab refused"), true)
-		return ""
+	var pid := String(made.pid)
+	var nm := MapPrefabLib.name_of(made.def)
+	var n := (made.def.parties as Array).size()
 	if replace:
 		var k := int(objs[0].get("etage", ed.floor_k))
 		ed.push_undo()
 		for o in objs:
 			ed.doc.remove(String(o.id))
-		ed.add_object({"type": "prefab", "prefab": MapPrefabLib.ref(pid), "position": MapGeom.arr(res.center), "rot": 0}, k)
-	_library_changed()
-	if not replace:
+		ed.add_object({"type": "prefab", "prefab": MapPrefabLib.ref(pid), "position": MapGeom.arr(made.center), "rot": 0}, k)
+		ed.set_status(Lang.t("Prefab « %s » créée (%d décors), posée à leur place : inventaire, « Prefabs de la carte », pour en poser d'autres",
+			"Prefab \"%s\" created (%d props), placed in their stead: inventory, \"Map prefabs\", to place more") % [nm, n])
+	elif hand:
 		# Prefab en main : un clic sur le plan la pose (R : pivoter).
 		ed.pick_item("prefab:" + MapPrefabLib.ref(pid))
 		ed.set_status(Lang.t("Prefab « %s » créée (%d décors), en main : cliquez sur le plan pour la poser (R : pivoter) ; inventaire, « Prefabs de la carte »",
-			"Prefab \"%s\" created (%d props), in hand: click on the plan to place it (R: rotate); inventory, \"Map prefabs\"") % [nm, (res.def.parties as Array).size()])
-		return pid
-	ed.set_status(Lang.t("Prefab « %s » créée (%d décors), posée à leur place : inventaire, « Prefabs de la carte », pour en poser d'autres",
-		"Prefab \"%s\" created (%d props), placed in their stead: inventory, \"Map prefabs\", to place more") % [nm, (res.def.parties as Array).size()])
+			"Prefab \"%s\" created (%d props), in hand: click on the plan to place it (R: rotate); inventory, \"Map prefabs\"") % [nm, n])
 	return pid
+
+
+## Ajoute à la bibliothèque la prefab groupe tirée de `objs` (décor du
+## catalogue, un seul étage ; MapPrefabLib.from_objects), nommée `name`, sans
+## rien poser. Rend {pid, def, center (centre de l'emprise des objets, m)} ;
+## {} si refusée (raison dans `last_error`).
+func make_group(objs: Array, name: String) -> Dictionary:
+	if not _can_edit():
+		return {}
+	if floors_of(objs).size() > 1:
+		_fail(multi_floor_text())
+		return {}
+	var nm := clean_name(name)
+	if nm == "" or not CustomMapGuard.name_ok(nm):
+		_fail(Lang.t("Nom de prefab refusé", "Prefab name refused"))
+		return {}
+	var res := MapPrefabLib.from_objects(nm, nm, objs)
+	if res.has("error"):
+		_fail(Lang.t("Prefab refusé : %s", "Prefab refused: %s") % Lang.t(res.error[0], res.error[1]))
+		return {}
+	var pid := MapPrefabLib.new_pid(nm, ed.doc.prefabs)
+	if not ed.doc.set_prefab(pid, res.def):
+		_fail(Lang.t("Prefab refusé", "Prefab refused"))
+		return {}
+	_library_changed()
+	ed.set_status(Lang.t("Prefab « %s » créée (%d décors) : inventaire, « Prefabs de la carte »", "Prefab \"%s\" created (%d props): inventory, \"Map prefabs\"")
+		% [nm, (res.def.parties as Array).size()])
+	return {"pid": pid, "def": ed.doc.prefabs[pid], "center": res.center}
 
 
 # ------------------------------------------------------------------ importer (modèle)
@@ -400,35 +429,36 @@ func import_dialog() -> void:
 
 ## Importe le modèle `path` (.glb ou .gltf) : contrôlé, copié dans la carte
 ## (enregistré avec elle dans prefabs/<pid>/model.glb). Rend l'identifiant du
-## prefab ("" : refusé, raison affichée).
-func import_file(path: String, name := "") -> String:
+## prefab ("" : refusé, raison affichée et dans `last_error`).
+## `dialog` : refus aussi montré dans une boîte (l'interface, pas Claude).
+func import_file(path: String, name := "", scale := 1.0, block := "solide", dialog := true) -> String:
 	if not _can_edit():
-		return ""
-	if ed.doc.prefabs.size() >= MapPrefabLib.MAX_PREFABS or ed.doc.model_count() >= MapPrefabLib.MAX_MODELS:
-		_refuse(Lang.t("Trop de prefabs ou de modèles dans la carte (%d prefabs, %d modèles au plus)", "Too many prefabs or models in the map (%d prefabs, %d models at most)") % [MapPrefabLib.MAX_PREFABS, MapPrefabLib.MAX_MODELS])
 		return ""
 	var got := MapPrefabLib.read_import(path)
 	if got.has("error"):
 		push_warning("[MapPrefabTools] import refusé (%s) : %s" % [path.get_file(), got.error[0]])
-		_refuse(Lang.t(got.error[0], got.error[1]))
+		_refuse(Lang.t(got.error[0], got.error[1]), dialog)
 		return ""
-	var glb: PackedByteArray = got.glb
-	var total := glb.size()
-	for p in ed.doc.models:
-		total += ed.doc.model_bytes(p).size()
-	if total > MapPrefabLib.MAX_MODELS_BYTES:
-		_refuse(Lang.t("Modèles trop gros pour la carte (%d Mo au plus en tout)", "Models too big for the map (%d MB at most in all)") % (MapPrefabLib.MAX_MODELS_BYTES >> 20))
+	return import_glb(got.glb, name if name != "" else path.get_file().get_basename().replace("_", " "), scale, block, dialog)
+
+
+## Importe un modèle .glb déjà lu (`glb` : octets ; fichier du disque ou
+## données envoyées par Claude) : contrôlé (MapPrefabLib.from_model :
+## check_glb), ajouté à la bibliothèque. Aucun nombre ni taille maximale de
+## modèles (pas de quota). Rend le pid ("" : refusé, `last_error`).
+func import_glb(glb: PackedByteArray, name: String, scale := 1.0, block := "solide", dialog := true) -> String:
+	if not _can_edit():
 		return ""
-	var nm := clean_name(name if name != "" else path.get_file().get_basename().replace("_", " "))
+	var nm := clean_name(name)
 	if nm == "" or not CustomMapGuard.name_ok(nm):
 		nm = Lang.t("Modèle %d", "Model %d") % (ed.doc.model_count() + 1)
-	var res := MapPrefabLib.from_model(nm, nm, glb)
+	var res := MapPrefabLib.from_model(nm, nm, glb, scale, block)
 	if res.has("error"):
-		_refuse(Lang.t(res.error[0], res.error[1]))
+		_refuse(Lang.t(res.error[0], res.error[1]), dialog)
 		return ""
 	var pid := MapPrefabLib.new_pid(nm, ed.doc.prefabs)
 	if not ed.doc.set_prefab(pid, res.def, glb):
-		_refuse(Lang.t("Prefab refusé", "Prefab refused"))
+		_refuse(Lang.t("Prefab refusé", "Prefab refused"), dialog)
 		return ""
 	_library_changed()
 	ed.set_status(Lang.t("Modèle « %s » importé (%d Ko) : copié dans le dossier de la carte à l'enregistrement",
@@ -436,9 +466,9 @@ func import_file(path: String, name := "") -> String:
 	return pid
 
 
-func _refuse(msg: String) -> void:
-	ed.set_status(Lang.t("Import refusé : %s", "Import refused: %s") % msg, true)
-	if ed.is_inside_tree() and DisplayServer.get_name() != "headless":
+func _refuse(msg: String, dialog := true) -> void:
+	_fail(Lang.t("Import refusé : %s", "Import refused: %s") % msg)
+	if dialog and ed.is_inside_tree() and DisplayServer.get_name() != "headless":
 		ed._info(Lang.t("Importer un modèle", "Import a model"), msg)
 
 
@@ -518,7 +548,7 @@ func update_prefab(pid: String, name: String, scale := -1.0, block := "") -> boo
 			def["bloque"] = block
 		MapPrefabLib.refit(def)
 	if not ed.doc.set_prefab(pid, def):
-		ed.set_status(Lang.t("Réglages refusés", "Settings refused"), true)
+		_fail(Lang.t("Réglages refusés", "Settings refused"))
 		return false
 	_library_changed()
 	ed.set_status(Lang.t("Prefab « %s » mis à jour", "Prefab \"%s\" updated") % MapPrefabLib.name_of(def))
@@ -545,7 +575,7 @@ func delete_prefab(pid: String, with_users := false) -> bool:
 		return false
 	var users := ed.doc.prefab_users(pid)
 	if not users.is_empty() and not with_users:
-		ed.set_status(Lang.t("Prefab posé %d fois : supprimez d'abord ses objets", "Prefab placed %d times: delete its objects first") % users.size(), true)
+		_fail(Lang.t("Prefab posé %d fois : supprimez d'abord ses objets", "Prefab placed %d times: delete its objects first") % users.size())
 		return false
 	if not users.is_empty():
 		ed.push_undo()

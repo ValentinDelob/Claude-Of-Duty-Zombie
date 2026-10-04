@@ -98,10 +98,12 @@ multijoueur »).
    l'annonce) puis
    `Net._cl_lobby_map("partage:<sha>")`. Un nouvel arrivant reçoit les deux à
    la fin de `_srv_hello`. Carte officielle : `_cl_offer({})`.
-2. Client : annonce vérifiée (types, empreinte hexadécimale, taille ≤ 40 Mo
-   (`CustomMapGuard.MAX_TRANSFER_BYTES` ; le paquet d'une carte sans prefab
-   reste à 2 Mo au plus, celui d'une carte avec des prefabs de la carte,
-   format 2, porte leurs fichiers, modèles en base64),
+2. Client : annonce vérifiée (types, empreinte hexadécimale, taille ≤ 1 Gio
+   (`CustomMapGuard.MAX_TRANSFER_BYTES`, borne technique : aucun quota de
+   modèles ; le paquet d'une carte sans prefab reste à 2 Mo au plus, celui
+   d'une carte avec des prefabs de la carte, format 2, porte leurs fichiers,
+   modèles en base64), mémoire libre suffisante pour la recevoir et la
+   contrôler (`CustomMapGuard.memory_ok`, sinon refus « memoire »),
    morceaux de 1 à 16 Ko, `chunks == ceil(size / chunk)`, nom sans balise).
    Hash déjà en cache et revérifié → `_srv_status(sha, "prete")` sans
    téléchargement ; sinon `_srv_request(sha)`.

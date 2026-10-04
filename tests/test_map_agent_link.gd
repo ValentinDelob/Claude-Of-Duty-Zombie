@@ -101,6 +101,11 @@ func test_agent_link_commands() -> void:
 	assert_false(bool(r.get("ok", true)), "capture refusée sans affichage")
 	r = await _req(tcp, "catalog")
 	assert_true(bool(r.get("ok", false)) and (r.result.kinds as Dictionary).has("porte"), "catalogue")
+	assert_true(r.result.get("prefabs_carte") is Array, "catalogue : prefabs de la carte (MapAgentPrefabs)")
+	# Commandes des prefabs déléguées à MapAgentPrefabs (ici sans éditeur : erreur expliquée).
+	r = await _req(tcp, "prefab_list")
+	assert_false(bool(r.get("ok", true)), "prefab_list sans éditeur : refusé")
+	assert_true(String(r.get("error", "")).contains("éditeur") or String(r.get("error", "")).contains("editor"), "message : %s" % r.get("error", ""))
 	# undo : le lot de Claude entier.
 	r = await _req(tcp, "undo")
 	assert_true(bool(r.get("ok", false)), "undo accepté : %s" % str(r))

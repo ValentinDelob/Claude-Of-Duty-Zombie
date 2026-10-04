@@ -27,8 +27,14 @@ extends RefCounted
 ## Sûreté (cartes reçues d'autres joueurs, CustomMapGuard) : définition
 ## vérifiée clé par clé (check_def), modèle vérifié AVANT tout décodage par le
 ## moteur (check_glb : en-tête GLB, morceaux, JSON, aucune adresse externe
-## « uri », extensions admises, images PNG / JPEG de 4096 px au plus,
-## triangles, tailles) ; limites de nombre et de taille ci-dessous.
+## « uri », extensions admises, images PNG / JPEG intégrées de 16384 px de
+## côté au plus (la limite du moteur), références des tampons, accesseurs,
+## nœuds et maillages).
+## AUCUN quota de ressources : ni nombre de prefabs ou de modèles, ni taille
+## d'un modèle ou de l'ensemble, ni nombre de triangles ou de sommets : c'est
+## au concepteur de la carte de gérer ses ressources. Seules restent les
+## bornes qui décrivent une définition valide (MAX_DEF_BYTES, MAX_PARTS,
+## MAX_BOXES, MAX_FP, MAX_SIZE, SCALE).
 
 const DIR := "prefabs"
 const DEF_FILE := "prefab.json"
@@ -36,17 +42,17 @@ const MODEL_FILE := "model.glb"
 ## Préfixe d'un prefab de la carte dans la clé « prefab » d'un objet posé.
 const REF := "map:"
 const FORMAT := 1
-const MAX_PREFABS := 32
-const MAX_MODELS := 8
-const MAX_MODEL_BYTES := 8 * 1024 * 1024
-const MAX_MODELS_BYTES := 24 * 1024 * 1024
+## Bornes d'une définition valide (prefab.json) : taille du fichier, parties
+## d'un groupe, pavés de collision.
 const MAX_DEF_BYTES := 64 * 1024
 const MAX_PID := 32
 const MAX_PARTS := 48
 const MAX_BOXES := 32
-const MAX_TRIANGLES := 150000
-const MAX_VERTICES := 600000
-const MAX_IMAGE_SIDE := 4096
+## Côté d'une image intégrée à un modèle : la limite des textures du moteur
+## (sûreté du décodage, pas un quota).
+const MAX_IMAGE_SIDE := 16384
+## Profondeur du JSON d'un .glb (sûreté du lecteur JSON).
+const MAX_GLTF_DEPTH := 24
 ## Emprise (cases de 0,5 m) et dimensions (m) bornées.
 const MAX_FP := 40
 const MAX_SIZE := 30.0
@@ -56,8 +62,6 @@ const BLOCKS := ["solide", "barriere", "non"]
 const ALLOWED_EXT := ["KHR_materials_emissive_strength", "KHR_texture_transform", "KHR_mesh_quantization", "KHR_materials_unlit"]
 const IMAGE_TYPES := ["image/png", "image/jpeg"]
 const DEFAULT_COLOR := "#9a8f80"
-## Longueur maximale du base64 d'un modèle (MAX_MODEL_BYTES octets).
-const MAX_MODEL_B64 := 11184812
 
 
 # ------------------------------------------------------------------ noms et clés
@@ -461,13 +465,10 @@ static func scene_aabb(root: Node) -> AABB:
 ## l'en-tête des images.
 static func check_glb(b: PackedByteArray) -> Array:
 	var n := b.size()
-	if n > MAX_MODEL_BYTES:
-		@warning_ignore("integer_division")
-		return _bad("modèle trop gros (%d Ko, %d Mo au plus)" % [n / 1024, MAX_MODEL_BYTES / 1048576], "model too big (%d KB, %d MB at most)" % [n / 1024, MAX_MODEL_BYTES / 1048576])
 	if n < 28 or b.decode_u32(0) != 0x46546C67 or b.decode_u32(4) != 2 or b.decode_u32(8) != n:
 		return _bad("modèle refusé : pas un fichier .glb (glTF 2 binaire)", "model refused: not a .glb file (binary glTF 2)")
 	var jlen := b.decode_u32(12)
-	if b.decode_u32(16) != 0x4E4F534A or jlen < 2 or jlen > mini(n - 20, 4 * 1024 * 1024):
+	if b.decode_u32(16) != 0x4E4F534A or jlen < 2 or jlen > n - 20:
 		return _bad("modèle refusé : morceau JSON invalide", "model refused: invalid JSON chunk")
 	var bin_at := 20 + jlen
 	var bin_len := 0
@@ -484,7 +485,7 @@ static func check_glb(b: PackedByteArray) -> Array:
 	if txt == null:
 		return _bad("modèle refusé : JSON invalide (UTF-8)", "model refused: invalid JSON (UTF-8)")
 	var depth := CustomMapGuard.json_depth(txt)
-	if depth < 0 or depth > 24:
+	if depth < 0 or depth > MAX_GLTF_DEPTH:
 		return _bad("modèle refusé : JSON trop imbriqué", "model refused: JSON nested too deep")
 	var j: Variant = CustomMapGuard.parse_json(txt)
 	if not j is Dictionary:
@@ -533,13 +534,13 @@ static func check_gltf_json(j: Dictionary, bin: PackedByteArray, bin_at: int, bi
 	for e in _list(j, "extensionsRequired"):
 		if not (e is String and e in ALLOWED_EXT):
 			return _bad("modèle refusé : extension non admise « %s »" % CustomMapGuard.clean_display(str(e), 40), "model refused: extension not allowed \"%s\"" % CustomMapGuard.clean_display(str(e), 40))
-	var limits := {"nodes": 4096, "meshes": 1024, "accessors": 16384, "bufferViews": 16384, "materials": 256, "images": 32, "textures": 64,
-		"buffers": 1, "samplers": 64, "skins": 64, "animations": 64, "scenes": 8}
-	for k in limits:
+	# Listes du glTF : des tableaux, sans nombre maximal (pas de quota) ; un
+	# .glb n'a qu'un tampon, son morceau BIN (structure du format).
+	for k in ["nodes", "meshes", "accessors", "bufferViews", "materials", "images", "textures", "buffers", "samplers", "skins", "animations", "scenes"]:
 		if j.has(k) and not j[k] is Array:
 			return _bad("modèle refusé : « %s » illisible" % k, "model refused: unreadable \"%s\"" % k)
-		if _list(j, k).size() > int(limits[k]):
-			return _bad("modèle refusé : trop de %s (%d au plus)" % [k, limits[k]], "model refused: too many %s (%d at most)" % [k, limits[k]])
+	if _list(j, "buffers").size() > 1:
+		return _bad("modèle refusé : un seul tampon attendu (le morceau BIN du .glb)", "model refused: a single buffer expected (the .glb BIN chunk)")
 	for buf in _list(j, "buffers"):
 		if not (buf is Dictionary and _num(buf.get("byteLength"), 0, bin_len)):
 			return _bad("modèle refusé : tampon invalide", "model refused: invalid buffer")
@@ -549,8 +550,11 @@ static func check_gltf_json(j: Dictionary, bin: PackedByteArray, bin_at: int, bi
 				and float(v.get("byteOffset", 0)) + float(v.byteLength) <= bin_len):
 			return _bad("modèle refusé : vue de tampon hors du fichier", "model refused: buffer view outside the file")
 	var accessors := _list(j, "accessors")
+	# Un accesseur ne compte pas plus d'éléments que le morceau BIN n'a
+	# d'octets (sûreté : pas de fichier de quelques octets qui annonce des
+	# milliards de sommets à allouer) ; aucune autre borne.
 	for a in accessors:
-		if not (a is Dictionary and _num(a.get("count"), 0, MAX_VERTICES * 3)):
+		if not (a is Dictionary and _num(a.get("count"), 0, bin_len) and float(a.count) == floorf(float(a.count))):
 			return _bad("modèle refusé : accesseur invalide", "model refused: invalid accessor")
 	# Images : dans le fichier (vue de tampon), PNG ou JPEG, côtés bornés.
 	for im in _list(j, "images"):
@@ -563,40 +567,71 @@ static func check_gltf_json(j: Dictionary, bin: PackedByteArray, bin_at: int, bi
 			return _bad("modèle refusé : image illisible", "model refused: unreadable image")
 		if dims.x > MAX_IMAGE_SIDE or dims.y > MAX_IMAGE_SIDE:
 			return _bad("modèle refusé : image trop grande (%d × %d, %d px au plus)" % [dims.x, dims.y, MAX_IMAGE_SIDE], "model refused: image too large (%d × %d, %d px at most)" % [dims.x, dims.y, MAX_IMAGE_SIDE])
-	# Triangles : chaque maillage autant de fois que des nœuds le citent.
+	# Nœuds et maillages : références valides (aucun nombre de triangles ou
+	# de sommets maximal : pas de quota).
+	var meshes := _list(j, "meshes")
+	for nd in _list(j, "nodes"):
+		if nd is Dictionary and nd.has("mesh") and not _num(nd.mesh, 0, meshes.size() - 1):
+			return _bad("modèle refusé : nœud invalide", "model refused: invalid node")
+	for m in meshes:
+		if not (m is Dictionary and m.get("primitives") is Array):
+			return _bad("modèle refusé : maillage invalide", "model refused: invalid mesh")
+		for p in m.primitives:
+			if not (p is Dictionary and p.get("attributes") is Dictionary and _num(p.attributes.get("POSITION"), 0, accessors.size() - 1)):
+				return _bad("modèle refusé : primitive sans positions", "model refused: primitive without positions")
+			if p.has("indices") and not _num(p.indices, 0, accessors.size() - 1):
+				return _bad("modèle refusé : indices invalides", "model refused: invalid indices")
+	if meshes.is_empty():
+		return _bad("modèle refusé : aucun maillage", "model refused: no mesh")
+	return []
+
+
+## Chiffres d'un .glb (lus dans son JSON, rien n'est décodé) : {octets,
+## triangles (chaque maillage autant de fois que des nœuds le citent),
+## sommets, maillages, materiaux, images} ; {} s'il est illisible. Pour
+## informer (Claude, docs) : aucune limite n'en découle.
+static func model_stats(b: PackedByteArray) -> Dictionary:
+	if b.size() < 28 or b.decode_u32(0) != 0x46546C67:
+		return {}
+	var jlen := b.decode_u32(12)
+	if jlen < 2 or jlen > b.size() - 20:
+		return {}
+	var txt: Variant = CustomMapGuard.decode_utf8(_rstrip_zero(b.slice(20, 20 + jlen)))
+	var j: Variant = CustomMapGuard.parse_json(txt) if txt != null and CustomMapGuard.json_depth(txt) in range(0, MAX_GLTF_DEPTH + 1) else null
+	if not j is Dictionary:
+		return {}
+	var accessors := _list(j, "accessors")
 	var meshes := _list(j, "meshes")
 	var uses := {}
 	for nd in _list(j, "nodes"):
-		if nd is Dictionary and nd.has("mesh"):
-			if not _num(nd.mesh, 0, meshes.size() - 1):
-				return _bad("modèle refusé : nœud invalide", "model refused: invalid node")
+		if nd is Dictionary and nd.get("mesh") is float:
 			uses[int(nd.mesh)] = int(uses.get(int(nd.mesh), 0)) + 1
+	var cnt_of := func(i: Variant) -> int:
+		if not (i is float and int(i) >= 0 and int(i) < accessors.size() and accessors[int(i)] is Dictionary):
+			return 0
+		return int(accessors[int(i)].get("count", 0)) if accessors[int(i)].get("count") is float else 0
 	var tris := 0
 	var verts := 0
 	for i in meshes.size():
 		var m: Variant = meshes[i]
 		if not (m is Dictionary and m.get("primitives") is Array):
-			return _bad("modèle refusé : maillage invalide", "model refused: invalid mesh")
+			continue
 		var mt := 0
+		var mv := 0
 		for p in m.primitives:
-			if not (p is Dictionary and p.get("attributes") is Dictionary and _num(p.attributes.get("POSITION"), 0, accessors.size() - 1)):
-				return _bad("modèle refusé : primitive sans positions", "model refused: primitive without positions")
-			var pc := int(accessors[int(p.attributes.POSITION)].count)
-			verts += pc
-			var cnt := pc
-			if p.has("indices"):
-				if not _num(p.indices, 0, accessors.size() - 1):
-					return _bad("modèle refusé : indices invalides", "model refused: invalid indices")
-				cnt = int(accessors[int(p.indices)].count)
-			var mode := int(p.get("mode", 4)) if (p.get("mode", 4) is float or p.get("mode", 4) is int) else 4
+			if not (p is Dictionary and p.get("attributes") is Dictionary):
+				continue
+			var pc: int = cnt_of.call(p.attributes.get("POSITION"))
+			mv += pc
+			var cnt: int = cnt_of.call(p.indices) if p.has("indices") else pc
+			var mode := int(p.get("mode", 4)) if p.get("mode", 4) is float or p.get("mode", 4) is int else 4
 			@warning_ignore("integer_division")
 			mt += cnt / 3 if mode == 4 else (maxi(0, cnt - 2) if mode in [5, 6] else 0)
-		tris += mt * maxi(1, int(uses.get(i, 0)))
-		if tris > MAX_TRIANGLES or verts > MAX_VERTICES:
-			return _bad("modèle refusé : trop de triangles (au plus %d)" % MAX_TRIANGLES, "model refused: too many triangles (at most %d)" % MAX_TRIANGLES)
-	if meshes.is_empty():
-		return _bad("modèle refusé : aucun maillage", "model refused: no mesh")
-	return []
+		var k := maxi(1, int(uses.get(i, 0)))
+		tris += mt * k
+		verts += mv * k
+	return {"octets": b.size(), "triangles": tris, "sommets": verts, "maillages": meshes.size(), "materiaux": _list(j, "materials").size(),
+		"images": _list(j, "images").size()}
 
 
 ## Côtés d'une image PNG ou JPEG lus dans son en-tête (Vector2i.ZERO si illisible).
@@ -629,8 +664,9 @@ static func _be32(b: PackedByteArray, i: int) -> int:
 ## script), sans ce qui n'est pas du décor (collisions, lumières, caméras,
 ## sons, animations) ; null si illisible (journalisé).
 static func instantiate(glb: PackedByteArray) -> Node3D:
-	if not check_glb(glb).is_empty():
-		push_warning("[MapPrefabLib] modèle refusé : " + str(check_glb(glb)[0]))
+	var bad := check_glb(glb)
+	if not bad.is_empty():
+		push_warning("[MapPrefabLib] modèle refusé : " + str(bad[0]))
 		return null
 	var doc := GLTFDocument.new()
 	var st := GLTFState.new()
@@ -662,13 +698,17 @@ static func read_import(path: String) -> Dictionary:
 	var fa := FileAccess.open(path, FileAccess.READ)
 	if fa == null:
 		return {"error": ["fichier illisible : %s" % path.get_file(), "unreadable file: %s" % path.get_file()]}
-	var n := fa.get_length()
-	if n > MAX_MODEL_BYTES:
-		fa.close()
-		@warning_ignore("integer_division")
-		return {"error": ["fichier trop gros (%d Ko, %d Mo au plus)" % [n / 1024, MAX_MODEL_BYTES / 1048576], "file too big (%d KB, %d MB at most)" % [n / 1024, MAX_MODEL_BYTES / 1048576]]}
-	var b := fa.get_buffer(n)
+	var b := fa.get_buffer(fa.get_length())
 	fa.close()
+	return import_bytes(b, ext)
+
+
+## .glb (octets) tiré du contenu d'un fichier .glb ou .gltf (`ext` : « glb »
+## ou « gltf » ; vide : deviné d'après l'en-tête « glTF » du binaire), mêmes
+## contrôles que read_import. {glb} ou {error: [fr, en]}.
+static func import_bytes(b: PackedByteArray, ext := "") -> Dictionary:
+	if ext == "":
+		ext = "glb" if b.size() >= 4 and b.decode_u32(0) == 0x46546C67 else "gltf"
 	if ext == "glb":
 		var bad := check_glb(b)
 		return {"error": bad} if not bad.is_empty() else {"glb": b}
@@ -722,10 +762,10 @@ static func to_glb(scene: Node) -> PackedByteArray:
 
 # ------------------------------------------------------------------ dossier
 
-## Entrées de prefab d'un dossier de carte (prefabs/<pid>/...), tailles
-## vérifiées AVANT lecture : {texts: {clé: texte (prefab.json) ou base64
-## (model.glb)}, reasons}. Seuls ces deux fichiers sont lus ; les dossiers au
-## nom non admis sont ignorés.
+## Entrées de prefab d'un dossier de carte (prefabs/<pid>/...) : {texts:
+## {clé: texte (prefab.json, taille vérifiée AVANT lecture) ou base64
+## (model.glb, sans limite de taille ni de nombre)}, reasons}. Seuls ces deux
+## fichiers sont lus ; les dossiers au nom non admis sont ignorés.
 static func read_dir(dir: String) -> Dictionary:
 	var texts := {}
 	var reasons := []
@@ -734,10 +774,6 @@ static func read_dir(dir: String) -> Dictionary:
 		return {"texts": texts, "reasons": reasons}
 	var pids := Array(DirAccess.get_directories_at(root)).filter(func(p): return pid_ok(p))
 	pids.sort()
-	if pids.size() > MAX_PREFABS:
-		reasons.append(["trop de prefabs (%d, au plus %d)" % [pids.size(), MAX_PREFABS], "too many prefabs (%d, at most %d)" % [pids.size(), MAX_PREFABS]])
-		pids = pids.slice(0, MAX_PREFABS)
-	var total := 0
 	for pid in pids:
 		var dp := root.path_join(pid).path_join(DEF_FILE)
 		if not FileAccess.file_exists(dp):
@@ -752,15 +788,38 @@ static func read_dir(dir: String) -> Dictionary:
 			var fa := FileAccess.open(mp, FileAccess.READ)
 			if fa == null:
 				continue
-			var n := fa.get_length()
-			total += n
-			if n > MAX_MODEL_BYTES or total > MAX_MODELS_BYTES:
-				fa.close()
-				reasons.append(["prefab %s : modèle trop gros" % pid, "prefab %s: model too big" % pid])
-				continue
-			texts[model_key(pid)] = Marshalls.raw_to_base64(fa.get_buffer(n))
+			texts[model_key(pid)] = Marshalls.raw_to_base64(fa.get_buffer(fa.get_length()))
 			fa.close()
 	return {"texts": texts, "reasons": reasons}
+
+
+## Empreintes SHA-256 des modèles sur le disque (chemin -> [taille, date,
+## sha256]) : un fichier inchangé n'est pas relu à chaque enregistrement (copie
+## de récupération toutes les 60 s d'une carte aux gros modèles).
+static var _file_shas: Dictionary = {}
+
+
+static func _file_sha(path: String) -> String:
+	var size := FileAccess.get_size(path)
+	var mt := FileAccess.get_modified_time(path)
+	var c: Variant = _file_shas.get(path)
+	if c is Array and int(c[0]) == size and int(c[1]) == mt:
+		return String(c[2])
+	var sha := FileAccess.get_sha256(path)
+	if _file_shas.size() > 4096:
+		_file_shas.clear()
+	_file_shas[path] = [size, mt, sha]
+	return sha
+
+
+## Empreinte « modele.sha256 » d'un texte de prefab.json ("" : absente).
+static func _def_sha(t: Variant) -> String:
+	if not t is String:
+		return ""
+	var d: Variant = CustomMapGuard.parse_json(t) if CustomMapGuard.json_depth(t) in range(0, 7) else null
+	if d is Dictionary and d.get("modele") is Dictionary and d.modele.get("sha256") is String and CustomMapGuard.sha_ok(d.modele.sha256):
+		return String(d.modele.sha256)
+	return ""
 
 
 ## Écrit les entrées de prefab (`texts` : clé -> texte ou base64) dans le
@@ -792,15 +851,23 @@ static func write_dir(dir: String, texts: Dictionary) -> Error:
 			return err
 		var path := pd.path_join(String(pk[1]))
 		if pk[1] == MODEL_FILE:
-			var bytes := Marshalls.base64_to_raw(String(texts[k]))
-			if FileAccess.file_exists(path) and FileAccess.get_size(path) == bytes.size() \
-					and FileAccess.get_sha256(path) == CustomMapGuard.sha256_hex(bytes):
+			# Empreinte attendue : celle de prefab.json (sinon calculée) ; un
+			# modèle déjà là et identique n'est ni décodé ni réécrit.
+			var want := _def_sha(texts.get(def_key(String(pk[0]))))
+			var bytes := PackedByteArray()
+			if want == "":
+				bytes = Marshalls.base64_to_raw(String(texts[k]))
+				want = CustomMapGuard.sha256_hex(bytes)
+			if FileAccess.file_exists(path) and _file_sha(path) == want:
 				continue
+			if bytes.is_empty():
+				bytes = Marshalls.base64_to_raw(String(texts[k]))
 			var fb := FileAccess.open(path, FileAccess.WRITE)
 			if fb == null:
 				return FileAccess.get_open_error()
 			fb.store_buffer(bytes)
 			fb.close()
+			_file_shas.erase(path)
 		else:
 			var ft := FileAccess.open(path, FileAccess.WRITE)
 			if ft == null:
@@ -835,15 +902,15 @@ static func remove_all(dir: String) -> void:
 # ------------------------------------------------------------------ contrôle des textes d'une carte reçue
 
 ## Contrôle des entrées de prefab parmi les textes d'une carte (CustomMapGuard) :
-## noms des entrées, nombre, tailles, définitions, modèles (base64 puis
-## check_glb, empreinte), modèle présent pour chaque prefab modèle (et
-## seulement pour eux). `refs` : prefabs cités par les objets posés (doivent
-## exister). Liste de raisons [fr, en] (vide : accepté).
+## noms des entrées, définitions (taille, profondeur, check_def), modèles
+## (base64 strict puis check_glb, empreinte), modèle présent pour chaque
+## prefab modèle (et seulement pour eux) ; aucun nombre ni taille maximale
+## de prefabs ou de modèles (pas de quota). `refs` : prefabs cités par les
+## objets posés (doivent exister). Liste de raisons [fr, en] (vide : accepté).
 static func check_entries(texts: Dictionary, refs: Dictionary) -> Array:
 	var out := []
 	var defs := {}
 	var models := {}
-	var total := 0
 	for k in texts:
 		var pk := parse_key(k)
 		if pk.is_empty():
@@ -855,10 +922,7 @@ static func check_entries(texts: Dictionary, refs: Dictionary) -> Array:
 			defs[pk[0]] = texts[k]
 		else:
 			models[pk[0]] = texts[k]
-	if defs.size() > MAX_PREFABS:
-		return [["trop de prefabs (%d, au plus %d)" % [defs.size(), MAX_PREFABS], "too many prefabs (%d, at most %d)" % [defs.size(), MAX_PREFABS]]]
-	if models.size() > MAX_MODELS:
-		return [["trop de modèles importés (%d, au plus %d)" % [models.size(), MAX_MODELS], "too many imported models (%d, at most %d)" % [models.size(), MAX_MODELS]]]
+	var b64re := RegEx.create_from_string("^[A-Za-z0-9+/]*={0,2}$")
 	for pid in models:
 		if not defs.has(pid):
 			return [["prefab %s : modèle sans prefab.json" % pid, "prefab %s: model without prefab.json" % pid]]
@@ -875,19 +939,12 @@ static func check_entries(texts: Dictionary, refs: Dictionary) -> Array:
 			return [["prefab %s : modèle absent ou en trop" % pid, "prefab %s: missing or unexpected model" % pid]]
 		if models.has(pid):
 			var s: String = models[pid]
-			if s.length() > MAX_MODEL_B64:
-				return [["prefab %s : modèle trop gros" % pid, "prefab %s: model too big" % pid]]
 			# Alphabet base64 vérifié avant le décodage (pas d'erreur du moteur).
-			var b64re := RegEx.create_from_string("^[A-Za-z0-9+/]*={0,2}$")
 			if s.is_empty() or s.length() % 4 != 0 or b64re.search(s) == null:
 				return [["prefab %s : modèle mal encodé" % pid, "prefab %s: badly encoded model" % pid]]
 			var raw := Marshalls.base64_to_raw(s)
 			if raw.is_empty() or Marshalls.raw_to_base64(raw) != s:
 				return [["prefab %s : modèle mal encodé" % pid, "prefab %s: badly encoded model" % pid]]
-			total += raw.size()
-			if total > MAX_MODELS_BYTES:
-				@warning_ignore("integer_division")
-				return [["modèles trop gros (%d Mo au plus en tout)" % (MAX_MODELS_BYTES / 1048576), "models too big (%d MB at most in all)" % (MAX_MODELS_BYTES / 1048576)]]
 			var gb := check_glb(raw)
 			if not gb.is_empty():
 				return [["prefab %s : %s" % [pid, gb[0]], "prefab %s: %s" % [pid, gb[1]]]]
