@@ -34,6 +34,7 @@ Net="*res://scripts/autoload/net.gd"
 Router="*res://scripts/autoload/router.gd"
 Audio="*res://scripts/autoload/audio.gd"
 Autotest="*res://scripts/autoload/autotest.gd"
+McpServer="*res://scripts/autoload/mcp_server.gd"
 
 [debug]
 

@@ -72,6 +72,9 @@ var last_ip := "127.0.0.1"
 var last_port := 7777
 ## Dernière carte choisie (sélection solo, salon de l'hôte).
 var last_map := "bunker_k7"
+## Serveur MCP du jeu (McpServer, docs/MCP.md) : une IA peut piloter
+## l'éditeur de cartes (127.0.0.1 seulement, jeton). Activé par défaut.
+var mcp_enabled := true
 ## Préréglage automatique (QualityProbe) : compte rendu de la détection faite
 ## au premier lancement ("" : pas faite). Elle ne se refait jamais ensuite.
 var quality_auto := ""
@@ -774,6 +777,7 @@ func load_from(file: String) -> bool:
 	last_ip = SafeConfig.get_string(cfg, "network", "last_ip", last_ip, 64)
 	last_port = SafeConfig.get_int(cfg, "network", "last_port", last_port, 0, 65535)
 	last_map = SafeConfig.get_string(cfg, "game", "last_map", last_map, 128)
+	mcp_enabled = SafeConfig.get_bool(cfg, "mcp", "enabled", mcp_enabled)
 	return true
 
 
@@ -812,6 +816,7 @@ func save_to(file: String) -> void:
 	cfg.set_value("network", "last_ip", last_ip)
 	cfg.set_value("network", "last_port", last_port)
 	cfg.set_value("game", "last_map", last_map)
+	cfg.set_value("mcp", "enabled", mcp_enabled)
 	cfg.set_value("game", "language", language)
 	var err := cfg.save(file)
 	if err != OK:

@@ -68,7 +68,7 @@ var collab: MapCollab
 ## Retour d'un TESTER à plusieurs (CollabPlaytest.take) : état de l'éditeur à
 ## retrouver ({state, message, error}), traité par _start ; vide sinon.
 var _playtest_back: Dictionary = {}
-## Liaison avec Claude (serveur MCP local, MapAgentLink) ; null si refusée.
+## Liaison avec une IA (commandes pour le serveur MCP du jeu, MapAgentLink).
 var agent_link: MapAgentLink
 ## Menu Collaboration et participants (CollabPanel).
 var collab_ui: CollabPanel
@@ -1362,33 +1362,34 @@ func _setup_collab() -> void:
 	add_child(collab_view)
 	collab_view.setup(self)
 	panels.history.setup(self)
-	# Claude (MCP) : jamais en mode sans affichage ni en autotest (tests,
-	# scénarios : le port 7791 reste à l'éditeur du joueur) ; sinon selon
-	# l'option, cochée par défaut.
-	if DisplayServer.get_name() != "headless" and not AutotestMode.is_running() and bool(pref("collab_claude", true)):
-		set_claude_allowed(true, false)
+	# IA (MCP) : le serveur est celui du jeu (autoload McpServer, docs/MCP.md) ;
+	# la liaison lui donne les commandes de cet éditeur tant qu'il est ouvert.
+	agent_link = MapAgentLink.new()
+	agent_link.name = "AgentLink"
+	agent_link.collab = collab
+	agent_link.editor = self
+	add_child(agent_link)
+	agent_link.animate_requested.connect(_on_agent_animate)
 
 
-## Option « Autoriser Claude (MCP) » : démarre ou arrête l'écoute locale.
-func set_claude_allowed(on: bool, remember := true) -> void:
-	if remember:
-		set_pref("collab_claude", on)
-	if on and agent_link == null:
-		agent_link = MapAgentLink.new()
-		agent_link.name = "AgentLink"
-		agent_link.collab = collab
-		agent_link.editor = self
-		add_child(agent_link)
-		agent_link.animate_requested.connect(_on_agent_animate)
-		if agent_link.start() != OK:
-			set_status(Lang.t("Claude (MCP) : aucun port libre de 7791 à 7799", "Claude (MCP): no free port from 7791 to 7799"), true)
-	elif not on and agent_link != null:
-		agent_link.stop()
-		agent_link.queue_free()
-		agent_link = null
-	if remember:
-		set_status(Lang.t("Claude (MCP) autorisé : écoute sur 127.0.0.1, port %d", "Claude (MCP) allowed: listening on 127.0.0.1, port %d") % agent_link.port
-			if agent_link != null else Lang.t("Claude (MCP) désactivé", "Claude (MCP) disabled"))
+## Serveur MCP du jeu (autoload McpServer) ; null hors du jeu.
+static func mcp_server() -> Node:
+	return MapAgentLink.server()
+
+
+## Option « Autoriser Claude (MCP) » (réglage du jeu Settings.mcp_enabled) :
+## démarre ou arrête le serveur MCP du jeu.
+func set_claude_allowed(on: bool) -> void:
+	var srv := mcp_server()
+	if srv == null:
+		return
+	srv.set_enabled(on)
+	if not on:
+		set_status(Lang.t("Serveur MCP désactivé : aucune IA ne peut se connecter", "MCP server disabled: no AI can connect"))
+	elif srv.is_running():
+		set_status(Lang.t("Serveur MCP activé : %s (Collaboration > Connecter une IA)", "MCP server enabled: %s (Collaboration > Connect an AI)") % srv.url())
+	else:
+		set_status(Lang.t("Serveur MCP : %s", "MCP server: %s") % String(srv.error), true)
 
 
 ## La session a changé la carte (autre participant, annulation, Claude) :
@@ -2548,8 +2549,6 @@ func _doc_shown() -> void:
 	if collab_view != null:
 		collab_view.clear()
 		panels.history.mark_dirty()
-	if agent_link != null:
-		agent_link.write_file()
 	selected = ""
 	group = []
 	sel_version += 1

@@ -1,12 +1,14 @@
 class_name MapAgentLink
 extends Node
-## LIAISON AGENT (Claude, via le pont MCP tools/mcp/map_editor_mcp.py ;
-## docs/MAP_COLLAB.md § 5.2) : écoute sur 127.0.0.1 seulement (port 7791, ou
-## le suivant libre jusqu'à 7799), jeton tiré au hasard. Le port et le jeton
-## sont écrits dans user://editor_collab/agent.json ({port, token, pid,
-## map_id}), supprimé à l'arrêt. Requête {id, cmd, args} -> réponse {id, ok,
-## result | error} ; première requête obligatoire : hello avec le jeton.
-## Les changements de Claude passent par la session (MapCollab) comme ceux
+## LIAISON AGENT (une IA comme Claude Code, via le serveur MCP du jeu :
+## l'autoload McpServer, docs/MCP.md ; docs/MAP_COLLAB.md § 5.2) : commandes
+## de l'éditeur ouvert pour l'IA. Plus de réseau ici : McpServer reçoit les
+## requêtes MCP et appelle `handle(cmd, args)` (async) -> Dictionary
+## (résultat, ou {"error": texte} dans la langue du jeu). La liaison
+## s'enregistre auprès de McpServer en entrant dans l'arbre (attach_editor)
+## et se retire en sortant ; elle lui pousse les événements de la session
+## (change, selection, peers) pour editor_events.
+## Les changements de l'IA passent par la session (MapCollab) comme ceux
 ## d'un auteur « <moi>:claude » : un lot = une entrée d'historique, annulable
 ## par Ctrl+Z de la personne qui l'a lancé.
 
@@ -16,232 +18,76 @@ extends Node
 signal highlight_requested(ids: Array, message: String)
 signal animate_requested(ids: Array, label: String)
 
-const HOST := "127.0.0.1"
-const FIRST_PORT := 7791
-const LAST_PORT := 7799
-const MAX_LINE := MapOps.MAX_BYTES
-const MAX_CLIENTS := 4
-const HELLO_SEC := 5.0
 const SHOT_SIZE := Vector2i(1280, 960)
-
-## Dossier de agent.json (tests : un dossier à eux, jamais celui du joueur).
-static var dir_override := ""
 
 var collab: MapCollab
 ## Éditeur (sélection, étage, curseur, capture) ; null : sans interface.
 var editor: Node
-var port := 0
-var token := ""
-var _server: TCPServer
-var _clients: Array = []
 
 
-class Client:
-	var tcp: StreamPeerTCP
-	var buf := PackedByteArray()
-	var authed := false
-	var age := 0.0
-	var closed := false
-	var busy := false
+## Serveur MCP du jeu (autoload) ; null hors du jeu (outils en ligne de commande).
+static func server() -> Node:
+	var ml := Engine.get_main_loop()
+	return (ml as SceneTree).root.get_node_or_null("McpServer") if ml is SceneTree else null
 
 
-static func dir() -> String:
-	if dir_override != "":
-		return dir_override
-	if AutotestMode.is_running():
-		return ProjectSettings.globalize_path("res://tests/_out/editor_collab_%s" % AutotestMode.scenario_name())
-	return "user://editor_collab"
-
-
-static func file_path() -> String:
-	return dir().path_join("agent.json")
-
-
-func is_running() -> bool:
-	return _server != null
-
-
-## Écoute sur le premier port libre de 7791 à 7799 (`first` : autre plage,
-## tests) et écrit agent.json. Rend OK ou l'erreur.
-func start(first := FIRST_PORT, last := LAST_PORT) -> Error:
-	stop()
-	var err := ERR_CANT_OPEN
-	for p in range(first, last + 1):
-		var srv := TCPServer.new()
-		err = srv.listen(p, HOST)
-		if err == OK:
-			_server = srv
-			port = p
-			break
-	if err != OK:
-		push_warning("[MapAgentLink] aucun port libre de %d à %d" % [first, last])
-		return err
-	token = Crypto.new().generate_random_bytes(16).hex_encode()
-	write_file()
-	collab.committed.connect(_on_committed)
-	collab.peers_changed.connect(_on_peers)
-	return OK
-
-
-## agent.json (à refaire quand la carte change : map_id).
-func write_file() -> void:
-	if _server == null:
-		return
-	DirAccess.make_dir_recursive_absolute(dir())
-	var f := FileAccess.open(file_path(), FileAccess.WRITE)
-	if f == null:
-		push_warning("[MapAgentLink] agent.json non écrit (%s)" % error_string(FileAccess.get_open_error()))
-		return
-	f.store_string(JSON.stringify({"port": port, "token": token, "pid": OS.get_process_id(), "map_id": collab.doc.id()}))
-	f.close()
-
-
-func stop() -> void:
-	for c in _clients:
-		c.tcp.disconnect_from_host()
-	_clients.clear()
-	if _server == null:
-		return
-	_server.stop()
-	_server = null
-	if collab.committed.is_connected(_on_committed):
-		collab.committed.disconnect(_on_committed)
-		collab.peers_changed.disconnect(_on_peers)
-	collab.set_agent(false)
-	# Seulement notre fichier (un autre éditeur ouvert après l'a peut-être remplacé).
-	var txt: Variant = EditorMap.read_text(file_path(), 4096)
-	var d: Variant = JSON.parse_string(txt) if txt != null else null
-	if d is Dictionary and int(d.get("pid", -1)) == OS.get_process_id() and int(d.get("port", -1)) == port:
-		DirAccess.remove_absolute(file_path())
+func _enter_tree() -> void:
+	var srv := server()
+	if srv != null:
+		srv.attach_editor(self)
+	if is_instance_valid(collab) and not collab.committed.is_connected(_on_committed):
+		collab.committed.connect(_on_committed)
+		collab.peers_changed.connect(_on_peers)
 
 
 func _exit_tree() -> void:
-	stop()
+	var srv := server()
+	if srv != null:
+		srv.detach_editor(self)
+	if is_instance_valid(collab):
+		if collab.committed.is_connected(_on_committed):
+			collab.committed.disconnect(_on_committed)
+			collab.peers_changed.disconnect(_on_peers)
+		collab.set_agent(false)
 
 
-func _process(delta: float) -> void:
-	if _server == null:
+## Pastille « Claude » de la session : une IA a une session MCP active.
+func _process(_delta: float) -> void:
+	if not is_instance_valid(collab):
 		return
-	while _server.is_connection_available():
-		var tcp := _server.take_connection()
-		if _clients.size() >= MAX_CLIENTS:
-			tcp.disconnect_from_host()
-			continue
-		var c := Client.new()
-		c.tcp = tcp
-		_clients.append(c)
-	for c: Client in _clients.duplicate():
-		c.age += delta
-		c.tcp.poll()
-		if c.tcp.get_status() != StreamPeerTCP.STATUS_CONNECTED or (not c.authed and c.age > HELLO_SEC):
-			_close(c)
-			continue
-		if c.busy:
-			continue
-		var n := c.tcp.get_available_bytes()
-		if n > 0:
-			var r: Array = c.tcp.get_partial_data(mini(n, MAX_LINE + 1))
-			if r[0] == OK:
-				c.buf.append_array(r[1])
-		while not c.closed and not c.busy:
-			var i := c.buf.find(10)
-			if i < 0:
-				if c.buf.size() > MAX_LINE:
-					_close(c)
-				break
-			var line := c.buf.slice(0, i)
-			c.buf = c.buf.slice(i + 1)
-			if not line.is_empty():
-				_handle(c, line.get_string_from_utf8())
-	var agents := _clients.any(func(x): return x.authed and not x.closed)
-	if agents != collab.agent_on:
-		collab.set_agent(agents)
+	var srv := server()
+	var on: bool = srv != null and srv.has_agent()
+	if on != collab.agent_on:
+		collab.set_agent(on)
 
 
-func _close(c: Client) -> void:
-	c.closed = true
-	c.tcp.disconnect_from_host()
-	_clients.erase(c)
-
-
-func _reply(c: Client, msg: Dictionary) -> void:
-	if c.closed:
-		return
-	var b := (JSON.stringify(msg, "", false, true) + "\n").to_utf8_buffer()
-	if b.size() > MAX_LINE:
-		b = (JSON.stringify({"id": msg.get("id"), "ok": false, "error": "réponse trop grosse / reply too big"}) + "\n").to_utf8_buffer()
-	c.tcp.put_data(b)
-
-
-func _push(msg: Dictionary) -> void:
-	for c in _clients:
-		if c.authed and not c.closed:
-			_reply(c, msg)
-
-
-func _handle(c: Client, text: String) -> void:
-	var j := JSON.new()
-	if j.parse(text) != OK or not j.data is Dictionary:
-		_reply(c, {"id": null, "ok": false, "error": "JSON invalide / invalid JSON"})
-		if not c.authed:
-			_close(c)
-		return
-	var req: Dictionary = j.data
-	var id: Variant = req.get("id")
-	if not (id == null or id is String or id is float or id is int):
-		id = null
-	var cmd := String(req.get("cmd", "")) if req.get("cmd") is String else ""
-	var args: Dictionary = req.get("args") if req.get("args") is Dictionary else {}
-	if not c.authed:
-		if cmd != "hello" or not (args.get("token") is String and _same(String(args.token), token)):
-			_reply(c, {"id": id, "ok": false, "error": Lang.t("jeton refusé : hello avec le jeton de agent.json d'abord", "token refused: hello with the agent.json token first")})
-			_close(c)
-			return
-		c.authed = true
-		_reply(c, {"id": id, "ok": true, "result": _hello()})
-		return
-	var res: Variant
+## Commande de l'IA (McpServer, outils `cmd` de McpTools) : le résultat, ou
+## {"error": texte}. Coroutine (capture : quelques images).
+func handle(cmd: String, args: Dictionary) -> Dictionary:
 	match cmd:
 		"hello":
-			res = _hello()
+			return _hello()
 		"status":
-			res = _status()
+			return _status()
 		"get_map":
-			res = collab.doc.snapshot()
+			return collab.doc.snapshot()
 		"get_selection":
-			res = _selection()
+			return _selection()
 		"get_elements":
-			res = cmd_get_elements(args)
+			return cmd_get_elements(args)
 		"apply":
-			res = cmd_apply(args)
+			return cmd_apply(args)
 		"undo":
-			res = cmd_undo()
+			return cmd_undo()
 		"validate":
-			res = cmd_validate()
+			return cmd_validate()
 		"screenshot":
-			c.busy = true
-			res = await cmd_screenshot(args)
-			c.busy = false
+			return await cmd_screenshot(args)
 		"highlight":
-			res = cmd_highlight(args)
+			return cmd_highlight(args)
 		"catalog":
-			res = catalog()
-		_:
-			res = {"error": Lang.t("commande inconnue : %s", "unknown command: %s") % cmd.left(40)}
-	if res is Dictionary and (res as Dictionary).size() == 1 and (res as Dictionary).has("error"):
-		_reply(c, {"id": id, "ok": false, "error": String(res.error)})
-	else:
-		_reply(c, {"id": id, "ok": true, "result": res})
-
-
-## Comparaison de jetons sans sortie anticipée.
-static func _same(a: String, b: String) -> bool:
-	if a.length() != b.length() or b.is_empty():
-		return false
-	var d := 0
-	for i in a.length():
-		d |= a.unicode_at(i) ^ b.unicode_at(i)
-	return d == 0
+			return catalog()
+	return {"error": Lang.t("commande inconnue : %s", "unknown command: %s") % cmd.left(40)}
 
 
 # ------------------------------------------------------------------ commandes
@@ -670,3 +516,10 @@ func _on_peers() -> void:
 ## Sélection changée dans l'éditeur (appelé par lui).
 func notify_selection(ids: Array) -> void:
 	_push({"event": "selection", "ids": ids})
+
+
+## Événement gardé par le serveur MCP (outil editor_events).
+func _push(msg: Dictionary) -> void:
+	var srv := server()
+	if srv != null:
+		srv.push_event(msg)

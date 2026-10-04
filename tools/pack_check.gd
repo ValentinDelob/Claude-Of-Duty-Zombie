@@ -19,6 +19,10 @@ const ALLOWED := [
 ## Fichiers de travail qui ne doivent JAMAIS partir chez les joueurs, quel que
 ## soit leur chemin (message clair).
 const FORBIDDEN := ["blend", "blend1", "py", "md", "zip", "log", "psd", "kra", "xcf", "bat", "sh", "exe", "pck", "tmp"]
+## Seuls documents embarqués : ceux que le serveur MCP du jeu livre à l'IA
+## (McpDocs, docs/MCP.md ; export_presets.cfg, include_filter).
+const EMBEDDED_DOCS := ["res://docs/MAP_DESIGN_RULES.md", "res://docs/MAP_AUTHORING.md", "res://docs/MAP_OBJECTS.md",
+	"res://docs/EDITOR_VIEWS.md", "res://docs/EDITOR_SCALE_ROTATE.md"]
 
 
 func _init() -> void:
@@ -50,6 +54,8 @@ func _init() -> void:
 		lines.append("%10d  %s" % [f.size, path])
 		if path == "res://icon.svg":
 			continue  # icône de la fenêtre (application/config/icon)
+		if not vox and path in EMBEDDED_DOCS:
+			continue  # documents lus par le serveur MCP du jeu (McpDocs)
 		if ext in FORBIDDEN or not ext in ALLOWED:
 			bad.append("%s (type .%s non autorisé)" % [path, ext])
 		elif vox and not (path.begins_with("res://assets/audio/vox/") and ext == "import" or path.begins_with("res://.godot/imported/") and ext == "oggvorbisstr"):

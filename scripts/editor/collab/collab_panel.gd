@@ -2,7 +2,8 @@ class_name CollabPanel
 extends Node
 ## Interface de la collaboration dans la barre du haut (docs/MAP_COLLAB.md
 ## § 6) : menu « Collaboration » (Héberger…, Rejoindre…, Infos de la
-## session…, Quitter la session, Autoriser Claude (MCP), Historique) et
+## session…, Quitter la session, Autoriser Claude (MCP) = réglage du serveur
+## MCP du jeu, Connecter une IA (MCP)… = McpDialog, Historique) et
 ## pastilles des participants à côté : disque de leur couleur avec leur
 ## initiale (Claude : son icône), pseudo, « Étage N » s'ils sont sur un autre
 ## étage que celui affiché ; info-bulle avec le rôle et l'étage. Chaque
@@ -16,6 +17,7 @@ const ID_LEAVE := 2
 const ID_CLAUDE := 3
 const ID_INFO := 4
 const ID_HISTORY := 5
+const ID_MCP := 6
 ## Pseudo coupé au-delà (pastille).
 const NAME_MAX := 14
 
@@ -41,6 +43,7 @@ func setup(editor: MapEditor) -> void:
 	pm.add_item(Lang.t("Quitter la session", "Leave the session"), ID_LEAVE)
 	pm.add_separator()
 	pm.add_check_item(Lang.t("Autoriser Claude (MCP)", "Allow Claude (MCP)"), ID_CLAUDE)
+	pm.add_item(Lang.t("Connecter une IA (MCP)…", "Connect an AI (MCP)…"), ID_MCP)
 	pm.add_separator()
 	pm.add_item(Lang.t("Historique", "History"), ID_HISTORY)
 	pm.id_pressed.connect(_on_menu)
@@ -56,10 +59,15 @@ func _refresh_menu() -> void:
 	var on := ed.collab.is_session()
 	pm.set_item_disabled(pm.get_item_index(ID_LEAVE), not on)
 	pm.set_item_disabled(pm.get_item_index(ID_INFO), ed.collab.role != MapCollab.Role.HOST)
-	pm.set_item_checked(pm.get_item_index(ID_CLAUDE), MapEditor.pref("collab_claude", true))
+	pm.set_item_checked(pm.get_item_index(ID_CLAUDE), Settings.mcp_enabled)
+	var srv := MapEditor.mcp_server()
+	var where: String = srv.url() if srv != null and srv.is_running() else Lang.t("arrêté", "stopped")
 	pm.set_item_tooltip(pm.get_item_index(ID_CLAUDE), Lang.t(
-		"Claude (Claude Code, serveur MCP) peut lire la carte et y poser des éléments. Écoute sur cet ordinateur seulement (127.0.0.1, port %s)." % (str(ed.agent_link.port) if ed.agent_link != null and ed.agent_link.is_running() else "7791"),
-		"Claude (Claude Code, MCP server) can read the map and place elements. Listens on this computer only (127.0.0.1, port %s)." % (str(ed.agent_link.port) if ed.agent_link != null and ed.agent_link.is_running() else "7791")))
+		"Une IA (Claude Code ou un autre client MCP) peut lire la carte et y poser des éléments : le jeu est le serveur MCP, sur cet ordinateur seulement, avec un jeton (%s). Réglage gardé pour tout le jeu.",
+		"An AI (Claude Code or another MCP client) can read the map and place elements: the game is the MCP server, on this computer only, with a token (%s). Setting kept for the whole game.") % where)
+	pm.set_item_tooltip(pm.get_item_index(ID_MCP), Lang.t(
+		"Adresse, jeton et commande à copier pour brancher Claude Code ou une autre IA.",
+		"URL, token and command to copy to plug in Claude Code or another AI."))
 
 
 func _on_menu(id: int) -> void:
@@ -74,8 +82,9 @@ func _on_menu(id: int) -> void:
 			ed.collab.leave()
 			ed.set_status(Lang.t("Session quittée : la carte reste ici", "Session left: the map stays here"))
 		ID_CLAUDE:
-			var on := not bool(MapEditor.pref("collab_claude", true))
-			ed.set_claude_allowed(on)
+			ed.set_claude_allowed(not Settings.mcp_enabled)
+		ID_MCP:
+			McpDialog.open(ed)
 		ID_HISTORY:
 			ed.panels.show_tab("history")
 
