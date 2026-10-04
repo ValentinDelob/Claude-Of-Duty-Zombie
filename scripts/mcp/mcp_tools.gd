@@ -41,6 +41,9 @@ var defs: Array = []
 func _init(srv: Node = null) -> void:
 	server = srv
 	defs = _builtin()
+	# Prefabs et modèles 3D de la carte (commandes de MapAgentPrefabs).
+	for d in MapAgentPrefabs.tool_defs():
+		add_tool(d)
 
 
 ## Ajoute (ou remplace, même nom) un outil. Rend "" ou l'erreur.

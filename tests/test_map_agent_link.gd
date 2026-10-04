@@ -43,6 +43,11 @@ func test_agent_link_commands() -> void:
 	assert_true(r.has("error"), "capture refusée sans affichage")
 	r = await link.handle("catalog", {})
 	assert_true((r.kinds as Dictionary).has("porte"), "catalogue")
+	assert_true(r.get("prefabs_carte") is Array, "catalogue : prefabs de la carte (MapAgentPrefabs)")
+	# Commandes des prefabs déléguées à MapAgentPrefabs (ici sans éditeur : erreur expliquée).
+	r = await link.handle("prefab_list", {})
+	assert_true(r.has("error"), "prefab_list sans éditeur : refusé")
+	assert_true(String(r.get("error", "")).contains("éditeur") or String(r.get("error", "")).contains("editor"), "message : %s" % r.get("error", ""))
 	# undo : le lot de Claude entier.
 	r = await link.handle("undo", {})
 	assert_false(r.has("error"), "undo accepté : %s" % str(r))

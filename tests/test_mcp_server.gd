@@ -285,7 +285,9 @@ func test_mcp_session_and_tools() -> void:
 	var lst: Array = (await _call("tools/list")).result.tools
 	var names := lst.map(func(t): return String(t.name))
 	for n in ["editor_guide", "editor_status", "editor_get_map", "editor_get_element", "editor_get_selection", "editor_apply", "editor_undo_last",
-			"editor_validate", "editor_screenshot", "editor_highlight", "editor_catalog", "editor_events", "editor_plan_corridor"]:
+			"editor_validate", "editor_screenshot", "editor_highlight", "editor_catalog", "editor_events", "editor_plan_corridor",
+			"editor_prefab_list", "editor_prefab_sources", "editor_prefab_create", "editor_prefab_import_model", "editor_prefab_import",
+			"editor_prefab_update", "editor_prefab_delete"]:
 		assert_true(n in names, "outil %s" % n)
 	assert_false(lst.any(func(t): return t.has("cmd") or t.has("fn")), "définitions internes cachées")
 	assert_false(JSON.stringify(lst).contains("docs/"), "aucun chemin docs/ dans les descriptions")

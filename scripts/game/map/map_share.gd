@@ -99,6 +99,10 @@ func srv_offer_local(map_id: String) -> Dictionary:
 	if not r.ok:
 		return r
 	var pk := CustomMapGuard.package_of(r.map)
+	# Grosse carte (modèles importés : aucun quota) : refus propre si la
+	# mémoire libre ne suffit pas à la contrôler (jamais un arrêt du jeu).
+	if not CustomMapGuard.memory_ok(pk.bytes.size()):
+		return {"ok": false, "reasons": [CustomMapGuard.REASONS.memoire]}
 	# Le paquet canonique doit passer exactement le contrôle des invités.
 	var chk := CustomMapGuard.check_package(pk.bytes, pk.sha)
 	if not chk.ok:
@@ -320,6 +324,10 @@ func _cl_offer(o: Variant) -> void:
 	offer = {"sha": o["sha"], "size": o["size"], "chunk": o["chunk"], "chunks": o["chunks"], "n": o["n"],
 		"nom": {"fr": CustomMapGuard.clean_display(String(nom.get("fr", "?"))), "en": CustomMapGuard.clean_display(String(nom.get("en", nom.get("fr", "?"))))}}
 	offer_changed.emit()
+	# Grosse carte : assez de mémoire libre pour la recevoir et la contrôler ?
+	if not CustomMapGuard.memory_ok(int(offer["size"])):
+		_fail("memoire")
+		return
 	# Déjà dans le cache (contrôlé à nouveau : empreinte, légitimité, jouabilité).
 	var cached := CustomMapGuard.load_cached(offer.sha, true)
 	if cached.ok:
@@ -402,6 +410,12 @@ func _cl_states(s: Variant) -> void:
 		clean[pid] = _st(v.etat, clampi(v.pct, 0, 100), v.raison if CustomMapGuard.REASONS.has(v.raison) else "")
 	states = clean
 	states_changed.emit()
+
+
+## Client : morceaux de la carte annoncée déjà reçus (0 hors téléchargement) ;
+## une grosse carte avance tant que ce nombre grandit (CollabPlaytest).
+func local_received() -> int:
+	return _rx.received if _rx != null else 0
 
 
 ## Texte d'état d'un joueur pour le salon ("" : pas de carte perso).

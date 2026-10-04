@@ -121,14 +121,22 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
    `MapPrefabLib`) : jamais `load()` ni `ResourceLoader` ; seulement des
    `.glb` vérifiés AVANT le moteur (`MapPrefabLib.check_glb` : en-tête et
    morceaux GLB exacts, aucune clé `uri`, extensions obligatoires en liste
-   blanche, images PNG / JPEG intégrées de 4096 px au plus lues dans leur
-   en-tête, 150 000 triangles, comptes bornés, 8 Mo par modèle, 24 Mo par
-   carte, empreinte SHA-256 de `prefab.json`), puis lus par `GLTFDocument`
+   blanche, images PNG / JPEG intégrées de 16384 px de côté au plus (limite
+   des textures du moteur) lues dans leur en-tête, un seul tampon, accesseurs
+   jamais plus grands que le fichier, références des nœuds et maillages
+   valides, empreinte SHA-256 de `prefab.json`), puis lus par `GLTFDocument`
    (aucun script, aucune ressource du projet) ; collisions, lumières, caméras,
    sons et animations du modèle retirés ; collision du jeu : seulement les
    `CollisionBox` de `prefab.json`. Un modèle illisible devient une boîte
    (erreur au journal, jamais d'arrêt). Un `.gltf` importé du disque doit avoir
-   ses données intégrées (`data:`) ; il est réécrit en `.glb`.
+   ses données intégrées (`data:`) ; il est réécrit en `.glb`. **Aucun quota**
+   de ressources (nombre de prefabs ou de modèles, taille, triangles : choix
+   de l'utilisateur, c'est au concepteur de gérer ses ressources) : une carte
+   reçue peut donc demander beaucoup de mémoire. Garde-fous : paquet réseau
+   de 1 Gio au plus (borne technique), mémoire libre vérifiée avant de
+   recevoir ou de contrôler un paquet (`CustomMapGuard.memory_ok`, refus
+   « memoire »), archive lue par son seul répertoire central, bombe zip
+   refusée (`CustomMapGuard.zip_bomb`).
 7. **Processus** : `OS.execute` / `OS.create_process` / `OS.shell_open` seulement
    avec des chemins construits par le code (jamais un texte reçu) ; dans un
    `.bat`, doubler les `%`.
@@ -143,6 +151,13 @@ et le compte GitHub du dépôt s'il était compromis (voir « Limites »).
   seulement (`JSON.parse`), jamais de chemin ni de nom de fichier venu du
   réseau ; un invité n'ouvre ni n'enregistre la carte (réservé à l'hôte) et
   ne peut pas changer l'identifiant (dossier) de la carte de l'hôte.
+- Prefabs pilotés par Claude (`MapAgentPrefabs`, seulement par la liaison
+  locale à jeton, jamais par un invité) : `prefab_import_model` et
+  `prefab_import` lisent un chemin local donné par Claude, mais seulement un
+  fichier `.glb` / `.gltf` (mêmes contrôles que l'import de l'interface) ou
+  les fichiers `prefab.json` / `model.glb` d'un dossier de prefab (contrôle
+  des cartes reçues : `MapPrefabLib.check_entries`) ; rien n'est écrit hors de
+  la carte ouverte. Un invité de session ne change jamais la bibliothèque.
 - Suppression d'une carte (éditeur, Fichier > Ouvrir > Supprimer) :
   `EditorMap.delete_map` n'efface qu'un dossier de carte directement dans le
   dossier des cartes (jamais `..`, un exemple livré, `_autosave` ni un

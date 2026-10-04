@@ -280,7 +280,7 @@ func restore(s: Dictionary) -> void:
 	var pf: Variant = d.get("prefabs", {})
 	if pf is Dictionary:
 		for pid in pf:
-			if MapPrefabLib.pid_ok(pid) and prefabs.size() < MapPrefabLib.MAX_PREFABS:
+			if MapPrefabLib.pid_ok(pid):
 				var def := MapPrefabLib.sanitize(pf[pid])
 				if not def.is_empty():
 					prefabs[pid] = def
@@ -308,14 +308,13 @@ func activate_prefabs() -> void:
 
 
 ## Ajoute (ou remplace) le prefab `pid` ; `glb` : octets du modèle importé.
+## Aucun nombre maximal de prefabs ni de modèles (pas de quota).
 func set_prefab(pid: String, def: Dictionary, glb := PackedByteArray()) -> bool:
 	var s := MapPrefabLib.sanitize(def)
-	if s.is_empty() or not MapPrefabLib.pid_ok(pid) or (not prefabs.has(pid) and prefabs.size() >= MapPrefabLib.MAX_PREFABS):
+	if s.is_empty() or not MapPrefabLib.pid_ok(pid):
 		return false
 	if MapPrefabLib.is_model(s):
 		if not glb.is_empty():
-			if model_count() >= MapPrefabLib.MAX_MODELS and not models.has(pid):
-				return false
 			models[pid] = Marshalls.raw_to_base64(glb)
 		elif not models.has(pid):
 			return false
@@ -371,9 +370,6 @@ func _read_prefab_texts(texts: Dictionary) -> void:
 		if pk[1] != MapPrefabLib.DEF_FILE:
 			continue
 		var pid := String(pk[0])
-		if prefabs.size() >= MapPrefabLib.MAX_PREFABS:
-			load_errors.append(["trop de prefabs (%d au plus) : %s ignoré" % [MapPrefabLib.MAX_PREFABS, pid], "too many prefabs (%d at most): %s ignored" % [MapPrefabLib.MAX_PREFABS, pid]])
-			continue
 		var j := JSON.new()
 		var bad: Array = ["JSON illisible", "unreadable JSON"] if j.parse(String(texts[k])) != OK else MapPrefabLib.check_def(j.data)
 		if not bad.is_empty():
@@ -701,11 +697,11 @@ func save_dir(dir: String) -> Error:
 const MAX_FILE_BYTES := 2 * 1024 * 1024
 const MAX_ARCHIVE_BYTES := 2 * 1024 * 1024
 const MAX_ARCHIVE_ENTRIES := 32
-## Format 10 : une archive qui porte des prefabs de la carte (MapPrefabLib :
-## 24 Mo de modèles au plus, 32 prefabs) peut être plus grosse ; les entrées
-## de prefab ne comptent pas dans MAX_ARCHIVE_ENTRIES.
-const MAX_ARCHIVE_BYTES_PREFABS := 30 * 1024 * 1024
-const MAX_ARCHIVE_ENTRIES_PREFABS := 128
+## Format 10 : une archive qui porte des prefabs de la carte n'a pas de
+## taille ni de nombre d'entrées de prefab maximal (pas de quota : seulement
+## la structure du .zip sans ZIP64, 4 Go et 65 535 entrées) ; les entrées de
+## prefab ne comptent pas dans MAX_ARCHIVE_ENTRIES. Seule sûreté de taille :
+## pas de « bombe » de compression (CustomMapGuard.zip_bomb).
 
 
 ## Texte d'un fichier de `max_bytes` au plus ; null s'il est absent, illisible
@@ -782,17 +778,13 @@ static func import_zip(path: String) -> EditorMap:
 
 ## Première barrière d'import_zip : [fr, en] si l'archive est refusée, [] sinon.
 static func _precheck_zip(path: String) -> Array:
-	var fa := FileAccess.open(path, FileAccess.READ)
-	if fa == null:
-		return ["archive illisible : %s" % path, "unreadable archive: %s" % path]
-	var n := fa.get_length()
+	var dir := zip_directory(path)
+	if dir.has("error"):
+		return dir.error
+	var n: int = dir.size
 	@warning_ignore("integer_division")
 	var kb := n / 1024  # Ko entiers (troncature voulue)
-	if n > MAX_ARCHIVE_BYTES_PREFABS:
-		@warning_ignore("integer_division")
-		return ["archive trop grosse (%d Ko, %d Mo au plus)" % [kb, MAX_ARCHIVE_BYTES_PREFABS / 1048576], "archive too big (%d KB, %d MB at most)" % [kb, MAX_ARCHIVE_BYTES_PREFABS / 1048576]]
-	var listing := zip_entries(fa.get_buffer(n))
-	fa.close()
+	var listing := zip_entries(dir.bytes)
 	if listing.has("error"):
 		return listing.error
 	# Sans prefab (format 10) : la limite d'avant, 2 Mo.
@@ -806,8 +798,8 @@ static func _precheck_zip(path: String) -> Array:
 ## base -> chemin) ; rend [fr, en] si l'archive est refusée, [] sinon.
 static func check_zip_entries(entries: Array, wanted: Dictionary) -> Array:
 	var plain := entries.filter(func(e): return not String(e.name).contains(MapPrefabLib.DIR + "/")).size()
-	if plain > MAX_ARCHIVE_ENTRIES or entries.size() > MAX_ARCHIVE_ENTRIES_PREFABS:
-		return ["trop d'entrées dans l'archive (%d, %d au plus)" % [entries.size(), MAX_ARCHIVE_ENTRIES], "too many entries in the archive (%d, %d at most)" % [entries.size(), MAX_ARCHIVE_ENTRIES]]
+	if plain > MAX_ARCHIVE_ENTRIES:
+		return ["trop d'entrées dans l'archive (%d, %d au plus hors prefabs)" % [plain, MAX_ARCHIVE_ENTRIES], "too many entries in the archive (%d, %d at most besides prefabs)" % [plain, MAX_ARCHIVE_ENTRIES]]
 	var folder = null
 	# Dossier des cinq fichiers (racine ou un dossier) : les prefabs y sont rangés.
 	for e in entries:
@@ -815,7 +807,6 @@ static func check_zip_entries(entries: Array, wanted: Dictionary) -> Array:
 		if nm.get_file() in FILES and not nm.get_base_dir().contains("/"):
 			folder = nm.get_base_dir()
 			break
-	var models_total := 0
 	for e in entries:
 		var name := String(e.name)
 		if name.contains("..") or name.begins_with("/") or name.contains("\\") or name.contains(":"):
@@ -830,13 +821,12 @@ static func check_zip_entries(entries: Array, wanted: Dictionary) -> Array:
 			continue
 		var pk := MapPrefabLib.parse_key(rel)
 		if not pk.is_empty():
-			var lim := MapPrefabLib.MAX_MODEL_BYTES if pk[1] == MapPrefabLib.MODEL_FILE else MapPrefabLib.MAX_DEF_BYTES
-			if int(e.size) > lim or wanted.has(rel):
+			# prefab.json : borné (définition valide) ; model.glb : aucune
+			# taille maximale, seulement pas de « bombe » de compression.
+			if (pk[1] == MapPrefabLib.DEF_FILE and int(e.size) > MapPrefabLib.MAX_DEF_BYTES) or wanted.has(rel):
 				return ["prefab trop gros ou en double dans l'archive : %s" % name.left(80), "prefab too big or duplicated in the archive: %s" % name.left(80)]
-			if pk[1] == MapPrefabLib.MODEL_FILE:
-				models_total += int(e.size)
-				if models_total > MapPrefabLib.MAX_MODELS_BYTES:
-					return ["modèles trop gros dans l'archive", "models too big in the archive"]
+			if CustomMapGuard.zip_bomb(int(e.size), int(e.get("csize", 0))):
+				return ["modèle trop compressé dans l'archive (« bombe » de décompression) : %s" % name.left(80), "model compressed too much in the archive (decompression bomb): %s" % name.left(80)]
 			wanted[rel] = name
 			continue
 		if name.ends_with("/"):
@@ -858,9 +848,54 @@ static func check_zip_entries(entries: Array, wanted: Dictionary) -> Array:
 	return []
 
 
+## Répertoire central d'une archive lu sur le disque SANS charger l'archive
+## entière (elle peut peser des centaines de Mo) : la fin du fichier (fin du
+## répertoire et son commentaire), puis le répertoire lui-même. Rend
+## {bytes : le répertoire suivi de sa fin, décalage remis à 0 (ce que lisent
+## zip_entries et CustomMapGuard.read_zip_texts), size : taille de
+## l'archive} ou {error: [fr, en]}.
+static func zip_directory(path: String) -> Dictionary:
+	var bad := {"error": ["archive illisible (répertoire du zip abîmé)", "unreadable archive (broken zip directory)"]}
+	var fa := FileAccess.open(path, FileAccess.READ)
+	if fa == null:
+		return {"error": ["archive illisible : %s" % path.get_file(), "unreadable archive: %s" % path.get_file()]}
+	var n := fa.get_length()
+	if n < 22:
+		fa.close()
+		return bad
+	var tail_n := mini(n, 22 + 65535)
+	fa.seek(n - tail_n)
+	var tail := fa.get_buffer(tail_n)
+	var eocd := -1
+	var i := tail.size() - 22
+	while i >= 0:
+		if tail.decode_u32(i) == 0x06054b50:
+			eocd = i
+			break
+		i -= 1
+	if eocd < 0:
+		fa.close()
+		return bad
+	var cd_size := tail.decode_u32(eocd + 12)
+	var at := tail.decode_u32(eocd + 16)
+	if at == 0xFFFFFFFF or cd_size == 0xFFFFFFFF or at + cd_size > n - tail_n + eocd:
+		fa.close()
+		return bad
+	fa.seek(at)
+	var out := fa.get_buffer(cd_size)
+	fa.close()
+	if out.size() != cd_size:
+		return bad
+	var end := tail.slice(eocd)
+	end.encode_u32(16, 0)
+	out.append_array(end)
+	return {"bytes": out, "size": n}
+
+
 ## Entrées d'une archive .zip lues dans son répertoire central, sans rien
 ## décompresser : {"entries": [{name, size (décompressé), csize}]} ou
-## {"error": [fr, en]} (archive abîmée, ZIP64 refusé).
+## {"error": [fr, en]} (archive abîmée, ZIP64 refusé). `bytes` : l'archive
+## entière ou son répertoire (zip_directory).
 static func zip_entries(bytes: PackedByteArray) -> Dictionary:
 	var bad := {"error": ["archive illisible (répertoire du zip abîmé)", "unreadable archive (broken zip directory)"]}
 	var n := bytes.size()

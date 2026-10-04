@@ -831,8 +831,9 @@ Inventaire (E), catégorie **Prefabs de la carte** / Map prefabs :
   choisis disparaissent, un seul prefab est posé à leur place ; Ctrl+Z les
   ramène). Chaque partie garde sa place et sa rotation ; la collision est
   celle des parties (leurs pavés `CollisionBox`, à leur place).
-- **Importer…** : un fichier **.glb** ou **.gltf** du disque (8 Mo au
-  plus). Il est **copié** dans la carte (`prefabs/<pid>/model.glb`, écrit à
+- **Importer…** : un fichier **.glb** ou **.gltf** du disque (aucune
+  limite de taille ni de nombre de modèles : c'est au concepteur de la carte
+  de gérer ses ressources). Il est **copié** dans la carte (`prefabs/<pid>/model.glb`, écrit à
   l'enregistrement : le fichier d'origine n'est plus lu). Un .gltf n'est
   accepté qu'avec ses données intégrées (adresses `data:`) ; il est réécrit
   en .glb. Emprise et hauteur viennent de la boîte englobante du modèle ; la
@@ -855,6 +856,23 @@ entière est alors renvoyée aux invités (`MapCollab.broadcast_map`). Les
 **modèles importés ne passent pas** par la session (trop lourds pour ses
 messages de 2 Mo) : un invité voit une boîte grise à leur place dans son
 aperçu 3D ; l'enregistrement et le jeu (carte de l'hôte) ont le modèle.
+
+**Claude** fait les mêmes actions par MCP, sans boîte de dialogue
+(`MapAgentPrefabs`, docs/MAP_COLLAB.md § 5.2) : lister (`prefab_list`),
+créer un groupe depuis des objets posés ou des parties du catalogue
+(`prefab_create`), importer un modèle d'un fichier local ou de données
+base64 (`prefab_import_model`), copier des prefabs d'une autre carte de
+l'utilisateur ou d'un dossier (`prefab_sources`, `prefab_import`), régler
+(`prefab_update`) et supprimer (`prefab_delete`). Mêmes règles : solo ou hôte
+seulement, bibliothèque hors de l'historique d'annulation ; le remplacement
+du décor par la prefab et la suppression des objets posés d'une prefab sont
+des lots de Claude (annulables par `editor_undo_last`).
+
+**Aucun quota de ressources** : ni nombre de prefabs ou de modèles, ni
+taille d'un modèle ou de l'ensemble, ni nombre de triangles (avant : 32
+prefabs, 8 modèles de 8 Mo, 24 Mo en tout, 150 000 triangles). C'est au
+concepteur de la carte de gérer ses ressources ; une très grosse carte coûte
+de la mémoire et du temps à chaque joueur (voir « Sûreté »).
 
 ### Format
 
@@ -906,24 +924,46 @@ Contrôle des cartes reçues (`CustomMapGuard.check_texts` →
 
 - noms d'entrée exacts (`prefabs/<pid>/prefab.json` ou `model.glb` : pas de
   `..`, de `/` en trop, de majuscules, d'autre fichier) ;
-- au plus **32 prefabs**, **8 modèles**, **8 Mo par modèle**, **24 Mo** en
-  tout ; `prefab.json` de 64 Ko au plus, profondeur JSON bornée, clés et
-  valeurs en liste blanche (`check_def`), noms sans balise ;
+- **aucun quota** : ni nombre de prefabs ou de modèles, ni taille d'un modèle
+  ou de l'ensemble, ni nombre de triangles, de sommets, de nœuds, de
+  maillages ou de matériaux ;
+- définition valide : `prefab.json` de 64 Ko au plus (`MAX_DEF_BYTES`),
+  profondeur JSON bornée, clés et valeurs en liste blanche (`check_def`),
+  noms sans balise, emprise de 1 à 40 cases (`MAX_FP`), hauteur, pavés et
+  parties dans ±30 m (`MAX_SIZE`), 48 parties (`MAX_PARTS`) et 32 pavés de
+  collision (`MAX_BOXES`) au plus, échelle de 0,01 à 100 ;
 - modèle : base64 strict, **empreinte SHA-256** égale à celle de
   `prefab.json`, en-tête **GLB** (glTF 2 binaire, morceaux JSON puis BIN,
-  tailles exactes), **aucune adresse `uri`** (tout dans le .glb), extensions
-  obligatoires en liste blanche (pas de Draco ni meshopt), images **PNG ou
-  JPEG** intégrées de **4096 px** de côté au plus (lu dans leur en-tête),
-  **150 000 triangles** au plus, nombres de nœuds, maillages, accesseurs,
-  matériaux bornés (`check_glb`) ;
+  tailles exactes, un seul tampon), **aucune adresse `uri`** (tout dans le
+  .glb), extensions obligatoires en liste blanche (pas de Draco ni
+  meshopt), images **PNG ou JPEG** intégrées de **16384 px** de côté au plus
+  (limite des textures du moteur, lu dans leur en-tête), accesseurs jamais
+  plus grands que le fichier (pas de « bombe » de mémoire), références des
+  nœuds et maillages valides, au moins un maillage (`check_glb`) ;
 - chaque prefab cité par un objet posé existe ; un prefab modèle a son
   modèle (et seulement lui).
 
-Paquet réseau : format 2 quand la carte a des prefabs (40 Mo au plus,
-`CustomMapGuard.MAX_TRANSFER_BYTES`) ; une carte sans prefab garde
-exactement son paquet et son empreinte d'avant (format 1, 2 Mo). Archive
-.zip : 30 Mo au plus avec des prefabs (2 Mo sans), entrées de prefab bornées
-avant extraction.
+Paquet réseau : format 2 quand la carte a des prefabs (1 Gio au plus,
+`CustomMapGuard.MAX_TRANSFER_BYTES` : borne **technique**, le paquet est un
+seul bloc en mémoire) ; une carte sans prefab garde exactement son paquet et
+son empreinte d'avant (format 1, 2 Mo). Avant d'annoncer, de recevoir ou de
+contrôler un paquet, la mémoire libre est vérifiée (`CustomMapGuard.memory_ok`
+: environ 20 fois la taille du paquet, mesurée : texte du moteur en UTF-32,
+JSON lu, paquet refait pour la forme canonique, modèles décodés) ; sinon refus
+« pas assez de mémoire » (jamais un arrêt du jeu). Archive .zip : sans taille
+maximale avec des prefabs (2 Mo sans) ; seul son répertoire central est lu
+avant d'extraire ; bombe zip refusée (modèle de plus de 16 Mo comprimé plus
+de 100 fois).
+
+Grosses cartes, ce qu'il faut savoir (mesuré : 40 Mo de modèles, paquet de
+53 Mo) : contrôle du paquet ≈ 9 à 13 s et ≈ 0,9 Go de mémoire de plus chez
+chaque joueur (hôte compris) ; envoi à ≈ 2 Mo/s au plus par invité (morceaux
+de 16 Ko, 8 non acquittés, 120 messages/s) ; cache de 32 cartes sur le
+disque. TESTER à plusieurs attend tant qu'un téléchargement avance (30 s sans
+progrès : retardataire laissé dans l'éditeur). Dans l'éditeur, un invité de
+session voit toujours une boîte grise à la place des modèles importés (ils ne
+passent pas par la session) ; en partie (salon, TESTER à plusieurs), la carte
+passe par `MapShare` avec ses modèles.
 
 ### Preuves automatiques
 
@@ -936,11 +976,17 @@ GLTFDocument), copié, relu, échelle, export (`map_model`, posé au sol,
 CollisionBox barrière), chargé sans collision ; .gltf aux données intégrées
 converti, .gltf avec un .bin refusé ; modèle illisible ou absent : boîte ;
 contrôle : chemin `..`, fichier en trop, majuscules, prefab cité absent,
-modèle trop gros, mal encodé, empreinte fausse, adresse externe, extension
-Draco, trop de triangles, clé inconnue, nom avec balise, extension .obj,
-fichier de plus de 8 Mo refusés ; paquet réseau (format 2), cache et archive
-avec prefabs ; éditeur : capture, remplacement, inventaire, suppression
-refusée tant que posé, annulation, import et réglages.
+modèle qui n'est pas un .glb, mal encodé, empreinte fausse, adresse externe,
+extension Draco, accesseur plus grand que le fichier, deux tampons, clé
+inconnue, nom avec balise, extension .obj refusés ; fichier de plus de 8 Mo
+accepté ; aucun quota (`test_no_quota_many_and_big_models` : 20 modèles dont
+un de 9 Mo, un million de triangles annoncés, enregistrés, relus, contrôle,
+paquet, annonce de 200 Mo, cache, archive ; bombe zip refusée) ; paquet réseau
+(format 2), cache et archive avec prefabs ; éditeur : capture, remplacement,
+inventaire, suppression refusée tant que posé, annulation, import et réglages.
+`tests/test_map_agent_prefabs.gd` : les commandes de Claude (§ « Dans
+l'éditeur »), succès et refus (invité, pid inconnu, fichier absent, .glb
+invalide, prefab posée…), 20e modèle et modèle de 9 Mo acceptés.
 
 ---
 

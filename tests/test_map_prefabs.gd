@@ -4,9 +4,10 @@ extends TestCase
 ## dans le dossier de la carte), enregistrement et relecture à l'identique,
 ## archive, paquet réseau et cache, export en maillage (objets et collisions
 ## CollisionBox), modèle illisible remplacé par une boîte, refus du contrôle
-## des cartes reçues (taille, extension, chemin, adresse externe, prefab
-## absent, empreinte). Le petit .glb des tests est construit ici
-## (GLTFDocument, une BoxMesh) : aucun binaire dans le dépôt.
+## des cartes reçues (extension, chemin, adresse externe, prefab absent,
+## empreinte, accesseur « bombe »), et AUCUN quota (9e et 20e modèle, gros
+## modèle, beaucoup de triangles : acceptés). Le petit .glb des tests est
+## construit ici (GLTFDocument, une BoxMesh) : aucun binaire dans le dépôt.
 
 const TMP := "res://tests/_out/test_map_prefabs"
 const DecorFree := preload("res://tests/test_map_decor_free.gd")
@@ -54,6 +55,17 @@ static func _chunks(glb: PackedByteArray) -> Array:
 	var j: Dictionary = JSON.parse_string(glb.slice(20, 20 + jlen).get_string_from_utf8())
 	var bin := glb.slice(20 + jlen + 8)
 	return [j, bin]
+
+
+## Gros modèle valide : le petit .glb dont le tampon emporte `mb` Mo de plus
+## (octets pseudo-aléatoires, incompressibles : pas une « bombe » de zip).
+static func big_glb(mb: int) -> PackedByteArray:
+	var ch := _chunks(box_glb())
+	var j: Dictionary = ch[0]
+	var bin: PackedByteArray = ch[1]
+	bin.append_array(Crypto.new().generate_random_bytes(mb * 1048576))
+	j.buffers[0]["byteLength"] = bin.size()
+	return _glb_of(j, bin)
 
 
 ## .glb refait d'un JSON et d'un BIN (morceaux alignés sur 4 octets).
@@ -293,12 +305,12 @@ func test_guard_accepts_prefabs_and_refuses_tampering() -> void:
 	var t4 := texts.duplicate()
 	t4["objets.json"] = String(texts["objets.json"]).replace("map:caisse_bleue", "map:fantome")
 	refused.call(t4, "prefab cité absent")
-	# Modèle trop gros, mal encodé, empreinte fausse, adresse externe.
+	# Modèle qui n'est pas un .glb, mal encodé, empreinte fausse, adresse externe.
 	var t5 := texts.duplicate()
-	var huge := PackedByteArray()
-	huge.resize(MapPrefabLib.MAX_MODEL_BYTES + 16)
-	t5["prefabs/caisse_bleue/model.glb"] = Marshalls.raw_to_base64(huge)
-	refused.call(t5, "modèle de plus de 8 Mo")
+	var junk := PackedByteArray()
+	junk.resize(1024)
+	t5["prefabs/caisse_bleue/model.glb"] = Marshalls.raw_to_base64(junk)
+	refused.call(t5, "modèle qui n'est pas un .glb")
 	var t6 := texts.duplicate()
 	t6["prefabs/caisse_bleue/model.glb"] = "pas du base64 !"
 	refused.call(t6, "modèle mal encodé")
@@ -313,9 +325,14 @@ func test_guard_accepts_prefabs_and_refuses_tampering() -> void:
 	var j2: Dictionary = _chunks(box_glb())[0]
 	j2["extensionsRequired"] = ["KHR_draco_mesh_compression"]
 	assert_false(MapPrefabLib.check_glb(_glb_of(j2, ch[1])).is_empty(), "extension obligatoire inconnue refusée")
+	# Aucun quota de triangles ; mais un accesseur qui annonce plus d'éléments
+	# que le fichier n'a d'octets (« bombe » de mémoire) est refusé.
 	var j3: Dictionary = _chunks(box_glb())[0]
-	j3.accessors[j3.meshes[0].primitives[0].indices]["count"] = (MapPrefabLib.MAX_TRIANGLES + 1) * 3
-	assert_false(MapPrefabLib.check_glb(_glb_of(j3, ch[1])).is_empty(), "trop de triangles refusé")
+	j3.accessors[j3.meshes[0].primitives[0].indices]["count"] = 2000000000
+	assert_false(MapPrefabLib.check_glb(_glb_of(j3, ch[1])).is_empty(), "accesseur plus grand que le fichier refusé")
+	var j4: Dictionary = _chunks(box_glb())[0]
+	j4["buffers"].append({"byteLength": 4})
+	assert_false(MapPrefabLib.check_glb(_glb_of(j4, ch[1])).is_empty(), "deux tampons dans un .glb : refusé (structure)")
 	assert_false(MapPrefabLib.check_glb("pas un glb du tout, juste du texte".to_utf8_buffer()).is_empty(), "fichier qui n'est pas un .glb refusé")
 	# Définition piégée.
 	var def: Dictionary = JSON.parse_string(texts["prefabs/caisse_bleue/prefab.json"])
@@ -328,14 +345,96 @@ func test_guard_accepts_prefabs_and_refuses_tampering() -> void:
 	var t9 := texts.duplicate()
 	t9["prefabs/caisse_bleue/prefab.json"] = JSON.stringify(def2)
 	refused.call(t9, "nom avec balise")
-	# Import : extension refusée, fichier trop gros.
+	# Import : extension refusée ; un gros fichier, non (pas de quota).
 	var obj := ProjectSettings.globalize_path(TMP + "/src/modele.obj")
 	_write(obj, "v 0 0 0".to_utf8_buffer())
 	assert_true(MapPrefabLib.read_import(obj).has("error"), "extension .obj refusée")
+	DirAccess.remove_absolute(obj)
 	var fat := ProjectSettings.globalize_path(TMP + "/src/gros.glb")
-	_write(fat, huge)
-	assert_true(MapPrefabLib.read_import(fat).has("error"), "fichier de plus de 8 Mo refusé")
+	_write(fat, big_glb(9))
+	var got := MapPrefabLib.read_import(fat)
+	assert_false(got.has("error"), "fichier de plus de 8 Mo accepté : %s" % str(got.get("error", "")))
 	DirAccess.remove_absolute(fat)
+
+
+## Aucun quota (docs/MAP_OBJECTS.md § 11) : 20 modèles importés (le 9e et le
+## 20e passaient au-delà des anciennes limites de 8), dont un de 9 Mo
+## (ancienne limite : 8 Mo par modèle, 24 Mo en tout), et un modèle aux
+## millions de triangles annoncés : la carte se crée, s'enregistre, se relit,
+## passe le contrôle des cartes reçues, le paquet réseau, le cache et
+## l'archive .zip. Une « bombe » de décompression dans une archive reste
+## refusée (sûreté, pas un quota).
+func test_no_quota_many_and_big_models() -> void:
+	var doc := DecorFree.two_rooms()
+	var spots := []
+	for x in [2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 16.0, 18.0, 20.0, 22.0]:
+		spots.append([x, 2.5])
+	for x in [2.0, 4.0, 10.0, 12.0, 16.0, 18.0, 20.0, 22.0]:
+		spots.append([x, 5.0])
+	spots.append_array([[2.0, 8.0], [4.0, 8.0]])
+	for i in 20:
+		var glb := big_glb(9) if i == 19 else box_glb(Vector3(0.5 + 0.01 * i, 1.0, 0.5))
+		var res := MapPrefabLib.from_model("Modèle %d" % (i + 1), "Model %d" % (i + 1), glb)
+		assert_false(res.has("error"), "modèle %d accepté : %s" % [i + 1, str(res.get("error", ""))])
+		if res.has("error"):
+			return
+		assert_true(doc.set_prefab("modele_%d" % (i + 1), res.def, glb), "%de modèle ajouté à la carte" % (i + 1))
+		DecorFree._obj(doc, {"type": "prefab", "prefab": "map:modele_%d" % (i + 1), "position": spots[i], "rot": 0})
+	assert_eq(doc.model_count(), 20, "20 modèles dans la carte")
+	assert_true(doc.model_bytes("modele_20").size() > 9 * 1048576, "un modèle de plus de 9 Mo")
+	# Beaucoup de triangles (ancienne limite : 150 000) : accepté par le contrôle.
+	var ch := _chunks(big_glb(3))
+	var j: Dictionary = ch[0]
+	j.accessors[j.meshes[0].primitives[0].indices]["count"] = 3 * 1000000
+	var many := _glb_of(j, ch[1])
+	assert_eq(MapPrefabLib.check_glb(many), [], "un million de triangles annoncés : accepté")
+	assert_eq(int(MapPrefabLib.model_stats(many).get("triangles", 0)), 1000000, "triangles comptés pour information")
+	var texts := doc.file_texts()
+	assert_eq(CustomMapGuard.check_texts(texts).reasons, [], "contrôle des cartes reçues : accepté")
+	var full := CustomMapGuard.check_full(texts)
+	assert_true(full.ok, "jouable : %s" % CustomMapGuard.reasons_text(full.get("reasons", [])))
+	# Dossier de la carte : enregistrée puis relue à l'identique.
+	var dir := EditorMap.map_dir("vingt_modeles")
+	assert_eq(doc.save_dir(dir), OK, "enregistrée")
+	var back := EditorMap.load_dir(dir)
+	assert_eq(back.load_errors, [], "relue sans erreur")
+	assert_true(back.same_as(doc), "relue à l'identique (20 modèles)")
+	# Paquet réseau et cache ; annonce d'une carte de 200 Mo acceptée (ancienne limite : 40 Mo).
+	var pk := CustomMapGuard.package_of(doc)
+	var chk := CustomMapGuard.check_package(pk.bytes, pk.sha)
+	assert_true(chk.ok, "paquet réseau accepté : %s" % CustomMapGuard.reasons_text(chk.get("reasons", [])))
+	assert_eq(CustomMapGuard.check_offer({"sha": pk.sha, "size": pk.bytes.size(), "chunk": CustomMapGuard.CHUNK_BYTES,
+		"chunks": ceili(float(pk.bytes.size()) / CustomMapGuard.CHUNK_BYTES), "nom": {"fr": "X"}, "n": 1}), "", "annonce acceptée")
+	assert_eq(CustomMapGuard.check_offer({"sha": pk.sha, "size": 200 * 1048576, "chunk": CustomMapGuard.CHUNK_BYTES,
+		"chunks": ceili(200.0 * 1048576 / CustomMapGuard.CHUNK_BYTES), "nom": {"fr": "X"}, "n": 1}), "", "annonce d'une carte de 200 Mo acceptée")
+	assert_eq(CustomMapGuard.store(pk.sha, pk.texts), OK, "cache")
+	assert_true(CustomMapGuard.load_cached(pk.sha, true).ok, "relue du cache")
+	# Archive .zip (ancienne limite : 30 Mo, 128 entrées de prefab).
+	var zip := ProjectSettings.globalize_path(TMP + "/zips/vingt_modeles.zip")
+	DirAccess.make_dir_recursive_absolute(zip.get_base_dir())
+	assert_eq(doc.export_zip(zip), OK, "archive exportée")
+	var az := EditorMap.import_zip(zip)
+	assert_eq(az.load_errors, [], "archive relue")
+	assert_true(az.same_as(doc), "archive relue à l'identique")
+	# « Bombe » de décompression : 32 Mo de zéros dans un modèle.
+	var bomb := ProjectSettings.globalize_path(TMP + "/zips/bombe.zip")
+	var z := ZIPPacker.new()
+	z.open(bomb)
+	for f in EditorMap.FILES:
+		z.start_file(f)
+		z.write_file(String(texts[f]).to_utf8_buffer())
+		z.close_file()
+	z.start_file("prefabs/modele_1/prefab.json")
+	z.write_file(String(texts["prefabs/modele_1/prefab.json"]).to_utf8_buffer())
+	z.close_file()
+	var zeros := PackedByteArray()
+	zeros.resize(32 * 1048576)
+	z.start_file("prefabs/modele_1/model.glb")
+	z.write_file(zeros)
+	z.close_file()
+	z.close()
+	assert_false(EditorMap.import_zip(bomb).load_errors.is_empty(), "bombe de décompression refusée (import)")
+	assert_false(CustomMapGuard.read_zip_texts(bomb).reasons.is_empty(), "bombe de décompression refusée (lecture)")
 
 
 func test_package_cache_and_archive_carry_prefabs() -> void:

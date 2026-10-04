@@ -86,7 +86,13 @@ func handle(cmd: String, args: Dictionary) -> Dictionary:
 		"highlight":
 			return cmd_highlight(args)
 		"catalog":
-			return catalog()
+			var res := catalog()
+			# Prefabs de la carte ouverte, en détail (MapAgentPrefabs).
+			res["prefabs_carte"] = MapAgentPrefabs.catalog_info(editor)
+			return res
+	# Prefabs de la carte : lister, créer, importer, régler, supprimer.
+	if MapAgentPrefabs.handles(cmd):
+		return MapAgentPrefabs.handle(editor, cmd, args)
 	return {"error": Lang.t("commande inconnue : %s", "unknown command: %s") % cmd.left(40)}
 
 

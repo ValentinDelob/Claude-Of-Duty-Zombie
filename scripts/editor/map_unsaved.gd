@@ -137,14 +137,17 @@ static func signature(m: EditorMap) -> String:
 
 
 ## Empreintes sha256 des modèles de prefab (base64, lourds), calculées une
-## fois par contenu : clé = taille + hachage rapide (String.hash).
+## fois par contenu : clé = taille + hachage rapide (String.hash). Le cache
+## garde bien plus d'entrées qu'une carte n'a de modèles (aucun quota : une
+## carte à 100+ modèles ne doit pas tout recalculer à chaque changement).
 static var _model_sha: Dictionary = {}
+const MODEL_SHA_CACHE := 4096
 
 
 static func model_sha(data: String) -> String:
 	var key := "%d:%d" % [data.length(), data.hash()]
 	if not _model_sha.has(key):
-		if _model_sha.size() > 64:
+		if _model_sha.size() > MODEL_SHA_CACHE:
 			_model_sha.clear()
 		_model_sha[key] = data.sha256_text()
 	return _model_sha[key]
