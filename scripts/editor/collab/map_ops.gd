@@ -397,6 +397,9 @@ static func check_elements(doc: Variant, ops: Array) -> Dictionary:
 							_check_scale(c, el)
 					"zones":
 						_check_zone(c, el, id)
+				# Format 15 : une texture de la carte citée doit exister.
+				if not c.failed() and coll in ["pieces", "zones"]:
+					_check_textures(c, doc, el)
 				if not c.failed() and not present.has(key_of(coll, id)):
 					if int(count[coll]) >= int(MAX_COUNT[coll]):
 						c.bad("%s : trop d'éléments (%d au plus)" % [coll, MAX_COUNT[coll]], "%s: too many elements (at most %d)" % [coll, MAX_COUNT[coll]])
@@ -434,6 +437,18 @@ static func _check_scale(c: CustomMapGuard.Check, el: Dictionary) -> void:
 	var bad := MapScale.check_object(el, MapScale.def_of(el), MapScale.blockers_of(el))
 	if not bad.is_empty():
 		c.bad(String(bad[0]), String(bad[1]))
+
+
+## Format 15 : champs de surface d'une pièce ou d'une zone qui citent une
+## texture de la carte (« map:<tid> ») absente de la bibliothèque du document.
+static func _check_textures(c: CustomMapGuard.Check, doc: Variant, el: Dictionary) -> void:
+	var defs: Variant = doc.get("textures", {}) if doc is Dictionary else (doc as Object).get("textures")
+	for k in ["surface_sol", "surface_murs", "surface_plafond", "sol", "murs", "plafond"]:
+		var tid := MapTextureLib.tid_of(el.get(k))
+		if tid != "" and not (defs is Dictionary and (defs as Dictionary).has(tid)):
+			c.bad("%s : texture de la carte « %s » inconnue (editor_texture_list, editor_texture_import)" % [k, tid],
+				"%s: unknown map texture \"%s\" (editor_texture_list, editor_texture_import)" % [k, tid])
+			return
 
 
 static func _check_zone(c: CustomMapGuard.Check, z: Dictionary, what: String) -> void:

@@ -154,6 +154,10 @@ var props: Array = []
 ## Format 10 : modèles importés des prefabs de la carte (pid -> .glb en
 ## base64, EditorMap.models), pour l'export (MapLayoutExport : « map_models »).
 var map_models: Dictionary = {}
+## Format 15 : textures de la carte utilisées (tid -> entrée de
+## MapTextureLib.layout_entry : définition et images en base64), pour l'export
+## (MapLayoutExport : « map_textures »). Matériau des surfaces : « tex-<tid> ».
+var map_textures: Dictionary = {}
 ## Effets posés (format 10, MapRaster._effect) : [{floor, effet, mount,
 ## center (m, repère de l'éditeur ; mur : sur la face du mur), wall (vers le
 ## mur, Vector2), y (m au-dessus du sol), yaw, intensity, scale, color

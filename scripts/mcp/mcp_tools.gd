@@ -44,6 +44,9 @@ func _init(srv: Node = null) -> void:
 	# Prefabs et modèles 3D de la carte (commandes de MapAgentPrefabs).
 	for d in MapAgentPrefabs.tool_defs():
 		add_tool(d)
+	# Textures de la carte (format 15, MapAgentTextures).
+	for d in MapAgentTextures.tool_defs():
+		add_tool(d)
 
 
 ## Ajoute (ou remplace, même nom) un outil. Rend "" ou l'erreur.

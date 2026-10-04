@@ -33,6 +33,8 @@ var doc: EditorMap:
 			v.activate_prefabs()
 ## Prefabs de la carte (format 10) : création, import, renommage (MapPrefabTools).
 var prefab_tools: MapPrefabTools
+## Textures de la carte (format 15) : import, réglages, suppression (MapTextureTools).
+var texture_tools: MapTextureTools
 ## Dossier d'enregistrement ("" : jamais enregistrée).
 var map_dir := ""
 ## Ouverte depuis un exemple livré (assets/maps/) : Enregistrer en fait une copie.
@@ -438,6 +440,10 @@ func _build_ui() -> void:
 	prefab_tools.ed = self
 	prefab_tools.name = "PrefabTools"
 	add_child(prefab_tools)
+	texture_tools = MapTextureTools.new()
+	texture_tools.ed = self
+	texture_tools.name = "TextureTools"
+	add_child(texture_tools)
 	_dialog = AcceptDialog.new()
 	# Texte du message dans une zone qui défile (aide « ? » à grande taille) ;
 	# sa taille est calculée par _info.

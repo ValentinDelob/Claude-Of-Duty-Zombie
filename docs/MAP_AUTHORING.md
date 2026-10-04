@@ -676,9 +676,10 @@ Choix faits (le format n'a **pas de trou** : une pièce est un contour simple) :
   une **mezzanine** : ses bords au-dessus du vide ont un garde-corps.
   **Textures** : sol, murs et plafond, parmi les surfaces du jeu
   (`WorldLook.SURFACES` : plâtre, béton, brique, bois, parquet, carrelage,
-  pierre, pavés, moquette…), avec un aperçu ; par défaut, celles de la zone.
-  Un **mur mitoyen montre de chaque côté la texture de sa pièce** (le jeu
-  construit les murs par demi-cases de 0,25 m).
+  pierre, pavés, moquette…) ou parmi les **textures de la carte** (images
+  importées, format 15 : voir plus bas), avec un aperçu ; par défaut, celles
+  de la zone. Un **mur mitoyen montre de chaque côté la texture de sa pièce**
+  (le jeu construit les murs par demi-cases de 0,25 m).
 - **Zone** (onglet Zones) : un groupe de pièces qui s'ouvre d'un coup (ses
   fenêtres s'activent ensemble, comme les zones de BO1). Par défaut une zone
   par pièce. Renommer en français et en anglais (noms affichés en jeu selon la
@@ -697,6 +698,111 @@ Choix faits (le format n'a **pas de trou** : une pièce est un contour simple) :
   marches est automatique ; son haut doit arriver sur le plancher d'une pièce
   de l'étage du dessus. Un escalier se voit (« monte à l'étage n » / « descend à l'étage n ») et
   se choisit depuis ses deux étages.
+
+### Textures de la carte (format 15)
+
+Des **images à soi** (PNG ou JPEG) pour les sols, murs et plafonds, rangées
+**dans le dossier de la carte** et transportées avec elle (Enregistrer,
+Enregistrer sous, copie de récupération, archive .zip, carte partagée en
+multijoueur, cache). Code : `scripts/game/map/map_texture_lib.gd` (format,
+contrôle, matériau), `scripts/editor/map_texture_tools.gd` (éditeur),
+`scripts/editor/collab/map_agent_textures.gd` (Claude, MCP).
+
+**Dans l'éditeur** : chaque choix de texture (Propriétés d'une pièce : Sol,
+Murs, Plafond ; formulaire d'une zone) liste les surfaces du jeu, puis la
+section **Textures de la carte** (aperçu de l'image, nom), puis :
+
+- **Importer une texture…** : l'explorateur du système (`FilePick`), une
+  image `.png`, `.jpg` ou `.jpeg`. Elle est vérifiée (vraie image décodée,
+  16384 px de côté au plus), **copiée** dans la carte (écrite à
+  l'enregistrement dans `textures/<id>/` : le fichier d'origine n'est plus
+  lu) et posée aussitôt sur la partie choisie. **Aucune limite** de nombre ni
+  de taille : c'est au concepteur de garder sa carte légère (une texture de
+  1024 px suffit presque toujours ; chaque image voyage avec la carte).
+- **Gérer les textures…** : toutes les textures de la carte (aperçu, nom,
+  `map:<id>`, nombre d'utilisations), **⚙** et **✕** sur chacune.
+- **⚙** (aussi à côté d'une liste dont la valeur est une texture de la
+  carte) : **nom**, **taille du motif** (m : largeur d'une répétition de
+  l'image ; la hauteur suit ses proportions ; même échelle au sol, aux murs
+  et au plafond), **rugosité** (0 brillant, 1 mat), **métal**, **teinte**
+  (multiplie l'image), **carte des normales** (Importer… / Retirer,
+  convention OpenGL) et **Supprimer la texture…**.
+- **Supprimer** : refusé tant qu'une pièce ou une zone l'utilise, sauf
+  confirmation : elles reprennent leur surface par défaut (zone, ou celle du
+  jeu) dans une modification annulable (Ctrl+Z).
+
+Choisir une texture pour une pièce ou une zone est une modification normale
+(Ctrl+Z). La **bibliothèque** des textures (import, réglages, suppression)
+n'est pas dans l'historique, comme les prefabs de la carte. En session
+collaborative, **seul l'hôte** la change ; les invités reçoivent la carte
+sans les images (surface par défaut dans leur aperçu 3D,
+docs/MAP_COLLAB.md § 6). Claude la pilote par MCP (`editor_texture_list`,
+`editor_texture_import`, `editor_texture_update`, `editor_texture_delete`,
+`editor_texture_import_from_map` ; docs/MAP_COLLAB.md § 5.2) et l'applique
+avec `editor_apply`.
+
+**Format** : dossier de la carte
+
+```
+textures/<id>/texture.json   définition
+textures/<id>/image.png      l'image (ou image.jpg)
+textures/<id>/normal.png     carte des normales facultative (ou normal.jpg)
+```
+
+`<id>` : 1 à 32 caractères parmi a-z, 0-9, `_`, sans `__` ni `_` au début
+ou à la fin (`MapTextureLib.tid_ok`). Une pièce la cite par
+`"surface_sol": "map:<id>"` (ou `surface_murs`, `surface_plafond`), une
+zone par `"sol"`, `"murs"`, `"plafond"`. Exemple :
+
+```json
+{
+ "format": 1,
+ "nom": {"fr": "Carrelage bleu", "en": "Blue tiles"},
+ "taille": 1.2,
+ "rugosite": 0.4,
+ "couleur": "#6f7c95"
+}
+```
+
+| Clé | Valeur |
+|---|---|
+| `format` | 1 |
+| `nom` | `{"fr", "en"}` (64 caractères, sans balise) |
+| `taille` | largeur d'une répétition de l'image, m (0,05 à 100) |
+| `rugosite`, `metal` | 0 à 1 (absents : 0,85 et 0) |
+| `teinte` | `#rrggbb` multipliée à l'image (absente : `#ffffff`) |
+| `couleur` | couleur moyenne de l'image (calculée à l'import : aperçus sans image) |
+
+Réglages jamais écrits à leur valeur par défaut. Dans les textes d'une carte
+(`EditorMap.file_texts`, paquet réseau au format 2, cache), une texture est
+une entrée de plus : `textures/<id>/texture.json` (texte) et
+`textures/<id>/image.png` (base64 en mémoire et dans le paquet réseau,
+fichier binaire sur le disque et dans l'archive .zip). Une carte sans
+texture n'a pas de dossier `textures/` (formats 1 à 14 lus tels quels).
+
+**En jeu** : `MapRaster` traduit `map:<id>` en matériau `tex-<id>` (et
+emporte la texture dans la description du jeu, clé `map_textures`) ;
+`MeshMapBuilder` décode l'image (`Image.load_png_from_buffer` /
+`load_jpg_from_buffer`, aucun pipeline d'import : marche dans le jeu
+exporté), crée la texture avec ses mipmaps (filtrage anisotrope, répétition)
+et le matériau `assets/shaders/map_texture.gdshader` : l'image est répétée
+en **coordonnées du monde** comme les surfaces du jeu (aucune couture entre
+morceaux, même échelle partout ; au mur, le bas de l'image touche le sol et
+elle se lit dans le bon sens des deux côtés). Une texture **absente**
+(citée mais pas dans la carte, ou sans image) ou **illisible** : la surface
+par défaut (celle de la zone, sinon béton / plâtre / plafond sombre), avec
+un **avertissement** de la vérification.
+
+**Sûreté** (cartes reçues, `CustomMapGuard.check_texts` →
+`MapTextureLib.check_entries`) : noms d'entrée exacts, `texture.json` en
+liste blanche, une seule image et au plus une carte des normales par
+texture, aucune image sans `texture.json`, base64 strict, signature PNG /
+JPEG conforme au nom, côtés lus dans l'en-tête (16384 px au plus) puis vrai
+décodage par `Image` ; une texture citée mais absente n'est pas un refus
+(surface par défaut). Aucun quota (seules les bornes générales du paquet,
+40 Mo, et des archives, 30 Mo, s'appliquent). Preuves :
+`tests/test_map_textures.gd` ; captures pour revue :
+`tests/autotest/map_textures_look.gd` (`@rendu`, hors check).
 
 ## 5. Vérification (onglet Vérification)
 
@@ -946,7 +1052,8 @@ multijoueur ».
 
 Cinq fichiers JSON dans le dossier de la carte (ou à la racine de l'archive),
 plus, format 10, le dossier `prefabs/` des prefabs de la carte s'il y en a
-(`docs/MAP_OBJECTS.md` § 11). Une entrée par ligne (diffs lisibles). Coordonnées en **mètres** dans le plan
+(`docs/MAP_OBJECTS.md` § 11) et, format 15, le dossier `textures/` des
+textures de la carte (§ 4, « Textures de la carte »). Une entrée par ligne (diffs lisibles). Coordonnées en **mètres** dans le plan
 de l'éditeur : x vers l'est, y vers le sud, x et y positifs ; le jeu place la
 carte en (x + 4,25 ; z = y + 4,25). Chaque élément a un **identifiant stable**
 (`p1`, `o3`, `a2`…). Les nombres entiers s'écrivent sans décimale.

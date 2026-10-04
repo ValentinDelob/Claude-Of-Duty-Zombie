@@ -164,6 +164,10 @@ func _build() -> Dictionary:
 	# construits par le jeu (MeshMapBuilder, GLTFDocument).
 	if not map_models.is_empty():
 		out["map_models"] = map_models
+	# Format 15 : textures de la carte utilisées (matériaux « tex-<tid> »),
+	# chargées par le jeu (MeshMapBuilder, MapTextureLib.material_of).
+	if not md.map_textures.is_empty():
+		out["map_textures"] = md.map_textures
 	if not effects.is_empty():
 		out["effects"] = effects
 	if not nav_blocks.is_empty():

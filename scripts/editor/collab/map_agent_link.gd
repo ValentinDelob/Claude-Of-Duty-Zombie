@@ -89,7 +89,11 @@ func handle(cmd: String, args: Dictionary) -> Dictionary:
 			var res := catalog()
 			# Prefabs de la carte ouverte, en détail (MapAgentPrefabs).
 			res["prefabs_carte"] = MapAgentPrefabs.catalog_info(editor)
+			# Format 15 : textures de la carte ouverte (« map:<tid> »).
+			res["textures_carte"] = MapAgentTextures.catalog_textures(collab.doc)
 			return res
+		"texture_list", "texture_import", "texture_update", "texture_delete", "texture_import_from_map":
+			return MapAgentTextures.handle(editor if editor != null else self, cmd, args)
 	# Prefabs de la carte : lister, créer, importer, régler, supprimer.
 	if MapAgentPrefabs.handles(cmd):
 		return MapAgentPrefabs.handle(editor, cmd, args)

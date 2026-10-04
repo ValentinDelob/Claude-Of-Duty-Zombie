@@ -64,6 +64,11 @@ func _build() -> void:
 		for key in ROOM_SURFACES:
 			if WorldLook.SURFACES.has(String(p.get(key, ""))):
 				s[ROOM_SURFACES[key]] = String(p[key])
+			elif MapTextureLib.is_ref(p.get(key)):
+				# Format 15 : texture de la carte (absente : celle de la zone).
+				var mk := _map_texture(String(p[key]))
+				if mk != "":
+					s[ROOM_SURFACES[key]] = mk
 		if not s.is_empty():
 			v.room_surfaces[String(p.id)] = s
 	# Variantes d'aspect (format 5) : seulement celles admises et autres que
@@ -151,6 +156,27 @@ func _err(fr: String, en: String, k := -1, cells: Array = []) -> void:
 	v._msg("erreur", fr, en, k, cells)
 
 
+## Format 15 : clé de matériau du jeu (« tex-<tid> ») d'une texture de la
+## carte citée (« map:<tid> ») ; elle et ses images vont dans la description
+## (MapValidator.map_textures). Absente (définition ou image) : "" (surface par
+## défaut) et un avertissement, une fois par texture.
+func _map_texture(r: String) -> String:
+	var tid := MapTextureLib.tid_of(r)
+	if MapTextureLib.usable(doc, tid):
+		if not v.map_textures.has(tid):
+			v.map_textures[tid] = MapTextureLib.layout_entry(doc.textures, doc.texture_files, tid)
+		return MapTextureLib.mat_key(tid)
+	if not _missing_tex.has(tid):
+		_missing_tex[tid] = true
+		var why := ["absente de la carte", "missing from the map"] if not doc.textures.has(tid) else ["sans image", "without image"]
+		v._msg("attention", "texture de la carte « %s » %s : surface par défaut à la place" % [tid, why[0]],
+			"map texture \"%s\" %s: default surface instead" % [tid, why[1]])
+	return ""
+
+
+var _missing_tex := {}
+
+
 func _zones() -> void:
 	var order := []
 	if not doc.zone(doc.depart).is_empty():
@@ -167,12 +193,12 @@ func _zones() -> void:
 		var en := String(nm.get("en", fr))
 		v.zone_label[l] = [fr, en]
 		v.zone_names[l] = Lang.t(fr, en)
-		if z.has("sol"):
-			v.floor_mats[l] = String(z.sol)
-		if z.has("murs"):
-			v.wall_mats[l] = String(z.murs)
-		if z.has("plafond"):
-			v.ceil_mats[l] = String(z.plafond)
+		for pair in [["sol", v.floor_mats], ["murs", v.wall_mats], ["plafond", v.ceil_mats]]:
+			if z.has(pair[0]):
+				# Format 15 : texture de la carte (absente : surface par défaut).
+				var mk := _map_texture(String(z[pair[0]])) if MapTextureLib.is_ref(z[pair[0]]) else String(z[pair[0]])
+				if mk != "":
+					pair[1][l] = mk
 	# Pièce sans zone connue : sa propre zone (le nom de la pièce).
 	for p in doc.pieces:
 		var zid := String(p.get("zone", ""))

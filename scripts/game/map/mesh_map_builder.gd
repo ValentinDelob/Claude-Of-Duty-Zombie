@@ -165,7 +165,7 @@ func _setup_nodes(scene: Node, floor_of: Callable) -> void:
 		var mat: String = _prop_mats.get(parts[0], parts[0])
 		if n is MeshInstance3D:
 			var mi := n as MeshInstance3D
-			mi.material_override = material_for(mat)
+			mi.material_override = _map_texture(mat, parts[2]) if mat.begins_with(MapTextureLib.MAT_PREFIX) else material_for(mat)
 			mi.set_instance_shader_parameter("floor_y", float(floor_of.call(parts[1])))
 			if parts[2] == "biais":
 				# Mur en biais (éditeur de cartes) : motif le long du mur.
@@ -182,6 +182,24 @@ func _setup_nodes(scene: Node, floor_of: Callable) -> void:
 				if cs is CollisionShape3D:
 					cs.set_meta("surface", mat)
 			body.set_meta("surface", mat)
+
+
+## Format 15 : matériaux des textures de la carte déjà créés (« tex-<tid> »
+## -> matériau, null : illisible).
+var _tex_mats: Dictionary = {}
+
+
+## Matériau d'une texture de la carte (clé « tex-<tid> », description :
+## « map_textures ») ; illisible ou absente : la surface par défaut de la
+## partie (`kind` : floor, ceil, mur...), avec une ligne au journal.
+func _map_texture(mat: String, kind: String) -> Material:
+	if not _tex_mats.has(mat):
+		var e: Variant = (layout.get("map_textures", {}) as Dictionary).get(MapTextureLib.tid_of_mat(mat))
+		_tex_mats[mat] = MapTextureLib.material_of(e)
+		if _tex_mats[mat] == null:
+			push_warning("[MeshMapBuilder] texture de la carte « %s » absente ou illisible : surface par défaut" % mat.left(40))
+	var m: Variant = _tex_mats[mat]
+	return m if m != null else material_for(MapTextureLib.fallback_for(kind))
 
 
 func _model(name: String) -> PackedScene:

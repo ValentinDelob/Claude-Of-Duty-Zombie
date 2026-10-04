@@ -171,6 +171,9 @@ static func _rule_of_spec(s: Variant) -> Variant:
 			var d := {}
 			for v in s.get("values", []):
 				d[_enum_key(v)] = true
+			# Format 15 : surface du jeu, ou texture de la carte « map:<tid> ».
+			if s.get("map") == true:
+				return {"surface_ref": d}
 			return d
 		"point":
 			return "pt"
@@ -548,7 +551,7 @@ static func check_texts(texts: Dictionary) -> Dictionary:
 	var parsed := {}
 	var total := 0
 	for k in texts:
-		if not (k is String and (String(k) in EditorMap.FILES or not MapPrefabLib.parse_key(k).is_empty())):
+		if not (k is String and (String(k) in EditorMap.FILES or not MapPrefabLib.parse_key(k).is_empty() or not MapTextureLib.parse_key(k).is_empty())):
 			c.bad("fichier non autorisé dans la carte : %s" % clean_display(str(k), 40), "file not allowed in the map: %s" % clean_display(str(k), 40))
 	for f in EditorMap.FILES:
 		if not texts.has(f) or not texts[f] is String:
@@ -588,6 +591,9 @@ static func check_texts(texts: Dictionary) -> Dictionary:
 		if o is Dictionary and String(o.get("type", "")) == "prefab" and MapPrefabLib.is_ref(o.get("prefab")):
 			refs[MapPrefabLib.pid_of(o.prefab)] = true
 	for r in MapPrefabLib.check_entries(texts, refs):
+		c.bad(String(r[0]), String(r[1]))
+	# Format 15 : textures de la carte (définitions, images décodées).
+	for r in MapTextureLib.check_entries(texts):
 		c.bad(String(r[0]), String(r[1]))
 	if c.failed():
 		return {"ok": false, "reasons": c.reasons}
@@ -773,6 +779,13 @@ static func _rule(c: Check, rule: Variant, v: Variant, what: String) -> bool:
 			c.bad("%s : décor inconnu « %s »" % [what, clean_display(str(v), 24)], "%s: unknown prop \"%s\"" % [what, clean_display(str(v), 24)])
 			return false
 		return true
+	if rule is Dictionary and rule.has("surface_ref"):
+		# Format 15 : une surface du jeu, ou une texture de la carte « map:<tid> »
+		# (absente : surface par défaut, avertissement du validateur).
+		if not (v is String and ((rule.surface_ref as Dictionary).has(v) or MapTextureLib.is_ref(v))):
+			c.bad("%s : surface inconnue « %s »" % [what, clean_display(str(v), 24)], "%s: unknown surface \"%s\"" % [what, clean_display(str(v), 24)])
+			return false
+		return true
 	if rule is Dictionary:
 		# Valeurs permises (texte, nombre, vrai / faux) : jamais un tableau ni un objet.
 		if not ((v is String or v is bool or v is float or v is int) and rule.has(_enum_key(v))):
@@ -821,7 +834,7 @@ static func _rule(c: Check, rule: Variant, v: Variant, what: String) -> bool:
 		"prix":
 			return _int(c, v, 0, MAX_PRICE, what)
 		"surface":
-			if not (v is String and sc.surfaces.has(v)):
+			if not (v is String and (sc.surfaces.has(v) or MapTextureLib.is_ref(v))):
 				c.bad("%s : surface inconnue « %s »" % [what, clean_display(str(v), 24)], "%s: unknown surface \"%s\"" % [what, clean_display(str(v), 24)])
 				return false
 			return true
@@ -1089,7 +1102,7 @@ static func pack(texts: Dictionary) -> PackedByteArray:
 		files[f] = String(texts.get(f, ""))
 	var fmt := PACKAGE_FORMAT
 	for k in texts:
-		if not MapPrefabLib.parse_key(k).is_empty():
+		if not MapPrefabLib.parse_key(k).is_empty() or not MapTextureLib.parse_key(k).is_empty():
 			files[k] = String(texts[k])
 			fmt = PACKAGE_FORMAT_PREFABS
 	return JSON.stringify({"format": fmt, "fichiers": files}, "", true).to_utf8_buffer()
@@ -1125,7 +1138,7 @@ static func unpack(b: PackedByteArray) -> Dictionary:
 	var texts := {}
 	var extra := 0
 	for k in files:
-		var is_prefab := not MapPrefabLib.parse_key(k).is_empty()
+		var is_prefab := not MapPrefabLib.parse_key(k).is_empty() or not MapTextureLib.parse_key(k).is_empty()
 		if not (k is String and (k in EditorMap.FILES or (is_prefab and int(v.format) == PACKAGE_FORMAT_PREFABS)) and files[k] is String):
 			return bad.call("paquet de carte : fichier non autorisé", "map package: file not allowed")
 		if is_prefab:
@@ -1227,6 +1240,10 @@ static func store(sha: String, texts: Dictionary) -> Error:
 	var perr := MapPrefabLib.write_dir(dir, texts)
 	if perr != OK:
 		return perr
+	# Format 15 : textures de la carte (textures/<tid>/...).
+	perr = MapTextureLib.write_dir(dir, texts)
+	if perr != OK:
+		return perr
 	prune_cache(sha)
 	return OK
 
@@ -1250,6 +1267,7 @@ static func prune_cache(keep := "") -> void:
 		for f in EditorMap.FILES:
 			DirAccess.remove_absolute(dir.path_join(f))
 		MapPrefabLib.remove_all(dir)
+		MapTextureLib.remove_all(dir)
 		DirAccess.remove_absolute(dir)
 
 
@@ -1278,6 +1296,11 @@ static func read_dir_texts(dir: String) -> Dictionary:
 	if not (pf.reasons as Array).is_empty():
 		return {"texts": {}, "reasons": pf.reasons}
 	texts.merge(pf.texts)
+	# Format 15 : textures de la carte.
+	var tx := MapTextureLib.read_dir(dir)
+	if not (tx.reasons as Array).is_empty():
+		return {"texts": {}, "reasons": tx.reasons}
+	texts.merge(tx.texts)
 	return {"texts": texts, "reasons": []}
 
 
@@ -1386,6 +1409,22 @@ static func read_zip_texts(path: String) -> Dictionary:
 		if pk.is_empty() and rel.count("/") == 3:
 			rel = rel.substr(rel.find("/") + 1)
 			pk = MapPrefabLib.parse_key(rel)
+		# Format 15 : textures de la carte (textures/<tid>/...), sans quota :
+		# seulement pas de « bombe » de décompression ni de ZIP64.
+		var tk := MapTextureLib.parse_key(String(name))
+		var trel := String(name)
+		if tk.is_empty() and trel.count("/") == 3:
+			trel = trel.substr(trel.find("/") + 1)
+			tk = MapTextureLib.parse_key(trel)
+		if not tk.is_empty():
+			if usize == 0xFFFFFFFF or csize == 0xFFFFFFFF or (tk[1] == MapTextureLib.DEF_FILE and usize > MapTextureLib.MAX_DEF_BYTES):
+				return bad.call("archive : texture %s trop volumineuse" % tk[0], "archive: texture %s too large" % tk[0])
+			if zip_bomb(usize, csize):
+				return bad.call("archive : texture %s trop compressée (« bombe » de décompression)" % tk[0], "archive: texture %s compressed too much (decompression bomb)" % tk[0])
+			if not seen.has(trel):
+				seen[trel] = true
+				prefab_entries[String(name)] = [trel, usize, String(name).trim_suffix(trel)]
+			continue
 		if not pk.is_empty():
 			# prefab.json : borné (définition valide) ; model.glb : sans
 			# taille maximale, seulement pas de « bombe » ni de ZIP64.
@@ -1430,7 +1469,7 @@ static func read_zip_texts(path: String) -> Dictionary:
 		if data.size() != int(e[1]):
 			r.close()
 			return bad.call("archive : taille de %s incorrecte" % String(e[0]), "archive: wrong size for %s" % String(e[0]))
-		if String(e[0]).ends_with(MapPrefabLib.MODEL_FILE):
+		if String(e[0]).ends_with(MapPrefabLib.MODEL_FILE) or MapTextureLib.is_binary_key(e[0]):
 			texts[String(e[0])] = Marshalls.raw_to_base64(data)
 		else:
 			var s: Variant = decode_utf8(data)

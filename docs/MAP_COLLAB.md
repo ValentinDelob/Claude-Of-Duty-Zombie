@@ -205,7 +205,7 @@ serveur (`McpServer.push_event`, outil `editor_events`).
 | `validate` | — | rapport `MapValidator` (texte + liste des problèmes) |
 | `screenshot` | `floor?`, `ids?` (cadrer sur ces éléments), `view?` (`dessus` par défaut, `avant`, `arriere`, `gauche`, `droite`, `dessous`), `coupe?` [p0, p1] | `{png_base64, width, height, bounds:[x0,y0,x1,y1]}` ; élévation : `{…, view, axe_horizontal, bounds_h, bounds_z, coupe?}` |
 | `highlight` | `ids`, `message` | montre ces éléments à l'utilisateur (contour pulsé + bulle) |
-| `catalog` | — | types admis (`MapCatalog`), prefabs, luminaires, armes, atouts ; `prefabs_carte` : prefabs de la carte ouverte (pid, ref, nom, sorte, emprise, hauteur, bloque, pose) |
+| `catalog` | — | types admis (`MapCatalog`), prefabs, luminaires, armes, atouts ; `prefabs_carte` : prefabs de la carte ouverte (pid, ref, nom, sorte, emprise, hauteur, bloque, pose) ; `textures_carte` : textures de la carte `[{ref, nom, taille, image}]` |
 | `prefab_list` | — | `{prefabs: [fiche], nombre, modeles, peut_modifier, note}` ; fiche : `pid`, `ref` (« map:<pid> »), `objet` à poser, `nom`, `sorte` (groupe / modele), `emprise_cases`, `emprise_m`, `hauteur`, `bloque`, `collision`, `pose`, `objets_poses` ; groupe : `parties` ; modèle : `echelle`, `taille_modele_m` [x, y, hauteur], `aabb_brute`, `sha256`, `octets`, `triangles`, `sommets`, `maillages`, `materiaux`, `images` |
 | `prefab_sources` | — | `{cartes: [{carte, nom, dossier, ouverte, prefabs: [{pid, nom, sorte, emprise_cases, hauteur, octets?}]}], cartes_sans_prefab, dossier_des_cartes}` |
 | `prefab_create` | `nom`, `ids` + `remplacer` (défaut true) OU `parties` [{decor, pos [x, y], rot}], `label` | fiche + `contenu`, `exclus` [{sorte, nombre, raison}], `absents`, `parties_reprises`, `remplace`, `objet_pose`, `cid` |
@@ -213,6 +213,11 @@ serveur (`McpServer.push_event`, outil `editor_events`).
 | `prefab_import` | `carte` (id d'une carte de l'utilisateur) OU `chemin` (dossier de prefab ou de carte), `pids` | `{importes: [{pid_source, pid, ref, renomme, nom, sorte}], refuses: [{pid, raison}], source}` |
 | `prefab_update` | `pid`, `nom`, `echelle`, `bloque` (ces deux : modèle seulement) | fiche + `objets_mal_places` |
 | `prefab_delete` | `pid`, `avec_objets` (défaut false), `label` | `{supprime, nom, objets_supprimes, cid}` |
+| `texture_list` | — | `{jeu: [{ref, nom, utilisee_par?}], carte: [{id, ref "map:<id>", nom, taille, hauteur_motif, px, rugosite, metal, teinte, couleur_moyenne, image, normale, utilisee_par, image_absente?}], absentes, defauts, champs}` |
+| `texture_import` | `chemin` (fichier local) ou `data_base64`, `nom`, `taille`, `rugosite`, `metal`, `teinte`, `id?`, `normale_chemin?` / `normale_base64?` | la texture (comme dans `texture_list`) + `a_faire` |
+| `texture_update` | `id`, réglages, `image_chemin?` / `image_base64?`, `normale_*?`, `retirer_normale?` | la texture |
+| `texture_delete` | `id`, `forcer?` | `{supprimee, remises_par_defaut, cid?}` |
+| `texture_import_from_map` | `carte` (id d'une carte de l'utilisateur), `ids?` | `{importees: [{source, id, ref}]}` |
 
 Outils MCP des prefabs : `MapAgentPrefabs.tool_defs()` (`editor_prefab_list`,
 `editor_prefab_sources`, `editor_prefab_create`, `editor_prefab_import_model`,
@@ -223,6 +228,20 @@ Outils MCP des prefabs : `MapAgentPrefabs.tool_defs()` (`editor_prefab_list`,
 rappelle dans `note`) ; le remplacement du décor (`prefab_create` avec
 `remplacer`) et la suppression des objets posés (`prefab_delete` avec
 `avec_objets`) sont des lots de Claude, annulables par `undo`.
+
+Textures de la carte (format 15, `MapAgentTextures`, docs/MAP_AUTHORING.md
+§ 4) : les cinq commandes `texture_*` sont déléguées par `MapAgentLink` à
+`MapAgentTextures.handle(editor, cmd, args)` ; `MapAgentTextures.tool_defs()`
+donne leurs outils MCP (`editor_texture_list`, `editor_texture_import`,
+`editor_texture_update`, `editor_texture_delete`,
+`editor_texture_import_from_map` : `{name, description, inputSchema, cmd}`).
+Appliquer une texture passe par `apply` (« put » de la pièce ou de la zone
+complète avec `"surface_sol": "map:<id>"`…) : `MapOps.check_elements` refuse
+une texture inconnue de la carte. Comme pour les prefabs, seul l'hôte (ou le
+solo) change la bibliothèque ; un invité reçoit l'erreur, mais peut choisir
+une texture existante avec `apply`. `texture_delete` d'une texture utilisée
+avec `forcer` : les pièces et zones reprennent leur surface par défaut dans
+UN changement de Claude (annulable) avant le retrait.
 
 ## 6. Ce que voient les utilisateurs
 
@@ -240,6 +259,15 @@ rappelle dans `note`) ; le remplacement du décor (`prefab_create` avec
 - Lot de Claude (`animate`) : éléments apparaissent un par un (≤ 1,5 s au
   total), contour pulsé violet, bulle « Claude : couloir A→B » ; UNE entrée
   d'historique, donc un seul Ctrl+Z.
+- Textures de la carte (format 15) : l'hôte (seul à pouvoir importer,
+  régler ou supprimer) renvoie la carte entière aux invités à chaque
+  changement de la bibliothèque, **sans les images** (trop lourdes pour les
+  messages de la session, comme les modèles des prefabs). Un invité voit les
+  textures dans ses listes (nom, aperçu de leur couleur moyenne), peut les
+  choisir pour une pièce ou une zone (changement normal, transmis à l'hôte),
+  mais son aperçu 3D montre la surface par défaut à leur place et sa
+  vérification signale « texture … sans image ». L'enregistrement et la
+  partie (carte de l'hôte) ont les images.
 - Tout texte en français ET en anglais (`Lang.t(fr, en)`).
 
 ## 7. Enregistrement

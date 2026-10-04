@@ -433,8 +433,9 @@ n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
 
 ## 5. Versions du format
 
-`EditorMap.FORMAT` = **14** (format 13 : volume des effets, § 12 ; format 14 :
-`echelle` et `incl` du décor, § 14). Toutes les nouvelles clés sont
+`EditorMap.FORMAT` = **15** (format 13 : volume des effets, § 12 ; format 14 :
+`echelle` et `incl` du décor, § 14 ; format 15 : textures de la carte,
+docs/MAP_AUTHORING.md § 4). Toutes les nouvelles clés sont
 facultatives : une carte au format 1 à 13 se lit telle quelle (`EditorMap._migrate` ; un
 escalier sans `variante` est droit, une applique sans `hauteur` est à 2 m,
 une fenêtre sans `variante` est la fenêtre d'avant ; seule conversion : la
@@ -454,6 +455,8 @@ contrôle refuserait les clés qu'il ne connaît pas).
 - Format 11 : effets purs (objets des effets devenus des décors, décor mural
   et au plafond) et zone des effets (clé `zone`, § 12).
 - Format 12 : hauteurs de pose (`z`, `hauteur` au sol, `descente`, § 13).
+- Format 15 : textures de la carte (dossier `textures/<id>/`, surfaces
+  « map:<id> », docs/MAP_AUTHORING.md § 4).
 
 ## 6. Ajouter une variante ou un type à variantes
 
