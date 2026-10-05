@@ -201,9 +201,11 @@ func test_too_many_total_vertices() -> void:
 
 
 func test_rooms_too_large() -> void:
-	var full := [[0, 0], [256, 0], [256, 256], [0, 256]]
+	# Format 17 : aucune étendue de conception ; borne TECHNIQUE du travail du
+	# validateur (MAX_ROOM_AREA, les cases d'une grille de 1 Gio).
+	var full := [[-600, -600], [600, -600], [600, 600], [-600, 600]]
 	var rooms := [{"id": "g1", "altitude": 0, "contour": full}, {"id": "g2", "altitude": 0, "contour": full}]
-	_refused(_with("pieces.json", {"pieces": rooms}), "trop grandes", "deux pièces de 256 x 256 m")
+	_refused(_with("pieces.json", {"pieces": rooms}), "trop grandes", "deux pièces de 1 200 x 1 200 m")
 
 
 # ------------------------------------------------------------------ points et rectangles
@@ -213,11 +215,13 @@ func test_malformed_points() -> void:
 		_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "altitude": 0, "position": bad})),
 			"point [x, y] attendu", "point %s" % str(bad))
 	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "altitude": 0, "position": [1, "x"]})), "nombre attendu", "coordonnée texte")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "altitude": 0, "position": [-5, 3]})), "hors limites", "coordonnée négative")
+	# Format 17 : coordonnées négatives admises.
+	var neg := CustomMapGuard.check_texts(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "altitude": 0, "position": [-5, 3]})))
+	assert_true(neg.ok, "coordonnée négative acceptée %s" % str(neg.get("reasons")))
 	var t := _with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "altitude": 0, "position": [3, 4]}))
 	t["objets.json"] = String(t["objets.json"]).replace("[3,4]", "[3,-1e999]")
 	assert_true(String(t["objets.json"]).contains("-1e999"), "infini négatif écrit")
-	_refused(t, "hors limites", "coordonnée -infinie")
+	_refused(t, "nombre fini attendu", "coordonnée -infinie")
 	# Point de contour de pièce mal formé.
 	var p = _json("pieces.json")
 	p.pieces[0].contour[1] = [1, 2, 3]
@@ -229,7 +233,8 @@ func test_malformed_rects() -> void:
 		_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "altitude": 0, "rect": bad})),
 			"rectangle [x0, y0, x1, y1] attendu", "rectangle %s" % str(bad))
 	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "altitude": 0, "rect": [1, 2, "x", 4]})), "nombre attendu", "rectangle avec texte")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "altitude": 0, "rect": [1, 2, 300, 4]})), "hors limites", "rectangle hors terrain")
+	var far := CustomMapGuard.check_texts(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "altitude": 0, "rect": [-301, 2, 300, 4]})))
+	assert_true(far.ok, "rectangle loin et en négatif accepté (format 17) %s" % str(far.get("reasons")))
 	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "altitude": 0, "rect": [1, 2, [3], 4]})), "nombre attendu", "rectangle imbriqué")
 
 

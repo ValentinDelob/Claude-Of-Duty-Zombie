@@ -188,6 +188,60 @@ static func resnap(o: Dictionary) -> void:
 	o["position"] = MapGeom.arr(Vector2(MapGeom.snap_along(p.x, n.x), MapGeom.snap_along(p.y, n.y)))
 
 
+## Élément déplacé de `delta` (m, dans le plan) : copie (contour, forme,
+## sommets, position, a, b, centre, rectangle). `snap` : coordonnées au
+## millimètre (MapGeom.arr, déplacements de l'éditeur) ; sinon exactes (copie
+## décalée du raster : mêmes cases à un multiple de 0,5 m près).
+static func shifted(o: Dictionary, delta: Vector2, snap := true) -> Dictionary:
+	var e := o.duplicate(true)
+	var pt := func(p: Array) -> Array:
+		return MapGeom.arr(MapGeom.v2(p) + delta) if snap else [float(p[0]) + delta.x, float(p[1]) + delta.y]
+	if e.get("contour") is Array:
+		var pts := []
+		for p in e.contour:
+			pts.append(pt.call(p))
+		e.contour = pts
+		if e.has("forme") and MapShapes.valid(e.forme):
+			e.forme = MapShapes.shifted(e.forme, delta)
+	if e.get("sommets") is Array:
+		# Barrière invisible en polygone (format 9).
+		var pts := []
+		for p in e.sommets:
+			pts.append(pt.call(p))
+		e.sommets = pts
+	for key in ["position", "a", "b", "centre"]:
+		if e.get(key) is Array and (e[key] as Array).size() >= 2:
+			e[key] = pt.call(e[key])
+	if e.get("rect") is Array and (e.rect as Array).size() == 4:
+		if snap:
+			var r := MapGeom.rect_of(e.rect)
+			r.position += delta
+			e.rect = MapGeom.rect_arr(r)
+		else:
+			var a: Array = e.rect
+			e.rect = [float(a[0]) + delta.x, float(a[1]) + delta.y, float(a[2]) + delta.x, float(a[3]) + delta.y]
+	return e
+
+
+## Carte décalée de `delta` (m) pour le raster (coordonnées négatives,
+## MapRaster) : pièces, ouvertures et objets copiés et déplacés exactement ;
+## le reste (réglages, zones, prefabs, textures) partagé, en lecture seule.
+static func shifted_map(doc: EditorMap, delta: Vector2) -> EditorMap:
+	var m := EditorMap.new()
+	m.carte = doc.carte
+	m.zones = doc.zones
+	m.depart = doc.depart
+	m.prefabs = doc.prefabs
+	m.models = doc.models
+	m.textures = doc.textures
+	m.texture_files = doc.texture_files
+	m.view_levels = doc.view_levels
+	for pair in [[doc.pieces, m.pieces], [doc.ouvertures, m.ouvertures], [doc.objets, m.objets]]:
+		for e in pair[0]:
+			(pair[1] as Array).append(shifted(e, delta, false) if e is Dictionary else e)
+	return m
+
+
 ## Remplace dans la carte l'élément de même identifiant.
 static func replace(doc: EditorMap, e: Dictionary) -> void:
 	var list := doc.list_of(String(e.id))

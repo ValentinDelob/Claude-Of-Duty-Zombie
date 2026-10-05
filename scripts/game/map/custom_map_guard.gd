@@ -81,10 +81,14 @@ const MAX_GRID_BYTES := 1024 * 1024 * 1024
 ## marge pour ses retouches ; le total reste borné.
 const MAX_VERTICES := 128
 const MAX_TOTAL_VERTICES := 4096
-## Coordonnées en mètres dans le plan de l'éditeur (x, y positifs).
-const MAX_COORD := 256.0
-## Somme des rectangles englobants des pièces (m²) : borne le travail du validateur.
-const MAX_ROOM_AREA := 100000.0
+## Format 17 : coordonnées x, y libres (négatives comprises), sans étendue
+## maximale ; seules gardes TECHNIQUES : nombres finis et mémoire de la grille
+## du validateur (grid_bytes, grid_ok).
+## Somme des rectangles englobants des pièces (m²) : borne TECHNIQUE du
+## travail du validateur (chaque pièce parcourt ses cases), égale aux cases
+## d'une grille de MAX_GRID_BYTES (1 Gio / 96 o × 0,25 m²), sans rapport
+## avec la taille de conception d'une carte.
+const MAX_ROOM_AREA := 2796202.0
 const MAX_PRICE := 100000
 const MAX_ID := 32
 const MAX_NAME := 64
@@ -615,12 +619,17 @@ static func check_texts(texts: Dictionary) -> Dictionary:
 		c.bad("pièces trop grandes (%d m², au plus %d)" % [int(c.area), int(MAX_ROOM_AREA)], "rooms too large (%d m², at most %d)" % [int(c.area), int(MAX_ROOM_AREA)])
 	if not c.failed():
 		# Format 17 : grille du validateur (cases × niveaux) dans une mémoire raisonnable.
-		var gb := grid_bytes((parsed["pieces.json"] as Dictionary).get("pieces", []), c.legacy)
+		var items: Array = []
+		for pair in [["ouvertures.json", "ouvertures"], ["objets.json", "objets"]]:
+			var l: Variant = (parsed[pair[0]] as Dictionary).get(pair[1], [])
+			if l is Array:
+				items.append_array(l)
+		var gb := grid_bytes((parsed["pieces.json"] as Dictionary).get("pieces", []), c.legacy, items)
 		if not grid_ok(gb):
 			@warning_ignore("integer_division")
 			var mb := gb / (1024 * 1024)
-			c.bad("carte trop grande pour le validateur : %d Mo de grille (cases × niveaux) ; rapprochez les pièces ou réduisez le nombre de niveaux" % mb,
-				"map too big for the validator: %d MB of grid (cells × levels); bring rooms closer or use fewer levels" % mb)
+			c.bad("carte trop grande pour le validateur : %d Mo de grille (cases × niveaux) ; rapprochez les éléments ou réduisez le nombre de niveaux" % mb,
+				"map too big for the validator: %d MB of grid (cells × levels); bring elements closer or use fewer levels" % mb)
 	if c.failed():
 		return {"ok": false, "reasons": c.reasons}
 	# Format 10 : prefabs de la carte (définitions, modèles, prefabs cités).
@@ -662,10 +671,13 @@ static func is_legacy(carte: Variant, rooms: Variant, openings: Variant, objects
 
 
 ## Mémoire (octets) de la grille du validateur pour ces pièces (pieces.json,
-## brutes) : cases du rectangle englobant (avec la marge de MapRaster) ×
-## nombre de niveaux (altitudes distinctes ; « etage » au format 16).
-static func grid_bytes(rooms: Array, legacy := false) -> int:
-	var hi := Vector2(10, 10)
+## brutes) et, s'ils sont donnés, ces ouvertures et objets (positions,
+## extrémités, rectangles, sommets) : cases du rectangle englobant (avec la
+## marge de MapRaster, coordonnées négatives comprises) × nombre de niveaux
+## (altitudes distinctes ; « etage » au format 16).
+static func grid_bytes(rooms: Array, legacy := false, items: Array = []) -> int:
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
 	var alts := []
 	for p in rooms:
 		if not p is Dictionary:
@@ -673,21 +685,60 @@ static func grid_bytes(rooms: Array, legacy := false) -> int:
 		var poly: Variant = p.get("contour", [])
 		if poly is Array:
 			for q in poly:
-				if q is Array and q.size() == 2 and (q[0] is float or q[0] is int) and (q[1] is float or q[1] is int):
-					hi = hi.max(Vector2(absf(float(q[0])), absf(float(q[1]))))
+				if _is_pt(q):
+					lo = lo.min(Vector2(float(q[0]), float(q[1])))
+					hi = hi.max(Vector2(float(q[0]), float(q[1])))
 		var a: Variant = p.get("etage", 0) if legacy else p.get("altitude", 0.0)
 		alts.append(float(a) if (a is float or a is int) and is_finite(float(a)) else 0.0)
+	for o in items:
+		if not o is Dictionary:
+			continue
+		var pts := []
+		for key in ["position", "a", "b", "centre"]:
+			pts.append(o.get(key))
+		if o.get("sommets") is Array:
+			pts.append_array(o.sommets)
+		var r: Variant = o.get("rect")
+		if r is Array and r.size() == 4:
+			pts.append([r[0], r[1]])
+			pts.append([r[2], r[3]])
+		for q in pts:
+			if _is_pt(q):
+				lo = lo.min(Vector2(float(q[0]), float(q[1])))
+				hi = hi.max(Vector2(float(q[0]), float(q[1])))
 	var n := maxi(1, EditorMap.merge_alts(alts).size())
-	var w := ceili(hi.x / MapGeom.CELL) + MapRaster.MARGIN + 1
-	var h := ceili(hi.y / MapGeom.CELL) + MapRaster.MARGIN + 1
-	return w * h * n * GRID_CELL_BYTES
+	# Grille de MapRaster : de min(0, bas) (copie décalée) à max(10 m, haut).
+	var size := Vector2(10, 10)
+	if lo.x <= hi.x:
+		size = hi.max(Vector2(10, 10)) - lo.min(Vector2.ZERO)
+	return extent_bytes(size, n)
+
+
+## Octets de la grille pour une étendue `size` (m) sur `levels` niveaux, en
+## flottants (jamais de débordement : une étendue absurde dépasse simplement
+## MAX_GRID_BYTES ; plafonné à 1e15 octets).
+static func extent_bytes(size: Vector2, levels: int) -> int:
+	if not (is_finite(size.x) and is_finite(size.y)):
+		return int(1e15)
+	var w := ceilf(absf(size.x) / MapGeom.CELL) + MapRaster.MARGIN + 2
+	var h := ceilf(absf(size.y) / MapGeom.CELL) + MapRaster.MARGIN + 2
+	var b := w * h * float(maxi(1, levels)) * GRID_CELL_BYTES
+	return int(minf(b, 1e15))
+
+
+static func _is_pt(q: Variant) -> bool:
+	return q is Array and q.size() == 2 and (q[0] is float or q[0] is int) and (q[1] is float or q[1] is int) \
+		and is_finite(float(q[0])) and is_finite(float(q[1]))
 
 
 ## Grille de `bytes` octets acceptable : sous MAX_GRID_BYTES et dans la
-## mémoire libre (si le système la donne).
+## mémoire libre (si le système la donne ; demandée seulement au-delà de
+## 64 Mo : appelée à chaque pose, MapRules).
 static func grid_ok(bytes: int) -> bool:
 	if bytes > MAX_GRID_BYTES:
 		return false
+	if bytes <= 64 * 1024 * 1024:
+		return true
 	var info := OS.get_memory_info()
 	var avail := int(info.get("available", -1))
 	return avail <= 0 or bytes * 2 <= avail
@@ -777,6 +828,17 @@ static func _num(c: Check, v: Variant, lo: float, hi: float, what: String) -> bo
 	return true
 
 
+## Format 17 : coordonnée (m) sans borne de conception, seulement finie.
+static func _fin(c: Check, v: Variant, what: String) -> bool:
+	if not (v is float or v is int):
+		c.bad("%s : nombre attendu" % what, "%s: number expected" % what)
+		return false
+	if not is_finite(float(v)):
+		c.bad("%s : nombre fini attendu" % what, "%s: finite number expected" % what)
+		return false
+	return true
+
+
 static func _int(c: Check, v: Variant, lo: int, hi: int, what: String) -> bool:
 	if not _num(c, v, lo, hi, what):
 		return false
@@ -790,7 +852,7 @@ static func _pt(c: Check, v: Variant, what: String) -> bool:
 	if not (v is Array and v.size() == 2):
 		c.bad("%s : point [x, y] attendu" % what, "%s: point [x, y] expected" % what)
 		return false
-	return _num(c, v[0], 0.0, MAX_COORD, what) and _num(c, v[1], 0.0, MAX_COORD, what)
+	return _fin(c, v[0], what) and _fin(c, v[1], what)
 
 
 static func _rect(c: Check, v: Variant, what: String) -> bool:
@@ -798,7 +860,7 @@ static func _rect(c: Check, v: Variant, what: String) -> bool:
 		c.bad("%s : rectangle [x0, y0, x1, y1] attendu" % what, "%s: rectangle [x0, y0, x1, y1] expected" % what)
 		return false
 	for x in v:
-		if not _num(c, x, 0.0, MAX_COORD, what):
+		if not _fin(c, x, what):
 			return false
 	return true
 
@@ -1146,11 +1208,6 @@ static func _check_object(c: Check, e: Dictionary, what: String) -> void:
 			c.bad("%s : hauteur de pose « z » sur un élément qui n'est pas un décor au sol" % what, "%s: \"z\" height on an element that is not a floor prop" % what)
 		elif e.has("descente") and m != "plafond":
 			c.bad("%s : « descente » sur un élément qui n'est pas au plafond" % what, "%s: \"descente\" on an element that is not on the ceiling" % what)
-	if t == "mur_courbe" and c.reasons.size() == before:
-		# Mur courbe : tout l'arc dans le terrain (0 à MAX_COORD).
-		var bb := MapGeom.bbox(MapShapes.wall_arc(e))
-		if bb.position.x < -0.001 or bb.position.y < -0.001 or bb.end.x > MAX_COORD or bb.end.y > MAX_COORD:
-			c.bad("%s : mur courbe hors du terrain" % what, "%s: curved wall off the board" % what)
 
 
 static func _check_element(c: Check, e: Dictionary, kind: Dictionary, what: String) -> void:

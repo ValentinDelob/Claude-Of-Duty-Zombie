@@ -95,7 +95,9 @@ static func room_top(doc: EditorMap, v: MapValidator, p: Dictionary) -> float:
 		return own
 	var top := -INF
 	var cells: Array = MapRaster.room_cells(poly)[1]
-	for c in cells:
+	for ce in cells:
+		# Case de l'éditeur -> case de la grille (coordonnées négatives : décalage).
+		var c := v.grid_cell(ce)
 		if v.floors[k].room_of(c) != String(p.id):
 			continue
 		top = maxf(top, float(MapVertical.ceil_at(v, k, c)[0]))
@@ -214,7 +216,7 @@ static func _object(doc: EditorMap, v: MapValidator, o: Dictionary) -> Dictionar
 ## case ; dans une pièce haute, il monte jusqu'en haut du niveau du dessus
 ## (MapRaster le prolonge dans la trémie).
 static func obstacle_top(doc: EditorMap, v: MapValidator, k: int, c: Vector2) -> float:
-	var cell := MapVertical.cell(c)
+	var cell := v.to_grid(c)
 	var top := MapVertical.wall_top(v, k, cell)
 	var kk := k
 	while kk + 1 < v.floors.size() and v.floors[kk + 1].at(cell) == MapValidator.K.MUR 			and doc.rooms_through(kk + 1).any(func(p): return MapGeom.contains(doc.room_poly(p), c)):

@@ -1442,8 +1442,8 @@ static func musics() -> Array:
 
 # ------------------------------------------------------------------ types admis (contrôle des cartes)
 
-## Coordonnée maximale (m) et nombre d'étages maximal d'une carte.
-const MAX_COORD := CustomMapGuard.MAX_COORD  # mêmes limites que le contrôle des cartes reçues
+## Nombre d'étages maximal d'une carte au format 16 et avant (schéma figé ;
+## format 17 : niveaux sans nombre maximal, coordonnées sans borne).
 const MAX_FLOORS := CustomMapGuard.MAX_FLOORS
 
 
@@ -1456,7 +1456,7 @@ const MAX_FLOORS := CustomMapGuard.MAX_FLOORS
 ## spec : {"t": "id"} identifiant (lettres, chiffres, _ ; 32 caractères au
 ##   plus) ; {"t": "int", "min", "max"} ; {"t": "number", "min", "max"} ;
 ##   {"t": "bool"} ; {"t": "enum", "values": [...]} ; {"t": "point"} [x, y] en
-##   mètres (0 à MAX_COORD) ; {"t": "rect"} [x0, y0, x1, y1] ; {"t": "points",
+##   mètres (format 17 : nombres finis, négatifs compris, sans borne) ; {"t": "rect"} [x0, y0, x1, y1] ; {"t": "points",
 ##   "min", "max"} liste de points [x, y] (format 9) ; {"t": "color"}
 ##   « #rrggbb » ; {"t": "dims", "min", "max", "lo", "hi"} liste de min à max
 ##   nombres, chacun de lo à hi (format 11 : zone d'un effet) ; {"t": "number"}

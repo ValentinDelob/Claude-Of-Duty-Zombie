@@ -1073,8 +1073,9 @@ func _axis_field(box: Container, axis: String, value: float, apply: Callable) ->
 	var commit := func(_t := ""):
 		if e.text == String(e.get_meta("applied")):
 			return
-		var s := e.text.replace(",", ".").strip_edges()
-		if not s.is_valid_float():
+		# Vrai signe moins de MapView.num (coordonnées négatives, format 17).
+		var s := e.text.replace(",", ".").replace("−", "-").strip_edges()
+		if not s.is_valid_float() or not is_finite(float(s)):
 			e.text = String(e.get_meta("applied"))
 			return
 		e.set_meta("applied", e.text)

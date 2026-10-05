@@ -50,8 +50,13 @@ static func check_room(doc: EditorMap, k: int, poly: PackedVector2Array, ignore_
 		if poly[i].distance_to(poly[(i + 1) % poly.size()]) < 0.1:
 			return refuse("côté trop court (10 cm au moins)", "side too short (at least 10 cm)")
 	var bb := MapGeom.bbox(poly)
-	if bb.position.x < -MapGeom.EPS or bb.position.y < -MapGeom.EPS:
-		return refuse("hors du terrain : x et y doivent rester positifs", "off the board: x and y must stay positive")
+	# Format 17 : coordonnées libres (négatives comprises), aucune étendue
+	# maximale ; seule garde technique : la grille du validateur doit tenir en
+	# mémoire (CustomMapGuard.grid_ok).
+	if not (is_finite(bb.position.x) and is_finite(bb.position.y) and is_finite(bb.end.x) and is_finite(bb.end.y)):
+		return refuse("coordonnées invalides", "invalid coordinates")
+	if not CustomMapGuard.grid_ok(_grid_bytes(bb)):
+		return refuse("pièce trop grande pour la mémoire du validateur", "room too large for the validator's memory")
 	if bb.size.x < MIN_ROOM_SIDE or bb.size.y < MIN_ROOM_SIDE or MapGeom.area(poly) < 2.0:
 		return refuse("pièce trop petite (1,5 m de côté au moins)", "room too small (at least 1.5 m per side)")
 	if overlap_ok:
@@ -61,6 +66,12 @@ static func check_room(doc: EditorMap, k: int, poly: PackedVector2Array, ignore_
 			return refuse("elle chevauche la pièce « %s » (deux pièces peuvent se toucher, pas se recouvrir)" % p.get("nom", p.id),
 				"it overlaps room \"%s\" (rooms may touch, not overlap)" % p.get("nom", p.id))
 	return {"ok": true}
+
+
+## Mémoire (octets) de la grille du validateur pour un seul niveau couvrant
+## `bb` (m) : garde technique des grandes formes (CustomMapGuard.grid_ok).
+static func _grid_bytes(bb: Rect2) -> int:
+	return CustomMapGuard.extent_bytes(bb.size, 1)
 
 
 ## Bords communs de deux pièces collées de l'étage : [{a, b, rooms: [id, id],
@@ -2016,7 +2027,7 @@ static func _de(s: String) -> String:
 ## Contour d'une barrière invisible (polygone, m) : elle se pose N'IMPORTE
 ## OÙ (dans une pièce, à cheval sur un mur, dehors, par-dessus n'importe quel
 ## objet). Seules règles : 3 à 64 sommets, côtés de 5 cm au moins, côtés qui
-## ne se croisent pas, 0,04 m² au moins, dans le terrain (x, y ≥ 0).
+## ne se croisent pas, 0,04 m² au moins (format 17 : coordonnées libres).
 static func check_clip(poly: PackedVector2Array) -> Dictionary:
 	var lim: Array = MapCatalog.CLIP_POINTS
 	if poly.size() < int(lim[0]):
@@ -2030,11 +2041,8 @@ static func check_clip(poly: PackedVector2Array) -> Dictionary:
 		return refuse("barrière invisible : contour invalide (ses côtés se croisent)", "invisible barrier: invalid outline (its sides cross)")
 	if MapGeom.area(poly) < MapCatalog.CLIP_MIN_AREA:
 		return refuse("barrière invisible trop petite (0,04 m² au moins)", "invisible barrier too small (at least 0.04 m²)")
-	var bb := MapGeom.bbox(poly)
-	if bb.position.x < -MapGeom.EPS or bb.position.y < -MapGeom.EPS:
-		return refuse("hors du terrain : x et y doivent rester positifs", "off the board: x and y must stay positive")
-	if bb.end.x > MapCatalog.MAX_COORD or bb.end.y > MapCatalog.MAX_COORD:
-		return refuse("hors du terrain (%d m au plus)" % int(MapCatalog.MAX_COORD), "off the board (%d m at most)" % int(MapCatalog.MAX_COORD))
+	if not CustomMapGuard.grid_ok(_grid_bytes(MapGeom.bbox(poly))):
+		return refuse("barrière invisible trop grande pour la mémoire du validateur", "invisible barrier too large for the validator's memory")
 	if Geometry2D.decompose_polygon_in_convex(poly).is_empty():
 		return refuse("barrière invisible : contour invalide", "invisible barrier: invalid outline")
 	return {"ok": true}
@@ -2043,13 +2051,13 @@ static func check_clip(poly: PackedVector2Array) -> Dictionary:
 static func check_wall(a: Vector2, b: Vector2) -> Dictionary:
 	if a.distance_to(b) < MapGeom.CELL - MapGeom.EPS:
 		return refuse("mur trop court", "wall too short")
-	if minf(a.x, b.x) < -MapGeom.EPS or minf(a.y, b.y) < -MapGeom.EPS:
-		return refuse("hors du terrain : x et y doivent rester positifs", "off the board: x and y must stay positive")
+	if not CustomMapGuard.grid_ok(_grid_bytes(Rect2(a, Vector2.ZERO).expand(b))):
+		return refuse("mur trop long pour la mémoire du validateur", "wall too long for the validator's memory")
 	return {"ok": true}
 
 
 ## Mur courbe (arc en segments) : rayon d'un mètre au moins, ouverture de 5 à
-## 360°, dans le terrain.
+## 360° (format 17 : où que ce soit, coordonnées négatives comprises).
 static func check_arc(o: Dictionary) -> Dictionary:
 	var r := float(o.get("rayon", 0.0))
 	if r < 1.0 - MapGeom.EPS:
@@ -2059,9 +2067,6 @@ static func check_arc(o: Dictionary) -> Dictionary:
 	var op := float(o.get("ouverture", 0.0))
 	if op < 5.0 or op > 360.0:
 		return refuse("ouverture du mur courbe : 5 à 360°", "curved wall opening: 5 to 360°")
-	var bb := MapGeom.bbox(MapShapes.wall_arc(o))
-	if bb.position.x < -MapGeom.EPS or bb.position.y < -MapGeom.EPS:
-		return refuse("hors du terrain : x et y doivent rester positifs", "off the board: x and y must stay positive")
 	return {"ok": true}
 
 

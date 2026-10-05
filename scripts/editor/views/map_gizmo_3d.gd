@@ -61,7 +61,8 @@ func center3(e: Dictionary) -> Vector3:
 		zc = MapVertical.room_h(v, e) - MapVertical.descente(e) - MapScale.dims(e).z * 0.5
 	else:
 		zc = MapVertical.decor_z(e) + MapScale.half_z(e)
-	return Vector3(p.x + MapGeom.WORLD_OFFSET, sol + zc, p.y + MapGeom.WORLD_OFFSET)
+	# Monde construit de l'aperçu (décalage des coordonnées négatives compris).
+	return panel.world.to_world(p, sol + zc)
 
 
 ## Base (u, v) du plan d'un anneau, repère du JEU : tourner u de +θ (§ 3.1)

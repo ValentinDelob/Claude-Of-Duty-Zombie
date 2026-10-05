@@ -855,11 +855,15 @@ func test_guard_free_shapes() -> void:
 		assert_true(String(tt["objets.json"]).contains("\"rot\":" + bad), "remplacement rot %s" % bad)
 		_refused(tt, "rotation %s" % bad)
 	for s in [["\"segments\":8", "\"segments\":0"], ["\"segments\":8", "\"segments\":65"], ["\"ouverture\":100", "\"ouverture\":500"],
-			["\"rayon\":7", "\"rayon\":1e999"], ["\"centre\":[16,16]", "\"centre\":[1,1]"]]:
+			["\"rayon\":7", "\"rayon\":1e999"]]:
 		var tt := t.duplicate()
 		tt["objets.json"] = String(tt["objets.json"]).replace(s[0], s[1])
 		assert_true(String(tt["objets.json"]).contains(s[1]), "remplacement %s" % s[1])
 		_refused(tt, "mur courbe %s" % s[1])
+	# Format 17 : un arc qui passe en coordonnées négatives est admis.
+	var neg := t.duplicate()
+	neg["objets.json"] = String(neg["objets.json"]).replace("\"centre\":[16,16]", "\"centre\":[1,1]")
+	assert_true(CustomMapGuard.check_texts(neg).ok, "mur courbe en partie en négatif accepté")
 	# 64 points par pièce : accepté (la limite par pièce le permet).
 	var big := round_map()
 	var f64 := {"type": "cercle", "centre": [16.0, 16.0], "rx": 13.0, "points": 64, "angle": 0}

@@ -685,8 +685,8 @@ static func carve_ops(doc: EditorMap, ops: Array, allowed: bool) -> Dictionary:
 		if not allowed:
 			return MapRules.refuse("lot refusé : la pièce « %s » recouvre %s. Pour découper les pièces existantes (la partie recouverte leur est retirée), renvoie le lot avec « decouper »: true ; sinon place la pièce à côté (deux pièces se touchent, jamais ne se recouvrent)" % [r.get("nom", r.id), names],
 				"batch refused: room \"%s\" overlaps %s. To cut the existing rooms (the covered part is removed from them), send the batch again with \"decouper\": true; otherwise place the room next to them (rooms touch, never overlap)" % [r.get("nom", r.id), names.replace("« ", "\"").replace(" »", "\"")])
-		# Mêmes contrôles que le tracé dans l'éditeur (contour simple, dans le
-		# terrain, taille) : une pièce invalide ne découpe rien.
+		# Mêmes contrôles que le tracé dans l'éditeur (contour simple, grille du
+		# validateur en mémoire, taille) : une pièce invalide ne découpe rien.
 		var chk := MapRules.check_room(m, k, m.room_poly(r), String(r.id), true)
 		if not chk.ok:
 			return MapRules.refuse("lot refusé : la pièce « %s » ne peut pas découper (%s)" % [r.get("nom", r.id), String(chk.fr)],

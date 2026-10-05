@@ -70,11 +70,12 @@ static func cell(p: Vector2) -> Vector2i:
 	return Vector2i(floori(p.x / MapGeom.CELL), floori(p.y / MapGeom.CELL))
 
 
-## Plafond réel (m, absolu) au-dessus d'un point de l'étage `k`.
+## Plafond réel (m, absolu) au-dessus d'un point de l'étage `k` (point de
+## l'éditeur : v.to_grid retire le décalage des coordonnées négatives).
 static func ceil_z(v: MapValidator, k: int, p: Vector2) -> float:
 	if k < 0 or k >= v.floors.size():
 		return 0.0
-	return float(ceil_at(v, k, cell(p))[0])
+	return float(ceil_at(v, k, v.to_grid(p))[0])
 
 
 # ------------------------------------------------------------------ hauteurs de pose (format 12)
