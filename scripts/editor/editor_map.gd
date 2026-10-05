@@ -189,8 +189,9 @@ var view_levels: Array = []
 var _lv_frozen := 0
 var _lv_frame := -1
 var _lv_rooms := -1
-## Mémoire de levels() : altitudes lues -> niveaux triés.
-var _lv_src: Array = []
+## Mémoire de levels() : altitudes brutes lues (pièces puis niveaux vides)
+## -> niveaux triés.
+var _lv_raw: Array = []
 var _lv: Array = [0.0]
 
 
@@ -310,19 +311,45 @@ func levels() -> Array:
 		if _lv_frame == Engine.get_process_frames() and _lv_rooms == pieces.size():
 			return _lv
 		_lv_frozen = 0
+	# Appelée très souvent (level_of, level_count...) : les altitudes brutes
+	# relues sont comparées à celles de la dernière fois, sans rien construire ;
+	# niveaux recalculés seulement si l'une a changé.
+	var n := pieces.size()
+	var nv := view_levels.size()
+	var same := _lv_raw.size() == n + nv
+	if same:
+		for i in n:
+			var a: Variant = (pieces[i] as Dictionary).get("altitude", 0.0)
+			var r: Variant = _lv_raw[i]
+			if typeof(a) != typeof(r) or a != r:
+				same = false
+				break
+	if same:
+		for i in nv:
+			var a: Variant = view_levels[i]
+			var r: Variant = _lv_raw[n + i]
+			if typeof(a) != typeof(r) or a != r:
+				same = false
+				break
+	if same:
+		return _lv
+	var raw := []
+	raw.resize(n + nv)
 	var src := []
-	src.resize(pieces.size())
-	for i in pieces.size():
+	src.resize(n)
+	for i in n:
+		raw[i] = (pieces[i] as Dictionary).get("altitude", 0.0)
 		src[i] = alt_of(pieces[i])
+	for i in nv:
+		raw[n + i] = view_levels[i]
+	_lv_raw = raw
 	src.append_array(view_levels)
 	if pieces.is_empty():
 		# Carte sans pièce : le rez-de-chaussée existe toujours.
 		src.append(0.0)
-	if src != _lv_src:
-		_lv_src = src
-		_lv = merge_alts(src)
-		if _lv.is_empty():
-			_lv = [0.0]
+	_lv = merge_alts(src)
+	if _lv.is_empty():
+		_lv = [0.0]
 	return _lv
 
 
@@ -366,9 +393,11 @@ func level_index(alt: float) -> int:
 
 static func level_index_in(lv: Array, alt: float) -> int:
 	var i := lv.bsearch(alt)
-	for j in [i - 1, i]:
-		if j >= 0 and j < lv.size() and absf(float(lv[j]) - alt) <= ALT_EQ:
-			return j
+	# Voisins i - 1 puis i (sans tableau : appelé pour chaque élément).
+	if i >= 1 and i - 1 < lv.size() and absf(float(lv[i - 1]) - alt) <= ALT_EQ:
+		return i - 1
+	if i < lv.size() and absf(float(lv[i]) - alt) <= ALT_EQ:
+		return i
 	return -1
 
 

@@ -723,7 +723,11 @@ func toggle_cut() -> void:
 func elevation_items() -> Array:
 	if _elev_ver != doc_version:
 		_elev_ver = doc_version
-		_elev_items = MapElevationItems.build(doc, raster().v)
+		var v := raster().v
+		# Niveaux figés (level_of de chaque élément).
+		doc.freeze_levels()
+		_elev_items = MapElevationItems.build(doc, v)
+		doc.thaw_levels()
 	return _elev_items
 
 

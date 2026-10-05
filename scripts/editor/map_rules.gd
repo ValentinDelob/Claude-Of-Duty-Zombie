@@ -425,10 +425,30 @@ static func _m(v: float, fr := true) -> String:
 
 ## Pièce de l'étage qui contient `p` (strictement à l'intérieur), {} sinon.
 static func room_at(doc: EditorMap, k: int, p: Vector2) -> Dictionary:
-	for r in doc.rooms_on(k):
-		if MapGeom.contains(doc.room_poly(r), p):
-			return r
+	for e in _rooms_of(doc, k):
+		if (e[2] as Rect2).has_point(p) and MapGeom.contains(e[1], p):
+			return e[0]
 	return {}
+
+
+## Pièces du niveau `k` : [[pièce, contour, rectangle englobant (marge 1 mm)]].
+## Pendant un lot (begin_batch, fil principal) : lues une fois par niveau
+## (check_existing sur chaque élément relirait chaque contour) ; sinon à la volée.
+static func _rooms_of(doc: EditorMap, k: int) -> Array:
+	var batched := _batch_doc == doc and not ThreadGuard.worker()
+	# Sûreté (lot tenu pendant un geste, comme EditorMap.freeze_levels) : relues à chaque image.
+	if batched and _batch_rooms_frame != Engine.get_process_frames():
+		_batch_rooms = {}
+		_batch_rooms_frame = Engine.get_process_frames()
+	if batched and _batch_rooms.has(k):
+		return _batch_rooms[k]
+	var out := []
+	for r in doc.rooms_on(k):
+		var poly := doc.room_poly(r)
+		out.append([r, poly, MapGeom.bbox(poly).grow(0.001)])
+	if batched:
+		_batch_rooms[k] = out
+	return out
 
 
 ## Pièce de l'étage dont le sol touche l'emprise `poly` (décor posé à cheval
@@ -438,8 +458,9 @@ static func room_touching(doc: EditorMap, k: int, poly: PackedVector2Array) -> D
 	var best_n := 0
 	var pts := Array(poly)
 	pts.append(MapGeom.centroid(poly))
-	for r in doc.rooms_on(k):
-		var rp := doc.room_poly(r)
+	for e in _rooms_of(doc, k):
+		var r: Dictionary = e[0]
+		var rp: PackedVector2Array = e[1]
 		if not MapGeom.overlap(rp, poly):
 			continue
 		var n := 1
@@ -580,6 +601,9 @@ static var _batch_doc: EditorMap = null
 static var _batch_lists: Dictionary = {}   # étage -> [escaliers et murs libres]
 ## Escaliers du lot : [[escalier, altitude du pied, altitude d'arrivée]].
 static var _batch_stairs: Array = []
+## Pièces par niveau pendant un lot (_rooms_of).
+static var _batch_rooms: Dictionary = {}
+static var _batch_rooms_frame := -1
 
 
 static func begin_batch(doc: EditorMap) -> void:
@@ -590,6 +614,7 @@ static func begin_batch(doc: EditorMap) -> void:
 	_batch = {}
 	_batch_doc = doc
 	doc.freeze_levels()
+	_batch_rooms = {}
 	_floor_bases = {}   # étages lus par les contrôles d'escaliers (_stair_floor_base)
 	_batch_stairs = []
 	_batch_lists = {}
@@ -627,6 +652,7 @@ static func end_batch() -> void:
 		_batch_doc.thaw_levels()
 	_batch = {}
 	_batch_doc = null
+	_batch_rooms = {}
 	_floor_bases = {}
 	_batch_lists = {}
 

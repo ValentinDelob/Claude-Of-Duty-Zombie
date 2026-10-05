@@ -188,7 +188,10 @@ func _ensure_built() -> void:
 func rebuild() -> void:
 	_dirty = false
 	rebuild_count += 1
+	# Niveaux figés (level_of de chaque élément).
+	ed.doc.freeze_levels()
 	entries = build_entries(ed.doc)
+	ed.doc.thaw_levels()
 	_apply_filter(false)
 
 

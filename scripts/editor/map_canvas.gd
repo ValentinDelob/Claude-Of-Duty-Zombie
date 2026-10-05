@@ -1378,6 +1378,15 @@ func _update_point_hint() -> void:
 # ------------------------------------------------------------------ dessin
 
 func _draw() -> void:
+	# Niveaux figés pendant le dessin (rooms_on, objects_on, level_of de chaque
+	# élément : EditorMap.levels relirait toutes les pièces) ; rien n'y change.
+	var doc := ed.doc
+	doc.freeze_levels()
+	_draw_map()
+	doc.thaw_levels()
+
+
+func _draw_map() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), COL_BG)
 	# Format 17 : coordonnées libres (négatives comprises), terrain partout.
 	draw_rect(Rect2(Vector2.ZERO, size), COL_TERRAIN)
@@ -1440,8 +1449,16 @@ func _draw() -> void:
 				draw_string_outline(font, c + Vector2(-wz * 0.5, _u(13)), zn, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11), 3, Color(0, 0, 0, 0.8))
 				draw_string(font, c + Vector2(-wz * 0.5, _u(13)), zn, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11), Color(1, 1, 1, 0.6))
 	# Éléments devenus invalides (après un déplacement de pièce...).
+	# Éléments par identifiant (doc.find relirait toute la carte pour chacun).
+	var by_id := {}
+	if not ed.invalid.is_empty():
+		for list in [doc.pieces, doc.ouvertures, doc.objets]:
+			for e in list:
+				var eid := String(e.get("id", ""))
+				if not by_id.has(eid):
+					by_id[eid] = e
 	for eid in ed.invalid:
-		var e := doc.find(eid)
+		var e: Dictionary = by_id.get(eid, {})
 		if e.is_empty() or ed.doc.level_of(e) != k or hid.has(String(eid)):
 			continue
 		var r := _elem_rect_px(e)

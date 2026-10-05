@@ -440,12 +440,15 @@ func _draw_content() -> void:
 	content_draws += 1
 	var c: CanvasItem = _layer
 	var font := UiStyle.font("body")
+	# Niveaux figés pendant la projection et le dessin (level_of, floor_sol).
+	ed.doc.freeze_levels()
 	var list := projected()
 	var area := Rect2(-size, size * 3.0)
 	if plane == "dessous":
 		_draw_below(c, list, font, area)
 	else:
 		_draw_side(c, list, font, area)
+	ed.doc.thaw_levels()
 	last_draw_us = Time.get_ticks_usec() - t0
 
 

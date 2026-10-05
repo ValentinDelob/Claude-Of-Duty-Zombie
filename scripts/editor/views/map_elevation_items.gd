@@ -95,12 +95,27 @@ static func room_top(doc: EditorMap, v: MapValidator, p: Dictionary) -> float:
 		return own
 	var top := -INF
 	var cells: Array = MapRaster.room_cells(poly)[1]
+	# Boucle chaude (une grande pièce : des dizaines de milliers de cases) :
+	# MapVertical.ceil_at déroulé, sans niveau au-dessus le plafond propre suffit.
+	var f := v.floors[k]
+	var sh := v.shift_cells()
+	var pid := String(p.id)
+	var above := k + 1 < v.floors.size()
+	var lvl_top := MapVertical.top(v, k)
 	for ce in cells:
 		# Case de l'éditeur -> case de la grille (coordonnées négatives : décalage).
-		var c := v.grid_cell(ce)
-		if v.floors[k].room_of(c) != String(p.id):
+		var c: Vector2i = ce + sh
+		if not f.inside(c):
 			continue
-		top = maxf(top, float(MapVertical.ceil_at(v, k, c)[0]))
+		var i := c.y * f.w + c.x
+		if f.room[i] != pid:
+			continue
+		var cl := f.ceil[i]
+		if cl <= 0.0:
+			cl = lvl_top
+		if above:
+			cl = float(MapVertical._ceil_walk(v, k, c, cl)[0])
+		top = maxf(top, cl)
 	if top == -INF:
 		top = own
 	return top
