@@ -303,8 +303,8 @@ func _after_gesture() -> void:
 	_key(KEY_Z, true)
 	await _gone("Ctrl+Z (élément retiré)")
 
-	# 11. Changement d'étage (étage ajouté pour l'occasion, retiré ensuite :
-	# son sol sous le plafond haut gênerait le clic en 3D).
+	# 11. Changement de niveau (niveau vide ajouté pour l'occasion, retiré
+	# ensuite ; format 17 : un niveau vide n'est pas une étape d'annulation).
 	ed.add_floor()
 	ed.set_floor(0)
 	await _pick("d91")
@@ -312,9 +312,9 @@ func _after_gesture() -> void:
 	ed.set_floor(1)
 	await _gone("changement d'étage")
 	ed.set_floor(0)
-	ed.undo()
+	ed.remove_top_floor()
 	await frames(2)
-	at.check(ed.doc.level_count() == 1, "étage ajouté retiré (Ctrl+Z)")
+	at.check(ed.doc.level_count() == 1, "niveau vide ajouté retiré")
 
 	# 12. Élément retiré par Claude.
 	await _pick("d92")
