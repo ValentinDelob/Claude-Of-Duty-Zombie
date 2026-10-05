@@ -488,12 +488,18 @@ func _hatch(r: Rect2, step: float, col: Color, width := 1.0, dir := 1, ci: Canva
 	var s := step * 1.41421356
 	var h := view.size.y
 	var c := view.position.x - h - fposmod(view.position.x - h, s)
+	# Tous les traits en un seul appel (une vue en compte des centaines).
+	var pts := PackedVector2Array()
 	while c < view.end.x:
 		var t0 := maxf(0.0, view.position.x - c)
 		var t1 := minf(h, view.end.x - c)
 		if t1 > t0:
 			if dir > 0:
-				t.draw_line(Vector2(c + t0, view.end.y - t0), Vector2(c + t1, view.end.y - t1), col, width)
+				pts.append(Vector2(c + t0, view.end.y - t0))
+				pts.append(Vector2(c + t1, view.end.y - t1))
 			else:
-				t.draw_line(Vector2(c + t0, view.position.y + t0), Vector2(c + t1, view.position.y + t1), col, width)
+				pts.append(Vector2(c + t0, view.position.y + t0))
+				pts.append(Vector2(c + t1, view.position.y + t1))
 		c += s
+	if not pts.is_empty():
+		t.draw_multiline(pts, col, width)

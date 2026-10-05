@@ -704,6 +704,14 @@ static func _near(doc: EditorMap, k: int, r: Rect2) -> Array:
 					seen[eid] = true
 					out.append(e)
 		return out
+	if not ThreadGuard.worker() and stair_cache_tag >= 0 and k >= 0 and k < doc.floor_count():
+		# Tracé d'un escalier (stair_cache_tag : carte inchangée) : les objets de
+		# l'étage rangés par cases dans sa base (_stair_floor_base), dans l'ordre
+		# de la carte (premier chevauchement nommé comme sans la base).
+		var cand := _base_near(_stair_floor_base(doc, k), r)
+		if cand.all(func(e): return (e as Array).size() > 3):
+			cand.sort_custom(func(a, b): return int(a[3]) < int(b[3]))
+			return cand
 	var out := []
 	for o in doc.objects_on(k):
 		if not String(o.get("type", "")) in NO_OVERLAP_CHECK:
@@ -1786,6 +1794,7 @@ static func _stair_floor_base(doc: EditorMap, j: int) -> Dictionary:
 			for bk in _buckets(Rect2((Vector2(cb.position) - Vector2.ONE * 0.5) * MapGeom.CELL, Vector2(cb.size) * MapGeom.CELL)):
 				(base.well_grid.get_or_add(bk, []) as Array).append(we)
 		var batched := _batch_doc == doc and main
+		var n := 0   # rang dans la carte (_near pendant un tracé)
 		for o in (_batch_lists.get(j, []) if batched else doc.objects_on(j)):
 			var t := String(o.get("type", ""))
 			if t == "escalier":
@@ -1798,9 +1807,10 @@ static func _stair_floor_base(doc: EditorMap, j: int) -> Dictionary:
 				base.walls.append(o)
 			if not t in NO_OVERLAP_CHECK and not batched:
 				var r := footprint_rect(o)
-				var e := [o, r, layer_of(o)]
+				var e := [o, r, layer_of(o), n]
 				for bk in _buckets(r):
 					(base.items.get_or_add(bk, []) as Array).append(e)
+			n += 1
 	if _batch_doc == doc and main:
 		base.items = _batch.get(j, {})   # le lot range déjà les objets par cases
 	if main and (_batch_doc == doc or stair_cache_tag >= 0):
