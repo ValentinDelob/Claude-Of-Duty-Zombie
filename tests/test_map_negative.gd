@@ -265,3 +265,72 @@ func test_preview_pick_on_negative_map() -> void:
 	assert_eq(w.pick(center), "pb", "clic sur le sol de la salle B")
 	w.queue_free()
 	await wait_frames(2)
+
+
+# ------------------------------------------------------------------ étapes 1b + 2 + 3 croisées
+
+const FREE := preload("res://tests/test_levels_free.gd")
+
+
+## Texte d'un message dont les positions écrites « (x X m, y Y m » sont
+## déplacées de `d` (m), dans le format de MapValidator._at.
+static func moved_text(s: String, d: Vector2) -> String:
+	var re := RegEx.create_from_string("\\(x (-?[0-9]+(?:,[0-9]+)?) m, y (-?[0-9]+(?:,[0-9]+)?) m")
+	var out := ""
+	var at := 0
+	for m in re.search_all(s):
+		var x := float(m.get_string(1).replace(",", ".")) + d.x
+		var y := float(m.get_string(2).replace(",", ".")) + d.y
+		out += s.substr(at, m.get_start() - at) + "(x %s m, y %s m" % [MapValidator._num(x).replace(".", ","), MapValidator._num(y).replace(".", ",")]
+		at = m.get_end()
+	return out + s.substr(at)
+
+
+func test_negative_map_with_half_level_and_open_sky() -> void:
+	# Demi-niveau relié par une rampe à travers le mur commun (palier dans le
+	# mur, étape 1b), escalier qui saute un niveau, couloir et palier sans
+	# plafond (étape 2), la carte entière en coordonnées négatives (étape 3) :
+	# même grille, mêmes messages (positions comprises, celles écrites pendant
+	# la construction aussi), même export.
+	var hall := FREE.split_hall()
+	EditorMap.set_no_ceiling(hall.find("pc"), true)
+	EditorMap.set_no_ceiling(hall.find("pp"), true)
+	# Escalier qui saute un niveau sous un plancher : erreur écrite par le raster.
+	var under := FREE.high_hall()
+	under.find("m1")["contour"] = FREE.rect(0, 0, 10, 16)
+	under.find("s1e")["rect"] = [10.0, 2.0, 17.0, 4.5]
+	for pair in [["split_hall", hall], ["sous_plancher", under]]:
+		var name: String = pair[0]
+		var m0 := at_origin(pair[1])
+		var m1 := moved(m0, T)
+		var v0 := MapRaster.build(m0).v
+		var v1 := MapRaster.build(m1).v
+		assert_eq(v1.shift, -T, "%s : décalage" % name)
+		v0.analyze()
+		v1.analyze()
+		# Structures de la grille (repère décalé) : identiques.
+		assert_eq(v1.landings, v0.landings, "%s : paliers dans le mur" % name)
+		assert_eq(v1.stair_to, v0.stair_to, "%s : arrivées des escaliers" % name)
+		assert_eq(v1.open_sky, v0.open_sky, "%s : ciel ouvert" % name)
+		assert_eq(v1.messages.size(), v0.messages.size(), "%s : nombre de messages" % name)
+		for i in mini(v0.messages.size(), v1.messages.size()):
+			assert_eq(String(v1.messages[i].fr), moved_text(String(v0.messages[i].fr), T), "%s : message %d (positions de l'éditeur)" % [name, i])
+		var e0: Variant = JSON.parse_string(JSON.stringify(MapPreviewWorld.compute(m0).data))
+		var e1: Variant = JSON.parse_string(JSON.stringify(MapPreviewWorld.compute(m1).data))
+		var d: Array = REF.diff(e0, e1)
+		assert_true(d.is_empty(), "%s : export identique\n%s" % [name, "\n".join(d.slice(0, 12))])
+		assert_true(negatives(e1).is_empty(), "%s : monde >= 0" % name)
+		if name == "split_hall":
+			assert_true(v1.ok(), "carte jouable :\n%s" % "\n".join(v1.errors().map(func(m): return String(m.fr))))
+			assert_false((v1.landings.get(1, {}) as Dictionary).is_empty(), "palier de la rampe dans le mur commun")
+			# Sol du palier P (36 m, 8 m de la carte d'origine) : à ciel ouvert ;
+			# sol de la halle (plafond affiché) : non.
+			var o0 := MapRaster.extent(pair[1]).position - MapRaster.extent(m0).position
+			var p_pp := Vector2(36.0, 8.0) - o0 + T
+			var p_ph := Vector2(12.0, 8.0) - o0 + T
+			assert_true(MapVertical.open_at(v1, 1, v1.to_grid(p_pp)), "palier sans plafond : ciel ouvert")
+			assert_false(MapVertical.open_at(v1, 0, v1.to_grid(p_ph)), "halle : plafond")
+			assert_true(JSON.stringify(e1).contains("\"no_ceiling\":true"), "export : salles sans plafond")
+		else:
+			assert_true(v1.errors().any(func(m): return String(m.fr).contains("passe au-dessus de ses marches") and String(m.fr).contains("x -")),
+				"erreur du raster en coordonnées de l'éditeur (négatives) :\n%s" % "\n".join(v1.errors().map(func(m): return String(m.fr))))
