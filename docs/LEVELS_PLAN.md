@@ -363,6 +363,10 @@ translation : mêmes messages, export identique, monde ≥ 0) + NetCodec ;
   `etages`, `double_hauteur` refusés avant envoi (`McpTools.LEGACY_KEYS`).
 - Collaboration : `PROTO` 3 (étape 1a) gardé (rien de neuf sur le fil) ;
   curseur de présence borné à `NetGuard.MAX_COORD` au lieu de ±1 000 m.
-- Étape 4 (fusion) : compléter dans `McpDocs.CONSIGNES` (bullet Escaliers) la
-  clé `sortie` ; `MapSummary._room_at` lit `exit` de `StairGen.plan`, donc la
-  pièce d'arrivée d'une sortie latérale suivra si `stair_spec` passe `side`.
+- Fusion des étapes 4, 5 et 6 (faite) : `McpDocs.CONSIGNES` (puce Escaliers)
+  et `MAP_OBJECTS.md` décrivent la clé `sortie` ; `MapRaster.stair_spec` passe
+  `side` (`MapCatalog.stair_layout_opts`), donc `MapSummary._room_at` trouve la
+  pièce d'arrivée d'une sortie latérale. Le déplacement vertical de l'étape 5
+  (`MapTransform.lift`) garde `sortie` et revérifie l'escalier
+  (`check_existing` : jamais de nouveau choix de côté). « Arrivée : altitude »
+  nomme les niveaux comme le menu et l'onglet Niveaux.
