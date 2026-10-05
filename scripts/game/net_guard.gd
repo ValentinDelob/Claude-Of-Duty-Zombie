@@ -9,8 +9,10 @@ extends RefCounted
 ## Chaque RPC « any_peer » passe ses arguments par ces fonctions AVANT de
 ## s'en servir.
 
-## Coordonnée la plus grande acceptée (m) : aucune carte n'en approche.
-const MAX_COORD := 100000.0
+## Coordonnée la plus grande acceptée (m) : garde contre les valeurs absurdes,
+## bien au-delà de toute carte que le validateur accepte (format 17 : pas
+## d'étendue maximale, mais une grille limitée par la mémoire, moins de 200 km).
+const MAX_COORD := 1000000.0
 
 
 ## Vrai si le nombre est fini (ni NaN ni infini) et raisonnable.

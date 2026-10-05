@@ -41,7 +41,8 @@ Encodage binaire dans `NetCodec` (`scripts/game/net_codec.gd`, fonctions pures t
 dans `tests/test_zombie_net.gd`). ENet compresse chaque datagramme (codeur de plage).
 
 - **Zombies** (`ZombieManager`, 15 Hz, `unreliable_ordered`) : état quantifié par zombie
-  `[x, z, y]` au cm (u16), lacet (u8, 256 pas), code d'animation (u8 : état | vitesse
+  `[x, z, y]` au cm signé (32 bits, entier variable « zigzag » : 1 à 5 octets, 2 pour
+  une carte ordinaire, aucune borne de carte ni d'altitude ; protocole 6), lacet (u8, 256 pas), code d'animation (u8 : état | vitesse
   | bit 5 `Zombie.FRENZY_BIT` : pause « de folie » à la fenêtre).
   Instantané delta : `u16 n` puis par entrée `u16 id, u8 masque` et les seuls champs du
   masque. Un zombie inchangé n'est pas envoyé. Le serveur garde le dernier état envoyé

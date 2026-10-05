@@ -5,7 +5,8 @@ extends RefCounted
 ##
 ## * Zombies : état quantifié [x, z, y, lacet, code] ; instantané delta = seuls
 ##   les champs qui ont changé depuis le dernier envoi, chaque zombie étant
-##   renvoyé en entier tous les ZOMBIE_REFRESH instantanés (décalé par id).
+##   renvoyé en entier tous les ZOMBIE_REFRESH instantanés (décalé par id) ;
+##   positions en cm signés, entiers variables (aucune borne de carte).
 ## * Joueurs : état de mouvement en 17 octets.
 ## * Effets de combat : tirs et touches d'une image regroupés en un message.
 
@@ -26,22 +27,35 @@ const FULL_MASK := 31
 const ZOMBIE_REFRESH := 15
 ## Envois complets d'un zombie juste après son apparition.
 const FRESH_FULL := 3
-## Décalage vertical pour coder y (peut être négatif pendant l'émergence).
-const Y_OFFSET := 20.0
+## Positions x, z, y en centimètres signés sur 32 bits (± 21 474 km : aucune
+## carte ni altitude bridée, format 17), codées en entier variable « zigzag »
+## (1 octet jusqu'à ± 0,63 m, 2 jusqu'à ± 81,9 m, 3 jusqu'à ± 10,4 km, 5 au
+## plus) : un zombie d'une carte ordinaire coûte autant ou moins qu'avec
+## l'ancien codage u16 (0 à 655 m, y décalé de 20 m).
+const POS_MAX := 2147483647
+## Octets au plus d'un entier variable (32 bits).
+const VARINT_MAX := 5
 
 
 static func quantize_zombie(pos: Vector3, yaw: float, code: int) -> PackedInt32Array:
 	return PackedInt32Array([
-		clampi(int(round(pos.x * 100.0)), 0, 65535),
-		clampi(int(round(pos.z * 100.0)), 0, 65535),
-		clampi(int(round((pos.y + Y_OFFSET) * 100.0)), 0, 65535),
+		_cm(pos.x),
+		_cm(pos.z),
+		_cm(pos.y),
 		int(round(fposmod(yaw, TAU) / TAU * 256.0)) & 255,
 		code & 255,
 	])
 
 
+## Mètres -> centimètres signés bornés à 32 bits (non fini : 0).
+static func _cm(v: float) -> int:
+	if not is_finite(v):
+		return 0
+	return int(clampf(roundf(v * 100.0), -POS_MAX, POS_MAX))
+
+
 static func zombie_pos(q: PackedInt32Array) -> Vector3:
-	return Vector3(q[QX] / 100.0, q[QY] / 100.0 - Y_OFFSET, q[QZ] / 100.0)
+	return Vector3(q[QX] / 100.0, q[QY] / 100.0, q[QZ] / 100.0)
 
 
 static func zombie_yaw(q: PackedInt32Array) -> float:
@@ -60,12 +74,12 @@ static func diff_mask(last: PackedInt32Array, cur: PackedInt32Array) -> int:
 
 
 ## Instantané : u16 nombre d'entrées, puis par entrée u16 id, u8 masque et les
-## champs présents dans l'ordre x (u16), z (u16), y (u16), lacet (u8), code (u8).
-## `entries` : Array de [id, masque, état quantifié].
+## champs présents dans l'ordre x, z, y (entiers variables zigzag, cm signés),
+## lacet (u8), code (u8). `entries` : Array de [id, masque, état quantifié].
 static func encode_zombie_snapshot(entries: Array) -> PackedByteArray:
 	var size := 2
 	for e: Array in entries:
-		size += 3 + _mask_bytes(e[1])
+		size += 3 + _fields_bytes(e[1], e[2])
 	var buf := PackedByteArray()
 	buf.resize(size)
 	buf.encode_u16(0, entries.size())
@@ -78,8 +92,7 @@ static func encode_zombie_snapshot(entries: Array) -> PackedByteArray:
 		o += 3
 		for i in 3:
 			if m & FIELD_BITS[i]:
-				buf.encode_u16(o, q[i])
-				o += 2
+				o = _put_varint(buf, o, _zigzag(q[i]))
 		for i in range(3, 5):
 			if m & FIELD_BITS[i]:
 				buf.encode_u8(o, q[i])
@@ -87,20 +100,67 @@ static func encode_zombie_snapshot(entries: Array) -> PackedByteArray:
 	return buf
 
 
-static func _mask_bytes(m: int) -> int:
+## Octets des champs présents (masque `m`) de l'état `q`.
+static func _fields_bytes(m: int, q: PackedInt32Array) -> int:
 	var n := 0
 	for i in 3:
 		if m & FIELD_BITS[i]:
-			n += 2
+			n += varint_size(_zigzag(q[i]))
 	for i in range(3, 5):
 		if m & FIELD_BITS[i]:
 			n += 1
 	return n
 
 
+## Entier signé (32 bits) -> naturel (0, -1, 1, -2... -> 0, 1, 2, 3...).
+static func _zigzag(v: int) -> int:
+	return (v << 1) ^ (v >> 63) if v < 0 else v << 1
+
+
+static func _unzigzag(z: int) -> int:
+	return (z >> 1) ^ -(z & 1)
+
+
+## Octets d'un naturel en entier variable (7 bits par octet).
+static func varint_size(z: int) -> int:
+	var n := 1
+	while z >= 128:
+		z >>= 7
+		n += 1
+	return n
+
+
+static func _put_varint(buf: PackedByteArray, o: int, z: int) -> int:
+	while z >= 128:
+		buf[o] = (z & 127) | 128
+		z >>= 7
+		o += 1
+	buf[o] = z
+	return o + 1
+
+
+## Lit un entier variable à `o` : [valeur signée, position suivante], ou []
+## si le message est tronqué ou si l'entier dépasse 32 bits (message piégé).
+static func _get_varint(buf: PackedByteArray, o: int) -> Array:
+	var z := 0
+	var sh := 0
+	for i in VARINT_MAX:
+		if o >= buf.size():
+			return []
+		var b := buf[o]
+		o += 1
+		z |= (b & 127) << sh
+		if b < 128:
+			if z > 0xFFFFFFFF:
+				return []
+			return [_unzigzag(z), o]
+		sh += 7
+	return []
+
+
 ## Applique un instantané à `states` (id -> état quantifié, modifié en place).
 ## Les ids inconnus sont ignorés. Retourne le nombre d'entrées appliquées, ou
-## -1 si le message est tronqué (rien n'est appliqué après l'erreur).
+## -1 si le message est tronqué ou malformé (rien n'est appliqué après l'erreur).
 static func decode_zombie_snapshot(buf: PackedByteArray, states: Dictionary) -> int:
 	if buf.size() < 2:
 		return -1
@@ -113,15 +173,26 @@ static func decode_zombie_snapshot(buf: PackedByteArray, states: Dictionary) -> 
 		var zid := buf.decode_u16(o)
 		var m := buf.decode_u8(o + 2)
 		o += 3
-		if o + _mask_bytes(m) > buf.size():
-			return -1
 		var q: PackedInt32Array = states.get(zid, PackedInt32Array())
 		var known := q.size() == 5
+		var vals := [0, 0, 0]
 		for i in 3:
 			if m & FIELD_BITS[i]:
-				if known:
-					q[i] = buf.decode_u16(o)
-				o += 2
+				var r := _get_varint(buf, o)
+				if r.is_empty():
+					return -1
+				vals[i] = r[0]
+				o = r[1]
+		var tail := 0
+		for i in range(3, 5):
+			if m & FIELD_BITS[i]:
+				tail += 1
+		if o + tail > buf.size():
+			return -1
+		if known:
+			for i in 3:
+				if m & FIELD_BITS[i]:
+					q[i] = vals[i]
 		for i in range(3, 5):
 			if m & FIELD_BITS[i]:
 				if known:

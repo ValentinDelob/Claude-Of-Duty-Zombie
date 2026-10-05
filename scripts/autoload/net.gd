@@ -14,7 +14,9 @@ const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 4
 const MAX_SUPPORTED_PLAYERS := 8
 ## Incrémenter à chaque changement incompatible du protocole réseau.
-const PROTOCOL_VERSION := 5
+## 6 : positions des zombies en cm signés, entiers variables (NetCodec, format 17 :
+## coordonnées négatives et altitudes sans borne).
+const PROTOCOL_VERSION := 6
 const CONNECT_TIMEOUT_SEC := 8.0
 
 enum Mode { NONE, SOLO, HOST, CLIENT }

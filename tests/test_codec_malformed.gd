@@ -161,3 +161,18 @@ func test_fx_random_garbage_never_crashes() -> void:
 		var st := _states([1, 2, 3])
 		var r := NetCodec.decode_zombie_snapshot(b, st)
 		assert_true(r >= -1 and r <= 3, "résultat borné (%d)" % r)
+
+
+## Protocole 6 : entier variable piégé (6 octets de continuation, plus de 32
+## bits, coupé en plein milieu) refusé sans rien appliquer.
+func test_snapshot_bad_varint_refused() -> void:
+	for body in [[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01], [0xFF, 0xFF, 0xFF, 0xFF, 0x7F], [0x80, 0x80]]:
+		var buf := PackedByteArray()
+		buf.resize(5)
+		buf.encode_u16(0, 1)
+		buf.encode_u16(2, 7)
+		buf.encode_u8(4, 1)   # masque : x seulement
+		buf.append_array(PackedByteArray(body))
+		var st := _states([7])
+		assert_eq(NetCodec.decode_zombie_snapshot(buf, st), -1, "entier variable %s refusé" % str(body))
+		assert_eq(st[7], PackedInt32Array([0, 0, 0, 0, 0]), "rien appliqué")
