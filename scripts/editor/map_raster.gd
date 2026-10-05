@@ -103,14 +103,22 @@ func _build() -> void:
 			any = true
 		f.plafond = top
 		v.floors.append(f)
-	_check_levels()
-	_vertical_overlaps()
 	# Taille de la grille : tout ce qui est posé, plus la marge. Coordonnées
 	# négatives (format 17, aucune borne de conception) : la grille est bâtie
 	# sur une COPIE décalée d'un multiple de 0,5 m (mêmes cases, monde >= 0) ;
 	# décalage nul pour une carte sans négatif (aucun changement).
 	var bb := extent(doc)
 	var sh := shift_for(bb)
+	var src := doc
+	if sh != Vector2.ZERO:
+		doc = MapTransform.shifted_map(src, sh)
+	# Textes des positions des messages : repère de l'éditeur dès maintenant.
+	v.text_shift = sh
+	# Contrôles des niveaux sur la copie décalée : les escaliers qu'ils retiennent
+	# (_wells, paliers) et les cases de leurs messages sont dans le repère de la
+	# grille, comme tout ce que bâtit _floor.
+	_check_levels()
+	_vertical_overlaps()
 	var hi := (bb.end + sh).max(Vector2(10, 10))
 	# Garde technique (jamais un plantage) : mémoire de la grille déraisonnable
 	# (cases × niveaux, CustomMapGuard.grid_ok) -> refus expliqué, grille vide.
@@ -130,10 +138,8 @@ func _build() -> void:
 		v.room_polys.append([])
 		v.open_sky.append({})
 	if w == 1 and h == 1:
+		doc = src
 		return
-	var src := doc
-	if sh != Vector2.ZERO:
-		doc = MapTransform.shifted_map(src, sh)
 	doc.freeze_levels()
 	for k in n:
 		_floor(k)

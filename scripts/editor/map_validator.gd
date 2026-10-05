@@ -226,6 +226,9 @@ var clips: Array = []
 ## Nul pour une carte sans coordonnée négative. Posé à la FIN de
 ## MapRaster._build : pendant la construction, les points lus sont déjà décalés.
 var shift := Vector2.ZERO
+## Même décalage, posé AU DÉBUT de MapRaster._build : position (texte) des
+## messages (_at), y compris ceux écrits pendant la construction.
+var text_shift := Vector2.ZERO
 
 ## Messages : {level ("erreur" | "attention" | "info"), fr, en, text, floor, cells}
 var messages: Array = []
@@ -321,8 +324,8 @@ static func _num(v: float) -> String:
 ## Position d'une case en mètres dans l'éditeur : [fr, en] ; avec plusieurs
 ## niveaux, celui de la case (« niveau 3,5 m »).
 func _at(k: int, c: Vector2i) -> Array:
-	var x := _num(c.x * scale - shift.x)
-	var y := _num(c.y * scale - shift.y)
+	var x := _num(c.x * scale - text_shift.x)
+	var y := _num(c.y * scale - text_shift.y)
 	if floors.size() > 1 and k >= 0 and k < floors.size():
 		var lv := _lv(k)
 		return ["(x %s m, y %s m, %s)" % [x.replace(".", ","), y.replace(".", ","), lv[0]], "(x %s m, y %s m, %s)" % [x, y, lv[1]]]
