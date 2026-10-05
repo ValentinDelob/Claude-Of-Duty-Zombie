@@ -314,7 +314,7 @@ static func schema() -> Dictionary:
 					keys[k] = allowed
 	# Pièces et zones : clés du catalogue (format 2) ou celles du format 1.
 	var room_keys := {"id": "id", "nom": "name", "altitude": "num::", "zone": "zone_ref", "contour": "polygon",
-		"plafond": "num:2.8:", "forme": room_forms, "sol": "surface", "murs": "surface"}
+		"plafond": "num:2.8:", "sans_plafond": "bool", "forme": room_forms, "sol": "surface", "murs": "surface"}
 	var rk: Variant = src.get("room_keys", {})
 	if rk is Dictionary and not rk.is_empty():
 		room_keys = {}
@@ -326,6 +326,7 @@ static func schema() -> Dictionary:
 	# Format 16 et avant (schéma figé) : étage, double hauteur, plafond de 2,8 à 9 m.
 	var room_keys_16 := room_keys.duplicate()
 	room_keys_16.erase("altitude")
+	room_keys_16.erase("sans_plafond")
 	room_keys_16.merge({"etage": "floor", "double_hauteur": "bool", "plafond": "num:%s:%s" % [str(LEGACY_CEILING[0]), str(LEGACY_CEILING[1])]}, true)
 	room_keys.erase("etage")
 	room_keys.erase("double_hauteur")
@@ -1019,9 +1020,15 @@ static func _check_carte(c: Check, d: Dictionary) -> void:
 	if not c.legacy and d.has("etages"):
 		_legacy_key(c, "etages", what)
 		return
-	if not _keys(c, d, {"format": 1, "id": 1, "nom": 1, "description": 1, "musique": 1, "hauteur_portes": 1, "lampes_auto": 1, "etages": 1,
-			MapCatalog.OVERLAP_KEY: 1}, what):
+	var allowed := {"format": 1, "id": 1, "nom": 1, "description": 1, "musique": 1, "hauteur_portes": 1, "lampes_auto": 1, "etages": 1,
+			MapCatalog.OVERLAP_KEY: 1}
+	if not c.legacy:
+		# Format 17 : ciel de la carte (vu au-dessus des pièces sans plafond).
+		allowed["ciel"] = 1
+	if not _keys(c, d, allowed, what):
 		return
+	if d.has("ciel"):
+		_check_sky(c, d.ciel, what + " (ciel)")
 	if d.has("format"):
 		_int(c, d.format, 1, EditorMap.FORMAT, what + " (format)")
 	if not (d.get("id") is String and map_id_ok(d.get("id"))):
@@ -1052,6 +1059,20 @@ static func _check_carte(c: Check, d: Dictionary) -> void:
 		if e.has("hauteur"):
 			_num(c, e.hauteur, 2.0, 30.0, what + " (hauteur)")
 	c.floors = maxi(1, et.size())
+
+
+## Format 17 : « ciel » = {type : noir | jour | nuit, luminosite (facteur
+## borné, EditorMap.SKY_LUM)}, rien d'autre.
+static func _check_sky(c: Check, v: Variant, what: String) -> void:
+	if not v is Dictionary:
+		c.bad("%s : objet {type, luminosite} attendu" % what, "%s: object {type, luminosite} expected" % what)
+		return
+	if not _keys(c, v, {"type": 1, "luminosite": 1}, what):
+		return
+	if v.has("type") and not (v.type is String and v.type in EditorMap.SKY_TYPES):
+		c.bad("%s : type inconnu (noir, jour ou nuit)" % what, "%s: unknown type (noir, jour or nuit)" % what)
+	if v.has("luminosite"):
+		_num(c, v.luminosite, EditorMap.SKY_LUM[0], EditorMap.SKY_LUM[1], what + " (luminosite)")
 
 
 static func _check_list_file(c: Check, d: Dictionary, file: String, key: String, max_n: int, each: Callable) -> void:

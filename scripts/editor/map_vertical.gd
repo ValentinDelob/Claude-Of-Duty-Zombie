@@ -46,6 +46,32 @@ static func ceil_at(v: MapValidator, k: int, c: Vector2i) -> Array:
 	return ceil_room(v, k, c, own if own > 0.0 else top(v, k))
 
 
+## Ciel ouvert au-dessus d'une case (format 17, plafond masqué) : son plafond
+## effectif (ceil_at) est le plafond propre d'une pièce sans plafond
+## (MapValidator.open_sky) : celui de son niveau, ou celui de la pièce où
+## s'ouvre une trémie au-dessus ; jamais le dessous de la dalle d'une pièce
+## posée au-dessus (à n'importe quel niveau, slab_above), qui reste dessiné.
+static func open_at(v: MapValidator, k: int, c: Vector2i) -> bool:
+	if k < 0 or k >= v.open_sky.size() or k >= v.floors.size():
+		return false
+	var own := v.floors[k].ceil_at(c)
+	var r := _ceil_walk(v, k, c, own if own > 0.0 else top(v, k))
+	if not bool(r[1]):
+		return false
+	var src: int = r[2]
+	return src < v.open_sky.size() and (v.open_sky[src] as Dictionary).has(c)
+
+
+## Ciel ouvert au-dessus d'une case pour une pièce de plafond `own` (m) au
+## niveau `k`, sans plafond si `open` (EditorMap.no_ceiling) : comme open_at,
+## mais avec CETTE pièce (morceaux en biais de l'export).
+static func open_room(v: MapValidator, k: int, c: Vector2i, own: float, open: bool) -> bool:
+	if not open:
+		return false
+	var r := _ceil_walk(v, k, c, own)
+	return bool(r[1]) and int(r[2]) == k
+
+
 ## Haut des murs d'une case : jusqu'au plafond (le plus haut de ses pièces),
 ## au dessous de la dalle d'une pièce posée au-dessus si elle est proche
 ## (WALL_CLOSE), à travers une trémie jusqu'au niveau où elle s'ouvre.
@@ -70,6 +96,15 @@ static func wall_top(v: MapValidator, k: int, c: Vector2i) -> float:
 ## Plafond d'une case pour une pièce de plafond `own` (m) : comme ceil_at, mais
 ## avec le plafond de CETTE pièce (un mur mitoyen porte le plus haut des deux).
 static func ceil_room(v: MapValidator, k: int, c: Vector2i, own: float) -> Array:
+	var r := _ceil_walk(v, k, c, own)
+	return [r[0], r[1]]
+
+
+## ceil_room avec le niveau d'où vient le plafond : [hauteur, plafond dessiné,
+## niveau de la pièce dont c'est le plafond (`k`, ou celui où s'ouvre une
+## trémie au-dessus ; celui de la dalle sinon)].
+static func _ceil_walk(v: MapValidator, k: int, c: Vector2i, own: float) -> Array:
+	var src := k
 	for j in range(k + 1, v.floors.size()):
 		var f := v.floors[j]
 		var kd := f.at(c)
@@ -80,12 +115,13 @@ static func ceil_room(v: MapValidator, k: int, c: Vector2i, own: float) -> Array
 			var t := f.ceil_at(c)
 			if t > 0.0:
 				own = t
+				src = j
 			continue
 		var slab := f.sol - DALLE
 		if own < slab - CEIL_EQ:
-			return [own, true]
-		return [slab, false]
-	return [own, true]
+			return [own, true, src]
+		return [slab, false, j]
+	return [own, true, src]
 
 
 ## Niveau (indice dans la grille `v`) d'un élément : celui de son altitude

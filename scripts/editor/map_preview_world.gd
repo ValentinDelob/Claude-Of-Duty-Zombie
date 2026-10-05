@@ -331,7 +331,21 @@ func _prepare(res: Dictionary, hashes: Dictionary) -> void:
 	_floor_sols = res.get("sols", [0.0])
 	def = _def_of(data, built_map)
 	layout = MeshMapLayout.new(def, data, "") if not data.is_empty() else null
+	_apply_sky()
 	_result = {"hashes": hashes}
+
+
+## Ciel de la carte construite (format 17 : vu au-dessus des pièces sans
+## plafond ; dans l'aperçu, dès qu'il est choisi ; noir complet dès qu'une
+## pièce est sans plafond). Inchangé : rien n'est refait.
+func _apply_sky() -> void:
+	if env == null or built_map == null:
+		return
+	var s := EditorMap.sky_of(built_map.carte)
+	var open := built_map.pieces.any(func(p): return EditorMap.no_ceiling(p))
+	if env.get_meta("sky", {"type": "noir", "luminosite": 1.0}) == s and bool(env.get_meta("sky_open", false)) == open:
+		return
+	WorldLook.apply_sky(env, s, open)
 
 
 ## Réglages de la carte lus dans sa description (comme EditorMapDef._setup).

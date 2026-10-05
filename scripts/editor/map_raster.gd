@@ -65,6 +65,7 @@ func _build() -> void:
 	v.music = String(c.get("musique", "ambience_bunker"))
 	v.door_height = float(c.get("hauteur_portes", MapValidator.DOOR_HEIGHT))
 	v.lamps_auto = bool(c.get("lampes_auto", true))
+	v.sky = EditorMap.sky_of(c)
 	_zones()
 	# Textures propres aux pièces (surface_sol, surface_murs, surface_plafond).
 	for p in doc.pieces:
@@ -140,11 +141,62 @@ func _build() -> void:
 		v.oblique_walls.append([])
 		v.diag_cells.append({})
 		v.room_polys.append([])
+		v.open_sky.append({})
 	doc.freeze_levels()
 	for k in n:
 		_floor(k)
 	_scaled_heights()
+	_open_sky_hangers()
 	doc.thaw_levels()
+
+
+# ------------------------------------------------------------------ plafond masqué (format 17)
+
+## Plafond propre de la case `c` (niveau `k`) : celui de la pièce `p` ; ciel
+## ouvert si elle est sans plafond.
+func _own_sky(k: int, c: Vector2i, p: Dictionary) -> void:
+	if not p.is_empty() and EditorMap.no_ceiling(p):
+		v.open_sky[k][c] = true
+	else:
+		v.open_sky[k].erase(c)
+
+
+## Passage libre entre deux pièces (cases `cells`) : ciel ouvert seulement si
+## les pièces des deux côtés (`rooms`, ids) sont sans plafond.
+func _passage_sky(k: int, cells: Array, rooms: Array) -> void:
+	var open := false
+	for rid in rooms:
+		var r := doc.find(String(rid))
+		if r.is_empty():
+			continue
+		if not EditorMap.no_ceiling(r):
+			open = false
+			break
+		open = true
+	for c in cells:
+		if open:
+			v.open_sky[k][c] = true
+		else:
+			v.open_sky[k].erase(c)
+
+
+## Luminaires, effets et décor accrochés au plafond d'une pièce sans
+## plafond : construits au plafond virtuel (son plafond réglé), signalés (ils
+## flottent). Jamais une erreur : au concepteur de choisir.
+func _open_sky_hangers() -> void:
+	for o in doc.objets:
+		if MapVertical.mount_of(o) != "plafond":
+			continue
+		var k := MapVertical.level_in(v, o)
+		if k < 0:
+			continue
+		var c := MapVertical.cell(MapVertical.anchor_of(o))
+		if not MapVertical.open_at(v, k, c):
+			continue
+		var h := MapVertical.room_h(v, o)
+		var n := MapRules._name(o)
+		v._msg("attention", "%s accroché à un plafond masqué : il flotte à %s m" % [n[0], ("%.2f" % h).replace(".", ",")],
+			"%s hung from a hidden ceiling: it floats at %.2f m" % [n[1], h], k, [c])
 
 
 ## Format 14 : décor mis à l'échelle ou incliné (fichier écrit à la main,
@@ -541,6 +593,7 @@ func _floor(k: int) -> void:
 			for c in rc[1]:
 				f.put(c, K.TREMIE, "tremie")
 				f.ceil[c.y * f.w + c.x] = high
+				_own_sky(k, c, p)
 				voids[c] = true
 			for c in rc[0]:
 				f.put(c, K.MUR, "mur")
@@ -567,7 +620,7 @@ func _floor(k: int) -> void:
 		var z := zone_letter(p)
 		v.room_zone[String(p.id)] = z
 		var ce := _ceil_of(p, k)
-		v.room_polys[k].append({"id": String(p.id), "poly": poly, "zone": z, "ceil": ce})
+		v.room_polys[k].append({"id": String(p.id), "poly": poly, "zone": z, "ceil": ce, "open": EditorMap.no_ceiling(p)})
 		# Plafond de la pièce : 2,8 m au moins (sans maximum, format 17 ; mêmes
 		# règles que le panneau et le contrôle des cartes reçues).
 		if p.has("plafond"):
@@ -587,6 +640,7 @@ func _floor(k: int) -> void:
 			f.put(c, K.SOL, "zone", z)
 			f.ceil[c.y * f.w + c.x] = ce
 			f.room[c.y * f.w + c.x] = String(p.id)
+			_own_sky(k, c, p)
 			own.append(c)
 		for c in rc[0]:
 			border_of.get_or_add(c, []).append(p)
@@ -602,6 +656,7 @@ func _floor(k: int) -> void:
 			f.put(c, K.SOL, "zone", zone_letter(p))
 			f.ceil[i] = _ceil_of(p, k)
 			f.room[i] = String(p.id)
+			_own_sky(k, c, p)
 			continue
 		if inner_of.has(c):
 			continue
@@ -633,12 +688,17 @@ func _floor(k: int) -> void:
 			var before := f.at(c)
 			if arrival:
 				f.put(c, K.TREMIE, "tremie#" + String(o.id))
+				# Ciel ouvert (plafond masqué) : celui de la pièce où débouche
+				# la trémie ; le vide d'une pièce haute garde le sien.
 				if inner_of.has(c):
 					f.ceil[i] = _ceil_of(inner_of[c], k)
+					_own_sky(k, c, inner_of[c])
 				elif before == K.VIDE:
 					f.ceil[i] = 0.0
+					_own_sky(k, c, {})
 				elif before != K.TREMIE or f.ceil[i] <= 0.0:
 					f.ceil[i] = maxf(f.ceil[i], ceil_up)
+					_own_sky(k, c, {})
 			else:
 				if before != K.VIDE and before != K.TREMIE:
 					mid.append(c)
@@ -1072,6 +1132,8 @@ func _landing(f: MapValidator.Floor, o: Dictionary, inner_of: Dictionary, border
 		f.put(c, K.SOL, "zone", z)
 		f.ceil[i] = under
 		f.room[i] = String(room.id)
+		# Ciel ouvert : celui de la pièce d'arrivée si c'est son plafond.
+		_own_sky(f.index, c, room if under >= own - 0.001 else {})
 		(v.landings.get_or_add(f.index, {}) as Dictionary)[c] = true
 
 
@@ -1356,6 +1418,8 @@ func _opening(f: MapValidator.Floor, o: Dictionary) -> void:
 				var i: int = c.y * f.w + c.x
 				if f.inside(c):
 					f.ceil[i] = passage_ceil(f.ceil_at(c + side), f.ceil_at(c - side))
+				# Ciel ouvert si les pièces des deux côtés sont sans plafond.
+				_passage_sky(f.index, [c], [f.room_of(c + side), f.room_of(c - side)].filter(func(r): return r != ""))
 		_:
 			for c in cells:
 				f.put(c, K.DEBRIS if t == "debris" else K.PORTE, key)
@@ -1398,6 +1462,7 @@ func _opening_oblique(f: MapValidator.Floor, o: Dictionary, ow: Dictionary) -> v
 				if f.inside(c):
 					f.ceil[c.y * f.w + c.x] = ce if ce > 0.0 else f.ceil_at(c)
 				_diag_pass[c] = true
+			_passage_sky(f.index, cells, [ow.pos, ow.neg].filter(func(r): return String(r) != ""))
 		_:
 			for c in cells:
 				f.put(c, K.DEBRIS if t == "debris" else K.PORTE, key)

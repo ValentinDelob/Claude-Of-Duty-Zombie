@@ -1573,6 +1573,8 @@ static func room_keys() -> Dictionary:
 		"zone": {"t": "id"}, "contour": {"t": "polygon", "min": 3, "max": CustomMapGuard.MAX_VERTICES},
 		# Plafond : 2,8 m au moins, sans maximum (format 17 ; MapVertical.ROOM_CEILING).
 		"plafond": {"t": "number", "min": MapVertical.ROOM_CEILING[0]},
+		# Plafond masqué (format 17) : « true » seulement (EditorMap.no_ceiling).
+		"sans_plafond": {"t": "bool"},
 		"surface_sol": surf, "surface_murs": surf, "surface_plafond": surf, "forme": {"t": "shape"}}
 
 

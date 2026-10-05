@@ -83,6 +83,9 @@ func _setup(m: EditorMap, map_id: String) -> void:
 	open_links = md.get("open_links", {})
 	box_start = int(md.get("box_start", 0))
 	box_starts = md.get("box_starts", [])
+	# Format 17 : ciel de la carte (pièces sans plafond), WorldLook.apply_sky.
+	if md.get("sky") is Dictionary:
+		look["sky"] = md.sky
 	# Poste central posé : téléporteur à relier avant chaque voyage (Kino).
 	if bool(md.get("teleporter_link", false)):
 		teleporter_link = true

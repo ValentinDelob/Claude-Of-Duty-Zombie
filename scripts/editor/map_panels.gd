@@ -440,6 +440,7 @@ func _map_props() -> void:
 		ed.changed(false))
 	_spin(_props, Lang.t("Hauteur portes", "Door height"), float(c.get("hauteur_portes", 2.5)), 2.2, 3.5, 0.1, func(v): c["hauteur_portes"] = v)
 	_check(_props, Lang.t("Lampes automatiques (une tous les 6 m)", "Automatic lamps (one every 6 m)"), bool(c.get("lampes_auto", true)), func(on): c["lampes_auto"] = on)
+	_sky_props(c)
 	# Format 9 : décor et obstacles qui se chevauchent (MapCatalog.OVERLAP_TYPES).
 	var ov := _check(_props, Lang.t("Autoriser les chevauchements décor / obstacles", "Allow decor / obstacle overlaps"),
 		MapRules.overlaps_allowed(ed.doc), func(on):
@@ -451,6 +452,25 @@ func _map_props() -> void:
 		"Checked: crates, barrels, props, light fixtures and pillars may overlap each other. Gameplay objects (doors, windows, perks, weapons, box, starts, stairs...) never overlap.")
 	_note(_props, Lang.t("Dossier : %s\n%d pièce(s), %d ouverture(s), %d objet(s)", "Folder: %s\n%d room(s), %d opening(s), %d object(s)") % [
 		ed.doc.id(), ed.doc.pieces.size(), ed.doc.ouvertures.size(), ed.doc.objets.size()])
+
+
+## Format 17 : ciel de la carte (« carte.ciel »), vu au-dessus des pièces sans
+## plafond (et dans l'aperçu 3D) : type et luminosité (jamais écrits à leur
+## valeur par défaut : noir, 100 %).
+func _sky_props(c: Dictionary) -> void:
+	var s := EditorMap.sky_of(c)
+	var names := [Lang.t("Sans fond (noir)", "None (black)"), Lang.t("Ciel", "Sky"), Lang.t("Nuit étoilée", "Starry night")]
+	var o := _option(_props, Lang.t("Ciel", "Sky"), names, maxi(0, EditorMap.SKY_TYPES.find(String(s.type))), func(i):
+		ed.push_undo()
+		EditorMap.set_sky(c, String(EditorMap.SKY_TYPES[i]), float(EditorMap.sky_of(c).luminosite))
+		ed.changed())
+	o.tooltip_text = Lang.t("Vu au-dessus des pièces sans plafond (propriété « Afficher le plafond » d'une pièce). Il n'éclaire pas les pièces.",
+		"Seen above rooms without a ceiling (a room's \"Show the ceiling\" property). It does not light the rooms.")
+	if String(s.type) == EditorMap.SKY_DEFAULT:
+		return
+	var l := _spin(_props, Lang.t("Luminosité", "Brightness"), roundf(float(s.luminosite) * 100.0), EditorMap.SKY_LUM[0] * 100.0, EditorMap.SKY_LUM[1] * 100.0, 5.0, func(v):
+		EditorMap.set_sky(c, String(EditorMap.sky_of(c).type), float(v) / 100.0), "%")
+	l.tooltip_text = Lang.t("Luminosité du ciel (100 % par défaut).", "Sky brightness (100% by default).")
 
 
 func _room_props(r: Dictionary) -> void:
@@ -482,6 +502,22 @@ func _room_props(r: Dictionary) -> void:
 		else:
 			r["plafond"] = v)
 	cs.allow_greater = true
+	# Format 17 : plafond masqué (« sans_plafond ») : à ciel ouvert, on voit le
+	# ciel de la carte (réglages de la carte).
+	var shown := CheckBox.new()
+	shown.text = Lang.t("Afficher le plafond", "Show the ceiling")
+	shown.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	shown.button_pressed = not EditorMap.no_ceiling(r)
+	shown.toggled.connect(func(on):
+		ed.push_undo()
+		EditorMap.set_no_ceiling(r, not on)
+		# Panneau refait : la note du ciel ouvert apparaît ou disparaît.
+		ed.changed())
+	_props.add_child(shown)
+	shown.tooltip_text = Lang.t("Décoché : pas de plafond (ni collision) au-dessus de la pièce, on voit le ciel de la carte. Rien n'empêche de sortir par le haut : fermez la carte par des murs assez hauts.",
+		"Unchecked: no ceiling (nor collision) above the room, the map's sky shows. Nothing stops players leaving through the top: close the map with high enough walls.")
+	if EditorMap.no_ceiling(r):
+		_note(_props, Lang.t("À ciel ouvert : murs jusqu'à %s m ; les luminaires au plafond flottent.", "Open sky: walls up to %s m; ceiling lights float.") % _m(EditorMap.room_ceiling(r)))
 	if ed.doc.is_high(r):
 		_note(_props, Lang.t("Pièce haute : elle traverse le niveau du dessus (vide et murs ; une pièce posée au-dessus est une mezzanine).",
 			"High room: it goes through the level above (void and walls; a room placed above is a mezzanine)."))
