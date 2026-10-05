@@ -277,3 +277,44 @@ translation : mêmes messages, export identique, monde ≥ 0) + NetCodec ;
   bornes des élévations (`map_elevation_tools`) lisent encore le niveau
   suivant. Étape 6 : `MapSummary` et les textes MCP ne connaissent pas
   encore les escaliers qui sautent des niveaux.
+
+## Notes de l'étape 5 (interface des niveaux, faite)
+- Barre : « Niveau 3,5 m (2/3) ▾ » est un menu (du plus haut au plus bas,
+  nombre de pièces, « Autre altitude… » : boîte d'altitude, niveau vide créé
+  au besoin). Page préc. / suiv. : niveau voisin ; Maj+Page préc. / suiv. et
+  menu du clic droit « Monter / Descendre d'un niveau » : la sélection va au
+  niveau voisin (sans voisin : 3,5 m plus loin), une étape d'annulation, la
+  vue la suit (`MapEditor.move_selection_level`). Alt + clic (vue Dessus) :
+  pièce empilée suivante sous le curseur, de haut en bas (`stack_pick`) ;
+  clic sur une pièce dans une élévation : la vue va à son niveau.
+- Déplacement vertical : `MapTransform.vertical_plan` / `lift` ; un escalier
+  rattaché à une pièce par son PIED n'emporte que son pied, un escalier qui
+  ARRIVE dans une pièce déplacée n'a que son arrivée qui suit
+  (`MapTransform.arrivals` : une case d'arrivée dans le contour) ; les deux
+  pièces ensemble : tout l'escalier. `MapGroup.move(…, dalt: float, …,
+  direct)`, `place_copies(…, dalt: float)` ; `MapEditor.stair_ends_issue`
+  (arrivée au-dessus du pied, sur une pièce) remplace « pas d'escalier au
+  dernier niveau ».
+- Élévations : une pièce glisse librement (pas de 0,25 m sur l'écart,
+  aimants `MapVertical.room_alt_magnets` : sols des autres niveaux, au-dessus
+  / au-dessous des pièces recouvertes) ; un groupe avec une pièce aussi ;
+  étiquette de niveau libre (`MapEditor.shift_level_to`, refus nommé,
+  dernière place gardée) ; `MapVertical.floor_at(doc, za, p)` cherche la
+  pièce qui contient le point ; aimant « Dessous de dalle » = première dalle
+  au-dessus de la case de l'élément (`slab_above`) ; terrain sous le sol le
+  plus bas ; étiquettes « +3,50 m » (plus de « É1 »).
+- Plan : fantôme du niveau du dessous (sommets aimantés sans grille :
+  `MapSnap.magnet(…, ghost)`, « fantome »), vides des pièces hautes hachurés
+  sauf les mezzanines (`MapCanvas.high_void_polys`), pièces du dessus en
+  pointillés (option).
+- Onglet Niveaux : liste du plus haut au plus bas (clic : choisir, double-
+  clic ou « Voir » : afficher), altitude, « Déplacer de … m », « Dupliquer
+  au-dessus » (écart : plus haut plafond + dalle, 3,1 m au moins ; escaliers
+  non copiés), « Nouveau niveau vide à … m », « Supprimer le niveau… »
+  (confirmation, escaliers qui y arrivent compris), fantôme / pointillés, ciel
+  de la carte.
+- Bornes retirées (décision 3) : `DECOR_Z`, `WALL_LIGHT_HEIGHT`,
+  `CLIP_HEIGHT` (30 m) → garde technique `MapVertical.TECH_Z` = 10 km
+  (flottants 32 bits de la physique) ; `MapShapes.MAX_RADIUS` (128 m) →
+  10 km, la vraie garde est la mémoire du validateur (`MapRules.check_arc`,
+  `CustomMapGuard.grid_bytes` compte l'emprise d'un mur courbe).

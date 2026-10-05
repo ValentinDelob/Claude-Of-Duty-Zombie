@@ -697,6 +697,13 @@ static func grid_bytes(rooms: Array, legacy := false, items: Array = []) -> int:
 		var pts := []
 		for key in ["position", "a", "b", "centre"]:
 			pts.append(o.get(key))
+		# Mur courbe (format 17 : rayon sans borne de conception) : son emprise.
+		var rv: Variant = o.get("rayon")
+		if _is_pt(o.get("centre")) and (rv is float or rv is int) and is_finite(float(rv)):
+			var cc := Vector2(float(o.centre[0]), float(o.centre[1]))
+			for dd in [Vector2(-1, -1), Vector2(1, 1)]:
+				var q: Vector2 = cc + dd * absf(float(rv))
+				pts.append([q.x, q.y])
 		if o.get("sommets") is Array:
 			pts.append_array(o.sommets)
 		var r: Variant = o.get("rect")

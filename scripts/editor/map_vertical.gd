@@ -151,9 +151,16 @@ static func ceil_z(v: MapValidator, k: int, p: Vector2) -> float:
 
 # ------------------------------------------------------------------ hauteurs de pose (format 12)
 
-## Bornes (m) des hauteurs de pose du format 12 : `z` du décor posé au sol,
+## Garde TECHNIQUE des hauteurs (m au-dessus du sol : décor, applique,
+## barrière invisible) depuis la décision 3 du plan des niveaux (« aucune
+## limite » de conception : la vraie borne est le plafond réel, MapVertical.
+## pose_bounds, ou rien sous un ciel ouvert) : les flottants 32 bits du moteur
+## physique gardent le millimètre jusqu'à 10 km ; au-delà, plus de précision.
+const TECH_Z := 10000.0
+## Bornes (m) des hauteurs de pose du format 12 : `z` du décor posé au sol
+## (format 17 : plus de maximum de 30 m, seulement TECH_Z),
 ## `descente` sous le plafond (luminaires, effets et décor du plafond).
-const DECOR_Z := [0.0, 30.0]
+const DECOR_Z := [0.0, TECH_Z]
 const DESCENTE := [0.0, 3.0]
 ## Lampe historique (« lampe ») : sous le plafond.
 const LAMP_DROP := 0.35
@@ -507,17 +514,27 @@ static func check_rests(doc: EditorMap, ids: Array) -> Dictionary:
 	return {"ok": true}
 
 
-## Niveau (indice) dont la tranche contient l'altitude `za` (m, absolue) :
-## du sol d'un niveau au sol du suivant (le dernier : jusqu'au plus haut
-## plafond de ses pièces) ; -1 sous le premier sol ou au-dessus du dernier.
-static func floor_at(doc: EditorMap, za: float) -> int:
+## Niveau (indice) où se pose un élément à l'altitude `za` (m, absolue) au
+## point `p` du plan (format 17, niveaux libres) : le plus haut niveau dont
+## une pièce contient `p`, de son sol à son plafond réglé ; -1 s'il n'y en a
+## pas. Sans point (Vector2.INF) : la tranche du sol d'un niveau au sol du
+## suivant (le dernier : jusqu'au plus haut plafond de ses pièces).
+static func floor_at(doc: EditorMap, za: float, p := Vector2.INF) -> int:
 	var n := doc.level_count()
+	if p != Vector2.INF:
+		for k in range(n - 1, -1, -1):
+			if za < doc.level_alt(k) - 0.001:
+				continue
+			for r in doc.rooms_on(k):
+				if za <= EditorMap.room_top(r) + 0.001 and MapGeom.contains(doc.room_poly(r), p):
+					return k
+		return -1
 	for k in range(n - 1, -1, -1):
 		if za >= doc.level_alt(k) - 0.001:
 			if k == n - 1:
 				var hi := doc.level_alt(k) + EditorMap.DEFAULT_CEILING
-				for p in doc.rooms_on(k):
-					hi = maxf(hi, EditorMap.room_top(p))
+				for r in doc.rooms_on(k):
+					hi = maxf(hi, EditorMap.room_top(r))
 				if za > hi + 0.001:
 					return -1
 			return k
@@ -547,9 +564,17 @@ static func magnets(doc: EditorMap, v: MapValidator, e: Dictionary) -> Array:
 		var tag := EditorMap.alt_text(sol, fr)
 		out.append({"z": sol, "name": Lang.t("Sol %s", "Floor %s") % tag})
 		out.append({"z": sol + EditorMap.DEFAULT_CEILING, "name": Lang.t("Plafond %s", "Ceiling %s") % tag})
-		if k + 1 < doc.level_count():
-			out.append({"z": doc.level_alt(k + 1) - DALLE, "name": Lang.t("Dessous de dalle %s", "Slab underside %s") % tag})
 	var sol := EditorMap.alt_of(e)
+	# Dessous de la dalle posée au-dessus de l'élément (format 17 : la
+	# première pièce au-dessus de SA case, à n'importe quel niveau, pas le
+	# niveau suivant de la liste).
+	var ke := level_in(v, e)
+	var at := anchor_of(e) if e.has("position") else (MapGeom.centroid(doc.room_poly(e)) if e.has("contour") else Vector2.INF)
+	if v != null and ke >= 0 and at != Vector2.INF:
+		var ks := slab_above(v, ke, v.to_grid(at))
+		if ks >= 0:
+			var za := v.floors[ks].sol - DALLE
+			out.append({"z": za, "name": Lang.t("Dessous de dalle %s", "Slab underside %s") % EditorMap.alt_text(v.floors[ks].sol, fr)})
 	var dh := float(doc.carte.get("hauteur_portes", MapValidator.DOOR_HEIGHT))
 	out.append({"z": sol + dh, "name": Lang.t("Haut des portes", "Door top")})
 	out.append({"z": sol + MapValidator.SILL, "name": Lang.t("Allège fenêtres", "Window sill")})
@@ -560,4 +585,41 @@ static func magnets(doc: EditorMap, v: MapValidator, e: Dictionary) -> Array:
 			out.append({"z": sol + float(top), "name": Lang.t("Dessus du décor", "Prop top")})
 	for m in out:
 		m["label"] = "%s · %s" % [String(m.name), MapRules._m(float(m.z) - sol, fr)]
+	return out
+
+
+## Pas (m) de l'altitude d'une pièce glissée dans une élévation (format 17,
+## étape 5) quand aucun aimant ne la prend ; aimantation libre : le centimètre.
+const ROOM_ALT_STEP := 0.25
+
+
+## Aimants de l'ALTITUDE d'une pièce glissée verticalement (format 17) : sol
+## de chaque niveau, et pour chaque pièce d'une autre altitude qui la
+## recouvre en plan, juste au-dessus d'elle (son plafond + la dalle, au moins
+## MIN_STACK) et juste au-dessous (MIN_STACK sous elle) ; `skip` : pièces
+## qui bougent avec elle (groupe). -> [{z, name, label}].
+static func room_alt_magnets(doc: EditorMap, room: Dictionary, skip: Array = []) -> Array:
+	var out := []
+	var fr := not Lang.is_en()
+	var a0 := EditorMap.alt_of(room)
+	# Niveaux des AUTRES pièces (celles qui bougent créent le leur en bougeant).
+	var alts := doc.view_levels.duplicate()
+	for p in doc.pieces:
+		var pid := String(p.get("id", ""))
+		if pid != String(room.get("id", "")) and not skip.has(pid):
+			alts.append(EditorMap.alt_of(p))
+	for sol in EditorMap.merge_alts(alts):
+		out.append({"z": float(sol), "name": EditorMap.level_name(float(sol))})
+	var poly := doc.room_poly(room)
+	for p in doc.pieces:
+		if String(p.get("id", "")) == String(room.get("id", "")) or skip.has(String(p.get("id", ""))) or absf(EditorMap.alt_of(p) - a0) <= EditorMap.ALT_EQ:
+			continue
+		if not MapGeom.overlap(poly, doc.room_poly(p)):
+			continue
+		var nm := String(p.get("nom", p.get("id", "")))
+		var pa := EditorMap.alt_of(p)
+		out.append({"z": maxf(EditorMap.room_top(p) + DALLE, pa + EditorMap.MIN_STACK), "name": Lang.t("Au-dessus de « %s »", "Above \"%s\"") % nm})
+		out.append({"z": pa - EditorMap.MIN_STACK, "name": Lang.t("Sous « %s »", "Under \"%s\"") % nm})
+	for m in out:
+		m["label"] = "%s · %s" % [String(m.name), EditorMap.alt_text(float(m.z), fr)]
 	return out

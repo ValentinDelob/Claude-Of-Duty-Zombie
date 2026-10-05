@@ -477,7 +477,9 @@ func _over_rulers(font: Font) -> void:
 
 ## Vue de côté : terrain, pièces, éléments, niveaux, noms.
 func _draw_side(c: CanvasItem, _list: Array, font: Font, area: Rect2) -> void:
-	var y0 := to_px(Vector2(0, 0)).y
+	# Terrain : sous le sol le plus bas de la carte (0 m, ou un niveau en
+	# dessous : sous-sol, coordonnées négatives du format 17).
+	var y0 := to_px(Vector2(0, -minf(0.0, ed.doc.level_alt(0)))).y
 	if y0 < area.end.y:
 		var tr := Rect2(area.position.x, maxf(y0, area.position.y), area.size.x, area.end.y - maxf(y0, area.position.y))
 		c.draw_rect(tr, COL_TERRAIN)
@@ -842,8 +844,8 @@ func _draw_selection(c: CanvasItem) -> void:
 	c.draw_rect(r.grow(1.0), COL_SEL, false, 2.5)
 
 
-## Étiquettes de niveau (§ 3.2) sur la règle Z : « É1 +3,50 », celle de
-## l'étage courant en or.
+## Étiquettes de niveau (§ 3.2) sur la règle Z : « +3,50 m » (altitude du
+## sol), celle du niveau courant en or.
 func _draw_level_tags(c: CanvasItem) -> void:
 	var doc := ed.doc
 	var bf := bold_font(500)
@@ -855,8 +857,10 @@ func _draw_level_tags(c: CanvasItem) -> void:
 		if y < _ruler() or y > size.y:
 			continue
 		var cur := i == ed.floor_k
-		var tag := Lang.t("É%d", "F%d") % i
-		var lbl := tag if size.x < _u(400) else "%s  %s%s" % [tag, "+" if i > 0 and sol > 0.0 else "", num(sol, 2)]
+		# Format 17 : un niveau = une altitude (plus de numéro d'étage).
+		var lbl := "%s%s" % ["+" if sol > 0.0 else "", num(sol, 2)]
+		if size.x >= _u(400):
+			lbl += " m"
 		var f: Font = bg if cur else bf
 		var w := f.get_string_size(lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + _u(10)
 		var r := Rect2(_ruler() + _u(2), y - _u(8), w, _u(15))
@@ -879,7 +883,7 @@ static func _round_rect(c: CanvasItem, r: Rect2, fill: Color, border: Color, rad
 
 func header_sub() -> String:
 	if plane == "dessous":
-		return Lang.t("Étage %d · vu de dessous", "Floor %d · seen from below") % ed.floor_k
+		return Lang.t("%s · vu de dessous", "%s · seen from below") % EditorMap.level_name(ed.view_alt())
 	return "%s · %s" % [look_text(plane), floors_text()]
 
 
@@ -887,10 +891,10 @@ func header_sub() -> String:
 func floors_text() -> String:
 	match floors_mode:
 		Floors.UP_TO:
-			return Lang.t("étages : jusqu'à É%d", "floors: up to F%d") % ed.floor_k
+			return Lang.t("niveaux : jusqu'à %s", "levels: up to %s") % EditorMap.alt_text(ed.view_alt(), not Lang.is_en())
 		Floors.ONLY:
-			return Lang.t("étage : É%d", "floor: F%d") % ed.floor_k
-	return Lang.t("étages : tous", "floors: all")
+			return Lang.t("niveau : %s", "level: %s") % EditorMap.alt_text(ed.view_alt(), not Lang.is_en())
+	return Lang.t("niveaux : tous", "levels: all")
 
 
 func header_chips() -> Array:
@@ -917,9 +921,9 @@ func cut_text() -> String:
 
 ## Le menu des étages (MapViewPane : clic sur « étages : »).
 func floors_menu_items() -> Array:
-	return [{"id": 10 + Floors.ALL, "text": Lang.t("Étages : tous", "Floors: all"), "radio": floors_mode == Floors.ALL},
-		{"id": 10 + Floors.UP_TO, "text": Lang.t("Jusqu'à l'étage courant", "Up to the current floor"), "radio": floors_mode == Floors.UP_TO},
-		{"id": 10 + Floors.ONLY, "text": Lang.t("L'étage courant seulement", "The current floor only"), "radio": floors_mode == Floors.ONLY}]
+	return [{"id": 10 + Floors.ALL, "text": Lang.t("Niveaux : tous", "Levels: all"), "radio": floors_mode == Floors.ALL},
+		{"id": 10 + Floors.UP_TO, "text": Lang.t("Jusqu'au niveau courant", "Up to the current level"), "radio": floors_mode == Floors.UP_TO},
+		{"id": 10 + Floors.ONLY, "text": Lang.t("Le niveau courant seulement", "The current level only"), "radio": floors_mode == Floors.ONLY}]
 
 
 func header_menu(id: String) -> Array:

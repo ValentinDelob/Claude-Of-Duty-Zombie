@@ -49,15 +49,15 @@ var _zoom_seen := -1.0
 var _sub_seen := ""
 
 
-## Le zoom de la vue (et, en 3D, le mode de la caméra) est écrit dans
-## l'en-tête : redessiné quand il change.
+## Le zoom de la vue et son sous-titre (niveau affiché, en 3D le mode de la
+## caméra) sont écrits dans l'en-tête : redessiné quand ils changent.
 func _process(_delta: float) -> void:
 	if view == null:
 		return
 	if view.zoom != _zoom_seen:
 		_zoom_seen = view.zoom
 		queue_redraw()
-	if view is MapView3D:
+	if view is MapView3D or view is MapCanvas:
 		var sub := view.header_sub()
 		if sub != _sub_seen:
 			_sub_seen = sub

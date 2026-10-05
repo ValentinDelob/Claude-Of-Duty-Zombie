@@ -8,7 +8,7 @@ extends PopupMenu
 ## bulle qui dit pourquoi) quand elles sont impossibles. Style : thème de
 ## l'éditeur (fenêtre fille de MapEditor).
 
-enum { PREFAB, DUPLICATE, COPY, CUT, PASTE, ROTATE, DELETE, SELECT_ALL, DESELECT, DELETE_POINT, ADD_POINT }
+enum { PREFAB, DUPLICATE, COPY, CUT, PASTE, ROTATE, DELETE, SELECT_ALL, DESELECT, DELETE_POINT, ADD_POINT, LEVEL_UP, LEVEL_DOWN }
 
 ## [id, fr, en, raccourci (fr), raccourci (en)] ; null : séparateur.
 const ENTRIES := [
@@ -19,9 +19,11 @@ const ENTRIES := [
 	[CUT, "Couper", "Cut", "Ctrl+X", "Ctrl+X"],
 	[PASTE, "Coller ici", "Paste here", "Ctrl+V", "Ctrl+V"],
 	[ROTATE, "Pivoter de 90°", "Rotate 90°", "R", "R"],
+	[LEVEL_UP, "Monter d'un niveau", "Up one level", "Maj+Page suiv.", "Shift+Page Down"],
+	[LEVEL_DOWN, "Descendre d'un niveau", "Down one level", "Maj+Page préc.", "Shift+Page Up"],
 	[DELETE, "Supprimer", "Delete", "Suppr", "Del"],
 	null,
-	[SELECT_ALL, "Tout sélectionner (étage)", "Select all (floor)", "Ctrl+A", "Ctrl+A"],
+	[SELECT_ALL, "Tout sélectionner (niveau)", "Select all (level)", "Ctrl+A", "Ctrl+A"],
 	[DESELECT, "Désélectionner", "Deselect", "Échap", "Esc"],
 ]
 ## Entrées en tête du menu ouvert sur un sommet ou un côté du contour choisi
@@ -84,7 +86,7 @@ func states() -> Dictionary:
 		out[PREFAB] = MapPrefabTools.multi_floor_text()
 	else:
 		out[PREFAB] = ""
-	for id in [DUPLICATE, COPY, CUT, DELETE, DESELECT]:
+	for id in [DUPLICATE, COPY, CUT, DELETE, DESELECT, LEVEL_UP, LEVEL_DOWN]:
 		out[id] = "" if has else none
 	if not has:
 		out[ROTATE] = none
@@ -99,7 +101,7 @@ func states() -> Dictionary:
 	else:
 		out[PASTE] = ""
 	var any := not (ed.doc.rooms_on(ed.floor_k).is_empty() and ed.doc.openings_on(ed.floor_k).is_empty() and ed.doc.objects_on(ed.floor_k).is_empty())
-	out[SELECT_ALL] = "" if any else Lang.t("L'étage est vide", "The floor is empty")
+	out[SELECT_ALL] = "" if any else Lang.t("Le niveau est vide", "The level is empty")
 	return out
 
 
@@ -175,6 +177,10 @@ func _on_id(id: int) -> void:
 			ed.select_all()
 		DESELECT:
 			ed.select("")
+		LEVEL_UP:
+			ed.move_selection_level(1)
+		LEVEL_DOWN:
+			ed.move_selection_level(-1)
 		DELETE_POINT:
 			ed.remove_vertex(String(vertex.get("id", "")), int(vertex.get("vertex", -1)))
 		ADD_POINT:

@@ -114,14 +114,15 @@ func test_old_rect_barriers_become_polygons_and_round_trip() -> void:
 		for i in 3:
 			assert_near(float(a[0].center[i]), float(b[0].center[i]), 0.01, "centre %d" % i)
 		assert_eq((a[0].poly as Array).size(), 4, "4 sommets décrits")
-	# Hauteur illisible ou trop basse : jusqu'au plafond ; trop haute : bornée.
-	for hv in [["\"x\"", false], ["0.2", false], ["100", true]]:
+	# Hauteur illisible ou trop basse : jusqu'au plafond ; format 17 : plus de
+	# maximum de 30 m, seulement la garde technique (10 km).
+	for hv in [["\"x\"", false], ["0.2", false], ["20000", true]]:
 		var hand := t2.duplicate()
 		hand["objets.json"] = String(hand["objets.json"]).replace("\"type\":\"bloc_invisible\"", "\"type\":\"bloc_invisible\",\"hauteur\":%s" % hv[0])
 		var hm := EditorMap.from_texts(hand).find("i1")
 		assert_eq(hm.has("hauteur"), hv[1], "hauteur %s" % hv[0])
 		if hv[1]:
-			assert_near(float(hm.hauteur), MapCatalog.CLIP_HEIGHT[1], 0.001, "bornée à 30 m")
+			assert_near(float(hm.hauteur), MapCatalog.CLIP_HEIGHT[1], 0.001, "bornée à la garde technique")
 
 
 func test_guard_checks_polygon_barriers() -> void:

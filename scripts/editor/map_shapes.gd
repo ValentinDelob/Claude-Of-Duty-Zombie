@@ -25,8 +25,13 @@ const MIN_SEGMENTS := 1
 const MAX_SEGMENTS := 64
 const DEFAULT_SEGMENTS := 8
 const DEFAULT_OPENING := 90.0
-## Rayon (ou demi-côté) maximal d'une forme (m).
-const MAX_RADIUS := 128.0
+## Rayon (ou demi-côté) maximal d'une forme (m). Format 17 (décision 3 du
+## plan des niveaux) : plus de borne de conception (128 m avant) ; garde
+## technique seulement : la mémoire du validateur (MapRules.check_arc,
+## CustomMapGuard.grid_bytes : emprise de l'arc) et les flottants 32 bits
+## (MapVertical.TECH_Z). Un mur courbe a 64 segments au plus : plus grand, ses
+## segments sont simplement plus longs.
+const MAX_RADIUS := 10000.0
 
 
 ## Polygone régulier (cercle à `n` points) de centre `c`, de rayons `rx`, `ry`

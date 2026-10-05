@@ -431,8 +431,10 @@ static func tidy_stair(o: Dictionary) -> void:
 		o.erase("garde_corps")
 
 ## Barrière invisible (type « bloc_invisible ») : hauteur (m) réglable ;
-## absente, du sol au plafond de l'étage.
-const CLIP_HEIGHT := [0.5, 30.0]
+## absente, du sol au plafond du niveau. Format 17 : plus de maximum de 30 m
+## (une barrière ferme aussi le haut d'une carte à ciel ouvert), seulement la
+## garde technique MapVertical.TECH_Z.
+const CLIP_HEIGHT := [0.5, MapVertical.TECH_Z]
 ## Pas du champ Hauteur d'une barrière (m).
 const CLIP_HEIGHT_STEP := 0.1
 ## Format 9 : barrière tracée en polygone (clé « sommets », 3 à 64 points) ;
@@ -645,12 +647,12 @@ static func _build() -> void:
 	# seulement, MapCanvas._creation, MapRules.stair_dir).
 	_add({"id": "escalier", "cat": "construction", "fr": "Escalier qui monte", "en": "Stairs going up", "tool": "rect",
 		"color": Color(0.8, 0.55, 0.9), "make": {"type": "escalier", "monte": "n"},
-		"hint_fr": "Glisser du bas (ici) vers le haut de l'escalier : il monte à l'étage du dessus, son arrivée sur le plancher d'une pièce de cet étage ; V : type (droit, palier, en L, en U, large, service, colimaçon, rampe)",
-		"hint_en": "Drag from the bottom (here) to the top of the stairs: they go up to the floor above, arriving on a room floor there; V: type (straight, landing, L, U, wide, service, spiral, ramp)"})
+		"hint_fr": "Glisser du bas (ici) vers le haut de l'escalier : il monte au niveau du dessus, son arrivée sur le plancher d'une pièce de ce niveau ; V : type (droit, palier, en L, en U, large, service, colimaçon, rampe)",
+		"hint_en": "Drag from the bottom (here) to the top of the stairs: they go up to the level above, arriving on a room floor there; V: type (straight, landing, L, U, wide, service, spiral, ramp)"})
 	_add({"id": "escalier_bas", "cat": "construction", "fr": "Escalier qui descend", "en": "Stairs going down", "tool": "rect",
 		"color": Color(0.55, 0.7, 0.98), "make": {"type": "escalier", "monte": "n"}, "descend": true,
-		"hint_fr": "Glisser du haut (ici) vers le bas de l'escalier : il descend à l'étage du dessous, dans une pièce de cet étage ; V : type",
-		"hint_en": "Drag from the top (here) to the bottom of the stairs: they go down to the floor below, into a room there; V: type"})
+		"hint_fr": "Glisser du haut (ici) vers le bas de l'escalier : il descend au niveau du dessous, dans une pièce de ce niveau ; V : type",
+		"hint_en": "Drag from the top (here) to the bottom of the stairs: they go down to the level below, into a room there; V: type"})
 	# Barrière invisible (« clip » de BO1) : bloque joueurs et zombies, les
 	# balles et les grenades passent ; invisible en jeu (CollisionBox).
 	# Format 9 : tracée en polygone, posée n'importe où (à cheval sur un mur,
@@ -1362,7 +1364,9 @@ static func may_overlap(o: Dictionary) -> bool:
 ## m au-dessus du sol, au centre de l'applique ; absente : `y` du luminaire,
 ## 2 m). Bornée sous le plafond à la construction (MapLayoutExport). Format
 ## 11 : de même pour un décor mural (torche, tuyau, boîtier : `y` du décor).
-const WALL_LIGHT_HEIGHT := [0.2, 30.0]
+## Format 17 : plus de maximum de 30 m (sous le plafond réel à la pose et à la
+## construction), seulement la garde technique MapVertical.TECH_Z.
+const WALL_LIGHT_HEIGHT := [0.2, MapVertical.TECH_Z]
 
 
 ## Hauteur d'une applique posée (m au-dessus du sol), bornée à WALL_LIGHT_HEIGHT.

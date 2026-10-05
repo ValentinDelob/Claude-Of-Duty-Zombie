@@ -284,7 +284,8 @@ func test_wall_decor_height_format_7() -> void:
 	var back := EditorMap.from_texts(texts)
 	assert_near(float(back.objets.filter(func(x): return x.type == "luminaire")[0].hauteur), 2.6, 0.001, "relue")
 	assert_eq(CustomMapGuard.check_texts(texts).reasons, [], "contrôle des cartes : acceptée")
-	for bad in ["\"hauteur\":\"haut\"", "\"hauteur\":-1", "\"hauteur\":500"]:
+	# Format 17 : plus de maximum de 30 m, seulement la garde technique (10 km).
+	for bad in ["\"hauteur\":\"haut\"", "\"hauteur\":-1", "\"hauteur\":20000"]:
 		var t := texts.duplicate()
 		t["objets.json"] = String(t["objets.json"]).replace("\"hauteur\":2.6", bad)
 		assert_false(CustomMapGuard.check_texts(t).reasons.is_empty(), "contrôle des cartes : %s refusée" % bad)
