@@ -791,7 +791,12 @@ func _stair_props(o: Dictionary) -> void:
 		for i in ups.size():
 			if absf(float(ups[i]) - top) <= EditorMap.ALT_EQ:
 				cur = i
-		_option(_props, Lang.t("Arrivée : altitude", "Arrival: altitude"), ups.map(func(a): return EditorMap.alt_text(float(a), not Lang.is_en())), cur, func(i):
+		# Mêmes niveaux et mêmes noms que le menu de la barre et l'onglet Niveaux
+		# (doc.levels(), EditorMap.level_name ; niveau vide signalé).
+		var names := ups.map(func(a):
+			var n := EditorMap.level_name(float(a))
+			return n + Lang.t(" (vide)", " (empty)") if ed.doc.rooms_on(ed.doc.level_index(float(a))).is_empty() else n)
+		_option(_props, Lang.t("Arrivée : altitude", "Arrival: altitude"), names, cur, func(i):
 			ed.push_undo()
 			o["altitude_haut"] = float(ups[i])
 			ed.changed())

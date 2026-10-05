@@ -276,7 +276,11 @@ courtes ; colimaçon : sur l'axe des zombies).
 Réglages (propriétés ; absents du fichier à leur valeur par défaut) :
 **Tourne vers** (`sens` : `droite` / `gauche`, types L, U et colimaçon),
 **Garde-corps** (`garde_corps`), **Côtés fermés** (`cotes` : limons pleins
-jusqu'à la main courante). Le nombre de marches n'est pas réglable : il est
+jusqu'à la main courante), **Sortie en haut** (`sortie` : `gauche` /
+`droite` vu en montant, absente = en face ; types droit, palier, large,
+service et rampe : palier plat en haut, volée plus courte, on sort sur ce
+côté ; choisie automatiquement à la pose quand le haut des marches touche un
+mur), **Arrivée : altitude** (`altitude_haut`). Le nombre de marches n'est pas réglable : il est
 automatique (≈ 18 cm par marche). La hauteur est celle entre les deux étages
 (un escalier monte d'un étage).
 
