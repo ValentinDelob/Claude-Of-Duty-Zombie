@@ -247,3 +247,33 @@ escalier qui saute un niveau) ; 2 `test_map_no_ceiling.gd` + capture `@rendu`
 du ciel (jour, nuit, noir) ; 3 `test_map_negative.gd` (invariance par
 translation : mêmes messages, export identique, monde ≥ 0) + NetCodec ;
 4 `test_stairs_top_wall.gd` ; 5 `test_map_levels_ui.gd` ; 6 tests MCP/collab.
+
+## Notes de l'étape 1b (niveaux libres, faite)
+- Pièce haute : elle traverse un niveau j seulement s'il est à
+  `MIN_STACK` (3,1 m) au moins au-dessus de son sol (et plafond ≥ sol_j +
+  2,1) ; un demi-niveau posé à côté ne la coupe pas (sinon ses murs auraient
+  une « dalle » à 1,2 m au-dessus de ses portes). Mur mitoyen entre niveaux
+  empilés : le mur du niveau du haut monte au moins jusqu'au haut du mur du
+  bas qu'il coupe (`MapRaster._wall_below`) ; `MapVertical.wall_top` : mur
+  jusqu'à la dalle du dessus si elle est à `WALL_CLOSE` (3 m) au plus.
+- Demi-niveau relié par un escalier : l'arrivée peut traverser le mur commun
+  de la pièce du pied et de la pièce d'arrivée (côte à côte, altitudes
+  différentes) : palier dans l'épaisseur du mur (`MapRaster._landing`,
+  `MapRules._landing_ok`, retombée `MapLayoutExport._landing_lintel`). Le
+  validateur exige 2,1 m de passage au-dessus des marches ET de l'arrivée
+  (`_stair_headroom`) : une rampe qui part d'une pièce haute dont le mur
+  traverse les niveaux du dessus n'a que 1,7 m au palier (passer par un
+  couloir plus bas, voir `tests/test_levels_free.gd` : `split_hall`).
+- Trémie d'un niveau traversé : clé « tremie_mi#id », plafond 0 (celui de
+  la pièce du dessous) ; arrivée dans le vide d'une pièce plus basse
+  (demi-niveau) : plafond 0 aussi, et le contrôle « vide bordé de vide »
+  admet le volume d'une pièce plus basse (`MapValidator._airspace`).
+- Escalier qui descend : posé au premier niveau plus bas dont une pièce le
+  contient, `altitude_haut` = niveau courant ; `EditorMap.set_level` garde
+  une arrivée qui est un niveau plus haut.
+- Étape 4 (escalier contre un mur) : le palier dans le mur commun ne
+  concerne que deux pièces d'altitudes différentes ; la sortie latérale reste
+  à faire. Étape 5 : `MapVertical.floor_at`, aimants « Dessous de dalle »,
+  bornes des élévations (`map_elevation_tools`) lisent encore le niveau
+  suivant. Étape 6 : `MapSummary` et les textes MCP ne connaissent pas
+  encore les escaliers qui sautent des niveaux.
