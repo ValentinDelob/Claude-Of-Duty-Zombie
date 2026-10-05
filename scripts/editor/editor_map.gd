@@ -117,8 +117,9 @@ extends RefCounted
 ##      est posé ; 0 par défaut) ; un escalier a aussi « altitude_haut » (sol
 ##      d'arrivée). Les niveaux sont les altitudes distinctes des pièces
 ##      (levels). « carte.etages », « etage » et « double_hauteur » disparaissent :
-##      une pièce haute est une pièce au grand « plafond » qui traverse le niveau
-##      du dessus (rooms_through). Conversion au chargement (_migrate_levels) :
+##      une pièce haute est une pièce au grand « plafond » qui traverse les
+##      niveaux du dessus (rooms_through) ; deux pièces empilées (qui se
+##      recouvrent en plan) sont à 3,1 m au moins l'une de l'autre (stack_issue). Conversion au chargement (_migrate_levels) :
 ##      altitude = sol de l'ancien étage, plafond de l'étage écrit sur la pièce,
 ##      double hauteur = plafond jusqu'en haut de l'étage du dessus.
 const FORMAT := 17
@@ -376,31 +377,56 @@ func floor_sol(k: int) -> float:
 
 
 ## Pièces hautes qui traversent le niveau `k` (vide et murs à ce niveau) :
-## pièces du niveau du dessous dont le plafond dépasse le sol du niveau `k`
-## de HIGH_CLEAR au moins (l'ancienne « double hauteur »). Restriction de
-## l'étape 1a : seulement le niveau juste au-dessus.
+## pièces d'un niveau plus bas, quel qu'il soit, dont le plafond dépasse le
+## sol du niveau `k` de HIGH_CLEAR au moins (l'ancienne « double hauteur »,
+## généralisée à tous les niveaux traversés).
 func rooms_through(k: int) -> Array:
 	if k <= 0 or k >= level_count():
 		return []
 	var sol := level_alt(k)
-	return rooms_on(k - 1).filter(func(p): return room_top(p) >= sol + HIGH_CLEAR - ALT_EQ)
+	return pieces.filter(func(p): return alt_of(p) < sol - ALT_EQ and room_top(p) >= sol + HIGH_CLEAR - ALT_EQ)
 
 
-## La pièce `p` traverse-t-elle le niveau du dessus (pièce haute) ?
+## La pièce `p` traverse-t-elle un niveau au-dessus du sien (pièce haute) ?
 func is_high(p: Dictionary) -> bool:
 	var k := level_of(p)
-	return k >= 0 and k + 1 < level_count() and room_top(p) >= level_alt(k + 1) + HIGH_CLEAR - ALT_EQ
-
-
-## Deux niveaux voisins trop proches (moins de MIN_STACK m) : [indice du
-## niveau du dessus, écart (m)] ; [] sinon. Restriction de l'étape 1a (le
-## moteur relie un niveau au suivant comme deux étages).
-func level_gap_issue() -> Array:
+	if k < 0:
+		return false
 	var lv := levels()
-	for k in range(1, lv.size()):
-		if float(lv[k]) - float(lv[k - 1]) < MIN_STACK - ALT_EQ:
-			return [k, float(lv[k]) - float(lv[k - 1])]
-	return []
+	return k + 1 < lv.size() and room_top(p) >= float(lv[k + 1]) + HIGH_CLEAR - ALT_EQ
+
+
+## Recouvrement vertical (format 17, niveaux libres) : deux pièces qui se
+## recouvrent en plan sont à MIN_STACK m au moins l'une de l'autre (hauteur
+## sous plafond 2,8 m + dalle) ; côte à côte, n'importe quel écart (demi-
+## niveau). Première paire fautive dont l'une des pièces est dans `ids`
+## (toutes les paires : []) : {a, b (pièces), d (écart, m)} ; {} sinon.
+## Préfiltre par boîtes englobantes (MapGeom.overlap).
+func stack_issue(ids: Array = []) -> Dictionary:
+	for i in pieces.size():
+		var a: Dictionary = pieces[i]
+		if not ids.is_empty() and not ids.has(String(a.get("id", ""))):
+			continue
+		for j in pieces.size():
+			if j == i or (ids.is_empty() and j < i):
+				continue
+			var b: Dictionary = pieces[j]
+			var d := absf(alt_of(a) - alt_of(b))
+			if d > ALT_EQ and d < MIN_STACK - ALT_EQ and MapGeom.overlap(room_poly(a), room_poly(b)):
+				return {"a": a, "b": b, "d": d}
+	return {}
+
+
+## Texte d'un recouvrement vertical (stack_issue) : [fr, en] ; ["", ""] sans problème.
+static func stack_text(si: Dictionary) -> Array:
+	if si.is_empty():
+		return ["", ""]
+	var a: Dictionary = si.a
+	var b: Dictionary = si.b
+	return ["les pièces « %s » (%s) et « %s » (%s) se recouvrent à %s l'une de l'autre : il faut %s au moins entre deux pièces empilées (hauteur sous plafond 2,8 m + dalle)" % [
+			a.get("nom", a.get("id", "")), alt_text(alt_of(a)), b.get("nom", b.get("id", "")), alt_text(alt_of(b)), alt_text(float(si.d)), alt_text(MIN_STACK)],
+		"rooms \"%s\" (%s) and \"%s\" (%s) overlap %s apart: stacked rooms must be at least %s apart (2.8 m ceiling + slab)" % [
+			a.get("nom", a.get("id", "")), alt_text(alt_of(a), false), b.get("nom", b.get("id", "")), alt_text(alt_of(b), false), alt_text(float(si.d), false), alt_text(MIN_STACK, false)]]
 
 
 ## Déplace le niveau `k` de `dalt` m : tout ce qui y est posé, et l'arrivée

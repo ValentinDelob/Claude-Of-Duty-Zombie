@@ -120,8 +120,6 @@ static func check(doc: EditorMap, ids: Array) -> Dictionary:
 			r = MapRules.refuse("pas de pièce à cette altitude", "no room at that altitude")
 		elif String(e.get("type", "")) == "escalier" and k >= doc.level_count() - 1:
 			r = MapRules.refuse("un escalier ne peut pas aller sur le dernier niveau", "stairs cannot go on the top level")
-		elif e.has("contour") and not doc.level_gap_issue().is_empty():
-			r = MapRules.refuse(MapGroup.gap_text(doc)[0], MapGroup.gap_text(doc)[1])
 		else:
 			r = MapRules.check_existing(doc, e)
 		if not r.ok:
@@ -261,16 +259,6 @@ static func copies(doc: EditorMap, ids: Array) -> Array:
 static func level_near(doc: EditorMap, e: Dictionary) -> int:
 	var k := doc.level_of(e)
 	return k if k >= 0 else doc.nearest_level(EditorMap.alt_of(e))
-
-
-## Refus d'une pièce trop près d'un autre niveau (restriction de l'étape 1a :
-## 3,1 m au moins entre deux niveaux) : [fr, en].
-static func gap_text(doc: EditorMap) -> Array:
-	var g := doc.level_gap_issue()
-	if g.is_empty():
-		return ["", ""]
-	return ["deux niveaux à %s l'un de l'autre (%s et %s) : il faut %s au moins pour l'instant" % [EditorMap.alt_text(float(g[1])), EditorMap.alt_text(doc.level_alt(int(g[0]) - 1)), EditorMap.alt_text(doc.level_alt(int(g[0]))), EditorMap.alt_text(EditorMap.MIN_STACK)],
-		"two levels %s apart (%s and %s): at least %s for now" % [EditorMap.alt_text(float(g[1]), false), EditorMap.alt_text(doc.level_alt(int(g[0]) - 1), false), EditorMap.alt_text(doc.level_alt(int(g[0])), false), EditorMap.alt_text(EditorMap.MIN_STACK, false)]]
 
 
 ## Pose des copies de `items` décalées de `delta` (m) et de `dk` étages, en

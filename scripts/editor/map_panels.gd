@@ -1268,8 +1268,8 @@ func _fill_floors() -> void:
 	s.select_all_on_focus = true
 	s.value_changed.connect(func(v): ed.move_level(k, float(v)))
 	_row(_floor_form, Lang.t("Altitude du sol", "Floor altitude"), s)
-	_note(_floor_form, Lang.t("Un niveau = les pièces posées à la même altitude ; changer son altitude déplace tout ce qui y est posé (%s au moins entre deux niveaux pour l'instant). Chaque pièce règle sa hauteur sous plafond ; sous un niveau, le plafond est sa dalle." % EditorMap.alt_text(EditorMap.MIN_STACK, fr),
-		"A level = the rooms placed at the same altitude; changing its altitude moves everything on it (at least %s between two levels for now). Each room sets its ceiling height; under a level, the ceiling is its slab." % EditorMap.alt_text(EditorMap.MIN_STACK, false)))
+	_note(_floor_form, Lang.t("Un niveau = les pièces posées à la même altitude ; changer son altitude déplace tout ce qui y est posé. Les niveaux sont libres (demi-niveau compris) ; deux pièces qui se recouvrent sont à %s au moins l'une de l'autre. Chaque pièce règle sa hauteur sous plafond ; sous une pièce posée au-dessus, le plafond est le plus bas des deux (sa dalle)." % EditorMap.alt_text(EditorMap.MIN_STACK, fr),
+		"A level = the rooms placed at the same altitude; changing its altitude moves everything on it. Levels are free (half levels included); two overlapping rooms are at least %s apart. Each room sets its ceiling height; under a room placed above, the ceiling is the lower of the two (its slab)." % EditorMap.alt_text(EditorMap.MIN_STACK, false)))
 	_button(_floor_form, Lang.t("+ Nouveau niveau vide au-dessus", "+ New empty level above"), ed.add_floor)
 	var rm := _button(_floor_form, Lang.t("Retirer le niveau du haut (vide)", "Remove the top level (empty)"), ed.remove_top_floor)
 	rm.disabled = ed.doc.level_count() <= 1

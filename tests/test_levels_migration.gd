@@ -159,10 +159,12 @@ func test_facade() -> void:
 	var c := m.find("c1").duplicate()
 	EditorMap.shift_levels(c, lv, -1)
 	assert_eq(EditorMap.alt_of(c), 0.0)
-	# Restriction de l'étape 1a : niveaux à 3,1 m au moins.
-	assert_true(m.level_gap_issue().is_empty())
+	# Étape 1b : pièces empilées à 3,1 m au moins (par paires qui se recouvrent).
+	assert_true(m.stack_issue().is_empty())
 	m.find("p3")["altitude"] = 2.0
-	assert_false(m.level_gap_issue().is_empty(), "niveaux à 2 m l'un de l'autre signalés")
+	assert_false(m.stack_issue().is_empty(), "mezzanine à 2 m au-dessus de la halle signalée")
+	assert_true(m.stack_issue(["p1"]).is_empty(), "la salle du bas, à côté, n'est pas concernée")
+	assert_eq(String(m.stack_issue(["p3"]).get("b", {}).get("id", "")), "p2", "paire mezzanine / halle")
 
 
 func test_validator_temporary_restrictions() -> void:

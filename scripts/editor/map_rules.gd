@@ -40,8 +40,9 @@ static func _name(o: Dictionary) -> Array:
 # ------------------------------------------------------------------ pièces
 
 ## `overlap_ok` : les pièces recouvertes ne comptent pas (pièce tracée par-dessus
-## d'autres : elles seront découpées après confirmation, MapCarve).
-static func check_room(doc: EditorMap, k: int, poly: PackedVector2Array, ignore_id := "", overlap_ok := false) -> Dictionary:
+## d'autres : elles seront découpées après confirmation, MapCarve). `alt` :
+## altitude de la pièce (absente : celle du niveau `k`).
+static func check_room(doc: EditorMap, k: int, poly: PackedVector2Array, ignore_id := "", overlap_ok := false, alt := NAN) -> Dictionary:
 	if poly.size() < 3 or not MapGeom.is_simple(poly):
 		return refuse("contour invalide : ses côtés se croisent", "invalid outline: its sides cross")
 	if poly.size() > CustomMapGuard.MAX_VERTICES:
@@ -54,6 +55,18 @@ static func check_room(doc: EditorMap, k: int, poly: PackedVector2Array, ignore_
 		return refuse("hors du terrain : x et y doivent rester positifs", "off the board: x and y must stay positive")
 	if bb.size.x < MIN_ROOM_SIDE or bb.size.y < MIN_ROOM_SIDE or MapGeom.area(poly) < 2.0:
 		return refuse("pièce trop petite (1,5 m de côté au moins)", "room too small (at least 1.5 m per side)")
+	# Niveaux libres (format 17) : une pièce d'une autre altitude qu'elle
+	# recouvre en plan est à MIN_STACK m au moins (au-dessus comme en dessous) ;
+	# côte à côte, n'importe quel écart. Même avec `overlap_ok` (découpe :
+	# seulement à la même altitude).
+	var a := doc.level_alt(k) if is_nan(alt) else alt
+	for p in doc.pieces:
+		var d := absf(EditorMap.alt_of(p) - a)
+		if String(p.id) == ignore_id or d <= EditorMap.ALT_EQ or d >= EditorMap.MIN_STACK - EditorMap.ALT_EQ:
+			continue
+		if MapGeom.overlap(poly, doc.room_poly(p)):
+			return refuse("elle recouvre la pièce « %s » à %s d'écart : il faut %s au moins entre deux pièces empilées (hauteur sous plafond 2,8 m + dalle) ; côte à côte, n'importe quelle altitude" % [p.get("nom", p.id), EditorMap.alt_text(d), EditorMap.alt_text(EditorMap.MIN_STACK)],
+				"it overlaps room \"%s\" %s apart: stacked rooms must be at least %s apart (2.8 m ceiling + slab); side by side, any altitude" % [p.get("nom", p.id), EditorMap.alt_text(d, false), EditorMap.alt_text(EditorMap.MIN_STACK, false)])
 	if overlap_ok:
 		return {"ok": true}
 	for p in doc.rooms_on(k):

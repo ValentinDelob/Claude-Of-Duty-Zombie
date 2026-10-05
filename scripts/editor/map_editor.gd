@@ -2139,8 +2139,11 @@ func try_move_alt(orig: Dictionary, attached: Array, delta: Vector2, dalt: float
 		if doc.level_of(base) < 0:
 			return refuse.call(MapRules.refuse("pas de pièce à cette altitude (%s)" % EditorMap.alt_text(EditorMap.alt_of(base)),
 				"no room at that altitude (%s)" % EditorMap.alt_text(EditorMap.alt_of(base), false)))
-		if not doc.level_gap_issue().is_empty():
-			var gt := MapGroup.gap_text(doc)
+		# Pièces empilées : 3,1 m au moins entre deux pièces qui se recouvrent.
+		var moved_rooms := ([base] + attached.map(func(aid): return doc.find(String(aid)))).filter(func(e): return e is Dictionary and e.has("contour"))
+		var si := doc.stack_issue(moved_rooms.map(func(e): return String(e.get("id", "")))) if not moved_rooms.is_empty() else {}
+		if not si.is_empty():
+			var gt := EditorMap.stack_text(si)
 			return refuse.call(MapRules.refuse(gt[0], gt[1]))
 	var k_new := doc.level_of(base)
 	var res := try_move(base, attached, delta, snap1)
@@ -2642,7 +2645,8 @@ func add_floor() -> void:
 
 ## Met le niveau `k` à l'altitude `alt` (m) : tout ce qui y est posé (et
 ## l'arrivée des escaliers qui y montent) suit, en une étape d'annulation.
-## Refus nommé si deux niveaux se retrouvent à moins de 3,1 m (étape 1a).
+## Refus nommé si une de ses pièces se retrouve à moins de 3,1 m d.une pièce
+## qu.elle recouvre (pièces empilées), ou si le niveau en rejoint un autre.
 func move_level(k: int, alt: float) -> Dictionary:
 	if k < 0 or k >= doc.level_count() or not is_finite(alt):
 		return MapRules.refuse("niveau introuvable", "level not found")
@@ -2655,8 +2659,9 @@ func move_level(k: int, alt: float) -> Dictionary:
 	var moved_view := _view_alt
 	if absf(_view_alt - (alt - dalt)) <= EditorMap.ALT_EQ:
 		moved_view = alt
-	if doc.level_index(alt) < 0 or not doc.level_gap_issue().is_empty():
-		var gt := MapGroup.gap_text(doc)
+	var si := doc.stack_issue(doc.rooms_on(doc.level_index(alt)).map(func(p): return String(p.id))) if doc.level_index(alt) >= 0 else {}
+	if doc.level_index(alt) < 0 or not si.is_empty():
+		var gt := EditorMap.stack_text(si)
 		doc.restore(snap)
 		doc.view_levels = views_before
 		var res := MapRules.refuse(gt[0] if gt[0] != "" else "ce niveau en rejoint un autre", gt[1] if gt[1] != "" else "this level would merge with another")
