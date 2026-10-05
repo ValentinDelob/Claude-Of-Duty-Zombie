@@ -22,7 +22,7 @@ func after_each() -> void:
 static func _room(doc: EditorMap, x0: float, y0: float, x1: float, y1: float, k := 0) -> Dictionary:
 	var id := doc.new_id("p")
 	var z := String(doc.add_zone("Salle " + id, "Room " + id).id)
-	var r := {"id": id, "nom": "Salle " + id, "etage": k, "zone": z, "contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]}
+	var r := {"id": id, "nom": "Salle " + id, "altitude": k * EditorMap.FLOOR_STEP, "zone": z, "contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]}
 	doc.pieces.append(r)
 	return r
 
@@ -30,7 +30,7 @@ static func _room(doc: EditorMap, x0: float, y0: float, x1: float, y1: float, k 
 static func _obj(doc: EditorMap, o: Dictionary, k := 0) -> Dictionary:
 	o["id"] = doc.new_id(String(o.get("_p", "x")))
 	o.erase("_p")
-	o["etage"] = k
+	o["altitude"] = k * EditorMap.FLOOR_STEP
 	doc.objets.append(o)
 	return o
 
@@ -56,9 +56,9 @@ static func _decorated() -> EditorMap:
 	a["surface_sol"] = "tiles"
 	a["surface_plafond"] = "wood"
 	b["surface_murs"] = "wall_green"
-	doc.ouvertures.append({"id": "o1", "type": "porte", "etage": 0, "position": [14.0, 5.25], "largeur": 2.0, "prix": 750})
-	doc.ouvertures.append({"id": "o2", "type": "fenetre", "etage": 0, "position": [3.25, 0.0]})
-	doc.ouvertures.append({"id": "o3", "type": "fenetre", "etage": 0, "position": [19.25, 0.0]})
+	doc.ouvertures.append({"id": "o1", "type": "porte", "altitude": 0, "position": [14.0, 5.25], "largeur": 2.0, "prix": 750})
+	doc.ouvertures.append({"id": "o2", "type": "fenetre", "altitude": 0, "position": [3.25, 0.0]})
+	doc.ouvertures.append({"id": "o3", "type": "fenetre", "altitude": 0, "position": [19.25, 0.0]})
 	_obj(doc, {"type": "depart", "position": [9.0, 7.0]})
 	_obj(doc, {"type": "boite", "position": [6.75, 10.0], "mur": "s", "depart": false})
 	_obj(doc, {"type": "arme", "arme": "m14", "position": [11.25, 10.0], "mur": "s"})
@@ -367,9 +367,9 @@ func test_room_textures_saved_reloaded_and_built() -> void:
 func test_format_1_maps_still_load() -> void:
 	var texts := {
 		"carte.json": '{"format": 1, "id": "ancienne", "nom": {"fr": "ANCIENNE", "en": "OLD"}, "etages": [{"sol": 0, "hauteur": 3.2}]}',
-		"pieces.json": '{"pieces": [{"id": "p1", "nom": "Salle", "etage": 0, "zone": "z1", "contour": [[0,0],[16,0],[16,8],[0,8]]}]}',
-		"ouvertures.json": '{"ouvertures": [{"id": "o1", "type": "fenetre", "etage": 0, "position": [2.25, 0]}]}',
-		"objets.json": '{"objets": [{"id": "s1", "type": "depart", "etage": 0, "position": [12, 5]}, {"id": "c1", "type": "caisse", "etage": 0, "position": [2.25, 5.25]}, {"id": "l1", "type": "lampe", "etage": 0, "position": [5, 4]}, {"id": "b1", "type": "boite", "etage": 0, "position": [8.75, 8], "mur": "s"}]}',
+		"pieces.json": '{"pieces": [{"id": "p1", "nom": "Salle", "altitude": 0, "zone": "z1", "contour": [[0,0],[16,0],[16,8],[0,8]]}]}',
+		"ouvertures.json": '{"ouvertures": [{"id": "o1", "type": "fenetre", "altitude": 0, "position": [2.25, 0]}]}',
+		"objets.json": '{"objets": [{"id": "s1", "type": "depart", "altitude": 0, "position": [12, 5]}, {"id": "c1", "type": "caisse", "altitude": 0, "position": [2.25, 5.25]}, {"id": "l1", "type": "lampe", "altitude": 0, "position": [5, 4]}, {"id": "b1", "type": "boite", "altitude": 0, "position": [8.75, 8], "mur": "s"}]}',
 		"zones.json": '{"depart": "z1", "zones": [{"id": "z1", "nom": {"fr": "Salle", "en": "Room"}, "sol": "wood"}]}',
 	}
 	var m := EditorMap.from_texts(texts)
@@ -379,7 +379,7 @@ func test_format_1_maps_still_load() -> void:
 	assert_true(EditorMap.FORMAT >= 4, "format 4 et plus : formes libres (formes de base, rotations au degré près) ; 5 : variantes, barrière")
 	var v := _check(m)
 	assert_true(v.ok(), "ancienne carte toujours jouable :\n" + _errs(v))
-	var da := EditorMap.load_dir("res://assets/maps/draft_arena/")
+	var da := EditorMap.load_dir("res://tests/fixtures/maps/legacy_draft_arena/")
 	assert_true(da.load_errors.is_empty() and da.format_read == 1, "DRAFT ARENA (format 1) se recharge")
 	var newer := EditorMap.from_texts({"carte.json": '{"format": 99}'})
 	assert_true(newer.load_errors.any(func(e): return String(e[0]).contains("plus récent")), "format plus récent signalé")

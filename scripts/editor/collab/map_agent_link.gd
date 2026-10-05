@@ -264,8 +264,7 @@ func cmd_get_elements(args: Dictionary) -> Dictionary:
 			if not it.is_empty():
 				d["z_min"] = snappedf(float(it.z0), 0.01)
 				d["z_max"] = snappedf(float(it.z1), 0.01)
-			var k := int(e.get("etage", 0))
-			var sol := doc.floor_sol(k) if k < doc.floor_count() else 0.0
+			var sol := EditorMap.alt_of(e)
 			var kind := MapVertical.pose_kind(e)
 			d["glissement_vertical"] = kind
 			if kind == "pose":
@@ -319,8 +318,8 @@ func cmd_screenshot(args: Dictionary) -> Dictionary:
 		var e := doc.find(String(eid))
 		if e.is_empty() or e.get("nom") is Dictionary:
 			continue
-		if not args.has("floor") and e.has("etage"):
-			k = int(e.etage)
+		if not args.has("floor") and e.has("altitude") and doc.level_of(e) >= 0:
+			k = doc.level_of(e)
 		var r := MapGeom.bbox(doc.room_poly(e)) if e.has("contour") else MapRules.footprint_rect(e)
 		bb = r if first else bb.merge(r)
 		first = false
@@ -462,7 +461,7 @@ static func catalog() -> Dictionary:
 		if it.get("descend", false):
 			# Outil de l'éditeur seulement : la carte n'a qu'un type d'escalier.
 			entry["descend"] = true
-			entry["note"] = "escalier qui descend de l'étage k : écrire un « escalier » d'etage k - 1 dont « monte » pointe vers l'endroit où l'on arrive en haut"
+			entry["note"] = "escalier qui descend du niveau d'altitude A : écrire un « escalier » dont « altitude » est le niveau du dessous et « altitude_haut » = A, « monte » pointe vers l'endroit où l'on arrive en haut"
 		if it.get("wall_snap", false):
 			# Format 15 : boîte mystère au sol ou contre un mur.
 			entry["note"] = "au sol : « position » = centre et « rot » (0 : avant au sud), sans « mur » ; contre un mur : « position » sur le trait et « mur » (+ « angle »), sans « rot »"
@@ -508,7 +507,7 @@ static func catalog() -> Dictionary:
 	(kinds.escalier.keys as Dictionary).erase("marches")
 	return {"kinds": jsonable(kinds), "room_keys": jsonable(MapCatalog.room_keys()), "zone_keys": jsonable(MapCatalog.zone_keys()),
 		"items": items, "prefabs": prefabs, "lights": lights, "effects": effects, "weapons": weapons, "perks": perks, "variants": jsonable(MapCatalog.VARIANTS),
-		"door_prices": MapCatalog.DOOR_PRICES, "max_floors": MapCatalog.MAX_FLOORS, "max_coord": MapCatalog.MAX_COORD,
+		"door_prices": MapCatalog.DOOR_PRICES, "max_coord": MapCatalog.MAX_COORD,
 		"id_prefixes": jsonable(MapOps.OBJ_PREFIX), "surfaces": MapCatalog.allowed_surfaces()}
 
 

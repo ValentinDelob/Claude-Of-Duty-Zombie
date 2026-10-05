@@ -22,7 +22,7 @@ static func _fr(msgs: Array) -> String:
 
 
 static func _clip(doc: EditorMap, pts: Array) -> void:
-	doc.objets.append({"id": doc.new_id("i"), "type": "bloc_invisible", "etage": 0, "sommets": pts})
+	doc.objets.append({"id": doc.new_id("i"), "type": "bloc_invisible", "altitude": 0, "sommets": pts})
 
 
 ## Salle A (0..10 × 0..10, départ, fenêtre, boîte murale), couloir de
@@ -38,9 +38,9 @@ static func corridor_map() -> EditorMap:
 	b.zone = a.zone
 	doc.zones = doc.zones.filter(func(z): return String(z.id) == String(a.zone))
 	doc.depart = String(a.zone)
-	doc.ouvertures.append({"id": "o1", "type": "passage", "etage": 0, "position": [10.0, MID], "largeur": 2.0})
-	doc.ouvertures.append({"id": "o2", "type": "passage", "etage": 0, "position": [22.0, MID], "largeur": 2.0})
-	doc.ouvertures.append({"id": "o3", "type": "fenetre", "etage": 0, "position": [3.25, 0.0]})
+	doc.ouvertures.append({"id": "o1", "type": "passage", "altitude": 0, "position": [10.0, MID], "largeur": 2.0})
+	doc.ouvertures.append({"id": "o2", "type": "passage", "altitude": 0, "position": [22.0, MID], "largeur": 2.0})
+	doc.ouvertures.append({"id": "o3", "type": "fenetre", "altitude": 0, "position": [3.25, 0.0]})
 	DecorFree._obj(doc, {"type": "depart", "position": [5.0, 6.0]})
 	DecorFree._obj(doc, {"type": "boite", "position": [5.0, 10.0], "mur": "s", "depart": true})
 	return doc
@@ -105,7 +105,7 @@ func test_existing_maps_unchanged() -> void:
 
 func test_power_switch_shut_in_is_an_error() -> void:
 	var doc := DecorFree.two_rooms()
-	doc.objets.append({"id": "pw", "type": "courant", "etage": 0, "position": [5.0, 0.0], "mur": "n"})
+	doc.objets.append({"id": "pw", "type": "courant", "altitude": 0, "position": [5.0, 0.0], "mur": "n"})
 	var e0 := _check(doc).errors().size()
 	_clip(doc, [[4, 0], [6.5, 0], [6.5, 2.5], [4, 2.5]])
 	var v := _check(doc)
@@ -116,7 +116,7 @@ func test_power_switch_shut_in_is_an_error() -> void:
 
 func test_other_object_shut_in_stays_a_warning() -> void:
 	var doc := DecorFree.two_rooms()
-	doc.objets.append({"id": "pp", "type": "pap", "etage": 0, "position": [5.0, 0.0], "mur": "n"})
+	doc.objets.append({"id": "pp", "type": "pap", "altitude": 0, "position": [5.0, 0.0], "mur": "n"})
 	var e0 := _check(doc).errors().size()
 	_clip(doc, [[4, 0], [6.5, 0], [6.5, 2.5], [4, 2.5]])
 	var v := _check(doc)
@@ -134,7 +134,7 @@ func test_shut_in_boxes() -> void:
 	assert_true(v.errors().any(func(m): return String(m.fr).begins_with("toutes les boîtes")), "toutes les boîtes enfermées : erreur")
 	# Une boîte ordinaire enfermée parmi d'autres libres : avertissement.
 	var d2 := DecorFree.two_rooms()
-	d2.objets.append({"id": "b2", "type": "boite", "etage": 0, "position": [24.0, 5.0], "mur": "e", "depart": false})
+	d2.objets.append({"id": "b2", "type": "boite", "altitude": 0, "position": [24.0, 5.0], "mur": "e", "depart": false})
 	var e0 := _check(d2).errors().size()
 	_clip(d2, [[21.5, 3], [24, 3], [24, 7.5], [21.5, 7.5]])
 	var v2 := _check(d2)

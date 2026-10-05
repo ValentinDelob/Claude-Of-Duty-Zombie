@@ -109,7 +109,7 @@ func test_rotation_ring_and_typed_angle() -> void:
 	res = MapTransform.apply(doc, b2.duplicate(true), [], MapTransform.pivot(doc, b2), 22.0, doc.snapshot())
 	assert_eq(MapGeom.rot_of(doc.find(String(b.id))), 37, "valeur tapée : 37°")
 	# Sans « rot » écrit (fichier à la main) : tourne quand même.
-	var bare := {"id": "bx", "type": "boite", "etage": 0, "position": [5.0, 5.0]}
+	var bare := {"id": "bx", "type": "boite", "altitude": 0, "position": [5.0, 5.0]}
 	assert_eq(MapGeom.rot_of(MapTransform.rotated(bare, Vector2(5, 5), 30.0)), 30, "boîte sans « rot » tournée")
 	# Boîte murale : ni anneau ni rotation propre (elle suit son mur).
 	var wall: Dictionary = doc.objets.filter(func(o): return String(o.type) == "boite" and o.has("mur"))[0]
@@ -147,7 +147,7 @@ func test_file_round_trip_and_older_maps() -> void:
 	var old := DecorFree.two_rooms()
 	DecorFree._obj(old, {"type": "boite", "position": [9.0, 0.0], "depart": false})
 	var t14 := old.file_texts()
-	t14["carte.json"] = String(t14["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 14")
+	t14 = load("res://tests/test_levels_migration.gd").as_format(t14, 14)
 	var m14 := EditorMap.from_texts(t14)
 	assert_eq(m14.format_read, 14)
 	var conv: Array = m14.objets.filter(func(o): return String(o.type) == "boite" and MapGeom.v2(o.position) == Vector2(9, 0))

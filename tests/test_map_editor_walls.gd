@@ -29,21 +29,21 @@ func after_each() -> void:
 static func free_walls_map() -> EditorMap:
 	var doc := EditorMap.blank("murs_libres", "MURS LIBRES", "FREE WALLS")
 	var z := doc.add_zone("Salle", "Hall")
-	doc.pieces.append({"id": "p1", "nom": "Salle", "etage": 0, "zone": z.id, "contour": [[4, 4], [24, 4], [24, 18], [4, 18]]})
+	doc.pieces.append({"id": "p1", "nom": "Salle", "altitude": 0, "zone": z.id, "contour": [[4, 4], [24, 4], [24, 18], [4, 18]]})
 	doc.depart = String(z.id)
 	for pt in [Vector2(9, 3.8), Vector2(21, 3.8)]:
 		var w := MapRules.place_opening(doc, 0, "fenetre", pt, 1.0)
-		doc.ouvertures.append({"id": doc.new_id("o"), "type": "fenetre", "etage": 0, "position": w.position})
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [15.0, 15.0]})
-	doc.objets.append({"id": "m1", "type": "mur", "etage": 0, "a": [12, 6], "b": [12, 12], "epaisseur": 0.5})
-	doc.objets.append({"id": "m2", "type": "mur", "etage": 0, "a": [16, 6], "b": [20, 10], "epaisseur": 0.5})
-	doc.objets.append({"id": "m3", "type": "mur_courbe", "etage": 0, "centre": [8.0, 12.0], "rayon": 2.5, "debut": 0.0, "ouverture": 180.0,
+		doc.ouvertures.append({"id": doc.new_id("o"), "type": "fenetre", "altitude": 0, "position": w.position})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [15.0, 15.0]})
+	doc.objets.append({"id": "m1", "type": "mur", "altitude": 0, "a": [12, 6], "b": [12, 12], "epaisseur": 0.5})
+	doc.objets.append({"id": "m2", "type": "mur", "altitude": 0, "a": [16, 6], "b": [20, 10], "epaisseur": 0.5})
+	doc.objets.append({"id": "m3", "type": "mur_courbe", "altitude": 0, "centre": [8.0, 12.0], "rayon": 2.5, "debut": 0.0, "ouverture": 180.0,
 		"segments": 4, "epaisseur": 0.5})
-	doc.objets.append({"id": "m4", "type": "mur", "etage": 0, "a": [21, 11], "b": [21, 16], "epaisseur": 1.5})
-	doc.objets.append({"id": "m5", "type": "mur", "etage": 0, "a": [6, 4], "b": [6, 8], "epaisseur": 0.5})
+	doc.objets.append({"id": "m4", "type": "mur", "altitude": 0, "a": [21, 11], "b": [21, 16], "epaisseur": 1.5})
+	doc.objets.append({"id": "m5", "type": "mur", "altitude": 0, "a": [6, 4], "b": [6, 8], "epaisseur": 0.5})
 	var box := {"type": "boite", "depart": true}
 	var r := MapRules.place_wall_item(doc, 0, box, Vector2(15, 17.4))
-	box.merge({"id": "b1", "etage": 0, "position": r.position}, true)
+	box.merge({"id": "b1", "altitude": 0, "position": r.position}, true)
 	MapRules.apply_wall(box, r)
 	doc.objets.append(box)
 	return doc
@@ -60,7 +60,7 @@ static func put(doc: EditorMap, tmpl: Dictionary, mouse: Vector2) -> Dictionary:
 	if not r.ok:
 		return r
 	var o := tmpl.duplicate(true)
-	o.merge({"id": doc.new_id("w"), "etage": 0, "position": r.position}, true)
+	o.merge({"id": doc.new_id("w"), "altitude": 0, "position": r.position}, true)
 	MapRules.apply_wall(o, r)
 	doc.objets.append(o)
 	return o
@@ -104,7 +104,7 @@ func test_wall_items_on_a_straight_free_wall() -> void:
 	assert_false(again.ok, "deux armes au même endroit refusées")
 	assert_true(String(again.get("fr", "")).contains("chevauche"), "raison : %s" % again.get("fr", ""))
 	# Mur trop court pour une boîte (0,5 m de trait, 1 m de cases).
-	doc.objets.append({"id": "m6", "type": "mur", "etage": 0, "a": [15, 13], "b": [15, 13.5], "epaisseur": 0.5})
+	doc.objets.append({"id": "m6", "type": "mur", "altitude": 0, "a": [15, 13], "b": [15, 13.5], "epaisseur": 0.5})
 	var short := MapRules.place_wall_item(doc, 0, {"type": "boite", "depart": false}, Vector2(14.4, 13.2))
 	assert_false(short.ok, "boîte sur un mur de 1 m : refusée")
 	assert_true(String(short.get("fr", "")).contains("trop court"), "raison : %s" % short.get("fr", ""))
@@ -128,7 +128,7 @@ func test_wall_items_on_oblique_thick_and_curved_free_walls() -> void:
 	var perk := put(doc, PERK, Vector2(16.4, 6.4) + n * 0.8)
 	assert_true(perk.has("id"), "atout contre le mur en biais : %s" % str(perk))
 	# Mur en biais trop court pour une arme.
-	doc.objets.append({"id": "m7", "type": "mur", "etage": 0, "a": [18, 15], "b": [18.6, 15.6], "epaisseur": 0.5})
+	doc.objets.append({"id": "m7", "type": "mur", "altitude": 0, "a": [18, 15], "b": [18.6, 15.6], "epaisseur": 0.5})
 	var short := MapRules.place_wall_item(doc, 0, WEAPON, Vector2(18.3, 15.3) + n * 0.6)
 	assert_false(short.ok, "mur en biais de 0,85 m : arme refusée")
 	# Mur épais m4 (1,5 m, x = 21) : le trait est à 0,25 m derrière la face.
@@ -283,22 +283,22 @@ static func _mouse_events(cv: MapCanvas, from: Vector2, to: Vector2, steps: int)
 static func _maps() -> Array:
 	var out := []
 	var d1 := EditorMap.blank()
-	d1.pieces.append({"id": "p1", "nom": "A", "etage": 0, "zone": "z1", "contour": [[2, 2], [12, 2], [12, 10], [2, 10]]})
-	d1.pieces.append({"id": "p2", "nom": "B", "etage": 0, "zone": "z2", "contour": [[12, 4], [18, 4], [18, 8], [12, 8]]})
+	d1.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": "z1", "contour": [[2, 2], [12, 2], [12, 10], [2, 10]]})
+	d1.pieces.append({"id": "p2", "nom": "B", "altitude": 0, "zone": "z2", "contour": [[12, 4], [18, 4], [18, 8], [12, 8]]})
 	out.append(["grille", d1, [Vector2(5, 1.8), Vector2(1.8, 6)]])
 	var d2 := EditorMap.blank()
-	d2.pieces.append({"id": "p1", "nom": "A", "etage": 0, "zone": "z1", "contour": [[2.25, 2.25], [8.25, 2.25], [8.25, 8.25], [2.25, 8.25]]})
-	d2.pieces.append({"id": "p2", "nom": "B", "etage": 0, "zone": "z2", "contour": [[8.25, 2.25], [14.25, 2.25], [14.25, 8.25], [8.25, 8.25]]})
+	d2.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": "z1", "contour": [[2.25, 2.25], [8.25, 2.25], [8.25, 8.25], [2.25, 8.25]]})
+	d2.pieces.append({"id": "p2", "nom": "B", "altitude": 0, "zone": "z2", "contour": [[8.25, 2.25], [14.25, 2.25], [14.25, 8.25], [8.25, 8.25]]})
 	out.append(["fine 0,25", d2, [Vector2(5, 2), Vector2(11, 8.5)]])
 	var d3 := EditorMap.blank()
-	d3.pieces.append({"id": "p1", "nom": "A", "etage": 0, "zone": "z1", "contour": [[2.37, 2.11], [12.84, 2.11], [12.84, 9.73], [2.37, 9.73]]})
-	d3.pieces.append({"id": "p2", "nom": "B", "etage": 0, "zone": "z2", "contour": [[12.84, 3.52], [17.2, 3.52], [17.2, 7.9], [12.84, 7.9]]})
+	d3.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": "z1", "contour": [[2.37, 2.11], [12.84, 2.11], [12.84, 9.73], [2.37, 9.73]]})
+	d3.pieces.append({"id": "p2", "nom": "B", "altitude": 0, "zone": "z2", "contour": [[12.84, 3.52], [17.2, 3.52], [17.2, 7.9], [12.84, 7.9]]})
 	out.append(["libre", d3, [Vector2(5, 2), Vector2(2.2, 6)]])
 	var d4 := EditorMap.blank()
-	d4.pieces.append({"id": "p1", "nom": "A", "etage": 0, "zone": "z1", "contour": [[2, 2], [12, 2], [12, 6], [8, 10], [2, 10]]})
+	d4.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": "z1", "contour": [[2, 2], [12, 2], [12, 6], [8, 10], [2, 10]]})
 	out.append(["biais", d4, [Vector2(10.5, 7.5), Vector2(5, 10.2)]])
 	var d5 := EditorMap.blank()
-	d5.pieces.append({"id": "p1", "nom": "A", "etage": 0, "zone": "z1", "contour": MapGeom.poly_arr(MapShapes.outline({"type": "cercle", "centre": [16.0, 16.0], "rx": 13.0, "points": 32, "angle": 0}))})
+	d5.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": "z1", "contour": MapGeom.poly_arr(MapShapes.outline({"type": "cercle", "centre": [16.0, 16.0], "rx": 13.0, "points": 32, "angle": 0}))})
 	out.append(["cercle", d5, [Vector2(16, 2.8), Vector2(6.6, 6.6)]])
 	return out
 
@@ -322,7 +322,7 @@ func test_windows_move_along_their_wall_in_every_snap_mode() -> void:
 				continue
 			for mode in MODES:
 				var doc := base.duplicate_map()
-				doc.ouvertures.append({"id": "o9", "type": "fenetre", "etage": 0, "position": r.position})
+				doc.ouvertures.append({"id": "o9", "type": "fenetre", "altitude": 0, "position": r.position})
 				ed.doc = doc
 				ed.changed()
 				cv.fine_step = mode[1]
@@ -345,9 +345,9 @@ func test_window_moves_to_another_outer_wall() -> void:
 		# Pièce de la grille puis pièce tracée sans grille : du mur nord au mur est.
 		for geo in [[[2, 2], [13, 2], [13, 10], [2, 10]], [[2.26, 2.27], [12.73, 2.27], [12.73, 10.21], [2.26, 10.21]]]:
 			var doc := EditorMap.blank()
-			doc.pieces.append({"id": "p1", "nom": "A", "etage": 0, "zone": "z1", "contour": geo})
+			doc.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": "z1", "contour": geo})
 			var r := MapRules.place_opening(doc, 0, "fenetre", Vector2(8, 1.9), 1.0)
-			doc.ouvertures.append({"id": "o9", "type": "fenetre", "etage": 0, "position": r.position})
+			doc.ouvertures.append({"id": "o9", "type": "fenetre", "altitude": 0, "position": r.position})
 			ed.doc = doc
 			ed.changed()
 			cv.fine_step = mode[1]
@@ -416,7 +416,7 @@ func test_doors_and_wall_items_move_in_every_snap_mode() -> void:
 				assert_true(r.ok, "%s : %s posée" % [mp[0], kind])
 				if not r.ok:
 					continue
-				doc0.ouvertures.append({"id": "o9", "type": kind, "etage": 0, "position": r.position, "largeur": float(r.get("largeur", 1.5)), "prix": 750})
+				doc0.ouvertures.append({"id": "o9", "type": kind, "altitude": 0, "position": r.position, "largeur": float(r.get("largeur", 1.5)), "prix": 750})
 			else:
 				var o := put(doc0, WEAPON, attempt[1])
 				assert_true(o.has("id"), "%s : arme posée" % mp[0])
@@ -510,7 +510,7 @@ func test_slow_drags_in_every_snap_mode() -> void:
 				var r := MapRules.place_opening(doc0, 0, kind, attempt[1], 1.0 if kind == "fenetre" else 1.5, "", true)
 				if not r.ok:
 					continue
-				var op := {"id": "o9", "type": kind, "etage": 0, "position": r.position}
+				var op := {"id": "o9", "type": kind, "altitude": 0, "position": r.position}
 				if kind != "fenetre":
 					op["largeur"] = float(r.get("largeur", 1.5))
 				doc0.ouvertures.append(op)

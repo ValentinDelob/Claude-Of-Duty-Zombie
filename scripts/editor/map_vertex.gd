@@ -116,7 +116,7 @@ static func with_poly(doc: EditorMap, orig: Dictionary, np: PackedVector2Array) 
 	elif orig.has("contour"):
 		cand.contour = MapGeom.poly_arr(np)
 		cand.erase("forme")
-		res = MapRules.check_room(doc, int(orig.get("etage", 0)), np, String(orig.id))
+		res = MapRules.check_room(doc, doc.level_of(orig), np, String(orig.id))
 	elif orig.get("sommets") is Array:
 		cand.sommets = MapGeom.poly_arr(np)
 		res = MapRules.check_clip(np)

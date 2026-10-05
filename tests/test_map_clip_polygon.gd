@@ -28,7 +28,7 @@ static func _map() -> EditorMap:
 
 
 static func _clip(doc: EditorMap, pts: Array, extra := {}) -> Dictionary:
-	var o := {"id": doc.new_id("i"), "type": "bloc_invisible", "etage": 0, "sommets": pts}
+	var o := {"id": doc.new_id("i"), "type": "bloc_invisible", "altitude": 0, "sommets": pts}
 	o.merge(extra)
 	doc.objets.append(o)
 	return o
@@ -87,7 +87,7 @@ func test_old_rect_barriers_become_polygons_and_round_trip() -> void:
 	assert_true(String(texts["carte.json"]).contains("\"format\": %d" % EditorMap.FORMAT), "écrite au format %d" % EditorMap.FORMAT)
 	assert_true(EditorMap.FORMAT >= 9, "format 9 : barrière en polygone")
 	# Même carte relue au format 8 (barrière rectangle d'avant).
-	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 8")
+	texts = load("res://tests/test_levels_migration.gd").as_format(texts, 8)
 	var m := EditorMap.from_texts(texts)
 	assert_eq(m.load_errors, [], "format 8 lu sans erreur")
 	assert_eq(m.format_read, 8)
@@ -103,7 +103,7 @@ func test_old_rect_barriers_become_polygons_and_round_trip() -> void:
 	# et la carte relue (polygone).
 	var d0 := _map()
 	var t0 := d0.file_texts()
-	t0["carte.json"] = String(t0["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 8")
+	t0 = load("res://tests/test_levels_migration.gd").as_format(t0, 8)
 	var m0 := EditorMap.from_texts(t0)
 	assert_eq(MapRaster.clip_cells(m0.find("i1")), MapRaster.clip_cells(d0.find("i1")), "mêmes cases pour le validateur")
 	var a: Array = EditorMapDef.from_map(d0, "perso:a").layout_data.blockers.filter(func(x): return x.get("clip", false))
@@ -316,7 +316,7 @@ func test_editor_draws_edits_rotates_and_undoes_a_polygon_barrier() -> void:
 
 func test_overlap_setting_frees_decor_and_obstacles_only() -> void:
 	var doc := _map()
-	var crate := {"id": "c1", "type": "caisse", "etage": 0, "position": [5.0, 5.0]}
+	var crate := {"id": "c1", "type": "caisse", "altitude": 0, "position": [5.0, 5.0]}
 	doc.objets.append(crate)
 	var crate2 := {"type": "caisse", "position": [5.5, 5.0]}
 	var desk := {"type": "prefab", "prefab": "bureau", "rot": 0, "position": [5.0, 5.5]}
@@ -338,9 +338,9 @@ func test_overlap_setting_frees_decor_and_obstacles_only() -> void:
 	# Posés : rien de rouge, carte valide ; décoché : redeviennent rouges.
 	var c2 := crate2.duplicate()
 	c2["id"] = "c2"
-	c2["etage"] = 0
+	c2["altitude"] = 0.0
 	doc.objets.append(c2)
-	doc.objets.append({"id": "x9", "type": "pilier", "etage": 0, "rect": [4.5, 4.5, 5.5, 5.5]})
+	doc.objets.append({"id": "x9", "type": "pilier", "altitude": 0, "rect": [4.5, 4.5, 5.5, 5.5]})
 	for id in ["c1", "c2", "x9"]:
 		assert_true(MapRules.check_existing(doc, doc.find(id)).ok, "%s valide avec le réglage" % id)
 	var v := ObjectsTest._check(doc)
@@ -371,7 +371,7 @@ func test_overlap_setting_frees_decor_and_obstacles_only() -> void:
 static func _pap_map() -> EditorMap:
 	var doc := _map()
 	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
-	doc.objets.append({"id": "pp", "type": "pap", "etage": 0, "position": [5.0, 0.0], "mur": "n"})
+	doc.objets.append({"id": "pp", "type": "pap", "altitude": 0, "position": [5.0, 0.0], "mur": "n"})
 	return doc
 
 
@@ -445,7 +445,7 @@ func test_barrier_removes_no_element_of_any_kind() -> void:
 			{"type": "luminaire", "luminaire": "suspension", "position": [6.0, 6.0], "rot": 0},
 			{"type": "prefab", "prefab": "etagere", "position": [20.0, 8.5]}, {"type": "caisse", "position": [11.5, 7.5]}]:
 		o["id"] = maps[1].new_id("x")
-		o["etage"] = 0
+		o["altitude"] = 0.0
 		maps[1].objets.append(o)
 	var tried := 0
 	for doc: EditorMap in maps:
@@ -460,7 +460,7 @@ func test_barrier_removes_no_element_of_any_kind() -> void:
 			var g := r.grow(1.5)
 			g.position = g.position.max(Vector2.ZERO)
 			var m := doc.duplicate_map()
-			_clip(m, [[g.position.x, g.position.y], [g.end.x, g.position.y], [g.end.x, g.end.y], [g.position.x, g.end.y]], {"etage": int(e.get("etage", 0))})
+			_clip(m, [[g.position.x, g.position.y], [g.end.x, g.position.y], [g.end.x, g.end.y], [g.position.x, g.end.y]], {"altitude": EditorMap.alt_of(e)})
 			var got := _counts(MapPreviewWorld.compute(m).data)
 			got.erase("m.player_spawns")
 			assert_eq(got, want, "%s %s sous une barrière : rien ne disparaît" % [e.type, e.id])

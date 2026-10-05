@@ -131,10 +131,10 @@ static func cut_sides(data: Dictionary, b: Barricade, mid: float) -> Vector2:
 static func four_walls(kind: String) -> EditorMap:
 	var doc := EditorMap.blank("murs_" + kind, "MURS", "WALLS")
 	var z := String(doc.add_zone("Salle", "Room").id)
-	doc.pieces.append({"id": "p1", "nom": "Salle", "etage": 0, "zone": z, "contour": [[0, 0], [10, 0], [10, 6], [0, 6]]})
+	doc.pieces.append({"id": "p1", "nom": "Salle", "altitude": 0, "zone": z, "contour": [[0, 0], [10, 0], [10, 6], [0, 6]]})
 	doc.depart = z
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [5.0, 3.0]})
-	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [8.5, 6.0], "mur": "s", "depart": true})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [5.0, 3.0]})
+	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [8.5, 6.0], "mur": "s", "depart": true})
 	_openings(doc, kind, [Vector2(5, 0), Vector2(10, 3), Vector2(5, 6) if kind != "porte_double" else Vector2(4, 6), Vector2(0, 3)])
 	return doc
 
@@ -144,11 +144,11 @@ static func four_walls(kind: String) -> EditorMap:
 static func four_obliques(kind: String) -> EditorMap:
 	var doc := EditorMap.blank("biais4_" + kind, "BIAIS", "OBLIQUE")
 	var z := String(doc.add_zone("Salle", "Room").id)
-	doc.pieces.append({"id": "p1", "nom": "Salle", "etage": 0, "zone": z,
+	doc.pieces.append({"id": "p1", "nom": "Salle", "altitude": 0, "zone": z,
 		"contour": [[6, 2], [14, 2], [18, 6], [18, 14], [14, 18], [6, 18], [2, 14], [2, 6]]})
 	doc.depart = z
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [10.0, 10.0]})
-	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [10.0, 18.0], "mur": "s", "depart": true})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [10.0, 10.0]})
+	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [10.0, 18.0], "mur": "s", "depart": true})
 	_openings(doc, kind, [Vector2(4, 4), Vector2(16, 4), Vector2(16, 16), Vector2(4, 16)])
 	return doc
 
@@ -157,7 +157,7 @@ static func _openings(doc: EditorMap, kind: String, at_list: Array) -> void:
 	var n := 0
 	for at: Vector2 in at_list:
 		n += 1
-		var o := {"id": "o%d" % n, "type": "fenetre", "etage": 0, "position": [at.x, at.y]}
+		var o := {"id": "o%d" % n, "type": "fenetre", "altitude": 0, "position": [at.x, at.y]}
 		MapCatalog.set_variant(o, kind)
 		var res := MapRules.place_opening(doc, 0, "fenetre", at, MapRules.opening_width(o))
 		o["position"] = res.position

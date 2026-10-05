@@ -1,11 +1,15 @@
 class_name MapRaster
 extends RefCounted
 ## Carte de l'éditeur (EditorMap) -> grille du validateur (MapValidator) :
-## une case de 0,5 m centrée sur chaque multiple de 0,5 m (MapGeom), par étage.
+## une case de 0,5 m centrée sur chaque multiple de 0,5 m (MapGeom), par
+## niveau (format 17 : altitudes distinctes des pièces, EditorMap.levels ;
+## restriction de l'étape 1a : niveaux à 3,1 m au moins l'un de l'autre, un
+## escalier monte au niveau suivant, comme deux étages).
 ##   - pièce : les cases que traverse son contour sont des MURS, celles dont le
 ##     centre est à l'intérieur son SOL (zone de la pièce) ; deux pièces collées
 ##     partagent les cases de leur bord commun : un seul mur mitoyen ;
-##   - pièce « double hauteur » : à l'étage du dessus, son contour reste un mur
+##   - pièce haute (plafond qui traverse le niveau du dessus, EditorMap.
+##     rooms_through ; l'ancienne « double hauteur ») : au niveau du dessus, son contour reste un mur
 ##     et son intérieur un VIDE (trémie) ; une pièce posée au-dessus forme une
 ##     mezzanine (ses bords au-dessus du vide ont un garde-corps) ;
 ##   - ouvertures : les cases du mur commun (porte, débris, passage) ou
@@ -78,14 +82,23 @@ func _build() -> void:
 			var va := MapCatalog.variant_of(o)
 			if va != MapCatalog.default_variant(String(o.get("type", ""))):
 				v.variants[String(o.get("id", ""))] = va
-	# Étages.
-	var n := doc.floor_count()
+	# Niveaux (format 17) : altitudes des pièces. Plafond d'un niveau (cases
+	# sans pièce, dernier niveau) : le plus haut plafond réglé de ses pièces.
+	var n := doc.level_count()
 	for k in n:
 		var f := MapValidator.Floor.new()
 		f.index = k
-		f.sol = doc.floor_sol(k)
-		f.plafond = f.sol + doc.floor_height(k)
+		f.sol = doc.level_alt(k)
+		var top := f.sol + EditorMap.DEFAULT_CEILING
+		var any := false
+		for p in doc.rooms_on(k):
+			if doc.is_high(p):
+				continue
+			top = EditorMap.room_top(p) if not any else maxf(top, EditorMap.room_top(p))
+			any = true
+		f.plafond = top
 		v.floors.append(f)
+	_check_levels()
 	# Taille de la grille : tout ce qui est posé, plus la marge.
 	var hi := Vector2(10, 10)
 	var neg := false
@@ -122,9 +135,11 @@ func _build() -> void:
 		v.oblique_walls.append([])
 		v.diag_cells.append({})
 		v.room_polys.append([])
+	doc.freeze_levels()
 	for k in n:
 		_floor(k)
 	_scaled_heights()
+	doc.thaw_levels()
 
 
 ## Format 14 : décor mis à l'échelle ou incliné (fichier écrit à la main,
@@ -135,7 +150,7 @@ func _scaled_heights() -> void:
 	for o in doc.objets:
 		if not (o is Dictionary and String(o.get("type", "")) == "prefab" and MapScale.transformed(o)) or MapCatalog.def_of(o).is_empty():
 			continue
-		var k := int(o.get("etage", 0))
+		var k := doc.level_of(o)
 		if k < 0 or k >= v.floors.size():
 			continue
 		var rh := MapVertical.room_h(v, o)
@@ -150,6 +165,28 @@ func _scaled_heights() -> void:
 		if top > rh + 0.011:
 			_err("décor « %s » trop haut pour le plafond (%s m ici)" % [o.get("prefab", ""), ("%.2f" % rh).replace(".", ",")],
 				"prop \"%s\" too tall for the ceiling (%.2f m here)" % [o.get("prefab", ""), rh], k, [MapVertical.cell(MapGeom.v2(o.get("position", [0, 0])))])
+
+
+## Format 17 (étape 1a) : éléments à une altitude sans pièce (orphelins :
+## rien ne les porte), escaliers dont l'arrivée n'est pas le niveau suivant.
+func _check_levels() -> void:
+	for list in [doc.ouvertures, doc.objets]:
+		for o in list:
+			if doc.level_of(o) < 0:
+				var a := EditorMap.alt_of(o)
+				_err("« %s » à l'altitude %s : aucune pièce à cette altitude (posez-le au niveau d'une pièce)" % [MapRules._name(o)[0], EditorMap.alt_text(a)],
+					"\"%s\" at altitude %s: no room at that altitude (put it on a room's level)" % [MapRules._name(o)[1], EditorMap.alt_text(a, false)])
+	for o in doc.objets:
+		# Arrivée absente (escalier créé en mémoire, lot de Claude) : le niveau suivant.
+		if String(o.get("type", "")) != "escalier" or not o.has("altitude_haut"):
+			continue
+		var k := doc.level_of(o)
+		if k < 0 or k + 1 >= doc.level_count():
+			continue
+		var want := doc.level_alt(k + 1)
+		if absf(EditorMap.stair_top(o) - want) > EditorMap.ALT_EQ:
+			_err("escalier « %s » : il arrive à %s, il doit monter au niveau suivant (%s) pour l'instant" % [String(o.get("id", "")), EditorMap.alt_text(EditorMap.stair_top(o)), EditorMap.alt_text(want)],
+				"stairs \"%s\": they arrive at %s, they must go up to the next level (%s) for now" % [String(o.get("id", "")), EditorMap.alt_text(EditorMap.stair_top(o), false), EditorMap.alt_text(want, false)], k)
 
 
 func _err(fr: String, en: String, k := -1, cells: Array = []) -> void:
@@ -225,8 +262,8 @@ static func passage_ceil(a: float, b: float) -> float:
 	return minf(a, b)
 
 
-func _ceil_of(p: Dictionary, k: int) -> float:
-	return doc.floor_sol(k) + float(p.get("plafond", doc.floor_height(k)))
+func _ceil_of(p: Dictionary, _k: int) -> float:
+	return EditorMap.room_top(p)
 
 
 ## Cases d'un côté de pièce : celles que traverse le trait (côté droit sur la
@@ -397,7 +434,7 @@ static func room_cells(poly: PackedVector2Array) -> Array:
 
 func _floor(k: int) -> void:
 	var f := v.floors[k]
-	var ceil_up := f.sol + doc.floor_height(k)
+	var ceil_up := f.plafond
 	# Cases des murs droits (côtés droits, piliers, murs libres droits) : elles
 	# restent des blocs de la grille même si un mur en biais les coupe aussi.
 	_axis = {}
@@ -406,24 +443,24 @@ func _floor(k: int) -> void:
 	# Côtés en biais de cet étage (fusionnés en murs obliques après (b)).
 	var raw := []
 	var void_polys := []
-	# (a) Pièces à double hauteur de l'étage du dessous : vide et murs qui montent.
-	var voids := {}   # case -> true (intérieur d'une double hauteur)
+	# (a) Pièces hautes du niveau du dessous : vide et murs qui montent
+	# (jusqu'au plafond de la pièce haute).
+	var voids := {}   # case -> true (intérieur d'une pièce haute)
 	if k > 0:
-		for p in doc.rooms_on(k - 1):
-			if not p.get("double_hauteur", false):
-				continue
+		for p in doc.rooms_through(k):
 			var poly := doc.room_poly(p)
+			var high := EditorMap.room_top(p)
 			void_polys.append(poly)
 			_edges(poly, String(p.id), false, raw)
 			var rc := room_cells(poly)
 			for c in rc[1]:
 				f.put(c, K.TREMIE, "tremie")
-				f.ceil[c.y * f.w + c.x] = ceil_up
+				f.ceil[c.y * f.w + c.x] = high
 				voids[c] = true
 			for c in rc[0]:
 				f.put(c, K.MUR, "mur")
-				f.ceil[c.y * f.w + c.x] = ceil_up
-		# Piliers et murs d'une double hauteur : jusqu'en haut.
+				f.ceil[c.y * f.w + c.x] = high
+		# Piliers et murs d'une pièce haute : jusqu'en haut.
 		for o in doc.objects_on(k - 1):
 			if String(o.type) in ["pilier", "mur", "mur_courbe"]:
 				var cells := _obstacle_cells(o)
@@ -445,12 +482,12 @@ func _floor(k: int) -> void:
 		v.room_zone[String(p.id)] = z
 		var ce := _ceil_of(p, k)
 		v.room_polys[k].append({"id": String(p.id), "poly": poly, "zone": z, "ceil": ce})
-		# Plafond de la pièce dans ses bornes (les mêmes que le panneau et le
-		# contrôle des cartes reçues, MapVertical.ROOM_CEILING).
+		# Plafond de la pièce : 2,8 m au moins (sans maximum, format 17 ; mêmes
+		# règles que le panneau et le contrôle des cartes reçues).
 		if p.has("plafond"):
 			var pv: Variant = p.plafond
-			if not ((pv is float or pv is int) and float(pv) >= MapVertical.ROOM_CEILING[0] - 0.001 and float(pv) <= MapVertical.ROOM_CEILING[1] + 0.001):
-				_err("pièce « %s » : plafond hors des bornes (2,8 à 9 m)" % p.get("nom", p.id), "room \"%s\": ceiling out of bounds (2.8 to 9 m)" % p.get("nom", p.id), k)
+			if not ((pv is float or pv is int) and is_finite(float(pv)) and float(pv) >= MapVertical.ROOM_CEILING[0] - 0.001):
+				_err("pièce « %s » : plafond trop bas (2,8 m au moins)" % p.get("nom", p.id), "room \"%s\": ceiling too low (at least 2.8 m)" % p.get("nom", p.id), k)
 		var own := []
 		for c in rc[1]:
 			if inner_of.has(c):
@@ -732,7 +769,7 @@ func _obstacle_record(k: int, o: Dictionary, cells: Array) -> void:
 				at = arc[arc.size() / 2]
 			_:
 				at = (MapGeom.v2(o.a) + MapGeom.v2(o.b)) * 0.5
-		rid = String(MapRules.room_at(doc, int(o.get("etage", 0)), at).get("id", ""))
+		rid = String(MapRules.room_at(doc, doc.level_of(o), at).get("id", ""))
 	var half := float(o.get("epaisseur", 0.5)) * 0.5
 	match t0:
 		"pilier":
@@ -1093,7 +1130,7 @@ static func opening_cells(o: Dictionary, horizontal: bool) -> Array:
 ## (mur en biais ou hors de la grille : vrai mur oblique).
 func opening_axis(o: Dictionary) -> int:
 	var p := MapGeom.v2(o.position)
-	for r in doc.rooms_on(int(o.get("etage", 0))):
+	for r in doc.rooms_on(doc.level_of(o)):
 		var poly := doc.room_poly(r)
 		for i in poly.size():
 			var a := poly[i]

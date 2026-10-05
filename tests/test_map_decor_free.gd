@@ -25,7 +25,7 @@ func after_each() -> void:
 static func _room(doc: EditorMap, x0: float, y0: float, x1: float, y1: float, walls: String) -> Dictionary:
 	var id := doc.new_id("p")
 	var z := String(doc.add_zone("Salle " + id, "Room " + id).id)
-	var r := {"id": id, "nom": "Salle " + id, "etage": 0, "zone": z, "contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]],
+	var r := {"id": id, "nom": "Salle " + id, "altitude": 0, "zone": z, "contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]],
 		"surface_murs": walls}
 	doc.pieces.append(r)
 	return r
@@ -33,7 +33,7 @@ static func _room(doc: EditorMap, x0: float, y0: float, x1: float, y1: float, wa
 
 static func _obj(doc: EditorMap, o: Dictionary) -> Dictionary:
 	o["id"] = doc.new_id("x")
-	o["etage"] = 0
+	o["altitude"] = 0.0
 	doc.objets.append(o)
 	return o
 
@@ -45,9 +45,9 @@ static func two_rooms() -> EditorMap:
 	_room(doc, 0, 0, 14, 10, "brick")
 	_room(doc, 14, 0, 24, 10, "wall_green")
 	doc.depart = String(doc.zones[0].id)
-	doc.ouvertures.append({"id": "o1", "type": "porte", "etage": 0, "position": [14.0, 5.25], "largeur": 2.0, "prix": 750})
-	doc.ouvertures.append({"id": "o2", "type": "fenetre", "etage": 0, "position": [3.25, 0.0]})
-	doc.ouvertures.append({"id": "o3", "type": "fenetre", "etage": 0, "position": [19.25, 0.0]})
+	doc.ouvertures.append({"id": "o1", "type": "porte", "altitude": 0, "position": [14.0, 5.25], "largeur": 2.0, "prix": 750})
+	doc.ouvertures.append({"id": "o2", "type": "fenetre", "altitude": 0, "position": [3.25, 0.0]})
+	doc.ouvertures.append({"id": "o3", "type": "fenetre", "altitude": 0, "position": [19.25, 0.0]})
 	_obj(doc, {"type": "depart", "position": [7.0, 6.0]})
 	_obj(doc, {"type": "boite", "position": [19.0, 10.0], "mur": "s", "depart": true})
 	return doc
@@ -291,7 +291,7 @@ func test_wall_decor_height_format_7() -> void:
 	# Format 6 relu sans rien changer ; clé illisible écrite à la main retirée.
 	o.erase("hauteur")
 	texts = doc.file_texts()
-	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 6")
+	texts = load("res://tests/test_levels_migration.gd").as_format(texts, 6)
 	back = EditorMap.from_texts(texts)
 	assert_eq(back.format_read, 6, "format 6 lu")
 	assert_false(back.objets.filter(func(x): return x.type == "luminaire")[0].has("hauteur"), "applique du format 6 : pas de hauteur ajoutée")

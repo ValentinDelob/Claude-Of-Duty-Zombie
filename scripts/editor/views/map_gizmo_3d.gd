@@ -53,9 +53,7 @@ static func axes_of(e: Dictionary) -> Array:
 
 ## Centre (jeu) de la boîte du décor : son centre, à mi-hauteur.
 func center3(e: Dictionary) -> Vector3:
-	var k := int(e.get("etage", 0))
-	var sols: Array = panel.world._floor_sols
-	var sol := float(sols[k]) if k < sols.size() else 0.0
+	var sol := EditorMap.alt_of(e)
 	var p := MapGeom.v2(e.get("position", [0, 0]))
 	var zc := 0.0
 	if MapScale.mount_of(e) == "plafond":

@@ -28,18 +28,18 @@ var H := AutotestHelpers
 static func slit_map() -> EditorMap:
 	var doc := EditorMap.blank(MAP_ID, "FENTE", "SLIT")
 	var zid := String(doc.add_zone("Salle", "Room").id)
-	doc.pieces.append({"id": doc.new_id("p"), "nom": "Salle", "etage": 0, "zone": zid,
+	doc.pieces.append({"id": doc.new_id("p"), "nom": "Salle", "altitude": 0, "zone": zid,
 		"contour": [[0, 0], [ROOM, 0], [ROOM, ROOM], [0, ROOM]]})
 	doc.depart = zid
 	var cx := SLIT_X
 	for s in [-1.0, 1.0]:
 		var x0: float = cx + s * SLIT * 0.5
 		var x1: float = cx + s * (SLIT * 0.5 + SIDE)
-		doc.objets.append({"id": doc.new_id("i"), "type": "bloc_invisible", "etage": 0,
+		doc.objets.append({"id": doc.new_id("i"), "type": "bloc_invisible", "altitude": 0,
 			"sommets": [[x0, 0.0], [x1, 0.0], [x1, SLIT_LEN], [x0, SLIT_LEN]]})
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [3.0, 10.0]})
-	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [ROOM - 2.25, ROOM], "mur": "s", "depart": true})
-	doc.ouvertures.append({"id": "o1", "type": "fenetre", "etage": 0, "position": [2.25, ROOM]})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [3.0, 10.0]})
+	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [ROOM - 2.25, ROOM], "mur": "s", "depart": true})
+	doc.ouvertures.append({"id": "o1", "type": "fenetre", "altitude": 0, "position": [2.25, ROOM]})
 	return doc
 
 

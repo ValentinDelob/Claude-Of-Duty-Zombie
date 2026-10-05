@@ -26,9 +26,9 @@ func run() -> void:
 	var doc := Free.two_rooms()
 	doc.pieces[1]["plafond"] = 6.8
 	doc.prefabs["coin_pap"] = Scale.PAP_DEF.duplicate(true)
-	doc.objets.append({"id": "d81", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [4.0, 4.0]})
-	doc.objets.append({"id": "d82", "type": "prefab", "prefab": "poutre", "etage": 0, "position": [19.0, 5.5]})
-	doc.objets.append({"id": "d83", "type": "prefab", "prefab": "map:coin_pap", "etage": 0, "position": [9.0, 3.0]})
+	doc.objets.append({"id": "d81", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [4.0, 4.0]})
+	doc.objets.append({"id": "d82", "type": "prefab", "prefab": "poutre", "altitude": 0, "position": [19.0, 5.5]})
+	doc.objets.append({"id": "d83", "type": "prefab", "prefab": "map:coin_pap", "altitude": 0, "position": [9.0, 3.0]})
 	ed._reset(doc)
 	ed.doc.activate_prefabs()
 	await frames(3)

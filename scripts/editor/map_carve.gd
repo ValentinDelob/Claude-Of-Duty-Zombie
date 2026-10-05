@@ -231,6 +231,7 @@ static func copy_doc(doc: EditorMap) -> EditorMap:
 	m.models = doc.models
 	m.textures = doc.textures
 	m.texture_files = doc.texture_files
+	m.view_levels = doc.view_levels.duplicate()
 	return m
 
 
@@ -246,7 +247,7 @@ static func plan(doc: EditorMap, k: int, poly: PackedVector2Array, room := {}) -
 	var m := copy_doc(doc)
 	var r: Dictionary = room.duplicate(true)
 	r["contour"] = MapGeom.poly_arr(poly)
-	r["etage"] = k
+	doc.set_level(r, k)
 	new_room(m, r)
 	var rep := carve(m, r)
 	rep["carve"] = true
@@ -278,7 +279,7 @@ static func new_room(doc: EditorMap, e: Dictionary) -> void:
 ## removed_objects, warn} ou {ok: false, fr, en} (la carte est alors dans un
 ## état intermédiaire : travailler sur une copie, ou la restaurer).
 static func carve(doc: EditorMap, room: Dictionary) -> Dictionary:
-	var k := int(room.get("etage", 0))
+	var k := doc.level_of(room)
 	var rid := String(room.get("id", ""))
 	var idx := -1
 	for i in doc.pieces.size():
@@ -486,7 +487,7 @@ static func _add_passages(doc: EditorMap, k: int, a: Dictionary, b: Dictionary) 
 			if r.ok:
 				# Revérifié posé (une largeur paire de demi-mètres se centre à
 				# 0,25 m de la grille : elle peut ne pas tenir là où l'impaire tient).
-				var o := {"id": doc.new_id("o"), "type": "passage", "etage": k, "position": r.position, "largeur": w}
+				var o := {"id": doc.new_id("o"), "type": "passage", "altitude": doc.level_alt(k), "position": r.position, "largeur": w}
 				doc.ouvertures.append(o)
 				MapRules.begin_batch(doc)
 				var ok: bool = MapRules.check_existing(doc, o).ok
@@ -537,7 +538,7 @@ static func _invalid(doc: EditorMap, k: int, region: Rect2) -> Dictionary:
 	MapRules.begin_batch(doc)
 	for list in [doc.pieces, doc.ouvertures, doc.objets]:
 		for e in list:
-			if absi(int(e.get("etage", 0)) - k) > 1 or not _rect_of(doc, e).intersects(region, true):
+			if doc.level_of(e) < 0 or absi(doc.level_of(e) - k) > 1 or not _rect_of(doc, e).intersects(region, true):
 				continue
 			var r := MapRules.check_existing(doc, e)
 			if not r.ok:
@@ -676,7 +677,7 @@ static func carve_ops(doc: EditorMap, ops: Array, allowed: bool) -> Dictionary:
 		var r := m.find(String((op.el as Dictionary).get("id", "")))
 		if r.is_empty() or not r.has("contour"):
 			continue
-		var k := int(r.get("etage", 0))
+		var k := m.level_of(r)
 		var hits := overlaps(m, k, m.room_poly(r), String(r.id))
 		if hits.is_empty():
 			continue

@@ -24,8 +24,8 @@ func run() -> void:
 	ed.new_map(true)
 	var doc := Free.two_rooms()
 	doc.prefabs["coin_pap"] = Scale.PAP_DEF.duplicate(true)
-	doc.objets.append({"id": "c1", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [4.0, 4.0]})
-	doc.objets.append({"id": "k1", "type": "prefab", "prefab": "map:coin_pap", "etage": 0, "position": [19.0, 4.0]})
+	doc.objets.append({"id": "c1", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [4.0, 4.0]})
+	doc.objets.append({"id": "k1", "type": "prefab", "prefab": "map:coin_pap", "altitude": 0, "position": [19.0, 4.0]})
 	for o in doc.objets:
 		if String(o.type) == "depart":
 			o["position"] = [11.0, 8.0]

@@ -191,9 +191,9 @@ func test_validator_accepts_both_doors() -> void:
 func test_validator_rules_for_doors() -> void:
 	var doc := EditorMap.blank("regles_portes", "RÈGLES", "RULES")
 	var z := String(doc.add_zone("Salle", "Room").id)
-	doc.pieces.append({"id": "p1", "nom": "Salle", "etage": 0, "zone": z, "contour": [[0, 0], [10, 0], [10, 6], [0, 6]]})
+	doc.pieces.append({"id": "p1", "nom": "Salle", "altitude": 0, "zone": z, "contour": [[0, 0], [10, 0], [10, 6], [0, 6]]})
 	doc.depart = z
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [5.0, 3.0]})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [5.0, 3.0]})
 	# Mur nord : 10 m ; une porte double au milieu se pose.
 	var ok := MapRules.place_opening(doc, 0, "fenetre", Vector2(5.0, 0.0), 2.0)
 	assert_true(ok.ok, "porte double posée sur un mur extérieur : %s" % MapRules.why(ok))
@@ -205,18 +205,18 @@ func test_validator_rules_for_doors() -> void:
 	# Mur trop court : une salle de 2,5 m de large ne prend pas de double.
 	var small := EditorMap.blank("petit", "PETIT", "SMALL")
 	var z2 := String(small.add_zone("S", "S").id)
-	small.pieces.append({"id": "p1", "nom": "S", "etage": 0, "zone": z2, "contour": [[0, 0], [2.5, 0], [2.5, 4], [0, 4]]})
+	small.pieces.append({"id": "p1", "nom": "S", "altitude": 0, "zone": z2, "contour": [[0, 0], [2.5, 0], [2.5, 4], [0, 4]]})
 	assert_false(MapRules.place_opening(small, 0, "fenetre", Vector2(1.25, 0.0), 2.0).ok, "mur de 2,5 m : pas de porte double (3 m)")
 	assert_true(MapRules.place_opening(small, 0, "fenetre", Vector2(1.25, 0.0), 1.0).ok, "mais une porte simple tient")
 	# Cour : une pièce voisine à 3 m derrière gêne une porte double à son bout.
 	var near := EditorMap.blank("cour", "COUR", "YARD")
 	var z3 := String(near.add_zone("A", "A").id)
-	near.pieces.append({"id": "p1", "nom": "A", "etage": 0, "zone": z3, "contour": [[0, 4], [10, 4], [10, 10], [0, 10]]})
-	near.pieces.append({"id": "p2", "nom": "B", "etage": 0, "zone": z3, "contour": [[6.6, 0], [9, 0], [9, 2], [6.6, 2]]})
+	near.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": z3, "contour": [[0, 4], [10, 4], [10, 10], [0, 10]]})
+	near.pieces.append({"id": "p2", "nom": "B", "altitude": 0, "zone": z3, "contour": [[6.6, 0], [9, 0], [9, 2], [6.6, 2]]})
 	assert_true(MapRules.place_opening(near, 0, "fenetre", Vector2(4.0, 4.0), 1.0).ok, "fenêtre : cour de 3 m libre")
 	assert_false(MapRules.place_opening(near, 0, "fenetre", Vector2(5.0, 4.0), 2.0).ok, "porte double : cour de 4 m gênée par B")
 	# Changer le type d'une fenêtre posée : la double doit tenir à sa place.
-	small.ouvertures.append({"id": "o1", "type": "fenetre", "etage": 0, "position": [1.25, 0.0]})
+	small.ouvertures.append({"id": "o1", "type": "fenetre", "altitude": 0, "position": [1.25, 0.0]})
 	var o := small.find("o1")
 	assert_true(MapRules.apply_variant(small, o, "porte").ok, "fenêtre -> porte simple")
 	assert_eq(MapCatalog.barricade_kind(o), "porte")
@@ -225,7 +225,7 @@ func test_validator_rules_for_doors() -> void:
 	# Validateur : une double dont le fichier dit 1 m de mur... (largeur suivie du
 	# type) ; un fichier qui la pose dans un mur trop court est signalé.
 	small.ouvertures[0]["variante"] = "porte_double"
-	small.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [1.25, 2.0]})
+	small.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [1.25, 2.0]})
 	small.depart = z2
 	var v := analyzed(small)
 	assert_true(_errs(v) != "", "porte double dans un mur trop court : erreur")
@@ -261,11 +261,11 @@ static func solid_at(data: Dictionary, q: Vector3) -> bool:
 static func grid_map(kind: String) -> EditorMap:
 	var doc := EditorMap.blank("grille_" + kind, "GRILLE", "GRID")
 	var z := String(doc.add_zone("Salle", "Room").id)
-	doc.pieces.append({"id": "p1", "nom": "Salle", "etage": 0, "zone": z, "contour": [[0, 0], [10, 0], [10, 6], [0, 6]]})
+	doc.pieces.append({"id": "p1", "nom": "Salle", "altitude": 0, "zone": z, "contour": [[0, 0], [10, 0], [10, 6], [0, 6]]})
 	doc.depart = z
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [5.0, 4.0]})
-	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [5.0, 6.0], "mur": "s", "depart": true})
-	var o := {"id": "o1", "type": "fenetre", "etage": 0, "position": [5.0, 0.0]}
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [5.0, 4.0]})
+	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [5.0, 6.0], "mur": "s", "depart": true})
+	var o := {"id": "o1", "type": "fenetre", "altitude": 0, "position": [5.0, 0.0]}
 	MapCatalog.set_variant(o, kind)
 	var res := MapRules.place_opening(doc, 0, "fenetre", Vector2(5.0, 0.0), MapRules.opening_width(o))
 	o["position"] = res.position
@@ -444,12 +444,12 @@ func test_window_unchanged() -> void:
 static func oblique_map(kind: String) -> EditorMap:
 	var doc := EditorMap.blank("biais_" + kind, "BIAIS", "OBLIQUE")
 	var z := String(doc.add_zone("Salle", "Room").id)
-	doc.pieces.append({"id": "p1", "nom": "Salle", "etage": 0, "zone": z,
+	doc.pieces.append({"id": "p1", "nom": "Salle", "altitude": 0, "zone": z,
 		"contour": [[6, 2], [14, 2], [18, 6], [18, 14], [14, 18], [6, 18], [2, 14], [2, 6]]})
 	doc.depart = z
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [10.0, 10.0]})
-	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [10.0, 18.0], "mur": "s", "depart": true})
-	var o := {"id": "o1", "type": "fenetre", "etage": 0, "position": [4.0, 4.0]}
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [10.0, 10.0]})
+	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [10.0, 18.0], "mur": "s", "depart": true})
+	var o := {"id": "o1", "type": "fenetre", "altitude": 0, "position": [4.0, 4.0]}
 	MapCatalog.set_variant(o, kind)
 	var res := MapRules.place_opening(doc, 0, "fenetre", Vector2(4.0, 4.0), MapRules.opening_width(o))
 	o["position"] = res.position

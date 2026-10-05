@@ -12,20 +12,18 @@ const OFF := MapGeom.WORLD_OFFSET
 ## par défaut ou `ceil_a`) de 10 x 8 m, pièce haute (zone B, sol en bois) au-dessus de sa moitié ouest.
 static func _two_floors(ceil_a := "", double_h := false) -> EditorMap:
 	var doc := EditorMap.blank("plafond_etage", "PLAFOND", "CEILING")
-	(doc.carte.etages as Array).clear()
-	doc.carte.etages.append({"sol": 0.0, "hauteur": 3.2})
-	doc.carte.etages.append({"sol": 3.5, "hauteur": 3.0})
 	var za := doc.add_zone("A", "A")
 	za["sol"] = "tiles"
 	if ceil_a != "":
 		za["plafond"] = ceil_a
 	var zb := doc.add_zone("B", "B")
 	zb["sol"] = "wood"
-	var p1 := {"id": "p1", "nom": "Bas", "etage": 0, "zone": String(za.id), "contour": [[0, 0], [10, 0], [10, 8], [0, 8]]}
+	var p1 := {"id": "p1", "nom": "Bas", "altitude": 0, "zone": String(za.id), "contour": [[0, 0], [10, 0], [10, 8], [0, 8]]}
 	if double_h:
-		p1["double_hauteur"] = true
+		# Pièce haute (l'ancienne double hauteur) : jusqu'en haut du niveau 3,5 m.
+		p1["plafond"] = 6.5
 	doc.pieces.append(p1)
-	doc.pieces.append({"id": "p2", "nom": "Haut", "etage": 1, "zone": String(zb.id), "contour": [[0, 0], [5, 0], [5, 8], [0, 8]]})
+	doc.pieces.append({"id": "p2", "nom": "Haut", "altitude": 3.5, "plafond": 3.0, "zone": String(zb.id), "contour": [[0, 0], [5, 0], [5, 8], [0, 8]]})
 	return doc
 
 
@@ -148,16 +146,14 @@ func test_draft_arena_catwalk_underside() -> void:
 ## passage libre de 2 m centré en z = 5,5 et porte de 2 m centrée en z = 1,5.
 static func _two_heights() -> EditorMap:
 	var doc := EditorMap.blank("passage_hauteurs", "PASSAGE", "PASSAGE")
-	(doc.carte.etages as Array).clear()
-	doc.carte.etages.append({"sol": 0.0, "hauteur": 3.2})
 	var za := doc.add_zone("A", "A")
 	za["murs"] = "brick"
 	var zb := doc.add_zone("B", "B")
 	zb["murs"] = "wall_green"
-	doc.pieces.append({"id": "p1", "nom": "Haute", "etage": 0, "zone": String(za.id), "plafond": 4.5, "contour": [[0, 0], [6, 0], [6, 8], [0, 8]]})
-	doc.pieces.append({"id": "p2", "nom": "Basse", "etage": 0, "zone": String(zb.id), "contour": [[6, 0], [12, 0], [12, 8], [6, 8]]})
-	doc.ouvertures.append({"id": "o1", "type": "passage", "etage": 0, "position": [6.0, 5.5], "largeur": 2.0})
-	doc.ouvertures.append({"id": "o2", "type": "porte", "etage": 0, "position": [6.0, 1.5], "largeur": 2.0, "prix": 750})
+	doc.pieces.append({"id": "p1", "nom": "Haute", "altitude": 0, "zone": String(za.id), "plafond": 4.5, "contour": [[0, 0], [6, 0], [6, 8], [0, 8]]})
+	doc.pieces.append({"id": "p2", "nom": "Basse", "altitude": 0, "zone": String(zb.id), "contour": [[6, 0], [12, 0], [12, 8], [6, 8]]})
+	doc.ouvertures.append({"id": "o1", "type": "passage", "altitude": 0, "position": [6.0, 5.5], "largeur": 2.0})
+	doc.ouvertures.append({"id": "o2", "type": "porte", "altitude": 0, "position": [6.0, 1.5], "largeur": 2.0, "prix": 750})
 	return doc
 
 
@@ -199,16 +195,13 @@ func test_passage_opens_up_to_the_lower_ceiling() -> void:
 ## vers une pièce de l'étage 1 au plafond réglé à 5 m (au lieu de 3 m).
 static func _stairs_high_room(plafond := 5.0) -> EditorMap:
 	var doc := EditorMap.blank("escalier_haut", "ESCALIER", "STAIRS")
-	(doc.carte.etages as Array).clear()
-	doc.carte.etages.append({"sol": 0.0, "hauteur": 3.2})
-	doc.carte.etages.append({"sol": 3.5, "hauteur": 3.0})
 	var za := doc.add_zone("A", "A")
-	doc.pieces.append({"id": "p1", "nom": "Bas", "etage": 0, "zone": String(za.id), "contour": [[0, 0], [12, 0], [12, 10], [0, 10]]})
-	var p2 := {"id": "p2", "nom": "Haut", "etage": 1, "zone": String(za.id), "contour": [[0, 0], [12, 0], [12, 10], [0, 10]]}
+	doc.pieces.append({"id": "p1", "nom": "Bas", "altitude": 0, "zone": String(za.id), "contour": [[0, 0], [12, 0], [12, 10], [0, 10]]})
+	var p2 := {"id": "p2", "nom": "Haut", "altitude": 3.5, "plafond": 3.0, "zone": String(za.id), "contour": [[0, 0], [12, 0], [12, 10], [0, 10]]}
 	if plafond > 0.0:
 		p2["plafond"] = plafond
 	doc.pieces.append(p2)
-	doc.objets.append({"id": "x1", "type": "escalier", "etage": 0, "rect": [1.0, 3.0, 3.5, 9.5], "monte": "n"})
+	doc.objets.append({"id": "x1", "type": "escalier", "altitude": 0, "rect": [1.0, 3.0, 3.5, 9.5], "monte": "n"})
 	return doc
 
 

@@ -112,7 +112,7 @@ func run() -> void:
 	MpHelpers.signal_peer("tente_dessous")
 	if not await MpHelpers.wait_peer(self, "en_jeu", 20.0):
 		return
-	pt.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "pendant_test", "type": "caisse", "etage": 0, "position": [13.0, 10.0]}}], "caisse")
+	pt.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "pendant_test", "type": "caisse", "altitude": 0, "position": [13.0, 10.0]}}], "caisse")
 	if not await until(_back_in_editor, 40.0, "retour dans l'éditeur après la fin de partie"):
 		return
 	ed = tree().current_scene

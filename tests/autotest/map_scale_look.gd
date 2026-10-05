@@ -42,8 +42,8 @@ static func game_map() -> EditorMap:
 	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
 	doc.pieces[0]["plafond"] = 6.8
 	doc.find("s1")["position"] = [6.0, 7.5]
-	doc.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [11.0, 7.0], "echelle": [1.5, 1.5, 1.5]})
-	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "etage": 0, "position": [5.0, 3.5], "incl": [0, 30]})
+	doc.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [11.0, 7.0], "echelle": [1.5, 1.5, 1.5]})
+	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "altitude": 0, "position": [5.0, 3.5], "incl": [0, 30]})
 	return doc
 
 
@@ -96,9 +96,9 @@ static func editor_map() -> EditorMap:
 	doc.pieces[0]["plafond"] = 6.8
 	doc.find("s1")["position"] = [6.0, 8.5]
 	doc.prefabs["coin_pap"] = Scale.PAP_DEF.duplicate(true)
-	doc.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [10.0, 6.5]})
-	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "etage": 0, "position": [5.0, 3.5]})
-	doc.objets.append({"id": "d93", "type": "prefab", "prefab": "map:coin_pap", "etage": 0, "position": [19.0, 4.5]})
+	doc.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [10.0, 6.5]})
+	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "altitude": 0, "position": [5.0, 3.5]})
+	doc.objets.append({"id": "d93", "type": "prefab", "prefab": "map:coin_pap", "altitude": 0, "position": [19.0, 4.5]})
 	return doc
 
 

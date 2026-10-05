@@ -116,8 +116,8 @@ func test_id_ok_bounds() -> void:
 	assert_true(CustomMapGuard.id_ok("a".repeat(CustomMapGuard.MAX_ID)), "longueur maximale")
 	for bad in ["a b", "é", "a/b", "..", "a.b", "a:b", "\u0000"]:
 		assert_false(CustomMapGuard.id_ok(bad), "« %s » refusé" % bad)
-	_refused(_with("objets.json", _objets_plus({"id": "", "type": "lampe", "etage": 0, "position": [5, 5]})), "identifiant invalide", "id vide")
-	_refused(_with("objets.json", _objets_plus({"id": "x".repeat(40), "type": "lampe", "etage": 0, "position": [5, 5]})), "identifiant invalide", "id trop long")
+	_refused(_with("objets.json", _objets_plus({"id": "", "type": "lampe", "altitude": 0, "position": [5, 5]})), "identifiant invalide", "id vide")
+	_refused(_with("objets.json", _objets_plus({"id": "x".repeat(40), "type": "lampe", "altitude": 0, "position": [5, 5]})), "identifiant invalide", "id trop long")
 
 
 # ------------------------------------------------------------------ catalogue
@@ -143,8 +143,8 @@ func test_catalog_unknown_spec_falls_back_to_safe_scalar() -> void:
 	# n'accepte qu'un scalaire court et sûr.
 	CustomMapGuard.source_override = {"items": MapCatalog.items(), "kinds": {}, "surfaces": MapCatalog.materials(),
 		"musics": MapCatalog.musics(), "zone_keys": {},
-		"room_keys": {"id": {"t": "id"}, "nom": {"t": "text", "max": 64}, "etage": {"t": "int", "min": 0, "max": 15},
-			"zone": {"t": "id"}, "contour": {"t": "polygon"}, "double_hauteur": {"t": "bool"},
+		"room_keys": {"id": {"t": "id"}, "nom": {"t": "text", "max": 64}, "altitude": {"t": "number"},
+			"zone": {"t": "id"}, "contour": {"t": "polygon"}, "plafond": {"t": "number", "min": 2.8},
 			"bizarre": 5, "autre": {"t": "inconnu"}}}
 	CustomMapGuard.reset_schema()
 	var sc := CustomMapGuard.schema()
@@ -196,13 +196,13 @@ func test_too_many_total_vertices() -> void:
 	var rooms := []
 	var n := ceili(float(CustomMapGuard.MAX_TOTAL_VERTICES) / CustomMapGuard.MAX_VERTICES) + 1
 	for i in n:
-		rooms.append({"id": "r%d" % i, "etage": 0, "contour": _circle(10 + (i % 8) * 20, 10 + int(i / 8.0) * 20, 2.0, CustomMapGuard.MAX_VERTICES)})
+		rooms.append({"id": "r%d" % i, "altitude": 0, "contour": _circle(10 + (i % 8) * 20, 10 + int(i / 8.0) * 20, 2.0, CustomMapGuard.MAX_VERTICES)})
 	_refused(_with("pieces.json", {"pieces": rooms}), "trop de sommets", "%d sommets" % (n * CustomMapGuard.MAX_VERTICES))
 
 
 func test_rooms_too_large() -> void:
 	var full := [[0, 0], [256, 0], [256, 256], [0, 256]]
-	var rooms := [{"id": "g1", "etage": 0, "contour": full}, {"id": "g2", "etage": 0, "contour": full}]
+	var rooms := [{"id": "g1", "altitude": 0, "contour": full}, {"id": "g2", "altitude": 0, "contour": full}]
 	_refused(_with("pieces.json", {"pieces": rooms}), "trop grandes", "deux pièces de 256 x 256 m")
 
 
@@ -210,11 +210,11 @@ func test_rooms_too_large() -> void:
 
 func test_malformed_points() -> void:
 	for bad in ["abc", [1, 2, 3], [], [5], {"x": 1, "y": 2}, 12]:
-		_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "etage": 0, "position": bad})),
+		_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "altitude": 0, "position": bad})),
 			"point [x, y] attendu", "point %s" % str(bad))
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "etage": 0, "position": [1, "x"]})), "nombre attendu", "coordonnée texte")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "etage": 0, "position": [-5, 3]})), "hors limites", "coordonnée négative")
-	var t := _with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "etage": 0, "position": [3, 4]}))
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "altitude": 0, "position": [1, "x"]})), "nombre attendu", "coordonnée texte")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "altitude": 0, "position": [-5, 3]})), "hors limites", "coordonnée négative")
+	var t := _with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "altitude": 0, "position": [3, 4]}))
 	t["objets.json"] = String(t["objets.json"]).replace("[3,4]", "[3,-1e999]")
 	assert_true(String(t["objets.json"]).contains("-1e999"), "infini négatif écrit")
 	_refused(t, "hors limites", "coordonnée -infinie")
@@ -226,11 +226,11 @@ func test_malformed_points() -> void:
 
 func test_malformed_rects() -> void:
 	for bad in [[1, 2, 3], "1,2,3,4", [1, 2, 3, 4, 5], null]:
-		_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "etage": 0, "rect": bad})),
+		_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "altitude": 0, "rect": bad})),
 			"rectangle [x0, y0, x1, y1] attendu", "rectangle %s" % str(bad))
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "etage": 0, "rect": [1, 2, "x", 4]})), "nombre attendu", "rectangle avec texte")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "etage": 0, "rect": [1, 2, 300, 4]})), "hors limites", "rectangle hors terrain")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "etage": 0, "rect": [1, 2, [3], 4]})), "nombre attendu", "rectangle imbriqué")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "altitude": 0, "rect": [1, 2, "x", 4]})), "nombre attendu", "rectangle avec texte")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "altitude": 0, "rect": [1, 2, 300, 4]})), "hors limites", "rectangle hors terrain")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "pilier", "altitude": 0, "rect": [1, 2, [3], 4]})), "nombre attendu", "rectangle imbriqué")
 
 
 # ------------------------------------------------------------------ noms et textes
@@ -319,7 +319,7 @@ func test_check_reasons_bounded() -> void:
 	# Beaucoup d'objets fautifs : au plus MAX_REASONS raisons rapportées.
 	var o = _json("objets.json")
 	for i in 50:
-		o.objets.append({"id": "k%d" % i, "type": "lampe", "etage": 0, "position": "faux"})
+		o.objets.append({"id": "k%d" % i, "type": "lampe", "altitude": 0, "position": "faux"})
 	var r := CustomMapGuard.check_texts(_with("objets.json", o))
 	assert_false(r.ok)
 	assert_true(r.reasons.size() <= CustomMapGuard.MAX_REASONS, "raisons bornées (%d)" % r.reasons.size())

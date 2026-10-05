@@ -25,8 +25,8 @@ func run() -> void:
 	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
 	doc.pieces[0]["plafond"] = 6.8
 	doc.find("s1")["position"] = [6.0, 8.5]
-	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "etage": 0, "position": [5.0, 3.5]})
-	doc.objets.append({"id": "d94", "type": "prefab", "prefab": "torche_murale", "etage": 0, "position": [2.0, 10.0], "mur": "s"})
+	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "altitude": 0, "position": [5.0, 3.5]})
+	doc.objets.append({"id": "d94", "type": "prefab", "prefab": "torche_murale", "altitude": 0, "position": [2.0, 10.0], "mur": "s"})
 	ed._reset(doc)
 	ed.views.setup("3b", ["3d", "dessus", "avant"])
 	await frames(5)
@@ -88,7 +88,7 @@ func run() -> void:
 	for i in range(7, 11):
 		_mouse(pv, pts[i], -1)
 		await frames(1)
-	ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "d96", "type": "caisse", "etage": 0, "position": [10.0, 8.0]}}], "caisse de Claude", ed.collab.my_id + ":claude")
+	ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "d96", "type": "caisse", "altitude": 0, "position": [10.0, 8.0]}}], "caisse de Claude", ed.collab.my_id + ":claude")
 	await frames(1)
 	_key(pv, KEY_ESCAPE)
 	await frames(2)
@@ -118,12 +118,12 @@ func run() -> void:
 			var x0 := 2.0 + col * 6.0
 			var y0 := 4.0 + row * 6.0
 			var z := big.add_zone("S", "R")
-			big.pieces.append({"id": big.new_id("p"), "nom": "S", "etage": 0, "zone": String(z.id), "plafond": 6.8,
+			big.pieces.append({"id": big.new_id("p"), "nom": "S", "altitude": 0, "zone": String(z.id), "plafond": 6.8,
 				"contour": [[x0, y0], [x0 + 6, y0], [x0 + 6, y0 + 6], [x0, y0 + 6]]})
 	for i in 2000:
 		@warning_ignore("integer_division")
-		big.objets.append({"id": big.new_id("q"), "type": "apparition", "etage": 0, "position": [3.0 + (i % 148), 11.0 + (i / 148) * 0.05]})
-	big.objets.append({"id": "d95", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [6.0, 6.5]})
+		big.objets.append({"id": big.new_id("q"), "type": "apparition", "altitude": 0, "position": [3.0 + (i % 148), 11.0 + (i / 148) * 0.05]})
+	big.objets.append({"id": "d95", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [6.0, 6.5]})
 	ed._reset(big)
 	await frames(3)
 	pv.world.rebuild_now()

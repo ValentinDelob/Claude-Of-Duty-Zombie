@@ -54,7 +54,7 @@ func test_heights_on_draft_arena() -> void:
 		match String(o.type):
 			"fenetre":
 				assert_near(float(e.z1) - float(e.z0), MapValidator.LINTEL - MapValidator.SILL, 0.001, "fenêtre %s" % o.id)
-				assert_near(float(e.z0) - doc.floor_sol(int(o.etage)), MapValidator.SILL, 0.001)
+				assert_near(float(e.z0) - EditorMap.alt_of(o), MapValidator.SILL, 0.001)
 			"porte", "debris":
 				assert_near(float(e.z1) - float(e.z0), 2.5, 0.001, "porte %s" % o.id)
 				assert_eq(int(e.price), int(o.prix))
@@ -66,13 +66,10 @@ func test_heights_on_draft_arena() -> void:
 
 func test_ceiling_under_the_slab_of_the_floor_above() -> void:
 	var doc := EditorMap.blank("dalle", "DALLE", "SLAB")
-	(doc.carte.etages as Array).clear()
-	doc.carte.etages.append({"sol": 0.0, "hauteur": 3.2})
-	doc.carte.etages.append({"sol": 3.5, "hauteur": 3.0})
 	var z := String(doc.add_zone("A", "A").id)
 	# Pièce haute (4 m) sous une pièce de l'étage 1 : coupée sous sa dalle.
-	doc.pieces.append({"id": "p1", "nom": "Bas", "etage": 0, "zone": z, "plafond": 4.0, "contour": [[0, 0], [10, 0], [10, 8], [0, 8]]})
-	doc.pieces.append({"id": "p2", "nom": "Haut", "etage": 1, "zone": z, "contour": [[0, 0], [5, 0], [5, 8], [0, 8]]})
+	doc.pieces.append({"id": "p1", "nom": "Bas", "altitude": 0, "zone": z, "plafond": 4.0, "contour": [[0, 0], [10, 0], [10, 8], [0, 8]]})
+	doc.pieces.append({"id": "p2", "nom": "Haut", "altitude": 3.5, "plafond": 3.0, "zone": z, "contour": [[0, 0], [5, 0], [5, 8], [0, 8]]})
 	var v := MapRaster.build(doc).v
 	assert_near(MapVertical.ceil_z(v, 0, Vector2(2, 4)), 3.5 - MapVertical.DALLE, 0.001, "sous la pièce du dessus : dessous de la dalle")
 	assert_near(MapVertical.ceil_z(v, 0, Vector2(8, 4)), 4.0, 0.001, "ailleurs : son plafond")
@@ -89,10 +86,10 @@ func test_ceiling_under_the_slab_of_the_floor_above() -> void:
 
 func test_lights_effects_and_decor_heights() -> void:
 	var doc := _arena()
-	doc.objets.append({"id": "fx1", "type": "effet", "effet": "torche", "etage": 0, "position": [9.5, 4.5], "mur": "n", "hauteur": 2.4})
-	doc.objets.append({"id": "lu1", "type": "luminaire", "luminaire": "suspension", "etage": 0, "position": [10.0, 26.0], "rot": 0})
-	doc.objets.append({"id": "lu2", "type": "luminaire", "luminaire": "applique", "etage": 0, "position": [6.0, 21.5], "mur": "n", "hauteur": 2.2})
-	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [10.0, 28.0], "rot": 0})
+	doc.objets.append({"id": "fx1", "type": "effet", "effet": "torche", "altitude": 0, "position": [9.5, 4.5], "mur": "n", "hauteur": 2.4})
+	doc.objets.append({"id": "lu1", "type": "luminaire", "luminaire": "suspension", "altitude": 0, "position": [10.0, 26.0], "rot": 0})
+	doc.objets.append({"id": "lu2", "type": "luminaire", "luminaire": "applique", "altitude": 0, "position": [6.0, 21.5], "mur": "n", "hauteur": 2.2})
+	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [10.0, 28.0], "rot": 0})
 	var v := MapRaster.build(doc).v
 	var it := _by_id(MapElevationItems.build(doc, v))
 	assert_near(float(it.fx1.z), 2.4, 0.001, "torche à sa hauteur")
@@ -160,11 +157,11 @@ func test_draw_time_on_a_big_map() -> void:
 			var x0 := 2.0 + col * 6.0
 			var y0 := 4.0 + row * 6.0
 			var z := doc.add_zone("S", "R")
-			doc.pieces.append({"id": doc.new_id("p"), "nom": "S", "etage": 0, "zone": String(z.id),
+			doc.pieces.append({"id": doc.new_id("p"), "nom": "S", "altitude": 0, "zone": String(z.id),
 				"contour": [[x0, y0], [x0 + 6, y0], [x0 + 6, y0 + 6], [x0, y0 + 6]]})
 	for i in 2000:
 		@warning_ignore("integer_division")
-		doc.objets.append({"id": doc.new_id("q"), "type": "apparition", "etage": 0, "position": [3.0 + (i % 148), 5.0 + (i / 148) * 0.8]})
+		doc.objets.append({"id": doc.new_id("q"), "type": "apparition", "altitude": 0, "position": [3.0 + (i % 148), 5.0 + (i / 148) * 0.8]})
 	ed._reset(doc)
 	await wait_frames(3)
 	var av: MapElevation = ed.views.panes[1].view

@@ -352,14 +352,15 @@ static func value_ok(v: Variant, depth := 0) -> bool:
 	return false
 
 
-## Valeurs reçues remises au bon type (étage entier, identifiant texte), comme
-## EditorMap._normalize : le reste garde les nombres décimaux du JSON.
+## Valeurs reçues remises au bon type (altitude en nombre décimal fini),
+## comme EditorMap._normalize : le reste garde les nombres décimaux du JSON.
+## Une clé « etage » (format 16) reste : check_elements la refuse, expliqué.
 static func normalize(ops: Array) -> void:
 	for op in ops:
 		var el: Variant = op.get("el")
-		if el is Dictionary:
-			if el.has("etage") and (el.etage is float or el.etage is int):
-				el["etage"] = int(el.etage)
+		if el is Dictionary and String(op.get("coll", "")) != "zones":
+			if el.has("altitude") and (el.altitude is float or el.altitude is int) and is_finite(float(el.altitude)):
+				el["altitude"] = float(el.altitude)
 
 
 ## Contrôle du contenu des éléments (mêmes règles que les cartes reçues,
@@ -368,7 +369,6 @@ static func normalize(ops: Array) -> void:
 static func check_elements(doc: Variant, ops: Array) -> Dictionary:
 	var out := []
 	var invalid := {}
-	var floors := maxi(1, (_carte(doc).get("etages", []) as Array).size()) if _carte(doc).get("etages") is Array else 1
 	var count := {}
 	for coll in COLLS:
 		count[coll] = list(doc, coll).size()
@@ -379,7 +379,6 @@ static func check_elements(doc: Variant, ops: Array) -> Dictionary:
 	for op in ops:
 		var kind := String(op.get("op", ""))
 		var c := CustomMapGuard.Check.new()
-		c.floors = floors
 		var id := ""
 		match kind:
 			"put":
@@ -410,8 +409,6 @@ static func check_elements(doc: Variant, ops: Array) -> Dictionary:
 				id = "carte"
 				var cd: Dictionary = op.carte
 				CustomMapGuard._check_carte(c, cd)
-				if not c.failed():
-					floors = maxi(1, (cd.get("etages", []) as Array).size())
 			"depart":
 				id = "depart"
 				if not (op.id is String and (op.id == "" or CustomMapGuard.id_ok(op.id))):
@@ -519,7 +516,8 @@ static func resolve_adds(doc: Variant, ops: Array) -> Dictionary:
 			var nid := _free_id(used, prefix)
 			ids[String(el.id) if el.get("id") is String else "#%d" % i] = nid
 			el["id"] = nid
-			el["etage"] = int(el.get("etage", 0)) if (el.get("etage") is int or el.get("etage") is float) else 0
+			if coll != "zones":
+				el["altitude"] = EditorMap.alt_of(el)
 			op["op"] = "put"
 		out.append(op)
 	# 2. « $n » remplacés partout (zone d'une pièce, del, depart...).

@@ -71,7 +71,7 @@ static func neighbour_magnets(doc: EditorMap, o: Dictionary, axis: int) -> Array
 	if base <= 0.0 or doc == null:
 		return out
 	var p := MapGeom.v2(o.get("position", [0, 0]))
-	for q in doc.objects_on(int(o.get("etage", 0))):
+	for q in doc.objects_on(doc.level_of(o)):
 		if String(q.get("id", "")) == String(o.get("id", "")) or String(q.get("type", "")) != "prefab":
 			continue
 		if MapGeom.v2(q.get("position", [0, 0])).distance_to(p) > 3.0 + MapScale.dims(q).length() * 0.5:

@@ -168,7 +168,7 @@ static func _map_with_every_effect() -> EditorMap:
 		var it := MapCatalog.item("effet:" + fid)
 		var o: Dictionary = it.make.duplicate(true)
 		o["id"] = "fx_" + fid
-		o["etage"] = 0
+		o["altitude"] = 0.0
 		if it.tool == "wall_item":
 			var res := MapRules.place_wall_item(doc, 0, o, walls[w % walls.size()])
 			w += 1
@@ -211,7 +211,7 @@ func test_editor_box_is_the_game_volume() -> void:
 		assert_near(float(it.z0), want.x, EPS, "%s : bas de la boîte des élévations = volume" % fid)
 		assert_near(float(it.z1), want.y, EPS, "%s : haut de la boîte des élévations = volume" % fid)
 		# Aperçu 3D (surlignage orange, clic).
-		var sp := MapPreviewWorld.effect_span(o, def.layout_data, doc.floor_height(0))
+		var sp := MapPreviewWorld.effect_span(o, def.layout_data, EditorMap.DEFAULT_CEILING)
 		assert_near(sp.x, want.x, EPS, "%s : bas de la boîte de l'aperçu 3D = volume" % fid)
 		assert_near(sp.y, want.y, EPS, "%s : haut de la boîte de l'aperçu 3D = volume" % fid)
 		# Au sol : le contour dessiné est la zone du volume.
@@ -248,17 +248,17 @@ func test_maps_before_format_13_keep_their_effects_in_place() -> void:
 	var doc := ObjectsTest.objects_map()
 	var torch: Dictionary = MapCatalog.item("effet:torche").make.duplicate(true)
 	var rw := MapRules.place_wall_item(doc, 0, torch, Vector2(2.0, 0.4))
-	torch.merge({"id": "fx_t1", "etage": 0, "position": rw.position, "hauteur": 2.0}, true)
+	torch.merge({"id": "fx_t1", "altitude": 0, "position": rw.position, "hauteur": 2.0}, true)
 	MapRules.apply_wall(torch, rw)
 	doc.objets.append(torch)
-	doc.objets.append({"id": "fx_a1", "type": "effet", "effet": "arc", "etage": 0, "position": [5.0, 5.0], "hauteur": 1.2})
-	doc.objets.append({"id": "fx_b1", "type": "effet", "effet": "tesla", "etage": 0, "position": [9.0, 5.0], "hauteur": 1.0})
-	doc.objets.append({"id": "fx_c1", "type": "effet", "effet": "arc", "etage": 0, "position": [5.0, 8.0]})
-	doc.objets.append({"id": "fx_p1", "type": "effet", "effet": "pluie_etincelles", "etage": 0, "position": [18.0, 4.0]})
-	doc.objets.append({"id": "fx_f1", "type": "effet", "effet": "fumee_noire", "etage": 0, "position": [20.0, 7.0]})
-	doc.objets.append({"id": "fx_f2", "type": "effet", "effet": "fumee_legere", "etage": 0, "position": [4.0, 13.0], "zone": [3.0, 3.0]})
+	doc.objets.append({"id": "fx_a1", "type": "effet", "effet": "arc", "altitude": 0, "position": [5.0, 5.0], "hauteur": 1.2})
+	doc.objets.append({"id": "fx_b1", "type": "effet", "effet": "tesla", "altitude": 0, "position": [9.0, 5.0], "hauteur": 1.0})
+	doc.objets.append({"id": "fx_c1", "type": "effet", "effet": "arc", "altitude": 0, "position": [5.0, 8.0]})
+	doc.objets.append({"id": "fx_p1", "type": "effet", "effet": "pluie_etincelles", "altitude": 0, "position": [18.0, 4.0]})
+	doc.objets.append({"id": "fx_f1", "type": "effet", "effet": "fumee_noire", "altitude": 0, "position": [20.0, 7.0]})
+	doc.objets.append({"id": "fx_f2", "type": "effet", "effet": "fumee_legere", "altitude": 0, "position": [4.0, 13.0], "zone": [3.0, 3.0]})
 	var texts := doc.file_texts()
-	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 12")
+	texts = load("res://tests/test_levels_migration.gd").as_format(texts, 12)
 	# Où les dessinait le jeu au format 12 : flamme 0,27 m au-dessus de la
 	# torche, arc et boule à leur hauteur.
 	var m := EditorMap.from_texts(texts)
@@ -285,10 +285,10 @@ func test_maps_before_format_13_keep_their_effects_in_place() -> void:
 
 func test_old_size_of_format_10_uses_the_old_default_zone() -> void:
 	var doc := ObjectsTest.objects_map()
-	doc.objets.append({"id": "fx_f1", "type": "effet", "effet": "fumee_noire", "etage": 0, "position": [20.0, 7.0], "taille": 2.0})
-	doc.objets.append({"id": "fx_f2", "type": "effet", "effet": "brasier", "etage": 0, "position": [4.0, 4.0], "taille": 2.0})
+	doc.objets.append({"id": "fx_f1", "type": "effet", "effet": "fumee_noire", "altitude": 0, "position": [20.0, 7.0], "taille": 2.0})
+	doc.objets.append({"id": "fx_f2", "type": "effet", "effet": "brasier", "altitude": 0, "position": [4.0, 4.0], "taille": 2.0})
 	var texts := doc.file_texts()
-	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 10")
+	texts = load("res://tests/test_levels_migration.gd").as_format(texts, 10)
 	var m := EditorMap.from_texts(texts)
 	assert_eq(m.find("fx_f1").zone, [3.0, 3.0], "fumée noire : zone d'avant (1,5 m) × 2")
 	assert_eq(m.find("fx_f2").zone, [2.4, 2.4], "grand feu : zone par défaut × 2 (inchangée)")

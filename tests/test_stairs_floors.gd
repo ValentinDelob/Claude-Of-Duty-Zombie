@@ -26,18 +26,18 @@ static func flight(k: int) -> Array:
 ## sans escalier.
 static func tower(sols: Array = [], heights: Array = []) -> EditorMap:
 	var doc := EditorMap.blank("immeuble", "IMMEUBLE", "TOWER")
-	(doc.carte.etages as Array).clear()
-	for k in FLOORS:
-		doc.carte.etages.append({"sol": float(sols[k]) if k < sols.size() else k * EditorMap.FLOOR_STEP,
-			"hauteur": float(heights[k]) if k < heights.size() else EditorMap.DEFAULT_CEILING})
+	var alt := func(k: int) -> float: return float(sols[k]) if k < sols.size() else k * EditorMap.FLOOR_STEP
 	for k in FLOORS:
 		var z := doc.add_zone("Étage %d" % k, "Floor %d" % k)
-		doc.pieces.append({"id": "p%d" % k, "nom": "Étage %d" % k, "etage": k, "zone": String(z.id), "contour": [[0, 0], [W, 0], [W, D], [0, D]]})
+		var p := {"id": "p%d" % k, "nom": "Étage %d" % k, "altitude": alt.call(k), "zone": String(z.id), "contour": [[0, 0], [W, 0], [W, D], [0, D]]}
+		if k < heights.size() and absf(float(heights[k]) - EditorMap.DEFAULT_CEILING) > 0.001:
+			p["plafond"] = float(heights[k])
+		doc.pieces.append(p)
 	doc.depart = String(doc.pieces[0].zone)
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [12.0, 7.0]})
-	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [12.75, 0.0], "mur": "n", "depart": true})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [12.0, 7.0]})
+	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [12.75, 0.0], "mur": "n", "depart": true})
 	for k in FLOORS:
-		doc.ouvertures.append({"id": "o%d" % k, "type": "fenetre", "etage": k, "position": [12.25, D]})
+		doc.ouvertures.append({"id": "o%d" % k, "type": "fenetre", "altitude": alt.call(k), "position": [12.25, D]})
 	return doc
 
 
@@ -46,7 +46,7 @@ static func tower_with_stairs() -> EditorMap:
 	var doc := tower()
 	for k in FLOORS - 1:
 		var f := flight(k)
-		doc.objets.append({"id": "e%d" % k, "type": "escalier", "etage": k, "rect": f[0], "monte": f[1]})
+		doc.objets.append({"id": "e%d" % k, "type": "escalier", "altitude": doc.level_alt(k), "altitude_haut": doc.level_alt(k + 1), "rect": f[0], "monte": f[1]})
 	return doc
 
 
@@ -57,7 +57,7 @@ static func place(doc: EditorMap, k: int, rect: Array, monte: String, down := fa
 	var res := MapRules.check_rect(doc, k, "escalier", MapGeom.rect_of(rect), "", 0, "", o, down)
 	if res.ok:
 		o["id"] = doc.new_id("e")
-		o["etage"] = k
+		doc.set_level(o, k)
 		doc.objets.append(o)
 	return res
 
@@ -112,7 +112,7 @@ func test_five_floors_cage_offset_heights_double_height_small_room() -> void:
 	_accepts("hauteurs", tower([0.0, 4.0, 7.5, 12.0, 15.5], [3.6, 3.2, 4.0, 3.0, 3.2]), cage)
 	# Double hauteur à l'étage 2 : l'étage 3 n'est qu'une mezzanine à l'ouest.
 	var dh := tower()
-	dh.pieces[2]["double_hauteur"] = true
+	dh.pieces[2]["plafond"] = 6.7
 	dh.pieces[3]["contour"] = [[0, 0], [9, 0], [9, D], [0, D]]
 	dh.find("o3")["position"] = [8.25, 0.0]
 	_accepts("double hauteur", dh, cage)
@@ -149,7 +149,7 @@ func test_refusals_say_what_and_where() -> void:
 	assert_true(not r.ok and String(r.fr).contains("Le départ (au pied, étage 1) tombe dans la trémie de l'escalier de l'étage 0 vers l'étage 1"), String(r.get("fr", "")))
 	# Dernier étage : rien au-dessus.
 	r = place(doc, 4, [10.0, 3.0, 12.5, 11.0], "n")
-	assert_true(not r.ok and String(r.fr).contains("ajoutez d'abord un étage"), String(r.get("fr", "")))
+	assert_true(not r.ok and String(r.fr).contains("ajoutez d'abord un niveau"), String(r.get("fr", "")))
 	# Trop raide (3,5 m de montée sur 3,5 m).
 	r = place(tower(), 0, [6.0, 6.0, 8.5, 9.5], "n")
 	assert_true(not r.ok and String(r.fr).contains("trop raide") and String(r.fr).contains("allongez-le à 4,5 m"), String(r.get("fr", "")))
@@ -159,9 +159,10 @@ func test_refusals_say_what_and_where() -> void:
 	r = place(half, 0, [2.0, 3.0, 4.5, 11.0], "n")
 	assert_true(not r.ok and String(r.fr).begins_with("pas de pièce à l'étage 1 au-dessus de l'arrivée de l'escalier (x 2,5 m, y 3 m)"), String(r.get("fr", "")))
 	assert_eq(int((r.marks as Array).filter(func(m): return m.role == "faute")[0].floor), 1, "cases fautives à l'étage 1")
-	# Étage du dessus encore vide : admis (la pièce viendra ensuite).
+	# Niveau du dessus encore vide (niveau vide de l'éditeur) : admis (la pièce viendra ensuite).
 	var empty := tower()
-	empty.pieces = empty.pieces.filter(func(p): return int(p.etage) != 1)
+	empty.pieces = empty.pieces.filter(func(p): return String(p.id) != "p1")
+	empty.view_levels.append(3.5)
 	assert_true(place(empty, 0, [2.0, 3.0, 4.5, 11.0], "n").ok, "étage du dessus vide : posé")
 	# Arrivée dans le mur de la pièce du dessus.
 	var wall := tower()
@@ -176,7 +177,7 @@ func test_refusals_say_what_and_where() -> void:
 func test_validator_says_what_and_where() -> void:
 	# Volée posée sans les règles (fichier, autre éditeur) au-dessus d'une autre.
 	var doc := tower_with_stairs()
-	doc.objets.append({"id": "x1", "type": "escalier", "etage": 2, "rect": flight(1)[0], "monte": "s"})
+	doc.objets.append({"id": "x1", "type": "escalier", "altitude": 2 * EditorMap.FLOOR_STEP, "altitude_haut": 3 * EditorMap.FLOOR_STEP, "rect": flight(1)[0], "monte": "s"})
 	var e := _errs(_check(doc))
 	assert_true(e.contains("trémie, étage 2) est occupé par l'escalier de l'étage 2 vers l'étage 3"), e)
 	# Pas de pièce au-dessus de l'arrivée.
@@ -207,7 +208,8 @@ func test_stairs_going_down() -> void:
 	var r := place(doc, 2, rect, monte, true)
 	assert_true(r.ok, "posé depuis l'étage 3 (%s)" % MapRules.why(r))
 	var o: Dictionary = doc.objets.filter(func(x): return x.type == "escalier")[0]
-	assert_eq(int(o.etage), 2, "enregistré à l'étage du dessous")
+	assert_eq(doc.level_of(o), 2, "enregistré au niveau du dessous")
+	assert_near(float(o.altitude_haut), doc.level_alt(3), 0.001, "il monte au niveau d'où il a été posé")
 	assert_false(o.has("descend"), "aucun champ de plus dans la carte")
 	var parts := MapRules.stair_parts(o)
 	for c in parts.exit:
@@ -218,7 +220,7 @@ func test_stairs_going_down() -> void:
 	assert_eq(v.stairs[0].up, Vector2i(0, -1))
 	# Mots du sens de la marche : l'arrivée est en bas.
 	var low := tower()
-	low.objets.append({"id": "x1", "type": "pilier", "etage": 2, "rect": [8.0, 11.0, 10.5, 12.5]})
+	low.objets.append({"id": "x1", "type": "pilier", "altitude": 2 * EditorMap.FLOOR_STEP, "rect": [8.0, 11.0, 10.5, 12.5]})
 	r = place(low, 2, [8.0, 3.0, 10.5, 11.0], "n", true)
 	assert_true(not r.ok and String(r.fr).contains("L'arrivée (en bas, étage 2)"), String(r.get("fr", "")))
 	# Rez-de-chaussée : pas d'étage en dessous.
@@ -247,8 +249,8 @@ func test_agent_apply_reports_stair_refusals() -> void:
 	var link := MapAgentLink.new()
 	link.collab = collab
 	var res := link.cmd_apply({"label": "essai", "animate": false, "ops": [
-		{"op": "add", "coll": "objets", "el": {"id": "$1", "type": "escalier", "etage": 2, "rect": [5.0, 3.0, 7.5, 11.0], "monte": "n"}},
-		{"op": "add", "coll": "objets", "el": {"id": "$2", "type": "escalier", "etage": 2, "rect": [9.0, 3.0, 11.5, 11.0], "monte": "n"}}]})
+		{"op": "add", "coll": "objets", "el": {"id": "$1", "type": "escalier", "altitude": 2 * EditorMap.FLOOR_STEP, "rect": [5.0, 3.0, 7.5, 11.0], "monte": "n"}},
+		{"op": "add", "coll": "objets", "el": {"id": "$2", "type": "escalier", "altitude": 2 * EditorMap.FLOOR_STEP, "rect": [9.0, 3.0, 11.5, 11.0], "monte": "n"}}]})
 	var bad := String(res.ids.get("$1", ""))
 	var good := String(res.ids.get("$2", ""))
 	assert_true((res.invalid as Dictionary).has(bad), "escalier empilé listé : %s" % str(res.invalid))
@@ -262,21 +264,18 @@ func test_agent_apply_reports_stair_refusals() -> void:
 ## par paire d'étages (20 escaliers), 400 caisses de décor.
 static func big_map() -> EditorMap:
 	var doc := EditorMap.blank("grand_immeuble", "GRAND", "BIG")
-	(doc.carte.etages as Array).clear()
-	for k in FLOORS:
-		doc.carte.etages.append({"sol": k * EditorMap.FLOOR_STEP, "hauteur": EditorMap.DEFAULT_CEILING})
 	for k in FLOORS:
 		for row in 4:
 			for col in 5:
 				var z := doc.add_zone("S", "R")
-				doc.pieces.append({"id": "p%d_%d_%d" % [k, row, col], "nom": "S", "etage": k, "zone": String(z.id),
+				doc.pieces.append({"id": "p%d_%d_%d" % [k, row, col], "nom": "S", "altitude": k * EditorMap.FLOOR_STEP, "zone": String(z.id),
 					"contour": [[col * 10, row * 10], [col * 10 + 10, row * 10], [col * 10 + 10, row * 10 + 10], [col * 10, row * 10 + 10]]})
 				for i in 4:
-					doc.objets.append({"id": "c%d_%d_%d_%d" % [k, row, col, i], "type": "caisse", "etage": k, "position": [col * 10 + 8.5, row * 10 + 1.5 + i * 2.0]})
+					doc.objets.append({"id": "c%d_%d_%d_%d" % [k, row, col, i], "type": "caisse", "altitude": k * EditorMap.FLOOR_STEP, "position": [col * 10 + 8.5, row * 10 + 1.5 + i * 2.0]})
 	for k in FLOORS - 1:
 		for col in 5:
 			var x := col * 10.0 + 1.0 + (k % 2) * 3.0
-			doc.objets.append({"id": "e%d_%d" % [k, col], "type": "escalier", "etage": k, "rect": [x, 2.0, x + 2.5, 9.0], "monte": "n" if k % 2 == 0 else "s"})
+			doc.objets.append({"id": "e%d_%d" % [k, col], "type": "escalier", "altitude": k * EditorMap.FLOOR_STEP, "rect": [x, 2.0, x + 2.5, 9.0], "monte": "n" if k % 2 == 0 else "s"})
 	return doc
 
 
@@ -317,7 +316,7 @@ func test_monte_against_the_shape_falls_back_like_the_validator() -> void:
 	var doc := tower()
 	doc.pieces[1]["contour"] = [[0, 0], [W, 0], [W, 9], [0, 9]]
 	doc.find("o1")["position"] = [12.25, 9.0]
-	doc.objets.append({"id": "x1", "type": "escalier", "etage": 0, "rect": [2.0, 3.0, 4.5, 9.5], "monte": "e"})
+	doc.objets.append({"id": "x1", "type": "escalier", "altitude": 0, "rect": [2.0, 3.0, 4.5, 9.5], "monte": "e"})
 	var v := _check(doc)
 	assert_eq(v.stairs.size(), 1, "validateur : escalier retenu\n" + _errs(v))
 	var r := MapRules.check_existing(doc, doc.find("x1"))
@@ -325,10 +324,9 @@ func test_monte_against_the_shape_falls_back_like_the_validator() -> void:
 	assert_eq(String(r.get("monte", "")), "n" if v.stairs[0].up == Vector2i(0, -1) else "s", "même sens que le validateur")
 	# Carte de 2 étages existante (mezzanine) : même accord.
 	var two := preload("res://tests/test_map_editor.gd")._base()
-	two.carte.etages.append({"sol": 3.5, "hauteur": 3.2})
-	two.pieces[0]["double_hauteur"] = true
-	two.pieces.append({"id": "pm", "nom": "M", "etage": 1, "zone": String(two.pieces[0].zone), "contour": [[0, 0], [5, 0], [5, 5], [0, 5]]})
-	two.objets.append({"id": "es2", "type": "escalier", "etage": 0, "rect": [0.0, 4.5, 2.0, 9.5], "monte": "e"})
+	two.pieces[0]["plafond"] = 6.7
+	two.pieces.append({"id": "pm", "nom": "M", "altitude": 1 * EditorMap.FLOOR_STEP, "zone": String(two.pieces[0].zone), "contour": [[0, 0], [5, 0], [5, 5], [0, 5]]})
+	two.objets.append({"id": "es2", "type": "escalier", "altitude": 0, "rect": [0.0, 4.5, 2.0, 9.5], "monte": "e"})
 	v = _check(two)
 	assert_eq(v.stairs.size(), 1, "2 étages : escalier retenu\n" + _errs(v))
 	r = MapRules.check_existing(two, two.find("es2"))
@@ -339,7 +337,7 @@ func test_paste_keeps_the_stairs_direction() -> void:
 	for m in ["e", "o", "s"]:
 		var doc := tower()
 		var rect: Array = [9.0, 1.0, 11.5, 8.0] if m == "s" else [9.0, 2.0, 15.5, 4.5]
-		doc.objets.append({"id": "x1", "type": "escalier", "etage": 1, "rect": rect, "monte": m})
+		doc.objets.append({"id": "x1", "type": "escalier", "altitude": 1 * EditorMap.FLOOR_STEP, "rect": rect, "monte": m})
 		var ed: MapEditor = load(MapEditor.SCENE).instantiate()
 		host.add_child(ed)
 		await wait_frames(2)

@@ -73,10 +73,10 @@ func run() -> void:
 	# Un changement de l'hôte avant le test : son historique doit survivre.
 	# Format 14 : avec un décor mis à l'échelle (flaque × 2 en largeur et
 	# profondeur), vu par l'invité en jeu ; une seule action.
-	var avant_cid := String(ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "avant_test", "type": "caisse", "etage": 0, "position": [12.0, 10.0]}},
-		{"op": "put", "coll": "objets", "el": {"id": "echelle_test", "type": "prefab", "prefab": "flaque_eau", "etage": 0, "position": [12.0, 8.0], "echelle": [2, 2, 1]}},
+	var avant_cid := String(ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "avant_test", "type": "caisse", "altitude": 0, "position": [12.0, 10.0]}},
+		{"op": "put", "coll": "objets", "el": {"id": "echelle_test", "type": "prefab", "prefab": "flaque_eau", "altitude": 0, "position": [12.0, 8.0], "echelle": [2, 2, 1]}},
 		# Format 15 : boîte posée au sol, tournée de 45°, dans la salle des machines.
-		{"op": "put", "coll": "objets", "el": {"id": "boite_sol", "type": "boite", "etage": 0, "position": BOX_AT, "rot": 45, "depart": false}}], "caisse").cid)
+		{"op": "put", "coll": "objets", "el": {"id": "boite_sol", "type": "boite", "altitude": 0, "position": BOX_AT, "rot": 45, "depart": false}}], "caisse").cid)
 
 	# ---------------------------------------------------------------- 1er test : fin de partie
 	at.check(ed.test_map(), "TESTER lancé (session avec un invité)")
@@ -156,7 +156,7 @@ func run() -> void:
 	if not await MpHelpers.wait_peer(self, "retour", 30.0):
 		return
 	# La session continue : un changement de l'hôte arrive chez l'invité.
-	ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "apres_test", "type": "caisse", "etage": 0, "position": [14.0, 10.0]}}], "caisse")
+	ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "apres_test", "type": "caisse", "altitude": 0, "position": [14.0, 10.0]}}], "caisse")
 	if not await MpHelpers.wait_peer(self, "recu", 20.0):
 		return
 

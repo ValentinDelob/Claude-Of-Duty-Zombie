@@ -454,7 +454,7 @@ func _builtin() -> Array:
 				+ "complète {carte, pieces, ouvertures, objets, zones, depart} (format : editor_guide, sujet « format », section « Format des fichiers »).",
 			"inputSchema": {"type": "object", "properties": {
 				"format": {"type": "string", "enum": ["summary", "full"], "default": "summary"},
-				"floor": {"type": "integer", "minimum": 0, "description": "Résumé d'un seul étage (facultatif)."},
+				"floor": {"type": "integer", "minimum": 0, "description": "Résumé d'un seul niveau (indice, 0 = le plus bas ; facultatif)."},
 			}, "additionalProperties": false},
 			"fn": _t_get_map,
 		},
@@ -484,8 +484,8 @@ func _builtin() -> Array:
 				+ "citer ailleurs dans le même lot, ex. \"zone\":\"$1\" ; l'éditeur attribue les vrais ids, rendus dans "
 				+ "« ids ») ; {\"op\":\"put\",\"coll\":C,\"el\":{\"id\":…,…}} remplace l'élément entier de même id ; "
 				+ "{\"op\":\"del\",\"coll\":C,\"id\":…} supprime ; {\"op\":\"carte\",\"carte\":{…}} remplace carte "
-				+ "(étages, noms) ; {\"op\":\"depart\",\"id\":zone} zone de départ. C ∈ pieces, ouvertures, objets, zones. "
-				+ "Chaque élément porte « etage ». Résultat : cid, ids attribués, éléments refusés (invalid). "
+				+ "(noms, réglages) ; {\"op\":\"depart\",\"id\":zone} zone de départ. C ∈ pieces, ouvertures, objets, zones. "
+				+ "Chaque élément porte « altitude » (m, sol de son niveau ; format 17 : « etage » est refusé). Résultat : cid, ids attribués, éléments refusés (invalid). "
 				+ "Hauteurs, échelle et inclinaison du décor, escaliers, pièce posée sur une autre : lire d'abord editor_guide « consignes ».",
 			"inputSchema": {"type": "object", "properties": {
 				"label": {"type": "string", "minLength": 1, "maxLength": 120,
@@ -526,7 +526,7 @@ func _builtin() -> Array:
 				+ "éléments. coupe [p0, p1] (élévations) : ne garder nettes que les éléments dans cette tranche de "
 				+ "profondeur (y en avant/arriere, x en gauche/droite). Le texte joint donne les bornes en mètres.",
 			"inputSchema": {"type": "object", "properties": {
-				"floor": {"type": "integer", "minimum": 0, "description": "Étage (défaut : celui affiché ; plan seulement)."},
+				"floor": {"type": "integer", "minimum": 0, "description": "Niveau (indice, 0 = le plus bas ; défaut : celui affiché ; plan seulement)."},
 				"ids": _ids_schema("Cadrer sur ces éléments (facultatif)."),
 				"view": {"type": "string", "enum": VIEWS, "default": "dessus", "description": "Plan ou élévation."},
 				"coupe": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"},

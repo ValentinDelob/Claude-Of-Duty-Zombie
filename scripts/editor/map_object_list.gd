@@ -205,20 +205,20 @@ static func build_entries(doc: EditorMap) -> Array:
 		var it := MapCatalog.item(("piece_" + shape) if shape != "" and not MapCatalog.item("piece_" + shape).is_empty()
 			else ("piece_rect" if MapGeom.is_axis_rect(poly) else "piece_poly"))
 		out.append({"id": String(p.id), "filter": "pieces", "name": String(p.get("nom", p.id)), "type": Lang.t("Pièce", "Room"),
-			"floor": int(p.get("etage", 0)), "pos": MapGeom.bbox(poly).get_center(), "item": it})
+			"floor": doc.level_of(p), "alt": EditorMap.alt_of(p), "pos": MapGeom.bbox(poly).get_center(), "item": it})
 	for o in doc.ouvertures:
 		var it := MapCatalog.item_for(o)
 		var nm := MapCatalog.name_of(it)
 		if o.has("prix"):
 			nm += " (%d)" % int(o.prix)
 		out.append({"id": String(o.id), "filter": "ouvertures", "name": nm, "type": String(cat_names.get("ouvertures", "")),
-			"floor": int(o.get("etage", 0)), "pos": MapGeom.v2(o.get("position", [0, 0])), "item": it})
+			"floor": doc.level_of(o), "alt": EditorMap.alt_of(o), "pos": MapGeom.v2(o.get("position", [0, 0])), "item": it})
 	for o in doc.objets:
 		var it := MapCatalog.item_for(o)
 		var cat := String(it.get("cat", "construction"))
 		var pos := (MapGeom.v2(o.a) + MapGeom.v2(o.b)) * 0.5 if String(o.get("type", "")) == "mur" else MapRules.footprint_rect(o).get_center()
 		out.append({"id": String(o.id), "filter": String(CAT_FILTER.get(cat, "jeu")), "name": MapCatalog.name_of(it) if not it.is_empty() else String(o.get("type", "?")),
-			"type": String(cat_names.get(cat, "")), "floor": int(o.get("etage", 0)), "pos": pos, "item": it})
+			"type": String(cat_names.get(cat, "")), "floor": doc.level_of(o), "alt": EditorMap.alt_of(o), "pos": pos, "item": it})
 	for e in out:
 		e["text"] = ("%s %s %s" % [e.name, e.type, e.id]).to_lower()
 	out.sort_custom(func(a, b): return String(a.id).naturalnocasecmp_to(String(b.id)) < 0)
@@ -401,7 +401,7 @@ class Rows extends Control:
 			MapIcons.draw(self, e.item, Rect2(r.position + Vector2(m3, m3), Vector2(rh - 2.0 * m3, rh - 2.0 * m3)))
 			var fr := not Lang.is_en()
 			var p: Vector2 = e.pos
-			var where := "%s%d · %s ; %s m" % [Lang.t("É", "F"), int(e.floor), MapRules._m(snappedf(p.x, 0.25), fr), MapRules._m(snappedf(p.y, 0.25), fr)]
+			var where := "%s · %s ; %s m" % [EditorMap.alt_text(float(e.get("alt", 0.0)), fr), MapRules._m(snappedf(p.x, 0.25), fr), MapRules._m(snappedf(p.y, 0.25), fr)]
 			var x0: float = rh + EditorUi.px(4.0)
 			var wwhere := font.get_string_size(where, HORIZONTAL_ALIGNMENT_LEFT, -1, f11).x
 			var y1: float = r.position.y + EditorUi.px(12.0)

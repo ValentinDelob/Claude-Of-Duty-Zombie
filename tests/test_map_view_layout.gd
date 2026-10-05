@@ -193,11 +193,11 @@ func test_four_views_on_a_big_map_redraw_only_the_hovered_one() -> void:
 			var x0 := 2.0 + col * 6.0
 			var y0 := 4.0 + row * 6.0
 			var z := doc.add_zone("S", "R")
-			doc.pieces.append({"id": doc.new_id("p"), "nom": "S", "etage": 0, "zone": String(z.id),
+			doc.pieces.append({"id": doc.new_id("p"), "nom": "S", "altitude": 0, "zone": String(z.id),
 				"contour": [[x0, y0], [x0 + 6, y0], [x0 + 6, y0 + 6], [x0, y0 + 6]]})
 	for i in 2000:
 		@warning_ignore("integer_division")
-		doc.objets.append({"id": doc.new_id("q"), "type": "apparition", "etage": 0, "position": [3.0 + (i % 148), 5.0 + (i / 148) * 0.8]})
+		doc.objets.append({"id": doc.new_id("q"), "type": "apparition", "altitude": 0, "position": [3.0 + (i % 148), 5.0 + (i / 148) * 0.8]})
 	ed._reset(doc)
 	ed.views.set_layout("4")
 	ed.views.set_pane_plane(ed.views.panes[1], "gauche")

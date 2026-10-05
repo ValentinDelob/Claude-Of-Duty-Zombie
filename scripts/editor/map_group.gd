@@ -114,12 +114,14 @@ static func check(doc: EditorMap, ids: Array) -> Dictionary:
 		var e := doc.find(String(id))
 		if e.is_empty():
 			continue
-		var k := int(e.get("etage", 0))
+		var k := doc.level_of(e)
 		var r := {"ok": true}
-		if k < 0 or k >= doc.floor_count():
-			r = MapRules.refuse("pas d'étage à cette hauteur", "no floor at that height")
-		elif String(e.get("type", "")) == "escalier" and k >= doc.floor_count() - 1:
-			r = MapRules.refuse("un escalier ne peut pas aller sur le dernier étage", "stairs cannot go on the top floor")
+		if k < 0 or k >= doc.level_count():
+			r = MapRules.refuse("pas de pièce à cette altitude", "no room at that altitude")
+		elif String(e.get("type", "")) == "escalier" and k >= doc.level_count() - 1:
+			r = MapRules.refuse("un escalier ne peut pas aller sur le dernier niveau", "stairs cannot go on the top level")
+		elif e.has("contour") and not doc.level_gap_issue().is_empty():
+			r = MapRules.refuse(MapGroup.gap_text(doc)[0], MapGroup.gap_text(doc)[1])
 		else:
 			r = MapRules.check_existing(doc, e)
 		if not r.ok:
@@ -163,13 +165,14 @@ static func move(ed: MapEditor, all: Array, delta: Vector2, dk: int, snap0: Dict
 	var last := doc.snapshot()
 	doc.restore(snap0)
 	var held := held_on(doc, all)
+	# Niveaux relevés avant le déplacement (déplacer des pièces les change).
+	var lv := doc.levels().duplicate()
 	for id in all:
 		var e := doc.find(String(id))
 		if e.is_empty():
 			continue
 		var c := MapEditor._shift(e, delta)
-		if dk != 0:
-			c["etage"] = int(c.get("etage", 0)) + dk
+		EditorMap.shift_levels(c, lv, dk)
 		MapTransform.replace(doc, c)
 	if not is_nan(dz) and not z0.is_empty():
 		ed._raster_dirty = true
@@ -253,6 +256,23 @@ static func copies(doc: EditorMap, ids: Array) -> Array:
 	return out
 
 
+## Niveau d'un élément copié : celui de son altitude, sinon le plus proche
+## (copie venue d'une autre carte).
+static func level_near(doc: EditorMap, e: Dictionary) -> int:
+	var k := doc.level_of(e)
+	return k if k >= 0 else doc.nearest_level(EditorMap.alt_of(e))
+
+
+## Refus d'une pièce trop près d'un autre niveau (restriction de l'étape 1a :
+## 3,1 m au moins entre deux niveaux) : [fr, en].
+static func gap_text(doc: EditorMap) -> Array:
+	var g := doc.level_gap_issue()
+	if g.is_empty():
+		return ["", ""]
+	return ["deux niveaux à %s l'un de l'autre (%s et %s) : il faut %s au moins pour l'instant" % [EditorMap.alt_text(float(g[1])), EditorMap.alt_text(doc.level_alt(int(g[0]) - 1)), EditorMap.alt_text(doc.level_alt(int(g[0]))), EditorMap.alt_text(EditorMap.MIN_STACK)],
+		"two levels %s apart (%s and %s): at least %s for now" % [EditorMap.alt_text(float(g[1]), false), EditorMap.alt_text(doc.level_alt(int(g[0]) - 1), false), EditorMap.alt_text(doc.level_alt(int(g[0])), false), EditorMap.alt_text(EditorMap.MIN_STACK, false)]]
+
+
 ## Pose des copies de `items` décalées de `delta` (m) et de `dk` étages, en
 ## une étape d'annulation : identifiants neufs, pièces renommées (« Pièce N »)
 ## avec une zone neuve par zone d'origine, boîte jamais « départ ». Tout est
@@ -262,18 +282,22 @@ static func place_copies(ed: MapEditor, items: Array, delta: Vector2, dk: int) -
 	var doc := ed.doc
 	if items.is_empty():
 		return MapRules.refuse("rien à coller", "nothing to paste")
+	var lv := doc.levels().duplicate()
 	for it in items:
-		var nk := int(it.get("etage", 0)) + dk
-		if nk < 0 or nk >= doc.floor_count():
-			return MapRules.refuse("le groupe ne tient pas dans les étages de la carte (%d étage(s))" % doc.floor_count(),
-				"the group does not fit in the map's floors (%d floor(s))" % doc.floor_count())
+		var nk := level_near(doc, it) + dk
+		if nk < 0 or nk >= doc.level_count():
+			return MapRules.refuse("le groupe ne tient pas dans les niveaux de la carte (%d niveau(x))" % doc.level_count(),
+				"the group does not fit in the map's levels (%d level(s))" % doc.level_count())
 	var before := doc.snapshot()
 	var zmap := {}
 	var new_ids := []
 	for it in items:
 		var e := MapEditor._shift(it, delta)
 		e.erase("id")
-		e["etage"] = int(e.get("etage", 0)) + dk
+		var k0 := level_near(doc, it)
+		var d0 := EditorMap.level_alt_in(lv, k0) - EditorMap.alt_of(it)
+		EditorMap.shift_alt(e, d0)
+		EditorMap.shift_levels(e, lv, dk)
 		var oz := ""
 		if e.has("contour"):
 			e.erase("nom")
@@ -316,7 +340,7 @@ static func paste(ed: MapEditor, items: Array, at: Vector2) -> Dictionary:
 		delta = Vector2(snappedf(delta.x, st), snappedf(delta.y, st))
 	var k0 := 1000
 	for it in items:
-		k0 = mini(k0, int(it.get("etage", 0)))
+		k0 = mini(k0, level_near(ed.doc, it))
 	return place_copies(ed, items, delta, ed.floor_k - k0)
 
 

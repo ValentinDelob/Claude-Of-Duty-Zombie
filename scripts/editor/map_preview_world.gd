@@ -202,7 +202,7 @@ static func compute(m: EditorMap) -> Dictionary:
 	if v.start_points.is_empty():
 		var r: Dictionary = m.pieces[0]
 		var c := MapGeom.centroid(m.room_poly(r))
-		v.start_points = [[clampi(int(r.get("etage", 0)), 0, v.floors.size() - 1), Vector2(MapGeom.cell_of(c)) + Vector2(0.5, 0.5)]]
+		v.start_points = [[clampi(m.level_of(r), 0, v.floors.size() - 1), Vector2(MapGeom.cell_of(c)) + Vector2(0.5, 0.5)]]
 	out.errors = v.errors().size()
 	out.data = MapLayoutExport.build(v)
 	out.ms = (Time.get_ticks_usec() - t0) / 1000.0
@@ -644,7 +644,7 @@ func map_bounds() -> AABB:
 		var r := MapGeom.bbox(m.room_poly(p))
 		bb = r if first else bb.merge(r)
 		first = false
-		top = maxf(top, m.floor_sol(int(p.get("etage", 0))) + m.floor_height(int(p.get("etage", 0))))
+		top = maxf(top, EditorMap.room_top(p))
 	return AABB(Vector3(bb.position.x + OFF, 0.0, bb.position.y + OFF), Vector3(bb.size.x, top, bb.size.y))
 
 
@@ -660,9 +660,9 @@ func element_shape(e: Dictionary) -> Dictionary:
 	var m := doc
 	if e.is_empty() or m == null:
 		return {}
-	var k := int(e.get("etage", 0))
-	var sol := m.floor_sol(k)
-	var h := m.floor_height(k)
+	var k := m.level_of(e)
+	var sol := EditorMap.alt_of(e)
+	var h := EditorMap.DEFAULT_CEILING
 	var t := String(e.get("type", ""))
 	var poly := PackedVector2Array()
 	var y0 := sol + 0.02
@@ -741,7 +741,7 @@ func element_shape(e: Dictionary) -> Dictionary:
 			y0 = sol + dz + 0.02
 			y1 = sol + dz + maxf(float(MapCatalog.def_of(e).get("h", 1.4)), 0.2)
 		elif t == "escalier":
-			y1 = m.floor_sol(k + 1) if k + 1 < m.floor_count() else sol + h
+			y1 = m.stair_top_of(e)
 		elif t == "piege":
 			y1 = sol + 0.25
 	var out := {"poly": poly, "y0": y0, "y1": y1, "floor": k}

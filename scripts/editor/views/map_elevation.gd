@@ -509,7 +509,7 @@ func _draw_side(c: CanvasItem, _list: Array, font: Font, area: Rect2) -> void:
 		if i > 0:
 			var ys := to_px(Vector2(0, -sol)).y
 			c.draw_line(Vector2(x0, ys), Vector2(area.end.x, ys), Color(COL_LEVEL, 0.28), 1.0)
-		var yc := to_px(Vector2(0, -(sol + doc.floor_height(i)))).y
+		var yc := to_px(Vector2(0, -(sol + EditorMap.DEFAULT_CEILING))).y
 		c.draw_dashed_line(Vector2(x0, yc), Vector2(area.end.x, yc), Color(COL_LEVEL, 0.22), 1.0, _u(6))
 	c.draw_line(Vector2(area.position.x, y0), Vector2(area.end.x, y0), Color(COL_GROUND, 0.65), 1.0)
 	# Noms des pièces (pas ceux cachés par une pièce plus proche, sauf coupe) :

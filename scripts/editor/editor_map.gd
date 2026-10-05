@@ -4,8 +4,8 @@ extends RefCounted
 ## écrivables à la main, dans un dossier (user://maps/<id>/) ou une archive
 ## .zip. Coordonnées en mètres (x vers l'est, y vers le sud), identifiants
 ## stables pour chaque élément.
-##   carte.json       id, noms FR/EN, description, musique, version du format, étages
-##   pieces.json      pièces (contour, étage, zone, hauteur de plafond...)
+##   carte.json       id, noms FR/EN, description, musique, version du format
+##   pieces.json      pièces (contour, altitude du sol, zone, hauteur de plafond...)
 ##   ouvertures.json  portes, débris, portes du courant, passages, fenêtres
 ##   objets.json      tout le reste (murs, piliers, escaliers, atouts, armes, boîte...)
 ##   zones.json       zones (noms FR/EN, matériaux) et zone de départ
@@ -112,10 +112,27 @@ extends RefCounted
 ##      image.jpg, normal.png|jpg facultative) ; une pièce ou une zone les cite
 ##      dans ses champs de surface par « map:<tid> » (une carte sans texture n'a
 ##      pas de dossier textures/). Aucune conversion : formats 1 à 15 lus tels quels.
-const FORMAT := 16
+##  17  niveaux libres (docs/LEVELS_PLAN.md) : plus d'étages. Chaque pièce,
+##      ouverture et objet a une « altitude » (m, altitude absolue du sol où il
+##      est posé ; 0 par défaut) ; un escalier a aussi « altitude_haut » (sol
+##      d'arrivée). Les niveaux sont les altitudes distinctes des pièces
+##      (levels). « carte.etages », « etage » et « double_hauteur » disparaissent :
+##      une pièce haute est une pièce au grand « plafond » qui traverse le niveau
+##      du dessus (rooms_through). Conversion au chargement (_migrate_levels) :
+##      altitude = sol de l'ancien étage, plafond de l'étage écrit sur la pièce,
+##      double hauteur = plafond jusqu'en haut de l'étage du dessus.
+const FORMAT := 17
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
+## Écart par défaut entre deux niveaux (m) : nouveau niveau, ancien étage sans « sol ».
 const FLOOR_STEP := 3.5
+## Format 17 : deux altitudes sont le même niveau à 5 mm près.
+const ALT_EQ := 0.005
+## Écart minimal entre deux pièces empilées (hauteur sous plafond 2,8 m + dalle 0,3 m).
+const MIN_STACK := 3.1
+## Une pièce haute traverse le niveau du dessus si son plafond dépasse le sol
+## de ce niveau d'au moins 2,1 m (hauteur de passage).
+const HIGH_CLEAR := 2.1
 ## Exemple livré avec le jeu (lecture seule : « Enregistrer » en fait une copie).
 const EXAMPLES := {"draft_arena": "res://assets/maps/draft_arena/"}
 
@@ -141,7 +158,7 @@ static func blank(map_id := "nouvelle_carte", name_fr := "NOUVELLE CARTE", name_
 	var m := EditorMap.new()
 	m.carte = {"format": FORMAT, "id": map_id, "nom": {"fr": name_fr, "en": name_en},
 		"description": {"fr": "", "en": ""}, "musique": "ambience_bunker", "hauteur_portes": 2.5,
-		"lampes_auto": true, "etages": [{"sol": 0.0, "hauteur": DEFAULT_CEILING}]}
+		"lampes_auto": true}
 	return m
 
 
@@ -156,22 +173,263 @@ func display_name() -> String:
 	return Lang.t(String(n.get("fr", id())), String(n.get("en", n.get("fr", id()))))
 
 
-func floors() -> Array:
-	return carte.get("etages", [])
+# ------------------------------------------------------------------ niveaux (format 17)
+
+## Niveaux vides ouverts dans l'éditeur (altitudes, m) : affichés et parcourus
+## comme les autres, jamais enregistrés (un niveau existe par ses pièces).
+var view_levels: Array = []
+## Contrôles en cours (freeze_levels) : niveaux gardés tels quels.
+var _lv_frozen := 0
+var _lv_frame := -1
+var _lv_rooms := -1
+## Mémoire de levels() : altitudes lues -> niveaux triés.
+var _lv_src: Array = []
+var _lv: Array = [0.0]
 
 
+## Altitude (m) d'un élément : « altitude », 0 si absente ou illisible.
+static func alt_of(e: Dictionary) -> float:
+	var a: Variant = e.get("altitude", 0.0)
+	return float(a) if (a is float or a is int) and is_finite(float(a)) else 0.0
+
+
+## Altitude d'arrivée d'un escalier : « altitude_haut », sinon un niveau
+## standard au-dessus du pied.
+static func stair_top(o: Dictionary) -> float:
+	var a: Variant = o.get("altitude_haut")
+	return float(a) if (a is float or a is int) and is_finite(float(a)) else alt_of(o) + FLOOR_STEP
+
+
+## Arrivée d'un escalier de la carte : « altitude_haut », sinon le niveau
+## suivant celui de son pied.
+func stair_top_of(o: Dictionary) -> float:
+	if o.has("altitude_haut"):
+		return stair_top(o)
+	var k := level_of(o)
+	return level_alt(k + 1) if k >= 0 else stair_top(o)
+
+
+## Hauteur sous plafond réglée d'une pièce (m).
+static func room_ceiling(p: Dictionary) -> float:
+	var c: Variant = p.get("plafond", DEFAULT_CEILING)
+	return float(c) if (c is float or c is int) and is_finite(float(c)) else DEFAULT_CEILING
+
+
+## Altitude du plafond réglé d'une pièce (m).
+static func room_top(p: Dictionary) -> float:
+	return alt_of(p) + room_ceiling(p)
+
+
+## Altitudes distinctes (à ALT_EQ près) de `alts`, triées.
+static func merge_alts(alts: Array) -> Array:
+	var s := alts.duplicate()
+	s.sort()
+	var out := []
+	for a in s:
+		if out.is_empty() or float(a) - float(out[-1]) > ALT_EQ:
+			out.append(float(a))
+	return out
+
+
+## Niveaux de la carte : altitudes distinctes de ses pièces (et des niveaux
+## vides de l'éditeur), triées de bas en haut ; une carte sans pièce a
+## toujours le niveau 0.
+## Le tableau rendu est partagé : ne pas le modifier. Pendant un contrôle
+## (freeze_levels : lot de MapRules, construction de la grille) ils ne sont
+## pas relus : les altitudes n'y changent pas.
+func levels() -> Array:
+	if _lv_frozen > 0:
+		# Sûreté : un lot resté ouvert ne fige jamais plus d'une image ni une
+		# liste de pièces qui a changé de taille.
+		if _lv_frame == Engine.get_process_frames() and _lv_rooms == pieces.size():
+			return _lv
+		_lv_frozen = 0
+	var src := []
+	src.resize(pieces.size())
+	for i in pieces.size():
+		src[i] = alt_of(pieces[i])
+	src.append_array(view_levels)
+	if pieces.is_empty():
+		# Carte sans pièce : le rez-de-chaussée existe toujours.
+		src.append(0.0)
+	if src != _lv_src:
+		_lv_src = src
+		_lv = merge_alts(src)
+		if _lv.is_empty():
+			_lv = [0.0]
+	return _lv
+
+
+## Fige les niveaux pendant un contrôle (boucles chaudes : level_of sur
+## chaque élément) ; thaw_levels le termine. Les appels s'emboîtent.
+func freeze_levels() -> void:
+	if _lv_frozen == 0:
+		levels()
+		_lv_frame = Engine.get_process_frames()
+		_lv_rooms = pieces.size()
+	_lv_frozen += 1
+
+
+func thaw_levels() -> void:
+	_lv_frozen = maxi(0, _lv_frozen - 1)
+
+
+func level_count() -> int:
+	return levels().size()
+
+
+## Altitude du niveau `k` ; hors de la liste, un niveau tous les FLOOR_STEP m
+## au-delà du premier ou du dernier.
+func level_alt(k: int) -> float:
+	return level_alt_in(levels(), k)
+
+
+static func level_alt_in(lv: Array, k: int) -> float:
+	if k < 0:
+		return float(lv[0]) + k * FLOOR_STEP
+	if k >= lv.size():
+		return float(lv[-1]) + (k - lv.size() + 1) * FLOOR_STEP
+	return float(lv[k])
+
+
+## Indice du niveau d'altitude `alt` (à ALT_EQ près), -1 s'il n'existe pas.
+func level_index(alt: float) -> int:
+	return level_index_in(levels(), alt)
+
+
+static func level_index_in(lv: Array, alt: float) -> int:
+	var i := lv.bsearch(alt)
+	for j in [i - 1, i]:
+		if j >= 0 and j < lv.size() and absf(float(lv[j]) - alt) <= ALT_EQ:
+			return j
+	return -1
+
+
+## Niveau (indice) d'un élément, -1 si aucune pièce n'est à son altitude.
+func level_of(e: Dictionary) -> int:
+	return level_index(alt_of(e))
+
+
+## Niveau le plus proche de l'altitude `alt`.
+func nearest_level(alt: float) -> int:
+	var lv := levels()
+	var best := 0
+	for k in lv.size():
+		if absf(float(lv[k]) - alt) < absf(float(lv[best]) - alt):
+			best = k
+	return best
+
+
+## Altitude décalée de `dk` niveaux dans la liste `lv` (relevée AVANT tout
+## changement : déplacer des pièces change les niveaux) ; une altitude hors
+## des niveaux est décalée comme son plus proche niveau.
+static func alt_shifted(lv: Array, alt: float, dk: int) -> float:
+	if dk == 0:
+		return alt
+	var k := level_index_in(lv, alt)
+	if k < 0:
+		var best := 0
+		for i in lv.size():
+			if absf(float(lv[i]) - alt) < absf(float(lv[best]) - alt):
+				best = i
+		return alt + level_alt_in(lv, best + dk) - float(lv[best])
+	return level_alt_in(lv, k + dk)
+
+
+## Décale un élément de `dk` niveaux (liste `lv` relevée avant tout
+## changement) : son altitude, et pour un escalier son arrivée.
+static func shift_levels(e: Dictionary, lv: Array, dk: int) -> void:
+	if dk == 0:
+		return
+	if String(e.get("type", "")) == "escalier":
+		e["altitude_haut"] = alt_shifted(lv, stair_top(e), dk)
+	e["altitude"] = alt_shifted(lv, alt_of(e), dk)
+
+
+## Monte (ou descend) un élément de `dalt` m : son altitude, et pour un
+## escalier son arrivée.
+static func shift_alt(e: Dictionary, dalt: float) -> void:
+	if dalt == 0.0:
+		return
+	if String(e.get("type", "")) == "escalier":
+		e["altitude_haut"] = snappedf(stair_top(e) + dalt, 0.0001)
+	e["altitude"] = snappedf(alt_of(e) + dalt, 0.0001)
+
+
+## Met l'élément au niveau `k` (altitude du niveau) ; un escalier monte au
+## niveau suivant (restriction de l'étape 1a : arrivée = niveau suivant).
+func set_level(e: Dictionary, k: int) -> void:
+	var lv := levels()
+	e["altitude"] = level_alt_in(lv, k)
+	if String(e.get("type", "")) == "escalier":
+		e["altitude_haut"] = level_alt_in(lv, k + 1)
+
+
+## Alias transitoires (à retirer à l'étape 7) : nombre de niveaux, altitude
+## du niveau `k`.
 func floor_count() -> int:
-	return maxi(1, floors().size())
+	return level_count()
 
 
 func floor_sol(k: int) -> float:
-	var f: Array = floors()
-	return float(f[k].get("sol", k * FLOOR_STEP)) if k < f.size() else k * FLOOR_STEP
+	return level_alt(k)
 
 
-func floor_height(k: int) -> float:
-	var f: Array = floors()
-	return float(f[k].get("hauteur", DEFAULT_CEILING)) if k < f.size() else DEFAULT_CEILING
+## Pièces hautes qui traversent le niveau `k` (vide et murs à ce niveau) :
+## pièces du niveau du dessous dont le plafond dépasse le sol du niveau `k`
+## de HIGH_CLEAR au moins (l'ancienne « double hauteur »). Restriction de
+## l'étape 1a : seulement le niveau juste au-dessus.
+func rooms_through(k: int) -> Array:
+	if k <= 0 or k >= level_count():
+		return []
+	var sol := level_alt(k)
+	return rooms_on(k - 1).filter(func(p): return room_top(p) >= sol + HIGH_CLEAR - ALT_EQ)
+
+
+## La pièce `p` traverse-t-elle le niveau du dessus (pièce haute) ?
+func is_high(p: Dictionary) -> bool:
+	var k := level_of(p)
+	return k >= 0 and k + 1 < level_count() and room_top(p) >= level_alt(k + 1) + HIGH_CLEAR - ALT_EQ
+
+
+## Deux niveaux voisins trop proches (moins de MIN_STACK m) : [indice du
+## niveau du dessus, écart (m)] ; [] sinon. Restriction de l'étape 1a (le
+## moteur relie un niveau au suivant comme deux étages).
+func level_gap_issue() -> Array:
+	var lv := levels()
+	for k in range(1, lv.size()):
+		if float(lv[k]) - float(lv[k - 1]) < MIN_STACK - ALT_EQ:
+			return [k, float(lv[k]) - float(lv[k - 1])]
+	return []
+
+
+## Déplace le niveau `k` de `dalt` m : tout ce qui y est posé, et l'arrivée
+## des escaliers qui y montent.
+func shift_level(k: int, dalt: float) -> void:
+	var a := level_alt(k)
+	for list in [pieces, ouvertures, objets]:
+		for e in list:
+			var top_here: bool = String(e.get("type", "")) == "escalier" and absf(stair_top(e) - a) <= ALT_EQ
+			if absf(alt_of(e) - a) <= ALT_EQ:
+				e["altitude"] = snappedf(alt_of(e) + dalt, 0.0001)
+			if top_here:
+				e["altitude_haut"] = snappedf(stair_top(e) + dalt, 0.0001)
+	for i in view_levels.size():
+		if absf(float(view_levels[i]) - a) <= ALT_EQ:
+			view_levels[i] = float(view_levels[i]) + dalt
+
+
+## Texte d'une altitude : « 3,5 m » (`fr` : virgule décimale).
+static func alt_text(a: float, fr := true) -> String:
+	var t := ("%.2f" % snappedf(a, 0.01)).rstrip("0").trim_suffix(".")
+	if t == "-0":
+		t = "0"
+	return (t.replace(".", ",") if fr else t) + " m"
+
+
+## Nom d'un niveau dans la langue du jeu : « Niveau 3,5 m » / « Level 3.5 m ».
+static func level_name(a: float) -> String:
+	return Lang.t("Niveau %s" % alt_text(a), "Level %s" % alt_text(a, false))
 
 
 func find(eid: String) -> Dictionary:
@@ -199,16 +457,24 @@ func remove(eid: String) -> void:
 			return
 
 
+## Pièces, ouvertures, objets posés au niveau `k` (même altitude à ALT_EQ près).
 func rooms_on(k: int) -> Array:
-	return pieces.filter(func(p): return int(p.get("etage", 0)) == k)
+	return _on(pieces, k)
 
 
 func openings_on(k: int) -> Array:
-	return ouvertures.filter(func(o): return int(o.get("etage", 0)) == k)
+	return _on(ouvertures, k)
 
 
 func objects_on(k: int) -> Array:
-	return objets.filter(func(o): return int(o.get("etage", 0)) == k)
+	return _on(objets, k)
+
+
+func _on(list: Array, k: int) -> Array:
+	if k < 0 or k >= level_count():
+		return []
+	var a := level_alt(k)
+	return list.filter(func(e): return absf(alt_of(e) - a) <= ALT_EQ)
 
 
 func zone(zid: String) -> Dictionary:
@@ -312,6 +578,7 @@ func duplicate_map() -> EditorMap:
 	m.restore(snapshot())
 	m.models = models.duplicate()
 	m.texture_files = texture_files.duplicate()
+	m.view_levels = view_levels.duplicate()
 	return m
 
 
@@ -418,13 +685,29 @@ func file_texts() -> Dictionary:
 		"carte.json": dump(_ints(c)),
 		"pieces.json": dump(_ints({"pieces": pieces})),
 		"ouvertures.json": dump(_ints({"ouvertures": ouvertures})),
-		"objets.json": dump(_ints({"objets": objets})),
+		"objets.json": dump(_ints({"objets": _objets_out()})),
 		"zones.json": dump(_ints({"depart": depart, "zones": zones})),
 	}
 	# Format 10 : prefabs de la carte, après les cinq fichiers (aucun : rien de plus).
 	out.merge(prefab_texts())
 	# Format 15 : textures de la carte.
 	out.merge(MapTextureLib.texts_of(self))
+	return out
+
+
+## Objets tels qu'écrits : format 17, l'arrivée d'un escalier (« altitude_haut »)
+## est toujours écrite (escalier créé en mémoire sans elle : le niveau suivant).
+func _objets_out() -> Array:
+	if not objets.any(func(o): return o is Dictionary and String(o.get("type", "")) == "escalier" and not o.has("altitude_haut")):
+		return objets
+	var out := []
+	for o in objets:
+		if o is Dictionary and String(o.get("type", "")) == "escalier" and not o.has("altitude_haut"):
+			var c: Dictionary = o.duplicate()
+			c["altitude_haut"] = stair_top_of(o)
+			out.append(c)
+		else:
+			out.append(o)
 	return out
 
 
@@ -563,6 +846,105 @@ func _migrate(from: int) -> void:
 		# Format 15 -> 16 : rien à convertir (pas de dossier textures/ : aucune
 		# texture de la carte ; les surfaces du jeu restent des clés de WorldLook).
 		pass
+	# Format 16 -> 17 : niveaux libres, EN DERNIER (les conversions d'avant
+	# lisent encore « etage »). Aussi pour un fichier écrit à la main au
+	# format 17 qui garde des clés d'étage.
+	if from < 17 or has_legacy_levels(carte, pieces, ouvertures, objets):
+		migrate_levels()
+
+
+## Clés d'étage (format 16 et avant) dans la carte ou ses éléments ?
+static func has_legacy_levels(c: Dictionary, rooms: Array, openings: Array, objects: Array) -> bool:
+	if c.has("etages"):
+		return true
+	for list in [rooms, openings, objects]:
+		for e in list:
+			if e is Dictionary and (e.has("etage") or e.has("double_hauteur")):
+				return true
+	return false
+
+
+## Format 16 -> 17 (docs/LEVELS_PLAN.md § 2) :
+##   1. sol et hauteur de chaque ancien étage (absents : k × 3,5 m et 3,2 m) ;
+##   2. pièce de l'étage k : altitude = son sol ; sans « plafond », celui de
+##      l'étage (écrit s'il diffère de 3,2 m) ; « double_hauteur » avec un étage
+##      au-dessus : plafond jusqu'en haut de l'étage du dessus (pièce haute) ;
+##      pièce entièrement recouverte par des pièces de l'étage du dessus :
+##      plafond porté au moins au dessous de leur dalle (même aspect qu'avant :
+##      le plafond était la dalle) ;
+##   3. ouvertures, objets : altitude = sol de leur étage ; escalier : arrivée
+##      au sol de l'étage du dessus (sinon 3,5 m plus haut : l'erreur reste) ;
+##   4. « etages », « etage » et « double_hauteur » retirés.
+## Un élément sans « etage » est à l'étage 0 ; un élément qui a déjà une
+## « altitude » (fichier au format 17 écrit à la main) la garde.
+func migrate_levels() -> void:
+	var et: Variant = carte.get("etages", [])
+	var sols := []
+	var hs := []
+	if et is Array:
+		for k in (et as Array).size():
+			var f: Variant = et[k]
+			var fd: Dictionary = f if f is Dictionary else {}
+			var sv: Variant = fd.get("sol", k * FLOOR_STEP)
+			var hv: Variant = fd.get("hauteur", DEFAULT_CEILING)
+			sols.append(float(sv) if (sv is float or sv is int) and is_finite(float(sv)) else k * FLOOR_STEP)
+			hs.append(float(hv) if (hv is float or hv is int) and is_finite(float(hv)) else DEFAULT_CEILING)
+	var n := maxi(1, sols.size())
+	var sol := func(k: int) -> float: return float(sols[k]) if k >= 0 and k < sols.size() else k * FLOOR_STEP
+	var hgt := func(k: int) -> float: return float(hs[k]) if k >= 0 and k < hs.size() else DEFAULT_CEILING
+	var floor_of := func(e: Dictionary) -> int:
+		var v: Variant = e.get("etage", 0)
+		return int(v) if (v is float or v is int) and is_finite(float(v)) else 0
+	# Pièces de chaque étage (avant tout changement) : recouvrement par le dessus.
+	var by_floor := {}
+	for p in pieces:
+		if p is Dictionary and (p.has("etage") or not p.has("altitude")):
+			(by_floor.get_or_add(floor_of.call(p), []) as Array).append(p)
+	for p in pieces:
+		if not p is Dictionary or (p.has("altitude") and not p.has("etage")):
+			if p is Dictionary:
+				p.erase("double_hauteur")
+			continue
+		var k: int = floor_of.call(p)
+		var base: float = sol.call(k)
+		var ch := float(p.plafond) if (p.get("plafond") is float or p.get("plafond") is int) and is_finite(float(p.plafond)) else float(hgt.call(k))
+		if bool(p.get("double_hauteur", false)) and k + 1 < n:
+			ch = float(sol.call(k + 1)) + float(hgt.call(k + 1)) - base
+		elif k + 1 < n and _covered_by(p, by_floor.get(k + 1, [])):
+			ch = maxf(ch, float(sol.call(k + 1)) - MapValidator.DALLE - base)
+		p["altitude"] = base
+		if absf(ch - DEFAULT_CEILING) > 0.0005:
+			p["plafond"] = snappedf(ch, 0.0001)
+		else:
+			p.erase("plafond")
+		p.erase("etage")
+		p.erase("double_hauteur")
+	for list in [ouvertures, objets]:
+		for o in list:
+			if not o is Dictionary or (o.has("altitude") and not o.has("etage")):
+				continue
+			var k: int = floor_of.call(o)
+			o["altitude"] = sol.call(k)
+			if String(o.get("type", "")) == "escalier":
+				o["altitude_haut"] = sol.call(k + 1) if k + 1 < n else float(sol.call(k)) + FLOOR_STEP
+			o.erase("etage")
+	carte.erase("etages")
+
+
+## Pièce `p` entièrement recouverte par les pièces `above` (chaque case
+## intérieure sous l'une d'elles) ?
+static func _covered_by(p: Dictionary, above: Array) -> bool:
+	if above.is_empty():
+		return false
+	var cells: Array = MapRaster.room_cells(MapGeom.poly(p.get("contour", [])))[1]
+	if cells.is_empty():
+		return false
+	var polys := above.map(func(q): return MapGeom.poly(q.get("contour", [])))
+	for c in cells:
+		var at := MapGeom.cell_center(c)
+		if not polys.any(func(poly): return Geometry2D.is_point_in_polygon(at, poly)):
+			return false
+	return true
 
 
 ## Format 14 : « echelle » et « incl » remises en ordre (MapScale.tidy), après
@@ -609,7 +991,8 @@ func _normalize() -> void:
 	for list in [pieces, ouvertures, objets]:
 		for e in list:
 			e["id"] = String(e.get("id", ""))
-			e["etage"] = int(e.get("etage", 0))
+			# Format 17 : altitude finie (0 sinon).
+			e["altitude"] = alt_of(e)
 	for p in pieces:
 		# Forme de base illisible (fichier écrit à la main) : la pièce reste un polygone.
 		if p.has("forme") and not MapShapes.valid(p.forme):
@@ -686,10 +1069,27 @@ func _normalize() -> void:
 				var prefix := eid.rstrip("0123456789")
 				e["id"] = new_id(prefix if prefix != "" else "x")
 			seen[String(e.id)] = true
-	if floors().is_empty():
-		carte["etages"] = [{"sol": 0.0, "hauteur": DEFAULT_CEILING}]
+	# Escalier sans arrivée (fichier écrit à la main) : premier niveau au-dessus
+	# dont une pièce contient le haut des marches, sinon 3,5 m plus haut.
+	for o in objets:
+		if String(o.get("type", "")) == "escalier":
+			o["altitude_haut"] = stair_top(o) if o.has("altitude_haut") else guess_stair_top(o)
 	if zone(depart).is_empty() and not zones.is_empty():
 		depart = String(zones[0].id)
+
+
+## Arrivée d'un escalier sans « altitude_haut » : le premier niveau au-dessus
+## de son pied dont une pièce contient le haut des marches, sinon 3,5 m plus haut.
+func guess_stair_top(o: Dictionary) -> float:
+	var a := alt_of(o)
+	var fr := MapRaster.stair_frame(o)
+	var top: Vector2 = fr.center + (fr.up as Vector2) * (float(fr.length) * 0.5 + 0.3)
+	for la in levels():
+		if float(la) > a + ALT_EQ:
+			for p in pieces:
+				if absf(alt_of(p) - float(la)) <= ALT_EQ and MapGeom.contains(room_poly(p), top):
+					return float(la)
+	return a + FLOOR_STEP
 
 
 ## Barrière invisible lue d'un fichier (format 9) : ses « sommets » lisibles

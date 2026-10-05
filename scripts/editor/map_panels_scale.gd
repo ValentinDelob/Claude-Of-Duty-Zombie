@@ -360,7 +360,7 @@ static func _rotation_section(p: MapPanels, o: Dictionary, oid: String) -> void:
 	elif MapScale.is_tilted(o):
 		var v := p.ed.raster().v
 		var top := MapVertical.decor_z(o) + MapScale.height(o)
-		var room := MapRules.room_at(p.ed.doc, int(o.get("etage", 0)), MapVertical.anchor_of(o))
+		var room := MapRules.room_at(p.ed.doc, p.ed.doc.level_of(o), MapVertical.anchor_of(o))
 		var fem := String(MapScale.label_of(o)[0]).get_slice(" ", 0).to_lower() in _FEM_WORDS
 		note = Lang.t("Point le plus bas gardé sur %s : le haut %s monte à %s m", "Lowest point kept on %s: the top of %s rises to %s m") % [
 			Lang.t("le sol" if MapVertical.decor_z(o) < 0.005 else "son support", "the floor" if MapVertical.decor_z(o) < 0.005 else "its support"),

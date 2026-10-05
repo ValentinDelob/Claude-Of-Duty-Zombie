@@ -45,11 +45,11 @@ func _end(ed: MapEditor) -> void:
 
 
 func _room(x: float) -> Dictionary:
-	return {"op": "add", "coll": "pieces", "el": {"etage": 0, "contour": [[x, 0], [x + 6, 0], [x + 6, 6], [x, 6]]}}
+	return {"op": "add", "coll": "pieces", "el": {"altitude": 0, "contour": [[x, 0], [x + 6, 0], [x + 6, 6], [x, 6]]}}
 
 
 func _crate(id: String, x: float, k := 0) -> Array:
-	return [{"op": "put", "coll": "objets", "el": {"id": id, "type": "caisse", "etage": k, "position": [x, 3.0]}}]
+	return [{"op": "put", "coll": "objets", "el": {"id": id, "type": "caisse", "altitude": k * EditorMap.FLOOR_STEP, "position": [x, 3.0]}}]
 
 
 ## Liaison agent sans écoute (même branchement que l'éditeur).
@@ -90,12 +90,12 @@ func test_received_live_preview_is_validated() -> void:
 	var v := ed.collab_view
 	ed.collab.peers["2"] = {"id": "2", "name": "Bob", "color": "#4aa8e8", "kind": "human", "presence": {}}
 	ed.collab.peers["2"].presence = {"cursor": [3.0, 4.0], "floor": 0, "selection": [], "tool": "",
-		"live": {"coll": "objets", "el": {"id": "c1", "type": "caisse", "etage": 0, "position": [3.0, 4.0]}}}
+		"live": {"coll": "objets", "el": {"id": "c1", "type": "caisse", "altitude": 0, "position": [3.0, 4.0]}}}
 	v.on_presence("2")
 	assert_true(v.live.has("2"), "aperçu valide gardé")
 	assert_eq(v.cursors["2"].pos, Vector2(3, 4), "premier curseur : placé tout de suite")
 	ed.collab.peers["2"].presence = {"cursor": [9.0, 4.0], "floor": 0, "selection": [], "tool": "",
-		"live": {"coll": "objets", "el": {"id": "c1", "type": "ovni", "etage": 0, "position": [3.0, 4.0]}}}
+		"live": {"coll": "objets", "el": {"id": "c1", "type": "ovni", "altitude": 0, "position": [3.0, 4.0]}}}
 	v.on_presence("2")
 	assert_false(v.live.has("2"), "aperçu illisible (type inconnu) : pas dessiné")
 	assert_eq(v.cursors["2"].pos, Vector2(3, 4), "curseur pas encore arrivé")
@@ -143,7 +143,7 @@ func test_big_batch_lasts_at_most_1_5_s() -> void:
 	var link := _link(ed)
 	var ops := []
 	for i in 300:
-		ops.append({"op": "add", "coll": "objets", "el": {"type": "caisse", "etage": 0, "position": [1.0 + (i % 30), 1.0 + floorf(i / 30.0)]}})
+		ops.append({"op": "add", "coll": "objets", "el": {"type": "caisse", "altitude": 0, "position": [1.0 + (i % 30), 1.0 + floorf(i / 30.0)]}})
 	link.cmd_apply({"label": "caisses", "ops": ops})
 	assert_eq(v.hidden.size(), 299, "300 caisses à faire apparaître")
 	var frames := 0
@@ -191,7 +191,7 @@ func test_highlight_brings_the_elements_into_view() -> void:
 	ed.collab.submit_ops(_crate("c1", 40.0, 1), "x")
 	var link := _link(ed)
 	link.cmd_highlight({"ids": ["c1", "absent"], "message": "regarde ici"})
-	assert_eq(ed.floor_k, 1, "étage de l'élément affiché")
+	assert_eq(ed.floor_k, 1, "niveau de l'élément affiché")
 	assert_true(String(v.bubble.text).contains("regarde ici"), "bulle avec le message")
 	assert_eq(v.pulse.ids, ["c1"], "contour pulsé sur l'élément existant")
 	var px := ed.canvas.to_px(Vector2(40, 3))
@@ -241,14 +241,14 @@ func test_pills_show_role_and_floor() -> void:
 	var ui := ed.collab_ui
 	assert_true(ui.pills.is_empty(), "seul : pas de pastille")
 	assert_eq(ed.collab.host(_port(1), "Alice"), OK)
-	ed.collab.peers["2"] = {"id": "2", "name": "Bob", "color": "#4aa8e8", "kind": "human", "presence": {"cursor": [1.0, 1.0], "floor": 1}}
+	ed.collab.peers["2"] = {"id": "2", "name": "Bob", "color": "#4aa8e8", "kind": "human", "presence": {"cursor": [1.0, 1.0], "alt": 3.5}}
 	ed.collab.peers["1:claude"] = {"id": "1:claude", "name": "Claude", "color": MapCollab.AGENT_COLOR, "kind": "agent", "presence": {}}
 	ui.refresh()
 	assert_eq(ui.pills.size(), 3, "trois pastilles")
 	for pill in ui.pills:
 		assert_true(pill.get_parent() == ed.top_bar, "pastille dans la barre du haut (passe à la ligne)")
 	var bob: Control = ui.pills.filter(func(p): return p.peer_id == "2")[0]
-	assert_eq(String(bob.floor_text), "Étage 1" if not Lang.is_en() else "Floor 1", "Bob sur un autre étage")
+	assert_eq(String(bob.floor_text), "Niveau 3,5 m" if not Lang.is_en() else "Level 3.5 m", "Bob sur un autre niveau")
 	assert_true(bob.tooltip_text.contains(Lang.t("invité", "guest")), "rôle dans l'info-bulle : %s" % bob.tooltip_text)
 	var claude: Control = ui.pills.filter(func(p): return p.peer_id == "1:claude")[0]
 	assert_true(claude.agent and claude.tooltip_text.contains("Claude"), "pastille de Claude")

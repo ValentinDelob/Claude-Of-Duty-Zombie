@@ -1277,6 +1277,13 @@ static func tidy_effect(o: Dictionary) -> void:
 ## l'effet n'en avait pas, ou si un décor identique est déjà là (`objets` :
 ## les objets de la carte ; rien n'est posé deux fois). `new_id(préfixe)`
 ## donne les identifiants.
+## Même niveau (altitude, ou « etage » d'avant la conversion du format 17) ?
+static func _same_level(a: Dictionary, b: Dictionary) -> bool:
+	if a.has("etage") or b.has("etage"):
+		return int(a.get("etage", 0)) == int(b.get("etage", 0))
+	return absf(EditorMap.alt_of(a) - EditorMap.alt_of(b)) <= EditorMap.ALT_EQ
+
+
 static func split_legacy_effect(o: Dictionary, objets: Array, new_id: Callable) -> Array:
 	var d := effect_def(o)
 	if d.is_empty() or not o.get("position") is Array or (o.position as Array).size() != 2:
@@ -1287,7 +1294,11 @@ static func split_legacy_effect(o: Dictionary, objets: Array, new_id: Callable) 
 		var pd: Dictionary = PREFABS.get(String(pid), {})
 		if pd.is_empty():
 			continue
-		var dec := {"type": "prefab", "prefab": String(pid), "etage": int(o.get("etage", 0))}
+		var dec := {"type": "prefab", "prefab": String(pid), "altitude": EditorMap.alt_of(o)}
+		if o.has("etage"):
+			# Carte d'avant le format 17 (ses niveaux sont convertis ensuite).
+			dec.erase("altitude")
+			dec["etage"] = o.etage
 		var at := p
 		var mount := String(pd.get("mount", "sol"))
 		if mount == "mur":
@@ -1311,7 +1322,7 @@ static func split_legacy_effect(o: Dictionary, objets: Array, new_id: Callable) 
 		dec["position"] = MapGeom.arr(at)
 		var dup := false
 		for q in objets:
-			if String(q.get("type", "")) == "prefab" and String(q.get("prefab", "")) == String(pid) and int(q.get("etage", 0)) == int(dec.etage) \
+			if String(q.get("type", "")) == "prefab" and String(q.get("prefab", "")) == String(pid) and _same_level(q, dec) \
 					and q.get("position") is Array and MapGeom.v2(q.position).distance_to(at) < 0.05:
 				dup = true
 				break
@@ -1448,7 +1459,10 @@ const MAX_FLOORS := CustomMapGuard.MAX_FLOORS
 ##   mètres (0 à MAX_COORD) ; {"t": "rect"} [x0, y0, x1, y1] ; {"t": "points",
 ##   "min", "max"} liste de points [x, y] (format 9) ; {"t": "color"}
 ##   « #rrggbb » ; {"t": "dims", "min", "max", "lo", "hi"} liste de min à max
-##   nombres, chacun de lo à hi (format 11 : zone d'un effet). Les clés communes (id, type, etage) sont dans chaque entrée.
+##   nombres, chacun de lo à hi (format 11 : zone d'un effet) ; {"t": "number"}
+##   sans « min » ou « max » : pas de borne de ce côté (nombre fini). Les clés
+##   communes (id, type, altitude) sont dans chaque entrée (format 17 : altitude
+##   en m, sans borne ; escalier : « altitude_haut »).
 static func allowed_kinds() -> Dictionary:
 	var dirs := {"t": "enum", "values": ["n", "e", "s", "o"]}
 	# Format 3 : objet mural contre un mur en biais (degrés, sens horaire depuis
@@ -1463,7 +1477,7 @@ static func allowed_kinds() -> Dictionary:
 	var thick := {"t": "enum", "values": [0.5, 1.5, 2.5]}
 	var out := {}
 	var add := func(file: String, type: String, keys: Dictionary, req: Array) -> void:
-		var k := {"id": {"t": "id"}, "type": {"t": "enum", "values": [type]}, "etage": {"t": "int", "min": 0, "max": MAX_FLOORS - 1}}
+		var k := {"id": {"t": "id"}, "type": {"t": "enum", "values": [type]}, "altitude": {"t": "number"}}
 		k.merge(keys)
 		# Format 5 : variante d'aspect, seulement parmi celles du type.
 		if VARIANTS.has(type):
@@ -1480,7 +1494,7 @@ static func allowed_kinds() -> Dictionary:
 	# « marches » : admis à la LECTURE seulement (cartes d'avant ou reçues ;
 	# tidy_stair l'efface) ; retiré du schéma d'écriture de Claude
 	# (MapAgentLink.catalog) et refusé par editor_apply (MapAgentLink.cmd_apply).
-	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs, "rot": rot,
+	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs, "rot": rot, "altitude_haut": {"t": "number"},
 		"sens": {"t": "enum", "values": STAIR_TURNS}, "marches": {"t": "int", "min": STAIR_STEPS[0], "max": STAIR_STEPS[1]},
 		"garde_corps": {"t": "bool"}, "cotes": {"t": "enum", "values": STAIR_SIDES}}, ["rect"])
 	# Format 5 : barrière invisible (rectangle, rotation, hauteur facultative) ;
@@ -1555,11 +1569,11 @@ static func room_keys() -> Dictionary:
 	var surf := {"t": "enum", "values": allowed_surfaces(), "map": true}
 	# Format 4 : « forme » = forme de base d'origine (MapShapes) : {"t": "shape"}
 	# (type parmi MapShapes.TYPES, centre, rayons, points 3 à 64, angle, bras).
-	return {"id": {"t": "id"}, "nom": {"t": "text", "max": 64}, "etage": {"t": "int", "min": 0, "max": MAX_FLOORS - 1},
+	return {"id": {"t": "id"}, "nom": {"t": "text", "max": 64}, "altitude": {"t": "number"},
 		"zone": {"t": "id"}, "contour": {"t": "polygon", "min": 3, "max": CustomMapGuard.MAX_VERTICES},
-		# Plafond : mêmes bornes que le panneau et le validateur (MapVertical.ROOM_CEILING).
-		"plafond": {"t": "number", "min": MapVertical.ROOM_CEILING[0], "max": MapVertical.ROOM_CEILING[1]},
-		"double_hauteur": {"t": "bool"}, "surface_sol": surf, "surface_murs": surf, "surface_plafond": surf, "forme": {"t": "shape"}}
+		# Plafond : 2,8 m au moins, sans maximum (format 17 ; MapVertical.ROOM_CEILING).
+		"plafond": {"t": "number", "min": MapVertical.ROOM_CEILING[0]},
+		"surface_sol": surf, "surface_murs": surf, "surface_plafond": surf, "forme": {"t": "shape"}}
 
 
 ## Clés admises d'une zone (zones.json) ; {"t": "names", "max"} : {fr, en}.

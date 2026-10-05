@@ -27,7 +27,7 @@ func run() -> void:
 	ed.canvas.fine_step = 0.1
 	ed.canvas.set_snap_mode("fine")
 	ed.push_undo()
-	ed.doc.objets.append({"id": "fx1", "type": "effet", "effet": "torche", "etage": 0, "position": [9.5, 4.5], "mur": "n", "hauteur": 1.8})
+	ed.doc.objets.append({"id": "fx1", "type": "effet", "effet": "torche", "altitude": 0, "position": [9.5, 4.5], "mur": "n", "hauteur": 1.8})
 	ed.changed()
 	ed.select("fx1")
 	var low: MapViewPane = ed.views.panes[1]

@@ -338,7 +338,7 @@ func _decor_and_textures() -> void:
 	var before := ed.doc.snapshot()
 	for i in 60:
 		@warning_ignore("integer_division")
-		ed.doc.objets.append({"id": ed.doc.new_id("q"), "type": "apparition", "etage": 0, "position": [3.0 + (i % 12), 3.0 + (i / 12) * 0.5 + 8.5]})
+		ed.doc.objets.append({"id": ed.doc.new_id("q"), "type": "apparition", "altitude": 0, "position": [3.0 + (i % 12), 3.0 + (i / 12) * 0.5 + 8.5]})
 	ed.changed()
 	await frames(2)
 	at.check(lst._page_label.text.contains("1/2"), "plus de 50 éléments : deux pages (%s)" % lst._page_label.text)

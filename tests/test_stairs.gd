@@ -15,7 +15,7 @@ const BAY := 9.0
 static func _room(doc: EditorMap, x0: float, y0: float, x1: float, y1: float, k := 0, zone := "") -> Dictionary:
 	var id := doc.new_id("p")
 	var z := zone if zone != "" else String(doc.add_zone("Salle " + id, "Room " + id).id)
-	var r := {"id": id, "nom": "Salle " + id, "etage": k, "zone": z, "contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]}
+	var r := {"id": id, "nom": "Salle " + id, "altitude": k * EditorMap.FLOOR_STEP, "zone": z, "contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]}
 	doc.pieces.append(r)
 	return r
 
@@ -50,24 +50,23 @@ static func layout_of() -> Dictionary:
 
 static func stairs_map() -> EditorMap:
 	var doc := EditorMap.blank("escaliers", "ESCALIERS", "STAIRS")
-	doc.carte.etages.append({"sol": 3.5, "hauteur": 3.2})
 	var w := 2.0 + BAY * KINDS.size() + 1.0
 	var hall := _room(doc, 0, 0, w, 24)
-	hall["double_hauteur"] = true
+	hall["plafond"] = 6.7
 	doc.depart = String(hall.zone)
 	var lay := layout_of()
 	for kind: String in KINDS:
 		var e: Array = lay[kind]
 		var m: Array = e[2]
 		_room(doc, m[0], m[1], m[2], m[3], 1, String(hall.zone))
-		var o := {"id": doc.new_id("e"), "type": "escalier", "etage": 0, "rect": e[0], "monte": "n"}
+		var o := {"id": doc.new_id("e"), "type": "escalier", "altitude": 0, "rect": e[0], "monte": "n"}
 		MapCatalog.set_variant(o, kind)
 		o.merge(e[1])
 		doc.objets.append(o)
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [6.0, 21.5]})
-	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [20.75, 24.0], "mur": "s", "depart": true})
-	doc.ouvertures.append({"id": "o1", "type": "fenetre", "etage": 0, "position": [10.25, 24.0]})
-	doc.ouvertures.append({"id": "o2", "type": "fenetre", "etage": 0, "position": [40.25, 24.0]})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [6.0, 21.5]})
+	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [20.75, 24.0], "mur": "s", "depart": true})
+	doc.ouvertures.append({"id": "o1", "type": "fenetre", "altitude": 0, "position": [10.25, 24.0]})
+	doc.ouvertures.append({"id": "o2", "type": "fenetre", "altitude": 0, "position": [40.25, 24.0]})
 	return doc
 
 
@@ -371,7 +370,7 @@ func test_format_6_saves_types_and_options_only_when_not_default() -> void:
 
 func test_old_formats_load_unchanged() -> void:
 	# DRAFT ARENA (format 1, un escalier droit) : même description en maillage.
-	var dir := "res://assets/maps/draft_arena/"
+	var dir := "res://tests/fixtures/maps/legacy_draft_arena/"
 	var m := EditorMap.load_dir(dir)
 	assert_eq(m.format_read, 1, "format 1 lu")
 	var lay := MapLayoutExport.build(_check(m))
@@ -381,7 +380,7 @@ func test_old_formats_load_unchanged() -> void:
 	var doc := stairs_map()
 	doc.objets = doc.objets.filter(func(x): return x.type != "escalier" or MapCatalog.stair_kind(x) == "droit")
 	var t := doc.file_texts()
-	t["carte.json"] = String(t["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 5")
+	t = load("res://tests/test_levels_migration.gd").as_format(t, 5)
 	var old := EditorMap.from_texts(t)
 	assert_eq(old.format_read, 5, "format 5 lu")
 	assert_eq(old.load_errors, [], "sans erreur")

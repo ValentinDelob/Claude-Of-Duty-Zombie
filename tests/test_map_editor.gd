@@ -24,7 +24,7 @@ static func _room(doc: EditorMap, x0: float, y0: float, x1: float, y1: float, k 
 	var z := zone
 	if z == "":
 		z = String(doc.add_zone("Salle " + id, "Room " + id).id)
-	var r := {"id": id, "nom": "Salle " + id, "etage": k, "zone": z,
+	var r := {"id": id, "nom": "Salle " + id, "altitude": k * EditorMap.FLOOR_STEP, "zone": z,
 		"contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]}
 	doc.pieces.append(r)
 	return r
@@ -32,14 +32,14 @@ static func _room(doc: EditorMap, x0: float, y0: float, x1: float, y1: float, k 
 
 static func _obj(doc: EditorMap, o: Dictionary, k := 0) -> Dictionary:
 	o["id"] = doc.new_id("x")
-	o["etage"] = k
+	o["altitude"] = k * EditorMap.FLOOR_STEP
 	doc.objets.append(o)
 	return o
 
 
 static func _open(doc: EditorMap, o: Dictionary, k := 0) -> Dictionary:
 	o["id"] = doc.new_id("o")
-	o["etage"] = k
+	o["altitude"] = k * EditorMap.FLOOR_STEP
 	doc.ouvertures.append(o)
 	return o
 
@@ -203,7 +203,7 @@ func test_floor_items_inside_a_room_without_overlap() -> void:
 	assert_false(r.ok, "chevauche la caisse : refusé")
 	var s := MapRules.check_rect(doc, 0, "escalier", Rect2(1, 1, 2, 5))
 	assert_false(s.ok, "escalier sans étage au-dessus refusé")
-	assert_true(String(s.fr).contains("ajoutez d'abord un étage"), s.get("fr", ""))
+	assert_true(String(s.fr).contains("ajoutez d'abord un niveau"), s.get("fr", ""))
 
 
 func test_rooms_may_touch_but_not_overlap() -> void:
@@ -265,8 +265,7 @@ func test_passage_merges_or_links_zones() -> void:
 
 func test_stairs_mezzanine_and_double_height() -> void:
 	var doc := _base()
-	doc.carte.etages.append({"sol": 3.5, "hauteur": 3.2})
-	doc.pieces[0]["double_hauteur"] = true
+	doc.pieces[0]["plafond"] = 6.7
 	# Mezzanine au-dessus du nord de A, escalier qui y monte.
 	var up := _room(doc, 0, 0, 5, 5, 1)
 	_open(doc, {"type": "fenetre", "position": [2.25, 0.0]}, 1)
@@ -332,14 +331,14 @@ func test_zip_export_import_identical() -> void:
 func test_hand_written_json_is_read() -> void:
 	var texts := {
 		"carte.json": '{"format": 1, "id": "main", "nom": {"fr": "À LA MAIN", "en": "BY HAND"}, "etages": [{"sol": 0, "hauteur": 3}]}',
-		"pieces.json": '{"pieces": [{"id": "a", "nom": "Salle", "etage": 0, "zone": "z", "contour": [[0,0],[8,0],[8,6],[0,6]]}]}',
+		"pieces.json": '{"pieces": [{"id": "a", "nom": "Salle", "altitude": 0, "zone": "z", "contour": [[0,0],[8,0],[8,6],[0,6]]}]}',
 		"ouvertures.json": '{"ouvertures": []}', "objets.json": '{"objets": []}',
 		"zones.json": '{"depart": "z", "zones": [{"id": "z", "nom": {"fr": "Salle", "en": "Room"}}]}',
 	}
 	var m := EditorMap.from_texts(texts)
 	assert_true(m.load_errors.is_empty(), str(m.load_errors))
 	assert_eq(m.rooms_on(0).size(), 1)
-	assert_true(m.pieces[0].etage is int, "étage entier")
+	assert_true(m.pieces[0].altitude is float and not m.pieces[0].has("etage"), "étage converti en altitude")
 	var bad := EditorMap.from_texts({"carte.json": "{ pas du json"})
 	assert_false(bad.load_errors.is_empty(), "fichier illisible signalé")
 

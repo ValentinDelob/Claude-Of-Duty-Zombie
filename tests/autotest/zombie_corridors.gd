@@ -77,7 +77,7 @@ func _write_results() -> void:
 # ------------------------------------------------------------------ carte d'essai
 
 static func _wall(doc: EditorMap, a: Vector2, b: Vector2, thick := WALL) -> void:
-	doc.objets.append({"id": doc.new_id("m"), "type": "mur", "etage": 0, "a": [a.x, a.y], "b": [b.x, b.y], "epaisseur": thick})
+	doc.objets.append({"id": doc.new_id("m"), "type": "mur", "altitude": 0, "a": [a.x, a.y], "b": [b.x, b.y], "epaisseur": thick})
 
 
 ## Baie `i` : origine x.
@@ -97,13 +97,12 @@ static func mouth(i: int) -> Vector2:
 	return Vector2(x0 + {"coude": 3.0, "escalier": 5.25, "fente": 4.5}.get(c[1], 5.0), Y_MOUTH)
 
 
-## Hall à double hauteur, une baie par cas, séparées par des murs.
+## Hall haut (plafond jusqu'en haut du niveau 3,5 m), une baie par cas, séparées par des murs.
 static func corridors_map() -> EditorMap:
 	var doc := EditorMap.blank(MAP_ID, "COULOIRS", "CORRIDORS")
-	doc.carte.etages.append({"sol": 3.5, "hauteur": 3.2})
 	var w := BAY * CASES.size()
 	var zid := String(doc.add_zone("Hall", "Hall").id)
-	doc.pieces.append({"id": doc.new_id("p"), "nom": "Hall", "etage": 0, "zone": zid, "double_hauteur": true,
+	doc.pieces.append({"id": doc.new_id("p"), "nom": "Hall", "altitude": 0, "zone": zid, "plafond": 6.7,
 		"contour": [[0, 0], [w, 0], [w, DEPTH], [0, DEPTH]]})
 	doc.depart = zid
 	for i in range(1, CASES.size()):
@@ -143,14 +142,14 @@ static func corridors_map() -> EditorMap:
 				_wall(doc, Vector2(cx + o, Y_MOUTH), Vector2(x0 + BAY, Y_MOUTH))
 			"escalier":
 				var hw := float(c[2]) * 0.5
-				doc.pieces.append({"id": doc.new_id("p"), "nom": "Mezzanine", "etage": 1, "zone": zid,
+				doc.pieces.append({"id": doc.new_id("p"), "nom": "Mezzanine", "altitude": 1 * EditorMap.FLOOR_STEP, "zone": zid,
 					"contour": [[x0 + 1, 3], [x0 + 9, 3], [x0 + 9, 9], [x0 + 1, 9]]})
-				var st := {"id": doc.new_id("e"), "type": "escalier", "etage": 0, "rect": [cx - hw, 9, cx + hw, 16], "monte": "n"}
+				var st := {"id": doc.new_id("e"), "type": "escalier", "altitude": 0, "rect": [cx - hw, 9, cx + hw, 16], "monte": "n"}
 				MapCatalog.set_variant(st, "service")
 				doc.objets.append(st)
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [5.0, 27.0]})
-	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [w - 4.25, DEPTH], "mur": "s", "depart": true})
-	doc.ouvertures.append({"id": "o1", "type": "fenetre", "etage": 0, "position": [w - 7.75, DEPTH]})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [5.0, 27.0]})
+	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [w - 4.25, DEPTH], "mur": "s", "depart": true})
+	doc.ouvertures.append({"id": "o1", "type": "fenetre", "altitude": 0, "position": [w - 7.75, DEPTH]})
 	return doc
 
 

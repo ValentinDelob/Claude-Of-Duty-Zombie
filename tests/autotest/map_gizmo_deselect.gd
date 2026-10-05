@@ -60,9 +60,9 @@ static func test_map() -> EditorMap:
 	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
 	doc.pieces[0]["plafond"] = 6.8
 	doc.find("s1")["position"] = [6.0, 8.5]
-	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "etage": 0, "position": [5.0, 3.5]})
-	doc.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [10.0, 6.5]})
-	doc.objets.append({"id": "d92", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [19.0, 5.0]})
+	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "altitude": 0, "position": [5.0, 3.5]})
+	doc.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [10.0, 6.5]})
+	doc.objets.append({"id": "d92", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [19.0, 5.0]})
 	return doc
 
 
@@ -321,7 +321,7 @@ func _after_gesture() -> void:
 	_mark()
 	ed.collab.submit_ops([{"op": "del", "coll": "objets", "id": "d92"}], "retrait de Claude", ed.collab.my_id + ":claude")
 	await _gone("retiré par Claude")
-	ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "d92", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [19.0, 5.0]}}],
+	ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "d92", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [19.0, 5.0]}}],
 		"retour", ed.collab.my_id + ":claude")
 	await frames(2)
 

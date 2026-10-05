@@ -1137,7 +1137,7 @@ func _drag_group_rotate() -> void:
 func handles() -> PackedVector2Array:
 	var e := ed.doc.find(ed.selected)
 	var out := PackedVector2Array()
-	if e.is_empty() or int(e.get("etage", 0)) != ed.floor_k:
+	if e.is_empty() or ed.doc.level_of(e) != ed.floor_k:
 		return out
 	if e.has("contour"):
 		var poly := ed.doc.room_poly(e)
@@ -1173,7 +1173,7 @@ func rot_handle() -> Dictionary:
 		return {"p": Vector2(gb.get_center().x, gb.position.y - EditorUi.px(ROT_HANDLE_PX) / zoom),
 			"c": MapGroup.pivot(ed.doc, ed.group, mode_now() == "libre"), "group": true}
 	var e := ed.doc.find(ed.selected)
-	if e.is_empty() or int(e.get("etage", 0)) != ed.floor_k or not MapTransform.can_rotate(e):
+	if e.is_empty() or ed.doc.level_of(e) != ed.floor_k or not MapTransform.can_rotate(e):
 		return {}
 	# Format 14 : le décor, les luminaires et les effets ont l'anneau Z (MapGizmoTop).
 	if MapGizmoTop.RINGS and MapGizmoTop.has_ring(e):
@@ -1198,7 +1198,7 @@ func _vertex_elem() -> Dictionary:
 	if offscreen or ed.tool() != "select" or ed.group.size() >= 2:
 		return {}
 	var e := ed.doc.find(ed.selected)
-	if e.is_empty() or int(e.get("etage", 0)) != ed.floor_k or not MapVertex.editable(e):
+	if e.is_empty() or ed.doc.level_of(e) != ed.floor_k or not MapVertex.editable(e):
 		return {}
 	return e
 
@@ -1280,7 +1280,7 @@ func point_target(m: Vector2) -> Dictionary:
 func _double_click_insert(ids: Array) -> bool:
 	for id in ids:
 		var e := ed.doc.find(String(id))
-		if String(id) == "" or e.is_empty() or int(e.get("etage", 0)) != ed.floor_k or not MapVertex.editable(e):
+		if String(id) == "" or e.is_empty() or ed.doc.level_of(e) != ed.floor_k or not MapVertex.editable(e):
 			continue
 		var poly := MapVertex.poly_of(e)
 		# Sur un sommet : pas de point ajouté (la poignée se glisse).
@@ -1427,7 +1427,7 @@ func _draw() -> void:
 	# Éléments devenus invalides (après un déplacement de pièce...).
 	for eid in ed.invalid:
 		var e := doc.find(eid)
-		if e.is_empty() or int(e.get("etage", 0)) != k or hid.has(String(eid)):
+		if e.is_empty() or ed.doc.level_of(e) != k or hid.has(String(eid)):
 			continue
 		var r := _elem_rect_px(e)
 		draw_rect(r.grow(3), COL_BAD, false, 2.0)
@@ -1441,7 +1441,7 @@ func _draw() -> void:
 	# Sélection et poignées.
 	var sel := doc.find(ed.selected)
 	# Un escalier se voit choisi aussi depuis l'étage où il arrive.
-	var sel_k := int(sel.get("etage", 0)) + (1 if String(sel.get("type", "")) == "escalier" and int(sel.get("etage", 0)) == k - 1 else 0)
+	var sel_k := ed.doc.level_of(sel) + (1 if String(sel.get("type", "")) == "escalier" and ed.doc.level_of(sel) == k - 1 else 0)
 	if not sel.is_empty() and sel_k == k:
 		var outline := _outline_of(sel)
 		if not outline.is_empty():
@@ -1471,12 +1471,12 @@ func _draw() -> void:
 	_draw_group(font, k)
 	# Action de groupe refusée : l'élément fautif, à la place refusée.
 	for el in refusal_elems:
-		if int(el.get("etage", 0)) == k:
+		if ed.doc.level_of(el) == k:
 			outline_elem(el, COL_BAD, 3.0, 3.0)
 			fill_elem(el, Color(COL_BAD, 0.18))
 	# Élément survolé (dans la liste des objets ou sur la carte) : contour lumineux.
 	var hov := doc.find(ed.hover_id) if ed.hover_id != "" else {}
-	if not hov.is_empty() and int(hov.get("etage", 0)) == k:
+	if not hov.is_empty() and ed.doc.level_of(hov) == k:
 		_draw_glow(hov)
 	# Problème choisi dans l'onglet Vérification.
 	if highlight_floor == k:
@@ -1503,7 +1503,7 @@ func group_box() -> Rect2:
 	var first := true
 	for id in ed.group:
 		var e := ed.doc.find(String(id))
-		if e.is_empty() or int(e.get("etage", 0)) != k:
+		if e.is_empty() or ed.doc.level_of(e) != k:
 			continue
 		var r := elem_rect_m(e)
 		bb = r if first else bb.merge(r)
@@ -1520,7 +1520,7 @@ func _draw_group(font: Font, k: int) -> void:
 	var n_here := 0
 	for id in ed.group:
 		var e := ed.doc.find(String(id))
-		if e.is_empty() or int(e.get("etage", 0)) != k:
+		if e.is_empty() or ed.doc.level_of(e) != k:
 			continue
 		n_here += 1
 		fill_elem(e, Color(COL_SEL, 0.1))
@@ -1647,7 +1647,7 @@ func arrows_origin() -> Vector2:
 		var gb := group_box()
 		return to_px(gb.get_center()) if gb.size != Vector2.ZERO else Vector2.INF
 	var e := ed.doc.find(ed.selected)
-	if e.is_empty() or int(e.get("etage", 0)) != ed.floor_k:
+	if e.is_empty() or ed.doc.level_of(e) != ed.floor_k:
 		return Vector2.INF
 	if e.has("position") and not e.has("rect"):
 		return to_px(MapGeom.v2(e.position))
@@ -1716,7 +1716,7 @@ func _draw_axis_arrows(font: Font) -> void:
 	elif MapVertical.pose_kind(e) == "pose":
 		zt = "Z %s m" % MapView.num(MapVertical.pose_z(ed.doc, ed.raster().v, e), 2)
 	elif ed.doc.floor_count() > 1:
-		zt = "Z %s" % (Lang.t("É%d", "F%d") % int(e.get("etage", 0)))
+		zt = "Z %s" % EditorMap.alt_text(EditorMap.alt_of(e), not Lang.is_en())
 	if zt != "":
 		var bf := MapView.bold_font(600)
 		var fs := EditorUi.fs(11)

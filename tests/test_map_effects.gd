@@ -17,7 +17,7 @@ const ObjectsTest := preload("res://tests/test_map_objects.gd")
 static func _fx(doc: EditorMap, id: String, pos: Vector2, extra := {}) -> Dictionary:
 	var o: Dictionary = MapCatalog.item("effet:" + id).make.duplicate(true)
 	o["id"] = doc.new_id("fx")
-	o["etage"] = 0
+	o["altitude"] = 0.0
 	o["position"] = MapGeom.arr(pos)
 	o.merge(extra, true)
 	doc.objets.append(o)
@@ -326,13 +326,13 @@ func test_effect_decor_is_in_the_props_tab_and_built_by_the_game() -> void:
 	var rw := MapRules.place_wall_item(doc, 0, tmpl, Vector2(2.0, 0.4))
 	assert_true(rw.ok, "torche murale contre le mur (%s)" % MapRules.why(rw))
 	tmpl["id"] = "d90"
-	tmpl["etage"] = 0
+	tmpl["altitude"] = 0.0
 	tmpl["position"] = rw.position
 	MapRules.apply_wall(tmpl, rw)
 	MapCatalog.set_wall_light_height(tmpl, 2.4)
 	doc.objets.append(tmpl)
-	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "cable_suspendu", "etage": 0, "position": [6.0, 6.0], "rot": 0})
-	doc.objets.append({"id": "d92", "type": "prefab", "prefab": "bobine_tesla", "etage": 0, "position": [11.25, 7.25], "rot": 0})
+	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "cable_suspendu", "altitude": 0, "position": [6.0, 6.0], "rot": 0})
+	doc.objets.append({"id": "d92", "type": "prefab", "prefab": "bobine_tesla", "altitude": 0, "position": [11.25, 7.25], "rot": 0})
 	var m := EditorMap.from_texts(doc.file_texts())
 	assert_eq(CustomMapGuard.check_texts(m.file_texts()).reasons, [], "décors acceptés par le contrôle des cartes reçues")
 	var def := EditorMapDef.from_map(m, "perso:decor_fx")
@@ -359,7 +359,7 @@ func test_old_maps_are_converted_once_effect_plus_decor() -> void:
 	_fx(doc, "flaque", Vector2(18, 6), {"rot": 30})
 	_fx(doc, "poussiere", Vector2(18, 3))
 	var texts := doc.file_texts()
-	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 10")
+	texts = load("res://tests/test_levels_migration.gd").as_format(texts, 10)
 	assert_true(String(texts["objets.json"]).contains("\"taille\""), "carte d'avant : clé taille")
 	assert_eq(CustomMapGuard.check_texts(texts).reasons, [], "carte au format 10 acceptée telle quelle")
 	var m := EditorMap.from_texts(texts)
@@ -414,7 +414,7 @@ func test_effect_settings_round_trip_and_export() -> void:
 	var rw := MapRules.place_wall_item(doc, 0, torch, Vector2(2.0, 0.4))
 	assert_true(rw.ok, "flamme de torche posée")
 	torch["id"] = doc.new_id("fx")
-	torch["etage"] = 0
+	torch["altitude"] = 0.0
 	torch["position"] = rw.position
 	MapRules.apply_wall(torch, rw)
 	doc.objets.append(torch)
@@ -470,7 +470,7 @@ func test_guard_checks_effects_strictly() -> void:
 	var doc := ObjectsTest.objects_map()
 	_fx(doc, "arc", Vector2(5, 5), {"rot": 45, "couleur": "#80a0ff", "zone": [3.0, 0.5]})
 	_fx(doc, "brouillard", Vector2(7, 5), {"zone": [12.0, 6.0, 1.0]})
-	doc.objets.append({"id": "d80", "type": "prefab", "prefab": "torche_murale", "etage": 0, "position": [2.0, 0.0], "mur": "n", "hauteur": 2.2})
+	doc.objets.append({"id": "d80", "type": "prefab", "prefab": "torche_murale", "altitude": 0, "position": [2.0, 0.0], "mur": "n", "hauteur": 2.2})
 	var texts := doc.file_texts()
 	assert_eq(CustomMapGuard.check_texts(texts).reasons, [], "effets et décor mural acceptés")
 	var objs := String(texts["objets.json"])

@@ -31,7 +31,7 @@ func run() -> void:
 	at.check(ed.views.docked() and ed.hotbar_ui.global_position.y >= low.get_global_rect().end.y - 1.0, "barre rapide ancrée sous les vues")
 	# Torche murale de la maquette (effet « torche », mur nord de l'entrepôt).
 	ed.push_undo()
-	ed.doc.objets.append({"id": "fx1", "type": "effet", "effet": "torche", "etage": 0, "position": [9.5, 4.5], "mur": "n", "hauteur": 2.4})
+	ed.doc.objets.append({"id": "fx1", "type": "effet", "effet": "torche", "altitude": 0, "position": [9.5, 4.5], "mur": "n", "hauteur": 2.4})
 	ed.changed()
 	ed.select("fx1")
 	var av: MapElevation = low.view

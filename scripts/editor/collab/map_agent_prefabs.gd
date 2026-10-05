@@ -224,7 +224,7 @@ static func cmd_create(ed: MapEditor, args: Dictionary) -> Dictionary:
 			var rot: Variant = p.get("rot", 0)
 			if not ((rot is float or rot is int) and is_finite(float(rot))):
 				return _err("partie %d : « rot » en degrés" % i, "part %d: \"rot\" in degrees" % i)
-			objs.append({"type": "prefab", "prefab": String(p.decor), "position": [float(pos[0]), float(pos[1])], "rot": posmod(roundi(float(rot)), 360), "etage": 0})
+			objs.append({"type": "prefab", "prefab": String(p.decor), "position": [float(pos[0]), float(pos[1])], "rot": posmod(roundi(float(rot)), 360), "altitude": 0.0})
 		var made := tools.make_group(objs, name)
 		if made.is_empty():
 			return {"error": tools.last_error}
@@ -263,9 +263,9 @@ static func cmd_create(ed: MapEditor, args: Dictionary) -> Dictionary:
 	if replace:
 		# Décor remplacé par la prefab posée à sa place : un lot de Claude
 		# (annulable : editor_undo_last, Ctrl+Z).
-		var k := int(parts2[0].get("etage", 0))
+		var alt := EditorMap.alt_of(parts2[0])
 		var ops := parts2.map(func(o): return {"op": "del", "coll": "objets", "id": String(o.id)})
-		ops.append({"op": "add", "coll": "objets", "el": {"type": "prefab", "prefab": MapPrefabLib.ref(pid), "position": MapGeom.arr(made2.center), "rot": 0, "etage": k}})
+		ops.append({"op": "add", "coll": "objets", "el": {"type": "prefab", "prefab": MapPrefabLib.ref(pid), "position": MapGeom.arr(made2.center), "rot": 0, "altitude": alt}})
 		var label := _str(args, "label").left(120)
 		if label == "":
 			label = Lang.t("Prefab « %s » posée à la place du décor", "Prefab \"%s\" placed instead of the props") % MapPrefabLib.name_of(made2.def)

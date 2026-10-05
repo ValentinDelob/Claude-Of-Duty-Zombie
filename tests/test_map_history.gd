@@ -27,7 +27,7 @@ func _do(author: String, ops: Array, extra := {}) -> Dictionary:
 
 
 func _put(id: String, v: int) -> Array:
-	return [{"op": "put", "coll": "objets", "el": {"id": id, "type": "caisse", "etage": 0, "position": [v, v]}}]
+	return [{"op": "put", "coll": "objets", "el": {"id": id, "type": "caisse", "altitude": 0, "position": [v, v]}}]
 
 
 func _val(id: String) -> int:

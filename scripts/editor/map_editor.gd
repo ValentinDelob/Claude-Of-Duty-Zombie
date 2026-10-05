@@ -86,7 +86,10 @@ const LIVE_EVERY_MS := 100
 ## Carte d'avant le changement en cours (push_undo) : le diff est calculé et
 ## inscrit par changed().
 var _before: Dictionary = {}
+## Niveau affiché (indice dans doc.levels()) ; format 17 : le niveau suit son
+## ALTITUDE (_view_alt) quand les niveaux changent (pièce déplacée, supprimée).
 var floor_k := 0
+var _view_alt := 0.0
 ## Élément choisi quand UN seul l'est ("" sinon ; sélection multiple : `group`).
 var selected := ""
 ## Sélection multiple (docs/MAP_AUTHORING.md § 2, MapGroup) : identifiants des
@@ -321,16 +324,16 @@ func _build_ui() -> void:
 	bar.add_child(VSeparator.new())
 	var prev := Button.new()
 	prev.text = "◄"
-	prev.tooltip_text = Lang.t("Étage du dessous (Page préc.)", "Floor below (Page Up)")
+	prev.tooltip_text = Lang.t("Niveau du dessous (Page préc.)", "Level below (Page Up)")
 	prev.pressed.connect(func(): set_floor(floor_k - 1))
 	bar.add_child(prev)
 	floor_label = Label.new()
-	floor_label.custom_minimum_size = Vector2(92, 0)
+	floor_label.custom_minimum_size = Vector2(120, 0)
 	floor_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	bar.add_child(floor_label)
 	var next := Button.new()
 	next.text = "►"
-	next.tooltip_text = Lang.t("Étage du dessus (Page suiv.)", "Floor above (Page Down)")
+	next.tooltip_text = Lang.t("Niveau du dessus (Page suiv.)", "Level above (Page Down)")
 	next.pressed.connect(func(): set_floor(floor_k + 1))
 	bar.add_child(next)
 	bar.add_child(VSeparator.new())
@@ -695,7 +698,7 @@ func show_cursor_view(v: MapView, m: Vector2) -> void:
 	_cursor_view = v.plane
 	_cursor_z = p.z
 	send_presence()
-	cursor_label.text = "%s %s m · z %s m · %s %d" % [axis.to_lower(), MapRules._m(snappedf(h, 0.01), fr), MapRules._m(snappedf(p.z - doc.floor_sol(floor_k), 0.01), fr), Lang.t("étage", "floor"), floor_k]
+	cursor_label.text = "%s %s m · z %s m · %s" % [axis.to_lower(), MapRules._m(snappedf(h, 0.01), fr), MapRules._m(snappedf(p.z - view_alt(), 0.01), fr), EditorMap.level_name(view_alt()).to_lower()]
 
 
 ## K : coupe autour de la sélection dans l'élévation active (dans toutes les
@@ -729,7 +732,7 @@ func show_cursor(m: Vector2) -> void:
 	_cursor_z = NAN
 	var fr := not Lang.is_en()
 	var s := canvas.snap(m)
-	cursor_label.text = "x %s m · y %s m · %s %d" % [MapRules._m(snappedf(s.x, 0.01), fr), MapRules._m(snappedf(s.y, 0.01), fr), Lang.t("étage", "floor"), floor_k]
+	cursor_label.text = "x %s m · y %s m · %s" % [MapRules._m(snappedf(s.x, 0.01), fr), MapRules._m(snappedf(s.y, 0.01), fr), EditorMap.level_name(view_alt()).to_lower()]
 	_cursor_m = m
 	send_presence()
 
@@ -745,7 +748,7 @@ var _cursor_z := NAN
 func send_presence() -> void:
 	if collab == null or not collab.is_session():
 		return
-	var p := {"cursor": [snappedf(_cursor_m.x, 0.01), snappedf(_cursor_m.y, 0.01)], "floor": floor_k,
+	var p := {"cursor": [snappedf(_cursor_m.x, 0.01), snappedf(_cursor_m.y, 0.01)], "alt": view_alt(),
 		"selection": sel_ids(), "tool": tool()}
 	# Curseur dans une élévation : son plan et sa hauteur (§ 6.4).
 	if _cursor_view != "" and _cursor_view != "dessus":
@@ -799,7 +802,9 @@ func _update_title() -> void:
 	# ouverte) : la copie de récupération écrite d'ici est périmée.
 	if not dirty and _recovery_sig != "" and not is_guest():
 		_drop_recovery()
-	floor_label.text = Lang.t("Étage %d / %d", "Floor %d / %d") % [floor_k, doc.floor_count() - 1]
+	floor_label.text = "%s (%d/%d)" % [EditorMap.level_name(view_alt()), floor_k + 1, doc.level_count()]
+	floor_label.tooltip_text = Lang.t("Niveau affiché : altitude de son sol. Page préc. / Page suiv. : niveau voisin.",
+		"Level shown: altitude of its floor. Page Up / Page Down: next level.")
 	snap_changed()
 	if validation_stale or validator == null:
 		check_button.text = Lang.t("À vérifier", "Not checked")
@@ -1217,6 +1222,7 @@ func changed(rebuild_panels := true) -> void:
 
 
 func _refresh(rebuild_panels := true) -> void:
+	_sync_view()
 	# doc_version : l'étoile « non enregistrée » est recalculée (dirty).
 	doc_version += 1
 	_hit_dirty = true
@@ -1413,7 +1419,7 @@ func _on_collab_applied(ops: Array, author: String, label: String, local: bool) 
 	# Format 14 : geste d'anneau de la vue 3D (sa carte de départ, ses caches).
 	if preview != null and preview.gizmo != null:
 		preview.gizmo.map_changed(ops)
-	floor_k = mini(floor_k, doc.floor_count() - 1)
+	_sync_view()
 	_refresh()
 	if not local and label != "":
 		set_status("%s : %s" % [collab.peer_name(author), label])
@@ -1428,7 +1434,7 @@ func _on_map_replaced() -> void:
 	canvas.drag = {}
 	canvas.cancel()
 	views.drop_drags()
-	floor_k = mini(floor_k, doc.floor_count() - 1)
+	_sync_view()
 	if collab.role == MapCollab.Role.GUEST:
 		map_dir = ""
 		example = false
@@ -1503,8 +1509,9 @@ func select(eid: String) -> void:
 	group = []
 	sel_version += 1
 	var e := doc.find(eid)
-	if not e.is_empty() and e.has("etage") and int(e.etage) != floor_k:
-		floor_k = int(e.etage)
+	if not e.is_empty() and e.has("altitude") and doc.level_of(e) >= 0 and doc.level_of(e) != floor_k:
+		floor_k = doc.level_of(e)
+		_view_alt = doc.level_alt(floor_k)
 		_raster_dirty = true
 		_update_title()
 	# Gizmo de toutes les vues (Dessus, élévations, 3D) : suit la sélection,
@@ -1577,7 +1584,7 @@ func select_all() -> void:
 		for e in list:
 			ids.append(String(e.id))
 	if ids.is_empty():
-		set_status(Lang.t("Rien à sélectionner à l'étage %d", "Nothing to select on floor %d") % floor_k)
+		set_status(Lang.t("Rien à sélectionner au niveau %s", "Nothing to select on level %s") % EditorMap.alt_text(view_alt(), not Lang.is_en()))
 		return
 	select_many(ids)
 
@@ -1765,11 +1772,11 @@ func default_door_price() -> int:
 	return MapCatalog.DOOR_PRICES[mini(n, MapCatalog.DOOR_PRICES.size() - 1)]
 
 
-## Ajoute un élément posé par un outil (pièce, ouverture, objet) à l'étage `k`.
+## Ajoute un élément posé par un outil (pièce, ouverture, objet) au niveau `k`.
 func add_object(o: Dictionary, k: int) -> Dictionary:
 	push_undo()
 	var e := o.duplicate(true)
-	e["etage"] = k
+	doc.set_level(e, k)
 	insert_element(e)
 	selected = String(e.id)
 	group = []
@@ -1833,7 +1840,7 @@ func carve_room(obj: Dictionary, k: int) -> Dictionary:
 	push_undo()
 	var back := doc.snapshot()
 	var e := obj.duplicate(true)
-	e["etage"] = k
+	doc.set_level(e, k)
 	insert_element(e)
 	var rep := MapCarve.carve(doc, e)
 	if not rep.ok:
@@ -1851,7 +1858,7 @@ func carve_room(obj: Dictionary, k: int) -> Dictionary:
 	return rep
 
 
-## Ajoute l'élément `e` (son « etage » déjà mis) à la carte, sans étape
+## Ajoute l'élément `e` (son « altitude » déjà mise) à la carte, sans étape
 ## d'annulation ni rafraîchissement (add_object, collage d'un groupe) :
 ## identifiant neuf ; pièce : nom et zone par défaut ; porte : prix par
 ## défaut ; boîte de départ : la seule.
@@ -1935,7 +1942,7 @@ func _hit_candidates(m: Vector2) -> Array:
 		for o in doc.objets:
 			var r := MapRules.footprint_rect(o).grow(0.35)
 			# Un escalier se choisit aussi depuis l'étage où il arrive.
-			var ks := [int(o.get("etage", 0))]
+			var ks := [doc.level_of(o)]
 			if String(o.get("type", "")) == "escalier":
 				ks.append(ks[0] + 1)
 			for kk in ks:
@@ -2004,7 +2011,7 @@ static func _shift(o: Dictionary, delta: Vector2) -> Dictionary:
 ## Déplacement pendant un glissement : essaie `orig` décalé de `delta`
 ## (depuis la carte `snap0`), l'applique s'il est valide.
 func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictionary) -> Dictionary:
-	var k := int(orig.get("etage", 0))
+	var k := doc.level_of(orig)
 	var cand := _shift(orig, delta)
 	var t := String(orig.get("type", ""))
 	var res := {"ok": true}
@@ -2085,11 +2092,20 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 ## (règles de pose de l'étage cible, MapRules ; bornes et décor posé sur un
 ## autre, MapVertical.check_pose). Sinon la carte reste à `snap0`.
 func try_move_3d(orig: Dictionary, attached: Array, delta: Vector2, k_new: int, z_local: float, snap0: Dictionary) -> Dictionary:
-	var k0 := int(orig.get("etage", 0))
-	if k_new < 0 or k_new >= doc.floor_count():
-		return MapRules.refuse("pas d'étage à cette hauteur", "no floor at that height")
-	if String(orig.get("type", "")) == "escalier" and k_new >= doc.floor_count() - 1:
-		return MapRules.refuse("un escalier ne peut pas aller sur le dernier étage", "stairs cannot go on the top floor")
+	if k_new < 0 or k_new >= doc.level_count():
+		return MapRules.refuse("pas de niveau à cette hauteur", "no level at that height")
+	if String(orig.get("type", "")) == "escalier" and k_new >= doc.level_count() - 1:
+		return MapRules.refuse("un escalier ne peut pas aller sur le dernier niveau", "stairs cannot go on the top level")
+	return try_move_alt(orig, attached, delta, doc.level_alt(k_new) - EditorMap.alt_of(orig), z_local, snap0)
+
+
+## Comme try_move_3d, mais monté (ou descendu) de `dalt` m (format 17 :
+## propriété « Altitude du sol » d'une pièce, qui emporte son contenu). Une
+## pièce peut créer un niveau ; refus si deux niveaux se retrouvent à moins de
+## 3,1 m (restriction de l'étape 1a) ou si un élément n'a plus de pièce sous lui.
+func try_move_alt(orig: Dictionary, attached: Array, delta: Vector2, dalt: float, z_local: float, snap0: Dictionary) -> Dictionary:
+	if not is_finite(dalt):
+		return MapRules.refuse("altitude invalide", "invalid altitude")
 	# Refus : l'élément (et son contenu) reste à sa DERNIÈRE place valide (§ 6.1),
 	# pas à celle du début du glissement.
 	var last := {}
@@ -2110,18 +2126,27 @@ func try_move_3d(orig: Dictionary, attached: Array, delta: Vector2, k_new: int, 
 	if not is_nan(z_local):
 		MapVertical.set_pose_z(doc, raster().v, base, z_local)
 	var snap1 := snap0
-	if k_new != k0 or not is_nan(z_local):
-		base["etage"] = k_new
+	var moved_up := absf(dalt) > EditorMap.ALT_EQ
+	if moved_up or not is_nan(z_local):
+		EditorMap.shift_alt(base, dalt)
 		_replace(base.duplicate(true))
 		for aid in attached:
 			var a := doc.find(aid)
 			if not a.is_empty():
-				a["etage"] = int(a.get("etage", 0)) + k_new - k0
+				EditorMap.shift_alt(a, dalt)
 		snap1 = doc.snapshot()
+	if moved_up:
+		if doc.level_of(base) < 0:
+			return refuse.call(MapRules.refuse("pas de pièce à cette altitude (%s)" % EditorMap.alt_text(EditorMap.alt_of(base)),
+				"no room at that altitude (%s)" % EditorMap.alt_text(EditorMap.alt_of(base), false)))
+		if not doc.level_gap_issue().is_empty():
+			var gt := MapGroup.gap_text(doc)
+			return refuse.call(MapRules.refuse(gt[0], gt[1]))
+	var k_new := doc.level_of(base)
 	var res := try_move(base, attached, delta, snap1)
 	if not res.ok:
 		return refuse.call(res)
-	if k_new != k0:
+	if moved_up:
 		# Contenu emporté (pièce) : valide aussi sur l'étage visé (portes sur un
 		# bord commun, escalier jamais sur le dernier étage, objets contre un mur).
 		MapRules.begin_batch(doc)
@@ -2130,13 +2155,13 @@ func try_move_3d(orig: Dictionary, attached: Array, delta: Vector2, k_new: int, 
 			var a := doc.find(aid)
 			if a.is_empty():
 				continue
-			if String(a.get("type", "")) == "escalier" and int(a.get("etage", 0)) >= doc.floor_count() - 1:
-				bad = MapRules.refuse("son escalier ne peut pas aller sur le dernier étage", "its stairs cannot go on the top floor")
+			if String(a.get("type", "")) == "escalier" and doc.level_of(a) >= doc.level_count() - 1:
+				bad = MapRules.refuse("son escalier ne peut pas aller sur le dernier niveau", "its stairs cannot go on the top level")
 				break
 			var r := MapRules.check_existing(doc, a)
 			if not r.ok:
-				bad = MapRules.refuse("son contenu ne tient pas à l'étage %d : %s (%s)" % [k_new, _label(a), MapRules.why(r)],
-					"its content does not fit on floor %d: %s (%s)" % [k_new, _label(a), MapRules.why(r)])
+				bad = MapRules.refuse("son contenu ne tient pas au niveau %s : %s (%s)" % [EditorMap.alt_text(doc.level_alt(k_new)), _label(a), MapRules.why(r)],
+					"its content does not fit on level %s: %s (%s)" % [EditorMap.alt_text(doc.level_alt(k_new), false), _label(a), MapRules.why(r)])
 				break
 		MapRules.end_batch()
 		if not bad.is_empty():
@@ -2157,7 +2182,7 @@ func try_move_3d(orig: Dictionary, attached: Array, delta: Vector2, k_new: int, 
 
 ## Poignée `h` de l'élément `orig` amenée au point `p`.
 func try_handle(orig: Dictionary, h: int, p: Vector2, snap0: Dictionary) -> Dictionary:
-	var k := int(orig.get("etage", 0))
+	var k := doc.level_of(orig)
 	var cand := orig.duplicate(true)
 	var res := {"ok": true}
 	if orig.has("contour"):
@@ -2475,7 +2500,7 @@ func paste(at := Vector2.INF) -> void:
 	var delta := target - (c if canvas.mode_now() == "libre" else Vector2(snappedf(c.x, 0.5), snappedf(c.y, 0.5)))
 	e = _shift(e, delta)
 	e.erase("id")
-	e["etage"] = floor_k
+	doc.set_level(e, floor_k)
 	var t := String(e.get("type", ""))
 	var res := {"ok": true}
 	if e.has("contour"):
@@ -2568,8 +2593,26 @@ func set_start_zone(zid: String) -> void:
 	changed()
 
 
+## Altitude du niveau affiché (m).
+func view_alt() -> float:
+	return doc.level_alt(floor_k)
+
+
+## Le niveau affiché suit son altitude quand les niveaux changent : un niveau
+## vidé de ses pièces reste affiché (niveau vide de l'éditeur, jamais enregistré).
+func _sync_view() -> void:
+	if doc == null:
+		return
+	var k := doc.level_index(_view_alt)
+	if k < 0:
+		doc.view_levels.append(_view_alt)
+		k = doc.level_index(_view_alt)
+	floor_k = maxi(0, k)
+
+
 func set_floor(k: int) -> void:
-	var nk := clampi(k, 0, doc.floor_count() - 1)
+	var nk := clampi(k, 0, doc.level_count() - 1)
+	_view_alt = doc.level_alt(nk)
 	if nk == floor_k:
 		return
 	floor_k = nk
@@ -2587,30 +2630,64 @@ func set_floor(k: int) -> void:
 	send_presence()
 
 
+## Nouveau niveau vide 3,5 m au-dessus du plus haut (format 17 : un niveau
+## existe par ses pièces ; vide, il n'est pas enregistré).
 func add_floor() -> void:
-	if doc.floor_count() >= MapCatalog.MAX_FLOORS:
-		set_status(Lang.t("%d étages au plus" % MapCatalog.MAX_FLOORS, "%d floors at most" % MapCatalog.MAX_FLOORS), true)
-		return
-	push_undo()
-	var f: Array = doc.carte.etages
-	var top := doc.floor_count() - 1
-	f.append({"sol": snappedf(doc.floor_sol(top) + EditorMap.FLOOR_STEP, 0.1), "hauteur": EditorMap.DEFAULT_CEILING})
+	var top := doc.level_count() - 1
+	doc.view_levels.append(snappedf(doc.level_alt(top) + EditorMap.FLOOR_STEP, 0.01))
+	_raster_dirty = true
+	set_floor(doc.level_count() - 1)
+	panels.refresh()
+
+
+## Met le niveau `k` à l'altitude `alt` (m) : tout ce qui y est posé (et
+## l'arrivée des escaliers qui y montent) suit, en une étape d'annulation.
+## Refus nommé si deux niveaux se retrouvent à moins de 3,1 m (étape 1a).
+func move_level(k: int, alt: float) -> Dictionary:
+	if k < 0 or k >= doc.level_count() or not is_finite(alt):
+		return MapRules.refuse("niveau introuvable", "level not found")
+	var dalt := snappedf(alt, 0.0001) - doc.level_alt(k)
+	if absf(dalt) <= EditorMap.ALT_EQ:
+		return {"ok": true}
+	var snap := doc.snapshot()
+	var views_before := doc.view_levels.duplicate()
+	doc.shift_level(k, dalt)
+	var moved_view := _view_alt
+	if absf(_view_alt - (alt - dalt)) <= EditorMap.ALT_EQ:
+		moved_view = alt
+	if doc.level_index(alt) < 0 or not doc.level_gap_issue().is_empty():
+		var gt := MapGroup.gap_text(doc)
+		doc.restore(snap)
+		doc.view_levels = views_before
+		var res := MapRules.refuse(gt[0] if gt[0] != "" else "ce niveau en rejoint un autre", gt[1] if gt[1] != "" else "this level would merge with another")
+		canvas.show_refusal(res)
+		panels.refresh()
+		return res
+	push_undo_snapshot(snap)
+	_view_alt = moved_view
 	changed()
-	set_floor(doc.floor_count() - 1)
+	set_status(Lang.t("Niveau déplacé à %s", "Level moved to %s") % EditorMap.alt_text(alt, not Lang.is_en()))
+	return {"ok": true}
 
 
+## Retire le niveau le plus haut s'il est vide (niveau vide de l'éditeur).
 func remove_top_floor() -> void:
-	var top := doc.floor_count() - 1
+	var top := doc.level_count() - 1
 	if top == 0:
 		return
 	var used := doc.rooms_on(top).size() + doc.objects_on(top).size() + doc.openings_on(top).size()
 	if used > 0:
-		set_status(Lang.t("L'étage %d n'est pas vide (%d élément(s))", "Floor %d is not empty (%d element(s))") % [top, used], true)
+		set_status(Lang.t("Le niveau %s n'est pas vide (%d élément(s))", "Level %s is not empty (%d element(s))") % [EditorMap.alt_text(doc.level_alt(top)), used], true)
 		return
-	push_undo()
-	(doc.carte.etages as Array).remove_at(top)
-	floor_k = mini(floor_k, doc.floor_count() - 1)
-	changed()
+	var a := doc.level_alt(top)
+	doc.view_levels = doc.view_levels.filter(func(x): return absf(float(x) - a) > EditorMap.ALT_EQ)
+	if floor_k >= top:
+		_view_alt = doc.level_alt(top - 1)
+	_sync_view()
+	_raster_dirty = true
+	_update_title()
+	panels.refresh()
+	canvas.queue_redraw()
 
 
 # ------------------------------------------------------------------ vérification
@@ -2666,6 +2743,7 @@ func _doc_shown() -> void:
 	sel_version += 1
 	hover_id = ""
 	floor_k = 0
+	_view_alt = doc.level_alt(0)
 	validator = null
 	canvas.cancel()
 	canvas.highlight = []
@@ -2701,7 +2779,8 @@ func _resume_playtest(back: Dictionary) -> void:
 	if collab.role == MapCollab.Role.GUEST:
 		map_dir = ""
 		example = false
-	floor_k = clampi(int(st.get("floor_k", 0)), 0, doc.floor_count() - 1)
+	floor_k = clampi(int(st.get("floor_k", 0)), 0, doc.level_count() - 1)
+	_view_alt = doc.level_alt(floor_k)
 	var sel := String(st.get("selected", ""))
 	if sel != "" and not doc.find(sel).is_empty():
 		selected = sel

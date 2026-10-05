@@ -317,11 +317,11 @@ func create_dialog_for(ids: Array) -> ConfirmationDialog:
 	return d
 
 
-## Étages (indices) des décors `parts`.
+## Niveaux (altitudes, m) des décors `parts`.
 static func floors_of(parts: Array) -> Array:
 	var out := []
 	for o in parts:
-		var k := int(o.get("etage", 0))
+		var k := snappedf(EditorMap.alt_of(o), EditorMap.ALT_EQ)
 		if not out.has(k):
 			out.append(k)
 	return out
@@ -365,7 +365,7 @@ func create_from_objects(objs: Array, name: String, replace := true, hand := tru
 	var nm := MapPrefabLib.name_of(made.def)
 	var n := (made.def.parties as Array).size()
 	if replace:
-		var k := int(objs[0].get("etage", ed.floor_k))
+		var k := ed.doc.level_of(objs[0]) if ed.doc.level_of(objs[0]) >= 0 else ed.floor_k
 		ed.push_undo()
 		for o in objs:
 			ed.doc.remove(String(o.id))

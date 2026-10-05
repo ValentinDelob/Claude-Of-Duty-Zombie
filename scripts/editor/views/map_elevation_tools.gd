@@ -158,12 +158,12 @@ func _side_kind(o: Dictionary) -> String:
 	return ""
 
 
-## Poignée du haut : « ceiling » (plafond d'une pièce), « lock » (pièce en
-## double hauteur : cadenas), « clip » (hauteur d'une barrière), « zone »
-## (hauteur de la zone d'un effet) ; "" : aucune.
+## Poignée du haut : « ceiling » (plafond d'une pièce, pièce haute comprise :
+## format 17), « clip » (hauteur d'une barrière), « zone » (hauteur de la zone
+## d'un effet) ; "" : aucune.
 func _top_kind(o: Dictionary) -> String:
 	if o.has("contour"):
-		return "lock" if bool(o.get("double_hauteur", false)) else "ceiling"
+		return "ceiling"
 	match String(o.get("type", "")):
 		"bloc_invisible":
 			return "clip"
@@ -201,10 +201,20 @@ func level_at(px: Vector2) -> String:
 		if Rect2(ev._ruler() + u(2), y - u(8), u(78), u(15)).has_point(px):
 			return "level:%d" % k
 	var top := doc.floor_count() - 1
-	var yc := ev.to_px(Vector2(0, -(doc.floor_sol(top) + doc.floor_height(top)))).y
+	var yc := ev.to_px(Vector2(0, -(doc.floor_sol(top) + top_ceiling(doc)))).y
 	if absf(px.y - yc) <= 4.0 and px.x > ev._ruler() + u(84):
 		return "topceil"
 	return ""
+
+
+## Hauteur sous plafond du dernier niveau (trait « topceil ») : la plus
+## haute de ses pièces (pièces hautes exceptées), sinon 3,2 m.
+static func top_ceiling(doc: EditorMap) -> float:
+	var top := doc.level_count() - 1
+	var h := -1.0
+	for p in doc.rooms_on(top):
+		h = maxf(h, EditorMap.room_ceiling(p))
+	return h if h > 0.0 else EditorMap.DEFAULT_CEILING
 
 
 ## Curseur de la souris selon ce qui est dessous (§ 6.3).
@@ -274,7 +284,8 @@ func press(px: Vector2) -> bool:
 	if lv != "":
 		var k := int(lv.substr(6)) if lv.begins_with("level:") else ed().doc.floor_count() - 1
 		drag = {"kind": "level" if lv.begins_with("level:") else "topceil", "k": k, "start_m": ev.mouse_m, "snap": ed().doc.snapshot(), "moved": false,
-			"v0": ed().doc.floor_sol(k) if lv.begins_with("level:") else ed().doc.floor_height(k)}
+			"v0": ed().doc.floor_sol(k) if lv.begins_with("level:") else top_ceiling(ed().doc),
+			"views0": ed().doc.view_levels.duplicate(), "view0": ed()._view_alt}
 		return true
 	# L'élément choisi d'abord (des boîtes se recouvrent en élévation).
 	# Reclic : un simple clic sans bouger sur l'élément déjà choisi seul le
@@ -298,10 +309,9 @@ func _begin(kind: String, e: Dictionary, extra: Dictionary) -> void:
 	var doc := ed().doc
 	var v := ed().raster().v
 	drag = {"kind": kind, "start_m": ev.mouse_m, "snap": doc.snapshot(), "orig": o.duplicate(true), "attached": ed().attached_to(o),
-		"moved": false, "lock": "", "k0": int(o.get("etage", 0)), "rect0": ev.rect_px(e), "box0": e.duplicate()}
+		"moved": false, "lock": "", "k0": doc.level_of(o), "rect0": ev.rect_px(e), "box0": e.duplicate()}
 	drag.merge(extra, true)
-	var k := int(o.get("etage", 0))
-	drag["za0"] = doc.floor_sol(k) + (MapVertical.pose_z(doc, v, o) if MapVertical.pose_kind(o) == "pose" else 0.0)
+	drag["za0"] = EditorMap.alt_of(o) + (MapVertical.pose_z(doc, v, o) if MapVertical.pose_kind(o) == "pose" else 0.0)
 	if kind == "top":
 		drag["v0"] = _top_value(o)
 	# Axes permis (un objet mural face à la vue ne quitte pas son mur, une
@@ -328,7 +338,7 @@ func _begin_group(e: Dictionary) -> void:
 		for i in ids:
 			z0[String(i)] = MapVertical.pose_z(doc, v, doc.find(String(i)))
 	drag = {"kind": "gmove", "start_m": ev.mouse_m, "snap": doc.snapshot(), "all": MapGroup.movers(doc, ids), "ids": ids,
-		"click": String(o.id), "k0": int(o.get("etage", 0)), "z0": z0, "moved": false, "lock": "", "can_h": true,
+		"click": String(o.id), "k0": doc.level_of(o), "z0": z0, "moved": false, "lock": "", "can_h": true,
 		"can_v": not z0.is_empty() or doc.floor_count() > 1, "rect0": ev.rect_px(e), "box0": e.duplicate()}
 	drag["lock"] = _allowed_lock("")
 	entry = ""
@@ -377,11 +387,11 @@ func _update_group() -> void:
 
 ## Grandeur de la poignée du haut au début : plafond, hauteur de barrière ou de zone.
 func _top_value(o: Dictionary) -> float:
-	var k := int(o.get("etage", 0))
+	var k := ed().doc.level_of(o)
 	if o.has("contour"):
-		return float(o.get("plafond", ed().doc.floor_height(k)))
+		return EditorMap.room_ceiling(o)
 	if String(o.get("type", "")) == "bloc_invisible":
-		return float(o.get("hauteur", MapVertical.top(ed().raster().v, k) - ed().doc.floor_sol(k)))
+		return float(o.get("hauteur", MapVertical.top(ed().raster().v, maxi(0, k)) - EditorMap.alt_of(o)))
 	return MapCatalog.effect_zone(o).z
 
 
@@ -551,8 +561,9 @@ func _status_move() -> void:
 		var z1 := MapVertical.pose_z(doc, ed().raster().v, now)
 		ed().set_status(Lang.t("Déplacement vertical : %s → %s m (ΔZ %s) · relâcher pour valider, Échap pour annuler", "Vertical move: %s → %s m (ΔZ %s) · release to apply, Esc to cancel") % [
 			m2(z0), m2(z1), _signed(float(drag.get("dz", 0.0)))] + ("  ·  " + " · ".join(parts) if not parts.is_empty() else ""))
-	elif int(now.get("etage", 0)) != int(drag.k0):
-		ed().set_status(Lang.t("Étage %d → %d · relâcher pour valider, Échap pour annuler", "Floor %d → %d · release to apply, Esc to cancel") % [int(drag.k0), int(now.etage)])
+	elif ed().doc.level_of(now) != int(drag.k0):
+		ed().set_status(Lang.t("Niveau %s → %s · relâcher pour valider, Échap pour annuler", "Level %s → %s · release to apply, Esc to cancel") % [
+			EditorMap.alt_text(ed().doc.level_alt(int(drag.k0)), fr), EditorMap.alt_text(EditorMap.alt_of(now), fr)])
 	elif not parts.is_empty():
 		ed().set_status(" · ".join(parts) + Lang.t(" · relâcher pour valider, Échap pour annuler", " · release to apply, Esc to cancel"))
 
@@ -586,7 +597,7 @@ func _update_side() -> void:
 			var half := absf(cur - (c.x if axis == "X" else c.y))
 			var w := clampf(snappedf(half * 2.0, 0.5), 1.0, 6.0)
 			doc.restore(drag.snap)
-			res = MapRules.place_opening(doc, int(orig.etage), String(orig.type), c, w, String(orig.id))
+			res = MapRules.place_opening(doc, doc.level_of(orig), String(orig.type), c, w, String(orig.id))
 			if res.ok:
 				var o := doc.find(String(orig.id))
 				o["largeur"] = w
@@ -602,7 +613,7 @@ func _update_side() -> void:
 			else:
 				hi = maxf(cur, lo + 0.5)
 			var nr := Rect2(Vector2(lo, r.position.y), Vector2(hi - lo, r.size.y)) if axis == "X" else Rect2(Vector2(r.position.x, lo), Vector2(r.size.x, hi - lo))
-			res = MapRules.check_rect(doc, int(orig.etage), String(orig.type), nr, String(orig.id))
+			res = MapRules.check_rect(doc, doc.level_of(orig), String(orig.type), nr, String(orig.id))
 			if res.ok:
 				doc.restore(drag.snap)
 				var o := doc.find(String(orig.id))
@@ -649,8 +660,7 @@ func _update_side() -> void:
 func _update_top() -> void:
 	var orig: Dictionary = drag.orig
 	var doc := ed().doc
-	var k := int(orig.etage)
-	var sol := doc.floor_sol(k)
+	var sol := EditorMap.alt_of(orig)
 	var h := -ev.mouse_m.y - sol
 	var typed: Variant = _typed()
 	if typed != null:
@@ -673,7 +683,7 @@ func _update_top() -> void:
 	if orig.has("contour"):
 		var lim := MapVertical.ceiling_max(doc, ed().raster().v, orig)
 		h = clampf(h, MapVertical.ROOM_CEILING[0], lim)
-		if absf(h - doc.floor_height(k)) < 0.005:
+		if absf(h - EditorMap.DEFAULT_CEILING) < 0.005:
 			o.erase("plafond")
 		else:
 			o["plafond"] = snappedf(h, 0.01)
@@ -717,23 +727,33 @@ func _update_level() -> void:
 	var z := -ev.mouse_m.y
 	var typed: Variant = _typed()
 	doc.restore(drag.snap)
-	var f: Array = doc.carte.etages
+	doc.view_levels = (drag.views0 as Array).duplicate()
 	var gap := MapValidator.MIN_CEILING + MapValidator.DALLE
 	if drag.kind == "level":
+		# Format 17 : le niveau entier (tout ce qui y est posé) monte ou descend,
+		# à 3,1 m au moins de ses voisins (restriction de l'étape 1a).
 		var v := float(drag.v0) + float(typed) if typed != null else snappedf(z, maxf(_step(), 0.1))
 		var lo := doc.floor_sol(k - 1) + gap
-		var hi := doc.floor_sol(k + 1) - gap if k + 1 < doc.floor_count() else 200.0
+		var hi := doc.floor_sol(k + 1) - gap if k + 1 < doc.floor_count() else INF
 		v = clampf(v, lo, maxf(lo, hi))
-		f[k]["sol"] = snappedf(v, 0.01)
+		v = snappedf(v, 0.01)
+		doc.shift_level(k, v - doc.level_alt(k))
+		if absf(float(drag.view0) - float(drag.v0)) <= EditorMap.ALT_EQ:
+			ed()._view_alt = v
 		drag["value"] = v
-		ed().set_status(Lang.t("Sol de l'étage %d : %s m (au moins %s m au-dessus de l'étage %d)", "Floor %d level: %s m (at least %s m above floor %d)") % [
-			k, m2(v), m2(gap), k - 1])
+		ed().set_status(Lang.t("Niveau déplacé à %s m (au moins %s m au-dessus du niveau voisin, tout ce qui y est posé suit)", "Level moved to %s m (at least %s m above the next level, everything on it follows)") % [
+			m2(v), m2(gap)])
 	else:
+		# Plafond du dernier niveau : celui de ses pièces (pièces hautes exceptées).
 		var h := float(drag.v0) + float(typed) if typed != null else snappedf(z - doc.floor_sol(k), maxf(_step(), 0.1))
-		h = clampf(h, MapValidator.MIN_CEILING, 10.0)
-		f[k]["hauteur"] = snappedf(h, 0.01)
+		h = maxf(snappedf(h, 0.01), MapValidator.MIN_CEILING)
+		for p in doc.rooms_on(k):
+			if absf(h - EditorMap.DEFAULT_CEILING) < 0.005:
+				p.erase("plafond")
+			else:
+				p["plafond"] = h
 		drag["value"] = h
-		ed().set_status(Lang.t("Hauteur du dernier étage : %s m", "Top floor height: %s m") % m2(h))
+		ed().set_status(Lang.t("Plafond des pièces du dernier niveau : %s m", "Ceiling of the top level's rooms: %s m") % m2(h))
 	drag.moved = true
 	ed().moved_live()
 
@@ -769,7 +789,7 @@ func release() -> void:
 		ed().changed()
 		if String(drag.kind) == "move":
 			var now := ed().doc.find(String(drag.orig.id))
-			moved_floor = not now.is_empty() and int(now.get("etage", 0)) != int(drag.k0)
+			moved_floor = not now.is_empty() and ed().doc.level_of(now) != int(drag.k0)
 	var oid := String(drag.get("orig", {}).get("id", ""))
 	# Reclic sans bouger (moins de 4 px) : l'élément est désélectionné.
 	var unselect: bool = bool(drag.get("reclick", false)) and not drag.moved and ev.to_px(ev.mouse_m).distance_to(ev.to_px(Vector2(drag.start_m))) < 4.0
@@ -791,6 +811,9 @@ func cancel() -> void:
 		return
 	ed().send_live("")
 	ed().doc.restore(drag.snap)
+	if drag.has("views0"):
+		ed().doc.view_levels = (drag.views0 as Array).duplicate()
+		ed()._view_alt = float(drag.view0)
 	ed().changed(false)
 	ed().panels.live_position(false)
 	ed().panels.live_scale(false)
@@ -946,7 +969,7 @@ func _draw_move_cotes(c: CanvasItem, e: Dictionary, o: Vector2) -> void:
 	var now := doc.find(String(e.it.id))
 	if now.is_empty():
 		return
-	var k := int(now.get("etage", 0))
+	var k := doc.level_of(now)
 	var font := UiStyle.font("body")
 	var bf := MapView.bold_font(600)
 	var y0 := ev.to_px(Vector2(0, -doc.floor_sol(k))).y
@@ -1015,7 +1038,7 @@ func _draw_move_cotes(c: CanvasItem, e: Dictionary, o: Vector2) -> void:
 ## face intérieure) : {u (coordonnée de l'écran du mur), d (m)} ; {} sans pièce.
 func _nearest_wall(o: Dictionary) -> Dictionary:
 	var doc := ed().doc
-	var k := int(o.get("etage", 0))
+	var k := doc.level_of(o)
 	var p := MapVertical.anchor_of(o) if o.has("position") else MapRules.footprint_rect(o).get_center()
 	if o.has("contour"):
 		return {}
@@ -1038,7 +1061,7 @@ func _draw_top_cotes(c: CanvasItem, e: Dictionary, r: Rect2) -> void:
 	_dashed_rect(c, g, Color(COL_BONE, 0.55), 1.0)
 	var orig: Dictionary = drag.orig
 	var doc := ed().doc
-	var k := int(orig.etage)
+	var k := doc.level_of(orig)
 	var y0 := ev.to_px(Vector2(0, -doc.floor_sol(k))).y
 	var top := r.position.y
 	var cx := r.end.x - u(22)
@@ -1077,7 +1100,7 @@ func _draw_top_cotes(c: CanvasItem, e: Dictionary, r: Rect2) -> void:
 func _draw_level_drag(c: CanvasItem) -> void:
 	var doc := ed().doc
 	var k := int(drag.k)
-	var z := doc.floor_sol(k) if drag.kind == "level" else doc.floor_sol(k) + doc.floor_height(k)
+	var z := doc.floor_sol(k) if drag.kind == "level" else doc.floor_sol(k) + top_ceiling(doc)
 	var y := ev.to_px(Vector2(0, -z)).y
 	c.draw_line(Vector2(ev._ruler(), y), Vector2(ev.size.x, y), Color(COL_GOLD, 0.8), 1.5)
 

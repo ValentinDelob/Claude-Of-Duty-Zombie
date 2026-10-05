@@ -12,7 +12,7 @@ extends RefCounted
 ##
 ## Contrôles (docs/MAP_AUTHORING.md, « Cartes perso en multijoueur ») :
 ##   - limites dures : taille du paquet, profondeur JSON, nombre de pièces,
-##     d'ouvertures, d'objets, de zones, d'étages, de sommets, longueur des
+##     d'ouvertures, d'objets, de zones, de sommets, longueur des
 ##     textes, coordonnées finies et bornées, prix bornés ;
 ##   - liste blanche des clés et des valeurs, tirée du catalogue de l'éditeur
 ##     (MapCatalog : types d'objets, atouts, armes, surfaces, musiques) par UNE
@@ -20,6 +20,15 @@ extends RefCounted
 ##   - identifiants et noms nettoyés : pas de chemin (.., /, \, :), pas de
 ##     caractère de contrôle, pas de balise BBCode ou HTML dans un nom affiché ;
 ##   - jouabilité : le validateur de l'éditeur (MapRaster + MapValidator).
+##
+## Deux schémas (format 17, docs/LEVELS_PLAN.md § 2) : une carte au format 16
+## ou avant (« format » ≤ 16, ou sans « format » avec des clés d'étage) est
+## contrôlée telle qu'elle était alors (« etage », « etages »,
+## « double_hauteur », 8 étages au plus), AVANT sa conversion
+## (EditorMap.migrate_levels) ; une carte au format 17 a « altitude » (m, sans
+## borne : nombre fini) et « altitude_haut » des escaliers, et ses clés
+## d'étage sont refusées. Seule garde des niveaux : la mémoire de la grille du
+## validateur (cases × niveaux, grid_bytes), refus expliqué si elle est déraisonnable.
 ##
 ## Paquet réseau canonique (pack / unpack) : JSON trié
 ## {"format": 1, "fichiers": {"carte.json": "...", ...}} en UTF-8 ; son
@@ -59,7 +68,15 @@ const MAX_OBJECTS := 2048
 ## Effets (type « effet », format 10) au plus par carte : coût des particules.
 const MAX_EFFECTS := 64
 const MAX_ZONES := 64
+## Format 16 et avant : étages au plus (schéma figé).
 const MAX_FLOORS := 8
+## Plafond d'une pièce au format 16 et avant (schéma figé).
+const LEGACY_CEILING := [2.8, 9.0]
+## Format 17 : mémoire de la grille du validateur, octets par case et par
+## niveau (types, clés, zones, plafonds, pièces, et ce qu'en tire l'analyse),
+## et plafond technique (au-delà, la carte est refusée avec la raison).
+const GRID_CELL_BYTES := 96
+const MAX_GRID_BYTES := 1024 * 1024 * 1024
 ## Sommets par pièce : un cercle de 64 points (MapShapes.MAX_POINTS) et de la
 ## marge pour ses retouches ; le total reste borné.
 const MAX_VERTICES := 128
@@ -164,7 +181,8 @@ static func _rule_of_spec(s: Variant) -> Variant:
 		"int":
 			return "int:%s:%s" % [str(float(s.get("min", -1000))), str(float(s.get("max", 1000)))]
 		"number":
-			return "num:%s:%s" % [str(float(s.get("min", -1000))), str(float(s.get("max", 1000)))]
+			# Format 17 : sans « min » ou « max », pas de borne de ce côté.
+			return "num:%s:%s" % [str(float(s.min)) if s.has("min") else "", str(float(s.max)) if s.has("max") else ""]
 		"bool":
 			return "bool"
 		"enum":
@@ -247,11 +265,11 @@ static func schema() -> Dictionary:
 			var spec_keys: Variant = d.get("keys", {})
 			if spec_keys is Dictionary:
 				for k in spec_keys:
-					if not k in ["id", "type", "etage"]:
+					if not k in ["id", "type", "etage", "altitude"]:
 						keys[String(k)] = _rule_of_spec(spec_keys[k])
 			var req := []
 			for k in d.get("required", []):
-				if not k in ["id", "type", "etage"]:
+				if not k in ["id", "type", "etage", "altitude"]:
 					req.append(String(k))
 			kinds[t] = {"file": String(d.get("file", "objets.json")), "keys": keys, "required": req}
 	else:
@@ -295,16 +313,22 @@ static func schema() -> Dictionary:
 					allowed[String(v)] = true
 					keys[k] = allowed
 	# Pièces et zones : clés du catalogue (format 2) ou celles du format 1.
-	var room_keys := {"id": "id", "nom": "name", "etage": "floor", "zone": "zone_ref", "contour": "polygon",
-		"plafond": "num:1.5:30", "double_hauteur": "bool", "forme": room_forms, "sol": "surface", "murs": "surface"}
+	var room_keys := {"id": "id", "nom": "name", "altitude": "num::", "zone": "zone_ref", "contour": "polygon",
+		"plafond": "num:2.8:", "forme": room_forms, "sol": "surface", "murs": "surface"}
 	var rk: Variant = src.get("room_keys", {})
 	if rk is Dictionary and not rk.is_empty():
 		room_keys = {}
 		for k in rk:
 			room_keys[String(k)] = _rule_of_spec(rk[k])
-		room_keys.merge({"id": "id", "etage": "floor", "contour": "polygon"}, true)
+		room_keys.merge({"id": "id", "contour": "polygon"}, true)
 		if room_keys.has("zone"):
 			room_keys["zone"] = "zone_ref"
+	# Format 16 et avant (schéma figé) : étage, double hauteur, plafond de 2,8 à 9 m.
+	var room_keys_16 := room_keys.duplicate()
+	room_keys_16.erase("altitude")
+	room_keys_16.merge({"etage": "floor", "double_hauteur": "bool", "plafond": "num:%s:%s" % [str(LEGACY_CEILING[0]), str(LEGACY_CEILING[1])]}, true)
+	room_keys.erase("etage")
+	room_keys.erase("double_hauteur")
 	var zone_keys := {"id": "id", "nom": "names", "sol": "surface", "murs": "surface"}
 	var zk: Variant = src.get("zone_keys", {})
 	if zk is Dictionary and not zk.is_empty():
@@ -312,7 +336,7 @@ static func schema() -> Dictionary:
 		for k in zk:
 			zone_keys[String(k)] = _rule_of_spec(zk[k])
 		zone_keys["id"] = "id"
-	_schema = {"kinds": kinds, "dirs": dirs, "surfaces": surfaces, "musics": musics, "room_keys": room_keys, "zone_keys": zone_keys,
+	_schema = {"kinds": kinds, "dirs": dirs, "surfaces": surfaces, "musics": musics, "room_keys": room_keys, "room_keys_16": room_keys_16, "zone_keys": zone_keys,
 		"openings": kinds.keys().filter(func(t): return String(kinds[t].file) == "ouvertures.json")}
 	return _schema
 
@@ -534,6 +558,8 @@ class Check:
 	var count := 0
 	var ids := {}
 	var floors := 1
+	## Carte au format 16 ou avant (schéma figé : « etage », « etages »...).
+	var legacy := false
 	var area := 0.0
 	var vertices := 0
 	var effects := 0
@@ -577,6 +603,7 @@ static func check_texts(texts: Dictionary) -> Dictionary:
 		parsed[f] = v
 	if c.failed():
 		return {"ok": false, "reasons": c.reasons}
+	c.legacy = is_legacy(parsed["carte.json"], parsed["pieces.json"], parsed["ouvertures.json"], parsed["objets.json"])
 	_check_carte(c, parsed["carte.json"])
 	_check_list_file(c, parsed["pieces.json"], "pieces.json", "pieces", MAX_ROOMS, _check_room)
 	_check_list_file(c, parsed["ouvertures.json"], "ouvertures.json", "ouvertures", MAX_OPENINGS, _check_opening)
@@ -586,6 +613,14 @@ static func check_texts(texts: Dictionary) -> Dictionary:
 		c.bad("trop de sommets de pièces (%d, au plus %d)" % [c.vertices, MAX_TOTAL_VERTICES], "too many room vertices (%d, at most %d)" % [c.vertices, MAX_TOTAL_VERTICES])
 	if c.area > MAX_ROOM_AREA:
 		c.bad("pièces trop grandes (%d m², au plus %d)" % [int(c.area), int(MAX_ROOM_AREA)], "rooms too large (%d m², at most %d)" % [int(c.area), int(MAX_ROOM_AREA)])
+	if not c.failed():
+		# Format 17 : grille du validateur (cases × niveaux) dans une mémoire raisonnable.
+		var gb := grid_bytes((parsed["pieces.json"] as Dictionary).get("pieces", []), c.legacy)
+		if not grid_ok(gb):
+			@warning_ignore("integer_division")
+			var mb := gb / (1024 * 1024)
+			c.bad("carte trop grande pour le validateur : %d Mo de grille (cases × niveaux) ; rapprochez les pièces ou réduisez le nombre de niveaux" % mb,
+				"map too big for the validator: %d MB of grid (cells × levels); bring rooms closer or use fewer levels" % mb)
 	if c.failed():
 		return {"ok": false, "reasons": c.reasons}
 	# Format 10 : prefabs de la carte (définitions, modèles, prefabs cités).
@@ -610,6 +645,52 @@ static func check_texts(texts: Dictionary) -> Dictionary:
 	if not m.load_errors.is_empty():
 		return {"ok": false, "reasons": m.load_errors.slice(0, MAX_REASONS)}
 	return {"ok": true, "reasons": [], "map": m}
+
+
+## Carte au format 16 ou avant (schéma figé) ? « format » ≤ 16, ou sans
+## « format » avec des clés d'étage (fichier écrit à la main).
+static func is_legacy(carte: Variant, rooms: Variant, openings: Variant, objects: Variant) -> bool:
+	var cd: Dictionary = carte if carte is Dictionary else {}
+	var fv: Variant = cd.get("format")
+	if fv is float or fv is int:
+		return float(fv) < 17.0
+	var lists := []
+	for pair in [[rooms, "pieces"], [openings, "ouvertures"], [objects, "objets"]]:
+		var l: Variant = (pair[0] as Dictionary).get(pair[1], []) if pair[0] is Dictionary else []
+		lists.append(l if l is Array else [])
+	return EditorMap.has_legacy_levels(cd, lists[0], lists[1], lists[2])
+
+
+## Mémoire (octets) de la grille du validateur pour ces pièces (pieces.json,
+## brutes) : cases du rectangle englobant (avec la marge de MapRaster) ×
+## nombre de niveaux (altitudes distinctes ; « etage » au format 16).
+static func grid_bytes(rooms: Array, legacy := false) -> int:
+	var hi := Vector2(10, 10)
+	var alts := []
+	for p in rooms:
+		if not p is Dictionary:
+			continue
+		var poly: Variant = p.get("contour", [])
+		if poly is Array:
+			for q in poly:
+				if q is Array and q.size() == 2 and (q[0] is float or q[0] is int) and (q[1] is float or q[1] is int):
+					hi = hi.max(Vector2(absf(float(q[0])), absf(float(q[1]))))
+		var a: Variant = p.get("etage", 0) if legacy else p.get("altitude", 0.0)
+		alts.append(float(a) if (a is float or a is int) and is_finite(float(a)) else 0.0)
+	var n := maxi(1, EditorMap.merge_alts(alts).size())
+	var w := ceili(hi.x / MapGeom.CELL) + MapRaster.MARGIN + 1
+	var h := ceili(hi.y / MapGeom.CELL) + MapRaster.MARGIN + 1
+	return w * h * n * GRID_CELL_BYTES
+
+
+## Grille de `bytes` octets acceptable : sous MAX_GRID_BYTES et dans la
+## mémoire libre (si le système la donne).
+static func grid_ok(bytes: int) -> bool:
+	if bytes > MAX_GRID_BYTES:
+		return false
+	var info := OS.get_memory_info()
+	var avail := int(info.get("available", -1))
+	return avail <= 0 or bytes * 2 <= avail
 
 
 ## Format 14 (§ 5.3 de docs/EDITOR_SCALE_ROTATE.md) : « echelle » et « incl »
@@ -768,6 +849,20 @@ static func _keys(c: Check, d: Dictionary, allowed: Dictionary, what: String) ->
 	return true
 
 
+## Clé d'étage (format 16) dans une carte au format 17 : refus expliqué.
+static func _legacy_key(c: Check, k: String, what: String) -> void:
+	match k:
+		"etages":
+			c.bad("%s : « etages » n'existe plus au format 17 (chaque pièce a son « altitude »)" % what,
+				"%s: \"etages\" no longer exists in format 17 (each room has its \"altitude\")" % what)
+		"double_hauteur":
+			c.bad("%s : « double_hauteur » n'existe plus au format 17 (donnez un grand « plafond » à la pièce)" % what,
+				"%s: \"double_hauteur\" no longer exists in format 17 (give the room a high \"plafond\")" % what)
+		_:
+			c.bad("%s : « etage » n'existe plus au format 17 : donnez « altitude » (m, sol du niveau, ex. 0 ou 3,5)" % what,
+				"%s: \"etage\" no longer exists in format 17: give \"altitude\" (m, floor of the level, e.g. 0 or 3.5)" % what)
+
+
 static func _floor_index(c: Check, v: Variant, what: String) -> bool:
 	return _int(c, v, 0, c.floors - 1, what + " (étage)")
 
@@ -842,8 +937,9 @@ static func _rule(c: Check, rule: Variant, v: Variant, what: String) -> bool:
 				return false
 			return true
 	if r.begins_with("num:"):
+		# Borne vide : pas de borne de ce côté (format 17).
 		var p := r.split(":")
-		return _num(c, v, float(p[1]), float(p[2]), what)
+		return _num(c, v, float(p[1]) if p[1] != "" else -INF, float(p[2]) if p.size() > 2 and p[2] != "" else INF, what)
 	if r.begins_with("int:"):
 		var p := r.split(":")
 		return _int(c, v, int(float(p[1])), int(float(p[2])), what)
@@ -920,6 +1016,9 @@ static func _forme(c: Check, v: Variant, what: String) -> bool:
 
 static func _check_carte(c: Check, d: Dictionary) -> void:
 	var what := "carte.json"
+	if not c.legacy and d.has("etages"):
+		_legacy_key(c, "etages", what)
+		return
 	if not _keys(c, d, {"format": 1, "id": 1, "nom": 1, "description": 1, "musique": 1, "hauteur_portes": 1, "lampes_auto": 1, "etages": 1,
 			MapCatalog.OVERLAP_KEY: 1}, what):
 		return
@@ -976,7 +1075,12 @@ static func _check_list_file(c: Check, d: Dictionary, file: String, key: String,
 
 
 static func _check_room(c: Check, e: Dictionary, what: String) -> void:
-	var rk: Dictionary = schema().room_keys
+	var rk: Dictionary = schema().room_keys_16 if c.legacy else schema().room_keys
+	if not c.legacy:
+		for k in ["etage", "double_hauteur"]:
+			if e.has(k):
+				_legacy_key(c, k, what)
+				return
 	if not _keys(c, e, rk, what):
 		return
 	_id(c, e.get("id"), what)
@@ -1060,7 +1164,16 @@ static func _check_element(c: Check, e: Dictionary, kind: Dictionary, what: Stri
 			"type":
 				pass
 			"etage":
-				_floor_index(c, e.etage, what)
+				if c.legacy:
+					_floor_index(c, e.etage, what)
+				else:
+					_legacy_key(c, "etage", what)
+					return
+			"altitude", "altitude_haut":
+				if c.legacy or (k == "altitude_haut" and String(e.get("type", "")) != "escalier"):
+					c.bad("%s : clé inconnue « %s »" % [what, k], "%s: unknown key \"%s\"" % [what, k])
+					return
+				_num(c, e[k], -INF, INF, "%s (%s)" % [what, k])
 			_:
 				if not (k is String and keys.has(k)):
 					c.bad("%s : clé inconnue « %s »" % [what, clean_display(str(k), 24)], "%s: unknown key \"%s\"" % [what, clean_display(str(k), 24)])

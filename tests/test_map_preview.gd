@@ -58,18 +58,18 @@ static func _base() -> EditorMap:
 	var doc := EditorMap.blank("apercu_test", "APERCU", "PREVIEW")
 	for r in [[0, 0, 14, 10], [14, 0, 24, 10]]:
 		var z := doc.add_zone("Salle", "Room")
-		doc.pieces.append({"id": doc.new_id("p"), "nom": "Salle", "etage": 0, "zone": String(z.id),
+		doc.pieces.append({"id": doc.new_id("p"), "nom": "Salle", "altitude": 0, "zone": String(z.id),
 			"contour": [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]]})
 	doc.depart = String(doc.zones[0].id)
 	for o in [{"type": "porte", "position": [14.0, 5.25], "largeur": 2.0, "prix": 750},
 			{"type": "fenetre", "position": [3.25, 0.0]}, {"type": "fenetre", "position": [19.25, 0.0]}]:
 		o["id"] = doc.new_id("o")
-		o["etage"] = 0
+		o["altitude"] = 0.0
 		doc.ouvertures.append(o)
 	for o in [{"type": "depart", "position": [9.0, 7.0]}, {"type": "boite", "position": [6.75, 10.0], "mur": "s", "depart": false},
 			{"type": "arme", "arme": "m14", "position": [11.25, 10.0], "mur": "s"}, {"type": "atout", "atout": "titan", "position": [24.0, 5.0], "mur": "e"}]:
 		o["id"] = doc.new_id("x")
-		o["etage"] = 0
+		o["altitude"] = 0.0
 		doc.objets.append(o)
 	return doc
 
@@ -137,7 +137,7 @@ func test_unfinished_map_is_shown() -> void:
 	# Une pièce seule : ni départ, ni fenêtre, ni boîte (carte en cours).
 	var doc := EditorMap.blank("en_cours", "EN COURS", "WIP")
 	var z := doc.add_zone("A", "A")
-	doc.pieces.append({"id": "p1", "nom": "A", "etage": 0, "zone": String(z.id), "contour": [[2, 2], [10, 2], [10, 8], [2, 8]]})
+	doc.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": String(z.id), "contour": [[2, 2], [10, 2], [10, 8], [2, 8]]})
 	var w := _world(doc)
 	w.rebuild_now()
 	assert_false(w.data.is_empty(), "description construite")
@@ -242,7 +242,7 @@ func test_display_options() -> void:
 ## masqué est ignoré.
 func test_pick_sees_through_unrendered_faces() -> void:
 	var doc := _base()
-	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [19.0, 5.0]})
+	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [19.0, 5.0]})
 	var w := _world(doc)
 	w.rebuild_now()
 	w.set_options({"ceil": false, "floors": MapPreviewWorld.Floors.ALL})
@@ -269,10 +269,9 @@ func test_pick_sees_through_unrendered_faces() -> void:
 	# Étage du dessus au-dessus de la salle B : choisi en vue de tous les
 	# étages, ignoré quand seul le rez-de-chaussée est montré.
 	var doc2 := _base()
-	doc2.objets.append({"id": "d1", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [19.0, 5.0]})
-	doc2.carte.etages.append({"sol": EditorMap.FLOOR_STEP, "hauteur": EditorMap.DEFAULT_CEILING})
+	doc2.objets.append({"id": "d1", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [19.0, 5.0]})
 	var z := doc2.add_zone("Haut", "Up")
-	doc2.pieces.append({"id": "p_haut", "nom": "Haut", "etage": 1, "zone": String(z.id), "contour": [[14, 0], [24, 0], [24, 10], [14, 10]]})
+	doc2.pieces.append({"id": "p_haut", "nom": "Haut", "altitude": 1 * EditorMap.FLOOR_STEP, "zone": String(z.id), "contour": [[14, 0], [24, 0], [24, 10], [14, 10]]})
 	var w2 := _world(doc2)
 	w2.rebuild_now()
 	w2.set_options({"ceil": false, "floors": MapPreviewWorld.Floors.ALL})
@@ -462,16 +461,16 @@ func test_update_time_on_a_50_room_map() -> void:
 			var x0 := 2.0 + col * 6.0
 			var y0 := 4.0 + row * 6.0
 			var z := doc.add_zone("S", "R")
-			doc.pieces.append({"id": doc.new_id("p"), "nom": "S", "etage": 0, "zone": String(z.id),
+			doc.pieces.append({"id": doc.new_id("p"), "nom": "S", "altitude": 0, "zone": String(z.id),
 				"contour": [[x0, y0], [x0 + 6, y0], [x0 + 6, y0 + 6], [x0, y0 + 6]]})
-			doc.ouvertures.append({"id": doc.new_id("o"), "etage": 0, "type": "fenetre", "position": [x0 + 3.25, y0 if row == 0 else y0 + 6]})
+			doc.ouvertures.append({"id": doc.new_id("o"), "altitude": 0, "type": "fenetre", "position": [x0 + 3.25, y0 if row == 0 else y0 + 6]})
 			if col > 0:
-				doc.ouvertures.append({"id": doc.new_id("o"), "etage": 0, "type": "porte", "position": [x0, y0 + 3.25], "largeur": 2.0, "prix": 750})
-			doc.objets.append({"id": doc.new_id("lu"), "etage": 0, "type": "luminaire", "luminaire": "suspension", "position": [x0 + 3, y0 + 3], "rot": 0,
+				doc.ouvertures.append({"id": doc.new_id("o"), "altitude": 0, "type": "porte", "position": [x0, y0 + 3.25], "largeur": 2.0, "prix": 750})
+			doc.objets.append({"id": doc.new_id("lu"), "altitude": 0, "type": "luminaire", "luminaire": "suspension", "position": [x0 + 3, y0 + 3], "rot": 0,
 				"couleur": "#ffc88a", "intensite": 2.0, "portee": 8.0, "courant": true, "vacille": false})
-	doc.ouvertures.append({"id": doc.new_id("o"), "etage": 0, "type": "porte", "position": [5.25, 10.0], "largeur": 2.0, "prix": 750})
+	doc.ouvertures.append({"id": doc.new_id("o"), "altitude": 0, "type": "porte", "position": [5.25, 10.0], "largeur": 2.0, "prix": 750})
 	doc.depart = String(doc.zones[0].id)
-	doc.objets.append({"id": doc.new_id("s"), "etage": 0, "type": "depart", "position": [5.0, 7.0]})
+	doc.objets.append({"id": doc.new_id("s"), "altitude": 0, "type": "depart", "position": [5.0, 7.0]})
 	var w := _world(doc)
 	w.auto = true
 	w.active = true
@@ -489,7 +488,7 @@ func test_update_time_on_a_50_room_map() -> void:
 	print("    [apercu] 50 pieces : conversion %.0f ms (fil de travail), construction %.0f ms en %d etapes (plus longue %.0f ms), delai total %.0f ms, pire image %.0f ms" % [
 		w.last_times.thread, w.last_times.apply, w.last_times.parts.size() + 2, w.last_times.step_max, w.last_times.total, worst])
 	# Une lampe de plus : seules les lampes (rapide).
-	doc.objets.append({"id": doc.new_id("lu"), "etage": 0, "type": "luminaire", "luminaire": "ampoule", "position": [8.0, 6.0], "rot": 0,
+	doc.objets.append({"id": doc.new_id("lu"), "altitude": 0, "type": "luminaire", "luminaire": "ampoule", "position": [8.0, 6.0], "rot": 0,
 		"couleur": "#ffc88a", "intensite": 2.0, "portee": 8.0, "courant": true, "vacille": false})
 	t0 = Time.get_ticks_msec()
 	while w.builds == 1 and Time.get_ticks_msec() - t0 < 60000:

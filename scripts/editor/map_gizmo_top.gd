@@ -41,7 +41,7 @@ func target() -> Dictionary:
 	if cv.offscreen or ed().tool() != "select" or ed().group.size() >= 2:
 		return {}
 	var e := ed().doc.find(ed().selected)
-	if e.is_empty() or int(e.get("etage", 0)) != ed().floor_k:
+	if e.is_empty() or ed().doc.level_of(e) != ed().floor_k:
 		return {}
 	return e
 

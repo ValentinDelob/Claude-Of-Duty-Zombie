@@ -494,7 +494,7 @@ func test_prefab_dialog_rereads_selection_and_refuses_floors() -> void:
 	ed.add_floor()
 	ed.set_floor(0)
 	var up := DecorFree._obj(ed.doc, {"type": "prefab", "prefab": "caisses", "position": [4.0, 5.5], "rot": 0})
-	up["etage"] = 1
+	up["altitude"] = 1 * EditorMap.FLOOR_STEP
 	ed.changed()
 	ed.select_many([c, String(up.id)])
 	assert_eq(ed.prefab_tools.create_dialog_for(ed.sel_ids()), null, "deux étages : refusé")

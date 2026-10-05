@@ -29,7 +29,7 @@ func after_each() -> void:
 
 
 static func _o(prefab: String, extra := {}) -> Dictionary:
-	var o := {"id": "d1", "type": "prefab", "prefab": prefab, "etage": 0, "position": [5.0, 5.0]}
+	var o := {"id": "d1", "type": "prefab", "prefab": prefab, "altitude": 0, "position": [5.0, 5.0]}
 	o.merge(extra, true)
 	return o
 
@@ -155,11 +155,11 @@ func test_format_14_round_trip_and_older_maps() -> void:
 	# Carte au format 13 : lue telle quelle (objets identiques), réécrite au format 14.
 	var old := DecorFree.two_rooms()
 	DecorFree._obj(old, {"type": "prefab", "prefab": "caisses", "position": [4.0, 4.0], "rot": 90})
-	var t13 := old.file_texts()
-	t13["carte.json"] = String(t13["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 13")
+	var t17 := old.file_texts()
+	var t13: Dictionary = load("res://tests/test_levels_migration.gd").as_format(t17, 13)
 	var m13 := EditorMap.from_texts(t13)
 	assert_eq(m13.format_read, 13)
-	assert_eq(m13.file_texts()["objets.json"], t13["objets.json"], "objets d'une carte 13 inchangés")
+	assert_eq(m13.file_texts()["objets.json"], t17["objets.json"], "objets d'une carte 13 inchangés (étage converti en altitude)")
 	# Carte au format 14 lue par un jeu au format 13 : refusée (format plus récent).
 	assert_true(CustomMapGuard.check_texts(texts).ok, "carte au format 14 acceptée par ce jeu")
 
@@ -284,7 +284,7 @@ func test_rules_with_scale_and_tilt() -> void:
 	MapScale.set_incl(b2, Vector2(0, 10))
 	assert_true(MapScale.check(doc, v, b2, beam).ok, "10° : tient sous le plafond (%s)" % str(MapScale.check(doc, v, b2, beam)))
 	# Pack-a-Punch : refus qui le nomme ; carte d'un prefab bloqué.
-	var pap := {"id": "x99", "type": "pap", "etage": 0, "position": [3.0, 0.0], "mur": "n", "echelle": [2, 2, 2]}
+	var pap := {"id": "x99", "type": "pap", "altitude": 0, "position": [3.0, 0.0], "mur": "n", "echelle": [2, 2, 2]}
 	assert_false(MapScale.check(doc, v, pap).ok)
 	# Agrandie, la pile de caisses chevauche le bureau.
 	var cr := DecorFree._obj(doc, {"type": "prefab", "prefab": "caisses", "position": [7.0, 4.0]})

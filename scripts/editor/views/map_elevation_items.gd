@@ -72,10 +72,10 @@ static func _sol(v: MapValidator, k: int) -> float:
 	return v.floors[k].sol
 
 
-## Pièce : du sol au plafond réel le plus haut de ses cases (double hauteur :
-## jusqu'au plafond de l'étage du dessus ; sous une dalle : son dessous).
+## Pièce : du sol au plafond réel le plus haut de ses cases (pièce haute :
+## jusqu'à son plafond, au-dessus du niveau suivant ; sous une dalle : son dessous).
 static func _room(doc: EditorMap, v: MapValidator, p: Dictionary) -> Dictionary:
-	var k := int(p.get("etage", 0))
+	var k := doc.level_of(p)
 	if not _floor_ok(v, k):
 		return {}
 	var poly := doc.room_poly(p)
@@ -88,9 +88,11 @@ static func _room(doc: EditorMap, v: MapValidator, p: Dictionary) -> Dictionary:
 
 ## Plafond réel (m, absolu) d'une pièce : le plus haut de ses cases.
 static func room_top(doc: EditorMap, v: MapValidator, p: Dictionary) -> float:
-	var k := int(p.get("etage", 0))
+	var k := doc.level_of(p)
 	var poly := doc.room_poly(p)
-	var own := doc.floor_sol(k) + float(p.get("plafond", doc.floor_height(k)))
+	var own := EditorMap.room_top(p)
+	if k < 0:
+		return own
 	var top := -INF
 	var cells: Array = MapRaster.room_cells(poly)[1]
 	for c in cells:
@@ -104,7 +106,7 @@ static func room_top(doc: EditorMap, v: MapValidator, p: Dictionary) -> float:
 
 ## Contour (m) d'une ouverture : sa largeur le long de son mur, l'épaisseur du mur en travers.
 static func opening_poly(doc: EditorMap, o: Dictionary) -> PackedVector2Array:
-	var k := int(o.get("etage", 0))
+	var k := doc.level_of(o)
 	var p := MapGeom.v2(o.get("position", [0, 0]))
 	var dir := Vector2.ZERO
 	var best := 0.06
@@ -128,7 +130,7 @@ static func opening_poly(doc: EditorMap, o: Dictionary) -> PackedVector2Array:
 ## Porte, débris, porte du courant : de 0 à `hauteur_portes` ; fenêtre : de
 ## l'allège au linteau (porte à zombies : 2,1 m) ; passage : jusqu'au plafond.
 static func _opening(doc: EditorMap, v: MapValidator, o: Dictionary) -> Dictionary:
-	var k := int(o.get("etage", 0))
+	var k := doc.level_of(o)
 	if not _floor_ok(v, k):
 		return {}
 	var t := String(o.get("type", ""))
@@ -155,7 +157,7 @@ static func _opening(doc: EditorMap, v: MapValidator, o: Dictionary) -> Dictiona
 ## Objets : piliers, murs, escaliers, pièges, objets muraux et au sol, décor,
 ## luminaires, effets, barrières invisibles.
 static func _object(doc: EditorMap, v: MapValidator, o: Dictionary) -> Dictionary:
-	var k := int(o.get("etage", 0))
+	var k := doc.level_of(o)
 	if not _floor_ok(v, k):
 		return {}
 	var t := String(o.get("type", ""))
@@ -209,13 +211,13 @@ static func _object(doc: EditorMap, v: MapValidator, o: Dictionary) -> Dictionar
 
 
 ## Haut (m, absolu) d'un pilier ou d'un mur libre : le haut des murs de sa
-## case ; dans une double hauteur, il monte jusqu'en haut de l'étage du dessus
+## case ; dans une pièce haute, il monte jusqu'en haut du niveau du dessus
 ## (MapRaster le prolonge dans la trémie).
 static func obstacle_top(doc: EditorMap, v: MapValidator, k: int, c: Vector2) -> float:
 	var cell := MapVertical.cell(c)
 	var top := MapVertical.wall_top(v, k, cell)
 	var kk := k
-	while kk + 1 < v.floors.size() and v.floors[kk + 1].at(cell) == MapValidator.K.MUR 			and doc.rooms_on(kk).any(func(p): return bool(p.get("double_hauteur", false)) and MapGeom.contains(doc.room_poly(p), c)):
+	while kk + 1 < v.floors.size() and v.floors[kk + 1].at(cell) == MapValidator.K.MUR 			and doc.rooms_through(kk + 1).any(func(p): return MapGeom.contains(doc.room_poly(p), c)):
 		kk += 1
 		top = MapVertical.wall_top(v, kk, cell)
 	return top

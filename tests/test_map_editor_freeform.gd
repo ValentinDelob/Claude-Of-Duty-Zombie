@@ -49,26 +49,26 @@ static func round_map() -> EditorMap:
 	var zb := doc.add_zone("Annexe", "Annex")
 	var forme := {"type": "cercle", "centre": [16.0, 16.0], "rx": 13.0, "points": 32, "angle": 0}
 	var circle := MapShapes.outline(forme)
-	doc.pieces.append({"id": "p1", "nom": "Salle ronde", "etage": 0, "zone": za.id, "contour": MapGeom.poly_arr(circle), "forme": forme})
+	doc.pieces.append({"id": "p1", "nom": "Salle ronde", "altitude": 0, "zone": za.id, "contour": MapGeom.poly_arr(circle), "forme": forme})
 	var e := east_edge(circle)
 	var top: Vector2 = e[0]
 	var bottom: Vector2 = e[1]
 	var annex := PackedVector2Array([top, MapGeom.round_cm(top + Vector2(8, 0)), MapGeom.round_cm(bottom + Vector2(8, 0)), bottom])
-	doc.pieces.append({"id": "p2", "nom": "Annexe", "etage": 0, "zone": zb.id, "contour": MapGeom.poly_arr(annex), "surface_murs": "brick"})
+	doc.pieces.append({"id": "p2", "nom": "Annexe", "altitude": 0, "zone": zb.id, "contour": MapGeom.poly_arr(annex), "surface_murs": "brick"})
 	doc.depart = String(za.id)
 	var r := MapRules.place_opening(doc, 0, "porte", (top + bottom) * 0.5, 1.5)
-	doc.ouvertures.append({"id": "o1", "type": "porte", "etage": 0, "position": r.position, "largeur": 1.5, "prix": 750})
+	doc.ouvertures.append({"id": "o1", "type": "porte", "altitude": 0, "position": r.position, "largeur": 1.5, "prix": 750})
 	for pt in [Vector2(6.6, 6.6), (top + bottom) * 0.5 + Vector2(8.3, 0)]:
 		var w := MapRules.place_opening(doc, 0, "fenetre", pt, 1.0)
-		doc.ouvertures.append({"id": doc.new_id("o"), "type": "fenetre", "etage": 0, "position": w.position})
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [18.0, 18.0]})
-	doc.objets.append({"id": "x1", "type": "pilier", "etage": 0, "rect": [9.0, 17.0, 11.0, 19.0], "rot": 30})
-	doc.objets.append({"id": "m1", "type": "mur_courbe", "etage": 0, "centre": [16.0, 16.0], "rayon": 7.0, "debut": 290.0, "ouverture": 100.0,
+		doc.ouvertures.append({"id": doc.new_id("o"), "type": "fenetre", "altitude": 0, "position": w.position})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [18.0, 18.0]})
+	doc.objets.append({"id": "x1", "type": "pilier", "altitude": 0, "rect": [9.0, 17.0, 11.0, 19.0], "rot": 30})
+	doc.objets.append({"id": "m1", "type": "mur_courbe", "altitude": 0, "centre": [16.0, 16.0], "rayon": 7.0, "debut": 290.0, "ouverture": 100.0,
 		"segments": 8, "epaisseur": 0.5})
 	var box := {"type": "boite", "depart": false}
 	var res := MapRules.place_wall_item(doc, 0, box, (top + bottom) * 0.5 + Vector2(4.0, -0.9))
 	box["id"] = "b1"
-	box["etage"] = 0
+	box["altitude"] = 0.0
 	box["position"] = res.position
 	MapRules.apply_wall(box, res)
 	doc.objets.append(box)
@@ -151,7 +151,7 @@ func test_snap_modes() -> void:
 	assert_near(MapSnap.next_fine(0.1), 0.5, 0.0001)
 	# Aimants de la carte (mode libre) : sommet d'abord, sinon un point du côté.
 	var doc := EditorMap.blank()
-	doc.pieces.append({"id": "p1", "etage": 0, "zone": "z1", "contour": [[2, 2], [10, 2], [10, 8], [2, 8]]})
+	doc.pieces.append({"id": "p1", "altitude": 0, "zone": "z1", "contour": [[2, 2], [10, 2], [10, 8], [2, 8]]})
 	var mg := MapSnap.magnet(doc, 0, Vector2(10.1, 8.05), 0.3)
 	assert_true(not mg.is_empty() and mg.kind == "sommet" and Vector2(mg.p) == Vector2(10, 8), "aimant : sommet %s" % str(mg))
 	mg = MapSnap.magnet(doc, 0, Vector2(6.07, 8.12), 0.3)
@@ -335,10 +335,10 @@ func test_change_points_of_placed_shape() -> void:
 	var doc := EditorMap.blank()
 	var z := doc.add_zone("Rond", "Round")
 	var forme := {"type": "cercle", "centre": [12.0, 12.0], "rx": 8.0, "points": 24, "angle": 0}
-	doc.pieces.append({"id": "p1", "nom": "Rond", "etage": 0, "zone": z.id, "contour": MapGeom.poly_arr(MapShapes.outline(forme)), "forme": forme})
+	doc.pieces.append({"id": "p1", "nom": "Rond", "altitude": 0, "zone": z.id, "contour": MapGeom.poly_arr(MapShapes.outline(forme)), "forme": forme})
 	var w := MapRules.place_opening(doc, 0, "fenetre", Vector2(12, 20.4), 1.0)
 	assert_true(w.ok, "fenêtre sur le côté sud : %s" % str(w))
-	doc.ouvertures.append({"id": "o1", "type": "fenetre", "etage": 0, "position": w.get("position", [0, 0])})
+	doc.ouvertures.append({"id": "o1", "type": "fenetre", "altitude": 0, "position": w.get("position", [0, 0])})
 	var room := doc.find("p1")
 	var f: Dictionary = room.forme.duplicate(true)
 	f["points"] = 12
@@ -352,7 +352,7 @@ func test_change_points_of_placed_shape() -> void:
 	assert_true(round_ok, "rayon gardé")
 	assert_true(MapRules.check_existing(doc, doc.find("o1")).ok, "la fenêtre reste sur son mur (%s)" % str(doc.find("o1").position))
 	# Refus : la forme agrandie chevaucherait une autre pièce ; rien ne change.
-	doc.pieces.append({"id": "p2", "nom": "Voisine", "etage": 0, "zone": z.id, "contour": [[21, 4], [26, 4], [26, 20], [21, 20]]})
+	doc.pieces.append({"id": "p2", "nom": "Voisine", "altitude": 0, "zone": z.id, "contour": [[21, 4], [26, 4], [26, 20], [21, 20]]})
 	var before := doc.file_texts()
 	f["rx"] = 12.0
 	assert_false(MapTransform.regenerate(doc, doc.find("p1"), f).ok, "agrandie sur la pièce voisine : refusée")
@@ -373,16 +373,16 @@ func test_change_points_of_placed_shape() -> void:
 func _room_with_content() -> EditorMap:
 	var doc := EditorMap.blank()
 	var z := doc.add_zone("A", "A")
-	doc.pieces.append({"id": "p1", "nom": "A", "etage": 0, "zone": z.id, "contour": [[4, 4], [16, 4], [16, 12], [4, 12]]})
+	doc.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": z.id, "contour": [[4, 4], [16, 4], [16, 12], [4, 12]]})
 	var perk := {"type": "atout", "atout": "titan"}
 	var r := MapRules.place_wall_item(doc, 0, perk, Vector2(10, 4.6))
-	perk.merge({"id": "a1", "etage": 0, "position": r.get("position", [0, 0])})
+	perk.merge({"id": "a1", "altitude": 0, "position": r.get("position", [0, 0])})
 	MapRules.apply_wall(perk, r)
 	doc.objets.append(perk)
-	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "bureau", "etage": 0, "position": [8.0, 8.0], "rot": 0})
-	doc.objets.append({"id": "x1", "type": "pilier", "etage": 0, "rect": [12.0, 7.0, 13.0, 9.0]})
+	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "bureau", "altitude": 0, "position": [8.0, 8.0], "rot": 0})
+	doc.objets.append({"id": "x1", "type": "pilier", "altitude": 0, "rect": [12.0, 7.0, 13.0, 9.0]})
 	var w := MapRules.place_opening(doc, 0, "fenetre", Vector2(10, 12.3), 1.0)
-	doc.ouvertures.append({"id": "o1", "type": "fenetre", "etage": 0, "position": w.get("position", [0, 0])})
+	doc.ouvertures.append({"id": "o1", "type": "fenetre", "altitude": 0, "position": w.get("position", [0, 0])})
 	return doc
 
 
@@ -441,7 +441,7 @@ func test_free_rotation_of_objects() -> void:
 		assert_near(Vector2(boxes[0].t).angle(), deg_to_rad(30.0), 0.001, "pavé tourné de 30°")
 		assert_near(float(boxes[0].half), 1.25, 0.001, "contour sur le trait : 2 m + 0,5 m de mur")
 	# Rotation refusée (le pilier sortirait de la pièce) : rien ne change.
-	var big := {"id": "x2", "type": "pilier", "etage": 0, "rect": [4.5, 5.0, 15.5, 6.0]}
+	var big := {"id": "x2", "type": "pilier", "altitude": 0, "rect": [4.5, 5.0, 15.5, 6.0]}
 	doc.objets.append(big)
 	var before := doc.file_texts()
 	res = MapTransform.apply(doc, big.duplicate(true), [], MapTransform.pivot(doc, big), 45.0, doc.snapshot())
@@ -508,10 +508,10 @@ func test_shared_wall_off_grid_with_tolerance() -> void:
 	# Deux pièces tracées sans grille, collées par un côté en biais à 3 mm près.
 	var a := PackedVector2Array([Vector2(2.13, 3.07), Vector2(9.41, 2.52), Vector2(10.33, 9.18), Vector2(3.02, 9.9)])
 	var b := PackedVector2Array([Vector2(9.412, 2.523), Vector2(16.2, 3.1), Vector2(15.8, 9.4), Vector2(10.332, 9.177)])
-	doc.pieces.append({"id": "p1", "nom": "A", "etage": 0, "zone": za.id, "contour": MapGeom.poly_arr(a)})
+	doc.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": za.id, "contour": MapGeom.poly_arr(a)})
 	assert_false(MapGeom.overlap(a, b), "collées à 3 mm près : pas de chevauchement")
 	assert_true(MapRules.check_room(doc, 0, b).ok, "pièce B acceptée contre A")
-	doc.pieces.append({"id": "p2", "nom": "B", "etage": 0, "zone": zb.id, "contour": MapGeom.poly_arr(b)})
+	doc.pieces.append({"id": "p2", "nom": "B", "altitude": 0, "zone": zb.id, "contour": MapGeom.poly_arr(b)})
 	assert_eq(MapGeom.common_segments(a, b).size(), 1, "un bord commun malgré l'écart")
 	var v := MapRaster.build(doc).v
 	var common: Array = v.oblique_walls[0].filter(func(w): return w.kind == "piece" and w.pos != "" and w.neg != "")
@@ -523,14 +523,14 @@ func test_shared_wall_off_grid_with_tolerance() -> void:
 	var d2 := EditorMap.blank()
 	var zg := d2.add_zone("G", "G")
 	var zf := d2.add_zone("F", "F")
-	d2.pieces.append({"id": "g1", "nom": "G", "etage": 0, "zone": zg.id, "contour": [[0, 0], [10, 0], [10, 10], [0, 10]]})
-	d2.pieces.append({"id": "f1", "nom": "F", "etage": 0, "zone": zf.id, "contour": [[10, 3.37], [15.23, 3.37], [15.23, 7.81], [10, 7.81]]})
+	d2.pieces.append({"id": "g1", "nom": "G", "altitude": 0, "zone": zg.id, "contour": [[0, 0], [10, 0], [10, 10], [0, 10]]})
+	d2.pieces.append({"id": "f1", "nom": "F", "altitude": 0, "zone": zf.id, "contour": [[10, 3.37], [15.23, 3.37], [15.23, 7.81], [10, 7.81]]})
 	var v2 := MapRaster.build(d2).v
 	var along: Array = v2.oblique_walls[0].filter(func(w): return absf(Vector2(w.a).x - 10.0) < 0.05 and absf(Vector2(w.b).x - 10.0) < 0.05)
 	assert_eq(along.size(), 0, "pas de mur oblique en double sur le mur de la grille")
 	var r2 := MapRules.place_opening(d2, 0, "porte", Vector2(10.1, 5.6), 2.0)
 	assert_true(r2.ok and not r2.has("dir") and absf(float(r2.get("position", [0, 0])[0]) - 10.0) < 0.001, "porte dans le mur de la grille : %s" % str(r2))
-	d2.ouvertures.append({"id": "o1", "type": "porte", "etage": 0, "position": r2.get("position", [10, 5.5]), "largeur": 2.0, "prix": 750})
+	d2.ouvertures.append({"id": "o1", "type": "porte", "altitude": 0, "position": r2.get("position", [10, 5.5]), "largeur": 2.0, "prix": 750})
 	var f2: MapValidator.Floor = MapRaster.build(d2).v.floors[0]
 	var cell := MapGeom.cell_of(MapGeom.v2(d2.ouvertures[0].position))
 	assert_eq(f2.at(cell), MapValidator.K.PORTE, "porte dans les cases du mur de la grille")
@@ -545,18 +545,18 @@ static func slanted_map() -> EditorMap:
 	var zb := doc.add_zone("Est", "East")
 	var p := Vector2(12, 3)
 	var q := MapGeom.round_cm(MapGeom.polar(p, 12.0, -73.0))
-	doc.pieces.append({"id": "p1", "nom": "Ouest", "etage": 0, "zone": za.id, "contour": MapGeom.poly_arr(PackedVector2Array([Vector2(2, 3), p, q, Vector2(2, q.y)]))})
-	doc.pieces.append({"id": "p2", "nom": "Est", "etage": 0, "zone": zb.id, "contour": MapGeom.poly_arr(PackedVector2Array([p, Vector2(24, 3), Vector2(24, q.y), q]))})
+	doc.pieces.append({"id": "p1", "nom": "Ouest", "altitude": 0, "zone": za.id, "contour": MapGeom.poly_arr(PackedVector2Array([Vector2(2, 3), p, q, Vector2(2, q.y)]))})
+	doc.pieces.append({"id": "p2", "nom": "Est", "altitude": 0, "zone": zb.id, "contour": MapGeom.poly_arr(PackedVector2Array([p, Vector2(24, 3), Vector2(24, q.y), q]))})
 	doc.depart = String(za.id)
 	var r := MapRules.place_opening(doc, 0, "porte", (p + q) * 0.5, 2.0)
-	doc.ouvertures.append({"id": "o1", "type": "porte", "etage": 0, "position": r.get("position", [0, 0]), "largeur": 2.0, "prix": 750})
+	doc.ouvertures.append({"id": "o1", "type": "porte", "altitude": 0, "position": r.get("position", [0, 0]), "largeur": 2.0, "prix": 750})
 	for pt in [Vector2(4, 2.7), Vector2(20, 2.7)]:
 		var w := MapRules.place_opening(doc, 0, "fenetre", pt, 1.0)
-		doc.ouvertures.append({"id": doc.new_id("o"), "type": "fenetre", "etage": 0, "position": w.get("position", [0, 0])})
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [5.0, 11.0]})
+		doc.ouvertures.append({"id": doc.new_id("o"), "type": "fenetre", "altitude": 0, "position": w.get("position", [0, 0])})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [5.0, 11.0]})
 	var box := {"type": "boite", "depart": false}
 	var res := MapRules.place_wall_item(doc, 0, box, Vector2(18, q.y - 0.6))
-	box.merge({"id": "b1", "etage": 0, "position": res.get("position", [0, 0])})
+	box.merge({"id": "b1", "altitude": 0, "position": res.get("position", [0, 0])})
 	MapRules.apply_wall(box, res)
 	doc.objets.append(box)
 	return doc
@@ -707,27 +707,26 @@ func test_round_room_navigation() -> void:
 
 static func stairs_map() -> EditorMap:
 	var doc := EditorMap.blank("escalier", "ESCALIER", "STAIRS")
-	doc.carte.etages.append({"sol": 3.5, "hauteur": 3.2})
 	var za := doc.add_zone("Bas", "Down")
 	var zb := doc.add_zone("Haut", "Up")
-	doc.pieces.append({"id": "p1", "nom": "Bas", "etage": 0, "zone": za.id, "contour": [[0, 0], [20, 0], [20, 16], [0, 16]]})
-	doc.pieces.append({"id": "p2", "nom": "Haut", "etage": 1, "zone": zb.id, "contour": [[0, 0], [20, 0], [20, 16], [0, 16]]})
+	doc.pieces.append({"id": "p1", "nom": "Bas", "altitude": 0, "zone": za.id, "contour": [[0, 0], [20, 0], [20, 16], [0, 16]]})
+	doc.pieces.append({"id": "p2", "nom": "Haut", "altitude": 1 * EditorMap.FLOOR_STEP, "zone": zb.id, "contour": [[0, 0], [20, 0], [20, 16], [0, 16]]})
 	doc.depart = String(za.id)
-	doc.objets.append({"id": "e1", "type": "escalier", "etage": 0, "rect": [6.75, 4.5, 9.25, 11.5], "monte": "n", "rot": 30})
+	doc.objets.append({"id": "e1", "type": "escalier", "altitude": 0, "rect": [6.75, 4.5, 9.25, 11.5], "monte": "n", "rot": 30})
 	for k in 2:
 		for x in [3.0, 17.0]:
 			var w := MapRules.place_opening(doc, k, "fenetre", Vector2(x, -0.3), 1.0)
-			doc.ouvertures.append({"id": doc.new_id("o"), "type": "fenetre", "etage": k, "position": w.get("position", [0, 0])})
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [15.0, 13.0]})
+			doc.ouvertures.append({"id": doc.new_id("o"), "type": "fenetre", "altitude": k * EditorMap.FLOOR_STEP, "position": w.get("position", [0, 0])})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [15.0, 13.0]})
 	var box := {"type": "boite", "depart": false}
 	var r := MapRules.place_wall_item(doc, 0, box, Vector2(14, 15.4))
-	box.merge({"id": "b1", "etage": 0, "position": r.get("position", [0, 0])})
+	box.merge({"id": "b1", "altitude": 0, "position": r.get("position", [0, 0])})
 	MapRules.apply_wall(box, r)
 	doc.objets.append(box)
-	doc.objets.append({"id": "t1", "type": "piege", "etage": 0, "rect": [13.0, 5.0, 16.0, 9.0], "rot": 20})
+	doc.objets.append({"id": "t1", "type": "piege", "altitude": 0, "rect": [13.0, 5.0, 16.0, 9.0], "rot": 20})
 	var lv := {"type": "levier"}
 	var rl := MapRules.place_wall_item(doc, 0, lv, Vector2(19.4, 7.0))
-	lv.merge({"id": "l1", "etage": 0, "position": rl.get("position", [0, 0])})
+	lv.merge({"id": "l1", "altitude": 0, "position": rl.get("position", [0, 0])})
 	MapRules.apply_wall(lv, rl)
 	doc.objets.append(lv)
 	return doc
@@ -777,7 +776,7 @@ func test_rotated_stairs_and_trap() -> void:
 
 func test_format_4_round_trip_and_older_formats() -> void:
 	var doc := round_map()
-	doc.objets.append({"id": "d9", "type": "prefab", "prefab": "chaise", "etage": 0, "position": [20.0, 21.0], "rot": 37})
+	doc.objets.append({"id": "d9", "type": "prefab", "prefab": "chaise", "altitude": 0, "position": [20.0, 21.0], "rot": 37})
 	var t := doc.file_texts()
 	# Format 5 (variantes, barrière) : les clés du format 4 sont écrites telles quelles.
 	assert_true(EditorMap.FORMAT >= 4 and String(t["carte.json"]).contains("\"format\": %d" % EditorMap.FORMAT), "format courant (%d), au moins 4" % EditorMap.FORMAT)
@@ -794,7 +793,7 @@ func test_format_4_round_trip_and_older_formats() -> void:
 	for fmt in [2, 3]:
 		var m := _with_format(diag, fmt)
 		assert_true(m.load_errors.is_empty() and m.format_read == fmt and _check(m).ok(), "format %d lu et jouable" % fmt)
-	var draft := EditorMap.load_dir("res://assets/maps/draft_arena/")
+	var draft := EditorMap.load_dir("res://tests/fixtures/maps/legacy_draft_arena/")
 	assert_eq(draft.format_read, 1, "DRAFT ARENA : format 1")
 	var lang := Settings.language
 	Settings.language = "fr"

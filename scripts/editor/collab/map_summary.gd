@@ -20,6 +20,8 @@ extends RefCounted
 ## Le document est un instantané de carte (EditorMap.snapshot() ou son JSON) :
 ## {carte, pieces, ouvertures, objets, zones, depart}.
 
+## Clé d'étage des cartes d'avant le format 17 (lue pour les références du script Python).
+const LEGACY_FLOOR := "etage"
 const EPS := 0.001
 const JOIN_TOL := 0.03
 const CELL := 0.5
@@ -744,6 +746,7 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 	var ouvertures := _dicts(doc, "ouvertures")
 	var objets := _dicts(doc, "objets")
 	var zones := _dicts(doc, "zones")
+	_setup_levels(doc)
 	var dep: Variant = doc.get("depart")
 	var depart := "" if _falsy(dep) else _pystr(dep)
 	var etages: Array = carte.get("etages") if carte.get("etages") is Array and not carte.etages.is_empty() \
@@ -752,20 +755,20 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 	var rooms := []
 	for p: Dictionary in pieces:
 		var poly := pts(p.get("contour"))
-		rooms.append({"id": _pystr(p.get("id", "")), "poly": poly, "k": _int(p.get("etage")), "src": p,
+		rooms.append({"id": _pystr(p.get("id", "")), "poly": poly, "k": _k(p), "src": p,
 			"bbox": bbox(poly)})
 
-	var n_floors := etages.size()
+	var n_floors := etages.size() if _legacy else _lv.size()
 	for r: Dictionary in rooms:
 		n_floors = maxi(n_floors, r.k + 1)
 	for o: Dictionary in ouvertures + objets:
-		n_floors = maxi(n_floors, _int(o.get("etage")) + 1)
+		n_floors = maxi(n_floors, _k(o) + 1)
 
 	var floors_out := []
 	for k in n_floors:
 		if floor != -1 and k != floor:
 			continue
-		var f: Dictionary = etages[k] if k < etages.size() and etages[k] is Dictionary else {}
+		var f: Dictionary = etages[k] if _legacy and k < etages.size() and etages[k] is Dictionary else {}
 		var on := rooms.filter(func(r: Dictionary) -> bool: return r.k == k)
 		var out_rooms := []
 		var all_pts := []
@@ -778,7 +781,7 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 				"bbox": (r.bbox as Array).map(func(v: float) -> float: return r2(v)), "surface": r2(area(poly))}
 			if not is_axis_rect(poly):
 				e["contour"] = poly.map(func(q: Array) -> Array: return rp(q))
-			for key: String in ["plafond", "double_hauteur", "forme"]:
+			for key: String in (["plafond", "double_hauteur", "forme"] if _legacy else ["altitude", "plafond", "forme"]):
 				if p.has(key):
 					if key == "forme" and p[key] is Dictionary:
 						e[key] = p[key].get("type")
@@ -813,7 +816,7 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 
 		var out_open := []
 		for o: Dictionary in ouvertures:
-			if _int(o.get("etage")) != k:
+			if _k(o) != k:
 				continue
 			var pp := pts([o.get("position")])
 			var e := {"id": _pystr(o.get("id", "")), "type": _pystr(o.get("type", ""))}
@@ -828,7 +831,7 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 
 		var by_type := {}
 		for o: Dictionary in objets:
-			if _int(o.get("etage")) != k:
+			if _k(o) != k:
 				continue
 			var e := {"id": _pystr(o.get("id", ""))}
 			e.merge(_obj_place(o), true)
@@ -840,9 +843,14 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 				by_type[t] = []
 			by_type[t].append(e)
 
-		floors_out.append({"etage": k, "sol": _num(f.get("sol", k * 3.5)), "hauteur": _num(f.get("hauteur", 3.2)),
-			"bornes": bbox(all_pts).map(func(v: float) -> float: return r2(v)), "pieces": out_rooms,
-			"ouvertures": out_open, "objets": by_type})
+		var bornes := bbox(all_pts).map(func(v: float) -> float: return r2(v))
+		if _legacy:
+			floors_out.append({"etage": k, "sol": _num(f.get("sol", k * 3.5)), "hauteur": _num(f.get("hauteur", 3.2)),
+				"bornes": bornes, "pieces": out_rooms, "ouvertures": out_open, "objets": by_type})
+		else:
+			# Format 17 : niveaux = altitudes distinctes des pièces.
+			floors_out.append({"niveau": k, "altitude": _num(EditorMap.level_alt_in(_lv, k)),
+				"bornes": bornes, "pieces": out_rooms, "ouvertures": out_open, "objets": by_type})
 
 	var zones_out := []
 	for z: Dictionary in zones:
@@ -864,6 +872,16 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 		if _pystr(o.get("type", "")) in ["porte", "debris"]:
 			n_paid += 1
 			cost += _int(o.get("prix"))
+	if not _legacy:
+		return {
+			"carte": {"id": carte.get("id"), "nom": carte.get("nom"), "format": carte.get("format"),
+				"niveaux": _lv.size(), "zone_depart": depart},
+			"totaux": {"pieces": pieces.size(), "ouvertures": ouvertures.size(), "objets": objets.size(),
+				"zones": zones.size(), "portes_payantes": n_paid, "cout_total_portes": cost},
+			"niveaux": floors_out,
+			"zones": zones_out,
+			"unites": UNITES,
+		}
 	return {
 		"carte": {"id": carte.get("id"), "nom": carte.get("nom"), "format": carte.get("format"),
 			"etages": etages.size(), "zone_depart": depart},
@@ -873,6 +891,46 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 		"zones": zones_out,
 		"unites": UNITES,
 	}
+
+
+# ------------------------------------------------------------------ niveaux (format 17)
+
+## Carte lue avec ses étages d'avant le format 17 (références du script
+## Python d'origine : tests/fixtures/map_summary) ? Sinon : niveaux par altitude.
+static var _legacy := true
+## Format 17 : niveaux (altitudes distinctes des pièces, triées).
+static var _lv: Array = [0.0]
+
+
+static func _setup_levels(doc: Dictionary) -> void:
+	var carte: Dictionary = doc.get("carte") if doc.get("carte") is Dictionary else {}
+	_legacy = EditorMap.has_legacy_levels(carte, _dicts(doc, "pieces"), _dicts(doc, "ouvertures"), _dicts(doc, "objets"))
+	var alts := []
+	for p: Dictionary in _dicts(doc, "pieces"):
+		alts.append(EditorMap.alt_of(p))
+	_lv = EditorMap.merge_alts(alts)
+	if _lv.is_empty():
+		_lv = [0.0]
+
+
+## Niveau (indice) d'un élément : son ancien étage, ou (format 17) l'indice de
+## son altitude parmi les niveaux (-1 : aucune pièce à cette altitude).
+static func _k(o: Variant) -> int:
+	if not o is Dictionary:
+		return 0
+	var d: Dictionary = o
+	if _legacy:
+		return _int(d.get(LEGACY_FLOOR))
+	return EditorMap.level_index_in(_lv, EditorMap.alt_of(d))
+
+
+## Élément d'une op proposée, posé au niveau `k` (altitude au format 17).
+static func _lv_el(el: Dictionary, k: int) -> Dictionary:
+	if _legacy:
+		el[LEGACY_FLOOR] = k
+	else:
+		el["altitude"] = EditorMap.level_alt_in(_lv, k)
+	return el
 
 
 ## Valeur « fausse » au sens de Python (None, False, 0, "", [], {}).
@@ -999,9 +1057,9 @@ static func resolve_room(doc: Dictionary, ref: String) -> Dictionary:
 static func _door_op(same_zone: bool, k: int, pos: Array, max_w: float, door_price: int) -> Dictionary:
 	if same_zone:
 		return {"op": "add", "coll": "ouvertures",
-			"el": {"type": "passage", "etage": k, "position": rp(pos), "largeur": r2(max_w)}}
+			"el": _lv_el({"type": "passage", "position": rp(pos), "largeur": r2(max_w)}, k)}
 	return {"op": "add", "coll": "ouvertures",
-		"el": {"type": "porte", "etage": k, "position": rp(pos), "largeur": r2(minf(2.0, max_w)), "prix": door_price}}
+		"el": _lv_el({"type": "porte", "position": rp(pos), "largeur": r2(minf(2.0, max_w)), "prix": door_price}, k)}
 
 
 ## Propose (sans rien appliquer) les ops d'un couloir entre deux pièces du même
@@ -1011,6 +1069,7 @@ static func _door_op(same_zone: bool, k: int, pos: Array, max_w: float, door_pri
 ## est d'une autre zone. price = -1 : prix suivant de la courbe des portes.
 ## {"error": message} si aucun tracé simple n'est sûr.
 static func plan_corridor(doc: Dictionary, room_a: String, room_b: String, width: float, price: int = -1) -> Dictionary:
+	_setup_levels(doc)
 	var rooms := {}
 	for p: Dictionary in _dicts(doc, "pieces"):
 		rooms[_pystr(p.get("id"))] = p
@@ -1026,8 +1085,8 @@ static func plan_corridor(doc: Dictionary, room_a: String, room_b: String, width
 		return {"error": "room_a et room_b sont la même pièce"}
 	var A: Dictionary = rooms[room_a]
 	var B: Dictionary = rooms[room_b]
-	var k := _int(A.get("etage"))
-	if _int(B.get("etage")) != k:
+	var k := _k(A)
+	if _k(B) != k:
 		return {"error": "les deux pièces ne sont pas au même étage (relier deux étages : un escalier, pas un couloir)"}
 	var w := snap(width)
 	if w < 1.0 or w > 6.0:
@@ -1043,7 +1102,7 @@ static func plan_corridor(doc: Dictionary, room_a: String, room_b: String, width
 	var warnings := []
 	var others := []
 	for i: String in rooms:
-		if i != room_a and i != room_b and _int(rooms[i].get("etage")) == k:
+		if i != room_a and i != room_b and _k(rooms[i]) == k:
 			others.append(pts(rooms[i].get("contour")))
 
 	var items := _wall_items(doc, k)
@@ -1053,7 +1112,7 @@ static func plan_corridor(doc: Dictionary, room_a: String, room_b: String, width
 	var segs := common_segments(pa, pb)
 	if not segs.is_empty():
 		for o: Variant in (doc.get("ouvertures") if doc.get("ouvertures") is Array else []):
-			var q := pts([o.get("position")]) if o is Dictionary and _int(o.get("etage")) == k else []
+			var q := pts([o.get("position")]) if o is Dictionary and _k(o) == k else []
 			if not q.is_empty() and not (o.get("type") is String and o.type == "fenetre") \
 					and on_boundary(pa, q[0]) and on_boundary(pb, q[0]):
 				return {"error": "les pièces sont déjà reliées par %s (%s)" % [_pystr(o.get("id")), _pystr(o.get("type"))]}
@@ -1166,9 +1225,9 @@ static func plan_corridor(doc: Dictionary, room_a: String, room_b: String, width
 			continue
 		var contour := poly.map(func(q: Array) -> Array: return rp(q))
 		var ops := [{"op": "add", "coll": "pieces",
-				"el": {"nom": "Couloir", "etage": k, "zone": zone_a, "contour": contour}},
+				"el": _lv_el({"nom": "Couloir", "zone": zone_a, "contour": contour}, k)},
 			{"op": "add", "coll": "ouvertures",
-				"el": {"type": "passage", "etage": k, "position": rp(pA), "largeur": r2(w)}},
+				"el": _lv_el({"type": "passage", "position": rp(pA), "largeur": r2(w)}, k)},
 			_door_op(same_zone, k, pB, w, door_price)]
 		for ln: float in lengths:
 			if ln > 12.0 + EPS:
@@ -1195,7 +1254,7 @@ static func plan_corridor(doc: Dictionary, room_a: String, room_b: String, width
 static func _wall_items(doc: Dictionary, k: int) -> Array:
 	var out := []
 	for o: Dictionary in _dicts(doc, "ouvertures"):
-		if _int(o.get("etage")) != k:
+		if _k(o) != k:
 			continue
 		var q := pts([o.get("position")])
 		if not q.is_empty():
@@ -1203,7 +1262,7 @@ static func _wall_items(doc: Dictionary, k: int) -> Array:
 			var half: float = lw / 2 if lw != null else 0.5
 			out.append([_pystr(o.get("id", "")), q[0], half])
 	for o: Dictionary in _dicts(doc, "objets"):
-		if _int(o.get("etage")) != k or not o.has("mur"):
+		if _k(o) != k or not o.has("mur"):
 			continue
 		var q := pts([o.get("position")])
 		if not q.is_empty():

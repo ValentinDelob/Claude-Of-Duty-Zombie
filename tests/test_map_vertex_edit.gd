@@ -259,7 +259,7 @@ func test_wall_items_stay_valid_after_point_added() -> void:
 	var perk := {"type": "atout", "atout": "titan"}
 	var r := MapRules.place_wall_item(ed.doc, 0, perk, Vector2(10, 4.6))
 	assert_true(r.ok, "atout posé : %s" % str(r))
-	perk.merge({"etage": 0, "position": r.get("position", [0, 0])})
+	perk.merge({"altitude": 0, "position": r.get("position", [0, 0])})
 	MapRules.apply_wall(perk, r)
 	ed.add_object(perk, 0)
 	var pid := ed.selected

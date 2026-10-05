@@ -394,7 +394,9 @@ func map_center() -> Vector3:
 		first = false
 	if first:
 		bb = Rect2(0, 0, 20, 20)
-	var top := ed.doc.floor_sol(ed.doc.floor_count() - 1) + ed.doc.floor_height(ed.doc.floor_count() - 1)
+	var top := ed.doc.level_alt(ed.doc.level_count() - 1) + EditorMap.DEFAULT_CEILING
+	for p in ed.doc.pieces:
+		top = maxf(top, EditorMap.room_top(p))
 	return Vector3(bb.get_center().x, bb.get_center().y, top * 0.5)
 
 

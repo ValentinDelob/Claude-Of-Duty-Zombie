@@ -55,7 +55,7 @@ func _ready() -> void:
 	zv.add_child(_zones)
 	_zone_form = VBoxContainer.new()
 	zv.add_child(_zone_form)
-	var fv := _tab("floors", Lang.t("Étages", "Floors"))
+	var fv := _tab("floors", Lang.t("Niveaux", "Levels"))
 	_floors = ItemList.new()
 	_floors.custom_minimum_size = Vector2(0, 140)
 	_floors.item_selected.connect(func(i): ed.set_floor(i))
@@ -374,16 +374,18 @@ func _group_props() -> void:
 		if not kinds.has(nm):
 			order.append(nm)
 		kinds[nm] = int(kinds.get(nm, 0)) + 1
-		floors[int(e.get("etage", 0))] = true
+		floors[ed.doc.level_of(e)] = true
 		rots[MapTransform.angle_of(e)] = true
 		if ed.invalid.has(String(id)):
 			bad.append(e)
 	_note(_props, ", ".join(order.map(func(nm): return "%d × %s" % [kinds[nm], nm])))
 	# Champs communs (lecture seule) : seulement quand tous ont la même valeur.
 	if floors.size() == 1:
-		_note(_props, Lang.t("Étage : %d (commun)", "Floor: %d (common)") % int(floors.keys()[0]))
+		var a := ed.doc.level_alt(int(floors.keys()[0]))
+		_note(_props, Lang.t("Niveau : %s (commun)", "Level: %s (common)") % EditorMap.alt_text(a, not Lang.is_en()))
 	else:
-		_note(_props, Lang.t("Étages : %s", "Floors: %s") % ", ".join(floors.keys().map(func(k): return str(k))))
+		var fr := not Lang.is_en()
+		_note(_props, Lang.t("Niveaux : %s", "Levels: %s") % ", ".join(floors.keys().map(func(k): return EditorMap.alt_text(ed.doc.level_alt(int(k)), fr))))
 	if rots.size() == 1:
 		_note(_props, Lang.t("Rotation : %d° (commune)", "Rotation: %d° (common)") % int(rots.keys()[0]))
 	var bb := MapGroup.bounds(ed.doc, ids)
@@ -469,22 +471,20 @@ func _room_props(r: Dictionary) -> void:
 	names.append(Lang.t("+ nouvelle zone", "+ new zone"))
 	ids.append("")
 	_option(_props, Lang.t("Zone", "Zone"), names, maxi(0, ids.find(String(r.get("zone", "")))), func(i): ed.set_room_zone(String(r.id), String(ids[i])))
-	var k := int(r.get("etage", 0))
-	var def_h := ed.doc.floor_height(k)
-	_spin(_props, Lang.t("Plafond", "Ceiling"), float(r.get("plafond", def_h)), 2.8, 9.0, 0.1, func(v):
+	var k := ed.doc.level_of(r)
+	_altitude_row(r)
+	# Format 17 : hauteur sous plafond sans maximum (2,8 m au moins) ; une pièce
+	# dont le plafond dépasse le niveau du dessus est une pièce haute.
+	var def_h := EditorMap.DEFAULT_CEILING
+	var cs := _spin(_props, Lang.t("Hauteur sous plafond", "Ceiling height"), EditorMap.room_ceiling(r), MapVertical.ROOM_CEILING[0], 100.0, 0.1, func(v):
 		if absf(v - def_h) < 0.001:
 			r.erase("plafond")
 		else:
 			r["plafond"] = v)
-	var top := k >= ed.doc.floor_count() - 1
-	var dh := _check(_props, Lang.t("Double hauteur (ouverte sur l'étage du dessus)", "Double height (open to the floor above)"), bool(r.get("double_hauteur", false)), func(on):
-		if on:
-			r["double_hauteur"] = true
-		else:
-			r.erase("double_hauteur"))
-	dh.disabled = top
-	if top:
-		dh.tooltip_text = Lang.t("Ajoutez un étage au-dessus (onglet Étages)", "Add a floor above (Floors tab)")
+	cs.allow_greater = true
+	if ed.doc.is_high(r):
+		_note(_props, Lang.t("Pièce haute : elle traverse le niveau du dessus (vide et murs ; une pièce posée au-dessus est une mezzanine).",
+			"High room: it goes through the level above (void and walls; a room placed above is a mezzanine)."))
 	MapPanelsShape.room_shape(self, r)
 	# Textures de la pièce (par défaut : celles de sa zone).
 	var z := ed.doc.zone(String(r.get("zone", "")))
@@ -495,8 +495,48 @@ func _room_props(r: Dictionary) -> void:
 	_note(_props, Lang.t("Un mur mitoyen montre de chaque côté la texture de sa pièce.", "A shared wall shows each room's texture on its own side."))
 	var poly := ed.doc.room_poly(r)
 	var bb := MapGeom.bbox(poly)
-	_note(_props, Lang.t("Étage %d · %s × %s m · %s m²\nMurs générés sur le contour ; un bord commun avec une pièce collée = un seul mur.",
-		"Floor %d · %s × %s m · %s m²\nWalls follow the outline; an edge shared with a touching room = a single wall.") % [k, _m(bb.size.x), _m(bb.size.y), _m(snappedf(MapGeom.area(poly), 0.5))])
+	_note(_props, Lang.t("%s · %s × %s m · %s m²\nMurs générés sur le contour ; un bord commun avec une pièce collée = un seul mur.",
+		"%s · %s × %s m · %s m²\nWalls follow the outline; an edge shared with a touching room = a single wall.") % [EditorMap.level_name(ed.doc.level_alt(k)), _m(bb.size.x), _m(bb.size.y), _m(snappedf(MapGeom.area(poly), 0.5))])
+
+
+## Format 17 : « Altitude du sol » d'une pièce (m, sans borne) : la monter ou
+## la descendre emporte son contenu, en une étape d'annulation ; refus nommé
+## (pièce qui ne tient pas, niveaux à moins de 3,1 m pour l'instant).
+func _altitude_row(r: Dictionary) -> void:
+	var s := SpinBox.new()
+	s.min_value = -100.0
+	s.max_value = 100.0
+	s.allow_greater = true
+	s.allow_lesser = true
+	s.step = 0.05
+	s.value = EditorMap.alt_of(r)
+	s.suffix = "m"
+	s.select_all_on_focus = true
+	s.tooltip_text = Lang.t("Altitude du sol de la pièce (son niveau). La changer emporte son contenu ; une nouvelle altitude crée un niveau.",
+		"Altitude of the room's floor (its level). Changing it carries its content; a new altitude creates a level.")
+	var rid := String(r.id)
+	s.value_changed.connect(func(v): set_room_altitude(rid, float(v)))
+	_row(_props, Lang.t("Altitude du sol", "Floor altitude"), s)
+
+
+## Monte ou descend la pièce `rid` (et son contenu) à l'altitude `alt` (m).
+func set_room_altitude(rid: String, alt: float) -> Dictionary:
+	var o := ed.doc.find(rid)
+	if o.is_empty() or not is_finite(alt):
+		return MapRules.refuse("pièce introuvable", "room not found")
+	var dalt := snappedf(alt, 0.0001) - EditorMap.alt_of(o)
+	if absf(dalt) <= EditorMap.ALT_EQ:
+		return {"ok": true}
+	var snap := ed.doc.snapshot()
+	var res := ed.try_move_alt(o.duplicate(true), ed.attached_to(o), Vector2.ZERO, dalt, NAN, snap)
+	if res.ok:
+		ed.push_undo_snapshot(snap)
+		ed.changed()
+		ed.select(rid)
+	else:
+		ed.canvas.show_refusal(res)
+		refresh()
+	return res
 
 
 func _opening_props(o: Dictionary) -> void:
@@ -504,7 +544,7 @@ func _opening_props(o: Dictionary) -> void:
 	var it := MapCatalog.item_for(o)
 	_title(_props, MapCatalog.name_of(it))
 	_position_row(o)
-	var k := int(o.get("etage", 0))
+	var k := ed.doc.level_of(o)
 	if t != "fenetre":
 		var types := ["porte", "debris", "porte_courant", "passage"]
 		var names := types.map(func(x): return MapCatalog.name_of(MapCatalog.item(x)))
@@ -598,8 +638,9 @@ func _object_props(o: Dictionary) -> void:
 					ed.push_undo()
 					o["monte"] = eff
 					ed.changed())
-			_note(_props, Lang.t("Relie l'étage %d à l'étage %d. Le haut arrive sur le plancher d'une pièce de l'étage du dessus ; le vide au-dessus des marches est automatique.",
-				"Links floor %d to floor %d. The top lands on a room floor of the floor above; the opening above the steps is automatic.") % [int(o.etage), int(o.etage) + 1])
+			_note(_props, Lang.t("Relie le niveau %s au niveau %s. Le haut arrive sur le plancher d'une pièce du niveau du dessus ; le vide au-dessus des marches est automatique.",
+				"Links level %s to level %s. The top lands on a room floor of the level above; the opening above the steps is automatic.") % [
+					EditorMap.alt_text(EditorMap.alt_of(o), not Lang.is_en()), EditorMap.alt_text(ed.doc.stair_top_of(o), not Lang.is_en())])
 		"prefab":
 			_prefab_props(o)
 		"luminaire":
@@ -634,24 +675,24 @@ func _object_props(o: Dictionary) -> void:
 ## clé « hauteur ») ou une hauteur de 0,5 à 30 m au dixième de mètre ;
 ## hauteur en jeu, sommets et surface ; rappel de ce qu'elle bloque.
 func _clip_props(o: Dictionary) -> void:
-	var k := int(o.get("etage", 0))
 	var to_ceiling := not o.has("hauteur")
+	var room_h := MapVertical.room_h(ed.raster().v, {"altitude": EditorMap.alt_of(o), "position": MapGeom.bbox(MapRaster.clip_poly(o)).get_center()})
 	var lim: Array = MapCatalog.CLIP_HEIGHT
-	_check(_props, Lang.t("Jusqu'au plafond (hauteur de l'étage)", "Up to the ceiling (floor height)"), to_ceiling, func(on):
+	_check(_props, Lang.t("Jusqu'au plafond (hauteur de la pièce)", "Up to the ceiling (room height)"), to_ceiling, func(on):
 		if on:
 			o.erase("hauteur")
 		else:
-			# Hauteur de départ : celle de l'étage, à modifier ensuite.
-			o["hauteur"] = snappedf(clampf(ed.doc.floor_height(k), float(lim[0]), float(lim[1])), 0.1)
+			# Hauteur de départ : celle de la pièce, à modifier ensuite.
+			o["hauteur"] = snappedf(clampf(room_h, float(lim[0]), float(lim[1])), 0.1)
 		refresh())
-	var hs := _spin(_props, Lang.t("Hauteur", "Height"), float(o.get("hauteur", ed.doc.floor_height(k))), float(lim[0]), float(lim[1]),
+	var hs := _spin(_props, Lang.t("Hauteur", "Height"), float(o.get("hauteur", room_h)), float(lim[0]), float(lim[1]),
 		MapCatalog.CLIP_HEIGHT_STEP, func(v):
 			o["hauteur"] = snappedf(clampf(v, float(lim[0]), float(lim[1])), 0.01))
 	hs.editable = not to_ceiling
 	hs.tooltip_text = Lang.t("Du sol au haut de la barrière, %s à %s m (pas de 0,1 m). Décochez « Jusqu'au plafond » pour la régler." % [_m(float(lim[0])), _m(float(lim[1]))],
 		"From the floor to the top of the barrier, %s to %s m (0.1 m steps). Untick \"Up to the ceiling\" to set it." % [_m(float(lim[0])), _m(float(lim[1]))])
 	if to_ceiling:
-		_note(_props, Lang.t("Hauteur en jeu : jusqu'au plafond de l'étage (%s m ou plus sous une pièce plus haute)", "In-game height: up to the floor's ceiling (%s m, or more under a taller room)") % _m(ed.doc.floor_height(k)))
+		_note(_props, Lang.t("Hauteur en jeu : jusqu'au plafond (%s m ici, ou plus sous une pièce plus haute)", "In-game height: up to the ceiling (%s m here, or more under a taller room)") % _m(snappedf(room_h, 0.01)))
 	else:
 		_note(_props, Lang.t("Hauteur en jeu : %s m depuis le sol", "In-game height: %s m from the floor") % _m(float(o.hauteur)))
 	var poly := MapRaster.clip_poly(o)
@@ -746,7 +787,7 @@ func _swap_kind(o: Dictionary, key: String, value: String) -> void:
 		var d: Dictionary = MapCatalog.LIGHTS[value]
 		for p in ["couleur", "intensite", "portee", "courant", "vacille"]:
 			cand[p] = d[p]
-	var k := int(o.get("etage", 0))
+	var k := ed.doc.level_of(o)
 	var res := MapRules.place_floor_item(ed.doc, k, cand, MapGeom.v2(o.position), String(o.id)) if MapCatalog.tool_of(cand) == "floor_item" \
 		else MapRules.place_wall_item(ed.doc, k, cand, MapGeom.v2(o.position) - MapGeom.item_wall_dir(o) * 0.3, String(o.id))
 	if not res.ok:
@@ -854,7 +895,7 @@ func _effect_props(o: Dictionary) -> void:
 				MapCatalog.tidy_effect(cand)
 				if mount != "mur" and not cand.has("rot"):
 					cand["rot"] = 0
-				var k := int(o.get("etage", 0))
+				var k := ed.doc.level_of(o)
 				var res := MapRules.place_floor_item(ed.doc, k, cand, MapGeom.v2(o.position), String(o.id), false) if mount != "mur" \
 					else MapRules.place_wall_item(ed.doc, k, cand, MapGeom.v2(o.position) - MapGeom.item_wall_dir(o) * 0.3, String(o.id))
 				if not res.ok:
@@ -972,7 +1013,7 @@ func _position_row(o: Dictionary) -> void:
 	if kind == "pose":
 		_axis_field(box, "Z", MapVertical.pose_z(ed.doc, ed.raster().v, o), func(v: float): _apply_z(oid, v))
 		var b := MapVertical.pose_bounds(ed.raster().v, o)
-		var room := MapRules.room_at(ed.doc, int(o.get("etage", 0)), MapVertical.anchor_of(o))
+		var room := MapRules.room_at(ed.doc, ed.doc.level_of(o), MapVertical.anchor_of(o))
 		var note := Lang.t("Z : hauteur au-dessus du sol de l'étage, de %s à %s m ici", "Z: height above the floor, %s to %s m here") % [_m(snappedf(b.x, 0.01)), _m(snappedf(b.y, 0.01))]
 		if not room.is_empty():
 			note += Lang.t(" (plafond de « %s »).", " (\"%s\" ceiling).") % String(room.get("nom", ""))
@@ -983,21 +1024,21 @@ func _position_row(o: Dictionary) -> void:
 			_note(_props, note)
 	else:
 		var opt := OptionButton.new()
-		for k in ed.doc.floor_count():
-			opt.add_item(Lang.t("É%d", "F%d") % k)
-		opt.selected = int(o.get("etage", 0))
+		for k in ed.doc.level_count():
+			opt.add_item(EditorMap.alt_text(ed.doc.level_alt(k), not Lang.is_en()))
+		opt.selected = ed.doc.level_of(o)
 		opt.fit_to_longest_item = false
 		opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		opt.tooltip_text = Lang.t("Z d'un élément sans hauteur de pose : son étage", "Z of an element without a placement height: its floor")
+		opt.tooltip_text = Lang.t("Z d'un élément sans hauteur de pose : son niveau", "Z of an element without a placement height: its level")
 		opt.disabled = kind == "fixe"
 		opt.item_selected.connect(func(i): _apply_floor(oid, i))
 		box.add_child(opt)
 		_pos_fields["Z"] = opt
 		if kind == "fixe":
-			_note(_props, Lang.t("Une ouverture suit son mur : pour changer d'étage, déplacez la pièce.", "An opening follows its wall: to change floor, move the room."))
+			_note(_props, Lang.t("Une ouverture suit son mur : pour changer de niveau, déplacez la pièce.", "An opening follows its wall: to change level, move the room."))
 		elif o.has("contour"):
-			_note(_props, Lang.t("X, Y : coin nord-ouest. Z d'une pièce = son étage : la changer emporte son contenu.",
-				"X, Y: north-west corner. Z of a room = its floor: changing it carries its content."))
+			_note(_props, Lang.t("X, Y : coin nord-ouest. Z d'une pièce = son niveau : le changer emporte son contenu.",
+				"X, Y: north-west corner. Z of a room = its level: changing it carries its content."))
 
 
 ## Champ d'un axe : sa lettre en couleur, la valeur (m).
@@ -1053,18 +1094,18 @@ func _apply_xy(oid: String, axis: String, v: float) -> void:
 		return
 	var p := ref_point(ed.doc, o)
 	var d := Vector2(v - p.x, 0) if axis == "X" else Vector2(0, v - p.y)
-	_apply_3d(oid, d, int(o.get("etage", 0)), NAN)
+	_apply_3d(oid, d, ed.doc.level_of(o), NAN)
 
 
 func _apply_z(oid: String, v: float) -> void:
 	var o := ed.doc.find(oid)
 	if not o.is_empty():
-		_apply_3d(oid, Vector2.ZERO, int(o.get("etage", 0)), v)
+		_apply_3d(oid, Vector2.ZERO, ed.doc.level_of(o), v)
 
 
 func _apply_floor(oid: String, k: int) -> void:
 	var o := ed.doc.find(oid)
-	if not o.is_empty() and k != int(o.get("etage", 0)):
+	if not o.is_empty() and k != ed.doc.level_of(o):
 		_apply_3d(oid, Vector2.ZERO, k, NAN)
 
 
@@ -1075,7 +1116,7 @@ func _apply_3d(oid: String, delta: Vector2, k: int, z: float) -> void:
 	if res.ok:
 		ed.push_undo_snapshot(snap)
 		ed.changed()
-		if int(ed.doc.find(oid).get("etage", 0)) != ed.floor_k:
+		if ed.doc.level_of(ed.doc.find(oid)) != ed.floor_k:
 			ed.select(oid)
 	else:
 		ed.canvas.show_refusal(res)
@@ -1124,7 +1165,7 @@ func live_position(on: bool) -> void:
 				le.text = MapView.num(float(vals[axis]), 2)
 				le.set_meta("applied", le.text)
 		elif c is OptionButton:
-			(c as OptionButton).selected = int(o.get("etage", 0))
+			(c as OptionButton).selected = ed.doc.level_of(o)
 
 
 # ------------------------------------------------------------------ listes
@@ -1133,10 +1174,10 @@ func _fill_rooms() -> void:
 	_rooms.clear()
 	_room_ids.clear()
 	var list := ed.doc.pieces.duplicate()
-	list.sort_custom(func(a, b): return [int(a.etage), String(a.get("nom", ""))] < [int(b.etage), String(b.get("nom", ""))])
+	list.sort_custom(func(a, b): return [ed.doc.level_of(a), String(a.get("nom", ""))] < [ed.doc.level_of(b), String(b.get("nom", ""))])
 	for p in list:
 		var poly := ed.doc.room_poly(p)
-		_rooms.add_item(Lang.t("É%d · %s — %s (%s m²)", "F%d · %s — %s (%s m²)") % [int(p.etage), p.get("nom", ""), ed.doc.zone_name(String(p.get("zone", ""))), _m(snappedf(MapGeom.area(poly), 0.5))])
+		_rooms.add_item(Lang.t("É%d · %s — %s (%s m²)", "F%d · %s — %s (%s m²)") % [ed.doc.level_of(p), p.get("nom", ""), ed.doc.zone_name(String(p.get("zone", ""))), _m(snappedf(MapGeom.area(poly), 0.5))])
 		_room_ids.append(String(p.id))
 		if String(p.id) == ed.selected:
 			_rooms.select(_rooms.item_count - 1)
@@ -1195,25 +1236,45 @@ func _fill_zone_form() -> void:
 		h.add_child(mb)
 
 
+## Onglet Niveaux (format 17) : les niveaux de la carte (altitudes distinctes
+## des pièces), du plus bas au plus haut, avec leurs pièces et leurs zones.
 func _fill_floors() -> void:
 	_floors.clear()
-	for k in ed.doc.floor_count():
-		_floors.add_item(Lang.t("Étage %d — sol %s m, plafond %s m (%d pièce(s))", "Floor %d — floor %s m, ceiling %s m (%d room(s))") % [
-			k, _m(ed.doc.floor_sol(k)), _m(ed.doc.floor_height(k)), ed.doc.rooms_on(k).size()])
+	var fr := not Lang.is_en()
+	for k in ed.doc.level_count():
+		var rooms := ed.doc.rooms_on(k)
+		var zs := {}
+		for p in rooms:
+			zs[ed.doc.zone_name(String(p.get("zone", "")))] = true
+		var line := Lang.t("%s — %d pièce(s)", "%s — %d room(s)") % [EditorMap.level_name(ed.doc.level_alt(k)), rooms.size()]
+		if not zs.is_empty():
+			line += " · " + ", ".join(zs.keys())
+		elif rooms.is_empty():
+			line += Lang.t(" (vide, non enregistré)", " (empty, not saved)")
+		_floors.add_item(line)
 	_floors.select(ed.floor_k)
 	_clear(_floor_form)
 	var k := ed.floor_k
-	var f: Dictionary = ed.doc.floors()[k]
-	_title(_floor_form, Lang.t("Étage %d", "Floor %d") % k)
-	_spin(_floor_form, Lang.t("Hauteur du sol", "Floor level"), float(f.get("sol", 0.0)), -20.0, 200.0, 0.1, func(v): f["sol"] = v)
-	_spin(_floor_form, Lang.t("Plafond", "Ceiling"), float(f.get("hauteur", EditorMap.DEFAULT_CEILING)), 2.8, 10.0, 0.1, func(v): f["hauteur"] = v)
-	_note(_floor_form, Lang.t("Plafond des pièces sans rien au-dessus ; sous un étage, le plafond est sa dalle (3,1 m au moins entre deux sols).",
-		"Ceiling of rooms with nothing above; under a floor, the ceiling is its slab (at least 3.1 m between two floors)."))
-	_button(_floor_form, Lang.t("+ Ajouter un étage au-dessus", "+ Add a floor above"), ed.add_floor)
-	var rm := _button(_floor_form, Lang.t("Supprimer le dernier étage (vide)", "Delete the top floor (empty)"), ed.remove_top_floor)
-	rm.disabled = ed.doc.floor_count() <= 1
+	var a := ed.doc.level_alt(k)
+	_title(_floor_form, EditorMap.level_name(a))
+	var s := SpinBox.new()
+	s.min_value = -100.0
+	s.max_value = 100.0
+	s.allow_greater = true
+	s.allow_lesser = true
+	s.step = 0.05
+	s.value = a
+	s.suffix = "m"
+	s.select_all_on_focus = true
+	s.value_changed.connect(func(v): ed.move_level(k, float(v)))
+	_row(_floor_form, Lang.t("Altitude du sol", "Floor altitude"), s)
+	_note(_floor_form, Lang.t("Un niveau = les pièces posées à la même altitude ; changer son altitude déplace tout ce qui y est posé (%s au moins entre deux niveaux pour l'instant). Chaque pièce règle sa hauteur sous plafond ; sous un niveau, le plafond est sa dalle." % EditorMap.alt_text(EditorMap.MIN_STACK, fr),
+		"A level = the rooms placed at the same altitude; changing its altitude moves everything on it (at least %s between two levels for now). Each room sets its ceiling height; under a level, the ceiling is its slab." % EditorMap.alt_text(EditorMap.MIN_STACK, false)))
+	_button(_floor_form, Lang.t("+ Nouveau niveau vide au-dessus", "+ New empty level above"), ed.add_floor)
+	var rm := _button(_floor_form, Lang.t("Retirer le niveau du haut (vide)", "Remove the top level (empty)"), ed.remove_top_floor)
+	rm.disabled = ed.doc.level_count() <= 1
 	var gh := CheckBox.new()
-	gh.text = Lang.t("Afficher l'étage du dessous en transparence", "Show the floor below, see-through")
+	gh.text = Lang.t("Afficher le niveau du dessous en transparence", "Show the level below, see-through")
 	gh.button_pressed = ed.ghost_below
 	gh.toggled.connect(func(on):
 		ed.ghost_below = on

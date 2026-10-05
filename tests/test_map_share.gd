@@ -198,10 +198,10 @@ func test_guard_accepts_draft_arena() -> void:
 
 
 func test_guard_refusals() -> void:
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "depart", "etage": 0, "position": [12, 20], "script": "res://x.gd"})), "clé inconnue")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "script", "etage": 0, "position": [12, 20]})), "type inconnu")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "atout", "atout": "../../boot", "etage": 0, "position": [12, 20], "mur": "n"})), "atout inconnu")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "arme", "arme": "raygun_9000", "etage": 0, "position": [12, 20], "mur": "n"})), "arme inconnue")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "depart", "altitude": 0, "position": [12, 20], "script": "res://x.gd"})), "clé inconnue")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "script", "altitude": 0, "position": [12, 20]})), "type inconnu")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "atout", "atout": "../../boot", "altitude": 0, "position": [12, 20], "mur": "n"})), "atout inconnu")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "arme", "arme": "raygun_9000", "altitude": 0, "position": [12, 20], "mur": "n"})), "arme inconnue")
 	var c = JSON.parse_string(_draft_texts()["carte.json"])
 	c.nom = {"fr": "A".repeat(20000), "en": "A"}
 	_refused(_with("carte.json", c), "chaîne géante")
@@ -222,10 +222,10 @@ func test_guard_refusals() -> void:
 	t["objets.json"] = String(t["objets.json"]).replace("[12,26]", "[1e999,26]")
 	assert_true(String(t["objets.json"]).contains("1e999"))
 	_refused(t, "nombre infini")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "etage": 0, "position": [1000000, 5]})), "coordonnée énorme")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "etage": 7, "position": [5, 5]})), "étage inexistant")
-	_refused(_with("objets.json", _objets_plus({"id": "../q1", "type": "lampe", "etage": 0, "position": [5, 5]})), "chemin dans un identifiant d'élément")
-	_refused(_with("objets.json", _objets_plus({"id": "x1", "type": "lampe", "etage": 0, "position": [5, 5]})), "identifiant en double")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "altitude": 0, "position": [1000000, 5]})), "coordonnée énorme")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "lampe", "etage": 7, "position": [5, 5]})), "clé etage du format 16")
+	_refused(_with("objets.json", _objets_plus({"id": "../q1", "type": "lampe", "altitude": 0, "position": [5, 5]})), "chemin dans un identifiant d'élément")
+	_refused(_with("objets.json", _objets_plus({"id": "x1", "type": "lampe", "altitude": 0, "position": [5, 5]})), "identifiant en double")
 	var o = JSON.parse_string(_draft_texts()["ouvertures.json"])
 	o.ouvertures[0]["prix"] = 99999999
 	_refused(_with("ouvertures.json", o), "prix énorme")
@@ -235,7 +235,7 @@ func test_guard_refusals() -> void:
 	_refused(_with("pieces.json", deep), "JSON trop profond")
 	var many := {"objets": []}
 	for i in CustomMapGuard.MAX_OBJECTS + 1:
-		many.objets.append({"id": "l%d" % i, "type": "lampe", "etage": 0, "position": [5, 5]})
+		many.objets.append({"id": "l%d" % i, "type": "lampe", "altitude": 0, "position": [5, 5]})
 	_refused(_with("objets.json", many), "trop d'objets")
 	var p = JSON.parse_string(_draft_texts()["pieces.json"])
 	var pts := []
@@ -351,7 +351,7 @@ func _v2_source() -> Dictionary:
 	var width := {"t": "number", "min": 0.5, "max": 20.0}
 	var out := {}
 	var add := func(file: String, type: String, keys: Dictionary, req: Array) -> void:
-		var k := {"id": {"t": "id"}, "type": {"t": "enum", "values": [type]}, "etage": {"t": "int", "min": 0, "max": 15}}
+		var k := {"id": {"t": "id"}, "type": {"t": "enum", "values": [type]}, "altitude": {"t": "number"}}
 		k.merge(keys)
 		out[type] = {"file": file, "required": ["id", "type"] + req, "keys": k}
 	for t in ["porte", "debris"]:
@@ -376,8 +376,8 @@ func _v2_source() -> Dictionary:
 		"courant": {"t": "bool"}, "vacille": {"t": "bool"}}, ["luminaire", "position"])
 	var surf := {"t": "enum", "values": MapCatalog.materials()}
 	return {"items": MapCatalog.items(), "kinds": out, "surfaces": MapCatalog.materials(), "musics": MapCatalog.musics(),
-		"room_keys": {"id": {"t": "id"}, "nom": {"t": "text", "max": 64}, "etage": {"t": "int", "min": 0, "max": 15}, "zone": {"t": "id"},
-			"contour": {"t": "polygon", "min": 3, "max": 64}, "plafond": {"t": "number", "min": 2.0, "max": 20.0}, "double_hauteur": {"t": "bool"},
+		"room_keys": {"id": {"t": "id"}, "nom": {"t": "text", "max": 64}, "altitude": {"t": "number"}, "zone": {"t": "id"},
+			"contour": {"t": "polygon", "min": 3, "max": 64}, "plafond": {"t": "number", "min": 2.0, "max": 20.0},
 			"surface_sol": surf, "surface_murs": surf, "surface_plafond": surf},
 		"zone_keys": {"id": {"t": "id"}, "nom": {"t": "names", "max": 64}, "sol": surf, "murs": surf, "plafond": surf}}
 
@@ -390,8 +390,8 @@ func test_guard_catalog_v2_adapter() -> void:
 	assert_true(r.ok, "DRAFT ARENA avec le catalogue v2 : " + str(r.get("reasons")))
 	# Nouveaux éléments du format 2 : préfabriqué, luminaire, textures par pièce, plafond de zone.
 	var o = JSON.parse_string(_draft_texts()["objets.json"])
-	o.objets.append({"id": "f1", "type": "prefab", "prefab": "chaise", "etage": 0, "position": [12, 20], "rot": 90})
-	o.objets.append({"id": "l9", "type": "luminaire", "luminaire": "neon", "etage": 0, "position": [12, 22], "couleur": "#ffcc88", "intensite": 2.5, "courant": true})
+	o.objets.append({"id": "f1", "type": "prefab", "prefab": "chaise", "altitude": 0, "position": [12, 20], "rot": 90})
+	o.objets.append({"id": "l9", "type": "luminaire", "luminaire": "neon", "altitude": 0, "position": [12, 22], "couleur": "#ffcc88", "intensite": 2.5, "courant": true})
 	var p = JSON.parse_string(_draft_texts()["pieces.json"])
 	p.pieces[0]["surface_sol"] = MapCatalog.materials()[0]
 	var z = JSON.parse_string(_draft_texts()["zones.json"])
@@ -404,12 +404,12 @@ func test_guard_catalog_v2_adapter() -> void:
 	assert_true(r.ok, "éléments du format 2 acceptés : " + str(r.get("reasons")))
 	# Et leurs valeurs hors liste refusées.
 	var bad := [
-		{"id": "f2", "type": "prefab", "prefab": "../../scripts/boot", "etage": 0, "position": [12, 20]},
-		{"id": "f3", "type": "prefab", "prefab": "chaise", "etage": 0, "position": [12, 20], "rot": 45},
-		{"id": "l2", "type": "luminaire", "luminaire": "neon", "etage": 0, "position": [12, 20], "couleur": "red"},
-		{"id": "l3", "type": "luminaire", "luminaire": "neon", "etage": 0, "position": [12, 20], "intensite": 1e6},
-		{"id": "l4", "type": "luminaire", "etage": 0, "position": [12, 20]},
-		{"id": "l5", "type": "luminaire", "luminaire": "neon", "etage": 0, "position": [12, 20], "script": "x"},
+		{"id": "f2", "type": "prefab", "prefab": "../../scripts/boot", "altitude": 0, "position": [12, 20]},
+		{"id": "f3", "type": "prefab", "prefab": "chaise", "altitude": 0, "position": [12, 20], "rot": 45},
+		{"id": "l2", "type": "luminaire", "luminaire": "neon", "altitude": 0, "position": [12, 20], "couleur": "red"},
+		{"id": "l3", "type": "luminaire", "luminaire": "neon", "altitude": 0, "position": [12, 20], "intensite": 1e6},
+		{"id": "l4", "type": "luminaire", "altitude": 0, "position": [12, 20]},
+		{"id": "l5", "type": "luminaire", "luminaire": "neon", "altitude": 0, "position": [12, 20], "script": "x"},
 	]
 	for b in bad:
 		_refused(_with("objets.json", _objets_plus(b)), "format 2 : %s" % str(b))
@@ -499,7 +499,7 @@ func test_zip_import_guarded() -> void:
 		z.start_file(f)
 		var s := String(texts[f])
 		if f == "objets.json":
-			s = JSON.stringify(_objets_plus({"id": "q1", "type": "script", "etage": 0, "position": [5, 5]}))
+			s = JSON.stringify(_objets_plus({"id": "q1", "type": "script", "altitude": 0, "position": [5, 5]}))
 		z.write_file(s.to_utf8_buffer())
 		z.close_file()
 	z.close()

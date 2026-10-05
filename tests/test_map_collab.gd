@@ -14,7 +14,7 @@ func _port(i: int) -> int:
 
 func _map() -> EditorMap:
 	var m := EditorMap.blank("essai", "ESSAI", "TEST")
-	m.pieces = [{"id": "p1", "etage": 0, "nom": "Hall", "zone": "z1", "contour": [[2, 2], [10, 2], [10, 8], [2, 8]]}]
+	m.pieces = [{"id": "p1", "altitude": 0, "nom": "Hall", "zone": "z1", "contour": [[2, 2], [10, 2], [10, 8], [2, 8]]}]
 	m.zones = [{"id": "z1", "nom": {"fr": "Hall", "en": "Hall"}}]
 	m.depart = "z1"
 	return m
@@ -30,7 +30,7 @@ func _until(cond: Callable, limit := 5.0) -> bool:
 
 
 func _put(id: String, v: float) -> Array:
-	return [{"op": "put", "coll": "objets", "el": {"id": id, "type": "caisse", "etage": 0, "position": [v, 4.0]}}]
+	return [{"op": "put", "coll": "objets", "el": {"id": id, "type": "caisse", "altitude": 0, "position": [v, 4.0]}}]
 
 
 ## Hôte (Alice) et invité (Bob) connectés : [hôte, invité].
@@ -193,7 +193,7 @@ func test_editor_shares_its_changes() -> void:
 	assert_true(await _until(func(): return g.seq == ed.collab.seq), "changement reçu")
 	assert_false(g.doc.find(String(room.id)).is_empty(), "pièce de l'hôte chez l'invité")
 	# Changement de l'invité : visible dans l'éditeur de l'hôte.
-	g.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "c9", "type": "caisse", "etage": 0, "position": [4.0, 4.0]}}], "caisse")
+	g.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "c9", "type": "caisse", "altitude": 0, "position": [4.0, 4.0]}}], "caisse")
 	assert_true(await _until(func(): return not ed.doc.find("c9").is_empty()), "caisse de l'invité dans l'éditeur")
 	assert_true(ed.status.text.contains("Bob"), "barre d'état : auteur du changement (%s)" % ed.status.text)
 	# Ctrl+Z de l'hôte : sa pièce, pas la caisse de Bob.

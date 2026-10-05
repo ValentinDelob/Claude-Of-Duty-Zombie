@@ -20,7 +20,7 @@ func after_each() -> void:
 
 static func _room(doc: EditorMap, nom: String, x0: float, y0: float, x1: float, y1: float, k := 0) -> Dictionary:
 	var z := doc.add_zone(nom, nom)
-	var r := {"id": doc.new_id("p"), "nom": nom, "etage": k, "zone": String(z.id), "contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]}
+	var r := {"id": doc.new_id("p"), "nom": nom, "altitude": k * EditorMap.FLOOR_STEP, "zone": String(z.id), "contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]}
 	doc.pieces.append(r)
 	return r
 
@@ -32,7 +32,7 @@ static func _rect(x0: float, y0: float, x1: float, y1: float) -> PackedVector2Ar
 ## Pièce `poly` posée et découpe faite sur `doc` : le résultat de carve().
 static func _carve(doc: EditorMap, nom: String, poly: PackedVector2Array, k := 0) -> Dictionary:
 	var z := doc.add_zone(nom, nom)
-	var r := {"id": doc.new_id("p"), "nom": nom, "etage": k, "zone": String(z.id), "contour": MapGeom.poly_arr(poly)}
+	var r := {"id": doc.new_id("p"), "nom": nom, "altitude": k * EditorMap.FLOOR_STEP, "zone": String(z.id), "contour": MapGeom.poly_arr(poly)}
 	doc.pieces.append(r)
 	return MapCarve.carve(doc, r)
 
@@ -143,9 +143,9 @@ func test_swallowed_and_several_rooms() -> void:
 func test_content_follows_position() -> void:
 	var doc := EditorMap.blank()
 	var a := _room(doc, "Atelier", 0, 1, 10, 8)
-	doc.objets.append({"id": "c1", "type": "baril", "etage": 0, "position": [8.0, 4.5]})
-	doc.objets.append({"id": "c2", "type": "caisse", "etage": 0, "position": [2.5, 3.5]})
-	doc.objets.append({"id": "c3", "type": "baril", "etage": 0, "position": [9.5, 4.5]})
+	doc.objets.append({"id": "c1", "type": "baril", "altitude": 0, "position": [8.0, 4.5]})
+	doc.objets.append({"id": "c2", "type": "caisse", "altitude": 0, "position": [2.5, 3.5]})
+	doc.objets.append({"id": "c3", "type": "baril", "altitude": 0, "position": [9.5, 4.5]})
 	for id in ["c1", "c2", "c3"]:
 		var r0 := MapRules.check_existing(doc, doc.find(id))
 		assert_true(r0.ok, "%s valide avant (%s)" % [id, MapRules.why(r0)])
@@ -165,7 +165,7 @@ func test_openings_moved_or_removed() -> void:
 	var doc := EditorMap.blank()
 	var a := _room(doc, "Atelier", 0, 0, 10, 8)
 	var c := _room(doc, "Couloir", 10, 0, 14, 8)
-	doc.ouvertures.append({"id": "o1", "type": "porte", "etage": 0, "position": [10, 4.25], "largeur": 2, "prix": 750})
+	doc.ouvertures.append({"id": "o1", "type": "porte", "altitude": 0, "position": [10, 4.25], "largeur": 2, "prix": 750})
 	assert_true(MapRules.check_existing(doc, doc.find("o1")).ok, "porte valide avant")
 	# La nouvelle pièce prend le bas du mur commun : la porte n'y tient plus,
 	# elle glisse sur ce qui reste du mur Atelier / Couloir.
@@ -180,7 +180,7 @@ func test_openings_moved_or_removed() -> void:
 	var doc2 := EditorMap.blank()
 	_room(doc2, "Atelier", 0, 0, 10, 8)
 	_room(doc2, "Couloir", 10, 0, 14, 8)
-	doc2.ouvertures.append({"id": "o1", "type": "porte", "etage": 0, "position": [10, 4.25], "largeur": 2, "prix": 750})
+	doc2.ouvertures.append({"id": "o1", "type": "porte", "altitude": 0, "position": [10, 4.25], "largeur": 2, "prix": 750})
 	assert_true(MapRules.check_existing(doc2, doc2.find("o1")).ok, "porte valide avant")
 	var rep2 := _carve(doc2, "Hall", _rect(8, 2, 12, 6))
 	assert_true(rep2.ok)
@@ -194,12 +194,11 @@ func test_openings_moved_or_removed() -> void:
 
 func test_stairs_refuse() -> void:
 	var doc := EditorMap.blank()
-	doc.carte.etages.append({"sol": 3.5, "hauteur": 3.2})
 	var hall := _room(doc, "Hall", 0, 0, 12, 20)
-	hall["double_hauteur"] = true
-	var mez := {"id": "p9", "nom": "Mezzanine", "etage": 1, "zone": String(hall.zone), "contour": [[0, 4], [8, 4], [8, 9], [0, 9]]}
+	hall["plafond"] = 6.7
+	var mez := {"id": "p9", "nom": "Mezzanine", "altitude": 1 * EditorMap.FLOOR_STEP, "zone": String(hall.zone), "contour": [[0, 4], [8, 4], [8, 9], [0, 9]]}
 	doc.pieces.append(mez)
-	doc.objets.append({"id": "e1", "type": "escalier", "etage": 0, "rect": [1, 9, 3.5, 16], "monte": "n"})
+	doc.objets.append({"id": "e1", "type": "escalier", "altitude": 0, "rect": [1, 9, 3.5, 16], "monte": "n"})
 	var st := MapRules.check_existing(doc, doc.find("e1"))
 	assert_true(st.ok, "escalier valide avant : %s" % MapRules.why(st))
 	var pl := MapCarve.plan(doc, 0, _rect(2, 11, 6, 14))
@@ -284,11 +283,10 @@ func test_editor_confirm_and_single_undo() -> void:
 func test_editor_polygon_and_refusal() -> void:
 	var ed: MapEditor = await _editor()
 	var doc := EditorMap.blank()
-	doc.carte.etages.append({"sol": 3.5, "hauteur": 3.2})
 	var hall := _room(doc, "Hall", 0, 0, 12, 20)
-	hall["double_hauteur"] = true
-	doc.pieces.append({"id": "p9", "nom": "Mezzanine", "etage": 1, "zone": String(hall.zone), "contour": [[0, 4], [8, 4], [8, 9], [0, 9]]})
-	doc.objets.append({"id": "e1", "type": "escalier", "etage": 0, "rect": [1, 9, 3.5, 16], "monte": "n"})
+	hall["plafond"] = 6.7
+	doc.pieces.append({"id": "p9", "nom": "Mezzanine", "altitude": 1 * EditorMap.FLOOR_STEP, "zone": String(hall.zone), "contour": [[0, 4], [8, 4], [8, 9], [0, 9]]})
+	doc.objets.append({"id": "e1", "type": "escalier", "altitude": 0, "rect": [1, 9, 3.5, 16], "monte": "n"})
 	ed.doc = doc
 	ed.collab.reset_doc(ed.doc)
 	ed.changed()
@@ -350,7 +348,7 @@ func test_agent_invalid_cutting_room_refused() -> void:
 		"trop petite": [[5, 5], [6, 5], [6, 6], [5, 6]],
 	}
 	for what in bad:
-		var ops := [{"op": "put", "coll": "pieces", "el": {"id": "p7", "nom": "X", "etage": 0, "zone": String(m.pieces[0].zone), "contour": bad[what]}}]
+		var ops := [{"op": "put", "coll": "pieces", "el": {"id": "p7", "nom": "X", "altitude": 0, "zone": String(m.pieces[0].zone), "contour": bad[what]}}]
 		var r := MapCarve.carve_ops(m, ops, true)
 		assert_false(r.ok, "%s : refusée" % what)
 		assert_true(String(r.get("fr", "")).contains("ne peut pas découper"), "%s : %s" % [what, r.get("fr", "")])
@@ -375,7 +373,7 @@ func test_caps_rooms_counted_once() -> void:
 	var doc := EditorMap.blank()
 	var z := doc.add_zone("Remplissage", "Filler")
 	for i in CustomMapGuard.MAX_ROOMS - 2:
-		doc.pieces.append({"id": "f%d" % i, "nom": "F%d" % i, "etage": 0, "zone": String(z.id),
+		doc.pieces.append({"id": "f%d" % i, "nom": "F%d" % i, "altitude": 0, "zone": String(z.id),
 			"contour": [[3.0 * (i % 40), 50.0 + 3.0 * floorf(i / 40.0)], [3.0 * (i % 40) + 2, 50.0 + 3.0 * floorf(i / 40.0)],
 				[3.0 * (i % 40) + 2, 52.0 + 3.0 * floorf(i / 40.0)], [3.0 * (i % 40), 52.0 + 3.0 * floorf(i / 40.0)]]})
 	_room(doc, "Atelier", 0, 0, 12, 10)
@@ -405,7 +403,7 @@ func test_relinked_door_listed() -> void:
 	var doc := EditorMap.blank()
 	_room(doc, "Atelier", 0, 0, 10, 8)
 	_room(doc, "Couloir", 10, 0, 14, 8)
-	doc.ouvertures.append({"id": "o1", "type": "porte", "etage": 0, "position": [10, 4.25], "largeur": 2, "prix": 750})
+	doc.ouvertures.append({"id": "o1", "type": "porte", "altitude": 0, "position": [10, 4.25], "largeur": 2, "prix": 750})
 	var pl := MapCarve.plan(doc, 0, _rect(6, 2, 10, 6), {"nom": "Réserve"})
 	assert_true(pl.ok, MapRules.why(pl))
 	assert_eq((pl.relinked as Array).size(), 1, "porte signalée")

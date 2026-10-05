@@ -84,7 +84,7 @@ func _star(ed: MapEditor) -> bool:
 
 
 func _caisse(id: String, x := 12.0) -> Array:
-	return [{"op": "put", "coll": "objets", "el": {"id": id, "type": "caisse", "etage": 0, "position": [x, 5.0]}}]
+	return [{"op": "put", "coll": "objets", "el": {"id": id, "type": "caisse", "altitude": 0, "position": [x, 5.0]}}]
 
 
 func _press(d: ConfirmationDialog, choice: String) -> void:
@@ -310,7 +310,7 @@ func test_recovery_ignored_or_closed() -> void:
 	var dir := _saved("ignoree")
 	# Ancienne sauvegarde automatique (versions d'avant) : proposée elle aussi.
 	var m := EditorMap.load_dir(dir)
-	m.pieces.append({"id": "p1", "etage": 0, "contour": [[2, 2], [10, 2], [10, 8], [2, 8]], "zone": "z1"})
+	m.pieces.append({"id": "p1", "altitude": 0, "contour": [[2, 2], [10, 2], [10, 8], [2, 8]], "zone": "z1"})
 	assert_eq(m.save_dir(MapUnsaved.legacy_dir()), OK)
 	var f := FileAccess.open(MapUnsaved.legacy_dir().path_join("meta.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify({"source": dir, "name": "IGNOREE", "time": int(Time.get_unix_time_from_system())}))

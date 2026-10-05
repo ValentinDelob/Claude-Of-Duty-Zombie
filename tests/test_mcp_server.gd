@@ -528,7 +528,7 @@ func test_connect_dialog() -> void:
 
 func test_checks_ported_from_main() -> void:
 	# Nombre de marches automatique : « marches » refusé avant envoi (put ou add).
-	var st := {"type": "escalier", "etage": 0, "rect": [2, 2, 4, 6], "monte": "n"}
+	var st := {"type": "escalier", "altitude": 0, "rect": [2, 2, 4, 6], "monte": "n"}
 	var put_el := st.duplicate()
 	put_el["id"] = "e1"
 	put_el["marches"] = 12

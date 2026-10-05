@@ -29,24 +29,24 @@ static func diag_map() -> EditorMap:
 	var doc := EditorMap.blank("biais", "BIAIS", "DIAGONAL")
 	var za := doc.add_zone("Octogone", "Octagon")
 	var zb := doc.add_zone("Losange", "Diamond")
-	doc.pieces.append({"id": "p1", "nom": "Octogone", "etage": 0, "zone": za.id,
+	doc.pieces.append({"id": "p1", "nom": "Octogone", "altitude": 0, "zone": za.id,
 		"contour": [[6, 2], [14, 2], [18, 6], [18, 14], [14, 18], [6, 18], [2, 14], [2, 6]]})
-	doc.pieces.append({"id": "p2", "nom": "Losange", "etage": 0, "zone": zb.id, "contour": [[18, 14], [22, 18], [18, 22], [14, 18]],
+	doc.pieces.append({"id": "p2", "nom": "Losange", "altitude": 0, "zone": zb.id, "contour": [[18, 14], [22, 18], [18, 22], [14, 18]],
 		"surface_murs": "brick"})
 	doc.depart = String(za.id)
 	var r := MapRules.place_opening(doc, 0, "porte", Vector2(16, 16), 2.0)
-	doc.ouvertures.append({"id": "o1", "type": "porte", "etage": 0, "position": r.position, "largeur": 2.0, "prix": 750})
+	doc.ouvertures.append({"id": "o1", "type": "porte", "altitude": 0, "position": r.position, "largeur": 2.0, "prix": 750})
 	for pt in [Vector2(3.8, 3.8), Vector2(20.3, 20.3)]:
 		var w := MapRules.place_opening(doc, 0, "fenetre", pt, 1.0)
-		doc.ouvertures.append({"id": doc.new_id("o"), "type": "fenetre", "etage": 0, "position": w.position})
-	doc.objets.append({"id": "m1", "type": "mur", "etage": 0, "a": [8, 12], "b": [12, 8], "epaisseur": 0.5})
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [14.5, 12.0]})
+		doc.ouvertures.append({"id": doc.new_id("o"), "type": "fenetre", "altitude": 0, "position": w.position})
+	doc.objets.append({"id": "m1", "type": "mur", "altitude": 0, "a": [8, 12], "b": [12, 8], "epaisseur": 0.5})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [14.5, 12.0]})
 	for it in [[{"type": "boite", "depart": false}, Vector2(10, 2.6)], [{"type": "arme", "arme": "m14"}, Vector2(15.6, 4.3)],
 			[{"type": "atout", "atout": "titan"}, Vector2(20.3, 16.4)]]:
 		var o: Dictionary = it[0].duplicate()
 		var res := MapRules.place_wall_item(doc, 0, o, it[1])
 		o["id"] = doc.new_id("x")
-		o["etage"] = 0
+		o["altitude"] = 0.0
 		o["position"] = res.position
 		MapRules.apply_wall(o, res)
 		doc.objets.append(o)
@@ -143,18 +143,18 @@ func test_openings_on_oblique_walls() -> void:
 	var e := MapRules.place_opening(doc, 0, "porte", Vector2(14.3, 17.7), 2.0)
 	assert_true(e.ok and MapGeom.v2(e.position).distance_to(Vector2(14, 18)) >= 1.5 - 0.01, "0,5 m de mur au bout : %s" % str(e))
 	assert_false(MapRules.place_opening(doc, 0, "porte", Vector2(16, 16), 5.0).ok, "mur trop court pour 5 m")
-	doc.ouvertures.append({"id": "o1", "type": "porte", "etage": 0, "position": r.position, "largeur": 2.0, "prix": 750})
+	doc.ouvertures.append({"id": "o1", "type": "porte", "altitude": 0, "position": r.position, "largeur": 2.0, "prix": 750})
 	assert_false(MapRules.place_opening(doc, 0, "debris", Vector2(15, 17), 1.0).ok, "0,5 m entre deux ouvertures")
 	# Fenêtre : mur extérieur en biais, avec la cour dehors ; pas sur le mur commun.
 	var w := MapRules.place_opening(doc, 0, "fenetre", Vector2(3.6, 3.7), 1.0)
 	assert_true(w.ok and MapGeom.v2(w.position).is_equal_approx(Vector2(4, 4)), "fenêtre sur un mur extérieur en biais : %s" % str(w))
 	assert_false(MapRules.place_opening(doc, 0, "fenetre", Vector2(16.4, 15.3), 1.0).ok, "pas de fenêtre sur le mur commun")
 	var blocked := doc.duplicate_map()
-	blocked.pieces.append({"id": "p9", "nom": "Dehors", "etage": 0, "zone": "z1", "contour": [[0, 0], [3, 0], [3, 3], [0, 3]]})
+	blocked.pieces.append({"id": "p9", "nom": "Dehors", "altitude": 0, "zone": "z1", "contour": [[0, 0], [3, 0], [3, 3], [0, 3]]})
 	var wb := MapRules.place_opening(blocked, 0, "fenetre", Vector2(3.6, 3.7), 1.0)
 	assert_false(wb.ok, "fenêtre refusée : pièce dans la cour des zombies")
 	assert_true(String(wb.get("fr", "")).contains("pas de place dehors"), "raison : %s" % wb.get("fr", ""))
-	doc.ouvertures.append({"id": "o2", "type": "fenetre", "etage": 0, "position": w.position})
+	doc.ouvertures.append({"id": "o2", "type": "fenetre", "altitude": 0, "position": w.position})
 	# Objets muraux : contre un mur en biais, face vers l'intérieur (angle).
 	var arm := MapRules.place_wall_item(doc, 0, {"type": "arme", "arme": "m14"}, Vector2(15.6, 4.3))
 	assert_true(arm.ok and arm.has("angle") and absf(float(arm.angle) - 45.0) < 0.01 and arm.mur == "n", "M14 : mur au nord-est (45°) : %s" % str(arm))
@@ -170,7 +170,7 @@ func test_openings_on_oblique_walls() -> void:
 	var o := {"type": "atout", "atout": "titan", "position": perk.position, "mur": perk.mur, "angle": perk.angle}
 	for c in MapRules.wall_item_poly(o):
 		assert_true(MapGeom.contains(doc.room_poly(doc.pieces[1]), c) or MapGeom.on_boundary(doc.room_poly(doc.pieces[1]), c, 0.02), "emprise dans le losange")
-	assert_true(MapRules.check_existing(doc, o.merged({"id": "a9", "etage": 0})).ok, "objet posé toujours valide")
+	assert_true(MapRules.check_existing(doc, o.merged({"id": "a9", "altitude": 0})).ok, "objet posé toujours valide")
 
 
 func test_validator_accepts_oblique_map() -> void:
@@ -192,7 +192,7 @@ func test_validator_accepts_oblique_map() -> void:
 	assert_true(_errs(vs).contains("même zone"), "porte en biais dans une même zone refusée :\n" + _errs(vs))
 	# Refus : objet mural devant une ouverture en biais (placé à la main).
 	var bad := diag_map()
-	bad.objets.append({"id": "g1", "type": "grenades", "etage": 0, "position": [4.0, 4.0], "mur": "n", "angle": 315.0})
+	bad.objets.append({"id": "g1", "type": "grenades", "altitude": 0, "position": [4.0, 4.0], "mur": "n", "angle": 315.0})
 	var vb := _check(bad)
 	assert_false(vb.ok(), "grenades collées à la fenêtre en biais refusées")
 
@@ -380,7 +380,7 @@ func test_previous_formats_are_read() -> void:
 	# Format 2 écrit à la main : pièce polygone avec un côté en biais, sans angle.
 	var doc := diag_map()
 	var texts := doc.file_texts()
-	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 2")
+	texts = load("res://tests/test_levels_migration.gd").as_format(texts, 2)
 	var m := EditorMap.from_texts(texts)
 	assert_true(m.load_errors.is_empty() and m.format_read == 2, "format 2 lu tel quel")
 	assert_true(_check(m).ok(), "carte du format 2 jouable")
@@ -389,7 +389,7 @@ func test_previous_formats_are_read() -> void:
 	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": 2", "\"format\": %d" % (EditorMap.FORMAT + 1))
 	assert_false(EditorMap.from_texts(texts).load_errors.is_empty(), "format plus récent signalé")
 	# DRAFT ARENA (format 1, murs droits) : aucune case en biais, rien d'oblique.
-	var draft := EditorMap.load_dir("res://assets/maps/draft_arena/")
+	var draft := EditorMap.load_dir("res://tests/fixtures/maps/legacy_draft_arena/")
 	assert_eq(draft.format_read, 1)
 	var v := _check(draft)
 	assert_true(v.ok(), _errs(v))

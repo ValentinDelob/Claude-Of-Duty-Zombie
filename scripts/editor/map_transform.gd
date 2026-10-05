@@ -135,7 +135,7 @@ static func attached(doc: EditorMap, e: Dictionary) -> Array:
 	if not e.has("contour"):
 		return out
 	var poly := doc.room_poly(e)
-	var k := int(e.get("etage", 0))
+	var k := doc.level_of(e)
 	for o in doc.objects_on(k):
 		var c := MapRules.footprint_rect(o).get_center()
 		if String(o.type) == "mur":
@@ -160,7 +160,7 @@ static func on_free_wall(doc: EditorMap, e: Dictionary) -> Array:
 	var half := float(e.get("epaisseur", 0.5)) * 0.5
 	var off := half - MapGeom.WALL_HALF
 	var segs := MapShapes.arc_segments(e) if String(e.get("type", "")) == "mur_courbe" else [[MapGeom.v2(e.a), MapGeom.v2(e.b)]]
-	for o in doc.objects_on(int(e.get("etage", 0))):
+	for o in doc.objects_on(doc.level_of(e)):
 		if MapCatalog.tool_of(o) != "wall_item":
 			continue
 		var p := MapGeom.v2(o.get("position", [0, 0]))
@@ -228,7 +228,7 @@ static func apply(doc: EditorMap, orig: Dictionary, attached_ids: Array, c: Vect
 static func regenerate(doc: EditorMap, room: Dictionary, forme: Dictionary) -> Dictionary:
 	if not MapShapes.valid(forme):
 		return MapRules.refuse("forme invalide", "invalid shape")
-	var k := int(room.get("etage", 0))
+	var k := doc.level_of(room)
 	var poly := MapShapes.outline(forme)
 	var res := MapRules.check_room(doc, k, poly, String(room.id))
 	if not res.ok:

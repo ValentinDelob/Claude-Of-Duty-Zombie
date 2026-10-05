@@ -39,7 +39,7 @@ var pulse: Dictionary = {}
 var bubble: Dictionary = {}
 ## Éléments survolés dans le panneau Historique.
 var hover_ids: Array = []
-## Pair -> {pos: Vector2 affichée, floor}
+## Pair -> {pos: Vector2 affichée, alt (altitude du niveau de son curseur)}
 var cursors: Dictionary = {}
 ## Pair -> {coll, el} : aperçu en direct validé (presence.live).
 var live: Dictionary = {}
@@ -139,10 +139,10 @@ func on_presence(peer: String) -> void:
 	var pr: Dictionary = p.get("presence", {})
 	if pr.has("cursor"):
 		var to := Vector2(float(pr.cursor[0]), float(pr.cursor[1]))
-		var fl := int(pr.get("floor", 0))
+		var fl := float(pr.get("alt", 0.0))
 		var c: Dictionary = cursors.get(peer, {})
-		if c.is_empty() or int(c.floor) != fl:
-			cursors[peer] = {"pos": to, "target": to, "floor": fl}
+		if c.is_empty() or absf(float(c.alt) - fl) > EditorMap.ALT_EQ:
+			cursors[peer] = {"pos": to, "target": to, "alt": fl}
 		else:
 			c.target = to
 	live.erase(peer)
@@ -197,7 +197,7 @@ func on_committed(change: Dictionary) -> void:
 	var col := peer_color(author)
 	for id in ids:
 		var e := ed.doc.find(String(id))
-		if not e.is_empty() and e.has("etage"):
+		if not e.is_empty() and e.has("altitude"):
 			flashes[String(id)] = {"color": col, "t": 0.0}
 	_redraw()
 
@@ -218,7 +218,7 @@ func animate(ids: Array, label: String) -> void:
 	var drawn := []
 	for id in ids:
 		var e := ed.doc.find(String(id))
-		if not e.is_empty() and e.has("etage"):
+		if not e.is_empty() and e.has("altitude"):
 			drawn.append(String(id))
 	if drawn.is_empty():
 		return
@@ -253,7 +253,7 @@ func highlight(ids: Array, message: String) -> void:
 	var drawn := []
 	for id in ids:
 		var e := ed.doc.find(String(id))
-		if not e.is_empty() and e.has("etage"):
+		if not e.is_empty() and e.has("altitude"):
 			drawn.append(String(id))
 	pulse = {"ids": drawn, "t": 0.0, "life": HIGHLIGHT_SEC}
 	var text := Lang.t("Claude : %s", "Claude: %s") % message if message != "" else Lang.t("Claude montre %d élément(s)", "Claude shows %d element(s)") % drawn.size()
@@ -271,7 +271,7 @@ func bounds_of(ids: Array, k: int) -> Rect2:
 	var first := true
 	for id in ids:
 		var e := _find(String(id))
-		if e.is_empty() or int(e.get("etage", -1)) != k:
+		if e.is_empty() or ed.doc.level_of(e) != k:
 			continue
 		var r := ed.canvas.elem_rect_m(e)
 		bb = r if first else bb.merge(r)
@@ -292,7 +292,7 @@ func _bring_into_view(ids: Array, zoom_out: bool) -> void:
 	if bb.position.is_finite() and view.intersects(bb, true):
 		return
 	if not bb.position.is_finite():
-		k = int(ed.doc.find(String(ids[0])).get("etage", k))
+		k = maxi(0, ed.doc.level_of(ed.doc.find(String(ids[0]))))
 		ed.set_floor(k)
 		bb = bounds_of(ids, k)
 		if not bb.position.is_finite():
@@ -408,7 +408,7 @@ func _draw_all(cv: MapCanvas, font: Font, k: int) -> void:
 		# Aperçus en direct (silhouettes) et sélections des autres.
 		for id in live:
 			var el: Dictionary = live[id].el
-			if int(el.get("etage", 0)) != k:
+			if ed.doc.level_of(el) != k:
 				continue
 			var col := peer_color(id)
 			cv.fill_elem(el, Color(col, 0.28))
@@ -419,13 +419,13 @@ func _draw_all(cv: MapCanvas, font: Font, k: int) -> void:
 			var pr: Dictionary = ed.collab.peers[id].get("presence", {})
 			for sid in pr.get("selection", []):
 				var e := _find(String(sid))
-				if e.is_empty() or int(e.get("etage", 0)) != k:
+				if e.is_empty() or ed.doc.level_of(e) != k:
 					continue
 				cv.outline_elem(e, peer_color(id), 2.0, 5.0)
 	# Changements reçus : clignotement dans la couleur de l'auteur.
 	for id in flashes:
 		var e := _find(String(id))
-		if e.is_empty() or int(e.get("etage", 0)) != k:
+		if e.is_empty() or ed.doc.level_of(e) != k:
 			continue
 		var f: Dictionary = flashes[id]
 		var a := (1.0 - float(f.t) / FLASH_SEC) * (0.55 + 0.45 * cos(float(f.t) * TAU * 3.0))
@@ -439,13 +439,13 @@ func _draw_all(cv: MapCanvas, font: Font, k: int) -> void:
 			if hidden.has(id):
 				continue
 			var e := _find(String(id))
-			if e.is_empty() or int(e.get("etage", 0)) != k:
+			if e.is_empty() or ed.doc.level_of(e) != k:
 				continue
 			cv.outline_elem(e, Color(CLAUDE_COLOR, a), 2.5, 4.0)
 	# Survol d'une entrée du panneau Historique.
 	for id in hover_ids:
 		var e := _find(String(id))
-		if not e.is_empty() and int(e.get("etage", 0)) == k:
+		if not e.is_empty() and ed.doc.level_of(e) == k:
 			cv._draw_glow(e)
 	if session:
 		_draw_cursors(cv, font, k)
@@ -460,7 +460,7 @@ func _draw_cursors(cv: MapCanvas, font: Font, k: int) -> void:
 		if id == ed.collab.my_id or not ed.collab.peers.has(id):
 			continue
 		var c: Dictionary = cursors[id]
-		if int(c.floor) != k:
+		if absf(float(c.alt) - ed.doc.level_alt(k)) > EditorMap.ALT_EQ:
 			continue
 		var col := peer_color(id)
 		var at := cv.to_px(c.pos)

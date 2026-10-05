@@ -24,9 +24,9 @@ func run() -> void:
 	ed.new_map(true)
 	var doc := Free.two_rooms()
 	doc.pieces[1]["plafond"] = 6.8
-	doc.objets.append({"id": "d71", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [4.0, 4.0]})
-	doc.objets.append({"id": "d72", "type": "prefab", "prefab": "poutre", "etage": 0, "position": [19.0, 5.5]})
-	doc.objets.append({"id": "d73", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [10.0, 4.0]})
+	doc.objets.append({"id": "d71", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [4.0, 4.0]})
+	doc.objets.append({"id": "d72", "type": "prefab", "prefab": "poutre", "altitude": 0, "position": [19.0, 5.5]})
+	doc.objets.append({"id": "d73", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [10.0, 4.0]})
 	ed._reset(doc)
 	ed.views.setup("2v", ["dessus", "avant"])
 	var cv := ed.canvas

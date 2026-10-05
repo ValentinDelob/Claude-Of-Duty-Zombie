@@ -76,7 +76,7 @@ func test_agent_link_commands() -> void:
 ## est refusée pour la capture.
 func test_elements_with_heights_and_views() -> void:
 	var m := EditorMap.load_dir("res://assets/maps/draft_arena/")
-	m.objets.append({"id": "fx1", "type": "effet", "effet": "torche", "etage": 0, "position": [9.5, 4.5], "mur": "n", "hauteur": 2.4})
+	m.objets.append({"id": "fx1", "type": "effet", "effet": "torche", "altitude": 0, "position": [9.5, 4.5], "mur": "n", "hauteur": 2.4})
 	var collab := MapCollab.new(m)
 	host.add_child(collab)
 	var link := MapAgentLink.new()
@@ -102,9 +102,9 @@ func test_elements_with_heights_and_views() -> void:
 ## nomme l'objet de jeu d'un prefab bloqué, catalogue.
 func test_scale_through_the_agent_link() -> void:
 	var m := EditorMap.load_dir("res://assets/maps/draft_arena/")
-	m.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [12.0, 7.5]})
+	m.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [12.0, 7.5]})
 	m.prefabs["coin_pap"] = preload("res://tests/test_map_scale.gd").PAP_DEF.duplicate(true)
-	m.objets.append({"id": "d93", "type": "prefab", "prefab": "map:coin_pap", "etage": 0, "position": [5.0, 26.0]})
+	m.objets.append({"id": "d93", "type": "prefab", "prefab": "map:coin_pap", "altitude": 0, "position": [5.0, 26.0]})
 	m.activate_prefabs()
 	var collab := MapCollab.new(m)
 	host.add_child(collab)
@@ -144,7 +144,7 @@ func test_stair_steps_refused_through_the_agent_link() -> void:
 	var link := MapAgentLink.new()
 	link.collab = collab
 	host.add_child(link)
-	var st := {"id": "e70", "type": "escalier", "etage": 0, "rect": [4.0, 4.0, 6.0, 8.0], "monte": "n", "marches": 12}
+	var st := {"id": "e70", "type": "escalier", "altitude": 0, "rect": [4.0, 4.0, 6.0, 8.0], "monte": "n", "marches": 12}
 	var a := link.cmd_apply({"ops": [{"op": "put", "coll": "objets", "el": st}], "label": "Escalier", "animate": false})
 	assert_true((a.invalid as Dictionary).has("e70") and String(a.invalid.e70).contains("marches"), "refus nommé : %s" % str(a))
 	assert_true(collab.doc.find("e70").is_empty(), "escalier non appliqué")
@@ -159,9 +159,9 @@ func test_stair_steps_refused_through_the_agent_link() -> void:
 ## décor posé dessus).
 func test_mcp_scale_follows_editor_rules() -> void:
 	var m := EditorMap.load_dir("res://assets/maps/draft_arena/")
-	m.objets.append({"id": "d80", "type": "prefab", "prefab": "etagere", "etage": 0, "position": [20.0, 9.0]})
-	m.objets.append({"id": "d81", "type": "prefab", "prefab": "sacs_sable", "etage": 0, "position": [19.0, 14.5]})
-	m.objets.append({"id": "d82", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [19.0, 14.5], "z": 0.9})
+	m.objets.append({"id": "d80", "type": "prefab", "prefab": "etagere", "altitude": 0, "position": [20.0, 9.0]})
+	m.objets.append({"id": "d81", "type": "prefab", "prefab": "sacs_sable", "altitude": 0, "position": [19.0, 14.5]})
+	m.objets.append({"id": "d82", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [19.0, 14.5], "z": 0.9})
 	var collab := MapCollab.new(m)
 	host.add_child(collab)
 	var link := MapAgentLink.new()

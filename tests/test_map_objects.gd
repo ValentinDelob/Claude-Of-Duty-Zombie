@@ -24,7 +24,7 @@ func after_each() -> void:
 static func _room(doc: EditorMap, x0: float, y0: float, x1: float, y1: float) -> Dictionary:
 	var id := doc.new_id("p")
 	var z := String(doc.add_zone("Salle " + id, "Room " + id).id)
-	var r := {"id": id, "nom": "Salle " + id, "etage": 0, "zone": z, "contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]}
+	var r := {"id": id, "nom": "Salle " + id, "altitude": 0, "zone": z, "contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]}
 	doc.pieces.append(r)
 	return r
 
@@ -37,16 +37,16 @@ static func objects_map() -> EditorMap:
 	_room(doc, 14, 0, 24, 10)
 	_room(doc, 0, 10, 14, 16)
 	doc.depart = String(doc.zones[0].id)
-	doc.ouvertures.append({"id": "o1", "type": "porte", "etage": 0, "position": [14.0, 5.25], "largeur": 2.0, "prix": 750, "variante": "bois"})
-	doc.ouvertures.append({"id": "o2", "type": "fenetre", "etage": 0, "position": [3.25, 0.0]})
-	doc.ouvertures.append({"id": "o3", "type": "fenetre", "etage": 0, "position": [19.25, 0.0]})
-	doc.ouvertures.append({"id": "o4", "type": "debris", "etage": 0, "position": [3.75, 10.0], "largeur": 2.0, "prix": 1000, "variante": "gravats"})
-	doc.ouvertures.append({"id": "o5", "type": "fenetre", "etage": 0, "position": [7.25, 16.0]})
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [9.0, 7.0]})
-	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [9.75, 0.0], "mur": "n", "depart": false})
-	doc.objets.append({"id": "w1", "type": "arme", "arme": "m14", "etage": 0, "position": [11.25, 10.0], "mur": "s", "variante": "planche"})
-	doc.objets.append({"id": "a1", "type": "atout", "atout": "titan", "etage": 0, "position": [24.0, 5.0], "mur": "e"})
-	doc.objets.append({"id": "i1", "type": "bloc_invisible", "etage": 0, "rect": [16, 3, 17, 8]})
+	doc.ouvertures.append({"id": "o1", "type": "porte", "altitude": 0, "position": [14.0, 5.25], "largeur": 2.0, "prix": 750, "variante": "bois"})
+	doc.ouvertures.append({"id": "o2", "type": "fenetre", "altitude": 0, "position": [3.25, 0.0]})
+	doc.ouvertures.append({"id": "o3", "type": "fenetre", "altitude": 0, "position": [19.25, 0.0]})
+	doc.ouvertures.append({"id": "o4", "type": "debris", "altitude": 0, "position": [3.75, 10.0], "largeur": 2.0, "prix": 1000, "variante": "gravats"})
+	doc.ouvertures.append({"id": "o5", "type": "fenetre", "altitude": 0, "position": [7.25, 16.0]})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [9.0, 7.0]})
+	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [9.75, 0.0], "mur": "n", "depart": false})
+	doc.objets.append({"id": "w1", "type": "arme", "arme": "m14", "altitude": 0, "position": [11.25, 10.0], "mur": "s", "variante": "planche"})
+	doc.objets.append({"id": "a1", "type": "atout", "atout": "titan", "altitude": 0, "position": [24.0, 5.0], "mur": "e"})
+	doc.objets.append({"id": "i1", "type": "bloc_invisible", "altitude": 0, "rect": [16, 3, 17, 8]})
 	return doc
 
 
@@ -91,7 +91,7 @@ func test_catalog_variants_and_barrier_entry() -> void:
 	assert_eq(kinds.arme.keys.variante.values, MapCatalog.variants("arme"), "variantes admises des armes")
 	assert_eq(kinds.fenetre.keys.variante.values, MapCatalog.variants("fenetre"), "types admis des entrées des zombies (format 8)")
 	assert_true(kinds.has("bloc_invisible") and kinds.bloc_invisible.required == ["id", "type"], "barrière : type admis (sommets ou rect : CustomMapGuard)")
-	assert_eq(kinds.bloc_invisible.keys.keys().filter(func(k): return not k in ["id", "type", "etage"]), ["sommets", "rect", "rot", "hauteur"])
+	assert_eq(kinds.bloc_invisible.keys.keys().filter(func(k): return not k in ["id", "type", "altitude"]), ["sommets", "rect", "rot", "hauteur"])
 
 
 # ------------------------------------------------------------------ JSON
@@ -136,7 +136,7 @@ func test_old_maps_keep_their_look() -> void:
 		o.erase("variante")
 	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
 	var texts := doc.file_texts()
-	texts["carte.json"] = String(texts["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 4")
+	texts = load("res://tests/test_levels_migration.gd").as_format(texts, 4)
 	var m := EditorMap.from_texts(texts)
 	assert_eq(m.load_errors, [], "format 4 lu sans erreur")
 	assert_eq(m.format_read, 4)

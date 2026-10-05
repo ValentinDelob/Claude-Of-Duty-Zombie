@@ -19,7 +19,7 @@ var _probe: Array = []
 
 static func _room(doc: EditorMap, pts: Array, k := 0, extra := {}) -> Dictionary:
 	var z := doc.add_zone("Salle %d" % (doc.pieces.size() + 1), "Room %d" % (doc.pieces.size() + 1))
-	var r := {"id": doc.new_id("p"), "nom": "Salle %d" % (doc.pieces.size() + 1), "etage": k, "zone": String(z.id), "contour": pts}
+	var r := {"id": doc.new_id("p"), "nom": "Salle %d" % (doc.pieces.size() + 1), "altitude": k * EditorMap.FLOOR_STEP, "zone": String(z.id), "contour": pts}
 	r.merge(extra)
 	doc.pieces.append(r)
 	return r
@@ -27,7 +27,7 @@ static func _room(doc: EditorMap, pts: Array, k := 0, extra := {}) -> Dictionary
 
 static func _add(doc: EditorMap, list: Array, o: Dictionary, prefix: String, k := 0) -> Dictionary:
 	o["id"] = doc.new_id(prefix)
-	o["etage"] = k
+	o["altitude"] = k * EditorMap.FLOOR_STEP
 	list.append(o)
 	return o
 
@@ -81,7 +81,7 @@ static func put_item(doc: EditorMap, item_id: String, mouse: Vector2, rot := 0, 
 static func rich_map() -> EditorMap:
 	var doc := EditorMap.blank("stress_apercu", "STRESS APERÇU", "PREVIEW STRESS")
 	doc.carte["lampes_auto"] = false
-	doc.carte["etages"] = [{"sol": 0.0, "hauteur": 3.2}, {"sol": 3.5, "hauteur": 3.2}]
+	doc.view_levels.append(3.5)
 	var a := _room(doc, [[0, 0], [15, 0], [15, 10], [0, 10]])
 	_room(doc, [[15, 0], [25, 0], [25, 10], [15, 10]])
 	_room(doc, [[0, 10], [15, 10], [15, 20], [0, 20]])
@@ -236,9 +236,9 @@ func test_map_copy_is_deep() -> void:
 	assert_true(_plain(m.to_dict()), "copie faite de données seulement (aucun objet)")
 	doc.pieces[0].contour[0][0] = 99.0
 	doc.objets[0]["position"] = [1.0, 1.0]
-	doc.carte.etages[0]["hauteur"] = 9.0
+	doc.view_levels.append(9.0)
 	doc.zones[0].nom["fr"] = "changé"
 	assert_near(float(m.pieces[0].contour[0][0]), 0.0, 0.001, "contour copié")
 	assert_true(m.objets[0].position != [1.0, 1.0], "objets copiés")
-	assert_near(m.floor_height(0), 3.2, 0.001, "étages copiés")
+	assert_eq(m.levels(), [0.0, 3.5], "niveaux copiés")
 	assert_true(String(m.zones[0].nom.fr) != "changé", "noms des zones copiés")

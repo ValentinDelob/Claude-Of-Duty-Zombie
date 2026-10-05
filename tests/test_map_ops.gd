@@ -6,12 +6,12 @@ extends TestCase
 func _map() -> EditorMap:
 	var m := EditorMap.blank("essai", "ESSAI", "TEST")
 	m.pieces = [
-		{"id": "p1", "etage": 0, "nom": "Hall", "zone": "z1", "contour": [[2, 2], [10, 2], [10, 8], [2, 8]]},
-		{"id": "p2", "etage": 0, "nom": "Salle", "zone": "z2", "contour": [[10, 2], [16, 2], [16, 8], [10, 8]]},
+		{"id": "p1", "altitude": 0, "nom": "Hall", "zone": "z1", "contour": [[2, 2], [10, 2], [10, 8], [2, 8]]},
+		{"id": "p2", "altitude": 0, "nom": "Salle", "zone": "z2", "contour": [[10, 2], [16, 2], [16, 8], [10, 8]]},
 	]
 	m.zones = [{"id": "z1", "nom": {"fr": "Hall", "en": "Hall"}}, {"id": "z2", "nom": {"fr": "Salle", "en": "Room"}}]
-	m.ouvertures = [{"id": "o1", "type": "porte", "etage": 0, "position": [10, 5], "largeur": 2.0, "prix": 750}]
-	m.objets = [{"id": "w1", "type": "arme", "etage": 0, "arme": "m14", "position": [2.25, 5.0], "mur": "o"}]
+	m.ouvertures = [{"id": "o1", "type": "porte", "altitude": 0, "position": [10, 5], "largeur": 2.0, "prix": 750}]
+	m.objets = [{"id": "w1", "type": "arme", "altitude": 0, "arme": "m14", "position": [2.25, 5.0], "mur": "o"}]
 	m.depart = "z1"
 	return m
 
@@ -20,7 +20,7 @@ func test_diff_then_apply_gives_the_same_map() -> void:
 	var a := _map()
 	var b := a.duplicate_map()
 	b.pieces[1]["nom"] = "Salle 2"
-	b.objets.append({"id": "d1", "type": "prefab", "etage": 0, "prefab": "caisses", "position": [5.0, 5.0]})
+	b.objets.append({"id": "d1", "type": "prefab", "altitude": 0, "prefab": "caisses", "position": [5.0, 5.0]})
 	b.ouvertures.clear()
 	b.depart = "z2"
 	b.carte["musique"] = "autre"
@@ -40,7 +40,7 @@ func test_inverse_restores_order_and_content() -> void:
 	b.pieces.remove_at(0)
 	b.zones.remove_at(0)
 	b.objets.clear()
-	b.objets.append({"id": "d1", "type": "prefab", "etage": 0, "prefab": "caisses", "position": [5.0, 5.0]})
+	b.objets.append({"id": "d1", "type": "prefab", "altitude": 0, "prefab": "caisses", "position": [5.0, 5.0]})
 	var ops := MapOps.diff(a, b)
 	var inv := MapOps.inverse(a.snapshot(), ops)
 	var c := a.duplicate_map()
@@ -54,7 +54,7 @@ func test_inverse_restores_order_and_content() -> void:
 func test_apply_on_a_snapshot_and_put_at() -> void:
 	var s := _map().snapshot()
 	MapOps.apply(s, [{"op": "put", "coll": "zones", "el": {"id": "z9", "nom": {"fr": "A", "en": "A"}}, "at": 0},
-		{"op": "del", "coll": "objets", "id": "absent"}, {"op": "put", "coll": "pieces", "el": {"id": "p1", "etage": 0, "nom": "X", "contour": []}}])
+		{"op": "del", "coll": "objets", "id": "absent"}, {"op": "put", "coll": "pieces", "el": {"id": "p1", "altitude": 0, "nom": "X", "contour": []}}])
 	assert_eq(String(s.zones[0].id), "z9", "put avec at : inséré à l'indice")
 	assert_eq(String(s.pieces[0].nom), "X", "put d'un élément existant : remplacé sur place")
 	assert_eq((s.objets as Array).size(), 1, "del d'un absent : sans effet")
@@ -116,10 +116,10 @@ func test_resolve_adds_assigns_ids_and_zones() -> void:
 func test_check_elements_filters_bad_content() -> void:
 	var m := _map()
 	var r := MapOps.check_elements(m, [
-		{"op": "put", "coll": "objets", "el": {"id": "x1", "type": "lance_missiles", "etage": 0, "position": [1, 1]}},
-		{"op": "put", "coll": "objets", "el": {"id": "x2", "type": "caisse", "etage": 0, "position": [1, 1], "script": "res://a.gd"}},
+		{"op": "put", "coll": "objets", "el": {"id": "x1", "type": "lance_missiles", "altitude": 0, "position": [1, 1]}},
+		{"op": "put", "coll": "objets", "el": {"id": "x2", "type": "caisse", "altitude": 0, "position": [1, 1], "script": "res://a.gd"}},
 		{"op": "put", "coll": "objets", "el": {"id": "x3", "type": "caisse", "etage": 5, "position": [1, 1]}},
-		{"op": "put", "coll": "objets", "el": {"id": "x4", "type": "caisse", "etage": 0, "position": [1, 1]}},
+		{"op": "put", "coll": "objets", "el": {"id": "x4", "type": "caisse", "altitude": 0, "position": [1, 1]}},
 	])
 	assert_eq(r.ops.size(), 1, "seul l'élément valide passe")
-	assert_eq((r.invalid as Dictionary).keys(), ["x1", "x2", "x3"], "raisons : type inconnu, clé inconnue, étage absent")
+	assert_eq((r.invalid as Dictionary).keys(), ["x1", "x2", "x3"], "raisons : type inconnu, clé inconnue, clé etage du format 16")

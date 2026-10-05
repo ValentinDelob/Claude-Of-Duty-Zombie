@@ -103,10 +103,8 @@ static func outer_edges(doc: EditorMap, k: int) -> Array:
 	var out := []
 	var rooms := doc.rooms_on(k)
 	var voids := []
-	if k > 0:
-		for p in doc.rooms_on(k - 1):
-			if p.get("double_hauteur", false):
-				voids.append(doc.room_poly(p))
+	for p in doc.rooms_through(k):
+		voids.append(doc.room_poly(p))
 	for r in rooms:
 		var poly := doc.room_poly(r)
 		for i in poly.size():
@@ -169,7 +167,7 @@ static func apply_variant(doc: EditorMap, o: Dictionary, v: String) -> Dictionar
 	var cand := o.duplicate(true)
 	if not MapCatalog.set_variant(cand, v):
 		return refuse("type inconnu", "unknown type")
-	var res := place_opening(doc, int(o.get("etage", 0)), "fenetre", MapGeom.v2(o.position), opening_width(cand), String(o.get("id", "")))
+	var res := place_opening(doc, doc.level_of(o), "fenetre", MapGeom.v2(o.position), opening_width(cand), String(o.get("id", "")))
 	if not res.ok:
 		return res
 	MapCatalog.set_variant(o, v)
@@ -559,20 +557,23 @@ static var _batch_lists: Dictionary = {}   # étage -> [escaliers et murs libres
 static func begin_batch(doc: EditorMap) -> void:
 	if not ThreadGuard.main_only("MapRules.begin_batch"):   # fil principal seulement
 		return
+	if _batch_doc != null:
+		_batch_doc.thaw_levels()
 	_batch = {}
 	_batch_doc = doc
+	doc.freeze_levels()
 	_floor_bases = {}   # étages lus par les contrôles d'escaliers (_stair_floor_base)
 	_batch_lists = {}
 	for o in doc.objets:
 		var t := String(o.get("type", ""))
 		if t == "escalier" or t == "mur" or t == "mur_courbe":
 			# Escaliers et murs libres par étage (contrôles d'escaliers).
-			(_batch_lists.get_or_add(int(o.get("etage", 0)), []) as Array).append(o)
+			(_batch_lists.get_or_add(doc.level_of(o), []) as Array).append(o)
 		if t in NO_OVERLAP_CHECK:
 			continue
 		var r := footprint_rect(o)
 		var e := [o, r, layer_of(o)]
-		var grid: Dictionary = _batch.get_or_add(int(o.get("etage", 0)), {})
+		var grid: Dictionary = _batch.get_or_add(doc.level_of(o), {})
 		for b in _buckets(r):
 			grid.get_or_add(b, []).append(e)
 
@@ -580,6 +581,8 @@ static func begin_batch(doc: EditorMap) -> void:
 static func end_batch() -> void:
 	if not ThreadGuard.main_only("MapRules.end_batch"):   # fil principal seulement
 		return
+	if _batch_doc != null:
+		_batch_doc.thaw_levels()
 	_batch = {}
 	_batch_doc = null
 	_floor_bases = {}
@@ -671,7 +674,7 @@ static func support_height(o: Dictionary) -> float:
 ## Meuble sous un luminaire posé au sol ({} : posé par terre).
 static func support_under(doc: EditorMap, o: Dictionary) -> Dictionary:
 	var r := footprint_rect(o)
-	for other in _overlaps_all(doc, int(o.get("etage", 0)), r, String(o.get("id", "")), "sol"):
+	for other in _overlaps_all(doc, doc.level_of(o), r, String(o.get("id", "")), "sol"):
 		if support_height(other) > 0.0:
 			return other
 	return {}
@@ -900,7 +903,7 @@ static func _effects_full(doc: EditorMap, tmpl: Dictionary, ignore_id: String) -
 ## ou face d'un mur libre), tourné vers la pièce comme lui (même au raccord de
 ## deux murs, où le mur le plus proche du curseur serait ambigu).
 static func wall_decor_still_on_wall(doc: EditorMap, o: Dictionary) -> Dictionary:
-	var k := int(o.get("etage", 0))
+	var k := doc.level_of(o)
 	var p := MapGeom.v2(o.get("position", [0, 0]))
 	var dv := MapGeom.item_wall_dir(o)
 	var front := p - dv * (MapGeom.WALL_HALF + 0.05)
@@ -1648,11 +1651,9 @@ static func _stair_floor_base(doc: EditorMap, j: int) -> Dictionary:
 			base.rooms.append(re)
 			for bk in _buckets(MapGeom.bbox(poly).grow(MapGeom.CELL)):
 				(base.room_grid.get_or_add(bk, []) as Array).append(re)
-		if j > 0:
-			for p in doc.rooms_on(j - 1):
-				if p.get("double_hauteur", false):
-					var rc := _room_cells(doc.room_poly(p))
-					base.voids.append([p, rc[0], rc[1]])
+		for p in doc.rooms_through(j):
+			var rc := _room_cells(doc.room_poly(p))
+			base.voids.append([p, rc[0], rc[1]])
 		var y1 := doc.floor_sol(j + 1) if j + 1 < doc.floor_count() else doc.floor_sol(j) + 3.5
 		var batched := _batch_doc == doc and main
 		for o in (_batch_lists.get(j, []) if batched else doc.objects_on(j)):
@@ -1758,14 +1759,14 @@ static func _stair_cell_now(ctx: Dictionary, j: int, c: Vector2i) -> Dictionary:
 			return {"kind": "mur", "what": ["un mur de l'étage %d" % j, "a wall on floor %d" % j]}
 		elif not void_of.is_empty():
 			var vp: Dictionary = void_of[0][0]
-			return {"kind": "vide", "what": ["le vide de la pièce à double hauteur « %s »" % vp.get("nom", vp.id), "the void of the double-height room \"%s\"" % vp.get("nom", vp.id)]}
+			return {"kind": "vide", "what": ["le vide de la pièce haute « %s »" % vp.get("nom", vp.id), "the void of the high room \"%s\"" % vp.get("nom", vp.id)]}
 		else:
 			return {"kind": "vide", "what": ["le vide (pas de pièce à l'étage %d)" % j, "empty space (no room on floor %d)" % j]}
-	# Mur d'une double hauteur de l'étage du dessous : il monte jusqu'ici.
+	# Mur d'une pièce haute du niveau du dessous : il monte jusqu'ici.
 	for v: Array in here.voids:
 		if (v[1] as Dictionary).has(c):
 			var p: Dictionary = v[0]
-			return {"kind": "mur", "what": ["le mur de la pièce à double hauteur « %s »" % p.get("nom", p.id), "the wall of the double-height room \"%s\"" % p.get("nom", p.id)]}
+			return {"kind": "mur", "what": ["le mur de la pièce haute « %s »" % p.get("nom", p.id), "the wall of the high room \"%s\"" % p.get("nom", p.id)]}
 	var center := MapGeom.cell_center(c)
 	var cr := Rect2((Vector2(c) - Vector2.ONE * 0.5) * MapGeom.CELL, Vector2.ONE * MapGeom.CELL).grow(-0.02)
 	var reach := MapGeom.WALL_HALF + MapGeom.CELL * 0.5
@@ -1828,12 +1829,20 @@ static func _stair_ends_free(ctx: Dictionary, k: int, parts: Dictionary) -> bool
 ## quoi et où, zones fautives (« marks »). `down` : posé avec l'escalier qui
 ## descend (depuis l'étage k + 1) : « départ » en haut, « arrivée » en bas.
 static func check_stair(doc: EditorMap, k: int, o: Dictionary, ignore_id := "", down := false) -> Dictionary:
+	# Niveaux figés pendant le contrôle (level_of sur chaque objet proche).
+	doc.freeze_levels()
+	var r := _check_stair(doc, k, o, ignore_id, down)
+	doc.thaw_levels()
+	return r
+
+
+static func _check_stair(doc: EditorMap, k: int, o: Dictionary, ignore_id := "", down := false) -> Dictionary:
 	if k < 0:
 		return refuse("pas d'étage sous le rez-de-chaussée : l'escalier qui descend se pose depuis l'étage 1 ou plus haut (au rez-de-chaussée, prenez l'escalier qui monte)",
 			"no floor below the ground floor: stairs going down are placed from floor 1 or higher (on the ground floor, use the stairs going up)")
 	if k >= doc.floor_count() - 1:
-		return refuse("pas d'étage au-dessus de l'étage %d : ajoutez d'abord un étage (onglet Étages), ou prenez l'escalier qui descend" % k,
-			"no floor above floor %d: add a floor first (Floors tab), or use the stairs going down" % k)
+		return refuse("pas d'étage au-dessus de l'étage %d : ajoutez d'abord un niveau (onglet Niveaux), ou prenez l'escalier qui descend" % k,
+			"no floor above floor %d: add a level first (Levels tab), or use the stairs going down" % k)
 	var y0 := doc.floor_sol(k)
 	var y1 := doc.floor_sol(k + 1)
 	# Zone des obstacles : le rectangle et une case autour (les bouts, dans les quatre sens).
@@ -2058,8 +2067,11 @@ static func check_arc(o: Dictionary) -> Dictionary:
 
 ## Vérifie un élément déjà posé (dessin en rouge des éléments devenus invalides).
 static func check_existing(doc: EditorMap, o: Dictionary) -> Dictionary:
-	var k := int(o.get("etage", 0))
+	var k := doc.level_of(o)
 	var t := String(o.get("type", ""))
+	if k < 0:
+		return refuse("aucune pièce à son altitude (%s) : posez-le au niveau d'une pièce" % EditorMap.alt_text(EditorMap.alt_of(o)),
+			"no room at its altitude (%s): put it on a room's level" % EditorMap.alt_text(EditorMap.alt_of(o), false))
 	if o.has("contour"):
 		return check_room(doc, k, doc.room_poly(o), String(o.id))
 	if t in ouvertures_types():

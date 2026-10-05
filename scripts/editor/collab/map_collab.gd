@@ -45,7 +45,9 @@ enum Role { SOLO, HOST, GUEST }
 ## 2 : messages du TESTER à plusieurs (§ 5.3) ; un éditeur de la v1 est
 ## refusé à l'arrivée (« version de l'éditeur différente ») au lieu de quitter
 ## la session au premier test.
-const PROTO := 2
+## 3 : format 17 (niveaux libres) : éléments avec « altitude », présence avec
+## « alt » (altitude du niveau vu) à la place de l'étage.
+const PROTO := 3
 const DEFAULT_PORT := 7790
 const MAX_LINE := MapOps.MAX_BYTES
 const MAX_HUMANS := 8
@@ -831,7 +833,7 @@ func _set_map(map: Dictionary) -> void:
 				continue
 			l[i]["id"] = str(l[i].get("id", ""))
 			if coll != "zones":
-				l[i]["etage"] = int(l[i].get("etage", 0)) if (l[i].get("etage") is float or l[i].get("etage") is int) else 0
+				l[i]["altitude"] = EditorMap.alt_of(l[i])
 
 
 func _set_peers(list: Array) -> void:
@@ -931,7 +933,7 @@ func _process(delta: float) -> void:
 			_send_host(p)
 
 
-## Présence reçue, bornée : {cursor: [x, y], floor, selection: [ids], tool,
+## Présence reçue, bornée : {cursor: [x, y], alt, selection: [ids], tool,
 ## live?, agent?} ; {} si elle est invalide.
 static func clean_presence(m: Dictionary) -> Dictionary:
 	var out := {}
@@ -940,8 +942,9 @@ static func clean_presence(m: Dictionary) -> Dictionary:
 			and is_finite(float(cur[0])) and is_finite(float(cur[1]))):
 		return {}
 	out["cursor"] = [clampf(float(cur[0]), -1000.0, 1000.0), clampf(float(cur[1]), -1000.0, 1000.0)]
-	var fl: Variant = m.get("floor", 0)
-	out["floor"] = clampi(int(fl), 0, CustomMapGuard.MAX_FLOORS - 1) if (fl is float or fl is int) and is_finite(float(fl)) else 0
+	# Format 17 : altitude du niveau vu (m, nombre fini), à la place de l'étage.
+	var fl: Variant = m.get("alt", 0.0)
+	out["alt"] = clampf(float(fl), -1.0e6, 1.0e6) if (fl is float or fl is int) and is_finite(float(fl)) else 0.0
 	var sel: Variant = m.get("selection", [])
 	out["selection"] = (sel as Array).slice(0, 64).filter(func(x): return x is String and (x as String).length() <= 64) if sel is Array else []
 	out["tool"] = String(m.get("tool", "")).left(32) if m.get("tool") is String else ""

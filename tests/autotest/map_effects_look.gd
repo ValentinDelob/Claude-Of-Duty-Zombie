@@ -23,11 +23,11 @@ var H := AutotestHelpers
 static func review_map() -> EditorMap:
 	var doc := EditorMap.blank(MAP_ID, "EFFETS", "EFFECTS")
 	var z := String(doc.add_zone("Salle", "Hall").id)
-	doc.pieces.append({"id": "p1", "nom": "Salle", "etage": 0, "zone": z, "contour": [[0, 0], [44, 0], [44, 12], [0, 12]]})
+	doc.pieces.append({"id": "p1", "nom": "Salle", "altitude": 0, "zone": z, "contour": [[0, 0], [44, 0], [44, 12], [0, 12]]})
 	doc.depart = z
-	doc.ouvertures.append({"id": "o1", "type": "fenetre", "etage": 0, "position": [22.25, 12.0]})
-	doc.objets.append({"id": "s1", "type": "depart", "etage": 0, "position": [22.0, 10.5]})
-	doc.objets.append({"id": "b1", "type": "boite", "etage": 0, "position": [30.0, 12.0], "mur": "s", "depart": true})
+	doc.ouvertures.append({"id": "o1", "type": "fenetre", "altitude": 0, "position": [22.25, 12.0]})
+	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [22.0, 10.5]})
+	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [30.0, 12.0], "mur": "s", "depart": true})
 	var place := {
 		"flammes": [["petit_feu", 1.6, 4.0], ["brasier", 4.6, 4.5, [1.6, 1.6]], ["baril_feu", 1.6, 7.5], ["incendie", 4.6, 8.6, [4.0, 2.0], 15],
 			["torche", 3.2, 0.0]],
@@ -49,7 +49,7 @@ static func review_map() -> EditorMap:
 			var it := MapCatalog.item("effet:" + String(e[0]))
 			var o: Dictionary = it.make.duplicate(true)
 			o["id"] = doc.new_id("fx")
-			o["etage"] = 0
+			o["altitude"] = 0.0
 			o["position"] = [snappedf(x0 + float(e[1]), 0.25), float(e[2])]
 			if it.tool == "wall_item":
 				o["mur"] = "n"
@@ -61,7 +61,7 @@ static func review_map() -> EditorMap:
 			doc.objets.append(o)
 			doc.objets.append_array(MapCatalog.split_legacy_effect(o, doc.objets, next_id))
 			if String(e[0]) == "baril_feu":
-				doc.objets.append({"id": doc.new_id("x"), "type": "baril", "etage": 0, "position": o.position})
+				doc.objets.append({"id": doc.new_id("x"), "type": "baril", "altitude": 0, "position": o.position})
 	return doc
 
 

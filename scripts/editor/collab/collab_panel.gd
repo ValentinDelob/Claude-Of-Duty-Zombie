@@ -242,8 +242,8 @@ func update_pills() -> void:
 		var id := String(pill.peer_id)
 		var p: Dictionary = ed.collab.peers.get(id, {})
 		var pr: Dictionary = p.get("presence", {})
-		var fl := int(pr.get("floor", -1)) if pr.has("cursor") else -1
-		pill.floor_text = Lang.t("Étage %d", "Floor %d") % fl if fl >= 0 and fl != ed.floor_k and not pill.me else ""
+		var fl: Variant = float(pr.get("alt", 0.0)) if pr.has("cursor") else null
+		pill.floor_text = EditorMap.level_name(float(fl)) if fl != null and absf(float(fl) - ed.view_alt()) > EditorMap.ALT_EQ and not pill.me else ""
 		pill.tooltip_text = pill_tooltip(id)
 		pill.update_minimum_size()
 		pill.queue_redraw()
@@ -268,9 +268,9 @@ func pill_tooltip(id: String) -> String:
 	lines.append(role)
 	var pr: Dictionary = p.get("presence", {})
 	if id == c.my_id:
-		lines.append(Lang.t("Étage %d", "Floor %d") % ed.floor_k)
+		lines.append(EditorMap.level_name(ed.view_alt()))
 	elif pr.has("cursor"):
-		lines.append(Lang.t("Étage %d", "Floor %d") % int(pr.get("floor", 0)))
+		lines.append(EditorMap.level_name(float(pr.get("alt", 0.0))))
 	return "\n".join(lines)
 
 

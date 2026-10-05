@@ -104,7 +104,7 @@ func run() -> void:
 	# 2. Empreinte juste mais contenu interdit (type d'objet inconnu, chemin).
 	var texts := m.file_texts()
 	var objets = JSON.parse_string(texts["objets.json"])
-	objets.objets.append({"id": "../evil", "type": "script", "etage": 0, "position": [5, 5], "source": "res://boot.gd"})
+	objets.objets.append({"id": "../evil", "type": "script", "altitude": 0, "position": [5, 5], "source": "res://boot.gd"})
 	texts["objets.json"] = EditorMap.dump(objets)
 	var evil := CustomMapGuard.pack(texts)
 	share.srv_offer_package(evil, {"fr": "PIÈGE", "en": "TRAP"})

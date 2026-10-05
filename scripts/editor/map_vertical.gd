@@ -53,6 +53,18 @@ static func ceil_room(v: MapValidator, k: int, c: Vector2i, own: float) -> Array
 	return [v.floors[k + 1].sol - DALLE, false]
 
 
+## Niveau (indice dans la grille `v`) d'un élément : celui de son altitude
+## (EditorMap.alt_of), -1 s'il n'y en a pas.
+static func level_in(v: MapValidator, e: Dictionary) -> int:
+	if v == null:
+		return -1
+	var a := EditorMap.alt_of(e)
+	for k in v.floors.size():
+		if absf(v.floors[k].sol - a) <= EditorMap.ALT_EQ:
+			return k
+	return -1
+
+
 ## Case (0,5 m) d'un point de l'éditeur.
 static func cell(p: Vector2) -> Vector2i:
 	return Vector2i(floori(p.x / MapGeom.CELL), floori(p.y / MapGeom.CELL))
@@ -127,7 +139,8 @@ static func floor_light_base(doc: EditorMap, e: Dictionary) -> float:
 
 ## Bornes du plafond d'une pièce (m, hauteur sous plafond) : les mêmes dans
 ## le panneau, le catalogue (contrôle des cartes reçues) et le validateur.
-const ROOM_CEILING := [2.8, 9.0]
+## Format 17 : pas de maximum (seulement un nombre fini).
+const ROOM_CEILING := [2.8, INF]
 ## Marges sous le plafond (comme l'export en jeu, MapLayoutExport) : applique
 ## et décor mural, effet mural, effet au sol.
 const WALL_MARGIN := 0.15
@@ -164,7 +177,7 @@ static func pose_key(e: Dictionary) -> String:
 
 ## Hauteur sous plafond (m) au-dessus du point de pose d'un élément.
 static func room_h(v: MapValidator, e: Dictionary) -> float:
-	var k := int(e.get("etage", 0))
+	var k := level_in(v, e)
 	if v == null or k < 0 or k >= v.floors.size():
 		return EditorMap.DEFAULT_CEILING
 	return ceil_z(v, k, anchor_of(e)) - v.floors[k].sol
@@ -192,7 +205,7 @@ static func effect_ground(mount: String, y: float, desc: float, rh: float, ancho
 ## Hauteur sous plafond (m) d'un effet posé, au point où le jeu le pose
 ## (mural : sur la face du mur, comme MapRaster._effect).
 static func effect_room_h(v: MapValidator, e: Dictionary) -> float:
-	var k := int(e.get("etage", 0))
+	var k := level_in(v, e)
 	if v == null or k < 0 or k >= v.floors.size():
 		return EditorMap.DEFAULT_CEILING
 	var p := MapGeom.v2(e.get("position", [0, 0]))
@@ -354,7 +367,7 @@ static func decor_top(o: Dictionary) -> float:
 static func tops_under(doc: EditorMap, o: Dictionary) -> Array:
 	var out := []
 	var r := MapRules.footprint_rect(o)
-	var k := int(o.get("etage", 0))
+	var k := doc.level_of(o)
 	for q in doc.objects_on(k):
 		if String(q.get("id", "")) == String(o.get("id", "")) or not String(q.get("type", "")) in ["prefab", "caisse", "baril"]:
 			continue
@@ -401,7 +414,7 @@ static func resting_on(doc: EditorMap, o: Dictionary, skip: Array = []) -> Array
 		return out
 	var top := decor_top(o)
 	var r := MapRules.footprint_rect(o)
-	for q in doc.objects_on(int(o.get("etage", 0))):
+	for q in doc.objects_on(doc.level_of(o)):
 		var qid := String(q.get("id", ""))
 		if qid == String(o.get("id", "")) or qid in skip or String(q.get("type", "")) != "prefab" or mount_of(q) != "sol":
 			continue
@@ -422,42 +435,33 @@ static func check_rests(doc: EditorMap, ids: Array) -> Dictionary:
 	return {"ok": true}
 
 
-## Étage (indice) dont la tranche contient l'altitude `za` (m, absolue) :
-## du sol d'un étage au sol du suivant (le dernier : jusqu'à son plafond) ;
-## -1 sous le premier sol ou au-dessus du haut du dernier étage.
+## Niveau (indice) dont la tranche contient l'altitude `za` (m, absolue) :
+## du sol d'un niveau au sol du suivant (le dernier : jusqu'au plus haut
+## plafond de ses pièces) ; -1 sous le premier sol ou au-dessus du dernier.
 static func floor_at(doc: EditorMap, za: float) -> int:
-	var n := doc.floor_count()
+	var n := doc.level_count()
 	for k in range(n - 1, -1, -1):
-		if za >= doc.floor_sol(k) - 0.001:
-			if k == n - 1 and za > doc.floor_sol(k) + doc.floor_height(k) + 0.001:
-				return -1
+		if za >= doc.level_alt(k) - 0.001:
+			if k == n - 1:
+				var hi := doc.level_alt(k) + EditorMap.DEFAULT_CEILING
+				for p in doc.rooms_on(k):
+					hi = maxf(hi, EditorMap.room_top(p))
+				if za > hi + 0.001:
+					return -1
 			return k
 	return -1
 
 
-## Plafond le plus haut (m, hauteur sous plafond) d'une pièce : 9 m, ou le
-## dessous de la dalle de l'étage du dessus si une pièce de cet étage la
-## couvre entièrement.
-static func ceiling_max(doc: EditorMap, v: MapValidator, room: Dictionary) -> float:
-	var k := int(room.get("etage", 0))
-	if v == null or k + 1 >= v.floors.size():
-		return ROOM_CEILING[1]
-	var cells: Array = MapRaster.room_cells(doc.room_poly(room))[1]
-	if cells.is_empty():
-		return ROOM_CEILING[1]
-	for c in cells:
-		if v.floors[k + 1].at(c) in [MapValidator.K.VIDE, MapValidator.K.TREMIE]:
-			return ROOM_CEILING[1]
-	return clampf(doc.floor_sol(k + 1) - DALLE - doc.floor_sol(k), ROOM_CEILING[0], ROOM_CEILING[1])
+## Plafond le plus haut (m, hauteur sous plafond) d'une pièce. Format 17 :
+## aucun maximum de conception (sous une pièce du dessus, le plafond réel est
+## le plus bas des deux).
+static func ceiling_max(_doc: EditorMap, _v: MapValidator, _room: Dictionary) -> float:
+	return ROOM_CEILING[1]
 
 
-## Étage dont le sol est le plus proche de l'altitude `za` (aimantation sur les niveaux).
+## Niveau dont le sol est le plus proche de l'altitude `za` (aimantation sur les niveaux).
 static func nearest_floor(doc: EditorMap, za: float) -> int:
-	var best := 0
-	for k in doc.floor_count():
-		if absf(doc.floor_sol(k) - za) < absf(doc.floor_sol(best) - za):
-			best = k
-	return best
+	return doc.nearest_level(za)
 
 
 ## Aimants verticaux (§ 3.2) autour d'un élément : sols, plafonds de l'étage
@@ -466,15 +470,14 @@ static func nearest_floor(doc: EditorMap, za: float) -> int:
 static func magnets(doc: EditorMap, v: MapValidator, e: Dictionary) -> Array:
 	var out := []
 	var fr := not Lang.is_en()
-	for k in doc.floor_count():
-		var sol := doc.floor_sol(k)
-		var tag := Lang.t("É%d", "F%d") % k
+	for k in doc.level_count():
+		var sol := doc.level_alt(k)
+		var tag := EditorMap.alt_text(sol, fr)
 		out.append({"z": sol, "name": Lang.t("Sol %s", "Floor %s") % tag})
-		out.append({"z": sol + doc.floor_height(k), "name": Lang.t("Plafond %s", "Ceiling %s") % tag})
-		if k + 1 < doc.floor_count():
-			out.append({"z": doc.floor_sol(k + 1) - DALLE, "name": Lang.t("Dessous de dalle %s", "Slab underside %s") % tag})
-	var k := int(e.get("etage", 0))
-	var sol := doc.floor_sol(k)
+		out.append({"z": sol + EditorMap.DEFAULT_CEILING, "name": Lang.t("Plafond %s", "Ceiling %s") % tag})
+		if k + 1 < doc.level_count():
+			out.append({"z": doc.level_alt(k + 1) - DALLE, "name": Lang.t("Dessous de dalle %s", "Slab underside %s") % tag})
+	var sol := EditorMap.alt_of(e)
 	var dh := float(doc.carte.get("hauteur_portes", MapValidator.DOOR_HEIGHT))
 	out.append({"z": sol + dh, "name": Lang.t("Haut des portes", "Door top")})
 	out.append({"z": sol + MapValidator.SILL, "name": Lang.t("Allège fenêtres", "Window sill")})

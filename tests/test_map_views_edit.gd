@@ -21,10 +21,10 @@ func after_each() -> void:
 
 static func _arena() -> EditorMap:
 	var doc := EditorMap.load_dir("res://assets/maps/draft_arena/")
-	doc.objets.append({"id": "fx1", "type": "effet", "effet": "torche", "etage": 0, "position": [9.5, 4.5], "mur": "n", "hauteur": 1.8})
-	doc.objets.append({"id": "lu1", "type": "luminaire", "luminaire": "suspension", "etage": 0, "position": [10.0, 26.0], "rot": 0})
-	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "caisses", "etage": 0, "position": [8.0, 28.0], "rot": 0})
-	doc.objets.append({"id": "d2", "type": "prefab", "prefab": "bureau", "etage": 0, "position": [13.75, 28.0], "rot": 0})
+	doc.objets.append({"id": "fx1", "type": "effet", "effet": "torche", "altitude": 0, "position": [9.5, 4.5], "mur": "n", "hauteur": 1.8})
+	doc.objets.append({"id": "lu1", "type": "luminaire", "luminaire": "suspension", "altitude": 0, "position": [10.0, 26.0], "rot": 0})
+	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [8.0, 28.0], "rot": 0})
+	doc.objets.append({"id": "d2", "type": "prefab", "prefab": "bureau", "altitude": 0, "position": [13.75, 28.0], "rot": 0})
 	return doc
 
 
@@ -131,22 +131,22 @@ func test_horizontal_move_in_front_view_keeps_depth() -> void:
 
 func test_room_changes_floor_with_its_content() -> void:
 	var doc := _arena()
-	# Un étage 2 libre au-dessus de la passerelle.
-	doc.carte.etages.append({"sol": 7.0, "hauteur": 3.2})
+	# Un niveau vide (7 m) au-dessus de la passerelle.
+	doc.view_levels.append(7.0)
 	var ed := await _editor(doc)
 	var ev := _view(ed)
 	ed.select("p5")
 	var b3 := ed.doc.find("b3")
-	assert_eq(int(b3.etage), 1)
+	assert_eq(ed.doc.level_of(b3), 1)
 	var e := ev.projected_of("p5")
 	var c := Vector2((float(e.u0) + float(e.u1)) * 0.5, (float(e.v0) + float(e.v1)) * 0.5)
 	_drag(ev, c, c + Vector2(0.0, -3.5))
-	assert_eq(int(ed.doc.find("p5").etage), 2, "passerelle montée à l'étage 2")
-	assert_eq(int(ed.doc.find("b3").etage), 2, "sa boîte avec elle")
-	assert_eq(int(ed.doc.find("c1").etage), 2, "son interrupteur avec elle")
+	assert_eq(ed.doc.level_of(ed.doc.find("p5")), 2, "passerelle montée à l'étage 2")
+	assert_eq(ed.doc.level_of(ed.doc.find("b3")), 2, "sa boîte avec elle")
+	assert_eq(ed.doc.level_of(ed.doc.find("c1")), 2, "son interrupteur avec elle")
 	ed.undo()
-	assert_eq(int(ed.doc.find("p5").etage), 1)
-	assert_eq(int(ed.doc.find("b3").etage), 1)
+	assert_eq(ed.doc.level_of(ed.doc.find("p5")), 1)
+	assert_eq(ed.doc.level_of(ed.doc.find("b3")), 1)
 	ed.queue_free()
 	await wait_frames(1)
 
@@ -183,10 +183,10 @@ func test_room_ceiling_handle_and_double_height_lock() -> void:
 	_drag(ev, ev.to_m(px), ev.to_m(px) + Vector2(0, -1.0))
 	assert_near(float(ed.doc.find("p1").get("plafond", 3.2)), 4.2, 0.001, "plafond 3,20 → 4,20 m")
 	assert_eq(ed.collab.history.undo_count(ed.collab.my_id), 1)
-	# Entrepôt en double hauteur : cadenas, rien ne change.
+	# Entrepôt haut (format 17 : plus de double hauteur) : son plafond se règle aussi.
 	ed.select("p3")
-	var lock: Array = ev.tools.handles(ev.projected_of("p3")).filter(func(h): return h.id == "top")
-	assert_true(bool(lock[0].get("lock", false)), "double hauteur : cadenas")
+	var top_h: Array = ev.tools.handles(ev.projected_of("p3")).filter(func(h): return h.id == "top")
+	assert_false(top_h.is_empty() or bool(top_h[0].get("lock", false)), "pièce haute : poignée du plafond, sans cadenas")
 	ed.queue_free()
 	await wait_frames(1)
 
@@ -269,7 +269,7 @@ func test_decor_stacked_on_another() -> void:
 	ed.doc.find("d2")["z"] = 1.5
 	assert_true(MapVertical.check_pose(ed.doc, v, ed.doc.find("d2")).ok, "posé sur le dessus de la pile de caisses")
 	# Sans collision, il peut flotter.
-	var debris := {"id": "d3", "type": "prefab", "prefab": "debris_epars", "etage": 0, "position": [10.0, 25.0], "rot": 0, "z": 1.0}
+	var debris := {"id": "d3", "type": "prefab", "prefab": "debris_epars", "altitude": 0, "position": [10.0, 25.0], "rot": 0, "z": 1.0}
 	ed.doc.objets.append(debris)
 	assert_true(MapVertical.check_pose(ed.doc, v, debris).ok, "décor sans collision : libre")
 	ed.queue_free()
@@ -281,8 +281,8 @@ func test_format_12_round_trip_and_older_maps() -> void:
 	doc.find("d2")["z"] = 1.5
 	doc.find("d2")["position"] = [8.0, 28.0]
 	doc.find("lu1")["descente"] = 1.2
-	doc.objets.append({"id": "lu2", "type": "luminaire", "luminaire": "lampe_bureau", "etage": 0, "position": [12.0, 24.0], "rot": 0, "hauteur": 1.0})
-	doc.objets.append({"id": "fx2", "type": "effet", "effet": "cable_nu", "etage": 0, "position": [12.0, 30.0], "descente": 0.4})
+	doc.objets.append({"id": "lu2", "type": "luminaire", "luminaire": "lampe_bureau", "altitude": 0, "position": [12.0, 24.0], "rot": 0, "hauteur": 1.0})
+	doc.objets.append({"id": "fx2", "type": "effet", "effet": "cable_nu", "altitude": 0, "position": [12.0, 30.0], "descente": 0.4})
 	var dir := ProjectSettings.globalize_path(TMP + "/f12")
 	assert_eq(doc.save_dir(dir), OK)
 	var carte: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("carte.json")))
@@ -324,9 +324,12 @@ func test_received_map_with_out_of_bounds_height_is_refused() -> void:
 	r = CustomMapGuard.check_texts(doc.file_texts())
 	assert_false(r.ok, "descente hors bornes : refusée")
 	doc.find("lu1")["descente"] = 1.0
+	doc.pieces[0]["plafond"] = 2.5
+	r = CustomMapGuard.check_texts(doc.file_texts())
+	assert_false(r.ok, "plafond de pièce sous 2,8 m : refusé (bornes unifiées)")
 	doc.pieces[0]["plafond"] = 12.0
 	r = CustomMapGuard.check_texts(doc.file_texts())
-	assert_false(r.ok, "plafond de pièce au-delà de 9 m : refusé (bornes unifiées)")
+	assert_true(r.ok, "format 17 : plafond sans maximum (%s)" % [r.get("reasons", [])])
 	doc.pieces[0]["plafond"] = 4.0
 	r = CustomMapGuard.check_texts(doc.file_texts())
 	assert_true(r.ok, "bornes respectées : acceptée (%s)" % [r.get("reasons", [])])
@@ -351,9 +354,9 @@ func test_export_heights_in_game() -> void:
 func test_stack_decor_by_dragging_in_front_view() -> void:
 	var doc := EditorMap.blank("pile", "PILE", "STACK")
 	var z := String(doc.add_zone("A", "A").id)
-	doc.pieces.append({"id": "p1", "nom": "A", "etage": 0, "zone": z, "contour": [[0, 0], [14, 0], [14, 10], [0, 10]]})
-	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "sacs_sable", "etage": 0, "position": [5.0, 4.0], "rot": 0})
-	doc.objets.append({"id": "d2", "type": "prefab", "prefab": "sacs_sable", "etage": 0, "position": [8.0, 4.0], "rot": 0})
+	doc.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": z, "contour": [[0, 0], [14, 0], [14, 10], [0, 10]]})
+	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "sacs_sable", "altitude": 0, "position": [5.0, 4.0], "rot": 0})
+	doc.objets.append({"id": "d2", "type": "prefab", "prefab": "sacs_sable", "altitude": 0, "position": [8.0, 4.0], "rot": 0})
 	var ed := await _editor(doc)
 	var ev := _view(ed)
 	ev.zoom = 40.0
@@ -450,7 +453,7 @@ func test_undo_and_map_replaced_during_elevation_drag() -> void:
 func test_object_under_double_height_ceiling_keeps_its_floor() -> void:
 	var doc := _arena()
 	# Lampe de bureau dans l'entrepôt (double hauteur), loin de la passerelle.
-	doc.objets.append({"id": "lb", "type": "luminaire", "luminaire": "lampe_bureau", "etage": 0, "position": [14.0, 14.0], "rot": 0})
+	doc.objets.append({"id": "lb", "type": "luminaire", "luminaire": "lampe_bureau", "altitude": 0, "position": [14.0, 14.0], "rot": 0})
 	var ed := await _editor(doc)
 	var ev := _view(ed)
 	ed.canvas.set_snap_mode("grille")
@@ -458,7 +461,7 @@ func test_object_under_double_height_ceiling_keeps_its_floor() -> void:
 	_move_to(ev, Vector2(0.0, -4.0))
 	ev.tools.release()
 	var lb := ed.doc.find("lb")
-	assert_eq(int(lb.etage), 0, "sous le plafond réel de l'entrepôt : reste à l'étage 0")
+	assert_eq(ed.doc.level_of(lb), 0, "sous le plafond réel de l'entrepôt : reste à l'étage 0")
 	var z := MapVertical.pose_z(ed.doc, ed.raster().v, lb)
 	assert_true(z > ed.doc.floor_sol(1) and z < ed.doc.floor_sol(1) + 3.0, "posée au-dessus du sol de l'étage 1 (%s m)" % z)
 	ed.queue_free()
@@ -514,9 +517,9 @@ func test_axis_locks_follow_allowed_axes() -> void:
 
 func test_room_floor_change_checks_its_content() -> void:
 	var doc := _arena()
-	doc.carte.etages.append({"sol": 7.0, "hauteur": 3.2})
 	# Escalier dans la passerelle (étage 1 : l'étage 2 existe au-dessus).
-	doc.objets.append({"id": "st", "type": "escalier", "etage": 1, "rect": [3.0, 5.0, 5.0, 9.0], "rot": 0})
+	doc.view_levels.append(7.0)
+	doc.objets.append({"id": "st", "type": "escalier", "altitude": 1 * EditorMap.FLOOR_STEP, "rect": [3.0, 5.0, 5.0, 9.0], "rot": 0})
 	var ed := await _editor(doc)
 	var p5 := ed.doc.find("p5")
 	var att := ed.attached_to(p5)
@@ -524,8 +527,8 @@ func test_room_floor_change_checks_its_content() -> void:
 	var snap := ed.doc.snapshot()
 	var res := ed.try_move_3d(p5.duplicate(true), att, Vector2.ZERO, 2, NAN, snap)
 	assert_false(res.ok, "escalier sur le dernier étage : refusé")
-	assert_eq(int(ed.doc.find("p5").etage), 1, "la passerelle reste à l'étage 1")
-	assert_eq(int(ed.doc.find("st").etage), 1)
+	assert_eq(ed.doc.level_of(ed.doc.find("p5")), 1, "la passerelle reste à l'étage 1")
+	assert_eq(ed.doc.level_of(ed.doc.find("st")), 1)
 	ed.queue_free()
 	await wait_frames(1)
 
