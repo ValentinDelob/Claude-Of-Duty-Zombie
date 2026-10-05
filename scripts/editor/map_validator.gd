@@ -170,6 +170,12 @@ var map_textures: Dictionary = {}
 ## (« rrggbb » ou ""), eid}]. Aucune case bloquée.
 var effects: Array = []
 var lamps_auto := true
+## Plafond masqué (format 17, « sans_plafond ») : par niveau, cases dont le
+## plafond PROPRE (Floor.ceil) est celui d'une pièce sans plafond
+## ({Vector2i: true}) ; MapVertical.open_at en tire le ciel ouvert.
+var open_sky: Array = []
+## Ciel de la carte (EditorMap.sky_of : {type, luminosite}).
+var sky: Dictionary = {"type": "noir", "luminosite": 1.0}
 ## Murs en biais (MapRaster), par étage : [{a, b (m, repère de l'éditeur),
 ## t (direction), n (normale), half (demi-épaisseur, m), pos, neg (pièce du
 ## côté +n / -n, "" : dehors), kind ("piece" : côté de pièce, "mur" : mur libre)}].

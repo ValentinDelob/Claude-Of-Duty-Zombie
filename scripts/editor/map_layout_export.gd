@@ -231,6 +231,11 @@ func _rooms(f: MapValidator.Floor) -> void:
 				var cm := surface_of(rid, "plafond", zone, "ceiling")
 				key = "%s|%s|%s|%s|%s" % [zone, ce[0], ce[1], fm, cm]
 				info[key] = ["", zone, ce, fm, cm]
+			# Plafond masqué (format 17) : son propre plafond, pièce sans plafond.
+			if bool(ce[1]) and MapVertical.open_at(md, k, c):
+				var ik: Array = info[key]
+				key += "|ciel"
+				info[key] = ik + [true]
 			keys[y * f.w + x] = key
 	var n := 0
 	for rk in merge_rects(f.w, f.h, keys):
@@ -243,6 +248,10 @@ func _rooms(f: MapValidator.Floor) -> void:
 			"floor_mat": String(inf[3]), "ceiling_mat": String(inf[4])}
 		if not inf[2][1]:
 			room["ceiling"] = under_slab(float(inf[2][0]))
+		if inf.size() > 5:
+			# Ciel ouvert : ni plafond ni collision (MeshMapGeometry) ; « ceiling »
+			# reste le plafond virtuel (zones, luminaires accrochés).
+			room["no_ceiling"] = true
 		if k > 0:
 			room["floor_slab"] = MapValidator.DALLE
 		rooms.append(room)
@@ -420,10 +429,12 @@ func _ceil_room(k: int, c: Vector2i, own: float) -> Array:
 
 
 ## Salle (sol, plafond) d'un morceau de contour `outline` ([[x, z]...], monde).
-func _room_entry(rid: String, outline: Array, f: MapValidator.Floor, ce: Array, fm: String, cm: String) -> Dictionary:
+func _room_entry(rid: String, outline: Array, f: MapValidator.Floor, ce: Array, fm: String, cm: String, open := false) -> Dictionary:
 	var room := {"id": rid, "outline": outline, "floor": _r(f.sol), "ceiling": _r(ce[0]), "floor_mat": fm, "ceiling_mat": cm}
 	if not ce[1]:
 		room["ceiling"] = under_slab(float(ce[0]))
+	if open:
+		room["no_ceiling"] = true
 	if f.index > 0:
 		room["floor_slab"] = MapValidator.DALLE
 	return room
@@ -465,7 +476,7 @@ func _fillers(f: MapValidator.Floor) -> void:
 				var outline := []
 				for q in piece:
 					outline.append(_xz(q))
-				rooms.append(_room_entry("biais_%s%d" % [zone, k], outline, f, ce, fm, cm))
+				rooms.append(_room_entry("biais_%s%d" % [zone, k], outline, f, ce, fm, cm, bool(r.get("open", false)) and bool(ce[1])))
 				# Zone de ce morceau de sol (testée après les salles de la grille).
 				var pb := MapGeom.bbox(piece)
 				var lo := f.sol - (0.5 if k == 0 else 0.15)
@@ -1276,6 +1287,9 @@ func _lamps() -> Array:
 ## ou objet posé, et sol sous une barrière invisible (la lampe est au
 ## plafond : poser une barrière ne retire ni ne déplace les lampes).
 func _lamp_zone(f: MapValidator.Floor, c: Vector2i) -> String:
+	# Ciel ouvert (pièce sans plafond) : pas de lampe automatique.
+	if MapVertical.open_at(md, f.index, c):
+		return ""
 	if f.at(c) in [Kd.SOL, Kd.MARQUEUR]:
 		return f.zone_of(c)
 	if md._under_clip(f, c):
@@ -1354,10 +1368,15 @@ func _map_def() -> Dictionary:
 	for z in md.zones:
 		names[z] = String(md.zone_names.get(z, "Zone " + z.to_upper()))
 	var has_mainframe := md.wall_items.any(func(it): return it.base == "poste_central")
-	return {
+	var out := {
 		"display_name": md.display_name if md.display_name != "" else md.id.to_upper(),
 		"description": md.description, "music": md.music, "zone_names": names, "doors": doors,
 		"open_links": md.open_links, "box_start": maxi(start, 0),
 		"box_starts": [] if start >= 0 else range(n_box),
 		"teleporter_link": has_mainframe,
 	}
+	# Format 17 : ciel de la carte (noir complet par défaut), seulement s'il se
+	# voit (une pièce au moins sans plafond) ; sinon le rendu reste celui d'avant.
+	if rooms.any(func(r): return r.get("no_ceiling", false)):
+		out["sky"] = {"type": String(md.sky.type), "luminosite": float(md.sky.get("luminosite", 1.0))}
+	return out

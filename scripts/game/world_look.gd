@@ -182,6 +182,9 @@ static func setup_environment(parent: Node3D, look := {}) -> void:
 	env.tonemap_exposure = look.get("exposure", env.tonemap_exposure)
 	env.volumetric_fog_density = look.get("volumetric_density", env.volumetric_fog_density)
 	env.volumetric_fog_albedo = look.get("volumetric_albedo", env.volumetric_fog_albedo)
+	# Ciel de la carte (cartes de l'éditeur aux pièces sans plafond) ; noir par défaut.
+	if look.get("sky") is Dictionary:
+		apply_sky(env, look.sky)
 	# Étalonnage BO1 (table 3D procédurale), luminosité des options comprise
 	# (RenderQuality la refait quand Settings.brightness change).
 	env.set_meta("grade", look.get("grade", {}))
@@ -204,6 +207,69 @@ static func setup_environment(parent: Node3D, look := {}) -> void:
 	rq.name = "RenderQuality"
 	rq.environment = env
 	parent.add_child(rq)
+
+
+# --------------------------------------------------------------------------
+# Ciel (format 17 des cartes de l'éditeur : pièces sans plafond)
+# --------------------------------------------------------------------------
+
+const NIGHT_SKY := preload("res://assets/shaders/night_sky.gdshader")
+## Ciel de jour : couvert, gris-bleu délavé (BO1), sans soleil (aucune
+## lumière directionnelle : l'éclairage de la carte ne change pas).
+const DAY_TOP := Color(0.3, 0.38, 0.5)
+const DAY_HORIZON := Color(0.58, 0.6, 0.62)
+const DAY_GROUND := Color(0.1, 0.1, 0.1)
+## Part de la brume de la carte posée sur le ciel (1 : ciel noyé dans la brume).
+const SKY_FOG := 0.2
+
+
+## Ciel de la carte `sky` = {type : « noir » | « jour » | « nuit »,
+## luminosite (facteur)} (EditorMap.sky_of). Noir (« sans fond ») : fond noir
+## uni ; `open` (une pièce au moins sans plafond) : noir COMPLET (la brume ne
+## l'éclaircit pas) ; sinon le fond d'avant (noir voilé par la brume, jamais
+## vu d'une carte fermée). Jour : ciel procédural ; nuit : étoiles générées
+## (night_sky.gdshader) ; la luminosité règle l'énergie du ciel. Lumière
+## ambiante (couleur de la carte) et reflets inchangés : le ciel ne se voit que
+## là où il n'y a pas de plafond, il n'éclaire pas les pièces fermées.
+static func apply_sky(env: Environment, sky: Dictionary, open := true) -> void:
+	var t := String(sky.get("type", "noir"))
+	var lum := float(sky.get("luminosite", 1.0))
+	if not (lum >= 0.0 and is_finite(lum)):
+		lum = 1.0
+	env.set_meta("sky", {"type": t, "luminosite": lum})
+	env.set_meta("sky_open", open)
+	if not t in ["jour", "nuit"]:
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = Color(0.0, 0.0, 0.0)
+		env.background_energy_multiplier = 1.0
+		env.sky = null
+		env.fog_sky_affect = 0.0 if open else 1.0
+		env.reflected_light_source = Environment.REFLECTION_SOURCE_BG
+		return
+	var s := Sky.new()
+	s.radiance_size = Sky.RADIANCE_SIZE_32
+	if t == "jour":
+		var m := ProceduralSkyMaterial.new()
+		m.sky_top_color = DAY_TOP
+		m.sky_horizon_color = DAY_HORIZON
+		m.ground_horizon_color = DAY_HORIZON.darkened(0.25)
+		m.ground_bottom_color = DAY_GROUND
+		m.sky_curve = 0.12
+		m.energy_multiplier = lum
+		s.sky_material = m
+	else:
+		var m := ShaderMaterial.new()
+		m.shader = NIGHT_SKY
+		m.set_shader_parameter("brightness", lum)
+		s.sky_material = m
+	env.sky = s
+	env.background_mode = Environment.BG_SKY
+	env.background_energy_multiplier = 1.0
+	env.fog_sky_affect = SKY_FOG
+	# Lumière ambiante : toujours la couleur de la carte (jamais le ciel) ;
+	# reflets du ciel coupés (ils éclairaient les sols des pièces fermées).
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 
 
 # --------------------------------------------------------------------------

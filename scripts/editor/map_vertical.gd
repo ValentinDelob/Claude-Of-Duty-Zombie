@@ -28,6 +28,22 @@ static func ceil_at(v: MapValidator, k: int, c: Vector2i) -> Array:
 	return [v.floors[k + 1].sol - DALLE, false]
 
 
+## Ciel ouvert au-dessus d'une case (format 17, plafond masqué) : son plafond
+## est le plafond propre d'une pièce sans plafond (MapValidator.open_sky),
+## suivi comme ceil_at à travers les trémies ; sous la dalle d'une pièce posée
+## au-dessus, jamais (le dessous de la dalle reste dessiné).
+static func open_at(v: MapValidator, k: int, c: Vector2i) -> bool:
+	if k < 0 or k >= v.open_sky.size():
+		return false
+	if k < v.floors.size() - 1:
+		var above := v.floors[k + 1].at(c)
+		if above == MapValidator.K.TREMIE:
+			return open_at(v, k + 1, c)
+		if above != MapValidator.K.VIDE:
+			return false
+	return (v.open_sky[k] as Dictionary).has(c)
+
+
 ## Haut des murs d'une case (jusqu'au haut de l'étage du dessus au droit d'une trémie).
 static func wall_top(v: MapValidator, k: int, c: Vector2i) -> float:
 	if k < v.floors.size() - 1:

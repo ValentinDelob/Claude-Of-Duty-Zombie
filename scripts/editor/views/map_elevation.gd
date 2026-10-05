@@ -567,11 +567,23 @@ func _alpha(e: Dictionary, k_cur: int, cut: bool) -> float:
 func _draw_room(c: CanvasItem, e: Dictionary, r: Rect2, a: float, area: Rect2) -> void:
 	var zc := ed.zone_color(String(e.it.get("zone", "")))
 	c.draw_rect(r, Color(zc.r, zc.g, zc.b, 0.08 + 0.16 * a))
-	c.draw_rect(r, Color(COL_WALL, 0.3 + 0.55 * a), false, 1.2)
 	var half := MapGeom.WALL_HALF * zoom
-	for x in [r.position.x, r.end.x]:
-		c.draw_rect(Rect2(x - half, r.position.y, half * 2.0, r.size.y), Color(COL_WALL, 0.25 + 0.6 * a))
-	c.draw_rect(Rect2(r.position.x - half, r.position.y - 0.12 * zoom, r.size.x + half * 2.0, 0.24 * zoom), Color(COL_WALL, 0.2 + 0.5 * a))
+	var room: Variant = e.it.get("e", {})
+	if room is Dictionary and EditorMap.no_ceiling(room):
+		# Format 17 : plafond masqué : ligne du plafond (virtuel) en pointillés,
+		# pas de dalle de plafond.
+		var lc := Color(COL_WALL, 0.3 + 0.55 * a)
+		c.draw_line(r.position, Vector2(r.position.x, r.end.y), lc, 1.2)
+		c.draw_line(Vector2(r.end.x, r.position.y), r.end, lc, 1.2)
+		c.draw_line(Vector2(r.position.x, r.end.y), r.end, lc, 1.2)
+		c.draw_dashed_line(r.position, Vector2(r.end.x, r.position.y), Color(COL_WALL, 0.45 + 0.5 * a), 1.6, _u(6))
+		for x in [r.position.x, r.end.x]:
+			c.draw_rect(Rect2(x - half, r.position.y, half * 2.0, r.size.y), Color(COL_WALL, 0.25 + 0.6 * a))
+	else:
+		c.draw_rect(r, Color(COL_WALL, 0.3 + 0.55 * a), false, 1.2)
+		for x in [r.position.x, r.end.x]:
+			c.draw_rect(Rect2(x - half, r.position.y, half * 2.0, r.size.y), Color(COL_WALL, 0.25 + 0.6 * a))
+		c.draw_rect(Rect2(r.position.x - half, r.position.y - 0.12 * zoom, r.size.x + half * 2.0, 0.24 * zoom), Color(COL_WALL, 0.2 + 0.5 * a))
 	if bool(e.it.get("slab", false)):
 		var sol := -float(e.v1)
 		var top := to_px(Vector2(0, -sol)).y

@@ -121,6 +121,12 @@ extends RefCounted
 ##      du dessus (rooms_through). Conversion au chargement (_migrate_levels) :
 ##      altitude = sol de l'ancien étage, plafond de l'étage écrit sur la pièce,
 ##      double hauteur = plafond jusqu'en haut de l'étage du dessus.
+##      Plafond masqué (étape 2 du plan) : « sans_plafond » : true sur une pièce
+##      (jamais écrit à faux) : ni plafond dessiné ni collision au-dessus
+##      d'elle, ses murs montent jusqu'à son « plafond » ; on y voit le CIEL de
+##      la carte, « carte.ciel » = {type : « noir » | « jour » | « nuit »,
+##      luminosite (facteur, 1 par défaut)} (sky_of ; défaut : noir, clé
+##      jamais écrite à sa valeur par défaut).
 const FORMAT := 17
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
@@ -218,6 +224,65 @@ static func room_ceiling(p: Dictionary) -> float:
 ## Altitude du plafond réglé d'une pièce (m).
 static func room_top(p: Dictionary) -> float:
 	return alt_of(p) + room_ceiling(p)
+
+
+## Pièce au plafond masqué (« sans_plafond » : true, format 17) : à ciel
+## ouvert, murs jusqu'à son plafond réglé.
+static func no_ceiling(p: Dictionary) -> bool:
+	var v: Variant = p.get("sans_plafond", false)
+	return v is bool and v
+
+
+## Masquer (`hidden`) ou afficher le plafond d'une pièce : la clé n'est écrite
+## que pour un plafond masqué.
+static func set_no_ceiling(p: Dictionary, hidden: bool) -> void:
+	if hidden:
+		p["sans_plafond"] = true
+	else:
+		p.erase("sans_plafond")
+
+
+## Ciel de la carte (« carte.ciel ») : types, luminosité (facteur) par défaut
+## et bornes (panneau, contrôle des cartes reçues).
+const SKY_TYPES := ["noir", "jour", "nuit"]
+const SKY_DEFAULT := "noir"
+const SKY_LUM_DEFAULT := 1.0
+const SKY_LUM := [0.1, 2.0]
+
+
+## Ciel de la carte lu dans `c` (carte.json) : {type, luminosite} ; absent ou
+## illisible : noir, luminosité 1.
+static func sky_of(c: Dictionary) -> Dictionary:
+	var out := {"type": SKY_DEFAULT, "luminosite": SKY_LUM_DEFAULT}
+	var s: Variant = c.get("ciel")
+	if not s is Dictionary:
+		return out
+	var t: Variant = s.get("type", SKY_DEFAULT)
+	if t is String and t in SKY_TYPES:
+		out.type = t
+	var l: Variant = s.get("luminosite", SKY_LUM_DEFAULT)
+	if (l is float or l is int) and is_finite(float(l)):
+		out.luminosite = clampf(float(l), SKY_LUM[0], SKY_LUM[1])
+	return out
+
+
+## Règle le ciel de la carte `c`, jamais écrit à sa valeur par défaut (noir :
+## clé retirée, la luminosité n'y change rien ; luminosité 1 : non écrite).
+static func set_sky(c: Dictionary, type: String, lum: float) -> void:
+	if not type in SKY_TYPES or type == SKY_DEFAULT:
+		c.erase("ciel")
+		return
+	var s := {"type": type}
+	if is_finite(lum) and absf(lum - SKY_LUM_DEFAULT) > 0.001:
+		s["luminosite"] = snappedf(clampf(lum, SKY_LUM[0], SKY_LUM[1]), 0.01)
+	c["ciel"] = s
+
+
+## Ciel illisible ou par défaut retiré ; sinon réécrit proprement.
+static func tidy_sky(c: Dictionary) -> void:
+	if c.has("ciel"):
+		var s := sky_of(c)
+		set_sky(c, String(s.type), float(s.luminosite))
 
 
 ## Altitudes distinctes (à ALT_EQ près) de `alts`, triées.
@@ -994,6 +1059,9 @@ func _normalize() -> void:
 			# Format 17 : altitude finie (0 sinon).
 			e["altitude"] = alt_of(e)
 	for p in pieces:
+		# Plafond masqué : « sans_plafond » vrai seulement, jamais écrit à faux.
+		if p.has("sans_plafond"):
+			set_no_ceiling(p, no_ceiling(p))
 		# Forme de base illisible (fichier écrit à la main) : la pièce reste un polygone.
 		if p.has("forme") and not MapShapes.valid(p.forme):
 			p.erase("forme")
@@ -1052,6 +1120,8 @@ func _normalize() -> void:
 	for o in objets:
 		if String(o.get("type", "")) == "bloc_invisible":
 			normalize_clip(o)
+	# Ciel de la carte illisible ou par défaut : retiré.
+	tidy_sky(carte)
 	# Réglage « chevauchement_decor » illisible ou faux : retiré (règles d'avant).
 	if carte.has(MapCatalog.OVERLAP_KEY) and not (carte[MapCatalog.OVERLAP_KEY] is bool and carte[MapCatalog.OVERLAP_KEY]):
 		carte.erase(MapCatalog.OVERLAP_KEY)
