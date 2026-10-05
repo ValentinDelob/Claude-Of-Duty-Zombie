@@ -167,12 +167,12 @@ func test_facade() -> void:
 	assert_eq(String(m.stack_issue(["p3"]).get("b", {}).get("id", "")), "p2", "paire mezzanine / halle")
 
 
-func test_validator_temporary_restrictions() -> void:
+func test_validator_level_checks() -> void:
 	var m := EditorMap.from_texts(two_floors())
-	# Arrivée d'escalier ailleurs qu'au niveau suivant : erreur claire.
+	# Étape 1b : arrivée d'escalier à une altitude sans pièce : erreur claire.
 	m.find("e1")["altitude_haut"] = 6.0
 	var v := MapRaster.build(m).v
-	assert_true(v.errors().any(func(e): return String(e.fr).contains("niveau suivant")), "escalier vers un autre niveau refusé pour l'instant")
+	assert_true(v.errors().any(func(e): return String(e.fr).contains("il arrive à 6 m, aucune pièce à cette altitude")), "arrivée sans pièce signalée")
 	# Élément sans pièce à son altitude : signalé, jamais perdu.
 	var m2 := EditorMap.from_texts(two_floors())
 	m2.find("c1")["altitude"] = 9.0

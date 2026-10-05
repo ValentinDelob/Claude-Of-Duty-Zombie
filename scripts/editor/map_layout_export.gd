@@ -322,15 +322,42 @@ func _passage_lintel(f: MapValidator.Floor, c: Vector2i) -> Array:
 			continue
 		var low: float = ceil_at(k, c)[0]
 		var top := maxf(float(ceil_at(k, a)[0]), float(ceil_at(k, b)[0]))
-		# Mur ou sol de l'étage du dessus au droit du passage : il commence au
+		# Mur ou sol d'un niveau du dessus au droit du passage : il commence au
 		# dessous de la dalle (pas deux murs l'un dans l'autre, z-fighting).
-		if k < n_floors - 1 and not md.floors[k + 1].at(c) in [Kd.VIDE, Kd.TREMIE]:
-			top = minf(top, MapVertical.top(md, k))
+		var j := MapVertical.slab_above(md, k, c)
+		if j >= 0:
+			top = minf(top, md.floors[j].sol - MapValidator.DALLE)
 		if top <= low + 0.005:
 			return []
 		var mats := [surface_of(f.room_of(a), "murs", f.zone_of(a), "wall"), surface_of(f.room_of(b), "murs", f.zone_of(b), "wall")]
 		return [under_slab(low), top, mats, axis]
 	return []
+
+
+## Retombée au-dessus d'un palier dans l'épaisseur d'un mur (arrivée d'un
+## escalier entre deux pièces côte à côte d'altitudes différentes,
+## MapRaster._landing) : du plafond du palier (le plus bas) au plus haut des
+## plafonds de ses voisines praticables (marches, pièce d'arrivée), coupée
+## sous la dalle d'un niveau du dessus. Même forme que _passage_lintel.
+func _landing_lintel(f: MapValidator.Floor, c: Vector2i) -> Array:
+	var k := f.index
+	var low: float = ceil_at(k, c)[0]
+	var top := low
+	var axis := 0
+	for d in MapValidator.DIRS:
+		var n: Vector2i = c + d
+		if f.at(n) in [Kd.SOL, Kd.MARQUEUR, Kd.TREMIE, Kd.ESCALIER]:
+			var ce: float = ceil_at(k, n)[0]
+			if ce > top:
+				top = ce
+				axis = 0 if d.x != 0 else 1
+	var j := MapVertical.slab_above(md, k, c)
+	if j >= 0:
+		top = minf(top, md.floors[j].sol - MapValidator.DALLE)
+	if top <= low + 0.005:
+		return []
+	var m := _cell_wall_mat(f, c)
+	return [under_slab(low), top, [m, m], axis]
 
 
 ## Murs, allèges et linteaux : blocs fusionnés sur une grille de demi-cases
@@ -378,6 +405,8 @@ func _walls(f: MapValidator.Floor) -> void:
 				# Passage libre entre deux pièces de plafonds différents : retombée
 				# du plafond le plus bas au plus haut.
 				lintel = _passage_lintel(f, c)
+				if lintel.is_empty() and (md.landings.get(k, {}) as Dictionary).has(c):
+					lintel = _landing_lintel(f, c)
 				if not lintel.is_empty():
 					hi = "%s|%s" % [lintel[0], lintel[1]]
 			if lo == "" and hi == "":
@@ -937,7 +966,7 @@ func _rails(f: MapValidator.Floor) -> void:
 		return
 	var skip := {}
 	for s in md.stairs:
-		if s.floor == k - 1:
+		if int(s.get("to", -1)) == k:
 			# Bord du palier vers les marches (droites ou tournées) : pas de garde-corps.
 			for c in s.links:
 				for t in s.links[c]:
@@ -976,17 +1005,19 @@ func _rails(f: MapValidator.Floor) -> void:
 func _stairs() -> void:
 	for s in md.stairs:
 		var k: int = s.floor
+		# Niveau d'arrivée (format 17 : n'importe quel niveau au-dessus du pied).
+		var kt: int = int(s.get("to", k + 1))
 		# Type et réglages (format 6) : clés de la description seulement s'ils
 		# ne sont pas ceux d'avant (une carte d'avant garde sa description).
 		var opts: Dictionary = md.stair_opts.get(String(s.get("key", "")), {})
 		if s.has("diag") and s.diag.get("shaped", false):
 			# En L, en U, en colimaçon : l'emprise de ses cases (MapRaster.stair_spec),
 			# sens de montée donné.
-			var sp := MapRaster.stair_spec(s.diag.obj, md.floors[k].sol, md.floors[k + 1].sol)
+			var sp := MapRaster.stair_spec(s.diag.obj, md.floors[k].sol, md.floors[kt].sol)
 			var fa: Array = _xz(Vector2(float(sp.a[0]), float(sp.a[2])))
 			var fb: Array = _xz(Vector2(float(sp.b[0]), float(sp.b[2])))
 			var e := {"room": ref_room.get(k, "x"), "a": [fa[0], _r(md.floors[k].sol), fa[1]],
-				"b": [fb[0], _r(md.floors[k + 1].sol), fb[1]], "w": _r(float(sp.w)), "mat": "wood"}
+				"b": [fb[0], _r(md.floors[kt].sol), fb[1]], "w": _r(float(sp.w)), "mat": "wood"}
 			e.merge(opts)
 			stairs.append(e)
 			continue
@@ -1003,7 +1034,7 @@ func _stairs() -> void:
 			var foot: Array = _xz(c - u * half_run)
 			var head: Array = _xz(c + u * half_run)
 			var ed := {"room": ref_room.get(k, "x"), "a": [foot[0], _r(md.floors[k].sol), foot[1]],
-				"b": [head[0], _r(md.floors[k + 1].sol), head[1]], "w": _r(tread), "mat": "wood"}
+				"b": [head[0], _r(md.floors[kt].sol), head[1]], "w": _r(tread), "mat": "wood"}
 			ed.merge(opts)
 			stairs.append(ed)
 			continue
@@ -1019,7 +1050,7 @@ func _stairs() -> void:
 			a.y = r.end.y if d.y < 0 else r.position.y
 			b.y = r.position.y if d.y < 0 else r.end.y
 		var eg := {"room": ref_room.get(k, "x"), "a": [wx(a.x), _r(md.floors[k].sol), wx(a.y)],
-			"b": [wx(b.x), _r(md.floors[k + 1].sol), wx(b.y)], "w": _r(s.width * S), "mat": "wood"}
+			"b": [wx(b.x), _r(md.floors[kt].sol), wx(b.y)], "w": _r(s.width * S), "mat": "wood"}
 		eg.merge(opts)
 		stairs.append(eg)
 

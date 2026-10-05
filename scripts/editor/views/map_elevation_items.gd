@@ -174,7 +174,8 @@ static func _object(doc: EditorMap, v: MapValidator, o: Dictionary) -> Dictionar
 			return base
 		"escalier":
 			var up := MapGeom.dir_vec(String(o.get("monte", "n"))).rotated(deg_to_rad(float(MapGeom.rot_of(o))))
-			var z1 := v.floors[k + 1].sol if k + 1 < v.floors.size() else MapVertical.top(v, k)
+			# Arrivée (format 17 : n'importe quel niveau au-dessus du pied).
+			var z1 := doc.stair_top_of(o)
 			base.merge({"kind": "stairs", "poly": MapRaster.rect_poly(o), "z0": sol, "z1": z1, "up": up,
 				# Nombre de marches automatique, comme en jeu (StairGen.flight_steps :
 				# ≈ 18 cm chacune) ; « marches » d'une carte ancienne est ignoré.

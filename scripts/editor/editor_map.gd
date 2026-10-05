@@ -268,6 +268,7 @@ func freeze_levels() -> void:
 		levels()
 		_lv_frame = Engine.get_process_frames()
 		_lv_rooms = pieces.size()
+		_through_memo = {}
 	_lv_frozen += 1
 
 
@@ -379,12 +380,29 @@ func floor_sol(k: int) -> float:
 ## Pièces hautes qui traversent le niveau `k` (vide et murs à ce niveau) :
 ## pièces d'un niveau plus bas, quel qu'il soit, dont le plafond dépasse le
 ## sol du niveau `k` de HIGH_CLEAR au moins (l'ancienne « double hauteur »,
-## généralisée à tous les niveaux traversés).
+## généralisée à tous les niveaux traversés). Seulement les niveaux à
+## MIN_STACK m au moins au-dessus de son sol (là où une pièce peut être posée
+## au-dessus d'elle : mezzanine) ; un demi-niveau posé à côté ne la coupe pas
+## (ses murs montent d'un seul tenant, une porte du bas n'a pas de dalle à 1,2 m).
 func rooms_through(k: int) -> Array:
 	if k <= 0 or k >= level_count():
 		return []
+	# Contrôle en cours (freeze_levels) : relu une fois par niveau.
+	var memo := _lv_frozen > 0 and _lv_frame == Engine.get_process_frames() and _lv_rooms == pieces.size()
+	if memo and _through_memo.has(k):
+		return _through_memo[k]
 	var sol := level_alt(k)
-	return pieces.filter(func(p): return alt_of(p) < sol - ALT_EQ and room_top(p) >= sol + HIGH_CLEAR - ALT_EQ)
+	var out := []
+	for p in pieces:
+		if alt_of(p) <= sol - MIN_STACK + ALT_EQ and room_top(p) >= sol + HIGH_CLEAR - ALT_EQ:
+			out.append(p)
+	if memo:
+		_through_memo[k] = out
+	return out
+
+
+## Mémoire de rooms_through pendant un contrôle (freeze_levels).
+var _through_memo: Dictionary = {}
 
 
 ## La pièce `p` traverse-t-elle un niveau au-dessus du sien (pièce haute) ?
@@ -393,7 +411,11 @@ func is_high(p: Dictionary) -> bool:
 	if k < 0:
 		return false
 	var lv := levels()
-	return k + 1 < lv.size() and room_top(p) >= float(lv[k + 1]) + HIGH_CLEAR - ALT_EQ
+	var a := alt_of(p)
+	for j in range(k + 1, lv.size()):
+		if float(lv[j]) - a >= MIN_STACK - ALT_EQ:
+			return room_top(p) >= float(lv[j]) + HIGH_CLEAR - ALT_EQ
+	return false
 
 
 ## Recouvrement vertical (format 17, niveaux libres) : deux pièces qui se

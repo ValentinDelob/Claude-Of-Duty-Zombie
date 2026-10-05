@@ -3,15 +3,19 @@ extends RefCounted
 ## Carte de l'éditeur (EditorMap) -> grille du validateur (MapValidator) :
 ## une case de 0,5 m centrée sur chaque multiple de 0,5 m (MapGeom), par
 ## niveau (format 17 : altitudes distinctes des pièces, EditorMap.levels ;
-## restriction de l'étape 1a : niveaux à 3,1 m au moins l'un de l'autre, un
-## escalier monte au niveau suivant, comme deux étages).
+## niveaux libres : un demi-niveau à côté d'un autre, des pièces empilées à
+## 3,1 m au moins, _vertical_overlaps).
 ##   - pièce : les cases que traverse son contour sont des MURS, celles dont le
 ##     centre est à l'intérieur son SOL (zone de la pièce) ; deux pièces collées
 ##     partagent les cases de leur bord commun : un seul mur mitoyen ;
-##   - pièce haute (plafond qui traverse le niveau du dessus, EditorMap.
-##     rooms_through ; l'ancienne « double hauteur ») : au niveau du dessus, son contour reste un mur
-##     et son intérieur un VIDE (trémie) ; une pièce posée au-dessus forme une
-##     mezzanine (ses bords au-dessus du vide ont un garde-corps) ;
+##   - pièce haute (plafond qui traverse un ou plusieurs niveaux du dessus,
+##     EditorMap.rooms_through ; l'ancienne « double hauteur ») : à chaque
+##     niveau traversé, son contour reste un mur et son intérieur un VIDE
+##     (trémie) ; une pièce posée au-dessus forme une mezzanine (ses bords
+##     au-dessus du vide ont un garde-corps) ;
+##   - escalier : il monte de son niveau à celui de « altitude_haut »
+##     (v.stair_to), en sautant au besoin des niveaux : trémie à chaque niveau
+##     traversé (« tremie_mi# ») et au niveau d'arrivée (« tremie# ») ;
 ##   - ouvertures : les cases du mur commun (porte, débris, passage) ou
 ##     extérieur (fenêtre, 1 m) sur la largeur de l'ouverture ;
 ##   - piliers, murs libres, décor : cases pleines ; escalier : cases de marches
@@ -99,6 +103,7 @@ func _build() -> void:
 		f.plafond = top
 		v.floors.append(f)
 	_check_levels()
+	_vertical_overlaps()
 	# Taille de la grille : tout ce qui est posé, plus la marge.
 	var hi := Vector2(10, 10)
 	var neg := false
@@ -167,8 +172,11 @@ func _scaled_heights() -> void:
 				"prop \"%s\" too tall for the ceiling (%.2f m here)" % [o.get("prefab", ""), rh], k, [MapVertical.cell(MapGeom.v2(o.get("position", [0, 0])))])
 
 
-## Format 17 (étape 1a) : éléments à une altitude sans pièce (orphelins :
-## rien ne les porte), escaliers dont l'arrivée n'est pas le niveau suivant.
+## Format 17 : éléments à une altitude sans pièce (orphelins : rien ne les
+## porte) ; escaliers : niveau d'arrivée (v.stair_to, n'importe quel niveau
+## au-dessus du pied) et trémies des niveaux qu'ils traversent (_wells) ;
+## ouvertures entre deux pièces d'altitudes différentes (décision 4 : gardées,
+## signalées).
 func _check_levels() -> void:
 	for list in [doc.ouvertures, doc.objets]:
 		for o in list:
@@ -177,16 +185,91 @@ func _check_levels() -> void:
 				_err("« %s » à l'altitude %s : aucune pièce à cette altitude (posez-le au niveau d'une pièce)" % [MapRules._name(o)[0], EditorMap.alt_text(a)],
 					"\"%s\" at altitude %s: no room at that altitude (put it on a room's level)" % [MapRules._name(o)[1], EditorMap.alt_text(a, false)])
 	for o in doc.objets:
-		# Arrivée absente (escalier créé en mémoire, lot de Claude) : le niveau suivant.
-		if String(o.get("type", "")) != "escalier" or not o.has("altitude_haut"):
+		if String(o.get("type", "")) != "escalier":
 			continue
 		var k := doc.level_of(o)
-		if k < 0 or k + 1 >= doc.level_count():
+		if k < 0:
 			continue
-		var want := doc.level_alt(k + 1)
-		if absf(EditorMap.stair_top(o) - want) > EditorMap.ALT_EQ:
-			_err("escalier « %s » : il arrive à %s, il doit monter au niveau suivant (%s) pour l'instant" % [String(o.get("id", "")), EditorMap.alt_text(EditorMap.stair_top(o)), EditorMap.alt_text(want)],
-				"stairs \"%s\": they arrive at %s, they must go up to the next level (%s) for now" % [String(o.get("id", "")), EditorMap.alt_text(EditorMap.stair_top(o), false), EditorMap.alt_text(want, false)], k)
+		# Arrivée absente (escalier créé en mémoire, lot de Claude) : le niveau suivant.
+		var top := doc.stair_top_of(o)
+		var kt := doc.level_index(top)
+		var sid := String(o.get("id", ""))
+		if top <= doc.level_alt(k) + EditorMap.ALT_EQ:
+			_err("escalier « %s » : son arrivée (%s) doit être plus haut que son pied (%s)" % [sid, EditorMap.alt_text(top), EditorMap.alt_text(doc.level_alt(k))],
+				"stairs \"%s\": their arrival (%s) must be higher than their foot (%s)" % [sid, EditorMap.alt_text(top, false), EditorMap.alt_text(doc.level_alt(k), false)], k)
+			continue
+		if kt < 0:
+			_err("escalier « %s » : il arrive à %s, aucune pièce à cette altitude (posez-y une pièce, ou réglez son arrivée sur un niveau)" % [sid, EditorMap.alt_text(top)],
+				"stairs \"%s\": they arrive at %s, no room at that altitude (put a room there, or set their arrival on a level)" % [sid, EditorMap.alt_text(top, false)], k)
+			continue
+		v.stair_to["escalier#" + sid] = kt
+		for j in range(k + 1, kt + 1):
+			(_wells.get_or_add(j, []) as Array).append([o, j == kt])
+	_openings_between_levels()
+
+
+## Escaliers qui traversent un niveau ou y arrivent : niveau -> [[escalier, arrivée ?]].
+var _wells: Dictionary = {}
+
+
+## Décision 4 : porte, débris ou passage posé sur le bord d'une pièce dont
+## la voisine de l'autre côté est à une autre altitude (pièce montée ou
+## descendue) : gardé, signalé (un escalier relie deux niveaux).
+func _openings_between_levels() -> void:
+	for o in doc.ouvertures:
+		if String(o.get("type", "")) == "fenetre":
+			continue
+		var k := doc.level_of(o)
+		if k < 0:
+			continue
+		var p := MapGeom.v2(o.get("position", [0, 0]))
+		var a := EditorMap.alt_of(o)
+		var same := []
+		var other := []
+		for r in doc.pieces:
+			if not MapGeom.on_boundary(doc.room_poly(r), p, 0.05):
+				continue
+			if absf(EditorMap.alt_of(r) - a) <= EditorMap.ALT_EQ:
+				same.append(r)
+			else:
+				other.append(r)
+		if same.size() >= 2 or same.is_empty() or other.is_empty():
+			continue
+		var r0: Dictionary = same[0]
+		var r1: Dictionary = other[0]
+		var w := v._at(k, MapVertical.cell(p))
+		var nm := MapRules._name(o)
+		_err("« %s » en %s : elle relie « %s » (%s) et « %s » (%s), à des altitudes différentes : reliez deux niveaux par un escalier" % [nm[0], w[0],
+				r0.get("nom", r0.id), EditorMap.alt_text(EditorMap.alt_of(r0)), r1.get("nom", r1.id), EditorMap.alt_text(EditorMap.alt_of(r1))],
+			"\"%s\" at %s: it links \"%s\" (%s) and \"%s\" (%s), at different altitudes: link two levels with stairs" % [nm[1], w[1],
+				r0.get("nom", r0.id), EditorMap.alt_text(EditorMap.alt_of(r0), false), r1.get("nom", r1.id), EditorMap.alt_text(EditorMap.alt_of(r1), false)], k, [MapVertical.cell(p)])
+
+
+## Pièces empilées (qui se recouvrent en plan) trop proches verticalement :
+## 3,1 m au moins (EditorMap.MIN_STACK, 2,8 m sous plafond + dalle), une
+## erreur par paire (8 au plus). Préfiltre : altitudes, puis boîtes englobantes.
+func _vertical_overlaps() -> void:
+	var polys := []
+	var alts := []
+	for p in doc.pieces:
+		polys.append(doc.room_poly(p))
+		alts.append(EditorMap.alt_of(p))
+	var n := 0
+	for i in doc.pieces.size():
+		for j in range(i + 1, doc.pieces.size()):
+			var d := absf(float(alts[i]) - float(alts[j]))
+			if d <= EditorMap.ALT_EQ or d >= EditorMap.MIN_STACK - EditorMap.ALT_EQ or not MapGeom.overlap(polys[i], polys[j]):
+				continue
+			var lo := i if float(alts[i]) < float(alts[j]) else j
+			var cells := []
+			for part in Geometry2D.intersect_polygons(polys[i], polys[j]):
+				cells.append(MapVertical.cell(MapGeom.centroid(part)))
+				break
+			var t := EditorMap.stack_text({"a": doc.pieces[i], "b": doc.pieces[j], "d": d})
+			_err(t[0], t[1], doc.level_of(doc.pieces[lo]), cells)
+			n += 1
+			if n >= 8:
+				return
 
 
 func _err(fr: String, en: String, k := -1, cells: Array = []) -> void:
@@ -443,13 +526,15 @@ func _floor(k: int) -> void:
 	# Côtés en biais de cet étage (fusionnés en murs obliques après (b)).
 	var raw := []
 	var void_polys := []
-	# (a) Pièces hautes du niveau du dessous : vide et murs qui montent
-	# (jusqu'au plafond de la pièce haute).
+	# (a) Pièces hautes des niveaux plus bas qui traversent celui-ci : vide et
+	# murs qui montent (jusqu'au plafond de la pièce haute).
 	var voids := {}   # case -> true (intérieur d'une pièce haute)
 	if k > 0:
+		var lows := {}   # niveaux des pièces hautes
 		for p in doc.rooms_through(k):
 			var poly := doc.room_poly(p)
 			var high := EditorMap.room_top(p)
+			lows[doc.level_of(p)] = true
 			void_polys.append(poly)
 			_edges(poly, String(p.id), false, raw)
 			var rc := room_cells(poly)
@@ -459,18 +544,19 @@ func _floor(k: int) -> void:
 				voids[c] = true
 			for c in rc[0]:
 				f.put(c, K.MUR, "mur")
-				f.ceil[c.y * f.w + c.x] = high
+				f.ceil[c.y * f.w + c.x] = maxf(f.ceil_at(c), high)
 		# Piliers et murs d'une pièce haute : jusqu'en haut.
-		for o in doc.objects_on(k - 1):
-			if String(o.type) in ["pilier", "mur", "mur_courbe"]:
-				var cells := _obstacle_cells(o)
-				var up := false
-				for c in cells:
-					if voids.has(c):
-						f.put(c, K.MUR, "mur")
-						up = true
-				if up:
-					_obstacle_record(k, o, cells)
+		for kk in lows:
+			for o in doc.objects_on(kk):
+				if String(o.type) in ["pilier", "mur", "mur_courbe"]:
+					var cells := _obstacle_cells(o)
+					var up := false
+					for c in cells:
+						if voids.has(c):
+							f.put(c, K.MUR, "mur")
+							up = true
+					if up:
+						_obstacle_record(k, o, cells)
 	# (b) Pièces de cet étage.
 	var inner_of := {}
 	var border_of := {}
@@ -520,24 +606,49 @@ func _floor(k: int) -> void:
 		if inner_of.has(c):
 			continue
 		f.put(c, K.MUR, "mur")
-		var ce := 0.0
+		var ce := _wall_below(k, c)
 		for q in list:
 			ce = maxf(ce, _ceil_of(q, k))
 		f.ceil[i] = maxf(f.ceil[i], ce)
 	# Murs en biais : côtés obliques fusionnés (un seul mur mitoyen), pièce de
 	# chaque côté.
 	v.oblique_walls[k].append_array(_merge_obliques(raw, void_polys))
-	# (c) Escaliers de l'étage du dessous : vide au-dessus des marches. Le
-	# plafond au-dessus de la trémie est celui de la pièce de cet étage où
-	# elle débouche (plafond réglé compris), sinon celui de l'étage : jamais un
-	# faux plafond plus bas (ou plus haut) que la pièce autour.
-	if k > 0:
-		for o in doc.objects_on(k - 1):
-			if String(o.type) == "escalier":
-				for c in stair_cells(o):
-					f.put(c, K.TREMIE, "tremie#" + String(o.id))
-					if f.inside(c):
-						f.ceil[c.y * f.w + c.x] = _ceil_of(inner_of[c], k) if inner_of.has(c) else maxf(f.ceil_at(c), ceil_up)
+	# (c) Escaliers d'un niveau plus bas qui arrivent à ce niveau ou le
+	# traversent (format 17 : un escalier peut sauter des niveaux) : vide
+	# au-dessus des marches. Au niveau d'arrivée, le plafond au-dessus de la
+	# trémie est celui de la pièce de ce niveau où elle débouche (plafond réglé
+	# compris), celui du vide d'une pièce haute, sinon celui de l'étage : jamais
+	# un faux plafond plus bas (ou plus haut) que la pièce autour ; dans le vide
+	# (demi-niveau : l'escalier monte dans le volume de la pièce du pied), aucun
+	# (0 : celui de la pièce du dessous, MapVertical.ceil_at). Niveau traversé
+	# (« tremie_mi# ») : un plancher ou un mur au-dessus des marches est une erreur.
+	for well in _wells.get(k, []):
+		var o: Dictionary = well[0]
+		var arrival: bool = well[1]
+		var mid := []
+		for c in stair_cells(o):
+			if not f.inside(c):
+				continue
+			var i: int = c.y * f.w + c.x
+			var before := f.at(c)
+			if arrival:
+				f.put(c, K.TREMIE, "tremie#" + String(o.id))
+				if inner_of.has(c):
+					f.ceil[i] = _ceil_of(inner_of[c], k)
+				elif before == K.VIDE:
+					f.ceil[i] = 0.0
+				elif before != K.TREMIE or f.ceil[i] <= 0.0:
+					f.ceil[i] = maxf(f.ceil[i], ceil_up)
+			else:
+				if before != K.VIDE and before != K.TREMIE:
+					mid.append(c)
+				f.put(c, K.TREMIE, "tremie_mi#" + String(o.id))
+		if not mid.is_empty():
+			var w := v._at(k, mid[0])
+			_err("escalier « %s » : le plancher du niveau %s passe au-dessus de ses marches (en %s) : un escalier qui saute des niveaux monte dans un vide (pièce haute ou trémie) ; déplacez la pièce ou l'escalier" % [String(o.id), EditorMap.alt_text(f.sol), w[0]],
+				"stairs \"%s\": the floor of level %s runs above their steps (at %s): stairs that skip levels go up through a void (high room or stairwell); move the room or the stairs" % [String(o.id), EditorMap.alt_text(f.sol, false), w[1]], k, mid)
+		if arrival:
+			_landing(f, o, inner_of, border_of)
 	# (d) Ouvertures.
 	for o in doc.openings_on(k):
 		_opening(f, o)
@@ -896,6 +1007,72 @@ func _merge_obliques(raw: Array, void_polys: Array) -> Array:
 					continue
 			out.append({"a": a, "b": b, "t": t, "n": n, "half": MapGeom.WALL_HALF, "pos": pos, "neg": neg, "kind": "piece"})
 	return out
+
+
+## Mur mitoyen entre niveaux empilés : haut (m) du mur d'un niveau plus bas
+## sur la case `c` (la première case pleine en dessous), s'il dépasse la dalle
+## de ce niveau-ci : ce mur s'arrête sous la dalle (MapVertical.wall_top), le
+## mur de ce niveau le continue jusque-là (pièce du bas plus haute que celle
+## d'à côté : demi-niveau). 0 sinon.
+func _wall_below(k: int, c: Vector2i) -> float:
+	var slab := v.floors[k].sol - MapValidator.DALLE
+	for i in range(k - 1, -1, -1):
+		var g := v.floors[i]
+		var kd := g.at(c)
+		if kd == K.VIDE or kd == K.TREMIE:
+			continue
+		if kd == K.MUR and g.key_at(c) == "mur" and g.ceil_at(c) > slab + 0.001:
+			return g.ceil_at(c)
+		return 0.0
+	return 0.0
+
+
+## Arrivée d'un escalier à travers le mur commun de la pièce du pied et de la
+## pièce d'arrivée, posées côte à côte à des altitudes différentes (demi-
+## niveau) : les cases de l'arrivée qui sont sur ce mur, aux deux niveaux,
+## avec le sol de la pièce d'arrivée juste au-delà, deviennent son plancher
+## (palier dans l'épaisseur du mur ; en dessous, le mur du bas s'arrête sous
+## sa dalle, MapVertical.wall_top). Plafond : le plus bas de celui de la pièce
+## d'arrivée et de celui au-dessus des marches ; au-dessus, une retombée
+## jusqu'au plus haut (MapLayoutExport._landing_lintel).
+func _landing(f: MapValidator.Floor, o: Dictionary, inner_of: Dictionary, border_of: Dictionary) -> void:
+	var k0 := doc.level_of(o)
+	if k0 < 0 or k0 >= f.index:
+		return
+	var low := v.floors[k0]
+	var parts := MapRules.stair_parts(o, low.sol, f.sol)
+	var body: Dictionary = parts.body
+	var cells := []
+	var room := {}
+	for c: Vector2i in parts.exit:
+		if not f.inside(c) or f.at(c) != K.MUR or f.key_at(c) != "mur" or low.at(c) != K.MUR or inner_of.has(c):
+			return
+		var rooms: Array = border_of.get(c, [])
+		if rooms.size() != 1 or (not room.is_empty() and rooms[0] != room):
+			return
+		room = rooms[0]
+		# Le sol de la pièce d'arrivée juste au-delà (à l'opposé des marches).
+		var beyond := false
+		for d in MapValidator.DIRS:
+			if body.has(c + d) and inner_of.get(c - d, {}) == room:
+				beyond = true
+		if not beyond:
+			return
+		cells.append(c)
+	if cells.is_empty():
+		return
+	var z := zone_letter(room)
+	var own := _ceil_of(room, f.index)
+	for c in cells:
+		var i: int = c.y * f.w + c.x
+		var under := own
+		for d in MapValidator.DIRS:
+			if body.has(c + d) and f.ceil_at(c + d) > 0.0:
+				under = minf(under, f.ceil_at(c + d))
+		f.put(c, K.SOL, "zone", z)
+		f.ceil[i] = under
+		f.room[i] = String(room.id)
+		(v.landings.get_or_add(f.index, {}) as Dictionary)[c] = true
 
 
 ## Mur oblique (côté de pièce) de l'étage k qui passe par `p` ({} sinon).

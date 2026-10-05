@@ -196,6 +196,13 @@ var stair_opts: Dictionary = {}
 ## case -> Vector2i. Il départage les escaliers d'un immeuble où chaque étage
 ## couvre celui du dessous (du sol aux deux bouts, en bas comme en haut).
 var stair_up: Dictionary = {}
+## Format 17 : niveau d'arrivée de chaque escalier (clé de case -> indice de
+## niveau, n'importe lequel au-dessus du pied ; MapRaster._check_levels).
+var stair_to: Dictionary = {}
+## Paliers dans l'épaisseur d'un mur (arrivée d'un escalier à travers le mur
+## commun de deux pièces côte à côte d'altitudes différentes, MapRaster._landing) :
+## niveau -> {case: true}.
+var landings: Dictionary = {}
 ## Pièges tournés ou hors de la grille : id de l'élément -> {center, size, rot}
 ## (le jeu électrifie le vrai rectangle, MapLayoutExport).
 var diag_traps: Dictionary = {}
@@ -298,13 +305,21 @@ static func _num(v: float) -> String:
 	return ("%.1f" % v).trim_suffix(".0")
 
 
-## Position d'une case en mètres dans l'éditeur : [fr, en].
+## Position d'une case en mètres dans l'éditeur : [fr, en] ; avec plusieurs
+## niveaux, celui de la case (« niveau 3,5 m »).
 func _at(k: int, c: Vector2i) -> Array:
 	var x := _num(c.x * scale)
 	var y := _num(c.y * scale)
-	if floors.size() > 1:
-		return ["(x %s m, y %s m, étage %d)" % [x.replace(".", ","), y.replace(".", ","), k], "(x %s m, y %s m, floor %d)" % [x, y, k]]
+	if floors.size() > 1 and k >= 0 and k < floors.size():
+		var lv := _lv(k)
+		return ["(x %s m, y %s m, %s)" % [x.replace(".", ","), y.replace(".", ","), lv[0]], "(x %s m, y %s m, %s)" % [x, y, lv[1]]]
 	return ["(x %s m, y %s m)" % [x.replace(".", ","), y.replace(".", ",")], "(x %s m, y %s m)" % [x, y]]
+
+
+## Nom du niveau `k` dans les messages : [« niveau 3,5 m », « level 3.5 m »].
+func _lv(k: int) -> Array:
+	var a := floors[k].sol if k >= 0 and k < floors.size() else 0.0
+	return ["niveau %s" % EditorMap.alt_text(a), "level %s" % EditorMap.alt_text(a, false)]
 
 
 ## Nom d'une zone : [fr, en].
@@ -326,23 +341,22 @@ func m2(n: int) -> float:
 
 # --------------------------------------------------------------------- analyse
 
-## Hauteurs des étages : 3,1 m au moins entre deux sols, plafond du dernier.
+## Hauteurs des niveaux : plafond du dernier. Format 17 : niveaux libres, aucun
+## écart minimal entre deux sols ; deux pièces qui se recouvrent en plan sont
+## à 3,1 m au moins l'une de l'autre (MapRaster._vertical_overlaps).
 func check_floors() -> void:
-	for i in floors.size():
-		if i < floors.size() - 1 and floors[i + 1].sol - floors[i].sol < MIN_CEILING + DALLE:
-			_msg("erreur", "étage %d : il faut au moins %s m entre deux sols (hauteur sous plafond 2,8 m + dalle)" % [i + 1, _num(MIN_CEILING + DALLE).replace(".", ",")],
-				"floor %d: floors must be at least %s m apart (2.8 m ceiling + slab)" % [i + 1, _num(MIN_CEILING + DALLE)])
 	if not floors.is_empty():
 		var top := floors[-1]
 		if top.plafond - top.sol < MIN_CEILING:
-			_msg("erreur", "étage %d : plafond trop bas (%s m ; 2,8 m au moins)" % [top.index, _num(top.plafond - top.sol).replace(".", ",")],
-				"floor %d: ceiling too low (%s m; at least 2.8 m)" % [top.index, _num(top.plafond - top.sol)])
+			var lv := _lv(top.index)
+			_msg("erreur", "%s : plafond trop bas (%s m ; 2,8 m au moins)" % [lv[0], _num(top.plafond - top.sol).replace(".", ",")],
+				"%s: ceiling too low (%s m; at least 2.8 m)" % [lv[1], _num(top.plafond - top.sol)])
 
 
 func analyze() -> void:
 	check_floors()
 	if floors.is_empty():
-		_msg("erreur", "la carte n'a aucun étage", "the map has no floor")
+		_msg("erreur", "la carte n'a aucun niveau", "the map has no level")
 		return
 	if not errors().is_empty():
 		return
@@ -563,12 +577,11 @@ func _stairs() -> void:
 		if b.cells.size() != r.get_area():
 			_msg("erreur", "escalier en %s : il doit être un rectangle plein" % w[0], "stairs at %s: must be a full rectangle" % w[1], k, b.cells)
 			continue
-		if k >= floors.size() - 1:
-			_msg("erreur", "escalier en %s : il n'y a pas d'étage au-dessus (ajoutez un étage dans l'onglet Étages)" % w[0],
-				"stairs at %s: there is no floor above (add a floor in the Floors tab)" % w[1], k, b.cells)
+		var kt := _stair_top_level(b.key, w, k, b.cells)
+		if kt < 0:
 			continue
 		var f := floors[k]
-		var up := floors[k + 1]
+		var up := floors[kt]
 		var cands := []
 		for d in DIRS:
 			var bottom := _side(r, -d)
@@ -585,8 +598,8 @@ func _stairs() -> void:
 				if _stair_end_ok(w, k, f, _side(r, -traced), false):
 					_stair_end_ok(w, k, up, _side(r, traced), true)
 			elif cands.is_empty():
-				_msg("erreur", "escalier en %s : il faut du sol au pied (étage %d) d'un seul petit côté et le plancher d'une pièce en haut (étage %d) du côté opposé" % [w[0], k, k + 1],
-					"stairs at %s: needs floor at its foot (floor %d) on one short side and a room floor at the top (floor %d) on the opposite side" % [w[1], k, k + 1], k, b.cells)
+				_msg("erreur", "escalier en %s : il faut du sol au pied (%s) d'un seul petit côté et le plancher d'une pièce en haut (%s) du côté opposé" % [w[0], _lv(k)[0], _lv(kt)[0]],
+					"stairs at %s: needs floor at its foot (%s) on one short side and a room floor at the top (%s) on the opposite side" % [w[1], _lv(k)[1], _lv(kt)[1]], k, b.cells)
 			else:
 				_msg("erreur", "escalier en %s : sens de montée ambigu (du sol en haut et en bas des deux côtés)" % w[0],
 					"stairs at %s: ambiguous direction (floor at the top and bottom on both sides)" % w[1], k, b.cells)
@@ -605,11 +618,7 @@ func _stairs() -> void:
 			var need := _stair_need(b.key, width * scale, rise, run * scale)
 			_msg("erreur", "escalier en %s : trop raide (%.0f° ; %d° au plus : allongez-le à %s m)" % [w[0], slope, int(MAX_STAIR_SLOPE), _num(need).replace(".", ",")],
 				"stairs at %s: too steep (%.0f°; %d° at most: make it %s m long)" % [w[1], slope, int(MAX_STAIR_SLOPE), _num(need)], k, b.cells)
-		var covered := []
-		for c in b.cells:
-			if up.at(c) != K.TREMIE:
-				covered.append(c)
-		_stair_covered(w, k, up, covered)
+		_stair_covered(w, k, kt, b.cells)
 		var lower := _uniform_zone(f, _side(r, -d))
 		var upper := _uniform_zone(up, _side(r, d))
 		# Pied (sol de l'étage), palier (étage du dessus) et passages du haut
@@ -624,23 +633,29 @@ func _stairs() -> void:
 		for c in b.cells:
 			if top.has(c + d):
 				links[c] = [c + d]
-		var st := {"key": b.key, "floor": k, "rect": r, "up": d, "lower": lower, "upper": upper, "run": run, "width": width, "cells": b.cells,
+		var st := {"key": b.key, "floor": k, "to": kt, "rect": r, "up": d, "lower": lower, "upper": upper, "run": run, "width": width, "cells": b.cells,
 			"foot": foot, "top": top, "links": links}
 		_add_stair(st)
+		_stair_headroom(w, st)
 
 
 ## Ce qui occupe la case `c` de l'étage `f` (messages des escaliers) : [fr, en].
 func _cell_what(f: Floor, c: Vector2i) -> Array:
 	var key := f.key_at(c)
+	var lv := _lv(f.index)
 	match f.at(c):
 		K.VIDE:
-			return ["le vide (pas de pièce à l'étage %d)" % f.index, "empty space (no room on floor %d)" % f.index]
+			return ["le vide (pas de pièce au %s)" % lv[0], "empty space (no room on %s)" % lv[1]]
 		K.TREMIE:
 			if key.begins_with("tremie#"):
-				return ["la trémie de l'escalier qui monte de l'étage %d" % (f.index - 1), "the stairwell of the stairs coming up from floor %d" % (f.index - 1)]
-			return ["le vide d'une pièce à double hauteur", "the void of a double-height room"]
+				return ["la trémie de l'escalier « %s » qui arrive ici" % key.get_slice("#", 1), "the stairwell of the stairs \"%s\" arriving here" % key.get_slice("#", 1)]
+			if key.begins_with("tremie_mi#"):
+				return ["la trémie de l'escalier « %s » qui traverse ce niveau" % key.get_slice("#", 1), "the stairwell of the stairs \"%s\" going through this level" % key.get_slice("#", 1)]
+			return ["le vide d'une pièce haute", "the void of a high room"]
 		K.ESCALIER:
-			return ["l'escalier de l'étage %d vers l'étage %d" % [f.index, f.index + 1], "the stairs from floor %d to floor %d" % [f.index, f.index + 1]]
+			var kt: int = stair_to.get(key, -1)
+			var a1 := floors[kt].sol if kt >= 0 and kt < floors.size() else f.sol
+			return ["l'escalier de %s vers %s" % [EditorMap.alt_text(f.sol), EditorMap.alt_text(a1)], "the stairs from %s to %s" % [EditorMap.alt_text(f.sol, false), EditorMap.alt_text(a1, false)]]
 		K.PORTE, K.DEBRIS, K.FENETRE:
 			return ["une ouverture (porte, débris ou fenêtre)", "an opening (door, debris or window)"]
 		K.MUR:
@@ -663,26 +678,119 @@ func _stair_end_ok(w: Array, k: int, f: Floor, cells: Array, top: bool, hint: Ar
 	var what := _cell_what(f, c0)
 	var hf := "" if hint.is_empty() or String(hint[0]) == "" else " (%s)" % hint[0]
 	var he := "" if hint.is_empty() or String(hint[1]) == "" else " (%s)" % hint[1]
+	var lf := _lv(f.index)
+	var lk := _lv(k)
 	if top and f.at(c0) == K.VIDE:
-		_msg("erreur", "%s en %s : pas de pièce à l'étage %d au-dessus de son arrivée %s%s : tracez une pièce à cet étage, ou retournez l'escalier" % [nm[0], w[0], f.index, wc[0], hf],
-			"%s at %s: no room on floor %d above its arrival %s%s: draw a room on that floor, or turn the stairs around" % [nm[1], w[1], f.index, wc[1], he], f.index, bad)
+		_msg("erreur", "%s en %s : pas de pièce au %s au-dessus de son arrivée %s%s : tracez une pièce à ce niveau, ou retournez l'escalier" % [nm[0], w[0], lf[0], wc[0], hf],
+			"%s at %s: no room on %s above its arrival %s%s: draw a room on that level, or turn the stairs around" % [nm[1], w[1], lf[1], wc[1], he], f.index, bad)
 	elif top:
-		_msg("erreur", "%s en %s : son arrivée (en haut, étage %d) tombe sur %s en %s%s ; il faut le plancher libre d'une pièce au-delà du haut des marches" % [nm[0], w[0], f.index, what[0], wc[0], hf],
-			"%s at %s: its arrival (at the top, floor %d) lands on %s at %s%s; it needs the clear floor of a room beyond the top step" % [nm[1], w[1], f.index, what[1], wc[1], he], f.index, bad)
+		_msg("erreur", "%s en %s : son arrivée (en haut, %s) tombe sur %s en %s%s ; il faut le plancher libre d'une pièce au-delà du haut des marches" % [nm[0], w[0], lf[0], what[0], wc[0], hf],
+			"%s at %s: its arrival (at the top, %s) lands on %s at %s%s; it needs the clear floor of a room beyond the top step" % [nm[1], w[1], lf[1], what[1], wc[1], he], f.index, bad)
 	else:
-		_msg("erreur", "%s en %s : son départ (au pied, étage %d) tombe sur %s en %s ; il faut du sol libre de la pièce devant la première marche" % [nm[0], w[0], k, what[0], wc[0]],
-			"%s at %s: its start (at the foot, floor %d) lands on %s at %s; it needs clear room floor in front of the first step" % [nm[1], w[1], k, what[1], wc[1]], f.index, bad)
+		_msg("erreur", "%s en %s : son départ (au pied, %s) tombe sur %s en %s ; il faut du sol libre de la pièce devant la première marche" % [nm[0], w[0], lk[0], what[0], wc[0]],
+			"%s at %s: its start (at the foot, %s) lands on %s at %s; it needs clear room floor in front of the first step" % [nm[1], w[1], lk[1], what[1], wc[1]], f.index, bad)
 	return false
 
 
-## Vide au-dessus des marches (trémie de l'étage k + 1) occupé : par quoi et où.
-func _stair_covered(w: Array, k: int, up: Floor, covered: Array) -> void:
-	if covered.is_empty():
+## Niveau d'arrivée de l'escalier `key` posé au niveau `k` (v.stair_to) ;
+## absent (aucun niveau à son altitude d'arrivée, MapRaster le signale) : un
+## message et -1.
+func _stair_top_level(key: String, w: Array, k: int, cells: Array) -> int:
+	var kt: int = stair_to.get(key, -1)
+	if kt <= k or kt >= floors.size():
+		_msg("erreur", "escalier en %s : il n'y a pas de niveau d'arrivée au-dessus (réglez son arrivée sur l'altitude d'une pièce)" % w[0],
+			"stairs at %s: there is no arrival level above (set their arrival on a room's altitude)" % w[1], k, cells)
+		return -1
+	return kt
+
+
+## Vide au-dessus des marches (trémie de chaque niveau traversé et du niveau
+## d'arrivée `kt`) occupé : par quoi et où (le premier niveau en défaut).
+func _stair_covered(w: Array, k: int, kt: int, cells: Array) -> void:
+	for j in range(k + 1, kt + 1):
+		var up := floors[j]
+		var covered := cells.filter(func(c): return up.at(c) != K.TREMIE)
+		if covered.is_empty():
+			continue
+		var wc := _at(j, covered[0])
+		var what := _cell_what(up, covered[0])
+		var lv := _lv(j)
+		_msg("erreur", "escalier en %s : le vide au-dessus de ses marches (trémie, %s) est occupé par %s en %s ; rien ne se pose au-dessus d'un escalier (cage d'escalier : posez les escaliers côte à côte)" % [w[0], lv[0], what[0], wc[0]],
+			"stairs at %s: the opening above its steps (stairwell, %s) is taken by %s at %s; nothing may stand above stairs (stair tower: put the flights side by side)" % [w[1], lv[1], what[1], wc[1]], j, covered)
 		return
-	var wc := _at(k + 1, covered[0])
-	var what := _cell_what(up, covered[0])
-	_msg("erreur", "escalier en %s : le vide au-dessus de ses marches (trémie, étage %d) est occupé par %s en %s ; rien ne se pose au-dessus d'un escalier (cage d'escalier : posez les escaliers côte à côte)" % [w[0], k + 1, what[0], wc[0]],
-		"stairs at %s: the opening above its steps (stairwell, floor %d) is taken by %s at %s; nothing may stand above stairs (stair tower: put the flights side by side)" % [w[1], k + 1, what[1], wc[1]], k + 1, covered)
+
+
+## Dégagement au-dessus des marches : le plafond réel (MapVertical.ceil_at :
+## dalle de la première pièce posée au-dessus, plafond de la pièce où débouche
+## la trémie) est à StairGen.HEADROOM (2,1 m) au moins au-dessus de la surface
+## des marches, case par case. Sinon : où, et de combien.
+func _stair_headroom(w: Array, st: Dictionary) -> void:
+	var k: int = st.floor
+	var y0 := floors[k].sol
+	var y1 := floors[int(st.to)].sol
+	var diag: Dictionary = st.get("diag", {})
+	var pl := MapRaster.stair_plan(diag.obj, y0, y1) if diag.get("shaped", false) and diag.has("obj") else {}
+	var bad := []
+	var worst := INF
+	for c in st.cells:
+		var surf := _step_height(st, c, pl, y0, y1)
+		var ce: float = MapVertical.ceil_at(self, k, c)[0]
+		if ce < surf + StairGen.HEADROOM - 0.01:
+			bad.append(c)
+			worst = minf(worst, ce - surf)
+	# Arrivée (palier du niveau du haut, ou palier dans un mur commun) : le
+	# même passage au-dessus de son sol.
+	var kt := int(st.to)
+	var top_bad := []
+	var top_worst := INF
+	for c in st.top:
+		var ce: float = MapVertical.ceil_at(self, kt, c)[0]
+		if ce < y1 + StairGen.HEADROOM - 0.01:
+			top_bad.append(c)
+			top_worst = minf(top_worst, ce - y1)
+	if not top_bad.is_empty():
+		_msg("erreur", "escalier en %s : plafond trop bas au-dessus de son arrivée (%s m de passage en %s ; %s m au moins)" % [w[0],
+				_num(maxf(top_worst, 0.0)).replace(".", ","), _at(kt, top_bad[0])[0], _num(StairGen.HEADROOM).replace(".", ",")],
+			"stairs at %s: ceiling too low above their arrival (%s m of headroom at %s; at least %s m)" % [w[1],
+				_num(maxf(top_worst, 0.0)), _at(kt, top_bad[0])[1], _num(StairGen.HEADROOM)], kt, top_bad)
+	if bad.is_empty():
+		return
+	_msg("erreur", "escalier en %s : plafond trop bas au-dessus des marches (%s m de passage en %s ; %s m au moins) : une dalle ou un plafond passe au-dessus, déplacez la pièce du dessus ou l'escalier" % [w[0],
+			_num(maxf(worst, 0.0)).replace(".", ","), _at(k, bad[0])[0], _num(StairGen.HEADROOM).replace(".", ",")],
+		"stairs at %s: ceiling too low above the steps (%s m of headroom at %s; at least %s m): a slab or a ceiling runs above, move the room above or the stairs" % [w[1],
+			_num(maxf(worst, 0.0)), _at(k, bad[0])[1], _num(StairGen.HEADROOM)], k, bad)
+
+
+## Hauteur (m, absolue) de la surface des marches au bord haut de la case `c`
+## d'un escalier retenu (st) : profil StairGen (`pl`) pour un L, un U, un
+## colimaçon ; sinon une pente régulière du pied (y0) à l'arrivée (y1).
+func _step_height(st: Dictionary, c: Vector2i, pl: Dictionary, y0: float, y1: float) -> float:
+	if not pl.is_empty():
+		var y := StairGen.surface_y(pl, MapGeom.cell_center(c))
+		return y1 if is_nan(y) else y
+	var t := 1.0
+	if st.has("diag"):
+		var info: Dictionary = st.diag
+		var u: Vector2 = info.up
+		var sz: Vector2 = info.size
+		var along_x := absf(Vector2(1, 0).rotated(deg_to_rad(float(info.rot))).dot(u)) > 0.7
+		var half := (sz.x if along_x else sz.y) * 0.5
+		t = ((MapGeom.cell_center(c) - (info.center as Vector2)).dot(u) + MapGeom.CELL * 0.5 + half) / maxf(half * 2.0, 0.01)
+	else:
+		var r: Rect2i = st.rect
+		var d: Vector2i = st.up
+		var run := maxi(1, int(st.run))
+		var i := 0
+		if d.x > 0:
+			i = c.x - r.position.x
+		elif d.x < 0:
+			i = r.end.x - 1 - c.x
+		elif d.y > 0:
+			i = c.y - r.position.y
+		else:
+			i = r.end.y - 1 - c.y
+		t = float(i + 1) / run
+	return y0 + (y1 - y0) * clampf(t, 0.0, 1.0)
 
 
 ## Type d'escalier d'une clé de case (format 6 ; « droit » sans réglage).
@@ -732,12 +840,11 @@ func _shaped_stair(b: Dictionary) -> void:
 	var o: Dictionary = info.get("obj", {})
 	var kind := MapCatalog.stair_kind(o)
 	var vn := MapCatalog.variant_names("escalier", kind)
-	if k >= floors.size() - 1:
-		_msg("erreur", "escalier en %s : il n'y a pas d'étage au-dessus (ajoutez un étage dans l'onglet Étages)" % w[0],
-			"stairs at %s: there is no floor above (add a floor in the Floors tab)" % w[1], k, cells)
+	var kt := _stair_top_level(b.key, w, k, cells)
+	if kt < 0:
 		return
 	var f := floors[k]
-	var up := floors[k + 1]
+	var up := floors[kt]
 	var rise := up.sol - f.sol
 	var pl := MapRaster.stair_plan(o, f.sol, up.sol)
 	var own := {}
@@ -764,8 +871,8 @@ func _shaped_stair(b: Dictionary) -> void:
 		var where_fr: String = {"quart": "sur le côté où il tourne, au bout", "demi_tour": "du côté du pied, à côté du départ", "colimacon": "du côté opposé au pied"}.get(kind, "")
 		var where_en: String = {"quart": "on the side it turns to, at the far end", "demi_tour": "on the foot side, next to the start", "colimacon": "on the side opposite the foot"}.get(kind, "")
 		if foot.is_empty() or top.is_empty():
-			_msg("erreur", "%s en %s : il faut du sol au pied (étage %d) et le plancher d'une pièce à la sortie (étage %d), %s" % [vn[0], w[0], k, k + 1, where_fr],
-				"%s at %s: needs floor at its foot (floor %d) and a room floor at its exit (floor %d), %s" % [vn[1], w[1], k, k + 1, where_en], k, cells)
+			_msg("erreur", "%s en %s : il faut du sol au pied (%s) et le plancher d'une pièce à la sortie (%s), %s" % [vn[0], w[0], _lv(k)[0], _lv(kt)[0], where_fr],
+				"%s at %s: needs floor at its foot (%s) and a room floor at its exit (%s), %s" % [vn[1], w[1], _lv(k)[1], _lv(kt)[1], where_en], k, cells)
 		elif _stair_end_ok(w, k, f, foot.keys(), false, [], vn):
 			_stair_end_ok(w, k, up, top.keys(), true, [where_fr, where_en], vn)
 		return
@@ -780,17 +887,15 @@ func _shaped_stair(b: Dictionary) -> void:
 		_msg("erreur", "%s en %s : trop raide (%.0f° ; %d° au plus : agrandissez-le)" % [vn[0], w[0], slope, int(MAX_STAIR_SLOPE)],
 			"%s at %s: too steep (%.0f°; %d° at most: make it bigger)" % [vn[1], w[1], slope, int(MAX_STAIR_SLOPE)], k, cells)
 	if kind == "colimacon" and rise < StairGen.SPIRAL_MIN_RISE - 0.001:
-		_msg("erreur", "%s en %s : étages trop proches (%s m ; %s m au moins pour passer sous le dernier quart de tour)" % [vn[0], w[0], _num(rise).replace(".", ","), _num(StairGen.SPIRAL_MIN_RISE).replace(".", ",")],
+		_msg("erreur", "%s en %s : niveaux trop proches (%s m ; %s m au moins pour passer sous le dernier quart de tour)" % [vn[0], w[0], _num(rise).replace(".", ","), _num(StairGen.SPIRAL_MIN_RISE).replace(".", ",")],
 			"%s at %s: floors too close (%s m; at least %s m to walk under the last quarter turn)" % [vn[1], w[1], _num(rise), _num(StairGen.SPIRAL_MIN_RISE)], k, cells)
-	var covered := []
-	for c in cells:
-		if up.at(c) != K.TREMIE:
-			covered.append(c)
-	_stair_covered(w, k, up, covered)
+	_stair_covered(w, k, kt, cells)
 	var u: Vector2 = info.up
-	_add_stair({"key": b.key, "floor": k, "rect": _bbox(cells), "up": Vector2i(roundi(u.x), roundi(u.y)), "lower": _uniform_zone(f, foot.keys()),
+	var st := {"key": b.key, "floor": k, "to": kt, "rect": _bbox(cells), "up": Vector2i(roundi(u.x), roundi(u.y)), "lower": _uniform_zone(f, foot.keys()),
 		"upper": _uniform_zone(up, top.keys()), "run": roundi(StairGen.run_length(pl) / scale), "width": roundi(walk / scale), "cells": cells,
-		"foot": foot, "top": top, "links": links, "diag": info})
+		"foot": foot, "top": top, "links": links, "diag": info}
+	_add_stair(st)
+	_stair_headroom(w, st)
 
 
 ## Centre de case `q` juste au-delà d'un bord d'escalier {m, n, h} (pied ou
@@ -811,10 +916,10 @@ func _add_stair(st: Dictionary) -> void:
 	for c in st.cells:
 		_stair_at[k][c] = si
 		f.zone[c.y * f.w + c.x] = st.lower
-	# Haut de l'escalier : passage vers les cases du palier de l'étage du dessus.
+	# Haut de l'escalier : passage vers les cases du palier du niveau d'arrivée.
 	for c in st.links:
 		for t in st.links[c]:
-			var key := "%d:%d:%d" % [k + 1, t.x, t.y]
+			var key := "%d:%d:%d" % [int(st.to), t.x, t.y]
 			if not _up_links.has(key):
 				_up_links[key] = []
 			_up_links[key].append([k, c])
@@ -830,12 +935,11 @@ func _diag_stair(b: Dictionary) -> void:
 	var k: int = b.floor
 	var cells: Array = info.get("cells", b.cells)
 	var w := _at(k, cells[0])
-	if k >= floors.size() - 1:
-		_msg("erreur", "escalier en %s : il n'y a pas d'étage au-dessus (ajoutez un étage dans l'onglet Étages)" % w[0],
-			"stairs at %s: there is no floor above (add a floor in the Floors tab)" % w[1], k, cells)
+	var kt := _stair_top_level(b.key, w, k, cells)
+	if kt < 0:
 		return
 	var f := floors[k]
-	var up := floors[k + 1]
+	var up := floors[kt]
 	var u: Vector2 = info.up
 	var lat := Vector2(-u.y, u.x)
 	var c0: Vector2 = info.center
@@ -870,8 +974,8 @@ func _diag_stair(b: Dictionary) -> void:
 	var top_ok := not top.is_empty() and _all(top.keys(), func(c): return _stair_floor(up, c))
 	if not (foot_ok and top_ok):
 		if foot.is_empty() or top.is_empty():
-			_msg("erreur", "escalier en %s : il faut du sol au pied (étage %d) d'un seul petit côté et le plancher d'une pièce en haut (étage %d) du côté opposé" % [w[0], k, k + 1],
-				"stairs at %s: needs floor at its foot (floor %d) on one short side and a room floor at the top (floor %d) on the opposite side" % [w[1], k, k + 1], k, cells)
+			_msg("erreur", "escalier en %s : il faut du sol au pied (%s) d'un seul petit côté et le plancher d'une pièce en haut (%s) du côté opposé" % [w[0], _lv(k)[0], _lv(kt)[0]],
+				"stairs at %s: needs floor at its foot (%s) on one short side and a room floor at the top (%s) on the opposite side" % [w[1], _lv(k)[1], _lv(kt)[1]], k, cells)
 		elif _stair_end_ok(w, k, f, foot.keys(), false):
 			_stair_end_ok(w, k, up, top.keys(), true)
 		return
@@ -890,14 +994,12 @@ func _diag_stair(b: Dictionary) -> void:
 			if _stair_kind(b.key) == "palier" else ceili((rise / tan(deg_to_rad(MAX_STAIR_SLOPE)) + MapGeom.CELL) / scale) * scale
 		_msg("erreur", "escalier en %s : trop raide (%.0f° ; %d° au plus : allongez-le à %s m)" % [w[0], slope, int(MAX_STAIR_SLOPE), _num(need).replace(".", ",")],
 			"stairs at %s: too steep (%.0f°; %d° at most: make it %s m long)" % [w[1], slope, int(MAX_STAIR_SLOPE), _num(need)], k, cells)
-	var covered := []
-	for c in cells:
-		if up.at(c) != K.TREMIE:
-			covered.append(c)
-	_stair_covered(w, k, up, covered)
-	_add_stair({"key": b.key, "floor": k, "rect": _bbox(cells), "up": Vector2i(roundi(u.x), roundi(u.y)), "lower": _uniform_zone(f, foot.keys()),
+	_stair_covered(w, k, kt, cells)
+	var st := {"key": b.key, "floor": k, "to": kt, "rect": _bbox(cells), "up": Vector2i(roundi(u.x), roundi(u.y)), "lower": _uniform_zone(f, foot.keys()),
 		"upper": _uniform_zone(up, top.keys()), "run": run, "width": width, "cells": cells, "foot": foot, "top": top, "links": links,
-		"diag": info})
+		"diag": info}
+	_add_stair(st)
+	_stair_headroom(w, st)
 
 
 func _openings() -> void:
@@ -961,6 +1063,8 @@ func _openings() -> void:
 					_msg("erreur", "fenêtre en %s : pas de place dehors pour les zombies (il faut 2,5 m × 3 m de vide derrière ; occupé en %s)" % [w[0], wb[0]],
 						"window at %s: no room outside for the zombies (2.5 m × 3 m of empty space needed behind it; blocked at %s)" % [w[1], wb[1]], k, blocked)
 					break
+				if not _pocket_volume_ok(k, pocket, w):
+					break
 				if not pockets.has(k):
 					pockets[k] = {}
 				for c in pocket:
@@ -1004,6 +1108,39 @@ func _openings() -> void:
 	for i in doors.size():
 		doors[i]["id"] = str(i + 1)
 		doors[i]["link_id"] = ""
+
+
+## Cour des zombies (cases `pocket` du niveau `k`, de la dalle à
+## POCKET_HEIGHT) qui couperait le volume d'une pièce d'un autre niveau
+## (niveaux libres : un demi-niveau à côté, une pièce plus basse au plafond
+## haut) : erreur, où et quoi. Une trémie (vide d'une pièce haute, escalier)
+## est vérifiée à son propre niveau.
+func _pocket_volume_ok(k: int, pocket: Array, w: Array) -> bool:
+	var lo := floors[k].sol - DALLE
+	var hi := floors[k].sol + POCKET_HEIGHT
+	for j in floors.size():
+		if j == k:
+			continue
+		var g := floors[j]
+		if j > k and g.sol - DALLE >= hi - 0.001:
+			continue
+		var hit := []
+		for c in pocket:
+			var kd := g.at(c)
+			if kd == K.VIDE or kd == K.TREMIE:
+				continue
+			# Plus bas : seulement si son plafond (ou son mur) monte dans la cour.
+			if j < k and maxf(g.ceil_at(c), g.sol + 0.01) <= lo + 0.001:
+				continue
+			hit.append(c)
+		if hit.is_empty():
+			continue
+		var wb := _at(j, hit[0])
+		var lv := _lv(j)
+		_msg("erreur", "fenêtre en %s : la cour des zombies derrière elle coupe le volume d'une pièce du %s (en %s) : éloignez la fenêtre ou la pièce" % [w[0], lv[0], wb[0]],
+			"window at %s: the zombies' yard behind it cuts into the volume of a room on %s (at %s): move the window or the room away" % [w[1], lv[1], wb[1]], k, hit)
+		return false
+	return true
 
 
 ## Type d'entrée des zombies (format 8) de l'ouverture `key` (fenêtre) :
@@ -1090,6 +1227,8 @@ func _diag_opening(b: Dictionary, what: Array, pockets: Dictionary) -> void:
 			var wb := _at(k, blocked[0])
 			_msg("erreur", "fenêtre en %s : pas de place dehors pour les zombies (il faut 2,5 m × 3 m de vide derrière ; occupé en %s)" % [w[0], wb[0]],
 				"window at %s: no room outside for the zombies (2.5 m × 3 m of empty space needed behind it; blocked at %s)" % [w[1], wb[1]], k, blocked)
+			return
+		if not _pocket_volume_ok(k, pocket, w):
 			return
 		for c in pocket:
 			pockets.get_or_add(k, {})[c] = true
@@ -1379,26 +1518,51 @@ func _cell_rules() -> void:
 							no_wall.append(c)
 							break
 				elif kd == K.TREMIE:
-					if k == 0 or floors[k - 1].at(c) in [K.VIDE]:
+					if not _below(k, c):
 						bad_tremie.append(c)
-					else:
+					elif not f.key_at(c).begins_with("tremie_mi#"):
+						# Trémie d'un niveau traversé par un escalier : rien à fermer.
 						for d in DIRS:
-							if f.at(c + d) == K.VIDE:
+							if f.at(c + d) == K.VIDE and not _airspace(k, c + d):
 								tremie_void.append(c)
 								break
 		for group in _groups(no_wall):
 			var w := _at(k, group[0])
 			_msg("erreur", "sol au bord du vide sans mur en %s : fermez la pièce (une fenêtre se pose DANS un mur)" % w[0],
 				"floor next to empty space without a wall at %s: close the room (a window goes IN a wall)" % w[1], k, group)
+		var lv := _lv(k)
 		for group in _groups(bad_tremie):
 			var w := _at(k, group[0])
-			_msg("erreur", "vide d'étage en %s : rien en dessous (un vide s'ouvre sur une pièce de l'étage du dessous)" % w[0],
-				"floor opening at %s: nothing below it (an opening looks down on a room of the floor below)" % w[1], k, group)
+			_msg("erreur", "vide de niveau en %s : rien en dessous (un vide s'ouvre sur une pièce d'un niveau plus bas)" % w[0],
+				"floor opening at %s: nothing below it (an opening looks down on a room of a lower level)" % w[1], k, group)
 		for group in _groups(tremie_void):
 			var w := _at(k, group[0])
-			_msg("erreur", "vide d'étage en %s bordé de vide à l'étage %d : posez une pièce à cet étage autour de l'escalier ou de la double hauteur" % [w[0], k],
-				"floor opening at %s bordered by empty space on floor %d: put a room on this floor around the stairs or the double-height room" % [w[1], k], k, group)
+			_msg("erreur", "vide de niveau en %s bordé de vide au %s : posez une pièce à ce niveau autour de l'escalier ou de la pièce haute" % [w[0], lv[0]],
+				"floor opening at %s bordered by empty space on %s: put a room on this level around the stairs or the high room" % [w[1], lv[1]], k, group)
 		_narrow(f)
+
+
+## Quelque chose sous la case `c` du niveau `k` (trémie) : la première case
+## non vide d'un niveau plus bas (pièce, escalier, vide d'une pièce haute).
+func _below(k: int, c: Vector2i) -> bool:
+	for i in range(k - 1, -1, -1):
+		if floors[i].at(c) != K.VIDE:
+			return true
+	return false
+
+
+## Case vide `c` du niveau `k` dans le volume d'une pièce plus basse (son
+## plafond passe au-dessus du sol de ce niveau : demi-niveau, l'escalier monte
+## dans cette pièce) ? Sinon c'est le dehors.
+func _airspace(k: int, c: Vector2i) -> bool:
+	for i in range(k - 1, -1, -1):
+		var kd := floors[i].at(c)
+		if kd == K.VIDE:
+			continue
+		if kd == K.TREMIE and floors[i].ceil_at(c) <= 0.0:
+			continue
+		return floors[i].ceil_at(c) > floors[k].sol + 0.01
+	return false
 
 
 ## Passages de 1 case (erreur) ou 2 cases (goulot) de large.
@@ -1513,7 +1677,7 @@ func _neighbors(k: int, c: Vector2i, doors_open: bool) -> Array:
 	# Haut d'escalier : passage entre la dernière marche et le palier du dessus.
 	if st_here >= 0:
 		for t in stairs[st_here].links.get(c, []):
-			out.append([k + 1, t])
+			out.append([int(stairs[st_here].to), t])
 	var key := "%d:%d:%d" % [k, c.x, c.y]
 	for l in _up_links.get(key, []):
 		out.append(l)
