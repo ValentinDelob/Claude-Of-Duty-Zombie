@@ -1744,6 +1744,7 @@ static func _stair_floor_base(doc: EditorMap, j: int) -> Dictionary:
 	if main and (_batch_doc == doc or stair_cache_tag >= 0):
 		_floor_bases[j] = base
 	if fp != 0:
+		base["fp"] = fp
 		_fp_bases[j] = [fp, doc, base]
 	return base
 
@@ -2194,6 +2195,40 @@ static func check_arc(o: Dictionary) -> Dictionary:
 	return {"ok": true}
 
 
+## Escalier déjà posé (MapEditor._update_invalid, à chaque modification de la
+## carte) : check_rect, dont le résultat resert d'un lot à l'autre tant que
+## rien de ce qu'il lit n'a changé : l'escalier, les niveaux, et pour chaque
+## niveau de son pied à son arrivée, l'empreinte de sa base (pièces, pièces
+## hautes, escaliers, murs libres, trémies : _stair_floor_base) et les objets
+## proches (zone des obstacles, comme _stair_blockers). Hors lot : recalculé.
+static func _check_existing_stair(doc: EditorMap, k: int, o: Dictionary) -> Dictionary:
+	var main := not ThreadGuard.worker()
+	var kt := stair_top_level(doc, k, o)
+	if not main or _batch_doc != doc or kt <= k:
+		return check_rect(doc, k, "escalier", MapGeom.rect_of(o.rect), String(o.id), MapGeom.rot_of(o), "", o)
+	doc.freeze_levels()
+	var area := MapGeom.bbox(MapRaster.rect_poly(o)).grow(0.8)
+	var key := [o, doc.levels(), overlaps_allowed(doc)]
+	for j in range(k, kt + 1):
+		var base := _stair_floor_base(doc, j)
+		key.append(int(base.get("fp", 0)))
+		key.append(_base_near(base, area).map(func(e): return e[0]))
+	doc.thaw_levels()
+	var h := key.hash()
+	var hit: Array = _stair_results.get(h, [])
+	if not hit.is_empty() and hit[0] == doc and hit[1] == key:
+		return (hit[2] as Dictionary).duplicate(true)
+	var r := check_rect(doc, k, "escalier", MapGeom.rect_of(o.rect), String(o.id), MapGeom.rot_of(o), "", o)
+	if _stair_results.size() > 512:
+		_stair_results.clear()
+	_stair_results[h] = [doc, key.duplicate(true), r.duplicate(true)]
+	return r
+
+
+## Résultats de _check_existing_stair (fil principal) : empreinte -> [carte, clé, résultat].
+static var _stair_results: Dictionary = {}
+
+
 ## Vérifie un élément déjà posé (dessin en rouge des éléments devenus invalides).
 static func check_existing(doc: EditorMap, o: Dictionary) -> Dictionary:
 	var k := doc.level_of(o)
@@ -2229,7 +2264,9 @@ static func check_existing(doc: EditorMap, o: Dictionary) -> Dictionary:
 			return place_floor_item(doc, k, o, MapGeom.v2(o.position), String(o.id), false)
 		"rect":
 			# Escalier : lui-même (sens, type), sans le rechercher dans la carte.
-			return check_rect(doc, k, t, MapGeom.rect_of(o.rect), String(o.id), MapGeom.rot_of(o), "", o if t == "escalier" else {})
+			if t == "escalier":
+				return _check_existing_stair(doc, k, o)
+			return check_rect(doc, k, t, MapGeom.rect_of(o.rect), String(o.id), MapGeom.rot_of(o), "", {})
 		"poly":
 			return check_clip(MapRaster.clip_poly(o))
 		"wall":

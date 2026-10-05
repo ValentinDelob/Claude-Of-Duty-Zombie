@@ -309,6 +309,32 @@ func test_stair_checks_stay_fast_on_a_big_map() -> void:
 	assert_true(t_drag[10] < 5.0, "tracé d'un escalier : %.2f ms par image (objectif 5 ms)" % t_drag[10])
 
 
+func test_stair_check_memory_follows_the_map() -> void:
+	# Résultat gardé d'un lot à l'autre (MapRules._check_existing_stair) : il
+	# suit chaque changement de ce qu'il lit (objet au pied, pièce d'arrivée,
+	# l'escalier lui-même, modifiés en place comme le fait l'éditeur).
+	var doc := tower_with_stairs()
+	var e0 := doc.find("e0")
+	var check := func() -> Dictionary:
+		MapRules.begin_batch(doc)
+		var r := MapRules.check_existing(doc, e0)
+		MapRules.end_batch()
+		return r
+	assert_true(check.call().ok, "admis")
+	assert_true(check.call().ok, "admis (résultat gardé)")
+	var pil := {"id": "x1", "type": "pilier", "altitude": 0, "rect": [2.0, 11.0, 4.5, 12.5]}
+	doc.objets.append(pil)
+	assert_false(check.call().ok, "pilier posé au pied : refusé")
+	pil["rect"] = [10.0, 11.0, 12.5, 12.5]
+	assert_true(check.call().ok, "pilier déplacé (en place) : admis")
+	doc.pieces[1]["contour"] = [[8, 0], [W, 0], [W, D], [8, D]]
+	assert_false(check.call().ok, "pièce d'arrivée réduite (en place) : refusé")
+	doc.pieces[1]["contour"] = [[0, 0], [W, 0], [W, D], [0, D]]
+	assert_true(check.call().ok, "pièce d'arrivée rendue : admis")
+	e0["rect"] = [2.0, 3.0, 4.5, 6.5]
+	assert_false(check.call().ok, "escalier raccourci (en place) : trop raide")
+
+
 func test_monte_against_the_shape_falls_back_like_the_validator() -> void:
 	# Escalier droit de 2,5 × 6,5 m dont « monte » dit « e » (réglé dans le
 	# panneau, écrit par MCP) : le validateur garde le seul sens possible ; la
