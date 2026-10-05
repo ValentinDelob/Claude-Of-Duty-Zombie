@@ -425,10 +425,52 @@ static func _m(v: float, fr := true) -> String:
 
 ## Pièce de l'étage qui contient `p` (strictement à l'intérieur), {} sinon.
 static func room_at(doc: EditorMap, k: int, p: Vector2) -> Dictionary:
-	for r in doc.rooms_on(k):
-		if MapGeom.contains(doc.room_poly(r), p):
-			return r
+	for e in _rooms_of(doc, k):
+		if (e[2] as Rect2).has_point(p) and MapGeom.contains(e[1], p):
+			return e[0]
 	return {}
+
+
+## Pièces du niveau `k` : [[pièce, contour, rectangle englobant (marge 1 mm)]].
+## Pendant un lot (begin_batch, fil principal) : lues une fois par niveau
+## (check_existing sur chaque élément relirait chaque contour) ; sinon à la volée.
+static func _rooms_of(doc: EditorMap, k: int) -> Array:
+	var batched := _batch_mem(doc)
+	if batched and _batch_rooms.has(k):
+		return _batch_rooms[k]
+	var out := []
+	for r in doc.rooms_on(k):
+		var poly := doc.room_poly(r)
+		out.append([r, poly, MapGeom.bbox(poly).grow(0.001)])
+	if batched:
+		_batch_rooms[k] = out
+	return out
+
+
+## Cases intérieures de la pièce `room` (inner_cells) ; pendant un lot,
+## gardées par pièce (sans relire ni réécrire son contour pour chaque objet).
+static func _inner_of(doc: EditorMap, room: Dictionary) -> Dictionary:
+	var batched := _batch_mem(doc)
+	var rid := String(room.get("id", ""))
+	if batched and _batch_inner.has(rid) and is_same(_batch_inner[rid][0], room):
+		return _batch_inner[rid][1]
+	var inner := inner_cells(doc.room_poly(room))
+	if batched:
+		_batch_inner[rid] = [room, inner]
+	return inner
+
+
+## Mémoires du lot (_rooms_of, _inner_of) utilisables pour `doc` ? Fil
+## principal seulement ; sûreté (lot tenu pendant un geste, comme
+## EditorMap.freeze_levels) : relues à chaque image.
+static func _batch_mem(doc: EditorMap) -> bool:
+	if _batch_doc != doc or ThreadGuard.worker():
+		return false
+	if _batch_rooms_frame != Engine.get_process_frames():
+		_batch_rooms = {}
+		_batch_inner = {}
+		_batch_rooms_frame = Engine.get_process_frames()
+	return true
 
 
 ## Pièce de l'étage dont le sol touche l'emprise `poly` (décor posé à cheval
@@ -438,8 +480,9 @@ static func room_touching(doc: EditorMap, k: int, poly: PackedVector2Array) -> D
 	var best_n := 0
 	var pts := Array(poly)
 	pts.append(MapGeom.centroid(poly))
-	for r in doc.rooms_on(k):
-		var rp := doc.room_poly(r)
+	for e in _rooms_of(doc, k):
+		var r: Dictionary = e[0]
+		var rp: PackedVector2Array = e[1]
 		if not MapGeom.overlap(rp, poly):
 			continue
 		var n := 1
@@ -580,6 +623,10 @@ static var _batch_doc: EditorMap = null
 static var _batch_lists: Dictionary = {}   # étage -> [escaliers et murs libres]
 ## Escaliers du lot : [[escalier, altitude du pied, altitude d'arrivée]].
 static var _batch_stairs: Array = []
+## Pièces par niveau pendant un lot (_rooms_of).
+static var _batch_rooms: Dictionary = {}
+static var _batch_inner: Dictionary = {}
+static var _batch_rooms_frame := -1
 
 
 static func begin_batch(doc: EditorMap) -> void:
@@ -590,6 +637,8 @@ static func begin_batch(doc: EditorMap) -> void:
 	_batch = {}
 	_batch_doc = doc
 	doc.freeze_levels()
+	_batch_rooms = {}
+	_batch_inner = {}
 	_floor_bases = {}   # étages lus par les contrôles d'escaliers (_stair_floor_base)
 	_batch_stairs = []
 	_batch_lists = {}
@@ -627,6 +676,8 @@ static func end_batch() -> void:
 		_batch_doc.thaw_levels()
 	_batch = {}
 	_batch_doc = null
+	_batch_rooms = {}
+	_batch_inner = {}
 	_floor_bases = {}
 	_batch_lists = {}
 
@@ -653,6 +704,14 @@ static func _near(doc: EditorMap, k: int, r: Rect2) -> Array:
 					seen[eid] = true
 					out.append(e)
 		return out
+	if not ThreadGuard.worker() and stair_cache_tag >= 0 and k >= 0 and k < doc.floor_count():
+		# Tracé d'un escalier (stair_cache_tag : carte inchangée) : les objets de
+		# l'étage rangés par cases dans sa base (_stair_floor_base), dans l'ordre
+		# de la carte (premier chevauchement nommé comme sans la base).
+		var cand := _base_near(_stair_floor_base(doc, k), r)
+		if cand.all(func(e): return (e as Array).size() > 3):
+			cand.sort_custom(func(a, b): return int(a[3]) < int(b[3]))
+			return cand
 	var out := []
 	for o in doc.objects_on(k):
 		if not String(o.get("type", "")) in NO_OVERLAP_CHECK:
@@ -1355,7 +1414,6 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 		pos = MapGeom.round_cm(mouse)
 	var obj := tmpl.duplicate()
 	obj["position"] = MapGeom.arr(pos)
-	var nm := _name(tmpl)
 	var room := room_at(doc, k, pos)
 	var decor := MapCatalog.is_decor(tmpl)
 	if room.is_empty() and decor:
@@ -1363,6 +1421,7 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 		# qu'il touche le sol d'une pièce.
 		room = room_touching(doc, k, exact_poly(obj))
 	if room.is_empty():
+		var nm := _name(tmpl)
 		if decor:
 			return refuse("%s doit toucher le sol d'une pièce" % nm[0], "%s must touch a room floor" % nm[1])
 		return refuse("%s se pose à l'intérieur d'une pièce" % nm[0], "%s goes inside a room" % nm[1])
@@ -1370,10 +1429,10 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 	# mur. Le décor se pose contre un mur, et même à moitié dedans (le mur reste
 	# entier : MapRaster ne rend pleines que ses cases de sol).
 	if not decor:
-		var inner := inner_cells(doc.room_poly(room))
+		var inner := _inner_of(doc, room)
 		for c in MapRaster.floor_cells(obj):
 			if not inner.has(c):
-				return refuse("%s touche un mur : posez-le plus au milieu de la pièce" % nm[0], "%s touches a wall: place it further inside the room" % nm[1])
+				return refuse("%s touche un mur : posez-le plus au milieu de la pièce" % _name(tmpl)[0], "%s touches a wall: place it further inside the room" % _name(tmpl)[1])
 	var fr := footprint_rect(obj)
 	var layer := layer_of(tmpl)
 	var others := _overlaps_all(doc, k, fr, ignore_id, layer)
@@ -1739,6 +1798,7 @@ static func _stair_floor_base(doc: EditorMap, j: int) -> Dictionary:
 			for bk in _buckets(Rect2((Vector2(cb.position) - Vector2.ONE * 0.5) * MapGeom.CELL, Vector2(cb.size) * MapGeom.CELL)):
 				(base.well_grid.get_or_add(bk, []) as Array).append(we)
 		var batched := _batch_doc == doc and main
+		var n := 0   # rang dans la carte (_near pendant un tracé)
 		for o in (_batch_lists.get(j, []) if batched else doc.objects_on(j)):
 			var t := String(o.get("type", ""))
 			if t == "escalier":
@@ -1751,9 +1811,10 @@ static func _stair_floor_base(doc: EditorMap, j: int) -> Dictionary:
 				base.walls.append(o)
 			if not t in NO_OVERLAP_CHECK and not batched:
 				var r := footprint_rect(o)
-				var e := [o, r, layer_of(o)]
+				var e := [o, r, layer_of(o), n]
 				for bk in _buckets(r):
 					(base.items.get_or_add(bk, []) as Array).append(e)
+			n += 1
 	if _batch_doc == doc and main:
 		base.items = _batch.get(j, {})   # le lot range déjà les objets par cases
 	if main and (_batch_doc == doc or stair_cache_tag >= 0):

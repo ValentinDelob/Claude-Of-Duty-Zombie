@@ -829,9 +829,20 @@ static func short_num(v: float) -> String:
 	return s.replace(".", ",")
 
 
+## Types dont l'objet du catalogue est le type lui-même (item_for).
+const PLAIN_TYPES := {"porte": true, "debris": true, "porte_courant": true, "passage": true, "fenetre": true, "mur": true,
+	"mur_courbe": true, "pilier": true, "escalier": true, "piege": true, "levier": true, "grenades": true, "pap": true,
+	"courant": true, "teleporteur": true, "arrivee": true, "poste_central": true, "depart": true, "apparition": true,
+	"lampe": true, "caisse": true, "baril": true, "bloc_invisible": true}
+
+
 ## Objet du catalogue correspondant à un élément de la carte (icône, nom).
 static func item_for(o: Dictionary) -> Dictionary:
 	var t := String(o.get("type", ""))
+	# Types sans sous-clé d'abord (appelé pour chaque objet à chaque dessin et
+	# contrôle : le match compare les chaînes une à une).
+	if PLAIN_TYPES.has(t):
+		return item(t)
 	match t:
 		"atout":
 			return item("atout:" + String(o.get("atout", "")))
@@ -845,9 +856,6 @@ static func item_for(o: Dictionary) -> Dictionary:
 			return item("arme:" + String(o.get("arme", "")))
 		"boite":
 			return item("boite_depart" if o.get("depart", false) else "boite")
-		"porte", "debris", "porte_courant", "passage", "fenetre", "mur", "mur_courbe", "pilier", "escalier", "piege", "levier", "grenades", "pap", \
-				"courant", "teleporteur", "arrivee", "poste_central", "depart", "apparition", "lampe", "caisse", "baril", "bloc_invisible":
-			return item(t)
 	return {}
 
 

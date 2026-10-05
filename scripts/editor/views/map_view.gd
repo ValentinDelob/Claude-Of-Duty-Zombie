@@ -74,6 +74,23 @@ static func uv_of(pl: String, p: Vector3) -> Vector2:
 	return Vector2(p.x, p.y)
 
 
+## uv_of et depth_of d'un plan en produits scalaires (boucles chaudes : un
+## appel par sommet sinon) : [u, v, profondeur], chacun `axe.dot(p)`.
+static func plane_axes(pl: String) -> Array:
+	match pl:
+		"dessous":
+			return [Vector3(-1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, -1)]
+		"avant":
+			return [Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0)]
+		"arriere":
+			return [Vector3(-1, 0, 0), Vector3(0, 0, -1), Vector3(0, -1, 0)]
+		"droite":
+			return [Vector3(0, -1, 0), Vector3(0, 0, -1), Vector3(1, 0, 0)]
+		"gauche":
+			return [Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0)]
+	return [Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1)]
+
+
 ## Profondeur d'un point dans un plan : plus grande = plus près de la caméra
 ## (Dessus : le haut ; Avant : le sud ; Droite : l'est...).
 static func depth_of(pl: String, p: Vector3) -> float:
@@ -488,12 +505,18 @@ func _hatch(r: Rect2, step: float, col: Color, width := 1.0, dir := 1, ci: Canva
 	var s := step * 1.41421356
 	var h := view.size.y
 	var c := view.position.x - h - fposmod(view.position.x - h, s)
+	# Tous les traits en un seul appel (une vue en compte des centaines).
+	var pts := PackedVector2Array()
 	while c < view.end.x:
 		var t0 := maxf(0.0, view.position.x - c)
 		var t1 := minf(h, view.end.x - c)
 		if t1 > t0:
 			if dir > 0:
-				t.draw_line(Vector2(c + t0, view.end.y - t0), Vector2(c + t1, view.end.y - t1), col, width)
+				pts.append(Vector2(c + t0, view.end.y - t0))
+				pts.append(Vector2(c + t1, view.end.y - t1))
 			else:
-				t.draw_line(Vector2(c + t0, view.position.y + t0), Vector2(c + t1, view.position.y + t1), col, width)
+				pts.append(Vector2(c + t0, view.position.y + t0))
+				pts.append(Vector2(c + t1, view.position.y + t1))
 		c += s
+	if not pts.is_empty():
+		t.draw_multiline(pts, col, width)

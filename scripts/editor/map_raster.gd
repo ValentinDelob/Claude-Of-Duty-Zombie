@@ -52,6 +52,16 @@ static func letter(n: int) -> String:
 
 
 func _build() -> void:
+	# Niveaux figés pendant toute la construction (level_of, rooms_on sur
+	# chaque élément : EditorMap.levels relirait toutes les pièces) ; la carte
+	# n'y change pas.
+	var d := doc
+	d.freeze_levels()
+	_build_now()
+	d.thaw_levels()
+
+
+func _build_now() -> void:
 	v = MapValidator.new()
 	# Format 10 : prefabs de la carte connus du catalogue (fil principal ; un
 	# fil de travail lit ceux mis en place avant son lancement).
@@ -112,6 +122,7 @@ func _build() -> void:
 	var src := doc
 	if sh != Vector2.ZERO:
 		doc = MapTransform.shifted_map(src, sh)
+		doc.freeze_levels()
 	# Textes des positions des messages : repère de l'éditeur dès maintenant.
 	v.text_shift = sh
 	# Contrôles des niveaux sur la copie décalée : les escaliers qu'ils retiennent
@@ -140,12 +151,10 @@ func _build() -> void:
 	if w == 1 and h == 1:
 		doc = src
 		return
-	doc.freeze_levels()
 	for k in n:
 		_floor(k)
 	_scaled_heights()
 	_open_sky_hangers()
-	doc.thaw_levels()
 	doc = src
 	v.shift = sh
 
@@ -204,10 +213,12 @@ static func _m(x: float, fr := true) -> String:
 ## Plafond propre de la case `c` (niveau `k`) : celui de la pièce `p` ; ciel
 ## ouvert si elle est sans plafond.
 func _own_sky(k: int, c: Vector2i, p: Dictionary) -> void:
+	var sky: Dictionary = v.open_sky[k]
 	if not p.is_empty() and EditorMap.no_ceiling(p):
-		v.open_sky[k][c] = true
-	else:
-		v.open_sky[k].erase(c)
+		sky[c] = true
+	elif not sky.is_empty():
+		# Appelé pour chaque case : rien à retirer sans ciel ouvert.
+		sky.erase(c)
 
 
 ## Passage libre entre deux pièces (cases `cells`) : ciel ouvert seulement si
@@ -601,7 +612,27 @@ static func free_rot(o: Dictionary) -> bool:
 
 
 ## Contour -> [cases du bord (dictionnaire), cases intérieures (tableau)].
+## Mémoire par contenu du contour (fil principal) : grille, élévations et
+## contrôles relisent les mêmes pièces à chaque modification (une grande
+## pièce : des dizaines de milliers de cases). Le résultat est partagé : ne
+## pas le modifier.
 static func room_cells(poly: PackedVector2Array) -> Array:
+	var main := not ThreadGuard.worker()
+	var h := [poly].hash()
+	if main and _cells_cache.has(h) and _cells_cache[h][0] == poly:
+		return _cells_cache[h][1]
+	var out := _room_cells_now(poly)
+	if main:
+		if _cells_cache.size() > 2048:
+			_cells_cache.clear()
+		_cells_cache[h] = [poly, out]
+	return out
+
+
+static var _cells_cache: Dictionary = {}
+
+
+static func _room_cells_now(poly: PackedVector2Array) -> Array:
 	var border := {}
 	for i in poly.size():
 		for c in edge_cells(poly[i], poly[(i + 1) % poly.size()]):
@@ -683,13 +714,24 @@ func _floor(k: int) -> void:
 					"rooms \"%s\" and \"%s\" overlap" % [p.get("nom", p.id), inner_of[c].get("nom", "")], k, [c])
 				break
 			inner_of[c] = p
+		# Boucle chaude (une grande pièce : des dizaines de milliers de cases) :
+		# Floor.at / put et _own_sky déroulés (la grille couvre toute la carte).
+		var pid := String(p.id)
+		var open := EditorMap.no_ceiling(p)
+		var sky: Dictionary = v.open_sky[k]
 		for c in rc[1]:
-			if f.at(c) == K.MUR and f.key_at(c) == "mur" and k > 0 and not voids.has(c):
+			var i: int = c.y * f.w + c.x
+			if k > 0 and f.kind[i] == K.MUR and f.key[i] == "mur" and not voids.has(c):
 				continue   # mur d'une double hauteur : il reste
-			f.put(c, K.SOL, "zone", z)
-			f.ceil[c.y * f.w + c.x] = ce
-			f.room[c.y * f.w + c.x] = String(p.id)
-			_own_sky(k, c, p)
+			f.kind[i] = K.SOL
+			f.key[i] = "zone"
+			f.zone[i] = z
+			f.ceil[i] = ce
+			f.room[i] = pid
+			if open:
+				sky[c] = true
+			elif not sky.is_empty():
+				sky.erase(c)
 			own.append(c)
 		for c in rc[0]:
 			border_of.get_or_add(c, []).append(p)
