@@ -76,8 +76,9 @@ func test_hellhound_uses_zombie_channel() -> void:
 	d.global_position = Vector3(5.0, 0.0, 9.0)
 	d.state = Zombie.State.CHASE
 	var buf := mgr.build_snapshot()
-	# Instantané delta : entrée complète (u16 id, u8 masque, 3 x u16, 2 x u8).
-	assert_eq(buf.size(), 2 + 3 + 8)
+	# Instantané delta : entrée complète (u16 id, u8 masque, x 5 m et z 9 m en
+	# 2 octets, y 0 en 1 octet — entiers variables, protocole 6 —, 2 x u8).
+	assert_eq(buf.size(), 2 + 3 + 7)
 	assert_eq(buf.decode_u16(2), 7)
 	assert_true(d.speed_mult * Zombie.SPEEDS[3] > 6.0, "course rapide")
 	assert_true(d.hit_head != null and d.hit_body != null, "hitboxes")

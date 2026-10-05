@@ -15,6 +15,8 @@ extends MapView
 const HANDLE := 7.0
 const COL_BG := Color(0.1, 0.105, 0.115)
 const COL_TERRAIN := Color(0.135, 0.14, 0.15)
+## Repère de l'origine (x = 0, y = 0) : discret.
+const COL_ORIGIN := Color(0.9, 0.55, 0.35, 0.22)
 const COL_WALL := Color(0.62, 0.62, 0.66)
 const COL_VOID := Color(0.1, 0.16, 0.3, 0.55)
 const COL_OK := Color(0.25, 0.95, 0.35)
@@ -1377,8 +1379,8 @@ func _update_point_hint() -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), COL_BG)
-	var tl := to_px(Vector2.ZERO)
-	draw_rect(Rect2(tl.max(Vector2.ZERO), size - tl.max(Vector2.ZERO)), COL_TERRAIN)
+	# Format 17 : coordonnées libres (négatives comprises), terrain partout.
+	draw_rect(Rect2(Vector2.ZERO, size), COL_TERRAIN)
 	_draw_grid()
 	var doc := ed.doc
 	var k := ed.floor_k if floor_override < 0 else floor_override
@@ -1938,10 +1940,13 @@ func _fine_grid() -> float:
 
 func _draw_grid() -> void:
 	super()
-	# Axes : bord du terrain (x = 0, y = 0).
+	# Origine (x = 0, y = 0) : simple repère discret, pas un bord (format 17 :
+	# coordonnées négatives admises).
 	var o := to_px(Vector2.ZERO)
-	draw_line(Vector2(o.x, 0), Vector2(o.x, size.y), Color(0.9, 0.5, 0.3, 0.5), 1.5)
-	draw_line(Vector2(0, o.y), Vector2(size.x, o.y), Color(0.9, 0.5, 0.3, 0.5), 1.5)
+	draw_line(Vector2(o.x, 0), Vector2(o.x, size.y), COL_ORIGIN, 1.0)
+	draw_line(Vector2(0, o.y), Vector2(size.x, o.y), COL_ORIGIN, 1.0)
+	if o.x > -8.0 and o.y > -8.0 and o.x < size.x + 8.0 and o.y < size.y + 8.0:
+		draw_arc(o, _u(4), 0.0, TAU, 16, Color(COL_ORIGIN, 0.6), 1.0)
 
 
 func _draw_rulers(font: Font) -> void:
@@ -1957,12 +1962,15 @@ func _draw_cells(k: int) -> void:
 	if r == null or k >= r.v.floors.size():
 		return
 	var f: MapValidator.Floor = r.v.floors[k]
+	# Vue (m, éditeur) -> cases de la grille (repère décalé des coordonnées
+	# négatives : r.v.shift) ; chaque case est redessinée à sa place dans l'éditeur.
+	var sc := r.v.shift_cells()
 	var m0 := to_m(Vector2.ZERO)
 	var m1 := to_m(size)
-	var i0 := maxi(0, floori(m0.x / MapGeom.CELL) - 1)
-	var i1 := mini(f.w - 1, ceili(m1.x / MapGeom.CELL) + 1)
-	var j0 := maxi(0, floori(m0.y / MapGeom.CELL) - 1)
-	var j1 := mini(f.h - 1, ceili(m1.y / MapGeom.CELL) + 1)
+	var i0 := maxi(0, floori(m0.x / MapGeom.CELL) - 1 + sc.x)
+	var i1 := mini(f.w - 1, ceili(m1.x / MapGeom.CELL) + 1 + sc.x)
+	var j0 := maxi(0, floori(m0.y / MapGeom.CELL) - 1 + sc.y)
+	var j1 := mini(f.h - 1, ceili(m1.y / MapGeom.CELL) + 1 + sc.y)
 	var cs := zoom * MapGeom.CELL
 	var dc: Dictionary = r.v.diag_cells[k] if k < r.v.diag_cells.size() else {}
 	for j in range(j0, j1 + 1):
@@ -1977,7 +1985,7 @@ func _draw_cells(k: int) -> void:
 				shown = -1   # mur en biais : dessiné en vrai mur oblique (plus bas)
 			if shown != run_kind:
 				if run_kind >= 0:
-					var p := to_px(MapGeom.cell_center(Vector2i(run_start, j))) - Vector2.ONE * cs * 0.5
+					var p := to_px(MapGeom.cell_center(Vector2i(run_start, j) - sc)) - Vector2.ONE * cs * 0.5
 					var rect := Rect2(p, Vector2(cs * (i - run_start), cs))
 					match run_kind:
 						MapValidator.K.MUR:
@@ -2013,20 +2021,22 @@ func _draw_obliques(v: MapValidator, k: int) -> void:
 	if k >= v.oblique_walls.size():
 		return
 	var view := Rect2(Vector2.ZERO, size).grow(zoom)
+	# Murs du repère de la grille (décalé si coordonnées négatives) -> éditeur.
+	var sh := v.shift
 	for w in v.oblique_walls[k]:
-		var poly := _slab_px(w.a, w.b, float(w.half))
+		var poly := _slab_px(w.a - sh, w.b - sh, float(w.half))
 		if not MapGeom.bbox(poly).intersects(view):
 			continue
 		_fill(poly, COL_WALL)
 		if String(w.get("kind", "")) == "pilier":
 			continue   # pilier tourné : pavé plein, sans bouts arrondis
 		for e in [w.a, w.b]:
-			draw_circle(to_px(e), float(w.half) * zoom, COL_WALL)
+			draw_circle(to_px(e - sh), float(w.half) * zoom, COL_WALL)
 	for key in v.diag_open:
 		var o: Dictionary = v.diag_open[key]
 		if int(o.floor) != k:
 			continue
-		var p: Vector2 = o.p
+		var p: Vector2 = o.p - sh
 		var t: Vector2 = o.t
 		var hw := float(o.w) * 0.5
 		var poly := _slab_px(p - t * hw, p + t * hw, float(o.half) + 0.02)

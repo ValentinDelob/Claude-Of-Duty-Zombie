@@ -231,7 +231,7 @@ func cmd_validate() -> Dictionary:
 	var problems := []
 	for m in v.messages:
 		var pts := []
-		for cc in (m.get("cells", []) as Array).slice(0, 12):
+		for cc in v.cells_ed((m.get("cells", []) as Array).slice(0, 12)):
 			var p := MapGeom.cell_center(cc)
 			pts.append([snappedf(p.x, 0.01), snappedf(p.y, 0.01)])
 		problems.append({"level": m.level, "text": MapValidator.text_of(m), "floor": int(m.get("floor", -1)), "points": pts})
@@ -507,7 +507,7 @@ static func catalog() -> Dictionary:
 	(kinds.escalier.keys as Dictionary).erase("marches")
 	return {"kinds": jsonable(kinds), "room_keys": jsonable(MapCatalog.room_keys()), "zone_keys": jsonable(MapCatalog.zone_keys()),
 		"items": items, "prefabs": prefabs, "lights": lights, "effects": effects, "weapons": weapons, "perks": perks, "variants": jsonable(MapCatalog.VARIANTS),
-		"door_prices": MapCatalog.DOOR_PRICES, "max_coord": MapCatalog.MAX_COORD,
+		"door_prices": MapCatalog.DOOR_PRICES,
 		"id_prefixes": jsonable(MapOps.OBJ_PREFIX), "surfaces": MapCatalog.allowed_surfaces()}
 
 

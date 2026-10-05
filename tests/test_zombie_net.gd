@@ -19,8 +19,10 @@ func test_snapshot_roundtrip() -> void:
 	var z := _zombie(mgr, 42, true, Vector3(12.34, -0.5, 56.78), 1.5)
 	z.state = Zombie.State.CHASE
 	var buf := mgr.build_snapshot()
-	# Zombie inconnu du flux : état complet (2 + 3 + 3 x 2 + 2 octets).
-	assert_eq(buf.size(), 2 + 3 + 8)
+	# Zombie inconnu du flux : état complet (2 + 3 octets d'en-tête ; x 12,34 m
+	# et z 56,78 m : 2 octets chacun, y −0,5 m : 1 octet (entiers variables) ;
+	# lacet et code : 2) — un octet de moins que l'ancien codage u16.
+	assert_eq(buf.size(), 2 + 3 + 7)
 
 	# Côté client : une marionnette connue (état d'apparition) reçoit l'instantané.
 	var mgr2 := ZombieManager.new()
@@ -219,3 +221,50 @@ func test_frenzy_bit_in_anim_code() -> void:
 	assert_true(int(snap[3]) & Zombie.FRENZY_BIT != 0, "bit reçu par la marionnette")
 	mgr.queue_free()
 	mgr2.queue_free()
+
+
+## Format 17 (protocole 6) : positions sans borne de carte ni d'altitude —
+## négatives, très grandes, très hautes — en aller-retour exact au cm.
+func test_snapshot_unbounded_positions_roundtrip() -> void:
+	var cases := [Vector3(-37.5, -12.25, -0.01), Vector3(655.36, 0, 700.0), Vector3(12000.5, 950.25, -8000.75),
+		Vector3(-150000.0, -20.5, 190000.0), Vector3(0.004, -0.004, 0.0), Vector3(21474836.0, -21474836.0, 1.0)]
+	var entries := []
+	var states := {}
+	for i in cases.size():
+		entries.append([i + 1, NetCodec.FULL_MASK, NetCodec.quantize_zombie(cases[i], 1.0, 9)])
+		states[i + 1] = PackedInt32Array([0, 0, 0, 0, 0])
+	var buf := NetCodec.encode_zombie_snapshot(entries)
+	assert_eq(NetCodec.decode_zombie_snapshot(buf, states), cases.size(), "toutes les entrées lues")
+	for i in cases.size():
+		var p := NetCodec.zombie_pos(states[i + 1])
+		var want: Vector3 = cases[i]
+		assert_true(p.distance_to(want) < 0.006 + absf(want.x) * 1e-7 + absf(want.z) * 1e-7, "position %s -> %s" % [want, p])
+		assert_eq(states[i + 1][NetCodec.QCODE], 9, "code")
+	# Au-delà de ± 21 474 km : borné (jamais un débordement), valeur non finie : 0.
+	var q := NetCodec.quantize_zombie(Vector3(1e12, NAN, -1e12), 0.0, 0)
+	assert_eq(q[NetCodec.QX], NetCodec.POS_MAX)
+	assert_eq(q[NetCodec.QY], 0)
+	assert_eq(q[NetCodec.QZ], -NetCodec.POS_MAX)
+
+
+## Taille des instantanés : une carte ordinaire (monde de 4 à 80 m, sol à 0 ou
+## 3,5 m) coûte au plus autant que l'ancien codage u16 (11 octets pour un état
+## complet, 5 pour un seul champ de position), une grande carte quelques
+## octets de plus seulement.
+func test_snapshot_size_stays_compact() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 17
+	var entries := []
+	for i in 24:
+		var p := Vector3(rng.randf_range(4, 80), [0.0, 3.5][i % 2], rng.randf_range(4, 80))
+		entries.append([i, NetCodec.FULL_MASK, NetCodec.quantize_zombie(p, rng.randf() * TAU, 3)])
+	var full := NetCodec.encode_zombie_snapshot(entries).size()
+	assert_true(full <= 2 + 24 * 11, "24 zombies, états complets : %d octets (ancien codage : %d)" % [full, 2 + 24 * 11])
+	var moves := []
+	for e in entries:
+		moves.append([e[0], 1 | 2 | 8, e[2]])
+	var delta := NetCodec.encode_zombie_snapshot(moves).size()
+	assert_true(delta <= 2 + 24 * 8, "24 zombies qui avancent et tournent : %d octets (ancien : %d)" % [delta, 2 + 24 * 8])
+	# Très grande carte (jusqu'à 10 km) : 3 octets par coordonnée au plus.
+	var big := NetCodec.encode_zombie_snapshot([[1, NetCodec.FULL_MASK, NetCodec.quantize_zombie(Vector3(9000, 400, 9000), 0.0, 0)]])
+	assert_true(big.size() <= 2 + 3 + 3 * 3 + 2, "grande carte : %d octets" % big.size())

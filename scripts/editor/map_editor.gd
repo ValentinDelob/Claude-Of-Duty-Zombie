@@ -1984,28 +1984,7 @@ func _replace(e: Dictionary) -> void:
 
 
 static func _shift(o: Dictionary, delta: Vector2) -> Dictionary:
-	var e := o.duplicate(true)
-	if e.has("contour"):
-		var pts := []
-		for p in e.contour:
-			pts.append(MapGeom.arr(MapGeom.v2(p) + delta))
-		e.contour = pts
-		if e.has("forme") and MapShapes.valid(e.forme):
-			e.forme = MapShapes.shifted(e.forme, delta)
-	if e.has("sommets"):
-		# Barrière invisible en polygone (format 9).
-		var pts := []
-		for p in e.sommets:
-			pts.append(MapGeom.arr(MapGeom.v2(p) + delta))
-		e.sommets = pts
-	for key in ["position", "a", "b", "centre"]:
-		if e.has(key):
-			e[key] = MapGeom.arr(MapGeom.v2(e[key]) + delta)
-	if e.has("rect"):
-		var r := MapGeom.rect_of(e.rect)
-		r.position += delta
-		e.rect = MapGeom.rect_arr(r)
-	return e
+	return MapTransform.shifted(o, delta)
 
 
 ## Déplacement pendant un glissement : essaie `orig` décalé de `delta`
@@ -2712,6 +2691,9 @@ func focus_problem(m: Dictionary) -> void:
 	var cells: Array = m.get("cells", [])
 	if cells.is_empty():
 		return
+	# Cases de la grille -> repère de l'éditeur (coordonnées négatives).
+	if validator != null:
+		cells = validator.cells_ed(cells)
 	var k := int(m.get("floor", -1))
 	if k >= 0:
 		set_floor(k)

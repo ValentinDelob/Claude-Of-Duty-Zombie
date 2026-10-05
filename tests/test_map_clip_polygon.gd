@@ -48,6 +48,7 @@ func test_barrier_goes_anywhere_with_sane_outline_rules() -> void:
 		["à cheval sur le mur sud de la salle B", [[20, 8], [23, 8], [23, 12], [20, 12]]],
 		["par-dessus la boîte et l'atout", [[22.5, 3], [24.6, 3], [24.6, 7], [22.5, 7]]],
 		["fine : 0,2 m d'épaisseur", [[5, 8], [8, 8], [8, 8.2], [5, 8.2]]],
+		["coordonnées négatives (format 17)", [[-1, 1], [2, 1], [2, 3]]],
 	]
 	for c in ok_cases:
 		var r := MapRules.check_clip(_poly(c[1]))
@@ -55,7 +56,6 @@ func test_barrier_goes_anywhere_with_sane_outline_rules() -> void:
 	var bad_cases := [
 		["deux sommets", [[1, 1], [3, 1]]],
 		["côtés qui se croisent (nœud papillon)", [[1, 1], [3, 3], [3, 1], [1, 3]]],
-		["x négatif", [[-1, 1], [2, 1], [2, 3]]],
 		["minuscule (0,1 × 0,1 m)", [[1, 1], [1.1, 1], [1.1, 1.1], [1, 1.1]]],
 		["côté de 1 cm", [[1, 1], [3, 1], [3, 3], [3.01, 3]]],
 		["plat (trois points alignés)", [[1, 1], [2, 1], [3, 1]]],
@@ -137,7 +137,7 @@ func test_guard_checks_polygon_barriers() -> void:
 	for bc in [
 			["\"sommets\":[[2,2],[6,2]]", "deux sommets"],
 			["\"sommets\":[[2,2],[6,2],[6,\"x\"]]", "coordonnée texte"],
-			["\"sommets\":[[2,2],[6,2],[600,3]]", "hors du terrain"],
+			["\"sommets\":[[2,2],[6,2],[6,null]]", "coordonnée nulle"],
 			["\"sommets\":[2,2,6,2,6,3]", "nombres à plat"],
 			["\"sommets\":\"res://x.tscn\"", "chemin de ressource"],
 			["\"position\":[2,2]", "ni sommets ni rect"]]:

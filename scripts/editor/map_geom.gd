@@ -17,7 +17,8 @@ const EPS := 0.001
 ## parallèles à moins de 3 cm l'un de l'autre sont un bord commun (un seul mur
 ## mitoyen), une bande de recouvrement plus mince n'est pas un chevauchement.
 const JOIN_TOL := 0.03
-## Monde du jeu = éditeur + WORLD_OFFSET (x, z) : la case i de la grille a
+## Monde du jeu = éditeur + WORLD_OFFSET (x, z) (+ MapValidator.shift si la
+## carte a des coordonnées négatives) : la case i de la grille a
 ## son centre en x = 4 + 0,5·i + 0,25 dans le jeu (MapValidator.ORIGIN).
 const WORLD_OFFSET := 4.25
 ## Directions des murs : « n » = le mur est au nord de l'objet (y plus petit).

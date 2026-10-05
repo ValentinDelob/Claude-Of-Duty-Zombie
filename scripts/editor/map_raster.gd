@@ -105,49 +105,92 @@ func _build() -> void:
 		v.floors.append(f)
 	_check_levels()
 	_vertical_overlaps()
-	# Taille de la grille : tout ce qui est posé, plus la marge.
-	var hi := Vector2(10, 10)
-	var neg := false
-	for p in doc.pieces:
-		for pt in p.get("contour", []):
-			hi = hi.max(MapGeom.v2(pt))
-			neg = neg or float(pt[0]) < -0.001 or float(pt[1]) < -0.001
-	for o in doc.objets + doc.ouvertures:
-		for key in ["position", "a", "b"]:
-			if o.has(key):
-				hi = hi.max(MapGeom.v2(o[key]))
-				neg = neg or float(o[key][0]) < -0.001 or float(o[key][1]) < -0.001
-		if o.has("rect"):
-			hi = hi.max(MapGeom.rect_of(o.rect).end)
-			if MapGeom.rot_of(o) != 0:
-				var rb := MapGeom.bbox(rect_poly(o))
-				hi = hi.max(rb.end)
-				neg = neg or rb.position.x < -0.001 or rb.position.y < -0.001
-		if o.get("sommets") is Array:
-			# Barrière invisible en polygone (format 9).
-			var sb := MapGeom.bbox(clip_poly(o))
-			hi = hi.max(sb.end)
-			neg = neg or sb.position.x < -0.001 or sb.position.y < -0.001
-		if String(o.get("type", "")) == "mur_courbe":
-			var ab := MapGeom.bbox(MapShapes.wall_arc(o))
-			hi = hi.max(ab.end)
-			neg = neg or ab.position.x < -0.001 or ab.position.y < -0.001
-	if neg:
-		_err("un élément est hors du terrain : les coordonnées x et y doivent être positives", "an element is off the board: x and y coordinates must be positive")
-	var w := ceili(hi.x / MapGeom.CELL) + MARGIN + 1
-	var h := ceili(hi.y / MapGeom.CELL) + MARGIN + 1
+	# Taille de la grille : tout ce qui est posé, plus la marge. Coordonnées
+	# négatives (format 17, aucune borne de conception) : la grille est bâtie
+	# sur une COPIE décalée d'un multiple de 0,5 m (mêmes cases, monde >= 0) ;
+	# décalage nul pour une carte sans négatif (aucun changement).
+	var bb := extent(doc)
+	var sh := shift_for(bb)
+	var hi := (bb.end + sh).max(Vector2(10, 10))
+	# Garde technique (jamais un plantage) : mémoire de la grille déraisonnable
+	# (cases × niveaux, CustomMapGuard.grid_ok) -> refus expliqué, grille vide.
+	var bytes := CustomMapGuard.extent_bytes(hi, n)
+	var w := 1
+	var h := 1
+	if CustomMapGuard.grid_ok(bytes):
+		w = ceili(hi.x / MapGeom.CELL) + MARGIN + 1
+		h = ceili(hi.y / MapGeom.CELL) + MARGIN + 1
+	else:
+		_err("carte trop étendue pour le validateur : sa grille demanderait %s de mémoire (%s × %s m, %d niveau(x)) ; rapprochez les éléments" % [mem_text(bytes), _m(bb.size.x), _m(bb.size.y), n],
+			"map too spread out for the validator: its grid would need %s of memory (%s × %s m, %d level(s)); bring the elements closer" % [mem_text(bytes), _m(bb.size.x, false), _m(bb.size.y, false), n])
 	for f in v.floors:
 		f.setup(w, h)
 		v.oblique_walls.append([])
 		v.diag_cells.append({})
 		v.room_polys.append([])
 		v.open_sky.append({})
+	if w == 1 and h == 1:
+		return
+	var src := doc
+	if sh != Vector2.ZERO:
+		doc = MapTransform.shifted_map(src, sh)
 	doc.freeze_levels()
 	for k in n:
 		_floor(k)
 	_scaled_heights()
 	_open_sky_hangers()
 	doc.thaw_levels()
+	doc = src
+	v.shift = sh
+
+
+## Rectangle englobant (m, éditeur) de tout ce qui est posé : contours des
+## pièces, positions, extrémités, rectangles (tournés), barrières, murs
+## courbes. Vide (taille nulle) pour une carte vide.
+static func extent(d: EditorMap) -> Rect2:
+	var pts := PackedVector2Array()
+	for p in d.pieces:
+		for pt in p.get("contour", []):
+			pts.append(MapGeom.v2(pt))
+	for o in d.objets + d.ouvertures:
+		for key in ["position", "a", "b"]:
+			if o.has(key):
+				pts.append(MapGeom.v2(o[key]))
+		if o.has("rect"):
+			var rr := MapGeom.rect_of(o.rect)
+			pts.append(rr.position)
+			pts.append(rr.end)
+			if MapGeom.rot_of(o) != 0:
+				pts.append_array(rect_poly(o))
+		if o.get("sommets") is Array:
+			# Barrière invisible en polygone (format 9).
+			pts.append_array(clip_poly(o))
+		if String(o.get("type", "")) == "mur_courbe":
+			pts.append_array(MapShapes.wall_arc(o))
+	return MapGeom.bbox(pts) if not pts.is_empty() else Rect2()
+
+
+## Décalage de la copie du raster (MapValidator.shift) pour le rectangle
+## englobant `bb` : par axe max(0, ceil(−min / 0,5)) · 0,5 (tolérance 1 mm).
+static func shift_for(bb: Rect2) -> Vector2:
+	var s := Vector2.ZERO
+	if bb.position.x < -0.001:
+		s.x = ceilf(-bb.position.x / MapGeom.CELL - 0.002) * MapGeom.CELL
+	if bb.position.y < -0.001:
+		s.y = ceilf(-bb.position.y / MapGeom.CELL - 0.002) * MapGeom.CELL
+	return s
+
+
+## Mémoire écrite lisiblement (Mo, Go).
+static func mem_text(bytes: int) -> String:
+	if bytes >= 1024 * 1024 * 1024:
+		return "%.1f Go" % (bytes / 1073741824.0) if not Lang.is_en() else "%.1f GB" % (bytes / 1073741824.0)
+	return ("%d Mo" if not Lang.is_en() else "%d MB") % int(bytes / 1048576.0)
+
+
+static func _m(x: float, fr := true) -> String:
+	var s := "%.1f" % x
+	return s.replace(".", ",") if fr else s
 
 
 # ------------------------------------------------------------------ plafond masqué (format 17)

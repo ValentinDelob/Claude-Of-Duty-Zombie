@@ -337,14 +337,14 @@ func test_agent_apply_decouper() -> void:
 # ------------------------------------------------------------------ revue (5 à 8)
 
 ## 5. Agent : la pièce qui découpe passe les contrôles du tracé (contour
-## simple, terrain, taille) ; sinon tout le lot est refusé, rien n'est appliqué.
+## simple, mémoire du validateur, taille) ; sinon tout le lot est refusé, rien n'est appliqué.
 func test_agent_invalid_cutting_room_refused() -> void:
 	var m := EditorMap.blank("essai", "ESSAI", "TEST")
 	_room(m, "Atelier", 0, 0, 12, 10)
 	var sig := MapUnsaved.signature(m)
 	var bad := {
 		"croisée": [[2, 2], [8, 8], [8, 2], [2, 8]],
-		"hors terrain": [[-2, 2], [4, 2], [4, 6], [-2, 6]],
+		"démesurée (mémoire du validateur)": [[-3000, -3000], [3000, -3000], [3000, 3000], [-3000, 3000]],
 		"trop petite": [[5, 5], [6, 5], [6, 6], [5, 6]],
 	}
 	for what in bad:

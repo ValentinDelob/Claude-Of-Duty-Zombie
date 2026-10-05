@@ -220,6 +220,13 @@ var variants: Dictionary = {}
 ## englobant), h (m, 0 : jusqu'au plafond), eid}].
 var clips: Array = []
 
+## Coordonnées négatives (format 17) : décalage (m, multiple de 0,5 m, >= 0)
+## ajouté à la carte de l'éditeur pour bâtir la grille (MapRaster) ; la
+## grille, ses cases et le monde du jeu sont dans le repère décalé (>= 0).
+## Nul pour une carte sans coordonnée négative. Posé à la FIN de
+## MapRaster._build : pendant la construction, les points lus sont déjà décalés.
+var shift := Vector2.ZERO
+
 ## Messages : {level ("erreur" | "attention" | "info"), fr, en, text, floor, cells}
 var messages: Array = []
 
@@ -314,8 +321,8 @@ static func _num(v: float) -> String:
 ## Position d'une case en mètres dans l'éditeur : [fr, en] ; avec plusieurs
 ## niveaux, celui de la case (« niveau 3,5 m »).
 func _at(k: int, c: Vector2i) -> Array:
-	var x := _num(c.x * scale)
-	var y := _num(c.y * scale)
+	var x := _num(c.x * scale - shift.x)
+	var y := _num(c.y * scale - shift.y)
 	if floors.size() > 1 and k >= 0 and k < floors.size():
 		var lv := _lv(k)
 		return ["(x %s m, y %s m, %s)" % [x.replace(".", ","), y.replace(".", ","), lv[0]], "(x %s m, y %s m, %s)" % [x, y, lv[1]]]
@@ -326,6 +333,40 @@ func _at(k: int, c: Vector2i) -> Array:
 func _lv(k: int) -> Array:
 	var a := floors[k].sol if k >= 0 and k < floors.size() else 0.0
 	return ["niveau %s" % EditorMap.alt_text(a), "level %s" % EditorMap.alt_text(a, false)]
+
+
+## Décalage de la grille en cases (shift / 0,5 m).
+func shift_cells() -> Vector2i:
+	return Vector2i(roundi(shift.x / MapGeom.CELL), roundi(shift.y / MapGeom.CELL))
+
+
+## Case de la grille (repère décalé) d'un point de l'éditeur (m) : celle qui
+## le contient (comme MapVertical.cell).
+func to_grid(p: Vector2) -> Vector2i:
+	return MapVertical.cell(p + shift)
+
+
+## Case de la grille -> même case dans le repère de l'éditeur (son centre en
+## m : MapGeom.cell_center) ; et l'inverse.
+func cell_ed(c: Vector2i) -> Vector2i:
+	return c - shift_cells()
+
+
+func grid_cell(c: Vector2i) -> Vector2i:
+	return c + shift_cells()
+
+
+## Point de la grille (m, repère décalé : murs obliques, polygones) -> éditeur.
+func point_ed(p: Vector2) -> Vector2:
+	return p - shift
+
+
+## Cases d'un message (repère de la grille) dans le repère de l'éditeur.
+func cells_ed(cells: Array) -> Array:
+	var out := []
+	for c in cells:
+		out.append(cell_ed(c))
+	return out
 
 
 ## Nom d'une zone : [fr, en].

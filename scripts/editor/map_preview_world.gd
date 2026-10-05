@@ -58,6 +58,20 @@ var selected_ids: Array = []
 var hover_id := ""
 
 # ------------------------------------------------------------------ état
+## Repère du monde construit : monde = éditeur + (ox, oz) ; OFF plus le
+## décalage des coordonnées négatives de la carte construite (MapValidator.shift).
+var ox := OFF
+var oz := OFF
+
+
+## Point de l'éditeur (m) à la hauteur `y` -> monde construit ; et l'inverse.
+func to_world(m: Vector2, y := 0.0) -> Vector3:
+	return Vector3(m.x + ox, y, m.y + oz)
+
+
+func to_map(p: Vector3) -> Vector2:
+	return Vector2(p.x - ox, p.z - oz)
+
 ## Dernière carte construite (copie) et sa description.
 var built_map: EditorMap
 var data: Dictionary = {}
@@ -187,7 +201,7 @@ func _join() -> void:
 ## (appelée hors du fil principal : tests/test_preview_thread.gd).
 static func compute(m: EditorMap) -> Dictionary:
 	var t0 := Time.get_ticks_usec()
-	var out := {"data": {}, "errors": 0, "map": m, "sols": [], "ms": 0.0}
+	var out := {"data": {}, "errors": 0, "map": m, "sols": [], "ms": 0.0, "shift": Vector2.ZERO}
 	for k in m.floor_count():
 		out.sols.append(m.floor_sol(k))
 	if m.pieces.is_empty():
@@ -202,7 +216,8 @@ static func compute(m: EditorMap) -> Dictionary:
 	if v.start_points.is_empty():
 		var r: Dictionary = m.pieces[0]
 		var c := MapGeom.centroid(m.room_poly(r))
-		v.start_points = [[clampi(m.level_of(r), 0, v.floors.size() - 1), Vector2(MapGeom.cell_of(c)) + Vector2(0.5, 0.5)]]
+		v.start_points = [[clampi(m.level_of(r), 0, v.floors.size() - 1), Vector2(v.grid_cell(MapGeom.cell_of(c))) + Vector2(0.5, 0.5)]]
+	out.shift = v.shift
 	out.errors = v.errors().size()
 	out.data = MapLayoutExport.build(v)
 	out.ms = (Time.get_ticks_usec() - t0) / 1000.0
@@ -326,6 +341,9 @@ func _run_step() -> void:
 
 func _prepare(res: Dictionary, hashes: Dictionary) -> void:
 	built_map = res.get("map")
+	var sh: Variant = res.get("shift", Vector2.ZERO)
+	ox = OFF + (sh as Vector2).x if sh is Vector2 else OFF
+	oz = OFF + (sh as Vector2).y if sh is Vector2 else OFF
 	data = res.get("data", {})
 	errors = int(res.get("errors", 0))
 	_floor_sols = res.get("sols", [0.0])
@@ -650,7 +668,7 @@ func _apply_light() -> void:
 func map_bounds() -> AABB:
 	var m := built_map if built_map != null else doc
 	if m == null or m.pieces.is_empty():
-		return AABB(Vector3(OFF, 0, OFF), Vector3(20, 3, 20))
+		return AABB(Vector3(ox, 0, oz), Vector3(20, 3, 20))
 	var bb := Rect2()
 	var first := true
 	var top := 0.0
@@ -659,7 +677,7 @@ func map_bounds() -> AABB:
 		bb = r if first else bb.merge(r)
 		first = false
 		top = maxf(top, EditorMap.room_top(p))
-	return AABB(Vector3(bb.position.x + OFF, 0.0, bb.position.y + OFF), Vector3(bb.size.x, top, bb.size.y))
+	return AABB(Vector3(bb.position.x + ox, 0.0, bb.position.y + oz), Vector3(bb.size.x, top, bb.size.y))
 
 
 func frame_map(animate := false) -> void:
@@ -763,7 +781,7 @@ func element_shape(e: Dictionary) -> Dictionary:
 		# Format 14 : décor incliné, sa boîte orientée (8 coins, monde).
 		var box := []
 		for q in MapScale.corners(e):
-			box.append(Vector3((q as Vector3).x + OFF, sol + (q as Vector3).z, (q as Vector3).y + OFF))
+			box.append(Vector3((q as Vector3).x + ox, sol + (q as Vector3).z, (q as Vector3).y + oz))
 		out["box3"] = box
 	return out
 
@@ -788,7 +806,7 @@ func element_focus(e: Dictionary) -> Array:
 		return []
 	var bb := MapGeom.bbox(s.poly)
 	var c := bb.get_center()
-	return [Vector3(c.x + OFF, float(s.y0), c.y + OFF), maxf(maxf(bb.size.x, bb.size.y) * 0.5, 1.5)]
+	return [Vector3(c.x + ox, float(s.y0), c.y + oz), maxf(maxf(bb.size.x, bb.size.y) * 0.5, 1.5)]
 
 
 ## Surlignage de l'élément choisi (jaune) et survolé (bleu) : prisme en
@@ -831,10 +849,10 @@ func update_overlay() -> void:
 			var a := p[i]
 			var b := p[(i + 1) % p.size()]
 			for y in [float(sh.y0), float(sh.y1)]:
-				im.surface_add_vertex(Vector3(a.x + OFF, y, a.y + OFF))
-				im.surface_add_vertex(Vector3(b.x + OFF, y, b.y + OFF))
-			im.surface_add_vertex(Vector3(a.x + OFF, float(sh.y0), a.y + OFF))
-			im.surface_add_vertex(Vector3(a.x + OFF, float(sh.y1), a.y + OFF))
+				im.surface_add_vertex(Vector3(a.x + ox, y, a.y + oz))
+				im.surface_add_vertex(Vector3(b.x + ox, y, b.y + oz))
+			im.surface_add_vertex(Vector3(a.x + ox, float(sh.y0), a.y + oz))
+			im.surface_add_vertex(Vector3(a.x + ox, float(sh.y1), a.y + oz))
 	im.surface_end()
 	im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
 	for s in shapes:
@@ -852,14 +870,14 @@ func update_overlay() -> void:
 		for i in p.size():
 			var a := p[i]
 			var b := p[(i + 1) % p.size()]
-			var q := [Vector3(a.x + OFF, sh.y0, a.y + OFF), Vector3(b.x + OFF, sh.y0, b.y + OFF),
-				Vector3(b.x + OFF, sh.y1, b.y + OFF), Vector3(a.x + OFF, sh.y1, a.y + OFF)]
+			var q := [Vector3(a.x + ox, sh.y0, a.y + oz), Vector3(b.x + ox, sh.y0, b.y + oz),
+				Vector3(b.x + ox, sh.y1, b.y + oz), Vector3(a.x + ox, sh.y1, a.y + oz)]
 			for j in [0, 1, 2, 0, 2, 3]:
 				im.surface_add_vertex(q[j])
 		# Sol de l'élément.
 		var idx := Geometry2D.triangulate_polygon(p)
 		for j in idx:
-			im.surface_add_vertex(Vector3(p[j].x + OFF, float(sh.y0), p[j].y + OFF))
+			im.surface_add_vertex(Vector3(p[j].x + ox, float(sh.y0), p[j].y + oz))
 	im.surface_end()
 
 
@@ -871,7 +889,7 @@ func pick(px: Vector2) -> String:
 		return ""
 	var p: Vector3 = hit.position
 	var k := floor_of_y(p.y + 0.3)
-	return element_at(Vector2(p.x - OFF, p.z - OFF), k)
+	return element_at(Vector2(p.x - ox, p.z - oz), k)
 
 
 ## Premier point visible touché par le rayon du pixel `px` ({} : rien).

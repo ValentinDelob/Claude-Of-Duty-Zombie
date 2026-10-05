@@ -25,7 +25,6 @@ const DEFAULT_SIZE := Vector2(560, 380)
 const IDLE_FPS := 24.0
 const SCALES := [1.0, 0.75, 0.5, 0.35]
 const PREF_KEY := "apercu"
-const OFF := MapGeom.WORLD_OFFSET
 const COL_CAM := Color(1.0, 0.55, 0.15)
 ## Options du menu Affichage (identifiants).
 enum Opt { POWER, FULL, CEIL, FLOORS_ALL, FLOORS_UP_TO, FLOORS_ONLY, SCALE_0 = 10, PAUSE = 20, CLIPS = 30 }
@@ -868,7 +867,7 @@ func canvas_click(mb: InputEventMouseButton, m: Vector2) -> bool:
 ## Place la caméra au point `m` (m, éditeur) de l'étage affiché.
 func place_camera(m: Vector2) -> void:
 	var sol := ed.doc.floor_sol(ed.floor_k) if ed != null else 0.0
-	world.rig.place_at(Vector3(m.x + OFF, sol, m.y + OFF))
+	world.rig.place_at(world.to_world(m, sol))
 	ed.set_status(Lang.t("Aperçu 3D : caméra placée en x %.1f m, y %.1f m", "3D preview: camera moved to x %.1f m, y %.1f m") % [m.x, m.y])
 	_request_render()
 
@@ -879,7 +878,7 @@ func draw_on_canvas(cv: MapView) -> void:
 	if not is_on_screen() or world.rig.cam == null:
 		return
 	var eye := world.rig.eye()
-	var m := Vector2(eye.x - OFF, eye.z - OFF)
+	var m := world.to_map(eye)
 	var f := world.rig.forward()
 	var d := Vector2(f.x, f.z)
 	d = d.normalized() if d.length() > 0.01 else Vector2.UP
@@ -896,7 +895,7 @@ func draw_on_canvas(cv: MapView) -> void:
 	cv.draw_circle(c, 5.0, col)
 	cv.draw_circle(c, 5.0, Color.BLACK, false, 1.0)
 	if world.rig.mode == MapPreviewCamera.Mode.ORBIT:
-		var pv := cv.to_px(Vector2(world.rig.pivot.x - OFF, world.rig.pivot.z - OFF))
+		var pv := cv.to_px(world.to_map(world.rig.pivot))
 		cv.draw_line(pv - Vector2(6, 0), pv + Vector2(6, 0), col, 1.5)
 		cv.draw_line(pv - Vector2(0, 6), pv + Vector2(0, 6), col, 1.5)
 		cv.draw_dashed_line(c, pv, Color(col, 0.5), 1.0, 4.0)
@@ -928,7 +927,7 @@ func _process(delta: float) -> void:
 	_read_keys()
 	if follow and ed.canvas != null:
 		var c := ed.canvas.to_m(ed.canvas.size * 0.5)
-		world.rig.follow(Vector3(c.x + OFF, ed.doc.floor_sol(ed.floor_k), c.y + OFF), delta)
+		world.rig.follow(world.to_world(c, ed.doc.floor_sol(ed.floor_k)), delta)
 	var moved := world.rig.take_moved()
 	if moved and ed.canvas != null:
 		ed.canvas.queue_redraw()
@@ -987,7 +986,7 @@ func _on_cube(id: String) -> void:
 func look_from_map(dir: Vector3, target: Variant = null) -> void:
 	var t: Variant = null
 	if target is Vector3:
-		t = Vector3(target.x + OFF, target.z, target.y + OFF)
+		t = world.to_world(Vector2(target.x, target.y), target.z)
 	world.rig.look_from(Vector3(dir.x, dir.z, dir.y), t, true)
 	_camera_changed()
 
