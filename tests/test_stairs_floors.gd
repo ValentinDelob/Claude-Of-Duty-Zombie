@@ -56,6 +56,9 @@ static func place(doc: EditorMap, k: int, rect: Array, monte: String, down := fa
 	var o := {"type": "escalier", "rect": rect, "monte": monte}
 	var res := MapRules.check_rect(doc, k, "escalier", MapGeom.rect_of(rect), "", 0, "", o, down)
 	if res.ok:
+		# Sortie sur le côté choisie à la pose (haut des marches contre un mur).
+		if res.has("sortie"):
+			o["sortie"] = String(res.sortie)
 		o["id"] = doc.new_id("e")
 		doc.set_level(o, k)
 		doc.objets.append(o)
@@ -164,11 +167,17 @@ func test_refusals_say_what_and_where() -> void:
 	empty.pieces = empty.pieces.filter(func(p): return String(p.id) != "p1")
 	empty.view_levels.append(3.5)
 	assert_true(place(empty, 0, [2.0, 3.0, 4.5, 11.0], "n").ok, "étage du dessus vide : posé")
-	# Arrivée dans le mur de la pièce du dessus.
+	# Arrivée dans le mur de la pièce du dessus : sortie sur le côté choisie
+	# à la pose (étape 4, tests/test_stairs_top_wall.gd).
 	var wall := tower()
 	wall.pieces[1]["contour"] = [[0, 3], [W, 3], [W, D], [0, D]]
 	r = place(wall, 0, [2.0, 3.0, 4.5, 11.0], "n")
-	assert_true(not r.ok and String(r.fr).contains("tombe dans un mur du niveau 3,5 m"), String(r.get("fr", "")))
+	assert_true(r.ok and String(r.get("sortie", "")) == "droite", "haut contre le mur : sortie à droite (%s)" % MapRules.why(r))
+	# Escalier déjà posé, sans sortie : le refus dit qu'elle se règle.
+	var posed: Dictionary = wall.objets[wall.objets.size() - 1]
+	posed.erase("sortie")
+	r = MapRules.check_existing(wall, posed)
+	assert_true(not r.ok and String(r.fr).contains("tombe dans un mur du niveau 3,5 m") and String(r.fr).contains("réglez « Sortie en haut »"), String(r.get("fr", "")))
 	# Départ dans le mur de sa propre pièce.
 	r = place(tower(), 0, [2.0, 3.0, 4.5, D], "n")
 	assert_true(not r.ok and String(r.fr).contains("Le départ (au pied, niveau 0 m) tombe dans un mur"), String(r.get("fr", "")))

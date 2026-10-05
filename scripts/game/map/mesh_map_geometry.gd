@@ -251,7 +251,7 @@ func _build(L: Dictionary) -> Node3D:
 	# fermés, nombre de marches) : StairGen, voir _stair.
 	_kind = "stair"
 	for st in L.get("stairs", []):
-		if StairGen.kind_of(st) != StairGen.DEFAULT_KIND or st.has("rail") or st.has("closed") or st.has("steps"):
+		if StairGen.kind_of(st) != StairGen.DEFAULT_KIND or st.has("rail") or st.has("closed") or st.has("steps") or StairGen.side_of(st) != 0:
 			_stair(st)
 			_kind = "stair"
 			continue

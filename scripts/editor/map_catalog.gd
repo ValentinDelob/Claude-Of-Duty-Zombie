@@ -375,9 +375,35 @@ static func barricade_kind(o: Dictionary) -> String:
 ##   garde_corps  garde-corps sur les côtés (absent : oui pour l'escalier
 ##                d'honneur, non pour les autres)
 ##   cotes        « ouverts » (défaut) ou « fermes » : limons pleins
+##   sortie       format 17 : « gauche » ou « droite », vu en montant (absente :
+##                en face) : sortie sur le côté, palier plat en haut (droit,
+##                palier, large, service, rampe : StairGen.SIDE_KINDS) ; le
+##                bout du haut peut alors toucher un mur
 const STAIR_STEPS := [3, 60]
 const STAIR_TURNS := ["droite", "gauche"]
 const STAIR_SIDES := ["ouverts", "fermes"]
+const STAIR_EXITS := ["gauche", "droite"]
+
+
+## Sortie sur le côté d'un escalier posé (« sortie ») : 1 à droite, -1 à
+## gauche, 0 en face (absente, illisible, ou type qui sort ailleurs : L, U,
+## colimaçon).
+static func stair_side(o: Dictionary) -> int:
+	if String(o.get("type", "")) != "escalier" or not StairGen.SIDE_KINDS.has(stair_kind(o)):
+		return 0
+	match o.get("sortie"):
+		"droite":
+			return 1
+		"gauche":
+			return -1
+	return 0
+
+
+## Escalier dont la sortie n'est pas en face du pied (L, U, colimaçon, ou
+## sortie sur le côté) : vraie géométrie StairGen, sens de montée donné
+## (MapRaster : diag_stairs « shaped », MapRules.stair_parts, validateur).
+static func stair_shaped(o: Dictionary) -> bool:
+	return StairGen.is_shaped(stair_kind(o)) or stair_side(o) != 0
 
 
 ## Type d'un escalier posé (variante, StairGen.KINDS).
@@ -412,6 +438,8 @@ static func stair_layout_opts(o: Dictionary) -> Dictionary:
 		out["rail"] = bool(o.garde_corps)
 	if String(o.get("cotes", "ouverts")) == "fermes":
 		out["closed"] = true
+	if stair_side(o) != 0:
+		out["side"] = stair_side(o)
 	return out
 
 
@@ -429,6 +457,10 @@ static func tidy_stair(o: Dictionary) -> void:
 	o.erase("marches")
 	if o.has("garde_corps") and (not o.garde_corps is bool or o.garde_corps == stair_rail_default(stair_kind(o))):
 		o.erase("garde_corps")
+	# Sortie sur le côté : seulement « gauche » / « droite », pour les types
+	# qui sortent en face (un L, un U, un colimaçon la perdent).
+	if o.has("sortie") and stair_side(o) == 0:
+		o.erase("sortie")
 
 ## Barrière invisible (type « bloc_invisible ») : hauteur (m) réglable ;
 ## absente, du sol au plafond de l'étage.
@@ -1496,7 +1528,7 @@ static func allowed_kinds() -> Dictionary:
 	# (MapAgentLink.catalog) et refusé par editor_apply (MapAgentLink.cmd_apply).
 	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs, "rot": rot, "altitude_haut": {"t": "number"},
 		"sens": {"t": "enum", "values": STAIR_TURNS}, "marches": {"t": "int", "min": STAIR_STEPS[0], "max": STAIR_STEPS[1]},
-		"garde_corps": {"t": "bool"}, "cotes": {"t": "enum", "values": STAIR_SIDES}}, ["rect"])
+		"garde_corps": {"t": "bool"}, "cotes": {"t": "enum", "values": STAIR_SIDES}, "sortie": {"t": "enum", "values": STAIR_EXITS}}, ["rect"])
 	# Format 5 : barrière invisible (rectangle, rotation, hauteur facultative) ;
 	# format 9 : polygone « sommets » (3 à 64 points). L'un des deux est
 	# obligatoire (CustomMapGuard._check_object) ; l'éditeur lit un rectangle

@@ -758,6 +758,34 @@ func _stair_props(o: Dictionary) -> void:
 				o["sens"] = turns[i]
 				MapCatalog.tidy_stair(o)
 				ed.changed())
+	if StairGen.SIDE_KINDS.has(kind):
+		# Format 17 : sortie en face (absente) ou sur un côté, vu en montant ;
+		# choisie à la pose quand le haut des marches touche un mur.
+		var exits := ["", "gauche", "droite"]
+		var eo := _option(_props, Lang.t("Sortie en haut", "Exit at the top"), [Lang.t("en face", "straight ahead"), Lang.t("à gauche", "on the left"), Lang.t("à droite", "on the right")],
+			maxi(0, exits.find(String(o.get("sortie", "")))), func(i):
+				ed.push_undo()
+				if exits[i] == "":
+					o.erase("sortie")
+				else:
+					o["sortie"] = exits[i]
+				MapCatalog.tidy_stair(o)
+				ed.changed())
+		eo.tooltip_text = Lang.t("Sur le côté : un palier plat en haut, la volée est plus courte ; le haut des marches peut toucher un mur.",
+			"On the side: a flat landing at the top, the flight is shorter; the top of the stairs may touch a wall.")
+	# Arrivée : un niveau au-dessus du pied (format 17 : n'importe lequel).
+	var foot := EditorMap.alt_of(o)
+	var ups := ed.doc.levels().filter(func(a): return float(a) > foot + EditorMap.ALT_EQ)
+	if not ups.is_empty():
+		var top := ed.doc.stair_top_of(o)
+		var cur := 0
+		for i in ups.size():
+			if absf(float(ups[i]) - top) <= EditorMap.ALT_EQ:
+				cur = i
+		_option(_props, Lang.t("Arrivée : altitude", "Arrival: altitude"), ups.map(func(a): return EditorMap.alt_text(float(a), not Lang.is_en())), cur, func(i):
+			ed.push_undo()
+			o["altitude_haut"] = float(ups[i])
+			ed.changed())
 	_check(_props, Lang.t("Garde-corps", "Railing"), bool(o.get("garde_corps", MapCatalog.stair_rail_default(kind))), func(on):
 		o["garde_corps"] = on
 		MapCatalog.tidy_stair(o))

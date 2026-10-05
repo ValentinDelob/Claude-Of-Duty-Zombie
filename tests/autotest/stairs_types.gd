@@ -6,8 +6,12 @@ extends AutotestScenario
 ## (droit, palier, en L, en U, d'honneur, de service, colimaçon, rampe) par
 ## ses ancres. Tous arrivent dans le temps imparti, aucun ne reste plus de
 ## 3 s immobile sur les marches ni ne sort de la largeur permise du couloir.
+## Plus un escalier droit dont le haut touche le mur du hall, sortie sur le
+## côté droit (tests/test_stairs_top_wall.gd : side_bay) : ils sortent et
+## entrent par le côté du palier du haut.
 
 const Stairs := preload("res://tests/test_stairs.gd")
+const TopWall := preload("res://tests/test_stairs_top_wall.gd")
 const MAP_ID := "escaliers"
 ## Plus longue immobilité tolérée sur les marches (s).
 const STALL := 3.0
@@ -51,12 +55,24 @@ func targets() -> Array:
 	var out := []
 	for kind: String in Stairs.KINDS:
 		out.append([kind, lane_of(kind)])
+	out.append(["droit sortie à droite", side_lane()])
 	return out
+
+
+## Couloir de l'escalier qui sort sur le côté : son dernier tronçon est en
+## travers (vers l'est), les autres montent vers le nord.
+func side_lane() -> StairLane:
+	for l in nav.lanes:
+		var d := l.pts[l.pts.size() - 1] - l.pts[l.pts.size() - 2]
+		if absf(d.x) > absf(d.z) * 2.0 and l.name.ends_with(" droit"):
+			return l
+	return null
 
 
 func start() -> bool:
 	var dir := EditorMap.map_dir(MAP_ID)
 	var doc := Stairs.stairs_map()
+	TopWall.side_bay(doc)
 	if doc.save_dir(dir) != OK:
 		at.fail("carte d'essai non enregistrée dans " + dir)
 		return false
@@ -68,7 +84,7 @@ func start() -> bool:
 	game.combat.debug_invulnerable = true
 	await H.clear_zombies(self)
 	nav = game.nav as MeshNav
-	at.check(nav != null and nav.lanes.size() == Stairs.KINDS.size(), "un couloir d'ancres par escalier (%d)" % (nav.lanes.size() if nav else 0))
+	at.check(nav != null and nav.lanes.size() == Stairs.KINDS.size() + 1, "un couloir d'ancres par escalier (%d)" % (nav.lanes.size() if nav else 0))
 	return nav != null and await until(func(): return nav.ensure_anchors(), 5.0, "ancres posées")
 
 

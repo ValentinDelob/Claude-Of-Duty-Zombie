@@ -23,6 +23,11 @@ extends RefCounted
 ##   steps  nombre de marches visibles (absent : ≈ 18 cm chacune)
 ##   rail   garde-corps sur les côtés ouverts (absent : oui pour « large »)
 ##   closed côtés fermés (limons pleins jusqu'à la main courante)
+##   side   1 (à droite) ou -1 (à gauche), vu en montant : sortie sur le côté
+##          (droit, palier, large, service, rampe ; clé « sortie » de
+##          l'éditeur, format 17) : palier plat en haut, de profondeur
+##          side_depth(w), volées sur le reste, bord de sortie latéral ; le
+##          bout du haut peut toucher un mur (garde-corps au bout)
 ##   mat, room
 ##
 ## Collisions : sous chaque volée, un prisme plein en pente douce (jamais de
@@ -43,6 +48,8 @@ const DEFAULT_KIND := "droit"
 ## Types dont la sortie n'est pas en face du pied (le sens de montée est donné
 ## par l'éditeur, « monte », et non déduit des sols).
 const SHAPED := ["quart", "demi_tour", "colimacon"]
+## Types qui peuvent sortir sur le côté (clé « side ») : palier plat en haut.
+const SIDE_KINDS := ["droit", "palier", "large", "service", "rampe"]
 ## Marche maximale franchie par un zombie (capsule décollée de 0,3 m :
 ## Zombie.STEP_GAP) et par le navmesh (MeshNav : agent_max_climb).
 const STEP_HEIGHT := 0.3
@@ -87,6 +94,21 @@ static func is_shaped(kind: String) -> bool:
 	return SHAPED.has(kind)
 
 
+## Sortie sur le côté d'une entrée « stairs » : 1 (droite), -1 (gauche), 0 (en face).
+static func side_of(st: Dictionary) -> int:
+	var sv: Variant = st.get("side", 0)
+	if not (sv is int or sv is float) or float(sv) == 0.0 or not SIDE_KINDS.has(kind_of(st)):
+		return 0
+	return -1 if float(sv) < 0.0 else 1
+
+
+## Profondeur (m) du palier du haut d'un escalier qui sort sur le côté, pour
+## une largeur de marche `w` : la largeur au demi-mètre, de 1 à 1,5 m
+## (passage de sortie assez large sans trop raccourcir la volée).
+static func side_depth(w: float) -> float:
+	return clampf(snappedf(w, 0.5), 1.0, 1.5)
+
+
 static func _v3(v: Variant) -> Vector3:
 	if v is Vector3:
 		return v
@@ -127,32 +149,37 @@ static func plan(st: Dictionary) -> Dictionary:
 	var rail := bool(st.get("rail", kind == "large"))
 	var closed := bool(st.get("closed", false))
 	var side_t := RAIL_T if (rail or closed) else 0.0
+	# Sortie sur le côté : palier plat [Lr, L] en haut, volées sur [0, Lr].
+	var side := side_of(st)
+	var Dt := minf(side_depth(W), L * 0.5) if side != 0 else 0.0
+	var Lr := L - Dt
 	var p := {"kind": kind, "a": a, "b": b, "a2": a2, "u": u, "right": right, "L": L, "W": W, "turn": t,
 		"y0": y0, "y1": y1, "rail": rail, "closed": closed, "flights": [], "landings": [], "spiral": {},
 		"edges": [], "dividers": [], "polys": [], "steps": int(st.get("steps", 0)),
-		"foot": {}, "exit": {}, "lane": []}
+		"foot": {}, "exit": {}, "lane": [], "side": side, "depth": Dt, "run": Lr}
 	var P := func(s: float, lat: float) -> Vector2: return a2 + u * s + right * lat
 	var lane: Array = []   # [Vector3, demi-largeur]
 	match kind:
 		"palier":
-			var D := clampf(W * 0.6, 1.0, 2.0)
-			D = minf(D, L * 0.34)
-			var s1 := (L - D) * 0.5
-			var s2 := (L + D) * 0.5
+			# Volées sur [0, Lr] (Lr = L sans sortie sur le côté).
+			var Dm := clampf(W * 0.6, 1.0, 2.0)
+			Dm = minf(Dm, Lr * 0.34)
+			var s1 := (Lr - Dm) * 0.5
+			var s2 := (Lr + Dm) * 0.5
 			var ym := y0 + H * 0.5
 			var half := _half(W, side_t, side_t)
 			_flight(p, P.call(0.0, 0.0), y0, P.call(s1, 0.0), ym, W, y0)
 			_landing(p, [P.call(s1, -W * 0.5), P.call(s2, -W * 0.5), P.call(s2, W * 0.5), P.call(s1, W * 0.5)], ym)
-			_flight(p, P.call(s2, 0.0), ym, P.call(L, 0.0), y1, W, y0)
+			_flight(p, P.call(s2, 0.0), ym, P.call(Lr, 0.0), y1, W, y0)
 			p.polys.append(_rect_poly(P, 0.0, L, -W * 0.5, W * 0.5))
 			_line(lane, _at(P.call(0.0, 0.0), y0), _at(P.call(s1, 0.0), ym), half, true)
 			_line(lane, _at(P.call(s1, 0.0), ym), _at(P.call(s2, 0.0), ym), half, false)
-			_line(lane, _at(P.call(s2, 0.0), ym), _at(P.call(L, 0.0), y1), half, false)
+			_line(lane, _at(P.call(s2, 0.0), ym), _at(P.call(Lr, 0.0), y1), half, false)
 			if rail or closed:
 				for lat in [-W * 0.5, W * 0.5]:
 					_edge(p, _at(P.call(0.0, lat), y0), _at(P.call(s1, lat), ym), y0, lat < 0.0)
 					_edge(p, _at(P.call(s1, lat), ym), _at(P.call(s2, lat), ym), y0, lat < 0.0)
-					_edge(p, _at(P.call(s2, lat), ym), _at(P.call(L, lat), y1), y0, lat < 0.0)
+					_edge(p, _at(P.call(s2, lat), ym), _at(P.call(Lr, lat), y1), y0, lat < 0.0)
 			p.foot = {"m": P.call(0.0, 0.0), "n": -u, "h": W * 0.5}
 			p.exit = {"m": P.call(L, 0.0), "n": u, "h": W * 0.5}
 		"quart":
@@ -250,15 +277,19 @@ static func plan(st: Dictionary) -> Dictionary:
 			p.exit = {"m": P.call(L, -t * (COLUMN_R + R) * 0.5), "n": u, "h": (R - COLUMN_R) * 0.5}
 		_:
 			# droit, large, service, rampe : une volée sur toute l'emprise.
+			# Volée sur [0, Lr] (toute l'emprise sans sortie sur le côté).
 			var half := _half(W, side_t, side_t)
-			_flight(p, a2, y0, b2, y1, W, y0)
+			var top: Vector2 = P.call(Lr, 0.0)
+			_flight(p, a2, y0, top, y1, W, y0)
 			p.polys.append(_rect_poly(P, 0.0, L, -W * 0.5, W * 0.5))
-			_line(lane, _at(a2, y0), _at(b2, y1), half, true)
+			_line(lane, _at(a2, y0), _at(top, y1), half, true)
 			if rail or closed:
 				for lat in [-W * 0.5, W * 0.5]:
-					_edge(p, _at(P.call(0.0, lat), y0), _at(P.call(L, lat), y1), y0, lat < 0.0)
+					_edge(p, _at(P.call(0.0, lat), y0), _at(P.call(Lr, lat), y1), y0, lat < 0.0)
 			p.foot = {"m": a2, "n": -u, "h": W * 0.5}
 			p.exit = {"m": b2, "n": u, "h": W * 0.5}
+	if side != 0:
+		_side_exit(p, P, lane, W, Dt, L, side_t)
 	# Ancres : devant le pied (sol du bas) et sur le palier d'arrivée.
 	var first: Array = lane[0]
 	var last: Array = lane[lane.size() - 1]
@@ -272,6 +303,28 @@ static func plan(st: Dictionary) -> Dictionary:
 	lane.append([exit_p, float(last[1]) * 0.5])
 	p.lane = lane
 	return p
+
+
+## Sortie sur le côté (droit, palier, large, service, rampe) : palier plat de
+## profondeur D au bout des volées, au sol du haut ; bord de sortie sur le
+## côté `side` (vu en montant) ; couloir des zombies : l'axe jusqu'au milieu
+## du palier, puis vers le bord latéral ; garde-corps (rail, closed) du côté
+## opposé du palier et au bout (souvent contre un mur), jamais sur le passage.
+static func _side_exit(p: Dictionary, P: Callable, lane: Array, W: float, D: float, L: float, side_t: float) -> void:
+	var side := int(p.side)
+	var s := float(side)
+	var Lr := L - D
+	var y0 := float(p.y0)
+	var y1 := float(p.y1)
+	_landing(p, _rect_poly(P, Lr, L, -W * 0.5, W * 0.5), y1)
+	var mid: Vector2 = P.call(L - D * 0.5, 0.0)
+	var edge: Vector2 = P.call(L - D * 0.5, s * W * 0.5)
+	_line(lane, _at(P.call(Lr, 0.0), y1), _at(mid, y1), _half(W, side_t, side_t), false)
+	_line(lane, _at(mid, y1), _at(edge, y1), _half(D, side_t, side_t), false)
+	if bool(p.rail) or bool(p.closed):
+		_edge(p, _at(P.call(Lr, -s * W * 0.5), y1), _at(P.call(L, -s * W * 0.5), y1), y0, side > 0)
+		_edge(p, _at(P.call(L, -s * W * 0.5), y1), _at(P.call(L, s * W * 0.5), y1), y0, side > 0)
+	p.exit = {"m": edge, "n": (p.right as Vector2) * s, "h": D * 0.5}
 
 
 ## Largeur d'une volée en L : la moitié du petit côté, au demi-mètre, 1 à 2,5 m.
@@ -369,6 +422,9 @@ static func walk_width(pl: Dictionary) -> float:
 	var w := INF
 	for f in pl.flights:
 		w = minf(w, float(f.w))
+	if int(pl.get("side", 0)) != 0:
+		# Sortie sur le côté : le passage du palier du haut vers la pièce.
+		w = minf(w, float(pl.depth))
 	return w
 
 

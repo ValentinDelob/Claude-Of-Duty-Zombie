@@ -849,7 +849,7 @@ func _floor(k: int) -> void:
 			# bas comme en haut (étages empilés, MapValidator._stairs).
 			var dv := MapGeom.dir_vec(String(o.get("monte", "n")))
 			v.stair_up[key] = Vector2i(roundi(dv.x), roundi(dv.y))
-			var shaped := StairGen.is_shaped(MapCatalog.stair_kind(o))
+			var shaped := MapCatalog.stair_shaped(o)
 			if shaped or not rect_on_grid(o):
 				# Tourné, hors de la grille, ou en L / U / colimaçon (sortie ailleurs
 				# qu'en face du pied) : vraie géométrie, sens de montée donné.
