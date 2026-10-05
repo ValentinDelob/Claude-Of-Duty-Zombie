@@ -358,13 +358,17 @@ static func shift_alt(e: Dictionary, dalt: float) -> void:
 	e["altitude"] = snappedf(alt_of(e) + dalt, 0.0001)
 
 
-## Met l'élément au niveau `k` (altitude du niveau) ; un escalier monte au
-## niveau suivant (restriction de l'étape 1a : arrivée = niveau suivant).
+## Met l'élément au niveau `k` (altitude du niveau) ; un escalier garde son
+## arrivée si c'est un niveau plus haut (escalier qui saute des niveaux,
+## escalier qui descend posé depuis son arrivée), sinon il monte au niveau suivant.
 func set_level(e: Dictionary, k: int) -> void:
 	var lv := levels()
-	e["altitude"] = level_alt_in(lv, k)
+	var a := level_alt_in(lv, k)
+	e["altitude"] = a
 	if String(e.get("type", "")) == "escalier":
-		e["altitude_haut"] = level_alt_in(lv, k + 1)
+		var top := stair_top(e) if e.has("altitude_haut") else -INF
+		if not (top > a + ALT_EQ and level_index_in(lv, top) >= 0):
+			e["altitude_haut"] = level_alt_in(lv, k + 1)
 
 
 ## Alias transitoires (à retirer à l'étape 7) : nombre de niveaux, altitude

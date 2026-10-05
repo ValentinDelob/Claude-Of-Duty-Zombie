@@ -231,8 +231,8 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 			return refuse("une fenêtre se pose sur un mur extérieur d'une pièce (visez le bord de la pièce, côté dehors)",
 				"a window goes on an outer wall of a room (aim at the room's edge, outside side)")
 		if doc.rooms_on(k).size() < 2 or shared_edges(doc, k).is_empty():
-			return refuse("une porte relie deux pièces : il faut deux pièces collées (un bord commun) à cet étage",
-				"a door links two rooms: you need two touching rooms (a shared edge) on this floor")
+			return refuse("une porte relie deux pièces : il faut deux pièces collées (un bord commun) à ce niveau (même altitude)",
+				"a door links two rooms: you need two touching rooms (a shared edge) on this level (same altitude)")
 		return refuse("visez le mur commun de deux pièces collées : une porte ne donne que sur une autre pièce",
 			"aim at the shared wall of two touching rooms: a door only leads into another room")
 	var a: Vector2 = best.a

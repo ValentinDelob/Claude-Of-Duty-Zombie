@@ -815,8 +815,9 @@ func _finish_create(end: Vector2) -> void:
 		return
 	ed.add_object(res.obj, fk)
 	if fk != ed.floor_k:
-		# Escalier qui descend : enregistré à l'étage du dessous.
-		ed.set_status(Lang.t("Escalier qui descend posé : il relie l'étage %d (en bas) à l'étage %d (ici)", "Stairs going down placed: they link floor %d (below) to floor %d (here)") % [fk, ed.floor_k])
+		# Escalier qui descend : enregistré au niveau de son pied.
+		var fr := not Lang.is_en()
+		ed.set_status(Lang.t("Escalier qui descend posé : il relie %s (en bas) à %s (ici)", "Stairs going down placed: they link %s (below) to %s (here)") % [EditorMap.alt_text(ed.doc.level_alt(fk), fr), EditorMap.alt_text(ed.doc.level_alt(ed.floor_k), fr)])
 
 
 ## Élément créé par un glissement de `a` à `b` (pièce, mur, pilier, escalier, piège).
@@ -848,7 +849,17 @@ func _creation(it: Dictionary, a: Vector2, b: Vector2) -> Dictionary:
 				# Type choisi avec V avant de poser (format 6).
 				if ed.place_variant != "":
 					MapCatalog.set_variant(o, ed.place_variant)
-				var kk := k - 1 if down else k
+				var kk := k
+				if down:
+					# Pied : le premier niveau plus bas dont une pièce contient
+					# l'escalier (niveaux libres : un demi-niveau à côté ne
+					# compte pas) ; il monte jusqu'ici.
+					kk = k - 1
+					for j in range(k - 1, -1, -1):
+						if not MapRules.room_at(ed.doc, j, r.get_center()).is_empty():
+							kk = j
+							break
+					o["altitude_haut"] = ed.doc.level_alt(k)
 				# Contrôlé à chaque image du tracé : les étages lus resservent tant
 				# que la carte ne change pas (version de la carte).
 				MapRules.stair_cache_tag = ed.doc_version

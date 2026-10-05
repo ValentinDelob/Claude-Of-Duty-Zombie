@@ -2020,8 +2020,8 @@ func _fun() -> void:
 		pe.append("%s (%d m², %d window%s)" % [_ze(z), roundi(m2(area.get(z, 0))), nw, "s" if nw > 1 else ""])
 		total += area.get(z, 0)
 	_msg("info", "Zones : " + " ; ".join(pf), "Zones: " + "; ".join(pe))
-	_msg("info", "Surface praticable %d m², %d étage(s), %d porte(s)/débris, %d fenêtres" % [roundi(m2(total)), floors.size(), doors.size(), windows.size()],
-		"Walkable area %d m², %d floor(s), %d door(s)/debris, %d windows" % [roundi(m2(total)), floors.size(), doors.size(), windows.size()])
+	_msg("info", "Surface praticable %d m², %d niveau(x), %d porte(s)/débris, %d fenêtres" % [roundi(m2(total)), floors.size(), doors.size(), windows.size()],
+		"Walkable area %d m², %d level(s), %d door(s)/debris, %d windows" % [roundi(m2(total)), floors.size(), doors.size(), windows.size()])
 	_fun_loops()
 	_fun_doors()
 	_fun_items()
