@@ -2322,6 +2322,57 @@
     "en": "Map editor: shape your rooms point by point",
     "fr": "Éditeur de cartes : modelez vos pièces point par point"
    }
+  },
+  "v0.2.1-snapshot.464": {
+   "channel": "snapshot",
+   "date": "2026-10-05",
+   "images": [
+    "v0.2.1-snapshot.464/01_ciel_nuit_etoilee.png",
+    "v0.2.1-snapshot.464/02_escalier_sortie_cote.png",
+    "v0.2.1-snapshot.464/03_plan_niveaux.png"
+   ],
+   "items": [
+    {
+     "en": "No more floors: every room sits at the height you choose, down to the centimetre.",
+     "fr": "Plus d'étages : chaque pièce se règle à l'altitude de votre choix, au centimètre près."
+    },
+    {
+     "en": "Levels of any height and any shape: half-levels linked by a ramp, rooms several levels tall and mezzanines over the void.",
+     "fr": "Des niveaux de toute hauteur et de toute forme : demi-niveaux reliés par une rampe, pièces hautes de plusieurs niveaux et mezzanines au-dessus du vide."
+    },
+    {
+     "en": "Show or hide a room's ceiling to leave it open to the sky.",
+     "fr": "Afficher ou masquer le plafond d'une pièce pour la laisser à ciel ouvert."
+    },
+    {
+     "en": "Choose the map's sky: no backdrop, daytime sky or starry night, with adjustable brightness.",
+     "fr": "Ciel de la carte au choix : sans fond, ciel de jour ou nuit étoilée, avec une luminosité réglable."
+    },
+    {
+     "en": "Build wherever you like: negative positions are allowed and there is no more size or height limit.",
+     "fr": "Construisez où vous voulez : les positions négatives sont admises et il n'y a plus de limite de taille ni de hauteur."
+    },
+    {
+     "en": "A staircase whose top touches a wall now exits to the side, through a small landing.",
+     "fr": "Un escalier dont le haut touche un mur sort maintenant sur le côté, par un petit palier."
+    },
+    {
+     "en": "New level bar: a menu of every level, Page Up / Page Down to move between them, Shift + Page to send the selection there, Alt + click to pick a stacked room, and a Levels tab to move, duplicate or delete them.",
+     "fr": "Nouvelle barre des niveaux : menu de tous les niveaux, Page préc. / Page suiv. pour passer de l'un à l'autre, Maj + Page pour y envoyer la sélection, Alt + clic pour choisir une pièce empilée, et un onglet Niveaux pour les déplacer, les dupliquer ou les supprimer."
+    },
+    {
+     "en": "In the side views, drag a room up or down to change its height.",
+     "fr": "Dans les vues de côté, faites glisser une pièce vers le haut ou le bas pour changer son altitude."
+    },
+    {
+     "en": "Your old maps are converted automatically when opened, with nothing lost.",
+     "fr": "Vos anciennes cartes sont converties automatiquement à l'ouverture, sans rien perdre."
+    }
+   ],
+   "title": {
+    "en": "Map editor: no more floors, free levels instead",
+    "fr": "Éditeur de cartes : fini les étages, place aux niveaux libres"
+   }
   }
  }
 }
