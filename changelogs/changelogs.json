@@ -2299,6 +2299,29 @@
     "en": "Map editor: Claude without the sources, textures and models galore",
     "fr": "Éditeur de cartes : Claude sans les sources, textures et modèles à volonté"
    }
+  },
+  "v0.2.1-snapshot.426": {
+   "channel": "snapshot",
+   "date": "2026-10-05",
+   "images": [],
+   "items": [
+    {
+     "en": "Add points to a room's outline: drag one of the small \"+\" handles on its sides, double-click a side, or right click > \"Add a point here\". A rectangular room then becomes a free shape.",
+     "fr": "Ajoutez des points au contour d'une pièce : tirez une des petites poignées « + » au milieu des côtés, double-cliquez sur un côté, ou clic droit > « Ajouter un point ici ». Une pièce rectangle devient alors une forme libre."
+    },
+    {
+     "en": "Delete a point: press Delete with the mouse over it, or right click > \"Delete this point\" (three points at least). Every addition or deletion can be undone with Ctrl+Z.",
+     "fr": "Supprimez un point : touche Suppr avec la souris sur le point, ou clic droit > « Supprimer ce point » (trois points au minimum). Chaque ajout ou suppression s'annule avec Ctrl+Z."
+    },
+    {
+     "en": "The same gestures work on invisible barriers.",
+     "fr": "Les mêmes gestes marchent sur les barrières invisibles."
+    }
+   ],
+   "title": {
+    "en": "Map editor: shape your rooms point by point",
+    "fr": "Éditeur de cartes : modelez vos pièces point par point"
+   }
   }
  }
 }
