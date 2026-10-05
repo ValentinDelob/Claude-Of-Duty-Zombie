@@ -1391,19 +1391,21 @@ func _draw() -> void:
 	_draw_cells(k)
 	if not hid.is_empty():
 		_mask_hidden(hid, k)
-	# Escaliers de l'étage du dessous : ils arrivent ici (trémie). Vus d'en
-	# haut, ils descendent : « descend à l'étage k - 1 ».
+	# Escaliers d'un niveau plus bas qui arrivent ici (trémie ; format 17 :
+	# n'importe quel niveau). Vus d'en haut, ils descendent : « descend à 0 m ».
 	if k > 0:
-		for o in doc.objects_on(k - 1):
-			if String(o.get("type", "")) == "escalier" and not hid.has(String(o.get("id", ""))):
+		var here := doc.level_alt(k)
+		for o in doc.objets:
+			if String(o.get("type", "")) == "escalier" and not hid.has(String(o.get("id", ""))) and EditorMap.alt_of(o) < here - EditorMap.ALT_EQ \
+					and absf(doc.stair_top_of(o) - here) <= EditorMap.ALT_EQ:
 				_draw_object(o, font, 0.45)
-				_stair_floor_label(font, o, Lang.t("descend à l'étage %d", "down to floor %d") % (k - 1), Color(0.75, 0.85, 1.0))
+				_stair_floor_label(font, o, Lang.t("descend à %s", "down to %s") % EditorMap.alt_text(EditorMap.alt_of(o), not Lang.is_en()), Color(0.75, 0.85, 1.0))
 	# Objets.
 	for o in doc.objects_on(k):
 		if not hid.has(String(o.id)):
 			_draw_object(o, font, 1.0)
 			if String(o.get("type", "")) == "escalier":
-				_stair_floor_label(font, o, Lang.t("monte à l'étage %d", "up to floor %d") % (k + 1), Color(0.95, 0.85, 1.0))
+				_stair_floor_label(font, o, Lang.t("monte à %s", "up to %s") % EditorMap.alt_text(doc.stair_top_of(o), not Lang.is_en()), Color(0.95, 0.85, 1.0))
 	for o in doc.openings_on(k):
 		if not hid.has(String(o.id)):
 			_draw_opening(o, font)
@@ -2415,7 +2417,7 @@ func _draw_stair_trace(font: Font, o: Dictionary, k: int, res: Dictionary) -> vo
 	if res.ok and not res.has("marks"):
 		var parts := MapRules.stair_parts(o)
 		_draw_stair_marks(font, [{"floor": k, "cells": parts.foot.keys(), "role": "depart"},
-			{"floor": k + 1, "cells": parts.exit.keys(), "role": "arrivee"}], k)
+			{"floor": int(res.get("to", k + 1)), "cells": parts.exit.keys(), "role": "arrivee"}], k)
 	else:
 		_draw_stair_marks(font, res.get("marks", []), k)
 

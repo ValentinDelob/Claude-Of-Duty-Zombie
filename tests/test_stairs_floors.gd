@@ -128,25 +128,25 @@ func test_refusals_say_what_and_where() -> void:
 	# Au même endroit qu'une volée du dessous : dans sa trémie.
 	var r := place(doc, 1, flight(0)[0], "n")
 	assert_false(r.ok, "escalier empilé refusé")
-	assert_true(String(r.fr).contains("passe dans la trémie de l'escalier de l'étage 0 vers l'étage 1") and String(r.fr).contains("(x 2,5 m, y 3,5 m)"), String(r.fr))
-	assert_true(String(r.en).contains("stairwell of the stairs from floor 0 to floor 1"), String(r.en))
+	assert_true(String(r.fr).contains("passe dans la trémie de l'escalier de 0 m vers 3,5 m") and String(r.fr).contains("(x 2,5 m, y 3,5 m)"), String(r.fr))
+	assert_true(String(r.en).contains("stairwell of the stairs from 0 m to 3.5 m"), String(r.en))
 	var marks: Array = r.get("marks", [])
 	var roles := marks.map(func(m): return String(m.role))
 	assert_true(roles.has("faute") and roles.has("depart") and roles.has("arrivee") and roles.has("tremie"), "zones montrées : %s" % str(roles))
 	assert_false((marks.filter(func(m): return m.role == "faute")[0].cells as Array).is_empty(), "cases fautives")
 	# Sa trémie tomberait sur la volée de l'étage du dessus.
 	r = place(doc, 0, flight(1)[0], "n")
-	assert_true(not r.ok and String(r.fr).contains("tombe sur l'escalier de l'étage 1 vers l'étage 2"), String(r.get("fr", "")))
+	assert_true(not r.ok and String(r.fr).contains("tombe sur l'escalier de 3,5 m vers 7 m"), String(r.get("fr", "")))
 	# Départ sur une autre volée de l'étage.
 	r = place(doc, 2,[8.0, 3.0, 10.5, 11.0], "n")
 	assert_true(r.ok, "une volée libre de plus à l'étage 2 (%s)" % MapRules.why(r))
 	r = place(doc, 2, [10.0, 6.0, 15.0, 8.5], "e")
-	assert_true(not r.ok and String(r.fr).begins_with("l'escalier chevauche l'escalier de l'étage 2 vers l'étage 3 (x "), String(r.get("fr", "")))
+	assert_true(not r.ok and String(r.fr).begins_with("l'escalier chevauche l'escalier de 7 m vers 10,5 m (x "), String(r.get("fr", "")))
 	# Départ dans la trémie de la volée du dessous (contour à cheval sur elle).
 	var one := tower()
 	assert_true(place(one, 0, flight(0)[0], "n").ok)
 	r = place(one, 1, [4.0, 6.0, 12.0, 8.5], "e")
-	assert_true(not r.ok and String(r.fr).contains("Le départ (au pied, étage 1) tombe dans la trémie de l'escalier de l'étage 0 vers l'étage 1"), String(r.get("fr", "")))
+	assert_true(not r.ok and String(r.fr).contains("Le départ (au pied, niveau 3,5 m) tombe dans la trémie de l'escalier de 0 m vers 3,5 m"), String(r.get("fr", "")))
 	# Dernier étage : rien au-dessus.
 	r = place(doc, 4, [10.0, 3.0, 12.5, 11.0], "n")
 	assert_true(not r.ok and String(r.fr).contains("ajoutez d'abord un niveau"), String(r.get("fr", "")))
@@ -157,7 +157,7 @@ func test_refusals_say_what_and_where() -> void:
 	var half := tower()
 	half.pieces[1]["contour"] = [[8, 0], [W, 0], [W, D], [8, D]]
 	r = place(half, 0, [2.0, 3.0, 4.5, 11.0], "n")
-	assert_true(not r.ok and String(r.fr).begins_with("pas de pièce à l'étage 1 au-dessus de l'arrivée de l'escalier (x 2,5 m, y 3 m)"), String(r.get("fr", "")))
+	assert_true(not r.ok and String(r.fr).begins_with("pas de pièce au niveau 3,5 m au-dessus de l'arrivée de l'escalier (x 2,5 m, y 3 m)"), String(r.get("fr", "")))
 	assert_eq(int((r.marks as Array).filter(func(m): return m.role == "faute")[0].floor), 1, "cases fautives à l'étage 1")
 	# Niveau du dessus encore vide (niveau vide de l'éditeur) : admis (la pièce viendra ensuite).
 	var empty := tower()
@@ -168,10 +168,10 @@ func test_refusals_say_what_and_where() -> void:
 	var wall := tower()
 	wall.pieces[1]["contour"] = [[0, 3], [W, 3], [W, D], [0, D]]
 	r = place(wall, 0, [2.0, 3.0, 4.5, 11.0], "n")
-	assert_true(not r.ok and String(r.fr).contains("tombe dans un mur de l'étage 1"), String(r.get("fr", "")))
+	assert_true(not r.ok and String(r.fr).contains("tombe dans un mur du niveau 3,5 m"), String(r.get("fr", "")))
 	# Départ dans le mur de sa propre pièce.
 	r = place(tower(), 0, [2.0, 3.0, 4.5, D], "n")
-	assert_true(not r.ok and String(r.fr).contains("Le départ (au pied, étage 0) tombe dans un mur"), String(r.get("fr", "")))
+	assert_true(not r.ok and String(r.fr).contains("Le départ (au pied, niveau 0 m) tombe dans un mur"), String(r.get("fr", "")))
 
 
 func test_validator_says_what_and_where() -> void:
@@ -179,14 +179,14 @@ func test_validator_says_what_and_where() -> void:
 	var doc := tower_with_stairs()
 	doc.objets.append({"id": "x1", "type": "escalier", "altitude": 2 * EditorMap.FLOOR_STEP, "altitude_haut": 3 * EditorMap.FLOOR_STEP, "rect": flight(1)[0], "monte": "s"})
 	var e := _errs(_check(doc))
-	assert_true(e.contains("trémie, étage 2) est occupé par l'escalier de l'étage 2 vers l'étage 3"), e)
+	assert_true(e.contains("trémie, niveau 7 m) est occupé par l'escalier de 7 m vers 10,5 m"), e)
 	# Pas de pièce au-dessus de l'arrivée.
 	doc = tower_with_stairs()
 	doc.pieces[3]["contour"] = [[9, 0], [W, 0], [W, D], [9, D]]
 	var v := _check(doc)
 	e = _errs(v)
-	assert_true(e.contains("pas de pièce à l'étage 3 au-dessus de son arrivée"), e)
-	var m: Dictionary = v.errors().filter(func(x): return String(x.fr).contains("pas de pièce à l'étage 3"))[0]
+	assert_true(e.contains("pas de pièce au niveau 10,5 m au-dessus de son arrivée"), e)
+	var m: Dictionary = v.errors().filter(func(x): return String(x.fr).contains("pas de pièce au niveau 10,5 m"))[0]
 	assert_eq(int(m.floor), 3, "cases montrées à l'étage 3")
 	assert_false((m.cells as Array).is_empty(), "cases de l'arrivée montrées")
 	assert_false(e.contains("ambigu"), "plus de « sens ambigu » entre étages empilés")
@@ -222,11 +222,11 @@ func test_stairs_going_down() -> void:
 	var low := tower()
 	low.objets.append({"id": "x1", "type": "pilier", "altitude": 2 * EditorMap.FLOOR_STEP, "rect": [8.0, 11.0, 10.5, 12.5]})
 	r = place(low, 2, [8.0, 3.0, 10.5, 11.0], "n", true)
-	assert_true(not r.ok and String(r.fr).contains("L'arrivée (en bas, étage 2)"), String(r.get("fr", "")))
+	assert_true(not r.ok and String(r.fr).contains("L'arrivée (en bas, niveau 7 m)"), String(r.get("fr", "")))
 	# Rez-de-chaussée : pas d'étage en dessous.
 	r = place(tower(), -1, rect, monte, true)
-	assert_true(not r.ok and String(r.fr).contains("rez-de-chaussée"), String(r.get("fr", "")))
-	assert_true(String(r.en).contains("ground floor"), String(r.get("en", "")))
+	assert_true(not r.ok and String(r.fr).contains("sous le plus bas"), String(r.get("fr", "")))
+	assert_true(String(r.en).contains("lowest"), String(r.get("en", "")))
 
 
 func test_existing_maps_keep_their_stairs() -> void:
@@ -254,7 +254,7 @@ func test_agent_apply_reports_stair_refusals() -> void:
 	var bad := String(res.ids.get("$1", ""))
 	var good := String(res.ids.get("$2", ""))
 	assert_true((res.invalid as Dictionary).has(bad), "escalier empilé listé : %s" % str(res.invalid))
-	assert_true(String(res.invalid.get(bad, "")).contains(Lang.t("trémie de l'escalier de l'étage 1 vers l'étage 2", "stairwell of the stairs from floor 1 to floor 2")), str(res.invalid))
+	assert_true(String(res.invalid.get(bad, "")).contains(Lang.t("trémie de l'escalier de 3,5 m vers 7 m", "stairwell of the stairs from 3.5 m to 7 m")), str(res.invalid))
 	assert_false((res.invalid as Dictionary).has(good), "escalier libre admis : %s" % str(res.invalid))
 	link.free()
 	collab.queue_free()
