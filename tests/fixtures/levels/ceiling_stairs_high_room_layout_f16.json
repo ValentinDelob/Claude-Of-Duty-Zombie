@@ -1,0 +1,691 @@
+{
+ "errors": 2,
+ "layout": {
+  "blockers": [],
+  "blocks": [
+   {
+    "box": [
+     4.0,
+     -0.1,
+     4.0,
+     16.5,
+     3.2,
+     4.5
+    ],
+    "mat": "wall",
+    "room": "a0_1"
+   },
+   {
+    "box": [
+     4.0,
+     -0.1,
+     4.5,
+     4.5,
+     3.2,
+     14.5
+    ],
+    "mat": "wall",
+    "room": "a0_1"
+   },
+   {
+    "box": [
+     16.0,
+     -0.1,
+     4.5,
+     16.5,
+     3.2,
+     14.5
+    ],
+    "mat": "wall",
+    "room": "a0_1"
+   },
+   {
+    "box": [
+     4.5,
+     -0.1,
+     14.0,
+     16.0,
+     3.2,
+     14.5
+    ],
+    "mat": "wall",
+    "room": "a0_1"
+   },
+   {
+    "box": [
+     4.0,
+     3.2,
+     4.0,
+     16.5,
+     8.5,
+     4.5
+    ],
+    "mat": "wall",
+    "room": "a1_1"
+   },
+   {
+    "box": [
+     4.0,
+     3.2,
+     4.5,
+     4.5,
+     8.5,
+     14.5
+    ],
+    "mat": "wall",
+    "room": "a1_1"
+   },
+   {
+    "box": [
+     16.0,
+     3.2,
+     4.5,
+     16.5,
+     8.5,
+     14.5
+    ],
+    "mat": "wall",
+    "room": "a1_1"
+   },
+   {
+    "box": [
+     4.5,
+     3.2,
+     14.0,
+     16.0,
+     8.5,
+     14.5
+    ],
+    "mat": "wall",
+    "room": "a1_1"
+   }
+  ],
+  "id": "escalier_haut",
+  "map_def": {
+   "box_start": 0,
+   "box_starts": [],
+   "description": "",
+   "display_name": "ESCALIER",
+   "doors": {},
+   "music": "ambience_bunker",
+   "open_links": {},
+   "teleporter_link": false,
+   "zone_names": {
+    "a": "A"
+   }
+  },
+  "markers": {
+   "box": [],
+   "doors": [],
+   "grenade_buys": [],
+   "lamps": [
+    {
+     "energy": 2.2,
+     "p": [
+      7.25,
+      2.85,
+      6.75
+     ],
+     "range": 9.12
+    },
+    {
+     "energy": 2.2,
+     "p": [
+      13.25,
+      2.85,
+      6.75
+     ],
+     "range": 9.12
+    },
+    {
+     "energy": 2.2,
+     "p": [
+      13.25,
+      2.85,
+      11.75
+     ],
+     "range": 9.12
+    },
+    {
+     "energy": 2.2,
+     "p": [
+      7.25,
+      8.15,
+      6.75
+     ],
+     "range": 12.0
+    },
+    {
+     "energy": 2.2,
+     "p": [
+      13.25,
+      8.15,
+      6.75
+     ],
+     "range": 12.0
+    },
+    {
+     "energy": 2.2,
+     "p": [
+      13.25,
+      8.15,
+      11.75
+     ],
+     "range": 12.0
+    }
+   ],
+   "perks": [],
+   "player_spawns": [
+    [
+     10.25,
+     0.05,
+     9.25
+    ]
+   ],
+   "player_yaw": 3.14159265358979,
+   "traps": [],
+   "wall_buys": [],
+   "windows": [],
+   "zombie_spawns": []
+  },
+  "note": "Généré par l'éditeur de cartes (MapLayoutExport) - ne pas modifier à la main.",
+  "props": [],
+  "rails": [
+   {
+    "h": 1.0,
+    "mat": "dark_wood",
+    "path": [
+     [
+      5.5,
+      13.5
+     ],
+     [
+      7.5,
+      13.5
+     ]
+    ],
+    "room": "a1_1",
+    "y": 3.5
+   },
+   {
+    "h": 1.0,
+    "mat": "dark_wood",
+    "path": [
+     [
+      5.5,
+      7.5
+     ],
+     [
+      5.5,
+      13.5
+     ]
+    ],
+    "room": "a1_1",
+    "y": 3.5
+   },
+   {
+    "h": 1.0,
+    "mat": "dark_wood",
+    "path": [
+     [
+      7.5,
+      7.5
+     ],
+     [
+      7.5,
+      13.5
+     ]
+    ],
+    "room": "a1_1",
+    "y": 3.5
+   }
+  ],
+  "rooms": [
+   {
+    "ceiling": 3.19,
+    "ceiling_mat": "ceiling",
+    "floor": 0.0,
+    "floor_mat": "concrete",
+    "id": "a0_1",
+    "outline": [
+     [
+      4.5,
+      4.5
+     ],
+     [
+      16.0,
+      4.5
+     ],
+     [
+      16.0,
+      7.5
+     ],
+     [
+      4.5,
+      7.5
+     ]
+    ]
+   },
+   {
+    "ceiling": 3.19,
+    "ceiling_mat": "ceiling",
+    "floor": 0.0,
+    "floor_mat": "concrete",
+    "id": "a0_2",
+    "outline": [
+     [
+      4.5,
+      7.5
+     ],
+     [
+      5.5,
+      7.5
+     ],
+     [
+      5.5,
+      14.0
+     ],
+     [
+      4.5,
+      14.0
+     ]
+    ]
+   },
+   {
+    "ceiling": 8.5,
+    "ceiling_mat": "ceiling",
+    "floor": 0.0,
+    "floor_mat": "concrete",
+    "id": "a0_3",
+    "outline": [
+     [
+      5.5,
+      7.5
+     ],
+     [
+      7.5,
+      7.5
+     ],
+     [
+      7.5,
+      13.5
+     ],
+     [
+      5.5,
+      13.5
+     ]
+    ]
+   },
+   {
+    "ceiling": 3.19,
+    "ceiling_mat": "ceiling",
+    "floor": 0.0,
+    "floor_mat": "concrete",
+    "id": "a0_4",
+    "outline": [
+     [
+      7.5,
+      7.5
+     ],
+     [
+      16.0,
+      7.5
+     ],
+     [
+      16.0,
+      14.0
+     ],
+     [
+      7.5,
+      14.0
+     ]
+    ]
+   },
+   {
+    "ceiling": 3.19,
+    "ceiling_mat": "ceiling",
+    "floor": 0.0,
+    "floor_mat": "concrete",
+    "id": "a0_5",
+    "outline": [
+     [
+      5.5,
+      13.5
+     ],
+     [
+      7.5,
+      13.5
+     ],
+     [
+      7.5,
+      14.0
+     ],
+     [
+      5.5,
+      14.0
+     ]
+    ]
+   },
+   {
+    "ceiling": 8.5,
+    "ceiling_mat": "ceiling",
+    "floor": 3.5,
+    "floor_mat": "concrete",
+    "floor_slab": 0.3,
+    "id": "a1_1",
+    "outline": [
+     [
+      4.5,
+      4.5
+     ],
+     [
+      16.0,
+      4.5
+     ],
+     [
+      16.0,
+      7.5
+     ],
+     [
+      4.5,
+      7.5
+     ]
+    ]
+   },
+   {
+    "ceiling": 8.5,
+    "ceiling_mat": "ceiling",
+    "floor": 3.5,
+    "floor_mat": "concrete",
+    "floor_slab": 0.3,
+    "id": "a1_2",
+    "outline": [
+     [
+      4.5,
+      7.5
+     ],
+     [
+      5.5,
+      7.5
+     ],
+     [
+      5.5,
+      14.0
+     ],
+     [
+      4.5,
+      14.0
+     ]
+    ]
+   },
+   {
+    "ceiling": 8.5,
+    "ceiling_mat": "ceiling",
+    "floor": 3.5,
+    "floor_mat": "concrete",
+    "floor_slab": 0.3,
+    "id": "a1_3",
+    "outline": [
+     [
+      7.5,
+      7.5
+     ],
+     [
+      16.0,
+      7.5
+     ],
+     [
+      16.0,
+      14.0
+     ],
+     [
+      7.5,
+      14.0
+     ]
+    ]
+   },
+   {
+    "ceiling": 8.5,
+    "ceiling_mat": "ceiling",
+    "floor": 3.5,
+    "floor_mat": "concrete",
+    "floor_slab": 0.3,
+    "id": "a1_4",
+    "outline": [
+     [
+      5.5,
+      13.5
+     ],
+     [
+      7.5,
+      13.5
+     ],
+     [
+      7.5,
+      14.0
+     ],
+     [
+      5.5,
+      14.0
+     ]
+    ]
+   }
+  ],
+  "stairs": [
+   {
+    "a": [
+     6.5,
+     0.0,
+     13.5
+    ],
+    "b": [
+     6.5,
+     3.5,
+     7.5
+    ],
+    "mat": "wood",
+    "room": "a0_1",
+    "w": 2.0
+   }
+  ],
+  "walls": [],
+  "zone_order": [
+   {
+    "box": [
+     5.5,
+     3.35,
+     13.5,
+     7.5,
+     8.5,
+     14.0
+    ],
+    "zone": "a"
+   },
+   {
+    "box": [
+     4.5,
+     3.35,
+     7.5,
+     5.5,
+     8.5,
+     14.0
+    ],
+    "zone": "a"
+   },
+   {
+    "box": [
+     4.5,
+     3.35,
+     4.5,
+     16.0,
+     8.5,
+     7.5
+    ],
+    "zone": "a"
+   },
+   {
+    "box": [
+     7.5,
+     3.35,
+     7.5,
+     16.0,
+     8.5,
+     14.0
+    ],
+    "zone": "a"
+   },
+   {
+    "box": [
+     5.5,
+     -0.5,
+     13.5,
+     7.5,
+     3.2,
+     14.0
+    ],
+    "zone": "a"
+   },
+   {
+    "box": [
+     4.5,
+     -0.5,
+     7.5,
+     5.5,
+     3.2,
+     14.0
+    ],
+    "zone": "a"
+   },
+   {
+    "box": [
+     5.5,
+     -0.5,
+     7.5,
+     7.5,
+     8.5,
+     13.5
+    ],
+    "zone": "a"
+   },
+   {
+    "box": [
+     4.5,
+     -0.5,
+     4.5,
+     16.0,
+     3.2,
+     7.5
+    ],
+    "zone": "a"
+   },
+   {
+    "box": [
+     7.5,
+     -0.5,
+     7.5,
+     16.0,
+     3.2,
+     14.0
+    ],
+    "zone": "a"
+   }
+  ],
+  "zones": {
+   "a": {
+    "boxes": [
+     [
+      5.5,
+      3.35,
+      13.5,
+      7.5,
+      8.5,
+      14.0
+     ],
+     [
+      4.5,
+      3.35,
+      7.5,
+      5.5,
+      8.5,
+      14.0
+     ],
+     [
+      4.5,
+      3.35,
+      4.5,
+      16.0,
+      8.5,
+      7.5
+     ],
+     [
+      7.5,
+      3.35,
+      7.5,
+      16.0,
+      8.5,
+      14.0
+     ],
+     [
+      5.5,
+      -0.5,
+      13.5,
+      7.5,
+      3.2,
+      14.0
+     ],
+     [
+      4.5,
+      -0.5,
+      7.5,
+      5.5,
+      3.2,
+      14.0
+     ],
+     [
+      5.5,
+      -0.5,
+      7.5,
+      7.5,
+      8.5,
+      13.5
+     ],
+     [
+      4.5,
+      -0.5,
+      4.5,
+      16.0,
+      3.2,
+      7.5
+     ],
+     [
+      7.5,
+      -0.5,
+      7.5,
+      16.0,
+      3.2,
+      14.0
+     ]
+    ]
+   }
+  }
+ },
+ "map": "ceiling_stairs_high_room",
+ "messages": [
+  [
+   "erreur",
+   "aucun départ des joueurs (inventaire : Joueurs et apparitions > Départ des joueurs, dans la zone de départ)"
+  ],
+  [
+   "erreur",
+   "passage de 0,5 m en (x 1,5 m, y 9,5 m, étage 1) : trop étroit pour les zombies et les joueurs (1 m au moins)"
+  ],
+  [
+   "attention",
+   "goulot de 1 m en (x 0,5 m, y 3,5 m, étage 1) : les zombies y passent à la file ; BO1 : couloirs de 2 à 4 m"
+  ],
+  [
+   "info",
+   "Les vérifications d'accès et les indicateurs d'amusement viendront une fois ces erreurs corrigées."
+  ]
+ ]
+}

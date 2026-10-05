@@ -1,0 +1,329 @@
+{
+ "errors": 1,
+ "layout": {
+  "blockers": [],
+  "blocks": [
+   {
+    "box": [
+     4.0,
+     -0.1,
+     4.0,
+     14.5,
+     3.2,
+     4.5
+    ],
+    "mat": "wall",
+    "room": "a0_1"
+   },
+   {
+    "box": [
+     4.0,
+     -0.1,
+     4.5,
+     4.5,
+     3.2,
+     12.5
+    ],
+    "mat": "wall",
+    "room": "a0_1"
+   },
+   {
+    "box": [
+     14.0,
+     -0.1,
+     4.5,
+     14.5,
+     3.2,
+     12.5
+    ],
+    "mat": "wall",
+    "room": "a0_1"
+   },
+   {
+    "box": [
+     4.5,
+     -0.1,
+     12.0,
+     14.0,
+     3.2,
+     12.5
+    ],
+    "mat": "wall",
+    "room": "a0_1"
+   },
+   {
+    "box": [
+     4.0,
+     3.2,
+     4.0,
+     9.5,
+     6.5,
+     4.5
+    ],
+    "mat": "wall",
+    "room": "b1_1"
+   },
+   {
+    "box": [
+     4.0,
+     3.2,
+     4.5,
+     4.5,
+     6.5,
+     12.5
+    ],
+    "mat": "wall",
+    "room": "b1_1"
+   },
+   {
+    "box": [
+     9.0,
+     3.2,
+     4.5,
+     9.5,
+     6.5,
+     12.5
+    ],
+    "mat": "wall",
+    "room": "b1_1"
+   },
+   {
+    "box": [
+     4.5,
+     3.2,
+     12.0,
+     9.0,
+     6.5,
+     12.5
+    ],
+    "mat": "wall",
+    "room": "b1_1"
+   }
+  ],
+  "id": "plafond_etage",
+  "map_def": {
+   "box_start": 0,
+   "box_starts": [],
+   "description": "",
+   "display_name": "PLAFOND",
+   "doors": {},
+   "music": "ambience_bunker",
+   "open_links": {},
+   "teleporter_link": false,
+   "zone_names": {
+    "a": "A",
+    "b": "B"
+   }
+  },
+  "markers": {
+   "box": [],
+   "doors": [],
+   "grenade_buys": [],
+   "lamps": [
+    {
+     "energy": 2.2,
+     "p": [
+      6.75,
+      2.85,
+      8.25
+     ],
+     "range": 9.12
+    },
+    {
+     "energy": 2.2,
+     "p": [
+      11.75,
+      2.85,
+      8.25
+     ],
+     "range": 9.12
+    },
+    {
+     "energy": 2.2,
+     "p": [
+      6.75,
+      6.15,
+      8.25
+     ],
+     "range": 8.8
+    }
+   ],
+   "perks": [],
+   "player_spawns": [
+    [
+     9.25,
+     0.05,
+     8.25
+    ]
+   ],
+   "player_yaw": 3.14159265358979,
+   "traps": [],
+   "wall_buys": [],
+   "windows": [],
+   "zombie_spawns": []
+  },
+  "note": "Généré par l'éditeur de cartes (MapLayoutExport) - ne pas modifier à la main.",
+  "props": [],
+  "rails": [],
+  "rooms": [
+   {
+    "ceiling": 3.19,
+    "ceiling_mat": "ceiling_theater",
+    "floor": 0.0,
+    "floor_mat": "tiles",
+    "id": "a0_1",
+    "outline": [
+     [
+      4.5,
+      4.5
+     ],
+     [
+      9.5,
+      4.5
+     ],
+     [
+      9.5,
+      12.0
+     ],
+     [
+      4.5,
+      12.0
+     ]
+    ]
+   },
+   {
+    "ceiling": 3.2,
+    "ceiling_mat": "ceiling_theater",
+    "floor": 0.0,
+    "floor_mat": "tiles",
+    "id": "a0_2",
+    "outline": [
+     [
+      9.5,
+      4.5
+     ],
+     [
+      14.0,
+      4.5
+     ],
+     [
+      14.0,
+      12.0
+     ],
+     [
+      9.5,
+      12.0
+     ]
+    ]
+   },
+   {
+    "ceiling": 6.5,
+    "ceiling_mat": "ceiling",
+    "floor": 3.5,
+    "floor_mat": "wood",
+    "floor_slab": 0.3,
+    "id": "b1_1",
+    "outline": [
+     [
+      4.5,
+      4.5
+     ],
+     [
+      9.0,
+      4.5
+     ],
+     [
+      9.0,
+      12.0
+     ],
+     [
+      4.5,
+      12.0
+     ]
+    ]
+   }
+  ],
+  "stairs": [],
+  "walls": [],
+  "zone_order": [
+   {
+    "box": [
+     4.5,
+     3.35,
+     4.5,
+     9.0,
+     6.5,
+     12.0
+    ],
+    "zone": "b"
+   },
+   {
+    "box": [
+     9.5,
+     -0.5,
+     4.5,
+     14.0,
+     3.2,
+     12.0
+    ],
+    "zone": "a"
+   },
+   {
+    "box": [
+     4.5,
+     -0.5,
+     4.5,
+     9.5,
+     3.2,
+     12.0
+    ],
+    "zone": "a"
+   }
+  ],
+  "zones": {
+   "a": {
+    "boxes": [
+     [
+      9.5,
+      -0.5,
+      4.5,
+      14.0,
+      3.2,
+      12.0
+     ],
+     [
+      4.5,
+      -0.5,
+      4.5,
+      9.5,
+      3.2,
+      12.0
+     ]
+    ]
+   },
+   "b": {
+    "boxes": [
+     [
+      4.5,
+      3.35,
+      4.5,
+      9.0,
+      6.5,
+      12.0
+     ]
+    ]
+   }
+  }
+ },
+ "map": "ceiling_two_floors_theater",
+ "messages": [
+  [
+   "erreur",
+   "aucun départ des joueurs (inventaire : Joueurs et apparitions > Départ des joueurs, dans la zone de départ)"
+  ],
+  [
+   "info",
+   "Les vérifications d'accès et les indicateurs d'amusement viendront une fois ces erreurs corrigées."
+  ]
+ ]
+}

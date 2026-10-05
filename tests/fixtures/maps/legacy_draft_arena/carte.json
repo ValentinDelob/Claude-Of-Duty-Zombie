@@ -1,0 +1,13 @@
+{
+ "format": 1,
+ "id": "draft_arena",
+ "nom": {"fr":"DRAFT ARENA","en":"DRAFT ARENA"},
+ "description": {"fr":"Carte d'essai de l'éditeur : salle des machines, couloir de service, entrepôt à double hauteur et sa passerelle.","en":"Map editor test map: engine room, service corridor, double-height warehouse and its catwalk."},
+ "musique": "ambience_bunker",
+ "hauteur_portes": 2.5,
+ "lampes_auto": true,
+ "etages": [
+  {"sol":0.0,"hauteur":3.2},
+  {"sol":3.5,"hauteur":3.3}
+ ]
+}

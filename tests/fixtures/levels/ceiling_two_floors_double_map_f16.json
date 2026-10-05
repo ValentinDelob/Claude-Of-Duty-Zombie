@@ -1,0 +1,7 @@
+{
+ "carte.json": "{\n \"format\": 16,\n \"id\": \"plafond_etage\",\n \"nom\": {\n  \"fr\": \"PLAFOND\",\n  \"en\": \"CEILING\"\n },\n \"description\": {\n  \"fr\": \"\",\n  \"en\": \"\"\n },\n \"musique\": \"ambience_bunker\",\n \"hauteur_portes\": 2.5,\n \"lampes_auto\": true,\n \"etages\": [\n  {\"sol\":0,\"hauteur\":3.2},\n  {\"sol\":3.5,\"hauteur\":3}\n ]\n}",
+ "objets.json": "{\n \"objets\": []\n}",
+ "ouvertures.json": "{\n \"ouvertures\": []\n}",
+ "pieces.json": "{\n \"pieces\": [\n  {\"id\":\"p1\",\"nom\":\"Bas\",\"etage\":0,\"zone\":\"z1\",\"contour\":[[0,0],[10,0],[10,8],[0,8]],\"double_hauteur\":true},\n  {\"id\":\"p2\",\"nom\":\"Haut\",\"etage\":1,\"zone\":\"z2\",\"contour\":[[0,0],[5,0],[5,8],[0,8]]}\n ]\n}",
+ "zones.json": "{\n \"depart\": \"z1\",\n \"zones\": [\n  {\"id\":\"z1\",\"nom\":{\"fr\":\"A\",\"en\":\"A\"},\"sol\":\"tiles\"},\n  {\"id\":\"z2\",\"nom\":{\"fr\":\"B\",\"en\":\"B\"},\"sol\":\"wood\"}\n ]\n}"
+}
