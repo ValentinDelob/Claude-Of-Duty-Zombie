@@ -323,7 +323,7 @@ func conflict_text(r: Dictionary) -> String:
 		int(r.skipped), ", ".join(names)]
 
 
-## Présence de cet éditeur (curseur [x, y] en mètres, étage, sélection,
+## Présence de cet éditeur (curseur [x, y] en mètres, « alt » : altitude du niveau vu, sélection,
 ## outil, aperçu `live` facultatif) : envoyée au plus 10 fois par seconde.
 func set_presence(p: Dictionary) -> void:
 	_presence_out = p
@@ -941,7 +941,7 @@ static func clean_presence(m: Dictionary) -> Dictionary:
 	if not (cur is Array and cur.size() == 2 and (cur[0] is float or cur[0] is int) and (cur[1] is float or cur[1] is int)
 			and is_finite(float(cur[0])) and is_finite(float(cur[1]))):
 		return {}
-	out["cursor"] = [clampf(float(cur[0]), -1000.0, 1000.0), clampf(float(cur[1]), -1000.0, 1000.0)]
+	out["cursor"] = [clampf(float(cur[0]), -NetGuard.MAX_COORD, NetGuard.MAX_COORD), clampf(float(cur[1]), -NetGuard.MAX_COORD, NetGuard.MAX_COORD)]
 	# Format 17 : altitude du niveau vu (m, nombre fini), à la place de l'étage.
 	var fl: Variant = m.get("alt", 0.0)
 	out["alt"] = clampf(float(fl), -1.0e6, 1.0e6) if (fl is float or fl is int) and is_finite(float(fl)) else 0.0

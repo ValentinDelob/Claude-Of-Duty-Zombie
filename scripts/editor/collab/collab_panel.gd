@@ -5,8 +5,8 @@ extends Node
 ## session…, Quitter la session, Autoriser Claude (MCP) = réglage du serveur
 ## MCP du jeu, Connecter une IA (MCP)… = McpDialog, Historique) et
 ## pastilles des participants à côté : disque de leur couleur avec leur
-## initiale (Claude : son icône), pseudo, « Étage N » s'ils sont sur un autre
-## étage que celui affiché ; info-bulle avec le rôle et l'étage. Chaque
+## initiale (Claude : son icône), pseudo, « Niveau 3,5 m » s'ils sont sur un autre
+## niveau que celui affiché ; info-bulle avec le rôle et le niveau. Chaque
 ## pastille est un contrôle de la barre (HFlowContainer) : la barre passe à
 ## la ligne entre deux pastilles plutôt que de déborder. Le rendu sur le plan
 ## est dans CollabView, l'historique dans CollabHistory.
@@ -233,7 +233,7 @@ func _join_dialog() -> void:
 	code.grab_focus.call_deferred()
 
 
-## Étage et info-bulle des pastilles (présence reçue, étage affiché changé,
+## Niveau et info-bulle des pastilles (présence reçue, niveau affiché changé,
 ## taille de l'interface).
 func update_pills() -> void:
 	for pill in pills:
@@ -243,13 +243,13 @@ func update_pills() -> void:
 		var p: Dictionary = ed.collab.peers.get(id, {})
 		var pr: Dictionary = p.get("presence", {})
 		var fl: Variant = float(pr.get("alt", 0.0)) if pr.has("cursor") else null
-		pill.floor_text = EditorMap.level_name(float(fl)) if fl != null and absf(float(fl) - ed.view_alt()) > EditorMap.ALT_EQ and not pill.me else ""
+		pill.level_text = EditorMap.level_name(float(fl)) if fl != null and absf(float(fl) - ed.view_alt()) > EditorMap.ALT_EQ and not pill.me else ""
 		pill.tooltip_text = pill_tooltip(id)
 		pill.update_minimum_size()
 		pill.queue_redraw()
 
 
-## Info-bulle d'une pastille : pseudo, rôle, étage.
+## Info-bulle d'une pastille : pseudo, rôle, niveau.
 func pill_tooltip(id: String) -> String:
 	var c := ed.collab
 	var p: Dictionary = c.peers.get(id, {})
@@ -275,15 +275,15 @@ func pill_tooltip(id: String) -> String:
 
 
 ## Pastille d'un participant : disque de sa couleur avec son initiale (Claude :
-## son icône ; vous : anneau clair), pseudo, puis « Étage N » s'il est sur un
-## autre étage que celui affiché. Dessinée à la taille de l'interface.
+## son icône ; vous : anneau clair), pseudo, puis « Niveau 3,5 m » s'il est sur un
+## autre niveau que celui affiché. Dessinée à la taille de l'interface.
 class Pill extends Control:
 	var panel: CollabPanel
 	var peer_id := ""
 	var color := Color.WHITE
 	var initial := ""
 	var text := ""
-	var floor_text := ""
+	var level_text := ""
 	var agent := false
 	var me := false
 
@@ -296,8 +296,8 @@ class Pill extends Control:
 	func _get_minimum_size() -> Vector2:
 		var f := _font()
 		var w := _d() + EditorUi.px(5) + f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(13)).x
-		if floor_text != "":
-			w += EditorUi.px(6) + f.get_string_size(floor_text, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11)).x + EditorUi.px(8)
+		if level_text != "":
+			w += EditorUi.px(6) + f.get_string_size(level_text, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11)).x + EditorUi.px(8)
 		return Vector2(ceilf(w + EditorUi.px(2)), maxf(_d(), EditorUi.fs(13) + EditorUi.px(8)))
 
 	func _draw() -> void:
@@ -317,11 +317,11 @@ class Pill extends Control:
 		var fs := EditorUi.fs(13)
 		var x := d + EditorUi.px(5)
 		draw_string(f, Vector2(x, cy + fs * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
-		if floor_text != "":
+		if level_text != "":
 			x += f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + EditorUi.px(6)
 			var fs2 := EditorUi.fs(11)
-			var tw := f.get_string_size(floor_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x
+			var tw := f.get_string_size(level_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x
 			var box := Rect2(x, cy - (fs2 + EditorUi.px(4)) * 0.5, tw + EditorUi.px(8), fs2 + EditorUi.px(4))
 			draw_rect(box, Color(color, 0.18))
 			draw_rect(box, Color(color, 0.6), false, 1.0)
-			draw_string(f, Vector2(x + EditorUi.px(4), cy + fs2 * 0.36), floor_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, UiStyle.BONE)
+			draw_string(f, Vector2(x + EditorUi.px(4), cy + fs2 * 0.36), level_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, UiStyle.BONE)

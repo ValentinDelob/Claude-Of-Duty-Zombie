@@ -39,7 +39,7 @@ func test_agent_link_commands() -> void:
 	assert_true(srv.events.size() > n0 and String(srv.events[-1].event) == "change", "événement « change » gardé par le serveur")
 	r = await link.handle("validate", {})
 	assert_true(r.has("text"), "validate : rapport")
-	r = await link.handle("screenshot", {"floor": 0})
+	r = await link.handle("screenshot", {"altitude": 0.0})
 	assert_true(r.has("error"), "capture refusée sans affichage")
 	r = await link.handle("catalog", {})
 	assert_true((r.kinds as Dictionary).has("porte"), "catalogue")
@@ -176,5 +176,63 @@ func test_mcp_scale_follows_editor_rules() -> void:
 	tilt["incl"] = [0, 20]
 	var b := link.cmd_apply({"ops": [{"op": "put", "coll": "objets", "el": tilt}], "label": "Sacs inclinés", "animate": false})
 	assert_true((b.invalid as Dictionary).has("d81") and String(b.invalid.d81).contains("posé dessus"), "porteur incliné : refusé (%s)" % str(b))
+	link.queue_free()
+	collab.queue_free()
+
+
+## Format 17 (docs/LEVELS_PLAN.md § 6) : niveaux par altitude dans status et
+## validate, pièce posée à 3,5 m sans plafond, ciel de la carte, coordonnées
+## négatives, ancienne clé « etage » refusée avec un message clair, hauteur
+## absolue (z_monde = altitude + hauteur de pose).
+func test_levels_through_the_agent_link() -> void:
+	var m: EditorMap = preload("res://tests/test_levels_free.gd").high_hall()
+	var collab := MapCollab.new(m)
+	host.add_child(collab)
+	var link := MapAgentLink.new()
+	link.collab = collab
+	host.add_child(link)
+	var st: Dictionary = await link.handle("status", {})
+	assert_eq(st.niveaux, [0.0, 3.5, 7.0], "niveaux de la carte")
+	assert_eq(float(st.altitude), 0.0, "niveau affiché (sans éditeur : le plus bas)")
+	assert_false(st.has("floor"), "plus d'indice d'étage")
+	assert_false(link._selection().has("floor"))
+	var va: Dictionary = link.cmd_validate()
+	assert_true((va.problems as Array).all(func(p): return p.has("altitude") and not p.has("floor")), "problèmes situés par altitude")
+	# Pièce à 3,5 m à ciel ouvert, à l'écart, et une caisse dedans.
+	var r := link.cmd_apply({"label": "Terrasse", "animate": false, "ops": [
+		{"op": "add", "coll": "pieces", "el": {"id": "$1", "nom": "Terrasse", "altitude": 3.5, "sans_plafond": true, "plafond": 4.0,
+			"zone": String(m.pieces[0].zone), "contour": [[30, 0], [36, 0], [36, 6], [30, 6]]}},
+		{"op": "add", "coll": "objets", "el": {"id": "$2", "type": "prefab", "prefab": "caisses", "altitude": 3.5, "position": [33, 3]}},
+		{"op": "add", "coll": "pieces", "el": {"id": "$3", "nom": "Cave", "altitude": 0, "zone": String(m.pieces[0].zone),
+			"contour": [[-20, -10], [-14, -10], [-14, -4], [-20, -4]]}}]})
+	assert_false(r.has("error"), str(r))
+	assert_true((r.invalid as Dictionary).is_empty(), "rien de refusé : %s" % str(r.invalid))
+	var ter := collab.doc.find(String(r.ids["$1"]))
+	assert_eq(float(ter.altitude), 3.5)
+	assert_true(bool(ter.sans_plafond), "sans_plafond gardé")
+	var cave := collab.doc.find(String(r.ids["$3"]))
+	assert_eq([float(cave.contour[0][0]), float(cave.contour[0][1])], [-20.0, -10.0], "coordonnées négatives gardées")
+	var el := link.cmd_get_elements({"ids": [String(r.ids["$2"]), String(r.ids["$1"])]})
+	var box: Dictionary = el.elements[String(r.ids["$2"])]
+	assert_near(float(box.z_monde), 3.5 + float(box.get("hauteur_pose", 0.0)), 0.001, "z_monde = altitude + hauteur de pose")
+	assert_near(float(el.elements[String(r.ids["$1"])].z_monde), 3.5, 0.001, "pièce : sol à 3,5 m")
+	# Ciel de la carte (op « carte » avec le dictionnaire complet).
+	var carte: Dictionary = collab.doc.carte.duplicate(true)
+	carte["ciel"] = {"type": "nuit", "luminosite": 0.5}
+	r = link.cmd_apply({"label": "Nuit", "animate": false, "ops": [{"op": "carte", "carte": carte}]})
+	assert_false(r.has("error"), str(r))
+	assert_eq(EditorMap.sky_of(collab.doc.carte), {"type": "nuit", "luminosite": 0.5}, "ciel réglé")
+	# Ancienne clé d'étage : refus nommé (contrôle des cartes reçues, format 17).
+	r = link.cmd_apply({"label": "Vieux", "animate": false, "ops": [
+		{"op": "add", "coll": "pieces", "el": {"id": "$1", "etage": 1, "contour": [[40, 0], [46, 0], [46, 6], [40, 6]]}}]})
+	var why := str(r.get("error", "")) + " ".join(PackedStringArray((r.get("invalid", {}) as Dictionary).values()))
+	assert_true(why.contains("« etage » n'existe plus") and why.contains("altitude"), "etage refusé : %s" % why)
+	assert_true(collab.doc.pieces.all(func(p): return not p.has("etage")), "aucune pièce avec « etage »")
+	# Résumé : la terrasse au niveau 3,5 m, à ciel ouvert.
+	var s := MapSummary.summarize(collab.doc.snapshot(), -1, 3.5)
+	assert_eq((s.niveaux as Array).size(), 1, "un seul niveau demandé")
+	var t: Array = (s.niveaux[0].pieces as Array).filter(func(p): return p.id == String(ter.id))
+	assert_true(not t.is_empty() and bool(t[0].sans_plafond) and float(t[0].plafond) == 4.0, str(t))
+	assert_eq(String(s.carte.ciel.type), "nuit")
 	link.queue_free()
 	collab.queue_free()

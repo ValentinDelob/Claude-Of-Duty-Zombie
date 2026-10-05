@@ -248,7 +248,7 @@ func test_pills_show_role_and_floor() -> void:
 	for pill in ui.pills:
 		assert_true(pill.get_parent() == ed.top_bar, "pastille dans la barre du haut (passe à la ligne)")
 	var bob: Control = ui.pills.filter(func(p): return p.peer_id == "2")[0]
-	assert_eq(String(bob.floor_text), "Niveau 3,5 m" if not Lang.is_en() else "Level 3.5 m", "Bob sur un autre niveau")
+	assert_eq(String(bob.level_text), "Niveau 3,5 m" if not Lang.is_en() else "Level 3.5 m", "Bob sur un autre niveau")
 	assert_true(bob.tooltip_text.contains(Lang.t("invité", "guest")), "rôle dans l'info-bulle : %s" % bob.tooltip_text)
 	var claude: Control = ui.pills.filter(func(p): return p.peer_id == "1:claude")[0]
 	assert_true(claude.agent and claude.tooltip_text.contains("Claude"), "pastille de Claude")
@@ -257,7 +257,7 @@ func test_pills_show_role_and_floor() -> void:
 	ed.add_floor()
 	ed.set_floor(1)
 	ui.update_pills()
-	assert_eq(String(bob.floor_text), "", "même étage : pas d'indicateur")
+	assert_eq(String(bob.level_text), "", "même étage : pas d'indicateur")
 	await _end(ed)
 
 

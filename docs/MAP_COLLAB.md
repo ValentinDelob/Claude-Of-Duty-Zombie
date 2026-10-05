@@ -60,7 +60,7 @@ Opérations (dictionnaires JSON) :
 |---|---|---|
 | `put` | `coll`, `el` (avec `id`) | insère (en fin) ou remplace l'élément de même id |
 | `del` | `coll`, `id` | retire l'élément (absent : sans effet) |
-| `carte` | `carte` | remplace le dictionnaire `carte` (étages, noms…) |
+| `carte` | `carte` | remplace le dictionnaire `carte` (noms, réglages, `ciel`…) |
 | `depart` | `id` | zone de départ |
 | `add` | `coll`, `el` (sans id ou id provisoire `"$1"`, `"$2"`…) | **agent seulement** : l'éditeur attribue un vrai id (`doc.new_id` avec le même préfixe que `MapEditor.add_object`) ; un `"$n"` cité ailleurs dans le même lot (ex. `zone` d'une pièce) est remplacé par l'id attribué. Converti en `put` avant diffusion. |
 
@@ -121,16 +121,19 @@ Transport entre éditeurs : TCP, une ligne JSON UTF-8 par message (`\n`), messag
 ### 5.1 Entre éditeurs (port 7790 par défaut)
 
 Invité → hôte :
-- `{t:"hello", proto:2, name, code, app_version}` (code de session : 6
+- `{t:"hello", proto:3, name, code, app_version}` (code de session : 6
   caractères affichés chez l'hôte ; refus après 5 essais faux par IP ;
-  `proto` 2 depuis le TESTER à plusieurs, § 5.3 : un éditeur plus ancien est
-  refusé à l'arrivée).
+  `proto` 2 depuis le TESTER à plusieurs, § 5.3, 3 depuis le format 17
+  (niveaux libres : éléments avec `altitude`, présence avec `alt`) : un
+  éditeur plus ancien est refusé à l'arrivée).
 - `{t:"change", cid, label, ops, author?}` (`author` seulement pour son agent :
   `"<moi>:claude"`).
-- `{t:"presence", cursor:[x,y], floor, selection, tool, live?, vue?, z?}`
-  (`vue` : plan de la vue survolée quand c'est une élévation, `z` : hauteur
-  du curseur en m ; docs/EDITOR_VIEWS.md § 6.4 ; ignorées par une version
-  plus ancienne).
+- `{t:"presence", cursor:[x,y], alt, selection, tool, live?, vue?, z?}`
+  (`alt` : altitude du niveau vu, m, nombre fini, à la place de l'ancien
+  indice d'étage ; `cursor` en mètres, négatifs compris, borné à ±10⁶ m
+  comme les positions réseau (`NetGuard.MAX_COORD`) ; `vue` : plan de la vue
+  survolée quand c'est une élévation, `z` : hauteur du curseur en m ;
+  docs/EDITOR_VIEWS.md § 6.4 ; ignorées par une version plus ancienne).
 - `{t:"resync"}`, `{t:"ping"}`.
 
 Hôte → invité :
@@ -196,14 +199,14 @@ serveur (`McpServer.push_event`, outil `editor_events`).
 | cmd | args | result |
 |---|---|---|
 | `hello` | — | `{map_id, map_name, role:"host"/"guest"/"solo", peers, editor_version}` |
-| `status` | — | idem + `floor`, `selection`, `dirty` |
+| `status` | — | idem + `altitude` (niveau affiché, m), `niveaux` (altitudes des pièces), `selection`, `dirty` |
 | `get_map` | — | snapshot complet |
-| `get_selection` | — | `{ids, elements, floor, cursor}` (curseur souris en mètres) |
+| `get_selection` | — | `{ids, elements, altitude, cursor}` (niveau affiché ; curseur souris en mètres) |
 | `get_elements` | `ids` | `{elements: {id: {coll, el, z_min, z_max, z_monde, hauteur_pose?, glissement_vertical}}, absents}` (hauteurs en m) |
 | `apply` | `label`, `ops`, `animate` (défaut true), `decouper` (défaut false) | `{cid, ids:{"$1":"p7",...}, invalid:{id:raison}, decoupe?}` |
 | `undo` | — | annule le dernier changement de Claude encore actif |
 | `validate` | — | rapport `MapValidator` (texte + liste des problèmes) |
-| `screenshot` | `floor?`, `ids?` (cadrer sur ces éléments), `view?` (`dessus` par défaut, `avant`, `arriere`, `gauche`, `droite`, `dessous`), `coupe?` [p0, p1] | `{png_base64, width, height, bounds:[x0,y0,x1,y1]}` ; élévation : `{…, view, axe_horizontal, bounds_h, bounds_z, coupe?}` |
+| `screenshot` | `altitude?` (m, niveau du plan ; sans niveau à cette altitude : erreur qui liste les niveaux), `ids?` (cadrer sur ces éléments), `view?` (`dessus` par défaut, `avant`, `arriere`, `gauche`, `droite`, `dessous`), `coupe?` [p0, p1] | `{png_base64, width, height, altitude, bounds:[x0,y0,x1,y1]}` ; élévation : `{…, view, axe_horizontal, bounds_h, bounds_z, coupe?}` |
 | `highlight` | `ids`, `message` | montre ces éléments à l'utilisateur (contour pulsé + bulle) |
 | `catalog` | — | types admis (`MapCatalog`), prefabs, luminaires, armes, atouts ; `prefabs_carte` : prefabs de la carte ouverte (pid, ref, nom, sorte, emprise, hauteur, bloque, pose) ; `textures_carte` : textures de la carte `[{ref, nom, taille, image}]` |
 | `prefab_list` | — | `{prefabs: [fiche], nombre, modeles, peut_modifier, note}` ; fiche : `pid`, `ref` (« map:<pid> »), `objet` à poser, `nom`, `sorte` (groupe / modele), `emprise_cases`, `emprise_m`, `hauteur`, `bloque`, `collision`, `pose`, `objets_poses` ; groupe : `parties` ; modèle : `echelle`, `taille_modele_m` [x, y, hauteur], `aabb_brute`, `sha256`, `octets`, `triangles`, `sommets`, `maillages`, `materiaux`, `images` |
@@ -249,7 +252,7 @@ UN changement de Claude (annulable) avant le retrait.
   session, Autoriser Claude (MCP) ✓, Connecter une IA (MCP)…, Historique) et pastilles colorées des
   participants (Claude compris, avec une icône distincte).
 - Curseurs des autres sur le plan (couleur + pseudo), leur sélection en
-  contour de leur couleur, leur étage indiqué ; aperçu en direct d'un objet
+  contour de leur couleur, leur niveau indiqué ; aperçu en direct d'un objet
   qu'ils glissent (`presence.live`, 10/s). Dans les élévations (vues
   multiples) : leurs sélections et aperçus projetés, leur curseur à sa vraie
   hauteur s'ils sont dans une élévation du même plan, sinon un trait
@@ -322,11 +325,14 @@ restent les siennes.
 - `add` remplit aussi, comme `MapEditor.add_object` : pièce sans `nom` →
   « Pièce N » ; pièce sans zone existante → zone créée (même nom, devient la
   zone de départ s'il n'y en a pas) ; porte / débris sans `prix` → 750, 1000
-  puis 1250 ; fenêtre sans `largeur` ; une seule boîte `depart`. `etage`
-  absent → 0.
+  puis 1250 ; fenêtre sans `largeur` ; une seule boîte `depart`. `altitude`
+  absente → 0 (format 17 ; `MapOps.normalize` remet `altitude` et
+  `altitude_haut` en nombres décimaux finis).
 - Contrôle du contenu (en plus de `validate`) : chaque élément `put` passe
   les règles des cartes reçues (`CustomMapGuard` : types, clés, valeurs,
-  étages existants, identifiants `[A-Za-z0-9_-]` de 32 caractères au plus) et
+  format 17 : `altitude` libre, coordonnées négatives admises, anciennes clés
+  `etage` / `etages` / `double_hauteur` refusées avec un message qui donne
+  `altitude` ; identifiants `[A-Za-z0-9_-]` de 32 caractères au plus) et
   les tailles maximales des listes (256 pièces, 512 ouvertures, 2048 objets,
   64 zones). Un élément refusé n'est pas appliqué (agent : listé dans
   `invalid` ; invité : retiré du lot et signalé dans le journal, sans
@@ -376,7 +382,7 @@ restent les siennes.
 - `apply` : `{cid, ids, invalid}` ; `cid` vide si aucun élément n'a été
   admis. `invalid` liste les éléments refusés (non appliqués) ET ceux posés
   mais mal placés (règles de pose de l'éditeur, dessinés en rouge). Une pièce
-  du lot (`put` ou `add`) qui recouvre une pièce du même étage fait refuser
+  du lot (`put` ou `add`) qui recouvre une pièce de même altitude fait refuser
   le lot entier (`error` qui explique), sauf avec `decouper: true` : les
   pièces recouvertes sont découpées dans le MÊME lot (une annulation ;
   `MapCarve.carve_ops`, docs/MAP_AUTHORING.md § 3, « Pièce tracée sur une
@@ -387,11 +393,13 @@ restent les siennes.
   `a_revoir`, `texte`).
 - `undo` : `{cid, undone, label, skipped, conflict}` (ou `{queued: true}`
   chez un invité en attente d'écho).
-- `validate` : `{ok, errors, warnings, text, problems: [{level, text, floor,
-  points: [[x, y]…]}]}` (points en mètres, 12 au plus par problème).
+- `validate` : `{ok, errors, warnings, text, problems: [{level, text, altitude,
+  points: [[x, y]…]}]}` (points en mètres, 12 au plus par problème ;
+  `altitude` du niveau du problème, `null` pour toute la carte).
 - `screenshot` : plan dessiné hors écran (1280 × 960, règles en mètres
-  comprises dans `bounds`) ; rend aussi `floor` ; erreur en mode sans
-  affichage.
+  comprises dans `bounds`) ; rend aussi l'`altitude` du niveau dessiné ;
+  erreur en mode sans affichage.
+- `get_elements` : `z_monde` = altitude de l'élément + `hauteur_pose`.
 - `highlight` : `{shown}` ; contour pulsé, bulle et cadrage (§ 9 « Rendu »).
   Signaux `MapAgentLink.highlight_requested(ids, message)` et
   `animate_requested(ids, label)` (après un `apply` avec `animate`).
@@ -437,14 +445,14 @@ Code : `CollabView` (dessiné par `MapCanvas._draw_peers`), pastilles dans
 - Pastilles : une par participant, rangées directement dans la barre du
   haut (elle passe à la ligne entre deux pastilles) : disque de sa couleur
   avec son initiale (Claude : disque violet et étoile à huit branches ; moi :
-  anneau clair), pseudo (14 caractères au plus), « Étage N » s'il est sur un
-  autre étage que celui affiché ; info-bulle : pseudo, rôle (hôte, invité,
-  Claude rattaché à X), étage. Affichées dès qu'il y a deux participants
-  (Claude compris).
+  anneau clair), pseudo (14 caractères au plus), « Niveau 3,5 m » s'il est
+  sur un autre niveau que celui affiché (altitude `alt` de sa présence) ;
+  info-bulle : pseudo, rôle (hôte, invité, Claude rattaché à X), niveau.
+  Affichées dès qu'il y a deux participants (Claude compris).
 - Curseurs : flèche de la couleur du pair et étiquette avec son pseudo,
-  seulement à l'étage affiché ; glissés vers chaque nouvelle présence
-  (lissage exponentiel), placés d'un coup à la première ou après un
-  changement d'étage. Claude n'a pas de curseur.
+  seulement au niveau affiché (même altitude à 5 mm près) ; glissés vers
+  chaque nouvelle présence (lissage exponentiel), placés d'un coup à la
+  première ou après un changement de niveau. Claude n'a pas de curseur.
 - Sélection des autres : contour de leur couleur (forme exacte, sinon
   rectangle écarté de 5 px).
 - `presence.live` = `{coll, el}` : l'élément glissé (déplacé, redimensionné,
@@ -463,10 +471,10 @@ Code : `CollabView` (dessiné par `MapCanvas._draw_peers`), pastilles dans
   pour un gros lot ; contour pulsé violet et bulle « Claude : <label> » au
   bord haut du groupe, effacés après 3 s. Tout changement confirmé pendant
   l'apparition la termine (sauf l'écho du lot lui-même chez un invité). Si
-  aucun élément n'est visible (autre étage, hors champ), la vue y est amenée
+  aucun élément n'est visible (autre niveau, hors champ), la vue y est amenée
   (jamais pendant un glissement).
 - `highlight` : contour pulsé violet et bulle avec le message pendant 4 s ;
-  étage et vue amenés sur les éléments s'ils sont hors champ (dézoom si le
+  niveau et vue amenés sur les éléments s'ils sont hors champ (dézoom si le
   groupe est plus grand que la vue) ; la sélection ne change pas.
 - Onglet Historique (aussi Collaboration > Historique) : les 100 dernières
   entrées, la plus récente en haut ; pastille de l'auteur, libellé, auteur et

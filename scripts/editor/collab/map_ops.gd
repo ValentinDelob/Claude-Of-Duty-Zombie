@@ -352,19 +352,21 @@ static func value_ok(v: Variant, depth := 0) -> bool:
 	return false
 
 
-## Valeurs reçues remises au bon type (altitude en nombre décimal fini),
-## comme EditorMap._normalize : le reste garde les nombres décimaux du JSON.
-## Une clé « etage » (format 16) reste : check_elements la refuse, expliqué.
+## Valeurs reçues remises au bon type (altitude et arrivée d'un escalier en
+## nombre décimal fini), comme EditorMap._normalize : le reste garde les
+## nombres décimaux du JSON. Une clé « etage » (format 16) reste :
+## check_elements la refuse, expliqué.
 static func normalize(ops: Array) -> void:
 	for op in ops:
 		var el: Variant = op.get("el")
 		if el is Dictionary and String(op.get("coll", "")) != "zones":
-			if el.has("altitude") and (el.altitude is float or el.altitude is int) and is_finite(float(el.altitude)):
-				el["altitude"] = float(el.altitude)
+			for key in ["altitude", "altitude_haut"]:
+				if el.has(key) and (el[key] is float or el[key] is int) and is_finite(float(el[key])):
+					el[key] = float(el[key])
 
 
 ## Contrôle du contenu des éléments (mêmes règles que les cartes reçues,
-## CustomMapGuard : types, clés, valeurs, étages) et des tailles maximales des
+## CustomMapGuard : types, clés, valeurs, altitudes) et des tailles maximales des
 ## listes. Rend {ops: les opérations admises, invalid: {id: raison}}.
 static func check_elements(doc: Variant, ops: Array) -> Dictionary:
 	var out := []
@@ -493,7 +495,7 @@ static func hash_of(doc: Variant) -> String:
 
 ## Convertit les `add` en `put` : vrai identifiant (préfixe de
 ## MapEditor.add_object, premier numéro libre), « $n » cités ailleurs dans le
-## lot remplacés par l'id attribué, étage 0 par défaut ; une pièce sans zone
+## lot remplacés par l'id attribué, altitude 0 par défaut ; une pièce sans zone
 ## valide reçoit sa zone (même nom, comme add_object), une porte son prix par
 ## défaut, une seule boîte de départ. Rend {ops, ids: {"$n" (ou "#indice"
 ## d'un add sans id): id}}.

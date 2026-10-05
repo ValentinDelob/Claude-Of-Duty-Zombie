@@ -1326,7 +1326,7 @@ le catalogue.
   spec}}` ; spec = `{"t": "id"}` (identifiant a-z, 0-9, _), `{"t": "int" |
   "number", "min", "max"}`, `{"t": "bool"}`, `{"t": "enum", "values": [...]}`
   (atouts, armes, prefabs, luminaires, directions, rotations…), `{"t":
-  "point"}` ([x, y] en m, 0 à `MapCatalog.MAX_COORD`), `{"t": "rect"}`,
+  "point"}` ([x, y] en m, nombres finis, négatifs compris, sans borne : format 17), `{"t": "rect"}`,
   `{"t": "color"}` (« #rrggbb »). Tout type ou toute clé absent est à refuser.
   Format 3 : `angle` des objets muraux et des luminaires = `{"t": "number",
   "min": 0, "max": 360}` (nombre fini ; un NaN, un infini, un texte ou un angle

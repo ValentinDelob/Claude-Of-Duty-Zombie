@@ -52,7 +52,7 @@ func _diff(a: Variant, b: Variant, path := "", tol := 0.0) -> String:
 func _run(doc: Dictionary, fn: String, args: Array) -> Dictionary:
 	match fn:
 		"summarize":
-			return MapSummary.summarize(doc, int(args[0]) if not args.is_empty() else -1)
+			return MapSummary.summarize(doc, int(args[0]) if not args.is_empty() else -1, args[1] if args.size() > 1 else null)
 		"find_elements":
 			return MapSummary.find_elements(doc, args[0])
 		"plan_corridor":
@@ -206,3 +206,148 @@ func test_temps_du_resume() -> void:
 		var ms := (Time.get_ticks_usec() - t0) / 1000.0
 		print("  MapSummary.summarize(%s, %d pièces) : %.1f ms" % [f, doc.pieces.size(), ms])
 		assert_true(ms < 2000.0, "%s : résumé en %.0f ms" % [f, ms])
+
+
+# ------------------------------------------------------------------ format 17 (niveaux libres)
+
+const FREE := preload("res://tests/test_levels_free.gd")
+const NEG := preload("res://tests/test_map_negative.gd")
+## Références du résumé au format 17 (écrites par ce test, pas par le Python) :
+## MAP_SUMMARY_WRITE=1 les réécrit après un changement voulu (à relire).
+const DIR17 := "res://tests/fixtures/map_summary/f17/"
+
+
+## Cartes de référence du format 17 : demi-niveau relié à travers le mur
+## commun, pièce haute et deux mezzanines (escalier qui saute un niveau),
+## couloir et palier sans plafond avec un ciel de nuit, la même en
+## coordonnées négatives, élément orphelin.
+static func f17_maps() -> Dictionary:
+	var split := FREE.split_hall()
+	EditorMap.set_no_ceiling(split.find("pc"), true)
+	EditorMap.set_no_ceiling(split.find("pp"), true)
+	EditorMap.set_sky(split.carte, "nuit", 0.6)
+	var orphan := FREE.high_hall()
+	orphan.objets.append({"id": "c9", "type": "caisse", "altitude": 9.0, "position": [3.0, 3.0]})
+	return {"half_level": FREE.half_level(), "high_hall": orphan, "split_hall_sky": split,
+		"split_hall_negative": NEG.moved(split, NEG.T)}
+
+
+## Appels de référence d'une carte : résumé entier, résumé de chaque niveau
+## (par altitude), éléments, couloirs entre pièces de même altitude ou non.
+static func f17_calls(doc: Dictionary) -> Array:
+	var calls := [{"fn": "summarize", "args": []}]
+	for a in MapSummary.levels_of(doc):
+		calls.append({"fn": "summarize", "args": [-1, a]})
+	var ids := []
+	for p in doc.pieces:
+		ids.append(String(p.id))
+	calls.append({"fn": "find_elements", "args": [ids.slice(0, 2) + ["zz"]]})
+	for i in ids.size():
+		for j in ids.size():
+			if i < j:
+				calls.append({"fn": "plan_corridor", "args": [ids[i], ids[j], 2.5, -1]})
+	return calls
+
+
+func test_references_format_17() -> void:
+	var write := OS.get_environment("MAP_SUMMARY_WRITE") == "1"
+	var maps := f17_maps()
+	var n := 0
+	for name: String in maps:
+		var path := DIR17 + name + ".json"
+		var doc: Dictionary = _rt((maps[name] as EditorMap).snapshot())
+		if write:
+			var calls := f17_calls(doc)
+			for c: Dictionary in calls:
+				c["out"] = _rt(_run(doc.duplicate(true), c.fn, c.args))
+			DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR17))
+			var f := FileAccess.open(path, FileAccess.WRITE)
+			f.store_string(JSON.stringify({"doc": doc, "calls": calls}, "\t", false))
+			f.close()
+		assert_true(FileAccess.file_exists(path), "référence %s (MAP_SUMMARY_WRITE=1 pour l'écrire)" % path)
+		if not FileAccess.file_exists(path):
+			continue
+		var fx: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
+		assert_eq(_diff(fx.doc, doc), "", "%s : carte de la référence = carte construite" % name)
+		for c: Dictionary in fx.calls:
+			var d := _diff(_rt(_run(fx.doc.duplicate(true), c.fn, c.args)), c.out, "(JSON)", 1e-9)
+			if d != "":
+				failures.append("%s %s%s %s" % [name, c.fn, str(c.args), d])
+			n += 1
+	assert_true(n > 30, "assez de cas (%d)" % n)
+
+
+func _room(s: Dictionary, alt: float, id: String) -> Dictionary:
+	for lv: Dictionary in s.niveaux:
+		if absf(float(lv.altitude) - alt) < 0.001:
+			for p: Dictionary in lv.pieces:
+				if p.id == id:
+					return p
+	return {}
+
+
+func _stair(s: Dictionary, id: String) -> Dictionary:
+	for lv: Dictionary in s.niveaux:
+		for e: Dictionary in lv.escaliers:
+			if e.id == id:
+				return e
+	return {}
+
+
+## Sens du résumé au format 17 (indépendant des références).
+func test_summary_format_17() -> void:
+	var maps := f17_maps()
+	# Pièce haute, mezzanines, escalier qui saute un niveau, orphelin.
+	var s: Dictionary = _rt(MapSummary.summarize(maps.high_hall.snapshot()))
+	assert_false(s.has("etages"), "plus d'étages")
+	assert_eq(s.carte.niveaux, [0.0, 3.5, 7.0], "niveaux = altitudes des pièces")
+	assert_eq((s.niveaux as Array).map(func(l): return l.altitude), [0.0, 3.5, 7.0], "un niveau par altitude, du plus bas au plus haut")
+	assert_false(s.niveaux.any(func(l): return l.has("niveau") or l.has("etage")), "pas d'indice")
+	var ph := _room(s, 0.0, "ph")
+	assert_eq(ph.altitude, 0.0)
+	assert_eq(ph.plafond, 9.5, "plafond réglé")
+	assert_eq(ph.traverse, [3.5, 7.0], "pièce haute : niveaux traversés")
+	assert_eq(ph.plafond_reel_min, 3.2, "coupé sous la mezzanine (dalle de 0,3 m)")
+	assert_eq(ph.plafond_coupe_par, ["m1", "m2"])
+	assert_eq(_room(s, 3.5, "m1").mezzanine_sur, ["ph"], "mezzanine au-dessus du vide")
+	assert_eq(_room(s, 7.0, "m2").mezzanine_sur, ["ph"])
+	assert_false(_room(s, 3.5, "m1").has("plafond_reel_min"), "rien au-dessus de la mezzanine 1 sous son plafond")
+	var s2 := _stair(s, "s2e")
+	assert_eq([s2.altitude, s2.altitude_haut, s2.montee], [0.0, 7.0, 7.0])
+	assert_eq(s2.traverse, [3.5], "escalier qui saute le niveau 3,5 m")
+	assert_eq([s2.de, s2.vers], ["ph", "m2"], "pièces du pied et de l'arrivée")
+	var s1 := _stair(s, "s1e")
+	assert_eq([s1.de, s1.vers], ["ph", "m1"])
+	assert_false(s1.has("traverse"))
+	assert_false(s.niveaux[0].objets.has("escalier"), "escaliers à part, pas dans les objets")
+	assert_eq(int(s.totaux.escaliers), 2)
+	assert_eq(s.orphelins, [{"id": "c9", "coll": "objets", "type": "caisse", "altitude": 9.0}], "élément à une altitude sans pièce")
+	assert_eq(s.carte.ciel, {"type": "noir", "luminosite": 1.0}, "ciel par défaut")
+	assert_false(s.niveaux.any(func(l): return l.has("demi_niveau")), "niveaux à 3,5 m d'écart : pas de demi-niveau")
+	# Demi-niveau : rampe à travers le mur commun.
+	s = _rt(MapSummary.summarize(maps.half_level.snapshot()))
+	assert_true(bool(s.niveaux[1].get("demi_niveau", false)) and s.niveaux[1].altitude == 1.5, "demi-niveau à 1,5 m")
+	var r1 := _stair(s, "r1")
+	assert_eq([r1.de, r1.vers, r1.altitude_haut], ["pa", "pp", 1.5], "rampe : de la salle au palier à travers le mur commun")
+	# Plafond masqué et ciel ; la même carte en coordonnées négatives.
+	s = _rt(MapSummary.summarize(maps.split_hall_sky.snapshot()))
+	assert_true(bool(_room(s, 0.0, "pc").get("sans_plafond", false)) and bool(_room(s, 1.5, "pp").get("sans_plafond", false)), "sans_plafond")
+	assert_false(_room(s, 0.0, "ph").has("sans_plafond"))
+	assert_eq(s.carte.ciel, {"type": "nuit", "luminosite": 0.6})
+	var sn: Dictionary = _rt(MapSummary.summarize(maps.split_hall_negative.snapshot()))
+	var pcn := _room(sn, 0.0, "pc")
+	assert_eq(pcn.bbox, [24.0 - 37.5, 4.0 - 12.5, 32.0 - 37.5, 12.0 - 12.5], "coordonnées négatives")
+	assert_eq([_stair(sn, "r1").de, _stair(sn, "r1").vers], ["pc", "pp"], "rampe du couloir au palier (négatifs)")
+	# Un seul niveau, par son altitude ; altitude sans niveau : rien.
+	var one: Dictionary = _rt(MapSummary.summarize(maps.high_hall.snapshot(), -1, 3.5))
+	assert_eq((one.niveaux as Array).size(), 1)
+	assert_eq(one.niveaux[0].pieces.map(func(p): return p.id), ["m1"])
+	assert_true((MapSummary.summarize(maps.high_hall.snapshot(), -1, 2.0).niveaux as Array).is_empty(), "aucun niveau à 2 m")
+	assert_eq(MapSummary.levels_of(maps.half_level.snapshot()), [0.0, 1.5])
+	# Couloir : même altitude seulement.
+	var pl := MapSummary.plan_corridor(maps.high_hall.snapshot(), "ph", "m1", 2.5)
+	assert_eq(String(pl.get("error", "")), "altitudes différentes (0 m et 3,5 m) : reliez-les par un escalier (un couloir relie deux pièces de même altitude)")
+	# Carte d'avant (« etage ») : toujours lue comme avant.
+	var old := {"pieces": [{"id": "p1", "etage": 0, "contour": [[0, 0], [4, 0], [4, 4], [0, 4]]}], "ouvertures": [], "objets": []}
+	assert_true(MapSummary.summarize(old).has("etages"), "ancienne entrée : étages")
+	assert_true(MapSummary.levels_of(old).is_empty())

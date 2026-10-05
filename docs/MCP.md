@@ -56,7 +56,7 @@ ou coupe le serveur ; le réglage est gardé dans les options du jeu
   | topic | contenu |
   |---|---|
   | `regles` | `MAP_DESIGN_RULES.md` complet |
-  | `consignes` | consignes détaillées (hauteurs, échelle et inclinaison, escaliers, pièces qui se recouvrent) |
+  | `consignes` | consignes détaillées (niveaux et altitudes, superposition, pièces hautes et mezzanines, plafond masqué et ciel, coordonnées négatives, hauteurs, échelle et inclinaison, escaliers, pièces qui se recouvrent) |
   | `format` | `MAP_AUTHORING.md` (format des éléments : section « Format des fichiers ») |
   | `objets` | `MAP_OBJECTS.md` |
   | `vues` | `EDITOR_VIEWS.md` |
@@ -82,18 +82,18 @@ n'est pas une ressource). `tools/pack_check.gd` les admet nommément
 | Outil | Rôle |
 |---|---|
 | `editor_guide` | documentation livrée avec le jeu (§ 2) |
-| `editor_status` | carte ouverte, rôle (solo / hôte / invité), participants, étage, sélection |
-| `editor_get_map` | résumé calculé (pièces, voisines, pièces proches, ouvertures, objets, zones) ou carte complète (`format: "full"`) |
-| `editor_get_element` | éléments complets d'après leurs ids, avec leurs hauteurs (`z_min`, `z_max`, `z_monde`, hauteur de pose) |
-| `editor_get_selection` | sélection de l'utilisateur et position de la souris (m) |
+| `editor_status` | carte ouverte, rôle (solo / hôte / invité), participants, niveau affiché (`altitude`, m) et `niveaux` de la carte, sélection |
+| `editor_get_map` | résumé calculé par niveau (§ 3.1) ou carte complète (`format: "full"`) ; `altitude` (m) : un seul niveau |
+| `editor_get_element` | éléments complets d'après leurs ids, avec leurs hauteurs (`z_min`, `z_max`, `z_monde` = altitude + hauteur de pose, `hauteur_pose`) |
+| `editor_get_selection` | sélection de l'utilisateur, niveau affiché (`altitude`) et position de la souris (m) |
 | `editor_apply` | lot d'opérations (`add`, `put`, `del`, `carte`, `depart`) = une étape d'annulation, avec un libellé |
 | `editor_undo_last` | annule la dernière action de l'IA |
 | `editor_validate` | validateur de l'éditeur (erreurs, avertissements BO1) |
-| `editor_screenshot` | image du plan (`view` « dessus ») ou d'une élévation (`avant`, `arriere`, `gauche`, `droite`, `dessous`, `coupe` [p0, p1] facultative), bornes en mètres |
+| `editor_screenshot` | image du plan d'un niveau (`view` « dessus », `altitude` en m ; défaut : celui des `ids`, sinon celui affiché) ou d'une élévation (`avant`, `arriere`, `gauche`, `droite`, `dessous`, `coupe` [p0, p1] facultative), bornes en mètres |
 | `editor_highlight` | montre des éléments à l'utilisateur (contour pulsé + bulle ; `select`) |
 | `editor_catalog` | types d'objets admis, décors, luminaires, armes, atouts |
 | `editor_events` | derniers événements de l'éditeur (changements des autres, sélection, participants ; 100 gardés par le serveur) |
-| `editor_plan_corridor` | **propose** un couloir (droit ou en L) entre deux pièces, sans l'appliquer |
+| `editor_plan_corridor` | **propose** un couloir (droit ou en L) entre deux pièces de même altitude, sans l'appliquer (altitudes différentes : « reliez-les par un escalier ») |
 | `editor_prefab_list` | prefabs de la carte (référence `map:<pid>`, emprise, collision, modèle, nombre de poses) |
 | `editor_prefab_sources` | autres cartes de l'utilisateur et leurs prefabs importables |
 | `editor_prefab_create` | prefab groupe depuis des objets posés (`ids`, `remplacer`) ou des `parties` du catalogue |
@@ -112,7 +112,44 @@ l'hôte et ne sont pas dans l'historique d'annulation ; appliquer une texture
 ou poser une prefab passe par `editor_apply` (annulable).
 
 Noms, schémas, contrôles d'arguments (`McpTools.check_ops`…) et messages
-d'erreur sont ceux de l'ancien pont Python (`tools/mcp/`, supprimé).
+d'erreur sont ceux de l'ancien pont Python (`tools/mcp/`, supprimé), sauf
+les niveaux (format 17) ci-dessous.
+
+### 3.1 Niveaux libres (format 17)
+
+Plus d'étages : chaque pièce, ouverture et objet porte une `altitude` (m,
+altitude absolue du sol, libre, négative comprise) ; un niveau = les pièces
+de même altitude (à 5 mm près) ; un escalier a `altitude` (pied) et
+`altitude_haut` (arrivée, qui peut sauter des niveaux) ; une pièce peut être
+`sans_plafond` (ciel de la carte, `carte.ciel`) ; coordonnées x, y
+négatives admises, sans étendue maximale.
+
+- **Ancien format refusé avec un message qui donne la nouvelle clé** :
+  paramètre `floor` (indice d'étage) de `editor_get_map` et
+  `editor_screenshot` (→ `altitude`, nombre en m ; une altitude sans pièce
+  est refusée avec la liste des niveaux) ; clés `etage`, `double_hauteur` des
+  éléments et `etages` de `carte` dans `editor_apply` (refus avant envoi,
+  `McpTools.LEGACY_KEYS` ; sinon la garde des cartes reçues les refuse
+  élément par élément).
+- **Résumé** (`MapSummary.summarize`, `editor_get_map`) : `carte` {id, nom,
+  format, `niveaux` (altitudes), `ciel`, zone_depart} ; `niveaux` du plus bas
+  au plus haut : `{altitude, demi_niveau?, bornes, pieces, ouvertures,
+  objets, escaliers}` (`demi_niveau` : un niveau voisin à moins de 3,1 m).
+  Pièce : `altitude`, `plafond` (hauteur sous plafond réglée), `sans_plafond`,
+  `plafond_reel_min` et `plafond_coupe_par` (dessous de dalle d'une pièce
+  posée au-dessus), `traverse` (pièce haute : niveaux traversés),
+  `mezzanine_sur` (posée au-dessus du vide d'une pièce haute). Escalier
+  (rangé au niveau de son pied, plus dans `objets`) : `{id, altitude,
+  altitude_haut, montee, rect, monte, sortie?, de, vers, traverse?}` (`de` /
+  `vers` : pièce du pied et de l'arrivée, palier dans un mur commun compris,
+  `null` si aucune ; `traverse` : niveaux sautés). `orphelins` : éléments à
+  une altitude où aucune pièce n'est. Une carte d'avant le format 17
+  (`etage`) garde l'ancien résumé par `etages` (références du pont Python,
+  `tests/fixtures/map_summary/`) ; références du format 17 :
+  `tests/fixtures/map_summary/f17/` (`MAP_SUMMARY_WRITE=1` les réécrit).
+- `editor_status` / `editor_get_selection` : `altitude` (niveau affiché) au
+  lieu de `floor` ; `editor_validate` : chaque problème a son `altitude`
+  (`null` : toute la carte) ; `editor_screenshot` rend l'`altitude` du plan.
 
 Exemples de demandes : « Regarde la carte ouverte et dis-moi ce qui manque
 pour respecter les règles de conception. » ; « Relie la pièce sélectionnée à
@@ -194,7 +231,7 @@ que tu viens de faire. »
   pastille « Claude » tant qu'une session MCP a servi depuis moins de 30 min
   (docs/MAP_COLLAB.md § 5.2).
 - `scripts/editor/collab/map_summary.gd` (`MapSummary`, portage de l'ancien
-  `map_geom.py`) : résumé de `editor_get_map`, repli d'`editor_get_element`,
+  `map_geom.py`, niveaux du format 17 en plus, § 3.1) : résumé de `editor_get_map`, repli d'`editor_get_element`,
   `editor_plan_corridor`.
 - `scripts/editor/collab/map_agent_prefabs.gd` (`MapAgentPrefabs`) et
   `map_agent_textures.gd` (`MapAgentTextures`) : commandes et outils des
