@@ -549,7 +549,10 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   `EditorMap` (lecture, `restore`, `activate_prefabs`) et `MapRaster.build` ;
   un décor posé les cite par `"prefab": "map:<pid>"` (docs/MAP_OBJECTS.md § 11).
   En jeu, un modèle importé est lu par `GLTFDocument` (`MeshMapBuilder._map_model`,
-  boîte grise et erreur au journal s'il est illisible). Chaîne : `MapRaster` (grille de 0,5 m) -> `MapValidator`
+  boîte grise et erreur au journal s'il est illisible). Chaîne : `MapRaster` (grille de 0,5 m par
+  niveau ; format 17 : plus d'étages, les niveaux sont les altitudes distinctes
+  des pièces, grille construite sur une copie décalée si la carte a des
+  coordonnées négatives, docs/MAP_AUTHORING.md § 4) -> `MapValidator`
   (erreurs en mètres, indicateurs BO1, FR/EN) -> `MapLayoutExport` (description
   au format de `MeshMapLayout`, en mémoire) -> `MeshMapGeometry` (architecture
   construite par le jeu, sans Blender : jouable aussitôt, même dans le .exe).

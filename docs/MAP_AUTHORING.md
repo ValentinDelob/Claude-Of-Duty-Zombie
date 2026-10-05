@@ -17,7 +17,7 @@ menus, `--map=draft_arena`) est faite dans ce format et se joue (scénarios
 ![L'éditeur : trois pièces, portes, fenêtres, objets, onglet Vérification](map_authoring/editeur.png)
 ![L'inventaire (touche E), catégorie Ouvertures](map_authoring/inventaire.png)
 ![DRAFT ARENA dans l'éditeur (rez-de-chaussée)](map_authoring/draft_arena_editeur.png)
-![DRAFT ARENA, étage : passerelle au-dessus de l'entrepôt à double hauteur](map_authoring/draft_arena_etage1.png)
+![DRAFT ARENA, niveau 3,5 m : passerelle au-dessus de l'entrepôt haut (plafond de 6,8 m)](map_authoring/draft_arena_etage1.png)
 ![En jeu : la passerelle au-dessus de l'entrepôt](map_authoring/jeu_passerelle.png)
 ![Onglet « Objets sur la carte » : le bureau survolé sur la carte, sa ligne surlignée](map_authoring/objets.png)
 ![Textures d'une pièce (sol, murs, plafond) dans l'onglet Propriétés](map_authoring/textures.png)
@@ -43,11 +43,11 @@ récupération (plantage, fermeture forcée), il propose de la récupérer
 
 | Zone | Rôle |
 |---|---|
-| Barre du haut | **Fichier** (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, exporter / importer l'archive .zip, cartes récentes, options, retour au menu), **Édition** (annuler, rétablir, copier, coller, pivoter, supprimer, inventaire, recadrer), étage courant (◄ ►), **▶ TESTER**, état de la vérification, aimantation, aperçu 3D, **Disposition** (1 à 4 fenêtres de vue, §2 quater), **⚙** (options du jeu), nom de la carte, **?** (raccourcis). Elle passe sur deux lignes si elle ne tient pas en largeur (grande taille d'interface). |
-| Vues | Par défaut **deux vues empilées** : la vue **Dessus** (le plan, grille de 1 m, traits forts tous les 5 m, traits fins au pas de la grille fine) au-dessus de la vue **Avant** (élévation : tous les étages à leur vraie hauteur). Règles graduées en vraies coordonnées, en-tête de 22 px (plan, étages, axes, coupe, zoom, ⛶), **ViewCube** en haut à droite, trièdre en bas à gauche ; coordonnées du curseur aimanté en bas à droite. 1 à 4 fenêtres au choix (menu **Disposition**) : §2 quater. |
+| Barre du haut | **Fichier** (Nouvelle, Ouvrir, Enregistrer, Enregistrer sous, exporter / importer l'archive .zip, cartes récentes, options, retour au menu), **Édition** (annuler, rétablir, copier, coller, pivoter, supprimer, inventaire, recadrer), barre des niveaux (◄ « Niveau 3,5 m (2/3) ▾ » ►, § 4), **▶ TESTER**, état de la vérification, aimantation, aperçu 3D, **Disposition** (1 à 4 fenêtres de vue, §2 quater), **⚙** (options du jeu), nom de la carte, **?** (raccourcis). Elle passe sur deux lignes si elle ne tient pas en largeur (grande taille d'interface). |
+| Vues | Par défaut **deux vues empilées** : la vue **Dessus** (le plan, grille de 1 m, traits forts tous les 5 m, traits fins au pas de la grille fine) au-dessus de la vue **Avant** (élévation : tous les niveaux à leur vraie altitude). Règles graduées en vraies coordonnées, en-tête de 22 px (plan, niveaux, axes, coupe, zoom, ⛶), **ViewCube** en haut à droite, trièdre en bas à gauche ; coordonnées du curseur aimanté en bas à droite. 1 à 4 fenêtres au choix (menu **Disposition**) : §2 quater. |
 | Barre rapide | 9 cases (touches 1 à 9, molette) : l'objet tenu ; posée au bas de la vue en 1 vue, ancrée dans une bande de 48 px sous les vues dès 2 vues (outil à gauche, aimantation à droite). À gauche, la case fixe **Souris** (outil Sélection) : outil au démarrage, jamais remplacée ; une case vide se comporte comme la souris. |
 | Inventaire | Touche **E** ou **Tab** : toutes les catégories ; cliquer un objet le met dans la case choisie (souris en main : la première case vide, sinon la dernière case choisie), ou le glisser sur une case. |
-| Panneaux | **Propriétés** (élément choisi, sinon la carte), **Pièces**, **Zones**, **Étages**, **Vérification**. |
+| Panneaux | **Propriétés** (élément choisi, sinon la carte), **Pièces**, **Zones**, **Niveaux**, **Vérification**. |
 | Objets sur la carte | Onglet déployable à gauche de la vue (languette, bouton ◂ ou touche **L** ; ouvert / replié : mémorisé) : voir §2 bis. |
 | Aperçu 3D | Bouton **APERÇU 3D** de la barre du haut ou touche **P** : la carte telle qu'en jeu, en direct, dans un panneau flottant ou une fenêtre séparée : voir §2 ter. |
 | Barre d'état | Aide de l'outil, raison d'un refus, résultat des actions. |
@@ -75,7 +75,7 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Annuler le tracé ou le glissement en cours | clic droit, Échap |
 | Menu du clic droit (rien en cours) | clic droit, dans toutes les vues : Créer une prefab…, Dupliquer, Copier, Couper, Coller ici, Pivoter, Supprimer, Tout sélectionner, Désélectionner (voir « Sélection multiple et groupes ») ; sur un sommet ou un côté du contour choisi, en tête : Supprimer ce point / Ajouter un point ici |
 | Désélectionner | Échap, clic dans le vide, **reclic** : simple clic (sans glisser) sur l'élément déjà choisi seul, dans la vue Dessus, les élévations et la 3D (glissé, il est déplacé). Poignées, flèches et anneaux suivent toujours la sélection ; un geste en cours sur l'élément quitté est annulé |
-| Sélection multiple | **Maj + clic** : ajouter / retirer un élément (vue Dessus, élévations, 3D, liste des objets) ; **rectangle** : glisser depuis le vide (ou Maj + glisser n'importe où) ; **Ctrl+A** : tout l'étage |
+| Sélection multiple | **Maj + clic** : ajouter / retirer un élément (vue Dessus, élévations, 3D, liste des objets) ; **rectangle** : glisser depuis le vide (ou Maj + glisser n'importe où) ; **Ctrl+A** : tout le niveau affiché |
 | Groupe choisi | glisser l'un de ses éléments ; **flèches** : d'un pas de grille ; **R** / poignée ronde : pivoter autour du centre ; **Ctrl+D** : dupliquer ; **Ctrl+X** : couper ; Suppr |
 | Créer une prefab de la sélection | **Ctrl+G**, clic droit > Créer une prefab…, ou le panneau Propriétés |
 | Zoom | Ctrl + molette (ou + / -) |
@@ -100,13 +100,14 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Annuler / rétablir (illimité) | Ctrl+Z / Ctrl+Y (ou Ctrl+Maj+Z) |
 | Enregistrer / Enregistrer sous | Ctrl+S / Ctrl+Maj+S |
 | Nouvelle carte / Ouvrir | Ctrl+N / Ctrl+O (Suppr dans la fenêtre Ouvrir : supprimer la carte choisie) |
-| Étage du dessous / du dessus | Page préc. / Page suiv. |
 | Recadrer sur la carte | Origine |
 | Fermer un polygone | double-clic, clic sur le premier point, ou Entrée ; Retour arrière retire le dernier point |
+| Niveau du dessous / du dessus | Page préc. / Page suiv. ; **Maj** + Page préc. / suiv. : la sélection descend / monte au niveau voisin (§ 4) |
+| Pièce empilée suivante sous le curseur | **Alt + clic** (vue Dessus) : de la plus haute à la plus basse, la vue va à son niveau |
 | Disposition des vues | bouton **Disposition** (1 vue, 2 côte à côte, 2 empilées, 3 : 1 + 2, 3 : 2 + 1, 4 vues) ; **Ctrl+Alt+Q** : 4 vues ; **Ctrl+Espace**, ⛶ ou double-clic sur l'en-tête : agrandir la vue active (une seconde fois : retour) ; séparateurs : glisser, double-clic : partage égal |
 | Changer le plan d'une vue | **ViewCube** (face voisine, ◄ ► : façade suivante, maison : vue d'origine, ▾ : menu) ; souris sur la vue : **pavé 7** Dessus, **1** Avant, **3** Droite (Ctrl : la vue opposée), **5** : 3D ; ailleurs le pavé choisit une case de la barre rapide |
-| Déplacer en élévation | glisser l'élément (deux axes de la vue : hauteur de pose ou étage) ; **flèches d'axe** (X rouge, Y vert, Z bleu) : un seul axe ; **X / Y / Z** pendant le glissement : verrouiller ; chiffres ou **Tab** : taper l'écart, **Entrée** ; Échap ou clic droit : annuler |
-| Plafond, hauteur, sol d'un étage | en élévation : **losange** du haut (plafond d'une pièce, hauteur d'une barrière ou d'une zone d'effet), carrés des côtés (largeur sur l'axe de la vue), **étiquette « É1 »** de la règle Z (sol de l'étage) |
+| Déplacer en élévation | glisser l'élément (deux axes de la vue : hauteur de pose ou altitude) ; **flèches d'axe** (X rouge, Y vert, Z bleu) : un seul axe ; **X / Y / Z** pendant le glissement : verrouiller ; chiffres ou **Tab** : taper l'écart, **Entrée** ; Échap ou clic droit : annuler |
+| Plafond, hauteur, altitude d'un niveau | en élévation : **losange** du haut (plafond d'une pièce, hauteur d'une barrière ou d'une zone d'effet), carrés des côtés (largeur sur l'axe de la vue), **étiquette « +3,50 m »** de la règle Z (sol du niveau : glissée, elle déplace tout le niveau) ; glisser une pièce verticalement change son altitude (§ 4) |
 | Coupe d'une élévation | **K** : autour de la sélection (de nouveau K : enlevée) ; puce « Coupe ▾ » de l'en-tête ; poignées des traits pointillés dans la vue Dessus |
 
 Outil **Sélection** (la **Souris**, case fixe à gauche de la barre) : clic sur un élément pour le choisir, glisser
@@ -161,7 +162,7 @@ Plusieurs éléments se choisissent ensemble et s'éditent d'un bloc
   gauche**, ceux qu'il **touche** (cadre vert en tirets). Les éléments qu'il
   prendrait sont entourés pendant le tracé, avec leur nombre. Un simple clic
   dans le vide désélectionne.
-- **Ctrl+A** : tous les éléments de l'étage affiché ; **Échap** : désélectionner ;
+- **Ctrl+A** : tous les éléments du niveau affiché ; **Échap** : désélectionner ;
   un **simple clic sur l'élément déjà choisi seul** (sans glisser, pas un
   double-clic) le désélectionne aussi, dans la vue Dessus, les élévations et
   la 3D.
@@ -169,12 +170,12 @@ Plusieurs éléments se choisissent ensemble et s'éditent d'un bloc
   (Dessus, élévations, 3D, liste des objets), un **cadre en tirets** entoure le
   groupe avec son nombre d'éléments et sa **poignée ronde** de rotation ; le
   panneau Propriétés affiche « N éléments sélectionnés » : ce qu'ils sont,
-  l'étage et la rotation quand ils sont communs, l'encombrement, les éléments
+  l'altitude et la rotation quand elles sont communes, l'encombrement, les éléments
   invalides, les actions de groupe et la liste (un clic : cet élément seul).
 
 **Actions de groupe** : **glisser** un de ses éléments déplace tout le groupe
 (au pas de l'aimantation ; flèches d'axe, X / Y : verrouiller ; dans une
-élévation : sur l'axe de la vue et d'**étage**, ou en hauteur de pose si tout
+élévation : sur l'axe de la vue et en **altitude** (pas de 0,25 m, aimants), ou en hauteur de pose si tout
 le groupe est du décor posé) ; un simple clic sans bouger sur un élément du
 groupe le choisit seul. **Flèches** : d'un pas de grille (0,1 m sans grille).
 **R** ou la poignée ronde : pivoter autour du **centre du groupe** (pas de
@@ -299,7 +300,7 @@ Les mêmes actions sont dans le menu **Édition**.
 
 Onglet déployable à gauche de la vue (`MapObjectList`) : **tous les éléments
 posés** (pièces, ouvertures, objets de jeu, construction, décor, luminaires),
-une ligne chacun avec son icône, son nom, son type, son étage (É0, É1…) et sa
+une ligne chacun avec son icône, son nom, son type, son altitude (« 0 m », « 3,5 m »…) et sa
 position en mètres ; triés par identifiant (ordre naturel : `p2` avant `p10`).
 
 - **Pages de 50** : ◄ ► et « page 2/7 » au bas de la liste.
@@ -310,7 +311,7 @@ position en mètres ; triés par identifiant (ordre naturel : `p2` avant `p10`).
   saute à sa page ; survol d'une ligne : l'élément s'entoure d'un **contour
   lumineux** sur la carte (portée d'un luminaire en cercle), sans déplacer la
   vue. **Clic** sur une ligne : choisir l'élément et centrer la vue (change
-  d'étage au besoin) ; **double-clic** : centrer et zoomer.
+  de niveau au besoin) ; **double-clic** : centrer et zoomer.
 - Fluide avec 2000 éléments : la liste n'est refaite qu'après une
   modification de la carte (et seulement onglet ouvert), les 50 lignes sont
   dessinées par un seul contrôle, le survol ne cherche que parmi les objets
@@ -325,7 +326,8 @@ position en mètres ; triés par identifiant (ordre naturel : `p2` avant `p10`).
 Bouton **APERÇU 3D** (barre du haut) ou touche **P** : un panneau flottant
 au-dessus de la vue 2D montre la carte **telle qu'elle sera en jeu** (mêmes
 murs, sols, plafonds et textures, portes et débris, fenêtres barricadées,
-décor, luminaires, atouts, armes, boîte, courant, étages), construite par le
+décor, luminaires, atouts, armes, boîte, courant, niveaux, ciel de la carte
+au-dessus des pièces sans plafond), construite par le
 **même code que la partie** (`MapLayoutExport`, `MeshMapGeometry`,
 `MeshMapBuilder`, `MapProps.add_lamp`, et les fonctions de construction de
 `Game` pour les objets de jeu), avec l'éclairage du jeu (`WorldLook`,
@@ -377,14 +379,14 @@ décor, luminaires, atouts, armes, boîte, courant, étages), construite par le
     affiché).
   - La vue 2D montre un **repère orange** : position de la caméra, son champ
     de vision et, en orbite, le point visé (estompé si la caméra est à un
-    autre étage).
+    autre niveau).
 - **Sélection** : l'élément choisi (jaune) et celui survolé dans la vue 2D ou
   la liste (bleu) sont surlignés dans l'aperçu, vus à travers les murs ; un
   **clic dans l'aperçu** choisit l'élément touché (rayon sur les collisions
   visibles), un double-clic le choisit et centre la caméra dessus.
 - **Affichage ▾** : courant rétabli ou coupé (luminaires liés au courant),
   éclairage plein (tout voir, sans brume), plafonds masqués (vue de dessus
-  en coupe), étages (tous, jusqu'à l'étage affiché en 2D, ou seulement
+  en coupe), barrières invisibles, niveaux (tous, jusqu'au niveau affiché en 2D, ou seulement
   celui-là), résolution du rendu (100, 75, 50 ou 35 %, en plus de celle de
   la qualité graphique), pause quand l'éditeur n'a pas le focus.
 - **Performances** : aperçu masqué, rien n'est construit ni rendu ; au repos,
@@ -581,7 +583,7 @@ raison à côté du curseur (`MapRules`) :
   parallèles à moins de 3 cm) devient **un seul mur mitoyen**. Par défaut,
   chaque pièce a sa propre zone.
 - **Porte payante, débris, porte ouverte par le courant, passage libre** :
-  seulement sur le **bord commun de deux pièces collées** du même étage (une
+  seulement sur le **bord commun de deux pièces collées** de même altitude (une
   porte ne donne que sur une autre pièce) ; elle relie exactement ces deux
   pièces. Mur droit ou en biais, 0,5 m de mur plein à chaque
   bout et entre deux ouvertures. Prix réglable ; par défaut ceux de BO1 : la
@@ -616,28 +618,34 @@ raison à côté du curseur (`MapRules`) :
 - **Objets au sol, pilier, escalier, zone de piège** : à l'intérieur d'une
   pièce, sans toucher ses murs, sans chevauchement (les lampes, au plafond,
   peuvent surplomber un objet ; un élément tourné compte par son rectangle
-  englobant). L'escalier relie deux étages : départ (pied) sur le sol
-  libre de sa pièce, arrivée sur le plancher libre d'une pièce de l'étage du
-  dessus, rien au-dessus des marches (trémie), ni dans la trémie, ni sur le
-  départ ou l'arrivée d'un autre escalier (docs/MAP_OBJECTS.md § 4,
-  « Plusieurs étages »). Réglage de la carte **Autoriser les chevauchements décor /
+  englobant). L'escalier relie deux niveaux (`altitude` → `altitude_haut`,
+  en sautant au besoin des niveaux) : départ (pied) sur le sol libre de sa
+  pièce, arrivée sur le plancher libre d'une pièce à l'altitude d'arrivée
+  (ou dans le mur commun de deux pièces côte à côte, ou sur le côté avec
+  `sortie`), rien au-dessus des marches (trémie), ni dans la trémie, ni sur
+  le départ ou l'arrivée d'un autre escalier (docs/MAP_OBJECTS.md § 4,
+  « Plusieurs niveaux »). Réglage de la carte **Autoriser les chevauchements décor /
   obstacles** (format 9, onglet Propriétés sans rien de choisi) : le décor
   (caisses, barils, prefabs, luminaires) et les piliers peuvent alors se
   recouvrir entre eux ; les objets de jeu jamais (docs/MAP_OBJECTS.md § 10).
 - **Barrière invisible** (format 9) : polygone de 3 à 64 sommets posé
   **n'importe où** (dehors, à cheval sur un mur, par-dessus un objet) ;
   seuls refus : côtés qui se croisent, côté de moins de 5 cm, moins de
-  0,04 m², hors du terrain. Hauteur : jusqu'au plafond, ou 0,5 à 30 m au
+  0,04 m² (coordonnées libres, négatives comprises). Hauteur : jusqu'au plafond, ou 0,5 m et plus (sans maximum, format 17) au
   dixième de mètre (docs/MAP_OBJECTS.md § 2).
 - **Mur courbe** : 1 m de rayon au moins, ouverture de 5 à 360°, 1 à 64
-  segments, tout l'arc dans le terrain.
+  segments ; pas de rayon maximal (seule la mémoire du validateur borne un
+  très grand arc).
 
 ### Pièce tracée sur une autre (découpe)
 
 Tous les outils de pièce (rectangle, rectangle à 45°, polygone, cercle,
 ellipse, triangle, L) peuvent tracer une pièce **par-dessus** une ou
-plusieurs pièces du même étage : la nouvelle « gratte » leur territoire
-(`MapCarve`, soustraction de polygones `Geometry2D.clip_polygons`).
+plusieurs pièces de même altitude : la nouvelle « gratte » leur territoire
+(`MapCarve`, soustraction de polygones `Geometry2D.clip_polygons`). Les
+pièces des autres niveaux ne sont jamais découpées : une pièce qui en
+recouvre une autre en plan à moins de 3,1 m d'écart d'altitude est refusée
+(§ 4, « Superposition »).
 
 - **Pendant le tracé** : la partie qui sera retirée de chaque pièce est
   **hachurée en orange**, avec son nom et la surface retirée sous le curseur
@@ -666,7 +674,7 @@ Choix faits (le format n'a **pas de trou** : une pièce est un contour simple) :
   **passage libre** (aussi large que possible, 0,5 m de mur à chaque bout) sur
   chaque bord commun : la pièce reste d'un seul tenant pour le validateur.
 - **Ancienne pièce coupée en plusieurs morceaux** (la nouvelle la traverse) :
-  **une pièce par morceau**, mêmes réglages (plafond, double hauteur,
+  **une pièce par morceau**, mêmes réglages (altitude, plafond, plafond masqué,
   textures), noms « Atelier », « Atelier (2) »… ; le plus grand morceau garde
   l'identifiant. Un morceau qui ne touche pas les autres (ou sans place pour
   un passage) reçoit **sa propre zone**, copie de celle de la pièce (nom du
@@ -702,44 +710,195 @@ Choix faits (le format n'a **pas de trou** : une pièce est un contour simple) :
   les outils de tracé découpent).
 - **Claude (MCP)** : `editor_apply` d'une pièce qui en recouvre d'autres est
   refusé avec l'explication, sauf avec `"decouper": true` (la pièce passe
-  alors les mêmes contrôles que le tracé : contour simple, dans le terrain,
+  alors les mêmes contrôles que le tracé : contour simple,
   1,5 m de côté ; sinon tout le lot est refusé) : la découpe est
   faite dans le **même lot** (une annulation) et détaillée dans le résultat
   (`decoupe`).
 
-## 4. Pièces, zones, étages
+## 4. Pièces, zones, niveaux
 
-- **Pièce** (onglet Propriétés) : nom, zone, hauteur de plafond (sinon celle
-  de l'étage), **double hauteur** (ouverte sur l'étage du dessus : à l'étage,
-  son contour reste un mur et son intérieur est un vide ; ses piliers montent
-  jusqu'en haut). Une pièce posée à l'étage au-dessus d'une double hauteur est
-  une **mezzanine** : ses bords au-dessus du vide ont un garde-corps.
+Depuis le format 17, il n'y a **plus d'étages** : chaque pièce a sa propre
+**altitude** (celle de son sol, en m) et un **niveau** n'est que l'ensemble des
+pièces posées à la même altitude (à 5 mm près, `EditorMap.ALT_EQ`). Les
+niveaux sont libres : de toute hauteur et de toute forme, demi-niveaux
+compris, sans nombre maximal, sans pas imposé (l'interface aimante, le fichier
+garde la valeur) ; une altitude peut être négative (sous-sol).
+
+- **Pièce** (onglet Propriétés) : nom, zone, **Altitude du sol** (déplace la
+  pièce et tout son contenu, une étape d'annulation ; refusée avec la raison
+  si elle recouvre une autre pièce de trop près ; une altitude nouvelle crée
+  un niveau), **Hauteur sous plafond** (2,8 m au moins, sans maximum ; une
+  note dit si une pièce posée au-dessus la coupe), case **Afficher le
+  plafond** (décochée : plafond masqué, voir plus bas). La case « Double
+  hauteur » n'existe plus : une **pièce haute** est simplement une pièce au
+  grand plafond.
   **Textures** : sol, murs et plafond, parmi les surfaces du jeu
   (`WorldLook.SURFACES` : plâtre, béton, brique, bois, parquet, carrelage,
   pierre, pavés, moquette…) ou parmi les **textures de la carte** (images
   importées, format 16 : voir plus bas), avec un aperçu ; par défaut, celles
   de la zone. Un **mur mitoyen montre de chaque côté la texture de sa pièce**
-  (le jeu construit les murs par demi-cases de 0,25 m). Sous une pièce de
-  l'étage du dessus, on voit d'en bas le **plafond de la pièce du bas** (sa
-  texture, juste sous la dalle) et, d'en haut, le sol de la pièce du dessus.
+  (le jeu construit les murs par demi-cases de 0,25 m). Sous une pièce posée
+  au-dessus, on voit d'en bas le **plafond de la pièce du bas** (sa texture,
+  juste sous la dalle) et, d'en haut, le sol de la pièce du dessus.
 - **Zone** (onglet Zones) : un groupe de pièces qui s'ouvre d'un coup (ses
   fenêtres s'activent ensemble, comme les zones de BO1). Par défaut une zone
   par pièce. Renommer en français et en anglais (noms affichés en jeu selon la
   langue), textures par défaut du sol, des murs et du plafond, **fusionner** (les pièces d'une zone
   rejoignent une autre), **séparer** (une zone par pièce), **zone de départ**
   (★, ouverte au début). Les pièces d'une même zone doivent être reliées par
-  un passage libre.
-- **Étage** (onglet Étages) : hauteur du sol, hauteur sous plafond ; ajouter un
-  étage au-dessus, supprimer le dernier s'il est vide ; l'étage du dessous
-  s'affiche en transparence (réglable), ses escaliers aussi. Entre deux sols :
-  3,1 m au moins (2,8 m sous plafond + dalle de 0,3 m). **Escalier qui
-  monte** (↑) : tracé sur l'étage du bas, il monte dans le sens du glisser
-  (du pied vers le haut). **Escalier qui descend** (↓) : tracé depuis l'étage
-  du haut, du haut (où l'on est) vers le bas ; il est enregistré comme un
-  escalier de l'étage du dessous qui monte jusqu'ici. Le vide au-dessus des
-  marches est automatique ; son haut doit arriver sur le plancher d'une pièce
-  de l'étage du dessus. Un escalier se voit (« monte à l'étage n » / « descend à l'étage n ») et
-  se choisit depuis ses deux étages.
+  un passage libre ; une zone peut s'étendre sur plusieurs niveaux (achat et
+  textures communs).
+
+### Superposition, pièces hautes et mezzanines
+
+- **Deux pièces qui se recouvrent en plan** sont à **3,1 m au moins** l'une
+  de l'autre en altitude (2,8 m sous plafond + dalle de 0,3 m,
+  `EditorMap.MIN_STACK`) : refus à la pose et au déplacement, erreur du
+  validateur pour un fichier écrit à la main. À la même altitude, la règle
+  d'avant reste : elles se touchent sans se recouvrir (sinon, découpe : § 3).
+- **Plafond réel** d'un endroit : le plus bas de son plafond réglé (altitude +
+  hauteur sous plafond) et du **dessous de la dalle** de la première pièce
+  posée au-dessus. Les trémies d'escalier et le vide d'une pièce haute ne sont
+  pas des dalles.
+- **Pièce haute** : une pièce **traverse** un niveau situé 3,1 m au moins
+  au-dessus de son sol quand son plafond dépasse ce niveau de 2,1 m au moins :
+  à ce niveau, son contour est un mur et son intérieur un vide (hachuré dans
+  la vue Dessus) ; ses piliers et ses murs libres montent jusqu'en haut. Elle
+  peut traverser plusieurs niveaux. Un demi-niveau posé à côté d'elle ne la
+  coupe pas.
+- **Mezzanine** : une pièce d'un niveau traversé, posée au-dessus du vide
+  d'une pièce haute (3,1 m au moins plus haut) ; ses bords au-dessus du vide
+  ont un garde-corps.
+- **Mur mitoyen entre niveaux** : deux pièces côte à côte à des altitudes
+  différentes partagent leur mur ; celui du haut monte au moins jusqu'au haut
+  de celui du bas, et un mur monte jusqu'à la dalle du dessus si elle est à
+  3 m au plus.
+- **Portes, débris, passages** : seulement entre deux pièces de **même
+  altitude** ; une pièce montée ou descendue garde ses portes vers une
+  voisine restée en place, et le validateur les signale (« reliez deux
+  niveaux par un escalier ») : rien n'est supprimé en silence. Une cour de
+  fenêtre qui couperait le volume d'une pièce d'un autre niveau est une
+  erreur.
+- **Élément orphelin** (ouverture ou objet dont l'altitude ne correspond à
+  aucune pièce) : signalé par le validateur.
+
+### Plafond masqué et ciel de la carte
+
+- Décocher **Afficher le plafond** d'une pièce (`sans_plafond`) : ni plafond
+  dessiné ni collision au-dessus d'elle ; ses murs montent jusqu'à son plafond
+  réglé ; pas de lampe automatique sous le ciel ouvert. Sous une pièce posée
+  au-dessus, le dessous de la dalle reste dessiné. Rien n'empêche un joueur
+  de sortir par le haut : c'est au concepteur de **fermer sa carte** (murs
+  assez hauts, barrière invisible).
+- Luminaires, effets et décor **accrochés au plafond** d'une pièce sans
+  plafond : construits au plafond « virtuel » (altitude + hauteur sous
+  plafond), avec un avertissement du validateur (« accroché à un plafond
+  masqué : il flotte à X m »). Les élévations dessinent ce plafond en
+  pointillés.
+- **Ciel de la carte** (`carte.ciel`), vu au-dessus des pièces sans plafond,
+  en jeu et dans l'aperçu 3D : **Sans fond (noir)** (défaut), **Ciel** (jour)
+  ou **Nuit étoilée**, avec une **Luminosité** de 10 à 200 % (100 % par
+  défaut). Il n'éclaire pas les pièces. Réglé dans les propriétés de la carte
+  (rien de sélectionné, onglet Propriétés) ou dans l'onglet Niveaux.
+
+### Coordonnées négatives, aucune limite
+
+- On construit **où l'on veut** : x, y négatifs compris, sans étendue
+  maximale, sans plafond ni hauteur maximale (décor, appliques, barrières,
+  effets : seule une garde technique de 10 km, `MapVertical.TECH_Z`). La
+  seule borne d'une carte est **technique** : la mémoire que demanderait la
+  grille du validateur (cases × niveaux), refus propre et expliqué au-delà
+  (§ 6, « Cartes perso en multijoueur »).
+- Le validateur construit sa grille sur une copie décalée d'un multiple de
+  0,5 m (`MapValidator.shift`) : mêmes cases, mêmes messages et même export
+  qu'à la position d'origine ; une carte entièrement en positif n'est pas
+  décalée. Les règles graduées, les textes de position et la liste des objets
+  donnent les vraies coordonnées (négatives comprises).
+
+### Interface des niveaux
+
+- **Barre des niveaux** (barre du haut) : « ◄ Niveau 3,5 m (2/3) ▾ ► ».
+  ◄ ► : niveau voisin ; le libellé est un **menu** de tous les niveaux, du
+  plus haut au plus bas, avec leur nombre de pièces, et « **Autre
+  altitude…** » (boîte d'altitude : un niveau vide est créé au besoin ; il
+  n'est pas enregistré tant qu'il est vide). La vue Dessus édite le niveau
+  affiché.
+- **Raccourcis** : **Page préc. / Page suiv.** : niveau du dessous / du
+  dessus ; **Maj + Page préc. / suiv.** (ou clic droit > « Descendre / Monter
+  d'un niveau ») : la sélection va au niveau voisin (sans voisin : 3,5 m plus
+  loin), une étape d'annulation, et la vue la suit ; **Alt + clic** (vue
+  Dessus) : pièce empilée suivante sous le curseur, de la plus haute à la
+  plus basse, et la vue va à son niveau. Dans une élévation, un clic sur une
+  pièce va aussi à son niveau.
+- **Plan** : **fantôme** du niveau du dessous en transparence (ses sommets
+  aimantent même sans grille), vides des pièces hautes **hachurés** (sauf
+  sous une mezzanine), option **pièces du dessus en pointillés**.
+- **Onglet Niveaux** : liste du plus haut au plus bas (altitude, pièces,
+  zones ; clic : choisir, double-clic ou **Voir ce niveau** : l'afficher) ;
+  **Altitude du sol** du niveau et **Déplacer de … m** (tout ce qui y est
+  posé suit, et l'arrivée des escaliers qui y montent) ; **Dupliquer
+  au-dessus** (écart : plus haut plafond du niveau + dalle, 3,1 m au moins ;
+  escaliers non copiés) ; **Nouveau niveau vide à … m** ; **Supprimer le
+  niveau…** (confirmation ; emporte ce qui y est posé et les escaliers qui y
+  arrivent ; Ctrl+Z le rétablit) ; cases du fantôme et des pointillés ; ciel
+  de la carte.
+- **Glissement vertical** (élévations) : une pièce (ou un groupe qui en
+  contient une) se glisse librement vers le haut ou le bas, au pas de 0,25 m
+  sur l'écart, avec des **aimants** (sols des autres niveaux, juste au-dessus
+  ou au-dessous des pièces recouvertes) ; l'**étiquette « +3,50 m »** d'un
+  niveau sur la règle Z déplace tout le niveau. Un déplacement refusé est
+  nommé ; la dernière place correcte est gardée.
+- **Escaliers quand une pièce bouge verticalement** : un escalier rattaché à
+  la pièce par son **pied** n'emporte que son pied (`altitude` suit) ; un
+  escalier qui **arrive** dans la pièce (une case d'arrivée dans son contour)
+  n'a que son arrivée qui suit (`altitude_haut`) ; les deux pièces déplacées
+  ensemble : tout l'escalier suit. L'escalier est revérifié (son côté de
+  sortie ne change jamais tout seul) ; une arrivée qui ne serait plus
+  au-dessus du pied, ou plus sur une pièce, fait refuser le déplacement.
+- **Escaliers** : **qui monte** (↑) : tracé sur le niveau du pied, il monte
+  dans le sens du glisser (du pied vers le haut) jusqu'au premier niveau
+  au-dessus dont une pièce contient l'arrivée. **Qui descend** (↓) : tracé
+  depuis le niveau du haut, du haut (où l'on est) vers le bas ; il est
+  enregistré avec son pied au premier niveau plus bas dont une pièce le
+  contient et son arrivée (`altitude_haut`) ici. Le vide au-dessus des
+  marches (trémie) est automatique sur chaque niveau traversé ; un escalier
+  peut **sauter des niveaux**. Propriétés **Arrivée : altitude** (niveaux
+  nommés comme dans le menu) et **Sortie en haut** : en face, à gauche, à
+  droite. Si le haut des marches touche un mur, la pose choisit une sortie
+  sur le côté (droite, puis gauche) et le dit (« Arrivée sur le côté
+  droit… ») ; docs/MAP_OBJECTS.md § 4. Un escalier se voit (« monte à
+  3,5 m » / « descend à 0 m ») et se choisit depuis ses deux niveaux.
+
+### Anciennes cartes (format 16 et avant)
+
+Une carte à étages est **convertie au chargement** (`EditorMap.migrate_levels`,
+en dernier dans `_migrate` ; une carte reçue est d'abord contrôlée avec le
+schéma figé de son format, puis convertie) :
+
+- sol de l'étage k = `etages[k].sol` (absent : k × 3,5 m) ; chaque pièce,
+  ouverture et objet reçoit `altitude` = sol de son étage (sans `etage` :
+  étage 0) ; un escalier reçoit `altitude_haut` = sol de l'étage du dessus
+  (au dernier étage : pied + 3,5 m, l'erreur reste signalée) ;
+- la hauteur sous plafond de l'étage est écrite sur chaque pièce qui n'avait
+  pas la sienne (seulement si elle diffère de 3,2 m) ;
+- **double hauteur** → plafond jusqu'en haut de l'étage du dessus (sol +
+  hauteur de l'étage k+1 − sol de l'étage k) ; au dernier étage, la clé est
+  simplement retirée ;
+- une pièce **entièrement** recouverte par des pièces de l'étage du dessus
+  voit son plafond porté au moins jusque sous leur dalle (avant, son plafond
+  était cette dalle) ;
+- `carte.etages`, `etage` et `double_hauteur` disparaissent.
+
+**Différences** : l'export en jeu de toutes les cartes de référence (DRAFT
+ARENA, cartes des tests) est **identique** à celui du code du format 16
+(`tests/test_levels_reference.gd`, références
+`tests/fixtures/levels/*_layout_f16.json`, aucune différence admise). Ce qui
+change : le fichier (clés ci-dessus, enregistré au format 17) ; le validateur
+contrôle les pièces empilées par paires (plus d'« étages trop rapprochés ») ;
+un ancien indice d'étage n'a plus de sens (il changerait dès qu'une pièce est
+posée plus bas : l'outil MCP refuse `floor`, docs/MCP.md § 3.1) ; plus de
+maximum de 8 étages ni de plafond de 9 m. DRAFT ARENA est livrée au format
+17 ; l'originale est gardée dans `tests/fixtures/maps/legacy_draft_arena/`.
 
 ### Textures de la carte (format 16)
 
@@ -869,11 +1028,16 @@ Erreurs (la carte est refusée) :
   piège sans levier ;
 - passage de 0,5 m (trop étroit pour les zombies et les joueurs) ;
 - escalier dont le départ ou l'arrivée tombe dans un mur, le vide, une
-  trémie ou un autre escalier (le message dit quoi, où, et à quel étage ;
+  trémie ou un autre escalier (le message dit quoi, où, et à quel niveau ;
   les cases en cause sont montrées), sens ambigu (fichier sans « monte »),
   trop étroit (1,5 m), trop raide (40°), trémie occupée (escalier, pilier,
-  décor au-dessus des marches) ; vide d'étage ouvert sur le vide ;
-- étages trop rapprochés, plafond trop bas.
+  décor au-dessus des marches), plancher d'un niveau traversé au-dessus des
+  marches, moins de 2,1 m de passage au-dessus des marches, de l'arrivée ou
+  du palier ; vide de trémie ouvert sur le vide ;
+- pièces empilées à moins de 3,1 m l'une de l'autre, plafond trop bas ; porte,
+  débris ou passage entre deux altitudes ; cour de fenêtre qui coupe le volume
+  d'une pièce d'un autre niveau ; élément orphelin (aucune pièce à son
+  altitude). Avertissement : élément accroché à un plafond masqué (il flotte).
 
 Avertissements et indicateurs d'amusement (BO1, jamais bloquants) : boucles
 entre zones et coût pour les ouvrir, blocs autour desquels on tourne
@@ -1060,12 +1224,12 @@ multijoueur ».
   | Archive .zip | sans prefab 2 Mo ; avec des prefabs, structure .zip seulement (4 Go, 65 535 entrées, pas de ZIP64) ; tailles décompressées lues avant d'extraire, bombe zip refusée |
   | Prefabs de la carte (format 10) | **aucun quota** (nombre de prefabs et de modèles, taille, triangles) ; sûreté : structure .glb, aucune adresse externe, extensions admises, images PNG / JPEG de 16384 px au plus (`docs/MAP_OBJECTS.md` § 11) |
   | Profondeur JSON | 6 (lue avant l'analyse) |
-  | Pièces / ouvertures / objets / zones / étages | 256 / 512 / 2048 / 64 / 8 |
+  | Pièces / ouvertures / objets / zones | 256 / 512 / 2048 / 64 ; niveaux : aucun maximum (format 16 et avant : 8 étages, schéma figé) |
   | Sommets | 128 par pièce (un cercle de 64 points et de la marge), 4096 en tout |
-  | Coordonnées | nombres finis, 0 à 256 m ; surface des pièces (rectangles englobants) 100 000 m² au plus |
-  | Formes (format 4) | forme d'une pièce : type connu, centre dans le terrain, rayons 0,1 à 128 m, 3 à 64 points (entier), angle 0 à 360, branches 0,2 à 0,8, aucune autre clé ; mur courbe : rayon 1 à 128 m, ouverture 5 à 360°, 1 à 64 segments, arc dans le terrain ; rotation `rot` : entier de 0 à 359 |
-  | Étages | sol -20 à 200 m, hauteur 2 à 30 m ; plafond d'une pièce 2,8 à 9 m ; portes 1,5 à 10 m |
-  | Hauteurs de pose (format 12) | `z` d'un décor 0 à 30 m, `descente` 0 à 3 m, `hauteur` d'un luminaire 0 à 30 m |
+  | Coordonnées | format 17 : nombres finis, **négatifs compris, sans étendue maximale** ; seule garde, technique : la mémoire de la grille du validateur (cases × niveaux, 1 Gio au plus, `CustomMapGuard.grid_bytes`), refus expliqué au-delà ; somme des rectangles englobants des pièces bornée par la même garde (≈ 2,8 millions de m²) |
+  | Formes (format 4) | forme d'une pièce : type connu, centre (nombres finis), rayons 0,1 m à 10 km (garde technique), 3 à 64 points (entier), angle 0 à 360, branches 0,2 à 0,8, aucune autre clé ; mur courbe : rayon 1 m à 10 km, ouverture 5 à 360°, 1 à 64 segments ; rotation `rot` : entier de 0 à 359 |
+  | Niveaux (format 17) | `altitude` et `altitude_haut` : nombres finis, sans borne ; plafond d'une pièce 2,8 m au moins, sans maximum ; portes 1,5 à 10 m. Format 16 et avant (schéma figé) : sol d'étage −20 à 200 m, hauteur 2 à 30 m, plafond d'une pièce 2,8 à 9 m |
+  | Hauteurs de pose (format 12) | `z` d'un décor, `hauteur` d'un luminaire, d'un effet ou d'une barrière : 0 à 10 km (garde technique `MapVertical.TECH_Z`, plus de maximum de 30 m depuis le format 17) ; `descente` 0 à 3 m |
   | Prix | entiers, 0 à 100 000 |
   | Textes | identifiants 32 caractères (lettres, chiffres, `_`, `-`) ; identifiant de carte en minuscules, chiffres et `_` ; noms 64 caractères ; descriptions 600 |
 
@@ -1083,7 +1247,7 @@ multijoueur ».
   `MapCatalog.zone_keys()` et `MapCatalog.allowed_surfaces()` (préfabriqués,
   luminaires, textures par pièce, plafond de zone) ; sinon le schéma est
   déduit des objets du catalogue. Les limites dures ci-dessus s'appliquent en
-  plus (elles sont plus strictes que celles de l'éditeur : 256 m et 8 étages). **Noms** : pas de
+  plus. **Noms** : pas de
   caractère de contrôle ni de contrôle bidirectionnel, pas de `[` `]` (BBCode),
   `<` `>`, `{` `}`, `\` ni `..` ; affichés dans des `Label` (jamais
   interprétés), nettoyés une seconde fois à l'affichage. Enfin la carte doit
@@ -1108,101 +1272,116 @@ Conception complète et écarts de la réalisation : `docs/EDITOR_VIEWS.md`.
   sud, regard vers le nord), Arrière, Gauche, Droite, et Dessous ; **3D**
   (l'aperçu en direct, intégré dans une fenêtre : une seule 3D, le panneau
   flottant revient quand aucune fenêtre n'est en 3D).
-- **Élévation** : tous les étages empilés, chaque élément à sa vraie
-  hauteur (plafond réel sous la dalle du dessus, double hauteur, portes de
+- **Élévation** : tous les niveaux empilés, chaque élément à sa vraie
+  hauteur (plafond réel sous la dalle du dessus, pièces hautes, plafond masqué
+  en pointillés, portes de
   `hauteur_portes`, fenêtres de l'allège au linteau, escaliers d'un sol à
   l'autre, objets muraux, décor d'après sa hauteur, luminaires et effets à
   leur hauteur avec un trait jusqu'à leur accroche), dessinés du plus
   lointain au plus proche, les lointains estompés ; lignes de niveau (sols
-  pleins, plafonds en tirets) et étiquettes « É0 0,00 », « É1 +3,50 »
-  (étage courant en or) ; « étages : » de l'en-tête : tous, jusqu'à l'étage
-  courant, l'étage courant ; **coupe** (tranche de profondeur, le reste à
+  pleins, plafonds en tirets) et étiquettes « 0,00 m », « +3,50 m »
+  (niveau affiché en or ; glisser une étiquette déplace le niveau) ;
+  « niveaux : » de l'en-tête : tous, jusqu'au niveau
+  affiché, seulement celui-là ; **coupe** (tranche de profondeur, le reste à
   15 % et sans clic). Un clic choisit (sélection commune à toutes les
-  vues) ; la **pose reste en vue Dessus**.
+  vues ; sur une pièce, la vue Dessus va à son niveau) ; la **pose reste en
+  vue Dessus**.
 - **Édition verticale** (en élévation) : un glissement déplace sur les deux
   axes de la vue. Hauteur de pose continue pour les effets, luminaires et
   décors (aimants nommés en grille fine et en libre : sols, plafonds,
   dessous de dalle, haut des portes, allège, linteau, dessus du décor sous
-  l'élément ; changer d'étage en passant un sol ou un plafond) ; étage
-  aimanté sur les sols pour les pièces (avec leur contenu), escaliers,
+  l'élément ; changer de niveau en passant un sol ou un plafond) ; altitude
+  libre pour les pièces (pas de 0,25 m sur l'écart, aimants : sols des autres
+  niveaux, au-dessus ou au-dessous des pièces recouvertes ; § 4), niveau
+  aimanté sur les sols pour les escaliers,
   piliers, murs, pièges, objets de jeu ; les ouvertures suivent leur mur.
   Cotes en direct (hauteur au-dessus du sol, écart en or, distance au mur),
   position d'avant en pointillés ; une action = un Ctrl+Z.
 - **Panneau Propriétés** : ligne **Position** X, Y, Z (Z : hauteur de pose en
-  m au-dessus du sol, sinon la liste des étages) ; un champ validé = une
+  m au-dessus du sol, sinon la liste des niveaux ; Z d'une pièce : son
+  altitude) ; un champ validé = une
   annulation.
 - **Vues liées** (menu Disposition, cochée par défaut) : zoom commun, centre
   commun sur l'axe partagé (X entre Dessus et Avant, Y entre Dessus et
   Droite, Z entre Avant et Droite). **Coupe partagée** entre les élévations
   de même direction (option).
 - **Mémorisé** dans `_editeur.cfg` (clé `vues`) : disposition, plan et plan
-  d'origine de chaque fenêtre, proportions, liaison, coupes, étages montrés
+  d'origine de chaque fenêtre, proportions, liaison, coupes, niveaux montrés
   (pas le zoom ni le centre : chaque vue se recadre à l'ouverture).
 
 **`carte.json`** — la carte :
 
 ```json
 {
- "format": 4,
+ "format": 17,
  "id": "draft_arena",
  "nom": {"fr":"DRAFT ARENA","en":"DRAFT ARENA"},
  "description": {"fr":"…","en":"…"},
  "musique": "ambience_bunker",
  "hauteur_portes": 2.5,
  "lampes_auto": true,
- "etages": [
-  {"sol":0,"hauteur":3.2},
-  {"sol":3.5,"hauteur":3.3}
- ]
+ "ciel": {"type":"nuit","luminosite":0.6}
 }
 ```
 
-`format` : version du format (**4** ; `EditorMap.FORMAT`). Historique : 1 =
+`format` : version du format (**17** ; `EditorMap.FORMAT`). Historique : 1 =
 premières cartes ; 2 = décor (`prefab`), luminaires (`luminaire`), textures
 par pièce et plafond des zones ; 3 = murs en biais (clé `angle` des objets
 muraux posés contre un mur en biais) ; 4 = formes libres (coordonnées sans
 grille, clé `forme` des pièces, type `mur_courbe`, rotation `rot` au degré
 près du décor, des luminaires, des piliers, escaliers et pièges). Une carte
 au **format 1, 2 ou 3 se lit telle quelle** (toutes les nouvelles clés sont
-facultatives, `EditorMap._migrate`) et s'enregistre au format 4 ; DRAFT
-ARENA est restée au format 1 pour le prouver (sa description en maillage est
-identique octet pour octet, vérifié par son empreinte SHA-256).
+facultatives, `EditorMap._migrate`) et s'enregistre au format courant.
 Formats 5 à 11 (variantes, barrière invisible, escaliers, décor libre, portes
 à zombies, barrière en polygone et chevauchements, effets, effets purs et
 zones) : docs/MAP_OBJECTS.md ;
 format 12 : hauteurs de pose (`z` du décor posé au sol,
 `hauteur` d'un luminaire au sol, `descente` de ce qui est accroché au
 plafond ; docs/MAP_OBJECTS.md § 13 ; aucune conversion) ; 13 : volume des
-effets (§ 12) ; 14 : échelle et inclinaison du décor (§ 14) ; le format
-courant est **15** (boîte mystère posée au sol : `boite` sans `mur`, avec
-`rot`, docs/MAP_OBJECTS.md § 15 ; une boîte sans `mur` d'une carte plus
-ancienne reçoit `mur` : `n`, comme le jeu la posait). Une carte d'un
+effets (§ 12) ; 14 : échelle et inclinaison du décor (§ 14) ; 15 : boîte
+mystère posée au sol (`boite` sans `mur`, avec `rot`, docs/MAP_OBJECTS.md
+§ 15 ; une boîte sans `mur` d'une carte plus ancienne reçoit `mur` : `n`,
+comme le jeu la posait) ; 16 : textures de la carte (§ 4) ; le format
+courant est **17** : **niveaux libres** (§ 4) : `altitude` de chaque pièce,
+ouverture et objet, `altitude_haut` et `sortie` des escaliers,
+`sans_plafond` des pièces, `ciel` de la carte, coordonnées négatives ;
+`etages`, `etage` et `double_hauteur` disparaissent (une carte plus ancienne
+est convertie au chargement, § 4, « Anciennes cartes »). Une carte d'un
 format plus ancien avec des effets est **convertie au chargement** (effet pur
 + décor équivalent au même endroit, docs/MAP_OBJECTS.md § 12) et réécrite au
 format courant à l'enregistrement.
 Une carte d'un format plus récent que le jeu est signalée. `id` : dossier ; `musique` : un son
 `assets/audio/ambience_*` ; `hauteur_portes` (m) ; `lampes_auto` : une lampe
-tous les 6 m dans chaque zone ; `etages` : du bas vers le haut, `sol` (m) et
-`hauteur` sous plafond (m) des pièces sans rien au-dessus ; format 9 :
+tous les 6 m dans chaque zone (jamais sous un ciel ouvert) ; format 9 :
 `chevauchement_decor` (facultatif, vrai : le décor et les piliers peuvent se
-chevaucher entre eux, docs/MAP_OBJECTS.md § 10).
+chevaucher entre eux, docs/MAP_OBJECTS.md § 10) ; format 17 : `ciel`
+(facultatif, jamais écrit à sa valeur par défaut) = `{"type": "noir" |
+"jour" | "nuit", "luminosite": facteur de 0,1 à 2}` (absent : noir ;
+luminosité absente : 1), vu au-dessus des pièces sans plafond. Il n'y a
+plus de liste `etages` : les niveaux sont les altitudes des pièces.
 
 **`pieces.json`** — les pièces :
 
 ```json
 {
  "pieces": [
-  {"id":"p3","nom":"Entrepôt","etage":0,"zone":"z3","contour":[[2.5,4.5],[17,4.5],[17,17],[2.5,17]],"double_hauteur":true},
-  {"id":"p5","nom":"Passerelle","etage":1,"zone":"z5","contour":[[2.5,4.5],[7.5,4.5],[7.5,9.5],[2.5,9.5]],"surface_murs":"brick","surface_sol":"parquet","surface_plafond":"wood"}
+  {"id":"p3","nom":"Entrepôt","zone":"z3","contour":[[2.5,4.5],[17,4.5],[17,17],[2.5,17]],"altitude":0,"plafond":6.8},
+  {"id":"p5","nom":"Passerelle","zone":"z5","contour":[[2.5,4.5],[7.5,4.5],[7.5,9.5],[2.5,9.5]],"altitude":3.5,"plafond":3.3,"surface_murs":"brick","surface_sol":"parquet","surface_plafond":"wood"},
+  {"id":"p8","nom":"Cour","zone":"z8","contour":[[-12,4.5],[2.5,4.5],[2.5,17],[-12,17]],"altitude":-1.5,"plafond":5,"sans_plafond":true}
  ]
 }
 ```
 
-`contour` : les sommets (au moins 3) du trait des murs ; `zone` : un `id` de
-`zones.json` ; facultatifs : `plafond` (hauteur sous plafond, m, de 2,8 à 9 :
-les mêmes bornes dans le panneau, le contrôle des cartes reçues et le
-validateur),
-`double_hauteur` (true), et (format 2) les **textures** `surface_sol`,
+`contour` : les sommets (au moins 3) du trait des murs (nombres finis,
+négatifs compris) ; `zone` : un `id` de `zones.json` ; `altitude` (format
+17) : altitude absolue du sol de la pièce (m, nombre fini, sans borne ni pas
+imposé ; absente : 0) : les pièces de même altitude (à 5 mm près) forment un
+niveau ; facultatifs : `plafond` (hauteur sous plafond, m, 2,8 au moins, sans
+maximum ; absent : 3,2 ; les mêmes bornes dans le panneau, le contrôle des
+cartes reçues et le validateur ; une pièce dont le plafond dépasse un niveau
+du dessus le traverse : pièce haute, § 4), `sans_plafond` (true, jamais
+écrit à faux : plafond masqué, ciel de la carte au-dessus), et (format 2)
+les **textures** `surface_sol`,
 `surface_murs`, `surface_plafond` : clés de `WorldLook.SURFACES` ; absentes,
 celles de la zone. Une pièce rectangle a 4 sommets alignés sur les axes ; un
 côté en biais est simplement un côté dont les deux sommets ne sont ni sur la
@@ -1214,7 +1393,7 @@ Format 4 : `forme` (facultative) = la forme de base d'origine, pour la
 régénérer ; le `contour` fait foi (il est écrit à côté) :
 
 ```json
-{"id":"p1","nom":"Salle ronde","etage":0,"zone":"z1","contour":[[16,28.937],…],"forme":{"type":"cercle","centre":[16,16],"rx":13,"points":32,"angle":0}}
+{"id":"p1","nom":"Salle ronde","altitude":0,"zone":"z1","contour":[[16,28.937],…],"forme":{"type":"cercle","centre":[16,16],"rx":13,"points":32,"angle":0}}
 ```
 
 `type` : `cercle` (polygone régulier, `rx` = rayon, `points` 3 à 64),
@@ -1228,10 +1407,10 @@ régénérer ; le `contour` fait foi (il est écrit à côté) :
 ```json
 {
  "ouvertures": [
-  {"id":"o1","type":"porte","etage":0,"position":[17,26.75],"largeur":2,"prix":750},
-  {"id":"o3","type":"debris","etage":0,"position":[5.75,21.5],"largeur":2,"prix":1250},
-  {"id":"o4","type":"passage","etage":0,"position":[11.75,17],"largeur":4},
-  {"id":"o5","type":"fenetre","etage":0,"position":[11.25,4.5]}
+  {"id":"o1","type":"porte","altitude":0,"position":[17,26.75],"largeur":2,"prix":750},
+  {"id":"o3","type":"debris","altitude":0,"position":[5.75,21.5],"largeur":2,"prix":1250},
+  {"id":"o4","type":"passage","altitude":0,"position":[11.75,17],"largeur":4},
+  {"id":"o5","type":"fenetre","altitude":0,"position":[11.25,4.5]}
  ]
 }
 ```
@@ -1242,50 +1421,62 @@ l'ouverture, **sur le trait du mur** ; `largeur` (m, multiple de 0,5 ; pour
 un nombre pair de demi-mètres, le milieu tombe à 0,25 m de la grille). Sur un
 mur en biais, `position` est aussi sur le trait et `largeur` se mesure le
 long du mur ; son orientation se lit sur le côté de pièce qui passe par là.
+`altitude` (format 17, absente : 0) : sol du niveau où l'ouverture est posée,
+celui des deux pièces qu'elle relie (une ouverture entre deux altitudes est
+une erreur).
 
 **`objets.json`** — tout le reste :
 
 ```json
 {
  "objets": [
-  {"id":"x1","type":"pilier","etage":0,"rect":[9,9.5,11.5,12]},
-  {"id":"x2","type":"escalier","etage":0,"rect":[2.5,9.5,5,16],"monte":"n"},
-  {"id":"m1","type":"mur","etage":0,"a":[4,4],"b":[4,9],"epaisseur":0.5},
-  {"id":"s1","type":"depart","etage":0,"position":[12,26]},
-  {"id":"a2","type":"atout","atout":"titan","etage":0,"position":[17,14],"mur":"e"},
-  {"id":"w1","type":"arme","arme":"m14","etage":0,"position":[13.25,33],"mur":"s"},
-  {"id":"w2","type":"arme","arme":"mp5k","etage":0,"position":[16,4],"mur":"n","angle":45},
-  {"id":"b2","type":"boite","etage":0,"position":[20.5,29.25],"mur":"e","depart":true},
-  {"id":"t1","type":"piege","etage":0,"rect":[5,5,7,9]},
-  {"id":"c1","type":"courant","etage":1,"position":[2.5,7.5],"mur":"o"},
-  {"id":"d1","type":"prefab","prefab":"sacs_sable","etage":0,"position":[10.25,3.25],"rot":90},
-  {"id":"lu1","type":"luminaire","luminaire":"suspension","etage":0,"position":[7.5,5.5],"rot":0,"couleur":"#ffc88a","intensite":2.2,"portee":10,"courant":true,"vacille":false},
-  {"id":"lu2","type":"luminaire","luminaire":"applique","etage":0,"position":[0,5],"mur":"o","couleur":"#40a0ff","intensite":1.4,"portee":7,"courant":true,"vacille":false}
+  {"id":"x1","type":"pilier","altitude":0,"rect":[9,9.5,11.5,12]},
+  {"id":"x2","type":"escalier","altitude":0,"altitude_haut":3.5,"rect":[2.5,9.5,5,16],"monte":"n"},
+  {"id":"m1","type":"mur","altitude":0,"a":[4,4],"b":[4,9],"epaisseur":0.5},
+  {"id":"s1","type":"depart","altitude":0,"position":[12,26]},
+  {"id":"a2","type":"atout","atout":"titan","altitude":0,"position":[17,14],"mur":"e"},
+  {"id":"w1","type":"arme","arme":"m14","altitude":0,"position":[13.25,33],"mur":"s"},
+  {"id":"w2","type":"arme","arme":"mp5k","altitude":0,"position":[16,4],"mur":"n","angle":45},
+  {"id":"b2","type":"boite","altitude":0,"position":[20.5,29.25],"mur":"e","depart":true},
+  {"id":"t1","type":"piege","altitude":0,"rect":[5,5,7,9]},
+  {"id":"c1","type":"courant","altitude":3.5,"position":[2.5,7.5],"mur":"o"},
+  {"id":"d1","type":"prefab","prefab":"sacs_sable","altitude":0,"position":[10.25,3.25],"rot":90},
+  {"id":"lu1","type":"luminaire","luminaire":"suspension","altitude":0,"position":[7.5,5.5],"rot":0,"couleur":"#ffc88a","intensite":2.2,"portee":10,"courant":true,"vacille":false},
+  {"id":"lu2","type":"luminaire","luminaire":"applique","altitude":0,"position":[0,5],"mur":"o","couleur":"#40a0ff","intensite":1.4,"portee":7,"courant":true,"vacille":false}
  ]
 }
 ```
 
+- `altitude` (format 17, tous les objets ; absente : 0) : sol du niveau où
+  l'objet est posé (celui de sa pièce) ; ses hauteurs de pose (`z`,
+  `hauteur`, `descente`, format 12) restent relatives à ce sol. Escalier :
+  `altitude` = sol du pied, `altitude_haut` = sol d'arrivée (absolu ;
+  écrit par l'éditeur ; un fichier écrit à la main sans lui arrive au
+  premier niveau au-dessus dont une pièce contient le haut des marches,
+  sinon 3,5 m plus haut), `sortie`
+  facultative (`gauche` / `droite` vu en montant ; absente : en face),
+  docs/MAP_OBJECTS.md § 4.
 - Rectangles (`pilier`, `escalier`, `piege`) : `rect` = [x0, y0, x1, y1]. Un
   pilier a son contour sur le trait (comme un mur de pièce) ; les marches et la
   zone de piège sont les cases à l'intérieur. `monte` : `n`, `e`, `s`, `o`.
   Format 4 : `rot` (facultatif) = rotation du rectangle autour de son centre,
   entier de 0 à 359, sens horaire vu de dessus (`monte` se lit avant la
-  rotation) : `{"id":"x1","type":"pilier","etage":0,"rect":[9,17,11,19],"rot":30}`.
+  rotation) : `{"id":"x1","type":"pilier","altitude":0,"rect":[9,17,11,19],"rot":30}`.
 - `bloc_invisible` (barrière invisible, format 9) : polygone `sommets`
   [[x, y], ...] (3 à 64 points, posé n'importe où), `hauteur` facultative
   (absente : jusqu'au plafond) :
-  `{"id":"i1","type":"bloc_invisible","etage":0,"sommets":[[2,2],[6,2],[6,3],[3,3],[3,6],[2,6]],"hauteur":1.2}`
+  `{"id":"i1","type":"bloc_invisible","altitude":0,"sommets":[[2,2],[6,2],[6,3],[3,3],[3,6],[2,6]],"hauteur":1.2}`
   (cartes d'avant : `rect` + `rot`, lus comme un polygone ; docs/MAP_OBJECTS.md § 2).
 - `effet` (format 10 ; format 11 : `zone`) : `effet` (identifiant de `MapCatalog.EFFECTS`), `position`, et facultatifs `rot` (effets au sol et au plafond), `mur` / `angle` (effets muraux), `intensite`, `zone` (m : `[largeur, profondeur]` au sol et au plafond, `[largeur, profondeur, hauteur]` pour un volume — brouillard, poussière, feux follets —, `[largeur, hauteur]` au mur ; bornes propres à chaque effet ; absente : zone par défaut), `hauteur`, `couleur` ; aucun objet, aucune collision ; `taille` (avant le format 11) est encore lue, comme la zone par défaut × taille :
-  `{"id":"fx1","type":"effet","etage":0,"effet":"brouillard","position":[8,6],"rot":30,"zone":[10,6,0.8],"intensite":1.5}` (docs/MAP_OBJECTS.md § 12).
+  `{"id":"fx1","type":"effet","altitude":0,"effet":"brouillard","position":[8,6],"rot":30,"zone":[10,6,0.8],"intensite":1.5}` (docs/MAP_OBJECTS.md § 12).
 - `prefab` mural (format 11 : torche murale, tuyau à vapeur, boîtier électrique, tuyau qui fuit) : `position` sur le trait du mur, `mur` / `angle` et `hauteur` facultative (m au-dessus du sol, comme une applique), sans `rot` :
-  `{"id":"d4","type":"prefab","prefab":"torche_murale","etage":0,"position":[2,0],"mur":"n","hauteur":2.1}`.
+  `{"id":"d4","type":"prefab","prefab":"torche_murale","altitude":0,"position":[2,0],"mur":"n","hauteur":2.1}`.
 - `mur` libre : segment `a` → `b` (droit ou en biais), `epaisseur` 0,5, 1,5 ou 2,5 m.
 - `mur_courbe` (format 4) : arc de cercle en segments droits, `centre`,
-  `rayon` (1 à 128 m), `debut` (direction du premier bout, degrés dans le sens
+  `rayon` (1 m au moins, sans maximum de conception), `debut` (direction du premier bout, degrés dans le sens
   horaire depuis le nord), `ouverture` (5 à 360°, dans le sens horaire),
   `segments` (1 à 64), `epaisseur` :
-  `{"id":"m1","type":"mur_courbe","etage":0,"centre":[16,16],"rayon":7,"debut":290,"ouverture":100,"segments":8,"epaisseur":0.5}`.
+  `{"id":"m1","type":"mur_courbe","altitude":0,"centre":[16,16],"rayon":7,"debut":290,"ouverture":100,"segments":8,"epaisseur":0.5}`.
 - Objets muraux (`atout` + `atout`, `arme` + `arme`, `grenades`, `boite` +
   `depart`, `pap`, `courant`, `poste_central`, `levier`) : `position` = milieu
   de l'objet **sur le trait du mur**, `mur` = direction du mur vu depuis
@@ -1302,7 +1493,7 @@ long du mur ; son orientation se lit sur le côté de pièce qui passe par là.
   à 359 (sens horaire vu de dessus ; à 0, l'avant, où s'ouvre le couvercle,
   est au sud), **sans** `mur` ni `angle` (c'est l'absence de `mur` qui la met
   au sol) ; contre un mur : comme les objets muraux ci-dessus, sans `rot` :
-  `{"id":"b4","type":"boite","etage":0,"position":[7,28],"rot":45,"depart":false}`
+  `{"id":"b4","type":"boite","altitude":0,"position":[7,28],"rot":45,"depart":false}`
   (docs/MAP_OBJECTS.md § 15).
 - `prefab` (format 2) : `prefab` = une clé de `MapCatalog.PREFABS`
   (`gravats`, `gros_gravats`, `eboulis`, `debris_epars`, `planches`, `poutre`,
@@ -1371,7 +1562,7 @@ celui du jeu aussi.
 | `scripts/editor/map_catalog.gd`, `map_icons.gd` | Inventaire tiré des bases du jeu, décor (`PREFABS`), luminaires (`LIGHTS`), types admis (`allowed_kinds`…), icônes et aperçus des textures. |
 | `scripts/editor/map_object_list.gd` | `MapObjectList` : l'onglet « Objets sur la carte » (pages de 50, filtres, survol). |
 | `scripts/game/map/editor_prefabs.gd` | `EditorPrefabs` : décor et luminaires construits par le jeu (sans modèle). |
-| `scripts/editor/map_raster.gd` | `MapRaster` : carte -> grille de cases de 0,5 m par étage. |
+| `scripts/editor/map_raster.gd` | `MapRaster` : carte -> grille de cases de 0,5 m par niveau (altitudes distinctes, copie décalée si la carte a des coordonnées négatives). |
 | `scripts/editor/map_validator.gd` | `MapValidator` : validateur et indicateurs BO1. |
 | `scripts/editor/map_layout_export.gd` | `MapLayoutExport` : grille validée -> description en maillage (format de `MeshMapLayout`). |
 | `scripts/editor/map_editor.gd`, `map_canvas.gd`, `map_panels.gd`, `map_hotbar.gd`, `map_inventory.gd`, `map_slot.gd` | L'interface (`scenes/editor/map_editor.tscn`). |
@@ -1386,10 +1577,10 @@ celui du jeu aussi.
    de 0,5 m. Les cases que traverse le contour d'une pièce sont des murs (un
    mur de 0,5 m centré sur le trait ; le bord commun de deux pièces = les mêmes
    cases : un seul mur), celles dont le centre est à l'intérieur son sol, de la
-   zone de la pièce. Ouvertures : les cases du mur sur leur largeur. Double
-   hauteur : à l'étage du dessus, contour en mur, intérieur en vide ; une pièce
-   d'étage au-dessus du vide y pose son plancher (mezzanine). Escalier : cases
-   de marches, vide au-dessus. Objets : leurs cases. Zones : la zone de départ
+   zone de la pièce. Ouvertures : les cases du mur sur leur largeur. Pièce
+   haute : à chaque niveau qu'elle traverse, contour en mur, intérieur en vide ; une pièce
+   de ce niveau au-dessus du vide y pose son plancher (mezzanine). Escalier : cases
+   de marches, vide (trémie) sur chaque niveau traversé jusqu'à l'arrivée. Objets : leurs cases. Zones : la zone de départ
    devient `a` (celle que le jeu ouvre au début), les autres `b`, `c`…
    **Murs en biais** : les cases **coupées** par le mur de 0,5 m (même un
    peu : marquage prudent, `MapGeom.slab_cells`) sont des murs, de sorte que
@@ -1414,7 +1605,8 @@ celui du jeu aussi.
    dont le centre est dans l'emprise tournée.
 2. **Validation** (`MapValidator`, §5).
 3. **Description en maillage** (`MapLayoutExport`) : salles (sols, plafonds,
-   dalles d'étage), murs, allèges et linteaux en blocs, garde-corps,
+   dalles sous les pièces posées au-dessus ; pas de plafond sur une pièce
+   `sans_plafond`), murs, allèges et linteaux en blocs, garde-corps,
    escaliers (marches et rampe de collision), cours des fenêtres, zones,
    marqueurs (objets muraux par la face du mur), lampes, décor (`props` :
    modèle ou objet construit, `blockers` : ses `CollisionBox`), luminaires
@@ -1454,11 +1646,11 @@ et `_init_editor("res://assets/maps/<id>/", "<id>")`), une ligne dans
 
 ## 8. DRAFT ARENA
 
-Carte d'essai de 18 × 28,5 m sur 2 étages (`assets/maps/draft_arena/`) :
+Carte d'essai de 18 × 28,5 m sur 2 niveaux, 0 et 3,5 m (`assets/maps/draft_arena/`, format 17) :
 salle des machines (départ, M14, LAZARUS), couloir de service (MP5K, boîte de
-départ), entrepôt à double hauteur avec son pilier (TITAN BREW, boîte,
-escalier), atelier (ouvert sur l'entrepôt par un passage), passerelle à
-l'étage (boîte, courant) ; portes 750 et 1000, débris 1250 ; 7 fenêtres.
+départ), entrepôt haut (plafond de 6,8 m) avec son pilier (TITAN BREW, boîte,
+escalier), atelier (ouvert sur l'entrepôt par un passage), passerelle au
+niveau 3,5 m, mezzanine de l'entrepôt (boîte, courant) ; portes 750 et 1000, débris 1250 ; 7 fenêtres.
 Recréée dans ce format à partir de l'ancien dessin : même grille case par
 case, donc la même carte en jeu (mêmes salles, murs, escaliers, fenêtres,
 portes, zones et objets ; seules les deux armes murales se décalent de
@@ -1545,7 +1737,7 @@ Preuves automatiques :
   `CollisionBox`, lampes identiques, portes, 7 fenêtres barricadées, atouts,
   armes, boîte, courant, objets figés), carte inachevée affichée, mise à jour
   toute seule après un ajout, une suppression et une annulation (seules les
-  lampes refaites pour un luminaire), options (plafonds, courant, étages,
+  lampes refaites pour un luminaire), options (plafonds, courant, niveaux,
   éclairage plein), sélection par un rayon et surlignage, vue joueur arrêtée
   par un mur et passant la porte, réglages mémorisés (valeurs piégées
   ignorées), aucun rendu aperçu masqué ou sans focus, temps sur 50 pièces.
@@ -1603,13 +1795,13 @@ hauteur, obstacles, barrières invisibles, décor, circulation, fenêtres,
 - **Boîte** : un emplacement par grande salle (Kino : 9), départ souvent une
   porte plus loin que le départ ; **courant** au bout d'un chemin qui coûte ;
   **TITAN BREW** (Juggernog) derrière 1 à 3 portes, dans un coin défendable.
-- **Étages** : une passerelle ou un balcon donne un poste de tir et une impasse
+- **Niveaux** : une passerelle ou un balcon donne un poste de tir et une impasse
   ; escaliers de 2 m ou plus de large pour que la horde passe.
 
 ## 10. Limites et prochaines étapes
 
-- **Sols plats par étage** : pas encore de pente ni de petites marches entre
-  deux pièces d'un même étage.
+- **Sols plats par pièce** : pas encore de pente ni de petites marches dans une
+  pièce (entre deux pièces : un demi-niveau et une rampe ou un escalier).
 - **Murs en biais et formes libres** : le bord d'une mezzanine en biais
   au-dessus du vide a encore un garde-corps en escalier de cases ; la
   vérification compte un mur hors de la grille « large » (les cases qu'il

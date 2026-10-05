@@ -69,8 +69,8 @@ Clé facultative `"variante"` dans `ouvertures.json` (portes, débris) et
 `objets.json` (armes murales) :
 
 ```json
-{"id":"o1","type":"porte","etage":0,"position":[14,5.25],"largeur":2,"prix":750,"variante":"bois"}
-{"id":"w1","type":"arme","arme":"m14","etage":0,"position":[11.25,10],"mur":"s","variante":"planche"}
+{"id":"o1","type":"porte","altitude":0,"position":[14,5.25],"largeur":2,"prix":750,"variante":"bois"}
+{"id":"w1","type":"arme","arme":"m14","altitude":0,"position":[11.25,10],"mur":"s","variante":"planche"}
 ```
 
 - **Absente** : l'aspect par défaut, c'est-à-dire exactement l'aspect d'avant
@@ -133,8 +133,8 @@ C'est le même comportement que les décors dont le blocage est « barrière »
   coupées au contour, même concave), contour en tirets, sommets marqués,
   icône au milieu, hauteur écrite dessous quand elle n'est pas « jusqu'au
   plafond ».
-- Propriétés : case **Jusqu'au plafond (hauteur de l'étage)** (cochée par
-  défaut : pas de clé `hauteur`) ; décochée, champ **Hauteur** de 0,5 à 30 m
+- Propriétés : case **Jusqu'au plafond (hauteur de la pièce)** (cochée par
+  défaut : pas de clé `hauteur`) ; décochée, champ **Hauteur** de 0,5 m et plus (sans maximum de conception depuis le format 17)
   au **dixième de mètre** (`MapCatalog.CLIP_HEIGHT_STEP`) ; la hauteur en jeu
   est rappelée dessous, avec le nombre de sommets et la surface ; Pivoter,
   Supprimer, et le rappel de ce qu'elle bloque.
@@ -165,8 +165,8 @@ rectangle englobant ; `center` : le centre de ce rectangle, à mi-hauteur.
 {"center":[20.75,1.6,9.75],"size":[1,3.2,5],"yaw":0,"poly":[[-0.5,-2.5],[0.5,-2.5],[0.5,2.5],[-0.5,2.5]],"barrier":true,"surface":"concrete","clip":true,"eid":"i1"}
 ```
 
-Hauteur : `hauteur` de l'objet (m depuis le sol de l'étage) ; absente, du
-sol jusqu'au plafond de l'étage (au moins 2 m). Le navmesh est cuit sur ces
+Hauteur : `hauteur` de l'objet (m depuis le sol de son niveau) ; absente, du
+sol jusqu'au plafond réel de la pièce (au moins 2 m). Le navmesh est cuit sur ces
 formes : les zombies contournent le polygone exact. `clip` et `eid` servent
 seulement à l'aperçu 3D (`MapPreviewBuilder` y pose le prisme translucide,
 `prism_mesh`) ; `CollisionBox.from_dict` les ignore et `MeshMapBuilder` ne
@@ -191,14 +191,14 @@ Type `bloc_invisible` de `objets.json` (identifiants `i1`, `i2`…) :
 Format 9 (écrit par l'éditeur) :
 
 ```json
-{"id":"i1","type":"bloc_invisible","etage":0,"sommets":[[16,3],[17,3],[17,8],[16,8]]}
-{"id":"i2","type":"bloc_invisible","etage":0,"sommets":[[2,2],[6,2],[6,3],[3,3],[3,6],[2,6]],"hauteur":1.2}
+{"id":"i1","type":"bloc_invisible","altitude":0,"sommets":[[16,3],[17,3],[17,8],[16,8]]}
+{"id":"i2","type":"bloc_invisible","altitude":0,"sommets":[[2,2],[6,2],[6,3],[3,3],[3,6],[2,6]],"hauteur":1.2}
 ```
 
 - `sommets` = [[x, y], ...] (m, 3 à 64 points, `MapCatalog.CLIP_POINTS`) :
   le **vrai** contour (pas un contour sur le trait comme un pilier), dans
-  l'ordre du tracé ; `hauteur` (facultative, m, 0,5 à 30, au centimètre) :
-  absente, du sol au plafond de l'étage.
+  l'ordre du tracé ; `hauteur` (facultative, m, 0,5 et plus, au centimètre) :
+  absente, du sol au plafond réel de la pièce.
 - **Cartes d'avant** (formats 5 à 8) : `rect` = [x0, y0, x1, y1] et `rot`
   (entier de 0 à 359, sens horaire vu de dessus). À la lecture
   (`EditorMap.normalize_clip`, appelé par `_normalize` pour toute carte,
@@ -208,7 +208,7 @@ Format 9 (écrit par l'éditeur) :
   format 9. Le jeu, le validateur et l'éditeur savent aussi lire une barrière
   `rect` qui n'est pas passée par la lecture (`MapRaster.clip_poly`).
 - `hauteur` illisible ou sous 0,5 m : retirée (jusqu'au plafond) ; au-dessus
-  de 30 m : bornée.
+  de la garde technique `MapVertical.TECH_Z` (10 km, format 17 ; avant : 30 m) : bornée.
 
 ## 3. Contrôle des cartes reçues (réseau, archives)
 
@@ -222,11 +222,11 @@ Une seule source, le catalogue (`MapCatalog.allowed_kinds()`), lue par
   type (`"planche"` sur une porte, `"bois"` sur une fenêtre), qui n'est pas un
   texte, un chemin (`"res://…"`), une clé `variante` sur tout autre type ; une
   fenêtre garde `largeur` à 1 (la largeur d'une porte suit son type).
-- `bloc_invisible` : clés `id`, `type`, `etage`, `sommets` (format 9 :
-  `{"t": "points", "min": 3, "max": 64}`, chaque point [x, y] borné au
-  terrain) **ou** `rect` (cartes d'avant, coordonnées bornées) — l'un des
+- `bloc_invisible` : clés `id`, `type`, `altitude` (`etage` au format 16 et avant), `sommets` (format 9 :
+  `{"t": "points", "min": 3, "max": 64}`, chaque point [x, y] fini, négatifs
+  compris, format 17) **ou** `rect` (cartes d'avant) — l'un des
   deux est obligatoire (`CustomMapGuard._check_object`) —, `rot` (entier 0
-  à 359), `hauteur` (nombre fini de 0,5 à 30) ; toute autre clé est refusée.
+  à 359), `hauteur` (nombre fini de 0,5 à `MapVertical.TECH_Z`) ; toute autre clé est refusée.
   Puis le validateur de jouabilité.
 - `carte.json` : `chevauchement_decor` (format 9, § 10), vrai / faux
   seulement.
@@ -251,8 +251,8 @@ marches n'est plus réglable » (absent du schéma de `editor_catalog`).
 ### Les types
 
 Deux outils dans l'inventaire (Construction) : **Escalier qui monte**
-(icône ↑, glisser du bas, à l'étage courant, vers le haut) et **Escalier qui
-descend** (icône ↓, glisser du haut, à l'étage courant, vers le bas). Son
+(icône ↑, glisser du bas, au niveau affiché, vers le haut) et **Escalier qui
+descend** (icône ↓, glisser du haut, au niveau affiché, vers le bas). Son
 **type** est sa variante (touche **V**, liste **Type (V)**
 des propriétés). Contrairement aux autres variantes, le type change la
 forme des marches, leur collision et le trajet des zombies.
@@ -265,7 +265,7 @@ forme des marches, leur collision et le trajet des zombies.
 | `demi_tour` | En U (demi-tour) / U-shaped | volée, palier sur toute la largeur, volée qui revient ; noyau plein entre les deux ; sortie du côté du pied | 3,5 m |
 | `large` | Escalier d'honneur / Grand stairs | une volée, garde-corps des deux côtés par défaut | 3,5 m |
 | `service` | Escalier de service / Service stairs | une volée étroite, en file indienne | 1,5 m |
-| `colimacon` | En colimaçon / Spiral stairs | un tour complet autour d'un noyau puis un palier de sortie au-dessus du début de la vis ; sortie en face du pied | 4,5 m de côté, 3,2 m entre les étages |
+| `colimacon` | En colimaçon / Spiral stairs | un tour complet autour d'un noyau puis un palier de sortie au-dessus du début de la vis ; sortie en face du pied | 4,5 m de côté, 3,2 m entre les niveaux |
 | `rampe` | Rampe / Ramp | plan incliné sans marches | 2 m |
 
 Le rectangle tracé est « sur le trait » (comme un mur) : les marches
@@ -281,65 +281,118 @@ jusqu'à la main courante), **Sortie en haut** (`sortie` : `gauche` /
 service et rampe : palier plat en haut, volée plus courte, on sort sur ce
 côté ; choisie automatiquement à la pose quand le haut des marches touche un
 mur), **Arrivée : altitude** (`altitude_haut`). Le nombre de marches n'est pas réglable : il est
-automatique (≈ 18 cm par marche). La hauteur est celle entre les deux étages
-(un escalier monte d'un étage).
+automatique (≈ 18 cm par marche). La hauteur est celle entre ses deux niveaux
+(`altitude_haut` − `altitude` ; il peut sauter des niveaux, voir ci-dessous).
 
 Dessin du plan : volées et leurs marches, paliers, colimaçon, flèches de
 montée et, au zoom, les pointillés du couloir des zombies avec ses deux
 ancres (point jaune : entrée ; orange : sortie). L'aperçu 3D et la partie
 construisent le même escalier (`MeshMapGeometry`, code commun).
 
-### Plusieurs étages, escalier qui descend
+### Plusieurs niveaux, escalier qui descend, sortie sur le côté
 
-Un objet `escalier` appartient à l'étage du BAS (`etage` = k) et monte à
-l'étage k + 1 ; `monte` donne le sens de la montée. L'**escalier qui
-descend** n'ajoute aucun champ : posé depuis l'étage k, il est enregistré à
-l'étage k - 1 avec `monte` inversé (`MapRules.stair_dir`), son arrivée là où
-le tracé a commencé ; refusé au rez-de-chaussée (« pas d'étage sous le
-rez-de-chaussée »). Les cartes d'avant et le contrôle des cartes reçues
-(`CustomMapGuard`) sont donc inchangés.
+Format 17 (niveaux libres, docs/MAP_AUTHORING.md § 4) : un objet `escalier`
+a deux altitudes absolues, **`altitude`** (sol du pied) et
+**`altitude_haut`** (sol d'arrivée) ; `monte` donne le sens de la montée.
+La montée est `altitude_haut − altitude` : elle n'est plus celle d'un étage,
+un escalier relie **deux niveaux quelconques** (un demi-niveau par une rampe,
+ou plusieurs niveaux d'un coup). `altitude_haut` est toujours écrite par
+l'éditeur ; dans un fichier écrit à la main sans elle, l'arrivée est le
+premier niveau au-dessus du pied dont une pièce contient le haut des marches,
+sinon 3,5 m plus haut.
+
+- **Escalier qui monte** : tracé sur le niveau affiché (le pied), il arrive au
+  premier niveau au-dessus dont une pièce contient le haut des marches.
+- **Escalier qui descend** : posé depuis le niveau affiché (le haut), il est
+  enregistré avec son pied au premier niveau plus bas dont une pièce le
+  contient, `altitude_haut` = le niveau affiché, `monte` inversé
+  (`MapRules.stair_dir`) ; refusé au niveau le plus bas (« pas de niveau sous
+  le plus bas… »).
+- **Arrivée : altitude** (propriétés) : choisir un autre niveau d'arrivée,
+  nommé comme dans le menu des niveaux ; un escalier peut **sauter des
+  niveaux**. Sa trémie (le vide au-dessus des marches) est posée sur chaque
+  niveau traversé (`altitude` < sol ≤ `altitude_haut`, clé « tremie_mi#id »
+  pour les niveaux intermédiaires) ; le plancher d'un niveau intermédiaire
+  au-dessus des marches est une erreur (« … un escalier qui saute des niveaux
+  monte dans un vide (pièce haute) ; déplacez la pièce ou l'escalier »).
+- **Dégagement** : le plafond réel doit laisser 2,1 m au-dessus des marches,
+  de l'arrivée et du palier du haut (`MapValidator._stair_headroom`).
+- **Palier dans le mur commun** : quand la pièce du pied et la pièce
+  d'arrivée sont côte à côte à des altitudes différentes (demi-niveau),
+  l'arrivée peut traverser leur mur commun : un palier est construit dans
+  l'épaisseur du mur (`MapRaster._landing`, `MapRules._landing_ok`, retombée
+  au-dessus : `MapLayoutExport._landing_lintel`).
+- **Sortie sur le côté** (`sortie` : `gauche` / `droite` vu en montant,
+  absente = en face ; types droit, palier, large, service, rampe, sur la
+  grille ou tourné ; `MapCatalog.tidy_stair` la retire d'un L, d'un U ou d'un
+  colimaçon) : palier plat en haut à `altitude_haut` (largeur de
+  l'escalier, profondeur 1 à 1,5 m, `StairGen.side_depth`), volée sur le
+  reste de la longueur, bord de sortie sur le côté choisi, garde-corps du
+  côté opposé et au bout. Les cases d'arrivée sont au-delà de ce bord : le
+  bout du haut peut alors **toucher un mur**. Conditions : plafond réel ≥
+  `altitude_haut` + 2,1 m sur le palier et la sortie, passage de 0,95 m au
+  moins (`StairGen.walk_width`), rien de bloquant, volée raccourcie à 40° au
+  plus (« allongez-le à X m »).
+- **Choix automatique à la pose** : pour un escalier NOUVEAU sans `sortie`
+  dont l'arrivée en face tombe dans un mur ou sur un obstacle, la pose essaie
+  la sortie à droite, puis à gauche, puis le sens retourné, et le dit
+  (« Arrivée sur le côté droit : le haut des marches touche un mur ») ;
+  sinon un refus qui explique pourquoi en face, à droite et à gauche. Un
+  escalier déjà posé ne change **jamais** de sortie tout seul (déplacement,
+  pièce montée ou descendue : son refus propose « Sortie en haut ») ; le
+  validateur lit `sortie`, il ne choisit jamais.
+- **Pièce déplacée verticalement** (docs/MAP_AUTHORING.md § 4) : un escalier
+  rattaché à la pièce par son pied n'emporte que son pied (`altitude`), un
+  escalier qui arrive dans la pièce n'a que son arrivée qui suit
+  (`altitude_haut`) ; les deux pièces ensemble : tout l'escalier.
 
 Cases d'un escalier (`MapRules.stair_parts`, les mêmes que le validateur) :
-marches (et trémie, à l'étage du dessus), **départ** (sol de son étage devant
-la première marche) et **arrivée** (plancher de l'étage du dessus au-delà de
-la dernière). À la pose (`MapRules.check_stair`, aussi pour les éléments
-envoyés par le serveur MCP et les éléments devenus invalides) :
+marches (et trémie, à chaque niveau traversé jusqu'à l'arrivée), **départ**
+(sol du niveau du pied devant la première marche) et **arrivée** (plancher
+du niveau d'arrivée au-delà de la dernière, ou au-delà du bord latéral avec
+`sortie`). À la pose (`MapRules.check_stair`, aussi pour les éléments envoyés
+par le serveur MCP et les éléments devenus invalides) :
 
-- pas dans la trémie d'un escalier de l'étage du dessous, ni sur son arrivée ;
-  pas sur le départ d'un autre escalier de l'étage ;
-- trémie (étage du dessus) libre : ni escalier, ni son départ, ni l'arrivée
-  d'un autre escalier, ni pilier ou décor ;
-- départ sur le sol libre de la pièce ; arrivée sur le plancher libre d'une
-  pièce de l'étage du dessus (bord d'une mezzanine au-dessus d'une double
-  hauteur compris) ; un étage du dessus encore sans pièce est admis (le
-  validateur le rappelle) ;
+- pas dans la trémie d'un autre escalier, ni sur son arrivée ; pas sur le
+  départ d'un autre escalier du même niveau ;
+- trémie (niveaux traversés) libre : ni escalier, ni son départ, ni
+  l'arrivée d'un autre escalier, ni pilier ou décor ;
+- départ sur le sol libre d'une pièce à `altitude` ; arrivée sur le
+  plancher libre d'une pièce à `altitude_haut` (bord d'une mezzanine
+  au-dessus d'une pièce haute compris) ; sans pièce à l'altitude d'arrivée :
+  refus (« aucune pièce à l'altitude d'arrivée… ») ;
 - 40° au plus (droit, large, service, rampe : « allongez-le à … m »).
 
-Chaque refus dit quoi et où, en français et en anglais (« pas de pièce à
-l'étage 3 au-dessus de l'arrivée de l'escalier (x 12 m, y 8 m) », « l'arrivée
-(en haut, étage 2) tombe dans un mur de l'étage 2 … », « le départ (au pied,
-étage 1) chevauche l'escalier de l'étage 1 vers l'étage 2 … », « pas d'étage
-au-dessus de l'étage 4 : ajoutez d'abord un étage (onglet Étages) ») ; le plan
-montre le départ (vert), l'arrivée (bleu), la trémie et les cases fautives
-(rouge), sur l'étage affiché et, en pointillés, sur l'autre. Pendant le tracé,
-départ et arrivée sont montrés en continu.
+Chaque refus dit quoi et où, en français et en anglais, en nommant les
+niveaux par leur altitude (« niveau 3,5 m ») ; le plan montre le départ
+(vert), l'arrivée (bleu), la trémie et les cases fautives (rouge), sur le
+niveau affiché et, en pointillés, sur l'autre. Pendant le tracé, départ et
+arrivée sont montrés en continu. Le plan écrit « monte à 3,5 m » ou
+« descend à 0 m » sur l'escalier, qui se choisit depuis ses deux niveaux.
 
-Validateur : le sens tracé (`monte`, `MapValidator.stair_up`) départage les
-étages empilés (chaque étage couvre celui du dessous : du sol aux deux bouts,
-en bas comme en haut ; avant, « sens de montée ambigu » dès le 3e étage) ;
-sans lui, le seul sens possible (cartes écrites à la main). Messages précis :
-« son arrivée (en haut, étage 3) tombe sur la trémie de l'escalier qui monte
-de l'étage 2 en (…) », « le vide au-dessus de ses marches (trémie, étage 2)
-est occupé par l'escalier de l'étage 2 vers l'étage 3 … » ; les cases en
-cause sont celles de l'étage concerné. Cage d'escalier : volées côte à côte
-(alternées, un étage sur deux au même endroit), jamais deux volées l'une
-au-dessus de l'autre.
+Validateur : le niveau d'arrivée vient de `altitude_haut` (`v.stair_to`) ; le
+sens tracé (`monte`, `MapValidator.stair_up`) départage les niveaux empilés ;
+sans lui, le seul sens possible (cartes écrites à la main). Messages précis
+(arrivée qui tombe sur la trémie d'un autre escalier, trémie occupée par un
+autre escalier…), cases en cause au niveau concerné. Cage d'escalier :
+volées côte à côte (alternées, un niveau sur deux au même endroit), jamais
+deux volées l'une au-dessus de l'autre.
 
-Tests : `tests/test_stairs_floors.gd` (immeuble de 5 étages : cage, volées
-décalées, hauteurs différentes, double hauteur, petite pièce d'arrivée ;
-chaque refus et son message ; escalier qui descend), scénario
-`stairs_floors` (le joueur monte à pied du rez-de-chaussée au 5e étage et
-redescend ; un zombie qui court le suit dans les deux sens).
+Ancien format (16 et avant) : l'escalier appartenait à l'étage du bas
+(`etage` = k) et montait à l'étage k + 1 ; il est converti au chargement
+(`altitude` = sol de l'étage k, `altitude_haut` = sol de l'étage k + 1 ; au
+dernier étage, 3,5 m plus haut et l'erreur reste).
+
+Tests : `tests/test_stairs_floors.gd` (immeuble de 5 niveaux : cage, volées
+décalées, hauteurs différentes, pièce haute, petite pièce d'arrivée ; chaque
+refus et son message ; escalier qui descend), `tests/test_levels_free.gd`
+(demi-niveau et rampe, escalier qui saute un niveau, plancher intermédiaire,
+dégagement), `tests/test_stairs_top_wall.gd` (sortie sur le côté, choix
+automatique, refus) ; scénarios `stairs_floors` (le joueur monte à pied du
+rez-de-chaussée au 5e niveau et redescend ; un zombie qui court le suit dans
+les deux sens), `levels_play` (zombies sur un demi-niveau et un escalier qui
+saute un niveau), `stairs_types` et `stairs_hordes` (une baie avec une sortie
+sur le côté).
 
 ### Géométrie et collision (`StairGen`)
 
@@ -592,10 +645,10 @@ mur). Le départ des joueurs garde sa règle (1 m libre autour).
 Clé facultative `"hauteur"` d'un luminaire **mural** (`objets.json`) :
 
 ```json
-{"id":"x7","type":"luminaire","luminaire":"applique","etage":0,"position":[6.37,0],"mur":"n","hauteur":0.65}
+{"id":"x7","type":"luminaire","luminaire":"applique","altitude":0,"position":[6.37,0],"mur":"n","hauteur":0.65}
 ```
 
-- m au-dessus du sol, au centre de l'applique, 0,2 à 30 m
+- m au-dessus du sol, au centre de l'applique, 0,2 m et plus (garde technique `MapVertical.TECH_Z`, format 17 ; avant : 30 m)
   (`MapCatalog.WALL_LIGHT_HEIGHT`) ; **absente** : 2 m (l'applique d'avant) ;
   jamais écrite à 2 m (`MapCatalog.set_wall_light_height`).
 - En jeu, bornée à 15 cm sous le plafond de la pièce
@@ -648,7 +701,7 @@ sont celles des fenêtres de BO1 : réparation en maintenant [F] depuis
 l'intérieur, collé aux planches et tourné vers elles (portée
 `Barricade.REPAIR_REACH` = 0,8 m du centre du joueur à la face intérieure
 de la barrière, sur toute la largeur de l'ouverture plus 0,35 m de chaque
-côté, même étage ; vérifiée aussi par l'hôte en multijoueur)
+côté, même niveau ; vérifiée aussi par l'hôte en multijoueur)
 (+10 points par planche, plafond de 500 par manche, bonus
 CHARPENTIER), coup à travers quand il reste 3 planches au plus, joueurs
 arrêtés par l'ouverture même sans planches (la cour reste hors jeu, comme
@@ -760,7 +813,7 @@ le long d'un mur de 0,5 m »), la cour et les deux côtés.
 ### Format
 
 ```json
-{"type":"fenetre","position":[25.1,17.25],"etage":0,"id":"o1","variante":"porte_double"}
+{"type":"fenetre","position":[25.1,17.25],"altitude":0,"id":"o1","variante":"porte_double"}
 ```
 
 - `variante` absente : la fenêtre d'avant (jamais écrite) ; pas de clé
@@ -869,7 +922,7 @@ Inventaire (E), catégorie **Prefabs de la carte** / Map prefabs :
 
 - **+ Créer…** : l'inventaire se ferme ; glisser un **rectangle** sur le
   plan autour du décor à grouper (le décor du catalogue, « Décor et
-  obstacles », de l'étage affiché, dont le centre est dans le rectangle :
+  obstacles », du niveau affiché, dont le centre est dans le rectangle :
   il s'entoure en jaune pendant le glissé ; clic droit : annuler). Nom du
   prefab, case **Remplacer ce décor par le prefab** (cochée : les décors
   choisis disparaissent, un seul prefab est posé à leur place ; Ctrl+Z les
@@ -1241,11 +1294,11 @@ Textures : `assets/textures/fx/` (Kenney « Particle Pack », CC0,
 ### Format
 
 `objets.json` : `{"id": "fx1", "type": "effet", "effet": "brouillard",
-"etage": 0, "position": [x, y]}` et, facultatifs, `rot` (effets au sol et au
+"altitude": 0, "position": [x, y]}` et, facultatifs, `rot` (effets au sol et au
 plafond), `mur` / `angle` (effets muraux, comme une applique), `intensite`
 (0,25 à 2), `zone` (format 11, m : `[largeur, profondeur]` au sol et au
 plafond, `[largeur, profondeur, hauteur]` pour un volume, `[largeur,
-hauteur]` au mur ; bornes de l'effet), `hauteur` (0 à 30 m), `couleur`
+hauteur]` au mur ; bornes de l'effet), `hauteur` (m, 0 et plus : garde technique `MapVertical.TECH_Z` depuis le format 17, avant : 30 m), `couleur`
 (« #rrggbb », effets qui se teintent). Jamais écrits à leur valeur par
 défaut ; illisibles ou sans objet : retirés à la lecture, zone bornée et
 arrondie à 5 cm (`MapCatalog.tidy_effect`). `taille` (formats 10 et moins,
@@ -1263,7 +1316,7 @@ place (face du mur à leur hauteur, ou sous le plafond).
 Au chargement (`EditorMap._migrate`, donc aussi pour une carte jouée, une
 carte du cache multijoueur ou une archive importée), chaque effet qui
 construisait un objet reçoit le décor équivalent
-(`MapCatalog.split_legacy_effect`) : même étage, même place, même rotation ;
+(`MapCatalog.split_legacy_effect`) : même niveau, même place, même rotation ;
 au mur, même mur et même hauteur (la torche porte la flamme) ; la flaque d'un
 filet d'eau là où l'eau tombait. `taille` devient la zone. Rien ne
 disparaît, rien n'est posé deux fois (décor identique déjà au même endroit :
@@ -1318,8 +1371,8 @@ conversion : une carte au format 11 ou moins se lit telle quelle.
 
 | Type | Clé | Sens | Bornes | Par défaut |
 |---|---|---|---|---|
-| `prefab` (au sol) | `z` | hauteur de pose du décor au-dessus du sol (m) | 0 à 30 | 0 (au sol) |
-| `luminaire` (au sol) | `hauteur` | pied du luminaire au-dessus du sol (m) ; même clé que l'applique | 0 à 30 | dessus du meuble dessous (`support`) |
+| `prefab` (au sol) | `z` | hauteur de pose du décor au-dessus du sol de son niveau (m) | 0 à `TECH_Z` (format 17 ; avant : 30) | 0 (au sol) |
+| `luminaire` (au sol) | `hauteur` | pied du luminaire au-dessus du sol (m) ; même clé que l'applique | 0 à `TECH_Z` (format 17 ; avant : 30) | dessus du meuble dessous (`support`) |
 | `luminaire`, `effet`, `prefab` (au plafond) | `descente` | distance sous le plafond réel (m) | 0 à 3 | `drop` du luminaire, 0 sinon |
 
 - **Décor posé sur un autre** : un décor qui bloque (`solide`, `barriere`)
@@ -1465,7 +1518,7 @@ librement, ou **contre un mur** comme avant.
   ni zombies). Ce contrôle vaut pour toutes les boîtes (une boîte murale ne
   s'achète plus depuis l'autre côté d'un mur mince) et il est refait par le
   serveur à la position de référence du joueur (client modifié).
-- **Jamais depuis un autre étage** (toutes les boîtes et tous les objets
+- **Jamais depuis un autre niveau** (toutes les boîtes et tous les objets
   utilisables : atouts, armes murales, grenades, Pack-a-Punch, courant,
   portes, barricades, pièges et leviers, téléporteur, poste central,
   réanimation) : les pieds du joueur doivent être à 1,2 m au plus du sol de
@@ -1473,9 +1526,9 @@ librement, ou **contre un mur** comme avant.
   objet mural compte son sol, pas sa hauteur d'accroche). Une marche
   d'escalier ou un saut passent ; depuis un escalier raide, l'écart permis
   croît avec la distance à plat (pente de 40° et 0,25 m, `level_gap`, borné à
-  1,9 m, sous toute hauteur d'étage) avec une ligne de vue sans dalle
+  1,9 m, sous toute hauteur de niveau) avec une ligne de vue sans dalle
   (`stair_sight_ok`) : portes de KINO en haut des marches, coéquipier à terre
-  sur l'escalier ; l'étage du dessous ou du dessus, non. Le
+  sur l'escalier ; le niveau du dessous ou du dessus, non. Le
   client n'affiche pas l'invite et le serveur refuse la demande (portée
   mesurée en 3D jusque-là, sans limite de hauteur : un joueur sous la
   passerelle pouvait acheter la boîte posée dessus).
@@ -1494,7 +1547,7 @@ librement, ou **contre un mur** comme avant.
 - **au sol** : `position` = centre de la boîte, `rot` = orientation (degrés
   entiers 0 à 359, sens horaire vu de dessus ; à 0 l'avant est au **sud**,
   comme un décor), **sans** `mur` ni `angle` :
-  `{"id":"b4","type":"boite","etage":0,"position":[7,28],"rot":45,"depart":false}` ;
+  `{"id":"b4","type":"boite","altitude":0,"position":[7,28],"rot":45,"depart":false}` ;
 - **contre un mur** (inchangé) : `position` sur le trait du mur, `mur` (et
   `angle` contre un mur en biais), **sans** `rot`.
 

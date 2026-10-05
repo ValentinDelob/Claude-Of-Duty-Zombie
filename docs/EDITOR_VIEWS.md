@@ -12,6 +12,14 @@ DRAFT ARENA). Elle contient 4 écrans et une planche de composants :
 3. plafond d'une pièce agrandi en vue Avant, avec coupe ;
 4. menu Disposition.
 
+**Format 17 (niveaux libres, docs/LEVELS_PLAN.md)** : il n'y a plus
+d'étages. Chaque pièce, ouverture et objet a son `altitude` (sol absolu, m) ;
+un niveau est l'ensemble des pièces de même altitude. Le relevé du § 1, le
+plan du § 9 et la revue du § 10 décrivent la conception d'origine (format
+12, avec ses étages) et restent tels quels pour l'histoire ; ce qui vaut
+aujourd'hui pour les hauteurs et les élévations est au § 7 (« Format 17 »)
+et dans le reste du document, réécrit en niveaux.
+
 Demande : déplacer les éléments verticalement grâce à une vue verticale
 affichée en même temps que la vue du dessus. Une vue unique bascule d'un plan
 à l'autre par un cube cliquable (ViewCube, comme dans Fusion 360). On choisit
@@ -23,8 +31,8 @@ rendu est celui d'un éditeur professionnel.
 | # | Décision |
 |---|---|
 | D1 | Une **fenêtre de vue** (« vue ») = un plan orthographique (Dessus, Dessous, Avant, Arrière, Gauche, Droite) ou la **3D** (l'aperçu actuel, intégré). Chaque vue a son plan, son zoom et son déplacement. |
-| D2 | Les vues de côté (**élévations**) montrent **tous les étages empilés** en projection, avec les éléments lointains estompés. Une **coupe** (tranche de profondeur) est facultative, réglable dans la vue, et sert à isoler une partie de la carte. |
-| D3 | Chaque vue édite **les deux axes qu'elle montre** : X/Y en Dessus, X/Z en Avant, Y/Z en Droite. Le déplacement vertical change soit la **hauteur de pose** d'un élément, soit son **étage** (aimanté sur les niveaux), selon son type (§ 3). |
+| D2 | Les vues de côté (**élévations**) montrent **tous les niveaux empilés** en projection, avec les éléments lointains estompés. Une **coupe** (tranche de profondeur) est facultative, réglable dans la vue, et sert à isoler une partie de la carte. |
+| D3 | Chaque vue édite **les deux axes qu'elle montre** : X/Y en Dessus, X/Z en Avant, Y/Z en Droite. Le déplacement vertical change soit la **hauteur de pose** d'un élément, soit son **altitude** (libre pour une pièce, aimantée sur les niveaux pour le reste), selon son type (§ 3). |
 | D4 | **ViewCube** en haut à droite de chaque vue. Face = bascule du plan. Arête ou coin = passage en 3D vue de ce coin. Flèches ◄ ► = tour des façades. Maison = vue d'origine de la fenêtre. |
 | D5 | Dispositions : **1 vue**, **2 côte à côte**, **2 empilées**, **3 (1 + 2)**, **3 (2 + 1)**, **4 en quadrillage**. Séparateurs déplaçables, vue active encadrée, **Ctrl+Espace** agrandit la vue active (bascule), **Ctrl+Alt+Q** passe en 4 vues. Tout est mémorisé (`_editeur.cfg`). |
 | D6 | **Sélection commune** à toutes les vues (un seul `MapEditor.selected`, comme aujourd'hui). |
@@ -32,12 +40,12 @@ rendu est celui d'un éditeur professionnel.
 | D8 | Axes colorés : **X rouge** (est), **Y vert** (sud), **Z bleu** (haut). Ils servent aux règles, au trièdre et aux flèches de déplacement. |
 | D9 | Verrouillage d'axe : **flèches colorées** sur l'élément choisi (glisser une flèche = un seul axe), ou **X / Y / Z** pendant un glissement (comme dans Blender). **Maj garde son rôle actuel** (inverser l'aimantation). |
 | D10 | Cotes affichées pendant tout glissement (hauteur au-dessus du sol, écart, largeur), dans toutes les vues, y compris la vue du dessus (nouveau). |
-| D11 | Panneau Propriétés : champs **X, Y, Z** modifiables (Z = hauteur de pose quand elle existe, sinon l'étage). Un champ validé = une annulation. |
+| D11 | Panneau Propriétés : champs **X, Y, Z** modifiables (Z = hauteur de pose quand elle existe, sinon le niveau ; l'altitude pour une pièce). Un champ validé = une annulation. |
 | D12 | **Format 12**, peu de nouvelles clés, toutes facultatives (§ 7) : `z` (hauteur de pose du décor), `hauteur` des luminaires au sol, `descente` (luminaires et effets au plafond). Aucune conversion n'est nécessaire : une carte au format ≤ 11 (zones d'effets) se lit telle quelle. |
 | D13 | **La pose (création) reste en vue Dessus** dans cette version. Les élévations servent à choisir, déplacer, redimensionner et mesurer. Si un outil de pose est en main dans une élévation, la barre d'état le dit. |
 | D14 | Une seule 3D à la fois : la fenêtre 3D **est** l'aperçu existant (même `MapPreviewWorld`), qui quitte alors son panneau flottant. Sans fenêtre 3D, le panneau flottant et la touche P marchent comme aujourd'hui. |
 
-## 1. Existant (relevé)
+## 1. Existant (relevé d'avant le format 12, avec les étages d'avant le format 17)
 
 ### 1.1 Vue du dessus (`map_canvas.gd`)
 
@@ -181,17 +189,17 @@ va de droite à gauche (Droite affiche Y décroissant). Le nom de l'axe est écr
 dans le coin de la règle (« X », « Y », « Z ») avec sa couleur.
 
 **Dessous** reste disponible par cohérence du cube, mais peu utile. En
-Dessous, la vue montre l'étage courant vu par en dessous, plafonds compris.
+Dessous, la vue montre le niveau affiché vu par en dessous, plafonds compris.
 
 ### 3.2 Ce que montre une élévation
 
-- **Tous les étages empilés** (choix par défaut). La plage d'étages se règle
-  dans l'en-tête de la vue : « Étages : tous | jusqu'à l'étage courant |
-  l'étage courant » (mêmes options que l'aperçu 3D).
+- **Tous les niveaux empilés** (choix par défaut). La plage de niveaux se règle
+  dans l'en-tête de la vue : « niveaux : tous | jusqu'au niveau affiché |
+  seulement celui-là » (mêmes options que l'aperçu 3D).
 - **Projection** de tous les éléments, dessinés du plus lointain au plus proche.
   Un élément plus lointain que le plus proche qui le recouvre est **estompé**
-  (opacité de 100 % à 35 % selon la profondeur). Les étages autres que
-  l'étage courant sont légèrement estompés aussi.
+  (opacité de 100 % à 35 % selon la profondeur). Les niveaux autres que
+  le niveau affiché sont légèrement estompés aussi.
 - **Coupe** (facultative) : tranche de profondeur [p0, p1] réglée de trois façons :
   - dans l'en-tête (« Coupe : aucune | autour de la sélection | personnalisée ») ;
   - en glissant ses deux traits pointillés dans la vue Dessus ;
@@ -204,11 +212,12 @@ Dessous, la vue montre l'étage courant vu par en dessous, plafonds compris.
   | Élément | En élévation |
   |---|---|
   | Pièce | boîte du sol au plafond réel (`ceil_at`), remplie de la couleur de sa zone (faible opacité), contour gris ; nom en haut si elle n'est pas entièrement cachée |
-  | Pièce double hauteur | jusqu'au plafond de l'étage du dessus |
+  | Pièce haute | jusqu'à son plafond réglé, à travers les niveaux qu'elle traverse |
+  | Pièce sans plafond (`sans_plafond`) | murs jusqu'à son plafond réglé, plafond en pointillés |
   | Murs vus de face | surface de la pièce |
   | Murs vus de profil (perpendiculaires à la vue) | barres de 0,5 m (#9E9EA8) du bas de la dalle au plafond |
-  | Dalles d'étage | bandes hachurées de 0,3 m sous chaque pièce d'un étage > 0 |
-  | Sol de la carte | trait Z = 0 orange (comme les axes du plan), terrain hachuré dessous |
+  | Dalles | bandes hachurées de 0,3 m sous chaque pièce posée au-dessus d'une autre |
+  | Sol de la carte | trait Z = 0 orange (comme les axes du plan), terrain hachuré sous le sol le plus bas |
   | Ouvertures | rectangles colorés à leur vraie hauteur : porte de 0 à `hauteur_portes`, fenêtre de 0,95 à 2,35, passage jusqu'au plus bas des deux plafonds ; prix au-dessus de la porte |
   | Escalier | profil en marches quand on le voit de côté, bandes de contremarches quand on le voit de face |
   | Objets muraux et au sol | boîte à leur hauteur réelle (tableaux, machines, décor d'après `h` et `boxes`), icône du plan si la place le permet |
@@ -217,11 +226,11 @@ Dessous, la vue montre l'étage courant vu par en dessous, plafonds compris.
 
 - **Grille verticale** :
   - traits de 1 m, traits forts tous les 5 m, grille fine selon le mode ;
-  - plus des **lignes de niveau** : chaque sol d'étage en trait plein, chaque plafond d'étage en tirets ;
-  - à gauche, sur la règle Z, des **étiquettes de niveau** (« É1 +3,50 ») ; celle de l'étage courant est en or.
+  - plus des **lignes de niveau** : chaque sol de niveau en trait plein, chaque plafond en tirets ;
+  - à gauche, sur la règle Z, des **étiquettes de niveau** (« +3,50 m ») ; celle du niveau affiché est en or.
 - **Aimantation verticale** :
   - même mode que la vue Dessus (grille 1 m, fine, libre au centimètre) ;
-  - en libre, **aimants** sur les sols, plafonds (étage et pièce), dessous de dalle, `hauteur_portes`, allège et linteau des fenêtres, et dessus du décor (`support`, `h`) sous l'élément ;
+  - en libre, **aimants** sur les sols des niveaux, plafonds des pièces, dessous de dalle (première dalle au-dessus de la case de l'élément), `hauteur_portes`, allège et linteau des fenêtres, et dessus du décor (`support`, `h`) sous l'élément ;
   - l'aimant actif est signalé par un trait bleu (#59E6FF) et son nom (« Plafond · 3,20 »).
 
 ### 3.3 Vue Dessus
@@ -288,8 +297,8 @@ Elle reste la vue d'aujourd'hui. On ajoute :
   - taille minimale d'une vue : 220 × 160 px.
 - **Vue active** : celle qui a reçu le dernier clic ou que survole la souris (clavier et molette vont à la vue survolée). Elle est encadrée de 1 px #D99940 et son en-tête est plus clair.
 - **En-tête de vue** (22 px) :
-  - à gauche : nom du plan en capitales (Bahnschrift semi-gras), étage ou plage d'étages, axes de l'écran (« X → · Z ↑ » en couleurs) ;
-  - à droite : « Étages ▾ », « Coupe ▾ » (élévations), zoom en %, bouton ⛶ (agrandir).
+  - à gauche : nom du plan en capitales (Bahnschrift semi-gras), niveau ou plage de niveaux, axes de l'écran (« X → · Z ↑ » en couleurs) ;
+  - à droite : « niveaux : … » (menu), « Coupe ▾ » (élévations), zoom en %, bouton ⛶ (agrandir).
 - **Agrandir** : Ctrl+Espace ou ⛶ agrandit la vue active à toute la zone des vues ; une seconde fois, retour à la disposition. Double-clic sur l'en-tête : même effet.
 - **Liaison** (D7) :
   - chaque vue garde le zoom qui cadre la carte (maquette, écran 3) ; un zoom fait dans une vue s'applique aux autres dans la même proportion ;
@@ -300,7 +309,7 @@ Elle reste la vue d'aujourd'hui. On ajoute :
   - en 1 vue, elle reste posée sur le bas de la vue, comme aujourd'hui ;
   - en 2 vues ou plus, elle est **ancrée dans une bande de 48 px** sous les vues, avec à gauche l'outil et à droite l'aimantation ;
   - l'inventaire s'ouvre au-dessus de la zone des vues.
-- **Mémorisation** dans `_editeur.cfg`, clé `vues` : disposition, plan de chaque fenêtre, proportions, liaison, coupe, plage d'étages. Le zoom et le centre ne sont pas mémorisés : chaque vue se recadre à l'ouverture d'une carte.
+- **Mémorisation** dans `_editeur.cfg`, clé `vues` : disposition, plan de chaque fenêtre, proportions, liaison, coupe, plage de niveaux. Le zoom et le centre ne sont pas mémorisés : chaque vue se recadre à l'ouverture d'une carte.
 - **Premier lancement** : 2 vues empilées, Dessus au-dessus d'Avant (écran 2 de la maquette, validé le 03/10/2026) ; ensuite, le choix est mémorisé.
 
 ## 6. Édition dans chaque vue
@@ -317,14 +326,15 @@ Elle reste la vue d'aujourd'hui. On ajoute :
 
   | Type | Effet d'un glissement vertical |
   |---|---|
-  | **Hauteur de pose** : effet au sol / au mur, luminaire mural / au sol (`hauteur`), effet ou luminaire au plafond (`descente`), décor (`z`, format 12) | Z continu, aimanté (§ 3.2). Monter ou descendre au-delà du sol ou du plafond de son étage fait passer l'élément à l'étage voisin, qui doit exister : `etage` est recalculé et la hauteur devient relative au nouveau sol. Bornes : 0 à plafond réel − marge (règles de `MapLayoutExport`) |
-  | **Niveau** : pièce (avec son contenu, comme un déplacement dans le plan), escalier, pilier, mur, piège, objets muraux, départ, apparitions, téléporteur | Z aimanté **sur les sols d'étage uniquement** : l'élément change d'`etage`. Il est validé sur l'étage cible par les mêmes `MapRules.check_*` (place libre, murs, porte sur bord commun…). Un escalier ne peut pas aller sur le dernier étage |
-  | **Fixe** : ouvertures (portes, fenêtres, passages) | pas de déplacement vertical. Elles suivent leur mur. Pour changer d'étage, il faut déplacer la pièce |
+  | **Hauteur de pose** : effet au sol / au mur, luminaire mural / au sol (`hauteur`), effet ou luminaire au plafond (`descente`), décor (`z`, format 12) | Z continu, aimanté (§ 3.2). Monter ou descendre au-delà du sol ou du plafond de sa pièce fait passer l'élément au niveau voisin (pièce qui contient le point, `MapVertical.floor_at`) : son `altitude` est recalculée et la hauteur devient relative au nouveau sol. Bornes : 0 à plafond réel − marge (règles de `MapLayoutExport`) ; sous un ciel ouvert, garde technique `MapVertical.TECH_Z` seulement |
+  | **Altitude libre** : pièce (avec son contenu, comme un déplacement dans le plan ; aussi un groupe qui contient une pièce) | Z libre au pas de 0,25 m sur l'écart, aimanté (`MapVertical.room_alt_magnets` : sols des autres niveaux, juste au-dessus ou au-dessous des pièces recouvertes) ; une altitude nouvelle crée un niveau. Validée comme au § 4 de MAP_AUTHORING.md (superposition à 3,1 m, contenu, escaliers : seul le pied ou l'arrivée rattaché à la pièce suit) |
+  | **Niveau** : escalier, pilier, mur, piège, objets muraux, départ, apparitions, téléporteur | Z aimanté **sur les sols des niveaux** : l'élément change d'`altitude`. Il est validé au niveau cible par les mêmes `MapRules.check_*` (place libre, murs, porte sur bord commun…) ; un escalier garde une arrivée au-dessus de son pied, sur une pièce |
+  | **Fixe** : ouvertures (portes, fenêtres, passages) | pas de déplacement vertical. Elles suivent leur mur. Pour changer de niveau, il faut déplacer la pièce |
 
 - **Composante horizontale** en élévation : elle déplace sur l'axe de la vue, la profondeur restant inchangée. Une ouverture ou un objet mural glisse **le long de son mur** si ce mur est face à la vue ; sinon l'axe horizontal est verrouillé.
 - Le refus éventuel s'affiche comme aujourd'hui (contour rouge, raison dans la barre d'état), et l'élément reste à la dernière place valide.
-- Un élément « hauteur de pose » sous le plafond réel de sa pièce (double hauteur, dernier étage plus haut) reste à son étage ; il n'en change qu'en quittant ce volume.
-- Une pièce qui change d'étage n'y va que si tout son contenu y est valide (portes, escalier jamais sur le dernier étage, objets muraux).
+- Un élément « hauteur de pose » sous le plafond réel de sa pièce (pièce haute) reste à son niveau ; il n'en change qu'en quittant ce volume.
+- Une pièce qui change d'altitude n'y va que si tout son contenu y est valide (portes gardées et signalées, escaliers revérifiés, objets muraux) ; sinon le refus est nommé et la pièce reste à sa dernière place correcte.
 - Un décor sur lequel repose un décor bloquant ne bouge pas, ne pivote pas et ne se supprime pas seul (« un décor est posé dessus ») ; le validateur signale un décor bloquant en l'air (cartes reçues comprises).
 
 ### 6.2 Redimensionner (agrandir les zones)
@@ -333,12 +343,12 @@ Les poignées n'apparaissent que là où la grandeur existe pour le type et la v
 
 | Élément | Dessus | Élévation (Avant, Droite…) |
 |---|---|---|
-| Pièce rectangle | 8 poignées (inchangé) | gauche/droite = côtés sur l'axe horizontal de la vue ; **haut = `plafond`** (aimanté sur le plafond de l'étage et sur le dessous de la dalle du dessus ; impossible si `double_hauteur` : la poignée devient un cadenas avec une bulle d'aide) |
+| Pièce rectangle | 8 poignées (inchangé) | gauche/droite = côtés sur l'axe horizontal de la vue ; **haut = `plafond`** (2,8 m au moins, sans maximum ; aimanté sur les sols et plafonds par défaut des niveaux et sur le dessous de la dalle du dessus ; une pièce haute se règle comme les autres) |
 | Pièce polygone, forme | sommets | **haut = `plafond`** seulement (pas de côtés : la forme ne se déforme qu'en Dessus) |
 | Pilier, escalier, piège (rect non tourné) | 4 coins | gauche/droite sur l'axe de la vue (pilier, piège) ; aucune poignée de hauteur (implicite) |
 | Barrière invisible | sommets | **haut = `hauteur`** (poignée en pointillés quand elle va « jusqu'au plafond » ; la tirer fixe une valeur) |
 | Mur libre | 2 bouts | bouts sur l'axe de la vue si le mur est parallèle à la vue |
-| Étage | — | **étiquette de niveau** glissable : `sol` de l'étage (au moins 3,1 m d'écart avec les voisins). Tirets du plafond du dernier étage : `hauteur` |
+| Niveau | — | **étiquette de niveau** glissable : altitude de tout le niveau (libre ; refus nommé si une pièce se retrouverait à moins de 3,1 m d’une pièce recouverte). Tirets du plafond du niveau le plus haut : `plafond` de ses pièces |
 | Porte, débris, passage | — | gauche/droite = `largeur` (1 à 6 m, pas de 0,5 m), si le mur est face à la vue |
 | Effet (`taille`) et zones d'effet | selon le travail en cours sur les zones d'effet | mêmes grandeurs projetées, plus la hauteur de la zone si elle existe ; à aligner sur ce travail (§ 9, risque R3) |
 
@@ -348,22 +358,22 @@ aujourd'hui.
 
 ### 6.3 Règles, cotes, saisie
 
-- **Règles** : `MapRules` reste en 2D et vérifie l'emprise sur l'étage cible.
+- **Règles** : `MapRules` reste en 2D et vérifie l'emprise au niveau cible.
   Un nouveau `MapVertical.check_z(doc, e, k, z)` vérifie le reste :
   - bornes du type ;
   - plafond réel (`ceil_at`) ;
-  - étage existant ;
-  - `plafond` d'une pièce de 2,8 à 9 (bornes rendues identiques partout).
+  - pièce qui contient l'élément à cette altitude (sinon : élément orphelin) ;
+  - `plafond` d'une pièce : 2,8 m au moins, sans maximum depuis le format 17 (bornes identiques partout).
 
-  Les étages passent par `check_floors`.
+  Les pièces empilées passent par le contrôle par paires (`EditorMap.stack_issue`, `MapRules.check_room`).
 - **Cotes** (D10), en Bahnschrift 12 sur pastille #121214 bordée #38383D :
-  - hauteur au-dessus du sol de l'étage (trait de cote vertical avec flèches) ;
+  - hauteur au-dessus du sol du niveau (trait de cote vertical avec flèches) ;
   - écart depuis le début du glissement (« ΔZ +0,60 m ») près du curseur ;
   - distance horizontale au mur le plus proche sur l'axe de la vue ;
   - largeur ou hauteur de la poignée tirée.
 - **Saisie précise** :
   - pendant un glissement, taper une valeur puis Entrée fixe l'écart sur l'axe verrouillé (ou vertical par défaut en élévation), dans le même champ près du curseur qu'aujourd'hui ;
-  - dans le panneau Propriétés, une ligne **Position** remplace la note actuelle : champs **X**, **Y** (m, pas de la grille) et **Z** (m au-dessus du sol pour une hauteur de pose ; sinon une liste **Étage**) ;
+  - dans le panneau Propriétés, une ligne **Position** remplace la note actuelle : champs **X**, **Y** (m, pas de la grille) et **Z** (m au-dessus du sol pour une hauteur de pose ; sinon une liste des **niveaux** ; pour une pièce, son altitude) ;
   - un champ validé = une étape d'annulation ;
   - une valeur refusée est remise et la raison s'affiche.
 - **Curseurs** :
@@ -390,7 +400,7 @@ luminaires et des effets.
 
 ### 6.4 Collaboration et MCP
 
-- **Ops** : aucune nouvelle. Un déplacement vertical produit des `put` d'éléments, plus un `carte` pour les étages.
+- **Ops** : aucune nouvelle. Un déplacement vertical produit des `put` d'éléments (format 17 : leur `altitude` ; plus de liste d'étages dans `carte`).
 - **Présence** : clés facultatives en plus, `z` (hauteur du curseur, m) et `vue` (plan de la vue survolée). Ainsi le curseur d'un participant est dessiné dans les élévations à sa vraie hauteur (s'il est dans une élévation), sinon par un trait vertical dans la colonne de sa position.
 - **`CollabView`** dessine les silhouettes, sélections et éclairs à travers un adaptateur de projection (`view.project_elem`) au lieu de `cv.to_px`. Une vieille version de l'éditeur ignore ces clés : compatibilité garantie.
 - **MCP** :
@@ -399,12 +409,12 @@ luminaires et des effets.
   - les instructions du serveur décrivent `z`, `descente` et `hauteur` ;
   - `editor_apply` est inchangé.
 
-## 7. Format 12 (nouvelles clés, toutes facultatives)
+## 7. Hauteurs : format 12 (nouvelles clés, toutes facultatives), puis format 17
 
 | Type | Clé | Sens | Bornes | Par défaut (jamais écrite) |
 |---|---|---|---|---|
-| `prefab` | `z` | hauteur de pose du décor au-dessus du sol (m) | 0 à 30, pas de 0,01 | 0 (au sol) |
-| `luminaire` (au sol) | `hauteur` | aujourd'hui réservée aux appliques ; s'étend au sol | `WALL_LIGHT_HEIGHT` | dessus du meuble dessous (`support`) |
+| `prefab` | `z` | hauteur de pose du décor au-dessus du sol de son niveau (m) | 0 et plus, pas de 0,01 (format 17 : plus de maximum de 30 m, garde technique `MapVertical.TECH_Z` = 10 km ; la vraie borne est le plafond réel) | 0 (au sol) |
+| `luminaire` (au sol) | `hauteur` | aujourd'hui réservée aux appliques ; s'étend au sol | `WALL_LIGHT_HEIGHT` (0,2 m à `TECH_Z`) | dessus du meuble dessous (`support`) |
 | `luminaire` (au plafond), `effet` (au plafond) | `descente` | distance sous le plafond (m) | 0 à 3 | `drop` du catalogue / 0 |
 
 - Fichiers touchés :
@@ -421,6 +431,49 @@ luminaires et des effets.
   - un décor sans collision (« non ») peut flotter librement (lustre tombé accroché, débris).
 
   Ainsi le navmesh et les collisions restent cohérents.
+
+### 7.1 Format 17 : hauteurs et élévations sans étages
+
+Les clés du format 12 (`z`, `hauteur`, `descente`) **ne changent pas** :
+elles restent relatives au sol du niveau de l'élément. Ce qui change :
+
+- **Altitude dans le monde** = `altitude` de l'élément (sol de son niveau,
+  absolu) + sa hauteur locale ; `editor_get_element` (MCP) rend `z_monde` =
+  `altitude` + `z`. Plus de `etages[k].sol` ni d'indice d'étage dans le
+  fichier ; l'éditeur numérote les niveaux pour l'affichage seulement
+  (`EditorMap.levels()`, du plus bas au plus haut, recalculé dès qu'une pièce
+  change d'altitude).
+- **Plafond réel** d'une case (`MapVertical.ceil_at`) = min(plafond réglé de
+  la pièce, dessous de la dalle de la première pièce au-dessus de la case,
+  `slab_above`), sans remonter par les trémies ; un mur monte jusqu'à la dalle
+  du dessus si elle est à 3 m au plus (`wall_top`, `WALL_CLOSE`). Une pièce
+  sans plafond (`sans_plafond`) n'a pas de plafond construit : ses murs
+  montent à son plafond réglé, ce qui y est accroché « flotte » à cette
+  hauteur (avertissement), et l'élévation dessine ce plafond en pointillés.
+- **Bornes des hauteurs** : plus aucune borne de conception (décision 3 du
+  plan) : `DECOR_Z`, `WALL_LIGHT_HEIGHT`, `CLIP_HEIGHT` et la hauteur des
+  effets (`MapCatalog.EFFECT_LIMITS.hauteur`) vont jusqu'à la garde
+  technique `MapVertical.TECH_Z` (10 km : précision des flottants 32 bits de
+  la physique). `descente` reste de 0 à 3 m. La pose est bornée par le
+  plafond réel (`pose_bounds`), ou par rien sous un ciel ouvert.
+- **Élévations** : tous les niveaux empilés à leur altitude ; étiquettes
+  « 0,00 m », « +3,50 m » (le niveau affiché en or) ; une étiquette glissée
+  déplace tout le niveau (`MapEditor.shift_level_to`, refus nommé, dernière
+  place gardée) ; terrain hachuré sous le sol le plus bas ; une pièce haute
+  est une seule boîte jusqu'à son plafond, à travers les niveaux qu'elle
+  traverse ; un clic sur une pièce met la vue Dessus à son niveau.
+- **Glissement vertical d'une pièce** : altitude libre (pas de 0,25 m sur
+  l'écart), aimants `MapVertical.room_alt_magnets` (sols des autres niveaux,
+  juste au-dessus ou au-dessous des pièces recouvertes : 3,1 m d'écart) ;
+  aimant « Dessous de dalle » des hauteurs de pose = première dalle au-dessus
+  de la case de l'élément ; `MapVertical.floor_at(doc, za, p)` trouve la pièce
+  qui contient le point à l'altitude visée. Déplacement par
+  `MapTransform.vertical_plan` / `lift` : le contenu suit ; un escalier
+  rattaché par son pied n'emporte que son pied, un escalier qui arrive dans la
+  pièce n'a que son arrivée qui suit (`MapTransform.arrivals`).
+- **Coordonnées négatives** : les élévations, l'aperçu 3D et le gizmo
+  retirent le décalage de la grille du validateur (`OFF = WORLD_OFFSET +
+  v.shift`) : les cotes et les règles donnent les vraies coordonnées.
 
 ## 8. Identité visuelle
 
@@ -489,14 +542,14 @@ Maquette validée par l'utilisateur, l'écran 2 (« Déplacement vertical en vue
 Hors périmètre (à proposer plus tard si besoin) :
 - hauteur propre des murs et piliers (murets) ;
 - hauteur par porte ;
-- demi-niveaux dans un étage ;
+- demi-niveaux dans un étage (réalisé depuis par le format 17 : niveaux libres, § 7.1) ;
 - pose d'éléments directement en élévation ;
 - rectangle de sélection dans les élévations (il existe dans la vue Dessus).
 
 Réalisé depuis : **sélection multiple** (Maj + clic dans toutes les vues,
 rectangle dans la vue Dessus, Ctrl+A), commune à toutes les vues (chaque
 élément surligné, cadre du groupe), glissement du groupe dans les élévations
-(axe de la vue, étage, ou hauteur de pose si tout le groupe est du décor
+(axe de la vue, altitude, ou hauteur de pose si tout le groupe est du décor
 posé), menu du clic droit : `docs/MAP_AUTHORING.md` § 2, « Sélection
 multiple et groupes ».
 
@@ -513,15 +566,15 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   plan Dessus à une fenêtre (ViewCube, menu) **échange** les plans des deux
   fenêtres. Une disposition sans vue Dessus la garde cachée (ses réglages
   restent ceux de l'éditeur).
-- **Menu des étages** : l'en-tête n'a pas de puce « Étages ▾ » en plus ; un
-  clic sur le texte « étages : tous » (surligné au survol) ouvre le menu,
+- **Menu des niveaux** : l'en-tête n'a pas de puce « Niveaux ▾ » en plus ; un
+  clic sur le texte « niveaux : tous » (surligné au survol) ouvre le menu,
   pour garder l'en-tête de la maquette.
 - **Zoom affiché** : 100 % = 15 px par mètre (valeurs de la maquette : 22
   px/m → 147 %).
 - **Choix au clic en élévation** : ouvertures d'abord, puis le plus petit
   objet sous le curseur, puis la pièce la plus proche ; exception : une
-  pièce d'un autre étage contenue dans le volume de la plus proche (la
-  passerelle dans l'entrepôt en double hauteur) est choisie à sa place. En
+  pièce d'un autre niveau contenue dans le volume de la plus proche (la
+  passerelle dans l'entrepôt haut) est choisie à sa place. En
   Avant, la caméra est au sud : la salle des machines (au sud) est DEVANT
   l'atelier et l'entrepôt (la légende de l'écran 3 de la maquette dit
   l'inverse ; le tableau du § 3.1 fait foi).
@@ -529,20 +582,20 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   2000 objets) : dessin du contenu d'une élévation ≈ 2,2 ms (objectif 4 ms) ;
   projection (une fois par version de la carte et par plan) ≈ 30 ms. Le
   contenu est une couche à part, redessinée seulement quand la carte, le
-  zoom, la coupe ou l'étage changent ; un déplacement de la vue la décale ;
+  zoom, la coupe ou le niveau changent ; un déplacement de la vue la décale ;
   la souris ne redessine que la couche du dessus (règles, sélection,
   survol). Deux boîtes de même rectangle à l'écran ne sont dessinées qu'une
   fois (la plus proche).
-- **Pilier et mur libre dans une double hauteur** : ils montent jusqu'en
-  haut de l'étage du dessus (comme `MapRaster`, qui les prolonge dans la
-  trémie).
+- **Pilier et mur libre dans une pièce haute** : ils montent jusqu'à son
+  plafond, à travers les niveaux qu'elle traverse (comme `MapRaster`, qui les prolonge dans le
+  vide).
 - **Étape 3 : aimants verticaux** actifs en grille fine et en libre (pas en
   grille 1 m), rayon de 6 px : on les croise sans y rester collé (maquette :
   linteau « croisé puis dépassé »). La valeur tapée pendant un glissement
   (Tab, ou directement un chiffre ou « - ») ignore les aimants.
 - **Hauteurs de pose (format 12)** : en plus du § 7, la `descente` vaut aussi
   pour le **décor accroché au plafond** (câble suspendu) ; la `hauteur` d'un
-  luminaire au sol va de 0 à 30 m (0 : par terre, même sur un meuble), le
+  luminaire au sol va de 0 à 10 km (garde technique, format 17 ; 0 : par terre, même sur un meuble), le
   contrôle des cartes reçues accepte donc 0 pour la `hauteur` d'un
   luminaire. Un luminaire du plafond descendu au-delà de son `drop` descend
   avec sa lumière (l'objet ne monte jamais au-dessus du plafond).
@@ -550,12 +603,12 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   au-dessus d'un autre ne le « chevauche » pas pour les règles de pose
   (`MapRules._stacked`) ; un décor bloquant au-dessus du sol doit reposer
   sur le dessus d'un autre (à 2 cm près), sinon « décor en l'air ».
-- **Plafond d'une pièce** : bornes 2,8 à 9 m partout (panneau, catalogue et
-  contrôle des cartes reçues, erreur du validateur) ; la poignée losange
-  s'arrête au dessous de la dalle quand une pièce de l'étage du dessus
-  couvre toute la pièce (sinon 9 m), message vérifié en direct au-dessus.
+- **Plafond d'une pièce** : 2,8 m au moins, sans maximum depuis le format 17
+  (avant : 2,8 à 9 m), mêmes bornes partout (panneau, catalogue, contrôle des
+  cartes reçues, erreur du validateur) ; la poignée losange s'aimante au dessous
+  de la dalle d'une pièce posée au-dessus, message vérifié en direct au-dessus.
 - **Barrière invisible sans hauteur** : en jeu et en élévation, jusqu'au
-  plafond réel de la pièce à son milieu (et plus le haut de l'étage).
+  plafond réel de la pièce à son milieu.
 - **Objets muraux et ouvertures** : en élévation, ils glissent sur l'axe de
   l'écran seulement si leur mur est face à la vue ; en vue Dessus, seule la
   flèche de l'axe de leur mur est montrée.
@@ -584,7 +637,7 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   recadrer), « ⌖ Sélection », « Affichage ▾ » (la barre d'outils du panneau
   flottant est cachée) ; la touche P et le bouton APERÇU 3D n'agissent que
   sur le panneau flottant (message si la 3D est dans une fenêtre). En-tête
-  étroit : le texte des étages s'efface avant les axes. La barre du haut
+  étroit : le texte des niveaux s'efface avant les axes. La barre du haut
   tient sur une ligne à 100 % (titre de la carte coupé plus tôt,
   « À vérifier » au lieu de « Vérification : à faire ») ; à 150 %, elle
   passe sur deux lignes.
@@ -607,9 +660,9 @@ Notés au fil des étapes (à valider avec l'utilisateur).
   (porte de profil) ne bouge pas ; X / Y / Z ne libèrent jamais un axe
   interdit. Poignée de hauteur d'un effet : la zone telle qu'elle est
   dessinée (au mur : centrée sur sa hauteur ; au plafond : poignée en bas).
-  Après un changement d'étage, l'étage courant suit l'élément. Les deux
+  Après un changement de niveau, la vue suit l'élément. Les deux
   traits d'une coupe gardent 10 cm d'écart. La vue Dessous ne choisit que
-  l'étage montré. Les noms de pièces d'une élévation sont coupés à la
+  le niveau montré. Les noms de pièces d'une élévation sont coupés à la
   largeur de leur boîte et ne se superposent plus. Au lancement avec la 3D
   dans la disposition, ni message, ni bouton APERÇU 3D enfoncé, ni fenêtre
   séparée mémorisée qui lui prendrait la vue ; les réglages en attente sont

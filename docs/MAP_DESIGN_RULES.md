@@ -87,7 +87,7 @@ l'anti-jeu : la carte doit **forcer le joueur à bouger**.
   validateur : aucun carré libre de 4 × 4 m (le plus grand permis fait
   3,5 × 3,5 m).
 - La règle vaut **partout** : salle de départ, grandes salles, extérieurs,
-  cours, paliers, sous une double hauteur. Il n'y a pas d'exception.
+  cours, paliers, sous une pièce haute. Il n'y a pas d'exception.
 - Conséquence : dans toute pièce de plus de 3,9 m dans les deux sens, les
   obstacles sont espacés de **moins de 4 m** les uns des autres et des
   murs. Les passages qu'ils laissent font **1,5 à 3,5 m** (minimums au
@@ -140,7 +140,7 @@ viser, tirer une rafale et commencer à reculer.
 
 - À hauteur des yeux debout (**1,62 m**).
 - Coupée par : un mur, une porte fermée, un obstacle haut (> 1,8 m), un
-  plafond bas ou un plancher (lignes entre deux étages).
+  plafond bas ou un plancher (lignes entre deux niveaux).
 - **Pas** coupée par : un obstacle bas, une fenêtre barricadée (on voit entre
   les planches), un garde-corps de mezzanine, une porte ouverte.
 
@@ -175,25 +175,25 @@ La hauteur est un outil de rythme autant que d'architecture.
 | Couloir, passage, réduit | 2,8 à 3 m | oppression, la horde paraît plus proche |
 | Pièce courante | 3 à 3,5 m | neutre |
 | Grande salle | 4 à 5 m | respiration, espace de combat |
-| Double hauteur (ouverte sur l'étage) | 6 à 7 m | repère visuel, vue plongeante |
+| Pièce haute (ouverte sur le niveau du dessus) | 6 à 7 m | repère visuel, vue plongeante |
 
 - **[CIBLE]** **Compression puis détente** : un passage bas et étroit qui
   débouche sur une pièce haute et large. Le joueur ressent l'ouverture ; il
   sait qu'il entre dans un espace important.
-- **[CIBLE]** Une ou deux doubles hauteurs par carte au plus : rares, elles
+- **[CIBLE]** Une ou deux pièces hautes par carte au plus : rares, elles
   restent des repères.
 - **[CONSEIL]** Plafond bas au-dessus d'un goulot, haut au-dessus d'une
   grande salle : la sensation suit le danger.
 
-### 5.2 Étages [OBLIGATOIRE sauf mention]
+### 5.2 Niveaux [OBLIGATOIRE sauf mention]
 
 - Escaliers de **2 m de large au moins** sur un trajet principal (le
   validateur accepte 1,5 m) ; paliers dégagés de 2 m en haut et en bas.
-- Un étage qui contient plus de deux zones a **deux accès** (deux escaliers,
+- Un niveau qui contient plus de deux zones a **deux accès** (deux escaliers,
   ou un escalier et un téléporteur) ; sinon c'est une impasse géante.
 - **[CIBLE]** Un escalier ne monte pas plus de 6 m en ligne droite sans
   palier ; deux volées sont plus lisibles et cassent la ligne de vue.
-- **[CIBLE]** Une mezzanine ou un balcon au-dessus d'une double hauteur
+- **[CIBLE]** Une mezzanine ou un balcon au-dessus d'une pièce haute
   donne une **vue plongeante** et un poste de tir ; il a toujours une arrivée
   de zombies (fenêtre ou escalier proche) pour ne pas être un refuge.
 - **[CONSEIL]** Monter doit rapporter quelque chose (achat, raccourci, vue
@@ -515,7 +515,7 @@ dortoir, c'est un couloir meublé. **Chaque pièce est décorée, toujours.**
    goulots, impasses, ordre et prix des portes, enchaînement logique des
    thèmes. Vérifier §7, §9 et §10.1.
 3. **Tracé** des pièces, libre de forme et de taille ; couloirs du §3.2 ;
-   chaque pièce différente des autres (§3.3) ; plafonds et étages du §5.
+   chaque pièce différente des autres (§3.3) ; plafonds et niveaux du §5.
 4. **Lignes de vue** (§4) : les mesurer, les casser là où elles dépassent.
 5. **Obstacles** (§6), pris dans le thème de la pièce : combler tout
    carré vide de 15 m² (§3.1), les tourner et les décaler hors de la grille
@@ -544,7 +544,7 @@ ce fichier.
 | Circuits tenables dans une seule pièce | 0 |
 | Plus longue ligne de vue dans une salle | ≤ 15 m |
 | Longues lignes de vue assumées | ≤ 1, ≤ 25 m, arrivées sur le côté |
-| Doubles hauteurs | 1 à 2 |
+| Pièces hautes | 1 à 2 |
 | Part du sol occupée par les obstacles | ≤ 30 % par pièce |
 | Grandes boucles entre pièces | ≥ 1, avec des arrivées dans 2 pièces |
 | Impasses assumées | ≤ 2, chacune avec une fenêtre |

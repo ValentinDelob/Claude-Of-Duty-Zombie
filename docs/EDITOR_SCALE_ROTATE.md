@@ -249,7 +249,7 @@ Après la ligne Position (X, Y, Z) existante, deux sections :
   anneaux, poignées d'échelle, flèches et cotes ne sont dessinés que pour
   l'élément choisi seul, dans toutes les vues (Dessus, élévations, 3D
   intégrée ou flottante) ; à la désélection (reclic, clic dans le vide,
-  Échap, Maj + clic qui le retire, suppression, Ctrl+Z, changement d'étage,
+  Échap, Maj + clic qui le retire, suppression, Ctrl+Z, changement de niveau,
   autre élément, élément retiré par un autre participant ou Claude), rien ne
   reste à l'écran. Un geste en cours dont l'élément n'est plus le seul choisi
   est annulé (carte d'avant remise, aucune étape d'annulation) :
@@ -302,8 +302,8 @@ Après la ligne Position (X, Y, Z) existante, deux sections :
 | `incl` | [x, y] inclinaisons en degrés (§ 3.1) | chacune −180 à 180, pas de 0,1 | [0, 0] |
 
 ```json
-{"id":"d12","type":"prefab","prefab":"caisses","etage":0,"position":[14.63,8.5],"echelle":[1.5,1.5,1.5]}
-{"id":"d13","type":"prefab","prefab":"poutre","etage":0,"position":[12.5,14.5],"incl":[0,30]}
+{"id":"d12","type":"prefab","prefab":"caisses","altitude":0,"position":[14.63,8.5],"echelle":[1.5,1.5,1.5]}
+{"id":"d13","type":"prefab","prefab":"poutre","altitude":0,"position":[12.5,14.5],"incl":[0,30]}
 ```
 
 - Fichiers touchés : `EditorMap.FORMAT` = 14 et commentaire de version ;

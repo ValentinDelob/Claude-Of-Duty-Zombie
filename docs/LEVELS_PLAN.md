@@ -370,3 +370,20 @@ translation : mêmes messages, export identique, monde ≥ 0) + NetCodec ;
   (`MapTransform.lift`) garde `sortie` et revérifie l'escalier
   (`check_existing` : jamais de nouveau choix de côté). « Arrivée : altitude »
   nomme les niveaux comme le menu et l'onglet Niveaux.
+
+## Notes de l'étape 7 (documentation et nettoyage)
+- Documentation au format 17 : `MAP_AUTHORING.md` (§ 4 réécrit : niveaux,
+  superposition, pièces hautes et mezzanines, plafond masqué et ciel,
+  coordonnées négatives, interface des niveaux, escaliers quand une pièce
+  bouge, anciennes cartes et différences ; format des fichiers, limites des
+  cartes reçues), `EDITOR_VIEWS.md` (§ 7.1 : hauteurs et élévations sans
+  étages ; §§ 1, 9, 10 gardés pour l'histoire), `MAP_OBJECTS.md` (§ 4
+  « Plusieurs niveaux » : `altitude` / `altitude_haut`, sauts de niveaux,
+  palier dans le mur commun, `sortie`), `MAP_DESIGN_RULES.md` (règles
+  d'étages dites en niveaux, fond inchangé), `ARCHITECTURE.md`.
+- `MapCatalog.EFFECT_LIMITS.hauteur` : plus de maximum de 30 m, garde
+  technique `MapVertical.TECH_Z` (comme les autres hauteurs à l'étape 5).
+- Captures de revue retirées (`map_sky_look`, `stairs_top_wall_look`,
+  `map_levels_look`) : étapes 2, 4 et 5 validées.
+- Reste : retrait des alias `floor_count` / `floor_sol` et en-tête du format
+  dans `editor_map.gd` (après la fusion de la branche de performance).
