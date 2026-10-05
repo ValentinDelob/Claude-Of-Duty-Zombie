@@ -1,0 +1,573 @@
+{
+	"doc": {
+		"carte": {
+			"format": 17.0,
+			"id": "demi_niveau",
+			"nom": {
+				"fr": "DEMI_NIVEAU",
+				"en": "DEMI_NIVEAU"
+			},
+			"description": {
+				"fr": "",
+				"en": ""
+			},
+			"musique": "ambience_bunker",
+			"hauteur_portes": 2.5,
+			"lampes_auto": true
+		},
+		"pieces": [
+			{
+				"id": "pa",
+				"nom": "Salle",
+				"altitude": 0.0,
+				"plafond": 4.0,
+				"contour": [
+					[
+						0.0,
+						0.0
+					],
+					[
+						12.0,
+						0.0
+					],
+					[
+						12.0,
+						10.0
+					],
+					[
+						0.0,
+						10.0
+					]
+				],
+				"zone": "z1"
+			},
+			{
+				"id": "pp",
+				"nom": "Palier",
+				"altitude": 1.5,
+				"contour": [
+					[
+						12.0,
+						0.0
+					],
+					[
+						22.0,
+						0.0
+					],
+					[
+						22.0,
+						10.0
+					],
+					[
+						12.0,
+						10.0
+					]
+				],
+				"zone": "z1"
+			}
+		],
+		"ouvertures": [
+			{
+				"id": "w1",
+				"type": "fenetre",
+				"altitude": 0.0,
+				"position": [
+					3.25,
+					10.0
+				]
+			}
+		],
+		"objets": [
+			{
+				"id": "s1",
+				"type": "depart",
+				"altitude": 0.0,
+				"position": [
+					3.0,
+					7.0
+				]
+			},
+			{
+				"id": "b1",
+				"type": "boite",
+				"altitude": 0.0,
+				"position": [
+					3.25,
+					0.0
+				],
+				"mur": "n",
+				"depart": true
+			},
+			{
+				"id": "r1",
+				"type": "escalier",
+				"altitude": 0.0,
+				"altitude_haut": 1.5,
+				"rect": [
+					6.0,
+					3.0,
+					12.0,
+					5.5
+				],
+				"monte": "e"
+			}
+		],
+		"zones": [
+			{
+				"id": "z1",
+				"nom": {
+					"fr": "Salle",
+					"en": "Hall"
+				}
+			}
+		],
+		"depart": "z1"
+	},
+	"calls": [
+		{
+			"fn": "summarize",
+			"args": [],
+			"out": {
+				"carte": {
+					"id": "demi_niveau",
+					"nom": {
+						"fr": "DEMI_NIVEAU",
+						"en": "DEMI_NIVEAU"
+					},
+					"format": 17.0,
+					"niveaux": [
+						0.0,
+						1.5
+					],
+					"ciel": {
+						"type": "noir",
+						"luminosite": 1.0
+					},
+					"zone_depart": "z1"
+				},
+				"totaux": {
+					"pieces": 2.0,
+					"ouvertures": 1.0,
+					"objets": 3.0,
+					"escaliers": 1.0,
+					"zones": 1.0,
+					"portes_payantes": 0.0,
+					"cout_total_portes": 0.0
+				},
+				"niveaux": [
+					{
+						"altitude": 0.0,
+						"demi_niveau": true,
+						"bornes": [
+							0.0,
+							0.0,
+							12.0,
+							10.0
+						],
+						"pieces": [
+							{
+								"id": "pa",
+								"nom": "Salle",
+								"zone": "z1",
+								"bbox": [
+									0.0,
+									0.0,
+									12.0,
+									10.0
+								],
+								"surface": 120.0,
+								"altitude": 0.0,
+								"plafond": 4.0
+							}
+						],
+						"ouvertures": [
+							{
+								"id": "w1",
+								"type": "fenetre",
+								"pos": [
+									3.25,
+									10.0
+								],
+								"pieces": [
+									"pa"
+								]
+							}
+						],
+						"objets": {
+							"depart": [
+								{
+									"id": "s1",
+									"pos": [
+										3.0,
+										7.0
+									]
+								}
+							],
+							"boite": [
+								{
+									"id": "b1",
+									"pos": [
+										3.25,
+										0.0
+									],
+									"mur": "n",
+									"depart": true
+								}
+							]
+						},
+						"escaliers": [
+							{
+								"id": "r1",
+								"altitude": 0.0,
+								"altitude_haut": 1.5,
+								"montee": 1.5,
+								"rect": [
+									6.0,
+									3.0,
+									12.0,
+									5.5
+								],
+								"monte": "e",
+								"de": "pa",
+								"vers": "pp"
+							}
+						]
+					},
+					{
+						"altitude": 1.5,
+						"demi_niveau": true,
+						"bornes": [
+							12.0,
+							0.0,
+							22.0,
+							10.0
+						],
+						"pieces": [
+							{
+								"id": "pp",
+								"nom": "Palier",
+								"zone": "z1",
+								"bbox": [
+									12.0,
+									0.0,
+									22.0,
+									10.0
+								],
+								"surface": 100.0,
+								"altitude": 1.5,
+								"plafond": 3.2
+							}
+						],
+						"ouvertures": [],
+						"objets": {},
+						"escaliers": []
+					}
+				],
+				"zones": [
+					{
+						"id": "z1",
+						"nom": "Salle",
+						"pieces": [
+							"pa",
+							"pp"
+						],
+						"nom_en": "Hall",
+						"depart": true
+					}
+				],
+				"unites": "mètres ; x vers l'est, y vers le sud, z vers le haut (coordonnées négatives admises) ; bbox = [x0, y0, x1, y1] ; altitude = altitude absolue du sol ; plafond = hauteur sous plafond au-dessus de ce sol"
+			}
+		},
+		{
+			"fn": "summarize",
+			"args": [
+				-1,
+				0.0
+			],
+			"out": {
+				"carte": {
+					"id": "demi_niveau",
+					"nom": {
+						"fr": "DEMI_NIVEAU",
+						"en": "DEMI_NIVEAU"
+					},
+					"format": 17.0,
+					"niveaux": [
+						0.0,
+						1.5
+					],
+					"ciel": {
+						"type": "noir",
+						"luminosite": 1.0
+					},
+					"zone_depart": "z1"
+				},
+				"totaux": {
+					"pieces": 2.0,
+					"ouvertures": 1.0,
+					"objets": 3.0,
+					"escaliers": 1.0,
+					"zones": 1.0,
+					"portes_payantes": 0.0,
+					"cout_total_portes": 0.0
+				},
+				"niveaux": [
+					{
+						"altitude": 0.0,
+						"demi_niveau": true,
+						"bornes": [
+							0.0,
+							0.0,
+							12.0,
+							10.0
+						],
+						"pieces": [
+							{
+								"id": "pa",
+								"nom": "Salle",
+								"zone": "z1",
+								"bbox": [
+									0.0,
+									0.0,
+									12.0,
+									10.0
+								],
+								"surface": 120.0,
+								"altitude": 0.0,
+								"plafond": 4.0
+							}
+						],
+						"ouvertures": [
+							{
+								"id": "w1",
+								"type": "fenetre",
+								"pos": [
+									3.25,
+									10.0
+								],
+								"pieces": [
+									"pa"
+								]
+							}
+						],
+						"objets": {
+							"depart": [
+								{
+									"id": "s1",
+									"pos": [
+										3.0,
+										7.0
+									]
+								}
+							],
+							"boite": [
+								{
+									"id": "b1",
+									"pos": [
+										3.25,
+										0.0
+									],
+									"mur": "n",
+									"depart": true
+								}
+							]
+						},
+						"escaliers": [
+							{
+								"id": "r1",
+								"altitude": 0.0,
+								"altitude_haut": 1.5,
+								"montee": 1.5,
+								"rect": [
+									6.0,
+									3.0,
+									12.0,
+									5.5
+								],
+								"monte": "e",
+								"de": "pa",
+								"vers": "pp"
+							}
+						]
+					}
+				],
+				"zones": [
+					{
+						"id": "z1",
+						"nom": "Salle",
+						"pieces": [
+							"pa",
+							"pp"
+						],
+						"nom_en": "Hall",
+						"depart": true
+					}
+				],
+				"unites": "mètres ; x vers l'est, y vers le sud, z vers le haut (coordonnées négatives admises) ; bbox = [x0, y0, x1, y1] ; altitude = altitude absolue du sol ; plafond = hauteur sous plafond au-dessus de ce sol"
+			}
+		},
+		{
+			"fn": "summarize",
+			"args": [
+				-1,
+				1.5
+			],
+			"out": {
+				"carte": {
+					"id": "demi_niveau",
+					"nom": {
+						"fr": "DEMI_NIVEAU",
+						"en": "DEMI_NIVEAU"
+					},
+					"format": 17.0,
+					"niveaux": [
+						0.0,
+						1.5
+					],
+					"ciel": {
+						"type": "noir",
+						"luminosite": 1.0
+					},
+					"zone_depart": "z1"
+				},
+				"totaux": {
+					"pieces": 2.0,
+					"ouvertures": 1.0,
+					"objets": 3.0,
+					"escaliers": 1.0,
+					"zones": 1.0,
+					"portes_payantes": 0.0,
+					"cout_total_portes": 0.0
+				},
+				"niveaux": [
+					{
+						"altitude": 1.5,
+						"demi_niveau": true,
+						"bornes": [
+							12.0,
+							0.0,
+							22.0,
+							10.0
+						],
+						"pieces": [
+							{
+								"id": "pp",
+								"nom": "Palier",
+								"zone": "z1",
+								"bbox": [
+									12.0,
+									0.0,
+									22.0,
+									10.0
+								],
+								"surface": 100.0,
+								"altitude": 1.5,
+								"plafond": 3.2
+							}
+						],
+						"ouvertures": [],
+						"objets": {},
+						"escaliers": []
+					}
+				],
+				"zones": [
+					{
+						"id": "z1",
+						"nom": "Salle",
+						"pieces": [
+							"pa",
+							"pp"
+						],
+						"nom_en": "Hall",
+						"depart": true
+					}
+				],
+				"unites": "mètres ; x vers l'est, y vers le sud, z vers le haut (coordonnées négatives admises) ; bbox = [x0, y0, x1, y1] ; altitude = altitude absolue du sol ; plafond = hauteur sous plafond au-dessus de ce sol"
+			}
+		},
+		{
+			"fn": "find_elements",
+			"args": [
+				[
+					"pa",
+					"pp",
+					"zz"
+				]
+			],
+			"out": {
+				"elements": {
+					"pa": {
+						"coll": "pieces",
+						"el": {
+							"id": "pa",
+							"nom": "Salle",
+							"altitude": 0.0,
+							"plafond": 4.0,
+							"contour": [
+								[
+									0.0,
+									0.0
+								],
+								[
+									12.0,
+									0.0
+								],
+								[
+									12.0,
+									10.0
+								],
+								[
+									0.0,
+									10.0
+								]
+							],
+							"zone": "z1"
+						}
+					},
+					"pp": {
+						"coll": "pieces",
+						"el": {
+							"id": "pp",
+							"nom": "Palier",
+							"altitude": 1.5,
+							"contour": [
+								[
+									12.0,
+									0.0
+								],
+								[
+									22.0,
+									0.0
+								],
+								[
+									22.0,
+									10.0
+								],
+								[
+									12.0,
+									10.0
+								]
+							],
+							"zone": "z1"
+						}
+					}
+				},
+				"absents": [
+					"zz"
+				]
+			}
+		},
+		{
+			"fn": "plan_corridor",
+			"args": [
+				"pa",
+				"pp",
+				2.5,
+				-1
+			],
+			"out": {
+				"error": "altitudes différentes (0 m et 1,5 m) : reliez-les par un escalier (un couloir relie deux pièces de même altitude)"
+			}
+		}
+	]
+}

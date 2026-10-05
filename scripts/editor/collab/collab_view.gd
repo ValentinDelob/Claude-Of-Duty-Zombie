@@ -43,7 +43,8 @@ var hover_ids: Array = []
 var cursors: Dictionary = {}
 ## Pair -> {coll, el} : aperçu en direct validé (presence.live).
 var live: Dictionary = {}
-var _floor_seen := -1
+## Altitude du niveau affiché au dernier passage (pastilles à remettre à jour).
+var _alt_seen := INF
 
 
 func setup(editor: MapEditor) -> void:
@@ -80,8 +81,8 @@ func active() -> bool:
 func _process(delta: float) -> void:
 	if ed == null:
 		return
-	if ed.floor_k != _floor_seen:
-		_floor_seen = ed.floor_k
+	if ed.view_alt() != _alt_seen:
+		_alt_seen = ed.view_alt()
 		if ed.collab_ui != null:
 			ed.collab_ui.update_pills()
 	var redraw := advance(delta)
@@ -248,7 +249,7 @@ func finish_animation() -> void:
 
 
 ## Commande highlight de Claude : contour pulsé, bulle avec le message, vue
-## amenée sur les éléments s'ils sont hors champ (étage compris), ~4 s.
+## amenée sur les éléments s'ils sont hors champ (niveau compris), ~4 s.
 func highlight(ids: Array, message: String) -> void:
 	var drawn := []
 	for id in ids:
@@ -262,7 +263,7 @@ func highlight(ids: Array, message: String) -> void:
 	_redraw()
 
 
-## Rectangle (m) des éléments `ids` à l'étage `k` ; NONE si aucun n'y est.
+## Rectangle (m) des éléments `ids` au niveau `k` ; NONE si aucun n'y est.
 const NONE := Rect2(Vector2.INF, Vector2.ZERO)
 
 
@@ -279,7 +280,7 @@ func bounds_of(ids: Array, k: int) -> Rect2:
 	return bb
 
 
-## Amène la vue sur les éléments s'ils ne sont pas visibles (autre étage ou
+## Amène la vue sur les éléments s'ils ne sont pas visibles (autre niveau ou
 ## hors champ) ; jamais pendant un glissement. `zoom_out` : dézoome si le
 ## groupe est plus grand que la vue.
 func _bring_into_view(ids: Array, zoom_out: bool) -> void:
@@ -307,7 +308,7 @@ func _bring_into_view(ids: Array, zoom_out: bool) -> void:
 
 # ------------------------------------------------------------------ dessin
 
-## Dessine par-dessus le plan (appelé pendant MapCanvas._draw) à l'étage `k`.
+## Dessine par-dessus le plan (appelé pendant MapCanvas._draw) au niveau `k`.
 func draw_on(cv: MapCanvas, font: Font, k: int) -> void:
 	# Index des éléments le temps de ce dessin (un lot de Claude peut en
 	# compter des centaines, sur une carte de 2000 objets).

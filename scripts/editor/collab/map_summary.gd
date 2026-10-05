@@ -1,7 +1,7 @@
 class_name MapSummary
 extends RefCounted
 ## RÉSUMÉ CALCULÉ D'UNE CARTE pour l'agent (serveur MCP de l'éditeur) :
-## résumé par étage (editor_get_map, format « summary »), éléments complets
+## résumé par niveau (editor_get_map, format « summary »), éléments complets
 ## (editor_get_element) et proposition de couloir entre deux pièces
 ## (editor_plan_corridor), sans jamais rien appliquer.
 ##
@@ -34,6 +34,11 @@ const NEAR_MAX := 20.0
 const OBJ_DETAIL_KEYS := ["atout", "arme", "prefab", "luminaire", "variante", "mur", "angle", "rot",
 	"monte", "depart", "epaisseur", "hauteur", "courant", "echelle", "incl", "z"]
 const UNITES := "mètres ; x vers l'est, y vers le sud ; bbox = [x0, y0, x1, y1]"
+const UNITES_17 := "mètres ; x vers l'est, y vers le sud, z vers le haut (coordonnées négatives admises) ; bbox = [x0, y0, x1, y1] ; altitude = altitude absolue du sol ; plafond = hauteur sous plafond au-dessus de ce sol"
+## Distance (m) entre le bout d'un escalier et le point cherché dans la pièce
+## du pied ou de l'arrivée ; tolérance d'un palier dans un mur commun.
+const STAIR_REACH := 0.3
+const STAIR_WALL_TOL := 0.35
 
 ## Lettres accentuées (Latin-1, Latin étendu A) et leur lettre de base, comme
 ## la décomposition NFKD de Python privée de ses accents (_fold).
@@ -736,11 +741,21 @@ static func _obj_place(o: Dictionary) -> Dictionary:
 	return out
 
 
-## Résumé compact de la carte pour raisonner : par étage, pièces (zone, boîte,
+## Résumé compact de la carte pour raisonner : par niveau, pièces (zone, boîte,
 ## surface, voisines par bord commun, pièces proches non collées avec les
 ## points les plus proches), ouvertures (pièces reliées), objets par type,
-## zones, départ. floor = -1 : tous les étages.
-static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
+## zones, départ.
+## Format 17 (niveaux libres) : « niveaux » = [{altitude, demi_niveau?,
+## bornes, pieces, ouvertures, objets, escaliers}] du plus bas au plus haut ;
+## pièces avec altitude, plafond (réglé), sans_plafond, plafond_reel_min et
+## plafond_coupe_par (pièce posée au-dessus qui le coupe), traverse (pièce
+## haute : niveaux qu'elle traverse), mezzanine_sur (posée au-dessus du vide
+## d'une pièce haute) ; escaliers {id, altitude, altitude_haut, montee,
+## sortie?, de, vers, traverse?} (rangés au niveau de leur pied ; « traverse » :
+## niveaux sautés) ; « orphelins » : éléments à une altitude sans pièce.
+## `alt` (m) : un seul niveau. Carte d'avant le format 17 (« etage », lue pour
+## les références du script Python) : « etages » par indice, `floor` (-1 : tous).
+static func summarize(doc: Dictionary, floor := -1, alt: Variant = null) -> Dictionary:
 	var carte: Dictionary = doc.get("carte") if doc.get("carte") is Dictionary else {}
 	var pieces := _dicts(doc, "pieces")
 	var ouvertures := _dicts(doc, "ouvertures")
@@ -765,10 +780,15 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 		n_floors = maxi(n_floors, _k(o) + 1)
 
 	var floors_out := []
+	var alt_f: Variant = float(alt) if (alt is float or alt is int) and is_finite(float(alt)) else null
 	for k in n_floors:
 		if floor != -1 and k != floor:
 			continue
 		var f: Dictionary = etages[k] if _legacy and k < etages.size() and etages[k] is Dictionary else {}
+		if alt_f != null:
+			var here: float = float(_num(f.get("sol", k * 3.5))) if _legacy else EditorMap.level_alt_in(_lv, k)
+			if absf(here - float(alt_f)) > EditorMap.ALT_EQ:
+				continue
 		var on := rooms.filter(func(r: Dictionary) -> bool: return r.k == k)
 		var out_rooms := []
 		var all_pts := []
@@ -781,7 +801,9 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 				"bbox": (r.bbox as Array).map(func(v: float) -> float: return r2(v)), "surface": r2(area(poly))}
 			if not is_axis_rect(poly):
 				e["contour"] = poly.map(func(q: Array) -> Array: return rp(q))
-			for key: String in (["plafond", "double_hauteur", "forme"] if _legacy else ["altitude", "plafond", "forme"]):
+			if not _legacy:
+				e.merge(_room_heights(r, rooms))
+			for key: String in (["plafond", "double_hauteur", "forme"] if _legacy else ["forme"]):
 				if p.has(key):
 					if key == "forme" and p[key] is Dictionary:
 						e[key] = p[key].get("type")
@@ -830,8 +852,13 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 			out_open.append(e)
 
 		var by_type := {}
+		var stairs := []
 		for o: Dictionary in objets:
 			if _k(o) != k:
+				continue
+			if not _legacy and _pystr(o.get("type", "")) == "escalier":
+				# Format 17 : escaliers à part (altitudes, pièces du pied et de l'arrivée).
+				stairs.append(_stair_entry(o, rooms))
 				continue
 			var e := {"id": _pystr(o.get("id", ""))}
 			e.merge(_obj_place(o), true)
@@ -848,9 +875,14 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 			floors_out.append({"etage": k, "sol": _num(f.get("sol", k * 3.5)), "hauteur": _num(f.get("hauteur", 3.2)),
 				"bornes": bornes, "pieces": out_rooms, "ouvertures": out_open, "objets": by_type})
 		else:
-			# Format 17 : niveaux = altitudes distinctes des pièces.
-			floors_out.append({"niveau": k, "altitude": _num(EditorMap.level_alt_in(_lv, k)),
-				"bornes": bornes, "pieces": out_rooms, "ouvertures": out_open, "objets": by_type})
+			# Format 17 : niveaux = altitudes distinctes des pièces ; demi-niveau :
+			# à moins de MIN_STACK d'un niveau voisin (côte à côte seulement).
+			var lv_e := {"altitude": r2(EditorMap.level_alt_in(_lv, k))}
+			for j in [k - 1, k + 1]:
+				if j >= 0 and j < _lv.size() and absf(float(_lv[j]) - float(_lv[k])) < EditorMap.MIN_STACK - EditorMap.ALT_EQ:
+					lv_e["demi_niveau"] = true
+			lv_e.merge({"bornes": bornes, "pieces": out_rooms, "ouvertures": out_open, "objets": by_type, "escaliers": stairs})
+			floors_out.append(lv_e)
 
 	var zones_out := []
 	for z: Dictionary in zones:
@@ -873,15 +905,25 @@ static func summarize(doc: Dictionary, floor := -1) -> Dictionary:
 			n_paid += 1
 			cost += _int(o.get("prix"))
 	if not _legacy:
-		return {
+		var n_stairs := objets.filter(func(o: Dictionary) -> bool: return _pystr(o.get("type", "")) == "escalier").size()
+		var out := {
 			"carte": {"id": carte.get("id"), "nom": carte.get("nom"), "format": carte.get("format"),
-				"niveaux": _lv.size(), "zone_depart": depart},
+				"niveaux": _lv.map(func(a: float) -> float: return r2(a)), "ciel": EditorMap.sky_of(carte), "zone_depart": depart},
 			"totaux": {"pieces": pieces.size(), "ouvertures": ouvertures.size(), "objets": objets.size(),
-				"zones": zones.size(), "portes_payantes": n_paid, "cout_total_portes": cost},
+				"escaliers": n_stairs, "zones": zones.size(), "portes_payantes": n_paid, "cout_total_portes": cost},
 			"niveaux": floors_out,
 			"zones": zones_out,
-			"unites": UNITES,
+			"unites": UNITES_17,
 		}
+		# Éléments posés à une altitude où aucune pièce n'est (le validateur le signale).
+		var orphans := []
+		for pair: Array in [["ouvertures", ouvertures], ["objets", objets]]:
+			for o: Dictionary in pair[1]:
+				if _k(o) < 0:
+					orphans.append({"id": _pystr(o.get("id", "")), "coll": pair[0], "type": _pystr(o.get("type", "")), "altitude": r2(EditorMap.alt_of(o))})
+		if not orphans.is_empty():
+			out["orphelins"] = orphans
+		return out
 	return {
 		"carte": {"id": carte.get("id"), "nom": carte.get("nom"), "format": carte.get("format"),
 			"etages": etages.size(), "zone_depart": depart},
@@ -931,6 +973,106 @@ static func _lv_el(el: Dictionary, k: int) -> Dictionary:
 	else:
 		el["altitude"] = EditorMap.level_alt_in(_lv, k)
 	return el
+
+
+## Niveaux (altitudes, m, triées) d'une carte au format 17 ; [] pour une carte
+## d'avant (étages).
+static func levels_of(doc: Dictionary) -> Array:
+	_setup_levels(doc)
+	return [] if _legacy else _lv.duplicate()
+
+
+## Format 17 : hauteurs d'une pièce du résumé `r` parmi toutes les pièces
+## `rooms` (entrées de summarize : id, poly, k, bbox, src).
+static func _room_heights(r: Dictionary, rooms: Array) -> Dictionary:
+	var p: Dictionary = r.src
+	var a := EditorMap.alt_of(p)
+	var ceil := EditorMap.room_ceiling(p)
+	var out := {"altitude": r2(a), "plafond": r2(ceil)}
+	if EditorMap.no_ceiling(p):
+		out["sans_plafond"] = true
+	# Pièce haute : niveaux traversés (comme EditorMap.rooms_through).
+	var through := []
+	for j in range(maxi(int(r.k), 0) + 1, _lv.size()):
+		var sol := float(_lv[j])
+		if a <= sol - EditorMap.MIN_STACK + EditorMap.ALT_EQ and a + ceil >= sol + EditorMap.HIGH_CLEAR - EditorMap.ALT_EQ:
+			through.append(r2(sol))
+	if not through.is_empty():
+		out["traverse"] = through
+	# Plafond réel : coupé par le dessous de la dalle d'une pièce posée au-dessus.
+	var low := ceil
+	var cut_by := []
+	var on_void := []
+	for o: Dictionary in rooms:
+		if o.id == r.id or not polys_ok(o) or _bbox_apart(r.bbox, o.bbox, -JOIN_TOL):
+			continue
+		var b := EditorMap.alt_of(o.src)
+		if b > a + EditorMap.ALT_EQ:
+			var under := b - MapValidator.DALLE - a
+			if under < ceil - EPS and polys_overlap(r.poly, o.poly):
+				cut_by.append(o.id)
+				low = minf(low, under)
+		elif b < a - EditorMap.ALT_EQ and a - b >= EditorMap.MIN_STACK - EditorMap.ALT_EQ \
+				and b + EditorMap.room_ceiling(o.src) >= a + EditorMap.HIGH_CLEAR - EditorMap.ALT_EQ and polys_overlap(r.poly, o.poly):
+			# Posée au-dessus du vide d'une pièce haute plus basse : mezzanine.
+			on_void.append(o.id)
+	if not cut_by.is_empty():
+		out["plafond_reel_min"] = r2(low)
+		out["plafond_coupe_par"] = cut_by
+	if not on_void.is_empty():
+		out["mezzanine_sur"] = on_void
+	return out
+
+
+static func polys_ok(r: Dictionary) -> bool:
+	return (r.poly as Array).size() >= 3
+
+
+## Format 17 : escalier du résumé (rangé au niveau de son pied) : altitudes,
+## montée, pièces du pied (« de ») et de l'arrivée (« vers », null si aucune),
+## niveaux sautés (« traverse »).
+static func _stair_entry(o: Dictionary, rooms: Array) -> Dictionary:
+	var a := EditorMap.alt_of(o)
+	var top := EditorMap.stair_top(o)
+	var e := {"id": _pystr(o.get("id", "")), "altitude": r2(a), "altitude_haut": r2(top), "montee": r2(top - a)}
+	e.merge(_obj_place(o), true)
+	for key: String in ["monte", "rot", "variante", "sens", "garde_corps", "cotes", "sortie"]:
+		if o.has(key):
+			e[key] = _num(o[key])
+	var pl := MapRaster.stair_plan(o, a, top)
+	var foot: Dictionary = pl.get("foot", {})
+	var exit: Dictionary = pl.get("exit", {})
+	e["de"] = _room_at(rooms, a, foot)
+	e["vers"] = _room_at(rooms, top, exit)
+	var skipped := []
+	for l in _lv:
+		if float(l) > a + EditorMap.ALT_EQ and float(l) < top - EditorMap.ALT_EQ:
+			skipped.append(r2(float(l)))
+	if not skipped.is_empty():
+		e["traverse"] = skipped
+	return e
+
+
+## Pièce à l'altitude `alt` qui contient le point juste au-delà du bout `end`
+## d'un escalier ({m, n} de StairGen.plan) ; sinon celle dont le trait en est
+## tout près (palier dans le mur commun) ; null si aucune.
+static func _room_at(rooms: Array, alt: float, end: Dictionary) -> Variant:
+	if not end.get("m") is Vector2:
+		return null
+	var q: Vector2 = end.m + (end.get("n", Vector2.ZERO) as Vector2) * STAIR_REACH
+	var p := [float(q.x), float(q.y)]
+	var near: Variant = null
+	var best := STAIR_WALL_TOL
+	for r: Dictionary in rooms:
+		if absf(EditorMap.alt_of(r.src) - alt) > EditorMap.ALT_EQ or not polys_ok(r):
+			continue
+		if contains(r.poly, p):
+			return r.id
+		var d := dist_to_boundary(r.poly, p)
+		if d <= best:
+			best = d
+			near = r.id
+	return near
 
 
 ## Valeur « fausse » au sens de Python (None, False, 0, "", [], {}).
@@ -1063,7 +1205,8 @@ static func _door_op(same_zone: bool, k: int, pos: Array, max_w: float, door_pri
 
 
 ## Propose (sans rien appliquer) les ops d'un couloir entre deux pièces du même
-## étage : couloir droit si leurs côtés se font face, en L sinon ; ou
+## niveau (même altitude ; même étage pour une carte d'avant le format 17) :
+## couloir droit si leurs côtés se font face, en L sinon ; ou
 ## simplement une porte si elles ont déjà un mur commun. Le couloir est mis
 ## dans la zone de room_a (passage libre côté A), porte payante côté B si B
 ## est d'une autre zone. price = -1 : prix suivant de la courbe des portes.
@@ -1087,6 +1230,9 @@ static func plan_corridor(doc: Dictionary, room_a: String, room_b: String, width
 	var B: Dictionary = rooms[room_b]
 	var k := _k(A)
 	if _k(B) != k:
+		if not _legacy:
+			return {"error": "altitudes différentes (%s et %s) : reliez-les par un escalier (un couloir relie deux pièces de même altitude)" % [
+				EditorMap.alt_text(EditorMap.alt_of(A)), EditorMap.alt_text(EditorMap.alt_of(B))]}
 		return {"error": "les deux pièces ne sont pas au même étage (relier deux étages : un escalier, pas un couloir)"}
 	var w := snap(width)
 	if w < 1.0 or w > 6.0:
@@ -1250,7 +1396,7 @@ static func plan_corridor(doc: Dictionary, room_a: String, room_b: String, width
 		+ ". Dessine-le à la main avec editor_apply (pièce + ouvertures)."}
 
 
-## Ouvertures et objets muraux de l'étage k : [id, position, demi-largeur].
+## Ouvertures et objets muraux du niveau k : [id, position, demi-largeur].
 static func _wall_items(doc: Dictionary, k: int) -> Array:
 	var out := []
 	for o: Dictionary in _dicts(doc, "ouvertures"):

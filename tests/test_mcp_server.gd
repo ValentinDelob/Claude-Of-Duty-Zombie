@@ -27,7 +27,7 @@ class FakeLink extends Node:
 				return {"cid": "c1", "ids": {"$1": "p2"}, "invalid": {"o9": "type inconnu"}}
 			"screenshot":
 				var img := Image.create(4, 4, false, Image.FORMAT_RGB8)
-				return {"png_base64": Marshalls.raw_to_base64(img.save_png_to_buffer()), "width": 4, "height": 4, "floor": 0, "bounds": [0, 0, 1, 1]}
+				return {"png_base64": Marshalls.raw_to_base64(img.save_png_to_buffer()), "width": 4, "height": 4, "altitude": 0.0, "bounds": [0, 0, 1, 1]}
 			"get_elements":
 				return {"error": "commande inconnue : get_elements"}
 		return {"error": "commande inconnue : %s" % cmd}
@@ -323,11 +323,18 @@ func test_mcp_session_and_tools() -> void:
 	assert_true(bool(fake.calls[-1][1].animate), "animate par défaut")
 	assert_true(_texts(good).contains("Attention : 1 élément(s) refusé(s)"), "avertissement invalid")
 	# Capture : image PNG + bornes.
-	var shot := await _tool("editor_screenshot", {"floor": 0})
+	var shot := await _tool("editor_screenshot", {"altitude": 3.5})
 	assert_eq(String(shot.content[0].type), "image", "contenu image")
 	assert_eq(String(shot.content[0].mimeType), "image/png")
 	assert_true(_texts(shot).contains("unites"), "bornes expliquées")
-	assert_true(int(fake.calls[-1][1].floor) == 0 and fake.calls[-1][1].floor is int, "étage entier transmis")
+	assert_true(fake.calls[-1][1].altitude is float and float(fake.calls[-1][1].altitude) == 3.5, "altitude transmise en nombre")
+	# Format 17 : l'ancien « floor » (indice d'étage) refusé, avec la nouvelle clé.
+	var n1: int = fake.calls.size()
+	shot = await _tool("editor_screenshot", {"floor": 0})
+	assert_true(bool(shot.isError) and _texts(shot).begins_with("floor n'existe plus") and _texts(shot).contains("« altitude »"), _texts(shot))
+	assert_eq(fake.calls.size(), n1, "floor refusé avant envoi")
+	shot = await _tool("editor_screenshot", {"altitude": "haut"})
+	assert_true(bool(shot.isError) and _texts(shot).begins_with("altitude : nombre"), _texts(shot))
 	var v := await _tool("editor_screenshot", {"view": "biais"})
 	assert_true(bool(v.isError) and _texts(v).begins_with("view : dessus"), _texts(v))
 	# get_element : éditeur sans get_elements -> repli sur MapSummary.find_elements.
@@ -339,8 +346,24 @@ func test_mcp_session_and_tools() -> void:
 	# get_map : complet transmis ; floor contrôlé.
 	var gm := await _tool("editor_get_map", {"format": "full"})
 	assert_true(JSON.parse_string(_texts(gm)).has("pieces"), "carte complète")
-	gm = await _tool("editor_get_map", {"floor": -1})
-	assert_eq(_texts(gm), "floor : entier ≥ 0")
+	gm = await _tool("editor_get_map", {"floor": 1})
+	assert_true(bool(gm.isError) and _texts(gm) == McpTools.FLOOR_GONE, _texts(gm))
+	gm = await _tool("editor_get_map", {"altitude": [1]})
+	assert_true(bool(gm.isError) and _texts(gm).begins_with("altitude : nombre"), _texts(gm))
+	gm = await _tool("editor_get_map", {"altitude": 3.5})
+	assert_true(bool(gm.isError) and _texts(gm) == "aucun niveau à l'altitude 3,5 m : niveaux de la carte : 0 m", _texts(gm))
+	gm = await _tool("editor_get_map", {"altitude": 0})
+	assert_false(bool(gm.isError), _texts(gm))
+	assert_eq((JSON.parse_string(_texts(gm)).niveaux as Array).size(), 1, "un niveau rendu")
+	# Clés d'étage d'avant refusées avant envoi, avec la clé qui les remplace.
+	n1 = fake.calls.size()
+	var old := await _tool("editor_apply", {"label": "x", "ops": [{"op": "add", "coll": "pieces", "el": {"etage": 1, "contour": [[0, 0], [4, 0], [4, 4], [0, 4]]}}]})
+	assert_true(bool(old.isError) and _texts(old).contains("« etage » n'existe plus") and _texts(old).contains("« altitude »"), _texts(old))
+	old = await _tool("editor_apply", {"label": "x", "ops": [{"op": "carte", "carte": {"id": "essai", "etages": [{"sol": 0}]}}]})
+	assert_true(bool(old.isError) and _texts(old).contains("« etages » n'existe plus"), _texts(old))
+	old = await _tool("editor_apply", {"label": "x", "ops": [{"op": "put", "coll": "pieces", "el": {"id": "p1", "double_hauteur": true}}]})
+	assert_true(bool(old.isError) and _texts(old).contains("« double_hauteur » n'existe plus"), _texts(old))
+	assert_eq(fake.calls.size(), n1, "rien envoyé à l'éditeur")
 	# Résumé calculé (MapSummary) par défaut.
 	gm = await _tool("editor_get_map", {})
 	assert_false(bool(gm.isError), _texts(gm))
@@ -542,3 +565,28 @@ func test_checks_ported_from_main() -> void:
 	# Sélection pendant un geste : « busy » décrit ; boîte au sol dans les consignes.
 	assert_true(String(McpTools.new().find("editor_highlight").description).contains("busy"))
 	assert_true(McpDocs.CONSIGNES.contains("Boîte mystère (format 15") and McpDocs.CONSIGNES.contains("jamais de « marches »"))
+
+
+## Format 17 : consignes et descriptions des outils sans étages (sauf pour
+## expliquer l'ancien format refusé) ; niveaux libres, pièces hautes,
+## plafond masqué et ciel, escaliers qui sautent des niveaux, coordonnées
+## négatives ; instructions toujours courtes.
+func test_docs_speak_levels_not_floors() -> void:
+	assert_true(McpDocs.INSTRUCTIONS.length() < 1800, "instructions courtes (%d caractères)" % McpDocs.INSTRUCTIONS.length())
+	var texts := {"INSTRUCTIONS": McpDocs.INSTRUCTIONS, "CONSIGNES": McpDocs.CONSIGNES, "outils": JSON.stringify(McpTools.new().list())}
+	for name in texts:
+		var t := String(texts[name]).to_lower().replace("étagère", "").replace("etagere", "")
+		for word in ["étage", "etage"]:
+			var i := t.find(word)
+			while i >= 0:
+				var around := t.substr(maxi(0, i - 90), 180)
+				assert_true(around.contains("refus") or around.contains("n'existe plus") or around.contains("ancien") or around.contains("d'avant"),
+					"%s : « %s » hors de l'explication de l'ancien format : …%s…" % [name, word, around])
+				i = t.find(word, i + 1)
+	for key in ["altitude_haut", "sans_plafond", "carte.ciel", "MEZZANINE", "HAUTE", "3,1 m", "« sortie »", "NÉGATIVES", "SAUTER des niveaux", "mur commun"]:
+		assert_true(McpDocs.CONSIGNES.contains(key), "consignes : %s" % key)
+	var tools := McpTools.new()
+	for t in ["editor_get_map", "editor_screenshot"]:
+		var props: Dictionary = tools.find(t).inputSchema.properties
+		assert_true(props.has("altitude") and not props.has("floor"), "%s : altitude, plus de floor" % t)
+		assert_eq(String(props.altitude.type), "number")

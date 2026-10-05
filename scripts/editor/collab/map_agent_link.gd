@@ -21,7 +21,7 @@ signal animate_requested(ids: Array, label: String)
 const SHOT_SIZE := Vector2i(1280, 960)
 
 var collab: MapCollab
-## Éditeur (sélection, étage, curseur, capture) ; null : sans interface.
+## Éditeur (sélection, niveau affiché, curseur, capture) ; null : sans interface.
 var editor: Node
 
 
@@ -110,7 +110,9 @@ func _hello() -> Dictionary:
 func _status() -> Dictionary:
 	var d := _hello()
 	var s := _selection()
-	d["floor"] = s.floor
+	# Format 17 : niveau affiché (altitude, m) et niveaux de la carte.
+	d["altitude"] = s.altitude
+	d["niveaux"] = collab.doc.levels().map(func(a): return snappedf(float(a), 0.01))
 	d["selection"] = s.ids
 	d["dirty"] = bool(editor.get("dirty")) if editor != null else false
 	d["seq"] = collab.seq
@@ -140,7 +142,7 @@ func _selection() -> Dictionary:
 		var e := collab.doc.find(eid)
 		if not e.is_empty():
 			els.append(e)
-	return {"ids": ids, "elements": els, "floor": floor_k, "cursor": cursor}
+	return {"ids": ids, "elements": els, "altitude": snappedf(collab.doc.level_alt(floor_k), 0.01), "cursor": cursor}
 
 
 ## apply : un lot = un changement d'auteur « <moi>:claude ». `add` admis (ids
@@ -234,14 +236,17 @@ func cmd_validate() -> Dictionary:
 		for cc in v.cells_ed((m.get("cells", []) as Array).slice(0, 12)):
 			var p := MapGeom.cell_center(cc)
 			pts.append([snappedf(p.x, 0.01), snappedf(p.y, 0.01)])
-		problems.append({"level": m.level, "text": MapValidator.text_of(m), "floor": int(m.get("floor", -1)), "points": pts})
+		# Format 17 : niveau du message par son altitude (null : toute la carte).
+		var fk := int(m.get("floor", -1))
+		var alt: Variant = snappedf(v.floors[fk].sol, 0.01) if fk >= 0 and fk < v.floors.size() else null
+		problems.append({"level": m.level, "text": MapValidator.text_of(m), "altitude": alt, "points": pts})
 	return {"ok": v.ok(), "errors": v.errors().size(), "warnings": v.warnings().size(), "text": v.report_text(), "problems": problems}
 
 
 ## Éléments complets d'après leurs ids, avec leur collection et leurs
 ## hauteurs (docs/EDITOR_VIEWS.md § 6.4) : `z_min` / `z_max` (m, absolus :
 ## la boîte de l'élément, plafond réel compris), `z_monde` (altitude de son
-## point de pose : sol de l'étage + hauteur de pose), `hauteur_pose` (m
+## point de pose : altitude de l'élément + hauteur de pose), `hauteur_pose` (m
 ## au-dessus du sol, quand le type en a une) et `glissement_vertical`
 ## (« pose », « niveau » ou « fixe »).
 func cmd_get_elements(args: Dictionary) -> Dictionary:
@@ -296,7 +301,7 @@ static func scale_info(e: Dictionary) -> Dictionary:
 	return out
 
 
-## Image du plan à l'étage demandé (cadrée sur `ids` s'il est donné), dessinée
+## Image du plan au niveau demandé (« altitude », m ; cadrée sur `ids` s'il est donné), dessinée
 ## hors écran (SubViewport) : ne dépend pas de ce qui est affiché. `view`
 ## (docs/EDITOR_VIEWS.md § 6.4) : « dessus » (défaut) ou une élévation
 ## (« avant », « arriere », « gauche », « droite », « dessous »), avec une
@@ -310,7 +315,14 @@ func cmd_screenshot(args: Dictionary) -> Dictionary:
 	if editor == null:
 		return {"error": Lang.t("capture impossible sans éditeur", "screenshot unavailable without the editor")}
 	var doc := collab.doc
-	var k := clampi(int(args.get("floor", editor.get("floor_k"))) if (args.get("floor") is float or args.get("floor") is int) else int(editor.get("floor_k")), 0, doc.floor_count() - 1)
+	# Format 17 : niveau demandé par son altitude (m), sinon celui affiché.
+	var k := clampi(int(editor.get("floor_k")), 0, doc.level_count() - 1)
+	var want: Variant = args.get("altitude")
+	if want is float or want is int:
+		k = doc.level_index(float(want))
+		if k < 0:
+			return {"error": Lang.t("aucun niveau à l'altitude %s : niveaux de la carte : %s", "no level at altitude %s: levels of the map: %s") % [
+				EditorMap.alt_text(float(want), not Lang.is_en()), ", ".join(PackedStringArray(doc.levels().map(func(a): return EditorMap.alt_text(float(a), not Lang.is_en()))))]}
 	var bb := Rect2()
 	var first := true
 	var ids: Array = args.get("ids") if args.get("ids") is Array else []
@@ -318,7 +330,7 @@ func cmd_screenshot(args: Dictionary) -> Dictionary:
 		var e := doc.find(String(eid))
 		if e.is_empty() or e.get("nom") is Dictionary:
 			continue
-		if not args.has("floor") and e.has("altitude") and doc.level_of(e) >= 0:
+		if not args.has("altitude") and e.has("altitude") and doc.level_of(e) >= 0:
 			k = doc.level_of(e)
 		var r := MapGeom.bbox(doc.room_poly(e)) if e.has("contour") else MapRules.footprint_rect(e)
 		bb = r if first else bb.merge(r)
@@ -355,7 +367,7 @@ func cmd_screenshot(args: Dictionary) -> Dictionary:
 	if img == null or img.is_empty():
 		return {"error": Lang.t("capture vide", "empty screenshot")}
 	var png := img.save_png_to_buffer()
-	return {"png_base64": Marshalls.raw_to_base64(png), "width": img.get_width(), "height": img.get_height(), "floor": k,
+	return {"png_base64": Marshalls.raw_to_base64(png), "width": img.get_width(), "height": img.get_height(), "altitude": snappedf(doc.level_alt(k), 0.01),
 		"bounds": [snappedf(m0.x, 0.01), snappedf(m0.y, 0.01), snappedf(m1.x, 0.01), snappedf(m1.y, 0.01)]}
 
 

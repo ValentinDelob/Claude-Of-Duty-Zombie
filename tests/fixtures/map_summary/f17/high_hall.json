@@ -1,0 +1,851 @@
+{
+	"doc": {
+		"carte": {
+			"format": 17.0,
+			"id": "halle_haute",
+			"nom": {
+				"fr": "HALLE_HAUTE",
+				"en": "HALLE_HAUTE"
+			},
+			"description": {
+				"fr": "",
+				"en": ""
+			},
+			"musique": "ambience_bunker",
+			"hauteur_portes": 2.5,
+			"lampes_auto": true
+		},
+		"pieces": [
+			{
+				"id": "ph",
+				"nom": "Halle",
+				"altitude": 0.0,
+				"plafond": 9.5,
+				"contour": [
+					[
+						0.0,
+						0.0
+					],
+					[
+						24.0,
+						0.0
+					],
+					[
+						24.0,
+						16.0
+					],
+					[
+						0.0,
+						16.0
+					]
+				],
+				"zone": "z1"
+			},
+			{
+				"id": "m1",
+				"nom": "Mezzanine 1",
+				"altitude": 3.5,
+				"contour": [
+					[
+						0.0,
+						0.0
+					],
+					[
+						6.0,
+						0.0
+					],
+					[
+						6.0,
+						16.0
+					],
+					[
+						0.0,
+						16.0
+					]
+				],
+				"zone": "z1"
+			},
+			{
+				"id": "m2",
+				"nom": "Mezzanine 2",
+				"altitude": 7.0,
+				"contour": [
+					[
+						16.0,
+						0.0
+					],
+					[
+						24.0,
+						0.0
+					],
+					[
+						24.0,
+						16.0
+					],
+					[
+						16.0,
+						16.0
+					]
+				],
+				"zone": "z1"
+			}
+		],
+		"ouvertures": [
+			{
+				"id": "w1",
+				"type": "fenetre",
+				"altitude": 0.0,
+				"position": [
+					12.25,
+					16.0
+				]
+			}
+		],
+		"objets": [
+			{
+				"id": "s1",
+				"type": "depart",
+				"altitude": 0.0,
+				"position": [
+					12.0,
+					7.0
+				]
+			},
+			{
+				"id": "b1",
+				"type": "boite",
+				"altitude": 0.0,
+				"position": [
+					12.75,
+					0.0
+				],
+				"mur": "n",
+				"depart": true
+			},
+			{
+				"id": "s1e",
+				"type": "escalier",
+				"altitude": 0.0,
+				"altitude_haut": 3.5,
+				"rect": [
+					6.0,
+					2.0,
+					13.0,
+					4.5
+				],
+				"monte": "o"
+			},
+			{
+				"id": "s2e",
+				"type": "escalier",
+				"altitude": 0.0,
+				"altitude_haut": 7.0,
+				"rect": [
+					7.0,
+					11.0,
+					16.0,
+					13.5
+				],
+				"monte": "e"
+			},
+			{
+				"id": "c9",
+				"type": "caisse",
+				"altitude": 9.0,
+				"position": [
+					3.0,
+					3.0
+				]
+			}
+		],
+		"zones": [
+			{
+				"id": "z1",
+				"nom": {
+					"fr": "Salle",
+					"en": "Hall"
+				}
+			}
+		],
+		"depart": "z1"
+	},
+	"calls": [
+		{
+			"fn": "summarize",
+			"args": [],
+			"out": {
+				"carte": {
+					"id": "halle_haute",
+					"nom": {
+						"fr": "HALLE_HAUTE",
+						"en": "HALLE_HAUTE"
+					},
+					"format": 17.0,
+					"niveaux": [
+						0.0,
+						3.5,
+						7.0
+					],
+					"ciel": {
+						"type": "noir",
+						"luminosite": 1.0
+					},
+					"zone_depart": "z1"
+				},
+				"totaux": {
+					"pieces": 3.0,
+					"ouvertures": 1.0,
+					"objets": 5.0,
+					"escaliers": 2.0,
+					"zones": 1.0,
+					"portes_payantes": 0.0,
+					"cout_total_portes": 0.0
+				},
+				"niveaux": [
+					{
+						"altitude": 0.0,
+						"bornes": [
+							0.0,
+							0.0,
+							24.0,
+							16.0
+						],
+						"pieces": [
+							{
+								"id": "ph",
+								"nom": "Halle",
+								"zone": "z1",
+								"bbox": [
+									0.0,
+									0.0,
+									24.0,
+									16.0
+								],
+								"surface": 384.0,
+								"altitude": 0.0,
+								"plafond": 9.5,
+								"traverse": [
+									3.5,
+									7.0
+								],
+								"plafond_reel_min": 3.2,
+								"plafond_coupe_par": [
+									"m1",
+									"m2"
+								]
+							}
+						],
+						"ouvertures": [
+							{
+								"id": "w1",
+								"type": "fenetre",
+								"pos": [
+									12.25,
+									16.0
+								],
+								"pieces": [
+									"ph"
+								]
+							}
+						],
+						"objets": {
+							"depart": [
+								{
+									"id": "s1",
+									"pos": [
+										12.0,
+										7.0
+									]
+								}
+							],
+							"boite": [
+								{
+									"id": "b1",
+									"pos": [
+										12.75,
+										0.0
+									],
+									"mur": "n",
+									"depart": true
+								}
+							]
+						},
+						"escaliers": [
+							{
+								"id": "s1e",
+								"altitude": 0.0,
+								"altitude_haut": 3.5,
+								"montee": 3.5,
+								"rect": [
+									6.0,
+									2.0,
+									13.0,
+									4.5
+								],
+								"monte": "o",
+								"de": "ph",
+								"vers": "m1"
+							},
+							{
+								"id": "s2e",
+								"altitude": 0.0,
+								"altitude_haut": 7.0,
+								"montee": 7.0,
+								"rect": [
+									7.0,
+									11.0,
+									16.0,
+									13.5
+								],
+								"monte": "e",
+								"de": "ph",
+								"vers": "m2",
+								"traverse": [
+									3.5
+								]
+							}
+						]
+					},
+					{
+						"altitude": 3.5,
+						"bornes": [
+							0.0,
+							0.0,
+							6.0,
+							16.0
+						],
+						"pieces": [
+							{
+								"id": "m1",
+								"nom": "Mezzanine 1",
+								"zone": "z1",
+								"bbox": [
+									0.0,
+									0.0,
+									6.0,
+									16.0
+								],
+								"surface": 96.0,
+								"altitude": 3.5,
+								"plafond": 3.2,
+								"mezzanine_sur": [
+									"ph"
+								]
+							}
+						],
+						"ouvertures": [],
+						"objets": {},
+						"escaliers": []
+					},
+					{
+						"altitude": 7.0,
+						"bornes": [
+							16.0,
+							0.0,
+							24.0,
+							16.0
+						],
+						"pieces": [
+							{
+								"id": "m2",
+								"nom": "Mezzanine 2",
+								"zone": "z1",
+								"bbox": [
+									16.0,
+									0.0,
+									24.0,
+									16.0
+								],
+								"surface": 128.0,
+								"altitude": 7.0,
+								"plafond": 3.2,
+								"mezzanine_sur": [
+									"ph"
+								]
+							}
+						],
+						"ouvertures": [],
+						"objets": {},
+						"escaliers": []
+					}
+				],
+				"zones": [
+					{
+						"id": "z1",
+						"nom": "Salle",
+						"pieces": [
+							"ph",
+							"m1",
+							"m2"
+						],
+						"nom_en": "Hall",
+						"depart": true
+					}
+				],
+				"unites": "mètres ; x vers l'est, y vers le sud, z vers le haut (coordonnées négatives admises) ; bbox = [x0, y0, x1, y1] ; altitude = altitude absolue du sol ; plafond = hauteur sous plafond au-dessus de ce sol",
+				"orphelins": [
+					{
+						"id": "c9",
+						"coll": "objets",
+						"type": "caisse",
+						"altitude": 9.0
+					}
+				]
+			}
+		},
+		{
+			"fn": "summarize",
+			"args": [
+				-1,
+				0.0
+			],
+			"out": {
+				"carte": {
+					"id": "halle_haute",
+					"nom": {
+						"fr": "HALLE_HAUTE",
+						"en": "HALLE_HAUTE"
+					},
+					"format": 17.0,
+					"niveaux": [
+						0.0,
+						3.5,
+						7.0
+					],
+					"ciel": {
+						"type": "noir",
+						"luminosite": 1.0
+					},
+					"zone_depart": "z1"
+				},
+				"totaux": {
+					"pieces": 3.0,
+					"ouvertures": 1.0,
+					"objets": 5.0,
+					"escaliers": 2.0,
+					"zones": 1.0,
+					"portes_payantes": 0.0,
+					"cout_total_portes": 0.0
+				},
+				"niveaux": [
+					{
+						"altitude": 0.0,
+						"bornes": [
+							0.0,
+							0.0,
+							24.0,
+							16.0
+						],
+						"pieces": [
+							{
+								"id": "ph",
+								"nom": "Halle",
+								"zone": "z1",
+								"bbox": [
+									0.0,
+									0.0,
+									24.0,
+									16.0
+								],
+								"surface": 384.0,
+								"altitude": 0.0,
+								"plafond": 9.5,
+								"traverse": [
+									3.5,
+									7.0
+								],
+								"plafond_reel_min": 3.2,
+								"plafond_coupe_par": [
+									"m1",
+									"m2"
+								]
+							}
+						],
+						"ouvertures": [
+							{
+								"id": "w1",
+								"type": "fenetre",
+								"pos": [
+									12.25,
+									16.0
+								],
+								"pieces": [
+									"ph"
+								]
+							}
+						],
+						"objets": {
+							"depart": [
+								{
+									"id": "s1",
+									"pos": [
+										12.0,
+										7.0
+									]
+								}
+							],
+							"boite": [
+								{
+									"id": "b1",
+									"pos": [
+										12.75,
+										0.0
+									],
+									"mur": "n",
+									"depart": true
+								}
+							]
+						},
+						"escaliers": [
+							{
+								"id": "s1e",
+								"altitude": 0.0,
+								"altitude_haut": 3.5,
+								"montee": 3.5,
+								"rect": [
+									6.0,
+									2.0,
+									13.0,
+									4.5
+								],
+								"monte": "o",
+								"de": "ph",
+								"vers": "m1"
+							},
+							{
+								"id": "s2e",
+								"altitude": 0.0,
+								"altitude_haut": 7.0,
+								"montee": 7.0,
+								"rect": [
+									7.0,
+									11.0,
+									16.0,
+									13.5
+								],
+								"monte": "e",
+								"de": "ph",
+								"vers": "m2",
+								"traverse": [
+									3.5
+								]
+							}
+						]
+					}
+				],
+				"zones": [
+					{
+						"id": "z1",
+						"nom": "Salle",
+						"pieces": [
+							"ph",
+							"m1",
+							"m2"
+						],
+						"nom_en": "Hall",
+						"depart": true
+					}
+				],
+				"unites": "mètres ; x vers l'est, y vers le sud, z vers le haut (coordonnées négatives admises) ; bbox = [x0, y0, x1, y1] ; altitude = altitude absolue du sol ; plafond = hauteur sous plafond au-dessus de ce sol",
+				"orphelins": [
+					{
+						"id": "c9",
+						"coll": "objets",
+						"type": "caisse",
+						"altitude": 9.0
+					}
+				]
+			}
+		},
+		{
+			"fn": "summarize",
+			"args": [
+				-1,
+				3.5
+			],
+			"out": {
+				"carte": {
+					"id": "halle_haute",
+					"nom": {
+						"fr": "HALLE_HAUTE",
+						"en": "HALLE_HAUTE"
+					},
+					"format": 17.0,
+					"niveaux": [
+						0.0,
+						3.5,
+						7.0
+					],
+					"ciel": {
+						"type": "noir",
+						"luminosite": 1.0
+					},
+					"zone_depart": "z1"
+				},
+				"totaux": {
+					"pieces": 3.0,
+					"ouvertures": 1.0,
+					"objets": 5.0,
+					"escaliers": 2.0,
+					"zones": 1.0,
+					"portes_payantes": 0.0,
+					"cout_total_portes": 0.0
+				},
+				"niveaux": [
+					{
+						"altitude": 3.5,
+						"bornes": [
+							0.0,
+							0.0,
+							6.0,
+							16.0
+						],
+						"pieces": [
+							{
+								"id": "m1",
+								"nom": "Mezzanine 1",
+								"zone": "z1",
+								"bbox": [
+									0.0,
+									0.0,
+									6.0,
+									16.0
+								],
+								"surface": 96.0,
+								"altitude": 3.5,
+								"plafond": 3.2,
+								"mezzanine_sur": [
+									"ph"
+								]
+							}
+						],
+						"ouvertures": [],
+						"objets": {},
+						"escaliers": []
+					}
+				],
+				"zones": [
+					{
+						"id": "z1",
+						"nom": "Salle",
+						"pieces": [
+							"ph",
+							"m1",
+							"m2"
+						],
+						"nom_en": "Hall",
+						"depart": true
+					}
+				],
+				"unites": "mètres ; x vers l'est, y vers le sud, z vers le haut (coordonnées négatives admises) ; bbox = [x0, y0, x1, y1] ; altitude = altitude absolue du sol ; plafond = hauteur sous plafond au-dessus de ce sol",
+				"orphelins": [
+					{
+						"id": "c9",
+						"coll": "objets",
+						"type": "caisse",
+						"altitude": 9.0
+					}
+				]
+			}
+		},
+		{
+			"fn": "summarize",
+			"args": [
+				-1,
+				7.0
+			],
+			"out": {
+				"carte": {
+					"id": "halle_haute",
+					"nom": {
+						"fr": "HALLE_HAUTE",
+						"en": "HALLE_HAUTE"
+					},
+					"format": 17.0,
+					"niveaux": [
+						0.0,
+						3.5,
+						7.0
+					],
+					"ciel": {
+						"type": "noir",
+						"luminosite": 1.0
+					},
+					"zone_depart": "z1"
+				},
+				"totaux": {
+					"pieces": 3.0,
+					"ouvertures": 1.0,
+					"objets": 5.0,
+					"escaliers": 2.0,
+					"zones": 1.0,
+					"portes_payantes": 0.0,
+					"cout_total_portes": 0.0
+				},
+				"niveaux": [
+					{
+						"altitude": 7.0,
+						"bornes": [
+							16.0,
+							0.0,
+							24.0,
+							16.0
+						],
+						"pieces": [
+							{
+								"id": "m2",
+								"nom": "Mezzanine 2",
+								"zone": "z1",
+								"bbox": [
+									16.0,
+									0.0,
+									24.0,
+									16.0
+								],
+								"surface": 128.0,
+								"altitude": 7.0,
+								"plafond": 3.2,
+								"mezzanine_sur": [
+									"ph"
+								]
+							}
+						],
+						"ouvertures": [],
+						"objets": {},
+						"escaliers": []
+					}
+				],
+				"zones": [
+					{
+						"id": "z1",
+						"nom": "Salle",
+						"pieces": [
+							"ph",
+							"m1",
+							"m2"
+						],
+						"nom_en": "Hall",
+						"depart": true
+					}
+				],
+				"unites": "mètres ; x vers l'est, y vers le sud, z vers le haut (coordonnées négatives admises) ; bbox = [x0, y0, x1, y1] ; altitude = altitude absolue du sol ; plafond = hauteur sous plafond au-dessus de ce sol",
+				"orphelins": [
+					{
+						"id": "c9",
+						"coll": "objets",
+						"type": "caisse",
+						"altitude": 9.0
+					}
+				]
+			}
+		},
+		{
+			"fn": "find_elements",
+			"args": [
+				[
+					"ph",
+					"m1",
+					"zz"
+				]
+			],
+			"out": {
+				"elements": {
+					"ph": {
+						"coll": "pieces",
+						"el": {
+							"id": "ph",
+							"nom": "Halle",
+							"altitude": 0.0,
+							"plafond": 9.5,
+							"contour": [
+								[
+									0.0,
+									0.0
+								],
+								[
+									24.0,
+									0.0
+								],
+								[
+									24.0,
+									16.0
+								],
+								[
+									0.0,
+									16.0
+								]
+							],
+							"zone": "z1"
+						}
+					},
+					"m1": {
+						"coll": "pieces",
+						"el": {
+							"id": "m1",
+							"nom": "Mezzanine 1",
+							"altitude": 3.5,
+							"contour": [
+								[
+									0.0,
+									0.0
+								],
+								[
+									6.0,
+									0.0
+								],
+								[
+									6.0,
+									16.0
+								],
+								[
+									0.0,
+									16.0
+								]
+							],
+							"zone": "z1"
+						}
+					}
+				},
+				"absents": [
+					"zz"
+				]
+			}
+		},
+		{
+			"fn": "plan_corridor",
+			"args": [
+				"ph",
+				"m1",
+				2.5,
+				-1
+			],
+			"out": {
+				"error": "altitudes différentes (0 m et 3,5 m) : reliez-les par un escalier (un couloir relie deux pièces de même altitude)"
+			}
+		},
+		{
+			"fn": "plan_corridor",
+			"args": [
+				"ph",
+				"m2",
+				2.5,
+				-1
+			],
+			"out": {
+				"error": "altitudes différentes (0 m et 7 m) : reliez-les par un escalier (un couloir relie deux pièces de même altitude)"
+			}
+		},
+		{
+			"fn": "plan_corridor",
+			"args": [
+				"m1",
+				"m2",
+				2.5,
+				-1
+			],
+			"out": {
+				"error": "altitudes différentes (3,5 m et 7 m) : reliez-les par un escalier (un couloir relie deux pièces de même altitude)"
+			}
+		}
+	]
+}

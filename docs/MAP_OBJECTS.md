@@ -122,8 +122,8 @@ C'est le même comportement que les décors dont le blocage est « barrière »
   peut se poser par-dessus elle : elle n'entre jamais dans les
   chevauchements, `MapRules.NO_OVERLAP_CHECK`). Seuls refus : moins de 3 ou
   plus de 64 sommets, un côté de moins de 5 cm, des côtés qui se croisent,
-  moins de 0,04 m², hors du terrain (x, y < 0 ou au-delà de
-  `MapCatalog.MAX_COORD`).
+  moins de 0,04 m² (format 17 : coordonnées libres, négatives comprises,
+  sans borne).
 - Édition (outil Sélection) : une **poignée carrée par sommet** (glisser :
   le sommet suit, refusé si le contour se croise), glisser la barrière la
   déplace, poignée ronde de rotation (15°, Alt : au degré près), R (90°),

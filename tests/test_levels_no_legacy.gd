@@ -9,6 +9,7 @@ const ALLOWED := {
 	"res://scripts/game/map/custom_map_guard.gd": "contrôle des cartes reçues au format 16 (schéma figé)",
 	"res://scripts/editor/map_catalog.gd": "conversion des effets d'avant le format 11 (avant celle des niveaux)",
 	"res://scripts/editor/collab/map_summary.gd": "résumé des cartes d'avant (références du script Python d'origine)",
+	"res://scripts/mcp/mcp_tools.gd": "refus expliqué des clés d'avant dans editor_apply (avec la clé qui les remplace)",
 }
 
 

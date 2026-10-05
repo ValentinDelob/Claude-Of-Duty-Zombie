@@ -22,7 +22,16 @@ const VIEWS := ["dessus", "avant", "arriere", "gauche", "droite", "dessous"]
 const MAX_EVENTS := 100
 ## Résumé de carte (portage GDScript de map_geom.py), chargé s'il existe.
 
-const OPEN_EDITOR := "Éditeur de cartes non ouvert : ouvre l'éditeur de cartes du jeu (menu principal > ÉDITEUR DE CARTES) avec une carte, puis réessaie. (Le serveur MCP répond tant que le jeu tourne ; les outils de carte ont besoin de l'éditeur.)"
+## Ancien paramètre « floor » (indice d'étage) : refusé, avec la nouvelle clé.
+const FLOOR_GONE := "floor n'existe plus (format 17 : niveaux libres, plus d'indice d'étage) : donne « altitude » (m, altitude du sol du niveau, ex. 0 ou 3.5 ; niveaux de la carte : editor_status ou editor_get_map)"
+## Clés d'étage d'avant le format 17, refusées avant envoi avec la nouvelle clé.
+const LEGACY_KEYS := {
+	"etage": "« etage » n'existe plus (format 17) : donne « altitude » (m, altitude du sol où l'élément est posé, ex. 0 ou 3.5 ; celle de sa pièce)",
+	"double_hauteur": "« double_hauteur » n'existe plus (format 17) : une pièce haute est une pièce au grand « plafond » (m) qui traverse les niveaux du dessus",
+	"etages": "« etages » n'existe plus (format 17) : chaque pièce a son « altitude » ; les niveaux sont les altitudes des pièces",
+}
+
+const OPEN_EDITOR :="Éditeur de cartes non ouvert : ouvre l'éditeur de cartes du jeu (menu principal > ÉDITEUR DE CARTES) avec une carte, puis réessaie. (Le serveur MCP répond tant que le jeu tourne ; les outils de carte ont besoin de l'éditeur.)"
 
 
 ## Erreur d'outil (résultat isError) ; tout autre retour d'un `fn` est du contenu.
@@ -215,6 +224,12 @@ static func check_ops(ops: Variant) -> String:
 			# Nombre de marches : toujours automatique (≈ 18 cm chacune) ; une
 			# carte d'avant qui l'avait le perd à sa relecture (tidy_stair).
 			return "%s : le nombre de marches n'est plus réglable (toujours automatique, ≈ 18 cm par marche) : retire « marches »" % where
+		# Format 17 : clés d'étage d'avant refusées, avec la clé qui les remplace.
+		var body: Variant = el if kname in ["put", "add"] else op.get("carte")
+		if body is Dictionary:
+			for key: String in LEGACY_KEYS:
+				if (body as Dictionary).has(key):
+					return "%s : %s" % [where, LEGACY_KEYS[key]]
 		if _depth(op) > MAX_DEPTH:
 			return "%s : trop profond (%d niveaux au plus)" % [where, MAX_DEPTH]
 		if not _finite(op):
@@ -251,15 +266,26 @@ func _t_get_map(args: Dictionary) -> Variant:
 	var fmt: Variant = args.get("format", "summary")
 	if not (fmt is String and String(fmt) in ["summary", "full"]):
 		return Err.new("format : \"summary\" ou \"full\"")
-	var floor_v: Variant = args.get("floor")
-	if fmt == "summary" and floor_v != null and not (is_int(floor_v) and float(floor_v) >= 0):
-		return Err.new("floor : entier ≥ 0")
+	if args.has("floor"):
+		return Err.new(FLOOR_GONE)
+	var alt: Variant = args.get("altitude")
+	if alt != null and not is_num(alt):
+		return Err.new("altitude : nombre (m, sol du niveau, ex. 0 ou 3.5)")
 	var doc: Variant = await _map()
 	if doc is Err:
 		return doc
 	if fmt == "full":
 		return [text(doc)]
-	return [text(MapSummary.summarize(doc, -1 if floor_v == null else int(floor_v)))]
+	if alt != null:
+		var lv := MapSummary.levels_of(doc)
+		if not lv.is_empty() and EditorMap.level_index_in(lv, float(alt)) < 0:
+			return Err.new("aucun niveau à l'altitude %s : niveaux de la carte : %s" % [EditorMap.alt_text(float(alt)), levels_text(lv)])
+	return [text(MapSummary.summarize(doc, -1, alt))]
+
+
+## « 0 m, 3,5 m, 7 m ».
+static func levels_text(lv: Array) -> String:
+	return ", ".join(PackedStringArray(lv.map(func(a): return EditorMap.alt_text(float(a)))))
 
 
 func _t_get_element(args: Dictionary) -> Variant:
@@ -313,10 +339,11 @@ func _t_apply(args: Dictionary) -> Variant:
 func _t_screenshot(args: Dictionary) -> Variant:
 	var a := {}
 	if args.has("floor"):
-		var f: Variant = args.floor
-		if not (is_int(f) and float(f) >= 0):
-			return Err.new("floor : entier ≥ 0")
-		a["floor"] = int(f)
+		return Err.new(FLOOR_GONE)
+	if args.has("altitude"):
+		if not is_num(args.altitude):
+			return Err.new("altitude : nombre (m, sol du niveau, ex. 0 ou 3.5)")
+		a["altitude"] = float(args.altitude)
 	var ids: Variant = _ids(args, false)
 	if ids is Err:
 		return ids
@@ -428,7 +455,7 @@ func _builtin() -> Array:
 		{
 			"name": "editor_guide",
 			"description": "Documentation de l'éditeur de cartes livrée avec le jeu. topic : « regles » (règles de conception OBLIGATOIRES et leur grille de contrôle), "
-				+ "« consignes » (consignes détaillées : hauteurs, échelle et inclinaison, escaliers, pièces qui se recouvrent), « format » (l'éditeur et le format des "
+				+ "« consignes » (consignes détaillées : niveaux et altitudes, pièces hautes, hauteurs, échelle et inclinaison, escaliers, pièces qui se recouvrent), « format » (l'éditeur et le format des "
 				+ "éléments), « objets » (variantes, barrière invisible, escaliers, décor libre, portes à zombies, effets), « vues » (élévations, hauteurs), « echelle » "
 				+ "(échelle et rotation 3D du décor). Les gros sujets rendent la liste de leurs sections : rappeler avec « section » (numéro comme \"4\" ou \"6.4\", ou mots du titre). Sans topic : la liste des sujets.",
 			"inputSchema": {"type": "object", "properties": {
@@ -440,21 +467,28 @@ func _builtin() -> Array:
 		{
 			"name": "editor_status",
 			"description": "État de l'éditeur de cartes ouvert : carte (id, nom), rôle (solo / hôte / invité), participants, "
-				+ "étage affiché, sélection, modifications non enregistrées. À appeler en premier.",
+				+ "niveau affiché (« altitude », m) et niveaux de la carte (« niveaux » : altitudes des pièces), sélection, "
+				+ "modifications non enregistrées. À appeler en premier.",
 			"inputSchema": _no_args(),
 			"cmd": "status",
 		},
 		{
 			"name": "editor_get_map",
-			"description": "Lit la carte ouverte. format \"summary\" (défaut) : résumé calculé pour raisonner — par étage, pièces "
-				+ "(id, nom, zone, bbox [x0,y0,x1,y1] en m, surface m², contour si non rectangulaire, voisines par mur "
-				+ "commun avec le bord partagé, pièces proches non collées avec les points les plus proches), "
-				+ "ouvertures (type, position, largeur, prix, pièces reliées), objets regroupés par type (id, position "
-				+ "ou rect, sommets d'une barrière invisible, atout/arme/prefab, mur), zones et zone de départ, totaux. format \"full\" : la carte "
-				+ "complète {carte, pieces, ouvertures, objets, zones, depart} (format : editor_guide, sujet « format », section « Format des fichiers »).",
+			"description": "Lit la carte ouverte. format \"summary\" (défaut) : résumé calculé pour raisonner — « niveaux » du plus bas "
+				+ "au plus haut ({altitude, demi_niveau si un niveau voisin est à moins de 3,1 m, …}), pièces "
+				+ "(id, nom, zone, altitude, plafond, sans_plafond, plafond_reel_min et plafond_coupe_par si une pièce posée "
+				+ "au-dessus le coupe, traverse (pièce haute : niveaux traversés), mezzanine_sur, bbox [x0,y0,x1,y1] en m, "
+				+ "surface m², contour si non rectangulaire, voisines par mur commun avec le bord partagé, pièces proches "
+				+ "non collées avec les points les plus proches), ouvertures (type, position, largeur, prix, pièces reliées), "
+				+ "objets regroupés par type (id, position ou rect, sommets d'une barrière invisible, atout/arme/prefab, mur), "
+				+ "escaliers (altitude, altitude_haut, montee, sortie, pièce du pied « de » et d'arrivée « vers », niveaux "
+				+ "sautés « traverse »), orphelins (éléments à une altitude sans pièce), zones et zone de départ, ciel, totaux. "
+				+ "format \"full\" : la carte complète {carte, pieces, ouvertures, objets, zones, depart} (format : editor_guide, "
+				+ "sujet « format », section « Format des fichiers »).",
 			"inputSchema": {"type": "object", "properties": {
 				"format": {"type": "string", "enum": ["summary", "full"], "default": "summary"},
-				"floor": {"type": "integer", "minimum": 0, "description": "Résumé d'un seul niveau (indice, 0 = le plus bas ; facultatif)."},
+				"altitude": {"type": "number", "description": "Résumé d'un seul niveau : son altitude en m (ex. 0 ou 3.5 ; facultatif). "
+					+ "Remplace l'ancien « floor » (indice), refusé."},
 			}, "additionalProperties": false},
 			"fn": _t_get_map,
 		},
@@ -462,8 +496,8 @@ func _builtin() -> Array:
 			"name": "editor_get_element",
 			"description": "Éléments complets (toutes leurs clés) d'après leurs ids, avec leur collection (pieces, ouvertures, "
 				+ "objets, zones) et leurs hauteurs : z_min / z_max (m, absolus : la boîte de l'élément, plafond réel "
-				+ "compris), z_monde (altitude du point de pose), hauteur_pose (m au-dessus du sol de l'étage, si le type "
-				+ "en a une) et glissement_vertical (pose, niveau, fixe) ; objets : dimensions [l, p, h] finales (décor), "
+				+ "compris), z_monde (altitude absolue du point de pose = altitude de l'élément + hauteur_pose), hauteur_pose "
+				+ "(m au-dessus du sol de son niveau, si le type en a une) et glissement_vertical (pose, niveau, fixe) ; objets : dimensions [l, p, h] finales (décor), "
 				+ "echelle_possible, inclinaison_possible et raison (format 14). À relire avant un « put » qui modifie un élément.",
 			"inputSchema": {"type": "object", "properties": {"ids": _ids_schema("Ids des éléments (p3, o1, a2…).")},
 				"required": ["ids"], "additionalProperties": false},
@@ -471,7 +505,7 @@ func _builtin() -> Array:
 		},
 		{
 			"name": "editor_get_selection",
-			"description": "Ce que l'utilisateur a sélectionné dans l'éditeur : ids (plusieurs en sélection multiple), éléments complets, étage affiché et position "
+			"description": "Ce que l'utilisateur a sélectionné dans l'éditeur : ids (plusieurs en sélection multiple), éléments complets, niveau affiché (« altitude », m) et position "
 				+ "de la souris sur le plan (m). « ça », « cette pièce », « ici » désignent souvent la sélection ou le curseur.",
 			"inputSchema": _no_args(),
 			"cmd": "get_selection",
@@ -485,8 +519,12 @@ func _builtin() -> Array:
 				+ "« ids ») ; {\"op\":\"put\",\"coll\":C,\"el\":{\"id\":…,…}} remplace l'élément entier de même id ; "
 				+ "{\"op\":\"del\",\"coll\":C,\"id\":…} supprime ; {\"op\":\"carte\",\"carte\":{…}} remplace carte "
 				+ "(noms, réglages) ; {\"op\":\"depart\",\"id\":zone} zone de départ. C ∈ pieces, ouvertures, objets, zones. "
-				+ "Chaque élément porte « altitude » (m, sol de son niveau ; format 17 : « etage » est refusé). Résultat : cid, ids attribués, éléments refusés (invalid). "
-				+ "Hauteurs, échelle et inclinaison du décor, escaliers, pièce posée sur une autre : lire d'abord editor_guide « consignes ».",
+				+ "Chaque pièce, ouverture et objet porte « altitude » (m, altitude absolue du sol, libre ; le contenu d'une pièce "
+				+ "est à l'altitude de sa pièce) ; escalier : « altitude_haut » (arrivée, peut sauter des niveaux) ; pièce : "
+				+ "« plafond », « sans_plafond »: true (ciel de la carte : carte.ciel) ; coordonnées x, y libres, négatives "
+				+ "comprises. Les anciennes clés « etage », « etages » et « double_hauteur » sont refusées. Résultat : cid, ids "
+				+ "attribués, éléments refusés (invalid). Hauteurs, niveaux, pièces hautes, échelle et inclinaison du décor, "
+				+ "escaliers, pièce posée sur une autre : lire d'abord editor_guide « consignes ».",
 			"inputSchema": {"type": "object", "properties": {
 				"label": {"type": "string", "minLength": 1, "maxLength": 120,
 					"description": "Libellé court en français affiché à l'utilisateur et dans l'historique (« Couloir entrée → atelier »)."},
@@ -498,7 +536,7 @@ func _builtin() -> Array:
 				"animate": {"type": "boolean", "default": true,
 					"description": "Faire apparaître les éléments un par un chez l'utilisateur (défaut true)."},
 				"decouper": {"type": "boolean", "default": false,
-					"description": "Une pièce du lot recouvre des pièces existantes du même étage : true les découpe "
+					"description": "Une pièce du lot recouvre des pièces existantes de même altitude : true les découpe "
 						+ "(la partie recouverte leur est retirée, dans le même lot ; détail dans « decoupe ») ; "
 						+ "false (défaut) : le lot est refusé avec l'explication."},
 			}, "required": ["label", "ops"], "additionalProperties": false},
@@ -520,13 +558,14 @@ func _builtin() -> Array:
 		},
 		{
 			"name": "editor_screenshot",
-			"description": "Image PNG de l'éditeur pour voir le résultat : le plan d'un étage (view \"dessus\", défaut) ou une "
-				+ "élévation qui montre tous les étages empilés à leur vraie hauteur (view \"avant\" : caméra au sud, "
+			"description": "Image PNG de l'éditeur pour voir le résultat : le plan d'un niveau (view \"dessus\", défaut) ou une "
+				+ "élévation qui montre tous les niveaux empilés à leur vraie hauteur (view \"avant\" : caméra au sud, "
 				+ "regard vers le nord ; \"arriere\", \"gauche\", \"droite\", \"dessous\"), éventuellement cadrée sur des "
 				+ "éléments. coupe [p0, p1] (élévations) : ne garder nettes que les éléments dans cette tranche de "
 				+ "profondeur (y en avant/arriere, x en gauche/droite). Le texte joint donne les bornes en mètres.",
 			"inputSchema": {"type": "object", "properties": {
-				"floor": {"type": "integer", "minimum": 0, "description": "Niveau (indice, 0 = le plus bas ; défaut : celui affiché ; plan seulement)."},
+				"altitude": {"type": "number", "description": "Niveau du plan : son altitude en m (ex. 0 ou 3.5 ; défaut : celui des "
+					+ "éléments de « ids », sinon celui affiché ; plan seulement). Remplace l'ancien « floor » (indice), refusé."},
 				"ids": _ids_schema("Cadrer sur ces éléments (facultatif)."),
 				"view": {"type": "string", "enum": VIEWS, "default": "dessus", "description": "Plan ou élévation."},
 				"coupe": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"},
@@ -568,7 +607,7 @@ func _builtin() -> Array:
 		},
 		{
 			"name": "editor_plan_corridor",
-			"description": "PROPOSE (sans rien appliquer) les ops d'un couloir entre deux pièces du même étage : couloir droit "
+			"description": "PROPOSE (sans rien appliquer) les ops d'un couloir entre deux pièces de même altitude (sinon : un escalier) : couloir droit "
 				+ "si leurs murs se font face, en L sinon ; une simple porte si elles ont déjà un mur commun. Le couloir "
 				+ "va dans la zone de room_a (passage libre côté A), porte payante côté B si B est d'une autre zone. "
 				+ "Contrôle chevauchements et ouvertures existantes, signale les écarts aux règles (§ 3.2). "

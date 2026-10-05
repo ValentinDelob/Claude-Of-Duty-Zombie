@@ -277,3 +277,24 @@ translation : mêmes messages, export identique, monde ≥ 0) + NetCodec ;
   bornes des élévations (`map_elevation_tools`) lisent encore le niveau
   suivant. Étape 6 : `MapSummary` et les textes MCP ne connaissent pas
   encore les escaliers qui sautent des niveaux.
+
+## Notes de l'étape 6 (MCP et collaboration, faite)
+- Résumé (`MapSummary.summarize(doc, floor, alt)`) : format 17 groupé par
+  niveau, pièces avec `altitude`, `plafond`, `sans_plafond`,
+  `plafond_reel_min` / `plafond_coupe_par` (dalle d'une pièce posée
+  au-dessus, calcul en plan sans grille), `traverse` (pièce haute),
+  `mezzanine_sur` ; escaliers à part (`de`, `vers` d'après
+  `StairGen.plan` : foot / exit, palier dans un mur commun admis à 0,35 m,
+  `traverse` = niveaux sautés, clé `sortie` recopiée si présente) ;
+  `orphelins` ; `carte.ciel`. Les anciennes entrées (`etage`) gardent le
+  résumé du Python ; références du format 17 : `tests/fixtures/map_summary/f17/`
+  (`MAP_SUMMARY_WRITE=1` pour les réécrire).
+- Outils : `floor` refusé (message `McpTools.FLOOR_GONE`) plutôt que traduit :
+  l'indice d'un niveau change dès qu'une pièce est posée plus bas ;
+  `altitude` sans pièce refusée avec la liste des niveaux. `etage`,
+  `etages`, `double_hauteur` refusés avant envoi (`McpTools.LEGACY_KEYS`).
+- Collaboration : `PROTO` 3 (étape 1a) gardé (rien de neuf sur le fil) ;
+  curseur de présence borné à `NetGuard.MAX_COORD` au lieu de ±1 000 m.
+- Étape 4 (fusion) : compléter dans `McpDocs.CONSIGNES` (bullet Escaliers) la
+  clé `sortie` ; `MapSummary._room_at` lit `exit` de `StairGen.plan`, donc la
+  pièce d'arrivée d'une sortie latérale suivra si `stair_spec` passe `side`.
