@@ -1482,7 +1482,11 @@ static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id
 		if not st.ok:
 			return st
 		# Sens retenu (pick_stair_dir) : le panneau propose de corriger « monte ».
-		return {"ok": true, "room": String(room.id), "monte": st.monte, "to": st.get("to", k + 1)}
+		var out := {"ok": true, "room": String(room.id), "monte": st.monte, "to": st.get("to", k + 1)}
+		# Sortie sur le côté choisie à la pose (le haut des marches touche un mur).
+		if st.has("sortie"):
+			out["sortie"] = st.sortie
+		return out
 	return {"ok": true, "room": String(room.id)}
 
 
@@ -1499,7 +1503,7 @@ static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id
 static func stair_parts(o: Dictionary, y0 := 0.0, y1 := 3.5) -> Dictionary:
 	# Mémoire par contenu (plusieurs appels par image pendant un tracé, chaque
 	# escalier vérifié à chaque modification) : jamais recalculé pour rien.
-	var key := [o.get("rect"), o.get("monte"), o.get("rot"), o.get("variante"), o.get("sens"), o.get("marches"), y0, y1]
+	var key := [o.get("rect"), o.get("monte"), o.get("rot"), o.get("variante"), o.get("sens"), o.get("marches"), o.get("sortie"), y0, y1]
 	var main := not ThreadGuard.worker()
 	var h := key.hash()
 	if main and _parts_cache.has(h) and _parts_cache[h][0] == key:
@@ -1509,7 +1513,7 @@ static func stair_parts(o: Dictionary, y0 := 0.0, y1 := 3.5) -> Dictionary:
 		body[c] = true
 	var foot := {}
 	var top := {}
-	var shaped := StairGen.is_shaped(MapCatalog.stair_kind(o))
+	var shaped := MapCatalog.stair_shaped(o)
 	var pl := MapRaster.stair_plan(o, y0, maxf(y1, y0 + 0.5)) if shaped else {}
 	var fr := MapRaster.stair_frame(o)
 	var u: Vector2 = fr.up
@@ -1976,12 +1980,137 @@ static func _check_stair(doc: EditorMap, k: int, o: Dictionary, ignore_id := "",
 	var y1 := doc.floor_sol(kt)
 	# Zone des obstacles : le rectangle et une case autour (les bouts, dans les quatre sens).
 	var ctx := {"doc": doc, "ignore": ignore_id, "floors": {}, "area": MapGeom.bbox(MapRaster.rect_poly(o)).grow(0.8)}
+	# Sortie sur le côté choisie à la pose (escalier nouveau, sans « sortie »,
+	# d'un type qui sort en face) : si l'arrivée en face tombe dans un mur ou
+	# sur un obstacle, la droite puis la gauche ; le validateur lit « sortie »
+	# et ne choisit jamais.
+	var kind0 := MapCatalog.stair_kind(o)
+	if ignore_id != "" or o.has("sortie") or not StairGen.SIDE_KINDS.has(kind0) or not _front_blocked(ctx, k, kt, o, y0, y1):
+		return _check_stair_core(doc, k, kt, o, ignore_id, down, ctx)
+	var tries := []
+	for s in ["droite", "gauche"]:
+		var os := o.duplicate()
+		os["sortie"] = s
+		var rs := _check_stair_core(doc, k, kt, os, ignore_id, down, ctx)
+		if rs.ok:
+			rs["sortie"] = s
+			return rs
+		tries.append(rs)
+	var front := _check_stair_core(doc, k, kt, o, ignore_id, down, ctx)
+	if front.ok:
+		return front   # un autre sens convient (pick_stair_dir)
+	# Refus détaillé : pourquoi en face, à droite et à gauche.
+	var r := refuse("%s ; sortie sur le côté impossible : à droite, %s ; à gauche, %s" % [String(front.fr), _uncap(String(tries[0].fr)), _uncap(String(tries[1].fr))],
+		"%s; no side exit either: on the right, %s; on the left, %s" % [String(front.en), _uncap(String(tries[0].en)), _uncap(String(tries[1].en))])
+	var marks: Array = (front.get("marks", []) as Array).duplicate()
+	for t: Dictionary in tries:
+		for m: Dictionary in t.get("marks", []):
+			if String(m.get("role", "")) == "faute":
+				marks.append(m)
+	r["marks"] = marks
+	return r
+
+
+## Arrivée en face d'un escalier (sens tracé) dans un mur ou sur un obstacle
+## du niveau d'arrivée : la sortie sur le côté est alors essayée à la pose.
+static func _front_blocked(ctx: Dictionary, k: int, kt: int, o: Dictionary, y0: float, y1: float) -> bool:
+	var parts := stair_parts(o, y0, y1)
+	for c in parts.exit:
+		var info := _stair_cell(ctx, kt, c)
+		if String(info.kind) in ["mur", "obstacle"] and not _landing_ok(ctx, k, c, info, parts):
+			return true
+	return false
+
+
+## Première lettre en minuscule (refus repris dans une phrase).
+static func _uncap(s: String) -> String:
+	return s.substr(0, 1).to_lower() + s.substr(1) if s != "" else s
+
+
+## Sortie sur le côté (`o` avec « sortie ») : pente de la volée raccourcie
+## (palier plat en haut), passage, plafond au-dessus du palier et de la
+## sortie (estimé d'après les pièces : le validateur le mesure sur la grille).
+## {} si tout va ; sinon un refus.
+static func _side_exit_check(doc: EditorMap, k: int, kt: int, o: Dictionary, y0: float, y1: float, parts: Dictionary) -> Dictionary:
+	var pl := MapRaster.stair_plan(o, y0, y1)
+	var slope := StairGen.max_slope(pl)
+	if slope > MapValidator.MAX_STAIR_SLOPE + 0.01:
+		var need := side_need_length(o, y1 - y0)
+		return refuse("escalier trop raide avec la sortie sur le côté (%d° ; %d° au plus pour %s de montée : le palier du haut raccourcit la volée de %s m) : allongez-le à %s m" % [roundi(slope), int(MapValidator.MAX_STAIR_SLOPE), EditorMap.alt_text(y1 - y0), _m(float(pl.depth)), _m(need)],
+			"stairs too steep with the side exit (%d°; at most %d° for a %s rise: the top landing shortens the flight by %s m): make them %s m long" % [roundi(slope), int(MapValidator.MAX_STAIR_SLOPE), EditorMap.alt_text(y1 - y0, false), _m(float(pl.depth), false), _m(need, false)])
+	var walk := StairGen.walk_width(pl)
+	if walk < 0.95:
+		return refuse("escalier trop étroit pour sortir sur le côté (passage de %s m ; 0,95 m au moins)" % _m(walk), "stairs too narrow to exit on the side (%s m to walk; at least 0.95 m)" % _m(walk, false))
+	# Plafond au-dessus du palier du haut (marches au sol d'arrivée) et de la sortie.
+	var bad := []
+	var worst := INF
+	var cells := []
+	for c: Vector2i in parts.body:
+		var sy := StairGen.surface_y(pl, MapGeom.cell_center(c))
+		if not is_nan(sy) and sy >= y1 - 0.01:
+			cells.append(c)
+	cells.append_array(_sorted_cells(parts.exit))
+	for c: Vector2i in cells:
+		var ce := _ceiling_estimate(doc, MapGeom.cell_center(c), y1)
+		if not is_nan(ce) and ce < y1 + StairGen.HEADROOM - 0.01:
+			bad.append(c)
+			worst = minf(worst, ce - y1)
+	if not bad.is_empty():
+		var p := _xy(bad[0])
+		return _stair_refuse("plafond trop bas au-dessus du palier du haut (%s m de passage %s ; %s m au moins)" % [_m(maxf(worst, 0.0)), p[0], _m(StairGen.HEADROOM)],
+			"ceiling too low above the top landing (%s m of headroom %s; at least %s m)" % [_m(maxf(worst, 0.0), false), p[1], _m(StairGen.HEADROOM, false)], k, bad, k, parts, kt)
+	return {}
+
+
+## Plafond (m, absolu) au-dessus du point `p` d'un palier au sol `y1`, d'après
+## les pièces : le plus haut plafond réglé des pièces qui contiennent `p` et
+## dont le sol est au plus à y1, coupé par le dessous de la dalle de la
+## première pièce plus haute qui le contient. NAN : aucune pièce (palier dans
+## l'épaisseur d'un mur : le validateur le mesure).
+static func _ceiling_estimate(doc: EditorMap, p: Vector2, y1: float) -> float:
+	var own := NAN
+	var slab := INF
+	for r in doc.pieces:
+		if not MapGeom.contains(doc.room_poly(r), p):
+			continue
+		var a := EditorMap.alt_of(r)
+		if a <= y1 + EditorMap.ALT_EQ:
+			own = EditorMap.room_top(r) if is_nan(own) else maxf(own, EditorMap.room_top(r))
+		else:
+			slab = minf(slab, a - MapVertical.DALLE)
+	return own if is_nan(own) else minf(own, slab)
+
+
+## Longueur tracée (m, à la case) qui ramène sous MAX_STAIR_SLOPE la volée
+## raccourcie d'un escalier qui sort sur le côté (`o` avec « sortie »), pour
+## une montée `rise` (m).
+static func side_need_length(o: Dictionary, rise: float) -> float:
+	var fr := MapRaster.stair_frame(o)
+	var opts := MapCatalog.stair_layout_opts(o)
+	var kind := String(opts.get("kind", StairGen.DEFAULT_KIND))
+	opts.erase("kind")
+	var inset := MapGeom.WALL_HALF * 2.0
+	var width := maxf(float(fr.width) - inset, 0.5)
+	var l := ceilf(float(fr.length) / MapGeom.CELL) * MapGeom.CELL
+	for i in 200:
+		var st := StairGen.spec(Vector2.ZERO, Vector2(0, 1), maxf(l - inset, 0.5), width, 0.0, rise, kind, opts)
+		if StairGen.max_slope(StairGen.plan(st)) <= MapValidator.MAX_STAIR_SLOPE + 0.01:
+			break
+		l += MapGeom.CELL
+	return l
+
+
+static func _check_stair_core(doc: EditorMap, k: int, kt: int, o: Dictionary, ignore_id: String, down: bool, ctx: Dictionary) -> Dictionary:
+	var y0 := doc.floor_sol(k)
+	var y1 := doc.floor_sol(kt)
 	# Sens retenu (règle du validateur) : escalier droit sur la grille seulement
-	# (tourné, en L, en U, colimaçon : le sens tracé, comme le validateur).
+	# (tourné, en L, en U, colimaçon, sortie sur le côté : le sens tracé,
+	# comme le validateur).
 	var kind := MapCatalog.stair_kind(o)
+	var shaped := MapCatalog.stair_shaped(o)
 	var traced := String(o.get("monte", "n"))
 	var monte := traced
-	if not StairGen.is_shaped(kind) and MapRaster.rect_on_grid(o) and not _stair_ends_free(ctx, k, kt, stair_parts(o, y0, y1)):
+	if not shaped and MapRaster.rect_on_grid(o) and not _stair_ends_free(ctx, k, kt, stair_parts(o, y0, y1)):
 		var valid := []
 		for m in ["n", "e", "s", "o"]:
 			var om := o.duplicate()
@@ -1996,8 +2125,13 @@ static func _check_stair(doc: EditorMap, k: int, o: Dictionary, ignore_id := "",
 			o = o.duplicate()
 			o["monte"] = monte
 	var parts := stair_parts(o, y0, y1)
+	# Sortie sur le côté : volée raccourcie, passage, plafond du palier.
+	if MapCatalog.stair_side(o) != 0:
+		var sr := _side_exit_check(doc, k, kt, o, y0, y1, parts)
+		if not sr.is_empty():
+			return sr
 	# Pente (même calcul que le validateur ; palier, L, U, colimaçon : validateur).
-	if not (StairGen.is_shaped(kind) or kind == "palier"):
+	elif not (StairGen.is_shaped(kind) or kind == "palier"):
 		var fr := MapRaster.stair_frame(o)
 		var run := float(fr.length) - (0.0 if MapRaster.rect_on_grid(o) else MapGeom.CELL)
 		var rise := y1 - y0
@@ -2119,8 +2253,14 @@ static func _check_stair(doc: EditorMap, k: int, o: Dictionary, ignore_id := "",
 						"no room on %s above %s of the stairs %s: draw a room there, or turn the stairs around" % [lj[1], name[3], p[1]], j, bad, k, parts, kt)
 				return _stair_refuse("%s tombe dans %s %s" % [_cap(name[0]), what[0], p[0]], "%s falls into %s %s" % [_cap(name[1]), what[1], p[1]], j, bad, k, parts, kt)
 			"mur":
-				return _stair_refuse("%s tombe dans %s %s : éloignez l'escalier du mur ou retournez-le" % [_cap(name[0]), what[0], p[0]],
-					"%s falls into %s %s: move the stairs away from the wall or turn them around" % [_cap(name[1]), what[1], p[1]], j, bad, k, parts, kt)
+				# Escalier déjà posé qui sort en face : la sortie sur le côté se règle.
+				var side_fr := ""
+				var side_en := ""
+				if j == kt and ignore_id != "" and StairGen.SIDE_KINDS.has(kind) and MapCatalog.stair_side(o) == 0:
+					side_fr = ", ou réglez « Sortie en haut » à droite ou à gauche"
+					side_en = ", or set \"Exit at the top\" to the right or the left"
+				return _stair_refuse("%s tombe dans %s %s : éloignez l'escalier du mur ou retournez-le%s" % [_cap(name[0]), what[0], p[0], side_fr],
+					"%s falls into %s %s: move the stairs away from the wall or turn them around%s" % [_cap(name[1]), what[1], p[1], side_en], j, bad, k, parts, kt)
 			"tremie":
 				return _stair_refuse("%s tombe dans %s %s" % [_cap(name[0]), what[0], p[0]], "%s falls into %s %s" % [_cap(name[1]), what[1], p[1]], j, bad, k, parts, kt)
 			"escalier":

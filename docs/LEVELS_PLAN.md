@@ -278,6 +278,33 @@ translation : mêmes messages, export identique, monde ≥ 0) + NetCodec ;
   suivant. Étape 6 : `MapSummary` et les textes MCP ne connaissent pas
   encore les escaliers qui sautent des niveaux.
 
+## Notes de l'étape 4 (escalier contre un mur, faite)
+- `sortie` (« gauche » / « droite ») : `MapCatalog.stair_side` (0 pour un L,
+  un U, un colimaçon ; `tidy_stair` la retire), `stair_shaped` (L, U,
+  colimaçon OU sortie sur le côté : chemin « en forme » du raster, de
+  `MapRules.stair_parts` et du validateur) ; description en maillage :
+  `side` (±1), lu par `StairGen.plan` (palier plat `side_depth(w)` en haut,
+  volées sur `run`, bord `exit` latéral, couloir et tablier orientés,
+  garde-corps du côté opposé et au bout) ; `MeshMapGeometry` passe par
+  `_stair` dès que `side` est là.
+- Pose (`MapRules._check_stair`) : choix seulement pour un escalier NOUVEAU
+  (`ignore_id` vide) sans `sortie`, quand l'arrivée en face tombe dans un mur
+  ou sur un obstacle (`_front_blocked`, le palier dans le mur commun de 1b
+  reste en face) : droite puis gauche (`_check_stair_core` avec la clé), puis
+  le sens retourné (`pick_stair_dir`), sinon un refus qui dit pourquoi en face,
+  à droite et à gauche. Résultat `sortie` écrit par `MapCanvas._creation`,
+  statut `MapCanvas.stair_side_status`. Un escalier déjà posé ne change
+  jamais de sortie tout seul : son refus propose « Sortie en haut ».
+- Contrôles d'une sortie sur le côté à la pose (`_side_exit_check`) : pente
+  de la volée raccourcie (« allongez-le à X m », `side_need_length`),
+  passage ≥ 0,95 m, plafond estimé d'après les pièces au-dessus du palier et
+  de la sortie (`_ceiling_estimate`) ; le validateur mesure tout sur la grille
+  (`_shaped_stair`, `_stair_headroom` : « au-dessus de son palier du haut »).
+- Garde : `sortie` admise au format 17 (gauche / droite), inconnue au 16.
+- Scénarios : `stairs_types` et `stairs_hordes` ont une baie de plus
+  (`test_stairs_top_wall.side_bay`) ; capture `stairs_top_wall_look`
+  (`@niveau perf`, à retirer une fois l'étape validée).
+
 ## Notes de l'étape 6 (MCP et collaboration, faite)
 - Résumé (`MapSummary.summarize(doc, floor, alt)`) : format 17 groupé par
   niveau, pièces avec `altitude`, `plafond`, `sans_plafond`,

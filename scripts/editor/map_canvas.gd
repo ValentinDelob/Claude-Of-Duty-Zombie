@@ -820,6 +820,16 @@ func _finish_create(end: Vector2) -> void:
 		# Escalier qui descend : enregistré au niveau de son pied.
 		var fr := not Lang.is_en()
 		ed.set_status(Lang.t("Escalier qui descend posé : il relie %s (en bas) à %s (ici)", "Stairs going down placed: they link %s (below) to %s (here)") % [EditorMap.alt_text(ed.doc.level_alt(fk), fr), EditorMap.alt_text(ed.doc.level_alt(ed.floor_k), fr)])
+	if res.has("sortie"):
+		ed.set_status(stair_side_status(String(res.sortie)))
+
+
+## Statut d'un escalier posé avec la sortie sur le côté `sortie` (« droite » /
+## « gauche ») parce que le haut de ses marches touche un mur.
+static func stair_side_status(sortie: String) -> String:
+	if sortie == "gauche":
+		return Lang.t("Arrivée sur le côté gauche : le haut des marches touche un mur", "Arrival on the left side: the top of the stairs touches a wall")
+	return Lang.t("Arrivée sur le côté droit : le haut des marches touche un mur", "Arrival on the right side: the top of the stairs touches a wall")
 
 
 ## Élément créé par un glissement de `a` à `b` (pièce, mur, pilier, escalier, piège).
@@ -867,6 +877,10 @@ func _creation(it: Dictionary, a: Vector2, b: Vector2) -> Dictionary:
 				MapRules.stair_cache_tag = ed.doc_version
 				var rs := MapRules.check_rect(ed.doc, kk, "escalier", r, "", 0, MapCatalog.stair_kind(o), o, down)
 				MapRules.stair_cache_tag = -1
+				# Haut des marches contre un mur : sortie sur le côté choisie
+				# par la pose (MapRules.check_stair), montrée pendant le tracé.
+				if rs.ok and rs.has("sortie"):
+					o["sortie"] = String(rs.sortie)
 				rs["obj"] = o
 				rs["floor"] = kk
 				return rs
@@ -2054,7 +2068,7 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 	if t == "bloc_invisible":
 		_draw_clip(o, it, alpha)
 		return
-	if t == "escalier" and MapCatalog.stair_kind(o) != StairGen.DEFAULT_KIND:
+	if t == "escalier" and (MapCatalog.stair_kind(o) != StairGen.DEFAULT_KIND or MapCatalog.stair_side(o) != 0):
 		_draw_stair_plan(o, alpha)
 		return
 	if t in ["escalier", "piege"] and MapGeom.rot_of(o) != 0:
@@ -2299,6 +2313,14 @@ func _draw_stair_plan(o: Dictionary, alpha: float) -> void:
 				var q := a.lerp(b, float(i) / n)
 				draw_line(to_px(q - side), to_px(q + side), line, 1.0)
 		_arrow(to_px(a.lerp(b, 0.15)), to_px(a.lerp(b, 0.85)), arrow)
+	if int(pl.get("side", 0)) != 0:
+		# Sortie sur le côté : flèche du milieu du palier du haut vers son bord
+		# latéral, jusqu'au-delà (le haut des marches peut toucher un mur).
+		var ex: Dictionary = pl.exit
+		var em: Vector2 = ex.m
+		var en: Vector2 = ex.n
+		var from := em - en * (float(pl.W) * 0.5)
+		_arrow(to_px(from), to_px(em + en * 0.45), Color(0.45, 0.8, 1.0, 0.95 * alpha))
 	var sp: Dictionary = pl.spiral
 	if not sp.is_empty():
 		var c: Vector2 = sp.c

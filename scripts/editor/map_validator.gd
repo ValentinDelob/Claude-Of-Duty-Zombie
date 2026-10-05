@@ -805,6 +805,13 @@ func _stair_headroom(w: Array, st: Dictionary) -> void:
 				_num(maxf(top_worst, 0.0)), _at(kt, top_bad[0])[1], _num(StairGen.HEADROOM)], kt, top_bad)
 	if bad.is_empty():
 		return
+	if not pl.is_empty() and int(pl.get("side", 0)) != 0 and bad.all(func(c): return _step_height(st, c, pl, y0, y1) >= y1 - 0.01):
+		# Sortie sur le côté : le palier plat du haut, au sol d'arrivée.
+		_msg("erreur", "escalier en %s : plafond trop bas au-dessus de son palier du haut (%s m de passage en %s ; %s m au moins) : déplacez la pièce du dessus ou l'escalier" % [w[0],
+				_num(maxf(worst, 0.0)).replace(".", ","), _at(k, bad[0])[0], _num(StairGen.HEADROOM).replace(".", ",")],
+			"stairs at %s: ceiling too low above their top landing (%s m of headroom at %s; at least %s m): move the room above or the stairs" % [w[1],
+				_num(maxf(worst, 0.0)), _at(k, bad[0])[1], _num(StairGen.HEADROOM)], k, bad)
+		return
 	_msg("erreur", "escalier en %s : plafond trop bas au-dessus des marches (%s m de passage en %s ; %s m au moins) : une dalle ou un plafond passe au-dessus, déplacez la pièce du dessus ou l'escalier" % [w[0],
 			_num(maxf(worst, 0.0)).replace(".", ","), _at(k, bad[0])[0], _num(StairGen.HEADROOM).replace(".", ",")],
 		"stairs at %s: ceiling too low above the steps (%s m of headroom at %s; at least %s m): a slab or a ceiling runs above, move the room above or the stairs" % [w[1],
@@ -889,6 +896,7 @@ func _shaped_stair(b: Dictionary) -> void:
 	var w := _at(k, cells[0])
 	var o: Dictionary = info.get("obj", {})
 	var kind := MapCatalog.stair_kind(o)
+	var side := MapCatalog.stair_side(o)
 	var vn := MapCatalog.variant_names("escalier", kind)
 	var kt := _stair_top_level(b.key, w, k, cells)
 	if kt < 0:
@@ -920,6 +928,10 @@ func _shaped_stair(b: Dictionary) -> void:
 	if not (foot_ok and top_ok):
 		var where_fr: String = {"quart": "sur le côté où il tourne, au bout", "demi_tour": "du côté du pied, à côté du départ", "colimacon": "du côté opposé au pied"}.get(kind, "")
 		var where_en: String = {"quart": "on the side it turns to, at the far end", "demi_tour": "on the foot side, next to the start", "colimacon": "on the side opposite the foot"}.get(kind, "")
+		if side != 0:
+			# Format 17 : sortie sur le côté (« sortie »), lue telle quelle.
+			where_fr = "sur le côté %s, en haut (« Sortie en haut »)" % ("droit" if side > 0 else "gauche")
+			where_en = "on the %s side, at the top (\"Exit at the top\")" % ("right" if side > 0 else "left")
 		if foot.is_empty() or top.is_empty():
 			_msg("erreur", "%s en %s : il faut du sol au pied (%s) et le plancher d'une pièce à la sortie (%s), %s" % [vn[0], w[0], _lv(k)[0], _lv(kt)[0], where_fr],
 				"%s at %s: needs floor at its foot (%s) and a room floor at its exit (%s), %s" % [vn[1], w[1], _lv(k)[1], _lv(kt)[1], where_en], k, cells)
@@ -933,7 +945,12 @@ func _shaped_stair(b: Dictionary) -> void:
 		_msg("erreur", "%s en %s : trop étroit (passage de %s m ; agrandissez-le)" % [vn[0], w[0], _num(walk).replace(".", ",")],
 			"%s at %s: too narrow (%s m to walk; make it bigger)" % [vn[1], w[1], _num(walk)], k, cells)
 	var slope := StairGen.max_slope(pl)
-	if slope > MAX_STAIR_SLOPE:
+	if slope > MAX_STAIR_SLOPE and side != 0:
+		# Sortie sur le côté : le palier du haut raccourcit la volée.
+		var need := MapRules.side_need_length(o, rise)
+		_msg("erreur", "%s en %s : trop raide avec la sortie sur le côté (%.0f° ; %d° au plus, le palier du haut raccourcit la volée de %s m : allongez-le à %s m)" % [vn[0], w[0], slope, int(MAX_STAIR_SLOPE), _num(float(pl.depth)).replace(".", ","), _num(need).replace(".", ",")],
+			"%s at %s: too steep with the side exit (%.0f°; %d° at most, the top landing shortens the flight by %s m: make it %s m long)" % [vn[1], w[1], slope, int(MAX_STAIR_SLOPE), _num(float(pl.depth)), _num(need)], k, cells)
+	elif slope > MAX_STAIR_SLOPE:
 		_msg("erreur", "%s en %s : trop raide (%.0f° ; %d° au plus : agrandissez-le)" % [vn[0], w[0], slope, int(MAX_STAIR_SLOPE)],
 			"%s at %s: too steep (%.0f°; %d° at most: make it bigger)" % [vn[1], w[1], slope, int(MAX_STAIR_SLOPE)], k, cells)
 	if kind == "colimacon" and rise < StairGen.SPIRAL_MIN_RISE - 0.001:

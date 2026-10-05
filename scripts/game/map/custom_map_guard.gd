@@ -1252,6 +1252,12 @@ static func _check_element(c: Check, e: Dictionary, kind: Dictionary, what: Stri
 					c.bad("%s : clé inconnue « %s »" % [what, k], "%s: unknown key \"%s\"" % [what, k])
 					return
 				_num(c, e[k], -INF, INF, "%s (%s)" % [what, k])
+			"sortie":
+				# Format 17 : sortie d'escalier sur le côté (inconnue avant).
+				if c.legacy or not keys.has(k):
+					c.bad("%s : clé inconnue « %s »" % [what, k], "%s: unknown key \"%s\"" % [what, k])
+					return
+				_rule(c, keys[k], e[k], "%s (%s)" % [what, k])
 			_:
 				if not (k is String and keys.has(k)):
 					c.bad("%s : clé inconnue « %s »" % [what, clean_display(str(k), 24)], "%s: unknown key \"%s\"" % [what, clean_display(str(k), 24)])
