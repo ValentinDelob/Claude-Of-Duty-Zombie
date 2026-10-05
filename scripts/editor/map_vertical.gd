@@ -1,56 +1,91 @@
 class_name MapVertical
 extends RefCounted
 ## Grandeurs verticales de la carte (docs/EDITOR_VIEWS.md, § 1.2 et § 6) :
-## plafond réel d'une case (dessous de la dalle de l'étage du dessus, plafond
-## de la pièce, trémie : étage du dessus), partagé par l'export en jeu
+## plafond réel d'une case (le plus bas du plafond de sa pièce et du dessous
+## de la dalle de la première pièce posée au-dessus, à n'importe quel niveau ;
+## trémie : plafond de la pièce où elle s'ouvre), partagé par l'export en jeu
 ## (MapLayoutExport) et les élévations de l'éditeur (MapElevationItems).
 ## Altitudes absolues en mètres (sol de l'étage + hauteur locale).
 
 const DALLE := MapValidator.DALLE
 
 
-## Haut de l'étage `k` : dessous de la dalle de l'étage du dessus, sinon le
-## plafond du dernier étage.
+## Un mur monte jusqu'à la dalle d'une pièce posée au-dessus si l'écart entre
+## son haut et le dessous de cette dalle ne dépasse pas WALL_CLOSE (m) ; plus
+## haut (pièce empilée loin au-dessus), il s'arrête à son plafond.
+const WALL_CLOSE := 3.0
+## Plafond réglé qui touche le dessous de la dalle du dessus (m) : c'est la
+## dalle qui le dessine (comme avant le format 17).
+const CEIL_EQ := 0.005
+
+
+## Haut par défaut du niveau `k` (case sans plafond propre) : le plus haut
+## plafond réglé de ses pièces (MapRaster : Floor.plafond).
 static func top(v: MapValidator, k: int) -> float:
-	return v.floors[k + 1].sol - DALLE if k < v.floors.size() - 1 else v.floors[k].plafond
+	return v.floors[k].plafond
+
+
+## Premier niveau au-dessus de `k` dont la case `c` porte une DALLE (sol,
+## mur, objet d'une pièce : tout sauf le vide et les trémies, escaliers et
+## vides des pièces hautes) ; -1 sinon. Format 17 : n'importe quel niveau, pas
+## seulement le suivant (niveaux libres, demi-niveaux côte à côte).
+static func slab_above(v: MapValidator, k: int, c: Vector2i) -> int:
+	for j in range(k + 1, v.floors.size()):
+		var kd := v.floors[j].at(c)
+		if kd != MapValidator.K.VIDE and kd != MapValidator.K.TREMIE:
+			return j
+	return -1
 
 
 ## Plafond au-dessus d'une case : [hauteur, plafond dessiné (sinon : dessous de dalle)].
+## Décision 2 du plan : le plus bas du plafond réglé et du dessous de la dalle
+## de la première pièce au-dessus ; une trémie (escalier, vide d'une pièce
+## haute) n'est pas une dalle : le plafond y est le sien (pièce où elle s'ouvre).
 static func ceil_at(v: MapValidator, k: int, c: Vector2i) -> Array:
 	var own := v.floors[k].ceil_at(c)
-	if k == v.floors.size() - 1:
-		return [own if own > 0.0 else top(v, k), true]
-	var above := v.floors[k + 1].at(c)
-	if above == MapValidator.K.TREMIE:
-		return ceil_at(v, k + 1, c)
-	if above == MapValidator.K.VIDE:
-		return [own if own > 0.0 else top(v, k), true]
-	return [v.floors[k + 1].sol - DALLE, false]
+	return ceil_room(v, k, c, own if own > 0.0 else top(v, k))
 
 
-## Haut des murs d'une case (jusqu'au haut de l'étage du dessus au droit d'une trémie).
+## Haut des murs d'une case : jusqu'au plafond (le plus haut de ses pièces),
+## au dessous de la dalle d'une pièce posée au-dessus si elle est proche
+## (WALL_CLOSE), à travers une trémie jusqu'au niveau où elle s'ouvre.
 static func wall_top(v: MapValidator, k: int, c: Vector2i) -> float:
-	if k < v.floors.size() - 1:
-		var above := v.floors[k + 1].at(c)
-		if above == MapValidator.K.TREMIE:
-			return wall_top(v, k + 1, c)
-		if above != MapValidator.K.VIDE:
-			return top(v, k)
 	var own := v.floors[k].ceil_at(c)
-	return own if own > 0.0 else top(v, k)
+	if own <= 0.0:
+		own = top(v, k)
+	for j in range(k + 1, v.floors.size()):
+		var f := v.floors[j]
+		var kd := f.at(c)
+		if kd == MapValidator.K.VIDE:
+			continue
+		if kd == MapValidator.K.TREMIE:
+			if f.ceil_at(c) > 0.0:
+				return wall_top(v, j, c)
+			continue
+		var slab := f.sol - DALLE
+		return slab if slab - own <= WALL_CLOSE + 0.001 else own
+	return own
 
 
 ## Plafond d'une case pour une pièce de plafond `own` (m) : comme ceil_at, mais
 ## avec le plafond de CETTE pièce (un mur mitoyen porte le plus haut des deux).
 static func ceil_room(v: MapValidator, k: int, c: Vector2i, own: float) -> Array:
-	if k == v.floors.size() - 1:
-		return [own, true]
-	var above := v.floors[k + 1].at(c)
-	if above == MapValidator.K.TREMIE:
-		return ceil_at(v, k + 1, c)
-	if above == MapValidator.K.VIDE:
-		return [own, true]
-	return [v.floors[k + 1].sol - DALLE, false]
+	for j in range(k + 1, v.floors.size()):
+		var f := v.floors[j]
+		var kd := f.at(c)
+		if kd == MapValidator.K.VIDE:
+			continue
+		if kd == MapValidator.K.TREMIE:
+			# Trémie : le plafond de la pièce où elle s'ouvre (le sien s'il est donné).
+			var t := f.ceil_at(c)
+			if t > 0.0:
+				own = t
+			continue
+		var slab := f.sol - DALLE
+		if own < slab - CEIL_EQ:
+			return [own, true]
+		return [slab, false]
+	return [own, true]
 
 
 ## Niveau (indice dans la grille `v`) d'un élément : celui de son altitude
