@@ -523,6 +523,15 @@ func is_high(p: Dictionary) -> bool:
 ## (toutes les paires : []) : {a, b (pièces), d (écart, m)} ; {} sinon.
 ## Préfiltre par boîtes englobantes (MapGeom.overlap).
 func stack_issue(ids: Array = []) -> Dictionary:
+	# Altitudes, contours et boîtes lus une fois (paires : n² sinon).
+	var alts := PackedFloat64Array()
+	var polys := []
+	var boxes := []
+	for p in pieces:
+		alts.append(alt_of(p))
+		var poly := room_poly(p)
+		polys.append(poly)
+		boxes.append(MapGeom.bbox(poly).grow(-MapGeom.EPS))
 	for i in pieces.size():
 		var a: Dictionary = pieces[i]
 		if not ids.is_empty() and not ids.has(String(a.get("id", ""))):
@@ -530,10 +539,9 @@ func stack_issue(ids: Array = []) -> Dictionary:
 		for j in pieces.size():
 			if j == i or (ids.is_empty() and j < i):
 				continue
-			var b: Dictionary = pieces[j]
-			var d := absf(alt_of(a) - alt_of(b))
-			if d > ALT_EQ and d < MIN_STACK - ALT_EQ and MapGeom.overlap(room_poly(a), room_poly(b)):
-				return {"a": a, "b": b, "d": d}
+			var d := absf(alts[i] - alts[j])
+			if d > ALT_EQ and d < MIN_STACK - ALT_EQ and (boxes[i] as Rect2).intersects(boxes[j]) and MapGeom.overlap(polys[i], polys[j]):
+				return {"a": a, "b": pieces[j], "d": d}
 	return {}
 
 

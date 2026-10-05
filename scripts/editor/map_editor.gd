@@ -1182,12 +1182,23 @@ func raster() -> MapRaster:
 	return _raster
 
 
+## Mémoire de zone_color : [carte, version, nombre de zones] -> rang de chaque zone.
+var _zone_rank_key: Array = []
+var _zone_rank: Dictionary = {}
+
+
 func zone_color(zid: String) -> Color:
-	var i := 0
-	for z in doc.zones:
-		if String(z.id) == zid:
-			break
-		i += 1
+	# Rang de chaque zone, relu par version de la carte (dessin : une fois par
+	# pièce et par image, une carte de 50 zones relirait toute la liste).
+	var key := [doc, doc_version, doc.zones.size()]
+	if key != _zone_rank_key:
+		_zone_rank_key = key
+		_zone_rank = {}
+		for j in doc.zones.size():
+			var id := String(doc.zones[j].get("id", ""))
+			if not _zone_rank.has(id):
+				_zone_rank[id] = j
+	var i: int = _zone_rank.get(zid, doc.zones.size())
 	var c := Color.from_hsv(fmod(0.08 + i * 0.137, 1.0), 0.5, 0.75)
 	if zid == doc.depart:
 		c = Color(0.95, 0.85, 0.45)

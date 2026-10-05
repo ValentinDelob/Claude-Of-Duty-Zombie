@@ -435,11 +435,7 @@ static func room_at(doc: EditorMap, k: int, p: Vector2) -> Dictionary:
 ## Pendant un lot (begin_batch, fil principal) : lues une fois par niveau
 ## (check_existing sur chaque élément relirait chaque contour) ; sinon à la volée.
 static func _rooms_of(doc: EditorMap, k: int) -> Array:
-	var batched := _batch_doc == doc and not ThreadGuard.worker()
-	# Sûreté (lot tenu pendant un geste, comme EditorMap.freeze_levels) : relues à chaque image.
-	if batched and _batch_rooms_frame != Engine.get_process_frames():
-		_batch_rooms = {}
-		_batch_rooms_frame = Engine.get_process_frames()
+	var batched := _batch_mem(doc)
 	if batched and _batch_rooms.has(k):
 		return _batch_rooms[k]
 	var out := []
@@ -449,6 +445,32 @@ static func _rooms_of(doc: EditorMap, k: int) -> Array:
 	if batched:
 		_batch_rooms[k] = out
 	return out
+
+
+## Cases intérieures de la pièce `room` (inner_cells) ; pendant un lot,
+## gardées par pièce (sans relire ni réécrire son contour pour chaque objet).
+static func _inner_of(doc: EditorMap, room: Dictionary) -> Dictionary:
+	var batched := _batch_mem(doc)
+	var rid := String(room.get("id", ""))
+	if batched and _batch_inner.has(rid) and is_same(_batch_inner[rid][0], room):
+		return _batch_inner[rid][1]
+	var inner := inner_cells(doc.room_poly(room))
+	if batched:
+		_batch_inner[rid] = [room, inner]
+	return inner
+
+
+## Mémoires du lot (_rooms_of, _inner_of) utilisables pour `doc` ? Fil
+## principal seulement ; sûreté (lot tenu pendant un geste, comme
+## EditorMap.freeze_levels) : relues à chaque image.
+static func _batch_mem(doc: EditorMap) -> bool:
+	if _batch_doc != doc or ThreadGuard.worker():
+		return false
+	if _batch_rooms_frame != Engine.get_process_frames():
+		_batch_rooms = {}
+		_batch_inner = {}
+		_batch_rooms_frame = Engine.get_process_frames()
+	return true
 
 
 ## Pièce de l'étage dont le sol touche l'emprise `poly` (décor posé à cheval
@@ -603,6 +625,7 @@ static var _batch_lists: Dictionary = {}   # étage -> [escaliers et murs libres
 static var _batch_stairs: Array = []
 ## Pièces par niveau pendant un lot (_rooms_of).
 static var _batch_rooms: Dictionary = {}
+static var _batch_inner: Dictionary = {}
 static var _batch_rooms_frame := -1
 
 
@@ -615,6 +638,7 @@ static func begin_batch(doc: EditorMap) -> void:
 	_batch_doc = doc
 	doc.freeze_levels()
 	_batch_rooms = {}
+	_batch_inner = {}
 	_floor_bases = {}   # étages lus par les contrôles d'escaliers (_stair_floor_base)
 	_batch_stairs = []
 	_batch_lists = {}
@@ -653,6 +677,7 @@ static func end_batch() -> void:
 	_batch = {}
 	_batch_doc = null
 	_batch_rooms = {}
+	_batch_inner = {}
 	_floor_bases = {}
 	_batch_lists = {}
 
@@ -1381,7 +1406,6 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 		pos = MapGeom.round_cm(mouse)
 	var obj := tmpl.duplicate()
 	obj["position"] = MapGeom.arr(pos)
-	var nm := _name(tmpl)
 	var room := room_at(doc, k, pos)
 	var decor := MapCatalog.is_decor(tmpl)
 	if room.is_empty() and decor:
@@ -1389,6 +1413,7 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 		# qu'il touche le sol d'une pièce.
 		room = room_touching(doc, k, exact_poly(obj))
 	if room.is_empty():
+		var nm := _name(tmpl)
 		if decor:
 			return refuse("%s doit toucher le sol d'une pièce" % nm[0], "%s must touch a room floor" % nm[1])
 		return refuse("%s se pose à l'intérieur d'une pièce" % nm[0], "%s goes inside a room" % nm[1])
@@ -1396,10 +1421,10 @@ static func place_floor_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Ve
 	# mur. Le décor se pose contre un mur, et même à moitié dedans (le mur reste
 	# entier : MapRaster ne rend pleines que ses cases de sol).
 	if not decor:
-		var inner := inner_cells(doc.room_poly(room))
+		var inner := _inner_of(doc, room)
 		for c in MapRaster.floor_cells(obj):
 			if not inner.has(c):
-				return refuse("%s touche un mur : posez-le plus au milieu de la pièce" % nm[0], "%s touches a wall: place it further inside the room" % nm[1])
+				return refuse("%s touche un mur : posez-le plus au milieu de la pièce" % _name(tmpl)[0], "%s touches a wall: place it further inside the room" % _name(tmpl)[1])
 	var fr := footprint_rect(obj)
 	var layer := layer_of(tmpl)
 	var others := _overlaps_all(doc, k, fr, ignore_id, layer)
