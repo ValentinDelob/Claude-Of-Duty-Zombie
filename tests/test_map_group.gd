@@ -498,7 +498,7 @@ func test_prefab_dialog_rereads_selection_and_refuses_floors() -> void:
 	ed.changed()
 	ed.select_many([c, String(up.id)])
 	assert_eq(ed.prefab_tools.create_dialog_for(ed.sel_ids()), null, "deux étages : refusé")
-	assert_true(ed._status_error and ed.status.text.contains(Lang.t("étages", "floors")), "message (%s)" % ed.status.text)
+	assert_true(ed._status_error and ed.status.text.contains(Lang.t("niveaux", "levels")), "message (%s)" % ed.status.text)
 	ed.select_many([c, String(up.id)])
 	ed.open_context_menu(Vector2(100, 100), Vector2.INF, "")
 	assert_true(ed.context_menu.states()[MapContextMenu.PREFAB] != "", "menu : prefab grisée sur deux étages")

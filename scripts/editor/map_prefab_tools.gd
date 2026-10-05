@@ -328,8 +328,8 @@ static func floors_of(parts: Array) -> Array:
 
 
 static func multi_floor_text() -> String:
-	return Lang.t("Créer une prefab : la sélection est sur plusieurs étages ; une prefab se pose à un seul étage (sélectionnez le décor d'un étage)",
-		"Create a prefab: the selection spans several floors; a prefab stands on a single floor (select the props of one floor)")
+	return Lang.t("Créer une prefab : la sélection est sur plusieurs niveaux ; une prefab se pose à un seul niveau (sélectionnez le décor d'un niveau)",
+		"Create a prefab: the selection spans several levels; a prefab stands on a single level (select the props of one level)")
 
 
 ## « Créer » de la boîte : la sélection `ids` est RELUE dans la carte telle

@@ -58,7 +58,12 @@ func _ready() -> void:
 	var fv := _tab("floors", Lang.t("Niveaux", "Levels"))
 	_floors = ItemList.new()
 	_floors.custom_minimum_size = Vector2(0, 140)
-	_floors.item_selected.connect(func(i): ed.set_floor(i))
+	_floors.name = "LevelList"
+	# Clic : le niveau sur lequel agir ; double-clic : l'afficher.
+	_floors.item_selected.connect(func(i):
+		_level_sel = ed.doc.level_alt(int(_floors.get_item_metadata(i)))
+		_fill_floors.call_deferred())
+	_floors.item_activated.connect(func(i): ed.set_floor(int(_floors.get_item_metadata(i))))
 	fv.add_child(_floors)
 	_floor_form = VBoxContainer.new()
 	fv.add_child(_floor_form)
@@ -457,10 +462,12 @@ func _map_props() -> void:
 ## Format 17 : ciel de la carte (« carte.ciel »), vu au-dessus des pièces sans
 ## plafond (et dans l'aperçu 3D) : type et luminosité (jamais écrits à leur
 ## valeur par défaut : noir, 100 %).
-func _sky_props(c: Dictionary) -> void:
+func _sky_props(c: Dictionary, box: Container = null) -> void:
+	if box == null:
+		box = _props
 	var s := EditorMap.sky_of(c)
 	var names := [Lang.t("Sans fond (noir)", "None (black)"), Lang.t("Ciel", "Sky"), Lang.t("Nuit étoilée", "Starry night")]
-	var o := _option(_props, Lang.t("Ciel", "Sky"), names, maxi(0, EditorMap.SKY_TYPES.find(String(s.type))), func(i):
+	var o := _option(box, Lang.t("Ciel", "Sky"), names, maxi(0, EditorMap.SKY_TYPES.find(String(s.type))), func(i):
 		ed.push_undo()
 		EditorMap.set_sky(c, String(EditorMap.SKY_TYPES[i]), float(EditorMap.sky_of(c).luminosite))
 		ed.changed())
@@ -468,7 +475,7 @@ func _sky_props(c: Dictionary) -> void:
 		"Seen above rooms without a ceiling (a room's \"Show the ceiling\" property). It does not light the rooms.")
 	if String(s.type) == EditorMap.SKY_DEFAULT:
 		return
-	var l := _spin(_props, Lang.t("Luminosité", "Brightness"), roundf(float(s.luminosite) * 100.0), EditorMap.SKY_LUM[0] * 100.0, EditorMap.SKY_LUM[1] * 100.0, 5.0, func(v):
+	var l := _spin(box, Lang.t("Luminosité", "Brightness"), roundf(float(s.luminosite) * 100.0), EditorMap.SKY_LUM[0] * 100.0, EditorMap.SKY_LUM[1] * 100.0, 5.0, func(v):
 		EditorMap.set_sky(c, String(EditorMap.sky_of(c).type), float(v) / 100.0), "%")
 	l.tooltip_text = Lang.t("Luminosité du ciel (100 % par défaut).", "Sky brightness (100% by default).")
 
@@ -536,8 +543,9 @@ func _room_props(r: Dictionary) -> void:
 
 
 ## Format 17 : « Altitude du sol » d'une pièce (m, sans borne) : la monter ou
-## la descendre emporte son contenu, en une étape d'annulation ; refus nommé
-## (pièce qui ne tient pas, niveaux à moins de 3,1 m pour l'instant).
+## la descendre emporte son contenu (un escalier qui en part : son pied ; qui
+## y arrive : son arrivée), en une étape d'annulation ; refus nommé, carte
+## intacte (pièces empilées à moins de 3,1 m, contenu ou escalier qui ne tient pas).
 func _altitude_row(r: Dictionary) -> void:
 	var s := SpinBox.new()
 	s.min_value = -100.0
@@ -708,7 +716,8 @@ func _object_props(o: Dictionary) -> void:
 
 
 ## Barrière invisible (format 9 : polygone) : « Jusqu'au plafond » (pas de
-## clé « hauteur ») ou une hauteur de 0,5 à 30 m au dixième de mètre ;
+## clé « hauteur ») ou une hauteur de 0,5 m au moins (format 17 : sans
+## maximum de conception, MapCatalog.CLIP_HEIGHT), au dixième de mètre ;
 ## hauteur en jeu, sommets et surface ; rappel de ce qu'elle bloque.
 func _clip_props(o: Dictionary) -> void:
 	var to_ceiling := not o.has("hauteur")
@@ -794,12 +803,12 @@ func _stair_props(o: Dictionary) -> void:
 		MapCatalog.tidy_stair(o))
 	var mw := MapCatalog.stair_min_width(kind)
 	var need: String = {
-		"quart": Lang.t("En L : la sortie est sur le côté où il tourne, au bout ; il faut le plancher d'une pièce de l'étage du dessus de ce côté.",
-			"L-shaped: the exit is on the side it turns to, at the far end; the floor above needs a room floor on that side."),
-		"demi_tour": Lang.t("En U : la sortie revient du côté du pied, à côté du départ ; il faut le plancher d'une pièce de l'étage du dessus de ce côté.",
-			"U-shaped: the exit comes back on the foot side, next to the start; the floor above needs a room floor on that side."),
-		"colimacon": Lang.t("Colimaçon : un tour complet autour d'un noyau, sortie en face du pied ; 4 m de côté et 3,2 m entre les étages au moins.",
-			"Spiral: one full turn around a newel, exit opposite the foot; at least 4 m per side and 3.2 m between floors."),
+		"quart": Lang.t("En L : la sortie est sur le côté où il tourne, au bout ; il faut le plancher d'une pièce du niveau d'arrivée de ce côté.",
+			"L-shaped: the exit is on the side it turns to, at the far end; the arrival level needs a room floor on that side."),
+		"demi_tour": Lang.t("En U : la sortie revient du côté du pied, à côté du départ ; il faut le plancher d'une pièce du niveau d'arrivée de ce côté.",
+			"U-shaped: the exit comes back on the foot side, next to the start; the arrival level needs a room floor on that side."),
+		"colimacon": Lang.t("Colimaçon : un tour complet autour d'un noyau, sortie en face du pied ; 4 m de côté et 3,2 m entre les niveaux au moins.",
+			"Spiral: one full turn around a newel, exit opposite the foot; at least 4 m per side and 3.2 m between levels."),
 		"service": Lang.t("Escalier de service : 1 m de large suffit ; les zombies y montent en file indienne.", "Service stairs: 1 m wide is enough; zombies climb in single file."),
 		"large": Lang.t("Escalier d'honneur : 3 m de large au moins, garde-corps des deux côtés ; la horde monte de front.",
 			"Grand stairs: at least 3 m wide, railing on both sides; the horde climbs abreast."),
@@ -1078,7 +1087,7 @@ func _position_row(o: Dictionary) -> void:
 		_axis_field(box, "Z", MapVertical.pose_z(ed.doc, ed.raster().v, o), func(v: float): _apply_z(oid, v))
 		var b := MapVertical.pose_bounds(ed.raster().v, o)
 		var room := MapRules.room_at(ed.doc, ed.doc.level_of(o), MapVertical.anchor_of(o))
-		var note := Lang.t("Z : hauteur au-dessus du sol de l'étage, de %s à %s m ici", "Z: height above the floor, %s to %s m here") % [_m(snappedf(b.x, 0.01)), _m(snappedf(b.y, 0.01))]
+		var note := Lang.t("Z : hauteur au-dessus du sol du niveau, de %s à %s m ici", "Z: height above the floor, %s to %s m here") % [_m(snappedf(b.x, 0.01)), _m(snappedf(b.y, 0.01))]
 		if not room.is_empty():
 			note += Lang.t(" (plafond de « %s »).", " (\"%s\" ceiling).") % String(room.get("nom", ""))
 		if String(o.get("type", "")) == "prefab":
@@ -1301,50 +1310,145 @@ func _fill_zone_form() -> void:
 		h.add_child(mb)
 
 
-## Onglet Niveaux (format 17) : les niveaux de la carte (altitudes distinctes
-## des pièces), du plus bas au plus haut, avec leurs pièces et leurs zones.
+## Onglet Niveaux (format 17, étape 5) : les niveaux de la carte (altitudes
+## distinctes des pièces), du plus haut au plus bas, avec leurs pièces et
+## leurs zones. Un clic choisit le niveau sur lequel agir (double-clic ou
+## « Voir » : l'afficher) ; actions : altitude, déplacer de … m, dupliquer
+## au-dessus, nouveau niveau vide à … m, supprimer (confirmation) ;
+## affichage du plan (fantôme du dessous, pièces du dessus en pointillés) et
+## ciel de la carte (vu au-dessus des pièces sans plafond).
 func _fill_floors() -> void:
 	_floors.clear()
 	var fr := not Lang.is_en()
-	for k in ed.doc.level_count():
+	# Le niveau choisi suit le niveau affiché quand celui-ci change.
+	if absf(ed.view_alt() - _level_view_seen) > EditorMap.ALT_EQ or ed.doc.level_index(_level_sel) < 0:
+		_level_sel = ed.view_alt()
+	_level_view_seen = ed.view_alt()
+	var ksel := maxi(0, ed.doc.level_index(_level_sel))
+	for line in ed.level_menu_lines():
+		var k := int(line.k)
 		var rooms := ed.doc.rooms_on(k)
 		var zs := {}
 		for p in rooms:
 			zs[ed.doc.zone_name(String(p.get("zone", "")))] = true
-		var line := Lang.t("%s — %d pièce(s)", "%s — %d room(s)") % [EditorMap.level_name(ed.doc.level_alt(k)), rooms.size()]
+		var t := ("▶ " if k == ed.floor_k else "") + Lang.t("%s — %d pièce(s)", "%s — %d room(s)") % [EditorMap.level_name(ed.doc.level_alt(k)), rooms.size()]
 		if not zs.is_empty():
-			line += " · " + ", ".join(zs.keys())
+			t += " · " + ", ".join(zs.keys())
 		elif rooms.is_empty():
-			line += Lang.t(" (vide, non enregistré)", " (empty, not saved)")
-		_floors.add_item(line)
-	_floors.select(ed.floor_k)
+			t += Lang.t(" (vide, non enregistré)", " (empty, not saved)")
+		var i := _floors.add_item(t)
+		_floors.set_item_metadata(i, k)
+		if k == ksel:
+			_floors.select(i)
 	_clear(_floor_form)
-	var k := ed.floor_k
+	var k := ksel
 	var a := ed.doc.level_alt(k)
-	_title(_floor_form, EditorMap.level_name(a))
-	var s := SpinBox.new()
-	s.min_value = -100.0
-	s.max_value = 100.0
-	s.allow_greater = true
-	s.allow_lesser = true
-	s.step = 0.05
-	s.value = a
-	s.suffix = "m"
-	s.select_all_on_focus = true
+	_title(_floor_form, EditorMap.level_name(a) + (Lang.t(" (affiché)", " (shown)") if k == ed.floor_k else ""))
+	var see := _button(_floor_form, Lang.t("Voir ce niveau", "Show this level"), func(): ed.set_floor(k))
+	see.name = "LevelSee"
+	see.disabled = k == ed.floor_k
+	var s := _free_spin(a, 0.05)
+	s.name = "LevelAlt"
 	s.value_changed.connect(func(v): ed.move_level(k, float(v)))
+	s.tooltip_text = Lang.t("Altitude du sol du niveau : tout ce qui y est posé suit (et l'arrivée des escaliers qui y montent).",
+		"Floor altitude of the level: everything on it follows (and the arrival of the stairs going up to it).")
 	_row(_floor_form, Lang.t("Altitude du sol", "Floor altitude"), s)
+	var mh := HBoxContainer.new()
+	var ml := Label.new()
+	ml.text = Lang.t("Déplacer de", "Move by")
+	ml.custom_minimum_size = Vector2(118, 0)
+	mh.add_child(ml)
+	var md := _free_spin(_level_move_by, 0.25)
+	md.name = "LevelMoveBy"
+	md.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	md.value_changed.connect(func(v): _level_move_by = float(v))
+	mh.add_child(md)
+	var mb := Button.new()
+	mb.name = "LevelMoveGo"
+	mb.text = Lang.t("Déplacer", "Move")
+	mb.pressed.connect(func():
+		var v := md.get_line_edit().text.replace(",", ".").replace("m", "").strip_edges()
+		ed.move_level_by(k, float(v) if v.is_valid_float() else md.value))
+	mh.add_child(mb)
+	_floor_form.add_child(mh)
+	var dup := _button(_floor_form, Lang.t("Dupliquer au-dessus (+%s)", "Duplicate above (+%s)") % EditorMap.alt_text(ed.level_copy_gap(k), fr), func(): ed.duplicate_level(k))
+	dup.name = "LevelDuplicate"
+	dup.disabled = ed.doc.rooms_on(k).is_empty()
+	dup.tooltip_text = Lang.t("Copie de ses pièces, ouvertures et objets juste au-dessus de sa plus haute pièce (nouveaux identifiants, une zone neuve par zone ; les escaliers ne sont pas copiés).",
+		"Copy of its rooms, openings and objects right above its highest room (new ids, a new zone per zone; stairs are not copied).")
+	var nh := HBoxContainer.new()
+	var nl := Label.new()
+	nl.text = Lang.t("Nouveau niveau vide à", "New empty level at")
+	nl.custom_minimum_size = Vector2(118, 0)
+	nh.add_child(nl)
+	var top := ed.doc.level_alt(ed.doc.level_count() - 1)
+	var na := _free_spin(snappedf(top + EditorMap.FLOOR_STEP, 0.01), 0.05)
+	na.name = "LevelNewAlt"
+	na.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nh.add_child(na)
+	var nb := Button.new()
+	nb.name = "LevelNewGo"
+	nb.text = Lang.t("Créer", "Create")
+	nb.pressed.connect(func():
+		var v := na.get_line_edit().text.replace(",", ".").replace("m", "").strip_edges()
+		ed.add_level_at(float(v) if v.is_valid_float() else na.value))
+	nh.add_child(nb)
+	_floor_form.add_child(nh)
+	var rm := _button(_floor_form, Lang.t("Supprimer le niveau…", "Delete the level…"), func(): ed.delete_level(k))
+	rm.name = "LevelDelete"
+	rm.add_theme_color_override("font_color", Color(1, 0.45, 0.4))
+	rm.disabled = ed.doc.level_count() <= 1 and ed.level_content(k).is_empty()
+	rm.tooltip_text = Lang.t("Supprime tout ce qui y est posé (et les escaliers qui y arrivent), après confirmation ; Ctrl+Z le rétablit.",
+		"Deletes everything placed on it (and the stairs arriving there), after confirmation; Ctrl+Z brings it back.")
 	_note(_floor_form, Lang.t("Un niveau = les pièces posées à la même altitude ; changer son altitude déplace tout ce qui y est posé. Les niveaux sont libres (demi-niveau compris) ; deux pièces qui se recouvrent sont à %s au moins l'une de l'autre. Chaque pièce règle sa hauteur sous plafond ; sous une pièce posée au-dessus, le plafond est le plus bas des deux (sa dalle)." % EditorMap.alt_text(EditorMap.MIN_STACK, fr),
 		"A level = the rooms placed at the same altitude; changing its altitude moves everything on it. Levels are free (half levels included); two overlapping rooms are at least %s apart. Each room sets its ceiling height; under a room placed above, the ceiling is the lower of the two (its slab)." % EditorMap.alt_text(EditorMap.MIN_STACK, false)))
-	_button(_floor_form, Lang.t("+ Nouveau niveau vide au-dessus", "+ New empty level above"), ed.add_floor)
-	var rm := _button(_floor_form, Lang.t("Retirer le niveau du haut (vide)", "Remove the top level (empty)"), ed.remove_top_floor)
-	rm.disabled = ed.doc.level_count() <= 1
+	_title(_floor_form, Lang.t("Plan", "Plan"))
 	var gh := CheckBox.new()
-	gh.text = Lang.t("Afficher le niveau du dessous en transparence", "Show the level below, see-through")
+	gh.name = "LevelGhost"
+	gh.text = Lang.t("Fantôme du niveau du dessous (ses sommets aimantent sans grille)", "Ghost of the level below (its corners snap without grid)")
+	gh.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	gh.button_pressed = ed.ghost_below
 	gh.toggled.connect(func(on):
 		ed.ghost_below = on
 		ed.canvas.queue_redraw())
 	_floor_form.add_child(gh)
+	var da := CheckBox.new()
+	da.name = "LevelDashedAbove"
+	da.text = Lang.t("Pièces du dessus en pointillés", "Rooms above as dashed outlines")
+	da.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	da.button_pressed = ed.dashed_above
+	da.toggled.connect(func(on):
+		ed.dashed_above = on
+		ed.canvas.queue_redraw())
+	_floor_form.add_child(da)
+	_note(_floor_form, Lang.t("Hachures : vide d'une pièce haute d'un niveau plus bas (elle traverse ce niveau). Alt + clic : pièce empilée suivante sous le curseur.",
+		"Hatching: void of a high room from a lower level (it goes through this level). Alt + click: next stacked room under the cursor."))
+	_title(_floor_form, Lang.t("Ciel de la carte", "Map sky"))
+	_sky_props(ed.doc.carte, _floor_form)
+	_note(_floor_form, Lang.t("Vu au-dessus des pièces sans plafond (case « Afficher le plafond » d'une pièce). Aussi dans les réglages de la carte (rien de sélectionné, onglet Propriétés).",
+		"Seen above rooms without a ceiling (a room's \"Show the ceiling\" box). Also in the map settings (nothing selected, Properties tab)."))
+
+
+## Niveau choisi dans l'onglet Niveaux (altitude : suit les changements
+## d'indices) et niveau affiché vu au dernier remplissage.
+var _level_sel := 0.0
+var _level_view_seen := INF
+## Écart de « Déplacer le niveau de … m » (gardé d'un remplissage à l'autre).
+var _level_move_by := 0.5
+
+
+## Champ d'altitude sans borne (m).
+func _free_spin(value: float, stp: float) -> SpinBox:
+	var s := SpinBox.new()
+	s.min_value = -100.0
+	s.max_value = 100.0
+	s.allow_greater = true
+	s.allow_lesser = true
+	s.step = stp
+	s.value = value
+	s.suffix = "m"
+	s.select_all_on_focus = true
+	return s
 
 
 # ------------------------------------------------------------------ vérification

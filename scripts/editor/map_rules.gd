@@ -2332,8 +2332,13 @@ static func check_arc(o: Dictionary) -> Dictionary:
 	var r := float(o.get("rayon", 0.0))
 	if r < 1.0 - MapGeom.EPS:
 		return refuse("mur courbe trop petit (1 m de rayon au moins)", "curved wall too small (at least 1 m radius)")
-	if r > MapShapes.MAX_RADIUS:
+	if not is_finite(r) or r > MapShapes.MAX_RADIUS:
 		return refuse("mur courbe trop grand", "curved wall too large")
+	# Format 17 : pas de rayon maximal de conception ; la grille du validateur
+	# doit tenir en mémoire (comme un mur droit, check_wall).
+	var c := MapGeom.v2(o.get("centre", [0, 0]))
+	if not CustomMapGuard.grid_ok(_grid_bytes(Rect2(c - Vector2(r, r), Vector2(r, r) * 2.0))):
+		return refuse("mur courbe trop grand pour la mémoire du validateur", "curved wall too large for the validator's memory")
 	var op := float(o.get("ouverture", 0.0))
 	if op < 5.0 or op > 360.0:
 		return refuse("ouverture du mur courbe : 5 à 360°", "curved wall opening: 5 to 360°")

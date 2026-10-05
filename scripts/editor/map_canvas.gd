@@ -78,6 +78,8 @@ var mouse_inside := false
 ## Élément choisi à l'appui précédent : le double-clic qui ajoute un point
 ## vise son contour (le premier clic a pu le désélectionner ou choisir le voisin).
 var _prev_sel := ""
+## Alt tenu au dernier appui du bouton gauche (Alt + clic : pièce empilée suivante).
+var _press_alt := false
 ## Aide affichée au survol d'un sommet ou d'une poignée « + » ("vertex", "plus").
 var _point_hint := ""
 
@@ -161,7 +163,7 @@ func magnet_radius() -> float:
 func snap(m: Vector2) -> Vector2:
 	var mode := mode_now()
 	if mode == "libre":
-		var mg := MapSnap.magnet(ed.doc, ed.floor_k, m, magnet_radius(), _snap_exclude)
+		var mg := MapSnap.magnet(ed.doc, ed.floor_k, m, magnet_radius(), _snap_exclude, ghost_k())
 		return mg.p if not mg.is_empty() else MapGeom.round_cm(m)
 	return MapSnap.on_step(m, mode, fine_step)
 
@@ -194,6 +196,12 @@ func set_snap_mode(mode: String) -> void:
 var free_angle := false
 
 
+## Niveau du fantôme dont les sommets aimantent (format 17) : celui du dessous
+## quand il est affiché (onglet Niveaux) ; -1 sinon.
+func ghost_k() -> int:
+	return ed.floor_k - 1 if ed.ghost_below and ed.floor_k > 0 and floor_override < 0 else -1
+
+
 func angle_free() -> bool:
 	return free_angle or Input.is_key_pressed(KEY_ALT)
 
@@ -203,7 +211,7 @@ func angle_free() -> bool:
 ## sans grille, aimants de la carte puis côté à 15° près (Alt : libre).
 func snap_from(from: Vector2, m: Vector2) -> Vector2:
 	if mode_now() == "libre":
-		return MapSnap.trace_free(ed.doc, ed.floor_k, from, m, magnet_radius(), angle_free(), _snap_exclude)
+		return MapSnap.trace_free(ed.doc, ed.floor_k, from, m, magnet_radius(), angle_free(), _snap_exclude, ghost_k())
 	return MapGeom.snap_angle(from, m, step(), angle_free())
 
 
@@ -446,9 +454,9 @@ static func rect45_poly(a: Vector2, b: Vector2) -> PackedVector2Array:
 	return PackedVector2Array([a, a + Vector2(s, s), b, a + Vector2(t, -t)])
 
 
-## En-tête de la vue Dessus : l'étage affiché.
+## En-tête de la vue Dessus : le niveau affiché.
 func header_sub() -> String:
-	return Lang.t("Étage %d", "Floor %d") % ed.floor_k
+	return EditorMap.level_name(ed.view_alt())
 
 
 ## Puces : les coupes des élévations (traits pointillés de cette vue), le zoom.
@@ -548,6 +556,7 @@ func _gui_input(event: InputEvent) -> void:
 				return
 			grab_focus()
 			if mb.pressed:
+				_press_alt = mb.alt_pressed
 				_press(mb.double_click)
 			else:
 				_release()
@@ -650,6 +659,10 @@ func _press(double: bool) -> void:
 				_snap_exclude = ed.selected
 				drag = {"kind": "move", "start": snap(mouse_m), "raw": mouse_m, "snap": ed.doc.snapshot(), "orig": sel2.duplicate(true), "moved": false,
 					"attached": ed.attached_to(sel2), "lock": ax}
+				return
+			# Alt + clic : pièce empilée suivante sous le curseur (autre niveau ;
+			# la vue va à son niveau), format 17.
+			if (_press_alt or Input.is_key_pressed(KEY_ALT)) and not double and ed.stack_pick(mouse_m):
 				return
 			var e := ed.element_at(mouse_m)
 			# Élément d'un groupe choisi : tout le groupe glisse (un simple clic
@@ -1060,7 +1073,7 @@ func _drag_update() -> void:
 			# sommet ou au côté d'une autre pièce (aimant).
 			delta = MapGeom.round_cm(mouse_m - Vector2(drag.raw))
 			if orig.has("contour"):
-				delta = MapSnap.room_delta(ed.doc, ed.floor_k, MapGeom.poly(orig.contour), delta, magnet_radius(), String(orig.id))
+				delta = MapSnap.room_delta(ed.doc, ed.floor_k, MapGeom.poly(orig.contour), delta, magnet_radius(), String(orig.id), ghost_k())
 		# Verrouillage d'axe (flèche, ou X / Y pendant le glissement).
 		match String(drag.get("lock", "")):
 			"X":
@@ -1125,7 +1138,7 @@ func _drag_group_move() -> void:
 			delta.x = 0.0
 	if drag.has("delta") and (Vector2(drag.delta) - delta).length() < 0.0005:
 		return
-	var res := MapGroup.move(ed, drag.all, delta, 0, drag.snap)
+	var res := MapGroup.move(ed, drag.all, delta, 0.0, drag.snap)
 	if res.ok:
 		drag.moved = drag.moved or delta.length() > 0.001
 		drag["delta"] = delta
@@ -1401,12 +1414,9 @@ func _draw() -> void:
 	var font := UiStyle.font("body")
 	# Éléments d'un lot de Claude pas encore apparus (CollabView) : pas dessinés.
 	var hid: Dictionary = ed.collab_view.hidden if ed.collab_view != null and not offscreen else {}
-	# Étage du dessous en transparence.
+	# Fantôme du niveau du dessous (format 17 : ses sommets aimantent sans grille).
 	if ed.ghost_below and k > 0:
-		for p in doc.rooms_on(k - 1):
-			var poly := _px_poly(doc.room_poly(p))
-			_fill(poly, Color(0.6, 0.7, 1.0, 0.07))
-			draw_polyline(poly + PackedVector2Array([poly[0]]), Color(0.6, 0.7, 1.0, 0.35), 1.0)
+		_draw_ghost_below(k)
 	# Pièces (couleur de leur zone).
 	for p in doc.rooms_on(k):
 		if hid.has(String(p.id)):
@@ -1416,6 +1426,11 @@ func _draw() -> void:
 			_fill(poly, ed.zone_color(String(p.get("zone", ""))))
 	# Grille du validateur : murs générés, vides, ouvertures.
 	_draw_cells(k)
+	# Vides des pièces hautes d'un niveau plus bas qui traversent celui-ci : hachurés.
+	_draw_high_voids(k)
+	# Pièces des niveaux du dessus en pointillés (option de l'onglet Niveaux).
+	if ed.dashed_above:
+		_draw_rooms_above(k)
 	if not hid.is_empty():
 		_mask_hidden(hid, k)
 	# Escaliers d'un niveau plus bas qui arrivent ici (trémie ; format 17 :
@@ -1571,7 +1586,7 @@ func _draw_group(font: Font, k: int) -> void:
 		draw_line(p, p + (b - p).normalized() * cl, COL_SEL, 2.5)
 	var lbl := Lang.t("%d éléments", "%d elements") % ed.group.size()
 	if n_here < ed.group.size():
-		lbl += Lang.t(" (%d à cet étage)", " (%d on this floor)") % n_here
+		lbl += Lang.t(" (%d à ce niveau)", " (%d on this level)") % n_here
 	var fs := EditorUi.fs(12)
 	var bf := MapView.bold_font(600)
 	var tw := bf.get_string_size(lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
@@ -2497,7 +2512,7 @@ func _draw_stair_marks(font: Font, marks: Array, _k := -1) -> void:
 		var nm := String(names.get(role, ""))
 		if zoom >= 8.0 and nm != "":
 			if not here:
-				nm += Lang.t(" (étage %d)", " (floor %d)") % int(m.get("floor", 0))
+				nm += " (%s)" % EditorMap.alt_text(ed.doc.level_alt(int(m.get("floor", 0))), not Lang.is_en())
 			var fs := EditorUi.fs(11)
 			var w := font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 			# Départ, arrivée : au-dessus de leur bande ; trémie : en son milieu.
@@ -2555,6 +2570,90 @@ func _carve_hatch(pts: PackedVector2Array, col: Color) -> void:
 		for s in Geometry2D.intersect_polyline_with_polygon(line, pts):
 			draw_polyline(s, col, 1.5)
 		d += step
+
+
+# ------------------------------------------------------------------ niveaux (format 17)
+
+const COL_GHOST := Color(0.6, 0.7, 1.0)
+const COL_HIGH_VOID := Color(0.55, 0.78, 1.0)
+const COL_ABOVE := Color(0.95, 0.85, 0.5)
+
+
+## Fantôme du niveau sous `k` : ses pièces en transparence, contour et
+## sommets (aimants sans grille, MapSnap.magnet).
+func _draw_ghost_below(k: int) -> void:
+	var doc := ed.doc
+	for p in doc.rooms_on(k - 1):
+		var poly := _px_poly(doc.room_poly(p))
+		if poly.size() < 3:
+			continue
+		_fill(poly, Color(COL_GHOST, 0.07))
+		draw_polyline(poly + PackedVector2Array([poly[0]]), Color(COL_GHOST, 0.35), 1.0)
+		if zoom >= 8.0:
+			for q in poly:
+				draw_rect(Rect2(q - Vector2.ONE * 2.0, Vector2.ONE * 4.0), Color(COL_GHOST, 0.45), false, 1.0)
+
+
+## Vides au niveau `k` des pièces hautes d'un niveau plus bas qui le
+## traversent (EditorMap.rooms_through) : [{poly (m), holes : contours des
+## pièces posées dessus à ce niveau (mezzanines)}], pour le dessin et les tests.
+func high_void_polys(k: int) -> Array:
+	var doc := ed.doc
+	var out := []
+	var here := doc.rooms_on(k)
+	for hr in doc.rooms_through(k):
+		var poly := doc.room_poly(hr)
+		var holes := []
+		for p in here:
+			var rp := doc.room_poly(p)
+			if MapGeom.overlap(poly, rp):
+				holes.append(rp)
+		out.append({"poly": poly, "holes": holes, "id": String(hr.get("id", ""))})
+	return out
+
+
+func _draw_high_voids(k: int) -> void:
+	for v in high_void_polys(k):
+		var px := _px_poly(v.poly)
+		var holes: Array = (v.holes as Array).map(func(h): return _px_poly(h))
+		var bb := MapGeom.bbox(px)
+		var step := maxf(_u(8), 4.0)
+		var col := Color(COL_HIGH_VOID, 0.35)
+		# Hachures à -45° (celles de la découpe sont à 45°), sans les mezzanines.
+		var d := 0.0
+		while d < bb.size.x + bb.size.y:
+			var line := PackedVector2Array([Vector2(bb.position.x + d, bb.position.y), Vector2(bb.position.x + d - bb.size.y, bb.end.y)])
+			var segs: Array = Geometry2D.intersect_polyline_with_polygon(line, px)
+			for h in holes:
+				var kept := []
+				for s in segs:
+					kept.append_array(Geometry2D.clip_polyline_with_polygon(s, h))
+				segs = kept
+			for s in segs:
+				draw_polyline(s, col, 1.2)
+			d += step
+		for i in px.size():
+			draw_dashed_line(px[i], px[(i + 1) % px.size()], Color(COL_HIGH_VOID, 0.6), 1.2, _u(5))
+
+
+## Pièces des niveaux au-dessus de `k` en pointillés (le niveau juste au-dessus
+## plus marqué), avec leur altitude au centre quand le zoom le permet.
+func _draw_rooms_above(k: int) -> void:
+	var doc := ed.doc
+	var font := UiStyle.font("body")
+	for j in range(k + 1, doc.level_count()):
+		var a := 0.75 if j == k + 1 else 0.35
+		for p in doc.rooms_on(j):
+			var poly := _px_poly(doc.room_poly(p))
+			if poly.size() < 3:
+				continue
+			for i in poly.size():
+				draw_dashed_line(poly[i], poly[(i + 1) % poly.size()], Color(COL_ABOVE, a), 1.3, _u(6))
+			if zoom >= 12.0 and j == k + 1:
+				var lbl := EditorMap.alt_text(doc.level_alt(j), not Lang.is_en())
+				var c := MapGeom.bbox(poly).end - Vector2(_u(4), _u(4))
+				var w := font.get_string_size(lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10)).x
+				draw_string(font, c - Vector2(w, 0), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(10), Color(COL_ABOVE, 0.8))
 
 
 func _label_at(font: Font, p: Vector2, lbl: String) -> void:
@@ -2751,11 +2850,15 @@ func _draw_tool(font: Font) -> void:
 	draw_line(sp - Vector2(0, 6), sp + Vector2(0, 6), Color(1, 1, 1, 0.5), 1.0)
 	# Aimant de la carte (mode libre) : sommet (carré) ou côté (rond).
 	if mode_now() == "libre" and entry.is_empty():
-		var mg := MapSnap.magnet(ed.doc, ed.floor_k, mouse_m, magnet_radius(), _snap_exclude)
+		var mg := MapSnap.magnet(ed.doc, ed.floor_k, mouse_m, magnet_radius(), _snap_exclude, ghost_k())
 		if not mg.is_empty():
 			var mp := to_px(mg.p)
 			if String(mg.kind) == "sommet":
 				draw_rect(Rect2(mp - Vector2(5, 5), Vector2(10, 10)), Color(0.35, 0.9, 1.0), false, 2.0)
+			elif String(mg.kind) == "fantome":
+				# Sommet du fantôme du niveau du dessous.
+				draw_rect(Rect2(mp - Vector2(5, 5), Vector2(10, 10)), COL_GHOST, false, 2.0)
+				draw_line(mp - Vector2(5, 5), mp + Vector2(5, 5), COL_GHOST, 1.0)
 			else:
 				draw_arc(mp, 5.0, 0, TAU, 14, Color(0.35, 0.9, 1.0), 2.0)
 	_draw_entry(font)

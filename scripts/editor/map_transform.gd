@@ -152,6 +152,84 @@ static func attached(doc: EditorMap, e: Dictionary) -> Array:
 	return out
 
 
+## Escaliers dont l'ARRIVÉE est dans la pièce `room` (format 17, étape 5) :
+## leur « altitude_haut » est celle de la pièce et une case d'arrivée
+## (MapRules.stair_parts : exit) est à l'intérieur de son contour. Ils ne
+## bougent pas avec elle dans le plan ; montée ou descendue, leur arrivée suit.
+static func arrivals(doc: EditorMap, room: Dictionary) -> Array:
+	var out := []
+	if not room.has("contour"):
+		return out
+	var a := EditorMap.alt_of(room)
+	var poly := doc.room_poly(room)
+	var bb := MapGeom.bbox(poly).grow(1.0)
+	for o in doc.objets:
+		if String(o.get("type", "")) != "escalier" or absf(doc.stair_top_of(o) - a) > EditorMap.ALT_EQ:
+			continue
+		if not bb.intersects(MapRules.footprint_rect(o)):
+			continue
+		for c in MapRules.stair_parts(o).exit:
+			if MapGeom.contains(poly, MapGeom.cell_center(c)):
+				out.append(String(o.id))
+				break
+	return out
+
+
+## Déplacement VERTICAL (format 17, étape 5) des éléments `direct` (choisis)
+## et de ce qui les suit : {both, foot, top} (identifiants). « both » :
+## altitude (et arrivée d'un escalier choisi lui-même) ; « foot » : escalier
+## rattaché à une pièce par son pied (son pied suit, son arrivée reste) ;
+## « top » : escalier dont l'arrivée est dans une pièce déplacée (seule son
+## arrivée suit). Un escalier pied et arrivée dans deux pièces déplacées
+## ensemble : « both ».
+static func vertical_plan(doc: EditorMap, direct: Array) -> Dictionary:
+	var both := {}
+	var foot := {}
+	var top := {}
+	for id in direct:
+		var e := doc.find(String(id))
+		if e.is_empty():
+			continue
+		both[String(id)] = true
+		if not e.has("contour"):
+			for a in attached(doc, e):
+				both[String(a)] = true
+			continue
+		for a in attached(doc, e):
+			if String(doc.find(String(a)).get("type", "")) == "escalier":
+				foot[String(a)] = true
+			else:
+				both[String(a)] = true
+		for s in arrivals(doc, e):
+			top[String(s)] = true
+	for s in foot.keys():
+		if top.has(s):
+			both[s] = true
+	for s in both:
+		foot.erase(s)
+		top.erase(s)
+	return {"both": both.keys(), "foot": foot.keys(), "top": top.keys()}
+
+
+## Applique un déplacement vertical de `dalt` m (vertical_plan) à la carte.
+static func lift(doc: EditorMap, plan: Dictionary, dalt: float) -> void:
+	if dalt == 0.0:
+		return
+	for id in plan.get("both", []):
+		var e := doc.find(String(id))
+		if not e.is_empty():
+			EditorMap.shift_alt(e, dalt)
+	for id in plan.get("foot", []):
+		var e := doc.find(String(id))
+		if not e.is_empty():
+			e["altitude_haut"] = doc.stair_top_of(e)
+			e["altitude"] = snappedf(EditorMap.alt_of(e) + dalt, 0.0001)
+	for id in plan.get("top", []):
+		var e := doc.find(String(id))
+		if not e.is_empty():
+			e["altitude_haut"] = snappedf(doc.stair_top_of(e) + dalt, 0.0001)
+
+
 ## Objets muraux accrochés à un mur libre `e` (outil Mur, mur courbe) : leur
 ## trait est sur une face du mur, parallèle à lui ; ils bougent et tournent avec
 ## lui.

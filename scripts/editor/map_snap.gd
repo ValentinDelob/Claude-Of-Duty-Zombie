@@ -69,12 +69,23 @@ static func next_fine(step: float) -> float:
 
 ## Aimant de la carte près de `m` (étage k, rayon `radius` m) : un sommet de
 ## pièce ou un bout de mur, sinon un point d'un côté de pièce (projection).
-## `exclude` : identifiant de l'élément en cours de modification.
-## -> {"p": point, "kind": "sommet" | "cote", "a", "b" (côté)} ou {}.
-static func magnet(doc: EditorMap, k: int, m: Vector2, radius: float, exclude := "") -> Dictionary:
+## `exclude` : identifiant de l'élément en cours de modification. Format 17 :
+## `ghost` (indice d'un niveau, -1 : aucun) : les sommets des pièces de ce
+## niveau (fantôme du niveau du dessous) aimantent aussi (« fantome »).
+## -> {"p": point, "kind": "sommet" | "fantome" | "cote", "a", "b" (côté)} ou {}.
+static func magnet(doc: EditorMap, k: int, m: Vector2, radius: float, exclude := "", ghost := -1) -> Dictionary:
 	var best := {}
 	var best_d := radius
 	var edges := []
+	if ghost >= 0 and ghost != k:
+		for r in doc.rooms_on(ghost):
+			var gp := doc.room_poly(r)
+			if not MapGeom.bbox(gp).grow(radius).has_point(m):
+				continue
+			for q in gp:
+				if q.distance_to(m) < best_d:
+					best_d = q.distance_to(m)
+					best = {"p": q, "kind": "fantome"}
 	for r in doc.rooms_on(k):
 		if String(r.get("id", "")) == exclude:
 			continue
@@ -109,8 +120,8 @@ static func magnet(doc: EditorMap, k: int, m: Vector2, radius: float, exclude :=
 ## Point suivant d'un tracé sans grille depuis `from` : aimant d'abord (un
 ## sommet ; sur un côté, là où le trait à 15° le croise s'il y arrive), sinon
 ## angle aimanté à 15° (libre avec `free_angle`) et centimètre.
-static func trace_free(doc: EditorMap, k: int, from: Vector2, m: Vector2, radius: float, free_angle: bool, exclude := "") -> Vector2:
-	var mg := magnet(doc, k, m, radius, exclude)
+static func trace_free(doc: EditorMap, k: int, from: Vector2, m: Vector2, radius: float, free_angle: bool, exclude := "", ghost := -1) -> Vector2:
+	var mg := magnet(doc, k, m, radius, exclude, ghost)
 	var ang := MapGeom.snap_angle_free(from, m, FREE_ANGLE_STEP, free_angle)
 	if mg.is_empty():
 		return ang
@@ -125,12 +136,12 @@ static func trace_free(doc: EditorMap, k: int, from: Vector2, m: Vector2, radius
 
 ## Décalage d'une pièce déplacée sans grille, aimanté : le sommet de la pièce
 ## le plus proche d'un sommet ou d'un côté d'une autre pièce s'y colle.
-static func room_delta(doc: EditorMap, k: int, poly: PackedVector2Array, delta: Vector2, radius: float, exclude: String) -> Vector2:
+static func room_delta(doc: EditorMap, k: int, poly: PackedVector2Array, delta: Vector2, radius: float, exclude: String, ghost := -1) -> Vector2:
 	var best := delta
 	var best_d := radius
 	for v in poly:
 		var target := v + delta
-		var mg := magnet(doc, k, target, radius, exclude)
+		var mg := magnet(doc, k, target, radius, exclude, ghost)
 		if mg.is_empty():
 			continue
 		var d := Vector2(mg.p).distance_to(target)

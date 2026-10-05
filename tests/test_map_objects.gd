@@ -166,7 +166,7 @@ func test_guard_accepts_variants_and_refuses_bad_values() -> void:
 		["ouvertures.json", "\"variante\":\"bois\"", "\"variante\":3", "variante qui n'est pas un texte"],
 		["ouvertures.json", "\"variante\":\"bois\"", "\"variante\":\"res://icon.svg\"", "chemin de ressource"],
 		["ouvertures.json", "\"id\":\"o2\"", "\"id\":\"o2\",\"variante\":\"bois\"", "variante sur une fenêtre"],
-		["objets.json", "\"rect\":[16,3,17,8]", "\"rect\":[16,3,17,8],\"hauteur\":100", "barrière trop haute"],
+		["objets.json", "\"rect\":[16,3,17,8]", "\"rect\":[16,3,17,8],\"hauteur\":20000", "barrière au-delà de la garde technique (10 km)"],
 		["objets.json", "\"rect\":[16,3,17,8]", "\"rect\":[16,3,17,8],\"hauteur\":\"x\"", "hauteur texte"],
 		["objets.json", "\"rect\":[16,3,17,8]", "\"rect\":[16,3,17,8],\"modele\":\"res://x.tscn\"", "clé inconnue sur la barrière"],
 		["objets.json", "\"rect\":[16,3,17,8]", "\"position\":[16,3]", "barrière sans rect"],

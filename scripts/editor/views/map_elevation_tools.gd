@@ -1,17 +1,18 @@
 class_name MapElevationTools
 extends RefCounted
 ## Édition dans une élévation (docs/EDITOR_VIEWS.md, § 6) : glisser un
-## élément sur les deux axes de la vue (hauteur de pose continue, ou étage
-## aimanté sur les sols, selon son type : MapVertical.pose_kind), flèches
+## élément sur les deux axes de la vue (hauteur de pose continue, altitude
+## d'une pièce aimantée au pas de 0,25 m, ou niveau aimanté sur les sols, selon
+## son type : MapVertical.pose_kind), flèches
 ## d'axe (X rouge, Y vert, Z bleu ; carré central : les deux axes),
 ## verrouillage X / Y / Z pendant le glissement, poignées (côtés sur l'axe de
 ## la vue, losange du haut : plafond d'une pièce, hauteur d'une barrière ou
-## d'une zone d'effet), étiquettes de niveau (sol d'un étage), aimants
+## d'une zone d'effet), étiquettes de niveau (altitude d'un niveau), aimants
 ## verticaux nommés, cotes (hauteur au-dessus du sol, écart, distance au mur),
 ## fantôme de la position d'avant, saisie d'une valeur (Tab), curseurs.
 ## Sélection multiple : Maj + clic ajoute ou retire un élément ; un élément
 ## du groupe choisi glisse tout le groupe (MapGroup.move : axe de la vue,
-## hauteur de pose ou étage).
+## hauteur de pose, altitude ou niveau).
 ## Un glissement = une étape d'annulation (au relâché).
 
 ## Flèches d'axe (px à 100 %, maquette, écran 2).
@@ -106,7 +107,7 @@ func _opening_normal(o: Dictionary) -> Vector2:
 	return Vector2(-along.y, along.x)
 
 
-## Glissement vertical possible (hauteur de pose ou étage) ?
+## Glissement vertical possible (hauteur de pose, altitude ou niveau) ?
 func can_v(e: Dictionary) -> bool:
 	var o: Dictionary = e.it.e
 	var kind := MapVertical.pose_kind(o)
@@ -190,8 +191,8 @@ func target_at(px: Vector2) -> String:
 	return ""
 
 
-## Étiquette de niveau ou trait du plafond du dernier étage sous le pixel :
-## « level:k » (sol de l'étage k ≥ 1), « topceil » ; "" sinon.
+## Étiquette de niveau ou trait du plafond du dernier niveau sous le pixel :
+## « level:k » (sol du niveau k ≥ 1), « topceil » ; "" sinon.
 func level_at(px: Vector2) -> String:
 	if ed().tool() != "select" or not MapView.is_elevation(ev.plane):
 		return ""
@@ -273,7 +274,7 @@ func press(px: Vector2) -> bool:
 	if t in ["side_l", "side_r", "top"]:
 		var h := handles(e).filter(func(x): return String(x.id) == t)
 		if t == "top" and not h.is_empty() and bool(h[0].get("lock", false)):
-			ed().set_status(Lang.t("Pièce en double hauteur : ouverte sur l'étage du dessus, pas de plafond à régler", "Double-height room: open to the floor above, no ceiling to set"))
+			ed().set_status(Lang.t("Pièce ouverte sur le niveau du dessus : pas de plafond à régler", "Room open to the level above: no ceiling to set"))
 			return true
 		_begin(t if t == "top" else "side", e, {"which": t})
 		return true
@@ -311,6 +312,7 @@ func _begin(kind: String, e: Dictionary, extra: Dictionary) -> void:
 	drag = {"kind": kind, "start_m": ev.mouse_m, "snap": doc.snapshot(), "orig": o.duplicate(true), "attached": ed().attached_to(o),
 		"moved": false, "lock": "", "k0": doc.level_of(o), "rect0": ev.rect_px(e), "box0": e.duplicate()}
 	drag.merge(extra, true)
+	drag["a0"] = EditorMap.alt_of(o)
 	drag["za0"] = EditorMap.alt_of(o) + (MapVertical.pose_z(doc, v, o) if MapVertical.pose_kind(o) == "pose" else 0.0)
 	if kind == "top":
 		drag["v0"] = _top_value(o)
@@ -340,6 +342,13 @@ func _begin_group(e: Dictionary) -> void:
 	drag = {"kind": "gmove", "start_m": ev.mouse_m, "snap": doc.snapshot(), "all": MapGroup.movers(doc, ids), "ids": ids,
 		"click": String(o.id), "k0": doc.level_of(o), "z0": z0, "moved": false, "lock": "", "can_h": true,
 		"can_v": not z0.is_empty() or doc.floor_count() > 1, "rect0": ev.rect_px(e), "box0": e.duplicate()}
+	# Format 17 : altitude de l'élément appuyé, niveaux du début, pièce dans le groupe.
+	drag["a0"] = EditorMap.alt_of(o)
+	drag["lv0"] = doc.levels().duplicate()
+	drag["snap_click"] = o.duplicate(true)
+	drag["has_room"] = ids.any(func(i): return doc.find(String(i)).has("contour"))
+	if bool(drag.has_room):
+		drag["can_v"] = true
 	drag["lock"] = _allowed_lock("")
 	entry = ""
 	entering = false
@@ -347,7 +356,9 @@ func _begin_group(e: Dictionary) -> void:
 
 
 ## Mouvement du groupe : écart sur l'axe de la vue au pas de l'aimantation ;
-## vertical : hauteur de pose (tous posés) ou étage le plus proche.
+## vertical : hauteur de pose (tous posés) ; un groupe qui contient une pièce
+## monte librement (aimants de la pièce appuyée, sinon pas de 0,25 m) ; sinon
+## le niveau le plus proche (niveaux relevés au début du glissement).
 func _update_group() -> void:
 	var doc := ed().doc
 	var d := _delta()
@@ -356,26 +367,39 @@ func _update_group() -> void:
 		dh = snappedf(dh, _step())
 	var delta2 := Vector2(dh, 0.0) if h_letter() == "X" else Vector2(0.0, dh)
 	var dz := -d.y
-	var dk := 0
+	var dalt := 0.0
 	var dzz := NAN
-	var k0 := int(drag.k0)
+	var a0 := float(drag.a0)
 	if not (drag.z0 as Dictionary).is_empty():
 		dzz = dz if _typed() != null else snappedf(dz, _step())
 	elif bool(drag.can_v):
-		dk = MapVertical.nearest_floor(doc, doc.floor_sol(k0) + dz) - k0
-	var res := MapGroup.move(ed(), drag.all, delta2, dk, drag.snap, dzz, drag.z0)
+		magnet = {}
+		var za := a0 + dz
+		if bool(drag.has_room):
+			var room := (drag.snap_click as Dictionary)
+			if _typed() == null:
+				za = _snap_room_alt(za, room) if room.has("contour") else snappedf(za, MapVertical.ROOM_ALT_STEP)
+		else:
+			var lv: Array = drag.lv0
+			var best := 0
+			for i in lv.size():
+				if absf(float(lv[i]) - za) < absf(float(lv[best]) - za):
+					best = i
+			za = float(lv[best])
+		dalt = snappedf(za - a0, 0.0001)
+	var res := MapGroup.move(ed(), drag.all, delta2, dalt, drag.snap, dzz, drag.z0, drag.ids)
 	if res.ok:
 		refusal = ""
-		drag.moved = drag.moved or delta2.length() > 0.001 or dk != 0 or (not is_nan(dzz) and absf(dzz) > 0.0005)
+		drag.moved = drag.moved or delta2.length() > 0.001 or absf(dalt) > EditorMap.ALT_EQ or (not is_nan(dzz) and absf(dzz) > 0.0005)
 		drag["dh"] = dh
-		drag["dz"] = dzz if not is_nan(dzz) else doc.floor_sol(k0 + dk) - doc.floor_sol(k0)
-		drag["dk"] = dk
+		drag["dz"] = dzz if not is_nan(dzz) else dalt
+		drag["dalt"] = dalt
 		ed().send_live(String(drag.click))
 		var parts := []
 		if absf(dh) > 0.0005:
 			parts.append("Δ%s %s m" % [h_letter(), _signed(dh * h_sign())])
-		if dk != 0:
-			parts.append(Lang.t("étage %d → %d", "floor %d → %d") % [k0, k0 + dk])
+		if absf(dalt) > EditorMap.ALT_EQ:
+			parts.append(Lang.t("niveau %s → %s", "level %s → %s") % [EditorMap.alt_text(a0, not Lang.is_en()), EditorMap.alt_text(a0 + dalt, not Lang.is_en())])
 		elif not is_nan(dzz) and absf(dzz) > 0.0005:
 			parts.append("ΔZ %s m" % _signed(dzz))
 		ed().set_status(Lang.t("Groupe de %d éléments", "Group of %d elements") % (drag.ids as Array).size()
@@ -508,12 +532,33 @@ func _update_move() -> void:
 			if za >= sol0 - 0.001 and za <= sol0 + MapVertical.room_h(ed().raster().v, probe) + 0.001:
 				k_new = k0
 			else:
-				k_new = MapVertical.floor_at(doc, za)
+				k_new = MapVertical.floor_at(doc, za, MapVertical.anchor_of(probe))
 			if k_new < 0:
-				refusal = Lang.t("pas d'étage à cette hauteur", "no floor at that height")
+				refusal = Lang.t("pas de pièce à cette hauteur ici", "no room at that height here")
 				return
 			z_local = za - doc.floor_sol(k_new)
 		"niveau":
+			if orig.has("contour"):
+				# Format 17 : une pièce monte ou descend librement (aimants : sols
+				# des niveaux, au-dessus / au-dessous des pièces qu'elle recouvre ;
+				# sinon pas de 0,25 m), avec son contenu.
+				var a0 := float(drag.a0)
+				var za := a0 + dz
+				if _typed() == null:
+					za = _snap_room_alt(za, orig)
+				var dalt := snappedf(za - a0, 0.0001)
+				var rres := ed().try_move_alt(orig, drag.attached, delta2, dalt, NAN, drag.snap)
+				if rres.ok:
+					refusal = ""
+					drag.moved = drag.moved or delta2.length() > 0.001 or absf(dalt) > EditorMap.ALT_EQ
+					drag["dh"] = dh
+					drag["dz"] = dalt
+					ed().send_live(String(orig.id))
+					ed().panels.live_position(true)
+					_status_move()
+				else:
+					refusal = MapRules.why(rres)
+				return
 			k_new = MapVertical.nearest_floor(doc, doc.floor_sol(k0) + dz)
 	var res := ed().try_move_3d(orig, drag.attached, delta2, k_new, z_local, drag.snap)
 	if res.ok:
@@ -543,9 +588,27 @@ func _snap_z(za: float, k: int, probe: Dictionary) -> float:
 		if not best.is_empty():
 			magnet = best
 			return float(best.z)
-	var kk := MapVertical.floor_at(doc, za)
+	var kk := MapVertical.floor_at(doc, za, MapVertical.anchor_of(probe))
 	var sol := doc.floor_sol(kk if kk >= 0 else k)
 	return sol + snappedf(za - sol, _step())
+
+
+## Altitude aimantée d'une pièce glissée verticalement (format 17) : aimant
+## proche (MapVertical.room_alt_magnets), sinon pas de 0,25 m (aimantation
+## libre : le centimètre).
+func _snap_room_alt(za: float, room: Dictionary) -> float:
+	var radius := MAGNET_PX / ev.zoom
+	var best := {}
+	for m in MapVertical.room_alt_magnets(ed().doc, room, drag.get("ids", [])):
+		if absf(float(m.z) - za) <= radius and (best.is_empty() or absf(float(m.z) - za) < absf(float(best.z) - za)):
+			best = m
+	if not best.is_empty():
+		magnet = best
+		return float(best.z)
+	# Pas sur l'écart (une pièce à 3,33 m y revient exactement).
+	var st := 0.01 if ed().canvas.mode_now() == "libre" else MapVertical.ROOM_ALT_STEP
+	var a0 := EditorMap.alt_of(room)
+	return a0 + snappedf(za - a0, st)
 
 
 func _status_move() -> void:
@@ -561,9 +624,11 @@ func _status_move() -> void:
 		var z1 := MapVertical.pose_z(doc, ed().raster().v, now)
 		ed().set_status(Lang.t("Déplacement vertical : %s → %s m (ΔZ %s) · relâcher pour valider, Échap pour annuler", "Vertical move: %s → %s m (ΔZ %s) · release to apply, Esc to cancel") % [
 			m2(z0), m2(z1), _signed(float(drag.get("dz", 0.0)))] + ("  ·  " + " · ".join(parts) if not parts.is_empty() else ""))
-	elif ed().doc.level_of(now) != int(drag.k0):
-		ed().set_status(Lang.t("Niveau %s → %s · relâcher pour valider, Échap pour annuler", "Level %s → %s · release to apply, Esc to cancel") % [
-			EditorMap.alt_text(ed().doc.level_alt(int(drag.k0)), fr), EditorMap.alt_text(EditorMap.alt_of(now), fr)])
+	elif not now.is_empty() and absf(EditorMap.alt_of(now) - float(drag.get("a0", EditorMap.alt_of(now)))) > EditorMap.ALT_EQ:
+		var lbl := Lang.t("Niveau %s → %s", "Level %s → %s") % [EditorMap.alt_text(float(drag.a0), fr), EditorMap.alt_text(EditorMap.alt_of(now), fr)]
+		if not magnet.is_empty():
+			lbl += " (%s)" % String(magnet.name)
+		ed().set_status(lbl + ("  ·  " + " · ".join(parts) if not parts.is_empty() else "") + Lang.t(" · relâcher pour valider, Échap pour annuler", " · release to apply, Esc to cancel"))
 	elif not parts.is_empty():
 		ed().set_status(" · ".join(parts) + Lang.t(" · relâcher pour valider, Échap pour annuler", " · release to apply, Esc to cancel"))
 
@@ -719,8 +784,10 @@ func _update_top() -> void:
 	refusal = "" if res.ok else MapRules.why(res)
 
 
-## Étiquette de niveau : sol de l'étage k (au moins 3,1 m des voisins) ;
-## trait du plafond du dernier étage : sa hauteur.
+## Étiquette de niveau : altitude du sol du niveau k (format 17 : libre ;
+## refus nommé, dernière place valide gardée : pièces empilées à moins de
+## 3,1 m, niveau qui en recouvre un autre, escalier qui ne va plus,
+## MapEditor.shift_level_to) ; trait du plafond du dernier niveau : sa hauteur.
 func _update_level() -> void:
 	var doc := ed().doc
 	var k := int(drag.k)
@@ -728,21 +795,25 @@ func _update_level() -> void:
 	var typed: Variant = _typed()
 	doc.restore(drag.snap)
 	doc.view_levels = (drag.views0 as Array).duplicate()
-	var gap := MapValidator.MIN_CEILING + MapValidator.DALLE
 	if drag.kind == "level":
-		# Format 17 : le niveau entier (tout ce qui y est posé) monte ou descend,
-		# à 3,1 m au moins de ses voisins (restriction de l'étape 1a).
-		var v := float(drag.v0) + float(typed) if typed != null else snappedf(z, maxf(_step(), 0.1))
-		var lo := doc.floor_sol(k - 1) + gap
-		var hi := doc.floor_sol(k + 1) - gap if k + 1 < doc.floor_count() else INF
-		v = clampf(v, lo, maxf(lo, hi))
+		# Format 17 : le niveau entier (tout ce qui y est posé) monte ou descend
+		# librement (pas de 0,25 m, aimantation libre : le centimètre).
+		var st := 0.01 if ed().canvas.mode_now() == "libre" else MapVertical.ROOM_ALT_STEP
+		var v := float(drag.v0) + float(typed) if typed != null else float(drag.v0) + snappedf(z - float(drag.v0), st)
 		v = snappedf(v, 0.01)
-		doc.shift_level(k, v - doc.level_alt(k))
+		var r := ed().shift_level_to(k, v)
+		if not r.ok:
+			# Refus : la dernière altitude valide reste (glissement continu).
+			refusal = MapRules.why(r)
+			v = float(drag.get("value", drag.v0))
+			ed().shift_level_to(k, v)
+		else:
+			refusal = ""
 		if absf(float(drag.view0) - float(drag.v0)) <= EditorMap.ALT_EQ:
 			ed()._view_alt = v
 		drag["value"] = v
-		ed().set_status(Lang.t("Niveau déplacé à %s m (au moins %s m au-dessus du niveau voisin, tout ce qui y est posé suit)", "Level moved to %s m (at least %s m above the next level, everything on it follows)") % [
-			m2(v), m2(gap)])
+		ed().set_status(Lang.t("Niveau déplacé à %s m (tout ce qui y est posé suit)", "Level moved to %s m (everything on it follows)") % m2(v)
+			+ (" — " + refusal if refusal != "" else ""))
 	else:
 		# Plafond du dernier niveau : celui de ses pièces (pièces hautes exceptées).
 		var h := float(drag.v0) + float(typed) if typed != null else snappedf(z - doc.floor_sol(k), maxf(_step(), 0.1))
@@ -789,13 +860,13 @@ func release() -> void:
 		ed().changed()
 		if String(drag.kind) == "move":
 			var now := ed().doc.find(String(drag.orig.id))
-			moved_floor = not now.is_empty() and ed().doc.level_of(now) != int(drag.k0)
+			moved_floor = not now.is_empty() and absf(EditorMap.alt_of(now) - float(drag.get("a0", EditorMap.alt_of(now)))) > EditorMap.ALT_EQ
 	var oid := String(drag.get("orig", {}).get("id", ""))
 	# Reclic sans bouger (moins de 4 px) : l'élément est désélectionné.
 	var unselect: bool = bool(drag.get("reclick", false)) and not drag.moved and ev.to_px(ev.mouse_m).distance_to(ev.to_px(Vector2(drag.start_m))) < 4.0
 	drag = {}
 	if moved_floor:
-		# Changé d'étage : l'étage courant le suit (plan du dessus, panneaux).
+		# Changé de niveau : le niveau affiché le suit (plan du dessus, panneaux).
 		ed().select(oid)
 	elif unselect:
 		ed().select("")
@@ -1084,11 +1155,15 @@ func _draw_top_cotes(c: CanvasItem, e: Dictionary, r: Rect2) -> void:
 	MapElevation._round_rect(c, Rect2(mx, top - u(27), dw + u(12), u(19)), Color("2b2410"), COL_GOLD)
 	c.draw_string(bf7, Vector2(mx + u(6), top - u(13)), d, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, COL_GOLD)
 	if orig.has("contour"):
-		# Règle vérifiée en direct : ce qu'il y a au-dessus.
-		var lim := float(drag.get("limit", MapVertical.ROOM_CEILING[1]))
-		var free := lim >= MapVertical.ROOM_CEILING[1] - 0.001
-		var msg := (Lang.t("✔ Rien au-dessus (étage %d) : jusqu'à %s m", "✔ Nothing above (floor %d): up to %s m") % [k + 1, m2(lim)]) if free \
-			else (Lang.t("Dalle de l'étage %d au-dessus : jusqu'à %s m", "Floor %d slab above: up to %s m") % [k + 1, m2(lim)])
+		# Règle vérifiée en direct : ce qu'il y a au-dessus (format 17 : la
+		# première dalle au-dessus de la pièce, à n'importe quel niveau ; un
+		# plafond plus haut est coupé par elle, décision 2 du plan).
+		var v := ed().raster().v
+		var ks := MapVertical.slab_above(v, k, v.to_grid(MapGeom.centroid(doc.room_poly(orig)))) if k >= 0 and k < v.floors.size() else -1
+		var free := ks < 0
+		var msg := Lang.t("✔ Rien au-dessus : plafond libre", "✔ Nothing above: free ceiling") if free \
+			else (Lang.t("Dalle du niveau %s au-dessus : plafond réel jusqu'à %s m", "Slab of level %s above: real ceiling up to %s m") % [
+				EditorMap.alt_text(v.floors[ks].sol, fr), m2(v.floors[ks].sol - MapVertical.DALLE - doc.floor_sol(k))])
 		var font := UiStyle.font("body")
 		var mw := font.get_string_size(msg, HORIZONTAL_ALIGNMENT_LEFT, -1, EditorUi.fs(11)).x + u(12)
 		var br := Rect2(r.position.x, top - u(62), mw, u(19))

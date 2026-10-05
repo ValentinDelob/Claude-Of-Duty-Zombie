@@ -213,11 +213,17 @@ func test_level_tag_moves_a_floor() -> void:
 	var at := ev.to_m(Vector2(ev._ruler() + EditorUi.px(20), y))
 	_drag(ev, at, at + Vector2(0, -0.5))
 	assert_near(ed.doc.floor_sol(1), 4.0, 0.001, "sol de l'étage 1 : 3,50 → 4,00 m")
-	# Jamais à moins de 3,1 m de l'étage du dessous.
+	# Format 17 : niveau libre, mais jamais à moins de 3,1 m d'une pièce qu'il
+	# recouvre : refus nommé, la dernière altitude valide reste.
 	y = ev.to_px(Vector2(0, -4.0)).y
 	at = ev.to_m(Vector2(ev._ruler() + EditorUi.px(20), y))
-	_drag(ev, at, at + Vector2(0, 2.0))
-	assert_near(ed.doc.floor_sol(1), 3.1, 0.001, "borné à 3,10 m")
+	_mouse(ev, at)
+	_mouse(ev, at, MOUSE_BUTTON_LEFT, true)
+	for i in 4:
+		_mouse(ev, at.lerp(at + Vector2(0, 2.0), (i + 1) / 4.0))
+	assert_true(ev.tools.refusal.contains("3,1") or ev.tools.refusal.contains("3.1"), "refus nommé (%s)" % ev.tools.refusal)
+	_mouse(ev, at + Vector2(0, 2.0), MOUSE_BUTTON_LEFT, false)
+	assert_true(ed.doc.floor_sol(1) >= 3.1 - 0.001, "dernière altitude valide gardée (%s m)" % ed.doc.floor_sol(1))
 	ed.queue_free()
 	await wait_frames(1)
 
@@ -315,10 +321,14 @@ func test_format_12_round_trip_and_older_maps() -> void:
 
 func test_received_map_with_out_of_bounds_height_is_refused() -> void:
 	var doc := _arena()
+	# Format 17 : plus de maximum de 30 m (le plafond réel borne la pose) ;
+	# seulement la garde technique (MapVertical.TECH_Z).
 	doc.find("d1")["z"] = 31.0
-	var texts := doc.file_texts()
-	var r := CustomMapGuard.check_texts(texts)
-	assert_false(r.ok, "z hors bornes : refusée")
+	var r := CustomMapGuard.check_texts(doc.file_texts())
+	assert_true(r.ok, "z de 31 m : plus de borne de conception (%s)" % [r.get("reasons", [])])
+	doc.find("d1")["z"] = MapVertical.TECH_Z + 1.0
+	r = CustomMapGuard.check_texts(doc.file_texts())
+	assert_false(r.ok, "z au-delà de la garde technique : refusée")
 	doc.find("d1")["z"] = 1.0
 	doc.find("lu1")["descente"] = 4.0
 	r = CustomMapGuard.check_texts(doc.file_texts())

@@ -102,7 +102,10 @@ var sel_version := 0
 var context_menu: MapContextMenu
 ## Presse-papiers : un élément (Ctrl+C sur un seul), ou {"items": [...]} (groupe).
 var clipboard: Dictionary = {}
+## Plan (onglet Niveaux) : fantôme du niveau du dessous (ses sommets
+## aimantent sans grille), pièces des niveaux du dessus en pointillés.
 var ghost_below := true
+var dashed_above := false
 var hotbar: Array = MapHotbar.migrate(MapCatalog.DEFAULT_HOTBAR)
 ## Case choisie de la barre rapide ; MOUSE (-1) : la souris (outil Sélection),
 ## case fixe à gauche de la barre, jamais remplacée. L'éditeur démarre dessus.
@@ -146,7 +149,9 @@ var preview: MapPreviewPanel
 var status: Label
 var cursor_label: Label
 var title_label: Label
-var floor_label: Label
+## Barre des niveaux (format 17) : « Niveau 3,5 m (2/3) ▾ », menu des niveaux
+## du plus haut au plus bas (nombre de pièces) et « Autre altitude… ».
+var floor_label: MenuButton
 var check_button: Button
 ## Mode d'aimantation (clic ou G : grille 1 m, grille fine, libre).
 var snap_button: Button
@@ -315,7 +320,7 @@ func _build_ui() -> void:
 	em.add_item(Lang.t("Aspect suivant", "Next look") + "   V", 8)
 	em.add_item(Lang.t("Supprimer", "Delete") + "   Suppr", 5)
 	em.add_separator()
-	em.add_item(Lang.t("Tout sélectionner (étage)", "Select all (floor)") + "   Ctrl+A", 11)
+	em.add_item(Lang.t("Tout sélectionner (niveau)", "Select all (level)") + "   Ctrl+A", 11)
 	em.add_item(Lang.t("Créer une prefab…", "Create a prefab…") + "   Ctrl+G", 12)
 	em.add_separator()
 	em.add_item(Lang.t("Inventaire", "Inventory") + "   E / Tab", 6)
@@ -327,9 +332,13 @@ func _build_ui() -> void:
 	prev.tooltip_text = Lang.t("Niveau du dessous (Page préc.)", "Level below (Page Up)")
 	prev.pressed.connect(func(): set_floor(floor_k - 1))
 	bar.add_child(prev)
-	floor_label = Label.new()
-	floor_label.custom_minimum_size = Vector2(120, 0)
-	floor_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	floor_label = MenuButton.new()
+	floor_label.name = "LevelMenu"
+	floor_label.flat = false
+	floor_label.custom_minimum_size = Vector2(150, 0)
+	floor_label.focus_mode = Control.FOCUS_NONE
+	floor_label.get_popup().about_to_popup.connect(fill_level_menu)
+	floor_label.get_popup().id_pressed.connect(_on_level_menu)
 	bar.add_child(floor_label)
 	var next := Button.new()
 	next.text = "►"
@@ -802,9 +811,9 @@ func _update_title() -> void:
 	# ouverte) : la copie de récupération écrite d'ici est périmée.
 	if not dirty and _recovery_sig != "" and not is_guest():
 		_drop_recovery()
-	floor_label.text = "%s (%d/%d)" % [EditorMap.level_name(view_alt()), floor_k + 1, doc.level_count()]
-	floor_label.tooltip_text = Lang.t("Niveau affiché : altitude de son sol. Page préc. / Page suiv. : niveau voisin.",
-		"Level shown: altitude of its floor. Page Up / Page Down: next level.")
+	floor_label.text = "%s (%d/%d) ▾" % [EditorMap.level_name(view_alt()), floor_k + 1, doc.level_count()]
+	floor_label.tooltip_text = Lang.t("Niveau affiché : altitude de son sol. Clic : tous les niveaux, « Autre altitude… ». Page préc. / Page suiv. : niveau voisin ; Maj+Page : la sélection y va ; Alt + clic : pièce empilée suivante.",
+		"Level shown: altitude of its floor. Click: all levels, \"Other altitude…\". Page Up / Page Down: next level; Shift+Page: the selection goes there; Alt + click: next stacked room.")
 	snap_changed()
 	if validation_stale or validator == null:
 		check_button.text = Lang.t("À vérifier", "Not checked")
@@ -818,9 +827,9 @@ func _update_title() -> void:
 
 func _show_help() -> void:
 	_info(Lang.t("Raccourcis", "Shortcuts"), Lang.t(
-		"Clic gauche : poser / choisir · clic droit : menu (Créer une prefab…, Dupliquer, Copier, Couper, Coller ici, Pivoter, Supprimer, Tout sélectionner, Désélectionner) ; pendant un tracé ou un glissement, le clic droit l'annule\nSélection multiple : Maj + clic ajoute ou retire un élément · glisser depuis le vide (ou Maj + glisser n'importe où) : rectangle ; de gauche à droite, il prend les éléments ENTIÈREMENT dedans (cadre bleu), de droite à gauche, ceux qu'il TOUCHE (cadre vert en tirets) ; avec Maj, il ajoute à la sélection · Ctrl+A : tout l'étage · Échap ou simple clic sur l'élément déjà choisi : désélectionner\nGroupe (plusieurs éléments choisis) : glisser l'un d'eux déplace tout (élévations : aussi d'étage) · flèches : d'un pas de grille · R ou poignée ronde : pivoter autour du centre · Ctrl+D : dupliquer à côté · Ctrl+C / Ctrl+X / Ctrl+V : copier, couper, coller sous la souris · Suppr · une seule annulation par action ; un élément refusé (entouré de rouge, nommé) annule toute l'action\nPrefab : sélectionnez du décor posé au sol, puis clic droit > Créer une prefab… (Ctrl+G) ; elle rejoint l'inventaire (E), catégorie « Prefabs de la carte » : prenez-la et cliquez sur le plan pour la poser, R pour la pivoter\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nPièce tracée sur une autre : la partie retirée est hachurée en orange (en rouge : pièce supprimée) ; au relâcher, confirmation (Entrée : Découper, Échap : Annuler) ; l'ancienne pièce perd la partie recouverte (coupée en morceaux si besoin, reliés par un passage libre), son contenu passe à la nouvelle ; une seule annulation\nEscaliers : « qui monte » (flèche vers le haut) se trace du bas (cet étage) vers le haut, « qui descend » (flèche vers le bas) du haut (cet étage) vers le bas ; départ et arrivée montrés pendant le tracé, ce qui gêne en rouge ; un escalier se choisit depuis ses deux étages\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nCtrl + « + » / Ctrl + « - » / Ctrl + 0 : taille de l'interface de l'éditeur (aussi dans les options, bouton ⚙)\nMolette ou 1 à 9 : case de la barre rapide · ² ou Échap : la souris (case à gauche de la barre) · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+X / Ctrl+V : copier / couper / coller · Ctrl+D : dupliquer\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer (seule façon d'écrire la carte ; « * » au titre : modifications non enregistrées, confirmation avant de les perdre ; TESTER joue la carte sans l'enregistrer)\nPage préc. / suiv. : étage · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu\nVues : bouton Disposition (1 à 4 fenêtres) · Ctrl+Alt+Q : 4 vues · Ctrl+Espace ou ⛶ : agrandir la vue active · séparateurs : glisser, double-clic : partage égal\nViewCube (coin haut droit de chaque vue) : face : changer de plan · coin : la 3D vue de ce coin · maison : vue d'origine · ◄ ► : façade suivante · pavé 7 / 1 / 3 : Dessus / Avant / Droite (Ctrl : la vue opposée), pavé 5 : 3D (souris sur la vue)\nÉlévations (Avant, Droite…) : glisser : déplacer sur les deux axes de la vue (hauteur de pose, ou étage) · flèches d'axe : un seul axe · X / Y / Z pendant le glissement : verrouiller · chiffres ou Tab : taper l'écart, Entrée · losange : plafond, hauteur · étiquette « É1 » : sol de l'étage · K : coupe autour de la sélection · la pose reste en vue Dessus
+		"Clic gauche : poser / choisir · clic droit : menu (Créer une prefab…, Dupliquer, Copier, Couper, Coller ici, Pivoter, Supprimer, Tout sélectionner, Désélectionner) ; pendant un tracé ou un glissement, le clic droit l'annule\nSélection multiple : Maj + clic ajoute ou retire un élément · glisser depuis le vide (ou Maj + glisser n'importe où) : rectangle ; de gauche à droite, il prend les éléments ENTIÈREMENT dedans (cadre bleu), de droite à gauche, ceux qu'il TOUCHE (cadre vert en tirets) ; avec Maj, il ajoute à la sélection · Ctrl+A : tout le niveau · Échap ou simple clic sur l'élément déjà choisi : désélectionner\nGroupe (plusieurs éléments choisis) : glisser l'un d'eux déplace tout (élévations : aussi en altitude) · flèches : d'un pas de grille · R ou poignée ronde : pivoter autour du centre · Ctrl+D : dupliquer à côté · Ctrl+C / Ctrl+X / Ctrl+V : copier, couper, coller sous la souris · Suppr · une seule annulation par action ; un élément refusé (entouré de rouge, nommé) annule toute l'action\nPrefab : sélectionnez du décor posé au sol, puis clic droit > Créer une prefab… (Ctrl+G) ; elle rejoint l'inventaire (E), catégorie « Prefabs de la carte » : prenez-la et cliquez sur le plan pour la poser, R pour la pivoter\nGlisser (ou clic puis clic) : pièces, formes, murs, piliers, escaliers, pièges\nPièce tracée sur une autre : la partie retirée est hachurée en orange (en rouge : pièce supprimée) ; au relâcher, confirmation (Entrée : Découper, Échap : Annuler) ; l'ancienne pièce perd la partie recouverte (coupée en morceaux si besoin, reliés par un passage libre), son contenu passe à la nouvelle ; une seule annulation\nEscaliers : « qui monte » (flèche vers le haut) se trace du bas (ce niveau) vers le haut, « qui descend » (flèche vers le bas) du haut (ce niveau) vers le bas ; départ et arrivée montrés pendant le tracé, ce qui gêne en rouge ; un escalier se choisit depuis ses deux niveaux\nG : aimantation grille 1 m, grille fine, libre (sans grille) · Maj+G : pas de la grille fine (0,5 / 0,25 / 0,1 m) · Maj maintenu : inverse le mode\nSans grille : aimants aux sommets et aux côtés des pièces, côtés à 15° près\nMurs et côtés de polygone : à 0, 45 ou 90° sur la grille ; Alt : angle libre (longueur et angle affichés)\nPendant un tracé : taper la longueur, Tab, l'angle (degrés depuis l'est), Entrée (rectangle : largeur, hauteur ; cercle : rayon, points)\nCercle, ellipse : molette ou + / - pendant le tracé : nombre de points (3 à 64) · mur courbe : segments\nPièce rectangle en main : R la tourne de 45°\nPoignée ronde de l'élément choisi : rotation par pas de 15° (Alt : au degré près) ; angle dans les propriétés\nCtrl + molette : zoom · clic milieu ou Espace + glisser : déplacer la vue\nCtrl + « + » / Ctrl + « - » / Ctrl + 0 : taille de l'interface de l'éditeur (aussi dans les options, bouton ⚙)\nMolette ou 1 à 9 : case de la barre rapide · ² ou Échap : la souris (case à gauche de la barre) · E ou Tab : inventaire\nR : pivoter de 90° (aussi le décor tenu, avant de le poser) · Suppr : supprimer · Ctrl+C / Ctrl+X / Ctrl+V : copier / couper / coller · Ctrl+D : dupliquer\nL : liste des objets sur la carte\nCtrl+Z / Ctrl+Y : annuler / rétablir · Ctrl+S : enregistrer (seule façon d'écrire la carte ; « * » au titre : modifications non enregistrées, confirmation avant de les perdre ; TESTER joue la carte sans l'enregistrer)\nPage préc. / suiv. : niveau voisin (barre : menu ▾ des niveaux, « Autre altitude… ») · Maj+Page préc. / suiv. : la sélection descend / monte d'un niveau · Alt + clic : pièce empilée suivante sous le curseur (va à son niveau) · Origine : recadrer · Entrée : fermer un polygone\nP : aperçu 3D · orbite : clic droit glisser, molette, clic milieu · vol libre et vue joueur : touches de déplacement du jeu, Maj, clic droit pour regarder\nClic dans l'aperçu : choisir l'élément · Ctrl + double-clic sur la carte : y placer la caméra de l'aperçu\nVues : bouton Disposition (1 à 4 fenêtres) · Ctrl+Alt+Q : 4 vues · Ctrl+Espace ou ⛶ : agrandir la vue active · séparateurs : glisser, double-clic : partage égal\nViewCube (coin haut droit de chaque vue) : face : changer de plan · coin : la 3D vue de ce coin · maison : vue d'origine · ◄ ► : façade suivante · pavé 7 / 1 / 3 : Dessus / Avant / Droite (Ctrl : la vue opposée), pavé 5 : 3D (souris sur la vue)\nÉlévations (Avant, Droite…) : glisser : déplacer sur les deux axes de la vue (hauteur de pose, ou altitude d'une pièce : aimants, pas de 0,25 m) · flèches d'axe : un seul axe · X / Y / Z pendant le glissement : verrouiller · chiffres ou Tab : taper l'écart, Entrée · losange : plafond, hauteur · étiquette de niveau : son altitude (tout ce qui y est posé suit) · clic sur une pièce : va à son niveau · K : coupe autour de la sélection · la pose reste en vue Dessus
 Décor choisi (format 14) : poignées d'échelle (coins jaunes : uniforme, Alt : depuis le centre · faces : un axe · losange : la hauteur ; la base reste posée), pas de 0,25 / 0,05 / 0,01 selon l'aimantation ; anneaux de rotation (Dessus : Z, Avant : Y, Droite : X, 3D : les trois ; crans de 15°, Maj : libre) ; pendant le geste, taper « 1,5 », « 3m » ou un angle puis Entrée, Échap : annuler · panneau Propriétés : Échelle (cadenas : les trois axes ensemble) et Rotation (Rester posé, Remettre droit) · objets de jeu et prefab qui en contient un : taille fixe (cadenas gris)",
-		"Left click: place / pick · right click: menu (Create a prefab…, Duplicate, Copy, Cut, Paste here, Rotate, Delete, Select all, Deselect); while drawing or dragging, right click cancels it\nMultiple selection: Shift + click adds or removes an element · drag from an empty spot (or Shift + drag anywhere): rectangle; left to right it takes the elements ENTIRELY inside (blue frame), right to left those it TOUCHES (dashed green frame); with Shift it adds to the selection · Ctrl+A: whole floor · Esc or a single click on the already selected element: deselect\nGroup (several elements picked): dragging one of them moves them all (elevations: also between floors) · arrow keys: one grid step · R or round handle: rotate around the centre · Ctrl+D: duplicate next to it · Ctrl+C / Ctrl+X / Ctrl+V: copy, cut, paste under the mouse · Del · one undo per action; a refused element (outlined in red, named) cancels the whole action\nPrefab: select props placed on the floor, then right click > Create a prefab… (Ctrl+G); it joins the inventory (E), \"Map prefabs\" category: take it and click on the plan to place it, R to rotate it\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nRoom drawn over another: the removed part is hatched in orange (in red: room deleted); on release, confirmation (Enter: Cut, Esc: Cancel); the old room loses the covered part (split into parts if needed, linked by an open passage), its content goes to the new one; a single undo\nStairs: going up (arrow up) are drawn from the bottom (this floor) to the top, going down (arrow down) from the top (this floor) to the bottom; start and arrival shown while drawing, what is in the way in red; stairs can be picked from both their floors\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nCtrl + \"+\" / Ctrl + \"-\" / Ctrl + 0: map editor UI size (also in the options, ⚙ button)\nWheel or 1 to 9: hotbar slot · ` (key left of 1) or Esc: the mouse (slot left of the hotbar) · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+X / Ctrl+V: copy / cut / paste · Ctrl+D: duplicate\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save (the only way the map is written; \"*\" in the title: unsaved changes, confirmation before losing them; PLAY TEST plays the map without saving it)\nPage Up / Down: floor · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there\nViews: Layout button (1 to 4 windows) · Ctrl+Alt+Q: 4 views · Ctrl+Space or ⛶: maximize the active view · splitters: drag, double-click: equal split\nViewCube (top right of each view): face: switch plane · corner: 3D from that corner · home: home view · ◄ ►: next side · numpad 7 / 1 / 3: Top / Front / Right (Ctrl: opposite view), numpad 5: 3D (mouse over the view)\nElevations (Front, Right…): drag: move on the two axes of the view (placement height, or floor) · axis arrows: a single axis · X / Y / Z while dragging: lock · digits or Tab: type the offset, Enter · diamond: ceiling, height · \"F1\" tag: floor level · K: cut around the selection · placing stays in the Top view
+		"Left click: place / pick · right click: menu (Create a prefab…, Duplicate, Copy, Cut, Paste here, Rotate, Delete, Select all, Deselect); while drawing or dragging, right click cancels it\nMultiple selection: Shift + click adds or removes an element · drag from an empty spot (or Shift + drag anywhere): rectangle; left to right it takes the elements ENTIRELY inside (blue frame), right to left those it TOUCHES (dashed green frame); with Shift it adds to the selection · Ctrl+A: whole level · Esc or a single click on the already selected element: deselect\nGroup (several elements picked): dragging one of them moves them all (elevations: also in altitude) · arrow keys: one grid step · R or round handle: rotate around the centre · Ctrl+D: duplicate next to it · Ctrl+C / Ctrl+X / Ctrl+V: copy, cut, paste under the mouse · Del · one undo per action; a refused element (outlined in red, named) cancels the whole action\nPrefab: select props placed on the floor, then right click > Create a prefab… (Ctrl+G); it joins the inventory (E), \"Map prefabs\" category: take it and click on the plan to place it, R to rotate it\nDrag (or click then click): rooms, shapes, walls, pillars, stairs, traps\nRoom drawn over another: the removed part is hatched in orange (in red: room deleted); on release, confirmation (Enter: Cut, Esc: Cancel); the old room loses the covered part (split into parts if needed, linked by an open passage), its content goes to the new one; a single undo\nStairs: going up (arrow up) are drawn from the bottom (this level) to the top, going down (arrow down) from the top (this level) to the bottom; start and arrival shown while drawing, what is in the way in red; stairs can be picked from both their levels\nG: snapping 1 m grid, fine grid, free (no grid) · Shift+G: fine grid step (0.5 / 0.25 / 0.1 m) · hold Shift: invert the mode\nNo grid: magnets on room corners and sides, sides at 15° steps\nWalls and polygon sides: at 0, 45 or 90° on the grid; Alt: free angle (length and angle shown)\nWhile drawing: type the length, Tab, the angle (degrees from east), Enter (rectangle: width, height; circle: radius, points)\nCircle, ellipse: wheel or + / - while drawing: number of points (3 to 64) · curved wall: segments\nRectangle room held: R turns it 45°\nRound handle of the selected element: rotate in 15° steps (Alt: to the degree); angle in the properties\nCtrl + wheel: zoom · middle click or Space + drag: pan\nCtrl + \"+\" / Ctrl + \"-\" / Ctrl + 0: map editor UI size (also in the options, ⚙ button)\nWheel or 1 to 9: hotbar slot · ` (key left of 1) or Esc: the mouse (slot left of the hotbar) · E or Tab: inventory\nR: rotate 90° (also the held prop, before placing it) · Del: delete · Ctrl+C / Ctrl+X / Ctrl+V: copy / cut / paste · Ctrl+D: duplicate\nL: list of the items on the map\nCtrl+Z / Ctrl+Y: undo / redo · Ctrl+S: save (the only way the map is written; \"*\" in the title: unsaved changes, confirmation before losing them; PLAY TEST plays the map without saving it)\nPage Up / Down: next level (bar: ▾ menu of the levels, \"Other altitude…\") · Shift+Page Up / Down: the selection goes down / up one level · Alt + click: next stacked room under the cursor (goes to its level) · Home: frame · Enter: close a polygon\nP: 3D preview · orbit: right drag, wheel, middle drag · free flight and player view: game movement keys, Shift, right drag to look\nClick in the preview: pick the element · Ctrl + double-click on the map: move the preview camera there\nViews: Layout button (1 to 4 windows) · Ctrl+Alt+Q: 4 views · Ctrl+Space or ⛶: maximize the active view · splitters: drag, double-click: equal split\nViewCube (top right of each view): face: switch plane · corner: 3D from that corner · home: home view · ◄ ►: next side · numpad 7 / 1 / 3: Top / Front / Right (Ctrl: opposite view), numpad 5: 3D (mouse over the view)\nElevations (Front, Right…): drag: move on the two axes of the view (placement height, or a room's altitude: magnets, 0.25 m steps) · axis arrows: a single axis · X / Y / Z while dragging: lock · digits or Tab: type the offset, Enter · diamond: ceiling, height · level tag: its altitude (everything on it follows) · click on a room: goes to its level · K: cut around the selection · placing stays in the Top view
 Selected prop (format 14): scale handles (yellow corners: uniform, Alt: from the centre · faces: one axis · diamond: the height; the base stays grounded), steps of 0.25 / 0.05 / 0.01 following snapping; rotation rings (Top: Z, Front: Y, Right: X, 3D: all three; 15° steps, Shift: free); during the gesture, type \"1.5\", \"3m\" or an angle then Enter, Esc: cancel · Properties panel: Scale (lock: the three axes together) and Rotation (Stay grounded, Set upright) · game objects and a prefab that contains one: fixed size (grey lock)"))
 
 
@@ -1062,10 +1071,17 @@ func _input(event: InputEvent) -> void:
 					delete_selection()
 			KEY_ENTER, KEY_KP_ENTER:
 				canvas.finish_polygon()
+			# Page préc. / Page suiv. : niveau voisin ; avec Maj, la sélection y va.
 			KEY_PAGEUP:
-				set_floor(floor_k - 1)
+				if k.shift_pressed:
+					move_selection_level(-1)
+				else:
+					set_floor(floor_k - 1)
 			KEY_PAGEDOWN:
-				set_floor(floor_k + 1)
+				if k.shift_pressed:
+					move_selection_level(1)
+				else:
+					set_floor(floor_k + 1)
 			KEY_HOME:
 				views.frame_all()
 			KEY_K:
@@ -1589,6 +1605,48 @@ func select_all() -> void:
 	select_many(ids)
 
 
+## Pièces empilées sous le point `m` (format 17) : toutes celles dont le
+## contour le contient, à n'importe quel niveau, de la plus haute à la plus basse.
+func stacked_rooms(m: Vector2) -> Array:
+	var out := []
+	for p in doc.pieces:
+		var poly := doc.room_poly(p)
+		if poly.size() >= 3 and MapGeom.bbox(poly).has_point(m) and MapGeom.contains(poly, m):
+			out.append(p)
+	out.sort_custom(func(a, b): return EditorMap.alt_of(a) > EditorMap.alt_of(b))
+	return out
+
+
+## Alt + clic (vue Dessus) : la pièce empilée suivante sous le point `m`
+## (stacked_rooms : après la pièce choisie, en descendant ; sinon la première
+## sous le niveau affiché ; on repart d'en haut), choisie, et la vue va à son
+## niveau. Faux (clic ordinaire) s'il n'y a pas de pièce sous le point à un
+## autre niveau que celui affiché.
+func stack_pick(m: Vector2) -> bool:
+	var st := stacked_rooms(m)
+	var here := view_alt()
+	if not st.any(func(p): return absf(EditorMap.alt_of(p) - here) > EditorMap.ALT_EQ):
+		return false
+	var i := -1
+	for j in st.size():
+		if String(st[j].id) == selected:
+			i = j
+	var next := 0
+	if i >= 0:
+		next = (i + 1) % st.size()
+	else:
+		next = 0
+		for j in st.size():
+			if EditorMap.alt_of(st[j]) < here - EditorMap.ALT_EQ:
+				next = j
+				break
+	var p: Dictionary = st[next]
+	select(String(p.id))
+	set_status(Lang.t("Pièce empilée %d/%d : « %s » (%s) · Alt + clic : la suivante", "Stacked room %d/%d: \"%s\" (%s) · Alt + click: the next one") % [
+		next + 1, st.size(), String(p.get("nom", p.id)), EditorMap.level_name(EditorMap.alt_of(p))])
+	return true
+
+
 ## Sélection retirée des éléments disparus (annulation, autre participant) ;
 ## un seul restant : il redevient l'élément choisi.
 func _prune_group() -> void:
@@ -1648,7 +1706,7 @@ func nudge_selection(dir: Vector2) -> void:
 			doc.restore(snap)
 			moved_live()
 	else:
-		res = MapGroup.move(self, MapGroup.movers(doc, ids), delta, 0, snap)
+		res = MapGroup.move(self, MapGroup.movers(doc, ids), delta, 0.0, snap)
 	if not res.ok:
 		if res.has("el"):
 			show_group_refusal(res)
@@ -1658,6 +1716,57 @@ func nudge_selection(dir: Vector2) -> void:
 	push_undo_snapshot(snap)
 	changed()
 	set_status(Lang.t("Déplacé de %s m (flèches)", "Moved by %s m (arrow keys)") % MapRules._m(s, not Lang.is_en()))
+
+
+## Maj+Page suiv. / Maj+Page préc. (menu du clic droit « Monter / Descendre
+## d'un niveau ») : la sélection va au niveau voisin du sien (`dir` : +1 au-
+## dessus, -1 au-dessous ; sans voisin, un nouveau niveau à 3,5 m), avec son
+## contenu, en une étape d'annulation ; la vue la suit. Refus nommé sinon.
+func move_selection_level(dir: int) -> Dictionary:
+	var ids := sel_ids()
+	if ids.is_empty():
+		var none := MapRules.refuse("choisissez d'abord un ou plusieurs éléments", "pick one or more elements first")
+		set_status(Lang.t("Changer de niveau : %s", "Change level: %s") % MapRules.why(none), true)
+		return none
+	if edit_blocked():
+		return MapRules.refuse("modification impossible", "cannot edit")
+	# Niveau de référence : le plus bas (dir -1) ou le plus haut (dir +1) de la sélection.
+	var ks := []
+	for id in ids:
+		var k := doc.level_of(doc.find(String(id)))
+		if k >= 0:
+			ks.append(k)
+	if ks.is_empty():
+		return MapRules.refuse("pas de niveau", "no level")
+	var k0: int = ks.min() if dir < 0 else ks.max()
+	var a0 := doc.level_alt(k0)
+	var target := doc.level_alt(k0 + dir)
+	var dalt := target - a0
+	var snap := doc.snapshot()
+	var res := {}
+	if ids.size() == 1:
+		var e := doc.find(String(ids[0]))
+		res = try_move_alt(e.duplicate(true), attached_to(e), Vector2.ZERO, dalt, NAN, snap)
+	else:
+		res = MapGroup.move(self, MapGroup.movers(doc, ids), Vector2.ZERO, dalt, snap, NAN, {}, ids)
+	if not res.ok:
+		doc.restore(snap)
+		moved_live()
+		if res.has("el"):
+			show_group_refusal(res)
+		else:
+			canvas.show_refusal(res)
+		return res
+	push_undo_snapshot(snap)
+	_view_alt = target
+	changed()
+	if ids.size() == 1:
+		select(String(ids[0]))
+	else:
+		select_many(ids)
+	set_status(Lang.t("Sélection %s au niveau %s (Ctrl+Z : annuler)", "Selection moved %s to level %s (Ctrl+Z: undo)") % [
+		Lang.t("montée", "up") if dir > 0 else Lang.t("descendue", "down"), EditorMap.alt_text(target, not Lang.is_en())])
+	return res
 
 
 ## Ctrl+D : copie de la sélection posée à côté d'elle (MapGroup.duplicate_ids),
@@ -2065,54 +2174,69 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 
 
 ## Déplacement dans une élévation (docs/EDITOR_VIEWS.md, § 6.1) : `orig`
-## décalé de `delta` dans le plan, à l'étage `k_new` (une pièce emporte son
-## contenu), à la hauteur de pose `z_local` (m au-dessus du sol de l'étage ;
+## décalé de `delta` dans le plan, au niveau `k_new` (une pièce emporte son
+## contenu), à la hauteur de pose `z_local` (m au-dessus du sol du niveau ;
 ## NAN : inchangée), depuis la carte `snap0` ; appliqué s'il est valide
-## (règles de pose de l'étage cible, MapRules ; bornes et décor posé sur un
+## (règles de pose du niveau cible, MapRules ; bornes et décor posé sur un
 ## autre, MapVertical.check_pose). Sinon la carte reste à `snap0`.
 func try_move_3d(orig: Dictionary, attached: Array, delta: Vector2, k_new: int, z_local: float, snap0: Dictionary) -> Dictionary:
 	if k_new < 0 or k_new >= doc.level_count():
 		return MapRules.refuse("pas de niveau à cette hauteur", "no level at that height")
-	if String(orig.get("type", "")) == "escalier" and k_new >= doc.level_count() - 1:
-		return MapRules.refuse("un escalier ne peut pas aller sur le dernier niveau", "stairs cannot go on the top level")
 	return try_move_alt(orig, attached, delta, doc.level_alt(k_new) - EditorMap.alt_of(orig), z_local, snap0)
 
 
-## Comme try_move_3d, mais monté (ou descendu) de `dalt` m (format 17 :
-## propriété « Altitude du sol » d'une pièce, qui emporte son contenu). Une
-## pièce peut créer un niveau ; refus si deux niveaux se retrouvent à moins de
-## 3,1 m (restriction de l'étape 1a) ou si un élément n'a plus de pièce sous lui.
+## Comme try_move_3d, mais monté (ou descendu) de `dalt` m, librement (format
+## 17 : propriété « Altitude du sol » d'une pièce, glissement vertical dans
+## une élévation, Maj+Page). Une pièce emporte son contenu ; un escalier qui
+## part de la pièce n'emporte que son pied, un escalier qui y arrive n'a que
+## son arrivée qui suit (MapTransform.vertical_plan). Une pièce peut créer un
+## niveau ; refus nommé si deux pièces empilées se retrouvent à moins de
+## 3,1 m, si un élément n'a plus de pièce sous lui ou si un escalier ne va plus.
 func try_move_alt(orig: Dictionary, attached: Array, delta: Vector2, dalt: float, z_local: float, snap0: Dictionary) -> Dictionary:
 	if not is_finite(dalt):
 		return MapRules.refuse("altitude invalide", "invalid altitude")
+	var moved_up := absf(dalt) > EditorMap.ALT_EQ
 	# Refus : l'élément (et son contenu) reste à sa DERNIÈRE place valide (§ 6.1),
 	# pas à celle du début du glissement.
 	var last := {}
+	var tops: Array = []
 	for eid in [String(orig.id)] + attached:
 		var cur := doc.find(String(eid))
 		if not cur.is_empty():
 			last[String(eid)] = cur.duplicate(true)
+	# Escaliers qui arrivent dans la pièce : leur dernière arrivée valide aussi.
+	var stairs_now := {}
+	if moved_up:
+		for o in doc.objets:
+			if String(o.get("type", "")) == "escalier":
+				stairs_now[String(o.get("id", ""))] = o.duplicate(true)
+	doc.restore(snap0)
+	var plan := MapTransform.vertical_plan(doc, [String(orig.id)]) if moved_up else {}
+	var last_tops := {}
+	if moved_up:
+		tops = plan.top
+		for eid in tops:
+			if stairs_now.has(eid) and not last.has(eid):
+				last_tops[eid] = stairs_now[eid]
 	var refuse := func(r: Dictionary) -> Dictionary:
 		doc.restore(snap0)
 		for eid in last:
 			_replace(last[eid].duplicate(true))
+		for eid in last_tops:
+			_replace(last_tops[eid].duplicate(true))
 		moved_live()
 		return r
-	doc.restore(snap0)
 	var held := MapVertical.resting_on(doc, orig, attached)
 	var base := orig.duplicate(true)
 	# Hauteur de pose d'abord (un décor posé sur un autre ne le chevauche pas).
 	if not is_nan(z_local):
 		MapVertical.set_pose_z(doc, raster().v, base, z_local)
 	var snap1 := snap0
-	var moved_up := absf(dalt) > EditorMap.ALT_EQ
 	if moved_up or not is_nan(z_local):
-		EditorMap.shift_alt(base, dalt)
 		_replace(base.duplicate(true))
-		for aid in attached:
-			var a := doc.find(aid)
-			if not a.is_empty():
-				EditorMap.shift_alt(a, dalt)
+		if moved_up:
+			MapTransform.lift(doc, plan, dalt)
+		base = doc.find(String(orig.id)).duplicate(true)
 		snap1 = doc.snapshot()
 	if moved_up:
 		if doc.level_of(base) < 0:
@@ -2124,22 +2248,23 @@ func try_move_alt(orig: Dictionary, attached: Array, delta: Vector2, dalt: float
 		if not si.is_empty():
 			var gt := EditorMap.stack_text(si)
 			return refuse.call(MapRules.refuse(gt[0], gt[1]))
+		for sid in [String(orig.id)] + plan.foot + tops:
+			var bad_stair := stair_ends_issue(doc.find(String(sid)))
+			if not bad_stair.is_empty():
+				return refuse.call(bad_stair)
 	var k_new := doc.level_of(base)
 	var res := try_move(base, attached, delta, snap1)
 	if not res.ok:
 		return refuse.call(res)
 	if moved_up:
-		# Contenu emporté (pièce) : valide aussi sur l'étage visé (portes sur un
-		# bord commun, escalier jamais sur le dernier étage, objets contre un mur).
+		# Contenu emporté (pièce) et escaliers qui y arrivent : valides aussi au
+		# niveau visé (portes sur un bord commun, objets contre un mur, marches).
 		MapRules.begin_batch(doc)
 		var bad := {}
-		for aid in attached:
-			var a := doc.find(aid)
+		for aid in attached + tops:
+			var a := doc.find(String(aid))
 			if a.is_empty():
 				continue
-			if String(a.get("type", "")) == "escalier" and doc.level_of(a) >= doc.level_count() - 1:
-				bad = MapRules.refuse("son escalier ne peut pas aller sur le dernier niveau", "its stairs cannot go on the top level")
-				break
 			var r := MapRules.check_existing(doc, a)
 			if not r.ok:
 				bad = MapRules.refuse("son contenu ne tient pas au niveau %s : %s (%s)" % [EditorMap.alt_text(doc.level_alt(k_new)), _label(a), MapRules.why(r)],
@@ -2160,6 +2285,20 @@ func try_move_alt(orig: Dictionary, attached: Array, delta: Vector2, dalt: float
 	if not rest.ok:
 		return refuse.call(rest)
 	return res
+
+
+## Refus d'un escalier dont les bouts ne vont plus (après un déplacement
+## vertical) : arrivée pas au-dessus du pied, ou à une altitude sans pièce ;
+## {} s'il va (ou si `o` n'est pas un escalier).
+func stair_ends_issue(o: Dictionary) -> Dictionary:
+	if String(o.get("type", "")) != "escalier":
+		return {}
+	var n := MapRules.stair_label_of(doc, o)
+	if doc.stair_top_of(o) <= EditorMap.alt_of(o) + EditorMap.ALT_EQ:
+		return MapRules.refuse("%s n'arriverait plus au-dessus de son pied" % n[0], "%s would no longer arrive above its foot" % n[1])
+	if doc.level_index(doc.stair_top_of(o)) < 0:
+		return MapRules.refuse("%s n'arriverait sur aucune pièce" % n[0], "%s would arrive on no room" % n[1])
+	return {}
 
 
 ## Poignée `h` de l'élément `orig` amenée au point `p`.
@@ -2592,6 +2731,78 @@ func _sync_view() -> void:
 	floor_k = maxi(0, k)
 
 
+## Identifiant de « Autre altitude… » dans le menu des niveaux (les autres
+## entrées : l'indice du niveau).
+const LEVEL_MENU_OTHER := 100000
+
+
+## Lignes du menu des niveaux : du plus haut au plus bas, [{k, text}] avec le
+## nombre de pièces (« vide » : niveau vide de l'éditeur).
+func level_menu_lines() -> Array:
+	var out := []
+	for k in range(doc.level_count() - 1, -1, -1):
+		var n := doc.rooms_on(k).size()
+		var t := EditorMap.level_name(doc.level_alt(k)) + "   " + (Lang.t("%d pièce(s)", "%d room(s)") % n if n > 0 else Lang.t("vide", "empty"))
+		out.append({"k": k, "text": t})
+	return out
+
+
+## Remplit le menu de la barre des niveaux (à son ouverture).
+func fill_level_menu() -> void:
+	var pm := floor_label.get_popup()
+	pm.clear()
+	for line in level_menu_lines():
+		pm.add_radio_check_item(String(line.text), int(line.k))
+		pm.set_item_checked(pm.get_item_index(int(line.k)), int(line.k) == floor_k)
+	pm.add_separator()
+	pm.add_item(Lang.t("Autre altitude…", "Other altitude…"), LEVEL_MENU_OTHER)
+
+
+func _on_level_menu(id: int) -> void:
+	if id == LEVEL_MENU_OTHER:
+		altitude_dialog()
+	elif id >= 0 and id < doc.level_count():
+		set_floor(id)
+
+
+## « Autre altitude… » : boîte avec un champ d'altitude (m, sans borne) ;
+## Valider affiche ce niveau (nouveau niveau vide s'il n'existe pas, add_level_at).
+func altitude_dialog() -> ConfirmationDialog:
+	var d := ConfirmationDialog.new()
+	d.name = "AltitudeDialog"
+	d.title = Lang.t("Aller à une altitude", "Go to an altitude")
+	d.ok_button_text = Lang.t("Afficher", "Show")
+	d.cancel_button_text = Lang.t("Annuler", "Cancel")
+	var box := VBoxContainer.new()
+	var l := Label.new()
+	l.text = Lang.t("Altitude du sol du niveau (m) ; un niveau qui n'existe pas est créé vide (enregistré dès qu'une pièce y est posée).",
+		"Floor altitude of the level (m); a level that does not exist is created empty (saved once a room is placed on it).")
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size = Vector2(EditorUi.px(320.0), 0)
+	box.add_child(l)
+	var s := SpinBox.new()
+	s.name = "Alt"
+	s.min_value = -100.0
+	s.max_value = 100.0
+	s.allow_greater = true
+	s.allow_lesser = true
+	s.step = 0.01
+	s.suffix = "m"
+	s.select_all_on_focus = true
+	s.value = view_alt()
+	box.add_child(s)
+	d.add_child(box)
+	add_child(d)
+	d.confirmed.connect(func():
+		var v := s.get_line_edit().text.replace(",", ".").replace("m", "").strip_edges()
+		add_level_at(float(v) if v.is_valid_float() else s.value)
+		d.queue_free())
+	d.canceled.connect(d.queue_free)
+	d.popup_centered()
+	s.get_line_edit().grab_focus.call_deferred()
+	return d
+
+
 func set_floor(k: int) -> void:
 	var nk := clampi(k, 0, doc.level_count() - 1)
 	_view_alt = doc.level_alt(nk)
@@ -2616,42 +2827,244 @@ func set_floor(k: int) -> void:
 ## existe par ses pièces ; vide, il n'est pas enregistré).
 func add_floor() -> void:
 	var top := doc.level_count() - 1
-	doc.view_levels.append(snappedf(doc.level_alt(top) + EditorMap.FLOOR_STEP, 0.01))
-	_raster_dirty = true
-	set_floor(doc.level_count() - 1)
-	panels.refresh()
+	add_level_at(snappedf(doc.level_alt(top) + EditorMap.FLOOR_STEP, 0.01))
 
 
-## Met le niveau `k` à l'altitude `alt` (m) : tout ce qui y est posé (et
-## l'arrivée des escaliers qui y montent) suit, en une étape d'annulation.
-## Refus nommé si une de ses pièces se retrouve à moins de 3,1 m d.une pièce
-## qu.elle recouvre (pièces empilées), ou si le niveau en rejoint un autre.
-func move_level(k: int, alt: float) -> Dictionary:
+## Nouveau niveau vide à l'altitude `alt` (m, sans borne : onglet Niveaux,
+## « Autre altitude… » de la barre), affiché ; un niveau qui existe déjà est
+## simplement affiché. Jamais enregistré tant qu'il est vide.
+func add_level_at(alt: float) -> Dictionary:
+	if not is_finite(alt):
+		return MapRules.refuse("altitude invalide", "invalid altitude")
+	alt = snappedf(alt, 0.01)
+	var k := doc.level_index(alt)
+	if k < 0:
+		doc.view_levels.append(alt)
+		_raster_dirty = true
+		k = doc.level_index(alt)
+		set_status(Lang.t("Nouveau niveau vide à %s (enregistré dès qu'une pièce y est posée)", "New empty level at %s (saved once a room is placed on it)") % EditorMap.alt_text(alt, not Lang.is_en()))
+	_view_alt = alt
+	# Les indices ont pu glisser (niveau ajouté dessous) : la vue est refaite.
+	floor_k = -1
+	set_floor(k)
+	return {"ok": true, "k": k}
+
+
+## Pièces du niveau `k` et escaliers qui en partent ou y arrivent (identifiants).
+func _level_parts(k: int) -> Dictionary:
+	var a := doc.level_alt(k)
+	var rooms := doc.rooms_on(k).map(func(p): return String(p.id))
+	var stairs := []
+	for o in doc.objets:
+		if String(o.get("type", "")) == "escalier" and (absf(EditorMap.alt_of(o) - a) <= EditorMap.ALT_EQ or absf(doc.stair_top_of(o) - a) <= EditorMap.ALT_EQ):
+			stairs.append(String(o.id))
+	return {"rooms": rooms, "stairs": stairs}
+
+
+## Refus d'un niveau déplacé (pièces `rooms`, escaliers `stairs` touchés) :
+## pièces empilées à moins de 3,1 m, pièce posée sur une autre de la même
+## altitude (le niveau en rejoint un autre), escalier qui ne va plus ; {} sinon.
+func _level_issue(rooms: Array, stairs: Array) -> Dictionary:
+	var si := doc.stack_issue(rooms) if not rooms.is_empty() else {}
+	if not si.is_empty():
+		var gt := EditorMap.stack_text(si)
+		return MapRules.refuse(gt[0], gt[1])
+	for rid in rooms:
+		var r := doc.find(String(rid))
+		for p in doc.pieces:
+			if rooms.has(String(p.id)) or absf(EditorMap.alt_of(p) - EditorMap.alt_of(r)) > EditorMap.ALT_EQ:
+				continue
+			if MapGeom.overlap(doc.room_poly(r), doc.room_poly(p)):
+				return MapRules.refuse("le niveau en rejoint un autre : « %s » recouvrirait « %s »" % [String(r.get("nom", rid)), String(p.get("nom", p.id))],
+					"the level would merge with another: \"%s\" would overlap \"%s\"" % [String(r.get("nom", rid)), String(p.get("nom", p.id))])
+	for sid in stairs:
+		var bad := stair_ends_issue(doc.find(String(sid)))
+		if not bad.is_empty():
+			return bad
+	return {}
+
+
+## Déplace le niveau `k` à l'altitude `alt` dans la carte (sans étape
+## d'annulation : glissement de son étiquette, move_level) : tout ce qui y
+## est posé et l'arrivée des escaliers qui y montent suivent. {ok} ; refusé,
+## la carte et les niveaux vides reviennent comme avant et le refus est rendu.
+func shift_level_to(k: int, alt: float) -> Dictionary:
 	if k < 0 or k >= doc.level_count() or not is_finite(alt):
 		return MapRules.refuse("niveau introuvable", "level not found")
 	var dalt := snappedf(alt, 0.0001) - doc.level_alt(k)
 	if absf(dalt) <= EditorMap.ALT_EQ:
 		return {"ok": true}
+	var parts := _level_parts(k)
 	var snap := doc.snapshot()
 	var views_before := doc.view_levels.duplicate()
 	doc.shift_level(k, dalt)
-	var moved_view := _view_alt
-	if absf(_view_alt - (alt - dalt)) <= EditorMap.ALT_EQ:
-		moved_view = alt
-	var si := doc.stack_issue(doc.rooms_on(doc.level_index(alt)).map(func(p): return String(p.id))) if doc.level_index(alt) >= 0 else {}
-	if doc.level_index(alt) < 0 or not si.is_empty():
-		var gt := EditorMap.stack_text(si)
+	var issue := _level_issue(parts.rooms, parts.stairs)
+	if not issue.is_empty():
 		doc.restore(snap)
 		doc.view_levels = views_before
-		var res := MapRules.refuse(gt[0] if gt[0] != "" else "ce niveau en rejoint un autre", gt[1] if gt[1] != "" else "this level would merge with another")
+		return issue
+	return {"ok": true}
+
+
+## Met le niveau `k` à l'altitude `alt` (m, sans borne) : tout ce qui y est
+## posé (et l'arrivée des escaliers qui y montent) suit, en une étape
+## d'annulation. Refus nommé (carte intacte) si une de ses pièces se retrouve
+## à moins de 3,1 m d'une pièce qu'elle recouvre, sur une pièce de même
+## altitude, ou si un escalier ne va plus.
+func move_level(k: int, alt: float) -> Dictionary:
+	if k < 0 or k >= doc.level_count() or not is_finite(alt):
+		return MapRules.refuse("niveau introuvable", "level not found")
+	var a := doc.level_alt(k)
+	if absf(snappedf(alt, 0.0001) - a) <= EditorMap.ALT_EQ:
+		return {"ok": true}
+	var snap := doc.snapshot()
+	var res := shift_level_to(k, alt)
+	if not res.ok:
 		canvas.show_refusal(res)
 		panels.refresh()
 		return res
 	push_undo_snapshot(snap)
-	_view_alt = moved_view
+	if absf(_view_alt - a) <= EditorMap.ALT_EQ:
+		_view_alt = snappedf(alt, 0.0001)
 	changed()
 	set_status(Lang.t("Niveau déplacé à %s", "Level moved to %s") % EditorMap.alt_text(alt, not Lang.is_en()))
 	return {"ok": true}
+
+
+## Déplace le niveau `k` de `d` m (onglet Niveaux : « Déplacer le niveau de … m »).
+func move_level_by(k: int, d: float) -> Dictionary:
+	if k < 0 or k >= doc.level_count() or not is_finite(d):
+		return MapRules.refuse("niveau introuvable", "level not found")
+	return move_level(k, doc.level_alt(k) + d)
+
+
+## Écart (m) au-dessus du niveau `k` pour sa copie : la plus haute de ses
+## pièces (plafond réglé + dalle), 3,1 m au moins (pièces empilées).
+func level_copy_gap(k: int) -> float:
+	var gap := EditorMap.MIN_STACK
+	for p in doc.rooms_on(k):
+		gap = maxf(gap, EditorMap.room_ceiling(p) + MapValidator.DALLE)
+	return snappedf(gap, 0.01)
+
+
+## Dupliquer au-dessus (onglet Niveaux) : copie de tout ce qui est posé au
+## niveau `k` (pièces, ouvertures, objets ; nouveaux identifiants, une zone
+## neuve par zone, comme MapGroup.place_copies), `dalt` m plus haut (NAN :
+## level_copy_gap), en une étape d'annulation ; la vue va à la copie. Les
+## escaliers ne sont pas copiés (reliez les niveaux par un escalier). Refus
+## nommé, carte intacte.
+func duplicate_level(k: int, dalt := NAN) -> Dictionary:
+	if k < 0 or k >= doc.level_count():
+		return MapRules.refuse("niveau introuvable", "level not found")
+	if is_nan(dalt):
+		dalt = level_copy_gap(k)
+	if doc.rooms_on(k).is_empty():
+		var none := MapRules.refuse("le niveau %s n'a pas de pièce à copier" % EditorMap.alt_text(doc.level_alt(k)), "level %s has no room to copy" % EditorMap.alt_text(doc.level_alt(k), false))
+		canvas.show_refusal(none)
+		return none
+	var items := []
+	var skipped := 0
+	for list in [doc.rooms_on(k), doc.openings_on(k), doc.objects_on(k)]:
+		for e in list:
+			if String(e.get("type", "")) == "escalier":
+				skipped += 1
+				continue
+			items.append(e.duplicate(true))
+	var target := snappedf(doc.level_alt(k) + dalt, 0.0001)
+	var res := MapGroup.place_copies(self, items, Vector2.ZERO, dalt)
+	if not res.ok:
+		if res.has("el"):
+			show_group_refusal(res)
+		else:
+			canvas.show_refusal(res)
+		return res
+	_view_alt = target
+	_sync_view()
+	_raster_dirty = true
+	_update_title()
+	panels.refresh()
+	canvas.queue_redraw()
+	set_status(Lang.t("Niveau copié à %s (%d élément(s))", "Level copied at %s (%d element(s))") % [EditorMap.alt_text(target, not Lang.is_en()), (res.ids as Array).size()]
+		+ (Lang.t(" ; %d escalier(s) non copié(s) : reliez les niveaux par un escalier", "; %d stair(s) not copied: link the levels with stairs") % skipped if skipped > 0 else ""))
+	return res
+
+
+## Ce que supprime « Supprimer le niveau » `k` : tout ce qui y est posé et les
+## escaliers qui y arrivent d'un niveau plus bas (identifiants).
+func level_content(k: int) -> Array:
+	var a := doc.level_alt(k)
+	var out := []
+	for list in [doc.pieces, doc.ouvertures, doc.objets]:
+		for e in list:
+			var here := absf(EditorMap.alt_of(e) - a) <= EditorMap.ALT_EQ
+			var arrives := String(e.get("type", "")) == "escalier" and absf(doc.stair_top_of(e) - a) <= EditorMap.ALT_EQ
+			if here or arrives:
+				out.append(String(e.id))
+	return out
+
+
+## Supprimer le niveau `k` (onglet Niveaux) : confirmation (ce qui disparaît),
+## puis delete_level_now. Rend la boîte (null : niveau vide retiré tout de suite).
+func delete_level(k: int) -> ConfirmationDialog:
+	if k < 0 or k >= doc.level_count():
+		return null
+	var ids := level_content(k)
+	if ids.is_empty():
+		delete_level_now(k)
+		return null
+	var n := {"p": 0, "o": 0, "x": 0, "e": 0}
+	var a := doc.level_alt(k)
+	for id in ids:
+		var e := doc.find(id)
+		if e.has("contour"):
+			n.p += 1
+		elif String(e.get("type", "")) in MapRules.ouvertures_types():
+			n.o += 1
+		elif String(e.get("type", "")) == "escalier" and absf(EditorMap.alt_of(e) - a) > EditorMap.ALT_EQ:
+			n.e += 1
+		else:
+			n.x += 1
+	var text := Lang.t("Supprimer le niveau %s : %d pièce(s), %d ouverture(s), %d objet(s)", "Delete level %s: %d room(s), %d opening(s), %d object(s)") % [
+		EditorMap.alt_text(a, not Lang.is_en()), int(n.p), int(n.o), int(n.x)]
+	if int(n.e) > 0:
+		text += Lang.t(", et %d escalier(s) qui y arrive(nt)", ", and %d stair(s) arriving there") % int(n.e)
+	text += Lang.t(" ?\n\nCtrl+Z rétablit le niveau.", "?\n\nCtrl+Z brings the level back.")
+	var d := _confirm(Lang.t("Supprimer le niveau", "Delete the level"), text, func(): delete_level_now(k))
+	d.name = "DeleteLevelDialog"
+	return d
+
+
+## Supprime tout le niveau `k` (level_content) en une étape d'annulation ;
+## la vue va au niveau voisin (celui du dessous s'il existe).
+func delete_level_now(k: int) -> void:
+	if k < 0 or k >= doc.level_count():
+		return
+	var a := doc.level_alt(k)
+	var ids := level_content(k)
+	if not ids.is_empty():
+		push_undo()
+		for id in ids:
+			doc.remove(String(id))
+		doc.tidy_zones()
+	doc.view_levels = doc.view_levels.filter(func(x): return absf(float(x) - a) > EditorMap.ALT_EQ)
+	selected = ""
+	group = []
+	sel_version += 1
+	var lv := doc.levels()
+	var near := float(lv[0])
+	for x in lv:
+		if float(x) < a - EditorMap.ALT_EQ:
+			near = float(x)
+	_view_alt = near
+	if not ids.is_empty():
+		changed()
+	else:
+		_sync_view()
+		_raster_dirty = true
+		panels.refresh()
+		_update_title()
+		canvas.queue_redraw()
+	set_status(Lang.t("Niveau %s supprimé (%d élément(s))", "Level %s deleted (%d element(s))") % [EditorMap.alt_text(a, not Lang.is_en()), ids.size()])
 
 
 ## Retire le niveau le plus haut s'il est vide (niveau vide de l'éditeur).
