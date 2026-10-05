@@ -73,7 +73,7 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Poser / choisir | clic gauche |
 | Tracer (pièce, forme, mur, pilier, escalier, piège) | glisser, ou clic puis clic (le tracé suit le curseur entre les deux) |
 | Annuler le tracé ou le glissement en cours | clic droit, Échap |
-| Menu du clic droit (rien en cours) | clic droit, dans toutes les vues : Créer une prefab…, Dupliquer, Copier, Couper, Coller ici, Pivoter, Supprimer, Tout sélectionner, Désélectionner (voir « Sélection multiple et groupes ») |
+| Menu du clic droit (rien en cours) | clic droit, dans toutes les vues : Créer une prefab…, Dupliquer, Copier, Couper, Coller ici, Pivoter, Supprimer, Tout sélectionner, Désélectionner (voir « Sélection multiple et groupes ») ; sur un sommet ou un côté du contour choisi, en tête : Supprimer ce point / Ajouter un point ici |
 | Désélectionner | Échap, clic dans le vide, **reclic** : simple clic (sans glisser) sur l'élément déjà choisi seul, dans la vue Dessus, les élévations et la 3D (glissé, il est déplacé). Poignées, flèches et anneaux suivent toujours la sélection ; un geste en cours sur l'élément quitté est annulé |
 | Sélection multiple | **Maj + clic** : ajouter / retirer un élément (vue Dessus, élévations, 3D, liste des objets) ; **rectangle** : glisser depuis le vide (ou Maj + glisser n'importe où) ; **Ctrl+A** : tout l'étage |
 | Groupe choisi | glisser l'un de ses éléments ; **flèches** : d'un pas de grille ; **R** / poignée ronde : pivoter autour du centre ; **Ctrl+D** : dupliquer ; **Ctrl+X** : couper ; Suppr |
@@ -95,6 +95,7 @@ ramenée dans la plage à la lecture). Mise en œuvre : `scripts/editor/editor_u
 | Aperçu 3D (afficher / masquer) | P (voir §2 ter pour ses caméras) |
 | Placer la caméra de l'aperçu à un endroit | Ctrl + double-clic sur la carte (aperçu affiché) |
 | Supprimer | Suppr (une pièce emporte ses objets et ses ouvertures) |
+| Ajouter / retirer un point d'un contour (pièce, barrière invisible) | glisser la poignée **« + »** d'un côté, ou **double-clic** sur un côté ; **Suppr** sur un sommet survolé (ou glissé), ou clic droit > Supprimer ce point (3 sommets au moins) |
 | Copier / couper / coller sous le curseur | Ctrl+C / Ctrl+X / Ctrl+V (un élément ou tout un groupe) |
 | Annuler / rétablir (illimité) | Ctrl+Z / Ctrl+Y (ou Ctrl+Maj+Z) |
 | Enregistrer / Enregistrer sous | Ctrl+S / Ctrl+Maj+S |
@@ -117,6 +118,32 @@ polygone ou d'une forme, coins d'un pilier, d'un escalier ou d'un piège, même
 tournés, bouts d'un mur), **poignée ronde** au-dessus pour tourner. Un
 élément devenu invalide (une fenêtre restée sur l'ancien mur d'une pièce
 agrandie…) est entouré de rouge avec la raison dans la barre d'état.
+
+**Ajouter ou retirer un point** d'un contour libre (pièce, barrière
+invisible ; MapVertex) :
+
+- **Ajouter** : l'élément choisi montre une petite poignée ronde **« + »** au
+  milieu de chaque côté (au quart et aux trois quarts des côtés d'une pièce
+  rectangle, dont le milieu garde sa poignée de redimensionnement ; aucune
+  sur un côté trop court à l'écran : zoomez). **Glisser le « + »** crée un
+  sommet et le déplace (aimanté comme le reste) ; un simple clic dessus
+  n'ajoute rien. **Double-clic sur un côté** : un sommet y est ajouté (au
+  point aimanté s'il tombe sur le côté, sinon au point du côté le plus
+  proche, au centimètre). **Clic droit sur un côté** > « Ajouter un point
+  ici ». Une pièce rectangle devient un polygone (ses 4 coins forment le
+  contour) au premier point ajouté ; une forme de base (cercle, L…) devient
+  un polygone libre.
+- **Supprimer** : **Suppr** avec la souris sur un sommet (cerclé de blanc
+  au survol), ou pendant qu'on le glisse ; **clic droit sur un sommet** >
+  « Supprimer ce point ». Suppr ailleurs supprime l'élément choisi, comme
+  avant. Jamais moins de **3 sommets** (entrée grisée sur un triangle).
+- Chaque ajout ou suppression est **une étape d'annulation** (Ctrl+Z),
+  partagée avec les autres participants, et suit les règles d'un sommet
+  déplacé : un contour qui se croise, qui recouvre une autre pièce, trop
+  petit ou au-delà de 128 sommets (64 pour une barrière) est **refusé**, la
+  raison dans la barre d'état. Comme pour un sommet déplacé, les ouvertures
+  et objets muraux restent où ils sont : un objet resté hors du nouveau mur
+  est entouré de rouge.
 
 ### Sélection multiple et groupes
 
@@ -242,7 +269,8 @@ Les mêmes actions sont dans le menu **Édition**.
   ses paramètres (clé `forme`) : dans l'onglet Propriétés, changer le nombre
   de points, le rayon, la largeur, la hauteur, les branches ou l'angle la
   **régénère** (ses ouvertures et ses objets muraux se raccrochent au mur le
-  plus proche). Déplacer un sommet à la main en fait un polygone libre.
+  plus proche). Déplacer, ajouter ou retirer un sommet à la main en fait un
+  polygone libre (§ 2, « Ajouter ou retirer un point »).
 - **Rotation libre** : **poignée ronde** au-dessus de l'élément choisi (pièce,
   pilier, escalier, piège, décor, luminaire au sol ou au plafond, mur, mur
   courbe) : pas de **15°**, au **degré près avec Alt** ; champ **Angle** de
@@ -1590,8 +1618,7 @@ hauteur, obstacles, barrières invisibles, décor, circulation, fenêtres,
   mur plein à chaque bout) : sur un cercle, il faut des côtés assez longs
   (moins de points ou un plus grand rayon) ; les chevauchements d'objets
   tournés se comptent par leur rectangle englobant ; les objets muraux
-  suivent leur mur (pas de rotation propre) ; pas encore d'ajout ni de
-  suppression d'un sommet au clavier.
+  suivent leur mur (pas de rotation propre).
 - Pas de porte en haut ou en bas d'un escalier (les deux zones d'un escalier
   sont ouvertes l'une sur l'autre) ; pas de portes liées ; pièges électriques
   seulement.

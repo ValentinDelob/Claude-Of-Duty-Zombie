@@ -1703,13 +1703,16 @@ func create_prefab_from_selection() -> void:
 ## élément non choisi, il est choisi d'abord ; puis le menu (MapContextMenu)
 ## en `screen_pos` (pixels de l'écran). `at_m` : point du plan pour « Coller
 ## ici » (Vector2.INF hors de la vue Dessus).
-func open_context_menu(screen_pos: Vector2, at_m: Vector2, eid: String) -> MapContextMenu:
+func open_context_menu(screen_pos: Vector2, at_m: Vector2, eid: String, vertex := {}) -> MapContextMenu:
 	if eid != "" and not is_selected(eid):
 		select(eid)
 	if context_menu == null:
 		context_menu = MapContextMenu.new()
 		context_menu.ed = self
 		add_child(context_menu)
+	# Clic droit sur un sommet ou un côté du contour choisi (MapCanvas) :
+	# {id, vertex} ou {id, edge, p} -> « Supprimer ce point », « Ajouter un point ici ».
+	context_menu.vertex = vertex
 	context_menu.open(screen_pos, at_m)
 	return context_menu
 
@@ -2221,6 +2224,84 @@ func try_handle(orig: Dictionary, h: int, p: Vector2, snap0: Dictionary) -> Dict
 	_replace(cand)
 	moved_live()
 	return res
+
+
+# ------------------------------------------------------------------ points d'un contour libre
+
+## Point `p` ajouté au contour de `orig` (pièce, barrière invisible) après le
+## sommet `edge`, depuis l'état `snap0` (poignée « + » glissée, MapVertex) :
+## mêmes règles qu'un sommet déplacé. Une pièce rectangle devient un polygone.
+func try_insert_vertex(orig: Dictionary, edge: int, p: Vector2, snap0: Dictionary) -> Dictionary:
+	var poly := MapVertex.poly_of(orig)
+	if edge < 0 or edge >= poly.size():
+		return MapRules.refuse("côté introuvable", "side not found")
+	if poly.size() >= MapVertex.max_points(orig):
+		return MapRules.refuse("%d sommets au plus" % MapVertex.max_points(orig), "%d corners at most" % MapVertex.max_points(orig))
+	var w := MapVertex.with_poly(doc, orig, MapVertex.inserted(poly, edge, p))
+	if not w.res.ok:
+		return w.res
+	doc.restore(snap0)
+	_replace(w.cand)
+	moved_live()
+	return w.res
+
+
+## Sommet `i` retiré du contour de `orig` depuis l'état `snap0` (jamais moins
+## de 3 sommets, mêmes règles qu'un sommet déplacé).
+func try_remove_vertex(orig: Dictionary, i: int, snap0: Dictionary) -> Dictionary:
+	var poly := MapVertex.poly_of(orig)
+	if i < 0 or i >= poly.size():
+		return MapRules.refuse("sommet introuvable", "corner not found")
+	var w := MapVertex.with_poly(doc, orig, MapVertex.removed(poly, i))
+	if not w.res.ok:
+		return w.res
+	doc.restore(snap0)
+	_replace(w.cand)
+	moved_live()
+	return w.res
+
+
+## Ajoute le point `p` au contour de l'élément `eid` après le sommet `edge`
+## (double-clic sur un côté, menu du clic droit) : une étape d'annulation,
+## diffusée aux autres participants ; refus expliqué dans la barre d'état.
+func insert_vertex(eid: String, edge: int, p: Vector2) -> Dictionary:
+	var e := doc.find(eid)
+	if e.is_empty() or not MapVertex.editable(e):
+		return MapRules.refuse("cet élément n'a pas de contour libre", "this element has no free outline")
+	var snap0 := doc.snapshot()
+	var res := try_insert_vertex(e.duplicate(true), edge, p, snap0)
+	_vertex_done(res, snap0, eid, true)
+	return res
+
+
+## Supprime le sommet `i` du contour de l'élément `eid` (Suppr sur un sommet
+## survolé, menu du clic droit) : une étape d'annulation.
+func remove_vertex(eid: String, i: int) -> Dictionary:
+	var e := doc.find(eid)
+	if e.is_empty() or not MapVertex.editable(e):
+		return MapRules.refuse("cet élément n'a pas de contour libre", "this element has no free outline")
+	var snap0 := doc.snapshot()
+	var res := try_remove_vertex(e.duplicate(true), i, snap0)
+	_vertex_done(res, snap0, eid, false)
+	return res
+
+
+## Fin d'un ajout ou d'une suppression de point : historique et diffusion, ou
+## refus montré sur la carte.
+func _vertex_done(res: Dictionary, snap0: Dictionary, eid: String, added: bool) -> void:
+	if not res.ok:
+		canvas.show_refusal(res)
+		return
+	push_undo_snapshot(snap0)
+	changed()
+	vertex_status(eid, added)
+
+
+## Barre d'état après un point ajouté ou supprimé.
+func vertex_status(eid: String, added: bool) -> void:
+	var n := MapVertex.poly_of(doc.find(eid)).size()
+	set_status((Lang.t("Point ajouté : %d sommets (Ctrl+Z : annuler)", "Point added: %d corners (Ctrl+Z: undo)") if added
+		else Lang.t("Point supprimé : %d sommets (Ctrl+Z : annuler)", "Point deleted: %d corners (Ctrl+Z: undo)")) % n)
 
 
 ## Élément tourné de 90° (sens horaire) autour de `c` (MapTransform.rotated).

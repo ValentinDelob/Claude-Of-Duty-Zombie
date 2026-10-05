@@ -71,6 +71,13 @@ var gizmo: MapGizmoTop
 ## Vue dessinée hors écran (capture du plan pour Claude, MapAgentLink,
 ## `offscreen` de MapView) : étage `floor_override` (-1 : celui de l'éditeur).
 var floor_override := -1
+## Souris sur la vue (Suppr n'agit sur un sommet que s'il est survolé).
+var mouse_inside := false
+## Élément choisi à l'appui précédent : le double-clic qui ajoute un point
+## vise son contour (le premier clic a pu le désélectionner ou choisir le voisin).
+var _prev_sel := ""
+## Aide affichée au survol d'un sommet ou d'une poignée « + » ("vertex", "plus").
+var _point_hint := ""
 
 
 func _hsz() -> float:
@@ -87,6 +94,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_exited.connect(func():
 		_hover_dirty = false
+		mouse_inside = false
 		ed.map_hovered(""))
 	var m := String(MapEditor.pref("aimantation", "grille"))
 	snap_mode = m if m in MapSnap.MODES else "grille"
@@ -315,13 +323,17 @@ static func _entry_char(k: InputEventKey) -> String:
 ## Touche pendant l'édition (appelée par MapEditor avant ses raccourcis) :
 ## G (aimantation), saisie au clavier du tracé en cours (chiffres, Tab,
 ## Entrée, Retour arrière, Échap), + / - (points d'une forme, segments d'un
-## mur courbe). -> true si la touche est prise.
+## mur courbe), Suppr sur un sommet survolé ou saisi (ce point seul).
+## -> true si la touche est prise.
 func handle_key(k: InputEventKey) -> bool:
 	if not k.pressed or k.ctrl_pressed or k.alt_pressed:
 		return false
 	# Format 14 : valeur tapée pendant un geste d'échelle ou de rotation.
 	if drag.get("kind", "") in ["scale", "ring"]:
 		return gizmo.key(k)
+	# Suppr sur un sommet survolé ou saisi d'un contour libre : ce point seul.
+	if k.keycode == KEY_DELETE and not k.echo and delete_point_key():
+		return true
 	# X / Y pendant un glissement : verrouille l'axe (la même touche le libère).
 	if k.keycode in [KEY_X, KEY_Y] and drag.get("kind", "") in ["move", "gmove"] and entry.is_empty():
 		var ax := "X" if k.keycode == KEY_X else "Y"
@@ -484,6 +496,7 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		var mm := event as InputEventMouseMotion
 		mouse_m = to_m(mm.position)
+		mouse_inside = true
 		if _pan:
 			origin += mm.relative
 		elif not drag.is_empty():
@@ -491,6 +504,7 @@ func _gui_input(event: InputEvent) -> void:
 		else:
 			_update_preview()
 			_hover_dirty = true
+			_update_point_hint()
 		mouse_default_cursor_shape = cursor_at(mm.position)
 		ed.show_cursor(mouse_m)
 		queue_redraw()
@@ -518,7 +532,11 @@ func _gui_input(event: InputEvent) -> void:
 			if busy():
 				cancel()
 			elif not offscreen:
-				ed.open_context_menu(get_screen_position() + mb.position, mouse_m, String(ed.element_at(mouse_m).get("id", "")))
+				# Sur un sommet ou un côté du contour choisi : « Supprimer ce
+				# point », « Ajouter un point ici » en tête du menu.
+				var pt := point_target(mouse_m)
+				var eid := String(pt.id) if not pt.is_empty() else String(ed.element_at(mouse_m).get("id", ""))
+				ed.open_context_menu(get_screen_position() + mb.position, mouse_m, eid, pt)
 			accept_event()
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
@@ -575,12 +593,18 @@ func _press(double: bool) -> void:
 		_finish_create(trace_end())
 		return
 	var p := snap(mouse_m)
+	var prev_sel := _prev_sel
+	if not double:
+		_prev_sel = ed.selected
 	match tool:
 		"select":
 			# Maj : un clic ajoute ou retire l'élément de la sélection, un glissé
 			# trace un rectangle qui y ajoute (décidé au relâché / au mouvement).
 			if shift_held():
 				drag = {"kind": "band", "start": mouse_m, "add": true, "click": String(ed.element_at(mouse_m).get("id", ""))}
+				return
+			# Double-clic sur un côté du contour choisi : un point y est ajouté.
+			if double and _double_click_insert([prev_sel, ed.selected]):
 				return
 			# Format 14 : poignées d'échelle, cadenas, anneau Z du décor choisi.
 			if gizmo.press(to_px(mouse_m)):
@@ -601,6 +625,13 @@ func _press(double: bool) -> void:
 			if h >= 0:
 				_snap_exclude = ed.selected
 				drag = {"kind": "handle", "handle": h, "snap": ed.doc.snapshot(), "orig": ed.doc.find(ed.selected).duplicate(true), "moved": false}
+				return
+			# Poignée « + » au milieu d'un côté : glissée, elle ajoute un point.
+			var ph := plus_at(mouse_m)
+			if not ph.is_empty():
+				_snap_exclude = ed.selected
+				drag = {"kind": "handle", "insert": int(ph.edge), "raw": mouse_m, "snap": ed.doc.snapshot(),
+					"orig": ed.doc.find(ed.selected).duplicate(true), "moved": false}
 				return
 			# Traits de coupe des élévations : leurs poignées (§ 3.2).
 			var ch := _cut_handle_at(to_px(mouse_m))
@@ -752,6 +783,11 @@ func _release() -> void:
 		if drag.moved:
 			ed.push_undo_snapshot(drag.snap)
 			ed.changed()
+		if drag.has("insert"):
+			if drag.moved:
+				ed.vertex_status(String(drag.orig.id), true)
+			else:
+				ed.set_status(Lang.t("Glissez le « + » pour ajouter un point (ou double-cliquez sur le côté)", "Drag the \"+\" to add a point (or double-click the side)"))
 		# Reclic sans bouger (moins de 4 px) : l'élément est désélectionné.
 		var unselect: bool = bool(drag.get("reclick", false)) and not drag.moved and to_px(mouse_m).distance_to(to_px(Vector2(drag.raw))) < 4.0
 		drag = {}
@@ -1014,7 +1050,10 @@ func _drag_update() -> void:
 			refusal_marks = res.get("marks", [])
 			_refusal_t = 1.5
 	elif kind == "handle":
-		var res := ed.try_handle(orig, int(drag.handle), snap(mouse_m), drag.snap)
+		if drag.has("insert") and not drag.moved and to_px(mouse_m).distance_to(to_px(Vector2(drag.raw))) < 3.0:
+			return   # poignée « + » pas encore tirée : aucun point ajouté
+		var res := ed.try_insert_vertex(orig, int(drag.insert), snap(mouse_m), drag.snap) if drag.has("insert") \
+			else ed.try_handle(orig, int(drag.handle), snap(mouse_m), drag.snap)
 		if res.ok:
 			drag.moved = true
 			ed.send_live(String(orig.id))
@@ -1151,6 +1190,178 @@ func _handle_at(m: Vector2) -> int:
 	return -1
 
 
+# ------------------------------------------------------------------ points d'un contour libre
+
+## Élément choisi dont le contour s'édite point par point (pièce, barrière
+## invisible : MapVertex) à l'étage affiché, outil Souris, seul ; {} sinon.
+func _vertex_elem() -> Dictionary:
+	if offscreen or ed.tool() != "select" or ed.group.size() >= 2:
+		return {}
+	var e := ed.doc.find(ed.selected)
+	if e.is_empty() or int(e.get("etage", 0)) != ed.floor_k or not MapVertex.editable(e):
+		return {}
+	return e
+
+
+## Poignées « + » du contour choisi : [{p (m), edge}] ; seulement celles
+## assez loin des autres poignées à l'écran (petit côté, zoom faible : aucune).
+func plus_handles() -> Array:
+	var e := _vertex_elem()
+	if e.is_empty():
+		return []
+	var poly := MapVertex.poly_of(e)
+	var gap := _hsz() * 1.5
+	var out := []
+	for ph in MapVertex.plus_handles(e):
+		var a := to_px(poly[int(ph.edge)])
+		var b := to_px(poly[(int(ph.edge) + 1) % poly.size()])
+		var q := to_px(ph.p)
+		if q.distance_to(a) >= gap and q.distance_to(b) >= gap and q.distance_to((a + b) * 0.5) >= (gap if MapVertex.is_rect_room(e) else 0.0):
+			out.append(ph)
+	return out
+
+
+## Poignée « + » sous le point `m` (m) : {p, edge} ; {} sinon.
+func plus_at(m: Vector2) -> Dictionary:
+	for ph in plus_handles():
+		if to_px(ph.p).distance_to(to_px(m)) <= _hsz() * 0.6 + 3.0:
+			return ph
+	return {}
+
+
+## Sommet du contour choisi sous le point `m` : son indice dans le contour,
+## -1 sinon (les milieux d'une pièce rectangle ne sont pas des sommets).
+func vertex_at(m: Vector2) -> int:
+	var e := _vertex_elem()
+	if e.is_empty():
+		return -1
+	var h := _handle_at(m)
+	return -1 if h < 0 else MapVertex.index_at(e, handles()[h])
+
+
+## Sommet saisi par la poignée `h` du glissement en cours (indice du contour
+## d'origine), -1 si la poignée n'est pas un sommet.
+func _drag_vertex() -> int:
+	if drag.get("kind", "") != "handle" or drag.has("insert"):
+		return -1
+	var orig: Dictionary = drag.orig
+	if not MapVertex.editable(orig):
+		return -1
+	var h := int(drag.handle)
+	if MapVertex.is_rect_room(orig):
+		if h >= 4:
+			return -1
+		var r := MapGeom.bbox(MapVertex.poly_of(orig))
+		return MapVertex.index_at(orig, [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)][h])
+	return h
+
+
+## Sommet ou côté du contour choisi sous le point `m` (clic droit) : {id,
+## vertex} ou {id, edge, p} (point posé sur le côté) ; {} ailleurs.
+func point_target(m: Vector2) -> Dictionary:
+	var e := _vertex_elem()
+	if e.is_empty():
+		return {}
+	var vi := vertex_at(m)
+	if vi >= 0:
+		return {"id": String(e.id), "vertex": vi}
+	if _handle_at(m) >= 0:
+		return {}
+	var poly := MapVertex.poly_of(e)
+	var hit := MapVertex.edge_at(poly, m, (_hsz() * 0.5 + 3.0) / zoom)
+	if hit.is_empty():
+		return {}
+	return {"id": String(e.id), "edge": int(hit.edge), "p": MapVertex.point_on_edge(poly, int(hit.edge), m, snap(m))}
+
+
+## Double-clic : ajoute un point sur le côté visé du contour du premier
+## élément de `ids` touché (choisi avant le premier clic du double-clic, ou
+## maintenant). -> true si le double-clic visait un côté.
+func _double_click_insert(ids: Array) -> bool:
+	for id in ids:
+		var e := ed.doc.find(String(id))
+		if String(id) == "" or e.is_empty() or int(e.get("etage", 0)) != ed.floor_k or not MapVertex.editable(e):
+			continue
+		var poly := MapVertex.poly_of(e)
+		# Sur un sommet : pas de point ajouté (la poignée se glisse).
+		var on_vertex := false
+		for v in poly:
+			on_vertex = on_vertex or to_px(v).distance_to(to_px(mouse_m)) <= _hsz() + 2.0
+		if on_vertex:
+			continue
+		var hit := MapVertex.edge_at(poly, mouse_m, (_hsz() * 0.5 + 3.0) / zoom)
+		if hit.is_empty():
+			continue
+		if ed.selected != String(id):
+			ed.select(String(id))
+		_snap_exclude = String(id)
+		var p := MapVertex.point_on_edge(poly, int(hit.edge), mouse_m, snap(mouse_m))
+		_snap_exclude = ""
+		ed.insert_vertex(String(id), int(hit.edge), p)
+		return true
+	return false
+
+
+## Suppr : le sommet saisi (glissement en cours) ou survolé du contour choisi
+## est supprimé. -> true si la touche est prise (sinon Suppr supprime
+## l'élément choisi, comme avant).
+func delete_point_key() -> bool:
+	if not entry.is_empty() or not poly_pts.is_empty():
+		return false
+	var vi := _drag_vertex()
+	if vi >= 0:
+		var eid := String(drag.orig.id)
+		cancel()
+		ed.remove_vertex(eid, vi)
+		return true
+	if not drag.is_empty() or not mouse_inside:
+		return false
+	vi = vertex_at(mouse_m)
+	if vi < 0:
+		return false
+	ed.remove_vertex(ed.selected, vi)
+	return true
+
+
+## Poignées « + » du contour choisi (petits ronds discrets, pleins au
+## survol) et sommet survolé (cerclé : Suppr le supprime).
+func _draw_point_handles() -> void:
+	if not drag.is_empty() or _vertex_elem().is_empty():
+		return
+	var r := _hsz() * 0.6
+	var hot := plus_at(mouse_m) if mouse_inside else {}
+	for ph in plus_handles():
+		var c := to_px(ph.p)
+		var on: bool = not hot.is_empty() and int(hot.edge) == int(ph.edge) and Vector2(hot.p).is_equal_approx(ph.p)
+		draw_circle(c, r + (1.5 if on else 0.0), COL_SEL if on else Color(0.08, 0.09, 0.1, 0.85))
+		draw_arc(c, r + (1.5 if on else 0.0), 0.0, TAU, 16, COL_SEL, 1.0, true)
+		var col := Color.BLACK if on else COL_SEL
+		draw_line(c - Vector2(r * 0.6, 0), c + Vector2(r * 0.6, 0), col, 1.5)
+		draw_line(c - Vector2(0, r * 0.6), c + Vector2(0, r * 0.6), col, 1.5)
+	if mouse_inside:
+		var vi := vertex_at(mouse_m)
+		if vi >= 0:
+			draw_arc(to_px(MapVertex.poly_of(_vertex_elem())[vi]), _hsz() * 0.9, 0.0, TAU, 20, Color.WHITE, 1.5, true)
+
+
+## Aide de la barre d'état au survol d'un sommet ou d'une poignée « + »
+## (une fois par entrée sur la poignée).
+func _update_point_hint() -> void:
+	var hint := ""
+	if not _vertex_elem().is_empty():
+		if vertex_at(mouse_m) >= 0:
+			hint = "vertex"
+		elif not plus_at(mouse_m).is_empty():
+			hint = "plus"
+	if hint == _point_hint:
+		return
+	_point_hint = hint
+	if hint == "vertex":
+		ed.set_status(Lang.t("Sommet : glissez-le pour le déplacer ; Suppr ou clic droit pour le supprimer", "Corner: drag it to move it; Del or right-click to delete it"))
+	elif hint == "plus":
+		ed.set_status(Lang.t("« + » : glissez pour ajouter un point (ou double-cliquez sur un côté)", "\"+\": drag to add a point (or double-click a side)"))
+
+
 # ------------------------------------------------------------------ dessin
 
 func _draw() -> void:
@@ -1241,6 +1452,7 @@ func _draw() -> void:
 		for h in handles():
 			draw_rect(Rect2(to_px(h) - Vector2.ONE * _hsz() * 0.5, Vector2.ONE * _hsz()), COL_SEL)
 			draw_rect(Rect2(to_px(h) - Vector2.ONE * _hsz() * 0.5, Vector2.ONE * _hsz()), Color.BLACK, false, 1.0)
+		_draw_point_handles()
 		# Poignée de rotation (pas de 15°, Alt : au degré près).
 		var rh := rot_handle()
 		if not rh.is_empty():
@@ -1412,6 +1624,8 @@ func cursor_at(px: Vector2) -> Control.CursorShape:
 			return [Control.CURSOR_FDIAGSIZE, Control.CURSOR_BDIAGSIZE, Control.CURSOR_FDIAGSIZE, Control.CURSOR_BDIAGSIZE,
 				Control.CURSOR_VSIZE, Control.CURSOR_HSIZE, Control.CURSOR_VSIZE, Control.CURSOR_HSIZE][h]
 		return Control.CURSOR_FDIAGSIZE
+	if not plus_at(m).is_empty():
+		return Control.CURSOR_CROSS
 	var ch := _cut_handle_at(px)
 	if not ch.is_empty():
 		return Control.CURSOR_VSIZE if String(MapView.depth_axis((ch.ev as MapElevation).plane)[0]) == "Y" else Control.CURSOR_HSIZE
