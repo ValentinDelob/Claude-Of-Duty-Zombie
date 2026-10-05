@@ -224,8 +224,10 @@ const LIGHTS := {
 ## Réglages d'un effet posé (tous facultatifs, jamais écrits à leur valeur
 ## par défaut, tidy_effect) : intensite (x, quantité de particules et
 ## lumière), zone, couleur, hauteur (m), rot. « taille » (x, avant le format
-## 11) est lue et convertie en zone (zone par défaut × taille).
-const EFFECT_LIMITS := {"intensite": [0.25, 2.0], "taille": [0.5, 2.5], "hauteur": [0.0, 30.0]}
+## 11) est lue et convertie en zone (zone par défaut × taille). Hauteur :
+## plus de maximum de 30 m depuis le format 17 (aucune limite de conception),
+## seulement la garde technique MapVertical.TECH_Z.
+const EFFECT_LIMITS := {"intensite": [0.25, 2.0], "taille": [0.5, 2.5], "hauteur": [0.0, MapVertical.TECH_Z]}
 ## Bornes absolues d'une dimension de zone (m) : celles de chaque effet sont
 ## dans EFFECTS (clé « zone »). Pas d'une dimension réglée à la main.
 const ZONE_LIMITS := [0.1, 40.0]

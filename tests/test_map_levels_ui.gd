@@ -450,13 +450,19 @@ func test_plan_ghost_hatched_voids_and_dashed_rooms_above() -> void:
 # ------------------------------------------------------------------ bornes et textes
 
 func test_design_bounds_of_30_m_are_gone() -> void:
-	assert_true(MapVertical.DECOR_Z[1] > 1000.0 and MapCatalog.WALL_LIGHT_HEIGHT[1] > 1000.0 and MapCatalog.CLIP_HEIGHT[1] > 1000.0, "plus de 30 m")
+	assert_true(MapVertical.DECOR_Z[1] > 1000.0 and MapCatalog.WALL_LIGHT_HEIGHT[1] > 1000.0 and MapCatalog.CLIP_HEIGHT[1] > 1000.0 \
+		and MapCatalog.EFFECT_LIMITS.hauteur[1] == MapVertical.TECH_Z, "plus de 30 m")
+	assert_near(MapCatalog.effect_height({"type": "effet", "effet": "petit_feu", "hauteur": 45.0}), 45.0, 0.001, "effet à 45 m")
 	assert_near(MapVertical.decor_z({"z": 45.0}), 45.0, 0.001, "décor à 45 m (sous un plafond réel assez haut)")
 	assert_true(MapRules.check_arc({"type": "mur_courbe", "centre": [0, 0], "rayon": 200.0, "ouverture": 90.0, "segments": 8}).ok, "mur courbe de 200 m de rayon")
 	assert_false(MapRules.check_arc({"type": "mur_courbe", "centre": [0, 0], "rayon": 9000.0, "ouverture": 90.0, "segments": 8}).ok, "trop grand pour la mémoire du validateur")
 	var doc := _stack()
 	doc.objets.append({"id": "i9", "type": "bloc_invisible", "altitude": 0, "rect": [1, 1, 2, 2], "hauteur": 100.0})
 	assert_eq(CustomMapGuard.check_texts(doc.file_texts()).reasons, [], "barrière de 100 m : acceptée")
+	doc.objets.append({"id": "fx9", "type": "effet", "effet": "petit_feu", "altitude": 0, "position": [3, 3], "hauteur": 60.0})
+	assert_eq(CustomMapGuard.check_texts(doc.file_texts()).reasons, [], "effet à 60 m : accepté")
+	doc.find("fx9")["hauteur"] = MapVertical.TECH_Z + 1.0
+	assert_false(CustomMapGuard.check_texts(doc.file_texts()).ok, "effet au-delà de la garde technique : refusé")
 
 
 func test_texts_fr_and_en() -> void:
