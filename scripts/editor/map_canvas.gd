@@ -71,7 +71,7 @@ const ROT_HANDLE_PX := 30.0
 ## Format 14 : poignées d'échelle et anneau Z du décor choisi (MapGizmoTop).
 var gizmo: MapGizmoTop
 ## Vue dessinée hors écran (capture du plan pour Claude, MapAgentLink,
-## `offscreen` de MapView) : étage `floor_override` (-1 : celui de l'éditeur).
+## `offscreen` de MapView) : niveau `floor_override` (-1 : celui de l'éditeur).
 var floor_override := -1
 ## Souris sur la vue (Suppr n'agit sur un sommet que s'il est survolé).
 var mouse_inside := false
@@ -472,7 +472,7 @@ func header_chips() -> Array:
 	return out
 
 
-## Cadre toute la carte de l'étage dans la vue.
+## Cadre toute la carte du niveau dans la vue.
 func frame_all() -> void:
 	var bb := Rect2()
 	var first := true
@@ -868,7 +868,7 @@ func _creation(it: Dictionary, a: Vector2, b: Vector2) -> Dictionary:
 			o["rect"] = MapGeom.rect_arr(r)
 			if o.type == "escalier":
 				# Escalier qui descend : tracé du haut (ici) vers le bas, enregistré
-				# à l'étage du dessous, montant jusqu'ici (aucun champ de plus).
+				# au niveau du dessous, montant jusqu'ici (aucun champ de plus).
 				var down := bool(it.get("descend", false))
 				o["monte"] = MapRules.stair_dir(a, b, down)
 				# Type choisi avec V avant de poser (format 6).
@@ -885,7 +885,7 @@ func _creation(it: Dictionary, a: Vector2, b: Vector2) -> Dictionary:
 							kk = j
 							break
 					o["altitude_haut"] = ed.doc.level_alt(k)
-				# Contrôlé à chaque image du tracé : les étages lus resservent tant
+				# Contrôlé à chaque image du tracé : les niveaux lus resservent tant
 				# que la carte ne change pas (version de la carte).
 				MapRules.stair_cache_tag = ed.doc_version
 				var rs := MapRules.check_rect(ed.doc, kk, "escalier", r, "", 0, MapCatalog.stair_kind(o), o, down)
@@ -930,7 +930,7 @@ func _finish_poly() -> void:
 	ed.add_object(res.obj, ed.floor_k)
 
 
-## Pièce de contour `poly` posable à l'étage `k` ? Par-dessus d'autres pièces :
+## Pièce de contour `poly` posable au niveau `k` ? Par-dessus d'autres pièces :
 ## oui si leur découpe est possible (MapCarve.plan, gardé tant que la carte et
 ## le contour ne changent pas) ; le résultat porte alors « carve » (aperçu
 ## hachuré, confirmation au relâcher).
@@ -1233,7 +1233,7 @@ func _handle_at(m: Vector2) -> int:
 # ------------------------------------------------------------------ points d'un contour libre
 
 ## Élément choisi dont le contour s'édite point par point (pièce, barrière
-## invisible : MapVertex) à l'étage affiché, outil Souris, seul ; {} sinon.
+## invisible : MapVertex) au niveau affiché, outil Souris, seul ; {} sinon.
 func _vertex_elem() -> Dictionary:
 	if offscreen or ed.tool() != "select" or ed.group.size() >= 2:
 		return {}
@@ -1501,7 +1501,7 @@ func _draw_map() -> void:
 		return
 	# Sélection et poignées.
 	var sel := doc.find(ed.selected)
-	# Un escalier se voit choisi aussi depuis l'étage où il arrive.
+	# Un escalier se voit choisi aussi depuis le niveau où il arrive.
 	var sel_k := ed.doc.level_of(sel) + (1 if String(sel.get("type", "")) == "escalier" and ed.doc.level_of(sel) == k - 1 else 0)
 	if not sel.is_empty() and sel_k == k:
 		var outline := _outline_of(sel)
@@ -1557,7 +1557,7 @@ func _draw_map() -> void:
 
 # ------------------------------------------------------------------ sélection multiple (MapGroup)
 
-## Cadre (m) des éléments du groupe sur l'étage affiché ; vide sans groupe.
+## Cadre (m) des éléments du groupe sur le niveau affiché ; vide sans groupe.
 func group_box() -> Rect2:
 	var k := ed.floor_k if floor_override < 0 else floor_override
 	var bb := Rect2()
@@ -1746,7 +1746,7 @@ func arrow_at(px: Vector2) -> String:
 
 
 ## Flèches X (rouge) et Y (vert) sur l'élément choisi, puce Z (hauteur de
-## pose ou étage), Δ en or et trait de guide pendant un glissement (§ 3.3).
+## pose ou niveau), Δ en or et trait de guide pendant un glissement (§ 3.3).
 func _draw_axis_arrows(font: Font) -> void:
 	var o := arrows_origin()
 	if o == Vector2.INF:
@@ -1776,7 +1776,7 @@ func _draw_axis_arrows(font: Font) -> void:
 		zt = ""
 	elif MapVertical.pose_kind(e) == "pose":
 		zt = "Z %s m" % MapView.num(MapVertical.pose_z(ed.doc, ed.raster().v, e), 2)
-	elif ed.doc.floor_count() > 1:
+	elif ed.doc.level_count() > 1:
 		zt = "Z %s" % EditorMap.alt_text(EditorMap.alt_of(e), not Lang.is_en())
 	if zt != "":
 		var bf := MapView.bold_font(600)
@@ -2061,7 +2061,7 @@ func _slab_px(a: Vector2, b: Vector2, half: float) -> PackedVector2Array:
 	return _px_poly(PackedVector2Array([a + n, b + n, b - n, a - n]))
 
 
-## Murs en biais de l'étage : vrais murs obliques (comme en jeu), jonctions
+## Murs en biais du niveau : vrais murs obliques (comme en jeu), jonctions
 ## arrondies, ouvertures posées dessus.
 func _draw_obliques(v: MapValidator, k: int) -> void:
 	if k >= v.oblique_walls.size():
@@ -2462,7 +2462,7 @@ func _draw_opening(o: Dictionary, font: Font) -> void:
 
 
 ## Étiquette sur fond sombre (mesures du tracé).
-## Étage où mène un escalier, écrit sous sa flèche (zoom suffisant).
+## Niveau où mène un escalier, écrit sous sa flèche (zoom suffisant).
 func _stair_floor_label(font: Font, o: Dictionary, lbl: String, col: Color) -> void:
 	if zoom < 8.0:
 		return
@@ -2476,7 +2476,7 @@ func _stair_floor_label(font: Font, o: Dictionary, lbl: String, col: Color) -> v
 	draw_string(font, lp, lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 
 
-## Escalier tracé (posé à l'étage `k`, il monte à k + 1) : flèche de montée,
+## Escalier tracé (posé au niveau `k`, il monte à k + 1) : flèche de montée,
 ## cases du départ et de l'arrivée (MapRules.stair_parts), zones du refus.
 func _draw_stair_trace(font: Font, o: Dictionary, k: int, res: Dictionary) -> void:
 	var r := MapGeom.rect_of(o.rect)
@@ -2499,7 +2499,7 @@ func _draw_stair_trace(font: Font, o: Dictionary, k: int, res: Dictionary) -> vo
 
 ## Zones d'un escalier sur le plan : [{floor, cells, role}] ; role « depart »
 ## (vert), « arrivee » (bleu), « tremie » (contour violet), « faute » (rouge).
-## Celles d'un autre étage que l'étage affiché : en pointillés, avec leur étage.
+## Celles d'un autre niveau que le niveau affiché : en pointillés, avec leur niveau.
 func _draw_stair_marks(font: Font, marks: Array, _k := -1) -> void:
 	var cols := {"depart": Color(0.35, 0.95, 0.45), "arrivee": Color(0.35, 0.75, 1.0), "tremie": Color(0.8, 0.55, 0.95), "faute": COL_BAD}
 	var names := {"depart": Lang.t("départ", "start"), "arrivee": Lang.t("arrivée", "arrival"), "tremie": Lang.t("trémie", "stairwell"), "faute": ""}
@@ -2794,7 +2794,7 @@ func _draw_tool(font: Font) -> void:
 				var so: Dictionary = res.get("obj", {})
 				if String(so.get("type", "")) == "escalier":
 					# Escalier en cours de tracé : flèche, départ et arrivée (sur les
-					# deux étages), et ce qui gêne s'il est refusé.
+					# deux niveaux), et ce qui gêne s'il est refusé.
 					_draw_stair_trace(font, so, int(res.get("floor", ed.floor_k)), res)
 				var sz := (end - Vector2(drag.start)).abs()
 				var lbl := "%s × %s m" % [MapRules._m(sz.x, not Lang.is_en()), MapRules._m(sz.y, not Lang.is_en())]

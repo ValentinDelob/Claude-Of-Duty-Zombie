@@ -675,9 +675,9 @@ static func _build() -> void:
 	_add({"id": "pilier", "cat": "construction", "fr": "Pilier / obstacle", "en": "Pillar / obstacle", "tool": "rect",
 		"color": Color(0.45, 0.42, 0.4), "make": {"type": "pilier"}, "hint_fr": "Glisser un rectangle dans une pièce", "hint_en": "Drag a rectangle inside a room"})
 	# Deux escaliers dans l'inventaire (flèche ↑ / ↓) : celui qui monte de
-	# l'étage courant, celui qui y descend de l'étage du dessous. Un seul objet
+	# le niveau courant, celui qui y descend du niveau du dessous. Un seul objet
 	# « escalier » dans la carte : celui qui descend est enregistré comme un
-	# escalier de l'étage du dessous qui monte jusqu'ici (« descend » : outil
+	# escalier du niveau du dessous qui monte jusqu'ici (« descend » : outil
 	# seulement, MapCanvas._creation, MapRules.stair_dir).
 	_add({"id": "escalier", "cat": "construction", "fr": "Escalier qui monte", "en": "Stairs going up", "tool": "rect",
 		"color": Color(0.8, 0.55, 0.9), "make": {"type": "escalier", "monte": "n"},
@@ -1316,7 +1316,7 @@ static func tidy_effect(o: Dictionary) -> void:
 
 ## Format 11 : décors qu'un effet d'une carte plus ancienne construisait avec
 ## lui (bûches, torche, tuyau, boîtier, électrodes, flaque...), à poser à côté
-## de l'effet devenu pur : même étage, même place (même mur, même hauteur) et
+## de l'effet devenu pur : même niveau, même place (même mur, même hauteur) et
 ## même rotation ; la flaque d'un filet d'eau là où l'eau tombait. Rien si
 ## l'effet n'en avait pas, ou si un décor identique est déjà là (`objets` :
 ## les objets de la carte ; rien n'est posé deux fois). `new_id(préfixe)`

@@ -131,7 +131,7 @@ func cancel_capture() -> void:
 	capturing = false
 
 
-## Décor du catalogue de l'étage affiché dont le centre est dans `r` (m).
+## Décor du catalogue du niveau affiché dont le centre est dans `r` (m).
 func captured(r: Rect2) -> Array:
 	var out := []
 	for o in ed.doc.objects_on(ed.floor_k):
@@ -336,7 +336,7 @@ static func multi_floor_text() -> String:
 ## qu'elle est au moment de valider (un autre participant ou Claude a pu
 ## supprimer ou déplacer des éléments depuis l'ouverture) : les décors
 ## restants, à leur place actuelle ; refusé (message) s'il n'en reste aucun
-## ou s'ils sont sur plusieurs étages. Rend le pid ("" : refusé).
+## ou s'ils sont sur plusieurs niveaux. Rend le pid ("" : refusé).
 func create_from_selection(ids: Array, name: String, replace := true) -> String:
 	last_error = ""
 	var parts: Array = analyze(ed.doc, ids).parts
@@ -381,7 +381,7 @@ func create_from_objects(objs: Array, name: String, replace := true, hand := tru
 
 
 ## Ajoute à la bibliothèque la prefab groupe tirée de `objs` (décor du
-## catalogue, un seul étage ; MapPrefabLib.from_objects), nommée `name`, sans
+## catalogue, un seul niveau ; MapPrefabLib.from_objects), nommée `name`, sans
 ## rien poser. Rend {pid, def, center (centre de l'emprise des objets, m)} ;
 ## {} si refusée (raison dans `last_error`).
 func make_group(objs: Array, name: String) -> Dictionary:

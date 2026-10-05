@@ -67,7 +67,7 @@ static func next_fine(step: float) -> float:
 	return FINE_STEPS[(i + 1) % FINE_STEPS.size()]
 
 
-## Aimant de la carte près de `m` (étage k, rayon `radius` m) : un sommet de
+## Aimant de la carte près de `m` (niveau k, rayon `radius` m) : un sommet de
 ## pièce ou un bout de mur, sinon un point d'un côté de pièce (projection).
 ## `exclude` : identifiant de l'élément en cours de modification. Format 17 :
 ## `ghost` (indice d'un niveau, -1 : aucun) : les sommets des pièces de ce

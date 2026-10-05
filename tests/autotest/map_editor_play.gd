@@ -22,7 +22,7 @@ func run() -> void:
 	await frames(3)
 	ed.open_example("draft_arena")
 	await frames(2)
-	at.check(ed.example and ed.doc.pieces.size() == 5 and ed.doc.floor_count() == 2, "exemple DRAFT ARENA ouvert (5 pièces, 2 étages)")
+	at.check(ed.example and ed.doc.pieces.size() == 5 and ed.doc.level_count() == 2, "exemple DRAFT ARENA ouvert (5 pièces, 2 étages)")
 	at.check(ed.invalid.is_empty(), "aucun élément invalide (%s)" % str(ed.invalid))
 	# Une modification non enregistrée, jouée par TESTER.
 	var c: Dictionary = (ed.doc.carte as Dictionary).duplicate(true)

@@ -384,7 +384,7 @@ func numpad(k: InputEventKey, pn: MapViewPane) -> bool:
 	return true
 
 
-## Centre de la carte (repère de la carte : pièces de tous les étages).
+## Centre de la carte (repère de la carte : pièces de tous les niveaux).
 func map_center() -> Vector3:
 	var bb := Rect2()
 	var first := true
@@ -407,7 +407,7 @@ func view_target(v: MapView) -> Vector3:
 		return c
 	var p := MapView.point_of(v.plane, v.to_m(v.size * 0.5), MapView.depth_of(v.plane, c))
 	if v.plane == "dessus":
-		p.z = ed.doc.floor_sol(ed.floor_k)
+		p.z = ed.doc.level_alt(ed.floor_k)
 	return p
 
 
@@ -539,7 +539,7 @@ func set_active_pane(pn: MapViewPane) -> void:
 		p.set_active(p == pn)
 
 
-## Ce que montrent les vues a changé (coupe, étages, plan) : en-têtes et vues
+## Ce que montrent les vues a changé (coupe, niveaux, plan) : en-têtes et vues
 ## redessinés.
 func views_changed() -> void:
 	if ed == null:
@@ -924,7 +924,7 @@ func save_soon() -> void:
 
 
 ## État mémorisé (_editeur.cfg, clé « vues ») : disposition, plan et plan
-## d'origine de chaque fenêtre, proportions, liaison, coupes, étages montrés.
+## d'origine de chaque fenêtre, proportions, liaison, coupes, niveaux montrés.
 ## Ni le zoom ni le centre (chaque vue se recadre à l'ouverture d'une carte).
 func state() -> Dictionary:
 	var pl := []

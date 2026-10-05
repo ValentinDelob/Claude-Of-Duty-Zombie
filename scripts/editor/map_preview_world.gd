@@ -18,7 +18,7 @@ extends Node
 ## animation).
 ##
 ## Options : courant rétabli ou coupé, éclairage du jeu ou plein, plafonds
-## masqués (vue de dessus en coupe), étages montrés, surlignage de l'élément
+## masqués (vue de dessus en coupe), niveaux montrés, surlignage de l'élément
 ## choisi ou survolé, sélection par un rayon (pick).
 
 signal rebuilt
@@ -50,7 +50,7 @@ var hide_ceilings := false
 ## Barrières invisibles (format 5) montrées en pavés translucides.
 var show_clips := true
 var floors_mode := Floors.ALL
-## Étage affiché dans la vue 2D (options « jusqu'à » / « seulement »).
+## Niveau affiché dans la vue 2D (options « jusqu'à » / « seulement »).
 var view_floor := 0
 var selected_id := ""
 ## Sélection multiple de l'éditeur (MapGroup) : chaque élément surligné.
@@ -85,9 +85,9 @@ var _hashes: Dictionary = {}    # morceau -> empreinte des données
 ## Faux jeu des objets de jeu (hors de l'arbre) et son registre.
 var _game: Game
 var _interact: InteractionSystem
-## Unités affichables : nœud -> [étage, sorte] (visibilité par étage / plafond).
+## Unités affichables : nœud -> [niveau, sorte] (visibilité par niveau / plafond).
 var _units: Dictionary = {}
-var _floor_sols: Array = [0.0]
+var _level_alts: Array = [0.0]
 ## Temps mesurés (ms) : conversion hors du fil principal, construction sur le
 ## fil principal (somme des étapes), plus longue étape, délai total.
 var last_times := {"thread": 0.0, "apply": 0.0, "step_max": 0.0, "total": 0.0, "parts": []}
@@ -202,8 +202,8 @@ func _join() -> void:
 static func compute(m: EditorMap) -> Dictionary:
 	var t0 := Time.get_ticks_usec()
 	var out := {"data": {}, "errors": 0, "map": m, "sols": [], "ms": 0.0, "shift": Vector2.ZERO}
-	for k in m.floor_count():
-		out.sols.append(m.floor_sol(k))
+	for k in m.level_count():
+		out.sols.append(m.level_alt(k))
 	if m.pieces.is_empty():
 		out.ms = (Time.get_ticks_usec() - t0) / 1000.0
 		return out
@@ -346,7 +346,7 @@ func _prepare(res: Dictionary, hashes: Dictionary) -> void:
 	oz = OFF + (sh as Vector2).y if sh is Vector2 else OFF
 	data = res.get("data", {})
 	errors = int(res.get("errors", 0))
-	_floor_sols = res.get("sols", [0.0])
+	_level_alts = res.get("sols", [0.0])
 	def = _def_of(data, built_map)
 	layout = MeshMapLayout.new(def, data, "") if not data.is_empty() else null
 	_apply_sky()
@@ -426,7 +426,7 @@ func _build_part_now(part: String) -> void:
 	_apply_visibility()
 	if part == "stuff":
 		# Objets ajoutés en différé (tas de planches de la boîte, arrivée du
-		# téléporteur) : rangés par étage à la fin de l'image.
+		# téléporteur) : rangés par niveau à la fin de l'image.
 		(func():
 			if is_instance_valid(holder) and groups.get("stuff") == holder:
 				_classify("stuff", holder)
@@ -513,22 +513,22 @@ func _finish() -> void:
 	rebuilt.emit()
 
 
-# ------------------------------------------------------------------ étages, plafonds, courant, lumière
+# ------------------------------------------------------------------ niveaux, plafonds, courant, lumière
 
-## Étage (index de l'éditeur) d'une hauteur du monde.
-func floor_of_y(y: float) -> int:
+## Niveau (index de l'éditeur) d'une hauteur du monde.
+func level_of_y(y: float) -> int:
 	var k := 0
-	for i in _floor_sols.size():
-		if float(_floor_sols[i]) <= y + 0.05:
+	for i in _level_alts.size():
+		if float(_level_alts[i]) <= y + 0.05:
 			k = i
 	return k
 
 
-func floor_sol(k: int) -> float:
-	return float(_floor_sols[clampi(k, 0, _floor_sols.size() - 1)])
+func level_alt(k: int) -> float:
+	return float(_level_alts[clampi(k, 0, _level_alts.size() - 1)])
 
 
-## Range les nœuds visibles d'un morceau par étage (et repère les plafonds).
+## Range les nœuds visibles d'un morceau par niveau (et repère les plafonds).
 func _classify(part: String, holder: Node3D) -> void:
 	for n in holder.find_children("*", "Node3D", true, false):
 		var kind := ""
@@ -542,7 +542,7 @@ func _classify(part: String, holder: Node3D) -> void:
 			kind = parts[2]
 			if n is MeshInstance3D:
 				var bb := (n as MeshInstance3D).get_aabb()
-				# Sol et dalle : leur dessus ; plafond : l'étage du dessous ;
+				# Sol et dalle : leur dessus ; plafond : le niveau du dessous ;
 				# le reste (murs, escaliers...) : leur pied.
 				match kind:
 					"floor", "slab":
@@ -568,11 +568,11 @@ func _classify(part: String, holder: Node3D) -> void:
 			if n is OmniLight3D:
 				y -= 0.6
 			y += 0.05
-		_units[n] = [floor_of_y(y), kind]
+		_units[n] = [level_of_y(y), kind]
 		if part == "arch" and n is MeshInstance3D:
 			var body := n.get_parent().get_node_or_null(NodePath(String(n.name) + "__col"))
 			if body != null:
-				_units[body] = [floor_of_y(y), kind]
+				_units[body] = [level_of_y(y), kind]
 
 
 func _forget_units(holder: Node) -> void:
@@ -602,7 +602,7 @@ func _apply_visibility() -> void:
 			(n as Node3D).visible = show
 
 
-## Nœud caché (plafond masqué, étage non montré) : les rayons le traversent.
+## Nœud caché (plafond masqué, niveau non montré) : les rayons le traversent.
 func unit_hidden(n: Node) -> bool:
 	var cur := n
 	while cur != null and cur != root3d:
@@ -786,10 +786,10 @@ func element_shape(e: Dictionary) -> Dictionary:
 	return out
 
 
-## Boîte d'un effet en hauteur (m au-dessus du sol de son étage) : son volume
+## Boîte d'un effet en hauteur (m au-dessus du sol de son niveau) : son volume
 ## (MapVertical.effect_span) sous le plafond réel lu dans la description
 ## construite (`d`, clé « effects » : room_h de l'export) ; à défaut, la
-## hauteur `h` de l'étage.
+## hauteur `h` du niveau.
 static func effect_span(e: Dictionary, d: Dictionary, h: float) -> Vector2:
 	var rh := h
 	for fx in d.get("effects", []):
@@ -888,7 +888,7 @@ func pick(px: Vector2) -> String:
 	if hit.is_empty() or doc == null:
 		return ""
 	var p: Vector3 = hit.position
-	var k := floor_of_y(p.y + 0.3)
+	var k := level_of_y(p.y + 0.3)
 	return element_at(Vector2(p.x - ox, p.z - oz), k)
 
 
@@ -913,7 +913,7 @@ func ray(px: Vector2) -> Dictionary:
 
 
 ## Surface touchée par un rayon de direction `dir` que l'utilisateur ne VOIT
-## pas : le clic la traverse. Nœud caché (plafond masqué, étage non montré),
+## pas : le clic la traverse. Nœud caché (plafond masqué, niveau non montré),
 ## maillage visible du morceau caché, ou face simple vue de dos : un plafond
 ## vu d'au-dessus, un sol vu d'en dessous ne sont pas rendus (faces sans
 ## revers, MeshMapGeometry._polygon), mais leur collision les arrête
@@ -969,7 +969,7 @@ func ground_below(p: Vector3) -> Variant:
 	return null
 
 
-## Élément de l'étage `k` au point `m` (comme MapEditor.element_at :
+## Élément du niveau `k` au point `m` (comme MapEditor.element_at :
 ## ouvertures, puis le plus petit objet, puis la pièce).
 func element_at(m: Vector2, k: int) -> String:
 	for o in doc.openings_on(k):

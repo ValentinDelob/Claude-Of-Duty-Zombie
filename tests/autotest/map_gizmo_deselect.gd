@@ -314,7 +314,7 @@ func _after_gesture() -> void:
 	ed.set_floor(0)
 	ed.undo()
 	await frames(2)
-	at.check(ed.doc.floor_count() == 1, "étage ajouté retiré (Ctrl+Z)")
+	at.check(ed.doc.level_count() == 1, "étage ajouté retiré (Ctrl+Z)")
 
 	# 12. Élément retiré par Claude.
 	await _pick("d92")

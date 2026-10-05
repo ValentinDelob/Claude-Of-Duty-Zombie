@@ -2,7 +2,7 @@ class_name MapValidator
 extends RefCounted
 ## Validateur des cartes de l'éditeur (docs/MAP_AUTHORING.md). MapRaster
 ## convertit la carte (pièces, ouvertures, objets) en une grille de cases de
-## 0,5 m par étage ; ce script la VÉRIFIE (erreurs pointées par leur position
+## 0,5 m par niveau ; ce script la VÉRIFIE (erreurs pointées par leur position
 ## en mètres, indicateurs d'amusement inspirés de BO1) ; MapLayoutExport en
 ## tire la description de carte en maillage (format de MeshMapLayout) que le
 ## jeu construit en 3D (MeshMapGeometry).
@@ -14,7 +14,7 @@ extends RefCounted
 ## les cours derrière les fenêtres du bord.
 const ORIGIN := 4.0
 const SCALE := 0.5
-## Épaisseur des planchers d'étage (m).
+## Épaisseur des planchers de niveau (m).
 const DALLE := 0.3
 const DOOR_HEIGHT := 2.5
 ## Cour des zombies derrière une fenêtre (cases) : profondeur, largeur.
@@ -71,7 +71,7 @@ const ENTRIES := {
 class Floor:
 	var index := 0
 	var sol := 0.0
-	## Plafond du dernier étage (m), -1 sinon.
+	## Plafond du dernier niveau (m), -1 sinon.
 	var plafond := -1.0
 	var w := 0
 	var h := 0
@@ -79,7 +79,7 @@ class Floor:
 	var key := PackedStringArray()
 	## Zone de chaque case praticable ("" sinon).
 	var zone := PackedStringArray()
-	## Plafond propre à la case (pièce à hauteur réglée), 0 : celui de l'étage.
+	## Plafond propre à la case (pièce à hauteur réglée), 0 : celui du niveau.
 	@warning_ignore("shadowed_global_identifier")
 	var ceil := PackedFloat64Array()
 	## Pièce de l'éditeur de chaque case de sol ("" sinon) : textures par pièce.
@@ -176,12 +176,12 @@ var lamps_auto := true
 var open_sky: Array = []
 ## Ciel de la carte (EditorMap.sky_of : {type, luminosite}).
 var sky: Dictionary = {"type": "noir", "luminosite": 1.0}
-## Murs en biais (MapRaster), par étage : [{a, b (m, repère de l'éditeur),
+## Murs en biais (MapRaster), par niveau : [{a, b (m, repère de l'éditeur),
 ## t (direction), n (normale), half (demi-épaisseur, m), pos, neg (pièce du
 ## côté +n / -n, "" : dehors), kind ("piece" : côté de pièce, "mur" : mur libre)}].
 var oblique_walls: Array = []
 ## Cases des murs en biais qui ne sont pas aussi celles d'un mur droit, par
-## étage ({Vector2i: true}) : le jeu les construit en vrais murs obliques.
+## niveau ({Vector2i: true}) : le jeu les construit en vrais murs obliques.
 var diag_cells: Array = []
 ## Ouvertures sur un mur en biais : clé de case -> {p (m), t, n, w (m), half, type, eid}.
 var diag_open: Dictionary = {}
@@ -189,7 +189,7 @@ var diag_open: Dictionary = {}
 var diag_items: Dictionary = {}
 ## Format 15 : boîtes mystère posées au sol : clé -> {center (m), rot (degrés), eid}.
 var floor_boxes: Dictionary = {}
-## Pièces par étage : [{id, poly (m), zone, ceil (m, absolu)}] (sols des murs en biais).
+## Pièces par niveau : [{id, poly (m), zone, ceil (m, absolu)}] (sols des murs en biais).
 var room_polys: Array = []
 ## Escaliers tournés ou hors de la grille (MapRaster) : clé de case ->
 ## {center (m), size (m, contour sur le trait, avant rotation), rot (degrés),
@@ -199,7 +199,7 @@ var diag_stairs: Dictionary = {}
 ## clé de case -> {kind?, turn?, steps?, rail?, closed?} (vide : droit d'avant).
 var stair_opts: Dictionary = {}
 ## Sens de montée tracé (« monte ») de chaque escalier de la grille : clé de
-## case -> Vector2i. Il départage les escaliers d'un immeuble où chaque étage
+## case -> Vector2i. Il départage les escaliers d'un immeuble où chaque niveau
 ## couvre celui du dessous (du sol aux deux bouts, en bas comme en haut).
 var stair_up: Dictionary = {}
 ## Format 17 : niveau d'arrivée de chaque escalier (clé de case -> indice de
@@ -244,15 +244,15 @@ var start_points: Array = []   # [floor, Vector2 (cases)]
 ## Graphe des zones : {a, b, kind ("porte", "debris", "ouvert", "escalier"), cost, power, door}
 var zone_edges: Array = []
 var zones: Array = []   # lettres présentes, triées
-## Cases praticables par étage atteintes depuis le départ (portes ouvertes).
+## Cases praticables par niveau atteintes depuis le départ (portes ouvertes).
 var reach: Array = []
 ## Distance à pied (m) de chaque case praticable à la fenêtre la plus proche.
 var window_dist: Array = []
 ## Liens ouverts entre zones (transitifs) : zone -> [zones]
 var open_links: Dictionary = {}
-var _stair_at: Array = []   # par étage : {Vector2i: index d'escalier}
+var _stair_at: Array = []   # par niveau : {Vector2i: index d'escalier}
 var _up_links: Dictionary = {}   # "k:x:y" -> [[k_bas, Vector2i]]
-var _obstacles: Array = []   # par étage : {Vector2i: true} emprise des objets pleins
+var _obstacles: Array = []   # par niveau : {Vector2i: true} emprise des objets pleins
 var _analyzed := false
 
 
@@ -671,7 +671,7 @@ func _stairs() -> void:
 		_stair_covered(w, k, kt, b.cells)
 		var lower := _uniform_zone(f, _side(r, -d))
 		var upper := _uniform_zone(up, _side(r, d))
-		# Pied (sol de l'étage), palier (étage du dessus) et passages du haut
+		# Pied (sol du niveau), palier (niveau du dessus) et passages du haut
 		# (marche -> case du palier) : communs aux escaliers droits et tournés.
 		var foot := {}
 		for c in _side(r, -d):
@@ -689,7 +689,7 @@ func _stairs() -> void:
 		_stair_headroom(w, st)
 
 
-## Ce qui occupe la case `c` de l'étage `f` (messages des escaliers) : [fr, en].
+## Ce qui occupe la case `c` du niveau `f` (messages des escaliers) : [fr, en].
 func _cell_what(f: Floor, c: Vector2i) -> Array:
 	var key := f.key_at(c)
 	var lv := _lv(f.index)
@@ -715,8 +715,8 @@ func _cell_what(f: Floor, c: Vector2i) -> Array:
 	return ["un obstacle", "an obstacle"]
 
 
-## Bout d'un escalier (`top` : arrivée à l'étage du dessus, sinon départ au
-## pied) : chaque case doit être du sol libre de l'étage `f`. Sinon un message
+## Bout d'un escalier (`top` : arrivée au niveau du dessus, sinon départ au
+## pied) : chaque case doit être du sol libre du niveau `f`. Sinon un message
 ## précis (quoi, où) et les cases fautives en rouge ; `hint` : [fr, en] ajouté ;
 ## `nm` : nom de l'escalier [fr, en] (son type, pour un L, un U, un colimaçon).
 func _stair_end_ok(w: Array, k: int, f: Floor, cells: Array, top: bool, hint: Array = [], nm: Array = ["escalier", "stairs"]) -> bool:
@@ -887,8 +887,8 @@ func _stair_need(key: String, width: float, rise: float, from_length: float) -> 
 ## Escalier en L, en U ou en colimaçon (MapRaster : diag_stairs « shaped ») :
 ## sens de montée donné par « monte », sortie là où StairGen la place (sur
 ## le côté du virage pour le L, à côté du pied pour le U, en face pour le
-## colimaçon). Pied : cases de sol de l'étage devant le bord du pied ; palier :
-## cases de sol de l'étage du dessus au-delà du bord de sortie.
+## colimaçon). Pied : cases de sol du niveau devant le bord du pied ; palier :
+## cases de sol du niveau du dessus au-delà du bord de sortie.
 func _shaped_stair(b: Dictionary) -> void:
 	var info: Dictionary = diag_stairs[b.key]
 	var k: int = b.floor
@@ -994,8 +994,8 @@ func _add_stair(st: Dictionary) -> void:
 
 ## Escalier TOURNÉ ou hors de la grille (MapRaster : diag_stairs) : mêmes
 ## règles qu'un escalier droit, dans son propre repère. Pied : cases de sol de
-## l'étage qui touchent les premières marches ; palier : cases de sol de
-## l'étage du dessus qui touchent les dernières ; largeur utile et pente tirées
+## le niveau qui touchent les premières marches ; palier : cases de sol de
+## le niveau du dessus qui touchent les dernières ; largeur utile et pente tirées
 ## du vrai rectangle (contour sur le trait, marches 0,25 m en retrait).
 func _diag_stair(b: Dictionary) -> void:
 	var info: Dictionary = diag_stairs[b.key]
@@ -1070,7 +1070,7 @@ func _diag_stair(b: Dictionary) -> void:
 
 
 func _openings() -> void:
-	var pockets := {}   # étage -> {case: fenêtre}
+	var pockets := {}   # niveau -> {case: fenêtre}
 	for b in blobs:
 		if not b.kind in [K.PORTE, K.DEBRIS, K.FENETRE]:
 			continue
@@ -1170,7 +1170,7 @@ func _openings() -> void:
 			else:
 				_msg("erreur", "%s en %s : elle doit être sur le mur commun de deux pièces collées (mur aux deux bouts, sol de chaque côté)" % [what[0], w[0]],
 					"%s at %s: it must be on the shared wall of two touching rooms (wall at both ends, floor on each side)" % [what[1], w[1]], k, b.cells)
-	# Identifiants stables : ordre de lecture (étage, ligne, colonne).
+	# Identifiants stables : ordre de lecture (niveau, ligne, colonne).
 	doors.sort_custom(func(a, b): return [a.floor, a.rect.position.y, a.rect.position.x] < [b.floor, b.rect.position.y, b.rect.position.x])
 	for i in doors.size():
 		doors[i]["id"] = str(i + 1)
@@ -1705,7 +1705,7 @@ func _groups(cells: Array) -> Array:
 
 # --------------------------------------------------------------------- graphe
 
-## Cases voisines praticables : même étage, escaliers par leurs deux bouts.
+## Cases voisines praticables : même niveau, escaliers par leurs deux bouts.
 ## `doors_open` : les portes et débris se traversent.
 func _neighbors(k: int, c: Vector2i, doors_open: bool) -> Array:
 	var f := floors[k]
@@ -1733,7 +1733,7 @@ func _neighbors(k: int, c: Vector2i, doors_open: bool) -> Array:
 		if st_here >= 0 and st_n == st_here:
 			out.append([k, n])
 		elif st_here >= 0:
-			# Du pied de l'escalier vers le sol de l'étage.
+			# Du pied de l'escalier vers le sol du niveau.
 			if stairs[st_here].foot.has(n):
 				out.append([k, n])
 		elif st_n >= 0:
@@ -1862,7 +1862,7 @@ func _connectivity() -> void:
 	# barrière mince) : un avertissement, pas une erreur qui rendrait la
 	# carte injouable (ni une zone « coupée en morceaux » ci-dessous).
 	var islands := {}
-	var shut_boxes := []   # [étage, cases] des boîtes enfermées
+	var shut_boxes := []   # [niveau, cases] des boîtes enfermées
 	for k in lost:
 		var f := floors[k]
 		var rest := []
@@ -2357,7 +2357,7 @@ func _fun_spawns() -> void:
 
 # --------------------------------------------------------------------- repères
 
-## Position monde (m, sol de l'étage) d'un point de la grille (en cases, bords).
+## Position monde (m, sol du niveau) d'un point de la grille (en cases, bords).
 func _world(k: int, p: Vector2) -> Vector3:
 	return Vector3(ORIGIN + p.x * scale, floors[k].sol, ORIGIN + p.y * scale)
 

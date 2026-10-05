@@ -2,7 +2,7 @@ class_name MapGroup
 extends RefCounted
 ## SÉLECTION MULTIPLE de l'éditeur de cartes (docs/MAP_AUTHORING.md, § 2,
 ## « Sélection multiple et groupes ») : les actions sur plusieurs éléments à
-## la fois — déplacer (aussi d'étage, dans les élévations), pivoter autour du
+## la fois — déplacer (aussi de niveau, dans les élévations), pivoter autour du
 ## centre du groupe, supprimer, copier / coller, dupliquer — et le choix par
 ## rectangle.
 ##
@@ -371,7 +371,7 @@ static func paste(ed: MapEditor, items: Array, at: Vector2) -> Dictionary:
 	return place_copies(ed, items, delta, ed.view_alt() - a0)
 
 
-## Duplique les éléments `ids` à côté d'eux (même étage) : à droite (est),
+## Duplique les éléments `ids` à côté d'eux (même niveau) : à droite (est),
 ## sinon dessous (sud), à gauche, dessus, sinon d'un pas en diagonale ; la
 ## première place où tout tient. -> {ok, ids, dir: [fr, en]} ou le refus
 ## de la dernière place essayée.
@@ -413,7 +413,7 @@ static func outline_m(doc: EditorMap, e: Dictionary) -> PackedVector2Array:
 	return MapGeom.rect_poly(rect_m(doc, e))
 
 
-## Éléments de l'étage `k` pris par le rectangle `r` (m) : ENTIÈREMENT dedans
+## Éléments du niveau `k` pris par le rectangle `r` (m) : ENTIÈREMENT dedans
 ## (`crossing` faux : rectangle tracé de gauche à droite) ou seulement
 ## TOUCHÉS (`crossing` vrai : de droite à gauche), comme dans les logiciels de
 ## CAO. Ouvertures, puis objets, puis pièces.

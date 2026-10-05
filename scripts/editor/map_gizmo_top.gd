@@ -36,7 +36,7 @@ func u(v: float) -> float:
 	return EditorUi.px(v)
 
 
-## Décor choisi seul, à l'étage affiché, outil Sélection ({} sinon).
+## Décor choisi seul, au niveau affiché, outil Sélection ({} sinon).
 func target() -> Dictionary:
 	if cv.offscreen or ed().tool() != "select" or ed().group.size() >= 2:
 		return {}

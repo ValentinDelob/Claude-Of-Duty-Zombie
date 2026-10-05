@@ -385,5 +385,12 @@ translation : mêmes messages, export identique, monde ≥ 0) + NetCodec ;
   technique `MapVertical.TECH_Z` (comme les autres hauteurs à l'étape 5).
 - Captures de revue retirées (`map_sky_look`, `stairs_top_wall_look`,
   `map_levels_look`) : étapes 2, 4 et 5 validées.
-- Reste : retrait des alias `floor_count` / `floor_sol` et en-tête du format
-  dans `editor_map.gd` (après la fusion de la branche de performance).
+- Branche de performance fusionnée (niveaux figés pendant la grille, le
+  dessin, les élévations et la liste ; cases des pièces gardées ; lots de
+  MapRules). Les mémoires indexées par niveau (`MapEditor.elevation_items`,
+  `MapRules._stair_floor_base` pendant un tracé) comparent aussi la liste des
+  niveaux : un niveau vide ajouté ou retiré décale les indices sans changer
+  la version de la carte.
+- Alias `floor_count` / `floor_sol` retirés (`level_count` / `level_alt`),
+  commentaires du code dits en niveaux (les anciens formats gardent « étage »),
+  en-tête du format 17 de `editor_map.gd` complet.

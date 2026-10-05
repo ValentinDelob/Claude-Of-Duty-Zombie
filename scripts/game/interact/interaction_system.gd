@@ -9,14 +9,14 @@ extends Node
 
 const MAX_SERVER_DISTANCE := 3.5
 ## Écart de hauteur (m) au plus entre les pieds du joueur et le sol de l'objet
-## (Interactable.level_y) : on n'utilise un objet que depuis son étage, comme
+## (Interactable.level_y) : on n'utilise un objet que depuis son niveau, comme
 ## une fenêtre se répare (Barricade.REPAIR_HEIGHT) ; une marche d'escalier
-## ou un saut passent, l'étage du dessous ou du dessus (2 m et plus) jamais.
+## ou un saut passent, le niveau du dessous ou du dessus (2 m et plus) jamais.
 const LEVEL_HEIGHT := 1.2
 ## Depuis un escalier, l'écart permis croît avec la distance à plat : pente
 ## d'escalier la plus forte permise (40°, MapValidator.MAX_STAIR_SLOPE :
 ## tan 40° ≈ 0,84) × distance + marge, borné sous la plus petite hauteur
-## d'étage (hauteur sous plafond >= 2 m, plus la dalle). Portes de KINO en haut
+## de niveau (hauteur sous plafond >= 2 m, plus la dalle). Portes de KINO en haut
 ## d'escaliers raides (« 3 » de la ruelle, « 5 » de la cage des coulisses) :
 ## à 2 m sur les marches, 1,45 m plus bas ; coéquipier à terre sur les marches.
 const STAIR_GRADE := 0.84
@@ -125,7 +125,7 @@ func pick_focus(eye: Vector3, fwd: Vector3, pid: int, pd: PlayerData, feet_y := 
 		var d := to.length()
 		if d > obj.interact_range + 0.6:
 			continue
-		# Seulement depuis l'étage de l'objet (jamais par-dessous ni par-dessus).
+		# Seulement depuis le niveau de l'objet (jamais par-dessous ni par-dessus).
 		var ip := obj.interact_point()
 		var flat := Vector2(ip.x - eye.x, ip.z - eye.z).length()
 		if not same_level(feet, obj.level_y(), flat):
@@ -176,7 +176,7 @@ func srv_interact(id: String) -> void:
 	if not in_reach(p.srv_origin(), obj.srv_point(), obj.interact_range):
 		print("[Interact] %d trop loin de %s" % [pid, id])
 		return
-	# Même étage que l'objet (jamais depuis l'étage du dessous ou du dessus).
+	# Même niveau que l'objet (jamais depuis le niveau du dessous ou du dessus).
 	# Depuis un escalier, l'écart croît avec la distance à plat (level_gap).
 	var ref := p.srv_origin()
 	var sp := obj.srv_point()
@@ -206,7 +206,7 @@ static func in_reach(ref: Vector3, point: Vector3, interact_range: float) -> boo
 	return ref.distance_to(point) <= interact_range + MAX_SERVER_DISTANCE
 
 
-## Règle pure : pieds du joueur à l'altitude `feet_y` au même étage qu'un
+## Règle pure : pieds du joueur à l'altitude `feet_y` au même niveau qu'un
 ## objet dont le sol est à `level_y`, à `flat` m à plat de lui : LEVEL_HEIGHT,
 ## ou l'écart d'un escalier jusqu'à l'objet (level_gap).
 static func same_level(feet_y: float, level_y: float, flat := 0.0) -> bool:
@@ -220,7 +220,7 @@ static func level_gap(flat: float) -> float:
 
 ## Plus haut ou plus bas que LEVEL_HEIGHT (depuis un escalier) : la ligne de
 ## vue de l'œil `eye` vers `point` (couche du monde) doit passer, jusqu'à
-## STAIR_SIGHT_STOP avant l'objet ; une dalle d'étage la coupe. Sinon : vrai.
+## STAIR_SIGHT_STOP avant l'objet ; une dalle de niveau la coupe. Sinon : vrai.
 static func stair_sight_ok(obj: Interactable, feet_y: float, eye: Vector3, point: Vector3) -> bool:
 	if absf(feet_y - obj.level_y()) <= LEVEL_HEIGHT or not obj.is_inside_tree():
 		return true

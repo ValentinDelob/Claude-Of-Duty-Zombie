@@ -307,7 +307,7 @@ func frame_all() -> void:
 
 # ------------------------------------------------------------------ en-tête (MapViewPane)
 
-## Texte de l'en-tête après le nom du plan (étage, sens du regard, étages montrés).
+## Texte de l'en-tête après le nom du plan (niveau, sens du regard, niveaux montrés).
 func header_sub() -> String:
 	return ""
 

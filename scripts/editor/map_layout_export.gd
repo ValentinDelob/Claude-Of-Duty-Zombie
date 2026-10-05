@@ -4,7 +4,7 @@ extends RefCounted
 ## (MapValidator) : même format que assets/maps/kino/layout.json, lu par
 ## MeshMapLayout (jeu) et construit par MeshMapGeometry (ou, pour les cartes
 ## faites dans Blender, tools/blender/mesh_map.py). Salles (sols, plafonds,
-## dalles d'étage), blocs (murs, allèges, linteaux, décor), garde-corps,
+## dalles de niveau), blocs (murs, allèges, linteaux, décor), garde-corps,
 ## escaliers (rampe de collision), zones, marqueurs (objets muraux donnés par
 ## la face du mur et la direction du mur).
 
@@ -31,12 +31,12 @@ var nav_blocks: Array = []
 ## intensity, zone [largeur, profondeur, hauteur] (m), color, eid}]
 ## (MapEffects ; aucune collision). « ground » : distance (m) de l'effet au sol.
 var effects: Array = []
-var zone_boxes: Array = []   # [étage, volume, zone, boîte]
+var zone_boxes: Array = []   # [niveau, volume, zone, boîte]
 ## Boîtes de zone des morceaux de sol le long des murs obliques : testées après
 ## celles des salles de la grille (une boîte englobante déborde un peu du mur).
 var filler_boxes: Array = []
-var ref_room: Dictionary = {}   # étage -> id d'une salle (hauteur de sol des murs)
-var door_of: Array = []   # par étage : {Vector2i: porte}
+var ref_room: Dictionary = {}   # niveau -> id d'une salle (hauteur de sol des murs)
+var door_of: Array = []   # par niveau : {Vector2i: porte}
 
 
 static func build(v: MapValidator) -> Dictionary:
@@ -53,7 +53,7 @@ func wx(px: float) -> float:
 	return _r(MapValidator.ORIGIN + px * S)
 
 
-## Haut de l'étage, plafond réel d'une case, haut des murs : MapVertical
+## Haut du niveau, plafond réel d'une case, haut des murs : MapVertical
 ## (partagé avec les élévations de l'éditeur).
 func top(k: int) -> float:
 	return MapVertical.top(md, k)
@@ -142,7 +142,7 @@ func _build() -> Dictionary:
 	_stairs()
 	var markers := _markers()
 	_pockets()
-	# Zones : boîtes des salles ; étages hauts d'abord, puis les plus petites.
+	# Zones : boîtes des salles ; niveaux hauts d'abord, puis les plus petites.
 	zone_boxes.sort_custom(func(a, b): return a[0] > b[0] if a[0] != b[0] else a[1] < b[1])
 	filler_boxes.sort_custom(func(a, b): return a[0] > b[0] if a[0] != b[0] else a[1] < b[1])
 	zone_boxes.append_array(filler_boxes)
@@ -185,12 +185,12 @@ func surface_of(room_id: String, part: String, zone: String, fallback: String) -
 	return String(zm.get(zone, fallback))
 
 
-## Écart (m) entre le plafond d'une pièce et le dessous de la dalle de l'étage
+## Écart (m) entre le plafond d'une pièce et le dessous de la dalle du niveau
 ## du dessus : assez pour éviter le z-fighting, invisible au joueur.
 const UNDER_SLAB := 0.01
 
 
-## Plafond d'une pièce sous une pièce (ou un mur) de l'étage du dessus : juste
+## Plafond d'une pièce sous une pièce (ou un mur) du niveau du dessus : juste
 ## sous le dessous de la dalle `slab_bottom`. Toujours dessiné, avec la
 ## texture de plafond de la pièce du bas (même par défaut) : sans lui, on
 ## voyait d'en bas le dessous de la dalle, qui porte la texture du SOL de la
@@ -441,7 +441,7 @@ func _walls(f: MapValidator.Floor) -> void:
 
 # ------------------------------------------------------------------ murs en biais
 
-## Cases des murs en biais de l'étage k ({Vector2i: true}).
+## Cases des murs en biais du niveau k ({Vector2i: true}).
 func _diag(k: int) -> Dictionary:
 	return md.diag_cells[k] if k < md.diag_cells.size() else {}
 
@@ -521,7 +521,7 @@ func _oblique_mat(rid: String) -> String:
 	return surface_of(rid, "murs", String(md.room_zone.get(rid, "")), "wall")
 
 
-## Murs en biais de l'étage : de vrais murs droits obliques (MeshMapGeometry),
+## Murs en biais du niveau : de vrais murs droits obliques (MeshMapGeometry),
 ## coupés par tronçons de même hauteur (étage du dessus, double hauteur) et
 ## percés de leurs ouvertures (portes, débris, passages, fenêtres) ; chaque
 ## face a la texture de la pièce de son côté. Aux angles entre murs en biais,
@@ -684,7 +684,7 @@ func _decor() -> void:
 		blocks.append({"room": ref_room.get(d.floor, "x"), "box": [a[0], _r(sol), a[1], b[0], _r(sol + float(d.h)), b[1]], "mat": String(d.mat)})
 
 
-## Point du monde d'un point de l'éditeur (m) à l'étage k, `dy` au-dessus du sol.
+## Point du monde d'un point de l'éditeur (m) au niveau k, `dy` au-dessus du sol.
 func _world(k: int, m: Vector2, dy := 0.0) -> Vector3:
 	return Vector3(_r(m.x + MapGeom.WORLD_OFFSET), _r(md.floors[k].sol + dy), _r(m.y + MapGeom.WORLD_OFFSET))
 
@@ -945,7 +945,7 @@ func _effects() -> void:
 
 ## Barrières invisibles : une collision chacune, sur la couche BARRIER
 ## (joueurs et zombies arrêtés, navmesh cuit autour ; balles et grenades
-## passent), du sol jusqu'au plafond de l'étage (ou sa hauteur), JAMAIS de
+## passent), du sol jusqu'au plafond du niveau (ou sa hauteur), JAMAIS de
 ## maillage en jeu. Format 9 : « poly » = les sommets du polygone en x, z
 ## autour de « center » (CollisionBox en fait un prisme, une forme convexe par
 ## morceau) ; « size » = son rectangle englobant et la hauteur. « clip » et
@@ -958,7 +958,7 @@ func _clips() -> void:
 		var h := float(cl.h)
 		if h <= 0.0:
 			# Jusqu'au plafond réel de la pièce (au milieu de la barrière), plus
-			# le haut de l'étage (docs/EDITOR_VIEWS.md § 1.2 : incohérence corrigée).
+			# le haut du niveau (docs/EDITOR_VIEWS.md § 1.2 : incohérence corrigée).
 			var cc: Vector2 = cl.center
 			h = maxf(float(ceil_at(k, Vector2i(floori(cc.x / MapGeom.CELL), floori(cc.y / MapGeom.CELL)))[0]) - sol, 2.0)
 		var sz: Vector2 = cl.size
@@ -970,7 +970,7 @@ func _clips() -> void:
 			"yaw": 0.0, "poly": local, "barrier": true, "surface": "concrete", "clip": true, "eid": String(cl.eid)})
 
 
-## Garde-corps : bord d'un plancher d'étage sur un vide (sauf en haut d'escalier).
+## Garde-corps : bord d'un plancher de niveau sur un vide (sauf en haut d'escalier).
 func _rails(f: MapValidator.Floor) -> void:
 	var k := f.index
 	if k == 0:
@@ -1275,7 +1275,7 @@ func _fixture(l: Dictionary) -> Dictionary:
 	return e
 
 
-## Lampes : une grille de 6 m par zone et par étage, sous le plafond.
+## Lampes : une grille de 6 m par zone et par niveau, sous le plafond.
 func _lamps() -> Array:
 	var out := []
 	var step := roundi(6.0 / S)

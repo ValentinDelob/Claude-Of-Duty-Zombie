@@ -243,7 +243,7 @@ func _process(delta: float) -> void:
 				var flat := p.global_position - global_position
 				var dy := absf(flat.y)
 				flat.y = 0.0
-				# Tolérance verticale : pas de voyageur à l'étage du dessus.
+				# Tolérance verticale : pas de voyageur au niveau du dessus.
 				if pd and pd.life == PlayerData.Life.ALIVE and flat.length() <= PAD_RADIUS and dy < 1.5:
 					_travellers.append(p.peer_id)
 			if _travellers.is_empty():

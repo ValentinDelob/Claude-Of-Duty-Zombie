@@ -47,7 +47,7 @@ func run() -> void:
 
 ## Point du monde au-dessus de (x, y) de l'éditeur, au sol de l'étage k.
 func world(x: float, y: float, k: int) -> Vector3:
-	return Vector3(x + OFF, doc.floor_sol(k), y + OFF)
+	return Vector3(x + OFF, doc.level_alt(k), y + OFF)
 
 
 ## Chemin à pied du rez-de-chaussée au dernier étage : pied puis haut de
@@ -96,8 +96,8 @@ func climb() -> void:
 	for step: Array in up:
 		var ok := await walk(step[0], 15.0)
 		var k: int = step[1]
-		at.check(ok and absf(p.global_position.y - doc.floor_sol(k)) < 0.35,
-			"montée : étage %d atteint en %s (y %.2f, attendu %.2f)" % [k, step[0], p.global_position.y, doc.floor_sol(k)])
+		at.check(ok and absf(p.global_position.y - doc.level_alt(k)) < 0.35,
+			"montée : étage %d atteint en %s (y %.2f, attendu %.2f)" % [k, step[0], p.global_position.y, doc.level_alt(k)])
 	var down := up.duplicate()
 	down.reverse()
 	for i in down.size():
@@ -105,8 +105,8 @@ func climb() -> void:
 		var step: Array = down[i]
 		var k: int = step[1]
 		var ok := await walk(step[0], 15.0)
-		at.check(ok and absf(p.global_position.y - doc.floor_sol(k)) < 0.35,
-			"descente : étage %d atteint en %s (y %.2f, attendu %.2f)" % [k, step[0], p.global_position.y, doc.floor_sol(k)])
+		at.check(ok and absf(p.global_position.y - doc.level_alt(k)) < 0.35,
+			"descente : étage %d atteint en %s (y %.2f, attendu %.2f)" % [k, step[0], p.global_position.y, doc.level_alt(k)])
 	at.check(absf(p.global_position.y) < 0.35, "revenu au rez-de-chaussée (y %.2f)" % p.global_position.y)
 
 
@@ -125,7 +125,7 @@ func follow(up: bool) -> void:
 	var ok: bool = await until(func():
 		if is_instance_valid(z):
 			for k in Floors.FLOORS:
-				if absf(z.global_position.y - doc.floor_sol(k)) < 0.3:
+				if absf(z.global_position.y - doc.level_alt(k)) < 0.3:
 					floors_seen[k] = true
 		return is_instance_valid(z) and z.global_position.distance_to(p.global_position) < 2.5, 90.0,
 		"zombie %s" % ("monté au 5e étage" if up else "descendu au rez-de-chaussée"))

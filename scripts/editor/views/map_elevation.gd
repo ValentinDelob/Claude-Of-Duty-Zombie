@@ -1,7 +1,7 @@
 class_name MapElevation
 extends MapView
 ## Élévation de l'éditeur de cartes (docs/EDITOR_VIEWS.md, § 3.2) : vue de
-## côté (Avant, Arrière, Gauche, Droite) ou de dessous. Tous les étages
+## côté (Avant, Arrière, Gauche, Droite) ou de dessous. Tous les niveaux
 ## empilés, chaque élément projeté à sa vraie hauteur (MapElevationItems),
 ## dessinés du plus lointain au plus proche, les lointains estompés ; coupe
 ## facultative (tranche de profondeur) ; lignes et étiquettes de niveau ;
@@ -12,7 +12,7 @@ extends MapView
 ## fois par plan ; les boîtes de même rectangle à l'écran ne sont dessinées
 ## qu'une fois (la plus proche). Trois couches : la grille (la vue), le
 ## CONTENU (couche `_layer`, redessinée seulement quand la carte, le zoom,
-## la coupe ou l'étage changent ; un déplacement de la vue la décale sans la
+## la coupe ou le niveau changent ; un déplacement de la vue la décale sans la
 ## redessiner) et le DESSUS (`_over` : sélection, survol, règles, étiquettes
 ## de niveau, curseur ; redessiné au mouvement de la souris).
 
@@ -25,7 +25,7 @@ const COL_GROUND := Color(230 / 255.0, 128 / 255.0, 77 / 255.0)
 const COL_STAIRS := Color(140 / 255.0, 90 / 255.0, 165 / 255.0)
 const COL_CLIP := Color(0.63, 0.42, 1.0)
 const COL_SLAB := Color(200 / 255.0, 200 / 255.0, 210 / 255.0)
-## Étages montrés (en-tête « étages : ») : tous, jusqu'à l'étage courant, l'étage courant.
+## Niveaux montrés (en-tête « niveaux : ») : tous, jusqu'au niveau courant, le niveau courant.
 enum Floors { ALL, UP_TO, ONLY }
 ## Estompage hors de la coupe (§ 3.2).
 const OUT_OF_CUT := 0.15
@@ -48,7 +48,7 @@ var content_draws := 0
 
 var _proj_key := ""
 ## Éléments projetés, du plus lointain au plus proche : {it, k (type de
-## boîte), f (étage), u0, u1, v0, v1 (m, écran), near, lo, hi (étendue sur
+## boîte), f (niveau), u0, u1, v0, v1 (m, écran), near, lo, hi (étendue sur
 ## l'axe de la profondeur), area, ab (opacité selon la profondeur), dup
 ## (même rectangle qu'une boîte plus proche : pas dessinée), poly (Dessous)}.
 var _proj: Array = []
@@ -227,7 +227,7 @@ func projected() -> Array:
 	return _proj
 
 
-## Étage montré (réglage « étages : ») ?
+## Niveau montré (réglage « niveaux : ») ?
 func floor_shown(k: int) -> bool:
 	match floors_mode:
 		Floors.UP_TO:
@@ -245,7 +245,7 @@ func in_cut(e: Dictionary) -> bool:
 
 
 ## Opacité d'un élément projeté : de 100 % (le plus proche) à 38 % (le plus
-## lointain), un peu moins sur un autre étage, 15 % hors de la coupe.
+## lointain), un peu moins sur un autre niveau, 15 % hors de la coupe.
 func alpha_of(e: Dictionary) -> float:
 	if not in_cut(e):
 		return OUT_OF_CUT
@@ -264,7 +264,7 @@ func rect_px(e: Dictionary) -> Rect2:
 
 # ------------------------------------------------------------------ cadrage
 
-## Cadre toute la carte (largeur sur l'axe de l'écran, hauteur de tous les étages).
+## Cadre toute la carte (largeur sur l'axe de l'écran, hauteur de tous les niveaux).
 func frame_all() -> void:
 	var u0 := INF
 	var u1 := -INF
@@ -291,7 +291,7 @@ func frame_all() -> void:
 # ------------------------------------------------------------------ choix
 
 ## Élément sous le point `m` (uv, m) : ouvertures, puis le plus petit objet,
-## puis la pièce la plus proche ; hors de la coupe ou d'un étage masqué : rien.
+## puis la pièce la plus proche ; hors de la coupe ou d'un niveau masqué : rien.
 func element_at(m: Vector2) -> Dictionary:
 	var best := {}
 	var best_area := INF
@@ -303,7 +303,7 @@ func element_at(m: Vector2) -> Dictionary:
 		var e: Dictionary = list[i]
 		if not floor_shown(int(e.f)) or not in_cut(e):
 			continue
-		# De dessous, seul l'étage courant est dessiné (_draw_below) : seul lui se choisit.
+		# De dessous, seul le niveau courant est dessiné (_draw_below) : seul lui se choisit.
 		if plane == "dessous" and (int(e.f) != ed.floor_k or not e.has("poly")):
 			continue
 		var r := Rect2(float(e.u0), float(e.v0), float(e.u1) - float(e.u0), float(e.v1) - float(e.v0)).grow(tol)
@@ -321,7 +321,7 @@ func element_at(m: Vector2) -> Dictionary:
 				if float(e.area) < best_area:
 					best_area = float(e.area)
 					best = e.it
-	# Pièces : la plus proche, sauf une pièce d'un autre étage dans son volume
+	# Pièces : la plus proche, sauf une pièce d'un autre niveau dans son volume
 	# (la passerelle dans l'entrepôt en double hauteur).
 	var best_room := {}
 	if not rooms.is_empty():
@@ -444,7 +444,7 @@ func _draw_content() -> void:
 	content_draws += 1
 	var c: CanvasItem = _layer
 	var font := UiStyle.font("body")
-	# Niveaux figés pendant la projection et le dessin (level_of, floor_sol).
+	# Niveaux figés pendant la projection et le dessin (level_of, level_alt).
 	ed.doc.freeze_levels()
 	var list := projected()
 	var area := Rect2(-size, size * 3.0)
@@ -495,7 +495,7 @@ func _draw_side(c: CanvasItem, _list: Array, font: Font, area: Rect2) -> void:
 	var k_cur := ed.floor_k
 	var cut := coupe.size() == 2
 	var shown := []
-	for i in doc.floor_count():
+	for i in doc.level_count():
 		shown.append(floor_shown(i))
 	# Pièces.
 	for e in _rooms:
@@ -511,10 +511,10 @@ func _draw_side(c: CanvasItem, _list: Array, font: Font, area: Rect2) -> void:
 		var r := rect_px(e)
 		if r.grow(16.0).intersects(area):
 			_draw_item(c, e, r, _alpha(e, k_cur, cut))
-	# Lignes de niveau : sols (pleins), plafonds d'étage (tirets).
+	# Lignes de niveau : sols (pleins), plafonds de niveau (tirets).
 	var x0 := maxf(area.position.x, _ruler())
-	for i in doc.floor_count():
-		var sol := doc.floor_sol(i)
+	for i in doc.level_count():
+		var sol := doc.level_alt(i)
 		if i > 0:
 			var ys := to_px(Vector2(0, -sol)).y
 			c.draw_line(Vector2(x0, ys), Vector2(area.end.x, ys), Color(COL_LEVEL, 0.28), 1.0)
@@ -572,7 +572,7 @@ func _alpha(e: Dictionary, k_cur: int, cut: bool) -> float:
 
 
 ## Pièce : boîte du sol au plafond réel (couleur de sa zone), murs de profil
-## aux deux bouts, dalle du plafond, dalle d'étage hachurée dessous.
+## aux deux bouts, dalle du plafond, dalle de niveau hachurée dessous.
 func _draw_room(c: CanvasItem, e: Dictionary, r: Rect2, a: float, area: Rect2) -> void:
 	var zc := ed.zone_color(String(e.it.get("zone", "")))
 	c.draw_rect(r, Color(zc.r, zc.g, zc.b, 0.08 + 0.16 * a))
@@ -762,7 +762,7 @@ func _right_dir() -> Vector2:
 	return Vector2(b.x - a.x, b.y - a.y)
 
 
-## Vue de dessous : l'étage courant vu par en dessous (plafonds compris).
+## Vue de dessous : le niveau courant vu par en dessous (plafonds compris).
 func _draw_below(c: CanvasItem, list: Array, font: Font, area: Rect2) -> void:
 	var k := ed.floor_k
 	for e in list:
@@ -858,8 +858,8 @@ func _draw_level_tags(c: CanvasItem) -> void:
 	var bf := bold_font(500)
 	var bg := bold_font(700)
 	var fs := _fs(10.5)
-	for i in doc.floor_count():
-		var sol := doc.floor_sol(i)
+	for i in doc.level_count():
+		var sol := doc.level_alt(i)
 		var y := to_px(Vector2(0, -sol)).y
 		if y < _ruler() or y > size.y:
 			continue
@@ -886,7 +886,7 @@ static func _round_rect(c: CanvasItem, r: Rect2, fill: Color, border: Color, rad
 	c.draw_style_box(sb, r)
 
 
-# ------------------------------------------------------------------ en-tête, coupe, étages
+# ------------------------------------------------------------------ en-tête, coupe, niveaux
 
 func header_sub() -> String:
 	if plane == "dessous":
@@ -926,7 +926,7 @@ func cut_text() -> String:
 		MapCatalog.short_num(float(coupe[1])) if not Lang.is_en() else str(snappedf(float(coupe[1]), 0.01))]
 
 
-## Le menu des étages (MapViewPane : clic sur « étages : »).
+## Le menu des niveaux (MapViewPane : clic sur « niveaux : »).
 func floors_menu_items() -> Array:
 	return [{"id": 10 + Floors.ALL, "text": Lang.t("Niveaux : tous", "Levels: all"), "radio": floors_mode == Floors.ALL},
 		{"id": 10 + Floors.UP_TO, "text": Lang.t("Jusqu'au niveau courant", "Up to the current level"), "radio": floors_mode == Floors.UP_TO},

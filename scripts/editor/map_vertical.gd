@@ -5,7 +5,7 @@ extends RefCounted
 ## de la dalle de la première pièce posée au-dessus, à n'importe quel niveau ;
 ## trémie : plafond de la pièce où elle s'ouvre), partagé par l'export en jeu
 ## (MapLayoutExport) et les élévations de l'éditeur (MapElevationItems).
-## Altitudes absolues en mètres (sol de l'étage + hauteur locale).
+## Altitudes absolues en mètres (sol du niveau + hauteur locale).
 
 const DALLE := MapValidator.DALLE
 
@@ -141,7 +141,7 @@ static func cell(p: Vector2) -> Vector2i:
 	return Vector2i(floori(p.x / MapGeom.CELL), floori(p.y / MapGeom.CELL))
 
 
-## Plafond réel (m, absolu) au-dessus d'un point de l'étage `k` (point de
+## Plafond réel (m, absolu) au-dessus d'un point du niveau `k` (point de
 ## l'éditeur : v.to_grid retire le décalage des coordonnées négatives).
 static func ceil_z(v: MapValidator, k: int, p: Vector2) -> float:
 	if k < 0 or k >= v.floors.size():
@@ -230,7 +230,7 @@ const REST_TOL := 0.02
 
 
 ## Effet d'un glissement vertical selon le type (§ 6.1) : « pose » (hauteur
-## de pose continue), « niveau » (l'étage change, aimanté sur les sols),
+## de pose continue), « niveau » (le niveau change, aimanté sur les sols),
 ## « fixe » (ouvertures : elles suivent leur mur).
 static func pose_kind(e: Dictionary) -> String:
 	var t := String(e.get("type", ""))
@@ -262,7 +262,7 @@ static func room_h(v: MapValidator, e: Dictionary) -> float:
 	return ceil_z(v, k, anchor_of(e)) - v.floors[k].sol
 
 
-## Hauteur (m) de l'origine d'un effet au-dessus du sol de l'étage, en jeu
+## Hauteur (m) de l'origine d'un effet au-dessus du sol du niveau, en jeu
 ## comme dans l'éditeur (MapLayoutExport, élévations, aperçu 3D) : au
 ## plafond, plafond − 2 cm − descente ; mural, sous le plafond ; au sol, sa
 ## hauteur de pose. `y` : MapCatalog.effect_height ; `rh` : hauteur sous plafond ;
@@ -294,7 +294,7 @@ static func effect_room_h(v: MapValidator, e: Dictionary) -> float:
 
 
 ## Boîte d'un effet posé en hauteur : Vector2(bas, haut), m au-dessus du sol
-## de l'étage, = son VOLUME (MapCatalog.effect_volume) posé à sa hauteur.
+## du niveau, = son VOLUME (MapCatalog.effect_volume) posé à sa hauteur.
 ## `rh` : hauteur sous plafond à son point (effect_room_h).
 static func effect_span(e: Dictionary, rh: float) -> Vector2:
 	var fid := String(e.get("effet", ""))
@@ -312,7 +312,7 @@ static func anchor_of(e: Dictionary) -> Vector2:
 	return p
 
 
-## Hauteur de pose (m au-dessus du sol de l'étage) d'un élément « pose » :
+## Hauteur de pose (m au-dessus du sol du niveau) d'un élément « pose » :
 ## pied d'un décor ou d'un luminaire au sol, hauteur d'un effet au sol, d'une
 ## applique, d'un décor ou d'un effet mural ; au plafond : plafond − descente.
 static func pose_z(doc: EditorMap, v: MapValidator, e: Dictionary) -> float:
@@ -333,7 +333,7 @@ static func pose_z(doc: EditorMap, v: MapValidator, e: Dictionary) -> float:
 
 
 ## Bornes [min, max] (m au-dessus du sol) de la hauteur de pose d'un élément
-## à son étage : sous le plafond réel, avec la marge de l'export en jeu.
+## à son niveau : sous le plafond réel, avec la marge de l'export en jeu.
 static func pose_bounds(v: MapValidator, e: Dictionary) -> Vector2:
 	var t := String(e.get("type", ""))
 	var h := room_h(v, e)
@@ -553,7 +553,7 @@ static func nearest_floor(doc: EditorMap, za: float) -> int:
 	return doc.nearest_level(za)
 
 
-## Aimants verticaux (§ 3.2) autour d'un élément : sols, plafonds de l'étage
+## Aimants verticaux (§ 3.2) autour d'un élément : sols, plafonds du niveau
 ## et de la pièce, dessous de dalle, hauteur des portes, allège et linteau
 ## des fenêtres, dessus du décor sous l'élément. -> [{z (m, absolue), name}].
 static func magnets(doc: EditorMap, v: MapValidator, e: Dictionary) -> Array:

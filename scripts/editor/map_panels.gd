@@ -2,7 +2,7 @@ class_name MapPanels
 extends TabContainer
 ## Panneaux de l'éditeur de cartes : Propriétés (élément choisi, sinon la
 ## carte), Pièces, Zones (regrouper, renommer FR/EN, fusionner, séparer, zone
-## de départ), Étages (ajouter, hauteurs, étage du dessous en transparence) et
+## de départ), Niveaux (ajouter, hauteurs, niveau du dessous en transparence) et
 ## Vérification (validateur : clic sur un problème = vue centrée dessus),
 ## Historique (actions de la carte, par auteur : CollabHistory).
 
@@ -359,7 +359,7 @@ func _fill_props() -> void:
 
 
 ## Sélection multiple (MapGroup) : « N éléments sélectionnés », ce qu'ils
-## sont, l'étage et la rotation quand ils sont communs, les éléments
+## sont, le niveau et la rotation quand ils sont communs, les éléments
 ## invalides, les actions de groupe et la liste (un clic : cet élément seul).
 func _group_props() -> void:
 	var ids: Array = ed.group
@@ -1067,8 +1067,8 @@ static func ref_point(doc: EditorMap, o: Dictionary) -> Vector2:
 
 
 ## Ligne « Position » (docs/EDITOR_VIEWS.md § 6.3, D11) : X, Y (m) et Z (hauteur
-## de pose au-dessus du sol de l'étage quand l'élément en a une, sinon la
-## liste des étages). Un champ validé = une étape d'annulation ; une valeur
+## de pose au-dessus du sol du niveau quand l'élément en a une, sinon la
+## liste des niveaux). Un champ validé = une étape d'annulation ; une valeur
 ## refusée est remise et la raison s'affiche.
 func _position_row(o: Dictionary) -> void:
 	_pos_fields = {}

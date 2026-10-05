@@ -312,7 +312,7 @@ func _step_glide(delta: float) -> void:
 	_apply()
 
 
-## Double-clic sur la carte 2D : la caméra va à ce point (au sol de l'étage).
+## Double-clic sur la carte 2D : la caméra va à ce point (au sol du niveau).
 func place_at(p: Vector3) -> void:
 	end_glide()
 	match mode:

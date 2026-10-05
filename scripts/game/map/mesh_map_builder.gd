@@ -151,7 +151,7 @@ func _fixture_lamp(l: Dictionary) -> void:
 
 
 ## Matériaux, ombres et collisions des nœuds d'un .glb. `floor_of(salle)` :
-## hauteur du sol de référence (lambris des étages).
+## hauteur du sol de référence (lambris des niveaux).
 ## Matériaux des objets remplacés par la carte (ex. plâtre de la salle au lieu
 ## du papier peint rouge) : clé « prop_materials » de la description.
 var _prop_mats: Dictionary = {}

@@ -4,7 +4,7 @@ extends RefCounted
 ## jauni, murs à l'encre, portes dorées, départ entouré de rouge. Sert à
 ## l'écran de sélection de carte. Cartes ASCII : dessiné depuis la grille ;
 ## cartes en maillage : depuis les contours des salles de la description
-## (vue de dessus, nord en haut, étages supérieurs par-dessus).
+## (vue de dessus, nord en haut, niveaux supérieurs par-dessus).
 
 const PX := 5  # pixels par cellule (cartes ASCII)
 const PX_MESH := 4  # pixels par mètre (cartes en maillage)
@@ -100,7 +100,7 @@ static func render_mesh(def: MapDef, layout: MeshMapLayout) -> Image:
 		var box := Rect2(poly[0], Vector2.ZERO)
 		for q in poly:
 			box = box.expand(q)
-		# Étages : un peu plus clairs, comme un calque posé sur le plan.
+		# Niveaux : un peu plus clairs, comme un calque posé sur le plan.
 		var lift := clampf(fy / 10.0, 0.0, 0.4)
 		# Salle rectangulaire (le cas courant) : pas de test point / polygone.
 		var rect := poly.size() == 4 and absf(absf(_area(poly)) - box.get_area()) < 1.0

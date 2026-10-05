@@ -4,7 +4,7 @@ extends RefCounted
 ## peut être posé là et, sinon, POURQUOI ({ok, fr, en}) ; si oui, elle rend la
 ## position accrochée (au mur commun, au mur extérieur, contre le mur...).
 ##   - porte, débris, porte du courant, passage : sur le bord COMMUN de deux
-##     pièces collées du même étage ; elle relie exactement ces deux pièces ;
+##     pièces collées du même niveau ; elle relie exactement ces deux pièces ;
 ##   - fenêtre : sur un mur extérieur, avec la place des zombies dehors ;
 ##   - objet mural : contre un mur de la pièce, face vers l'intérieur ;
 ##   - objet au sol, pilier, escalier, piège : à l'intérieur d'une pièce, sans
@@ -89,7 +89,7 @@ static func _grid_bytes(bb: Rect2) -> int:
 	return CustomMapGuard.extent_bytes(bb.size, 1)
 
 
-## Bords communs de deux pièces collées de l'étage : [{a, b, rooms: [id, id],
+## Bords communs de deux pièces collées du niveau : [{a, b, rooms: [id, id],
 ## grid}] ; `grid` : le bord est construit en blocs de la grille (il longe un
 ## côté de la grille de l'une des deux pièces), sinon c'est un mur oblique.
 static func shared_edges(doc: EditorMap, k: int) -> Array:
@@ -123,7 +123,7 @@ static func _outside(poly: PackedVector2Array, a: Vector2, b: Vector2, d := 0.3)
 	return m + n * d if not MapGeom.contains(poly, m + n * d) else m - n * d
 
 
-## Bords extérieurs des pièces de l'étage (ni communs, ni au-dessus du vide
+## Bords extérieurs des pièces du niveau (ni communs, ni au-dessus du vide
 ## d'une double hauteur) : [{a, b, room}].
 static func outer_edges(doc: EditorMap, k: int) -> Array:
 	var out := []
@@ -317,7 +317,7 @@ static func place_opening(doc: EditorMap, k: int, type: String, mouse: Vector2, 
 	return res
 
 
-## Côté de pièce de l'étage qui passe par `p` : [a, b] (le premier trouvé),
+## Côté de pièce du niveau qui passe par `p` : [a, b] (le premier trouvé),
 ## [] sinon.
 static func edge_through(doc: EditorMap, k: int, p: Vector2, tol := 0.01) -> Array:
 	for r in doc.rooms_on(k):
@@ -423,7 +423,7 @@ static func _m(v: float, fr := true) -> String:
 
 # ------------------------------------------------------------------ objets
 
-## Pièce de l'étage qui contient `p` (strictement à l'intérieur), {} sinon.
+## Pièce du niveau qui contient `p` (strictement à l'intérieur), {} sinon.
 static func room_at(doc: EditorMap, k: int, p: Vector2) -> Dictionary:
 	for e in _rooms_of(doc, k):
 		if (e[2] as Rect2).has_point(p) and MapGeom.contains(e[1], p):
@@ -473,7 +473,7 @@ static func _batch_mem(doc: EditorMap) -> bool:
 	return true
 
 
-## Pièce de l'étage dont le sol touche l'emprise `poly` (décor posé à cheval
+## Pièce du niveau dont le sol touche l'emprise `poly` (décor posé à cheval
 ## sur un mur) : celle qui en couvre le plus de coins et le centre, {} sinon.
 static func room_touching(doc: EditorMap, k: int, poly: PackedVector2Array) -> Dictionary:
 	var best := {}
@@ -618,9 +618,9 @@ static func layer_of(o: Dictionary) -> String:
 ## objets calculées une fois et rangées par cases de 4 m (sinon chaque
 ## vérification relit tous les objets : lent avec 2000 éléments).
 const BUCKET := 4.0
-static var _batch: Dictionary = {}   # étage -> {Vector2i: [[objet, emprise, couche]]}
+static var _batch: Dictionary = {}   # niveau -> {Vector2i: [[objet, emprise, couche]]}
 static var _batch_doc: EditorMap = null
-static var _batch_lists: Dictionary = {}   # étage -> [escaliers et murs libres]
+static var _batch_lists: Dictionary = {}   # niveau -> [escaliers et murs libres]
 ## Escaliers du lot : [[escalier, altitude du pied, altitude d'arrivée]].
 static var _batch_stairs: Array = []
 ## Pièces par niveau pendant un lot (_rooms_of).
@@ -639,13 +639,13 @@ static func begin_batch(doc: EditorMap) -> void:
 	doc.freeze_levels()
 	_batch_rooms = {}
 	_batch_inner = {}
-	_floor_bases = {}   # étages lus par les contrôles d'escaliers (_stair_floor_base)
+	_floor_bases = {}   # niveaux lus par les contrôles d'escaliers (_stair_floor_base)
 	_batch_stairs = []
 	_batch_lists = {}
 	for o in doc.objets:
 		var t := String(o.get("type", ""))
 		if t == "escalier" or t == "mur" or t == "mur_courbe":
-			# Escaliers et murs libres par étage (contrôles d'escaliers).
+			# Escaliers et murs libres par niveau (contrôles d'escaliers).
 			(_batch_lists.get_or_add(doc.level_of(o), []) as Array).append(o)
 		if t == "escalier":
 			# Format 17 : pied et arrivée (trémies des niveaux traversés).
@@ -690,7 +690,7 @@ static func _buckets(r: Rect2) -> Array:
 	return out
 
 
-## Objets de l'étage qui pourraient toucher `r` : [[objet, emprise, couche]].
+## Objets du niveau qui pourraient toucher `r` : [[objet, emprise, couche]].
 static func _near(doc: EditorMap, k: int, r: Rect2) -> Array:
 	# Fil de travail (aperçu 3D) : jamais le lot du fil principal (état partagé).
 	if not ThreadGuard.worker() and _batch_doc == doc:
@@ -704,9 +704,9 @@ static func _near(doc: EditorMap, k: int, r: Rect2) -> Array:
 					seen[eid] = true
 					out.append(e)
 		return out
-	if not ThreadGuard.worker() and stair_cache_tag >= 0 and k >= 0 and k < doc.floor_count():
+	if not ThreadGuard.worker() and stair_cache_tag >= 0 and k >= 0 and k < doc.level_count():
 		# Tracé d'un escalier (stair_cache_tag : carte inchangée) : les objets de
-		# l'étage rangés par cases dans sa base (_stair_floor_base), dans l'ordre
+		# le niveau rangés par cases dans sa base (_stair_floor_base), dans l'ordre
 		# de la carte (premier chevauchement nommé comme sans la base).
 		var cand := _base_near(_stair_floor_base(doc, k), r)
 		if cand.all(func(e): return (e as Array).size() > 3):
@@ -1079,7 +1079,7 @@ static func nearest_wall_trait(doc: EditorMap, k: int, room: Dictionary, mouse: 
 
 # ------------------------------------------------------------------ murs libres
 
-## Segments des murs libres de l'étage (outil Mur : un segment ; mur courbe :
+## Segments des murs libres du niveau (outil Mur : un segment ; mur courbe :
 ## ses segments droits) : [{a, b, half (demi-épaisseur), eid, i (rang)}].
 static func free_wall_segments(doc: EditorMap, k: int) -> Array:
 	var out := []
@@ -1287,7 +1287,7 @@ static func box_front(o: Dictionary) -> Vector2:
 
 
 ## Le point `p` est-il à moins de `r` m du trait d'un mur de sa pièce ou d'un
-## mur libre de l'étage ?
+## mur libre du niveau ?
 static func near_wall(doc: EditorMap, k: int, p: Vector2, r: float) -> bool:
 	var room := room_at(doc, k, p)
 	if not room.is_empty():
@@ -1504,7 +1504,7 @@ static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id
 					return refuse("%s déborde de la pièce « %s »" % [nm[0], room.get("nom", room.id)], "%s sticks out of room \"%s\"" % [nm[1], room.get("nom", room.id)])
 		r = MapGeom.bbox(corners)
 	if type == "escalier":
-		if k >= doc.floor_count() - 1 or k < 0:
+		if k >= doc.level_count() - 1 or k < 0:
 			return check_stair(doc, k, {}, ignore_id, down)
 		# Type d'escalier (format 6) : celui donné, sinon celui de l'escalier déplacé.
 		var kind := variant
@@ -1528,7 +1528,7 @@ static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id
 			return refuse("l'escalier chevauche %s %s" % [on[0], sp[0]], "the stairs overlap %s %s" % [on[1], sp[1]])
 		return refuse("chevauche %s" % on[0].to_lower(), "overlaps %s" % on[1].to_lower())
 	if type == "escalier":
-		# Les deux étages qu'il relie (départ, arrivée, trémie).
+		# Les deux niveaux qu'il relie (départ, arrivée, trémie).
 		var so: Dictionary = stair.duplicate() if not stair.is_empty() else (doc.find(ignore_id).duplicate() if ignore_id != "" else {})
 		so["type"] = "escalier"
 		so["rect"] = MapGeom.rect_arr(r0)
@@ -1549,16 +1549,16 @@ static func check_rect(doc: EditorMap, k: int, type: String, r: Rect2, ignore_id
 	return {"ok": true, "room": String(room.id)}
 
 
-# ------------------------------------------------------------------ escaliers (deux étages)
+# ------------------------------------------------------------------ escaliers (deux niveaux)
 
-## Escalier posé à l'étage `k` : il monte à l'étage k + 1. Escalier « qui
-## descend » (inventaire) : enregistré comme un escalier de l'étage du dessous
-## qui monte vers l'étage courant (aucun champ de plus, `down` ne change que
+## Escalier posé au niveau `k` : il monte au niveau k + 1. Escalier « qui
+## descend » (inventaire) : enregistré comme un escalier du niveau du dessous
+## qui monte vers le niveau courant (aucun champ de plus, `down` ne change que
 ## les mots : « départ » en haut, « arrivée » en bas).
 ## Cases d'un escalier, comme le validateur (MapValidator._stairs,
-## _diag_stair, _shaped_stair) : marches (body, son étage ; trémie à l'étage
-## du dessus), pied (foot : sol de son étage devant la première marche) et
-## arrivée (exit : plancher de l'étage du dessus au-delà du haut) ; case -> true.
+## _diag_stair, _shaped_stair) : marches (body, son niveau ; trémie au niveau
+## du dessus), pied (foot : sol de son niveau devant la première marche) et
+## arrivée (exit : plancher du niveau du dessus au-delà du haut) ; case -> true.
 static func stair_parts(o: Dictionary, y0 := 0.0, y1 := 3.5) -> Dictionary:
 	# Mémoire par contenu (plusieurs appels par image pendant un tracé, chaque
 	# escalier vérifié à chaque modification) : jamais recalculé pour rien.
@@ -1652,7 +1652,7 @@ static func pick_stair_dir(traced: Vector2i, valid: Array) -> Vector2i:
 
 ## Sens de montée (« monte ») d'un escalier tracé de `a` vers `b` : celui du
 ## glissement (du bas vers le haut) ; escalier qui descend (`down`) : on trace
-## du haut, à l'étage où l'on est, vers le bas : l'inverse.
+## du haut, au niveau où l'on est, vers le bas : l'inverse.
 static func stair_dir(a: Vector2, b: Vector2, down := false) -> String:
 	var d := b - a
 	var m := ("e" if d.x > 0 else "o") if absf(d.x) > absf(d.y) else ("s" if d.y > 0 else "n")
@@ -1700,9 +1700,9 @@ static func _sorted_cells(d: Dictionary) -> Array:
 	return out
 
 
-## Ce qu'un contrôle d'escalier doit connaître d'un étage `j`, calculé une
+## Ce qu'un contrôle d'escalier doit connaître d'un niveau `j`, calculé une
 ## fois par contrôle (`ctx`) : pièces et leurs cases, doubles hauteurs de
-## l'étage du dessous, autres escaliers (et leurs cases), murs libres et
+## le niveau du dessous, autres escaliers (et leurs cases), murs libres et
 ## obstacles près de l'escalier (lot spatial de begin_batch s'il est ouvert).
 static func _stair_floor(ctx: Dictionary, j: int) -> Dictionary:
 	var floors: Dictionary = ctx.floors
@@ -1718,7 +1718,7 @@ static func _stair_floor(ctx: Dictionary, j: int) -> Dictionary:
 
 
 ## Obstacles (pilier, caisse, baril, décor ou luminaire qui bloque) près de
-## l'escalier contrôlé, à l'étage `j` : lus seulement si un bout y arrive.
+## l'escalier contrôlé, au niveau `j` : lus seulement si un bout y arrive.
 static func _stair_blockers(ctx: Dictionary, j: int) -> Array:
 	var info := _stair_floor(ctx, j)
 	if info.has("near"):
@@ -1738,37 +1738,40 @@ static func _stair_blockers(ctx: Dictionary, j: int) -> Array:
 	return near
 
 
-## Partie d'un étage commune à tous les contrôles d'escaliers (pièces,
+## Partie d'un niveau commune à tous les contrôles d'escaliers (pièces,
 ## doubles hauteurs du dessous, escaliers, murs libres) ; gardée pendant un
 ## lot (begin_batch : MapEditor._update_invalid) ou tant que la carte n'a
 ## pas changé (stair_cache_tag : version de la carte, MapCanvas pendant un
 ## tracé ; -1 : pas de mémoire).
 static func _stair_floor_base(doc: EditorMap, j: int) -> Dictionary:
 	var main := not ThreadGuard.worker()
-	var keep := main and (_batch_doc == doc or (stair_cache_tag >= 0 and _base_doc == doc and _base_tag == stair_cache_tag))
+	var keep := main and (_batch_doc == doc or (stair_cache_tag >= 0 and _base_doc == doc and _base_tag == stair_cache_tag and _base_levels == doc.levels()))
 	if keep and _floor_bases.has(j):
 		return _floor_bases[j]
 	if main and not keep:
 		_floor_bases = {}
 		_base_doc = doc
 		_base_tag = stair_cache_tag if _batch_doc != doc else -1
+		# Niveaux lus (un niveau vide ajouté décale les indices sans changer
+		# la version de la carte).
+		_base_levels = doc.levels().duplicate()
 	# Lot (MapEditor._update_invalid à chaque modification) : la base d'avant
-	# resert si les pièces de l'étage (et du dessous), ses escaliers, ses murs
+	# resert si les pièces du niveau (et du dessous), ses escaliers, ses murs
 	# libres et les sols n'ont pas changé (empreinte de leur contenu).
 	var fp := 0
 	# Escaliers d'un niveau plus bas qui traversent ce niveau ou y arrivent
 	# (format 17 : leur trémie est ici) : [escalier, arrivée ?].
-	var through := doc.rooms_through(j) if j > 0 and j < doc.floor_count() else []
+	var through := doc.rooms_through(j) if j > 0 and j < doc.level_count() else []
 	var wells := []
-	if j > 0 and j < doc.floor_count():
-		var sol := doc.floor_sol(j)
+	if j > 0 and j < doc.level_count():
+		var sol := doc.level_alt(j)
 		var all: Array = _batch_stairs if main and _batch_doc == doc else _stairs_of(doc)
 		for s: Array in all:
 			if float(s[1]) < sol - EditorMap.ALT_EQ and float(s[2]) >= sol - EditorMap.ALT_EQ:
 				wells.append([s[0], absf(float(s[2]) - sol) <= EditorMap.ALT_EQ, s[2]])
-	if main and _batch_doc == doc and j >= 0 and j < doc.floor_count():
-		fp = [doc.rooms_on(j), through, _batch_lists.get(j, []), wells, doc.floor_sol(j),
-			doc.floor_sol(j + 1) if j + 1 < doc.floor_count() else -1.0].hash()
+	if main and _batch_doc == doc and j >= 0 and j < doc.level_count():
+		fp = [doc.rooms_on(j), through, _batch_lists.get(j, []), wells, doc.level_alt(j),
+			doc.level_alt(j + 1) if j + 1 < doc.level_count() else -1.0].hash()
 		var old: Array = _fp_bases.get(j, [])
 		if not old.is_empty() and old[0] == fp and old[1] == doc:
 			var again: Dictionary = old[2]
@@ -1776,10 +1779,10 @@ static func _stair_floor_base(doc: EditorMap, j: int) -> Dictionary:
 			_floor_bases[j] = again
 			return again
 	# items : objets au sol (hors murs libres, barrières, effets) par cases de
-	# BUCKET m, comme le lot de begin_batch, pour cet étage seulement.
+	# BUCKET m, comme le lot de begin_batch, pour ce niveau seulement.
 	# room_grid / stair_grid : pièces et escaliers par cases de BUCKET m.
 	var base := {"rooms": [], "voids": [], "stairs": [], "walls": [], "items": {}, "room_grid": {}, "stair_grid": {}, "wells": [], "well_grid": {}}
-	if j >= 0 and j < doc.floor_count():
+	if j >= 0 and j < doc.level_count():
 		for p in doc.rooms_on(j):
 			var poly := doc.room_poly(p)
 			var rc := _room_cells(poly)
@@ -1802,7 +1805,7 @@ static func _stair_floor_base(doc: EditorMap, j: int) -> Dictionary:
 		for o in (_batch_lists.get(j, []) if batched else doc.objects_on(j)):
 			var t := String(o.get("type", ""))
 			if t == "escalier":
-				var se := [o, stair_parts(o, doc.floor_sol(j), doc.stair_top_of(o))]
+				var se := [o, stair_parts(o, doc.level_alt(j), doc.stair_top_of(o))]
 				base.stairs.append(se)
 				var cb: Rect2i = se[1].bb
 				for bk in _buckets(Rect2((Vector2(cb.position) - Vector2.ONE * 0.5) * MapGeom.CELL, Vector2(cb.size) * MapGeom.CELL)):
@@ -1825,11 +1828,11 @@ static func _stair_floor_base(doc: EditorMap, j: int) -> Dictionary:
 	return base
 
 
-## room_at pour un escalier : par les pièces rangées en cases (base d'étage)
+## room_at pour un escalier : par les pièces rangées en cases (base de niveau)
 ## quand elle est gardée (lot, tracé), sinon room_at.
 static func _stair_room_at(doc: EditorMap, k: int, p: Vector2) -> Dictionary:
 	var main := not ThreadGuard.worker()
-	if not main or not (_batch_doc == doc or stair_cache_tag >= 0) or k < 0 or k >= doc.floor_count():
+	if not main or not (_batch_doc == doc or stair_cache_tag >= 0) or k < 0 or k >= doc.level_count():
 		return room_at(doc, k, p)
 	var base := _stair_floor_base(doc, k)
 	for re: Array in base.room_grid.get(Vector2i(floori(p.x / BUCKET), floori(p.y / BUCKET)), []):
@@ -1838,7 +1841,7 @@ static func _stair_room_at(doc: EditorMap, k: int, p: Vector2) -> Dictionary:
 	return {}
 
 
-## Objets de la base d'un étage qui pourraient toucher `r` : [[objet, emprise, couche]].
+## Objets de la base d'un niveau qui pourraient toucher `r` : [[objet, emprise, couche]].
 static func _base_near(base: Dictionary, r: Rect2) -> Array:
 	var seen := {}
 	var out := []
@@ -1852,15 +1855,16 @@ static func _base_near(base: Dictionary, r: Rect2) -> Array:
 
 
 ## Version de la carte donnée par l'éditeur pendant un tracé (MapCanvas) :
-## tant qu'elle ne change pas, les étages déjà lus resservent ; -1 : rien.
+## tant qu'elle ne change pas, les niveaux déjà lus resservent ; -1 : rien.
 static var stair_cache_tag := -1
 static var _floor_bases: Dictionary = {}
-static var _fp_bases: Dictionary = {}   # étage -> [empreinte, carte, base] (d'un lot à l'autre)
+static var _fp_bases: Dictionary = {}   # niveau -> [empreinte, carte, base] (d'un lot à l'autre)
 static var _base_doc: EditorMap = null
 static var _base_tag := -1
+static var _base_levels: Array = []
 
 
-## Ce qui se trouve dans la case `c` de l'étage `j` pour un bout d'escalier
+## Ce qui se trouve dans la case `c` du niveau `j` pour un bout d'escalier
 ## (MapRaster en raccourci, sans construire la grille) : {kind, what [fr, en]}
 ## avec kind « sol » (plancher libre d'une pièce), « vide », « mur »,
 ## « tremie », « escalier » ou « obstacle ».
@@ -2037,8 +2041,8 @@ static func _check_stair(doc: EditorMap, k: int, o: Dictionary, ignore_id := "",
 		var lk0 := level_label(doc, k)
 		return refuse("pas de niveau au-dessus du %s : ajoutez d'abord un niveau (onglet Niveaux), ou prenez l'escalier qui descend" % lk0[0],
 			"no level above %s: add a level first (Levels tab), or use the stairs going down" % lk0[1])
-	var y0 := doc.floor_sol(k)
-	var y1 := doc.floor_sol(kt)
+	var y0 := doc.level_alt(k)
+	var y1 := doc.level_alt(kt)
 	# Zone des obstacles : le rectangle et une case autour (les bouts, dans les quatre sens).
 	var ctx := {"doc": doc, "ignore": ignore_id, "floors": {}, "area": MapGeom.bbox(MapRaster.rect_poly(o)).grow(0.8)}
 	# Sortie sur le côté choisie à la pose (escalier nouveau, sans « sortie »,
@@ -2162,8 +2166,8 @@ static func side_need_length(o: Dictionary, rise: float) -> float:
 
 
 static func _check_stair_core(doc: EditorMap, k: int, kt: int, o: Dictionary, ignore_id: String, down: bool, ctx: Dictionary) -> Dictionary:
-	var y0 := doc.floor_sol(k)
-	var y1 := doc.floor_sol(kt)
+	var y0 := doc.level_alt(k)
+	var y1 := doc.level_alt(kt)
 	# Sens retenu (règle du validateur) : escalier droit sur la grille seulement
 	# (tourné, en L, en U, colimaçon, sortie sur le côté : le sens tracé,
 	# comme le validateur).

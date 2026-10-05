@@ -508,7 +508,7 @@ static func height(o: Dictionary) -> float:
 	return 2.0 * half_z(o)
 
 
-## Coins (carte : x, y en m, z en m au-dessus du sol de l'étage) de la boîte
+## Coins (carte : x, y en m, z en m au-dessus du sol du niveau) de la boîte
 ## orientée d'un décor au sol, posée à sa hauteur « z » (point le plus bas).
 static func corners(o: Dictionary) -> Array:
 	var m := matrix(o)

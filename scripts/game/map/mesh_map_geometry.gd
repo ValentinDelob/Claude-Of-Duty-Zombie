@@ -122,7 +122,7 @@ static func _polygon(g: Dictionary, outline: Array, height_fn: Callable, up: boo
 		_tri(g, pts[0], pts[1], pts[2], n, vis, col)
 
 
-## Dalle pleine (dessus à `top`, épaisseur `th`) : planchers d'étage, balcons.
+## Dalle pleine (dessus à `top`, épaisseur `th`) : planchers de niveau, balcons.
 func _slab(g: Dictionary, outline: Array, top: float, th: float) -> void:
 	var p2 := PackedVector2Array()
 	for p in outline:

@@ -13,15 +13,15 @@ var interact_range := 2.2
 ## Durée de maintien de [F] requise (0 = appui simple).
 var hold_time := 0.0
 var system: InteractionSystem
-## Hauteur (m) du nœud au-dessus du sol de son étage : 0 pour un objet posé au
+## Hauteur (m) du nœud au-dessus du sol de son niveau : 0 pour un objet posé au
 ## sol (porte, boîte, machines) ; un achat mural est accroché plus haut.
 var mount_height := 0.0
 ## Collisions propres (own_rids), gardées.
 var _own_rid_cache: Array[RID] = []
 
 
-## Altitude du sol de l'objet : on ne l'utilise que depuis cet étage
-## (InteractionSystem.same_level), jamais depuis l'étage du dessous ou du dessus.
+## Altitude du sol de l'objet : on ne l'utilise que depuis ce niveau
+## (InteractionSystem.same_level), jamais depuis le niveau du dessous ou du dessus.
 func level_y() -> float:
 	return global_position.y - mount_height
 

@@ -16,7 +16,7 @@ func setup_marker(m: MapMarker) -> void:
 	name = "GrenadeBuy_" + m.id
 	_normal = m.wall
 	position = m.on_wall(0.02, 1.45)
-	mount_height = 1.45  # au mur : son étage est 1,45 m plus bas (InteractionSystem.same_level)
+	mount_height = 1.45  # au mur : son niveau est 1,45 m plus bas (InteractionSystem.same_level)
 	interact_range = 1.8
 
 

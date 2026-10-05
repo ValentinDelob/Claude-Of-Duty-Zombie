@@ -95,8 +95,8 @@ func _accepts(name: String, doc: EditorMap, flights: Array) -> void:
 		ys.append([float(st.a[1]), float(st.b[1])])
 	ys.sort()
 	for k in FLOORS - 1:
-		assert_near(float(ys[k][0]), doc.floor_sol(k), 0.01, "%s : pied de l'escalier %d au sol de l'étage %d" % [name, k, k])
-		assert_near(float(ys[k][1]), doc.floor_sol(k + 1), 0.01, "%s : haut de l'escalier %d au sol de l'étage %d" % [name, k, k + 1])
+		assert_near(float(ys[k][0]), doc.level_alt(k), 0.01, "%s : pied de l'escalier %d au sol de l'étage %d" % [name, k, k])
+		assert_near(float(ys[k][1]), doc.level_alt(k + 1), 0.01, "%s : haut de l'escalier %d au sol de l'étage %d" % [name, k, k + 1])
 
 
 # ------------------------------------------------------------------ cinq étages

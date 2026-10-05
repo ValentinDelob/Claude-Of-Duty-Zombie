@@ -3,7 +3,7 @@ extends Control
 ## ÉDITEUR DE CARTES (docs/MAP_AUTHORING.md) : vue de dessus (MapCanvas),
 ## inventaire façon Minecraft (barre rapide de 9 cases + inventaire complet,
 ## MapHotbar / MapInventory), panneaux (MapPanels : propriétés, pièces, zones,
-## étages, vérification), fichiers (dossier de cinq JSON, archive .zip),
+## niveaux, vérification), fichiers (dossier de cinq JSON, archive .zip),
 ## annuler / rétablir (par auteur, MapHistory), enregistrement explicite
 ## seulement, avec confirmation avant de perdre des modifications et copie de
 ## récupération (MapUnsaved), sélection multiple et actions de groupe
@@ -129,10 +129,12 @@ var _raster_dirty := true
 ## Version de la carte : augmente à chaque modification (caches des vues :
 ## boîtes des élévations, MapElevation).
 var doc_version := 0
-## Ce que montrent les vues a changé (coupe, étages, plan) : elles se redessinent.
+## Ce que montrent les vues a changé (coupe, niveaux, plan) : elles se redessinent.
 var views_stamp := 0
 var _elev_items: Array = []
-var _elev_ver := -1
+## Mémoire de elevation_items : [version de la carte, niveaux] (un niveau vide
+## ajouté ou retiré décale les indices de niveau sans changer la version).
+var _elev_key: Array = []
 var _recovery_t := 0.0
 var _validate_t := -1.0
 
@@ -690,7 +692,7 @@ func set_status(text: String, error := false) -> void:
 
 
 ## Curseur sur une élévation (`m` : coordonnées de l'écran, m) : les deux
-## axes qu'elle montre, l'altitude au-dessus du sol de l'étage courant.
+## axes qu'elle montre, l'altitude au-dessus du sol du niveau courant.
 func show_cursor_view(v: MapView, m: Vector2) -> void:
 	if v == canvas or not MapView.is_elevation(v.plane):
 		show_cursor(m if v == canvas else Vector2(-m.x, m.y))
@@ -728,10 +730,11 @@ func toggle_cut() -> void:
 		set_status(Lang.t("Coupe enlevée", "Cut removed"))
 
 
-## Boîtes des élévations (MapElevationItems), une fois par version de la carte.
+## Boîtes des élévations (MapElevationItems), une fois par version de la carte
+## et par liste de niveaux (niveaux vides de l'éditeur compris).
 func elevation_items() -> Array:
-	if _elev_ver != doc_version:
-		_elev_ver = doc_version
+	if _elev_key.size() != 2 or _elev_key[0] != doc_version or _elev_key[1] != doc.levels():
+		_elev_key = [doc_version, doc.levels().duplicate()]
 		var v := raster().v
 		# Niveaux figés (level_of de chaque élément).
 		doc.freeze_levels()
@@ -756,7 +759,7 @@ var _cursor_view := "dessus"
 var _cursor_z := NAN
 
 
-## Présence de cet éditeur pour les autres (curseur, étage, sélection, outil,
+## Présence de cet éditeur pour les autres (curseur, niveau, sélection, outil,
 ## aperçu en direct) ; MapCollab l'envoie au plus 10 fois par seconde.
 func send_presence() -> void:
 	if collab == null or not collab.is_session():
@@ -891,7 +894,7 @@ func _dialog_open() -> bool:
 ## Les flèches vont-elles aux vues (déplacer la sélection) ? Oui si le focus
 ## clavier est sur une vue (MapView), ou s'il n'est nulle part et que la souris
 ## est sur une vue ; jamais avec une boîte ouverte. Une liste (Pièces, Zones,
-## Étages), un champ, un menu gardent leurs flèches.
+## Niveaux), un champ, un menu gardent leurs flèches.
 func arrows_to_views() -> bool:
 	if _dialog_open() or (context_menu != null and context_menu.visible):
 		return false
@@ -973,7 +976,7 @@ func _input(event: InputEvent) -> void:
 				if _typing():
 					return
 				paste()
-			# Sélection multiple (MapGroup) : couper, dupliquer, tout l'étage,
+			# Sélection multiple (MapGroup) : couper, dupliquer, tout le niveau,
 			# créer une prefab de la sélection.
 			KEY_X:
 				if _typing():
@@ -1572,7 +1575,7 @@ func is_selected(eid: String) -> bool:
 
 ## Choisit plusieurs éléments (rectangle, Ctrl+A, collage, Claude) ; un seul :
 ## comme select ; aucun : désélectionne. Les zones et les identifiants
-## inconnus sont ignorés. L'étage courant ne change pas.
+## inconnus sont ignorés. Le niveau courant ne change pas.
 func select_many(ids: Array) -> void:
 	var list := MapGroup.clean_ids(doc, ids)
 	if list.size() <= 1:
@@ -1608,7 +1611,7 @@ func toggle_selected(eid: String) -> void:
 	select_many(ids)
 
 
-## Ctrl+A : tous les éléments de l'étage affiché (pièces, ouvertures, objets).
+## Ctrl+A : tous les éléments du niveau affiché (pièces, ouvertures, objets).
 func select_all() -> void:
 	var ids := []
 	for list in [doc.rooms_on(floor_k), doc.openings_on(floor_k), doc.objects_on(floor_k)]:
@@ -1912,7 +1915,7 @@ func add_object(o: Dictionary, k: int) -> Dictionary:
 
 
 ## Boîte de confirmation de la découpe (MapCarve, docs/MAP_AUTHORING.md § 3) :
-## pièce `obj` tracée à l'étage `k` par-dessus d'autres (`plan` : la découpe
+## pièce `obj` tracée au niveau `k` par-dessus d'autres (`plan` : la découpe
 ## prévue). « Découper » (Entrée) : carve_room ; « Annuler » (Échap, croix) :
 ## rien n'est créé.
 func confirm_carve(obj: Dictionary, k: int, plan: Dictionary) -> ConfirmationDialog:
@@ -1957,7 +1960,7 @@ func confirm_carve(obj: Dictionary, k: int, plan: Dictionary) -> ConfirmationDia
 var carve_dialog: ConfirmationDialog
 
 
-## Pose la pièce `obj` à l'étage `k` et découpe celles qu'elle recouvre : UNE
+## Pose la pièce `obj` au niveau `k` et découpe celles qu'elle recouvre : UNE
 ## étape d'annulation (et un seul lot d'opérations pour la session). Rend le
 ## résultat de MapCarve.carve (refus : rien n'est changé, raison affichée).
 func carve_room(obj: Dictionary, k: int) -> Dictionary:
@@ -2028,7 +2031,7 @@ func attached_to(e: Dictionary) -> Array:
 	return MapTransform.attached(doc, e)
 
 
-## Élément sous le point `m` de l'étage courant (ouvertures et objets avant les pièces).
+## Élément sous le point `m` du niveau courant (ouvertures et objets avant les pièces).
 func element_at(m: Vector2) -> Dictionary:
 	for o in doc.openings_on(floor_k):
 		if MapRules.hit(doc, o, m):
@@ -2052,7 +2055,7 @@ func element_at(m: Vector2) -> Dictionary:
 	return {}
 
 
-## Index des objets par cases de 4 m (étage -> {case: [objets]}), refait
+## Index des objets par cases de 4 m (niveau -> {case: [objets]}), refait
 ## après chaque modification (clic, survol : seulement les objets proches).
 const HIT_BUCKET := 4.0
 var _hit_index: Dictionary = {}
@@ -2065,7 +2068,7 @@ func _hit_candidates(m: Vector2) -> Array:
 		_hit_index = {}
 		for o in doc.objets:
 			var r := MapRules.footprint_rect(o).grow(0.35)
-			# Un escalier se choisit aussi depuis l'étage où il arrive.
+			# Un escalier se choisit aussi depuis le niveau où il arrive.
 			var ks := [doc.level_of(o)]
 			if String(o.get("type", "")) == "escalier":
 				ks.append(ks[0] + 1)
@@ -2679,7 +2682,7 @@ func paste(at := Vector2.INF) -> void:
 	add_object(e, floor_k)
 
 
-# ------------------------------------------------------------------ zones et étages
+# ------------------------------------------------------------------ zones et niveaux
 
 func set_room_zone(room_id: String, zid: String) -> void:
 	var r := doc.find(room_id)
@@ -3114,7 +3117,7 @@ func validate() -> MapValidator:
 	return validator
 
 
-## Clic sur un problème : étage, vue centrée, cases en évidence.
+## Clic sur un problème : niveau, vue centrée, cases en évidence.
 func focus_problem(m: Dictionary) -> void:
 	var cells: Array = m.get("cells", [])
 	if cells.is_empty():
@@ -3178,7 +3181,7 @@ func playtest_state() -> Dictionary:
 
 
 ## Retour d'un TESTER : la session (carte, historique, autres participants)
-## n'a pas bougé ; la vue, l'étage et la sélection reviennent. La copie de
+## n'a pas bougé ; la vue, le niveau et la sélection reviennent. La copie de
 ## travail jouée (MapUnsaved.test_dir) est effacée.
 func _resume_playtest(back: Dictionary) -> void:
 	var st: Dictionary = back.state

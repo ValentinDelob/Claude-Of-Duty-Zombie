@@ -112,22 +112,31 @@ extends RefCounted
 ##      image.jpg, normal.png|jpg facultative) ; une pièce ou une zone les cite
 ##      dans ses champs de surface par « map:<tid> » (une carte sans texture n'a
 ##      pas de dossier textures/). Aucune conversion : formats 1 à 15 lus tels quels.
-##  17  niveaux libres (docs/LEVELS_PLAN.md) : plus d'étages. Chaque pièce,
-##      ouverture et objet a une « altitude » (m, altitude absolue du sol où il
-##      est posé ; 0 par défaut) ; un escalier a aussi « altitude_haut » (sol
-##      d'arrivée). Les niveaux sont les altitudes distinctes des pièces
-##      (levels). « carte.etages », « etage » et « double_hauteur » disparaissent :
-##      une pièce haute est une pièce au grand « plafond » qui traverse les
-##      niveaux du dessus (rooms_through) ; deux pièces empilées (qui se
-##      recouvrent en plan) sont à 3,1 m au moins l'une de l'autre (stack_issue). Conversion au chargement (_migrate_levels) :
-##      altitude = sol de l'ancien étage, plafond de l'étage écrit sur la pièce,
-##      double hauteur = plafond jusqu'en haut de l'étage du dessus.
-##      Plafond masqué (étape 2 du plan) : « sans_plafond » : true sur une pièce
-##      (jamais écrit à faux) : ni plafond dessiné ni collision au-dessus
-##      d'elle, ses murs montent jusqu'à son « plafond » ; on y voit le CIEL de
-##      la carte, « carte.ciel » = {type : « noir » | « jour » | « nuit »,
-##      luminosite (facteur, 1 par défaut)} (sky_of ; défaut : noir, clé
-##      jamais écrite à sa valeur par défaut).
+##  17  niveaux libres (docs/LEVELS_PLAN.md, docs/MAP_AUTHORING.md § 4) : plus
+##      d'étages. Chaque pièce, ouverture et objet a une « altitude » (m,
+##      altitude absolue du sol où il est posé, nombre fini sans borne ; 0 par
+##      défaut) ; un escalier a aussi « altitude_haut » (sol d'arrivée, il peut
+##      sauter des niveaux) et, droit, palier, large, service ou rampe, une
+##      « sortie » facultative (« gauche » / « droite » vu en montant ; absente :
+##      en face ; MapCatalog.tidy_stair). Les niveaux sont les altitudes
+##      distinctes des pièces (levels, à ALT_EQ près) ; deux pièces qui se
+##      recouvrent en plan sont à MIN_STACK (3,1 m) au moins l'une de l'autre
+##      (stack_issue) ; une pièce haute est une pièce au grand « plafond »
+##      (2,8 m au moins, sans maximum) qui traverse les niveaux du dessus
+##      (rooms_through), une pièce posée au-dessus de son vide est une
+##      mezzanine. « sans_plafond » : true (jamais écrit à faux) : plafond
+##      masqué, murs jusqu'au « plafond », CIEL de la carte au-dessus :
+##      « carte.ciel » = {type : « noir » | « jour » | « nuit », luminosite
+##      (facteur de 0,1 à 2, 1 par défaut)} (sky_of ; défaut : noir, jamais
+##      écrit à sa valeur par défaut). Coordonnées x, y libres (négatives
+##      comprises), sans étendue maximale ; hauteurs sans maximum de
+##      conception (garde technique MapVertical.TECH_Z). « carte.etages »,
+##      « etage » et « double_hauteur » disparaissent. Conversion au
+##      chargement, en dernier dans _migrate (migrate_levels) : altitude = sol
+##      de l'ancien étage, plafond de l'étage écrit sur la pièce, double
+##      hauteur = plafond jusqu'en haut de l'étage du dessus, pièce entièrement
+##      couverte par l'étage du dessus = plafond porté sous sa dalle, escalier :
+##      altitude_haut = sol de l'étage du dessus (sinon 3,5 m plus haut).
 const FORMAT := 17
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
@@ -463,16 +472,6 @@ func set_level(e: Dictionary, k: int) -> void:
 		var top := stair_top(e) if e.has("altitude_haut") else -INF
 		if not (top > a + ALT_EQ and level_index_in(lv, top) >= 0):
 			e["altitude_haut"] = level_alt_in(lv, k + 1)
-
-
-## Alias transitoires (à retirer à l'étape 7) : nombre de niveaux, altitude
-## du niveau `k`.
-func floor_count() -> int:
-	return level_count()
-
-
-func floor_sol(k: int) -> float:
-	return level_alt(k)
 
 
 ## Pièces hautes qui traversent le niveau `k` (vide et murs à ce niveau) :

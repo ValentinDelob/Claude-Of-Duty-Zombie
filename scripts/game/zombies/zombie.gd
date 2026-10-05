@@ -179,7 +179,7 @@ var _mgr: ZombieManager
 var game: Game
 ## Temps écoulé depuis la dernière pose écrite (animation à cadence réduite).
 var _pose_accum := 0.0
-## Rayon de sol réutilisé par _follow_floor (cartes à étages).
+## Rayon de sol réutilisé par _follow_floor (cartes à niveaux).
 var _floor_q: PhysicsRayQueryParameters3D
 ## Sphères des épaules (_body_fits) et du tronc (_leg_clear), réutilisées.
 var _fit_q: PhysicsShapeQueryParameters3D
@@ -249,7 +249,7 @@ func _ready() -> void:
 	# défaut, un zombie qui visait l'entrée d'un couloir en frôlant l'angle
 	# restait collé au mur d'à côté (pas de glissement sous 15°).
 	wall_min_slide_angle = 0.0
-	# Cartes à étages : capsule plus haute que les petits rebords (<= 0,3 m,
+	# Cartes à niveaux : capsule plus haute que les petits rebords (<= 0,3 m,
 	# comme la marche maximale du navmesh) ; le sol est suivi par _follow_floor.
 	cs.position.y = HEIGHT * 0.5 + floor_gap()
 	_body_shape = cs
@@ -1162,7 +1162,7 @@ func _waypoint_passed(i: int) -> bool:
 	return false
 
 
-## Point de passage atteint (à plat, et au même niveau sur les cartes à étages).
+## Point de passage atteint (à plat, et au même niveau sur les cartes à niveaux).
 func _waypoint_reached(p: Vector3) -> bool:
 	return _flat_dist(p) < 0.45 and absf(p.y - global_position.y) < 1.0
 

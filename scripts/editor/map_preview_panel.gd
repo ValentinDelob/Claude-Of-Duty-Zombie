@@ -864,16 +864,16 @@ func canvas_click(mb: InputEventMouseButton, m: Vector2) -> bool:
 	return true
 
 
-## Place la caméra au point `m` (m, éditeur) de l'étage affiché.
+## Place la caméra au point `m` (m, éditeur) du niveau affiché.
 func place_camera(m: Vector2) -> void:
-	var sol := ed.doc.floor_sol(ed.floor_k) if ed != null else 0.0
+	var sol := ed.doc.level_alt(ed.floor_k) if ed != null else 0.0
 	world.rig.place_at(world.to_world(m, sol))
 	ed.set_status(Lang.t("Aperçu 3D : caméra placée en x %.1f m, y %.1f m", "3D preview: camera moved to x %.1f m, y %.1f m") % [m.x, m.y])
 	_request_render()
 
 
 ## Repère de la caméra de l'aperçu sur la vue 2D : point, champ de vision et
-## direction (estompé si la caméra est à un autre étage).
+## direction (estompé si la caméra est à un autre niveau).
 func draw_on_canvas(cv: MapView) -> void:
 	if not is_on_screen() or world.rig.cam == null:
 		return
@@ -882,7 +882,7 @@ func draw_on_canvas(cv: MapView) -> void:
 	var f := world.rig.forward()
 	var d := Vector2(f.x, f.z)
 	d = d.normalized() if d.length() > 0.01 else Vector2.UP
-	var here := world.floor_of_y(eye.y - 0.3) == ed.floor_k or world.rig.mode == MapPreviewCamera.Mode.ORBIT
+	var here := world.level_of_y(eye.y - 0.3) == ed.floor_k or world.rig.mode == MapPreviewCamera.Mode.ORBIT
 	var col := Color(COL_CAM, 1.0 if here else 0.4)
 	var c := cv.to_px(m)
 	var half := deg_to_rad(35.0)
@@ -927,7 +927,7 @@ func _process(delta: float) -> void:
 	_read_keys()
 	if follow and ed.canvas != null:
 		var c := ed.canvas.to_m(ed.canvas.size * 0.5)
-		world.rig.follow(world.to_world(c, ed.doc.floor_sol(ed.floor_k)), delta)
+		world.rig.follow(world.to_world(c, ed.doc.level_alt(ed.floor_k)), delta)
 	var moved := world.rig.take_moved()
 	if moved and ed.canvas != null:
 		ed.canvas.queue_redraw()

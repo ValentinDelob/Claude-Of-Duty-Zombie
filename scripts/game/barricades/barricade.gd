@@ -69,7 +69,7 @@ const REPAIR_SIDE_SLACK := Player.RADIUS
 ## voit l'invite ; immobile, aucune marge : la règle « collé » reste stricte.
 const REPAIR_NET_SLACK_MAX := 0.5
 ## Écart de hauteur maximal (pieds du joueur / sol de l'ouverture) : pas de
-## réparation depuis l'étage du dessus ou du dessous.
+## réparation depuis le niveau du dessus ou du dessous.
 const REPAIR_HEIGHT := 1.0
 ## Invite seulement si le joueur regarde vers l'ouverture : visée à plat à
 ## moins de ~78° de la normale du mur (dos ou épaule tournés : rien).
@@ -677,7 +677,7 @@ func srv_set_mask(m: int) -> void:
 ## demi-largeur `half_width`, face intérieure de la barrière à `face` du
 ## milieu. Réparable : côté intérieur, à REPAIR_REACH au plus de cette face,
 ## devant le segment de l'ouverture (REPAIR_SIDE_SLACK au-delà de chaque
-## bord), au même étage (REPAIR_HEIGHT).
+## bord), au même niveau (REPAIR_HEIGHT).
 static func can_repair_from(pos: Vector3, window: Vector3, inward_dir: Vector3, half_width := 0.5, face := WINDOW_BARRIER_DEPTH * 0.5) -> bool:
 	var d := pos - window
 	if absf(d.y) > REPAIR_HEIGHT:

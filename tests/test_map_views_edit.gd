@@ -212,7 +212,7 @@ func test_level_tag_moves_a_floor() -> void:
 	var y := ev.to_px(Vector2(0, -3.5)).y
 	var at := ev.to_m(Vector2(ev._ruler() + EditorUi.px(20), y))
 	_drag(ev, at, at + Vector2(0, -0.5))
-	assert_near(ed.doc.floor_sol(1), 4.0, 0.001, "sol de l'étage 1 : 3,50 → 4,00 m")
+	assert_near(ed.doc.level_alt(1), 4.0, 0.001, "sol de l'étage 1 : 3,50 → 4,00 m")
 	# Format 17 : niveau libre, mais jamais à moins de 3,1 m d'une pièce qu'il
 	# recouvre : refus nommé, la dernière altitude valide reste.
 	y = ev.to_px(Vector2(0, -4.0)).y
@@ -223,7 +223,7 @@ func test_level_tag_moves_a_floor() -> void:
 		_mouse(ev, at.lerp(at + Vector2(0, 2.0), (i + 1) / 4.0))
 	assert_true(ev.tools.refusal.contains("3,1") or ev.tools.refusal.contains("3.1"), "refus nommé (%s)" % ev.tools.refusal)
 	_mouse(ev, at + Vector2(0, 2.0), MOUSE_BUTTON_LEFT, false)
-	assert_true(ed.doc.floor_sol(1) >= 3.1 - 0.001, "dernière altitude valide gardée (%s m)" % ed.doc.floor_sol(1))
+	assert_true(ed.doc.level_alt(1) >= 3.1 - 0.001, "dernière altitude valide gardée (%s m)" % ed.doc.level_alt(1))
 	ed.queue_free()
 	await wait_frames(1)
 
@@ -473,7 +473,7 @@ func test_object_under_double_height_ceiling_keeps_its_floor() -> void:
 	var lb := ed.doc.find("lb")
 	assert_eq(ed.doc.level_of(lb), 0, "sous le plafond réel de l'entrepôt : reste à l'étage 0")
 	var z := MapVertical.pose_z(ed.doc, ed.raster().v, lb)
-	assert_true(z > ed.doc.floor_sol(1) and z < ed.doc.floor_sol(1) + 3.0, "posée au-dessus du sol de l'étage 1 (%s m)" % z)
+	assert_true(z > ed.doc.level_alt(1) and z < ed.doc.level_alt(1) + 3.0, "posée au-dessus du sol de l'étage 1 (%s m)" % z)
 	ed.queue_free()
 	await wait_frames(1)
 

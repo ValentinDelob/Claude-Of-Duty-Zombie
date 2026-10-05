@@ -47,7 +47,7 @@ func setup_marker(m: MapMarker) -> void:
 		trap_cells[c] = true
 	_normal = m.wall
 	position = m.on_wall(0.12, 1.3)
-	mount_height = 1.3  # au mur : son étage est 1,3 m plus bas (InteractionSystem.same_level)
+	mount_height = 1.3  # au mur : son niveau est 1,3 m plus bas (InteractionSystem.same_level)
 	interact_range = 1.9
 	active_time = float(m.data.get("active", ACTIVE_TIME))
 	cooldown_time = float(m.data.get("cooldown", COOLDOWN_TIME))

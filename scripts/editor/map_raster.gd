@@ -33,7 +33,7 @@ var doc: EditorMap
 var v: MapValidator
 ## Zone de l'éditeur -> lettre du jeu.
 var letters: Dictionary = {}
-## Élément de l'éditeur -> [étage, cases] (dessin, clic sur un problème).
+## Élément de l'éditeur -> [niveau, cases] (dessin, clic sur un problème).
 var cells_of: Dictionary = {}
 
 
@@ -261,7 +261,7 @@ func _open_sky_hangers() -> void:
 
 ## Format 14 : décor mis à l'échelle ou incliné (fichier écrit à la main,
 ## carte reçue, Claude) : tout entier sous le plafond réel (les plafonds de
-## tous les étages sont connus ici). Le décor posé sur un décor incliné est
+## tous les niveaux sont connus ici). Le décor posé sur un décor incliné est
 ## déjà signalé « en l'air » (un décor incliné ne porte rien).
 func _scaled_heights() -> void:
 	for o in doc.objets:
@@ -655,7 +655,7 @@ func _floor(k: int) -> void:
 	_axis = {}
 	_diag_pass = {}
 	_grid_edges = []
-	# Côtés en biais de cet étage (fusionnés en murs obliques après (b)).
+	# Côtés en biais de ce niveau (fusionnés en murs obliques après (b)).
 	var raw := []
 	var void_polys := []
 	# (a) Pièces hautes des niveaux plus bas qui traversent celui-ci : vide et
@@ -690,7 +690,7 @@ func _floor(k: int) -> void:
 							up = true
 					if up:
 						_obstacle_record(k, o, cells)
-	# (b) Pièces de cet étage.
+	# (b) Pièces de ce niveau.
 	var inner_of := {}
 	var border_of := {}
 	for p in doc.rooms_on(k):
@@ -763,7 +763,7 @@ func _floor(k: int) -> void:
 	# traversent (format 17 : un escalier peut sauter des niveaux) : vide
 	# au-dessus des marches. Au niveau d'arrivée, le plafond au-dessus de la
 	# trémie est celui de la pièce de ce niveau où elle débouche (plafond réglé
-	# compris), celui du vide d'une pièce haute, sinon celui de l'étage : jamais
+	# compris), celui du vide d'une pièce haute, sinon celui du niveau : jamais
 	# un faux plafond plus bas (ou plus haut) que la pièce autour ; dans le vide
 	# (demi-niveau : l'escalier monte dans le volume de la pièce du pied), aucun
 	# (0 : celui de la pièce du dessous, MapVertical.ceil_at). Niveau traversé
@@ -876,7 +876,7 @@ func _floor(k: int) -> void:
 							f.put(c, K.MUR, key)
 					v.eid_of[key] = String(o.id)
 				cells_of[String(o.id)] = [k, cells]
-	# (f) Escaliers de cet étage (tournés : vraie géométrie, MapValidator.diag_stairs).
+	# (f) Escaliers de ce niveau (tournés : vraie géométrie, MapValidator.diag_stairs).
 	for o in doc.objects_on(k):
 		if String(o.type) == "escalier":
 			var key := "escalier#" + String(o.id)
@@ -888,7 +888,7 @@ func _floor(k: int) -> void:
 			# Type et réglages (format 6) : validateur (pente, largeur) et export.
 			v.stair_opts[key] = MapCatalog.stair_layout_opts(o)
 			# Sens tracé : départage un escalier qui a du sol aux deux bouts, en
-			# bas comme en haut (étages empilés, MapValidator._stairs).
+			# bas comme en haut (niveaux empilés, MapValidator._stairs).
 			var dv := MapGeom.dir_vec(String(o.get("monte", "n")))
 			v.stair_up[key] = Vector2i(roundi(dv.x), roundi(dv.y))
 			var shaped := MapCatalog.stair_shaped(o)
@@ -978,7 +978,7 @@ func _floor(k: int) -> void:
 
 
 ## Cases coupées par un mur droit (pièces, piliers, murs libres droits) de
-## l'étage en cours : elles restent des blocs de la grille.
+## le niveau en cours : elles restent des blocs de la grille.
 var _axis: Dictionary = {}
 ## Cases d'un passage libre posé sur un mur en biais (sol, sans mur).
 var _diag_pass: Dictionary = {}
@@ -994,8 +994,8 @@ static func _cardinal(o: Dictionary) -> String:
 
 ## Côtés d'un contour : droits sur la grille -> cases de la grille (_axis) ;
 ## en biais ou hors de la grille -> `raw` (fusionnés ensuite par
-## _merge_obliques). `own` : pièce de cet étage (sinon contour d'une double
-## hauteur de l'étage du dessous).
+## _merge_obliques). `own` : pièce de ce niveau (sinon contour d'une double
+## hauteur du niveau du dessous).
 func _edges(poly: PackedVector2Array, rid: String, own: bool, raw: Array) -> void:
 	for i in poly.size():
 		var a := poly[i]
@@ -1008,13 +1008,13 @@ func _edges(poly: PackedVector2Array, rid: String, own: bool, raw: Array) -> voi
 			raw.append({"a": a, "b": b, "room": rid, "poly": poly, "own": own})
 
 
-## Côtés de pièce construits en blocs de la grille (étage en cours) : un mur
+## Côtés de pièce construits en blocs de la grille (niveau en cours) : un mur
 ## oblique qui les longe (pièce tracée sans grille collée à une pièce de la
 ## grille) n'est pas construit une seconde fois.
 var _grid_edges: Array = []
 
 
-## Pilier, mur libre ou mur courbe de l'étage k : cases droites (_axis) ou
+## Pilier, mur libre ou mur courbe du niveau k : cases droites (_axis) ou
 ## mur oblique (vraie géométrie).
 func _obstacle_record(k: int, o: Dictionary, cells: Array) -> void:
 	var t0 := String(o.type)
@@ -1228,7 +1228,7 @@ func _landing(f: MapValidator.Floor, o: Dictionary, inner_of: Dictionary, border
 		(v.landings.get_or_add(f.index, {}) as Dictionary)[c] = true
 
 
-## Mur oblique (côté de pièce) de l'étage k qui passe par `p` ({} sinon).
+## Mur oblique (côté de pièce) du niveau k qui passe par `p` ({} sinon).
 func oblique_at(k: int, p: Vector2) -> Dictionary:
 	for w in v.oblique_walls[k]:
 		if w.kind == "piece" and MapGeom.dist_to_segment(p, w.a, w.b) <= MapGeom.JOIN_TOL:
@@ -1236,7 +1236,7 @@ func oblique_at(k: int, p: Vector2) -> Dictionary:
 	return {}
 
 
-## Fin d'un étage : cases des murs obliques qui ne sont pas des murs droits
+## Fin d'un niveau : cases des murs obliques qui ne sont pas des murs droits
 ## (le jeu les construit en vrais murs obliques, pas en blocs de la grille).
 func _finish_diag(k: int) -> void:
 	var f := v.floors[k]

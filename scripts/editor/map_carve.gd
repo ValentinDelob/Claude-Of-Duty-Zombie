@@ -2,7 +2,7 @@ class_name MapCarve
 extends RefCounted
 ## DÉCOUPE DES PIÈCES de l'éditeur de cartes (docs/MAP_AUTHORING.md § 3,
 ## « Pièce tracée sur une autre ») : une pièce tracée (rectangle, polygone,
-## forme) PAR-DESSUS une ou plusieurs pièces du même étage les « grignote » :
+## forme) PAR-DESSUS une ou plusieurs pièces du même niveau les « grignote » :
 ## chaque pièce recouverte perd la partie sous la nouvelle (soustraction de
 ## polygones, Geometry2D.clip_polygons), après confirmation de l'utilisateur.
 ## Le format n'a PAS de trou (un contour simple par pièce) :
@@ -43,7 +43,7 @@ const FREE_TYPES := ["bloc_invisible", "mur", "mur_courbe"]
 
 # ------------------------------------------------------------------ géométrie
 
-## Pièces de l'étage `k` que le contour `poly` recouvre (plus que les toucher).
+## Pièces du niveau `k` que le contour `poly` recouvre (plus que les toucher).
 static func overlaps(doc: EditorMap, k: int, poly: PackedVector2Array, ignore_id := "") -> Array:
 	var out := []
 	for p in doc.rooms_on(k):
@@ -235,7 +235,7 @@ static func copy_doc(doc: EditorMap) -> EditorMap:
 	return m
 
 
-## Découpe PRÉVUE d'une pièce de contour `poly` tracée à l'étage `k` (rien
+## Découpe PRÉVUE d'une pièce de contour `poly` tracée au niveau `k` (rien
 ## n'est modifié) : {carve: false} si elle ne recouvre rien ; sinon le
 ## résultat de carve() sur une copie (ok, victims… ou refus fr / en), plus
 ## `cut` (covered : les parties hachurées) et `doc` (la copie découpée).
@@ -531,7 +531,7 @@ static func _relocate(doc: EditorMap, k: int, o: Dictionary, zones: Array) -> bo
 	return false
 
 
-## Éléments invalides des étages k - 1 à k + 1 qui touchent `region` : id ->
+## Éléments invalides des niveaux k - 1 à k + 1 qui touchent `region` : id ->
 ## refus {fr, en}.
 static func _invalid(doc: EditorMap, k: int, region: Rect2) -> Dictionary:
 	var out := {}

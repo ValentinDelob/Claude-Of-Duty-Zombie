@@ -1,7 +1,7 @@
 class_name MapViewPane
 extends Control
 ## Fenêtre de vue de l'éditeur de cartes (docs/EDITOR_VIEWS.md, § 5) : un
-## en-tête de 22 px (nom du plan, étages, axes de l'écran en couleurs, coupe,
+## en-tête de 22 px (nom du plan, niveaux, axes de l'écran en couleurs, coupe,
 ## zoom, agrandir) au-dessus de sa vue (MapView). Vue active : en-tête plus
 ## clair et cadre or de 1 px.
 
@@ -131,9 +131,9 @@ func _draw() -> void:
 	# Nom du plan : capitales espacées (+0,06 em), gras.
 	var pl := view.plane
 	x = _spaced(MapView.bold_font(), Vector2(x, base), MapView.plane_name(pl), fs, COL_BONE, fs * 0.06) + gap
-	# Étages, sens du regard (élévations : clic, menu des étages).
+	# Niveaux, sens du regard (élévations : clic, menu des niveaux).
 	var sub := view.header_sub()
-	# Fenêtre étroite : le texte des étages laisse la place aux axes et à ⛶.
+	# Fenêtre étroite : le texte des niveaux laisse la place aux axes et à ⛶.
 	var axes_w := MapView.bold_font(600).get_string_size("X → · Z ↑", HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x if pl != "3d" else 0.0
 	if sub != "" and x + font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + gap + axes_w > size.x - EditorUi.px(30):
 		sub = ""
@@ -248,7 +248,7 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
-## Menu d'une puce de l'en-tête (coupe, étages, zoom).
+## Menu d'une puce de l'en-tête (coupe, niveaux, zoom).
 func _open_menu(id: String, at: Vector2) -> void:
 	var items: Array = view.header_menu(id)
 	if items.is_empty():

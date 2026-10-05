@@ -2,7 +2,7 @@ class_name MapObjectList
 extends HBoxContainer
 ## Onglet déployable « Objets sur la carte » de l'éditeur (à gauche de la vue,
 ## touche L) : tous les éléments posés (pièces, ouvertures, objets, décor,
-## luminaires) avec icône, nom, type, étage et position en mètres, triés par
+## luminaires) avec icône, nom, type, niveau et position en mètres, triés par
 ## identifiant, filtrés par catégorie et par texte, PAGINÉS PAR 50.
 ##   - survol d'une ligne : l'élément est entouré sur la carte (la vue ne bouge
 ##     pas) ; survol d'un élément sur la carte : sa ligne est surlignée et la
