@@ -74,6 +74,23 @@ static func uv_of(pl: String, p: Vector3) -> Vector2:
 	return Vector2(p.x, p.y)
 
 
+## uv_of et depth_of d'un plan en produits scalaires (boucles chaudes : un
+## appel par sommet sinon) : [u, v, profondeur], chacun `axe.dot(p)`.
+static func plane_axes(pl: String) -> Array:
+	match pl:
+		"dessous":
+			return [Vector3(-1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, -1)]
+		"avant":
+			return [Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0)]
+		"arriere":
+			return [Vector3(-1, 0, 0), Vector3(0, 0, -1), Vector3(0, -1, 0)]
+		"droite":
+			return [Vector3(0, -1, 0), Vector3(0, 0, -1), Vector3(1, 0, 0)]
+		"gauche":
+			return [Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0)]
+	return [Vector3(1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1)]
+
+
 ## Profondeur d'un point dans un plan : plus grande = plus près de la caméra
 ## (Dessus : le haut ; Avant : le sud ; Droite : l'est...).
 static func depth_of(pl: String, p: Vector3) -> float:

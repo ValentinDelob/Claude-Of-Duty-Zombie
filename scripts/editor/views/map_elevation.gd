@@ -156,6 +156,10 @@ func projected() -> Array:
 	var dmax := -INF
 	var depth_y := String(depth_axis(plane)[0]) == "Y"
 	var below := plane == "dessous"
+	var axes := plane_axes(plane)
+	var ax_u: Vector3 = axes[0]
+	var ax_v: Vector3 = axes[1]
+	var ax_d: Vector3 = axes[2]
 	for it in items():
 		var poly: PackedVector2Array = it.poly
 		if poly.is_empty():
@@ -170,10 +174,10 @@ func projected() -> Array:
 		var pts := PackedVector2Array()
 		for q in poly:
 			var p3 := Vector3(q.x, q.y, z0)
-			var uv := uv_of(plane, p3)
+			var uv := Vector2(ax_u.dot(p3), ax_v.dot(p3))   # uv_of
 			u0 = minf(u0, uv.x)
 			u1 = maxf(u1, uv.x)
-			near = maxf(near, depth_of(plane, p3))
+			near = maxf(near, ax_d.dot(p3))   # depth_of
 			var real := q.y if depth_y else q.x
 			lo = minf(lo, real)
 			hi = maxf(hi, real)
