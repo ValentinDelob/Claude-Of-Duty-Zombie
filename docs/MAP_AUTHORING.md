@@ -724,7 +724,7 @@ niveaux sont libres : de toute hauteur et de toute forme, demi-niveaux
 compris, sans nombre maximal, sans pas imposé (l'interface aimante, le fichier
 garde la valeur) ; une altitude peut être négative (sous-sol).
 
-- **Pièce** (onglet Propriétés) : nom, zone, **Altitude du sol** (déplace la
+- **Pièce** (onglet Propriétés) : nom, zone, **Z** de la ligne Position (altitude du sol : déplace la
   pièce et tout son contenu, une étape d'annulation ; refusée avec la raison
   si elle recouvre une autre pièce de trop près ; une altitude nouvelle crée
   un niveau), **Hauteur sous plafond** (2,8 m au moins, sans maximum ; une

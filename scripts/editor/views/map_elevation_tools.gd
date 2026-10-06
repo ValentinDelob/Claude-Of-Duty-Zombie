@@ -316,6 +316,13 @@ func _begin(kind: String, e: Dictionary, extra: Dictionary) -> void:
 	drag["za0"] = EditorMap.alt_of(o) + (MapVertical.pose_z(doc, v, o) if MapVertical.pose_kind(o) == "pose" else 0.0)
 	if kind == "top":
 		drag["v0"] = _top_value(o)
+	if kind == "move" and o.has("contour"):
+		# Altitudes des niveaux au départ : ceux qu'une pièce glissée crée en
+		# passant ne sont pas tracés (MapElevation.passing_levels).
+		var alts := []
+		for i in doc.level_count():
+			alts.append(doc.level_alt(i))
+		drag["alts0"] = alts
 	# Axes permis (un objet mural face à la vue ne quitte pas son mur, une
 	# ouverture ne change pas de niveau) : verrou forcé ; « both » : immobile.
 	drag["can_h"] = can_h(e)

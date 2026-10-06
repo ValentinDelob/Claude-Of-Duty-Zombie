@@ -126,6 +126,45 @@ func test_room_altitude_moves_content_and_stair_arrival_in_one_undo() -> void:
 	await _done(ed)
 
 
+## Le Z de la ligne Position d'une pièce est son altitude : tapé, il la monte
+## (une étape d'annulation) ; plus de ligne « Altitude du sol » à part.
+func test_room_z_field_sets_its_altitude() -> void:
+	var ed := await _editor(Free.high_hall())
+	ed.select("m1")
+	await wait_frames(1)
+	var pc: PanelContainer = ed.panels._pos_fields.get("Z")
+	assert_true(pc != null, "champ Z d'une pièce")
+	var le := pc.get_child(0).get_child(1) as LineEdit
+	assert_eq(le.text, MapView.num(3.5, 2), "Z = altitude de la pièce")
+	var n0 := _undos(ed)
+	le.text = "4"
+	le.text_submitted.emit(le.text)
+	assert_near(EditorMap.alt_of(ed.doc.find("m1")), 4.0, 0.0001, "Z tapé : pièce à 4 m")
+	assert_eq(_undos(ed), n0 + 1, "une étape d'annulation")
+	for l in ed.panels._props.find_children("*", "Label", true, false):
+		assert_false((l as Label).text == Lang.t("Altitude du sol", "Floor altitude"), "pas de ligne Altitude du sol en double")
+	await _done(ed)
+
+
+## Pièce glissée verticalement : le niveau qu'elle crée en passant n'est ni
+## tracé ni étiqueté dans les élévations (traits horizontaux qui la suivaient).
+func test_level_created_while_dragging_a_room_is_not_drawn() -> void:
+	var ed := await _editor(Free.high_hall())
+	var ev: MapElevation = ed.views.elevations()[0]
+	var alts := []
+	for i in ed.doc.level_count():
+		alts.append(ed.doc.level_alt(i))
+	ed.doc.find("m2")["altitude"] = 8.25
+	ev.tools.drag = {"kind": "move", "alts0": alts}
+	var k := ed.doc.level_index(8.25)
+	assert_true(k >= 0, "niveau provisoire à 8,25 m")
+	assert_true(ev.passing_levels().has(k), "niveau de passage non tracé")
+	assert_false(ev.passing_levels().has(ed.doc.level_index(3.5)), "niveau existant tracé")
+	ev.tools.drag = {}
+	assert_true(ev.passing_levels().is_empty(), "relâchée : tous les niveaux tracés")
+	await _done(ed)
+
+
 func test_room_carries_the_foot_of_its_stairs() -> void:
 	var ed := await _editor(Free.half_level())
 	var plan := MapTransform.vertical_plan(ed.doc, ["pa"])

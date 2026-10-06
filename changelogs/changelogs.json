@@ -2373,6 +2373,29 @@
     "en": "Map editor: no more floors, free levels instead",
     "fr": "Éditeur de cartes : fini les étages, place aux niveaux libres"
    }
+  },
+  "v0.2.1-snapshot.465": {
+   "channel": "snapshot",
+   "date": "2026-10-06",
+   "images": [],
+   "items": [
+    {
+     "en": "A room's Position row now shows X, Y and Z: Z is the floor altitude, typed directly (the separate \"Floor altitude\" field is gone).",
+     "fr": "La ligne Position d'une pièce affiche maintenant X, Y et Z : Z est l'altitude du sol, à taper directement (le champ « Altitude du sol » à part disparaît)."
+    },
+    {
+     "en": "Other elements also show their Z (their level's altitude) instead of a drop-down list.",
+     "fr": "Les autres éléments affichent aussi leur Z (l'altitude de leur niveau) au lieu d'une liste déroulante."
+    },
+    {
+     "en": "Raising or lowering a room in a side view no longer draws horizontal lines across the whole view while dragging.",
+     "fr": "Monter ou descendre une pièce dans une vue de face ne trace plus de traits horizontaux sur toute la vue pendant le glissement."
+    }
+   ],
+   "title": {
+    "en": "Map editor: Z field",
+    "fr": "Éditeur de cartes : champ Z"
+   }
   }
  }
 }

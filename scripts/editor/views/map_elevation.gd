@@ -513,7 +513,10 @@ func _draw_side(c: CanvasItem, _list: Array, font: Font, area: Rect2) -> void:
 			_draw_item(c, e, r, _alpha(e, k_cur, cut))
 	# Lignes de niveau : sols (pleins), plafonds de niveau (tirets).
 	var x0 := maxf(area.position.x, _ruler())
+	var passing := passing_levels()
 	for i in doc.level_count():
+		if passing.has(i):
+			continue
 		var sol := doc.level_alt(i)
 		if i > 0:
 			var ys := to_px(Vector2(0, -sol)).y
@@ -858,10 +861,11 @@ func _draw_level_tags(c: CanvasItem) -> void:
 	var bf := bold_font(500)
 	var bg := bold_font(700)
 	var fs := _fs(10.5)
+	var passing := passing_levels()
 	for i in doc.level_count():
 		var sol := doc.level_alt(i)
 		var y := to_px(Vector2(0, -sol)).y
-		if y < _ruler() or y > size.y:
+		if y < _ruler() or y > size.y or passing.has(i):
 			continue
 		var cur := i == ed.floor_k
 		# Format 17 : un niveau = une altitude (plus de numéro d'étage).
@@ -873,6 +877,25 @@ func _draw_level_tags(c: CanvasItem) -> void:
 		var r := Rect2(_ruler() + _u(2), y - _u(8), w, _u(15))
 		_round_rect(c, r, Color("3a3020") if cur else Color("232427"), COL_GOLD if cur else Color("4D4D54"))
 		c.draw_string(f, Vector2(r.position.x + _u(5), y + _u(3.5)), lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, COL_GOLD if cur else Color("CFC9B8"))
+
+
+## Niveaux (indices -> vrai) qui n'existent que le temps du glissement
+## vertical d'une pièce, dans n'importe quelle élévation : ni trait sur toute
+## la largeur, ni étiquette (ils suivraient la pièce à chaque pas) ; ses cotes
+## donnent l'altitude. Relâchée, la pièce montre son niveau.
+func passing_levels() -> Dictionary:
+	var out := {}
+	if ed == null or ed.views == null:
+		return out
+	for v in ed.views.elevations():
+		var t := (v as MapElevation).tools
+		if t == null or not t.dragging() or not t.drag.has("alts0"):
+			continue
+		for i in ed.doc.level_count():
+			var sol := ed.doc.level_alt(i)
+			if not (t.drag.alts0 as Array).any(func(a): return absf(float(a) - sol) <= EditorMap.ALT_EQ):
+				out[i] = true
+	return out
 
 
 ## Rectangle aux coins arrondis (2 px), rempli et bordé.

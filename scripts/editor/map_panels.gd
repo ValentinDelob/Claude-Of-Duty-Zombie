@@ -499,7 +499,6 @@ func _room_props(r: Dictionary) -> void:
 	ids.append("")
 	_option(_props, Lang.t("Zone", "Zone"), names, maxi(0, ids.find(String(r.get("zone", "")))), func(i): ed.set_room_zone(String(r.id), String(ids[i])))
 	var k := ed.doc.level_of(r)
-	_altitude_row(r)
 	# Format 17 : hauteur sous plafond sans maximum (2,8 m au moins) ; une pièce
 	# dont le plafond dépasse le niveau du dessus est une pièce haute.
 	var def_h := EditorMap.DEFAULT_CEILING
@@ -542,28 +541,11 @@ func _room_props(r: Dictionary) -> void:
 		"%s · %s × %s m · %s m²\nWalls follow the outline; an edge shared with a touching room = a single wall.") % [EditorMap.level_name(ed.doc.level_alt(k)), _m(bb.size.x), _m(bb.size.y), _m(snappedf(MapGeom.area(poly), 0.5))])
 
 
-## Format 17 : « Altitude du sol » d'une pièce (m, sans borne) : la monter ou
-## la descendre emporte son contenu (un escalier qui en part : son pied ; qui
-## y arrive : son arrivée), en une étape d'annulation ; refus nommé, carte
-## intacte (pièces empilées à moins de 3,1 m, contenu ou escalier qui ne tient pas).
-func _altitude_row(r: Dictionary) -> void:
-	var s := SpinBox.new()
-	s.min_value = -100.0
-	s.max_value = 100.0
-	s.allow_greater = true
-	s.allow_lesser = true
-	s.step = 0.05
-	s.value = EditorMap.alt_of(r)
-	s.suffix = "m"
-	s.select_all_on_focus = true
-	s.tooltip_text = Lang.t("Altitude du sol de la pièce (son niveau). La changer emporte son contenu ; une nouvelle altitude crée un niveau.",
-		"Altitude of the room's floor (its level). Changing it carries its content; a new altitude creates a level.")
-	var rid := String(r.id)
-	s.value_changed.connect(func(v): set_room_altitude(rid, float(v)))
-	_row(_props, Lang.t("Altitude du sol", "Floor altitude"), s)
-
-
-## Monte ou descend la pièce `rid` (et son contenu) à l'altitude `alt` (m).
+## Monte ou descend la pièce `rid` à l'altitude `alt` (m, sans borne ; champ Z
+## d'une pièce, format 17) : elle emporte son contenu (un escalier qui en part :
+## son pied ; qui y arrive : son arrivée), en une étape d'annulation ; refus
+## nommé, carte intacte (pièces empilées à moins de 3,1 m, contenu ou escalier
+## qui ne tient pas).
 func set_room_altitude(rid: String, alt: float) -> Dictionary:
 	var o := ed.doc.find(rid)
 	if o.is_empty() or not is_finite(alt):
@@ -1067,9 +1049,9 @@ static func ref_point(doc: EditorMap, o: Dictionary) -> Vector2:
 
 
 ## Ligne « Position » (docs/EDITOR_VIEWS.md § 6.3, D11) : X, Y (m) et Z (hauteur
-## de pose au-dessus du sol du niveau quand l'élément en a une, sinon la
-## liste des niveaux). Un champ validé = une étape d'annulation ; une valeur
-## refusée est remise et la raison s'affiche.
+## de pose au-dessus du sol du niveau quand l'élément en a une, sinon
+## l'altitude de son sol ; celle d'une pièce est libre). Un champ validé =
+## une étape d'annulation ; une valeur refusée est remise et la raison s'affiche.
 func _position_row(o: Dictionary) -> void:
 	_pos_fields = {}
 	var h := HBoxContainer.new()
@@ -1100,23 +1082,22 @@ func _position_row(o: Dictionary) -> void:
 			(_pos_fields["Z"] as Control).tooltip_text = note
 		else:
 			_note(_props, note)
+	elif o.has("contour"):
+		# Format 17 : Z d'une pièce = l'altitude de son sol, libre (une nouvelle
+		# altitude crée un niveau) ; elle emporte son contenu.
+		_axis_field(box, "Z", EditorMap.alt_of(o), func(v: float): set_room_altitude(oid, v))
+		(_pos_fields["Z"] as Control).tooltip_text = Lang.t("Altitude du sol de la pièce (son niveau). La changer emporte son contenu ; une nouvelle altitude crée un niveau.",
+			"Altitude of the room's floor (its level). Changing it carries its content; a new altitude creates a level.")
+		_note(_props, Lang.t("X, Y : coin nord-ouest. Z : altitude du sol ; la changer emporte le contenu de la pièce.",
+			"X, Y: north-west corner. Z: floor altitude; changing it carries the room's content."))
 	else:
-		var opt := OptionButton.new()
-		for k in ed.doc.level_count():
-			opt.add_item(EditorMap.alt_text(ed.doc.level_alt(k), not Lang.is_en()))
-		opt.selected = ed.doc.level_of(o)
-		opt.fit_to_longest_item = false
-		opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		opt.tooltip_text = Lang.t("Z d'un élément sans hauteur de pose : son niveau", "Z of an element without a placement height: its level")
-		opt.disabled = kind == "fixe"
-		opt.item_selected.connect(func(i): _apply_floor(oid, i))
-		box.add_child(opt)
-		_pos_fields["Z"] = opt
+		# Z d'un élément sans hauteur de pose : l'altitude de son niveau (une
+		# valeur tapée va au niveau le plus proche).
+		var ze := _axis_field(box, "Z", EditorMap.alt_of(o), func(v: float): _apply_floor(oid, MapVertical.nearest_floor(ed.doc, v)))
+		(_pos_fields["Z"] as Control).tooltip_text = Lang.t("Z : altitude de son niveau (une valeur va au niveau le plus proche)", "Z: altitude of its level (a value goes to the nearest level)")
 		if kind == "fixe":
+			ze.editable = false
 			_note(_props, Lang.t("Une ouverture suit son mur : pour changer de niveau, déplacez la pièce.", "An opening follows its wall: to change level, move the room."))
-		elif o.has("contour"):
-			_note(_props, Lang.t("X, Y : coin nord-ouest. Z d'une pièce = son niveau : le changer emporte son contenu.",
-				"X, Y: north-west corner. Z of a room = its level: changing it carries its content."))
 
 
 ## Champ d'un axe : sa lettre en couleur, la valeur (m).
@@ -1184,8 +1165,13 @@ func _apply_z(oid: String, v: float) -> void:
 
 func _apply_floor(oid: String, k: int) -> void:
 	var o := ed.doc.find(oid)
-	if not o.is_empty() and k != ed.doc.level_of(o):
+	if o.is_empty():
+		return
+	if k != ed.doc.level_of(o):
 		_apply_3d(oid, Vector2.ZERO, k, NAN)
+	else:
+		# Même niveau : le champ Z reprend son altitude.
+		refresh()
 
 
 func _apply_3d(oid: String, delta: Vector2, k: int, z: float) -> void:
@@ -1229,8 +1215,7 @@ func live_position(on: bool) -> void:
 		return
 	var p := ref_point(ed.doc, o)
 	var vals := {"X": p.x, "Y": p.y}
-	if MapVertical.pose_kind(o) == "pose":
-		vals["Z"] = MapVertical.pose_z(ed.doc, ed.raster().v, o)
+	vals["Z"] = MapVertical.pose_z(ed.doc, ed.raster().v, o) if MapVertical.pose_kind(o) == "pose" else EditorMap.alt_of(o)
 	for axis in _pos_fields:
 		var c: Control = _pos_fields[axis]
 		if not is_instance_valid(c):
@@ -1243,8 +1228,6 @@ func live_position(on: bool) -> void:
 			if vals.has(axis) and le != null and not le.has_focus():
 				le.text = MapView.num(float(vals[axis]), 2)
 				le.set_meta("applied", le.text)
-		elif c is OptionButton:
-			(c as OptionButton).selected = ed.doc.level_of(o)
 
 
 # ------------------------------------------------------------------ listes
