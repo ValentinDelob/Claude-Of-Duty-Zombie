@@ -4,8 +4,6 @@ extends RefCounted
 ## client (prédiction : fente, animation) et le serveur (validation, dégâts).
 ##
 ## * Couteau de départ : 150 dégâts (tue en un coup à la manche 1, deux à la 2...).
-## * COUTEAU DE CHASSE (Bowie Knife de Kino der Toten) : acheté au mur 3000,
-##   il remplace le couteau ; ~1300 dégâts : un coup jusqu'à la manche 12.
 ## * Fente : si un zombie est visé à portée de fente (~3 m devant), le joueur se
 ##   projette vers lui en LUNGE_TIME avant de frapper, comme dans BO1.
 
@@ -13,7 +11,6 @@ extends RefCounted
 const DEFAULT := "knife"
 const KNIVES := {
 	"knife": {"name": "COUTEAU", "damage": 150, "model": "knife", "energy": 8.0},
-	"bowie": {"name": "COUTEAU DE CHASSE", "damage": 1300, "model": "bowie", "wall_cost": 3000, "energy": 10.0},
 }
 
 ## Portée d'un coup sans fente (m, horizontale, depuis le joueur).
@@ -28,8 +25,6 @@ const LUNGE_STOP := 1.0
 const LUNGE_CONE := 0.93
 ## Cône d'un coup au contact (cosinus, ~63°).
 const MELEE_CONE := 0.45
-## Durée de l'animation de récupération du couteau de chasse (s).
-const PICKUP_TIME := 2.0
 
 
 static func exists(id: String) -> bool:
@@ -50,10 +45,6 @@ static func display_name(id: String) -> String:
 
 static func model(id: String) -> String:
 	return info(id).model
-
-
-static func wall_cost(id: String) -> int:
-	return int(info(id).get("wall_cost", 0))
 
 
 ## Énergie dépensée par un coup de ce couteau (PlayerEnergy).

@@ -80,14 +80,6 @@ func gen_lmg_fire() -> void:
 	_save("lmg_fire", _gunshot(4200.0, 0.1, 80.0, 0.1, 0.8, 0.7))
 
 
-func gen_minigun_fire() -> void:
-	# FAUCHEUSE : coup très court (20 par seconde) et claquement métallique du
-	# barillet qui tourne.
-	var b := _gunshot(5000.0, 0.035, 110.0, 0.03, 0.8, 0.3)
-	s.mix(b, s.env_exp(s.bandpass(s.noise(0.03), 5200.0, 5.0), 0.0005, 0.006), 0.0, 0.3)
-	_save("minigun_fire", s.finish(b, 0.9))
-
-
 func gen_sniper_fire() -> void:
 	_save("sniper_fire", _gunshot(7000.0, 0.14, 60.0, 0.16, 1.0, 0.95))
 
@@ -340,17 +332,6 @@ func gen_knife_flesh() -> void:
 	_save("knife_flesh", s.finish(b, 0.8))
 
 
-## Couteau de chasse sorti de son étui : frottement du cuir puis tintement de la lame.
-func gen_bowie_draw() -> void:
-	var b := s.env_adsr(s.bandpass(s.noise(0.45), 1800.0, 1.0), 0.12, 0.1, 0.5, 0.15)
-	var ring := s.buf(0.9)
-	for f in [2900.0, 4350.0, 6100.0]:
-		s.mix(ring, s.env_exp(s.tone(0.9, f), 0.001, 0.35 * 3000.0 / f), 0.0, 0.18)
-	s.mix(b, ring, 0.4, 1.0)
-	s.mix(b, s.env_exp(s.highpass(s.noise(0.05), 3500.0), 0.001, 0.01), 0.4, 0.5)
-	_save("bowie_draw", s.finish(s.reverb(b, 0.35, 0.15, 0.3), 0.75))
-
-
 func gen_emerge() -> void:
 	var b := s.env_adsr(s.lowpass(s.brown_noise(1.4), 700.0), 0.2, 0.3, 0.6, 0.5)
 	for k in 6:
@@ -532,79 +513,6 @@ func gen_lamp_on() -> void:
 
 # ---------------------------------------------------------------- atouts
 
-## Petite ritournelle « orgue de barbarie » désaccordée. notes : [demi-tons, durée]
-func _jingle(notes: Array, root_hz: float, tempo: float, wave: String) -> PackedFloat32Array:
-	var b := s.buf(0.1)
-	var t := 0.0
-	for n in notes:
-		var f: float = root_hz * pow(2.0, float(n[0]) / 12.0) * (1.0 + s.rng.randf_range(-0.006, 0.006))
-		var d: float = n[1] * tempo
-		if n[0] > -99:
-			var v := s.env_adsr(s.tone(d + 0.3, f, wave), 0.01, 0.08, 0.5, 0.25)
-			s.mix(v, s.env_exp(s.tone(d + 0.3, f * 2.0), 0.005, 0.1), 0.0, 0.25)
-			s.mix(b, v, t, 0.4)
-		t += d
-	# Basse d'accompagnement.
-	var bass := s.env_adsr(s.lowpass(s.tone(t + 0.3, root_hz / 2.0, "tri"), 400.0), 0.05, 0.2, 0.5, 0.4)
-	s.mix(b, bass, 0.0, 0.3)
-	b = s.bitcrush(s.lowpass(b, 5000.0), 10)
-	return s.finish(s.reverb(b, 0.6, 0.25, 0.8), 0.75)
-
-
-func gen_jingle_titan() -> void:
-	_save("jingle_titan", _jingle([[0, 1], [0, 0.5], [3, 0.5], [7, 1], [5, 0.5], [3, 0.5], [0, 2]], 196.0, 0.22, "saw"))
-
-
-func gen_jingle_rapid() -> void:
-	_save("jingle_rapid", _jingle([[0, 0.5], [4, 0.5], [7, 0.5], [12, 0.5], [7, 0.5], [4, 0.5], [0, 0.5], [12, 1.5]], 293.7, 0.15, "square"))
-
-
-func gen_jingle_twin() -> void:
-	_save("jingle_twin", _jingle([[0, 0.5], [0, 0.5], [5, 1], [5, 0.5], [5, 0.5], [9, 1], [7, 0.5], [5, 0.5], [0, 2]], 261.6, 0.18, "tri"))
-
-
-func gen_jingle_lazarus() -> void:
-	_save("jingle_lazarus", _jingle([[7, 1], [5, 0.5], [4, 0.5], [2, 1], [0, 1], [-5, 1], [0, 2]], 329.6, 0.24, "tri"))
-
-
-func gen_jingle_stride() -> void:
-	_save("jingle_stride", _jingle([[0, 0.5], [2, 0.5], [4, 0.5], [5, 0.5], [7, 1], [9, 0.5], [7, 0.5], [12, 2]], 246.9, 0.17, "saw"))
-
-
-func gen_jingle_nova() -> void:
-	# NOVA FLOP : air de guitare surf, montée puis chute (le plongeon).
-	_save("jingle_nova", _jingle([[0, 0.5], [3, 0.5], [5, 0.5], [7, 1], [10, 0.5], [7, 0.5], [12, 1], [-99, 0.5], [0, 0.5], [-5, 2]], 220.0, 0.16, "square"))
-
-
-func gen_jingle_deadeye() -> void:
-	# DEADEYE DRAM : marche lente et grave de western, notes pointées.
-	_save("jingle_deadeye", _jingle([[0, 1.5], [0, 0.5], [7, 1], [5, 0.5], [3, 0.5], [2, 1], [-2, 1], [0, 2]], 174.6, 0.2, "tri"))
-
-
-func gen_nova_blast() -> void:
-	# Plongeon explosif : impact sourd, souffle électrique qui s'ouvre, crépitement.
-	var b := s.env_exp(s.lowpass(s.noise(0.05), 900.0), 0.0005, 0.02)
-	s.mix(b, s.env_exp(s.sweep(0.8, 140.0, 35.0), 0.001, 0.3), 0.0, 1.5)
-	s.mix(b, s.env_exp(s.lowpass_sweep(s.noise(1.1), 600.0, 5200.0), 0.004, 0.25), 0.0, 0.9)
-	s.mix(b, s.env_exp(s.sweep(0.9, 380.0, 1400.0, "saw"), 0.01, 0.3), 0.02, 0.25)
-	for k in 10:
-		var crack := s.env_exp(s.bandpass(s.noise(0.03), s.rng.randf_range(2500.0, 7000.0), 3.0), 0.0005, 0.006)
-		s.mix(b, crack, 0.08 + s.rng.randf_range(0.0, 0.6), s.rng.randf_range(0.15, 0.35))
-	b = s.drive(b, 2.8)
-	_save("nova_blast", s.finish(s.reverb(b, 0.85, 0.3, 1.1), 0.97))
-
-
-func gen_perk_drink() -> void:
-	# Capsule, gorgées, bouteille jetée.
-	var b := _clank(2200.0, 0.05, 0.4)
-	for k in 3:
-		var gulp := s.env_exp(s.lowpass(s.sweep(0.18, 300.0, 160.0), 900.0), 0.01, 0.06)
-		s.mix(b, gulp, 0.35 + k * 0.28, 0.9)
-	s.mix(b, _clank(1200.0, 0.2, 0.6), 1.5, 0.8)
-	s.mix(b, _clank(1500.0, 0.15, 0.4), 1.62, 0.5)
-	_save("perk_drink", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.8))
-
-
 # ---------------------------------------------------------------- boîte mystère
 
 func gen_box_open() -> void:
@@ -630,62 +538,6 @@ func gen_box_music() -> void:
 	_save("box_music", s.finish(s.reverb(b, 0.7, 0.3, 1.0), 0.7))
 
 
-func gen_box_skull() -> void:
-	# Ricanement démoniaque : « ha ha ha » graves et saturés.
-	var b := s.buf(0.1)
-	for k in 5:
-		var ha := _growl(0.22, 140.0 - k * 12.0, 110.0 - k * 10.0, [750.0, 1150.0], 0.7)
-		s.mix(b, ha, 0.05 + k * 0.26, 1.0 - k * 0.1)
-	var drone := s.env_adsr(s.lowpass(s.tone(2.2, 41.0, "saw"), 200.0), 0.1, 0.5, 0.7, 0.8)
-	s.mix(b, drone, 0.0, 0.6)
-	_save("box_skull", s.finish(s.reverb(b, 0.9, 0.35, 1.5), 0.9))
-
-
-func gen_box_fly() -> void:
-	var b := s.env_adsr(s.bandpass(s.noise(1.6), 700.0, 1.2), 0.3, 0.4, 0.7, 0.6)
-	b = s.lowpass_sweep(b, 400.0, 3000.0)
-	s.mix(b, s.env_exp(s.sweep(1.2, 200.0, 900.0, "saw"), 0.2, 0.5), 0.0, 0.15)
-	_save("box_fly", s.finish(s.reverb(b, 0.8, 0.3, 1.0), 0.75))
-
-
-func gen_ray_fire() -> void:
-	# Tir d'énergie : glissando descendant, harmoniques, grésillement.
-	var b := s.env_exp(s.sweep(0.5, 2400.0, 180.0, "square"), 0.001, 0.12)
-	s.mix(b, s.env_exp(s.sweep(0.5, 1200.0, 90.0, "saw"), 0.001, 0.15), 0.0, 0.6)
-	var fizz := s.env_exp(s.highpass(s.noise(0.3), 4000.0), 0.001, 0.05)
-	s.mix(b, fizz, 0.0, 0.4)
-	b = s.lowpass(b, 6000.0)
-	_save("ray_fire", s.finish(s.reverb(b, 0.6, 0.25, 0.6), 0.85))
-
-
-func gen_thunder_fire() -> void:
-	# TONNERRE-7 : détonation d'air comprimé énorme. Claquement, coup de
-	# boutoir infra-grave, souffle qui balaie la pièce, grondement de tonnerre.
-	var dur := 2.6
-	var b := s.buf(dur)
-	s.mix(b, s.env_exp(s.highpass(s.noise(0.04), 1800.0), 0.0005, 0.012), 0.0, 0.9)
-	s.mix(b, s.env_exp(s.sweep(0.9, 75.0, 24.0), 0.002, 0.35), 0.0, 1.6)
-	s.mix(b, s.env_exp(s.sweep(0.5, 160.0, 45.0, "saw"), 0.001, 0.12), 0.0, 0.5)
-	# Souffle : bruit dont le filtre descend (l'onde s'éloigne).
-	s.mix(b, s.env_adsr(s.lowpass_sweep(s.noise(1.2), 5000.0, 250.0), 0.01, 0.25, 0.5, 0.7), 0.0, 1.0)
-	# Grondement : bruit brun très grave qui roule et s'éteint.
-	var rumble := s.env_adsr(s.lowpass(s.brown_noise(dur - 0.1), 180.0), 0.08, 0.5, 0.6, 1.4)
-	s.mix(b, rumble, 0.08, 1.2)
-	b = s.drive(b, 3.5)
-	_save("thunder_fire", s.finish(s.reverb(b, 0.95, 0.35, 1.6), 0.98, 0.3))
-
-
-func gen_thunder_charge() -> void:
-	# Mise en pression du tambour : sifflement qui monte, cliquetis, soupape.
-	var b := s.env_adsr(s.sweep(1.0, 120.0, 900.0, "saw"), 0.05, 0.2, 0.8, 0.2)
-	b = s.lowpass_sweep(b, 400.0, 3500.0)
-	s.mix(b, s.env_adsr(s.bandpass(s.noise(1.0), 2500.0, 1.5), 0.3, 0.3, 0.5, 0.2), 0.0, 0.35)
-	for k in 3:
-		s.mix(b, _clank(260.0 + k * 40.0, 0.06, 0.8), 0.15 + k * 0.22, 0.4)
-	s.mix(b, s.env_exp(s.highpass(s.noise(0.3), 3000.0), 0.002, 0.1), 0.85, 0.5)
-	_save("thunder_charge", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.8))
-
-
 func gen_zombie_fling() -> void:
 	# Zombie projeté : cri étranglé qui s'envole + froissement d'air.
 	var b := _growl(0.8, 170.0, 260.0, [760.0, 1400.0], 0.9)
@@ -702,27 +554,6 @@ func _choir(seconds: float, freqs: Array) -> PackedFloat32Array:
 		var v := _growl(seconds, f, f, [700.0, 1100.0], 0.05)
 		s.mix(b, v, 0.0, 0.25)
 	return s.env_adsr(s.lowpass(b, 2500.0), seconds * 0.3, 0.3, 0.8, seconds * 0.3)
-
-
-func gen_pap_forge() -> void:
-	# Machinerie : martèlement, arcs électriques, chœur qui monte (4 s).
-	var dur := 4.0
-	var b := _choir(dur, [110.0, 130.8, 164.8])
-	for k in 8:
-		s.mix(b, _clank(180.0 + s.rng.randf() * 80.0, 0.25, 1.0), 0.2 + k * 0.45, 0.7)
-	var arc := s.env_adsr(s.highpass(s.noise(dur), 3500.0), 0.5, 0.5, 0.4, 0.5)
-	for i in arc.size():
-		@warning_ignore("integer_division")
-		arc[i] *= 1.0 if (i / 900) % 3 == 0 else 0.1
-	s.mix(b, arc, 0.0, 0.25)
-	_save("pap_forge", s.finish(s.reverb(b, 0.9, 0.35, 1.5), 0.9, 0.2))
-
-
-func gen_pap_ready() -> void:
-	var b := _bell(3.0, 110.0)
-	s.mix(b, _choir(2.5, [220.0, 277.2, 329.6]), 0.0, 0.9)
-	s.mix(b, _timpani(55.0), 0.0, 1.0)
-	_save("pap_ready", s.finish(s.reverb(b, 0.9, 0.35, 1.8), 0.9, 0.3))
 
 
 # ---------------------------------------------------------------- téléporteur
@@ -850,80 +681,6 @@ func _sparkle(seconds: float, root_hz: float, count: int) -> PackedFloat32Array:
 	return b
 
 
-func gen_powerup_spawn() -> void:
-	# Apparition : souffle ascendant + arpège de clochettes.
-	var b := s.env_adsr(s.lowpass_sweep(s.noise(0.9), 400.0, 5000.0), 0.3, 0.2, 0.5, 0.4)
-	b = s.gain(b, 0.35)
-	s.mix(b, _sparkle(0.9, 1046.5, 7), 0.1, 1.0)
-	_save("powerup_spawn", s.finish(s.reverb(b, 0.8, 0.35, 1.0), 0.7))
-
-
-func gen_powerup_loop() -> void:
-	# Boucle de 2 s : bourdonnement éthéré pulsé (quintes douces, trémolo).
-	var dur := 2.0
-	var total := dur + 0.3
-	var b := s.buf(total)
-	for f in [220.0, 330.0, 440.0, 660.0]:
-		s.mix(b, s.tone(total, f, "tri"), 0.0, 0.12)
-	for i in b.size():
-		var t := float(i) / Synth.RATE
-		b[i] *= 0.6 + 0.4 * sin(t * TAU * 2.0)  # 2 Hz : entier sur 2 s
-	var shimmer := s.bandpass(s.noise(total), 6000.0, 3.0)
-	s.mix(b, shimmer, 0.0, 0.15)
-	b = s.lowpass(b, 4000.0)
-	_save("powerup_loop", _seamless(b, dur, 0.5), true)
-
-
-func gen_powerup_grab() -> void:
-	# Ramassage : accord brillant ascendant + clochettes.
-	var b := s.buf(1.2)
-	for i in 4:
-		var f: float = [523.25, 659.3, 784.0, 1046.5][i]
-		s.mix(b, s.env_exp(s.tone(1.0, f, "tri"), 0.003, 0.4), i * 0.05, 0.3)
-	s.mix(b, _sparkle(0.8, 2093.0, 6), 0.15, 0.8)
-	s.mix(b, s.env_exp(s.sweep(0.4, 300.0, 1400.0), 0.01, 0.15), 0.0, 0.4)
-	_save("powerup_grab", s.finish(s.reverb(b, 0.8, 0.35, 1.2), 0.8))
-
-
-func gen_powerup_end() -> void:
-	# Fin d'un bonus temporisé : note descendante voilée.
-	var b := s.env_exp(s.sweep(0.9, 660.0, 220.0, "tri"), 0.01, 0.35)
-	s.mix(b, s.env_exp(s.sweep(0.9, 990.0, 330.0), 0.01, 0.25), 0.0, 0.4)
-	_save("powerup_end", s.finish(s.reverb(b, 0.8, 0.3, 1.0), 0.6))
-
-
-func gen_powerup_nuke() -> void:
-	# Détonation lointaine : choc, grondement qui roule, souffle.
-	var b := s.env_exp(s.lowpass(s.noise(3.5), 180.0), 0.005, 1.4)
-	b = s.gain(b, 1.6)
-	s.mix(b, s.env_exp(s.sweep(1.5, 90.0, 28.0), 0.002, 0.8), 0.0, 1.3)
-	s.mix(b, s.env_exp(s.bandpass(s.noise(0.4), 1200.0, 0.8), 0.001, 0.08), 0.0, 0.7)
-	s.mix(b, s.env_adsr(s.lowpass_sweep(s.noise(2.5), 2500.0, 200.0), 0.2, 0.4, 0.5, 1.2), 0.1, 0.4)
-	b = s.drive(b, 2.0)
-	_save("powerup_nuke", s.finish(s.reverb(b, 0.95, 0.4, 2.0), 0.95, 0.3))
-
-
-func gen_fire_sale_loop() -> void:
-	# Ritournelle de fête foraine désaccordée (boucle de 6,4 s : 32 croches à 0,2 s).
-	var step := 0.2
-	var notes := [0, 4, 7, 12, 11, 7, 4, 7, 5, 9, 12, 17, 16, 12, 9, 12,
-		7, 11, 14, 19, 17, 14, 11, 14, 12, 7, 4, 0, 2, 4, 5, 7]
-	var dur := notes.size() * step
-	var b := s.buf(dur + 0.4)
-	for i in notes.size():
-		var f: float = 392.0 * pow(2.0, float(notes[i]) / 12.0) * (1.0 + s.rng.randf_range(-0.01, 0.01))
-		var v := s.env_exp(s.tone(0.5, f, "square"), 0.004, 0.12)
-		s.mix(v, s.env_exp(s.tone(0.5, f * 2.0), 0.003, 0.08), 0.0, 0.4)
-		s.mix(b, v, i * step, 0.25)
-		# Basse « oom-pah ».
-		@warning_ignore("integer_division")
-		var bass_f: float = 98.0 if (i / 8) % 2 == 0 else 130.8
-		if i % 2 == 0:
-			s.mix(b, s.env_exp(s.tone(0.3, bass_f, "tri"), 0.004, 0.12), i * step, 0.5)
-	b = s.bitcrush(s.lowpass(b, 4500.0), 9)
-	_save("fire_sale_loop", _seamless(b, dur, 0.6), true)
-
-
 ## Voix d'annonceur démoniaque : syllabes = [[F1, F2], durée], très graves,
 ## saturées, doublées à l'octave inférieure, dans une grande réverbe.
 func _announcer(syllables: Array, f0: float) -> PackedFloat32Array:
@@ -945,72 +702,6 @@ const VO := [450.0, 800.0]
 const VU := [330.0, 700.0]
 
 
-func _announce_save(n: String, voice: PackedFloat32Array, sting: PackedFloat32Array) -> void:
-	var b := s.gain(sting, 0.8)
-	s.mix(b, voice, 0.15, 1.0)
-	_save(n, s.finish(s.reverb(b, 0.9, 0.35, 1.5), 0.9))
-
-
-func gen_announce_max_ammo() -> void:
-	# « MAX AM-MO » + cuivres ascendants.
-	var voice := _announcer([[VA, 0.32], [VA, 0.22], [VO, 0.4]], 88.0)
-	var sting := _brass(1.4, [110.0, 138.6, 164.8], 0.05, 2500.0)
-	s.mix(sting, _timpani(55.0), 0.0, 1.0)
-	_announce_save("announce_max_ammo", voice, sting)
-
-
-func gen_announce_insta_kill() -> void:
-	# « INS-TA KILL » + glas et timbale.
-	var voice := _announcer([[VI, 0.2], [VA, 0.2], [VI, 0.45]], 80.0)
-	var sting := _bell(2.0, 98.0)
-	s.mix(sting, _timpani(41.0), 0.0, 1.2)
-	_announce_save("announce_insta_kill", voice, sting)
-
-
-func gen_announce_double_points() -> void:
-	# « DOU-BLE POINTS » + deux tintements de pièces.
-	var voice := _announcer([[VU, 0.22], [VE, 0.18], [VO, 0.22], [VI, 0.3]], 90.0)
-	var sting := s.buf(1.2)
-	for k in 2:
-		s.mix(sting, _clank(2600.0 + k * 500.0, 0.3, 0.2), k * 0.18, 0.8)
-	_announce_save("announce_double_points", voice, sting)
-
-
-func gen_announce_nuke() -> void:
-	# « KA-BOUM » + sirène grave.
-	var voice := _announcer([[VA, 0.2], [VU, 0.6]], 76.0)
-	var sting := s.env_adsr(s.sweep(1.6, 220.0, 440.0, "saw"), 0.2, 0.3, 0.6, 0.6)
-	sting = s.lowpass(sting, 1500.0)
-	_announce_save("announce_nuke", voice, s.gain(sting, 0.5))
-
-
-func gen_announce_carpenter() -> void:
-	# « CHAR-PEN-TIER » + trois coups de marteau.
-	var voice := _announcer([[VA, 0.24], [VE, 0.2], [VE, 0.36]], 86.0)
-	var sting := s.buf(1.0)
-	for k in 3:
-		s.mix(sting, _clank(700.0, 0.12, 1.0), k * 0.2, 0.9)
-	_announce_save("announce_carpenter", voice, sting)
-
-
-func gen_announce_fire_sale() -> void:
-	# « LI-QUI-DA-TION » + trois notes de manège.
-	var voice := _announcer([[VI, 0.16], [VI, 0.16], [VA, 0.18], [VO, 0.4]], 92.0)
-	var sting := s.buf(1.2)
-	for k in 3:
-		var f: float = [523.25, 659.3, 784.0][k]
-		s.mix(sting, s.env_exp(s.tone(0.5, f, "square"), 0.004, 0.15), k * 0.14, 0.2)
-	_announce_save("announce_fire_sale", voice, sting)
-
-
-func gen_announce_death_machine() -> void:
-	# « FAU-CHEU-SE » + rafale grave de minigun au loin.
-	var voice := _announcer([[VO, 0.22], [VE, 0.22], [VE, 0.42]], 82.0)
-	var sting := s.buf(1.2)
-	for k in 12:
-		s.mix(sting, s.env_exp(s.lowpass(s.noise(0.06), 1400.0), 0.001, 0.025), k * 0.05, 0.5)
-	s.mix(sting, _timpani(49.0), 0.0, 1.0)
-	_announce_save("announce_death_machine", voice, sting)
 # ---------------------------------------------------------------- fenêtres barricadées
 
 ## Planche arrachée : craquement du bois qui plie, clous qui grincent, rupture

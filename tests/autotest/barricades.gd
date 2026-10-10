@@ -1,8 +1,8 @@
 extends AutotestScenario
 ## Fenêtres barricadées (BUNKER K-7, salle de garde) : un zombie apparu dehors
 ## arrache les 6 planches une par une puis enjambe la fenêtre ; le joueur
-## répare en maintenant [F] (+10 par planche, double points, plafond de 500 par
-## manche) ; coup à travers la fenêtre ; captures intacte / à moitié / détruite,
+## répare en maintenant [F] (sans gain de ferraille, GAME_CONCEPT §4.8) ;
+## coup à travers la fenêtre ; captures intacte / à moitié / détruite,
 ## vues de l'intérieur et de l'extérieur.
 
 var H := AutotestHelpers
@@ -109,13 +109,13 @@ func run() -> void:
 	game.zombies.kill(zid, false, Vector3.FORWARD)
 	await seconds(0.3)
 
-	# 3. Réparation : +10 par planche (maintien de [F]).
+	# 3. Réparation (maintien de [F]), sans gain de ferraille.
 	await _view(true)
 	await at.screenshot("broken_inside")
 	await _view(false, 1.6)
 	await at.screenshot("broken_outside")
 	var pts0 := pd.points
-	var team0 := game.points.team_earned
+
 	# Portée : il faut être collé à la barrière (à 1,5 m : ni invite ni réparation).
 	p.teleport_to(w.global_position + w.inward * (w.barrier_face() + 1.5) + Vector3(0, 0.05, 0))
 	H.aim_at(p, w.global_position + Vector3.UP * 1.4)
@@ -130,9 +130,8 @@ func run() -> void:
 	await at.screenshot("repairing")
 	ok = await until(func(): return w.planks() == 6, 5.0, "fenêtre reconstruite")
 	at.check(ok, "maintenir [F] reconstruit la fenêtre planche par planche")
-	await until(func(): return pd.points - pts0 >= 60, 2.0, "points des planches reposées")
-	at.check(pd.points - pts0 == 60, "+10 points par planche reposée (+%d)" % (pd.points - pts0))
-	at.check(game.points.team_earned - team0 == 60, "points de réparation comptés pour l'apparition des bonus (+%d)" % (game.points.team_earned - team0))
+	await seconds(0.3)  # fenêtre fixe : aucun gain ne doit arriver
+	at.check(pd.points == pts0, "réparer ne rapporte pas de ferraille (%+d)" % (pd.points - pts0))
 	await _release()
 	await at.screenshot("repaired_inside")
 
@@ -145,29 +144,7 @@ func run() -> void:
 	await seconds(1.2)  # fenêtre fixe : plus aucune planche ne doit être reposée
 	at.check(after_release >= 1 and w.planks() == after_release, "relâcher [F] arrête la réparation (%d planche(s))" % w.planks())
 
-	# 4. Double points puis plafond de 500 par manche.
-	w.srv_set_mask(0)
-	game.barricades.repair_earned.clear()
-	game.points.multiplier = 2
-	pts0 = pd.points
-	await _hold_repair()
-	await until(func(): return w.planks() == 2, 3.0, "2 planches")
-	await until(func(): return pd.points - pts0 >= 40, 2.0, "points doublés des 2 planches")
-	await _release()
-	at.check(pd.points - pts0 == 40, "double points : +20 par planche (+%d)" % (pd.points - pts0))
-	game.points.multiplier = 1
-	w.srv_set_mask(0)
-	game.barricades.repair_earned[1] = BarricadeRules.ROUND_CAP - 10
-	pts0 = pd.points
-	await _hold_repair()
-	await until(func(): return w.planks() == 4, 5.0, "4 planches")
-	await seconds(0.2)  # fenêtre fixe : aucun point au-delà du plafond
-	await _release()
-	at.check(pd.points - pts0 == 10, "plafond de réparation : 500 points par manche (+%d)" % (pd.points - pts0))
-	game.rounds.round_started.emit(game.rounds.round_n + 1)
-	at.check(game.barricades.repair_earned.is_empty(), "plafond remis à zéro à la manche suivante")
-
-	# 5. Coup à travers la fenêtre (planches presque toutes arrachées).
+	# 4. Coup à travers la fenêtre (planches presque toutes arrachées).
 	w.srv_set_mask(0b000011)
 	game.combat.debug_invulnerable = false
 	pd.health = pd.max_health
@@ -183,15 +160,3 @@ func run() -> void:
 	await _view(false, 1.6)
 	await seconds(0.3)  # capture : planches reposées à l'écran
 	await at.screenshot("half_outside")
-
-	# 6. Bonus CHARPENTIER : Game.repair_all_barricades().
-	for b in game.barricades.windows:
-		b.srv_set_mask(0)
-	game.repair_all_barricades()
-	var all_full := true
-	for b in game.barricades.windows:
-		all_full = all_full and b.planks() == 6
-	at.check(all_full, "repair_all_barricades() reconstruit toutes les fenêtres")
-	await _view(true)
-	await seconds(0.5)  # capture
-	await at.screenshot("carpenter")

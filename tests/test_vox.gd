@@ -2,7 +2,7 @@ extends TestCase
 ## Personnages et répliques (docs/CHARACTERS.md) : textes complets dans les deux
 ## langues et fichiers son générés pour chacun.
 
-const CATEGORIES_MIN := 60
+const CATEGORIES_MIN := 35
 
 
 func test_seven_characters_with_complete_lines() -> void:
@@ -90,15 +90,3 @@ func test_voice_files_match_lines() -> void:
 				if i >= CharacterDB.variants(ch, cat):
 					orphans.append(dir + "/" + f)
 	assert_true(orphans.is_empty(), "fichiers sans réplique : %s" % [orphans.slice(0, 3)])
-
-
-func test_box_categories() -> void:
-	assert_eq(VoxSystem.box_category("ray"), "box_ray")
-	assert_eq(VoxSystem.box_category("thunder"), "box_thunder")
-	assert_eq(VoxSystem.box_category(ThrowableRules.MONKEY_ID), "box_monkey")
-	assert_eq(VoxSystem.box_category("python"), "box_bad", "revolver : décevant")
-	assert_eq(VoxSystem.box_category("hk21"), "box_lmg", "mitrailleuse")
-	assert_eq(VoxSystem.box_category("spas12"), "box_shotgun", "fusil à pompe")
-	assert_eq(VoxSystem.box_category("dragunov"), "box_sniper", "fusil de précision")
-	assert_eq(VoxSystem.box_category("law"), "box_launcher", "lance-roquettes")
-	assert_eq(VoxSystem.box_category("galil"), "box_good", "fusil d'assaut")

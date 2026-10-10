@@ -10,7 +10,7 @@ const FALLBACK_SPAWN := Vector3(2, 0.1, 2)
 
 
 ## Fin de partie si plus aucun joueur n'est debout (BO1) : un joueur à terre
-## qui va se relever seul (LAZARUS en solo, `will_self_revive(peer_id)`) la
+## qui va se relever seul (`will_self_revive(peer_id)`) la
 ## repousse ; à terre sans réanimation possible, ou mort, ne la repousse pas.
 ## Aucun joueur : fin de partie aussi (le dernier est parti).
 static func is_game_over(data: Array, will_self_revive: Callable) -> bool:
@@ -39,13 +39,13 @@ static func should_respawn(pd: PlayerData) -> bool:
 
 
 ## Réapparition (BO1) : debout, santé pleine, pistolet de départ seul, couteau
-## de chasse perdu ; points, atouts retirés à la mort, statistiques conservés.
+## de base ; points et statistiques conservés.
 static func respawn(pd: PlayerData) -> void:
 	pd.life = PlayerData.Life.ALIVE
 	pd.health = pd.max_health
 	pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
 	pd.slot = 0
-	pd.knife = KnifeDB.DEFAULT  # le couteau de chasse est perdu (BO1)
+	pd.knife = KnifeDB.DEFAULT
 
 
 ## Point d'apparition d'une place de joueur : les places au-delà du nombre de

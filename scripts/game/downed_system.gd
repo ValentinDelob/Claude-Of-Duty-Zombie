@@ -5,14 +5,14 @@ extends Node
 ## Serveur : à 0 PV, un joueur passe DOWNED (au lieu de mourir). Il rampe, garde
 ## un pistolet, peut tirer. Un coéquipier le réanime en maintenant [F] près de
 ## lui ; sinon il se vide de son sang et meurt (retour à la manche suivante).
-## En solo, LAZARUS TONIC relève automatiquement le joueur ; sans lui, c'est
-## la fin de la partie.
+## En solo, tomber à terre met fin à la partie. L'auto-réanimation
+## (`self_revive`, ancien atout LAZARUS TONIC) reste prévue mais plus rien ne
+## la programme aujourd'hui.
 
-## Valeurs de Black Ops 1 (saignement 45 s, réanimation 3 s, 1,5 s avec
-## LAZARUS TONIC ; en solo, on se relève seul au bout d'une dizaine de secondes).
+## Valeurs de Black Ops 1 (saignement 45 s, réanimation 3 s ; auto-réanimation
+## au bout d'une dizaine de secondes).
 const BLEEDOUT_TIME := 45.0
 const REVIVE_TIME := 3.0
-const REVIVE_TIME_LAZARUS := 1.5
 const SOLO_SELF_REVIVE := 10.0
 const REVIVE_RANGE := 2.4
 const REVIVED_HEALTH := 100
@@ -25,6 +25,10 @@ var game: Game
 var downed: Dictionary = {}
 ## Durée de saignement (modifiable par les tests).
 var bleedout_time := BLEEDOUT_TIME
+## Serveur : auto-réanimation en solo (ancien atout LAZARUS TONIC). Aucune
+## source dans le jeu aujourd'hui ; les tests l'activent pour éprouver l'état
+## à terre en solo sans finir la partie.
+var solo_self_revive := false
 
 
 func _ready() -> void:
@@ -44,7 +48,6 @@ func srv_down(pid: int) -> void:
 	var pd := game.session.get_data(pid)
 	if pd == null or pd.life != PlayerData.Life.ALIVE:
 		return
-	var had_lazarus := pd.has_perk("lazarus")
 	pd.life = PlayerData.Life.DOWNED
 	pd.downs += 1
 	# BO1 : 5 % de la ferraille perdue. Elle n'est plus rendue au sauveteur :
@@ -55,7 +58,6 @@ func srv_down(pid: int) -> void:
 	pd.saved_weapons = pd.weapons.duplicate(true)
 	pd.weapons = [last_stand_weapon(pd.saved_weapons)]
 	pd.slot = 0
-	game.perks.srv_clear(pid)
 	# Répliques : celui qui tombe, un coéquipier qui le voit, le dernier debout.
 	VoxSystem.say(pid, "downed")
 	if game.vox:
@@ -66,7 +68,7 @@ func srv_down(pid: int) -> void:
 			game.vox.later(3.8, mates[0], "last_alive")
 	game.combat.cancel_reload(pid)
 	var entry := {"bleed_end": GameClock.now() + bleedout_time, "bleed_total": bleedout_time, "reviver": 0, "revive_start": 0.0, "revive_dur": 0.0, "self_revive": 0.0}
-	if Net.mode == Net.Mode.SOLO and had_lazarus:
+	if Net.mode == Net.Mode.SOLO and solo_self_revive:
 		entry.self_revive = GameClock.now() + SOLO_SELF_REVIVE
 	downed[pid] = entry
 	game.session.sync_stats(pid)
@@ -77,15 +79,14 @@ func srv_down(pid: int) -> void:
 
 
 ## Pistolets du dernier recours, du moins bon au meilleur (level.pistol_values
-## de BO1 ; « + » : amélioré au Pack-a-Punch). Le CLAUDE-RAY (Ray Gun) passe
-## avant tout le reste.
-const LAST_STAND_RANK := ["m1911", "cz75", "python", "python+", "cz75+", "m1911+", "ray", "ray+"]
+## de BO1 ; « + » : drapeau `pap` en sommeil, voir WeaponDB).
+const LAST_STAND_RANK := ["m1911", "cz75", "python", "python+", "cz75+", "m1911+"]
 
 
 ## Arme tenue à terre (last_stand_best_pistol / last_stand_pistol_swap de
 ## BO1) : le meilleur pistolet possédé, avec deux chargeurs de réserve en plus
-## (M1911 : au moins deux chargeurs ; le CLAUDE-RAY garde ses munitions) ;
-## sans pistolet, un M1911 neuf avec deux chargeurs de réserve.
+## (M1911 : au moins deux chargeurs) ; sans pistolet, un M1911 neuf avec deux
+## chargeurs de réserve.
 static func last_stand_weapon(weapons: Array) -> Dictionary:
 	var best := -1
 	var best_rank := -1
@@ -105,7 +106,7 @@ static func last_stand_weapon(weapons: Array) -> Dictionary:
 	if out.id == WeaponDB.STARTING_WEAPON and not out.pap:
 		# BO1 fixe la réserve du M1911 à deux chargeurs ; on ne retire rien.
 		out.reserve = maxi(int(out.reserve), two_mags)
-	elif out.id != "ray":
+	else:
 		# Jamais au-delà de la réserve maximale de l'arme (SetWeaponAmmoStock
 		# de BO1 plafonne) : un CZ75 plein passait à 135 / 105, et revenait
 		# ainsi après la réanimation.
@@ -125,7 +126,7 @@ func srv_start_revive(reviver: int, target: int) -> void:
 		return
 	e.reviver = reviver
 	e.revive_start = GameClock.now()
-	e.revive_dur = REVIVE_TIME_LAZARUS if rpd.has_perk("lazarus") else REVIVE_TIME
+	e.revive_dur = REVIVE_TIME
 	VoxSystem.say(reviver, "revive_start", 0.7)
 	_broadcast(target)
 
@@ -315,7 +316,7 @@ func revive_progress(pid: int) -> float:
 	return clampf((GameClock.now() - e.revive_start) / e.revive_dur, 0.0, 1.0)
 
 
-## Avancement de l'auto-réanimation (LAZARUS en solo), 0 si aucune. Connu
+## Avancement de l'auto-réanimation, 0 si aucune. Connu
 ## seulement du serveur, c'est-à-dire du joueur lui-même en solo.
 func self_revive_progress(pid: int) -> float:
 	var end: float = downed.get(pid, {}).get("self_revive", 0.0)
@@ -328,6 +329,6 @@ func reviver_of(pid: int) -> int:
 	return downed.get(pid, {}).get("reviver", 0)
 
 
-## Serveur : une auto-réanimation (LAZARUS en solo) est-elle programmée ?
+## Serveur : une auto-réanimation est-elle programmée ?
 func will_self_revive(pid: int) -> bool:
 	return downed.get(pid, {}).get("self_revive", 0.0) > 0.0

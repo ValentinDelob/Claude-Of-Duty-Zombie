@@ -92,7 +92,7 @@ func run() -> void:
 	var t0 := GameClock.msec()
 	for n in names:
 		if n.begins_with("zombie_") or n.begins_with("flesh") or n.begins_with("barricade") or n.begins_with("impact_") \
-				or n.begins_with("dog_") or n in ["headshot", "body_fall", "emerge", "explosion", "frag_explode", "nova_blast", "grenade_bounce", "monkey_bounce"]:
+				or n.begins_with("dog_") or n in ["headshot", "body_fall", "emerge", "explosion", "frag_explode", "grenade_bounce", "monkey_bounce"]:
 			Audio.play_3d(n, p.global_position + fwd * 4.0 + Vector3.UP, 0.0, 0.0, 99)
 		else:
 			Audio.play_2d(n, -6.0, 0.0)
@@ -153,7 +153,7 @@ func run() -> void:
 	var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(eye, eye + fwd * 80.0, 1))
 	at.check(not wall.is_empty() and fx.surface_at(wall.position, wall.normal) == "concrete", "impact sur un mur : béton")
 	var box: MysteryBox = game.interact.get_obj("box")
-	var bn: Vector3 = box.spots[box.location].normal
+	var bn: Vector3 = box.spot.normal
 	var bc := box.global_position + Vector3.UP * 0.35
 	var bh := space.intersect_ray(PhysicsRayQueryParameters3D.create(bc - bn * 2.0, bc + bn * 0.5, 1))
 	at.check(not bh.is_empty() and fx.surface_at(bh.position, bh.normal) == "wood", "impact sur la boîte mystère : bois")

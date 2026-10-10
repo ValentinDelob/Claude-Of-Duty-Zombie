@@ -1078,8 +1078,7 @@ func _wall_item(it: Dictionary) -> Dictionary:
 
 
 func _markers() -> Dictionary:
-	var m := {"player_spawns": [], "zombie_spawns": [], "doors": [], "wall_buys": [], "perks": [],
-		"grenade_buys": [], "box": [], "traps": [], "windows": [], "lamps": []}
+	var m := {"player_spawns": [], "zombie_spawns": [], "doors": [], "box": [], "traps": [], "windows": [], "lamps": []}
 	# Départ, regard vers le milieu de la zone de départ.
 	var mean := Vector2.ZERO
 	for p in md.start_points:
@@ -1142,31 +1141,24 @@ func _markers() -> Dictionary:
 			dj["variant"] = String(md.variants[String(d.eid)])
 		m.doors.append(dj)
 	# Objets muraux (ordre de lecture de la grille).
-	var used_ids := {}
+	var box_key := _box_key()
 	for it in md.wall_items:
-		var e: Dictionary = it.entry
 		var wi := _wall_item(it)
-		if e.has("arme") or e.has("atout"):
-			var base := String(e.get("arme", e.get("atout", "")))
-			var n: int = used_ids.get(base, 0) + 1
-			used_ids[base] = n
-			wi["id"] = base if n == 1 else "%s_%d" % [base, n]
-			if e.has("arme"):
-				wi["weapon"] = base
-				var weid := String(md.eid_of.get(it.key, ""))
-				if md.variants.has(weid):
-					wi["variant"] = String(md.variants[weid])
-				m.wall_buys.append(wi)
-			else:
-				wi["perk"] = base
-				m.perks.append(wi)
+		if String(it.base) in MapCatalog.REMOVED_TYPES:
+			# Atouts, armes murales, grenades, Pack-a-Punch : retirés du jeu
+			# (EditorMap.strip_removed les retire déjà à la lecture).
+			push_warning("[MapLayoutExport] objet retiré du jeu ignoré : %s" % it.key)
 			continue
 		match it.base:
 			"boite", "boite_depart":
+				# Caisse au hasard : une seule (_box_key) ; les autres sont ignorées.
+				if String(it.key) != box_key:
+					push_warning("[MapLayoutExport] caisse au hasard en trop ignorée (une seule par carte) : %s" % it.key)
+					continue
 				if it.get("floor_box", false):
-					# Format 15 : boîte posée au sol (mur fictif derrière elle,
-					# MapValidator._floor_box_marker) ; chaque emplacement est
-					# retiré du navmesh des zombies (boîte ou tas de planches).
+					# Format 15 : caisse posée au sol (mur fictif derrière elle,
+					# MapValidator._floor_box_marker) ; son emprise est retirée
+					# du navmesh des zombies.
 					wi["floor"] = true
 					var poly := []
 					for q in MapGeom.rot_rect_poly(it.box_center, Vector2(MysteryBox.BODY_SIZE.x, MysteryBox.BODY_SIZE.z), float(it.rot)):
@@ -1175,11 +1167,6 @@ func _markers() -> Dictionary:
 				m.box.append(wi)
 			"courant":
 				m["power"] = wi
-			"pap":
-				m["pap"] = wi
-			"grenades":
-				wi["id"] = "grenades_%d" % (m.grenade_buys.size() + 1)
-				m.grenade_buys.append(wi)
 			"poste_central":
 				m["_mainframe"] = wi
 	# Pièges : zone au sol, un ou deux leviers.
@@ -1384,17 +1371,23 @@ func _pocket_oblique(i: int, w: Dictionary, k: int, sol: float) -> void:
 		"y0": _r(sol - (0.25 if k == 0 else MapValidator.DALLE)), "y1": _r(sol + MapValidator.POCKET_HEIGHT), "thick": 0.3, "mat": "brick", "openings": []})
 
 
+## Clé de la seule caisse au hasard exportée : celle marquée « depart »
+## (carte d'avant), sinon la première ; "" s'il n'y en a pas. Une carte
+## d'avant à plusieurs boîtes reste jouable : les autres sont ignorées.
+func _box_key() -> String:
+	var first := ""
+	for it in md.wall_items:
+		if it.base == "boite_depart":
+			return String(it.key)
+		if it.base == "boite" and first == "":
+			first = String(it.key)
+	return first
+
+
 func _map_def() -> Dictionary:
 	var doors := {}
 	for d in md.doors:
 		doors[d.id] = {"cost": d.cost}
-	var n_box := 0
-	var start := -1
-	for it in md.wall_items:
-		if it.base == "boite_depart":
-			start = n_box
-		if it.base == "boite" or it.base == "boite_depart":
-			n_box += 1
 	var names := {}
 	for z in md.zones:
 		names[z] = String(md.zone_names.get(z, "Zone " + z.to_upper()))
@@ -1402,8 +1395,8 @@ func _map_def() -> Dictionary:
 	var out := {
 		"display_name": md.display_name if md.display_name != "" else md.id.to_upper(),
 		"description": md.description, "music": md.music, "zone_names": names, "doors": doors,
-		"open_links": md.open_links, "box_start": maxi(start, 0),
-		"box_starts": [] if start >= 0 else range(n_box),
+		# Une seule caisse au hasard, fixe : toujours l'emplacement 0.
+		"open_links": md.open_links, "box_start": 0,
 		"teleporter_link": has_mainframe,
 	}
 	# Format 17 : ciel de la carte (noir complet par défaut), seulement s'il se

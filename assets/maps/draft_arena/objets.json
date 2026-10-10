@@ -3,13 +3,7 @@
   {"id":"x1","type":"pilier","rect":[9,9.5,11.5,12],"altitude":0},
   {"id":"x2","type":"escalier","rect":[2.5,9.5,5,16],"monte":"n","altitude":0,"altitude_haut":3.5},
   {"id":"s1","type":"depart","position":[12,26],"altitude":0},
-  {"id":"a1","type":"atout","atout":"lazarus","position":[14,21.5],"mur":"n","altitude":0},
-  {"id":"a2","type":"atout","atout":"titan","position":[17,14],"mur":"e","altitude":0},
-  {"id":"w1","type":"arme","arme":"m14","position":[13.25,33],"mur":"s","altitude":0},
-  {"id":"w2","type":"arme","arme":"mp5k","position":[20.5,12.25],"mur":"e","altitude":0},
-  {"id":"b1","type":"boite","position":[6.75,17],"mur":"s","depart":false,"altitude":0},
-  {"id":"b2","type":"boite","position":[20.5,29.25],"mur":"e","depart":true,"altitude":0},
-  {"id":"b3","type":"boite","position":[3.75,4.5],"mur":"n","depart":false,"altitude":3.5},
+  {"id":"b3","type":"boite","position":[3.75,4.5],"mur":"n","depart":true,"altitude":3.5},
   {"id":"c1","type":"courant","position":[2.5,7.5],"mur":"o","altitude":3.5}
  ]
 }

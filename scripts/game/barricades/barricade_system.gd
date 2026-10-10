@@ -4,16 +4,14 @@ extends Node
 ##
 ## Construit les fenêtres (marqueurs W), rattache chaque zombie apparu dans
 ## une poche extérieure à sa fenêtre (serveur ET clients, d'après la position
-## d'apparition : aucun champ réseau supplémentaire), tient le plafond de
-## points de réparation par joueur et par manche (serveur), et envoie l'état
-## complet des planches au lancement de la partie.
+## d'apparition : aucun champ réseau supplémentaire) et envoie l'état complet
+## des planches au lancement de la partie. Réparer ne rapporte pas de
+## ferraille (GAME_CONCEPT §4.8).
 
 var game: Game
 var windows: Array[Barricade] = []
 ## Apparitions derrière les fenêtres : [position, fenêtre].
 var _spawns: Array = []
-## Serveur : points de réparation gagnés pendant la manche, par joueur.
-var repair_earned: Dictionary = {}
 
 
 func setup(g: Game) -> void:
@@ -31,7 +29,6 @@ func setup(g: Game) -> void:
 			_spawns.append([p, b])
 		game.layout.set_blocked("window_%d" % w.index, true)
 	game.zombies.zombie_spawned.connect(_on_zombie_spawned)
-	game.rounds.round_started.connect(_on_round_started)
 	if multiplayer.is_server():
 		Net.all_loaded.connect(_on_all_loaded)
 	if not windows.is_empty():
@@ -56,31 +53,6 @@ func _on_zombie_spawned(z: Zombie) -> void:
 	var b := window_for_spawn(z.global_position)
 	if b:
 		z.enter_barricade(b)
-
-
-func _on_round_started(_n: int) -> void:
-	repair_earned.clear()
-
-
-## Serveur : points d'une planche reposée (double points, plafond par manche).
-func srv_award_repair(pid: int) -> int:
-	var earned: int = repair_earned.get(pid, 0)
-	var pts := BarricadeRules.repair_points(earned, game.points.multiplier)
-	if pts > 0:
-		repair_earned[pid] = earned + pts
-		game.session.add_points(pid, pts)
-		# BO1 : gagnés par player_add_points, ils comptent dans le total de
-		# l'équipe qui fait tomber les bonus.
-		game.points.team_earned += pts
-	return pts
-
-
-## Serveur : toutes les fenêtres reconstruites (bonus CHARPENTIER).
-func srv_repair_all() -> void:
-	if not multiplayer.is_server():
-		return
-	for b in windows:
-		b.srv_set_mask(b.full_mask())
 
 
 # --------------------------------------------------------------------------

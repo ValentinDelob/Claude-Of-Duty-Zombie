@@ -32,7 +32,6 @@ func run() -> void:
 	pid = p.peer_id
 	game.combat.debug_invulnerable = true
 	game.rounds.paused = true
-	game.powerups.debug_no_auto_drops = true
 	await H.clear_zombies(self)
 	# Quai du BUNKER K-7 (scène de zombie_look) : sol dégagé.
 	_o = Vector3(33.5, 0.0, 4.6)
@@ -79,7 +78,7 @@ func _kill(name: String, zs: Array) -> void:
 		"tonnerre":
 			var origin := _o + Vector3(0, 1.5, 2.5)
 			for z: Zombie in zs:
-				var v := ThunderBlast.fling_velocity(origin, Vector3(0, 0, -1), z.global_position, 20.0, randf_range(-1.0, 1.0))
+				var v := (z.global_position - origin).normalized() * 12.0 + Vector3.UP * 4.0
 				game.combat.damage_zombie(z.id, z.health, pid, false, v.normalized(), Combat.HitKind.SPECIAL, v)
 
 

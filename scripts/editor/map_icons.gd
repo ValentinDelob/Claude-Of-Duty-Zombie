@@ -110,20 +110,11 @@ static func draw(ci: CanvasItem, it: Dictionary, r: Rect2) -> void:
 			for i in 3:
 				ci.draw_line(cx + Vector2(-s * 0.4, s * (-0.2 + i * 0.2)), cx + Vector2(s * 0.4, s * (-0.12 + i * 0.2)), Color(0.55, 0.38, 0.2), s * 0.09)
 			ci.draw_rect(Rect2(cx - Vector2(s * 0.4, s * 0.35), Vector2(s * 0.8, s * 0.7)), c, false, 2.0)
-		"grenades":
-			ci.draw_circle(cx + Vector2(0, s * 0.08), s * 0.3, c)
-			ci.draw_rect(Rect2(cx + Vector2(-s * 0.1, -s * 0.38), Vector2(s * 0.2, s * 0.16)), c.darkened(0.3))
-			ci.draw_arc(cx + Vector2(s * 0.18, -s * 0.34), s * 0.1, 0, TAU, 12, WHITE, 1.5)
-		"boite", "boite_depart":
+		"boite":
+			# Caisse au hasard.
 			ci.draw_rect(Rect2(cx - Vector2(s * 0.45, s * 0.25), Vector2(s * 0.9, s * 0.5)), Color(0.35, 0.22, 0.1))
 			ci.draw_rect(Rect2(cx - Vector2(s * 0.45, s * 0.25), Vector2(s * 0.9, s * 0.5)), c, false, 2.0)
 			_text(ci, font, "?", cx, s * 0.5, c)
-			if id == "boite_depart":
-				_star(ci, p.position + Vector2(s * 0.85, s * 0.12), s * 0.16, WHITE)
-		"pap":
-			ci.draw_rect(Rect2(cx - Vector2(s * 0.35, s * 0.45), Vector2(s * 0.7, s * 0.9)), c.darkened(0.3))
-			ci.draw_rect(Rect2(cx - Vector2(s * 0.25, s * 0.1), Vector2(s * 0.5, s * 0.25)), Color(0.1, 0.9, 1.0))
-			ci.draw_rect(Rect2(cx - Vector2(s * 0.35, s * 0.45), Vector2(s * 0.7, s * 0.9)), c.lightened(0.3), false, 2.0)
 		"courant":
 			ci.draw_rect(Rect2(cx - Vector2(s * 0.3, s * 0.4), Vector2(s * 0.6, s * 0.8)), Color(0.25, 0.25, 0.27))
 			_bolt(ci, cx, s * 0.7, c)
@@ -177,28 +168,10 @@ static func draw(ci: CanvasItem, it: Dictionary, r: Rect2) -> void:
 				_light(ci, id.substr(10), p, cx, s, c)
 			elif id.begins_with("effet:"):
 				_effect(ci, id.substr(6), cx, s, c)
-			elif id.begins_with("atout:"):
-				# Bouteille de la couleur de l'atout, initiale dessus.
-				ci.draw_rect(Rect2(cx + Vector2(-s * 0.2, -s * 0.15), Vector2(s * 0.4, s * 0.6)), c)
-				ci.draw_rect(Rect2(cx + Vector2(-s * 0.08, -s * 0.42), Vector2(s * 0.16, s * 0.3)), c.darkened(0.25))
-				ci.draw_rect(Rect2(cx + Vector2(-s * 0.2, -s * 0.15), Vector2(s * 0.4, s * 0.6)), INK, false, 1.5)
-				_text(ci, font, String(it.get("fr", "?")).substr(0, 1), cx + Vector2(0, s * 0.15), s * 0.34, INK)
-			elif id.begins_with("arme:"):
-				var knife := id == "arme:bowie" or KnifeDB.exists(id.substr(5))
-				if knife:
-					ci.draw_colored_polygon(PackedVector2Array([cx + Vector2(-s * 0.1, -s * 0.45), cx + Vector2(s * 0.08, -s * 0.1), cx + Vector2(-s * 0.08, s * 0.05)]), WHITE)
-					ci.draw_line(cx + Vector2(-s * 0.02, s * 0.0), cx + Vector2(s * 0.1, s * 0.42), Color(0.4, 0.25, 0.12), s * 0.12)
-				else:
-					# Silhouette d'arme à la craie.
-					ci.draw_line(cx + Vector2(-s * 0.45, -s * 0.12), cx + Vector2(s * 0.45, -s * 0.12), c, s * 0.1)
-					ci.draw_line(cx + Vector2(-s * 0.45, -s * 0.05), cx + Vector2(-s * 0.2, -s * 0.05), c, s * 0.12)
-					ci.draw_line(cx + Vector2(-s * 0.1, -s * 0.08), cx + Vector2(-s * 0.18, s * 0.2), c, s * 0.1)
-					ci.draw_line(cx + Vector2(s * 0.08, -s * 0.08), cx + Vector2(s * 0.12, s * 0.12), c, s * 0.07)
-				_text(ci, font, str(int(it.get("price", 0))), cx + Vector2(0, s * 0.42), s * 0.26, Color(1.0, 0.85, 0.4))
 			else:
 				ci.draw_rect(p, c)
 	var price := int(it.get("price", 0))
-	if price > 0 and (id.begins_with("atout:") or id in ["porte", "debris", "boite", "pap"]):
+	if price > 0 and id in ["porte", "debris", "boite"]:
 		_text(ci, font, str(price), r.position + Vector2(r.size.x * 0.5, r.size.y * 0.97), r.size.x * 0.22, Color(1.0, 0.85, 0.4))
 
 

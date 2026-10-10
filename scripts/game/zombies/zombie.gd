@@ -65,7 +65,7 @@ var health := 150
 var max_health := 150
 var speed_mult := 1.0
 var target: Player
-## Serveur : attiré par un SINGE-TAMBOUR (ThrowableSystem.lure_for).
+## Serveur : attiré par un PELUCHE LEURRE (ThrowableSystem.lure_for).
 var lured := false
 ## Fenêtre à franchir avant d'entrer dans la zone (null : déjà dedans).
 var barricade: Barricade
@@ -107,7 +107,7 @@ var _lane_speed := 1.0
 const LOS_PERIOD := 0.1
 var _los_t := 0.0
 var _los_ok := false
-## Même cache pour la ligne droite vers le SINGE-TAMBOUR (_chase_lure).
+## Même cache pour la ligne droite vers le PELUCHE LEURRE (_chase_lure).
 var _lure_t := 0.0
 var _lure_ok := false
 ## Le dernier chemin vers le joueur s'arrête avant la portée d'attaque (ou
@@ -374,7 +374,7 @@ func _chase(delta: float) -> void:
 	if game == null or game.nav == null:
 		return
 	_repath_t -= delta
-	# SINGE-TAMBOUR : un leurre actif passe avant tous les joueurs.
+	# PELUCHE LEURRE : un leurre actif passe avant tous les joueurs.
 	var lure: Vector3 = game.throwables.lure_for(self) if game.throwables else Vector3.INF
 	lured = lure != Vector3.INF
 	if lured:
@@ -442,7 +442,7 @@ func _chase(delta: float) -> void:
 	rotation.y = yaw
 
 
-## Serveur : marche vers le SINGE-TAMBOUR (chemin A*) puis l'encercle.
+## Serveur : marche vers le PELUCHE LEURRE (chemin A*) puis l'encercle.
 ## Appelé par _chase seulement (partie et navigation présentes).
 func _chase_lure(pos: Vector3, delta: float) -> void:
 	var to := pos - global_position
@@ -478,7 +478,7 @@ func _chase_lure(pos: Vector3, delta: float) -> void:
 	var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(desired, 12.0 * delta)
 	velocity.x = horiz.x
 	velocity.z = horiz.z
-	# Tourné vers le singe.
+	# Tourné vers la peluche.
 	if dist > 0.05:
 		yaw = lerp_angle(yaw, atan2(to.x, to.z), 1.0 - exp(-delta * 8.0))
 	rotation.y = yaw
@@ -1026,7 +1026,7 @@ func die(dir: Vector3, headshot: bool) -> void:
 	ragdolled = ragdoll != null
 
 
-## Mort projetée (onde de choc du TONNERRE-7) : le corps s'envole à la vitesse
+## Mort projetée : le corps s'envole à la vitesse
 ## `vel` calculée par le serveur (ragdoll, sinon vol procédural ZombieFling).
 func die_flung(vel: Vector3) -> void:
 	if state == State.DEAD:
@@ -1037,7 +1037,7 @@ func die_flung(vel: Vector3) -> void:
 		add_child(ZombieFling.new(vel))
 
 
-## Mort projetée par le TONNERRE-7 (ragdoll ou vol procédural).
+## Mort projetée (ragdoll ou vol procédural).
 func is_flung() -> bool:
 	return _fling_vel != Vector3.ZERO
 

@@ -64,9 +64,9 @@ func after_each() -> void:
 	_p.free()
 
 
-## Toutes les armes tenables (arsenal + armes de bonus).
+## Toutes les armes tenables.
 static func weapon_ids() -> Array:
-	return WeaponDB.WEAPONS.keys() + WeaponDB.POWERUP_WEAPONS.keys()
+	return WeaponDB.WEAPONS.keys()
 
 
 static func _scoped(s: Dictionary, ads: float) -> bool:
@@ -353,7 +353,6 @@ func test_bend_keeps_sight_line() -> void:
 			assert_true(ViewModel.bend(p, b).distance_to(p) < 0.00001, "%s : joue de visée sans effet sur %s" % [id, a])
 			# Sur l'axe de la caméra (celui des balles).
 			assert_true(Vector2(p.x, p.y).length() < 0.0005, "%s : %s sur l'axe (%.4f m)" % [id, a, Vector2(p.x, p.y).length()])
-	assert_eq(ViewModel.bend_params(PowerupRules.DEATH_MACHINE_WEAPON, 1.0), Vector3.ZERO, "minigun : pas de joue (pas de visée)")
 	# Rien à la hanche.
 	assert_eq(ViewModel.bend_params("m14", 0.0).z, 0.0)
 
@@ -385,7 +384,7 @@ func _ads_action(worst: Array, what: String, start: Callable, dur: float) -> voi
 ## Pas jusqu'au retour en visée complète, au repos (au plus 1,5 s).
 func _settle() -> void:
 	for k in 90:
-		if _vm.ads >= 1.0 and not _vm.is_busy() and not _vm.is_knife_busy() and not _vm.is_drinking() and _vm._lower <= 0.0 and _vm._sprint <= 0.0 and _vm._dive <= 0.0:
+		if _vm.ads >= 1.0 and not _vm.is_busy() and not _vm.is_knife_busy() and _vm._lower <= 0.0 and _vm._sprint <= 0.0 and _vm._dive <= 0.0:
 			return
 		_step()
 
@@ -394,7 +393,7 @@ func test_ads_actions_keep_the_stock_clear() -> void:
 	var limit := NEAR + NEAR_MARGIN
 	var i := 0
 	for id in weapon_ids():
-		for pap in ([false] if WeaponDB.is_powerup_weapon(id) else [false, true]):
+		for pap in [false, true]:
 			# Champ de vision réglé : min, défaut, max à tour de rôle (le champ
 			# de l'arme n'en dépend pas : vm_fov_scale).
 			_base_fov = FOVS[i % FOVS.size()]
@@ -424,8 +423,6 @@ func test_ads_actions_keep_the_stock_clear() -> void:
 				_ads_action(worst, "fente en visée", func(): _vm.start_melee(true), ViewModel.MELEE_ANIM)
 				_ads_action(worst, "changement d'arme en visée", func(): _vm.start_switch(WeaponController.SWITCH_TIME, func(): pass), WeaponController.SWITCH_TIME)
 				_ads_action(worst, "grenade en visée", func(): _vm.lowered = 1.0, 0.5)
-				_ads_action(worst, "boisson en visée", func(): _vm.start_drink(Color.RED, 1.0), 1.0)
-				_ads_action(worst, "couteau de chasse en visée", func(): _vm.start_knife_pickup(1.0), 1.0)
 			else:
 				# Tir en visée : recul de l'arme améliorée.
 				_settle()

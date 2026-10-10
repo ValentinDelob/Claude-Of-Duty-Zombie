@@ -48,9 +48,9 @@ Lus dans le code (à revérifier s'ils changent) :
 | Zombies, de la marche au sprint | 1,25 / 2,3 / 3,7 / 5,0 m/s | `zombie.gd` `SPEEDS` |
 | Portée d'attaque d'un zombie | 1,25 m | `ATTACK_RANGE` |
 | Chiens | 6,3 m/s | `dog_rules.gd` |
-| Points de départ | 500 | `player_data.gd` |
-| Planche réparée | 10 points | `barricade_rules.gd` |
-| Boîte / piège / téléporteur / Pack-a-Punch | 950 / 1000 / 1500 / 5000 | `COST` de chaque script |
+| Ferraille de départ / par élimination | 0 / 50 | `player_data.gd`, `points_rules.gd` |
+| Planche réparée | 0 (réparation sans gain) | `barricade_rules.gd` |
+| Caisse au hasard / piège / téléporteur | 950 / 1000 / 1500 | `COST` de chaque script |
 
 Conséquences pour le dessin :
 
@@ -239,8 +239,8 @@ Chaque obstacle qui bloque a une fonction :
 |---|---|
 | une fenêtre à zombies (côté intérieur) | 2 m de profondeur × 2 m de large |
 | une porte, des débris, un passage | 1,5 m de chaque côté, sur toute la largeur |
-| un atout, le Pack-a-Punch, la boîte | 1,5 m devant (boîte posée au sol, format 15 : 1,5 m devant, 1 m sur les autres côtés — on l'achète de partout) |
-| une arme murale, un levier, l'interrupteur | 1 m devant |
+| la caisse au hasard | 1,5 m devant (caisse posée au sol, format 15 : 1,5 m devant, 1 m sur les autres côtés — on l'achète de partout) |
+| un levier, l'interrupteur | 1 m devant |
 | le pied et le haut d'un escalier | 2 m |
 | le départ des joueurs | 2 m autour |
 
@@ -404,8 +404,7 @@ dans le jeu.
   petite salle à une fenêtre).
 - De tout point d'une zone ouverte, la fenêtre la plus proche est à
   **25 m à pied au plus**.
-- Une fenêtre est à **3 m au moins** d'un atout, d'une arme murale ou de la
-  boîte, et jamais pile dans le dos de qui achète : la menace se voit du coin
+- Une fenêtre est à **3 m au moins** de la caisse au hasard, et jamais pile dans le dos de qui achète : la menace se voit du coin
   de l'œil.
 - Le départ des joueurs est à **7 à 12 m** de la fenêtre la plus proche.
 - **[CONSEIL]** Une fenêtre près d'une porte encore fermée : qui hésite à
@@ -428,18 +427,18 @@ dans le jeu.
 | Moment | Points cumulés | Doit permettre |
 |---|---|---|
 | fin de manche 1-2 | 1 000 à 1 800 | la première porte |
-| manches 3-4 | 3 000 à 4 500 | une arme murale et une deuxième porte, ou la boîte |
-| manches 5-7 | 6 000 à 10 000 | le chemin du courant, un premier atout |
-| manches 8-12 | 12 000 à 20 000 | TITAN BREW, Pack-a-Punch |
+| manches 3-4 | 3 000 à 4 500 | une deuxième porte, ou un tirage à la caisse |
+| manches 5-7 | 6 000 à 10 000 | le chemin du courant |
+| manches 8-12 | 12 000 à 20 000 | les dernières portes, le téléporteur, des tirages réguliers |
 
 ### 9.2 Portes [CIBLE]
 
 - Prix : **750** pour la première, puis 1000, puis 1250 ; 1000 à 1500 pour
   un escalier ou un grand passage.
 - **5 à 10 portes** payantes, **9 000 à 16 000 points** pour tout ouvrir.
-- **[OBLIGATOIRE]** Derrière chaque porte, une récompense : arme murale,
-  atout, emplacement de boîte, courant, piège, ou un raccourci qui ferme une
-  boucle. Jamais une porte vers une pièce vide.
+- **[OBLIGATOIRE]** Derrière chaque porte, une récompense : la caisse
+  au hasard, le courant, un piège, le téléporteur, ou un raccourci qui ferme
+  une boucle. Jamais une porte vers une pièce vide.
 - Le **courant** est à **3 ou 4 portes** du départ (3 000 à 5 000 points).
 - **[CONSEIL]** Les deux sorties du départ offrent des récompenses
   différentes : un vrai choix dès la manche 2.
@@ -448,15 +447,7 @@ dans le jeu.
 
 | Achat | Où |
 |---|---|
-| Arme à 500 | au départ, sur le chemin d'une sortie |
-| LAZARUS (réanimation rapide) | au départ ou derrière la première porte |
-| Armes murales à 1 200-1 500 | une par branche, derrière la 1ʳᵉ ou la 2ᵉ porte |
-| Arme lourde, fusil à pompe | à mi-parcours |
-| Couteau de chasse | loin du départ, dans une zone dangereuse |
-| Boîte mystère | **6 à 9 emplacements** dans **4 zones** au moins ; premier emplacement une porte après le départ ; contre un mur le plus souvent (BO1), au milieu d'une grande salle quand elle se voit de loin (format 15 : au sol, avant tourné vers l'entrée de la salle) |
-| TITAN BREW (endurance) | **2 à 3 portes** du départ, coin défendable mais pas une impasse sans fenêtre ; jamais au départ |
-| Autres atouts | répartis sur les branches, un seul par pièce |
-| Pack-a-Punch | le plus loin, après le courant ; exposé pendant l'amélioration |
+| Caisse au hasard | **une seule**, fixe (elle ne déménage jamais) ; une porte après le départ au moins, dans une zone qu'on traverse souvent, jamais dans une impasse sans fenêtre ; contre un mur le plus souvent, au milieu d'une grande salle quand elle se voit de loin (format 15 : au sol, avant tourné vers l'entrée de la salle). Si la carte en déclare plusieurs, seule la première (ou celle marquée départ) sert. |
 | Pièges | sur un goulot ou le trajet d'une boucle ; levier à 3-8 m, d'où l'on voit le piège |
 
 - **Impasses assumées** (deux au plus) : elles contiennent une récompense
@@ -492,7 +483,7 @@ traverse sans la regarder. Une salle de quatre lits seuls n'est pas un
 dortoir, c'est un couloir meublé. **Chaque pièce est décorée, toujours.**
 
 - **Une raison d'être en jeu** : chaque pièce apporte au moins une chose au
-  joueur — un achat, un emplacement de boîte, un piège, une arrivée de
+  joueur — un achat, la caisse au hasard, un piège, une arrivée de
   zombies qui met la pression, un raccourci, une boucle, une vue. Une pièce
   qui ne sert à rien est supprimée ou fusionnée avec sa voisine.
 - **Une raison d'être visuelle** : en entrant, le joueur comprend ce
@@ -545,15 +536,15 @@ dortoir, c'est un couloir meublé. **Chaque pièce est décorée, toujours.**
 - **[CIBLE]** Chaque porte ouverte active de nouvelles arrivées : la carte
   devient plus dangereuse à mesure qu'on l'ouvre, jamais plus sûre. Un
   raccourci fait gagner du chemin **et** ajoute une arrivée.
-- **[CONSEIL]** Un goulot près de la boîte ou d'un atout rend l'achat tendu.
+- **[CONSEIL]** Un goulot près de la caisse au hasard rend l'achat tendu.
 
 ---
 
 ## 12. Démarche
 
 1. **Fiche** : thème de la carte, thème de chaque pièce (§10.1), surface
-   visée, nombre de zones, emplacement du courant, des atouts et du
-   Pack-a-Punch.
+   visée, nombre de zones, emplacement du courant et de la caisse au
+   hasard.
 2. **Graphe des zones**, sans dimensions : départ, branches, boucles,
    goulots, impasses, ordre et prix des portes, enchaînement logique des
    thèmes. Vérifier §7, §9 et §10.1.
@@ -581,7 +572,7 @@ ce fichier.
 
 | Mesure | Attendu |
 |---|---|
-| Salle de départ | 2 sorties, 3 à 4 fenêtres, arme à 500 |
+| Salle de départ | 2 sorties, 3 à 4 fenêtres |
 | Plus grand carré vide, partout | < 15 m² (≤ 3,5 × 3,5 m sur la grille) |
 | Couloirs de plus de 3 m de large / lignes droites de plus de 12 m | 0 / 0 |
 | Circuits tenables dans une seule pièce | 0 |
@@ -595,8 +586,7 @@ ce fichier.
 | Distance à pied max jusqu'à une fenêtre | ≤ 25 m |
 | Portes payantes / coût total | 5 à 10 / 9 000 à 16 000 |
 | Portes jusqu'au courant | 3 à 4 |
-| Emplacements de boîte / zones couvertes | 6 à 9 / ≥ 4 |
-| TITAN BREW | 2 à 3 portes du départ |
+| Caisses au hasard | 1, fixe |
 | Étages de plus de deux zones avec un seul accès | 0 |
 | Pièces semblables (contour, obstacles, habillage) | 0 |
 | Pièces sans thème, ou enchaînement illogique | 0 |

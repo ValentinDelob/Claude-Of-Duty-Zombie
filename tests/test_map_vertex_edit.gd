@@ -256,9 +256,9 @@ func test_wall_items_stay_valid_after_point_added() -> void:
 	var ed: MapEditor = await _editor()
 	var cv := ed.canvas
 	var rid := _room(ed, [[4, 4], [16, 4], [16, 12], [4, 12]])
-	var perk := {"type": "atout", "atout": "titan"}
+	var perk := {"type": "poste_central"}
 	var r := MapRules.place_wall_item(ed.doc, 0, perk, Vector2(10, 4.6))
-	assert_true(r.ok, "atout posé : %s" % str(r))
+	assert_true(r.ok, "poste central posé : %s" % str(r))
 	perk.merge({"altitude": 0, "position": r.get("position", [0, 0])})
 	MapRules.apply_wall(perk, r)
 	ed.add_object(perk, 0)
@@ -267,7 +267,7 @@ func test_wall_items_stay_valid_after_point_added() -> void:
 	var south: Dictionary = cv.plus_handles().filter(func(ph): return absf(Vector2(ph.p).y - 12.0) < 0.01)[0]
 	_drag(cv, south.p, Vector2(Vector2(south.p).x, 14.0))
 	assert_eq(_poly(ed, rid).size(), 5, "point ajouté au sud")
-	assert_true(MapRules.check_existing(ed.doc, ed.doc.find(pid)).ok, "l'atout du mur nord reste valide")
+	assert_true(MapRules.check_existing(ed.doc, ed.doc.find(pid)).ok, "le poste central du mur nord reste valide")
 	assert_true(MapRules.check_existing(ed.doc, ed.doc.find(rid)).ok, "la pièce aussi")
 	ed.queue_free()
 	await wait_frames(1)

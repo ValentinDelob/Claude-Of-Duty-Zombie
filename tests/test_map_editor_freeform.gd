@@ -13,8 +13,9 @@ const TMP := "res://tests/_out/test_map_editor_freeform"
 ## Empreinte SHA-256 de la description en maillage de DRAFT ARENA (JSON trié,
 ## noms en français) : la même qu'avant les formes libres (format 3), sauf le
 ## plafond de l'entrepôt sous la passerelle (toujours dessiné sous la dalle de
-## l'étage du dessus, MapLayoutExport.under_slab).
-const DRAFT_LAYOUT_SHA := "635bde5afb60fa4ac18bf88b109beae983a6729170991cbc4e0e0e4390134b94"
+## l'étage du dessus, MapLayoutExport.under_slab), et les objets supprimés au
+## lot C (atouts, armes murales, une seule caisse).
+const DRAFT_LAYOUT_SHA := "81502314fab669162a72aa8f03f549d147643e12b11a8d4bdbdf595013e09e44"
 
 
 func before_each() -> void:
@@ -374,7 +375,7 @@ func _room_with_content() -> EditorMap:
 	var doc := EditorMap.blank()
 	var z := doc.add_zone("A", "A")
 	doc.pieces.append({"id": "p1", "nom": "A", "altitude": 0, "zone": z.id, "contour": [[4, 4], [16, 4], [16, 12], [4, 12]]})
-	var perk := {"type": "atout", "atout": "titan"}
+	var perk := {"type": "poste_central"}
 	var r := MapRules.place_wall_item(doc, 0, perk, Vector2(10, 4.6))
 	perk.merge({"id": "a1", "altitude": 0, "position": r.get("position", [0, 0])})
 	MapRules.apply_wall(perk, r)
@@ -392,25 +393,25 @@ func test_free_rotation_of_a_room_with_its_content() -> void:
 	var c := MapTransform.pivot(doc, room)
 	assert_eq(c, Vector2(10, 8), "centre du rectangle englobant")
 	var att := MapTransform.attached(doc, room)
-	assert_eq(att.size(), 4, "atout, bureau, pilier et fenêtre rattachés : %s" % str(att))
+	assert_eq(att.size(), 4, "poste central, bureau, pilier et fenêtre rattachés : %s" % str(att))
 	var res := MapTransform.apply(doc, room.duplicate(true), att, c, 30.0, doc.snapshot())
 	assert_true(res.ok, "pièce tournée de 30° : %s" % str(res))
 	var p := doc.room_poly(doc.find("p1"))
 	assert_true(p[0].distance_to(MapGeom.rotate_about(Vector2(4, 4), c, 30)) < 0.002, "sommets tournés")
 	var perk := doc.find("a1")
-	assert_near(float(perk.get("angle", -1.0)), 30.0, 0.01, "atout : face au mur tourné (30°)")
-	assert_true(MapRules.check_existing(doc, perk).ok, "atout toujours collé à son mur : %s" % MapRules.why(MapRules.check_existing(doc, perk)))
+	assert_near(float(perk.get("angle", -1.0)), 30.0, 0.01, "poste central : face au mur tourné (30°)")
+	assert_true(MapRules.check_existing(doc, perk).ok, "poste central toujours collé à son mur : %s" % MapRules.why(MapRules.check_existing(doc, perk)))
 	assert_eq(int(doc.find("d1").rot), 30, "bureau tourné de 30°")
 	assert_true(MapGeom.v2(doc.find("d1").position).distance_to(MapGeom.rotate_about(Vector2(8, 8), c, 30)) < 0.002, "bureau déplacé avec la pièce")
 	assert_eq(int(doc.find("x1").get("rot", 0)), 30, "pilier tourné de 30°")
 	assert_true(MapRules.check_existing(doc, doc.find("o1")).ok, "fenêtre toujours sur son mur")
 	for id in ["d1", "x1"]:
 		assert_true(MapRules.check_existing(doc, doc.find(id)).ok, "%s toujours valide : %s" % [id, MapRules.why(MapRules.check_existing(doc, doc.find(id)))])
-	# Tournée encore de 60° : 90° en tout, l'atout de nouveau contre un mur droit.
+	# Tournée encore de 60° : 90° en tout, le poste central de nouveau contre un mur droit.
 	res = MapTransform.apply(doc, doc.find("p1").duplicate(true), MapTransform.attached(doc, doc.find("p1")), c, 60.0, doc.snapshot())
 	assert_true(res.ok, "90° en tout : %s" % str(res))
 	assert_true(MapGeom.is_axis_rect(doc.room_poly(doc.find("p1"))), "rectangle de nouveau droit")
-	assert_false(doc.find("a1").has("angle"), "atout contre un mur droit : sans angle (%s)" % str(doc.find("a1")))
+	assert_false(doc.find("a1").has("angle"), "poste central contre un mur droit : sans angle (%s)" % str(doc.find("a1")))
 	assert_eq(String(doc.find("a1").mur), "e", "mur à l'est")
 	# R (90°) : comme avant, la grille reste la grille.
 	var q := MapTransform.rotated({"type": "escalier", "rect": [2, 2, 4, 7], "monte": "n"}, Vector2(3, 4.5), 90)
@@ -486,7 +487,7 @@ func test_rotation_handle_in_the_editor() -> void:
 	assert_eq(int(ed.doc.find("d1").rot), 30, "Ctrl+Z : rotation annulée")
 	# Objet mural : pas de poignée (il suit son mur).
 	ed.select("a1")
-	assert_true(cv.rot_handle().is_empty() and cv.gizmo.ring_of(ed.doc.find("a1")).is_empty(), "atout : ni poignée ni anneau")
+	assert_true(cv.rot_handle().is_empty() and cv.gizmo.ring_of(ed.doc.find("a1")).is_empty(), "poste central : ni poignée ni anneau")
 	ed.queue_free()
 	await wait_frames(1)
 

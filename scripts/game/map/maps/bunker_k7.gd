@@ -1,9 +1,14 @@
 extends MapDef
-## BUNKER K-7 — installation militaire et laboratoire abandonnés.
+## BUNKER K-7 — installation militaire et laboratoire abandonnés. Carte de
+## TEST depuis l'abandon du clone de BO1 (GAME_CONCEPT §5) : plus d'atouts,
+## d'armes murales, d'achat de grenades ni de Pack-a-Punch ; restent les
+## portes, le courant, le piège, le téléporteur, les barricades et UNE caisse
+## au hasard (X, sur le quai).
 ##
 ## Zones : a Salle de garde (départ) · b Couloir des cellules (piège)
 ##         c Laboratoire · d Dortoir · e Générateur · f Quai du téléporteur
-##         p Salle du Pack-a-Punch (accessible par téléporteur uniquement)
+##         (caisse) · p Salle du rituel (vide, accessible par téléporteur
+##         uniquement)
 ## Marqueurs : voir MapDef. Généré à partir de rectangles puis retouché.
 ## Fenêtres barricadées (W) : 4 dans la salle de garde, 1 au dortoir, 2 au
 ## quai, 2 au couloir, 4 au laboratoire, 2 au générateur ; derrière chacune,
@@ -31,19 +36,8 @@ func _init() -> void:
 		"5": {"cost": 1000},
 		"6": {"cost": 1250},
 	}
-	# Arsenal mural de Kino der Toten (+ MP40 de Five) : contour à la craie.
-	wall_buys = {
-		"A": "olympia", "R": "m14",           # salle de garde (départ)
-		"U": "mp5k",                          # couloir des cellules
-		"V": "stakeout", "+": "mp40",         # dortoir
-		"B": "pm63", "!": "mpl",              # laboratoire
-		"$": "ak74u",                         # générateur
-		"&": "m16",                           # quai
-		"%": "bowie",                         # quai : couteau de chasse (KnifeDB)
-	}
-	perks = {"Q": "lazarus", "J": "titan", "S": "rapid", "D": "twin", "M": "stride",
-		"(": "nova", ")": "deadeye"}  # laboratoire, générateur
-	box_start = 1
+	# Une seule caisse au hasard (seul X de la carte, sur le quai).
+	box_start = 0
 	zone_materials = {
 		"a": ["concrete", "wall_green"], "b": ["concrete_dark", "wall_cell"],
 		"c": ["tiles", "wall_lab"], "d": ["wood", "wall_green"],
@@ -54,37 +48,37 @@ func _init() -> void:
 	rows = PackedStringArray([
 		"                                                                ",
 		" #################################################              ",
-		" #ZddddddVddddddZd#Zfffff%ffffDfffffff&fffffffffZ# ###########  ",
-		" #ddddddddddddddd+#fOffffffffffffffffffffffffffff# #ppppKpppp#  ",
+		" #ZdddddddddddddZd#ZffffffffffffffffffffffffffffZ# ###########  ",
+		" #dddddddddddddddd#fOffffffffffffffffffffffffffff# #ppppppppp#  ",
 		" #ddIddddddddIdddd#fffffffffffffffffffffffffTTfff# #ppppppppp#  ",
 		" #ddIdLdddddLIdddd#ffffLfffffffLfffffffLffffTTfff# #ppLpppLpp#  ",
 		" #dddddddddddddddd5ffffffff,fffffffffffffffffffff# #ppppppppp#  ",
 		" #dddddddddddddddd5ffffffffffffffffCCffffffffffff# #ppppFpppp#  ",
-		" #Xddddddddddddddd#ffffffffffffffffCffffffffffLff# #ppppppppp#  ",
+		" #dddddddddddddddd#ffffffffffffffffCffffffffffLff# #ppppppppp#  ",
 		" #ddIddddddddIdddd#ffffffffffffffffffffffffffffOf# #ppppppppp#  ",
 		" #ddIddddddddIdddd#fffffXfffffffffffffffffffffffZ# ###########  ",
 		" #ddddLdddddLddddd###########W#####W####66########              ",
-		" #dddddddddddddddJ####     #fff# #fff# #cc#                     ",
+		" #dddddddddddddddd####     #fff# #fff# #cc#                     ",
 		" #dddddddddddddddd#dd#     #fZf# #fZf# #Lc#                     ",
 		" #ddddddZdddddddddWdZ#     ##### ##### #cc#                     ",
 		" ########11########dd#                 #cc#                     ",
 		" ########11###########        ##########cc#############         ",
-		" #aaaAaaaaaaaaaaaa#aa#        #cc#ccccccccccccBccccccZ#   ##### ",
+		" #aaaaaaaaaaaaaaaa#aa#        #cc#cccccccccccccccccccZ#   ##### ",
 		" #aaaaaaaaaaaaaaaaWaZ#    #####ZcWcccccccccccccccccccc#   #eZe# ",
 		" #aaaaa,aaaaaaaCCa#aa#    #bZb#cc#ccccLccccccccccLcccc#   #eee# ",
-		" #QaaLaaaaaaaLaCaa####    #bbb####cccccccccccccccccccc######W###",
-		" #aaaaaaaaaaaaaaaa##########W#####ccccNNNNccccNNNNcccc#e$eSeeee#",
-		" #aOaaaaaaaaaaaaaa#bbbHbEEEb,bbbb#!ccccccccccccccccccc#eeeeeeOe#",
+		" #aaaLaaaaaaaLaCaa####    #bbb####cccccccccccccccccccc######W###",
+		" #aaaaaaaaaaaaaaaa##########W#####ccccNNNNccccNNNNcccc#eeeeeeee#",
+		" #aOaaaaaaaaaaaaaa#bbbHbEEEb,bbbb#cccccccccccccccccccc#eeeeeeOe#",
 		" #aaaaaaaaaaaaaaaa2bbLbbEEEbbbbbb3cccccccccccccccccccc#eLeeeeee#",
 		" #aaaaaaPaPaaaaaaa2bbbbbEEEbbLbbb3ccccccccccLccccccccc4ee,eeeee#",
-		" #aaaaaaaaaaaaaaaa#bbbbbEEEbbUbbb#cccccccccccccccccccc4eeeeeeeG#",
+		" #aaaaaaaaaaaaaaaa#bbbbbEEEbbbbbb#cccccccccccccccccccc4eeeeeeeG#",
 		" #aaaaaaPaPaaaaaaa#####W##########cccccccccccccccccccc#eeeYYeee#",
-		" #aaaLaaaaaaaLaaaa#aa#bbb#    ####(cccNNNNccccNNNNcccc#)eeYYeCe#",
+		" #aaaLaaaaaaaLaaaa#aa#bbb#    ####ccccNNNNccccNNNNcccc#eeeYYeCe#",
 		" #aaaaaaaaaaaa,aaaWaZ#bZb#    #cc#cccccccccccccccccccc#eeeeeeLe#",
 		" #aaaaaaaaaaaaaaaa#aa#####    #ZcWccccLccccccccccLcccc#Zeeeeeee#",
-		" #aZaaaaa*aaRaaaaa####        #cc#ccccccccc,cccccccccM####W#####",
+		" #aZaaaaaaaaaaaaaa####        #cc#ccccccccc,cccccccccc####W#####",
 		" #####W########W###           ####cccccccccccccccccccc# #eee#   ",
-		"    #aaa#    #aaa#               #ZcccccccccXccccccccc# #eZe#   ",
+		"    #aaa#    #aaa#               #Zccccccccccccccccccc# #eZe#   ",
 		"    #aZa#    #aZa#               #######W########W##### #####   ",
 		"    #####    #####                    #ccc#    #ccc#            ",
 		"                                      #cZc#    #cZc#            ",

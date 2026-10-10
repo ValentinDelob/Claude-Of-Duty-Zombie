@@ -74,7 +74,6 @@ var local_player: Player
 @onready var points: Points = $Points
 @onready var rounds: RoundManager = $Rounds
 @onready var interact: InteractionSystem = $Interact
-@onready var perks: PerkSystem = $Perks
 @onready var downed: DownedSystem = $Downed
 var spawner: Spawner
 var props: MapProps
@@ -82,11 +81,10 @@ var doors: Dictionary = {}  # id -> Door
 ## Courant rétabli ? (répliqué par PowerSwitch)
 var power_on := false
 var teleporter: Teleporter
-## Bonus (chemin réseau : /root/Game/Powerups).
-var powerups: PowerupSystem
 ## Fenêtres barricadées (marqueurs W).
 var barricades: BarricadeSystem
-## Grenades et SINGE-TAMBOUR (chemin réseau : /root/Game/Throwables).
+## Objets de l'emplacement de grenade : grenades et PELUCHES LEURRES
+## (chemin réseau : /root/Game/Throwables).
 var throwables: ThrowableSystem
 ## Répliques des personnages (chemin réseau : /root/Game/Vox).
 var vox: VoxSystem
@@ -113,9 +111,6 @@ func _ready() -> void:
 	if GameState.state == GameState.State.MAIN_MENU:
 		GameState.set_state(GameState.State.LOADING)
 	_load_map(Net.current_map if has_map(Net.current_map) else requested_map())
-	powerups = PowerupSystem.new()
-	powerups.name = "Powerups"
-	add_child(powerups)
 	throwables = ThrowableSystem.new()
 	throwables.name = "Throwables"
 	add_child(throwables)
@@ -163,11 +158,8 @@ func _load_map(map_id: String) -> void:
 	props = layout.build(world) as MapProps
 	WorldLook.setup_environment(world, map_def.look)
 	_build_doors()
-	_build_wall_buys()
 	_build_power()
-	_build_perk_machines()
 	_build_mystery_box()
-	_build_pack_a_punch()
 	_build_teleporter()
 	_build_traps()
 	_build_barricades()
@@ -184,9 +176,6 @@ func _on_all_loaded() -> void:
 	if not multiplayer.is_server() or not players.is_empty():
 		return
 	print("[Game] tout le monde a chargé, lancement")
-	var box := interact.get_obj("box") as MysteryBox
-	if box and not map_def.box_starts.is_empty():
-		box.srv_random_start(map_def.box_starts)
 	_cl_begin_match.rpc(Net.players)
 
 
@@ -300,7 +289,6 @@ func kill_player(pid: int) -> void:
 	if pd == null:
 		return
 	MatchRules.bleed_out(pd)
-	perks.srv_clear(pid)
 	session.sync_stats(pid)
 	_cl_player_died.rpc(pid)
 	check_game_over()
@@ -434,21 +422,6 @@ func _build_doors() -> void:
 		interact.register(d)
 
 
-func _build_wall_buys() -> void:
-	var root := Node3D.new()
-	root.name = "WallBuys"
-	world.add_child(root)
-	for m in layout.wall_buys():
-		# Arme inconnue du jeu (carte perso) : pas d'achat mural.
-		if not CustomMapGuard.weapon_ok(m.data.get("weapon")):
-			push_warning("[Game] achat mural ignoré : arme inconnue « %s »" % str(m.data.get("weapon")).left(32))
-			continue
-		var wb := WallBuy.new()
-		wb.setup_marker(m, m.data.weapon)
-		root.add_child(wb)
-		interact.register(wb)
-
-
 func _build_power() -> void:
 	var m := layout.power_switch()
 	if m == null:
@@ -470,56 +443,24 @@ func set_power(on: bool) -> void:
 	power_changed.emit(on)
 
 
-func _build_perk_machines() -> void:
-	var root := Node3D.new()
-	root.name = "PerkMachines"
-	world.add_child(root)
-	for m in layout.perks():
-		# Atout inconnu du jeu (carte perso) : pas de machine.
-		if not CustomMapGuard.perk_ok(m.data.get("perk")):
-			push_warning("[Game] machine ignorée : atout inconnu « %s »" % str(m.data.get("perk")).left(32))
-			continue
-		var pm := PerkMachine.new()
-		pm.setup_marker(m, m.data.perk)
-		interact.register(pm)
-		root.add_child(pm)
-		layout.set_blocked(m.block, true)
-
-
+## Caisse au hasard (GAME_CONCEPT §4.12 bis) : UNE seule caisse fixe par
+## carte. Plusieurs emplacements déclarés (ancienne carte) : seul celui de
+## départ (MapDef.box_start) est gardé, les autres sont ignorés.
 func _build_mystery_box() -> void:
 	var spots := layout.box_spots()
 	if spots.is_empty():
 		return
+	var i := clampi(map_def.box_start, 0, spots.size() - 1)
+	if spots.size() > 1:
+		push_warning("[Game] %d emplacements de caisse : seul le n° %d est utilisé (une caisse fixe par carte)" % [spots.size(), i])
+	var m: MapMarker = spots[i]
 	var root := Node3D.new()
 	root.name = "Box"
 	world.add_child(root)
 	var box := MysteryBox.new()
-	box.setup_spots(spots, map_def.box_start)
+	box.setup_spot(m)
 	interact.register(box)
 	root.add_child(box)
-	for m in spots:
-		layout.set_blocked(m.block, true)
-	# Tableaux à la craie indiquant l'emplacement de la boîte (Kino).
-	var boards := layout.box_boards()
-	if not boards.is_empty():
-		var outlines := layout.room_outlines()
-		var pts: Array[Vector3] = []
-		for m in spots:
-			pts.append(m.pos)
-		for bm in boards:
-			var board := BoxBoard.new()
-			board.setup(bm, outlines, pts, box)
-			root.add_child(board)
-
-
-func _build_pack_a_punch() -> void:
-	var m := layout.pack_a_punch()
-	if m == null:
-		return
-	var pap := PackAPunch.new()
-	pap.setup_marker(m)
-	interact.register(pap)
-	world.add_child(pap)
 	layout.set_blocked(m.block, true)
 
 
@@ -571,22 +512,6 @@ func _build_barricades() -> void:
 	barricades.name = "Barricades"
 	add_child(barricades)
 	barricades.setup(self)
-
-
-## Serveur : reconstruit toutes les fenêtres (bonus CHARPENTIER).
-func repair_all_barricades() -> void:
-	if multiplayer.is_server() and barricades:
-		barricades.srv_repair_all()
-
-
-## Serveur : au moins une planche manque (condition d'apparition du CHARPENTIER, comme BO1).
-func barricades_need_repair() -> bool:
-	if barricades == null:
-		return false
-	for b in barricades.windows:
-		if b.mask != b.full_mask():
-			return true
-	return false
 
 
 ## Arme tenue par un joueur distant (modèle 3e personne).

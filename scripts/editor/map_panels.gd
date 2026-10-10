@@ -453,8 +453,8 @@ func _map_props() -> void:
 				c[MapCatalog.OVERLAP_KEY] = true
 			else:
 				c.erase(MapCatalog.OVERLAP_KEY))
-	ov.tooltip_text = Lang.t("Coché : caisses, barils, décor, luminaires et piliers peuvent se recouvrir entre eux. Les objets de jeu (portes, fenêtres, atouts, armes, boîte, départs, escaliers...) ne se chevauchent jamais.",
-		"Checked: crates, barrels, props, light fixtures and pillars may overlap each other. Gameplay objects (doors, windows, perks, weapons, box, starts, stairs...) never overlap.")
+	ov.tooltip_text = Lang.t("Coché : caisses, barils, décor, luminaires et piliers peuvent se recouvrir entre eux. Les objets de jeu (portes, fenêtres, caisse au hasard, départs, escaliers...) ne se chevauchent jamais.",
+		"Checked: crates, barrels, props, light fixtures and pillars may overlap each other. Gameplay objects (doors, windows, random crate, starts, stairs...) never overlap.")
 	_note(_props, Lang.t("Dossier : %s\n%d pièce(s), %d ouverture(s), %d objet(s)", "Folder: %s\n%d room(s), %d opening(s), %d object(s)") % [
 		ed.doc.id(), ed.doc.pieces.size(), ed.doc.ouvertures.size(), ed.doc.objets.size()])
 
@@ -618,30 +618,10 @@ func _object_props(o: Dictionary) -> void:
 	if t != "prefab":
 		_position_row(o)
 	match t:
-		"atout":
-			var ids := PerkDB.PERKS.keys()
-			_option(_props, Lang.t("Atout", "Perk"), ids.map(func(x): return "%s (%d)" % [PerkDB.display_name(x), PerkDB.cost(x, false)]), ids.find(String(o.atout)), func(i):
-				ed.push_undo()
-				o["atout"] = String(ids[i])
-				ed.changed())
-		"arme":
-			var list := MapCatalog.in_category("armes").filter(func(x): return String(x.id).begins_with("arme:"))
-			var ids := list.map(func(x): return String(x.id).substr(5))
-			_option(_props, Lang.t("Arme", "Weapon"), list.map(func(x): return "%s (%d)" % [MapCatalog.name_of(x), int(x.price)]), ids.find(String(o.arme)), func(i):
-				ed.push_undo()
-				o["arme"] = String(ids[i])
-				ed.changed())
-			_variant_row(o)
 		"bloc_invisible":
 			_clip_props(o)
 		"boite":
-			_check(_props, Lang.t("Départ de la boîte (un seul)", "Box start (only one)"), bool(o.get("depart", false)), func(on):
-				if on:
-					for q in ed.doc.objets:
-						if String(q.get("type", "")) == "boite":
-							q["depart"] = false
-				o["depart"] = on)
-			# Format 15 : pose de la boîte (au sol ou contre un mur).
+			# Caisse au hasard, format 15 : posée au sol ou contre un mur.
 			_note(_props, Lang.t("Posée au sol : l'avant (flèche) est le côté où s'ouvre le couvercle ; en jeu, elle s'achète de tous les côtés, jamais à travers un mur. Glissez-la près d'un mur pour l'y coller (Alt : sans aimant).",
 				"On the floor: the front (arrow) is the side where the lid opens; in game it can be bought from every side, never through a wall. Drag it near a wall to snap it there (Alt: no magnet).") if MapCatalog.floor_box(o)
 				else Lang.t("Contre un mur, face à la pièce. Glissez-la loin du mur pour la poser au sol (puis l'anneau ou « Angle » pour la tourner).",
@@ -688,8 +668,6 @@ func _object_props(o: Dictionary) -> void:
 		# Polygone (barrière invisible) : pas d'angle propre ; poignée ronde ou R.
 		MapPanelsShape.angle_row(self, o)
 	var price := int(it.get("price", 0))
-	if t == "atout":
-		price = PerkDB.cost(String(o.atout), false)
 	if price > 0:
 		_note(_props, Lang.t("Prix en jeu : %d ferraille", "In-game price: %d scrap") % price)
 	var hint := Lang.t(String(it.get("hint_fr", "")), String(it.get("hint_en", "")))

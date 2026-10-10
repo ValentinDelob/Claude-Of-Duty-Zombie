@@ -10,7 +10,7 @@ const MUST_BE_CC0 := ["break_open", "break_close", "impact_concrete_1", "impact_
 	"monkey_wind", "monkey_bounce", "monkey_music", "dog_growl_1", "dog_growl_2", "dog_growl_3", "dog_bark_1",
 	"dog_bark_2", "dog_bite_1", "dog_bite_2", "dog_whine", "dog_explode", "footstep_1", "footstep_2",
 	"footstep_3", "footstep_4", "player_breath_1", "player_breath_2", "player_hurt_1", "player_hurt_2",
-	"player_down", "dive_land", "minigun_fire", "thunder_fire", "thunder_charge", "nova_blast",
+	"player_down", "dive_land",
 	"pap_zap_1", "pap_zap_2", "pap_zap_3"]
 
 
@@ -64,8 +64,8 @@ func test_generator_skips_replaced() -> void:
 	assert_true(gen.replaced("m1911_fire"), "tir importé exclu")
 	assert_true(gen.replaced("monkey_music"), "singe importé exclu")
 	assert_true(gen.replaced("dog_growl_2"), "chien importé exclu")
-	assert_false(gen.replaced("ray_fire"), "son procédural conservé")
-	assert_false(gen.replaced("announce_max_ammo"), "annonce procédurale conservée")
+	assert_false(gen.replaced("power_on"), "son procédural conservé")
+	assert_false(gen.replaced("dog_round_start"), "annonce procédurale conservée")
 
 
 func test_zombie_variants_exist() -> void:
@@ -124,13 +124,12 @@ func test_every_weapon_has_own_family_sound() -> void:
 func test_loudness_categories_mapping() -> void:
 	assert_eq(SfxLoudness.category("dry_fire").id, "rechargement", "cliquetis à vide : pas un tir")
 	assert_eq(SfxLoudness.category("g11_fire").id, "tir")
-	assert_eq(SfxLoudness.category("thunder_fire").id, "arme_merveille")
 	assert_eq(SfxLoudness.category("pap_zap_2").id, "arme_zap")
 	assert_eq(SfxLoudness.category("zombie_groan_4").id, "zombie")
 	assert_eq(SfxLoudness.category("ambience_bunker").id, "ambiance")
 	assert_eq(SfxLoudness.category("ambience_bunker").mode, "int")
 	assert_eq(SfxLoudness.category("menu_move").id, "interface")
-	assert_eq(SfxLoudness.category("jingle_titan").id, "ritournelle")
+	assert_eq(SfxLoudness.category("box_music").id, "ritournelle")
 	assert_eq(SfxLoudness.category("inconnu_xyz").id, "decor")
 
 
@@ -209,7 +208,6 @@ func test_pack_a_punch_zap_layer() -> void:
 	var mp40 := WeaponDB.stats("mp40", true)
 	assert_true(WeaponAudio.has_zap(mp40, true), "arme améliorée : couche électrique")
 	assert_false(WeaponAudio.has_zap(WeaponDB.stats("m1911"), false), "arme normale : pas de zap")
-	assert_false(WeaponAudio.has_zap(WeaponDB.stats("ray", true), true), "arme merveille : pas de zap ajouté")
 	assert_near(WeaponAudio.pitch(mp40, true), WeaponAudio.PAP_PITCH, 0.0001, "hauteur à peine abaissée")
 	assert_true(WeaponAudio.PAP_PITCH > 0.9, "plus de simple son ralenti à 0,8")
 	assert_near(WeaponAudio.pitch(WeaponDB.stats("m1911"), false), 1.0, 0.0001)

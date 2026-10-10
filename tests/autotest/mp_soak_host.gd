@@ -83,9 +83,9 @@ func check_team() -> void:
 		if pid == 1:
 			continue
 		var d := game.session.get_data(pid)
-		# Réserve du bot client entretenue (il ne va pas au mur).
+		# Réserve du bot client entretenue (plus d'achat de munitions).
 		var cw := d.current_weapon()
-		if not cw.is_empty() and d.powerup_weapon.is_empty() and int(cw.reserve) < 30 and d.life == PlayerData.Life.ALIVE:
+		if not cw.is_empty() and int(cw.reserve) < 30 and d.life == PlayerData.Life.ALIVE:
 			WeaponDB.refill(d, d.slot)
 			game.session.sync_inventory(pid)
 		if d.points < 0:

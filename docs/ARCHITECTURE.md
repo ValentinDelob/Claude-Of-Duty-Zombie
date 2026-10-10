@@ -30,8 +30,9 @@ Moteur : **Godot 4.7** (GDScript, rendu Forward+). Cible : GTX 1050 à 60 FPS en
   invité ramené à « auto » s'il est inconnu (`CharacterDB.clean_choice`),
   identifiants de carte bornés (`CustomMapGuard.game_map_id_ok`) et
   carte chargée seulement si elle est connue (`Net.can_load_map`). Au
-  chargement, atouts et armes murales vérifiés dans `PerkDB` / `WeaponDB` /
-  `KnifeDB`, dossier et noms des modèles de `MeshMapBuilder` filtrés
+  chargement, objets retirés du jeu (atouts, armes murales, grenades
+  murales, Pack-a-Punch) ignorés avec un avertissement, dossier et noms des
+  modèles de `MeshMapBuilder` filtrés
   (`res://assets/models/` seulement, noms `[A-Za-z0-9_-]`). Tests :
   `tests/test_net_hardening.gd`.
 
@@ -156,7 +157,7 @@ déconnecte.
    `Net.end_match` (partie lancée, chargements, distribution des personnages
    et carte en cours oubliés ; session, joueurs, choix de personnage et carte
    du salon gardés), musique coupée, scène du menu. La scène de jeu est
-   libérée en entier : points, manche, armes, atouts, zombies, bonus, portes
+   libérée en entier : points, manche, armes, zombies, caisse, portes
    et courant repartent de zéro au prochain chargement (les signaux branchés
    par la partie sur les autoloads partent avec ses nœuds).
 3. Le menu (`MainMenu._ready`, état `LOBBY` et session en ligne) ouvre
@@ -208,8 +209,8 @@ Chaque objet de la partie reçoit son `Game` de celui qui le crée, dans un cham
 
 `Game.instance` est réservé au code sans propriétaire dans la partie
 (autoloads, fonctions statiques, menus). Lisent encore `Game.instance`, tous
-avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
-(aussi créé hors partie par `Warmup`), `Barricade`, `Door`, `BoxBoard`.
+avec une garde : `Player`, `Fx`, `VoxSystem`, `DogLightning`
+(aussi créé hors partie par `Warmup`), `Barricade`, `Door`.
 
 ## Autoloads
 
@@ -521,8 +522,8 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   `bunker_k7` au chargement des réglages) ; `--map=<id>` en ligne de commande
   l'emporte (tests).
 - Options utiles : `open_links` (zones ouvertes sans porte : leurs
-  apparitions s'activent ensemble), `box_start` / `box_starts` (départ, fixe
-  ou tiré au sort, de la boîte), `teleporter_link` (pad + poste central à
+  apparitions s'activent ensemble), `box_start` / `box_starts` (place de la
+  caisse au hasard : une seule, fixe ; s'il y en a plusieurs, la première), `teleporter_link` (pad + poste central à
   relier avant chaque voyage) et `teleporter_*` (prix, charge, séjour,
   recharges, rayon de foudre au départ), `teleport_banner`, `look`
   (ambiance), `music` ; cartes grille : `zone_materials`, `pipe_zones`.
@@ -568,12 +569,12 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
 - **`MapLayout`** (`scripts/game/map/map_layout.gd`) : la géométrie vue par les
   systèmes de jeu, indépendante de la façon dont la carte est décrite. Elle
   fournit les zones (`zone_at(Vector3)`), la navigation (`nav`, serveur), les
-  bloqueurs nommés (`set_blocked` : portes, fenêtres, boîte, PaP, poste
+  bloqueurs nommés (`set_blocked` : portes, fenêtres, caisse, poste
   central) et les emplacements en `MapMarker` (point au sol devant le mur,
-  direction du mur, identifiant réseau stable, graine) : portes, achats muraux,
-  atouts, grenades, interrupteur, boîte, PaP, téléporteur, pièges (volume 3D),
-  fenêtres (`BarricadeLayout.Opening`), apparitions. `MapDef` garde la
-  description (nom, musique, ambiance, prix, départs de la boîte...) et crée
+  direction du mur, identifiant réseau stable, graine) : portes, interrupteur,
+  caisse, téléporteur, pièges (volume 3D), fenêtres
+  (`BarricadeLayout.Opening`), apparitions. `MapDef` garde la
+  description (nom, musique, ambiance, prix, place de la caisse...) et crée
   sa géométrie (`MapDef.create_layout`). `GridMapLayout` enveloppe les cartes
   ASCII ; `MeshMapLayout` lit les cartes en maillage à plusieurs niveaux.
 - **Cartes en maillage à plusieurs niveaux** (`MeshMapLayout`, exemple
@@ -643,24 +644,17 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   `ConvexPolygonShape3D` chacun. Cartes grille :
   décor de `PropBuilder` (caisses, barils, lits, paillasses, générateur,
   tuyauteries, lampes grillagées, flaques de sang).
-- **Machines d'atouts** (`PerkMachine`) : un modèle Blender par atout,
-  `sh tools/blender.sh tools/blender/props/perk_machines.py assets/models/perks
-  [dossier d'aperçus] [ids...]` (sans fenêtre ; aperçus PNG de face, de trois
-  quarts et en gros plan). Un objet par matériau (`paint`, `paint2`,
-  `chrome`, `dark`, `glass`, `lit_sign`, `lit_ink`, `lit_lamp` : un appel de
-  rendu chacun) ; seuls `paint` et `lit_sign` projettent une ombre. Les
-  boîtes `col_<n>` du .glb deviennent les `BoxShape3D` du `StaticBody3D`
-  « Body » enfant direct de la machine (joueurs et zombies butent dessus, les
-  balles s'y arrêtent : `Fx.surface_of` rend « metal » pour un parent
-  `PerkMachine`), puis sont retirées. `perk_machine.gdshader` (couleur,
-  rugosité et métal lus dans le .glb, matériau partagé par atout) ajoute
-  rouille, coulures et crasse en coordonnées de l'objet ; le courant passe
-  par le paramètre d'instance `lit` (panneau terne éteint, lumineux allumé),
-  `seed` varie l'usure d'une machine à l'autre. Nom et emblème (originaux)
-  sont en relief dans le modèle. Sans .glb : repli en boîtes (ancien rendu).
-  Scénario `perk_look` : modèle, collision, joueur arrêté, balle arrêtée,
-  allumage, captures de chaque machine sur les deux cartes.
-- **Boîte mystère** (`MysteryBox`, apparence dans `BoxModel`) : coffre de
+- **Caisse au hasard** (GAME_CONCEPT.md §4.12 bis ; nom interne gardé :
+  classe `MysteryBox`, interaction `"box"`, type `boite` de l'éditeur,
+  marqueur `X` des cartes ASCII ; le joueur voit « Caisse » / « Crate ») :
+  une seule par carte, fixe (plus de déménagement ni de liquidation ; la
+  première déclarée, ou celle marquée « départ », est gardée). Tirage payé
+  en ferraille (`MysteryBox.COST`, 950, provisoire), animé (≈ 4 s), parmi
+  `ThrowableRules.CRATE_ITEMS` (objets à lancer ou à poser, avec poids :
+  grenade et peluche leurre aujourd'hui). L'objet flotte au-dessus de la
+  caisse ; seul l'acheteur peut le prendre pendant 12 s. Il va sur
+  l'emplacement de grenade (voir « Emplacement de grenade »), jamais dans
+  l'arsenal. Apparence (`BoxModel`) : coffre de
   bois cerclé de fer modélisé dans Blender, `sh tools/blender.sh
   tools/blender/props/mystery_box.py [assets/models/props] [dossier
   d'aperçus]` -> `assets/models/props/mystery_box.glb` (≈ 7 000 triangles,
@@ -674,8 +668,8 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   d'ouverture : `box_beam.gdshader` (additif, bords et sommet fondus, effacé
   de près), réglages `BEAM_*`, `HAZE_*`, `LIGHT_*` de `MysteryBox` (bornés
   par `test_mystery_box_look.gd`). La collision (1,8 x 0,85 x 0,85 m) et le
-  point d'interaction ne dépendent pas du modèle ; vraie boîte, boîtes de
-  LIQUIDATION et aperçu de l'éditeur partagent ce rendu. Sans .glb : repli
+  point d'interaction ne dépendent pas du modèle ; caisse du jeu et aperçu
+  de l'éditeur partagent ce rendu. Sans .glb : repli
   en boîtes. Captures : scénario `box_look` (`@niveau perf`, hors check).
 
 ## Fils de travail : aucun état partagé (`ThreadGuard`)
@@ -759,7 +753,7 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   fin de partie et de réapparition. Les règles pures sont dans `MatchRules`
   (`scripts/game/match_rules.gd`, statique, `tests/test_match_rules.gd`) :
   fin de partie quand plus personne n'est debout (un joueur à terre qui va
-  se relever seul — LAZARUS en solo — la repousse), mort par saignement,
+  se relever seul la repousse), mort par saignement,
   réapparition des morts au début de chaque manche (`RoundManager` ->
   `Game.respawn_dead_players`), point d'apparition par place (modulo positif,
   repli fixe sur une carte sans point d'apparition).
@@ -787,11 +781,10 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   tue est crédité, d'un montant fixe `PointsRules.KILL` (50) quel que soit le
   coup (balle, tête, couteau, explosion) et la manche ; rien pour les touches
   ni les réanimations (la perte à terre n'est plus rendue au sauveteur) ; un
-  piège ne rapporte rien. Restent provisoirement : planches reposées
-  (`BarricadeRules.repair_points`), bonus au sol (ATOMIQUE, CHARPENTIER,
-  ferraille double) tant qu'ils existent.
-- Les portes payantes, et pour l'instant les achats muraux, atouts, boîte et
-  Pack-a-Punch, se paient en ferraille par `Session.try_spend`.
+  piège ne rapporte rien ; reposer une planche non plus (la réparation reste
+  possible, sans gain).
+- Les portes payantes et la caisse au hasard se paient en ferraille par
+  `Session.try_spend`.
 
 ## Manches, apparitions et fenêtres (`RoundRules`, `Spawner`, `Barricade`)
 
@@ -876,8 +869,8 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
 
 - `Hellhound` étend `Zombie` : c'est un **type d'entité** du `ZombieManager`
   (`spawn(..., kind = KIND_DOG)`, argument `kind` de `_cl_spawn`). Même canal
-  réseau (apparition fiable, instantanés, mort), mêmes dégâts, points, pièges et
-  nuke ; aucun bonus aléatoire (seul le dernier chien lâche MUNITIONS MAX).
+  réseau (apparition fiable, instantanés, mort), mêmes dégâts, points et
+  pièges.
 - `DogRound` (`/root/Game/Rounds/Dogs`) : planification BO1 (manche 5 à 7 puis
   +4/+5, coupée en autotest sauf `debug_force_next`), apparitions par la foudre
   près du joueur le moins chassé (10 à 25 m, sur un point qui a un chemin
@@ -885,24 +878,29 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   ambiance (brouillard `WorldLook`, musique,
   compteur qui clignote). Règles pures : `DogRules`.
 
-## Grenades et SINGE-TAMBOUR (`scripts/game/throwables/`)
+## Emplacement de grenade : grenades et PELUCHES LEURRES (`scripts/game/throwables/`)
 
 - `ThrowableSystem` (`/root/Game/Throwables`) : le client annonce le
   dégoupillage (`srv_cook`, réserve décomptée) puis le lancer (`srv_throw`).
   Le serveur crée l'objet (`Throwable` : trajectoire balistique, rebonds par
   lancers de rayons sur le décor et les zombies, roulement), gère la mèche de
-  4 s (grenade cuite trop longtemps : explosion dans la main), l'arrêt du singe
-  et l'explosion (`Combat.explosion` : dégâts de zone décroissants, pas à
+  4 s (grenade cuite trop longtemps : explosion dans la main), l'arrêt de la
+  peluche et l'explosion (`Combat.explosion` : dégâts de zone décroissants, pas à
   travers les murs, dégâts réduits au seul lanceur, kills à 50 points).
   `_cl_spawn` diffuse position et vitesse initiales : chaque client simule la
   même trajectoire ; le lanceur l'affiche dès le lâcher (objet prédit rattaché
   ensuite au numéro du serveur). Règles pures : `ThrowableRules`.
-- Réserve dans `PlayerData` (`grenades`, `monkeys`, `has_monkeys`), répliquée
-  avec les statistiques : +2 grenades à chaque manche (4 au plus), achat mural
-  `GrenadeBuy` (marqueur `*`, 250), MUNITIONS MAX (grenades à 4, singes à 3).
-- Singe posé : `ThrowableSystem.lure_for(zombie)` renvoie sa position, que
-  `Zombie._chase` suit à la place des joueurs pendant 8 s (les chiens
-  l'ignorent). Entrées : actions `grenade` [G] et `tactical` [Q] ; geste à la
+- Un seul emplacement par joueur (`PlayerData`, répliqué avec les
+  statistiques), une seule sorte d'objet à la fois, 4 au plus. L'objet pris
+  à la caisse au hasard remplit l'emplacement jusqu'au maximum et remplace ce
+  qu'il contenait. Dotation gratuite, provisoire : 2 grenades au départ, +2
+  au début de chaque manche (4 au plus) tant que l'emplacement contient des
+  grenades ou est vide.
+- Peluche leurre posée : sa musique attire les zombies,
+  `ThrowableSystem.lure_for(zombie)` renvoie sa position, que `Zombie._chase`
+  suit à la place des joueurs pendant 8 s (les chiens l'ignorent), puis elle
+  explose. Entrée : action `grenade` [G] (maintenue : cuisson de la
+  grenade) ; geste à la
   première personne : `ThrowController` / `ThrowView` (arme baissée par
   `ViewModel.lowered`).
 
@@ -937,8 +935,8 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   `no_sights` : minigun) : reste à la hanche en visée, réticule affiché.
   Vérifié arme par arme sans partie par `tests/test_view_model_fit.gd` (rien à
   l'écran à moins de 5 cm de l'œil — hanche, visée, tir, rechargement, sprint,
-  changement d'arme, et actions lancées en visée : couteau, grenade, boisson,
-  plongeon, sprint —, armes Pack-a-Punch et champs de vision min / défaut /
+  changement d'arme, et actions lancées en visée : couteau, grenade,
+  plongeon, sprint —, champs de vision min / défaut /
   max, rien à moins de 10 cm en visée, découpe de la partie courbée, bouts de
   manche hors de l'écran, mains posées sur l'arme, avant-bras hors de l'arme).
   Captures rendues (correctif en cours, hors check) :
@@ -949,8 +947,7 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
 - **Sensation** (`ShotFeel`, client seul) : dispersion dynamique (déplacement,
   bloom ; le réticule du HUD dessine le vrai cône via `WeaponDB.spread_to_px`),
   recul appliqué progressivement (~0,1 s) avec retour partiel automatique
-  (`recoil_recover`), multiplicateurs d'atouts (`hip_spread_mult`,
-  `recoil_mult`). Crochets dans `Player` : champ de vision
+  (`recoil_recover`). Crochets dans `Player` : champ de vision
   (`camera_fov`), sensibilité (`ads_look_mult`), décalage de visée
   (`aim_offset`).
 - **Effets** (`Fx`) : traçantes en vol (pool), flammes par famille (`flash`),
@@ -968,20 +965,11 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   partent du point apparent (`ViewModel.apparent`). L'axe optique ne bouge
   pas : l'alignement de visée ne dépend pas de ce champ. Rechargements animés
   par mécanisme (`ViewModel._reload_anim`), vérifiés par `weapon_view`.
-
-## Arme merveille TONNERRE-7 (`scripts/game/weapons/thunder_blast.gd`)
-
-- Façon Thundergun de BO1 : 2 coups, réserve 12 (OURAGAN-77 amélioré : 4 / 24),
-  rare dans la boîte et **unique** dans la partie (`WeaponDB.is_unique`,
-  `MysteryBox.wonders_taken` : en main d'un joueur ou dans le Pack-a-Punch).
-- Le client n'envoie que l'intention de tir (`srv_fire` sans touches). Le
-  serveur (`ThunderBlast.server_blast`) sélectionne les zombies du cône
-  (20 m, 60°, règles pures testées), en vue du tireur (pas à travers les
-  murs), et les tue tous d'un coup (`Combat.damage_zombie(..., fling)`, 50
-  points). `ZombieManager.kill_flung` diffuse un RPC fiable de mort projetée
-  avec la vitesse initiale : chaque machine lance le ragdoll du corps à cette
-  vitesse (`ZombieRagdoll`, ci-dessous), ou à défaut (qualité BASSE, plafond
-  plein) le vol procédural `ZombieFling`. Aucun dégât aux joueurs.
+- **Amélioration** : la machine d'amélioration (Pack-a-Punch) est retirée.
+  Le drapeau `pap` des instances d'armes et les valeurs « pap » de
+  `WeaponDB` restent en sommeil (toujours faux) en attendant la refonte des
+  armes (GAME_CONCEPT.md §4.9). Plus d'armes murales (`WeaponDB.wall_cost` /
+  `ammo_cost` supprimés) ; le couteau de base reste une attaque rapide.
 
 ## Couches physiques
 
@@ -1046,8 +1034,8 @@ Deux familles de formes, jamais mêlées (`tests/test_zombie_hitbox.gd`) :
   charnières limitées. Départ de la pose courante, élan du zombie gardé.
 - Force du coup : calculée par le serveur (`ZombieRagdoll.kill_impulse` :
   type de coup, classe d'arme, tête) et transmise par la LONGUEUR du vecteur
-  `dir` du message de mort existant (`ZombieManager._cl_die`) ; TONNERRE-7 :
-  vitesse de `_cl_die_flung`. Aucun état physique synchronisé.
+  `dir` du message de mort existant (`ZombieManager._cl_die`). Aucun état
+  physique synchronisé.
 - Couche 7 (« ragdolls »), masque 1 : ne heurte que le décor, invisible pour
   les joueurs, les zombies, les tirs et les autres corps.
 - Coût borné : `ZombieRagdoll.CAPS` ragdolls simulés au plus (BASSE 0 : chute
@@ -1056,8 +1044,6 @@ Deux familles de formes, jamais mêlées (`tests/test_zombie_hitbox.gd`) :
   le plus ancien figeable l'est, sinon chute procédurale. Détection continue
   pour les corps lancés vite (pas de traversée des murs).
 - Captures et mesures : scénario `ragdoll_look` (hors check).
-- Effet visuel (toutes les machines) : cône de distorsion d'air (texture
-  d'écran), anneaux de choc, poussière, lumière ; son `thunder_fire`.
 ## Démembrement et rampants (`ZombieGibs`, `GibPool`)
 
 - `Combat.damage_zombie` appelle `ZombieManager.srv_gib` après le retrait des PV
@@ -1090,23 +1076,6 @@ Deux familles de formes, jamais mêlées (`tests/test_zombie_hitbox.gd`) :
   folie » `frenzy_pose` : coups de bras alternés sur les planches, tête
   secouée), enjambement, morts variées (choix déterministe id + variante).
   `ZombieGibs.crawl_pose` anime les rampants. Voir docs/ART_DIRECTION.md.
-
-## Bonus FAUCHEUSE et LIQUIDATION
-
-- FAUCHEUSE (DEATH MACHINE de BO1, `PowerupRules.DEATH_MACHINE`) : le joueur qui
-  la ramasse tient 30 s le minigun `death_machine` (main droite sur la poignée
-  arrière, main gauche sur la poignée latérale ; `WeaponDB.POWERUP_WEAPONS` :
-  hors arsenal, munitions illimitées, jamais de rechargement). L'arme est posée
-  PAR-DESSUS l'inventaire (`PlayerData.powerup_weapon`, répliquée avec
-  l'inventaire) : `current_weapon()` la renvoie tant que le joueur est debout,
-  le client n'a qu'elle en main (pas de changement d'arme). Minuteur par joueur
-  `PowerupSystem.death_machine` (icône du HUD pour son seul porteur) ; perdue à
-  terre ; armes au mur, boîte et Pack-a-Punch indisponibles pendant le bonus
-  (`InteractionSystem.weapon_locked`).
-- LIQUIDATION : `MysteryBox.set_fire_sale` crée sur toutes les machines une
-  boîte temporaire (`box_fs_<i>`, 10 points, jamais de crâne) à chaque autre
-  emplacement de la carte ; à la fin, les boîtes libres disparaissent, celle
-  en cours de tirage à son retour à l'état IDLE (état diffusé par le serveur).
 
 ## Profil du joueur (`scripts/game/profile/`)
 

@@ -1,8 +1,8 @@
 extends AutotestScenario
 ## Décor posé librement dans le vrai éditeur (docs/MAP_OBJECTS.md § 8), de
 ## bout en bout :
-##   1. le bug du papier peint : un bureau, une caisse, un baril, une arme
-##      murale et une porte glissés à la souris contre un mur (et dedans) ne
+##   1. le bug du papier peint : un bureau, une caisse, un baril, un interrupteur
+##      du courant et une porte glissés à la souris contre un mur (et dedans) ne
 ##      changent la texture d'AUCUN mur, ni dans les données de l'aperçu 3D
 ##      ni dans la description construite par le jeu ;
 ##   2. baril, caisse, étagère tournée et applique posés depuis la barre
@@ -34,7 +34,7 @@ func run() -> void:
 	doc.objets.append({"id": "d1", "type": "prefab", "prefab": "bureau", "altitude": 0, "position": [4.0, 5.0], "rot": 0})
 	doc.objets.append({"id": "d2", "type": "caisse", "altitude": 0, "position": [9.25, 4.25]})
 	doc.objets.append({"id": "d3", "type": "baril", "altitude": 0, "position": [10.0, 7.0]})
-	doc.objets.append({"id": "w1", "type": "arme", "arme": "m14", "altitude": 0, "position": [6.75, 10.0], "mur": "s"})
+	doc.objets.append({"id": "w1", "type": "courant", "altitude": 0, "position": [6.75, 10.0], "mur": "s"})
 	ed.new_map(true)
 	ed._reset(doc)
 	await frames(2)
@@ -47,7 +47,7 @@ func run() -> void:
 	await drag(Vector2(4.0, 5.0), Vector2(0.9, 5.0))      # bureau contre le mur ouest (à 0,15 m dans le mur)
 	await drag(Vector2(9.25, 4.25), Vector2(13.6, 3.6))   # caisse dans le mur mitoyen
 	await drag(Vector2(10.0, 7.0), Vector2(13.9, 0.3))    # baril dans l'angle nord-est de A
-	await drag(Vector2(6.75, 9.6), Vector2(0.9, 9.6))     # arme murale vers l'angle sud-ouest
+	await drag(Vector2(6.75, 9.6), Vector2(0.9, 9.6))     # interrupteur vers l'angle sud-ouest
 	await drag(Vector2(14.0, 5.25), Vector2(14.0, 9.2))   # porte au bout sud du mur mitoyen
 	var moved := {}
 	for id in ["d1", "d2", "d3", "w1", "o1"]:
@@ -56,7 +56,7 @@ func run() -> void:
 	at.check(moved.d1.distance_to(Vector2(0.9, 5.0)) < 0.02, "bureau glissé contre le mur, au centimètre (%s)" % moved.d1)
 	at.check(moved.d2.distance_to(Vector2(13.6, 3.6)) < 0.02, "caisse glissée dans le mur mitoyen (%s)" % moved.d2)
 	at.check(moved.d3.distance_to(Vector2(13.9, 0.3)) < 0.02, "baril glissé dans l'angle (%s)" % moved.d3)
-	at.check(moved.w1.x < 2.0 and moved.w1.y == 10.0, "arme murale glissée vers l'angle (%s)" % moved.w1)
+	at.check(moved.w1.x < 2.0 and moved.w1.y == 10.0, "interrupteur glissé vers l'angle (%s)" % moved.w1)
 	at.check(moved.o1.y > 7.5 and moved.o1.x == 14.0, "porte glissée au bout du mur (%s)" % moved.o1)
 	var door_span := Vector2(moved.o1.y - 1.3, moved.o1.y + 1.3)
 	var preview := MapPreviewWorld.compute(ed.doc)

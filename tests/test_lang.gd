@@ -118,13 +118,9 @@ func test_fr_en_tables_have_both_languages() -> void:
 
 
 func test_game_text_tables() -> void:
-	for id in PerkDB.PERKS:
-		var d: Dictionary = PerkDB.PERKS[id].desc
-		assert_true(String(d.get("fr", "")) != "" and String(d.get("en", "")) != "", "atout %s : effet FR et EN" % id)
-	for type in PowerupRules.ALL:
-		var n: Variant = PowerupRules.NAMES.get(type)
-		assert_true(n is Dictionary and String(n.fr) != "" and String(n.en) != "", "bonus %s : nom FR et EN" % type)
-	assert_true(String(ThrowableRules.MONKEY_NAME.en) != "", "singe : nom anglais")
+	for kind in ThrowableRules.NAMES:
+		var n: Dictionary = ThrowableRules.NAMES[kind]
+		assert_true(String(n.fr) != "" and String(n.en) != "", "objet de la caisse %d : nom FR et EN" % kind)
 	for f in CareerStats.FIELDS:
 		assert_eq(f.size(), 3, "dossier de combat %s : libellés FR et EN" % f[0])
 	for c in Scoreboard.COLUMNS:
@@ -142,24 +138,28 @@ func test_game_text_tables() -> void:
 	for id in KnifeDB.KNIVES:
 		names.append(String(KnifeDB.KNIVES[id].name))
 	for n: String in names:
-		if n != "" and (looks_french(n) or n in ["TONNERRE-7", "OURAGAN-77", "FAUCHEUSE", "COUTEAU"]):
+		if n != "" and (looks_french(n) or n in ["COUTEAU"]):
 			assert_true(WeaponDB.EN_NAMES.has(n), "arme « %s » : nom anglais (WeaponDB.EN_NAMES)" % n)
 
 
 func test_texts_follow_language_setting() -> void:
 	var saved := Settings.language
 	Settings.language = "fr"
-	var fr := [Hud.bo1_prompt("[F] Acheter M14 [500]"), PerkDB.desc("titan"), PowerupRules.display_name(PowerupRules.MAX_AMMO),
+	var fr := [Hud.bo1_prompt("[F] Acheter M14 [500]"), Hud.bo1_prompt("[F] Caisse [950]"),
+		ThrowableRules.kind_name(ThrowableRules.Kind.DECOY),
 		WeaponDB.display_name("m14", true), InteractionSystem.deny_text(InteractionSystem.NO_POINTS), Game.survived_text(3),
 		Interactable.need_power_text(), Scoreboard.columns()[0], Game.make_map_def("bunker_k7").zone_display_name("a")]
 	Settings.language = "en"
-	var en := [Hud.bo1_prompt("[F] Buy M14 [500]"), PerkDB.desc("titan"), PowerupRules.display_name(PowerupRules.MAX_AMMO),
+	var en := [Hud.bo1_prompt("[F] Buy M14 [500]"), Hud.bo1_prompt("[F] Crate [950]"),
+		ThrowableRules.kind_name(ThrowableRules.Kind.DECOY),
 		WeaponDB.display_name("m14", true), InteractionSystem.deny_text(InteractionSystem.NO_POINTS), Game.survived_text(3),
 		Interactable.need_power_text(), Scoreboard.columns()[0], Game.make_map_def("bunker_k7").zone_display_name("a")]
 	Settings.language = saved
-	assert_eq(fr, ["Appuyer sur F pour acheter M14 [Coût : 500]", "Santé maximale 250", "MUNITIONS MAX !", "M14 VIEILLE GARDE",
+	assert_eq(fr, ["Appuyer sur F pour acheter M14 [Coût : 500]", "Appuyer sur F pour ouvrir la caisse [Coût : 950]",
+		"PELUCHE LEURRE", "M14 VIEILLE GARDE",
 		"Pas assez de ferraille", "VOUS AVEZ SURVÉCU 3 MANCHES", "Le courant doit être rétabli", "JOUEUR", "Salle de garde"])
-	assert_eq(en, ["Press F to buy M14 [Cost: 500]", "Max health 250", "MAX AMMO!", "M14 OLD GUARD",
+	assert_eq(en, ["Press F to buy M14 [Cost: 500]", "Press F to open the crate [Cost: 950]",
+		"DECOY TEDDY", "M14 OLD GUARD",
 		"Not enough scrap", "YOU SURVIVED 3 ROUNDS", "Power must be activated first", "PLAYER", "Guard Room"])
 
 

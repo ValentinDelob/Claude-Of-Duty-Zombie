@@ -1,20 +1,7 @@
 extends TestCase
-## Fenêtres barricadées : règles de points de réparation et disposition sur la carte.
-
-
-func test_repair_points_and_round_cap() -> void:
-	assert_eq(BarricadeRules.repair_points(0), 10, "+10 par planche")
-	assert_eq(BarricadeRules.repair_points(0, 2), 20, "double points")
-	assert_eq(BarricadeRules.repair_points(490), 10)
-	assert_eq(BarricadeRules.repair_points(495), 5, "le plafond tronque le dernier gain")
-	assert_eq(BarricadeRules.repair_points(490, 2), 10, "double points tronqué au plafond")
-	assert_eq(BarricadeRules.repair_points(500), 0, "plafond de 500 points par manche")
-	assert_eq(BarricadeRules.repair_points(620), 0)
-	# 50 planches rapportent exactement le plafond, pas plus.
-	var earned := 0
-	for i in 60:
-		earned += BarricadeRules.repair_points(earned)
-	assert_eq(earned, BarricadeRules.ROUND_CAP)
+## Fenêtres barricadées : règles de réparation et disposition sur la carte.
+## Reposer une planche ne rapporte pas de ferraille (GAME_CONCEPT §4.8) :
+## vérifié par le scénario tests/autotest/barricades.gd.
 
 
 ## BO1 : deux planches arrachées suffisent pour que le zombie passe le bras
@@ -35,8 +22,7 @@ func test_reach_through_after_two_planks() -> void:
 
 
 func test_repair_speed() -> void:
-	assert_near(BarricadeRules.repair_interval(1.0), BarricadeRules.REPAIR_TIME)
-	assert_near(BarricadeRules.repair_interval(0.5), BarricadeRules.REPAIR_TIME * 0.5, 0.001, "RAPID FIZZ : 2x plus vite")
+	assert_near(BarricadeRules.repair_interval(), BarricadeRules.REPAIR_TIME)
 	# Ancien test : « les coureurs arrachent plus vite » (1,5 s contre 1,9 s).
 	# Règle demandée par le joueur : une planche toutes les 2,5 s en moyenne
 	# pour tout zombie (l'animation d'arrachage de BO1 ne dépend pas de la

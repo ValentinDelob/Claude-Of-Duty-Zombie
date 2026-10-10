@@ -44,9 +44,9 @@ const MIN_SPAWN_DIST := 7.0
 ## Objets sans lesquels la partie ne se joue pas : enfermés par une barrière
 ## invisible, c'est une erreur (les autres : un avertissement, la barrière ne
 ## retire jamais un objet). Interrupteur du courant (portes du courant jamais
-## ouvertes), boîte de départ (une seule par carte), départ des joueurs. Le
-## Pack-a-Punch n'est pas exigé par la carte : avertissement seulement.
-const SHUT_NEEDED := ["courant", "boite_depart", "depart"]
+## ouvertes) et départ des joueurs. La caisse au hasard n'est pas exigée par
+## la carte : avertissement seulement.
+const SHUT_NEEDED := ["courant", "depart"]
 
 enum K { VIDE, MUR, TREMIE, ESCALIER, PORTE, DEBRIS, FENETRE, SOL, MARQUEUR }
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
@@ -58,13 +58,11 @@ const ENTRIES := {
 	"piege": ["sol", "Zone de piège électrique", "Electric trap area"],
 	"teleporteur": ["sol", "Téléporteur", "Teleporter"],
 	"arrivee": ["sol", "Arrivée du téléporteur", "Teleporter exit"],
-	"boite": ["mural", "Emplacement de boîte mystère", "Mystery box location"],
-	"boite_depart": ["mural", "Boîte mystère (départ)", "Mystery box (start)"],
+	"boite": ["mural", "Caisse au hasard", "Random crate"],
+	"boite_depart": ["mural", "Caisse au hasard", "Random crate"],
 	"courant": ["mural", "Interrupteur du courant", "Power switch"],
-	"pap": ["mural", "Pack-a-Punch", "Pack-a-Punch"],
 	"poste_central": ["mural", "Poste central du téléporteur", "Teleporter mainframe"],
 	"levier": ["mural", "Levier de piège", "Trap lever"],
-	"grenades": ["mural", "Achat de grenades", "Grenade buy"],
 }
 
 
@@ -187,7 +185,7 @@ var diag_cells: Array = []
 var diag_open: Dictionary = {}
 ## Objets muraux contre un mur en biais : clé -> {p (m, sur le trait), wall (vers le mur), eid}.
 var diag_items: Dictionary = {}
-## Format 15 : boîtes mystère posées au sol : clé -> {center (m), rot (degrés), eid}.
+## Format 15 : caisses au hasard posées au sol : clé -> {center (m), rot (degrés), eid}.
 var floor_boxes: Dictionary = {}
 ## Pièces par niveau : [{id, poly (m), zone, ceil (m, absolu)}] (sols des murs en biais).
 var room_polys: Array = []
@@ -262,16 +260,9 @@ static func base_of(key: String) -> String:
 	return key.get_slice("#", 0)
 
 
-## {type, fr, en, atout?, arme?} d'une clé de case (« atout_titan#a1 »...).
+## {type, fr, en} d'une clé de case (« boite#b1 »...).
 static func entry(key: String) -> Dictionary:
 	var base := base_of(key)
-	if base.begins_with("atout_"):
-		var pid := base.substr(6)
-		return {"type": "mural", "atout": pid, "fr": "Atout " + PerkDB.display_name(pid), "en": "Perk " + PerkDB.display_name(pid)}
-	if base.begins_with("arme_"):
-		var wid := base.substr(5)
-		var n := KnifeDB.display_name(wid) if KnifeDB.exists(wid) else WeaponDB.display_name(wid)
-		return {"type": "mural", "arme": wid, "fr": "Arme au mur " + n, "en": "Wall weapon " + n}
 	if ENTRIES.has(base):
 		var e: Array = ENTRIES[base]
 		return {"type": e[0], "fr": e[1], "en": e[2]}
@@ -281,11 +272,7 @@ static func entry(key: String) -> Dictionary:
 ## Emprise d'un objet mural : [largeur le long du mur, profondeur] en cases.
 static func footprint(base: String) -> Array:
 	var o := {"type": base}
-	if base.begins_with("atout_"):
-		o = {"type": "atout", "atout": base.substr(6)}
-	elif base.begins_with("arme_"):
-		o = {"type": "arme", "arme": base.substr(5)}
-	elif base == "boite_depart":
+	if base == "boite_depart":
 		o = {"type": "boite", "depart": true}
 	var fp := MapCatalog.footprint(o)
 	return [fp.x, fp.y]
@@ -1370,7 +1357,7 @@ func _diag_wall_marker(b: Dictionary, e: Dictionary) -> void:
 		"face": face, "center": center, "oblique": true})
 
 
-## Format 15 : boîte mystère posée au sol (la grille a vérifié que ses cases
+## Format 15 : caisse au hasard posée au sol (la grille a vérifié que ses cases
 ## sont du sol). Elle rejoint les objets muraux (même description en jeu) avec
 ## un mur FICTIF derrière elle : `wall` = son arrière (vecteur unitaire),
 ## `face` = le point à MysteryBox.SPOT_WALL_GAP derrière son centre ; le jeu
@@ -1862,7 +1849,6 @@ func _connectivity() -> void:
 	# barrière mince) : un avertissement, pas une erreur qui rendrait la
 	# carte injouable (ni une zone « coupée en morceaux » ci-dessous).
 	var islands := {}
-	var shut_boxes := []   # [niveau, cases] des boîtes enfermées
 	for k in lost:
 		var f := floors[k]
 		var rest := []
@@ -1884,8 +1870,6 @@ func _connectivity() -> void:
 				var cells: Array = group.filter(func(c): return f.key_at(c) == key)
 				var w := _at(k, cells[0])
 				var base := base_of(key)
-				if base in ["boite", "boite_depart"]:
-					shut_boxes.append([k, cells])
 				if base in SHUT_NEEDED:
 					_msg("erreur", "%s en %s : entouré d'une barrière invisible, les joueurs ne peuvent pas l'atteindre — indispensable à la partie, réduisez ou déplacez la barrière" % [e.fr, w[0]],
 						"%s at %s: surrounded by an invisible barrier, players cannot reach it — the game needs it, shrink or move the barrier" % [e.en, w[1]], k, cells)
@@ -1893,14 +1877,6 @@ func _connectivity() -> void:
 					_msg("attention", "%s en %s : entouré d'une barrière invisible, les joueurs ne peuvent pas marcher jusqu'à lui (réduisez-la s'il doit rester utilisable)" % [e.fr, w[0]],
 						"%s at %s: surrounded by an invisible barrier, players cannot walk up to it (shrink it if it must stay usable)" % [e.en, w[1]], k, cells)
 		lost[k] = rest
-	# Toutes les boîtes enfermées : la boîte mystère n'est jamais utilisable.
-	var all_boxes := {}
-	for it in wall_items + floor_items:
-		if it.base in ["boite", "boite_depart"]:
-			all_boxes[it.key] = true
-	if not shut_boxes.is_empty() and shut_boxes.size() >= all_boxes.size():
-		_msg("erreur", "toutes les boîtes mystère sont entourées d'une barrière invisible : aucune n'est utilisable (libérez-en au moins une)",
-			"every mystery box is surrounded by an invisible barrier: none can be used (free at least one)", shut_boxes[0][0], shut_boxes[0][1])
 	for k in lost:
 		for group in _groups(lost[k]):
 			var z := floors[k].zone_of(group[0])
@@ -1978,15 +1954,15 @@ func _counts() -> void:
 	var n := {}
 	for it in wall_items + floor_items:
 		n[it.base] = n.get(it.base, 0) + 1
+	# Caisse au hasard : facultative, une seule par carte. Une carte d'avant
+	# à plusieurs boîtes reste jouable : le jeu n'en garde qu'une (celle
+	# marquée « depart », sinon la première : MapLayoutExport._box_key).
 	var boxes: int = n.get("boite", 0) + n.get("boite_depart", 0)
-	if boxes == 0:
-		_msg("erreur", "aucun emplacement de boîte mystère (inventaire : Boîte mystère, au sol ou contre un mur)", "no mystery box location (inventory: Mystery box, on the floor or against a wall)")
-	elif boxes < 3:
-		_msg("attention", "%d emplacement(s) de boîte seulement : la boîte se déplace entre au moins 3 emplacements (BO1 : 6 à 9 selon la taille)" % boxes,
-			"only %d box location(s): the box moves between at least 3 locations (BO1: 6 to 9 depending on size)" % boxes)
-	if n.get("boite_depart", 0) > 1:
-		_msg("erreur", "%d emplacements « boîte (départ) » : un seul" % n.boite_depart, "%d \"box (start)\" locations: only one" % n.boite_depart)
-	for key in ["courant", "pap", "teleporteur", "arrivee", "poste_central"]:
+	if boxes > 1:
+		var extra := (wall_items + floor_items).filter(func(it): return it.base in ["boite", "boite_depart"])
+		_msg("attention", "%d caisses au hasard : une seule par carte, seule la première est utilisée (supprimez les autres)" % boxes,
+			"%d random crates: only one per map, only the first one is used (delete the others)" % boxes, extra[1].floor, extra[1].cells)
+	for key in ["courant", "teleporteur", "arrivee", "poste_central"]:
 		if n.get(key, 0) > 1:
 			var its := (wall_items + floor_items).filter(func(it): return it.base == key)
 			var e := entry(key)
@@ -1998,10 +1974,6 @@ func _counts() -> void:
 		_msg("erreur", "téléporteur : il faut une plateforme ET une arrivée", "teleporter: it needs a pad AND an exit")
 	if n.get("poste_central", 0) > 0 and n.get("teleporteur", 0) == 0:
 		_msg("erreur", "poste central sans téléporteur", "mainframe without a teleporter")
-	for pid in PerkDB.PERKS:
-		if n.get("atout_" + pid, 0) > 1:
-			_msg("erreur", "%d distributeurs %s : un seul par atout" % [n["atout_" + pid], PerkDB.display_name(pid)],
-				"%d %s machines: only one per perk" % [n["atout_" + pid], PerkDB.display_name(pid)])
 	# Chaque zone a au moins une fenêtre (sauf la salle du téléporteur).
 	var tp_exit := ""
 	for it in floor_items:
@@ -2289,51 +2261,14 @@ func _fun_doors() -> void:
 
 
 func _fun_items() -> void:
-	var costs := zone_costs()
-	var box_zones := {}
 	var bf := []
 	var be := []
 	for it in wall_items:
 		if it.base == "boite" or it.base == "boite_depart":
-			box_zones[it.zone] = true
-			bf.append("%s%s" % [_zf(it.zone), " (départ)" if it.base == "boite_depart" else ""])
-			be.append("%s%s" % [_ze(it.zone), " (start)" if it.base == "boite_depart" else ""])
+			bf.append(_zf(it.zone))
+			be.append(_ze(it.zone))
 	if not bf.is_empty():
-		_msg("info", "Boîte mystère : %d emplacements, zones %s" % [bf.size(), ", ".join(bf)], "Mystery box: %d locations, zones %s" % [be.size(), ", ".join(be)])
-		if box_zones.size() == 1 and bf.size() > 1:
-			_msg("attention", "tous les emplacements de boîte sont dans la zone « %s » : répartissez-les (BO1 : un par grande salle)" % _zf(box_zones.keys()[0]),
-				"every box location is in zone \"%s\": spread them out (BO1: one per large room)" % _ze(box_zones.keys()[0]))
-	var pf := []
-	var pe := []
-	var has := {}
-	for it in wall_items:
-		if not it.entry.has("atout"):
-			continue
-		has[it.entry.atout] = it
-		pf.append("%s en « %s » (%d points de portes)" % [PerkDB.display_name(it.entry.atout), _zf(it.zone), costs.get(it.zone, 0)])
-		pe.append("%s in \"%s\" (%d door points)" % [PerkDB.display_name(it.entry.atout), _ze(it.zone), costs.get(it.zone, 0)])
-	if not pf.is_empty():
-		_msg("info", "Atouts : " + " ; ".join(pf), "Perks: " + "; ".join(pe))
-	if has.has("titan"):
-		var t: Dictionary = has.titan
-		var exits := zone_edges.filter(func(e): return e.a == t.zone or e.b == t.zone).size()
-		var lvl := "attention" if t.zone == "a" else "info"
-		_msg(lvl, "Coin TITAN BREW (rôle du Juggernog) : zone « %s », %d points de portes depuis le départ, %s%s" % [_zf(t.zone), costs.get(t.zone, 0),
-				"impasse (bon coin pour camper)" if exits <= 1 else "zone de passage (%d sorties)" % exits, " — BO1 : jamais dans la salle de départ, il se mérite (1 à 3 portes)" if t.zone == "a" else ""],
-			"TITAN BREW corner (Juggernog's role): zone \"%s\", %d door points from the start, %s%s" % [_ze(t.zone), costs.get(t.zone, 0),
-				"dead end (good for camping)" if exits <= 1 else "through zone (%d exits)" % exits, " — BO1: never in the starting room, you earn it (1 to 3 doors)" if t.zone == "a" else ""])
-	else:
-		_msg("attention", "pas de TITAN BREW (rôle du Juggernog) : les cartes de BO1 en ont toujours un", "no TITAN BREW (Juggernog's role): BO1 maps always have one")
-	if has.has("lazarus") and has.lazarus.zone != "a":
-		_msg("info", "LAZARUS TONIC (rôle du Quick Revive) hors de la zone de départ (BO1 : dans la salle de départ)",
-			"LAZARUS TONIC (Quick Revive's role) outside the starting zone (BO1: in the starting room)")
-	var weapons := wall_items.filter(func(it): return it.entry.has("arme"))
-	if not weapons.is_empty():
-		_msg("info", "Armes au mur : " + ", ".join(weapons.map(func(it): return "%s (%s)" % [String(it.entry.arme), _zf(it.zone)])),
-			"Wall weapons: " + ", ".join(weapons.map(func(it): return "%s (%s)" % [String(it.entry.arme), _ze(it.zone)])))
-	if not weapons.any(func(it): return it.zone == "a"):
-		_msg("attention", "aucune arme au mur dans la zone de départ (BO1 : M14 ou Olympia à 500 points dès le départ)",
-			"no wall weapon in the starting zone (BO1: M14 or Olympia for 500 points from the start)")
+		_msg("info", "Caisse au hasard : zone %s" % ", ".join(bf), "Random crate: zone %s" % ", ".join(be))
 
 
 func _fun_spawns() -> void:

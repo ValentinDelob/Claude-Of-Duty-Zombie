@@ -1,12 +1,12 @@
 extends AutotestScenario
-## Boîte mystère posée au sol (format 15, docs/MAP_OBJECTS.md § 15) de bout
-## en bout, sans rendu : dans le vrai éditeur, l'outil Boîte pose une boîte au
-## milieu d'une salle (aimantée au mur quand on s'en approche), tournée de 45°
-## ; TESTER : départ de la boîte contre son mur, ours en peluche -> la boîte
-## part vers l'emplacement au sol (centre et orientation de l'éditeur, tas de
-## planches laissé au mur) ; achat par l'avant, couvercle ouvert, arme prise ;
-## invite aussi derrière et sur le côté ; le joueur est arrêté par la boîte et
-## un zombie la contourne sans la traverser.
+## Caisse au hasard posée au sol (format 15, docs/MAP_OBJECTS.md § 15) de
+## bout en bout, sans rendu : dans le vrai éditeur, l'outil Caisse pose une
+## caisse au milieu d'une salle (aimantée au mur quand on s'en approche),
+## tournée de 45° ; la caisse murale de la carte d'essai est retirée (une
+## seule par carte) ; TESTER : caisse au centre et à l'orientation de
+## l'éditeur ; achat par l'avant, couvercle ouvert, objet pris ; invite
+## aussi derrière et sur le côté ; le joueur est arrêté par la caisse et un
+## zombie la contourne sans la traverser.
 
 const DecorFree := preload("res://tests/test_map_decor_free.gd")
 const OFF := MapGeom.WORLD_OFFSET
@@ -66,6 +66,11 @@ func run() -> void:
 	ed.changed()
 	fb = ed.doc.find(String(fb.id))
 	at.check(rr.ok and MapGeom.rot_of(fb) == 45, "tournée de 45° (%s)" % MapRules.why(rr))
+	# Une seule caisse par carte : celle du mur de la salle B est retirée.
+	for o in _boxes():
+		if o.has("mur"):
+			ed.delete_element(String(o.id))
+	at.check(_boxes().size() == 1, "une seule caisse au hasard")
 
 	# TESTER.
 	if not ed.test_map():
@@ -83,39 +88,21 @@ func run() -> void:
 		d.srv_open()
 	await seconds(0.5)  # collisions des portes ouvertes coupées
 	var box: MysteryBox = game.interact.get_obj("box")
-	at.check(box != null and box.spots.size() == 2, "boîte et ses deux emplacements")
-	if box == null or box.spots.size() != 2:
+	at.check(box != null and bool(box.spot.get("floor", false)), "caisse construite, au sol")
+	if box == null:
 		return
-	var fi := 0 if bool(box.spots[0].get("floor", false)) else 1
-	at.check(bool(box.spots[fi].get("floor", false)) and not bool(box.spots[1 - fi].get("floor", false)), "un emplacement au sol, un contre le mur")
-	at.check(box.location == 1 - fi, "départ : contre son mur")
 	var center := Vector3(CENTER.x + OFF, 0.0, CENTER.y + OFF)
 	var front := Vector3(0, 0, 1).rotated(Vector3.UP, -deg_to_rad(45.0))
 	var side := front.cross(Vector3.UP)
 	game.session.add_points(p.peer_id, 20000)
-
-	# Ours en peluche à la boîte murale : elle part vers l'emplacement au sol.
-	await _face(box, -(box.spots[box.location].normal as Vector3), 1.3)
-	box.force_result = "skull"
-	p.input.interact_pressed = true
-	await until(func(): return box.state == MysteryBox.State.MOVING, 8.0, "ours en peluche")
-	if not await until(func(): return box.state == MysteryBox.State.IDLE, 20.0, "boîte réapparue"):
-		return
-	at.check(box.location == fi, "boîte déplacée vers l'emplacement au sol")
 	at.check(box.global_position.distance_to(center) < 0.01, "posée au centre de l'éditeur (%s)" % (box.global_position - Vector3(OFF, 0, OFF)))
 	at.check(box.global_transform.basis.z.distance_to(front) < 0.01, "avant tourné de 45° comme dans l'éditeur")
-	at.check(box._markers[1 - fi].visible and not box._markers[fi].visible, "tas de planches laissé contre le mur")
 
-	# Achat par l'avant : invite, couvercle ouvert, arme prise.
+	# Achat par l'avant : invite, couvercle ouvert, objet pris.
 	await _face(box, front, 1.3)
-	at.check(game.interact.focused == box, "invite de la boîte depuis l'avant")
+	at.check(game.interact.focused == box, "invite de la caisse depuis l'avant")
 	var pd := game.session.local_data()
-	var want := ""
-	for id in WeaponDB.box_pool():
-		if pd.has_weapon(id) < 0 and not WeaponDB.is_unique(id):
-			want = id
-			break
-	box.force_result = want
+	box.force_result = "frag"
 	var before := pd.points
 	p.input.interact_pressed = true
 	if not await until(func(): return box.state == MysteryBox.State.ROLLING, 3.0, "achat : défilement"):
@@ -123,14 +110,13 @@ func run() -> void:
 	at.check(pd.points == before - MysteryBox.COST, "950 points payés")
 	await seconds(1.0)
 	at.check(box._lid.rotation.x < -1.0, "couvercle ouvert (%.2f rad)" % box._lid.rotation.x)
-	if not await until(func(): return box.state == MysteryBox.State.READY, 8.0, "arme prête"):
+	if not await until(func(): return box.state == MysteryBox.State.READY, 8.0, "objet prêt"):
 		return
-	at.check(game.interact.focused == box and box.prompt(p.peer_id) != "", "invite « Prendre »")
+	at.check(box.item == "frag" and game.interact.focused == box and box.prompt(p.peer_id) != "", "invite « Prendre »")
 	p.input.interact_pressed = true
-	await until(func(): return box.state == MysteryBox.State.IDLE, 3.0, "arme prise")
-	at.check(pd.has_weapon(want) >= 0, "arme obtenue : %s" % want)
+	at.check(await until(func(): return box.state == MysteryBox.State.IDLE, 3.0, "objet pris"), "caisse refermée après la prise")
 
-	# Invite de tous les côtés (BO1 : tout autour du coffre).
+	# Invite de tous les côtés (tout autour du coffre).
 	await _face(box, -front, 1.2)
 	at.check(game.interact.focused == box, "invite depuis l'arrière")
 	await _face(box, side, 1.6)

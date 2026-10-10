@@ -24,7 +24,7 @@ const REACH_TOLERANCE := 0.8
 ## Hauteur des rayons de ligne de vue (poitrine).
 const EYE := 1.1
 ## Obstacles bas qui ne cachent pas la cible mais barrent la ligne droite
-## (boîte mystère posée au sol, format 15) : couche de collision testée par
+## (caisse au hasard posée au sol, format 15) : couche de collision testée par
 ## un second rayon à hauteur de genou ; touchée, le zombie suit le navmesh
 ## (qui contourne l'obstacle) au lieu de foncer dedans. Couche 8, réservée à
 ## cet usage : la couche 7 est celle des ragdolls (ZombieRagdoll.LAYER), que

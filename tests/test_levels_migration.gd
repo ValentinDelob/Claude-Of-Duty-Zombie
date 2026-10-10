@@ -132,7 +132,17 @@ func test_stair_top_guessed_when_missing() -> void:
 func test_legacy_draft_arena() -> void:
 	var m := EditorMap.load_dir("res://tests/fixtures/maps/legacy_draft_arena/")
 	var now := EditorMap.load_dir("res://assets/maps/draft_arena/")
-	assert_eq(m.file_texts(), now.file_texts(), "carte livrée = carte d'avant convertie")
+	# Lot C : la carte livrée a perdu ses objets supprimés (retirés aussi à la
+	# lecture de la carte d'avant) et ne garde qu'une caisse au hasard, sur la
+	# passerelle : tout le reste est identique.
+	var a := m.file_texts()
+	var b := now.file_texts()
+	for f in a:
+		if f != "objets.json":
+			assert_eq(a[f], b.get(f, ""), "%s : carte livrée = carte d'avant convertie" % f)
+	var not_box := func(o): return String(o.type) != "boite"
+	assert_eq(m.objets.filter(not_box), now.objets.filter(not_box), "objets (hors caisses) identiques")
+	assert_eq(now.objets.filter(func(o): return String(o.type) == "boite").size(), 1, "une seule caisse livrée")
 	assert_true(String(FileAccess.get_file_as_string("res://assets/maps/draft_arena/carte.json")).contains("\"format\": 17"), "carte livrée au format 17")
 	assert_true(m.is_high(m.find("p3")), "entrepôt : pièce haute")
 

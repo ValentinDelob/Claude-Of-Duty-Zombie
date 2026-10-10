@@ -1,6 +1,6 @@
 class_name WeaponAudio
 extends RefCounted
-## Son de tir d'une arme. Arme Pack-a-Punchée (comme BO1) : la même
+## Son de tir d'une arme. Arme améliorée (drapeau `pap` en sommeil) : la même
 ## détonation, à peine plus grave, doublée d'un arc électrique (« zap »,
 ## enregistrements CC0 pap_zap_1..3) au lieu d'un simple son ralenti.
 

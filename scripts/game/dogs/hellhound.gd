@@ -273,7 +273,7 @@ func die(_dir: Vector3, _headshot: bool) -> void:
 	set_physics_process(false)
 	clear_snapshots()
 	if not _revealed:
-		# Tué avant d'apparaître (nuke) : rien à faire exploser.
+		# Tué avant d'apparaître : rien à faire exploser.
 		skel.visible = false
 		_light.light_energy = 0.0
 		return

@@ -46,7 +46,7 @@ func test_barrier_goes_anywhere_with_sane_outline_rules() -> void:
 		["dans une pièce, en L (concave)", L_SHAPE],
 		["dehors, hors de toute pièce", [[30, 2], [33, 2], [33, 4]]],
 		["à cheval sur le mur sud de la salle B", [[20, 8], [23, 8], [23, 12], [20, 12]]],
-		["par-dessus la boîte et l'atout", [[22.5, 3], [24.6, 3], [24.6, 7], [22.5, 7]]],
+		["par-dessus un objet contre le mur est", [[22.5, 3], [24.6, 3], [24.6, 7], [22.5, 7]]],
 		["fine : 0,2 m d'épaisseur", [[5, 8], [8, 8], [8, 8.2], [5, 8.2]]],
 		["coordonnées négatives (format 17)", [[-1, 1], [2, 1], [2, 3]]],
 	]
@@ -367,12 +367,12 @@ func test_overlap_setting_frees_decor_and_obstacles_only() -> void:
 
 # ------------------------------------------------------------------ objets recouverts par une barrière
 
-## Pack-a-Punch contre le mur nord de la salle A (x 4,25..5,75), sans la
-## barrière d'avant de la carte d'essai.
-static func _pap_map() -> EditorMap:
+## Caisse au hasard (la seule de la carte) contre le mur nord de la salle A
+## (x 4..6), sans la barrière d'avant de la carte d'essai.
+static func _crate_map() -> EditorMap:
 	var doc := _map()
-	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
-	doc.objets.append({"id": "pp", "type": "pap", "altitude": 0, "position": [5.0, 0.0], "mur": "n"})
+	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible" and o.type != "boite")
+	doc.objets.append({"id": "bx", "type": "boite", "altitude": 0, "position": [5.0, 0.0], "mur": "n"})
 	return doc
 
 
@@ -388,8 +388,9 @@ static func _counts(d: Dictionary) -> Dictionary:
 	return out
 
 
-func test_barrier_over_pack_a_punch_keeps_it_in_preview_and_game() -> void:
-	# Bogue : une barrière posée sur un Pack-a-Punch le rendait invisible
+func test_barrier_over_crate_keeps_it_in_preview_and_game() -> void:
+	# Bogue : une barrière posée sur un objet de jeu (un Pack-a-Punch, à
+	# l'époque ; ici la caisse au hasard, objet mural non exigé) le rendait invisible
 	# dans l'aperçu 3D (refusé par le validateur : « pas la place » devant,
 	# « posé hors de tout sol », puis retiré de la description).
 	var cases := [
@@ -397,19 +398,19 @@ func test_barrier_over_pack_a_punch_keeps_it_in_preview_and_game() -> void:
 		["à cheval sur un bord", [[3.5, 0], [5, 0], [5, 2], [3.5, 2]]],
 		["qui le recouvre tout entier", [[4, 0], [6.5, 0], [6.5, 2.5], [4, 2.5]]],
 	]
-	var base := _pap_map()
+	var base := _crate_map()
 	var e0 := ObjectsTest._check(base).errors().size()
 	for c in cases:
-		var doc := _pap_map()
+		var doc := _crate_map()
 		_clip(doc, c[1])
 		var v := ObjectsTest._check(doc)
 		assert_eq(v.errors().size(), e0, "%s : pas d'erreur de plus\n%s" % [c[0], "\n".join(v.errors().map(func(m): return String(m.fr)))])
-		assert_true(v.warnings().any(func(m): return String(m.fr).begins_with("Pack-a-Punch") and String(m.fr).contains("barrière invisible")),
+		assert_true(v.warnings().any(func(m): return String(m.fr).begins_with("Caisse au hasard") and String(m.fr).contains("barrière invisible")),
 			"%s : un avertissement nomme la barrière" % c[0])
-		# Jeu : le Pack-a-Punch est dans la description, la barrière n'a
-		# qu'une collision (aucun maillage).
-		var lay: Dictionary = EditorMapDef.from_map(doc, "perso:pap").layout_data
-		assert_true(lay.get("markers", {}).has("pap"), "%s : Pack-a-Punch construit en jeu" % c[0])
+		# Jeu : la caisse est dans la description, la barrière n'a qu'une
+		# collision (aucun maillage).
+		var lay: Dictionary = EditorMapDef.from_map(doc, "perso:caisse").layout_data
+		assert_eq((lay.get("markers", {}).get("box", []) as Array).size(), 1, "%s : caisse construite en jeu" % c[0])
 		assert_eq(lay.blockers.filter(func(b): return b.get("clip", false)).size(), 1, "%s : la barrière en jeu" % c[0])
 		# Aperçu 3D : construit et visible, barrières montrées ou cachées.
 		var w := MapPreviewWorld.new()
@@ -419,28 +420,28 @@ func test_barrier_over_pack_a_punch_keeps_it_in_preview_and_game() -> void:
 		w.rebuild_now()
 		await wait_frames(2)
 		assert_eq(w.errors, 0, "%s : aperçu sans erreur" % c[0])
-		var pap: Node3D = (w.groups.stuff as Node).get_node_or_null("PackAPunch")
+		var crate: Node3D = (w.groups.stuff as Node).get_node_or_null("Box")
 		var clip: Node3D = (w.groups.decor as Node).find_child("ClipView_i*", true, false)
-		assert_true(pap != null and clip != null, "%s : Pack-a-Punch et pavé de la barrière dans l'aperçu" % c[0])
-		if pap != null and clip != null:
+		assert_true(crate != null and clip != null, "%s : caisse et pavé de la barrière dans l'aperçu" % c[0])
+		if crate != null and clip != null:
 			for show in [true, false]:
 				w.set_options({"clips": show})
-				assert_true(pap.is_visible_in_tree(), "%s, barrières %s : Pack-a-Punch visible" % [c[0], "montrées" if show else "cachées"])
+				assert_true(crate.is_visible_in_tree(), "%s, barrières %s : caisse visible" % [c[0], "montrées" if show else "cachées"])
 				assert_eq(clip.is_visible_in_tree(), show, "%s : pavé de la barrière %s" % [c[0], "montré" if show else "caché"])
 		w.queue_free()
 		await wait_frames(2)
 
 
 func test_barrier_removes_no_element_of_any_kind() -> void:
-	# Toute la classe : chaque élément de DRAFT ARENA (atouts, armes, boîtes,
+	# Toute la classe : chaque élément de DRAFT ARENA (caisse au hasard,
 	# courant, portes, débris, fenêtres, escalier, pilier) puis des objets
-	# ajoutés (Pack-a-Punch, grenades, piège et levier, lampe, luminaire,
+	# ajoutés (piège et levier, lampe, luminaire,
 	# effet, décors), un de chaque sorte, recouverts tour à tour d'une barrière
 	# (1,5 m autour) : la description de l'aperçu 3D garde les mêmes objets de jeu,
 	# escaliers, lampes, décors et effets. Seul le départ des joueurs (ses
 	# quatre points écartés) dépend de la place libre autour de lui.
-	var maps := [EditorMap.load_dir("res://assets/maps/draft_arena/"), _pap_map()]
-	for o in [{"type": "grenades", "position": [14.0, 2.0], "mur": "e"}, {"type": "lampe", "position": [4.5, 6.5]},
+	var maps := [EditorMap.load_dir("res://assets/maps/draft_arena/"), _crate_map()]
+	for o in [{"type": "lampe", "position": [4.5, 6.5]},
 			{"type": "piege", "rect": [5, 12, 7, 14]}, {"type": "levier", "position": [8.0, 16.0], "mur": "s"},
 			{"type": "effet", "effet": "torche", "position": [2.0, 10.0], "mur": "s", "hauteur": 2.4},
 			{"type": "luminaire", "luminaire": "suspension", "position": [6.0, 6.0], "rot": 0},

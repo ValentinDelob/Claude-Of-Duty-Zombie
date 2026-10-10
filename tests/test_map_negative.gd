@@ -76,8 +76,8 @@ static func _room(id: String, zone: String, x0: float, y0: float, x1: float, y1:
 	return {"id": id, "nom": id, "altitude": alt, "zone": zone, "contour": [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]}
 
 
-## Deux salles collées, une porte, deux fenêtres, départ, boîte, arme, atout
-## (comme tests/test_map_preview.gd), toutes en coordonnées négatives.
+## Deux salles collées, une porte, deux fenêtres, départ, caisse au hasard,
+## interrupteur (comme tests/test_map_preview.gd), toutes en coordonnées négatives.
 static func negative_base() -> EditorMap:
 	var doc := EditorMap.blank("negatif", "NÉGATIF", "NEGATIVE")
 	var za := doc.add_zone("Salle A", "Room A")
@@ -90,7 +90,7 @@ static func negative_base() -> EditorMap:
 		o["altitude"] = 0.0
 		doc.ouvertures.append(o)
 	for o in [{"id": "x1", "type": "depart", "position": [9.0, 7.0]}, {"id": "x2", "type": "boite", "position": [6.75, 10.0], "mur": "s", "depart": false},
-			{"id": "x3", "type": "arme", "arme": "m14", "position": [11.25, 10.0], "mur": "s"}, {"id": "x4", "type": "atout", "atout": "titan", "position": [24.0, 5.0], "mur": "e"},
+			{"id": "x3", "type": "courant", "position": [11.25, 10.0], "mur": "s"},
 			{"id": "d1", "type": "prefab", "prefab": "caisses", "position": [19.0, 5.0]}]:
 		o["altitude"] = 0.0
 		doc.objets.append(o)

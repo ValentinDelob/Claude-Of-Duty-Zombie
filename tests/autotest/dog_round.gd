@@ -3,7 +3,7 @@ extends AutotestScenario
 ## flammes (brûlure des joueurs proches), manche forcée : annonce, brouillard,
 ## musique, compteur qui clignote, apparition par la foudre près du joueur,
 ## 2 chiens vivants au plus, poursuite et morsure, kills au fusil (points
-## comme les zombies), MUNITIONS MAX sur le dernier chien, puis retour à une
+## comme les zombies), puis retour à une
 ## manche de zombies normale.
 
 var H := AutotestHelpers
@@ -32,14 +32,6 @@ func _track() -> void:
 	for z: Zombie in game.zombies.alive:
 		if z is Hellhound and z.state == Zombie.State.EMERGE and (z as Hellhound).skel.visible:
 			spawn_invisible_ok = false
-
-
-## Un bonus MUNITIONS MAX est-il au sol ?
-func has_max_ammo_drop() -> bool:
-	for id in game.powerups._drops:
-		if game.powerups._drops[id].type == PowerupRules.MAX_AMMO:
-			return true
-	return false
 
 
 ## Premier chien révélé (hors apparition) ou null.
@@ -99,7 +91,6 @@ func run() -> void:
 	at.check(pd.points - pts == PointsRules.KILL, "kill de chien : +%d comme un zombie" % (pd.points - pts))
 	await seconds(0.15)  # capture
 	await at.screenshot("explode")
-	at.check(game.powerups.drop_count() == 0, "un chien hors manche ne fait rien tomber")
 	await seconds(2.0)  # fin des flammes avant la manche forcée
 
 	# ------------------------------------------------ manche de chiens forcée
@@ -177,30 +168,16 @@ func run() -> void:
 	at.check(min_spawn_dist >= 4.0, "apparitions près du joueur (%.1f à %.1f m)" % [min_spawn_dist, max_spawn_dist])
 	at.check(pd.kills - kills0 == 6, "kills comptés (%d)" % (pd.kills - kills0))
 	# Ferraille : 6 kills à montant fixe, rien pour les touches (GAME_CONCEPT
-	# §4.8). Le bonus MUNITIONS MAX ne rapporte rien.
+	# §4.8).
 	var gained := pd.points - pts
 	at.check(gained == 6 * PointsRules.KILL, "ferraille des seuls kills (+%d)" % gained)
 
-	# Munitions max sur le dernier chien, fin de manche.
-	await until(func(): return has_max_ammo_drop() and game.rounds.phase == RoundManager.Phase.INTERMISSION, 2.0, "MUNITIONS MAX et entracte")
-	var drop_ok := false
-	var drop_pos := Vector3.ZERO
-	for id in game.powerups._drops:
-		var dr: Dictionary = game.powerups._drops[id]
-		if dr.type == PowerupRules.MAX_AMMO:
-			drop_ok = true
-			drop_pos = dr.pos
-	at.check(drop_ok, "le dernier chien fait tomber MUNITIONS MAX")
-	at.check(drop_ok and Vector2(drop_pos.x - dogs.last_dog_pos.x, drop_pos.z - dogs.last_dog_pos.z).length() < 0.3, "à l'endroit du dernier chien")
+	# Fin de manche (plus de MUNITIONS MAX sur le dernier chien : bonus au sol
+	# supprimés).
+	await until(func(): return game.rounds.phase == RoundManager.Phase.INTERMISSION, 2.0, "entracte")
+	at.check(dogs.last_dog_pos != Vector3.INF, "position du dernier chien retenue")
 	at.check(game.rounds.phase == RoundManager.Phase.INTERMISSION, "fin de la manche de chiens")
 	at.check(dogs.next_dog_round == 9 or dogs.next_dog_round == 10, "prochaine manche de chiens : %d" % dogs.next_dog_round)
-	if drop_ok:
-		H.aim_at(p, drop_pos + Vector3.UP * 0.6)
-		await seconds(0.4)  # capture
-		await at.screenshot("max_ammo")
-		p.teleport_to(drop_pos + Vector3.UP * 0.05)
-		await until(func(): return pd.current_weapon().reserve == WeaponDB.stats("commando").reserve, 2.0, "MUNITIONS MAX ramassées")
-		at.check(pd.current_weapon().reserve == WeaponDB.stats("commando").reserve, "munitions max ramassées : réserve pleine")
 	# Fin de l'ambiance : délai puis fondu de 4 s du brouillard.
 	await until(func(): return not dogs.cl_active and not game.hud.round_counter().special and dogs.fog_amount() < 0.05 and absf(env.fog_density - WorldLook.BASE_FOG_DENSITY) < 0.002, DogRules.FOG_CLEAR_DELAY + 8.0, "fin de l'ambiance de manche de chiens")
 	at.check(not dogs.cl_active and not game.hud.round_counter().special, "fin de l'ambiance de manche de chiens")

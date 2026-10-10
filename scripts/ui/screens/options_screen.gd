@@ -27,7 +27,6 @@ const ACTION_NAMES := {
 	"interact": ["INTERAGIR / ACHETER", "USE / BUY"],
 	"melee": ["COUTEAU", "KNIFE"],
 	"grenade": ["GRENADE", "GRENADE"],
-	"tactical": ["GRENADE SPÉCIALE", "SPECIAL GRENADE"],
 	"switch_weapon": ["CHANGER D'ARME", "SWITCH WEAPON"],
 	"scoreboard": ["TABLEAU DES SCORES", "SCOREBOARD"],
 }

@@ -464,16 +464,6 @@ static func asset_name_ok(s: String) -> bool:
 	return true
 
 
-## Atout connu du jeu (PerkDB) : seul identifiant accepté pour bâtir une machine.
-static func perk_ok(id: Variant) -> bool:
-	return id is String and PerkDB.PERKS.has(id)
-
-
-## Arme connue du jeu (WeaponDB, KnifeDB) : seul identifiant accepté pour un achat mural.
-static func weapon_ok(id: Variant) -> bool:
-	return id is String and (WeaponDB.WEAPONS.has(id) or KnifeDB.exists(id))
-
-
 ## Nom affiché (carte, pièce, zone) : court, sans contrôle, sans balise
 ## ([b], [url=...], <...>) ni chemin.
 static func name_ok(s: String, max_len := MAX_NAME) -> bool:

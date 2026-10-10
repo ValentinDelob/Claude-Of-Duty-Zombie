@@ -802,7 +802,7 @@ static func inner_cells(poly: PackedVector2Array) -> Dictionary:
 	return inner
 
 
-## Pose d'un objet contre un mur (atout, arme, boîte, Pack-a-Punch...).
+## Pose d'un objet contre un mur (caisse au hasard, interrupteur, levier...).
 ## Décor mural (appliques) : place_wall_decor (`grid` : position le long du
 ## mur au quart de mètre ; sinon au centimètre, là où est le curseur).
 static func place_wall_item(doc: EditorMap, k: int, tmpl: Dictionary, mouse: Vector2, ignore_id := "", grid := false) -> Dictionary:
@@ -1256,7 +1256,7 @@ static func _free_wall_room_check(_doc: EditorMap, _k: int, obj: Dictionary, pol
 	return {"ok": true}
 
 
-# ------------------------------------------------------------------ boîte mystère (format 15)
+# ------------------------------------------------------------------ caisse au hasard (format 15)
 
 ## Aimant de l'outil Boîte : curseur à moins de BOX_MAGNET m du trait d'un mur
 ## (côté de la pièce ou mur libre) -> la boîte se colle à ce mur (son centre
@@ -1301,7 +1301,7 @@ static func near_wall(doc: EditorMap, k: int, p: Vector2, r: float) -> bool:
 	return false
 
 
-## Format 15 : pose d'une boîte mystère (outil « wall_snap »). Près d'un mur
+## Format 15 : pose de la caisse au hasard (outil « wall_snap »). Près d'un mur
 ## (curseur à moins de BOX_MAGNET m de son trait ; `magnet` faux : Alt, jamais),
 ## elle s'y colle face à la pièce, comme un objet mural (place_wall_item) ;
 ## sinon (ou si ce mur la refuse : ouverture derrière, mur trop court), elle

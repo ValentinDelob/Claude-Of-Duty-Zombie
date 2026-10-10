@@ -143,35 +143,6 @@ static func cell_marker(id: String, c: Vector2i, map_data: MapData) -> MapMarker
 	return m
 
 
-func wall_buys() -> Array[MapMarker]:
-	var out: Array[MapMarker] = []
-	for marker in def.wall_buys:
-		for c in data.markers.get(marker, []):
-			var m := cell_marker(marker, c, data)
-			m.data = {"weapon": def.wall_buys[marker]}
-			out.append(m)
-	return out
-
-
-func perks() -> Array[MapMarker]:
-	var out: Array[MapMarker] = []
-	for marker in def.perks:
-		for c in data.markers.get(marker, []):
-			var m := cell_marker(marker, c, data)
-			m.data = {"perk": def.perks[marker]}
-			m.block = "perk_" + marker
-			_blockers[m.block] = [c]
-			out.append(m)
-	return out
-
-
-func grenade_buys() -> Array[MapMarker]:
-	var out: Array[MapMarker] = []
-	for c in data.markers.get(ThrowableSystem.GRENADE_BUY_MARKER, []):
-		out.append(cell_marker("%d_%d" % [c.x, c.y], c, data))
-	return out
-
-
 func power_switch() -> MapMarker:
 	var cells: Array = data.markers.get("G", [])
 	return cell_marker("power", cells[0], data) if not cells.is_empty() else null
@@ -188,23 +159,13 @@ func box_spots() -> Array[MapMarker]:
 	return out
 
 
-func pack_a_punch() -> MapMarker:
-	var cells: Array = data.markers.get("K", [])
-	if cells.is_empty():
-		return null
-	var m := cell_marker("pap", cells[0], data)
-	m.block = "pap"
-	_blockers[m.block] = MysteryBox.spot_cells(cells[0], data)
-	return m
-
-
 func teleporter() -> Dictionary:
 	var pad: Array = data.markers.get("T", [])
 	var exit: Array = data.markers.get("F", [])
 	if pad.is_empty() or exit.is_empty():
 		return {}
-	# Pas de poste central sur les cartes ASCII (le « A » du BUNKER K-7 est un
-	# achat mural) : le mode liaison n'existe que sur les cartes en maillage.
+	# Pas de poste central sur les cartes ASCII : le mode liaison n'existe que
+	# sur les cartes en maillage.
 	return {"pad": MapData.cells_center(pad), "exit": MapData.cell_to_world(exit[0], 0.05), "mainframe": null}
 
 

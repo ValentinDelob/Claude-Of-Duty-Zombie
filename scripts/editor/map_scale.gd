@@ -209,7 +209,7 @@ static func _quarter_rad(a: float) -> bool:
 ## (§ 1.2) : noms [fr, en] des objets de jeu qu'elle contient (récursif pour
 ## un prefab cité dans un autre), d'après le tableau du § 1.1. Une partie
 ## « decor » du catalogue (PREFABS) se redimensionne ; tout autre objet du
-## catalogue (atout, arme, boîte, Pack-a-Punch...) non. Calculée à la lecture
+## catalogue (caisse au hasard, téléporteur, interrupteur...) non. Calculée à la lecture
 ## de la bibliothèque (MapCatalog.set_map_prefabs), jamais écrite.
 static func unscalable_parts(d: Dictionary, defs := {}, depth := 0) -> Array:
 	var out := []
@@ -248,34 +248,27 @@ static func unscalable_parts(d: Dictionary, defs := {}, depth := 0) -> Array:
 
 
 ## Nom d'un objet avec son article, dans les deux langues : « un
-## Pack-a-Punch », « l'atout Juggernog », « une boîte mystère » ->
+## téléporteur », « une caisse au hasard » ->
 ## [fr, en, nom fr seul, nom en seul].
 static func phrase(o: Dictionary) -> Array:
 	return _phrase_of_item(MapCatalog.item_for(o), String(o.get("type", "")))
 
 
 ## Types dont le nom français est féminin (article « une »).
-const _FEM := ["boite", "porte", "fenetre", "porte_courant", "grenades", "apparition", "arrivee", "caisse", "lampe", "escalier", "piece", "barriere", "bloc_invisible"]
+const _FEM := ["boite", "porte", "fenetre", "porte_courant", "apparition", "arrivee", "caisse", "lampe", "escalier", "piece", "barriere", "bloc_invisible"]
 
 
 static func _phrase_of_item(it: Dictionary, t: String) -> Array:
 	var fr := String(it.get("fr", t))
 	var en := String(it.get("en", fr))
-	match t:
-		"atout":
-			return ["l'atout %s" % fr, "the %s perk" % en, fr, en]
-		"arme":
-			return ["l'arme murale %s" % fr, "the %s wall weapon" % en, fr, en]
-		"pap":
-			return ["un %s" % fr, "a %s" % en, fr, en]
 	var low_fr := fr.left(1).to_lower() + fr.substr(1) if fr.length() > 1 and fr.substr(1, 1) == fr.substr(1, 1).to_lower() else fr
 	var low_en := en.left(1).to_lower() + en.substr(1) if en.length() > 1 and en.substr(1, 1) == en.substr(1, 1).to_lower() else en
 	var art_en := "an" if low_en.left(1) in ["a", "e", "i", "o", "u"] else "a"
 	return ["%s %s" % ["une" if t in _FEM else "un", low_fr], "%s %s" % [art_en, low_en], fr, en]
 
 
-## Liste de noms (phrase) -> « un Pack-a-Punch, l'atout Juggernog et 2
-## autres » ; `bare` : les noms seuls (« Pack-a-Punch, Juggernog »).
+## Liste de noms (phrase) -> « un téléporteur, une caisse au hasard et 2
+## autres » ; `bare` : les noms seuls (« Téléporteur, Caisse au hasard »).
 static func names_text(names: Array, bare := false) -> Array:
 	if names.is_empty():
 		return ["", ""]
@@ -302,8 +295,8 @@ static func label_of(o: Dictionary) -> Array:
 
 
 ## Raison du refus d'échelle de `o` ([fr, en] ; [] : permise). Nomme l'objet
-## (barre d'état, MCP) : « Échelle impossible : « Coin Pack-a-Punch »
-## contient un Pack-a-Punch (objet de jeu à taille fixe) ».
+## (barre d'état, MCP) : « Échelle impossible : « Coin téléporteur »
+## contient un téléporteur (objet de jeu à taille fixe) ».
 static func scale_refusal(o: Dictionary) -> Array:
 	if String(o.get("type", "")) != "prefab" or def_of(o).is_empty():
 		var ph := phrase(o)

@@ -2,14 +2,15 @@ class_name ThrowController
 extends Node
 ## Lancer du joueur LOCAL (prédiction client), piloté par WeaponController.
 ##
-## [G] maintenu : dégoupillage puis « cuisson » (la mèche de 4 s court dès le
-## dégoupillage) ; relâché : lancer en cloche. [Q] : SINGE-TAMBOUR. L'arme est
-## baissée pendant tout le geste. Le serveur (ThrowableSystem) fait foi sur la
-## réserve, la trajectoire et l'explosion.
+## [G] : lance l'objet de l'emplacement de grenade (PlayerData.throwable).
+## Grenade : maintenu, dégoupillage puis « cuisson » (la mèche de 4 s court dès
+## le dégoupillage) ; relâché : lancer en cloche. PELUCHE LEURRE : même geste,
+## sans mèche. L'arme est baissée pendant tout le geste. Le serveur
+## (ThrowableSystem) fait foi sur la réserve, la trajectoire et l'explosion.
 
 enum Phase { IDLE, PULL, HOLD, THROW }
 
-## Dégoupillage (ou remontage du singe) : minimum avant de pouvoir lancer.
+## Dégoupillage (ou prise en main de la peluche) : minimum avant de pouvoir lancer.
 const PULL_TIME := 0.4
 ## Geste du lancer puis retour de l'arme.
 const THROW_TIME := 0.32
@@ -27,7 +28,6 @@ var _t0 := 0.0
 var _cook_start := 0.0
 var _release := false
 var _prev_frag := false
-var _prev_tac := false
 ## Lancers partis (tests).
 var thrown := 0
 
@@ -50,24 +50,18 @@ func tick(delta: float) -> void:
 	var inp := player.input
 	var t := GameClock.now()
 	var frag_edge := inp.grenade and not _prev_frag
-	var tac_edge := inp.tactical and not _prev_tac
 	_prev_frag = inp.grenade
-	_prev_tac = inp.tactical
 	var pd := wc.session.get_data(player.peer_id)
 	var alive := pd != null and pd.life == PlayerData.Life.ALIVE
 	var k := 0.0
 	match phase:
 		Phase.IDLE:
-			# Pas pendant une boisson, un coup / une fente de couteau ou la
-			# récupération du couteau de chasse.
-			if alive and system and not wc.view.is_drinking() and not wc.is_knifing() and not player.is_lunging():
+			# Pas pendant un coup ou une fente de couteau.
+			if alive and system and not wc.is_knifing() and not player.is_lunging():
 				if frag_edge and pd.grenades > 0:
-					_begin(ThrowableRules.Kind.FRAG)
-				elif tac_edge and pd.has_monkeys and pd.monkeys > 0:
-					_begin(ThrowableRules.Kind.MONKEY)
+					_begin(pd.throwable)
 		Phase.PULL, Phase.HOLD:
-			var held := inp.grenade if kind == ThrowableRules.Kind.FRAG else inp.tactical
-			if not held:
+			if not inp.grenade:
 				_release = true
 			if phase == Phase.PULL:
 				k = (t - _t0) / PULL_TIME

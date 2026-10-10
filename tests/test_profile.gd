@@ -173,7 +173,7 @@ func test_ajout_retrait_arme() -> void:
 
 func test_utilisation_selon_niveau() -> void:
 	var pr := PlayerProfile.new()
-	var w := OwnedWeapon.create("ray", 5)
+	var w := OwnedWeapon.create("m14", 5)
 	pr.add_weapon(w)
 	assert_false(pr.can_use(w), "arme gardée pour plus tard")
 	pr.add_xp(PlayerProfile.xp_for_level(5))

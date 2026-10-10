@@ -1,12 +1,13 @@
 extends TestCase
 ## Objets de l'éditeur de cartes, format 5 (docs/MAP_OBJECTS.md) : variantes
-## d'aspect (portes, débris, armes murales : catalogue, JSON aller-retour,
+## d'aspect (portes, débris : catalogue, JSON aller-retour,
 ## valeur par défaut quand la clé manque, variante piégée refusée par
 ## CustomMapGuard, bon modèle construit par le jeu, touche V dans l'éditeur)
 ## et barrière invisible (catalogue, JSON, cases pleines pour le validateur,
 ## CollisionBox sur la couche BARRIER sans maillage en jeu, pavé translucide
 ## dans l'aperçu 3D, balles qui passent, corps arrêté, trajets qui la
-## contournent).
+## contournent). Objets retirés du jeu (atouts, armes murales, grenades,
+## Pack-a-Punch) : une carte d'avant qui en contient se charge sans eux.
 
 const TMP := "res://tests/_out/test_map_objects"
 
@@ -30,7 +31,7 @@ static func _room(doc: EditorMap, x0: float, y0: float, x1: float, y1: float) ->
 
 
 ## Trois salles : A (départ), B à l'est (porte en bois, barrière invisible),
-## C au sud (débris en éboulement de béton) ; M14 sur une planche.
+## C au sud (débris en éboulement de béton) ; caisse au hasard au nord de A.
 static func objects_map() -> EditorMap:
 	var doc := EditorMap.blank("objets", "OBJETS", "OBJECTS")
 	_room(doc, 0, 0, 14, 10)
@@ -44,8 +45,6 @@ static func objects_map() -> EditorMap:
 	doc.ouvertures.append({"id": "o5", "type": "fenetre", "altitude": 0, "position": [7.25, 16.0]})
 	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [9.0, 7.0]})
 	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [9.75, 0.0], "mur": "n", "depart": false})
-	doc.objets.append({"id": "w1", "type": "arme", "arme": "m14", "altitude": 0, "position": [11.25, 10.0], "mur": "s", "variante": "planche"})
-	doc.objets.append({"id": "a1", "type": "atout", "atout": "titan", "altitude": 0, "position": [24.0, 5.0], "mur": "e"})
 	doc.objets.append({"id": "i1", "type": "bloc_invisible", "altitude": 0, "rect": [16, 3, 17, 8]})
 	return doc
 
@@ -73,7 +72,7 @@ static func _door_marker(variant: String, debris := false) -> MapMarker:
 func test_catalog_variants_and_barrier_entry() -> void:
 	assert_eq(MapCatalog.variants("porte"), ["blindee", "bois", "grille"], "trois portes")
 	assert_true(MapCatalog.variants("debris").size() >= 2, "deux tas de débris")
-	assert_true(MapCatalog.variants("arme").size() >= 2, "deux cadres d'arme murale")
+	assert_eq(MapCatalog.variants("arme"), [], "armes murales retirées : plus de variante")
 	assert_eq(MapCatalog.default_variant("porte"), "blindee", "par défaut : la porte d'avant")
 	# Format 8 : l'entrée des zombies a trois types (fenêtre d'avant par défaut).
 	assert_eq(MapCatalog.variants("fenetre"), ["fenetre", "porte", "porte_double"], "fenêtre, porte simple, porte double")
@@ -88,7 +87,10 @@ func test_catalog_variants_and_barrier_entry() -> void:
 	assert_eq(MapCatalog.item_for({"type": "bloc_invisible"}).get("id"), "bloc_invisible")
 	var kinds := MapCatalog.allowed_kinds()
 	assert_eq(kinds.porte.keys.variante.values, MapCatalog.variants("porte"), "variantes admises des portes")
-	assert_eq(kinds.arme.keys.variante.values, MapCatalog.variants("arme"), "variantes admises des armes")
+	# Types retirés du jeu : encore admis à la lecture (cartes d'avant).
+	for t in MapCatalog.REMOVED_TYPES:
+		assert_true(kinds.has(t), "%s : encore admis à la lecture" % t)
+	assert_eq(kinds.arme.keys.variante.values, ["craie", "planche"], "variantes d'avant des armes murales encore lues")
 	assert_eq(kinds.fenetre.keys.variante.values, MapCatalog.variants("fenetre"), "types admis des entrées des zombies (format 8)")
 	assert_true(kinds.has("bloc_invisible") and kinds.bloc_invisible.required == ["id", "type"], "barrière : type admis (sommets ou rect : CustomMapGuard)")
 	assert_eq(kinds.bloc_invisible.keys.keys().filter(func(k): return not k in ["id", "type", "altitude"]), ["sommets", "rect", "rot", "hauteur"])
@@ -112,7 +114,6 @@ func test_variant_and_barrier_json_round_trip() -> void:
 	assert_eq(texts["ouvertures.json"], again["ouvertures.json"], "ouvertures inchangées")
 	assert_eq(MapCatalog.variant_of(back.find("o1")), "bois")
 	assert_eq(MapCatalog.variant_of(back.find("o4")), "gravats")
-	assert_eq(MapCatalog.variant_of(back.find("w1")), "planche")
 	var clip := back.find("i1")
 	assert_false(clip.has("rect") or clip.has("rot"), "rect et rot remplacés par les sommets")
 	var want := MapGeom.rot_rect_poly(Vector2(16.5, 5.5), Vector2(1, 5), 30)
@@ -146,8 +147,6 @@ func test_old_maps_keep_their_look() -> void:
 	assert_true(def.is_valid(), _errs(def.validator))
 	for d in def.layout_data.markers.doors:
 		assert_false(d.has("variant"), "porte %s : description inchangée" % d.id)
-	for w in def.layout_data.markers.wall_buys:
-		assert_false(w.has("variant"), "arme %s : description inchangée" % w.id)
 	assert_false(def.layout_data.blockers.any(func(b): return b.has("clip")), "aucune barrière")
 	# Fichier écrit à la main avec une variante inconnue : aspect par défaut.
 	var hand := doc.file_texts()
@@ -198,8 +197,8 @@ func test_barrier_cells_are_solid_for_the_validator() -> void:
 		assert_eq(f.at(c), MapValidator.K.MUR, "case %s pleine" % c)
 		assert_eq(f.key_at(c), "decor#i1")
 	assert_eq(v.clips.size(), 1)
-	assert_eq(v.variants, {"o1": "bois", "o4": "gravats", "w1": "planche"}, "variantes transmises")
-	# Barrière d'un mur à l'autre de la salle B : l'est de B (fenêtre, atout)
+	assert_eq(v.variants, {"o1": "bois", "o4": "gravats"}, "variantes transmises")
+	# Barrière d'un mur à l'autre de la salle B : l'est de B (fenêtre)
 	# n'est plus accessible à pied, comme derrière un mur.
 	var cut := objects_map()
 	cut.find("i1")["rect"] = [17, 0, 17.5, 10]
@@ -221,7 +220,6 @@ func test_game_builds_each_variant() -> void:
 	var doors: Array = data.markers.doors
 	assert_eq(doors.filter(func(d): return d.get("variant", "") == "bois").size(), 1, "porte en bois décrite")
 	assert_eq(doors.filter(func(d): return d.get("variant", "") == "gravats" and d.get("debris", false)).size(), 1, "éboulement décrit")
-	assert_eq(String(data.markers.wall_buys[0].get("variant", "")), "planche", "M14 sur une planche")
 	var layout := MeshMapLayout.new(def, data, "")
 	var looks := {}
 	for mk in layout.doors():
@@ -253,22 +251,59 @@ func test_game_builds_each_variant() -> void:
 	assert_eq(shapes["|true"][0], "planches", "débris par défaut : planches")
 	assert_true(shapes["gravats|true"][4] >= 2 and shapes["gravats|true"][2] >= 3, "éboulement : béton et fers (%s)" % str(shapes["gravats|true"]))
 	assert_true(shapes["|true"][2] == 0, "débris par défaut sans fers à béton")
-	# Arme murale : planche derrière la craie, craie seule par défaut.
-	var wms := layout.wall_buys()
-	var wb := WallBuy.new()
-	wb.setup_marker(wms[0], "m14")
-	host.add_child(wb)
-	assert_true(wb.get_node_or_null("Board") != null and wb.get_node_or_null("Chalk") != null, "craie sur une planche")
-	var plain := WallBuy.new()
-	var mk := MapMarker.new()
-	mk.id = "m14_plain"
-	mk.data = {"weapon": "m14"}
-	plain.setup_marker(mk, "m14")
-	host.add_child(plain)
-	assert_true(plain.get_node_or_null("Board") == null and plain.get_node_or_null("Chalk") != null, "par défaut : craie seule")
-	wb.queue_free()
-	plain.queue_free()
 	await wait_frames(1)
+
+
+# ------------------------------------------------------------------ objets retirés du jeu
+
+## Carte d'avant avec des objets qui n'existent plus (atout, arme murale et
+## sa variante, achat de grenades, Pack-a-Punch) et trois boîtes : le
+## contrôle des cartes reçues l'accepte, l'éditeur l'ouvre sans eux (note
+## pour l'utilisateur, pas d'erreur), l'export pour le jeu ne produit plus
+## leurs clés et garde une seule caisse au hasard (la boîte « depart »).
+func test_removed_objects_are_ignored_on_load() -> void:
+	var doc := objects_map()
+	doc.objets.append({"id": "w1", "type": "arme", "arme": "m14", "altitude": 0, "position": [11.25, 10.0], "mur": "s", "variante": "planche"})
+	doc.objets.append({"id": "a1", "type": "atout", "atout": "titan", "altitude": 0, "position": [24.0, 5.0], "mur": "e"})
+	doc.objets.append({"id": "g1", "type": "grenades", "altitude": 0, "position": [14.0, 2.0], "mur": "e"})
+	doc.objets.append({"id": "pp", "type": "pap", "altitude": 0, "position": [5.0, 16.0], "mur": "s"})
+	doc.objets.append({"id": "b2", "type": "boite", "altitude": 0, "position": [19.0, 10.0], "mur": "s", "depart": true})
+	doc.objets.append({"id": "b3", "type": "boite", "altitude": 0, "position": [10.0, 16.0], "mur": "s", "depart": false})
+	var texts := doc.file_texts()
+	assert_true(String(texts["objets.json"]).contains("\"type\":\"atout\""), "fichier préparé avec les anciens objets")
+	assert_eq(CustomMapGuard.check_texts(texts).reasons, [], "carte d'avant acceptée par le contrôle des cartes reçues")
+	var m := EditorMap.from_texts(texts)
+	assert_eq(m.load_errors, [], "lue sans erreur")
+	assert_eq(m.load_notes.size(), 1, "une note pour l'utilisateur (%s)" % str(m.load_notes))
+	for t in MapCatalog.REMOVED_TYPES:
+		assert_false(m.objets.any(func(o): return String(o.get("type", "")) == t), "%s retiré à l'ouverture" % t)
+	for id in ["w1", "a1", "g1", "pp"]:
+		assert_true(m.find(id).is_empty(), "%s absent" % id)
+	assert_eq(m.objets.filter(func(o): return String(o.type) == "boite").size(), 3, "les boîtes restent dans le fichier")
+	assert_true(MapCatalog.item_for(m.find("b2")).get("id") == "boite", "boîte « depart » d'avant : affichée comme la caisse au hasard")
+	# Réécrite : plus aucun objet retiré.
+	assert_false(String(m.file_texts()["objets.json"]).contains("\"atout\""), "réécrite sans les anciens objets")
+	# Export pour le jeu : plus de clés des objets retirés, une seule caisse.
+	var v := _check(m)
+	assert_true(v.warnings().any(func(w): return String(w.fr).begins_with("3 caisses au hasard")), "plusieurs caisses : avertissement")
+	var data := MapLayoutExport.build(v)
+	for k in ["wall_buys", "perks", "grenade_buys", "pap", "box_boards"]:
+		assert_false((data.markers as Dictionary).has(k) or data.has(k), "export : plus de « %s »" % k)
+	assert_eq((data.markers.box as Array).size(), 1, "export : une seule caisse")
+	assert_false(data.map_def.has("box_starts"))
+	assert_eq(int(data.map_def.box_start), 0)
+	var off := MapGeom.WORLD_OFFSET
+	assert_near(float(data.markers.box[0].p[0]), 19.0 + off, 1.1, "la boîte « depart » est gardée (%s)" % str(data.markers.box[0].p))
+	# Même posés directement dans le document (sans passer par la lecture),
+	# l'export les ignore.
+	var raw := objects_map()
+	raw.objets.append({"id": "a9", "type": "atout", "atout": "titan", "altitude": 0, "position": [24.0, 5.0], "mur": "e"})
+	raw.objets.append({"id": "p9", "type": "pap", "altitude": 0, "position": [5.0, 16.0], "mur": "s"})
+	var d2 := MapLayoutExport.build(_check(raw))
+	assert_false((d2.markers as Dictionary).has("perks") or (d2.markers as Dictionary).has("pap"), "export : objets retirés ignorés")
+	# Claude ou un participant ne peut plus en poser.
+	assert_true(MapOps.validate([{"op": "add", "coll": "objets", "el": {"type": "atout", "atout": "titan", "position": [1, 1]}}], true) != "",
+		"editor_apply : type retiré refusé")
 
 
 func test_barrier_is_an_invisible_collision_box() -> void:

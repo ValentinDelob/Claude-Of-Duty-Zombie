@@ -430,7 +430,7 @@ static func _ref_focus(sys: InteractionSystem, eye: Vector3, fwd: Vector3, pid: 
 		var facing := fwd.dot(to / maxf(d, 0.001))
 		if facing < 0.35 and d > 1.0:
 			continue
-		if not obj.can_interact(pid) or InteractionSystem.weapon_locked(obj, pd):
+		if not obj.can_interact(pid):
 			continue
 		var score := facing * 2.0 - d
 		if score > best_score:

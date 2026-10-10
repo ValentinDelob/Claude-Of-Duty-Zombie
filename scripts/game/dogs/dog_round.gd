@@ -5,7 +5,7 @@ extends Node
 ## Serveur : planifie les manches de chiens (5 à 7, puis +4 ou +5), fait
 ## apparaître les chiens un par un près des joueurs (2 vivants par joueur),
 ## leur attribue une proie, applique l'explosion de flammes à leur mort et
-## fait tomber des MUNITIONS MAX sur le dernier chien tué.
+## retient la position du dernier chien tué.
 ## Toutes les machines : ambiance de la manche (brouillard, musique, annonce,
 ## compteur de manche qui clignote).
 
@@ -276,10 +276,9 @@ func _on_killed(zid: int) -> void:
 	_far_time.erase(zid)
 	killed += 1
 	if active and spawned >= total and _alive.is_empty():
-		# Le dernier chien fait toujours tomber des munitions max.
+		# Position du dernier chien (les bonus au sol, dont les munitions max
+		# qu'il lâchait, sont supprimés).
 		last_dog_pos = pos
-		if game.powerups:
-			game.powerups.spawn_drop(PowerupRules.MAX_AMMO, pos)
 		_end_sent = true
 		_cl_dog_end.rpc()
 

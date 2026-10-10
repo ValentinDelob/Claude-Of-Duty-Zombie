@@ -13,7 +13,7 @@ extends Node
 
 ## Tolérance de cadence : rafale max acceptée d'un coup (gigue réseau), en
 ## tirs au moins FIRE_BURST_TOKENS, et au moins FIRE_BURST_SEC de tirs de
-## l'arme : pour une arme très rapide (FAUCHEUSE, 20 coups/s), 4 tirs ne
+## l'arme : pour une arme très rapide (20 coups/s), 4 tirs ne
 ## couvraient qu'un à-coup de 0,2 s (tirs d'un joueur honnête refusés).
 const FIRE_BURST_TOKENS := 4.0
 const FIRE_BURST_SEC := 0.4
@@ -50,8 +50,8 @@ signal zombie_damaged(pid: int, zid: int, damage: int, killed: bool, headshot: b
 signal player_fell(pid: int)
 ## Toutes les machines : un autre joueur a tiré (effets reçus du serveur).
 signal remote_shot(pid: int)
-## Serveur : un joueur a atterri d'un plongeon (crochet de l'atout façon PhD
-## Flopper : explosion à l'atterrissage selon `height`).
+## Serveur : un joueur a atterri d'un plongeon (crochet pour un futur effet
+## à l'atterrissage selon `height`).
 signal player_dived_landed(pid: int, position: Vector3, height: float)
 
 var game: Game
@@ -64,9 +64,6 @@ var _fire_limit := NetGuard.Limiter.new(0.0, FIRE_BURST_TOKENS)
 var _reload_end: Dictionary = {}    # pid -> [slot, end_time, start_time, durée]
 var _last_hurt: Dictionary = {}     # pid -> sec
 var _melee_ready: Dictionary = {}   # pid -> sec
-## Mains occupées sans changer d'arme (boisson, récupération du couteau) :
-## pas de rechargement accepté avant cet instant (srv_hands_busy).
-var _hands_busy_end: Dictionary = {}  # pid -> sec
 ## Resynchronisations après un tir refusé (4 par seconde au plus et par joueur).
 var _resync_limit := NetGuard.Limiter.new(4.0, 4.0)
 ## Requêtes de rechargement / changement d'arme (bien au-delà d'un humain).
@@ -139,12 +136,6 @@ func srv_fire(slot: int, origin: Vector3, dir: Vector3, impacts: PackedVector3Ar
 	var w: Dictionary = pd.current_weapon()
 	w.mag -= 1
 	shot_validated.emit(pid)
-	if WeaponDB.stats(w.id, w.pap).has("blast_range"):
-		# Onde de choc (TONNERRE-7) : cône calculé ici ; les autres joueurs
-		# reçoivent la direction du tir comme « normale » du premier impact.
-		ThunderBlast.server_blast(self, pid, w, origin, dir)
-		NetCodec.append_shot(_fx_buf, pid, w.id, w.pap, origin, PackedVector3Array([origin, dir]), PackedVector3Array())
-		return
 	# Point d'explosion revendiqué (grenade, roquette) : sur la trajectoire du
 	# tir seulement, jamais une explosion posée n'importe où sur la carte.
 	var s0 := WeaponDB.stats(w.id, w.pap)
@@ -187,7 +178,7 @@ func _validate_fire(pid: int, slot: int, origin: Vector3) -> String:
 		return "origine incohérente"
 	# Seau de jetons : cadence moyenne respectée, rafale courte tolérée.
 	var t := GameClock.now()
-	var rate := 1.0 / WeaponDB.fire_interval(w.id, w.pap) * game_rate_mult(pid)
+	var rate := 1.0 / WeaponDB.fire_interval(w.id, w.pap)
 	if not _fire_limit.take(pid, t, rate * 1.25, fire_burst(rate)):
 		return "cadence trop élevée"
 	return ""
@@ -226,16 +217,6 @@ static func plausible_splash(origin: Vector3, dir: Vector3, c: Vector3) -> bool:
 	if rd.x <= HIT_TOLERANCE + 0.6:
 		return true
 	return rd.x <= maxf(rd.y, 0.0) * tan(deg_to_rad(SPLASH_CONE_DEG))
-
-
-## Multiplicateur de cadence (atout TWIN SHOT).
-func game_rate_mult(pid: int) -> float:
-	return PerkDB.fire_rate_mult(session.get_data(pid))
-
-
-## Multiplicateur de dégâts d'un joueur (atouts).
-func damage_mult(pid: int) -> float:
-	return PerkDB.damage_mult(session.get_data(pid))
 
 
 ## Valide et applique les touches. Retourne les points de sang à afficher chez
@@ -288,14 +269,14 @@ func _apply_hits(pid: int, w: Dictionary, origin: Vector3, dir: Vector3, hits: A
 		# Démembrement : point d'impact et arme du coup (ZombieManager.srv_gib).
 		_gib_at = acc[2] if acc[2] is Vector3 else Vector3.INF
 		_gib_weapon = w.id
-		damage_zombie(zid, int(acc[0] * damage_mult(pid)), pid, acc[1], dir, HitKind.BULLET)
+		damage_zombie(zid, int(acc[0]), pid, acc[1], dir, HitKind.BULLET)
 		_gib_at = Vector3.INF
 		_gib_weapon = ""
 		if acc[2] is Vector3:
 			blood.append(acc[2])
 		# Munitions incendiaires : le zombie brûle quelques secondes.
 		if s.has("burn_dps"):
-			_burns[zid] = [pid, float(s.burn_dps) * damage_mult(pid), GameClock.now() + float(s.get("burn_time", 2.0))]
+			_burns[zid] = [pid, float(s.burn_dps), GameClock.now() + float(s.get("burn_time", 2.0))]
 	return blood
 
 
@@ -330,12 +311,12 @@ func _apply_splash(pid: int, w: Dictionary, impacts: PackedVector3Array, hits: A
 		var d := (z.global_position + Vector3.UP * 0.9).distance_to(center)
 		if d <= r:
 			var k := 1.0 - d / r * 0.5
-			damage_zombie(z.id, int(float(s.splash_damage) * k * damage_mult(pid)), pid, false, (z.global_position - center).normalized(), HitKind.SPLASH)
+			damage_zombie(z.id, int(float(s.splash_damage) * k), pid, false, (z.global_position - center).normalized(), HitKind.SPLASH)
 	# Dégâts à soi réduits (pas de tir ami entre joueurs, comme BO1).
 	if p and s.has("self_damage"):
 		var ds := (p.global_position + Vector3.UP * 0.9).distance_to(center)
 		if ds <= r:
-			damage_player(pid, int(float(s.self_damage) * (1.0 - ds / r * 0.5) * PerkDB.explosive_self_mult(session.get_data(pid))), center)
+			damage_player(pid, int(float(s.self_damage) * (1.0 - ds / r * 0.5)), center)
 	_cl_splash_fx.rpc(center, r)
 
 
@@ -348,7 +329,7 @@ static func _splash_center(impacts: PackedVector3Array, hits: Array) -> Vector3:
 	return Vector3.INF
 
 
-## Serveur : explosion d'un objet lancé (grenade, SINGE-TAMBOUR) : dégâts de
+## Serveur : explosion d'un objet lancé (grenade, PELUCHE LEURRE) : dégâts de
 ## zone décroissants aux zombies en vue du centre (pas à travers les murs),
 ## dégâts réduits au seul lanceur (pas de tir ami, comme BO1).
 func explosion(pid: int, center: Vector3, radius: float, damage: int, self_damage: int) -> void:
@@ -356,7 +337,6 @@ func explosion(pid: int, center: Vector3, radius: float, damage: int, self_damag
 		return
 	var space := game.get_world_3d().direct_space_state
 	var eye := center + Vector3.UP * 0.25
-	var mult := damage_mult(pid) if pid > 0 else 1.0
 	for z: Zombie in game.zombies.alive.duplicate():
 		var body := z.global_position + Vector3.UP * 0.9
 		var d := body.distance_to(center)
@@ -365,29 +345,26 @@ func explosion(pid: int, center: Vector3, radius: float, damage: int, self_damag
 		var q := PhysicsRayQueryParameters3D.create(eye, body, 1)
 		if not space.intersect_ray(q).is_empty():
 			continue
-		damage_zombie(z.id, int(ThrowableRules.splash(damage, radius, d) * mult), pid, false, (z.global_position - center).normalized(), HitKind.SPLASH)
+		damage_zombie(z.id, ThrowableRules.splash(damage, radius, d), pid, false, (z.global_position - center).normalized(), HitKind.SPLASH)
 	var p: Player = game.players.get(pid)
 	if p and self_damage > 0:
 		var ds := (p.global_position + Vector3.UP * 0.9).distance_to(center)
 		if ds <= radius:
-			damage_player(pid, int(ThrowableRules.splash(self_damage, radius, ds) * PerkDB.explosive_self_mult(session.get_data(pid))), center)
+			damage_player(pid, int(ThrowableRules.splash(self_damage, radius, ds)), center)
 
 
 ## Serveur : inflige des dégâts à un zombie. Point d'entrée unique pour toutes
 ## les sources (balles, couteau, pièges...). `fling` non nul : mort projetée
-## à cette vitesse (onde de choc du TONNERRE-7).
+## à cette vitesse (corps envoyé en vol, ZombieFling).
 func damage_zombie(zid: int, dmg: int, pid: int, headshot: bool, dir: Vector3, kind: HitKind, fling := Vector3.ZERO) -> void:
 	if not multiplayer.is_server():
 		return
 	var z: Zombie = game.zombies.get_zombie(zid)
 	if z == null or not z.is_alive() or dmg <= 0:
 		return
-	# Bonus MORT INSTANTANÉE : tout coup d'un joueur tue.
-	if pid > 0 and game.powerups and game.powerups.insta_kill():
-		dmg = maxi(dmg, z.health)
 	z.health -= dmg
 	var killed := z.health <= 0
-	# Un zombie projeté par le TONNERRE-7 n'est pas démembré.
+	# Un zombie projeté n'est pas démembré.
 	if fling == Vector3.ZERO:
 		game.zombies.srv_gib(z, dmg, killed, headshot, kind, _gib_at, _gib_weapon, dir)
 	if killed and fling != Vector3.ZERO:
@@ -446,22 +423,18 @@ func _cl_shot_fx(pid: int, weapon_id: String, pap: bool, origin: Vector3, impact
 	var aim := (impacts[0] - origin).normalized() if impacts.size() >= 2 else Vector3.ZERO
 	if s.get("flash", "rifle") != "none":
 		fx.muzzle_flash(muzzle, aim)
-	if s.has("blast_range") and impacts.size() >= 2:
-		ThunderBlast.play_fx(fx, muzzle, impacts[1], pap, s.blast_range)
-		return
 	if s.has("projectile_speed") and impacts.size() >= 2:
 		ProjectileFx.launch(fx, muzzle, impacts[0], s.projectile_speed, s.get("tracer", "grenade"), pap)
 		return
-	var ray: bool = s.get("tracer", "") == "ray"
 	var n := 0
 	for i in range(0, impacts.size() - 1, 2):
 		if n < 3:
-			fx.tracer(muzzle, impacts[i], Fx.TRACER_RAY if ray else Fx.TRACER_COLOR, 0.12 if ray else 0.0)
+			fx.tracer(muzzle, impacts[i])
 		n += 1
 		fx.impact(impacts[i], impacts[i + 1], i == 0, fx.surface_at(impacts[i], impacts[i + 1]))
 	for bp in blood_points:
 		if n < 3:
-			fx.tracer(muzzle, bp, Fx.TRACER_RAY if ray else Fx.TRACER_COLOR, 0.12 if ray else 0.0)
+			fx.tracer(muzzle, bp)
 		n += 1
 		fx.blood_hit(bp, (bp - origin).normalized(), 0.7)
 
@@ -525,7 +498,7 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 	flat.y = 0.0
 	if flat.length() > KnifeDB.LUNGE_RANGE + KnifeDB.RANGE + MELEE_SLACK:
 		return
-	damage_zombie(best.id, int(KnifeDB.damage(pd.knife) * damage_mult(pid)), pid, false, dir, HitKind.MELEE)
+	damage_zombie(best.id, KnifeDB.damage(pd.knife), pid, false, dir, HitKind.MELEE)
 	_cl_melee_fx.rpc(best.global_position + Vector3.UP * 1.2)
 
 
@@ -579,11 +552,9 @@ func srv_reload(slot: int) -> void:
 	if pd == null or _reload_end.has(pid) or not _action_limit.allow(pid):
 		return
 	var w: Dictionary = pd.current_weapon()
-	if slot != pd.slot or w.is_empty() or w.mag >= WeaponDB.stats(w.id, w.pap).mag or w.reserve <= 0 \
-			or hands_busy(pid):
-		# Refusé (arme changée ou chargeur déjà plein ici : achat de munitions
-		# croisé... ; boisson d'un atout en cours, demande partie avant que le
-		# client ne l'apprenne) : le client arrête le rechargement qu'il a
+	if slot != pd.slot or w.is_empty() or w.mag >= WeaponDB.stats(w.id, w.pap).mag or w.reserve <= 0:
+		# Refusé (arme changée ou chargeur déjà plein ici, demande partie avant
+		# que le client ne l'apprenne) : le client arrête le rechargement qu'il a
 		# prédit.
 		_notify_reload_cancelled(pid)
 		return
@@ -596,7 +567,7 @@ func srv_reload(slot: int) -> void:
 
 
 func reload_time(pid: int, w: Dictionary) -> float:
-	return WeaponDB.stats(w.id, w.pap).reload * PerkDB.reload_mult(session.get_data(pid))
+	return WeaponDB.stats(w.id, w.pap).reload
 
 
 func _finish_reload(pid: int, slot: int) -> void:
@@ -650,33 +621,11 @@ func cancel_reload(pid: int, keep_shells := false) -> void:
 		_keep_loaded_shells(pid, r)
 		session.sync_inventory(pid)
 	elif not keep_shells and not r.is_empty():
-		# Annulation décidée par le serveur (achat de munitions, mise à terre,
-		# bonus...) sans forcément changer d'arme : le client, qui prédit son
+		# Annulation décidée par le serveur (mise à terre, caisse…)
+		# sans forcément changer d'arme : le client, qui prédit son
 		# rechargement, doit l'arrêter aussi, sinon il remplirait son chargeur
 		# à l'échéance (chargeur plein affiché, tirs refusés ici).
 		_notify_reload_cancelled(pid)
-
-
-## Serveur : le joueur `pid` a les mains prises `duration` s sans changer
-## d'arme (boisson d'un atout, récupération du couteau ; BO1) : son
-## rechargement est abandonné avec la règle des interruptions (chargeur et
-## réserve inchangés, sauf les cartouches déjà poussées une à une : même
-## calcul que WeaponController.drink -> abort_reload) et aucun nouveau n'est accepté
-## avant la fin. L'inventaire est toujours renvoyé : la prédiction du client
-## peut être en retard sur le serveur (RELOAD_LENIENCY : chargeur déjà rempli
-## ici, rechargement encore en cours chez lui, qu'il vient d'abandonner).
-func srv_hands_busy(pid: int, duration: float) -> void:
-	_hands_busy_end[pid] = GameClock.now() + duration
-	if _reload_end.has(pid):
-		cancel_reload(pid, true)  # resynchronise l'inventaire
-	else:
-		session.sync_inventory(pid)
-
-
-## Serveur : vrai tant que le joueur `pid` a les mains prises (boisson,
-## récupération du couteau).
-func hands_busy(pid: int) -> bool:
-	return GameClock.now() < float(_hands_busy_end.get(pid, -INF))
 
 
 ## Serveur : prévient le joueur `pid` que son rechargement n'a pas (ou plus)
@@ -753,7 +702,7 @@ func _regenerate(delta: float, t: float) -> void:
 		var pd: PlayerData = session.data[pid]
 		if pd.life != PlayerData.Life.ALIVE or pd.health >= pd.max_health:
 			continue
-		if t - _last_hurt.get(pid, 0.0) < REGEN_DELAY * PerkDB.regen_delay_mult(pd):
+		if t - _last_hurt.get(pid, 0.0) < REGEN_DELAY:
 			continue
 		pd.health = mini(pd.health + int(ceil(REGEN_RATE * delta)), pd.max_health)
 		if do_sync or pd.health >= pd.max_health:
@@ -776,7 +725,6 @@ func forget_player(pid: int) -> void:
 	_reload_end.erase(pid)
 	_last_hurt.erase(pid)
 	_melee_ready.erase(pid)
-	_hands_busy_end.erase(pid)
 	_dive_last.erase(pid)
 	_resync_limit.forget(pid)
 	_action_limit.forget(pid)

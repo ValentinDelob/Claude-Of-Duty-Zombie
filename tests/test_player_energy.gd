@@ -104,8 +104,8 @@ func test_saut_et_couteau() -> void:
 	assert_eq(e.value, 90.0, "10 par saut")
 	e.spend(KnifeDB.energy_cost("knife"))
 	assert_eq(e.value, 82.0, "couteau : 8")
-	e.spend(KnifeDB.energy_cost("bowie"))
-	assert_eq(e.value, 72.0, "couteau de chasse : 10")
+	e.spend(KnifeDB.energy_cost("knife"))
+	assert_eq(e.value, 74.0, "deuxième coup : 8")
 	assert_eq(KnifeDB.energy_cost("inconnu"), 8.0, "id inconnu : couteau de départ")
 
 

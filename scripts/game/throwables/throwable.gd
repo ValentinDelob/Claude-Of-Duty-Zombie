@@ -1,9 +1,9 @@
 class_name Throwable
 extends Node3D
-## Objet lancé (grenade ou SINGE-TAMBOUR) : trajectoire balistique qui rebondit
-## sur le décor puis roule au sol.
+## Objet lancé (grenade ou PELUCHE LEURRE) : trajectoire balistique qui
+## rebondit sur le décor puis roule au sol.
 ##
-## Le SERVEUR simule l'objet qui fait foi (mèche, arrêt au sol du singe,
+## Le SERVEUR simule l'objet qui fait foi (mèche, arrêt au sol de la peluche,
 ## explosion) ; chaque client simule la même trajectoire à partir de la même
 ## position et de la même vitesse initiales (même décor : résultat quasi
 ## identique), et le serveur recale la position à l'explosion / à l'arrêt.
@@ -12,6 +12,8 @@ const WORLD_MASK := 1
 ## Vol : décor et corps des zombies (la grenade s'arrête à leurs pieds).
 const FLIGHT_MASK := 1 | (1 << 2)
 const MAX_FLIGHT := 6.0
+## Peluche leurre : ours en peluche (TeddyModel) réduit à ~21 cm.
+const DECOY_SCALE := 0.42
 
 var tid := 0
 var kind: int = ThrowableRules.Kind.FRAG
@@ -24,14 +26,12 @@ var fuse_end := 0.0
 var on_ground := false
 var resting := false
 var bounces := 0
-## Singe : musique en cours (leurre actif).
+## Peluche leurre : musique en cours (leurre actif).
 var luring := false
 var lure_end := 0.0
 var _age := 0.0
 var _spin := Vector3.ZERO
 var _model: Node3D
-var _cymbal_l: Node3D
-var _cymbal_r: Node3D
 var _eye_light: OmniLight3D
 var _music: AudioStreamPlayer3D
 
@@ -51,17 +51,16 @@ func setup(id: int, k: int, pid: int, pos: Vector3, velocity: Vector3, fuse: flo
 func _ready() -> void:
 	_model = build_model(kind, false)
 	add_child(_model)
-	if kind == ThrowableRules.Kind.MONKEY:
-		# Le point simulé est le centre d'une sphère de RADIUS : pieds au sol.
+	if kind == ThrowableRules.Kind.DECOY:
+		# Le point simulé est le centre d'une sphère de RADIUS : assise au sol.
 		for c in _model.get_children():
 			c.position.y -= ThrowableRules.RADIUS
-		_cymbal_l = _model.get_node_or_null("CymbalL")
-		_cymbal_r = _model.get_node_or_null("CymbalR")
+		# Lueur rouge qui bat au rythme de la musique.
 		_eye_light = OmniLight3D.new()
 		_eye_light.light_color = Color(1.0, 0.15, 0.08)
 		_eye_light.omni_range = 2.5
 		_eye_light.light_energy = 0.0
-		_eye_light.position = Vector3(0, 0.2, 0.05)
+		_eye_light.position = Vector3(0, 0.15, 0.06)
 		add_child(_eye_light)
 
 
@@ -76,7 +75,7 @@ func _physics_process(delta: float) -> void:
 			if GameClock.now() >= fuse_end:
 				system.srv_detonate(self)
 		elif resting and not luring:
-			system.srv_monkey_landed(self)
+			system.srv_decoy_landed(self)
 		elif luring and GameClock.now() >= lure_end:
 			system.srv_detonate(self)
 
@@ -86,10 +85,10 @@ func _process(delta: float) -> void:
 	if not resting:
 		var k := 0.25 if on_ground else 1.0
 		_model.rotation += _spin * delta * k
-	elif kind == ThrowableRules.Kind.MONKEY:
+	elif kind == ThrowableRules.Kind.DECOY:
 		_model.rotation = _model.rotation.lerp(Vector3(0, _model.rotation.y, 0), 1.0 - exp(-delta * 10.0))
 	if luring:
-		_animate_monkey()
+		_animate_decoy()
 
 
 ## Pas de simulation : gravité, rebonds (lancer de rayon), roulement au sol.
@@ -143,7 +142,7 @@ func _settle() -> void:
 	vel = Vector3.ZERO
 
 
-## Serveur -> clients : position d'arrêt du singe ; la musique commence.
+## Serveur -> clients : position d'arrêt de la peluche ; la musique commence.
 func start_lure(pos: Vector3, duration: float) -> void:
 	position = pos
 	_settle()
@@ -159,17 +158,15 @@ func start_lure(pos: Vector3, duration: float) -> void:
 	_music.play()
 
 
-## Singe qui frappe ses cymbales (au tempo de la musique), yeux rouges.
-func _animate_monkey() -> void:
-	var t := GameClock.now() - (lure_end - ThrowableRules.MONKEY_TIME)
-	var beat := t * 2.0 * 2.25  # 135 battements/min, un choc par battement
-	var clap := absf(sin(beat * PI * 0.5))
-	if _cymbal_l:
-		_cymbal_l.position.x = -0.035 - 0.07 * clap
-		_cymbal_r.position.x = 0.035 + 0.07 * clap
-	_model.position.y = absf(sin(beat * PI * 0.5)) * 0.015
+## Peluche qui sautille et se dandine au tempo de la musique, lueur rouge.
+func _animate_decoy() -> void:
+	var t := GameClock.now() - (lure_end - ThrowableRules.DECOY_TIME)
+	var beat := t * 2.0 * 2.25  # 135 battements/min, un saut par battement
+	var hop := absf(sin(beat * PI * 0.5))
+	_model.position.y = hop * 0.02
+	_model.rotation.z = sin(beat * PI * 0.25) * 0.18
 	if _eye_light:
-		_eye_light.light_energy = 0.6 + 0.8 * (1.0 - clap)
+		_eye_light.light_energy = 0.6 + 0.8 * (1.0 - hop)
 
 
 # --------------------------------------------------------------------------
@@ -235,7 +232,7 @@ static func _cyl(r_top: float, r_bot: float, h: float, seg := 10) -> CylinderMes
 
 ## Modèle procédural. `view` : matériaux de la vue FPS (jamais dans les murs).
 static func build_model(k: int, view: bool) -> Node3D:
-	return _build_frag(view) if k == ThrowableRules.Kind.FRAG else _build_monkey(view)
+	return _build_frag(view) if k == ThrowableRules.Kind.FRAG else _build_decoy()
 
 
 ## Grenade à fragmentation (type M67) : corps ovoïde olive, bouchon d'allumeur,
@@ -262,38 +259,11 @@ static func _build_frag(view: bool) -> Node3D:
 	return root
 
 
-## SINGE-TAMBOUR : singe mécanique au fez rouge, deux cymbales de laiton.
-static func _build_monkey(view: bool) -> Node3D:
+## PELUCHE LEURRE : petit ours en peluche (TeddyModel réduit), face vers +Z.
+static func _build_decoy() -> Node3D:
 	var root := Node3D.new()
-	root.name = "Monkey"
-	var fur := mat(Color(0.33, 0.2, 0.1), 0.95, 0.0, view)
-	var face := mat(Color(0.72, 0.58, 0.42), 0.8, 0.0, view)
-	var red := mat(Color(0.6, 0.05, 0.04), 0.7, 0.0, view)
-	var brass := mat(Color(0.75, 0.58, 0.2), 0.3, 0.9, view)
-	var eye := mat(Color(1.0, 0.1, 0.05), 0.3, 0.0, view, 4.0)
-	# Corps (gilet rouge) et jambes repliées.
-	_part(root, _cyl(0.045, 0.055, 0.1), Vector3(0, 0.06, 0), red)
-	for x in [-0.03, 0.03]:
-		_part(root, _box(Vector3(0.03, 0.03, 0.06)), Vector3(x, 0.015, 0.02), fur)
-	# Tête, museau, oreilles, yeux.
-	_part(root, _sphere(0.045), Vector3(0, 0.145, 0), fur)
-	_part(root, _sphere(0.028, 0.04), Vector3(0, 0.135, 0.034), face)
-	for x in [-0.047, 0.047]:
-		_part(root, _sphere(0.016, 0.01), Vector3(x, 0.155, 0), face, Vector3(0, 0, PI * 0.5))
-	for x in [-0.016, 0.016]:
-		_part(root, _sphere(0.007), Vector3(x, 0.158, 0.038), eye)
-	# Fez rouge et son pompon.
-	_part(root, _cyl(0.022, 0.028, 0.03), Vector3(0, 0.198, 0), red)
-	_part(root, _sphere(0.006), Vector3(0.018, 0.2, 0), brass)
-	# Bras tendus et cymbales (animées).
-	for side in [-1.0, 1.0]:
-		_part(root, _box(Vector3(0.05, 0.018, 0.018)), Vector3(side * 0.055, 0.08, 0.02), fur)
-		var holder := Node3D.new()
-		holder.name = "CymbalL" if side < 0.0 else "CymbalR"
-		holder.position = Vector3(side * 0.04, 0.08, 0.035)
-		root.add_child(holder)
-		_part(holder, _cyl(0.028, 0.028, 0.004, 14), Vector3.ZERO, brass, Vector3(0, 0, PI * 0.5))
-		_part(holder, _sphere(0.006), Vector3(side * 0.004, 0, 0), brass)
-	# Clé de remontage dans le dos.
-	_part(root, _box(Vector3(0.006, 0.03, 0.02)), Vector3(0, 0.08, -0.06), brass)
+	root.name = "Decoy"
+	var teddy := TeddyModel.build()
+	teddy.scale = Vector3.ONE * DECOY_SCALE
+	root.add_child(teddy)
 	return root

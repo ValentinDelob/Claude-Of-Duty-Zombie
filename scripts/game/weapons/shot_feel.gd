@@ -12,7 +12,7 @@ extends RefCounted
 ##   balles), respiration retenue avec [Maj] pendant HOLD_TIME s, puis souffle
 ##   court (balancement accru pendant GASP_TIME s).
 ##
-## Multiplicateurs (atouts, voir PerkDB) : `hip_mult` (dispersion à la
+## Multiplicateurs (1 aujourd'hui, anciens atouts) : `hip_mult` (dispersion à la
 ## hanche) et `recoil_mult` (recul) passés par WeaponController.
 
 ## Vitesse d'application de la montée du canon (1/s) : ~95 % en 0,1 s.

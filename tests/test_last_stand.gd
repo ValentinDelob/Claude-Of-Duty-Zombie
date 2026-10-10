@@ -27,13 +27,6 @@ func test_empty_m1911_is_topped_up() -> void:
 	assert_eq(full.reserve, 80, "rien n'est retiré")
 
 
-func test_ray_gun_preferred_and_keeps_its_ammo() -> void:
-	var w := DownedSystem.last_stand_weapon([_w("m1911"), _w("ray", false, 5, 20)])
-	assert_eq(w.id, "ray", "le CLAUDE-RAY avant le M1911")
-	assert_eq(w.mag, 5)
-	assert_eq(w.reserve, 20, "ses munitions, sans bonus")
-
-
 func test_better_pistol_preferred_with_two_extra_mags() -> void:
 	var w := DownedSystem.last_stand_weapon([_w("m1911"), _w("python", false, 6, 10)])
 	assert_eq(w.id, "python")

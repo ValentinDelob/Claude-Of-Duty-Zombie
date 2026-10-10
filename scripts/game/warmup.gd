@@ -73,14 +73,6 @@ func _run(game: Game) -> void:
 	body.position = Vector3(1.0, -1.2, -0.5)
 	stage.add_child(body)
 	body.set_weapon("m16", false)
-	# Bonus (modèles et halo).
-	var px := -0.9
-	for type in PowerupRules.ALL:
-		var pm := PowerupModels.build(type)
-		pm.position = Vector3(px, -0.7, 0.3)
-		pm.add_child(PowerupModels.halo(0.6))
-		stage.add_child(pm)
-		px += 0.36
 	# Matériaux propres au décor de la carte, hors de la salle de départ
 	# (écran de cinéma, faisceau du projecteur...).
 	var qx := -0.9

@@ -1,10 +1,11 @@
 extends AutotestScenario
-## @rendu : captures de la boîte mystère posée au sol (format 15), revue humaine.
+## @rendu : captures de la caisse au hasard posée au sol (format 15), revue humaine.
 ## @niveau perf : hors check par défaut (captures d'un ajout en cours) ;
 ## lancer avec SCENARIOS="map_box_floor_look" JOBS=1 GUI_JOBS=1 bash tools/check.sh.
-## Éditeur : boîte au sol tournée de 45° (emprise, avant fléché, anneau) à
-## côté d'une boîte murale ; en jeu : la boîte au milieu de la salle, de face,
-## de biais et de dos, puis ouverte (défilement) et l'arme prête.
+## Éditeur : caisse au sol tournée de 45° (emprise, avant fléché, anneau) à
+## côté d'une caisse murale (ignorée en jeu : une seule par carte, celle
+## marquée « depart ») ; en jeu : la caisse au milieu de la salle, de face,
+## de biais et de dos, puis ouverte (défilement) et l'objet prêt.
 
 const Play := preload("res://tests/autotest/map_box_floor_play.gd")
 const DecorFree := preload("res://tests/test_map_decor_free.gd")
@@ -23,7 +24,10 @@ func run() -> void:
 	ed = tree().current_scene
 	await frames(3)
 	var doc := DecorFree.two_rooms()
-	var fb := DecorFree._obj(doc, {"type": "boite", "position": [Play.CENTER.x, Play.CENTER.y], "rot": 45, "depart": false})
+	for o in doc.objets:
+		if String(o.get("type", "")) == "boite":
+			o.erase("depart")
+	var fb := DecorFree._obj(doc, {"type": "boite", "position": [Play.CENTER.x, Play.CENTER.y], "rot": 45, "depart": true})
 	ed.new_map(true)
 	ed._reset(doc)
 	await frames(2)
@@ -45,9 +49,6 @@ func run() -> void:
 	game.combat.debug_invulnerable = true
 	await AutotestHelpers.clear_zombies(self)
 	var box: MysteryBox = game.interact.get_obj("box")
-	var fi := 0 if bool(box.spots[0].get("floor", false)) else 1
-	box._move_to(fi)
-	box.broadcast_state()
 	await seconds(0.5)
 	var front := box.global_transform.basis.z
 	var side := front.cross(Vector3.UP)
@@ -57,14 +58,14 @@ func run() -> void:
 	await _shot(box, front, 7.0, "jeu_loin")
 	game.session.add_points(p.peer_id, 20000)
 	await _shot(box, front, 1.4, "jeu_invite")
-	box.force_result = "galil"
+	box.force_result = "decoy"
 	p.input.interact_pressed = true
 	await until(func(): return box.state == MysteryBox.State.ROLLING, 3.0, "défilement")
 	await seconds(1.4)
 	await _shot(box, front, 2.4, "jeu_ouverte")
-	await until(func(): return box.state == MysteryBox.State.READY, 8.0, "arme prête")
-	await _shot(box, front, 2.0, "jeu_arme_prete")
-	await _shot(box, side, 2.2, "jeu_arme_prete_cote")
+	await until(func(): return box.state == MysteryBox.State.READY, 8.0, "objet prêt")
+	await _shot(box, front, 2.0, "jeu_objet_pret")
+	await _shot(box, side, 2.2, "jeu_objet_pret_cote")
 	Router.back_to_menu()
 	await until(func(): return tree().current_scene is MapEditor, 10.0, "retour dans l'éditeur")
 

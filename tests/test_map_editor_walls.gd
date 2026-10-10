@@ -1,7 +1,7 @@
 extends TestCase
 ## Murs libres et déplacements le long des murs dans l'éditeur de cartes
-## (docs/MAP_AUTHORING.md, « Règles imposées à la pose ») : armes, atouts,
-## appliques... posés sur un MUR LIBRE (outil Mur, droit ou en biais, épais, et
+## (docs/MAP_AUTHORING.md, « Règles imposées à la pose ») : objets muraux
+## (poste central de 1 m, interrupteur, caisse), appliques... posés sur un MUR LIBRE (outil Mur, droit ou en biais, épais, et
 ## mur courbe), des deux côtés, face vers le curseur, refusés sur un mur trop
 ## court, en chevauchement ou contre un mur de la pièce ; acceptés par la
 ## vérification et construits en jeu contre la bonne face ; accrochés au mur
@@ -49,8 +49,10 @@ static func free_walls_map() -> EditorMap:
 	return doc
 
 
-const WEAPON := {"type": "arme", "arme": "m14"}
-const PERK := {"type": "atout", "atout": "titan"}
+## Objet mural de 1 m le long du mur (comme l'ancienne arme murale) et
+## objet de 0,5 m.
+const WEAPON := {"type": "poste_central"}
+const PERK := {"type": "courant"}
 const SCONCE := {"type": "luminaire", "luminaire": "applique", "couleur": "#ffc88a", "intensite": 1.4, "portee": 7, "courant": true, "vacille": false}
 
 
@@ -79,29 +81,29 @@ static func face_of(o: Dictionary) -> Vector2:
 
 func test_wall_items_on_a_straight_free_wall() -> void:
 	var doc := free_walls_map()
-	# Mur m1 (x = 12, de y = 6 à 12) : une arme de chaque côté, face vers le curseur.
+	# Mur m1 (x = 12, de y = 6 à 12) : un objet de chaque côté, face vers le curseur.
 	var west := put(doc, WEAPON, Vector2(11.4, 8.1))
-	assert_true(west.has("id"), "arme à l'ouest du mur libre : %s" % str(west))
+	assert_true(west.has("id"), "objet à l'ouest du mur libre : %s" % str(west))
 	if west.has("id"):
-		assert_eq(String(west.mur), "e", "le mur est à l'est de l'arme")
+		assert_eq(String(west.mur), "e", "le mur est à l'est de l'objet")
 		assert_false(west.has("angle"), "mur de la grille : pas d'angle")
 		assert_near(MapGeom.v2(west.position).x, 12.0, 0.001, "sur le trait du mur")
 		assert_near(MapGeom.v2(west.position).y, 8.25, 0.001, "aimantée sur la grille")
 	var east := put(doc, WEAPON, Vector2(12.6, 8.1))
-	assert_true(east.has("id"), "arme à l'est, dos à dos : %s" % str(east))
+	assert_true(east.has("id"), "objet à l'est, dos à dos : %s" % str(east))
 	if east.has("id"):
-		assert_eq(String(east.mur), "o", "le mur est à l'ouest de l'arme")
+		assert_eq(String(east.mur), "o", "le mur est à l'ouest de l'objet")
 	# Atout et applique, plus loin.
 	var perk := put(doc, PERK, Vector2(12.9, 10.4))
-	assert_true(perk.has("id") and String(perk.get("mur", "")) == "o", "atout contre le mur libre : %s" % str(perk))
+	assert_true(perk.has("id") and String(perk.get("mur", "")) == "o", "interrupteur contre le mur libre : %s" % str(perk))
 	var sconce := put(doc, SCONCE, Vector2(11.7, 10.8))
 	assert_true(sconce.has("id") and String(sconce.get("mur", "")) == "e", "applique contre le mur libre : %s" % str(sconce))
-	# Au bout du mur : l'arme reste sur le mur (ses cases débordent de 0,25 m).
+	# Au bout du mur : l'objet reste sur le mur (ses cases débordent de 0,25 m).
 	var end_r := MapRules.place_wall_item(doc, 0, WEAPON, Vector2(11.5, 12.9))
 	assert_true(end_r.ok and MapGeom.v2(end_r.position).y <= 11.75 + 0.001, "au bout : ramenée sur le mur (%s)" % str(end_r))
-	# Chevauchement : même place qu'une arme posée.
+	# Chevauchement : même place qu'un objet posé.
 	var again := MapRules.place_wall_item(doc, 0, WEAPON, Vector2(11.4, 8.1))
-	assert_false(again.ok, "deux armes au même endroit refusées")
+	assert_false(again.ok, "deux objets au même endroit refusés")
 	assert_true(String(again.get("fr", "")).contains("chevauche"), "raison : %s" % again.get("fr", ""))
 	# Mur trop court pour une boîte (0,5 m de trait, 1 m de cases).
 	doc.objets.append({"id": "m6", "type": "mur", "altitude": 0, "a": [15, 13], "b": [15, 13.5], "epaisseur": 0.5})
@@ -109,7 +111,7 @@ func test_wall_items_on_a_straight_free_wall() -> void:
 	assert_false(short.ok, "boîte sur un mur de 1 m : refusée")
 	assert_true(String(short.get("fr", "")).contains("trop court"), "raison : %s" % short.get("fr", ""))
 	var fits := MapRules.place_wall_item(doc, 0, WEAPON, Vector2(14.4, 13.2))
-	assert_true(fits.ok, "arme de 1 m sur ce mur de 1 m : acceptée (%s)" % fits.get("fr", ""))
+	assert_true(fits.ok, "objet de 1 m sur ce mur de 1 m : accepté (%s)" % fits.get("fr", ""))
 
 
 func test_wall_items_on_oblique_thick_and_curved_free_walls() -> void:
@@ -120,21 +122,21 @@ func test_wall_items_on_oblique_thick_and_curved_free_walls() -> void:
 	var mid := Vector2(18, 8)
 	for side in [1.0, -1.0]:
 		var o := put(doc, WEAPON, mid + n * 0.7 * side)
-		assert_true(o.has("id"), "arme de chaque côté du mur en biais (%s) : %s" % [side, str(o)])
+		assert_true(o.has("id"), "objet de chaque côté du mur en biais (%s) : %s" % [side, str(o)])
 		if o.has("id"):
 			assert_true(MapGeom.item_oblique(o), "vrai mur oblique : angle %s" % str(o.get("angle")))
 			assert_true(MapGeom.item_wall_dir(o).distance_to(-n * side) < 0.001, "face vers le curseur : %s" % MapGeom.item_wall_dir(o))
 			assert_true(MapGeom.dist_to_segment(MapGeom.v2(o.position), Vector2(16, 6), Vector2(20, 10)) < 0.01, "sur le trait du mur en biais")
 	var perk := put(doc, PERK, Vector2(16.4, 6.4) + n * 0.8)
-	assert_true(perk.has("id"), "atout contre le mur en biais : %s" % str(perk))
-	# Mur en biais trop court pour une arme.
+	assert_true(perk.has("id"), "interrupteur contre le mur en biais : %s" % str(perk))
+	# Mur en biais trop court pour un objet de 1 m.
 	doc.objets.append({"id": "m7", "type": "mur", "altitude": 0, "a": [18, 15], "b": [18.6, 15.6], "epaisseur": 0.5})
 	var short := MapRules.place_wall_item(doc, 0, WEAPON, Vector2(18.3, 15.3) + n * 0.6)
-	assert_false(short.ok, "mur en biais de 0,85 m : arme refusée")
+	assert_false(short.ok, "mur en biais de 0,85 m : objet de 1 m refusé")
 	# Mur épais m4 (1,5 m, x = 21) : le trait est à 0,25 m derrière la face.
 	var thick_w := put(doc, WEAPON, Vector2(19.8, 13.1))
 	var thick_e := put(doc, WEAPON, Vector2(22.2, 13.1))
-	assert_true(thick_w.has("id") and thick_e.has("id"), "armes des deux côtés du mur épais : %s / %s" % [str(thick_w), str(thick_e)])
+	assert_true(thick_w.has("id") and thick_e.has("id"), "objets des deux côtés du mur épais : %s / %s" % [str(thick_w), str(thick_e)])
 	if thick_w.has("id") and thick_e.has("id"):
 		assert_near(face_of(thick_w).x, 20.25, 0.001, "face ouest du mur de 1,5 m")
 		assert_near(face_of(thick_e).x, 21.75, 0.001, "face est du mur de 1,5 m")
@@ -143,30 +145,34 @@ func test_wall_items_on_oblique_thick_and_curved_free_walls() -> void:
 	var dir := MapGeom.deg_dir(67.5)
 	var on_seg := c + dir * 2.5 * cos(deg_to_rad(22.5))
 	var outside := put(doc, WEAPON, on_seg + dir * 0.6)
-	assert_true(outside.has("id"), "arme sur le côté bombé du mur courbe : %s" % str(outside))
+	assert_true(outside.has("id"), "objet sur le côté bombé du mur courbe : %s" % str(outside))
 	var inside := put(doc, WEAPON, on_seg - dir * 0.6)
-	assert_true(inside.has("id"), "arme dans le creux du mur courbe : %s" % str(inside))
+	assert_true(inside.has("id"), "objet dans le creux du mur courbe : %s" % str(inside))
 	if outside.has("id") and inside.has("id"):
 		assert_true(MapGeom.item_wall_dir(outside).dot(dir) < -0.99, "dehors : le mur est vers le centre")
 		assert_true(MapGeom.item_wall_dir(inside).dot(dir) > 0.99, "dedans : le mur est vers l'extérieur")
-	# Dans le creux : un atout de 1,5 m tient sur un segment de 1,9 m, une boîte de 2 m non.
-	var perk_in := put(doc, {"type": "atout", "atout": "lazarus"}, c + MapGeom.deg_dir(112.5) * 1.7)
-	assert_true(perk_in.has("id"), "atout dans le creux du mur courbe : %s" % str(perk_in))
+	# Dans le creux : un objet de 1 m tient sur un segment de 1,9 m, une caisse de 2 m non.
+	var perk_in := put(doc, WEAPON, c + MapGeom.deg_dir(112.5) * 1.7)
+	assert_true(perk_in.has("id"), "objet dans le creux du mur courbe : %s" % str(perk_in))
 	var box_in := MapRules.place_wall_item(doc, 0, {"type": "boite", "depart": false}, c + MapGeom.deg_dir(157.5) * 1.7)
 	assert_false(box_in.ok, "boîte plus large que le segment : refusée")
 	assert_true(String(box_in.get("fr", "")).contains("trop court"), "raison : %s" % box_in.get("fr", ""))
-	# Mur collé au mur nord de la pièce (m5) : l'arme glisse hors du mur de la pièce.
+	# Mur collé au mur nord de la pièce (m5) : l'objet glisse hors du mur de la pièce.
 	var corner := put(doc, WEAPON, Vector2(5.9, 4.4))
-	assert_true(corner.has("id"), "arme près du raccord avec le mur de la pièce : %s" % str(corner))
+	assert_true(corner.has("id"), "objet près du raccord avec le mur de la pièce : %s" % str(corner))
 	if corner.has("id"):
 		assert_true(MapGeom.v2(corner.position).y >= 4.75 - 0.001, "à 0,25 m au moins de la face du mur nord : %s" % str(corner.position))
 	# Applique contre ce mur, tout près du mur nord : elle reste valide sur sa face.
 	var low := put(doc, SCONCE, Vector2(5.9, 4.3))
 	assert_true(low.has("id") and String(low.get("mur", "")) == "e", "applique au raccord des deux murs : %s" % str(low))
-	# Tout est accepté par la vérification.
+	# Tout est accepté par la vérification (sauf les règles de nombre : un
+	# seul poste central, un seul interrupteur, un téléporteur pour le poste ;
+	# passages étroits : le poste central, qui remplace l'ancienne arme murale,
+	# fait 1 m de profondeur au lieu de 0,5).
 	var v := MapRaster.build(doc).v
 	v.analyze()
-	assert_true(v.ok(), "carte avec des objets sur des murs libres :\n" + _errs(v))
+	var placing := v.errors().filter(func(m): return not (String(m.fr).contains("un seul par carte") or String(m.fr).contains("sans téléporteur") or String(m.fr).begins_with("passage de")))
+	assert_true(placing.is_empty(), "carte avec des objets sur des murs libres :\n" + "\n".join(placing.map(func(m): return String(m.fr))))
 	for o in doc.objets:
 		if MapCatalog.tool_of(o) == "wall_item":
 			assert_true(MapRules.check_existing(doc, o).ok, "%s toujours valide : %s" % [o.id, MapRules.check_existing(doc, o).get("fr", "")])
@@ -175,17 +181,18 @@ func test_wall_items_on_oblique_thick_and_curved_free_walls() -> void:
 func test_free_wall_items_are_built_in_game() -> void:
 	var doc := free_walls_map()
 	var n := Vector2(-1, 1).normalized()
-	var items := [put(doc, WEAPON, Vector2(11.4, 8.1)), put(doc, {"type": "arme", "arme": "mp5k"}, Vector2(12.6, 8.1)),
-		put(doc, {"type": "arme", "arme": "olympia"}, Vector2(18, 8) + n * 0.7),
-		put(doc, {"type": "arme", "arme": "stakeout"}, Vector2(18, 8) - n * 0.7),
-		put(doc, PERK, Vector2(22.2, 13.1))]
+	# Une seule caisse au hasard : celle du mur de la pièce est retirée.
+	doc.objets = doc.objets.filter(func(o): return String(o.type) != "boite")
+	var items := [put(doc, PERK, Vector2(11.4, 8.1)), put(doc, {"type": "boite"}, Vector2(18, 8) + n * 0.7)]
 	for o in items:
 		assert_true(o.has("id"), "posé : %s" % str(o))
 	var def := EditorMapDef.from_map(doc, "perso:murs")
 	assert_true(def.is_valid(), "carte convertie :\n" + _errs(def.validator))
 	var layout := def.create_layout()
-	var markers := layout.wall_buys() + layout.perks()
-	assert_eq(markers.size(), items.size(), "armes et atout construits")
+	var markers: Array = layout.box_spots()
+	if layout.power_switch() != null:
+		markers.append(layout.power_switch())
+	assert_eq(markers.size(), items.size(), "interrupteur et caisse construits")
 	var off := MapGeom.WORLD_OFFSET
 	for o in items:
 		if not o.has("id"):
@@ -211,16 +218,16 @@ func test_items_follow_their_free_wall() -> void:
 	var east := put(ed.doc, WEAPON, Vector2(12.6, 9.6))
 	ed.changed()
 	var att := ed.attached_to(ed.doc.find("m1"))
-	assert_true(att.has(String(west.id)) and att.has(String(east.id)), "armes accrochées au mur libre : %s" % str(att))
-	assert_false(att.has("b1"), "la boîte du mur de la pièce n'en fait pas partie")
-	# Glisser le mur de 2 m vers l'est : les armes suivent, toujours valides.
+	assert_true(att.has(String(west.id)) and att.has(String(east.id)), "objets accrochés au mur libre : %s" % str(att))
+	assert_false(att.has("b1"), "la caisse du mur de la pièce n'en fait pas partie")
+	# Glisser le mur de 2 m vers l'est : les objets suivent, toujours valides.
 	var cv := ed.canvas
 	ed.select_mouse()
 	_drag(ed, Vector2(12, 11.2), Vector2(14, 11.2))
 	assert_eq(MapGeom.v2(ed.doc.find("m1").a), Vector2(14, 6), "mur déplacé")
-	assert_near(MapGeom.v2(ed.doc.find(String(west.id)).position).x, 14.0, 0.001, "l'arme suit son mur")
-	assert_near(MapGeom.v2(ed.doc.find(String(east.id)).position).x, 14.0, 0.001, "l'arme de l'autre face aussi")
-	# Sans grille : mur déplacé hors de la grille, armes raccrochées à sa face.
+	assert_near(MapGeom.v2(ed.doc.find(String(west.id)).position).x, 14.0, 0.001, "l'objet suit son mur")
+	assert_near(MapGeom.v2(ed.doc.find(String(east.id)).position).x, 14.0, 0.001, "l'objet de l'autre face aussi")
+	# Sans grille : mur déplacé hors de la grille, objets raccrochés à sa face.
 	cv.set_snap_mode("libre")
 	_drag(ed, Vector2(14, 11.2), Vector2(14.37, 11.4))
 	var mx := MapGeom.v2(ed.doc.find("m1").a).x
@@ -407,7 +414,7 @@ func test_doors_and_wall_items_move_in_every_snap_mode() -> void:
 		var poly := base.room_poly(base.pieces[0])
 		var c := MapGeom.centroid(poly)
 		var m := (poly[0] + poly[1]) * 0.5
-		tries.append(["arme", m + (c - m).normalized() * 0.6, (poly[1] - poly[0]).normalized()])
+		tries.append(["mural", m + (c - m).normalized() * 0.6, (poly[1] - poly[0]).normalized()])
 		for attempt in tries:
 			var kind: String = attempt[0]
 			var doc0 := base.duplicate_map()
@@ -419,7 +426,7 @@ func test_doors_and_wall_items_move_in_every_snap_mode() -> void:
 				doc0.ouvertures.append({"id": "o9", "type": kind, "altitude": 0, "position": r.position, "largeur": float(r.get("largeur", 1.5)), "prix": 750})
 			else:
 				var o := put(doc0, WEAPON, attempt[1])
-				assert_true(o.has("id"), "%s : arme posée" % mp[0])
+				assert_true(o.has("id"), "%s : objet mural posé" % mp[0])
 				if not o.has("id"):
 					continue
 				o["id"] = "o9"
@@ -431,12 +438,12 @@ func test_doors_and_wall_items_move_in_every_snap_mode() -> void:
 				cv.set_snap_mode(mode[0])
 				ed.select_mouse()
 				var o := doc.find("o9")
-				var grab := MapGeom.v2(o.position) if kind != "arme" else MapRules.footprint_rect(o).get_center()
+				var grab := MapGeom.v2(o.position) if kind != "mural" else MapRules.footprint_rect(o).get_center()
 				var t: Vector2 = attempt[2]
 				var p0 := MapGeom.v2(o.position)
 				var dl := 0.0
 				for d in [1.5, -1.5, 1.0, -1.0]:
-					var w := MapRules.place_opening(doc, 0, kind, p0 + t * d, float(o.get("largeur", 1.5)), "o9") if kind != "arme" \
+					var w := MapRules.place_opening(doc, 0, kind, p0 + t * d, float(o.get("largeur", 1.5)), "o9") if kind != "mural" \
 						else MapRules.place_wall_item(doc, 0, o, grab + t * d, "o9")
 					if w.ok and MapGeom.v2(w.position).distance_to(p0) > 0.7:
 						dl = d
@@ -463,7 +470,7 @@ func test_wall_item_moves_along_a_free_wall_in_every_snap_mode() -> void:
 		var grab := MapRules.footprint_rect(o).get_center()
 		_drag(ed, grab, grab + Vector2(0, 3.0))
 		var p1 := MapGeom.v2(ed.doc.find(String(o.id)).position)
-		assert_true(absf(p1.x - 12.0) < 0.001 and p1.y > 9.4, "%s : arme glissée le long du mur libre (%s)" % [str(mode), p1])
+		assert_true(absf(p1.x - 12.0) < 0.001 and p1.y > 9.4, "%s : objet glissé le long du mur libre (%s)" % [str(mode), p1])
 		# Passée de l'autre côté du mur : elle se retourne.
 		_drag(ed, MapRules.footprint_rect(ed.doc.find(String(o.id))).get_center(), Vector2(12.7, p1.y))
 		assert_eq(String(ed.doc.find(String(o.id)).mur), "o", "%s : de l'autre côté, face à l'est" % str(mode))
@@ -497,11 +504,11 @@ func test_slow_drags_in_every_snap_mode() -> void:
 		var poly := base.room_poly(base.pieces[0])
 		var c := MapGeom.centroid(poly)
 		var m := (poly[0] + poly[1]) * 0.5
-		tries.append(["arme", m + (c - m).normalized() * 0.6, (poly[1] - poly[0]).normalized()])
+		tries.append(["mural", m + (c - m).normalized() * 0.6, (poly[1] - poly[0]).normalized()])
 		for attempt in tries:
 			var kind: String = attempt[0]
 			var doc0 := base.duplicate_map()
-			if kind == "arme":
+			if kind == "mural":
 				var o := put(doc0, WEAPON, attempt[1])
 				if not o.has("id"):
 					continue
@@ -516,12 +523,12 @@ func test_slow_drags_in_every_snap_mode() -> void:
 				doc0.ouvertures.append(op)
 			var o0 := doc0.find("o9")
 			var p0 := MapGeom.v2(o0.position)
-			var grab := p0 if kind != "arme" else MapRules.footprint_rect(o0).get_center()
+			var grab := p0 if kind != "mural" else MapRules.footprint_rect(o0).get_center()
 			var t: Vector2 = attempt[2]
 			# Le plus long glissement possible le long du mur (jusqu'à 3 m), dans un sens ou l'autre.
 			var dl := 0.0
 			for d in [3.0, -3.0, 2.0, -2.0, 1.5, -1.5, 1.0, -1.0]:
-				var w := MapRules.place_wall_item(doc0, 0, o0, grab + t * d, "o9") if kind == "arme" \
+				var w := MapRules.place_wall_item(doc0, 0, o0, grab + t * d, "o9") if kind == "mural" \
 					else MapRules.place_opening(doc0, 0, kind, p0 + t * d, MapRules.opening_width(o0), "o9")
 				if w.ok and absf((MapGeom.v2(w.position) - p0).dot(t) - d) < 0.3:
 					dl = d

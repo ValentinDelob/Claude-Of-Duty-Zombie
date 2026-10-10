@@ -7,7 +7,7 @@ extends RefCounted
 ##   carte.json       id, noms FR/EN, description, musique, version du format
 ##   pieces.json      pièces (contour, altitude du sol, zone, hauteur de plafond...)
 ##   ouvertures.json  portes, débris, portes du courant, passages, fenêtres
-##   objets.json      tout le reste (murs, piliers, escaliers, atouts, armes, boîte...)
+##   objets.json      tout le reste (murs, piliers, escaliers, pièges, caisse au hasard...)
 ##   zones.json       zones (noms FR/EN, matériaux) et zone de départ
 
 ## Version du format des fichiers :
@@ -30,7 +30,7 @@ extends RefCounted
 ##      décor, des luminaires, des piliers, escaliers et pièges). Toutes les
 ##      nouvelles clés sont facultatives : formats 1 à 3 lus tels quels ;
 ##   5  objets (docs/MAP_OBJECTS.md) : variante d'aspect (clé « variante » des
-##      portes, débris et armes murales, MapCatalog.VARIANTS ; absente :
+##      portes et débris, MapCatalog.VARIANTS ; absente :
 ##      l'aspect d'avant, jamais écrite pour l'aspect par défaut) et barrière
 ##      invisible (type « bloc_invisible » : rect, rot, hauteur). Toutes les
 ##      nouvelles clés sont facultatives : formats 1 à 4 lus tels quels ;
@@ -100,7 +100,7 @@ extends RefCounted
 ##      décor posé au sol seulement : inclinaisons autour des axes X et Y ;
 ##      « rot » reste le lacet, en degrés entiers). Aucune conversion : une
 ##      carte au format 13 ou moins se lit telle quelle et s'affiche à l'identique.
-##  15  boîte mystère posée au sol (docs/MAP_OBJECTS.md § 15) : une « boite »
+##  15  caisse au hasard (type « boite ») posée au sol (docs/MAP_OBJECTS.md § 15) : une « boite »
 ##      SANS « mur » est au sol, « position » = son centre, « rot » = son
 ##      orientation (degrés entiers, sens horaire vu de dessus ; à 0 l'avant
 ##      est au sud). Avec « mur » (et « angle ») : contre un mur, comme avant.
@@ -160,6 +160,9 @@ var zones: Array = []
 var depart := ""
 ## Problèmes de lecture (fichier absent, JSON illisible...) : [fr, en].
 var load_errors: Array = []
+## Notes de lecture, qui ne refusent pas la carte : [fr, en]. Objets des
+## types retirés du jeu (MapCatalog.REMOVED_TYPES) ignorés (strip_removed).
+var load_notes: Array = []
 ## Format 10 : prefabs de la carte (MapPrefabLib) : pid -> définition
 ## (prefab.json nettoyé) ; modèles importés : pid -> octets du .glb en base64.
 var prefabs: Dictionary = {}
@@ -911,6 +914,7 @@ static func from_texts(texts: Dictionary) -> EditorMap:
 	m.depart = String(parsed["zones.json"].get("depart", ""))
 	m.format_read = int(m.carte.get("format", FORMAT))
 	m.format_given = m.carte.has("format")
+	m.strip_removed()
 	m._read_prefab_texts(texts)
 	MapTextureLib.read_texts(m, texts)
 	m._migrate(m.format_read)
@@ -918,6 +922,28 @@ static func from_texts(texts: Dictionary) -> EditorMap:
 	m.activate_prefabs()
 	m._tidy_scale()
 	return m
+
+
+## Retire les objets des types retirés du jeu (MapCatalog.REMOVED_TYPES :
+## atouts, armes murales, achats de grenades, Pack-a-Punch). Une carte d'avant
+## se charge encore ; ces objets sont ignorés avec un avertissement
+## (push_warning, et une note pour l'utilisateur : load_notes). Rend le
+## nombre d'objets retirés.
+func strip_removed() -> int:
+	var kept := []
+	var n := 0
+	for o in objets:
+		if o is Dictionary and String(o.get("type", "")) in MapCatalog.REMOVED_TYPES:
+			n += 1
+			continue
+		kept.append(o)
+	if n == 0:
+		return 0
+	objets = kept
+	push_warning("[EditorMap] %d objet(s) retiré(s) du jeu ignoré(s) (atouts, armes murales, grenades, Pack-a-Punch)" % n)
+	load_notes.append(["%d objet(s) qui n'existent plus ignorés (atouts, armes murales, grenades, Pack-a-Punch)" % n,
+		"%d object(s) that no longer exist ignored (perks, wall weapons, grenades, Pack-a-Punch)" % n])
+	return n
 
 
 ## Mise à niveau d'une carte d'un format plus ancien (elle sera écrite au
@@ -1134,7 +1160,7 @@ func split_legacy_effects() -> int:
 ## Version du format lue dans carte.json (FORMAT pour une carte neuve).
 var format_read := FORMAT
 ## Faux : carte.json sans clé « format » (écrite à la main). Lue au format
-## courant, sauf pour la boîte mystère (_migrate) : le cas ambigu se lit comme
+## courant, sauf pour la caisse au hasard (_migrate) : le cas ambigu se lit comme
 ## avant le format 15.
 var format_given := true
 

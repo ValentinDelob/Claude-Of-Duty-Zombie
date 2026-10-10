@@ -427,7 +427,6 @@
   "id": "immeuble",
   "map_def": {
    "box_start": 0,
-   "box_starts": [],
    "description": "",
    "display_name": "IMMEUBLE",
    "doors": {},
@@ -489,7 +488,6 @@
     }
    ],
    "doors": [],
-   "grenade_buys": [],
    "lamps": [
     {
      "energy": 2.2,
@@ -690,7 +688,6 @@
      "range": 9.12
     }
    ],
-   "perks": [],
    "player_spawns": [
     [
      15.65,
@@ -715,7 +712,6 @@
    ],
    "player_yaw": 1.58,
    "traps": [],
-   "wall_buys": [],
    "windows": [
     {
      "h": 2.35,

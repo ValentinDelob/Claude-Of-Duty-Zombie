@@ -106,7 +106,6 @@ const DEFAULT_BINDINGS := {
 	"reload": KEY_R,
 	"melee": KEY_V,
 	"grenade": KEY_G,
-	"tactical": KEY_Q,
 	"switch_weapon": KEY_1,
 	"scoreboard": KEY_TAB,
 	"pause": KEY_ESCAPE,
@@ -126,7 +125,6 @@ const DEFAULT_PAD_BUTTONS := {
 	"switch_weapon": JOY_BUTTON_Y,
 	"reload": JOY_BUTTON_RIGHT_SHOULDER,
 	"grenade": JOY_BUTTON_LEFT_SHOULDER,
-	"tactical": JOY_BUTTON_DPAD_RIGHT,
 	"sprint": JOY_BUTTON_LEFT_STICK,
 	"melee": JOY_BUTTON_RIGHT_STICK,
 	"scoreboard": JOY_BUTTON_BACK,
@@ -146,7 +144,7 @@ const DEFAULT_PAD_AXES := {
 ## une réaffectation. La molette change d'arme, en plus de la touche, sauf
 ## dans un sens affecté à une action (wheel_switch_events).
 const REBINDABLE := ["move_forward", "move_back", "move_left", "move_right", "jump", "crouch",
-	"sprint", "fire", "aim", "reload", "interact", "melee", "grenade", "tactical",
+	"sprint", "fire", "aim", "reload", "interact", "melee", "grenade",
 	"switch_weapon", "scoreboard"]
 ## Commandes par action et par colonne (clavier / souris, manette) : deux
 ## cases, la première est celle des invites.

@@ -2,7 +2,7 @@ extends AutotestScenario
 ## [MP] Hôte : c'est le CLIENT qui lance. Le serveur décompte sa réserve,
 ## simule la grenade (objet serveur appartenant au client), applique
 ## l'explosion (3 zombies tués, 50 points chacun au client), puis simule le
-## SINGE-TAMBOUR du client qui attire les zombies avant d'exploser.
+## PELUCHE LEURRE du client qui attire les zombies avant d'exploser.
 
 const PORT := 17881
 
@@ -55,12 +55,12 @@ func run() -> void:
 	await at.screenshot("frag")
 	await H.clear_zombies(self)
 
-	# 2. SINGE-TAMBOUR du client : les zombies convergent.
-	sys.srv_give_monkeys(client_id)
+	# 2. PELUCHE LEURRE du client : les zombies convergent.
+	sys.srv_fill_slot(client_id, ThrowableRules.Kind.DECOY)
 	var runners := []
 	for c in [Vector2i(22, 2), Vector2i(23, 12)]:
 		runners.append(game.zombies.get_zombie(game.zombies.spawn(MapData.cell_to_world(c), 1, 150)))
-	ok = await until(func(): return sys.lure_count() == 1, 25.0, "singe du client posé")
+	ok = await until(func(): return sys.lure_count() == 1, 25.0, "peluche du client posée")
 	if not ok:
 		return
 	var mpos: Vector3 = sys._lures[0].position
@@ -70,12 +70,12 @@ func run() -> void:
 			if z.is_alive() and z.lured and Vector2(z.global_position.x - mpos.x, z.global_position.z - mpos.z).length() < 4.0:
 				n += 1
 		return n
-	# Les trotteurs rejoignent le singe en moins de 4 s de jeu.
+	# Les trotteurs rejoignent la peluche en moins de 4 s de jeu.
 	var t0 := GameClock.now()
-	await until(func(): return lured_count.call() == runners.size(), 4.0, "zombies au pied du singe")
+	await until(func(): return lured_count.call() == runners.size(), 4.0, "zombies au pied de la peluche")
 	var lured: int = lured_count.call()
 	var took := GameClock.now() - t0
-	at.check(lured == runners.size() and took <= 4.0, "zombies attirés par le singe du client (%d/%d en %.1f s)" % [lured, runners.size(), took])
-	ok = await until(func(): return booms.size() >= 2, ThrowableRules.MONKEY_TIME, "explosion du singe")
-	at.check(ok and booms[1][0] == ThrowableRules.Kind.MONKEY, "explosion du singe")
+	at.check(lured == runners.size() and took <= 4.0, "zombies attirés par la peluche du client (%d/%d en %.1f s)" % [lured, runners.size(), took])
+	ok = await until(func(): return booms.size() >= 2, ThrowableRules.DECOY_TIME, "explosion de la peluche")
+	at.check(ok and booms[1][0] == ThrowableRules.Kind.DECOY, "explosion de la peluche")
 	await MpHelpers.finish(self)

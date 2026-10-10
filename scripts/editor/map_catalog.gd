@@ -1,9 +1,11 @@
 class_name MapCatalog
 extends RefCounted
 ## Inventaire de l'éditeur de cartes (façon Minecraft) : catégories et objets
-## que l'on peut poser. Les atouts, armes murales, pièges et prix viennent des
-## bases de données du jeu (PerkDB, WeaponDB, KnifeDB, ElectricTrap...) :
-## ajouter un atout ou une arme au jeu l'ajoute à l'inventaire.
+## que l'on peut poser. Les prix des pièges, du téléporteur et de la caisse
+## au hasard viennent du jeu (ElectricTrap, Teleporter, MysteryBox...).
+## Les atouts, armes murales, achats de grenades et Pack-a-Punch n'existent
+## plus (REMOVED_TYPES) : une carte d'avant qui en contient se charge encore,
+## ces objets sont ignorés avec un avertissement.
 ##
 ## Un objet du catalogue : {id, cat, fr, en, tool, make (modèle de l'objet
 ## posé), fp (emprise en cases de 0,5 m : [le long du mur, profondeur] ou
@@ -35,9 +37,7 @@ const EFFECT_SUBS := [
 const CATEGORIES := [
 	["construction", "Construction", "Building"],
 	["ouvertures", "Ouvertures", "Openings"],
-	["atouts", "Atouts", "Perks"],
-	["armes", "Armes murales", "Wall weapons"],
-	["boite", "Boîte mystère", "Mystery box"],
+	["boite", "Caisse au hasard", "Random crate"],
 	["machines", "Machines", "Machines"],
 	["pieges", "Pièges", "Traps"],
 	["joueurs", "Joueurs et apparitions", "Players and spawns"],
@@ -49,7 +49,13 @@ const CATEGORIES := [
 ]
 ## Barre rapide par défaut (9 cases). La souris (« select ») n'y est pas : elle
 ## a sa case fixe à gauche de la barre (MapHotbar).
-const DEFAULT_HOTBAR := ["escalier", "piece_rect", "piece_poly", "mur", "porte", "fenetre", "boite", "depart", "arme:m14"]
+const DEFAULT_HOTBAR := ["escalier", "piece_rect", "piece_poly", "mur", "porte", "fenetre", "boite", "depart", "piege"]
+## Types d'objets retirés du jeu (atouts, armes murales et couteaux, achats de
+## grenades, Pack-a-Punch). Encore admis par le schéma des fichiers
+## (allowed_kinds : une carte d'avant n'est pas refusée), mais retirés à
+## l'ouverture dans l'éditeur (EditorMap.strip_removed) et ignorés par
+## l'export pour le jeu (MapLayoutExport), avec un avertissement.
+const REMOVED_TYPES := ["atout", "arme", "grenades", "pap"]
 ## Prix BO1 des portes successives (750, puis 1000, puis 1250).
 const DOOR_PRICES := [750, 1000, 1250]
 
@@ -314,7 +320,7 @@ const EFFECTS := {
 ## PREMIÈRE est l'aspect par défaut (celui d'avant les variantes). Une
 ## variante par défaut n'est jamais écrite dans le fichier (une carte sans la
 ## clé garde exactement son aspect et ses octets). Construites par le jeu :
-## Door (portes, débris), WallBuy (armes murales). docs/MAP_OBJECTS.md.
+## Door (portes, débris). docs/MAP_OBJECTS.md.
 const VARIANTS := {
 	"porte": [
 		["blindee", "Porte blindée", "Armoured door"],
@@ -324,10 +330,6 @@ const VARIANTS := {
 	"debris": [
 		["planches", "Planches et gravats", "Planks and rubble"],
 		["gravats", "Éboulement de béton", "Concrete cave-in"],
-	],
-	"arme": [
-		["craie", "Craie sur le mur", "Chalk on the wall"],
-		["planche", "Craie sur une planche", "Chalk on a board"],
 	],
 	# Format 6 : types d'escaliers (StairGen.KINDS ; docs/MAP_OBJECTS.md §
 	# Escaliers). Contrairement aux autres variantes, le type change la forme
@@ -711,45 +713,24 @@ static func _build() -> void:
 		"make": {"type": "fenetre", "largeur": 1.0},
 		"hint_fr": "Sur un mur extérieur ; les zombies arrivent de dehors. V : fenêtre, porte simple ou double",
 		"hint_en": "On an outer wall; zombies come from outside. V: window, single or double door"})
-	# Atouts (PerkDB).
-	for id in PerkDB.PERKS:
-		_add({"id": "atout:" + id, "cat": "atouts", "fr": PerkDB.display_name(id), "en": PerkDB.display_name(id), "tool": "wall_item",
-			"color": PerkDB.color(id), "make": {"type": "atout", "atout": id}, "fp": [3, 2], "price": PerkDB.cost(id, false),
-			"hint_fr": String(PerkDB.PERKS[id].desc.fr), "hint_en": String(PerkDB.PERKS[id].desc.en)})
-	# Armes murales (WeaponDB, KnifeDB) et grenades.
-	for id in WeaponDB.WEAPONS:
-		if WeaponDB.wall_cost(id) > 0:
-			_add({"id": "arme:" + id, "cat": "armes", "fr": WeaponDB.display_name(id), "en": WeaponDB.display_name(id), "tool": "wall_item",
-				"color": Color(0.85, 0.84, 0.78), "make": {"type": "arme", "arme": id}, "fp": [2, 1], "price": WeaponDB.wall_cost(id),
-				"hint_fr": "Dessin à la craie au mur", "hint_en": "Chalk outline on the wall"})
-	for id in KnifeDB.KNIVES:
-		if KnifeDB.wall_cost(id) > 0:
-			_add({"id": "arme:" + id, "cat": "armes", "fr": KnifeDB.display_name(id), "en": "BOWIE KNIFE" if id == "bowie" else KnifeDB.display_name(id),
-				"tool": "wall_item", "color": Color(0.8, 0.8, 0.85), "make": {"type": "arme", "arme": id}, "fp": [2, 1], "price": KnifeDB.wall_cost(id),
-				"hint_fr": "Couteau au mur", "hint_en": "Knife on the wall"})
-	_add({"id": "grenades", "cat": "armes", "fr": "Grenades", "en": "Grenades", "tool": "wall_item", "color": Color(0.45, 0.5, 0.3),
-		"make": {"type": "grenades"}, "fp": [1, 1], "price": ThrowableRules.FRAG_WALL_COST,
-		"hint_fr": "Recharge les grenades", "hint_en": "Refills grenades"})
-	# Boîte mystère. Format 15 : posée au sol n'importe où dans une pièce
-	# (« rot » : son avant), ou contre un mur (« mur », comme avant) : près
-	# d'un mur, l'outil l'y colle face à la pièce (MapRules.place_box,
-	# « wall_snap »). L'outil d'une boîte posée dépend de sa pose (tool_of).
-	_add({"id": "boite", "cat": "boite", "fr": "Emplacement de boîte", "en": "Box location", "tool": "floor_item", "color": Color(1.0, 0.9, 0.2),
+	# Caisse au hasard (l'ancienne boîte mystère : type « boite » gardé dans
+	# les fichiers). Une seule par carte, fixe. Format 15 : posée au sol
+	# n'importe où dans une pièce (« rot » : son avant), ou contre un mur
+	# (« mur ») : près d'un mur, l'outil l'y colle face à la pièce
+	# (MapRules.place_box, « wall_snap »). L'outil d'une caisse posée dépend
+	# de sa pose (tool_of). Une boîte « depart » d'une carte d'avant
+	# s'affiche comme celle-ci.
+	_add({"id": "boite", "cat": "boite", "fr": "Caisse au hasard", "en": "Random crate", "tool": "floor_item", "color": Color(1.0, 0.9, 0.2),
 		"make": {"type": "boite", "depart": false}, "fp": [4, 2], "price": MysteryBox.COST, "rotates": true, "wall_snap": true,
-		"hint_fr": "Au sol, n'importe où dans une pièce (R, poignée ronde : pivoter ; la flèche montre l'avant) ; près d'un mur, elle s'y colle face à la pièce (Alt : sans aimant) ; la boîte se déplace entre ses emplacements",
-		"hint_en": "On the floor, anywhere in a room (R, round handle: rotate; the arrow shows the front); near a wall, it snaps to it facing the room (Alt: no magnet); the box moves between its locations"})
-	_add({"id": "boite_depart", "cat": "boite", "fr": "Boîte (départ)", "en": "Box (start)", "tool": "floor_item", "color": Color(0.8, 0.7, 0.1),
-		"make": {"type": "boite", "depart": true}, "fp": [4, 2], "price": MysteryBox.COST, "rotates": true, "wall_snap": true,
-		"hint_fr": "L'emplacement où la boîte commence ; au sol ou contre un mur, comme les autres", "hint_en": "Where the box starts; on the floor or against a wall, like the others"})
+		"hint_fr": "Une seule par carte ; tire une grenade ou une peluche leurre contre de la ferraille. Au sol, n'importe où dans une pièce (R, poignée ronde : pivoter ; la flèche montre l'avant) ; près d'un mur, elle s'y colle face à la pièce (Alt : sans aimant)",
+		"hint_en": "One per map; draws a grenade or a decoy plush for scrap. On the floor, anywhere in a room (R, round handle: rotate; the arrow shows the front); near a wall, it snaps to it facing the room (Alt: no magnet)"})
 	# Machines.
-	_add({"id": "pap", "cat": "machines", "fr": "Pack-a-Punch", "en": "Pack-a-Punch", "tool": "wall_item", "color": Color(0.4, 0.1, 1.0),
-		"make": {"type": "pap"}, "fp": [3, 2], "price": PackAPunch.COST, "hint_fr": "Marche avec le courant", "hint_en": "Needs the power"})
 	_add({"id": "courant", "cat": "machines", "fr": "Interrupteur du courant", "en": "Power switch", "tool": "wall_item", "color": Color(1.0, 0.2, 0.15),
 		"make": {"type": "courant"}, "fp": [1, 1], "hint_fr": "Un seul par carte", "hint_en": "One per map"})
 	_add({"id": "teleporteur", "cat": "machines", "fr": "Téléporteur", "en": "Teleporter", "tool": "floor_item", "color": Color(0.0, 1.0, 1.0),
 		"make": {"type": "teleporteur"}, "fp": [2, 2], "price": Teleporter.COST, "hint_fr": "Plateforme de départ", "hint_en": "Departure pad"})
 	_add({"id": "arrivee", "cat": "machines", "fr": "Arrivée du téléporteur", "en": "Teleporter exit", "tool": "floor_item", "color": Color(0.0, 0.67, 0.67),
-		"make": {"type": "arrivee"}, "fp": [2, 2], "hint_fr": "Souvent une salle close (Pack-a-Punch)", "hint_en": "Often a closed room (Pack-a-Punch)"})
+		"make": {"type": "arrivee"}, "fp": [2, 2], "hint_fr": "Souvent une salle close", "hint_en": "Often a closed room"})
 	_add({"id": "poste_central", "cat": "machines", "fr": "Poste central", "en": "Mainframe", "tool": "wall_item", "color": Color(0.0, 0.4, 0.4),
 		"make": {"type": "poste_central"}, "fp": [2, 2], "hint_fr": "À relier avant chaque voyage (facultatif)", "hint_en": "Link it before each trip (optional)"})
 	# Pièges.
@@ -764,7 +745,7 @@ static func _build() -> void:
 	_add({"id": "apparition", "cat": "joueurs", "fr": "Zombie qui sort du sol", "en": "Ground spawn", "tool": "floor_item", "color": Color(0.5, 0.05, 0.05),
 		"make": {"type": "apparition"}, "fp": [1, 1], "hint_fr": "En plus des fenêtres (facultatif)", "hint_en": "In addition to windows (optional)"})
 	# Décor et obstacles : caisse et baril (types historiques), puis les prefabs.
-	_add({"id": "caisse", "cat": "prefabs", "fr": "Caisse", "en": "Crate", "tool": "floor_item", "color": Color(0.55, 0.38, 0.2),
+	_add({"id": "caisse", "cat": "prefabs", "fr": "Caisse en bois", "en": "Wooden crate", "tool": "floor_item", "color": Color(0.55, 0.38, 0.2),
 		"make": {"type": "caisse"}, "fp": [2, 2], "hint_fr": "Obstacle de 1 m de haut", "hint_en": "1 m high obstacle"})
 	_add({"id": "baril", "cat": "prefabs", "fr": "Baril", "en": "Barrel", "tool": "floor_item", "color": Color(0.5, 0.12, 0.08),
 		"make": {"type": "baril"}, "fp": [1, 1], "hint_fr": "Petit obstacle", "hint_en": "Small obstacle"})
@@ -831,7 +812,7 @@ static func short_num(v: float) -> String:
 
 ## Types dont l'objet du catalogue est le type lui-même (item_for).
 const PLAIN_TYPES := {"porte": true, "debris": true, "porte_courant": true, "passage": true, "fenetre": true, "mur": true,
-	"mur_courbe": true, "pilier": true, "escalier": true, "piege": true, "levier": true, "grenades": true, "pap": true,
+	"mur_courbe": true, "pilier": true, "escalier": true, "piege": true, "levier": true,
 	"courant": true, "teleporteur": true, "arrivee": true, "poste_central": true, "depart": true, "apparition": true,
 	"lampe": true, "caisse": true, "baril": true, "bloc_invisible": true}
 
@@ -844,18 +825,14 @@ static func item_for(o: Dictionary) -> Dictionary:
 	if PLAIN_TYPES.has(t):
 		return item(t)
 	match t:
-		"atout":
-			return item("atout:" + String(o.get("atout", "")))
 		"prefab":
 			return item("prefab:" + String(o.get("prefab", "")))
 		"luminaire":
 			return item("luminaire:" + String(o.get("luminaire", "")))
 		"effet":
 			return item("effet:" + String(o.get("effet", "")))
-		"arme":
-			return item("arme:" + String(o.get("arme", "")))
 		"boite":
-			return item("boite_depart" if o.get("depart", false) else "boite")
+			return item("boite")
 	return {}
 
 
@@ -960,7 +937,7 @@ static func rotates(o: Dictionary) -> bool:
 	return bool(item_for(o).get("rotates", false))
 
 
-## Format 15 : boîte mystère posée au sol (sans « mur ») : « position » est
+## Format 15 : caisse au hasard posée au sol (sans « mur ») : « position » est
 ## son centre, « rot » son orientation (degrés entiers, sens horaire vu de
 ## dessus ; à 0, l'avant est au sud, comme un décor). Avec « mur » : contre
 ## un mur, comme avant le format 15.
@@ -1003,7 +980,7 @@ static func blocking(o: Dictionary) -> String:
 ## Décor (format 7, docs/MAP_OBJECTS.md § 8) : caisses, barils, prefabs,
 ## lampes et luminaires. Il se pose librement (contre un mur, à moitié
 ## dedans, au centimètre, tourné, par-dessus un autre décor) ; les objets de
-## jeu (portes, fenêtres, armes murales, atouts, boîte, départs...) gardent
+## jeu (portes, fenêtres, caisse au hasard, départs...) gardent
 ## leurs règles de pose.
 ## Format 10 : les effets se posent comme le décor (et par-dessus tout,
 ## MapRules.NO_OVERLAP_CHECK).
@@ -1389,8 +1366,8 @@ static func effect_count(doc: EditorMap) -> int:
 ## Format 9 : réglage de la carte « chevauchement_decor » (carte.json, vrai /
 ## faux ; absent : faux, les règles d'avant). Coché, le décor et les obstacles
 ## (OVERLAP_TYPES : le décor de DECOR_TYPES et les piliers) peuvent se
-## chevaucher entre eux. Les objets de jeu (portes, fenêtres, atouts, armes
-## murales, boîte, Pack-a-Punch, interrupteur, leviers, pièges, départs,
+## chevaucher entre eux. Les objets de jeu (portes, fenêtres, caisse au
+## hasard, interrupteur, leviers, pièges, départs,
 ## apparitions, téléporteurs, escaliers) gardent leurs règles : ils ne
 ## chevauchent rien et rien ne les chevauche (la carte reste jouable). La
 ## barrière invisible, elle, se pose toujours n'importe où (MapRules.check_clip).
@@ -1454,16 +1431,14 @@ static func tool_of(o: Dictionary) -> String:
 	return String(item_for(o).get("tool", ""))
 
 
-## Clé du validateur (MapValidator) d'un objet posé.
+## Clé du validateur (MapValidator) d'un objet posé. « boite_depart » : la
+## caisse au hasard marquée « depart » (carte d'avant) : c'est elle que le jeu
+## garde s'il y en a plusieurs (MapLayoutExport).
 static func validator_key(o: Dictionary) -> String:
-	match String(o.get("type", "")):
-		"atout":
-			return "atout_" + String(o.atout)
-		"arme":
-			return "arme_" + String(o.arme)
-		"boite":
-			return "boite_depart" if o.get("depart", false) else "boite"
-	return String(o.get("type", ""))
+	var t := String(o.get("type", ""))
+	if t == "boite" and bool(o.get("depart", false)):
+		return "boite_depart"
+	return t
 
 
 ## Matériaux proposés (clés de WorldLook.SURFACES).
@@ -1555,13 +1530,13 @@ static func allowed_kinds() -> Dictionary:
 		"debut": angle, "ouverture": {"t": "number", "min": 5.0, "max": 360.0},
 		"segments": {"t": "int", "min": MapShapes.MIN_SEGMENTS, "max": MapShapes.MAX_SEGMENTS}, "epaisseur": thick},
 		["centre", "rayon", "ouverture", "segments"])
-	add.call("objets.json", "atout", {"atout": {"t": "enum", "values": PerkDB.PERKS.keys()}, "position": point, "mur": dirs, "angle": angle}, ["atout", "position"])
-	var arms := []
-	for it in in_category("armes"):
-		if String(it.id).begins_with("arme:"):
-			arms.append(String(it.id).substr(5))
-	add.call("objets.json", "arme", {"arme": {"t": "enum", "values": arms}, "position": point, "mur": dirs, "angle": angle}, ["arme", "position"])
-	# Format 15 : « rot » d'une boîte posée au sol (jamais avec « mur » ni
+	# Types retirés du jeu (REMOVED_TYPES : atout, arme, grenades, pap) :
+	# encore admis à la LECTURE (une carte d'avant ou reçue n'est pas
+	# refusée) ; l'éditeur les retire à l'ouverture et l'export les ignore.
+	add.call("objets.json", "atout", {"atout": {"t": "id"}, "position": point, "mur": dirs, "angle": angle}, ["atout", "position"])
+	add.call("objets.json", "arme", {"arme": {"t": "id"}, "position": point, "mur": dirs, "angle": angle,
+		"variante": {"t": "enum", "values": ["craie", "planche"]}}, ["arme", "position"])
+	# Format 15 : « rot » d'une caisse au hasard posée au sol (jamais avec « mur » ni
 	# « angle » : CustomMapGuard._check_object).
 	add.call("objets.json", "boite", {"position": point, "mur": dirs, "angle": angle, "rot": rot, "depart": {"t": "bool"}}, ["position"])
 	for t in ["grenades", "pap", "courant", "poste_central", "levier"]:

@@ -3,7 +3,6 @@ extends AutotestScenario
 ## au plus, chaque chien chasse le joueur le moins chassé). Le CLIENT tire sur
 ## les chiens : ses touches sont validées ici contre la position serveur. Les
 ## chiens que le client n'abat pas assez vite sont achevés par le serveur.
-## Le dernier chien fait tomber des munitions max.
 
 const PORT := 17871
 
@@ -18,9 +17,6 @@ func run() -> void:
 	game.rounds.paused = true
 	game.combat.debug_invulnerable = true
 	var dogs := game.rounds.dogs
-	# Le dernier chien peut tomber aux pieds d'un joueur qui ramasse aussitôt le bonus.
-	var grabbed: Array = []
-	game.powerups.powerup_grabbed.connect(func(type: String, _pid: int): grabbed.append(type))
 	var client_id := 0
 	for pid in game.players:
 		if pid != 1:
@@ -63,8 +59,4 @@ func run() -> void:
 	at.check(max_alive <= 4, "4 chiens vivants au plus (max %d)" % max_alive)
 	at.check(hunted.get(1, 0) > 0 and hunted.get(client_id, 0) > 0, "les chiens se répartissent les proies (%s)" % str(hunted))
 	at.check(cpd.kills >= 2, "chiens abattus par les tirs du client (validés serveur) : %d" % cpd.kills)
-	var drop := grabbed.has(PowerupRules.MAX_AMMO)
-	for id in game.powerups._drops:
-		drop = drop or game.powerups._drops[id].type == PowerupRules.MAX_AMMO
-	at.check(drop, "munitions max sur le dernier chien")
 	await MpHelpers.finish(self)

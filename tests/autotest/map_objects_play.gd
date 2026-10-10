@@ -1,7 +1,7 @@
 extends AutotestScenario
 ## Objets du format 5 de l'éditeur de bout en bout (docs/MAP_OBJECTS.md) :
-## dans le vrai éditeur, touche V sur une porte, des débris et une arme
-## murale, barrière invisible tracée à la souris (polygone, format 9) ; carte
+## dans le vrai éditeur, touche V sur une porte et des débris, barrière
+## invisible tracée à la souris (polygone, format 9) ; carte
 ## enregistrée, rouverte depuis le disque (tout est relu, barrière montrée par
 ## l'aperçu 3D de l'éditeur), puis TESTER : bons modèles en jeu, barrière
 ## sans rien de visible, qui arrête le joueur et que les zombies contournent.
@@ -34,8 +34,8 @@ func run() -> void:
 	cv.zoom = 26.0
 	cv.origin = Vector2(40, 40)
 
-	# Touche V sur l'objet choisi : porte, débris, arme murale.
-	for c: Array in [["o1", "bois"], ["o4", "gravats"], ["w1", "planche"]]:
+	# Touche V sur l'objet choisi : porte, débris.
+	for c: Array in [["o1", "bois"], ["o4", "gravats"]]:
 		ed.select(c[0])
 		await key(KEY_V)
 		at.check(MapCatalog.variant_of(ed.doc.find(c[0])) == c[1], "V sur %s : %s (%s)" % [c[0], c[1], MapCatalog.variant_of(ed.doc.find(c[0]))])
@@ -64,8 +64,8 @@ func run() -> void:
 	ed.new_map(true)
 	ed.open_dir(dir)
 	await frames(2)
-	at.check(MapCatalog.variant_of(ed.doc.find("o1")) == "bois" and MapCatalog.variant_of(ed.doc.find("o4")) == "gravats" and MapCatalog.variant_of(ed.doc.find("w1")) == "planche",
-		"relue : porte en bois, éboulement de béton, arme sur une planche")
+	at.check(MapCatalog.variant_of(ed.doc.find("o1")) == "bois" and MapCatalog.variant_of(ed.doc.find("o4")) == "gravats",
+		"relue : porte en bois, éboulement de béton")
 	var back: Array = ed.doc.objets.filter(func(o): return o.type == "bloc_invisible")
 	at.check(back.size() == 1 and MapGeom.poly(back[0].get("sommets", [])) == rect, "relue : barrière invisible")
 	# Visible dans l'éditeur : pavé de l'aperçu 3D (mêmes données que le jeu).
@@ -91,11 +91,6 @@ func run() -> void:
 	for d: Door in game.doors.values():
 		looks[d.variant if d.variant != "" else "blindee"] = true
 	at.check(looks.has("bois") and looks.has("gravats"), "en jeu : porte en bois et éboulement de béton (%s)" % str(looks.keys()))
-	var wb_ok := false
-	for o in game.interact.objects.values():
-		if o is WallBuy and (o as WallBuy).weapon_id == "m14":
-			wb_ok = (o as WallBuy).variant == "planche"
-	at.check(wb_ok, "en jeu : M14 sur une planche")
 	for d: Door in game.doors.values():
 		d.srv_open()
 	var off := MapGeom.WORLD_OFFSET

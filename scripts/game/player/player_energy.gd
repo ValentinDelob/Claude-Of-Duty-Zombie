@@ -15,7 +15,7 @@ extends RefCounted
 ## * Une dépense plus grande que l'énergie restante se fait quand même :
 ##   l'énergie tombe à 0 (la pénalité suffit, aucune action refusée).
 
-## Énergie de base (sans atout).
+## Énergie de base.
 const MAX := 100.0
 ## Course : énergie par seconde (4 s de course pleine).
 const SPRINT_COST := 25.0
@@ -87,8 +87,9 @@ func ratio() -> float:
 	return clampf(value / max_value, 0.0, 1.0) if max_value > 0.0 else 0.0
 
 
-## Énergie max en plus (atout STRIDE SODA, à supprimer avec les atouts).
-## L'énergie courante n'est pas remplie : elle remonte par la recharge.
+## Énergie max en plus (gardée pour un futur bonus ; plus appelée depuis la
+## suppression de l'atout STRIDE SODA). L'énergie courante n'est pas
+## remplie : elle remonte par la recharge.
 func set_bonus_max(bonus: float) -> void:
 	max_value = MAX + maxf(bonus, 0.0)
 	value = minf(value, max_value)

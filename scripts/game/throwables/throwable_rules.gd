@@ -1,25 +1,38 @@
 class_name ThrowableRules
 extends RefCounted
-## Règles des objets lancés de BO1 Zombies (fonctions pures, testées
-## unitairement) : grenades à fragmentation (arme létale) et SINGE-TAMBOUR
-## (arme tactique, le « Cymbal Monkey » de BO1).
+## Règles des objets de l'emplacement de grenade (fonctions pures, testées
+## unitairement) : grenades à fragmentation et PELUCHE LEURRE (ancien
+## singe-tambour). Ces objets ne passent jamais dans l'arsenal ; on les
+## obtient à la caisse au hasard (GAME_CONCEPT §4.12 bis), plus une dotation
+## gratuite de grenades (provisoire).
 
-enum Kind { FRAG, MONKEY }
+enum Kind { FRAG, DECOY }
 
-# ---------------------------------------------------------------- réserve
-## Grenades au début de la partie, gain au début de chaque manche, maximum.
+# ---------------------------------------------------------------- emplacement
+## L'emplacement de grenade ne contient qu'une sorte d'objet à la fois, au plus
+## SLOT_MAX (le maximum historique des grenades).
+const SLOT_MAX := 4
+## Dotation gratuite (PROVISOIRE) : grenades au début de la partie et gain au
+## début de chaque manche, tant que l'emplacement contient des grenades ou est
+## vide. FRAG_MAX : alias de SLOT_MAX pour les grenades.
 const FRAG_START := 2
 const FRAG_PER_ROUND := 2
-const FRAG_MAX := 4
-## Achat mural (Kino der Toten) : recharge à FRAG_MAX.
-const FRAG_WALL_COST := 250
-## Singes donnés par la boîte mystère (et rendus par MUNITIONS MAX). Pas de
-## recharge à chaque manche, comme dans BO1.
-const MONKEY_MAX := 3
-## Identifiant du singe dans la boîte mystère (ce n'est pas une arme).
-const MONKEY_ID := "monkey"
-const MONKEY_NAME := {"fr": "SINGE-TAMBOUR", "en": "CYMBAL MONKEY"}
-const MONKEY_BOX_WEIGHT := 1.0
+const FRAG_MAX := SLOT_MAX
+
+# ---------------------------------------------------------------- caisse
+## Objets que la caisse au hasard peut donner : identifiant, sorte (Kind) et
+## poids du tirage. Pour ajouter un objet : une entrée ici, puis sa sorte dans
+## Kind, son modèle (Throwable.build_model), son effet (ThrowableSystem) et ses
+## noms (NAMES).
+const CRATE_ITEMS := [
+	{"id": "frag", "kind": Kind.FRAG, "weight": 1.0},
+	{"id": "decoy", "kind": Kind.DECOY, "weight": 1.0},
+]
+## Noms affichés par sorte d'objet.
+const NAMES := {
+	Kind.FRAG: {"fr": "GRENADE", "en": "GRENADE"},
+	Kind.DECOY: {"fr": "PELUCHE LEURRE", "en": "DECOY TEDDY"},
+}
 
 # ---------------------------------------------------------------- grenade
 ## Mèche : comptée depuis le dégoupillage (maintenir la touche = « cuire »).
@@ -31,20 +44,20 @@ const FRAG_DAMAGE := 1300
 ## Dégâts subis par le lanceur (réduits, comme BO1 ; jamais aux coéquipiers).
 const FRAG_SELF_DAMAGE := 80
 
-# ---------------------------------------------------------------- singe
-## Durée de la musique : tous les zombies convergent vers le singe.
-const MONKEY_TIME := 8.0
+# ---------------------------------------------------------------- peluche leurre
+## Durée de la musique : tous les zombies convergent vers la peluche.
+const DECOY_TIME := 8.0
 ## Explosion finale : tue tout ce qui l'entoure, quelle que soit la manche.
-const MONKEY_RADIUS := 4.5
-const MONKEY_DAMAGE := 100000
-const MONKEY_SELF_DAMAGE := 60
-## Les zombies arrivés à cette distance du singe l'encerclent sans avancer.
+const DECOY_RADIUS := 4.5
+const DECOY_DAMAGE := 100000
+const DECOY_SELF_DAMAGE := 60
+## Les zombies arrivés à cette distance de la peluche l'encerclent sans avancer.
 const LURE_STOP := 1.1
 
 # ---------------------------------------------------------------- lancer
 ## Vitesse de lancer (m/s) et composante verticale ajoutée (lancer en cloche).
 const FRAG_SPEED := 15.0
-const MONKEY_SPEED := 10.5
+const DECOY_SPEED := 10.5
 const THROW_LIFT := 2.6
 const GRAVITY := 14.0
 const RADIUS := 0.05
@@ -61,9 +74,30 @@ static func frags_after_round(current: int) -> int:
 	return mini(maxi(current, 0) + FRAG_PER_ROUND, FRAG_MAX)
 
 
-## L'achat mural est-il utile (réserve incomplète) ?
-static func can_buy_frags(current: int) -> bool:
-	return current < FRAG_MAX
+## L'emplacement reçoit-il la dotation de grenades (grenades, ou vide) ?
+static func gets_free_frags(kind: int, count: int) -> bool:
+	return kind == Kind.FRAG or count <= 0
+
+
+## Objet de la caisse d'identifiant `id` ({} si inconnu).
+static func crate_item(id: String) -> Dictionary:
+	for it: Dictionary in CRATE_ITEMS:
+		if it.id == id:
+			return it
+	return {}
+
+
+## Tirage pondéré d'un objet de la caisse (identifiant).
+static func pick_crate_item(rng: RandomNumberGenerator) -> String:
+	var total := 0.0
+	for it: Dictionary in CRATE_ITEMS:
+		total += float(it.weight)
+	var r := rng.randf() * total
+	for it: Dictionary in CRATE_ITEMS:
+		r -= float(it.weight)
+		if r <= 0.0:
+			return it.id
+	return CRATE_ITEMS[CRATE_ITEMS.size() - 1].id
 
 
 ## Temps restant avant l'explosion d'une grenade dégoupillée à `cook_start`.
@@ -73,7 +107,7 @@ static func fuse_left(cook_start: float, now: float) -> float:
 
 ## Vitesse initiale d'un objet lancé dans la direction `dir` (visée).
 static func throw_velocity(kind: int, dir: Vector3) -> Vector3:
-	var speed := FRAG_SPEED if kind == Kind.FRAG else MONKEY_SPEED
+	var speed := FRAG_SPEED if kind == Kind.FRAG else DECOY_SPEED
 	return dir.normalized() * speed + Vector3.UP * THROW_LIFT
 
 
@@ -95,9 +129,6 @@ static func bounce(vel: Vector3, n: Vector3) -> Vector3:
 	return tangent * (1.0 - TANGENT_LOSS) - normal * RESTITUTION
 
 
+## Nom affiché d'une sorte d'objet, dans la langue du joueur.
 static func kind_name(kind: int) -> String:
-	return "GRENADE" if kind == Kind.FRAG else monkey_name()
-
-
-static func monkey_name() -> String:
-	return Lang.pick(MONKEY_NAME)
+	return Lang.pick(NAMES.get(kind, NAMES[Kind.FRAG]))

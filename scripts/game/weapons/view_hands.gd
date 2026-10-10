@@ -57,7 +57,7 @@ const TRIGGER := Vector3(0, 0.046, -0.056)
 ## Pièces d'une tenue.
 const PIECES := ["grip", "pistol_support", "foregrip", "cradle", "forearm", "knife", "throw_r", "throw_l"]
 ## Modèles à poignée avant verticale (main gauche en poing).
-const FRONT_GRIP := {"mp5k": true, "aug": true, "pm63": true, "thunder": true, "death_machine": true}
+const FRONT_GRIP := {"mp5k": true, "aug": true, "pm63": true}
 
 var hand_r: Node3D
 var hand_l: Node3D
@@ -209,7 +209,7 @@ static func knife_hand(style: int) -> Node3D:
 
 
 ## Main du lancer (repère de ThrowView) : droite refermée sur la grenade
-## (centrée à l'origine), ou gauche en pince (goupille, clé du singe).
+## (centrée à l'origine), ou gauche en pince (goupille).
 static func throw_hand(style: int, left: bool) -> Node3D:
 	var root := Node3D.new()
 	root.name = "ThrowHand"

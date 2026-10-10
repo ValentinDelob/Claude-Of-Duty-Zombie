@@ -132,7 +132,7 @@ func run() -> void:
 
 	# 2. Quelques armes améliorées (camouflage Pack-a-Punch).
 	if owns(0):
-		for id in ["m1911", "m16", "olympia", "ray"]:
+		for id in ["m1911", "m16", "olympia"]:
 			await equip(id, true)
 			await at.screenshot("fps_pap_" + id)
 

@@ -40,31 +40,23 @@ func test_all_zones_reachable_when_doors_open() -> void:
 		assert_false(nav.find_path(start, MapData.cell_to_world(target)).is_empty(), "zone %s accessible" % z)
 
 
-func test_pap_room_isolated() -> void:
+func test_ritual_room_isolated() -> void:
 	var nav := NavGrid.new(data)
 	nav.set_blocked(MapDef.blocking_cells(data, def), false)
 	var start := MapData.cell_to_world(data.markers["P"][0])
-	var pap := MapData.cell_to_world(data.markers["F"][0])
-	assert_true(nav.find_path(start, pap).is_empty(), "la salle du Pack-a-Punch n'est accessible que par téléporteur")
+	var exit := MapData.cell_to_world(data.markers["F"][0])
+	assert_true(nav.find_path(start, exit).is_empty(), "la salle du rituel n'est accessible que par téléporteur")
 
 
+## Carte de test depuis le lot C : une seule caisse au hasard (sur le quai),
+## plus aucun marqueur d'objet supprimé (achats muraux, atouts, grenades,
+## Pack-a-Punch) ; portes, courant, piège et téléporteur restent.
 func test_objects_defined() -> void:
-	for k in def.wall_buys:
-		assert_true(data.markers.has(k), "achat mural %s placé" % k)
-		assert_true(WeaponDB.exists(def.wall_buys[k]) or KnifeDB.exists(def.wall_buys[k]), "achat mural %s connu" % k)
-	for k in def.perks:
-		assert_true(data.markers.has(k), "atout %s placé" % k)
-		assert_true(PerkDB.exists(def.perks[k]), "atout %s connu" % def.perks[k])
-		assert_eq(data.markers.get(k, []).size(), 1, "atout %s placé une fois" % k)
-		var c: Vector2i = data.markers[k][0]
-		var touches := false
-		for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
-			touches = touches or data.is_wall(c + d)
-		assert_true(touches, "atout %s contre un mur" % k)
-	# Les 7 atouts de BO1 (Kino + Five / Ascension) ; NOVA FLOP au laboratoire,
-	# DEADEYE DRAM au générateur.
-	assert_eq(def.perks.size(), 7, "7 atouts")
-	assert_eq(data.zone_at(data.markers["("][0]), "c", "NOVA FLOP au laboratoire")
-	assert_eq(data.zone_at(data.markers[")"][0]), "e", "DEADEYE DRAM au générateur")
-	assert_eq(data.markers.get("X", []).size(), 3, "3 emplacements de boîte")
+	assert_eq(data.markers.get("X", []).size(), 1, "une seule caisse")
+	assert_eq(data.zone_at(data.markers["X"][0]), "f", "caisse sur le quai")
+	assert_eq(def.box_start, 0)
+	for k in ["A", "R", "U", "V", "+", "B", "!", "$", "&", "%", "Q", "J", "S", "D", "M", "(", ")", "K", "*"]:
+		assert_false(data.markers.has(k), "marqueur supprimé absent : " + k)
 	assert_eq(data.markers.get("G", []).size(), 1, "un interrupteur de courant")
+	assert_true(data.markers.has("T") and data.markers.has("F"), "téléporteur")
+	assert_true(data.markers.has("H") and data.markers.has("E"), "piège et levier")

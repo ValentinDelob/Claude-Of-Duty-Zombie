@@ -1,8 +1,8 @@
 extends "res://tests/autotest/long_soak.gd"
 ## @niveau long
 ## Soak de DRAFT ARENA, carte faite avec l'éditeur (voir long_soak.gd) :
-## portes et débris, courant, armes murales, atouts, boîte, Pack-a-Punch,
-## bonus, mise à terre et LAZARUS, manche de chiens.
+## portes et débris, courant, caisse au hasard, grenades et peluches,
+## mise à terre et auto-réanimation, manche de chiens.
 ##   godot --headless --fixed-fps 60 --path . -- --autotest=long_soak_draft
 
 

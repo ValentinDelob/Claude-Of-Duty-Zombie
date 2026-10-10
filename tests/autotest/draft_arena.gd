@@ -49,16 +49,7 @@ func run() -> void:
 	# Ce que le dessin contient, à sa place.
 	at.check(game.barricades.windows.size() == 7, "7 fenêtres barricadées (%d)" % game.barricades.windows.size())
 	var box: MysteryBox = game.interact.get_obj("box")
-	at.check(box != null and box.spots.size() == 3 and box.location == 1, "3 emplacements de boîte, départ dans le couloir (%d)" % (box.location if box else -1))
-	at.check(l.zone_at(l.box_spots()[2].pos) == "e", "3e boîte sur la passerelle, à l'étage (y = %.2f)" % l.box_spots()[2].pos.y)
-	var perk_zone := {}
-	for mk in l.perks():
-		perk_zone[mk.data.perk] = mk.zone
-	at.check(perk_zone == {"titan": "c", "lazarus": "a"}, "atouts : TITAN BREW dans l'entrepôt, LAZARUS au départ (%s)" % str(perk_zone))
-	var wb_zone := {}
-	for mk in l.wall_buys():
-		wb_zone[mk.data.weapon] = mk.zone
-	at.check(wb_zone == {"mp5k": "b", "m14": "a"}, "armes au mur : M14 au départ, MP5K dans le couloir (%s)" % str(wb_zone))
+	at.check(box != null and l.box_spots().size() == 1 and l.zone_at(l.box_spots()[0].pos) == "e", "une seule caisse, sur la passerelle, à l'étage (y = %.2f)" % l.box_spots()[0].pos.y)
 	var costs := {}
 	for d: Door in game.doors.values():
 		costs[d.door_id] = [d.cost, d.debris]
@@ -96,9 +87,9 @@ func run() -> void:
 
 	# Portes fermées : la navigation ne passe pas.
 	var nav := game.nav
-	var titan: MapMarker = l.perks().filter(func(mk): return mk.data.perk == "titan")[0]
-	var mp5k: MapMarker = l.wall_buys().filter(func(mk): return mk.data.weapon == "mp5k")[0]
-	at.check(nav.find_path(start, mp5k.pos).is_empty() and nav.find_path(start, titan.pos).is_empty(), "portes fermées : couloir et entrepôt inaccessibles")
+	var entrepot := _zone_point("c")  # point au sol de l'entrepôt
+	var couloir := _zone_point("b")  # point au sol du couloir
+	at.check(nav.find_path(start, couloir).is_empty() and nav.find_path(start, entrepot).is_empty(), "portes fermées : couloir et entrepôt inaccessibles")
 	await _capture_view(["debris", Vector3(10.0, 0.05, 29.5), 0.0, 0.0])
 
 	# Achats au vrai prix : porte 750, puis débris 1250.
@@ -108,15 +99,15 @@ func run() -> void:
 	var door_ab: Door = game.doors["3"]
 	door_ab.srv_use(1)
 	at.check(door_ab.is_open and pd.points == 1750, "porte A-B achetée 750 (%d points restants)" % pd.points)
-	await until(func(): return not nav.find_path(start, mp5k.pos).is_empty() and game.spawner.active_zones.has("b"), 3.0, "couloir ouvert par la porte A-B")
-	at.check(not nav.find_path(start, mp5k.pos).is_empty() and game.spawner.active_zones.has("b"), "porte ouverte : couloir accessible et actif")
+	await until(func(): return not nav.find_path(start, couloir).is_empty() and game.spawner.active_zones.has("b"), 3.0, "couloir ouvert par la porte A-B")
+	at.check(not nav.find_path(start, couloir).is_empty() and game.spawner.active_zones.has("b"), "porte ouverte : couloir accessible et actif")
 	var debris: Door = game.doors["2"]
 	debris.srv_use(1)
 	at.check(debris.is_open and pd.points == 500, "débris dégagés pour 1250 (%d points restants)" % pd.points)
 	await until(func(): return not (debris.get_node("Slab") as Node3D).visible \
-		and not nav.find_path(start, titan.pos).is_empty(), Door.OPEN_TIME + 3.0, "débris enfoncés et entrepôt accessible")
+		and not nav.find_path(start, entrepot).is_empty(), Door.OPEN_TIME + 3.0, "débris enfoncés et entrepôt accessible")
 	at.check(not (debris.get_node("Slab") as Node3D).visible, "le tas de débris a disparu")
-	at.check(not nav.find_path(start, titan.pos).is_empty() and game.spawner.active_zones.has("c") and game.spawner.active_zones.has("e"),
+	at.check(not nav.find_path(start, entrepot).is_empty() and game.spawner.active_zones.has("c") and game.spawner.active_zones.has("e"),
 		"par l'atelier : entrepôt et passerelle accessibles et actifs (zones ouvertes l'une sur l'autre)")
 
 	# Toutes portes ouvertes et courant : tout est accessible à pied.
@@ -131,20 +122,34 @@ func run() -> void:
 	at.check(unreachable.is_empty(), "tout est accessible à pied depuis le départ : objets, fenêtres, salles (inaccessibles : %s)" % str(unreachable))
 
 	# Étages : un zombie monte l'escalier jusqu'à la passerelle, un autre en descend.
-	await reach(Vector3(12.0, 0.0, 20.0), l.box_spots()[2].pos, 30.0, "zombie monte l'escalier jusqu'à la passerelle")
+	await reach(Vector3(12.0, 0.0, 20.0), l.box_spots()[0].pos, 30.0, "zombie monte l'escalier jusqu'à la passerelle")
 	at.check(l.zone_at(p.global_position) == "e", "joueur sur la passerelle (zone %s)" % l.zone_at(p.global_position))
-	await reach(l.box_spots()[2].pos, Vector3(18.0, 0.0, 16.0), 30.0, "zombie descend de la passerelle dans l'entrepôt")
-	await reach(start, l.box_spots()[2].pos, 45.0, "zombie du départ rejoint la passerelle par l'atelier et l'escalier")
+	await reach(l.box_spots()[0].pos, Vector3(18.0, 0.0, 16.0), 30.0, "zombie descend de la passerelle dans l'entrepôt")
+	await reach(start, l.box_spots()[0].pos, 45.0, "zombie du départ rejoint la passerelle par l'atelier et l'escalier")
 	await H.clear_zombies(self)
 	for v in VIEWS:
 		await _capture_view(v)
+
+
+## Point au sol (milieu d'une salle, sinon un coin) dans la zone `zone`.
+func _zone_point(zone: String) -> Vector3:
+	for r in l.data.rooms:
+		var o: Array = r.outline
+		var c := Vector3((float(o[0][0]) + float(o[2][0])) * 0.5, float(r.floor), (float(o[0][1]) + float(o[2][1])) * 0.5)
+		if l.zone_at(c) == zone:
+			return c
+		var corner := Vector3(float(o[0][0]) + 0.6, float(r.floor), float(o[0][1]) + 0.6)
+		if l.zone_at(corner) == zone:
+			return corner
+	at.fail("aucun point au sol dans la zone %s" % zone)
+	return Vector3.ZERO
 
 
 ## Ce qui n'est pas accessible à pied depuis `from` : objets, fenêtres, salles.
 func _unreachable(from: Vector3) -> Array:
 	var nav := game.nav
 	var unreachable := []
-	for list in [l.wall_buys(), l.perks(), l.box_spots(), [l.power_switch()]]:
+	for list in [l.box_spots(), [l.power_switch()]]:
 		for mk: MapMarker in list:
 			if nav.find_path(from, mk.pos).is_empty():
 				unreachable.append("%s (%s)" % [mk.id, mk.zone])

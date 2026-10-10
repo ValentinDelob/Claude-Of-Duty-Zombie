@@ -19,12 +19,12 @@ func test_solo_alive_is_not_over() -> void:
 
 func test_solo_downed_without_self_revive_is_over() -> void:
 	assert_true(MatchRules.is_game_over([_pd(1, PlayerData.Life.DOWNED)], _never),
-			"solo à terre sans LAZARUS : fin de partie")
+			"solo à terre : fin de partie")
 
 
 func test_solo_downed_with_self_revive_is_not_over() -> void:
-	var lazarus := func(pid: int) -> bool: return pid == 1
-	assert_false(MatchRules.is_game_over([_pd(1, PlayerData.Life.DOWNED)], lazarus),
+	var self_revive := func(pid: int) -> bool: return pid == 1
+	assert_false(MatchRules.is_game_over([_pd(1, PlayerData.Life.DOWNED)], self_revive),
 			"auto-réanimation programmée : la partie continue")
 
 
@@ -72,16 +72,16 @@ func test_respawn_resets_loadout_keeps_points() -> void:
 	pd.kills = 7
 	pd.max_health = 250
 	pd.health = 0
-	pd.weapons = [WeaponDB.new_instance("mp40"), WeaponDB.new_instance("ray")]
+	pd.weapons = [WeaponDB.new_instance("mp40"), WeaponDB.new_instance("m14")]
 	pd.slot = 1
-	pd.knife = "bowie"
+	pd.knife = "autre"
 	MatchRules.respawn(pd)
 	assert_eq(pd.life, PlayerData.Life.ALIVE)
 	assert_eq(pd.health, 250, "santé pleine")
 	assert_eq(pd.weapons.size(), 1)
 	assert_eq(pd.weapons[0].id, WeaponDB.STARTING_WEAPON, "pistolet de départ")
 	assert_eq(pd.slot, 0)
-	assert_eq(pd.knife, KnifeDB.DEFAULT, "couteau de chasse perdu (BO1)")
+	assert_eq(pd.knife, KnifeDB.DEFAULT, "couteau de base")
 	assert_eq(pd.points, 4321, "points conservés")
 	assert_eq(pd.kills, 7)
 
