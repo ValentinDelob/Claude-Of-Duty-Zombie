@@ -19,7 +19,7 @@ func run() -> void:
 
 	# Mauvais port : personne n'écoute.
 	js._ip.text = "127.0.0.1"
-	js._port.text = "17899"
+	js._port.text = str(17899 + MpHelpers.port_offset())
 	js._join()
 	await frames(2)
 	at.check(menu.current_name == "connecting" and GameState.state == GameState.State.CONNECTING, "écran « Connexion au serveur... »")
@@ -42,6 +42,9 @@ func run() -> void:
 	js._ip.text = "127.0.0.1"
 	js._port.text = str(PORT)
 	js._name.text = "Client"
+	# L'hôte se fige 3 s (temps réel) dès qu'il voit ce signal : la connexion
+	# doit aboutir quand même (délai de connexion compté aussi en temps réel).
+	MpHelpers.signal_peer("bon_port")
 	js._join()
 	ok = await until(func(): return menu.current_name == "lobby", 15.0, "salon")
 	if not ok:

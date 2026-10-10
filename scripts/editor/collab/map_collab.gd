@@ -107,6 +107,8 @@ class Conn:
 	var id := ""
 	var ip := ""
 	var age := 0.0
+	## Même départ que `age`, en temps réel (Time.get_ticks_msec).
+	var t0_ms := Time.get_ticks_msec()
 	var ok := false
 	var hello_sent := false
 	var change_tokens := MapCollab.CHANGE_RATE * 2.0
@@ -114,6 +116,16 @@ class Conn:
 	var need_map := false
 	var map_t := 0.0
 	var closed := false
+
+	## Délai de poignée de main dépassé : HANDSHAKE_SEC de jeu ET de temps
+	## réel (jeu accéléré des tests, ou l'autre machine figée un instant :
+	## pas de coupure à tort).
+	func handshake_late() -> bool:
+		return age > MapCollab.HANDSHAKE_SEC and Time.get_ticks_msec() - t0_ms > MapCollab.HANDSHAKE_SEC * 1000.0
+
+	func restart_age() -> void:
+		age = 0.0
+		t0_ms = Time.get_ticks_msec()
 
 
 func _init(map: EditorMap = null) -> void:
@@ -447,7 +459,7 @@ func _host_process(delta: float) -> void:
 		c.change_tokens = minf(c.change_tokens + CHANGE_RATE * delta, CHANGE_RATE * 2.0)
 		c.presence_tokens = minf(c.presence_tokens + PRESENCE_RATE * delta, PRESENCE_RATE)
 		c.map_t -= delta
-		if not c.ok and c.age > HANDSHAKE_SEC:
+		if not c.ok and c.handshake_late():
 			_reject(c, "délai de connexion dépassé", "connection timed out")
 			continue
 		for m in _read(c):
@@ -687,7 +699,7 @@ func _guest_process(delta: float) -> void:
 	c.tcp.poll()
 	var st := c.tcp.get_status()
 	if st == StreamPeerTCP.STATUS_CONNECTING:
-		if c.age > HANDSHAKE_SEC:
+		if c.handshake_late():
 			_lost(Lang.t("Connexion impossible : pas de réponse de l'hôte", "Cannot connect: no answer from the host"))
 		return
 	if st != StreamPeerTCP.STATUS_CONNECTED:
@@ -695,10 +707,10 @@ func _guest_process(delta: float) -> void:
 		return
 	if not c.hello_sent:
 		c.hello_sent = true
-		c.age = 0.0
+		c.restart_age()
 		_send(c, {"t": "hello", "proto": PROTO, "name": my_name, "code": _join_code,
 			"app_version": String(ProjectSettings.get_setting("application/config/version", ""))})
-	if _joining and c.age > HANDSHAKE_SEC:
+	if _joining and c.handshake_late():
 		_lost(Lang.t("Connexion impossible : l'hôte ne répond pas", "Cannot connect: the host does not answer"))
 		return
 	for m in _read(c):

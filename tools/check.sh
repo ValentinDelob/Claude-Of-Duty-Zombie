@@ -198,7 +198,11 @@ run_task() {
   local T=$1 KIND=${1%%:*} NAME=${1#*:} SLOT=$2 LOG RC=0
   LOG=$(log_of "$1")
   local GLOG="$LOGS/${1/:/_}.log"   # journal Godot de la tâche (--log-file)
-  local PORTS=$(( BASE_PORT + 100 * SLOT ))
+  # Décalage des ports par place : 1000 et non 100. Les tests multijoueur
+  # occupent 17801 à 17999 : avec 100, mp:join à la place 2 (17811 + 200)
+  # prenait le port de mp:inventory à la place 1 (17911 + 100), de même
+  # rematch / loot, session / station…
+  local PORTS=$(( BASE_PORT + 1000 * SLOT ))
   local SCN=${NAME%%+*} PARTARG=""
   if [[ $NAME == *+* ]]; then local R=${NAME#*+}; PARTARG="--part=${R%+*}/${R#*+}"; fi
   case $KIND in
