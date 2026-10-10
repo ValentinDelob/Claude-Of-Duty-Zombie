@@ -11,36 +11,25 @@ ambiances, annonces et interface restent synthétisées par du code.
 Cartes (SOLO ouvre l'écran de sélection ; en multijoueur, l'hôte choisit dans
 le salon ; le dernier choix est mémorisé) :
 
-**KINO** — Kino der Toten à l'échelle 1, sur plusieurs niveaux (carte en
-maillage construite dans Blender, voir [docs/KINO_V2.md](docs/KINO_V2.md)) :
-hall d'entrée à double escalier et balcon (départ sur le disque du poste
-central, Olympia et M14), salle basse et ruelle, arrière-salle surélevée,
-salle haute, Foyer à mezzanine, loges, coulisses (courant), salle de théâtre
-en ruines (fauteuils, gravats, scène, écran qui projette un film une fois le
-courant rétabli) et salle de projection (Pack-a-Punch). Les deux boucles de
-portes de BO1 (750 / 1000 / 1250), portes du couloir et rideau de scène
-ouverts par le courant, 22 fenêtres barricadées, arsenal mural de Kino
-(dont MP40 et couteau de chasse), 4 atouts, boîte mystère à 9 emplacements
-(départ tiré au sort parmi 8) et tableaux à la craie qui l'indiquent,
-5 pièges à deux leviers (40 s, dont la fosse à feu encore électrique).
-Téléporteur de Kino : gratuit, activer le pad de la scène puis le relier au
-poste central ; 30 s en salle de projection, retour sur le disque, 90 s de
-recharge.
-
 **BUNKER K-7** — salle de garde, couloir des cellules (piège électrique),
 laboratoire, dortoir, générateur, quai du téléporteur et salle du rituel
-(Pack-a-Punch). Manches, points, portes payantes, courant, achats muraux,
+(Pack-a-Punch). Manches, ferraille, portes payantes, courant, achats muraux,
 7 atouts, boîte mystère, Pack-a-Punch, téléporteur, pièges, état « à terre »
 et réanimation. Atouts de Five / Ascension (BUNKER K-7 seulement) : NOVA FLOP
 (2000 : aucun dégât de ses propres explosions, le plongeon en sprint explose
 à l'atterrissage) et DEADEYE DRAM (1500 : la visée s'aimante vers la tête,
 dispersion en hanche et recul réduits). Fenêtres barricadées (15) : les zombies arrachent les
-6 planches puis enjambent ; maintenir [F] pour reconstruire (+10 par planche,
-500 points au plus par manche). Couteau à la BO1 (150 dégâts, fente vers le
+6 planches puis enjambent ; maintenir [F] pour reconstruire (+10 ferraille par
+planche, 500 au plus par manche). Couteau à la BO1 (150 dégâts, fente vers le
 zombie visé) et COUTEAU DE CHASSE au mur du quai (3000 : un coup jusqu'à la
 manche 12). Grenades à fragmentation ([G] : 2 au départ, +2 par manche, 4 au
 plus, achat mural à 250) et SINGE-TAMBOUR ([Q], boîte mystère) qui attire
 tous les zombies avant d'exploser. Arme merveille TONNERRE-7 (boîte mystère, rare, une seule dans la partie) : onde de choc qui projette et tue tous les zombies devant soi.
+
+**Ferraille** (monnaie de partie, GAME_CONCEPT.md §4.8) : chaque joueur part
+de 0 et gagne 50 ferraille par zombie qu'il tue lui-même, quel que soit le
+coup (rien pour les touches ni les réanimations) ; elle paie les portes et le
+reste des achats. PV des zombies linéaires : 150 + 100 par manche.
 
 **CARTES PERSO** — faites avec l'**ÉDITEUR DE CARTES** du menu principal
 (pièces vues de dessus, portes entre pièces collées, fenêtres, atouts, armes,
@@ -214,7 +203,7 @@ Chaque réglage s'applique tout de suite et est enregistré.
   fenêtre, réduite puis hors des écrans (jamais visible). Un échec est rejoué
   une fois (signalé INSTABLE s'il passe). Rapport JUnit `tests/_out/junit.xml`.
   Réglages : `JOBS=3`, `GUI_JOBS=1` (peu de jeux ouverts, machine silencieuse),
-  `SCENARIOS="perks scope"` / `MP="lobby"`, `--fast`, `--kino`, `--no-retry`.
+  `SCENARIOS="perks scope"` / `MP="lobby"`, `--fast`, `--cartes`, `--no-retry`.
   Stratégie, niveaux et écriture des tests : **docs/TESTING.md**.
 - `sh tools/commit.sh message.txt` : lance check.sh (tâches impactées) et ne
   committe que s'il réussit (`CHECK_ARGS=--full` pour tout vérifier).
@@ -240,8 +229,8 @@ Chaque réglage s'applique tout de suite et est enregistré.
 ## État d'avancement
 
 Clone de Black Ops 1 Zombies en cours ; chaque fonctionnalité est publiée en
-release GitHub (.exe). Livré : règles BO1 (manches, points, atouts), deux
-cartes (BUNKER K-7, KINO), fenêtres barricadées, arsenal BO1 et Pack-a-Punch,
+release GitHub (.exe). Livré : règles BO1 (manches, ferraille, atouts), une
+carte (BUNKER K-7), fenêtres barricadées, arsenal BO1 et Pack-a-Punch,
 armes merveilles, grenades et singe, bonus (dont FAUCHEUSE et Liquidation),
 chiens de l'enfer, rampants et démembrement, 7 atouts, sons CC0, refonte
 visuelle BO1 (étalonnage, HUD, zombies, armes et mains), réseau optimisé.
