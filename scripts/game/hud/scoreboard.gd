@@ -1,6 +1,6 @@
 class_name Scoreboard
 extends PanelContainer
-## Tableau des scores ([Tab] maintenu, et écran de fin de partie) façon BO1 :
+## Tableau des scores ([Tab] maintenu, et écran de fin de partie) :
 ## panneau sombre translucide, titre, en-têtes discrets, une ligne par joueur
 ## sur un bandeau à sa couleur (le joueur local plus lumineux).
 
@@ -22,7 +22,7 @@ func setup(g: Game) -> void:
 	game = g
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.015, 0.015, 0.018, 0.82)
-	sb.border_color = Color(0.5, 0.48, 0.44, 0.35)
+	sb.border_color = Color(HudStyle.ROUND, 0.35)
 	sb.border_width_top = 2
 	sb.border_width_bottom = 2
 	sb.set_content_margin_all(20)
@@ -41,7 +41,7 @@ func setup(g: Game) -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	add_child(box)
-	_title = HudStyle.label("", 34, HudStyle.TEXT, "title")
+	_title = HudStyle.label("", 34, HudStyle.TEXT, "cube")
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_title)
 	_sub = HudStyle.label("", 16, HudStyle.TEXT_DIM, "text", 2)

@@ -313,9 +313,9 @@ const EFFECTS := {
 	"cendres": {"sub": "ambiance", "fr": "Cendres qui tombent", "en": "Falling ash", "mount": "sol", "vol": "plafond", "zone": {"l": [3.0, 1.0, 30.0], "p": [3.0, 1.0, 30.0]},
 		"cap": 1200, "color": Color(0.55, 0.53, 0.5),
 		"hint_fr": "Flocons de cendre qui tombent du plafond", "hint_en": "Ash flakes falling from the ceiling"},
-	"feux_follets": {"sub": "ambiance", "fr": "Feux follets (115)", "en": "Will-o'-wisps (115)", "mount": "sol",
+	"feux_follets": {"sub": "ambiance", "fr": "Feux follets", "en": "Will-o'-wisps", "mount": "sol",
 		"zone": {"l": [1.5, 0.5, 10.0], "p": [1.5, 0.5, 10.0], "h": [1.2, 0.5, 4.0]}, "cap": 400, "couleur": "#3dff6a",
-		"color": Color(0.25, 1.0, 0.45), "hint_fr": "Lueurs vertes de l'élément 115 qui dérivent", "hint_en": "Drifting green glows of element 115"},
+		"color": Color(0.25, 1.0, 0.45), "hint_fr": "Lueurs vertes toxiques qui dérivent", "hint_en": "Drifting toxic green glows"},
 }
 
 ## Variantes d'aspect d'un type d'élément (format 5, clé « variante » de

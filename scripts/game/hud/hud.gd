@@ -36,7 +36,7 @@ var _prompt_view: Label
 var _prompt_key := ""
 var _banner_tw: Tween
 var _flash: Label
-## Nom de l'arme : affiché au changement d'arme puis estompé (BO1).
+## Nom de l'arme : affiché au changement d'arme puis estompé.
 var _weapon_shown := ""
 var _weapon_name_t := 0.0
 const WEAPON_NAME_TIME := 3.0
@@ -113,7 +113,7 @@ func _ready() -> void:
 	_scores.offset_bottom = -112
 	add_child(_scores)
 
-	# Munitions BO1 : nom de l'arme (s'efface après le changement d'arme),
+	# Munitions : nom de l'arme (s'efface après le changement d'arme),
 	# grenades à gauche, chargeur en gros, réserve plus petite.
 	var ammo_box := VBoxContainer.new()
 	ammo_box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -154,7 +154,7 @@ func _ready() -> void:
 	add_child(_hint)
 
 	# Invite d'interaction : `_prompt` garde le texte brut de l'objet visé
-	# (tests), `_prompt_view` l'affiche au format BO1 (bo1_prompt).
+	# (tests), `_prompt_view` l'affiche en invite d'action (action_prompt).
 	_prompt = UiStyle.label("", 24, UiStyle.BONE)
 	_prompt.visible = false
 	add_child(_prompt)
@@ -205,8 +205,8 @@ func _ready() -> void:
 	center.alignment = BoxContainer.ALIGNMENT_CENTER
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
-	_center_msg = HudStyle.label("", 72, HudStyle.CHALK, "title", 10)
-	_center_msg.add_theme_color_override("font_outline_color", Color(0.35, 0.0, 0.0, 0.85))
+	# Grands titres (bandeaux, fin de partie) en police de cubes.
+	_center_msg = HudStyle.label("", 72, HudStyle.TITLE, "cube")
 	_center_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center.add_child(_center_msg)
 	_center_sub = HudStyle.label("", 28, HudStyle.TEXT, "text", 5)
@@ -304,7 +304,7 @@ func _process(delta: float) -> void:
 	if raw != _prompt.text or key != _prompt_key:
 		_prompt.text = raw
 		_prompt_key = key
-		_prompt_view.text = bo1_prompt(raw, key)
+		_prompt_view.text = action_prompt(raw, key)
 	if _flash_t > 0.0:
 		_flash_t -= delta
 		_flash.modulate.a = clampf(_flash_t, 0.0, 1.0)
@@ -384,7 +384,7 @@ func _process(delta: float) -> void:
 class Crosshair extends Control:
 	var spread := 10.0
 
-	## BO1 : quatre traits fins blancs, liseré sombre pour rester lisibles sur
+	## Quatre traits fins blancs, liseré sombre pour rester lisibles sur
 	## les lampes et le grain ; pas de point central.
 	func _draw() -> void:
 		var c := size * 0.5
@@ -473,7 +473,7 @@ func round_counter() -> RoundCounter:
 ## Grand bandeau temporaire au centre (événement de la partie).
 func show_banner(text: String, duration := 3.5) -> void:
 	_center_msg.text = text
-	_center_msg.add_theme_font_size_override("font_size", 46)
+	_center_msg.add_theme_font_size_override("font_size", 56)
 	_center_msg.modulate.a = 0.0
 	if _banner_tw and _banner_tw.is_valid():
 		_banner_tw.kill()
@@ -488,11 +488,12 @@ func show_banner(text: String, duration := 3.5) -> void:
 		_center_msg.add_theme_font_size_override("font_size", 72))
 
 
-## Invite au format BO1 (« Press F to buy M14 [Cost: 500] ») à partir du texte
-## des objets (« [F] Acheter M14 [500] » / « [F] Buy M14 [500] ») :
-##   « Appuyer sur F pour acheter M14 [Coût : 500] » / « Press F to buy M14 [Cost: 500] ».
+## Invite d'action à partir du texte des objets (« [F] Acheter M14 [500] » /
+## « [F] Buy M14 [500] ») : « Appuyer sur F pour acheter M14 · 500 ferraille »
+## / « Press F to buy M14 · 500 scrap » (le prix est dans la monnaie du jeu,
+## GAME_CONCEPT §4.8).
 ## Le texte des objets est déjà dans la langue du joueur (Lang.t) ; seuls les
-## mots ajoutés ici (« Appuyer sur... pour », « Coût ») suivent Lang.
+## mots ajoutés ici (« Appuyer sur... pour », « ferraille ») suivent Lang.
 ## `key` : nom de la touche INTERAGIR (réaffectable dans les options).
 ## Pure : testée dans tests/test_hud.gd.
 const PROMPT_NOUNS := {
@@ -503,13 +504,13 @@ const PROMPT_NOUNS := {
 const HOLD_WORDS := ["Maintenir", "Hold"]
 
 
-static func bo1_prompt(raw: String, key := "F") -> String:
+static func action_prompt(raw: String, key := "F") -> String:
 	if raw == "":
 		return ""
 	var t := raw
-	# Coûts : « [500] » -> « [Coût : 500] ».
-	var re := RegEx.create_from_string("\\[(\\d+)\\]")
-	t = re.sub(t, Lang.t("[Coût : $1]", "[Cost: $1]"), true)
+	# Coûts : « [500] » -> « · 500 ferraille ».
+	var re := RegEx.create_from_string(" ?\\[(\\d+)\\]")
+	t = re.sub(t, Lang.t(" · $1 ferraille", " · $1 scrap"), true)
 	for hold: String in HOLD_WORDS:
 		if t.begins_with(hold + " [F]"):
 			return hold + " " + key + t.substr(hold.length() + 4)
@@ -542,26 +543,10 @@ var _loading: Control
 func show_loading(map_name: String) -> void:
 	if _loading:
 		return
-	_loading = Control.new()
-	_loading.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_loading.mouse_filter = Control.MOUSE_FILTER_STOP
+	var screen := LoadingScreen.new()
+	screen.setup(map_name)
+	_loading = screen
 	add_child(_loading)
-	var bg := ColorRect.new()
-	bg.color = Color(0.0, 0.0, 0.0)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_loading.add_child(bg)
-	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_CENTER)
-	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	box.grow_vertical = Control.GROW_DIRECTION_BOTH
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	_loading.add_child(box)
-	var title := UiStyle.label(map_name, 64, UiStyle.BLOOD, "title")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(title)
-	var sub := UiStyle.label(Lang.t("CHARGEMENT...", "LOADING..."), 20, UiStyle.DIM)
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(sub)
 
 
 func hide_loading() -> void:
@@ -637,17 +622,8 @@ func _scoreboard_tick() -> void:
 	scoreboard.visible = show_board
 
 
-## Fin de partie (Game._cl_game_over) : « GAME OVER » + résumé sur voile
-## sombre, manches survécues, tableau des scores, battement de cœur. Textes
-## déjà dans la langue du joueur (Game.game_over_summary / survived_text).
-func show_game_over(summary: String, survived: String) -> void:
-	show_center("GAME OVER", summary, 0.6)
-	show_game_over_table(survived)
-	Audio.play_2d("heartbeat", 0.0, 0.0)
-
-
 ## Fin de partie (Game._show_match_end), une des deux issues : « ÉVACUATION
-## RÉUSSIE » ou « GAME OVER », zombies abattus, manche atteinte et durée,
+## RÉUSSIE » ou « LA HORDE L'EMPORTE » (MatchResult.title), zombies abattus, manche atteinte et durée,
 ## rapport d'XP (toujours gardée : détail, niveau avant / après, barre vers
 ## le niveau suivant), tableau des scores, butin gardé ou perdu.
 func show_match_end(r: MatchResult) -> void:
@@ -791,8 +767,8 @@ func evac_status() -> String:
 
 
 ## Fin de partie : tableau récapitulatif.
-## BO1 : « GAME OVER » en haut, « Vous avez survécu N manches » dessous, puis
-## le tableau des scores.
+## Titre en cubes en haut, manche atteinte et durée dessous, puis le tableau
+## des scores.
 func show_game_over_table(title_text: String) -> void:
 	_center_sub.text = title_text.substr(0, 1) + title_text.substr(1).to_lower()
 	_center_msg.add_theme_font_size_override("font_size", 84)

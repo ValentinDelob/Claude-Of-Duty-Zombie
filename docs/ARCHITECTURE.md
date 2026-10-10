@@ -339,7 +339,7 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   `input_device_changed` ; une manette débranchée sans autre manette rend les
   invites au clavier. `Settings.action_label(action)` (pur :
   `prompt_label`) donne le premier bouton si la manette a servi en dernier, sinon la
-  première touche ; les invites du HUD (`Hud.bo1_prompt(raw, key)`) sont recalculées
+  première touche ; les invites du HUD (`Hud.action_prompt(raw, key)`) sont recalculées
   quand ce nom change.
 - **Manette en jeu** : `PlayerInput.read_devices(delta)` lit le déplacement en
   analogique (`get_action_raw_strength`, zone morte radiale
@@ -871,14 +871,39 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
 - `SpectatorCamera` (`/root/Game/Spectator`, local, sans RPC) : joueur mort en
   multijoueur, vue d'un coéquipier en vie ([Tir] : suivant), retour à sa
   caméra à la réapparition. `Game.spectating` lit ce nœud.
-- Présentation : le HUD dessine la fin de partie (`Hud.show_game_over` :
-  « GAME OVER », résumé, manches survécues, tableau des scores) et le bandeau
-  de spectateur (`Hud.set_spectating`) ; `Game._cl_game_over` reçoit le
-  nombre de zombies tués, écrit les textes dans la langue du joueur
-  (`Game.game_over_summary`, `Game.survived_text`, via `Lang`) et garde
+- Présentation : le HUD dessine la fin de partie (`Hud.show_match_end` :
+  titre en cubes `MatchResult.title` — « ÉVACUATION RÉUSSIE » ou « LA HORDE
+  L'EMPORTE », jamais « GAME OVER » —, zombies abattus, manche atteinte et
+  durée, rapport d'XP, tableau des scores, butin) et le bandeau de spectateur
+  (`Hud.set_spectating`) ; les textes sont écrits dans la langue de chaque
+  joueur (`MatchResult`, via `Lang`) ; `Game` garde
   l'état, le dossier de combat et, après `GAME_OVER_DELAY`, le retour au menu
   (solo, TESTER de l'éditeur) ou au salon avec tout le groupe (multijoueur :
   « Fin de partie multijoueur » plus haut).
+
+## HUD propre au jeu (`scripts/game/hud/`)
+
+Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
+
+- `CubeFont` : police en cubes du jeu (glyphes de 5 x 7 cubes, accents
+  français, cédille), cuite au premier appel en `FontFile` bitmap (atlas en
+  niveaux de gris teinté par la couleur du texte, liseré noir, repli sur une
+  police système pour les caractères absents) ; `draw_cube` dessine un cube
+  avec le même relief. `HudStyle.font("cube")` / `HudStyle.label(..., "cube")`.
+- `HudStyle` : couleurs d'un laboratoire en alerte (`ROUND` menthe des
+  moniteurs, `ALERT` orange d'alarme, `TITLE` blanc os), couleurs des joueurs
+  (ambre, cyan, rose, vert anis), ferraille couleur cuivre.
+- `RoundCounter` : numéro de manche en chiffres de cubes dès la manche 1 ;
+  transitions : chute de l'ancien numéro, construction du nouveau cube par
+  cube (`heat` : cubes chauffés à blanc puis refroidis), veille de l'entracte
+  (balayage et pulsation), alerte des vagues spéciales (cubes orange rayés).
+- Grands titres (bandeaux, « À TERRE », fin de partie, titre du tableau des
+  scores) en police de cubes ; écran de chargement `LoadingScreen` (nom de
+  la carte en cubes, rangée de cubes qui s'allument) ; invites d'action
+  `Hud.action_prompt` (« Appuyer sur F pour ouvrir la caisse · 950
+  ferraille »).
+- Inventaire et station (`InventoryPanel`, `StationPanel`) gardent leur
+  police « title » (disposition validée inchangée).
 
 ## Ferraille (`PointsRules`, `Points`, `Session`)
 
@@ -1011,7 +1036,10 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
 - Mise en scène (GAME_CONCEPT.md § 5 : ni éclair ni brouillard façon BO1,
   aucun objet de carte requis), toutes les machines : à l'annonce
   (`_cl_dog_round`), bandeau « LA MEUTE APPROCHE » / « THE PACK IS COMING »,
-  compteur de manche qui clignote, musique, puis **aboiements lointains**
+  compteur de manche en alerte (cubes orange rayés de bandes de danger),
+  alerte de confinement `special_wave_start` puis boucle
+  `special_wave_music` (fin : `special_wave_end` ; sons propres au jeu,
+  docs/ASSETS.md), puis **aboiements lointains**
   (`HOWL_TIMES`, sons 3D à `HOWL_DIST` de l'auditeur, directions réparties
   autour de lui) pendant l'attente avant le premier chien. Chaque chien reste
   ensuite **tapi** `DogRules.SPAWN_TIME` (invisible, intouchable, état

@@ -530,7 +530,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | Mécanique | Statut | Devenir |
 |---|---|---|
 | Manches et vagues, nombre de zombies selon les joueurs, PV selon la manche | 🧪 | **Garder** (cœur du jeu) |
-| Vagues de chiens (`scripts/game/dogs`) | ✔️ | **Adaptées** en première vague spéciale, la « meute » : chiens errants contaminés en cubes de 2,5 cm (`dog_voxel.py`) ; mise en scène propre au jeu : bandeau « LA MEUTE APPROCHE », aboiements lointains, chiens tapis hors de vue qui jaillissent, mort sur le flanc (ni éclair ni brouillard façon BO1) |
+| Vagues de chiens (`scripts/game/dogs`) | ✔️ | **Adaptées** en première vague spéciale, la « meute » : chiens errants contaminés en cubes de 2,5 cm (`dog_voxel.py`) ; mise en scène propre au jeu : bandeau « LA MEUTE APPROCHE », alerte de confinement (sirène, Geiger), compteur en alerte orange, aboiements lointains, chiens tapis hors de vue qui jaillissent, mort sur le flanc (ni éclair ni brouillard façon BO1) |
 | Points par élimination | 🧪 | **Adapter** en ferraille personnelle (§4.8) |
 | Portes payantes | 🧪 | **Garder**, payées en ferraille |
 | Achats muraux | ✔️ | **Supprimés** (remplacés par la station de construction) |
@@ -551,23 +551,56 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | Dossier de combat (`CareerStats`) | 🧪 | **Adapter** au profil du joueur (XP, niveau, arsenal) |
 | Éditeur de cartes, bouton TESTER | 🧪 | **Garder** ; ajouter la **porte d'évacuation** obligatoire et le **schéma des vagues spéciales et de boss** |
 | Modèles, textures et décors réalistes (zombies, armes, cartes, `docs/ART_DIRECTION.md`) | 🧪 | **Refaire** en style cubique (§4.19) |
+| HUD façon BO1 (compteur de manche à la craie et rouge sang, couleurs des joueurs, « GAME OVER », écran de chargement) | ✔️ | **Remplacé** par un HUD propre au jeu : police et chiffres en cubes, palette « laboratoire en alerte », « LA HORDE L'EMPORTE » (§6, `docs/ART_DIRECTION.md`) ; disposition des éléments inchangée |
+| Ritournelles imitant BO1 (annonce des chiens avec voix d'annonceur, début et fin de manche, jingle de la boîte) | ✔️ | **Recomposées** : alerte de confinement, sas et bips de moniteurs, carillon, barillet (`docs/ASSETS.md`) ; menu et peluche leurre à suivre (§6) |
 | Lanceur et mises à jour | 🧪 | **Garder** |
 | Journal des plantages | 🧪 | **Garder** |
 
 ## 6. Éléments liés à Call of Duty à retirer avant toute sortie
 
-- **Nom du jeu** « Claude of Duty Zombie ».
-- **Carte KINO** (Kino der Toten à l'échelle 1) : à supprimer.
-- **Lore** : Institut Aether, aethérium tombé d'une météorite (calque de
-  l'Élément 115).
-- **Équipe de quatre archétypes** (Marine américain, Russe, Japonais, savant
-  allemand) : copie de l'équipe de BO1.
-- **Noms et présentation reconnaissables** : Pack-a-Punch, boîte mystère et
-  tableaux à la craie, noms des bonus (Max Ammo, Insta-Kill, Nuke, Carpenter,
-  Fire Sale, Death Machine), compteur de manche à la craie, HUD calqué sur BO1,
-  machines d'atouts.
-- **Armes réelles** sous leurs noms de fabricants.
-- **Direction artistique** décrite comme « fidèle à BO1 » (`docs/ART_DIRECTION.md`).
+État au 11/10/2026 (inventaire du lot « retrait de Call of Duty ») :
+✔️ fait, ⏳ à faire (raison), 📜 historique (laissé tel quel, marqué).
+
+| Élément | État |
+|---|---|
+| **Nom du jeu** « Claude of Duty Zombie » (titre de la fenêtre, logo, crédits, salon, lanceur, exécutable) | ⏳ attend le nom définitif (§7) ; à changer partout d'un coup |
+| **Carte KINO** (Kino der Toten à l'échelle 1) | ✔️ retirée du jeu (`Settings.RETIRED_MAPS`) ; les anciennes notes de version du lanceur la citent encore (📜) |
+| **Lore** Institut Aether, aethérium (calque de l'Élément 115) | ✔️ remplacé par le lore du scientifique (§3) ; « Feux follets (115) » de l'éditeur renommés « Feux follets » (lueurs toxiques) ; ⏳ encore dans des répliques des personnages (`assets/voices/arakawa.json`, `berg.json`, `weissmann.json` : « aethérium »), qui partiront avec les 7 personnages |
+| **Équipe de quatre archétypes** (Marine, Russe, Japonais, savant allemand), les 7 personnages et leurs voix | ⏳ refonte du personnage unique (joueur de baseball, §3) ; les crédits les citent encore |
+| **Annonceur** | ✔️ aucune voix d'annonceur dans le jeu (la voix démoniaque de l'annonce des chiens est retirée) |
+| **Pack-a-Punch**, **boîte mystère**, **machines d'atouts**, **bonus au sol** (Max Ammo, Insta-Kill, Nuke, Carpenter, Fire Sale, Death Machine), **armes murales et tableaux à la craie** | ✔️ supprimés ou adaptés (§5) ; noms internes `pap`, `MysteryBox`, `pap_zap_*` gardés (jamais affichés) ; note de l'éditeur sur les objets retirés : « machine d'amélioration » |
+| **Compteur de manche à la craie / rouge sang** (bâtons 1 à 5, chiffres peints, transitions blanc <-> rouge) | ✔️ remplacé par des chiffres en cubes menthe et des transitions propres (cubes qui tombent en place, veille, alerte orange des vagues spéciales) |
+| **HUD calqué sur BO1** (couleurs des joueurs blanc / bleu / jaune / vert, invites « [Coût : 500] », titres blanc craie liserés de rouge) | ✔️ palette « laboratoire en alerte », police en cubes pour les grands titres, joueurs ambre / cyan / rose / vert anis, invites « · 950 ferraille » (disposition des éléments inchangée) |
+| **Écran de fin** « GAME OVER » / « Vous avez survécu N manches » | ✔️ « LA HORDE L'EMPORTE » / « THE HORDE WINS » ou « ÉVACUATION RÉUSSIE », manche atteinte et durée ; le menu titre affiche encore « GAME OVER » en anglais après une partie (⏳ `scripts/ui/`, en refonte) |
+| **Écran de chargement** (nom de la carte au pochoir rouge sang) | ✔️ fond bleu-noir, nom en cubes, rangée de cubes qui s'allument |
+| **Sons imitant BO1** : annonce des chiens (cuivres, tonnerre, **voix démoniaque d'annonceur**), début et fin de manche (cuivres, glas, boîte à musique), jingle de la boîte mystère, musique des chiens | ✔️ recomposés : alerte de confinement, sas et bips de moniteurs, carillon de fin, barillet de la caisse (docs/ASSETS.md) ; ⏳ `menu_theme` / `menu_start` (avec le menu titre) et `monkey_music` (air du singe-tambour encore joué par la peluche leurre, à recomposer avec l'objet leurre) |
+| **Menu titre « style BO1 »** (logo au pochoir, rouge sang, chœur) et **options** (« comme BO1 », « comme dans Black Ops ») | ⏳ `scripts/ui/` est refait par un autre lot : textes et style à reprendre (liste ci-dessous) |
+| **Crédits** (« chiens de l'enfer / hellhounds », « annonces / announcer », personnages Callahan..., « aucune image externe », « polices système ») | ⏳ `scripts/ui/screens/credits_screen.gd`, à réécrire avec le nom du jeu et le personnage |
+| **Éditeur de cartes** : avertissements « BO1 : ... », « INDICATEURS (BO1) », « BO1 Kino : deux grandes boucles », info-bulles | ✔️ « conseillé : ... », sans référence à BO1 |
+| **Armes réelles** sous leurs noms de fabricants | ⏳ refonte des armes |
+| **Direction artistique** « fidèle à BO1 » (`docs/ART_DIRECTION.md`) | ✔️ style cubique (§4.19) ; les sections BO1 restantes sont marquées « Historique » (📜) |
+| Notes de version du lanceur (`changelogs/changelogs.json` : KINO, Pack-a-Punch, Juggernog...) | 📜 historique des versions déjà publiées ; ⏳ à remettre à zéro avec le nouveau nom avant la sortie ; les prochaines notes ne citent plus BO1 |
+| Documents de développement (README, docs/) | 📜 références techniques à BO1 (règles de vagues, mesures) gardées, internes |
+
+À reprendre dans `scripts/ui/` (lot du menu titre et du hub) :
+- `main_menu.gd` : `Lang.t("PARTIE TERMINÉE", "GAME OVER")` -> par exemple
+  « LA HORDE L'EMPORTE » / « THE HORDE WINS » ;
+- `menu_logo.gd`, `lobby_screen.gd`, `credits_screen.gd` : « CLAUDE OF DUTY
+  ZOMBIE » (nom du jeu) ;
+- `ui_style.gd`, `menu_style.gd`, `menu_logo.gd`, `menu_backdrop.gd` : police
+  pochoir « Stencil » et rouge sang (`BLOOD`, `BLOOD_BRIGHT`) ; `HudStyle` et
+  `CubeFont` peuvent servir de base (police en cubes, palette du
+  laboratoire) ;
+- `options_screen.gd` : « 100 % : comme BO1 » (sensibilité en visée),
+  « comme dans Black Ops » (gamma, grain) ; commentaires « façon Black Ops »
+  de `main_screen.gd`, `map_screen.gd`, `options_screen.gd` ;
+- `credits_screen.gd` : « chiens de l'enfer » / « hellhounds » -> chiens
+  errants contaminés ; « annonces » / « announcer » -> alertes ; personnages
+  Callahan, Orlov, Arakawa, Weissmann ; graphismes (« aucune image
+  externe » est faux : particules Kenney CC0, modèles libres de droits
+  permis) ; polices (police en cubes procédurale) ;
+- sons du menu (`tools/gen_audio_menu.gd` : chœur, boîte à musique
+  désaccordée) à recomposer avec le nouveau menu.
 
 Les mécaniques (vagues, points, portes, barricades) ne sont pas protégées et
 peuvent rester. Un avis en propriété intellectuelle est recommandé avant une

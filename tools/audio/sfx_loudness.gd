@@ -26,7 +26,7 @@ const CATEGORIES := [
 		"target": -19.0, "tol": 2.5, "mode": "max"},
 	# Tous les tirs d'armes au même niveau perçu (le joueur les entend à -1 dB).
 	{"id": "tir", "match": ["*_fire"], "target": -11.0, "tol": 1.5, "mode": "max"},
-	# Couche électrique des armes Pack-a-Punchées, jouée par-dessus le tir.
+	# Couche électrique des armes améliorées (drapeau `pap` en sommeil), jouée par-dessus le tir.
 	{"id": "arme_zap", "match": ["pap_zap_*"], "target": -19.0, "tol": 2.0, "mode": "max"},
 	{"id": "explosion", "match": ["explosion", "frag_explode"],
 		"target": -10.0, "tol": 2.0, "mode": "max"},
@@ -40,10 +40,10 @@ const CATEGORIES := [
 		"target": -18.0, "tol": 3.0, "mode": "max"},
 	# Ritournelles originales (manches, caisse...) : identité conservée,
 	# seulement mises au même niveau.
-	{"id": "ritournelle", "match": ["round_start", "round_end", "dog_round_start", "dog_round_end",
+	{"id": "ritournelle", "match": ["round_start", "round_end", "special_wave_start", "special_wave_end",
 		"box_music", "power_on", "menu_start", "monkey_music"],
 		"target": -14.0, "tol": 2.5, "mode": "max"},
-	{"id": "musique", "match": ["menu_theme", "dog_round_music"],
+	{"id": "musique", "match": ["menu_theme", "special_wave_music"],
 		"target": -20.0, "tol": 2.0, "mode": "int"},
 	{"id": "ambiance", "match": ["ambience_*"], "target": -24.0, "tol": 2.0, "mode": "int"},
 	{"id": "interface", "match": ["ui_*", "menu_*", "hitmarker"], "target": -18.0, "tol": 3.0, "mode": "max"},

@@ -397,58 +397,65 @@ Toutes les particules du jeu sont des **cubes** (code : docs/ARCHITECTURE.md
 
 ## HUD (code actuel ; l'interface reste libre mais en harmonie avec le style cubique)
 
-### Ce qui caractérise le HUD de BO1 Zombies
-- **Compteur de manche** en bas à gauche, gros, rouge sang « peint à la
-  main » : bâtons pour les manches 1 à 5 (le 5e barre les quatre autres), puis
-  chiffres tracés au pinceau, irréguliers, avec de petites coulures.
-- **Transitions de manche** : à la fin d'une manche le compteur passe au blanc
-  et pulse lentement (blanc <-> rouge) pendant l'entracte ; au début de la
-  suivante l'ancien chiffre s'efface et le nouveau apparaît en blanc puis
-  vire au rouge. Manche de chiens : clignotement rouge braise.
-- **Atouts** : petites pastilles carrées arrondies, à la couleur de la
-  boisson, alignées juste au-dessus du compteur de manche.
-- **Points** en bas à droite, au-dessus des munitions : un bandeau par joueur
-  à sa couleur (blanc, bleu, jaune, vert), le sien plus grand ; chaque gain
-  fait jaillir un « +10 » / « +50 » doré qui s'envole vers la gauche en
-  s'éparpillant ; les dépenses apparaissent en rouge.
-- **Munitions** : nom de l'arme au-dessus (s'efface quelques secondes après
-  le changement d'arme), chargeur en gros chiffres, réserve plus petite ;
-  icônes de grenades (et singes) à gauche. Chargeur presque vide en rouge.
-- **Invites** au centre bas, texte blanc sans cadre : « Appuyer sur F pour
-  acheter M14 [Coût : 500] », « Maintenir F pour ... ».
-- **Réticule** : quatre traits fins blancs qui s'écartent avec la dispersion ;
-  marqueur de touche en croix.
-- **Dégâts** : sang qui envahit les bords (éclaboussures, coulures), voile
-  rouge bref à chaque coup, battements de cœur à faible santé.
-- **À terre** : vision floue qui respire, délavée, bords rouges pulsés.
-- **Fin de partie** : « GAME OVER » en grand, « Vous avez survécu N manches »
-  dessous, puis le tableau des scores (points, tués, têtes, réanimations,
-  à terre) avec une ligne colorée par joueur.
-- **Typographie** : sans empattement, condensée, blanc cassé avec ombre ;
-  aucune fioriture, lisible sur le grain.
+Le HUD calqué sur Black Ops 1 (compteur de manche rouge sang « peint à la
+main » avec bâtons de 1 à 5, transitions blanc <-> rouge, couleurs de
+joueurs blanc / bleu / jaune / vert, invites « [Coût : 500] », « GAME OVER »
+et « Vous avez survécu N manches ») a été **remplacé** le 11/10/2026 par une
+identité propre au jeu (GAME_CONCEPT.md § 6) : un **laboratoire en alerte**,
+en cubes, en harmonie avec le style cubique (§ 4.19).
+
+### Identité du HUD
+- **Police en cubes** (`CubeFont`) pour les grands titres et le compteur :
+  lettres de 5 x 7 cubes, chaque cube en relief (arête claire en haut à
+  gauche, ombre en bas à droite), liseré noir ; accents français détachés
+  d'une rangée. Les textes courants (munitions, invites, tableaux) restent
+  en police système condensée, lisible.
+- **Palette** : menthe des moniteurs (`HudStyle.ROUND`), orange d'alarme
+  (`ALERT`), blanc os des titres (`TITLE`), cuivre de la ferraille
+  (`POINTS_GAIN`) ; joueurs ambre, cyan, rose, vert anis.
+- **Compteur de manche** en bas à gauche : chiffres en cubes menthe dès la
+  manche 1. Début de manche : les cubes de l'ancien numéro tombent et
+  s'éteignent, ceux du nouveau tombent en place rangée par rangée (du bas
+  vers le haut), chauffés à blanc, puis refroidissent. Entracte : veille,
+  ligne de balayage et pulsation menthe <-> blanc. Vague spéciale : cubes
+  orange d'alarme rayés de bandes de danger qui défilent.
+- **Annonce de vague spéciale** : bandeau en cubes (« LA MEUTE APPROCHE »),
+  alerte de confinement sonore (docs/ASSETS.md).
+- **Fin de partie** : « LA HORDE L'EMPORTE » / « THE HORDE WINS » ou
+  « ÉVACUATION RÉUSSIE » en cubes, manche atteinte et durée, rapport d'XP,
+  tableau des scores, butin.
+- **Écran de chargement** : fond bleu-noir, nom de la carte en cubes, rangée
+  de cubes menthe qui s'allument.
+- **Invites** : « Appuyer sur F pour ouvrir la caisse · 950 ferraille ».
 
 ### Mise en œuvre
-- `HudStyle` (`scripts/game/hud/hud_style.gd`) : polices système condensées
-  (Bahnschrift étroite, repli Arial Narrow / Impact), couleurs, et pinceau
-  procédural `brush_stroke` (largeur variable, bords irréguliers, stries,
-  coulures) ; `digit_strokes` décrit les chiffres 0-9 en traits.
-- `RoundCounter` : bâtons et chiffres peints, machine d'états INTRO / OUTRO /
-  IDLE (`whiteness` = part de blanc), clignotement des manches de chiens.
-- `ScorePanel` : bandeaux dégradés à la couleur du joueur, « +N » envolés.
-- `Hud.bo1_prompt` : convertit le texte des objets (« [F] Acheter M14 [500] »)
-  au format BO1 ; `_prompt` garde le texte brut (tests).
+- `CubeFont` (`scripts/game/hud/cube_font.gd`) : glyphes, police bitmap cuite
+  au premier appel, `draw_cube`.
+- `HudStyle` (`scripts/game/hud/hud_style.gd`) : polices, couleurs,
+  `label(..., "cube")`.
+- `RoundCounter` : machine d'états INTRO / OUTRO / IDLE (`heat` = part de
+  blanc), alerte des vagues spéciales.
+- `LoadingScreen`, `ScorePanel` (bandeaux à la couleur du joueur, « +N »
+  envolés), `Hud.action_prompt` (texte des objets « [F] Acheter M14 [500] »
+  -> invite ; `_prompt` garde le texte brut pour les tests).
 - `hurt_vignette.gdshader` (sang, voile), `downed_blur.gdshader` (flou par
   mipmaps de l'écran, uniquement à terre), `Scoreboard` restylé, fin de
   partie mise en page par `Hud.show_game_over_table`.
 - Mise à l'échelle : tout le 2D (HUD et menus) suit la résolution depuis une
-  base 1280x720 (`display/window/stretch` = `canvas_items`, `expand`), comme
-  le HUD de BO1 ; la 3D reste rendue à la définition de l'écran.
+  base 1280x720 (`display/window/stretch` = `canvas_items`, `expand`) ;
+  la 3D reste rendue à la définition de l'écran.
 - Captures de contrôle : `tests/autotest/visual_look.gd` (`--hud` pour ne
   jouer que la partie HUD).
 
 ### Écarts restants
 - Pas d'icônes de réanimation au-dessus des coéquipiers à terre dans le
   monde (hors périmètre du HUD 2D).
+- Menus (`scripts/ui/`, en refonte) : logo au pochoir « CLAUDE OF DUTY
+  ZOMBIE », police Stencil et rouge sang (`UiStyle.BLOOD`), message « GAME
+  OVER » du menu : à aligner sur cette identité avec la refonte du menu titre.
+- Panneaux d'inventaire et de station : police « title » (Bahnschrift)
+  conservée pour ne pas changer leur disposition validée.
+
 ## Historique : rendu réaliste BO1
 
 Notes d'observation et mise en œuvre de la première direction (refonte R4,

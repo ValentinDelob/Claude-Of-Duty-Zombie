@@ -615,7 +615,7 @@ func _opening_props(o: Dictionary) -> void:
 				o["position"] = res.position
 			else:
 				ed.canvas.show_refusal(res))
-		w.tooltip_text = Lang.t("BO1 : 1,5 à 3 m", "BO1: 1.5 to 3 m")
+		w.tooltip_text = Lang.t("Conseillé : 1,5 à 3 m", "Advised: 1.5 to 3 m")
 	else:
 		# Format 8 : fenêtre, porte à zombies simple ou double (largeur du type).
 		_variant_row(o)
@@ -723,8 +723,8 @@ func _clip_props(o: Dictionary) -> void:
 		_note(_props, Lang.t("Hauteur en jeu : %s m depuis le sol", "In-game height: %s m from the floor") % _m(float(o.hauteur)))
 	var poly := MapRaster.clip_poly(o)
 	_note(_props, Lang.t("%d sommets · %s m² · poignées carrées : déplacer un sommet", "%d corners · %s m² · square handles: move a corner") % [poly.size(), _m(snappedf(MapGeom.area(poly), 0.01))])
-	_note(_props, Lang.t("Invisible en jeu. Se pose n'importe où (à cheval sur un mur, dehors, par-dessus un objet). Bloque les joueurs et les zombies (leurs trajets la contournent) ; les balles et les grenades passent, comme les barrières invisibles de BO1.",
-		"Invisible in game. Goes anywhere (across a wall, outside, over an object). Blocks players and zombies (their paths go around it); bullets and grenades go through, like BO1 invisible clips."))
+	_note(_props, Lang.t("Invisible en jeu. Se pose n'importe où (à cheval sur un mur, dehors, par-dessus un objet). Bloque les joueurs et les zombies (leurs trajets la contournent) ; les balles et les grenades passent.",
+		"Invisible in game. Goes anywhere (across a wall, outside, over an object). Blocks players and zombies (their paths go around it); bullets and grenades go through."))
 
 
 ## Escalier (format 6) : type (V), sens du virage, garde-corps, côtés

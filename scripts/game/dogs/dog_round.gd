@@ -334,9 +334,9 @@ func _cl_dog_round(on: bool) -> void:
 	cl_active = on
 	_howl_gen += 1
 	if on:
-		Audio.play_2d("dog_round_start", 0.0, 0.0)
+		Audio.play_2d("special_wave_start", 0.0, 0.0)
 		_prev_music = Audio._music_name
-		Audio.play_music("dog_round_music", -3.0, 2.5)
+		Audio.play_music("special_wave_music", -3.0, 2.5)
 		cl_howls = 0
 		var gen := _howl_gen
 		var first_dir := _rng.randf() * TAU
@@ -369,7 +369,7 @@ func _howl(gen: int, dir: float) -> void:
 ## Dernier chien abattu : fin de l'ambiance après un court délai.
 @rpc("authority", "call_local", "reliable")
 func _cl_dog_end() -> void:
-	Audio.play_2d("dog_round_end", 0.0, 0.0)
+	Audio.play_2d("special_wave_end", 0.0, 0.0)
 	get_tree().create_timer(DogRules.END_DELAY).timeout.connect(func():
 		if cl_active:
 			_cl_dog_round(false))

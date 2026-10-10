@@ -373,18 +373,6 @@ func gen_heartbeat() -> void:
 
 # ---------------------------------------------------------------- musique / ambiance
 
-## Nappe de cuivres sombres : scies désaccordées, filtrées, attaque lente.
-func _brass(seconds: float, freqs: Array, attack: float, cutoff: float) -> PackedFloat32Array:
-	var b := s.buf(seconds)
-	for f in freqs:
-		for det in [-0.004, 0.0, 0.005]:
-			var v := s.tone(seconds, f * (1.0 + det), "saw")
-			s.mix(b, v, 0.0, 0.18)
-	b = s.lowpass_sweep(b, cutoff * 0.3, cutoff)
-	b = s.env_adsr(b, attack, 0.4, 0.7, seconds * 0.35)
-	return b
-
-
 ## Cloche / glas (partiels inharmoniques).
 func _bell(seconds: float, f: float) -> PackedFloat32Array:
 	var b := s.buf(seconds)
@@ -399,28 +387,83 @@ func _timpani(f: float) -> PackedFloat32Array:
 	return b
 
 
+# Identité sonore propre au jeu (laboratoire en alerte, GAME_CONCEPT §6) :
+# sas pneumatiques, bips de moniteurs, sirènes de confinement, nappes de
+# synthé. Aucun cuivre, glas, chœur ni voix d'annonceur.
+
+## Bip de moniteur médical : carré doux filtré, attaque nette.
+func _blip(seconds: float, f: float) -> PackedFloat32Array:
+	var b := s.env_adsr(s.tone(seconds, f, "square"), 0.004, 0.03, 0.6, seconds * 0.4)
+	s.mix(b, s.env_exp(s.tone(seconds, f * 2.0), 0.002, seconds * 0.5), 0.0, 0.25)
+	return s.lowpass(b, 3200.0)
+
+
+## Souffle pneumatique (sas, vérin) : bruit filtré qui s'ouvre puis retombe.
+func _hiss(seconds: float, center: float) -> PackedFloat32Array:
+	var b := s.bandpass(s.noise(seconds), center, 0.8)
+	return s.env_adsr(b, 0.02, seconds * 0.2, 0.55, seconds * 0.6)
+
+
+## Nappe de synthé (scies désaccordées, filtre qui s'ouvre) : `freqs` en Hz.
+func _pad(seconds: float, freqs: Array, attack: float, cutoff: float) -> PackedFloat32Array:
+	var b := s.buf(seconds)
+	for f in freqs:
+		for det in [-0.006, 0.0, 0.007]:
+			s.mix(b, s.tone(seconds, f * (1.0 + det), "saw"), 0.0, 0.14)
+	b = s.lowpass_sweep(b, cutoff * 0.25, cutoff)
+	return s.env_adsr(b, attack, 0.3, 0.75, seconds * 0.4)
+
+
+## Sirène de confinement : `cycles` montées / descentes entre f0 et f1.
+func _siren(cycle: float, f0: float, f1: float, cycles: int) -> PackedFloat32Array:
+	var b := s.buf(0.05)
+	for k in cycles:
+		var up := s.sweep(cycle * 0.5, f0, f1, "square")
+		var down := s.sweep(cycle * 0.5, f1, f0, "square")
+		s.mix(b, up, k * cycle, 1.0)
+		s.mix(b, down, k * cycle + cycle * 0.5, 1.0)
+	b = s.lowpass(b, 2600.0)
+	return s.env_adsr(b, 0.05, 0.2, 0.85, 0.4)
+
+
+## Compteur Geiger : clics secs de plus en plus serrés.
+func _geiger(seconds: float, rate0: float, rate1: float) -> PackedFloat32Array:
+	var b := s.buf(seconds)
+	var t := 0.0
+	while t < seconds - 0.02:
+		var k := t / seconds
+		s.mix(b, s.env_exp(s.highpass(s.noise(0.01), 2500.0), 0.0003, 0.002), t, s.rng.randf_range(0.5, 1.0))
+		t += s.rng.randf_range(0.3, 1.7) / lerpf(rate0, rate1, k)
+	return b
+
+
 func gen_round_start() -> void:
-	# Accord mineur grave qui enfle, glas et timbales.
-	var b := _brass(4.5, [55.0, 65.4, 82.4, 110.0], 1.2, 1400.0)
-	s.mix(b, _timpani(55.0), 0.0, 1.2)
-	s.mix(b, _timpani(55.0), 0.35, 0.9)
-	s.mix(b, _bell(4.0, 220.0), 0.1, 1.0)
-	s.mix(b, _bell(4.0, 207.6), 1.4, 0.8)
-	b = s.reverb(b, 0.9, 0.35, 2.5)
+	# Début de manche : un sas s'ouvre (choc sourd, vérin), trois bips de
+	# moniteur qui montent, puis une nappe tendue qui s'ouvre.
+	var b := s.env_exp(s.sweep(0.6, 95.0, 40.0), 0.002, 0.22)
+	s.mix(b, _clank(150.0, 0.35, 0.8), 0.0, 0.7)
+	s.mix(b, _hiss(1.4, 2600.0), 0.06, 0.55)
+	for i in 3:
+		s.mix(b, _blip(0.13, [880.0, 987.8, 1318.5][i]), 0.32 + i * 0.22, 0.42)
+	s.mix(b, _pad(2.8, [110.0, 164.8, 246.9], 0.9, 2200.0), 0.9, 0.9)
+	s.mix(b, s.env_adsr(s.tone(3.2, 55.0), 0.4, 0.5, 0.6, 1.2), 0.8, 0.5)
+	b = s.reverb(b, 0.75, 0.28, 1.4)
 	_save("round_start", s.finish(b, 0.9, 0.3))
 
 
 func gen_round_end() -> void:
-	# Mélodie descendante de boîte à musique désaccordée, sur un bourdon.
-	var b := s.buf(5.0)
-	var notes := [659.3, 622.3, 523.3, 493.9, 440.0, 415.3]
+	# Fin de manche : carillon d'annonce à trois tons qui descend
+	# (« décontamination terminée »), air relâché, ronronnement qui s'éteint.
+	var b := s.buf(3.5)
+	var notes := [783.99, 659.26, 523.25]
 	for i in notes.size():
-		var n := s.env_exp(s.tone(1.5, notes[i] * (1.0 + s.rng.randf_range(-0.008, 0.008)), "tri"), 0.004, 0.45)
-		s.mix(n, s.env_exp(s.tone(1.5, notes[i] * 2.01), 0.004, 0.2), 0.0, 0.3)
-		s.mix(b, n, i * 0.42, 0.5)
-	var drone := s.env_adsr(s.lowpass(s.tone(5.0, 55.0, "saw"), 300.0), 0.5, 1.0, 0.6, 2.0)
-	s.mix(b, drone, 0.0, 0.5)
-	b = s.reverb(b, 0.9, 0.4, 2.5)
+		var n := s.env_exp(s.tone(1.6, notes[i]), 0.004, 0.5)
+		s.mix(n, s.env_exp(s.tone(1.6, notes[i] * 2.0), 0.003, 0.25), 0.0, 0.3)
+		s.mix(n, s.env_exp(s.tone(1.6, notes[i] * 3.01), 0.002, 0.12), 0.0, 0.12)
+		s.mix(b, n, i * 0.36, 0.55)
+	s.mix(b, s.env_adsr(s.lowpass_sweep(s.noise(2.2), 5000.0, 700.0), 0.05, 0.3, 0.5, 1.2), 0.9, 0.3)
+	s.mix(b, s.env_adsr(s.lowpass(s.tone(3.0, 110.0, "tri"), 400.0), 0.2, 0.4, 0.5, 1.6), 0.0, 0.35)
+	b = s.reverb(b, 0.8, 0.3, 1.6)
 	_save("round_end", s.finish(b, 0.8, 0.3))
 
 
@@ -511,9 +554,7 @@ func gen_lamp_on() -> void:
 	_save("lamp_on", s.finish(b, 0.5))
 
 
-# ---------------------------------------------------------------- atouts
-
-# ---------------------------------------------------------------- boîte mystère
+# ---------------------------------------------------------------- caisse au hasard
 
 func gen_box_open() -> void:
 	# Grincement de charnière + choc du couvercle.
@@ -524,18 +565,25 @@ func gen_box_open() -> void:
 
 
 func gen_box_music() -> void:
-	# Boîte à musique qui ralentit et se désaccorde (4 s).
-	var notes := [12, 7, 3, 7, 12, 15, 14, 10, 7, 10, 14, 12, 8, 3, 0]
-	var b := s.buf(4.5)
+	# Tirage de la caisse au hasard (~4 s) : un barillet mécanique cliquette de
+	# plus en plus lentement, chaque cran avec un petit bip de compteur, puis
+	# le verrou tombe et deux bips confirment (aucune boîte à musique).
+	var b := s.buf(4.8)
 	var t := 0.0
-	for i in notes.size():
-		var k := float(i) / notes.size()
-		var f: float = 523.25 * pow(2.0, notes[i] / 12.0) * (1.0 - k * 0.04)
-		var n := s.env_exp(s.tone(0.8, f, "tri"), 0.003, 0.25)
-		s.mix(n, s.env_exp(s.tone(0.8, f * 3.0), 0.002, 0.08), 0.0, 0.2)
-		s.mix(b, n, t, 0.5)
-		t += lerpf(0.18, 0.38, k * k)
-	_save("box_music", s.finish(s.reverb(b, 0.7, 0.3, 1.0), 0.7))
+	var i := 0
+	while t < 3.75:
+		var k := t / 3.75
+		var click := s.env_exp(s.bandpass(s.noise(0.03), 2400.0, 3.0), 0.0005, 0.008)
+		s.mix(click, s.env_exp(s.tone(0.03, 3100.0), 0.0005, 0.006), 0.0, 0.3)
+		s.mix(b, click, t, 0.9)
+		s.mix(b, _blip(0.05, [1046.5, 1174.7, 1318.5, 1174.7][i % 4]), t + 0.005, 0.14)
+		t += lerpf(0.055, 0.34, k * k)
+		i += 1
+	s.mix(b, _clank(210.0, 0.3, 0.9), 3.95, 0.9)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.2), 600.0), 0.001, 0.05), 3.95, 0.7)
+	s.mix(b, _blip(0.12, 1046.5), 4.1, 0.35)
+	s.mix(b, _blip(0.22, 1568.0), 4.24, 0.35)
+	_save("box_music", s.finish(s.reverb(b, 0.6, 0.22, 0.8), 0.7))
 
 
 func gen_zombie_fling() -> void:
@@ -543,17 +591,6 @@ func gen_zombie_fling() -> void:
 	var b := _growl(0.8, 170.0, 260.0, [760.0, 1400.0], 0.9)
 	s.mix(b, s.env_adsr(s.bandpass(s.noise(0.8), 900.0, 0.8), 0.02, 0.2, 0.5, 0.4), 0.0, 0.6)
 	_save("zombie_fling", s.finish(s.reverb(b, 0.7, 0.25, 0.6), 0.85))
-
-
-# ---------------------------------------------------------------- Pack-a-Punch
-
-## Chœur sombre : voyelles « aah » sur un accord (pulsations de voix).
-func _choir(seconds: float, freqs: Array) -> PackedFloat32Array:
-	var b := s.buf(seconds)
-	for f in freqs:
-		var v := _growl(seconds, f, f, [700.0, 1100.0], 0.05)
-		s.mix(b, v, 0.0, 0.25)
-	return s.env_adsr(s.lowpass(b, 2500.0), seconds * 0.3, 0.3, 0.8, seconds * 0.3)
 
 
 # ---------------------------------------------------------------- téléporteur
@@ -653,7 +690,7 @@ func gen_revive() -> void:
 	_save("revive", s.finish(s.reverb(b, 0.8, 0.3, 1.0), 0.75))
 
 
-# ---------------------------------------------------------------- bonus
+# ---------------------------------------------------------------- boucles
 
 ## Boucle sans couture : `b` doit durer au moins `dur` + 0,25 s ; la queue est
 ## fondue dans le début, puis le tout est normalisé à `peak`.
@@ -670,36 +707,6 @@ func _seamless(b: PackedFloat32Array, dur: float, peak: float) -> PackedFloat32A
 	for v in b:
 		m = maxf(m, absf(v))
 	return s.gain(b, peak / m)
-
-
-## Scintillement magique : arpège de clochettes aiguës.
-func _sparkle(seconds: float, root_hz: float, count: int) -> PackedFloat32Array:
-	var b := s.buf(seconds)
-	for k in count:
-		var f := root_hz * pow(2.0, float([0, 4, 7, 12, 16, 19, 24][k % 7]) / 12.0)
-		s.mix(b, s.env_exp(s.tone(0.6, f), 0.002, 0.18), k * seconds / count * 0.8, 0.25)
-	return b
-
-
-## Voix d'annonceur démoniaque : syllabes = [[F1, F2], durée], très graves,
-## saturées, doublées à l'octave inférieure, dans une grande réverbe.
-func _announcer(syllables: Array, f0: float) -> PackedFloat32Array:
-	var b := s.buf(0.1)
-	var t := 0.0
-	for syl in syllables:
-		var d: float = syl[1]
-		var v := _growl(d, f0, f0 * 0.85, syl[0], 0.25)
-		s.mix(v, _growl(d, f0 * 0.5, f0 * 0.43, syl[0], 0.2), 0.0, 0.6)
-		s.mix(b, v, t, 1.0)
-		t += d * 0.9
-	return b
-
-
-const VA := [750.0, 1150.0]
-const VE := [500.0, 1700.0]
-const VI := [320.0, 2200.0]
-const VO := [450.0, 800.0]
-const VU := [330.0, 700.0]
 
 
 # ---------------------------------------------------------------- fenêtres barricadées
@@ -740,7 +747,7 @@ func gen_barricade_slam() -> void:
 		_save("barricade_slam_%d" % (k + 1), s.finish(s.reverb(b, 0.55, 0.18, 0.4), 0.85))
 
 
-# ---------------------------------------------------------------- chiens de l'enfer
+# ---------------------------------------------------------------- chiens errants contaminés (meute)
 
 func gen_dog_growl() -> void:
 	# Grondement rauque de molosse : voix très basse, souffle, râle saturé.
@@ -772,56 +779,65 @@ func gen_dog_whine() -> void:
 	_save("dog_whine", s.finish(s.reverb(b, 0.6, 0.25, 0.6), 0.8))
 
 
-func gen_dog_round_start() -> void:
-	# Annonce de manche de chiens : cuivres graves dissonants, tonnerre et voix
-	# démoniaque (« VIENS... LEURS ÂMES »).
-	var b := _brass(5.5, [41.2, 43.65, 61.7, 82.4], 0.6, 1100.0)
-	var thunder := s.env_adsr(s.lowpass(s.brown_noise(3.0), 150.0), 0.02, 0.5, 0.5, 1.5)
-	s.mix(b, s.gain(thunder, 1.4), 0.0, 1.0)
-	s.mix(b, s.env_exp(s.highpass(s.noise(0.05), 1500.0), 0.0003, 0.015), 0.0, 1.2)
-	s.mix(b, _timpani(41.0), 0.0, 1.3)
-	s.mix(b, _timpani(41.0), 0.5, 1.0)
-	s.mix(b, _timpani(38.9), 0.8, 1.0)
-	var voice := _announcer([[VE, 0.3], [VI, 0.22], [VE, 0.26], [VO, 0.7]], 66.0)
-	s.mix(b, s.gain(voice, 1.2), 1.1, 1.0)
-	s.mix(b, _bell(4.0, 110.0), 1.0, 0.7)
-	b = s.reverb(b, 0.95, 0.4, 2.5)
-	_save("dog_round_start", s.finish(b, 0.95, 0.3))
+func gen_special_wave_start() -> void:
+	# Annonce d'une vague spéciale (meute, puis les autres mini-boss) : alerte
+	# de confinement du laboratoire. Sirène à deux montées, pulsation grave,
+	# compteur Geiger qui s'emballe, puis une porte blindée qui claque.
+	var b := s.buf(5.0)
+	s.mix(b, s.drive(_siren(1.2, 430.0, 780.0, 2), 1.6), 0.0, 0.5)
+	var throb := s.tone(3.2, 52.0)
+	for i in throb.size():
+		throb[i] *= 0.55 + 0.45 * sin(TAU * 4.0 * i / Synth.RATE)
+	s.mix(b, s.env_adsr(throb, 0.3, 0.4, 0.8, 0.8), 0.0, 0.8)
+	s.mix(b, _geiger(2.6, 6.0, 40.0), 0.1, 0.35)
+	s.mix(b, s.env_exp(s.sweep(1.0, 120.0, 34.0), 0.002, 0.3), 2.55, 1.2)
+	s.mix(b, _clank(120.0, 0.6, 1.0), 2.55, 0.9)
+	s.mix(b, _hiss(1.6, 1800.0), 2.6, 0.35)
+	b = s.reverb(b, 0.85, 0.32, 1.8)
+	_save("special_wave_start", s.finish(b, 0.95, 0.3))
 
 
-func gen_dog_round_end() -> void:
-	# Fin de la manche de chiens : glas et accord qui se résout vers le haut.
-	var b := _brass(4.0, [55.0, 69.3, 82.4, 110.0], 0.3, 1600.0)
-	s.mix(b, _bell(4.0, 164.8), 0.0, 1.0)
-	s.mix(b, _bell(4.0, 220.0), 0.6, 0.8)
-	s.mix(b, _timpani(55.0), 0.0, 1.0)
-	b = s.reverb(b, 0.9, 0.35, 2.0)
-	_save("dog_round_end", s.finish(b, 0.85, 0.3))
+func gen_special_wave_end() -> void:
+	# Fin de la vague spéciale : la sirène retombe et s'éteint, puis trois
+	# bips montants (« zone sécurisée ») et l'air des sas qui se relâche.
+	var b := s.buf(4.0)
+	var wind := s.lowpass(s.sweep(1.8, 720.0, 160.0, "square"), 2000.0)
+	s.mix(b, s.env_adsr(wind, 0.02, 0.4, 0.7, 1.0), 0.0, 0.45)
+	for i in 3:
+		s.mix(b, _blip(0.16, [523.25, 659.26, 783.99][i]), 1.6 + i * 0.2, 0.45)
+	s.mix(b, _hiss(1.8, 2200.0), 1.9, 0.3)
+	s.mix(b, _pad(2.0, [130.8, 196.0, 261.6], 0.3, 1800.0), 1.8, 0.45)
+	b = s.reverb(b, 0.8, 0.3, 1.5)
+	_save("special_wave_end", s.finish(b, 0.85, 0.3))
 
 
-func gen_dog_round_music() -> void:
-	# Boucle de 12 s (4 mesures à 80 bpm) : pulsation de timbales, bourdon
-	# dissonant, cuivres en ostinato, cloche. Tempo et tonalité oppressants.
-	var beat := 60.0 / 80.0
+func gen_special_wave_music() -> void:
+	# Boucle de vague spéciale, 16 temps à 112 bpm (~8,6 s) : basse de synthé
+	# en croches, battement de cœur électronique sur les temps forts, tics
+	# métalliques, bip d'alarme toutes les deux mesures, bourdon grave.
+	var beat := 60.0 / 112.0
 	var dur := beat * 16.0
-	var b := s.buf(dur + 3.0)
-	var drone := s.lowpass(s.tone(dur + 3.0, 41.2, "saw"), 220.0)
-	s.mix(drone, s.lowpass(s.tone(dur + 3.0, 43.65, "saw"), 220.0), 0.0, 0.8)
-	s.mix(b, drone, 0.0, 0.35)
-	for i in 16:
-		var t := i * beat
-		s.mix(b, _timpani(41.0 if i % 4 != 3 else 46.2), t, 0.9 if i % 2 == 0 else 0.6)
+	var b := s.buf(dur + 2.0)
+	s.mix(b, s.lowpass(s.tone(dur + 2.0, 55.0, "tri"), 200.0), 0.0, 0.25)
+	var line := [0, 0, 12, 0, 0, 0, 10, 0, 0, 0, 12, 0, 3, 0, 1, 0]
+	for i in 32:
+		var t := i * beat * 0.5
+		var f: float = 55.0 * pow(2.0, float(line[i % 16]) / 12.0)
+		var note := s.env_exp(s.lowpass(s.tone(beat * 0.5, f, "saw"), 520.0), 0.003, beat * 0.22)
+		s.mix(b, note, t, 0.55)
 		if i % 2 == 1:
-			s.mix(b, s.env_exp(s.lowpass(s.noise(0.2), 900.0), 0.001, 0.05), t + beat * 0.5, 0.4)
-	var riff := [0, 1, 0, 6, 0, 1, 3, 1]
-	for i in riff.size():
-		var f: float = 82.4 * pow(2.0, float(riff[i]) / 12.0)
-		var stab := _brass(beat * 1.6, [f, f * 1.5], 0.04, 1300.0)
-		s.mix(b, stab, i * beat * 2.0, 0.45)
+			s.mix(b, s.env_exp(s.highpass(s.noise(0.04), 6000.0), 0.0005, 0.012), t, 0.18)
+	for i in 16:
+		if i % 2 == 0:
+			var t := i * beat
+			s.mix(b, s.env_exp(s.sweep(0.25, 85.0, 42.0), 0.002, 0.09), t, 0.9)
+			s.mix(b, s.env_exp(s.sweep(0.2, 75.0, 40.0), 0.002, 0.07), t + 0.17, 0.55)
 	for k in 2:
-		s.mix(b, _bell(3.0, 196.0 * (1.0 if k == 0 else 1.06)), k * beat * 8.0, 0.4)
-	b = s.reverb(b, 0.9, 0.3, 1.2)
-	_save("dog_round_music", _seamless(b, dur, 0.7), true)
+		var t := k * beat * 8.0 + beat * 6.0
+		s.mix(b, _blip(0.12, 1479.98), t, 0.16)
+		s.mix(b, _blip(0.12, 1046.5), t + 0.16, 0.16)
+	b = s.reverb(b, 0.7, 0.22, 0.9)
+	_save("special_wave_music", _seamless(b, dur, 0.7), true)
 
 
 # ---------------------------------------------------------------- grenades / singe

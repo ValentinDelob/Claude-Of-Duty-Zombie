@@ -252,12 +252,42 @@ s'il sort de la moitié de sa tolérance, pour garder son identité.
 ## Encore procéduraux (identité originale)
 
 Musiques et ambiances, `round_start`/`round_end`,
-`dog_round_start`/`dog_round_end`/`dog_round_music`,
+`special_wave_start`/`special_wave_end`/`special_wave_music`,
 caisse au hasard (`box_open`, `box_music`), téléporteur, courant (`power_on`, `lever`,
 `lamp_on`), `heartbeat`,
 `revive`, `hitmarker`, `zap` (piège électrique),
 `zombie_fling`, interface. Candidats à
 un remplacement futur : `door_open`, `purchase`, `denied`, `zombie_fling`.
+
+### Identité sonore propre au jeu (retrait des sons imitant BO1, 11/10/2026)
+
+Les ritournelles calquées sur Black Ops 1 Zombies (GAME_CONCEPT.md § 6) ont
+été recomposées dans `tools/gen_audio.gd` autour d'un **laboratoire en
+alerte** (sas pneumatiques, bips de moniteurs, sirènes de confinement,
+compteur Geiger, nappes de synthé) ; aucun cuivre, glas, chœur ni voix
+d'annonceur :
+
+| Son | Avant (retiré) | Maintenant |
+|---|---|---|
+| `round_start` | accord mineur de cuivres, glas, timbales (début de manche de BO1) | sas qui s'ouvre (choc, vérin), trois bips de moniteur qui montent, nappe de synthé tendue |
+| `round_end` | mélodie descendante de boîte à musique sur un bourdon | carillon d'annonce à trois tons qui descend, air relâché, ronronnement qui s'éteint |
+| `dog_round_start` → **`special_wave_start`** | cuivres dissonants, tonnerre, timbales et **voix démoniaque d'annonceur** (calque de l'annonce des chiens de BO1) | alerte de confinement : sirène à deux montées, pulsation grave, compteur Geiger qui s'emballe, porte blindée qui claque |
+| `dog_round_end` → **`special_wave_end`** | glas et accord de cuivres | la sirène retombe, trois bips montants « zone sécurisée », air des sas, nappe apaisée |
+| `dog_round_music` → **`special_wave_music`** | boucle de timbales, cuivres et cloche à 80 bpm | boucle de 16 temps à 112 bpm : basse de synthé en croches, battement de cœur électronique, tics métalliques, bip d'alarme |
+| `box_music` | boîte à musique qui ralentit (jingle de la boîte mystère) | barillet mécanique qui cliquette de plus en plus lentement, verrou qui tombe, deux bips de confirmation |
+
+Les fichiers `dog_round_start.wav`, `dog_round_end.wav` et
+`dog_round_music.wav` sont supprimés ; les noms `special_wave_*` servent à
+toutes les vagues spéciales à venir (meute, brancardier, infirmière...).
+Mixage inchangé : mêmes catégories d'intensité (`ritournelle`, `musique`),
+aucune baisse des autres sons pendant les voix.
+
+Encore à revoir (hors de ce lot) : `menu_theme` et `menu_start` (chœur,
+boîte à musique désaccordée : à recomposer avec la refonte du menu titre,
+`scripts/ui/`), `monkey_music` (air d'orgue de barbarie et cymbales du
+singe-tambour, encore joué par la peluche leurre : à recomposer avec un
+objet leurre propre au jeu ; les cymbales sont un enregistrement CC0 dont la
+source n'est pas en cache, `tools/audio/sfx_import.gd`).
 
 ## Mixage
 

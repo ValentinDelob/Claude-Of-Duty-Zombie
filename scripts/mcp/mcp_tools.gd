@@ -552,7 +552,7 @@ func _builtin() -> Array:
 		{
 			"name": "editor_validate",
 			"description": "Lance le validateur de l'éditeur (MapValidator) : erreurs bloquantes (carte refusée par TESTER) et "
-				+ "avertissements de conception BO1, avec positions en mètres. À appeler après chaque modification.",
+				+ "avertissements de conception, avec positions en mètres. À appeler après chaque modification.",
 			"inputSchema": _no_args(),
 			"cmd": "validate",
 		},

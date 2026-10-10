@@ -68,9 +68,9 @@ static func _int(v: Variant, lo: int, hi: int) -> int:
 	return clampi(int(v), lo, hi) if (v is int or v is float) and is_finite(float(v)) else lo
 
 
-## Titre de l'écran de fin.
+## Titre de l'écran de fin (défaite : formule propre au jeu, pas « GAME OVER »).
 func title() -> String:
-	return Lang.t("ÉVACUATION RÉUSSIE", "EVACUATED") if evacuated else "GAME OVER"
+	return Lang.t("ÉVACUATION RÉUSSIE", "EVACUATED") if evacuated else Lang.t("LA HORDE L'EMPORTE", "THE HORDE WINS")
 
 
 ## Ligne sous le titre : zombies abattus.

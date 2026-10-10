@@ -1,6 +1,6 @@
 class_name DownedOverlay
 extends Control
-## État « À TERRE » du joueur local, façon BO1 : vision floue, bords rouges
+## État « À TERRE » du joueur local : vision floue, bords rouges
 ## qui pulsent (downed_blur.gdshader, sous le reste du HUD) et couleurs qui
 ## s'éteignent avec le saignement : l'écran est en noir et blanc complet à la
 ## mort (aucun compte à rebours affiché). Barre de réanimation fine sous le
@@ -47,7 +47,7 @@ func setup(g: Game) -> void:
 	box.add_theme_constant_override("separation", 10)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(box)
-	_title = HudStyle.label("", 44, HudStyle.CHALK, "title", 6)
+	_title = HudStyle.label("", 44, HudStyle.ALERT, "cube")
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_title)
 	_revive = ReviveBar.new()
@@ -182,7 +182,7 @@ class ReviveBar extends Control:
 		var y := HEIGHT - BAR_H - 6.0
 		var rail := Rect2(0, y, w, BAR_H)
 		draw_rect(rail.grow(2.0), Color(0, 0, 0, 0.55))
-		draw_rect(rail.grow(2.0), Color(HudStyle.CHALK, 0.22), false, 1.0)
+		draw_rect(rail.grow(2.0), Color(HudStyle.TITLE, 0.22), false, 1.0)
 		draw_rect(rail, Color(1, 1, 1, 0.06))
 		# Graduations au quart.
 		for i in range(1, 4):
@@ -192,7 +192,7 @@ class ReviveBar extends Control:
 		if fw < 1.0:
 			return
 		# Remplissage : blanc cassé, reflet en haut, ombre en bas.
-		draw_rect(Rect2(0, y, fw, BAR_H), HudStyle.CHALK)
+		draw_rect(Rect2(0, y, fw, BAR_H), HudStyle.TITLE)
 		draw_rect(Rect2(0, y, fw, BAR_H * 0.4), Color(1, 1, 1, 0.35))
 		draw_rect(Rect2(0, y + BAR_H * 0.7, fw, BAR_H * 0.3), Color(0, 0, 0, 0.18))
 		# Pointe lumineuse au bout du remplissage.

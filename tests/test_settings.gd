@@ -944,8 +944,8 @@ func test_prompt_label_follows_last_device() -> void:
 	assert_eq(Settings.prompt_label("", pad, false), "X", "pas de touche : le bouton")
 	@warning_ignore("static_called_on_instance")
 	assert_eq(Settings.prompt_label("", "", true), "?")
-	assert_eq(Hud.bo1_prompt("[F] Buy M14 [500]", Settings.prompt_label(key, pad, true, PadNames.PLAYSTATION)),
-			"Press SQUARE to buy M14 [Cost: 500]")
+	assert_eq(Hud.action_prompt("[F] Buy M14 [500]", Settings.prompt_label(key, pad, true, PadNames.PLAYSTATION)),
+			"Press SQUARE to buy M14 · 500 scrap")
 
 
 func test_last_device_switches_prompts() -> void:
