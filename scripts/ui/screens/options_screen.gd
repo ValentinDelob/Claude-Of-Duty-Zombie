@@ -1,6 +1,6 @@
 extends MenuScreen
 ## Options, en onglets (comme les sous-menus d'options de BO1) : JEU (joueur et
-## personnage, langue, taille de l'interface de l'éditeur de cartes), COMMANDES
+## personnage, langue, taille des menus et de l'interface de l'éditeur de cartes), COMMANDES
 ## (sensibilité, touches), GRAPHISMES, SON. Chaque changement est
 ## appliqué et enregistré immédiatement (Settings.apply() +
 ## Settings.save_settings()). Le même écran sert au menu principal, au menu
@@ -239,6 +239,13 @@ func _page_game() -> void:
 			maxi(Settings.LANGUAGES.find(Settings.language), 0)),
 			Lang.t("Langue de l'interface et des voix des personnages.", "Language of the interface and of the characters' voices."))
 	_section(Lang.t("INTERFACE", "INTERFACE"))
+	_add("menu_ui_scale", MenuOptionRow.make_range(Lang.t("TAILLE DES MENUS", "MENU SIZE"),
+			Settings.menu_ui_scale, Settings.MENU_UI_SCALE_RANGE.x, Settings.MENU_UI_SCALE_RANGE.y,
+			Settings.MENU_UI_SCALE_STEP, func(v): return "%d %%" % int(round(v * 100.0))),
+			Lang.t("Taille des textes et panneaux du hub (laboratoire, onglets) : %d %% par défaut."
+				% roundi(Settings.MENU_UI_SCALE_DEFAULT * 100.0),
+				"Size of the hub's text and panels (lab, tabs): %d%% by default."
+				% roundi(Settings.MENU_UI_SCALE_DEFAULT * 100.0)))
 	_add("editor_ui_scale", MenuOptionRow.make_range(Lang.t("TAILLE DE L'INTERFACE DE L'ÉDITEUR", "MAP EDITOR UI SIZE"),
 			Settings.editor_ui_scale, Settings.EDITOR_UI_SCALE_RANGE.x, Settings.EDITOR_UI_SCALE_RANGE.y,
 			Settings.EDITOR_UI_SCALE_STEP, func(v): return "%d %%" % int(round(v * 100.0))),

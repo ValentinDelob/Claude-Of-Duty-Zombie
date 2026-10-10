@@ -590,6 +590,33 @@ Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
 - Fini quand : on entre au hub par JOUER, on parcourt les 7 onglets (vides
   sauf LABO) au clavier, à la souris et à la manette ; rendu conforme à la
   maquette (écran 1).
+- **Fait** (branche `hub-b`). Choix pris pendant le lot (provisoires) :
+  - onglets sans panneau : panneau « À VENIR » (ce que l'onglet contiendra,
+    RETOUR AU LABO) ; **PARTIE provisoire** jusqu'au lot E : SOLO (écran de
+    sélection de carte actuel) et COOP (écran MULTIJOUEUR actuel, puis
+    héberger / rejoindre / salon) ; Échap depuis ces écrans revient au hub,
+    même onglet. La fin d'une partie revient encore au menu titre (solo) ou
+    au salon (coop) : le retour au hub est le travail du lot E ;
+  - le menu du hub n'a pas de maquette : voile, panneau à en-tête rouge,
+    boutons de la maquette ;
+  - sous le hub, le menu titre masque son post-traitement (bombé, vignette,
+    grain, parasites), sa surimpression de caméra et son voile : sinon les
+    tailles et les couleurs de la maquette sont déformées ; le fond 3D
+    reste visible à 7 % sous le fond quadrillé ;
+  - nombres : espace insécable ordinaire (l'espace fine manque aux polices
+    des menus) ;
+  - TAILLE DES MENUS : ne touche que le hub (les anciens écrans de menu,
+    positionnés au pixel près, restent à 100 % ; ils seront remplacés par
+    les panneaux) ; le hub se reconstruit au changement ;
+  - LABO : contrats lus par `HubContractsView` (section `contracts` du
+    profil, lot A ; titres dans `contracts.json`) ; tant que le lot A n'est
+    pas fusionné, « Les contrats du scientifique arrivent bientôt » ;
+    « Contrats remplis » : « – » ; pastille de l'onglet CONTRATS = contrats
+    prêts. Une sorte d'échantillon est « connue » dès qu'un échantillon de
+    son groupe est en réserve ou demandé ; deux lignes « ??? » annoncent les
+    ennemis à venir. DERNIÈRE PARTIE : `Router.last_match` (depuis le
+    lancement du jeu, non enregistré) ; « 1 nouvelle proposition » de la
+    maquette viendra avec le lot D.
 
 ### Lot C — ARSENAL, PIÈCES, DÉPART (dépend de B)
 

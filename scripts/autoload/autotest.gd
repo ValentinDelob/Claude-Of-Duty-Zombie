@@ -202,6 +202,8 @@ func _reset_between() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Router.pending_message = ""
 	Router.return_scene = ""
+	Router.last_match = {}
+	HubScreen.last_tab = "lab"
 	GameState.reset_to_menu()
 	Audio.stop_music(0.0)
 	# Réglages : valeurs par défaut (comme un processus neuf, sans fichier).

@@ -487,6 +487,9 @@ func _show_match_end(r: MatchResult) -> void:
 		# Contrats (§4.2) : le tableau tourne après une partie d'au moins une
 		# manche survécue, après l'XP (le niveau compte pour le tirage).
 		_rotate_contracts(MatchContracts.rounds_survived(r))
+		# Résumé pour le LABO du hub (HUB_PLAN §3.1, « DERNIÈRE PARTIE »).
+		Router.last_match = {"result": r, "map": map_def.display_name if map_def else "",
+			"solo": Net.mode == Net.Mode.SOLO}
 	xp.hide_live()
 	print("[Game] fin de partie : %s, manche %d, %s" % ["évacuation" if r.evacuated else "équipe morte",
 			r.round_reached, MatchResult.time_text(r.duration_sec)])

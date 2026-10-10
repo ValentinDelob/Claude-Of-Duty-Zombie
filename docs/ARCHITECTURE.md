@@ -227,9 +227,38 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
 
 ## Menus, options et touches
 
-- **Hub à venir** : écran à onglets entre deux parties qui remplacera SOLO,
-  MULTIJOUEUR et le salon séparé (JOUER → hub ; salon dans l'onglet PARTIE) :
-  plan **docs/HUB_PLAN.md**, maquettes `docs/hub_mockup/`.
+- **Hub du scientifique** (`scripts/ui/hub/`, plan **docs/HUB_PLAN.md**,
+  maquettes `docs/hub_mockup/`) : menu titre réduit (`main_screen.gd` :
+  JOUER, ÉDITEUR DE CARTES, OPTIONS, CRÉDITS, QUITTER) ; JOUER ouvre
+  `HubScreen` (`MainMenu.SCREENS.hub`, `MenuScreen` plein cadre : le
+  `MainMenu` masque alors son voile, sa surimpression de caméra et son
+  post-traitement, `full_frame`, et lui passe `set_hint` → `show_hint`).
+  Cadre : `HubTopBar` (niveau, XP, touche du menu), `HubTabBar` (7 onglets
+  LABO, ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, PARTIE ; Q / E,
+  Page préc. / suiv., LB / RB, clic ; pastilles), `HubPrompts` (invites du
+  dernier périphérique, `Settings.input_device_changed`, cliquables ; aide à
+  droite), `HubMenu` (Échap / Start : REPRENDRE, OPTIONS, DOSSIER DE COMBAT,
+  ÉCRAN TITRE, QUITTER LE JEU), fond `HubScreen.backdrop`. Retour (Échap, B,
+  clic droit) : `HubPanel.back()` puis menu du hub. **Panneaux** : un
+  `HubPanel` par onglet, tous construits à l'ouverture et gardés en vie ;
+  `HubScreen.PANELS` (identifiant → script ; absent : `HubPlaceholderPanel`
+  « à venir ») ou `HubScreen.register_panel` ; API dans `hub_panel.gd`
+  (`build`, `refresh`, `first_focus`, `prompts`, `back`, `handle_input`,
+  `shown` / `hidden`, `badge` ; `hub.profile`, `save_profile`,
+  `select_tab`, `set_hint`, `menu`). LABO : `HubLabPanel` (lecture seule du
+  profil ; contrats par `HubContractsView`, tolérant à l'absence du lot A ;
+  dernière partie : `Router.last_match`, rempli par `Game._show_match_end`).
+  PARTIE provisoire (`HubPlayStubPanel`, jusqu'au lot E) : SOLO →
+  `map_select`, COOP → `multiplayer` (chemins actuels ; leur retour revient
+  au hub, même onglet : `HubScreen.last_tab`). Widgets : `HubStyle`
+  (palette, polices, `px` / `fs`, dessin des boîtes et barres), `HubBox`,
+  `HubButton`, `HubTag`, `HubBar`, `HubRow`, `HubKey`, `HubIcon` (pixel art
+  de la maquette). **TAILLE DES MENUS** : `Settings.menu_ui_scale` (80 à
+  130 %, pas de 5 %, `[interface] menu_ui_scale`, OPTIONS > JEU >
+  INTERFACE) ; tout le hub passe par `HubStyle.px` / `fs` et se reconstruit
+  au changement (`HubScreen.rebuild`) ; contenus des panneaux dans des
+  `ScrollContainer`. Tests : `tests/test_hub_screen.gd`, scénario `hub_nav`
+  (captures de développement ; `HUB_SHOT_RES=1920x1080` pour la taille).
 - **Hôtes d'écrans** : `MenuHost` (`scripts/ui/menu_host.gd`) est l'interface
   que voient les écrans `MenuScreen` (`show_screen`, `go_back`, `set_hint`,
   `current`). Deux hôtes : `MainMenu` (menu principal, fond 3D, transitions) et

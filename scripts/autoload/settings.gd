@@ -67,6 +67,21 @@ var editor_ui_scale := EDITOR_UI_SCALE_DEFAULT:
 		if not is_equal_approx(c, editor_ui_scale):
 			editor_ui_scale = c
 			editor_ui_scale_changed.emit(c)
+## Taille des menus (OPTIONS > JEU > INTERFACE, HUB_PLAN D15) : un facteur
+## sur le hub entre deux parties (HubStyle.px / fs : valeurs écrites « à
+## 100 % », polices rendues à la taille finale, comme EditorUi). 80 à 130 %,
+## pas de 5 %, 100 % par défaut (clamp_menu_ui_scale).
+const MENU_UI_SCALE_RANGE := Vector2(0.8, 1.3)
+const MENU_UI_SCALE_STEP := 0.05
+const MENU_UI_SCALE_DEFAULT := 1.0
+## La taille des menus a changé (le hub se reconstruit à la nouvelle taille).
+signal menu_ui_scale_changed(value: float)
+var menu_ui_scale := MENU_UI_SCALE_DEFAULT:
+	set(v):
+		var c := clamp_menu_ui_scale(v)
+		if not is_equal_approx(c, menu_ui_scale):
+			menu_ui_scale = c
+			menu_ui_scale_changed.emit(c)
 ## Langue de l'interface (écran d'options, menu pause), des voix des
 ## personnages et de leurs répliques (« fr » ou « en », voir Lang.t).
 ## Sans fichier de réglages : celle du système si c'est le français, sinon l'anglais.
@@ -224,6 +239,14 @@ static func clamp_editor_ui_scale(v: float) -> float:
 	if not is_finite(v):
 		return EDITOR_UI_SCALE_DEFAULT
 	return clampf(snappedf(v, EDITOR_UI_SCALE_STEP), EDITOR_UI_SCALE_RANGE.x, EDITOR_UI_SCALE_RANGE.y)
+
+
+## Taille des menus ramenée dans la plage et au pas de 5 % (valeur non finie :
+## taille par défaut).
+static func clamp_menu_ui_scale(v: float) -> float:
+	if not is_finite(v):
+		return MENU_UI_SCALE_DEFAULT
+	return clampf(snappedf(v, MENU_UI_SCALE_STEP), MENU_UI_SCALE_RANGE.x, MENU_UI_SCALE_RANGE.y)
 
 
 func _ready() -> void:
@@ -795,6 +818,8 @@ func load_from(file: String) -> bool:
 			BRIGHTNESS_RANGE.x, BRIGHTNESS_RANGE.y)
 	editor_ui_scale = SafeConfig.get_float(cfg, "interface", "editor_ui_scale", editor_ui_scale,
 			EDITOR_UI_SCALE_RANGE.x, EDITOR_UI_SCALE_RANGE.y)
+	menu_ui_scale = SafeConfig.get_float(cfg, "interface", "menu_ui_scale", menu_ui_scale,
+			MENU_UI_SCALE_RANGE.x, MENU_UI_SCALE_RANGE.y)
 	language = SafeConfig.get_string(cfg, "game", "language", "fr" if OS.get_locale_language() == "fr" else "en", 8)
 	if not language in LANGUAGES:
 		language = "fr"
@@ -840,6 +865,7 @@ func save_to(file: String) -> void:
 	cfg.set_value("video", "max_fps", max_fps)
 	cfg.set_value("video", "brightness", brightness)
 	cfg.set_value("interface", "editor_ui_scale", editor_ui_scale)
+	cfg.set_value("interface", "menu_ui_scale", menu_ui_scale)
 	cfg.set_value("audio", "master", master_volume)
 	cfg.set_value("audio", "music", music_volume)
 	cfg.set_value("audio", "sfx", sfx_volume)
