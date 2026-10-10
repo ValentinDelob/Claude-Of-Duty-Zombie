@@ -2347,9 +2347,12 @@ func _draw_stair_plan(o: Dictionary, alpha: float) -> void:
 		var d := (b - a).normalized()
 		var side := Vector2(-d.y, d.x) * (float(f.w) * 0.5)
 		if not ramp:
-			var n := StairGen.flight_steps(pl, float(f.b.y) - float(f.a.y))
+			# Nez de marche comme en jeu : giron en cubes entiers (StairGen).
+			var n := int(f.n)
+			var m := maxi(1, roundi(a.distance_to(b) / StairGen.CUBE))
 			for i in n + 1:
-				var q := a.lerp(b, float(i) / n)
+				@warning_ignore("integer_division")
+				var q := a.lerp(b, float((i * m) / n) / m)
 				draw_line(to_px(q - side), to_px(q + side), line, 1.0)
 		_arrow(to_px(a.lerp(b, 0.15)), to_px(a.lerp(b, 0.85)), arrow)
 	if int(pl.get("side", 0)) != 0:

@@ -13,6 +13,8 @@ en 5 lots (§ 3). **Lot C fait** (§ 5) : toutes les surfaces en pixel art.
 **Lot A fait** : grille de 5 cm,
 format 20, copie de sauvegarde, erreurs nouvelles signalées, références
 régénérées (détail : docs/MAP_AUTHORING.md § 4, « Passage aux cubes de 5 cm »).
+**Lot D fait** (§ 6) : escaliers, rampes, colimaçon, garde-corps et sols en
+pente en cubes, collisions inchangées.
 
 ## 1. Inventaire
 
@@ -304,3 +306,66 @@ Fait sur la branche `voxel-archi` :
   de la salle rituelle trop nombreuses, dalles de plafond tombées trop
   fréquentes, joints du carrelage trop contrastés ; (2) corrigés, sang des
   carreaux en trait rouge vif répété ; (3) sang en tache brun-rouge sombre.
+
+## 6. Lot D (fait) : escaliers, rampes, colimaçon, garde-corps
+
+- **Marches** (`StairGen.flight_steps`, `rise_at`, `tread_of`, `step_top`) :
+  hauteur de volée N cubes, `ceil(N / 4)` marches (et non `round(H / 0,2)`,
+  qui donnerait une marche de 5 cubes pour N = 4n + 1) de 3 ou 4 cubes,
+  dessus de la marche k = `floor((k + 1)·N / n)` cubes (Bresenham, petites
+  en bas) ; giron : M cubes de long, marche i sur `[i·M/n, (i+1)·M/n[`, au
+  moins 5 cubes (n ≤ M / 5) ; jamais plus de 5 cubes de haut (n ≥ N / 5) ;
+  `steps` réparti au prorata, borné à [N / 5, N] ; rampe : n = N (≤ M).
+  Paliers (palier, L, U) arrondis au cube (`StairGen._split`). Nombre de
+  marches gardé par volée (`f.n`) et pour le colimaçon (`spiral.n`).
+- **Rendu** (`CubeColumns`, nouveau ; `MeshMapGeometry._stair`,
+  `_stair_edge`, `_spiral`, `_spiral_rail`, `_rail_cells`, `_terraces`) :
+  colonnes de cubes sur une grille alignée sur le monde, pavés rangés sur
+  une grille comprimée, faces visibles seulement, fusionnées ; dessous par
+  `_down_face`, rien sous le pied (posé au sol). 5 cm pour un escalier sur
+  les axes (un pavé par marche), 10 cm (`step_grain`) pour un escalier
+  tourné (normale d'éclairage penchée vers ses axes, `step_shade`) et le
+  colimaçon (cases de 10 cm dont le centre tombe dans le secteur de la
+  marche, noyau carré de 10 × 10 cubes sur des cases entières). Garde-corps
+  (niveaux et volées) : main courante 2 × 2 cubes (dessus à + 1,0), lisse
+  2 × 2 cubes (+ 0,1 à + 0,2), barreaux d'un cube tous les 6 cubes ; sur une
+  volée, en escalier, chaque tronçon relié au précédent. Limons pleins et
+  séparation du U en marches. Sol en pente (`slope`) : terrasses de 5 cm.
+- **Collisions inchangées**, vérifiées forme à forme contre le code de
+  8fd49c1 sur 7 cartes (carte des escaliers avec et sans garde-corps,
+  escalier tourné, immeuble, halle, DRAFT ARENA, test_levels) : 0 forme
+  différente (noyau du colimaçon : le prisme à 12 pans gardé, le carré
+  visible le dépasse de 10 cm aux coins). Navmesh, ancres, balles : mêmes
+  formes. Marche visible : au plus une marche au-dessus, un cube au-dessous
+  de la rampe de collision.
+- **Validateur** : garde au plafond sur le dessus des marches en cubes
+  (`_step_height` -> `StairGen.step_y`, plus haut point de la case ;
+  escaliers droits : `_straight_plan`) ; avertissement « marches de 25 cm »
+  (`_stair_riser_warn`, FR/EN) quand la volée est trop courte (pentes de
+  38,7° à 40°). Plan de l'éditeur et élévations : même nombre de marches.
+- **Triangles** (avant -> après) : carte des escaliers 13 934 -> 20 316
+  (escaliers 2 062 -> 3 512, garde-corps 11 340 -> 16 272) ; garde-corps
+  partout 17 426 -> 35 692 ; escalier tourné de 30° avec garde-corps
+  3 308 -> 9 334 ; immeuble 5 012 -> 5 644 ; halle 2 418 -> 2 528 ; DRAFT
+  ARENA 1 918 -> 1 956 ; test_levels (description) 892 -> 1 198 (pente
+  2 -> 250). Escalier droit de 7 m : 146 triangles (228 avant), 2 074 avec
+  garde-corps ; colimaçon 1 870 (5 238 avec garde-corps). Construction :
+  carte des escaliers 38 -> 139 ms, DRAFT ARENA 10 -> 10 ms.
+- **Captures** (`voxel_stairs_look`, @rendu, hors check) : chaque type, sa
+  vue de profil, colimaçon vu d'en haut, garde-corps de palier et de
+  mezzanine, sortie sur le côté, escalier tourné de 30°, test_levels (.glb)
+  et sa description construite par le jeu à côté. Passe 1 : écran de
+  chargement sur la première vue, test_levels trop sombre (lampe de prise
+  de vue ajoutée), escalier tourné rayé (faces x / z alternées, contour
+  noir à chaque colonne de 10 cm) ; passe 2 : corrigés, garde-corps des
+  escaliers tournés aussi à normale penchée ; le rayé des escaliers tournés
+  reste (même aspect que les murs en biais du pilote).
+- **Pour le lot E** : test_levels vient toujours du .glb (`mesh_map.py`
+  garde les marches d'avant) : y reprendre `StairGen.flight_steps` /
+  `rise_at` / `tread_of`, les garde-corps 2 × 2 cubes et les terrasses de
+  la pente (comparer à la vue `test_levels_cubes` de `voxel_stairs_look`),
+  ou construire test_levels par `MeshMapGeometry`. `LayoutCheck` peut
+  vérifier les nœuds `*__stair`, `*__rail` (faces axiales, sommets sur 5 cm :
+  `tests/test_voxel_archi_stairs.gd`). L'arrondi indépendant de `a`, `b`,
+  `w` à l'export reste (sans effet visible : marches rastérisées sur la
+  grille du monde).

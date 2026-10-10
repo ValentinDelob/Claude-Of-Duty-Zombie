@@ -130,8 +130,9 @@ d'interaction, durées et animations inchangés) :
   reste celle du bloc).
 
 Architecture (hors des 4 lots ; décidée depuis : tout cubique, plan et lots
-dans docs/VOXEL_ARCHITECTURE_PLAN.md) : escaliers (`StairGen`, marches ≈ 18 cm, rampe en
-pente, colimaçon à secteurs), garde-corps (lacet libre, 8 cm), murs et
+dans docs/VOXEL_ARCHITECTURE_PLAN.md) : escaliers (`StairGen`, marches de 3
+ou 4 cubes, rampe en marches d'un cube, colimaçon carré : lot D fait),
+garde-corps (2 × 2 cubes : lot D fait), murs et
 piliers tournés ou courbes, ouvertures (seuils 0,95 / 2,35 m). Les murs et
 sols sur la grille de 0,25 m sont déjà sur celle de 5 cm.
 

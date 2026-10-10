@@ -237,7 +237,7 @@ Escaliers (format 6) : `variante` parmi les huit types, `sens` (`droite`,
 `gauche`), `garde_corps` (booléen), `cotes` (`ouverts`, `fermes`) ; toute
 autre valeur est refusée (contrôle et tests : `tests/test_stairs.gd`).
 L'ancien réglage `marches` (nombre de marches) n'existe plus depuis le
-04/10/2026 : les marches sont toujours automatiques (≈ 18 cm, comme en jeu,
+04/10/2026 : les marches sont toujours automatiques (3 ou 4 cubes de 5 cm, comme en jeu,
 élévations comprises). Une carte qui l'avait le perd à sa relecture ; une
 carte reçue qui le porte reste acceptée s'il est entre 3 et 60. Claude
 (serveur MCP, `editor_apply`) ne peut plus l'écrire : refus « le nombre de
@@ -263,7 +263,7 @@ forme des marches, leur collision et le trajet des zombies.
 | `large` | Escalier d'honneur / Grand stairs | une volée, garde-corps des deux côtés par défaut | 3,5 m |
 | `service` | Escalier de service / Service stairs | une volée étroite, en file indienne | 1,5 m |
 | `colimacon` | En colimaçon / Spiral stairs | un tour complet autour d'un noyau puis un palier de sortie au-dessus du début de la vis ; sortie en face du pied | 4,5 m de côté, 3,2 m entre les niveaux |
-| `rampe` | Rampe / Ramp | plan incliné sans marches | 2 m |
+| `rampe` | Rampe / Ramp | pente en marches d'un cube (5 cm) de haut | 2 m |
 
 Le rectangle tracé est « sur le trait » (comme un mur) : les marches
 occupent ses cases intérieures (0,25 m de retrait de chaque côté). Pente
@@ -278,7 +278,7 @@ jusqu'à la main courante), **Sortie en haut** (`sortie` : `gauche` /
 service et rampe : palier plat en haut, volée plus courte, on sort sur ce
 côté ; choisie automatiquement à la pose quand le haut des marches touche un
 mur), **Arrivée : altitude** (`altitude_haut`). Le nombre de marches n'est pas réglable : il est
-automatique (≈ 18 cm par marche). La hauteur est celle entre ses deux niveaux
+automatique (3 ou 4 cubes de 5 cm par marche, voir « Géométrie »). La hauteur est celle entre ses deux niveaux
 (`altitude_haut` − `altitude` ; il peut sauter des niveaux, voir ci-dessous).
 
 Dessin du plan : volées et leurs marches, paliers, colimaçon, flèches de
@@ -398,14 +398,35 @@ validateur et au plan de l'éditeur. Entrée « stairs » de la description en
 maillage : `a` (milieu du bord du pied, sol du bas), `b` (milieu du bord
 opposé de l'emprise, sol du haut), `w`, et seulement s'ils ne sont pas par
 défaut `kind`, `turn` (-1 : à gauche), `steps`, `rail`, `closed` (un
-escalier d'avant garde exactement sa description et son aspect).
+escalier d'avant garde exactement sa description).
 
+- **Marches en cubes** (docs/VOXEL_ARCHITECTURE_PLAN.md § 2.3, lot D) :
+  hauteur d'une volée en cubes de 5 cm (N), `ceil(N / 4)` marches de 3 ou
+  4 cubes (15 ou 20 cm) réparties comme une droite de Bresenham (les petites
+  en bas), giron en cubes entiers d'au moins 5 cubes (25 cm) réparti de
+  même ; si la volée est trop courte, moins de marches, jamais plus de
+  5 cubes (25 cm : **avertissement** du validateur, « marches de 25 cm ») ;
+  `steps` imposé : réparti au prorata, un cube au moins par marche ; rampe :
+  une marche par cube ; paliers à une hauteur multiple du cube
+  (`StairGen.flight_steps`, `rise_at`, `step_top`). Rendu : colonnes de cubes
+  alignées sur la grille du monde (`CubeColumns`, faces visibles seulement,
+  fusionnées), grille de 5 cm (10 cm pour un escalier tourné et le
+  colimaçon) ; colimaçon à marches carrées (cases de 10 cm dont le centre
+  tombe dans le secteur de la marche) et noyau carré de 0,5 m ; garde-corps
+  en cubes : main courante et lisse de 2 × 2 cubes (dessus à + 1,0 m et
+  + 0,2 m), barreaux d'un cube tous les 6 cubes, main courante en escalier
+  (un tronçon par marche, relié au précédent) ; limons pleins (côtés
+  fermés) et noyau du U en marches. Garde au plafond du validateur mesurée
+  sur le dessus des marches en cubes (`StairGen.step_y`).
 - **Collision** : sous chaque volée, un prisme plein en pente douce (jamais
   de marche de collision : le joueur n'a pas de montée de marche, les
   zombies flottent 0,3 m au-dessus du sol) ; paliers pleins à fleur des
   volées ; colimaçon en 32 secteurs minces qui se chevauchent d'un
-  demi-degré (on passe dessous au pied) ; garde-corps et limons en panneaux
-  minces jusqu'à la main courante.
+  demi-degré (on passe dessous au pied), noyau à 12 pans de 0,25 m de rayon
+  (le noyau carré visible le dépasse de 10 cm au plus, aux coins) ;
+  garde-corps et limons en panneaux minces jusqu'à la main courante.
+  Inchangée par les marches en cubes : la marche visible est au plus une
+  marche au-dessus et un cube au-dessous de la rampe.
 - **Tablier** : au haut de CHAQUE escalier (KINO compris), une
   `CollisionBox` invisible (objet du projet, jamais un modèle Blender) de
   0,6 m sur le palier, à fleur du sol d'arrivée : aucune fente entre la
@@ -487,12 +508,20 @@ n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
   type ; couloir à une capsule au moins de chaque bord, garde-corps et
   noyau, pour tout écart ; ancres hors des marches ; collision construite
   sans fente ni rebord (saut du sol ≤ 0,3 m le long du couloir) et sous toute
-  la largeur de marche, tablier à fleur ; escalier d'avant construit à
-  l'identique ; écart d'une horde (10 couloirs distincts, bornés), deux
+  la largeur de marche, tablier à fleur ; escalier d'avant : même
+  collision ; écart d'une horde (10 couloirs distincts, bornés), deux
   sens, projection ; format 6 relu à l'identique, valeurs par défaut non
   écrites, valeurs illisibles retirées, formats 1 et 5 lus sans changement ;
   validateur (huit types acceptés et exportés, coin libre du L, sortie du U,
   colimaçon trop petit refusé, largeurs) ; contrôle des cartes reçues.
+- `tests/test_voxel_archi_stairs.gd` (unitaire, lot D) : tous les types et
+  réglages (garde-corps, côtés fermés, virage à gauche, sortie sur le côté)
+  et des escaliers tournés de 30° et 45° en faces axiales, sommets sur la
+  grille de 5 cm ; règles des marches en cubes ; paliers sur le cube ;
+  collision inchangée ; garde-corps de niveau et sol en pente en cubes ;
+  avertissement des marches de 25 cm ; marches visibles au plus un cube
+  sous la collision. Captures : scénario `voxel_stairs_look` (@rendu, hors
+  check).
 - Scénarios `stairs_types` (marcheur, sprinteur, rampant, chien) et
   `stairs_hordes` (horde de 10 coureurs) sur la carte d'essai (un hall et
   une mezzanine par type) : montée et descente de chaque type, tous

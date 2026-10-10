@@ -765,18 +765,21 @@ func _stair_covered(w: Array, k: int, kt: int, cells: Array) -> void:
 
 ## Dégagement au-dessus des marches : le plafond réel (MapVertical.ceil_at :
 ## dalle de la première pièce posée au-dessus, plafond de la pièce où débouche
-## la trémie) est à StairGen.HEADROOM (2,1 m) au moins au-dessus de la surface
-## des marches, case par case. Sinon : où, et de combien.
+## la trémie) est à StairGen.HEADROOM (2,1 m) au moins au-dessus du dessus
+## des marches en cubes (StairGen.step_y), case par case. Sinon : où, et de
+## combien. Avertit aussi des marches de 25 cm (_stair_riser_warn).
 func _stair_headroom(w: Array, st: Dictionary) -> void:
 	var k: int = st.floor
 	var y0 := floors[k].sol
 	var y1 := floors[int(st.to)].sol
 	var diag: Dictionary = st.get("diag", {})
 	var pl := MapRaster.stair_plan(diag.obj, y0, y1) if diag.get("shaped", false) and diag.has("obj") else {}
+	var line := pl if not pl.is_empty() else _straight_plan(st, y0, y1)
+	_stair_riser_warn(w, st, line)
 	var bad := []
 	var worst := INF
 	for c in st.cells:
-		var surf := _step_height(st, c, pl, y0, y1)
+		var surf := _step_height(st, c, pl, y0, y1, line)
 		var ce: float = MapVertical.ceil_at(self, k, c)[0]
 		if ce < surf + StairGen.HEADROOM - 0.01:
 			bad.append(c)
@@ -798,7 +801,7 @@ func _stair_headroom(w: Array, st: Dictionary) -> void:
 				_num(maxf(top_worst, 0.0)), _at(kt, top_bad[0])[1], _num(StairGen.HEADROOM)], kt, top_bad)
 	if bad.is_empty():
 		return
-	if not pl.is_empty() and int(pl.get("side", 0)) != 0 and bad.all(func(c): return _step_height(st, c, pl, y0, y1) >= y1 - 0.01):
+	if not pl.is_empty() and int(pl.get("side", 0)) != 0 and bad.all(func(c): return _step_height(st, c, pl, y0, y1, line) >= y1 - 0.01):
 		# Sortie sur le côté : le palier plat du haut, au sol d'arrivée.
 		_msg("erreur", "escalier en %s : plafond trop bas au-dessus de son palier du haut (%s m de passage en %s ; %s m au moins) : déplacez la pièce du dessus ou l'escalier" % [w[0],
 				_num(maxf(worst, 0.0)).replace(".", ","), _at(k, bad[0])[0], _num(StairGen.HEADROOM).replace(".", ",")],
@@ -811,25 +814,35 @@ func _stair_headroom(w: Array, st: Dictionary) -> void:
 			_num(maxf(worst, 0.0)), _at(k, bad[0])[1], _num(StairGen.HEADROOM)], k, bad)
 
 
-## Hauteur (m, absolue) de la surface des marches au bord haut de la case `c`
-## d'un escalier retenu (st) : profil StairGen (`pl`) pour un L, un U, un
-## colimaçon ; sinon une pente régulière du pied (y0) à l'arrivée (y1).
-func _step_height(st: Dictionary, c: Vector2i, pl: Dictionary, y0: float, y1: float) -> float:
+## Hauteur (m, absolue) du dessus des marches en cubes (StairGen.step_y)
+## sur la case `c` d'un escalier retenu (st) : profil StairGen (`pl`) pour un
+## L, un U, un colimaçon (le plus haut du centre et de 4 points près des
+## coins) ; sinon le plan de la volée droite `line` (_straight_plan) au bord
+## haut de la case.
+func _step_height(st: Dictionary, c: Vector2i, pl: Dictionary, y0: float, y1: float, line: Dictionary) -> float:
 	if not pl.is_empty():
-		var y := StairGen.surface_y(pl, MapGeom.cell_center(c))
-		return y1 if is_nan(y) else y
-	var t := 1.0
+		var best := NAN
+		var cc := MapGeom.cell_center(c)
+		var k := MapGeom.CELL * 0.48
+		for dl: Vector2 in [Vector2.ZERO, Vector2(-k, -k), Vector2(k, -k), Vector2(k, k), Vector2(-k, k)]:
+			var y := StairGen.step_y(pl, cc + dl)
+			if not is_nan(y):
+				best = y if is_nan(best) else maxf(best, y)
+		return y1 if is_nan(best) else best
+	# Distance (m) du pied de la volée au bord haut de la case.
+	var s := 0.0
+	var L := float(line.L)
 	if st.has("diag"):
 		var info: Dictionary = st.diag
 		var u: Vector2 = info.up
 		var sz: Vector2 = info.size
 		var along_x := absf(Vector2(1, 0).rotated(deg_to_rad(float(info.rot))).dot(u)) > 0.7
 		var half := (sz.x if along_x else sz.y) * 0.5
-		t = ((MapGeom.cell_center(c) - (info.center as Vector2)).dot(u) + MapGeom.CELL * 0.5 + half) / maxf(half * 2.0, 0.01)
+		# Volée exportée à MapGeom.WALL_HALF en retrait du bord tracé.
+		s = (MapGeom.cell_center(c) - (info.center as Vector2)).dot(u) + MapGeom.CELL * 0.5 + half - MapGeom.WALL_HALF
 	else:
 		var r: Rect2i = st.rect
 		var d: Vector2i = st.up
-		var run := maxi(1, int(st.run))
 		var i := 0
 		if d.x > 0:
 			i = c.x - r.position.x
@@ -839,8 +852,41 @@ func _step_height(st: Dictionary, c: Vector2i, pl: Dictionary, y0: float, y1: fl
 			i = c.y - r.position.y
 		else:
 			i = r.end.y - 1 - c.y
-		t = float(i + 1) / run
-	return y0 + (y1 - y0) * clampf(t, 0.0, 1.0)
+		s = float(i + 1) / maxi(1, int(st.run)) * L
+	var y := StairGen.step_y(line, Vector2(0.0, -L * 0.5 + clampf(s, 0.0, L) - 0.001))
+	return y1 if is_nan(y) else y
+
+
+## Plan StairGen (repère local : pied en (0, -L/2), montée vers +y) d'un
+## escalier droit retenu (sur la grille ou tourné), avec son type et ses
+## réglages : marches en cubes comme en jeu (MapLayoutExport._stairs).
+func _straight_plan(st: Dictionary, y0: float, y1: float) -> Dictionary:
+	var L := 0.0
+	var W := 0.0
+	if st.has("diag"):
+		var info: Dictionary = st.diag
+		var u: Vector2 = info.up
+		var sz: Vector2 = info.size
+		var along_x := absf(Vector2(1, 0).rotated(deg_to_rad(float(info.rot))).dot(u)) > 0.7
+		L = (sz.x if along_x else sz.y) - MapGeom.WALL_HALF * 2.0
+		W = (sz.y if along_x else sz.x) - MapGeom.CELL
+	else:
+		L = int(st.run) * scale
+		W = int(st.width) * scale
+	var opts: Dictionary = (stair_opts.get(String(st.get("key", "")), {}) as Dictionary).duplicate()
+	var kind := String(opts.get("kind", StairGen.DEFAULT_KIND))
+	opts.erase("kind")
+	return StairGen.plan(StairGen.spec(Vector2.ZERO, Vector2(0, 1), maxf(L, 0.05), maxf(W, 0.2), y0, y1, kind, opts))
+
+
+## Marches de 25 cm (la volée est trop courte pour sa hauteur : 20 cm visés,
+## giron de 25 cm au moins ; StairGen.flight_steps) : avertissement.
+func _stair_riser_warn(w: Array, st: Dictionary, pl: Dictionary) -> void:
+	var r := StairGen.max_riser(pl)
+	if r < StairGen.RISE_WARN - 0.001:
+		return
+	_msg("attention", "escalier en %s : marches de %d cm (trop haut pour sa longueur : 20 cm visés, giron de 25 cm au moins) : allongez-le" % [w[0], roundi(r * 100.0)],
+		"stairs at %s: %d cm steps (too high for their length: 20 cm aimed, 25 cm treads at least): make them longer" % [w[1], roundi(r * 100.0)], int(st.floor), st.cells)
 
 
 ## Type d'escalier d'une clé de case (format 6 ; « droit » sans réglage).

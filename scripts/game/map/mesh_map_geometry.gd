@@ -13,6 +13,9 @@ extends RefCounted
 ## prismes convexes pour les dalles et la rampe des escaliers (le joueur n'a
 ## pas de logique de montée de marche), surfaces (ConcavePolygonShape3D) pour
 ## les sols et plafonds.
+## Escaliers, rampes, garde-corps et sols en pente : visuel en colonnes de
+## cubes de 5 cm (CubeColumns, docs/VOXEL_ARCHITECTURE_PLAN.md § 2.3, lot D),
+## collisions inchangées.
 
 var _groups: Dictionary = {}   # clé -> {v, n, faces, boxes, convex}
 var _kind := "wall"
@@ -365,7 +368,15 @@ func _slab(g: Dictionary, outline: Array, top: float, th: float) -> void:
 		var out := Vector2(d.y, -d.x) if ccw > 0.0 else Vector2(-d.y, d.x)
 		var n := Vector3(out.x, 0, out.y)
 		_quad(g, [Vector3(a.x, top, a.y), Vector3(b.x, top, b.y), Vector3(b.x, top - th, b.y), Vector3(a.x, top - th, a.y)], n)
-	# Collision : prisme convexe (contours rectangulaires de l'éditeur), sinon surfaces.
+	_slab_col(g, outline, top, th)
+
+
+## Collision d'une dalle : prisme convexe (contours rectangulaires de
+## l'éditeur), sinon surfaces du dessus et du dessous.
+func _slab_col(g: Dictionary, outline: Array, top: float, th: float) -> void:
+	var p2 := PackedVector2Array()
+	for p in outline:
+		p2.append(Vector2(float(p[0]), float(p[1])))
 	var pts := PackedVector3Array()
 	for q in p2:
 		pts.append(Vector3(q.x, top, q.y))
@@ -398,6 +409,10 @@ func _build(L: Dictionary) -> Node3D:
 		var g := _group(String(r.get("floor_mat", "floor")), rid)
 		if r.has("floor_slab"):
 			_slab(g, r.outline, float(r.get("floor", 0.0)), float(r.floor_slab))
+		elif r.has("slope"):
+			# Pente : terrasses de 5 cm (visuel), plan incliné (collision).
+			_terraces(g, r.outline, _floor_height(r))
+			_polygon(g, r.outline, _floor_height(r), true, false, true)
 		else:
 			_polygon(g, r.outline, _floor_height(r), true, true, true)
 		if not r.get("no_ceiling", false):
@@ -483,130 +498,138 @@ func _build(L: Dictionary) -> Node3D:
 	_kind = "slab"
 	for sl in L.get("slabs", []):
 		_slab(_group(String(sl.get("mat", "wood")), String(sl.room)), sl.outline, float(sl.y), float(sl.get("thick", 0.25)))
-	# Escaliers : marches visibles, rampe de collision (coin plein). Types
-	# (palier, en L, en U, colimaçon, rampe...) et options (garde-corps, côtés
-	# fermés, nombre de marches) : StairGen, voir _stair.
-	_kind = "stair"
+	# Escaliers : marches en colonnes de cubes (StairGen : hauteur et giron
+	# en cubes entiers), collisions inchangées (rampe pleine sous chaque
+	# volée, paliers, panneaux). Types (palier, en L, en U, colimaçon,
+	# rampe...) et options (garde-corps, côtés fermés, nombre de marches,
+	# sortie sur le côté) : voir _stair.
 	for st in L.get("stairs", []):
-		if StairGen.kind_of(st) != StairGen.DEFAULT_KIND or st.has("rail") or st.has("closed") or st.has("steps") or StairGen.side_of(st) != 0:
-			_stair(st)
-			_kind = "stair"
-			continue
-		var a := Vector3(st.a[0], st.a[1], st.a[2])
-		var b := Vector3(st.b[0], st.b[1], st.b[2])
-		var w := float(st.get("w", 1.5))
-		var run := Vector3(b.x - a.x, 0, b.z - a.z)
-		var rise := b.y - a.y
-		var n := maxi(1, roundi(absf(rise) / 0.18))
-		var d := run.normalized()
-		var yaw := atan2(-d.z, d.x)
-		var side := Vector3(d.z, 0, -d.x)
-		var g := _group(String(st.get("mat", "wood")), String(st.room))
-		var step := run.length() / n
-		for i in n:
-			var top := a.y + rise * (i + 1) / n
-			var c := a + d * (step * (i + 0.5))
-			_box(g, Vector3(c.x, (a.y + top) * 0.5, c.z), Vector3(step, top - a.y, w), yaw, true, false)
-		var lo := Vector3(b.x, a.y, b.z)
-		g.convex.append(PackedVector3Array([a - side * (w / 2), a + side * (w / 2), b + side * (w / 2), b - side * (w / 2),
-			lo + side * (w / 2), lo - side * (w / 2)]))
-	# Garde-corps : main courante, lisse, barreaux et un bloc de collision.
+		_kind = "stair"
+		_stair(st)
+	# Garde-corps : main courante et lisse de 2 × 2 cubes, barreaux d'un
+	# cube tous les 6 cubes (CubeColumns) ; collision : un pavé par tronçon.
 	_kind = "rail"
 	for rl in L.get("rails", []):
 		var pts: Array = rl.path
 		var h := float(rl.get("h", 1.0))
 		var y := float(rl.y)
 		var g := _group(String(rl.get("mat", "dark_wood")), String(rl.room))
+		var vox := CubeColumns.new()
 		for i in pts.size() - 1:
-			var a := Vector3(pts[i][0], 0, pts[i][1])
-			var bb := Vector3(pts[i + 1][0], 0, pts[i + 1][1])
-			var seg := bb - a
+			var a := Vector2(float(pts[i][0]), float(pts[i][1]))
+			var bb := Vector2(float(pts[i + 1][0]), float(pts[i + 1][1]))
+			_rail_cells(vox, a, bb, func(_t: float) -> float: return y, h)
+			var seg := Vector3(bb.x - a.x, 0, bb.y - a.y)
 			var d := seg.normalized()
-			var yaw := atan2(-d.z, d.x)
-			var c := a + seg * 0.5
-			_box(g, Vector3(c.x, y + h, c.z), Vector3(seg.length(), 0.08, 0.1), yaw, true, false)
-			_box(g, Vector3(c.x, y + 0.1, c.z), Vector3(seg.length(), 0.08, 0.1), yaw, true, false)
-			var nb := maxi(1, int(seg.length() / 0.3))
-			for k in nb + 1:
-				var p := a + seg * (float(k) / nb)
-				_box(g, Vector3(p.x, y + h / 2.0, p.z), Vector3(0.05, h, 0.05), yaw, true, false)
-			_box(g, Vector3(c.x, y + h / 2.0, c.z), Vector3(seg.length(), h, 0.1), yaw, false, true)
+			var c := Vector3(a.x, 0, a.y) + seg * 0.5
+			_box(g, Vector3(c.x, y + h / 2.0, c.z), Vector3(seg.length(), h, 0.1), atan2(-d.z, d.x), false, true)
+		vox.emit(self, g)
 	return _nodes()
 
 
-## Pavé orienté quelconque (base `basis` orthonormée, `size` le long de ses axes).
-func _obox(g: Dictionary, center: Vector3, size: Vector3, basis: Basis) -> void:
-	var h := size * 0.5
-	var ax := [basis.x * h.x, basis.y * h.y, basis.z * h.z]
-	for k in 3:
-		var n: Vector3 = (ax[k] as Vector3).normalized()
-		var a: Vector3 = ax[(k + 1) % 3]
-		var b: Vector3 = ax[(k + 2) % 3]
-		for s in [1.0, -1.0]:
-			var c: Vector3 = center + ax[k] * s
-			_quad(g, [c - a - b, c + a - b, c + a + b, c - a + b], n * s)
+## Garde-corps en cubes le long de a -> b (CubeColumns `vox`) : main courante
+## de 2 × 2 cubes (dessus à `h` au-dessus de la surface), lisse de 2 × 2 cubes
+## à + 0,1 m, barreaux d'un cube tous les 6 cubes (30 cm). `surf(t)` : surface
+## (m) à t m de a ; sur une volée, en escalier (StairGen.step_top) : la main
+## courante suit les marches, un tronçon par marche, relié au précédent.
+func _rail_cells(vox: CubeColumns, a: Vector2, b: Vector2, surf: Callable, h: float) -> void:
+	var len := a.distance_to(b)
+	if len < 0.01:
+		return
+	var w := RAIL_CUBES * CUBE
+	vox.strip(a, b, w, w * 0.5, func(t: float) -> Array:
+		var sf: float = surf.call(t)
+		var lo := minf(sf, float(surf.call(maxf(t - CUBE, 0.0))))
+		return [Vector2(lo + h - w, sf + h), Vector2(lo + 0.1, sf + 0.1 + w)])
+	var d := (b - a) / len
+	var ts := []
+	var t := 0.0
+	while t <= len + 0.001:
+		ts.append(minf(t, len))
+		t += BALUSTER_GAP
+	if len - float(ts[-1]) > BALUSTER_GAP * 0.25:
+		ts.append(len)
+	for tb: float in ts:
+		var sf: float = surf.call(tb)
+		vox.add(vox.cell_of(a + d * tb + CubeColumns.NUDGE), sf + 0.1 + w, sf + h - w)
 
 
-## Prisme convexe visible : contour du dessus `top` et du dessous `bot`
-## (mêmes points, même ordre), faces latérales comprises.
-static func _prism_visual(g: Dictionary, top: Array, bot: Array) -> void:
-	var c := Vector3.ZERO
-	for q in top + bot:
-		c += q
-	c /= float(top.size() + bot.size())
-	var n := top.size()
-	for i in range(1, n - 1):
-		_tri(g, top[0], top[i], top[i + 1], ((top[i] - top[0]).cross(top[i + 1] - top[0])).normalized() * _side_sign(top[0], top[i], top[i + 1], c), true, false)
-		_tri(g, bot[0], bot[i], bot[i + 1], ((bot[i] - bot[0]).cross(bot[i + 1] - bot[0])).normalized() * _side_sign(bot[0], bot[i], bot[i + 1], c), true, false)
-	for i in n:
-		var j := (i + 1) % n
-		var quad := [top[i], top[j], bot[j], bot[i]]
-		var nn: Vector3 = (quad[1] - quad[0]).cross(quad[3] - quad[0])
-		if nn.length() < 1e-6:
-			nn = ((quad[2] - quad[1]).cross(quad[3] - quad[1]))
-		if nn.length() < 1e-6:
-			continue
-		nn = nn.normalized()
-		if nn.dot((quad[0] + quad[2]) * 0.5 - c) < 0.0:
-			nn = -nn
-		_quad(g, quad, nn)
+## Garde-corps : main courante et lisse de 2 cubes de côté, barreaux d'un
+## cube tous les 6 cubes (docs/VOXEL_ARCHITECTURE_PLAN.md § 2.3).
+const RAIL_CUBES := 2
+const BALUSTER_GAP := 0.3
+## Côté du noyau carré du colimaçon (10 × 10 cubes).
+const CORE := 0.5
+## Épaisseur des marches du colimaçon (on passe dessous).
+const SPIRAL_STEP_T := 0.2
 
 
-## +1 si la normale (b - a) x (c - a) s'éloigne du centre `o`, -1 sinon.
-static func _side_sign(a: Vector3, b: Vector3, c: Vector3, o: Vector3) -> float:
-	var nn := (b - a).cross(c - a)
-	return 1.0 if nn.dot((a + b + c) / 3.0 - o) >= 0.0 else -1.0
-
-
-## Escalier d'un type (StairGen.plan) : volées en marches (rampe : plan
-## incliné), paliers pleins, noyau d'un U, colimaçon, garde-corps et limons.
-## Collisions : prisme plein en pente sous chaque volée, dalles à fleur.
+## Escalier d'un type (StairGen.plan) en colonnes de cubes (CubeColumns) :
+## volées en marches de 3 ou 4 cubes de haut et d'au moins 5 cubes de giron
+## (rampe : marches d'un cube), paliers pleins, noyau d'un U en marches,
+## colimaçon à marches carrées et noyau carré, garde-corps et limons en
+## escalier. Grille de 5 cm pour un escalier sur les axes ; 10 cm (marche
+## des murs en biais, step_grain) pour un escalier tourné et le colimaçon.
+## Collisions inchangées : prisme plein en pente sous chaque volée, dalles à
+## fleur, noyau, secteurs du colimaçon, panneaux des bords.
 func _stair(st: Dictionary) -> void:
 	var pl := StairGen.plan(st)
-	var g := _group(String(st.get("mat", "wood")), String(st.get("room", "x")))
+	var room := String(st.get("room", "x"))
+	var g := _group(String(st.get("mat", "wood")), room)
 	var y0 := float(pl.y0)
-	var ramp: bool = pl.kind == "rampe"
+	var u: Vector2 = pl.u
+	var spiral := not (pl.spiral as Dictionary).is_empty()
+	var axial := not spiral and (absf(u.x) < 1e-4 or absf(u.y) < 1e-4)
+	var o := Vector2.ZERO
+	if spiral:
+		# Noyau carré de 10 × 10 cubes : sur des cases entières.
+		var sc: Vector2 = pl.spiral.c
+		o = Vector2(snappedf(sc.x, CUBE), snappedf(sc.y, CUBE)) - Vector2.ONE * (CORE * 0.5)
+	var vox := CubeColumns.new(CUBE * (1 if axial else step_grain), o)
+	vox.floor_level = CubeColumns.cubes(y0)
+	# Pièces minces (limons, noyau du U) : toujours au cube de 5 cm.
+	var thin := vox if axial else CubeColumns.new()
+	thin.floor_level = vox.floor_level
+	var r2: Vector2 = pl.right
+	var lean := [] if (axial or spiral) else [Vector3(u.x, 0, u.y), Vector3(-u.x, 0, -u.y), Vector3(r2.x, 0, r2.y), Vector3(-r2.x, 0, -r2.y)]
 	for f in pl.flights:
 		var a: Vector3 = f.a
 		var b: Vector3 = f.b
 		var w := float(f.w)
 		var base := float(f.base)
+		var a2 := Vector2(a.x, a.z)
+		var b2 := Vector2(b.x, b.z)
+		var len := a2.distance_to(b2)
+		if len > 0.001 and axial:
+			# Sur les axes : un pavé par marche (giron [i·M/n, (i+1)·M/n[ cubes).
+			var d2 := (b2 - a2) / len
+			var nrm := Vector2(-d2.y, d2.x) * (w * 0.5)
+			var n := int(f.n)
+			var M := maxi(1, roundi(len / CUBE))
+			var N := roundi(absf(b.y - a.y) / CUBE)
+			for i in n:
+				@warning_ignore("integer_division")
+				var p0 := a2 + d2 * (len * float((i * M) / n) / M)
+				@warning_ignore("integer_division")
+				var p1 := a2 + d2 * (len * float(((i + 1) * M) / n) / M)
+				var top := b.y if N <= 0 else a.y + (b.y - a.y) * float(StairGen.rise_at(N, n, i)) / N
+				vox.add_rect(Rect2(p0 - nrm, Vector2.ZERO).expand(p0 + nrm).expand(p1 - nrm).expand(p1 + nrm), base, top)
+		elif len > 0.001:
+			var d2 := (b2 - a2) / len
+			var nrm := Vector2(-d2.y, d2.x)
+			var n := int(f.n)
+			for e in vox.cells_in(Rect2(a2, Vector2.ZERO).expand(b2).grow(w * 0.5 + vox.cell)):
+				var q: Vector2 = e[1]
+				var s := (q - a2).dot(d2)
+				if s < 0.0 or s >= len or absf((q - a2).dot(nrm)) > w * 0.5:
+					continue
+				vox.add(e[0], base, StairGen.step_top(a.y, b.y, len, n, s))
+		# Collision : prisme plein en pente sous la volée (inchangé).
 		var run := Vector3(b.x - a.x, 0, b.z - a.z)
 		var d := run.normalized()
-		var yaw := atan2(-d.z, d.x)
 		var side := Vector3(d.z, 0, -d.x) * (w * 0.5)
-		var rise := b.y - a.y
 		var top := [a - side, b - side, b + side, a + side]
 		var bot := [Vector3(a.x, base, a.z) - side, Vector3(b.x, base, b.z) - side, Vector3(b.x, base, b.z) + side, Vector3(a.x, base, a.z) + side]
-		if ramp:
-			_prism_visual(g, top, bot)
-		else:
-			var n := StairGen.flight_steps(pl, rise)
-			var step := run.length() / n
-			for i in n:
-				var ty := a.y + rise * (i + 1) / n
-				var c := a + d * (step * (i + 0.5))
-				_box(g, Vector3(c.x, (base + ty) * 0.5, c.z), Vector3(step, ty - base, w), yaw, true, false)
 		var pts := PackedVector3Array(top)
 		for q in bot:
 			if not _near_any(pts, q):
@@ -617,8 +640,9 @@ func _stair(st: Dictionary) -> void:
 		for q: Vector2 in l.poly:
 			outline.append([q.x, q.y])
 		var ly := float(l.y)
-		var th := (ly - y0) if pl.spiral.is_empty() else 0.2
-		_slab(g, outline, ly, maxf(th, 0.05))
+		var th := maxf((ly - y0) if not spiral else SPIRAL_STEP_T, 0.05)
+		_slab_col(g, outline, ly, th)
+		vox.fill_poly(l.poly, ly - th, ly)
 	for dv in pl.dividers:
 		var a2: Vector2 = dv.a
 		var b2: Vector2 = dv.b
@@ -626,14 +650,30 @@ func _stair(st: Dictionary) -> void:
 		var s := Vector3(-d2.y, 0, d2.x) * (StairGen.RAIL_T * 0.5)
 		var top := [Vector3(a2.x, dv.ya, a2.y) - s, Vector3(b2.x, dv.yb, b2.y) - s, Vector3(b2.x, dv.yb, b2.y) + s, Vector3(a2.x, dv.ya, a2.y) + s]
 		var bot := [Vector3(a2.x, dv.y0, a2.y) - s, Vector3(b2.x, dv.y0, b2.y) - s, Vector3(b2.x, dv.y0, b2.y) + s, Vector3(a2.x, dv.y0, a2.y) + s]
-		_prism_visual(g, top, bot)
 		g.convex.append(PackedVector3Array(top + bot))
-	if not (pl.spiral as Dictionary).is_empty():
-		_spiral(g, pl)
+		# Visuel : en marches, à RAIL_H au-dessus de la volée haute (qui
+		# monte de b, palier, vers a, pied).
+		var len := a2.distance_to(b2)
+		var ya := float(dv.ya) - StairGen.RAIL_H
+		var yb := float(dv.yb) - StairGen.RAIL_H
+		var n := StairGen.flight_steps(pl, ya - yb, len)
+		var by := float(dv.y0)
+		thin.strip(a2, b2, StairGen.RAIL_T, 0.0, func(t: float) -> Array:
+			return [Vector2(by, StairGen.step_top(yb, ya, len, n, len - t) + StairGen.RAIL_H)])
+	if spiral:
+		_spiral(g, vox, pl)
 	_kind = "rail"
-	var gr := _group("dark_wood", String(st.get("room", "x")))
+	var gr := _group("dark_wood", room)
+	var rails := CubeColumns.new()
+	var edge_vox := thin if pl.closed else rails
 	for e in pl.edges:
-		_stair_edge(g if pl.closed else gr, pl, e)
+		_stair_edge(g if pl.closed else gr, pl, e, edge_vox)
+	if spiral and (pl.rail or pl.closed):
+		_spiral_rail(edge_vox, pl)
+	vox.emit(self, g, lean)
+	if thin != vox:
+		thin.emit(self, g, lean)
+	rails.emit(self, gr, lean)
 
 
 static func _near_any(pts: PackedVector3Array, q: Vector3) -> bool:
@@ -643,10 +683,10 @@ static func _near_any(pts: PackedVector3Array, q: Vector3) -> bool:
 	return false
 
 
-## Bord ouvert d'un escalier : limon plein (côtés fermés) ou garde-corps
-## (main courante, lisse, barreaux) ; collision : panneau mince jusqu'à la
-## main courante.
-func _stair_edge(g: Dictionary, pl: Dictionary, e: Dictionary) -> void:
+## Bord ouvert d'un escalier : limon plein (côtés fermés) ou garde-corps, en
+## cubes et en escalier (vox) ; collision : panneau mince jusqu'à la main
+## courante (inchangé). Les arcs du colimaçon : _spiral_rail (anneau entier).
+func _stair_edge(g: Dictionary, pl: Dictionary, e: Dictionary, vox: CubeColumns) -> void:
 	var a: Vector3 = e.a
 	var b: Vector3 = e.b
 	var seg := b - a
@@ -661,26 +701,27 @@ func _stair_edge(g: Dictionary, pl: Dictionary, e: Dictionary) -> void:
 	var top := [a + Vector3.UP * H - s, b + Vector3.UP * H - s, b + Vector3.UP * H + s, a + Vector3.UP * H + s]
 	var bot := [Vector3(a.x, lo_a, a.z) - s, Vector3(b.x, lo_b, b.z) - s, Vector3(b.x, lo_b, b.z) + s, Vector3(a.x, lo_a, a.z) + s]
 	g.convex.append(PackedVector3Array(top + bot))
-	if pl.closed:
-		_prism_visual(g, top, bot)
+	if e.get("arc", false):
 		return
-	# Garde-corps : main courante et lisse le long de la pente, barreaux.
-	var fwd := seg.normalized()
-	var up := Vector3.UP
-	var lat := fwd.cross(up).normalized()
-	var bs := Basis(fwd, lat.cross(fwd).normalized(), lat)
-	var length := seg.length()
-	_obox(g, (a + b) * 0.5 + up * H, Vector3(length, 0.08, 0.1), bs)
-	_obox(g, (a + b) * 0.5 + up * 0.12, Vector3(length, 0.06, 0.08), bs)
-	var nb := maxi(1, int(Vector2(seg.x, seg.z).length() / 0.3))
-	for k in nb + 1:
-		var q := a + seg * (float(k) / nb)
-		_box(g, q + up * (H * 0.5), Vector3(0.05, H, 0.05), atan2(-d2.y, d2.x), true, false)
+	var a2 := Vector2(a.x, a.z)
+	var b2 := Vector2(b.x, b.z)
+	var len := a2.distance_to(b2)
+	var n := StairGen.flight_steps(pl, b.y - a.y, len)
+	var surf := func(t: float) -> float: return StairGen.step_top(a.y, b.y, len, n, t)
+	if pl.closed:
+		var base := float(e.base)
+		vox.strip(a2, b2, StairGen.RAIL_T, StairGen.RAIL_T * 0.5, func(t: float) -> Array:
+			var sf: float = surf.call(t)
+			return [Vector2(base + (sf - a.y if hang else 0.0), sf + H)])
+		return
+	_rail_cells(vox, a2, b2, surf, H)
 
 
-## Colimaçon : noyau, marches en secteurs, collision en secteurs minces qui
-## suivent l'hélice (on passe dessous au pied, sous le dernier quart de tour).
-func _spiral(g: Dictionary, pl: Dictionary) -> void:
+## Colimaçon : noyau carré de 10 × 10 cubes, marches carrées (cases de
+## 10 cm dont le centre tombe dans le secteur de la marche, jusqu'au rayon
+## extérieur), épaisses de 20 cm (on passe dessous). Collision inchangée :
+## noyau à 12 pans, secteurs minces qui suivent l'hélice.
+func _spiral(g: Dictionary, vox: CubeColumns, pl: Dictionary) -> void:
 	var sp: Dictionary = pl.spiral
 	var c: Vector2 = sp.c
 	var e1: Vector2 = sp.e1
@@ -693,26 +734,27 @@ func _spiral(g: Dictionary, pl: Dictionary) -> void:
 	var at := func(th: float, r: float, y: float) -> Vector3:
 		var q := c + (e1 * cos(th) + e2 * sin(th)) * r
 		return Vector3(q.x, y, q.y)
-	# Noyau (prisme à 12 pans).
+	var core := vox.origin + Vector2.ONE * (CORE * 0.5)
+	var top := y1 + StairGen.RAIL_H
+	# Noyau : visuel carré (cases du noyau ci-dessous) ; collision inchangée,
+	# le prisme à 12 pans de rayon COLUMN_R (le carré le dépasse de 10 cm au
+	# plus, aux coins).
 	var ct := []
 	var cb := []
 	for i in 12:
 		var th := TAU * i / 12.0
-		ct.append(at.call(th, ri, y1 + StairGen.RAIL_H))
+		ct.append(at.call(th, ri, top))
 		cb.append(at.call(th, ri, y0))
-	_prism_visual(g, ct, cb)
 	g.convex.append(PackedVector3Array(ct + cb))
-	# Marches visibles.
-	var n := StairGen.flight_steps(pl, H)
-	for i in n:
-		var tha := TAU * i / n
-		var thb := TAU * (i + 1) / n
-		var ty := y0 + H * (i + 1) / n
-		var top := [at.call(tha, ri, ty), at.call(tha, ro, ty), at.call((tha + thb) * 0.5, ro, ty), at.call(thb, ro, ty), at.call(thb, ri, ty)]
-		var bot := []
-		for q: Vector3 in top:
-			bot.append(Vector3(q.x, maxf(y0, ty - 0.2), q.z))
-		_prism_visual(g, top, bot)
+	for e in vox.cells_in(Rect2(c - Vector2.ONE * ro, Vector2.ONE * ro * 2.0)):
+		var q: Vector2 = e[1]
+		if absf(q.x - core.x) < CORE * 0.5 and absf(q.y - core.y) < CORE * 0.5:
+			vox.add(e[0], y0, top)
+			continue
+		if q.distance_to(c) > ro:
+			continue
+		var ty := StairGen.spiral_top(sp, StairGen.spiral_angle(sp, q))
+		vox.add(e[0], maxf(y0, ty - SPIRAL_STEP_T), ty)
 	# Collision : secteurs minces le long de l'hélice, qui se chevauchent d'un
 	# demi-degré (un rayon de sol pile sur la jointure de deux secteurs ne
 	# passe jamais au travers).
@@ -731,6 +773,60 @@ func _spiral(g: Dictionary, pl: Dictionary) -> void:
 		if pts.size() == 4:
 			pts.append(at.call((tha + thb) * 0.5, (ri + ro) * 0.5, y0 - 0.02))
 		g.convex.append(pts)
+
+
+## Colimaçon : garde-corps (ou limon plein, côtés fermés) sur l'anneau
+## extérieur, en escalier de marche en marche ; barreaux tous les 30 cm.
+func _spiral_rail(vox: CubeColumns, pl: Dictionary) -> void:
+	var sp: Dictionary = pl.spiral
+	var c: Vector2 = sp.c
+	var R := float(sp.r_out)
+	var y0 := float(sp.y0)
+	var H := StairGen.RAIL_H
+	var w := RAIL_CUBES * CUBE
+	var closed: bool = pl.closed
+	for e in vox.cells_in(Rect2(c - Vector2.ONE * (R + w), Vector2.ONE * (R + w) * 2.0)):
+		var q: Vector2 = e[1]
+		if absf(q.distance_to(c) - R) > w * 0.5:
+			continue
+		var th := StairGen.spiral_angle(sp, q)
+		var sf := StairGen.spiral_top(sp, th)
+		if closed:
+			vox.add(e[0], maxf(y0, sf - StairGen.SPIRAL_T), sf + H)
+			continue
+		var lo := minf(sf, StairGen.spiral_top(sp, th - CUBE / R))
+		vox.add(e[0], lo + H - w, sf + H)
+		vox.add(e[0], lo + 0.1, sf + 0.1 + w)
+	if closed:
+		return
+	var nb := floori(TAU * R / BALUSTER_GAP)
+	var e1: Vector2 = sp.e1
+	var e2: Vector2 = sp.e2
+	for i in nb:
+		var th := TAU * i / nb
+		var sf := StairGen.spiral_top(sp, th)
+		vox.add(vox.cell_of(c + (e1 * cos(th) + e2 * sin(th)) * R + CubeColumns.NUDGE), sf + 0.1 + w, sf + H - w)
+
+
+## Sol en pente (« slope ») : terrasses de 5 cm de haut (colonnes de cubes,
+## hauteur du plan arrondie au cube au centre de chaque case).
+func _terraces(g: Dictionary, outline: Array, height_fn: Callable) -> void:
+	var p2 := PackedVector2Array()
+	for p in outline:
+		p2.append(Vector2(float(p[0]), float(p[1])))
+	var bb := _bb2(p2)
+	var c := CUBE if bb.get_area() / (CUBE * CUBE) <= 20000.0 else CUBE * 2.0
+	var vox := CubeColumns.new(c, Vector2(snappedf(bb.position.x, CUBE), snappedf(bb.position.y, CUBE)))
+	var lo := INF
+	for q in p2:
+		lo = minf(lo, float(height_fn.call(q.x, q.y)))
+	var base := snappedf(lo, CUBE) - CUBE
+	vox.floor_level = CubeColumns.cubes(base)
+	for e in vox.cells_in(bb):
+		var q: Vector2 = e[1]
+		if Geometry2D.is_point_in_polygon(q, p2):
+			vox.add(e[0], base, snappedf(float(height_fn.call(q.x, q.y)), CUBE))
+	vox.emit(self, g)
 
 
 func _nodes() -> Node3D:
