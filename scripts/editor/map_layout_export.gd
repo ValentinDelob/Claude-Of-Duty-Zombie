@@ -172,6 +172,156 @@ func _build() -> Dictionary:
 		out["effects"] = effects
 	if not nav_blocks.is_empty():
 		out["nav_blocks"] = nav_blocks
+	# Format 20 : filet de sécurité, toute l'architecture sur la grille des
+	# cubes de 5 cm (cartes reçues, anciennes valeurs, morceaux calculés).
+	snap_layout(out)
+	return out
+
+
+# ------------------------------------------------------------------ grille des cubes (format 20)
+
+## Clés d'architecture d'une description (docs/VOXEL_ARCHITECTURE_PLAN.md
+## § 2.1) : chaque nombre de ces entrées est un multiple de 5 cm, sauf les
+## blocs de décor (« decor ») et les nombres qui ne sont pas des longueurs
+## (salles : seulement contours, sol, plafond, dalles ; escaliers : bouts et
+## largeur ; murs en biais : bouts, hauteurs, épaisseur, hauteurs des
+## ouvertures — leur milieu et leur largeur se mesurent le long du mur).
+const ARCHI_KEYS := ["rooms", "blocks", "walls", "obliques", "rails", "stairs", "slabs"]
+
+
+## Toute l'architecture d'une description arrondie au cube de 5 cm (en place).
+## Un contour dont deux sommets voisins se confondent les fusionne ; un
+## morceau de sol devenu plat (moins de 3 sommets) disparaît.
+static func snap_layout(L: Dictionary) -> void:
+	var c := func(v: Variant) -> Variant:
+		return MapGeom.cube(float(v)) if (v is float or v is int) else v
+	var pts := func(path: Variant) -> Array:
+		var out := []
+		if not path is Array:
+			return out
+		for p in path:
+			if p is Array and p.size() >= 2:
+				var q: Array = p.map(func(x): return c.call(x))
+				if out.is_empty() or out[-1] != q:
+					out.append(q)
+			else:
+				out.append(p)
+		return out
+	var rooms_out := []
+	for r in L.get("rooms", []):
+		if not r is Dictionary:
+			continue
+		var ol: Array = pts.call(r.get("outline", []))
+		while ol.size() > 3 and ol[0] == ol[-1]:
+			ol.pop_back()
+		if ol.size() < 3:
+			continue
+		r["outline"] = ol
+		for k in ["floor", "ceiling", "floor_slab", "ceiling_slab"]:
+			if r.has(k):
+				r[k] = c.call(r[k])
+		rooms_out.append(r)
+	if L.has("rooms"):
+		L["rooms"] = rooms_out
+	for b in L.get("blocks", []):
+		if b is Dictionary and not b.get("decor", false) and b.get("box") is Array:
+			b["box"] = (b.box as Array).map(func(x): return c.call(x))
+	for w in L.get("walls", []):
+		if not w is Dictionary:
+			continue
+		w["path"] = pts.call(w.get("path", []))
+		for k in ["y0", "y1", "thick"]:
+			if w.has(k):
+				w[k] = c.call(w[k])
+		for o in w.get("openings", []):
+			for k in ["t", "w", "y0", "y1"]:
+				if o is Dictionary and o.has(k):
+					o[k] = c.call(o[k])
+	for w in L.get("obliques", []):
+		if not w is Dictionary:
+			continue
+		# Ouvertures d'un mur en biais : leur milieu « t » se compte depuis le
+		# bout « a » ; « a » arrondi, « t » est décalé d'autant (l'ouverture
+		# reste à sa place sur le mur ; « t » et « w » sont des longueurs le
+		# long d'un mur en biais, pas des coordonnées de la grille).
+		var shift := 0.0
+		if w.get("a") is Array and w.get("b") is Array and (w.a as Array).size() >= 2 and (w.b as Array).size() >= 2:
+			var a0 := Vector2(float(w.a[0]), float(w.a[1]))
+			var d := Vector2(float(w.b[0]), float(w.b[1])) - a0
+			if d.length() > 1e-6:
+				shift = (a0 - Vector2(MapGeom.cube(a0.x), MapGeom.cube(a0.y))).dot(d.normalized())
+		for k in ["a", "b"]:
+			if w.get(k) is Array:
+				w[k] = (w[k] as Array).map(func(x): return c.call(x))
+		for o in w.get("openings", []):
+			if o is Dictionary and o.has("t"):
+				o["t"] = snappedf(float(o.t) + shift, 0.001)
+		for k in ["y0", "y1"]:
+			if w.has(k):
+				w[k] = c.call(w[k])
+		if w.has("thick"):
+			# Raccord d'angle : jamais plus mince (pas de jour entre deux murs).
+			var t := float(w.thick)
+			w["thick"] = maxf(MapGeom.CUBE, ceilf(t * MapGeom.CUBES_PER_M - 0.001) / MapGeom.CUBES_PER_M if w.get("joint", false) else MapGeom.cube(t))
+		for o in w.get("openings", []):
+			for k in ["y0", "y1"]:
+				if o is Dictionary and o.has(k):
+					o[k] = c.call(o[k])
+	for rl in L.get("rails", []):
+		if not rl is Dictionary:
+			continue
+		rl["path"] = pts.call(rl.get("path", []))
+		for k in ["y", "h"]:
+			if rl.has(k):
+				rl[k] = c.call(rl[k])
+	for s in L.get("stairs", []):
+		if not s is Dictionary:
+			continue
+		for k in ["a", "b"]:
+			if s.get(k) is Array:
+				s[k] = (s[k] as Array).map(func(x): return c.call(x))
+		if s.has("w"):
+			s["w"] = c.call(s.w)
+	for sl in L.get("slabs", []):
+		if not sl is Dictionary:
+			continue
+		sl["outline"] = pts.call(sl.get("outline", []))
+		for k in ["y", "thick"]:
+			if sl.has(k):
+				sl[k] = c.call(sl[k])
+
+
+## Valeurs d'architecture d'une description hors de la grille des cubes de
+## 5 cm : ["chemin : valeur", ...] (vide : tout est sur la grille). Mêmes
+## clés que snap_layout ; contrôle des tests et de la commande --check.
+static func off_grid(L: Dictionary) -> Array:
+	var out := []
+	var walk := func(self_fn: Callable, v: Variant, path: String) -> void:
+		if v is float or v is int:
+			if not MapGeom.on_cube(float(v)):
+				out.append("%s : %s" % [path, str(v)])
+		elif v is Array:
+			for i in (v as Array).size():
+				self_fn.call(self_fn, v[i], "%s[%d]" % [path, i])
+	var fields := {"rooms": ["outline", "floor", "ceiling", "floor_slab", "ceiling_slab"], "blocks": ["box"],
+		"walls": ["path", "y0", "y1", "thick"], "obliques": ["a", "b", "y0", "y1", "thick"],
+		"rails": ["path", "y", "h"], "stairs": ["a", "b", "w"], "slabs": ["outline", "y", "thick"]}
+	for key in fields:
+		var list: Variant = L.get(key, [])
+		if not list is Array:
+			continue
+		for i in (list as Array).size():
+			var e: Variant = list[i]
+			if not e is Dictionary or e.get("decor", false):
+				continue
+			for f in fields[key]:
+				if e.has(f):
+					walk.call(walk, e[f], "/%s[%d]/%s" % [key, i, f])
+			for j in (e.get("openings", []) as Array).size():
+				# Mur en biais : « t » et « w » se mesurent le long du mur.
+				for f in (["y0", "y1"] if key == "obliques" else ["t", "w", "y0", "y1"]):
+					if (e.openings[j] as Dictionary).has(f):
+						walk.call(walk, e.openings[j][f], "/%s[%d]/openings[%d]/%s" % [key, i, j, f])
 	return out
 
 
@@ -185,18 +335,15 @@ func surface_of(room_id: String, part: String, zone: String, fallback: String) -
 	return String(zm.get(zone, fallback))
 
 
-## Écart (m) entre le plafond d'une pièce et le dessous de la dalle du niveau
-## du dessus : assez pour éviter le z-fighting, invisible au joueur.
-const UNDER_SLAB := 0.01
-
-
-## Plafond d'une pièce sous une pièce (ou un mur) du niveau du dessus : juste
-## sous le dessous de la dalle `slab_bottom`. Toujours dessiné, avec la
-## texture de plafond de la pièce du bas (même par défaut) : sans lui, on
-## voyait d'en bas le dessous de la dalle, qui porte la texture du SOL de la
-## pièce du dessus (MeshMapGeometry._slab).
+## Plafond d'une pièce sous une pièce (ou un mur) du niveau du dessus : le
+## dessous de la dalle `slab_bottom` lui-même (format 20 : plus d'écart de
+## 1 cm, tout est sur la grille des cubes de 5 cm). Toujours dessiné, avec la
+## texture de plafond de la pièce du bas (même par défaut) : c'est LA face du
+## dessous de la dalle ; MeshMapGeometry ne dessine pas la face du dessous
+## d'une dalle ou d'un mur là où un plafond est déjà dans son plan (une
+## seule face, pas de scintillement).
 static func under_slab(slab_bottom: float) -> float:
-	return snappedf(slab_bottom - UNDER_SLAB, 0.001)
+	return MapGeom.cube(slab_bottom)
 
 
 ## Case de sol d'une pièce, y compris sous le décor posé (prefabs, caisses).
@@ -317,8 +464,9 @@ func _cell_wall_mat(f: MapValidator.Floor, c: Vector2i) -> String:
 ## jusqu'au plus haut, chaque face avec la texture de murs de sa pièce.
 ## -> [bas, haut, [matériau côté ouest/nord, côté est/sud], axe (0 : mur
 ## nord-sud, pièces à l'ouest et à l'est ; 1 : mur est-ouest)], [] sinon.
-## Le bas est UNDER_SLAB sous le plafond du passage : le dessous de la
-## retombée (texture du mur) n'est jamais dans le plan de ce plafond.
+## Le bas est le plafond du passage (format 20) : ce plafond est la face du
+## dessous de la retombée (MeshMapGeometry ne dessine pas la face du dessous
+## du bloc dans le plan d'un plafond).
 func _passage_lintel(f: MapValidator.Floor, c: Vector2i) -> Array:
 	if f.room_of(c) != "" or f.key_at(c) != "zone":
 		return []
@@ -681,7 +829,9 @@ func _decor() -> void:
 			r = r.grow(-DECOR_WALL_INSET)
 		var a: Array = _xz(r.position)
 		var b: Array = _xz(r.end)
-		blocks.append({"room": ref_room.get(d.floor, "x"), "box": [a[0], _r(sol), a[1], b[0], _r(sol + float(d.h)), b[1]], "mat": String(d.mat)})
+		# « decor » : bloc d'un décor posé (règles du décor, pas la grille des
+		# cubes de l'architecture : snap_layout le laisse tel quel).
+		blocks.append({"room": ref_room.get(d.floor, "x"), "box": [a[0], _r(sol), a[1], b[0], _r(sol + float(d.h)), b[1]], "mat": String(d.mat), "decor": true})
 
 
 ## Point du monde d'un point de l'éditeur (m) au niveau k, `dy` au-dessus du sol.

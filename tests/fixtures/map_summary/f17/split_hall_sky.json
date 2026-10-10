@@ -1,7 +1,7 @@
 {
 	"doc": {
 		"carte": {
-			"format": 19.0,
+			"format": 20.0,
 			"id": "halle_haute",
 			"nom": {
 				"fr": "HALLE_HAUTE",
@@ -269,7 +269,7 @@
 						"fr": "HALLE_HAUTE",
 						"en": "HALLE_HAUTE"
 					},
-					"format": 19.0,
+					"format": 20.0,
 					"niveaux": [
 						0.0,
 						1.5,
@@ -621,7 +621,7 @@
 						"fr": "HALLE_HAUTE",
 						"en": "HALLE_HAUTE"
 					},
-					"format": 19.0,
+					"format": 20.0,
 					"niveaux": [
 						0.0,
 						1.5,
@@ -880,7 +880,7 @@
 						"fr": "HALLE_HAUTE",
 						"en": "HALLE_HAUTE"
 					},
-					"format": 19.0,
+					"format": 20.0,
 					"niveaux": [
 						0.0,
 						1.5,
@@ -965,7 +965,7 @@
 						"fr": "HALLE_HAUTE",
 						"en": "HALLE_HAUTE"
 					},
-					"format": 19.0,
+					"format": 20.0,
 					"niveaux": [
 						0.0,
 						1.5,
@@ -1052,7 +1052,7 @@
 						"fr": "HALLE_HAUTE",
 						"en": "HALLE_HAUTE"
 					},
-					"format": 19.0,
+					"format": 20.0,
 					"niveaux": [
 						0.0,
 						1.5,

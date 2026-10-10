@@ -218,12 +218,14 @@ func _cli_check(path: String) -> void:
 	if not (p.is_absolute_path() or p.begins_with("res://") or p.begins_with("user://")):
 		p = ProjectSettings.globalize_path("res://").path_join(p)
 	var m: EditorMap = EditorMap.import_zip(p) if p.get_extension().to_lower() == "zip" else EditorMap.load_dir(p)
+	# Format 20 : erreurs apparues avec le passage aux cubes de 5 cm (notes).
+	var fresh := m.cube_check()
 	for e in m.load_errors + m.load_notes:
 		print("[carte] ", Lang.t(e[0], e[1]))
 	var v := MapRaster.build(m).v
 	v.analyze()
 	print(v.report_text())
-	get_tree().quit(0 if v.ok() else 1)
+	get_tree().quit(0 if v.ok() and fresh.is_empty() else 1)
 
 
 func _start() -> void:
@@ -1240,7 +1242,13 @@ func push_undo_snapshot(s: Dictionary) -> void:
 ## Changement en cours (push_undo puis modification) inscrit dans
 ## l'historique s'il a vraiment changé la carte.
 func _commit_change() -> void:
-	if _before.is_empty() or collab == null:
+	if _before.is_empty():
+		return
+	# Format 20 : l'architecture modifiée sur la grille des cubes de 5 cm
+	# (pièces, murs, piliers, escaliers, ouvertures et objets muraux sur leur
+	# mur, altitudes) : filet de toutes les saisies (docs/VOXEL_ARCHITECTURE_PLAN.md § 2.1).
+	MapCubeSnap.snap_edited(_before, doc)
+	if collab == null:
 		return
 	var before := _before
 	_before = {}
@@ -3241,7 +3249,17 @@ func open_dir(dir: String, is_example := false) -> void:
 	if refuse_guest():
 		return
 	var d := EditorMap.load_dir(dir)
-	if not d.load_errors.is_empty():
+	# Format 20 : carte d'avant que l'arrondi aux cubes de 5 cm change : copie
+	# de sauvegarde du dossier AVANT tout enregistrement (jamais deux fois la
+	# même), erreurs nouvelles du validateur signalées ; la carte s'ouvre quand même.
+	var fresh := []
+	if d.cube_changes > 0 and not is_example:
+		var saved := MapCubeSnap.backup(dir, d.format_read)
+		if saved != "":
+			d.load_notes.append(["copie de la carte d'avant : %s" % ProjectSettings.globalize_path(saved),
+				"copy of the map as it was: %s" % ProjectSettings.globalize_path(saved)])
+		fresh = d.cube_check()
+	if not d.load_errors.is_empty() or not fresh.is_empty():
 		_info(Lang.t("Ouverture", "Open"), "\n".join((d.load_errors + d.load_notes).map(func(e): return Lang.t(e[0], e[1]))))
 	map_dir = "" if is_example else dir
 	example = is_example
@@ -3251,7 +3269,7 @@ func open_dir(dir: String, is_example := false) -> void:
 	set_status(Lang.t("Carte « %s » ouverte", "Map \"%s\" opened") % doc.display_name())
 	# Notes seules (objets retirés du jeu…) : dans la barre d'état, sans
 	# fenêtre qui bloquerait l'éditeur ou une autre fenêtre déjà ouverte.
-	if d.load_errors.is_empty() and not d.load_notes.is_empty():
+	if d.load_errors.is_empty() and fresh.is_empty() and not d.load_notes.is_empty():
 		set_status(" ".join(d.load_notes.map(func(e): return Lang.t(e[0], e[1]))), true)
 
 
@@ -3534,6 +3552,8 @@ func import_zip(path: String) -> bool:
 		return false
 	map_dir = ""
 	example = false
+	# Format 20 : erreurs apparues avec le passage aux cubes de 5 cm (notes).
+	d.cube_check()
 	if not d.load_notes.is_empty():
 		_info(Lang.t("Import", "Import"), "\n".join(d.load_notes.map(func(e): return Lang.t(e[0], e[1]))))
 	_reset(d)
@@ -3755,7 +3775,12 @@ func _resume_recovery(dir: String) -> void:
 	if ex:
 		map_dir = ""
 	if on_disk != "":
-		_saved_sig = MapUnsaved.signature(EditorMap.load_dir(on_disk))
+		var orig := EditorMap.load_dir(on_disk)
+		# Format 20 : la carte d'origine d'avant les cubes est copiée avant que
+		# l'enregistrement ne la remplace.
+		if orig.cube_changes > 0:
+			MapCubeSnap.backup(on_disk, orig.format_read)
+		_saved_sig = MapUnsaved.signature(orig)
 		_dirty_ver = -1
 	else:
 		dirty = true

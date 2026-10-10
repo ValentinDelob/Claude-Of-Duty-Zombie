@@ -1049,7 +1049,7 @@
   ],
   "rooms": [
    {
-    "ceiling": 3.19,
+    "ceiling": 3.2,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "concrete",
@@ -1074,7 +1074,7 @@
     ]
    },
    {
-    "ceiling": 3.19,
+    "ceiling": 3.2,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "concrete",
@@ -1099,7 +1099,7 @@
     ]
    },
    {
-    "ceiling": 6.69,
+    "ceiling": 6.7,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "concrete",
@@ -1124,7 +1124,7 @@
     ]
    },
    {
-    "ceiling": 3.19,
+    "ceiling": 3.2,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "concrete",
@@ -1149,7 +1149,7 @@
     ]
    },
    {
-    "ceiling": 3.19,
+    "ceiling": 3.2,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "concrete",
@@ -1174,7 +1174,7 @@
     ]
    },
    {
-    "ceiling": 6.69,
+    "ceiling": 6.7,
     "ceiling_mat": "ceiling",
     "floor": 3.5,
     "floor_mat": "concrete",
@@ -1200,7 +1200,7 @@
     ]
    },
    {
-    "ceiling": 6.69,
+    "ceiling": 6.7,
     "ceiling_mat": "ceiling",
     "floor": 3.5,
     "floor_mat": "concrete",
@@ -1226,7 +1226,7 @@
     ]
    },
    {
-    "ceiling": 6.69,
+    "ceiling": 6.7,
     "ceiling_mat": "ceiling",
     "floor": 3.5,
     "floor_mat": "concrete",
@@ -1252,7 +1252,7 @@
     ]
    },
    {
-    "ceiling": 10.19,
+    "ceiling": 10.2,
     "ceiling_mat": "ceiling",
     "floor": 3.5,
     "floor_mat": "concrete",
@@ -1278,7 +1278,7 @@
     ]
    },
    {
-    "ceiling": 6.69,
+    "ceiling": 6.7,
     "ceiling_mat": "ceiling",
     "floor": 3.5,
     "floor_mat": "concrete",
@@ -1304,7 +1304,7 @@
     ]
    },
    {
-    "ceiling": 6.69,
+    "ceiling": 6.7,
     "ceiling_mat": "ceiling",
     "floor": 3.5,
     "floor_mat": "concrete",
@@ -1330,7 +1330,7 @@
     ]
    },
    {
-    "ceiling": 6.69,
+    "ceiling": 6.7,
     "ceiling_mat": "ceiling",
     "floor": 3.5,
     "floor_mat": "concrete",
@@ -1356,7 +1356,7 @@
     ]
    },
    {
-    "ceiling": 10.19,
+    "ceiling": 10.2,
     "ceiling_mat": "ceiling",
     "floor": 7.0,
     "floor_mat": "concrete",
@@ -1382,7 +1382,7 @@
     ]
    },
    {
-    "ceiling": 13.69,
+    "ceiling": 13.7,
     "ceiling_mat": "ceiling",
     "floor": 7.0,
     "floor_mat": "concrete",
@@ -1408,7 +1408,7 @@
     ]
    },
    {
-    "ceiling": 10.19,
+    "ceiling": 10.2,
     "ceiling_mat": "ceiling",
     "floor": 7.0,
     "floor_mat": "concrete",
@@ -1434,7 +1434,7 @@
     ]
    },
    {
-    "ceiling": 13.69,
+    "ceiling": 13.7,
     "ceiling_mat": "ceiling",
     "floor": 7.0,
     "floor_mat": "concrete",
@@ -1460,7 +1460,7 @@
     ]
    },
    {
-    "ceiling": 10.19,
+    "ceiling": 10.2,
     "ceiling_mat": "ceiling",
     "floor": 7.0,
     "floor_mat": "concrete",
@@ -1486,7 +1486,7 @@
     ]
    },
    {
-    "ceiling": 10.19,
+    "ceiling": 10.2,
     "ceiling_mat": "ceiling",
     "floor": 7.0,
     "floor_mat": "concrete",
@@ -1512,7 +1512,7 @@
     ]
    },
    {
-    "ceiling": 10.19,
+    "ceiling": 10.2,
     "ceiling_mat": "ceiling",
     "floor": 7.0,
     "floor_mat": "concrete",
@@ -1538,7 +1538,7 @@
     ]
    },
    {
-    "ceiling": 10.19,
+    "ceiling": 10.2,
     "ceiling_mat": "ceiling",
     "floor": 7.0,
     "floor_mat": "concrete",
@@ -1564,7 +1564,7 @@
     ]
    },
    {
-    "ceiling": 13.69,
+    "ceiling": 13.7,
     "ceiling_mat": "ceiling",
     "floor": 10.5,
     "floor_mat": "concrete",
@@ -1590,7 +1590,7 @@
     ]
    },
    {
-    "ceiling": 13.69,
+    "ceiling": 13.7,
     "ceiling_mat": "ceiling",
     "floor": 10.5,
     "floor_mat": "concrete",
@@ -1616,7 +1616,7 @@
     ]
    },
    {
-    "ceiling": 13.69,
+    "ceiling": 13.7,
     "ceiling_mat": "ceiling",
     "floor": 10.5,
     "floor_mat": "concrete",
@@ -1668,7 +1668,7 @@
     ]
    },
    {
-    "ceiling": 13.69,
+    "ceiling": 13.7,
     "ceiling_mat": "ceiling",
     "floor": 10.5,
     "floor_mat": "concrete",
@@ -1694,7 +1694,7 @@
     ]
    },
    {
-    "ceiling": 13.69,
+    "ceiling": 13.7,
     "ceiling_mat": "ceiling",
     "floor": 10.5,
     "floor_mat": "concrete",
@@ -1720,7 +1720,7 @@
     ]
    },
    {
-    "ceiling": 13.69,
+    "ceiling": 13.7,
     "ceiling_mat": "ceiling",
     "floor": 10.5,
     "floor_mat": "concrete",

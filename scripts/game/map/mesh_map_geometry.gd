@@ -68,9 +68,123 @@ func _box(g: Dictionary, center: Vector3, size: Vector3, yaw: float, vis := true
 			var b: Vector3 = axis[4] * float(axis[5])
 			for s in [1.0, -1.0]:
 				var c: Vector3 = center + n * float(axis[1]) * s
+				if n == Vector3.UP and s < 0.0:
+					# Dessous : sans les parties où un plafond est dans son plan.
+					_down_face(g, [c - a - b, c + a - b, c + a + b, c - a + b])
+					continue
 				_quad(g, [c - a - b, c + a - b, c + a + b, c - a + b], n * s)
 	if col:
 		g.boxes.append([Transform3D(Basis(ux, Vector3.UP, uz), center), size])
+
+
+# ------------------------------------------------------------------ plafonds dans le plan d'un dessous (format 20)
+
+## Plafonds des salles (format 20, docs/VOXEL_ARCHITECTURE_PLAN.md § 2.1) :
+## hauteur en mm -> [{bb: Rect2, poly}]. Le plafond d'une salle sous une dalle
+## EST la face du dessous de cette dalle (plus d'écart de 1 cm) : la face du
+## dessous d'une dalle, d'un bloc ou d'un mur dans le plan d'un plafond n'est
+## pas dessinée là où ce plafond la couvre (une seule face, pas de
+## scintillement ; le plafond garde la texture de plafond de sa salle).
+var _covers: Dictionary = {}
+
+
+func _collect_covers(L: Dictionary) -> void:
+	_covers = {}
+	for r in L.get("rooms", []):
+		if r.get("no_ceiling", false) or r.has("ceiling_slab") or not r.has("ceiling"):
+			continue
+		var p2 := PackedVector2Array()
+		for p in r.outline:
+			p2.append(Vector2(float(p[0]), float(p[1])))
+		if p2.size() < 3:
+			continue
+		(_covers.get_or_add(roundi(float(r.ceiling) * 1000.0), []) as Array).append({"bb": _bb2(p2), "poly": p2})
+
+
+static func _bb2(p: PackedVector2Array) -> Rect2:
+	var r := Rect2(p[0], Vector2.ZERO)
+	for v in p:
+		r = r.expand(v)
+	return r
+
+
+## Face horizontale tournée vers le bas (sommets 3D à la même hauteur, dans
+## l'ordre du contour), moins les plafonds dans son plan (_covers).
+func _down_face(g: Dictionary, pts: Array) -> void:
+	var y := float((pts[0] as Vector3).y)
+	var covers: Array = _covers.get(roundi(y * 1000.0), [])
+	if covers.is_empty():
+		_quad_or_poly(g, pts)
+		return
+	var p2 := PackedVector2Array()
+	for p: Vector3 in pts:
+		p2.append(Vector2(p.x, p.z))
+	var bb := _bb2(p2)
+	var pieces: Array = [p2]
+	var cut := false
+	for cv in covers:
+		if not (cv.bb as Rect2).intersects(bb):
+			continue
+		cut = true
+		var next := []
+		for pc in pieces:
+			next.append_array(_minus(pc, cv.poly, 0))
+		pieces = next
+		if pieces.is_empty():
+			return
+	if not cut:
+		_quad_or_poly(g, pts)
+		return
+	for pc: PackedVector2Array in pieces:
+		var idx := Geometry2D.triangulate_polygon(pc)
+		for i in range(0, idx.size(), 3):
+			_tri(g, Vector3(pc[idx[i]].x, y, pc[idx[i]].y), Vector3(pc[idx[i + 1]].x, y, pc[idx[i + 1]].y),
+				Vector3(pc[idx[i + 2]].x, y, pc[idx[i + 2]].y), Vector3.DOWN, true, false)
+
+
+func _quad_or_poly(g: Dictionary, pts: Array) -> void:
+	if pts.size() == 4 and Geometry2D.is_polygon_clockwise(PackedVector2Array([Vector2(pts[0].x, pts[0].z), Vector2(pts[1].x, pts[1].z), Vector2(pts[2].x, pts[2].z)])) \
+			== Geometry2D.is_polygon_clockwise(PackedVector2Array([Vector2(pts[0].x, pts[0].z), Vector2(pts[2].x, pts[2].z), Vector2(pts[3].x, pts[3].z)])):
+		# Quadrilatère convexe (face d'une boîte) : deux triangles, comme avant.
+		_quad(g, pts, Vector3.DOWN)
+		return
+	var p2 := PackedVector2Array()
+	for p: Vector3 in pts:
+		p2.append(Vector2(p.x, p.z))
+	var idx := Geometry2D.triangulate_polygon(p2)
+	for i in range(0, idx.size(), 3):
+		_tri(g, pts[idx[i]], pts[idx[i + 1]], pts[idx[i + 2]], Vector3.DOWN, true, false)
+
+
+## Contour `a` moins le contour `b` : morceaux sans trou (un trou est évité en
+## coupant `a` en deux par une verticale à travers lui, puis chaque moitié).
+static func _minus(a: PackedVector2Array, b: PackedVector2Array, depth: int) -> Array:
+	var res := Geometry2D.clip_polygons(a, b)
+	var hole := -1
+	for i in res.size():
+		for j in res.size():
+			if i != j and Geometry2D.is_point_in_polygon(res[i][0], res[j]) and _area2(res[i]) < _area2(res[j]):
+				hole = i
+		if hole >= 0:
+			break
+	if hole < 0 or depth > 8:
+		return res.filter(func(p): return _area2(p) > 1e-6)
+	var bb := _bb2(a)
+	var x := _bb2(res[hole]).get_center().x
+	var out := []
+	for half in [Rect2(bb.position.x - 1.0, bb.position.y - 1.0, x - bb.position.x + 1.0, bb.size.y + 2.0),
+			Rect2(x, bb.position.y - 1.0, bb.end.x - x + 1.0, bb.size.y + 2.0)]:
+		var hp := PackedVector2Array([half.position, Vector2(half.end.x, half.position.y), half.end, Vector2(half.position.x, half.end.y)])
+		for part in Geometry2D.intersect_polygons(a, hp):
+			out.append_array(_minus(part, b, depth + 1))
+	return out
+
+
+static func _area2(p: PackedVector2Array) -> float:
+	var s := 0.0
+	for i in p.size():
+		s += p[i].cross(p[(i + 1) % p.size()])
+	return absf(s) * 0.5
 
 
 ## Morceaux pleins d'un mur de `s0` à `s1` (le long du mur) et de `y0` à
@@ -163,7 +277,8 @@ func _stepped_piece(gn: Dictionary, gm: Dictionary, a: Vector3, d: Vector3, s0: 
 		var r1 := (j + 1) * c
 		# Dessus et dessous.
 		_quad(gn, [pt.call(q0, r0, y1), pt.call(q1, r0, y1), pt.call(q1, r1, y1), pt.call(q0, r1, y1)], Vector3.UP)
-		_quad(gn, [pt.call(q0, r0, y0), pt.call(q1, r0, y0), pt.call(q1, r1, y0), pt.call(q0, r1, y0)], Vector3.DOWN)
+		# Dessous : sans les parties où un plafond est dans son plan (format 20).
+		_down_face(gn, [pt.call(q0, r0, y0), pt.call(q1, r0, y0), pt.call(q1, r1, y0), pt.call(q0, r1, y0)])
 		# Bouts de la rangée (faces ±q).
 		for e in [[q0, -1.0], [q1, 1.0]]:
 			var q: float = e[0]
@@ -233,7 +348,12 @@ func _slab(g: Dictionary, outline: Array, top: float, th: float) -> void:
 	for p in outline:
 		p2.append(Vector2(float(p[0]), float(p[1])))
 	_polygon(g, outline, func(_x, _z): return top, true, true, false)
-	_polygon(g, outline, func(_x, _z): return top - th, false, true, false)
+	# Dessous : sans les parties où le plafond d'une salle est dans son plan
+	# (format 20 : ce plafond est la face du dessous de la dalle).
+	var under := []
+	for q in p2:
+		under.append(Vector3(q.x, top - th, q.y))
+	_down_face(g, under)
 	var ccw := 0.0
 	for i in p2.size():
 		ccw += p2[i].cross(p2[(i + 1) % p2.size()])
@@ -270,6 +390,7 @@ static func _floor_height(r: Dictionary) -> Callable:
 
 
 func _build(L: Dictionary) -> Node3D:
+	_collect_covers(L)
 	# Salles : sols et plafonds.
 	for r in L.get("rooms", []):
 		var rid := String(r.id)

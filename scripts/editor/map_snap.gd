@@ -4,9 +4,12 @@ extends RefCounted
 ## libres ») : trois modes, choisis avec la touche G (réglage mémorisé) :
 ##   grille  pas de 1 m (côtés à 0, 45 ou 90°, Alt : angle libre) ;
 ##   fine    pas de 0,5, 0,25 ou 0,1 m (Maj+G change le pas) ;
-##   libre   sans grille : coordonnées au centimètre, côtés à 15° près (Alt :
-##           angle libre), aimantation aux sommets et aux côtés des pièces
-##           existantes (pour coller deux pièces).
+##   libre   sans grille de construction : format 20, coordonnées sur la
+##           grille des cubes de 5 cm (MapGeom.round_cube, GAME_CONCEPT.md
+##           § 4.19), côtés à 15° près (Alt : angle libre), aimantation aux
+##           sommets et aux côtés des pièces existantes (pour coller deux
+##           pièces ; sur un côté en biais : le point de la grille le plus
+##           près du côté, MapGeom.cube_near_line).
 ## Maj maintenu inverse le mode courant (grille ou fine <-> libre).
 ## Fonctions pures, testées par tests/test_map_editor_freeform.gd.
 
@@ -26,20 +29,21 @@ static func effective(mode: String, invert: bool, last_grid: String) -> String:
 	return last_grid if mode == "libre" else "libre"
 
 
-## Pas de la grille d'un mode (m) ; libre : le centimètre.
+## Pas de la grille d'un mode (m) ; libre : le cube de 5 cm (format 20 ; le
+## centimètre avant).
 static func step_of(mode: String, fine_step: float) -> float:
 	match mode:
 		"fine":
 			return fine_step
 		"libre":
-			return 0.01
+			return MapGeom.CUBE
 	return 1.0
 
 
 ## Point aimanté sur la grille du mode (sans les aimants de la carte).
 static func on_step(m: Vector2, mode: String, fine_step: float) -> Vector2:
 	if mode == "libre":
-		return MapGeom.round_cm(m)
+		return MapGeom.round_cube(m)
 	var s := step_of(mode, fine_step)
 	return Vector2(roundf(m.x / s) * s, roundf(m.y / s) * s)
 
@@ -50,7 +54,7 @@ static func label(mode: String, fine_step: float) -> String:
 		"fine":
 			return Lang.t("grille fine %s m", "fine grid %s m") % MapRules._m(fine_step, not Lang.is_en())
 		"libre":
-			return Lang.t("libre (sans grille)", "free (no grid)")
+			return Lang.t("libre (cubes de 5 cm)", "free (5 cm cubes)")
 	return Lang.t("grille 1 m", "1 m grid")
 
 
@@ -113,13 +117,14 @@ static func magnet(doc: EditorMap, k: int, m: Vector2, radius: float, exclude :=
 		var d := q.distance_to(m)
 		if d < best_d:
 			best_d = d
-			best = {"p": Vector2(snappedf(q.x, 0.001), snappedf(q.y, 0.001)), "kind": "cote", "a": e[0], "b": e[1]}
+			# Format 20 : le point de la grille des cubes le plus près du côté.
+			best = {"p": MapGeom.cube_near_line(q, e[0], e[1]), "kind": "cote", "a": e[0], "b": e[1]}
 	return best
 
 
 ## Point suivant d'un tracé sans grille depuis `from` : aimant d'abord (un
 ## sommet ; sur un côté, là où le trait à 15° le croise s'il y arrive), sinon
-## angle aimanté à 15° (libre avec `free_angle`) et centimètre.
+## angle aimanté à 15° (libre avec `free_angle`) et cube de 5 cm.
 static func trace_free(doc: EditorMap, k: int, from: Vector2, m: Vector2, radius: float, free_angle: bool, exclude := "", ghost := -1) -> Vector2:
 	var mg := magnet(doc, k, m, radius, exclude, ghost)
 	var ang := MapGeom.snap_angle_free(from, m, FREE_ANGLE_STEP, free_angle)
@@ -130,7 +135,7 @@ static func trace_free(doc: EditorMap, k: int, from: Vector2, m: Vector2, radius
 		var dir := (ang - from).normalized()
 		var hit: Variant = Geometry2D.segment_intersects_segment(from, from + dir * (from.distance_to(m) + radius * 4.0), mg.a, mg.b)
 		if hit != null and (hit as Vector2).distance_to(m) < radius * 2.0:
-			return Vector2(snappedf(hit.x, 0.001), snappedf(hit.y, 0.001))
+			return MapGeom.cube_near_line(hit, mg.a, mg.b)
 	return mg.p
 
 
@@ -148,4 +153,5 @@ static func room_delta(doc: EditorMap, k: int, poly: PackedVector2Array, delta: 
 		if d < best_d:
 			best_d = d
 			best = delta + (Vector2(mg.p) - target)
-	return Vector2(snappedf(best.x, 0.001), snappedf(best.y, 0.001))
+	# Format 20 : décalage en cubes de 5 cm (une pièce sur la grille y reste).
+	return MapGeom.round_cube(best)

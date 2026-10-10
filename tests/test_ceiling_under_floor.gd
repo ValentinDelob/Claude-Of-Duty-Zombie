@@ -173,9 +173,9 @@ func test_passage_opens_up_to_the_lower_ceiling() -> void:
 	assert_near(float((a.get("p", Vector3.ZERO) as Vector3).x - OFF), 6.0 - MapGeom.WALL_HALF, 0.02, "dans le plan du mur (%s)" % a.get("name"))
 	assert_eq(_mat(a), "brick", "texture de mur de la pièce haute")
 	assert_eq(String(a.get("tie", "")), "")
-	# Côté pièce basse, entre le dessous de la retombée et son plafond : la
-	# retombée avec SA texture.
-	var b := _ray(root, Vector3(9 + OFF, 3.195, 5.5 + OFF), Vector3.LEFT)
+	# Côté pièce basse, juste au-dessus de son plafond (format 20 : la retombée
+	# commence AU plafond, plus 1 cm plus bas) : la retombée avec SA texture.
+	var b := _ray(root, Vector3(9 + OFF, 3.25, 5.5 + OFF), Vector3.LEFT)
 	assert_near(float((b.get("p", Vector3.ZERO) as Vector3).x - OFF), 6.0 + MapGeom.WALL_HALF, 0.02, "linteau côté B (%s)" % b.get("name"))
 	assert_eq(_mat(b), "wall_green", "texture de mur de la pièce basse")
 	# Porte sur le même mur : ouverte jusqu'à hauteur_portes, mur au-dessus.
