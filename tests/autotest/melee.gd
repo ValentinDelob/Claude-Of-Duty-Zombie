@@ -1,6 +1,6 @@
 extends AutotestScenario
 ## Couteau (BO1) : fente vers un zombie visé à 2,5 m, 150 dégâts, mort au
-## couteau = 130 points, pas de fente hors du cône de visée, animation du bras
+## couteau = ferraille fixe d'un kill, pas de fente hors du cône de visée, animation du bras
 ## gauche, achat mural du COUTEAU DE CHASSE (3000, récupération ~2 s) puis
 ## zombie de manche 10 tué d'un seul coup.
 
@@ -44,7 +44,7 @@ func run() -> void:
 	await seconds(2.5)  # captures : les lumières finissent de s'allumer
 	at.check(pd.knife == "knife" and p.weapons.knife_id == "knife", "couteau de départ")
 
-	# 1. Fente : zombie visé à 2,5 m, mort d'un coup (150 PV), 130 points.
+	# 1. Fente : zombie visé à 2,5 m, mort d'un coup (150 PV), ferraille d'un kill.
 	var z := await setup_duel(p, 2.5, 150)
 	var pts := pd.points
 	var x0 := p.global_position.x
@@ -56,9 +56,9 @@ func run() -> void:
 	await at.screenshot("melee_slash")
 	var moved := p.global_position.x - x0
 	at.check(moved > 1.0 and moved < 2.2, "le joueur s'est projeté vers le zombie (%.2f m)" % moved)
-	await until(func(): return (not is_instance_valid(z) or not z.is_alive()) and pd.points - pts == 130, 1.0, "zombie tué par la fente")
+	await until(func(): return (not is_instance_valid(z) or not z.is_alive()) and pd.points - pts == PointsRules.KILL, 1.0, "zombie tué par la fente")
 	at.check(not z.is_alive(), "zombie à 2,5 m tué par la fente")
-	at.check(pd.points - pts == 130, "mort au couteau : +130 (%d)" % (pd.points - pts))
+	at.check(pd.points - pts == PointsRules.KILL, "mort au couteau : montant fixe (%d)" % (pd.points - pts))
 	await seconds(0.5)
 
 	# 2. Dégâts du couteau : 150 sur un zombie plus résistant.
@@ -150,9 +150,9 @@ func run() -> void:
 	await knife(p)
 	await seconds(0.15)  # capture
 	await at.screenshot("bowie_slash")
-	await until(func(): return (not is_instance_valid(z) or not z.is_alive()) and pd.points - pts == 130, 1.0, "zombie tué au couteau de chasse")
+	await until(func(): return (not is_instance_valid(z) or not z.is_alive()) and pd.points - pts == PointsRules.KILL, 1.0, "zombie tué au couteau de chasse")
 	at.check(not z.is_alive(), "zombie de manche 10 (%d PV) tué d'un coup de couteau de chasse" % hp10)
-	at.check(pd.points - pts == 130, "mort au couteau de chasse : +130 (%d)" % (pd.points - pts))
+	at.check(pd.points - pts == PointsRules.KILL, "mort au couteau de chasse : montant fixe (%d)" % (pd.points - pts))
 	z = await setup_duel(p, 1.2, 5000)
 	await knife(p)
 	await until(func(): return z.health < 5000, 1.0, "coup de couteau de chasse encaissé")

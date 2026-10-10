@@ -72,6 +72,9 @@ var last_ip := "127.0.0.1"
 var last_port := 7777
 ## Dernière carte choisie (sélection solo, salon de l'hôte).
 var last_map := "bunker_k7"
+## Carte retirée du jeu (KINO, GAME_CONCEPT §6) : un choix mémorisé dessus
+## retombe sur BUNKER K-7 au chargement des réglages.
+const RETIRED_MAPS := ["kino"]
 ## Serveur MCP du jeu (McpServer, docs/MCP.md) : une IA peut piloter
 ## l'éditeur de cartes (127.0.0.1 seulement, jeton). Activé par défaut.
 var mcp_enabled := true
@@ -783,6 +786,8 @@ func load_from(file: String) -> bool:
 	last_ip = SafeConfig.get_string(cfg, "network", "last_ip", last_ip, 64)
 	last_port = SafeConfig.get_int(cfg, "network", "last_port", last_port, 0, 65535)
 	last_map = SafeConfig.get_string(cfg, "game", "last_map", last_map, 128)
+	if last_map in RETIRED_MAPS:
+		last_map = "bunker_k7"
 	mcp_enabled = SafeConfig.get_bool(cfg, "mcp", "enabled", mcp_enabled)
 	return true
 

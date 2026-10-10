@@ -1,7 +1,7 @@
 class_name Teleporter
 extends Interactable
 ## Téléporteur (BUNKER K-7 : du quai vers la salle du rituel et son
-## Pack-a-Punch ; KINO : de la scène vers la salle de projection).
+## Pack-a-Punch ; cartes de l'éditeur : vers la sortie posée).
 ##
 ## Serveur : IDLE -> CHARGING (3 s) -> ACTIVE (joueurs dans la salle, 25 s)
 ## -> COOLDOWN (60 s) -> IDLE. Tous les joueurs présents sur la plateforme au
@@ -9,7 +9,7 @@ extends Interactable
 ## Chaque client déplace lui-même son joueur (autorité de mouvement), sur
 ## ordre du serveur.
 ##
-## Mode « liaison » (MapDef.teleporter_link, KINO) : comme à Kino der Toten,
+## Mode « liaison » (MapDef.teleporter_link) : comme à Kino der Toten,
 ## après le courant il faut activer la plateforme (gratuit) puis la relier au
 ## poste central (TeleporterMainframe) ; chaque voyage consomme la liaison et
 ## ramène les joueurs sur le poste central.
@@ -32,7 +32,7 @@ var _light: OmniLight3D
 var _exit_ring_mat: StandardMaterial3D
 var _t := 0.0
 var end_time_msec := 0
-## Mode liaison (KINO) et état de la liaison.
+## Mode liaison et état de la liaison.
 var needs_link := false
 var link: Link = Link.LINKED
 ## Point de retour (plateforme par défaut, poste central en mode liaison).

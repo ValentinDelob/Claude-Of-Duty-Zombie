@@ -47,7 +47,8 @@ func srv_down(pid: int) -> void:
 	var had_lazarus := pd.has_perk("lazarus")
 	pd.life = PlayerData.Life.DOWNED
 	pd.downs += 1
-	# BO1 : 5 % des points perdus, rendus au coéquipier qui réanime.
+	# BO1 : 5 % de la ferraille perdue. Elle n'est plus rendue au sauveteur :
+	# la ferraille ne se gagne qu'en tuant (GAME_CONCEPT §4.8).
 	var lost := PointsRules.downed_loss(pd.points)
 	game.session.add_points(pid, -lost)
 	# Dernier recours : on garde le pistolet (ou on en reçoit un).
@@ -64,7 +65,7 @@ func srv_down(pid: int) -> void:
 		if mates.size() == 1 and game.session.data.size() > 1:
 			game.vox.later(3.8, mates[0], "last_alive")
 	game.combat.cancel_reload(pid)
-	var entry := {"bleed_end": GameClock.now() + bleedout_time, "bleed_total": bleedout_time, "reviver": 0, "revive_start": 0.0, "revive_dur": 0.0, "self_revive": 0.0, "lost": lost}
+	var entry := {"bleed_end": GameClock.now() + bleedout_time, "bleed_total": bleedout_time, "reviver": 0, "revive_start": 0.0, "revive_dur": 0.0, "self_revive": 0.0}
 	if Net.mode == Net.Mode.SOLO and had_lazarus:
 		entry.self_revive = GameClock.now() + SOLO_SELF_REVIVE
 	downed[pid] = entry
@@ -167,15 +168,13 @@ func _process(_delta: float) -> void:
 				srv_stop_revive(e.reviver, pid)
 			elif t - e.revive_start >= e.revive_dur:
 				var rev: int = e.reviver
-				var lost: int = e.get("lost", 0)
 				_revive(pid)
 				VoxSystem.say_later(0.6, pid, "revived")
 				var r := game.session.get_data(rev)
 				if r:
 					r.revives += 1
 					game.session.sync_stats(rev)
-					# BO1 : le sauveteur reçoit les points perdus par le joueur à terre.
-					game.session.add_points(rev, lost)
+					# Plus de ferraille pour une réanimation (GAME_CONCEPT §4.8).
 				continue
 		# Pas de fin de saignement pendant une réanimation en cours.
 		if e.reviver == 0 and t >= e.bleed_end:

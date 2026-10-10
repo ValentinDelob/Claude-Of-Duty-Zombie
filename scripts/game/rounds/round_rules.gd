@@ -1,8 +1,9 @@
 class_name RoundRules
 extends RefCounted
 ## Formules des manches (fonctions pures, testées unitairement).
-## Reprise fidèle de Black Ops 1 (_zombiemode.gsc) : nombre de zombies,
-## santé, délai d'apparition et vitesse de course.
+## Nombre de zombies, délai d'apparition et vitesse de course repris de
+## Black Ops 1 (_zombiemode.gsc) ; santé linéaire propre au jeu (§4.3 de
+## GAME_CONCEPT.md).
 
 ## zombie_max_ai : jamais plus de 24 zombies vivants en même temps.
 const MAX_ALIVE := 24
@@ -45,15 +46,11 @@ static func zombie_count(round_n: int, players: int) -> int:
 	return n
 
 
-## Points de vie d'un zombie : 150, +100 par manche jusqu'à la 9, puis +10 %.
+## Points de vie d'un zombie : 150 à la manche 1, puis +100 par manche, sans
+## plafond (GAME_CONCEPT §4.3). Remplace la formule de BO1 (+10 % par manche
+## après la 9), qui atteignait des millions de PV.
 static func zombie_health(round_n: int) -> int:
-	var h := 150
-	for i in range(2, round_n + 1):
-		if i >= 10:
-			h += int(h * 0.1)
-		else:
-			h += 100
-	return h
+	return 150 + 100 * (maxi(round_n, 1) - 1)
 
 
 ## Nombre max de zombies vivants simultanément.

@@ -1,7 +1,7 @@
 class_name TeleporterMainframe
 extends Interactable
-## Poste central du téléporteur (KINO, `mainframe` de MapLayout.teleporter()) :
-## disque au sol du hall (Kino der Toten) ou, à défaut, armoire murale de
+## Poste central du téléporteur (`mainframe` de MapLayout.teleporter()) :
+## disque au sol (façon Kino der Toten) ou, à défaut, armoire murale de
 ## lampes et de cadrans. Relie la plateforme activée sur la scène ; les
 ## voyageurs reviennent dessus. L'état fait foi dans Teleporter (serveur).
 

@@ -44,7 +44,7 @@ func run() -> void:
 	# On achète une M14 (don direct) et on se donne des points.
 	WeaponDB.give(pd, "m14")
 	game.session.sync_inventory(1)
-	game.session.add_points(1, 12000)
+	game.session.add_points(1, 12500)  # on part de 0 ferraille
 	await until(func(): return pd.points == 12500 and p.weapons.current().get("id", "") == "m14", 3.0, "M14 en main et points crédités")
 	await at_machine()
 	at.check(game.hud._prompt.text.contains(Lang.t("Améliorer", "Upgrade")) and game.hud._prompt.text.contains("5000"), "invite : %s" % game.hud._prompt.text)

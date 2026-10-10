@@ -34,7 +34,7 @@ func run() -> void:
 				return false
 		return true, 40.0, "zombies tués par le client")
 	at.check(ok, "les 3 zombies ont été tués par les tirs du client (validés par l'hôte)")
-	at.check(cpd.kills == 3 and cpd.points > 500, "le serveur crédite le client : %d tués, %d points" % [cpd.kills, cpd.points])
+	at.check(cpd.kills == 3 and cpd.points >= 3 * PointsRules.KILL, "le serveur crédite le client : %d tués, %d points" % [cpd.kills, cpd.points])
 	# Un zombie va attaquer le client (une fois ses points vérifiés chez lui).
 	if not await MpHelpers.wait_peer(self, "points_vus", 15.0):
 		return

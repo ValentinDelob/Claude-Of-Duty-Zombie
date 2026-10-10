@@ -17,8 +17,8 @@ var _draw: MeshInstance3D
 var _im: ImmediateMesh
 var _segs := {}   # couleur -> segments (paires de points)
 var _mats := {}
-## Hall de KINO (scène dégagée, comme zombie_model_look).
-const STAGE := Vector3(74.0, 2.032, 96.0)
+## Quai du BUNKER K-7 (scène dégagée, comme zombie_look).
+const STAGE := Vector3(33.5, 0.0, 4.6)
 const GAP := 1.6
 const MOVE := Color(0.0, 0.95, 1.0)
 const NAV := Color(0.25, 1.0, 0.3)
@@ -30,7 +30,7 @@ const HIT_ARM := Color(1.0, 0.38, 0.0)
 
 func run() -> void:
 	timeout_sec = 120
-	var p := await H.start_solo_game(self, "kino")
+	var p := await H.start_solo_game(self, "bunker_k7")
 	if p == null:
 		return
 	game = Game.instance

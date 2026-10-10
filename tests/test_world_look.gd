@@ -1,6 +1,15 @@
 extends TestCase
 ## Étalonnage BO1 (WorldLook.grade_color / grade_lut) et post-traitement.
 
+## Étalonnage propre à une carte (surcharge partielle de GRADE_DEFAULT) :
+## reprend celui de l'ancien théâtre de KINO (carte retirée).
+const WARM_GRADE := {
+	"shadow_tint": Color(0.84, 0.98, 1.08),
+	"highlight_tint": Color(1.06, 1.0, 0.9),
+	"toe": 1.22,
+	"desat": 0.16,
+}
+
 func _lum(c: Color) -> float:
 	return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
 
@@ -38,8 +47,8 @@ func test_vivid_colors_desaturated() -> void:
 
 
 func test_map_override() -> void:
-	var g := WorldLook.grade_params(TheaterLook.GRADE)
-	assert_eq(g.highlight_tint, TheaterLook.GRADE.highlight_tint)
+	var g := WorldLook.grade_params(WARM_GRADE)
+	assert_eq(g.highlight_tint, WARM_GRADE.highlight_tint)
 	assert_eq(g.lift, WorldLook.GRADE_DEFAULT.lift, "clés non surchargées conservées")
 
 
@@ -49,7 +58,7 @@ func test_lut_is_cached_3d_texture() -> void:
 	assert_true(a == b, "même table en cache")
 	assert_eq(a.get_width(), WorldLook.LUT_SIZE)
 	assert_eq(a.get_depth(), WorldLook.LUT_SIZE)
-	assert_true(WorldLook.grade_lut(TheaterLook.GRADE) != a, "table propre à KINO")
+	assert_true(WorldLook.grade_lut(WARM_GRADE) != a, "table propre à la carte")
 
 
 func test_presets_post_keys() -> void:

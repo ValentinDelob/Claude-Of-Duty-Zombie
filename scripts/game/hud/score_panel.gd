@@ -1,6 +1,7 @@
 class_name ScorePanel
 extends VBoxContainer
-## Points de tous les joueurs, en bas à droite au-dessus des munitions (BO1) :
+## Ferraille (nom interne : points) de tous les joueurs, sous le libellé
+## « FERRAILLE » / « SCRAP », en bas à droite au-dessus des munitions :
 ## un bandeau à la couleur du joueur (blanc, bleu, jaune, vert), le joueur
 ## local en plus grand, et des « +10 » dorés qui s'envolent vers la gauche.
 
@@ -47,6 +48,12 @@ func bind(s: Session) -> void:
 	alignment = BoxContainer.ALIGNMENT_END
 	add_theme_constant_override("separation", 3)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Libellé de la monnaie au-dessus des montants : les « points » sont la
+	# ferraille du joueur (GAME_CONCEPT §4.8).
+	var title := HudStyle.label(Lang.t("FERRAILLE", "SCRAP"), 18, HudStyle.POINTS_GAIN, "condensed", 3)
+	title.name = "ScrapTitle"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	add_child(title)
 	refresh()
 
 

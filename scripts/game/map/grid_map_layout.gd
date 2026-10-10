@@ -204,7 +204,7 @@ func teleporter() -> Dictionary:
 	if pad.is_empty() or exit.is_empty():
 		return {}
 	# Pas de poste central sur les cartes ASCII (le « A » du BUNKER K-7 est un
-	# achat mural) : le mode liaison n'existe que sur KINO, carte en maillage.
+	# achat mural) : le mode liaison n'existe que sur les cartes en maillage.
 	return {"pad": MapData.cells_center(pad), "exit": MapData.cell_to_world(exit[0], 0.05), "mainframe": null}
 
 

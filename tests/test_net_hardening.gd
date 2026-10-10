@@ -38,7 +38,7 @@ func test_clean_players() -> void:
 
 
 func test_map_ids_bounded() -> void:
-	for ok in ["bunker_k7", "kino", "perso:ma_carte", "partage:" + SHA]:
+	for ok in ["bunker_k7", "test_levels", "perso:ma_carte", "partage:" + SHA]:
 		assert_true(CustomMapGuard.game_map_id_ok(ok), "accepté : " + ok)
 	for bad in ["../../etc/passwd", "perso:../x", "perso:a/b", "perso:c:\\x", "perso:", "perso:.cache", "partage:zz", "partage:" + SHA.to_upper(),
 			"partage:../" + SHA, "res://scripts/boot.gd", "x".repeat(200)]:
@@ -50,7 +50,8 @@ func test_map_ids_bounded() -> void:
 	assert_true(Net.can_load_map("bunker_k7"))
 	assert_false(Net.can_load_map(42), "pas un texte")
 	assert_false(Net.can_load_map("partage:" + SHA), "carte partagée absente")
-	assert_false(Net.can_load_map("../kino"))
+	assert_false(Net.can_load_map("../bunker_k7"))
+	assert_false(Net.can_load_map("kino"), "carte KINO retirée")
 	assert_false(Net.can_load_map("inconnue"), "carte hors registre")
 
 

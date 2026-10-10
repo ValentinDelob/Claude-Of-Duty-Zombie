@@ -42,7 +42,7 @@ Historique et mesures de la refonte : `docs/TESTING_PLAN.md`.
 | N1 unitaire | `tests/test_*.gd` (`extends TestCase`) | une seule instance, fichiers impactés seulement | ms à 1 s par test |
 | N2 scénario | `tests/autotest/<nom>.gd` (`extends AutotestScenario`) | `--headless --fixed-fps 60`, **en série** : plusieurs scénarios enchaînés dans un même processus (`--autotest=a,b,c`), état global remis à zéro entre deux | 1 à 10 s par scénario |
 | N3 bout-en-bout | `## @rendu` (rendu réel), `mp_<nom>_host/_client.gd` (hôte + client), `tools/net_smoke.sh` | rendu : temps réel ; multijoueur : `--fixed-fps 60` (sauf `@temps-reel`) | 15 à 60 s |
-| Carte dédiée | `## @carte kino` | seulement quand la carte change | — |
+| Carte dédiée | `## @carte <id>` | seulement quand la carte change | — |
 | Perf | `perf_*`, `long_*`, `## @niveau perf` | `tools/perf.sh`, jamais dans le check | — |
 | Soak | `long_soak*` (solo), `mp_soak_*` (`## @niveau long`) | à la main (voir ci-dessous), jamais dans le check | 1 à 2 min par carte |
 
@@ -59,7 +59,7 @@ manche qui finit, « à terre » jamais bloqué, zombie immobile 20 s relevé
 de BO1 ; à la fin, aucune erreur ni avertissement du moteur (Logger).
 
 ```bash
-godot --headless --fixed-fps 60 --log-file tests/_out/logs/soak.log --path . -- --autotest=long_soak,long_soak_kino,long_soak_draft
+godot --headless --fixed-fps 60 --log-file tests/_out/logs/soak.log --path . -- --autotest=long_soak,long_soak_draft
 AUTOTEST_PORT_OFFSET=5500 sh tools/mp_test.sh soak   # hôte + client, départ et retour refusé
 ```
 
@@ -187,14 +187,14 @@ sh tools/check.sh
 |---|---|
 | `sh tools/check.sh` | tâches impactées (avant un commit : `tools/commit.sh`) |
 | `sh tools/check.sh --full` | tout (hors cartes dédiées) ; exigé par `tools/release.sh` |
-| `sh tools/check.sh --kino` | force les tests de la carte Kino |
+| `sh tools/check.sh --cartes` | force les tests dédiés à une carte (`## @carte <id>`) |
 | `sh tools/check.sh --fast` | sans réseau ni multijoueur |
 | `sh tools/check.sh --no-retry` | pas de rejeu |
 | `SCENARIOS="perks traps" sh tools/check.sh` | ces scénarios, sans cache |
 | `MP="lobby" sh tools/check.sh` | ces tests multijoueur seulement (ni scénario ni test réseau), sans cache |
 | `SCENARIOS="boot" MP="lobby" sh tools/check.sh` | les deux listes ensemble |
 | `sh tools/perf.sh [scénarios]` | mesures de performance fiables, un jeu à la fois |
-| `godot --headless --fixed-fps 60 --path . -- --autotest=perf_cpu` | coût CPU d'une fin de partie sans rendu (KINO et DRAFT ARENA, 24 zombies + 4 chiens, tir, grenades) et micro-mesures des fonctions chaudes (lignes « ancien code » : l'ancienne version, même processus) |
+| `godot --headless --fixed-fps 60 --path . -- --autotest=perf_cpu` | coût CPU d'une fin de partie sans rendu (DRAFT ARENA, 24 zombies + 4 chiens, tir, grenades) et micro-mesures des fonctions chaudes (lignes « ancien code » : l'ancienne version, même processus) |
 | `bash tools/profile.sh [scénario]` | même scénario dans une COPIE instrumentée du projet : ms par image et µs par appel de chaque `_process` / `_physics_process` et de quelques fonctions chaudes (sources jamais modifiées) |
 
 Optimisation sans changement de comportement : garder l'ancienne logique
@@ -222,7 +222,7 @@ sh tools/coverage.sh
    `CovHits.h(n)` avant chaque instruction d'un corps de fonction (pas avant
    `elif` / `else`, les motifs de `match`, les suites d'expression sur
    plusieurs lignes, le contenu des chaînes `"""…"""`) ;
-3. check complet dans la copie (`--full --kino --no-retry`) ; chaque jeu vide
+3. check complet dans la copie (`--full --cartes --no-retry`) ; chaque jeu vide
    ses compteurs en quittant ;
 4. `tools/coverage/report.gd` : `tests/_out/coverage/summary.md` (par
    dossier), `files.txt` (par fichier, du moins couvert au plus couvert),

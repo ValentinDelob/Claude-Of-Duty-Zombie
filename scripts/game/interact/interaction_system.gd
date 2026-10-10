@@ -269,7 +269,7 @@ const NO_POWER := "no_power"
 static func deny_text(reason: String) -> String:
 	match reason:
 		NO_POINTS:
-			return Lang.t("Pas assez de points", "Not enough points")
+			return Lang.t("Pas assez de ferraille", "Not enough scrap")
 		NO_POWER:
 			return Lang.t("Pas de courant", "No power")
 	return ""

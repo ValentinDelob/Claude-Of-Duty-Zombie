@@ -1,6 +1,6 @@
 extends AutotestScenario
 ## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
-## @parts 3 : partie 0 = BUNKER K-7, partie 1 = KINO, partie 2 = HUD (sur KINO).
+## @parts 2 : partie 0 = BUNKER K-7, partie 1 = HUD (sur BUNKER K-7).
 ## Direction artistique BO1 (docs/ART_DIRECTION.md) : étalonnage (table 3D),
 ## brume volumétrique, grain / vignettage / aberration (FilmPost) selon la
 ## qualité et l'option GRAIN DE FILM ; captures de chaque zone des deux cartes
@@ -18,17 +18,6 @@ const BUNKER_VIEWS := [
 	["quai", Vector2i(20, 9), Vector2i(46, 4)],
 	["rituel", Vector2i(53, 8), Vector2i(57, 3)],
 ]
-## KINO (carte en maillage) : [nom, position au sol (m), point visé (m)].
-const KINO_VIEWS := [
-	["hall", Vector3(75.0, 2.03, 108.0), Vector3(75.0, 4.0, 92.0)],
-	["foyer", Vector3(112.0, 0.0, 51.0), Vector3(110.0, 3.5, 66.0)],
-	["loges", Vector3(104.0, 0.0, 46.0), Vector3(110.0, 1.2, 32.0)],
-	["ruelle", Vector3(37.0, 0.0, 84.0), Vector3(35.0, 1.5, 55.0)],
-	["arriere_salle", Vector3(40.0, 4.45, 48.0), Vector3(33.0, 5.5, 33.0)],
-	["theatre", Vector3(75.0, 0.3, 66.0), Vector3(75.0, 3.0, 41.0)],
-	["scene", Vector3(75.0, 0.0, 44.0), Vector3(75.0, 3.0, 78.0)],
-	["projection", Vector3(76.5, 8.13, 78.35), Vector3(75.15, 9.14, 84.37)],
-]
 ## Luminance moyenne minimale d'une vue courant rétabli (sRGB, 0..1) : en
 ## dessous, l'image redevient « trop sombre » (retour de l'utilisateur).
 const MIN_LUM_POWERED := 0.05
@@ -43,8 +32,8 @@ func run() -> void:
 	# `-- --autotest=visual_look --hud` : seulement le HUD (itérations rapides).
 	# En parties (check.sh) : une carte par partie, le HUD dans la dernière.
 	var split := parts() > 1
-	if OS.get_cmdline_user_args().has("--hud") or (split and owns(2)):
-		p = await H.start_solo_game(self, "kino")
+	if OS.get_cmdline_user_args().has("--hud") or (split and owns(1)):
+		p = await H.start_solo_game(self, "bunker_k7")
 		if p == null:
 			return
 		game = Game.instance
@@ -56,7 +45,7 @@ func run() -> void:
 		await _hud_pass()
 		return
 	var mi := -1
-	for map_id in ["bunker_k7", "kino"]:
+	for map_id in ["bunker_k7"]:
 		mi += 1
 		if split and not owns(mi):
 			continue
@@ -85,7 +74,7 @@ func _map_pass(map_id: String) -> void:
 	await _check_qualities(env, post)
 	await _check_grain_option(post)
 
-	var views: Array = KINO_VIEWS if map_id == "kino" else BUNKER_VIEWS
+	var views: Array = BUNKER_VIEWS
 	# Courant coupé : deux vues (éclairage de secours).
 	for v in views.slice(0, 2):
 		await _view(v, "off")
@@ -109,18 +98,18 @@ func _map_pass(map_id: String) -> void:
 	game.rounds.dogs._set_fog(0.0)
 	at.check(is_equal_approx(env.volumetric_fog_density, base_vd), "fin de la manche de chiens : brume normale")
 	at.check_perf(worst_fps, 150.0, "pire vue %s (MEDIUM, post-traitement BO1)" % map_id)
-	if map_id == "kino" and parts() == 1:
+	if parts() == 1:
 		await _hud_pass()
 
 
-## HUD façon BO1 en situation (KINO, courant rétabli) : manches 3 et 12 et
+## HUD façon BO1 en situation (BUNKER K-7, courant rétabli) : manches 3 et 12 et
 ## leurs transitions, points qui s'envolent, atouts, grenades et singes,
 ## invite d'achat, tableau des scores, dégâts, à terre, fin de partie.
 func _hud_pass() -> void:
 	var hud := game.hud
 	var pd := game.session.local_data()
 	var rc := hud.round_counter()
-	_place(KINO_VIEWS[0])
+	_place(BUNKER_VIEWS[0])
 	# Manche 3 : bâtons, apparition blanche puis rouge sang.
 	game.rounds.debug_jump_to(3)
 	await H.clear_zombies(self)
@@ -161,7 +150,7 @@ func _hud_pass() -> void:
 	await at.screenshot("hud_tableau")
 	Input.action_release("scoreboard")
 	# Manche 12 : chiffres peints.
-	_place(KINO_VIEWS[5])
+	_place(BUNKER_VIEWS[5])
 	game.rounds.debug_jump_to(12)
 	await H.clear_zombies(self)
 	await seconds(0.9)
@@ -206,7 +195,7 @@ const OUTRO_SHOT := 0.1
 ## Chaque préréglage règle la brume et la variante du post-traitement.
 func _check_qualities(env: Environment, post: FilmPost) -> void:
 	var initial := Settings.quality
-	_place(BUNKER_VIEWS[0] if game.map_def.id == "bunker_k7" else KINO_VIEWS[0])
+	_place(BUNKER_VIEWS[0])
 	for q in [Settings.Quality.LOW, Settings.Quality.HIGH, Settings.Quality.MEDIUM]:
 		var preset := RenderQuality.preset(q)
 		Settings.quality = q
@@ -270,7 +259,7 @@ func _check_grain_option(post: FilmPost) -> void:
 
 
 ## Place le joueur pour une vue : cellules de la grille (BUNKER K-7) ou
-## positions en mètres (KINO, carte en maillage à plusieurs niveaux).
+## positions en mètres (cartes en maillage).
 func _place(v: Array) -> void:
 	if v[1] is Vector2i:
 		p.teleport_to(MapData.cell_to_world(v[1], 0.05))

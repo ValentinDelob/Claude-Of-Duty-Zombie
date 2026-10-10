@@ -1,7 +1,7 @@
 extends AutotestScenario
 ## @rendu : a besoin du rendu (lancé avec fenêtre hors écran par check.sh).
 ## Zombies modélisés dans Blender (ZombieGlb, assets/models/zombies/) dans le
-## hall de KINO : le modèle se charge sur l'ossature du jeu, puis captures de
+## quai du BUNKER K-7 : le modèle se charge sur l'ossature du jeu, puis captures de
 ## face, de profil, gros plan du visage et poses d'animation (marche, course,
 ## attaque) pour juger le rendu sous l'éclairage du jeu.
 
@@ -11,7 +11,7 @@ var zm: ZombieManager
 var cam: Camera3D
 var _next_id := 61001
 var _shown: Array[Zombie] = []
-const STAGE := Vector3(74.0, 2.032, 96.0)
+const STAGE := Vector3(33.5, 0.0, 4.6)
 
 
 func run() -> void:
@@ -25,7 +25,7 @@ func run() -> void:
 	var verts := mesh.surface_get_array_len(0)
 	print("[zombie_model_look] sommets : %d, os : %s" % [verts, m.overrides.keys()])
 	at.check(m.overrides.size() == RigBuilder.BONES.size(), "toutes les articulations du jeu présentes")
-	var p := await H.start_solo_game(self, "kino")
+	var p := await H.start_solo_game(self, "bunker_k7")
 	if p == null:
 		return
 	game = Game.instance

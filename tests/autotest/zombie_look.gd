@@ -1,6 +1,6 @@
 extends AutotestScenario
 ## Apparence et animations des zombies (façon Black Ops 1), sous les lumières
-## des deux cartes (hall de KINO, quai du BUNKER K-7) : captures de face, de
+## du quai du BUNKER K-7 : captures de face, de
 ## profil et de dos de chaque archétype, gros plans, vue à 10 m, puis chaque
 ## animation (marche, trot, course, sprint, attaque, émergence, arrachage de
 ## planches, enjambement, reptation, démembrement, morts).
@@ -22,7 +22,6 @@ var _far_dir := Vector3.BACK
 ## [carte, centre de la scène (les zombies y sont alignés sur X, la caméra
 ## regarde vers -Z)].
 const STAGES := [
-	["kino", Vector3(74.0, 2.032, 96.0), Vector3(0, 0, 1)],  # hall, entre les deux escaliers
 	["bunker_k7", Vector3(33.5, 0.0, 4.6), Vector3(1, 0, 0)],
 ]
 
@@ -198,7 +197,7 @@ func _gallery() -> void:
 	# La tête est bien couverte par la hitbox de tête.
 	for z in row:
 		var hp := z.head_position()
-		var hy := hp.y - _stage.y  # au-dessus du sol de la scène (hall de KINO : 2 m)
+		var hy := hp.y - _stage.y  # au-dessus du sol de la scène
 		at.check(hy > 1.35 and hy < 1.85, "hitbox de tête à hauteur de tête (%.2f m)" % hy)
 	await _shot("front")
 	_set_yaw(row, PI * 0.5)

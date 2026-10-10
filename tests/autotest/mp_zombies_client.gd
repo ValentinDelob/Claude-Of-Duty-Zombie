@@ -33,9 +33,9 @@ func run() -> void:
 			# Rechargement automatique.
 			await until(func(): return p.weapons.current().mag > 0, 4.0, "rechargement")
 		t += 0.25
-	await until(func(): return pd.kills == 3 and pd.points > 500, 3.0, "kills et points reçus du serveur")
+	await until(func(): return pd.kills == 3 and pd.points >= 3 * PointsRules.KILL, 3.0, "kills et points reçus du serveur")
 	at.check(pd.kills == 3, "zombies abattus côté client")
-	at.check(pd.points > 500 and pd.kills == 3, "points reçus du serveur : %d (tués %d)" % [pd.points, pd.kills])
+	at.check(pd.points >= 3 * PointsRules.KILL and pd.kills == 3, "points reçus du serveur : %d (tués %d)" % [pd.points, pd.kills])
 	MpHelpers.signal_peer("points_vus")
 	ok = await until(func(): return pd.health < pd.max_health, 20.0, "coup reçu")
 	at.check(ok, "santé répliquée après un coup de zombie (%d PV)" % pd.health)

@@ -354,9 +354,9 @@ class Obj extends Interactable:
 ## jamais jusqu'à une hauteur d'étage.
 func test_objects_from_the_stairs() -> void:
 	var S := InteractionSystem
-	# Porte en haut d'un escalier de KINO : 2 m avant elle sur les marches, 1,45 m plus bas.
-	assert_true(S.same_level(2.032 - 1.45, 2.032, 2.0), "porte 3 de KINO depuis les marches")
-	assert_true(S.same_level(4.445 - 1.45, 4.445, 2.0), "porte 5 de KINO depuis les marches")
+	# Porte en haut d'un escalier raide : 2 m avant elle sur les marches, 1,45 m plus bas.
+	assert_true(S.same_level(2.032 - 1.45, 2.032, 2.0), "porte d'un palier à 2 m depuis les marches")
+	assert_true(S.same_level(4.445 - 1.45, 4.445, 2.0), "porte d'un palier à 4,4 m depuis les marches")
 	# Coéquipier à terre 1,6 m plus bas, 2,2 m à plat sur les marches (portée 2,4 m).
 	assert_true(S.same_level(3.0, 1.4, 2.2), "réanimation sur un escalier")
 	assert_true(S.same_level(1.4, 3.0, 2.2), "réanimation d'un coéquipier plus haut sur l'escalier")

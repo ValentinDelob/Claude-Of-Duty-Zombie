@@ -6,7 +6,9 @@ extends RefCounted
 enum Life { ALIVE, DOWNED, DEAD }
 
 const BASE_HEALTH := 100
-const STARTING_POINTS := 500
+## Ferraille au départ de la partie (`points` = ferraille, GAME_CONCEPT §4.8) :
+## chaque joueur part de 0.
+const STARTING_POINTS := 0
 
 var peer_id := 0
 var points := STARTING_POINTS

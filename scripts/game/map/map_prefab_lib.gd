@@ -282,7 +282,7 @@ static func catalog_boxes(id: String) -> Array:
 	if d.has("boxes"):
 		return d.boxes
 	if d.has("model"):
-		var path := "res://assets/models/kino/%s.collision.json" % String(d.model)
+		var path := "res://assets/models/props/%s.collision.json" % String(d.model)
 		if FileAccess.file_exists(path):
 			var j: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
 			if j is Dictionary and j.get("boxes") is Array and not (j.boxes as Array).is_empty():

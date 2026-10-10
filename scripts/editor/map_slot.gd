@@ -37,7 +37,7 @@ func set_item(id: String) -> void:
 		if hint != "":
 			t += "\n" + hint
 		if int(it.get("price", 0)) > 0:
-			t += "\n" + Lang.t("Prix en jeu : %d", "In-game price: %d") % int(it.price)
+			t += "\n" + Lang.t("Prix en jeu : %d ferraille", "In-game price: %d scrap") % int(it.price)
 		if fixed:
 			t += "\n" + Lang.t("Toujours là : clic, touche ² ou Échap", "Always there: click, ` key or Esc")
 		tooltip_text = t

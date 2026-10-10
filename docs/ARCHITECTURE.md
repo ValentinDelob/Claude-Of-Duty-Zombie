@@ -368,8 +368,8 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   chutent de 30 à 70 % alors que le temps GPU ne bouge que de ~10 % ; comparer les
   temps GPU, ou les fps pris GPU libre seulement.
 - **Coût de chaque poste** : `sh tools/perf.sh perf_costs` (préfixe `perf_` : exclu
-  de check.sh). Deux vues (labo de BUNKER K-7 avec 24 zombies au contact, scène de
-  KINO vue de l'allée centrale de la salle), chaque poste coupé seul, mesures
+  de check.sh). Une vue (labo de BUNKER K-7 avec 24 zombies au contact),
+  chaque poste coupé seul, mesures
   appariées (référence juste avant),
   répétées 4 fois : temps GPU et CPU de rendu, draw calls. Les lignes « ~ » donnent
   le gain d'une variante moins chère ; `--ab-shots` capture chaque variante pour la
@@ -402,13 +402,11 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   l'aberration.
 
 - Coûts GPU mesurés par `perf_costs` (GTX 1070, 1080p, MEDIUM), avant -> après la
-  passe « perf: optimize rendering after the visual rework ». Toutes les mesures
-  « KINO » de cette section ont été prises sur l'ANCIENNE KINO en grille ASCII,
-  remplacée depuis par Kino der Toten à l'échelle 1 (carte ~6 fois plus
-  grande) : à refaire avec `perf_costs` et `kino_tour` (étape 6 de
-  docs/KINO_V2.md : occlusion, distances de visibilité) :
+  passe « perf: optimize rendering after the visual rework ». La seconde
+  colonne (et la seconde « pire vue » des tableaux suivants) vient d'une carte
+  retirée depuis du jeu : à refaire sur une carte actuelle avec `perf_costs` :
 
-| Poste | labo + 24 zombies | scène de KINO |
+| Poste | labo + 24 zombies | carte retirée |
 |---|---|---|
 | Image complète | 6,1-6,3 -> 5,3 ms | 5,4-5,6 -> 4,4 ms |
 | Lampes (éclairage + ombres) | 2,6 -> 2,0 ms | 2,1 -> 1,7 ms |
@@ -466,12 +464,12 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
 
 | Préréglage | Vue | Avant | Après | fps GPU libre (estim.) | GTX 1050 (x3,5) |
 |---|---|---|---|---|---|
-| LOW | pire vue BUNKER / KINO | 2,84 / 2,70 ms | 2,60 / 2,44 ms | ~320 | ~110 fps |
+| LOW | pire vue BUNKER / carte retirée | 2,84 / 2,70 ms | 2,60 / 2,44 ms | ~320 | ~110 fps |
 | LOW | 24 zombies au contact | 2,80 ms | 2,48 ms | ~320 | ~110 fps |
-| MEDIUM | pire vue BUNKER / KINO | 5,45 / 5,34 ms | 4,58 / 4,44 ms | ~195-200 (avant 158-166) | ~60 fps |
+| MEDIUM | pire vue BUNKER / carte retirée | 5,45 / 5,34 ms | 4,58 / 4,44 ms | ~195-200 (avant 158-166) | ~60 fps |
 | MEDIUM | 24 zombies poursuite / contact | 5,95 / 6,14 ms | 4,96 / 5,02 ms | ~180 (CPU : IA) | ~55-57 fps |
 | MEDIUM | menu | 2,87 ms | 2,57 ms | ~320 | — |
-| HIGH | pire vue BUNKER / KINO | 7,81 / 8,42 ms | 6,87 / 7,24 ms | ~125 (avant 86-92) | ~40 fps |
+| HIGH | pire vue BUNKER / carte retirée | 7,81 / 8,42 ms | 6,87 / 7,24 ms | ~125 (avant 86-92) | ~40 fps |
 | HIGH | 24 zombies contact (draw calls) | 8,37 ms (511) | 7,03 ms (296) | ~120 | ~35 fps |
 
   fps estimés = 1000 / (GPU + ~0,6 ms hors GPU mesurés GPU libre). MEDIUM tient donc
@@ -483,7 +481,7 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   sur les mêmes vues, la carte fait ~1,25x une GTX 1070 (indice 4,4 dans
   `QualityProbe`) ; la cible « 60 fps sur GTX 1050 » y vaut ~3,4 ms de GPU
   (~250 fps). MEDIUM : pire vue BUNKER 3,64 -> 3,45 ms (226 -> 231-241 fps),
-  pire vue KINO 3,51 -> 3,3 ms (232 -> 241-251 fps), 24 zombies au contact
+  pire vue de la carte retirée 3,51 -> 3,3 ms (232 -> 241-251 fps), 24 zombies au contact
   3,96 ms (207 fps ; physique 2,7 -> 2,3-2,8 ms par pas). LOW 384-393 fps,
   HIGH 147 fps. Postes restants (`perf_costs`) : lampes 1,1-1,5 ms (dont ombres
   0,2-0,5), glow 0,6 ms (retirer des niveaux ne change rien), post-traitement
@@ -512,14 +510,16 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   d'accroche, noms des zones, musique, ambiance, prix, réglages, et sa
   géométrie. Deux sortes de cartes : **grille ASCII** (marqueurs documentés
   dans `map_def.gd`, `GridMapLayout` : BUNKER K-7, `test_arena`) et **maillage
-  à plusieurs niveaux** (`create_layout` surchargé, `MeshMapLayout` : KINO,
-  `test_levels`). Enregistrement : `Game.MAP_SCRIPTS` (`bunker_k7`, `kino`,
-  `test_arena`, `test_levels`, `draft_arena`) ; cartes proposées dans les menus :
-  `Game.MENU_MAPS` (`bunker_k7`, `kino`). Choix : écran `map_select` (SOLO,
+  à plusieurs niveaux** (`create_layout` surchargé, `MeshMapLayout` :
+  `test_levels`, cartes de l'éditeur). Enregistrement : `Game.MAP_SCRIPTS`
+  (`bunker_k7`, `test_arena`, `test_levels`, `draft_arena`) ; cartes proposées
+  dans les menus : `Game.MENU_MAPS` (`bunker_k7`). Choix : écran `map_select` (SOLO,
   plan « dossier » dessiné par `MapPreview` depuis la grille ou depuis les
   contours des salles de la description en maillage), ligne CARTE du salon
   (hôte, annoncée aux clients par `Net.set_lobby_map`), mémorisé dans
-  `Settings.last_map` ; `--map=<id>` en ligne de commande l'emporte (tests).
+  `Settings.last_map` (une carte retirée, `Settings.RETIRED_MAPS`, retombe sur
+  `bunker_k7` au chargement des réglages) ; `--map=<id>` en ligne de commande
+  l'emporte (tests).
 - Options utiles : `open_links` (zones ouvertes sans porte : leurs
   apparitions s'activent ensemble), `box_start` / `box_starts` (départ, fixe
   ou tiré au sort, de la boîte), `teleporter_link` (pad + poste central à
@@ -575,8 +575,7 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   fenêtres (`BarricadeLayout.Opening`), apparitions. `MapDef` garde la
   description (nom, musique, ambiance, prix, départs de la boîte...) et crée
   sa géométrie (`MapDef.create_layout`). `GridMapLayout` enveloppe les cartes
-  ASCII ; `MeshMapLayout` lit les cartes en maillage à plusieurs niveaux
-  (KINO, voir `docs/KINO_V2.md`).
+  ASCII ; `MeshMapLayout` lit les cartes en maillage à plusieurs niveaux.
 - **Cartes en maillage à plusieurs niveaux** (`MeshMapLayout`, exemple
   `test_levels`) : une description JSON (`assets/maps/<id>/layout.json`,
   repère Godot en mètres : salles, murs avec ouvertures, dalles, escaliers,
@@ -610,7 +609,7 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   en construit les marches et les collisions (prisme plein en pente sous
   chaque volée, jamais une marche de collision ; escalier d'avant sans type :
   code et résultat inchangés) ; `MeshMapBuilder._add_architecture` pose au
-  haut de CHAQUE escalier (KINO compris, .glb ou non) un tablier
+  haut de CHAQUE escalier (.glb ou non) un tablier
   `CollisionBox` invisible à fleur du palier (aucune fente). Navigation :
   `MeshMapLayout.finish_nav` donne les escaliers à `MeshNav.set_stairs` ;
   quand la carte de navigation est synchronisée (`ensure_anchors`, au premier
@@ -631,11 +630,11 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DeadeyeAim`, `DogLightning`
   (`lane_push`) ; `crosses_stairs` interdit la poursuite en ligne droite
   par-dessus le flanc d'un escalier. Serveur seulement, rien de plus sur le
   réseau ; chiens (`Hellhound` hérite de `Zombie`) et rampants compris.
-- Décor de KINO (`MeshMapBuilder` + `TheaterLook`) : objets modélisés dans
-  Blender (`tools/blender/props/kino_theater.py` -> `assets/models/kino/`),
-  posés par la description (`props`, `instances` en MultiMesh pour les
-  fauteuils, `screens`, `beams`, `shafts`) ; écran animé et faisceau du
-  projecteur liés au courant par `PowerGrid.add_hook` ; collisions invisibles
+- Décor des cartes en maillage (`MeshMapBuilder`) : objets modélisés dans
+  Blender (`tools/blender/props/catalog_props.py` -> `assets/models/props/`,
+  décors du catalogue de l'éditeur et machine d'amélioration), posés par la
+  description (`props`, `instances` en MultiMesh pour les fauteuils) ;
+  collisions invisibles
   (ruines, rangées, baies) en `CollisionBox` décrites en données (`blockers`,
   `<modèle>.collision.json`), jamais des modèles Blender ; barrière
   joueurs/zombies que les balles traversent (couche BARRIER). Une entrée de
@@ -776,7 +775,29 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   (solo, TESTER de l'éditeur) ou au salon avec tout le groupe (multijoueur :
   « Fin de partie multijoueur » plus haut).
 
+## Ferraille (`PointsRules`, `Points`, `Session`)
+
+- Les « points » du code sont la **ferraille** du joueur (GAME_CONCEPT.md
+  §4.8) : les noms internes (`PlayerData.points`, `Session.add_points` /
+  `try_spend`, `Points`, `PointsRules`, signal `points_event`) sont gardés ;
+  tout ce que le joueur voit dit « Ferraille » / « Scrap » (libellé
+  `ScrapTitle` du `ScorePanel`, colonne du tableau des scores, refus
+  `InteractionSystem.deny_text`, prix de l'éditeur).
+- Chaque joueur part de 0 (`PlayerData.STARTING_POINTS`). Seul le joueur qui
+  tue est crédité, d'un montant fixe `PointsRules.KILL` (50) quel que soit le
+  coup (balle, tête, couteau, explosion) et la manche ; rien pour les touches
+  ni les réanimations (la perte à terre n'est plus rendue au sauveteur) ; un
+  piège ne rapporte rien. Restent provisoirement : planches reposées
+  (`BarricadeRules.repair_points`), bonus au sol (ATOMIQUE, CHARPENTIER,
+  ferraille double) tant qu'ils existent.
+- Les portes payantes, et pour l'instant les achats muraux, atouts, boîte et
+  Pack-a-Punch, se paient en ferraille par `Session.try_spend`.
+
 ## Manches, apparitions et fenêtres (`RoundRules`, `Spawner`, `Barricade`)
+
+- PV des zombies (`RoundRules.zombie_health`) : **linéaires**, 150 + 100 x
+  (manche - 1), sans plafond (GAME_CONCEPT.md §4.3 ; remplace la formule de
+  BO1, +10 % par manche après la 9).
 
 - Vitesse (`RoundRules.pick_speed`) : que des marcheurs aux manches 1 à 3
   (`RUNNERS_FROM_ROUND` = 4, règle demandée par le joueur), puis le tirage de
@@ -950,7 +971,7 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
 
 ## Arme merveille TONNERRE-7 (`scripts/game/weapons/thunder_blast.gd`)
 
-- Façon Thundergun de Kino : 2 coups, réserve 12 (OURAGAN-77 amélioré : 4 / 24),
+- Façon Thundergun de BO1 : 2 coups, réserve 12 (OURAGAN-77 amélioré : 4 / 24),
   rare dans la boîte et **unique** dans la partie (`WeaponDB.is_unique`,
   `MysteryBox.wonders_taken` : en main d'un joueur ou dans le Pack-a-Punch).
 - Le client n'envoie que l'intention de tir (`srv_fire` sans touches). Le
@@ -1055,7 +1076,7 @@ Deux familles de formes, jamais mêlées (`tests/test_zombie_hitbox.gd`) :
 ## Modèle et animations des zombies
 
 - `ZombieModel` : 36 looks déterministes (variante réseau modulo 36), 6
-  archétypes façon Kino der Toten ; maillage lissé (`RigBuilder` : ellipsoïdes,
+  archétypes façon Black Ops 1 ; maillage lissé (`RigBuilder` : ellipsoïdes,
   tubes « loft » dont les anneaux sont partagés entre deux os), skinné sur le
   squelette commun (+ os `jaw`), 1 draw call, sang peint par sommet (fraction de
   UV2.y) et matière par pièce lus par `zombie.gdshader` (corps commun `zombie_body.gdshaderinc`, bruit lu dans `NoiseLattice.tex3d` ; variante `zombie_dissolve.gdshader` pour les corps qui se dissolvent). Mesh et Skin partagés ;

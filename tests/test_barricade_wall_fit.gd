@@ -242,13 +242,6 @@ func _check_map(label: String, data: Dictionary, bars: Array, expect: int) -> vo
 		b.queue_free()
 
 
-func test_kino_windows_inside_the_wall() -> void:
-	var def: MapDef = load("res://scripts/game/map/maps/kino.gd").new()
-	var layout := MeshMapLayout.new(def, "res://assets/maps/kino/layout.json", "")
-	_check_map("KINO", layout.data, _build_all(layout), 22)
-	await wait_frames(1)
-
-
 func test_editor_entries_inside_the_wall() -> void:
 	var maps := {}
 	for id in ["smallest", "smallest_door", "smallest_double_door"]:

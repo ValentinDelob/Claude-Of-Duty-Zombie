@@ -1110,3 +1110,20 @@ func test_window_mode_untouched_unless_fullscreen_differs() -> void:
 	assert_eq(Settings.window_mode_for(true, DS.WINDOW_MODE_EXCLUSIVE_FULLSCREEN), -1)
 	assert_eq(Settings.window_mode_for(true, DS.WINDOW_MODE_MAXIMIZED), DS.WINDOW_MODE_FULLSCREEN)
 	assert_eq(Settings.window_mode_for(true, DS.WINDOW_MODE_WINDOWED), DS.WINDOW_MODE_FULLSCREEN)
+
+
+## Carte KINO retirée (GAME_CONCEPT §6) : un ancien choix mémorisé dessus
+## retombe sur BUNKER K-7 ; une carte toujours présente est gardée.
+func test_retired_map_falls_back_to_bunker() -> void:
+	var saved := Settings.last_map
+	var cfg := ConfigFile.new()
+	cfg.set_value("game", "last_map", "kino")
+	cfg.save(TMP)
+	assert_true(Settings.load_from(TMP))
+	assert_eq(Settings.last_map, "bunker_k7", "KINO mémorisée : retour sur BUNKER K-7")
+	assert_eq(Game.requested_map(), "bunker_k7")
+	cfg.set_value("game", "last_map", "draft_arena")
+	cfg.save(TMP)
+	assert_true(Settings.load_from(TMP))
+	assert_eq(Settings.last_map, "draft_arena", "carte existante gardée")
+	Settings.last_map = saved

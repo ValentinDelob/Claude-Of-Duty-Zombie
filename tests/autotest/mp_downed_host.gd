@@ -47,7 +47,7 @@ func run() -> void:
 	p.input.interact = false
 	at.check(cpd.life == PlayerData.Life.ALIVE, "client réanimé par l'hôte (maintien de 4 s)")
 	at.check(game.session.local_data().revives == 1, "réanimation comptée pour l'hôte")
-	at.check(hpd.points == 2050, "le sauveteur reçoit les points perdus (2000 -> %d)" % hpd.points)
+	at.check(hpd.points == 2000, "le sauveteur ne gagne pas de ferraille (2000 -> %d)" % hpd.points)
 	# Le client a vu sa réanimation ; saignement jusqu'à la mort.
 	if not await MpHelpers.wait_peer(self, "releve", 15.0):
 		return
@@ -57,7 +57,7 @@ func run() -> void:
 	game.combat.damage_player(cid, 500, client.global_position)
 	await until(func(): return cpd.life == PlayerData.Life.DEAD, 6.0, "mort par saignement")
 	at.check(cpd.life == PlayerData.Life.DEAD, "client mort après le délai de saignement")
-	at.check(hpd.points == 1840, "coéquipier succombé : 10 %% des points perdus (2050 -> %d)" % hpd.points)
+	at.check(hpd.points == 1800, "coéquipier succombé : 10 %% de la ferraille perdue (2000 -> %d)" % hpd.points)
 	# Manche suivante (une fois la mort vue par le client) : retour du client.
 	if not await MpHelpers.wait_peer(self, "mort", 15.0):
 		return

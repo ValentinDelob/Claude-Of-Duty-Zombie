@@ -6,7 +6,7 @@ extends AutotestScenario
 ## HAUTE, luminance mesurée sur chaque capture (part de pixels brûlés,
 ## luminance moyenne) ; HAUTE ne doit jamais être nettement plus brûlée que
 ## MOYENNE.
-##  1. KINO en partie : boîte mystère au repos, pendant le tirage, arme
+##  1. BUNKER K-7 en partie : boîte mystère au repos, pendant le tirage, arme
 ##     prête ; courant rétabli : lampe, Pack-a-Punch, atout, flamme de bouche ;
 ##  2. éditeur, aperçu 3D de DRAFT ARENA avec tous les luminaires : lampes de
 ##     près et de dessous, boîte mystère, vue d'ensemble.
@@ -54,7 +54,7 @@ func _set_quality(q: int) -> void:
 # ------------------------------------------------------------------ partie
 
 func _game_pass() -> void:
-	var p: Player = await H.start_solo_game(self, "kino")
+	var p: Player = await H.start_solo_game(self, "bunker_k7")
 	if p == null:
 		return
 	var game := Game.instance
@@ -65,7 +65,7 @@ func _game_pass() -> void:
 		game.doors[id].srv_open()
 	await seconds(0.5)  # collisions des portes coupées (différé) avant les téléports
 	var box: MysteryBox = game.interact.get_obj("box")
-	at.check(box != null, "kino : boîte mystère")
+	at.check(box != null, "bunker_k7 : boîte mystère")
 	if box == null:
 		return
 	game.session.add_points(1, 50000)

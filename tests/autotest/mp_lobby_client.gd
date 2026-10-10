@@ -16,8 +16,8 @@ func run() -> void:
 	if not ok:
 		return
 	at.check(GameState.state == GameState.State.LOBBY, "état LOBBY côté client")
-	# La carte choisie par l'hôte (KINO) s'affiche dans le salon du client.
-	ok = await until(func(): return Net.lobby_map == "kino" and menu.current._map_label.text.contains("KINO"), 15.0, "carte annoncée par l'hôte")
+	# La carte de l'hôte (BUNKER K-7) s'affiche dans le salon du client.
+	ok = await until(func(): return Net.lobby_map == "bunker_k7" and menu.current._map_label.text.contains("BUNKER K-7"), 15.0, "carte annoncée par l'hôte")
 	if ok:
 		at.check(true, "carte de l'hôte affichée : %s" % menu.current._map_label.text)
 	await at.screenshot("lobby")
@@ -26,7 +26,7 @@ func run() -> void:
 	if not ok:
 		return
 	at.check(Game.instance.local_player.peer_id != 1, "joueur local = client")
-	at.check(Game.instance.map_def.id == "kino", "même carte que l'hôte (KINO)")
+	at.check(Game.instance.map_def.id == "bunker_k7", "même carte que l'hôte (BUNKER K-7)")
 	# Une seconde de partie avant la capture (et sans erreur de script).
 	await seconds(1.0)
 	await at.screenshot("ingame")

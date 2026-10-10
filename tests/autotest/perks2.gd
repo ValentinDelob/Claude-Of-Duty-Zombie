@@ -166,12 +166,12 @@ func run() -> void:
 	var landed := await sprint_dive()
 	await seconds(0.03)  # capture de l'explosion
 	await at.screenshot("nova_dive_blast")
-	await until(func(): return alive_count(zs) == 0 and pd.points - pts0 == 3 * PointsRules.SPLASH_KILL, 2.0, "zombies tués par le plongeon et points crédités")
+	await until(func(): return alive_count(zs) == 0 and pd.points - pts0 == 3 * PointsRules.KILL, 2.0, "zombies tués par le plongeon et points crédités")
 	var dists := []
 	for z: Zombie in zs:
 		dists.append("%.1f" % Vector2(z.global_position.x - landed.x, z.global_position.z - landed.z).length())
 	at.check(alive_count(zs) == 0, "plongeon explosif : %d/3 zombies tués (distances %s m)" % [3 - alive_count(zs), ", ".join(dists)])
-	at.check(pd.points - pts0 == 3 * PointsRules.SPLASH_KILL, "points comme une explosion (+%d)" % (pd.points - pts0))
+	at.check(pd.points - pts0 == 3 * PointsRules.KILL, "points comme une explosion (+%d)" % (pd.points - pts0))
 	at.check(pd.health == pd.max_health, "aucun dégât au plongeur (%d PV)" % pd.health)
 	p.input.crouch = false
 	await seconds(0.8)  # le joueur se relève du plongeon

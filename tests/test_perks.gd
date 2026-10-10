@@ -51,7 +51,8 @@ func test_nova_damage_by_round() -> void:
 	var edge := ThrowableRules.splash(PerkDB.NOVA_DAMAGE, PerkDB.NOVA_RADIUS, PerkDB.NOVA_RADIUS)
 	assert_true(edge >= RoundRules.zombie_health(8), "manche 8 au bord (%d)" % edge)
 	var center := ThrowableRules.splash(PerkDB.NOVA_DAMAGE, PerkDB.NOVA_RADIUS, 0.0)
-	assert_true(center < RoundRules.zombie_health(16), "plus de un coup en manche 16")
+	# PV linéaires (GAME_CONCEPT §4.3) : 1 850 PV en manche 18 (BO1 : 1 850 en 16).
+	assert_true(center < RoundRules.zombie_health(18), "plus de un coup en manche 18")
 
 
 func test_deadeye_modifiers() -> void:

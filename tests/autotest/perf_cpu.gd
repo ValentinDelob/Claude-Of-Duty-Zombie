@@ -5,7 +5,7 @@ extends AutotestScenario
 ##   * « horde » : la horde au contact, le joueur (invulnérable) ne tire pas ;
 ##   * « combat » : le bot tire en continu (touches, démembrements, morts,
 ##     bonus, réapparitions) et une grenade explose toutes les 2 s.
-## Sur KINO puis sur DRAFT ARENA (carte de l'éditeur, à étages).
+## Sur DRAFT ARENA (carte de l'éditeur, à étages).
 ##   godot --headless --fixed-fps 60 --path . -- --autotest=perf_cpu
 ##   bash tools/profile.sh     (copie instrumentée : détail par fonction)
 ## Sans rendu et en --fixed-fps, le jeu enchaîne les images aussi vite que
@@ -66,7 +66,7 @@ func run() -> void:
 	_rng.seed = 1234
 	if ResourceLoader.exists(PROF_PATH):
 		_prof = load(PROF_PATH)
-	for map_id in ["kino", "draft_arena"]:
+	for map_id in ["draft_arena"]:
 		if not await _start(map_id):
 			return
 		await _profile(map_id)
@@ -124,7 +124,7 @@ func _profile(map_id: String) -> void:
 	await seconds(1.0)
 	await _phase(map_id, "combat", 5.0)
 	_combat = false
-	if map_id == "kino":
+	if map_id == "draft_arena":
 		await _micro()
 
 

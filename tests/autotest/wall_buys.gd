@@ -53,6 +53,7 @@ func run() -> void:
 		await at.screenshot("chalk_%s" % expected[marker][0])
 
 	var m14: WallBuy = game.interact.get_obj("wallbuy_R")
+	game.session.add_points(1, 500)  # on part de 0 ferraille : de quoi payer la M14
 	await look_at_chalk(p, m14)
 	await at.screenshot("chalk")
 	await until(func(): return game.interact.focused == m14 and game.hud._prompt.text == m14.prompt(p.peer_id), 2.0, "invite de la M14")
