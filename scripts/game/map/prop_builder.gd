@@ -213,11 +213,12 @@ func _generator(g: Array) -> void:
 
 func _blood(c: Vector2i) -> void:
 	var d := Decal.new()
-	d.texture_albedo = Fx.blood_splat_texture(int(_h(c) * 4.0))
+	# Pixel art de 5 cm (32 pixels sur 1,6 m), quart de tour (style cubique).
+	d.texture_albedo = Fx.blood_splat_texture(int(_h(c) * 4.0), 32)
 	d.modulate = Color(0.5, 0.02, 0.02)
-	d.size = Vector3(1.6 + _h(c, 1), 0.5, 1.6 + _h(c, 2))
+	d.size = Vector3(1.6, 0.5, 1.6)
 	d.position = MapData.cell_to_world(c, 0.1)
-	d.rotation.y = _h(c, 3) * TAU
+	d.rotation.y = floorf(_h(c, 3) * 4.0) * PI * 0.5
 	d.cull_mask = 1
 	d.add_to_group(RenderQuality.DECAL_GROUP)
 	RenderQuality.apply_decal(d, RenderQuality.current())

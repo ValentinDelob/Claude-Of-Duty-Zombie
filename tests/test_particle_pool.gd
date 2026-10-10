@@ -33,6 +33,8 @@ class ReferencePool extends ParticlePool:
 				_size[i] = _size[_count]
 				_col[i] = _col[_count]
 				_floor[i] = _floor[_count]
+				_axis[i] = _axis[_count]
+				_rate[i] = _rate[_count]
 				continue
 			_vel[i] = _vel[i] * damp + Vector3.DOWN * gravity * delta
 			_pos[i] += _vel[i] * delta
@@ -44,11 +46,11 @@ class ReferencePool extends ParticlePool:
 		mm.visible_instance_count = _count
 		for k in _count:
 			var t := _life[k] / _max_life[k]
-			var s := _size[k] * (1.0 + grow * (1.0 - t))
-			mm.set_instance_transform(k, Transform3D(Basis.from_scale(Vector3(s, s, s)), _pos[k]))
-			var c := _col[k]
-			c.a *= clampf(t * 2.0, 0.0, 1.0)
-			mm.set_instance_color(k, c)
+			# Cubes : rétrécissent pendant la seconde moitié de leur vie et
+			# tournent sur leur axe (VoxelFx).
+			var s := _size[k] * (1.0 + grow * (1.0 - t)) * clampf(t * 2.0, 0.0, 1.0)
+			mm.set_instance_transform(k, Transform3D(Basis(_axis[k], _rate[k] * (_max_life[k] - _life[k])) * s, _pos[k]))
+			mm.set_instance_color(k, _col[k])
 
 
 func before_each() -> void:

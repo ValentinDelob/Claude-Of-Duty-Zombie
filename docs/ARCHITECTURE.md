@@ -1013,6 +1013,59 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
 - **Effets** (`Fx`) : traçantes en vol (pool), flammes par famille (`flash`),
   douilles éjectées (pool, rebonds, tintement), impacts selon la surface
   (`Fx.surface_of` : méta `surface` des formes du décor, type d'objet).
+  Tous CUBIQUES (voir « Effets cubiques » ci-dessous).
+
+### Effets cubiques (`VoxelFx`, `voxel_particle.gdshader`)
+
+- `VoxelFx` (`scripts/game/fx/voxel_fx.gd`) fournit à TOUS les effets les
+  matériaux et maillages : un cube unité, des touffes (`cluster` : « puff »
+  5³ et « cloud » 7³ cellules dans une boule, « tongue » en langue de
+  flamme), des files (`chain` : étincelles, gouttes), la flamme de bouche
+  (`flash_mesh` : étoile et pointes en cubes de 2,5 cm, couleur par cube,
+  `muzzle_flash.gdshader`), les arcs (`chain_multimesh` + `fill_chain` :
+  cubes le long d'une ligne brisée). Centre de chaque cube dans UV / UV2.x,
+  son côté dans UV2.y.
+- `voxel_particle.gdshader` arrondit dans le vertex shader le côté de chaque
+  cube (taille de l'instance × côté) au multiple de 2,5 cm, au moins un pas,
+  au plus `cube_max` (5 cm pour éclats, sang, étincelles ; 15 cm pour
+  flammes, fumée) : une touffe qui grossit écarte ses cubes. `shrink` :
+  l'alpha de la rampe devient la taille (disparition par rétrécissement par
+  pas de 2,5 cm), `opacity` l'opacité. Variantes de rendu tirées du même
+  code (`VoxelFx.shader`) : « mix » (non éclairé, ombrage peint des faces,
+  arêtes assombries `edge`), « add » (additif), « lit » (éclairé). Plats
+  (`pattern`) : rond, disque, brume en pixels de 2,5 / 5 cm sur un
+  `QuadMesh` à plat.
+- `ParticlePool` (impacts, sang, poussière, éclats, boules de feu
+  `Fx.flames`, flammes des chiens) : un `MultiMesh` de cubes (ou de touffes)
+  ; chaque particule tourne sur un axe tiré au hasard et rétrécit pendant la
+  seconde moitié de sa vie (calcul CPU, une passe, même coût qu'avant à
+  ~3 % près). Étincelles et flammes : cubes lumineux FONDUS (énergie > 1,
+  pas additifs : l'orange reste orange devant un mur clair).
+- `MapEffects` : chaque couche garde ses réglages (vitesse, durée, nombre,
+  budgets) ; l'ancien nom de texture choisit le maillage (`MapEffects.look`).
+  `part_radius` mesure une particule par ses cubes (`VoxelFx.half_extent`,
+  rotation autour de z comprise), `part_radius_min` le plus petit cube ;
+  `Builder.contain` et `tests/test_map_effect_volume.gd` inchangés dans
+  leur principe. Arcs : `MultiMeshInstance3D` de 64 cubes au plus.
+- Décalques en pixel art (`textures/decals/filter` = Nearest Mipmaps dans
+  `project.godot`) : trous de balle 4 × 4 pixels de 2,5 cm, taches de sang
+  en 3 tailles fixes (12, 20, 28 pixels de 5 cm, aucune texture changée en
+  jeu : atlas stable), traces d'explosion 52 pixels de 5 cm ; posés tournés
+  d'un quart de tour, centre sur la grille sur un sol ou un mur droit.
+- Explosion de grenade : boule de feu en cubes (`Fx.fireball`, pool
+  `flames`) au lieu d'une sphère ; piège électrique : chaînes de cubes de
+  5 cm (MultiMesh) au lieu de lignes ; projectiles et douilles en pavés.
+- Mesure : `QUALITY=medium sh tools/perf.sh perf_fx` (BUNKER K-7, 24
+  zombies, combat intensif avec grenades, 14 effets de carte). GTX 1070,
+  1080p, MEDIUM, avant → après : horde 3,45 → 3,59 ms GPU (même scène,
+  bruit) ; combat 7,18 → 4,04 ms (128 → 210 fps) ; effets de carte 9,40 →
+  8,69 ms (99 → 106 fps) ; combat + effets 12,88 → 9,06 ms (73 → 102 fps).
+  Les cubes opaques ou presque coûtent moins de remplissage que les grands
+  panneaux doux.
+- Hors de ce passage : la boule du chien éclair (`DogLightning`, dossier des
+  chiens) reste un panneau doux (`Fx.soft_dot_texture`) ; le décor du menu
+  (`MenuBackdrop`) garde ses volutes et décalques réalistes (sa poussière
+  est passée en cubes de 2,5 cm) ; la traçante reste un pavé lumineux étiré.
 - **Modèles et vue FPS** : `WeaponMesh` (primitives arrondies : profils
   extrudés chanfreinés, révolutions, capsules) fusionnées en UN maillage par
   matériau et par pièce mobile (`mag`, `slide`, `pump`, `barrels`, `cyl`,

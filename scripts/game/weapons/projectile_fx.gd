@@ -44,12 +44,10 @@ func _build(pap: bool) -> void:
 	if _kind == "rocket":
 		body.rotation.x = PI * 0.5
 	add_child(body)
+	# Flamme de propulsion : un cube lumineux (style cubique, VoxelFx).
 	var flame := MeshInstance3D.new()
-	var q := SphereMesh.new()
-	q.radius = 0.09 if _kind == "rocket" else 0.045
-	q.height = q.radius * 2.0
-	q.radial_segments = 6
-	q.rings = 3
+	var q := BoxMesh.new()
+	q.size = Vector3.ONE * (0.125 if _kind == "rocket" else 0.05)
 	flame.mesh = q
 	flame.material_override = _mat("flame_pap" if pap else "flame")
 	flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -74,21 +72,10 @@ func _process(delta: float) -> void:
 static func _mesh(kind: String) -> Mesh:
 	if _meshes.has(kind):
 		return _meshes[kind]
-	var m: Mesh
-	if kind == "rocket":
-		var c := CylinderMesh.new()
-		c.top_radius = 0.02
-		c.bottom_radius = 0.03
-		c.height = 0.24
-		c.radial_segments = 8
-		m = c
-	else:
-		var s := SphereMesh.new()
-		s.radius = 0.025
-		s.height = 0.06
-		s.radial_segments = 8
-		s.rings = 4
-		m = s
+	# Pavés en cubes de 2,5 cm : roquette 2 x 10 cubes, grenade 2 x 2 x 3.
+	var b := BoxMesh.new()
+	b.size = Vector3(0.05, 0.25, 0.05) if kind == "rocket" else Vector3(0.05, 0.05, 0.075)
+	var m: Mesh = b
 	_meshes[kind] = m
 	return m
 

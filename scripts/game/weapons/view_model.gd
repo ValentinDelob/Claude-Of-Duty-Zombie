@@ -136,7 +136,6 @@ var _shell: Node3D
 ## Flamme de bouche : cœur face caméra + deux pointes croisées le long du canon.
 var _flash_rig: Node3D
 var _flash_mesh: MeshInstance3D
-var _flash_side: MeshInstance3D
 var _flash_light: OmniLight3D
 var _flash_t := 0.0
 var _flash_energy := 1.8
@@ -153,19 +152,13 @@ func _ready() -> void:
 	_flash_rig.name = "MuzzleFlash"
 	_flash_rig.visible = false
 	add_child(_flash_rig)
+	# Flamme en cubes de 2,5 cm (VoxelFx.flash_mesh) : étoile autour de la
+	# bouche et pointes le long du canon, retirée à chaque tir.
 	_flash_mesh = MeshInstance3D.new()
-	var q := QuadMesh.new()
-	q.size = Vector2.ONE
-	_flash_mesh.mesh = q
-	_flash_mesh.material_override = flash_material(_flash_texture(), true, true)
+	_flash_mesh.mesh = VoxelFx.flash_mesh(2, 4, 2, 0)
+	_flash_mesh.material_override = VoxelFx.flash_material(true)
 	_flash_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_flash_rig.add_child(_flash_mesh)
-	# Pointes : deux quads croisés couchés le long de l'axe du canon.
-	_flash_side = MeshInstance3D.new()
-	_flash_side.mesh = prong_mesh()
-	_flash_side.material_override = flash_material(prong_texture(), false, true)
-	_flash_side.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_flash_rig.add_child(_flash_side)
 	_flash_light = OmniLight3D.new()
 	_flash_light.light_color = Color(1.0, 0.7, 0.4)
 	_flash_light.omni_range = 6.0
@@ -397,10 +390,7 @@ func fire(s: Dictionary, fx: Fx, p: Player, eject := true) -> void:
 		_flash_t = 0.05
 		_flash_energy = fl[3] * randf_range(0.8, 1.2)
 		var k := randf_range(0.8, 1.25) * (0.6 if ads > 0.5 else 1.0)
-		_flash_mesh.scale = Vector3.ONE * fl[0] * 1.8 * k
-		reroll_flash(_flash_mesh.material_override as ShaderMaterial)
-		_flash_side.scale = Vector3(fl[2], fl[2], fl[1]) * k
-		_flash_side.rotation.z = randf() * TAU
+		VoxelFx.reroll_flash(_flash_mesh, fl[0] * 1.8 * k, fl[1] * k, fl[2] * k)
 		if fx:
 			fx.smoke(muzzle, -global_transform.basis.z, 2 if s.get("flash", "") == "shotgun" else 1)
 	if eject and fx:
@@ -828,112 +818,6 @@ static func melee_pose(t: float) -> Array:
 			return [a[1].lerp(b[1], k), a[2].lerp(b[2], k)]
 	var last: Array = MELEE_KEYS[MELEE_KEYS.size() - 1]
 	return [last[1], last[2]]
-
-
-static var _flash_tex: Texture2D
-static var _prong_tex: Texture2D
-static var _prong_mesh: ArrayMesh
-
-
-## Matériau additif non éclairé de la flamme de bouche (muzzle_flash.gdshader).
-## `viewmodel` : flamme de la vue FPS, cachée par l'arme là où elle passe derrière.
-static func flash_material(tex: Texture2D, billboard: bool, viewmodel := false) -> ShaderMaterial:
-	var fm := ShaderMaterial.new()
-	fm.shader = preload("res://assets/shaders/muzzle_flash.gdshader")
-	fm.set_shader_parameter("tex", tex)
-	fm.set_shader_parameter("billboard", 1.0 if billboard else 0.0)
-	fm.set_shader_parameter("viewmodel", 1.0 if viewmodel else 0.0)
-	return fm
-
-
-## Nouvelle variante de flamme face caméra : dessin tiré au hasard, tourné d'un
-## angle aléatoire autour de l'axe de vue.
-static func reroll_flash(fm: ShaderMaterial) -> void:
-	fm.set_shader_parameter("tex", flash_variant(randi() % 4))
-	fm.set_shader_parameter("spin", randf() * TAU)
-
-
-## Deux quads croisés (plans XZ et YZ) de z = 0 à z = -1, largeur 1.
-static func prong_mesh() -> ArrayMesh:
-	if _prong_mesh:
-		return _prong_mesh
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for axis in [Vector3.RIGHT, Vector3.UP]:
-		var a: Vector3 = axis * 0.5
-		var quad := [[-a, Vector2(0, 0)], [a, Vector2(1, 0)], [a + Vector3(0, 0, -1), Vector2(1, 1)], [-a + Vector3(0, 0, -1), Vector2(0, 1)]]
-		for i in [0, 1, 2, 0, 2, 3]:
-			st.set_uv(quad[i][1])
-			st.add_vertex(quad[i][0])
-	_prong_mesh = st.commit()
-	return _prong_mesh
-
-
-## Pointe de flamme : large et vive à la bouche (v = 0), effilée au bout.
-static func prong_texture() -> Texture2D:
-	if _prong_tex:
-		return _prong_tex
-	var w := 32
-	var h := 64
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	for y in h:
-		for x in w:
-			var v := float(y) / (h - 1)
-			var u := absf((x + 0.5) / w * 2.0 - 1.0)
-			var half := lerpf(0.9, 0.05, pow(v, 0.7))
-			var a := clampf((half - u) / maxf(half, 0.01), 0.0, 1.0) * (1.0 - v * 0.85)
-			img.set_pixel(x, y, Color(1, 0.9 - v * 0.3, 0.75 - v * 0.5, a * a))
-	_prong_tex = ImageTexture.create_from_image(img)
-	return _prong_tex
-
-
-static func _flash_texture() -> Texture2D:
-	if _flash_tex:
-		return _flash_tex
-	_flash_tex = flash_variant(0)
-	return _flash_tex
-
-
-static var _flash_variants: Array[Texture2D] = []
-
-
-## Flamme vue de face, variante `v` (0..3) : cœur blanc-jaune, pétales
-## irréguliers orangés (longueurs et largeurs aléatoires), bord doux.
-static func flash_variant(v: int) -> Texture2D:
-	while _flash_variants.size() < 4:
-		_flash_variants.append(_make_flash(_flash_variants.size()))
-	return _flash_variants[v % 4]
-
-
-static func _make_flash(seed_v: int) -> Texture2D:
-	var n := 96
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 911 + seed_v * 17
-	var petals := rng.randi_range(4, 6)
-	var lens := []
-	var phases := []
-	for k in petals:
-		lens.append(rng.randf_range(0.55, 1.0))
-		phases.append(TAU * (k + rng.randf_range(-0.2, 0.2)) / petals)
-	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	for y in n:
-		for x in n:
-			var p := Vector2(x - n * 0.5 + 0.5, y - n * 0.5 + 0.5) / (n * 0.5)
-			var r := p.length()
-			var ang := p.angle()
-			var petal := 0.0
-			for k in petals:
-				var da := absf(wrapf(ang - float(phases[k]), -PI, PI))
-				var width := 0.34 * (1.0 - r / float(lens[k]))
-				if width > 0.0:
-					petal = maxf(petal, clampf(1.0 - da / width, 0.0, 1.0) * (1.0 - r / float(lens[k])))
-			var core := clampf(1.0 - r * 3.2, 0.0, 1.0)
-			var glow := clampf(1.0 - r * 1.6, 0.0, 1.0) * 0.35
-			var a := clampf(core + petal * 0.9 + glow, 0.0, 1.0)
-			# Blanc-jaune au centre, orange vers l'extérieur.
-			var hot := clampf(1.0 - r * 1.8, 0.0, 1.0)
-			img.set_pixel(x, y, Color(1.0, lerpf(0.55, 0.95, hot), lerpf(0.2, 0.8, hot), a))
-	return ImageTexture.create_from_image(img)
 
 
 ## Champ de vision (vertical) courant de l'arme : de la hanche à la visée.

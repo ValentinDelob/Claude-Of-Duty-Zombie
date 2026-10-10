@@ -2,23 +2,29 @@ class_name MapEffects
 extends RefCounted
 ## Effets posés dans l'éditeur de cartes (type « effet », MapCatalog.EFFECTS) :
 ## chaque effet est construit EN CODE à partir de couches :
-##   - particules GPU (GPUParticles3D + ParticleProcessMaterial) : panneaux
-##     face caméra, additifs (feu, étincelles, électricité) ou fondus et
-##     éclairés (fumées, brume, cendres), doux au contact du sol (« soft
-##     particles », proximity fade), tailles et couleurs le long de la vie,
-##     turbulence, rotation au hasard ; étincelles étirées dans le sens de leur
-##     vitesse (Y aligné + panneau Y fixe) et qui REBONDISSENT sur le sol
-##     (GPUParticlesCollisionBox3D) ; gouttes qui disparaissent au sol, ronds
-##     dans l'eau synchronisés sur leur chute ;
+##   - particules GPU (GPUParticles3D + ParticleProcessMaterial) CUBIQUES
+##     (VoxelFx, GAME_CONCEPT.md § 4.19) : chaque particule est un cube de
+##     couleur unie (rampe de couleur, aucune texture, aucun panneau face
+##     caméra) ou une touffe de cubes pour les grosses (flammes, volutes de
+##     fumée, bouffées de vapeur : leurs cubes s'écartent en grossissant,
+##     jamais plus de 15 cm) ; côté de chaque cube arrondi à 2,5 cm ; elles
+##     disparaissent en RÉTRÉCISSANT (l'alpha de la rampe règle la taille,
+##     l'opacité de la couche est son alpha le plus haut). Additives
+##     (étincelles, braises, lueurs), fondues (flammes, vapeur) ou éclairées
+##     (fumées, cendres) ; tailles et couleurs le long de la vie, turbulence,
+##     rotation au hasard ; étincelles en files de cubes alignées sur leur
+##     vitesse et qui REBONDISSENT sur le sol (GPUParticlesCollisionBox3D) ;
+##     gouttes qui disparaissent au sol ; plats en pixel art de 2,5 ou 5 cm
+##     (ronds dans l'eau synchronisés sur les gouttes, nappes de brume, métal
+##     chauffé) ;
 ##   - lumières (OmniLight3D sans ombre) qui vacillent, crépitent ou éclatent
 ##     (MapEffect) ;
-##   - arcs électriques (panneaux texturés re-tirés au hasard toutes les
-##     quelques centièmes de seconde).
+##   - arcs électriques : chaînes de cubes de 2,5 ou 5 cm en zigzag, re-tirées
+##     au hasard toutes les quelques centièmes de seconde.
 ## Format 11 : des EFFETS PURS. Aucun objet solide (bûches, torche, tuyau,
 ## boîtier, électrodes, bobine, câble, flaque sont des décors à part :
-## MapCatalog.PREFABS, EditorPrefabs) et aucune collision.
-## Textures : assets/textures/fx/ (Kenney « Particle Pack », CC0, voir
-## docs/ASSETS.md) ; à défaut, dégradés calculés (aucun fichier requis).
+## MapCatalog.PREFABS, EditorPrefabs) et aucune collision. Aucun fichier de
+## texture.
 ##
 ## Repère d'un effet : origine au point posé, y vers le haut ; effet mural :
 ## +z sort du mur vers la pièce, x le long du mur. `opts` (layout
@@ -54,20 +60,20 @@ const PARTICLE_BUDGET := 9000
 const LIGHT_BUDGET := 16
 ## Portée maximale (m) d'une lumière d'effet.
 const MAX_LIGHT_RANGE := 20.0
-const TEX_DIR := "res://assets/textures/fx/"
 
-static var _tex: Dictionary = {}
-static var _mats: Dictionary = {}
 static var _quads: Dictionary = {}
 
-const FIRE_RAMP := [[0.0, Color(1.0, 0.9, 0.6, 0.0)], [0.08, Color(1.0, 0.78, 0.35, 0.6)], [0.35, Color(1.0, 0.42, 0.08, 0.5)],
-	[0.7, Color(0.65, 0.14, 0.03, 0.22)], [1.0, Color(0.2, 0.04, 0.02, 0.0)]]
-const TONGUE_RAMP := [[0.0, Color(1.0, 0.95, 0.75, 0.0)], [0.1, Color(1.0, 0.88, 0.5, 0.95)], [0.5, Color(1.0, 0.5, 0.12, 0.6)],
-	[1.0, Color(0.5, 0.1, 0.02, 0.0)]]
+## Flammes en cubes : couleurs franches (jaune, orange, rouge, braise) ;
+## l'alpha règle la taille des cubes (VoxelFx).
+const FIRE_RAMP := [[0.0, Color(1.0, 0.82, 0.3, 0.0)], [0.08, Color(1.0, 0.68, 0.18, 0.6)], [0.35, Color(0.98, 0.36, 0.05, 0.5)],
+	[0.7, Color(0.6, 0.1, 0.02, 0.22)], [1.0, Color(0.2, 0.04, 0.02, 0.0)]]
+const TONGUE_RAMP := [[0.0, Color(1.0, 0.92, 0.55, 0.0)], [0.1, Color(1.0, 0.8, 0.3, 0.95)], [0.5, Color(1.0, 0.42, 0.06, 0.6)],
+	[1.0, Color(0.5, 0.08, 0.02, 0.0)]]
 const EMBER_RAMP := [[0.0, Color(1.0, 0.85, 0.5, 1.0)], [0.4, Color(1.0, 0.45, 0.1, 1.0)], [1.0, Color(0.6, 0.1, 0.02, 0.0)]]
 const SPARK_RAMP := [[0.0, Color(1.0, 0.97, 0.85, 1.0)], [0.25, Color(1.0, 0.75, 0.35, 1.0)], [0.7, Color(1.0, 0.4, 0.08, 0.9)],
 	[1.0, Color(0.7, 0.15, 0.02, 0.0)]]
-const WATER := Color(0.72, 0.82, 0.92)
+## Eau : bleu-gris (cubes non éclairés, pas de reflet doux).
+const WATER := Color(0.5, 0.64, 0.8)
 ## Bout du câble suspendu (décor « cable_suspendu ») sous le plafond : là
 ## où naissent la pluie d'étincelles et les étincelles de câble.
 const CABLE_TIP := Vector3(0.0, -0.62, 0.075)
@@ -146,98 +152,90 @@ static func _f(opts: Dictionary, key: String, def: float) -> float:
 
 # ------------------------------------------------------------------ ressources partagées
 
-## Texture des effets ; absente : dégradé rond calculé.
-static func tex(name: String) -> Texture2D:
-	if _tex.has(name):
-		return _tex[name]
-	var t: Texture2D = null
-	var path := TEX_DIR + name + ".png"
-	if name != "dot" and name != "ring" and ResourceLoader.exists(path):
-		t = load(path) as Texture2D
-	if t == null:
-		t = _gradient_tex(name)
-	_tex[name] = t
-	return t
+## Dessin d'une couche (ancien nom de texture `look` gardé comme « genre » de
+## particule) : [maillage, motif des plats (0 : cubes), côté maximal d'un
+## cube (m)]. Touffes : flammes (« fire_billow », « fire_core » : boule ;
+## « flame_tongue » : langue), fumées et vapeur (« smoke_a », « smoke_b » :
+## nuage de cubes), éclair et tourbillon (boule) ; « dot » : un cube, ou une
+## boule si la particule dépasse 15 cm ; « streak » : file de cubes le long
+## de la vitesse (étincelle, goutte, filet). À plat (`mode` « flat ») : rond
+## (« ring »), disque (« dot ») ou nappe de brume en pixels.
+static func look(texture: String, mode: String, quad_sz: Vector2, size_max: float) -> Array:
+	if mode == "flat":
+		match texture:
+			"ring":
+				return [quad(quad_sz), 1, VoxelFx.BIG]
+			"dot":
+				return [quad(quad_sz), 2, VoxelFx.BIG]
+			_:
+				return [quad(quad_sz), 3, VoxelFx.BIG]
+	if mode == "streak":
+		var n := clampi(roundi(quad_sz.y / maxf(quad_sz.x, 0.001) * 0.6), 1, 5)
+		return [VoxelFx.chain(n, quad_sz.x, quad_sz.y), 0, VoxelFx.SMALL]
+	var big := size_max * maxf(quad_sz.x, quad_sz.y) > VoxelFx.BIG
+	match texture:
+		"flame_tongue":
+			return [VoxelFx.cluster("tongue"), 0, VoxelFx.BIG]
+		"smoke_a", "smoke_b":
+			return [VoxelFx.cluster("cloud") if big else VoxelFx.cube(), 0, VoxelFx.BIG]
+		"dot":
+			return [VoxelFx.cluster("puff") if big else VoxelFx.cube(), 0, VoxelFx.BIG if big else VoxelFx.SMALL]
+	return [VoxelFx.cluster("puff") if big else VoxelFx.cube(), 0, VoxelFx.BIG]
 
 
-## Dégradé rond : point doux (« dot » et textures absentes) ou anneau (« ring »).
-static func _gradient_tex(name: String) -> Texture2D:
-	var g := Gradient.new()
-	if name == "ring":
-		g.offsets = PackedFloat32Array([0.0, 0.7, 0.84, 0.92, 1.0])
-		g.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 0), Color(1, 1, 1, 1), Color(1, 1, 1, 0.25), Color(1, 1, 1, 0)])
-	else:
-		g.offsets = PackedFloat32Array([0.0, 0.25, 1.0])
-		g.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.55), Color(1, 1, 1, 0)])
-	var gt := GradientTexture2D.new()
-	gt.gradient = g
-	gt.fill = GradientTexture2D.FILL_RADIAL
-	gt.fill_from = Vector2(0.5, 0.5)
-	gt.fill_to = Vector2(1.0, 0.5)
-	gt.width = 64
-	gt.height = 64
-	return gt
+## Matériau des particules (VoxelFx). `blend` : « add » (lumineux), « mix »
+## (fondu, non éclairé), « fire » (flamme : fondue, non éclairée, plus vive)
+## ou « lit » (fondu, éclairé par les lampes et les feux) ; `opacity` : alpha
+## le plus haut de la rampe ; `pattern` : plats (VoxelFx). Les cubes
+## disparaissent en rétrécissant (l'alpha de la rampe règle leur taille) ;
+## les plats, en fondu.
+static func draw_mat(blend: String, opacity: float, pattern := 0, mx := VoxelFx.BIG) -> ShaderMaterial:
+	var o := {"max": mx, "opacity": snappedf(clampf(opacity, 0.02, 1.0), 0.01), "shrink": pattern == 0}
+	var b := blend
+	match blend:
+		"add":
+			o["energy"] = 1.0
+		"fire":
+			b = "mix"
+			o["energy"] = 0.85
+			o["edge"] = 0.15
+		"mix", "lit":
+			o["edge"] = 0.2 if pattern == 0 else 0.0
+	if pattern > 0:
+		o["pattern"] = pattern
+		o["px"] = VoxelFx.GRID if pattern < 3 else VoxelFx.GRID * 2.0
+	return VoxelFx.material(b, o)
 
 
-## Matériau d'affichage des particules. `blend` : « add » (lumineux),
-## « mix » (fondu, sans éclairage) ou « lit » (fondu, éclairé par les lampes
-## et les feux) ; `soft` : fondu au contact des surfaces (m) ; `mode` :
-## « face » (panneau face caméra), « streak » (étiré dans le sens de la
-## vitesse), « flat » (à plat sur le sol).
-static func draw_mat(texture: String, blend: String, soft := 0.0, mode := "face", flip := Vector2.ONE) -> StandardMaterial3D:
-	var key := "%s|%s|%.2f|%s|%s" % [texture, blend, soft, mode, flip]
-	if _mats.has(key):
-		return _mats[key]
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = tex(texture)
-	m.vertex_color_use_as_albedo = true
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if blend == "lit" else BaseMaterial3D.SHADING_MODE_UNSHADED
-	if blend == "add":
-		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	if blend == "lit":
-		m.roughness = 1.0
-		m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-		m.disable_receive_shadows = true
-	match mode:
-		"face":
-			m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-			m.billboard_keep_scale = true
-		"streak":
-			m.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
-			m.billboard_keep_scale = true
-		_:
-			m.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
-	if soft > 0.0:
-		m.proximity_fade_enabled = true
-		m.proximity_fade_distance = soft
-	if flip != Vector2.ONE:
-		m.uv1_scale = Vector3(flip.x, flip.y, 1.0)
-		m.uv1_offset = Vector3(1.0 if flip.x < 0 else 0.0, 1.0 if flip.y < 0 else 0.0, 0.0)
-	_mats[key] = m
-	return m
-
-
-static func quad(sz: Vector2, flat := false) -> QuadMesh:
-	var key := "%s|%s" % [sz, flat]
+## Panneau à plat (FACE_Y) des plats en pixel art.
+static func quad(sz: Vector2) -> QuadMesh:
+	var key := "%s" % sz
 	if not _quads.has(key):
 		var q := QuadMesh.new()
 		q.size = sz
-		if flat:
-			q.orientation = PlaneMesh.FACE_Y
+		q.orientation = PlaneMesh.FACE_Y
 		_quads[key] = q
 	return _quads[key]
 
 
-static func ramp(stops: Array, tint := Color.WHITE) -> GradientTexture1D:
+## Alpha le plus haut d'une rampe ([[t, Color]...]).
+static func ramp_alpha_max(stops: Array) -> float:
+	var hi := 0.0
+	for s in stops:
+		hi = maxf(hi, (s[1] as Color).a)
+	return hi
+
+
+## Rampe de couleur (× `tint`) ; `norm` > 0 : alpha divisé par `norm` (la
+## rampe d'une couche cubique va jusqu'à 1 : l'alpha y est la taille).
+static func ramp(stops: Array, tint := Color.WHITE, norm := 1.0) -> GradientTexture1D:
 	var g := Gradient.new()
 	var offs := PackedFloat32Array()
 	var cols := PackedColorArray()
 	for s in stops:
 		offs.append(float(s[0]))
 		var c: Color = s[1]
-		cols.append(Color(c.r * tint.r, c.g * tint.g, c.b * tint.b, c.a))
+		cols.append(Color(c.r * tint.r, c.g * tint.g, c.b * tint.b, clampf(c.a / maxf(norm, 0.001), 0.0, 1.0)))
 	g.offsets = offs
 	g.colors = cols
 	var gt := GradientTexture1D.new()
@@ -307,21 +305,45 @@ static func emission_ext(pm: ParticleProcessMaterial) -> Vector3:
 	return Vector3.ZERO
 
 
-## Rayon visible d'une particule, par axe (repère de la couche) : demi-côté du
-## panneau × échelle maximale (textures rondes, coins transparents) ; à plat :
-## rien en hauteur ; étincelle étirée le long de sa vitesse : demi-longueur
-## × la plus grande part de la vitesse sur l'axe (`dirs`, motion_dirs), au
-## moins la demi-largeur.
+## Rayon visible d'une particule, par axe (repère de la couche), taille
+## maximale (échelle × haut de la courbe) : à plat, demi-côté du panneau et
+## rien en hauteur ; sinon (VoxelFx.half_extent) centres des cubes × taille
+## + demi-côté des cubes (arrondi à 2,5 cm, au moins 2,5 cm, au plus le côté
+## maximal de la couche, méta « vox_max »). Rotation autour de z (angle,
+## vitesse angulaire) : x et y tournent (rayon du disque des centres, demi-
+## diagonale des cubes). File de cubes alignée sur la vitesse : demi-longueur
+## × la plus grande part de la vitesse sur l'axe (`dirs`, motion_dirs) +
+## demi-diagonale d'un cube (la file tourne aussi autour de son axe).
 static func part_radius(p: GPUParticles3D, dirs := Vector3.ONE) -> Vector3:
 	var pm := p.process_material as ParticleProcessMaterial
-	var q := p.draw_pass_1 as QuadMesh
-	var sz := q.size if q != null else Vector2.ONE
 	var s := pm.scale_max * curve_max(pm.scale_curve)
-	if q != null and q.orientation == PlaneMesh.FACE_Y:
-		return Vector3(sz.x, 0.0, sz.y) * 0.5 * s
+	var q := p.draw_pass_1 as QuadMesh
+	if q != null:
+		return Vector3(q.size.x, 0.0, q.size.y) * 0.5 * s
+	var mx: Vector3 = p.get_meta("vox_max", Vector3.ONE * VoxelFx.BIG)
+	var he := VoxelFx.half_extent(p.draw_pass_1, s, mx)
+	var c: Vector3 = he[0]
+	var side: Vector3 = he[1]
 	if p.transform_align == GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY:
-		return (dirs * sz.y).max(Vector3.ONE * sz.x) * 0.5 * s
-	return Vector3.ONE * maxf(sz.x, sz.y) * 0.5 * s
+		return dirs * c.y + Vector3.ONE * side.x * 0.87
+	if pm.angle_min != 0.0 or pm.angle_max != 0.0 or pm.angular_velocity_min != 0.0 or pm.angular_velocity_max != 0.0:
+		var rxy := float(p.draw_pass_1.get_meta("vox_rxy", Vector2(c.x, c.y).length() / maxf(s, 0.000001))) * s
+		return Vector3(rxy, rxy, c.z) + side * Vector3(0.71, 0.71, 0.5)
+	return c + side * 0.5
+
+
+## Plus petit rayon d'une particule (part_radius quand sa taille tend vers 0) :
+## un cube de 2,5 cm (le shader ne descend pas plus bas) ; plats : rien.
+static func part_radius_min(p: GPUParticles3D) -> Vector3:
+	if p.draw_pass_1 is QuadMesh:
+		return Vector3.ZERO
+	var pm := p.process_material as ParticleProcessMaterial
+	var g := VoxelFx.GRID
+	if p.transform_align == GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY:
+		return Vector3.ONE * g * 0.87
+	if pm.angle_min != 0.0 or pm.angle_max != 0.0 or pm.angular_velocity_min != 0.0 or pm.angular_velocity_max != 0.0:
+		return Vector3(0.71, 0.71, 0.5) * g
+	return Vector3.ONE * g * 0.5
 
 
 ## Vitesse limite (m/s) d'une couche (velocity_limit_curve), INF sans.
@@ -566,8 +588,25 @@ class Builder:
 		var blend := String(c.get("blend", "add"))
 		p.draw_order = GPUParticles3D.DRAW_ORDER_VIEW_DEPTH if blend != "add" else GPUParticles3D.DRAW_ORDER_INDEX
 		p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		p.draw_pass_1 = MapEffects.quad(c.get("quad", Vector2.ONE), mode == "flat")
-		p.material_override = MapEffects.draw_mat(String(c.get("tex", "dot")), blend, float(c.get("soft", 0.0)), mode)
+		# Cubes (VoxelFx) : maillage et côté maximal selon le genre de particule.
+		var sz: Vector2 = c.get("size", Vector2(0.3, 0.5))
+		var grow := 1.0
+		if c.has("curve"):
+			for cp in c.curve:
+				grow = maxf(grow, float(cp[1]))
+		var lk := MapEffects.look(String(c.get("tex", "dot")), mode, c.get("quad", Vector2.ONE), sz.y * grow)
+		p.draw_pass_1 = lk[0]
+		p.set_meta("vox_max", Vector3.ONE * float(lk[2]))
+		var stops: Array = c.get("ramp", [[0.0, Color.WHITE], [1.0, Color(1, 1, 1, 0)]])
+		var amax := MapEffects.ramp_alpha_max(stops)
+		var fire := String(c.get("tex", "")) in ["fire_billow", "flame_tongue"]
+		var opacity := amax
+		if blend == "add" and not fire and (lk[0] as Mesh).get_meta("vox_rxy", 0.0) > 0.0 and int(lk[1]) == 0 and mode != "streak":
+			# Touffe additive (lueur, éclair, cœur du feu) : ses cubes se
+			# superposent et s'additionnent ; l'ancien point doux n'était
+			# opaque qu'en son centre (environ un tiers en moyenne).
+			opacity *= 0.35
+		p.material_override = MapEffects.draw_mat("fire" if fire and blend == "add" else blend, opacity, int(lk[1]), float(lk[2]))
 		p.position = c.get("at", Vector3.ZERO)
 		match String(c.get("shape", "point")):
 			"sphere":
@@ -588,12 +627,13 @@ class Builder:
 		var damp: Vector2 = c.get("damp", Vector2.ZERO)
 		pm.damping_min = damp.x
 		pm.damping_max = damp.y
-		var sz: Vector2 = c.get("size", Vector2(0.3, 0.5))
 		pm.scale_min = sz.x
 		pm.scale_max = sz.y
 		if c.has("curve"):
 			pm.scale_curve = MapEffects.curve(c.curve)
-		pm.color_ramp = MapEffects.ramp(c.get("ramp", [[0.0, Color.WHITE], [1.0, Color(1, 1, 1, 0)]]), tint if c.get("tint", false) else Color.WHITE)
+		# Alpha de la rampe ramené à 1, l'opacité (alpha le plus haut) est dans
+		# le matériau : sur les cubes il règle la taille, sur les plats le fondu.
+		pm.color_ramp = MapEffects.ramp(stops, tint if c.get("tint", false) else Color.WHITE, amax)
 		if mode == "streak":
 			p.transform_align = GPUParticles3D.TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY
 		elif mode != "flat" and c.get("angle", true):
@@ -671,7 +711,16 @@ class Builder:
 			l.position = l.position.clamp(inner.position, inner.end)
 
 	func _contain_part(p: GPUParticles3D, inner: AABB) -> void:
-		p.position = p.position.clamp(inner.position, inner.end)
+		# Un cube ne rapetisse pas sous 2,5 cm : le point d'émission reste
+		# assez loin des bords pour le plus petit cube (au milieu si la place manque).
+		var rmin := MapEffects.part_radius_min(p)
+		var lo := inner.position + rmin
+		var hi := inner.end - rmin
+		for i in 3:
+			if lo[i] > hi[i]:
+				lo[i] = inner.get_center()[i]
+				hi[i] = lo[i]
+		p.position = p.position.clamp(lo, hi)
 		var inv := p.transform.affine_inverse()
 		p.visibility_aabb = (inv * vol).grow(0.05)
 		# Rebonds, frottement, vitesse limite : le mouvement n'est pas tout à
@@ -794,8 +843,9 @@ class Builder:
 		return l
 
 	## Arc électrique : `mode` 0 de a à b, 1 rayon au hasard autour de a
-	## (b.x, b.y : longueur min, max). Panneau texturé (pas un objet solide) ;
-	## largeur bornée pour tenir dans le volume (de travers à l'arc).
+	## (b.x, b.y : longueur min, max). Chaîne de cubes lumineux en zigzag
+	## (MultiMesh, MapEffect._aim_arc ; pas un objet solide) ; largeur (écart du
+	## zigzag) bornée pour tenir dans le volume (de travers à l'arc).
 	func arc(a: Vector3, b: Vector3, width: float, mode := 0, burst_only := false) -> void:
 		var lim := INF
 		var ax := (b - a).normalized() if mode == 0 and (b - a).length() > 0.001 else Vector3.ZERO
@@ -804,13 +854,10 @@ class Builder:
 				lim = minf(lim, vol.size[i])
 		width = minf(width, maxf(0.02, lim / MapEffect.ARC_W_MAX - 0.01))
 		if e.arc_mats.is_empty():
-			for f in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
-				var m := MapEffects.draw_mat("arc", "add", 0.0, "streak", f).duplicate() as StandardMaterial3D
-				m.albedo_color = Color(tint.r, tint.g, tint.b, 1.0).lightened(0.25)
-				m.vertex_color_use_as_albedo = false
-				e.arc_mats.append(m)
-		var mi := MeshInstance3D.new()
-		mi.mesh = MapEffects.quad(Vector2.ONE)
+			var col := Color(tint.r, tint.g, tint.b, 1.0).lightened(0.25)
+			e.arc_mats.append(VoxelFx.material("add", {"max": VoxelFx.SMALL, "shrink": false, "energy": 2.2, "tint": col}))
+		var mi := MultiMeshInstance3D.new()
+		mi.multimesh = VoxelFx.chain_multimesh(MapEffect.ARC_CUBES)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.material_override = e.arc_mats[0]
 		e.add_arc(mi, mode, a, b, width, burst_only)

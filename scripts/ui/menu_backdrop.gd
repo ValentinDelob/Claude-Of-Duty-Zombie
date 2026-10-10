@@ -594,8 +594,10 @@ func _build_atmosphere() -> void:
 	pm.turbulence_noise_scale = 4.0
 	pm.turbulence_influence_min = 0.01
 	pm.turbulence_influence_max = 0.04
-	pm.scale_min = 0.5
-	pm.scale_max = 1.6
+	# Grains cubiques (VoxelFx) : cubes de 2,5 cm qui naissent et
+	# disparaissent en grossissant puis en rétrécissant (alpha de la rampe).
+	pm.scale_min = 0.008
+	pm.scale_max = 0.026
 	var ramp := Gradient.new()
 	ramp.set_color(0, Color(1, 1, 1, 0))
 	ramp.set_color(1, Color(1, 1, 1, 0))
@@ -605,17 +607,8 @@ func _build_atmosphere() -> void:
 	rt.gradient = ramp
 	pm.color_ramp = rt
 	_dust.process_material = pm
-	var q := QuadMesh.new()
-	q.size = Vector2(0.016, 0.016)
-	var dm := StandardMaterial3D.new()
-	dm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	dm.vertex_color_use_as_albedo = true
-	dm.albedo_color = Color(1.0, 0.95, 0.85, 0.85)
-	dm.albedo_texture = Fx.soft_dot_texture()
-	dm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX
-	q.material = dm
-	_dust.draw_pass_1 = q
+	_dust.draw_pass_1 = VoxelFx.cube()
+	_dust.material_override = VoxelFx.material("lit", {"max": VoxelFx.GRID, "opacity": 0.85, "tint": Color(1.0, 0.95, 0.85)})
 	add_child(_dust)
 	# Brume basse et volutes de fumée.
 	var smoke_mat := ShaderMaterial.new()

@@ -3,12 +3,26 @@ extends Node3D
 ## Effets visuels locaux (chaque machine joue ses propres effets à partir des
 ## événements réseau) : impacts, sang, traçantes, flashs, décalques.
 ## Tout est mis en pool : aucune création de nœud pendant les combats.
+## Style CUBIQUE (VoxelFx, GAME_CONCEPT.md § 4.19) : particules en cubes de
+## 2,5 à 15 cm qui tournoient et disparaissent en rétrécissant, flamme de
+## bouche et boule de feu en cubes, douilles en pavés de 2,5 cm, décalques
+## (trous de balle, sang au sol, voir ThrowableSystem pour les traces
+## d'explosion) en pixel art de 2,5 cm (trous) ou 5 cm (sang), alignés sur la
+## grille et tournés par quarts de tour. Traçante : un seul pavé lumineux
+## étiré (rayon de lumière, pas un objet).
 
 const MAX_HOLES := 48
 const MAX_BLOOD_DECALS := 40
 const MAX_TRACERS := 24
 const MAX_SHELLS := 32
 const MAX_FLASHES := 6
+## Pixel des décalques (m) : trous de balle, taches de sang.
+const HOLE_PX := 0.025
+const BLOOD_PX := 0.05
+## Trou de balle : côté en pixels de 2,5 cm.
+const HOLE_N := 4
+## Taches de sang : côtés en pixels de 5 cm (petite, moyenne, grande).
+const BLOOD_CLASSES := [12, 20, 28]
 
 ## Traçantes : couleur des balles, vitesse apparente (m/s) et longueur de la
 ## traînée (m).
@@ -26,6 +40,8 @@ var blood: ParticlePool
 var gibs: GibPool
 ## Éclats (béton, bois) : particules éclairées, tombent vite.
 var debris: ParticlePool
+## Boules de feu (explosions) : gros cubes lumineux qui montent et rétrécissent.
+var flames: ParticlePool
 var _holes: Array[Decal] = []
 var _hole_i := 0
 ## Décalques réellement utilisés (réduit en qualité LOW, voir apply_quality).
@@ -33,6 +49,9 @@ var _hole_n := MAX_HOLES
 var _blood_decals: Array[Decal] = []
 var _blood_i := 0
 var _blood_n := MAX_BLOOD_DECALS
+## Classe de taille (BLOOD_CLASSES) de chaque tache, fixée une fois pour
+## toutes : aucune texture ne change en jeu (atlas des décalques stable).
+var _blood_class: PackedInt32Array = []
 var _tracers: Array[MeshInstance3D] = []
 var _tracer_i := 0
 ## Traçante i : origine, direction, longueur du trajet, tête (m), traînée (m),
@@ -53,7 +72,7 @@ var _shell_life: PackedFloat32Array = []
 var _shell_floor: PackedFloat32Array = []
 var _shell_bounces: PackedInt32Array = []
 var _shell_i := 0
-## Flammes de bouche des autres joueurs (monde) : quad face caméra.
+## Flammes de bouche des autres joueurs (monde) : étoile de cubes (VoxelFx).
 var _flashes: Array[MeshInstance3D] = []
 var _flash_life: PackedFloat32Array = []
 var _flashes_i := 0
@@ -62,31 +81,42 @@ static var _tex_cache: Dictionary = {}
 
 
 func _ready() -> void:
-	sparks = ParticlePool.new().setup(160, _particle_mat(true), 0.035)
+	# Étincelles : cubes lumineux de 2,5 à 5 cm qui tournoient.
+	sparks = ParticlePool.new().setup(160, _particle_mat(true, false, VoxelFx.SMALL), 0.035)
 	sparks.gravity = 12.0
 	sparks.drag = 0.8
 	add_child(sparks)
-	dust = ParticlePool.new().setup(160, _particle_mat(false, true), 0.07)
+	# Poussière, fumée de tir : touffes de cubes (5 à 15 cm) qui s'écartent en
+	# grossissant, éclairées, translucides.
+	dust = ParticlePool.new().setup(160, _particle_mat(false, true, VoxelFx.BIG), 0.07, VoxelFx.cluster("puff"))
 	dust.gravity = -0.2
 	dust.drag = 4.0
 	dust.grow = 1.5
+	dust.spin = 0.8
 	add_child(dust)
-	blood = ParticlePool.new().setup(240, _particle_mat(false, true), 0.07)
+	# Sang : cubes de 2,5 à 5 cm, éclairés (ne brillent pas dans le noir).
+	blood = ParticlePool.new().setup(240, _particle_mat(false, true, VoxelFx.SMALL), 0.04)
 	blood.gravity = 9.0
 	blood.drag = 1.0
 	add_child(blood)
 	gibs = GibPool.new()
 	gibs.name = "Gibs"
 	add_child(gibs)
-	debris = ParticlePool.new().setup(160, _particle_mat(false, true), 0.025)
+	debris = ParticlePool.new().setup(160, _particle_mat(false, true, VoxelFx.SMALL), 0.03)
 	debris.gravity = 11.0
 	debris.drag = 0.6
 	add_child(debris)
+	flames = ParticlePool.new().setup(96, _particle_mat(true, false, VoxelFx.BIG), 0.12)
+	flames.gravity = -2.0
+	flames.drag = 3.5
+	flames.grow = -0.3
+	flames.spin = 2.0
+	add_child(flames)
 
 	for i in MAX_HOLES:
 		var d := Decal.new()
 		d.texture_albedo = bullet_hole_texture()
-		d.size = Vector3(0.12, 0.2, 0.12)
+		d.size = Vector3(HOLE_N * HOLE_PX, 0.2, HOLE_N * HOLE_PX)
 		d.visible = false
 		d.cull_mask = 1
 		d.add_to_group(RenderQuality.DECAL_GROUP)
@@ -94,8 +124,11 @@ func _ready() -> void:
 		_holes.append(d)
 	for i in MAX_BLOOD_DECALS:
 		var d := Decal.new()
-		d.texture_albedo = blood_splat_texture(i % 4)
-		d.size = Vector3(1.0, 0.6, 1.0)
+		var cls := i % BLOOD_CLASSES.size()
+		_blood_class.append(cls)
+		var n: int = BLOOD_CLASSES[cls]
+		d.texture_albedo = blood_splat_texture((i / BLOOD_CLASSES.size()) % 4, n)
+		d.size = Vector3(n * BLOOD_PX, 0.6, n * BLOOD_PX)
 		d.modulate = Color(0.55, 0.02, 0.02)
 		d.visible = false
 		d.cull_mask = 1
@@ -127,7 +160,7 @@ func _ready() -> void:
 		add_child(t)
 		_tracers.append(t)
 
-	# Douilles : petits cylindres laiton (fusil à pompe : rouge et laiton).
+	# Douilles : pavés laiton (fusil à pompe : rouge) en cubes de 2,5 cm.
 	var brass := StandardMaterial3D.new()
 	brass.albedo_color = Color(0.62, 0.47, 0.2)
 	brass.metallic = 0.9
@@ -152,10 +185,8 @@ func _ready() -> void:
 	_flash_life.resize(MAX_FLASHES)
 	for i in MAX_FLASHES:
 		var f := MeshInstance3D.new()
-		var q := QuadMesh.new()
-		q.size = Vector2.ONE
-		f.mesh = q
-		f.material_override = ViewModel.flash_material(ViewModel._flash_texture(), true)
+		f.mesh = VoxelFx.flash_mesh(3, 6, 2, i)
+		f.material_override = VoxelFx.flash_material()
 		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		f.visible = false
 		f.top_level = true
@@ -256,7 +287,8 @@ func _tick_shell(i: int, delta: float) -> void:
 			_shell_spin[i] *= 0.5
 			if absf(v.y) < 0.4:
 				_shell_bounces[i] = 3
-				s.rotation = Vector3(PI * 0.5, s.rotation.y, 0.0)
+				# Couchée à plat, d'un quart de tour (pavé posé sur une face).
+				s.rotation = Vector3(PI * 0.5, snappedf(s.rotation.y, PI * 0.5), 0.0)
 		_shell_vel[i] = v
 		s.global_position = p
 
@@ -339,10 +371,7 @@ func impact(pos: Vector3, normal: Vector3, with_sound := true, surface := "concr
 			sparks.burst(p, n, 2, 4.5, 0.6, 0.18, Color(0.9, 0.55, 0.2, 0.8))
 	var d := _holes[_hole_i]
 	_hole_i = (_hole_i + 1) % _hole_n
-	# Trou plus petit et plus net dans le métal.
-	var hs := 0.08 if surface == "metal" else 0.12
-	d.size = Vector3(hs, 0.2, hs)
-	_place_decal(d, pos, n, randf() * TAU)
+	_place_decal(d, pos, n, HOLE_PX)
 	if with_sound:
 		# Sons CC0 par matière (la terre et le reste sonnent comme le béton).
 		var snd := surface if surface in ["metal", "wood"] else "concrete"
@@ -385,24 +414,22 @@ func eject_shell(pos: Vector3, vel: Vector3, kind: String) -> void:
 	# Hauteur du sol sous la douille (cartes plates : un rayon vers le bas).
 	var q := PhysicsRayQueryParameters3D.create(pos, pos + Vector3.DOWN * 3.0, 1)
 	var r := get_world_3d().direct_space_state.intersect_ray(q)
-	_shell_floor[i] = (r.position.y + 0.005) if not r.is_empty() else pos.y - 1.5
+	_shell_floor[i] = (r.position.y + 0.0125) if not r.is_empty() else pos.y - 1.5
 
 
 static var _shell_meshes: Dictionary = {}
 
 
+## Douille : pavé d'un cube de 2,5 cm de section, 1 (pistolet), 2 (fusil)
+## ou 3 (fusil à pompe) cubes de long.
 static func _shell_mesh(kind: String) -> Mesh:
 	if _shell_meshes.has(kind):
 		return _shell_meshes[kind]
-	var c := CylinderMesh.new()
-	var dims: Vector2 = {"pistol": Vector2(0.0048, 0.022), "rifle": Vector2(0.0055, 0.048), "shotgun": Vector2(0.0095, 0.062)}.get(kind, Vector2(0.005, 0.03))
-	c.top_radius = dims.x * (0.8 if kind == "rifle" else 1.0)
-	c.bottom_radius = dims.x
-	c.height = dims.y
-	c.radial_segments = 6
-	c.rings = 1
-	_shell_meshes[kind] = c
-	return c
+	var b := BoxMesh.new()
+	var cubes: int = {"pistol": 1, "rifle": 2, "shotgun": 3}.get(kind, 1)
+	b.size = Vector3(VoxelFx.GRID, VoxelFx.GRID * cubes, VoxelFx.GRID)
+	_shell_meshes[kind] = b
+	return b
 
 
 ## Gerbe de sang (touche un zombie). `dir` = direction de la balle.
@@ -411,12 +438,23 @@ func blood_hit(pos: Vector3, dir: Vector3, amount := 1.0) -> void:
 	blood.burst(pos, dir, int(4 * amount), 4.0, 0.4, 0.5, Color(0.35, 0.0, 0.0, 0.9), 1.3)
 
 
-## Tache de sang au sol ou sur un mur (mort d'un zombie...).
+## Tache de sang au sol ou sur un mur (mort d'un zombie...). Pixels de 5 cm :
+## la taille voulue (1,2 m × `size_scale`) choisit la classe la plus proche
+## (BLOOD_CLASSES), puis la prochaine tache de cette classe dans la rotation.
 func blood_decal(pos: Vector3, normal := Vector3.UP, size_scale := 1.0) -> void:
-	var d := _blood_decals[_blood_i]
-	_blood_i = (_blood_i + 1) % _blood_n
-	d.size = Vector3(1.2 * size_scale, 0.8, 1.2 * size_scale)
-	_place_decal(d, pos, normal, randf() * TAU)
+	var want := 1.2 * size_scale / BLOOD_PX
+	var cls := 0
+	for k in BLOOD_CLASSES.size():
+		if absf(float(BLOOD_CLASSES[k]) - want) < absf(float(BLOOD_CLASSES[cls]) - want):
+			cls = k
+	var i := _blood_i
+	for k in _blood_n:
+		var j := (_blood_i + k) % _blood_n
+		if _blood_class[j] == cls:
+			i = j
+			break
+	_blood_i = (i + 1) % _blood_n
+	_place_decal(_blood_decals[i], pos, normal, BLOOD_PX)
 
 
 ## Traçante de `from` (bouche du canon) à `to` (point touché) : une traînée
@@ -443,8 +481,8 @@ func tracer(from: Vector3, to: Vector3, color := TRACER_COLOR, beam := 0.0) -> v
 	_place_tracer(i)
 
 
-## Tir d'un autre joueur : flamme face caméra à la bouche de son arme, lumière
-## brève et fumée.
+## Tir d'un autre joueur : étoile de cubes à la bouche de son arme (pointes
+## le long du tir), lumière brève et fumée.
 func muzzle_flash(pos: Vector3, dir := Vector3.ZERO) -> void:
 	_flash.global_position = pos
 	_flash.light_color = Color(1.0, 0.72, 0.4)
@@ -454,44 +492,60 @@ func muzzle_flash(pos: Vector3, dir := Vector3.ZERO) -> void:
 	var i := _flashes_i
 	_flashes_i = (_flashes_i + 1) % MAX_FLASHES
 	var f := _flashes[i]
-	f.global_position = pos + dir * 0.05
-	f.scale = Vector3.ONE * randf_range(0.18, 0.26)
-	ViewModel.reroll_flash(f.material_override as ShaderMaterial)
+	var fwd := dir.normalized() if dir.length() > 0.01 else Vector3.FORWARD
+	f.global_transform = Transform3D(Basis.looking_at(fwd, Vector3.UP if absf(fwd.y) < 0.99 else Vector3.RIGHT), pos + fwd * 0.05)
+	VoxelFx.reroll_flash(f, randf_range(0.15, 0.22), 0.15, 0.05)
 	f.visible = true
 	_flash_life[i] = 0.05
 	if dir != Vector3.ZERO:
 		smoke(pos, dir, 1)
 
 
-func _place_decal(d: Decal, pos: Vector3, normal: Vector3, spin: float) -> void:
+## Décalque posé sur la surface de normale `normal` : quand la surface est
+## droite (sol, mur), pixels alignés sur les axes du monde et centre sur la
+## grille de `px` m dans son plan ; tourné d'un quart de tour au hasard.
+func _place_decal(d: Decal, pos: Vector3, normal: Vector3, px: float) -> void:
 	var up := normal.normalized()
+	var ax := up.abs()
+	var main := Vector3.UP * signf(up.y)
+	if ax.x > ax.y and ax.x >= ax.z:
+		main = Vector3.RIGHT * signf(up.x)
+	elif ax.z > ax.y and ax.z > ax.x:
+		main = Vector3.BACK * signf(up.z)
+	var straight := main.dot(up) > 0.97
+	if straight:
+		up = main
 	var ref := Vector3.FORWARD if absf(up.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT
 	var x := ref.cross(up).normalized()
 	var z := x.cross(up).normalized()
-	var b := Basis(x, up, z).rotated(up, spin)
-	d.global_transform = Transform3D(b, pos)
+	var b := Basis(x, up, z).rotated(up, PI * 0.5 * (randi() % 4))
+	var at := pos
+	if straight:
+		var g := pos.snapped(Vector3.ONE * px)
+		at = g - up * up.dot(g - pos)
+	d.global_transform = Transform3D(b, at)
 	d.visible = true
 
 
 # --------------------------------------------------------------------------
-# Textures générées (aucun fichier externe)
+# Matériaux et textures générés (aucun fichier externe)
 # --------------------------------------------------------------------------
 
-static func _particle_mat(additive: bool, lit := false) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	# Les particules « matière » (poussière, sang) sont éclairées par la scène
-	# pour ne pas briller dans le noir ; les étincelles sont émissives.
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX if lit else BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.vertex_color_use_as_albedo = true
-	m.albedo_texture = soft_dot_texture()
-	if additive:
-		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	m.no_depth_test = false
-	return m
+## Matériau des particules cubiques d'un pool (VoxelFx). `glow` : étincelles
+## et flammes, cubes lumineux (non éclairés, couleur au-delà de 1 : lueur de
+## l'écran) mais FONDUS, pas additifs : un cube orange reste orange devant un
+## mur clair au lieu de virer au blanc ; poussière, sang, éclats éclairés par
+## la scène (`lit`) pour ne pas briller dans le noir. `max_cube` : côté
+## maximal d'un cube (m). La taille de fin de vie est réglée par le pool
+## (rétrécissement), l'alpha de la couleur reste la transparence.
+static func _particle_mat(glow: bool, lit := false, max_cube: float = VoxelFx.BIG) -> Material:
+	if glow:
+		return VoxelFx.material("mix", {"max": max_cube, "shrink": false, "energy": 1.25, "shade": false})
+	return VoxelFx.material("lit" if lit else "mix", {"max": max_cube, "shrink": false, "edge": 0.3})
 
 
+## Point doux (lueur de la boule du chien éclair, DogLightning, et
+## poussière du menu) : seul reste des anciennes textures d'effets.
 static func soft_dot_texture() -> Texture2D:
 	if _tex_cache.has("dot"):
 		return _tex_cache.dot
@@ -507,52 +561,86 @@ static func soft_dot_texture() -> Texture2D:
 	return tex
 
 
+## Trou de balle en pixel art : HOLE_N x HOLE_N pixels (2,5 cm), cœur noir
+## de 2 x 2, bord ébréché gris foncé, coins vides.
 static func bullet_hole_texture() -> Texture2D:
 	if _tex_cache.has("hole"):
 		return _tex_cache.hole
-	var n := 64
+	var n := HOLE_N
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7
+	img.fill(Color(0, 0, 0, 0))
 	for y in n:
 		for x in n:
-			var p := Vector2(x - n * 0.5, y - n * 0.5)
-			var d := p.length() / (n * 0.5)
-			var jag := 0.08 * sin(p.angle() * 7.0) + rng.randf_range(-0.05, 0.05)
-			var core := clampf((0.32 + jag - d) * 12.0, 0.0, 1.0)
-			var ring := clampf((0.75 - d) * 3.0, 0.0, 1.0) * 0.55
-			var a := maxf(core, ring * (0.6 + rng.randf() * 0.4))
-			var c := lerpf(0.18, 0.02, core)
-			img.set_pixel(x, y, Color(c, c * 0.95, c * 0.9, a))
+			var corner := (x == 0 or x == n - 1) and (y == 0 or y == n - 1)
+			var core := x >= 1 and x <= n - 2 and y >= 1 and y <= n - 2
+			if core:
+				img.set_pixel(x, y, Color(0.03, 0.028, 0.026, 1.0))
+			elif not corner:
+				img.set_pixel(x, y, Color(0.16, 0.15, 0.14, 0.75))
+	# Un coin ébréché (irrégularité fixe).
+	img.set_pixel(n - 1, 0, Color(0.16, 0.15, 0.14, 0.6))
 	var tex := ImageTexture.create_from_image(img)
 	_tex_cache.hole = tex
 	return tex
 
 
-static func blood_splat_texture(variant: int) -> Texture2D:
-	var key := "blood%d" % variant
+## Tache de sang en pixel art : `n` x `n` pixels (5 cm chacun là où Fx la
+## pose), mare centrale et gouttes autour, deux tons. Variante 0..3.
+static func blood_splat_texture(variant: int, n := 32) -> Texture2D:
+	var key := "blood%d_%d" % [variant, n]
 	if _tex_cache.has(key):
 		return _tex_cache[key]
-	var n := 128
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
 	img.fill(Color(1, 1, 1, 0))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 100 + variant
-	var blobs := []
-	blobs.append([Vector2(n * 0.5, n * 0.5), n * 0.22])
-	for i in 14:
+	var c := Vector2(n, n) * 0.5
+	var blobs := [[c, n * 0.24]]
+	for i in 12:
 		var ang := rng.randf() * TAU
-		var dist := rng.randf_range(0.1, 0.42) * n
-		blobs.append([Vector2(n * 0.5, n * 0.5) + Vector2.from_angle(ang) * dist, rng.randf_range(0.02, 0.09) * n])
+		var dist := rng.randf_range(0.12, 0.42) * n
+		blobs.append([c + Vector2.from_angle(ang) * dist, rng.randf_range(0.03, 0.1) * n])
 	for y in n:
 		for x in n:
-			var a := 0.0
+			var p := Vector2(x + 0.5, y + 0.5)
+			var inside := false
+			var deep := false
 			for b in blobs:
-				var d: float = Vector2(x, y).distance_to(b[0]) / b[1]
-				a = maxf(a, clampf((1.0 - d) * 3.0, 0.0, 1.0))
-			if a > 0.0:
-				var shade := 0.7 + 0.3 * rng.randf()
-				img.set_pixel(x, y, Color(shade, shade, shade, a * 0.92))
+				var d: float = p.distance_to(b[0]) / maxf(float(b[1]), 0.6)
+				if d <= 1.0:
+					inside = true
+					deep = deep or d < 0.55
+			if inside:
+				# Deux tons par pixel : cœur plus sombre, bords plus clairs.
+				var shade := 0.75 if deep else 1.0
+				shade *= 0.9 + 0.1 * float((x * 7 + y * 13 + variant) % 3) / 2.0
+				img.set_pixel(x, y, Color(shade, shade, shade, 0.92))
+	var tex := ImageTexture.create_from_image(img)
+	_tex_cache[key] = tex
+	return tex
+
+
+## Trace noire d'explosion en pixel art (ThrowableSystem) : `n` x `n`
+## pixels, disque irrégulier plus noir au centre.
+static func scorch_texture(n := 52) -> Texture2D:
+	var key := "scorch%d" % n
+	if _tex_cache.has(key):
+		return _tex_cache[key]
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 33
+	var c := Vector2(n, n) * 0.5
+	for y in n:
+		for x in n:
+			var p := Vector2(x + 0.5, y + 0.5) - c
+			var r := p.length() / (n * 0.5)
+			var jag := 0.12 * sin(p.angle() * 5.0 + 1.3) + rng.randf_range(-0.08, 0.08)
+			if r > 0.85 + jag:
+				continue
+			# Paliers d'opacité (pas de dégradé lisse : pixel art).
+			var a := 1.0 if r < 0.35 else (0.75 if r < 0.6 else 0.45)
+			img.set_pixel(x, y, Color(1, 1, 1, a))
 	var tex := ImageTexture.create_from_image(img)
 	_tex_cache[key] = tex
 	return tex
@@ -570,11 +658,22 @@ func explosion_light(pos: Vector3, color: Color) -> void:
 ## Explosion (arme spéciale, pièges...).
 func explosion(pos: Vector3, radius: float) -> void:
 	sparks.burst(pos, Vector3.UP, 26, 7.0, 1.0, 0.6, Color(1.0, 0.5, 0.15, 0.9), 1.6)
+	fireball(pos, clampf(radius * 0.4, 0.6, 1.6))
 	dust.burst(pos, Vector3.UP, 12, 2.0, 1.0, 1.4, Color(0.3, 0.28, 0.25, 0.5), 2.5)
 	_flash.global_position = pos + Vector3.UP * 0.5
 	_flash.omni_range = radius * 4.0
 	_flash_t = 0.12
 	Audio.play_3d("explosion", pos, 2.0, 0.15)
+
+
+## Boule de feu en cubes : gros cubes lumineux (jusqu'à 15 cm) projetés dans
+## toutes les directions, du blanc-jaune au rouge sombre, qui montent et
+## rétrécissent. `size` : rayon atteint (m) à peu près.
+func fireball(pos: Vector3, size: float) -> void:
+	var n := roundi(18.0 * size)
+	flames.burst(pos, Vector3.ZERO, n, 4.5 * size, 1.0, 0.35, Color(1.0, 0.72, 0.25, 0.9), 1.2)
+	flames.burst(pos, Vector3.UP * 0.3, roundi(n * 0.8), 3.0 * size, 1.0, 0.5, Color(1.0, 0.38, 0.06, 0.9), 1.0)
+	flames.burst(pos + Vector3.UP * 0.2, Vector3.UP, roundi(n * 0.4), 1.5 * size, 0.8, 0.7, Color(0.45, 0.1, 0.03, 0.85), 0.9)
 
 
 ## Terre projetée quand un zombie sort du sol.

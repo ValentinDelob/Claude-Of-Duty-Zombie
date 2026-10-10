@@ -484,7 +484,10 @@ retravaillées.
     à n'importe quel angle quand ils sont animés ;
   - les pentes deviennent des marches de cubes ;
   - les effets (sang, étincelles, flammes, fumée, éclats) sont des particules
-    cubiques ;
+    cubiques ✅ : cubes de 2,5 à 5 cm (éclats, sang, étincelles) ou 5 à 15 cm
+    (flammes, fumée), couleur unie, qui disparaissent en rétrécissant ; arcs
+    électriques en chaînes de cubes ; trous de balle et taches de sang en
+    pixel art aligné (docs/ART_DIRECTION.md « Effets cubiques ») ;
   - l'éditeur de cartes et l'import de modèles **refusent** un modèle qui ne
     respecte pas la grille (vérification automatique) ;
   - les modèles libres de droits téléchargés doivent être convertis au style

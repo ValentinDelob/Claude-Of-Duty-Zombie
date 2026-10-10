@@ -31,8 +31,12 @@ var _area_max := Vector3.ZERO
 var _yaw := 0.0
 var _center := Vector3.ZERO
 var _lamp_mat: StandardMaterial3D
-var _bolts: MeshInstance3D
-var _imesh: ImmediateMesh
+## Arcs en chaînes de cubes de 5 cm (VoxelFx), en coordonnées monde.
+var _bolts: MultiMeshInstance3D
+var _imesh: MultiMesh
+const BOLTS := 7
+const BOLT_CUBES := 96
+const BOLT_CUBE := 0.05
 var _bolt_t := 0.0
 var _lights: Array[OmniLight3D] = []
 var _hum: AudioStreamPlayer3D
@@ -73,16 +77,11 @@ func _ready() -> void:
 	label.position = Vector3(0, -0.12, 0.06)
 	add_child(label)
 	# Émetteurs sur les murs de la zone + arcs dessinés à la volée.
-	_imesh = ImmediateMesh.new()
-	_bolts = MeshInstance3D.new()
-	_bolts.mesh = _imesh
-	var bolt_mat := StandardMaterial3D.new()
-	bolt_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	bolt_mat.albedo_color = Color(0.7, 0.85, 1.0)
-	bolt_mat.emission_enabled = true
-	bolt_mat.emission = Color(0.6, 0.8, 1.0)
-	bolt_mat.emission_energy_multiplier = 6.0
-	_bolts.material_override = bolt_mat
+	_imesh = VoxelFx.chain_multimesh(BOLTS * BOLT_CUBES)
+	_bolts = MultiMeshInstance3D.new()
+	_bolts.multimesh = _imesh
+	_bolts.material_override = VoxelFx.material("add", {"max": BOLT_CUBE, "shrink": false, "energy": 3.0, "tint": Color(0.7, 0.85, 1.0)})
+	_bolts.custom_aabb = AABB(Vector3(-500, -100, -500), Vector3(1000, 200, 1000))
 	_bolts.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_bolts.top_level = true
 	add_child(_bolts)
@@ -236,13 +235,15 @@ func _animate(delta: float) -> void:
 	if _bolt_t > 0.0:
 		return
 	_bolt_t = 0.05
-	_imesh.clear_surfaces()
+	_imesh.visible_instance_count = 0
 	if not active:
 		return
-	# Arcs en zigzag d'un mur à l'autre, régénérés 20 fois par seconde.
+	# Arcs en zigzag d'un mur à l'autre, régénérés 20 fois par seconde : chaînes
+	# de cubes de 5 cm le long de chaque ligne brisée.
 	var across_z := (_area_max.z - _area_min.z) < (_area_max.x - _area_min.x)
-	_imesh.surface_begin(Mesh.PRIMITIVE_LINES)
-	for k in 7:
+	var used := 0
+	var pts := PackedVector3Array()
+	for k in BOLTS:
 		var t := randf()
 		var h := _area_min.y + randf_range(0.2, 2.6)
 		var a: Vector3
@@ -255,13 +256,13 @@ func _animate(delta: float) -> void:
 			var z := lerpf(_area_min.z, _area_max.z, t)
 			a = Vector3(_area_min.x, h, z)
 			b = Vector3(_area_max.x, h + randf_range(-0.5, 0.5), z + randf_range(-0.5, 0.5))
-		var prev := _rotate(a)
+		pts.clear()
+		pts.append(_rotate(a))
 		for s in range(1, 9):
 			var p := a.lerp(b, s / 8.0)
 			if s < 8:
 				p += Vector3(randf_range(-0.15, 0.15), randf_range(-0.2, 0.2), randf_range(-0.15, 0.15))
-			p = _rotate(p)
-			_imesh.surface_add_vertex(prev)
-			_imesh.surface_add_vertex(p)
-			prev = p
-	_imesh.surface_end()
+			pts.append(_rotate(p))
+		var mm_end := mini(used + BOLT_CUBES, _imesh.instance_count)
+		used += VoxelFx.fill_chain(_imesh, pts, BOLT_CUBE, Vector3.ONE, used, mm_end)
+	_imesh.visible_instance_count = used
