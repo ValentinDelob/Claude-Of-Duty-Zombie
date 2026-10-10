@@ -1086,3 +1086,26 @@ Deux familles de formes, jamais mêlées (`tests/test_zombie_hitbox.gd`) :
   boîte temporaire (`box_fs_<i>`, 10 points, jamais de crâne) à chaque autre
   emplacement de la carte ; à la fin, les boîtes libres disparaissent, celle
   en cours de tirage à son retour à l'état IDLE (état diffusé par le serveur).
+
+## Profil du joueur (`scripts/game/profile/`)
+
+Données permanentes du joueur (GAME_CONCEPT §4.2, §4.7, §4.9 à §4.12, §4.15),
+sans interface pour l'instant (hub, station de construction et butin viendront
+s'y brancher). Purement local : chaque joueur a son profil.
+
+- `PlayerProfile` : XP totale (le niveau en découle : `100 × niveau^1,8` par
+  niveau, maximum 50, l'XP continue au-delà), arsenal illimité
+  (`OwnedWeapon`), onglet des pièces illimité (`WeaponPart`), échantillons
+  (type → quantité, consommation tout ou rien), armes de départ (1 à 3).
+- `OwnedWeapon` : exemplaire d'une arme (identifiant `uid` unique, niveau,
+  rareté → 1/2/3/4/4 emplacements, pièces installées), score = niveau +
+  niveaux des pièces, montage si pièce ≤ arme et ≤ joueur.
+- `BaseWeapons` : armes de base niveau 1 communes, hors arsenal (non
+  recyclables) ; provisoirement le pistolet de départ et le couteau.
+- `ProfileStore` : `user://profile.json` (un fichier par processus en
+  autotest), JSON versionné, écriture via `.tmp`, copie de secours `.bak`,
+  fichier illisible mis de côté (`.corrupt-<date>`), jamais écrasé.
+- `MatchXp.apply_match_xp(kills, manches survécues)` : XP provisoire de fin de
+  partie, appelée au GAME OVER (`Game._cl_game_over`, à côté de
+  `CareerStats`) ; l'évacuation l'appellera aussi. Le dossier de combat
+  (`CareerStats`) reste à part. Tests : `tests/test_profile.gd`.

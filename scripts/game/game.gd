@@ -347,6 +347,10 @@ func _cl_game_over(kills: int) -> void:
 		GameState.set_state(GameState.State.GAME_OVER)
 	CareerStats.record_game(session.local_data(), rounds.round_n, Net.mode == Net.Mode.SOLO,
 			(Time.get_ticks_msec() - _match_start_ms) / 1000.0)
+	# XP de la partie, toujours gardée (GAME_CONCEPT §4.6) ; la manche en cours
+	# au GAME OVER ne compte pas.
+	var lpd := session.local_data()
+	MatchXp.apply_match_xp(lpd.kills if lpd else 0, maxi(rounds.round_n - 1, 0))
 	var summary := game_over_summary(kills)
 	hud.show_game_over(summary, survived_text(rounds.round_n))
 	capture_mouse(false)
