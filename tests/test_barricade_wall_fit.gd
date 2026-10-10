@@ -136,7 +136,7 @@ static func four_walls(kind: String) -> EditorMap:
 	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [5.0, 3.0]})
 	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [8.5, 6.0], "mur": "s", "depart": true})
 	_openings(doc, kind, [Vector2(5, 0), Vector2(10, 3), Vector2(5, 6) if kind != "porte_double" else Vector2(4, 6), Vector2(0, 3)])
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 ## Octogone de 16 m, une entrée `kind` au milieu de chacun de ses 4 murs en
@@ -150,7 +150,7 @@ static func four_obliques(kind: String) -> EditorMap:
 	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [10.0, 10.0]})
 	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [10.0, 18.0], "mur": "s", "depart": true})
 	_openings(doc, kind, [Vector2(4, 4), Vector2(16, 4), Vector2(16, 16), Vector2(4, 16)])
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 static func _openings(doc: EditorMap, kind: String, at_list: Array) -> void:

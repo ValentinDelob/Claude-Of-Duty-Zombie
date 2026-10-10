@@ -147,7 +147,8 @@ tout le monde revient au **salon**, toujours connecté, prêt à relancer
 volontaire (QUITTER au salon, Quitter du menu pause) ou une vraie coupure
 déconnecte.
 
-1. GAME OVER (`Game._cl_game_over`) : chacun affiche l'écran de fin et garde
+1. Fin de partie (`Game._cl_match_end`, résultat `MatchResult` : évacuation
+   réussie ou équipe morte) : chacun affiche l'écran de fin et garde
    son résumé (`Router.lobby_message` : manche et zombies abattus, dans sa
    langue). Après `Game.GAME_OVER_DELAY`, **le serveur** ordonne le retour :
    `LobbyReturn.srv_return_all` note tous les joueurs « pas encore revenus »
@@ -878,12 +879,22 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   (`spawn(..., kind = KIND_DOG)`, argument `kind` de `_cl_spawn`). Même canal
   réseau (apparition fiable, instantanés, mort), mêmes dégâts, points, pièges et
   nuke ; aucun bonus aléatoire (seul le dernier chien lâche MUNITIONS MAX).
-- `DogRound` (`/root/Game/Rounds/Dogs`) : planification BO1 (manche 5 à 7 puis
-  +4/+5, coupée en autotest sauf `debug_force_next`), apparitions par la foudre
+- `DogRound` (`/root/Game/Rounds/Dogs`) : vagues spéciales du schéma de la
+  carte (`WaveRules`, `MapDef.waves` : par défaut toutes les 5 manches ;
+  coupée en autotest sauf `debug_force_next`), apparitions par la foudre
   près du joueur le moins chassé (10 à 25 m, sur un point qui a un chemin
   jusqu'à lui : les îlots du navmesh des cartes en maillage sont écartés),
   ambiance (brouillard `WorldLook`, musique,
   compteur qui clignote). Règles pures : `DogRules`.
+- Vagues de boss : même schéma (`WaveRules`, défaut toutes les 15 manches) ;
+  sans boss défini (`MapDef.boss` vide, partout aujourd'hui) elles ne font
+  rien (`RoundManager._begin_round`).
+- Évacuation (GAME_CONCEPT.md §4.5) : `EvacDoor` (Interactable `evac`, sous
+  `World`), ouverte par `RoundManager._wave_cleared` après une vague spéciale
+  ou de boss vaincue ; la manche suivante attend (`Phase.INTERMISSION` figée).
+  Votes par l'interaction ([F] / X) ; état (ouverte, temps restant, votes)
+  par `InteractionSystem._cl_state` ; décision du serveur (`EvacRules.decide`) :
+  reprise (`RoundManager.srv_resume_after`) ou `Game.srv_end_match(true)`.
 
 ## Grenades et SINGE-TAMBOUR (`scripts/game/throwables/`)
 

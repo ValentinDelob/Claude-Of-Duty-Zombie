@@ -11,6 +11,8 @@ extends MapDef
 ## subsistent dans les salles (comme à Kino der Toten).
 ## Salle du générateur : la caisse est en (61, 27), à l'écart de la sortie de
 ## la fenêtre sud (en 60, 28 elle ne laissait qu'une file de zombies passer).
+## Porte d'évacuation (@) : salle de garde (départ), contre le mur ouest.
+## Vagues spéciales et de boss : schéma par défaut (MapDef.waves).
 
 func _init() -> void:
 	id = "bunker_k7"
@@ -76,7 +78,7 @@ func _init() -> void:
 		" #aaaaaaaaaaaaaaaa##########W#####ccccNNNNccccNNNNcccc#e$eSeeee#",
 		" #aOaaaaaaaaaaaaaa#bbbHbEEEb,bbbb#!ccccccccccccccccccc#eeeeeeOe#",
 		" #aaaaaaaaaaaaaaaa2bbLbbEEEbbbbbb3cccccccccccccccccccc#eLeeeeee#",
-		" #aaaaaaPaPaaaaaaa2bbbbbEEEbbLbbb3ccccccccccLccccccccc4ee,eeeee#",
+		" #@aaaaaPaPaaaaaaa2bbbbbEEEbbLbbb3ccccccccccLccccccccc4ee,eeeee#",
 		" #aaaaaaaaaaaaaaaa#bbbbbEEEbbUbbb#cccccccccccccccccccc4eeeeeeeG#",
 		" #aaaaaaPaPaaaaaaa#####W##########cccccccccccccccccccc#eeeYYeee#",
 		" #aaaLaaaaaaaLaaaa#aa#bbb#    ####(cccNNNNccccNNNNcccc#)eeYYeCe#",

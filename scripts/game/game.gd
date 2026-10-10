@@ -90,6 +90,8 @@ var barricades: BarricadeSystem
 var throwables: ThrowableSystem
 ## Répliques des personnages (chemin réseau : /root/Game/Vox).
 var vox: VoxSystem
+## Porte d'évacuation (null : carte sans porte, aucune évacuation possible).
+var evac: EvacDoor
 signal power_changed(on: bool)
 ## Chargement local terminé (préchauffage fait), juste avant de l'annoncer au
 ## serveur. Jamais émis si la session s'est terminée pendant le chargement.
@@ -171,6 +173,7 @@ func _load_map(map_id: String) -> void:
 	_build_teleporter()
 	_build_traps()
 	_build_barricades()
+	_build_evac()
 	if multiplayer.is_server():
 		layout.finish_nav(world)
 	print("[Game] carte « %s » construite" % map_def.display_name)
@@ -199,6 +202,7 @@ func _cl_begin_match(roster: Dictionary) -> void:
 		var pos := MatchRules.spawn_for_slot(spawns, int(roster[pid].slot))
 		_spawn_player(pid, pos)
 	_match_start_ms = Time.get_ticks_msec()
+	_match_start_clock = GameClock.now()
 	GameState.set_state(GameState.State.PLAYING)
 	capture_mouse(true)
 	hud.hide_loading()
@@ -287,6 +291,8 @@ func _unhandled_input(event: InputEvent) -> void:
 const GAME_OVER_DELAY := 9.0
 ## Début de la partie (dossier de combat : temps de jeu).
 var _match_start_ms := 0
+## Début de la partie en temps de jeu (durée du résultat de partie).
+var _match_start_clock := 0.0
 
 
 ## Serveur : un joueur est tombé à 0 PV : il passe à terre (DOWNED).
@@ -313,8 +319,26 @@ func check_game_over() -> void:
 	if not MatchRules.is_game_over(session.data.values(), downed.will_self_revive):
 		return
 	print("[Game] tous les joueurs sont tombés : GAME OVER")
-	# Nombre de zombies tués, pas un texte : chaque client l'écrit dans sa langue.
-	_cl_game_over.rpc(game_over_kills())
+	srv_end_match(false)
+
+
+## Serveur : fin de la partie, une des deux issues (§4.6) : évacuation réussie
+## (EvacDoor) ou toute l'équipe morte. Le résultat (MatchResult) part en
+## données, pas en texte : chaque client l'écrit dans sa langue.
+func srv_end_match(evacuated: bool) -> void:
+	if not multiplayer.is_server() or GameState.state == GameState.State.GAME_OVER:
+		return
+	_cl_match_end.rpc(match_result(evacuated).to_dict())
+
+
+## Résultat de la partie en cours (serveur : manche, durée de jeu, zombies abattus).
+func match_result(evacuated: bool) -> MatchResult:
+	var r := MatchResult.new()
+	r.evacuated = evacuated
+	r.round_reached = rounds.round_n
+	r.duration_sec = maxf(GameClock.now() - _match_start_clock, 0.0)
+	r.kills = game_over_kills()
+	return r
 
 
 func game_over_kills() -> int:
@@ -340,24 +364,59 @@ func _cl_player_died(pid: int) -> void:
 		hud.show_center(Lang.t("VOUS ÊTES MORT", "YOU ARE DEAD"), "", 0.35)
 
 
+## Ancien message de fin (toute l'équipe morte, zombies abattus seulement) :
+## gardé pour les tests ; le serveur envoie _cl_match_end.
 @rpc("authority", "call_local", "reliable")
 func _cl_game_over(kills: int) -> void:
+	var r := MatchResult.new()
+	r.round_reached = rounds.round_n
+	r.kills = kills
+	r.duration_sec = maxf(GameClock.now() - _match_start_clock, 0.0)
+	_show_match_end(r)
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_match_end(result: Dictionary) -> void:
+	_show_match_end(MatchResult.from_dict(result))
+
+
+## Dernier résultat de partie reçu (null pendant la partie) : rapport de fin,
+## plus tard le butin gardé ou perdu (§4.16).
+var last_result: MatchResult
+## Partie déjà enregistrée (dossier de combat, XP du profil) : une seule fois
+## par partie et par client, quelle que soit l'issue.
+var _match_recorded := false
+
+
+## Manches survécues comptées pour l'XP (MatchXp) : après une évacuation la
+## manche vaincue compte ; à la mort de toute l'équipe, la manche en cours non.
+static func match_rounds_survived(r: MatchResult) -> int:
+	return maxi(r.round_reached if r.evacuated else r.round_reached - 1, 0)
+
+
+func _show_match_end(r: MatchResult) -> void:
 	if GameState.state != GameState.State.GAME_OVER:
 		GameState.set_state(GameState.State.GAME_OVER)
-	CareerStats.record_game(session.local_data(), rounds.round_n, Net.mode == Net.Mode.SOLO,
-			(Time.get_ticks_msec() - _match_start_ms) / 1000.0)
-	# XP de la partie, toujours gardée (GAME_CONCEPT §4.6) ; la manche en cours
-	# au GAME OVER ne compte pas.
-	var lpd := session.local_data()
-	MatchXp.apply_match_xp(lpd.kills if lpd else 0, maxi(rounds.round_n - 1, 0))
-	var summary := game_over_summary(kills)
-	hud.show_game_over(summary, survived_text(rounds.round_n))
+	last_result = r
+	if not _match_recorded:
+		_match_recorded = true
+		var lpd := session.local_data()
+		CareerStats.record_game(lpd, r.round_reached, Net.mode == Net.Mode.SOLO,
+				(Time.get_ticks_msec() - _match_start_ms) / 1000.0)
+		# XP de la partie, toujours gardée (GAME_CONCEPT §4.6). Chaque client
+		# compte la sienne (éliminations du joueur local) et la note dans le
+		# résultat affiché.
+		r.xp = int(MatchXp.apply_match_xp(lpd.kills if lpd else 0, match_rounds_survived(r)).xp)
+	print("[Game] fin de partie : %s, manche %d, %s" % ["évacuation" if r.evacuated else "équipe morte",
+			r.round_reached, MatchResult.time_text(r.duration_sec)])
+	hud.show_match_end(r)
 	capture_mouse(false)
 	if returns_to_lobby():
 		# Multijoueur : le groupe reste ensemble et revient au salon, sur
 		# l'ordre du serveur après l'écran de fin (LobbyReturn).
 		Router.lobby_message = Lang.t("Dernière partie : %s, %s", "Last game: %s, %s") \
-			% [Lang.t("manche %d", "round %d") % rounds.round_n, summary]
+			% [Lang.t("manche %d", "round %d") % r.round_reached,
+				(Lang.t("évacuation réussie, ", "evacuated, ") if r.evacuated else "") + r.summary()]
 		if multiplayer.is_server():
 			get_tree().create_timer(GAME_OVER_DELAY).timeout.connect(_return_to_lobby)
 		return
@@ -365,7 +424,7 @@ func _cl_game_over(kills: int) -> void:
 	# fin de la session. Le serveur part en dernier pour que les clients ne
 	# voient pas « connexion perdue ».
 	var delay := GAME_OVER_DELAY + (0.8 if multiplayer.is_server() else 0.0)
-	get_tree().create_timer(delay).timeout.connect(_leave_after_game_over.bind(summary))
+	get_tree().create_timer(delay).timeout.connect(_leave_after_game_over.bind(r))
 
 
 ## Fin de partie suivie d'un retour au salon (multijoueur hors TESTER de
@@ -381,12 +440,13 @@ func _return_to_lobby() -> void:
 	Net.lobby_return.srv_return_all()
 
 
-func _leave_after_game_over(summary: String) -> void:
-	Router.back_to_menu(Lang.t("Partie terminée — ", "Game over — ") + summary)
+func _leave_after_game_over(r: MatchResult) -> void:
+	Router.back_to_menu((Lang.t("Évacuation réussie — ", "Evacuated — ") if r.evacuated
+			else Lang.t("Partie terminée — ", "Game over — ")) + r.summary())
 
 
-## Serveur : les joueurs morts reviennent au début de chaque manche (pistolet
-## de départ, points conservés).
+## Serveur : les joueurs morts reviennent au début de chaque manche, avec
+## toutes leurs affaires (MatchRules.respawn, GAME_CONCEPT §4.6).
 func respawn_dead_players() -> void:
 	var spawns := layout.player_spawns()
 	for pid in session.data:
@@ -564,6 +624,20 @@ func _build_traps() -> void:
 			lv.setup(trap, m.data.lever2)
 			interact.register(lv)
 			world.add_child(lv)
+
+
+## Porte d'évacuation (§4.5) : une par carte ; carte sans porte (KINO,
+## carte ancienne) : aucune fenêtre d'évacuation, la partie ne finit qu'à la
+## mort de l'équipe.
+func _build_evac() -> void:
+	var m := layout.evac_door()
+	if m == null:
+		print("[Game] carte sans porte d'évacuation")
+		return
+	evac = EvacDoor.new()
+	evac.setup_marker(m)
+	world.add_child(evac)
+	interact.register(evac)
 
 
 func _build_barricades() -> void:

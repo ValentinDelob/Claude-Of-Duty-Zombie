@@ -23,11 +23,11 @@ static func match_xp(kills: int, rounds_survived: int) -> int:
 
 
 ## Ajoute l'XP de la partie au profil enregistré (chargé, modifié, enregistré).
-## À appeler une fois par partie, pour le joueur local, à la fin de la partie :
-## aujourd'hui au GAME OVER (Game._cl_game_over, où CareerStats enregistre) ;
-## l'évacuation l'appellera aussi, avec ses propres manches survécues.
-## `rounds_survived` : au GAME OVER, la manche en cours ne compte pas
-## (manche − 1) ; après une évacuation, la manche vaincue compte.
+## Appelée une fois par partie, pour le joueur local, à la fin de la partie,
+## quelle que soit l'issue (Game._show_match_end, où CareerStats enregistre).
+## `rounds_survived` (Game.match_rounds_survived) : à la mort de toute
+## l'équipe, la manche en cours ne compte pas (manche − 1) ; après une
+## évacuation, la manche vaincue compte.
 ## Rend {xp, level_before, level_after}.
 static func apply_match_xp(kills: int, rounds_survived: int, profile_path := "") -> Dictionary:
 	var gained := match_xp(kills, rounds_survived)

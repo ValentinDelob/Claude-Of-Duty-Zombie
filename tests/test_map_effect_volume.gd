@@ -184,7 +184,7 @@ static func _map_with_every_effect() -> EditorMap:
 				if fid == "braises":
 					o["hauteur"] = 0.75
 		doc.objets.append(o)
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 func test_editor_box_is_the_game_volume() -> void:

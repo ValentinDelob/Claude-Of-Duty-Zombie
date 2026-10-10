@@ -62,7 +62,7 @@ static func review_map() -> EditorMap:
 			doc.objets.append_array(MapCatalog.split_legacy_effect(o, doc.objets, next_id))
 			if String(e[0]) == "baril_feu":
 				doc.objets.append({"id": doc.new_id("x"), "type": "baril", "altitude": 0, "position": o.position})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 func run() -> void:

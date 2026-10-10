@@ -13,8 +13,9 @@ const TMP := "res://tests/_out/test_map_editor_freeform"
 ## Empreinte SHA-256 de la description en maillage de DRAFT ARENA (JSON trié,
 ## noms en français) : la même qu'avant les formes libres (format 3), sauf le
 ## plafond de l'entrepôt sous la passerelle (toujours dessiné sous la dalle de
-## l'étage du dessus, MapLayoutExport.under_slab).
-const DRAFT_LAYOUT_SHA := "635bde5afb60fa4ac18bf88b109beae983a6729170991cbc4e0e0e4390134b94"
+## l'étage du dessus, MapLayoutExport.under_slab) et, format 18, sa porte
+## d'évacuation (marqueur « evac », regard de départ).
+const DRAFT_LAYOUT_SHA := "16150f7022fd0e658d70aa8eb9c1251b96c97f515b36dae672efd8fcedd7b2a5"
 
 
 func before_each() -> void:
@@ -72,7 +73,7 @@ static func round_map() -> EditorMap:
 	box["position"] = res.position
 	MapRules.apply_wall(box, res)
 	doc.objets.append(box)
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 static func _check(doc: EditorMap) -> MapValidator:
@@ -559,7 +560,7 @@ static func slanted_map() -> EditorMap:
 	box.merge({"id": "b1", "altitude": 0, "position": res.get("position", [0, 0])})
 	MapRules.apply_wall(box, res)
 	doc.objets.append(box)
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 func test_door_on_any_side() -> void:
@@ -729,7 +730,7 @@ static func stairs_map() -> EditorMap:
 	lv.merge({"id": "l1", "altitude": 0, "position": rl.get("position", [0, 0])})
 	MapRules.apply_wall(lv, rl)
 	doc.objets.append(lv)
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 func test_rotated_stairs_and_trap() -> void:

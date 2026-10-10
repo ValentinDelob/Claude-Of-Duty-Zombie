@@ -1177,6 +1177,9 @@ func _markers() -> Dictionary:
 				m["power"] = wi
 			"pap":
 				m["pap"] = wi
+			"evacuation":
+				# Format 18 : porte d'évacuation (MeshMapLayout.evac_door).
+				m["evac"] = wi
 			"grenades":
 				wi["id"] = "grenades_%d" % (m.grenade_buys.size() + 1)
 				m.grenade_buys.append(wi)
@@ -1410,4 +1413,8 @@ func _map_def() -> Dictionary:
 	# voit (une pièce au moins sans plafond) ; sinon le rendu reste celui d'avant.
 	if rooms.any(func(r): return r.get("no_ceiling", false)):
 		out["sky"] = {"type": String(md.sky.type), "luminosite": float(md.sky.get("luminosite", 1.0))}
+	# Format 18 : schéma des vagues spéciales et de boss, seulement s'il n'est
+	# pas celui par défaut (EditorMapDef le lit, MapDef.waves).
+	if not WaveRules.is_default(md.waves):
+		out["waves"] = WaveRules.parse(md.waves)
 	return out

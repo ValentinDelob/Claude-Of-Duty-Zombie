@@ -9,8 +9,20 @@ extends TestCase
 const DIR := "res://tests/fixtures/levels/"
 const EPS := 0.0011
 
+const EVAC := "format 18 : porte d'évacuation ajoutée aux fixtures (obligatoire)"
+## Ses cases ne sont plus du sol : le regard de départ (vers le milieu du sol
+## de la zone de départ) bouge d'un centième de radian.
+const EVAC_YAW := "format 18 : cases de la porte d'évacuation retirées du sol de la zone de départ"
 ## Différences admises : carte -> {chemin (préfixe) : raison}.
-const TOLERATED := {}
+const TOLERATED := {
+	"draft_arena": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW},
+	"smallest": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW},
+	"smallest_door": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW},
+	"smallest_double_door": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW},
+}
+## Format 18 : erreur « aucune porte d'évacuation » propre aux nouvelles
+## règles, absente des références f16 (non comptée).
+const EVAC_ERROR := "porte d'évacuation"
 
 
 ## Carte d'avant (format 16) de la référence `name`.
@@ -84,7 +96,8 @@ func test_export_identical_after_migration() -> void:
 		# Messages du validateur : autant d'erreurs qu'avant.
 		var v := MapRaster.build(doc).v
 		v.analyze()
-		assert_eq(v.errors().size(), int(ref.errors), "%s : nombre d'erreurs du validateur (%s)" % [name, "\n".join(v.errors().map(func(m): return String(m.fr)))])
+		var errs := v.errors().filter(func(m): return not String(m.fr).contains(EVAC_ERROR))
+		assert_eq(errs.size(), int(ref.errors), "%s : nombre d'erreurs du validateur (%s)" % [name, "\n".join(errs.map(func(m): return String(m.fr)))])
 
 
 ## Le filet attrape bien une différence (sinon il ne prouverait rien).

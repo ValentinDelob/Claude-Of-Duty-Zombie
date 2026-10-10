@@ -3,12 +3,9 @@ extends RefCounted
 ## Règles des manches de chiens de l'enfer (fonctions pures, testées
 ## unitairement). Reprise de Black Ops 1 (_zombiemode_dogs.gsc).
 
-## Première manche de chiens : randomintrange(5, 8) -> 5, 6 ou 7.
-const FIRST_MIN := 5
-const FIRST_MAX := 7
-## Manches suivantes : + randomintrange(4, 6) -> +4 ou +5.
-const GAP_MIN := 4
-const GAP_MAX := 5
+## Rythme des manches de chiens : vagues spéciales du schéma de la carte
+## (WaveRules, GAME_CONCEPT.md §4.4) ; le tirage de BO1 (5 à 7, puis +4 ou
+## +5) a disparu.
 ## Chiens par joueur : 6 pour les deux premières manches de chiens, 8 ensuite.
 const PER_PLAYER_EARLY := 6
 const PER_PLAYER_LATE := 8
@@ -34,14 +31,6 @@ const EXPLODE_RADIUS := 1.8
 const EXPLODE_DAMAGE := 15
 ## Délai après le dernier chien avant le retour du brouillard normal (wait 2).
 const FOG_CLEAR_DELAY := 2.0
-
-
-static func first_dog_round(rng: RandomNumberGenerator) -> int:
-	return rng.randi_range(FIRST_MIN, FIRST_MAX)
-
-
-static func next_dog_round(current_round: int, rng: RandomNumberGenerator) -> int:
-	return current_round + rng.randi_range(GAP_MIN, GAP_MAX)
 
 
 ## Nombre total de chiens. `dog_round_index` : 1 pour la première manche de chiens.

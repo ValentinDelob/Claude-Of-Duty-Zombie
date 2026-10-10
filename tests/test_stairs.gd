@@ -67,7 +67,7 @@ static func stairs_map() -> EditorMap:
 	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [20.75, 24.0], "mur": "s", "depart": true})
 	doc.ouvertures.append({"id": "o1", "type": "fenetre", "altitude": 0, "position": [10.25, 24.0]})
 	doc.ouvertures.append({"id": "o2", "type": "fenetre", "altitude": 0, "position": [40.25, 24.0]})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 static func _check(doc: EditorMap) -> MapValidator:

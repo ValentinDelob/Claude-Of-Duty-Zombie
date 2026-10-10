@@ -21,7 +21,7 @@ var doc: EditorMap
 
 func run() -> void:
 	timeout_sec = 400
-	doc = Floors.tower_with_stairs()
+	doc = MapTestKit.add_evac(Floors.tower_with_stairs())
 	var dir := EditorMap.map_dir(MAP_ID)
 	if doc.save_dir(dir) != OK:
 		at.fail("carte d'essai non enregistrée dans " + dir)

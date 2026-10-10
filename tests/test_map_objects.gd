@@ -46,6 +46,8 @@ static func objects_map() -> EditorMap:
 	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [9.75, 0.0], "mur": "n", "depart": false})
 	doc.objets.append({"id": "w1", "type": "arme", "arme": "m14", "altitude": 0, "position": [11.25, 10.0], "mur": "s", "variante": "planche"})
 	doc.objets.append({"id": "a1", "type": "atout", "atout": "titan", "altitude": 0, "position": [24.0, 5.0], "mur": "e"})
+	# Porte d'évacuation avant la barrière (les tests modifient objets[-1]).
+	MapTestKit.add_evac(doc)
 	doc.objets.append({"id": "i1", "type": "bloc_invisible", "altitude": 0, "rect": [16, 3, 17, 8]})
 	return doc
 

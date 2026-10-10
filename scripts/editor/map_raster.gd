@@ -76,6 +76,7 @@ func _build_now() -> void:
 	v.door_height = float(c.get("hauteur_portes", MapValidator.DOOR_HEIGHT))
 	v.lamps_auto = bool(c.get("lampes_auto", true))
 	v.sky = EditorMap.sky_of(c)
+	v.waves = EditorMap.waves_of(c)
 	_zones()
 	# Textures propres aux pièces (surface_sol, surface_murs, surface_plafond).
 	for p in doc.pieces:

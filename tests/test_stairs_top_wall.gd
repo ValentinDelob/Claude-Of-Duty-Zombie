@@ -21,7 +21,8 @@ const RECT := [8.5, 0.0, 11.0, 7.0]
 # ------------------------------------------------------------------ outils
 
 static func _check(doc: EditorMap) -> MapValidator:
-	var v := MapRaster.build(doc).v
+	# Format 18 : porte d'évacuation posée sur une copie (place libre une fois les escaliers posés).
+	var v := MapRaster.build(MapTestKit.add_evac(doc.duplicate_map())).v
 	v.analyze()
 	return v
 
@@ -312,7 +313,7 @@ func test_export_and_guard() -> void:
 	assert_near(float(st.b[1]), 3.5, 0.01, "haut au sol du haut")
 	var ap := StairGen.apron(st)
 	assert_true(float(ap.center[0]) > float((pl.exit.m as Vector2).x), "tablier à l'est du bord de sortie")
-	assert_true(EditorMapDef.from_map(doc, "perso:immeuble").is_valid(), "carte jouable")
+	assert_true(EditorMapDef.from_map(MapTestKit.add_evac(doc.duplicate_map()), "perso:immeuble").is_valid(), "carte jouable")
 	# Garde : « sortie » au format 17 (gauche / droite), refusée au format 16.
 	var texts := doc.file_texts()
 	assert_eq(CustomMapGuard.check_texts(texts).reasons, [], "format 17 : « sortie » admise")

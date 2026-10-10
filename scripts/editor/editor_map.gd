@@ -137,7 +137,17 @@ extends RefCounted
 ##      hauteur = plafond jusqu'en haut de l'étage du dessus, pièce entièrement
 ##      couverte par l'étage du dessus = plafond porté sous sa dalle, escalier :
 ##      altitude_haut = sol de l'étage du dessus (sinon 3,5 m plus haut).
-const FORMAT := 17
+##  18  nouvelle direction (GAME_CONCEPT.md §4.4, §4.5) : porte d'évacuation
+##      (type « evacuation » : « position », « mur », « angle », comme un
+##      objet mural), OBLIGATOIRE et accessible depuis le départ sans ouvrir
+##      de porte (MapValidator) ; schéma des vagues « carte.vagues » =
+##      {speciale: {premiere, intervalle}, boss: {premiere, intervalle}}
+##      (manches ; premiere 0 : jamais ; intervalle 0 : une seule ; WaveRules,
+##      waves_of ; défaut : spéciale toutes les 5 manches, boss toutes les 15,
+##      jamais écrit à sa valeur par défaut). Aucune conversion : une carte au
+##      format 17 ou moins se lit telle quelle (schéma par défaut) ; sans porte
+##      d'évacuation, le validateur la refuse jusqu'à ce qu'on en pose une.
+const FORMAT := 18
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 ## Écart par défaut entre deux niveaux (m) : nouveau niveau, ancien étage sans « sol ».
@@ -294,6 +304,35 @@ static func tidy_sky(c: Dictionary) -> void:
 	if c.has("ciel"):
 		var s := sky_of(c)
 		set_sky(c, String(s.type), float(s.luminosite))
+
+
+## Format 18 : schéma des vagues de la carte lu dans `c` (carte.json, clé
+## « vagues ») ; absent ou illisible : défaut (WaveRules).
+static func waves_of(c: Dictionary) -> Dictionary:
+	return WaveRules.parse(c.get("vagues"))
+
+
+## Règle une entrée du schéma (`kind` : WaveRules.SPECIAL ou BOSS) ; le schéma
+## n'est jamais écrit à sa valeur par défaut (clé retirée).
+static func set_waves(c: Dictionary, kind: String, first: int, gap: int) -> void:
+	var s := waves_of(c)
+	if s.has(kind):
+		s[kind] = {"premiere": clampi(first, 0, WaveRules.ROUND_MAX), "intervalle": clampi(gap, 0, WaveRules.ROUND_MAX)}
+	if WaveRules.is_default(s):
+		c.erase("vagues")
+	else:
+		c["vagues"] = s
+
+
+## Schéma illisible ou par défaut retiré ; sinon réécrit proprement.
+static func tidy_waves(c: Dictionary) -> void:
+	if not c.has("vagues"):
+		return
+	var s := waves_of(c)
+	if WaveRules.is_default(s):
+		c.erase("vagues")
+	else:
+		c["vagues"] = s
 
 
 ## Altitudes distinctes (à ALT_EQ près) de `alts`, triées.
@@ -1004,6 +1043,9 @@ func _migrate(from: int) -> void:
 	# format 17 qui garde des clés d'étage.
 	if from < 17 or has_legacy_levels(carte, pieces, ouvertures, objets):
 		migrate_levels()
+	# Format 17 -> 18 : rien à convertir (sans « vagues » : schéma par défaut ;
+	# la porte d'évacuation, nouvel objet obligatoire, est à poser par
+	# l'auteur : le validateur l'exige).
 
 
 ## Clés d'étage (format 16 et avant) dans la carte ou ses éléments ?
@@ -1210,6 +1252,8 @@ func _normalize() -> void:
 			normalize_clip(o)
 	# Ciel de la carte illisible ou par défaut : retiré.
 	tidy_sky(carte)
+	# Format 18 : schéma des vagues illisible ou par défaut : retiré.
+	tidy_waves(carte)
 	# Réglage « chevauchement_decor » illisible ou faux : retiré (règles d'avant).
 	if carte.has(MapCatalog.OVERLAP_KEY) and not (carte[MapCatalog.OVERLAP_KEY] is bool and carte[MapCatalog.OVERLAP_KEY]):
 		carte.erase(MapCatalog.OVERLAP_KEY)

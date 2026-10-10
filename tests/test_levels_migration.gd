@@ -67,7 +67,7 @@ func test_format_16_converted() -> void:
 func test_file_written_in_17() -> void:
 	var m := EditorMap.from_texts(two_floors())
 	var t := m.file_texts()
-	assert_true(String(t["carte.json"]).contains("\"format\": 17"), t["carte.json"])
+	assert_true(String(t["carte.json"]).contains("\"format\": %d" % EditorMap.FORMAT), t["carte.json"])
 	for f in EditorMap.FILES:
 		assert_false(String(t[f]).contains("\"etage\""), "%s sans etage" % f)
 		assert_false(String(t[f]).contains("double_hauteur"), "%s sans double hauteur" % f)
@@ -133,7 +133,7 @@ func test_legacy_draft_arena() -> void:
 	var m := EditorMap.load_dir("res://tests/fixtures/maps/legacy_draft_arena/")
 	var now := EditorMap.load_dir("res://assets/maps/draft_arena/")
 	assert_eq(m.file_texts(), now.file_texts(), "carte livrée = carte d'avant convertie")
-	assert_true(String(FileAccess.get_file_as_string("res://assets/maps/draft_arena/carte.json")).contains("\"format\": 17"), "carte livrée au format 17")
+	assert_true(String(FileAccess.get_file_as_string("res://assets/maps/draft_arena/carte.json")).contains("\"format\": %d" % EditorMap.FORMAT), "carte livrée au format courant")
 	assert_true(m.is_high(m.find("p3")), "entrepôt : pièce haute")
 
 
@@ -200,7 +200,7 @@ func test_guard_two_schemas() -> void:
 	assert_false(rb.ok)
 	assert_true(String(rb.reasons[0][0]).contains("altitude"), str(rb.reasons))
 	var bad2 := t17.duplicate()
-	bad2["carte.json"] = String(t17["carte.json"]).replace("\"format\": 17", "\"format\": 17, \"etages\": []")
+	bad2["carte.json"] = String(t17["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": %d, \"etages\": []" % EditorMap.FORMAT)
 	assert_false(CustomMapGuard.check_texts(bad2).ok, "etages refusé au format 17")
 	# « altitude » dans une carte au format 16 : clé inconnue (schéma figé).
 	var old := two_floors()

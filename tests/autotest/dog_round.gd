@@ -62,7 +62,7 @@ func run() -> void:
 	await H.clear_zombies(self)
 	at.check(dogs != null and dogs.get_path() == ^"/root/Game/Rounds/Dogs", "gestionnaire des chiens présent")
 	at.check(not dogs.enabled, "manches de chiens coupées par défaut en autotest")
-	at.check(dogs.next_dog_round >= 5 and dogs.next_dog_round <= 7, "première manche de chiens prévue en %d" % dogs.next_dog_round)
+	at.check(dogs.next_dog_round == 5, "première manche de chiens prévue en %d (vague spéciale toutes les 5 manches)" % dogs.next_dog_round)
 	var origin := MapData.cell_to_world(Vector2i(10, 7), 0.05)
 	p.teleport_to(origin, -PI * 0.5)  # face à l'est (+X)
 	await seconds(0.3)
@@ -193,7 +193,8 @@ func run() -> void:
 	at.check(drop_ok, "le dernier chien fait tomber MUNITIONS MAX")
 	at.check(drop_ok and Vector2(drop_pos.x - dogs.last_dog_pos.x, drop_pos.z - dogs.last_dog_pos.z).length() < 0.3, "à l'endroit du dernier chien")
 	at.check(game.rounds.phase == RoundManager.Phase.INTERMISSION, "fin de la manche de chiens")
-	at.check(dogs.next_dog_round == 9 or dogs.next_dog_round == 10, "prochaine manche de chiens : %d" % dogs.next_dog_round)
+	at.check(dogs.next_dog_round == 10, "prochaine manche de chiens : %d" % dogs.next_dog_round)
+	at.check(game.evac != null and game.evac.is_open, "vague spéciale vaincue : porte d'évacuation ouverte")
 	if drop_ok:
 		H.aim_at(p, drop_pos + Vector3.UP * 0.6)
 		await seconds(0.4)  # capture
@@ -206,7 +207,9 @@ func run() -> void:
 	at.check(not dogs.cl_active and not game.hud.round_counter().special, "fin de l'ambiance de manche de chiens")
 	at.check(dogs.fog_amount() < 0.05 and absf(env.fog_density - WorldLook.BASE_FOG_DENSITY) < 0.002, "brouillard normal")
 
-	# Manche suivante : zombies, progression normale.
+	# Manche suivante : zombies, progression normale. La fenêtre d'évacuation
+	# (scénario evacuation) se ferme sans évacuation : fin du temps accélérée.
+	game.evac.time_left = 0.1
 	p.teleport_to(origin)
 	ok = await until(func(): return game.rounds.round_n == 6 and game.rounds.phase == RoundManager.Phase.ACTIVE, RoundRules.INTERMISSION + 3.0, "manche 6")
 	at.check(ok and not dogs.active, "manche 6 : retour des zombies")
