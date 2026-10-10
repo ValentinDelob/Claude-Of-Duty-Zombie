@@ -2613,6 +2613,21 @@
     "en": "A whole new look",
     "fr": "Un tout nouveau look"
    }
+  },
+  "v0.2.1-snapshot.549": {
+   "channel": "snapshot",
+   "date": "2026-10-10",
+   "images": [],
+   "items": [
+    {
+     "en": "Headshots on the new cubic zombies are counted reliably again: some shots at the base of the head were counted as body shots.",
+     "fr": "Les tirs à la tête sur les nouveaux zombies cubiques comptent de nouveau à coup sûr : certains tirs à la base de la tête étaient comptés comme des tirs au corps."
+    }
+   ],
+   "title": {
+    "en": "Right between the eyes",
+    "fr": "En pleine tête"
+   }
   }
  }
 }
