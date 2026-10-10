@@ -37,21 +37,23 @@ func _group(mat: String, room: String) -> Dictionary:
 
 
 ## Triangle tourné vers `n` (Godot : faces avant dans le sens horaire).
-static func _tri(g: Dictionary, a: Vector3, b: Vector3, c: Vector3, n: Vector3, vis: bool, col: bool) -> void:
+## `sn` : normale d'éclairage si elle diffère de la face (murs en escalier).
+static func _tri(g: Dictionary, a: Vector3, b: Vector3, c: Vector3, n: Vector3, vis: bool, col: bool, sn := Vector3.ZERO) -> void:
 	if (b - a).cross(c - a).dot(n) > 0.0:
 		var t := b
 		b = c
 		c = t
 	if vis:
+		var ln := n if sn == Vector3.ZERO else sn
 		g.v.append_array([a, b, c])
-		g.n.append_array([n, n, n])
+		g.n.append_array([ln, ln, ln])
 	if col:
 		g.faces.append_array([a, b, c])
 
 
-static func _quad(g: Dictionary, p: Array, n: Vector3, vis := true, col := false) -> void:
-	_tri(g, p[0], p[1], p[2], n, vis, col)
-	_tri(g, p[0], p[2], p[3], n, vis, col)
+static func _quad(g: Dictionary, p: Array, n: Vector3, vis := true, col := false, sn := Vector3.ZERO) -> void:
+	_tri(g, p[0], p[1], p[2], n, vis, col, sn)
+	_tri(g, p[0], p[2], p[3], n, vis, col, sn)
 
 
 ## Boîte orientée : `size` = (longueur x, hauteur y, épaisseur z), lacet autour de y.
@@ -94,21 +96,120 @@ static func wall_pieces(s0: float, s1: float, y0: float, y1: float, cuts: Array)
 	return pieces
 
 
-## Pavé orienté visible dont les deux grandes faces ont chacune leur
-## matériau : face +z (normale du mur) -> `gn`, face -z -> `gm`, dessus,
-## dessous et bouts -> `gn`.
-func _two_sided_box(gn: Dictionary, gm: Dictionary, center: Vector3, size: Vector3, yaw: float) -> void:
-	var ux := Vector3(cos(yaw), 0, -sin(yaw))
-	var uz := Vector3(sin(yaw), 0, cos(yaw))
-	var h := size * 0.5
-	for axis in [[ux, h.x, Vector3.UP, h.y, uz, h.z], [Vector3.UP, h.y, ux, h.x, uz, h.z], [uz, h.z, ux, h.x, Vector3.UP, h.y]]:
-		var n: Vector3 = axis[0]
-		var a: Vector3 = axis[2] * float(axis[3])
-		var b: Vector3 = axis[4] * float(axis[5])
-		for s in [1.0, -1.0]:
-			var c: Vector3 = center + n * float(axis[1]) * s
-			var g := gm if (n == uz and s < 0.0) else gn
-			_quad(g, [c - a - b, c + a - b, c + a + b, c - a + b], n * s)
+## Côté d'un cube de décor (GAME_CONCEPT.md § 4.19) : grille de l'architecture.
+const CUBE := 0.05
+## Marche des murs en biais, en cubes : 2 (marches de 10 cm, 2 × 2 cubes de
+## 5 cm, sommets sur la grille de 5 cm). Avec 1 (5 cm), le contour noir trace
+## un trait tous les 5 cm et le mur vu de biais à 4-6 m fait du moiré, pour
+## deux fois plus de triangles (pilote, docs/VOXEL_ARCHITECTURE_PLAN.md § 4).
+static var step_grain := 2
+## Poids de la normale du mur dans l'éclairage des faces en escalier : les
+## faces restent des cubes, mais les deux orientations (±x, ±z) d'un mur en
+## biais s'éclairent moins différemment (moins de rayures et de moiré au
+## loin). 0 : éclairage de la face seule.
+static var step_shade := 2.0
+
+
+## Morceau de mur en biais [s0, s1] (le long de `d` depuis `a`) × [y0, y1],
+## épaisseur `t`, rendu en ESCALIER de cubes alignés sur la grille du monde :
+## une cellule de step_grain × 5 cm de côté au sol est pleine si son centre
+## tombe dans le pavé. Les cellules d'une rangée (convexe : un seul intervalle) forment
+## une colonne pleine ; seules les faces visibles sont créées (dessus,
+## dessous, bouts de rangée, parties des flancs que la rangée voisine ne
+## couvre pas). Rangées prises sur l'axe le moins étendu (moins de rangées).
+## Face tournée vers la normale du mur (+u) : `gn`, vers -u : `gm`.
+## -> nombre de rangées (mesure).
+func _stepped_piece(gn: Dictionary, gm: Dictionary, a: Vector3, d: Vector3, s0: float, s1: float, t: float, y0: float, y1: float) -> int:
+	var u := Vector3(-d.z, 0, d.x)
+	var c := CUBE * step_grain
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for s in [s0, s1]:
+		for k in [-t / 2.0, t / 2.0]:
+			var p: Vector3 = a + d * float(s) + u * float(k)
+			lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.z))
+			hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.z))
+	# rows_z : rangées le long de z (r = z), cellules le long de x (q = x).
+	var rows_z := (hi.y - lo.y) <= (hi.x - lo.x)
+	var rlo := lo.y if rows_z else lo.x
+	var rhi := hi.y if rows_z else hi.x
+	var dq := d.x if rows_z else d.z
+	var dr := d.z if rows_z else d.x
+	var uq := u.x if rows_z else u.z
+	var ur := u.z if rows_z else u.x
+	var aq := a.x if rows_z else a.z
+	var ar := a.z if rows_z else a.x
+	var runs := {}
+	for j in range(floori(rlo / c), ceili(rhi / c) + 1):
+		var r := (j + 0.5) * c
+		var iv := Vector2(-INF, INF)
+		iv = _clip_1d(iv, dq, dr * (r - ar) - dq * aq, s0, s1)
+		iv = _clip_1d(iv, uq, ur * (r - ar) - uq * aq, -t / 2.0, t / 2.0)
+		if iv.x > iv.y:
+			continue
+		var i0 := ceili(iv.x / c - 0.5 - 1e-6)
+		var i1 := floori(iv.y / c - 0.5 + 1e-6)
+		if i0 <= i1:
+			runs[j] = Vector2i(i0, i1)
+	var pt := func(q: float, r: float, y: float) -> Vector3:
+		return Vector3(q, y, r) if rows_z else Vector3(r, y, q)
+	var nq := Vector3(1, 0, 0) if rows_z else Vector3(0, 0, 1)
+	var nr := Vector3(0, 0, 1) if rows_z else Vector3(1, 0, 0)
+	for j: int in runs:
+		var run: Vector2i = runs[j]
+		var q0 := run.x * c
+		var q1 := (run.y + 1) * c
+		var r0 := j * c
+		var r1 := (j + 1) * c
+		# Dessus et dessous.
+		_quad(gn, [pt.call(q0, r0, y1), pt.call(q1, r0, y1), pt.call(q1, r1, y1), pt.call(q0, r1, y1)], Vector3.UP)
+		_quad(gn, [pt.call(q0, r0, y0), pt.call(q1, r0, y0), pt.call(q1, r1, y0), pt.call(q0, r1, y0)], Vector3.DOWN)
+		# Bouts de la rangée (faces ±q).
+		for e in [[q0, -1.0], [q1, 1.0]]:
+			var q: float = e[0]
+			var n: Vector3 = nq * float(e[1])
+			_quad(gm if n.dot(u) < -1e-4 else gn, [pt.call(q, r0, y0), pt.call(q, r1, y0), pt.call(q, r1, y1), pt.call(q, r0, y1)], n, true, false, _shade_n(n, u))
+		# Flancs (faces ±r) : partie non couverte par la rangée voisine.
+		for e in [[j + 1, r1, 1.0], [j - 1, r0, -1.0]]:
+			var r: float = e[1]
+			var n: Vector3 = nr * float(e[2])
+			var g := gm if n.dot(u) < -1e-4 else gn
+			for seg: Vector2i in _uncovered(run, runs.get(int(e[0]), Vector2i(1, 0))):
+				var sa := seg.x * c
+				var sb := (seg.y + 1) * c
+				_quad(g, [pt.call(sa, r, y0), pt.call(sb, r, y0), pt.call(sb, r, y1), pt.call(sa, r, y1)], n, true, false, _shade_n(n, u))
+	return runs.size()
+
+
+## Normale d'éclairage d'une face verticale en escalier : la face penchée
+## vers la normale du mur du même côté (step_shade ; 0 : la face seule).
+static func _shade_n(n: Vector3, u: Vector3) -> Vector3:
+	if step_shade <= 0.0:
+		return Vector3.ZERO
+	var side := u if n.dot(u) >= 0.0 else -u
+	return (n + side * step_shade).normalized()
+
+
+## Intervalle de q (borné par `iv`) où  k·q + c  est dans [lo, hi].
+static func _clip_1d(iv: Vector2, k: float, c: float, lo: float, hi: float) -> Vector2:
+	if absf(k) < 1e-9:
+		return iv if (c >= lo - 1e-9 and c <= hi + 1e-9) else Vector2(1, 0)
+	var q0 := (lo - c) / k
+	var q1 := (hi - c) / k
+	return Vector2(maxf(iv.x, minf(q0, q1)), minf(iv.y, maxf(q0, q1)))
+
+
+## Morceaux de `run` (cellules [x, y] incluses) hors de `other` (vide si
+## other.x > other.y).
+static func _uncovered(run: Vector2i, other: Vector2i) -> Array:
+	if other.x > other.y or other.y < run.x or other.x > run.y:
+		return [run]
+	var out := []
+	if other.x > run.x:
+		out.append(Vector2i(run.x, other.x - 1))
+	if other.y < run.y:
+		out.append(Vector2i(other.y + 1, run.y))
+	return out
 
 
 ## Face plane d'un contour [[x, z]...] à la hauteur height_fn(x, z).
@@ -250,7 +351,10 @@ func _build(L: Dictionary) -> Node3D:
 				continue
 			var c: Vector3 = a + d * ((pc[0] + pc[1]) * 0.5) + Vector3.UP * ((pc[2] + pc[3]) * 0.5)
 			var size := Vector3(pc[1] - pc[0], pc[3] - pc[2], t)
-			_two_sided_box(gn, gm, c, size, yaw)
+			# Visuel en escalier de cubes (marches de step_grain cubes) ;
+			# collision : le pavé tourné lisse (écart ≤ une demi-diagonale de
+			# marche, 7 cm ; docs/VOXEL_ARCHITECTURE_PLAN.md § 2.2).
+			_stepped_piece(gn, gm, a, d, pc[0], pc[1], t, pc[2], pc[3])
 			var cb := CollisionBox.make(c, size, yaw, false, mat_n)
 			cb.name = "Biais_%d" % _col_boxes.size()
 			_col_boxes.append(cb)

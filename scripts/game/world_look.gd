@@ -112,6 +112,11 @@ static func surface_shader(key: String) -> Shader:
 static func surface(key: String) -> ShaderMaterial:
 	if _cache.has(key):
 		return _cache[key]
+	# Surfaces déjà converties en pixel art (docs/VOXEL_ARCHITECTURE_PLAN.md) :
+	# même clé, texture générée « un pixel = un cube de 5 cm ».
+	if PixelSurfaces.has(key):
+		_cache[key] = PixelSurfaces.material(key)
+		return _cache[key]
 	var s: Array = SURFACES.get(key, SURFACES.wall)
 	var m := ShaderMaterial.new()
 	m.shader = surface_shader(key)
