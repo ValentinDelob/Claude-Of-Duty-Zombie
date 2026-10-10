@@ -505,6 +505,23 @@ Les mécaniques (vagues, points, portes, barricades) ne sont pas protégées et
 peuvent rester. Un avis en propriété intellectuelle est recommandé avant une
 commercialisation.
 
+## 6 bis. Valeurs provisoires choisies pendant l'implémentation
+
+Valeurs fixées par l'orchestrateur en l'absence de l'auteur, à confirmer ou
+corriger.
+
+| Sujet | Valeur provisoire | Où |
+|---|---|---|
+| Ferraille par élimination | **50**, quel que soit le coup (tête, couteau, explosion) ; 0 pour un piège | `PointsRules.KILL` |
+| Énergie | 0 à 100 ; course 25/s ; saut 10 ; couteau 8, couteau de chasse 10 ; recharge 40/s après 0,4 s ; **épuisé** de 0 jusqu'à 50 | `docs/ENERGY_PLAN.md` |
+| Essoufflement | silencieux au-dessus de 35 % ; halètement tant que le joueur est épuisé ; la respiration de santé basse passe avant | `BreathFeedback` |
+| XP d'une partie | 10 par élimination, 50 par manche survécue | `MatchXp` |
+| Armes de base | pistolet de départ et couteau (en attendant la batte) | `BaseWeapons` |
+| Évacuation : vote | touche d'interaction près de la porte ; 1er appui « partir », puis alterne « prêt » / « partir » | `EvacRules` |
+| Évacuation : départ | tous les joueurs non morts ont voté « partir » et sont debout dans la zone (4 m × 3,5 m devant la porte) | `EvacRules` |
+| Évacuation : reprise | tous « prêt », ou fin des 2 min : manche suivante 3 s plus tard | `EvacRules` |
+| Vague spéciale et boss la même manche | vague de boss si la carte a un boss, sinon vague spéciale | `WaveRules` |
+
 ## 7. Questions ouvertes
 
 - Nom définitif du jeu.
