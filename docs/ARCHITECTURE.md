@@ -1318,12 +1318,43 @@ Données permanentes du joueur (GAME_CONCEPT §4.2, §4.7, §4.9 à §4.12, §4.
 sans interface pour l'instant (hub, station de construction et butin viendront
 s'y brancher). Purement local : chaque joueur a son profil.
 
-**Hub, contrats et catalogue d'échanges** (conçus, pas encore codés) :
-**docs/HUB_PLAN.md** (écrans, navigation, modèle de données, rotation des
-contrats, sauvegarde dans le profil en version 2, lots d'implémentation),
-maquettes `docs/hub_mockup/index.html`, données d'exemple
-`assets/data/hub/contracts.json` et `exchanges.json` (pas encore lues par le
-jeu ; chargement prévu par `HubData`, lot A).
+**Hub, contrats et catalogue d'échanges** : **docs/HUB_PLAN.md** (écrans,
+navigation, modèle de données, rotation des contrats, lots
+d'implémentation), maquettes `docs/hub_mockup/index.html`. Données et règles
+codées (lot A, sans interface, `scripts/game/hub/`) ; écrans à venir (lots B
+à E).
+
+- `HubData` : lit `assets/data/hub/contracts.json` et `exchanges.json`
+  (exportés : `include_filter` « assets/data/* », vérifié par
+  `tools/pack_check.gd`) ; chaque entrée invalide est écartée avec un
+  avertissement (§5.5) ; `HubData.default()` charge une fois. Dates en jours
+  UTC (`today()`, `parse_day`).
+- `ContractState` (`scripts/game/profile/`) : section `contracts` du profil
+  (graine, compteur de rotations, propositions `{id, since}`, actifs
+  `{id, accepted}`, remises `done`, actifs expirés à signaler
+  `expired_unseen`).
+- `ContractRules` (pur) : éligibilité (niveau, dates, `after`, non
+  répétable), `rotate` (purge des inconnus / expirés, remplacement de la plus
+  ancienne proposition après une partie, contrat tuto d'abord, tirage pondéré
+  sans doublon avec un générateur `graine + rotation` ; remplissage après une
+  partie ou la toute première fois seulement), `accept` (3 actifs au plus),
+  `abandon`, `deliver` (consommation exacte, XP D9, objet au niveau du
+  joueur, `done` + 1), `progress`, `shared_with`, `goals_met` /
+  `goal_message` (objectif atteint en partie, pour `ContractWatch`).
+- `ExchangeRules` (pur) : `listed` (visibles, ou échangeables maintenant),
+  `refusal`, `trade` (objet précis, pas d'XP, `limit`), compteur
+  `PlayerProfile.exchanges_done`.
+- `HubRewards` (pur) : XP d'un contrat (`contract_xp`), arme « any » ou
+  nommée et pièce par qualité au niveau du joueur, pièce exacte d'un échange,
+  `describe` (texte FR / EN).
+- `MatchContracts.after_match` : rotation du tableau du profil local à la fin
+  de la partie, une fois, à côté de `MatchXp.apply` (`Game._rotate_contracts`
+  depuis `_show_match_end` et `keep_match_xp`) ; au moins
+  `min_rounds_for_rotation` manche survécue (`rounds_survived` : relevé
+  d'XP ou manche atteinte − 1), sinon purge seulement.
+- Tests : `tests/test_hub_data.gd`, `test_contracts.gd`,
+  `test_exchanges.gd`, `test_profile.gd` (v1 → v2), scénario `xp_match`
+  (tableau tourné une fois).
 
 - `PlayerProfile` : XP totale (le niveau en découle : `100 × niveau^1,8` par
   niveau, maximum 50, l'XP continue au-delà), arsenal illimité
@@ -1337,6 +1368,11 @@ jeu ; chargement prévu par `HubData`, lot A).
 - `ProfileStore` : `user://profile.json` (un fichier par processus en
   autotest), JSON versionné, écriture via `.tmp`, copie de secours `.bak`,
   fichier illisible mis de côté (`.corrupt-<date>`), jamais écrasé.
+  **Version 2** : sections `contracts` (`ContractState`), `exchanges`
+  (`{"done": {id: n}}`) et `seen` (`{"weapons": [uid], "parts": [uid]}`,
+  pastilles NOUVEAU : `is_new_weapon`, `mark_weapon_seen`…) ; un profil v1 se
+  lit sans perte (`_migrate` : contrats neufs, aucun échange, tout
+  l'existant marqué vu) et est réécrit en v2 au prochain enregistrement.
 - **XP de partie** (barème, coop, calibrage et méthode pour un nouveau mob :
   **docs/XP_RULES.md**) : `XpRules` (pur : barème par type d'ennemi, bonus
   de manche, manches, vagues, évacuation ; relevé sérialisable), `XpSystem`
@@ -1358,5 +1394,5 @@ jeu ; chargement prévu par `HubData`, lot A).
   échange, `Combat.srv_swap`), la construction (`BuildRules.build_refusal`,
   station grisée), le montage des pièces (`OwnedWeapon.can_mount`) et le
   niveau des pièces trouvées (`LootRules.roll_part`) ; une arme trouvée de
-  niveau supérieur se ramasse et se garde. Contrats (à venir) : niveau du
+  niveau supérieur se ramasse et se garde. Contrats et échanges : niveau du
   profil (`PlayerProfile.level`).

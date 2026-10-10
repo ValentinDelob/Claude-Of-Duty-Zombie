@@ -356,8 +356,8 @@ après_partie)` :
    `seed + rotation`** (graine tirée à la création du profil) : recharger le
    jeu ne change pas le tirage.
 
-Appels : à l'ouverture du hub (`après_partie` faux : purge + remplissage,
-sans remplacement) et à la fin de chaque partie, une fois, en même temps que
+Appels : à l'ouverture du hub (`après_partie` faux : purge seulement, et
+remplissage la toute première fois — voir lot A) et à la fin de chaque partie, une fois, en même temps que
 `MatchXp.apply` (`après_partie` vrai). Un joueur qui quitte avant la fin de la
 première manche ne fait pas tourner le tableau (pas de « relance » gratuite).
 
@@ -373,7 +373,7 @@ vides, tableau rempli à la première ouverture du hub) :
   "offers": [{"id": "dog_fur_coat", "since": 11}, …],
   "active": [{"id": "dog_fangs_small", "accepted": 9}, …],
   "done": {"first_sample": 1, "dog_fangs_small": 2},
-  "expired_seen": ["lab_emergency_nov"]
+  "expired_unseen": ["lab_emergency"]
 },
 "exchanges": {"done": {"fang_trim": 3}},
 "seen": {"weapons": ["w12"], "parts": ["p40"]}
@@ -382,6 +382,9 @@ vides, tableau rempli à la première ouverture du hub) :
 - `done` sert aux conditions `after`, aux contrats non répétables et au
   dossier de combat (nombre de contrats remplis).
 - `seen` : exemplaires déjà vus au hub (pastilles NOUVEAU).
+- `expired_unseen` : contrats **actifs** supprimés par leur date de fin, pas
+  encore signalés au LABO (`ContractState.take_expired`, puis enregistrer) ;
+  une proposition jamais acceptée disparaît sans message.
 - Relecture tolérante comme le reste du profil (entrées illisibles écartées
   et comptées, copie `.invalid-<date>` gardée).
 
@@ -515,7 +518,40 @@ coop. Rien n'est changé au butin dans ce plan.
 Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
 **E**. F est pour plus tard.
 
-### Lot A — Données et règles des contrats et du catalogue (sans interface)
+### Lot A — Données et règles des contrats et du catalogue (sans interface) ✅
+
+**Fait** (branche `hub-a`). Choix faits pendant l'implémentation
+(provisoires) :
+
+- **Remplissage du tableau** : seulement après une partie d'au moins
+  `min_rounds_for_rotation` manche survécue, et la toute première fois
+  (profil neuf ou venu de la v1 : `rotation == 0`). L'ouverture du hub ne fait
+  ensuite que la purge (`ContractRules.rotate(…, false)`) : une proposition
+  acceptée laisse bien sa case vide jusqu'à la partie suivante.
+- **Manches survécues** (`MatchContracts.rounds_survived`) : le plus grand du
+  relevé d'XP du joueur (`rounds`) et de la manche atteinte − 1 (un joueur
+  mort dont l'équipe a tenu compte aussi). Quitter une partie en cours
+  (`Game.keep_match_xp`) fait tourner le tableau si une manche a été
+  survécue, comme une partie finie ; une seule rotation par partie.
+- **Niveau de la récompense** : celui du joueur **avant** l'XP du contrat
+  (celui affiché sur la fiche au moment de la remise).
+- **Expiration signalée** : contrats actifs seulement (`expired_unseen`, voir
+  §5.4).
+- **Nouveautés (`seen`)** : à la migration v1 → v2, tout l'existant est marqué
+  vu ; les exemplaires recyclés ou détruits sont oubliés à l'enregistrement.
+- **Pièce « fine » / « superior »** : deux modificateurs distincts de
+  `LootRules.PART_MODS`, identifiant `part_<premier modificateur>` (comme le
+  butin) ; pièce d'un échange : `part_<premier modificateur du fichier>`.
+- **Arme nommée** d'un niveau de base supérieur au joueur : créée au niveau
+  de base (gardée pour plus tard, comme le butin).
+- API pour les lots D et E : `HubData.default()`, `HubData.today()`,
+  `ContractRules.rotate / accept / abandon / deliver / progress / covered /
+  shared_with / days_left / xp_for / refusal_text / goals_met /
+  goal_message`, `ExchangeRules.listed / refusal / trade / count /
+  refusal_text`, `HubRewards.describe`, `PlayerProfile.is_new_weapon /
+  is_new_part / mark_weapon_seen / mark_part_seen`,
+  `ContractState.take_expired`. Les fonctions modifient le profil en
+  mémoire : l'écran enregistre ensuite une fois (`ProfileStore.save_profile`).
 
 - Fichiers : `assets/data/hub/contracts.json`, `exchanges.json` (déjà écrits,
   §7) ; `scripts/game/hub/hub_data.gd` (`HubData` : chargement, validation

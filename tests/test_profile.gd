@@ -469,3 +469,111 @@ func test_xp_de_partie_au_niveau_max() -> void:
 	assert_eq(r.levels, 0)
 	assert_eq(ProfileStore.load_profile(file).xp, pr.xp + r.xp, "XP gardée au-delà du niveau 50")
 	assert_eq(MatchResult.level_progress(pr.xp + r.xp), Vector2i.ZERO, "pas de barre au niveau maximum")
+
+
+# --------------------------------------------------------------------------
+# Version 2 : contrats, échanges, exemplaires vus (docs/HUB_PLAN.md §5.4)
+# --------------------------------------------------------------------------
+
+func test_v2_aller_retour() -> void:
+	var pr := _sample_profile()
+	pr.contracts.draw_seed = 918273
+	pr.contracts.rotation = 12
+	pr.contracts.offers.append({"id": "dog_fur_coat", "since": 11})
+	pr.contracts.active.append({"id": "dog_fangs_small", "accepted": 9})
+	pr.contracts.done = {"first_sample": 1, "dog_fangs_small": 2}
+	pr.contracts.expired_unseen.append("lab_emergency")
+	pr.exchanges_done = {"fang_trim": 3}
+	pr.mark_weapon_seen(pr.weapons[0].uid)
+	assert_eq(ProfileStore.save_profile(pr, file), OK)
+	var doc: Dictionary = JSON.parse_string(_read(file))
+	assert_eq(int(doc.version), 2, "enregistré en version 2")
+	assert_eq(doc.profile.contracts.seed, 918273.0)
+	assert_eq(doc.profile.exchanges, {"done": {"fang_trim": 3.0}})
+	assert_eq(doc.profile.seen.weapons, [pr.weapons[0].uid])
+	var back := ProfileStore.load_profile(file)
+	assert_eq(ProfileStore.last_status, "ok")
+	assert_eq(back.to_dict(), pr.to_dict(), "profil v2 identique après rechargement")
+	assert_eq(back.contracts.offered_ids(), PackedStringArray(["dog_fur_coat"]))
+	assert_eq(back.contracts.done_count("dog_fangs_small"), 2)
+	assert_false(back.is_new_weapon(pr.weapons[0].uid), "arme vue")
+	assert_eq(_aside("invalid").size(), 0, "rien d'écarté")
+
+
+func test_migration_v1_vers_v2() -> void:
+	# Profil enregistré par la version précédente du jeu (format 1).
+	var v1 := {"format": "profile", "version": 1, "saved_at": 1760000000, "profile": {
+		"xp": 4321, "level": 5, "next_uid": 4, "starting_weapons": [WeaponDB.STARTING_WEAPON],
+		"samples": {"dog_fang": 7, "dog_fur": 2},
+		"weapons": [{"uid": "w1", "id": "galil", "level": 3, "rarity": "rare", "parts": [
+			{"uid": "p2", "id": "part_damage", "level": 2, "mods": {"damage": 0.1}}]}],
+		"parts": [{"uid": "p3", "id": "part_mag", "level": 1, "mods": {"mag": 0.2}}],
+		# Clé étrangère au format 1 (fichier modifié) : ignorée.
+		"contracts": {"seed": 5, "rotation": 99},
+	}}
+	_write(file, JSON.stringify(v1))
+	var pr := ProfileStore.load_profile(file)
+	assert_eq(ProfileStore.last_status, "ok")
+	assert_eq(_aside("invalid").size() + _aside("corrupt").size(), 0, "aucune perte signalée")
+	assert_eq(pr.xp, 4321, "XP gardée")
+	assert_eq(pr.samples, {"dog_fang": 7, "dog_fur": 2}, "échantillons gardés")
+	assert_eq(pr.weapons.size(), 1)
+	assert_eq(pr.weapons[0].uid, "w1")
+	assert_eq(pr.weapons[0].parts[0].uid, "p2")
+	assert_eq(pr.parts[0].uid, "p3")
+	assert_eq(pr.starting_weapons, PackedStringArray([WeaponDB.STARTING_WEAPON]))
+	assert_eq(pr.next_uid, 4)
+	assert_eq(pr.contracts.rotation, 0, "contrats neufs (tableau rempli à la première rotation)")
+	assert_true(pr.contracts.offers.is_empty() and pr.contracts.active.is_empty() and pr.contracts.done.is_empty())
+	assert_true(pr.exchanges_done.is_empty())
+	assert_false(pr.is_new_weapon("w1") or pr.is_new_part("p2") or pr.is_new_part("p3"),
+			"l'existant n'est pas marqué NOUVEAU")
+	# Réécrit en version 2, sans perte.
+	ProfileStore.save_profile(pr, file)
+	var doc: Dictionary = JSON.parse_string(_read(file))
+	assert_eq(int(doc.version), ProfileStore.VERSION)
+	var again := ProfileStore.load_profile(file)
+	assert_eq(again.to_dict(), pr.to_dict())
+	assert_true(FileAccess.file_exists(file + ".bak"), "ancien fichier gardé en copie de secours")
+
+
+func test_v2_sections_illisibles() -> void:
+	var doc := {"format": "profile", "version": 2, "profile": {
+		"xp": 10,
+		"contracts": {"seed": 7, "rotation": 2, "offers": [{"id": "a", "since": 1}, "x"], "active": 3},
+		"exchanges": {"done": {"fang_trim": 2, "bad": "x"}},
+		"seen": {"weapons": "w1", "parts": [""]},
+	}}
+	_write(file, JSON.stringify(doc))
+	var pr := ProfileStore.load_profile(file)
+	assert_eq(ProfileStore.last_status, "ok")
+	assert_eq(pr.xp, 10)
+	assert_eq(pr.contracts.draw_seed, 7)
+	assert_eq(pr.contracts.offered_ids(), PackedStringArray(["a"]))
+	assert_true(pr.contracts.active.is_empty())
+	assert_eq(pr.exchanges_done, {"fang_trim": 2})
+	assert_eq(_aside("invalid").size(), 1, "entrées écartées : copie du fichier gardée")
+	# Fichier v2 cassé : mis de côté, profil neuf (comme la version 1).
+	_write(file, "{\"format\": \"profile\", \"version\": 2, \"profile\": {\"contracts\": ")
+	pr = ProfileStore.load_profile(file)
+	assert_eq(ProfileStore.last_status, "reset")
+	assert_eq(_aside("corrupt").size(), 1)
+	assert_eq(pr.contracts.rotation, 0)
+
+
+func test_pastilles_nouveau() -> void:
+	var pr := PlayerProfile.new()
+	var uid := pr.add_weapon(OwnedWeapon.create("galil", 2, OwnedWeapon.Rarity.RARE))
+	var puid := pr.add_part(WeaponPart.create("part_damage", 1, {"damage": 0.1}))
+	assert_true(pr.is_new_weapon(uid) and pr.is_new_part(puid), "nouveaux exemplaires")
+	pr.mark_weapon_seen(uid)
+	assert_false(pr.is_new_weapon(uid))
+	assert_true(pr.mount_part(uid, puid))
+	assert_true(pr.is_new_part(puid), "pièce installée, pas encore vue")
+	pr.mark_part_seen(puid)
+	assert_false(pr.is_new_part(puid))
+	pr.mark_weapon_seen("w999")
+	assert_false("w999" in pr.seen_weapons, "exemplaire absent ignoré")
+	# Arme recyclée : oubliée à l'enregistrement.
+	pr.remove_weapon(uid)
+	assert_eq(pr.to_dict().seen, {"weapons": [], "parts": []})

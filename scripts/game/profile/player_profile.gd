@@ -3,8 +3,9 @@ extends RefCounted
 ## Profil permanent du joueur (GAME_CONCEPT §4.2, §4.7, §4.9 à §4.12, §4.15) :
 ## XP et niveau, arsenal d'armes physiques (illimité), onglet des pièces
 ## (illimité), échantillons (quantité par type, sans limite) et armes de
-## départ choisies. Données et règles pures, sans interface (le hub viendra
-## plus tard) ; enregistrement : ProfileStore.
+## départ choisies ; contrats, échanges faits et exemplaires déjà vus au hub
+## (version 2, docs/HUB_PLAN.md §5.4). Données et règles pures, sans
+## interface ; enregistrement : ProfileStore.
 ##
 ## Remplacera à terme le dossier de combat (CareerStats), qui reste pour
 ## l'instant à part et intact (statistiques de parties, écran du menu).
@@ -29,6 +30,16 @@ var samples: Dictionary = {}
 var starting_weapons: PackedStringArray = BaseWeapons.default_selection()
 ## Compteur des identifiants d'exemplaire ("w1", "p2"...), jamais réutilisés.
 var next_uid := 1
+## Contrats du scientifique : tableau, actifs, remises (ContractState ;
+## règles : ContractRules, docs/HUB_PLAN.md §5).
+var contracts := ContractState.new()
+## Catalogue d'échanges : identifiant -> nombre d'échanges faits
+## (ExchangeRules, §6).
+var exchanges_done: Dictionary = {}
+## Exemplaires déjà vus au hub (armes, pièces) : les autres portent la
+## pastille NOUVEAU (§5.4).
+var seen_weapons: PackedStringArray = []
+var seen_parts: PackedStringArray = []
 
 static var _thresholds: PackedInt64Array = []
 
@@ -296,6 +307,43 @@ func starting_loadout() -> Array[OwnedWeapon]:
 
 
 # --------------------------------------------------------------------------
+# Pastilles NOUVEAU du hub (§5.4)
+# --------------------------------------------------------------------------
+
+## Vrai si l'arme `uid` de l'arsenal n'a pas encore été vue au hub.
+func is_new_weapon(uid: String) -> bool:
+	return _arsenal_weapon(uid) != null and not uid in seen_weapons
+
+
+## Vrai si la pièce `uid` (onglet ou installée) n'a pas encore été vue au hub.
+func is_new_part(uid: String) -> bool:
+	return _part_exists(uid) and not uid in seen_parts
+
+
+## Marque une arme vue (sans effet si elle n'est pas dans l'arsenal).
+func mark_weapon_seen(uid: String) -> void:
+	if _arsenal_weapon(uid) != null and not uid in seen_weapons:
+		seen_weapons.append(uid)
+
+
+## Marque une pièce vue (sans effet si elle n'existe pas).
+func mark_part_seen(uid: String) -> void:
+	if _part_exists(uid) and not uid in seen_parts:
+		seen_parts.append(uid)
+
+
+## Marque tout l'arsenal et toutes les pièces vus (migration d'un profil v1 :
+## rien n'y est nouveau).
+func mark_all_seen() -> void:
+	for w in weapons:
+		mark_weapon_seen(w.uid)
+		for p in w.parts:
+			mark_part_seen(p.uid)
+	for p in parts:
+		mark_part_seen(p.uid)
+
+
+# --------------------------------------------------------------------------
 # Sérialisation (format : ProfileStore)
 # --------------------------------------------------------------------------
 
@@ -306,6 +354,7 @@ func to_dict() -> Dictionary:
 	var ps := []
 	for p in parts:
 		ps.append(p.to_dict())
+	_prune_seen()
 	return {
 		"xp": xp,
 		# Informatif (le niveau se recalcule depuis l'XP au chargement).
@@ -315,6 +364,10 @@ func to_dict() -> Dictionary:
 		"samples": samples.duplicate(),
 		"weapons": ws,
 		"parts": ps,
+		# Version 2 (hub) :
+		"contracts": contracts.to_dict(),
+		"exchanges": {"done": exchanges_done.duplicate()},
+		"seen": {"weapons": Array(seen_weapons), "parts": Array(seen_parts)},
 	}
 
 
@@ -358,6 +411,40 @@ static func from_dict(d: Dictionary, dropped := [0]) -> PlayerProfile:
 				dropped[0] += 1
 			else:
 				pr.add_part(p)
+	# Version 2 (hub, docs/HUB_PLAN.md §5.4). Sections absentes (profil v1) :
+	# contrats neufs (graine tirée), aucun échange, tout l'existant déjà vu.
+	pr.contracts = ContractState.from_dict(d.get("contracts"), dropped)
+	var ex: Variant = d.get("exchanges")
+	if ex is Dictionary and ex.get("done", {}) is Dictionary:
+		var dn: Dictionary = ex.get("done", {})
+		for k in dn:
+			var n := ProfileValues.to_int(dn[k], -1, -1, VALUE_CAP)
+			if (k is String or k is StringName) and ProfileValues.id_ok(String(k)) and n >= 0:
+				if n > 0:
+					pr.exchanges_done[String(k)] = n
+			else:
+				dropped[0] += 1
+	elif ex != null:
+		dropped[0] += 1
+	var seen: Variant = d.get("seen")
+	if seen == null:
+		pr.mark_all_seen()
+	elif seen is Dictionary:
+		for key in ["weapons", "parts"]:
+			var list: Variant = seen.get(key, [])
+			if not list is Array:
+				dropped[0] += 1
+				continue
+			for v in list:
+				var uid := ProfileValues.clean_id(v)
+				if uid == "":
+					dropped[0] += 1
+				elif key == "weapons":
+					pr.mark_weapon_seen(uid)
+				else:
+					pr.mark_part_seen(uid)
+	else:
+		dropped[0] += 1
 	return pr
 
 
@@ -370,6 +457,33 @@ func _arsenal_weapon(uid: String) -> OwnedWeapon:
 		if w.uid == uid:
 			return w
 	return null
+
+
+## Pièce `uid` dans l'onglet ou installée sur une arme de l'arsenal ?
+func _part_exists(uid: String) -> bool:
+	if uid == "":
+		return false
+	if get_part(uid) != null:
+		return true
+	for w in weapons:
+		if w.has_part(uid):
+			return true
+	return false
+
+
+## Oublie les exemplaires vus qui n'existent plus (recyclés, pièces
+## détruites) : le fichier ne grossit pas.
+func _prune_seen() -> void:
+	var ws := PackedStringArray()
+	for uid in seen_weapons:
+		if _arsenal_weapon(uid) != null:
+			ws.append(uid)
+	seen_weapons = ws
+	var ps := PackedStringArray()
+	for uid in seen_parts:
+		if _part_exists(uid):
+			ps.append(uid)
+	seen_parts = ps
 
 
 ## Identifiant neuf (le compteur avance aussi au-delà des identifiants déjà

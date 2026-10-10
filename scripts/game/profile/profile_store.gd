@@ -6,9 +6,16 @@ extends RefCounted
 ##
 ## Format (JSON, lisible ; JSON ne décode jamais d'objet ni de ressource,
 ## contrairement à ConfigFile, voir SafeConfig) :
-##   {"format": "profile", "version": 1, "saved_at": <unix>,
+##   {"format": "profile", "version": 2, "saved_at": <unix>,
 ##    "profile": {"xp", "level" (informatif), "next_uid", "starting_weapons",
-##                "samples": {type: n}, "weapons": [...], "parts": [...]}}
+##                "samples": {type: n}, "weapons": [...], "parts": [...],
+##                "contracts": {...} (ContractState), "exchanges": {"done": {id: n}},
+##                "seen": {"weapons": [uid...], "parts": [uid...]}}}
+## Version 2 (hub, docs/HUB_PLAN.md §5.4) : sections « contracts »,
+## « exchanges » et « seen ». Un fichier version 1 se lit sans perte
+## (_migrate) : contrats neufs (graine tirée, tableau rempli à la première
+## rotation), aucun échange, tout l'arsenal existant marqué vu ; il est
+## réécrit en version 2 au prochain enregistrement.
 ## Arme : {"uid", "id", "level", "rarity": "common"|"rare"|"epic"|"legendary"|"unique",
 ##         "parts": [pièce...]} ; pièce : {"uid", "id", "level", "mods": {stat: valeur}}.
 ##
@@ -28,7 +35,7 @@ const TEST_PATH_PREFIX := "user://profile_autotest_"
 const FORMAT := "profile"
 ## Version du format. À augmenter (avec une migration dans _migrate) à chaque
 ## changement incompatible.
-const VERSION := 1
+const VERSION := 2
 ## Taille maximale lue (octets) : arsenal illimité, mais un fichier de cette
 ## taille n'est plus un profil normal.
 const MAX_BYTES := 16 << 20
@@ -173,9 +180,15 @@ static func reset(p := "") -> void:
 			DirAccess.remove_absolute(_abs(dir.path_join(name)))
 
 
-## Passage d'un ancien format au format actuel (aucun pour l'instant : la
-## version 1 est la première).
-static func _migrate(data: Dictionary, _from_version: int) -> Dictionary:
+## Passage d'un ancien format au format actuel.
+## 1 -> 2 : les sections du hub n'existaient pas ; toute clé de ce nom dans un
+## fichier v1 (modifié à la main) est ignorée : PlayerProfile.from_dict crée
+## alors des contrats neufs, aucun échange, et marque l'existant comme vu.
+static func _migrate(data: Dictionary, from_version: int) -> Dictionary:
+	if from_version < 2:
+		data = data.duplicate()
+		for k in ["contracts", "exchanges", "seen"]:
+			data.erase(k)
 	return data
 
 

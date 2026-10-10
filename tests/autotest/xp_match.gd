@@ -4,7 +4,7 @@ extends AutotestScenario
 ## selon la manche, « +N XP » et compteur discrets au HUD, manche survécue
 ## comptée à sa fin ; défaite : l'XP est gardée (sans bonus d'évacuation),
 ## ajoutée UNE fois au profil, rapport de l'écran de fin (détail, niveau,
-## barre de progression).
+## barre de progression) ; tableau des contrats tourné une fois.
 
 var H := AutotestHelpers
 
@@ -94,5 +94,11 @@ func run() -> void:
 	game.keep_match_xp()
 	at.check(game._record_xp(r.xp_ledger).is_empty(), "seconde application refusée")
 	at.check(ProfileStore.load_profile().xp == saved, "XP ajoutée une seule fois")
+	# Contrats (docs/HUB_PLAN.md §5.3) : une manche survécue fait tourner le
+	# tableau, une seule fois (le départ ci-dessus n'a rien refait).
+	var board := ProfileStore.load_profile().contracts
+	at.check(board.rotation == 1, "tableau des contrats tourné une fois (%d)" % board.rotation)
+	at.check(not board.offers.is_empty() and board.offers[0].id == "first_sample",
+			"propositions du scientifique, contrat tuto en premier : %s" % board.offered_ids())
 	await at.screenshot("xp_report")
 	ProfileStore.reset()

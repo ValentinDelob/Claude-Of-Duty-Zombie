@@ -426,11 +426,30 @@ func _record_xp(l: Dictionary) -> Dictionary:
 
 
 var _xp_recorded := false
+var _contracts_rotated := false
+
+
+## Rotation du tableau des contrats du joueur local, UNE fois par partie
+## (fin de partie ou départ en cours de partie ; docs/HUB_PLAN.md §5.3).
+func _rotate_contracts(rounds_survived: int) -> void:
+	if _contracts_rotated:
+		return
+	_contracts_rotated = true
+	var res := MatchContracts.after_match(rounds_survived)
+	if res.get("rotated", false):
+		print("[Game] contrats : tableau tourné (%d manche(s) survécue(s), %d nouvelle(s) proposition(s))"
+				% [rounds_survived, (res.get("added", []) as Array).size()])
 
 
 ## Le joueur quitte une partie en cours (menu pause, connexion perdue) :
 ## l'XP déjà gagnée est gardée (§4.6, §4.15), sans bonus d'évacuation.
 func keep_match_xp() -> void:
+	# Tableau des contrats : la partie quittée compte si une manche a été
+	# survécue (MatchContracts), comme une partie finie.
+	var survived := rounds.round_n - 1 if rounds else 0
+	if xp != null:
+		survived = maxi(survived, int(xp.my_ledger.get("rounds", 0)))
+	_rotate_contracts(survived)
 	if _xp_recorded or xp == null or XpRules.total(xp.my_ledger) <= 0:
 		return
 	var l := xp.my_ledger.duplicate(true)
@@ -465,6 +484,9 @@ func _show_match_end(r: MatchResult) -> void:
 		if r.evacuated:
 			ProfileLoot.apply_evacuation(carried)
 		r.loot = ProfileLoot.report(carried, r.evacuated)
+		# Contrats (§4.2) : le tableau tourne après une partie d'au moins une
+		# manche survécue, après l'XP (le niveau compte pour le tirage).
+		_rotate_contracts(MatchContracts.rounds_survived(r))
 	xp.hide_live()
 	print("[Game] fin de partie : %s, manche %d, %s" % ["évacuation" if r.evacuated else "équipe morte",
 			r.round_reached, MatchResult.time_text(r.duration_sec)])
