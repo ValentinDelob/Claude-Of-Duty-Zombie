@@ -205,12 +205,21 @@ func _choose(row: HubPickRow, from_focus: bool) -> void:
 	if not same or not from_focus:
 		sheet.show_weapon(hub, pr, w, same)
 	sheet.set_left(row)
-	if w and pr.is_new_weapon(uid):
-		_seen_now[uid] = true
-		pr.mark_weapon_seen(uid)
-		for p in w.parts:
-			pr.mark_part_seen(p.uid)
-		_pending_seen = true
+	_mark_seen()
+
+
+## NOUVEAU vu : seulement quand l'onglet est affiché (un choix fait d'office
+## pendant que l'onglet est caché garde la pastille jusqu'à son ouverture).
+func _mark_seen() -> void:
+	var pr := profile()
+	var w := pr.get_weapon(selected_uid) if selected_uid != "" else null
+	if not visible or w == null or not pr.is_new_weapon(selected_uid):
+		return
+	_seen_now[selected_uid] = true
+	pr.mark_weapon_seen(selected_uid)
+	for p in w.parts:
+		pr.mark_part_seen(p.uid)
+	_pending_seen = true
 
 
 func _link_focus() -> void:
@@ -319,7 +328,18 @@ func open_install(weapon_uid: String, part_uid: String) -> void:
 
 
 ## L'onglet s'affiche : INSTALLER SUR… demandé par l'onglet PIÈCES.
+## VOIR DANS L'ARSENAL : l'arme reçue choisie (filtre TOUTES si besoin).
+func show_item(uid: String) -> void:
+	if profile().get_weapon(uid) == null:
+		return
+	selected_uid = uid
+	if _row_of(uid) == null:
+		filter = "all"
+	_fill(false)
+
+
 func shown() -> void:
+	_mark_seen()
 	if not pending_install.is_empty():
 		var a := pending_install
 		pending_install = []

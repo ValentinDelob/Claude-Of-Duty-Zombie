@@ -64,7 +64,10 @@ func run() -> void:
 
 	# 5. Dégâts : MP40 niveau 3 = 1,2 × dégâts de base.
 	await seconds(WeaponController.SWITCH_TIME + 0.2)
-	var z: Zombie = await H.dummy_zombie(self, p.global_position - p.global_transform.basis.z * 5.0, 5000)
+	# À 3 m, en terrain dégagé (arène de test : à 5 m, le zombie apparaissait
+	# dans le pilier de la rangée 10, était poussé à son bord et la dispersion
+	# à la hanche frôlait l'arête du pilier : un tir sur deux environ).
+	var z: Zombie = await H.dummy_zombie(self, p.global_position - p.global_transform.basis.z * 3.0, 5000)
 	H.aim_at(p, z.global_position + Vector3.UP * 1.0)
 	var dealt := []
 	game.combat.zombie_damaged.connect(func(_pid, _zid, dmg, _k, head, _kind): dealt.append([dmg, head]))

@@ -202,6 +202,44 @@ func test_view_in_parts_goes_to_tab() -> void:
 	await wait_frames(3)
 	assert_eq(hub.tab, "parts", "VOIR DANS LES PIÈCES : onglet PIÈCES")
 	assert_false(p.popup_open())
+	# La pièce reçue est choisie, a le focus, garde sa pastille pendant la
+	# visite et est enregistrée « vue » en quittant l'onglet.
+	var parts: HubPartsPanel = hub.panels.parts
+	var uid: String = hub.profile.parts[-1].uid
+	assert_eq(parts.selected_uid, uid, "pièce reçue choisie")
+	assert_eq(_focus(hub), parts._row_of(uid), "focus sur la pièce reçue")
+	assert_true(parts._seen_now.has(uid), "pastille NOUVEAU gardée pendant la visite")
+	hub.select_tab("lab")
+	await wait_frames(2)
+	assert_false(_disk().is_new_part(uid), "vue enregistrée en quittant l'onglet")
+
+
+## Une pièce reçue garde sa pastille NOUVEAU tant que l'onglet PIÈCES n'a pas
+## été ouvert : changer d'onglet, enregistrer, quitter le hub ne la marquent
+## pas vue (les panneaux cachés choisissent leur ligne d'office sans la voir).
+func test_new_part_kept_until_parts_tab_opened() -> void:
+	var pr := mockup_profile()
+	pr.add_part(WeaponPart.create("damage", 1, {"damage": 0.05}))
+	pr.mark_all_seen()
+	var hub := await _open("contracts", pr)
+	var p: HubContractsPanel = hub.panels.contracts
+	_card(p, "dog_fangs_small").main_button.pressed.emit()
+	await wait_frames(3)
+	var uid: String = hub.profile.parts[-1].uid
+	p.popup.close_button.pressed.emit()
+	await wait_frames(2)
+	for id in ["arsenal", "exchanges", "loadout", "lab"]:
+		hub.select_tab(id)
+		await wait_frames(2)
+	hub.save_profile()
+	hub.exit()
+	assert_true(hub.profile.is_new_part(uid), "toujours NOUVEAU en mémoire")
+	assert_true(_disk().is_new_part(uid), "toujours NOUVEAU sur le disque")
+	hub.select_tab("parts")
+	await wait_frames(2)
+	hub.panels.parts._row_of(uid).grab_focus()
+	await wait_frames(2)
+	assert_false(hub.profile.is_new_part(uid), "vue une fois l'onglet ouvert et la pièce choisie")
 
 
 func test_accept_then_refused_when_full() -> void:

@@ -16,14 +16,6 @@ extends Control
 ## les onglets ; garde le focus (Échap / B / clic sur le voile : fermer).
 ## Le profil est déjà enregistré par l'appelant (une écriture par action).
 
-## Noms des pièces d'après leur premier modificateur (maquette : Renfort,
-## Mire, Amortisseur, Guide) : [FR, EN].
-const PART_NAMES := {
-	"damage": ["RENFORT", "REINFORCEMENT"], "accuracy": ["MIRE", "SIGHT"],
-	"recoil": ["AMORTISSEUR", "DAMPER"], "reload": ["GUIDE", "GUIDE"],
-	"fire_rate": ["CULASSE ALLÉGÉE", "LIGHT BOLT"], "mag": ["CHARGEUR LONG", "LONG MAG"],
-	"reserve": ["CARTOUCHIÈRE", "BANDOLIER"],
-}
 ## Remerciements génériques (contrat sans `thanks`, échange).
 const THANKS := ["Excellent travail. La science vous remercie, moi aussi, un peu.",
 	"Excellent work. Science thanks you, and so do I, a little."]
@@ -40,6 +32,8 @@ var close_button: HubButton
 var primary_text := ""
 ## Onglet ouvert par le bouton principal (« parts », « arsenal », "").
 var target_tab := ""
+## Exemplaire reçu (uid), choisi dans cet onglet (HubPanel.show_item).
+var target_uid := ""
 ## Textes affichés (tests).
 var title_text := ""
 var thanks_text := ""
@@ -157,9 +151,11 @@ func _build(head: String, title: String, line: String, res: Dictionary, pr: Play
 	var item: Variant = res.get("item")
 	if item is WeaponPart:
 		target_tab = "parts"
+		target_uid = (item as WeaponPart).uid
 		primary_text = Lang.t("Voir dans les pièces", "See in parts")
 	elif item is OwnedWeapon:
 		target_tab = "arsenal"
+		target_uid = (item as OwnedWeapon).uid
 		primary_text = Lang.t("Voir dans l'arsenal", "See in the arsenal")
 	if target_tab != "":
 		primary_button = HubButton.make(primary_text.to_upper(), _go, HubButton.PRIMARY,
@@ -254,12 +250,12 @@ func _item_box(item: Variant, pr: PlayerProfile, exact_name: String) -> Control:
 			v.add_child(HubBox.pad(t, 0, 4, 0, 0))
 	elif item is OwnedWeapon:
 		var w := item as OwnedWeapon
-		var ic := HubIcon.make(HubContractCard.weapon_art(w.weapon_id), 3)
+		var ic := HubIcon.make(HubGear.weapon_art(w.weapon_id), 3)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(ic)
 		v.add_child(HubStyle.label((Lang.t("ARME %s", "%s WEAPON") % GameWeapon.rarity_name(w.rarity).to_upper())
 				+ Lang.t(" · NIVEAU %d", " · LEVEL %d") % w.level, 13, HubStyle.DIM))
-		item_name = WeaponDB.display_name(w.weapon_id).to_upper()
+		item_name = HubGear.weapon_name(w.weapon_id).to_upper()
 		v.add_child(HubStyle.label(item_name, 22, HubStyle.rarity_color(w.rarity), "impact", true))
 		v.add_child(HubStyle.label(Lang.t("score %d · rangée dans l'arsenal", "score %d · stored in the arsenal") % w.score(), 13, HubStyle.PLASTER))
 		if pr.is_new_weapon(w.uid):
@@ -288,13 +284,10 @@ static func _part_quality(p: WeaponPart, exact_name: String) -> String:
 	return Lang.t("PIÈCE %s" % HubData.quality_name(q), "%s PART" % HubData.quality_name(q))
 
 
-## Nom d'une pièce d'après son premier modificateur (« RENFORT »).
+## Nom d'une pièce (« RENFORT ») : la source unique des noms de pièces,
+## HubGear.part_name, en capitales comme le titre de la fenêtre.
 static func part_name(p: WeaponPart) -> String:
-	for k in p.mods:
-		var n: Array = PART_NAMES.get(String(k), [])
-		if not n.is_empty():
-			return Lang.t(n[0], n[1])
-	return Lang.t("PIÈCE", "PART")
+	return HubGear.part_name(p).to_upper()
 
 
 ## Encadré sombre (fond #17181a, contour noir, marges 10 / 12).
@@ -316,6 +309,10 @@ func _go() -> void:
 	# Onglet d'abord : le panneau qui a ouvert la fenêtre est alors caché et
 	# ne reprend pas le focus à la fermeture.
 	if target_tab != "" and hub and hub.has_method("select_tab"):
+		# L'objet reçu choisi d'avance (focus, fiche, NOUVEAU vu à l'affichage).
+		var p: HubPanel = hub.panels.get(target_tab) if "panels" in hub else null
+		if p and target_uid != "":
+			p.show_item(target_uid)
 		hub.select_tab(target_tab)
 	close()
 
