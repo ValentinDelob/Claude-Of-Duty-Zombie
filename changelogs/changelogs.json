@@ -2509,6 +2509,37 @@
     "en": "Get out alive",
     "fr": "Sortir vivant"
    }
+  },
+  "v0.2.1-snapshot.524": {
+   "channel": "snapshot",
+   "date": "2026-10-10",
+   "images": [],
+   "items": [
+    {
+     "en": "Every map now has a construction station. Spend scrap there to build a weapon from your arsenal: the more it costs, the longer it takes (1 to 3 rounds). Come back to pick it up once it's ready.",
+     "fr": "Chaque carte a désormais une station de construction. Dépensez-y de la ferraille pour construire une arme de votre arsenal : plus elle coûte cher, plus elle prend de temps (1 à 3 manches). Revenez la chercher quand elle est prête."
+    },
+    {
+     "en": "The station also refills the ammo of the weapon in your hands, and you can recycle a weapon for half of its price in scrap.",
+     "fr": "La station recharge aussi les munitions de l'arme en main, et vous pouvez recycler une arme contre la moitié de son prix en ferraille."
+    },
+    {
+     "en": "Special waves now drop loot for each player, in their own colour: a weapon whose level depends on the round, sometimes a weapon part, and samples (fang, fur, collar on dogs).",
+     "fr": "Les vagues spéciales lâchent maintenant du butin pour chaque joueur, à sa couleur : une arme dont le niveau dépend de la manche, parfois une pièce d'arme, et des échantillons (croc, poils, collier sur les chiens)."
+    },
+    {
+     "en": "Weapon parts can be fitted from the inventory, anywhere, to boost a weapon's stats.",
+     "fr": "Les pièces d'arme s'installent depuis l'inventaire, n'importe où, pour améliorer les statistiques d'une arme."
+    },
+    {
+     "en": "Evacuate to keep everything: weapons, parts and samples join your profile, and weapons from your arsenal keep the upgrades made during the game. If the whole team dies, only the experience is kept. The end screen lists what was kept or lost.",
+     "fr": "Évacuez pour tout garder : armes, pièces et échantillons rejoignent votre profil, et les armes de votre arsenal gardent les améliorations faites en partie. Si toute l'équipe meurt, seule l'expérience est gardée. L'écran de fin indique ce qui est gardé ou perdu."
+    }
+   ],
+   "title": {
+    "en": "Build, loot, get out",
+    "fr": "Construire, piller, s'évacuer"
+   }
   }
  }
 }
