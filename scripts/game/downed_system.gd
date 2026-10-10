@@ -189,17 +189,7 @@ func _revive(pid: int) -> void:
 	pd.life = PlayerData.Life.ALIVE
 	pd.health = mini(REVIVED_HEALTH, pd.max_health)
 	# On récupère ses armes, avec les munitions du pistolet utilisé à terre.
-	var used: Dictionary = pd.weapons[0] if not pd.weapons.is_empty() else {}
-	pd.weapons = pd.saved_weapons.duplicate(true) if not pd.saved_weapons.is_empty() else [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
-	# L'arme utilisée à terre, si le joueur la possédait, revient avec ses
-	# munitions ; un M1911 prêté (aucun pistolet possédé) est repris.
-	if not used.is_empty():
-		for i in pd.weapons.size():
-			if pd.weapons[i].id == used.id and pd.weapons[i].pap == used.pap:
-				pd.weapons[i] = used
-				break
-	pd.saved_weapons = []
-	pd.slot = clampi(pd.slot, 0, pd.weapons.size() - 1)
+	MatchRules.restore_saved_weapons(pd)
 	game.session.sync_stats(pid)
 	game.session.sync_inventory(pid)
 	print("[Downed] %s est réanimé" % Net.player_name(pid))
@@ -209,9 +199,8 @@ func _revive(pid: int) -> void:
 
 func _bleed_out(pid: int) -> void:
 	downed.erase(pid)
-	var pd := game.session.get_data(pid)
-	if pd:
-		pd.saved_weapons = []
+	# Les armes mises de côté à terre (saved_weapons) sont gardées : le joueur
+	# les retrouve en réapparaissant (MatchRules.respawn, GAME_CONCEPT §4.6).
 	# BO1 (player_died_penalty) : chacun des autres joueurs encore en jeu perd
 	# 10 % de ses points quand un coéquipier succombe.
 	for other in game.session.data:

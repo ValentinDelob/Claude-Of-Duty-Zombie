@@ -66,24 +66,52 @@ func test_only_dead_players_respawn() -> void:
 	assert_false(MatchRules.should_respawn(_pd(1, PlayerData.Life.ALIVE)))
 
 
-func test_respawn_resets_loadout_keeps_points() -> void:
+func test_respawn_keeps_everything() -> void:
+	# Mort après être tombé à terre : les armes mises de côté reviennent
+	# (GAME_CONCEPT §4.6), avec leurs munitions.
 	var pd := _pd(1, PlayerData.Life.DEAD)
 	pd.points = 4321
 	pd.kills = 7
 	pd.max_health = 250
 	pd.health = 0
-	pd.weapons = [WeaponDB.new_instance("mp40"), WeaponDB.new_instance("ray")]
+	pd.grenades = 3
+	pd.monkeys = 2
+	var mp40 := WeaponDB.new_instance("mp40")
+	mp40.mag = 5
+	mp40.reserve = 17
+	pd.saved_weapons = [mp40, WeaponDB.new_instance("ray")]
+	pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]  # pistolet prêté à terre
 	pd.slot = 1
 	pd.knife = "bowie"
 	MatchRules.respawn(pd)
 	assert_eq(pd.life, PlayerData.Life.ALIVE)
 	assert_eq(pd.health, 250, "santé pleine")
-	assert_eq(pd.weapons.size(), 1)
-	assert_eq(pd.weapons[0].id, WeaponDB.STARTING_WEAPON, "pistolet de départ")
-	assert_eq(pd.slot, 0)
-	assert_eq(pd.knife, KnifeDB.DEFAULT, "couteau de chasse perdu (BO1)")
-	assert_eq(pd.points, 4321, "points conservés")
+	assert_eq(pd.weapons.size(), 2, "armes d'avant la mort")
+	assert_eq(pd.weapons[0].id, "mp40")
+	assert_eq(pd.weapons[0].mag, 5, "munitions gardées")
+	assert_eq(pd.weapons[0].reserve, 17)
+	assert_eq(pd.weapons[1].id, "ray")
+	assert_true(pd.saved_weapons.is_empty())
+	assert_eq(pd.slot, 1)
+	assert_eq(pd.knife, "bowie", "couteau gardé")
+	assert_eq(pd.grenades, 3, "grenades gardées")
+	assert_eq(pd.monkeys, 2)
+	assert_eq(pd.points, 4321, "ferraille gardée")
 	assert_eq(pd.kills, 7)
+
+
+func test_respawn_without_saved_weapons_keeps_inventory() -> void:
+	# Mort sans passer à terre : l'inventaire actuel reste ; vide : pistolet.
+	var pd := _pd(1, PlayerData.Life.DEAD)
+	pd.weapons = [WeaponDB.new_instance("mp40")]
+	MatchRules.respawn(pd)
+	assert_eq(pd.weapons.size(), 1)
+	assert_eq(pd.weapons[0].id, "mp40")
+	var empty := _pd(2, PlayerData.Life.DEAD)
+	empty.weapons = []
+	MatchRules.respawn(empty)
+	assert_eq(empty.weapons.size(), 1)
+	assert_eq(empty.weapons[0].id, WeaponDB.STARTING_WEAPON, "inventaire vide : pistolet de départ")
 
 
 func test_spawn_slots() -> void:
@@ -99,3 +127,14 @@ func test_spawn_without_spawn_points() -> void:
 	assert_eq(MatchRules.spawn_for_slot(none, 0), MatchRules.FALLBACK_SPAWN, "carte sans point : repli")
 	assert_eq(MatchRules.spawn_for_slot(none, 5), MatchRules.FALLBACK_SPAWN)
 	assert_eq(Game.spawn_for_slot(none, 1), Game.FALLBACK_SPAWN, "alias de Game")
+
+
+func test_match_rounds_survived_for_xp() -> void:
+	var r := MatchResult.new()
+	r.round_reached = 5
+	assert_eq(Game.match_rounds_survived(r), 4, "équipe morte : la manche en cours ne compte pas")
+	r.evacuated = true
+	assert_eq(Game.match_rounds_survived(r), 5, "évacuation : la manche vaincue compte")
+	r.evacuated = false
+	r.round_reached = 0
+	assert_eq(Game.match_rounds_survived(r), 0)
