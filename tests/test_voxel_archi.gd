@@ -337,3 +337,49 @@ func test_stepped_piece_follows_the_wall() -> void:
 	MeshMapGeometry.step_grain = grain0
 	assert_eq(grain0, 2, "marche de 10 cm par défaut")
 	assert_true(absi(rows2 * 2 - rows) <= 2, "marche de 10 cm : %d rangées au lieu de %d" % [rows2, rows])
+
+
+## Lot E : les marches des murs en biais ne projettent pas d'ombre les unes
+## sur les autres (rayures sous une lampe proche) : leurs faces visibles sans
+## ombre, l'ombre du mur portée par des pavés lisses amincis (ombre seule)
+## dont aucune face visible n'est à l'intérieur ; idem pour un escalier tourné.
+func test_stepped_walls_cast_smooth_shadows() -> void:
+	var L: Dictionary = MapPreviewWorld.compute(Diag.diag_map()).data
+	var g := MeshMapGeometry.new()
+	var arch := g._build(L)
+	var steps := arch.find_children("*__biais", "MeshInstance3D", true, false)
+	assert_true(steps.size() >= 1, "murs en biais")
+	for mi: MeshInstance3D in steps:
+		assert_eq(mi.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "%s : sans ombre propre" % mi.name)
+	var sh := arch.get_node_or_null("StepShadows") as MeshInstance3D
+	assert_true(sh != null and sh.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, "ombre seule des murs en biais")
+	assert_true(g._shadow_boxes.size() >= arch.find_children("Biais_*", "CollisionBox", false, false).size(), "un pavé d'ombre par morceau de mur en biais et de cour tournée")
+	# Aucun centre de face visible à l'intérieur d'un pavé d'ombre aminci.
+	var inside := 0
+	for mi: MeshInstance3D in steps:
+		var vs: PackedVector3Array = mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		for i in range(0, vs.size(), 3):
+			var c := (vs[i] + vs[i + 1] + vs[i + 2]) / 3.0
+			for sb: Array in g._shadow_boxes:
+				var yaw := float(sb[2])
+				var q: Vector3 = Basis(Vector3(cos(yaw), 0, -sin(yaw)), Vector3.UP, Vector3(sin(yaw), 0, cos(yaw))).inverse() * (c - (sb[0] as Vector3))
+				var h: Vector3 = (sb[1] as Vector3) * 0.5
+				var t := maxf(h.z - float(sb[3]), 0.0)
+				# Hors des bouts (15 cm) : au raccord de deux murs, quelques
+				# faces du coin rentrant sont dans l'ombre de l'autre mur.
+				if absf(q.x) < h.x - 0.15 and absf(q.y) < h.y - 0.001 and absf(q.z) < t - 0.001:
+					inside += 1
+					break
+	assert_eq(inside, 0, "aucune marche dans l'ombre de son propre mur")
+	arch.free()
+	# Escalier tourné : marches et garde-corps sans ombre propre, prismes d'ombre.
+	var st := StairGen.spec(Vector2(12.0, 12.0), Vector2(0, -1).rotated(deg_to_rad(30.0)), 7.0, 2.0, 0.0, 3.5, "palier", {"rail": true})
+	st["room"] = "r"
+	var sa := MeshMapGeometry.build({"stairs": [st]})
+	var tilted := sa.find_children("*__stair_biais", "MeshInstance3D", true, false) + sa.find_children("*__rail_biais", "MeshInstance3D", true, false)
+	assert_eq(tilted.size(), 2, "marches et garde-corps de l'escalier tourné")
+	for mi: MeshInstance3D in tilted:
+		assert_eq(mi.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "%s : sans ombre propre" % mi.name)
+	assert_true(sa.get_node_or_null("StepShadows") != null, "ombre seule de l'escalier tourné")
+	assert_true(sa.get_node_or_null("wood__r__stair__col") != null, "collisions inchangées (groupe « stair »)")
+	sa.free()

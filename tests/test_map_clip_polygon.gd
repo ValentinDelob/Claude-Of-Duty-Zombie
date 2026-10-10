@@ -180,7 +180,7 @@ func test_concave_barrier_blocks_with_its_exact_shape_and_height() -> void:
 	# En jeu : un prisme en morceaux convexes, sur la couche BARRIER.
 	var world := Node3D.new()
 	host.add_child(world)
-	MeshMapBuilder.new(def.layout_data, "").build(world)
+	MeshMapBuilder.new(def.layout_data).build(world)
 	var boxes := world.find_children("*", "CollisionBox", true, false).filter(func(n): return (n as CollisionBox).polygon.size() == 6)
 	assert_eq(boxes.size(), 1, "CollisionBox du polygone")
 	await wait_frames(1)

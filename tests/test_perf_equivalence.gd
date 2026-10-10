@@ -390,7 +390,7 @@ func test_snapshot_ring_matches_list() -> void:
 
 func test_ground_matches_fresh_ray() -> void:
 	var w := _world()
-	var l := MeshMapLayout.new(null, {}, "")
+	var l := MeshMapLayout.new(null, {})
 	l._world = w
 	await _physics_frames(2)
 	seed(12)

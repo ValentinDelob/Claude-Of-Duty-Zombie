@@ -347,6 +347,17 @@ dans le jeu.
   libre) et ses inclinaisons (docs/EDITOR_SCALE_ROTATE.md) : c'est au
   concepteur de rester sur des quarts de tour, contrôlé par l'outil.
 
+**Architecture** (construite en cubes de 5 cm par le jeu,
+docs/VOXEL_ARCHITECTURE_PLAN.md) :
+- toute valeur (contours, murs, altitudes, plafonds, ouvertures) sur la
+  **grille de 5 cm** (l'éditeur et l'export arrondissent) ;
+- marches de **15 ou 20 cm**, giron d'au moins 25 cm : une volée trop courte
+  (marches de 25 cm) est signalée, l'allonger ;
+- murs en biais, courbes, piliers et escaliers tournés : **escalier de
+  marches de 10 cm** ; préférer les axes et 45° ;
+- pentes en terrasses de 5 cm ; garde-corps de 2 × 2 cubes ;
+- contrôle : `LayoutCheck` (`--check`).
+
 ---
 
 ## 7. Circulation
@@ -628,3 +639,4 @@ ce fichier.
 | Objets du décor décalés ou d'orientation différente de leurs voisins, par pièce | ≥ 50 % |
 | Objets posés hors quarts de tour ou inclinés ; modèles non cubiques (`tools/voxel_check.gd -- --carte=<id>`) | 0 |
 | Objets à bloquer non couverts en entier par des barrières invisibles | 0 |
+| Architecture non cubique ou hors de la grille de 5 cm (`--check` : `LayoutCheck`) ; volées à marches de 25 cm | 0 / 0 |

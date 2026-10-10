@@ -30,7 +30,7 @@ static func _errs(v: MapValidator) -> String:
 ## Barricade construite (sans partie) pour la fenêtre `i` de la carte.
 func built(doc: EditorMap, i := 0) -> Barricade:
 	var def := EditorMapDef.from_map(doc, "perso:" + String(doc.carte.id))
-	var layout := MeshMapLayout.new(def, def.layout_data, "")
+	var layout := MeshMapLayout.new(def, def.layout_data)
 	var w: BarricadeLayout.Opening = layout.windows()[i]
 	var b := Barricade.new()
 	b.setup(w)

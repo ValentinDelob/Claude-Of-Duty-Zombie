@@ -38,7 +38,7 @@ func test_removed_markers_ignored() -> void:
 		"perks": [{"id": "J", "p": [0, 0, 0], "wall": [0, 0, -1], "perk": "titan"}],
 		"grenade_buys": [{"id": "g", "p": [0, 0, 0], "wall": [0, 0, -1]}],
 		"pap": {"p": [0, 0, 0], "wall": [0, 0, -1]}, "box_boards": [{"p": [0, 0, 0], "wall": [0, 0, -1]}]}
-	var l := MeshMapLayout.new(def, {"markers": markers}, "")
+	var l := MeshMapLayout.new(def, {"markers": markers})
 	assert_true(l.power_switch() != null, "le reste de la description est lu")
 	assert_eq(MeshMapLayout.REMOVED_KEYS.size(), 5)
 	assert_false(l.has_method("wall_buys") or l.has_method("perks") or l.has_method("pack_a_punch"), "plus de lecteurs d'objets supprimés")

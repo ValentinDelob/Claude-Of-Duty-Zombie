@@ -1,18 +1,17 @@
 class_name MeshMapBuilder
 extends MapProps
-## Décor d'une carte en maillage : instancie le .glb produit par
-## tools/blender/mesh_map.py (ou, pour les cartes de l'éditeur, l'architecture
-## construite par le jeu : MeshMapGeometry) et le branche sur le rendu du jeu,
-## puis pose le décor décrit par la carte (clés du layout.json) :
+## Carte en maillage : construit son architecture en cubes de 5 cm
+## (MeshMapGeometry, depuis la description : cartes de l'éditeur et
+## test_levels) et la branche sur le rendu du jeu, puis pose le décor décrit
+## par la carte (clés du layout.json) :
 ##   props     [{model, p, yaw, scale}]           objets uniques (avec collisions)
 ##   instances [{model, items [[x,y,z,yaw,tilt]]}] objets répétés (fauteuils) en
 ##                                                 MultiMesh : un appel de dessin par matériau
 ##   blockers  [{center, size, yaw, barrier}]     pavés de collision invisibles (CollisionBox)
 ## Modèles : assets/models/<dossier>/<model>.glb (tools/blender/props/*.py).
 ##
-## Objets des .glb : « <matériau>__<nom>__<type> » (visible) et « ...__col » /
-## « ...__barrier » (collision, StaticBody3D créé à l'import par le suffixe
-## -colonly). Le matériau est une clé de WorldLook.SURFACES (texture pixel art
+## Nœuds de l'architecture : « <matériau>__<nom>__<type> » (visible) et
+## « ...__col » / « ...__barrier » (collision, StaticBody3D). Le matériau est une clé de WorldLook.SURFACES (texture pixel art
 ## PixelSurfaces, un pixel = 5 cm) ou une clé spéciale (voir _special). Sols,
 ## plafonds et petits détails (« ns ») ne projettent pas d'ombre.
 
@@ -33,14 +32,12 @@ static func model_name_ok(name: String) -> bool:
 	return CustomMapGuard.asset_name_ok(name)
 
 var layout: Dictionary
-var glb_path := ""
 var models_dir := "res://assets/models/props/"
 var _scenes: Dictionary = {}
 
 
-func _init(layout_data: Dictionary, glb: String) -> void:
+func _init(layout_data: Dictionary) -> void:
 	layout = layout_data
-	glb_path = glb
 	# Dossier des modèles : seulement sous res://assets/models/ (jamais un
 	# chemin venu d'une description de carte qui sortirait de là).
 	var md := String(layout_data.get("models_dir", models_dir))
@@ -52,17 +49,8 @@ func _init(layout_data: Dictionary, glb: String) -> void:
 
 func build(parent: Node3D) -> void:
 	_make_root(parent, "Props")
-	# Sans .glb (cartes de l'éditeur) : architecture construite par le jeu.
-	var scene: Node3D
-	if glb_path == "":
-		scene = MeshMapGeometry.build(layout)
-	else:
-		var packed := load(glb_path) as PackedScene
-		if packed == null:
-			push_error("[MeshMap] architecture introuvable : " + glb_path)
-			return
-		scene = packed.instantiate()
-	_add_architecture(scene)
+	# Architecture construite par le jeu, en cubes (plus de .glb Blender).
+	_add_architecture(MeshMapGeometry.build(layout))
 	_build_decor_parts()
 	_build_lamps()
 
@@ -71,7 +59,7 @@ func build(parent: Node3D) -> void:
 # de l'éditeur (MapPreviewBuilder) : le test « même géométrie que le jeu »
 # (tests/test_map_preview.gd) repose sur ce partage.
 
-## Architecture (.glb ou MeshMapGeometry) sous la racine : matériaux, ombres
+## Architecture (MeshMapGeometry) sous la racine : matériaux, ombres
 ## et collisions, lambris posés sur le sol de référence de chaque salle.
 ## Les matériaux remplacés (_prop_mats) sont pris tels qu'ils sont à l'appel
 ## (vides en jeu : « prop_materials » ne vise que le décor posé).
@@ -161,7 +149,7 @@ func _fixture_lamp(l: Dictionary) -> void:
 		(n as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
-## Matériaux, ombres et collisions des nœuds d'un .glb. `floor_of(salle)` :
+## Matériaux, ombres et collisions des nœuds de l'architecture ou d'un modèle. `floor_of(salle)` :
 ## hauteur du sol de référence (lambris des niveaux).
 ## Matériaux des objets remplacés par la carte (ex. plâtre de la salle au lieu
 ## du papier peint rouge) : clé « prop_materials » de la description.

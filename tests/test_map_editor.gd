@@ -475,7 +475,7 @@ func test_draft_arena_migrated() -> void:
 	assert_eq(def.box_start, 0, "une seule caisse au hasard")
 	assert_false(Game.MENU_MAPS.has("draft_arena"), "carte de test, hors menus")
 	var layout := def.create_layout() as MeshMapLayout
-	assert_eq(layout.glb_path, "", "géométrie construite par le jeu (plus de .glb)")
+	assert_false(layout.data.is_empty(), "description de la carte (géométrie construite par le jeu)")
 	assert_true(layout.data.rooms.size() > 20, "salles (%d)" % layout.data.rooms.size())
 	assert_eq(layout.data.stairs.size(), 1, "escalier")
 

@@ -229,7 +229,7 @@ func test_validator_and_game_layout() -> void:
 		poly.append(Vector2(float(q[0]), float(q[1])))
 	assert_true(Geometry2D.is_point_in_polygon(Vector2(5.0 + OFF, 5.0 + OFF), poly), "emprise autour du centre")
 	# Jeu : marqueurs, emplacement, avant et collision.
-	var ml := MeshMapLayout.new(null, lay, "")
+	var ml := MeshMapLayout.new(null, lay)
 	var spots := ml.box_spots()
 	var fi := -1
 	for i in spots.size():

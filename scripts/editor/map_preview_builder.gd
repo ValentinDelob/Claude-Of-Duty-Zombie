@@ -19,7 +19,7 @@ const DECOR_KEYS := ["props", "instances", "blockers", "prop_materials", "models
 
 
 func _init(layout_data: Dictionary) -> void:
-	super(layout_data, "")
+	super(layout_data)
 
 
 func build_architecture(parent: Node3D) -> void:

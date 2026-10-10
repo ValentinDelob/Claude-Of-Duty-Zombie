@@ -62,11 +62,11 @@ func test_asset_names_and_ids() -> void:
 
 
 func test_models_dir_filtered() -> void:
-	var def_dir := MeshMapBuilder.new({}, "").models_dir
+	var def_dir := MeshMapBuilder.new({}).models_dir
 	for bad in ["user://evil/", "res://assets/models/../../scripts/", "C:/Windows/", "res://scripts/", "res://assets/models/x\\..\\y/"]:
-		assert_eq(MeshMapBuilder.new({"models_dir": bad}, "").models_dir, def_dir, "dossier refusé : " + bad)
-	assert_eq(MeshMapBuilder.new({"models_dir": "res://assets/models/perks"}, "").models_dir, "res://assets/models/perks/", "dossier accepté")
-	var b := MeshMapBuilder.new({}, "")
+		assert_eq(MeshMapBuilder.new({"models_dir": bad}).models_dir, def_dir, "dossier refusé : " + bad)
+	assert_eq(MeshMapBuilder.new({"models_dir": "res://assets/models/perks"}).models_dir, "res://assets/models/perks/", "dossier accepté")
+	var b := MeshMapBuilder.new({})
 	assert_true(b._model("../../scripts/boot") == null, "modèle hors du dossier refusé")
 	assert_true(b._collision_boxes("../x").is_empty())
 

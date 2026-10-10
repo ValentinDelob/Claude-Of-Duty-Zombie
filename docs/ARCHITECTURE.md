@@ -476,7 +476,7 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
 | Glow | 0,6-0,7 ms | 0,5-0,7 ms |
 | Zombies (tout) / leurs ombres | 0,6-0,8 / 0,5-0,8 -> 0,7 / 0,3 ms | — |
 | zombie.gdshader (vs matériau simple) | 0,3 -> 0,15 ms | — |
-| surface.gdshader (vs couleur unie) | 0,2 ms | 0,5-0,8 -> 0,3 ms |
+| surface.gdshader, supprimé depuis (vs couleur unie) | 0,2 ms | 0,5-0,8 -> 0,3 ms |
 | Brume volumétrique | 0,4-0,45 -> 0,1-0,2 ms | 0,35 -> 0,1 ms |
 | Arme FPS + mains | 0,3 ms | 0,2 ms |
 | Post-traitement (lecture d'écran) | 0,1-0,2 ms | 0,1-0,2 ms |
@@ -494,8 +494,9 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   des lampes x0,85 (-0,4 à -0,55 ms mais salles visiblement plus sombres).
 
 - Optimisations (sans perte visible, captures avant/après comparées) :
-  - **bruits précalculés** (`NoiseLattice`) : `surface.gdshader` et
-    `zombie_body.gdshaderinc` lisent le bruit de valeur dans un treillis de
+  - **bruits précalculés** (`NoiseLattice`) : `zombie_body.gdshaderinc` (et
+    l'ancien `surface.gdshader`, remplacé par les textures pixel art de
+    `pixel_surface.gdshader`) lisent le bruit de valeur dans un treillis de
     nœuds aléatoires (64² en 2D, 32³ en 3D, R8) au point i + s(f) avec le filtrage
     linéaire du GPU : une lecture au lieu de 4 ou 8 hachages, même allure
     (répartition des taches et fissures identique, motifs déplacés) ;
@@ -508,8 +509,8 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   - MEDIUM : filtre d'ombre dur (-0,3 à -0,4 ms) et brume 48x48x32 (-0,2 ms) ;
     HIGH : filtre doux bas et brume 64x64x48 (-1,1 à -1,3 ms au total) ;
   - HUD : vignette de blessure (plein écran, bruit) masquée en pleine santé ;
-  - **murs mats sans spéculaire** (`WorldLook.MATTE_SURFACES`, variante de
-    `surface.gdshader` en `specular_disabled`) : -0,1 à -0,15 ms. Sols et
+  - **murs mats sans spéculaire** (`WorldLook.MATTE_SURFACES`, variante en
+    `specular_disabled`, aujourd'hui de `pixel_surface.gdshader`) : -0,1 à -0,15 ms. Sols et
     plafonds le gardent : sans le reflet rasant des lampes, ils s'assombrissent
     nettement (-0,3 ms de plus, écarté) ;
   - **CPU des zombies au contact** : 3 glissements au plus par `move_and_slide`
@@ -641,14 +642,16 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
 - **Cartes en maillage à plusieurs niveaux** (`MeshMapLayout`, exemple
   `test_levels`) : une description JSON (`assets/maps/<id>/layout.json`,
   repère Godot en mètres : salles, murs avec ouvertures, dalles, escaliers,
-  garde-corps, zones en boîtes, emplacements) sert à la fois à Blender et au
-  jeu. `sh tools/blender.sh tools/blender/mesh_map.py <layout.json> <id>.glb
-  [aperçu.png]` construit l'architecture sans fenêtre : objets
-  `<matériau>__<salle>__<type>` (visibles, shader `WorldLook.surface` et
-  `floor_y` par instance pour les lambris des étages) et `...__col-colonly`
-  (collisions ; escaliers = marches visibles + coin de collision plein, le
-  joueur n'ayant pas de montée de marche). `MeshMapBuilder` (hérite de
-  `MapProps`, comme `PropBuilder`) branche le .glb sur le rendu, le courant et
+  garde-corps, zones en boîtes, emplacements), ou la même description
+  exportée par l'éditeur (`MapLayoutExport`). Le jeu en construit
+  l'architecture lui-même, en cubes de 5 cm (`MeshMapGeometry`, voir
+  « Architecture cubique » ci-dessous ; plus de .glb Blender depuis le
+  lot E) : nœuds `<matériau>__<salle>__<type>` (visibles, shader
+  `pixel_surface.gdshader` de `WorldLook.surface` et `floor_y` par instance
+  pour les lambris des étages) et `...__col` (collisions ; escaliers =
+  marches visibles + prisme de collision plein, le joueur n'ayant pas de
+  montée de marche). `MeshMapBuilder` (hérite de
+  `MapProps`, comme `PropBuilder`) branche l'architecture sur le rendu, le courant et
   les lampes, en trois morceaux (`_add_architecture`, `_build_decor_parts`,
   `_build_lamps`) que l'aperçu 3D de l'éditeur (`MapPreviewBuilder`, qui en
   hérite) appelle aussi : l'aperçu montre la géométrie du jeu, pas une copie
@@ -662,6 +665,48 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   (`Zombie._follow_floor`) ; portée d'attaque, bonds, séparation et points de
   passage tiennent compte de la hauteur. Morceaux et particules retombent sur
   le sol sous leur point de départ (`Fx.floor_under`).
+- **Architecture cubique** (docs/VOXEL_ARCHITECTURE_PLAN.md, lots A à E,
+  GAME_CONCEPT.md § 4.19) : toute l'architecture des cartes est faite de
+  cubes de 5 cm sur la grille du monde. Cartes en grille (`MapBuilder`,
+  BUNKER K-7) : cellules de 1 m, murs de 3,2 m, déjà cubiques ; leur décor
+  (`PropBuilder`) passé en pavés sur la grille de 5 cm au lot E. Cartes en
+  maillage (`MeshMapGeometry`) : valeurs de la description sur 5 cm
+  (`MapLayoutExport.snap_layout` / `off_grid`, format 20 de l'éditeur) ; murs
+  en biais, raccords, murs courbes, piliers tournés et cours tournées
+  rastérisés ensemble en escalier de marches de 10 cm (`step_grain`, faces
+  visibles seulement, normale d'éclairage penchée vers le vrai mur,
+  `step_shade`) ; escaliers, rampes, colimaçon, garde-corps et sols en pente
+  en colonnes de cubes (`CubeColumns`, marches de `StairGen.flight_steps`) ;
+  collisions inchangées (pavés tournés lisses, rampes pleines). **Ombres** :
+  les faces des marches (nœuds `*biais` : murs, `stair_biais`, `rail_biais`
+  des escaliers tournés) ne projettent pas d'ombre ; un maillage d'ombre
+  seule (`StepShadows`) fait de pavés lisses amincis de 7,5 cm par côté et
+  de prismes de rampe abaissés de 25 cm porte l'ombre (sans lui, chaque
+  colonne de 10 cm ombrait sa voisine sous une lampe proche : rayures). Il
+  allège aussi les passes d'ombre (12 triangles par morceau de mur au lieu
+  de centaines). Surfaces : `PixelSurfaces` (images 64 × 64 générées,
+  20 pixels par mètre) lues au plus proche par `pixel_surface.gdshader` ;
+  textures importées réduites (`MapTextureLib.pixelate`). Contrôle :
+  `LayoutCheck` (faces axiales, sommets et valeurs sur 5 cm, décor et
+  maillages d'ombre seule exceptés) sur toutes les cartes du jeu, des tests
+  et des fixtures (`tests/test_layout_check.gd`) et dans `--check` de
+  l'éditeur. Coût mesuré (`sh tools/perf.sh archi_perf map_tour`, 1080p,
+  RTX A2000 portable, 11/10/2026, avant = 2fa0a35 (pilote compris) / après
+  le lot E sur deux passes, temps GPU par vue, bruit ± 0,3 ms : d'autres jeux
+  de test tournaient sur la machine) : MEDIUM BUNKER K-7 pire vue 3,20 /
+  3,10-3,11 ms ; DRAFT ARENA 3,35-3,91 / 3,26-3,73 ms ; test_levels
+  2,48-3,47 / 2,37-2,60 ms (une mesure isolée à 4,08 non reproduite) ; carte
+  des escaliers à garde-corps 3,35-3,68 / 3,33-3,91 ms ; salle ronde
+  3,40-3,52 / 3,23-3,94 ms ; murs en biais 3,15-3,78 / 2,98-3,57 ms. LOW
+  (moins de bruit) : 1,19-2,19 / 1,19-2,03 ms, après ≤ avant sur chaque
+  carte. Rien de mesurable : l'architecture fait 1 000 à 36 000 triangles
+  par carte ; le coût vient des lampes (DRAFT ARENA, vue du départ : 27
+  lampes 1,5 ms dont ombres 0,4 ms, glow 0,45 ms, A/B du 11/10/2026).
+  Estimation GTX 1050 (≈ 4,4 fois plus lente, cible 60 fps ≈ 3,4 ms ici) :
+  MEDIUM ≥ 60 fps dans les vues à 3,4 ms ou moins (BUNKER K-7, test_levels,
+  murs en biais), 55 à 60 fps dans les vues à 3,5-3,9 ms (départ de DRAFT
+  ARENA, ensemble des escaliers, salle ronde), comme avant le lot E ; LOW
+  ≥ 100 fps partout.
 - **Escaliers et couloirs d'ancres** (`StairGen`, `StairLane`,
   docs/MAP_OBJECTS.md § 4) : une entrée « stairs » de la description
   (`a`, `b`, `w`, et facultatifs `kind` parmi droit, palier, quart,
@@ -671,7 +716,7 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   en construit les marches et les collisions (prisme plein en pente sous
   chaque volée, jamais une marche de collision ; escalier d'avant sans type :
   code et résultat inchangés) ; `MeshMapBuilder._add_architecture` pose au
-  haut de CHAQUE escalier (.glb ou non) un tablier
+  haut de CHAQUE escalier un tablier
   `CollisionBox` invisible à fleur du palier (aucune fente). Navigation :
   `MeshMapLayout.finish_nav` donne les escaliers à `MeshNav.set_stairs` ;
   quand la carte de navigation est synchronisée (`ensure_anchors`, au premier
@@ -704,7 +749,14 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   un prisme : `CollisionBox` découpe le polygone en morceaux convexes, une
   `ConvexPolygonShape3D` chacun. Cartes grille :
   décor de `PropBuilder` (caisses, barils, lits, paillasses, générateur,
-  tuyauteries, lampes grillagées, flaques de sang).
+  tuyauteries, lampes grillagées, encadrements des fenêtres, flaques de
+  sang). Depuis le lot E de l'architecture cubique : pavés arrondis à la
+  grille de 5 cm et au quart de tour (`_box`), anciens cylindres en pavés de
+  section carrée (`_post`), abat-jour en escalier de cubes, caisses et
+  barils = modèles cubiques des cartes de l'éditeur
+  (`MeshMapGeometry.decor_model`) ; vérifié par `LayoutCheck.check_grid`.
+  Coût (map_tour, MEDIUM / LOW) : pire vue 3,07 / 1,80 ms de GPU (3,10 /
+  1,77 avant), +4 appels de dessin (une caisse ou un baril cubique chacun).
 - **Caisse au hasard** (GAME_CONCEPT.md §4.12 bis ; nom interne gardé :
   classe `MysteryBox`, interaction `"box"`, type `boite` de l'éditeur,
   marqueur `X` des cartes ASCII ; le joueur voit « Caisse » / « Crate ») :

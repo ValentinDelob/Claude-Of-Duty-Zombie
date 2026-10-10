@@ -206,7 +206,7 @@ func test_game_builds_voxel_props_with_the_voxel_material() -> void:
 		{"id": "f", "model": "voxel/foyer_pierres", "nocollide": true, "p": [3.0, 0.0, 0.0], "yaw": PI / 2}]}
 	var world := Node3D.new()
 	host.add_child(world)
-	var mb := MeshMapBuilder.new(layout, "")
+	var mb := MeshMapBuilder.new(layout)
 	mb._make_root(world, "Props")
 	mb._build_props()
 	var meshes := world.find_children("voxel__*", "MeshInstance3D", true, false)

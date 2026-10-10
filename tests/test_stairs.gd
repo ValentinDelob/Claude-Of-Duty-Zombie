@@ -165,7 +165,7 @@ func test_built_collision_has_no_slot_or_lip() -> void:
 			var pl := StairGen.plan(st)
 			var root := Node3D.new()
 			host.add_child(root)
-			var built := MeshMapBuilder.new({"stairs": [st]}, "")
+			var built := MeshMapBuilder.new({"stairs": [st]})
 			built.build(root)
 			var ground := CollisionBox.make(Vector3(st.a[0], -0.25, st.a[2] - 8.0), Vector3(30, 0.5, 30))
 			root.add_child(ground)

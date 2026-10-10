@@ -308,7 +308,7 @@ func test_export_and_fallback() -> void:
 func test_game_material() -> void:
 	var doc := textured_map()
 	var data := DecorFree.layout(doc)
-	var b := MeshMapBuilder.new(data, "")
+	var b := MeshMapBuilder.new(data)
 	var parent := Node3D.new()
 	host.add_child(parent)
 	b.build(parent)
@@ -328,7 +328,7 @@ func test_game_material() -> void:
 	# Image illisible dans la description : surface par défaut, jamais d'arrêt.
 	data.map_textures.carreaux.image = Marshalls.raw_to_base64(png().slice(0, 40))
 	MapTextureLib._tex_cache.clear()
-	var b2 := MeshMapBuilder.new(data, "")
+	var b2 := MeshMapBuilder.new(data)
 	var p2 := Node3D.new()
 	host.add_child(p2)
 	b2.build(p2)

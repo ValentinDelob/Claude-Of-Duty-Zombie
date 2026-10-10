@@ -520,8 +520,9 @@ n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
   grille de 5 cm ; règles des marches en cubes ; paliers sur le cube ;
   collision inchangée ; garde-corps de niveau et sol en pente en cubes ;
   avertissement des marches de 25 cm ; marches visibles au plus un cube
-  sous la collision. Captures : scénario `voxel_stairs_look` (@rendu, hors
-  check).
+  sous la collision. Les captures de mise au point (`voxel_stairs_look`)
+  sont retirées depuis la fin de l'architecture cubique (lot E) ; le joueur
+  qui monte l'escalier droit à pied : scénario `archi_walk` (sans rendu).
 - Scénarios `stairs_types` (marcheur, sprinteur, rampant, chien) et
   `stairs_hordes` (horde de 10 coureurs) sur la carte d'essai (un hall et
   une mezzanine par type) : montée et descente de chaque type, tous

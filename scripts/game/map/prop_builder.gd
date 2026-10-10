@@ -5,6 +5,10 @@ extends MapProps
 ##
 ## Les meshes statiques sont fusionnés par matériau (SurfaceTool.append_from) :
 ## quelques draw calls pour tout le décor. Déterministe (même rendu partout).
+## Style cubique (GAME_CONCEPT.md § 4.19, lot E de docs/VOXEL_ARCHITECTURE_PLAN.md) :
+## tout est en pavés sur la grille de 5 cm du monde, tournés par quarts de
+## tour (_box arrondit coins et rotation) ; caisses et barils : les modèles
+## cubiques des cartes de l'éditeur (MeshMapGeometry.decor_model).
 
 ## Code du marqueur de fenêtre (MapDef.WINDOW).
 const WINDOW_CHAR := 87
@@ -111,14 +115,27 @@ func _add(key: String, mesh: Mesh, xf: Transform3D) -> void:
 	(_tools[tkey] as SurfaceTool).append_from(mesh, 0, xf)
 
 
-func _box(key: String, size: Vector3, pos: Vector3, rot_y := 0.0, collide := false) -> void:
-	var skey := var_to_str(size)
-	if not _box_meshes.has(skey):
-		var b := BoxMesh.new()
-		b.size = size
-		_box_meshes[skey] = b
-	var xf := Transform3D(Basis(Vector3.UP, rot_y), pos)
-	_add(key, _box_meshes[skey], xf)
+## Pavé `size` centré en `pos`, tourné de `rot_y` arrondi au quart de tour,
+## coins arrondis à la grille de 5 cm du monde (au moins un cube de côté).
+## `vis` faux : collision seule.
+func _box(key: String, size: Vector3, pos: Vector3, rot_y := 0.0, collide := false, vis := true) -> void:
+	if posmod(roundi(rot_y / (PI * 0.5)), 2) == 1:
+		size = Vector3(size.z, size.y, size.x)
+	var lo := pos - size * 0.5
+	var hi := pos + size * 0.5
+	for i in 3:
+		lo[i] = MapGeom.cube(lo[i])
+		hi[i] = maxf(MapGeom.cube(hi[i]), lo[i] + MapGeom.CUBE)
+	size = hi - lo
+	pos = (lo + hi) * 0.5
+	var xf := Transform3D(Basis.IDENTITY, pos)
+	if vis:
+		var skey := var_to_str(size)
+		if not _box_meshes.has(skey):
+			var b := BoxMesh.new()
+			b.size = size
+			_box_meshes[skey] = b
+		_add(key, _box_meshes[skey], xf)
 	if collide:
 		var cs := CollisionShape3D.new()
 		var shape := BoxShape3D.new()
@@ -130,23 +147,29 @@ func _box(key: String, size: Vector3, pos: Vector3, rot_y := 0.0, collide := fal
 		_body.add_child(cs)
 
 
-func _cyl(key: String, radius: float, height: float, xf: Transform3D, collide := false, segments := 10) -> void:
-	var c := CylinderMesh.new()
-	c.top_radius = radius
-	c.bottom_radius = radius
-	c.height = height
-	c.radial_segments = segments
-	c.rings = 1
-	_add(key, c, xf)
-	if collide:
-		var cs := CollisionShape3D.new()
-		var shape := CylinderShape3D.new()
-		shape.radius = radius
-		shape.height = height
-		cs.shape = shape
-		cs.transform = xf
-		cs.set_meta("surface", key)
-		_body.add_child(cs)
+## Ancien cylindre (tuyaux, tiges, fioles) : pavé de section carrée (côté
+## 2 × `radius` arrondi au cube) le long de l'axe y de `xf`.
+func _post(key: String, radius: float, height: float, xf: Transform3D, collide := false) -> void:
+	var ax := xf.basis.y.normalized()
+	var w := maxf(MapGeom.cube(radius * 2.0), MapGeom.CUBE)
+	var size := Vector3(w, height, w)
+	if absf(ax.x) > 0.7:
+		size = Vector3(height, w, w)
+	elif absf(ax.z) > 0.7:
+		size = Vector3(w, w, height)
+	_box(key, size, xf.origin, 0.0, collide)
+
+
+## Modèle cubique de caisse ou de baril (MeshMapGeometry.decor_model, comme
+## les cartes de l'éditeur), posé au pied `foot`, et sa collision.
+func _voxel(kind: String, size: Vector3, foot: Vector3, collide_key: String) -> void:
+	var mi := MeshMapGeometry.decor_model(kind, size)
+	mi.name = "%s__%s_%d" % [MeshMapBuilder.VOXEL_MAT, kind, root.get_child_count()]
+	mi.position = Vector3(MapGeom.cube(foot.x), MapGeom.cube(foot.y), MapGeom.cube(foot.z))
+	mi.material_override = MeshMapBuilder.material_for(MeshMapBuilder.VOXEL_MAT)
+	root.add_child(mi)
+	var aabb := mi.get_aabb()
+	_box(collide_key, aabb.size, mi.position + aabb.get_center(), 0.0, true, false)
 
 
 # --------------------------------------------------------------------------
@@ -155,21 +178,15 @@ func _cyl(key: String, radius: float, height: float, xf: Transform3D, collide :=
 
 func _crate(c: Vector2i) -> void:
 	var base := MapData.cell_to_world(c)
-	var rot := (_h(c) - 0.5) * 0.3
-	_box("crate", Vector3(0.92, 0.9, 0.92), base + Vector3(0, 0.45, 0), rot, true)
-	# Lattes de renfort.
-	for s in [-1, 1]:
-		_box("steel#ns", Vector3(0.94, 0.06, 0.06), base + Vector3(0, 0.45 + s * 0.3, 0.44).rotated(Vector3.UP, rot), rot)
+	_voxel("caisse", Vector3(0.9, 0.9, 0.9), base, "crate")
 	if _h(c, 1) > 0.55:
-		var rot2 := rot + (_h(c, 2) - 0.5) * 0.8
-		_box("crate", Vector3(0.7, 0.62, 0.7), base + Vector3(0, 1.21, 0), rot2, true)
+		# Petite caisse posée dessus, décalée (sur la grille, sans rotation).
+		var off := Vector3(roundf((_h(c, 2) - 0.5) * 2.0) * 0.05, 0, roundf((_h(c, 3) - 0.5) * 2.0) * 0.05)
+		_voxel("caisse", Vector3(0.7, 0.6, 0.7), base + Vector3(0, 0.9, 0) + off, "crate")
 
 
 func _barrel(c: Vector2i) -> void:
-	var base := MapData.cell_to_world(c)
-	_cyl("barrel", 0.32, 0.95, Transform3D(Basis.IDENTITY, base + Vector3(0, 0.475, 0)), true)
-	for y in [0.2, 0.75]:
-		_cyl("steel#ns", 0.335, 0.05, Transform3D(Basis.IDENTITY, base + Vector3(0, y, 0)))
+	_voxel("baril", Vector3(0.65, 0.95, 0.65), MapData.cell_to_world(c), "barrel")
 
 
 func _bed(g: Array) -> void:
@@ -198,7 +215,7 @@ func _bench(g: Array) -> void:
 		var off := Vector3((_h(cell, k) - 0.5) * 0.7, 0, (_h(cell, k + 7) - 0.5) * 0.8)
 		var hgt := 0.12 + _h(cell, k + 3) * 0.2
 		var key := "glow_green#ns" if _h(cell, k + 11) > 0.6 else "steel#ns"
-		_cyl(key, 0.035 + _h(cell, k + 5) * 0.03, hgt, Transform3D(Basis.IDENTITY, MapData.cell_to_world(cell) + off + Vector3(0, 0.93 + hgt * 0.5, 0)), false, 6)
+		_post(key, 0.035 + _h(cell, k + 5) * 0.03, hgt, Transform3D(Basis.IDENTITY, MapData.cell_to_world(cell) + off + Vector3(0, 0.93 + hgt * 0.5, 0)))
 
 
 func _generator(g: Array) -> void:
@@ -206,9 +223,9 @@ func _generator(g: Array) -> void:
 	_box("door", Vector3(1.9, 1.7, 1.9), center + Vector3(0, 0.85, 0), 0.0, true)
 	_box("steel", Vector3(2.0, 0.12, 2.0), center + Vector3(0, 1.76, 0))
 	for s in [-0.55, 0.55]:
-		_cyl("barrel", 0.28, 1.2, Transform3D(Basis.IDENTITY, center + Vector3(s, 2.4, 0)), false)
+		_post("barrel", 0.28, 1.2, Transform3D(Basis.IDENTITY, center + Vector3(s, 2.4, 0)))
 	_box("glow_red", Vector3(0.5, 0.2, 0.02), center + Vector3(0, 1.3, 0.96))
-	_cyl("steel", 0.12, 1.4, Transform3D(Basis.IDENTITY, center + Vector3(0.7, 2.5, 0.7)))
+	_post("steel", 0.12, 1.4, Transform3D(Basis.IDENTITY, center + Vector3(0.7, 2.5, 0.7)))
 
 
 func _blood(c: Vector2i) -> void:
@@ -266,10 +283,10 @@ func _pipes() -> void:
 				var wall_off := Vector3(d.x, 0, d.y) * 0.34
 				# Orientation : le tuyau longe le mur.
 				var basis := Basis(Vector3.FORWARD, PI * 0.5) if d.y != 0 else Basis(Vector3.RIGHT, PI * 0.5)
-				_cyl("steel", 0.07, 1.0, Transform3D(basis, center + wall_off + Vector3(0, h - 0.25, 0)), false, 8)
-				_cyl("barrel#ns", 0.045, 1.0, Transform3D(basis, center + wall_off * 0.92 + Vector3(0, h - 0.45, 0)), false, 6)
+				_post("steel", 0.07, 1.0, Transform3D(basis, center + wall_off + Vector3(0, h - 0.25, 0)))
+				_post("barrel#ns", 0.05, 1.0, Transform3D(basis, center + wall_off * 0.92 + Vector3(0, h - 0.45, 0)))
 				if (x + y) % 4 == 0:
-					_cyl("steel#ns", 0.095, 0.08, Transform3D(basis, center + wall_off + Vector3(0, h - 0.25, 0)), false, 8)
+					_post("steel#ns", 0.1, 0.1, Transform3D(basis, center + wall_off + Vector3(0, h - 0.25, 0)))
 
 
 ## Lampes grillagées au plafond. Une sur cinq grésille ; ombres portées sur 0,
@@ -277,16 +294,13 @@ func _pipes() -> void:
 func _lamps() -> void:
 	for c in data.markers.get("L", []):
 		var pos := MapData.cell_to_world(c, MapBuilder.WALL_HEIGHT)
-		# Tige, abat-jour conique et ampoule.
-		_cyl("steel#ns", 0.015, 0.25, Transform3D(Basis.IDENTITY, pos + Vector3(0, -0.125, 0)), false, 4)
-		var shade := CylinderMesh.new()
-		shade.top_radius = 0.07
-		shade.bottom_radius = 0.24
-		shade.height = 0.14
-		shade.radial_segments = 10
-		shade.rings = 1
-		_add("steel#ns", shade, Transform3D(Basis.IDENTITY, pos + Vector3(0, -0.3, 0)))
-		_cyl("bulb#ns", 0.06, 0.12, Transform3D(Basis.IDENTITY, pos + Vector3(0, -0.4, 0)), false, 8)
+		# Tige d'un cube, abat-jour en escalier de cubes (15 puis 45 cm) et
+		# ampoule de 2 × 2 cubes.
+		_box("steel#ns", Vector3(0.05, 0.2, 0.05), pos + Vector3(0, -0.1, 0))
+		_box("steel#ns", Vector3(0.15, 0.05, 0.15), pos + Vector3(0, -0.225, 0))
+		_box("steel#ns", Vector3(0.3, 0.05, 0.3), pos + Vector3(0, -0.275, 0))
+		_box("steel#ns", Vector3(0.45, 0.05, 0.45), pos + Vector3(0, -0.325, 0))
+		_box("bulb#ns", Vector3(0.1, 0.1, 0.1), pos + Vector3(0, -0.4, 0))
 		_map_light(c, pos + Vector3(0, -0.5, 0), 2.4, 11.0)
 
 

@@ -35,7 +35,8 @@ menus, `--map=draft_arena`) est faite dans ce format et se joue (scénarios
   `godot --headless --path . res://scenes/editor/map_editor.tscn -- --check=<dossier ou archive.zip>`
   affiche le rapport du validateur ; code de sortie 0 si la carte est jouable
   (format 20 : aussi les erreurs apparues au passage aux cubes de 5 cm, § 4 ;
-  la carte n'est jamais écrite).
+  et une carte jouable dont l'architecture construite n'est pas cubique,
+  `LayoutCheck` ; la carte n'est jamais écrite).
 
 Au démarrage, l'éditeur rouvre la dernière carte ; s'il reste une copie de
 récupération (plantage, fermeture forcée), il propose de la récupérer
@@ -983,6 +984,22 @@ sur la même grille).
   reçues, valeurs calculées) ; `MapLayoutExport.off_grid` le vérifie. Le
   plafond d'une pièce sous une dalle est le dessous même de la dalle (plus
   d'écart de 1 cm) : une seule face est dessinée (`MeshMapGeometry`).
+- **Rendu en cubes** (`MeshMapGeometry`, docs/VOXEL_ARCHITECTURE_PLAN.md) :
+  murs en biais, raccords, murs courbes, piliers tournés et cours tournées
+  en escalier de marches de 10 cm (une seule union de cubes, faces visibles
+  seulement) ; escaliers en marches de 3 ou 4 cubes de haut et d'au moins
+  5 cubes de giron (`StairGen.flight_steps`), rampe en marches d'un cube,
+  colimaçon à marches carrées, garde-corps de 2 × 2 cubes, sols en pente en
+  terrasses de 5 cm (`CubeColumns`) ; collisions inchangées (pavés tournés
+  lisses, rampes pleines sous les volées). Les marches d'un mur en biais ou
+  d'un escalier tourné ne projettent pas d'ombre les unes sur les autres :
+  l'ombre vient d'un pavé lisse invisible, aminci (lot E). Surfaces en pixel
+  art, un pixel = un cube (`PixelSurfaces`, textures importées réduites).
+- **Contrôle** (`LayoutCheck`, `scripts/game/map/layout_check.gd`) :
+  valeurs d'architecture sur la grille (`off_grid`) et géométrie construite
+  en faces axiales, sommets sur la grille de 5 cm du monde (décor et
+  maillages d'ombre seule exceptés) ; tests `test_layout_check.gd` (cartes
+  du jeu, cartes d'essai, fixtures) et `--check` (§ 1).
 
 ### Textures de la carte (format 16)
 
@@ -1669,7 +1686,8 @@ celui du jeu aussi.
 | `scripts/game/map/editor_map_def.gd` | `EditorMapDef` : carte de l'éditeur côté jeu (`perso:<id>`, `partage:<sha256>`, ou script de carte livré). |
 | `scripts/game/map/custom_map_guard.gd` | `CustomMapGuard` : contrôle de légitimité, paquet canonique et SHA-256, cache, lecture sûre d'un dossier ou d'une archive. |
 | `scripts/game/map/map_share.gd`, `map_transfer.gd` | `MapShare` (envoi aux invités, `/root/Net/MapShare`) et `MapTransfer` (réception par morceaux). |
-| `scripts/game/map/mesh_map_geometry.gd` | `MeshMapGeometry` : architecture 3D construite par le jeu (portage de `tools/blender/mesh_map.py`). |
+| `scripts/game/map/mesh_map_geometry.gd`, `cube_columns.gd`, `stair_gen.gd` | `MeshMapGeometry` : architecture 3D en cubes de 5 cm construite par le jeu (cartes de l'éditeur et test_levels ; plus de .glb Blender) ; `CubeColumns` : colonnes de cubes des escaliers et garde-corps ; `StairGen` : plan des escaliers, marches en cubes. |
+| `scripts/game/map/layout_check.gd` | `LayoutCheck` : contrôle de l'architecture cubique d'une carte jouable (tests, `--check`). |
 
 1. **Grille** (`MapRaster`) : une case de 0,5 m **centrée** sur chaque multiple
    de 0,5 m. Les cases que traverse le contour d'une pièce sont des murs (un
@@ -1725,12 +1743,12 @@ celui du jeu aussi.
    (testée après celles des salles de la grille) ; escalier tourné : `a` et
    `b` au milieu du pied et du haut des marches ; piège tourné : `area` avant
    rotation et `yaw` (le jeu, `ElectricTrap`, électrifie le rectangle tourné).
-4. **Géométrie** (`MeshMapGeometry`) : les mêmes objets que le `.glb` de
-   `mesh_map.py` (`<matériau>__<salle>__<type>`, collisions en pavés et prismes),
-   branchés par `MeshMapBuilder` ; `MeshNav` cuit le navmesh, `MeshMapLayout`
-   fournit zones et emplacements aux systèmes du jeu. Un mur en biais est un
-   pavé oblique (type `biais` : le rendu pose le motif le long du mur, sans
-   étirement) avec une texture par face, et sa collision un pavé
+4. **Géométrie** (`MeshMapGeometry`) : nœuds `<matériau>__<salle>__<type>`
+   en cubes de 5 cm (§ 4, « Passage aux cubes de 5 cm »), collisions en pavés
+   et prismes, branchés par `MeshMapBuilder` ; `MeshNav` cuit le navmesh,
+   `MeshMapLayout` fournit zones et emplacements aux systèmes du jeu. Un mur
+   en biais est un escalier de cubes (type `biais`, sans ombre propre ; ombre
+   du pavé lisse « StepShadows ») avec une texture par face, et sa collision un pavé
    `CollisionBox` tourné comme lui (jamais une collision de modèle Blender) :
    balles, grenades, impacts, joueurs et zombies suivent le vrai mur, et le
    navmesh des zombies et des chiens est cuit dessus (chemins qui le

@@ -171,7 +171,7 @@ func test_game_builds_fixtures_with_the_voxel_material_without_shadow() -> void:
 		i += 1
 	var world := Node3D.new()
 	host.add_child(world)
-	var mb := MeshMapBuilder.new({"markers": {"lamps": lamps}}, "")
+	var mb := MeshMapBuilder.new({"markers": {"lamps": lamps}})
 	mb._make_root(world, "Props")
 	mb._build_lamps()
 	var meshes := world.find_children("voxel__*", "MeshInstance3D", true, false)
