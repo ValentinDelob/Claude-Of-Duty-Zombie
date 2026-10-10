@@ -1,9 +1,9 @@
 class_name MeshMapLayout
 extends MapLayout
 ## Carte en maillage à plusieurs niveaux, décrite par un JSON
-## (assets/maps/<id>/layout.json, repère Godot, mètres) et construite par
-## tools/blender/mesh_map.py (<id>.glb). Le même JSON sert à Blender (géométrie)
-## et au jeu (zones, emplacements, navigation).
+## (assets/maps/<id>/layout.json, repère Godot, mètres, ou description exportée
+## par l'éditeur) : architecture en cubes construite par le jeu
+## (MeshMapBuilder, MeshMapGeometry), zones, emplacements, navigation.
 ##
 ## Marqueurs (clé « markers ») : un objet mural est donné par le point `p` de
 ## la FACE du mur, au niveau du sol, et `wall` = direction vers le mur ; le jeu
@@ -31,7 +31,6 @@ const GAP := 0.5
 const REMOVED_KEYS := ["wall_buys", "perks", "grenade_buys", "pap", "box_boards"]
 
 var data: Dictionary
-var glb_path := ""
 var _markers: Dictionary
 var _zones: Array = []  # [id, AABB]
 var _door_markers: Array[MapMarker] = []
@@ -42,11 +41,9 @@ var _ground_q: PhysicsRayQueryParameters3D
 
 
 ## `source` : chemin du layout.json, ou la description déjà en mémoire (cartes
-## de l'éditeur, MapLayoutExport). `glb` vide : architecture construite par le
-## jeu (MeshMapGeometry) au lieu du .glb de Blender.
-func _init(map_def: MapDef, source: Variant, glb: String) -> void:
+## de l'éditeur, MapLayoutExport).
+func _init(map_def: MapDef, source: Variant) -> void:
 	def = map_def
-	glb_path = glb
 	if source is Dictionary:
 		data = source
 	else:
@@ -105,7 +102,7 @@ func finish_nav(world: Node3D) -> void:
 
 func build(world: Node3D) -> RefCounted:
 	_world = world
-	var b := MeshMapBuilder.new(data, glb_path)
+	var b := MeshMapBuilder.new(data)
 	b.build(world)
 	return b
 

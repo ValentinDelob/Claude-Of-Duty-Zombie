@@ -348,7 +348,7 @@ func _prepare(res: Dictionary, hashes: Dictionary) -> void:
 	errors = int(res.get("errors", 0))
 	_level_alts = res.get("sols", [0.0])
 	def = _def_of(data, built_map)
-	layout = MeshMapLayout.new(def, data, "") if not data.is_empty() else null
+	layout = MeshMapLayout.new(def, data) if not data.is_empty() else null
 	_apply_sky()
 	_result = {"hashes": hashes}
 

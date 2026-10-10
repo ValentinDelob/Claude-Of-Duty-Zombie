@@ -46,7 +46,7 @@ func run() -> void:
 	at.check(game.map_def is EditorMapDef and game.map_def.id == "perso:" + MapUnsaved.TEST_ID and game.map_def.display_name == shown,
 		"partie sur la carte de l'éditeur telle qu'elle est (%s, %s)" % [game.map_def.id, game.map_def.display_name])
 	var l := game.layout as MeshMapLayout
-	at.check(l != null and l.glb_path == "" and l.zone_at(p.global_position) == "a", "géométrie construite par le jeu, joueur dans la zone de départ")
+	at.check(l != null and l.zone_at(p.global_position) == "a", "géométrie construite par le jeu, joueur dans la zone de départ")
 	at.check(game.barricades.windows.size() == 7, "7 fenêtres barricadées (%d)" % game.barricades.windows.size())
 	var costs := {}
 	for d: Door in game.doors.values():

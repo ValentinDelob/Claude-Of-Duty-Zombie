@@ -225,7 +225,14 @@ func _cli_check(path: String) -> void:
 	var v := MapRaster.build(m).v
 	v.analyze()
 	print(v.report_text())
-	get_tree().quit(0 if v.ok() and fresh.is_empty() else 1)
+	# Architecture cubique (lot E) : faces axiales, sommets et valeurs sur la
+	# grille de 5 cm, sur la géométrie que le jeu construira.
+	var cubic := true
+	if v.ok():
+		var rep := LayoutCheck.check_map(m)
+		print("[carte] ", Lang.t(rep.fr, rep.en))
+		cubic = rep.ok
+	get_tree().quit(0 if v.ok() and fresh.is_empty() and cubic else 1)
 
 
 func _start() -> void:

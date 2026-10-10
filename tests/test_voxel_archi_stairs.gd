@@ -27,6 +27,9 @@ func _cubic(root: Node) -> Vector3i:
 	var off_grid := 0
 	var tris := 0
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		# Ombre seule (prismes lisses des escaliers tournés) : jamais vue.
+		if mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+			continue
 		var vs: PackedVector3Array = mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 		tris += vs.size() / 3
 		for i in range(0, vs.size(), 3):

@@ -236,7 +236,7 @@ func test_model_import_copied_into_map_folder() -> void:
 	var bl: Array = lay.blockers.filter(func(b): return bool(b.get("barrier", false)) and not b.get("clip", false) and absf(float(b.size[1]) - 2.0) < 0.01)
 	assert_eq(bl.size(), 1, "collision du modèle : un CollisionBox barrière")
 	# Construit par le jeu (GLTFDocument), sans collision tirée du modèle.
-	var mb := MeshMapBuilder.new(lay, "")
+	var mb := MeshMapBuilder.new(lay)
 	var inst: Node3D = mb._map_model(mm[0])
 	assert_true(inst != null and not inst.find_children("*", "MeshInstance3D", true, false).is_empty(), "modèle chargé")
 	assert_true(inst.find_children("*", "CollisionObject3D", true, false).is_empty(), "aucune collision dans le modèle")
@@ -261,7 +261,7 @@ func test_gltf_with_embedded_data_is_converted() -> void:
 
 
 func test_unreadable_model_becomes_a_box() -> void:
-	var mb := MeshMapBuilder.new({"map_models": {"casse": Marshalls.raw_to_base64(PackedByteArray([1, 2, 3, 4]))}}, "")
+	var mb := MeshMapBuilder.new({"map_models": {"casse": Marshalls.raw_to_base64(PackedByteArray([1, 2, 3, 4]))}})
 	var inst: Node3D = mb._map_model({"map_model": "casse", "aabb": [-0.5, 0, -0.5, 0.5, 2, 0.5]})
 	assert_true(inst != null, "jamais d'arrêt : une boîte à la place")
 	var meshes := inst.find_children("*", "MeshInstance3D", true, false)

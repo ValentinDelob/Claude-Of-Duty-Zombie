@@ -2,11 +2,11 @@ class_name MeshMapGeometry
 extends RefCounted
 ## Architecture d'une carte en maillage construite DANS LE JEU à partir de sa
 ## description (clés rooms, walls, blocks, slabs, stairs, rails du
-## layout.json) : même résultat que tools/blender/mesh_map.py, sans Blender.
+## layout.json), en cubes de 5 cm (docs/VOXEL_ARCHITECTURE_PLAN.md).
 ## Sert aux cartes de l'éditeur (docs/MAP_AUTHORING.md), jouables aussitôt,
-## y compris dans le .exe.
+## y compris dans le .exe, et à test_levels (plus de .glb Blender).
 ##
-## Mêmes noms de nœuds que le .glb importé, lus par MeshMapBuilder._setup_nodes :
+## Noms des nœuds, lus par MeshMapBuilder._setup_nodes :
 ##   <matériau>__<salle>__<type>        MeshInstance3D (visible)
 ##   <matériau>__<salle>__<type>__col   StaticBody3D (collision)
 ## Collisions : pavés (BoxShape3D) pour les murs, blocs et garde-corps,
@@ -21,6 +21,27 @@ var _groups: Dictionary = {}   # clé -> {v, n, faces, boxes, convex}
 var _kind := "wall"
 ## Collisions des murs en biais (clé « obliques ») : pavés CollisionBox tournés.
 var _col_boxes: Array[CollisionBox] = []
+## Ombres des murs en escalier (lot E) : les marches de 10 cm d'un mur en
+## biais projetaient leurs ombres les unes sur les autres sous une lampe
+## proche (rayures sombres verticales). Leurs faces visibles ne projettent
+## donc AUCUNE ombre (nœuds « *__biais ») ; l'ombre du mur vient d'un pavé
+## lisse invisible par morceau (« StepShadows », ombre seule), aminci d'une
+## demi-diagonale de marche de chaque côté : toutes les marches sont hors de
+## lui, aucune n'est dans l'ombre de son propre mur, et le mur arrête
+## toujours la lumière d'une salle à l'autre. [centre, taille, lacet,
+## amincissement par côté (0 pour un mur axial hors de la grille de 0,5 m)].
+var _shadow_boxes: Array = []
+## Même principe pour les escaliers tournés (marches de 10 cm) : prismes de
+## la rampe abaissés d'une marche, ombre seule : [dessus (n points), dessous (n points)].
+var _shadow_prisms: Array = []
+## Amincissement de l'ombre d'un mur en escalier, de chaque côté (m) :
+## un peu plus qu'une demi-diagonale de marche de 10 cm (7,07 cm).
+const SHADOW_INSET := 0.075
+## Épaisseur minimale de cette ombre (mur mince) (m).
+const SHADOW_MIN_T := 0.02
+## Abaissement de l'ombre d'une volée tournée sous sa rampe (m) : la plus
+## haute marche admise (5 cubes), aucune marche n'est dans son ombre propre.
+const SHADOW_STAIR_DROP := 0.25
 ## Caisse et baril posés (types historiques de l'éditeur, bloc « crate » /
 ## « barrel ») : modèle cubique au lieu du pavé texturé. [salle, modèle, pied, taille].
 var _decor: Array = []
@@ -770,7 +791,14 @@ func _build(L: Dictionary) -> Node3D:
 			# escalier de cubes avec les murs en biais (_emit_cols), collision :
 			# le pavé tourné lisse (inchangée).
 			var d2 := Vector2(d.x, d.z)
-			var ow := -1 if _axial(d2) else _owner(g, g, Vector2(-d.z, d.x))
+			# Faces en escalier : groupe « biais » (sans ombre propre, ombre
+			# du pavé lisse : _shadow_boxes).
+			var ow := -1
+			if not _axial(d2):
+				_kind = "biais"
+				var gs := _group(String(w.get("mat", "wall")), String(w.get("room", "x")))
+				_kind = "wall"
+				ow = _owner(gs, gs, Vector2(-d.z, d.x))
 			for pc in wall_pieces(-t / 2.0, length + t / 2.0, y0, y1, cuts):
 				if pc[1] - pc[0] < 0.001 or pc[3] - pc[2] < 0.001:
 					continue
@@ -778,6 +806,7 @@ func _build(L: Dictionary) -> Node3D:
 				_box(g, c, Vector3(pc[1] - pc[0], pc[3] - pc[2], t), yaw, ow < 0)
 				if ow >= 0:
 					_raster_piece(ow, Vector2(a.x, a.z), d2, pc[0], pc[1], t, pc[2], pc[3])
+					_shadow_boxes.append([c, Vector3(pc[1] - pc[0], pc[3] - pc[2], t), yaw, SHADOW_INSET])
 	# Murs en biais (cartes de l'éditeur) : vrais murs droits obliques, une
 	# texture par face (celle de la pièce de chaque côté), collisions en
 	# pavés CollisionBox tournés comme le mur (balles, grenades, joueurs et
@@ -814,6 +843,7 @@ func _build(L: Dictionary) -> Node3D:
 			# (écart ≤ une demi-diagonale de marche, 7 cm ;
 			# docs/VOXEL_ARCHITECTURE_PLAN.md § 2.2).
 			_raster_piece(ow, a2, d2, pc[0], pc[1], t, pc[2], pc[3])
+			_shadow_boxes.append([c, size, yaw, 0.0 if _axial(d2) else SHADOW_INSET])
 			var cb := CollisionBox.make(c, size, yaw, false, mat_n)
 			cb.name = "Biais_%d" % _col_boxes.size()
 			_col_boxes.append(cb)
@@ -923,6 +953,15 @@ func _stair(st: Dictionary) -> void:
 	thin.floor_level = vox.floor_level
 	var r2: Vector2 = pl.right
 	var lean := [] if (axial or spiral) else [Vector3(u.x, 0, u.y), Vector3(-u.x, 0, -u.y), Vector3(r2.x, 0, r2.y), Vector3(-r2.x, 0, -r2.y)]
+	# Escalier tourné : marches de 10 cm en escalier sur ses côtés ; faces
+	# visibles sans ombre propre (« *__stair_biais », « *__rail_biais ») et
+	# ombre portée par des prismes lisses invisibles (_shadow_prisms).
+	var tilted := not axial and not spiral
+	var gv := g
+	if tilted:
+		_kind = "stair_biais"
+		gv = _group(String(st.get("mat", "wood")), room)
+		_kind = "stair"
 	for f in pl.flights:
 		var a: Vector3 = f.a
 		var b: Vector3 = f.b
@@ -966,6 +1005,16 @@ func _stair(st: Dictionary) -> void:
 			if not _near_any(pts, q):
 				pts.append(q)
 		g.convex.append(pts)
+		if tilted:
+			# Ombre : la rampe abaissée d'une marche et amincie d'une
+			# demi-diagonale de case de chaque côté (toutes les marches
+			# visibles sont hors d'elle).
+			var sd := side.normalized() * maxf(w * 0.5 - SHADOW_INSET, SHADOW_MIN_T)
+			var drop := SHADOW_STAIR_DROP
+			var ya := maxf(a.y - drop, base)
+			var yb := maxf(b.y - drop, base)
+			_shadow_prisms.append([Vector3(a.x, ya, a.z) - sd, Vector3(b.x, yb, b.z) - sd, Vector3(b.x, yb, b.z) + sd, Vector3(a.x, ya, a.z) + sd,
+				Vector3(a.x, base, a.z) - sd, Vector3(b.x, base, b.z) - sd, Vector3(b.x, base, b.z) + sd, Vector3(a.x, base, a.z) + sd])
 	for l in pl.landings:
 		var outline := []
 		for q: Vector2 in l.poly:
@@ -974,6 +1023,17 @@ func _stair(st: Dictionary) -> void:
 		var th := maxf((ly - y0) if not spiral else SPIRAL_STEP_T, 0.05)
 		_slab_col(g, outline, ly, th)
 		vox.fill_poly(l.poly, ly - th, ly)
+		if tilted:
+			# Ombre du palier : son contour rentré d'une demi-diagonale de case,
+			# dessus un cube plus bas que le palier.
+			for inner: PackedVector2Array in Geometry2D.offset_polygon(l.poly, -SHADOW_INSET):
+				if inner.size() >= 3 and ly - CUBE > ly - th:
+					var prism := []
+					for q in inner:
+						prism.append(Vector3(q.x, ly - CUBE, q.y))
+					for q in inner:
+						prism.append(Vector3(q.x, ly - th, q.y))
+					_shadow_prisms.append(prism)
 	for dv in pl.dividers:
 		var a2: Vector2 = dv.a
 		var b2: Vector2 = dv.b
@@ -993,6 +1053,8 @@ func _stair(st: Dictionary) -> void:
 			return [Vector2(by, StairGen.step_top(yb, ya, len, n, len - t) + StairGen.RAIL_H)])
 	if spiral:
 		_spiral(g, vox, pl)
+	_kind = "rail_biais" if tilted else "rail"
+	var grv := _group("dark_wood", room)
 	_kind = "rail"
 	var gr := _group("dark_wood", room)
 	var rails := CubeColumns.new()
@@ -1001,10 +1063,10 @@ func _stair(st: Dictionary) -> void:
 		_stair_edge(g if pl.closed else gr, pl, e, edge_vox)
 	if spiral and (pl.rail or pl.closed):
 		_spiral_rail(edge_vox, pl)
-	vox.emit(self, g, lean)
+	vox.emit(self, gv, lean)
 	if thin != vox:
-		thin.emit(self, g, lean)
-	rails.emit(self, gr, lean)
+		thin.emit(self, gv, lean)
+	rails.emit(self, grv, lean)
 
 
 static func _near_any(pts: PackedVector3Array, q: Vector3) -> bool:
@@ -1177,6 +1239,9 @@ func _nodes() -> Node3D:
 			var mi := MeshInstance3D.new()
 			mi.name = key
 			mi.mesh = mesh
+			# Marches en escalier : aucune ombre propre (pavés d'ombre lisses).
+			if String(key).ends_with("biais"):
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			root.add_child(mi)
 		if (g.faces as PackedVector3Array).is_empty() and g.boxes.is_empty() and g.convex.is_empty():
 			continue
@@ -1205,6 +1270,8 @@ func _nodes() -> Node3D:
 		root.add_child(body)
 	for cb in _col_boxes:
 		root.add_child(cb)
+	if not (_shadow_boxes.is_empty() and _shadow_prisms.is_empty()):
+		root.add_child(_shadow_casters())
 	# Nœuds « voxel__<salle>__decor<i> » : matériau « voxel » (MeshMapBuilder._setup_nodes).
 	for i in _decor.size():
 		var it: Array = _decor[i]
@@ -1213,6 +1280,49 @@ func _nodes() -> Node3D:
 		mi.position = it[2]
 		root.add_child(mi)
 	return root
+
+
+## Ombres des murs en escalier et des escaliers tournés : un maillage d'ombre
+## seule (invisible, hors contrôle LayoutCheck) fait des pavés lisses amincis
+## (_shadow_boxes) et des prismes abaissés des volées et paliers (_shadow_prisms).
+func _shadow_casters() -> MeshInstance3D:
+	var v := PackedVector3Array()
+	for sb: Array in _shadow_boxes:
+		var size: Vector3 = sb[1]
+		var t := maxf(size.z - 2.0 * float(sb[3]), minf(size.z, SHADOW_MIN_T))
+		var yaw := float(sb[2])
+		var b := Basis(Vector3(cos(yaw), 0, -sin(yaw)), Vector3.UP, Vector3(sin(yaw), 0, cos(yaw)))
+		var h := Vector3(size.x, size.y, t) * 0.5
+		var c: Vector3 = sb[0]
+		var p := func(sx: float, sy: float, sz: float) -> Vector3: return c + b * Vector3(h.x * sx, h.y * sy, h.z * sz)
+		# Six faces (l'ombre ne dépend pas du sens des triangles : double face).
+		for f in [[[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1]], [[-1, -1, 1], [-1, 1, 1], [1, 1, 1], [1, -1, 1]],
+				[[-1, -1, -1], [-1, 1, -1], [-1, 1, 1], [-1, -1, 1]], [[1, -1, -1], [1, -1, 1], [1, 1, 1], [1, 1, -1]],
+				[[-1, 1, -1], [1, 1, -1], [1, 1, 1], [-1, 1, 1]], [[-1, -1, -1], [-1, -1, 1], [1, -1, 1], [1, -1, -1]]]:
+			var q: Array = f.map(func(s: Array) -> Vector3: return p.call(s[0], s[1], s[2]))
+			v.append_array([q[0], q[1], q[2], q[0], q[2], q[3]])
+	# Prismes des escaliers tournés : [dessus (n points), dessous (n points)].
+	for pr: Array in _shadow_prisms:
+		@warning_ignore("integer_division")
+		var n := pr.size() / 2
+		for i in range(1, n - 1):
+			v.append_array([pr[0], pr[i], pr[i + 1], pr[n], pr[n + i], pr[n + i + 1]])
+		for i in n:
+			var j := (i + 1) % n
+			v.append_array([pr[i], pr[j], pr[n + j], pr[i], pr[n + j], pr[n + i]])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = v
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var mi := MeshInstance3D.new()
+	mi.name = "StepShadows"
+	mi.mesh = mesh
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	var mat := StandardMaterial3D.new()
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mi.material_override = mat
+	return mi
 
 
 # ------------------------------------------------------------------ caisse et baril

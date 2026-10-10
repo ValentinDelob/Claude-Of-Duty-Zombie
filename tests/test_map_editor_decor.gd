@@ -530,7 +530,7 @@ func test_playable_build_with_props_lights_and_textures() -> void:
 	# Construction par le jeu : décor, collisions, lampes et matériaux.
 	var world := Node3D.new()
 	host.add_child(world)
-	var mb := MeshMapBuilder.new(data, "")
+	var mb := MeshMapBuilder.new(data)
 	mb.build(world)
 	var boxes := world.find_children("*", "CollisionBox", true, false)
 	assert_true(boxes.size() >= data.blockers.size(), "collisions en CollisionBox : %d" % boxes.size())

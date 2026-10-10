@@ -255,7 +255,7 @@ func test_editor_entries_inside_the_wall() -> void:
 		assert_true(def.is_valid(), "%s : jouable (%s)" % [label, TZ._errs(def.validator)])
 		if not def.is_valid():
 			continue
-		var layout := MeshMapLayout.new(def, def.layout_data, "")
+		var layout := MeshMapLayout.new(def, def.layout_data)
 		_check_map(label, def.layout_data, _build_all(layout), int(maps[label][1]))
 	await wait_frames(1)
 

@@ -102,4 +102,4 @@ func is_valid() -> bool:
 
 
 func create_layout() -> MapLayout:
-	return MeshMapLayout.new(self, layout_data, "")
+	return MeshMapLayout.new(self, layout_data)

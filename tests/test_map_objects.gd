@@ -225,7 +225,7 @@ func test_game_builds_each_variant() -> void:
 	var doors: Array = data.markers.doors
 	assert_eq(doors.filter(func(d): return d.get("variant", "") == "bois").size(), 1, "porte en bois décrite")
 	assert_eq(doors.filter(func(d): return d.get("variant", "") == "gravats" and d.get("debris", false)).size(), 1, "éboulement décrit")
-	var layout := MeshMapLayout.new(def, data, "")
+	var layout := MeshMapLayout.new(def, data)
 	var looks := {}
 	for mk in layout.doors():
 		var d := Door.new()
@@ -339,7 +339,7 @@ func test_barrier_is_an_invisible_collision_box() -> void:
 	# En jeu : une CollisionBox sur la couche BARRIER, sans aucun maillage.
 	var world := Node3D.new()
 	host.add_child(world)
-	var mb := MeshMapBuilder.new(data, "")
+	var mb := MeshMapBuilder.new(data)
 	mb.build(world)
 	var boxes := world.find_children("*", "CollisionBox", true, false).filter(func(b): return absf(b.global_position.x - (16.5 + off)) < 0.01 and absf(b.global_position.z - (5.5 + off)) < 0.01)
 	assert_eq(boxes.size(), 1, "CollisionBox de la barrière")
@@ -394,7 +394,7 @@ func test_navigation_goes_around_the_barrier() -> void:
 	var def := EditorMapDef.from_map(objects_map(), "perso:objets")
 	var world := Node3D.new()
 	host.add_child(world)
-	MeshMapBuilder.new(def.layout_data, "").build(world)
+	MeshMapBuilder.new(def.layout_data).build(world)
 	await host.get_tree().physics_frame
 	var nav := MeshNav.new()
 	nav.setup(world)
