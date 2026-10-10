@@ -608,6 +608,43 @@ func show_game_over(summary: String, survived: String) -> void:
 	Audio.play_2d("heartbeat", 0.0, 0.0)
 
 
+## Fin de partie (Game._show_match_end), une des deux issues : « ÉVACUATION
+## RÉUSSIE » ou « GAME OVER », zombies abattus, manche atteinte et durée,
+## tableau des scores. Le rapport complet (butin gardé ou perdu, XP) viendra
+## ici avec les lots suivants (MatchResult.loot, xp).
+func show_match_end(r: MatchResult) -> void:
+	set_evac_status("")
+	show_center(r.title(), r.summary(), 0.6)
+	show_game_over_table(r.details())
+	if not r.evacuated:
+		Audio.play_2d("heartbeat", 0.0, 0.0)
+
+
+var _evac_label: Label
+
+
+## Fenêtre d'évacuation (EvacDoor) : compte à rebours et votes ("" : masqué).
+func set_evac_status(text: String) -> void:
+	if _evac_label == null:
+		if text == "":
+			return
+		_evac_label = UiStyle.label("", 22, Color(0.55, 1.0, 0.6))
+		_evac_label.anchor_left = 0.5
+		_evac_label.anchor_right = 0.5
+		_evac_label.offset_left = -500
+		_evac_label.offset_right = 500
+		_evac_label.offset_top = 110
+		_evac_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		add_child(_evac_label)
+	_evac_label.text = text
+	_evac_label.visible = text != ""
+
+
+## Texte du bandeau d'évacuation affiché ("" : aucun ; tests).
+func evac_status() -> String:
+	return _evac_label.text if _evac_label and _evac_label.visible else ""
+
+
 ## Fin de partie : tableau récapitulatif.
 ## BO1 : « GAME OVER » en haut, « Vous avez survécu N manches » dessous, puis
 ## le tableau des scores.

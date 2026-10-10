@@ -50,7 +50,7 @@ static func two_rooms() -> EditorMap:
 	doc.ouvertures.append({"id": "o3", "type": "fenetre", "altitude": 0, "position": [19.25, 0.0]})
 	_obj(doc, {"type": "depart", "position": [7.0, 6.0]})
 	_obj(doc, {"type": "boite", "position": [19.0, 10.0], "mur": "s", "depart": true})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 static func layout(doc: EditorMap) -> Dictionary:

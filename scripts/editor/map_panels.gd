@@ -446,6 +446,7 @@ func _map_props() -> void:
 	_spin(_props, Lang.t("Hauteur portes", "Door height"), float(c.get("hauteur_portes", 2.5)), 2.2, 3.5, 0.1, func(v): c["hauteur_portes"] = v)
 	_check(_props, Lang.t("Lampes automatiques (une tous les 6 m)", "Automatic lamps (one every 6 m)"), bool(c.get("lampes_auto", true)), func(on): c["lampes_auto"] = on)
 	_sky_props(c)
+	_waves_props(c)
 	# Format 9 : décor et obstacles qui se chevauchent (MapCatalog.OVERLAP_TYPES).
 	var ov := _check(_props, Lang.t("Autoriser les chevauchements décor / obstacles", "Allow decor / obstacle overlaps"),
 		MapRules.overlaps_allowed(ed.doc), func(on):
@@ -478,6 +479,24 @@ func _sky_props(c: Dictionary, box: Container = null) -> void:
 	var l := _spin(box, Lang.t("Luminosité", "Brightness"), roundf(float(s.luminosite) * 100.0), EditorMap.SKY_LUM[0] * 100.0, EditorMap.SKY_LUM[1] * 100.0, 5.0, func(v):
 		EditorMap.set_sky(c, String(EditorMap.sky_of(c).type), float(v) / 100.0), "%")
 	l.tooltip_text = Lang.t("Luminosité du ciel (100 % par défaut).", "Sky brightness (100% by default).")
+
+
+## Format 18 : schéma des vagues spéciales et de boss (« carte.vagues »,
+## WaveRules) : première manche et intervalle de chaque type (0 : jamais /
+## une seule fois). Jamais écrit à sa valeur par défaut (5 / 5, 15 / 15).
+func _waves_props(c: Dictionary, box: Container = null) -> void:
+	if box == null:
+		box = _props
+	var names := {WaveRules.SPECIAL: [Lang.t("Vague spéciale", "Special wave"), Lang.t("Mini-boss (aujourd'hui la meute de chiens) : 1re manche et écart (0 : jamais / une seule fois).", "Mini-boss (today the dog pack): first round and gap (0: never / only once).")],
+		WaveRules.BOSS: [Lang.t("Vague de boss", "Boss wave"), Lang.t("Boss (aucun encore : sans boss, la vague ne fait rien) : 1re manche et écart.", "Boss (none yet: without a boss, the wave does nothing): first round and gap.")]}
+	for kind in WaveRules.KINDS:
+		var e: Dictionary = EditorMap.waves_of(c)[kind]
+		var first := _spin(box, String(names[kind][0]) + Lang.t(" : 1re manche", ": first round"), float(e.premiere), 0, WaveRules.ROUND_MAX, 1, func(v):
+			EditorMap.set_waves(c, kind, int(v), int(EditorMap.waves_of(c)[kind].intervalle)), "")
+		first.tooltip_text = String(names[kind][1])
+		var gap := _spin(box, String(names[kind][0]) + Lang.t(" : toutes les", ": every"), float(e.intervalle), 0, WaveRules.ROUND_MAX, 1, func(v):
+			EditorMap.set_waves(c, kind, int(EditorMap.waves_of(c)[kind].premiere), int(v)), Lang.t(" manches", " rounds"))
+		gap.tooltip_text = String(names[kind][1])
 
 
 func _room_props(r: Dictionary) -> void:

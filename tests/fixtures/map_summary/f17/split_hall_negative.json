@@ -1,7 +1,7 @@
 {
 	"doc": {
 		"carte": {
-			"format": 17.0,
+			"format": 18.0,
 			"id": "halle_haute",
 			"nom": {
 				"fr": "HALLE_HAUTE",
@@ -188,6 +188,16 @@
 				"depart": true
 			},
 			{
+				"id": "evac_t",
+				"type": "evacuation",
+				"position": [
+					-26.5,
+					-12.5
+				],
+				"altitude": 0.0,
+				"mur": "n"
+			},
+			{
 				"id": "s1e",
 				"type": "escalier",
 				"altitude": 0.0,
@@ -249,7 +259,7 @@
 						"fr": "HALLE_HAUTE",
 						"en": "HALLE_HAUTE"
 					},
-					"format": 17.0,
+					"format": 18.0,
 					"niveaux": [
 						0.0,
 						1.5,
@@ -265,7 +275,7 @@
 				"totaux": {
 					"pieces": 5.0,
 					"ouvertures": 2.0,
-					"objets": 5.0,
+					"objets": 6.0,
 					"escaliers": 3.0,
 					"zones": 1.0,
 					"portes_payantes": 0.0,
@@ -398,6 +408,16 @@
 									],
 									"mur": "n",
 									"depart": true
+								}
+							],
+							"evacuation": [
+								{
+									"id": "evac_t",
+									"pos": [
+										-26.5,
+										-12.5
+									],
+									"mur": "n"
 								}
 							]
 						},
@@ -581,7 +601,7 @@
 						"fr": "HALLE_HAUTE",
 						"en": "HALLE_HAUTE"
 					},
-					"format": 17.0,
+					"format": 18.0,
 					"niveaux": [
 						0.0,
 						1.5,
@@ -597,7 +617,7 @@
 				"totaux": {
 					"pieces": 5.0,
 					"ouvertures": 2.0,
-					"objets": 5.0,
+					"objets": 6.0,
 					"escaliers": 3.0,
 					"zones": 1.0,
 					"portes_payantes": 0.0,
@@ -731,6 +751,16 @@
 									"mur": "n",
 									"depart": true
 								}
+							],
+							"evacuation": [
+								{
+									"id": "evac_t",
+									"pos": [
+										-26.5,
+										-12.5
+									],
+									"mur": "n"
+								}
 							]
 						},
 						"escaliers": [
@@ -820,7 +850,7 @@
 						"fr": "HALLE_HAUTE",
 						"en": "HALLE_HAUTE"
 					},
-					"format": 17.0,
+					"format": 18.0,
 					"niveaux": [
 						0.0,
 						1.5,
@@ -836,7 +866,7 @@
 				"totaux": {
 					"pieces": 5.0,
 					"ouvertures": 2.0,
-					"objets": 5.0,
+					"objets": 6.0,
 					"escaliers": 3.0,
 					"zones": 1.0,
 					"portes_payantes": 0.0,
@@ -905,7 +935,7 @@
 						"fr": "HALLE_HAUTE",
 						"en": "HALLE_HAUTE"
 					},
-					"format": 17.0,
+					"format": 18.0,
 					"niveaux": [
 						0.0,
 						1.5,
@@ -921,7 +951,7 @@
 				"totaux": {
 					"pieces": 5.0,
 					"ouvertures": 2.0,
-					"objets": 5.0,
+					"objets": 6.0,
 					"escaliers": 3.0,
 					"zones": 1.0,
 					"portes_payantes": 0.0,
@@ -992,7 +1022,7 @@
 						"fr": "HALLE_HAUTE",
 						"en": "HALLE_HAUTE"
 					},
-					"format": 17.0,
+					"format": 18.0,
 					"niveaux": [
 						0.0,
 						1.5,
@@ -1008,7 +1038,7 @@
 				"totaux": {
 					"pieces": 5.0,
 					"ouvertures": 2.0,
-					"objets": 5.0,
+					"objets": 6.0,
 					"escaliers": 3.0,
 					"zones": 1.0,
 					"portes_payantes": 0.0,

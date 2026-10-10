@@ -267,7 +267,7 @@ func test_guard_diagonal_walls() -> void:
 	assert_true(CustomMapGuard.check_full(m.file_texts()).ok, "contrôle complet (jouabilité comprise)")
 	assert_true(String(m.file_texts()["objets.json"]).contains("\"angle\":45"), "clé angle transmise")
 	var kinds := MapCatalog.allowed_kinds()
-	for t in ["atout", "arme", "boite", "grenades", "pap", "courant", "poste_central", "levier", "luminaire"]:
+	for t in ["atout", "arme", "boite", "grenades", "pap", "courant", "poste_central", "levier", "luminaire", "evacuation"]:
 		assert_eq(kinds[t].keys.get("angle", {}).get("t", ""), "number", "angle admis pour %s" % t)
 	for bad in ["400", "-5", "1e999", "\"nord\"", "[45]", "true"]:
 		var t := m.file_texts()
@@ -366,7 +366,7 @@ func _v2_source() -> Dictionary:
 	add.call("objets.json", "atout", {"atout": {"t": "enum", "values": PerkDB.PERKS.keys()}, "position": point, "mur": dirs}, ["atout", "position"])
 	add.call("objets.json", "arme", {"arme": {"t": "enum", "values": ["m14", "mp5k", "bowie"]}, "position": point, "mur": dirs}, ["arme", "position"])
 	add.call("objets.json", "boite", {"position": point, "mur": dirs, "depart": {"t": "bool"}}, ["position"])
-	for t in ["grenades", "pap", "courant", "poste_central", "levier"]:
+	for t in ["grenades", "pap", "courant", "poste_central", "levier", "evacuation"]:
 		add.call("objets.json", t, {"position": point, "mur": dirs}, ["position"])
 	for t in ["depart", "apparition", "teleporteur", "arrivee", "lampe", "caisse", "baril"]:
 		add.call("objets.json", t, {"position": point}, ["position"])

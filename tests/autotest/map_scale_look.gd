@@ -44,7 +44,7 @@ static func game_map() -> EditorMap:
 	doc.find("s1")["position"] = [6.0, 7.5]
 	doc.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [11.0, 7.0], "echelle": [1.5, 1.5, 1.5]})
 	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "altitude": 0, "position": [5.0, 3.5], "incl": [0, 30]})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 func _game_shots() -> void:

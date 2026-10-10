@@ -46,7 +46,7 @@ static func free_walls_map() -> EditorMap:
 	box.merge({"id": "b1", "altitude": 0, "position": r.position}, true)
 	MapRules.apply_wall(box, r)
 	doc.objets.append(box)
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 const WEAPON := {"type": "arme", "arme": "m14"}

@@ -150,7 +150,7 @@ static func corridors_map() -> EditorMap:
 	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [5.0, 27.0]})
 	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [w - 4.25, DEPTH], "mur": "s", "depart": true})
 	doc.ouvertures.append({"id": "o1", "type": "fenetre", "altitude": 0, "position": [w - 7.75, DEPTH]})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 func start() -> bool:

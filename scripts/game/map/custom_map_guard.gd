@@ -1094,10 +1094,14 @@ static func _check_carte(c: Check, d: Dictionary) -> void:
 	if not c.legacy:
 		# Format 17 : ciel de la carte (vu au-dessus des pièces sans plafond).
 		allowed["ciel"] = 1
+		# Format 18 : schéma des vagues spéciales et de boss.
+		allowed["vagues"] = 1
 	if not _keys(c, d, allowed, what):
 		return
 	if d.has("ciel"):
 		_check_sky(c, d.ciel, what + " (ciel)")
+	if d.has("vagues"):
+		_check_waves(c, d.vagues, what + " (vagues)")
 	if d.has("format"):
 		_int(c, d.format, 1, EditorMap.FORMAT, what + " (format)")
 	if not (d.get("id") is String and map_id_ok(d.get("id"))):
@@ -1142,6 +1146,28 @@ static func _check_sky(c: Check, v: Variant, what: String) -> void:
 		c.bad("%s : type inconnu (noir, jour ou nuit)" % what, "%s: unknown type (noir, jour or nuit)" % what)
 	if v.has("luminosite"):
 		_num(c, v.luminosite, EditorMap.SKY_LUM[0], EditorMap.SKY_LUM[1], what + " (luminosite)")
+
+
+## Format 18 : « vagues » = {speciale, boss : {premiere, intervalle}}, entiers
+## de 0 à WaveRules.ROUND_MAX, rien d'autre.
+static func _check_waves(c: Check, v: Variant, what: String) -> void:
+	if not v is Dictionary:
+		c.bad("%s : objet {speciale, boss} attendu" % what, "%s: object {speciale, boss} expected" % what)
+		return
+	var kinds := {}
+	for k in WaveRules.KINDS:
+		kinds[k] = 1
+	if not _keys(c, v, kinds, what):
+		return
+	for k in v:
+		var e: Variant = v[k]
+		if not e is Dictionary:
+			c.bad("%s : %s : objet {premiere, intervalle} attendu" % [what, k], "%s: %s: object {premiere, intervalle} expected" % [what, k])
+			continue
+		if not _keys(c, e, {"premiere": 1, "intervalle": 1}, "%s (%s)" % [what, k]):
+			continue
+		for key in e:
+			_int(c, e[key], 0, WaveRules.ROUND_MAX, "%s (%s.%s)" % [what, k, key])
 
 
 static func _check_list_file(c: Check, d: Dictionary, file: String, key: String, max_n: int, each: Callable) -> void:

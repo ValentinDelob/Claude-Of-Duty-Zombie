@@ -27,7 +27,7 @@ static func _map(id: String, rooms: Array, start: Array, box: Array, window: Arr
 	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": start})
 	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": box, "mur": "n", "depart": true})
 	doc.ouvertures.append({"id": "w1", "type": "fenetre", "altitude": 0, "position": window})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 ## Demi-niveau : salle A au sol (4 m sous plafond), palier P à 1,5 m collé à
@@ -39,7 +39,7 @@ static func half_level() -> EditorMap:
 		{"id": "pp", "nom": "Palier", "altitude": 1.5, "contour": rect(12, 0, 22, 10)}],
 		[3.0, 7.0], [3.25, 0.0], [3.25, 10.0])
 	doc.objets.append({"id": "r1", "type": "escalier", "altitude": 0, "altitude_haut": 1.5, "rect": [6.0, 3.0, 12.0, 5.5], "monte": "e"})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 ## Pièce haute H (9,5 m sous plafond) qui traverse les niveaux 3,5 m et 7 m :
@@ -53,7 +53,7 @@ static func high_hall() -> EditorMap:
 		[12.0, 7.0], [12.75, 0.0], [12.25, 16.0])
 	doc.objets.append({"id": "s1e", "type": "escalier", "altitude": 0, "altitude_haut": 3.5, "rect": [6.0, 2.0, 13.0, 4.5], "monte": "o"})
 	doc.objets.append({"id": "s2e", "type": "escalier", "altitude": 0, "altitude_haut": 7.0, "rect": [7.0, 11.0, 16.0, 13.5], "monte": "e"})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 ## Halle haute, couloir C (4 m sous plafond) ouvert sur elle à l'est (passage
@@ -68,7 +68,7 @@ static func split_hall() -> EditorMap:
 	doc.pieces.append({"id": "pp", "nom": "Palier", "altitude": 1.5, "zone": z, "contour": rect(32, 4, 40, 12)})
 	doc.ouvertures.append({"id": "pa1", "type": "passage", "altitude": 0, "position": [24.0, 8.0], "largeur": 3.0})
 	doc.objets.append({"id": "r1", "type": "escalier", "altitude": 0, "altitude_haut": 1.5, "rect": [26.0, 7.0, 32.0, 9.5], "monte": "e"})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 static func _check(doc: EditorMap) -> MapValidator:

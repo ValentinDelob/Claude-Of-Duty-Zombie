@@ -312,6 +312,20 @@ pour monter dessus et échapper aux zombies : c'est de l'anti-jeu.
 - Toutes portes ouvertes, chaque zone a **deux accès** au moins, sauf au
   plus **deux impasses assumées** (§9.3).
 
+### 7.1 bis Porte d'évacuation [OBLIGATOIRE]
+
+- Chaque carte a **une et une seule porte d'évacuation** (inventaire
+  *Joueurs et apparitions > Porte d'évacuation*), posée **contre un mur**
+  (GAME_CONCEPT.md §4.5). Le validateur de l'éditeur **refuse** une carte
+  sans porte d'évacuation, ou avec plusieurs.
+- Elle est **accessible dès le départ** : on l'atteint à pied depuis le
+  départ des joueurs **sans ouvrir aucune porte ni aucun débris** (portes
+  du courant comprises). Le validateur le vérifie.
+- Devant elle, une **zone dégagée de 4 m de large sur 3,5 m de profondeur**
+  (zone d'évacuation, marquée au sol en partie) : toute l'équipe doit
+  pouvoir s'y tenir en même temps. Ni obstacle, ni fenêtre à zombies, ni
+  autre objet de jeu dans cette zone.
+
 ### 7.2 Boucles [OBLIGATOIRE]
 
 - Au moins **une grande boucle** de **60 à 150 m** de tour, ouvrable avant
@@ -539,6 +553,7 @@ ce fichier.
 | Mesure | Attendu |
 |---|---|
 | Salle de départ | 2 sorties, 3 à 4 fenêtres, arme à 500 |
+| Porte d'évacuation | exactement 1, contre un mur, accessible du départ sans porte, zone de 4 × 3,5 m dégagée |
 | Plus grand carré vide, partout | < 15 m² (≤ 3,5 × 3,5 m sur la grille) |
 | Couloirs de plus de 3 m de large / lignes droites de plus de 12 m | 0 / 0 |
 | Circuits tenables dans une seule pièce | 0 |

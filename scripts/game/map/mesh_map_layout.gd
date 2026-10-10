@@ -12,6 +12,7 @@ extends MapLayout
 ##   doors [{id, p (milieu de l'ouverture, au sol), yaw, w, h, depth, cost, zones, debris?}],
 ##   wall_buys [{id, p, wall, weapon}], perks [{id, p, wall, perk}],
 ##   grenade_buys [{id, p, wall}], power {p, wall}, box [{p, wall, floor?}], pap {p, wall},
+##   evac {p, wall} (porte d'évacuation, EvacDoor),
 ##   (box « floor » : boîte posée au sol, format 15 de l'éditeur ; `wall` = son
 ##   arrière, `p` à MysteryBox.SPOT_WALL_GAP derrière son centre)
 ##   teleporter {pad, exit, mainframe {p, wall}, exit_zone},
@@ -226,6 +227,11 @@ func box_spots() -> Array[MapMarker]:
 
 func pack_a_punch() -> MapMarker:
 	return _wall_marker("pap", _markers.pap) if _markers.has("pap") else null
+
+
+## Porte d'évacuation : marqueur « evac » {p, wall}, comme un objet mural.
+func evac_door() -> MapMarker:
+	return _wall_marker("evac", _markers.evac) if _markers.get("evac") is Dictionary else null
 
 
 func teleporter() -> Dictionary:

@@ -150,6 +150,13 @@ static func draw(ci: CanvasItem, it: Dictionary, r: Rect2) -> void:
 			ci.draw_rect(Rect2(cx + Vector2(-s * 0.18, -s * 0.08), Vector2(s * 0.36, s * 0.3)), c)
 			ci.draw_line(cx + Vector2(-s * 0.1, s * 0.2), cx + Vector2(-s * 0.18, s * 0.45), c, s * 0.1)
 			ci.draw_line(cx + Vector2(s * 0.1, s * 0.2), cx + Vector2(s * 0.18, s * 0.45), c, s * 0.1)
+		"evacuation":
+			# Porte ouverte (cadre et battant) et flèche de sortie.
+			ci.draw_rect(Rect2(cx - Vector2(s * 0.3, s * 0.45), Vector2(s * 0.6, s * 0.9)), Color(0.12, 0.2, 0.14))
+			ci.draw_rect(Rect2(cx - Vector2(s * 0.3, s * 0.45), Vector2(s * 0.6, s * 0.9)), c, false, 2.0)
+			ci.draw_line(cx + Vector2(-s * 0.18, 0), cx + Vector2(s * 0.2, 0), WHITE, s * 0.1)
+			ci.draw_line(cx + Vector2(s * 0.2, 0), cx + Vector2(s * 0.04, -s * 0.15), WHITE, s * 0.1)
+			ci.draw_line(cx + Vector2(s * 0.2, 0), cx + Vector2(s * 0.04, s * 0.15), WHITE, s * 0.1)
 		"apparition":
 			ci.draw_rect(Rect2(p.position + Vector2(0, s * 0.72), Vector2(s, s * 0.28)), Color(0.3, 0.22, 0.14))
 			for i in 4:

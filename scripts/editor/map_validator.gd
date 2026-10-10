@@ -44,9 +44,10 @@ const MIN_SPAWN_DIST := 7.0
 ## Objets sans lesquels la partie ne se joue pas : enfermés par une barrière
 ## invisible, c'est une erreur (les autres : un avertissement, la barrière ne
 ## retire jamais un objet). Interrupteur du courant (portes du courant jamais
-## ouvertes), boîte de départ (une seule par carte), départ des joueurs. Le
-## Pack-a-Punch n'est pas exigé par la carte : avertissement seulement.
-const SHUT_NEEDED := ["courant", "boite_depart", "depart"]
+## ouvertes), boîte de départ (une seule par carte), départ des joueurs,
+## porte d'évacuation (format 18, obligatoire). Le Pack-a-Punch n'est pas
+## exigé par la carte : avertissement seulement.
+const SHUT_NEEDED := ["courant", "boite_depart", "depart", "evacuation"]
 
 enum K { VIDE, MUR, TREMIE, ESCALIER, PORTE, DEBRIS, FENETRE, SOL, MARQUEUR }
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
@@ -64,6 +65,7 @@ const ENTRIES := {
 	"pap": ["mural", "Pack-a-Punch", "Pack-a-Punch"],
 	"poste_central": ["mural", "Poste central du téléporteur", "Teleporter mainframe"],
 	"levier": ["mural", "Levier de piège", "Trap lever"],
+	"evacuation": ["mural", "Porte d'évacuation", "Evacuation door"],
 	"grenades": ["mural", "Achat de grenades", "Grenade buy"],
 }
 
@@ -176,6 +178,8 @@ var lamps_auto := true
 var open_sky: Array = []
 ## Ciel de la carte (EditorMap.sky_of : {type, luminosite}).
 var sky: Dictionary = {"type": "noir", "luminosite": 1.0}
+## Format 18 : schéma des vagues spéciales et de boss (WaveRules, EditorMap.waves_of).
+var waves: Dictionary = WaveRules.default_schedule()
 ## Murs en biais (MapRaster), par niveau : [{a, b (m, repère de l'éditeur),
 ## t (direction), n (normale), half (demi-épaisseur, m), pos, neg (pièce du
 ## côté +n / -n, "" : dehors), kind ("piece" : côté de pièce, "mur" : mur libre)}].
@@ -424,6 +428,7 @@ func analyze() -> void:
 	_zone_graph()
 	_connectivity()
 	_counts()
+	_evac_access()
 	if not errors().is_empty():
 		return
 	_start_safety()
@@ -1986,7 +1991,7 @@ func _counts() -> void:
 			"only %d box location(s): the box moves between at least 3 locations (BO1: 6 to 9 depending on size)" % boxes)
 	if n.get("boite_depart", 0) > 1:
 		_msg("erreur", "%d emplacements « boîte (départ) » : un seul" % n.boite_depart, "%d \"box (start)\" locations: only one" % n.boite_depart)
-	for key in ["courant", "pap", "teleporteur", "arrivee", "poste_central"]:
+	for key in ["courant", "pap", "teleporteur", "arrivee", "poste_central", "evacuation"]:
 		if n.get(key, 0) > 1:
 			var its := (wall_items + floor_items).filter(func(it): return it.base == key)
 			var e := entry(key)
@@ -1998,6 +2003,11 @@ func _counts() -> void:
 		_msg("erreur", "téléporteur : il faut une plateforme ET une arrivée", "teleporter: it needs a pad AND an exit")
 	if n.get("poste_central", 0) > 0 and n.get("teleporteur", 0) == 0:
 		_msg("erreur", "poste central sans téléporteur", "mainframe without a teleporter")
+	# Format 18 : porte d'évacuation obligatoire, accessible dès le départ
+	# (GAME_CONCEPT.md §4.5, docs/MAP_DESIGN_RULES.md).
+	if n.get("evacuation", 0) == 0:
+		_msg("erreur", "aucune porte d'évacuation (inventaire : Joueurs et apparitions > Porte d'évacuation, contre un mur accessible depuis le départ) : obligatoire sur chaque carte",
+			"no evacuation door (inventory: Players and spawns > Evacuation door, against a wall reachable from the start): every map needs one")
 	for pid in PerkDB.PERKS:
 		if n.get("atout_" + pid, 0) > 1:
 			_msg("erreur", "%d distributeurs %s : un seul par atout" % [n["atout_" + pid], PerkDB.display_name(pid)],
@@ -2048,6 +2058,24 @@ func _counts() -> void:
 ## zone de départ n'est donc plus une erreur. MIN_SPAWN_DIST ne vaut que pour
 ## les zombies qui sortent du sol (le validateur ne les exige pas : la zone de
 ## départ a toujours une fenêtre, sinon « zone sans fenêtre »).
+## Porte d'évacuation accessible dès le départ : atteinte à pied depuis le
+## point de départ sans ouvrir aucune porte ni aucun débris (portes du
+## courant fermées comprises).
+func _evac_access() -> void:
+	var sources := []
+	for p in start_points:
+		sources.append([p[0], Vector2i(floori(p[1].x), floori(p[1].y))])
+	var seen := _bfs(sources, false)
+	for it in wall_items:
+		if it.base != "evacuation":
+			continue
+		if it.cells.any(func(c): return seen.has(_key(it.floor, c))):
+			continue
+		var w := _at(it.floor, it.cells[0])
+		_msg("erreur", "porte d'évacuation en %s : inaccessible depuis le départ sans ouvrir de porte — elle doit être accessible dès le départ" % w[0],
+			"evacuation door at %s: cannot be reached from the start without opening a door — it must be reachable from the start" % w[1], it.floor, it.cells)
+
+
 func _start_safety() -> void:
 	var active: Array = ["a"] + open_links.get("a", [])
 	var best := 0.0

@@ -112,6 +112,9 @@ func run() -> void:
 	at.check(perk.size() == 1 and MapGeom.item_oblique(perk[0]) and absf(float(perk[0].angle) - 45.0) < 0.01, "atout contre un mur en biais, face vers l'intérieur (%s)" % str(perk))
 
 	# Vérification, capture de l'éditeur.
+	# Porte d'évacuation obligatoire (format 18) : posée par la règle de l'éditeur.
+	MapTestKit.add_evac(ed.doc)
+	ed.changed()
 	var v := ed.validate()
 	at.check(v.ok(), "vérification : 0 erreur (%s)" % " | ".join(v.errors().map(func(m): return String(m.fr))))
 	at.check(v.doors.size() == 1 and v.doors[0].has("oblique") and v.windows.size() == 2 and v.windows.all(func(w): return w.has("oblique")),

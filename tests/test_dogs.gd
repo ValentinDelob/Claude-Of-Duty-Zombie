@@ -2,28 +2,6 @@ extends TestCase
 ## Règles des manches de chiens de l'enfer (BO1, _zombiemode_dogs.gsc).
 
 
-func test_first_dog_round_between_5_and_7() -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 3
-	var seen := {}
-	for i in 300:
-		var r := DogRules.first_dog_round(rng)
-		assert_true(r >= 5 and r <= 7, "première manche de chiens : %d" % r)
-		seen[r] = true
-	assert_eq(seen.size(), 3, "5, 6 et 7 sont tous possibles")
-
-
-func test_next_dog_round_every_4_or_5() -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 11
-	var seen := {}
-	for i in 300:
-		var gap := DogRules.next_dog_round(6, rng) - 6
-		assert_true(gap == 4 or gap == 5, "écart %d" % gap)
-		seen[gap] = true
-	assert_eq(seen.size(), 2, "+4 et +5 sont tous deux tirés")
-
-
 func test_dog_count() -> void:
 	assert_eq(DogRules.dog_count(1, 1), 6, "solo, 1re manche de chiens")
 	assert_eq(DogRules.dog_count(1, 2), 6, "solo, 2e")

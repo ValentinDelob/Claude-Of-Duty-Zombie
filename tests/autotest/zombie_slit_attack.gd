@@ -40,7 +40,7 @@ static func slit_map() -> EditorMap:
 	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [3.0, 10.0]})
 	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [ROOM - 2.25, ROOM], "mur": "s", "depart": true})
 	doc.ouvertures.append({"id": "o1", "type": "fenetre", "altitude": 0, "position": [2.25, ROOM]})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 static func w3(x: float, y: float, h := 0.0) -> Vector3:

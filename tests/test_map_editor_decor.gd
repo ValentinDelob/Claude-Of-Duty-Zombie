@@ -74,7 +74,7 @@ static func _decorated() -> EditorMap:
 	sconce["mur"] = "o"
 	sconce["couleur"] = "#40a0ff"
 	_obj(doc, sconce)
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 static func _check(doc: EditorMap) -> MapValidator:
@@ -369,7 +369,7 @@ func test_format_1_maps_still_load() -> void:
 		"carte.json": '{"format": 1, "id": "ancienne", "nom": {"fr": "ANCIENNE", "en": "OLD"}, "etages": [{"sol": 0, "hauteur": 3.2}]}',
 		"pieces.json": '{"pieces": [{"id": "p1", "nom": "Salle", "altitude": 0, "zone": "z1", "contour": [[0,0],[16,0],[16,8],[0,8]]}]}',
 		"ouvertures.json": '{"ouvertures": [{"id": "o1", "type": "fenetre", "altitude": 0, "position": [2.25, 0]}]}',
-		"objets.json": '{"objets": [{"id": "s1", "type": "depart", "altitude": 0, "position": [12, 5]}, {"id": "c1", "type": "caisse", "altitude": 0, "position": [2.25, 5.25]}, {"id": "l1", "type": "lampe", "altitude": 0, "position": [5, 4]}, {"id": "b1", "type": "boite", "altitude": 0, "position": [8.75, 8], "mur": "s"}]}',
+		"objets.json": '{"objets": [{"id": "s1", "type": "depart", "altitude": 0, "position": [12, 5]}, {"id": "c1", "type": "caisse", "altitude": 0, "position": [2.25, 5.25]}, {"id": "l1", "type": "lampe", "altitude": 0, "position": [5, 4]}, {"id": "b1", "type": "boite", "altitude": 0, "position": [8.75, 8], "mur": "s"}, {"id": "e1", "type": "evacuation", "altitude": 0, "position": [0, 4], "mur": "o"}]}',
 		"zones.json": '{"depart": "z1", "zones": [{"id": "z1", "nom": {"fr": "Salle", "en": "Room"}, "sol": "wood"}]}',
 	}
 	var m := EditorMap.from_texts(texts)

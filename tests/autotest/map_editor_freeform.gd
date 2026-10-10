@@ -163,6 +163,9 @@ func run() -> void:
 		ed.doc.find(String(annex.id)).merge({"nom": "Annexe", "surface_murs": "wall_concrete"}, true)
 	ed.changed()
 	# Vérification, capture de l'éditeur.
+	# Porte d'évacuation obligatoire (format 18) : posée par la règle de l'éditeur.
+	MapTestKit.add_evac(ed.doc)
+	ed.changed()
 	var v := ed.validate()
 	at.check(v.ok(), "vérification : 0 erreur (%s)" % " | ".join(v.errors().map(func(m): return String(m.fr))))
 	at.check(v.doors.size() == 1 and v.windows.size() == 2, "porte et fenêtres reconnues")

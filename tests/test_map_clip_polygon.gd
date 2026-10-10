@@ -373,7 +373,7 @@ static func _pap_map() -> EditorMap:
 	var doc := _map()
 	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
 	doc.objets.append({"id": "pp", "type": "pap", "altitude": 0, "position": [5.0, 0.0], "mur": "n"})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 ## Empreinte de la description d'une carte : nombre de chaque sorte d'objet

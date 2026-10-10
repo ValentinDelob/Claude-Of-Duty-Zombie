@@ -534,6 +534,9 @@ contrôle refuserait les clés qu'il ne connaît pas).
   § 15) ; une boîte sans `mur` d'une carte plus ancienne reçoit `mur` : `n`.
 - Format 16 : textures de la carte (dossier `textures/<id>/`, surfaces
   « map:<id> », docs/MAP_AUTHORING.md § 4).
+- Format 17 : niveaux libres (docs/MAP_AUTHORING.md § 4).
+- Format 18 : porte d'évacuation obligatoire (type `evacuation`) et schéma
+  des vagues `carte.vagues` (§ 16).
 
 ## 6. Ajouter une variante ou un type à variantes
 
@@ -1581,3 +1584,54 @@ Boîte, aimant, TESTER, ours en peluche vers l'emplacement au sol, achat par
 l'avant, couvercle, arme obtenue, invite derrière et sur le côté, collision,
 zombie qui contourne) ; `mp_editorplay` (l'invité achète à la boîte posée au
 sol) ; captures de développement `map_box_floor_look` (hors check).
+
+## 16. Porte d'évacuation et schéma des vagues (format 18)
+
+Nouvelle direction du jeu (GAME_CONCEPT.md §4.4 à §4.6).
+
+### Dans l'éditeur
+
+- **Porte d'évacuation** (inventaire *Joueurs et apparitions*, type
+  `evacuation`) : objet mural comme l'interrupteur du courant (`position`,
+  `mur`, `angle`), emprise 1,5 m le long du mur. **Obligatoire** : le
+  validateur refuse une carte sans porte, avec plusieurs portes, ou dont la
+  porte ne s'atteint pas depuis le départ **sans ouvrir de porte ni de
+  débris** (`MapValidator._counts`, `_evac_access`) ; enfermée par une
+  barrière invisible, c'est une erreur (`SHUT_NEEDED`). Règle de conception :
+  docs/MAP_DESIGN_RULES.md § 7.1 bis.
+- **Schéma des vagues** (panneau de la carte, rien de sélectionné) : pour la
+  vague spéciale et la vague de boss, la 1re manche et l'écart (clé
+  `carte.vagues`, docs/MAP_AUTHORING.md § Format des fichiers ; `WaveRules`).
+  Défaut : spéciale toutes les 5 manches, boss toutes les 15.
+
+### En jeu
+
+- Description en maillage : `markers.evac` = `{p, wall}` (comme `power`) ;
+  `map_def.waves` seulement si le schéma n'est pas celui par défaut.
+  Cartes en grille : marqueur `@` (`MapDef.EVAC_MARKER`). BUNKER K-7 (salle
+  de garde, mur ouest), l'arène de test, `test_levels` et DRAFT ARENA ont une
+  porte ; KINO n'en a pas (aucune évacuation possible sur KINO).
+- `EvacDoor` (Interactable, id `evac`) : modèle provisoire en blocs de 5 cm
+  (bâti, battant, voyant rouge ou vert), collision `CollisionBox`, zone de
+  4 × 3,5 m devant la porte marquée au sol pendant la fenêtre.
+- Fenêtre d'évacuation (`EvacRules`) : après une vague spéciale ou de boss
+  vaincue, 2 min sans zombies (la manche suivante attend) ; les morts
+  réapparaissent à l'ouverture. Vote à la porte ([F] / X) : premier appui
+  « partir », puis « prêt » et « partir » en alternance. Tous les joueurs non
+  morts « prêts » : reprise 3 s plus tard. Tous « partir » et **debout dans
+  la zone** au même moment : évacuation de toute l'équipe (un joueur à
+  terre bloque). Fin des 2 min : la partie continue. Le serveur décide ;
+  l'état (ouverte, temps restant, votes) passe par le message d'état des
+  objets (`InteractionSystem._cl_state`).
+- Fin de partie : `Game.srv_end_match(evacuated)` -> `_cl_match_end`
+  (`MatchResult` : `evacuated`, manche atteinte, durée, zombies abattus ;
+  `loot` et `xp` réservés au rapport de fin des lots suivants).
+
+### Preuves automatiques
+
+`tests/test_wave_rules.gd` (schéma par défaut et configurable, lecture
+tolérante, format 18, contrôle des cartes reçues, cartes intégrées) ;
+`tests/test_evac_rules.gd` (votes, zone, fin du temps, résultat de partie,
+validateur : porte exigée et accessible, description en jeu) ; scénario
+`evacuation` (vote « partir » à la porte, évacuation, écran de fin ; tous
+prêts puis manche suivante) ; `dog_round`.

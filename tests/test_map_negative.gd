@@ -94,7 +94,7 @@ static func negative_base() -> EditorMap:
 			{"id": "d1", "type": "prefab", "prefab": "caisses", "position": [19.0, 5.0]}]:
 		o["altitude"] = 0.0
 		doc.objets.append(o)
-	return moved(doc, Vector2(-30.0, -20.0))
+	return moved(MapTestKit.add_evac(doc), Vector2(-30.0, -20.0))
 
 
 # ------------------------------------------------------------------ invariance par translation

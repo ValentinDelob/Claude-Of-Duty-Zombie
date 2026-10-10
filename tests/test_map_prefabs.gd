@@ -280,7 +280,7 @@ static func _model_map() -> EditorMap:
 	var glb := box_glb()
 	doc.set_prefab("caisse_bleue", MapPrefabLib.from_model("Caisse", "Crate", glb).def, glb)
 	DecorFree._obj(doc, {"type": "prefab", "prefab": "map:caisse_bleue", "position": [5.0, 5.0], "rot": 0})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 func test_guard_accepts_prefabs_and_refuses_tampering() -> void:
