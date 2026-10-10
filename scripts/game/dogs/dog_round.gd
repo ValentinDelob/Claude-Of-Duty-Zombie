@@ -2,7 +2,8 @@ class_name DogRound
 extends Node
 ## Manches de chiens de l'enfer (chemin réseau : /root/Game/Rounds/Dogs).
 ##
-## Serveur : planifie les manches de chiens (5 à 7, puis +4 ou +5), fait
+## Serveur : manches de chiens = vagues spéciales du schéma de la carte
+## (WaveRules, MapDef.waves : par défaut toutes les 5 manches), fait
 ## apparaître les chiens un par un près des joueurs (2 vivants par joueur),
 ## leur attribue une proie, applique l'explosion de flammes à leur mort et
 ## fait tomber des MUNITIONS MAX sur le dernier chien tué.
@@ -19,7 +20,8 @@ var rounds: RoundManager
 ## Coupé pendant les autotests (manches déterministes) ; un scénario peut le
 ## réactiver ou forcer la manche suivante (debug_force_next).
 var enabled := not Autotest.active
-var next_dog_round := 0
+## Prochaine manche de chiens (schéma de la carte, srv_plan).
+var next_dog_round := WaveRules.next_after(WaveRules.DEFAULT, WaveRules.SPECIAL, 0)
 ## Manches de chiens déjà terminées (level.dog_round_count - 1).
 var dog_rounds_done := 0
 ## Serveur : manche de chiens en cours.
@@ -56,7 +58,6 @@ func _ready() -> void:
 	rounds = get_parent()
 	game = rounds.game  # donnée par RoundManager, qui crée ce nœud
 	_rng.randomize()
-	next_dog_round = DogRules.first_dog_round(_rng)
 	var pool := ParticlePool.new().setup(200, Fx._particle_mat(true), 0.08)
 	pool.name = "DogFlames"
 	pool.gravity = -2.5
@@ -81,6 +82,17 @@ func remaining() -> int:
 
 func alive_dogs() -> int:
 	return _alive.size()
+
+
+## Schéma des vagues de la carte (défaut avant le chargement de la carte).
+func _waves() -> Dictionary:
+	return game.map_def.waves if game and game.map_def else WaveRules.DEFAULT
+
+
+## Serveur : première manche de chiens d'après le schéma de la carte
+## (RoundManager.start_game).
+func srv_plan() -> void:
+	next_dog_round = WaveRules.next_after(_waves(), WaveRules.SPECIAL, 0)
 
 
 ## Tests : la prochaine manche sera une manche de chiens.
@@ -123,7 +135,7 @@ func srv_end(n: int) -> void:
 		# Manche interrompue (tests) : l'ambiance s'arrête aussitôt.
 		_cl_dog_round.rpc(false)
 	dog_rounds_done += 1
-	next_dog_round = DogRules.next_dog_round(n, _rng)
+	next_dog_round = WaveRules.next_after(_waves(), WaveRules.SPECIAL, n)
 	print("[Dogs] fin de la manche de chiens ; prochaine : manche %d" % next_dog_round)
 	dog_round_cleared.emit(n)
 

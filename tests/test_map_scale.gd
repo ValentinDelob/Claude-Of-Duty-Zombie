@@ -135,7 +135,7 @@ static func _scaled_map() -> EditorMap:
 	DecorFree._obj(doc, {"type": "prefab", "prefab": "caisses", "position": [4.0, 4.0], "echelle": [1.5, 1.5, 1.5]})
 	DecorFree._obj(doc, {"type": "prefab", "prefab": "poutre", "position": [19.0, 5.5], "incl": [0, 30], "rot": 37})
 	DecorFree._obj(doc, {"type": "prefab", "prefab": "torche_murale", "position": [2.0, 10.0], "mur": "s", "echelle": [1, 1, 2]})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 func test_format_14_round_trip_and_older_maps() -> void:
@@ -312,6 +312,8 @@ const GOLDEN := "res://tests/fixtures/scale_layout_golden.json"
 ## sur un autre, mural, au plafond), prefab modèle et prefab groupe.
 static func golden_map() -> EditorMap:
 	var doc := DecorFree.two_rooms()
+	# Référence d'avant le format 18 : sans la porte d'évacuation des tests.
+	doc.objets = doc.objets.filter(func(o): return String(o.get("type", "")) != "evacuation")
 	var glb := Prefabs.box_glb()
 	doc.set_prefab("boite_bleue", MapPrefabLib.from_model("Boîte", "Box", glb).def, glb)
 	var grp := MapPrefabLib.from_objects("Barricade", "Barricade", [

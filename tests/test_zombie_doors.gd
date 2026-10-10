@@ -270,7 +270,7 @@ static func grid_map(kind: String) -> EditorMap:
 	var res := MapRules.place_opening(doc, 0, "fenetre", Vector2(5.0, 0.0), MapRules.opening_width(o))
 	o["position"] = res.position
 	doc.ouvertures.append(o)
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 func test_export_cuts_a_doorway_without_sill() -> void:
@@ -454,7 +454,7 @@ static func oblique_map(kind: String) -> EditorMap:
 	var res := MapRules.place_opening(doc, 0, "fenetre", Vector2(4.0, 4.0), MapRules.opening_width(o))
 	o["position"] = res.position
 	doc.ouvertures.append(o)
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 ## Faces du mur autour d'une entrée, mesurées sur la maçonnerie exportée à

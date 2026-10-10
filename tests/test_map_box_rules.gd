@@ -43,7 +43,7 @@ static func corridor_map() -> EditorMap:
 	doc.ouvertures.append({"id": "o3", "type": "fenetre", "altitude": 0, "position": [3.25, 0.0]})
 	DecorFree._obj(doc, {"type": "depart", "position": [5.0, 6.0]})
 	DecorFree._obj(doc, {"type": "boite", "position": [5.0, 10.0], "mur": "s", "depart": true})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 # ------------------------------------------------------------------ 1. boîte au sol pleine

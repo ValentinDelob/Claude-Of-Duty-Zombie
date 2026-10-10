@@ -38,14 +38,34 @@ static func should_respawn(pd: PlayerData) -> bool:
 	return pd.life == PlayerData.Life.DEAD
 
 
-## Réapparition (BO1) : debout, santé pleine, pistolet de départ seul, couteau
-## de chasse perdu ; points, atouts retirés à la mort, statistiques conservés.
+## Réapparition en coop (GAME_CONCEPT §4.6) : debout, santé pleine, avec
+## toutes ses affaires d'avant la mort : armes et munitions (mises de côté à
+## terre, `saved_weapons`), couteau, grenades, ferraille et statistiques. Les
+## atouts restent perdus (retirés en tombant à terre, BO1).
 static func respawn(pd: PlayerData) -> void:
 	pd.life = PlayerData.Life.ALIVE
 	pd.health = pd.max_health
-	pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
-	pd.slot = 0
-	pd.knife = KnifeDB.DEFAULT  # le couteau de chasse est perdu (BO1)
+	restore_saved_weapons(pd)
+
+
+## Rend au joueur les armes mises de côté à terre (`saved_weapons`) :
+## réanimation et réapparition. L'arme utilisée à terre, si le joueur la
+## possédait, revient avec ses munitions ; un M1911 prêté (aucun pistolet
+## possédé) est repris. Rien de côté : l'inventaire actuel est gardé (pistolet
+## de départ s'il est vide).
+static func restore_saved_weapons(pd: PlayerData) -> void:
+	if not pd.saved_weapons.is_empty():
+		var used: Dictionary = pd.weapons[0] if not pd.weapons.is_empty() else {}
+		pd.weapons = pd.saved_weapons.duplicate(true)
+		if not used.is_empty():
+			for i in pd.weapons.size():
+				if pd.weapons[i].id == used.id and pd.weapons[i].pap == used.pap:
+					pd.weapons[i] = used
+					break
+		pd.saved_weapons = []
+	if pd.weapons.is_empty():
+		pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
+	pd.slot = clampi(pd.slot, 0, pd.weapons.size() - 1)
 
 
 ## Point d'apparition d'une place de joueur : les places au-delà du nombre de

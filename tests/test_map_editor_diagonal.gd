@@ -50,7 +50,7 @@ static func diag_map() -> EditorMap:
 		o["position"] = res.position
 		MapRules.apply_wall(o, res)
 		doc.objets.append(o)
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 static func _check(doc: EditorMap) -> MapValidator:

@@ -66,7 +66,8 @@ static func place(doc: EditorMap, k: int, rect: Array, monte: String, down := fa
 
 
 static func _check(doc: EditorMap) -> MapValidator:
-	var v := MapRaster.build(doc).v
+	# Format 18 : porte d'évacuation posée sur une copie (place libre une fois les escaliers posés).
+	var v := MapRaster.build(MapTestKit.add_evac(doc.duplicate_map())).v
 	v.analyze()
 	return v
 
@@ -87,7 +88,7 @@ func _accepts(name: String, doc: EditorMap, flights: Array) -> void:
 	for s in v.stairs:
 		var f: Array = flights[int(s.floor)]
 		assert_eq(s.up, Vector2i(MapGeom.dir_vec(String(f[1]))), "%s : escalier de l'étage %d dans le sens tracé" % [name, s.floor])
-	var def := EditorMapDef.from_map(doc, "perso:immeuble")
+	var def := EditorMapDef.from_map(MapTestKit.add_evac(doc.duplicate_map()), "perso:immeuble")
 	assert_true(def.is_valid(), "%s : carte jouable" % name)
 	var lay := MapLayoutExport.build(v)
 	var ys := []
@@ -285,7 +286,7 @@ static func big_map() -> EditorMap:
 		for col in 5:
 			var x := col * 10.0 + 1.0 + (k % 2) * 3.0
 			doc.objets.append({"id": "e%d_%d" % [k, col], "type": "escalier", "altitude": k * EditorMap.FLOOR_STEP, "rect": [x, 2.0, x + 2.5, 9.0], "monte": "n" if k % 2 == 0 else "s"})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 func test_stair_checks_stay_fast_on_a_big_map() -> void:

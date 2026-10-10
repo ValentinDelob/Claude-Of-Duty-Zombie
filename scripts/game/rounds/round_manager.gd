@@ -24,6 +24,8 @@ var _spawn_accum := 0.0
 var _rng := RandomNumberGenerator.new()
 var _started := false
 var _recycle_accum := 0.0
+## Serveur : type de vague de la manche en cours (WaveRules.SPECIAL, BOSS ou "").
+var wave := ""
 
 
 ## Manches de chiens de l'enfer (chemin réseau : /root/Game/Rounds/Dogs).
@@ -44,6 +46,7 @@ func start_game() -> void:
 		return
 	_started = true
 	phase = Phase.WAITING
+	dogs.srv_plan()
 	_timer = RoundRules.FIRST_ROUND_DELAY
 
 
@@ -62,6 +65,9 @@ func _process(delta: float) -> void:
 		return
 	match phase:
 		Phase.WAITING, Phase.INTERMISSION:
+			# Fenêtre d'évacuation ouverte : la manche suivante attend (EvacDoor).
+			if game.evac and game.evac.is_open:
+				return
 			_timer -= delta
 			if _timer <= 0.0:
 				_begin_round(round_n + 1)
@@ -72,6 +78,7 @@ func _process(delta: float) -> void:
 				if dogs.srv_finished():
 					dogs.srv_end(round_n)
 					_end_round()
+					_wave_cleared()
 				return
 			_spawn_tick(delta)
 			_recycle_accum += delta
@@ -107,7 +114,15 @@ func _begin_round(n: int) -> void:
 	game.respawn_dead_players()
 	if dogs.active:
 		dogs.srv_end(n - 1)
-	if dogs.is_dog_round(n):
+	wave = ""
+	var boss_wave := WaveRules.wave_kind(_waves(), n, _has_boss()) == WaveRules.BOSS
+	if boss_wave:
+		# Vague de boss : aucun boss n'existe encore (MapDef.boss vide partout,
+		# une vague de boss sans boss ne fait rien) ; branche prête pour les
+		# lots suivants, d'ici là manche normale.
+		push_warning("[Rounds] vague de boss « %s » : boss pas encore implémenté" % game.map_def.boss)
+	if not boss_wave and dogs.is_dog_round(n):
+		wave = WaveRules.SPECIAL
 		to_spawn = 0
 		dogs.srv_begin(n)
 		total = dogs.total
@@ -121,6 +136,31 @@ func _end_round() -> void:
 	_timer = RoundRules.INTERMISSION
 	print("[Rounds] fin de la manche %d" % round_n)
 	_cl_round.rpc(round_n, Phase.INTERMISSION)
+
+
+## Schéma des vagues de la carte (WaveRules).
+func _waves() -> Dictionary:
+	return game.map_def.waves if game.map_def else WaveRules.DEFAULT
+
+
+func _has_boss() -> bool:
+	return game.map_def != null and game.map_def.boss != ""
+
+
+## Serveur : vague spéciale ou de boss vaincue : la porte d'évacuation s'ouvre
+## (carte sans porte : entracte normal).
+func _wave_cleared() -> void:
+	print("[Rounds] vague %s vaincue (manche %d)" % [wave, round_n])
+	wave = ""
+	if game.evac:
+		game.evac.srv_open()
+
+
+## Serveur : fenêtre d'évacuation fermée sans évacuation : la manche suivante
+## commence dans `delay` secondes.
+func srv_resume_after(delay: float) -> void:
+	if phase == Phase.INTERMISSION or phase == Phase.WAITING:
+		_timer = delay
 
 
 ## Tests : force le passage à une manche donnée.

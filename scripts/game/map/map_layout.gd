@@ -97,6 +97,11 @@ func pack_a_punch() -> MapMarker:
 	return null
 
 
+## Porte d'évacuation (null : la carte n'en a pas ; EvacDoor).
+func evac_door() -> MapMarker:
+	return null
+
+
 ## Téléporteur : {pad: Vector3, exit: Vector3, mainframe: MapMarker ou null},
 ## vide si la carte n'en a pas.
 func teleporter() -> Dictionary:

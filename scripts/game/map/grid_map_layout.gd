@@ -188,6 +188,12 @@ func box_spots() -> Array[MapMarker]:
 	return out
 
 
+## Porte d'évacuation : marqueur EVAC_MARKER, contre le mur le plus proche.
+func evac_door() -> MapMarker:
+	var cells: Array = data.markers.get(MapDef.EVAC_MARKER, [])
+	return cell_marker("evac", cells[0], data) if not cells.is_empty() else null
+
+
 func pack_a_punch() -> MapMarker:
 	var cells: Array = data.markers.get("K", [])
 	if cells.is_empty():

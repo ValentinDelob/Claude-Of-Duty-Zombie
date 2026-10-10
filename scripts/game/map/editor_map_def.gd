@@ -86,6 +86,8 @@ func _setup(m: EditorMap, map_id: String) -> void:
 	# Format 17 : ciel de la carte (pièces sans plafond), WorldLook.apply_sky.
 	if md.get("sky") is Dictionary:
 		look["sky"] = md.sky
+	# Format 18 : schéma des vagues spéciales et de boss (absent : défaut).
+	waves = WaveRules.parse(md.get("waves"))
 	# Poste central posé : téléporteur à relier avant chaque voyage (Kino).
 	if bool(md.get("teleporter_link", false)):
 		teleporter_link = true

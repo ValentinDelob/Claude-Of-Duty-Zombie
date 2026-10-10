@@ -10,6 +10,7 @@
   {"id":"b1","type":"boite","etage":0,"position":[6.75,17.0],"mur":"s","depart":false},
   {"id":"b2","type":"boite","etage":0,"position":[20.5,29.25],"mur":"e","depart":true},
   {"id":"b3","type":"boite","etage":1,"position":[3.75,4.5],"mur":"n","depart":false},
-  {"id":"c1","type":"courant","etage":1,"position":[2.5,7.5],"mur":"o"}
+  {"id":"c1","type":"courant","etage":1,"position":[2.5,7.5],"mur":"o"},
+  {"id":"e1","type":"evacuation","etage":0,"position":[2.5,24.0],"mur":"o"}
  ]
 }

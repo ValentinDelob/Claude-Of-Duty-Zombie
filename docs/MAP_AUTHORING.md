@@ -1387,7 +1387,19 @@ chevaucher entre eux, docs/MAP_OBJECTS.md § 10) ; format 17 : `ciel`
 (facultatif, jamais écrit à sa valeur par défaut) = `{"type": "noir" |
 "jour" | "nuit", "luminosite": facteur de 0,1 à 2}` (absent : noir ;
 luminosité absente : 1), vu au-dessus des pièces sans plafond. Il n'y a
-plus de liste `etages` : les niveaux sont les altitudes des pièces.
+plus de liste `etages` : les niveaux sont les altitudes des pièces. Format
+18 : `vagues` (facultatif, jamais écrit à sa valeur par défaut) =
+`{"speciale": {"premiere": 5, "intervalle": 5}, "boss": {"premiere": 15,
+"intervalle": 15}}` : schéma d'apparition des vagues spéciales (mini-boss :
+aujourd'hui la meute de chiens) et des vagues de boss, en manches (entiers de
+0 à 999 ; `premiere` 0 : jamais ; `intervalle` 0 : une seule vague). Valeur
+par défaut : une vague spéciale toutes les 5 manches (5, 10, 15…), un boss
+toutes les 15. Une manche prévue pour les deux est une vague de boss si la
+carte a un boss, sinon une vague spéciale ; aucun boss n'existe encore, une
+vague de boss ne fait donc rien. Réglable dans le panneau de la carte (rien
+de sélectionné) : « Vague spéciale / Vague de boss : 1re manche, toutes les
+N manches » (`WaveRules`, `EditorMap.set_waves`). Une carte d'un format plus
+ancien a le schéma par défaut.
 
 **`pieces.json`** — les pièces :
 
@@ -1469,6 +1481,7 @@ une erreur).
   {"id":"b2","type":"boite","altitude":0,"position":[20.5,29.25],"mur":"e","depart":true},
   {"id":"t1","type":"piege","altitude":0,"rect":[5,5,7,9]},
   {"id":"c1","type":"courant","altitude":3.5,"position":[2.5,7.5],"mur":"o"},
+  {"id":"e1","type":"evacuation","altitude":0,"position":[2.5,24],"mur":"o"},
   {"id":"d1","type":"prefab","prefab":"sacs_sable","altitude":0,"position":[10.25,3.25],"rot":90},
   {"id":"lu1","type":"luminaire","luminaire":"suspension","altitude":0,"position":[7.5,5.5],"rot":0,"couleur":"#ffc88a","intensite":2.2,"portee":10,"courant":true,"vacille":false},
   {"id":"lu2","type":"luminaire","luminaire":"applique","altitude":0,"position":[0,5],"mur":"o","couleur":"#40a0ff","intensite":1.4,"portee":7,"courant":true,"vacille":false}

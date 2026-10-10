@@ -14,6 +14,7 @@ extends RefCounted
 ##   G interrupteur du courant   E zone du piège électrique   H levier du piège
 ##   T plateforme du téléporteur   F sortie du téléporteur   K Pack-a-Punch
 ##   Décor bloquant : C caisse  O baril  I lit  N paillasse  Y générateur
+##   @ porte d'évacuation (EvacDoor, contre le mur le plus proche)
 ##   Décor : , flaque de sang
 ##   W fenêtre barricadée, posée dans un mur entre la zone et une petite poche
 ##     fermée (le dehors) dont les Z sont des apparitions « par la fenêtre »
@@ -21,6 +22,7 @@ extends RefCounted
 
 const BLOCKING_PROPS := "COINY"
 const WINDOW := "W"
+const EVAC_MARKER := "@"
 
 var id := "map"
 var display_name := Lang.t("Carte", "Map")
@@ -64,6 +66,12 @@ var teleporter_kill_radius := 0.0
 ## Ambiance lumineuse : surcharges de WorldLook.setup_environment
 ## (ambient_color, ambient_energy, fog_color, fog_density, saturation...).
 var look: Dictionary = {}
+## Schéma des vagues spéciales et de boss (WaveRules ; défaut : spéciale
+## toutes les 5 manches, boss toutes les 15). Cartes de l'éditeur : clé
+## « vagues » de carte.json (format 18).
+var waves: Dictionary = WaveRules.default_schedule()
+## Boss de la carte ("" : aucun ; une vague de boss ne fait alors rien).
+var boss := ""
 
 
 func player_spawn_marker() -> String:

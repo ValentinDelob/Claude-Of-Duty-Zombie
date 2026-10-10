@@ -58,7 +58,7 @@ static func _base() -> EditorMap:
 	_obj(doc, {"type": "boite", "position": [6.75, 10.0], "mur": "s", "depart": false})
 	_obj(doc, {"type": "arme", "arme": "m14", "position": [11.25, 10.0], "mur": "s"})
 	_obj(doc, {"type": "atout", "atout": "titan", "position": [24.0, 5.0], "mur": "e"})
-	return doc
+	return MapTestKit.add_evac(doc)
 
 
 static func _check(doc: EditorMap) -> MapValidator:
