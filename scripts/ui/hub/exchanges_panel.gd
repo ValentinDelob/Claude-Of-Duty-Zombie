@@ -30,8 +30,8 @@ var confirm_id := ""
 var catalog: HubBox
 var column: HubSamplesColumn
 var popup: HubRewardPopup
-var chip_all: HubChip
-var chip_tradable: HubChip
+var chip_all: ExchangeChip
+var chip_tradable: ExchangeChip
 ## Identifiant -> {row: HubRow, button: HubButton ou null, tag: HubTag ou null}.
 var rows: Dictionary = {}
 ## Ordre d'affichage des échanges.
@@ -55,8 +55,8 @@ func build() -> void:
 	cm.draw.connect(func():
 		cm.draw_rect(Rect2(0, cm.size.y - HubStyle.px(2), cm.size.x, HubStyle.px(2)), HubStyle.BLACK))
 	catalog.content.add_child(cm)
-	chip_all = HubChip.make(Lang.t("TOUS", "ALL"), func(): set_filter(false))
-	chip_tradable = HubChip.make(Lang.t("ÉCHANGEABLES MAINTENANT", "TRADABLE NOW"), func(): set_filter(true))
+	chip_all = ExchangeChip.make(Lang.t("TOUS", "ALL"), func(): set_filter(false))
+	chip_tradable = ExchangeChip.make(Lang.t("ÉCHANGEABLES MAINTENANT", "TRADABLE NOW"), func(): set_filter(true))
 	chips.add_child(chip_all)
 	chips.add_child(chip_tradable)
 	_list = HubBox.vbox(0)
@@ -432,15 +432,15 @@ static func trade_note(pr: PlayerProfile, d: HubData, id: String) -> String:
 ## Filtre cliquable (classe .chip de la maquette) : pavé à contour noir,
 ## texte semi-gras de 13 px ; choisi : fond brun, texte jaune, liseré jaune
 ## de 3 px en bas. Pas de focus (Tab / Y changent le filtre).
-class HubChip extends Button:
+class ExchangeChip extends Button:
 	var label := ""
 	var on := false:
 		set(v):
 			on = v
 			queue_redraw()
 
-	static func make(t: String, cb: Callable) -> HubChip:
-		var c := HubChip.new()
+	static func make(t: String, cb: Callable) -> ExchangeChip:
+		var c := ExchangeChip.new()
 		c.label = t
 		c.pressed.connect(cb)
 		return c
