@@ -76,6 +76,10 @@ func run() -> void:
 	at.check(w.selected_id == "b3", "élément choisi surligné dans l'aperçu")
 	await at.screenshot("apercu_3d")
 	ed.select("")
+	# La caisse est sur la passerelle (3,5 m) : la choisir a affiché ce
+	# niveau ; la suite (pièce, luminaire, vue joueur) se fait au sol.
+	ed.set_floor(0)
+	at.check(is_zero_approx(ed.doc.level_alt(ed.floor_k)), "retour au niveau du sol")
 	pv.set_option("ceil", false)
 
 	# Une pièce tracée au glisser (touche 2) : elle apparaît dans l'aperçu.
