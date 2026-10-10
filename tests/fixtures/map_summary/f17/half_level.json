@@ -1,7 +1,7 @@
 {
 	"doc": {
 		"carte": {
-			"format": 18.0,
+			"format": 19.0,
 			"id": "demi_niveau",
 			"nom": {
 				"fr": "DEMI_NIVEAU",
@@ -109,6 +109,16 @@
 				"altitude": 0.0
 			},
 			{
+				"id": "station_t",
+				"type": "station",
+				"position": [
+					7.75,
+					0.0
+				],
+				"mur": "n",
+				"altitude": 0.0
+			},
+			{
 				"id": "r1",
 				"type": "escalier",
 				"altitude": 0.0,
@@ -144,7 +154,7 @@
 						"fr": "DEMI_NIVEAU",
 						"en": "DEMI_NIVEAU"
 					},
-					"format": 18.0,
+					"format": 19.0,
 					"niveaux": [
 						0.0,
 						1.5
@@ -158,7 +168,7 @@
 				"totaux": {
 					"pieces": 2.0,
 					"ouvertures": 1.0,
-					"objets": 4.0,
+					"objets": 5.0,
 					"escaliers": 1.0,
 					"zones": 1.0,
 					"portes_payantes": 0.0,
@@ -229,6 +239,16 @@
 									"id": "evac_t",
 									"pos": [
 										6.0,
+										0.0
+									],
+									"mur": "n"
+								}
+							],
+							"station": [
+								{
+									"id": "station_t",
+									"pos": [
+										7.75,
 										0.0
 									],
 									"mur": "n"
@@ -311,7 +331,7 @@
 						"fr": "DEMI_NIVEAU",
 						"en": "DEMI_NIVEAU"
 					},
-					"format": 18.0,
+					"format": 19.0,
 					"niveaux": [
 						0.0,
 						1.5
@@ -325,7 +345,7 @@
 				"totaux": {
 					"pieces": 2.0,
 					"ouvertures": 1.0,
-					"objets": 4.0,
+					"objets": 5.0,
 					"escaliers": 1.0,
 					"zones": 1.0,
 					"portes_payantes": 0.0,
@@ -400,6 +420,16 @@
 									],
 									"mur": "n"
 								}
+							],
+							"station": [
+								{
+									"id": "station_t",
+									"pos": [
+										7.75,
+										0.0
+									],
+									"mur": "n"
+								}
 							]
 						},
 						"escaliers": [
@@ -449,7 +479,7 @@
 						"fr": "DEMI_NIVEAU",
 						"en": "DEMI_NIVEAU"
 					},
-					"format": 18.0,
+					"format": 19.0,
 					"niveaux": [
 						0.0,
 						1.5
@@ -463,7 +493,7 @@
 				"totaux": {
 					"pieces": 2.0,
 					"ouvertures": 1.0,
-					"objets": 4.0,
+					"objets": 5.0,
 					"escaliers": 1.0,
 					"zones": 1.0,
 					"portes_payantes": 0.0,

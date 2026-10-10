@@ -255,7 +255,7 @@ static func phrase(o: Dictionary) -> Array:
 
 
 ## Types dont le nom français est féminin (article « une »).
-const _FEM := ["boite", "evacuation", "porte", "fenetre", "porte_courant", "apparition", "arrivee", "caisse", "lampe", "escalier", "piece", "barriere", "bloc_invisible"]
+const _FEM := ["boite", "evacuation", "station", "porte", "fenetre", "porte_courant", "apparition", "arrivee", "caisse", "lampe", "escalier", "piece", "barriere", "bloc_invisible"]
 
 
 static func _phrase_of_item(it: Dictionary, t: String) -> Array:

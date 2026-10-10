@@ -10,6 +10,7 @@
   {"type":"courant","position":[17.759,15],"mur":"n","etage":0,"id":"x2","angle":0},
   {"type":"depart","position":[18.5,18],"etage":0,"id":"s1"},
   {"type":"evacuation","position":[18.25,19.5],"mur":"s","etage":0,"id":"e1"},
+  {"type":"station","position":[23,15],"mur":"n","etage":0,"id":"t1"},
   {"type":"arme","arme":"m14","position":[19.784,19.5],"mur":"s","angle":180,"etage":0,"id":"w1","variante":"planche"}
  ]
 }

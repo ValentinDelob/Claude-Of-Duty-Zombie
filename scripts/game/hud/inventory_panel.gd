@@ -22,6 +22,10 @@ var bag_buttons: Array[Button] = []
 ## Case choisie en attente de la seconde (-1 : aucune).
 var selected_hand := -1
 var selected_bag := -1
+## Recyclage de la case choisie (une seule case choisie) ; `_recycle_armed` :
+## premier appui fait, le second confirme.
+var recycle_button: Button
+var _recycle_armed := false
 var _power: Label
 var _hint: Label
 var _title_hand: Label
@@ -45,7 +49,7 @@ func setup(g: Game) -> void:
 	offset_left = -400
 	offset_right = 400
 	offset_top = -170
-	offset_bottom = 120
+	offset_bottom = 175
 	grow_horizontal = Control.GROW_DIRECTION_BOTH
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
@@ -64,6 +68,14 @@ func setup(g: Game) -> void:
 	_title_bag = HudStyle.label("", 16, HudStyle.TEXT_DIM, "text", 2)
 	box.add_child(_title_bag)
 	box.add_child(_make_row(GameWeapon.BAG, bag_buttons, 1))
+	# Recyclage (§4.12) de la case choisie seule : deux appuis (confirmation).
+	recycle_button = Button.new()
+	recycle_button.custom_minimum_size = Vector2(760, 40)
+	recycle_button.focus_mode = Control.FOCUS_ALL
+	recycle_button.add_theme_font_override("font", HudStyle.font("condensed"))
+	recycle_button.add_theme_font_size_override("font_size", 18)
+	recycle_button.pressed.connect(recycle_selected)
+	box.add_child(recycle_button)
 	_hint = HudStyle.label("", 15, HudStyle.TEXT_DIM, "text", 2)
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint.custom_minimum_size = Vector2(760, 0)
@@ -73,6 +85,7 @@ func setup(g: Game) -> void:
 		hand_buttons[i].focus_neighbor_bottom = hand_buttons[i].get_path_to(bag_buttons[mini(i, bag_buttons.size() - 1)])
 	for i in bag_buttons.size():
 		bag_buttons[i].focus_neighbor_top = bag_buttons[i].get_path_to(hand_buttons[mini(i, hand_buttons.size() - 1)])
+		bag_buttons[i].focus_neighbor_bottom = bag_buttons[i].get_path_to(recycle_button)
 	# Créé par Hud._ready, avant Game._ready : `game.session` (@onready) n'est
 	# pas encore rempli, le nœud existe déjà.
 	var session := g.get_node("Session") as Session
@@ -113,6 +126,7 @@ func _make_row(n: int, into: Array[Button], row: int) -> HBoxContainer:
 func open() -> void:
 	selected_hand = -1
 	selected_bag = -1
+	_recycle_armed = false
 	visible = true
 	refresh()
 	game.capture_mouse(false)
@@ -144,6 +158,7 @@ func toggle() -> void:
 ## A, Entrée ; les tests l'appellent directement). Deux cases de rangées
 ## différentes : échange demandé au serveur.
 func press(row: int, i: int) -> void:
+	_recycle_armed = false
 	if row == 0:
 		selected_hand = -1 if selected_hand == i else i
 	else:
@@ -160,6 +175,34 @@ func request_swap(hand: int, bag: int) -> void:
 		game.combat.srv_swap.rpc_id(1, hand, bag)
 
 
+## Case choisie seule ([rangée, place]) ; vide si aucune ou deux.
+func selected_slot() -> Array:
+	if selected_hand >= 0 and selected_bag < 0:
+		return [0, selected_hand]
+	if selected_bag >= 0 and selected_hand < 0:
+		return [1, selected_bag]
+	return []
+
+
+## Recycle l'arme de la case choisie (Combat.srv_recycle, le serveur décide) :
+## premier appui, confirmation demandée ; second appui : demande envoyée.
+func recycle_selected() -> void:
+	var s := selected_slot()
+	var pd := game.session.local_data()
+	if s.is_empty() or pd == null or BuildRules.weapon_at(pd, s[0], s[1]).is_empty():
+		return
+	if not _recycle_armed:
+		_recycle_armed = true
+		refresh()
+		return
+	_recycle_armed = false
+	selected_hand = -1
+	selected_bag = -1
+	if game.combat:
+		game.combat.srv_recycle.rpc_id(1, s[0], s[1])
+	refresh()
+
+
 func _on_data_changed(pid: int) -> void:
 	if visible and pid == multiplayer.get_unique_id():
 		refresh()
@@ -170,10 +213,20 @@ func refresh() -> void:
 	_title.text = Lang.t("INVENTAIRE", "INVENTORY")
 	_title_hand.text = Lang.t("EN MAIN", "EQUIPPED")
 	_title_bag.text = Lang.t("INVENTAIRE (%d PLACES)", "BACKPACK (%d SLOTS)") % GameWeapon.BAG
-	_hint.text = Lang.t("Choisissez une arme en main puis une place de l'inventaire pour les échanger. %s : fermer.",
-			"Pick an equipped weapon, then a backpack slot, to swap them. %s: close.") % Settings.action_label("inventory")
+	_hint.text = Lang.t("Choisissez une arme en main puis une place de l'inventaire pour les échanger, ou une seule arme pour la recycler. %s : fermer.",
+			"Pick an equipped weapon, then a backpack slot, to swap them, or a single weapon to recycle it. %s: close.") % Settings.action_label("inventory")
 	if pd == null:
 		return
+	var s := selected_slot()
+	var sw: Dictionary = BuildRules.weapon_at(pd, s[0], s[1]) if not s.is_empty() else {}
+	recycle_button.disabled = sw.is_empty() or bool(sw.get("loaned", false))
+	if sw.is_empty():
+		_recycle_armed = false
+		recycle_button.text = Lang.t("RECYCLER : choisissez une seule arme", "RECYCLE: pick a single weapon")
+	elif _recycle_armed:
+		recycle_button.text = Lang.t("CONFIRMER LE RECYCLAGE DE %s : +%d FERRAILLE", "CONFIRM RECYCLING %s: +%d SCRAP") % [BuildStation.weapon_name(sw), BuildRules.recycle_value(sw)]
+	else:
+		recycle_button.text = Lang.t("RECYCLER %s : +%d FERRAILLE", "RECYCLE %s: +%d SCRAP") % [BuildStation.weapon_name(sw), BuildRules.recycle_value(sw)]
 	_power.text = Lang.t("NIVEAU %d   PUISSANCE %d", "LEVEL %d   POWER %d") % [pd.level, pd.power()]
 	for i in hand_buttons.size():
 		_fill(hand_buttons[i], pd.weapons[i] if i < pd.weapons.size() else {}, pd.level, i == selected_hand, i == pd.slot and i < pd.weapons.size())

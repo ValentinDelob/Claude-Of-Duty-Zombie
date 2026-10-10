@@ -1173,6 +1173,9 @@ func _markers() -> Dictionary:
 			"evacuation":
 				# Format 18 : porte d'évacuation (MeshMapLayout.evac_door).
 				m["evac"] = wi
+			"station":
+				# Format 19 : station de construction (MeshMapLayout.build_station).
+				m["station"] = wi
 			"poste_central":
 				m["_mainframe"] = wi
 	# Pièges : zone au sol, un ou deux leviers.

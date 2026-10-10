@@ -629,6 +629,37 @@ func srv_swap(hand: Variant, bag: Variant) -> void:
 	weapons_swapped.emit(pid, hand, bag)
 
 
+## Recyclage en partie (GAME_CONCEPT §4.12) d'une arme en main (`row` 0) ou de
+## l'inventaire (`row` 1), depuis le panneau d'inventaire ou la station, à
+## tout moment tant que le joueur est debout : l'arme disparaît et rapporte
+## BuildRules.recycle_value en ferraille (un exemplaire construit depuis
+## l'arsenal ne quitte jamais l'arsenal du profil). Rechargement annulé si
+## l'arme tenue change.
+@rpc("any_peer", "call_local", "reliable")
+func srv_recycle(row: Variant, index: Variant) -> void:
+	var pid := NetGuard.server_sender(self, _action_limit)
+	if pid == NetGuard.NO_SENDER or not (row is int and index is int):
+		return
+	var pd := session.get_data(pid)
+	if pd == null:
+		return
+	var held: Dictionary = pd.current_weapon()
+	var why := BuildRules.recycle_refusal(pd, row, index)
+	if why != "":
+		print("[Combat] recyclage refusé (%d) : %s" % [pid, why])
+		session.sync_inventory(pid)
+		return
+	var w := BuildRules.take(pd, row, index)
+	var value := BuildRules.recycle_value(w)
+	print("[Combat] %d recycle %s (+%d)" % [pid, w.get("id", ""), value])
+	if not is_same(pd.current_weapon(), held) and _reload_end.has(pid):
+		_reload_end.erase(pid)
+		_notify_reload_cancelled(pid)
+	session.sync_inventory(pid)
+	if value > 0:
+		session.add_points(pid, value)
+
+
 @rpc("authority", "call_local", "reliable")
 func _cl_reload_fx(pid: int) -> void:
 	if pid == multiplayer.get_unique_id():

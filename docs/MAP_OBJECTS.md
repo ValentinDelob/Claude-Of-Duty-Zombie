@@ -534,6 +534,7 @@ contrôle refuserait les clés qu'il ne connaît pas).
 - Format 17 : niveaux libres (docs/MAP_AUTHORING.md § 4).
 - Format 18 : porte d'évacuation obligatoire (type `evacuation`) et schéma
   des vagues `carte.vagues` (§ 16).
+- Format 19 : station de construction obligatoire (type `station`, § 17).
 
 ## 6. Ajouter une variante ou un type à variantes
 
@@ -1637,3 +1638,43 @@ tolérante, format 18, contrôle des cartes reçues, cartes intégrées) ;
 validateur : porte exigée et accessible, description en jeu) ; scénario
 `evacuation` (vote « partir » à la porte, évacuation, écran de fin ; tous
 prêts puis manche suivante) ; `dog_round`.
+
+## 17. Station de construction (format 19)
+
+Nouvelle direction du jeu (GAME_CONCEPT.md §4.8, §4.11, §4.12).
+
+### Dans l'éditeur
+
+- **Station de construction** (inventaire *Joueurs et apparitions*, type
+  `station`) : objet mural comme la porte d'évacuation (`position`, `mur`,
+  `angle`), emprise 2 m le long du mur sur 1 m de profondeur (établi de
+  1,6 × 0,8 m). **Obligatoire** : le validateur refuse une carte sans
+  station ou avec plusieurs (`MapValidator._counts`) ; enfermée par une
+  barrière invisible, c'est une erreur (`SHUT_NEEDED`). Règle de conception :
+  docs/MAP_DESIGN_RULES.md § 7.1 ter. Une carte au format 18 ou moins se lit
+  telle quelle ; le validateur la refuse jusqu'à ce qu'on pose une station.
+
+### En jeu
+
+- Description en maillage : `markers.station` = `{p, wall}` (comme `evac`).
+  Cartes en grille : marqueur `=` (`MapDef.STATION_MARKER`), sa cellule et
+  ses deux voisines le long du mur retirées de la navigation des zombies.
+  BUNKER K-7 (salle de garde, mur nord), l'arène de test (mur nord),
+  `test_levels` (mur nord du rez-de-chaussée) et DRAFT ARENA (salle des
+  machines, mur sud) en ont une.
+- `BuildStation` (Interactable, id `station`, nœud `World/BuildStation`) :
+  modèle provisoire en blocs de 5 cm (établi, étagère, panneau à outils,
+  écran, voyant ambre / bleu / vert selon la construction du joueur local),
+  collision `CollisionBox`. [F] / X : récupère l'arme prête (une place libre
+  dans l'inventaire de partie, sinon message « Inventaire plein » et
+  l'interface s'ouvre) ou ouvre l'interface (`StationPanel`).
+- Règles (prix, durée, recharge, recyclage) : `BuildRules`, valeurs
+  provisoires dans GAME_CONCEPT.md §6 bis ; réseau et interface :
+  docs/ARCHITECTURE.md « Station de construction ».
+
+### Preuves automatiques
+
+`tests/test_build_rules.gd` (prix, durée, recharge, recyclage, demande
+relue, liste, évacuation, modèle sur la grille, validateur, export, cartes
+livrées) ; scénarios `station` et `station_lost` ; `sh tools/mp_test.sh
+station` (construction par un client).

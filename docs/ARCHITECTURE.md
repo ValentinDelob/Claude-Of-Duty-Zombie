@@ -1033,6 +1033,57 @@ GAME_CONCEPT §4.9, §4.12, §4.13.
 - Tests : `tests/test_game_weapon.gd`, scénario `inventory_swap`,
   `sh tools/mp_test.sh inventory`.
 
+## Station de construction (`BuildStation`, `BuildRules`, `StationPanel`)
+
+GAME_CONCEPT §4.8, §4.11, §4.12 ; objet de carte : docs/MAP_OBJECTS.md § 17.
+
+- **Règles** (`scripts/game/station/build_rules.gd`, pures) : prix
+  `price(w)` = 500 × (1 + 0,15 × (niveau − 1)) × rareté (1 / 1,5 / 2,2 /
+  3,2 / 4), arrondi à 10 ; durée `rounds(prix)` : < 1 500 → 1 manche,
+  < 4 000 → 2, sinon 3 ; `ready_round` : prête à la FIN de la manche en
+  cours + durée − 1 (lancée entre deux manches : la suivante compte comme
+  en cours) ; recharge `refill_price` = 30 % du prix ; recyclage
+  `recycle_value` = 50 % du prix, 0 pour un exemplaire d'arme de base
+  (`base:<id>`), refusé pour une arme prêtée. Valeurs provisoires
+  (GAME_CONCEPT §6 bis).
+- **Station** (`scripts/game/interact/build_station.gd`, une par carte,
+  `Game.station`, nœud `World/BuildStation`) : le serveur garde
+  `builds` (pid -> {w, price, round, ready}) ; [F] (`srv_use`) récupère
+  l'arme prête par `Session.give_to_bag` (inventaire plein : refus
+  `InteractionSystem.BAG_FULL`, puis l'interface s'ouvre) ou ouvre
+  l'interface du joueur (`_cl_open`, au seul joueur). Requêtes : RPC
+  `srv_build(arme)` et `srv_refill()` sur la station (prologue
+  `NetGuard.alive_sender` + limiteur, joueur à portée de la station),
+  `Combat.srv_recycle(rangée, place)` (panneau d'inventaire ou station).
+  Le serveur ne connaît pas l'arsenal du client : le client envoie
+  l'exemplaire voulu, relu par `BuildRules.clean_weapon` (arme à feu connue,
+  niveau, rareté, pièces bornées, munitions pleines) ; niveau du joueur
+  (celui annoncé au départ), une seule construction à la fois, ferraille
+  (`Session.try_spend`) dépensée au lancement. Fin de manche
+  (`RoundManager.round_ended`, écouté sans toucher au gestionnaire) : les
+  constructions arrivées à leur manche passent « prêtes ». État de chaque
+  joueur répliqué par le message d'état des objets (`get_state` /
+  `apply_state`, relu chez le client) ; le joueur local voit le voyant
+  changer et un message quand son arme est prête.
+- **Interface** (`scripts/game/hud/station_panel.gd`, `Hud.station_panel`) :
+  arsenal du profil LOCAL (`BuildRules.catalog` : armes de base à feu puis
+  armes de l'arsenal à feu ; une arme de mêlée ne se construit pas), nom,
+  niveau, rareté, score, prix et durée, « NIVEAU n REQUIS » (ligne grisée) ;
+  état de la construction ; recharge de l'arme en main ; recyclage des
+  armes portées (deux appuis). La partie continue ; `Game.menu_open()` coupe
+  les entrées du joueur ; Échap / B / [I] ferment. Panneau d'inventaire :
+  bouton RECYCLER sur une case choisie seule (deux appuis).
+- **Fin de partie** (`ProfileLoot.apply_evacuation`, appelé une fois par
+  `Game._show_match_end`, évacuation seulement ; rapport dans
+  `MatchResult.loot.arsenal`) : armes en main et inventaire du joueur
+  local ; exemplaire construit depuis l'arsenal et amélioré en partie : CETTE
+  version est mise à jour (`PlayerProfile.update_weapon`) ; arme ramassée ou
+  arme de base améliorée : nouvelle version ; arme de base intacte, arme
+  prêtée : rien. Équipe morte : rien n'est appelé, l'arsenal (jamais retiré
+  par une construction) reste inchangé.
+- Tests : `tests/test_build_rules.gd`, scénarios `station`, `station_lost`,
+  `sh tools/mp_test.sh station`.
+
 ## Couches physiques
 
 Une couche par usage, jamais partagée (vérifié par `tests/test_physics_layers.gd`) :

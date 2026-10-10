@@ -1484,6 +1484,7 @@ une erreur).
   {"id":"t1","type":"piege","altitude":0,"rect":[5,5,7,9]},
   {"id":"c1","type":"courant","altitude":3.5,"position":[2.5,7.5],"mur":"o"},
   {"id":"e1","type":"evacuation","altitude":0,"position":[2.5,24],"mur":"o"},
+  {"id":"t2","type":"station","altitude":0,"position":[12.5,33],"mur":"s"},
   {"id":"d1","type":"prefab","prefab":"sacs_sable","altitude":0,"position":[10.25,3.25],"rot":90},
   {"id":"lu1","type":"luminaire","luminaire":"suspension","altitude":0,"position":[7.5,5.5],"rot":0,"couleur":"#ffc88a","intensite":2.2,"portee":10,"courant":true,"vacille":false},
   {"id":"lu2","type":"luminaire","luminaire":"applique","altitude":0,"position":[0,5],"mur":"o","couleur":"#40a0ff","intensite":1.4,"portee":7,"courant":true,"vacille":false}

@@ -84,6 +84,11 @@ func evac_door() -> MapMarker:
 	return null
 
 
+## Station de construction (null : la carte n'en a pas ; BuildStation).
+func build_station() -> MapMarker:
+	return null
+
+
 ## Téléporteur : {pad: Vector3, exit: Vector3, mainframe: MapMarker ou null},
 ## vide si la carte n'en a pas.
 func teleporter() -> Dictionary:

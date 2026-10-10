@@ -530,6 +530,12 @@ corriger.
 | Couteau choisi comme arme de départ | il reste l'attaque de mêlée séparée et ne prend pas d'emplacement en main (en attendant la batte, qui se tiendra en main) | `Session.starting_hands` |
 | Mains vides | permis (tout rangé, ou départ au couteau seul) : couteau et grenade restent ; à la réapparition, pistolet de départ seulement si ni main ni inventaire | `MatchRules` |
 | Effet légendaire / unique | aucun pour l'instant ; point d'accroche `GameWeapon.visual_effect` | `GameWeapon` |
+| Prix de construction | 500 × (1 + 0,15 × (niveau − 1)) × rareté (commune 1, rare 1,5, épique 2,2, légendaire 3,2, unique 4), arrondi à 10 : arme de base 500, niveau 10 rare 1 760, niveau 50 unique 16 700 ; pièces non comptées | `BuildRules.price` |
+| Durée de construction | prix < 1 500 : 1 manche, < 4 000 : 2, sinon 3 ; prête à la fin de la manche en cours + durée − 1 (lancée entre deux manches : la suivante compte) | `BuildRules.rounds`, `ready_round` |
+| Recharge des munitions (station) | 30 % du prix de construction de l'arme en main, arrondi à 10 (pistolet de base : 150) | `BuildRules.refill_price` |
+| Recyclage en partie | 50 % du prix de construction, arrondi à 10 ; arme de base (donnée à tous) : 0 ; arme prêtée à terre : impossible ; depuis l'inventaire ou la station, deux appuis | `BuildRules.recycle_value` |
+| Station de construction | [F] : interface (la partie continue) ou récupération de l'arme prête ; armes de mêlée non listées (le couteau reste l'attaque séparée) | `BuildStation`, `StationPanel` |
+| Évacuation et arsenal | armes en main et inventaire : exemplaire de l'arsenal amélioré → cette version mise à jour ; arme ramassée ou arme de base améliorée → nouvelle version ; arme de base intacte → rien | `ProfileLoot` |
 
 ## 7. Questions ouvertes
 

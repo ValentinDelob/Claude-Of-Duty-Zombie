@@ -55,21 +55,21 @@ func test_lecture_tolerante() -> void:
 
 
 func test_carte_format_18() -> void:
-	assert_eq(EditorMap.FORMAT, 18, "format 18")
+	assert_true(EditorMap.FORMAT >= 18, "format 18 et plus")
 	var m := EditorMap.blank()
 	assert_false(m.carte.has("vagues"), "carte neuve : schéma par défaut, non écrit")
 	EditorMap.set_waves(m.carte, WaveRules.SPECIAL, 4, 6)
 	assert_eq(EditorMap.waves_of(m.carte).speciale, {"premiere": 4, "intervalle": 6})
 	var texts := m.file_texts()
 	assert_true(String(texts["carte.json"]).contains("\"vagues\""), "écrit quand il change")
-	assert_true(String(texts["carte.json"]).contains("\"format\": 18"), "écrit au format 18")
+	assert_true(String(texts["carte.json"]).contains("\"format\": %d" % EditorMap.FORMAT), "écrit au format courant")
 	var back := EditorMap.from_texts(texts)
 	assert_eq(EditorMap.waves_of(back.carte).speciale.premiere, 4, "relu")
 	EditorMap.set_waves(back.carte, WaveRules.SPECIAL, 5, 5)
 	assert_false(back.carte.has("vagues"), "retour au défaut : clé retirée")
 	# Ancienne carte (format 17) : lue telle quelle, schéma par défaut.
 	var old := m.file_texts()
-	old["carte.json"] = String(old["carte.json"]).replace("\"format\": 18", "\"format\": 17")
+	old["carte.json"] = String(old["carte.json"]).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 17")
 	var o := EditorMap.from_texts(old)
 	assert_true(o.load_errors.is_empty(), "format 17 lu sans erreur")
 	# Contrôle des cartes reçues : clé admise, valeurs bornées.

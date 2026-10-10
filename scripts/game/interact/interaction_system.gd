@@ -256,6 +256,11 @@ func _cl_state(id: String, state: Dictionary) -> void:
 ## client dans sa propre langue (deny_text).
 const NO_POINTS := "no_points"
 const NO_POWER := "no_power"
+## Station de construction (BuildStation) : inventaire de partie plein pour
+## récupérer l'arme, munitions déjà pleines ; refus de construction :
+## codes de BuildRules (build_refusal).
+const BAG_FULL := "bag_full"
+const AMMO_FULL := "ammo_full"
 
 
 ## Texte affiché pour un motif de refus, dans la langue du joueur local.
@@ -265,7 +270,11 @@ static func deny_text(reason: String) -> String:
 			return Lang.t("Pas assez de ferraille", "Not enough scrap")
 		NO_POWER:
 			return Lang.t("Pas de courant", "No power")
-	return ""
+		BAG_FULL:
+			return Lang.t("Inventaire plein : libérez une place (échange ou recyclage)", "Backpack full: free a slot (swap or recycle)")
+		AMMO_FULL:
+			return Lang.t("Munitions déjà pleines", "Ammo already full")
+	return BuildRules.refusal_text(reason)
 
 
 ## Serveur : refus (points insuffisants...) signalé au seul joueur concerné.

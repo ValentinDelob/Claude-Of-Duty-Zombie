@@ -90,6 +90,8 @@ var throwables: ThrowableSystem
 var vox: VoxSystem
 ## Porte d'évacuation (null : carte sans porte, aucune évacuation possible).
 var evac: EvacDoor
+## Station de construction (null : carte sans station, rien à construire).
+var station: BuildStation
 signal power_changed(on: bool)
 ## Chargement local terminé (préchauffage fait), juste avant de l'annoncer au
 ## serveur. Jamais émis si la session s'est terminée pendant le chargement.
@@ -169,6 +171,7 @@ func _load_map(map_id: String) -> void:
 	_build_traps()
 	_build_barricades()
 	_build_evac()
+	_build_station()
 	if multiplayer.is_server():
 		layout.finish_nav(world)
 	print("[Game] carte « %s » construite" % map_def.display_name)
@@ -270,7 +273,8 @@ func capture_mouse(on: bool) -> void:
 ## joueur local ignorées (la partie continue).
 func menu_open() -> bool:
 	return hud != null and ((hud.pause_menu != null and hud.pause_menu.visible)
-		or (hud.inventory != null and hud.inventory.visible))
+		or (hud.inventory != null and hud.inventory.visible)
+		or (hud.station_panel != null and hud.station_panel.visible))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -404,6 +408,10 @@ func _show_match_end(r: MatchResult) -> void:
 		# compte la sienne (éliminations du joueur local) et la note dans le
 		# résultat affiché.
 		r.xp = int(MatchXp.apply_match_xp(lpd.kills if lpd else 0, match_rounds_survived(r)).xp)
+		# Évacuation : armes gardées sur soi rapportées à l'arsenal, versions
+		# construites et améliorées mises à jour (§4.11, §4.12) ; sinon rien.
+		if r.evacuated and lpd:
+			r.loot["arsenal"] = ProfileLoot.apply_evacuation(lpd.weapons + lpd.bag)
 	print("[Game] fin de partie : %s, manche %d, %s" % ["évacuation" if r.evacuated else "équipe morte",
 			r.round_reached, MatchResult.time_text(r.duration_sec)])
 	hud.show_match_end(r)
@@ -588,6 +596,21 @@ func _build_evac() -> void:
 	evac.setup_marker(m)
 	world.add_child(evac)
 	interact.register(evac)
+
+
+## Station de construction (§4.11) : une par carte ; carte sans station
+## (carte ancienne) : rien à construire.
+func _build_station() -> void:
+	var m := layout.build_station()
+	if m == null:
+		print("[Game] carte sans station de construction")
+		return
+	station = BuildStation.new()
+	station.setup_marker(m)
+	world.add_child(station)
+	interact.register(station)
+	if m.block != "":
+		layout.set_blocked(m.block, true)
 
 
 func _build_barricades() -> void:

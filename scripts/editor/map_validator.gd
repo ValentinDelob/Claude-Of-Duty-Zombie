@@ -44,10 +44,10 @@ const MIN_SPAWN_DIST := 7.0
 ## Objets sans lesquels la partie ne se joue pas : enfermés par une barrière
 ## invisible, c'est une erreur (les autres : un avertissement, la barrière ne
 ## retire jamais un objet). Interrupteur du courant (portes du courant jamais
-## ouvertes), départ des joueurs et porte d'évacuation (format 18,
-## obligatoire). La caisse au hasard n'est pas exigée par la carte :
-## avertissement seulement.
-const SHUT_NEEDED := ["courant", "depart", "evacuation"]
+## ouvertes), départ des joueurs, porte d'évacuation (format 18,
+## obligatoire) et station de construction (format 19, obligatoire). La
+## caisse au hasard n'est pas exigée par la carte : avertissement seulement.
+const SHUT_NEEDED := ["courant", "depart", "evacuation", "station"]
 
 enum K { VIDE, MUR, TREMIE, ESCALIER, PORTE, DEBRIS, FENETRE, SOL, MARQUEUR }
 const DIRS: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
@@ -65,6 +65,7 @@ const ENTRIES := {
 	"poste_central": ["mural", "Poste central du téléporteur", "Teleporter mainframe"],
 	"levier": ["mural", "Levier de piège", "Trap lever"],
 	"evacuation": ["mural", "Porte d'évacuation", "Evacuation door"],
+	"station": ["mural", "Station de construction", "Construction station"],
 }
 
 
@@ -1967,7 +1968,7 @@ func _counts() -> void:
 		var extra := (wall_items + floor_items).filter(func(it): return it.base in ["boite", "boite_depart"])
 		_msg("attention", "%d caisses au hasard : une seule par carte, seule la première est utilisée (supprimez les autres)" % boxes,
 			"%d random crates: only one per map, only the first one is used (delete the others)" % boxes, extra[1].floor, extra[1].cells)
-	for key in ["courant", "teleporteur", "arrivee", "poste_central", "evacuation"]:
+	for key in ["courant", "teleporteur", "arrivee", "poste_central", "evacuation", "station"]:
 		if n.get(key, 0) > 1:
 			var its := (wall_items + floor_items).filter(func(it): return it.base == key)
 			var e := entry(key)
@@ -1984,6 +1985,10 @@ func _counts() -> void:
 	if n.get("evacuation", 0) == 0:
 		_msg("erreur", "aucune porte d'évacuation (inventaire : Joueurs et apparitions > Porte d'évacuation, contre un mur accessible depuis le départ) : obligatoire sur chaque carte",
 			"no evacuation door (inventory: Players and spawns > Evacuation door, against a wall reachable from the start): every map needs one")
+	# Format 19 : station de construction obligatoire (GAME_CONCEPT.md §4.11).
+	if n.get("station", 0) == 0:
+		_msg("erreur", "aucune station de construction (inventaire : Joueurs et apparitions > Station de construction, contre un mur) : obligatoire sur chaque carte",
+			"no construction station (inventory: Players and spawns > Construction station, against a wall): every map needs one")
 	# Chaque zone a au moins une fenêtre (sauf la salle du téléporteur).
 	var tp_exit := ""
 	for it in floor_items:

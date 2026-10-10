@@ -165,6 +165,19 @@ func evac_door() -> MapMarker:
 	return cell_marker("evac", cells[0], data) if not cells.is_empty() else null
 
 
+## Station de construction : marqueur STATION_MARKER, contre le mur le plus
+## proche ; sa cellule et ses deux voisines le long du mur sont retirées de la
+## navigation des zombies (établi de 1,6 m, comme la caisse).
+func build_station() -> MapMarker:
+	var cells: Array = data.markers.get(MapDef.STATION_MARKER, [])
+	if cells.is_empty():
+		return null
+	var m := cell_marker("station", cells[0], data)
+	m.block = "station"
+	_blockers[m.block] = MysteryBox.spot_cells(cells[0], data)
+	return m
+
+
 func teleporter() -> Dictionary:
 	var pad: Array = data.markers.get("T", [])
 	var exit: Array = data.markers.get("F", [])

@@ -46,6 +46,8 @@ static func free_walls_map() -> EditorMap:
 	box.merge({"id": "b1", "altitude": 0, "position": r.position}, true)
 	MapRules.apply_wall(box, r)
 	doc.objets.append(box)
+	# Format 19 : station de construction au sud, loin des murs libres.
+	doc.objets.append({"id": "t1", "type": "station", "altitude": 0, "position": [9.0, 18.0], "mur": "s"})
 	return MapTestKit.add_evac(doc)
 
 
