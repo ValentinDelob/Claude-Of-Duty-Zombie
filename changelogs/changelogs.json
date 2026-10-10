@@ -2396,6 +2396,29 @@
     "en": "Map editor: Z field",
     "fr": "Éditeur de cartes : champ Z"
    }
+  },
+  "v0.2.1-snapshot.478": {
+   "channel": "snapshot",
+   "date": "2026-10-10",
+   "images": [],
+   "items": [
+    {
+     "en": "Sprint stamina is gone, replaced by energy. Running, jumping and knifing wear you out, and it comes back as soon as you catch your breath.",
+     "fr": "Fini l'endurance de sprint : place à l'énergie. Courir, sauter et frapper au couteau vous fatiguent, et elle revient dès que vous soufflez un peu."
+    },
+    {
+     "en": "Out of breath, you can't sprint, your knife swings slow down, your jumps get lower and you recover more slowly, until you've got your strength back.",
+     "fr": "À bout de souffle, impossible de courir, vos coups de couteau ralentissent, vos sauts sont plus bas et vous récupérez moins vite, jusqu'à avoir repris des forces."
+    },
+    {
+     "en": "No gauge on screen: listen instead. Your character breathes harder as they tire and pants when they're spent.",
+     "fr": "Pas de jauge à l'écran : c'est à l'oreille. Votre personnage respire de plus en plus fort quand il fatigue et halète quand il n'en peut plus."
+    }
+   ],
+   "title": {
+    "en": "Mind your breath",
+    "fr": "Gare au coup de pompe"
+   }
   }
  }
 }
