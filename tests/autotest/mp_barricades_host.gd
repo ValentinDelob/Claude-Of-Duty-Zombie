@@ -55,8 +55,7 @@ func run() -> void:
 		return
 	var ok: bool = await until(func(): return w.planks() == 6, 30.0, "réparation par le client")
 	at.check(ok, "le client a reconstruit la fenêtre (validé par le serveur)")
-	await until(func(): return cpd.points - pts0 >= 40, 2.0, "points de réparation")
-	at.check(cpd.points - pts0 == 40, "le serveur crédite le client : +%d (4 planches)" % (cpd.points - pts0))
+	at.check(cpd.points == pts0, "réparer ne rapporte pas de ferraille au client (+%d)" % (cpd.points - pts0))
 	# Le client s'est reculé pour regarder la fenêtre.
 	if not await MpHelpers.wait_peer(self, "recule", 20.0):
 		return

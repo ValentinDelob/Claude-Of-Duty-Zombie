@@ -190,7 +190,6 @@ func _map(map_id: String) -> void:
 	ok = await until(func(): return w.planks() == BarricadeRules.planks_for(kind), 12.0, "porte reconstruite")
 	p.input.interact = false
 	at.check(ok, "maintenir [F] reconstruit la porte planche par planche (%d)" % w.planks())
-	await until(func(): return pd.points - pts0 >= 10 * BarricadeRules.planks_for(kind), 2.0, "points des planches")
-	at.check(pd.points - pts0 == 10 * BarricadeRules.planks_for(kind), "+10 points par planche reposée (+%d)" % (pd.points - pts0))
+	at.check(pd.points == pts0, "réparer ne rapporte pas de ferraille (+%d)" % (pd.points - pts0))
 	tree().physics_frame.disconnect(_sample)
 	game.rounds.paused = false
