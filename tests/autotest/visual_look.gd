@@ -184,7 +184,7 @@ func _hud_pass() -> void:
 	await until(func(): return GameState.state == GameState.State.GAME_OVER, 3.0, "GAME OVER")
 	await until(func(): return hud._center_msg.text == "GAME OVER" and hud._center_sub.text != "", 4.0, "écran de fin de partie")
 	await seconds(0.5)  # apparition du texte (capture)
-	at.check(hud._center_msg.text == "GAME OVER" and hud._center_sub.text.begins_with("Vous avez survécu %d manches" % game.rounds.round_n),
+	at.check(hud._center_msg.text == "GAME OVER" and hud._center_sub.text.begins_with("Manche %d atteinte — temps " % game.rounds.round_n),
 			"fin de partie : %s / %s" % [hud._center_msg.text, hud._center_sub.text])
 	await at.screenshot("hud_game_over")
 

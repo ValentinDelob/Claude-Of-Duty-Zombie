@@ -141,11 +141,13 @@ func run() -> void:
 	cv.frame_all()
 	await frames(2)
 	# (y = 12 : entre la porte à 1000 et TITAN BREW, mur plein à l'est.)
+	var n_rooms := ed.doc.pieces.size()
+	var n_objs := ed.doc.objets.size()
 	_ctrl_double_click(Vector2(13.0, 12.0))
 	await tree().physics_frame
 	var wp := w.rig.walker.global_position
 	at.check(Vector2(wp.x - OFF, wp.z - OFF).distance_to(Vector2(13, 12)) < 0.3, "Ctrl + double-clic : caméra placée (%.1f ; %.1f)" % [wp.x - OFF, wp.z - OFF])
-	at.check(ed.doc.pieces.size() == 6 and ed.doc.objets.size() == 12, "Ctrl + double-clic : rien posé sur la carte")
+	at.check(ed.doc.pieces.size() == n_rooms and ed.doc.objets.size() == n_objs, "Ctrl + double-clic : rien posé sur la carte (%d pièces, %d objets)" % [ed.doc.pieces.size(), ed.doc.objets.size()])
 	await seconds(0.4)
 	at.check(absf(w.rig.walker.global_position.y) < 0.2 and w.rig.walker.is_on_floor(), "au sol (y = %.2f)" % w.rig.walker.global_position.y)
 	at.check(absf(w.rig.eye().y - w.rig.walker.global_position.y - Player.EYE_HEIGHT) < 0.01, "yeux à %.2f m" % Player.EYE_HEIGHT)
