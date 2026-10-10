@@ -22,7 +22,10 @@ func run() -> void:
 	await frames(3)
 	ed.new_map(true)
 	var doc := Objects.objects_map()
-	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
+	# Porte d'évacuation (obligatoire) contre le mur est, hors de portée de la
+	# poutre tournée à 45° (contre le mur nord, elle la chevauchait).
+	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible" and o.type != "evacuation")
+	MapTestKit.add_evac_at(doc, Vector2(13.7, 8.5))
 	doc.pieces[0]["plafond"] = 6.8
 	doc.find("s1")["position"] = [6.0, 8.5]
 	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "altitude": 0, "position": [5.0, 3.5]})
