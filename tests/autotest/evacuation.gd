@@ -37,6 +37,7 @@ func _vote() -> void:
 
 func run() -> void:
 	timeout_sec = 120
+	ProfileStore.reset()
 	p = await H.start_solo_game(self, "test_arena")
 	if p == null:
 		return
@@ -109,4 +110,9 @@ func run() -> void:
 	at.check(game.hud._center_msg.text == Lang.t("ÉVACUATION RÉUSSIE", "EVACUATED"), "écran de fin : « %s »" % game.hud._center_msg.text)
 	at.check(game.hud._center_sub.text.contains("6"), "manche et temps à l'écran : « %s »" % game.hud._center_sub.text)
 	at.check(not door.is_open, "porte refermée")
+	# XP de la partie ajoutée une fois au profil : la manche vaincue compte.
+	var lpd := game.session.local_data()
+	var xp := ProfileStore.load_profile().xp
+	at.check(r.xp == MatchXp.match_xp(lpd.kills, 6) and xp == r.xp, "XP de l'évacuation au profil (%d, résultat %d)" % [xp, r.xp])
 	await at.screenshot("evacuated")
+	ProfileStore.reset()
