@@ -172,6 +172,39 @@ et exporte.
   contour noir compris ; rangée 3 : les deux à 50 % pour comparer pixel à
   pixel ; vues : face, dos, profils, trois-quarts, pose d'attaque).
 
+### Architecture et textures des cartes (fait, docs/VOXEL_ARCHITECTURE_PLAN.md)
+
+- **Toute l'architecture est en cubes de 5 cm** sur la grille du monde,
+  construite par le jeu (`MeshMapGeometry`, `CubeColumns` ; BUNKER K-7 :
+  `MapBuilder`, cellules de 1 m) : sols, plafonds, dalles, murs droits,
+  piliers. Aucune carte ne passe plus par un .glb Blender (test_levels
+  compris, lot E). Décor des cartes en grille (`PropBuilder`) : pavés sur la
+  grille de 5 cm, tuyaux de section carrée, abat-jour en escalier de cubes,
+  caisses et barils cubiques de l'éditeur.
+- **Murs en biais, murs courbes, piliers tournés, raccords** : escalier de
+  marches de **10 cm** (2 × 2 cubes) : à 5 cm, le contour noir traçait un
+  trait tous les 5 cm et le mur vu de biais moirait. Faces toujours axiales ;
+  leur normale d'éclairage penche vers le vrai mur (sinon les faces x et z
+  alternent clair / sombre). Les marches ne s'ombrent pas les unes les
+  autres : l'ombre du mur vient d'un pavé lisse invisible (sans lui :
+  rayures sombres sous une lampe proche, captures du lot E).
+- **Escaliers** : marches de 3 ou 4 cubes de haut (15 ou 20 cm), giron d'au
+  moins 5 cubes ; rampe en marches d'un cube ; colimaçon à marches carrées et
+  noyau carré ; escalier tourné en cases de 10 cm (même ombrage que les murs
+  en biais). **Garde-corps** : main courante et lisse de 2 × 2 cubes,
+  barreaux d'un cube tous les 30 cm. **Sols en pente** : terrasses de 5 cm.
+- **Textures pixel art** de toutes les surfaces (`PixelSurfaces`,
+  `pixel_surface.gdshader`) : 1 pixel = 1 cube de 5 cm (20 par mètre), lues
+  au plus proche sur la grille du monde, couleurs unies par pixel, teintes
+  de `voxel_lib.DECOR_PALETTE` assombries pour l'architecture ; univers
+  hôpital / laboratoire / bunker : béton à banches et fissures, carrelage
+  fêlé et sang séché, mur peint à soubassement vert d'eau écaillé, tôle
+  rivetée, planches, pierre rituelle à veines lumineuses, dalles de
+  plafond, briques… Textures importées d'une carte réduites à 20 pixels par
+  mètre.
+- Contrôle automatique : `LayoutCheck` (cartes du jeu, tests, `--check` de
+  l'éditeur).
+
 ### Contour noir en jeu (scripts/game/screen_outline.gd)
 
 La planche dessine un trait noir d'environ 1 cm autour des pièces. Choix

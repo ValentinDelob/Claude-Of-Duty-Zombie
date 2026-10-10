@@ -1,9 +1,8 @@
 class_name MapLayoutExport
 extends RefCounted
 ## Description de carte en maillage tirée d'une carte de l'éditeur validée
-## (MapValidator) : même format que assets/maps/kino/layout.json, lu par
-## MeshMapLayout (jeu) et construit par MeshMapGeometry (ou, pour les cartes
-## faites dans Blender, tools/blender/mesh_map.py). Salles (sols, plafonds,
+## (MapValidator) : même format que assets/maps/test_levels/layout.json, lu
+## par MeshMapLayout (jeu) et construit en cubes par MeshMapGeometry. Salles (sols, plafonds,
 ## dalles de niveau), blocs (murs, allèges, linteaux, décor), garde-corps,
 ## escaliers (rampe de collision), zones, marqueurs (objets muraux donnés par
 ## la face du mur et la direction du mur).

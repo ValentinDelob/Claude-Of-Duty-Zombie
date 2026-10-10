@@ -60,9 +60,13 @@ static func check_def(def: MapDef) -> Dictionary:
 ## Carte en grille (MapDef à `rows`, BUNKER K-7) : géométrie de MapBuilder.
 static func check_grid(def: MapDef) -> Dictionary:
 	var holder := Node3D.new()
-	var b := MapBuilder.new(MapData.parse(def.rows), def)
-	b.build(holder)
-	var rep := check_nodes(holder.get_node("Geometry"))
+	var data := MapData.parse(def.rows)
+	MapBuilder.new(data, def).build(holder)
+	# Décor de la grille (PropBuilder : lits, paillasses, générateur, tuyaux,
+	# lampes, encadrements des fenêtres) : pavés sur la même grille de 5 cm ;
+	# caisses et barils (« voxel__* ») : modèles cubiques du décor.
+	PropBuilder.new(data, def).build(holder)
+	var rep := check_nodes(holder)
 	holder.free()
 	rep["values"] = []
 	return _finish(rep)
@@ -77,6 +81,7 @@ static func check_nodes(root: Node) -> Dictionary:
 		# décor, avec leurs propres règles (VoxelCheck, docs/VOXEL_DECOR_PLAN.md).
 		# Maillages d'ombre seule (pavés lisses des murs en escalier) : jamais vus.
 		if mi.mesh == null or String(mi.name).get_slice("__", 2).begins_with("decor") \
+				or String(mi.name).begins_with(MeshMapBuilder.VOXEL_MAT + "__") \
 				or mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
 			continue
 		var xf := _to_root(mi, root)

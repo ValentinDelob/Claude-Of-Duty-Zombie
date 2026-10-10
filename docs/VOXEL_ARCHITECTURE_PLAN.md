@@ -16,7 +16,10 @@ régénérées (détail : docs/MAP_AUTHORING.md § 4, « Passage aux cubes de 5 
 **Lot B fait** (§ 6) : murs en biais, raccords, murs courbes, piliers tournés,
 cours tournées et cadres des ouvertures en biais en une seule union de cubes.
 **Lot D fait** (§ 7) : escaliers, rampes, colimaçon, garde-corps et sols en
-pente en cubes, collisions inchangées.
+pente en cubes, collisions inchangées. **Lot E fait** (§ 8) : test_levels
+construite par le jeu (plus de .glb), décor de BUNKER K-7 en cubes,
+`LayoutCheck`, ombres des marches, mesures, docs. **Plan terminé** (le § 1
+décrit l'état d'avant, gardé pour mémoire).
 
 ## 1. Inventaire
 
@@ -431,3 +434,70 @@ Fait sur la branche `voxel-archi` :
   `tests/test_voxel_archi_stairs.gd`). L'arrondi indépendant de `a`, `b`,
   `w` à l'export reste (sans effet visible : marches rastérisées sur la
   grille du monde).
+
+## 8. Lot E (fait) : test_levels, BUNKER K-7, contrôle final, ombres, perf
+
+- **test_levels construite par le jeu** : `MeshMapGeometry` depuis son
+  `layout.json`, comme les cartes de l'éditeur (solution retenue plutôt que
+  de recopier les règles dans `mesh_map.py` : un seul code, rien à garder en
+  double). `test_levels.glb` et `tools/blender/mesh_map.py` supprimés, et le
+  paramètre du chemin .glb de `MeshMapLayout` / `MeshMapBuilder` avec eux.
+  Aucune carte du jeu ne vient plus d'un .glb Blender (il n'en restait pas
+  d'autre). Gameplay inchangé (`levels_play`, `levels_nav`).
+- **BUNKER K-7** : architecture déjà cubique (`MapBuilder`, cellules de 1 m,
+  murs de 3,2 m, textures pixel du lot C) ; son décor de grille
+  (`PropBuilder`) ne l'était pas : caisses tournées au hasard, barils,
+  tuyaux, fioles et cheminées du générateur en cylindres, abat-jour coniques,
+  pavés hors grille (lattes de 6 cm, encadrements de 1,08 m). Désormais :
+  pavés arrondis à la grille de 5 cm et au quart de tour, cylindres en pavés
+  de section carrée, abat-jour en escalier de cubes (15, 30, 45 cm), caisses
+  et barils = modèles cubiques des cartes de l'éditeur. Taches de sang :
+  décalques (texture projetée au sol), gardées.
+- **`LayoutCheck`** (`scripts/game/map/layout_check.gd`) : valeurs de la
+  description (`MapLayoutExport.off_grid`) et géométrie construite (faces
+  axiales, sommets sur la grille de 5 cm du monde ; décor cubique et
+  maillages d'ombre seule exceptés) ; `check_def` (toute carte du jeu,
+  grille ou description), `check_map` (carte de l'éditeur), `check_grid`
+  (MapBuilder + PropBuilder). Branché dans `tests/test_layout_check.gd`
+  (les 4 cartes de `Game.MAP_SCRIPTS`, DRAFT ARENA de l'éditeur, cartes
+  d'essai : murs en biais, salle ronde, murs libres, pente, escaliers de
+  tous les types à garde-corps, escalier tourné, immeuble ; toutes les
+  fixtures ; refus d'une valeur à 4,03 m, d'un pavé tourné, d'un sommet
+  décalé de 2 cm) et dans `--check` de l'éditeur (sortie 1 si non cubique).
+- **Rayures d'ombre** (pilote, lot B, lot D) : sous une lampe proche, chaque
+  colonne de 10 cm d'un mur en biais ou d'un escalier tourné ombrait sa
+  voisine (bandes sombres en biseau, captures avant / après). Les faces des
+  marches (`*__biais`, `*__stair_biais`, `*__rail_biais`) ne projettent plus
+  d'ombre ; un maillage d'ombre seule `StepShadows` porte l'ombre : un pavé
+  lisse par morceau de mur en biais et de cour tournée, aminci de 7,5 cm
+  par côté (aucune marche à l'intérieur, test), et pour un escalier tourné
+  la rampe de chaque volée abaissée de 25 cm et amincie, les paliers
+  rentrés de 7,5 cm. Le mur arrête toujours la lumière d'une salle à
+  l'autre ; les garde-corps et limons des escaliers tournés n'ont plus
+  d'ombre (minces). Collisions inchangées.
+- **Perf** (`sh tools/perf.sh archi_perf map_tour`, 1080p, RTX A2000,
+  avant = 2fa0a35 / après ; détail dans docs/ARCHITECTURE.md
+  « Architecture cubique ») : aucune différence mesurable (± 0,3 ms de
+  bruit en MEDIUM, après ≤ avant en LOW sur chaque carte) ; MEDIUM pires
+  vues 3,1 ms (BUNKER K-7) à 3,7-3,9 ms (départ de DRAFT ARENA, ensemble
+  des escaliers), dues aux lampes (27 dans la vue de DRAFT ARENA : 1,5 ms),
+  pas à l'architecture. Estimation GTX 1050 : ≥ 60 fps en MEDIUM dans les
+  vues à 3,4 ms ou moins, 55-60 fps dans les plus chargées (comme avant) ;
+  LOW ≥ 100 fps.
+- **Nettoyage** : scénarios de captures de la fonctionnalité retirés
+  (`voxel_archi_look` avec ses réglages `ARCHI_GRAIN` / `ARCHI_SHADE`,
+  `voxel_textures_look`, `voxel_stairs_look`) ; ce qu'ils vérifiaient sans
+  capture passe dans `archi_walk` (sans rendu : le joueur monte l'escalier
+  droit à pied, bute sur le mur libre en biais). Gardé : `archi_perf`
+  (mesure, @niveau perf).
+- **Reste non cubique dans le jeu** (hors architecture, hors de ce plan) :
+  armes et mains en vue à la première personne et arme des autres joueurs
+  (`WeaponModels`, `ViewHands` : primitives chanfreinées, cylindres) ;
+  modèles des autres joueurs (`PlayerModel`, pavés hors grille et inclinés) ;
+  chiens (`HellhoundModel`) ; zombie procédural de repli
+  (`--procedural-zombies`) ; grenade, peluche leurre, projectiles et boule
+  d'explosion (sphères, cylindres, tore) ; particules et effets (quads
+  texturés : impacts, sang, fumée, feu, éclairs ; douilles en cylindres,
+  traçantes fines, éclairs des chiens et du piège, colonne de la caisse) ;
+  décalques (impacts, sang, brûlures) ; textes 3D (Label3D) ; ciel
+  (dégradé, étoiles rondes) ; décor 3D du menu principal.

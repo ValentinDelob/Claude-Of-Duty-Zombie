@@ -491,6 +491,15 @@ retravaillées.
     cubique avant d'entrer dans le jeu.
 - L'**interface** (HUD, menus) n'a pas besoin d'être cubique, mais elle doit
   rester **en harmonie** avec le style du jeu.
+- ✅ **Architecture des cartes en cubes de 5 cm** (docs/VOXEL_ARCHITECTURE_PLAN.md,
+  fait) : sols, plafonds, murs droits, en biais et courbes (escaliers de
+  marches de 10 cm), piliers, escaliers (marches de 15 ou 20 cm), rampes,
+  colimaçon, garde-corps et pentes (terrasses) ; toutes les cartes du jeu
+  (BUNKER K-7, DRAFT ARENA, test_levels) et celles de l'éditeur, vérifiées
+  automatiquement (`LayoutCheck`).
+- ✅ **Textures de toutes les surfaces en pixel art**, un pixel = un cube de
+  5 cm, dans l'univers hôpital / laboratoire / bunker (textures importées
+  d'une carte réduites au même grain).
 - ❓ Lumières, post-traitement (brume, lueur) et ciel.
 
 ## 5. Mécaniques prototypées (code actuel)
