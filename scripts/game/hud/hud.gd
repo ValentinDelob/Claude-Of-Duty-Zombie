@@ -643,8 +643,37 @@ func show_match_end(r: MatchResult) -> void:
 		inventory.close()
 	show_center(r.title(), r.summary(), 0.6)
 	show_game_over_table(r.details())
+	_show_loot_report(r.loot_text(), r.evacuated)
 	if not r.evacuated:
 		Audio.play_2d("heartbeat", 0.0, 0.0)
+
+
+var _loot_label: Label
+
+
+## Ligne du butin gardé ou perdu, en bas de l'écran de fin (MatchResult.loot_text).
+func _show_loot_report(text: String, kept: bool) -> void:
+	if _loot_label == null:
+		_loot_label = HudStyle.label("", 22, HudStyle.TEXT, "text", 4)
+		_loot_label.anchor_left = 0.5
+		_loot_label.anchor_right = 0.5
+		_loot_label.anchor_top = 1.0
+		_loot_label.anchor_bottom = 1.0
+		_loot_label.offset_left = -700
+		_loot_label.offset_right = 700
+		_loot_label.offset_top = -120
+		_loot_label.offset_bottom = -40
+		_loot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_loot_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		add_child(_loot_label)
+	_loot_label.text = text
+	_loot_label.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6) if kept else HudStyle.POINTS_LOSS)
+	_loot_label.visible = text != ""
+
+
+## Rapport du butin affiché ("" : aucun ; tests).
+func loot_report() -> String:
+	return _loot_label.text if _loot_label and _loot_label.visible else ""
 
 
 var _evac_label: Label

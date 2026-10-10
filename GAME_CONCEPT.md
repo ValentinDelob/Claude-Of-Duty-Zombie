@@ -530,6 +530,12 @@ corriger.
 | Couteau choisi comme arme de départ | il reste l'attaque de mêlée séparée et ne prend pas d'emplacement en main (en attendant la batte, qui se tiendra en main) | `Session.starting_hands` |
 | Mains vides | permis (tout rangé, ou départ au couteau seul) : couteau et grenade restent ; à la réapparition, pistolet de départ seulement si ni main ni inventaire | `MatchRules` |
 | Effet légendaire / unique | aucun pour l'instant ; point d'accroche `GameWeapon.visual_effect` | `GameWeapon` |
+| Armes de butin possibles | toutes les armes à feu de `WeaponDB` **sauf les armes de base** (pistolet de départ), tirage uniforme ; niveau de base de chaque arme = 1 (`WeaponDB.base_level`) | `LootRules` |
+| Pose du butin d'arme | à 1,5 m devant chaque joueur à la fin de la vague (2 armes : écartées), visible de tous, ramassable par son seul propriétaire | `LootSystem` |
+| Modificateurs d'une pièce trouvée | un premier modificateur toujours en bonus ; 35 % de chances d'un second (autre statistique), malus une fois sur deux ; valeurs de 5 à 25 % par pas de 1 % ; identifiant `part_<1er modificateur>` | `LootRules.roll_part` |
+| Pièces et échantillons | rangés directement dans l'onglet de partie (pas d'objet au sol) ; compteur discret à droite du HUD | `LootSystem` |
+| Échantillons des chiens | `dog_fang` (croc), `dog_fur` (touffe de poils), `dog_collar` (collier) | `LootRules.SAMPLES` |
+| Butin rapporté | armes en main et inventaire, sauf armes de base intactes et pistolet prêté ; arme de l'arsenal (même exemplaire) : version mise à jour ; pièces non montées ; échantillons | `ProfileLoot` |
 
 ## 7. Questions ouvertes
 

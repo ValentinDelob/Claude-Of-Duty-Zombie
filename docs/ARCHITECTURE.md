@@ -1015,7 +1015,7 @@ GAME_CONCEPT §4.9, §4.12, §4.13.
   `GameWeapon.swap` : joueur debout, places valides, arme de l'inventaire
   de niveau ≤ joueur ; une place vide d'un côté déplace simplement l'arme.
   Rechargement annulé si l'arme tenue change ; signal `weapons_swapped`.
-  `Session.give_to_bag` range une arme (construction, butin à venir).
+  `Session.give_to_bag` range une arme (construction, butin des vagues).
 - **À terre, mort, réapparition** : l'inventaire n'est jamais touché ; les
   armes en main sont mises de côté puis rendues (`MatchRules` : version
   utilisée à terre retrouvée par `uid`) ; un pistolet prêté (`loaned`) est
@@ -1032,6 +1032,53 @@ GAME_CONCEPT §4.9, §4.12, §4.13.
   d'accroche `GameWeapon.visual_effect(w)` ("legendary", "unique" ou "").
 - Tests : `tests/test_game_weapon.gd`, scénario `inventory_swap`,
   `sh tools/mp_test.sh inventory`.
+
+## Butin des vagues spéciales (`scripts/game/loot/`, `ProfileLoot`)
+
+GAME_CONCEPT §4.7, §4.6, §4.16. Valeurs provisoires : GAME_CONCEPT §6 bis.
+
+- **Tirages** : `LootRules` (pur, générateur fourni). Armes : 1 par joueur
+  par vague spéciale, 2 par vague de boss (`weapons_for_wave`), niveau entre
+  manche − 6 et manche + 2 borné à [max(1, `WeaponDB.base_level`), 50],
+  rareté 60 / 20 / 12,5 / 5 / 2,5 %, arme tirée parmi les armes de
+  `WeaponDB` hors armes de base. Pièces : 5 % par zombie de vague spéciale
+  tué et par joueur, niveau [niveau du joueur − 10 (≥ 1), niveau du joueur],
+  modificateurs de `GameWeapon.MODS`. Échantillons : `LootRules.SAMPLES`
+  (chiens : croc, touffe de poils, collier), 20 % par sorte, par zombie tué
+  et par joueur.
+- **Serveur** (`LootSystem`, `/root/Game/Loot`) : tire tout. Pièces et
+  échantillons à chaque mort d'un zombie de vague spéciale
+  (`ZombieManager.zombie_killed`, chien pendant `RoundManager.wave ==
+  SPECIAL`), rangés directement dans l'onglet de partie du joueur et envoyés
+  à lui seul (`_cl_loot`). Armes à la fin de la vague
+  (`RoundManager.wave_cleared`, émis après l'ouverture de la porte
+  d'évacuation et la réapparition des morts) : `LootDrop` posé à 1,5 m
+  devant chaque joueur (jamais dans un mur), diffusé à tous (`_cl_spawn`,
+  `_cl_remove`).
+- **Arme au sol** (`LootDrop`, Interactable `loot_<n>`) : blocs de 5 cm
+  (anneau et faisceau à la couleur du joueur, `HudStyle.PLAYER_COLORS` ;
+  arme à la couleur de la rareté), étiquette nom / niveau / rareté / joueur.
+  Visible de tous, invite [F] pour le seul propriétaire. Le serveur valide
+  distance, niveau et vue (`InteractionSystem.srv_interact`), puis
+  `LootSystem.srv_pick` : propriétaire seulement (sinon message « Ce butin
+  appartient à … »), `Session.give_to_bag` (inventaire plein : message,
+  l'arme reste). Identifiants d'exemplaire `loot:<n>` (pièces `lootp:<n>`).
+- **Montage d'une pièce** (`InventoryPanel`, rangée PIÈCES) : une pièce puis
+  une arme (en main ou inventaire) -> `LootSystem.srv_mount` (joueur vivant,
+  limiteur) -> `LootRules.mount_refusal` (règle `OwnedWeapon.can_mount`) ->
+  `LootRules.mount` (munitions en cours gardées, bornées).
+- **Fin de partie** : chaque client, une fois (`Game._show_match_end`) :
+  `ProfileLoot.carried` (armes en main et inventaire sauf armes de base
+  intactes et pistolets prêtés, pièces et échantillons de la partie) ;
+  évacuation : `ProfileLoot.apply_evacuation` (nouvel exemplaire de
+  l'arsenal, ou version de l'arsenal mise à jour si même `uid`) ; équipe
+  morte : rien (l'XP reste, `MatchXp`). `MatchResult.loot` =
+  `ProfileLoot.report`, écrit par `MatchResult.loot_text` (« BUTIN GARDÉ » /
+  « BUTIN PERDU ») en bas de l'écran de fin (`Hud._show_loot_report`).
+- Compteur discret des échantillons et pièces de la partie (HUD, à droite).
+- Tests : `tests/test_loot.gd`, scénarios `loot_evac`, `loot_defeat`
+  (`AutotestHelpers.clear_dog_wave`), `sh tools/mp_test.sh loot` (le client
+  ne peut pas ramasser l'arme de l'hôte).
 
 ## Couches physiques
 

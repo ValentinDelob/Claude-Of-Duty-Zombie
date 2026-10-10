@@ -10,6 +10,9 @@ enum Phase { WAITING, ACTIVE, INTERMISSION }
 
 signal round_started(round_n: int)
 signal round_ended(round_n: int)
+## Serveur : vague spéciale ou de boss vaincue (`wave` : WaveRules.SPECIAL ou
+## BOSS), après l'ouverture de la porte d'évacuation (butin : LootSystem).
+signal wave_cleared(wave: String, round_n: int)
 
 var game: Game
 var round_n := 0
@@ -151,9 +154,12 @@ func _has_boss() -> bool:
 ## (carte sans porte : entracte normal).
 func _wave_cleared() -> void:
 	print("[Rounds] vague %s vaincue (manche %d)" % [wave, round_n])
+	var kind := wave
 	wave = ""
 	if game.evac:
 		game.evac.srv_open()
+	# Après srv_open : les morts sont revenus et reçoivent leur butin.
+	wave_cleared.emit(kind, round_n)
 
 
 ## Serveur : fenêtre d'évacuation fermée sans évacuation : la manche suivante

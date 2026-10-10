@@ -88,6 +88,8 @@ var barricades: BarricadeSystem
 var throwables: ThrowableSystem
 ## Répliques des personnages (chemin réseau : /root/Game/Vox).
 var vox: VoxSystem
+## Butin des vagues spéciales (chemin réseau : /root/Game/Loot).
+var loot: LootSystem
 ## Porte d'évacuation (null : carte sans porte, aucune évacuation possible).
 var evac: EvacDoor
 signal power_changed(on: bool)
@@ -119,6 +121,9 @@ func _ready() -> void:
 	vox = VoxSystem.new()
 	vox.name = "Vox"
 	add_child(vox)
+	loot = LootSystem.new()
+	loot.name = "Loot"
+	add_child(loot)
 	spectator = SpectatorCamera.new()
 	spectator.name = "Spectator"
 	spectator.setup(self)
@@ -404,6 +409,12 @@ func _show_match_end(r: MatchResult) -> void:
 		# compte la sienne (éliminations du joueur local) et la note dans le
 		# résultat affiché.
 		r.xp = int(MatchXp.apply_match_xp(lpd.kills if lpd else 0, match_rounds_survived(r)).xp)
+		# Butin de la partie (§4.6, §4.7) : rapporté au profil seulement après
+		# une évacuation ; rapport gardé ou perdu dans le résultat.
+		var carried := ProfileLoot.carried(lpd, loot.my_parts, loot.my_samples)
+		if r.evacuated:
+			ProfileLoot.apply_evacuation(carried)
+		r.loot = ProfileLoot.report(carried, r.evacuated)
 	print("[Game] fin de partie : %s, manche %d, %s" % ["évacuation" if r.evacuated else "équipe morte",
 			r.round_reached, MatchResult.time_text(r.duration_sec)])
 	hud.show_match_end(r)
