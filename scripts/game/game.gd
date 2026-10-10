@@ -90,6 +90,8 @@ var throwables: ThrowableSystem
 var vox: VoxSystem
 ## Butin des vagues spéciales (chemin réseau : /root/Game/Loot).
 var loot: LootSystem
+## XP de la partie, comptée par le serveur (chemin réseau : /root/Game/Xp).
+var xp: XpSystem
 ## Porte d'évacuation (null : carte sans porte, aucune évacuation possible).
 var evac: EvacDoor
 ## Station de construction (null : carte sans station, rien à construire).
@@ -126,6 +128,9 @@ func _ready() -> void:
 	loot = LootSystem.new()
 	loot.name = "Loot"
 	add_child(loot)
+	xp = XpSystem.new()
+	xp.name = "Xp"
+	add_child(xp)
 	spectator = SpectatorCamera.new()
 	spectator.name = "Spectator"
 	spectator.setup(self)
@@ -261,6 +266,8 @@ func _cl_remove_player(pid: int) -> void:
 func _on_session_ended(reason: String) -> void:
 	_session_over = true
 	print("[Game] session terminée : " + reason)
+	# Hôte perdu en cours de partie : l'XP déjà gagnée est gardée (§4.15).
+	keep_match_xp()
 	Router.back_to_menu(reason)
 
 
@@ -344,6 +351,8 @@ func match_result(evacuated: bool) -> MatchResult:
 	r.round_reached = rounds.round_n
 	r.duration_sec = maxf(GameClock.now() - _match_start_clock, 0.0)
 	r.kills = game_over_kills()
+	# XP de chaque joueur, close (bonus d'évacuation) et envoyée à tous.
+	r.xp_ledgers = xp.srv_close_all(evacuated)
 	return r
 
 
@@ -394,10 +403,40 @@ var last_result: MatchResult
 var _match_recorded := false
 
 
-## Manches survécues comptées pour l'XP (MatchXp) : après une évacuation la
-## manche vaincue compte ; à la mort de toute l'équipe, la manche en cours non.
-static func match_rounds_survived(r: MatchResult) -> int:
-	return maxi(r.round_reached if r.evacuated else r.round_reached - 1, 0)
+## Relevé d'XP du joueur local pour le résultat `r` : celui du serveur
+## (MatchResult.xp_ledgers), sinon (ancien message de fin) sa copie locale,
+## close ici.
+func local_xp_ledger(r: MatchResult) -> Dictionary:
+	var me := multiplayer.get_unique_id()
+	if r.xp_ledgers.has(me):
+		return r.xp_ledgers[me]
+	var l := xp.my_ledger.duplicate(true)
+	XpRules.close(l, r.evacuated)
+	return l
+
+
+## Ajoute au profil l'XP de la partie du joueur local, UNE seule fois par
+## partie (fin de partie, ou départ en cours de partie : keep_match_xp).
+## Rend le résultat de MatchXp.apply ({} si déjà fait).
+func _record_xp(l: Dictionary) -> Dictionary:
+	if _xp_recorded:
+		return {}
+	_xp_recorded = true
+	return MatchXp.apply(l)
+
+
+var _xp_recorded := false
+
+
+## Le joueur quitte une partie en cours (menu pause, connexion perdue) :
+## l'XP déjà gagnée est gardée (§4.6, §4.15), sans bonus d'évacuation.
+func keep_match_xp() -> void:
+	if _xp_recorded or xp == null or XpRules.total(xp.my_ledger) <= 0:
+		return
+	var l := xp.my_ledger.duplicate(true)
+	XpRules.close(l, false)
+	var res := _record_xp(l)
+	print("[Game] partie quittée : %d XP gardée" % int(res.get("xp", 0)))
 
 
 func _show_match_end(r: MatchResult) -> void:
@@ -409,10 +448,16 @@ func _show_match_end(r: MatchResult) -> void:
 		var lpd := session.local_data()
 		CareerStats.record_game(lpd, r.round_reached, Net.mode == Net.Mode.SOLO,
 				(Time.get_ticks_msec() - _match_start_ms) / 1000.0)
-		# XP de la partie, toujours gardée (GAME_CONCEPT §4.6). Chaque client
-		# compte la sienne (éliminations du joueur local) et la note dans le
-		# résultat affiché.
-		r.xp = int(MatchXp.apply_match_xp(lpd.kills if lpd else 0, match_rounds_survived(r)).xp)
+		# XP de la partie, comptée par le serveur et toujours gardée
+		# (GAME_CONCEPT §4.6) : ajoutée une fois au profil du joueur local.
+		r.xp_ledger = local_xp_ledger(r)
+		var res := _record_xp(r.xp_ledger)
+		if not res.is_empty():
+			r.xp = int(res.xp)
+			r.level_before = int(res.level_before)
+			r.level_after = int(res.level_after)
+			r.profile_xp = int(res.total_xp)
+			print("[Game] XP de la partie : +%d (niveau %d -> %d)" % [r.xp, r.level_before, r.level_after])
 		# Butin de la partie (§4.6, §4.7) : rapporté au profil seulement après
 		# une évacuation (versions d'arsenal construites et améliorées mises à
 		# jour, §4.11) ; rapport gardé ou perdu dans le résultat.
@@ -420,6 +465,7 @@ func _show_match_end(r: MatchResult) -> void:
 		if r.evacuated:
 			ProfileLoot.apply_evacuation(carried)
 		r.loot = ProfileLoot.report(carried, r.evacuated)
+	xp.hide_live()
 	print("[Game] fin de partie : %s, manche %d, %s" % ["évacuation" if r.evacuated else "équipe morte",
 			r.round_reached, MatchResult.time_text(r.duration_sec)])
 	hud.show_match_end(r)

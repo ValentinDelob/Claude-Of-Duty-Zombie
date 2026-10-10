@@ -287,6 +287,22 @@ func test_apply_loadout_on_server() -> void:
 	s.queue_free()
 
 
+## Niveau annoncé par un joueur (profil local, non vérifiable par l'hôte) :
+## borné à 1-50 (GAME_CONCEPT §4.15), valeur illisible -> niveau 1.
+func test_announced_level_is_bounded() -> void:
+	var s := Session.new()
+	host.add_child(s)
+	var ids := [WeaponDB.STARTING_WEAPON]
+	var cases := [[999, PlayerProfile.MAX_LEVEL], [50, 50], [-3, 1], [0, 1], [17.0, 17], ["30", 1], [NAN, 1], [null, 1]]
+	for c in cases:
+		s.loadouts.clear()
+		s._loadout_limit = NetGuard.Limiter.new(1.0, 4.0)  # un message par cas
+		s.srv_set_loadout(c[0], ids)
+		var lo: Dictionary = s.loadouts.values()[0] if not s.loadouts.is_empty() else {}
+		assert_eq(int(lo.get("level", -1)), c[1], "niveau annoncé %s" % str(c[0]))
+	s.queue_free()
+
+
 # --------------------------------------------------------------------------
 # Réapparition et à terre : l'inventaire de partie reste
 # --------------------------------------------------------------------------

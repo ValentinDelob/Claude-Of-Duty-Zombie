@@ -648,8 +648,8 @@ func show_game_over(summary: String, survived: String) -> void:
 
 ## Fin de partie (Game._show_match_end), une des deux issues : « ÉVACUATION
 ## RÉUSSIE » ou « GAME OVER », zombies abattus, manche atteinte et durée,
-## tableau des scores. Le rapport complet (butin gardé ou perdu, XP) viendra
-## ici avec les lots suivants (MatchResult.loot, xp).
+## rapport d'XP (toujours gardée : détail, niveau avant / après, barre vers
+## le niveau suivant), tableau des scores, butin gardé ou perdu.
 func show_match_end(r: MatchResult) -> void:
 	set_evac_status("")
 	if inventory:
@@ -658,9 +658,83 @@ func show_match_end(r: MatchResult) -> void:
 		station_panel.close()
 	show_center(r.title(), r.summary(), 0.6)
 	show_game_over_table(r.details())
+	_show_xp_report(r)
 	_show_loot_report(r.loot_text(), r.evacuated)
 	if not r.evacuated:
 		Audio.play_2d("heartbeat", 0.0, 0.0)
+
+
+## Rapport d'XP de l'écran de fin (entre le titre et le tableau des scores).
+var xp_report: VBoxContainer
+var _xp_title: Label
+var _xp_level: Label
+var _xp_bar: ProgressBar
+var _xp_progress: Label
+var _xp_details: Label
+
+
+func _show_xp_report(r: MatchResult) -> void:
+	if xp_report == null:
+		xp_report = VBoxContainer.new()
+		xp_report.name = "XpReport"
+		xp_report.anchor_left = 0.5
+		xp_report.anchor_right = 0.5
+		xp_report.anchor_top = 0.5
+		xp_report.anchor_bottom = 0.5
+		xp_report.offset_left = -460
+		xp_report.offset_right = 460
+		xp_report.offset_top = -100
+		xp_report.offset_bottom = 60
+		xp_report.alignment = BoxContainer.ALIGNMENT_CENTER
+		xp_report.add_theme_constant_override("separation", 3)
+		xp_report.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(xp_report)
+		_xp_title = HudStyle.label("", 26, XpSystem.XP_COLOR, "condensed", 4)
+		_xp_level = HudStyle.label("", 20, HudStyle.TEXT, "condensed", 3)
+		_xp_bar = ProgressBar.new()
+		_xp_bar.show_percentage = false
+		_xp_bar.custom_minimum_size = Vector2(420, 9)
+		_xp_bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_xp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var bg := StyleBoxFlat.new()
+		bg.bg_color = Color(0, 0, 0, 0.55)
+		bg.border_color = Color(1, 1, 1, 0.18)
+		bg.set_border_width_all(1)
+		var fill := StyleBoxFlat.new()
+		fill.bg_color = XpSystem.XP_COLOR
+		_xp_bar.add_theme_stylebox_override("background", bg)
+		_xp_bar.add_theme_stylebox_override("fill", fill)
+		_xp_progress = HudStyle.label("", 15, HudStyle.TEXT_DIM, "text", 2)
+		_xp_details = HudStyle.label("", 15, HudStyle.TEXT_DIM, "text", 2)
+		_xp_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_xp_details.custom_minimum_size = Vector2(900, 0)
+		for l: Control in [_xp_title, _xp_level, _xp_bar, _xp_progress, _xp_details]:
+			if l is Label:
+				(l as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			xp_report.add_child(l)
+		# Au-dessus du voile de fin de partie, sous le menu pause.
+		if pause_menu:
+			move_child(xp_report, pause_menu.get_index())
+	_xp_title.text = r.xp_title()
+	_xp_level.text = r.xp_level_text()
+	_xp_level.add_theme_color_override("font_color", HudStyle.POINTS_GAIN if r.level_after > r.level_before else HudStyle.TEXT)
+	var p := r.xp_progress()
+	_xp_bar.visible = p.y > 0
+	_xp_bar.max_value = maxi(p.y, 1)
+	_xp_bar.value = p.x
+	_xp_progress.text = r.xp_progress_text()
+	_xp_details.text = r.xp_details()
+	_xp_details.visible = _xp_details.text != ""
+	xp_report.visible = true
+	if r.level_after > r.level_before:
+		Audio.play_2d("round_start", -4.0, 0.0)
+
+
+## Texte du rapport d'XP affiché ("" : aucun ; tests).
+func xp_report_text() -> String:
+	if xp_report == null or not xp_report.visible:
+		return ""
+	return "\n".join([_xp_title.text, _xp_level.text, _xp_progress.text, _xp_details.text])
 
 
 var _loot_label: Label

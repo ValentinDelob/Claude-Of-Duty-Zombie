@@ -110,9 +110,15 @@ func run() -> void:
 	at.check(game.hud._center_msg.text == Lang.t("ÉVACUATION RÉUSSIE", "EVACUATED"), "écran de fin : « %s »" % game.hud._center_msg.text)
 	at.check(game.hud._center_sub.text.contains("6"), "manche et temps à l'écran : « %s »" % game.hud._center_sub.text)
 	at.check(not door.is_open, "porte refermée")
-	# XP de la partie ajoutée une fois au profil : la manche vaincue compte.
-	var lpd := game.session.local_data()
+	# XP de la partie (XpSystem) ajoutée une fois au profil : manches 2, 4 et 6
+	# terminées (vagues spéciales vaincues), bonus d'évacuation.
+	var l := r.xp_ledger
 	var xp := ProfileStore.load_profile().xp
-	at.check(r.xp == MatchXp.match_xp(lpd.kills, 6) and xp == r.xp, "XP de l'évacuation au profil (%d, résultat %d)" % [xp, r.xp])
+	at.check(int(l.rounds) == 3 and int(l.waves.get(WaveRules.SPECIAL, 0)) == 3,
+			"XP : 3 manches et 3 vagues vaincues comptées (%s)" % l)
+	at.check(int(l.evac_bonus) > 0 and int(l.evac_bonus) == XpRules.evac_bonus(XpRules.subtotal(l)), "bonus d'évacuation : %d" % l.evac_bonus)
+	at.check(r.xp == XpRules.total(l) and xp == r.xp, "XP de l'évacuation au profil (%d, résultat %d)" % [xp, r.xp])
+	at.check(game.hud.xp_report_text().contains(r.xp_title()) and game.hud.xp_report_text().contains(
+			Lang.t("Bonus d'évacuation", "Evacuation bonus")), "rapport d'XP à l'écran : %s" % game.hud.xp_report_text())
 	await at.screenshot("evacuated")
 	ProfileStore.reset()

@@ -16,7 +16,9 @@ const MAX_SUPPORTED_PLAYERS := 8
 ## Incrémenter à chaque changement incompatible du protocole réseau.
 ## 6 : positions des zombies en cm signés, entiers variables (NetCodec, format 17 :
 ## coordonnées négatives et altitudes sans borne).
-const PROTOCOL_VERSION := 6
+## 7 : XP comptée par l'hôte pendant la partie (/root/Game/Xp, relevés dans
+## le message de fin de partie).
+const PROTOCOL_VERSION := 7
 const CONNECT_TIMEOUT_SEC := 8.0
 
 enum Mode { NONE, SOLO, HOST, CLIENT }

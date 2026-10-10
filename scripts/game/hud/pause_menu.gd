@@ -65,7 +65,7 @@ func _build_root() -> void:
 			Lang.t("Commandes, touches, graphismes, son.", "Controls, keys, graphics, audio."))
 	col.add_child(_options_btn)
 	col.add_child(_button(Lang.t("QUITTER LA PARTIE", "QUIT GAME"), _leave, Lang.t("Retour au menu principal.", "Back to the main menu.")))
-	col.add_child(_button(Lang.t("QUITTER LE JEU", "QUIT TO DESKTOP"), Router.quit_game, Lang.t("Retour au bureau.", "Back to the desktop.")))
+	col.add_child(_button(Lang.t("QUITTER LE JEU", "QUIT TO DESKTOP"), _quit_game, Lang.t("Retour au bureau.", "Back to the desktop.")))
 	if game and game.map_def:
 		var n: int = game.rounds.round_n if game.rounds else 0
 		_where.text = game.map_def.display_name + (("   —   " + Lang.t("MANCHE %d", "ROUND %d") % n) if n > 0 else "")
@@ -166,4 +166,13 @@ func set_hint(t: String) -> void:
 
 func _leave() -> void:
 	get_tree().paused = false
+	# L'XP déjà gagnée dans la partie est gardée (GAME_CONCEPT §4.15).
+	if game:
+		game.keep_match_xp()
 	Router.back_to_menu()
+
+
+func _quit_game() -> void:
+	if game:
+		game.keep_match_xp()
+	Router.quit_game()

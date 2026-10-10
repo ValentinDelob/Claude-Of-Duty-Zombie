@@ -6,9 +6,9 @@ extends RefCounted
 ## dictionnaire (to_dict / from_dict) et affiché par l'écran de fin
 ## (Hud.show_match_end).
 ##
-## Structure prévue pour s'étendre : le butin gardé ou perdu, l'XP et
-## l'arsenal (lots suivants) iront dans `loot` et `xp`, sans changer le
-## message réseau (clés inconnues ignorées, clés absentes : valeurs par défaut).
+## Le butin gardé ou perdu (`loot`) et l'XP (`xp_ledgers`, puis les champs
+## locaux `xp`…) s'y ajoutent sans casser le message (clés inconnues
+## ignorées, clés absentes : valeurs par défaut).
 
 var evacuated := false
 ## Manche en cours à la fin de la partie.
@@ -20,12 +20,24 @@ var kills := 0
 ## Butin du joueur local, gardé ou perdu (ProfileLoot.report, rempli par
 ## chaque client dans Game._show_match_end, comme `xp`).
 var loot: Dictionary = {}
+## XP de la partie de chaque joueur (serveur : XpSystem.srv_close_all), pid ->
+## relevé XpRules (clos, bonus d'évacuation compris).
+var xp_ledgers: Dictionary = {}
+## Joueur local (rempli par chaque client dans Game._show_match_end, comme
+## `loot`) : XP ajoutée à son profil, son relevé, niveau avant / après et XP
+## totale du profil après la partie (barre de progression).
 var xp := 0
+var xp_ledger: Dictionary = {}
+var level_before := 1
+var level_after := 1
+var profile_xp := 0
+## Joueurs au plus dans `xp_ledgers` (borne du message reçu).
+const MAX_LEDGERS := 16
 
 
 func to_dict() -> Dictionary:
 	return {"evacuated": evacuated, "round": round_reached, "duration": duration_sec, "kills": kills,
-		"loot": loot, "xp": xp}
+		"loot": loot, "xp": xp, "xp_ledgers": xp_ledgers}
 
 
 ## Lecture tolérante (message du serveur) : types vérifiés, valeurs bornées.
@@ -42,6 +54,13 @@ static func from_dict(d: Variant) -> MatchResult:
 	r.duration_sec = clampf(float(t), 0.0, 1e7) if (t is float or t is int) and is_finite(float(t)) else 0.0
 	var l: Variant = d.get("loot", {})
 	r.loot = l if l is Dictionary else {}
+	var xl: Variant = d.get("xp_ledgers", {})
+	if xl is Dictionary:
+		for pid in xl:
+			if r.xp_ledgers.size() >= MAX_LEDGERS:
+				break
+			if pid is int and pid > 0:
+				r.xp_ledgers[pid] = XpRules.clean_ledger(xl[pid])
 	return r
 
 
@@ -96,6 +115,54 @@ func loot_text() -> String:
 	if kept:
 		return Lang.t("BUTIN GARDÉ : %s · %s", "LOOT KEPT: %s · %s") % [", ".join(items), xp_t]
 	return Lang.t("BUTIN PERDU : %s · seule l'XP est gardée (%s)", "LOOT LOST: %s · only XP is kept (%s)") % [", ".join(items), xp_t]
+
+
+## Rapport d'XP du joueur local (§4.15, §4.16), toujours gardée : titre.
+func xp_title() -> String:
+	return Lang.t("XP GAGNÉE : +%s", "XP EARNED: +%s") % XpSystem.group(xp)
+
+
+## Niveau avant / après et montée de niveau.
+func xp_level_text() -> String:
+	if level_after > level_before:
+		var up := Lang.t("NIVEAU SUPÉRIEUR !", "LEVEL UP!") if level_after - level_before == 1 \
+				else Lang.t("+%d NIVEAUX !", "+%d LEVELS!") % (level_after - level_before)
+		return Lang.t("NIVEAU %d → %d   %s", "LEVEL %d → %d   %s") % [level_before, level_after, up]
+	if level_after >= PlayerProfile.MAX_LEVEL:
+		return Lang.t("NIVEAU %d (MAXIMUM) — l'XP continue d'être comptée", "LEVEL %d (MAX) — XP keeps counting") % level_after
+	return Lang.t("NIVEAU %d", "LEVEL %d") % level_after
+
+
+## Progression dans le niveau atteint : [XP dans le niveau, XP du niveau]
+## ([0, 0] au niveau maximum).
+func xp_progress() -> Vector2i:
+	return level_progress(profile_xp)
+
+
+## Progression d'une XP totale de profil dans son niveau. Pure.
+static func level_progress(total_xp: int) -> Vector2i:
+	var lvl := PlayerProfile.level_for_xp(total_xp)
+	if lvl >= PlayerProfile.MAX_LEVEL:
+		return Vector2i.ZERO
+	return Vector2i(total_xp - PlayerProfile.xp_for_level(lvl), PlayerProfile.xp_to_next(lvl))
+
+
+## Texte sous la barre : « 1 230 / 4 100 XP vers le niveau 9 ».
+func xp_progress_text() -> String:
+	return progress_text(profile_xp)
+
+
+static func progress_text(total_xp: int) -> String:
+	var p := level_progress(total_xp)
+	if p.y <= 0:
+		return Lang.t("%s XP au total", "%s total XP") % XpSystem.group(total_xp)
+	return Lang.t("%s / %s XP vers le niveau %d", "%s / %s XP to level %d") % [XpSystem.group(p.x),
+			XpSystem.group(p.y), PlayerProfile.level_for_xp(total_xp) + 1]
+
+
+## Détail : éliminations par type, manches, vagues, bonus (XpRules.breakdown).
+func xp_details() -> String:
+	return "  ·  ".join(XpRules.breakdown(xp_ledger))
 
 
 ## Durée « h:mm:ss » ou « m:ss ».

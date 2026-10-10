@@ -417,19 +417,55 @@ func test_securite_pas_d_objet() -> void:
 # XP de partie
 # --------------------------------------------------------------------------
 
+## Relevé (XpRules) ajouté au profil par MatchXp.apply, seule voie de l'XP de
+## partie (le barème lui-même : test_xp_rules.gd).
 func test_xp_de_partie() -> void:
-	assert_eq(MatchXp.match_xp(0, 0), 0)
-	assert_eq(MatchXp.match_xp(150, 11), 150 * MatchXp.XP_PER_KILL + 11 * MatchXp.XP_PER_ROUND)
-	assert_eq(MatchXp.match_xp(-3, -1), 0)
-	var r := MatchXp.apply_match_xp(8, 1, file)
-	assert_eq(r.xp, 8 * MatchXp.XP_PER_KILL + MatchXp.XP_PER_ROUND)
+	var l := XpRules.new_ledger()
+	for i in 8:
+		XpRules.add_kill(l, XpRules.WALKER, 1)
+	XpRules.add_round(l, 1)
+	XpRules.close(l, false)
+	var r := MatchXp.apply(l, file)
+	assert_eq(r.xp, 8 * XpRules.kill_xp(XpRules.WALKER, 1) + XpRules.round_xp(1))
 	assert_eq(r.level_before, 1)
 	assert_eq(r.level_after, PlayerProfile.level_for_xp(r.xp))
+	assert_eq(r.total_xp, r.xp)
 	assert_eq(ProfileStore.load_profile(file).xp, r.xp, "XP enregistrée")
-	MatchXp.apply_match_xp(2, 0, file)
-	assert_eq(ProfileStore.load_profile(file).xp, r.xp + 2 * MatchXp.XP_PER_KILL, "XP cumulée")
-	# Calibrage provisoire (§4.15 : niveau 10 vers 3 h) : une partie type de
-	# 20 min rapporte entre 5 % et 20 % de l'XP du niveau 10.
-	var game := MatchXp.match_xp(150, 11)
-	var lvl10 := PlayerProfile.xp_for_level(10)
-	assert_true(game * 5 <= lvl10 and game * 20 >= lvl10, "partie %d XP, niveau 10 à %d XP" % [game, lvl10])
+	var l2 := XpRules.new_ledger()
+	XpRules.add_kill(l2, XpRules.DOG, 5)
+	var r2 := MatchXp.apply(l2, file)
+	assert_eq(ProfileStore.load_profile(file).xp, r.xp + XpRules.kill_xp(XpRules.DOG, 5), "XP cumulée")
+	assert_eq(r2.total_xp, r.xp + r2.xp)
+	# Relevé vide : rien n'est écrit, rien ne change.
+	var r3 := MatchXp.apply(XpRules.new_ledger(), file)
+	assert_eq(r3.xp, 0)
+	assert_eq(r3.level_before, r3.level_after)
+
+
+func test_xp_de_partie_montee_de_niveau() -> void:
+	# Profil juste sous le niveau 5 : une partie le fait passer au niveau 5.
+	var pr := PlayerProfile.new()
+	pr.xp = PlayerProfile.xp_for_level(5) - 10
+	ProfileStore.save_profile(pr, file)
+	var l := XpRules.new_ledger()
+	for i in 3:
+		XpRules.add_kill(l, XpRules.WALKER, 1)
+	var r := MatchXp.apply(l, file)
+	assert_eq(r.level_before, 4)
+	assert_eq(r.level_after, 5)
+	assert_eq(r.levels, 1)
+
+
+func test_xp_de_partie_au_niveau_max() -> void:
+	# Niveau 50 : l'XP de la partie est comptée, le niveau ne bouge plus.
+	var pr := PlayerProfile.new()
+	pr.xp = PlayerProfile.xp_for_level(PlayerProfile.MAX_LEVEL) + 123
+	ProfileStore.save_profile(pr, file)
+	var l := XpRules.new_ledger()
+	XpRules.add_kill(l, XpRules.BOSS_GENERIC, 30)
+	var r := MatchXp.apply(l, file)
+	assert_eq(r.level_before, PlayerProfile.MAX_LEVEL)
+	assert_eq(r.level_after, PlayerProfile.MAX_LEVEL)
+	assert_eq(r.levels, 0)
+	assert_eq(ProfileStore.load_profile(file).xp, pr.xp + r.xp, "XP gardée au-delà du niveau 50")
+	assert_eq(MatchResult.level_progress(pr.xp + r.xp), Vector2i.ZERO, "pas de barre au niveau maximum")
