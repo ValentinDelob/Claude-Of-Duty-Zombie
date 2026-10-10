@@ -17,6 +17,7 @@ func run() -> void:
 	# Équipement : carabine ; auto-réanimation en solo.
 	WeaponDB.give(pd, "m14")
 	game.session.sync_inventory(1)
+	var hands_n := pd.weapons.size()
 	game.downed.solo_self_revive = true
 	p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
 	game.combat.damage_player(1, 200, p.global_position + Vector3(1, 1, 0))
@@ -55,7 +56,7 @@ func run() -> void:
 		"HUD : barre d'auto-réanimation (%.2f, gris %.2f)" % [ov._revive.progress, ov.grayness()])	# Auto-réanimation (10 s, comme BO1).
 	await until(func(): return pd.life == PlayerData.Life.ALIVE, DownedSystem.SOLO_SELF_REVIVE + 3.0, "réanimation")
 	at.check(pd.life == PlayerData.Life.ALIVE and pd.health == 100, "réanimé seul (%d PV)" % pd.health)
-	at.check(pd.has_weapon("m14") >= 0 and pd.weapons.size() == 2, "armes rendues")
+	at.check(pd.has_weapon("m14") >= 0 and pd.weapons.size() == hands_n, "armes rendues (%d)" % pd.weapons.size())
 	at.check(GameState.state == GameState.State.PLAYING, "retour à PLAYING")
 	# Sans auto-réanimation : fin de partie.
 	game.downed.solo_self_revive = false

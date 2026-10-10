@@ -35,4 +35,24 @@ func run() -> void:
 			p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
 			MpHelpers.signal_peer("retour")
 	at.check(pd.knife == KnifeDB.DEFAULT, "inventaire client : couteau de base")
+
+	# 3. Batte en main (donnée par l'hôte) : coup sur le zombie devant soi.
+	p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
+	MpHelpers.signal_peer("pret_batte")
+	if not await MpHelpers.wait_peer(self, "batte", 20.0):
+		return
+	var got: bool = await until(func(): return p.weapons.current().get("id", "") == "bat" and game.zombies.alive_count() >= 1, 10.0, "batte en main, zombie reçu")
+	if not got:
+		return
+	var zb: Zombie = game.zombies.alive[0]
+	await until(func(): return zb.state != Zombie.State.EMERGE, Zombie.EMERGE_TIME + 3.0, "zombie sorti de terre")
+	await seconds(WeaponController.SWITCH_TIME + 0.3)  # batte sortie, zombie redressé
+	AutotestHelpers.aim_at(p, zb.global_position + Vector3.UP * 1.2)
+	await seconds(0.1)  # visée
+	p.input.fire = true
+	await until(func(): return p.weapons.view.is_swinging(), 1.0, "coup de batte lancé")
+	p.input.fire = false
+	at.check(p.weapons.view.is_swinging(), "coup de batte local")
+	await seconds(0.25)
+	await at.screenshot("bat_swing")
 	await MpHelpers.finish(self)

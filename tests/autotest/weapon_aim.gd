@@ -1,7 +1,7 @@
 extends AutotestScenario
 ## Tir droit, arme par arme :
 ## 1. en visée, le cran (ou l'œilleton) ET le guidon projetés à l'écran sont
-##    au centre à ±2 px (armes à lunette : écran de lunette affiché, zoom) ;
+##    au centre à ±1 px (armes à lunette : écran de lunette affiché, zoom) ;
 ## 2. tir en visée sur une plaque à 20 m : impact à ±3 cm du point visé
 ##    (fusils à pompe : plombs dans le cône de visée) ;
 ## 3. à la hanche : chaque impact reste dans le cône dessiné par le réticule,
@@ -114,6 +114,8 @@ func run() -> void:
 		wi += 1
 		if not mine(wi):
 			continue
+		if WeaponDB.is_melee(id):
+			continue  # batte : ni visée ni tir (coups : scénario melee)
 		var s := WeaponDB.stats(id)
 		if not await equip(id):
 			continue
@@ -133,7 +135,7 @@ func run() -> void:
 			var front := screen_of(WeaponModels.anchor(s.model, "front"))
 			var err := maxf(rear.distance_to(c), front.distance_to(c))
 			worst_px = maxf(worst_px, err)
-			at.check(err <= 2.0, "%s : ligne de mire au centre (cran %.2f px, guidon %.2f px)" % [id, rear.distance_to(c), front.distance_to(c)])
+			at.check(err <= 1.0, "%s : ligne de mire au centre (cran %.2f px, guidon %.2f px)" % [id, rear.distance_to(c), front.distance_to(c)])
 		else:
 			var want_fov: float = s.get("scope_fov", Settings.fov * float(s.ads_zoom))
 			at.check(p.weapons.scoped and not p.weapons.view.model.visible and game.hud.scope.visible,
