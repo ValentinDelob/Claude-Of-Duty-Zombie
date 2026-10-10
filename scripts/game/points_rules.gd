@@ -1,12 +1,18 @@
 class_name PointsRules
 extends RefCounted
-## Barème des points (fonctions pures, testées unitairement).
+## Barème de la ferraille (fonctions pures, testées unitairement).
+##
+## Les « points » du code sont la FERRAILLE du joueur (GAME_CONCEPT §4.8) : le
+## nom interne `points` est gardé partout (PlayerData.points, Session,
+## PointsRules…) pour ne pas tout renommer ; seul ce que le joueur voit dit
+## « Ferraille » / « Scrap ».
+## * gagnée seulement par le joueur qui TUE le zombie : rien pour les touches ;
+## * montant FIXE par élimination (KILL), quel que soit le coup (balle, tête,
+##   couteau, explosion) et quelle que soit la manche ;
+## * chaque joueur commence la partie à 0 (PlayerData.STARTING_POINTS).
 
-const HIT := 10
+## Ferraille d'une élimination : l'ancien montant d'un kill normal (BO1).
 const KILL := 50
-const HEADSHOT_KILL := 100
-const MELEE_KILL := 130
-const SPLASH_KILL := 50
 ## Tuer avec un piège ne rapporte rien (le piège a déjà été payé).
 const TRAP_KILL := 0
 ## Bonus de fin de manche par joueur vivant (optionnel).
@@ -14,8 +20,9 @@ const ROUND_SURVIVAL := 0
 
 
 ## Pénalités de BO1 (_zombiemode_score, player_reduce_points) : à terre, le
-## joueur perd 5 % de ses points (arrondi à la dizaine supérieure), rendus au
-## coéquipier qui le réanime ; s'il succombe, chacun des autres perd 10 %.
+## joueur perd 5 % de sa ferraille (arrondi à la dizaine supérieure) ; s'il
+## succombe, chacun des autres perd 10 %. Ce qui est perdu n'est plus rendu
+## au sauveteur (rien pour les réanimations, §4.8).
 const PENALTY_DOWNED := 0.05
 const PENALTY_NO_REVIVE := 0.10
 
@@ -26,25 +33,21 @@ static func round_up_to_ten(n: int) -> int:
 	return r + 10 if r < n else r
 
 
-## Points perdus en tombant à terre avec `points` points.
+## Ferraille perdue en tombant à terre avec `points` de ferraille.
 static func downed_loss(points: int) -> int:
 	return mini(round_up_to_ten(int(points * PENALTY_DOWNED)), maxi(points, 0))
 
 
-## Points perdus par un coéquipier quand un joueur succombe.
+## Ferraille perdue par un coéquipier quand un joueur succombe.
 static func no_revive_loss(points: int) -> int:
 	return mini(round_up_to_ten(int(points * PENALTY_NO_REVIVE)), maxi(points, 0))
 
 
-## Points gagnés pour un coup porté à un zombie.
-static func for_damage(killed: bool, headshot: bool, kind: int) -> int:
-	match kind:
-		Combat.HitKind.TRAP:
-			return TRAP_KILL
-		Combat.HitKind.MELEE:
-			return MELEE_KILL if killed else HIT
-		Combat.HitKind.SPLASH:
-			return SPLASH_KILL if killed else HIT
+## Ferraille gagnée pour un coup porté à un zombie : KILL s'il le tue (sauf
+## piège), rien sinon. `_headshot` est gardé pour la signature de Combat.
+static func for_damage(killed: bool, _headshot: bool, kind: int) -> int:
 	if not killed:
-		return HIT
-	return HEADSHOT_KILL if headshot else KILL
+		return 0
+	if kind == Combat.HitKind.TRAP:
+		return TRAP_KILL
+	return KILL

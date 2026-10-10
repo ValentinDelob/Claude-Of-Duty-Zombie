@@ -40,6 +40,7 @@ func run() -> void:
 		game.doors[id].srv_open()
 	box = game.interact.get_obj("box")
 	at.check(box != null and box.location == 1, "boîte au quai au départ (emplacement 1)")
+	pd.points = 500  # on part de 0 ferraille : trop pauvre pour la boîte
 	await face_box()
 	at.check(game.hud._prompt.text.contains("950"), "invite : %s" % game.hud._prompt.text)
 	await press(true)

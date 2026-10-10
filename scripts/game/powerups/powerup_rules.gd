@@ -22,7 +22,7 @@ const TIMED := [INSTA_KILL, DOUBLE_POINTS, FIRE_SALE]
 const NAMES := {
 	MAX_AMMO: {"fr": "MUNITIONS MAX !", "en": "MAX AMMO!"},
 	INSTA_KILL: {"fr": "MORT INSTANTANÉE !", "en": "INSTA-KILL!"},
-	DOUBLE_POINTS: {"fr": "POINTS DOUBLES !", "en": "DOUBLE POINTS!"},
+	DOUBLE_POINTS: {"fr": "FERRAILLE DOUBLE !", "en": "DOUBLE SCRAP!"},
 	NUKE: {"fr": "BOMBE NUCLÉAIRE !", "en": "NUKE!"},
 	CARPENTER: {"fr": "CHARPENTIER !", "en": "CARPENTER!"},
 	FIRE_SALE: {"fr": "LIQUIDATION !", "en": "FIRE SALE!"},

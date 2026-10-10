@@ -11,7 +11,7 @@ var _sub: Label
 var _header: Control
 
 ## En-têtes [français, anglais] (voir columns()).
-const COLUMNS := [["JOUEUR", "PLAYER"], ["POINTS", "POINTS"], ["TUÉS", "KILLS"], ["TÊTES", "HEADSHOTS"], ["RÉANIM.", "REVIVES"], ["À TERRE", "DOWNS"]]
+const COLUMNS := [["JOUEUR", "PLAYER"], ["FERRAILLE", "SCRAP"], ["TUÉS", "KILLS"], ["TÊTES", "HEADSHOTS"], ["RÉANIM.", "REVIVES"], ["À TERRE", "DOWNS"]]
 const WIDTHS := [250, 110, 90, 90, 100, 100]
 
 

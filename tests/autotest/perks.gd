@@ -41,7 +41,8 @@ func run() -> void:
 		game.doors[id].srv_open()
 	await seconds(0.5)  # collisions des portes coupées (différé) avant les téléports
 
-	# Lazarus : sans courant, 500 en solo.
+	# Lazarus : sans courant, 500 en solo (on part de 0 ferraille).
+	pd.points = 500
 	await buy("Q")
 	at.check(pd.has_perk("lazarus") and pd.points == 0, "LAZARUS TONIC acheté sans courant pour 500 (points %d)" % pd.points)
 	await seconds(0.5)  # capture : bouteille en main, au milieu de la boisson

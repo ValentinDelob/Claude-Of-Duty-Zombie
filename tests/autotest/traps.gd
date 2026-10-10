@@ -17,7 +17,7 @@ func run() -> void:
 	at.check(trap != null and trap.trap_cells.size() == 12, "piège présent (%d cases)" % trap.trap_cells.size())
 	game.doors["2"].srv_open()
 	(game.interact.get_obj("power") as PowerSwitch).srv_use(1)
-	game.session.add_points(1, 1500)
+	game.session.add_points(1, 2000)  # on part de 0 ferraille
 	await seconds(1.0)  # le courant s'établit (levier) avant d'utiliser le piège
 	p.teleport_to(MapData.cell_to_world(Vector2i(22, 23), 0.05))
 	H.aim_at(p, trap.global_position)

@@ -176,10 +176,10 @@ func run() -> void:
 	at.check(spawn_invisible_ok, "chiens invisibles pendant la foudre")
 	at.check(min_spawn_dist >= 4.0, "apparitions près du joueur (%.1f à %.1f m)" % [min_spawn_dist, max_spawn_dist])
 	at.check(pd.kills - kills0 == 6, "kills comptés (%d)" % (pd.kills - kills0))
-	# 6 kills (+50) et au moins une touche non mortelle (+10) ; le nombre de
-	# touches dépend de l'arme du bot.
+	# Ferraille : 6 kills à montant fixe, rien pour les touches (GAME_CONCEPT
+	# §4.8). Le bonus MUNITIONS MAX ne rapporte rien.
 	var gained := pd.points - pts
-	at.check(gained > 6 * PointsRules.KILL and (gained - 6 * PointsRules.KILL) % PointsRules.HIT == 0, "points par touche et par kill (+%d)" % gained)
+	at.check(gained == 6 * PointsRules.KILL, "ferraille des seuls kills (+%d)" % gained)
 
 	# Munitions max sur le dernier chien, fin de manche.
 	await until(func(): return has_max_ammo_drop() and game.rounds.phase == RoundManager.Phase.INTERMISSION, 2.0, "MUNITIONS MAX et entracte")

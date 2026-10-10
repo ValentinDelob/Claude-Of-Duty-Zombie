@@ -44,9 +44,9 @@ func run() -> void:
 	ok = await until(func(): return booms.size() >= 1, 6.0, "explosion reçue")
 	await seconds(0.05)
 	await at.screenshot("explosion")
-	await until(func(): return sys.items.is_empty() and pd.points - points0 >= 3 * PointsRules.SPLASH_KILL, 3.0, "objet retiré et points reçus")
+	await until(func(): return sys.items.is_empty() and pd.points - points0 >= 3 * PointsRules.KILL, 3.0, "objet retiré et points reçus")
 	at.check(ok and sys.items.is_empty(), "explosion reçue, objet retiré")
-	at.check(pd.points - points0 == 3 * PointsRules.SPLASH_KILL and pd.grenades == 1, "points (+%d) et réserve (%d) répliqués" % [pd.points - points0, pd.grenades])
+	at.check(pd.points - points0 == 3 * PointsRules.KILL and pd.grenades == 1, "points (+%d) et réserve (%d) répliqués" % [pd.points - points0, pd.grenades])
 
 	# SINGE-TAMBOUR donné par le serveur.
 	ok = await until(func(): return pd.has_monkeys and pd.monkeys == 3, 20.0, "singes reçus")

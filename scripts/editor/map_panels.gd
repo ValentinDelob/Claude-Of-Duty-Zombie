@@ -691,7 +691,7 @@ func _object_props(o: Dictionary) -> void:
 	if t == "atout":
 		price = PerkDB.cost(String(o.atout), false)
 	if price > 0:
-		_note(_props, Lang.t("Prix en jeu : %d points", "In-game price: %d points") % price)
+		_note(_props, Lang.t("Prix en jeu : %d ferraille", "In-game price: %d scrap") % price)
 	var hint := Lang.t(String(it.get("hint_fr", "")), String(it.get("hint_en", "")))
 	if hint != "":
 		_note(_props, hint)

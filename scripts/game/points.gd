@@ -1,7 +1,8 @@
 class_name Points
 extends Node
-## Attribution des points (serveur uniquement). Écoute les dégâts validés par
-## Combat et crédite le joueur via Session (qui réplique aux clients).
+## Attribution de la ferraille (serveur uniquement ; « points » est le nom
+## interne de la ferraille, voir PointsRules). Écoute les dégâts validés par
+## Combat et crédite le joueur qui tue via Session (qui réplique aux clients).
 
 var game: Game
 ## Multiplicateur global (bonus « double points »).

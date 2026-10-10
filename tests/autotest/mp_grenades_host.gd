@@ -51,7 +51,7 @@ func run() -> void:
 		if not z.is_alive():
 			dead += 1
 	at.check(ok and booms[0][2] == client_id and dead == 3, "explosion du client : %d/3 zombies tués" % dead)
-	at.check(cpd.points - points0 == 3 * PointsRules.SPLASH_KILL, "50 points par kill au client (+%d)" % (cpd.points - points0))
+	at.check(cpd.points - points0 == 3 * PointsRules.KILL, "50 points par kill au client (+%d)" % (cpd.points - points0))
 	await at.screenshot("frag")
 	await H.clear_zombies(self)
 

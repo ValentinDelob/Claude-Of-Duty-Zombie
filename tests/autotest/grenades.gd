@@ -104,7 +104,7 @@ func run() -> void:
 		if not z.is_alive():
 			dead += 1
 	at.check(boomed and dead == 3, "explosion : %d/3 zombies de manche 8 tués" % dead)
-	at.check(pd.points - points0 == 3 * PointsRules.SPLASH_KILL, "50 points par kill d'explosion (+%d)" % (pd.points - points0))
+	at.check(pd.points - points0 == 3 * PointsRules.KILL, "50 points par kill d'explosion (+%d)" % (pd.points - points0))
 	await seconds(0.8)  # capture : fumée
 	await at.screenshot("frag_smoke")
 	await H.clear_zombies(self)
@@ -151,6 +151,7 @@ func run() -> void:
 		await until(func(): return game.hud._prompt.text.contains("250"), 2.0, "invite de l'achat de grenades")
 		at.check(game.hud._prompt.text.contains("250"), "invite : %s" % game.hud._prompt.text)
 		await at.screenshot("wall_buy")
+		game.session.add_points(1, 250)  # on part de 0 ferraille
 		var pts := pd.points
 		p.input.interact_pressed = true
 		await until(func(): return pd.grenades == 4 and pts - pd.points == 250, 2.0, "grenades achetées")
@@ -208,7 +209,7 @@ func run() -> void:
 		if not z.is_alive():
 			mdead += 1
 	at.check(mboom and booms[3][0] == ThrowableRules.Kind.MONKEY and mdead >= near, "explosion du singe : %d zombies tués" % mdead)
-	at.check(pd.points - pts2 == mdead * PointsRules.SPLASH_KILL, "points des kills du singe (+%d)" % (pd.points - pts2))
+	at.check(pd.points - pts2 == mdead * PointsRules.KILL, "points des kills du singe (+%d)" % (pd.points - pts2))
 	# Après la musique, les zombies restants reviennent vers les joueurs.
 	await until(func():
 		for z in runners:

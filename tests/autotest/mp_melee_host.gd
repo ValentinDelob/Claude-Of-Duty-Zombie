@@ -1,7 +1,7 @@
 extends AutotestScenario
 ## [MP] Hôte : le CLIENT fait une fente au couteau sur un zombie à 2,5 m ; le
 ## serveur valide le coup depuis la position d'arrivée (répliquée), crédite
-## 130 points ; puis, couteau de chasse donné au client, un zombie de manche 10
+## ferraille d'un kill ; puis, couteau de chasse donné au client, un zombie de manche 10
 ## meurt d'un seul coup.
 
 const PORT := 17881
@@ -30,8 +30,8 @@ func run() -> void:
 	var pts := cpd.points
 	ok = await until(func(): return not z.is_alive(), 20.0, "zombie tué au couteau par le client")
 	at.check(ok, "fente du client validée par le serveur")
-	await until(func(): return cpd.points - pts >= 130, 2.0, "points de la fente")
-	at.check(cpd.points - pts == 130, "client crédité de 130 points (%d)" % (cpd.points - pts))
+	await until(func(): return cpd.points - pts >= PointsRules.KILL, 2.0, "points de la fente")
+	at.check(cpd.points - pts == PointsRules.KILL, "client crédité de la ferraille du kill (%d)" % (cpd.points - pts))
 	# La marionnette du client est interpolée avec un léger retard : on attend
 	# que la position d'arrivée de la fente soit répliquée.
 	await until(func(): return client.global_position.x - spot.x > 0.8, 2.0, "fente répliquée")
