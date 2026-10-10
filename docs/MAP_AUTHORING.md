@@ -510,6 +510,29 @@ comme les autres ; ils voyagent avec la carte (Enregistrer, Enregistrer sous,
 copie d'un invité, archive .zip, carte partagée en multijoueur). Détails,
 format et limites de sûreté : `docs/MAP_OBJECTS.md` § 11.
 
+**Style cubique (contrôle automatique, `docs/MAP_DESIGN_RULES.md` § 6.6)** :
+un modèle importé (« Importer… » ou MCP `editor_prefab_import_model`) doit
+être fait de **cubes de 5 cm** : faces alignées sur les axes (écart ≤ 1,8°),
+sommets sur la grille de 5 cm à 2 mm près (grille partant du coin de sa
+boîte englobante, à l'échelle demandée), pas d'ombrage lissé, que des
+triangles. Sinon l'import est **refusé** avec la raison (FR/EN : nombre de
+faces fautives, premier exemple), dans la barre d'état, une boîte (interface)
+ou l'erreur rendue à Claude. Changer l'échelle d'un prefab importé est refusé
+si elle sort le modèle de la grille. Les modèles **déjà dans une carte**
+ne sont pas revérifiés au chargement : la carte se charge et se joue comme
+avant ; ⚙ affiche un avertissement. Vérifier un .glb ou une carte sans
+fenêtre :
+
+```bash
+godot --headless --path . -s res://tools/voxel_check.gd -- assets/models/zombies/zombie_base.glb
+godot --headless --path . -s res://tools/voxel_check.gd -- --carte=<id ou dossier>
+```
+
+Code : `VoxelCheck` (`scripts/game/map/voxel_check.gd`, fonctions pures),
+`MapPrefabLib.voxel_report`, `MapPrefabTools.import_glb` / `update_prefab`.
+L'import de prefabs **d'une autre carte** (`editor_prefab_import`) copie
+des modèles déjà admis : non revérifié.
+
 **Créer une prefab (groupe)** :
 
 1. sélectionner le décor posé au sol à grouper (Maj + clic, ou un rectangle ;
@@ -567,6 +590,12 @@ d'**échelle** et s'**incline**, comme dans Fusion 360 ou SolidWorks
   sélection qui mêle décor et objet de jeu aussi. Seul le décor posé au sol
   s'incline ; incliné, il reste posé (point le plus bas sur son support) et ne
   porte rien.
+- **Style cubique** (`docs/MAP_DESIGN_RULES.md` § 6.6, [OBLIGATOIRE]) : un
+  objet posé tourne par **quarts de tour** (R), sans inclinaison, et son
+  échelle garde ses dimensions sur la grille de 5 cm. L'éditeur n'impose pas
+  encore ces limites (anneaux, crans de 15° et inclinaison restent, pour ne
+  pas casser les cartes existantes ni les outils en cours) : le contrôle se
+  fait avec `tools/voxel_check.gd -- --carte=<id>` (`VoxelCheck.placement_issue`).
 
 ### Règles imposées à la pose
 

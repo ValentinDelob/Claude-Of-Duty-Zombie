@@ -247,26 +247,32 @@ Chaque obstacle qui bloque a une fonction :
 - Tout passage entre deux obstacles, ou entre un obstacle et un mur, fait
   **1,5 m au moins**, **2 m** sur un trajet principal ou une boucle.
 
-### 6.4 Placement naturel, pas sur la grille [CIBLE]
+### 6.4 Placement naturel, pas en rangées [CIBLE]
 
-Une pièce où tout est droit, parallèle aux murs et calé sur la grille ne
-ressemble pas à un lieu abandonné et n'est pas intéressante à parcourir.
+Une pièce où tout est aligné en rangées régulières ne ressemble pas à un
+lieu abandonné et n'est pas intéressante à parcourir. Depuis le passage au
+**style cubique** (§6.6, [OBLIGATOIRE]), le désordre ne vient plus d'angles
+libres : un objet posé ne tourne que par **quarts de tour**.
 
-- Les objets ne sont **pas tous alignés** sur la grille ni parallèles aux
-  murs : la plupart sont **tournés** de quelques degrés à quelques dizaines
-  de degrés (rotation au degré près, poignée ronde ou champ « Angle ») et
-  **décalés** hors des cases (aimantation fine ou libre).
+- Les objets ne sont **pas tous parallèles ni alignés** : quarts de tour
+  différents d'un objet à l'autre (0, 90, 180, 270°) et **décalés** hors
+  des cases de 0,5 m (aimantation fine).
 - **[CIBLE]** Dans une pièce, au moins **la moitié** des objets du décor
-  (hors objets muraux) ont une rotation qui n'est ni 0, ni 90, ni 180, ni
-  270°.
-- Deux objets voisins de même type n'ont jamais la même rotation ni un
+  (hors objets muraux) sont décalés hors des cases ou n'ont pas la même
+  orientation que leurs voisins.
+- Deux objets voisins de même type n'ont jamais la même orientation ni un
   espacement régulier : pas de rangées au cordeau, sauf quand le thème
   l'impose (rangée de fauteuils, bancs, lits d'un dortoir), et même alors
-  un ou deux éléments sont déplacés, renversés ou manquants.
-- Ce qui est droit l'est **par choix** : un comptoir, une étagère contre un
-  mur, une machine. Ce qui est tombé, poussé ou abandonné est de travers.
+  un ou deux éléments sont déplacés, renversés (modèle renversé, cubique)
+  ou manquants.
+- Ce qui est rangé l'est **par choix** : un comptoir, une étagère contre un
+  mur, une machine. Ce qui est tombé, poussé ou abandonné est décalé,
+  retourné ou remplacé par sa version renversée.
 - Les distances des §3 et §6.3 se mesurent sur l'emprise **tournée** de
   l'objet (pas sur sa position avant rotation).
+- Cartes faites avant le style cubique : leurs angles libres et
+  inclinaisons se chargent toujours, mais sont à remettre sur des quarts de
+  tour (§6.6).
 
 ### 6.5 Objets infranchissables : barrières invisibles [OBLIGATOIRE]
 
@@ -300,6 +306,43 @@ pour monter dessus et échapper aux zombies : c'est de l'anti-jeu.
 - Contrôle : vérifier dans l'aperçu 3D (vue de dessus et vue joueur) que
   chaque objet bloquant est entièrement couvert, puis essayer de monter
   dessus en partie test.
+
+### 6.6 Style cubique : 1 cube = 5 cm [OBLIGATOIRE]
+
+Le jeu est **entièrement en cubes** (GAME_CONCEPT.md § 4.19) : aucun élément
+qui n'est pas cubique ou qui ne respecte pas l'échelle des cubes n'entre
+dans le jeu.
+
+- **Modèles** (prefab importé, décor, arme, personnage) : faits de cubes de
+  **5 cm** (20 par mètre). Chaque face est **alignée sur un axe** (ni pente,
+  ni biseau, ni courbe), chaque sommet est sur la **grille de 5 cm** (à
+  2 mm près, grille partant du coin de la boîte englobante du modèle), pas
+  d'ombrage lissé. Vérifié automatiquement (`VoxelCheck`) :
+  - l'**import** d'un modèle dans l'éditeur (bouton « Importer… » et outil
+    MCP `editor_prefab_import_model`) **refuse** un modèle non cubique, avec
+    la raison (nombre de faces fautives, premier exemple) ;
+  - changer l'**échelle** d'un prefab importé est refusé si elle sort le
+    modèle de la grille (×1,5 sur un modèle de 10 cm : oui ; ×1,2 : non) ;
+  - outil sans fenêtre :
+    `godot --headless --path . -s res://tools/voxel_check.gd -- <fichier.glb>`
+    (`--anime` / `--statique`, `--echelle=N`, `--en` ; code de sortie 0 =
+    conforme, 1 = non conforme, 2 = illisible).
+- **Personnages et zombies** articulés : chaque membre est cubique dans le
+  repère de **repos de son os** (ou du modèle au repos) ; animés, les
+  membres tournent à n'importe quel angle. Le mode est deviné (squelette
+  présent) ou forcé par `--anime`.
+- **Objets posés** : ils tournent par **quarts de tour** (0, 90, 180,
+  270°), ne sont **pas inclinés**, et leur échelle garde leurs dimensions
+  sur la grille de 5 cm. Les objets muraux suivent leur mur.
+- **Cartes existantes** : un modèle importé avant la règle ou un objet tourné
+  au degré près **se charge et se joue comme avant** (rien n'est refusé à la
+  lecture) ; ⚙ d'un tel prefab affiche un avertissement, et
+  `tools/voxel_check.gd -- --carte=<id ou dossier>` liste les écarts
+  (objets hors quarts de tour, inclinés, modèles non cubiques) à corriger
+  avant livraison.
+- L'éditeur garde pour l'instant ses rotations libres (crans de 15°, Maj =
+  libre) et ses inclinaisons (docs/EDITOR_SCALE_ROTATE.md) : c'est au
+  concepteur de rester sur des quarts de tour, contrôlé par l'outil.
 
 ---
 
@@ -560,5 +603,6 @@ ce fichier.
 | Pièces sans raison d'être en jeu | 0 |
 | Éléments de décor par pièce / types d'objets | ≥ 1 pour 6 m² / ≥ 4 |
 | Pans de mur nus de plus de 6 m | 0 |
-| Objets du décor tournés hors 0/90/180/270°, par pièce | ≥ 50 % |
+| Objets du décor décalés ou d'orientation différente de leurs voisins, par pièce | ≥ 50 % |
+| Objets posés hors quarts de tour ou inclinés ; modèles non cubiques (`tools/voxel_check.gd -- --carte=<id>`) | 0 |
 | Objets à bloquer non couverts en entier par des barrières invisibles | 0 |
