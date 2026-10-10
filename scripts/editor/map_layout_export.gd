@@ -250,7 +250,7 @@ static func snap_layout(L: Dictionary) -> void:
 			var d := Vector2(float(w.b[0]), float(w.b[1])) - a0
 			if d.length() > 1e-6:
 				shift = (a0 - Vector2(MapGeom.cube(a0.x), MapGeom.cube(a0.y))).dot(d.normalized())
-		for k in ["a", "b"]:
+		for k in ["a", "b", "arc"]:
 			if w.get(k) is Array:
 				w[k] = (w[k] as Array).map(func(x): return c.call(x))
 		for o in w.get("openings", []):
@@ -304,7 +304,7 @@ static func off_grid(L: Dictionary) -> Array:
 			for i in (v as Array).size():
 				self_fn.call(self_fn, v[i], "%s[%d]" % [path, i])
 	var fields := {"rooms": ["outline", "floor", "ceiling", "floor_slab", "ceiling_slab"], "blocks": ["box"],
-		"walls": ["path", "y0", "y1", "thick"], "obliques": ["a", "b", "y0", "y1", "thick"],
+		"walls": ["path", "y0", "y1", "thick"], "obliques": ["a", "b", "arc", "y0", "y1", "thick"],
 		"rails": ["path", "y", "h"], "stairs": ["a", "b", "w"], "slabs": ["outline", "y", "thick"]}
 	for key in fields:
 		var list: Variant = L.get(key, [])
@@ -706,9 +706,14 @@ func _obliques(f: MapValidator.Floor) -> void:
 			var pa: Vector2 = a + t * float(run[0])
 			var pb: Vector2 = a + t * float(run[1])
 			top_max = maxf(top_max, float(run[2]))
-			obliques.append({"room": ref_room.get(k, "x"), "a": _xz(pa), "b": _xz(pb), "y0": _r(y0), "y1": _r(float(run[2])),
+			var ob := {"room": ref_room.get(k, "x"), "a": _xz(pa), "b": _xz(pb), "y0": _r(y0), "y1": _r(float(run[2])),
 				"thick": _r(float(w.half) * 2.0), "mat_n": mat_pos, "mat_m": mat_neg,
-				"openings": _oblique_cuts(f, pa, t, float(run[1]) - float(run[0]), y0, float(run[2]))})
+				"openings": _oblique_cuts(f, pa, t, float(run[1]) - float(run[0]), y0, float(run[2]))}
+			if w.has("arc"):
+				# Segment d'un mur courbe : centre de l'arc (MeshMapGeometry : tout
+				# l'arc en un escalier de cubes, éclairé comme le vrai arc).
+				ob["arc"] = _xz(w.arc)
+			obliques.append(ob)
 		if String(w.kind) == "pilier":
 			continue   # pilier tourné : un pavé plein, sans raccord
 		for e in [a, b]:
@@ -720,7 +725,7 @@ func _obliques(f: MapValidator.Floor) -> void:
 					if Vector2(ends[k2].p).distance_to(e) < 0.02:
 						key = k2
 						break
-			ends.get_or_add(key, {"p": e, "list": []}).list.append({"n": w.n, "half": float(w.half), "top": top_max, "mat": mat_pos})
+			ends.get_or_add(key, {"p": e, "list": []}).list.append({"n": w.n, "half": float(w.half), "top": top_max, "mat": mat_pos, "arc": w.get("arc")})
 	# Raccords des angles (sommets entre murs en biais, hors blocs de la grille).
 	var keys := ends.keys()
 	keys.sort()
@@ -740,9 +745,14 @@ func _obliques(f: MapValidator.Floor) -> void:
 			continue
 		var u: Vector2 = box.u
 		var c: Vector2 = box.c
-		obliques.append({"room": ref_room.get(k, "x"), "a": _xz(c - u * float(box.w) * 0.5), "b": _xz(c + u * float(box.w) * 0.5),
+		var jn := {"room": ref_room.get(k, "x"), "a": _xz(c - u * float(box.w) * 0.5), "b": _xz(c + u * float(box.w) * 0.5),
 			"y0": _r(y0), "y1": _r(top_y), "thick": _r(float(box.d)), "mat_n": String(e.list[0].mat), "mat_m": String(e.list[0].mat),
-			"openings": [], "joint": true})
+			"openings": [], "joint": true}
+		# Raccord entre deux segments d'un même mur courbe : éclairé comme l'arc.
+		var arc: Variant = e.list[0].arc
+		if arc != null and e.list.all(func(it): return it.arc != null and Vector2(it.arc).distance_to(arc) < 0.001):
+			jn["arc"] = _xz(arc)
+		obliques.append(jn)
 
 
 ## Plus petit rectangle orienté qui contient les points (raccord d'angle) :

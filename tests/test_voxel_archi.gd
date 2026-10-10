@@ -8,6 +8,8 @@ extends TestCase
 ## deux côtés au bon matériau), collision lisse inchangée.
 
 const Diag := preload("res://tests/test_map_editor_diagonal.gd")
+const Free := preload("res://tests/test_map_editor_freeform.gd")
+const Walls := preload("res://tests/test_map_editor_walls.gd")
 
 
 func test_every_surface_key_is_pixel_art() -> void:
@@ -190,6 +192,122 @@ func test_oblique_walls_are_stepped_cubes() -> void:
 	# Collision : toujours les pavés lisses tournés.
 	assert_true(arch.find_children("Biais_*", "CollisionBox", false, false).size() >= 8, "collisions CollisionBox inchangées")
 	arch.free()
+
+
+## Lot B : toute l'architecture des cartes de l'éditeur en faces axiales sur
+## la grille de 5 cm (nœuds *__wall, *__biais, *__block) : murs en biais,
+## raccords, murs courbes, piliers tournés, cours tournées des fenêtres en
+## biais ; collisions inchangées (pavés lisses tournés).
+func test_lot_b_walls_are_axial_cubes() -> void:
+	for it in [["biais", Diag.diag_map()], ["ronde", Free.round_map()], ["murs_libres", Walls.free_walls_map()], ["pente", Free.slanted_map()]]:
+		var L: Dictionary = MapPreviewWorld.compute(it[1]).data
+		var arch := MeshMapGeometry.build(L)
+		var bad := 0
+		var off_grid := 0
+		var tris := 0
+		for kind in ["*__wall", "*__biais", "*__block"]:
+			for mi: MeshInstance3D in arch.find_children(kind, "MeshInstance3D", true, false):
+				var vs: PackedVector3Array = mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+				tris += vs.size() / 3
+				for i in range(0, vs.size(), 3):
+					var n := (vs[i + 1] - vs[i]).cross(vs[i + 2] - vs[i]).normalized()
+					if maxf(absf(n.x), maxf(absf(n.y), absf(n.z))) < 0.9999:
+						bad += 1
+				for p in vs:
+					if not (VoxelCheck.on_grid(p.x, 0.05) and VoxelCheck.on_grid(p.y, 0.05) and VoxelCheck.on_grid(p.z, 0.05)):
+						off_grid += 1
+		assert_eq(bad, 0, "%s : faces axiales seulement (murs, murs en biais, blocs)" % it[0])
+		assert_eq(off_grid, 0, "%s : sommets sur la grille de 5 cm" % it[0])
+		# Collisions : un pavé tourné par morceau de mur en biais, les cours
+		# tournées gardent leurs pavés (BoxShape3D).
+		var pieces := 0
+		for w in L.get("obliques", []):
+			var length := Vector2(w.a[0], w.a[1]).distance_to(Vector2(w.b[0], w.b[1]))
+			pieces += MeshMapGeometry.wall_pieces(0.0, length, float(w.y0), float(w.y1), w.get("openings", [])).filter(
+				func(pc): return pc[1] - pc[0] >= 0.001 and pc[3] - pc[2] >= 0.001).size()
+		assert_eq(arch.find_children("Biais_*", "CollisionBox", false, false).size(), pieces, "%s : collisions des murs en biais inchangées" % it[0])
+		print("[voxel_archi] %s : %d triangles de murs" % [it[0], tris])
+		arch.free()
+
+
+## Mur courbe : chaque segment exporté porte le centre de l'arc (raccords
+## entre ses segments aussi) ; rendu d'un bloc, ses faces s'éclairent selon
+## la normale du vrai arc (rayon), pas selon celle de chaque segment.
+func test_curved_wall_is_one_contour() -> void:
+	var L: Dictionary = MapPreviewWorld.compute(Walls.free_walls_map()).data
+	var arcs: Array = L.obliques.filter(func(w): return w.has("arc"))
+	assert_true(arcs.size() >= 4, "segments du mur courbe marqués (%d)" % arcs.size())
+	var c := Vector2(8.0 + MapGeom.WORLD_OFFSET, 12.0 + MapGeom.WORLD_OFFSET)
+	for w in arcs:
+		assert_true(Vector2(w.arc[0], w.arc[1]).distance_to(c) < 0.001, "centre de l'arc (%s)" % [w.arc])
+	assert_true(arcs.any(func(w): return w.get("joint", false)), "raccords entre segments de l'arc marqués")
+	assert_eq(MapLayoutExport.off_grid(L), [], "description sur la grille de 5 cm")
+	# Rendu seul de l'arc : normales d'éclairage des faces verticales penchées
+	# vers le rayon de l'arc (moins de 25° d'écart avec la face elle-même, du
+	# côté du rayon).
+	var g := MeshMapGeometry.new()
+	var gn := g._group("wall", "x")
+	for w in arcs:
+		var a := Vector2(w.a[0], w.a[1])
+		var b := Vector2(w.b[0], w.b[1])
+		var d := (b - a).normalized()
+		var o := g._owner(gn, gn, Vector2(-d.y, d.x), c, 1 if w.get("joint", false) else 0)
+		g._raster_piece(o, a, d, 0.0, a.distance_to(b), float(w.thick), 0.0, 3.0)
+	g._emit_cols()
+	var radial := 0
+	var faces := 0
+	for i in range(0, gn.v.size(), 3):
+		var ln: Vector3 = gn.n[i]
+		if absf(ln.y) > 0.5:
+			continue
+		faces += 1
+		var mid: Vector3 = (gn.v[i] + gn.v[i + 1] + gn.v[i + 2]) / 3.0
+		var r := (Vector2(mid.x, mid.z) - c).normalized()
+		if absf(Vector2(ln.x, ln.z).normalized().dot(r)) > 0.8:
+			radial += 1
+	assert_true(faces > 50 and radial == faces, "faces éclairées selon le rayon de l'arc (%d / %d)" % [radial, faces])
+
+
+## Ouverture dans un mur en biais : le cadre cubique couvre le plan vrai du
+## jambage (sans lui, l'escalier laisse un jour derrière la porte tournée).
+func test_oblique_opening_frame_covers_the_jamb() -> void:
+	var a := Vector2(10.0, 10.0)
+	var d := Vector2(1, 1).normalized()
+	var u := Vector2(-d.y, d.x)
+	var t := 0.5
+	var o0 := 2.0
+	var o1 := 3.5
+	var gaps := []
+	for frame in [false, true]:
+		var g := MeshMapGeometry.new()
+		var gn := g._group("wall", "x")
+		var o := g._owner(gn, gn, u)
+		for pc in MeshMapGeometry.wall_pieces(0.0, 6.0, 0.0, 3.0, [{"t": (o0 + o1) / 2.0, "w": o1 - o0, "y0": 0.0, "y1": 2.1}]):
+			g._raster_piece(o, a, d, pc[0], pc[1], t, pc[2], pc[3])
+		if frame:
+			g._raster_jamb(o, a, d, o0, 1.0, t, 0.0, 3.0)
+			g._raster_jamb(o, a, d, o1, -1.0, t, 0.0, 3.0)
+		var miss := 0
+		for sj in [[o0, -1.0], [o1, 1.0]]:
+			for k in range(-20, 21):
+				var p: Vector2 = a + d * (float(sj[0]) + float(sj[1]) * 0.005) + u * (k / 20.0 * (t / 2.0 - 0.01))
+				if not _filled(g, p, 1.0):
+					miss += 1
+		gaps.append(miss)
+	assert_true(gaps[0] > 0, "sans cadre : jour derrière le jambage (%d points)" % gaps[0])
+	assert_eq(gaps[1], 0, "avec le cadre : jambages pleins")
+
+
+## Cellule pleine au point (x, z) du monde à la hauteur y (rangées de MeshMapGeometry).
+static func _filled(g: MeshMapGeometry, p: Vector2, y: float) -> bool:
+	var i := floori(p.x / MeshMapGeometry.CUBE)
+	var j := floori(p.y / MeshMapGeometry.CUBE)
+	for sp: Array in g._rows.get(j, []):
+		if i >= int(sp[0]) and i <= int(sp[1]):
+			for iv: Array in sp[2]:
+				if y >= float(iv[0]) and y <= float(iv[1]):
+					return true
+	return false
 
 
 ## Mur libre à 45° : chaque rangée de cellules d'un mur plein est d'un seul

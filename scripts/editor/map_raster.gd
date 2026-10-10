@@ -1056,8 +1056,10 @@ func _obstacle_record(k: int, o: Dictionary, cells: Array) -> void:
 				if a.distance_to(b) < 0.01:
 					continue
 				var t := (b - a).normalized()
+				# « arc » : centre du mur courbe (rendu : normale d'éclairage du
+				# vrai arc, MeshMapGeometry._cell_u).
 				v.oblique_walls[k].append({"a": a, "b": b, "t": t, "n": Vector2(-t.y, t.x), "half": half,
-					"pos": rid, "neg": rid, "kind": "mur", "eid": String(o.id)})
+					"pos": rid, "neg": rid, "kind": "mur", "eid": String(o.id), "arc": MapGeom.v2(o.get("centre", [0, 0]))})
 			return
 	for c in cells:
 		_axis[c] = true
