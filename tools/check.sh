@@ -19,12 +19,12 @@
 #      (tests/_out/flaky.txt) sans bloquer ;
 #   6. bilan lisible + rapport JUnit (tests/_out/junit.xml).
 #
-# Tests d'une carte précise (« ## @carte kino ») : lancés seulement quand un
-# fichier de cette carte change, même avec --full (--kino pour les forcer).
+# Tests d'une carte précise (« ## @carte <id> ») : lancés seulement quand un
+# fichier de cette carte change, même avec --full (--cartes pour les forcer).
 # Hors check : scénarios long_*, perf_* et « ## @niveau perf » (tools/perf.sh),
 # tests multijoueur « ## @niveau long » (soak : MP="soak" les lance).
 #
-# Usage : sh tools/check.sh [--full] [--fast] [--kino] [--no-retry]
+# Usage : sh tools/check.sh [--full] [--fast] [--cartes] [--no-retry]
 #   --full     tout relancer (obligatoire avant une release : tools/ship.sh)
 #   --fast     sans réseau ni multijoueur
 #   SCENARIOS="boot perks" sh tools/check.sh   uniquement ces scénarios (sans cache, pas de mp)
@@ -50,12 +50,12 @@ touch "$OUT/.gdignore"
 LOGS="$PWD/$OUT/logs"; mkdir -p "$LOGS"
 DUR="$OUT/durations.txt"; touch "$DUR"
 CACHE="$OUT/test_cache.txt"; touch "$CACHE"
-FAST=0; FULL=0; KINO=0; RETRY=1
+FAST=0; FULL=0; MAPS=0; RETRY=1
 for A in "$@"; do
   case $A in
     --fast) FAST=1 ;;
     --full) FULL=1 ;;
-    --kino) KINO=1 ;;
+    --cartes) MAPS=1 ;;
     --no-retry) RETRY=0 ;;
     *) echo "option inconnue : $A"; exit 2 ;;
   esac
@@ -123,7 +123,7 @@ needed() {
   local M=${MAPOF[$K]:--}
   if [ -n "$SCENARIOS$MP" ] && [[ $T == head:* || $T == gui:* || $T == mp:* ]]; then return 0; fi
   if [ "$M" != "-" ]; then
-    [ $KINO -eq 1 ] && return 0
+    [ $MAPS -eq 1 ] && return 0
     [ "${OKH[$T]}" != "${HASH[$K]}" ]; return
   fi
   [ $FULL -eq 1 ] && return 0

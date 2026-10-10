@@ -4,9 +4,9 @@ Les graphismes du jeu sont procéduraux, sauf neuf textures de particules CC0
 des effets de carte (§ « Textures des effets de carte » ci-dessous ; les modèles 3D de
 `assets/models/` sont produits par nos scripts Blender, voir
 `tools/blender/`, aucun modèle téléchargé ; le lettrage des machines
-d'atouts utilise la police intégrée de Blender, licence libre ; les objets de la salle
-de théâtre, de la scène, des coulisses et de la cabine de projection de KINO V2, `assets/models/kino/`, sont
-générés par `tools/blender/props/kino_theater.py`, emblèmes et enseignes originaux ; la boîte mystère,
+d'atouts utilise la police intégrée de Blender, licence libre ; les décors du catalogue
+de l'éditeur et la machine d'amélioration (`assets/models/props/`) sont
+générés par `tools/blender/props/catalog_props.py`, emblèmes et enseignes originaux ; la boîte mystère,
 `assets/models/props/mystery_box.glb`, par `tools/blender/props/mystery_box.py`, points d'interrogation
 au pochoir dessinés pour ce jeu, matières procédurales). La plupart des bruitages
 proviennent d'enregistrements **libres de droits** retravaillés pour le jeu ;

@@ -3,7 +3,7 @@ extends AutotestScenario
 ## @niveau perf : hors check par défaut (captures d'un ajout en cours) ;
 ## lancer avec SCENARIOS="box_look" JOBS=1 GUI_JOBS=1 bash tools/check.sh.
 ## Boîte mystère vue par le joueur : à 2 m, à 10 m et de loin (couloir), sur
-## BUNKER K-7, KINO et DRAFT ARENA (carte de l'éditeur) ; couvercle fermé,
+## BUNKER K-7 et DRAFT ARENA (carte de l'éditeur) ; couvercle fermé,
 ## ouvert pendant le défilement, arme prête, LIQUIDATION, départ (ours).
 
 var H := AutotestHelpers
@@ -13,7 +13,7 @@ var p: Player
 
 func run() -> void:
 	timeout_sec = 300
-	for map_id in ["bunker_k7", "kino", "draft_arena"]:
+	for map_id in ["bunker_k7", "draft_arena"]:
 		await _map_pass(map_id)
 		if p == null:
 			return

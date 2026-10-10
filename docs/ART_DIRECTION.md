@@ -36,7 +36,7 @@ concerne.
   couleurs vives, virage ombres vert-de-gris / hautes lumières chaudes (sans
   changer la luminance), pied de courbe (noirs plus denses, tons moyens
   intacts), relèvement bleu-vert du noir, léger gain. Surcharge par carte :
-  `MapDef.look["grade"]` (KINO : `TheaterLook.GRADE`, plus chaud).
+  `MapDef.look["grade"]`.
 - Bloom : glow en mode « écran », seuil HDR 1,0, niveaux larges (3 à 5).
 - Brume volumétrique fine (anisotropie 0,7 : halos vers les lampes) en MEDIUM
   et HIGH ; triplée pendant les manches de chiens (`apply_dog_round_look`).
@@ -305,7 +305,9 @@ concerne.
   en haut des murs sous une corniche épaisse ; grand bloc de coulisses en
   planches qui porte l'écran, perche de projecteurs en haut.
 
-### Mise en œuvre (tools/blender/props/kino_theater.py, assets/models/kino/)
+### Mise en œuvre (tools/blender/props/catalog_props.py, assets/models/props/)
+- Carte KINO retirée (GAME_CONCEPT.md §6) : seuls les décors repris par le
+  catalogue de l'éditeur et la machine d'amélioration restent.
 - Modèles low poly scriptés (un .glb par objet, un maillage par matériau
   `<mat>__<modèle>__solid|ns`, matériaux remplacés par les shaders
   procéduraux du jeu) ; collisions en boîtes dans `<modèle>.collision.json`

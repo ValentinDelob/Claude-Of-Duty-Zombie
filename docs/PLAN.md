@@ -85,7 +85,8 @@ Nacht der Untoten ; HUD, lumière, étalonnage), puis par lots :
 - [ ] Mesures de perf à chaque lot (cible GTX 1050 à 60 fps).
 
 ### R5. KINO V2 : reproduction à l'identique de Kino der Toten
-Plan détaillé et avancement : [docs/KINO_V2.md](KINO_V2.md). La première KINO
+Carte retirée depuis (GAME_CONCEPT.md §6) ; son plan détaillé (docs/KINO_V2.md)
+est supprimé, il reste dans l'historique git. La première KINO
 (grille ASCII, inspirée de Kino) a été REMPLACÉE par Kino der Toten à
 l'échelle 1 (même identifiant `kino`, même entrée de menu).
 - [x] Réunir les références dans `docs/reference/kino/` (ignoré par git :
@@ -123,8 +124,8 @@ l'échelle 1 (même identifiant `kino`, même entrée de menu).
   (id `kino`) ; l'ancienne KINO en grille et ce qui ne servait qu'à elle
   (décor de théâtre de `PropBuilder`, salles hautes des grilles, Pack-a-Punch
   révélé par le téléporteur, poste central « A » des grilles) sont retirés.
-- v0.1.95 à v0.1.103 : KINO V2 étapes 1 à 4 et théâtre de l'étape 6 (voir
-  docs/KINO_V2.md).
+- v0.1.95 à v0.1.103 : KINO V2 étapes 1 à 4 et théâtre de l'étape 6 (carte
+  retirée depuis).
 - v0.1.94 : HUD à l'échelle de la résolution (2D en canvas_items, base
   1280x720), lampes « courant coupé » faibles et neutres comme BO1.
 - v0.1.93 : re-mesure des performances sur RTX A2000, murs mats sans

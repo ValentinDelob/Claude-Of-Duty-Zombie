@@ -1,7 +1,8 @@
 extends AutotestScenario
 ## Sélection de carte (SOLO) au clavier : SOLO ouvre l'écran des cartes
-## (BUNKER K-7 / KINO), le dossier suit la carte sélectionnée, Échap revient,
-## valider KINO lance la partie sur KINO et mémorise le choix (Settings).
+## (BUNKER K-7 seule depuis le retrait de KINO), le dossier suit la carte
+## sélectionnée, Échap revient ; un ancien choix mémorisé sur KINO retombe sur
+## BUNKER K-7 ; valider lance la partie et mémorise le choix (Settings).
 
 var menu: MainMenu
 
@@ -12,6 +13,8 @@ func run() -> void:
 	menu = tree().current_scene
 	await until(_settled, 5.0, "sortie du noir d'ouverture du menu")
 	at.check(Settings.last_map == "bunker_k7", "carte mémorisée par défaut : %s" % Settings.last_map)
+	# Choix mémorisé sur la carte retirée : l'écran se place sur BUNKER K-7.
+	Settings.last_map = "kino"
 	await press("ui_accept")  # SOLO
 	at.check(menu.current_name == "map_select", "SOLO : écran de sélection de carte (%s)" % menu.current_name)
 	await until(_settled, 3.0, "écran des cartes affiché")
@@ -19,15 +22,10 @@ func run() -> void:
 	var labels := []
 	for b in _buttons():
 		labels.append(b.label)
-	at.check(labels == ["BUNKER K-7", "KINO", "RETOUR"], "cartes proposées : %s" % ", ".join(labels))
-	at.check(_focused_label() == "BUNKER K-7", "focus sur la dernière carte jouée (%s)" % _focused_label())
+	at.check(labels == ["BUNKER K-7", "RETOUR"], "cartes proposées : %s" % ", ".join(labels))
+	at.check(_focused_label() == "BUNKER K-7", "ancien choix KINO : focus sur BUNKER K-7 (%s)" % _focused_label())
 	at.check(screen.selected == "bunker_k7" and screen._preview.texture != null, "dossier et plan du BUNKER K-7")
 	await at.screenshot("bunker")
-	await press("ui_down")
-	at.check(_focused_label() == "KINO" and screen.selected == "kino", "↓ : KINO sélectionnée (%s)" % screen.selected)
-	at.check(screen._name.text == "KINO" and screen._desc.text != "", "dossier de KINO : %s" % screen._desc.text)
-	await seconds(0.8)  # pause avant la capture
-	await at.screenshot("kino")
 	# Échap : retour au menu principal, rien n'est lancé.
 	await press("ui_cancel")
 	at.check(menu.current_name == "main", "Échap : retour au menu principal")
@@ -35,16 +33,15 @@ func run() -> void:
 	await press("ui_accept")
 	at.check(menu.current_name == "map_select", "SOLO de nouveau")
 	await until(_settled, 3.0, "écran des cartes réaffiché")
-	await press("ui_down")
-	await press("ui_accept")  # KINO
+	await press("ui_accept")  # BUNKER K-7
 	await until(func(): return is_instance_valid(menu) and menu._fade_amount > 0.1, 2.0, "fondu au noir du lancement")
 	at.check(tree().current_scene == menu and menu._fade_amount > 0.1, "fondu au noir avant le chargement")
-	at.check(Settings.last_map == "kino", "choix mémorisé (Settings.last_map = %s)" % Settings.last_map)
+	at.check(Settings.last_map == "bunker_k7", "choix mémorisé (Settings.last_map = %s)" % Settings.last_map)
 	var cfg := ConfigFile.new()
-	at.check(cfg.load(Settings.path) == OK and cfg.get_value("game", "last_map", "") == "kino", "choix enregistré dans %s" % Settings.path)
+	at.check(cfg.load(Settings.path) == OK and cfg.get_value("game", "last_map", "") == "bunker_k7", "choix enregistré dans %s" % Settings.path)
 	var ok: bool = await until(func(): return Game.instance != null and Game.instance.local_player != null, 40.0, "partie lancée")
 	if ok:
-		at.check(Game.instance.map_def.id == "kino", "partie solo sur KINO")
+		at.check(Game.instance.map_def.id == "bunker_k7", "partie solo sur BUNKER K-7")
 		await seconds(1.0)  # rendu posé avant la capture
 		await at.screenshot("ingame")
 

@@ -4,7 +4,7 @@ extends RefCounted
 ## boîte, réglages du téléporteur...) et création de sa géométrie : grille
 ## ASCII par défaut (marqueurs ci-dessous, GridMapLayout : BUNKER K-7,
 ## test_arena), ou carte en maillage à plusieurs niveaux en surchargeant
-## create_layout (MeshMapLayout : KINO, test_levels).
+## create_layout (MeshMapLayout : test_levels, cartes de l'éditeur).
 ##
 ## Marqueurs communs (posés sur du sol, zone déduite des voisins) :
 ##   P apparition joueur      Z apparition zombie     L lampe
@@ -52,8 +52,7 @@ var teleport_banner := Lang.t("SALLE DU RITUEL", "RITUAL ROOM")
 ## Téléporteur à relier au poste central (`mainframe` de la description en
 ## maillage) avant chaque voyage, comme à Kino der Toten ; retour dessus.
 var teleporter_link := false
-## Réglages du téléporteur (défauts : BUNKER K-7) ; KINO reprend ceux de
-## Kino der Toten (gratuit, 1,8 s, 30 s, 90 s de recharge).
+## Réglages du téléporteur (défauts : BUNKER K-7).
 var teleporter_cost := 1500
 var teleporter_charge := 3.0
 var teleporter_stay := 25.0

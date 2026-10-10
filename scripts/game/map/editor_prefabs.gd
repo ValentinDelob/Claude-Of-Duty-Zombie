@@ -7,7 +7,7 @@ extends RefCounted
 ## torche murale, tuyaux, boîtier électrique, câble suspendu ; ampoule,
 ## suspension, néon, lampe de bureau, projecteur de chantier, bougies,
 ## brasero. Les autres (gravats, caisses,
-## fauteuils, applique, lustre...) sont des modèles de assets/models/kino/
+## fauteuils, applique, lustre...) sont des modèles de assets/models/props/
 ## (MapCatalog.PREFABS et LIGHTS).
 ##
 ## Aucune collision ici : elles viennent des pavés du catalogue (CollisionBox,

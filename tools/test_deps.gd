@@ -43,9 +43,7 @@ const HUBS := [
 ]
 ## Fichiers propres à chaque carte (@carte <id>), en plus de assets/maps/<id>/*
 ## et scripts/game/map/maps/<id>.gd.
-const MAP_EXTRA := {
-	"kino": ["scripts/game/map/theater_look.gd", "assets/models/kino/*"],
-}
+const MAP_EXTRA := {}
 var DEPTH := int(OS.get_environment("DEPS_DEPTH")) if OS.get_environment("DEPS_DEPTH") != "" else 2
 const SKIP_EXT := ["import", "uid", "tmp", "blend", "blend1", "py", "md"]
 

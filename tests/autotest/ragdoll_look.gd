@@ -24,7 +24,7 @@ var _o := Vector3.ZERO
 
 func run() -> void:
 	timeout_sec = 300
-	p = await H.start_solo_game(self, "kino")
+	p = await H.start_solo_game(self, "bunker_k7")
 	if p == null:
 		return
 	game = Game.instance
@@ -34,8 +34,8 @@ func run() -> void:
 	game.rounds.paused = true
 	game.powerups.debug_no_auto_drops = true
 	await H.clear_zombies(self)
-	# Hall de KINO entre les deux escaliers (zombie_look) : grand sol dégagé.
-	_o = Vector3(74.0, 2.032, 98.0)
+	# Quai du BUNKER K-7 (scène de zombie_look) : sol dégagé.
+	_o = Vector3(33.5, 0.0, 4.6)
 	game.hud.visible = false
 	cam = Camera3D.new()
 	cam.fov = 55.0

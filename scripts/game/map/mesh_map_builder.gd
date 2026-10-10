@@ -7,8 +7,6 @@ extends MapProps
 ##   props     [{model, p, yaw, scale}]           objets uniques (avec collisions)
 ##   instances [{model, items [[x,y,z,yaw,tilt]]}] objets répétés (fauteuils) en
 ##                                                 MultiMesh : un appel de dessin par matériau
-##   screens   [{p, w, h, yaw}]                   écran de cinéma (joue quand le courant est là)
-##   beams     [{from, to, radius}]               faisceau de projecteur (courant)
 ##   blockers  [{center, size, yaw, barrier}]     pavés de collision invisibles (CollisionBox)
 ## Modèles : assets/models/<dossier>/<model>.glb (tools/blender/props/*.py).
 ##
@@ -22,7 +20,7 @@ const NO_SHADOW_KINDS := ["floor", "ceil", "ns"]
 
 var layout: Dictionary
 var glb_path := ""
-var models_dir := "res://assets/models/kino/"
+var models_dir := "res://assets/models/props/"
 var _scenes: Dictionary = {}
 
 
@@ -84,7 +82,6 @@ func _build_decor_parts() -> void:
 	_prop_mats = layout.get("prop_materials", {})
 	_build_props()
 	_build_instances()
-	_build_screens()
 	_build_blockers()
 	_build_effects()
 
@@ -378,49 +375,6 @@ static func _local_xf(n: Node3D, top: Node3D) -> Transform3D:
 			xf = (cur as Node3D).transform * xf
 		cur = cur.get_parent()
 	return xf
-
-
-func _build_screens() -> void:
-	for s in layout.get("screens", []):
-		var mi := MeshInstance3D.new()
-		mi.name = "CinemaScreen"
-		var q := QuadMesh.new()
-		q.size = Vector2(float(s.w), float(s.h))
-		mi.mesh = q
-		mi.position = MeshMapLayout.vec(s.p)
-		mi.rotation.y = float(s.get("yaw", 0.0))
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var mat := TheaterLook.screen_material()
-		warmup_materials.append(mat)
-		mi.material_override = mat
-		root.add_child(mi)
-		power.add_hook(func(on: bool): mat.set_shader_parameter("playing", 1.0 if on else 0.0))
-	for b in layout.get("beams", []) + layout.get("shafts", []):
-		var shaft: bool = b.get("shaft", false)
-		var from := MeshMapLayout.vec(b.from)
-		var to := MeshMapLayout.vec(b.to)
-		var beam := MeshInstance3D.new()
-		beam.name = "LightShaft" if shaft else "ProjectorBeam"
-		var cm := CylinderMesh.new()
-		# Cône : étroit à la source (`from`, rayon `top`), large à l'arrivée (`radius`).
-		# Le haut du cylindre (+Y local) est orienté vers `to`.
-		cm.bottom_radius = float(b.get("top", 0.15))
-		cm.top_radius = float(b.get("radius", 3.0))
-		cm.height = from.distance_to(to)
-		cm.radial_segments = 16
-		cm.cap_top = false
-		cm.cap_bottom = false
-		beam.mesh = cm
-		beam.material_override = TheaterLook.shaft_material() if shaft else TheaterLook.beam_material()
-		warmup_materials.append(beam.material_override)
-		beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var up := (to - from).normalized()
-		var bx := up.cross(Vector3.UP if absf(up.y) < 0.9 else Vector3.RIGHT).normalized()
-		beam.transform = Transform3D(Basis(bx, up, bx.cross(up)).orthonormalized(), (from + to) * 0.5)
-		root.add_child(beam)
-		if not shaft:  # le faisceau du projecteur ne s'allume qu'avec le courant
-			beam.visible = false
-			power.add_hook(func(on: bool): beam.visible = on)
 
 
 ## Matériau d'une clé : WorldLook.SURFACES, ou clé spéciale.

@@ -1,8 +1,8 @@
 extends AutotestScenario
-## @couvre scripts/game/barricades/* scripts/game/map/mesh_map_layout.gd scripts/game/map/mesh_map_geometry.gd scripts/game/map/mesh_map_builder.gd tests/fixtures/maps/smallest/* tests/fixtures/maps/smallest_door/* tests/fixtures/maps/smallest_double_door/* assets/maps/kino/*
+## @couvre scripts/game/barricades/* scripts/game/map/mesh_map_layout.gd scripts/game/map/mesh_map_geometry.gd scripts/game/map/mesh_map_builder.gd tests/fixtures/maps/smallest/* tests/fixtures/maps/smallest_door/* tests/fixtures/maps/smallest_double_door/*
 ## Régression (« je me bloque sur les bords des fenêtres à zombies : la
 ## hitbox dépasse vers l'intérieur ») : le joueur longe, côté salle, le mur
-## percé de CHAQUE entrée des zombies (fenêtres des 22 de KINO ; fenêtre,
+## percé de CHAQUE entrée des zombies (fenêtre,
 ## porte simple et porte double des cartes de l'éditeur : mur de la grille,
 ## hors grille, en biais), dans les deux sens : à 3 cm du mur, collé en
 ## poussant en diagonale (30° et 60°), en sprint, à reculons.
@@ -13,7 +13,7 @@ extends AutotestScenario
 ## le nu du mur (rien ne doit en dépasser devant l'ouverture).
 ## Puis, fenêtre ouverte, le joueur pousse droit dessus : il ne sort pas.
 ## Défaut (échec) : ce qui touche une collision de l'entrée elle-même. Ce qui
-## vient des murs de la carte autour (joints du maillage de KINO, mur
+## vient des murs de la carte autour (joints du maillage, mur
 ## perpendiculaire mal découpé) est relevé à part (« NOTE », sans échec) :
 ## hors de la barricade, voir le rapport du scénario.
 
@@ -44,7 +44,7 @@ func run() -> void:
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu principal")
 	# Cartes de l'éditeur : fixtures (fenêtre sur un mur hors grille, portes)
 	# et cartes construites ici (fenêtre sur un mur de la grille, en biais).
-	var maps := ["kino"]
+	var maps: Array[String] = []
 	for id in ["smallest", "smallest_door", "smallest_double_door"]:
 		if SW.install_fixture(id, "res://tests/fixtures/maps/" + id) != "":
 			maps.append(EditorMapDef.CUSTOM_PREFIX + id)
@@ -52,7 +52,7 @@ func run() -> void:
 		var dir := EditorMap.map_dir(doc.id())
 		if dir != "" and dir.begins_with(ProjectSettings.globalize_path("res://tests/_out")) and doc.save_dir(dir) == OK:
 			maps.append(EditorMapDef.CUSTOM_PREFIX + doc.id())
-	at.check(maps.size() == 7, "7 cartes à parcourir (%s)" % ", ".join(maps))
+	at.check(maps.size() == 6, "6 cartes à parcourir (%s)" % ", ".join(maps))
 	for map_id in maps:
 		await _map(map_id)
 		if p == null:

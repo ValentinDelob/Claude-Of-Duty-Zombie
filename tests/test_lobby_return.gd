@@ -27,11 +27,11 @@ func test_game_over_returns_to_lobby_then_relaunches() -> void:
 func test_end_match_forgets_the_match_only() -> void:
 	assert_eq(Net.host(PORT, 4, "Hote"), OK)
 	Net.players[7] = {"name": "Invite", "slot": 1, "char": "orlov"}
-	Net.lobby_map = "kino"
+	Net.lobby_map = "draft_arena"
 	Net.match_started = true
 	Net.loaded_peers = {1: true, 7: true}
 	Net.cast = {1: 0, 7: 1}
-	Net.current_map = "kino"
+	Net.current_map = "draft_arena"
 	Net.end_match()
 	assert_false(Net.match_started, "nouveaux arrivants acceptés au salon")
 	assert_true(Net.loaded_peers.is_empty())
@@ -41,7 +41,7 @@ func test_end_match_forgets_the_match_only() -> void:
 	assert_eq(Net.mode, Net.Mode.HOST)
 	assert_eq(Net.players.size(), 2)
 	assert_eq(String(Net.players[7].char), "orlov", "choix de personnage gardé")
-	assert_eq(Net.lobby_map, "kino", "carte du salon gardée")
+	assert_eq(Net.lobby_map, "draft_arena", "carte du salon gardée")
 	assert_true(Net.multiplayer.multiplayer_peer is ENetMultiplayerPeer, "connexion gardée")
 
 

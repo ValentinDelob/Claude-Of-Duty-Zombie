@@ -59,7 +59,7 @@ const DOOR_PRICES := [750, 1000, 1250]
 ##   bloque   « solide » (arrête joueurs, zombies et balles), « barriere »
 ##            (arrête joueurs et zombies, les balles passent) ou « non »
 ##            (on marche dessus : aucune collision)
-##   model    modèle assets/models/kino/<model>.glb (sinon `build` : objet
+##   model    modèle assets/models/props/<model>.glb (sinon `build` : objet
 ##            construit par le jeu, EditorPrefabs) ; scale, remap (matériaux
 ##            remplacés), copies [[x, z, lacet]] (le modèle répété)
 ##   boxes    pavés de collision {center, size, yaw} en coordonnées de

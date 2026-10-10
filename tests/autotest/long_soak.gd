@@ -1,8 +1,8 @@
 extends AutotestScenario
 ## @niveau long
 ## Soak (hors check.sh, préfixe long_) : un bot joue de nombreuses manches sur
-## une carte (BUNKER K-7 ici ; long_soak_kino, long_soak_draft pour les
-## autres) en abattant lui-même les zombies et en utilisant tout ce que la
+## une carte (BUNKER K-7 ici ; long_soak_draft pour l'autre) en abattant
+## lui-même les zombies et en utilisant tout ce que la
 ## carte propose PAR LE VRAI CHEMIN D'INTERACTION (visée, [F], validation du
 ## serveur) : portes et débris, courant, armes murales, atouts, boîte mystère,
 ## Pack-a-Punch, grenades et singes, téléporteur, pièges, chaque bonus
@@ -568,9 +568,6 @@ func pack_a_punch() -> void:
 	var pap: PackAPunch = game.interact.get_obj("pap")
 	if pap == null:
 		return
-	# Sur KINO, le Pack-a-Punch est en salle de projection (téléporteur).
-	if map_id == "kino":
-		return
 	await upgrade_at(pap)
 
 
@@ -770,10 +767,6 @@ func use_teleporter() -> void:
 		await step()
 		t += 0.1
 	at.check(tp.state == Teleporter.State.ACTIVE, "téléporteur parti")
-	# Sur KINO, le Pack-a-Punch est dans la salle d'arrivée.
-	var pap: PackAPunch = game.interact.get_obj("pap")
-	if map_id == "kino" and pap and tp.state == Teleporter.State.ACTIVE:
-		await upgrade_at(pap)
 	t = 0.0
 	while tp.state == Teleporter.State.ACTIVE and t < tp.stay_time + 5.0:
 		await fight_tick()

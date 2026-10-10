@@ -13,7 +13,7 @@ func run() -> void:
 	timeout_sec = 240
 	var split := parts() > 1
 	var mi := -1
-	for map_id in ["bunker_k7", "kino"]:
+	for map_id in ["bunker_k7"]:
 		mi += 1
 		if split and not owns(mi):
 			continue
@@ -51,9 +51,8 @@ func _map_pass(map_id: String) -> void:
 		game.doors[id].srv_open()
 	await seconds(0.5)  # collisions des portes coupées (différé) avant les téléports
 	var list := machines()
-	# Kino der Toten : Quick Revive, Juggernog, Speed Cola, Double Tap (Mule
-	# Kick à venir) ; BUNKER K-7 : les 7 atouts.
-	var want := 4 if map_id == "kino" else 7
+	# BUNKER K-7 : les 7 atouts.
+	var want := 7
 	at.check(list.size() >= want, "%s : %d machines d'atouts (au moins %d)" % [map_id, list.size(), want])
 	for m in list:
 		_check_model(m)

@@ -5,7 +5,7 @@
 #      réimport des assets) ;
 #   2. instrumentation des scripts de la copie (tools/coverage/instrument.gd) :
 #      un compteur par instruction ;
-#   3. dans la copie : check COMPLET (tools/check.sh --full --kino --no-retry,
+#   3. dans la copie : check COMPLET (tools/check.sh --full --cartes --no-retry,
 #      mêmes réglages de charge) ; chaque jeu vide ses compteurs en quittant ;
 #   4. rapport (tools/coverage/report.gd) : tests/_out/coverage/ (résumé par
 #      dossier, détail par fichier et par fonction, lignes jamais exécutées).
@@ -76,7 +76,7 @@ EOF
 
   echo "== tests dans la copie instrumentée"
   ( cd "$COPY" && COV_OUT="$OUT_W/raw" JOBS=${JOBS:-3} GUI_JOBS=${GUI_JOBS:-1} \
-      bash tools/check.sh --full --kino --no-retry > "$OUT/check.log" 2>&1 )
+      bash tools/check.sh --full --cartes --no-retry > "$OUT/check.log" 2>&1 )
   grep -E "^== (durée|CHECK)" "$OUT/check.log"
   grep -E "^---- " "$OUT/check.log" | sed 's/^/   échec dans la copie : /'
 fi

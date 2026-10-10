@@ -151,16 +151,16 @@ func test_texts_follow_language_setting() -> void:
 	Settings.language = "fr"
 	var fr := [Hud.bo1_prompt("[F] Acheter M14 [500]"), PerkDB.desc("titan"), PowerupRules.display_name(PowerupRules.MAX_AMMO),
 		WeaponDB.display_name("m14", true), InteractionSystem.deny_text(InteractionSystem.NO_POINTS), Game.survived_text(3),
-		Interactable.need_power_text(), Scoreboard.columns()[0], Game.make_map_def("bunker").zone_display_name("a")]
+		Interactable.need_power_text(), Scoreboard.columns()[0], Game.make_map_def("bunker_k7").zone_display_name("a")]
 	Settings.language = "en"
 	var en := [Hud.bo1_prompt("[F] Buy M14 [500]"), PerkDB.desc("titan"), PowerupRules.display_name(PowerupRules.MAX_AMMO),
 		WeaponDB.display_name("m14", true), InteractionSystem.deny_text(InteractionSystem.NO_POINTS), Game.survived_text(3),
-		Interactable.need_power_text(), Scoreboard.columns()[0], Game.make_map_def("bunker").zone_display_name("a")]
+		Interactable.need_power_text(), Scoreboard.columns()[0], Game.make_map_def("bunker_k7").zone_display_name("a")]
 	Settings.language = saved
 	assert_eq(fr, ["Appuyer sur F pour acheter M14 [Coût : 500]", "Santé maximale 250", "MUNITIONS MAX !", "M14 VIEILLE GARDE",
-		"Pas assez de ferraille", "VOUS AVEZ SURVÉCU 3 MANCHES", "Le courant doit être rétabli", "JOUEUR", "Hall d'entrée"])
+		"Pas assez de ferraille", "VOUS AVEZ SURVÉCU 3 MANCHES", "Le courant doit être rétabli", "JOUEUR", "Salle de garde"])
 	assert_eq(en, ["Press F to buy M14 [Cost: 500]", "Max health 250", "MAX AMMO!", "M14 OLD GUARD",
-		"Not enough scrap", "YOU SURVIVED 3 ROUNDS", "Power must be activated first", "PLAYER", "Lobby"])
+		"Not enough scrap", "YOU SURVIVED 3 ROUNDS", "Power must be activated first", "PLAYER", "Guard Room"])
 
 
 func test_lang_pick() -> void:

@@ -11,13 +11,12 @@ static var instance: Game
 const MAP_SCRIPTS := {
 	"bunker_k7": "res://scripts/game/map/maps/bunker_k7.gd",
 	"test_arena": "res://scripts/game/map/maps/test_arena.gd",
-	"kino": "res://scripts/game/map/maps/kino.gd",
 	"test_levels": "res://scripts/game/map/maps/test_levels.gd",
 	"draft_arena": "res://scripts/game/map/maps/draft_arena.gd",
 }
 const DEFAULT_MAP := "bunker_k7"
 ## Cartes proposées dans les menus (sélection solo, salon de l'hôte).
-const MENU_MAPS := ["bunker_k7", "kino"]
+const MENU_MAPS := ["bunker_k7"]
 
 ## Carte à charger (les tests peuvent imposer l'arène avec --map=test_arena),
 ## sinon la dernière carte choisie dans le menu (Settings.last_map).

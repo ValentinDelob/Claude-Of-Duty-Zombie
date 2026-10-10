@@ -464,7 +464,7 @@ budget de particules et format : `docs/MAP_OBJECTS.md` §
 
 Tous décrits à un seul endroit, `MapCatalog.PREFABS` et `MapCatalog.LIGHTS`
 (`scripts/editor/map_catalog.gd`) : emprise au sol (cases de 0,5 m), modèle
-(`assets/models/kino/*.glb`, déjà livrés avec KINO) ou objet construit par le
+(`assets/models/props/*.glb`, `tools/blender/props/catalog_props.py`) ou objet construit par le
 jeu (`EditorPrefabs` : sacs de sable, table et chaise renversées, chariot,
 épave de voiture, et les luminaires sans modèle), collisions.
 

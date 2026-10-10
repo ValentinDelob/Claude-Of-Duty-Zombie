@@ -1,8 +1,7 @@
 extends AutotestScenario
 ## Coût GPU de chaque poste de rendu, mesuré en A/B alterné sur la même vue
-## (méthode de docs/ARCHITECTURE.md, « Rendu et performances ») :
-##   1. BUNKER K-7, laboratoire, 24 zombies au contact (ombres redessinées) ;
-##   2. KINO, la scène vue depuis l'allée centrale de la salle, sans zombie.
+## (méthode de docs/ARCHITECTURE.md, « Rendu et performances ») : BUNKER
+## K-7, laboratoire, 24 zombies au contact (ombres redessinées).
 ## Pour chaque poste, on le coupe seul et on mesure le temps GPU moyen du
 ## viewport (RenderingServer.viewport_get_measured_render_time_gpu) et le
 ## nombre de draw calls ; les modes sont alternés plusieurs fois pour
@@ -22,11 +21,6 @@ const SAMPLES := 24
 func run() -> void:
 	timeout_sec = 280
 	await _bunker_pass()
-	if p == null:
-		return
-	Router.back_to_menu()
-	await seconds(1.0)
-	await _kino_pass()
 
 
 func _start(map_id: String) -> bool:
@@ -73,18 +67,6 @@ func _bunker_pass() -> void:
 	await seconds(1.0)
 	await at.screenshot("horde")
 	await _ab("labo+24", _modes(true))
-
-
-func _kino_pass() -> void:
-	if not await _start("kino"):
-		return
-	# Allée centrale de la salle de théâtre, vers la scène (ruines, fauteuils,
-	# écran, tour du téléporteur et lustres : la vue la plus chargée).
-	p.teleport_to(Vector3(75.0, 0.35, 66.0))
-	H.aim_at(p, Vector3(75.0, 3.0, 41.0))
-	await seconds(2.0)
-	await at.screenshot("scene")
-	await _ab("kino scene", _modes(false))
 
 
 ## [nom, fonction(on: bool)] : on = false coupe le poste.

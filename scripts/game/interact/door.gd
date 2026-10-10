@@ -14,9 +14,9 @@ var door_id := ""
 var cells: Array = []
 ## Bloqueur de navigation levé à l'ouverture (MapLayout.set_blocked).
 var block := ""
-## Porte ouverte par le courant (non achetable : KINO, hall <-> salle de théâtre).
+## Porte ouverte par le courant (non achetable).
 var power_door := false
-## Porte liée : un seul achat ouvre les deux (KINO : escaliers à deux portes).
+## Porte liée : un seul achat ouvre les deux (escaliers à deux portes).
 var link_id := ""
 ## Rideau de scène (velours, ouvert par le courant).
 var curtain := false

@@ -26,8 +26,8 @@ var _light: OmniLight3D
 var _display: Node3D
 var _display_model: Node3D
 var _t := 0.0
-## Modèle de style BO1 (tools/blender/props/kino_theater.py) ; à défaut, blocs.
-const MODEL := "res://assets/models/kino/pap_machine.glb"
+## Modèle de style BO1 (tools/blender/props/catalog_props.py) ; à défaut, blocs.
+const MODEL := "res://assets/models/props/pap_machine.glb"
 
 
 func setup(cell: Vector2i, data: MapData) -> void:
