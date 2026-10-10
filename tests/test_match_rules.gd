@@ -128,14 +128,3 @@ func test_spawn_without_spawn_points() -> void:
 	assert_eq(MatchRules.spawn_for_slot(none, 0), MatchRules.FALLBACK_SPAWN, "carte sans point : repli")
 	assert_eq(MatchRules.spawn_for_slot(none, 5), MatchRules.FALLBACK_SPAWN)
 	assert_eq(Game.spawn_for_slot(none, 1), Game.FALLBACK_SPAWN, "alias de Game")
-
-
-func test_match_rounds_survived_for_xp() -> void:
-	var r := MatchResult.new()
-	r.round_reached = 5
-	assert_eq(Game.match_rounds_survived(r), 4, "équipe morte : la manche en cours ne compte pas")
-	r.evacuated = true
-	assert_eq(Game.match_rounds_survived(r), 5, "évacuation : la manche vaincue compte")
-	r.evacuated = false
-	r.round_reached = 0
-	assert_eq(Game.match_rounds_survived(r), 0)

@@ -420,6 +420,22 @@ retravaillées.
   vers 120 h.
 - 💡 Sources d'XP : éliminations, vagues survécues, mini-boss et boss, contrats,
   bonus d'évacuation.
+- ✔️ **Barème appliqué** (référence complète et méthode pour tout nouveau mob :
+  `docs/XP_RULES.md`) :
+  - chaque élimination rapporte l'XP de son **type d'ennemi** (catégories
+    commun / spécial / mini-boss / boss), au seul joueur qui tue, multipliée
+    par un **bonus de manche** (+15 % par manche, jusqu'à ×5) : survivre plus
+    longtemps rapporte plus ;
+  - manche survécue et vague spéciale ou de boss vaincue : à chaque joueur
+    non mort ; évacuation réussie : +25 % de l'XP de la partie ;
+  - l'XP est comptée par l'hôte pendant la partie, affichée discrètement
+    (« +N XP », compteur de partie), puis ajoutée **une fois** au profil à la
+    fin, quelle que soit l'issue (ou si le joueur quitte) ; l'écran de fin
+    montre le détail, le niveau avant / après et la progression ;
+  - simulation de calibrage : niveau 10 en ≈ 2,5 h, 25 en ≈ 23,5 h, 50 en
+    ≈ 123 h ;
+  - les contrats (§4.2) ajouteront leur XP au hub ; le niveau du joueur y
+    servira pour l'arme ou la pièce offerte.
 
 ### 4.16 Rapport de fin de partie ✅
 - Au retour au hub, un rapport montre le butin gardé : armes ajoutées à
@@ -538,7 +554,9 @@ corriger.
 | Ferraille par touche | **10** par touche de balle ou de couteau qui ne tue pas (tir de fusil à pompe : une touche par zombie) ; 0 pour une explosion, une brûlure, un piège ou le téléporteur ; au plus **10 touches payées par zombie**, tous joueurs confondus | `PointsRules.HIT`, `HIT_CAP` |
 | Énergie | 0 à 100 ; course 25/s ; saut 10 ; couteau 8, couteau de chasse 10 ; recharge 40/s après 0,4 s ; **épuisé** de 0 jusqu'à 50 | `docs/ENERGY_PLAN.md` |
 | Essoufflement | silencieux au-dessus de 35 % ; halètement tant que le joueur est épuisé ; la respiration de santé basse passe avant | `BreathFeedback` |
-| XP d'une partie | 10 par élimination, 50 par manche survécue | `MatchXp` |
+| XP par élimination | selon le type, à la manche 1 : marcheur, coureur, sprinteur, rampant **4** ; chien **12** ; mini-boss (référence) **60** ; boss (référence) **240** ; × bonus de manche **1 + 0,15 × (manche − 1)**, plafonné à **×5** ; au seul tueur (piège : celui qui l'a activé) | `XpRules`, `docs/XP_RULES.md` |
+| XP hors élimination | manche survécue **3 × manche** ; vague spéciale vaincue **60**, vague de boss **240** (× bonus de manche) ; à chaque joueur non mort à la fin de la manche ; évacuation **+25 %** de l'XP de la partie | `XpRules` |
+| XP gardée | comptée par l'hôte pendant la partie, ajoutée une fois au profil à la fin (évacuation ou défaite) ou au départ d'un joueur en cours de partie (sans bonus) ; le niveau ne change pas pendant la partie | `XpSystem`, `MatchXp` |
 | Armes de base | pistolet de départ et couteau (en attendant la batte) | `BaseWeapons` |
 | Évacuation : vote | touche d'interaction près de la porte ; 1er appui « partir », puis alterne « prêt » / « partir » | `EvacRules` |
 | Évacuation : départ | tous les joueurs non morts ont voté « partir » et sont debout dans la zone (4 m × 3,5 m devant la porte) | `EvacRules` |

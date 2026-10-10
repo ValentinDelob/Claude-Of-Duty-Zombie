@@ -1181,7 +1181,7 @@ GAME_CONCEPT §4.7, §4.6, §4.16. Valeurs provisoires : GAME_CONCEPT §6 bis.
   intactes et pistolets prêtés, pièces et échantillons de la partie) ;
   évacuation : `ProfileLoot.apply_evacuation` (nouvel exemplaire de
   l'arsenal, ou version de l'arsenal mise à jour si même `uid`) ; équipe
-  morte : rien (l'XP reste, `MatchXp`). `MatchResult.loot` =
+  morte : rien (l'XP reste : `XpSystem`, `MatchXp`, docs/XP_RULES.md). `MatchResult.loot` =
   `ProfileLoot.report`, écrit par `MatchResult.loot_text` (« BUTIN GARDÉ » /
   « BUTIN PERDU ») en bas de l'écran de fin (`Hud._show_loot_report`).
 - Compteur discret des échantillons et pièces de la partie (HUD, à droite).
@@ -1309,7 +1309,7 @@ Deux familles de formes, jamais mêlées (`tests/test_zombie_hitbox.gd`) :
   secouée), enjambement, morts variées (choix déterministe id + variante).
   `ZombieGibs.crawl_pose` anime les rampants. Voir docs/ART_DIRECTION.md.
 
-## Profil du joueur (`scripts/game/profile/`)
+## Profil du joueur (`scripts/game/profile/`, XP : docs/XP_RULES.md)
 
 Données permanentes du joueur (GAME_CONCEPT §4.2, §4.7, §4.9 à §4.12, §4.15),
 sans interface pour l'instant (hub, station de construction et butin viendront
@@ -1327,7 +1327,26 @@ s'y brancher). Purement local : chaque joueur a son profil.
 - `ProfileStore` : `user://profile.json` (un fichier par processus en
   autotest), JSON versionné, écriture via `.tmp`, copie de secours `.bak`,
   fichier illisible mis de côté (`.corrupt-<date>`), jamais écrasé.
-- `MatchXp.apply_match_xp(kills, manches survécues)` : XP provisoire de fin de
-  partie, appelée au GAME OVER (`Game._cl_game_over`, à côté de
-  `CareerStats`) ; l'évacuation l'appellera aussi. Le dossier de combat
-  (`CareerStats`) reste à part. Tests : `tests/test_profile.gd`.
+- **XP de partie** (barème, coop, calibrage et méthode pour un nouveau mob :
+  **docs/XP_RULES.md**) : `XpRules` (pur : barème par type d'ennemi, bonus
+  de manche, manches, vagues, évacuation ; relevé sérialisable), `XpSystem`
+  (`/root/Game/Xp` : l'hôte compte l'XP de chaque joueur sur
+  `Combat.zombie_damaged` (coup fatal) et `RoundManager.round_ended`
+  (joueurs non morts), envoie le relevé au seul joueur `_cl_xp` ; « +N XP »
+  et compteur au HUD ; `srv_close_all` à la fin -> `MatchResult.xp_ledgers`),
+  `MatchXp.apply(relevé)` : seule voie d'entrée au profil, une fois par
+  partie (`Game._show_match_end`, ou `Game.keep_match_xp` au départ en cours
+  de partie), quelle que soit l'issue. Écran de fin : `Hud._show_xp_report`
+  (détail, niveau avant / après, barre). Progression du profil : écran
+  DOSSIER DE COMBAT du menu (en attendant le hub). `XpCalibration` :
+  simulation des temps de jeu par niveau. Le dossier de combat
+  (`CareerStats`) reste à part. Tests : `tests/test_profile.gd`,
+  `tests/test_xp_rules.gd`, scénario `xp_match`, `sh tools/mp_test.sh xp`.
+- **Niveau du joueur** (GAME_CONCEPT §4.15) : annoncé à l'hôte au départ
+  (`Session.srv_set_loadout`, borné à 1-50), fixe pendant la partie
+  (`PlayerData.level`) ; il borne l'équipement (`GameWeapon.can_equip` :
+  échange, `Combat.srv_swap`), la construction (`BuildRules.build_refusal`,
+  station grisée), le montage des pièces (`OwnedWeapon.can_mount`) et le
+  niveau des pièces trouvées (`LootRules.roll_part`) ; une arme trouvée de
+  niveau supérieur se ramasse et se garde. Contrats (à venir) : niveau du
+  profil (`PlayerProfile.level`).
