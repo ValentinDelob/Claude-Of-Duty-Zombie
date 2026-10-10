@@ -26,6 +26,8 @@ extends Control
 ##   - shown() / hidden() : onglet affiché / quitté (le panneau reste en vie
 ##     entre deux visites : le salon de l'onglet PARTIE reste connecté, D4) ;
 ##   - badge() : nombre de la pastille de l'onglet (0 : aucune) ;
+##   - show_item(uid) : exemplaire choisi d'avance avant l'affichage (VOIR
+##     DANS LES PIÈCES…) ;
 ##   - hub.set_hint(t), hub.select_tab(id), hub.save_profile(),
 ##     hub.reload_profile(), hub.menu (MenuHost : show_screen, launch…).
 
@@ -75,6 +77,13 @@ func hidden() -> void:
 
 func badge() -> int:
 	return 0
+
+
+## Choisit d'avance l'exemplaire `uid` (arme, pièce) avant l'affichage de
+## l'onglet (VOIR DANS LES PIÈCES / L'ARSENAL de la fenêtre de récompense) :
+## first_focus() le rendra ensuite.
+func show_item(_uid: String) -> void:
+	pass
 
 
 ## Bouton du hub dont l'aide passe dans la barre d'invites.

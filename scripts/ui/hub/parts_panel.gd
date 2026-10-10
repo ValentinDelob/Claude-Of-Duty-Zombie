@@ -155,16 +155,38 @@ func _choose(row: HubPickRow, force := true) -> void:
 	if force or uid != selected_uid:
 		selected_uid = uid
 		_show_part(profile().get_part(uid))
-	var pr := profile()
-	if uid != "" and pr.is_new_part(uid):
-		_seen_now[uid] = true
-		pr.mark_part_seen(uid)
-		_pending_seen = true
+	_mark_seen()
 	for r in rows:
 		if weapon_rows.size() > 0:
 			(r as Control).focus_neighbor_right = (r as Control).get_path_to(weapon_rows[0])
 		elif install_button:
 			(r as Control).focus_neighbor_right = (r as Control).get_path_to(install_button)
+
+
+## NOUVEAU vu : seulement quand l'onglet est affiché (une pièce reçue d'un
+## contrat, choisie d'office pendant que l'onglet est caché, garde sa
+## pastille jusqu'à ce que le joueur ouvre l'onglet).
+func _mark_seen() -> void:
+	var pr := profile()
+	if not visible or selected_uid == "" or not pr.is_new_part(selected_uid):
+		return
+	_seen_now[selected_uid] = true
+	pr.mark_part_seen(selected_uid)
+	_pending_seen = true
+
+
+func shown() -> void:
+	_mark_seen()
+
+
+## VOIR DANS LES PIÈCES : la pièce reçue choisie (filtre TOUTES si besoin).
+func show_item(uid: String) -> void:
+	if profile().get_part(uid) == null:
+		return
+	selected_uid = uid
+	if _row_of(uid) == null:
+		filter = "all"
+	_fill(false)
 
 
 # --------------------------------------------------------------------------

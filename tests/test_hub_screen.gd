@@ -136,12 +136,19 @@ func test_initial_focus_per_tab() -> void:
 	hub.select_tab("play")
 	await wait_frames(2)
 	assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.panels.play.solo_button, "PARTIE : focus sur SOLO")
-	hub.select_tab("contracts")
-	await wait_frames(2)
-	assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.panels.contracts.first_focus(), "CONTRATS : premier élément utile")
-	# Onglet encore « à venir » (s'il en reste) : RETOUR AU LABO.
+	# Onglets réels des lots C et D : leur premier élément utile, jamais rien.
+	for id in ["arsenal", "parts", "contracts", "exchanges", "loadout"]:
+		hub.select_tab(id)
+		await wait_frames(2)
+		var want: Control = hub.panels[id].first_focus()
+		assert_true(want != null, "%s : un élément reçoit le focus" % id)
+		assert_eq(hub.get_viewport().gui_get_focus_owner(), want, "%s : premier élément utile" % id)
+	assert_eq(hub.panels.arsenal.first_focus(), hub.panels.arsenal.rows[0], "ARSENAL : première ligne de la liste")
+	assert_eq(hub.panels.parts.first_focus(), hub.panels.parts.rows[0], "PIÈCES : première pièce en stock")
+	# Onglet encore « à venir » (s'il en reste ; PARTIE provisoire exclu) :
+	# RETOUR AU LABO.
 	for id in HubScreen.TABS:
-		if hub.panels[id] is HubPlaceholderPanel:
+		if hub.panels[id] is HubPlaceholderPanel and not hub.panels[id] is HubPlayStubPanel:
 			hub.select_tab(id)
 			await wait_frames(2)
 			assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.panels[id].back_button, "onglet à venir : RETOUR AU LABO")

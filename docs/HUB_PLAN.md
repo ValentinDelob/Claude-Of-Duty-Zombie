@@ -705,10 +705,10 @@ Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
   - demande du scientifique : texte complet des données, 3 lignes au plus
     (2 si trois sortes), « … » ensuite ; italique synthétique ;
   - échange : même fenêtre que la remise (« ÉCHANGE CONCLU », sans XP), nom
-    de l'objet = titre de l'échange ; une pièce de contrat est nommée
-    d'après son premier modificateur (Renfort, Mire, Amortisseur, Guide de
-    la maquette ; Culasse allégée, Chargeur long, Cartouchière ajoutés) —
-    à harmoniser avec les noms du lot C ;
+    de l'objet = titre de l'échange ; une pièce de contrat porte le nom
+    commun à tout le hub (`HubGear.part_name`, noms du lot C : Renfort,
+    Ressort, Guide, Amortisseur, Mire, Rallonge, Cartouchière), en
+    capitales dans la fenêtre ;
   - aide de la fenêtre : « L'objet est rangé avec la pastille NOUVEAU. »
     (la maquette y mettait une note de conception) ; une case active vide
     affiche « LIBRE ».
