@@ -36,19 +36,19 @@ Collision : « cat. » = pavés `boxes` du catalogue (description : `blockers`) 
 | poutre | glb `debris_beam` (1 718) | 14×4 | 1,8 | solide | json | — | 1 |
 | lustre_tombe | glb `chandelier_fallen` (6 084) | 7×6 | 1,5 | barriere | json | — | 1 |
 | **caisses** | glb `stage_crates` (3 176) | 5×4 | 1,5 | solide | json (5 pavés tournés) | — | **pilote ✔** |
-| tonneaux | glb `blue_barrel_group` (2 296) | 4×4 | 1,8 | barriere | json | — | 2 |
+| **tonneaux** | glb `blue_barrel_group` (2 296) | 4×4 | 1,8 | barriere | json | — | **2 ✔** |
 | **sacs_sable** | code `EditorPrefabs` (boîtes tournées) | 4×2 | 0,9 | solide | cat. | support 0,9 | **pilote ✔** |
-| table_renversee | code (plateau incliné) | 4×2 | 0,9 | solide | cat. (2) | — | 2 |
-| chaise_renversee | code (assise inclinée) | 2×1 | 0,5 | barriere | cat. | — | 2 |
-| chaise | glb `folding_chair` (156) | 1×1 | 0,9 | barriere | cat. | — | 2 |
-| bureau | glb `desk` (924) | 3×2 | 0,8 | solide | json | support 0,78 | 2 |
-| etagere | glb `reel_shelf` (3 052) | 3×1 | 1,8 | solide | json | — | 2 |
-| fauteuils | glb `seat` ×4 (`copies`, 352) | 5×2 | 1,1 | barriere | cat. | — | 2 |
-| fauteuil_casse | glb `seat_broken_b` (368) | 2×3 | 0,7 | barriere | cat. | — | 2 |
-| pupitre | glb `lectern` (672) | 2×2 | 1,2 | solide | json | — | 2 |
-| projecteur_film | glb `projector` (1 596) | 2×3 | 1,9 | solide | json | — | 2 |
-| chariot | code (roues cylindres) | 3×2 | 1,0 | solide | cat. | support 0,85 | 2 |
-| epave_voiture | code (boîtes tournées, roues) | 9×4 | 1,5 | solide | cat. (2) | — | 2 |
+| **table_renversee** | code (plateau incliné) | 4×2 | 0,9 | solide | cat. (2) | — | **2 ✔** |
+| **chaise_renversee** | code (assise inclinée) | 2×1 | 0,5 | barriere | cat. | — | **2 ✔** |
+| **chaise** | glb `folding_chair` (156) | 1×1 | 0,9 | barriere | cat. | — | **2 ✔** |
+| **bureau** | glb `desk` (924) | 3×2 | 0,8 | solide | json | support 0,78 | **2 ✔** |
+| **etagere** | glb `reel_shelf` (3 052) | 3×1 | 1,8 | solide | json | — | **2 ✔** |
+| **fauteuils** | glb `seat` ×4 (`copies`, 352) | 5×2 | 1,1 | barriere | cat. | — | **2 ✔** |
+| **fauteuil_casse** | glb `seat_broken_b` (368) | 2×3 | 0,7 | barriere | cat. | — | **2 ✔** |
+| **pupitre** | glb `lectern` (672) | 2×2 | 1,2 | solide | json | — | **2 ✔** |
+| **projecteur_film** | glb `projector` (1 596) | 2×3 | 1,9 | solide | json | — | **2 ✔** |
+| **chariot** | code (roues cylindres) | 3×2 | 1,0 | solide | cat. | support 0,85 | **2 ✔** |
+| **epave_voiture** | code (boîtes tournées, roues) | 9×4 | 1,5 | solide | cat. (2) | — | **2 ✔** |
 | buches | code (cylindres) | 1×1 | 0,15 | non | — | — | 3 |
 | **foyer_pierres** | code (sphères, cylindres) | 3×3 | 0,3 | barriere | cat. | — | **pilote ✔** |
 | planches_brulees | code (boîtes tournées) | 5×2 | 0,1 | non | — | — | 3 |
@@ -252,6 +252,18 @@ Remarques par lot :
 |---|---|---|---|---|---|
 | caisses | `voxel_props/mobilier.py` | `voxel/caisses.glb` + `.collision.json` (ex-`stage_crates`) | 23 076 | 7 484 | 2,45 × 1,8 × 1,5 |
 | sacs_sable | `voxel_props/mobilier.py` | `voxel/sacs_sable.glb` (ex-`build`) | 6 696 | 3 916 | 2,0 × 0,8 × 0,9 |
+| tonneaux (lot 2) | `voxel_props/mobilier.py` | `voxel/tonneaux.glb` + `.collision.json` (ex-`blue_barrel_group`) | 14 602 | 8 806 | 1,9 × 1,55 × 1,8 |
+| table_renversee (lot 2) | `voxel_props/mobilier.py` | `voxel/table_renversee.glb` (ex-`build`) | 901 | 2 134 | 1,6 × 0,75 × 0,85 |
+| chaise_renversee (lot 2) | `voxel_props/mobilier.py` | `voxel/chaise_renversee.glb` (ex-`build`) | 140 | 420 | 0,85 × 0,4 × 0,45 |
+| chaise (lot 2) | `voxel_props/mobilier.py` | `voxel/chaise.glb` (ex-`folding_chair`) | 140 | 458 | 0,4 × 0,45 × 0,85 |
+| bureau (lot 2) | `voxel_props/mobilier.py` | `voxel/bureau.glb` + `.collision.json` (ex-`desk`) | 3 547 | 2 308 | 1,4 × 0,7 × 1,0 |
+| etagere (lot 2) | `voxel_props/mobilier.py` | `voxel/etagere.glb` + `.collision.json` (ex-`reel_shelf`) | 2 938 | 4 182 | 1,2 × 0,4 × 1,8 |
+| fauteuils (lot 2) | `voxel_props/mobilier.py` | `voxel/fauteuils_siege.glb` (UN fauteuil, ×4 par `copies` ; ex-`seat`) | 560 | 884 | 0,5 × 0,55 × 1,1 |
+| fauteuil_casse (lot 2) | `voxel_props/mobilier.py` | `voxel/fauteuil_casse.glb` (ex-`seat_broken_b`) | 551 | 966 | 0,55 × 1,1 × 0,55 |
+| pupitre (lot 2) | `voxel_props/mobilier.py` | `voxel/pupitre.glb` + `.collision.json` (ex-`lectern`) | 2 166 | 1 398 | 0,7 × 0,6 × 1,3 |
+| projecteur_film (lot 2) | `voxel_props/mobilier.py` | `voxel/projecteur_film.glb` + `.collision.json` (ex-`projector`) | 6 165 | 3 980 | 1,0 × 1,4 × 1,9 |
+| chariot (lot 2) | `voxel_props/mobilier.py` | `voxel/chariot.glb` (ex-`build`) | 1 644 | 1 950 | 1,25 × 0,7 × 1,0 |
+| epave_voiture (lot 2) | `voxel_props/mobilier.py` | `voxel/epave_voiture.glb` (ex-`build`) | 45 526 | 10 652 | 4,3 × 1,7 × 1,4 |
 | foyer_pierres | `voxel_props/effets.py` | `voxel/foyer_pierres.glb` (ex-`build`, braises `glow`) | 681 | 2 092 | 1,2 × 1,2 × 0,25 |
 
 - `caisses` : cinq caisses de transport de laboratoire (cornières d'acier,

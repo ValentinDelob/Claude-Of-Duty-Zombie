@@ -21,11 +21,7 @@ const TODO_LOT1 := [
 ]
 
 ## Lot 2 : mobilier et stockage.
-const TODO_LOT2 := [
-	"prefab:tonneaux", "prefab:table_renversee", "prefab:chaise_renversee", "prefab:chaise",
-	"prefab:bureau", "prefab:etagere", "prefab:fauteuils", "prefab:fauteuil_casse",
-	"prefab:pupitre", "prefab:projecteur_film", "prefab:chariot", "prefab:epave_voiture",
-]
+const TODO_LOT2 := []
 
 ## Lot 3 : décors des effets et luminaires.
 const TODO_LOT3 := [
@@ -59,6 +55,34 @@ const FROZEN := {
 		"boxes": [{"center": [0, 0.45, 0], "size": [2.0, 0.9, 0.8]}]},
 	"prefab:foyer_pierres": {"fp": [3, 3], "h": 0.3, "bloque": "barriere", "surface": "stone",
 		"boxes": [{"center": [0, 0.5, 0], "size": [1.3, 1.0, 1.3]}]},
+	# Lot 2 : mobilier et stockage.
+	"prefab:tonneaux": {"fp": [4, 4], "h": 1.8, "bloque": "barriere", "collision": [
+		{"center": [-0.3661, 0.88, -0.4949], "size": [1.26, 1.76, 0.7], "yaw": 0.0, "barrier": true},
+		{"center": [0.1839, 0.45, 0.1201], "size": [1.64, 0.9, 1.41], "yaw": 0.0, "barrier": true}]},
+	"prefab:table_renversee": {"fp": [4, 2], "h": 0.9, "bloque": "solide", "surface": "wood",
+		"boxes": [{"center": [0, 0.42, 0.25], "size": [1.6, 0.85, 0.12]}, {"center": [0, 0.3, -0.1], "size": [1.5, 0.6, 0.6]}]},
+	"prefab:chaise_renversee": {"fp": [2, 1], "h": 0.5, "bloque": "barriere", "surface": "wood",
+		"boxes": [{"center": [0, 0.22, 0], "size": [0.9, 0.45, 0.45]}]},
+	"prefab:chaise": {"fp": [1, 1], "h": 0.9, "bloque": "barriere", "surface": "wood",
+		"boxes": [{"center": [0, 0.43, 0], "size": [0.44, 0.87, 0.45]}]},
+	"prefab:bureau": {"fp": [3, 2], "h": 0.8, "bloque": "solide", "support": 0.78, "collision": [
+		{"center": [0.0, 0.39, 0.0], "size": [1.4, 0.78, 0.7], "yaw": 0.0, "barrier": false}]},
+	"prefab:etagere": {"fp": [3, 1], "h": 1.8, "bloque": "solide", "collision": [
+		{"center": [0.0, 0.9, 0.0], "size": [1.2, 1.8, 0.4], "yaw": 0.0, "barrier": false}]},
+	"prefab:fauteuils": {"fp": [5, 2], "h": 1.1, "bloque": "barriere", "surface": "fabric",
+		"copies": [[-0.84, 0, 0], [-0.28, 0, 0], [0.28, 0, 0], [0.84, 0, 0]],
+		"boxes": [{"center": [0, 0.5, 0], "size": [2.24, 1.0, 0.6]}]},
+	"prefab:fauteuil_casse": {"fp": [2, 3], "h": 0.7, "bloque": "barriere", "surface": "fabric",
+		"boxes": [{"center": [0, 0.32, 0], "size": [0.7, 0.63, 1.2]}]},
+	"prefab:pupitre": {"fp": [2, 2], "h": 1.2, "bloque": "solide", "collision": [
+		{"center": [0.0, 0.6, 0.0], "size": [0.68, 1.2, 0.6], "yaw": 0.0, "barrier": false}]},
+	"prefab:projecteur_film": {"fp": [2, 3], "h": 1.9, "bloque": "solide", "collision": [
+		{"center": [0.0, 0.5, 0.0], "size": [0.9, 1.0, 0.9], "yaw": 0.0, "barrier": false},
+		{"center": [0.0, 1.45, 0.0], "size": [0.6, 0.9, 1.4], "yaw": 0.0, "barrier": false}]},
+	"prefab:chariot": {"fp": [3, 2], "h": 1.0, "bloque": "solide", "surface": "metal", "support": 0.85,
+		"boxes": [{"center": [0, 0.5, 0], "size": [1.3, 1.0, 0.75]}]},
+	"prefab:epave_voiture": {"fp": [9, 4], "h": 1.5, "bloque": "solide", "surface": "metal",
+		"boxes": [{"center": [0, 0.5, 0], "size": [4.3, 1.0, 1.8]}, {"center": [-0.2, 1.2, 0], "size": [2.2, 0.6, 1.6]}]},
 }
 
 const PROPS_DIR := "res://assets/models/props/"

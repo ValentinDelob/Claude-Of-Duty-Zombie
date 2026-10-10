@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cxlln3hjgmuy8"
-path="res://.godot/imported/seat.glb-fbc7543a0c2b132a09a4a3f94b6d16ea.scn"
+uid="uid://bktij65je0ip8"
+path="res://.godot/imported/bureau.glb-11a6560bff31bf84b8714b2fd0cbf22f.scn"
 
 [deps]
 
-source_file="res://assets/models/props/seat.glb"
-dest_files=["res://.godot/imported/seat.glb-fbc7543a0c2b132a09a4a3f94b6d16ea.scn"]
+source_file="res://assets/models/props/voxel/bureau.glb"
+dest_files=["res://.godot/imported/bureau.glb-11a6560bff31bf84b8714b2fd0cbf22f.scn"]
 
 [params]
 

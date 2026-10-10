@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dfn45lo3isngj"
-path="res://.godot/imported/reel_shelf.glb-ea3809d20c30b423e8e06fd76aa1833c.scn"
+uid="uid://c0myjygm0fffw"
+path="res://.godot/imported/chaise_renversee.glb-7548bb0a77313c53832c3965c283c562.scn"
 
 [deps]
 
-source_file="res://assets/models/props/reel_shelf.glb"
-dest_files=["res://.godot/imported/reel_shelf.glb-ea3809d20c30b423e8e06fd76aa1833c.scn"]
+source_file="res://assets/models/props/voxel/chaise_renversee.glb"
+dest_files=["res://.godot/imported/chaise_renversee.glb-7548bb0a77313c53832c3965c283c562.scn"]
 
 [params]
 
