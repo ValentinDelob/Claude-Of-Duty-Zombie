@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dp2a3lm7splla"
-path="res://.godot/imported/rubble_heap_b.glb-c513d33ca24e08cca49257c8f924d08d.scn"
+uid="uid://c24gweecxngfv"
+path="res://.godot/imported/gros_gravats.glb-1c5211203fa3952553806d7717aefcee.scn"
 
 [deps]
 
-source_file="res://assets/models/props/rubble_heap_b.glb"
-dest_files=["res://.godot/imported/rubble_heap_b.glb-c513d33ca24e08cca49257c8f924d08d.scn"]
+source_file="res://assets/models/props/voxel/gros_gravats.glb"
+dest_files=["res://.godot/imported/gros_gravats.glb-1c5211203fa3952553806d7717aefcee.scn"]
 
 [params]
 

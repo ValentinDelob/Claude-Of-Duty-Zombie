@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bi0b213hulyd8"
-path="res://.godot/imported/chandelier_fallen.glb-e28b4b9b83a863f9a18f5ef3ff89705b.scn"
+uid="uid://d27068wrb6xhh"
+path="res://.godot/imported/gravats.glb-560ad1d2d37d670406b87e2d8cb023e0.scn"
 
 [deps]
 
-source_file="res://assets/models/props/chandelier_fallen.glb"
-dest_files=["res://.godot/imported/chandelier_fallen.glb-e28b4b9b83a863f9a18f5ef3ff89705b.scn"]
+source_file="res://assets/models/props/voxel/gravats.glb"
+dest_files=["res://.godot/imported/gravats.glb-560ad1d2d37d670406b87e2d8cb023e0.scn"]
 
 [params]
 

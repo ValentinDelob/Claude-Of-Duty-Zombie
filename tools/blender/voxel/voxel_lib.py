@@ -87,6 +87,10 @@ DECOR_PALETTE = {
     "copper": (0.72, 0.42, 0.22),        # cuivre (bobines, fils)
     "rubber": (0.07, 0.07, 0.07),        # caoutchouc noir
     "water": (0.20, 0.30, 0.36),         # eau sale
+    # Lot 1 (gravats et ruines).
+    "tile_green": (0.56, 0.68, 0.62),    # peinture / faïence vert d'eau d'hôpital
+    "brass": (0.66, 0.50, 0.22),         # laiton terni (lustre)
+    "crystal": (0.76, 0.86, 0.90),       # pampilles de verre
 }
 # Normales des six faces d'un cube.
 DIRS = {

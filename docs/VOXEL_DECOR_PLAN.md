@@ -28,13 +28,13 @@ Collision : « cat. » = pavés `boxes` du catalogue (description : `blockers`) 
 
 | id | source avant | fp | h (m) | bloque | collision | support / montage | lot |
 |---|---|---|---|---|---|---|---|
-| gravats | glb `rubble_heap_b` (2 040 tri.) | 6×6 | 1,5 | solide | json | — | 1 |
-| gros_gravats | glb `rubble_heap_a` (3 250) | 10×8 | 2,3 | solide | json | — | 1 |
-| eboulis | glb `rubble_heap_c` (3 754) | 12×6 | 2,9 | solide | json | — | 1 |
-| debris_epars | glb `debris_scatter` (2 566) | 6×6 | 0,25 | non | — | — | 1 |
-| planches | glb `debris_planks` (520) | 4×3 | 0,4 | non | — (json ignoré) | — | 1 |
-| poutre | glb `debris_beam` (1 718) | 14×4 | 1,8 | solide | json | — | 1 |
-| lustre_tombe | glb `chandelier_fallen` (6 084) | 7×6 | 1,5 | barriere | json | — | 1 |
+| **gravats** | glb `rubble_heap_b` (2 040 tri.) | 6×6 | 1,5 | solide | json | — | **1 ✔** |
+| **gros_gravats** | glb `rubble_heap_a` (3 250) | 10×8 | 2,3 | solide | json | — | **1 ✔** |
+| **eboulis** | glb `rubble_heap_c` (3 754) | 12×6 | 2,9 | solide | json | — | **1 ✔** |
+| **debris_epars** | glb `debris_scatter` (2 566) | 6×6 | 0,25 | non | — | — | **1 ✔** |
+| **planches** | glb `debris_planks` (520) | 4×3 | 0,4 | non | — (json ignoré) | — | **1 ✔** |
+| **poutre** | glb `debris_beam` (1 718) | 14×4 | 1,8 | solide | json | — | **1 ✔** |
+| **lustre_tombe** | glb `chandelier_fallen` (6 084) | 7×6 | 1,5 | barriere | json | — | **1 ✔** |
 | **caisses** | glb `stage_crates` (3 176) | 5×4 | 1,5 | solide | json (5 pavés tournés) | — | **pilote ✔** |
 | tonneaux | glb `blue_barrel_group` (2 296) | 4×4 | 1,8 | barriere | json | — | 2 |
 | **sacs_sable** | code `EditorPrefabs` (boîtes tournées) | 4×2 | 0,9 | solide | cat. | support 0,9 | **pilote ✔** |

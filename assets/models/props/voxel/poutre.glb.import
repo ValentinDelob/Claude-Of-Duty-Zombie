@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bepoftpocy3ei"
-path="res://.godot/imported/rubble_heap_a.glb-d3468f9ec7ba7ad4cf3a6f0737159770.scn"
+uid="uid://bsusqcleky3k5"
+path="res://.godot/imported/poutre.glb-e58b11c816c0e662f98578a0b41b29fb.scn"
 
 [deps]
 
-source_file="res://assets/models/props/rubble_heap_a.glb"
-dest_files=["res://.godot/imported/rubble_heap_a.glb-d3468f9ec7ba7ad4cf3a6f0737159770.scn"]
+source_file="res://assets/models/props/voxel/poutre.glb"
+dest_files=["res://.godot/imported/poutre.glb-e58b11c816c0e662f98578a0b41b29fb.scn"]
 
 [params]
 
