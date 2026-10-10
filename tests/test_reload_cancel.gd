@@ -166,10 +166,10 @@ func test_key_and_wheel_request_switch() -> void:
 			switches[0] += 1
 		inp.clear_edges()
 	tree.physics_frame.connect(read)
-	# Touche (1 par défaut).
+	# Touche (Q par défaut).
 	_reloading(wc, 0.4, 1.6)
 	var key := InputEventKey.new()
-	key.physical_keycode = KEY_1
+	key.physical_keycode = KEY_Q
 	key.pressed = true
 	await _inject([key])
 	for i in 4:
