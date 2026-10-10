@@ -106,6 +106,7 @@ func run() -> void:
 	await press("ui_accept")  # dernière arme : refusé
 	saved = ProfileStore.load_profile()
 	at.check(saved.starting_weapons.size() == maxi(before - 1, 1), "la dernière arme reste")
+	await _contract_to_install()
 	# Taille des menus : rien ne sort de l'écran.
 	for f in [0.8, 1.3]:
 		Settings.menu_ui_scale = f
@@ -129,6 +130,70 @@ func run() -> void:
 	Settings.language = "fr"
 	Settings.using_pad = false
 	ProfileStore.reset()
+
+
+## Onglets réels ensemble (lots C et D) : CONTRATS -> REMETTRE -> VOIR DANS
+## LES PIÈCES (pièce reçue choisie, NOUVEAU, même nom que la fenêtre) ->
+## INSTALLER SUR… (ARSENAL) -> montage enregistré, pièce vue -> E E :
+## CONTRATS (premier élément utile). Profil de la maquette avec ses contrats.
+func _contract_to_install() -> void:
+	var cp := gear_profile()
+	cp.contracts = demo_profile().contracts
+	ProfileStore.save_profile(cp)
+	menu.show_screen("hub")
+	await until(_settled, 3.0, "hub rouvert (contrats)")
+	hub = menu.current
+	hub.select_tab("contracts")
+	await frames(3)
+	var cps: HubContractsPanel = hub.panels.contracts
+	var card: HubContractCard = null
+	for c in cps.active_cards:
+		if c.contract_id == "dog_fangs_small":
+			card = c
+	at.check(card != null and _focused() == card.main_button, "CONTRATS : focus sur REMETTRE (Dents de lait)")
+	if card == null:
+		return
+	card.main_button.grab_focus()
+	await press("ui_accept")  # REMETTRE
+	await frames(3)
+	at.check(cps.popup_open(), "fenêtre « contrat remis »")
+	var uid: String = hub.profile.parts[-1].uid
+	var got := hub.profile.get_part(uid)
+	var item_name: String = cps.popup.item_name if cps.popup else ""
+	at.check(got != null and item_name == HubGear.part_name(got).to_upper(), "nom de la pièce partagé (%s)" % item_name)
+	at.check(hub.profile.is_new_part(uid), "pièce reçue NOUVELLE")
+	await press("ui_accept")  # VOIR DANS LES PIÈCES
+	await frames(3)
+	var parts: HubPartsPanel = hub.panels.parts
+	at.check(hub.tab == "parts" and not cps.popup_open(), "VOIR DANS LES PIÈCES : onglet PIÈCES (%s)" % hub.tab)
+	at.check(parts.selected_uid == uid and _focused() == parts._row_of(uid), "pièce reçue choisie, focus dessus")
+	at.check(parts._seen_now.has(uid), "pastille NOUVEAU gardée pendant la visite")
+	at.check(parts.title_label != null and parts.title_label.text == item_name, "même nom dans la fiche (%s)" % (parts.title_label.text if parts.title_label else ""))
+	await seconds(0.3)
+	await shot("parts_received")
+	await press("ui_accept")  # vers les armes compatibles
+	at.check(not parts.weapon_rows.is_empty() and _focused() == parts.weapon_rows[0], "A : première arme compatible")
+	if parts.weapon_rows.is_empty():
+		return
+	var wuid: String = parts.weapon_uid
+	await press("ui_accept")  # INSTALLER SUR…
+	await frames(3)
+	var ars: HubArsenalPanel = hub.panels.arsenal
+	at.check(hub.tab == "arsenal" and ars.picker != null and ars.picker.parts[ars.picker.selected].uid == uid,
+			"INSTALLER SUR… : la pièce reçue choisie dans l'ARSENAL")
+	await press("ui_accept")  # INSTALLER
+	await frames(2)
+	var saved := ProfileStore.load_profile()
+	var w := saved.get_weapon(wuid)
+	var mounted := false
+	if w:
+		for p in w.parts:
+			mounted = mounted or p.uid == uid
+	at.check(mounted and saved.get_part(uid) == null, "pièce reçue installée et enregistrée")
+	at.check(not saved.is_new_part(uid), "pièce reçue enregistrée « vue »")
+	await key(KEY_E)
+	await key(KEY_E)
+	at.check(hub.tab == "contracts" and _focused() == cps.first_focus(), "E E : CONTRATS, premier élément utile")
 
 
 ## Parcours des trois onglets avec les captures de la maquette (écrans 2, 3,

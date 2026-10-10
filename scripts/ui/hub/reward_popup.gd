@@ -250,12 +250,12 @@ func _item_box(item: Variant, pr: PlayerProfile, exact_name: String) -> Control:
 			v.add_child(HubBox.pad(t, 0, 4, 0, 0))
 	elif item is OwnedWeapon:
 		var w := item as OwnedWeapon
-		var ic := HubIcon.make(HubContractCard.weapon_art(w.weapon_id), 3)
+		var ic := HubIcon.make(HubGear.weapon_art(w.weapon_id), 3)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(ic)
 		v.add_child(HubStyle.label((Lang.t("ARME %s", "%s WEAPON") % GameWeapon.rarity_name(w.rarity).to_upper())
 				+ Lang.t(" · NIVEAU %d", " · LEVEL %d") % w.level, 13, HubStyle.DIM))
-		item_name = WeaponDB.display_name(w.weapon_id).to_upper()
+		item_name = HubGear.weapon_name(w.weapon_id).to_upper()
 		v.add_child(HubStyle.label(item_name, 22, HubStyle.rarity_color(w.rarity), "impact", true))
 		v.add_child(HubStyle.label(Lang.t("score %d · rangée dans l'arsenal", "score %d · stored in the arsenal") % w.score(), 13, HubStyle.PLASTER))
 		if pr.is_new_weapon(w.uid):
