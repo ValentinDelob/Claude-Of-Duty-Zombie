@@ -10,6 +10,10 @@ var pending_message := ""
 var return_scene := ""
 ## Résumé de la dernière partie, affiché par le salon au retour (multijoueur).
 var lobby_message := ""
+## Dernière partie du joueur local, pour le LABO du hub (« DERNIÈRE PARTIE ») :
+## {"result": MatchResult, "map": nom affiché, "solo": bool} ; {} : aucune
+## depuis le lancement du jeu. Rempli par Game._show_match_end.
+var last_match := {}
 
 
 func start_solo(map_id := "") -> void:

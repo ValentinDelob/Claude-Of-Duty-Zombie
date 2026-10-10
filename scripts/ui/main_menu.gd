@@ -19,6 +19,7 @@ const SCREENS := {
 	"credits": "res://scripts/ui/screens/credits_screen.gd",
 	"career": "res://scripts/ui/screens/career_screen.gd",
 	"map_select": "res://scripts/ui/screens/map_screen.gd",
+	"hub": "res://scripts/ui/hub/hub_screen.gd",
 }
 ## Durées des transitions (fondu au noir puis retour).
 const FADE_IN := 0.22
@@ -42,6 +43,13 @@ var _rng := RandomNumberGenerator.new()
 var _next_glitch := 8.0
 var _glitch_left := 0.0
 var _glitch_power := 0.0
+## Habillage du menu titre (voile à gauche, surimpression « caméra de
+## surveillance ») : masqué sous un écran plein cadre (hub, `full_frame`).
+var _shade: TextureRect
+var _cctv: MenuHud
+## Écran plein cadre affiché : pas de parasites spontanés ni de
+## post-traitement (la maquette du hub doit rester lisible et fidèle).
+var _calm := false
 
 
 func _ready() -> void:
@@ -69,6 +77,7 @@ func _ready() -> void:
 	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(shade)
+	_shade = shade
 	_layer = Control.new()
 	_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -83,6 +92,7 @@ func _ready() -> void:
 	var hud := MenuHud.new()
 	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(hud)
+	_cctv = hud
 	_fade = ColorRect.new()
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -124,7 +134,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	# Parasites vidéo : rares salves spontanées + celles demandées.
-	_next_glitch -= delta
+	if not _calm:
+		_next_glitch -= delta
 	if _next_glitch <= 0.0:
 		_next_glitch = _rng.randf_range(6.0, 14.0)
 		glitch(_rng.randf_range(0.08, 0.25), _rng.randf_range(0.3, 0.8))
@@ -203,6 +214,7 @@ func show_screen(screen_name: String, args := {}, remember := true) -> void:
 	_layer.add_child(s)
 	current = s
 	current_name = screen_name
+	_set_chrome(s.get("full_frame") != true)
 	s.modulate.a = 0.0
 	s.enter(args)
 	# Transition : court passage au noir bruité, puis l'écran émerge.
@@ -262,8 +274,27 @@ func fade_to_black(duration: float, then: Callable) -> void:
 	_fade_tween.tween_callback(then)
 
 
-## Texte d'aide en bas de l'écran (description de l'élément sélectionné).
+## Habillage du menu titre affiché (`on`) ou masqué sous un écran plein cadre
+## (hub) : voile, surimpression de caméra et post-traitement (bombé, vignette,
+## grain : la maquette du hub est suivie au pixel et à la couleur près), pas
+## de parasites spontanés.
+func _set_chrome(on: bool) -> void:
+	_calm = not on
+	if _shade:
+		_shade.visible = on
+	if _cctv:
+		_cctv.visible = on
+	if _post:
+		_post.visible = on
+
+
+## Texte d'aide en bas de l'écran (description de l'élément sélectionné) ;
+## un écran qui a sa propre barre d'aide (hub : show_hint) la reçoit.
 func set_hint(t: String) -> void:
+	if current and current.has_method("show_hint"):
+		current.call("show_hint", t)
+		_hint.text = ""
+		return
 	_hint.text = t
 
 

@@ -1,6 +1,7 @@
 extends MenuScreen
-## Écran principal : SOLO (sélection de carte) / MULTIJOUEUR / OPTIONS / DOSSIER DE COMBAT / CRÉDITS /
-## QUITTER.
+## Menu titre (docs/HUB_PLAN.md D2) : JOUER (hub du scientifique) / ÉDITEUR
+## DE CARTES / OPTIONS / CRÉDITS / QUITTER. Solo, coop et le DOSSIER DE
+## COMBAT passent par le hub (onglet PARTIE, menu du hub).
 
 var _first: Button
 var _col: VBoxContainer
@@ -16,21 +17,22 @@ func enter(_args := {}) -> void:
 	logo = MenuLogo.new()
 	_col.add_child(logo)
 	_col.add_child(text("", 4))
-	_first = button("SOLO", _solo, Lang.t("Survivre seul face aux hordes. Combien de manches tiendrez-vous ?", "Survive the hordes alone. How many rounds can you last?"))
+	_first = button(Lang.t("JOUER", "PLAY"), _play, Lang.t("Le laboratoire du scientifique : préparez-vous, puis partez en solo ou en coop.",
+			"The scientist's lab: get ready, then head out solo or co-op."))
 	_col.add_child(_first)
-	_col.add_child(button(Lang.t("MULTIJOUEUR", "MULTIPLAYER"), func(): menu.show_screen("multiplayer"), Lang.t("Coopération de 2 à %d survivants, par adresse IP.", "Co-op for 2 to %d survivors, over IP address.") % Net.MAX_SUPPORTED_PLAYERS))
-	_col.add_child(button("OPTIONS", func(): menu.show_screen("options"), Lang.t("Commandes, affichage, son.", "Controls, display, sound.")))
-	_col.add_child(button(Lang.t("DOSSIER DE COMBAT", "COMBAT RECORD"), func(): menu.show_screen("career"), Lang.t("Vos statistiques de survie, partie après partie.", "Your survival stats, game after game.")))
-	_col.add_child(button(Lang.t("CRÉDITS", "CREDITS"), func(): menu.show_screen("credits"), Lang.t("Ceux qui ont bâti ce bunker.", "The ones who built this bunker.")))
 	_col.add_child(button(Lang.t("ÉDITEUR DE CARTES", "MAP EDITOR"), _editor, Lang.t("Dessinez vos propres cartes et jouez-les aussitôt.", "Draw your own maps and play them right away.")))
+	_col.add_child(button("OPTIONS", func(): menu.show_screen("options"), Lang.t("Commandes, affichage, son.", "Controls, display, sound.")))
+	_col.add_child(button(Lang.t("CRÉDITS", "CREDITS"), func(): menu.show_screen("credits"), Lang.t("Ceux qui ont bâti ce bunker.", "The ones who built this bunker.")))
 	_col.add_child(button(Lang.t("QUITTER", "QUIT"), _quit, Lang.t("Retour à la surface.", "Back to the surface.")))
 	focus_later(_first)
 
 
-## SOLO : choix de la carte d'abord (comme Black Ops), qui lance la partie.
-func _solo() -> void:
+## JOUER : le hub (docs/HUB_PLAN.md, D2), onglet LABO. Solo et coop se
+## lancent depuis son onglet PARTIE (provisoire jusqu'au lot E : écrans de
+## sélection de carte et MULTIJOUEUR actuels).
+func _play() -> void:
 	if not _leaving:
-		menu.show_screen("map_select")
+		menu.show_screen("hub", {"tab": "lab"})
 
 
 ## ÉDITEUR DE CARTES : scène de l'éditeur (docs/MAP_AUTHORING.md).

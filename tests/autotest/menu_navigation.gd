@@ -4,12 +4,13 @@ extends AutotestScenario
 ## principal -> OPTIONS (onglets, onglet SON, une option modifiée, vérifiée
 ## dans le fichier de réglages, puis restaurée) -> retour -> CRÉDITS
 ## (défilement) -> retour ->
-## MULTIJOUEUR -> retour -> apparition de la silhouette du fond -> SOLO ->
-## sélection de carte -> BUNKER K-7
+## JOUER -> hub (onglets, menu du hub, ÉCRAN TITRE) -> apparition de la
+## silhouette du fond -> JOUER -> hub, onglet PARTIE -> SOLO -> sélection de
+## carte -> BUNKER K-7
 ## (fondu au noir cinématique avant le chargement). Captures de chaque écran.
 
-const EXPECTED := ["SOLO", "MULTIJOUEUR", "OPTIONS", "DOSSIER DE COMBAT", "CRÉDITS", "ÉDITEUR DE CARTES", "QUITTER"]
-const EXPECTED_EN := ["SOLO", "MULTIJOUEUR", "OPTIONS", "DOSSIER DE COMBAT", "CRÉDITS", "MAP EDITOR", "QUITTER"]
+const EXPECTED := ["JOUER", "ÉDITEUR DE CARTES", "OPTIONS", "CRÉDITS", "QUITTER"]
+const EXPECTED_EN := ["PLAY", "MAP EDITOR", "OPTIONS", "CREDITS", "QUIT"]
 
 var menu: MainMenu
 
@@ -32,12 +33,12 @@ func run() -> void:
 	for b in _buttons():
 		labels.append(b.label)
 	at.check(labels == (EXPECTED_EN if Lang.is_en() else EXPECTED), "entrées du menu : %s" % ", ".join(labels))
-	at.check(_focused_label() == "SOLO", "focus initial sur SOLO (%s)" % _focused_label())
+	at.check(_focused_label() == Lang.t("JOUER", "PLAY"), "focus initial sur JOUER (%s)" % _focused_label())
 	await at.screenshot("main")
 
 	# Navigation clavier jusqu'à OPTIONS.
 	await press("ui_down")
-	at.check(_focused_label() == "MULTIJOUEUR", "↓ : MULTIJOUEUR (%s)" % _focused_label())
+	at.check(_focused_label() == Lang.t("ÉDITEUR DE CARTES", "MAP EDITOR"), "↓ : ÉDITEUR DE CARTES (%s)" % _focused_label())
 	await press("ui_down")
 	at.check(_focused_label() == "OPTIONS", "↓ : OPTIONS (%s)" % _focused_label())
 	await seconds(0.3)
@@ -63,8 +64,8 @@ func run() -> void:
 	at.check(menu.current_name == "main", "Échap : retour au principal depuis OPTIONS")
 	await _wait_screen("principal")
 
-	# CRÉDITS (5e entrée).
-	for i in 4:
+	# CRÉDITS (4e entrée).
+	for i in 3:
 		await press("ui_down")
 	at.check(_focused_label() == "CRÉDITS", "focus sur CRÉDITS (%s)" % _focused_label())
 	await press("ui_accept")
@@ -78,18 +79,24 @@ func run() -> void:
 	at.check(menu.current_name == "main", "retour au principal depuis CRÉDITS")
 	await _wait_screen("principal")
 
-	# MULTIJOUEUR.
-	await press("ui_down")
+	# JOUER : le hub (onglets LB / RB = Page préc. / suiv.), menu du hub
+	# (Échap), ÉCRAN TITRE.
 	await press("ui_accept")
-	at.check(menu.current_name == "multiplayer", "écran MULTIJOUEUR")
-	await _wait_screen("MULTIJOUEUR")
-	await at.screenshot("multiplayer")
+	at.check(menu.current_name == "hub", "JOUER : hub (%s)" % menu.current_name)
+	await _wait_screen("hub")
+	await at.screenshot("hub")
+	await press("ui_page_down")
+	at.check(menu.current.tab == "arsenal", "Page suiv. : onglet ARSENAL (%s)" % menu.current.tab)
+	await press("ui_page_up")
+	at.check(menu.current.tab == "lab", "Page préc. : onglet LABO (%s)" % menu.current.tab)
 	await press("ui_cancel")
-	at.check(menu.current_name == "main", "retour au principal depuis MULTIJOUEUR")
+	at.check(menu.current.hub_menu.is_open(), "Échap : menu du hub")
+	menu.current.to_title()
+	at.check(menu.current_name == "main", "ÉCRAN TITRE : retour au principal")
 	await seconds(0.25)  # capture au milieu de la transition
 	await at.screenshot("transition")
 	await _wait_screen("principal")
-	at.check(_focused_label() == "SOLO", "focus rendu à SOLO")
+	at.check(_focused_label() == Lang.t("JOUER", "PLAY"), "focus rendu à JOUER")
 
 	# La silhouette du fond apparaît dans l'embrasure, puis disparaît.
 	menu.backdrop.force_figure(true)
@@ -99,8 +106,13 @@ func run() -> void:
 	menu.backdrop.force_figure(false)
 	at.check(not menu.backdrop.figure_visible(), "silhouette disparue")
 
-	# SOLO : écran de sélection de carte, puis la carte validée (BUNKER K-7,
-	# focus par défaut) lance le fondu au noir cinématique AVANT le chargement.
+	# JOUER -> onglet PARTIE (Page préc. depuis le LABO) -> SOLO : écran de
+	# sélection de carte, puis la carte validée (BUNKER K-7, focus par défaut)
+	# lance le fondu au noir cinématique AVANT le chargement.
+	await press("ui_accept")
+	await _wait_screen("hub")
+	await press("ui_page_up")
+	at.check(menu.current.tab == "play", "Page préc. : onglet PARTIE (%s)" % menu.current.tab)
 	await press("ui_accept")
 	at.check(menu.current_name == "map_select", "SOLO : sélection de la carte (%s)" % menu.current_name)
 	await _wait_screen("sélection de carte")

@@ -465,6 +465,9 @@ func _show_match_end(r: MatchResult) -> void:
 		if r.evacuated:
 			ProfileLoot.apply_evacuation(carried)
 		r.loot = ProfileLoot.report(carried, r.evacuated)
+		# Résumé pour le LABO du hub (HUB_PLAN §3.1, « DERNIÈRE PARTIE »).
+		Router.last_match = {"result": r, "map": map_def.display_name if map_def else "",
+			"solo": Net.mode == Net.Mode.SOLO}
 	xp.hide_live()
 	print("[Game] fin de partie : %s, manche %d, %s" % ["évacuation" if r.evacuated else "équipe morte",
 			r.round_reached, MatchResult.time_text(r.duration_sec)])

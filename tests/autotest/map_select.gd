@@ -1,5 +1,5 @@
 extends AutotestScenario
-## Sélection de carte (SOLO) au clavier : SOLO ouvre l'écran des cartes
+## Sélection de carte (SOLO) au clavier : JOUER (hub), onglet PARTIE, SOLO ouvre l'écran des cartes
 ## (BUNKER K-7 seule depuis le retrait de KINO), le dossier suit la carte
 ## sélectionnée, Échap revient ; un ancien choix mémorisé sur KINO retombe sur
 ## BUNKER K-7 ; valider lance la partie et mémorise le choix (Settings).
@@ -15,6 +15,10 @@ func run() -> void:
 	at.check(Settings.last_map == "bunker_k7", "carte mémorisée par défaut : %s" % Settings.last_map)
 	# Choix mémorisé sur la carte retirée : l'écran se place sur BUNKER K-7.
 	Settings.last_map = "kino"
+	await press("ui_accept")  # JOUER : hub
+	await until(_settled, 3.0, "hub affiché")
+	await press("ui_page_up")  # onglet PARTIE
+	at.check(menu.current_name == "hub" and menu.current.tab == "play", "hub, onglet PARTIE")
 	await press("ui_accept")  # SOLO
 	at.check(menu.current_name == "map_select", "SOLO : écran de sélection de carte (%s)" % menu.current_name)
 	await until(_settled, 3.0, "écran des cartes affiché")
@@ -26,10 +30,10 @@ func run() -> void:
 	at.check(_focused_label() == "BUNKER K-7", "ancien choix KINO : focus sur BUNKER K-7 (%s)" % _focused_label())
 	at.check(screen.selected == "bunker_k7" and screen._preview.texture != null, "dossier et plan du BUNKER K-7")
 	await at.screenshot("bunker")
-	# Échap : retour au menu principal, rien n'est lancé.
+	# Échap : retour au hub (onglet PARTIE), rien n'est lancé.
 	await press("ui_cancel")
-	at.check(menu.current_name == "main", "Échap : retour au menu principal")
-	await until(_settled, 3.0, "menu principal réaffiché")
+	at.check(menu.current_name == "hub" and menu.current.tab == "play", "Échap : retour au hub, onglet PARTIE")
+	await until(_settled, 3.0, "hub réaffiché")
 	await press("ui_accept")
 	at.check(menu.current_name == "map_select", "SOLO de nouveau")
 	await until(_settled, 3.0, "écran des cartes réaffiché")
