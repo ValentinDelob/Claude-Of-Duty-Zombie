@@ -95,8 +95,9 @@ func _map_pass(map_id: String) -> void:
 		await _hud_pass()
 
 
-## HUD façon BO1 en situation (BUNKER K-7, courant rétabli) : manches 3 et 12 et
-## leurs transitions, points qui s'envolent, atouts, grenades et singes,
+## HUD en situation (BUNKER K-7, courant rétabli) : manches 3 et 12 et leurs
+## transitions (chiffres en cubes), points qui s'envolent, peluches leurres,
+## annonce de vague spéciale, écran de chargement,
 ## invite d'achat, tableau des scores, dégâts, à terre, fin de partie.
 func _hud_pass() -> void:
 	var hud := game.hud
@@ -107,11 +108,11 @@ func _hud_pass() -> void:
 	game.rounds.debug_jump_to(3)
 	await H.clear_zombies(self)
 	await seconds(0.9)
-	at.check(rc._shown == 3 and rc.whiteness > 0.4, "manche 3 : apparition en blanc (%.2f)" % rc.whiteness)
+	at.check(rc._shown == 3 and rc.heat > 0.4, "manche 3 : cubes chauffés à blanc (%.2f)" % rc.heat)
 	await at.screenshot("hud_manche3_blanc")
 	await until(func(): return rc.mode == RoundCounter.Mode.IDLE, 6.0, "fin de la transition")
 	await H.clear_zombies(self)
-	at.check(is_zero_approx(rc.whiteness), "manche 3 : rouge sang")
+	at.check(is_zero_approx(rc.heat), "manche 3 : cubes menthe")
 	# Emplacement de grenade : peluches leurres.
 	game.throwables.srv_fill_slot(1, ThrowableRules.Kind.DECOY)
 	await seconds(0.5)  # icônes (capture)
@@ -132,7 +133,7 @@ func _hud_pass() -> void:
 	p.teleport_to(box.global_position - (box.spot.normal as Vector3) * 1.6 + Vector3(0, 0.05, 0))
 	H.aim_at(p, box.global_position + Vector3.UP * 0.8)
 	await until(func(): return hud._prompt_view.text.begins_with("Appuyer sur F pour ouvrir la caisse"), 2.0, "invite de la caisse")
-	at.check(hud._prompt_view.text == "Appuyer sur F pour ouvrir la caisse [Coût : 950]",
+	at.check(hud._prompt_view.text == "Appuyer sur F pour ouvrir la caisse · 950 ferraille",
 			"invite : « %s »" % hud._prompt_view.text)
 	await at.screenshot("hud_invite")
 	# Tableau des scores [Tab].
@@ -157,6 +158,20 @@ func _hud_pass() -> void:
 	hud.round_changed(13, true)
 	await until(func(): return rc.mode == RoundCounter.Mode.IDLE, 6.0, "fin de la transition vers la manche 13")
 	await H.clear_zombies(self)
+	# Annonce de vague spéciale (meute) : bandeau et compteur en alerte.
+	hud.set_special_round(true)
+	hud.show_banner(Lang.t("LA MEUTE APPROCHE", "THE PACK IS COMING"), 1.5)
+	await seconds(0.8)
+	at.check(rc.special, "vague spéciale : compteur en alerte")
+	await at.screenshot("hud_vague_speciale")
+	hud.set_special_round(false)
+	await seconds(2.5)
+	# Écran de chargement (affiché à l'entrée d'une partie).
+	hud.show_loading("BUNKER K-7")
+	await seconds(0.3)
+	await at.screenshot("hud_chargement")
+	hud.hide_loading()
+	await seconds(1.4)
 	# Dégâts : voile rouge et sang aux bords.
 	game.combat.debug_invulnerable = false
 	# Plus d'atout de santé (lot suppressions) : 100 PV, on blesse sans mettre à terre.
@@ -177,9 +192,9 @@ func _hud_pass() -> void:
 	game.downed.solo_self_revive = false
 	game.combat.damage_player(1, 400, p.global_position)
 	await until(func(): return GameState.state == GameState.State.GAME_OVER, 3.0, "GAME OVER")
-	await until(func(): return hud._center_msg.text == "GAME OVER" and hud._center_sub.text != "", 4.0, "écran de fin de partie")
+	await until(func(): return hud._center_msg.text == "LA HORDE L'EMPORTE" and hud._center_sub.text != "", 4.0, "écran de fin de partie")
 	await seconds(0.5)  # apparition du texte (capture)
-	at.check(hud._center_msg.text == "GAME OVER" and hud._center_sub.text.begins_with("Manche %d atteinte — temps " % game.rounds.round_n),
+	at.check(hud._center_msg.text == "LA HORDE L'EMPORTE" and hud._center_sub.text.begins_with("Manche %d atteinte — temps " % game.rounds.round_n),
 			"fin de partie : %s / %s" % [hud._center_msg.text, hud._center_sub.text])
 	await at.screenshot("hud_game_over")
 

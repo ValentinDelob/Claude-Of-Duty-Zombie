@@ -1011,9 +1011,9 @@ func strip_removed() -> int:
 	if n == 0:
 		return 0
 	objets = kept
-	push_warning("[EditorMap] %d objet(s) retiré(s) du jeu ignoré(s) (atouts, armes murales, grenades, Pack-a-Punch)" % n)
-	load_notes.append(["%d objet(s) qui n'existent plus ignorés (atouts, armes murales, grenades, Pack-a-Punch)" % n,
-		"%d object(s) that no longer exist ignored (perks, wall weapons, grenades, Pack-a-Punch)" % n])
+	push_warning("[EditorMap] %d objet(s) retiré(s) du jeu ignoré(s) (atouts, armes murales, grenades, machine d’amélioration)" % n)
+	load_notes.append(["%d objet(s) qui n'existent plus ignorés (atouts, armes murales, grenades, machine d’amélioration)" % n,
+		"%d object(s) that no longer exist ignored (perks, wall weapons, grenades, upgrade machine)" % n])
 	return n
 
 

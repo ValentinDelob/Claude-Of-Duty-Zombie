@@ -360,16 +360,6 @@ func game_over_kills() -> int:
 	return MatchRules.total_kills(session.data.values())
 
 
-static func game_over_summary(kills: int) -> String:
-	return Lang.t("%d zombies abattus", "%d zombies killed") % kills
-
-
-static func survived_text(rounds_n: int) -> String:
-	if rounds_n > 1:
-		return Lang.t("VOUS AVEZ SURVÉCU %d MANCHES", "YOU SURVIVED %d ROUNDS") % rounds_n
-	return Lang.t("VOUS AVEZ SURVÉCU %d MANCHE", "YOU SURVIVED %d ROUND") % rounds_n
-
-
 @rpc("authority", "call_local", "reliable")
 func _cl_player_died(pid: int) -> void:
 	var p: Player = players.get(pid)

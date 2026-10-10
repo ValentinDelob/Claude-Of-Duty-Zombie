@@ -65,7 +65,7 @@ func test_generator_skips_replaced() -> void:
 	assert_true(gen.replaced("monkey_music"), "singe importé exclu")
 	assert_true(gen.replaced("dog_growl_2"), "chien importé exclu")
 	assert_false(gen.replaced("power_on"), "son procédural conservé")
-	assert_false(gen.replaced("dog_round_start"), "annonce procédurale conservée")
+	assert_false(gen.replaced("special_wave_start"), "annonce procédurale conservée")
 
 
 func test_zombie_variants_exist() -> void:
@@ -130,6 +130,9 @@ func test_loudness_categories_mapping() -> void:
 	assert_eq(SfxLoudness.category("ambience_bunker").mode, "int")
 	assert_eq(SfxLoudness.category("menu_move").id, "interface")
 	assert_eq(SfxLoudness.category("box_music").id, "ritournelle")
+	assert_eq(SfxLoudness.category("special_wave_start").id, "ritournelle", "annonce de vague spéciale")
+	assert_eq(SfxLoudness.category("special_wave_end").id, "ritournelle")
+	assert_eq(SfxLoudness.category("special_wave_music").id, "musique")
 	assert_eq(SfxLoudness.category("inconnu_xyz").id, "decor")
 
 

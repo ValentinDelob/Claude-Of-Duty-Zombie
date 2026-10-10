@@ -117,8 +117,8 @@ func run() -> void:
 	# Bandeau (FR / EN selon la langue), musique, puis aboiements lointains
 	# pendant l'attente du premier chien ; l'ambiance de la carte ne change pas.
 	at.check(game.hud._center_msg.text == Lang.t("LA MEUTE APPROCHE", "THE PACK IS COMING"), "bandeau « %s »" % game.hud._center_msg.text)
-	await until(func(): return Audio._music_name == "dog_round_music", 3.0, "musique")
-	at.check(Audio._music_name == "dog_round_music", "musique de manche de chiens")
+	await until(func(): return Audio._music_name == "special_wave_music", 3.0, "musique")
+	at.check(Audio._music_name == "special_wave_music", "musique de manche de chiens")
 	await seconds(0.8)
 	await at.screenshot("announce")
 	await until(func(): return dogs.cl_howls >= DogRound.HOWL_TIMES.size(), DogRules.START_DELAY, "aboiements lointains")
@@ -192,7 +192,7 @@ func run() -> void:
 	# Fin de l'ambiance : délai, puis musique et compteur normaux.
 	await until(func(): return not dogs.cl_active and not game.hud.round_counter().special, DogRules.END_DELAY + 3.0, "fin de l'ambiance de manche de chiens")
 	at.check(not dogs.cl_active and not game.hud.round_counter().special, "fin de l'ambiance de manche de chiens")
-	at.check(Audio._music_name != "dog_round_music", "musique de la carte rétablie")
+	at.check(Audio._music_name != "special_wave_music", "musique de la carte rétablie")
 	at.check(absf(env.fog_density - fog0) < 0.0001, "ambiance de la carte inchangée")
 
 	# Manche suivante : zombies, progression normale. La fenêtre d'évacuation

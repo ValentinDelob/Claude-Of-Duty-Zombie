@@ -1196,8 +1196,8 @@ func _openings() -> void:
 						_msg("erreur", "%s en %s : trop étroite (0,5 m ; 1 m au moins, 1,5 m conseillé)" % [what[0], w[0]],
 							"%s at %s: too narrow (0.5 m; at least 1 m, 1.5 m advised)" % [what[1], w[1]], k, b.cells)
 					elif width < 3:
-						_msg("attention", "%s en %s : étroite (%s m ; BO1 : 1,5 à 3 m)" % [what[0], w[0], _num(width * scale).replace(".", ",")],
-							"%s at %s: narrow (%s m; BO1: 1.5 to 3 m)" % [what[1], w[1], _num(width * scale)], k, b.cells)
+						_msg("attention", "%s en %s : étroite (%s m ; conseillé : 1,5 à 3 m)" % [what[0], w[0], _num(width * scale).replace(".", ",")],
+							"%s at %s: narrow (%s m; advised: 1.5 to 3 m)" % [what[1], w[1], _num(width * scale)], k, b.cells)
 					doors.append({"floor": k, "rect": r, "axis": axis, "zones": [za, zb] if za < zb else [zb, za], "debris": b.kind == K.DEBRIS,
 						"cost": int(info.get("cost", 0)), "power": bool(info.get("power", false)), "cells": b.cells, "width": width,
 						"eid": String(info.get("eid", ""))})
@@ -1361,8 +1361,8 @@ func _diag_opening(b: Dictionary, what: Array, pockets: Dictionary) -> void:
 		_msg("erreur", "%s en %s : trop étroite (0,5 m ; 1 m au moins, 1,5 m conseillé)" % [what[0], w[0]],
 			"%s at %s: too narrow (0.5 m; at least 1 m, 1.5 m advised)" % [what[1], w[1]], k, cells)
 	elif width < 3:
-		_msg("attention", "%s en %s : étroite (%s m ; BO1 : 1,5 à 3 m)" % [what[0], w[0], _num(width * scale).replace(".", ",")],
-			"%s at %s: narrow (%s m; BO1: 1.5 to 3 m)" % [what[1], w[1], _num(width * scale)], k, cells)
+		_msg("attention", "%s en %s : étroite (%s m ; conseillé : 1,5 à 3 m)" % [what[0], w[0], _num(width * scale).replace(".", ",")],
+			"%s at %s: narrow (%s m; advised: 1.5 to 3 m)" % [what[1], w[1], _num(width * scale)], k, cells)
 	var dinfo: Dictionary = door_info.get(b.key, {})
 	doors.append({"floor": k, "rect": rect, "axis": Vector2i.ZERO, "zones": [za, zb] if za < zb else [zb, za], "debris": b.kind == K.DEBRIS,
 		"cost": int(dinfo.get("cost", 0)), "power": bool(dinfo.get("power", false)), "cells": cells, "width": width,
@@ -1703,8 +1703,8 @@ func _narrow(f: Floor) -> void:
 			"0.5 m passage at %s: too narrow for zombies and players (at least 1 m)" % w[1], f.index, group)
 	for group in _groups(two):
 		var w := _at(f.index, group[0])
-		_msg("attention", "goulot de 1 m en %s : les zombies y passent à la file ; BO1 : couloirs de 2 à 4 m" % w[0],
-			"1 m bottleneck at %s: zombies go through in single file; BO1: 2 to 4 m corridors" % w[1], f.index, group)
+		_msg("attention", "goulot de 1 m en %s : les zombies y passent à la file ; conseillé : couloirs de 2 à 4 m" % w[0],
+			"1 m bottleneck at %s: zombies go through in single file; advised: 2 to 4 m corridors" % w[1], f.index, group)
 
 
 func _walk(f: Floor, c: Vector2i) -> bool:
@@ -2020,8 +2020,8 @@ func _counts() -> void:
 			var e := entry(key)
 			_msg("erreur", "%d × %s : un seul par carte" % [n[key], e.fr], "%d × %s: only one per map" % [n[key], e.en], its[1].floor, its[1].cells)
 	if n.get("courant", 0) == 0:
-		_msg("attention", "pas d'interrupteur du courant : le courant sera là dès le départ (BO1 : on le rétablit dans une salle éloignée)",
-			"no power switch: the power will be on from the start (BO1: you turn it on in a distant room)")
+		_msg("attention", "pas d'interrupteur du courant : le courant sera là dès le départ (conseillé : le rétablir dans une salle éloignée)",
+			"no power switch: the power will be on from the start (advised: turn it on in a distant room)")
 	if n.get("teleporteur", 0) != n.get("arrivee", 0):
 		_msg("erreur", "téléporteur : il faut une plateforme ET une arrivée", "teleporter: it needs a pad AND an exit")
 	if n.get("poste_central", 0) > 0 and n.get("teleporteur", 0) == 0:
@@ -2114,8 +2114,8 @@ func _start_safety() -> void:
 			closest = minf(closest, _world(p[0], p[1]).distance_to(wp.spawn))
 		best = maxf(best, closest)
 	if nearest < 5.0:
-		_msg("attention", "départ à %s m d'une fenêtre : les premiers zombies arrivent aussitôt (BO1 : 6 m ou plus)" % _num(nearest).replace(".", ","),
-			"start %s m from a window: the first zombies arrive at once (BO1: 6 m or more)" % _num(nearest))
+		_msg("attention", "départ à %s m d'une fenêtre : les premiers zombies arrivent aussitôt (conseillé : 6 m ou plus)" % _num(nearest).replace(".", ","),
+			"start %s m from a window: the first zombies arrive at once (advised: 6 m or more)" % _num(nearest))
 	_msg("info", "Départ : fenêtre la plus proche à %s m, apparition de fenêtre de la zone de départ la plus lointaine à %s m" % [_num(nearest).replace(".", ","), _num(best).replace(".", ",")],
 		"Start: nearest window %s m away, farthest window spawn of the starting zone %s m away" % [_num(nearest), _num(best)])
 
@@ -2189,8 +2189,8 @@ func _fun_loops() -> void:
 		cf.append("%s (%d points de portes)" % [" → ".join(ring.map(func(z): return _zf(z))), cost])
 		ce.append("%s (%d door points)" % [" → ".join(ring.map(func(z): return _ze(z))), cost])
 	if cf.is_empty():
-		_msg("attention", "aucune boucle entre les zones : impossible de tourner d'une salle à l'autre (BO1 Kino : deux grandes boucles hall → loges → scène)",
-			"no loop between zones: you cannot run from room to room in a circle (BO1 Kino: two big loops lobby → dressing rooms → stage)")
+		_msg("attention", "aucune boucle entre les zones : impossible de tourner d'une salle à l'autre (conseillé : une ou deux grandes boucles qui relient plusieurs salles)",
+			"no loop between zones: you cannot run from room to room in a circle (advised: one or two big loops through several rooms)")
 	else:
 		_msg("info", "Boucles entre zones (portes ouvertes) : %d — %s" % [cf.size(), " ; ".join(cf)], "Loops between zones (doors open): %d — %s" % [ce.size(), "; ".join(ce)])
 	# Blocs isolés (pilier, îlot de murs, vide entouré de plancher) : on tourne autour.
@@ -2223,9 +2223,9 @@ func _fun_loops() -> void:
 					var doors_on := ring.keys().any(func(n): return f.at(n) in [K.PORTE, K.DEBRIS])
 					var w := _at(f.index, comp[0])
 					_msg("info", "Boucle de training autour du bloc en %s : tour au plus près ≈ %.0f m%s%s" % [w[0], loop,
-						" en passant les portes" if doors_on else "", "" if loop >= 20.0 else " (petit : BO1 ≈ 25-40 m)"],
+						" en passant les portes" if doors_on else "", "" if loop >= 20.0 else " (petit : conseillé ≈ 25-40 m)"],
 						"Training loop around the block at %s: tightest lap ≈ %.0f m%s%s" % [w[1], loop,
-						" through the doors" if doors_on else "", "" if loop >= 20.0 else " (small: BO1 ≈ 25-40 m)"], f.index, [comp[0]])
+						" through the doors" if doors_on else "", "" if loop >= 20.0 else " (small: advised ≈ 25-40 m)"], f.index, [comp[0]])
 	if cf.is_empty() and islands == 0:
 		_msg("attention", "aucun endroit pour tourner en rond (« training ») : ajoutez un pilier ou une boucle de salles",
 			"nowhere to run in circles (\"training\"): add a pillar or a loop of rooms")
@@ -2235,8 +2235,8 @@ func _fun_loops() -> void:
 		if exits.size() == 1:
 			var o: String = exits[0].b if exits[0].a == z else exits[0].a
 			if z == "a":
-				_msg("attention", "Impasse : la zone de départ « %s » n'a qu'une sortie (vers « %s ») — le départ doit avoir 2 sorties (BO1)" % [_zf(z), _zf(o)],
-					"Dead end: the starting zone \"%s\" has a single exit (to \"%s\") — the start should have 2 exits (BO1)" % [_ze(z), _ze(o)])
+				_msg("attention", "Impasse : la zone de départ « %s » n'a qu'une sortie (vers « %s ») — le départ doit avoir 2 sorties" % [_zf(z), _zf(o)],
+					"Dead end: the starting zone \"%s\" has a single exit (to \"%s\") — the start should have 2 exits" % [_ze(z), _ze(o)])
 			else:
 				_msg("info", "Impasse : la zone « %s » n'a qu'une sortie (vers « %s ») : bon coin pour camper, piège pour le training" % [_zf(z), _zf(o)],
 					"Dead end: zone \"%s\" has a single exit (to \"%s\"): good for camping, a trap for training" % [_ze(z), _ze(o)])
@@ -2321,8 +2321,8 @@ func _fun_doors() -> void:
 			sf.append("%d (%s %s-%s, ferme une boucle)" % [d.cost, "débris" if d.debris else "porte", _zf(d.zones[0]), _zf(d.zones[1])])
 			se.append("%d (%s %s-%s, closes a loop)" % [d.cost, "debris" if d.debris else "door", _ze(d.zones[0]), _ze(d.zones[1])])
 	if sf.is_empty():
-		_msg("attention", "aucune porte payante : toute la carte est ouverte dès le départ (BO1 : 5 à 10 portes)",
-			"no buyable door: the whole map is open from the start (BO1: 5 to 10 doors)")
+		_msg("attention", "aucune porte payante : toute la carte est ouverte dès le départ (conseillé : 5 à 10 portes)",
+			"no buyable door: the whole map is open from the start (advised: 5 to 10 doors)")
 		return
 	_msg("info", "Courbe d'ouverture (moins cher d'abord) : %s ; total pour tout ouvrir %d points" % [" → ".join(sf), total],
 		"Opening curve (cheapest first): %s; %d points to open everything" % [" → ".join(se), total])
@@ -2331,8 +2331,8 @@ func _fun_doors() -> void:
 	var first := doors.filter(func(d): return not d.power and (d.zones[0] == "a" or d.zones[1] == "a" or open_links.get("a", []).has(d.zones[0]) or open_links.get("a", []).has(d.zones[1])))
 	first.sort_custom(func(x, y): return x.cost < y.cost)
 	if not first.is_empty() and (first[0].cost < 500 or first[0].cost > 1000):
-		_msg("attention", "première porte à %d points : BO1 la met à 750-1000 (achetée vers la fin de la manche 1 ou en manche 2)" % first[0].cost,
-			"first door at %d points: BO1 puts it at 750-1000 (bought near the end of round 1 or in round 2)" % first[0].cost)
+		_msg("attention", "première porte à %d de ferraille : conseillé 750-1000 (achetée vers la fin de la manche 1 ou en manche 2)" % first[0].cost,
+			"first door at %d scrap: advised 750-1000 (bought near the end of round 1 or in round 2)" % first[0].cost)
 	if opened.size() < zones.size():
 		var closed := zones.filter(func(z): return not opened.has(z))
 		_msg("info", "zones ouvertes seulement par le courant ou le téléporteur : %s" % ", ".join(closed.map(func(z): return _zf(z))),
@@ -2364,8 +2364,8 @@ func _fun_spawns() -> void:
 		pf.append("%s %.0f m" % [_zf(z), worst.get(z, 0.0)])
 		pe.append("%s %.0f m" % [_ze(z), worst.get(z, 0.0)])
 		if worst.get(z, 0.0) > 30.0:
-			_msg("attention", "zone « %s » : un point à %.0f m à pied de toute fenêtre (les zombies mettent longtemps à venir ; BO1 : 25 m au plus)" % [_zf(z), worst[z]],
-				"zone \"%s\": a spot %.0f m on foot from any window (zombies take a long time to arrive; BO1: 25 m at most)" % [_ze(z), worst[z]])
+			_msg("attention", "zone « %s » : un point à %.0f m à pied de toute fenêtre (les zombies mettent longtemps à venir ; conseillé : 25 m au plus)" % [_zf(z), worst[z]],
+				"zone \"%s\": a spot %.0f m on foot from any window (zombies take a long time to arrive; advised: 25 m at most)" % [_ze(z), worst[z]])
 	_msg("info", "Distance à pied au plus loin d'une fenêtre, par zone : " + ", ".join(pf), "Farthest walking distance from a window, per zone: " + ", ".join(pe))
 
 
@@ -2399,7 +2399,7 @@ func report_text() -> String:
 			continue
 		lines.append("")
 		lines.append({"erreur": Lang.t("ERREURS (la carte est refusée) :", "ERRORS (the map is rejected):"),
-			"attention": Lang.t("AVERTISSEMENTS :", "WARNINGS:"), "info": Lang.t("INDICATEURS (BO1) :", "INDICATORS (BO1):")}[level])
+			"attention": Lang.t("AVERTISSEMENTS :", "WARNINGS:"), "info": Lang.t("INDICATEURS :", "INDICATORS:")}[level])
 		for m in list:
 			lines.append("  - " + text_of(m))
 	return "\n".join(lines) + "\n"

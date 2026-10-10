@@ -145,22 +145,22 @@ func test_game_text_tables() -> void:
 func test_texts_follow_language_setting() -> void:
 	var saved := Settings.language
 	Settings.language = "fr"
-	var fr := [Hud.bo1_prompt("[F] Acheter M14 [500]"), Hud.bo1_prompt("[F] Caisse [950]"),
+	var fr := [Hud.action_prompt("[F] Acheter M14 [500]"), Hud.action_prompt("[F] Caisse [950]"),
 		ThrowableRules.kind_name(ThrowableRules.Kind.DECOY),
-		WeaponDB.display_name("m14", true), InteractionSystem.deny_text(InteractionSystem.NO_POINTS), Game.survived_text(3),
+		WeaponDB.display_name("m14", true), InteractionSystem.deny_text(InteractionSystem.NO_POINTS), MatchResult.new().title(),
 		Interactable.need_power_text(), Scoreboard.columns()[0], Game.make_map_def("bunker_k7").zone_display_name("a")]
 	Settings.language = "en"
-	var en := [Hud.bo1_prompt("[F] Buy M14 [500]"), Hud.bo1_prompt("[F] Crate [950]"),
+	var en := [Hud.action_prompt("[F] Buy M14 [500]"), Hud.action_prompt("[F] Crate [950]"),
 		ThrowableRules.kind_name(ThrowableRules.Kind.DECOY),
-		WeaponDB.display_name("m14", true), InteractionSystem.deny_text(InteractionSystem.NO_POINTS), Game.survived_text(3),
+		WeaponDB.display_name("m14", true), InteractionSystem.deny_text(InteractionSystem.NO_POINTS), MatchResult.new().title(),
 		Interactable.need_power_text(), Scoreboard.columns()[0], Game.make_map_def("bunker_k7").zone_display_name("a")]
 	Settings.language = saved
-	assert_eq(fr, ["Appuyer sur F pour acheter M14 [Coût : 500]", "Appuyer sur F pour ouvrir la caisse [Coût : 950]",
+	assert_eq(fr, ["Appuyer sur F pour acheter M14 · 500 ferraille", "Appuyer sur F pour ouvrir la caisse · 950 ferraille",
 		"PELUCHE LEURRE", "M14 VIEILLE GARDE",
-		"Pas assez de ferraille", "VOUS AVEZ SURVÉCU 3 MANCHES", "Le courant doit être rétabli", "JOUEUR", "Salle de garde"])
-	assert_eq(en, ["Press F to buy M14 [Cost: 500]", "Press F to open the crate [Cost: 950]",
+		"Pas assez de ferraille", "LA HORDE L'EMPORTE", "Le courant doit être rétabli", "JOUEUR", "Salle de garde"])
+	assert_eq(en, ["Press F to buy M14 · 500 scrap", "Press F to open the crate · 950 scrap",
 		"DECOY TEDDY", "M14 OLD GUARD",
-		"Not enough scrap", "YOU SURVIVED 3 ROUNDS", "Power must be activated first", "PLAYER", "Guard Room"])
+		"Not enough scrap", "THE HORDE WINS", "Power must be activated first", "PLAYER", "Guard Room"])
 
 
 func test_lang_pick() -> void:
