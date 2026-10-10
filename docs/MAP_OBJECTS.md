@@ -1211,7 +1211,8 @@ nouvelles. Les fichiers ne sont réécrits qu'à l'enregistrement.
 ### Décors des effets (onglet Décor, format 11)
 
 Dans `MapCatalog.PREFABS`, construits par le jeu (`EditorPrefabs`, mêmes
-maillages qu'avant dans `MapEffects`) ; un effet posé au même point naît là
+maillages qu'avant dans `MapEffects`) ou modèles cubiques (`voxel/foyer_pierres`,
+docs/VOXEL_DECOR_PLAN.md) ; un effet posé au même point naît là
 où il faut (bout de la torche, bout du câble, sortie du tuyau).
 
 | Décor (identifiant) | Montage | Collision |

@@ -1,5 +1,6 @@
-# Décors du catalogue de l'éditeur de cartes (fauteuils, gravats, lustre,
-# applique, bureau, caisses…) et machine d'amélioration : modèles low poly
+# Décors NON CUBIQUES du catalogue de l'éditeur de cartes (fauteuils, gravats,
+# lustre, applique, bureau…), en cours de remplacement par des modèles en cubes de 5 cm
+# (tools/blender/voxel_props/, docs/VOXEL_DECOR_PLAN.md) : modèles low poly
 # ORIGINAUX, sans aucun asset ni logo d'Activision. Hérités de l'ancienne
 # carte KINO (retirée) ; seuls les modèles encore utilisés par le jeu et
 # l'éditeur restent ici. Sans fenêtre :
@@ -422,38 +423,6 @@ def em_star(points=8, r1=0.48, r2=0.2):
 def flat(mat, pts, cx, cz, y_front, size=1.0, depth=0.006):
     """Motif plat (u, v) posé face à -Y sur le plan y = y_front."""
     prism(mat, [(cx + u * size, cz + v * size) for u, v in pts], "xz", y_front - depth, y_front + 0.001)
-
-
-def text(mat, s, cx, cz, y_front, height, max_w, shear=0.0, bold=0.0, spacing=1.0):
-    """Lettrage en relief (police intégrée de Blender) face à -Y."""
-    cu = bpy.data.curves.new("txt", "FONT")
-    cu.body = s
-    cu.align_x = "CENTER"
-    cu.align_y = "CENTER"
-    cu.shear = shear
-    cu.extrude = 0.02
-    cu.offset = bold
-    cu.space_character = spacing
-    cu.size = 1.0
-    cu.resolution_u = 2
-    ob = bpy.data.objects.new("txt", cu)
-    bpy.context.scene.collection.objects.link(ob)
-    dg = bpy.context.evaluated_depsgraph_get()
-    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
-    bpy.data.objects.remove(ob)
-    bpy.data.curves.remove(cu)
-    bm = bmesh.new()
-    bm.from_mesh(me)
-    bpy.data.meshes.remove(me)
-    lo = Vector((min(v.co.x for v in bm.verts), min(v.co.y for v in bm.verts), 0))
-    hi = Vector((max(v.co.x for v in bm.verts), max(v.co.y for v in bm.verts), 0))
-    k = min(max_w / (hi.x - lo.x), height / (hi.y - lo.y))
-    mid = (lo + hi) * 0.5
-    for v in bm.verts:
-        v.co = Vector(((v.co.x - mid.x) * k, (v.co.y - mid.y) * k, (v.co.z - 0.01) * 0.15 + 0.0015))
-    m = Matrix.Translation((cx, y_front, cz)) @ R(90, "X")
-    bmesh.ops.transform(bm, matrix=m, verts=bm.verts[:])
-    add(mat, bm, recalc=False)
 
 
 def bezier(p0, p1, p2, p3, n):
@@ -1207,68 +1176,32 @@ def m_blue_barrel_group():
     recenter()
 
 
-def road_case(c, size, yaw=0.0, mat="rubber", label=None):
-    """Caisse de transport (flight case) : corps noir ou gris foncé, cornières
-    d'acier sur les arêtes, coins emboutis, joint du couvercle, poignées
-    encastrées, fermetures ; boîte de collision pleine. c : centre au sol."""
-    w, d, h = size
-    e = 0.03
-    with xf(T(*c) @ R(yaw, "Z")):
-        box(mat, -w / 2 + 0.01, w / 2 - 0.01, -d / 2 + 0.01, d / 2 - 0.01, 0.004, h - 0.004)
-        for sx in (-1, 1):
-            for sy in (-1, 1):
-                box("steel", *sorted((sx * w / 2, sx * (w / 2 - e))), *sorted((sy * d / 2, sy * (d / 2 - e))), 0.0, h)
-        for z0, z1 in ((0.0, e), (h - e, h), (h - 0.19, h - 0.17)):
-            for sy in (-1, 1):
-                box("steel", -w / 2 + e, w / 2 - e, *sorted((sy * d / 2, sy * (d / 2 - e))), z0, z1)
-            for sx in (-1, 1):
-                box("steel", *sorted((sx * w / 2, sx * (w / 2 - e))), -d / 2 + e, d / 2 - e, z0, z1)
-        with ns():
-            for sx in (-1, 1):
-                for sy in (-1, 1):
-                    for z0, z1 in ((-0.004, 0.07), (h - 0.07, h + 0.004)):
-                        box("steel", *sorted((sx * (w / 2 + 0.005), sx * (w / 2 - 0.07))),
-                            *sorted((sy * (d / 2 + 0.005), sy * (d / 2 - 0.07))), z0, z1)
-                # Poignées encastrées sur les petits côtés, fermetures en façade.
-                box("steel", *sorted((sx * (w / 2 + 0.004), sx * (w / 2 - 0.01))), -0.12, 0.12, h * 0.55 - 0.05,
-                    h * 0.55 + 0.05)
-                box("rubber", *sorted((sx * (w / 2 + 0.008), sx * (w / 2 + 0.004))), -0.08, 0.08, h * 0.55 - 0.02,
-                    h * 0.55 + 0.02)
-                box("steel", sx * w * 0.3 - 0.05, sx * w * 0.3 + 0.05, -d / 2 - 0.014, -d / 2, h - 0.25, h - 0.13)
-            if label:
-                text("chalk", label, 0.0, h * 0.42, -d / 2 + 0.008, 0.1, w * 0.55)
-        colbox((0.0, 0.0, h / 2), (w, d, h))
-
-
-def m_stage_crates():
-    # Pile de caisses de transport noires des coulisses (3 x 1,9 m, 1,5 m).
-    road_case((-0.85, 0.45, 0.0), (1.2, 0.8, 0.8), 0, "rubber", "ACCESSOIRES")
-    road_case((0.5, 0.45, 0.0), (1.0, 0.9, 0.9), 4, "door")
-    road_case((0.3, -0.5, 0.0), (1.1, 0.7, 0.7), -8, "rubber", "FRAGILE")
-    road_case((-1.0, -0.55, 0.0), (0.9, 0.6, 0.6), 15, "rubber")
-    road_case((-0.8, 0.45, 0.8), (0.9, 0.7, 0.7), 10, "metal", "SCÈNE")
-    recenter()
-
-
+# Modèles NON CUBIQUES encore utilisés, rangés par lot de conversion en cubes
+# de 5 cm (docs/VOXEL_DECOR_PLAN.md) : chaque lot retire ses lignes (et ses
+# fonctions m_*) une fois ses décors remplacés ; le dernier supprime ce script.
 BUILDERS = {
-    "seat": m_seat,
-    "seat_broken_b": m_seat_broken_b,
+    # Lot 1 : gravats et ruines.
     "rubble_heap_a": m_rubble_heap_a,
     "rubble_heap_b": m_rubble_heap_b,
     "rubble_heap_c": m_rubble_heap_c,
     "debris_beam": m_debris_beam,
     "debris_planks": m_debris_planks,
     "debris_scatter": m_debris_scatter,
-    "chandelier": m_chandelier,
     "chandelier_fallen": m_chandelier_fallen,
-    "sconce": m_sconce,
+
+    # Lot 2 : mobilier et stockage.
+    "seat": m_seat,
+    "seat_broken_b": m_seat_broken_b,
     "projector": m_projector,
     "reel_shelf": m_reel_shelf,
     "desk": m_desk,
     "folding_chair": m_folding_chair,
     "lectern": m_lectern,
     "blue_barrel_group": m_blue_barrel_group,
-    "stage_crates": m_stage_crates,
+
+    # Lot 3 : luminaires.
+    "chandelier": m_chandelier,
+    "sconce": m_sconce,
 }
 
 # Modèles suspendus ou muraux : pas de sol dans l'aperçu.

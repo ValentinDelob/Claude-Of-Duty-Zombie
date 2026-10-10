@@ -17,6 +17,20 @@ extends MapProps
 ## détails (« ns ») ne projettent pas d'ombre.
 
 const NO_SHADOW_KINDS := ["floor", "ceil", "ns"]
+## Décor cubique (docs/VOXEL_DECOR_PLAN.md) : modèles du sous-dossier
+## « voxel/ » des modèles (nom « voxel/<id> » dans le catalogue et la
+## description), nœuds « voxel__<id>__<type> », matériau unique « voxel »
+## (couleur de face du modèle, faces émissives d'alpha 0).
+const VOXEL_DIR := "voxel/"
+const VOXEL_MAT := "voxel"
+
+
+## Nom de modèle admis : lettres, chiffres, _ et - (CustomMapGuard.asset_name_ok),
+## éventuellement précédé du seul dossier « voxel/ » (jamais un autre chemin).
+static func model_name_ok(name: String) -> bool:
+	if name.begins_with(VOXEL_DIR):
+		name = name.substr(VOXEL_DIR.length())
+	return CustomMapGuard.asset_name_ok(name)
 
 var layout: Dictionary
 var glb_path := ""
@@ -201,7 +215,7 @@ func _map_texture(mat: String, kind: String) -> Material:
 
 func _model(name: String) -> PackedScene:
 	# Nom de modèle : lettres, chiffres, _ et - (pas de chemin).
-	if not CustomMapGuard.asset_name_ok(name):
+	if not model_name_ok(name):
 		push_warning("[MeshMapBuilder] nom de modèle refusé : " + name.left(64))
 		return null
 	if not _scenes.has(name):
@@ -256,7 +270,7 @@ func _build_props() -> void:
 				inst = ps.instantiate()
 		if inst == null:
 			continue
-		inst.name = String(pr.get("id", pr.get("model", pr.get("build", "prop"))))
+		inst.name = String(pr.get("id", pr.get("model", pr.get("build", "prop")))).replace("/", "_")
 		var pos := MeshMapLayout.vec(pr.p)
 		inst.transform = prop_xf(pr, pos)
 		root.add_child(inst)
@@ -357,7 +371,7 @@ func _build_instances() -> void:
 				var xf := _xf(Vector3(it[0], it[1], it[2]), float(it[3]) if it.size() > 3 else 0.0, 1.0, float(it[4]) if it.size() > 4 else 0.0)
 				mm.set_instance_transform(i, xf * local)
 			var mmi := MultiMeshInstance3D.new()
-			mmi.name = "%s_%s" % [group.model, mat]
+			mmi.name = "%s_%s" % [String(group.model).replace("/", "_"), mat]
 			mmi.multimesh = mm
 			mmi.material_override = material_for(mat)
 			# Petits détails : pas d'ombre (les fauteuils eux-mêmes en projettent).
@@ -392,6 +406,12 @@ static var _specials: Dictionary = {}
 static func _special(key: String) -> Material:
 	if _specials.has(key):
 		return _specials[key]
+	if key == VOXEL_MAT:
+		# Décor cubique (assets/models/props/voxel/) : couleur de face du modèle.
+		var vm := ShaderMaterial.new()
+		vm.shader = load("res://assets/shaders/voxel_prop.gdshader")
+		_specials[key] = vm
+		return vm
 	var m: StandardMaterial3D = null
 	match key:
 		"glass":
@@ -483,7 +503,7 @@ var _collisions: Dictionary = {}
 ## Collision d'un modèle : <modèle>.collision.json à côté du .glb,
 ## {"boxes": [{center, size, yaw, barrier, surface}]} en coordonnées du modèle.
 func _collision_boxes(model: String) -> Array:
-	if not CustomMapGuard.asset_name_ok(model):
+	if not model_name_ok(model):
 		return []
 	if not _collisions.has(model):
 		var path := models_dir + model + ".collision.json"

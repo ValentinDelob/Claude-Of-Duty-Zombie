@@ -469,8 +469,9 @@ budget de particules et format : `docs/MAP_OBJECTS.md` §
 
 Tous décrits à un seul endroit, `MapCatalog.PREFABS` et `MapCatalog.LIGHTS`
 (`scripts/editor/map_catalog.gd`) : emprise au sol (cases de 0,5 m), modèle
-(`assets/models/props/*.glb`, `tools/blender/props/catalog_props.py`) ou objet construit par le
-jeu (`EditorPrefabs` : sacs de sable, table et chaise renversées, chariot,
+(`assets/models/props/*.glb`, `tools/blender/props/catalog_props.py` ; décor cubique
+`assets/models/props/voxel/<id>.glb`, `tools/blender/voxel_props/`, docs/VOXEL_DECOR_PLAN.md) ou objet construit par le
+jeu (`EditorPrefabs` : table et chaise renversées, chariot,
 épave de voiture, et les luminaires sans modèle), collisions.
 
 - **Empreinte** dessinée dans l'éditeur (hachurée si le décor bloque), flèche

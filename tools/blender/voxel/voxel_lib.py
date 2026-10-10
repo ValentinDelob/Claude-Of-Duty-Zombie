@@ -28,7 +28,12 @@
 #   - les faces coplanaires voisines de même couleur, même matière et même os
 #     sont fusionnées en rectangles (balayage glouton) : moins de triangles ;
 #   - matériaux nommés comme ZombieGlb.MATS : skin, eye, cloth, leather, metal,
-#     wound, bone (la matière du shader des zombies) ; l'œil est émissif.
+#     wound, bone (la matière du shader des zombies) ; l'œil est émissif ;
+#   - matières du DÉCOR (DECOR_MATERIALS : wood, stone, concrete, fabric,
+#     rubber, glass, glow) : dans le jeu, un décor cubique n'a qu'un matériau
+#     (« voxel », couleur de face telle quelle, MeshMapBuilder) ; la matière ne
+#     sert qu'aux aperçus Blender, sauf « glow » : faces ÉMISSIVES (braises,
+#     ampoules), marquées par un alpha 0 dans la couleur de face (EMISSIVE).
 # Personnages : chaque cellule porte un os ; pondération RIGIDE (100 % sur
 # cet os), squelette build_armature (os droits, alignés sur les axes).
 # Objets statiques : aucun os, aucun squelette.
@@ -47,7 +52,42 @@ CUBE_CHAR = 0.025
 CUBE_DECOR = 0.05
 # Compatibilité : pas par défaut (décor).
 CUBE = CUBE_DECOR
-MATERIALS = ("skin", "eye", "cloth", "leather", "metal", "wound", "bone")
+MATERIALS = ("skin", "eye", "cloth", "leather", "metal", "wound", "bone",
+             "wood", "stone", "concrete", "fabric", "rubber", "glass", "glow")
+# Matières propres au décor (aperçus Blender ; « glow » : faces émissives).
+DECOR_MATERIALS = ("wood", "stone", "concrete", "fabric", "rubber", "glass", "glow")
+# Matières dont les faces portent un alpha 0 dans le .glb (émissives dans le
+# jeu : assets/shaders/voxel_prop.gdshader). L'œil des zombies garde son
+# alpha 1 (ZombieGlb le marque d'après le nom du matériau).
+EMISSIVE = ("glow",)
+
+# Palette du DÉCOR (sRGB), univers hôpital / laboratoire / zombies : une
+# teinte de base par matière ; les scripts de décor la font varier par cube
+# (tone, noise) pour la texture « un pixel = un cube ».
+DECOR_PALETTE = {
+    "wood": (0.52, 0.36, 0.22),          # bois clair (planches, caisses)
+    "wood_dark": (0.33, 0.22, 0.13),     # bois sombre (meubles anciens)
+    "charred": (0.12, 0.10, 0.09),       # bois calciné
+    "ember": (1.0, 0.42, 0.10),          # braise (glow)
+    "ash": (0.36, 0.35, 0.34),           # cendre
+    "stone": (0.50, 0.48, 0.45),         # pierre grise
+    "concrete": (0.58, 0.57, 0.54),      # béton
+    "plaster": (0.80, 0.80, 0.76),       # plâtre, carrelage blanc d'hôpital
+    "burlap": (0.62, 0.54, 0.38),        # toile de jute (sacs de sable)
+    "fabric_green": (0.40, 0.47, 0.42),  # drap vert d'hôpital
+    "steel": (0.55, 0.57, 0.59),         # acier nu
+    "metal_dark": (0.24, 0.25, 0.26),    # métal sombre
+    "rust": (0.45, 0.25, 0.14),          # rouille
+    "case_black": (0.13, 0.13, 0.14),    # caisse de transport noire
+    "case_grey": (0.28, 0.30, 0.31),     # caisse de transport grise
+    "paint_olive": (0.36, 0.40, 0.31),   # peinture olive (matériel)
+    "paint_white": (0.86, 0.86, 0.82),   # peinture blanche (hôpital)
+    "medic_red": (0.72, 0.10, 0.10),     # croix rouge, signalétique
+    "hazard_yellow": (0.88, 0.70, 0.12), # bande de danger
+    "copper": (0.72, 0.42, 0.22),        # cuivre (bobines, fils)
+    "rubber": (0.07, 0.07, 0.07),        # caoutchouc noir
+    "water": (0.20, 0.30, 0.36),         # eau sale
+}
 # Normales des six faces d'un cube.
 DIRS = {
     "+x": (1, 0, 0), "-x": (-1, 0, 0),
@@ -57,6 +97,21 @@ DIRS = {
 # Ombrage peint par défaut (shade) : dessus clair, côtés un peu plus sombres,
 # dessous dans l'ombre (comme une planche en cubes éclairée de face).
 SHADE = {"+z": 1.06, "-z": 0.62, "+x": 0.86, "-x": 0.86, "-y": 1.0, "+y": 0.94}
+
+
+def noise(c, seed=0):
+    """Bruit déterministe 0..1 d'une cellule (hachage entier) : texture « un
+    pixel = un cube » reproductible d'un export à l'autre."""
+    x, y, z = (int(v) for v in c)
+    h = (x * 73856093) ^ (y * 19349663) ^ (z * 83492791) ^ (seed * 2654435761)
+    h &= 0xFFFFFFFF
+    h = ((h ^ (h >> 13)) * 1274126177) & 0xFFFFFFFF
+    return ((h ^ (h >> 16)) & 0xFFFF) / 65535.0
+
+
+def tone(color, f):
+    """Couleur sRGB multipliée par `f` (bornée à 0..1)."""
+    return tuple(min(1.0, max(0.0, x * f)) for x in color)
 
 
 class Voxel:
@@ -526,7 +581,7 @@ def _material(name):
     attr.layer_name = "Col"
     nt.links.new(attr.outputs["Color"], bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = 1.0
-    if name == "eye":
+    if name == "eye" or name in EMISSIVE:
         nt.links.new(attr.outputs["Color"], bsdf.inputs["Emission Color"])
         bsdf.inputs["Emission Strength"].default_value = 3.0
     return m
@@ -556,8 +611,10 @@ def build_mesh(model, name, merge=True):
     for p, mi, col in zip(me.polygons, mats, cols):
         p.material_index = mi
         p.use_smooth = False
+        # Alpha 0 : face émissive dans le jeu (EMISSIVE).
+        alpha = 0.0 if used[mi] in EMISSIVE else 1.0
         for li in p.loop_indices:
-            ca.data[li].color_srgb = (col[0], col[1], col[2], 1.0)
+            ca.data[li].color_srgb = (col[0], col[1], col[2], alpha)
     ob = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(ob)
     if any(b is not None for b in bones):

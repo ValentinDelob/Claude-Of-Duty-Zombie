@@ -309,7 +309,9 @@ func test_effect_decor_is_in_the_props_tab_and_built_by_the_game() -> void:
 		assert_eq(String(it.cat), "prefabs", "%s : onglet Décor" % pid)
 		var mount := MapCatalog.prefab_mount(pid)
 		assert_eq(String(it.tool), "wall_item" if mount == "mur" else "floor_item", "%s : outil selon le montage" % pid)
-		var n := EditorPrefabs.build(String(MapCatalog.PREFABS[pid].build))
+		# Construit par le jeu, ou modèle cubique (assets/models/props/voxel/).
+		var pd: Dictionary = MapCatalog.PREFABS[pid]
+		var n: Node3D = (load("res://assets/models/props/%s.glb" % pd.model) as PackedScene).instantiate() if pd.has("model") else EditorPrefabs.build(String(pd.build))
 		assert_true(n != null and n.get_child_count() > 0, "%s construit par le jeu" % pid)
 		if n != null:
 			assert_eq(n.find_children("*", "CollisionObject3D", true, false).size(), 0, "%s : collisions seulement par pavés du catalogue" % pid)

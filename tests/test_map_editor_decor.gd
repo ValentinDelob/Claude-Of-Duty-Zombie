@@ -518,7 +518,7 @@ func test_playable_build_with_props_lights_and_textures() -> void:
 	assert_true(def.is_valid(), "carte décorée jouable :\n" + _errs(def.validator))
 	var data := def.layout_data
 	assert_eq(data.props.size(), 4, "4 décors : %s" % str(data.props.map(func(p): return p.get("model", p.get("build", "")))))
-	var sand: Dictionary = data.props.filter(func(p): return p.get("build", "") == "sacs_sable")[0]
+	var sand: Dictionary = data.props.filter(func(p): return p.get("model", "") == "voxel/sacs_sable")[0]
 	assert_near(float(sand.yaw), -PI / 2, 0.01, "sacs de sable pivotés de 90°")
 	assert_true(data.blockers.size() >= 2, "collisions du décor (CollisionBox) : %d" % data.blockers.size())
 	var fixtures: Array = data.markers.lamps.filter(func(l): return l.has("fixture"))
