@@ -138,7 +138,14 @@ func test_initial_focus_per_tab() -> void:
 	assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.panels.play.solo_button, "PARTIE : focus sur SOLO")
 	hub.select_tab("contracts")
 	await wait_frames(2)
-	assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.panels.contracts.back_button, "onglet à venir : RETOUR AU LABO")
+	assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.panels.contracts.first_focus(), "CONTRATS : premier élément utile")
+	# Onglet encore « à venir » (s'il en reste) : RETOUR AU LABO.
+	for id in HubScreen.TABS:
+		if hub.panels[id] is HubPlaceholderPanel:
+			hub.select_tab(id)
+			await wait_frames(2)
+			assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.panels[id].back_button, "onglet à venir : RETOUR AU LABO")
+			break
 
 
 func test_back_opens_and_closes_hub_menu() -> void:
@@ -292,16 +299,6 @@ func test_number_format() -> void:
 	assert_eq(HubStyle.num(999), "999")
 	Settings.language = "en"
 	assert_eq(HubStyle.num(1234567), "1,234,567")
-
-
-func test_contracts_view_without_lot_a() -> void:
-	var pr := demo_profile()
-	if HubContractsView.available(pr):
-		return  # lot A en place : couvert par ses tests
-	assert_eq(HubContractsView.active(pr), [])
-	assert_eq(HubContractsView.done_count(pr), -1)
-	assert_eq(HubContractsView.ready_count(pr), 0)
-	assert_true(HubContractsView.catalog().has("dog_fangs_small"), "titres lus dans contracts.json")
 
 
 func test_days_left() -> void:

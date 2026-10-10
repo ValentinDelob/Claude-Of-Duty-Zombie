@@ -32,6 +32,18 @@ static func demo_profile() -> PlayerProfile:
 	pr.add_weapon(OwnedWeapon.create("m14", 4, OwnedWeapon.Rarity.COMMON))
 	for p in [["damage", 9], ["mag", 7], ["accuracy", 6], ["recoil", 4], ["reload", 2]]:
 		pr.add_part(WeaponPart.create(p[0], p[1], {p[0]: 0.1}))
+	# Contrats de la maquette (écrans 1, 5 et 11) : 3 actifs dont un prêt,
+	# 3 propositions dont une nouvelle (lot D).
+	var st := pr.contracts
+	st.draw_seed = 918273
+	st.rotation = 3
+	st.done = {"first_sample": 1, "dog_fangs_small": 2, "dog_collars": 1}
+	st.active.append({"id": "dog_fangs_small", "accepted": 1})
+	st.active.append({"id": "pack_analysis", "accepted": 2})
+	st.active.append({"id": "lab_emergency", "accepted": 3})
+	st.offers.append({"id": "dog_fur_coat", "since": 2})
+	st.offers.append({"id": "dog_collars", "since": 3})
+	st.offers.append({"id": "jaw_series", "since": 2})
 	return pr
 
 
@@ -49,7 +61,7 @@ static func demo_last_match() -> Dictionary:
 
 
 func run() -> void:
-	timeout_sec = 120
+	timeout_sec = 240
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu principal")
 	menu = tree().current_scene
 	# HUB_SHOT_RES=1920x1080 : captures à cette taille (la fenêtre, hors
@@ -70,6 +82,8 @@ func run() -> void:
 	at.check(labels == ["JOUER", "ÉDITEUR DE CARTES", "OPTIONS", "CRÉDITS", "QUITTER"], "menu titre réduit : %s" % ", ".join(labels))
 	ProfileStore.save_profile(demo_profile())
 	Router.last_match = demo_last_match()
+	# Date de la maquette (Urgence au labo : « ENCORE 12 J »).
+	HubContractsView.day_override = HubData.parse_day("2026-11-18")
 	await press("ui_accept")  # JOUER
 	at.check(menu.current_name == "hub", "JOUER : hub (%s)" % menu.current_name)
 	await until(_settled, 3.0, "hub affiché")
@@ -108,6 +122,7 @@ func run() -> void:
 	await shot("hub_menu")
 	await press("ui_cancel")
 	at.check(not hub.hub_menu.is_open(), "Échap : menu du hub fermé")
+	await _contracts_and_exchanges()
 	# Manette : invites LB / RB, A, START.
 	await pad(JOY_BUTTON_RIGHT_SHOULDER)
 	at.check(Settings.using_pad, "manette utilisée en dernier")
@@ -131,6 +146,14 @@ func run() -> void:
 		_check_inside(hub, "taille %d %%" % roundi(f * 100.0))
 		await seconds(0.3)
 		await shot("lab_%d" % roundi(f * 100.0))
+		for t in ["contracts", "exchanges"]:
+			hub.select_tab(t)
+			await frames(3)
+			_check_inside(hub, "%s, taille %d %%" % [t, roundi(f * 100.0)])
+			await seconds(0.2)
+			await shot("%s_%d" % [t, roundi(f * 100.0)])
+		hub.select_tab("lab")
+		await frames(2)
 	Settings.menu_ui_scale = 1.0
 	await frames(3)
 	# Anglais.
@@ -145,6 +168,18 @@ func run() -> void:
 	await frames(2)
 	await seconds(0.3)
 	await shot("lab_en_pad")
+	# Écran 11 de la maquette : CONTRACTS en anglais, invites de la manette.
+	await pad(JOY_BUTTON_RIGHT_SHOULDER)
+	await pad(JOY_BUTTON_RIGHT_SHOULDER)
+	await pad(JOY_BUTTON_RIGHT_SHOULDER)
+	at.check(hub.tab == "contracts", "RB x3 : CONTRACTS (%s)" % hub.tab)
+	var d_en := hub.prompts.describe()
+	at.check(d_en.size() >= 2 and d_en[0] == "A Hand in" and d_en[1] == "X Abandon", "invites manette : %s" % ", ".join(d_en))
+	await seconds(0.3)
+	await shot("contracts_en_pad")
+	await pad(JOY_BUTTON_RIGHT_SHOULDER)
+	await seconds(0.3)
+	await shot("exchanges_en_pad")
 	Settings.language = "fr"
 	Settings.using_pad = false
 	menu.show_screen("hub")
@@ -161,6 +196,79 @@ func run() -> void:
 	await until(_settled, 3.0, "hub réaffiché")
 	at.check(menu.current.tab == "play", "retour sur l'onglet PARTIE (%s)" % menu.current.tab)
 	ProfileStore.reset()
+	HubContractsView.day_override = -1
+
+
+## CONTRATS et ÉCHANGES (lot D) au clavier, profil de la maquette : remettre
+## (fenêtre « contrat remis »), abandonner annulé, accepter, échanger en deux
+## appuis, filtre ; retour au LABO. Captures : écrans 5, 6 et 7.
+func _contracts_and_exchanges() -> void:
+	await key(KEY_E)
+	await key(KEY_E)
+	await key(KEY_E)
+	at.check(hub.tab == "contracts", "E x3 : CONTRATS (%s)" % hub.tab)
+	var cp: HubContractsPanel = hub.panels.contracts
+	at.check(cp.active_cards.size() == 3 and cp.offer_cards.size() == 3, "3 actifs, 3 propositions")
+	at.check(_focused() == cp.active_cards[0].main_button, "focus sur REMETTRE (Dents de lait, prêt)")
+	at.check(hub.tab_bar.badges.get(3, 0) == 1, "pastille CONTRATS : 1 contrat prêt")
+	await seconds(0.3)
+	await shot("contracts")
+	# Remettre (Entrée) : fenêtre « contrat remis », 7 − 4 = 3 crocs.
+	var xp_before := hub.profile.xp
+	await press("ui_accept")
+	await until(cp.popup_open, 2.0, "fenêtre « contrat remis »")
+	var pr := ProfileStore.load_profile()
+	at.check(pr.sample_count("dog_fang") == 3, "remise : 3 crocs restants (%d)" % pr.sample_count("dog_fang"))
+	at.check(pr.xp - xp_before == 1340, "remise : +1 340 XP (%d)" % (pr.xp - xp_before))
+	at.check(pr.level() == 8, "remise : niveau 8 (%d)" % pr.level())
+	at.check(not pr.contracts.is_active("dog_fangs_small"), "remise : case libérée")
+	await seconds(0.4)
+	await shot("contract_delivered")
+	await press("ui_cancel")
+	at.check(not cp.popup_open(), "Échap : fenêtre fermée")
+	# Abandon : Suppr arme le deuxième appui, Échap l'annule.
+	cp.active_cards[0].main_button.grab_focus()
+	await frames(2)
+	await key(KEY_DELETE)
+	at.check(cp.confirm_id != "", "Suppr : CONFIRMER")
+	await press("ui_cancel")
+	at.check(cp.confirm_id == "" and not hub.hub_menu.is_open(), "Échap : abandon annulé")
+	at.check(ProfileStore.load_profile().contracts.active.size() == 2, "rien d'abandonné")
+	# Accepter la première proposition (une case est libre).
+	var first := cp.offer_cards[0].contract_id
+	cp.offer_cards[0].main_button.grab_focus()
+	await frames(2)
+	await press("ui_accept")
+	at.check(ProfileStore.load_profile().contracts.is_active(first), "proposition « %s » acceptée" % first)
+	# ÉCHANGES, profil de la maquette relu.
+	ProfileStore.save_profile(demo_profile())
+	hub.reload_profile()
+	await key(KEY_E)
+	at.check(hub.tab == "exchanges", "E : ÉCHANGES (%s)" % hub.tab)
+	var ep: HubExchangesPanel = hub.panels.exchanges
+	await frames(2)
+	at.check(_focused() == ep.rows.collar_strap.button, "focus sur Bride de collier (seul échange possible)")
+	await press("ui_accept")
+	at.check(ep.confirm_id == "collar_strap", "premier appui : CONFIRMER")
+	await seconds(0.3)
+	await shot("exchange_confirm")
+	await press("ui_accept")
+	await until(ep.popup_open, 2.0, "fenêtre « échange conclu »")
+	pr = ProfileStore.load_profile()
+	at.check(pr.sample_count("dog_collar") == 1 and pr.sample_count("dog_fur") == 0, "échange : 4 colliers + 2 touffes consommés")
+	await seconds(0.4)
+	await shot("exchange_done")
+	await press("ui_cancel")
+	at.check(not ep.popup_open(), "Échap : fenêtre fermée")
+	await key(KEY_TAB)
+	at.check(ep.only_tradable, "Tab : filtre ÉCHANGEABLES MAINTENANT")
+	await key(KEY_TAB)
+	at.check(not ep.only_tradable, "Tab : filtre TOUS")
+	# Profil de la maquette pour la suite ; retour au LABO.
+	ProfileStore.save_profile(demo_profile())
+	hub.reload_profile()
+	hub.select_tab("lab")
+	await frames(3)
 
 
 ## Aucun contrôle visible du hub ne sort de l'écran (1280 × 720 logiques).
