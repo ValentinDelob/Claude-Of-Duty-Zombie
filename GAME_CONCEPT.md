@@ -443,16 +443,24 @@ retravaillées.
 ### 4.19 Direction artistique : tout en cubes ✅
 - Le jeu **quitte le rendu réaliste** de BO1 pour une identité propre : un style
   **entièrement cubique (voxel)**, dans l'esprit de Trove.
-- Les cubes ne sont **ni trop gros ni trop petits** : zombies, personnage,
-  armes, objets, décors et textures partagent **une seule échelle de cube**.
+- Les cubes ne sont **ni trop gros ni trop petits** : deux échelles seulement,
+  l'une sous-multiple de l'autre (personnages et mobs ; décor et objets).
 - **Règle absolue** : aucun élément qui n'est **pas cubique** ou qui ne
   **respecte pas l'échelle des cubes** ne peut entrer dans le jeu. Pas de
   courbe, de biseau, de lissage ni de détail plus fin qu'un cube.
 - Les textures sont **toutes à refaire** dans ce style (un pixel de texture = un
   cube, couleurs unies par cube), tout en **respectant l'univers du jeu**
   (hôpital, laboratoire, zombies, survie).
-- **Échelle : 1 cube = 5 cm** (20 cubes par mètre). Le personnage mesure environ
-  36 cubes, une porte 40, un mur de 3 m 60.
+- **Échelle des personnages et des mobs : 1 cube = 2,5 cm** (40 cubes par
+  mètre). Un personnage de 1,80 m mesure 72 cubes. Valeur choisie en mesurant
+  la planche de référence du zombie (Gemini), dont un pixel fait environ 2 cm
+  (environ 90 pixels de haut, une dent = 1 pixel, une jambe = 7 pixels) :
+  2,5 cm garde ce niveau de détail tout en restant un sous-multiple exact de
+  l'échelle du décor (2 cubes de personnage = 1 cube de décor).
+- **Échelle du décor et des objets de la carte : 1 cube = 5 cm** (20 cubes par
+  mètre) : une porte fait 40 cubes, un mur de 3 m en fait 60.
+- Le **rendu** de référence (planche Gemini) a aussi un **contour noir** autour
+  des pièces et un ombrage simple : à reproduire en jeu (❓ contour par shader).
 - Pour appliquer la règle :
   - les arêtes des objets sont alignées sur la grille des cubes, et les objets
     posés sur la carte tournent par quarts de tour ;
