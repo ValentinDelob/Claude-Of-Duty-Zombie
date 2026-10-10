@@ -17,6 +17,7 @@ extends MapDef
 ## Salle du générateur : la caisse est en (61, 27), à l'écart de la sortie de
 ## la fenêtre sud (en 60, 28 elle ne laissait qu'une file de zombies passer).
 ## Porte d'évacuation (@) : salle de garde (départ), contre le mur ouest.
+## Station de construction (=) : salle de garde, contre le mur nord.
 ## Vagues spéciales et de boss : schéma par défaut (MapDef.waves).
 
 func _init() -> void:
@@ -65,7 +66,7 @@ func _init() -> void:
 		" #ddddddZdddddddddWdZ#     ##### ##### #cc#                     ",
 		" ########11########dd#                 #cc#                     ",
 		" ########11###########        ##########cc#############         ",
-		" #aaaaaaaaaaaaaaaa#aa#        #cc#cccccccccccccccccccZ#   ##### ",
+		" #aaa=aaaaaaaaaaaa#aa#        #cc#cccccccccccccccccccZ#   ##### ",
 		" #aaaaaaaaaaaaaaaaWaZ#    #####ZcWcccccccccccccccccccc#   #eZe# ",
 		" #aaaaa,aaaaaaaCCa#aa#    #bZb#cc#ccccLccccccccccLcccc#   #eee# ",
 		" #aaaLaaaaaaaLaCaa####    #bbb####cccccccccccccccccccc######W###",

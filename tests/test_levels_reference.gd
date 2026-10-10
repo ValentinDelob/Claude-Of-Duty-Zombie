@@ -13,16 +13,19 @@ const EVAC := "format 18 : porte d'évacuation ajoutée aux fixtures (obligatoir
 ## Ses cases ne sont plus du sol : le regard de départ (vers le milieu du sol
 ## de la zone de départ) bouge d'un centième de radian.
 const EVAC_YAW := "format 18 : cases de la porte d'évacuation retirées du sol de la zone de départ"
+const STATION := "format 19 : station de construction ajoutée aux fixtures (obligatoire)"
 ## Différences admises : carte -> {chemin (préfixe) : raison}.
 const TOLERATED := {
-	"draft_arena": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW},
-	"smallest": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW},
-	"smallest_door": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW},
-	"smallest_double_door": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW},
+	"draft_arena": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW, "/markers/station": STATION},
+	"smallest": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW, "/markers/station": STATION},
+	"smallest_door": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW, "/markers/station": STATION},
+	"smallest_double_door": {"/markers/evac": EVAC, "/markers/player_yaw": EVAC_YAW, "/markers/station": STATION},
 }
 ## Format 18 : erreur « aucune porte d'évacuation » propre aux nouvelles
-## règles, absente des références f16 (non comptée).
+## règles, absente des références f16 (non comptée) ; format 19 : de même,
+## « aucune station de construction ».
 const EVAC_ERROR := "porte d'évacuation"
+const STATION_ERROR := "station de construction"
 
 
 ## Carte d'avant (format 16) de la référence `name`.
@@ -96,7 +99,7 @@ func test_export_identical_after_migration() -> void:
 		# Messages du validateur : autant d'erreurs qu'avant.
 		var v := MapRaster.build(doc).v
 		v.analyze()
-		var errs := v.errors().filter(func(m): return not String(m.fr).contains(EVAC_ERROR))
+		var errs := v.errors().filter(func(m): return not String(m.fr).contains(EVAC_ERROR) and not String(m.fr).contains(STATION_ERROR))
 		assert_eq(errs.size(), int(ref.errors), "%s : nombre d'erreurs du validateur (%s)" % [name, "\n".join(errs.map(func(m): return String(m.fr)))])
 
 

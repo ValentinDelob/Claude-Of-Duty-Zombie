@@ -18,6 +18,8 @@ var _weapon_info: Label
 var _weapon_info_key := ""
 ## Panneau d'inventaire de partie ([I]).
 var inventory: InventoryPanel
+## Interface de la station de construction ([F] à la station).
+var station_panel: StationPanel
 var _hint: Label
 var _vignette: ColorRect
 var _vignette_mat: ShaderMaterial
@@ -186,6 +188,10 @@ func _ready() -> void:
 	inventory = InventoryPanel.new()
 	inventory.setup(game)
 	add_child(inventory)
+
+	station_panel = StationPanel.new()
+	station_panel.setup(game)
+	add_child(station_panel)
 
 	_fade = ColorRect.new()
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -590,6 +596,13 @@ static func weapon_info_text(w: Dictionary) -> String:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Station de construction ouverte : Échap, B ou [I] la ferment (avant le
+	# menu pause et l'inventaire).
+	if station_panel and station_panel.visible and GameState.is_in_game():
+		if event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel") or event.is_action_pressed("inventory"):
+			station_panel.close()
+			get_viewport().set_input_as_handled()
+			return
 	# Panneau d'inventaire : [I] l'ouvre et le ferme ; ouvert, Échap ou B le
 	# ferment (avant le menu pause).
 	if inventory and GameState.is_in_game() and pause_menu and not pause_menu.visible:
@@ -641,10 +654,41 @@ func show_match_end(r: MatchResult) -> void:
 	set_evac_status("")
 	if inventory:
 		inventory.close()
+	if station_panel:
+		station_panel.close()
 	show_center(r.title(), r.summary(), 0.6)
 	show_game_over_table(r.details())
+	_show_loot_report(r.loot_text(), r.evacuated)
 	if not r.evacuated:
 		Audio.play_2d("heartbeat", 0.0, 0.0)
+
+
+var _loot_label: Label
+
+
+## Ligne du butin gardé ou perdu, en bas de l'écran de fin (MatchResult.loot_text).
+func _show_loot_report(text: String, kept: bool) -> void:
+	if _loot_label == null:
+		_loot_label = HudStyle.label("", 22, HudStyle.TEXT, "text", 4)
+		_loot_label.anchor_left = 0.5
+		_loot_label.anchor_right = 0.5
+		_loot_label.anchor_top = 1.0
+		_loot_label.anchor_bottom = 1.0
+		_loot_label.offset_left = -700
+		_loot_label.offset_right = 700
+		_loot_label.offset_top = -120
+		_loot_label.offset_bottom = -40
+		_loot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_loot_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		add_child(_loot_label)
+	_loot_label.text = text
+	_loot_label.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6) if kept else HudStyle.POINTS_LOSS)
+	_loot_label.visible = text != ""
+
+
+## Rapport du butin affiché ("" : aucun ; tests).
+func loot_report() -> String:
+	return _loot_label.text if _loot_label and _loot_label.visible else ""
 
 
 var _evac_label: Label

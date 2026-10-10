@@ -17,7 +17,8 @@ var round_reached := 0
 var duration_sec := 0.0
 ## Zombies abattus par toute l'équipe.
 var kills := 0
-## À venir (rapport de fin de partie) : butin gardé / perdu par joueur, XP.
+## Butin du joueur local, gardé ou perdu (ProfileLoot.report, rempli par
+## chaque client dans Game._show_match_end, comme `xp`).
 var loot: Dictionary = {}
 var xp := 0
 
@@ -61,6 +62,40 @@ func summary() -> String:
 ## Manche atteinte et durée (au-dessus du tableau des scores).
 func details() -> String:
 	return Lang.t("MANCHE %d ATTEINTE — TEMPS %s", "REACHED ROUND %d — TIME %s") % [round_reached, time_text(duration_sec)]
+
+
+## Rapport du butin du joueur local (§4.16 ; `loot` : ProfileLoot.report,
+## rempli par chaque client) : ce qui est gardé après une évacuation, ou
+## perdu si l'équipe est morte (l'XP, elle, est toujours gardée). "" : rien.
+func loot_text() -> String:
+	if loot.is_empty():
+		return ""
+	var kept: bool = loot.get("kept", false) == true
+	var items := PackedStringArray()
+	var ws: Variant = loot.get("weapons", [])
+	if ws is Array:
+		for w in ws:
+			if w is Array and w.size() >= 3:
+				items.append("%s (%s, %s)" % [WeaponDB.display_name(String(w[0])),
+					Lang.t("niv. %d", "lvl %d") % _int(w[1], 1, PlayerProfile.MAX_LEVEL),
+					GameWeapon.rarity_name(_int(w[2], 0, 4)).to_lower()])
+	var n_parts := _int(loot.get("parts", 0), 0, 1 << 30)
+	if n_parts > 0:
+		items.append(Lang.t("%d pièce(s)", "%d part(s)") % n_parts)
+	var ss: Variant = loot.get("samples", {})
+	if ss is Dictionary:
+		var keys: Array = ss.keys()
+		keys.sort()
+		for k in keys:
+			var n := _int(ss[k], 0, 1 << 30)
+			if n > 0:
+				items.append("%d %s" % [n, LootRules.sample_name(String(k)).to_lower()])
+	var xp_t := Lang.t("+%d XP", "+%d XP") % xp
+	if items.is_empty():
+		return Lang.t("Aucun butin rapporté · %s", "No loot brought back · %s") % xp_t
+	if kept:
+		return Lang.t("BUTIN GARDÉ : %s · %s", "LOOT KEPT: %s · %s") % [", ".join(items), xp_t]
+	return Lang.t("BUTIN PERDU : %s · seule l'XP est gardée (%s)", "LOOT LOST: %s · only XP is kept (%s)") % [", ".join(items), xp_t]
 
 
 ## Durée « h:mm:ss » ou « m:ss ».

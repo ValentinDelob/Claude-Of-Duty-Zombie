@@ -147,7 +147,12 @@ extends RefCounted
 ##      jamais écrit à sa valeur par défaut). Aucune conversion : une carte au
 ##      format 17 ou moins se lit telle quelle (schéma par défaut) ; sans porte
 ##      d'évacuation, le validateur la refuse jusqu'à ce qu'on en pose une.
-const FORMAT := 18
+##  19  station de construction (GAME_CONCEPT.md §4.11 ; type « station » :
+##      « position », « mur », « angle », comme un objet mural), OBLIGATOIRE,
+##      une par carte (MapValidator). Aucune conversion : une carte au format
+##      18 ou moins se lit telle quelle ; sans station, le validateur la
+##      refuse jusqu'à ce qu'on en pose une.
+const FORMAT := 19
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 ## Écart par défaut entre deux niveaux (m) : nouveau niveau, ancien étage sans « sol ».
@@ -1072,6 +1077,8 @@ func _migrate(from: int) -> void:
 	# Format 17 -> 18 : rien à convertir (sans « vagues » : schéma par défaut ;
 	# la porte d'évacuation, nouvel objet obligatoire, est à poser par
 	# l'auteur : le validateur l'exige).
+	# Format 18 -> 19 : rien à convertir (la station de construction, nouvel
+	# objet obligatoire, est à poser par l'auteur : le validateur l'exige).
 
 
 ## Clés d'étage (format 16 et avant) dans la carte ou ses éléments ?

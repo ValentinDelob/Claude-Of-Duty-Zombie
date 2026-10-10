@@ -104,10 +104,15 @@ func run() -> void:
 	ed.inventory.show_category("joueurs")
 	_pick("evacuation")
 	await click(Vector2(2.3, 7))
+	# Station de construction (obligatoire, format 19) contre le mur nord.
+	await key(KEY_E)
+	ed.inventory.show_category("joueurs")
+	_pick("station")
+	await click(Vector2(11, 2.3))
 	var types := {}
 	for o in ed.doc.objets:
 		types[o.type] = types.get(o.type, 0) + 1
-	at.check(types == {"depart": 1, "boite": 1, "courant": 1, "evacuation": 1}, "objets posés : %s" % str(types))
+	at.check(types == {"depart": 1, "boite": 1, "courant": 1, "evacuation": 1, "station": 1}, "objets posés : %s" % str(types))
 
 	# Vérification : carte jouable.
 	var v := ed.validate()
@@ -216,6 +221,11 @@ func _decor_and_textures() -> void:
 	_pick("evacuation")
 	await click(Vector2(2.3, 8))
 	at.check(ed.doc.objets.any(func(o): return o.type == "evacuation"), "porte d'évacuation posée (%s)" % cv.refusal)
+	await key(KEY_E)
+	ed.inventory.show_category("joueurs")
+	_pick("station")
+	await click(Vector2(13, 2.3))
+	at.check(ed.doc.objets.any(func(o): return o.type == "station"), "station de construction posée (%s)" % cv.refusal)
 	at.check(ed.doc.pieces.size() == 2 and ed.doc.ouvertures.size() == 4, "deux pièces, une porte, trois fenêtres")
 	# Décor pris dans l'inventaire (catégorie Décor et obstacles).
 	await key(KEY_E)

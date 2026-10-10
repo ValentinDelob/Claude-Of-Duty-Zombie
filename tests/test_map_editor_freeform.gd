@@ -15,8 +15,9 @@ const TMP := "res://tests/_out/test_map_editor_freeform"
 ## plafond de l'entrepôt sous la passerelle (toujours dessiné sous la dalle de
 ## l'étage du dessus, MapLayoutExport.under_slab), les objets supprimés au
 ## lot C (atouts, armes murales, une seule caisse) et, format 18, sa porte
-## d'évacuation (marqueur « evac », regard de départ).
-const DRAFT_LAYOUT_SHA := "887b82bf034a45305d6a756f10a8e9c712581570fe88f62cc435018465254073"
+## d'évacuation (marqueur « evac », regard de départ) et, format 19, sa
+## station de construction (marqueur « station »).
+const DRAFT_LAYOUT_SHA := "c98e547ad67166b9595496515bccd63f2c764c815b3b96cfa0ef421a77d12227"
 
 
 func before_each() -> void:

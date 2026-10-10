@@ -148,6 +148,13 @@ static func draw(ci: CanvasItem, it: Dictionary, r: Rect2) -> void:
 			ci.draw_line(cx + Vector2(-s * 0.18, 0), cx + Vector2(s * 0.2, 0), WHITE, s * 0.1)
 			ci.draw_line(cx + Vector2(s * 0.2, 0), cx + Vector2(s * 0.04, -s * 0.15), WHITE, s * 0.1)
 			ci.draw_line(cx + Vector2(s * 0.2, 0), cx + Vector2(s * 0.04, s * 0.15), WHITE, s * 0.1)
+		"station":
+			# Établi (plateau, pieds) et clé plate au-dessus.
+			ci.draw_rect(Rect2(cx + Vector2(-s * 0.42, -s * 0.02), Vector2(s * 0.84, s * 0.14)), c)
+			ci.draw_line(cx + Vector2(-s * 0.34, s * 0.12), cx + Vector2(-s * 0.34, s * 0.45), c.darkened(0.3), s * 0.1)
+			ci.draw_line(cx + Vector2(s * 0.34, s * 0.12), cx + Vector2(s * 0.34, s * 0.45), c.darkened(0.3), s * 0.1)
+			ci.draw_line(cx + Vector2(-s * 0.25, -s * 0.15), cx + Vector2(s * 0.2, -s * 0.4), WHITE, s * 0.1)
+			ci.draw_circle(cx + Vector2(s * 0.24, -s * 0.42), s * 0.1, WHITE)
 		"apparition":
 			ci.draw_rect(Rect2(p.position + Vector2(0, s * 0.72), Vector2(s, s * 0.28)), Color(0.3, 0.22, 0.14))
 			for i in 4:

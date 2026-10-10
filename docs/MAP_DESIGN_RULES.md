@@ -369,6 +369,19 @@ dans le jeu.
   pouvoir s'y tenir en même temps. Ni obstacle, ni fenêtre à zombies, ni
   autre objet de jeu dans cette zone.
 
+### 7.1 ter Station de construction [OBLIGATOIRE]
+
+- Chaque carte a **une et une seule station de construction** (inventaire
+  *Joueurs et apparitions > Station de construction*), posée **contre un
+  mur** (GAME_CONCEPT.md §4.11). Le validateur de l'éditeur **refuse** une
+  carte sans station, ou avec plusieurs.
+- Elle est **accessible à tout moment de la partie** : de préférence dans
+  la zone de départ ou tout près (le joueur y revient souvent : construire,
+  récupérer, recharger) ; jamais dans une impasse ni dans la zone
+  d'évacuation (§7.1 bis).
+- Devant elle, **2 × 2 m de sol libre** : le joueur s'y tient pendant que
+  la partie continue, interface ouverte.
+
 ### 7.2 Boucles [OBLIGATOIRE]
 
 - Au moins **une grande boucle** de **60 à 150 m** de tour, ouvrable avant
@@ -588,6 +601,7 @@ ce fichier.
 |---|---|
 | Salle de départ | 2 sorties, 3 à 4 fenêtres |
 | Porte d'évacuation | exactement 1, contre un mur, accessible du départ sans porte, zone de 4 × 3,5 m dégagée |
+| Station de construction | exactement 1, contre un mur, près du départ, 2 × 2 m libres devant |
 | Plus grand carré vide, partout | < 15 m² (≤ 3,5 × 3,5 m sur la grille) |
 | Couloirs de plus de 3 m de large / lignes droites de plus de 12 m | 0 / 0 |
 | Circuits tenables dans une seule pièce | 0 |

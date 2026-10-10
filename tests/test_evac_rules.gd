@@ -82,7 +82,9 @@ func test_resultat_de_partie() -> void:
 
 
 ## Carte de l'éditeur minimale : une pièce, une fenêtre, un départ, une boîte.
-static func small_map(with_door := true, behind_door := false) -> EditorMap:
+## Format 19 : avec la station de construction (obligatoire) contre le mur
+## nord de la salle de départ, sauf `with_station` faux.
+static func small_map(with_door := true, behind_door := false, with_station := true) -> EditorMap:
 	var m := EditorMap.blank("evac_t")
 	m.zones = [{"id": "z1", "nom": {"fr": "A", "en": "A"}}, {"id": "z2", "nom": {"fr": "B", "en": "B"}}]
 	m.depart = "z1"
@@ -97,6 +99,8 @@ static func small_map(with_door := true, behind_door := false) -> EditorMap:
 		# Mur ouest de la salle de départ, ou mur est de la salle derrière la porte payante.
 		m.objets.append({"id": "e1", "type": "evacuation", "position": [18, 4] if behind_door else [0, 4],
 			"mur": "e" if behind_door else "o", "altitude": 0})
+	if with_station:
+		m.objets.append({"id": "t1", "type": "station", "position": [8, 0], "mur": "n", "altitude": 0})
 	return m
 
 

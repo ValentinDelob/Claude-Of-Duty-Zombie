@@ -312,8 +312,9 @@ const GOLDEN := "res://tests/fixtures/scale_layout_golden.json"
 ## sur un autre, mural, au plafond), prefab modèle et prefab groupe.
 static func golden_map() -> EditorMap:
 	var doc := DecorFree.two_rooms()
-	# Référence d'avant le format 18 : sans la porte d'évacuation des tests.
-	doc.objets = doc.objets.filter(func(o): return String(o.get("type", "")) != "evacuation")
+	# Référence d'avant le format 18 : sans la porte d'évacuation ni la
+	# station de construction (format 19) des tests.
+	doc.objets = doc.objets.filter(func(o): return not String(o.get("type", "")) in ["evacuation", "station"])
 	var glb := Prefabs.box_glb()
 	doc.set_prefab("boite_bleue", MapPrefabLib.from_model("Boîte", "Box", glb).def, glb)
 	var grp := MapPrefabLib.from_objects("Barricade", "Barricade", [

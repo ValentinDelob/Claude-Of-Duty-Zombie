@@ -23,7 +23,7 @@ const LINTEL := MapValidator.LINTEL
 ## Objets muraux : [bas, haut] (m au-dessus du sol), d'après leur modèle en
 ## jeu (caisse au hasard, machines, porte d'évacuation).
 const WALL_Z := {"boite": [0.0, 1.0], "courant": [1.0, 1.8], "poste_central": [0.0, 2.0], "levier": [1.0, 1.6],
-	"evacuation": [0.0, 2.2]}
+	"evacuation": [0.0, 2.2], "station": [0.0, 2.1]}
 ## Objets au sol : hauteur (m).
 const FLOOR_H := {"depart": 1.8, "apparition": 1.8, "teleporteur": 2.6, "arrivee": 0.15, "caisse": 1.0, "baril": 1.2, "boite": 1.0}
 ## Hauteur (m) de la zone électrifiée d'un piège.

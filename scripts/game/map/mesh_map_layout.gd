@@ -15,6 +15,7 @@ extends MapLayout
 ##   format 15 de l'éditeur ; `wall` = son arrière, `p` à
 ##   MysteryBox.SPOT_WALL_GAP derrière son centre),
 ##   evac {p, wall} (porte d'évacuation, EvacDoor),
+##   station {p, wall} (station de construction, BuildStation),
 ##   (clés d'objets supprimés, ignorées avec un avertissement : REMOVED_KEYS)
 ##   teleporter {pad, exit, mainframe {p, wall}, exit_zone},
 ##   traps [{id, lever {p, wall}, area [x0,y0,z0,x1,y1,z1], yaw? (zone tournée autour de son centre)}],
@@ -211,6 +212,12 @@ func box_spots() -> Array[MapMarker]:
 ## Porte d'évacuation : marqueur « evac » {p, wall}, comme un objet mural.
 func evac_door() -> MapMarker:
 	return _wall_marker("evac", _markers.evac) if _markers.get("evac") is Dictionary else null
+
+
+## Station de construction : marqueur « station » {p, wall}, comme un objet
+## mural (sa collision entre dans le navmesh cuit au chargement).
+func build_station() -> MapMarker:
+	return _wall_marker("station", _markers.station) if _markers.get("station") is Dictionary else null
 
 
 func teleporter() -> Dictionary:

@@ -747,6 +747,11 @@ static func _build() -> void:
 		"make": {"type": "evacuation"}, "fp": [3, 1],
 		"hint_fr": "Obligatoire, une par carte, contre un mur, accessible depuis le départ sans ouvrir de porte ; s'ouvre après une vague spéciale ou de boss",
 		"hint_en": "Required, one per map, against a wall, reachable from the start without opening any door; opens after a special or boss wave"})
+	# Format 19 : station de construction (GAME_CONCEPT.md §4.11), obligatoire.
+	_add({"id": "station", "cat": "joueurs", "fr": "Station de construction", "en": "Construction station", "tool": "wall_item", "color": Color(0.25, 0.6, 1.0),
+		"make": {"type": "station"}, "fp": [4, 2],
+		"hint_fr": "Obligatoire, une par carte, contre un mur (établi de 1,6 m) : on y construit les armes de son arsenal contre de la ferraille, on y recharge ses munitions et on y recycle",
+		"hint_en": "Required, one per map, against a wall (1.6 m workbench): build arsenal weapons for scrap, refill ammo and recycle there"})
 	_add({"id": "apparition", "cat": "joueurs", "fr": "Zombie qui sort du sol", "en": "Ground spawn", "tool": "floor_item", "color": Color(0.5, 0.05, 0.05),
 		"make": {"type": "apparition"}, "fp": [1, 1], "hint_fr": "En plus des fenêtres (facultatif)", "hint_en": "In addition to windows (optional)"})
 	# Décor et obstacles : caisse et baril (types historiques), puis les prefabs.
@@ -818,7 +823,7 @@ static func short_num(v: float) -> String:
 ## Types dont l'objet du catalogue est le type lui-même (item_for).
 const PLAIN_TYPES := {"porte": true, "debris": true, "porte_courant": true, "passage": true, "fenetre": true, "mur": true,
 	"mur_courbe": true, "pilier": true, "escalier": true, "piege": true, "levier": true,
-	"courant": true, "teleporteur": true, "arrivee": true, "poste_central": true, "depart": true, "apparition": true, "evacuation": true,
+	"courant": true, "teleporteur": true, "arrivee": true, "poste_central": true, "depart": true, "apparition": true, "evacuation": true, "station": true,
 	"lampe": true, "caisse": true, "baril": true, "bloc_invisible": true}
 
 
@@ -1544,7 +1549,7 @@ static func allowed_kinds() -> Dictionary:
 	# Format 15 : « rot » d'une caisse au hasard posée au sol (jamais avec « mur » ni
 	# « angle » : CustomMapGuard._check_object).
 	add.call("objets.json", "boite", {"position": point, "mur": dirs, "angle": angle, "rot": rot, "depart": {"t": "bool"}}, ["position"])
-	for t in ["grenades", "pap", "courant", "poste_central", "levier", "evacuation"]:
+	for t in ["grenades", "pap", "courant", "poste_central", "levier", "evacuation", "station"]:
 		add.call("objets.json", t, {"position": point, "mur": dirs, "angle": angle}, ["position"])
 	for t in ["depart", "apparition", "teleporteur", "arrivee", "lampe", "caisse", "baril"]:
 		add.call("objets.json", t, {"position": point}, ["position"])

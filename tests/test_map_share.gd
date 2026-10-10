@@ -365,7 +365,7 @@ func _v2_source() -> Dictionary:
 	add.call("objets.json", "atout", {"atout": {"t": "enum", "values": ["titan", "lazarus"]}, "position": point, "mur": dirs}, ["atout", "position"])
 	add.call("objets.json", "arme", {"arme": {"t": "enum", "values": ["m14", "mp5k", "bowie"]}, "position": point, "mur": dirs}, ["arme", "position"])
 	add.call("objets.json", "boite", {"position": point, "mur": dirs, "depart": {"t": "bool"}}, ["position"])
-	for t in ["grenades", "pap", "courant", "poste_central", "levier", "evacuation"]:
+	for t in ["grenades", "pap", "courant", "poste_central", "levier", "evacuation", "station"]:
 		add.call("objets.json", t, {"position": point, "mur": dirs}, ["position"])
 	for t in ["depart", "apparition", "teleporteur", "arrivee", "lampe", "caisse", "baril"]:
 		add.call("objets.json", t, {"position": point}, ["position"])

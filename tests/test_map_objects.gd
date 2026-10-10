@@ -45,6 +45,9 @@ static func objects_map() -> EditorMap:
 	doc.ouvertures.append({"id": "o5", "type": "fenetre", "altitude": 0, "position": [7.25, 16.0]})
 	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [9.0, 7.0]})
 	doc.objets.append({"id": "b1", "type": "boite", "altitude": 0, "position": [9.75, 0.0], "mur": "n", "depart": false})
+	# Format 19 : station de construction contre le mur sud de la salle de
+	# départ, à l'écart des objets que les tests posent au nord.
+	doc.objets.append({"id": "t1", "type": "station", "altitude": 0, "position": [11.0, 10.0], "mur": "s"})
 	# Porte d'évacuation avant la barrière (les tests modifient objets[-1]).
 	MapTestKit.add_evac(doc)
 	doc.objets.append({"id": "i1", "type": "bloc_invisible", "altitude": 0, "rect": [16, 3, 17, 8]})

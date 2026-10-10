@@ -141,6 +141,27 @@ func get_weapon(uid: String) -> OwnedWeapon:
 	return null
 
 
+## Met à jour la version `uid` de l'arsenal d'après `from` (niveau, rareté,
+## pièces : améliorations faites en partie, rapportées par une évacuation,
+## §4.11). Les pièces sans identifiant (ou déjà pris ailleurs) en reçoivent un.
+## Faux si `uid` n'est pas une arme de l'arsenal.
+func update_weapon(uid: String, from: OwnedWeapon) -> bool:
+	var w := _arsenal_weapon(uid)
+	if w == null or from == null:
+		return false
+	w.level = from.level
+	w.rarity = from.rarity
+	w.parts.clear()
+	for p in from.parts:
+		if w.parts.size() >= w.slot_count():
+			break
+		w.parts.append(p)
+	for p in w.parts:
+		if p.uid == "" or _uid_used(p.uid, w):
+			p.uid = _new_uid("p")
+	return true
+
+
 ## Exemplaires de l'arsenal de l'arme définie `id`.
 func versions_of(id: String) -> Array[OwnedWeapon]:
 	var out: Array[OwnedWeapon] = []

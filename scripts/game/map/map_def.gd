@@ -13,6 +13,7 @@ extends RefCounted
 ##   T plateforme du téléporteur   F sortie du téléporteur
 ##   Décor bloquant : C caisse  O baril  I lit  N paillasse  Y générateur
 ##   @ porte d'évacuation (EvacDoor, contre le mur le plus proche)
+##   = station de construction (BuildStation, contre le mur le plus proche)
 ##   Décor : , flaque de sang
 ##   W fenêtre barricadée, posée dans un mur entre la zone et une petite poche
 ##     fermée (le dehors) dont les Z sont des apparitions « par la fenêtre »
@@ -21,6 +22,7 @@ extends RefCounted
 const BLOCKING_PROPS := "COINY"
 const WINDOW := "W"
 const EVAC_MARKER := "@"
+const STATION_MARKER := "="
 
 var id := "map"
 var display_name := Lang.t("Carte", "Map")
