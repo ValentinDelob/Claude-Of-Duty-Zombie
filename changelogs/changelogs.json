@@ -2540,6 +2540,37 @@
     "en": "Build, loot, get out",
     "fr": "Construire, piller, s'évacuer"
    }
+  },
+  "v0.2.1-snapshot.528": {
+   "channel": "snapshot",
+   "date": "2026-10-10",
+   "images": [],
+   "items": [
+    {
+     "en": "Boss waves now open the evacuation door too, and the door can only open once per wave.",
+     "fr": "Les vagues de boss ouvrent maintenant elles aussi la porte d'évacuation, et la porte ne s'ouvre qu'une fois par vague."
+    },
+    {
+     "en": "In co-op, a player who leaves during the evacuation window no longer blocks the team: their vote is dropped, and a host left alone can leave right away.",
+     "fr": "En coop, un joueur qui quitte pendant la fenêtre d'évacuation ne bloque plus l'équipe : son vote est oublié, et l'hôte resté seul peut partir aussitôt."
+    },
+    {
+     "en": "A player who is down or dead when the team evacuates now keeps the weapons they were carrying.",
+     "fr": "Un joueur à terre ou mort au moment de l'évacuation garde désormais les armes qu'il portait."
+    },
+    {
+     "en": "The vote banner now shows each player's vote as soon as the host receives it.",
+     "fr": "Le bandeau des votes affiche maintenant le vote de chacun dès que l'hôte l'a reçu."
+    },
+    {
+     "en": "Joining a game is more reliable when the host's computer is busy for a moment.",
+     "fr": "Rejoindre une partie est plus fiable quand l'ordinateur de l'hôte est occupé un instant."
+    }
+   ],
+   "title": {
+    "en": "A safer way out",
+    "fr": "Une sortie plus sûre"
+   }
   }
  }
 }
