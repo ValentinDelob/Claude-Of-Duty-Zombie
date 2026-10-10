@@ -33,15 +33,17 @@ func run() -> void:
 	game.combat.debug_invulnerable = true
 	game.rounds.paused = true
 	await H.clear_zombies(self)
-	# Quai du BUNKER K-7 (scène de zombie_look) : sol dégagé.
-	_o = Vector3(33.5, 0.0, 4.6)
+	# Quai du BUNKER K-7 (x 19-49, z 2-11), partie ouest dégagée : mur nord en
+	# z = 2, mur sud en z = 11 ; toute la scène tient entre les deux (zombies
+	# en z >= 3, caméras et joueur en z <= 10,6), loin des caisses (x 34-36).
+	_o = Vector3(28.5, 0.0, 7.0)
 	game.hud.visible = false
 	cam = Camera3D.new()
 	cam.fov = 55.0
 	game.add_child(cam)
 	cam.make_current()
 	# Joueur hors champ, derrière la caméra.
-	p.teleport_to(_o + Vector3(0, 0.05, 6.0), 0.0)
+	p.teleport_to(_o + Vector3(0, 0.05, 3.5), 0.0)
 	print("[ragdoll_look] plafond de ragdolls (qualité %d) : %d" % [Settings.quality, ZombieRagdoll.cap()])
 	await _case("balle", [Vector3(0, 0, -2)])
 	await _case("tete", [Vector3(0, 0, -2)])
@@ -50,7 +52,7 @@ func run() -> void:
 	await _case("piege", [Vector3(0, 0, -2)])
 	await _case("explosion", [Vector3(-1.2, 0, -2.5), Vector3(0.9, 0, -1.6), Vector3(0.3, 0, -3.4)], 6.0)
 	await _case("tonnerre", [Vector3(-1.0, 0, -0.5), Vector3(0.8, 0, -1.5), Vector3(0, 0, -3.0)])
-	await _case("course", [Vector3(0, 0, -5)], 4.5, true)
+	await _case("course", [Vector3(0, 0, -4)], 4.5, true)
 	await _perf()
 	p.camera.make_current()
 	cam.queue_free()
@@ -112,7 +114,7 @@ func _case(name: String, offsets: Array, side := 4.5, running := false) -> void:
 	cam.look_at_from_position(focus + Vector3(side, 1.1, 1.2), focus)
 	if name == "tonnerre":
 		# Corps soufflés vers -Z : vue de derrière le tireur, de biais.
-		cam.look_at_from_position(_o + Vector3(3.0, 2.4, 4.0), _o + Vector3(0, 0.4, -6.0))
+		cam.look_at_from_position(_o + Vector3(3.0, 2.4, 3.2), _o + Vector3(0, 0.4, -4.0))
 	if running:
 		# Il court vers le joueur (élan gardé à la mort).
 		for z: Zombie in zs:
@@ -163,7 +165,7 @@ func _case(name: String, offsets: Array, side := 4.5, running := false) -> void:
 
 ## Coût : 30 zombies tués d'affilée puis une explosion qui en souffle 6.
 func _perf() -> void:
-	cam.look_at_from_position(_o + Vector3(0, 4.5, 6.0), _o + Vector3(0, 0, -2.0))
+	cam.look_at_from_position(_o + Vector3(0, 5.0, 3.4), _o + Vector3(0, 0, -2.0))
 	var with := await _perf_run(-1)
 	var without := await _perf_run(0)
 	print("[ragdoll_look] PERF avec ragdolls (plafond %d) : %s" % [ZombieRagdoll.CAPS[Settings.quality], with])
