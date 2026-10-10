@@ -22,14 +22,7 @@ const TODO_LOT1 := [
 const TODO_LOT2 := []
 
 ## Lot 3 : décors des effets et luminaires.
-const TODO_LOT3 := [
-	"prefab:buches", "prefab:planches_brulees", "prefab:electrodes", "prefab:bobine_tesla",
-	"prefab:flaque_eau", "prefab:petite_flaque", "prefab:torche_murale", "prefab:tuyau_vapeur",
-	"prefab:boitier_electrique", "prefab:tuyau_fuite", "prefab:cable_suspendu",
-	"luminaire:ampoule", "luminaire:suspension", "luminaire:neon", "luminaire:lustre",
-	"luminaire:applique", "luminaire:lampe_bureau", "luminaire:projecteur", "luminaire:bougies",
-	"luminaire:feu",
-]
+const TODO_LOT3 := []
 
 ## Lot 4 : objets de carte (portes, barricades, machines...).
 const TODO_LOT4 := [
@@ -89,6 +82,33 @@ const FROZEN := {
 		"boxes": [{"center": [0, 0.5, 0], "size": [1.3, 1.0, 0.75]}]},
 	"prefab:epave_voiture": {"fp": [9, 4], "h": 1.5, "bloque": "solide", "surface": "metal",
 		"boxes": [{"center": [0, 0.5, 0], "size": [4.3, 1.0, 1.8]}, {"center": [-0.2, 1.2, 0], "size": [2.2, 0.6, 1.6]}]},
+	# Lot 3 : décors des effets et luminaires (luminaires : montage, hauteur et réglages de la lumière).
+	"prefab:buches": {"fp": [1, 1], "h": 0.15, "bloque": "non", "surface": "wood"},
+	"prefab:planches_brulees": {"fp": [5, 2], "h": 0.1, "bloque": "non", "surface": "wood"},
+	"prefab:electrodes": {"fp": [3, 1], "h": 1.1, "bloque": "barriere", "surface": "metal",
+		"boxes": [{"center": [-0.62, 0.55, 0], "size": [0.2, 1.1, 0.2]}, {"center": [0.62, 0.55, 0], "size": [0.2, 1.1, 0.2]}]},
+	"prefab:bobine_tesla": {"fp": [1, 1], "h": 1.55, "bloque": "solide", "surface": "metal",
+		"boxes": [{"center": [0, 0.78, 0], "size": [0.4, 1.55, 0.4]}]},
+	"prefab:flaque_eau": {"fp": [3, 3], "h": 0.01, "bloque": "non", "surface": "tiles"},
+	"prefab:petite_flaque": {"fp": [2, 2], "h": 0.01, "bloque": "non", "surface": "tiles"},
+	"prefab:torche_murale": {"fp": [1, 1], "h": 0.5, "bloque": "non", "mount": "mur", "y": 1.8, "surface": "wood"},
+	"prefab:tuyau_vapeur": {"fp": [1, 1], "h": 0.2, "bloque": "non", "mount": "mur", "y": 1.2, "surface": "metal"},
+	"prefab:boitier_electrique": {"fp": [1, 1], "h": 0.45, "bloque": "non", "mount": "mur", "y": 1.6, "surface": "metal"},
+	"prefab:tuyau_fuite": {"fp": [2, 1], "h": 0.2, "bloque": "non", "mount": "mur", "y": 2.0, "surface": "metal"},
+	"prefab:cable_suspendu": {"fp": [1, 1], "h": 0.65, "bloque": "non", "mount": "plafond", "surface": "metal"},
+	"luminaire:ampoule": {"fp": [1, 1], "mount": "plafond", "drop": 0.75, "couleur": "#ffd9a0", "intensite": 1.6, "portee": 8.0, "courant": true, "vacille": false},
+	"luminaire:suspension": {"fp": [1, 1], "mount": "plafond", "drop": 0.7, "couleur": "#ffc88a", "intensite": 2.2, "portee": 10.0, "courant": true, "vacille": false},
+	"luminaire:neon": {"fp": [3, 1], "mount": "plafond", "drop": 0.15, "couleur": "#dcebff", "intensite": 2.0, "portee": 10.0, "courant": true, "vacille": false},
+	"luminaire:lustre": {"fp": [3, 3], "mount": "plafond", "drop": 1.1, "couleur": "#ffd6a0", "intensite": 2.8, "portee": 12.0, "courant": true, "vacille": false},
+	"luminaire:applique": {"fp": [1, 1], "mount": "mur", "y": 2.0, "couleur": "#ffc080", "intensite": 1.4, "portee": 7.0, "courant": true, "vacille": false},
+	"luminaire:lampe_bureau": {"fp": [1, 1], "mount": "sol", "y": 0.45, "couleur": "#ffe0b0", "intensite": 0.9, "portee": 5.0, "courant": true, "vacille": false,
+		"bloque": "non"},
+	"luminaire:projecteur": {"fp": [2, 2], "mount": "sol", "y": 1.7, "couleur": "#fff4e0", "intensite": 3.0, "portee": 14.0, "courant": true, "vacille": false,
+		"bloque": "barriere", "boxes": [{"center": [0, 0.85, 0], "size": [0.7, 1.7, 0.7]}]},
+	"luminaire:bougies": {"fp": [1, 1], "mount": "sol", "y": 0.25, "couleur": "#ff9a40", "intensite": 0.7, "portee": 4.5, "courant": false, "vacille": true,
+		"bloque": "non"},
+	"luminaire:feu": {"fp": [2, 2], "mount": "sol", "y": 1.15, "couleur": "#ff7a2a", "intensite": 2.4, "portee": 9.0, "courant": false, "vacille": true,
+		"bloque": "solide", "boxes": [{"center": [0, 0.45, 0], "size": [0.62, 0.9, 0.62]}]},
 }
 
 const PROPS_DIR := "res://assets/models/props/"
@@ -162,8 +182,12 @@ func test_converted_entries_keep_footprint_and_collisions() -> void:
 		var d: Dictionary = entries[k]
 		assert_true(is_voxel(d), "%s : modèle cubique" % k)
 		assert_eq(d.fp, f.fp, "%s : emprise inchangée" % k)
-		assert_near(float(d.h), float(f.h), 0.0001, "%s : hauteur inchangée" % k)
-		assert_eq(String(d.bloque), String(f.bloque), "%s : blocage inchangé" % k)
+		if f.has("h"):
+			assert_near(float(d.h), float(f.h), 0.0001, "%s : hauteur inchangée" % k)
+		assert_eq(d.get("bloque"), f.get("bloque"), "%s : blocage inchangé" % k)
+		# Pose murale, descente sous le plafond et réglages d'un luminaire.
+		for key in ["y", "drop", "couleur", "intensite", "portee", "courant", "vacille"]:
+			assert_eq(d.get(key), f.get(key), "%s : « %s » inchangé" % [k, key])
 		assert_eq(d.get("support"), f.get("support"), "%s : support inchangé" % k)
 		assert_eq(d.get("surface"), f.get("surface"), "%s : matière d'impact inchangée" % k)
 		assert_eq(d.get("mount"), f.get("mount"), "%s : montage inchangé" % k)

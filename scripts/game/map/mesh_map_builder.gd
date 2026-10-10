@@ -444,27 +444,6 @@ static func _special(key: String) -> Material:
 			m.metallic = 0.25 if key in ["paint_teal", "paint_blue"] else 0.0
 		"plank":
 			return WorldLook.surface("wood")
-		# Format 11 : décors des effets (EditorPrefabs._effect_decor).
-		"embers_wood", "charred", "tar_glow":
-			# Bois brûlé : braises qui rougeoient dans la masse.
-			m = StandardMaterial3D.new()
-			m.albedo_color = {"embers_wood": Color(0.06, 0.045, 0.035), "charred": Color(0.06, 0.05, 0.045), "tar_glow": Color(0.05, 0.04, 0.03)}[key]
-			m.roughness = 0.95
-			m.emission_enabled = true
-			m.emission = {"embers_wood": Color(0.9, 0.22, 0.04), "charred": Color(1.0, 0.28, 0.05), "tar_glow": Color(1.0, 0.35, 0.08)}[key]
-			m.emission_energy_multiplier = {"embers_wood": 0.07, "charred": 0.12, "tar_glow": 0.8}[key]
-		"water":
-			# Eau immobile : sombre, très brillante, à moitié transparente.
-			m = StandardMaterial3D.new()
-			m.albedo_color = Color(0.1, 0.12, 0.14, 0.5)
-			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			m.metallic = 0.6
-			m.roughness = 0.03
-		"copper", "porcelain", "paint_olive":
-			m = StandardMaterial3D.new()
-			m.albedo_color = {"copper": Color(0.55, 0.32, 0.18), "porcelain": Color(0.85, 0.82, 0.75), "paint_olive": Color(0.26, 0.29, 0.25)}[key]
-			m.metallic = {"copper": 0.9, "porcelain": 0.0, "paint_olive": 0.3}[key]
-			m.roughness = {"copper": 0.35, "porcelain": 0.6, "paint_olive": 0.7}[key]
 	if m != null:
 		_specials[key] = m
 	return m

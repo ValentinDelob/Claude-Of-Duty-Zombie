@@ -611,39 +611,16 @@ def chandelier_body(chain=True):
             beads(sag((math.cos(a) * 0.86, math.sin(a) * 0.86, -2.97), (math.cos(a) * 1.2, math.sin(a) * 1.2, -4.28), 0.3, 9))
 
 
-def m_chandelier():
-    chandelier_body(True)
-
-
-def m_sconce():
-    # Applique de laiton à deux lampes, origine au point de fixation murale
-    # (mur à y = 0, la lampe avance vers -Y).
-    with xf(S(1, 1, 1.5)):
-        cyl("brass", (0, -0.015, 0), 0.08, 0.03, "Y", 12)
-    sphere("brass", (0, -0.04, -0.14), 0.03, 8, 4)
-    for sx in (-1, 1):
-        arm = bezier((0, -0.03, 0.0), (0, -0.2, -0.05), (sx * 0.2, -0.22, -0.12), (sx * 0.2, -0.22, 0.04), 9)
-        tube("brass", arm, 0.013, 5)
-        cyl("brass", (sx * 0.2, -0.22, 0.06), 0.035, 0.05, "Z", 8, r2=0.05)
-        with ns():
-            sphere("bulb", (sx * 0.2, -0.22, 0.13), 0.035, 8, 4)
-            with xf(T(sx * 0.2, -0.22, 0)):
-                lathe("glass", [(0.0, 0.08), (0.04, 0.085), (0.075, 0.16), (0.09, 0.22), (0.0, 0.2)], 10)
-    tube("brass", bezier((0, -0.03, 0.08), (0, -0.12, 0.12), (0, -0.1, 0.22), (0, -0.05, 0.2), 6), 0.01, 4)
 
 
 # Modèles NON CUBIQUES encore utilisés, rangés par lot de conversion en cubes
 # de 5 cm (docs/VOXEL_DECOR_PLAN.md) : chaque lot retire ses lignes (et ses
 # fonctions m_*) une fois ses décors remplacés ; le dernier supprime ce script.
 BUILDERS = {
-
-    # Lot 3 : luminaires.
-    "chandelier": m_chandelier,
-    "sconce": m_sconce,
 }
 
 # Modèles suspendus ou muraux : pas de sol dans l'aperçu.
-NO_FLOOR = {"chandelier", "sconce"}
+NO_FLOOR = set()
 
 
 # ------------------------------------------------------------------ export
@@ -753,8 +730,6 @@ def preview(name, obs):
     dist = rad / math.sin(math.radians(17.5)) * 1.02
     d = Vector((-math.sin(az) * math.cos(el), -math.cos(az) * math.cos(el), math.sin(el)))
     views.append(("", c, c + d * dist, 50))
-    if name == "chandelier":
-        views.append(("_below", Vector((0, 0, -4.0)), Vector((-3, -5, -7.5)), 35))
     for suffix, tgt, loc, lens in views:
         target.location = tgt
         cam.location = loc

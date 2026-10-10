@@ -49,32 +49,32 @@ Collision : « cat. » = pavés `boxes` du catalogue (description : `blockers`) 
 | **projecteur_film** | glb `projector` (1 596) | 2×3 | 1,9 | solide | json | — | **2 ✔** |
 | **chariot** | code (roues cylindres) | 3×2 | 1,0 | solide | cat. | support 0,85 | **2 ✔** |
 | **epave_voiture** | code (boîtes tournées, roues) | 9×4 | 1,5 | solide | cat. (2) | — | **2 ✔** |
-| buches | code (cylindres) | 1×1 | 0,15 | non | — | — | 3 |
+| **buches** | code (cylindres) | 1×1 | 0,15 | non | — | — | **3 ✔** |
 | **foyer_pierres** | code (sphères, cylindres) | 3×3 | 0,3 | barriere | cat. | — | **pilote ✔** |
-| planches_brulees | code (boîtes tournées) | 5×2 | 0,1 | non | — | — | 3 |
-| electrodes | code (cylindres, sphères) | 3×1 | 1,1 | barriere | cat. (2) | — | 3 |
-| bobine_tesla | code (cylindres, sphère) | 1×1 | 1,55 | solide | cat. | — | 3 |
-| flaque_eau | code (disques plats, eau) | 3×3 | 0,01 | non | — | — | 3 |
-| petite_flaque | code (disque plat) | 2×2 | 0,01 | non | — | — | 3 |
-| torche_murale | code (manche incliné) | 1×1 | 0,5 | non | — | mur, y 1,8 | 3 |
-| tuyau_vapeur | code (cylindres) | 1×1 | 0,2 | non | — | mur, y 1,2 | 3 |
-| boitier_electrique | code (porte tournée, fils) | 1×1 | 0,45 | non | — | mur, y 1,6 | 3 |
-| tuyau_fuite | code (cylindre) | 2×1 | 0,2 | non | — | mur, y 2,0 | 3 |
-| cable_suspendu | code (cylindres fins) | 1×1 | 0,65 | non | — | plafond | 3 |
+| planches_brulees | code (boîtes tournées) | 5×2 | 0,1 | non | — | — | **3 ✔** |
+| electrodes | code (cylindres, sphères) | 3×1 | 1,1 | barriere | cat. (2) | — | **3 ✔** |
+| bobine_tesla | code (cylindres, sphère) | 1×1 | 1,55 | solide | cat. | — | **3 ✔** |
+| flaque_eau | code (disques plats, eau) | 3×3 | 0,01 | non | — | — | **3 ✔** |
+| petite_flaque | code (disque plat) | 2×2 | 0,01 | non | — | — | **3 ✔** |
+| torche_murale | code (manche incliné) | 1×1 | 0,5 | non | — | mur, y 1,8 | **3 ✔** |
+| tuyau_vapeur | code (cylindres) | 1×1 | 0,2 | non | — | mur, y 1,2 | **3 ✔** |
+| boitier_electrique | code (porte tournée, fils) | 1×1 | 0,45 | non | — | mur, y 1,6 | **3 ✔** |
+| tuyau_fuite | code (cylindre) | 2×1 | 0,2 | non | — | mur, y 2,0 | **3 ✔** |
+| cable_suspendu | code (cylindres fins) | 1×1 | 0,65 | non | — | plafond | **3 ✔** |
 
 ### 1.2 Luminaires (`MapCatalog.LIGHTS`, `EditorPrefabs.fixture`)
 
 | id | source avant | fp | montage | collision | lot |
 |---|---|---|---|---|---|
-| ampoule | code (fil, sphère émissive) | 1×1 | plafond, drop 0,75 | — | 3 |
-| suspension | code (abat-jour conique) | 1×1 | plafond, drop 0,7 | — | 3 |
-| neon | code (tubes cylindres) | 3×1 | plafond, drop 0,15 | — | 3 |
-| lustre | glb `chandelier` (6 032) à l'échelle 0,25 | 3×3 | plafond, drop 1,1 | — | 3 |
-| applique | glb `sconce` (580) | 1×1 | mur, y 2,0 | — | 3 |
-| lampe_bureau | code (pied, abat-jour) | 1×1 | sol, y 0,45 | — | 3 |
-| projecteur | code (trépied oblique) | 2×2 | sol, y 1,7 | cat. (barriere) | 3 |
-| bougies | code (cylindres) | 1×1 | sol, y 0,25 | — | 3 |
-| feu | code (baril cylindre, flammes) | 2×2 | sol, y 1,15 | cat. (solide) | 3 |
+| ampoule | code (fil, sphère émissive) | 1×1 | plafond, drop 0,75 | — | **3 ✔** |
+| suspension | code (abat-jour conique) | 1×1 | plafond, drop 0,7 | — | **3 ✔** |
+| neon | code (tubes cylindres) | 3×1 | plafond, drop 0,15 | — | **3 ✔** |
+| lustre | glb `chandelier` (6 032) à l'échelle 0,25 | 3×3 | plafond, drop 1,1 | — | **3 ✔** |
+| applique | glb `sconce` (580) | 1×1 | mur, y 2,0 | — | **3 ✔** |
+| lampe_bureau | code (pied, abat-jour) | 1×1 | sol, y 0,45 | — | **3 ✔** |
+| projecteur | code (trépied oblique) | 2×2 | sol, y 1,7 | cat. (barriere) | **3 ✔** |
+| bougies | code (cylindres) | 1×1 | sol, y 0,25 | — | **3 ✔** |
+| feu | code (baril cylindre, flammes) | 2×2 | sol, y 1,15 | cat. (solide) | **3 ✔** |
 
 Les **effets** (`MapCatalog.EFFECTS` : flammes, fumées, étincelles, arcs,
 eau, ambiance) sont des particules et des lumières, sans objet : hors du
@@ -275,3 +275,43 @@ Remarques par lot :
 - `foyer_pierres` : dix pierres en cercle (faces vers le feu noircies), lit
   de cendres et de braises, quatre bûches calcinées croisées à braises
   émissives.
+
+## 6. Lot 3 : décors des effets et luminaires convertis
+
+Scripts : `voxel_props/effets.py` (décors des effets) et
+`voxel_props/luminaires.py` (objets des 9 luminaires, type `ns`, parties
+lumineuses en `glow`). Anciens `chandelier` et `sconce` supprimés ; branches
+`_effect_decor` et `fixture` de `EditorPrefabs` retirées (un luminaire n'est
+plus que son modèle) ; matériaux `embers_wood`, `charred`, `tar_glow`,
+`water`, `copper`, `porcelain`, `paint_olive` retirés de
+`MeshMapBuilder._special` (plus utilisés). Contrôle propre au lot :
+`tests/test_voxel_decor_lot3.gd` (décor mural devant le mur, au plafond
+dessous, flaques d'une couche, emprise ; faces émissives là où le jeu pose
+la lumière ; matériau `voxel` sans ombre).
+
+| id | cellules | triangles | remarque |
+|---|---|---|---|
+| buches | 104 | 366 | deux rangs de bûches croisées, lit de cendres et braises |
+| planches_brulees | 259 | 1 104 | 5 planches en quarts de tour, bouts rongés, braises |
+| electrodes | 264 | 876 | tiges à ±0,6 m, isolateurs, boules de cuivre |
+| bobine_tesla | 436 | 862 | socle à bande de danger, bobinage, tore |
+| flaque_eau | 446 | 1 016 | une couche de 5 cm (h 0,01 garde l'aperçu) |
+| petite_flaque | 261 | 592 | idem |
+| torche_murale | 96 | 286 | manche remis d'aplomb, tête à 0,15-0,25 m, 0,25 m du mur |
+| tuyau_vapeur | 45 | 172 | bride, tuyau, raccord, vanne |
+| boitier_electrique | 137 | 350 | porte ouverte à 90°, disjoncteurs, fils |
+| tuyau_fuite | 182 | 428 | section en croix, manchons, colliers, fissure |
+| cable_suspendu | 19 | 110 | boîte de dérivation, câble, brins de cuivre |
+| ampoule | 28 | 144 | ampoule de 0,1 m à 0,75 m |
+| suspension | 121 | 360 | abat-jour d'émail vert en escalier |
+| neon | 160 | 200 | réglette, deux tubes de 1,2 m |
+| lustre | 389 | 1 406 | à sa taille finale (sans `scale`), 12 bougies |
+| applique | 108 | 316 | deux tulipes de verre dépoli à ±0,2 m |
+| lampe_bureau | 76 | 238 | abat-jour d'émail, ampoule à 0,45 m |
+| projecteur | 456 | 1 124 | mât, pieds en escalier, phare jaune vers +Z |
+| bougies | 58 | 220 | sur un haricot d'infirmerie en acier |
+| feu | 958 | 2 742 | fût rouillé en escalier, braises, flammes en cubes |
+
+Reste hors du lot : les **particules** des effets (`MapEffects`) et des
+impacts (`Fx`, `ParticlePool`) sont encore des panneaux texturés
+(`QuadMesh`, textures de `assets/textures/fx/`, billboard), pas des cubes.
