@@ -63,6 +63,16 @@ func _init() -> void:
 		elif path.begins_with("res://tests/_out/") or path.begins_with("res://build/") or path.begins_with("res://tools/") \
 				or path.begins_with("res://docs/") or path.begins_with("res://launcher/"):
 			bad.append("%s (dossier de travail)" % path)
+	# Fichiers de données lus par le jeu (contrats, échanges du hub…) : tous
+	# dans le paquet du jeu (export_presets.cfg, include_filter
+	# « assets/data/* »), sinon le jeu exporté tournerait sans eux.
+	if not vox:
+		var inside := {}
+		for f: Dictionary in files:
+			inside[f.path] = true
+		for want in data_files("res://assets/data"):
+			if not inside.has(want):
+				bad.append("%s (donnée du jeu absente du paquet)" % want)
 	if list_out != "":
 		var fo := FileAccess.open(list_out, FileAccess.WRITE)
 		fo.store_string("\n".join(lines) + "\n")
@@ -81,6 +91,17 @@ func _init() -> void:
 		print("[pack] ECHEC : %d fichier(s) parasite(s)" % bad.size())
 		ok = false
 	quit(0 if ok else 1)
+
+
+## Fichiers de données du projet sous `dir` (récursif, chemins res://).
+static func data_files(dir: String) -> PackedStringArray:
+	var out := PackedStringArray()
+	for f in DirAccess.get_files_at(dir):
+		if not f.ends_with(".import") and not f.ends_with(".uid"):
+			out.append(dir.path_join(f))
+	for d in DirAccess.get_directories_at(dir):
+		out.append_array(data_files(dir.path_join(d)))
+	return out
 
 
 ## Liste [{path, size}] d'un PCK Godot 4 (versions de format 2 à 4), [] si
