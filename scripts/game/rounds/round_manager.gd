@@ -90,6 +90,9 @@ func _process(delta: float) -> void:
 				_recycle_accum = 0.0
 			if to_spawn <= 0 and game.zombies.alive_count() == 0:
 				_end_round()
+				# Vague de boss vaincue : la porte d'évacuation s'ouvre aussi (§4.5).
+				if wave != "":
+					_wave_cleared()
 
 
 func _spawn_tick(delta: float) -> void:
@@ -124,6 +127,8 @@ func _begin_round(n: int) -> void:
 		# une vague de boss sans boss ne fait rien) ; branche prête pour les
 		# lots suivants, d'ici là manche normale.
 		push_warning("[Rounds] vague de boss « %s » : boss pas encore implémenté" % game.map_def.boss)
+		# Vague de boss quand même : vaincue, elle ouvre la porte d'évacuation.
+		wave = WaveRules.BOSS
 	if not boss_wave and dogs.is_dog_round(n):
 		wave = WaveRules.SPECIAL
 		to_spawn = 0

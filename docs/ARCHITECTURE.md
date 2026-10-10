@@ -864,7 +864,7 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   hors des écrans par `Autotest._move_offscreen`) et `## @parts N` (N parties
   parallèles avec `--part=k/N` ; `mine(i)` répartit une liste, `owns(k)` une
   section ; sans `--part`, tout tourne). Ports réseau : `AUTOTEST_PORT_OFFSET`,
-  décalé de 100 par place du pool.
+  décalé de 1000 par place du pool (les tests multijoueur occupent 17801 à 17999).
 
 ## Chiens de l'enfer (`scripts/game/dogs/`)
 
@@ -888,6 +888,20 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   Votes par l'interaction ([F] / X) ; état (ouverte, temps restant, votes)
   par `InteractionSystem._cl_state` ; décision du serveur (`EvacRules.decide`) :
   reprise (`RoundManager.srv_resume_after`) ou `Game.srv_end_match(true)`.
+  Une seule ouverture par manche, jamais après la fin de partie ; vague de
+  boss (carte avec `MapDef.boss`) : `RoundManager.wave = BOSS`, porte ouverte
+  à la fin de la manche. Joueur parti pendant la fenêtre : son vote est
+  oublié (`EvacRules.prune_votes`), le quorum se recalcule à chaque image.
+  Joueur mort ou à terre à l'évacuation : son butin compte ses armes mises de
+  côté (`PlayerData.saved_weapons`, transmises au client avec l'inventaire).
+  Tests : `test_evac_rules.gd`, scénarios `evacuation`, `evac_edges`,
+  multijoueur `mp:evac`, `mp:evacdown` (à terre puis mort), `mp:evacleave`
+  (client parti pendant la fenêtre).
+- Connexion (`Net.join`) : délai de CONNECT_TIMEOUT_SEC compté en temps de
+  jeu ET en temps réel (de même la présentation exigée par l'hôte et la
+  poignée de main de l'édition à plusieurs) : un jeu accéléré (`--fixed-fps`)
+  ou un hôte figé un instant ne fait pas échouer la connexion ; ENet renvoie
+  sa demande de plus en plus espacée.
 
 ## Emplacement de grenade : grenades et PELUCHES LEURRES (`scripts/game/throwables/`)
 

@@ -131,7 +131,10 @@ Deux scénarios, `mp_<nom>_host.gd` et `mp_<nom>_client.gd`, lancés ensemble
 par `tools/mp_test.sh <nom>` (sans délai entre les deux), à cadence fixe ×3.
 
 - Démarrage : `MpHelpers.host_game(self, PORT)` / `MpHelpers.join_game(self, PORT)`
-  (le client attend que l'hôte écoute, l'hôte que le client soit au salon).
+  (le client attend que l'hôte écoute, l'hôte que le client soit au salon ;
+  connexion abandonnée : le client réessaie, `MpHelpers.JOIN_TRIES`).
+- Port : unique parmi tous les tests multijoueur (17801 à 17999), toujours
+  `+ MpHelpers.port_offset()` (check.sh décale de 1000 par place).
 - **Jamais de délai fixe pour attendre l'autre jeu** : rendez-vous par
   fichiers, `MpHelpers.signal_peer("etape")` d'un côté,
   `await MpHelpers.wait_peer(self, "etape", délai)` de l'autre (dossier

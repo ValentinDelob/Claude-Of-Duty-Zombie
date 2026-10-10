@@ -4,7 +4,7 @@ extends AutotestScenario
 ## ferraille d'un kill ; puis une seconde fente (couteau de chasse supprimé :
 ## lot C).
 
-const PORT := 17881
+const PORT := 17885
 
 
 func run() -> void:

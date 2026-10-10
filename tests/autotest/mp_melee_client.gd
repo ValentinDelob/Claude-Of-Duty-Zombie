@@ -2,7 +2,7 @@ extends AutotestScenario
 ## [MP] Client : fente au couteau sur les zombies (marionnettes) apparus devant
 ## lui, deux fois (le couteau de chasse est supprimé : lot C).
 
-const PORT := 17881
+const PORT := 17885
 
 
 func run() -> void:

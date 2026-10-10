@@ -58,6 +58,16 @@ static func voters(life: Dictionary) -> Array:
 	return out
 
 
+## Votes des seuls joueurs encore dans la partie (`life` : pid -> Life) ;
+## les votes d'un joueur parti sont oubliés.
+static func prune_votes(votes: Dictionary, life: Dictionary) -> Dictionary:
+	var out := {}
+	for pid in votes:
+		if life.has(pid):
+			out[pid] = votes[pid]
+	return out
+
+
 ## Décision du serveur : `votes` (pid -> Vote), `life` (pid -> Life),
 ## `in_zone` (pid -> bool, joueur dans la zone de la porte), `time_left` (s).
 static func decide(votes: Dictionary, life: Dictionary, in_zone: Dictionary, time_left: float) -> String:

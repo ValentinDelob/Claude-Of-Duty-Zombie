@@ -34,7 +34,8 @@ var bag: Array = []
 var level := 1
 ## Couteau de mêlée (KnifeDB).
 var knife := KnifeDB.DEFAULT
-## Armes mises de côté pendant que le joueur est à terre (serveur).
+## Armes mises de côté pendant que le joueur est à terre ou mort (serveur,
+## copie chez les clients : inventory_dict).
 var saved_weapons: Array = []
 ## Emplacement de grenade (GAME_CONCEPT §4.12 bis) : UNE sorte d'objet à la
 ## fois (`throwable`, ThrowableRules.Kind) et sa quantité (`grenades`, au plus
@@ -65,7 +66,8 @@ func is_alive() -> bool:
 
 
 func inventory_dict() -> Dictionary:
-	return {"weapons": weapons.duplicate(true), "slot": slot, "knife": knife, "bag": bag.duplicate(true)}
+	return {"weapons": weapons.duplicate(true), "slot": slot, "knife": knife, "bag": bag.duplicate(true),
+		"saved": saved_weapons.duplicate(true)}
 
 
 func apply_inventory(d: Dictionary) -> void:
@@ -73,6 +75,10 @@ func apply_inventory(d: Dictionary) -> void:
 	slot = d.get("slot", 0)
 	knife = d.get("knife", KnifeDB.DEFAULT)
 	bag = d.get("bag", []).duplicate(true)
+	# Armes mises de côté à terre ou mort : le client les compte dans son
+	# butin si l'équipe s'évacue pendant qu'il est spectateur (ProfileLoot).
+	var s: Variant = d.get("saved", [])
+	saved_weapons = (s as Array).duplicate(true) if s is Array else []
 
 
 ## Puissance (GAME_CONCEPT §4.13) : somme des scores des armes en main.
