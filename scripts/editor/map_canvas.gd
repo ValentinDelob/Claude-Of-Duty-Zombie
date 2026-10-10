@@ -1018,7 +1018,7 @@ func _update_preview() -> void:
 			# Sans grille : là où est le curseur (au centimètre).
 			var free := mode_now() == "libre"
 			if it.get("wall_snap", false):
-				# Boîte mystère (format 15) : au sol, ou collée au mur proche
+				# Caisse au hasard (format 15) : au sol, ou collée au mur proche
 				# face à la pièce (Alt : sans aimant).
 				res = MapRules.place_box(ed.doc, k, o, MapGeom.round_cm(mouse_m) if free else mouse_m, "", not free, not angle_free())
 				if res.ok:
@@ -2201,9 +2201,6 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 		return
 	# Objets muraux et au sol : icône dans leur emprise.
 	draw_rect(rp, Color(0, 0, 0, 0.35 * alpha))
-	if t == "arme" and MapCatalog.variant_of(o) == "planche":
-		# Variante « planche » : la craie sur une planche (fond bois).
-		draw_rect(rp.grow(-1.0), Color(0.45, 0.3, 0.16, 0.75 * alpha))
 	var s := maxf(12.0, minf(rp.size.x, rp.size.y) * 1.1)
 	if t == "lampe" or t == "luminaire":
 		s = maxf(14.0, zoom * 0.9)
@@ -2213,7 +2210,7 @@ func _draw_object(o: Dictionary, _font: Font, alpha: float) -> void:
 		draw_arc(rp.get_center(), float(o.get("portee", 8.0)) * zoom, 0, TAU, 48, Color(col, 0.4), 1.0)
 
 
-## Boîte mystère au sol (format 15) : emprise tournée (2 × 1 m), icône, avant
+## Caisse au hasard au sol (format 15) : emprise tournée (2 × 1 m), icône, avant
 ## de la boîte (côté où s'ouvre le couvercle) en trait épais et flèche.
 func _draw_floor_box(o: Dictionary, it: Dictionary, col: Color, alpha: float) -> void:
 	var poly := _px_poly(MapRaster.floor_poly(o))

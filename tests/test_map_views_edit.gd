@@ -76,7 +76,7 @@ func test_pose_kinds() -> void:
 	assert_eq(MapVertical.pose_kind({"type": "porte"}), "fixe")
 	assert_eq(MapVertical.pose_kind({"type": "fenetre"}), "fixe")
 	assert_eq(MapVertical.pose_kind({"id": "p1", "contour": []}), "niveau")
-	for t in ["escalier", "pilier", "mur", "piege", "atout", "depart", "apparition", "teleporteur"]:
+	for t in ["escalier", "pilier", "mur", "piege", "courant", "depart", "apparition", "teleporteur"]:
 		assert_eq(MapVertical.pose_kind({"type": t}), "niveau", t)
 
 
@@ -136,13 +136,12 @@ func test_room_changes_floor_with_its_content() -> void:
 	var ed := await _editor(doc)
 	var ev := _view(ed)
 	ed.select("p5")
-	var b3 := ed.doc.find("b3")
-	assert_eq(ed.doc.level_of(b3), 1)
+	assert_eq(ed.doc.level_of(ed.doc.find("b3")), 1)
 	var e := ev.projected_of("p5")
 	var c := Vector2((float(e.u0) + float(e.u1)) * 0.5, (float(e.v0) + float(e.v1)) * 0.5)
 	_drag(ev, c, c + Vector2(0.0, -3.5))
 	assert_eq(ed.doc.level_of(ed.doc.find("p5")), 2, "passerelle montée à l'étage 2")
-	assert_eq(ed.doc.level_of(ed.doc.find("b3")), 2, "sa boîte avec elle")
+	assert_eq(ed.doc.level_of(ed.doc.find("b3")), 2, "sa caisse avec elle")
 	assert_eq(ed.doc.level_of(ed.doc.find("c1")), 2, "son interrupteur avec elle")
 	ed.undo()
 	assert_eq(ed.doc.level_of(ed.doc.find("p5")), 1)

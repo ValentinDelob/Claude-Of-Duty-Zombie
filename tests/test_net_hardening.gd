@@ -59,10 +59,6 @@ func test_asset_names_and_ids() -> void:
 	assert_true(CustomMapGuard.asset_name_ok("seat_broken_a"))
 	for bad in ["../x", "a/b", "", "x.glb", "res://x", "a b"]:
 		assert_false(CustomMapGuard.asset_name_ok(bad), "nom de modèle refusé : " + bad)
-	assert_true(CustomMapGuard.perk_ok("titan") and CustomMapGuard.perk_ok("lazarus"))
-	assert_false(CustomMapGuard.perk_ok("../boot") or CustomMapGuard.perk_ok(3) or CustomMapGuard.perk_ok(""))
-	assert_true(CustomMapGuard.weapon_ok("m14") and CustomMapGuard.weapon_ok("bowie"))
-	assert_false(CustomMapGuard.weapon_ok("raygun_9000") or CustomMapGuard.weapon_ok(null))
 
 
 func test_models_dir_filtered() -> void:

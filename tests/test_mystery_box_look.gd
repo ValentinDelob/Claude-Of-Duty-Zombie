@@ -1,5 +1,5 @@
 extends TestCase
-## Apparence de la boîte mystère (BoxModel) : le modèle Blender garde
+## Apparence de la caisse au hasard (BoxModel) : le modèle Blender garde
 ## l'empreinte et le point d'interaction de la boîte, le couvercle pivote sur
 ## sa charnière, la colonne de lumière et la lampe restent discrètes.
 
@@ -15,17 +15,13 @@ func after_each() -> void:
 func _box() -> MysteryBox:
 	_parent = Node3D.new()
 	host.add_child(_parent)
-	var markers: Array[MapMarker] = []
-	for i in 2:
-		var m := MapMarker.new()
-		m.id = "box_%d" % i
-		m.pos = Vector3(2.0 + i * 6.0, 0.0, 3.0)
-		m.wall = Vector3(0, 0, -1)
-		markers.append(m)
+	var m := MapMarker.new()
+	m.id = "box_0"
+	m.pos = Vector3(2.0, 0.0, 3.0)
+	m.wall = Vector3(0, 0, -1)
 	var box := MysteryBox.new()
-	box.setup_spots(markers, 0)
+	box.setup_spot(m)
 	_parent.add_child(box)
-	# Tas de planches des emplacements vides : ajoutés en différé.
 	await wait_frames(1)
 	return box
 
@@ -98,31 +94,19 @@ func test_couvercle_ouvert_hors_du_mur() -> void:
 	assert_near(box.global_position.z - MysteryBox.SPOT_WALL_GAP, wall_z, 0.0001, "mur à SPOT_WALL_GAP du centre")
 
 
-## Bug joueur : sur l'hôte, `state` et `location` sont déjà changés quand
-## l'état diffusé revient (call_local) ; après l'envol, la boîte doit
-## réapparaître quand même, au même endroit ou ailleurs.
-func test_boite_reapparait_apres_l_ours_sur_l_hote() -> void:
-	for target in [0, 1]:
-		var box := await _box()
-		box.state = MysteryBox.State.MOVING
-		box.apply_state(box.get_state(), false)
-		box._root.position.y = 6.0
-		box._root.visible = false
-		# Comme _process puis _close côté serveur.
-		box.location = target
-		box.state = MysteryBox.State.IDLE
-		box.apply_state(box.get_state(), true)
-		assert_true(box._root.visible, "boîte visible après l'envol (emplacement %d)" % target)
-		assert_eq(box._root.position.y, 0.0, "posée au sol")
-		assert_true(box.global_position.is_equal_approx(box.spots[target].pos), "à l'emplacement %d" % target)
-		assert_false(box._markers[target].visible, "pas de tas de planches sous la boîte")
-		after_each()
-
-
-func test_jamais_d_ours_avec_un_seul_emplacement() -> void:
-	for use in [1, 4, 8, 13, 40]:
-		assert_eq(MysteryBox.skull_chance(use, 0, 1), 0.0, "un seul emplacement : pas d'ours (tirage %d)" % use)
-	assert_near(MysteryBox.skull_chance(8, 0, 2), 1.0, 0.001, "deux emplacements : règles de BO1")
+## Caisse fixe (lot C) : plus d'état de déménagement, l'objet tiré
+## s'affiche au-dessus du coffre puis disparaît à la fermeture.
+func test_caisse_fixe_affiche_l_objet() -> void:
+	var box := await _box()
+	assert_eq(MysteryBox.State.keys(), ["IDLE", "ROLLING", "READY"], "ni ours ni déménagement")
+	var pos := box.global_position
+	box.apply_state({"state": MysteryBox.State.READY, "item": "decoy", "owner": 1}, false)
+	assert_true(box._display_model != null and box._display_model.name == "Decoy", "peluche leurre affichée")
+	box.apply_state({"state": MysteryBox.State.IDLE, "item": "", "owner": 0}, false)
+	assert_true(box._display_model == null, "rien après la fermeture")
+	assert_true(box.global_position.is_equal_approx(pos), "toujours au même endroit")
+	box.apply_state({"state": MysteryBox.State.READY, "item": "frag", "owner": 1}, false)
+	assert_true(box._display_model != null and box._display_model.name == "Frag", "grenade affichée")
 
 
 ## Colonne de lumière et lampe « discrètes » (demande des joueurs : l'ancien
@@ -163,25 +147,11 @@ func test_ouverture_allume_le_fond() -> void:
 	assert_near(box._light.light_energy, MysteryBox.LIGHT_IDLE_ENERGY, 0.0001, "lampe au repos")
 
 
-## Bug joueur : l'ours n'était qu'un cube. Nounours modélisé, face au joueur,
-## posé au-dessus du coffre (pas dans le couvercle ni le coffre).
-func test_nounours_au_depart() -> void:
-	var box := await _box()
-	box._display.rotation.y = 2.0  # laissé tourné par l'arme précédente
-	box.state = MysteryBox.State.MOVING
-	box.apply_state(box.get_state(), false)
-	var teddy := box._display_model
-	assert_true(teddy != null and teddy.name == "Teddy", "nounours affiché")
-	assert_true(teddy.get_node_or_null("Head") != null, "tête du nounours")
+## Peluche leurre : ours en peluche modélisé (TeddyModel, pas un cube).
+func test_peluche_leurre_modelisee() -> void:
+	var m := Throwable.build_model(ThrowableRules.Kind.DECOY, false)
+	var teddy := m.get_node_or_null("Teddy")
+	assert_true(teddy != null and teddy.get_node_or_null("Head") != null, "tête du nounours")
 	assert_true(teddy.find_children("*", "MeshInstance3D", true, false).size() >= 20, "modèle détaillé, pas un cube")
-	assert_near(box._display.rotation.y, 0.0, 0.0001, "face au joueur")
-	var inv := box._root.global_transform.affine_inverse()
-	var aabb := AABB()
-	var first := true
-	for mi: MeshInstance3D in teddy.find_children("*", "MeshInstance3D", true, false):
-		var a: AABB = (inv * mi.global_transform) * mi.get_aabb()
-		aabb = a if first else aabb.merge(a)
-		first = false
-	assert_true(aabb.position.y >= 0.75, "au-dessus du coffre (bas à %.2f m)" % aabb.position.y)
-	assert_true(aabb.size.y > 0.5 and aabb.size.y < 0.8, "hauteur lisible (%.2f m)" % aabb.size.y)
-	assert_true(aabb.end.z > absf(aabb.position.z), "tourné vers l'avant de la boîte")
+	assert_near(teddy.scale.x, Throwable.DECOY_SCALE, 0.0001, "réduit à ~21 cm")
+	m.free()

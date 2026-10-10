@@ -1,7 +1,7 @@
 class_name ThrowView
 extends Node3D
 ## Main qui lance, vue à la première personne (joueur local) : la main droite
-## monte avec la grenade (ou le singe), la main gauche arrache la goupille, le
+## monte avec la grenade (ou la peluche leurre), la main gauche arrache la goupille, le
 ## bras armé en arrière tremble quand la mèche arrive à sa fin, puis le lancer
 ## part en avant. Fils de la caméra, comme ViewModel.
 
@@ -26,16 +26,16 @@ func _ready() -> void:
 	add_child(_hand)
 	# Avant-bras vers le bas-droite de l'écran, main refermée sur l'objet.
 	_hand.add_child(ViewHands.throw_hand(maxi(ViewModel.style, 0), false))
-	for k in [ThrowableRules.Kind.FRAG, ThrowableRules.Kind.MONKEY]:
+	for k in [ThrowableRules.Kind.FRAG, ThrowableRules.Kind.DECOY]:
 		var o := Throwable.build_model(k, true)
 		o.position = Vector3(0.0, 0.0, 0.0) if k == ThrowableRules.Kind.FRAG else Vector3(0.0, -0.06, 0.0)
 		o.scale = Vector3.ONE * (1.0 if k == ThrowableRules.Kind.FRAG else 0.7)
-		if k == ThrowableRules.Kind.MONKEY:
+		if k == ThrowableRules.Kind.DECOY:
 			o.rotation.y = PI * 0.75  # vu de trois quarts dos
 		o.visible = false
 		_hand.add_child(o)
 		_objects[k] = o
-	# Main gauche (arrache la goupille / remonte la clé du singe).
+	# Main gauche (arrache la goupille / serre la peluche).
 	_left = Node3D.new()
 	add_child(_left)
 	_left.add_child(ViewHands.throw_hand(maxi(ViewModel.style, 0), true))
@@ -89,7 +89,7 @@ func pose(delta: float, phase: int, k: float, danger: float) -> void:
 		ThrowController.Phase.PULL:
 			target = HIDDEN.lerp(READY, ease(minf(k * 1.6, 1.0), 0.4))
 			trot = Vector3(0.3, 0.2, 0.0)
-			# La main gauche vient arracher la goupille (ou tourner la clé).
+			# La main gauche vient arracher la goupille (ou serrer la peluche).
 			left_k = sin(clampf((k - 0.35) / 0.65, 0.0, 1.0) * PI)
 			if _pin and k > 0.6:
 				_pin.position = Vector3(0.018, 0.05, 0).lerp(Vector3(-0.2, 0.02, 0.05), (k - 0.6) / 0.4)

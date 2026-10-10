@@ -253,7 +253,7 @@ static func _scale_section(p: MapPanels, o: Dictionary, oid: String) -> void:
 		rt.add_theme_font_size_override("bold_font_size", 12)
 		rt.add_theme_color_override("default_color", COL_WARN)
 		var bold := func(x: String) -> String: return "[b][color=#%s]%s[/color][/b]" % [COL_WARN_B.to_html(false), x]
-		# « il contient un Pack-a-Punch » : l'article, puis le nom en gras.
+		# « il contient un téléporteur » : l'article, puis le nom en gras.
 		var what := ""
 		if blockers.size() == 1:
 			var b0: Array = blockers[0]
@@ -261,8 +261,8 @@ static func _scale_section(p: MapPanels, o: Dictionary, oid: String) -> void:
 			what = art + bold.call(Lang.t(String(b0[2]), String(b0[3])))
 		else:
 			what = bold.call(Lang.t(nt[0], nt[1]))
-		rt.text = Lang.t("%s il contient %s. Les objets de jeu (atouts, armes murales, boîte, Pack-a-Punch, portes, fenêtres…) gardent leur taille.",
-			"%s it contains %s. Game objects (perks, wall weapons, box, Pack-a-Punch, doors, windows…) keep their size.") % [
+		rt.text = Lang.t("%s il contient %s. Les objets de jeu (caisse au hasard, téléporteur, portes, fenêtres…) gardent leur taille.",
+			"%s it contains %s. Game objects (random crate, teleporter, doors, windows…) keep their size.") % [
 			bold.call(Lang.t("⚠ Ce prefab ne peut pas changer d'échelle :", "⚠ This prefab cannot be scaled:")), what]
 		rt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		w.add_child(rt)

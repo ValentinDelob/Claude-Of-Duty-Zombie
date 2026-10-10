@@ -68,33 +68,15 @@ func doors() -> Array[MapMarker]:
 	return []
 
 
-## Achats muraux : data = {weapon}.
-func wall_buys() -> Array[MapMarker]:
-	return []
-
-
-## Distributeurs d'atouts : data = {perk}.
-func perks() -> Array[MapMarker]:
-	return []
-
-
-## Achats muraux de grenades.
-func grenade_buys() -> Array[MapMarker]:
-	return []
-
-
 ## Interrupteur du courant (null : courant présent dès le départ).
 func power_switch() -> MapMarker:
 	return null
 
 
-## Emplacements de la boîte mystère (ordre stable : index de MapDef.box_start).
+## Emplacements de la caisse au hasard (ordre stable : index de
+## MapDef.box_start). Le jeu n'en garde qu'un (Game._build_mystery_box).
 func box_spots() -> Array[MapMarker]:
 	return []
-
-
-func pack_a_punch() -> MapMarker:
-	return null
 
 
 ## Porte d'évacuation (null : la carte n'en a pas ; EvacDoor).
@@ -153,13 +135,3 @@ func floor_y(_pos: Vector3) -> float:
 ## Orientation des joueurs à l'apparition (lacet ; PI : vers +z).
 func player_spawn_yaw() -> float:
 	return PI
-
-
-## Tableaux indicateurs de la boîte (Kino der Toten) : MapMarker muraux.
-func box_boards() -> Array[MapMarker]:
-	return []
-
-
-## Contours des salles ([[x, z]...], plan) pour les plans à la craie.
-func room_outlines() -> Array:
-	return []

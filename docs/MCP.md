@@ -91,7 +91,7 @@ n'est pas une ressource). `tools/pack_check.gd` les admet nommément
 | `editor_validate` | validateur de l'éditeur (erreurs, avertissements BO1) |
 | `editor_screenshot` | image du plan d'un niveau (`view` « dessus », `altitude` en m ; défaut : celui des `ids`, sinon celui affiché) ou d'une élévation (`avant`, `arriere`, `gauche`, `droite`, `dessous`, `coupe` [p0, p1] facultative), bornes en mètres |
 | `editor_highlight` | montre des éléments à l'utilisateur (contour pulsé + bulle ; `select`) |
-| `editor_catalog` | types d'objets admis, décors, luminaires, armes, atouts |
+| `editor_catalog` | types d'objets admis, décors, luminaires, effets |
 | `editor_events` | derniers événements de l'éditeur (changements des autres, sélection, participants ; 100 gardés par le serveur) |
 | `editor_plan_corridor` | **propose** un couloir (droit ou en L) entre deux pièces de même altitude, sans l'appliquer (altitudes différentes : « reliez-les par un escalier ») |
 | `editor_prefab_list` | prefabs de la carte (référence `map:<pid>`, emprise, collision, modèle, nombre de poses) |

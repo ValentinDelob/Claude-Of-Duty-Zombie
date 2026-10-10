@@ -6,10 +6,10 @@ extends AutotestScenario
 ## HAUTE, luminance mesurée sur chaque capture (part de pixels brûlés,
 ## luminance moyenne) ; HAUTE ne doit jamais être nettement plus brûlée que
 ## MOYENNE.
-##  1. BUNKER K-7 en partie : boîte mystère au repos, pendant le tirage, arme
-##     prête ; courant rétabli : lampe, Pack-a-Punch, atout, flamme de bouche ;
+##  1. BUNKER K-7 en partie : caisse au hasard au repos, pendant le tirage, objet
+##     prêt ; courant rétabli : lampe, flamme de bouche ;
 ##  2. éditeur, aperçu 3D de DRAFT ARENA avec tous les luminaires : lampes de
-##     près et de dessous, boîte mystère, vue d'ensemble.
+##     près et de dessous, caisse au hasard, vue d'ensemble.
 ## Captures : tests/_out/shots/glare_look_*.png.
 
 var H := AutotestHelpers
@@ -77,19 +77,17 @@ func _game_pass() -> void:
 		await _shot(at.get_viewport(), "boite_repos_" + qn)
 		p.input.interact_pressed = true
 		await until(func(): return box.state == MysteryBox.State.ROLLING, 2.0, "défilement")
-		await seconds(1.2)  # capture : couvercle ouvert, armes qui défilent
+		await seconds(1.2)  # capture : couvercle ouvert, objets qui défilent
 		await _shot(at.get_viewport(), "boite_tirage_" + qn)
-		await until(func(): return box.state == MysteryBox.State.READY, 6.0, "arme prête")
+		await until(func(): return box.state == MysteryBox.State.READY, 6.0, "objet prêt")
 		await seconds(0.3)
 		await _shot(at.get_viewport(), "boite_prete_" + qn)
 		p.input.interact_pressed = true
-		await until(func(): return box.state == MysteryBox.State.IDLE, 2.0, "arme prise")
-	# Courant rétabli : lampes, Pack-a-Punch et atouts allumés.
+		await until(func(): return box.state == MysteryBox.State.IDLE, 2.0, "objet pris")
+	# Courant rétabli : lampes allumées.
 	(game.interact.get_obj("power") as PowerSwitch).srv_use(1)
 	await seconds(3.0)  # cascade d'allumage terminée
 	var lamp := _nearest_lamp(p.global_position)
-	var pap: Node3D = game.interact.get_obj("pap")
-	var perks := tree().current_scene.find_children("*", "PerkMachine", true, false)
 	# Arme de départ en main (flamme de bouche), chargeur plein.
 	var pd := game.session.local_data()
 	pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
@@ -101,10 +99,6 @@ func _game_pass() -> void:
 		await _set_quality(q)
 		if lamp != null:
 			await _look_at(p, lamp.global_position, 3.0, "lampe_" + qn)
-		if pap != null:
-			await _look_at(p, pap.global_position + Vector3.UP * 1.0, 2.8, "pap_" + qn)
-		if not perks.is_empty():
-			await _look_at(p, (perks[0] as Node3D).global_position + Vector3.UP * 1.2, 2.8, "atout_" + qn)
 		# Flamme de bouche : capture pendant le tir, face à un mur sombre.
 		p.input.fire = true
 		for i in 30:
@@ -161,7 +155,7 @@ func _look_at(p: Player, target: Vector3, dist: float, shot_name: String) -> voi
 
 ## Joueur à `dist` m devant la boîte, qui la regarde.
 func _place(p: Player, box: MysteryBox, dist: float) -> void:
-	var n: Vector3 = box.spots[box.location].normal
+	var n: Vector3 = box.spot.normal
 	var fwd := -Vector3(n.x, 0, n.z).normalized()
 	p.teleport_to(box.global_position + fwd * dist + fwd.cross(Vector3.UP) * 0.6 + Vector3(0, 0.05, 0))
 	await frames(2)
@@ -202,7 +196,7 @@ func _editor_pass() -> void:
 	var views := [
 		["lampes", Vector3(10.0, 1.8, 26.0), 0.0, -0.12, 5.0],
 		["lampes_dessous", Vector3(9.5, 2.4, 25.5), PI * 0.8, 0.15, 3.5],
-		["boite", Vector3(6.75, 1.0, 17.5), PI, -0.25, 3.5],
+		["boite", Vector3(3.75, 4.5, 4.5), PI, -0.25, 3.5],
 		["ensemble", Vector3(10.0, 0.0, 22.0), 0.5, -0.85, 22.0],
 	]
 	for v in views:

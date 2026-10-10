@@ -63,9 +63,9 @@ func run() -> void:
 	# s'appliquent, sans points ni confirmation envoyée à un pair inconnu.
 	var gone := 4242
 	var zg := await H.dummy_zombie(self, p.global_position - p.global_transform.basis.x * 6.0, 100)
-	var team0 := game.points.team_earned
+	var pts0 := game.session.local_data().points
 	game.combat.damage_zombie(zg.id, 500, gone, false, Vector3.FORWARD, Combat.HitKind.SPLASH)
-	at.check(not zg.is_alive() and game.points.team_earned == team0, "coup d'un joueur parti : zombie tué, aucun point")
+	at.check(not zg.is_alive() and game.session.local_data().points == pts0, "coup d'un joueur parti : zombie tué, aucune ferraille")
 	await H.clear_zombies(self)
 	z = await H.dummy_zombie(self, p.global_position - p.global_transform.basis.z * 2.6, 5000)
 	H.aim_at(p, z.hit_body.global_position)

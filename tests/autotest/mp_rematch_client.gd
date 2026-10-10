@@ -50,7 +50,7 @@ func run() -> void:
 			return
 		var game := Game.instance
 		var pd := game.session.local_data()
-		at.check(Net.local_id() == my_id and pd.points == PlayerData.STARTING_POINTS and pd.perks.is_empty(),
+		at.check(Net.local_id() == my_id and pd.points == PlayerData.STARTING_POINTS and pd.grenades == ThrowableRules.FRAG_START,
 			"partie %d : même pair, état neuf (%d points)" % [n, pd.points])
 		at.check(game.map_def.id == Net.lobby_map and CustomMapGuard.is_cached(game.map_def.id.trim_prefix(EditorMapDef.SHARED_PREFIX)),
 			"partie %d : carte perso du cache" % n)

@@ -4,7 +4,7 @@ extends AutotestScenario
 ## poursuite et 4 chiens de l'enfer gardés en vie. Deux phases par carte :
 ##   * « horde » : la horde au contact, le joueur (invulnérable) ne tire pas ;
 ##   * « combat » : le bot tire en continu (touches, démembrements, morts,
-##     bonus, réapparitions) et une grenade explose toutes les 2 s.
+##     réapparitions) et une grenade explose toutes les 2 s.
 ## Sur DRAFT ARENA (carte de l'éditeur, à étages).
 ##   godot --headless --fixed-fps 60 --path . -- --autotest=perf_cpu
 ##   bash tools/profile.sh     (copie instrumentée : détail par fonction)
@@ -108,10 +108,6 @@ func _start(map_id: String) -> bool:
 			_spots.append(sp.pos)
 	_probe_first = _make_probe(true)
 	_probe_last = _make_probe(false)
-	# Quelques bonus posés au sol (modèles qui tournent).
-	var kinds := [PowerupRules.MAX_AMMO, PowerupRules.DOUBLE_POINTS, PowerupRules.CARPENTER]
-	for i in mini(3, _spots.size()):
-		game.powerups.debug_drop(kinds[i], _spots[i] + Vector3.UP * 0.1)
 	return true
 
 

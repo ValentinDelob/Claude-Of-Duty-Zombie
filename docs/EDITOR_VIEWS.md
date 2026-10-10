@@ -137,7 +137,7 @@ Altitude dans le monde = `etages[k].sol` + hauteur locale. Un étage :
 | **Passage** | — | ouvert jusqu'au plus bas des plafonds des deux pièces (au-dessus : retombée du mur) | — |
 | **Fenêtre** | `variante` | allège 0,95, linteau 2,35 (`SILL`, `LINTEL`) ; porte à zombies 2,1 | — |
 | **Escalier** | `etage` | monte de `sol(k)` à `sol(k+1)` | escalier sur plusieurs étages |
-| **Objets muraux** (atout, arme, boîte, Pack-a-Punch, courant, poste central, levier, grenades) | `etage` | au sol ; tableau d'arme 1,45, tableau de la boîte 1,65, levier 1,3 | — (gameplay fixe) |
+| **Objets muraux** (caisse au hasard, courant, poste central, levier) | `etage` | au sol ; levier 1,3 | — (gameplay fixe) |
 | **Départ, apparition, téléporteur, arrivée** | `etage` | au sol | — |
 | **Piège** | `etage` | zone de 0 à 2,5 m | — |
 | **Décor (prefab)** | `etage` | posé au sol ; `h` (hauteur du modèle), `support` (dessus d'un meuble) | **hauteur de pose** (empiler, poser sur une étagère) |
@@ -220,7 +220,7 @@ Dessous, la vue montre le niveau affiché vu par en dessous, plafonds compris.
   | Sol de la carte | trait Z = 0 orange (comme les axes du plan), terrain hachuré sous le sol le plus bas |
   | Ouvertures | rectangles colorés à leur vraie hauteur : porte de 0 à `hauteur_portes`, fenêtre de 0,95 à 2,35, passage jusqu'au plus bas des deux plafonds ; prix au-dessus de la porte |
   | Escalier | profil en marches quand on le voit de côté, bandes de contremarches quand on le voit de face |
-  | Objets muraux et au sol | boîte à leur hauteur réelle (tableaux, machines, décor d'après `h` et `boxes`), icône du plan si la place le permet |
+  | Objets muraux et au sol | boîte à leur hauteur réelle (caisse, machines, décor d'après `h` et `boxes`), icône du plan si la place le permet |
   | Luminaires, effets | icône à leur hauteur de lumière, trait fin pointillé jusqu'à leur point d'accroche (plafond, mur, sol) |
   | Barrière invisible | boîte hachurée violette jusqu'à sa `hauteur` |
 

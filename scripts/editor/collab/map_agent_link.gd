@@ -475,7 +475,7 @@ static func catalog() -> Dictionary:
 			entry["descend"] = true
 			entry["note"] = "escalier qui descend du niveau d'altitude A : écrire un « escalier » dont « altitude » est le niveau du dessous et « altitude_haut » = A, « monte » pointe vers l'endroit où l'on arrive en haut"
 		if it.get("wall_snap", false):
-			# Format 15 : boîte mystère au sol ou contre un mur.
+			# Format 15 : caisse au hasard au sol ou contre un mur.
 			entry["note"] = "au sol : « position » = centre et « rot » (0 : avant au sud), sans « mur » ; contre un mur : « position » sur le trait et « mur » (+ « angle »), sans « rot »"
 		items.append(entry)
 	var prefabs := {}
@@ -506,19 +506,17 @@ static func catalog() -> Dictionary:
 		var d: Dictionary = MapCatalog.EFFECTS[f]
 		effects[f] = {"fr": d.fr, "en": d.en, "sub": d.sub, "mount": d.mount, "dims": MapCatalog.effect_dims(f), "zone": jsonable(d.zone),
 			"y": d.get("y", 0.0), "teinte": d.has("couleur"), "decor": jsonable(d.get("decor", []))}
-	var weapons := []
-	for w in WeaponDB.WEAPONS:
-		if WeaponDB.wall_cost(w) > 0:
-			weapons.append({"id": w, "name": WeaponDB.display_name(w), "price": WeaponDB.wall_cost(w)})
-	var perks := []
-	for p in PerkDB.PERKS:
-		perks.append({"id": p, "name": PerkDB.display_name(p)})
-	# Schéma d'ÉCRITURE : « marches » (nombre de marches) n'est plus réglable ;
-	# allowed_kinds le garde pour LIRE les cartes d'avant (tidy_stair l'efface).
+	# Schéma d'ÉCRITURE : « marches » (nombre de marches) n'est plus réglable,
+	# et les types retirés du jeu (MapCatalog.REMOVED_TYPES : atouts, armes
+	# murales, grenades, Pack-a-Punch) ne se posent plus ; allowed_kinds les
+	# garde pour LIRE les cartes d'avant (tidy_stair efface « marches », la
+	# lecture retire ces objets).
 	var kinds := MapCatalog.allowed_kinds()
 	(kinds.escalier.keys as Dictionary).erase("marches")
+	for t in MapCatalog.REMOVED_TYPES:
+		kinds.erase(t)
 	return {"kinds": jsonable(kinds), "room_keys": jsonable(MapCatalog.room_keys()), "zone_keys": jsonable(MapCatalog.zone_keys()),
-		"items": items, "prefabs": prefabs, "lights": lights, "effects": effects, "weapons": weapons, "perks": perks, "variants": jsonable(MapCatalog.VARIANTS),
+		"items": items, "prefabs": prefabs, "lights": lights, "effects": effects, "variants": jsonable(MapCatalog.VARIANTS),
 		"door_prices": MapCatalog.DOOR_PRICES,
 		"id_prefixes": jsonable(MapOps.OBJ_PREFIX), "surfaces": MapCatalog.allowed_surfaces()}
 

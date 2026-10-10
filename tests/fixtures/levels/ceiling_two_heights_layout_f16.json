@@ -343,7 +343,6 @@
   "id": "passage_hauteurs",
   "map_def": {
    "box_start": 0,
-   "box_starts": [],
    "description": "",
    "display_name": "PASSAGE",
    "doors": {
@@ -387,7 +386,6 @@
      ]
     }
    ],
-   "grenade_buys": [],
    "lamps": [
     {
      "energy": 2.2,
@@ -408,7 +406,6 @@
      "range": 9.12
     }
    ],
-   "perks": [],
    "player_spawns": [
     [
      7.25,
@@ -418,7 +415,6 @@
    ],
    "player_yaw": 3.14159265358979,
    "traps": [],
-   "wall_buys": [],
    "windows": [],
    "zombie_spawns": []
   },

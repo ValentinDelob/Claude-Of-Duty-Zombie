@@ -5,7 +5,7 @@ extends AutotestScenario
 ## lancer avec SCENARIOS="map_scale_look" JOBS=1 GUI_JOBS=1 bash tools/check.sh.
 ## Éditeur : écran 1 (pile de caisses agrandie par son coin, geste en
 ## cours), écran 3 (prefab bloqué, cadenas survolé), panneau Propriétés (Échelle, Rotation) d'une pile × 1,5, d'une
-## poutre inclinée et d'un prefab qui contient un Pack-a-Punch.
+## poutre inclinée et d'un prefab qui contient un téléporteur.
 ## En jeu (TESTER) : pile de caisses × 1,5 et poutre inclinée de 30°, vues
 ## par le joueur. Captures : tests/_out/shots/map_scale_look_*.png.
 
@@ -89,16 +89,16 @@ const Scale := preload("res://tests/test_map_scale.gd")
 
 
 ## Carte de l'éditeur des écrans : entrepôt haut (6,80 m), pile de caisses,
-## poutre tombée, prefab « Coin Pack-a-Punch ».
+## poutre tombée, prefab « Coin téléporteur ».
 static func editor_map() -> EditorMap:
 	var doc := Objects.objects_map()
 	doc.objets = doc.objets.filter(func(o): return o.type != "bloc_invisible")
 	doc.pieces[0]["plafond"] = 6.8
 	doc.find("s1")["position"] = [6.0, 8.5]
-	doc.prefabs["coin_pap"] = Scale.PAP_DEF.duplicate(true)
+	doc.prefabs["coin_tp"] = Scale.GAME_DEF.duplicate(true)
 	doc.objets.append({"id": "d90", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [10.0, 6.5]})
 	doc.objets.append({"id": "d91", "type": "prefab", "prefab": "poutre", "altitude": 0, "position": [5.0, 3.5]})
-	doc.objets.append({"id": "d93", "type": "prefab", "prefab": "map:coin_pap", "altitude": 0, "position": [19.0, 4.5]})
+	doc.objets.append({"id": "d93", "type": "prefab", "prefab": "map:coin_tp", "altitude": 0, "position": [19.0, 4.5]})
 	return doc
 
 
@@ -171,7 +171,7 @@ func _shot_scale() -> void:
 	await at.screenshot("ecran1_relache")
 
 
-## Écran 3 : prefab qui contient un Pack-a-Punch, cadenas survolé.
+## Écran 3 : prefab qui contient un téléporteur, cadenas survolé.
 func _shot_blocked() -> void:
 	await _editor_open("1", ["dessus"])
 	var cv := ed.canvas

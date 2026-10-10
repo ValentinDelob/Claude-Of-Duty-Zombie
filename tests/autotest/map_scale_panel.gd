@@ -3,7 +3,7 @@ extends AutotestScenario
 ## § 2.5) dans le vrai éditeur : champ Uniforme (×1,5 : les trois axes),
 ## cadenas ouvert (X seul), « ↺ ×1 », Rotation Y (+30° : poutre inclinée,
 ## posée au sol), « ↺ Remettre droit » ; un champ validé = une annulation ;
-## prefab qui contient un Pack-a-Punch : encadré qui le nomme, champs grisés,
+## prefab qui contient un téléporteur : encadré qui le nomme, champs grisés,
 ## refus nommé ; valeur refusée remise (trop haut pour le plafond).
 
 const Free := preload("res://tests/test_map_decor_free.gd")
@@ -25,10 +25,10 @@ func run() -> void:
 	ed.new_map(true)
 	var doc := Free.two_rooms()
 	doc.pieces[1]["plafond"] = 6.8
-	doc.prefabs["coin_pap"] = Scale.PAP_DEF.duplicate(true)
+	doc.prefabs["coin_tp"] = Scale.GAME_DEF.duplicate(true)
 	doc.objets.append({"id": "d81", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [4.0, 4.0]})
 	doc.objets.append({"id": "d82", "type": "prefab", "prefab": "poutre", "altitude": 0, "position": [19.0, 5.5]})
-	doc.objets.append({"id": "d83", "type": "prefab", "prefab": "map:coin_pap", "altitude": 0, "position": [9.0, 3.0]})
+	doc.objets.append({"id": "d83", "type": "prefab", "prefab": "map:coin_tp", "altitude": 0, "position": [9.0, 3.0]})
 	ed._reset(doc)
 	ed.doc.activate_prefabs()
 	await frames(3)
@@ -83,14 +83,14 @@ func run() -> void:
 	await _panel()
 	at.check(not ed.doc.find("d82").has("incl"), "↺ Remettre droit")
 
-	# Prefab qui contient un Pack-a-Punch : bloqué, nommé.
+	# Prefab qui contient un téléporteur : bloqué, nommé.
 	ed.select("d83")
 	await _panel()
 	var warn := _rich()
-	at.check(warn != null and warn.get_parsed_text().contains("Pack-a-Punch"), "encadré : contient un Pack-a-Punch (%s)" % (warn.get_parsed_text() if warn else "?"))
+	at.check(warn != null and warn.get_parsed_text().contains("porte"), "encadré : contient un téléporteur (%s)" % (warn.get_parsed_text() if warn else "?"))
 	at.check(not _edit("U").editable and not _edit("SX").editable and not _edit("RX").editable and _edit("RZ").editable, "échelle et inclinaison grisées, rotation Z permise")
 	var r := MapPanelsScale.apply(ed, "d83", func(c: Dictionary): MapScale.set_scale(c, Vector3.ONE * 2))
-	at.check(not r.ok and String(r.fr) == "Échelle impossible : « Coin Pack-a-Punch » contient un Pack-a-Punch (objet de jeu à taille fixe)", "refus nommé : %s" % str(r.get("fr", "")))
+	at.check(not r.ok and String(r.fr) == "Échelle impossible : « Coin téléporteur » contient un téléporteur (objet de jeu à taille fixe)", "refus nommé : %s" % str(r.get("fr", "")))
 	_submit("RZ", "90")
 	await _panel()
 	at.check(MapGeom.rot_of(ed.doc.find("d83")) == 90, "rotation Z du prefab bloqué")

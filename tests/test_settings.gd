@@ -136,7 +136,7 @@ func test_default_pad_layout() -> void:
 		"jump": "joy:%d" % JOY_BUTTON_A, "crouch": "joy:%d" % JOY_BUTTON_B,
 		"interact": "joy:%d" % JOY_BUTTON_X, "switch_weapon": "joy:%d" % JOY_BUTTON_Y,
 		"reload": "joy:%d" % JOY_BUTTON_RIGHT_SHOULDER, "grenade": "joy:%d" % JOY_BUTTON_LEFT_SHOULDER,
-		"tactical": "joy:%d" % JOY_BUTTON_DPAD_RIGHT, "sprint": "joy:%d" % JOY_BUTTON_LEFT_STICK,
+		"sprint": "joy:%d" % JOY_BUTTON_LEFT_STICK,
 		"melee": "joy:%d" % JOY_BUTTON_RIGHT_STICK, "scoreboard": "joy:%d" % JOY_BUTTON_BACK,
 		"aim": "joyaxis:%d:1" % JOY_AXIS_TRIGGER_LEFT, "fire": "joyaxis:%d:1" % JOY_AXIS_TRIGGER_RIGHT,
 		"move_forward": "joyaxis:%d:-1" % JOY_AXIS_LEFT_Y, "move_back": "joyaxis:%d:1" % JOY_AXIS_LEFT_Y,
@@ -687,12 +687,12 @@ func test_shared_keys_saved_and_reloaded() -> void:
 	assert_eq(Settings.action_label("reload"), "R", "invite de RECHARGER : sa première case")
 	# Action absente du fichier (nouvelle version) : sa touche d'origine
 	# n'est pas remise si une action du fichier l'a déjà (partage non choisi).
-	cfg.set_value("bindings", "jump", PackedStringArray([_k(KEY_Q)]))
-	cfg.erase_section_key("bindings", "tactical")
+	cfg.set_value("bindings", "jump", PackedStringArray([_k(KEY_TAB)]))
+	cfg.erase_section_key("bindings", "scoreboard")
 	cfg.save(TMP)
 	assert_true(Settings.load_from(TMP))
-	assert_eq(Settings.bindings.tactical, [], "Q déjà sur SAUTER : pas remise sur GRENADE SPÉCIALE")
-	assert_eq(Settings.bindings.jump, [_k(KEY_Q)])
+	assert_eq(Settings.bindings.scoreboard, [], "Tab déjà sur SAUTER : pas remise sur le TABLEAU DES SCORES")
+	assert_eq(Settings.bindings.jump, [_k(KEY_TAB)])
 
 
 func test_one_slot_file_loads_unchanged() -> void:
@@ -753,8 +753,7 @@ func test_invalid_file_values_are_sanitized() -> void:
 	cfg.set_value("video", "max_fps", 77)
 	cfg.set_value("video", "brightness", -1.0)
 	cfg.set_value("controls", "pad_look_sensitivity", 99.0)
-	# Touche en double, code invalide ; « tactical » absent du fichier : sa
-	# touche d'origine Q, déjà prise par « jump », n'est pas remise.
+	# Touche en double, code invalide.
 	cfg.set_value("bindings", "jump", PackedStringArray([_k(KEY_Q), "bogus", _k(KEY_Q)]))
 	cfg.set_value("bindings", "reload", PackedStringArray([_k(KEY_R), _k(KEY_T), _k(KEY_Y)]))
 	# Molette : comme une touche ; deux fois la même : une seule ; déjà
@@ -779,7 +778,6 @@ func test_invalid_file_values_are_sanitized() -> void:
 	assert_near(Settings.pad_look_sensitivity, Settings.PAD_SENSITIVITY_RANGE.y)
 	assert_eq(Settings.bindings.jump, [_k(KEY_Q)], "doublon retiré")
 	assert_eq(Settings.bindings.reload, [_k(KEY_R), _k(KEY_T)], "deux touches au plus : les deux premières")
-	assert_eq(Settings.bindings.tactical, [], "Q déjà pris")
 	assert_eq(Settings.bindings.grenade, [_k(KEY_G)], "action absente : touche d'origine")
 	assert_eq(Settings.bindings.aim, [_w(MOUSE_BUTTON_WHEEL_DOWN)], "bouton inconnu refusé, molette bas gardée")
 	assert_eq(Settings.bindings.melee, [_w(MOUSE_BUTTON_WHEEL_DOWN), _w(MOUSE_BUTTON_WHEEL_LEFT)],

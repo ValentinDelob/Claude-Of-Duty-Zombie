@@ -1,7 +1,8 @@
 extends AutotestScenario
 ## [MP] Client : lance une grenade (affichée aussitôt, prédiction), puis la
 ## rattache à l'objet du serveur ; reçoit l'explosion et ses points. Puis
-## lance le SINGE-TAMBOUR reçu du serveur et voit sa musique démarrer.
+## lance la PELUCHE LEURRE reçue du serveur (emplacement de grenade, [G]) et
+## voit sa musique démarrer.
 
 const PORT := 17881
 
@@ -48,19 +49,19 @@ func run() -> void:
 	at.check(ok and sys.items.is_empty(), "explosion reçue, objet retiré")
 	at.check(pd.points - points0 == 3 * PointsRules.KILL and pd.grenades == 1, "points (+%d) et réserve (%d) répliqués" % [pd.points - points0, pd.grenades])
 
-	# SINGE-TAMBOUR donné par le serveur.
-	ok = await until(func(): return pd.has_monkeys and pd.monkeys == 3, 20.0, "singes reçus")
+	# PELUCHES LEURRES données par le serveur (comme la caisse au hasard).
+	ok = await until(func(): return pd.throwable == ThrowableRules.Kind.DECOY and pd.grenades == 4, 20.0, "peluches reçues")
 	if not ok:
 		return
 	await seconds(0.5)  # le joueur regarde où lancer
 	H.aim_at(p, MapData.cell_to_world(Vector2i(11, 7)))
-	p.input.tactical = true
+	p.input.grenade = true
 	await seconds(0.6)  # touche tenue
-	p.input.tactical = false
-	ok = await until(func(): return not sys.items.is_empty() and sys.items.values()[0].luring, 5.0, "musique du singe")
-	at.check(ok, "le singe joue sa musique chez le client")
-	await at.screenshot("monkey")
-	ok = await until(func(): return booms.size() >= 2, ThrowableRules.MONKEY_TIME, "explosion du singe")
-	await until(func(): return pd.monkeys == 2, 2.0, "réserve de singes répliquée")
-	at.check(ok and pd.monkeys == 2, "explosion du singe reçue (reste %d)" % pd.monkeys)
+	p.input.grenade = false
+	ok = await until(func(): return not sys.items.is_empty() and sys.items.values()[0].luring, 5.0, "musique de la peluche")
+	at.check(ok, "la peluche joue sa musique chez le client")
+	await at.screenshot("decoy")
+	ok = await until(func(): return booms.size() >= 2, ThrowableRules.DECOY_TIME, "explosion de la peluche")
+	await until(func(): return pd.grenades == 3, 2.0, "réserve de peluches répliquée")
+	at.check(ok and pd.grenades == 3, "explosion de la peluche reçue (reste %d)" % pd.grenades)
 	await MpHelpers.finish(self)

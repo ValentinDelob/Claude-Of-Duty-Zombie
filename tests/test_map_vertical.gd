@@ -58,8 +58,8 @@ func test_heights_on_draft_arena() -> void:
 			"porte", "debris":
 				assert_near(float(e.z1) - float(e.z0), 2.5, 0.001, "porte %s" % o.id)
 				assert_eq(int(e.price), int(o.prix))
-	# Objets muraux : tableau d'arme en hauteur, boîte au sol, sur leur étage.
-	assert_near(float(it.w1.z0), 1.1, 0.001)
+	# Objets muraux : interrupteur en hauteur, caisse au sol, sur leur étage.
+	assert_true(float(it.c1.z0) > 3.5 and float(it.c1.z0) < 6.0, "interrupteur accroché au mur de l'étage 1 (%.2f)" % float(it.c1.z0))
 	assert_near(float(it.b3.z0), 3.5, 0.001, "boîte de la passerelle à l'étage 1")
 	assert_eq(String(it.s1.kind), "fobj")
 

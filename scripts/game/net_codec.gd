@@ -249,7 +249,7 @@ const MAX_FX_POINTS := 64
 
 
 ## Ajoute un tir : u8 type, u32 tireur, u8 longueur + id d'arme (UTF-8), u8
-## Pack-a-Punch, origine (3 x f32), u8 impacts puis (position 3 x f32,
+## amélioré (`pap`, en sommeil), origine (3 x f32), u8 impacts puis (position 3 x f32,
 ## normale 3 x i8), u8 taches de sang puis 3 x f32 chacune.
 ## `impacts` : paires position / normale (comme Combat.srv_fire).
 static func append_shot(buf: PackedByteArray, pid: int, weapon_id: String, pap: bool, origin: Vector3, impacts: PackedVector3Array, blood: PackedVector3Array) -> void:

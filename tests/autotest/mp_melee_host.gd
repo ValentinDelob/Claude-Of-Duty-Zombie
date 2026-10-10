@@ -1,8 +1,8 @@
 extends AutotestScenario
 ## [MP] Hôte : le CLIENT fait une fente au couteau sur un zombie à 2,5 m ; le
 ## serveur valide le coup depuis la position d'arrivée (répliquée), crédite
-## ferraille d'un kill ; puis, couteau de chasse donné au client, un zombie de manche 10
-## meurt d'un seul coup.
+## ferraille d'un kill ; puis une seconde fente (couteau de chasse supprimé :
+## lot C).
 
 const PORT := 17881
 
@@ -37,18 +37,14 @@ func run() -> void:
 	await until(func(): return client.global_position.x - spot.x > 0.8, 2.0, "fente répliquée")
 	at.check(client.global_position.x - spot.x > 0.8, "la fente du client est répliquée (%.2f m)" % (client.global_position.x - spot.x))
 
-	# 2. Couteau de chasse : zombie de manche 10 tué d'un coup.
-	cpd.knife = "bowie"
-	game.session.sync_inventory(client_id)
-	# Le client a fini de ramasser le couteau et il est revenu à sa place.
-	if not await MpHelpers.wait_peer(self, "bowie_en_main", 20.0):
+	# 2. Seconde fente, depuis sa place de départ.
+	if not await MpHelpers.wait_peer(self, "retour", 20.0):
 		return
 	if not await until(func(): return client.global_position.distance_to(spot) < 0.5, 5.0, "client revenu en position"):
 		return
-	var hp := RoundRules.zombie_health(10)
-	z = _spawn(game, client.global_position + Vector3(2.5, 0, 0), hp)
-	ok = await until(func(): return not z.is_alive() or z.health < hp, 20.0, "coup de couteau de chasse du client")
-	at.check(not z.is_alive(), "zombie de manche 10 tué d'un coup (PV restants %d)" % z.health)
+	z = _spawn(game, client.global_position + Vector3(2.5, 0, 0), 150)
+	ok = await until(func(): return not z.is_alive(), 20.0, "second zombie tué au couteau")
+	at.check(ok, "seconde fente du client validée")
 	await MpHelpers.finish(self)
 
 

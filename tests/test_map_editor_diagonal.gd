@@ -23,8 +23,8 @@ func after_each() -> void:
 
 ## Octogone (départ) et losange collés par un côté en biais, porte sur ce
 ## bord commun, une fenêtre en biais chacun, mur libre en biais dans
-## l'octogone, boîte contre un mur droit, M14 et TITAN BREW contre des murs en
-## biais. Positions posées par les règles de l'éditeur (MapRules).
+## l'octogone, caisse contre un mur droit, levier (et son piège) et
+## interrupteur contre des murs en biais. Positions posées par les règles de l'éditeur (MapRules).
 static func diag_map() -> EditorMap:
 	var doc := EditorMap.blank("biais", "BIAIS", "DIAGONAL")
 	var za := doc.add_zone("Octogone", "Octagon")
@@ -41,8 +41,10 @@ static func diag_map() -> EditorMap:
 		doc.ouvertures.append({"id": doc.new_id("o"), "type": "fenetre", "altitude": 0, "position": w.position})
 	doc.objets.append({"id": "m1", "type": "mur", "altitude": 0, "a": [8, 12], "b": [12, 8], "epaisseur": 0.5})
 	doc.objets.append({"id": "s1", "type": "depart", "altitude": 0, "position": [14.5, 12.0]})
-	for it in [[{"type": "boite", "depart": false}, Vector2(10, 2.6)], [{"type": "arme", "arme": "m14"}, Vector2(15.6, 4.3)],
-			[{"type": "atout", "atout": "titan"}, Vector2(20.3, 16.4)]]:
+	# Piège électrique de l'octogone (son levier est contre le mur en biais).
+	doc.objets.append({"id": "t1", "type": "piege", "altitude": 0, "rect": [9, 4, 11, 6]})
+	for it in [[{"type": "boite"}, Vector2(10, 2.6)], [{"type": "levier"}, Vector2(15.6, 4.3)],
+			[{"type": "courant"}, Vector2(20.3, 16.4)]]:
 		var o: Dictionary = it[0].duplicate()
 		var res := MapRules.place_wall_item(doc, 0, o, it[1])
 		o["id"] = doc.new_id("x")
@@ -156,10 +158,10 @@ func test_openings_on_oblique_walls() -> void:
 	assert_true(String(wb.get("fr", "")).contains("pas de place dehors"), "raison : %s" % wb.get("fr", ""))
 	doc.ouvertures.append({"id": "o2", "type": "fenetre", "altitude": 0, "position": w.position})
 	# Objets muraux : contre un mur en biais, face vers l'intérieur (angle).
-	var arm := MapRules.place_wall_item(doc, 0, {"type": "arme", "arme": "m14"}, Vector2(15.6, 4.3))
-	assert_true(arm.ok and arm.has("angle") and absf(float(arm.angle) - 45.0) < 0.01 and arm.mur == "n", "M14 : mur au nord-est (45°) : %s" % str(arm))
-	var perk := MapRules.place_wall_item(doc, 0, {"type": "atout", "atout": "titan"}, Vector2(20.3, 16.4))
-	assert_true(perk.ok and absf(float(perk.angle) - 45.0) < 0.01, "atout dans le losange : %s" % str(perk))
+	var arm := MapRules.place_wall_item(doc, 0, {"type": "levier"}, Vector2(15.6, 4.3))
+	assert_true(arm.ok and arm.has("angle") and absf(float(arm.angle) - 45.0) < 0.01 and arm.mur == "n", "levier : mur au nord-est (45°) : %s" % str(arm))
+	var perk := MapRules.place_wall_item(doc, 0, {"type": "poste_central"}, Vector2(20.3, 16.4))
+	assert_true(perk.ok and absf(float(perk.angle) - 45.0) < 0.01, "poste central dans le losange : %s" % str(perk))
 	var box := MapRules.place_wall_item(doc, 0, {"type": "boite", "depart": false}, Vector2(4.3, 4.3))
 	assert_false(box.ok, "boîte refusée devant la fenêtre en biais : %s" % str(box))
 	var west := MapRules.place_wall_item(doc, 0, {"type": "courant"}, Vector2(3.3, 15.0))
@@ -167,7 +169,7 @@ func test_openings_on_oblique_walls() -> void:
 	var ax := MapRules.place_wall_item(doc, 0, {"type": "courant", "angle": 45.0}, Vector2(10, 2.6))
 	assert_true(ax.ok and not ax.has("angle"), "mur droit : pas de clé angle")
 	# Emprise tournée : à l'intérieur de la pièce, collée à la face du mur.
-	var o := {"type": "atout", "atout": "titan", "position": perk.position, "mur": perk.mur, "angle": perk.angle}
+	var o := {"type": "poste_central", "position": perk.position, "mur": perk.mur, "angle": perk.angle}
 	for c in MapRules.wall_item_poly(o):
 		assert_true(MapGeom.contains(doc.room_poly(doc.pieces[1]), c) or MapGeom.on_boundary(doc.room_poly(doc.pieces[1]), c, 0.02), "emprise dans le losange")
 	assert_true(MapRules.check_existing(doc, o.merged({"id": "a9", "altitude": 0})).ok, "objet posé toujours valide")
@@ -183,7 +185,7 @@ func test_validator_accepts_oblique_map() -> void:
 	var ww: Dictionary = v.windows.filter(func(w): return w.zone == "a")[0]
 	assert_true(Vector2(ww.inward).is_equal_approx(Vector2(1, 1).normalized()), "fenêtre de l'octogone tournée vers l'intérieur : %s" % ww.inward)
 	var items := v.wall_items.filter(func(it): return it.has("oblique"))
-	assert_eq(items.size(), 2, "M14 et atout contre des murs en biais")
+	assert_eq(items.size(), 2, "levier et interrupteur contre des murs en biais")
 	# Refus : porte en biais entre deux pièces de la même zone.
 	var same := diag_map()
 	same.pieces[1]["zone"] = same.pieces[0].zone
@@ -192,9 +194,9 @@ func test_validator_accepts_oblique_map() -> void:
 	assert_true(_errs(vs).contains("même zone"), "porte en biais dans une même zone refusée :\n" + _errs(vs))
 	# Refus : objet mural devant une ouverture en biais (placé à la main).
 	var bad := diag_map()
-	bad.objets.append({"id": "g1", "type": "grenades", "altitude": 0, "position": [4.0, 4.0], "mur": "n", "angle": 315.0})
+	bad.objets.append({"id": "g1", "type": "levier", "altitude": 0, "position": [4.0, 4.0], "mur": "n", "angle": 315.0})
 	var vb := _check(bad)
-	assert_false(vb.ok(), "grenades collées à la fenêtre en biais refusées")
+	assert_false(vb.ok(), "levier collé à la fenêtre en biais refusé")
 
 
 # ------------------------------------------------------------------ jeu : sol, murs, collisions
@@ -366,7 +368,7 @@ func test_save_reload_format_3() -> void:
 	assert_true(back.load_errors.is_empty() and back.same_as(doc), "relue à l'identique")
 	assert_true(_check(back).ok(), "toujours jouable")
 	# Rotation de 90° (R) : l'angle tourne avec la pièce.
-	var o := {"type": "atout", "atout": "titan", "position": [20.25, 16.25], "mur": "n", "angle": 45.0}
+	var o := {"type": "courant", "position": [20.25, 16.25], "mur": "n", "angle": 45.0}
 	var r := MapEditor._rot(o, Vector2(18, 18))
 	assert_near(float(r.angle), 135.0, 0.001, "angle + 90°")
 	# Angle non fini ou d'un autre type dans un fichier écrit à la main : ignoré.

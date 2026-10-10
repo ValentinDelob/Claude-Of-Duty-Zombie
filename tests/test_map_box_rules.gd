@@ -116,30 +116,55 @@ func test_power_switch_shut_in_is_an_error() -> void:
 
 func test_other_object_shut_in_stays_a_warning() -> void:
 	var doc := DecorFree.two_rooms()
-	doc.objets.append({"id": "pp", "type": "pap", "altitude": 0, "position": [5.0, 0.0], "mur": "n"})
+	doc.objets.append({"id": "pc", "type": "poste_central", "altitude": 0, "position": [5.0, 0.0], "mur": "n"})
 	var e0 := _check(doc).errors().size()
 	_clip(doc, [[4, 0], [6.5, 0], [6.5, 2.5], [4, 2.5]])
 	var v := _check(doc)
-	assert_eq(v.errors().size(), e0, "Pack-a-Punch (pas exigé) : pas d'erreur\n%s" % _fr(v.errors()))
-	assert_true(v.warnings().any(func(m): return String(m.fr).begins_with("Pack-a-Punch") and String(m.fr).contains("barrière invisible")),
+	assert_eq(v.errors().size(), e0, "poste central (pas exigé) : pas d'erreur\n%s" % _fr(v.errors()))
+	assert_true(v.warnings().any(func(m): return String(m.fr).begins_with("Poste central") and String(m.fr).contains("barrière invisible")),
 		"avertissement gardé")
 
 
-func test_shut_in_boxes() -> void:
-	# Seule boîte (de départ) enfermée : erreurs (boîte de départ, toutes les boîtes).
+func test_shut_in_box() -> void:
+	# Caisse au hasard enfermée : elle n'est pas exigée par la carte,
+	# avertissement seulement (plus d'erreur « boîte de départ »).
 	var doc := DecorFree.two_rooms()
+	var e0 := _check(doc).errors().size()
 	_clip(doc, [[17.5, 7.5], [21.5, 7.5], [21.5, 10], [17.5, 10]])
 	var v := _check(doc)
-	assert_true(v.errors().any(func(m): return String(m.fr).contains("indispensable")), "boîte de départ enfermée : erreur\n%s" % _fr(v.errors()))
-	assert_true(v.errors().any(func(m): return String(m.fr).begins_with("toutes les boîtes")), "toutes les boîtes enfermées : erreur")
-	# Une boîte ordinaire enfermée parmi d'autres libres : avertissement.
-	var d2 := DecorFree.two_rooms()
-	d2.objets.append({"id": "b2", "type": "boite", "altitude": 0, "position": [24.0, 5.0], "mur": "e", "depart": false})
-	var e0 := _check(d2).errors().size()
-	_clip(d2, [[21.5, 3], [24, 3], [24, 7.5], [21.5, 7.5]])
-	var v2 := _check(d2)
-	assert_eq(v2.errors().size(), e0, "une boîte sur deux enfermée : pas d'erreur\n%s" % _fr(v2.errors()))
-	assert_true(v2.warnings().any(func(m): return String(m.fr).contains("barrière invisible")), "avertissement")
+	assert_eq(v.errors().size(), e0, "caisse enfermée : pas d'erreur\n%s" % _fr(v.errors()))
+	assert_true(v.warnings().any(func(m): return String(m.fr).begins_with("Caisse au hasard") and String(m.fr).contains("barrière invisible")),
+		"avertissement\n%s" % _fr(v.warnings()))
+
+
+## Une seule caisse au hasard par carte : au-delà, avertissement (une carte
+## d'avant à plusieurs boîtes reste jouable) ; l'export n'en garde qu'une,
+## celle marquée « depart » sinon la première ; sans caisse : aucune erreur.
+func test_one_crate_per_map() -> void:
+	var doc := DecorFree.two_rooms()
+	var e0 := _check(doc).errors().size()
+	assert_false(_check(doc).warnings().any(func(m): return String(m.fr).contains("caisses au hasard")), "une caisse : pas d'avertissement")
+	doc.objets.append({"id": "b2", "type": "boite", "altitude": 0, "position": [24.0, 5.0], "mur": "e"})
+	var v := _check(doc)
+	assert_eq(v.errors().size(), e0, "deux caisses : pas d'erreur\n%s" % _fr(v.errors()))
+	assert_true(v.warnings().any(func(m): return String(m.fr).begins_with("2 caisses au hasard")), "deux caisses : avertissement\n%s" % _fr(v.warnings()))
+	var lay: Dictionary = DecorFree.layout(doc)
+	assert_eq((lay.markers.box as Array).size(), 1, "export : une seule caisse")
+	assert_eq(int(lay.map_def.box_start), 0)
+	assert_false(lay.map_def.has("box_starts"), "plus de départ au hasard")
+	# La boîte « depart » (carte d'avant) est celle gardée, où qu'elle soit.
+	for o in doc.objets:
+		if String(o.get("type", "")) == "boite":
+			o.erase("depart")
+	doc.find("b2")["depart"] = true
+	var lay2: Dictionary = DecorFree.layout(doc)
+	assert_eq((lay2.markers.box as Array).size(), 1)
+	assert_true(Vector3(lay2.markers.box[0].p[0], 0, lay2.markers.box[0].p[2]).distance_to(Vector3(lay.markers.box[0].p[0], 0, lay.markers.box[0].p[2])) > 1.0,
+		"la boîte marquée « depart » est gardée (%s / %s)" % [str(lay2.markers.box[0].p), str(lay.markers.box[0].p)])
+	# Sans caisse : la carte reste valable.
+	doc.objets = doc.objets.filter(func(o): return String(o.get("type", "")) != "boite")
+	assert_eq(_check(doc).errors().size(), e0, "sans caisse : aucune erreur de plus\n%s" % _fr(_check(doc).errors()))
+	assert_eq((DecorFree.layout(doc).markers.box as Array).size(), 0)
 
 
 func test_start_shut_in_is_an_error() -> void:

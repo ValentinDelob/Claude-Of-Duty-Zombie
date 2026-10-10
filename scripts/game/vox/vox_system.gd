@@ -7,7 +7,7 @@ extends Node
 ## (Settings.language) : en 3D sur le joueur qui parle, en 2D pour soi-même.
 ##
 ## Les systèmes du jeu appellent `srv_say(pid, catégorie)` (serveur) ; les
-## éliminations, tirs, bonus et manches sont écoutés ici par signaux.
+## éliminations, tirs et manches sont écoutés ici par signaux.
 
 ## Écart minimal (s) entre deux répliques d'un même joueur.
 const GAP := 2.2
@@ -16,9 +16,9 @@ const DEFAULT_CD := 6.0
 const COOLDOWN := {
 	"idle": 70.0, "low_health": 20.0, "surrounded": 30.0, "ammo_low": 25.0, "ammo_out": 20.0,
 	"kill_generic": 12.0, "kill_headshot": 8.0, "kill_close": 10.0, "crawler_made": 12.0,
-	"no_money": 15.0, "door_open": 10.0, "buy_wall": 10.0,
+	"no_money": 15.0, "door_open": 10.0,
 	"hurt": 3.5, "exert_melee": 4.0, "reload": 12.0, "oh_shit": 25.0, "crawler_near": 30.0,
-	"downed_help": 12.0, "buy_ammo": 10.0, "no_power": 12.0, "resp_box_bad": 20.0, "resp_wonder": 20.0,
+	"downed_help": 12.0, "no_power": 12.0,
 }
 ## Répliques prioritaires : passent même juste après une autre réplique.
 const URGENT := ["downed", "revived", "teammate_down", "teammate_dead", "last_alive", "game_start", "death"]
@@ -62,8 +62,6 @@ func _ready() -> void:
 	game.combat.zombie_damaged.connect(_on_zombie_damaged)
 	game.combat.shot_validated.connect(_on_shot)
 	game.rounds.round_started.connect(_on_round_started)
-	if game.powerups:
-		game.powerups.powerup_grabbed.connect(func(type: String, pid: int): later(1.3, pid, "pw_" + type, 0.9))
 	if game.rounds.dogs:
 		game.rounds.dogs.dog_round_started.connect(func(_n: int): later(2.0, _random_alive(), "dog_round"))
 
@@ -108,49 +106,6 @@ static func say_later(delay: float, pid: int, category: String, chance := 1.0) -
 	var g := Game.instance
 	if g and g.vox:
 		g.vox.later(delay, pid, category, chance)
-
-
-## Catégorie de la réplique pour une arme sortie de la boîte mystère.
-static func box_category(weapon: String) -> String:
-	if weapon == ThrowableRules.MONKEY_ID:
-		return "box_monkey"
-	if weapon == "ray":
-		return "box_ray"
-	if weapon == "thunder":
-		return "box_thunder"
-	if not WeaponDB.exists(weapon):
-		return "box_good"
-	match String(WeaponDB.stats(weapon).get("class", "")):
-		"pistol", "revolver":
-			return "box_bad"
-		"shotgun":
-			return "box_shotgun"
-		"sniper":
-			return "box_sniper"
-		"lmg":
-			return "box_lmg"
-		"launcher", "rocket":
-			return "box_launcher"
-	return "box_good"
-
-
-## Arme sortie de la boîte : commentaire du joueur, puis parfois d'un
-## coéquipier proche (moquerie ou envie, comme les réponses de BO1).
-static func box_result(owner_pid: int, weapon: String) -> void:
-	var g := Game.instance
-	if g == null or g.vox == null:
-		return
-	var cat := box_category(weapon)
-	g.vox.srv_say(owner_pid, cat, 0.85)
-	var resp := "resp_wonder" if cat in ["box_ray", "box_thunder"] else "resp_box_bad" if cat == "box_bad" else ""
-	if resp == "" or not g.players.has(owner_pid):
-		return
-	var near: Array[int] = []
-	for m in g.vox.teammates(owner_pid):
-		if g.players[m].global_position.distance_to(g.players[owner_pid].global_position) < 15.0:
-			near.append(m)
-	if not near.is_empty():
-		g.vox.later(2.6, near.pick_random(), resp, 0.7 if resp == "resp_wonder" else 0.45)
 
 
 ## Réplique différée (après une annonce, une animation...).
@@ -226,11 +181,9 @@ func _on_zombie_damaged(pid: int, zid: int, _damage: int, killed: bool, headshot
 	if z is Hellhound:
 		srv_say(pid, "kill_dog", 0.5)
 		return
-	var pd: PlayerData = game.session.get_data(pid)
-	var weapon := String(pd.current_weapon().get("id", "")) if pd else ""
 	match kind:
 		Combat.HitKind.MELEE:
-			srv_say(pid, "kill_bowie" if pd and pd.knife == "bowie" else "kill_melee", 0.5)
+			srv_say(pid, "kill_melee", 0.5)
 		Combat.HitKind.TRAP:
 			srv_say(pid, "kill_trap", 0.35)
 		Combat.HitKind.SPLASH:
@@ -240,14 +193,9 @@ func _on_zombie_damaged(pid: int, zid: int, _damage: int, killed: bool, headshot
 			s[1] = int(s[1]) + 1
 			_splash[pid] = s
 			if s[1] == 2:
-				srv_say(pid, "kill_ray" if weapon == "ray" else "kill_explosive", 0.7)
-		Combat.HitKind.SPECIAL:
-			if weapon == "thunder":
-				srv_say(pid, "kill_thunder", 0.5)
+				srv_say(pid, "kill_explosive", 0.7)
 		_:
-			if weapon == "ray":
-				srv_say(pid, "kill_ray", 0.3)
-			elif headshot:
+			if headshot:
 				srv_say(pid, "kill_headshot", 0.2)
 			elif z is Node3D and (z as Node3D).global_position.distance_to(game.players[pid].global_position) < 1.7:
 				srv_say(pid, "kill_close", 0.25)

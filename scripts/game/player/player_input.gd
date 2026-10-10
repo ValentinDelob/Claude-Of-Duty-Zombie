@@ -31,7 +31,6 @@ var interact_pressed := false
 var melee := false
 var switch_weapon := false
 var grenade := false             # maintenu : dégoupiller / cuire, relâcher = lancer
-var tactical := false            # maintenu : SINGE-TAMBOUR
 ## Sprint à la manette (BO1 : un clic sur L3 / LS lance le sprint, qui dure
 ## tant qu'on avance) ; au clavier, la touche reste maintenue.
 var _sprint_latch := false
@@ -147,7 +146,6 @@ func read_devices(delta := 0.0) -> void:
 	aim = held("aim")
 	interact = held("interact")
 	grenade = held("grenade")
-	tactical = held("tactical")
 	if Input.is_action_just_pressed("jump"):
 		jump = true
 	if Input.is_action_just_pressed("fire"):

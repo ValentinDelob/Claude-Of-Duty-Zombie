@@ -1,8 +1,8 @@
 extends AutotestScenario
 ## Objets utilisables seulement depuis leur étage (InteractionSystem.same_level),
-## sans rendu, sur DRAFT ARENA (2 étages ; boîte sur la passerelle de
+## sans rendu, sur DRAFT ARENA (2 étages ; caisse au hasard sur la passerelle de
 ## l'étage 1, au-dessus de l'entrepôt) : chaque objet de la carte a son sol à
-## l'altitude d'un étage ; boîte amenée sur la passerelle : joueur dessous,
+## l'altitude d'un étage ; caisse sur la passerelle : joueur dessous,
 ## pas d'invite et achat refusé par le serveur (demande envoyée quand même) ;
 ## sur la passerelle, devant elle : invite et achat.
 
@@ -29,18 +29,12 @@ func run() -> void:
 			bad.append("%s (%.2f)" % [obj.interact_id, ly])
 	at.check(bad.is_empty(), "sol de chaque objet à l'altitude de son étage %s" % str(bad))
 	var box: MysteryBox = game.interact.get_obj("box")
-	var up := -1
-	for i in box.spots.size():
-		if (box.spots[i].pos as Vector3).y > 2.0:
-			up = i
-	at.check(up >= 0, "emplacement de boîte à l'étage 1")
-	if up < 0:
+	at.check(box != null and box.global_position.y > 2.0, "caisse sur la passerelle de l'étage 1")
+	if box == null or box.global_position.y <= 2.0:
 		return
-	box._move_to(up)
-	box.broadcast_state()
 	game.session.add_points(p.peer_id, 20000)
 	var pd := game.session.local_data()
-	var front := -(box.spots[up].normal as Vector3)
+	var front := -(box.spot.normal as Vector3)
 	var c := box.global_position
 	# Dessous, à l'étage 0 de l'entrepôt.
 	p.teleport_to(Vector3(c.x, 0.05, c.z) + front * 0.4)

@@ -1,18 +1,16 @@
 class_name MapDef
 extends RefCounted
-## Description d'une carte (nom, musique, ambiance, prix, départs de la
-## boîte, réglages du téléporteur...) et création de sa géométrie : grille
+## Description d'une carte (nom, musique, ambiance, prix, emplacement de la
+## caisse, réglages du téléporteur...) et création de sa géométrie : grille
 ## ASCII par défaut (marqueurs ci-dessous, GridMapLayout : BUNKER K-7,
 ## test_arena), ou carte en maillage à plusieurs niveaux en surchargeant
 ## create_layout (MeshMapLayout : test_levels, cartes de l'éditeur).
 ##
 ## Marqueurs communs (posés sur du sol, zone déduite des voisins) :
 ##   P apparition joueur      Z apparition zombie     L lampe
-##   1-9 portes (payantes)    X emplacement de la boîte mystère
-##   R U V % ... achats muraux, armes ou couteaux (voir wall_buys)   Q J S D M ( ) atouts (voir perks)
-##   * achat mural de grenades (250, voir GrenadeBuy)
+##   1-9 portes (payantes)    X caisse au hasard (une seule utilisée : box_start)
 ##   G interrupteur du courant   E zone du piège électrique   H levier du piège
-##   T plateforme du téléporteur   F sortie du téléporteur   K Pack-a-Punch
+##   T plateforme du téléporteur   F sortie du téléporteur
 ##   Décor bloquant : C caisse  O baril  I lit  N paillasse  Y générateur
 ##   @ porte d'évacuation (EvacDoor, contre le mur le plus proche)
 ##   Décor : , flaque de sang
@@ -30,11 +28,8 @@ var rows: PackedStringArray = []
 var zone_names: Dictionary = {}
 ## "1" -> {"cost": 750}
 var doors: Dictionary = {}
-## marqueur -> id d'arme
-var wall_buys: Dictionary = {}
-## marqueur -> id d'atout
-var perks: Dictionary = {}
-## Index de l'emplacement de départ de la boîte mystère (ordre des X).
+## Index de l'emplacement de la caisse au hasard (ordre des X) : une seule
+## caisse fixe par carte, les autres emplacements sont ignorés.
 var box_start := 0
 ## zone -> [matériau du sol, matériau des murs]
 var zone_materials: Dictionary = {}
@@ -42,8 +37,6 @@ var zone_materials: Dictionary = {}
 var pipe_zones: Array = []
 ## Texte d'accroche (écran de sélection de carte).
 var description := ""
-## Départ aléatoire de la boîte parmi ces index d'emplacements (vide : box_start).
-var box_starts: Array = []
 ## Zones ouvertes l'une sur l'autre sans porte : ouvrir l'accès à l'une
 ## active aussi les apparitions des autres (zone -> [zones]).
 var open_links: Dictionary = {}
@@ -116,7 +109,7 @@ static func group_cells(cells: Array) -> Array:
 
 
 ## Direction (unitaire, dans le plan) vers le mur le plus proche d'une cellule :
-## les objets muraux (atouts, achats) sont plaqués contre ce mur.
+## les objets muraux (courant, leviers...) sont plaqués contre ce mur.
 static func wall_normal(data: MapData, c: Vector2i) -> Vector3:
 	for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
 		if data.is_wall(c + d):

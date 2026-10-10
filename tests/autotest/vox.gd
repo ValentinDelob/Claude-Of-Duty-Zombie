@@ -1,6 +1,6 @@
 extends AutotestScenario
 ## Répliques des personnages : le personnage du joueur (rotation 0 en test :
-## Callahan), une réplique déclenchée par le jeu (atout bu, joueur à terre),
+## Callahan), une réplique déclenchée par le jeu (porte ouverte, joueur à terre),
 ## jouée en 2D pour soi, dans la langue choisie, sans répétition immédiate.
 
 var H := AutotestHelpers
@@ -21,18 +21,19 @@ func run() -> void:
 	game.vox.said.connect(func(pid, cat, v): heard.append([pid, cat, v]))
 	var before := Settings.language
 	Settings.language = "fr"
-	# Atout bu : réplique après l'animation de la boisson.
-	game.perks.srv_grant(1, "titan")
-	await until(func(): return heard.any(func(h): return h[1] == "perk_titan"), 5.0, "réplique de l'atout")
+	# Porte ouverte : réplique du joueur.
+	await seconds(2.5)  # délai après la réplique de début de partie (VoxSystem.GAP)
+	at.check(game.vox.srv_say(1, "door_open"), "réplique de porte ouverte")
+	await until(func(): return heard.any(func(h): return h[1] == "door_open"), 5.0, "réplique jouée")
 	at.check(game.vox._self_voice.playing, "réplique jouée en 2D pour le joueur local")
 	var stream_fr: AudioStream = game.vox._self_voice.stream
-	at.check(stream_fr != null and stream_fr.resource_path.contains("/fr/callahan/perk_titan_"), "voix française de Callahan (%s)" % (stream_fr.resource_path if stream_fr else ""))
+	at.check(stream_fr != null and stream_fr.resource_path.contains("/fr/callahan/door_open_"), "voix française de Callahan (%s)" % (stream_fr.resource_path if stream_fr else ""))
 	# Mixage : bus Voice, plus fort que le reste ; les autres sons ne baissent pas.
 	at.check(game.vox._self_voice.bus == Audio.VOICE_BUS, "réplique sur le bus Voice")
 	at.check(game.vox._self_voice.volume_db >= 6.0, "voix plus forte que le reste")
 	at.check(AudioServer.get_bus_effect_count(AudioServer.get_bus_index("SFX")) == 0, "effets et zombies jamais baissés")
 	# Délai par situation : pas deux fois de suite la même réplique.
-	at.check(not game.vox.srv_say(1, "perk_titan"), "même situation : attendre avant de la redire")
+	at.check(not game.vox.srv_say(1, "door_open"), "même situation : attendre avant de la redire")
 	# Langue anglaise (voix anglaises en cours de génération : seulement si le
 	# fichier tiré existe, sinon la réplique reste muette sans erreur).
 	Settings.language = "en"

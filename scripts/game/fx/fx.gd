@@ -10,10 +10,9 @@ const MAX_TRACERS := 24
 const MAX_SHELLS := 32
 const MAX_FLASHES := 6
 
-## Traçantes : couleur des balles et du rayon (CLAUDE-RAY), vitesse
-## apparente (m/s) et longueur de la traînée (m).
+## Traçantes : couleur des balles, vitesse apparente (m/s) et longueur de la
+## traînée (m).
 const TRACER_COLOR := Color(1.0, 0.78, 0.45, 0.75)
-const TRACER_RAY := Color(1.0, 0.45, 0.1, 1.0)
 const TRACER_SPEED := 170.0
 const TRACER_STREAK := 6.0
 ## Douilles : durée de vie (s) et rebond.
@@ -191,7 +190,7 @@ func _process(delta: float) -> void:
 func _tick_tracer(i: int, delta: float) -> void:
 	var t := _tracers[i]
 	if _tr_beam[i] > 0.0:
-		# Faisceau fixe (CLAUDE-RAY) : de la bouche à l'impact, puis s'éteint.
+		# Faisceau fixe : de la bouche à l'impact, puis s'éteint.
 		_tr_beam[i] -= delta
 		if _tr_beam[i] <= 0.0:
 			t.visible = false
@@ -297,7 +296,7 @@ static func surface_of(col: Object, shape_index := 0) -> String:
 		var parent := co.get_parent()
 		if parent is MysteryBox or parent is Barricade:
 			return "wood"
-		if parent is PackAPunch or parent is TeleporterMainframe or parent is PerkMachine or parent is ElectricTrap:
+		if parent is TeleporterMainframe or parent is ElectricTrap:
 			return "metal"
 		if parent is Door:
 			return "wood"

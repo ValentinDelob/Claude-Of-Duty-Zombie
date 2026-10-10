@@ -208,7 +208,7 @@ serveur (`McpServer.push_event`, outil `editor_events`).
 | `validate` | — | rapport `MapValidator` (texte + liste des problèmes) |
 | `screenshot` | `altitude?` (m, niveau du plan ; sans niveau à cette altitude : erreur qui liste les niveaux), `ids?` (cadrer sur ces éléments), `view?` (`dessus` par défaut, `avant`, `arriere`, `gauche`, `droite`, `dessous`), `coupe?` [p0, p1] | `{png_base64, width, height, altitude, bounds:[x0,y0,x1,y1]}` ; élévation : `{…, view, axe_horizontal, bounds_h, bounds_z, coupe?}` |
 | `highlight` | `ids`, `message` | montre ces éléments à l'utilisateur (contour pulsé + bulle) |
-| `catalog` | — | types admis (`MapCatalog`), prefabs, luminaires, armes, atouts ; `prefabs_carte` : prefabs de la carte ouverte (pid, ref, nom, sorte, emprise, hauteur, bloque, pose) ; `textures_carte` : textures de la carte `[{ref, nom, taille, image}]` |
+| `catalog` | — | types admis (`MapCatalog`), prefabs, luminaires, effets ; `prefabs_carte` : prefabs de la carte ouverte (pid, ref, nom, sorte, emprise, hauteur, bloque, pose) ; `textures_carte` : textures de la carte `[{ref, nom, taille, image}]` |
 | `prefab_list` | — | `{prefabs: [fiche], nombre, modeles, peut_modifier, note}` ; fiche : `pid`, `ref` (« map:<pid> »), `objet` à poser, `nom`, `sorte` (groupe / modele), `emprise_cases`, `emprise_m`, `hauteur`, `bloque`, `collision`, `pose`, `objets_poses` ; groupe : `parties` ; modèle : `echelle`, `taille_modele_m` [x, y, hauteur], `aabb_brute`, `sha256`, `octets`, `triangles`, `sommets`, `maillages`, `materiaux`, `images` |
 | `prefab_sources` | — | `{cartes: [{carte, nom, dossier, ouverte, prefabs: [{pid, nom, sorte, emprise_cases, hauteur, octets?}]}], cartes_sans_prefab, dossier_des_cartes}` |
 | `prefab_create` | `nom`, `ids` + `remplacer` (défaut true) OU `parties` [{decor, pos [x, y], rot}], `label` | fiche + `contenu`, `exclus` [{sorte, nombre, raison}], `absents`, `parties_reprises`, `remplace`, `objet_pose`, `cid` |
@@ -325,7 +325,8 @@ restent les siennes.
 - `add` remplit aussi, comme `MapEditor.add_object` : pièce sans `nom` →
   « Pièce N » ; pièce sans zone existante → zone créée (même nom, devient la
   zone de départ s'il n'y en a pas) ; porte / débris sans `prix` → 750, 1000
-  puis 1250 ; fenêtre sans `largeur` ; une seule boîte `depart`. `altitude`
+  puis 1250 ; fenêtre sans `largeur` ; types retirés du jeu (`atout`, `arme`,
+  `grenades`, `pap`) refusés. `altitude`
   absente → 0 (format 17 ; `MapOps.normalize` remet `altitude` et
   `altitude_haut` en nombres décimaux finis).
 - Contrôle du contenu (en plus de `validate`) : chaque élément `put` passe

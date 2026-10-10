@@ -22,15 +22,19 @@ static func _tmpl(rot := 0) -> Dictionary:
 	return {"type": "boite", "depart": false, "rot": rot}
 
 
-## Deux salles (A : 0..14 × 0..10, B : 14..24 × 0..10) et une boîte au sol
-## dans A, au centre (5, 5), tournée de `rot`. Départ déplacé en (9,5, 7) :
-## la boîte est pleine pour le validateur, rien à moins de 1 m du départ.
+## Deux salles (A : 0..14 × 0..10, B : 14..24 × 0..10) et une caisse au sol
+## dans A, au centre (5, 5), tournée de `rot`, marquée « depart » : c'est la
+## caisse unique gardée par l'export (la boîte murale de two_rooms ne l'est
+## plus). Départ des joueurs déplacé en (9,5, 7) : la caisse est pleine pour
+## le validateur, rien à moins de 1 m du départ.
 static func floor_map(rot := 45) -> Dictionary:
 	var doc := DecorFree.two_rooms()
 	for o in doc.objets:
 		if String(o.type) == "depart":
 			o["position"] = [9.5, 7.0]
-	var b := DecorFree._obj(doc, {"type": "boite", "position": [5.0, 5.0], "rot": rot, "depart": false})
+		elif String(o.type) == "boite":
+			o["depart"] = false
+	var b := DecorFree._obj(doc, {"type": "boite", "position": [5.0, 5.0], "rot": rot, "depart": true})
 	return {"doc": doc, "box": b}
 
 
@@ -208,9 +212,9 @@ func test_validator_and_game_layout() -> void:
 	assert_true(cells.size() >= 6, "emprise tournée de 2 × 1 m (%d cases)" % cells.size())
 	var lay := MapLayoutExport.build(v)
 	var boxes: Array = lay.markers.box
-	assert_eq(boxes.size(), 2, "deux emplacements")
+	assert_eq(boxes.size(), 1, "une seule caisse exportée (celle de départ)")
 	var fb: Array = boxes.filter(func(x): return bool(x.get("floor", false)))
-	assert_eq(fb.size(), 1, "un emplacement au sol")
+	assert_eq(fb.size(), 1, "la caisse au sol")
 	var front := Vector3(0, 0, 1).rotated(Vector3.UP, -deg_to_rad(45.0))
 	var wall := MeshMapLayout.vec(fb[0].wall)
 	assert_true(wall.is_equal_approx(-front) or (wall + front).length() < 0.002, "mur fictif derrière la boîte (%s)" % wall)
@@ -233,12 +237,10 @@ func test_validator_and_game_layout() -> void:
 			fi = i
 	assert_true(fi >= 0, "marqueur au sol en jeu")
 	var box := MysteryBox.new()
-	box.setup_spots(spots, fi)
-	assert_true((box.spots[fi].pos as Vector3).distance_to(Vector3(5.0 + OFF, 0.0, 5.0 + OFF)) < 0.003, "boîte posée sur son centre")
-	var n := Node3D.new()
-	box._place(n, fi)
-	assert_true(n.basis.z.distance_to(front) < 0.002, "avant de la boîte (+z) tourné comme dans l'éditeur (%s)" % n.basis.z)
-	n.free()
+	box.setup_spot(spots[fi])
+	assert_true((box.spot.pos as Vector3).distance_to(Vector3(5.0 + OFF, 0.0, 5.0 + OFF)) < 0.003, "caisse posée sur son centre")
+	box._place()
+	assert_true(box.basis.z.distance_to(front) < 0.002, "avant de la caisse (+z) tourné comme dans l'éditeur (%s)" % box.basis.z)
 	box.free()
 	# Description de la DRAFT ARENA (boîtes murales) : aucun « floor », aucun navmesh retiré.
 	var da := EditorMap.load_dir("res://assets/maps/draft_arena/")
@@ -285,8 +287,7 @@ func _floor_box() -> MysteryBox:
 	m.pos = Vector3(0, 0, 2) + m.wall * MysteryBox.SPOT_WALL_GAP - m.wall * MeshMapLayout.GAP
 	m.data = {"floor": true}
 	var box := MysteryBox.new()
-	var ms: Array[MapMarker] = [m]
-	box.setup_spots(ms, 0)
+	box.setup_spot(m)
 	_root.add_child(box)
 	_wall(Vector3(0, 1.5, 0.4), Vector3(8, 3, 0.3))
 	await host.get_tree().physics_frame
@@ -329,8 +330,7 @@ func test_wall_box_not_through_its_wall() -> void:
 	m.wall = Vector3(0, 0, -1)
 	m.pos = Vector3(0, 0, 0.55 + 0.5)
 	var box := MysteryBox.new()
-	var ms: Array[MapMarker] = [m]
-	box.setup_spots(ms, 0)
+	box.setup_spot(m)
 	_root.add_child(box)
 	_wall(Vector3(0, 1.5, 0.4), Vector3(8, 3, 0.3))
 	await host.get_tree().physics_frame
@@ -415,9 +415,8 @@ func test_floor_box_upstairs_not_from_below() -> void:
 	m.wall = Vector3(0, 0, -1)
 	m.pos = Vector3(0, 3.5, 2) + m.wall * MysteryBox.SPOT_WALL_GAP - m.wall * MeshMapLayout.GAP
 	m.data = {"floor": true}
-	var ms: Array[MapMarker] = [m]
 	var box := MysteryBox.new()
-	box.setup_spots(ms, 0)
+	box.setup_spot(m)
 	_root.add_child(box)
 	_wall(Vector3(0, 3.375, 2), Vector3(8, 0.25, 8))
 	await host.get_tree().physics_frame

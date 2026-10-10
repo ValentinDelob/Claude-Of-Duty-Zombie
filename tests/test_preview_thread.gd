@@ -53,7 +53,7 @@ static func put_item(doc: EditorMap, item_id: String, mouse: Vector2, rot := 0, 
 		o["rot"] = rot
 	var r := {}
 	if it.get("wall_snap", false):
-		# Boîte mystère (format 15) : au sol, ou collée au mur proche.
+		# Caisse au hasard (format 15) : au sol, ou collée au mur proche.
 		r = MapRules.place_box(doc, k, o, mouse)
 		if not r.ok:
 			return {}
@@ -100,11 +100,9 @@ static func rich_map() -> EditorMap:
 	for m in [Vector2(3, -0.3), Vector2(20, -0.3), Vector2(5, 20.3), Vector2(52.6, 9.9)]:
 		put_opening(doc, "fenetre", m)
 	_add(doc, doc.objets, {"type": "depart", "position": [9.0, 7.0]}, "s")
-	put_item(doc, "arme:m14", Vector2(0.6, 5))
-	put_item(doc, "atout:titan", Vector2(24.4, 3))
 	put_item(doc, "boite", Vector2(0.6, 15))
 	put_item(doc, "courant", Vector2(20, 9.4))
-	put_item(doc, "pap", Vector2(34.4, 2.8))   # contre le mur en biais
+	put_item(doc, "poste_central", Vector2(34.4, 2.8))   # contre le mur en biais
 	put_item(doc, "luminaire:suspension", Vector2(4, 4))
 	put_item(doc, "luminaire:neon", Vector2(30, 6))
 	put_item(doc, "luminaire:applique", Vector2(23, 0.6))
@@ -156,11 +154,11 @@ func test_rich_map_covers_every_kind() -> void:
 	var types := {}
 	for o in doc.objets + doc.ouvertures:
 		types[String(o.type)] = int(types.get(String(o.type), 0)) + 1
-	for t in ["passage", "porte", "debris", "fenetre", "arme", "atout", "boite", "courant", "pap", "luminaire", "lampe", "prefab",
+	for t in ["passage", "porte", "debris", "fenetre", "boite", "courant", "poste_central", "luminaire", "lampe", "prefab",
 			"caisse", "baril", "pilier", "mur", "mur_courbe", "escalier", "piege", "levier", "depart"]:
 		assert_true(types.has(t), "carte complète : %s posé (%s)" % [t, str(types)])
 	assert_eq(int(types.get("fenetre", 0)), 4, "4 fenêtres (dont une sur un côté en biais de la pièce ronde)")
-	assert_true(doc.objets.any(func(o): return String(o.type) == "pap" and o.has("angle")), "Pack-a-Punch contre le mur en biais")
+	assert_true(doc.objets.any(func(o): return String(o.type) == "poste_central" and o.has("angle")), "poste central contre le mur en biais")
 	assert_eq(int(types.get("luminaire", 0)), 4, "4 luminaires (dont la lampe sur le bureau)")
 
 

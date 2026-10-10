@@ -96,14 +96,14 @@ func run() -> void:
 	Engine.time_scale = 0.0
 	tree().root.disable_3d = true
 	_build()
-	var ids: Array = WeaponDB.WEAPONS.keys() + WeaponDB.POWERUP_WEAPONS.keys()
+	var ids: Array = WeaponDB.WEAPONS.keys()
 	var only := OS.get_environment("VMS_ONLY")
 	if only != "":
 		ids = Array(only.split(","))
 	var quick := OS.get_environment("VMS_QUICK") == "1"
 	var t0 := Time.get_ticks_msec()
 	for id in ids:
-		for pap in ([false] if WeaponDB.is_powerup_weapon(id) else [false, true]):
+		for pap in [false, true]:
 			for fov in FOVS:
 				for asp in ASPECTS:
 					if quick and (fov != 80.0 or asp[0] == "4x3"):
@@ -422,20 +422,18 @@ func _weapon_pass(id: String, pap: bool, fov: float, asp: Array) -> void:
 		p.weapons.weapons[0].mag = int(s.mag)
 	_step(30)
 	# Actions déclenchées EN VISÉE (le jeu les permet) : couteau, fente,
-	# changement d'arme, grenade, boisson, plongeon, sprint, puis visée
+	# changement d'arme, grenade, plongeon, sprint, puis visée
 	# depuis le sprint.
 	await _ads_combo("couteau", func(): vm.start_melee(false), ViewModel.MELEE_ANIM + 0.1)
 	await _ads_combo("fente", func(): vm.start_melee(true), ViewModel.MELEE_ANIM + 0.1)
 	await _ads_combo("changement", func(): vm.start_switch(WeaponController.SWITCH_TIME, func(): pass), WeaponController.SWITCH_TIME + 0.1)
 	await _ads_combo("grenade", func(): vm.lowered = 1.0, 0.6)
 	vm.lowered = 0.0
-	await _ads_combo("boisson", func(): vm.start_drink(Color.RED, 1.2), 1.3)
 	# Plongeon : le jeu lâche la visée (Player._update_stance).
 	await _ads_combo("plongeon", func():
 		p.aiming = false
 		p.diving = true, 0.5)
 	p.diving = false
-	await _ads_combo("couteau_chasse", func(): vm.start_knife_pickup(1.0), 1.1)
 	await _ads_combo("sprint_depuis_visee", func():
 		p.aiming = false
 		p.sprinting = true

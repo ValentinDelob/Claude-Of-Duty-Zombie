@@ -22,14 +22,13 @@ const MAX_LIMIT_DB := 12.0
 const CATEGORIES := [
 	# Mécanique d'arme d'abord (« dry_fire » n'est pas un tir).
 	{"id": "rechargement", "match": ["mag_*", "slide", "bolt", "pump", "shell", "shell_in", "break_*", "dry_fire",
-		"weapon_switch", "bowie_draw", "grenade_pin", "grenade_throw", "knife_swing", "monkey_wind", "thunder_charge"],
+		"weapon_switch", "grenade_pin", "grenade_throw", "knife_swing", "monkey_wind"],
 		"target": -19.0, "tol": 2.5, "mode": "max"},
-	{"id": "arme_merveille", "match": ["ray_fire", "thunder_fire"], "target": -10.0, "tol": 2.0, "mode": "max"},
 	# Tous les tirs d'armes au même niveau perçu (le joueur les entend à -1 dB).
 	{"id": "tir", "match": ["*_fire"], "target": -11.0, "tol": 1.5, "mode": "max"},
 	# Couche électrique des armes Pack-a-Punchées, jouée par-dessus le tir.
 	{"id": "arme_zap", "match": ["pap_zap_*"], "target": -19.0, "tol": 2.0, "mode": "max"},
-	{"id": "explosion", "match": ["explosion", "frag_explode", "nova_blast", "dog_explode", "powerup_nuke"],
+	{"id": "explosion", "match": ["explosion", "frag_explode", "dog_explode"],
 		"target": -10.0, "tol": 2.0, "mode": "max"},
 	{"id": "impact", "match": ["impact_*", "flesh_hit_*", "headshot", "knife_hit", "knife_flesh", "body_fall",
 		"grenade_bounce", "monkey_bounce"], "target": -16.0, "tol": 2.5, "mode": "max"},
@@ -39,13 +38,12 @@ const CATEGORIES := [
 	{"id": "chien", "match": ["dog_growl_*", "dog_bark_*", "dog_bite_*", "dog_whine"], "target": -14.0, "tol": 2.0, "mode": "max"},
 	{"id": "joueur", "match": ["footstep_*", "dive_land", "player_hurt_*", "player_down", "player_breath_*", "heartbeat", "revive"],
 		"target": -18.0, "tol": 3.0, "mode": "max"},
-	{"id": "annonce", "match": ["announce_*"], "target": -12.0, "tol": 2.0, "mode": "max"},
-	# Ritournelles originales (atouts, manches, boîte...) : identité conservée,
+	# Ritournelles originales (manches, caisse...) : identité conservée,
 	# seulement mises au même niveau.
-	{"id": "ritournelle", "match": ["jingle_*", "round_start", "round_end", "dog_round_start", "dog_round_end",
-		"box_music", "pap_ready", "pap_forge", "power_on", "box_skull", "menu_start", "monkey_music"],
+	{"id": "ritournelle", "match": ["round_start", "round_end", "dog_round_start", "dog_round_end",
+		"box_music", "power_on", "menu_start", "monkey_music"],
 		"target": -14.0, "tol": 2.5, "mode": "max"},
-	{"id": "musique", "match": ["menu_theme", "dog_round_music", "fire_sale_loop", "powerup_loop"],
+	{"id": "musique", "match": ["menu_theme", "dog_round_music"],
 		"target": -20.0, "tol": 2.0, "mode": "int"},
 	{"id": "ambiance", "match": ["ambience_*"], "target": -24.0, "tol": 2.0, "mode": "int"},
 	{"id": "interface", "match": ["ui_*", "menu_*", "hitmarker"], "target": -18.0, "tol": 3.0, "mode": "max"},

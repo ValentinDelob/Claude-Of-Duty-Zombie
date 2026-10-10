@@ -1,7 +1,7 @@
 class_name PowerSwitch
 extends Interactable
 ## Levier du générateur. Une fois abaissé (gratuit, définitif), le courant est
-## rétabli : atouts, Pack-a-Punch, pièges et téléporteur fonctionnent.
+## rétabli : pièges et téléporteur fonctionnent.
 
 var is_on := false
 var _normal := Vector3.FORWARD

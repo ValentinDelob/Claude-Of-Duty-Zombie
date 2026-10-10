@@ -26,8 +26,8 @@ Historique et mesures de la refonte : `docs/TESTING_PLAN.md`.
   dossier de combat propres au processus, remis à zéro à la fin).
 - **Aléatoire rejouable** : chaque scénario tourne avec une graine fixe
   (hash de son nom, imprimée dans le journal : `[autotest] graine N`). Elle
-  fixe `seed()` et les `RandomNumberGenerator` du jeu (boîte, apparitions,
-  bonus, chiens…, graines à leur création par `Autotest._seed_rngs`).
+  fixe `seed()` et les `RandomNumberGenerator` du jeu (caisse, apparitions,
+  chiens…, graines à leur création par `Autotest._seed_rngs`).
   `--seed=N` (ou `AUTOTEST_SEED=N`) rejoue un échec ou essaie un autre
   tirage. Hors autotest, l'aléatoire du jeu n'est pas touché.
 - **Captures d'écran** : uniquement pour un ajout **en cours** (revue humaine) ;
@@ -50,9 +50,8 @@ Historique et mesures de la refonte : `docs/TESTING_PLAN.md`.
 
 Un bot joue de nombreuses manches en utilisant tout ce que la carte propose
 par le vrai chemin d'interaction (visée, [F], validation du serveur) :
-portes et débris, courant, armes murales, atouts, boîte, Pack-a-Punch,
-grenades, singes, téléporteur, pièges, chaque bonus, mise à terre puis
-LAZARUS, manche de chiens. En continu : positions finies, points jamais
+portes et débris, courant, caisse au hasard, grenades, peluches leurres,
+téléporteur, pièges, barricades, mise à terre, manche de chiens. En continu : positions finies, points jamais
 négatifs, munitions dans leurs bornes, aucune invite sur un objet épuisé,
 manche qui finit, « à terre » jamais bloqué, zombie immobile 20 s relevé
 (endroit du décor à revoir) et en échec s'il n'est pas retiré par le filet
@@ -69,8 +68,8 @@ AUTOTEST_PORT_OFFSET=5500 sh tools/mp_test.sh soak   # hôte + client, départ e
 extends TestCase
 ## Ce que ce fichier vérifie (une phrase).
 
-func test_prix_du_pack_a_punch() -> void:
-	assert_eq(PackAPunch.COST, 5000)
+func test_prix_de_la_caisse() -> void:
+	assert_eq(MysteryBox.COST, 950)
 
 func test_session_depense() -> void:
 	var s := Session.new()
@@ -154,7 +153,7 @@ par `tools/mp_test.sh <nom>` (sans délai entre les deux), à cadence fixe ×3.
 | `## @rendu` | lancé avec rendu, en temps réel (N3) — seulement si le test lit vraiment l'image (pixels, compteurs de rendu, GPU) ou pour un ajout en cours |
 | `## @parts N` | scénario découpé en N parties parallèles (`mine(i)`, `owns(k)`) ; utile seulement en temps réel |
 | `## @carte <id>` | dépend uniquement des fichiers de la carte `<id>` : lancé seulement quand elle change |
-| `## @couvre <motifs>` | dépendances ajoutées à la main (ex. `scripts/game/perks/*`) |
+| `## @couvre <motifs>` | dépendances ajoutées à la main (ex. `scripts/game/throwables/*`) |
 | `## @niveau perf` | hors check (`tools/perf.sh`) |
 | `## @seul` | jamais en série : un processus pour lui seul (à justifier dans le fichier) |
 | `## @temps-reel` | pas d'accélération (`--max-fps 60`) : le test mesure ou limite quelque chose par seconde réelle (débit réseau, transfert cadencé) ; pour un `mp_`, à mettre dans le script hôte, avec la raison précise (aujourd'hui : audio_check, mp_custommap, mp_netload) |
@@ -190,7 +189,7 @@ sh tools/check.sh
 | `sh tools/check.sh --cartes` | force les tests dédiés à une carte (`## @carte <id>`) |
 | `sh tools/check.sh --fast` | sans réseau ni multijoueur |
 | `sh tools/check.sh --no-retry` | pas de rejeu |
-| `SCENARIOS="perks traps" sh tools/check.sh` | ces scénarios, sans cache |
+| `SCENARIOS="grenades traps" sh tools/check.sh` | ces scénarios, sans cache |
 | `MP="lobby" sh tools/check.sh` | ces tests multijoueur seulement (ni scénario ni test réseau), sans cache |
 | `SCENARIOS="boot" MP="lobby" sh tools/check.sh` | les deux listes ensemble |
 | `sh tools/perf.sh [scénarios]` | mesures de performance fiables, un jeu à la fois |

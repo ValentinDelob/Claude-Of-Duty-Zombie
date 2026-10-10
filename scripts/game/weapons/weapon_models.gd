@@ -140,18 +140,9 @@ const SPECS := {
 	# ---------------------------------------------------------------- explosifs
 	"china_lake": {"arch": "launcher"},
 	"law": {"arch": "rocket"},
-	# ---------------------------------------------------------------- merveille
-	"ray": {"arch": "ray"},
-	# TONNERRE-7 : gros tambour cylindrique à ailettes, réservoirs latéraux, bouche évasée.
-	"thunder": {"arch": "thunder"},
-	# ---------------------------------------------------------------- bonus
-	# FAUCHEUSE (DEATH MACHINE) : minigun à six canons.
-	"death_machine": {"arch": "minigun"},
-	# ---------------------------------------------------------------- couteaux (KnifeDB)
+	# ---------------------------------------------------------------- couteau (KnifeDB)
 	# Couteau de combat : lame noircie, manche en polymère.
 	"knife": {"arch": "knife", "blade": 0.17, "w": 0.028, "blade_mat": "metal_dark", "handle": "polymer", "guard": false},
-	# Couteau de chasse (Bowie) : longue lame à contre-pointe, garde et pommeau en laiton.
-	"bowie": {"arch": "knife", "blade": 0.25, "w": 0.042, "blade_mat": "metal_worn", "handle": "wood", "guard": true},
 }
 
 static var _mat_cache: Dictionary = {}
@@ -205,10 +196,7 @@ static func spec(model_id: String) -> Dictionary:
 		"shotgun": out = _shotgun(p)
 		"launcher": out = _launcher()
 		"rocket": out = _rocket()
-		"knife": out = _knife(p)
-		"thunder": out = _thunder()
-		"minigun": out = _minigun()
-		_: out = _ray()
+		_: out = _knife(p)
 	_spec_cache[model_id] = out
 	return out
 
@@ -1264,75 +1252,6 @@ static func _rocket() -> Dictionary:
 		"grip": Vector3(0, -0.01, 0.025), "support": Vector3(-0.02, y - 0.05, -0.25)}}
 
 
-## CLAUDE-RAY : pistolet à rayon rétro, corps renflé cerclé de bagues,
-## chambre lumineuse, ailette sur le dessus.
-static func _ray() -> Dictionary:
-	var parts := []
-	var y := 0.04
-	_l(parts, [Vector2(-0.3, 0.02), Vector2(-0.29, 0.03), Vector2(-0.25, 0.034), Vector2(-0.2, 0.045), Vector2(-0.12, 0.046), Vector2(-0.05, 0.04),
-		Vector2(0.03, 0.036), Vector2(0.05, 0.028), Vector2(0.055, 0.0)], Vector3(0, y, 0), "metal_worn")
-	for z in [-0.23, -0.19, -0.15]:
-		_l(parts, [Vector2(z - 0.006, 0.047), Vector2(z - 0.004, 0.05), Vector2(z + 0.004, 0.05), Vector2(z + 0.006, 0.047)], Vector3(0, y, 0), "metal_dark")
-	_c(parts, 0.022, 0.03, Vector3(0, y, -0.29), "glow")
-	_c(parts, 0.012, 0.004, Vector3(0, y, -0.306), "bore")
-	for sx in [-1.0, 1.0]:
-		_c(parts, 0.01, 0.12, Vector3(sx * 0.042, y - 0.004, -0.08), "glow")
-	_p(parts, [Vector2(-0.1, 0.0), Vector2(0.02, 0.0), Vector2(0.03, 0.03), Vector2(-0.05, 0.03)], 0.01, Vector3(0, y + 0.036, 0), "metal", 0.0, "", 0.003)
-	_p(parts, [Vector2(-0.021, 0.05), Vector2(0.022, 0.05), Vector2(0.027, -0.045), Vector2(0.018, -0.058), Vector2(-0.016, -0.058), Vector2(-0.024, -0.04),
-		Vector2(-0.02, -0.02), Vector2(-0.024, 0.0)], 0.034, Vector3(0, -0.05, 0.03), "metal_dark", -14.0, "", 0.007)
-	_guard(parts, 0.005, -0.05, 0.0, 0.03)
-	_trigger(parts, -0.02, 0.0)
-	return {"parts": parts, "info": {"grip_angle": -14.0}, "anchors": {
-		"muzzle": Vector3(0, y, -0.31), "sight": Vector3(0, 0.13, 0.02),
-		"front": Vector3(0, 0.13, -0.14), "ads": Vector3(0, 0, 0.32),
-		"grip": Vector3(0, -0.06, 0.04), "support": Vector3(-0.02, -0.07, 0.03),
-		"hold": Vector3(-0.05, 0.1, 0.3), "hold_rot": Vector3(0.0, 0.28, -0.06)}}
-
-
-## TONNERRE-7 : gros tambour à ailettes (compresseur), bouche évasée qui
-## luit, deux réservoirs de cuivre sur les flancs, manomètre, poignée de
-## transport, poignées pistolet et avant, crosse tubulaire.
-static func _thunder() -> Dictionary:
-	var parts := []
-	var y := 0.055
-	# Tambour et ailettes de refroidissement, bande lumineuse entre les ailettes.
-	_c(parts, 0.074, 0.3, Vector3(0, y, -0.12), "metal_worn")
-	_c(parts, 0.077, 0.05, Vector3(0, y, -0.12), "glow_blue")
-	for k in 6:
-		_c(parts, 0.086, 0.012, Vector3(0, y, -0.255 + k * 0.054), "metal_dark")
-	# Bouche : col, pavillon évasé, cœur lumineux et trois lames de guidage.
-	_c(parts, 0.058, 0.07, Vector3(0, y, -0.305), "metal_dark")
-	_l(parts, [Vector2(-0.375, 0.092), Vector2(-0.36, 0.088), Vector2(-0.345, 0.07), Vector2(-0.33, 0.06)], Vector3(0, y, 0), "metal_worn")
-	_c(parts, 0.05, 0.01, Vector3(0, y, -0.37), "glow_blue")
-	for a in [90.0, 210.0, 330.0]:
-		var r := deg_to_rad(a)
-		_b(parts, Vector3(0.012, 0.012, 0.09), Vector3(cos(r) * 0.08, y + sin(r) * 0.08, -0.39), "metal_dark")
-	# Boîtier arrière (moteur) et culot arrondi.
-	_x(parts, _sec(0.085, 0.085, y - 0.005, 0.02, 0.012), 0.025, 0.125, "metal_dark", "", 0.005)
-	_c(parts, 0.05, 0.02, Vector3(0, y, 0.035), "brass")
-	_c(parts, 0.036, 0.04, Vector3(0, y, 0.145), "metal")
-	# Réservoirs latéraux (cuivre, bouchons en laiton, tuyaux vers le tambour).
-	for sx in [-1.0, 1.0]:
-		_l(parts, [Vector2(-0.19, 0.02), Vector2(-0.18, 0.03), Vector2(0.04, 0.03), Vector2(0.05, 0.02)], Vector3(sx * 0.1, y - 0.035, 0), "copper")
-		_c(parts, 0.032, 0.014, Vector3(sx * 0.1, y - 0.035, -0.185), "brass")
-		_c(parts, 0.032, 0.014, Vector3(sx * 0.1, y - 0.035, 0.045), "brass")
-		_c(parts, 0.012, 0.1, Vector3(sx * 0.1, y - 0.004, -0.07), "glow_blue")
-		_b(parts, Vector3(0.03, 0.012, 0.012), Vector3(sx * 0.075, y - 0.02, 0.05), "metal_dark")
-	# Manomètre sur le boîtier, poignée de transport.
-	_c(parts, 0.022, 0.012, Vector3(0.028, y + 0.045, 0.08), "brass", Vector3(90, 0, 0))
-	_c(parts, 0.017, 0.013, Vector3(0.028, y + 0.046, 0.08), "glass", Vector3(90, 0, 0))
-	_b(parts, Vector3(0.018, 0.016, 0.2), Vector3(0, y + 0.11, -0.1), "metal_dark")
-	_b(parts, Vector3(0.014, 0.045, 0.014), Vector3(0, y + 0.082, -0.19), "metal_dark")
-	_b(parts, Vector3(0.014, 0.045, 0.014), Vector3(0, y + 0.082, -0.01), "metal_dark")
-	# Poignées : pistolet sous le boîtier, poignée avant sous le tambour.
-	_pistol_grip(parts, "wood_dark", 0.07, -16.0, y - 0.045)
-	_l(parts, [Vector2(0.0, 0.015), Vector2(0.08, 0.017), Vector2(0.09, 0.02), Vector2(0.095, 0.012)], Vector3(0, y - 0.075, -0.2), "wood_dark", Vector3(98, 0, 0))
-	return {"parts": parts, "info": {"grip_angle": -16.0}, "anchors": {
-		"muzzle": Vector3(0, y, -0.39), "sight": Vector3(0, y + 0.125, 0.0),
-		"front": Vector3(0, y + 0.125, -0.2), "ads": Vector3(0, 0, 0.36),
-		"grip": Vector3(0, -0.06, 0.08), "support": Vector3(0, y - 0.14, -0.2)}}
-
-
 ## Couteau : lame à plat dans le plan vertical (tranchant en bas), pointe vers
 ## -Z, origine au milieu du manche (la main).
 static func _knife(p: Dictionary) -> Dictionary:
@@ -1366,40 +1285,3 @@ static func _knife(p: Dictionary) -> Dictionary:
 	return {"parts": parts, "anchors": {
 		"muzzle": Vector3(0, -w * 0.2, z0 - L), "sight": Vector3(0, 0.03, 0.0),
 		"grip": Vector3(0, 0, 0.012), "support": Vector3(0, 0, 0.012)}}
-
-
-## Minigun (FAUCHEUSE) : faisceau de six canons autour de l'axe, trois bagues,
-## carter moteur, poignée de transport sur le dessus, poignée arrière, caisse
-## de bande à gauche, poignée latérale verticale à gauche du faisceau (main
-## gauche, comme la DEATH MACHINE de BO1 : main droite sur la poignée arrière,
-## main gauche sur la poignée de côté). Pas d'organes de visée ("no_sights") :
-## en visée, l'arme reste à la hanche, un peu remontée (ViewModel.rest_pose).
-static func _minigun() -> Dictionary:
-	var parts := []
-	var y := 0.02
-	for i in 6:
-		var a := TAU * i / 6.0
-		_c(parts, 0.009, 0.5, Vector3(cos(a) * 0.028, y + sin(a) * 0.028, -0.36), "metal_dark")
-		_c(parts, 0.005, 0.004, Vector3(cos(a) * 0.028, y + sin(a) * 0.028, -0.611), "bore")
-	for z in [-0.18, -0.4, -0.58]:
-		_c(parts, 0.042, 0.02, Vector3(0, y, z), "metal")
-	_c(parts, 0.012, 0.52, Vector3(0, y, -0.34), "metal_worn")
-	_x(parts, _sec(0.1, 0.1, y, 0.03, 0.02), -0.11, 0.11, "metal_dark", "", 0.006)
-	_c(parts, 0.05, 0.08, Vector3(0, y, -0.12), "metal")
-	_b(parts, Vector3(0.02, 0.02, 0.2), Vector3(0, y + 0.1, -0.02), "metal")
-	_b(parts, Vector3(0.02, 0.06, 0.02), Vector3(0, y + 0.07, -0.1), "metal")
-	_b(parts, Vector3(0.02, 0.06, 0.02), Vector3(0, y + 0.07, 0.06), "metal")
-	_p(parts, WeaponMesh.round_rect(0.12, 0.13, 0.012), 0.1, Vector3(-0.1, y - 0.04, 0.02), "olive", 0.0, "", 0.006)
-	_b(parts, Vector3(0.03, 0.02, 0.1), Vector3(-0.05, y + 0.02, -0.02), "brass", Vector3(0, 0, 20))
-	_pistol_grip(parts, "polymer", 0.1, -10.0, y - 0.05)
-	# Poignée latérale : collier autour du faisceau, bras vers la gauche,
-	# manche vertical sous l'axe (la main gauche l'empoigne, ViewHands.FRONT_GRIP).
-	var hz := -0.3
-	var hx := -0.072
-	_c(parts, 0.045, 0.024, Vector3(0, y, hz), "metal")
-	_b(parts, Vector3(0.04, 0.02, 0.024), Vector3(-0.052, y - 0.004, hz), "metal_dark")
-	_c(parts, 0.016, 0.1, Vector3(hx, y - 0.058, hz), "polymer", Vector3(90, 0, 0))
-	_c(parts, 0.019, 0.008, Vector3(hx, y - 0.108, hz), "metal_dark", Vector3(90, 0, 0))
-	return {"parts": parts, "info": {"grip_angle": -10.0, "no_sights": true}, "anchors": {
-		"muzzle": Vector3(0, y, -0.62), "sight": Vector3(0, y + 0.12, -0.02),
-		"grip": Vector3(0, -0.06, 0.1), "support": Vector3(hx, y - 0.078, hz)}}

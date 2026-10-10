@@ -19,7 +19,7 @@ const MAX_BYTES := 2 * 1024 * 1024
 const MAX_DEPTH := 8
 const MAX_ID_LEN := 64
 ## Préfixes d'identifiant par type d'objet (mêmes que MapEditor.add_object).
-const OBJ_PREFIX := {"atout": "a", "arme": "w", "boite": "b", "depart": "s", "escalier": "e", "pilier": "x", "mur": "m", "mur_courbe": "m",
+const OBJ_PREFIX := {"boite": "b", "depart": "s", "escalier": "e", "pilier": "x", "mur": "m", "mur_courbe": "m",
 	"piege": "t", "levier": "l", "prefab": "d", "luminaire": "lu", "bloc_invisible": "i", "effet": "fx"}
 ## Taille maximale de chaque liste (mêmes limites que les cartes reçues).
 const MAX_COUNT := {"pieces": CustomMapGuard.MAX_ROOMS, "ouvertures": CustomMapGuard.MAX_OPENINGS,
@@ -310,6 +310,8 @@ static func _validate_op(op: Variant, allow_add: bool) -> String:
 				return "at invalide / invalid at"
 			if not value_ok(el, 1):
 				return "el: valeur refusée (objet, profondeur, nombre non fini) / value refused"
+			if String(el.get("type", "")) in MapCatalog.REMOVED_TYPES:
+				return "el: type retiré du jeu (atout, arme, grenades, pap) / removed type"
 		"del":
 			if not (op.get("coll") is String and op.coll in COLLS):
 				return "coll inconnue / unknown coll"

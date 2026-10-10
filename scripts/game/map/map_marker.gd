@@ -1,6 +1,6 @@
 class_name MapMarker
 extends RefCounted
-## Emplacement d'un objet de carte (achat mural, atout, boîte, interrupteur...),
+## Emplacement d'un objet de carte (caisse, interrupteur, levier...),
 ## indépendant de la façon dont la carte est décrite (grille ASCII ou maillage).
 ##
 ## `pos` est un point du sol devant le mur (sur une grille : le centre de la
@@ -21,7 +21,7 @@ var seed := 0
 var block := ""
 ## Cellule d'origine sur une carte grille (Vector2i(-1, -1) sinon).
 var cell := Vector2i(-1, -1)
-## Données propres au type (arme, atout...).
+## Données propres au type.
 var data: Dictionary = {}
 
 

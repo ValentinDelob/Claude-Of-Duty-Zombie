@@ -1,7 +1,7 @@
 extends TestCase
 ## Échelle et rotation 3D du décor (docs/EDITOR_SCALE_ROTATE.md, MapScale,
 ## format 14) : ce qui change d'échelle type par type (§ 1.1), prefab qui
-## contient un Pack-a-Punch bloqué et message qui le nomme, bornes, clés
+## contient un téléporteur bloqué et message qui le nomme, bornes, clés
 ## remises en ordre, aller-retour au format 14, carte d'avant inchangée,
 ## carte reçue hors bornes refusée, boîte orientée (rot 37°, incl 30°), sens
 ## des trois axes, décomposition, règles de pose (dessus, porteur, plafond).
@@ -9,10 +9,10 @@ extends TestCase
 const TMP := "res://tests/_out/test_map_scale"
 const DecorFree := preload("res://tests/test_map_decor_free.gd")
 
-## Prefab de la carte qui contient un Pack-a-Punch (définition lue telle
-## quelle : la bibliothèque calcule ses parties non redimensionnables).
-const PAP_DEF := {"format": 1, "nom": {"fr": "Coin Pack-a-Punch", "en": "Pack-a-Punch corner"}, "fp": [8, 6], "h": 1.8, "bloque": "solide",
-	"parties": [{"decor": "pap", "pos": [-1.5, 0]}, {"decor": "sacs_sable", "pos": [0.5, -1]}, {"decor": "tonneaux", "pos": [0.5, 1]}]}
+## Prefab de la carte qui contient un téléporteur, objet de jeu (définition
+## lue telle quelle : la bibliothèque calcule ses parties non redimensionnables).
+const GAME_DEF := {"format": 1, "nom": {"fr": "Coin téléporteur", "en": "Teleporter corner"}, "fp": [8, 6], "h": 1.8, "bloque": "solide",
+	"parties": [{"decor": "teleporteur", "pos": [-1.5, 0]}, {"decor": "sacs_sable", "pos": [0.5, -1]}, {"decor": "tonneaux", "pos": [0.5, 1]}]}
 const GROUP_DEF := {"format": 1, "nom": {"fr": "Barricade", "en": "Barricade"}, "fp": [6, 4], "h": 1.5, "bloque": "solide",
 	"parties": [{"decor": "caisses", "pos": [-0.5, 0]}, {"decor": "sacs_sable", "pos": [1.5, 0], "rot": 90}]}
 const SLANT_DEF := {"format": 1, "nom": {"fr": "Biais", "en": "Slant"}, "fp": [6, 4], "h": 1.5, "bloque": "solide",
@@ -47,7 +47,7 @@ func test_what_scales_type_by_type() -> void:
 		assert_true(MapScale.tilt_refusal(_o(id))[0].contains("mur"), "raison : suit son mur")
 	assert_true(MapScale.scalable(_o("cable_suspendu")) and not MapScale.tiltable(_o("cable_suspendu")), "câble suspendu : échelle, pas d'inclinaison")
 	# Jamais : objets de jeu, ouvertures, construction, luminaires, effets, caisse et baril historiques.
-	var fixed := [{"type": "atout", "atout": "titan"}, {"type": "pap"}, {"type": "boite"}, {"type": "arme", "arme": "m14"},
+	var fixed := [{"type": "boite"}, {"type": "poste_central"}, {"type": "arrivee"},
 		{"type": "courant"}, {"type": "levier"}, {"type": "teleporteur"}, {"type": "depart"}, {"type": "apparition"},
 		{"type": "porte"}, {"type": "fenetre"}, {"type": "pilier"}, {"type": "escalier"}, {"type": "piege"}, {"type": "mur"},
 		{"type": "bloc_invisible"}, {"type": "luminaire", "luminaire": "suspension"}, {"type": "lampe"}, {"type": "effet", "effet": "feu"},
@@ -56,38 +56,38 @@ func test_what_scales_type_by_type() -> void:
 		assert_false(MapScale.scalable(o), "%s ne change pas d'échelle" % o.type)
 		assert_false(MapScale.tiltable(o), "%s ne s'incline pas" % o.type)
 		assert_false(MapScale.scale_refusal(o).is_empty(), "%s : raison donnée" % o.type)
-	assert_eq(MapScale.phrase({"type": "atout", "atout": "titan"})[0], "l'atout %s" % PerkDB.display_name("titan"))
-	assert_eq(MapScale.phrase({"type": "pap"})[0], "un Pack-a-Punch")
+	assert_eq(MapScale.phrase({"type": "boite"})[0], "une caisse au hasard")
+	assert_eq(MapScale.phrase({"type": "teleporteur"})[0], "un téléporteur")
 	# Clés lues seulement sur un décor.
-	assert_eq(MapScale.scale_of({"type": "pap", "echelle": [2, 2, 2]}), Vector3.ONE, "pas d'échelle pour un objet de jeu")
+	assert_eq(MapScale.scale_of({"type": "teleporteur", "echelle": [2, 2, 2]}), Vector3.ONE, "pas d'échelle pour un objet de jeu")
 
 
-func test_map_prefab_with_pack_a_punch_is_blocked() -> void:
-	MapCatalog.set_map_prefabs({"coin_pap": PAP_DEF, "barricade": GROUP_DEF, "biais": SLANT_DEF})
-	var o := _o("map:coin_pap")
-	assert_false(MapScale.scalable(o), "prefab avec un Pack-a-Punch : bloqué")
+func test_map_prefab_with_game_object_is_blocked() -> void:
+	MapCatalog.set_map_prefabs({"coin_tp": GAME_DEF, "barricade": GROUP_DEF, "biais": SLANT_DEF})
+	var o := _o("map:coin_tp")
+	assert_false(MapScale.scalable(o), "prefab avec un téléporteur : bloqué")
 	assert_false(MapScale.tiltable(o), "et reste droit")
 	assert_eq(MapScale.blockers_of(o).size(), 1, "un seul objet de jeu")
 	var r := MapScale.scale_refusal(o)
-	assert_eq(r[0], "Échelle impossible : « Coin Pack-a-Punch » contient un Pack-a-Punch (objet de jeu à taille fixe)", "message qui nomme l'objet")
-	assert_eq(r[1], "Scale impossible: \"Pack-a-Punch corner\" contains a Pack-a-Punch (fixed-size game object)")
+	assert_eq(r[0], "Échelle impossible : « Coin téléporteur » contient un téléporteur (objet de jeu à taille fixe)", "message qui nomme l'objet")
+	assert_eq(r[1], "Scale impossible: \"Teleporter corner\" contains a teleporter (fixed-size game object)")
 	assert_true(MapScale.tilt_refusal(o)[0].contains("reste droit"), "inclinaison : objet de jeu, reste droit")
 	# Inventaire : la bulle le dit.
-	var it := MapCatalog.item("prefab:map:coin_pap")
-	assert_true(String(it.hint_fr).contains("échelle fixe (Pack-a-Punch)"), "bulle : échelle fixe (%s)" % it.hint_fr)
+	var it := MapCatalog.item("prefab:map:coin_tp")
+	assert_true(String(it.hint_fr).contains("échelle fixe (Téléporteur)"), "bulle : échelle fixe (%s)" % it.hint_fr)
 	# Groupe de décors : redimensionnable ; partie tournée en biais : uniforme seulement.
 	assert_true(MapScale.scalable(_o("map:barricade")) and not MapScale.uniform_only(_o("map:barricade")), "groupe à 90° : par axe")
 	assert_true(MapScale.uniform_only(_o("map:biais")), "partie à 45° : uniforme seulement")
 	assert_false(MapScale.check_scale(_o("map:biais"), Vector3(2, 1, 1)).is_empty(), "échelle par axe refusée")
 	assert_true(MapScale.check_scale(_o("map:biais"), Vector3(2, 2, 2)).is_empty(), "uniforme permise")
 	# Nommage : deux noms au plus puis « et N autres » ; récursif.
-	var many := {"parties": [{"decor": "pap"}, {"decor": "atout:titan"}, {"decor": "boite"}, {"decor": "grenades"}, {"decor": "map:coin_pap"}]}
-	var names := MapScale.unscalable_parts(many, {"coin_pap": PAP_DEF})
-	assert_eq(names.size(), 4, "quatre objets distincts (le Pack-a-Punch du prefab cité n'est compté qu'une fois)")
-	assert_eq(MapScale.names_text(names)[0], "un Pack-a-Punch, l'atout %s et 2 autres" % PerkDB.display_name("titan"))
+	var many := {"parties": [{"decor": "teleporteur"}, {"decor": "boite"}, {"decor": "courant"}, {"decor": "levier"}, {"decor": "map:coin_tp"}]}
+	var names := MapScale.unscalable_parts(many, {"coin_tp": GAME_DEF})
+	assert_eq(names.size(), 4, "quatre objets distincts (le téléporteur du prefab cité n'est compté qu'une fois)")
+	assert_eq(MapScale.names_text(names)[0], "un téléporteur, une caisse au hasard et 2 autres")
 	# Sélection mixte (Q2) : bloquée, le message nomme l'élément.
-	var g := MapScale.group_refusal([_o("caisses"), {"type": "atout", "atout": "titan"}])
-	assert_eq(g[0], "Échelle impossible : la sélection contient l'atout %s" % PerkDB.display_name("titan"))
+	var g := MapScale.group_refusal([_o("caisses"), {"type": "boite"}])
+	assert_eq(g[0], "Échelle impossible : la sélection contient une caisse au hasard")
 	assert_true(MapScale.group_refusal([_o("caisses"), _o("poutre")]).is_empty(), "sélection de décor : permise")
 
 
@@ -114,7 +114,7 @@ func test_bounds_and_tidy() -> void:
 	assert_true(MapScale.check_object(_o("flaque_eau", {"echelle": [2, 2, 1]}), MapCatalog.PREFABS.flaque_eau, []).is_empty(), "et acceptée par le contrôle")
 	# Remise en ordre d'un fichier écrit à la main.
 	var bad := [_o("caisses", {"echelle": "x"}), _o("caisses", {"echelle": [1, 1, 1]}), _o("caisses", {"echelle": [NAN, 1, 1]}),
-		_o("torche_murale", {"incl": [10, 0]}), _o("caisses", {"incl": [0, 0.02]}), {"id": "a", "type": "pap", "position": [1, 1], "echelle": [2, 2, 2]}]
+		_o("torche_murale", {"incl": [10, 0]}), _o("caisses", {"incl": [0, 0.02]}), {"id": "a", "type": "teleporteur", "position": [1, 1], "echelle": [2, 2, 2]}]
 	for b in bad:
 		MapScale.tidy(b)
 		assert_false(b.has("echelle") or b.has("incl"), "retirée : %s" % str(b))
@@ -122,11 +122,11 @@ func test_bounds_and_tidy() -> void:
 	MapScale.tidy(ok)
 	assert_true(Vector3(ok.echelle[0], ok.echelle[1], ok.echelle[2]).is_equal_approx(Vector3(0.25, 4.0, 1.5)), "bornée")
 	assert_true(Vector2(ok.incl[0], ok.incl[1]).is_equal_approx(Vector2(0.0, 30.0)), "au dixième")
-	MapCatalog.set_map_prefabs({"coin_pap": PAP_DEF})
-	var blocked := _o("map:coin_pap", {"echelle": [2, 2, 2], "incl": [10, 0]})
+	MapCatalog.set_map_prefabs({"coin_tp": GAME_DEF})
+	var blocked := _o("map:coin_tp", {"echelle": [2, 2, 2], "incl": [10, 0]})
 	var msg := MapScale.tidy(blocked)
 	assert_false(blocked.has("echelle") or blocked.has("incl"), "prefab bloqué : échelle et inclinaison retirées")
-	assert_true(not msg.is_empty() and String(msg[0]).contains("Pack-a-Punch"), "avec un message qui nomme l'objet")
+	assert_true(not msg.is_empty() and String(msg[0]).contains("téléporteur"), "avec un message qui nomme l'objet")
 
 
 static func _scaled_map() -> EditorMap:
@@ -183,15 +183,15 @@ func test_received_map_out_of_bounds_is_refused() -> void:
 	assert_false(r1.ok, "inclinaison d'un décor mural refusée")
 	var t2 := texts.duplicate()
 	t2["objets.json"] = String(texts["objets.json"]).replace("\"depart\":true", "\"depart\":true,\"echelle\":[2,2,2]")
-	assert_false(CustomMapGuard.check_texts(t2).ok, "échelle d'une boîte mystère refusée")
+	assert_false(CustomMapGuard.check_texts(t2).ok, "échelle d'une caisse au hasard refusée")
 	# Emprise finale de plus de 20 m (mur effondré 6 m × 4).
 	var t3 := texts.duplicate()
 	t3["objets.json"] = String(texts["objets.json"]).replace("\"prefab\":\"caisses\"", "\"prefab\":\"eboulis\"").replace("[1.5,1.5,1.5]", "[4,1,1]")
 	assert_false(CustomMapGuard.check_texts(t3).ok, "emprise de 24 m refusée")
 	# Prefab de la carte qui contient un objet de jeu : échelle refusée.
-	assert_false(MapScale.check_object(_o("map:coin_pap", {"echelle": [2, 2, 2]}), PAP_DEF, MapScale.unscalable_parts(PAP_DEF)).is_empty(),
+	assert_false(MapScale.check_object(_o("map:coin_tp", {"echelle": [2, 2, 2]}), GAME_DEF, MapScale.unscalable_parts(GAME_DEF)).is_empty(),
 		"échelle d'un prefab qui contient un objet de jeu")
-	assert_true(MapScale.check_object(_o("map:coin_pap"), PAP_DEF, MapScale.unscalable_parts(PAP_DEF)).is_empty(), "sans échelle : accepté")
+	assert_true(MapScale.check_object(_o("map:coin_tp"), GAME_DEF, MapScale.unscalable_parts(GAME_DEF)).is_empty(), "sans échelle : accepté")
 	assert_false(MapScale.check_object(_o("map:biais", {"echelle": [2, 1, 1]}), SLANT_DEF, []).is_empty(), "parties en biais : uniforme exigée")
 
 
@@ -283,9 +283,9 @@ func test_rules_with_scale_and_tilt() -> void:
 	assert_eq(String(rb.get("fr", "")), "trop haut pour le plafond (3,20 m)")
 	MapScale.set_incl(b2, Vector2(0, 10))
 	assert_true(MapScale.check(doc, v, b2, beam).ok, "10° : tient sous le plafond (%s)" % str(MapScale.check(doc, v, b2, beam)))
-	# Pack-a-Punch : refus qui le nomme ; carte d'un prefab bloqué.
-	var pap := {"id": "x99", "type": "pap", "altitude": 0, "position": [3.0, 0.0], "mur": "n", "echelle": [2, 2, 2]}
-	assert_false(MapScale.check(doc, v, pap).ok)
+	# Objet de jeu (interrupteur) : refus qui le nomme ; carte d'un prefab bloqué.
+	var sw := {"id": "x99", "type": "courant", "altitude": 0, "position": [3.0, 0.0], "mur": "n", "echelle": [2, 2, 2]}
+	assert_false(MapScale.check(doc, v, sw).ok)
 	# Agrandie, la pile de caisses chevauche le bureau.
 	var cr := DecorFree._obj(doc, {"type": "prefab", "prefab": "caisses", "position": [7.0, 4.0]})
 	v = MapRaster.build(doc).v

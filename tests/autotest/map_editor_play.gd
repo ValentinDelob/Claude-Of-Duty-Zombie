@@ -53,7 +53,7 @@ func run() -> void:
 		costs[d.door_id] = d.cost
 	at.check(costs == {"1": 1000, "2": 1250, "3": 750}, "portes 1000, 1250 (débris), 750 (%s)" % str(costs))
 	var box: MysteryBox = game.interact.get_obj("box")
-	at.check(box != null and box.spots.size() == 3 and box.location == 1, "3 emplacements de boîte, départ dans le couloir")
+	at.check(box != null and box.global_position.y > 2.0, "une seule caisse, sur la passerelle")
 	# Le sol tient le joueur : il ne tombe pas à travers la géométrie.
 	await seconds(1.0)
 	at.check(p.global_position.y > -0.5 and p.is_on_floor(), "joueur debout sur le sol construit (y = %.2f)" % p.global_position.y)

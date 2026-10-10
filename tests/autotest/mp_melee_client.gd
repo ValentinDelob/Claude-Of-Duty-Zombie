@@ -1,6 +1,6 @@
 extends AutotestScenario
 ## [MP] Client : fente au couteau sur les zombies (marionnettes) apparus devant
-## lui ; reçoit le couteau de chasse (animation de récupération) puis frappe.
+## lui, deux fois (le couteau de chasse est supprimé : lot C).
 
 const PORT := 17881
 
@@ -31,13 +31,8 @@ func run() -> void:
 		ok = await until(func(): return game.zombies.alive_count() == 0, 5.0, "zombie mort")
 		at.check(ok, "zombie tué (coup %d)" % (k + 1))
 		if k == 0:
-			# Retour au point de départ, puis couteau de chasse donné par l'hôte.
+			# Retour au point de départ, puis second zombie.
 			p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
-			ok = await until(func(): return p.weapons.knife_id == "bowie", 15.0, "couteau de chasse reçu")
-			at.check(ok and p.weapons.is_picking_up_knife(), "récupération du couteau de chasse (client)")
-			await seconds(0.8)
-			await at.screenshot("bowie_pickup")
-			await until(func(): return not p.weapons.is_picking_up_knife(), 3.0, "fin de récupération")
-			MpHelpers.signal_peer("bowie_en_main")
-	at.check(pd.knife == "bowie", "inventaire client : couteau de chasse")
+			MpHelpers.signal_peer("retour")
+	at.check(pd.knife == KnifeDB.DEFAULT, "inventaire client : couteau de base")
 	await MpHelpers.finish(self)

@@ -1,25 +1,21 @@
 extends TestCase
-## Règles du couteau (KnifeDB) : dégâts BO1, couteau de chasse, choix de la
-## cible et de la fente.
+## Règles du couteau (KnifeDB) : dégâts BO1, choix de la cible et de la
+## fente. Le couteau de chasse mural est supprimé (lot C) : seul le couteau de
+## base reste, attaque rapide séparée (GAME_CONCEPT §5).
 
 
 func test_damage_values() -> void:
 	assert_eq(KnifeDB.damage("knife"), 150, "couteau : 150")
-	assert_eq(KnifeDB.damage("bowie"), 1300, "couteau de chasse : 1300")
-	assert_eq(KnifeDB.wall_cost("bowie"), 3000, "couteau de chasse : 3000 au mur")
-	assert_eq(KnifeDB.wall_cost("knife"), 0)
+	assert_false(KnifeDB.exists("bowie"), "couteau de chasse supprimé")
+	assert_eq(KnifeDB.KNIVES.size(), 1, "seul le couteau de base")
 	assert_eq(KnifeDB.damage("inconnu"), 150, "repli sur le couteau de départ")
 
 
 func test_kills_by_round() -> void:
-	# Couteau : un coup à la manche 1, deux à la 2 (250 PV).
+	# Couteau : un coup à la manche 1, deux à la 2.
 	assert_true(KnifeDB.damage("knife") >= RoundRules.zombie_health(1))
 	assert_true(KnifeDB.damage("knife") * 2 >= RoundRules.zombie_health(2))
 	assert_true(KnifeDB.damage("knife") < RoundRules.zombie_health(2))
-	# Couteau de chasse : un coup jusqu'à la manche 12, plus à la 13.
-	for r in range(1, 13):
-		assert_true(KnifeDB.damage("bowie") >= RoundRules.zombie_health(r), "bowie : un coup manche %d" % r)
-	assert_true(KnifeDB.damage("bowie") < RoundRules.zombie_health(13), "bowie : deux coups manche 13")
 
 
 func test_pick_target_contact_and_cone() -> void:
@@ -56,10 +52,10 @@ func test_lunge_needs_aim() -> void:
 func test_inventory_carries_knife() -> void:
 	var pd := PlayerData.new(1)
 	assert_eq(pd.knife, "knife")
-	pd.knife = "bowie"
+	pd.knife = "autre"
 	var copy := PlayerData.new(1)
 	copy.apply_inventory(pd.inventory_dict())
-	assert_eq(copy.knife, "bowie", "le couteau voyage avec l'inventaire")
+	assert_eq(copy.knife, "autre", "le couteau voyage avec l'inventaire")
 
 
 func test_models_defined() -> void:

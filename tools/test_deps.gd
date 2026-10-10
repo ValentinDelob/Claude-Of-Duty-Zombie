@@ -17,7 +17,7 @@ extends SceneTree
 ## qu'aucun scénario n'atteint est ajouté à TOUS les scénarios.
 ##
 ## Annotations en tête d'un test :
-##   ## @couvre scripts/game/perks/*     dépendances ajoutées à la main (motifs)
+##   ## @couvre scripts/game/throwables/*     dépendances ajoutées à la main (motifs)
 ##   ## @carte kino                      test propre à une carte : il ne dépend
 ##                                      QUE des fichiers de cette carte (et de
 ##                                      lui-même), jamais des noyaux.

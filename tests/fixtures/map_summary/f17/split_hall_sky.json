@@ -194,8 +194,8 @@
 					11.0,
 					0.0
 				],
-				"altitude": 0.0,
-				"mur": "n"
+				"mur": "n",
+				"altitude": 0.0
 			},
 			{
 				"id": "s1e",

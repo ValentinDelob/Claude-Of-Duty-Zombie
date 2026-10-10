@@ -562,9 +562,9 @@ func test_checks_ported_from_main() -> void:
 	var ok_el := st.duplicate()
 	ok_el["id"] = "e1"
 	assert_eq(McpTools.check_ops([{"op": "put", "coll": "objets", "el": ok_el}]), "")
-	# Sélection pendant un geste : « busy » décrit ; boîte au sol dans les consignes.
+	# Sélection pendant un geste : « busy » décrit ; caisse au sol dans les consignes.
 	assert_true(String(McpTools.new().find("editor_highlight").description).contains("busy"))
-	assert_true(McpDocs.CONSIGNES.contains("Boîte mystère (format 15") and McpDocs.CONSIGNES.contains("jamais de « marches »"))
+	assert_true(McpDocs.CONSIGNES.contains("Caisse au hasard (type « boite », format 15") and McpDocs.CONSIGNES.contains("jamais de « marches »"))
 
 
 ## Format 17 : consignes et descriptions des outils sans étages (sauf pour

@@ -40,7 +40,7 @@ func back_to_menu(reason := "") -> void:
 ## Fin d'une partie multijoueur (ordre du serveur : LobbyReturn._cl_return) :
 ## retour au SALON avec tout le groupe, sans couper la session (connexion,
 ## joueurs, personnages, carte et réglages du salon gardés). La scène de jeu
-## est libérée en entier (points, manche, armes, atouts, zombies, bonus) : la
+## est libérée en entier (points, manche, armes, zombies) : la
 ## partie suivante recharge tout. Hors ligne (solo) : retour au menu.
 func back_to_lobby() -> void:
 	if not Net.is_online():

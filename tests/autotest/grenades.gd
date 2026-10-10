@@ -1,9 +1,10 @@
 extends AutotestScenario
-## Grenades et SINGE-TAMBOUR (BO1) dans le vrai jeu : réserve (2 au départ,
-## +2 par manche, 4 au plus), dégoupillage puis lancer en cloche avec rebonds,
-## explosion qui tue les zombies (50 points par kill), rebond contre un mur,
-## grenade cuite qui explose dans la main, achat mural à 250, MUNITIONS MAX,
-## singe qui attire tous les zombies puis explose. Captures à chaque étape.
+## Emplacement de grenade dans le vrai jeu : grenades (2 au départ, +2 par
+## manche, 4 au plus), dégoupillage puis lancer en cloche avec rebonds,
+## explosion qui tue les zombies (50 de ferraille par kill), rebond contre un
+## mur, grenade cuite qui explose dans la main ; PELUCHE LEURRE de la caisse
+## au hasard (emplacement rempli à 4, lancée avec [G]) qui attire tous les
+## zombies puis explose. Captures à chaque étape.
 
 var H := AutotestHelpers
 var game: Game
@@ -25,18 +26,14 @@ func set_frags(n: int) -> void:
 	await seconds(0.1)  # synchro vers le client
 
 
-## Maintient [G] (ou [Q]) `hold` secondes puis relâche. Retourne l'objet lancé.
-func throw(tactical: bool, hold: float, shot := "") -> Throwable:
+## Maintient [G] `hold` secondes puis relâche. Retourne l'objet lancé.
+func throw(hold: float, shot := "") -> Throwable:
 	var before: Array = sys.items.keys()
-	if tactical:
-		p.input.tactical = true
-	else:
-		p.input.grenade = true
+	p.input.grenade = true
 	await seconds(hold)
 	if shot != "":
 		await at.screenshot(shot)
 	p.input.grenade = false
-	p.input.tactical = false
 	var ok: bool = await until(func(): return sys.items.size() > before.size(), 1.5, "objet lancé")
 	if not ok:
 		return null
@@ -62,7 +59,7 @@ func run() -> void:
 	await H.clear_zombies(self)
 	pd = game.session.local_data()
 	sys.exploded.connect(func(kind, pos, pid): booms.append([kind, pos, pid]))
-	at.check(sys != null and InputMap.has_action("grenade") and InputMap.has_action("tactical"), "touches [G] grenade et [Q] tactique")
+	at.check(sys != null and InputMap.has_action("grenade") and not InputMap.has_action("tactical"), "touche [G] seule (plus de [Q] tactique)")
 
 	# 1. Réserve : 2 au départ, +2 par manche, jamais plus de 4.
 	at.check(pd.grenades == 2, "2 grenades au départ (%d)" % pd.grenades)
@@ -86,7 +83,7 @@ func run() -> void:
 		zs.append(await H.dummy_zombie(self, MapData.cell_to_world(Vector2i(12, 7)) + Vector3(0, 0, (k - 1) * 0.75), hp))
 	H.aim_at(p, MapData.cell_to_world(Vector2i(10, 7)))
 	var points0 := pd.points
-	var t := await throw(false, 0.6, "frag_hold")
+	var t := await throw(0.6, "frag_hold")
 	at.check(t != null and pd.grenades == 3, "grenade lancée, réserve 3 (%d)" % pd.grenades)
 	if t:
 		await seconds(0.25)  # capture : grenade en vol
@@ -111,7 +108,7 @@ func run() -> void:
 
 	# 3. Contre un mur : la grenade est renvoyée.
 	await stand(Vector2i(5, 3), 0.0)  # face au mur nord (z = 1), à 2,5 m
-	t = await throw(false, 0.5)
+	t = await throw(0.5)
 	if t:
 		await until(func(): return not is_instance_valid(t) or t.on_ground, 3.0, "retombée")
 		if is_instance_valid(t):
@@ -140,53 +137,31 @@ func run() -> void:
 	game.combat.debug_invulnerable = true
 	await H.clear_zombies(self)
 	await seconds(0.5)
-
-	# 5. Achat mural : 250 points, réserve remplie à 4.
 	at.check(pd.grenades == 1, "réserve après 3 grenades : 1 (%d)" % pd.grenades)
-	var buy: GrenadeBuy = game.interact.get_obj("grenades_20_1")
-	at.check(buy != null and buy.get_node_or_null("Chalk") != null, "achat mural de grenades (craie)")
-	if buy:
-		p.teleport_to(Vector3(buy.global_position.x, 0.05, buy.global_position.z + 1.3))
-		H.aim_at(p, buy.global_position)
-		await until(func(): return game.hud._prompt.text.contains("250"), 2.0, "invite de l'achat de grenades")
-		at.check(game.hud._prompt.text.contains("250"), "invite : %s" % game.hud._prompt.text)
-		await at.screenshot("wall_buy")
-		game.session.add_points(1, 250)  # on part de 0 ferraille
-		var pts := pd.points
-		p.input.interact_pressed = true
-		await until(func(): return pd.grenades == 4 and pts - pd.points == 250, 2.0, "grenades achetées")
-		at.check(pd.grenades == 4 and pts - pd.points == 250, "grenades achetées : 4 (-%d points)" % (pts - pd.points))
-		await until(func(): return game.hud._prompt.text == "", 2.0, "invite retirée")
-		at.check(game.hud._prompt.text == "", "réserve pleine : plus d'invite")
 
-	# 6. MUNITIONS MAX : grenades à 4 (et singes à 3 s'il y en a).
-	await set_frags(0)
-	game.powerups.apply(PowerupRules.MAX_AMMO, 1, p.global_position)
-	await until(func(): return pd.grenades == 4, 2.0, "grenades rendues par munitions max")
-	at.check(pd.grenades == 4 and pd.monkeys == 0, "munitions max : 4 grenades, pas de singe (%d / %d)" % [pd.grenades, pd.monkeys])
-
-	# 7. SINGE-TAMBOUR : attire tous les zombies, puis explose.
-	sys.srv_give_monkeys(1)
-	await until(func(): return pd.has_monkeys and pd.monkeys == 3, 2.0, "singes reçus")
-	at.check(pd.has_monkeys and pd.monkeys == 3, "3 singes reçus")
+	# 5. PELUCHE LEURRE de la caisse : remplace les grenades sur l'emplacement
+	# (4), lancée avec [G], attire tous les zombies puis explose.
+	sys.srv_fill_slot(1, ThrowableRules.Kind.DECOY)
+	await until(func(): return pd.throwable == ThrowableRules.Kind.DECOY and pd.grenades == 4, 2.0, "peluches reçues")
+	at.check(pd.throwable == ThrowableRules.Kind.DECOY and pd.grenades == ThrowableRules.SLOT_MAX, "4 peluches à la place de la grenade restante")
 	await stand(Vector2i(4, 7), -PI * 0.5)
-	await at.screenshot("hud_monkeys")
+	await at.screenshot("hud_decoys")
 	var runners := []
 	for c in [Vector2i(22, 2), Vector2i(23, 12), Vector2i(12, 17), Vector2i(12, 2)]:
 		var zid := game.zombies.spawn(MapData.cell_to_world(c), 1, 150)
 		runners.append(game.zombies.get_zombie(zid))
 	await H.emerged(self, runners)
 	H.aim_at(p, MapData.cell_to_world(Vector2i(11, 7)))
-	var monkey := await throw(true, 0.5, "monkey_hold")
-	at.check(monkey != null and pd.monkeys == 2, "singe lancé (reste %d)" % pd.monkeys)
-	var luring: bool = await until(func(): return sys.lure_count() == 1, 4.0, "singe posé, musique")
-	at.check(luring, "le singe joue sa musique")
-	var mpos: Vector3 = monkey.position if is_instance_valid(monkey) else Vector3.ZERO
+	var decoy := await throw(0.5, "decoy_hold")
+	at.check(decoy != null and decoy.kind == ThrowableRules.Kind.DECOY and pd.grenades == 3, "peluche lancée (reste %d)" % pd.grenades)
+	var luring: bool = await until(func(): return sys.lure_count() == 1, 4.0, "peluche posée, musique")
+	at.check(luring, "la peluche joue sa musique")
+	var mpos: Vector3 = decoy.position if is_instance_valid(decoy) else Vector3.ZERO
 	# Le joueur s'éloigne : les zombies ne le suivent pas.
 	await stand(Vector2i(5, 7), -PI * 0.5)
 	H.aim_at(p, mpos)
-	await seconds(4.5)  # fenêtre mesurée : les zombies rejoignent le singe sans poursuivre le joueur
-	await at.screenshot("monkey_lure")
+	await seconds(4.5)  # fenêtre mesurée : les zombies rejoignent la peluche sans poursuivre le joueur
+	await at.screenshot("decoy_lure")
 	var near := 0
 	var lured := 0
 	var closest_to_player := INF
@@ -197,29 +172,37 @@ func run() -> void:
 			if Vector2(z.global_position.x - mpos.x, z.global_position.z - mpos.z).length() < 3.0:
 				near += 1
 			closest_to_player = minf(closest_to_player, z.global_position.distance_to(p.global_position))
-	at.check(lured == runners.size(), "tous les zombies suivent le singe (%d/%d)" % [lured, runners.size()])
-	at.check(near >= 3, "zombies regroupés autour du singe (%d/%d à moins de 3 m)" % [near, runners.size()])
+	at.check(lured == runners.size(), "tous les zombies suivent la peluche (%d/%d)" % [lured, runners.size()])
+	at.check(near >= 3, "zombies regroupés autour de la peluche (%d/%d à moins de 3 m)" % [near, runners.size()])
 	at.check(closest_to_player > 3.0, "aucun zombie ne poursuit le joueur (plus proche %.1f m)" % closest_to_player)
 	var pts2 := pd.points
-	var mboom := await wait_boom(4, ThrowableRules.MONKEY_TIME + 1.0)
+	var mboom := await wait_boom(4, ThrowableRules.DECOY_TIME + 1.0)
 	await seconds(0.06)  # capture
-	await at.screenshot("monkey_explosion")
+	await at.screenshot("decoy_explosion")
 	var mdead := 0
 	for z: Zombie in runners:
 		if not z.is_alive():
 			mdead += 1
-	at.check(mboom and booms[3][0] == ThrowableRules.Kind.MONKEY and mdead >= near, "explosion du singe : %d zombies tués" % mdead)
-	at.check(pd.points - pts2 == mdead * PointsRules.KILL, "points des kills du singe (+%d)" % (pd.points - pts2))
+	at.check(mboom and booms[3][0] == ThrowableRules.Kind.DECOY and mdead >= near, "explosion de la peluche : %d zombies tués" % mdead)
+	at.check(pd.points - pts2 == mdead * PointsRules.KILL, "ferraille des kills de la peluche (+%d)" % (pd.points - pts2))
 	# Après la musique, les zombies restants reviennent vers les joueurs.
 	await until(func():
 		for z in runners:
 			if is_instance_valid(z) and z.is_alive() and z.lured:
 				return false
-		return true, 2.0, "zombies libérés du singe")
+		return true, 2.0, "zombies libérés de la peluche")
 	for z: Zombie in runners:
 		if z.is_alive():
 			at.check(not z.lured, "zombie survivant de nouveau sur les joueurs")
-	game.powerups.apply(PowerupRules.MAX_AMMO, 1, p.global_position)
-	await until(func(): return pd.monkeys == 3, 2.0, "singes rendus par munitions max")
-	at.check(pd.monkeys == 3, "munitions max : singes rendus (%d)" % pd.monkeys)
 	await H.clear_zombies(self)
+
+	# 6. Peluches épuisées : l'emplacement redevient « grenades » et la
+	# dotation de la manche suivante le remplit.
+	await set_frags(0)
+	pd.throwable = ThrowableRules.Kind.DECOY
+	game.session.sync_stats(1)
+	game.rounds.debug_jump_to(game.rounds.round_n + 1)
+	await until(func(): return pd.throwable == ThrowableRules.Kind.FRAG and pd.grenades == 2, 2.0, "grenades de la manche")
+	at.check(pd.throwable == ThrowableRules.Kind.FRAG and pd.grenades == 2, "emplacement vide : +2 grenades (%d)" % pd.grenades)
+	await H.clear_zombies(self)
+

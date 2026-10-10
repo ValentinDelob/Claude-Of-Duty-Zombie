@@ -115,7 +115,7 @@ var hot_index := MOUSE
 var last_slot := 0
 ## Rotation (degrés) de l'objet tenu (prefabs, luminaires) : R avant de poser.
 var place_rot := 0
-## Variante de l'objet tenu (portes, débris, armes murales : V avant de
+## Variante de l'objet tenu (portes, débris, escaliers... : V avant de
 ## poser) ; "" : l'aspect par défaut.
 var place_variant := ""
 ## Élément survolé (liste des objets ou carte) : contour lumineux sur la carte.
@@ -218,7 +218,7 @@ func _cli_check(path: String) -> void:
 	if not (p.is_absolute_path() or p.begins_with("res://") or p.begins_with("user://")):
 		p = ProjectSettings.globalize_path("res://").path_join(p)
 	var m: EditorMap = EditorMap.import_zip(p) if p.get_extension().to_lower() == "zip" else EditorMap.load_dir(p)
-	for e in m.load_errors:
+	for e in m.load_errors + m.load_notes:
 		print("[carte] ", Lang.t(e[0], e[1]))
 	var v := MapRaster.build(m).v
 	v.analyze()
@@ -2009,14 +2009,9 @@ func insert_element(e: Dictionary) -> void:
 			e.erase("largeur")
 		doc.ouvertures.append(e)
 	else:
-		var prefix: String = {"atout": "a", "arme": "w", "boite": "b", "depart": "s", "escalier": "e", "pilier": "x", "mur": "m", "mur_courbe": "m",
+		var prefix: String = {"boite": "b", "depart": "s", "escalier": "e", "pilier": "x", "mur": "m", "mur_courbe": "m",
 			"piege": "t", "levier": "l", "prefab": "d", "luminaire": "lu", "bloc_invisible": "i", "effet": "fx"}.get(String(e.get("type", "")), "x")
 		e["id"] = doc.new_id(prefix)
-		# Un seul départ de la boîte.
-		if String(e.type) == "boite" and e.get("depart", false):
-			for q in doc.objets:
-				if String(q.get("type", "")) == "boite":
-					q["depart"] = false
 		doc.objets.append(e)
 
 
@@ -2128,7 +2123,7 @@ func try_move(orig: Dictionary, attached: Array, delta: Vector2, snap0: Dictiona
 		if res.ok:
 			cand.position = res.position
 	elif t == "boite":
-		# Boîte mystère (format 16) : son centre suit le curseur ; près d'un mur
+		# Caisse au hasard (format 16) : son centre suit le curseur ; près d'un mur
 		# elle s'y colle, décollée elle se pose au sol (Alt : sans aimant).
 		res = MapRules.place_box(doc, k, orig, MapGeom.centroid(MapRules.exact_poly(cand)), String(orig.id), canvas.mode_now() != "libre", not canvas.angle_free())
 		if res.ok:
@@ -2554,7 +2549,7 @@ func rotate_selection() -> void:
 
 
 ## V : variante suivante (aspect) de l'objet tenu (avant de le poser), sinon
-## de l'élément choisi (MapCatalog.VARIANTS : portes, débris, armes murales).
+## de l'élément choisi (MapCatalog.VARIANTS : portes, débris, escaliers...).
 func cycle_variant() -> void:
 	var held := current_item()
 	var make: Dictionary = held.get("make", {})
@@ -2568,8 +2563,8 @@ func cycle_variant() -> void:
 		return
 	var e := doc.find(selected)
 	if e.is_empty():
-		set_status(Lang.t("Choisissez d'abord une porte, des débris, une arme murale ou un escalier (outil Sélection)",
-			"Pick a door, debris, a wall weapon or stairs first (Select tool)"))
+		set_status(Lang.t("Choisissez d'abord une porte, des débris, une fenêtre ou un escalier (outil Sélection)",
+			"Pick a door, debris, a window or stairs first (Select tool)"))
 		return
 	var t := String(e.get("type", ""))
 	if MapCatalog.variants(t).size() < 2:
@@ -2650,7 +2645,7 @@ func paste(at := Vector2.INF) -> void:
 		if res.ok:
 			e.position = res.position
 	elif t == "boite":
-		# Boîte mystère (format 16) : au sol sous le curseur, ou contre le mur proche.
+		# Caisse au hasard (format 16) : au sol sous le curseur, ou contre le mur proche.
 		res = MapRules.place_box(doc, floor_k, e, target, "", canvas.mode_now() != "libre", not canvas.angle_free())
 		if res.ok:
 			MapRules.apply_box(e, res)
@@ -3246,8 +3241,8 @@ func open_dir(dir: String, is_example := false) -> void:
 	if refuse_guest():
 		return
 	var d := EditorMap.load_dir(dir)
-	if not d.load_errors.is_empty():
-		_info(Lang.t("Ouverture", "Open"), "\n".join(d.load_errors.map(func(e): return Lang.t(e[0], e[1]))))
+	if not d.load_errors.is_empty() or not d.load_notes.is_empty():
+		_info(Lang.t("Ouverture", "Open"), "\n".join((d.load_errors + d.load_notes).map(func(e): return Lang.t(e[0], e[1]))))
 	map_dir = "" if is_example else dir
 	example = is_example
 	_reset(d)
@@ -3535,6 +3530,8 @@ func import_zip(path: String) -> bool:
 		return false
 	map_dir = ""
 	example = false
+	if not d.load_notes.is_empty():
+		_info(Lang.t("Import", "Import"), "\n".join(d.load_notes.map(func(e): return Lang.t(e[0], e[1]))))
 	_reset(d)
 	dirty = true
 	_update_title()

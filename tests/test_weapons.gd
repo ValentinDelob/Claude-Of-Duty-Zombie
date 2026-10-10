@@ -1,11 +1,7 @@
 extends TestCase
-## Table d'armes (arsenal BO1) : champs requis, prix, Pack-a-Punch, boîte
-## mystère, modèles procéduraux.
-
-const WALL := {"olympia": 500, "m14": 500, "mp5k": 1000, "mpl": 1000, "pm63": 1000, "mp40": 1000,
-	"ak74u": 1200, "m16": 1200, "stakeout": 1500}
-const BOX := ["cz75", "python", "spectre", "galil", "famas", "commando", "aug", "g11", "fnfal", "hk21",
-	"rpk", "spas12", "hs10", "dragunov", "l96a1", "china_lake", "law", "ray", "thunder"]
+## Table d'armes (arsenal BO1) : champs requis, valeurs « pap » en sommeil,
+## modèles procéduraux. Plus d'achats muraux, de boîte ni d'armes merveilles
+## (lot C).
 
 
 func test_every_weapon_has_required_fields() -> void:
@@ -34,13 +30,12 @@ func test_starting_weapon_bo1() -> void:
 	assert_true(WeaponDB.MELEE_DAMAGE >= 150, "couteau : un coup en manche 1")
 
 
-func test_wall_prices_and_ammo() -> void:
-	for id in WALL:
-		assert_eq(WeaponDB.wall_cost(id), WALL[id], "prix mural %s" % id)
-		assert_eq(WeaponDB.ammo_cost(id, false), WALL[id] / 2, "munitions %s" % id)
-		assert_eq(WeaponDB.ammo_cost(id, true), 4500, "munitions améliorées %s" % id)
-	for id in BOX:
-		assert_eq(WeaponDB.wall_cost(id), 0, "%s ne s'achète pas au mur" % id)
+func test_removed_weapons() -> void:
+	for id in ["ray", "thunder", "death_machine"]:
+		assert_false(WeaponDB.exists(id), "%s supprimée" % id)
+	assert_false(WeaponDB.CLASSES.has("wonder"), "plus de famille « arme merveille »")
+	for id in WeaponDB.WEAPONS:
+		assert_false(WeaponDB.WEAPONS[id].has("wall_cost") or WeaponDB.WEAPONS[id].has("box"), "%s : ni mur ni boîte" % id)
 
 
 func test_pap_upgrades() -> void:
@@ -83,27 +78,6 @@ func test_special_mechanics() -> void:
 	# Rechargement cartouche par cartouche : un son par cartouche + la pompe.
 	var steps := WeaponController.reload_sounds(WeaponDB.stats("stakeout"), {"mag": 3, "reserve": 30})
 	assert_eq(steps.size(), 4, "3 cartouches + pompe")
-
-
-func test_box_pool() -> void:
-	var pool := WeaponDB.box_pool()
-	for id in BOX:
-		assert_true(pool.has(id), "%s dans la boîte" % id)
-	assert_false(pool.has("m1911"), "pas d'arme de départ dans la boîte")
-	for id in WALL:
-		assert_false(pool.has(id), "pas d'arme murale %s dans la boîte" % id)
-	assert_true(pool.ray < pool.galil, "CLAUDE-RAY plus rare")
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7
-	var pd := PlayerData.new()
-	pd.weapons = [WeaponDB.new_instance("m1911"), WeaponDB.new_instance("galil")]
-	var count := {}
-	for i in 3000:
-		var id := MysteryBox.pick_weapon(pd, rng)
-		count[id] = count.get(id, 0) + 1
-	assert_false(count.has("galil"), "jamais une arme déjà possédée")
-	assert_false(count.has("m1911"))
-	assert_true(count.get("ray", 0) > 0 and count.ray < count.get("hk21", 0), "tirage pondéré (rayon %d, HK21 %d)" % [count.get("ray", 0), count.get("hk21", 0)])
 
 
 func test_models_and_anchors() -> void:

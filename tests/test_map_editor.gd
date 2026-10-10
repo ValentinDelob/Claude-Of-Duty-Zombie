@@ -45,7 +45,7 @@ static func _open(doc: EditorMap, o: Dictionary, k := 0) -> Dictionary:
 
 
 ## Deux salles collées (A : départ, 14 × 10 m ; B : 10 × 10 m), une porte,
-## une fenêtre chacune, une boîte, une arme, un atout, le départ.
+## une fenêtre chacune, la caisse au hasard, le départ.
 static func _base() -> EditorMap:
 	var doc := EditorMap.blank("test_editeur", "TEST", "TEST")
 	_room(doc, 0, 0, 14, 10)
@@ -56,8 +56,6 @@ static func _base() -> EditorMap:
 	_open(doc, {"type": "fenetre", "position": [19.25, 0.0]})
 	_obj(doc, {"type": "depart", "position": [9.0, 7.0]})
 	_obj(doc, {"type": "boite", "position": [6.75, 10.0], "mur": "s", "depart": false})
-	_obj(doc, {"type": "arme", "arme": "m14", "position": [11.25, 10.0], "mur": "s"})
-	_obj(doc, {"type": "atout", "atout": "titan", "position": [24.0, 5.0], "mur": "e"})
 	return MapTestKit.add_evac(doc)
 
 
@@ -168,24 +166,25 @@ func test_window_only_on_an_outer_wall() -> void:
 func test_wall_items_stand_against_a_wall() -> void:
 	var doc := EditorMap.blank()
 	_room(doc, 0, 0, 12, 10)
-	var perk := {"type": "atout", "atout": "titan"}
-	var r := MapRules.place_wall_item(doc, 0, perk, Vector2(6.2, 0.8))
-	assert_true(r.ok, "atout contre le mur nord : %s" % r.get("fr", ""))
+	var sw := {"type": "courant"}
+	var r := MapRules.place_wall_item(doc, 0, sw, Vector2(6.2, 0.8))
+	assert_true(r.ok, "interrupteur contre le mur nord : %s" % r.get("fr", ""))
 	assert_eq(r.mur, "n", "face vers l'intérieur (mur au nord)")
-	assert_eq(r.position, [6.0, 0.0], "posé sur le trait du mur, 3 cases : milieu sur la grille")
-	r = MapRules.place_wall_item(doc, 0, perk, Vector2(6, 5))
+	assert_near(float(r.position[1]), 0.0, 0.0001, "posé sur le trait du mur")
+	assert_true(absf(float(r.position[0]) - 6.2) < 0.6, "près du curseur : %s" % str(r.position))
+	r = MapRules.place_wall_item(doc, 0, sw, Vector2(6, 5))
 	assert_false(r.ok, "au milieu de la pièce, loin des murs : refusé")
-	r = MapRules.place_wall_item(doc, 0, perk, Vector2(-3, 5))
+	r = MapRules.place_wall_item(doc, 0, sw, Vector2(-3, 5))
 	assert_false(r.ok, "hors de toute pièce : refusé")
-	_obj(doc, {"type": "atout", "atout": "titan", "position": [6.0, 0.0], "mur": "n"})
-	r = MapRules.place_wall_item(doc, 0, {"type": "arme", "arme": "m14"}, Vector2(6.5, 0.6))
-	assert_false(r.ok, "chevauche l'atout : refusé")
+	_obj(doc, {"type": "courant", "position": [6.0, 0.0], "mur": "n"})
+	r = MapRules.place_wall_item(doc, 0, {"type": "poste_central"}, Vector2(6.1, 0.6))
+	assert_false(r.ok, "chevauche l'interrupteur : refusé")
 	assert_true(String(r.fr).contains("chevauche"), r.get("fr", ""))
 	# Une ouverture dans le mur : pas de mur plein derrière.
 	_room(doc, 12, 0, 20, 10)
 	_open(doc, {"type": "porte", "position": [12.0, 5.0], "largeur": 2.0, "prix": 750})
-	r = MapRules.place_wall_item(doc, 0, {"type": "arme", "arme": "m14"}, Vector2(11.4, 5.0))
-	assert_false(r.ok, "arme devant une porte refusée")
+	r = MapRules.place_wall_item(doc, 0, {"type": "courant"}, Vector2(11.4, 5.0))
+	assert_false(r.ok, "interrupteur devant une porte refusé")
 
 
 func test_floor_items_inside_a_room_without_overlap() -> void:
@@ -403,12 +402,20 @@ func test_undo_redo_in_the_editor() -> void:
 # ------------------------------------------------------------------ conversion et jeu
 
 func test_catalog_comes_from_the_game_databases() -> void:
-	for pid in PerkDB.PERKS:
-		assert_false(MapCatalog.item("atout:" + pid).is_empty(), "atout %s dans l'inventaire" % pid)
-	for wid in WeaponDB.WEAPONS:
-		assert_eq(MapCatalog.item("arme:" + wid).is_empty(), WeaponDB.wall_cost(wid) == 0, "arme %s au mur ssi elle a un prix mural" % wid)
-	assert_eq(int(MapCatalog.item("arme:bowie").price), KnifeDB.wall_cost("bowie"), "couteau de chasse")
+	# Objets retirés du jeu : plus dans l'inventaire.
+	for id in ["atout:titan", "arme:m14", "arme:bowie", "grenades", "pap", "boite_depart"]:
+		assert_true(MapCatalog.item(id).is_empty(), "%s retiré de l'inventaire" % id)
+	var cats: Array = MapCatalog.CATEGORIES.map(func(c): return String(c[0]))
+	assert_false(cats.has("atouts") or cats.has("armes"), "plus de catégories Atouts ni Armes murales")
+	for id in MapCatalog.DEFAULT_HOTBAR:
+		assert_false(MapCatalog.item(String(id)).is_empty(), "barre rapide : %s existe" % id)
+	# Caisse au hasard : un seul objet, au prix du jeu ; le décor « caisse » est la caisse en bois.
+	assert_eq(MapCatalog.in_category("boite").map(func(it): return String(it.id)), ["boite"])
 	assert_eq(int(MapCatalog.item("boite").price), MysteryBox.COST)
+	assert_eq([String(MapCatalog.item("boite").fr), String(MapCatalog.item("boite").en)], ["Caisse au hasard", "Random crate"])
+	assert_eq([String(MapCatalog.item("caisse").fr), String(MapCatalog.item("caisse").en)], ["Caisse en bois", "Wooden crate"])
+	assert_eq(MapCatalog.item_for({"type": "boite", "depart": true}).get("id"), "boite", "boîte « depart » d'avant : la caisse")
+	assert_eq(MapCatalog.in_category("machines").map(func(it): return String(it.id)), ["courant", "teleporteur", "arrivee", "poste_central"])
 	for c in MapCatalog.CATEGORIES:
 		# Prefabs de la carte (format 10) : vide tant que la carte n'en a pas.
 		if String(c[0]) == MapCatalog.MAP_CAT:
@@ -429,8 +436,6 @@ func test_conversion_to_a_playable_map() -> void:
 	assert_eq(layout.windows().size(), 2)
 	assert_eq(layout.doors().size(), 1)
 	assert_eq(layout.player_spawns().size(), 4, "4 départs autour du point")
-	assert_eq(layout.perks()[0].data.perk, "titan")
-	assert_eq(layout.wall_buys()[0].data.weapon, "m14")
 	assert_eq(layout.box_spots().size(), 1)
 	assert_eq(layout.zone_at(Vector3(4.25 + 5.0, 0.0, 4.25 + 5.0)), "a", "repère du jeu = éditeur + 4,25 m")
 	assert_eq(layout.zone_at(Vector3(4.25 + 19.0, 0.0, 4.25 + 5.0)), "b")
@@ -467,7 +472,7 @@ func test_draft_arena_migrated() -> void:
 	assert_true(def is EditorMapDef and (def as EditorMapDef).is_valid(), "script de carte : carte de l'éditeur")
 	assert_eq(def.zone_names.get("c"), "Entrepôt", "réglages lus dans la carte")
 	assert_eq(def.doors.get("3", {}).get("cost"), 750)
-	assert_eq(def.box_start, 1, "boîte de départ : le couloir")
+	assert_eq(def.box_start, 0, "une seule caisse au hasard")
 	assert_false(Game.MENU_MAPS.has("draft_arena"), "carte de test, hors menus")
 	var layout := def.create_layout() as MeshMapLayout
 	assert_eq(layout.glb_path, "", "géométrie construite par le jeu (plus de .glb)")

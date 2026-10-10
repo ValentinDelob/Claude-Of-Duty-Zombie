@@ -200,8 +200,8 @@ func test_guard_accepts_draft_arena() -> void:
 func test_guard_refusals() -> void:
 	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "depart", "altitude": 0, "position": [12, 20], "script": "res://x.gd"})), "clé inconnue")
 	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "script", "altitude": 0, "position": [12, 20]})), "type inconnu")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "atout", "atout": "../../boot", "altitude": 0, "position": [12, 20], "mur": "n"})), "atout inconnu")
-	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "arme", "arme": "raygun_9000", "altitude": 0, "position": [12, 20], "mur": "n"})), "arme inconnue")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "atout", "atout": "../../boot", "altitude": 0, "position": [12, 20], "mur": "n"})), "atout : identifiant piégé")
+	_refused(_with("objets.json", _objets_plus({"id": "q1", "type": "arme", "arme": "res://x.gd", "altitude": 0, "position": [12, 20], "mur": "n"})), "arme : identifiant piégé")
 	var c = JSON.parse_string(_draft_texts()["carte.json"])
 	c.nom = {"fr": "A".repeat(20000), "en": "A"}
 	_refused(_with("carte.json", c), "chaîne géante")
@@ -327,14 +327,13 @@ func test_guard_catalog_adapter() -> void:
 	var src := CustomMapGuard.catalog_source()
 	assert_true(not src.items.is_empty() and not src.surfaces.is_empty() and not src.musics.is_empty(), "catalogue lu")
 	var sc := CustomMapGuard.schema()
-	# Liste blanche tirée des bases du jeu : chaque atout, chaque arme murale.
-	var perks: Dictionary = sc.kinds.atout.keys.atout
-	for id in PerkDB.PERKS:
-		assert_true(perks.has(id), "atout %s autorisé" % id)
-	assert_true((sc.kinds.arme.keys.arme as Dictionary).has("m14"), "M14 autorisée")
+	# Types retirés du jeu (atouts, armes murales, grenades, Pack-a-Punch) :
+	# encore admis, pour lire les cartes d'avant (l'éditeur les ignore).
+	for t in MapCatalog.REMOVED_TYPES:
+		assert_true(sc.kinds.has(t), "type d'avant %s encore lu" % t)
 	for t in ["porte", "debris", "fenetre", "passage", "porte_courant"]:
 		assert_true(t in sc.openings, "ouverture %s" % t)
-	for t in ["boite", "pap", "courant", "piege", "levier", "depart", "lampe", "escalier", "mur"]:
+	for t in ["boite", "teleporteur", "courant", "piege", "levier", "depart", "lampe", "escalier", "mur"]:
 		assert_true(sc.kinds.has(t), "objet %s" % t)
 	for s in MapCatalog.materials():
 		assert_true(sc.surfaces.has(s), "surface %s" % s)
@@ -363,7 +362,7 @@ func _v2_source() -> Dictionary:
 		add.call("objets.json", t, {"rect": {"t": "rect"}}, ["rect"])
 	add.call("objets.json", "escalier", {"rect": {"t": "rect"}, "monte": dirs}, ["rect"])
 	add.call("objets.json", "mur", {"a": point, "b": point, "epaisseur": {"t": "enum", "values": [0.5, 1.5, 2.5]}}, ["a", "b"])
-	add.call("objets.json", "atout", {"atout": {"t": "enum", "values": PerkDB.PERKS.keys()}, "position": point, "mur": dirs}, ["atout", "position"])
+	add.call("objets.json", "atout", {"atout": {"t": "enum", "values": ["titan", "lazarus"]}, "position": point, "mur": dirs}, ["atout", "position"])
 	add.call("objets.json", "arme", {"arme": {"t": "enum", "values": ["m14", "mp5k", "bowie"]}, "position": point, "mur": dirs}, ["arme", "position"])
 	add.call("objets.json", "boite", {"position": point, "mur": dirs, "depart": {"t": "bool"}}, ["position"])
 	for t in ["grenades", "pap", "courant", "poste_central", "levier", "evacuation"]:

@@ -19,12 +19,12 @@ func test_solo_alive_is_not_over() -> void:
 
 func test_solo_downed_without_self_revive_is_over() -> void:
 	assert_true(MatchRules.is_game_over([_pd(1, PlayerData.Life.DOWNED)], _never),
-			"solo à terre sans LAZARUS : fin de partie")
+			"solo à terre : fin de partie")
 
 
 func test_solo_downed_with_self_revive_is_not_over() -> void:
-	var lazarus := func(pid: int) -> bool: return pid == 1
-	assert_false(MatchRules.is_game_over([_pd(1, PlayerData.Life.DOWNED)], lazarus),
+	var self_revive := func(pid: int) -> bool: return pid == 1
+	assert_false(MatchRules.is_game_over([_pd(1, PlayerData.Life.DOWNED)], self_revive),
 			"auto-réanimation programmée : la partie continue")
 
 
@@ -74,15 +74,16 @@ func test_respawn_keeps_everything() -> void:
 	pd.kills = 7
 	pd.max_health = 250
 	pd.health = 0
+	# Emplacement de grenade : peluche leurre de la caisse au hasard.
+	pd.throwable = ThrowableRules.Kind.DECOY
 	pd.grenades = 3
-	pd.monkeys = 2
 	var mp40 := WeaponDB.new_instance("mp40")
 	mp40.mag = 5
 	mp40.reserve = 17
-	pd.saved_weapons = [mp40, WeaponDB.new_instance("ray")]
+	pd.saved_weapons = [mp40, WeaponDB.new_instance("m14")]
 	pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]  # pistolet prêté à terre
 	pd.slot = 1
-	pd.knife = "bowie"
+	pd.knife = "autre"
 	MatchRules.respawn(pd)
 	assert_eq(pd.life, PlayerData.Life.ALIVE)
 	assert_eq(pd.health, 250, "santé pleine")
@@ -90,12 +91,12 @@ func test_respawn_keeps_everything() -> void:
 	assert_eq(pd.weapons[0].id, "mp40")
 	assert_eq(pd.weapons[0].mag, 5, "munitions gardées")
 	assert_eq(pd.weapons[0].reserve, 17)
-	assert_eq(pd.weapons[1].id, "ray")
+	assert_eq(pd.weapons[1].id, "m14")
 	assert_true(pd.saved_weapons.is_empty())
 	assert_eq(pd.slot, 1)
-	assert_eq(pd.knife, "bowie", "couteau gardé")
-	assert_eq(pd.grenades, 3, "grenades gardées")
-	assert_eq(pd.monkeys, 2)
+	assert_eq(pd.knife, "autre", "couteau gardé")
+	assert_eq(pd.throwable, ThrowableRules.Kind.DECOY, "emplacement de grenade gardé")
+	assert_eq(pd.grenades, 3, "quantité gardée")
 	assert_eq(pd.points, 4321, "ferraille gardée")
 	assert_eq(pd.kills, 7)
 

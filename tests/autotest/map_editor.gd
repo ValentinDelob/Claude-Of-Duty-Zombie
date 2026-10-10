@@ -3,8 +3,8 @@ extends AutotestScenario
 ## vrais outils (événements de souris et de clavier envoyés à la vue) : trois
 ## pièces collées au glisser (murs mitoyens uniques), une porte refusée sur un
 ## mur extérieur puis posée sur le mur commun, des débris pris dans
-## l'inventaire, des fenêtres, la boîte, une arme, un atout et le courant
-## choisis dans l'inventaire (E), le départ ; vérification sans erreur,
+## l'inventaire, des fenêtres, la caisse au hasard, le courant choisi dans
+## l'inventaire (E), le départ ; vérification sans erreur,
 ## Ctrl+S, rechargement identique, suppression annulée par Ctrl+Z, archive
 ## .zip réimportée à l'identique. Puis une salle décorée : prefabs pris dans
 ## l'inventaire (gravats, bureau, sacs de sable pivotés avec R, fauteuils),
@@ -88,24 +88,17 @@ func run() -> void:
 	await click(Vector2(16.1, 4))
 	at.check(ed.doc.ouvertures.size() == 6 - 0 and cv.refusal != "", "fenêtre refusée sur un mur commun : « %s »" % cv.refusal)
 
-	# Départ (8), boîtes (7), M14 (9).
+	# Départ (8), caisse au hasard (7, une seule par carte).
 	await key(KEY_8)
 	await click(Vector2(11, 9))
 	await key(KEY_7)
-	for p in [Vector2(6, 11.3), Vector2(21, 11.3), Vector2(30, 9.4)]:
-		await click(p)
-	await key(KEY_9)
-	await click(Vector2(13, 11.5))
-	# Atout et courant pris dans l'inventaire.
+	await click(Vector2(6, 11.3))
+	# Courant pris dans l'inventaire, contre le mur est de la pièce 3.
 	await key(KEY_4)
-	await key(KEY_E)
-	ed.inventory.show_category("atouts")
-	_pick("atout:titan")
-	await click(Vector2(33.4, 5.5))
 	await key(KEY_E)
 	ed.inventory.show_category("machines")
 	_pick("courant")
-	await click(Vector2(24.5, 2.5))
+	await click(Vector2(33.4, 5.5))
 	# Porte d'évacuation (obligatoire, format 18) contre le mur ouest du départ.
 	await key(KEY_E)
 	ed.inventory.show_category("joueurs")
@@ -114,7 +107,7 @@ func run() -> void:
 	var types := {}
 	for o in ed.doc.objets:
 		types[o.type] = types.get(o.type, 0) + 1
-	at.check(types == {"depart": 1, "boite": 3, "arme": 1, "atout": 1, "courant": 1, "evacuation": 1}, "objets posés : %s" % str(types))
+	at.check(types == {"depart": 1, "boite": 1, "courant": 1, "evacuation": 1}, "objets posés : %s" % str(types))
 
 	# Vérification : carte jouable.
 	var v := ed.validate()
@@ -141,13 +134,13 @@ func run() -> void:
 	at.check(ed.doc.same_as(saved), "carte rechargée identique")
 
 	# Suppression puis Ctrl+Z.
-	var weapon: Dictionary = ed.doc.objets.filter(func(o): return o.type == "arme")[0]
+	var weapon: Dictionary = ed.doc.objets.filter(func(o): return o.type == "courant")[0]
 	await click(MapRules.footprint_rect(weapon).get_center())
-	at.check(ed.selected == String(weapon.id), "clic : arme choisie (%s)" % ed.selected)
+	at.check(ed.selected == String(weapon.id), "clic : interrupteur choisi (%s)" % ed.selected)
 	await key(KEY_DELETE)
-	at.check(ed.doc.find(String(weapon.id)).is_empty(), "Suppr : arme supprimée")
+	at.check(ed.doc.find(String(weapon.id)).is_empty(), "Suppr : interrupteur supprimé")
 	await key(KEY_Z, true)
-	at.check(not ed.doc.find(String(weapon.id)).is_empty() and ed.doc.same_as(saved), "Ctrl+Z : arme revenue, carte identique")
+	at.check(not ed.doc.find(String(weapon.id)).is_empty() and ed.doc.same_as(saved), "Ctrl+Z : interrupteur revenu, carte identique")
 	await key(KEY_Y, true)
 	at.check(ed.doc.find(String(weapon.id)).is_empty(), "Ctrl+Y : suppression rétablie")
 	await key(KEY_Z, true)
@@ -173,7 +166,7 @@ func run() -> void:
 	_motion(Vector2(22, 20))
 	await key(KEY_V, true)
 	at.check(ed.doc.pieces.size() == 5 and ed.doc.zones.size() == 5, "Ctrl+C / Ctrl+V : pièce collée avec sa propre zone")
-	# Poignée : la pièce 3 s'agrandit, ses fenêtre et atout muraux deviennent invalides.
+	# Poignée : la pièce 3 s'agrandit, sa fenêtre et son interrupteur muraux deviennent invalides.
 	var c3: Dictionary = ed.doc.pieces[2]
 	await click(Vector2(30, 7))
 	at.check(ed.selected == String(c3.id), "pièce 3 choisie")

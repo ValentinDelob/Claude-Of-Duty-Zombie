@@ -112,7 +112,7 @@ func _find_focus(p: Player) -> Interactable:
 
 ## Objet visé depuis l'œil `eye` dans la direction `fwd` par le joueur `pid`
 ## (vivant, données `pd`) : le mieux placé à portée, devant lui, utilisable.
-func pick_focus(eye: Vector3, fwd: Vector3, pid: int, pd: PlayerData, feet_y := NAN) -> Interactable:
+func pick_focus(eye: Vector3, fwd: Vector3, pid: int, _pd: PlayerData, feet_y := NAN) -> Interactable:
 	# Pieds du joueur (sans eux : l'œil moins sa hauteur debout).
 	var feet := eye.y - EYE_HEIGHT if is_nan(feet_y) else feet_y
 	var best: Interactable = null
@@ -135,9 +135,9 @@ func pick_focus(eye: Vector3, fwd: Vector3, pid: int, pd: PlayerData, feet_y := 
 		var facing := fwd.dot(to / maxf(d, 0.001))
 		if facing < 0.35 and d > 1.0:
 			continue
-		if not obj.can_interact(pid) or weapon_locked(obj, pd):
+		if not obj.can_interact(pid):
 			continue
-		# Jamais à travers un mur (boîte mystère, Interactable.sight_ok).
+		# Jamais à travers un mur (caisse, Interactable.sight_ok).
 		if not obj.sight_ok(eye):
 			continue
 		# Depuis un escalier (plus d'un mètre d'écart) : rien entre l'œil et l'objet.
@@ -148,12 +148,6 @@ func pick_focus(eye: Vector3, fwd: Vector3, pid: int, pd: PlayerData, feet_y := 
 			best_score = score
 			best = obj
 	return best
-
-
-## Arme de bonus en main (FAUCHEUSE) : ni arme au mur, ni boîte mystère, ni
-## Pack-a-Punch tant que le bonus dure (comme BO1).
-static func weapon_locked(obj: Interactable, pd: PlayerData) -> bool:
-	return not pd.powerup_weapon.is_empty() and (obj is WallBuy or obj is MysteryBox or obj is PackAPunch)
 
 
 # --------------------------------------------------------------------------
@@ -168,8 +162,7 @@ func srv_interact(id: String) -> void:
 		return
 	var obj: Interactable = objects.get(id)
 	var p: Player = game.players.get(pid)
-	var pd := game.session.get_data(pid)
-	if obj == null or weapon_locked(obj, pd):
+	if obj == null:
 		return
 	# Référence : dernier état reçu et accepté (Player.srv_origin), pas la
 	# position interpolée qui traîne derrière le joueur avec de la latence.

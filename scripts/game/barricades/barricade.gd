@@ -9,7 +9,7 @@ extends Interactable
 ##   place, chacun à son rythme : une planche toutes les 2,5 s en moyenne,
 ##   pause « de folie » entre deux (BarricadeRules.tear_tick).
 ## * Les joueurs réparent en maintenant [F] depuis l'intérieur : une planche
-##   toutes les 0,75 s, +10 points (plafond par manche : BarricadeSystem).
+##   toutes les 0,75 s, sans gain de ferraille (GAME_CONCEPT §4.8).
 ## * Serveur : état (masque de 6 bits), réparations, logique des zombies.
 ##   Chaque changement est diffusé par l'InteractionSystem (RPC fiable par
 ##   fenêtre) ; toutes les machines animent les planches.
@@ -632,7 +632,7 @@ func _physics_process(delta: float) -> void:
 			_repairers[pid] = 0.0
 			continue
 		_repairers[pid] += delta
-		if _repairers[pid] >= BarricadeRules.repair_interval(PerkDB.reload_mult(pd)):
+		if _repairers[pid] >= BarricadeRules.repair_interval():
 			_repairers[pid] = 0.0
 			srv_add_plank(pid)
 
@@ -641,15 +641,14 @@ func is_repairing(pid: int) -> bool:
 	return _repairers.has(pid)
 
 
-## Serveur : repose une planche ; `pid` > 0 : réparation d'un joueur (points).
-func srv_add_plank(pid := 0) -> bool:
+## Serveur : repose une planche ; `pid` > 0 : réparation d'un joueur (aucun
+## gain de ferraille, GAME_CONCEPT §4.8).
+func srv_add_plank(_pid := 0) -> bool:
 	var i := BarricadeRules.plank_to_repair(mask, plank_count)
 	if i < 0:
 		return false
 	set_mask(mask | (1 << i))
 	broadcast_state()
-	if pid > 0 and system.game.barricades:
-		system.game.barricades.srv_award_repair(pid)
 	return true
 
 
@@ -664,7 +663,7 @@ func srv_tear(lane := 0) -> bool:
 	return true
 
 
-## Serveur : toutes les planches (bonus CHARPENTIER, tests).
+## Serveur : impose l'état des planches (tests).
 func srv_set_mask(m: int) -> void:
 	if m == mask:
 		return

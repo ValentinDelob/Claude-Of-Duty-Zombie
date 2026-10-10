@@ -1,8 +1,7 @@
 extends AutotestScenario
 ## Couteau (BO1) : fente vers un zombie visé à 2,5 m, 150 dégâts, mort au
 ## couteau = ferraille fixe d'un kill, pas de fente hors du cône de visée, animation du bras
-## gauche, achat mural du COUTEAU DE CHASSE (3000, récupération ~2 s) puis
-## zombie de manche 10 tué d'un seul coup.
+## gauche. (Le COUTEAU DE CHASSE mural est supprimé : lot C.)
 
 var H := AutotestHelpers
 
@@ -86,75 +85,4 @@ func run() -> void:
 	game.combat.srv_melee.rpc_id(1, p.camera.global_position + Vector3(4.2, 0, 0), Vector3(1, 0, 0))
 	await seconds(0.2)  # fenêtre fixe : le coup doit rester sans effet
 	at.check(z.health == 1000, "coup de couteau à distance refusé (%d)" % z.health)
-	await H.clear_zombies(self)
-
-	# 5. Achat du COUTEAU DE CHASSE (quai) : 3000 points, récupération ~2 s.
-	var wb: WallBuy = game.interact.get_obj("wallbuy_%")
-	at.check(wb != null and wb.is_knife and wb.cost == 3000, "achat mural du couteau de chasse (%d)" % (wb.cost if wb else 0))
-	if wb == null:
-		return
-	var front := wb.interact_point() + Vector3(0, -1.0, 0) + (wb.interact_point() - wb.global_position).normalized() * 1.2
-	p.teleport_to(front)
-	H.aim_at(p, wb.global_position)
-	await seconds(0.5)  # capture
-	await at.screenshot("bowie_chalk")
-	pd.points = 2999
-	game.session.sync_stats(1)
-	p.teleport_to(wb.interact_point() + Vector3(0, -1.0, 0) + (wb.interact_point() - wb.global_position).normalized() * 0.6)
-	H.aim_at(p, wb.global_position)
-	await until(func(): return game.hud._prompt.text.contains(KnifeDB.display_name("bowie")) and game.hud._prompt.text.contains("3000"), 2.0, "invite du couteau de chasse")
-	at.check(game.hud._prompt.text.contains(KnifeDB.display_name("bowie")) and game.hud._prompt.text.contains("3000"), "invite : %s" % game.hud._prompt.text)
-	p.input.interact_pressed = true
-	await seconds(0.4)  # fenêtre fixe : l'achat doit être refusé
-	at.check(pd.knife == "knife" and pd.points == 2999, "refusé à 2999 points")
-	pd.points = 3000
-	game.session.sync_stats(1)
-	# Achat pendant un rechargement : la récupération l'annule des deux côtés
-	# (BO1), le chargeur reste entamé.
-	var w0: Dictionary = pd.current_weapon()
-	w0.mag = 2
-	var res0: int = w0.reserve
-	game.session.sync_inventory(1)
-	await until(func(): return int(p.weapons.current().mag) == 2, 1.0, "chargeur entamé")
-	p.input.reload = true
-	await until(func(): return p.weapons.is_reloading() and game.combat.is_reloading(1), 1.0, "rechargement avant l'achat")
-	p.input.interact_pressed = true
-	await until(func(): return pd.knife == "bowie" and p.weapons.knife_id == "bowie", 2.0, "couteau de chasse acheté")
-	at.check(pd.knife == "bowie" and pd.points == 0, "couteau de chasse acheté (points %d)" % pd.points)
-	at.check(p.weapons.knife_id == "bowie" and p.weapons.is_picking_up_knife(), "animation de récupération")
-	at.check(not p.weapons.is_reloading() and not game.combat.is_reloading(1), "achat du couteau : rechargement annulé (client et serveur)")
-	p.pitch = 0.0
-	# Pendant la récupération : ni tir ni couteau (vérifié tout de suite : les
-	# captures peuvent durer plus que les 2 s de récupération sous charge).
-	await seconds(0.3)  # le joueur essaie de tirer un peu après l'achat
-	var mag: int = p.weapons.current().mag
-	p.input.fire_pressed = true
-	p.input.fire = true
-	await seconds(0.1)  # détente tenue
-	p.input.fire = false
-	at.check(p.weapons.current().mag == mag, "pas de tir pendant la récupération (chargeur %d)" % p.weapons.current().mag)
-	await at.screenshot("bowie_pickup_raise")
-	await seconds(0.4)  # capture
-	await at.screenshot("bowie_pickup_look")
-	await seconds(1.2)  # durée mesurée : récupération finie ~2 s après l'achat
-	at.check(not p.weapons.is_picking_up_knife(), "récupération terminée (~2 s)")
-	var cur: Dictionary = p.weapons.current()
-	at.check(int(cur.mag) == 2 and int(cur.reserve) == res0 and int(w0.mag) == 2 and int(w0.reserve) == res0,
-		"rechargement annulé : chargeur pas rempli (client %d, serveur %d)" % [int(cur.mag), int(w0.mag)])
-	at.check(game.hud._prompt.text == "", "plus d'invite une fois acheté (%s)" % game.hud._prompt.text)
-
-	# 6. Manche 10 : un coup de couteau de chasse (avec fente) suffit.
-	var hp10 := RoundRules.zombie_health(10)
-	pts = pd.points
-	z = await setup_duel(p, 2.5, hp10)
-	await knife(p)
-	await seconds(0.15)  # capture
-	await at.screenshot("bowie_slash")
-	await until(func(): return (not is_instance_valid(z) or not z.is_alive()) and pd.points - pts == PointsRules.KILL, 1.0, "zombie tué au couteau de chasse")
-	at.check(not z.is_alive(), "zombie de manche 10 (%d PV) tué d'un coup de couteau de chasse" % hp10)
-	at.check(pd.points - pts == PointsRules.KILL, "mort au couteau de chasse : montant fixe (%d)" % (pd.points - pts))
-	z = await setup_duel(p, 1.2, 5000)
-	await knife(p)
-	await until(func(): return z.health < 5000, 1.0, "coup de couteau de chasse encaissé")
-	at.check(z.health == 5000 - KnifeDB.damage("bowie"), "couteau de chasse : %d dégâts (5000 -> %d)" % [KnifeDB.damage("bowie"), z.health])
 	await H.clear_zombies(self)
