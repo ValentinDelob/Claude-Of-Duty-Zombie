@@ -2628,6 +2628,29 @@
     "en": "Right between the eyes",
     "fr": "En pleine tête"
    }
+  },
+  "v0.2.1-snapshot.560": {
+   "channel": "snapshot",
+   "date": "2026-10-10",
+   "images": [],
+   "items": [
+    {
+     "en": "All the scenery you can place in the map editor is now made of cubes: rubble and ruins, furniture, fire and electricity props, puddles, torches and every light fixture, with hospital and lab colours.",
+     "fr": "Tous les décors posables dans l'éditeur de cartes sont maintenant faits de cubes : gravats et ruines, mobilier, décors de feu et d'électricité, flaques, torches et tous les luminaires, aux couleurs d'hôpital et de laboratoire."
+    },
+    {
+     "en": "Map objects are cubic too: paid doors (prices painted in big digits), debris, barricade planks, the random crate, the power switch, traps, the teleporter and the evacuation door. They work exactly as before.",
+     "fr": "Les objets de carte passent aussi en cubes : portes payantes (prix peints en gros chiffres), débris, planches des barricades, caisse au hasard, levier du courant, pièges, téléporteur et porte d'évacuation. Ils fonctionnent exactement comme avant."
+    },
+    {
+     "en": "Your existing maps load and play the same: every piece of scenery keeps its size and its collisions.",
+     "fr": "Vos cartes existantes se chargent et se jouent pareil : chaque décor garde sa taille et ses collisions."
+    }
+   ],
+   "title": {
+    "en": "Cubes everywhere",
+    "fr": "Des cubes partout"
+   }
   }
  }
 }
