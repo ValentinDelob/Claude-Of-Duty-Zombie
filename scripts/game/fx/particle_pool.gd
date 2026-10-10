@@ -3,6 +3,11 @@ extends MultiMeshInstance3D
 ## Particules CPU très légères : un seul MultiMesh (1 draw call) pour toutes les
 ## particules d'un type (étincelles, sang, poussière...). Mises à jour en
 ## GDScript, sans allocation par image.
+##
+## Style cubique (VoxelFx) : chaque particule est un cube (ou une touffe de
+## cubes, `mesh`) dont le côté est arrondi à 2,5 cm par le shader ; elle
+## tournoie sur un axe tiré au hasard (`spin` rad/s au plus) et disparaît en
+## RÉTRÉCISSANT pendant la seconde moitié de sa vie (pas de fondu).
 
 ## Densité des gerbes (réglée par RenderQuality : 0.5 en qualité LOW).
 static var density := 1.0
@@ -12,6 +17,8 @@ var gravity := 9.0
 var drag := 1.5
 var base_size := 0.05
 var grow := 0.0            # variation de taille par seconde
+## Rotation des cubes en vol (rad/s au plus, tirée par particule).
+var spin := 9.0
 var _pos: PackedVector3Array
 var _vel: PackedVector3Array
 var _life: PackedFloat32Array
@@ -20,18 +27,20 @@ var _size: PackedFloat32Array
 var _col: PackedColorArray
 ## Sol sous le point d'émission de chaque particule.
 var _floor: PackedFloat32Array
+## Axe de rotation (unitaire) et vitesse (rad/s) de chaque particule.
+var _axis: PackedVector3Array
+var _rate: PackedFloat32Array
 var _count := 0
 
 
-func setup(cap: int, mat: Material, size := 0.05) -> ParticlePool:
+## `mesh` : maillage d'une particule (VoxelFx.cluster ; par défaut un cube).
+func setup(cap: int, mat: Material, size := 0.05, mesh: Mesh = null) -> ParticlePool:
 	capacity = cap
 	base_size = size
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
-	var q := QuadMesh.new()
-	q.size = Vector2.ONE
-	mm.mesh = q
+	mm.mesh = mesh if mesh != null else VoxelFx.cube()
 	mm.instance_count = cap
 	mm.visible_instance_count = 0
 	multimesh = mm
@@ -44,6 +53,8 @@ func setup(cap: int, mat: Material, size := 0.05) -> ParticlePool:
 	_size.resize(cap)
 	_col.resize(cap)
 	_floor.resize(cap)
+	_axis.resize(cap)
+	_rate.resize(cap)
 	# Les particules sont en coordonnées monde.
 	top_level = true
 	global_transform = Transform3D.IDENTITY
@@ -73,6 +84,9 @@ func _emit_at(pos: Vector3, vel: Vector3, life: float, color: Color, size_mult: 
 	_size[i] = base_size * size_mult
 	_col[i] = color
 	_floor[i] = floor_y
+	var ax := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1))
+	_axis[i] = ax.normalized() if ax.length_squared() > 0.0001 else Vector3.UP
+	_rate[i] = randf_range(0.3, 1.0) * spin
 
 
 ## Gerbe de particules autour d'une normale.
@@ -110,6 +124,8 @@ func _process(delta: float) -> void:
 			_size[i] = _size[_count]
 			_col[i] = _col[_count]
 			_floor[i] = _floor[_count]
+			_axis[i] = _axis[_count]
+			_rate[i] = _rate[_count]
 			continue
 		var v := _vel[i] * damp + fall
 		var p := _pos[i] + v * delta
@@ -119,11 +135,11 @@ func _process(delta: float) -> void:
 			v = Vector3(v.x * 0.3, 0.0, v.z * 0.3)
 		_vel[i] = v
 		_pos[i] = p
-		var t := life / _max_life[i]
-		var s := _size[i] * (1.0 + grow * (1.0 - t))
-		mm.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3(s, s, s)), p))
-		var c := _col[i]
-		c.a *= clampf(t * 2.0, 0.0, 1.0)
-		mm.set_instance_color(i, c)
+		var ml := _max_life[i]
+		var t := life / ml
+		var s := _size[i] * (1.0 + grow * (1.0 - t)) * clampf(t * 2.0, 0.0, 1.0)
+		# Rotation : angle selon l'âge (axe et vitesse propres à la particule).
+		mm.set_instance_transform(i, Transform3D(Basis(_axis[i], _rate[i] * (ml - life)) * s, p))
+		mm.set_instance_color(i, _col[i])
 		i += 1
 	mm.visible_instance_count = _count

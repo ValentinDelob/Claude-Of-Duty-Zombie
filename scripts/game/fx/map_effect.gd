@@ -42,6 +42,9 @@ var collider := false
 var wall_z := NAN
 ## Plus grande largeur d'un arc par rapport à sa largeur de base (tirage).
 const ARC_W_MAX := 1.25
+## Cubes d'un arc au plus (MultiMesh) et segments de son zigzag.
+const ARC_CUBES := 64
+const ARC_SEGS := 8
 
 var parts: Array[GPUParticles3D] = []
 ## Particules qui émettent en continu (mise en pause loin de la caméra).
@@ -54,10 +57,11 @@ var _light_on: PackedByteArray = []   # 0 : coupée par le budget de la carte
 var _light_val: PackedFloat32Array = []   # éclair : énergie qui retombe
 var _phase: PackedFloat32Array = []
 
-## Arcs électriques : nœud, mode (0 : entre deux points, 1 : rayon au
-## hasard autour d'un centre), a, b (points ou centre / [rmin, rmax, 0]),
-## largeur, salve seulement (visible juste après une salve).
-var arcs: Array[MeshInstance3D] = []
+## Arcs électriques (chaînes de cubes, MultiMeshInstance3D) : nœud, mode (0 :
+## entre deux points, 1 : rayon au hasard autour d'un centre), a, b (points
+## ou centre / [rmin, rmax, 0]), largeur, salve seulement (visible juste
+## après une salve).
+var arcs: Array[MultiMeshInstance3D] = []
 var _arc_mode: PackedByteArray = []
 var _arc_a: PackedVector3Array = []
 var _arc_b: PackedVector3Array = []
@@ -136,7 +140,7 @@ func add_light(l: OmniLight3D, mode: int, minor := false) -> void:
 		l.light_energy = 0.0
 
 
-func add_arc(mi: MeshInstance3D, mode: int, a: Vector3, b: Vector3, width: float, burst_only := false) -> void:
+func add_arc(mi: MultiMeshInstance3D, mode: int, a: Vector3, b: Vector3, width: float, burst_only := false) -> void:
 	body.add_child(mi)
 	arcs.append(mi)
 	_arc_mode.append(mode)
@@ -271,9 +275,11 @@ func _burst() -> void:
 		_pops_left = (1 if _rng.randf() < burst_pops else 0) + (1 if _rng.randf() < burst_pops * 0.4 else 0)
 
 
-## Arc n° i : nouvelle forme (miroir au hasard, largeur, direction pour un
-## arc rayonnant). Le quad est un panneau « Y fixe » : son axe Y va d'un bout
-## de l'arc à l'autre, il fait face à la caméra autour de cet axe.
+## Arc n° i : nouvelle forme (zigzag, largeur, direction pour un arc
+## rayonnant). Repère du nœud : axe Y d'un bout de l'arc à l'autre (longueur
+## de l'arc), X en travers (largeur), tourné vers la caméra autour de Y ;
+## les cubes (côté 5 cm, 2,5 cm sur un arc fin) suivent un zigzag tiré au
+## hasard dans ce repère, sans jamais dépasser la largeur ni les bouts.
 func _aim_arc(i: int) -> void:
 	var mi := arcs[i]
 	var a := _arc_a[i]
@@ -287,12 +293,26 @@ func _aim_arc(i: int) -> void:
 	# Les deux bouts restent dans le volume, à une demi-largeur d'arc du bord.
 	# La largeur ne s'étend qu'en travers de l'arc : marge par axe selon sa
 	# direction, recalculée après chaque resserrement (au plus large des deux).
+	# Chaque resserrement change la direction, donc la marge : on répète
+	# jusqu'à ce que les deux bouts tiennent pour la direction finale ; à
+	# défaut (rare), marge pleine sur tous les axes (arc_bounds sans
+	# direction), valable quelle que soit la direction : le résultat est
+	# toujours dans le volume (test_map_effect_volume, sans hasard).
 	var box := volume
-	for n in 3:
+	var ok := false
+	for n in 8:
 		var dv := b - a
-		box = box.intersection(arc_bounds(_arc_w[i], dv.normalized() if dv.length() > 0.001 else Vector3.ZERO))
+		var bb := arc_bounds(_arc_w[i], dv.normalized() if dv.length() > 0.001 else Vector3.ZERO)
+		if bb.grow(0.0001).has_point(a) and bb.grow(0.0001).has_point(b):
+			ok = true
+			break
+		box = box.intersection(bb)
 		a = a.clamp(box.position, box.end)
 		b = b.clamp(box.position, box.end)
+	if not ok:
+		var full := arc_bounds(_arc_w[i])
+		a = a.clamp(full.position, full.end)
+		b = b.clamp(full.position, full.end)
 	var axis := b - a
 	var span := maxf(axis.length(), 0.01)
 	var y := axis / span
@@ -311,6 +331,22 @@ func _aim_arc(i: int) -> void:
 	mi.transform = Transform3D(Basis(x * w, y * span, z), (a + b) * 0.5)
 	if not arc_mats.is_empty():
 		mi.material_override = arc_mats[_rng.randi() % arc_mats.size()]
+	# Zigzag en unités du nœud (x : largeur, y : longueur, z : m) : bouts et
+	# écarts rentrés d'un demi-cube, pour que les cubes restent dans l'arc.
+	var cube := VoxelFx.SMALL if w >= 0.15 else VoxelFx.GRID
+	var hx := maxf(0.0, 0.5 - cube * 0.5 / w)
+	var hy := maxf(0.0, 0.5 - cube * 0.5 / span)
+	var hz := maxf(0.0, w * 0.5 - cube * 0.5) * 0.5
+	var pts := PackedVector3Array()
+	for k in ARC_SEGS + 1:
+		var t := float(k) / ARC_SEGS
+		var p := Vector3(0.0, lerpf(-hy, hy, t), 0.0)
+		if k > 0 and k < ARC_SEGS:
+			p.x = _rng.randf_range(-hx, hx) * (0.5 + 0.5 * sin(t * PI))
+			p.z = _rng.randf_range(-hz, hz)
+		pts.append(p)
+	var mm := mi.multimesh
+	mm.visible_instance_count = VoxelFx.fill_chain(mm, pts, cube, Vector3(w, span, 1.0))
 
 
 ## Étendue visible de la couche de particules `p` (MapEffects.part_reach,

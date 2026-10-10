@@ -100,6 +100,35 @@ func _outside(e: MapEffect) -> Array:
 
 # ------------------------------------------------------------------ contenu
 
+## Arcs électriques : tirés au hasard, ils restaient PARFOIS hors du volume
+## (court_circuit, échec intermittent) ; MapEffect._aim_arc garantit
+## désormais les bouts pour la direction finale. Des milliers de tirages par
+## arc, toutes zones : aucun écart.
+func test_arcs_never_leave_the_volume() -> void:
+	MapCatalog.items()
+	var bad := []
+	for fid in ["court_circuit", "arc", "tesla", "cable_nu"]:
+		var d: Dictionary = MapCatalog.EFFECTS[fid]
+		var room_h := 3.2 if String(d.mount) != "plafond" else 2.8
+		for zone in _zones(fid):
+			var e := MapEffects.build(fid, _opts(fid, zone, 1.0, room_h))
+			var vol := e.volume.grow(EPS)
+			for i in e.arcs.size():
+				for n in 400:
+					e._aim_arc(i)
+					var t: Transform3D = e.arcs[i].transform
+					var span := t.basis.y.length()
+					var dir := t.basis.y / maxf(span, 0.0001)
+					var half_w := t.basis.x.length() * 0.5
+					for s in [-0.5, 0.5]:
+						var end: Vector3 = t.origin + t.basis.y * float(s)
+						for k in 3:
+							var m := half_w * sqrt(maxf(0.0, 1.0 - dir[k] * dir[k]))
+							if end[k] - m < vol.position[k] or end[k] + m > vol.end[k]:
+								bad.append("%s %s arc %d axe %d : %.3f ± %.3f" % [fid, zone, i, k, end[k], m])
+			e.free()
+	assert_eq(bad.slice(0, 5), [], "arcs toujours dans le volume (%d écarts)" % bad.size())
+
 func test_every_effect_stays_in_its_volume() -> void:
 	MapCatalog.items()
 	for fid in MapCatalog.EFFECTS:

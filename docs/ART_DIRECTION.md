@@ -32,7 +32,8 @@ dépôt.
 - Textures : **un pixel = un cube**, une couleur unie par face de cube ; un
   léger **ombrage peint** (dessus clair, côtés un peu plus sombres, dessous
   dans l'ombre) aide la lecture, comme sur les planches de référence.
-- Effets (sang, étincelles, flammes, fumée, éclats) : particules cubiques.
+- Effets (sang, étincelles, flammes, fumée, éclats) : particules cubiques
+  (fait : voir « Effets cubiques » plus bas).
 - Interface : pas forcément cubique, mais en harmonie avec le style.
 - Vérification automatique : `VoxelCheck` (`scripts/game/map/voxel_check.gd`),
   outil `tools/voxel_check.gd` (`--anime` pour un personnage : chaque partie
@@ -275,6 +276,42 @@ Options écartées :
    épaissi au loin, pas de trait sur le décor.
 2. **Coque dans le .glb** : refusée — ce serait un second maillage hors de
    la grille, non conforme à VoxelCheck.
+
+### Effets cubiques (scripts/game/fx/voxel_fx.gd)
+
+Toutes les particules du jeu sont des **cubes** (code : docs/ARCHITECTURE.md
+« Effets cubiques ») ; aucune texture d'effet, aucun panneau face caméra.
+
+- **Taille** : côté de chaque cube arrondi au multiple de 2,5 cm (échelle des
+  personnages), au moins 2,5 cm. Petits éclats, sang, étincelles : 2,5 à
+  5 cm ; flammes, fumée, vapeur : 5 à 15 cm. Une grosse particule (volute
+  de fumée, flamme, bouffée de vapeur, boule de feu) est une **touffe** de
+  cubes qui s'écartent en grossissant au lieu de dépasser 15 cm.
+- **Couleur** : unie par cube, prise sur une rampe le long de la vie
+  (jaune → orange → rouge → braise pour le feu) ; flammes et étincelles
+  lumineuses (couleur au-delà de 1 : la lueur de l'écran les entoure) mais
+  FONDUES plutôt qu'additives dans les combats, pour qu'un cube orange reste
+  orange devant un mur clair ; lueurs, arcs et étincelles des effets de
+  carte additifs.
+- **Disparition par rétrécissement** (pas à pas de 2,5 cm) plutôt que par
+  transparence ; seules fumées, brume, vapeur et eau gardent une opacité
+  partielle.
+- **Rotation libre** des cubes en vol (tournoiement des éclats et du sang,
+  angle des flammes et fumées) ; files de cubes alignées sur la vitesse
+  pour les étincelles et les gouttes.
+- **Arcs électriques** : chaînes de cubes de 5 cm (2,5 cm sur un arc fin)
+  en zigzag, re-tirées toutes les quelques centièmes de seconde.
+- **Flamme de bouche** : étoile de cubes de 2,5 cm (cœur blanc-jaune,
+  branches orange) et pointes le long du canon, variante et angle au hasard.
+- **Décalques en pixel art** alignés : trous de balle de 4 × 4 pixels de
+  2,5 cm, taches de sang et traces d'explosion en pixels de 5 cm, tournés
+  par quarts de tour, centrés sur la grille.
+- **Harmonie avec le contour noir** : les particules sont translucides (hors
+  profondeur), le trait ne les entoure donc pas (il noircirait les cubes de
+  2,5 cm) ; les cubes de matière (sang, éclats, fumée) ont à la place des
+  arêtes assombries et un ombrage peint (dessus clair, côtés, dessous
+  sombre), comme les textures du décor. L'étalonnage s'applique à eux comme
+  au reste de l'image.
 
 ## Étalonnage et post-traitement (code actuel, à revoir pour le style cubique)
 

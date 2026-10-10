@@ -55,7 +55,8 @@ func _ready() -> void:
 	_flash.light_energy = 0.0
 	_flash.shadow_enabled = false
 	add_child(_flash)
-	var tex := Fx.soft_dot_texture()
+	# Trace noire en pixel art : 52 pixels de 5 cm (2,6 m).
+	var tex := Fx.scorch_texture(52)
 	for i in MAX_SCORCH:
 		var d := Decal.new()
 		d.texture_albedo = tex
@@ -339,14 +340,17 @@ func explosion_fx(pos: Vector3, kind: int) -> void:
 	fx.blood.burst(up, Vector3.UP, 22, 7.0, 0.9, 1.1, Color(0.13, 0.11, 0.08, 1.0), 1.1)
 	fx.dust.burst(up, Vector3.UP, 18, 2.2, 1.0, 2.6, Color(0.22, 0.2, 0.18, 0.55), 3.4)
 	fx.dust.burst(pos + Vector3.UP * 1.0, Vector3.UP, 10, 1.2, 0.5, 3.5, Color(0.12, 0.11, 0.1, 0.5), 4.0)
-	_fireball(up, 1.6 if big else 1.2)
+	# Boule de feu en cubes (Fx.fireball).
+	fx.fireball(up, 1.6 if big else 1.2)
 	_flash.global_position = pos + Vector3.UP * 0.8
 	_flash_t = 0.35
 	var floor_pos := _floor_below(pos)
 	if floor_pos != Vector3.INF:
 		var d := _scorch[_scorch_i]
 		_scorch_i = (_scorch_i + 1) % MAX_SCORCH
-		d.global_transform = Transform3D(Basis(Vector3.UP, randf() * TAU), floor_pos)
+		# Pixels alignés sur la grille du sol : quart de tour, centre à 5 cm.
+		var at := Vector3(snappedf(floor_pos.x, 0.05), floor_pos.y, snappedf(floor_pos.z, 0.05))
+		d.global_transform = Transform3D(Basis(Vector3.UP, PI * 0.5 * (randi() % 4)), at)
 		d.visible = true
 	Audio.play_3d("frag_explode", pos, 1.0, 0.08, 4)
 	var lp := game.local_player
@@ -361,30 +365,6 @@ func _floor_below(pos: Vector3) -> Vector3:
 	var q := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 0.3, pos + Vector3.DOWN * 2.0, 1)
 	var hit := game.world.get_world_3d().direct_space_state.intersect_ray(q)
 	return hit.position if not hit.is_empty() else Vector3.INF
-
-
-func _fireball(pos: Vector3, size: float) -> void:
-	var mi := MeshInstance3D.new()
-	var s := SphereMesh.new()
-	s.radius = 0.5
-	s.height = 1.0
-	s.radial_segments = 12
-	s.rings = 6
-	mi.mesh = s
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	m.albedo_color = Color(1.0, 0.55, 0.18, 0.9)
-	mi.material_override = m
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mi)
-	mi.global_position = pos
-	mi.scale = Vector3.ONE * 0.2
-	var tw := mi.create_tween().set_parallel(true)
-	tw.tween_property(mi, "scale", Vector3.ONE * size * 2.0, 0.28).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	tw.tween_property(m, "albedo_color:a", 0.0, 0.32).set_delay(0.06)
-	tw.chain().tween_callback(mi.queue_free)
 
 
 func _tick_fx(delta: float) -> void:

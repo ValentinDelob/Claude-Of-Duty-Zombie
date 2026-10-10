@@ -1290,20 +1290,25 @@ Construits en code par `MeshMapBuilder._build_effects` (partie « décor »,
 partagée avec l'aperçu 3D : l'aperçu montre le vrai effet, animé). Chaque
 effet empile des couches :
 
-- particules GPU (`GPUParticles3D`, `ParticleProcessMaterial`) : flammes en
-  volutes et en langues, cœur lumineux, braises (turbulence), fumée fondue
-  éclairée par les lampes et les feux, douce au contact des surfaces
-  (proximity fade) ; étincelles étirées dans le sens de leur vitesse
+- particules GPU (`GPUParticles3D`, `ParticleProcessMaterial`) CUBIQUES
+  (`VoxelFx`, docs/ART_DIRECTION.md « Effets cubiques ») : cubes de couleur
+  unie (rampe), côté arrondi à 2,5 cm, touffes de cubes pour les grosses
+  particules, disparition par rétrécissement ; flammes en volutes et en
+  langues, cœur lumineux, braises (turbulence), fumée en nuages de cubes
+  éclairée par les lampes et les feux ; étincelles en files de cubes alignées
+  sur leur vitesse
   (`TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY`) qui rebondissent sur le sol
   (`GPUParticlesCollisionBox3D`, pour les particules seulement) ; gouttes qui
-  disparaissent au sol, ronds dans l'eau calés sur leur chute (préchauffage
-  décalé du temps de chute) ;
+  disparaissent au sol, ronds dans l'eau en pixel art de 2,5 cm calés sur
+  leur chute (préchauffage décalé du temps de chute), nappes de brume en
+  pixels de 5 cm ;
 - lumières sans ombre (`OmniLight3D`) : vacillement du feu, éclats de la
   soudure, crépitement électrique, éclair des salves, pulsation des feux
   follets ;
-- arcs électriques : panneaux texturés re-tirés au hasard toutes les 35 à
-  90 ms, tournés vers la caméra autour de l'axe de l'arc (le seul
-  `MeshInstance3D` d'un effet) ;
+- arcs électriques : chaînes de cubes lumineux en zigzag (5 cm, 2,5 cm sur
+  un arc fin ; un `MultiMeshInstance3D` par arc, le seul maillage d'un
+  effet) re-tirées au hasard toutes les 35 à 90 ms, tournées vers la caméra
+  autour de l'axe de l'arc ;
 - salves (court-circuit, pluie d'étincelles, étincelles de câble : 1 à 3
   coups rapprochés) et cycles marche / pause (soudure).
 
@@ -1318,8 +1323,11 @@ d'autant), `MapEffects.LIGHT_BUDGET` = 16 lumières d'effets (les suivantes
 plafond `cap` à sa zone maximale (tests). Rien n'est synchronisé en réseau :
 chaque machine construit le même décor, le hasard est local.
 
-Textures : `assets/textures/fx/` (Kenney « Particle Pack », CC0,
-`docs/ASSETS.md`) ; texture absente : dégradé calculé.
+Aucune texture (les anciennes textures Kenney de `assets/textures/fx/`
+sont retirées). Volume : `MapEffects.part_radius` mesure une particule par
+les centres de ses cubes × sa taille + le demi-côté des cubes (au moins
+2,5 cm : `part_radius_min`, le point d'émission reste à cette distance des
+bords du volume).
 
 ### Format
 

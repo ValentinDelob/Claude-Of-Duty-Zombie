@@ -344,5 +344,7 @@ la lumière ; matériau `voxel` sans ombre).
 | feu | 958 | 2 742 | fût rouillé en escalier, braises, flammes en cubes |
 
 Reste hors du lot : les **particules** des effets (`MapEffects`) et des
-impacts (`Fx`, `ParticlePool`) sont encore des panneaux texturés
-(`QuadMesh`, textures de `assets/textures/fx/`, billboard), pas des cubes.
+impacts (`Fx`, `ParticlePool`) étaient encore des panneaux texturés
+(`QuadMesh`, textures de `assets/textures/fx/`, billboard). Fait depuis
+(branche `voxel-fx`) : particules cubiques `VoxelFx`, textures retirées
+(docs/ART_DIRECTION.md « Effets cubiques »).

@@ -18,34 +18,14 @@ caisse au hasard, téléporteur, interface. L'air de la peluche leurre (ancien
 singe-tambour, fichiers `monkey_*`) est lui aussi original (procédural,
 `tools/audio/synth_stems.gd`) ; seules ses cymbales sont enregistrées.
 
-## Textures des effets de carte (`assets/textures/fx/`)
+## Effets visuels
 
-Seule exception aux graphismes procéduraux : neuf textures de particules
-(flammes, fumées, étincelles, arc électrique) des effets de l'éditeur de
-cartes (`MapEffects`, docs/MAP_OBJECTS.md § 12), tirées du **Particle Pack
-1.1 de Kenney** (<https://kenney.nl/assets/particle-pack>, par Kenney
-Vleugels), publié sous licence **Creative Commons Zero (CC0 1.0, domaine
-public)** : utilisation, modification et redistribution libres, y compris
-commerciales, sans attribution obligatoire (créditées tout de même). Licence
-d'origine copiée dans `assets/textures/fx/LICENSE_kenney_particle_pack.txt`.
-Fichiers du dossier « PNG (Transparent) », renommés, non modifiés (≈ 0,7 Mo
-en tout) :
-
-| Fichier | Original Kenney | Utilisé pour |
-|---|---|---|
-| `fire_billow.png` | `flame_02.png` | volutes des flammes |
-| `flame_tongue.png` | `flame_05.png` | langues de flammes |
-| `fire_core.png` | `fire_01.png` | cœur lumineux des feux, foyer de la fumée noire |
-| `smoke_a.png` | `smoke_04.png` | fumées, brouillard |
-| `smoke_b.png` | `smoke_07.png` | fumées, vapeur, brume des fuites |
-| `arc.png` | `spark_05.png` | arcs électriques |
-| `streak.png` | `trace_01.png` | étincelles étirées, gouttes, filet d'eau |
-| `flash.png` | `scorch_02.png` | éclair des courts-circuits et des pluies d'étincelles |
-| `twirl.png` | `twirl_02.png` | traînées des feux follets |
-
-Points doux (braises, poussière, cendres, lueurs) et anneaux (ronds dans
-l'eau) : dégradés calculés par le jeu (`MapEffects._gradient_tex`), comme
-toute texture absente du dossier.
+Aucun fichier : les particules sont des cubes de couleur unie (`VoxelFx`,
+`assets/shaders/voxel_particle.gdshader`) et les décalques (trous de balle,
+sang, traces d'explosion) des images en pixel art calculées par le jeu
+(`Fx`). Les neuf textures du Particle Pack de Kenney (CC0) qu'utilisaient
+les effets de carte ont été retirées avec le passage aux particules
+cubiques (octobre 2026).
 
 ## Voix des personnages
 
