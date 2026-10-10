@@ -55,7 +55,12 @@ func run() -> void:
 	await at.screenshot("frag")
 	await H.clear_zombies(self)
 
-	# 2. PELUCHE LEURRE du client : les zombies convergent.
+	# 2. PELUCHE LEURRE du client : les zombies convergent. On attend que le
+	# client ait relevé sa réserve de grenades (sinon il verrait déjà les
+	# peluches).
+	if not await MpHelpers.wait_peer(self, "frag_vu", 10.0):
+		at.check(false, "le client a relevé la réserve de grenades")
+		return
 	sys.srv_fill_slot(client_id, ThrowableRules.Kind.DECOY)
 	var runners := []
 	for c in [Vector2i(22, 2), Vector2i(23, 12)]:

@@ -47,7 +47,10 @@ func run() -> void:
 	await at.screenshot("explosion")
 	await until(func(): return sys.items.is_empty() and pd.points - points0 >= 3 * PointsRules.KILL, 3.0, "objet retiré et points reçus")
 	at.check(ok and sys.items.is_empty(), "explosion reçue, objet retiré")
-	at.check(pd.points - points0 == 3 * PointsRules.KILL and pd.grenades == 1, "points (+%d) et réserve (%d) répliqués" % [pd.points - points0, pd.grenades])
+	at.check(pd.points - points0 == 3 * PointsRules.KILL and pd.grenades == 1 and pd.throwable == ThrowableRules.Kind.FRAG,
+		"points (+%d) et réserve (%d, sorte %d) répliqués" % [pd.points - points0, pd.grenades, pd.throwable])
+	# L'hôte attend ce relevé avant de remplir l'emplacement de peluches.
+	MpHelpers.signal_peer("frag_vu")
 
 	# PELUCHES LEURRES données par le serveur (comme la caisse au hasard).
 	ok = await until(func(): return pd.throwable == ThrowableRules.Kind.DECOY and pd.grenades == 4, 20.0, "peluches reçues")
