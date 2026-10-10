@@ -6,7 +6,8 @@ extends Node
 ##   couteau) ; le serveur vérifie munitions, cadence, position.
 ## * Dégâts aux zombies : les touches revendiquées par le client sont VALIDÉES
 ##   (zombie vivant, rayon cohérent avec la position serveur, portée) puis les
-##   dégâts sont calculés ici, à partir de WeaponDB. Le client ne décide jamais
+##   dégâts sont calculés ici, à partir de WeaponDB, du niveau et des pièces de
+##   l'arme (GameWeapon.stats). Le client ne décide jamais
 ##   des dégâts, ni de la mort, ni des points.
 ## * Dégâts aux joueurs : infligés par les zombies (serveur), santé et
 ##   régénération gérées ici.
@@ -53,6 +54,9 @@ signal remote_shot(pid: int)
 ## Serveur : un joueur a atterri d'un plongeon (crochet pour un futur effet
 ## à l'atterrissage selon `height`).
 signal player_dived_landed(pid: int, position: Vector3, height: float)
+## Serveur : un échange entre l'arme en main `hand` (0 à 2) et la place `bag`
+## (0 à 3) de l'inventaire de partie a eu lieu (srv_swap).
+signal weapons_swapped(pid: int, hand: int, bag: int)
 
 var game: Game
 var session: Session
@@ -138,7 +142,7 @@ func srv_fire(slot: int, origin: Vector3, dir: Vector3, impacts: PackedVector3Ar
 	shot_validated.emit(pid)
 	# Point d'explosion revendiqué (grenade, roquette) : sur la trajectoire du
 	# tir seulement, jamais une explosion posée n'importe où sur la carte.
-	var s0 := WeaponDB.stats(w.id, w.pap)
+	var s0 := GameWeapon.stats(w)
 	if (s0.has("splash_radius") or s0.has("projectile_speed")) and not plausible_splash(origin, dir, _splash_center(impacts, hits)):
 		print("[Combat] explosion refusée (%d) : hors de la trajectoire" % pid)
 		impacts = PackedVector3Array()
@@ -147,7 +151,7 @@ func srv_fire(slot: int, origin: Vector3, dir: Vector3, impacts: PackedVector3Ar
 	# Projectile (grenade, roquette) : effet à l'arrivée, pas à l'instant du tir.
 	var delay := WeaponDB.projectile_delay(w.id, w.pap, origin, _splash_center(impacts, hits))
 	if delay > 0.0:
-		var shot := {"id": w.id, "pap": w.pap}
+		var shot := w.duplicate(true)
 		get_tree().create_timer(delay).timeout.connect(func():
 			_apply_hits(pid, shot, origin, dir.normalized(), hits)
 			_apply_splash(pid, shot, impacts, hits))
@@ -178,7 +182,7 @@ func _validate_fire(pid: int, slot: int, origin: Vector3) -> String:
 		return "origine incohérente"
 	# Seau de jetons : cadence moyenne respectée, rafale courte tolérée.
 	var t := GameClock.now()
-	var rate := 1.0 / WeaponDB.fire_interval(w.id, w.pap)
+	var rate := 1.0 / GameWeapon.fire_interval(w)
 	if not _fire_limit.take(pid, t, rate * 1.25, fire_burst(rate)):
 		return "cadence trop élevée"
 	return ""
@@ -225,7 +229,7 @@ func _apply_hits(pid: int, w: Dictionary, origin: Vector3, dir: Vector3, hits: A
 	var blood := PackedVector3Array()
 	if hits.is_empty():
 		return blood
-	var s := WeaponDB.stats(w.id, w.pap)
+	var s := GameWeapon.stats(w)
 	var max_hits := int(s.pellets) * int(s.penetration)
 	# Cumul par zombie (plombs de fusil à pompe sur une même cible).
 	var per_zombie := {}
@@ -255,7 +259,7 @@ func _apply_hits(pid: int, w: Dictionary, origin: Vector3, dir: Vector3, hits: A
 			var to_h := hp - origin
 			var hd := (to_h - dir * to_h.dot(dir)).length()
 			head = hd < HEAD_TOLERANCE
-		var dmg: float = float(s.damage) * WeaponDB.falloff(w.id, w.pap, along)
+		var dmg: float = float(s.damage) * GameWeapon.falloff(w, along)
 		if head:
 			dmg *= float(s.head_mult)
 		# Point d'impact (sang, démembrement) : sur le zombie, sinon son centre.
@@ -296,7 +300,7 @@ func _tick_burns(t: float) -> void:
 
 ## Dégâts de zone (arme spéciale) au premier impact.
 func _apply_splash(pid: int, w: Dictionary, impacts: PackedVector3Array, hits: Array) -> void:
-	var s := WeaponDB.stats(w.id, w.pap)
+	var s := GameWeapon.stats(w)
 	if not s.has("splash_radius"):
 		return
 	var center := _splash_center(impacts, hits)
@@ -552,7 +556,7 @@ func srv_reload(slot: int) -> void:
 	if pd == null or _reload_end.has(pid) or not _action_limit.allow(pid):
 		return
 	var w: Dictionary = pd.current_weapon()
-	if slot != pd.slot or w.is_empty() or w.mag >= WeaponDB.stats(w.id, w.pap).mag or w.reserve <= 0:
+	if slot != pd.slot or w.is_empty() or w.mag >= GameWeapon.stats(w).mag or w.reserve <= 0:
 		# Refusé (arme changée ou chargeur déjà plein ici, demande partie avant
 		# que le client ne l'apprenne) : le client arrête le rechargement qu'il a
 		# prédit.
@@ -567,7 +571,7 @@ func srv_reload(slot: int) -> void:
 
 
 func reload_time(pid: int, w: Dictionary) -> float:
-	return WeaponDB.stats(w.id, w.pap).reload
+	return GameWeapon.stats(w).reload
 
 
 func _finish_reload(pid: int, slot: int) -> void:
@@ -575,7 +579,7 @@ func _finish_reload(pid: int, slot: int) -> void:
 	if pd == null or slot != pd.slot:
 		return
 	var w: Dictionary = pd.current_weapon()
-	var s := WeaponDB.stats(w.id, w.pap)
+	var s := GameWeapon.stats(w)
 	var need: int = s.mag - w.mag
 	var take: int = mini(need, w.reserve)
 	w.mag += take
@@ -597,6 +601,32 @@ func srv_switch(slot: int) -> void:
 	_reload_end.erase(pid)
 	pd.slot = slot
 	session.sync_inventory(pid)
+
+
+## Échange une arme en main avec une place de l'inventaire de partie
+## (GAME_CONCEPT §4.12), à tout moment tant que le joueur est debout ; une
+## arme de niveau supérieur au sien ne s'équipe pas (règles : GameWeapon.swap).
+## L'arme sortie de la main garde ses munitions. Si l'arme tenue change, son
+## rechargement est annulé (comme un changement d'arme).
+@rpc("any_peer", "call_local", "reliable")
+func srv_swap(hand: Variant, bag: Variant) -> void:
+	var pid := NetGuard.server_sender(self, _action_limit)
+	if pid == NetGuard.NO_SENDER or not (hand is int and bag is int):
+		return
+	var pd := session.get_data(pid)
+	if pd == null:
+		return
+	var held: Dictionary = pd.current_weapon()
+	var why := GameWeapon.swap(pd, hand, bag)
+	if why != "":
+		print("[Combat] échange refusé (%d) : %s" % [pid, why])
+		session.sync_inventory(pid)
+		return
+	if not is_same(pd.current_weapon(), held) and _reload_end.has(pid):
+		_reload_end.erase(pid)
+		_notify_reload_cancelled(pid)
+	session.sync_inventory(pid)
+	weapons_swapped.emit(pid, hand, bag)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -657,7 +687,7 @@ func _keep_loaded_shells(pid: int, r: Array) -> bool:
 	if w.is_empty():
 		return false
 	var frac := (GameClock.now() - float(r[2])) / float(r[3])
-	var n := WeaponController.shells_loaded(WeaponDB.stats(w.id, w.pap), w, frac)
+	var n := WeaponController.shells_loaded(GameWeapon.stats(w), w, frac)
 	w.mag += n
 	w.reserve -= n
 	return n > 0

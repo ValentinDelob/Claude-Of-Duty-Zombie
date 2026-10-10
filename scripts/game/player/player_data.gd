@@ -19,9 +19,19 @@ var revives := 0
 var health := BASE_HEALTH
 var max_health := BASE_HEALTH
 var life: Life = Life.ALIVE
-## Array de Dictionary {id, pap, mag, reserve} (voir WeaponDB.new_instance)
+## Armes en main (GAME_CONCEPT §4.12) : 0 à GameWeapon.HANDS armes de partie
+## (Dictionary, voir GameWeapon : id, munitions, niveau, rareté, pièces), sans
+## trou ; `slot` : celle qui est tenue.
 var weapons: Array = []
 var slot := 0
+## Inventaire de partie : 0 à GameWeapon.BAG armes de partie, échangeables
+## avec les armes en main (GameWeapon.swap, Combat.srv_swap). Gardé tel quel
+## à terre, à la mort et à la réapparition.
+var bag: Array = []
+## Niveau du joueur (profil, annoncé au début de la partie :
+## Session.srv_set_loadout) : une arme de niveau supérieur ne s'équipe pas
+## (§4.9). Répliqué avec les statistiques (tableau des scores).
+var level := 1
 ## Couteau de mêlée (KnifeDB).
 var knife := KnifeDB.DEFAULT
 ## Armes mises de côté pendant que le joueur est à terre (serveur).
@@ -55,19 +65,25 @@ func is_alive() -> bool:
 
 
 func inventory_dict() -> Dictionary:
-	return {"weapons": weapons.duplicate(true), "slot": slot, "knife": knife}
+	return {"weapons": weapons.duplicate(true), "slot": slot, "knife": knife, "bag": bag.duplicate(true)}
 
 
 func apply_inventory(d: Dictionary) -> void:
 	weapons = d.get("weapons", []).duplicate(true)
 	slot = d.get("slot", 0)
 	knife = d.get("knife", KnifeDB.DEFAULT)
+	bag = d.get("bag", []).duplicate(true)
+
+
+## Puissance (GAME_CONCEPT §4.13) : somme des scores des armes en main.
+func power() -> int:
+	return GameWeapon.power(weapons)
 
 
 func stats_dict() -> Dictionary:
 	return {"points": points, "kills": kills, "headshots": headshots, "downs": downs,
 		"revives": revives, "health": health, "max_health": max_health, "life": life,
-		"throwable": throwable, "grenades": grenades}
+		"throwable": throwable, "grenades": grenades, "level": level}
 
 
 func apply_stats(d: Dictionary) -> void:
@@ -81,3 +97,4 @@ func apply_stats(d: Dictionary) -> void:
 	life = d.get("life", life)
 	throwable = d.get("throwable", throwable)
 	grenades = d.get("grenades", grenades)
+	level = d.get("level", level)

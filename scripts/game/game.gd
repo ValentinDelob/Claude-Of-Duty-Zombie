@@ -141,6 +141,9 @@ func _ready() -> void:
 		return
 	print("[Game] préchauffage des shaders : %d ms" % (Time.get_ticks_msec() - t0))
 	loaded.emit()
+	# Armes de départ et niveau du profil local, avant l'annonce de chargement
+	# (même canal fiable : le serveur les a quand il fait apparaître les joueurs).
+	session.send_local_loadout()
 	Net.report_loaded()
 
 
@@ -187,6 +190,10 @@ func _cl_begin_match(roster: Dictionary) -> void:
 	var spawns := layout.player_spawns()
 	for pid in roster:
 		session.create(pid)
+		if multiplayer.is_server():
+			# Armes de départ choisies au profil et niveau (envoyés par
+			# send_local_loadout), puis répliqués par sync_all.
+			session.apply_loadout(pid)
 	for pid in roster:
 		var pos := MatchRules.spawn_for_slot(spawns, int(roster[pid].slot))
 		_spawn_player(pid, pos)
@@ -259,9 +266,11 @@ func capture_mouse(on: bool) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if on else Input.MOUSE_MODE_VISIBLE
 
 
-## Menu pause (ou options en jeu) ouvert : entrées du joueur local ignorées.
+## Menu pause (ou options en jeu) ou panneau d'inventaire ouvert : entrées du
+## joueur local ignorées (la partie continue).
 func menu_open() -> bool:
-	return hud != null and hud.pause_menu != null and hud.pause_menu.visible
+	return hud != null and ((hud.pause_menu != null and hud.pause_menu.visible)
+		or (hud.inventory != null and hud.inventory.visible))
 
 
 func _unhandled_input(event: InputEvent) -> void:

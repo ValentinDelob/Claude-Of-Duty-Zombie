@@ -99,9 +99,11 @@ static func last_stand_weapon(weapons: Array) -> Dictionary:
 	if best < 0:
 		var fresh := WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)
 		fresh.reserve = int(WeaponDB.stats(WeaponDB.STARTING_WEAPON).mag) * 2
+		# Prêté le temps d'être à terre : repris ensuite (MatchRules).
+		fresh["loaned"] = true
 		return fresh
 	var out: Dictionary = (weapons[best] as Dictionary).duplicate()
-	var s := WeaponDB.stats(out.id, out.pap)
+	var s := GameWeapon.stats(out)
 	var two_mags := int(s.mag) * 2
 	if out.id == WeaponDB.STARTING_WEAPON and not out.pap:
 		# BO1 fixe la réserve du M1911 à deux chargeurs ; on ne retire rien.

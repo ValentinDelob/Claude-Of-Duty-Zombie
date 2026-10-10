@@ -978,9 +978,60 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   par mécanisme (`ViewModel._reload_anim`), vérifiés par `weapon_view`.
 - **Amélioration** : la machine d'amélioration (Pack-a-Punch) est retirée.
   Le drapeau `pap` des instances d'armes et les valeurs « pap » de
-  `WeaponDB` restent en sommeil (toujours faux) en attendant la refonte des
-  armes (GAME_CONCEPT.md §4.9). Plus d'armes murales (`WeaponDB.wall_cost` /
-  `ammo_cost` supprimés) ; le couteau de base reste une attaque rapide.
+  `WeaponDB` restent en sommeil (toujours faux). Plus d'armes murales
+  (`WeaponDB.wall_cost` / `ammo_cost` supprimés) ; le couteau de base reste
+  une attaque rapide.
+
+## Équipement, inventaire de partie et armes à niveau (`GameWeapon`)
+
+GAME_CONCEPT §4.9, §4.12, §4.13.
+
+- **Arme de partie** : un `Dictionary` sérialisable `{id, pap, mag, reserve,
+  uid, level, rarity, parts}` (`scripts/game/weapons/game_weapon.gd`).
+  `GameWeapon.from_owned` / `to_owned` font le lien avec l'exemplaire du
+  profil (`OwnedWeapon`). `WeaponDB.new_instance` crée une arme niveau 1,
+  commune, sans pièce.
+- **Statistiques effectives** : `GameWeapon.stats(w)` part de `WeaponDB.stats`,
+  applique le niveau (dégâts × (1 + 0,1 × (niveau − 1)), explosions et
+  brûlure comprises) puis la somme des modificateurs des pièces
+  (`GameWeapon.MODS` : positif = bonus ; dégâts, cadence, chargeur, réserve
+  multipliés, rechargement, recul, dispersion divisés ; facteur ≥ 0,1).
+  Cache par (arme, niveau, modificateurs) ; une arme niveau 1 sans pièce rend
+  exactement `WeaponDB.stats`. Lues par le serveur (`Combat` : dégâts,
+  cadence, rechargement, munitions) et le client (`WeaponController`,
+  `ViewModel.set_weapon(id, pap, stats)`, HUD).
+- **État** (`PlayerData`, sur l'hôte, répliqué par `Session.sync_inventory`
+  à tous les joueurs) : `weapons` (0 à 3 armes en main, sans trou, `slot` =
+  arme tenue), `bag` (0 à 4 places d'inventaire), `level` (niveau du joueur,
+  répliqué avec les statistiques). `power()` = somme des scores des armes en
+  main (`GameWeapon.score` = niveau + niveaux des pièces).
+- **Départ** : chaque machine envoie, juste avant `Net.report_loaded`, le
+  niveau et les armes de départ de son profil (`Session.send_local_loadout`
+  -> `srv_set_loadout`, même canal fiable) ; à l'apparition, le serveur
+  fabrique lui-même les exemplaires d'armes de base (`Session.apply_loadout`,
+  `starting_hands` : armes à feu de base seulement, le couteau reste
+  l'attaque de mêlée). Rien d'annoncé : pistolet de départ, niveau 1.
+- **Échange** : `Combat.srv_swap(main, place)` (limiteur des actions) ->
+  `GameWeapon.swap` : joueur debout, places valides, arme de l'inventaire
+  de niveau ≤ joueur ; une place vide d'un côté déplace simplement l'arme.
+  Rechargement annulé si l'arme tenue change ; signal `weapons_swapped`.
+  `Session.give_to_bag` range une arme (construction, butin à venir).
+- **À terre, mort, réapparition** : l'inventaire n'est jamais touché ; les
+  armes en main sont mises de côté puis rendues (`MatchRules` : version
+  utilisée à terre retrouvée par `uid`) ; un pistolet prêté (`loaned`) est
+  repris.
+- **Interface** : `InventoryPanel` (HUD, action `inventory`, [I] / croix
+  haut ; Échap / B ferment) : 3 cases en main, 4 cases d'inventaire, nom,
+  niveau, rareté (couleur), score, « NIVEAU n REQUIS » ; ouvert, la partie
+  continue et `Game.menu_open()` coupe les entrées du joueur. Sous le nom de
+  l'arme en main : niveau, rareté et score (`Hud.weapon_info_text`).
+  Tableau des scores : colonnes NIV. et PUISSANCE. Touches 1 à 3
+  (`weapon_1` à `weapon_3`, `PlayerInput.select_slot`), arme suivante Q /
+  molette / Y.
+- **Effet légendaire / unique** : purement visuel, pas encore dessiné ; point
+  d'accroche `GameWeapon.visual_effect(w)` ("legendary", "unique" ou "").
+- Tests : `tests/test_game_weapon.gd`, scénario `inventory_swap`,
+  `sh tools/mp_test.sh inventory`.
 
 ## Couches physiques
 

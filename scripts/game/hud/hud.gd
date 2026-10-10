@@ -13,6 +13,11 @@ var _debug: Label
 var _ammo: Label
 var _reserve: Label
 var _weapon_name: Label
+## Niveau, rareté et score de l'arme en main (texte écrit seulement s'il change).
+var _weapon_info: Label
+var _weapon_info_key := ""
+## Panneau d'inventaire de partie ([I]).
+var inventory: InventoryPanel
 var _hint: Label
 var _vignette: ColorRect
 var _vignette_mat: ShaderMaterial
@@ -121,6 +126,11 @@ func _ready() -> void:
 	_weapon_name = HudStyle.label("", 22, HudStyle.TEXT, "condensed", 3)
 	_weapon_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	ammo_box.add_child(_weapon_name)
+	# Niveau, rareté (couleur) et score de l'arme en main, discrets (§4.9).
+	_weapon_info = HudStyle.label("", 15, HudStyle.TEXT_DIM, "text", 2)
+	_weapon_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_weapon_info.modulate.a = 0.8
+	ammo_box.add_child(_weapon_info)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_END
 	row.add_theme_constant_override("separation", 4)
@@ -172,6 +182,10 @@ func _ready() -> void:
 	scoreboard = Scoreboard.new()
 	scoreboard.setup(game)
 	add_child(scoreboard)
+
+	inventory = InventoryPanel.new()
+	inventory.setup(game)
+	add_child(inventory)
 
 	_fade = ColorRect.new()
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -299,6 +313,11 @@ func _process(delta: float) -> void:
 				_weapon_shown = s.name
 				_weapon_name.text = WeaponDB.localized(s.name)
 				_weapon_name_t = WEAPON_NAME_TIME
+			var info_key := "%d|%d|%d|%s" % [GameWeapon.level_of(w), GameWeapon.rarity_of(w), GameWeapon.score(w), Settings.language]
+			if info_key != _weapon_info_key:
+				_weapon_info_key = info_key
+				_weapon_info.text = weapon_info_text(w)
+				_weapon_info.add_theme_color_override("font_color", GameWeapon.rarity_color(GameWeapon.rarity_of(w)))
 			_weapon_name_t = maxf(_weapon_name_t - delta, 0.0)
 			_weapon_name.modulate.a = clampf(_weapon_name_t / 0.8, 0.0, 1.0)
 			@warning_ignore("integer_division")
@@ -340,6 +359,16 @@ func _process(delta: float) -> void:
 				hint = Lang.t("Appuyer sur %s pour recharger", "Press %s to reload") % Settings.action_label("reload")
 			if hint != _hint.text:
 				_hint.text = hint
+		elif _weapon_info_key != "":
+			# Mains vides : ni nom, ni niveau, ni munitions.
+			_weapon_info_key = ""
+			_weapon_info.text = ""
+			_weapon_name.text = ""
+			_weapon_shown = ""
+			_shown_mag = AMMO_HIDDEN
+			_shown_reserve = AMMO_HIDDEN
+			_ammo.text = ""
+			_reserve.text = ""
 	# Compte à rebours dans la salle du rituel (prioritaire).
 	var tp := game.teleporter
 	if tp and tp.state == Teleporter.State.ACTIVE and game.layout.zone_at(player.global_position) == game.layout.teleporter_exit_zone():
@@ -551,7 +580,27 @@ func teleport_flash() -> void:
 	tw.tween_callback(r.queue_free)
 
 
+## Niveau, rareté et score d'une arme de partie, pour le HUD (« NIV. 3 ·
+## RARE · SCORE 5 »). Pure (tests).
+static func weapon_info_text(w: Dictionary) -> String:
+	if w.is_empty():
+		return ""
+	return Lang.t("NIV. %d · %s · SCORE %d", "LVL %d · %s · SCORE %d") % [GameWeapon.level_of(w),
+		GameWeapon.rarity_name(GameWeapon.rarity_of(w)), GameWeapon.score(w)]
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	# Panneau d'inventaire : [I] l'ouvre et le ferme ; ouvert, Échap ou B le
+	# ferment (avant le menu pause).
+	if inventory and GameState.is_in_game() and pause_menu and not pause_menu.visible:
+		if event.is_action_pressed("inventory") and GameState.state != GameState.State.GAME_OVER:
+			inventory.toggle()
+			get_viewport().set_input_as_handled()
+			return
+		if inventory.visible and (event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel")):
+			inventory.close()
+			get_viewport().set_input_as_handled()
+			return
 	# Ouverture seulement : une fois ouvert (partie suspendue en solo), le
 	# menu pause gère lui-même Échap (retour des options, reprise).
 	if event.is_action_pressed("pause") and GameState.is_in_game() and pause_menu and not pause_menu.visible:
@@ -590,6 +639,8 @@ func show_game_over(summary: String, survived: String) -> void:
 ## ici avec les lots suivants (MatchResult.loot, xp).
 func show_match_end(r: MatchResult) -> void:
 	set_evac_status("")
+	if inventory:
+		inventory.close()
 	show_center(r.title(), r.summary(), 0.6)
 	show_game_over_table(r.details())
 	if not r.evacuated:

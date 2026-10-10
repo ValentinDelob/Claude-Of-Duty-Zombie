@@ -9,7 +9,8 @@ extends RefCounted
 ## Chaque arme hérite des valeurs de sa famille (CLASSES), puis surcharge ce
 ## qu'elle veut. La clé "pap" (valeurs de l'ancienne amélioration au
 ## Pack-a-Punch, machine supprimée) et le drapeau `pap` des instances restent
-## en sommeil (toujours faux) jusqu'à la refonte des armes (GAME_CONCEPT §4.9).
+## en sommeil (toujours faux). Niveau, rareté et pièces d'une arme de partie :
+## GameWeapon (GAME_CONCEPT §4.9), qui part de ces statistiques de base.
 ## Clés facultatives :
 ##   burst       tir en rafale (coups)           burst_delay pause après la rafale (s)
 ##   splash_radius / splash_damage / self_damage  explosion au point d'impact
@@ -184,8 +185,8 @@ const REQUIRED := ["name", "pap_name", "class", "damage", "head_mult", "rpm", "a
 
 ## Arme de départ de chaque joueur.
 const STARTING_WEAPON := "m1911"
-## Nombre d'emplacements d'armes (hors couteau).
-const MAX_SLOTS := 2
+## Nombre d'emplacements d'armes en main (hors couteau, GAME_CONCEPT §4.12).
+const MAX_SLOTS := GameWeapon.HANDS
 
 ## Mêlée (couteau) : tue un zombie de manche 1 en un coup.
 const MELEE_DAMAGE := 150
@@ -305,9 +306,13 @@ static func scope_kind(s: Dictionary) -> String:
 
 
 ## Nouvelle instance d'arme (état d'inventaire sérialisable).
+## Arme de partie niveau 1, commune, sans pièce (GameWeapon.make).
 static func new_instance(id: String, pap := false) -> Dictionary:
-	var s := stats(id, pap)
-	return {"id": id, "pap": pap, "mag": s.mag, "reserve": s.reserve}
+	var w := GameWeapon.make(id)
+	if pap:
+		w.pap = true
+		GameWeapon.refill(w)
+	return w
 
 
 ## Délai d'arrivée d'un projectile (0 = arme à balles, effet immédiat).
@@ -336,12 +341,9 @@ static func give(pd: PlayerData, id: String, pap := false) -> int:
 
 ## Serveur : remplit chargeur et réserve de l'arme `slot`.
 static func refill(pd: PlayerData, slot: int) -> void:
-	var w: Dictionary = pd.weapons[slot]
-	var s := stats(w.id, w.pap)
-	w.mag = s.mag
-	w.reserve = s.reserve
+	GameWeapon.refill(pd.weapons[slot])
 
 
 static func is_full(w: Dictionary) -> bool:
-	var s := stats(w.id, w.pap)
+	var s := GameWeapon.stats(w)
 	return w.mag >= s.mag and w.reserve >= s.reserve

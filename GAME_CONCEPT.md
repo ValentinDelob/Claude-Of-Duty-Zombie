@@ -474,6 +474,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | État « à terre », réanimation, spectateur | 🧪 | **Garder** tels quels (§4.6) |
 | Coop réseau (hôte / client par IP) | 🧪 | **Garder** |
 | Couteau | 🧪 | **Garder** comme attaque rapide séparée, en plus de la batte |
+| Deux emplacements d'armes (BO1) | ✔️ | **Adaptés** : 3 armes en main + inventaire de 4 places, armes à niveau, rareté et pièces, puissance au tableau des scores (§4.9, §4.12, §4.13) |
 | Grenades, singe-tambour | ✔️ | **Adaptés** en objets de la caisse au hasard, sur l'emplacement de grenade (§4.12 bis) |
 | Bonus au sol (munitions max, mort instantanée, points doubles…) | ✔️ | **Supprimés** |
 | Boîte mystère | ✔️ | **Adaptée** en caisse au hasard payée en ferraille (§4.12 bis) |
@@ -522,6 +523,13 @@ corriger.
 | Évacuation : départ | tous les joueurs non morts ont voté « partir » et sont debout dans la zone (4 m × 3,5 m devant la porte) | `EvacRules` |
 | Évacuation : reprise | tous « prêt », ou fin des 2 min : manche suivante 3 s plus tard | `EvacRules` |
 | Vague spéciale et boss la même manche | vague de boss si la carte a un boss, sinon vague spéciale | `WaveRules` |
+| Commandes de l'équipement | 1 / 2 / 3 : arme en main ; Q (A en AZERTY) et molette : arme suivante ; I : panneau d'inventaire (Échap ferme). Manette : Y arme suivante, croix gauche / bas / droite armes 1 à 3, croix haut inventaire (B ferme) | `Settings` |
+| Panneau d'inventaire | la partie continue (même en solo), le joueur ne bouge plus et ne tire plus tant qu'il est ouvert ; une case en main puis une case d'inventaire : échange ; une case vide d'un côté : l'arme passe simplement | `InventoryPanel`, `GameWeapon.swap` |
+| Modificateurs des pièces | fractions additionnées par statistique, **positif = bonus** : dégâts, cadence, chargeur, réserve × (1 + m) ; rechargement, recul, précision (dispersion) ÷ (1 + m) ; facteur jamais sous 0,1 ; noms `damage`, `fire_rate`, `reload`, `recoil`, `accuracy`, `mag`, `reserve` | `GameWeapon.MODS` |
+| Niveau d'une arme | dégâts × (1 + 0,1 × (niveau − 1)), explosions et brûlure comprises ; multiplié ensuite par les pièces | `GameWeapon.apply` |
+| Couteau choisi comme arme de départ | il reste l'attaque de mêlée séparée et ne prend pas d'emplacement en main (en attendant la batte, qui se tiendra en main) | `Session.starting_hands` |
+| Mains vides | permis (tout rangé, ou départ au couteau seul) : couteau et grenade restent ; à la réapparition, pistolet de départ seulement si ni main ni inventaire | `MatchRules` |
+| Effet légendaire / unique | aucun pour l'instant ; point d'accroche `GameWeapon.visual_effect` | `GameWeapon` |
 
 ## 7. Questions ouvertes
 

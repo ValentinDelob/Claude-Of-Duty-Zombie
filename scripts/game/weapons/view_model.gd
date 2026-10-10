@@ -205,8 +205,10 @@ static func _set_bend(v: Vector3) -> void:
 	RenderingServer.global_shader_parameter_set("vm_bend", v)
 
 
-func set_weapon(id: String, is_pap: bool) -> void:
-	var s := WeaponDB.stats(id, is_pap)
+## `weapon_stats` : statistiques effectives de l'arme de partie (niveau,
+## pièces : GameWeapon.stats), sinon celles de base de WeaponDB.
+func set_weapon(id: String, is_pap: bool, weapon_stats: Dictionary = {}) -> void:
+	var s := weapon_stats if not weapon_stats.is_empty() else WeaponDB.stats(id, is_pap)
 	var mid: String = s.model
 	_stats = s
 	if mid == model_id and is_pap == pap and model != null:

@@ -11,8 +11,11 @@ var _sub: Label
 var _header: Control
 
 ## En-têtes [français, anglais] (voir columns()).
-const COLUMNS := [["JOUEUR", "PLAYER"], ["FERRAILLE", "SCRAP"], ["TUÉS", "KILLS"], ["TÊTES", "HEADSHOTS"], ["RÉANIM.", "REVIVES"], ["À TERRE", "DOWNS"]]
-const WIDTHS := [250, 110, 90, 90, 100, 100]
+## NIV. : niveau du joueur ; PUISSANCE : somme des scores de ses armes en
+## main (GAME_CONCEPT §4.13, jamais affichée au hub).
+const COLUMNS := [["JOUEUR", "PLAYER"], ["NIV.", "LVL"], ["PUISSANCE", "POWER"], ["FERRAILLE", "SCRAP"],
+	["TUÉS", "KILLS"], ["TÊTES", "HEADSHOTS"], ["RÉANIM.", "REVIVES"], ["À TERRE", "DOWNS"]]
+const WIDTHS := [215, 60, 100, 110, 80, 90, 90, 90]
 
 
 func setup(g: Game) -> void:
@@ -30,8 +33,8 @@ func setup(g: Game) -> void:
 	anchor_right = 0.5
 	anchor_top = 0.5
 	anchor_bottom = 0.5
-	offset_left = -405
-	offset_right = 405
+	offset_left = -455
+	offset_right = 455
 	offset_top = -210
 	offset_bottom = -60
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -78,7 +81,7 @@ func refresh(title_text := "") -> void:
 			status = " ✚"
 		elif pd.life == PlayerData.Life.DEAD:
 			status = " ✝"
-		var cells := [Net.player_name(pid) + status, str(pd.points), str(pd.kills), str(pd.headshots), str(pd.revives), str(pd.downs)]
+		var cells := [Net.player_name(pid) + status, str(pd.level), str(pd.power()), str(pd.points), str(pd.kills), str(pd.headshots), str(pd.revives), str(pd.downs)]
 		var me := pid == multiplayer.get_unique_id()
 		_rows_box.add_child(_row(cells, HudStyle.TEXT if me else HudStyle.TEXT.lerp(col, 0.5), 24, col, me))
 
