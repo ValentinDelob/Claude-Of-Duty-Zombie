@@ -1,89 +1,140 @@
 class_name HellhoundModel
 extends RefCounted
-## Chien de l'enfer low-poly : même squelette procédural que les zombies
-## (RigBuilder), os replacés en quadrupède. Le modèle regarde vers +Z.
+## Chien errant contaminé CUBIQUE (GAME_CONCEPT.md § 4.19 : cubes de 2,5 cm),
+## modélisé dans Blender (tools/blender/dogs/dog_voxel.py) et chargé par
+## ZombieGlb : un mesh skinné partagé, un draw call, couleur par face de cube,
+## yeux émissifs, dissolution cube par cube (mêmes shaders que les zombies
+## cubiques, matériaux propres : lueur ambre des yeux). Ossature du jeu
+## (RigBuilder.BONES) replacée en quadrupède ; le modèle regarde vers +Z.
 ##
-##   hips = bassin (arrière) > spine > chest (avant) > neck > head
+##   hips = bassin (arrière) > spine > chest (avant) > neck > head > jaw
 ##   arm_* / forearm_* = pattes avant ; thigh_* / shin_* = pattes arrière
+##
+## Animation : procédurale (DogAnim), hitbox et zone de tête mesurées sur le
+## modèle (hit_shapes).
 
-const HIDE := Color(0.17, 0.12, 0.1)
-const HIDE_DARK := Color(0.08, 0.06, 0.05)
-const MUSCLE := Color(0.36, 0.07, 0.05)
-const BONE := Color(0.62, 0.56, 0.46)
-const EMBER := Color(1.0, 0.35, 0.08)
-const EYE := Color(1.0, 0.1, 0.04)
-
-## Repos des os (relatif au parent) : dos horizontal à ~0,55 m.
-const OVERRIDES := {
-	"hips": Vector3(0, 0.52, -0.32),
-	"spine": Vector3(0, 0.02, 0.3),
-	"chest": Vector3(0, 0.02, 0.3),
-	"neck": Vector3(0, 0.08, 0.14),
-	"head": Vector3(0, 0.12, 0.1),
-	"arm_l": Vector3(0.11, -0.04, 0.02),
-	"forearm_l": Vector3(0, -0.24, 0),
-	"arm_r": Vector3(-0.11, -0.04, 0.02),
-	"forearm_r": Vector3(0, -0.24, 0),
-	"thigh_l": Vector3(0.11, -0.02, -0.04),
-	"shin_l": Vector3(0, -0.24, 0),
-	"thigh_r": Vector3(-0.11, -0.02, -0.04),
-	"shin_r": Vector3(0, -0.24, 0),
-}
+const MODEL_PATH := "res://assets/models/dogs/dog_voxel.glb"
+## Côté d'un cube (m) : dissolution cube par cube.
+const MODEL_CUBE := 0.025
+## Lueur des yeux (ambre de l'infection, plus chaude que celle des zombies).
+const EYE_EMISSION := Color(1.0, 0.62, 0.14)
+const EYE_ENERGY := 7.0
+## Teintes de variante (multiplicateurs, linéaire) : [pelage rgb, peau pelée].
+## Légères : une meute de bâtards, pas des clones ; la variante 0 garde la
+## palette du modèle.
+const TINTS := [
+	[Color(1.0, 1.0, 1.0), 1.0],
+	[Color(0.78, 0.76, 0.74), 0.95],
+	[Color(1.08, 0.94, 0.8), 1.0],
+	[Color(0.9, 0.92, 0.96), 1.04],
+	[Color(1.12, 1.06, 0.96), 0.92],
+	[Color(0.7, 0.62, 0.55), 1.0],
+]
 
 static var _material: ShaderMaterial
+static var _dissolve: ShaderMaterial
+static var _skin: Skin
+static var _bounds := {}
+static var _shapes := {}
 
 
+static func _mat(dissolve: bool) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://assets/shaders/zombie_voxel_dissolve.gdshader") if dissolve else preload("res://assets/shaders/zombie_voxel.gdshader")
+	mat.set_shader_parameter("emission_color", EYE_EMISSION)
+	mat.set_shader_parameter("emission_energy", EYE_ENERGY)
+	mat.set_shader_parameter("voxel_cell", MODEL_CUBE)
+	return mat
+
+
+## Matériau des chiens vivants (sans `discard` : pré-passe et ombres simples).
 static func material() -> ShaderMaterial:
 	if _material == null:
-		_material = ShaderMaterial.new()
-		_material.shader = preload("res://assets/shaders/character.gdshader")
-		# Yeux rouges et braises incandescentes.
-		_material.set_shader_parameter("emission_color", Color(1.0, 0.16, 0.05))
-		_material.set_shader_parameter("emission_energy", 7.0)
-		_material.set_shader_parameter("grime", 0.45)
-		_material.set_shader_parameter("stain_amount", 0.9)
+		_material = _mat(false)
 	return _material
 
 
+## Variante « dissolution » (corps qui disparaît cube par cube).
+static func dissolve_material() -> ShaderMaterial:
+	if _dissolve == null:
+		_dissolve = _mat(true)
+	return _dissolve
+
+
+## Dissolution (0 : intact, 1 : disparu) du maillage d'un chien.
+static func set_dissolve(mi: MeshInstance3D, k: float) -> void:
+	var want := dissolve_material() if k > 0.0 else material()
+	if mi.material_override != want:
+		mi.material_override = want
+	mi.set_instance_shader_parameter("dissolve", k)
+
+
+## Modèle chargé ({mesh, overrides}) ; {} si le .glb manque.
+static func model() -> Dictionary:
+	return ZombieGlb.load_model(MODEL_PATH)
+
+
 static func build(variant: int) -> Skeleton3D:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = variant * 104729 + 3
-	var hide := HIDE.lerp(HIDE_DARK, rng.randf() * 0.6)
-	var p: Array = []
-	# Corps : bassin, dos, poitrail plus large.
-	p.append(["hips", Vector3(0.26, 0.26, 0.36), Vector3(0, 0.02, -0.02), hide, 0.0])
-	p.append(["spine", Vector3(0.24, 0.24, 0.34), Vector3(0, 0.0, 0.0), hide, 0.0])
-	p.append(["chest", Vector3(0.32, 0.34, 0.34), Vector3(0, -0.01, 0.02), hide, 0.0])
-	# Côtes à vif et échine osseuse.
-	for side in [-1.0, 1.0]:
-		p.append(["spine", Vector3(0.02, 0.14, 0.26), Vector3(side * 0.121, -0.01, 0.0), MUSCLE, 0.0])
-		for k in 3:
-			p.append(["spine", Vector3(0.025, 0.16, 0.025), Vector3(side * 0.126, 0.0, -0.09 + k * 0.09), BONE, 0.0])
-		# Fissures de braise sur le poitrail et les flancs.
-		p.append(["chest", Vector3(0.02, 0.16, 0.04), Vector3(side * 0.161, 0.0, 0.08), EMBER, 0.85])
-		p.append(["hips", Vector3(0.02, 0.1, 0.05), Vector3(side * 0.131, 0.03, 0.05), EMBER, 0.7])
-	for k in 5:
-		p.append(["spine" if k < 3 else "chest", Vector3(0.05, 0.05, 0.07), Vector3(0, 0.135, -0.1 + (k % 3) * 0.1), BONE, 0.0, Vector3(20, 0, 0)])
-	# Cou épais, tête de molosse.
-	p.append(["neck", Vector3(0.17, 0.2, 0.22), Vector3(0, 0.03, 0.02), hide, 0.0, Vector3(-35, 0, 0)])
-	p.append(["head", Vector3(0.21, 0.17, 0.22), Vector3(0, 0.02, 0.0), hide, 0.0])
-	p.append(["head", Vector3(0.13, 0.1, 0.2), Vector3(0, -0.03, 0.19), hide, 0.0])
-	p.append(["head", Vector3(0.11, 0.04, 0.17), Vector3(0, -0.1, 0.15), MUSCLE, 0.0, Vector3(14, 0, 0)])
-	p.append(["head", Vector3(0.12, 0.03, 0.02), Vector3(0, -0.075, 0.285), BONE, 0.0])
-	p.append(["head", Vector3(0.1, 0.02, 0.02), Vector3(0, -0.105, 0.225), BONE, 0.0])
-	p.append(["head", Vector3(0.05, 0.03, 0.03), Vector3(0, 0.025, 0.29), HIDE_DARK, 0.0])
-	for side in [-1.0, 1.0]:
-		p.append(["head", Vector3(0.045, 0.03, 0.02), Vector3(side * 0.06, 0.05, 0.111), EYE, 1.0])
-		p.append(["head", Vector3(0.05, 0.11, 0.035), Vector3(side * 0.075, 0.13, -0.06), hide, 0.0, Vector3(-25, 0, side * 12)])
-	# Queue.
-	p.append(["hips", Vector3(0.05, 0.05, 0.28), Vector3(0, 0.09, -0.3), hide, 0.0, Vector3(30, 0, 0)])
-	# Pattes : épaule / cuisse musclée, jambe fine, patte griffue.
-	for side in ["l", "r"]:
-		p.append(["arm_" + side, Vector3(0.1, 0.26, 0.13), Vector3(0, -0.1, 0), hide, 0.0])
-		p.append(["forearm_" + side, Vector3(0.065, 0.24, 0.075), Vector3(0, -0.12, 0), hide, 0.0])
-		p.append(["forearm_" + side, Vector3(0.085, 0.05, 0.13), Vector3(0, -0.245, 0.03), HIDE_DARK, 0.0])
-		p.append(["thigh_" + side, Vector3(0.12, 0.28, 0.17), Vector3(0, -0.1, 0.02), hide, 0.0])
-		p.append(["thigh_" + side, Vector3(0.02, 0.1, 0.08), Vector3((0.061 if side == "l" else -0.061), -0.08, 0.02), MUSCLE, 0.0])
-		p.append(["shin_" + side, Vector3(0.065, 0.24, 0.075), Vector3(0, -0.12, -0.02), hide, 0.0])
-		p.append(["shin_" + side, Vector3(0.085, 0.05, 0.13), Vector3(0, -0.245, 0.02), HIDE_DARK, 0.0])
-	return RigBuilder.build(p, material(), OVERRIDES)
+	var m := model()
+	if m.is_empty():
+		push_error("HellhoundModel : %s introuvable" % MODEL_PATH)
+		return RigBuilder.instantiate(ArrayMesh.new(), material())
+	if _skin == null:
+		var tmp := RigBuilder.build_skeleton(m.overrides)
+		_skin = tmp.create_skin_from_rest_transforms()
+		tmp.free()
+		hit_shapes()
+	var skel := RigBuilder.instantiate(m.mesh, material(), m.overrides, _skin)
+	var mi := skel.get_node("Mesh") as MeshInstance3D
+	# Hors des décalques de sang (comme les zombies).
+	mi.layers = ZombieModel.RENDER_LAYERS
+	var tint: Array = TINTS[posmod(variant, TINTS.size())]
+	var c: Color = tint[0]
+	mi.set_instance_shader_parameter("look_tint", Color(c.r, c.g, c.b, tint[1]))
+	return skel
+
+
+## Boîte englobante au repos (repère du modèle) des sommets de chaque os.
+static func bone_bounds() -> Dictionary:
+	if not _bounds.is_empty():
+		return _bounds
+	var m := model()
+	if m.is_empty():
+		return {}
+	var a := (m.mesh as ArrayMesh).surface_get_arrays(0)
+	var pos: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = a[Mesh.ARRAY_BONES]
+	for v in pos.size():
+		var b: String = RigBuilder.BONES[bones[v * 4]][0]
+		if _bounds.has(b):
+			_bounds[b] = (_bounds[b] as AABB).expand(pos[v])
+		else:
+			_bounds[b] = AABB(pos[v], Vector3.ZERO)
+	return _bounds
+
+
+## Zones de touche mesurées sur le modèle (repère du chien, au repos) :
+##   body : [centre, rayon, longueur] d'une capsule couchée le long du dos
+##          (bassin, échine, poitrail et cou ; les pattes fines ne comptent
+##          pas : elles ne seraient qu'un « coup au corps » de plus) ;
+##   head : [centre dans le repère de l'os head, rayon] d'une sphère (crâne
+##          et museau, mâchoire comprise).
+static func hit_shapes() -> Dictionary:
+	if not _shapes.is_empty():
+		return _shapes
+	var bb := bone_bounds()
+	if bb.is_empty():
+		return {"body": [Vector3(0, 0.55, 0.0), 0.2, 1.0], "head": [Vector3(0, 0.0, 0.12), 0.15]}
+	var trunk: AABB = bb.hips.merge(bb.spine).merge(bb.chest)
+	# Rayon : demi-hauteur du tronc (le dos et le poitrail sont touchés),
+	# borné par la demi-largeur + un cube (flancs).
+	var r := minf(trunk.size.y * 0.5, trunk.size.x * 0.5 + MODEL_CUBE * 2.0)
+	var centre := trunk.get_center()
+	var length := trunk.size.z
+	var head: AABB = bb.head.merge(bb.get("jaw", bb.head))
+	var rest := RigBuilder._rest_globals(model().overrides)
+	var head_origin: Vector3 = (rest.head as Transform3D).origin
+	var hc := head.get_center() - head_origin
+	var hr := maxf(head.size.x, maxf(head.size.y, head.size.z)) * 0.5
+	_shapes = {"body": [centre, r, length], "head": [hc, hr * 0.85]}
+	return _shapes

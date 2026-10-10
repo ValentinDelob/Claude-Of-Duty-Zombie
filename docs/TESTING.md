@@ -199,6 +199,7 @@ sh tools/check.sh
 | `QUALITY=medium OUTLINE=off sh tools/perf.sh zombie_stress map_tour` | préréglage imposé, contour noir coupé (mesure avant / après) |
 | `PERF_ARGS="--only=contour" sh tools/perf.sh perf_costs` | coût A/B de quelques postes seulement (noms contenant ces mots) |
 | `godot --headless --fixed-fps 60 --path . -- --autotest=perf_cpu` | coût CPU d'une fin de partie sans rendu (DRAFT ARENA, 24 zombies + 4 chiens, tir, grenades) et micro-mesures des fonctions chaudes (lignes « ancien code » : l'ancienne version, même processus) |
+| `sh tools/scenario.sh perf_dog_pack` | meute de 24 chiens cubiques lâchée sur le joueur (TEST ARENA) : img/s moyennes et pire seconde avec rendu, captures de la meute et de morts |
 | `bash tools/profile.sh [scénario]` | même scénario dans une COPIE instrumentée du projet : ms par image et µs par appel de chaque `_process` / `_physics_process` et de quelques fonctions chaudes (sources jamais modifiées) |
 
 Optimisation sans changement de comportement : garder l'ancienne logique

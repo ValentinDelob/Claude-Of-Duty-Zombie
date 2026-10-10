@@ -1,17 +1,29 @@
 class_name DogRound
 extends Node
-## Manches de chiens de l'enfer (chemin réseau : /root/Game/Rounds/Dogs).
+## Vagues spéciales « meute » : chiens errants contaminés (chemin réseau :
+## /root/Game/Rounds/Dogs).
 ##
 ## Serveur : manches de chiens = vagues spéciales du schéma de la carte
 ## (WaveRules, MapDef.waves : par défaut toutes les 5 manches), fait
 ## apparaître les chiens un par un près des joueurs (2 vivants par joueur),
-## leur attribue une proie, applique l'explosion de flammes à leur mort et
-## retient la position du dernier chien tué.
-## Toutes les machines : ambiance de la manche (brouillard, musique, annonce,
-## compteur de manche qui clignote).
+## tapis hors de leur vue de préférence, leur attribue une proie, applique la
+## giclée de sang contaminé à leur mort et retient la position du dernier
+## chien tué.
+## Toutes les machines : mise en scène de la manche (GAME_CONCEPT.md § 5 :
+## plus d'éclair ni de brouillard) : bandeau « LA MEUTE APPROCHE », compteur
+## de manche qui clignote, musique, puis des aboiements lointains venus de
+## directions différentes pendant l'attente avant le premier chien ; chaque
+## chien se trahit ensuite par un grognement depuis sa cachette avant de
+## jaillir (Hellhound).
 
 signal dog_round_started(round_n: int)
 signal dog_round_cleared(round_n: int)
+
+## Aboiements lointains de l'annonce : nombre, instants (s après l'annonce),
+## distance à l'auditeur (m).
+const HOWL_TIMES := [1.2, 2.6, 3.7, 5.1]
+const HOWL_DIST := 16.0
+const HOWL_SOUNDS := ["dog_bark_1", "dog_growl_2", "dog_bark_2", "dog_growl_1"]
 
 var game: Game
 var rounds: RoundManager
@@ -31,6 +43,8 @@ var total := 0
 var spawned := 0
 var killed := 0
 var last_dog_pos := Vector3.INF
+## Serveur : apparitions hors de la vue des joueurs (tests).
+var spawned_hidden := 0
 var _start_delay := 0.0
 var _wait := 0.0
 var _alive: Dictionary = {}  # zid -> true
@@ -42,29 +56,16 @@ var _rng := RandomNumberGenerator.new()
 
 ## Toutes les machines : ambiance de manche de chiens active.
 var cl_active := false
-var _fog_k := 0.0
-var _fog_tween: Tween
+## Aboiements lointains joués depuis la dernière annonce (tests).
+var cl_howls := 0
+var _howl_gen := 0
 var _prev_music := ""
-
-static var _flames: ParticlePool
-
-
-## Pool de particules des flammes des chiens (null hors partie).
-static func flame_pool() -> ParticlePool:
-	return _flames if is_instance_valid(_flames) else null
 
 
 func _ready() -> void:
 	rounds = get_parent()
 	game = rounds.game  # donnée par RoundManager, qui crée ce nœud
 	_rng.randomize()
-	var pool := ParticlePool.new().setup(200, Fx._particle_mat(true), 0.08)
-	pool.name = "DogFlames"
-	pool.gravity = -2.5
-	pool.drag = 2.5
-	pool.grow = -0.6
-	add_child(pool)
-	_flames = pool
 	if multiplayer.is_server():
 		# Les @onready de Game ne sont pas encore assignés (enfant prêt avant).
 		var zm: ZombieManager = game.get_node("Zombies")
@@ -209,8 +210,13 @@ func _spawn_dog(valid: Array) -> bool:
 ## partie des points du navmesh sont des îlots (dessus des rangées de
 ## fauteuils, des gravats, des garde-corps) ; on essaie donc plusieurs points
 ## de l'anneau, et à défaut les plus proches de l'anneau, tous accessibles.
+## Meute (mise en scène) : un point HORS DE LA VUE de tous les joueurs (derrière
+## un mur, au fond d'un couloir) est préféré ; le chien y attend tapi
+## (Hellhound, état EMERGE) et en jaillit. Sans point caché (arène dégagée),
+## un point visible de l'anneau sert quand même.
 const PATH_TRIES := 24
 const FALLBACK_TRIES := 6
+const VISIBLE_KEEP := 6
 
 func pick_spawn_point(near: Vector3) -> Variant:
 	var layout := game.layout
@@ -218,7 +224,9 @@ func pick_spawn_point(near: Vector3) -> Variant:
 	if pts.is_empty():
 		return null
 	var zones: Dictionary = game.spawner.active_zones if game.spawner else {}
+	var watchers := _valid_players()
 	var fallbacks := []  # [écart à l'anneau, point]
+	var visible := []  # points de l'anneau vus par un joueur (chemin non testé)
 	var tries := 0
 	# Mélange partiel (quelques centaines de points suffisent).
 	for i in mini(pts.size(), 400):
@@ -232,14 +240,23 @@ func pick_spawn_point(near: Vector3) -> Variant:
 			continue
 		var d := Vector2(pos.x - near.x, pos.z - near.z).length()
 		if d >= DogRules.SPAWN_MIN_DIST and d <= DogRules.SPAWN_MAX_DIST:
+			if _seen_by(watchers, pos):
+				if visible.size() < VISIBLE_KEEP:
+					visible.append(pos)
+				continue
 			tries += 1
 			if not game.nav.find_path(pos, near).is_empty():
 				_last_spawn = pos
+				spawned_hidden += 1
 				return pos
 			if tries >= PATH_TRIES:
 				break
 		elif d >= 4.0:
 			fallbacks.append([absf(d - clampf(d, DogRules.SPAWN_MIN_DIST, DogRules.SPAWN_MAX_DIST)), pos])
+	for pos: Vector3 in visible:
+		if not game.nav.find_path(pos, near).is_empty():
+			_last_spawn = pos
+			return pos
 	fallbacks.sort_custom(func(a, b): return a[0] < b[0])
 	for k in mini(fallbacks.size(), FALLBACK_TRIES):
 		var pos: Vector3 = fallbacks[k][1]
@@ -247,6 +264,14 @@ func pick_spawn_point(near: Vector3) -> Variant:
 			_last_spawn = pos
 			return pos
 	return null
+
+
+## Un des joueurs voit-il le point `pos` (ligne des yeux dégagée) ?
+func _seen_by(watchers: Array, pos: Vector3) -> bool:
+	for p: Player in watchers:
+		if game.nav.eye_line_clear(p.global_position, pos):
+			return true
+	return false
 
 
 ## Chien coincé ou égaré loin de tout joueur : retiré et refait apparaître.
@@ -277,7 +302,7 @@ func _on_killed(zid: int) -> void:
 	if dog == null:
 		return
 	var pos := dog.global_position
-	# Explosion de flammes : brûle les joueurs tout proches.
+	# Giclée de sang contaminé : brûle les joueurs tout proches.
 	if dog._revealed:
 		for p: Player in game.players.values():
 			if p.global_position.distance_to(pos + Vector3.UP * 0.4) <= DogRules.EXPLODE_RADIUS:
@@ -307,39 +332,44 @@ func _on_removed(zid: int) -> void:
 @rpc("authority", "call_local", "reliable")
 func _cl_dog_round(on: bool) -> void:
 	cl_active = on
+	_howl_gen += 1
 	if on:
 		Audio.play_2d("dog_round_start", 0.0, 0.0)
 		_prev_music = Audio._music_name
 		Audio.play_music("dog_round_music", -3.0, 2.5)
+		cl_howls = 0
+		var gen := _howl_gen
+		var first_dir := _rng.randf() * TAU
+		for i in HOWL_TIMES.size():
+			# Directions réparties autour de l'auditeur : la meute encercle.
+			var dir: float = first_dir + i * TAU / HOWL_TIMES.size() + _rng.randf_range(-0.5, 0.5)
+			get_tree().create_timer(HOWL_TIMES[i]).timeout.connect(_howl.bind(gen, dir))
 	else:
 		Audio.play_music(_prev_music if _prev_music != "" else "ambience_bunker", -6.0, 3.0)
 	if game.hud:
 		game.hud.set_special_round(on)
-	_tween_fog(1.0 if on else 0.0, 3.0 if on else 4.0)
+		if on:
+			game.hud.show_banner(Lang.t("LA MEUTE APPROCHE", "THE PACK IS COMING"), 3.0)
 
 
-## Dernier chien abattu : fin de l'ambiance après un court délai (BO1 : wait 2).
+## Aboiement lointain de l'annonce (son 3D à HOWL_DIST de l'auditeur, dans
+## la direction `dir`), tant que cette annonce est la dernière.
+func _howl(gen: int, dir: float) -> void:
+	if gen != _howl_gen or not cl_active:
+		return
+	var ear: Variant = Audio.listener_position()
+	if ear == null:
+		ear = game.local_player.global_position if game and game.local_player else Vector3.ZERO
+	var at: Vector3 = ear + Vector3(sin(dir), 0.0, cos(dir)) * HOWL_DIST
+	var snd: String = HOWL_SOUNDS[cl_howls % HOWL_SOUNDS.size()]
+	Audio.play_3d(snd, at, 3.0, 0.12, 4, 0.92)
+	cl_howls += 1
+
+
+## Dernier chien abattu : fin de l'ambiance après un court délai.
 @rpc("authority", "call_local", "reliable")
 func _cl_dog_end() -> void:
 	Audio.play_2d("dog_round_end", 0.0, 0.0)
-	get_tree().create_timer(DogRules.FOG_CLEAR_DELAY).timeout.connect(func():
+	get_tree().create_timer(DogRules.END_DELAY).timeout.connect(func():
 		if cl_active:
 			_cl_dog_round(false))
-
-
-func _tween_fog(to: float, time: float) -> void:
-	if _fog_tween:
-		_fog_tween.kill()
-	_fog_tween = create_tween()
-	_fog_tween.tween_method(_set_fog, _fog_k, to, time)
-
-
-func _set_fog(k: float) -> void:
-	_fog_k = k
-	var we := game.world.get_node_or_null("WorldEnvironment") as WorldEnvironment
-	if we and we.environment:
-		WorldLook.apply_dog_round_look(we.environment, k)
-
-
-func fog_amount() -> float:
-	return _fog_k

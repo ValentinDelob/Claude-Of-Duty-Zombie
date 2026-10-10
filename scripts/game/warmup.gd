@@ -43,15 +43,14 @@ func _run(game: Game) -> void:
 	zd.position = Vector3(-0.3, -1.2, -1.2)
 	stage.add_child(zd)
 	ZombieModel.set_dissolve(zd.get_node("Mesh") as MeshInstance3D, 0.3)
-	# Chien de l'enfer (matériau à yeux rouges) et boule de foudre.
+	# Chien cubique (matériau à yeux ambre) et sa variante de dissolution.
 	var dog := HellhoundModel.build(1)
 	dog.position = Vector3(0.6, -1.2, -1.0)
 	stage.add_child(dog)
-	var bolt := DogLightning.new()
-	bolt.duration = 0.5
-	bolt.silent = true
-	bolt.position = Vector3(0.3, -1.2, -1.5)
-	stage.add_child(bolt)
+	var dog_d := HellhoundModel.build(2)
+	dog_d.position = Vector3(0.3, -1.2, -1.5)
+	stage.add_child(dog_d)
+	HellhoundModel.set_dissolve(dog_d.get_node("Mesh") as MeshInstance3D, 0.3)
 	# Armes (vue FPS et monde, normales et améliorées).
 	# Un petit cube par matériau et variante suffit (même shader pour toutes
 	# les armes) : inutile de construire les ~30 modèles de l'arsenal.

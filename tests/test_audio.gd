@@ -8,7 +8,7 @@ extends TestCase
 const MUST_BE_CC0 := ["break_open", "break_close", "impact_concrete_1", "impact_concrete_2", "impact_metal_1",
 	"impact_metal_2", "impact_wood_1", "impact_wood_2", "grenade_pin", "grenade_throw", "grenade_bounce",
 	"monkey_wind", "monkey_bounce", "monkey_music", "dog_growl_1", "dog_growl_2", "dog_growl_3", "dog_bark_1",
-	"dog_bark_2", "dog_bite_1", "dog_bite_2", "dog_whine", "dog_explode", "footstep_1", "footstep_2",
+	"dog_bark_2", "dog_bite_1", "dog_bite_2", "dog_whine", "footstep_1", "footstep_2",
 	"footstep_3", "footstep_4", "player_breath_1", "player_breath_2", "player_hurt_1", "player_hurt_2",
 	"player_down", "dive_land",
 	"pap_zap_1", "pap_zap_2", "pap_zap_3"]

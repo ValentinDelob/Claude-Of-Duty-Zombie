@@ -212,10 +212,8 @@ const RECIPES := {
 	"dog_bite_2": {"preset": "dog", "layers": [{"src": "841350", "start": 1.72, "end": 2.1, "pitch": 0.85, "fade_out": 0.08},
 		{"src": "423301", "start": 0.31, "end": 0.6, "gain": -7.0, "at": 0.02, "fade_out": 0.06},
 		{"src": "122183", "start": 5.4, "end": 5.84, "pitch": 0.8, "gain": -3.0, "fade_out": 0.1}], "drive": 1.2},
-	# Mort : glapissement abaissé (se consume en flammes, voir dog_explode).
+	# Mort : glapissement abaissé (le chien s'effondre sur le flanc).
 	"dog_whine": {"preset": "dog", "layers": [{"src": "724927", "pitch": 0.82, "fade_out": 0.25}]},
-	"dog_explode": {"preset": "explosion", "layers": [{"src": "431174", "fade_out": 0.4},
-		{"src": "244926", "start": 0.0, "end": 1.8, "gain": -5.0, "at": 0.05, "fade_out": 0.8}], "max_len": 3.0},
 	# ------------------------------------------------------------ joueur
 	"footstep_1": {"preset": "foley", "layers": [{"src": "392483", "start": 0.0, "end": 0.25, "fade_out": 0.06}], "loud": -6.0},
 	"footstep_2": {"preset": "foley", "layers": [{"src": "392483", "start": 0.25, "end": 0.52, "fade_out": 0.06}], "loud": -6.0},
@@ -420,10 +418,6 @@ const SOURCES := {
 		"url": "https://cdn.freesound.org/previews/841/841350_71257-hq.ogg"},
 	"724927": {"author": "greyfeather", "title": "Dog death cry - video game quality / bad-ish quality",
 		"url": "https://cdn.freesound.org/previews/724/724927_15139380-hq.ogg"},
-	"431174": {"author": "Blankened", "title": "Fireball Explosion.wav",
-		"url": "https://cdn.freesound.org/previews/431/431174_6512859-hq.ogg"},
-	"244926": {"author": "hnhnh", "title": "fire-whoosh.wav",
-		"url": "https://cdn.freesound.org/previews/244/244926_3983630-hq.ogg"},
 	# -- joueur
 	"392483": {"author": "gpag1", "title": "Footsteps boots.wav",
 		"url": "https://cdn.freesound.org/previews/392/392483_3268195-hq.ogg"},

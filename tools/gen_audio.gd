@@ -772,53 +772,6 @@ func gen_dog_whine() -> void:
 	_save("dog_whine", s.finish(s.reverb(b, 0.6, 0.25, 0.6), 0.8))
 
 
-func gen_dog_explode() -> void:
-	# Embrasement : souffle grave, crépitements de flammes.
-	var b := s.env_exp(s.lowpass_sweep(s.noise(1.2), 3000.0, 250.0), 0.004, 0.35)
-	s.mix(b, s.env_exp(s.sweep(0.5, 110.0, 40.0), 0.002, 0.2), 0.0, 1.0)
-	for k in 14:
-		var crack := s.env_exp(s.bandpass(s.noise(0.04), s.rng.randf_range(1500.0, 5000.0), 3.0), 0.0005, 0.008)
-		s.mix(b, crack, s.rng.randf_range(0.02, 0.9), s.rng.randf_range(0.2, 0.5))
-	b = s.drive(b, 1.8)
-	_save("dog_explode", s.finish(s.reverb(b, 0.7, 0.3, 0.8), 0.9))
-
-
-func gen_dog_prespawn() -> void:
-	# Boule de foudre : bourdonnement électrique qui enfle, grésillements.
-	var dur := 1.6
-	var hum := s.tone(dur, 60.0, "saw")
-	s.mix(hum, s.tone(dur, 120.5, "square"), 0.0, 0.3)
-	hum = s.lowpass(hum, 900.0)
-	var b := s.env_adsr(hum, 1.2, 0.1, 0.9, 0.2)
-	b = s.gain(b, 0.5)
-	for k in 40:
-		var t := s.rng.randf_range(0.0, dur - 0.05)
-		var zap := s.env_exp(s.highpass(s.noise(0.03), 3000.0), 0.0005, 0.006)
-		s.mix(b, zap, t, 0.2 + 0.6 * t / dur)
-	s.mix(b, s.env_adsr(s.sweep(dur, 200.0, 900.0), 1.3, 0.05, 0.8, 0.1), 0.0, 0.25)
-	_save("dog_prespawn", s.finish(s.reverb(b, 0.6, 0.2, 0.5), 0.75))
-
-
-func gen_dog_bolt() -> void:
-	# Coup de tonnerre : claquement sec puis grondement qui roule.
-	var b := s.env_exp(s.highpass(s.noise(0.05), 1800.0), 0.0003, 0.012)
-	b = s.gain(b, 1.5)
-	s.mix(b, s.env_exp(s.lowpass(s.noise(0.3), 2500.0), 0.001, 0.06), 0.0, 1.0)
-	var rumble := s.env_adsr(s.lowpass(s.brown_noise(2.2), 160.0), 0.05, 0.4, 0.6, 1.2)
-	s.mix(b, s.gain(rumble, 1.6), 0.03, 1.0)
-	s.mix(b, s.env_exp(s.sweep(0.6, 80.0, 35.0), 0.002, 0.3), 0.0, 1.0)
-	b = s.drive(b, 2.2)
-	_save("dog_bolt", s.finish(s.reverb(b, 0.9, 0.35, 1.5), 0.95, 0.2))
-
-
-func gen_dog_spawn() -> void:
-	# Le chien surgit : grésillement de braises et grognement.
-	var b := s.env_exp(s.bandpass(s.noise(0.8), 2500.0, 0.8), 0.005, 0.25)
-	b = s.gain(b, 0.5)
-	s.mix(b, _growl(0.7, 95.0, 120.0, [450.0, 1000.0], 1.1), 0.1, 1.0)
-	_save("dog_spawn", s.finish(s.reverb(b, 0.6, 0.2, 0.5), 0.85))
-
-
 func gen_dog_round_start() -> void:
 	# Annonce de manche de chiens : cuivres graves dissonants, tonnerre et voix
 	# démoniaque (« VIENS... LEURS ÂMES »).

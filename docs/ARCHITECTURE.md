@@ -210,8 +210,8 @@ Chaque objet de la partie reçoit son `Game` de celui qui le crée, dans un cham
 
 `Game.instance` est réservé au code sans propriétaire dans la partie
 (autoloads, fonctions statiques, menus). Lisent encore `Game.instance`, tous
-avec une garde : `Player`, `Fx`, `VoxSystem`, `DogLightning`
-(aussi créé hors partie par `Warmup`), `Barricade`, `Door`.
+avec une garde : `Player`, `Fx`, `VoxSystem`,
+`Barricade`, `Door`.
 
 ## Autoloads
 
@@ -372,6 +372,10 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DogLightning`
   (`GPU x ms`) : sur la machine partagée (autres agents, check.sh), les fps
   chutent de 30 à 70 % alors que le temps GPU ne bouge que de ~10 % ; comparer les
   temps GPU, ou les fps pris GPU libre seulement.
+- **Meute de chiens** : `sh tools/scenario.sh perf_dog_pack` (24 chiens
+  cubiques de 7 708 triangles, un draw call chacun, 6 ombres au plus) :
+  329 img/s en moyenne, pire seconde 208 img/s (1280 × 720, machine de
+  développement, 2026-10-11).
 - **Coût de chaque poste** : `sh tools/perf.sh perf_costs` (préfixe `perf_` : exclu
   de check.sh). Une vue (labo de BUNKER K-7 avec 24 zombies au contact),
   chaque poste coupé seul, mesures
@@ -904,19 +908,36 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   section ; sans `--part`, tout tourne). Ports réseau : `AUTOTEST_PORT_OFFSET`,
   décalé de 1000 par place du pool (les tests multijoueur occupent 17801 à 17999).
 
-## Chiens de l'enfer (`scripts/game/dogs/`)
+## Chiens errants contaminés, vague « meute » (`scripts/game/dogs/`)
 
 - `Hellhound` étend `Zombie` : c'est un **type d'entité** du `ZombieManager`
   (`spawn(..., kind = KIND_DOG)`, argument `kind` de `_cl_spawn`). Même canal
   réseau (apparition fiable, instantanés, mort), mêmes dégâts, points et
-  pièges.
+  pièges. Modèle cubique `HellhoundModel` (`dog_voxel.glb` chargé par
+  `ZombieGlb`, mesh et Skin partagés, zones de touche mesurées sur le
+  modèle), animation procédurale `DogAnim` (fonctions pures : galop, arrêt,
+  apparition, bond et morsure, mort sur le flanc ; cadence réduite au loin
+  par `ZombieManager.pose_step`, ombres limitées par `ZombieShadows` comme
+  les zombies). Pas de ragdoll : chute procédurale, puis dissolution cube
+  par cube (`HellhoundModel.set_dissolve`) avant le retrait.
 - `DogRound` (`/root/Game/Rounds/Dogs`) : vagues spéciales du schéma de la
   carte (`WaveRules`, `MapDef.waves` : par défaut toutes les 5 manches ;
-  coupée en autotest sauf `debug_force_next`), apparitions par la foudre
-  près du joueur le moins chassé (10 à 25 m, sur un point qui a un chemin
-  jusqu'à lui : les îlots du navmesh des cartes en maillage sont écartés),
-  ambiance (brouillard `WorldLook`, musique,
-  compteur qui clignote). Règles pures : `DogRules`.
+  coupée en autotest sauf `debug_force_next`), apparitions près du joueur le
+  moins chassé (10 à 25 m, sur un point qui a un chemin jusqu'à lui : les
+  îlots du navmesh des cartes en maillage sont écartés), **de préférence
+  hors de la vue de tous les joueurs** (`MapNav.eye_line_clear`, compteur
+  `spawned_hidden`). Règles pures : `DogRules`.
+- Mise en scène (GAME_CONCEPT.md § 5 : ni éclair ni brouillard façon BO1,
+  aucun objet de carte requis), toutes les machines : à l'annonce
+  (`_cl_dog_round`), bandeau « LA MEUTE APPROCHE » / « THE PACK IS COMING »,
+  compteur de manche qui clignote, musique, puis **aboiements lointains**
+  (`HOWL_TIMES`, sons 3D à `HOWL_DIST` de l'auditeur, directions réparties
+  autour de lui) pendant l'attente avant le premier chien. Chaque chien reste
+  ensuite **tapi** `DogRules.SPAWN_TIME` (invisible, intouchable, état
+  `EMERGE`) en grognant depuis sa cachette, puis **jaillit** (aboiement,
+  poussière, animation accroupie `DogAnim.APPEAR_TIME`). À sa mort, il
+  s'effondre sur le flanc et son sang contaminé gicle (brûlure
+  `DogRules.EXPLODE_*` des joueurs tout proches, inchangée).
 - Vagues de boss : même schéma (`WaveRules`, défaut toutes les 15 manches) ;
   sans boss défini (`MapDef.boss` vide, partout aujourd'hui) elles ne font
   rien (`RoundManager._begin_round`).
