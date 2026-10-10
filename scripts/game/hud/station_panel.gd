@@ -208,13 +208,20 @@ func press_refill() -> void:
 
 
 ## Recycler l'arme du bouton `k` : premier appui, confirmation demandée ;
-## second appui sur le même bouton : demande au serveur.
+## second appui sur le même bouton : demande au serveur. Dernière arme du
+## joueur : refus immédiat (message), rien n'est envoyé.
 func press_recycle(k: int) -> void:
 	if k < 0 or k >= recycle_slots.size():
 		return
 	var slot: Array = recycle_slots[k]
 	var pd := game.session.local_data()
 	if pd == null or BuildRules.weapon_at(pd, slot[0], slot[1]).is_empty():
+		return
+	if BuildRules.recycle_refusal(pd, slot[0], slot[1]) == BuildRules.LAST_WEAPON:
+		_confirm = []
+		if game.hud:
+			game.hud.flash_message(BuildRules.recycle_refusal_text(BuildRules.LAST_WEAPON))
+		refresh()
 		return
 	if _confirm != slot:
 		_confirm = slot
@@ -273,12 +280,19 @@ func refresh() -> void:
 		if w.is_empty():
 			continue
 		var v := BuildRules.recycle_value(w)
-		if _confirm == slot:
+		var last := BuildRules.recycle_refusal(pd, slot[0], slot[1]) == BuildRules.LAST_WEAPON
+		b.tooltip_text = BuildRules.recycle_refusal_text(BuildRules.LAST_WEAPON) if last else ""
+		if last:
+			b.text = Lang.t("Dernière arme", "Last weapon")
+		elif _confirm == slot:
 			b.text = Lang.t("CONFIRMER : +%d", "CONFIRM: +%d") % v
 		else:
 			b.text = Lang.t("Recycler %s +%d", "Recycle %s +%d") % [BuildStation.weapon_name(w), v]
 		b.add_theme_color_override("font_color", GameWeapon.rarity_color(GameWeapon.rarity_of(w)))
-		b.disabled = bool(w.get("loaned", false))
+		b.disabled = bool(w.get("loaned", false)) or last
+		if last:
+			# Le bouton est étroit : la raison complète va dans l'aide.
+			_hint.text = BuildRules.recycle_refusal_text(BuildRules.LAST_WEAPON) + ". " + _hint.text
 
 
 ## Ligne d'état de la construction du joueur local. Pure vis-à-vis de

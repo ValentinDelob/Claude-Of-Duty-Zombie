@@ -29,7 +29,8 @@ qu'il contenait.
 
 **Ferraille** (monnaie de partie, GAME_CONCEPT.md §4.8) : chaque joueur part
 de 0 et gagne 50 ferraille par zombie qu'il tue lui-même, quel que soit le
-coup (rien pour les touches, les réanimations ni les planches) ; elle paie
+coup, et 10 par touche de balle ou de couteau (10 touches payées au plus par
+zombie ; rien pour les explosions, les réanimations ni les planches) ; elle paie
 les portes et la caisse. PV des zombies linéaires : 150 + 100 par manche.
 
 **CARTES PERSO** — faites avec l'**ÉDITEUR DE CARTES** du menu principal

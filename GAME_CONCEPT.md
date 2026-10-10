@@ -44,8 +44,8 @@ Il sera complété et modifié au fil des décisions. Chaque règle porte un sta
 ## 2. Gameplay visé
 
 ### Boucle de 30 secondes
-Tirer, tuer (chaque élimination rapporte de la ferraille), ramasser son butin (à
-sa couleur), se replacer, recharger.
+Tirer, tuer (chaque touche et chaque élimination rapportent de la ferraille),
+ramasser son butin (à sa couleur), se replacer, recharger.
 
 ### Boucle d'une partie
 1. Au hub, le joueur choisit jusqu'à **3 armes de départ** parmi les armes de
@@ -244,8 +244,16 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
 ### 4.8 Ferraille ✅
 - **Monnaie de partie** : chaque joueur commence la partie avec **0 ferraille**.
 - **Personnelle** : elle n'est pas ramassée au sol, elle est **gagnée
-  directement par le joueur qui tue** le zombie (rien pour les touches ni les
+  directement par le joueur qui touche ou qui tue** le zombie (rien pour les
   assistances).
+- **Touches** : toucher un zombie **d'une balle ou d'un coup de couteau**
+  rapporte **un peu de ferraille** au tireur. Les explosions (grenades, armes
+  à zone), les brûlures et les pièges ne rapportent rien pour une simple
+  touche. Le nombre de touches payées est **plafonné par zombie**, pour qu'un
+  zombie très résistant ne rapporte pas une fortune. Un zombie déjà mort ne
+  rapporte plus rien.
+- **Éliminations** : le coup qui tue rapporte le montant de l'élimination (pas
+  la touche en plus), quelle que soit l'arme, sauf un piège (rien).
 - Le montant par élimination est **fixe** : il n'augmente pas avec la manche,
   car le nombre de zombies augmente déjà.
 - Elle sert à **construire les armes** de l'arsenal (§4.11), à **recharger les
@@ -359,6 +367,10 @@ retravaillées.
 - **Recyclage en partie** : recycler une arme rapporte **50 % de la ferraille**
   nécessaire pour la construire. Recycler un exemplaire construit depuis
   l'arsenal ne retire pas l'arme de l'arsenal.
+- On ne peut **jamais recycler sa dernière arme** (armes en main et
+  inventaire ; le couteau et les grenades ne comptent pas, ni une arme encore
+  en construction à la station) : « Impossible de recycler votre dernière
+  arme ».
 - **Butin d'une partie** : seules les armes **gardées sur soi au moment de
   l'évacuation** (équipement et inventaire) sont ajoutées à l'arsenal.
 
@@ -514,7 +526,8 @@ corriger.
 
 | Sujet | Valeur provisoire | Où |
 |---|---|---|
-| Ferraille par élimination | **50**, quel que soit le coup (tête, couteau, explosion) ; 0 pour un piège | `PointsRules.KILL` |
+| Ferraille par élimination | **50**, quel que soit le coup (tête, couteau, explosion) ; 0 pour un piège ; le coup qui tue ne paie pas la touche en plus | `PointsRules.KILL` |
+| Ferraille par touche | **10** par touche de balle ou de couteau qui ne tue pas (tir de fusil à pompe : une touche par zombie) ; 0 pour une explosion, une brûlure, un piège ou le téléporteur ; au plus **10 touches payées par zombie**, tous joueurs confondus | `PointsRules.HIT`, `HIT_CAP` |
 | Énergie | 0 à 100 ; course 25/s ; saut 10 ; couteau 8, couteau de chasse 10 ; recharge 40/s après 0,4 s ; **épuisé** de 0 jusqu'à 50 | `docs/ENERGY_PLAN.md` |
 | Essoufflement | silencieux au-dessus de 35 % ; halètement tant que le joueur est épuisé ; la respiration de santé basse passe avant | `BreathFeedback` |
 | XP d'une partie | 10 par élimination, 50 par manche survécue | `MatchXp` |
@@ -533,7 +546,7 @@ corriger.
 | Prix de construction | 500 × (1 + 0,15 × (niveau − 1)) × rareté (commune 1, rare 1,5, épique 2,2, légendaire 3,2, unique 4), arrondi à 10 : arme de base 500, niveau 10 rare 1 760, niveau 50 unique 16 700 ; pièces non comptées | `BuildRules.price` |
 | Durée de construction | prix < 1 500 : 1 manche, < 4 000 : 2, sinon 3 ; prête à la fin de la manche en cours + durée − 1 (lancée entre deux manches : la suivante compte) | `BuildRules.rounds`, `ready_round` |
 | Recharge des munitions (station) | 30 % du prix de construction de l'arme en main, arrondi à 10 (pistolet de base : 150) | `BuildRules.refill_price` |
-| Recyclage en partie | 50 % du prix de construction, arrondi à 10 ; arme de base (donnée à tous) : 0 ; arme prêtée à terre : impossible ; depuis l'inventaire ou la station, deux appuis | `BuildRules.recycle_value` |
+| Recyclage en partie | 50 % du prix de construction, arrondi à 10 ; arme de base (donnée à tous) : 0 ; arme prêtée à terre : impossible ; dernière arme (main + inventaire, hors arme prêtée, couteau, grenades et arme en construction) : impossible, bouton grisé et refus de l'hôte ; depuis l'inventaire ou la station, deux appuis | `BuildRules.recycle_value`, `recycle_refusal` |
 | Station de construction | [F] : interface (la partie continue) ou récupération de l'arme prête ; armes de mêlée non listées (le couteau reste l'attaque séparée) | `BuildStation`, `StationPanel` |
 | Armes de butin possibles | toutes les armes à feu de `WeaponDB` **sauf les armes de base** (pistolet de départ), tirage uniforme ; niveau de base de chaque arme = 1 (`WeaponDB.base_level`) | `LootRules` |
 | Pose du butin d'arme | à 1,5 m devant chaque joueur à la fin de la vague (2 armes : écartées), visible de tous, ramassable par son seul propriétaire | `LootSystem` |
@@ -570,7 +583,7 @@ corriger.
 - ❌ **Ferraille qui augmente avec la manche** : le montant par élimination est
   fixe.
 - ❌ **Compétence spéciale et arbre de compétences** du personnage.
-- ❌ **Ferraille pour les touches et les assistances** : seul le joueur qui tue
+- ❌ **Ferraille pour les assistances** : seul le joueur qui touche ou qui tue
   gagne de la ferraille.
 - ❌ **Atouts** et **achats muraux**.
 - ❌ **Table d'amélioration** : les pièces s'installent depuis l'inventaire.

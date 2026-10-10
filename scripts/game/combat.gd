@@ -634,7 +634,9 @@ func srv_swap(hand: Variant, bag: Variant) -> void:
 ## tout moment tant que le joueur est debout : l'arme disparaît et rapporte
 ## BuildRules.recycle_value en ferraille (un exemplaire construit depuis
 ## l'arsenal ne quitte jamais l'arsenal du profil). Rechargement annulé si
-## l'arme tenue change.
+## l'arme tenue change. Jamais la dernière arme du joueur (BuildRules.
+## LAST_WEAPON) : refus annoncé au joueur (l'interface l'empêche déjà, le
+## serveur reste l'autorité).
 @rpc("any_peer", "call_local", "reliable")
 func srv_recycle(row: Variant, index: Variant) -> void:
 	var pid := NetGuard.server_sender(self, _action_limit)
@@ -648,6 +650,11 @@ func srv_recycle(row: Variant, index: Variant) -> void:
 	if why != "":
 		print("[Combat] recyclage refusé (%d) : %s" % [pid, why])
 		session.sync_inventory(pid)
+		if why == BuildRules.LAST_WEAPON:
+			if pid == multiplayer.get_unique_id():
+				_cl_recycle_refused(why)
+			else:
+				_cl_recycle_refused.rpc_id(pid, why)
 		return
 	var w := BuildRules.take(pd, row, index)
 	var value := BuildRules.recycle_value(w)
@@ -658,6 +665,14 @@ func srv_recycle(row: Variant, index: Variant) -> void:
 	session.sync_inventory(pid)
 	if value > 0:
 		session.add_points(pid, value)
+
+
+## Client : recyclage refusé par le serveur (code BuildRules) : message à l'écran.
+@rpc("authority", "call_local", "reliable")
+func _cl_recycle_refused(code: String) -> void:
+	var text := BuildRules.recycle_refusal_text(code)
+	if text != "" and game and game.hud:
+		game.hud.flash_message(text)
 
 
 @rpc("authority", "call_local", "reliable")

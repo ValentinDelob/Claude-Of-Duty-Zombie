@@ -167,10 +167,11 @@ func run() -> void:
 	at.check(spawn_invisible_ok, "chiens invisibles pendant la foudre")
 	at.check(min_spawn_dist >= 4.0, "apparitions près du joueur (%.1f à %.1f m)" % [min_spawn_dist, max_spawn_dist])
 	at.check(pd.kills - kills0 == 6, "kills comptés (%d)" % (pd.kills - kills0))
-	# Ferraille : 6 kills à montant fixe, rien pour les touches (GAME_CONCEPT
-	# §4.8).
-	var gained := pd.points - pts
-	at.check(gained == 6 * PointsRules.KILL, "ferraille des seuls kills (+%d)" % gained)
+	# Ferraille : 6 kills à montant fixe, plus 10 par touche de balle (au plus
+	# HIT_CAP par chien) (GAME_CONCEPT §4.8).
+	var hits := pd.points - pts - 6 * PointsRules.KILL
+	at.check(hits >= 0 and hits % PointsRules.HIT == 0 and hits <= 6 * PointsRules.HIT_CAP * PointsRules.HIT,
+			"ferraille : 6 kills + %d touches (+%d)" % [hits / PointsRules.HIT, pd.points - pts])
 
 	# Fin de manche (plus de MUNITIONS MAX sur le dernier chien : bonus au sol
 	# supprimés).

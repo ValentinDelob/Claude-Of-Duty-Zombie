@@ -63,6 +63,8 @@ var state: State = State.EMERGE
 var yaw := 0.0
 var health := 150
 var max_health := 150
+## Serveur : touches déjà payées en ferraille (PointsRules.HIT_CAP).
+var paid_hits := 0
 var speed_mult := 1.0
 var target: Player
 ## Serveur : attiré par un PELUCHE LEURRE (ThrowableSystem.lure_for).

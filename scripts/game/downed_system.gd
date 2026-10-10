@@ -51,7 +51,7 @@ func srv_down(pid: int) -> void:
 	pd.life = PlayerData.Life.DOWNED
 	pd.downs += 1
 	# BO1 : 5 % de la ferraille perdue. Elle n'est plus rendue au sauveteur :
-	# la ferraille ne se gagne qu'en tuant (GAME_CONCEPT §4.8).
+	# la ferraille ne se gagne qu'en touchant ou en tuant (GAME_CONCEPT §4.8).
 	var lost := PointsRules.downed_loss(pd.points)
 	game.session.add_points(pid, -lost)
 	# Dernier recours : on garde le pistolet (ou on en reçoit un).

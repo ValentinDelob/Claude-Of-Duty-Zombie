@@ -97,8 +97,11 @@ func test_recyclage_retire() -> void:
 	w = BuildRules.take(pd, 1, 0)
 	assert_eq(String(w.uid), "w3")
 	assert_true(pd.bag.is_empty())
+	assert_eq(BuildRules.recycle_refusal(pd, 0, 0), BuildRules.LAST_WEAPON, "dernière arme")
+	assert_true(BuildRules.take(pd, 0, 0).is_empty() and pd.weapons.size() == 1, "dernière arme : rien retiré")
+	pd.bag = [_w("m14", 1, 0, [], "w4")]
 	w = BuildRules.take(pd, 0, 0)
-	assert_true(pd.weapons.is_empty() and pd.slot == 0, "mains vides permises")
+	assert_true(pd.weapons.is_empty() and pd.slot == 0, "mains vides permises (une arme reste dans l'inventaire)")
 	pd.weapons = [_w(PISTOL)]
 	pd.weapons[0]["loaned"] = true
 	assert_eq(BuildRules.recycle_refusal(pd, 0, 0), "arme prêtée")
@@ -106,6 +109,39 @@ func test_recyclage_retire() -> void:
 	pd.weapons[0].erase("loaned")
 	pd.life = PlayerData.Life.DOWNED
 	assert_eq(BuildRules.recycle_refusal(pd, 0, 0), "joueur à terre ou mort")
+
+
+## Jamais la dernière arme (GAME_CONCEPT §4.12) : armes en main + inventaire,
+## hors arme prêtée ; couteau et grenades ne comptent pas ; une arme en
+## construction à la station non plus (pas dans PlayerData tant qu'elle n'est
+## pas récupérée).
+func test_recyclage_derniere_arme() -> void:
+	var pd := PlayerData.new(1)
+	pd.weapons = [_w(PISTOL, 1, 0, [], BaseWeapons.UID_PREFIX + PISTOL)]
+	pd.grenades = 4
+	assert_eq(BuildRules.weapon_count(pd), 1, "couteau et grenades ne comptent pas")
+	assert_eq(BuildRules.recycle_refusal(pd, 0, 0), BuildRules.LAST_WEAPON, "arme de base seule en main")
+	# Mains vides, une seule arme dans le sac.
+	pd.weapons = []
+	pd.bag = [_w("mp40", 2, 0, [], "w1")]
+	assert_eq(BuildRules.recycle_refusal(pd, 1, 0), BuildRules.LAST_WEAPON, "seule arme dans l'inventaire")
+	# Une arme en main et une dans le sac : l'une ou l'autre, pas les deux.
+	pd.weapons = [_w(PISTOL)]
+	assert_eq(BuildRules.weapon_count(pd), 2)
+	assert_eq(BuildRules.recycle_refusal(pd, 1, 0), "")
+	assert_eq(BuildRules.recycle_refusal(pd, 0, 0), "")
+	assert_false(BuildRules.take(pd, 1, 0).is_empty())
+	assert_eq(BuildRules.recycle_refusal(pd, 0, 0), BuildRules.LAST_WEAPON, "la seconde devient la dernière")
+	# Une arme prêtée ne compte pas : l'arme du sac reste la dernière.
+	var loaned := _w(PISTOL)
+	loaned["loaned"] = true
+	pd.weapons = [loaned]
+	pd.bag = [_w("mp40", 2, 0, [], "w2")]
+	assert_eq(BuildRules.weapon_count(pd), 1, "arme prêtée non comptée")
+	assert_eq(BuildRules.recycle_refusal(pd, 1, 0), BuildRules.LAST_WEAPON)
+	assert_eq(BuildRules.recycle_refusal(pd, 0, 0), "arme prêtée", "arme prêtée : refus d'origine")
+	assert_true(BuildRules.recycle_refusal_text(BuildRules.LAST_WEAPON) != "", "message pour le joueur")
+	assert_eq(BuildRules.recycle_refusal_text("arme prêtée"), "", "autres refus : pas de message")
 
 
 # --------------------------------------------------------------------------
