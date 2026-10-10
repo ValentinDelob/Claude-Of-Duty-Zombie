@@ -9,7 +9,7 @@ hôpital / laboratoire / zombies), même si les collisions changent.
 
 État : **pilote fait** (§ 4) : textures pixel art de 3 clés (`concrete`,
 `tiles`, `wall`) et murs en biais en escalier de cubes. Le reste est découpé
-en 5 lots (§ 3).
+en 5 lots (§ 3). **Lot C fait** (§ 5) : toutes les surfaces en pixel art.
 
 ## 1. Inventaire
 
@@ -267,3 +267,37 @@ Fait sur la branche `voxel-archi` :
   (9 442 en marches de 5 cm, 216 avant) ; 12 à 23 ms par texture générée ;
   ≈ 420 i/s sur la vue de l'octogone (RTX A2000, sans valeur pour la
   GTX 1050 : mesure au lot E).
+
+## 5. Lot C (fait) : textures pixel art de toutes les surfaces
+
+- `PixelSurfaces` : 12 générateurs (béton, carrelage, planches, tôle,
+  mur peint, pierre à veines lumineuses, dalles de plafond, moquette,
+  lambris et papier peint, briques, velours, pavés) réglés par clé (teinte,
+  taille, usure) : les **37 clés** de `WorldLook.SURFACES` (sols, murs,
+  plafonds, décor, théâtre) et `plank` (encadrement des fenêtres,
+  `Barricade.plank_material`, clé spéciale des cartes en maillage). Images
+  64 × 64 RGBA (alpha = 1 - lueur), variante mate (`specular_disabled`) pour
+  plâtre, pierre, brique, tissu. Teinte `brick` ajoutée à `DECOR_PALETTE`.
+- `surface.gdshader` supprimé ; `NoiseLattice` gardé (caisse au hasard,
+  zombies). Les cartes grille ne créent plus tous les matériaux : seules les
+  clés citées sont générées.
+- Spéciales unies (`chalk`, `paper`, `paint_*`, `cable_blue`, `rubber`) :
+  teintes de la palette.
+- Textures importées : `MapTextureLib.pixelate` (taille × 20 pixels de large,
+  moyenne de zone, au plus proche si l'image est plus petite), lues au plus
+  proche sur la grille du monde ; aperçus de l'éditeur au même grain.
+- Vignettes de l'éditeur (`MapIcons.surface_texture`) : 2 m × 1,2 m de la
+  vraie texture, éclaircie ; mur vu de face.
+- **Génération gardée (pas de PNG)** : 38 images en 355 ms en tout (9 ms en
+  moyenne, treillis de `blotch` mis en cache) ; au lancement le menu en crée
+  14 (154 ms), BUNKER K-7 5 de plus (36 ms sur 1,33 s de chargement), DRAFT
+  ARENA 4 (27 ms sur 0,95 s).
+- Coût GPU (`perf_costs --only=surface`, BUNKER K-7 labo + 24 zombies,
+  RTX A2000, 1080p MEDIUM) : `pixel_surface.gdshader` +0,07 ms contre une
+  couleur unie (`surface.gdshader` : +0,08 ms) ; `map_tour` : pire vue
+  277 i/s (266 avant), GPU 2,82 à 2,98 ms (2,86 à 3,06 avant).
+- Passes de captures (`voxel_textures_look`) : (1) griffures et bâtons
+  répétés tous les 3,2 m, fissures trop longues, rouille rouge sang, veines
+  de la salle rituelle trop nombreuses, dalles de plafond tombées trop
+  fréquentes, joints du carrelage trop contrastés ; (2) corrigés, sang des
+  carreaux en trait rouge vif répété ; (3) sang en tache brun-rouge sombre.
