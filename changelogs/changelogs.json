@@ -2571,6 +2571,25 @@
     "en": "A safer way out",
     "fr": "Une sortie plus sûre"
    }
+  },
+  "v0.2.1-snapshot.532": {
+   "channel": "snapshot",
+   "date": "2026-10-10",
+   "images": [],
+   "items": [
+    {
+     "en": "Hitting a zombie with a bullet or the knife now earns 10 scrap (up to 10 paid hits per zombie), on top of the 50 for the kill. Explosions and traps don't pay per hit.",
+     "fr": "Toucher un zombie avec une balle ou au couteau rapporte maintenant 10 de ferraille (jusqu'à 10 touches payées par zombie), en plus des 50 de l'élimination. Les explosions et les pièges ne paient pas à la touche."
+    },
+    {
+     "en": "You can no longer recycle your last weapon: you always keep at least one weapon to fight with.",
+     "fr": "Impossible désormais de recycler votre dernière arme : vous en gardez toujours au moins une pour vous battre."
+    }
+   ],
+   "title": {
+    "en": "Every shot counts",
+    "fr": "Chaque balle compte"
+   }
   }
  }
 }
