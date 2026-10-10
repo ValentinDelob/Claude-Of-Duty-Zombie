@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cywpofo0blqt0"
-path="res://.godot/imported/sconce.glb-13732943ef7adf8f44155b95d0877aa6.scn"
+uid="uid://bh0wenpx5kd4t"
+path="res://.godot/imported/petite_flaque.glb-3b69a7bbd47033e8d4945984bc5b3cf9.scn"
 
 [deps]
 
-source_file="res://assets/models/props/sconce.glb"
-dest_files=["res://.godot/imported/sconce.glb-13732943ef7adf8f44155b95d0877aa6.scn"]
+source_file="res://assets/models/props/voxel/petite_flaque.glb"
+dest_files=["res://.godot/imported/petite_flaque.glb-3b69a7bbd47033e8d4945984bc5b3cf9.scn"]
 
 [params]
 

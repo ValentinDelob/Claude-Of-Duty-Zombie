@@ -106,6 +106,9 @@ et exporte.
 - Convertis : `caisses`, `sacs_sable`, `foyer_pierres` ; le reste est listé
   « à faire » par `tests/test_voxel_decor.gd` (qui passe VoxelCheck sur
   chaque modèle converti du catalogue).
+- Lot 3 converti : décors des effets (`effets.py`) et les 9 luminaires
+  (`luminaires.py`, parties lumineuses `glow`) ; `sconce` et `chandelier`
+  remplacés par `voxel/applique` et `voxel/lustre`.
 
 ### Zombie « patient » (tools/blender/zombies/zombie_voxel.py)
 

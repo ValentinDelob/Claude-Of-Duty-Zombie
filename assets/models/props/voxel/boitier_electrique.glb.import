@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://efy2hdnt4ai0"
-path="res://.godot/imported/chandelier.glb-42c6096883e848ce36792999a6ce877c.scn"
+uid="uid://2k5b8qtxf5is"
+path="res://.godot/imported/boitier_electrique.glb-2d7a147c8b3fa7c135e34a9af20630f7.scn"
 
 [deps]
 
-source_file="res://assets/models/props/chandelier.glb"
-dest_files=["res://.godot/imported/chandelier.glb-42c6096883e848ce36792999a6ce877c.scn"]
+source_file="res://assets/models/props/voxel/boitier_electrique.glb"
+dest_files=["res://.godot/imported/boitier_electrique.glb-2d7a147c8b3fa7c135e34a9af20630f7.scn"]
 
 [params]
 

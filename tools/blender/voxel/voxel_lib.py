@@ -87,6 +87,19 @@ DECOR_PALETTE = {
     "copper": (0.72, 0.42, 0.22),        # cuivre (bobines, fils)
     "rubber": (0.07, 0.07, 0.07),        # caoutchouc noir
     "water": (0.20, 0.30, 0.36),         # eau sale
+    # Lot 3 (décors des effets et luminaires).
+    "water_glint": (0.46, 0.56, 0.62),   # reflet sur l'eau
+    "brass": (0.62, 0.48, 0.24),         # laiton (lustre, applique, lampe)
+    "porcelain": (0.86, 0.84, 0.78),     # porcelaine (isolateurs, rosaces)
+    "enamel_green": (0.27, 0.45, 0.40),  # émail vert d'hôpital (abat-jour)
+    "bulb": (1.0, 0.84, 0.55),           # ampoule chaude (glow)
+    "neon_white": (0.86, 0.93, 1.0),     # tube fluorescent (glow)
+    "flame": (1.0, 0.50, 0.12),          # flamme (glow)
+    "flame_core": (1.0, 0.80, 0.35),     # cœur de flamme (glow)
+    "wax": (0.88, 0.84, 0.70),           # cire de bougie
+    "cable_blue": (0.10, 0.16, 0.36),    # gaine de fil bleue
+    "tar": (0.10, 0.08, 0.06),           # tête de torche goudronnée
+    "glass_frost": (0.95, 0.88, 0.72),   # verre dépoli éclairé (glow)
 }
 # Normales des six faces d'un cube.
 DIRS = {
