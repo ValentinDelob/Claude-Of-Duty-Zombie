@@ -105,7 +105,7 @@ func test_seven_tabs_in_order() -> void:
 	assert_eq(Array(hub.tab_bar.labels), ["LABO", "ARSENAL", "PIÈCES", "CONTRATS", "ÉCHANGES", "DÉPART", "PARTIE"])
 	assert_eq(hub.panels.size(), 7, "un panneau par onglet")
 	assert_true(hub.panels.lab is HubLabPanel, "LABO : panneau du lot B")
-	assert_true(hub.panels.arsenal is HubPlaceholderPanel, "ARSENAL : panneau « à venir »")
+	assert_true(hub.panels.arsenal is HubArsenalPanel, "ARSENAL : panneau du lot C")
 	assert_true(hub.panels.play is HubPlayStubPanel, "PARTIE : solo / coop provisoires")
 	Settings.language = "en"
 	assert_eq(HubScreen.tab_label("loadout"), "LOADOUT")
@@ -252,7 +252,7 @@ func test_register_panel() -> void:
 	assert_eq(hub.panels.parts.tab_id, "parts")
 	assert_true(hub.panels.parts.hub == hub)
 	HubScreen.register_panel("parts", null)
-	assert_eq(HubScreen.panel_script("parts"), HubPlaceholderPanel, "retour au panneau provisoire")
+	assert_eq(HubScreen.panel_script("parts"), HubPartsPanel, "retour au panneau de PANELS")
 
 
 func test_lab_reads_profile() -> void:

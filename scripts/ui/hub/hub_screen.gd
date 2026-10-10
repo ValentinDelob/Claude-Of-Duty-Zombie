@@ -39,6 +39,9 @@ const PANELS := {
 	"lab": "res://scripts/ui/hub/lab_panel.gd",
 	"contracts": "res://scripts/ui/hub/contracts_panel.gd",
 	"exchanges": "res://scripts/ui/hub/exchanges_panel.gd",
+	"arsenal": "res://scripts/ui/hub/arsenal_panel.gd",
+	"parts": "res://scripts/ui/hub/parts_panel.gd",
+	"loadout": "res://scripts/ui/hub/loadout_panel.gd",
 	# Provisoire jusqu'au lot E : SOLO / COOP par les écrans actuels.
 	"play": "res://scripts/ui/hub/hub_play_stub_panel.gd",
 }
@@ -121,6 +124,10 @@ func enter(args := {}) -> void:
 
 func exit() -> void:
 	last_tab = tab
+	# L'onglet affiché est quitté aussi (pastilles NOUVEAU vues enregistrées…).
+	var p := current_panel()
+	if p:
+		p.hidden()
 	if Settings.menu_ui_scale_changed.is_connected(_on_scale_changed):
 		Settings.menu_ui_scale_changed.disconnect(_on_scale_changed)
 
