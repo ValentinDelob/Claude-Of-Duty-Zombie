@@ -192,10 +192,9 @@ static func mesh_arrays(variant: int) -> Array:
 
 static func _voxel_mat(dissolve: bool) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://assets/shaders/zombie_dissolve.gdshader") if dissolve else preload("res://assets/shaders/zombie.gdshader")
+	mat.shader = preload("res://assets/shaders/zombie_voxel_dissolve.gdshader") if dissolve else preload("res://assets/shaders/zombie_voxel.gdshader")
 	mat.set_shader_parameter("emission_color", EYE_EMISSION)
 	mat.set_shader_parameter("emission_energy", 6.5)
-	mat.set_shader_parameter("noise_lattice", NoiseLattice.tex3d())
 	mat.set_shader_parameter("voxel_cell", MODEL_CUBE)
 	return mat
 
@@ -208,6 +207,12 @@ static func _build_model(variant: int) -> Skeleton3D:
 		var tmp := RigBuilder.build_skeleton(m.overrides)
 		_model_skin = tmp.create_skin_from_rest_transforms()
 		tmp.free()
+		# Préparés au premier zombie (Warmup, au chargement) : boîtes des os
+		# (zones de touche, ragdoll, pose au sol) et morceaux arrachés, sans
+		# saccade au premier démembrement.
+		bone_bounds()
+		for limb in [["forearm_l"], ["forearm_r"], ["shin_l"], ["shin_r"]]:
+			_model_limb(limb)
 	var skel := RigBuilder.instantiate(m.mesh, material(), m.overrides, _model_skin)
 	var mi := skel.get_node("Mesh") as MeshInstance3D
 	mi.layers = RENDER_LAYERS

@@ -92,9 +92,34 @@ et exporte.
 
 ### Zombie « patient » (tools/blender/zombies/zombie_voxel.py)
 
-- `assets/models/zombies/zombie_voxel.glb`, cubes de **2,5 cm**, **pas encore
-  branché** dans le jeu (en attente de validation ; `zombie_base.glb` reste le
-  modèle de `--zombie-model`). Test : `tests/test_zombie_voxel.gd`.
+- `assets/models/zombies/zombie_voxel.glb`, cubes de **2,5 cm**, validé et
+  **modèle de tous les zombies** (`ZombieModel.MODEL_PATH` ; repli sur les
+  zombies procéduraux si le .glb manque, ou avec `-- --procedural-zombies`).
+  Les chiens gardent leur modèle. Tests : `tests/test_zombie_voxel.gd`,
+  `tests/test_zombie_voxel_anim.gd`.
+- Bas de la blouse (sous la rangée `SKIRT_SPLIT_Z` = 26, 0,65 m) lié aux
+  **cuisses**, moitié gauche / droite : chaque pan suit sa jambe (fente devant
+  et derrière) au lieu d'être traversé par elle ; le haut reste sur le bassin.
+  Liaison seule, faite par le script (le cache garde le bassin).
+- En jeu (`ZombieModel`, `ZombieGlb`) : un mesh partagé (16 428 sommets,
+  8 214 triangles, un draw call), shaders `zombie_voxel.gdshader` /
+  `zombie_voxel_dissolve.gdshader` (couleur de face telle quelle, sans
+  crasse ni marbrures ; yeux émissifs ; dissolution **cube par cube** grâce
+  à la normale de repos en CUSTOM0) ; six teintes légères de variante
+  (`MODEL_TINTS` : blouse et peau, la variante 0 garde la palette validée).
+  Zones de touche, corps du ragdoll, épaisseur du corps au sol et membres du
+  démembrement mesurés sur le modèle (`ZombieModel.bone_bounds`,
+  `hit_shapes`, `limb_mesh`) ; démembrement des jambes sous le genou (la
+  blouse reste) ; éclats de tête en pavés de cubes.
+- Animations (`ZombieAnim`, rampant de `ZombieGibs`) réglées pour ses
+  proportions : grosse tête qui pivote sur l'arête de sa base (`set_head`,
+  écart au buste limité), bras écartés du torse (jamais vers l'intérieur
+  quand ils pendent), mâchoire qui s'ouvre en avançant le menton, pieds posés
+  au sol par le point le plus bas (`ground`), passage de fenêtre à plat ventre
+  par-dessus l'appui. Contrôle : `tests/voxel_pose_check.gd` (cubes de deux
+  os dans la même case de 2,5 cm, hors articulations) à chaque image clé ;
+  planches `sh tools/scenario.sh zombie_voxel_anims` (option
+  `-- --anims=marche,course`).
 - Formes SCULPTÉES par la planche `docs/reference/zombie_patient/turnaround.png`
   (9,5 pixels par cube) : chaque partie est un pavé de cellules dont une
   cellule reste si sa case est pleine (ou de la bonne matière : peau, tissu)

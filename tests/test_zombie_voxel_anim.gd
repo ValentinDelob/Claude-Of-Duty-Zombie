@@ -17,7 +17,7 @@ const MAX_SINK := 0.0125
 ## Animations hors sol (sous terre, au-dessus de l'appui).
 const OFF_GROUND := ["sortie_du_sol", "passage_fenetre"]
 
-static var _check: RefCounted
+var _check: RefCounted
 
 
 func _pc() -> RefCounted:

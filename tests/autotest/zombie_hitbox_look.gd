@@ -5,7 +5,8 @@ extends AutotestScenario
 ##   - DÉPLACEMENT, en cyan : capsule du CharacterBody3D ; au sol, en vert :
 ##     rayon d'érosion du navmesh (MeshNav), en magenta : portée de la
 ##     séparation entre zombies ;
-##   - TOUCHE des tirs : corps en rouge, tête en jaune, avant-bras en orange.
+##   - TOUCHE des tirs : corps en rouge, tête en jaune, bras (avant-bras et
+##     haut du bras) en orange.
 ## Vues orthographiques de face, de dessus et de profil ; trois zombies côte
 ## à côte : marcheur (bras tendus), coureur, sprinteur.
 
@@ -116,7 +117,7 @@ func _redraw() -> void:
 		_capsule(hb.global_transform, hc.radius, hc.height, HIT_BODY)
 		var hh := z.hit_head.get_child(0) as CollisionShape3D
 		_sphere(hh.global_transform, (hh.shape as SphereShape3D).radius, HIT_HEAD)
-		for ha in z.hit_arms:
+		for ha in z.hit_arms + z.hit_upper_arms:
 			var ac := ha.get_child(0) as CollisionShape3D
 			var acap := ac.shape as CapsuleShape3D
 			_capsule(ac.global_transform, acap.radius, acap.height, HIT_ARM)

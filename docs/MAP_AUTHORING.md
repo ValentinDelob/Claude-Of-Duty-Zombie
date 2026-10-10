@@ -529,7 +529,7 @@ avant ; ⚙ affiche un avertissement. Vérifier un .glb ou une carte sans
 fenêtre :
 
 ```bash
-godot --headless --path . -s res://tools/voxel_check.gd -- assets/models/zombies/zombie_base.glb
+godot --headless --path . -s res://tools/voxel_check.gd -- assets/models/zombies/zombie_voxel.glb --anime
 godot --headless --path . -s res://tools/voxel_check.gd -- --carte=<id ou dossier>
 ```
 
