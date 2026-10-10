@@ -33,16 +33,35 @@ func test_weapons_per_wave() -> void:
 
 func test_base_level_field() -> void:
 	for id in WeaponDB.WEAPONS:
-		assert_eq(WeaponDB.base_level(id), 1, "niveau de base par défaut : %s" % id)
+		var lvl := WeaponDB.base_level(id)
+		assert_true(lvl >= 1 and lvl <= PlayerProfile.MAX_LEVEL, "niveau de base de %s : %d" % [id, lvl])
+	assert_eq(WeaponDB.base_level("mp40"), 1, "CRÉCELLE : arme de butin du niveau 1")
+	assert_eq(WeaponDB.base_level("law"), 50)
 	assert_eq(WeaponDB.base_level("inconnue"), 1)
 
 
 func test_weapon_pool_excludes_base_weapons() -> void:
 	var pool := LootRules.weapon_pool()
 	assert_false(WeaponDB.STARTING_WEAPON in pool, "pistolet de départ exclu")
-	assert_eq(pool.size(), WeaponDB.WEAPONS.size() - 1)
+	assert_false(WeaponDB.BASE_MELEE in pool, "batte exclue")
+	assert_eq(pool.size(), WeaponDB.WEAPONS.size() - BaseWeapons.ids().size())
 	for id in pool:
 		assert_true(WeaponDB.exists(id))
+	# Niveau de base : le niveau minimum auquel l'arme se trouve (§4.7).
+	for id in LootRules.weapon_pool(10):
+		assert_true(WeaponDB.base_level(id) <= 10, "%s : trouvable au niveau 10" % id)
+	assert_false("law" in LootRules.weapon_pool(49), "lance-roquettes (niveau 50) pas avant")
+
+
+## Une arme trouvée à une manche basse n'est jamais d'un niveau de base
+## inaccessible (au plus manche + 2).
+func test_roll_respects_base_level() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	for i in 300:
+		var round_n := 1 + i % 12
+		var w := LootRules.roll_weapon(round_n, rng)
+		assert_true(WeaponDB.base_level(String(w.id)) <= round_n + LootRules.LEVEL_ABOVE, "manche %d : %s" % [round_n, w.id])
 
 
 func test_weapon_level_bounds() -> void:
@@ -210,7 +229,7 @@ func test_texts_fr_en() -> void:
 	assert_eq(LootRules.mods_text({"damage": 0.12, "recoil": -0.05}), "+12 % dégâts, −5 % recul")
 	assert_eq(LootSystem.counter_text({"dog_fur": 1, "dog_fang": 2}, 1), "CROC 2 · TOUFFE DE POILS 1 · PIÈCES 1")
 	assert_eq(LootSystem.msg_text(LootSystem.MSG_BAG_FULL, ""), "Inventaire plein : libérez une place")
-	assert_eq(LootDrop.label_text(GameWeapon.make("mp40", 7, 2), "Bob"), "MP40\nNIV. 7 · ÉPIQUE\nBob")
+	assert_eq(LootDrop.label_text(GameWeapon.make("mp40", 7, 2), "Bob"), "CRÉCELLE\nNIV. 7 · ÉPIQUE\nBob")
 	Settings.language = "en"
 	assert_eq(LootRules.sample_name("dog_collar"), "COLLAR")
 	assert_eq(LootRules.mods_text({"fire_rate": 0.25}), "+25 % fire rate")
@@ -319,12 +338,12 @@ func test_report_and_match_result_text() -> void:
 	var back := MatchResult.from_dict(r.to_dict())
 	var was: String = Settings.language
 	Settings.language = "fr"
-	assert_eq(back.loot_text(), "BUTIN GARDÉ : MP40 (niv. 9, rare), M14 (niv. 40, unique), 1 pièce(s), 2 croc · +120 XP")
+	assert_eq(back.loot_text(), "BUTIN GARDÉ : CRÉCELLE (niv. 9, rare), MÉTRONOME (niv. 40, unique), 1 pièce(s), 2 croc · +120 XP")
 	back.loot = ProfileLoot.report(loot, false)
 	assert_true(back.loot_text().begins_with("BUTIN PERDU : "))
 	assert_true(back.loot_text().ends_with("seule l'XP est gardée (+120 XP)"))
 	Settings.language = "en"
-	assert_true(back.loot_text().begins_with("LOOT LOST: MP40 (lvl 9, rare)"))
+	assert_true(back.loot_text().begins_with("LOOT LOST: RATTLE (lvl 9, rare)"))
 	back.loot = ProfileLoot.report(ProfileLoot.carried(null, [], {}), true)
 	assert_eq(back.loot_text(), "No loot brought back · +120 XP")
 	Settings.language = was

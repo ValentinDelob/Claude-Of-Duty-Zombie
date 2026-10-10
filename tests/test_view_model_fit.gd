@@ -346,6 +346,8 @@ func test_ads_rear_does_not_fill_screen() -> void:
 func test_bend_keeps_sight_line() -> void:
 	for id in WeaponDB.WEAPONS:
 		var mid: String = WeaponDB.stats(id).model
+		if WeaponModels.info(mid, "no_sights", false):
+			continue  # batte : pas d'organes de visée (reste à la hanche)
 		var xf := ViewModel.rest_transform(mid, 1.0)
 		var b := ViewModel.bend_params(mid, 1.0)
 		for a in ["sight", "front"]:
@@ -563,6 +565,12 @@ static func contact_ratio(verts: PackedVector3Array, boxes: Array, tol: float) -
 	return float(near) / maxf(n, 1)
 
 
+## Contact d'une main (m) : sommets à moins d'une diagonale de cube de
+## 2,5 cm d'une pièce de l'arme (mains et armes en cubes : le coin extérieur
+## d'un cube posé contre la poignée en est à 2,5 × √2 cm).
+const HAND_CONTACT := 0.037
+
+
 func test_hands_hold_the_weapon() -> void:
 	for id in weapon_ids():
 		var s := _equip(id)
@@ -574,22 +582,24 @@ func test_hands_hold_the_weapon() -> void:
 		_node_verts(h.hand_r.get_child(0), h.transform * h.hand_r.transform, right)
 		var left := PackedVector3Array()
 		_node_verts(h.hand_l.get_child(0), h.transform * h.hand_l.transform, left)
-		var rr := contact_ratio(right, boxes, 0.02)
+		var rr := contact_ratio(right, boxes, HAND_CONTACT)
 		# Main gauche sur un pistolet : sur la main droite (sa boîte englobante).
 		var lboxes := boxes.duplicate()
 		var raabb := AABB(right[0], Vector3.ZERO)
 		for v in right:
 			raabb = raabb.expand(v)
 		lboxes.append([raabb.get_center(), Basis.IDENTITY, raabb.size * 0.5])
-		var lr := contact_ratio(left, lboxes, 0.02)
-		assert_true(rr >= 0.8, "%s : main droite posée sur la poignée (%.0f %% des sommets à moins de 2 cm)" % [id, rr * 100.0])
-		assert_true(lr >= 0.8, "%s : main gauche posée sur l'arme (%.0f %% des sommets à moins de 2 cm)" % [id, lr * 100.0])
+		var lr := contact_ratio(left, lboxes, HAND_CONTACT)
+		assert_true(rr >= 0.8, "%s : main droite posée sur la poignée (%.0f %% des sommets à moins de %.1f cm)" % [id, rr * 100.0, HAND_CONTACT * 100.0])
+		assert_true(lr >= 0.8, "%s : main gauche posée sur l'arme (%.0f %% des sommets à moins de %.1f cm)" % [id, lr * 100.0, HAND_CONTACT * 100.0])
 		# La main d'appui n'est pas au-dessus de l'arme : son centre est sous
 		# la ligne de mire (et sous l'axe du canon, sauf poignée pistolet).
 		var lc := AABB(left[0], Vector3.ZERO)
 		for v in left:
 			lc = lc.expand(v)
 		var line := WeaponModels.anchor(mid, "sight").y
+		if WeaponModels.info(mid, "no_sights", false):
+			continue  # batte : tenue à deux poings, sans ligne de mire
 		assert_true(lc.get_center().y < line and lc.end.y < line + 0.03, "%s : main gauche sous la ligne de mire (centre %.3f, haut %.3f, ligne %.3f)" % [id, lc.get_center().y, lc.end.y, line])
 
 

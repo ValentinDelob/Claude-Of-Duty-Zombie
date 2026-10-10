@@ -86,3 +86,44 @@ func run() -> void:
 	await seconds(0.2)  # fenêtre fixe : le coup doit rester sans effet
 	at.check(z.health == 1000, "coup de couteau à distance refusé (%d)" % z.health)
 	await H.clear_zombies(self)
+
+	# 5. BATTE de baseball (arme de base tenue en main) : coup au contact,
+	# dégâts de la batte, énergie dépensée (plus que le couteau), animation,
+	# deux zombies côte à côte frappés du même coup ; le couteau reste
+	# l'attaque séparée.
+	pd.weapons = [WeaponDB.new_instance("bat")]
+	pd.slot = 0
+	game.session.sync_inventory(1)
+	await until(func(): return p.weapons.current().get("id", "") == "bat", 2.0, "batte en main")
+	await seconds(WeaponController.SWITCH_TIME + 0.2)
+	var bat_dmg := int(WeaponDB.stats("bat").damage)
+	z = await setup_duel(p, 1.5, 1000)
+	var z2 := await H.dummy_zombie(self, z.global_position + Vector3(0.0, 0.0, 0.6), 1000)
+	H.aim_at(p, z.global_position + Vector3(0, 1.2, 0.3))
+	p.energy.value = PlayerEnergy.MAX
+	var e0: float = p.energy.value
+	p.input.fire = true
+	await until(func(): return p.weapons.view.is_swinging(), 1.0, "coup de batte lancé")
+	p.input.fire = false
+	at.check(e0 - p.energy.value >= float(WeaponDB.stats("bat").energy) - 0.5, "énergie d'un coup de batte (%.1f)" % (e0 - p.energy.value))
+	await seconds(0.12)  # capture : élan
+	await at.screenshot("bat_windup")
+	await until(func(): return z.health < 1000, 1.5, "coup de batte encaissé")
+	await at.screenshot("bat_hit")
+	at.check(z.health == 1000 - bat_dmg, "batte : %d dégâts (1000 -> %d)" % [bat_dmg, z.health])
+	at.check(z2.health == 1000 - bat_dmg, "batte : le zombie voisin aussi frappé (%d)" % z2.health)
+	# Coups enchaînés en maintenant le tir : revers.
+	await seconds(0.9)
+	p.input.fire = true
+	await until(func(): return z.health <= 1000 - bat_dmg * 2, 2.0, "second coup enchaîné")
+	p.input.fire = false
+	at.check(z.health == 1000 - bat_dmg * 2, "second coup de batte (%d)" % z.health)
+	# Le couteau reste l'attaque rapide séparée, batte en main.
+	var hp := z.health
+	await seconds(0.8)
+	await knife(p)
+	await until(func(): return z.health < hp, 1.0, "coup de couteau, batte en main")
+	at.check(hp - z.health == KnifeDB.damage(KnifeDB.DEFAULT), "couteau batte en main : %d dégâts" % (hp - z.health))
+	# Batte ni rechargée ni comptée au HUD : munitions infinies.
+	at.check(p.weapons.current().mag == 0 and not p.weapons.is_reloading(), "batte : pas de munitions ni de rechargement")
+	await H.clear_zombies(self)

@@ -22,7 +22,7 @@ const MAX_LIMIT_DB := 12.0
 const CATEGORIES := [
 	# Mécanique d'arme d'abord (« dry_fire » n'est pas un tir).
 	{"id": "rechargement", "match": ["mag_*", "slide", "bolt", "pump", "shell", "shell_in", "break_*", "dry_fire",
-		"weapon_switch", "grenade_pin", "grenade_throw", "knife_swing", "monkey_wind"],
+		"weapon_switch", "grenade_pin", "grenade_throw", "knife_swing", "bat_swing", "monkey_wind"],
 		"target": -19.0, "tol": 2.5, "mode": "max"},
 	# Tous les tirs d'armes au même niveau perçu (le joueur les entend à -1 dB).
 	{"id": "tir", "match": ["*_fire"], "target": -11.0, "tol": 1.5, "mode": "max"},
@@ -30,7 +30,7 @@ const CATEGORIES := [
 	{"id": "arme_zap", "match": ["pap_zap_*"], "target": -19.0, "tol": 2.0, "mode": "max"},
 	{"id": "explosion", "match": ["explosion", "frag_explode"],
 		"target": -10.0, "tol": 2.0, "mode": "max"},
-	{"id": "impact", "match": ["impact_*", "flesh_hit_*", "headshot", "knife_hit", "knife_flesh", "body_fall",
+	{"id": "impact", "match": ["impact_*", "flesh_hit_*", "headshot", "knife_hit", "knife_flesh", "bat_hit", "body_fall",
 		"grenade_bounce", "monkey_bounce"], "target": -16.0, "tol": 2.5, "mode": "max"},
 	{"id": "zombie", "match": ["zombie_groan_*", "zombie_sprint_*", "zombie_attack_*", "zombie_death_*"],
 		"target": -14.0, "tol": 2.0, "mode": "max"},
