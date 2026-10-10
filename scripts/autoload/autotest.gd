@@ -309,6 +309,8 @@ func finish() -> void:
 	# Dossier de combat propre à ce processus de test (CareerStats.path()).
 	if FileAccess.file_exists(CareerStats.path()):
 		DirAccess.remove_absolute(CareerStats.path())
+	# Profil du joueur propre à ce processus (ProfileStore.path()) et ses copies.
+	ProfileStore.reset()
 	if get_tree().current_scene:
 		get_tree().current_scene.queue_free()
 	# Quelques images ET un peu de temps réel : avec --fixed-fps les images
