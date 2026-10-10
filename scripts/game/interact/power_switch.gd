@@ -1,7 +1,10 @@
 class_name PowerSwitch
 extends Interactable
 ## Levier du générateur. Une fois abaissé (gratuit, définitif), le courant est
-## rétabli : pièges et téléporteur fonctionnent.
+## rétabli : pièges et téléporteur fonctionnent. Modèle cubique : build_model.
+
+## Pivot du levier (devant le boîtier, m).
+const LEVER_Z := 0.12
 
 var is_on := false
 var _normal := Vector3.FORWARD
@@ -27,57 +30,36 @@ func setup_marker(m: MapMarker) -> void:
 func _ready() -> void:
 	look_at(global_position - _normal, Vector3.UP)
 	rotate_object_local(Vector3.UP, PI)
-	var box := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.7, 0.95, 0.22)
-	box.mesh = bm
-	box.material_override = WorldLook.surface("door")
-	add_child(box)
-	# Câbles qui montent au plafond.
-	for x in [-0.22, 0.0, 0.22]:
-		var cable := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.025
-		cm.bottom_radius = 0.025
-		cm.height = 1.5
-		cm.radial_segments = 6
-		cable.mesh = cm
-		cable.material_override = WorldLook.surface("barrel")
-		cable.position = Vector3(x, 1.2, -0.05)
-		add_child(cable)
-	_lever = Node3D.new()
-	_lever.position = Vector3(0.0, 0.0, 0.12)
-	add_child(_lever)
-	var arm := MeshInstance3D.new()
-	var am := BoxMesh.new()
-	am.size = Vector3(0.06, 0.45, 0.06)
-	arm.mesh = am
-	arm.material_override = WorldLook.surface("steel")
-	arm.position = Vector3(0, 0.22, 0.03)
-	_lever.add_child(arm)
-	var grip := MeshInstance3D.new()
-	var gm := BoxMesh.new()
-	gm.size = Vector3(0.22, 0.07, 0.07)
-	grip.mesh = gm
-	grip.material_override = PropBuilder._emissive(Color(0.6, 0.05, 0.03), 0.5)
-	grip.position = Vector3(0, 0.45, 0.03)
-	_lever.add_child(grip)
-	_lever.rotation.x = -0.5
-	# Gyrophare rouge de secours tant que le courant est coupé.
-	_beacon_mesh = MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 0.07
-	sm.height = 0.14
-	_beacon_mesh.mesh = sm
-	_beacon_mesh.material_override = PropBuilder._emissive(Color(1.0, 0.08, 0.03), 4.0)
-	_beacon_mesh.position = Vector3(0, 0.62, 0.05)
-	add_child(_beacon_mesh)
+	var parts := build_model(self)
+	_lever = parts.lever
+	_beacon_mesh = parts.beacon
 	_beacon = OmniLight3D.new()
 	_beacon.light_color = Color(1.0, 0.1, 0.05)
 	_beacon.omni_range = 7.0
 	_beacon.light_energy = 1.5
 	_beacon.position = Vector3(0, 0.62, 0.3)
 	add_child(_beacon)
+
+
+## Modèle CUBIQUE (tools/blender/voxel_props/objets.py « courant », cubes de
+## 5 cm) sous `root` (origine au milieu du boîtier, +z vers la pièce) :
+## boîtier et câbles, levier sous son pivot « Lever » (0, 0, LEVER_Z ; abaissé
+## de -0,5 à 0,9 rad), gyrophare de secours rouge. Rend {lever, beacon}.
+static func build_model(root: Node3D) -> Dictionary:
+	var parts := VoxelBuild.parts("courant")
+	if parts.has("boitier"):
+		root.add_child(parts.boitier)
+	var lever := Node3D.new()
+	lever.name = "Lever"
+	lever.position = Vector3(0.0, 0.0, LEVER_Z)
+	root.add_child(lever)
+	VoxelBuild.attach(lever, parts.get("levier"), lever.position)
+	lever.rotation.x = -0.5
+	# Gyrophare rouge de secours tant que le courant est coupé.
+	var beacon: MeshInstance3D = parts["gyrophare"] if parts.has("gyrophare") else MeshInstance3D.new()
+	beacon.material_override = PropBuilder._emissive(Color(1.0, 0.08, 0.03), 4.0)
+	root.add_child(beacon)
+	return {"lever": lever, "beacon": beacon}
 
 
 func _process(delta: float) -> void:

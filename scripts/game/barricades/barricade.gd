@@ -29,9 +29,13 @@ extends Interactable
 const BARRIER_LAYER := 1 << 4
 const SILL_TOP := 0.95
 const LINTEL_BOTTOM := 2.35
-const PLANK_SIZE := Vector3(1.34, 0.17, 0.045)
-## Plan des planches (côté extérieur de l'embrasure, à portée des zombies).
-const PLANK_Z := -0.36
+## Planche CUBIQUE (VoxelBuild : 26 × 3 × 1 cubes de 5 cm, GAME_CONCEPT.md
+## § 4.19) ; au repos, alignée sur la grille de la barricade (aucune
+## rotation : elle ne tourne que pendant l'arrachage et la pose).
+const PLANK_SIZE := Vector3(1.3, 0.15, 0.05)
+## Plan des planches (côté extérieur de l'embrasure, à portée des zombies) :
+## milieu de la couche de cubes [-0,40 ; -0,35].
+const PLANK_Z := -0.375
 ## Le zombie qui arrache se tient là (dehors, -Z).
 const TEAR_DIST := 0.82
 ## Places devant la fenêtre (BO1 : attack_spots) : décalage le long du mur
@@ -82,23 +86,26 @@ const INSIDE_MIN := 0.2
 const WINDOW_BARRIER_DEPTH := 1.0
 const TEAR_ANIM := 0.5
 const REPAIR_ANIM := 0.32
-## [hauteur, roulis, décalage z, décalage x] des 6 planches (de travers).
+## [hauteur du milieu, roulis, décalage z, décalage x] des 6 planches :
+## clouées à plat, à des hauteurs et décalages sur la grille de 5 cm (bas des
+## planches à 1,00 / 2,15 / 1,45 / 1,70 / 1,20 / 1,95 m), roulis nul.
 const LAYOUT := [
-	[1.12, 0.10, 0.00, 0.03],
-	[2.17, -0.08, 0.01, -0.03],
-	[1.65, 0.44, -0.035, 0.0],
-	[1.65, -0.41, 0.035, 0.02],
-	[1.38, -0.06, 0.012, -0.05],
-	[1.93, 0.07, -0.012, 0.05],
+	[1.075, 0.0, 0.0, 0.05],
+	[2.225, 0.0, 0.0, -0.05],
+	[1.525, 0.0, 0.05, 0.0],
+	[1.775, 0.0, 0.0, 0.05],
+	[1.275, 0.0, 0.05, -0.05],
+	[2.025, 0.0, 0.05, 0.0],
 ]
 
 # --- Portes à zombies (format 8) -------------------------------------------
 ## Haut de l'ouverture d'une porte (MapValidator.ZOMBIE_DOOR_TOP).
 const DOOR_HEIGHT := 2.1
-const DOOR_PLANK_SIZE := Vector3(1.04, 0.15, 0.04)
+const DOOR_PLANK_SIZE := Vector3(0.9, 0.15, 0.05)
 ## Plan des planches d'une porte : devant le battant, dans la tranche de
-## 10 cm de la porte (ZombieDoorModel.BOARD_Z), côté salle.
-const DOOR_PLANK_Z := 0.231
+## 10 cm de la porte (ZombieDoorModel.BOARD_Z : couche de cubes de devant),
+## côté salle.
+const DOOR_PLANK_Z := 0.235
 ## Le zombie qui arrache se tient dans l'embrasure, juste dehors.
 const DOOR_TEAR_DIST := 0.62
 ## Profondeur de la barrière d'une porte sans mesure du mur : l'épaisseur du
@@ -119,23 +126,26 @@ const WAIT_POINTS := {
 }
 ## Apparitions derrière une porte double : une derrière chaque battant.
 const DOUBLE_SPAWN_SIDE := 0.75
-## [hauteur, roulis, décalage z, décalage x] des planches d'une porte simple
-## (6) et d'un battant de porte double (5, planches i paires à gauche).
+## [hauteur du milieu, roulis, décalage z, décalage x] des planches d'une
+## porte simple (6) et d'un battant de porte double (5, planches i paires à
+## gauche) : à plat, sur la grille de 5 cm, toutes dans la couche de devant.
 const DOOR_LAYOUT := [
-	[0.42, 0.09, 0.0, 0.02],
-	[1.86, -0.07, 0.004, -0.02],
-	[1.16, 0.42, -0.006, 0.0],
-	[1.16, -0.40, 0.006, 0.02],
-	[0.78, -0.06, 0.002, -0.03],
-	[1.52, 0.08, -0.002, 0.03],
+	[0.425, 0.0, 0.0, 0.05],
+	[1.875, 0.0, 0.0, -0.05],
+	[1.075, 0.0, 0.0, 0.0],
+	[1.325, 0.0, 0.0, 0.05],
+	[0.775, 0.0, 0.0, -0.05],
+	[1.575, 0.0, 0.0, 0.0],
 ]
 const DOUBLE_LAYOUT := [
-	[0.45, 0.08, 0.0, 0.0],
-	[1.85, -0.06, 0.004, 0.0],
-	[1.15, 0.40, -0.006, 0.0],
-	[0.8, -0.07, 0.002, 0.0],
-	[1.5, 0.07, -0.002, 0.0],
+	[0.425, 0.0, 0.0, 0.0],
+	[1.875, 0.0, 0.0, 0.0],
+	[1.125, 0.0, 0.0, 0.0],
+	[0.775, 0.0, 0.0, 0.0],
+	[1.475, 0.0, 0.0, 0.0],
 ]
+## Battant droit d'une porte double : planches 5 cm plus haut (en quinconce).
+const DOUBLE_RIGHT_DY := 0.05
 
 var window_index := 0
 var cell := Vector2i.ZERO
@@ -218,37 +228,35 @@ func setup(w: BarricadeLayout.Opening) -> void:
 	rng.seed = seed
 	for i in plank_count:
 		if is_door():
-			_door_plank_rest(i, rng)
+			_door_plank_rest(i)
 		else:
 			var l: Array = LAYOUT[i]
-			var b := Basis(Vector3.UP, rng.randf_range(-0.05, 0.05)) * Basis(Vector3.BACK, l[1] + rng.randf_range(-0.04, 0.04))
-			_rest.append(Transform3D(b, Vector3(l[3], l[0] + rng.randf_range(-0.03, 0.03), PLANK_Z + l[2])))
-		# Planche arrachée : à plat sur le sol, dehors, en vrac.
-		var fb := Basis(Vector3.UP, rng.randf_range(-0.9, 0.9)) * Basis(Vector3.RIGHT, PI * 0.5)
-		var fx := rng.randf_range(-0.55, 0.55) * (width if is_door() else 1.0)
-		_fallen.append(Transform3D(fb, Vector3(fx, 0.03 + i * 0.012, -rng.randf_range(0.75, 1.25))))
+			# Au repos : à plat, sur la grille (aucune rotation).
+			_rest.append(Transform3D(Basis.IDENTITY, Vector3(l[3], l[0], PLANK_Z + l[2])))
+		# Planche arrachée : à plat sur le sol, dehors, en vrac (quarts de
+		# tour, posée sur le sol ou sur une autre).
+		var fb := Basis(Vector3.UP, PI * 0.5 * (rng.randi() % 4)) * Basis(Vector3.RIGHT, PI * 0.5)
+		var fx := snappedf(rng.randf_range(-0.55, 0.55) * (width if is_door() else 1.0), 0.05)
+		_fallen.append(Transform3D(fb, Vector3(fx, 0.025 + 0.05 * (i % 2), -snappedf(rng.randf_range(0.75, 1.25), 0.05))))
 		_anim.append([0, 0.0])
 
 
-## Planche `i` d'une porte, au repos : clouée en travers de l'ouverture
-## (porte double : de son battant), dans la tranche de 10 cm de la porte.
-## Roulis tenu à ±0,42 rad et tirage léger : elle reste dans cette tranche.
-func _door_plank_rest(i: int, rng: RandomNumberGenerator) -> void:
+## Planche `i` d'une porte, au repos : clouée à plat en travers de
+## l'ouverture (porte double : de son battant), dans la couche de devant de la
+## tranche de 10 cm de la porte, sur la grille de 5 cm (aucune rotation).
+func _door_plank_rest(i: int) -> void:
 	var l: Array
 	var cx := 0.0
 	var dy := 0.0
-	var roll_sign := 1.0
 	if kind == BarricadeRules.DOUBLE_DOOR:
 		var lane := BarricadeRules.lane_of_plank(i, 2)
 		l = DOUBLE_LAYOUT[i >> 1]
 		cx = TEAR_OFFSETS[kind][lane]
-		# Battant droit : planches en miroir, un peu décalées en hauteur.
-		roll_sign = 1.0 if lane == 0 else -1.0
-		dy = 0.0 if lane == 0 else 0.08
+		# Battant droit : planches un peu décalées en hauteur (quinconce).
+		dy = 0.0 if lane == 0 else DOUBLE_RIGHT_DY
 	else:
 		l = DOOR_LAYOUT[i]
-	var b := Basis(Vector3.BACK, (float(l[1]) + rng.randf_range(-0.03, 0.03)) * roll_sign)
-	_rest.append(Transform3D(b, Vector3(cx + float(l[3]), float(l[0]) + dy + rng.randf_range(-0.03, 0.03), DOOR_PLANK_Z + float(l[2]))))
+	_rest.append(Transform3D(Basis.IDENTITY, Vector3(cx + float(l[3]), float(l[0]) + dy, DOOR_PLANK_Z + float(l[2]))))
 
 
 func _ready() -> void:
@@ -282,12 +290,10 @@ func _ready() -> void:
 # --------------------------------------------------------------------------
 
 func _build_planks() -> void:
-	var bm := BoxMesh.new()
-	bm.size = DOOR_PLANK_SIZE if is_door() else PLANK_SIZE
 	_mm = MultiMesh.new()
 	_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_mm.use_colors = true
-	_mm.mesh = bm
+	_mm.mesh = plank_mesh(DOOR_PLANK_SIZE if is_door() else PLANK_SIZE)
 	_mm.instance_count = plank_count
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed + 7
@@ -297,7 +303,8 @@ func _build_planks() -> void:
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = "Planks"
 	mmi.multimesh = _mm
-	mmi.material_override = plank_material()
+	# Matériau du décor cubique : couleur de face × teinte de la planche.
+	mmi.material_override = VoxelBuild.material()
 	# Sans ombre portée : ombre peu visible dans la pénombre des fenêtres, mais
 	# redessinée dans les cubemaps des lampes à chaque planche animée.
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -327,10 +334,45 @@ func _build_barrier() -> void:
 	add_child(barrier)
 
 
+static var _plank_meshes: Dictionary = {}
+
+
+@warning_ignore("integer_division")
+
+## Planche CUBIQUE de taille `size` (multiples de 5 cm), centrée sur son
+## origine : bois gris délavé, une teinte par cube (veinage dans la longueur),
+## bouts sombres et clous peints des deux côtés. Partagée par toutes les
+## barricades (teinte par planche : couleur d'instance du MultiMesh).
+static func plank_mesh(size: Vector3) -> ArrayMesh:
+	if _plank_meshes.has(size):
+		return _plank_meshes[size]
+	var n := Vector3i(VoxelBuild.cubes(size.x), VoxelBuild.cubes(size.y), VoxelBuild.cubes(size.z))
+	var vb := VoxelBuild.new()
+	var base := VoxelBuild.col("plank_grey")
+	for x in n.x:
+		for y in n.y:
+			for z in n.z:
+				# Veines : teinte par tronçon de 3 cubes et par rang, grain léger.
+				var c := VoxelBuild.grain(x / 3, y, 0, base, 11, 0.09, 3)
+				vb.put(x, y, z, VoxelBuild.tone(c, 0.96 + 0.08 * VoxelBuild.noise(x, y, z, 12)))
+	var dark := VoxelBuild.col("plank_grey", 0.55)
+	var nail := VoxelBuild.col("rubber", 1.6)
+	for x in [0, n.x - 1]:
+		for y in n.y:
+			vb.put(x, y, 0, VoxelBuild.tone(dark, 1.0 + 0.1 * VoxelBuild.noise(x, y, 0, 13)))
+		for d in [VoxelBuild.PZ, VoxelBuild.NZ]:
+			vb.paint(1 if x == 0 else n.x - 2, n.y / 2, 0, d, nail)
+	var m := vb.mesh(-Vector3(n) * VoxelBuild.CUBE * 0.5)
+	_plank_meshes[size] = m
+	return m
+
+
 static var _plank_mat: StandardMaterial3D
 
 
-## Bois gris et usé, veinage procédural ; teinte par planche (couleur d'instance).
+## Bois gris et usé, veinage procédural : encadrement des fenêtres des cartes
+## grille (PropBuilder, architecture). Les planches de la barricade sont
+## cubiques (plank_mesh, matériau « voxel »).
 static func plank_material() -> StandardMaterial3D:
 	if _plank_mat:
 		return _plank_mat

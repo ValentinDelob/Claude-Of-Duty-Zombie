@@ -43,63 +43,10 @@ func _ready() -> void:
 		return
 	look_at(global_position - _normal, Vector3.UP)
 	rotate_object_local(Vector3.UP, PI)
-	var steel := WorldLook.surface("steel")
-	var door := WorldLook.surface("door")
-	_part(Vector3(2.2, 2.3, 0.7), Vector3(0, 1.15, 0), door)
-	_part(Vector3(2.3, 0.1, 0.8), Vector3(0, 2.35, 0), steel)
-	_part(Vector3(2.0, 0.9, 0.08), Vector3(0, 1.6, 0.36), steel)
-	# Cadrans.
-	var dial_mat := StandardMaterial3D.new()
-	dial_mat.albedo_color = Color(0.8, 0.75, 0.6)
-	dial_mat.emission_enabled = true
-	dial_mat.emission = Color(0.9, 0.8, 0.5)
-	dial_mat.emission_energy_multiplier = 0.06
-	for k in 4:
-		var d := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.12
-		cm.bottom_radius = 0.12
-		cm.height = 0.04
-		cm.radial_segments = 12
-		d.mesh = cm
-		d.material_override = dial_mat
-		d.rotation.x = PI * 0.5
-		d.position = Vector3(-0.72 + k * 0.48, 1.75, 0.41)
-		add_child(d)
-	# Tubes à vide (lueur selon la liaison) et voyant principal.
+	# Armoire cubique (cadrans, tubes à vide et voyant lumineux selon la liaison).
 	_tube_mat = PropBuilder._emissive(Color(1.0, 0.45, 0.15), 0.4)
-	for k in 6:
-		var tube := MeshInstance3D.new()
-		var tm := CapsuleMesh.new()
-		tm.radius = 0.05
-		tm.height = 0.26
-		tm.radial_segments = 8
-		tm.rings = 2
-		tube.mesh = tm
-		tube.material_override = _tube_mat
-		tube.position = Vector3(-0.75 + k * 0.3, 1.25, 0.42)
-		add_child(tube)
 	_lamp_mat = PropBuilder._emissive(Color(1.0, 0.1, 0.05), 3.0)
-	var lamp := MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 0.1
-	sm.height = 0.2
-	lamp.mesh = sm
-	lamp.material_override = _lamp_mat
-	lamp.position = Vector3(0, 2.15, 0.36)
-	add_child(lamp)
-	# Câbles vers le plafond.
-	for x in [-0.8, -0.3, 0.4, 0.85]:
-		var cable := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.03
-		cm.bottom_radius = 0.03
-		cm.height = 3.0
-		cm.radial_segments = 6
-		cable.mesh = cm
-		cable.material_override = WorldLook.surface("barrel")
-		cable.position = Vector3(x, 3.8, -0.2)
-		add_child(cable)
+	build_model(self, "poste_central_mur", _tube_mat, _lamp_mat)
 	var label := Label3D.new()
 	label.text = Lang.t("POSTE CENTRAL", "MAINFRAME")
 	label.font = UiStyle.font("stencil")
@@ -129,14 +76,23 @@ func _ready() -> void:
 	refresh()
 
 
-func _part(size: Vector3, pos: Vector3, mat: Material) -> void:
-	var mi := MeshInstance3D.new()
-	var b := BoxMesh.new()
-	b.size = size
-	mi.mesh = b
-	mi.position = pos
-	mi.material_override = mat
-	add_child(mi)
+## Modèle CUBIQUE (tools/blender/voxel_props/objets.py, cubes de 5 cm) sous
+## `root` : « poste_central_mur » (armoire, tubes, voyant) ou
+## « poste_central_sol » (socle, anneau, voyant ; câble rendu à part). Les
+## pièces lumineuses prennent `tube_mat` (tubes, anneau) et `lamp_mat`
+## (voyant). Rend les pièces {nom: MeshInstance3D}.
+static func build_model(root: Node3D, obj: String, tube_mat: Material, lamp_mat: Material) -> Dictionary:
+	var parts := VoxelBuild.parts(obj)
+	for part: String in parts:
+		if part == "cable":
+			continue
+		var mi: MeshInstance3D = parts[part]
+		if part in ["tubes", "anneau"]:
+			mi.material_override = tube_mat
+		elif part == "voyant":
+			mi.material_override = lamp_mat
+		root.add_child(mi)
+	return parts
 
 
 func refresh() -> void:
@@ -184,70 +140,31 @@ func srv_use(pid: int) -> void:
 		teleporter.srv_link(pid)
 
 
-## Disque du hall : socle à bord incliné (~32° : on y monte sans marche),
-## plateau sombre, anneau de lampes selon la liaison, câble épais au sol
-## vers la salle de théâtre (direction `_normal`).
+## Disque du hall : socle CUBIQUE à bord en marches de cubes (la collision
+## garde son bord incliné, ~32° : on y monte sans marche), plateau d'acier
+## peint, anneau de lampes à fleur (lueur selon la liaison), voyant central,
+## câble épais au sol vers la salle de théâtre (direction `_normal`).
 func _build_floor_pad() -> void:
-	var steel := WorldLook.surface("steel")
-	var base := MeshInstance3D.new()
+	# Anneau (lueur selon la liaison) et voyant central (rouge : non relié,
+	# clignote : plateforme activée, vert : relié).
+	_tube_mat = PropBuilder._emissive(Color(1.0, 0.45, 0.15), 0.4)
+	_lamp_mat = PropBuilder._emissive(Color(1.0, 0.1, 0.05), 3.0)
+	var parts := build_model(self, "poste_central_sol", _tube_mat, _lamp_mat)
+	# Câble du téléporteur, posé au sol (pavé de 6 m le long de z local).
+	var cable: MeshInstance3D = parts.get("cable")
+	if cable:
+		cable.top_level = true
+		add_child(cable)
+		var dir := Vector3(_normal.x, 0.0, _normal.z).normalized()
+		cable.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP),
+				global_position + dir * (PAD_BOTTOM_RADIUS + 2.9))
+	# Collision du socle : tronc de cône d'avant la conversion cubique.
 	var cm := CylinderMesh.new()
 	cm.top_radius = PAD_TOP_RADIUS
 	cm.bottom_radius = PAD_BOTTOM_RADIUS
 	cm.height = PAD_HEIGHT
 	cm.radial_segments = 40
 	cm.rings = 1
-	base.mesh = cm
-	base.material_override = WorldLook.surface("door")
-	base.position.y = PAD_HEIGHT * 0.5
-	add_child(base)
-	var plate := MeshInstance3D.new()
-	var pm := CylinderMesh.new()
-	pm.top_radius = PAD_TOP_RADIUS * 0.62
-	pm.bottom_radius = PAD_TOP_RADIUS * 0.62
-	pm.height = 0.03
-	pm.radial_segments = 32
-	plate.mesh = pm
-	plate.material_override = steel
-	plate.position.y = PAD_HEIGHT + 0.01
-	add_child(plate)
-	# Anneau de lampes (lueur selon la liaison).
-	_tube_mat = PropBuilder._emissive(Color(1.0, 0.45, 0.15), 0.4)
-	var ring := MeshInstance3D.new()
-	var tm := TorusMesh.new()
-	tm.inner_radius = PAD_TOP_RADIUS * 0.66
-	tm.outer_radius = PAD_TOP_RADIUS * 0.74
-	tm.rings = 40
-	tm.ring_segments = 6
-	ring.mesh = tm
-	ring.material_override = _tube_mat
-	ring.position.y = PAD_HEIGHT + 0.005
-	ring.scale.y = 0.3
-	add_child(ring)
-	# Voyant central (rouge : non relié, clignote : plateforme activée, vert : relié).
-	_lamp_mat = PropBuilder._emissive(Color(1.0, 0.1, 0.05), 3.0)
-	var lamp := MeshInstance3D.new()
-	var sm := SphereMesh.new()
-	sm.radius = 0.14
-	sm.height = 0.14
-	sm.is_hemisphere = true
-	lamp.mesh = sm
-	lamp.material_override = _lamp_mat
-	lamp.position.y = PAD_HEIGHT + 0.02
-	add_child(lamp)
-	# Câble du téléporteur, posé au sol.
-	var cable := MeshInstance3D.new()
-	var cc := CylinderMesh.new()
-	cc.top_radius = 0.09
-	cc.bottom_radius = 0.09
-	cc.height = 6.0
-	cc.radial_segments = 8
-	cable.mesh = cc
-	cable.material_override = WorldLook.surface("barrel")
-	cable.top_level = true
-	add_child(cable)
-	var dir := Vector3(_normal.x, 0.0, _normal.z).normalized()
-	cable.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP) * Basis(Vector3.RIGHT, PI * 0.5),
-			global_position + dir * (PAD_BOTTOM_RADIUS + 2.9) + Vector3.UP * 0.09)
 	_light = OmniLight3D.new()
 	_light.light_color = Color(1.0, 0.5, 0.2)
 	_light.omni_range = 5.0

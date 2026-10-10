@@ -11,9 +11,9 @@ extends Interactable
 ## (ouverte, temps restant, votes) passe par le message d'état des objets
 ## (InteractionSystem._cl_state) ; aucun RPC propre.
 ##
-## Modèle provisoire en blocs alignés sur la grille de 5 cm (§4.19) : bâti,
+## Modèle CUBIQUE (cubes de 5 cm, §4.19 ; build_model) : bâti,
 ## battant, voyant rouge (fermée) ou vert (ouverte) ; collision : CollisionBox
-## (objet de collision du jeu, aucun modèle Blender). Zone de la porte
+## (objet de collision du jeu, jamais tirée du modèle). Zone de la porte
 ## marquée au sol pendant la fenêtre.
 
 const ID := "evac"
@@ -22,6 +22,8 @@ const DOOR_W := 1.2
 const DOOR_H := 2.0
 const FRAME := 0.1
 const DEPTH := 0.15
+## Battant fermé : centre du battant (recule de 10 cm dans le mur ouvert).
+const PANEL_REST := Vector3(0, 1.0, 0.05)
 ## Renvoi de l'état (temps restant) aux clients, en plus de chaque vote.
 const RESYNC := 5.0
 
@@ -36,7 +38,7 @@ var _resync := 0.0
 var _decided := false
 ## Serveur : manche de la dernière ouverture (une seule par vague vaincue).
 var _opened_round := -1
-var _panel: MeshInstance3D
+var _panel: Node3D
 var _lamp: MeshInstance3D
 var _light: OmniLight3D
 var _zone_marks: Node3D
@@ -59,22 +61,9 @@ func setup_marker(m: MapMarker) -> void:
 
 func _ready() -> void:
 	game = Game.instance
-	var frame_mat := WorldLook.surface("steel")
-	# Bâti : deux montants et un linteau (blocs alignés).
-	_block(Vector3(-(DOOR_W + FRAME) * 0.5, DOOR_H * 0.5, DEPTH * 0.5), Vector3(FRAME, DOOR_H, DEPTH), frame_mat)
-	_block(Vector3((DOOR_W + FRAME) * 0.5, DOOR_H * 0.5, DEPTH * 0.5), Vector3(FRAME, DOOR_H, DEPTH), frame_mat)
-	_block(Vector3(0, DOOR_H + FRAME * 0.5, DEPTH * 0.5), Vector3(DOOR_W + FRAME * 2.0, FRAME, DEPTH), frame_mat)
-	# Battant (recule dans le mur quand la porte est ouverte) et barre de poussée.
-	_panel = _block(Vector3(0, DOOR_H * 0.5, 0.05), Vector3(DOOR_W, DOOR_H, 0.1), WorldLook.surface("door"))
-	var bar := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.8, 0.1, 0.05)
-	bar.mesh = bm
-	bar.material_override = frame_mat
-	bar.position = Vector3(0, 0.0, 0.075)
-	_panel.add_child(bar)
-	# Voyant au-dessus de la porte.
-	_lamp = _block(Vector3(0, DOOR_H + FRAME + 0.1, 0.1), Vector3(0.4, 0.15, 0.1), PropBuilder._emissive(Color(1.0, 0.1, 0.05), 3.0))
+	var parts := build_model(self)
+	_panel = parts.panel
+	_lamp = parts.lamp
 	_light = OmniLight3D.new()
 	_light.omni_range = 5.0
 	_light.light_energy = 0.6
@@ -102,15 +91,24 @@ func _ready() -> void:
 	_show_open(false)
 
 
-func _block(pos: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = size
-	mi.mesh = bm
-	mi.material_override = mat
-	mi.position = pos
-	add_child(mi)
-	return mi
+## Modèle CUBIQUE (tools/blender/voxel_props/objets.py « evacuation », cubes
+## de 5 cm) sous `root` (origine au pied de la porte sur la face du mur, +z
+## vers la pièce) : bâti d'acier ; battant vert à barre de poussée sous son
+## nœud « Panel » (à PANEL_REST, recule dans le mur ouvert : _show_open) ;
+## voyant au-dessus (matériau donné par _show_open). Rend {panel, lamp}.
+static func build_model(root: Node3D) -> Dictionary:
+	var parts := VoxelBuild.parts("evacuation")
+	if parts.has("bati"):
+		root.add_child(parts.bati)
+	var panel := Node3D.new()
+	panel.name = "Panel"
+	panel.position = PANEL_REST
+	root.add_child(panel)
+	VoxelBuild.attach(panel, parts.get("battant"), PANEL_REST)
+	var lamp: MeshInstance3D = parts["voyant"] if parts.has("voyant") else MeshInstance3D.new()
+	lamp.material_override = PropBuilder._emissive(Color(1.0, 0.1, 0.05), 3.0)
+	root.add_child(lamp)
+	return {"panel": panel, "lamp": lamp}
 
 
 func _show_open(on: bool) -> void:

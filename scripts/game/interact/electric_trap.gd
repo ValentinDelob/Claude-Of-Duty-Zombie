@@ -62,28 +62,15 @@ func setup_marker(m: MapMarker) -> void:
 func _ready() -> void:
 	look_at(global_position - _normal, Vector3.UP)
 	rotate_object_local(Vector3.UP, PI)
-	var box := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.45, 0.6, 0.15)
-	box.mesh = bm
-	box.material_override = WorldLook.surface("door")
-	add_child(box)
 	_lamp_mat = PropBuilder._emissive(Color(0.9, 0.1, 0.05), 3.0)
-	var lamp := MeshInstance3D.new()
-	var lm := SphereMesh.new()
-	lm.radius = 0.05
-	lm.height = 0.1
-	lamp.mesh = lm
-	lamp.material_override = _lamp_mat
-	lamp.position = Vector3(0, 0.22, 0.08)
-	add_child(lamp)
+	build_panel(self, _lamp_mat)
 	var label := Label3D.new()
 	label.text = "DANGER\n%d" % COST
 	label.font = UiStyle.font("stencil")
 	label.font_size = 40
 	label.pixel_size = 0.004
 	label.modulate = Color(0.85, 0.7, 0.2)
-	label.position = Vector3(0, -0.12, 0.08)
+	label.position = Vector3(0, -0.12, 0.06)
 	add_child(label)
 	# Émetteurs sur les murs de la zone + arcs dessinés à la volée.
 	_imesh = ImmediateMesh.new()
@@ -119,6 +106,20 @@ func _ready() -> void:
 	_hum.global_position = center + Vector3.UP * 1.5
 	system.game.power_changed.connect(func(_on): _refresh_lamp())
 	_refresh_lamp()
+
+
+## Panneau CUBIQUE d'un levier de piège (tools/blender/voxel_props/objets.py
+## « levier_piege », cubes de 5 cm) sous `root` (origine au milieu, à 12 cm
+## du mur, +z vers la pièce) : boîtier à cadre jaune et noir, levier fixe,
+## voyant au matériau `lamp_mat` (vert : prêt, rouge sinon). Rend le voyant.
+static func build_panel(root: Node3D, lamp_mat: Material) -> MeshInstance3D:
+	var parts := VoxelBuild.parts("levier_piege")
+	if parts.has("panneau"):
+		root.add_child(parts.panneau)
+	var lamp: MeshInstance3D = parts["voyant"] if parts.has("voyant") else MeshInstance3D.new()
+	lamp.material_override = lamp_mat
+	root.add_child(lamp)
+	return lamp
 
 
 func _refresh_lamp() -> void:

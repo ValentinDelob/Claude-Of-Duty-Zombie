@@ -18,6 +18,10 @@ var _groups: Dictionary = {}   # clé -> {v, n, faces, boxes, convex}
 var _kind := "wall"
 ## Collisions des murs en biais (clé « obliques ») : pavés CollisionBox tournés.
 var _col_boxes: Array[CollisionBox] = []
+## Caisse et baril posés (types historiques de l'éditeur, bloc « crate » /
+## « barrel ») : modèle cubique au lieu du pavé texturé. [salle, modèle, pied, taille].
+var _decor: Array = []
+const DECOR_MODELS := {"crate": "caisse", "barrel": "baril"}
 
 
 static func build(layout: Dictionary) -> Node3D:
@@ -188,7 +192,15 @@ func _build(L: Dictionary) -> Node3D:
 		var b: Array = bl.box
 		var lo := Vector3(b[0], b[1], b[2])
 		var hi := Vector3(b[3], b[4], b[5])
-		_box(_group(String(bl.get("mat", "wood")), String(bl.get("room", "x"))), (lo + hi) * 0.5, hi - lo, 0.0, true, not bl.get("nocollide", false))
+		var mat := String(bl.get("mat", "wood"))
+		# Caisse et baril de l'éditeur : collision du bloc (inchangée), visuel
+		# cubique (decor_model) posé au pied du bloc.
+		var model := String(DECOR_MODELS.get(mat, ""))
+		if model != "":
+			_box(_group(mat, String(bl.get("room", "x"))), (lo + hi) * 0.5, hi - lo, 0.0, false, not bl.get("nocollide", false))
+			_decor.append([String(bl.get("room", "x")), model, Vector3((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5), hi - lo])
+			continue
+		_box(_group(mat, String(bl.get("room", "x"))), (lo + hi) * 0.5, hi - lo, 0.0, true, not bl.get("nocollide", false))
 	# Murs (chemins avec ouvertures ; cours des fenêtres).
 	_kind = "wall"
 	for w in L.get("walls", []):
@@ -541,4 +553,100 @@ func _nodes() -> Node3D:
 		root.add_child(body)
 	for cb in _col_boxes:
 		root.add_child(cb)
+	# Nœuds « voxel__<salle>__decor<i> » : matériau « voxel » (MeshMapBuilder._setup_nodes).
+	for i in _decor.size():
+		var it: Array = _decor[i]
+		var mi := decor_model(it[1], it[3])
+		mi.name = "%s__%s__decor%d" % [MeshMapBuilder.VOXEL_MAT, it[0], i]
+		mi.position = it[2]
+		root.add_child(mi)
 	return root
+
+
+# ------------------------------------------------------------------ caisse et baril
+@warning_ignore_start("integer_division")
+
+## Modèle CUBIQUE (cubes de 5 cm, VoxelBuild) d'une caisse en bois ou d'un
+## baril (`kind` : « caisse », « baril ») de taille `size` (m, celle du bloc
+## de collision, arrondie au cube), origine au pied, au centre.
+static func decor_model(kind: String, size: Vector3) -> MeshInstance3D:
+	var nx := VoxelBuild.cubes(size.x, 4)
+	var ny := VoxelBuild.cubes(size.y, 4)
+	var nz := VoxelBuild.cubes(size.z, 4)
+	var vb := VoxelBuild.new()
+	if kind == "baril":
+		_barrel(vb, nx, ny, nz)
+	else:
+		_crate(vb, nx, ny, nz)
+	return vb.node("voxel__" + kind, Vector3(-nx, 0, -nz) * VoxelBuild.CUBE * 0.5)
+
+
+## Caisse en bois : planches de 4 cubes (joints sombres), cadre de 2 cubes sur
+## les arêtes, écharpe peinte en escalier sur chaque côté, clous.
+static func _crate(vb: VoxelBuild, nx: int, ny: int, nz: int) -> void:
+	vb.fill(0, nx, 0, ny, 0, nz, VoxelBuild.col("crate_wood"), 81, 0.06, 3)
+	var frame := VoxelBuild.col("wood_dark", 1.1)
+	var seam := VoxelBuild.col("wood_dark", 0.75)
+	for c: Vector3i in vb.cells.keys():
+		var ex := c.x < 2 or c.x >= nx - 2
+		var ey := c.y < 2 or c.y >= ny - 2
+		var ez := c.z < 2 or c.z >= nz - 2
+		# Arêtes : cadre sur les deux faces qui s'y rejoignent.
+		if (ex and ey) or (ey and ez) or (ex and ez):
+			vb.put(c.x, c.y, c.z, VoxelBuild.grain(c.x, c.y, c.z, frame, 82, 0.05, 2))
+	# Faces des côtés (±z, ±x) : joints des planches, écharpe en escalier.
+	for side in [[VoxelBuild.PZ, nx, nz - 1], [VoxelBuild.NZ, nx, 0], [VoxelBuild.PX, nz, nx - 1], [VoxelBuild.NX, nz, 0]]:
+		var d: int = side[0]
+		var n: int = side[1]
+		for u in range(2, n - 2):
+			for y in range(2, ny - 2):
+				var x: int = u if d in [VoxelBuild.PZ, VoxelBuild.NZ] else side[2]
+				var z: int = side[2] if d in [VoxelBuild.PZ, VoxelBuild.NZ] else u
+				var k := float(u - 2) / maxf(1.0, n - 5.0)
+				var yb := 2 + roundi(k * (ny - 6))
+				if y >= yb and y < yb + 2:
+					vb.paint(x, y, z, d, VoxelBuild.grain(x, y, z, frame, 83, 0.05, 2))
+				elif (y - 2) % 4 == 3:
+					vb.paint(x, y, z, d, seam)
+	# Dessus : planches dans la longueur, joints sombres.
+	for x in range(2, nx - 2):
+		for z in range(2, nz - 2):
+			if (z - 2) % 4 == 3:
+				vb.paint(x, ny - 1, z, VoxelBuild.PY, seam)
+
+
+## Baril de métal peint : section octogonale, cerclages en saillie (le corps
+## est en retrait d'un cube entre eux), couvercle à rebord et bonde, étiquette
+## de danger.
+static func _barrel(vb: VoxelBuild, nx: int, ny: int, nz: int) -> void:
+	var body := VoxelBuild.col("barrel_red")
+	var rib := VoxelBuild.col("metal_dark", 1.15)
+	var ribs := [1, 2, ny / 2, ny / 2 + 1, ny - 3, ny - 2]
+	for y in ny:
+		var inset := 0 if y in ribs else 1
+		for x in range(inset, nx - inset):
+			for z in range(inset, nz - inset):
+				# Coins coupés : section octogonale.
+				var dx := mini(x - inset, nx - 1 - inset - x)
+				var dz := mini(z - inset, nz - 1 - inset - z)
+				if dx + dz < 2:
+					continue
+				var c := VoxelBuild.grain(x, y, z, rib if y in ribs else body, 84, 0.05, 3)
+				vb.put(x, y, z, c)
+	# Couvercle : rebord clair, bonde sombre.
+	for x in nx:
+		for z in nz:
+			if vb.has(x, ny - 1, z):
+				var rim := x <= 1 or z <= 1 or x >= nx - 2 or z >= nz - 2
+				vb.paint(x, ny - 1, z, VoxelBuild.PY, VoxelBuild.col("barrel_red", 1.15) if rim else VoxelBuild.col("barrel_red", 0.85))
+	vb.paint(nx / 2 + 1, ny - 1, nz / 2 + 1, VoxelBuild.PY, VoxelBuild.col("rubber"))
+	# Étiquette de danger (carré jaune, centre noir) sur la face avant (+z).
+	# Entre les cerclages du milieu et du haut.
+	var cx := nx / 2
+	var cy := (ny / 2 + 2 + ny - 3) / 2
+	for x in range(cx - 2, cx + 2):
+		for y in range(cy - 2, cy + 2):
+			var inner := x in [cx - 1, cx] and y in [cy - 1, cy]
+			vb.paint_front(x, y, 0, nz, VoxelBuild.PZ, VoxelBuild.col("rubber" if inner else "hazard_yellow"))
+
+@warning_ignore_restore("integer_division")

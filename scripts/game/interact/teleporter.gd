@@ -98,7 +98,7 @@ func _ready() -> void:
 	_ring_mat.emission_enabled = true
 	_ring_mat.emission = Color(1.0, 0.5, 0.15)
 	_ring_mat.emission_energy_multiplier = 0.0
-	_build_pad(self, 1.0, _ring_mat)
+	build_pad(self, "teleporteur", _ring_mat)
 	_light = OmniLight3D.new()
 	_light.light_color = Color(1.0, 0.55, 0.2)
 	_light.omni_range = 6.0
@@ -111,54 +111,23 @@ func _ready() -> void:
 	exit_pad.name = "ExitPad"
 	get_parent().add_child.call_deferred(exit_pad)
 	exit_pad.position = exit_pos - Vector3(0, 0.05, 0)
-	_build_pad(exit_pad, 0.7, _exit_ring_mat)
+	build_pad(exit_pad, "arrivee", _exit_ring_mat)
 	system.game.power_changed.connect(func(_on): _refresh())
 	_refresh()
 
 
-func _build_pad(parent: Node3D, scale_k: float, ring_mat: Material) -> void:
-	var steel := WorldLook.surface("steel")
-	var disc := MeshInstance3D.new()
-	var dm := CylinderMesh.new()
-	dm.top_radius = 1.4 * scale_k
-	dm.bottom_radius = 1.5 * scale_k
-	dm.height = 0.12
-	dm.radial_segments = 18
-	disc.mesh = dm
-	disc.material_override = steel
-	disc.position.y = 0.06
-	parent.add_child(disc)
-	var ring := MeshInstance3D.new()
-	var rm := TorusMesh.new()
-	rm.inner_radius = 1.05 * scale_k
-	rm.outer_radius = 1.2 * scale_k
-	rm.rings = 18
-	rm.ring_segments = 6
-	ring.mesh = rm
-	ring.material_override = ring_mat
-	ring.position.y = 0.13
-	parent.add_child(ring)
-	# Quatre bobines.
-	for k in 4:
-		var a := k * TAU / 4.0 + PI / 4.0
-		var coil := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.06
-		cm.bottom_radius = 0.12
-		cm.height = 1.6 * scale_k
-		cm.radial_segments = 8
-		coil.mesh = cm
-		coil.material_override = steel
-		coil.position = Vector3(cos(a), 0, sin(a)) * 1.3 * scale_k + Vector3(0, 0.8 * scale_k, 0)
-		parent.add_child(coil)
-		var tip := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 0.1
-		sm.height = 0.2
-		tip.mesh = sm
-		tip.material_override = ring_mat
-		tip.position = coil.position + Vector3(0, 0.85 * scale_k, 0)
-		parent.add_child(tip)
+## Plateforme CUBIQUE (tools/blender/voxel_props/objets.py, cubes de 5 cm) :
+## « teleporteur » (départ, Ø 3 m) ou « arrivee » (Ø 2,1 m) sous `parent`
+## (origine au sol, au centre) : socle à deux marches et bobines de cuivre ;
+## anneau et boules des bobines au matériau lumineux `ring_mat`.
+static func build_pad(parent: Node3D, obj: String, ring_mat: Material) -> void:
+	var parts := VoxelBuild.parts(obj)
+	if parts.has("socle"):
+		parent.add_child(parts.socle)
+	if parts.has("anneau"):
+		var ring: MeshInstance3D = parts.anneau
+		ring.material_override = ring_mat
+		parent.add_child(ring)
 
 
 func _refresh() -> void:

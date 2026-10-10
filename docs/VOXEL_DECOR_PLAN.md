@@ -84,20 +84,50 @@ périmètre (« particules cubiques » : chantier à part, GAME_CONCEPT.md § 4.
 
 | type | constructeur | cubique ? | dimensions | collision | lot |
 |---|---|---|---|---|---|
-| porte (blindée / bois / grille) | `interact/door.gd` `_build_steel`, `_build_wood`, `_build_gate`, `_decorate` | non : volants cylindres, entretoise en biais, barreaux cylindres | largeur × 2,5 × 0,22 | StaticBody (w, h, 0,9) | 4 |
-| debris (planches / gravats) | `door.gd` `_build_debris`, `_build_rubble` | non : boîtes tournées au hasard, fers ronds | largeur × hauteur de l'ouverture | corps de la porte | 4 |
-| porte_courant | `door.gd` `_build_steel` | presque : une boîte, épaisseur 0,22 hors grille | w × 2,5 × 0,22 | corps de la porte | 4 |
+| porte (blindée / bois / grille) | `interact/door.gd` `_build_steel`, `_build_wood`, `_build_gate`, `_decorate` | non : volants cylindres, entretoise en biais, barreaux cylindres | largeur × 2,5 × 0,22 | StaticBody (w, h, 0,9) | **4 ✔** |
+| debris (planches / gravats) | `door.gd` `_build_debris`, `_build_rubble` | non : boîtes tournées au hasard, fers ronds | largeur × hauteur de l'ouverture | corps de la porte | **4 ✔** |
+| porte_courant | `door.gd` `_build_steel` | presque : une boîte, épaisseur 0,22 hors grille | w × 2,5 × 0,22 | corps de la porte | **4 ✔** |
 | passage | aucun objet (découpe du mur) | — | — | — | — |
-| fenetre (fenêtre / porte / porte double) | `barricades/barricade.gd` `_build_planks`, `zombie_door_model.gd` | non : planches roulées ±0,44 rad, planches dentelées | 1 ou 2 m × 0,95–2,35 | barrière (BoxShape) | 4 |
-| boite (caisse au hasard) | `interact/box_model.gd` + `assets/models/props/mystery_box.glb` (`tools/blender/props/mystery_box.py`), faisceau `CylinderMesh` | non (6 886 faces fautives) | 1,8 × 0,85 × 0,85 | StaticBody `BODY_SIZE` | 4 |
-| courant | `interact/power_switch.gd` | non : câbles cylindres, levier tourné, sphère | 0,7 × 0,95 × 0,22 | — | 4 |
-| teleporteur / arrivee | `interact/teleporter.gd` `_build_pad` | non : disques, tore, cônes, sphères | Ø 3,0 / 2,1 | — | 4 |
-| poste_central (mur / sol) | `interact/mainframe.gd` | non : cadrans, capsules, sphère, socle cylindre | 2,2 × 2,3 × 0,7 / Ø 4,4 | StaticBody | 4 |
-| piege (panneau) et levier | `interact/electric_trap.gd`, `interact/trap_lever.gd` | non : levier tourné, voyant sphère | 0,45 × 0,6 × 0,15 | — | 4 |
-| evacuation | `interact/evac_door.gd` | presque : boîtes, voyant à y 2,125–2,275 hors grille | 1,4 × 2,1 × 0,15 | CollisionBox | 4 |
+| fenetre (fenêtre / porte / porte double) | `barricades/barricade.gd` `_build_planks`, `zombie_door_model.gd` | non : planches roulées ±0,44 rad, planches dentelées | 1 ou 2 m × 0,95–2,35 | barrière (BoxShape) | **4 ✔** |
+| boite (caisse au hasard) | `interact/box_model.gd` + `assets/models/props/mystery_box.glb` (`tools/blender/props/mystery_box.py`), faisceau `CylinderMesh` | non (6 886 faces fautives) | 1,8 × 0,85 × 0,85 | StaticBody `BODY_SIZE` | **4 ✔** |
+| courant | `interact/power_switch.gd` | non : câbles cylindres, levier tourné, sphère | 0,7 × 0,95 × 0,22 | — | **4 ✔** |
+| teleporteur / arrivee | `interact/teleporter.gd` `_build_pad` | non : disques, tore, cônes, sphères | Ø 3,0 / 2,1 | — | **4 ✔** |
+| poste_central (mur / sol) | `interact/mainframe.gd` | non : cadrans, capsules, sphère, socle cylindre | 2,2 × 2,3 × 0,7 / Ø 4,4 | StaticBody | **4 ✔** |
+| piege (panneau) et levier | `interact/electric_trap.gd`, `interact/trap_lever.gd` | non : levier tourné, voyant sphère | 0,45 × 0,6 × 0,15 | — | **4 ✔** |
+| evacuation | `interact/evac_door.gd` | presque : boîtes, voyant à y 2,125–2,275 hors grille | 1,4 × 2,1 × 0,15 | CollisionBox | **4 ✔** |
 | station | `interact/build_station.gd` `build_model` | **oui** (contrôlée par `tests/test_build_rules.gd`) | 1,6 × 2,1 × 0,8 | 2 CollisionBox | — |
-| caisse / baril (types historiques) | `MeshMapGeometry` (bloc de la description) | presque : une boîte à matériau procédural, posée au centimètre | 1 × 1 × 1 / 0,5 × 0,9 × 0,5 | bloc de géométrie | 4 |
+| caisse / baril (types historiques) | `MeshMapGeometry` (bloc de la description) | presque : une boîte à matériau procédural, posée au centimètre | 1 × 1 × 1 / 0,5 × 0,9 × 0,5 | bloc de géométrie | **4 ✔** |
 | depart, apparition, lampe, bloc_invisible | aucun objet visible | — | — | — | — |
+
+**Lot 4 fait** (contrôle : `tests/test_voxel_objects.gd`, VoxelCheck de
+chaque objet, pièces mobiles dans leur repère ; collisions, points
+d'interaction, durées et animations inchangés) :
+
+- taille fixe, sous Blender (`tools/blender/voxel_props/objets.py` ->
+  `assets/models/props/voxel/objets/<objet>.glb`, une pièce par nœud
+  `voxel__<objet>_<pièce>__<type>`, lue par `VoxelBuild.parts`) : `boite`
+  (coffre, couvercle sous le pivot de la charnière, intérieur et fond qui
+  s'allument : `voxel_glow.gdshader` ; ≈ 10 100 tri.), `courant` (boîtier et
+  câbles, levier sous son pivot, gyrophare ; 1 700), `levier_piege` (piège et
+  second levier : panneau, voyant ; 510), `teleporteur` / `arrivee` (socle,
+  anneau et boules au matériau lumineux ; 4 300 / 3 100),
+  `poste_central_mur` (armoire, tubes, voyant ; 9 300), `poste_central_sol`
+  (socle en marches, anneau à fleur, voyant, câble ; 9 200 ; la collision
+  garde le tronc de cône), `evacuation` (bâti, battant qui recule, voyant
+  posé sur la grille ; 3 200). Colonne de lumière et halo de la caisse :
+  pavés sur la grille. `mystery_box.glb`, `mystery_box.py` et
+  `mystery_box.gdshader` supprimés ;
+- taille de la carte, construits par le jeu (`scripts/game/map/voxel_build.gd`,
+  `VoxelBuild`, repère Godot, matériau « voxel ») : portes blindée, bois,
+  grille et porte du courant (20 cm d'épaisseur visuelle, cadre, prix peint
+  en chiffres de 3 × 5 cubes des deux côtés ; 3 300 à 6 000 tri. pour 2 m),
+  débris planches et gravats (tas en blocs, planches et fers qui dépassent,
+  poutre ou dalle en escalier), planches des barricades (`plank_mesh`,
+  26 × 3 × 1 et 18 × 3 × 1 cubes, à plat sur la grille au repos ; elles ne
+  tournent qu'en vol), portes à zombies (`ZombieDoorModel` : deux couches de
+  cubes dans la tranche de 10 cm), caisse et baril de l'éditeur
+  (`MeshMapGeometry.decor_model`, à la taille du bloc, dont la collision
+  reste celle du bloc).
 
 Architecture (hors des 4 lots, **décision à prendre** : la changer modifie
 les collisions et le jeu) : escaliers (`StairGen`, marches ≈ 18 cm, rampe en

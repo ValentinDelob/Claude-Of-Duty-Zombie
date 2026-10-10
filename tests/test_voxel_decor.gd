@@ -24,12 +24,9 @@ const TODO_LOT2 := []
 ## Lot 3 : décors des effets et luminaires.
 const TODO_LOT3 := []
 
-## Lot 4 : objets de carte (portes, barricades, machines...).
-const TODO_LOT4 := [
-	"objet:porte", "objet:debris", "objet:porte_courant", "objet:fenetre", "objet:boite",
-	"objet:courant", "objet:teleporteur", "objet:arrivee", "objet:poste_central", "objet:piege",
-	"objet:levier", "objet:evacuation", "objet:caisse", "objet:baril",
-]
+## Lot 4 : objets de carte (portes, barricades, machines...) : tous
+## cubiques, contrôlés par tests/test_voxel_objects.gd.
+const TODO_LOT4 := []
 
 # ------------------------------------------------------------------ figé
 ## Entrées converties : valeurs d'AVANT la conversion (catalogue et

@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://buem7e74jar4a"
-path="res://.godot/imported/mystery_box.glb-6b854fbc3bfc3e2d9e9422959cffcb25.scn"
+uid="uid://cm6bl77vw1udk"
+path="res://.godot/imported/arrivee.glb-753f8f7637de1579ceeba8a48bda8af7.scn"
 
 [deps]
 
-source_file="res://assets/models/props/mystery_box.glb"
-dest_files=["res://.godot/imported/mystery_box.glb-6b854fbc3bfc3e2d9e9422959cffcb25.scn"]
+source_file="res://assets/models/props/voxel/objets/arrivee.glb"
+dest_files=["res://.godot/imported/arrivee.glb-753f8f7637de1579ceeba8a48bda8af7.scn"]
 
 [params]
 

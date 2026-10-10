@@ -679,17 +679,15 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DogLightning`
   grenade et peluche leurre aujourd'hui). L'objet flotte au-dessus de la
   caisse ; seul l'acheteur peut le prendre pendant 12 s. Il va sur
   l'emplacement de grenade (voir « Emplacement de grenade »), jamais dans
-  l'arsenal. Apparence (`BoxModel`) : coffre de
-  bois cerclé de fer modélisé dans Blender, `sh tools/blender.sh
-  tools/blender/props/mystery_box.py [assets/models/props] [dossier
-  d'aperçus]` -> `assets/models/props/mystery_box.glb` (≈ 7 000 triangles,
-  LOD à l'import). Un objet par matériau (`wood`, `iron`, `brass`, `paint`,
-  `inner`, `glow`, et `lid_wood`, `lid_iron` pour le couvercle, rattachés au
-  pivot `MysteryBox._lid` sur la charnière `LID_HINGE`). UV en mètres dans
-  le sens du fil, UV2.x = tirage propre à chaque planche ; `mystery_box.gdshader`
-  dessine fil, cernes, nœuds, arêtes usées (faces de chanfrein), rouille,
-  peinture de pochoir écaillée et relief (dérivées écran, sans texture) ; le
-  paramètre d'instance `open` allume le fond. Colonne de lumière et halo
+  l'arsenal. Apparence (`BoxModel`) : caisse de matériel CUBIQUE (cubes de
+  5 cm, docs/VOXEL_DECOR_PLAN.md lot 4) peinte olive, cerclée d'acier, dé
+  peint sur le couvercle, `sh tools/blender.sh
+  tools/blender/voxel_props/objets.py boite` ->
+  `assets/models/props/voxel/objets/boite.glb` (≈ 10 000 triangles). Une
+  pièce par nœud (`coffre`, `couvercle` rattaché au pivot `MysteryBox._lid`
+  sur la charnière `LID_HINGE`, `interieur`, `fond`), matériau « voxel »
+  (couleur de face) ; `voxel_glow.gdshader` : le paramètre d'instance
+  `open` allume le fond et l'intérieur. Colonne de lumière et halo
   d'ouverture : `box_beam.gdshader` (additif, bords et sommet fondus, effacé
   de près), réglages `BEAM_*`, `HAZE_*`, `LIGHT_*` de `MysteryBox` (bornés
   par `test_mystery_box_look.gd`). La collision (1,8 x 0,85 x 0,85 m) et le
