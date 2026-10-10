@@ -108,7 +108,8 @@ func test_every_kind_has_steps_under_the_step_height() -> void:
 		assert_near(float(lane[lane.size() - 1][0].y), 3.5, 0.001, "%s : ancre de sortie au sol du haut" % kind)
 	var pl := StairGen.plan(_spec("droit", {"steps": 14}))
 	assert_eq(StairGen.flight_steps(pl, 3.5), 14, "nombre de marches réglé")
-	assert_eq(StairGen.flight_steps(StairGen.plan(_spec("droit", {"steps": 3})), 3.5), 13, "jamais plus de 0,3 m par marche, même réglé à 3")
+	assert_eq(StairGen.flight_steps(StairGen.plan(_spec("droit", {"steps": 3})), 3.5), 14, "jamais plus de 5 cubes (25 cm) par marche, même réglé à 3")
+	assert_eq(StairGen.flight_steps(StairGen.plan(_spec("droit", {"steps": 200})), 3.5), 70, "jamais moins d'un cube par marche")
 
 
 ## Anchors and lane points: inside the stairs, at least a capsule radius from
@@ -211,14 +212,19 @@ func test_built_collision_has_no_slot_or_lip() -> void:
 			await wait_frames(1)
 
 
-func test_old_straight_stairs_build_exactly_as_before() -> void:
-	# Escalier d'avant (sans type ni réglage) : mêmes nœuds, mêmes sommets.
+func test_old_straight_stairs_build_as_before() -> void:
+	# Escalier d'avant (sans type ni réglage) : mêmes nœuds, même collision ;
+	# marches en cubes (docs/VOXEL_ARCHITECTURE_PLAN.md § 2.3 : 18 marches de
+	# 3 ou 4 cubes, tests/test_voxel_archi_stairs.gd).
 	var st := {"room": "r", "a": [10.0, 0.0, 20.0], "b": [10.0, 3.5, 13.0], "w": 2.5, "mat": "wood"}
 	var arch := MeshMapGeometry.build({"stairs": [st]})
 	var mi := arch.get_node("wood__r__stair") as MeshInstance3D
 	assert_true(mi != null, "marches visibles")
 	var verts: PackedVector3Array = mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
-	assert_eq(verts.size(), roundi(3.5 / 0.18) * 36, "19 marches de 6 faces")
+	var tops := {}
+	for v in verts:
+		tops[snappedf(v.y, 0.001)] = true
+	assert_eq(tops.size(), 19, "18 marches (et le sol)")
 	var body := arch.get_node("wood__r__stair__col") as StaticBody3D
 	assert_eq(body.get_child_count(), 1, "une rampe pleine")
 	var pts: PackedVector3Array = ((body.get_child(0) as CollisionShape3D).shape as ConvexPolygonShape3D).points

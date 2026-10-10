@@ -17,10 +17,11 @@ extends RefCounted
 ##            large       escalier d'honneur : 3 m et plus, garde-corps des deux côtés
 ##            service     escalier de service étroit (1 m), en file indienne
 ##            colimacon   en colimaçon autour d'un noyau, puis palier de sortie
-##            rampe       plan incliné sans marches
+##            rampe       plan incliné : marches d'un cube (5 cm) de haut
 ##   turn   1 (à droite, défaut) ou -1 (à gauche) : côté du virage (quart,
 ##          demi_tour) ou sens du colimaçon, vu en montant
-##   steps  nombre de marches visibles (absent : ≈ 18 cm chacune)
+##   steps  nombre de marches visibles (absent : 3 ou 4 cubes de 5 cm chacune,
+##          flight_steps ; borné à un cube de haut par marche)
 ##   rail   garde-corps sur les côtés ouverts (absent : oui pour « large »)
 ##   closed côtés fermés (limons pleins jusqu'à la main courante)
 ##   side   1 (à droite) ou -1 (à gauche), vu en montant : sortie sur le côté
@@ -29,6 +30,13 @@ extends RefCounted
 ##          side_depth(w), volées sur le reste, bord de sortie latéral ; le
 ##          bout du haut peut toucher un mur (garde-corps au bout)
 ##   mat, room
+##
+## Marches en cubes (docs/VOXEL_ARCHITECTURE_PLAN.md § 2.3) : hauteur de
+## marche en cubes entiers (3 ou 4 cubes, 15 ou 20 cm), giron en cubes entiers
+## (5 au moins, 25 cm), répartis comme une droite de Bresenham (les petites
+## marches en bas) : flight_steps, rise_at, step_top, step_y. Paliers à une
+## hauteur multiple du cube. Le rendu (MeshMapGeometry._stair) pose les
+## marches en colonnes de cubes alignées sur la grille du monde.
 ##
 ## Collisions : sous chaque volée, un prisme plein en pente douce (jamais de
 ## marche de collision : le joueur n'a pas de montée de marche et les zombies
@@ -53,8 +61,16 @@ const SIDE_KINDS := ["droit", "palier", "large", "service", "rampe"]
 ## Marche maximale franchie par un zombie (capsule décollée de 0,3 m :
 ## Zombie.STEP_GAP) et par le navmesh (MeshNav : agent_max_climb).
 const STEP_HEIGHT := 0.3
-## Hauteur visée d'une marche visible.
-const STEP_RISE := 0.18
+## Côté d'un cube de l'architecture (MapGeom.CUBE).
+const CUBE := 0.05
+## Marche visée : 4 cubes (20 cm) au plus ; jamais plus de 5 (25 cm : le
+## validateur avertit, la volée est trop courte pour sa hauteur).
+const RISE_CUBES := 4
+const MAX_RISE_CUBES := 5
+## Giron minimal : 5 cubes (25 cm).
+const MIN_TREAD_CUBES := 5
+## Marche jugée trop haute par le validateur (avertissement).
+const RISE_WARN := 0.25
 ## Demi-largeur d'un zombie aux épaules (Zombie.SHOULDER_RADIUS : sur les
 ## marches, ni bras ni épaules dans le garde-corps) et marge aux côtés.
 const AGENT_RADIUS := 0.3
@@ -166,7 +182,7 @@ static func plan(st: Dictionary) -> Dictionary:
 			Dm = minf(Dm, Lr * 0.34)
 			var s1 := (Lr - Dm) * 0.5
 			var s2 := (Lr + Dm) * 0.5
-			var ym := y0 + H * 0.5
+			var ym := _split(y0, H, 0.5)
 			var half := _half(W, side_t, side_t)
 			_flight(p, P.call(0.0, 0.0), y0, P.call(s1, 0.0), ym, W, y0)
 			_landing(p, [P.call(s1, -W * 0.5), P.call(s2, -W * 0.5), P.call(s2, W * 0.5), P.call(s1, W * 0.5)], ym)
@@ -187,7 +203,7 @@ static func plan(st: Dictionary) -> Dictionary:
 			var c1 := -t * (W * 0.5 - f * 0.5)
 			var r1 := L - f
 			var r2 := W - f
-			var yl := y0 + H * r1 / maxf(r1 + r2, 0.01)
+			var yl := _split(y0, H, r1 / maxf(r1 + r2, 0.01))
 			var half := _half(f, side_t, side_t)
 			var far: Vector2 = P.call(L - f * 0.5, c1)
 			_flight(p, P.call(0.0, c1), y0, P.call(r1, c1), yl, f, y0)
@@ -214,7 +230,7 @@ static func plan(st: Dictionary) -> Dictionary:
 			var f := W * 0.5
 			var D := minf(f, L * 0.4)
 			var r := L - D
-			var ym := y0 + H * 0.5
+			var ym := _split(y0, H, 0.5)
 			var c1 := -t * f * 0.5
 			var c2 := t * f * 0.5
 			var half := _half(f, side_t, RAIL_T)
@@ -272,6 +288,7 @@ static func plan(st: Dictionary) -> Dictionary:
 					var pa := c + (e1 * cos(tha) + e2 * sin(tha)) * R
 					var pb := c + (e1 * cos(thb) + e2 * sin(thb)) * R
 					_edge(p, _at(pa, y0 + H * float(i) / m), _at(pb, y0 + H * float(i + 1) / m), maxf(y0, y0 + H * float(i) / m - SPIRAL_T), true)
+					(p.edges[p.edges.size() - 1] as Dictionary)["arc"] = true
 				_edge(p, _at(P.call(L * 0.5, -t * COLUMN_R), y1), _at(P.call(L, -t * COLUMN_R), y1), y1 - SPIRAL_T, false)
 			p.foot = {"m": P.call(0.0, -t * (COLUMN_R + R) * 0.5), "n": -u, "h": (R - COLUMN_R) * 0.5}
 			p.exit = {"m": P.call(L, -t * (COLUMN_R + R) * 0.5), "n": u, "h": (R - COLUMN_R) * 0.5}
@@ -302,7 +319,18 @@ static func plan(st: Dictionary) -> Dictionary:
 	lane.insert(0, [entry, float(first[1]) * 0.5])
 	lane.append([exit_p, float(last[1]) * 0.5])
 	p.lane = lane
+	# Nombre de marches de chaque volée (en cubes, flight_steps) et du colimaçon.
+	for f in p.flights:
+		var d: Vector3 = f.b - f.a
+		f["n"] = flight_steps(p, d.y, Vector2(d.x, d.z).length())
+	if not (p.spiral as Dictionary).is_empty():
+		p.spiral["n"] = flight_steps(p, H, TAU * float(p.spiral.rm))
 	return p
+
+
+## Hauteur d'un palier à la fraction `f` de la montée H depuis y0, au cube près.
+static func _split(y0: float, H: float, f: float) -> float:
+	return y0 + snappedf(H * f, CUBE)
 
 
 ## Sortie sur le côté (droit, palier, large, service, rampe) : palier plat de
@@ -428,16 +456,126 @@ static func walk_width(pl: Dictionary) -> float:
 	return w
 
 
-## Nombre de marches visibles d'une volée de hauteur `rise` (total `steps`
-## réparti au prorata ; jamais plus de STEP_HEIGHT par marche).
-static func flight_steps(pl: Dictionary, rise: float) -> int:
-	var H := absf(float(pl.y1) - float(pl.y0))
+## Nombre de marches visibles d'une volée de hauteur `rise` et de longueur
+## horizontale `run` (m ; négative : inconnue). Hauteur en cubes de 5 cm
+## (N = rise / 5 cm) : ceil(N / 4) marches de 3 ou 4 cubes ; giron d'au moins
+## 5 cubes (25 cm) si la longueur est connue ; rampe : une marche par cube ;
+## `steps` (nombre imposé) réparti au prorata. Jamais plus de 5 cubes
+## (25 cm, avertissement du validateur) ni moins d'un cube par marche.
+static func flight_steps(pl: Dictionary, rise: float, run := -1.0) -> int:
+	var N := roundi(absf(rise) / CUBE)
+	if N <= 0:
+		return 1
+	var H := absf(float(pl.get("y1", 0.0)) - float(pl.get("y0", 0.0)))
+	var ramp := String(pl.get("kind", "")) == "rampe"
 	var n := 0
-	if int(pl.steps) > 0 and H > 0.01:
+	if ramp:
+		n = N
+	elif int(pl.get("steps", 0)) > 0 and H > 0.01:
 		n = roundi(float(pl.steps) * absf(rise) / H)
 	else:
-		n = roundi(absf(rise) / STEP_RISE)
-	return maxi(maxi(1, n), ceili(absf(rise) / (STEP_HEIGHT - 0.02)))
+		n = ceili(float(N) / RISE_CUBES)
+	if run > 0.0:
+		var M := maxi(1, roundi(run / CUBE))
+		n = mini(n, M if ramp else maxi(1, M / MIN_TREAD_CUBES))
+	n = maxi(n, ceili(float(N) / MAX_RISE_CUBES))
+	return clampi(n, 1, N)
+
+
+## Dessus de la marche k (0 à n - 1) d'une volée de N cubes de haut, en
+## cubes depuis son pied : droite de Bresenham, les petites marches en bas.
+@warning_ignore("integer_division")
+static func rise_at(N: int, n: int, k: int) -> int:
+	return ((k + 1) * N) / n
+
+
+## Marche (0 à n - 1) sous la position `m` (en cubes, de 0 à M) d'une volée
+## de M cubes de long : giron de la marche i = [i·M/n, (i+1)·M/n[ (entiers).
+@warning_ignore("integer_division")
+static func tread_of(m: float, M: int, n: int) -> int:
+	var i := clampi(floori(m * n / M), 0, n - 1)
+	while i < n - 1 and float(((i + 1) * M) / n) <= m:
+		i += 1
+	while i > 0 and float((i * M) / n) > m:
+		i -= 1
+	return i
+
+
+## Dessus (m) de la marche sous le point à `s` m du pied d'une volée de
+## `run` m de long, de `ya` (pied) à `yb` (haut), en `n` marches.
+static func step_top(ya: float, yb: float, run: float, n: int, s: float) -> float:
+	var N := roundi(absf(yb - ya) / CUBE)
+	if N <= 0 or n <= 0:
+		return yb
+	var M := maxi(1, roundi(run / CUBE))
+	var m := clampf(s / maxf(run, 1e-6) * M, 0.0, M - 1e-4)
+	return ya + (yb - ya) * float(rise_at(N, n, tread_of(m, M, n))) / N
+
+
+## Colimaçon : dessus (m) de la marche à l'angle `th` (radians depuis e1,
+## vers e2 ; 0 à TAU).
+static func spiral_top(sp: Dictionary, th: float) -> float:
+	var y0 := float(sp.y0)
+	var y1 := float(sp.y1)
+	var n := int(sp.get("n", 1))
+	var N := roundi(absf(y1 - y0) / CUBE)
+	if N <= 0:
+		return y1
+	var i := clampi(floori(fposmod(th, TAU) / TAU * n), 0, n - 1)
+	return y0 + (y1 - y0) * float(rise_at(N, n, i)) / N
+
+
+## Angle (0 à TAU) du point `q` autour du noyau du colimaçon.
+static func spiral_angle(sp: Dictionary, q: Vector2) -> float:
+	var v := q - (sp.c as Vector2)
+	return fposmod(atan2(v.dot(sp.e2), v.dot(sp.e1)), TAU)
+
+
+## Plus haute marche visible (m) d'un escalier (avertissement du validateur).
+static func max_riser(pl: Dictionary) -> float:
+	var worst := 0.0
+	var parts := []
+	for f in pl.flights:
+		parts.append([absf(float(f.b.y) - float(f.a.y)), int(f.get("n", 1))])
+	if not (pl.spiral as Dictionary).is_empty():
+		parts.append([absf(float(pl.y1) - float(pl.y0)), int(pl.spiral.get("n", 1))])
+	for e in parts:
+		var N := roundi(float(e[0]) / CUBE)
+		var n: int = maxi(1, e[1])
+		if N > 0:
+			worst = maxf(worst, ceili(float(N) / n) * CUBE)
+	return worst
+
+
+## Hauteur des marches VISIBLES (dessus des cubes) en (x, z), ou NAN hors de
+## l'escalier : garde au plafond du validateur, tests. Au plus une marche
+## au-dessus de la surface de collision (surface_y).
+static func step_y(pl: Dictionary, q: Vector2) -> float:
+	var best := NAN
+	for f in pl.flights:
+		var a: Vector3 = f.a
+		var b: Vector3 = f.b
+		var a2 := Vector2(a.x, a.z)
+		var d := Vector2(b.x, b.z) - a2
+		var len := d.length()
+		if len < 0.001:
+			continue
+		var dir := d / len
+		var s := (q - a2).dot(dir)
+		var lat := absf((q - a2).dot(Vector2(-dir.y, dir.x)))
+		if s >= -0.001 and s <= len + 0.001 and lat <= float(f.w) * 0.5 + 0.001:
+			var y := step_top(a.y, b.y, len, int(f.get("n", 1)), s)
+			best = y if is_nan(best) else maxf(best, y)
+	for l in pl.landings:
+		if Geometry2D.is_point_in_polygon(q, l.poly):
+			best = float(l.y) if is_nan(best) else maxf(best, float(l.y))
+	var sp: Dictionary = pl.spiral
+	if not sp.is_empty():
+		var r := q.distance_to(sp.c)
+		if r <= float(sp.r_out) + 0.001 and r >= float(sp.r_in) - 0.001:
+			var y := spiral_top(sp, spiral_angle(sp, q))
+			best = y if is_nan(best) else maxf(best, y)
+	return best
 
 
 ## Hauteur de la surface de marche (collision) en (x, z), ou NAN hors de

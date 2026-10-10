@@ -195,8 +195,10 @@ static func _object(doc: EditorMap, v: MapValidator, o: Dictionary) -> Dictionar
 			var z1 := doc.stair_top_of(o)
 			base.merge({"kind": "stairs", "poly": MapRaster.rect_poly(o), "z0": sol, "z1": z1, "up": up,
 				# Nombre de marches automatique, comme en jeu (StairGen.flight_steps :
-				# ≈ 18 cm chacune) ; « marches » d'une carte ancienne est ignoré.
-				"steps": maxi(2, StairGen.flight_steps({"y0": sol, "y1": z1, "steps": 0}, z1 - sol))})
+				# 3 ou 4 cubes de haut, giron de 5 cubes au moins) ; « marches »
+				# d'une carte ancienne est ignoré.
+				"steps": maxi(2, StairGen.flight_steps({"y0": sol, "y1": z1, "steps": 0, "kind": MapCatalog.stair_kind(o)}, z1 - sol,
+					float(MapRaster.stair_frame(o).length) - MapGeom.WALL_HALF * 2.0))})
 			return base
 		"piege":
 			base.merge({"kind": "trap", "poly": MapRaster.rect_poly(o), "z0": sol, "z1": sol + TRAP_H})
