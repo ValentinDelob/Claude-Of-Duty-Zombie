@@ -629,6 +629,49 @@ Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
   appuis, 1 à 3 armes de départ, pastilles NOUVEAU).
 - Fini quand : écrans 2, 3 et 6 de la maquette reproduits ; le profil
   enregistré reflète chaque action.
+- **Fait** (branche `hub-c`, écrans 2, 3, 4 et 8 de la maquette). Fichiers en
+  plus : `hub_gear.gd` (`HubGear` : filtres, tris, versions, noms et textes
+  des pièces, statistiques de la fiche, raison d'un refus de montage, pur),
+  `hub_pick_row.gd` (ligne choisissable), `hub_slot.gd` (emplacement),
+  `hub_chip.gd` (puces et barre de filtres) ; scénario `hub_gear` (@rendu,
+  captures pendant le développement). Choix pris pendant le lot
+  (provisoires) :
+  - **noms des armes** : ceux du jeu (`WeaponDB.display_name` : MP5K, M14…),
+    pas les noms fictifs de la maquette (FRELON…) ; armes de base : le
+    pistolet de départ et le **couteau** (pas encore de batte) ; le couteau
+    se choisit au DÉPART comme une arme de base (§4.10), il reste l'attaque
+    de mêlée séparée en partie ;
+  - **nom d'une pièce** d'après son modificateur principal (celui de son
+    identifiant `part_<modificateur>`, sinon le plus grand bonus) : dégâts
+    Renfort, cadence Ressort, rechargement Guide, recul Amortisseur,
+    précision Mire, chargeur Rallonge, réserve Cartouchière (les noms
+    d'échange de la maquette, « Garniture à crocs », « Bride de collier »,
+    ne sont pas gardés par le profil) ;
+  - **statistiques de la fiche** : barres comparées à des valeurs fixes
+    (dégâts 300, cadence 1 200 /min, chargeur 100, réserve 500 ;
+    rechargement vide à 5 s, recul à 6° par coup) ; précision affichée
+    0 à 100 = 100 − 12 × dispersion à la hanche ; recul en mots (faible < 1°,
+    moyen < 2,5°, fort) — dans l'aperçu d'une pièce, la valeur en degrés
+    quand le mot ne change pas ; écart des pièces écrit pour dégâts,
+    précision, chargeur, réserve ; arme de corps à corps : dégâts, coups par
+    seconde, énergie par coup ;
+  - **retirer** : Entrée / A sur une pièce installée (ou RETIRER LA PIÈCE,
+    ou Suppr) arme le bouton « CONFIRMER : LA PIÈCE SERA DÉTRUITE » ;
+    **recycler** : « CONFIRMER : L'ARME SERA DÉTRUITE » ; Échap ou un
+    déplacement du focus annule ;
+  - **NOUVEAU** : une arme ou une pièce est marquée vue quand elle est
+    affichée ; la pastille reste jusqu'à la fin de la visite de l'onglet ;
+    l'écriture se fait avec l'action suivante ou en quittant l'onglet
+    (`hidden`, appelé aussi par `HubScreen.exit`) ; pas de pastille
+    d'onglet (maquette) ;
+  - **numéro de version** : ordre d'arrivée dans l'arsenal (stable quel que
+    soit le tri) ;
+  - **taille des menus 130 %** : puces de filtre, ligne niveau / rareté /
+    emplacements de la fiche et boutons INSTALLER / RETIRER passent à la
+    ligne s'il manque de place ; modificateurs des emplacements à la ligne ;
+  - **DÉPART** : le bouton du bas suit l'élément choisi (RETIRER DE
+    L'EMPLACEMENT n, AJOUTER AU DÉPART…) ; CONSTRUCTIBLES : armes à feu de
+    l'arsenal utilisables triées par prix, puis les verrouillées.
 
 ### Lot D — CONTRATS et ÉCHANGES (dépend de A et B)
 
