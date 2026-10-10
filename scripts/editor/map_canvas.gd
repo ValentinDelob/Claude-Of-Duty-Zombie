@@ -164,7 +164,8 @@ func snap(m: Vector2) -> Vector2:
 	var mode := mode_now()
 	if mode == "libre":
 		var mg := MapSnap.magnet(ed.doc, ed.floor_k, m, magnet_radius(), _snap_exclude, ghost_k())
-		return mg.p if not mg.is_empty() else MapGeom.round_cm(m)
+		# Format 20 : sans aimant, le cube de 5 cm.
+		return mg.p if not mg.is_empty() else MapGeom.round_cube(m)
 	return MapSnap.on_step(m, mode, fine_step)
 
 
@@ -287,14 +288,18 @@ func _entry_end(tool: String, cursor: Vector2) -> Vector2:
 			var d := cursor - from
 			var length: float = absf(v0) if v0 != null else d.length()
 			var ang: float = v1 if v1 != null else MapGeom.dir_angle(d)
-			# Valeurs tapées : exactes (au millimètre ; 0° reste horizontal).
-			return MapGeom.round_mm(MapGeom.polar(from, length, ang))
+			# Valeurs tapées : format 20, point sur la grille des cubes de 5 cm
+			# (0° reste horizontal ; 45° reste exact).
+			var end := MapGeom.polar(from, length, ang)
+			var on45 := fposmod(ang + 0.0005, 45.0) < 0.001
+			return MapGeom.snap_angle_free(from, end, 45.0) if on45 else MapGeom.round_cube(end)
 		"room_rect", "rect":
 			var a: Vector2 = drag.start
 			var d := cursor - a
 			var sx := -1.0 if d.x < 0.0 else 1.0
 			var sy := -1.0 if d.y < 0.0 else 1.0
-			return a + Vector2(sx * (absf(v0) if v0 != null else absf(d.x)), sy * (absf(v1) if v1 != null else absf(d.y)))
+			# Format 20 : coin sur la grille des cubes de 5 cm.
+			return MapGeom.round_cube(a + Vector2(sx * (absf(v0) if v0 != null else absf(d.x)), sy * (absf(v1) if v1 != null else absf(d.y))))
 		"room_shape":
 			var a: Vector2 = drag.start
 			var d := cursor - a
@@ -1071,7 +1076,9 @@ func _drag_update() -> void:
 		if mode_now() == "libre" or wall_bound:
 			# Sans grille : au centimètre ; une pièce se colle par un sommet au
 			# sommet ou au côté d'une autre pièce (aimant).
-			delta = MapGeom.round_cm(mouse_m - Vector2(drag.raw))
+			# Format 20 : l'architecture par cubes de 5 cm.
+			var raw := mouse_m - Vector2(drag.raw)
+			delta = MapGeom.round_cube(raw) if MapCubeSnap.is_architecture(orig) else MapGeom.round_cm(raw)
 			if orig.has("contour"):
 				delta = MapSnap.room_delta(ed.doc, ed.floor_k, MapGeom.poly(orig.contour), delta, magnet_radius(), String(orig.id), ghost_k())
 		# Verrouillage d'axe (flèche, ou X / Y pendant le glissement).
@@ -1130,7 +1137,10 @@ func _drag_update() -> void:
 func _drag_group_move() -> void:
 	var delta := snap(mouse_m) - Vector2(drag.start)
 	if mode_now() == "libre":
-		delta = MapGeom.round_cm(mouse_m - Vector2(drag.raw))
+		# Format 20 : par cubes de 5 cm si le groupe porte de l'architecture.
+		var archi := (drag.get("ids", []) as Array).any(func(i): return MapCubeSnap.is_architecture(ed.doc.find(String(i))))
+		var raw := mouse_m - Vector2(drag.raw)
+		delta = MapGeom.round_cube(raw) if archi else MapGeom.round_cm(raw)
 	match String(drag.get("lock", "")):
 		"X":
 			delta.y = 0.0

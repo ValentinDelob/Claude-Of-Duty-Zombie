@@ -1,7 +1,7 @@
 {
 	"doc": {
 		"carte": {
-			"format": 19.0,
+			"format": 20.0,
 			"id": "demi_niveau",
 			"nom": {
 				"fr": "DEMI_NIVEAU",
@@ -154,7 +154,7 @@
 						"fr": "DEMI_NIVEAU",
 						"en": "DEMI_NIVEAU"
 					},
-					"format": 19.0,
+					"format": 20.0,
 					"niveaux": [
 						0.0,
 						1.5
@@ -331,7 +331,7 @@
 						"fr": "DEMI_NIVEAU",
 						"en": "DEMI_NIVEAU"
 					},
-					"format": 19.0,
+					"format": 20.0,
 					"niveaux": [
 						0.0,
 						1.5
@@ -479,7 +479,7 @@
 						"fr": "DEMI_NIVEAU",
 						"en": "DEMI_NIVEAU"
 					},
-					"format": 19.0,
+					"format": 20.0,
 					"niveaux": [
 						0.0,
 						1.5

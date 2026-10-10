@@ -454,21 +454,98 @@ static func round_cm(p: Vector2) -> Vector2:
 
 
 ## Point suivant d'un tracé SANS GRILLE : le côté part de `from` à un multiple
-## de `step_deg` degrés (15°) sauf `free` (Alt : angle libre, point au
-## centimètre) ; longueur au centimètre, point au millimètre (un côté à 0° ou
-## à 90° reste exactement droit).
+## de `step_deg` degrés (15°) sauf `free` (Alt : angle libre) ; format 20 :
+## point sur la grille des cubes de 5 cm (round_cube). Un côté à un multiple
+## de 45° reste exact (pas d'un cube en x et en y) ; aux autres angles, le
+## point de la grille le plus proche (angle au demi-degré près).
 static func snap_angle_free(from: Vector2, to: Vector2, step_deg := 15.0, free := false) -> Vector2:
 	var d := to - from
 	if free or d.length() < 1e-6:
-		return round_cm(to)
+		return round_cube(to)
 	var ang := snappedf(atan2(d.y, d.x), deg_to_rad(step_deg))
 	var u := Vector2(cos(ang), sin(ang))
-	return round_mm(from + u * snappedf(d.dot(u), 0.01))
+	if absf(fposmod(rad_to_deg(ang), 45.0)) < 0.01 or absf(fposmod(rad_to_deg(ang), 45.0) - 45.0) < 0.01:
+		# 0, 45, 90°... : autant de cubes en x qu'en y (ou zéro), côté exact.
+		var g := Vector2(roundf(u.x), roundf(u.y))
+		var k := roundf(d.dot(g) / (g.length_squared() * CUBE))
+		return round_cube(round_cube(from) + g * k * CUBE)
+	return round_cube(from + u * d.dot(u))
 
 
-## Point arrondi au millimètre (précision des fichiers de carte).
+## Point arrondi au millimètre (précision des fichiers de carte ; décor).
 static func round_mm(p: Vector2) -> Vector2:
 	return Vector2(snappedf(p.x, 0.001), snappedf(p.y, 0.001))
+
+
+# ------------------------------------------------------------------ grille des cubes (format 20)
+
+## Côté d'un cube de l'architecture (m) : toute coordonnée d'architecture
+## (contours, murs, altitudes, plafonds, épaisseurs, ouvertures) est un
+## multiple de 5 cm (GAME_CONCEPT.md § 4.19, docs/VOXEL_ARCHITECTURE_PLAN.md
+## § 2.1). Le décalage du monde (WORLD_OFFSET, 4,25 m = 85 cubes) et la
+## grille de 0,5 m du validateur sont sur la même grille.
+const CUBE := 0.05
+## Cubes par mètre.
+const CUBES_PER_M := 20.0
+
+
+## Valeur arrondie au cube de 5 cm le plus proche. Le résultat est la valeur
+## décimale exacte k / 20 (0,15 et non 0,15000000000000002) : deux valeurs
+## arrondies égales sont strictement égales (bords communs des pièces).
+static func cube(v: float) -> float:
+	if not is_finite(v):
+		return v
+	return roundf(v * CUBES_PER_M) / CUBES_PER_M
+
+
+## Point arrondi au cube de 5 cm (architecture : contours, murs, arcs).
+static func round_cube(p: Vector2) -> Vector2:
+	return Vector2(cube(p.x), cube(p.y))
+
+
+## Valeur sur la grille de 5 cm (à 0,05 mm près : flottants lus d'un JSON) ?
+static func on_cube(v: float) -> bool:
+	return is_finite(v) and absf(v * CUBES_PER_M - roundf(v * CUBES_PER_M)) < 0.001
+
+
+## [x, y] arrondi au cube (écriture dans la carte). Nombres en double
+## précision : un Vector2 (32 bits) écrirait 25.1000003814697 pour 25,1.
+static func cube_arr(p: Vector2) -> Array:
+	return [cube(p.x), cube(p.y)]
+
+
+## Contour arrondi au cube ; deux sommets voisins confondus n'en font qu'un.
+static func cube_poly(p: PackedVector2Array) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for v in p:
+		var q := round_cube(v)
+		if out.is_empty() or out[-1] != q:
+			out.append(q)
+	while out.size() > 3 and out[0] == out[-1]:
+		out.remove_at(out.size() - 1)
+	return out
+
+
+## Point de la grille de 5 cm le plus proche de la droite (a, b), près de
+## `near` : aimant sur un côté de pièce (un sommet arrondi tout droit au cube
+## pourrait s'écarter d'un côté en biais de 3,5 cm). Parmi les points de la
+## grille à 2 cubes au plus de `near`, celui qui est le plus près de la
+## droite, puis de `near`.
+static func cube_near_line(near: Vector2, a: Vector2, b: Vector2) -> Vector2:
+	var base := round_cube(near)
+	if a.distance_to(b) < EPS:
+		return base
+	var best := base
+	var best_key := INF
+	for dj in range(-2, 3):
+		for di in range(-2, 3):
+			var q := Vector2(cube(base.x + di * CUBE), cube(base.y + dj * CUBE))
+			var off := absf((q - a).cross(b - a)) / a.distance_to(b)
+			var key := snappedf(off, 0.0001) * 1000.0 + q.distance_to(near)
+			if key < best_key:
+				best_key = key
+				best = q
+	return best
 
 
 ## Direction d'un trait (degrés, 0 à 360, sens trigonométrique depuis l'est

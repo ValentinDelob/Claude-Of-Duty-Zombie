@@ -81,7 +81,54 @@ func test_references_present() -> void:
 	assert_true(names().size() >= 16, "références enregistrées (%d)" % names().size())
 
 
+## Régénération des références après un changement VOULU de l'export
+## (format 20 : architecture sur la grille des cubes de 5 cm,
+## docs/VOXEL_ARCHITECTURE_PLAN.md § 2.5), par le lanceur de tests :
+##   REGEN_LEVEL_REFS=1 godot --headless --path . res://tests/test_runner.tscn -- --files=test_levels_reference.gd
+## Chaque référence est réécrite (même nombre d'erreurs du validateur, gardé ;
+## différences avec l'ancienne imprimées), puis DRAFT ARENA est réenregistrée
+## au format courant (assets/maps/draft_arena/). Un nombre d'erreurs qui
+## change ou une valeur d'architecture hors de la grille fait échouer.
+static func regenerate() -> int:
+	var bad := 0
+	for name in names():
+		var path := DIR + "%s_layout_f16.json" % name
+		var old: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
+		var doc := legacy_map(name)
+		var raw: Dictionary = MapPreviewWorld.compute(doc).data
+		var now: Dictionary = JSON.parse_string(JSON.stringify(raw))
+		var d := diff(old.layout, now, "", [])
+		var v := MapRaster.build(doc).v
+		v.analyze()
+		var errs := v.errors().filter(func(m): return not String(m.fr).contains(EVAC_ERROR) and not String(m.fr).contains(STATION_ERROR))
+		var off := MapLayoutExport.off_grid(now)
+		print("[refs] %s : %d différence(s), %d erreur(s) (référence %d), %d valeur(s) hors grille" % [name, d.size(), errs.size(), int(old.errors), off.size()])
+		for line in d.slice(0, 40):
+			print("         ", line)
+		if errs.size() != int(old.errors) or not off.is_empty():
+			bad += 1
+			print("[refs] ATTENTION %s : erreurs %d (référence %d), hors grille %s" % [name, errs.size(), int(old.errors), ", ".join(off.slice(0, 5))])
+		var fa := FileAccess.open(path, FileAccess.WRITE)
+		# Écrite comme les références d'origine : la description telle que
+		# calculée (entiers gardés), JSON trié, indentée d'une espace ; « map »
+		# et « messages » (validateur du code du format 16, pour information)
+		# gardés tels quels.
+		var out := old.duplicate()
+		out["layout"] = raw
+		out["errors"] = int(old.errors)
+		fa.store_string(JSON.stringify(out, " ", true))
+		fa.close()
+	var src := String(EditorMap.EXAMPLES.draft_arena)
+	var draft := EditorMap.load_dir(src)
+	print("[refs] DRAFT ARENA : format %d -> %d, %d valeur(s) arrondie(s)" % [draft.format_read, EditorMap.FORMAT, draft.cube_changes])
+	if draft.save_dir(ProjectSettings.globalize_path(src)) != OK:
+		bad += 1
+	return bad
+
+
 func test_export_identical_after_migration() -> void:
+	if OS.get_environment("REGEN_LEVEL_REFS") == "1":
+		assert_eq(regenerate(), 0, "références régénérées sans problème")
 	for name in names():
 		var ref: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "%s_layout_f16.json" % name))
 		var doc := legacy_map(name)
@@ -101,6 +148,18 @@ func test_export_identical_after_migration() -> void:
 		v.analyze()
 		var errs := v.errors().filter(func(m): return not String(m.fr).contains(EVAC_ERROR) and not String(m.fr).contains(STATION_ERROR))
 		assert_eq(errs.size(), int(ref.errors), "%s : nombre d'erreurs du validateur (%s)" % [name, "\n".join(errs.map(func(m): return String(m.fr)))])
+
+
+## Format 20 : TOUTES les valeurs d'architecture de chaque référence (et de
+## l'export actuel) sont des multiples de 5 cm (MapLayoutExport.off_grid).
+func test_references_on_cube_grid() -> void:
+	for name in names():
+		var ref: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "%s_layout_f16.json" % name))
+		var off := MapLayoutExport.off_grid(ref.layout)
+		assert_true(off.is_empty(), "%s : référence hors de la grille des cubes : %s" % [name, ", ".join(off.slice(0, 8))])
+	# Le contrôle attrape bien une valeur hors grille.
+	assert_false(MapLayoutExport.off_grid({"rooms": [{"outline": [[0, 0], [1.02, 0], [1, 1]], "floor": 0, "ceiling": 3.19}]}).is_empty())
+	assert_true(MapLayoutExport.off_grid({"blocks": [{"box": [0, 0, 0, 0.005, 1, 1], "decor": true}]}).is_empty(), "décor : ses propres règles")
 
 
 ## Le filet attrape bien une différence (sinon il ne prouverait rien).

@@ -16,8 +16,10 @@ const TMP := "res://tests/_out/test_map_editor_freeform"
 ## l'étage du dessus, MapLayoutExport.under_slab), les objets supprimés au
 ## lot C (atouts, armes murales, une seule caisse) et, format 18, sa porte
 ## d'évacuation (marqueur « evac », regard de départ) et, format 19, sa
-## station de construction (marqueur « station »).
-const DRAFT_LAYOUT_SHA := "c98e547ad67166b9595496515bccd63f2c764c815b3b96cfa0ef421a77d12227"
+## station de construction (marqueur « station ») et, format 20, les plafonds
+## sous la passerelle au dessous même de sa dalle (3,2 m au lieu de 3,19 m :
+## plus d'écart de 1 cm, grille des cubes de 5 cm).
+const DRAFT_LAYOUT_SHA := "c0881d24c2fcdbad622181c6ace0e053a109d9469e805823bf965f4afd3f00c5"
 
 
 func before_each() -> void:
@@ -145,7 +147,7 @@ func test_snap_modes() -> void:
 	assert_eq(MapSnap.on_step(m, "grille", 0.5), Vector2(3, 8), "grille 1 m")
 	assert_true(MapSnap.on_step(m, "fine", 0.25).is_equal_approx(Vector2(3.25, 7.75)), "grille fine 0,25 m")
 	assert_true(MapSnap.on_step(m, "fine", 0.1).is_equal_approx(Vector2(3.3, 7.9)), "grille fine 0,1 m")
-	assert_true(MapSnap.on_step(m, "libre", 0.5).is_equal_approx(Vector2(3.34, 7.86)), "libre : au centimètre")
+	assert_true(MapSnap.on_step(m, "libre", 0.5).is_equal_approx(Vector2(3.35, 7.85)), "libre : format 20, au cube de 5 cm")
 	assert_eq(MapSnap.next_mode("grille"), "fine")
 	assert_eq(MapSnap.next_mode("fine"), "libre")
 	assert_eq(MapSnap.next_mode("libre"), "grille")
@@ -158,14 +160,14 @@ func test_snap_modes() -> void:
 	var mg := MapSnap.magnet(doc, 0, Vector2(10.1, 8.05), 0.3)
 	assert_true(not mg.is_empty() and mg.kind == "sommet" and Vector2(mg.p) == Vector2(10, 8), "aimant : sommet %s" % str(mg))
 	mg = MapSnap.magnet(doc, 0, Vector2(6.07, 8.12), 0.3)
-	assert_true(not mg.is_empty() and mg.kind == "cote" and Vector2(mg.p).is_equal_approx(Vector2(6.07, 8)), "aimant : côté %s" % str(mg))
+	assert_true(not mg.is_empty() and mg.kind == "cote" and Vector2(mg.p).is_equal_approx(Vector2(6.05, 8)), "aimant : côté, format 20 au cube de 5 cm %s" % str(mg))
 	assert_true(MapSnap.magnet(doc, 0, Vector2(6, 5), 0.3).is_empty(), "loin des côtés : pas d'aimant")
 	assert_true(MapSnap.magnet(doc, 0, Vector2(10.1, 8.05), 0.3, "p1").is_empty(), "la pièce déplacée n'aimante pas")
 	# Tracé sans grille : côtés à 15° près, Alt libre, longueur au centimètre.
 	assert_true(MapSnap.trace_free(doc, 0, Vector2(2, 12), Vector2(5.1, 12.2), 0.3, false).is_equal_approx(Vector2(5.1, 12)), "presque horizontal -> 0°")
 	var p30 := MapSnap.trace_free(doc, 0, Vector2(2, 12), Vector2(5.5, 10.1), 0.3, false)
 	assert_near(MapGeom.dir_angle(p30 - Vector2(2, 12)), 30.0, 0.3, "à 15° près : 30° (%s)" % p30)
-	assert_true(MapSnap.trace_free(doc, 0, Vector2(2, 12), Vector2(5.123, 10.456), 0.3, true).is_equal_approx(Vector2(5.12, 10.46)), "Alt : angle libre, centimètre")
+	assert_true(MapSnap.trace_free(doc, 0, Vector2(2, 12), Vector2(5.123, 10.456), 0.3, true).is_equal_approx(Vector2(5.1, 10.45)), "Alt : angle libre, cube de 5 cm")
 	# Tracé vers un côté : le trait à 15° s'arrête sur le côté aimanté.
 	var hit := MapSnap.trace_free(doc, 0, Vector2(6, 14), Vector2(6.05, 8.1), 0.3, false)
 	assert_true(hit.is_equal_approx(Vector2(6, 8)), "trait vertical arrêté sur le côté : %s" % hit)
@@ -180,7 +182,7 @@ func test_snap_modes() -> void:
 	assert_near(cv.fine_step, 0.25, 0.0001, "Maj+G : pas fin 0,25 m")
 	_key(ed, KEY_G)
 	assert_eq(cv.snap_mode, "libre", "G : libre")
-	assert_true(cv.snap(Vector2(3.437, 3.612)).is_equal_approx(Vector2(3.44, 3.61)), "libre : au centimètre")
+	assert_true(cv.snap(Vector2(3.437, 3.612)).is_equal_approx(Vector2(3.45, 3.6)), "libre : au cube de 5 cm")
 	cv.invert_snap = true
 	assert_eq(cv.mode_now(), "fine", "Maj en libre : la grille fine")
 	assert_true(cv.snap(Vector2(3.437, 3.612)).is_equal_approx(Vector2(3.5, 3.5)), "Maj : grille fine 0,25 m")
@@ -208,10 +210,11 @@ func test_keyboard_entry_length_and_angle() -> void:
 	_type(ed, "30")
 	_key(ed, KEY_ENTER)
 	assert_eq(cv.poly_pts.size(), 2, "côté posé au clavier")
-	var want := MapGeom.round_mm(MapGeom.polar(Vector2(2, 6), 4.0, 30.0))
+	# Format 20 : le point tapé tombe sur la grille des cubes de 5 cm.
+	var want := MapGeom.round_cube(MapGeom.polar(Vector2(2, 6), 4.0, 30.0))
 	if cv.poly_pts.size() == 2:
 		assert_true(cv.poly_pts[1].is_equal_approx(want), "4 m à 30° : %s (attendu %s)" % [cv.poly_pts[1], want])
-		assert_near(cv.poly_pts[0].distance_to(cv.poly_pts[1]), 4.0, 0.01, "longueur exacte")
+		assert_near(cv.poly_pts[0].distance_to(cv.poly_pts[1]), 4.0, 0.036, "longueur à une demi-diagonale de cube près")
 		# Seulement l'angle (Tab d'abord) : la longueur suit le curseur.
 		cv.mouse_m = cv.poly_pts[1] + Vector2(0, 3)
 		_key(ed, KEY_TAB)
@@ -351,8 +354,9 @@ func test_change_points_of_placed_shape() -> void:
 	assert_eq(int(doc.find("p1").forme.points), 12, "paramètre gardé")
 	var round_ok := true
 	for v in doc.room_poly(doc.find("p1")):
-		round_ok = round_ok and absf(v.distance_to(Vector2(12, 12)) - 8.0) < 0.002
-	assert_true(round_ok, "rayon gardé")
+		# Format 20 : sommets sur la grille des cubes (à 3,6 cm du vrai cercle au plus).
+		round_ok = round_ok and absf(v.distance_to(Vector2(12, 12)) - 8.0) < 0.036 and MapGeom.on_cube(v.x) and MapGeom.on_cube(v.y)
+	assert_true(round_ok, "rayon gardé, sommets sur la grille des cubes")
 	assert_true(MapRules.check_existing(doc, doc.find("o1")).ok, "la fenêtre reste sur son mur (%s)" % str(doc.find("o1").position))
 	# Refus : la forme agrandie chevaucherait une autre pièce ; rien ne change.
 	doc.pieces.append({"id": "p2", "nom": "Voisine", "altitude": 0, "zone": z.id, "contour": [[21, 4], [26, 4], [26, 20], [21, 20]]})
@@ -399,7 +403,8 @@ func test_free_rotation_of_a_room_with_its_content() -> void:
 	var res := MapTransform.apply(doc, room.duplicate(true), att, c, 30.0, doc.snapshot())
 	assert_true(res.ok, "pièce tournée de 30° : %s" % str(res))
 	var p := doc.room_poly(doc.find("p1"))
-	assert_true(p[0].distance_to(MapGeom.rotate_about(Vector2(4, 4), c, 30)) < 0.002, "sommets tournés")
+	# Format 20 : sommets tournés puis arrondis au cube de 5 cm.
+	assert_true(p[0].distance_to(MapGeom.rotate_about(Vector2(4, 4), c, 30)) < 0.036 and MapGeom.on_cube(p[0].x) and MapGeom.on_cube(p[0].y), "sommets tournés")
 	var perk := doc.find("a1")
 	assert_near(float(perk.get("angle", -1.0)), 30.0, 0.01, "poste central : face au mur tourné (30°)")
 	assert_true(MapRules.check_existing(doc, perk).ok, "poste central toujours collé à son mur : %s" % MapRules.why(MapRules.check_existing(doc, perk)))
@@ -751,7 +756,8 @@ func test_rotated_stairs_and_trap() -> void:
 	var run := Vector2(float(s.b[0]) - float(s.a[0]), float(s.b[2]) - float(s.a[2]))
 	var up := Vector2(0, -1).rotated(deg_to_rad(30.0))
 	assert_near(run.normalized().dot(up), 1.0, 0.001, "monte dans le sens de l'escalier tourné")
-	assert_near(run.length(), 6.5, 0.01, "longueur des marches (7 m - 2 × 0,25)")
+	# Format 20 : bouts arrondis au cube de 5 cm (3,6 cm au plus chacun).
+	assert_near(run.length(), 6.5, 0.071, "longueur des marches (7 m - 2 × 0,25)")
 	assert_near(float(s.w), 2.0, 0.01, "largeur des marches")
 	assert_near(float(s.b[1]), 3.5, 0.001, "haut à l'étage du dessus")
 	# Piège tourné : zone électrifiée tournée de 20°.

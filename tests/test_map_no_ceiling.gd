@@ -183,7 +183,8 @@ func test_slab_of_room_above_stays() -> void:
 	var data := _data(doc)
 	for r in _rooms_at(data, 2.0, 4.0).filter(func(r): return float(r.floor) < 1.0):
 		assert_false(r.get("no_ceiling", false), "sous la pièce du dessus : plafond sous dalle")
-		assert_near(float(r.ceiling), 3.5 - MapValidator.DALLE - MapLayoutExport.UNDER_SLAB, 0.002)
+		# Format 20 : le plafond est le dessous de la dalle (plus d'écart de 1 cm).
+		assert_near(float(r.ceiling), 3.5 - MapValidator.DALLE, 0.0001)
 	for r in _rooms_at(data, 8.0, 4.0).filter(func(r): return float(r.floor) < 1.0):
 		assert_true(r.get("no_ceiling", false), "hors de la pièce du dessus : ciel ouvert")
 	var root := MeshMapGeometry.build(data)

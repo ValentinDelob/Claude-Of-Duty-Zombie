@@ -64,10 +64,15 @@ static func rotated(o: Dictionary, c: Vector2, deg: float) -> Dictionary:
 	if d == 0:
 		return e
 	var quarter := d % 90 == 0
+	# Format 20 : l'architecture tournée reste sur la grille des cubes de 5 cm
+	# (sommets, bouts des murs, centre d'un mur courbe, coins d'un pilier ou
+	# d'un escalier) ; le décor garde le millimètre.
+	var archi := MapCubeSnap.is_architecture(e)
+	var put := func(v: Vector2) -> Array: return MapGeom.cube_arr(v) if archi else MapGeom.arr(v)
 	if e.has("contour"):
 		var pts := []
 		for p in e.contour:
-			pts.append(MapGeom.arr(MapGeom.rotate_about(MapGeom.v2(p), c, d)))
+			pts.append(put.call(MapGeom.rotate_about(MapGeom.v2(p), c, d)))
 		e.contour = pts
 		if e.has("forme"):
 			if MapShapes.valid(e.forme):
@@ -82,13 +87,16 @@ static func rotated(o: Dictionary, c: Vector2, deg: float) -> Dictionary:
 		e.sommets = pts
 	for key in ["position", "a", "b", "centre"]:
 		if e.has(key):
-			e[key] = MapGeom.arr(MapGeom.rotate_about(MapGeom.v2(e[key]), c, d))
+			e[key] = put.call(MapGeom.rotate_about(MapGeom.v2(e[key]), c, d))
 	if e.has("rect"):
 		var r := MapGeom.rect_of(e.rect)
 		if quarter and MapGeom.rot_of(e) == 0:
 			# Quart de tour d'un rectangle droit : il reste droit (grille).
 			var p0 := MapGeom.rotate_about(r.position, c, d)
 			var p1 := MapGeom.rotate_about(r.end, c, d)
+			if archi:
+				p0 = MapGeom.round_cube(p0)
+				p1 = MapGeom.round_cube(p1)
 			e.rect = MapGeom.rect_arr(Rect2(p0, Vector2.ZERO).expand(p1))
 			if e.has("monte"):
 				@warning_ignore("integer_division")
@@ -96,7 +104,11 @@ static func rotated(o: Dictionary, c: Vector2, deg: float) -> Dictionary:
 					e["monte"] = MapGeom.dir_rot(String(e.monte))
 		else:
 			var nc := MapGeom.rotate_about(r.get_center(), c, d)
-			e.rect = MapGeom.rect_arr(Rect2(nc - r.size * 0.5, r.size))
+			var p0 := nc - r.size * 0.5
+			if archi:
+				# Coin au cube, taille gardée (un nombre entier de cubes).
+				p0 = MapGeom.round_cube(p0)
+			e.rect = MapGeom.rect_arr(Rect2(p0, r.size))
 			e["rot"] = MapGeom.norm_deg(MapGeom.rot_of(e) + d)
 			if int(e.rot) == 0:
 				e.erase("rot")
@@ -223,11 +235,11 @@ static func lift(doc: EditorMap, plan: Dictionary, dalt: float) -> void:
 		var e := doc.find(String(id))
 		if not e.is_empty():
 			e["altitude_haut"] = doc.stair_top_of(e)
-			e["altitude"] = snappedf(EditorMap.alt_of(e) + dalt, 0.0001)
+			e["altitude"] = MapGeom.cube(EditorMap.alt_of(e) + dalt)
 	for id in plan.get("top", []):
 		var e := doc.find(String(id))
 		if not e.is_empty():
-			e["altitude_haut"] = snappedf(doc.stair_top_of(e) + dalt, 0.0001)
+			e["altitude_haut"] = MapGeom.cube(doc.stair_top_of(e) + dalt)
 
 
 ## Objets muraux accrochés à un mur libre `e` (outil Mur, mur courbe) : leur
@@ -272,7 +284,12 @@ static func resnap(o: Dictionary) -> void:
 ## décalée du raster : mêmes cases à un multiple de 0,5 m près).
 static func shifted(o: Dictionary, delta: Vector2, snap := true) -> Dictionary:
 	var e := o.duplicate(true)
+	# Format 20 : l'architecture déplacée par l'éditeur reste sur la grille des
+	# cubes de 5 cm (le décor garde le millimètre).
+	var archi := snap and MapCubeSnap.is_architecture(e)
 	var pt := func(p: Array) -> Array:
+		if archi:
+			return MapGeom.cube_arr(MapGeom.v2(p) + delta)
 		return MapGeom.arr(MapGeom.v2(p) + delta) if snap else [float(p[0]) + delta.x, float(p[1]) + delta.y]
 	if e.get("contour") is Array:
 		var pts := []
@@ -294,6 +311,8 @@ static func shifted(o: Dictionary, delta: Vector2, snap := true) -> Dictionary:
 		if snap:
 			var r := MapGeom.rect_of(e.rect)
 			r.position += delta
+			if archi:
+				r = Rect2(MapGeom.round_cube(r.position), Vector2.ZERO).expand(MapGeom.round_cube(r.end))
 			e.rect = MapGeom.rect_arr(r)
 		else:
 			var a: Array = e.rect
@@ -361,7 +380,8 @@ static func regenerate(doc: EditorMap, room: Dictionary, forme: Dictionary) -> D
 	if not MapShapes.valid(forme):
 		return MapRules.refuse("forme invalide", "invalid shape")
 	var k := doc.level_of(room)
-	var poly := MapShapes.outline(forme)
+	# Format 20 : sommets sur la grille des cubes de 5 cm.
+	var poly := MapGeom.cube_poly(MapShapes.outline(forme))
 	var res := MapRules.check_room(doc, k, poly, String(room.id))
 	if not res.ok:
 		return res

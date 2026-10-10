@@ -10,6 +10,9 @@ hôpital / laboratoire / zombies), même si les collisions changent.
 État : **pilote fait** (§ 4) : textures pixel art de 3 clés (`concrete`,
 `tiles`, `wall`) et murs en biais en escalier de cubes. Le reste est découpé
 en 5 lots (§ 3). **Lot C fait** (§ 5) : toutes les surfaces en pixel art.
+**Lot A fait** : grille de 5 cm,
+format 20, copie de sauvegarde, erreurs nouvelles signalées, références
+régénérées (détail : docs/MAP_AUTHORING.md § 4, « Passage aux cubes de 5 cm »).
 
 ## 1. Inventaire
 

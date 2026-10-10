@@ -238,7 +238,7 @@
   ],
   "rooms": [
    {
-    "ceiling": 3.19,
+    "ceiling": 3.2,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "concrete",
@@ -263,7 +263,7 @@
     ]
    },
    {
-    "ceiling": 3.19,
+    "ceiling": 3.2,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "concrete",
@@ -313,7 +313,7 @@
     ]
    },
    {
-    "ceiling": 3.19,
+    "ceiling": 3.2,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "concrete",
@@ -338,7 +338,7 @@
     ]
    },
    {
-    "ceiling": 3.19,
+    "ceiling": 3.2,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "concrete",

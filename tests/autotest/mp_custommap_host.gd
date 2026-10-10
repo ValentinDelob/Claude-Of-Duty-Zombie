@@ -41,7 +41,16 @@ func run() -> void:
 	var m := EditorMap.load_dir("res://assets/maps/draft_arena/")
 	m.carte["id"] = "arene_perso"
 	m.carte["nom"] = {"fr": "ARÈNE PERSO", "en": "CUSTOM ARENA"}
+	# Format 20 : carte d'avant (format 19) hors de la grille des cubes (plafond
+	# de l'entrepôt à 6,81 m) : l'hôte la convertit et envoie le texte migré.
+	m.find("p3")["plafond"] = 6.81
 	at.check(m.save_dir(EditorMap.map_dir("arene_perso")) == OK, "carte perso enregistrée")
+	var cpath := EditorMap.map_dir("arene_perso").path_join("carte.json")
+	var ctext := FileAccess.get_file_as_string(cpath).replace("\"format\": %d" % EditorMap.FORMAT, "\"format\": 19")
+	var cf := FileAccess.open(cpath, FileAccess.WRITE)
+	cf.store_string(ctext)
+	cf.close()
+	at.check(EditorMap.load_dir(EditorMap.map_dir("arene_perso")).cube_changes == 1, "carte d'avant : une valeur hors de la grille")
 	var share := Net.map_share
 	share.test_chunk_size = 1024
 	share.test_chunks_per_sec = 1.2
@@ -64,6 +73,13 @@ func run() -> void:
 	var sha: String = share.offer.get("sha", "")
 	at.check(Net.lobby_map == EditorMapDef.SHARED_PREFIX + sha and CustomMapGuard.is_cached(sha), "carte annoncée « partage:%s », dans le cache de l'hôte" % sha.substr(0, 12))
 	at.check(share.offer.chunks >= 3, "carte en %d morceaux" % share.offer.chunks)
+	# Paquet envoyé : le texte migré (format 20, plafond au cube), canonique.
+	if CustomMapGuard.is_cached(sha):
+		var sent := EditorMap.load_dir(CustomMapGuard.cache_dir(sha))
+		at.check(sent.format_read == EditorMap.FORMAT and sent.cube_changes == 0 and is_equal_approx(EditorMap.room_ceiling(sent.find("p3")), 6.8),
+			"carte envoyée au format %d, sur la grille (plafond %s)" % [sent.format_read, EditorMap.room_ceiling(sent.find("p3"))])
+	# Le fichier du joueur n'est pas réécrit par le salon.
+	at.check(FileAccess.get_file_as_string(cpath).contains("\"format\": 19"), "carte du dossier non réécrite")
 	at.check(not lobby._start.disabled, "seul dans le salon : DÉMARRER possible")
 	# Carte choisie : l'invité peut arriver.
 	MpHelpers.signal_peer("ecoute")

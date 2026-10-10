@@ -1061,6 +1061,18 @@
      ]
     }
    ],
+   "evac": {
+    "p": [
+     7.0,
+     0.0,
+     28.25
+    ],
+    "wall": [
+     -1,
+     0,
+     0
+    ]
+   },
    "lamps": [
     {
      "energy": 2.2,
@@ -1229,7 +1241,7 @@
      30.85
     ]
    ],
-   "player_yaw": 2.078,
+   "player_yaw": 2.074,
    "power": {
     "p": [
      7.0,
@@ -1240,6 +1252,18 @@
      -1,
      0,
      0
+    ]
+   },
+   "station": {
+    "p": [
+     17.0,
+     0.0,
+     37.0
+    ],
+    "wall": [
+     0,
+     0,
+     1
     ]
    },
    "traps": [],
@@ -1489,7 +1513,7 @@
   ],
   "rooms": [
    {
-    "ceiling": 3.19,
+    "ceiling": 3.2,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "concrete",
@@ -1564,7 +1588,7 @@
     ]
    },
    {
-    "ceiling": 3.19,
+    "ceiling": 3.2,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "wood",
@@ -1689,7 +1713,7 @@
     ]
    },
    {
-    "ceiling": 3.19,
+    "ceiling": 3.2,
     "ceiling_mat": "ceiling",
     "floor": 0.0,
     "floor_mat": "concrete",

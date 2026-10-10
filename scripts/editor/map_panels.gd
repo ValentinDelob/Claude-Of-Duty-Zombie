@@ -521,7 +521,8 @@ func _room_props(r: Dictionary) -> void:
 	# Format 17 : hauteur sous plafond sans maximum (2,8 m au moins) ; une pièce
 	# dont le plafond dépasse le niveau du dessus est une pièce haute.
 	var def_h := EditorMap.DEFAULT_CEILING
-	var cs := _spin(_props, Lang.t("Hauteur sous plafond", "Ceiling height"), EditorMap.room_ceiling(r), MapVertical.ROOM_CEILING[0], 100.0, 0.1, func(v):
+	# Format 20 : par cubes de 5 cm.
+	var cs := _spin(_props, Lang.t("Hauteur sous plafond", "Ceiling height"), EditorMap.room_ceiling(r), MapVertical.ROOM_CEILING[0], 100.0, MapGeom.CUBE, func(v):
 		if absf(v - def_h) < 0.001:
 			r.erase("plafond")
 		else:
@@ -569,7 +570,8 @@ func set_room_altitude(rid: String, alt: float) -> Dictionary:
 	var o := ed.doc.find(rid)
 	if o.is_empty() or not is_finite(alt):
 		return MapRules.refuse("pièce introuvable", "room not found")
-	var dalt := snappedf(alt, 0.0001) - EditorMap.alt_of(o)
+	# Format 20 : altitude sur la grille des cubes de 5 cm.
+	var dalt := MapGeom.cube(alt) - EditorMap.alt_of(o)
 	if absf(dalt) <= EditorMap.ALT_EQ:
 		return {"ok": true}
 	var snap := ed.doc.snapshot()

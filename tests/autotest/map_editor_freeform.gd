@@ -79,7 +79,16 @@ func run() -> void:
 	await type_text("0")
 	await key(KEY_ENTER)
 	at.check(cv.poly_pts.size() == 2 and cv.poly_pts[1].is_equal_approx(top + Vector2(8, 0)), "côté de 8 m à 0° au clavier (%s)" % str(cv.poly_pts))
-	await click(bottom + Vector2(8.03, 0.04))
+	# Format 20 : côté est de 3,5 m tapé au clavier (sommets sur la grille des
+	# cubes de 5 cm, bords du haut à 14,75 m : sur des bords de cases). Avec
+	# 2,5 m, la caisse posée contre le mur du haut (bord sur un centre de case)
+	# ne laissait qu'un passage de 0,5 m ; le côté du bas, en biais, rejoint
+	# le sommet du cercle.
+	_motion(top + Vector2(8.2, 2.0))
+	await type_text("3,5")
+	await key(KEY_TAB)
+	await type_text("-90")
+	await key(KEY_ENTER)
 	await click(bottom + Vector2(0.07, 0.05))
 	await click(top + Vector2(0.05, 0.02))
 	var annex: Dictionary = ed.doc.pieces[1] if ed.doc.pieces.size() > 1 else {}

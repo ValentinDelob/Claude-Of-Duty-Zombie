@@ -33,7 +33,9 @@ menus, `--map=draft_arena`) est faite dans ce format et se joue (scénarios
   double-clic sur `tools/map_editor.bat` (Godot dans le PATH, ou `set GODOT=…`).
 - Vérifier une carte sans fenêtre (outil, intégration) :
   `godot --headless --path . res://scenes/editor/map_editor.tscn -- --check=<dossier ou archive.zip>`
-  affiche le rapport du validateur ; code de sortie 0 si la carte est jouable.
+  affiche le rapport du validateur ; code de sortie 0 si la carte est jouable
+  (format 20 : aussi les erreurs apparues au passage aux cubes de 5 cm, § 4 ;
+  la carte n'est jamais écrite).
 
 Au démarrage, l'éditeur rouvre la dernière carte ; s'il reste une copie de
 récupération (plantage, fermeture forcée), il propose de la récupérer
@@ -240,8 +242,9 @@ Les mêmes actions sont dans le menu **Édition**.
 - **Aimantation au choix** (touche **G**, ou le bouton « Aimantation » de la
   barre du haut ; mémorisée) : **grille 1 m** (comme avant), **grille fine**
   (0,5, 0,25 ou 0,1 m : **Maj+G** change le pas ; traits fins affichés quand
-  le zoom le permet) ou **libre** (sans grille : coordonnées au centimètre,
-  lisibles dans le JSON). **Maj** maintenu inverse le mode courant (grille →
+  le zoom le permet) ou **libre** (sans grille de construction : format 20,
+  coordonnées sur la grille des **cubes de 5 cm**, GAME_CONCEPT.md § 4.19 ;
+  le décor garde le centimètre). **Maj** maintenu inverse le mode courant (grille →
   libre, libre → la dernière grille). En libre : **aimants** aux sommets des
   pièces et aux bouts des murs (carré bleu), sinon aux côtés des pièces (rond
   bleu) pour coller deux pièces ; un côté part du point précédent **à 15°
@@ -930,13 +933,56 @@ schéma figé de son format, puis convertie) :
 **Différences** : l'export en jeu de toutes les cartes de référence (DRAFT
 ARENA, cartes des tests) est **identique** à celui du code du format 16
 (`tests/test_levels_reference.gd`, références
-`tests/fixtures/levels/*_layout_f16.json`, aucune différence admise). Ce qui
+`tests/fixtures/levels/*_layout_f16.json`, aucune différence admise ;
+références régénérées au format 20 par
+`REGEN_LEVEL_REFS=1 godot --headless --path . res://tests/test_runner.tscn -- --files=test_levels_reference.gd` :
+plafonds sous une dalle au dessous même de la dalle, au lieu d'1 cm plus
+bas, et raccords des murs en biais sur la grille des cubes). Ce qui
 change : le fichier (clés ci-dessus, enregistré au format 17) ; le validateur
 contrôle les pièces empilées par paires (plus d'« étages trop rapprochés ») ;
 un ancien indice d'étage n'a plus de sens (il changerait dès qu'une pièce est
 posée plus bas : l'outil MCP refuse `floor`, docs/MCP.md § 3.1) ; plus de
 maximum de 8 étages ni de plafond de 9 m. DRAFT ARENA est livrée au format
-17 ; l'originale est gardée dans `tests/fixtures/maps/legacy_draft_arena/`.
+courant (20) ; l'originale est gardée dans `tests/fixtures/maps/legacy_draft_arena/`.
+
+### Passage aux cubes de 5 cm (format 20)
+
+Toute l'architecture est faite de cubes de 5 cm (GAME_CONCEPT.md § 4.19,
+docs/VOXEL_ARCHITECTURE_PLAN.md § 2.1, § 2.5) : **toute coordonnée
+d'architecture est un multiple de 5 cm** (le décalage du monde, 4,25 m, est
+sur la même grille).
+
+- **Ce qui est arrondi** (`MapCubeSnap`) : sommets des pièces (deux sommets
+  voisins confondus n'en font plus qu'un ; deux pièces voisines gardent leur
+  bord commun), centre et demi-côtés d'une forme, `altitude` et `plafond`,
+  murs libres (`a`, `b`, `epaisseur`), murs courbes (`centre`, `rayon`,
+  `epaisseur` ; les angles restent), coins des piliers et des escaliers,
+  `altitude_haut`, altitude de tout élément, `hauteur_portes`, et la place
+  des ouvertures et des objets muraux du jeu (courant, poste central,
+  levier, porte d'évacuation, station, caisse murale) **le long de leur
+  mur** (ils restent sur le mur arrondi). Le décor, les luminaires, les
+  effets, les barrières invisibles, les pièges et les points de jeu gardent
+  leurs règles. Les angles libres (murs en biais, rotations) restent : le
+  rendu est un escalier de cubes.
+- **Dans l'éditeur** : aimantation libre au pas de 5 cm, rotation et
+  déplacement de l'architecture sur la grille, plafond par 0,05 m ; toute
+  modification est arrondie à sa validation (`MapEditor._commit_change`).
+- **Ancienne carte** (format 19 et avant) : convertie au chargement, après la
+  conversion des niveaux ; une note dit combien de valeurs ont été
+  arrondies. Ouverte **dans l'éditeur** depuis le dossier des cartes, et si
+  l'arrondi la change : **copie de sauvegarde** du dossier entier dans
+  `user://maps/_sauvegardes/<id>_f<format>_<date>/` avant tout
+  enregistrement (jamais deux fois la même), chemin donné dans la note ; le
+  validateur tourne sur la carte d'avant et sur la carte arrondie, **toute
+  erreur nouvelle** est signalée (« après le passage aux cubes de 5 cm :
+  … ») ; la carte s'ouvre quand même, rien n'est retiré, la copie reste. En
+  jeu, la conversion est faite en mémoire seulement (rien n'est écrit) ; une
+  carte partagée en réseau est envoyée déjà convertie (format 20).
+- **Export** (`MapLayoutExport.snap_layout`) : filet de sécurité, chaque
+  valeur d'architecture de la description est arrondie à 5 cm (cartes
+  reçues, valeurs calculées) ; `MapLayoutExport.off_grid` le vérifie. Le
+  plafond d'une pièce sous une dalle est le dessous même de la dalle (plus
+  d'écart de 1 cm) : une seule face est dessinée (`MeshMapGeometry`).
 
 ### Textures de la carte (format 16)
 
@@ -1359,7 +1405,7 @@ Conception complète et écarts de la réalisation : `docs/EDITOR_VIEWS.md`.
 }
 ```
 
-`format` : version du format (**17** ; `EditorMap.FORMAT`). Historique : 1 =
+`format` : version du format (**20** ; `EditorMap.FORMAT`). Historique : 1 =
 premières cartes ; 2 = décor (`prefab`), luminaires (`luminaire`), textures
 par pièce et plafond des zones ; 3 = murs en biais (clé `angle` des objets
 muraux posés contre un mur en biais) ; 4 = formes libres (coordonnées sans
@@ -1376,8 +1422,8 @@ plafond ; docs/MAP_OBJECTS.md § 13 ; aucune conversion) ; 13 : volume des
 effets (§ 12) ; 14 : échelle et inclinaison du décor (§ 14) ; 15 : boîte
 mystère posée au sol (`boite` sans `mur`, avec `rot`, docs/MAP_OBJECTS.md
 § 15 ; une boîte sans `mur` d'une carte plus ancienne reçoit `mur` : `n`,
-comme le jeu la posait) ; 16 : textures de la carte (§ 4) ; le format
-courant est **17** : **niveaux libres** (§ 4) : `altitude` de chaque pièce,
+comme le jeu la posait) ; 16 : textures de la carte (§ 4) ; 17 :
+**niveaux libres** (§ 4) : `altitude` de chaque pièce,
 ouverture et objet, `altitude_haut` et `sortie` des escaliers,
 `sans_plafond` des pièces, `ciel` de la carte, coordonnées négatives ;
 `etages`, `etage` et `double_hauteur` disparaissent (une carte plus ancienne
@@ -1405,7 +1451,10 @@ carte a un boss, sinon une vague spéciale ; aucun boss n'existe encore, une
 vague de boss ne fait donc rien. Réglable dans le panneau de la carte (rien
 de sélectionné) : « Vague spéciale / Vague de boss : 1re manche, toutes les
 N manches » (`WaveRules`, `EditorMap.set_waves`). Une carte d'un format plus
-ancien a le schéma par défaut.
+ancien a le schéma par défaut. Format 19 : station de construction
+(`station`, obligatoire). Format **20** (courant) : **architecture en cubes de
+5 cm** (§ 4, « Passage aux cubes de 5 cm (format 20) ») : aucune clé
+nouvelle, toutes les coordonnées d'architecture sont des multiples de 5 cm.
 
 **`pieces.json`** — les pièces :
 

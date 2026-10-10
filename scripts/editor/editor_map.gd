@@ -152,7 +152,19 @@ extends RefCounted
 ##      une par carte (MapValidator). Aucune conversion : une carte au format
 ##      18 ou moins se lit telle quelle ; sans station, le validateur la
 ##      refuse jusqu'à ce qu'on en pose une.
-const FORMAT := 19
+##  20  architecture en cubes de 5 cm (GAME_CONCEPT.md § 4.19,
+##      docs/VOXEL_ARCHITECTURE_PLAN.md § 2.1 et § 2.5) : toute coordonnée
+##      d'architecture (sommets des pièces, murs libres et courbes, piliers,
+##      escaliers, altitudes, plafonds, épaisseurs, place des ouvertures et des
+##      objets muraux le long du mur, hauteur des portes) est un multiple de
+##      5 cm. Aucune clé nouvelle. Conversion au chargement, APRÈS celle des
+##      niveaux (snap_architecture, MapCubeSnap) : valeurs arrondies au cube le
+##      plus proche, nombre de valeurs changées dans cube_changes et une note
+##      (load_notes). Dans l'éditeur : copie de sauvegarde du dossier avant tout
+##      enregistrement (MapCubeSnap.backup) et erreurs NOUVELLES du validateur
+##      signalées (cube_check) ; la carte s'ouvre quand même, rien n'est retiré.
+##      En jeu : conversion en mémoire seulement.
+const FORMAT := 20
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 ## Écart par défaut entre deux niveaux (m) : nouveau niveau, ancien étage sans « sol ».
@@ -503,9 +515,11 @@ static func shift_levels(e: Dictionary, lv: Array, dk: int) -> void:
 static func shift_alt(e: Dictionary, dalt: float) -> void:
 	if dalt == 0.0:
 		return
+	# Format 20 : altitudes sur la grille des cubes de 5 cm (même arrondi pour
+	# tout ce qui est au même niveau : il y reste).
 	if String(e.get("type", "")) == "escalier":
-		e["altitude_haut"] = snappedf(stair_top(e) + dalt, 0.0001)
-	e["altitude"] = snappedf(alt_of(e) + dalt, 0.0001)
+		e["altitude_haut"] = MapGeom.cube(stair_top(e) + dalt)
+	e["altitude"] = MapGeom.cube(alt_of(e) + dalt)
 
 
 ## Met l'élément au niveau `k` (altitude du niveau) ; un escalier garde son
@@ -610,10 +624,11 @@ func shift_level(k: int, dalt: float) -> void:
 	for list in [pieces, ouvertures, objets]:
 		for e in list:
 			var top_here: bool = String(e.get("type", "")) == "escalier" and absf(stair_top(e) - a) <= ALT_EQ
+			# Format 20 : altitudes sur la grille des cubes de 5 cm.
 			if absf(alt_of(e) - a) <= ALT_EQ:
-				e["altitude"] = snappedf(alt_of(e) + dalt, 0.0001)
+				e["altitude"] = MapGeom.cube(alt_of(e) + dalt)
 			if top_here:
-				e["altitude_haut"] = snappedf(stair_top(e) + dalt, 0.0001)
+				e["altitude_haut"] = MapGeom.cube(stair_top(e) + dalt)
 	for i in view_levels.size():
 		if absf(float(view_levels[i]) - a) <= ALT_EQ:
 			view_levels[i] = float(view_levels[i]) + dalt
@@ -931,7 +946,14 @@ static func _ints(v: Variant) -> Variant:
 
 
 static func from_texts(texts: Dictionary) -> EditorMap:
+	return _from_texts(texts, true)
+
+
+## Lecture des textes ; `cube` faux : sans le passage aux cubes de 5 cm (la
+## carte telle qu'elle était, pour comparer les validations : cube_check).
+static func _from_texts(texts: Dictionary, cube: bool) -> EditorMap:
 	var m := EditorMap.new()
+	m._cube = cube
 	var parsed := {}
 	for f in FILES:
 		if not texts.has(f):
@@ -965,6 +987,11 @@ static func from_texts(texts: Dictionary) -> EditorMap:
 	m._normalize()
 	m.activate_prefabs()
 	m._tidy_scale()
+	if m.cube_changes > 0:
+		# Format 20 : textes d'origine gardés (cube_check relit la carte d'avant).
+		m._cube_texts = texts
+		m.load_notes.append(["passage aux cubes de 5 cm (format %d -> %d) : %d valeur(s) arrondie(s)" % [m.format_read, FORMAT, m.cube_changes],
+			"switch to 5 cm cubes (format %d -> %d): %d value(s) rounded" % [m.format_read, FORMAT, m.cube_changes]])
 	return m
 
 
@@ -1079,6 +1106,33 @@ func _migrate(from: int) -> void:
 	# l'auteur : le validateur l'exige).
 	# Format 18 -> 19 : rien à convertir (la station de construction, nouvel
 	# objet obligatoire, est à poser par l'auteur : le validateur l'exige).
+	# Format 19 -> 20 : architecture sur la grille des cubes de 5 cm, APRÈS
+	# les niveaux (dernière conversion : elle arrondit les altitudes et les
+	# plafonds qu'ils ont écrits).
+	if from < 20 and _cube:
+		cube_changes = snap_architecture()
+
+
+## Format 20 : toute l'architecture arrondie au cube de 5 cm (MapCubeSnap,
+## docs/VOXEL_ARCHITECTURE_PLAN.md § 2.5). Rend le nombre de valeurs changées.
+func snap_architecture() -> int:
+	return MapCubeSnap.snap_map(self)
+
+
+## Format 20 : contrôle du passage aux cubes d'une carte lue (from_texts) :
+## le validateur tourne sur la carte d'avant (relue sans l'arrondi) et sur la
+## carte arrondie ; chaque erreur NOUVELLE est ajoutée aux notes de lecture
+## (« après le passage aux cubes de 5 cm : … », FR/EN) et rendue ; la carte
+## n'est jamais modifiée ni refusée. Rien à faire si l'arrondi n'a rien changé.
+func cube_check() -> Array:
+	if cube_changes <= 0 or _cube_texts.is_empty() or cube_checked:
+		return cube_new_errors
+	cube_checked = true
+	var before := _from_texts(_cube_texts, false)
+	cube_new_errors = MapCubeSnap.new_errors(before, self)
+	for m in cube_new_errors:
+		load_notes.append(["après le passage aux cubes de 5 cm : %s" % String(m.fr), "after the switch to 5 cm cubes: %s" % String(m.en)])
+	return cube_new_errors
 
 
 ## Clés d'étage (format 16 et avant) dans la carte ou ses éléments ?
@@ -1212,6 +1266,15 @@ var format_read := FORMAT
 ## courant, sauf pour la caisse au hasard (_migrate) : le cas ambigu se lit comme
 ## avant le format 15.
 var format_given := true
+## Format 20 : nombre de valeurs d'architecture arrondies au cube de 5 cm à
+## la lecture (0 : carte déjà sur la grille, ou au format 20).
+var cube_changes := 0
+## Erreurs du validateur apparues avec l'arrondi (cube_check, une fois).
+var cube_new_errors: Array = []
+var cube_checked := false
+## Lecture avec l'arrondi (faux : relecture de la carte d'avant, cube_check).
+var _cube := true
+var _cube_texts: Dictionary = {}
 
 
 ## Valeurs lues du JSON remises au bon type (étages entiers, identifiants en texte).
