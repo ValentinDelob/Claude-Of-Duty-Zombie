@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://diyyhrxfj0ro7"
-path="res://.godot/imported/folding_chair.glb-f1bc1ee45995588be2f52361c7627301.scn"
+uid="uid://c75vydwu5ym5e"
+path="res://.godot/imported/fauteuils_siege.glb-a4be360e30b73c7864a1e74689872a5c.scn"
 
 [deps]
 
-source_file="res://assets/models/props/folding_chair.glb"
-dest_files=["res://.godot/imported/folding_chair.glb-f1bc1ee45995588be2f52361c7627301.scn"]
+source_file="res://assets/models/props/voxel/fauteuils_siege.glb"
+dest_files=["res://.godot/imported/fauteuils_siege.glb-a4be360e30b73c7864a1e74689872a5c.scn"]
 
 [params]
 

@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://clwghw40fopff"
-path="res://.godot/imported/seat_broken_b.glb-9df4965b38d2a1d333f79e7933a4e84d.scn"
+uid="uid://b27mqllo5wks8"
+path="res://.godot/imported/tonneaux.glb-6e54d22e8cb706fd9c2c00abccf71626.scn"
 
 [deps]
 
-source_file="res://assets/models/props/seat_broken_b.glb"
-dest_files=["res://.godot/imported/seat_broken_b.glb-9df4965b38d2a1d333f79e7933a4e84d.scn"]
+source_file="res://assets/models/props/voxel/tonneaux.glb"
+dest_files=["res://.godot/imported/tonneaux.glb-6e54d22e8cb706fd9c2c00abccf71626.scn"]
 
 [params]
 

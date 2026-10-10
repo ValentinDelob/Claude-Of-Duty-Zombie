@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bpheh27cqfcy4"
-path="res://.godot/imported/lectern.glb-a4602edfefdc27698a4a8b40f6ef030a.scn"
+uid="uid://bctoe3ynk6vtv"
+path="res://.godot/imported/etagere.glb-11d2d98617884952dbbf0fc1076b4137.scn"
 
 [deps]
 
-source_file="res://assets/models/props/lectern.glb"
-dest_files=["res://.godot/imported/lectern.glb-a4602edfefdc27698a4a8b40f6ef030a.scn"]
+source_file="res://assets/models/props/voxel/etagere.glb"
+dest_files=["res://.godot/imported/etagere.glb-11d2d98617884952dbbf0fc1076b4137.scn"]
 
 [params]
 

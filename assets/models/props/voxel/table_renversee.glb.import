@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dpgv6ollu3bl"
-path="res://.godot/imported/projector.glb-8b633f83bcbd0cdc68c460334bf9033a.scn"
+uid="uid://bt1lyacb0e7it"
+path="res://.godot/imported/table_renversee.glb-531acededfb6fbd10ec6730ac74abd75.scn"
 
 [deps]
 
-source_file="res://assets/models/props/projector.glb"
-dest_files=["res://.godot/imported/projector.glb-8b633f83bcbd0cdc68c460334bf9033a.scn"]
+source_file="res://assets/models/props/voxel/table_renversee.glb"
+dest_files=["res://.godot/imported/table_renversee.glb-531acededfb6fbd10ec6730ac74abd75.scn"]
 
 [params]
 

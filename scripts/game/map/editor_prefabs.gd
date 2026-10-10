@@ -107,42 +107,6 @@ static func build(kind: String) -> Node3D:
 	_kind = "block"
 	var n := _root(kind)
 	match kind:
-		"table_renversee":
-			# Plateau dressé comme un bouclier, pieds vers l'arrière.
-			_box(n, "wood", Vector3(1.6, 0.85, 0.06), Vector3(0, 0.43, 0.27), Vector3(0.06, 0, 0))
-			for sx in [-0.7, 0.7]:
-				for y in [0.12, 0.72]:
-					_box(n, "dark_wood", Vector3(0.07, 0.07, 0.7), Vector3(sx, y, -0.08))
-		"chaise_renversee":
-			# Chaise tombée sur le dos : assise verticale, pieds en l'air.
-			_box(n, "wood", Vector3(0.42, 0.42, 0.04), Vector3(0.12, 0.22, 0), Vector3(0, 0, 0.1))
-			_box(n, "wood", Vector3(0.42, 0.04, 0.42), Vector3(-0.2, 0.04, 0))
-			for sz in [-0.18, 0.18]:
-				_box(n, "steel", Vector3(0.42, 0.03, 0.03), Vector3(0.33, 0.38, sz))
-				_box(n, "steel", Vector3(0.03, 0.42, 0.03), Vector3(0.12, 0.22, sz))
-		"chariot":
-			_box(n, "metal", Vector3(1.2, 0.05, 0.7), Vector3(0, 0.3, 0))
-			_box(n, "metal", Vector3(1.2, 0.05, 0.7), Vector3(0, 0.82, 0))
-			for sx in [-0.57, 0.57]:
-				for sz in [-0.32, 0.32]:
-					_box(n, "steel", Vector3(0.04, 0.62, 0.04), Vector3(sx, 0.55, sz))
-					_part(n, "rubber", _cyl_mesh(0.08, 0.08, 0.05), Vector3(sx, 0.08, sz), Vector3(PI / 2, 0, 0))
-			_box(n, "steel", Vector3(0.04, 0.3, 0.7), Vector3(0.6, 1.0, 0))
-			_box(n, "crate", Vector3(0.5, 0.3, 0.4), Vector3(-0.25, 1.0, 0.05), Vector3(0, 0.2, 0))
-		"epave_voiture":
-			# Berline des années 60 rouillée, sans roues à l'avant (affaissée).
-			_box(n, "wall_rust", Vector3(4.2, 0.62, 1.75), Vector3(0, 0.55, 0), Vector3(0, 0, -0.03))
-			_box(n, "wall_rust", Vector3(2.1, 0.52, 1.6), Vector3(-0.25, 1.12, 0))
-			_box(n, "steel", Vector3(0.06, 0.4, 1.5), Vector3(0.83, 1.1, 0), Vector3(0, 0, -0.5))
-			_box(n, "steel", Vector3(0.06, 0.4, 1.5), Vector3(-1.32, 1.1, 0), Vector3(0, 0, 0.4))
-			for side in [-1.0, 1.0]:
-				_box(n, "concrete_dark", Vector3(1.9, 0.36, 0.03), Vector3(-0.25, 1.15, side * 0.8))
-			for wx in [-1.35, 1.35]:
-				for side in [-0.82, 0.82]:
-					var y := 0.3 if wx < 0 else 0.22
-					_part(n, "rubber", _cyl_mesh(0.3, 0.3, 0.2, 14), Vector3(wx, y, side), Vector3(PI / 2, 0, 0))
-			_box(n, "steel", Vector3(0.08, 0.2, 1.8), Vector3(2.12, 0.42, 0))
-			_box(n, "steel", Vector3(0.08, 0.2, 1.8), Vector3(-2.12, 0.42, 0))
 		_:
 			if not _effect_decor(n, kind):
 				n.free()

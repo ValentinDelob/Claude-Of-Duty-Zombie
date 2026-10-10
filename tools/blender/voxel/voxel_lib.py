@@ -91,6 +91,14 @@ DECOR_PALETTE = {
     "tile_green": (0.56, 0.68, 0.62),    # peinture / faïence vert d'eau d'hôpital
     "brass": (0.66, 0.50, 0.22),         # laiton terni (lustre)
     "crystal": (0.76, 0.86, 0.90),       # pampilles de verre
+    # Lot 2 (mobilier et stockage, tools/blender/voxel_props/mobilier.py).
+    "drum_blue": (0.21, 0.37, 0.58),    # bidon de produits chimiques bleu
+    "vinyl_teal": (0.20, 0.42, 0.42),    # skaï sarcelle (sièges de salle d'attente)
+    "foam": (0.80, 0.72, 0.46),          # mousse de rembourrage jaunie
+    "paper": (0.86, 0.84, 0.76),         # papier, dossiers
+    "cardboard": (0.60, 0.46, 0.30),     # carton d'emballage
+    "glass": (0.30, 0.40, 0.44),         # vitre sombre (pare-brise, objectif)
+    "car_paint": (0.44, 0.54, 0.50),     # peinture de voiture vert d'eau passé
 }
 # Normales des six faces d'un cube.
 DIRS = {

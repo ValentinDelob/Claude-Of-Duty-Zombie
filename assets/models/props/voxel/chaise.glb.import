@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dsne8dchs3btb"
-path="res://.godot/imported/blue_barrel_group.glb-ea823db833098d59b62f052394c138f0.scn"
+uid="uid://dpxu4suaklynh"
+path="res://.godot/imported/chaise.glb-37639b5f84af16a0060319d784c1c23c.scn"
 
 [deps]
 
-source_file="res://assets/models/props/blue_barrel_group.glb"
-dest_files=["res://.godot/imported/blue_barrel_group.glb-ea823db833098d59b62f052394c138f0.scn"]
+source_file="res://assets/models/props/voxel/chaise.glb"
+dest_files=["res://.godot/imported/chaise.glb-37639b5f84af16a0060319d784c1c23c.scn"]
 
 [params]
 

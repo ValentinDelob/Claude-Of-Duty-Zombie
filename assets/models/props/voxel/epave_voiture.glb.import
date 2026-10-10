@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dj4fmrbjb6okw"
-path="res://.godot/imported/desk.glb-b6c40cb2725626489b60c45c0bd2a7b4.scn"
+uid="uid://cxe7on7obha1m"
+path="res://.godot/imported/epave_voiture.glb-b22f6f674063db7e9bf2d6f2ad73a251.scn"
 
 [deps]
 
-source_file="res://assets/models/props/desk.glb"
-dest_files=["res://.godot/imported/desk.glb-b6c40cb2725626489b60c45c0bd2a7b4.scn"]
+source_file="res://assets/models/props/voxel/epave_voiture.glb"
+dest_files=["res://.godot/imported/epave_voiture.glb-b22f6f674063db7e9bf2d6f2ad73a251.scn"]
 
 [params]
 
