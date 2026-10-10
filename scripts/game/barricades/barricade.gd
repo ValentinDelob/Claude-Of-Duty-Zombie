@@ -367,40 +367,13 @@ static func plank_mesh(size: Vector3) -> ArrayMesh:
 	return m
 
 
-static var _plank_mat: StandardMaterial3D
-
-
-## Bois gris et usé, veinage procédural : encadrement des fenêtres des cartes
-## grille (PropBuilder, architecture). Les planches de la barricade sont
-## cubiques (plank_mesh, matériau « voxel »).
-static func plank_material() -> StandardMaterial3D:
-	if _plank_mat:
-		return _plank_mat
-	var w := 128
-	var h := 32
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	var noise := FastNoiseLite.new()
-	noise.seed = 11
-	noise.frequency = 0.08
-	for y in h:
-		for x in w:
-			var grain := sin(x * 0.11 + noise.get_noise_2d(x * 0.4, y * 3.0) * 6.0 + y * 0.5) * 0.5 + 0.5
-			var n := noise.get_noise_2d(x * 2.0, y * 2.0) * 0.5 + 0.5
-			var k := 0.55 + grain * 0.25 + n * 0.2
-			var c := Color(0.55, 0.47, 0.37) * k
-			# Taches sombres (clous, pourriture) aux extrémités.
-			if (x < 6 or x > w - 7) and absf(y - h * 0.5) < 3.0:
-				c = Color(0.08, 0.07, 0.06)
-			c.a = 1.0
-			img.set_pixel(x, y, c)
-	img.generate_mipmaps()
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = ImageTexture.create_from_image(img)
-	m.vertex_color_use_as_albedo = true
-	m.roughness = 0.92
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	_plank_mat = m
-	return m
+## Bois gris et usé en pixel art (un pixel = 5 cm, PixelSurfaces « plank » :
+## lames de 20 cm, clous, fentes), posé en coordonnées monde : encadrement des
+## fenêtres des cartes grille (PropBuilder) et des cartes en maillage
+## (clé « plank »). Les planches de la barricade sont cubiques (plank_mesh,
+## matériau « voxel »).
+static func plank_material() -> ShaderMaterial:
+	return PixelSurfaces.material("plank")
 
 
 # --------------------------------------------------------------------------

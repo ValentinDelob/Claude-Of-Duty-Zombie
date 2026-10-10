@@ -536,64 +536,44 @@ static func _effect(ci: CanvasItem, kind: String, cx: Vector2, s: float, c: Colo
 			ci.draw_circle(cx, s * 0.25, c)
 
 
-## Aperçu d'une surface du jeu (WorldLook.SURFACES) : petite image dessinée
-## d'après ses deux couleurs et son motif (carrelage, bois, brique...), un peu
-## éclaircie pour rester lisible. Gardée en mémoire.
+## Aperçu d'une surface du jeu (WorldLook.SURFACES) : un morceau de 2 m ×
+## 1,2 m de sa texture pixel art (PixelSurfaces, un pixel = 5 cm, au plus
+## proche), éclairci pour rester lisible ; mur : vu de face, le pied en bas.
+## Gardée en mémoire.
 static var _surface_tex: Dictionary = {}
+const SURFACE_ICON := Vector2i(40, 24)
 
 
 static func surface_texture(key: String) -> ImageTexture:
 	if _surface_tex.has(key):
 		return _surface_tex[key]
-	var look := MapCatalog.surface_look(key)
-	var a: Color = (look[0] as Color) * 2.1
-	var b: Color = (look[1] as Color) * 2.1
-	a.a = 1.0
-	b.a = 1.0
-	var w := 40
-	var h := 24
-	var img := Image.create(w, h, false, Image.FORMAT_RGB8)
-	img.fill(a)
-	var pat: int = look[2]
-	for y in h:
-		for x in w:
-			var n := fposmod(sin(x * 12.9898 + y * 78.233) * 43758.5453, 1.0)
-			var c := a
-			match pat:
-				0, 4, 5:   # béton, plâtre, pierre : taches
-					c = a.lerp(b, n * (0.45 if pat == 0 else 0.3))
-					@warning_ignore("integer_division")
-					if pat == 5 and (y % 8 == 0 or (x + (y / 8) * 5) % 12 == 0):
-						c = b
-				1:   # carrelage
-					c = b if x % 8 == 0 or y % 8 == 0 else a.lerp(b, n * 0.12)
-				2:   # bois : lames
-					@warning_ignore("integer_division")
-					c = b if y % 6 == 0 or (x + (y / 6) * 13) % 20 == 0 else a.lerp(b, 0.25 + 0.2 * sin(x * 0.7 + y))
-				3:   # métal : rivets, brossé
-					c = a.lerp(b, 0.1 + 0.2 * fposmod(y * 0.37, 1.0))
-					if (x % 10 == 2 and y % 10 == 2):
-						c = b
-				6:   # plafond : dalles
-					c = b if x % 10 == 0 or y % 10 == 0 else a
-				7:   # moquette : losanges
-					c = b if (x + y) % 8 == 0 or (x - y + 64) % 8 == 0 else a.lerp(b, n * 0.2)
-				8:   # papier peint : rayures
-					c = b if x % 6 < 2 else a
-				9:   # brique
-					@warning_ignore("integer_division")
-					var row := y / 5
-					c = b if y % 5 == 0 or (x + (row % 2) * 5) % 10 == 0 else a.lerp(b, n * 0.15)
-				10:   # velours : plis
-					c = a.lerp(b, 0.5 + 0.5 * sin(x * 0.8))
-				11:   # pavés
-					var cx := x % 8 - 4
-					var cy := y % 8 - 4
-					c = b if cx * cx + cy * cy > 12 else a.lerp(b, n * 0.2)
-			img.set_pixel(x, y, c)
+	var img := surface_icon_image(key)
 	var tex := ImageTexture.create_from_image(img)
 	_surface_tex[key] = tex
 	return tex
+
+
+## Image de l'aperçu (40 × 24 px) : pixels de la texture tels quels, gain
+## pour amener la luminance moyenne vers 0,42 (l'architecture est sombre).
+## Mur : lignes 10 à 33 (de 50 cm à 1,7 m : bord du soubassement, cimaise).
+static func surface_icon_image(key: String) -> Image:
+	var k := key if PixelSurfaces.has(key) else "wall"
+	var src := PixelSurfaces.image(k)
+	var wall := bool(PixelSurfaces.def(k).wall)
+	var w := SURFACE_ICON.x
+	var h := SURFACE_ICON.y
+	var y0 := 10 if wall else 0
+	var img := Image.create(w, h, false, Image.FORMAT_RGB8)
+	var sum := 0.0
+	for y in h:
+		for x in w:
+			sum += PixelSurfaces.lum(src.get_pixel(x, y0 + y))
+	var gain := clampf(0.42 / maxf(sum / (w * h), 0.01), 1.0, 3.0)
+	for y in h:
+		for x in w:
+			var c := src.get_pixel(x, (y0 + h - 1 - y) if wall else y) * gain
+			img.set_pixel(x, y, Color(minf(c.r, 1.0), minf(c.g, 1.0), minf(c.b, 1.0)))
+	return img
 
 
 static func _text(ci: CanvasItem, font: Font, s: String, center: Vector2, size: float, col: Color) -> void:

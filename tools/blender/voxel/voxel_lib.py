@@ -111,6 +111,8 @@ DECOR_PALETTE = {
     "cable_blue": (0.10, 0.16, 0.36),    # gaine de fil bleue
     "tar": (0.10, 0.08, 0.06),           # tête de torche goudronnée
     "glass_frost": (0.95, 0.88, 0.72),   # verre dépoli éclairé (glow)
+    # Architecture (textures pixel art des surfaces, scripts/game/map/pixel_surfaces.gd).
+    "brick": (0.56, 0.27, 0.17),         # brique rouge
 }
 # Normales des six faces d'un cube.
 DIRS = {

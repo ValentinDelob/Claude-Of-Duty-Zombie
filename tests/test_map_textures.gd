@@ -322,7 +322,7 @@ func test_game_material() -> void:
 		var m := found.material_override as ShaderMaterial
 		assert_true(m != null and m.shader == MapTextureLib.SHADER, "matériau de la texture importée")
 		var tex: Texture2D = m.get_shader_parameter("albedo_tex")
-		assert_true(tex != null and tex.get_width() == 64, "image chargée depuis les octets")
+		assert_true(tex != null and tex.get_width() == 30 and tex.get_height() == 15, "image chargée depuis les octets, réduite à 20 px par mètre (64 × 32 -> 30 × 15)")
 		assert_eq(m.get_shader_parameter("tile"), Vector2(1.5, 0.75), "motif de 1,5 m (hauteur selon l'image 64 × 32)")
 	parent.queue_free()
 	# Image illisible dans la description : surface par défaut, jamais d'arrêt.

@@ -12,9 +12,9 @@ extends MapProps
 ##
 ## Objets des .glb : « <matériau>__<nom>__<type> » (visible) et « ...__col » /
 ## « ...__barrier » (collision, StaticBody3D créé à l'import par le suffixe
-## -colonly). Le matériau est une clé de WorldLook.SURFACES (shader procédural
-## BO1 du jeu) ou une clé spéciale (voir _special). Sols, plafonds et petits
-## détails (« ns ») ne projettent pas d'ombre.
+## -colonly). Le matériau est une clé de WorldLook.SURFACES (texture pixel art
+## PixelSurfaces, un pixel = 5 cm) ou une clé spéciale (voir _special). Sols,
+## plafonds et petits détails (« ns ») ne projettent pas d'ombre.
 
 const NO_SHADOW_KINDS := ["floor", "ceil", "ns"]
 ## Décor cubique (docs/VOXEL_DECOR_PLAN.md) : modèles du sous-dossier
@@ -435,15 +435,17 @@ static func _special(key: String) -> Material:
 			m.emission = Color(1.0, 0.9, 0.75)
 			m.emission_energy_multiplier = 0.35
 		"chalk", "paper", "paint_teal", "paint_red", "paint_blue", "cable_blue", "rubber":
+			# Couleurs unies (un cube = une couleur) : teintes de la palette du
+			# décor (PixelSurfaces.PAL), assombries comme l'architecture.
 			m = StandardMaterial3D.new()
-			m.albedo_color = {"chalk": Color(0.85, 0.84, 0.78), "paper": Color(0.78, 0.75, 0.66),
-					"paint_teal": Color(0.3, 0.5, 0.5), "paint_red": Color(0.42, 0.07, 0.05),
-					"paint_blue": Color(0.1, 0.22, 0.5), "cable_blue": Color(0.04, 0.07, 0.19),
-					"rubber": Color(0.035, 0.035, 0.035)}[key]
+			m.albedo_color = {"chalk": PixelSurfaces.pal("porcelain", 0.98), "paper": PixelSurfaces.pal("porcelain", 0.88),
+					"paint_teal": PixelSurfaces.tone(["enamel_green", "tile_green", 0.3], 1.1), "paint_red": PixelSurfaces.pal("medic_red", 0.6),
+					"paint_blue": PixelSurfaces.pal("drum_blue", 0.8), "cable_blue": PixelSurfaces.tone(["drum_blue", "metal_dark", 0.6], 0.45),
+					"rubber": PixelSurfaces.pal("metal_dark", 0.15)}[key]
 			m.roughness = {"paint_teal": 0.5, "paint_red": 0.55, "paint_blue": 0.5, "cable_blue": 0.6}.get(key, 0.9)
 			m.metallic = 0.25 if key in ["paint_teal", "paint_blue"] else 0.0
 		"plank":
-			return WorldLook.surface("wood")
+			return PixelSurfaces.material("plank")
 	if m != null:
 		_specials[key] = m
 	return m

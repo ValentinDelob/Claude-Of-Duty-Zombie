@@ -19,7 +19,8 @@ const DIRS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 var data: MapData
 var def: MapDef
 var wall_height := WALL_HEIGHT
-## Matériaux par clé (voir WorldLook.map_materials()).
+## Matériaux imposés par clé (facultatif) ; sinon WorldLook.surface(clé) :
+## seules les textures citées par la carte sont générées.
 var materials: Dictionary = {}
 
 
@@ -67,7 +68,7 @@ func build(parent: Node3D) -> void:
 		var mi := MeshInstance3D.new()
 		mi.name = "Mesh_%s_%s" % [key, tkey.get_slice("@", 1).get_slice("#", 0)]
 		mi.mesh = st.commit()
-		mi.material_override = materials.get(key, materials.get("wall"))
+		mi.material_override = materials[key] if materials.has(key) else WorldLook.surface(key)
 		if tkey.ends_with("#flat"):
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		geo.add_child(mi)
