@@ -107,7 +107,9 @@ func test_one_key_per_action_by_default() -> void:
 	assert_eq(Settings.SLOTS_PER_COLUMN, 2, "deux cases par colonne")
 	assert_eq(d.crouch, [_k(KEY_C)], "S'ACCROUPIR : C seulement, deuxième case vide")
 	assert_eq(d.interact, [_k(KEY_F)], "INTERAGIR : F seulement (l'invite dit F)")
-	assert_eq(d.switch_weapon, [_k(KEY_1)], "CHANGER D'ARME : 1 (+ molette)")
+	assert_eq(d.switch_weapon, [_k(KEY_Q)], "CHANGER D'ARME : Q (+ molette)")
+	assert_eq([d.weapon_1, d.weapon_2, d.weapon_3], [[_k(KEY_1)], [_k(KEY_2)], [_k(KEY_3)]], "ARMES 1 À 3 : touches 1 à 3")
+	assert_eq(d.inventory, [_k(KEY_I)], "INVENTAIRE : I")
 	assert_eq(d.fire, ["mouse:%d" % MOUSE_BUTTON_LEFT])
 	assert_eq(d.aim, ["mouse:%d" % MOUSE_BUTTON_RIGHT])
 	assert_eq(Settings.binding("melee", false, 1), "", "deuxième case vide")
@@ -115,7 +117,7 @@ func test_one_key_per_action_by_default() -> void:
 	assert_true(_has_key("move_forward", KEY_W), "Z/W avance")
 	assert_true(_has_key("interact", KEY_F) and not _has_key("interact", KEY_E), "F interagit, E ne fait plus rien")
 	assert_false(_has_key("crouch", KEY_CTRL), "Ctrl libre")
-	assert_false(_has_key("switch_weapon", KEY_2), "2 libre")
+	assert_true(_has_key("weapon_2", KEY_2) and not _has_key("switch_weapon", KEY_2), "2 : arme 2")
 	assert_true(_has_mouse("fire", MOUSE_BUTTON_LEFT), "clic gauche tire")
 	assert_true(_has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_UP), "molette : changement d'arme")
 	assert_true(_has_mouse("switch_weapon", MOUSE_BUTTON_WHEEL_DOWN))
@@ -138,6 +140,8 @@ func test_default_pad_layout() -> void:
 		"reload": "joy:%d" % JOY_BUTTON_RIGHT_SHOULDER, "grenade": "joy:%d" % JOY_BUTTON_LEFT_SHOULDER,
 		"sprint": "joy:%d" % JOY_BUTTON_LEFT_STICK,
 		"melee": "joy:%d" % JOY_BUTTON_RIGHT_STICK, "scoreboard": "joy:%d" % JOY_BUTTON_BACK,
+		"inventory": "joy:%d" % JOY_BUTTON_DPAD_UP, "weapon_1": "joy:%d" % JOY_BUTTON_DPAD_LEFT,
+		"weapon_2": "joy:%d" % JOY_BUTTON_DPAD_DOWN, "weapon_3": "joy:%d" % JOY_BUTTON_DPAD_RIGHT,
 		"aim": "joyaxis:%d:1" % JOY_AXIS_TRIGGER_LEFT, "fire": "joyaxis:%d:1" % JOY_AXIS_TRIGGER_RIGHT,
 		"move_forward": "joyaxis:%d:-1" % JOY_AXIS_LEFT_Y, "move_back": "joyaxis:%d:1" % JOY_AXIS_LEFT_Y,
 		"move_left": "joyaxis:%d:-1" % JOY_AXIS_LEFT_X, "move_right": "joyaxis:%d:1" % JOY_AXIS_LEFT_X,
@@ -534,7 +538,7 @@ func test_pad_shared_stays_in_pad_column() -> void:
 	var others := Settings.bind("reload", "joy:%d" % JOY_BUTTON_Y)
 	assert_eq(others, ["switch_weapon"])
 	assert_eq(Settings.pad_bindings.switch_weapon, ["joy:%d" % JOY_BUTTON_Y], "CHANGER D'ARME garde Y")
-	assert_eq(Settings.bindings.switch_weapon, [_k(KEY_1)], "la touche 1 reste")
+	assert_eq(Settings.bindings.switch_weapon, [_k(KEY_Q)], "la touche Q reste")
 	assert_true(_has_pad_button("switch_weapon", JOY_BUTTON_Y) and _has_pad_button("reload", JOY_BUTTON_Y))
 	assert_eq(Settings.shared_with("reload", _k(KEY_R)), [], "colonne des touches : rien de partagé")
 	# Gâchette : même règle.

@@ -108,7 +108,9 @@ standard), branchées à chaud.
 | Recharger | R | RB | R1 |
 | Couteau (fente si un zombie visé est à ~3 m) | V | RS | R3 |
 | Grenade ou peluche leurre (grenade : maintenir = cuire, relâcher = lancer) | G (touche physique) | LB | L1 |
-| Changer d'arme | 1, molette (haut / bas) | Y | Triangle |
+| Arme suivante | Q (A en AZERTY), molette (haut / bas) | Y | Triangle |
+| Arme en main 1 / 2 / 3 | 1 / 2 / 3 | croix gauche / bas / droite | flèches gauche / bas / droite |
+| Inventaire de partie (échanger une arme en main avec une arme rangée ; la partie continue) | I (Échap ferme) | croix haut (B ferme) | flèche haut (Rond ferme) |
 | Interagir (acheter, réanimer : maintenir) | F | X | Carré |
 | Tableau des scores | Tab (maintenu) | Back (maintenu) | Share / Create (maintenu) |
 | Pause (REPRENDRE, OPTIONS, QUITTER LA PARTIE) | Échap | Start | Options |

@@ -59,13 +59,29 @@ static func restore_saved_weapons(pd: PlayerData) -> void:
 		pd.weapons = pd.saved_weapons.duplicate(true)
 		if not used.is_empty():
 			for i in pd.weapons.size():
-				if pd.weapons[i].id == used.id and pd.weapons[i].pap == used.pap:
+				if same_weapon(pd.weapons[i], used):
 					pd.weapons[i] = used
 					break
 		pd.saved_weapons = []
-	if pd.weapons.is_empty():
+	else:
+		# À terre les mains vides (armes rangées dans l'inventaire) : le
+		# pistolet prêté est repris.
+		pd.weapons = pd.weapons.filter(func(w: Dictionary) -> bool: return not w.get("loaned", false))
+	# Ni arme en main ni inventaire : pistolet de départ (l'inventaire de
+	# partie, lui, est toujours gardé tel quel).
+	if pd.weapons.is_empty() and pd.bag.is_empty():
 		pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
-	pd.slot = clampi(pd.slot, 0, pd.weapons.size() - 1)
+	pd.slot = clampi(pd.slot, 0, maxi(pd.weapons.size() - 1, 0))
+
+
+## Même exemplaire d'arme de partie : même identifiant d'exemplaire s'ils en
+## ont un (deux versions d'une même arme sont distinctes), sinon même arme.
+static func same_weapon(a: Dictionary, b: Dictionary) -> bool:
+	var ua := String(a.get("uid", ""))
+	var ub := String(b.get("uid", ""))
+	if ua != "" or ub != "":
+		return ua == ub
+	return a.get("id") == b.get("id") and a.get("pap", false) == b.get("pap", false)
 
 
 ## Point d'apparition d'une place de joueur : les places au-delà du nombre de

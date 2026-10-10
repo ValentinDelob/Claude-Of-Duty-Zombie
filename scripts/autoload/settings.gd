@@ -106,7 +106,13 @@ const DEFAULT_BINDINGS := {
 	"reload": KEY_R,
 	"melee": KEY_V,
 	"grenade": KEY_G,
-	"switch_weapon": KEY_1,
+	# Arme suivante : Q (A en AZERTY) et la molette ; 1 à 3 choisissent
+	# directement l'arme en main (GAME_CONCEPT §4.12 : trois armes).
+	"switch_weapon": KEY_Q,
+	"weapon_1": KEY_1,
+	"weapon_2": KEY_2,
+	"weapon_3": KEY_3,
+	"inventory": KEY_I,
 	"scoreboard": KEY_TAB,
 	"pause": KEY_ESCAPE,
 }
@@ -128,6 +134,11 @@ const DEFAULT_PAD_BUTTONS := {
 	"sprint": JOY_BUTTON_LEFT_STICK,
 	"melee": JOY_BUTTON_RIGHT_STICK,
 	"scoreboard": JOY_BUTTON_BACK,
+	# Croix : inventaire en haut, armes 1 à 3 à gauche, en bas, à droite.
+	"inventory": JOY_BUTTON_DPAD_UP,
+	"weapon_1": JOY_BUTTON_DPAD_LEFT,
+	"weapon_2": JOY_BUTTON_DPAD_DOWN,
+	"weapon_3": JOY_BUTTON_DPAD_RIGHT,
 }
 ## ... et axes [axe, sens] : stick gauche (déplacement analogique), gâchettes.
 const DEFAULT_PAD_AXES := {
@@ -145,7 +156,9 @@ const DEFAULT_PAD_AXES := {
 ## dans un sens affecté à une action (wheel_switch_events).
 const REBINDABLE := ["move_forward", "move_back", "move_left", "move_right", "jump", "crouch",
 	"sprint", "fire", "aim", "reload", "interact", "melee", "grenade",
-	"switch_weapon", "scoreboard"]
+	"switch_weapon", "weapon_1", "weapon_2", "weapon_3", "inventory", "scoreboard"]
+## Choix direct de l'arme en main (emplacements 1 à 3, PlayerInput.select_slot).
+const WEAPON_SLOT_ACTIONS := ["weapon_1", "weapon_2", "weapon_3"]
 ## Commandes par action et par colonne (clavier / souris, manette) : deux
 ## cases, la première est celle des invites.
 const SLOTS_PER_COLUMN := 2

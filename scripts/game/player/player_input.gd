@@ -30,6 +30,8 @@ var interact := false           # maintenu
 var interact_pressed := false
 var melee := false
 var switch_weapon := false
+## Emplacement en main choisi directement (touches 1 à 3 : 0 à 2), -1 sinon.
+var select_slot := -1
 var grenade := false             # maintenu : dégoupiller / cuire, relâcher = lancer
 ## Sprint à la manette (BO1 : un clic sur L3 / LS lance le sprint, qui dure
 ## tant qu'on avance) ; au clavier, la touche reste maintenue.
@@ -44,6 +46,7 @@ func clear_edges() -> void:
 	reload = false
 	melee = false
 	switch_weapon = false
+	select_slot = -1
 	jump = false
 
 
@@ -158,3 +161,6 @@ func read_devices(delta := 0.0) -> void:
 		melee = true
 	if Input.is_action_just_pressed("switch_weapon"):
 		switch_weapon = true
+	for i in Settings.WEAPON_SLOT_ACTIONS.size():
+		if Input.is_action_just_pressed(Settings.WEAPON_SLOT_ACTIONS[i]):
+			select_slot = i

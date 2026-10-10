@@ -98,24 +98,29 @@ func _on_inventory_changed(pid: int) -> void:
 	var pd := session.get_data(pid)
 	if pd == null:
 		return
-	var old_id: String = current().get("id", "")
-	var old_pap: bool = current().get("pap", false)
+	var old := current()
+	var old_id: String = old.get("id", "")
 	weapons = pd.weapons.duplicate(true)
 	slot = pd.slot
 	if pd.knife != knife_id:
 		_on_knife_changed(pd.knife)
 	var w := current()
-	# Mains vides (aucune arme dans l'inventaire).
+	# Mains vides (aucune arme en main : départ sans arme à feu, tout rangé
+	# dans l'inventaire).
 	view.visible = not w.is_empty()
 	if w.is_empty():
+		_stop_reload()
 		ammo_changed.emit()
 		return
-	if w.id != old_id or w.pap != old_pap:
+	# Autre arme tenue : autre arme, ou autre exemplaire de la même (échange
+	# avec l'inventaire, GameWeapon.swap).
+	if w.id != old_id or w.pap != old.get("pap", false) or w.get("uid", "") != old.get("uid", ""):
+		var ws := GameWeapon.stats(w)
 		if old_id == "":
-			view.set_weapon(w.id, w.pap)
+			view.set_weapon(w.id, w.pap, ws)
 		else:
 			_switch_end = GameClock.now() + SWITCH_TIME
-			view.start_switch(SWITCH_TIME, func(): view.set_weapon(w.id, w.pap))
+			view.start_switch(SWITCH_TIME, func(): view.set_weapon(w.id, w.pap, ws))
 			Audio.play_2d("weapon_switch", -6.0)
 		_switch_req_end = -1.0
 		_stop_reload()
@@ -131,7 +136,7 @@ func current() -> Dictionary:
 
 func current_stats() -> Dictionary:
 	var w := current()
-	return WeaponDB.stats(w.id, w.pap) if not w.is_empty() else {}
+	return GameWeapon.stats(w) if not w.is_empty() else {}
 
 
 func is_reloading() -> bool:
@@ -263,8 +268,17 @@ func tick(delta: float) -> void:
 	var w := current()
 	var t := GameClock.now()
 	throws.tick(delta)
+	var spd := session.get_data(player.peer_id)
+	var alive_or_downed := spd == null or spd.life != PlayerData.Life.DEAD
 	if w.is_empty():
+		# Mains vides : le couteau reste (attaque séparée, sans arme à l'écran).
+		if player.input.melee and t >= _melee_ready and not throws.busy() and alive_or_downed:
+			_melee()
 		return
+	# Emplacement choisi directement (touches 1 à 3).
+	var pick := player.input.select_slot
+	if pick >= 0 and pick < weapons.size() and pick != slot and can_switch(t) and alive_or_downed:
+		request_switch(pick)
 	var s := current_stats()
 	var inp := player.input
 
@@ -356,7 +370,7 @@ func ads_look_mult() -> float:
 
 func _fire(w: Dictionary, s: Dictionary) -> void:
 	var t := GameClock.now()
-	var interval := WeaponDB.fire_interval(w.id, w.pap)
+	var interval := GameWeapon.fire_interval(w)
 	_next_fire = t + interval
 	_trigger_released = false
 	w.mag -= 1

@@ -28,6 +28,10 @@ const ACTION_NAMES := {
 	"melee": ["COUTEAU", "KNIFE"],
 	"grenade": ["GRENADE", "GRENADE"],
 	"switch_weapon": ["CHANGER D'ARME", "SWITCH WEAPON"],
+	"weapon_1": ["ARME 1", "WEAPON 1"],
+	"weapon_2": ["ARME 2", "WEAPON 2"],
+	"weapon_3": ["ARME 3", "WEAPON 3"],
+	"inventory": ["INVENTAIRE", "INVENTORY"],
 	"scoreboard": ["TABLEAU DES SCORES", "SCOREBOARD"],
 }
 const PAGE_SIZE := Vector2(870, 440)
