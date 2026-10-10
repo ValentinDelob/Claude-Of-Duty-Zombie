@@ -2651,6 +2651,45 @@
     "en": "Cubes everywhere",
     "fr": "Des cubes partout"
    }
+  },
+  "v0.2.1-snapshot.588": {
+   "channel": "snapshot",
+   "date": "2026-10-11",
+   "images": [],
+   "items": [
+    {
+     "en": "All maps are now fully cubic: slanted and curved walls, pillars, stairs, spiral staircases, ramps and railings are built from cubes, and every floor, wall and ceiling gets a new pixel-art texture with a hospital and lab look.",
+     "fr": "Toutes les cartes passent entièrement en cubes : murs en biais et courbes, piliers, escaliers, colimaçons, rampes et garde-corps sont faits de cubes, et chaque sol, mur et plafond reçoit une nouvelle texture en pixel art aux couleurs d'hôpital et de laboratoire."
+    },
+    {
+     "en": "Effects are cubic too: blood, sparks, fire, smoke, electricity, muzzle flashes, grenade explosions, bullet holes and blood stains.",
+     "fr": "Les effets aussi sont en cubes : sang, étincelles, feu, fumée, électricité, flammes de tir, explosions de grenade, trous de balles et taches de sang."
+    },
+    {
+     "en": "The special wave dogs are now cubic lab strays. No more lightning: you hear the pack barking in the distance before the dogs burst out of hiding.",
+     "fr": "Les chiens de la vague spéciale deviennent des chiens errants de laboratoire en cubes. Fini l'éclair : on entend la meute aboyer au loin avant qu'elle ne jaillisse de sa cachette."
+    },
+    {
+     "en": "Experience now depends on what you kill: common zombies, dogs and, later, mini-bosses and bosses each give their own amount, which grows with the round. Surviving rounds, clearing special waves and evacuating also earn experience.",
+     "fr": "L'expérience dépend maintenant de ce que vous abattez : zombies communs, chiens et, plus tard, mini-boss et boss rapportent chacun leur part, qui grandit avec la manche. Survivre aux manches, vaincre les vagues spéciales et s'évacuer rapportent aussi de l'expérience."
+    },
+    {
+     "en": "Experience is shown live (+XP) and detailed on the end screen with your level progress. It is always kept, even when you lose or quit.",
+     "fr": "L'expérience s'affiche en direct (+XP) et se détaille sur l'écran de fin avec la progression de votre niveau. Elle est toujours gardée, même en cas de défaite ou d'abandon."
+    },
+    {
+     "en": "New hub: PLAY now opens the scientist's lab, with your level, your samples and your latest game. More tabs (arsenal, contracts, exchanges) are on the way.",
+     "fr": "Nouveau hub : JOUER ouvre maintenant le laboratoire du scientifique, avec votre niveau, vos échantillons et votre dernière partie. D'autres onglets (arsenal, contrats, échanges) arrivent bientôt."
+    },
+    {
+     "en": "Your maps move to a 5 cm grid automatically; a backup copy is made when the editor opens them.",
+     "fr": "Vos cartes passent automatiquement sur une grille de 5 cm ; une copie de sauvegarde est faite quand l'éditeur les ouvre."
+    }
+   ],
+   "title": {
+    "en": "A cubic world",
+    "fr": "Un monde en cubes"
+   }
   }
  }
 }
