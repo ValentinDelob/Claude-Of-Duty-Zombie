@@ -2454,6 +2454,61 @@
     "en": "Scrap has to be earned",
     "fr": "La ferraille, ça se mérite"
    }
+  },
+  "v0.2.1-snapshot.517": {
+   "channel": "snapshot",
+   "date": "2026-10-10",
+   "images": [],
+   "items": [
+    {
+     "en": "Every map now has an evacuation door. After each special wave (every 5 rounds by default), it opens for 2 minutes with no zombies around: the team can vote to leave or to keep going.",
+     "fr": "Chaque carte a désormais une porte d'évacuation. Après chaque vague spéciale (toutes les 5 manches par défaut), elle s'ouvre 2 minutes sans aucun zombie : l'équipe vote pour partir ou pour continuer."
+    },
+    {
+     "en": "To leave, every living player votes \"leave\" and stands in front of the door. If everyone votes \"ready\", the next round starts right away.",
+     "fr": "Pour partir, tous les joueurs en vie votent « partir » et se placent devant la porte. Si tout le monde vote « prêt », la manche suivante démarre aussitôt."
+    },
+    {
+     "en": "The end screen now tells a successful evacuation from a wiped-out team, with the round reached, the time played and the experience earned.",
+     "fr": "L'écran de fin distingue une évacuation réussie d'une équipe décimée, avec la manche atteinte, le temps de jeu et l'expérience gagnée."
+    },
+    {
+     "en": "Dog waves come back at a fixed pace (every 5 rounds), and map makers can set the special wave rhythm in the editor.",
+     "fr": "Les vagues de chiens reviennent à un rythme fixe (toutes les 5 manches), et les créateurs de cartes peuvent régler ce rythme dans l'éditeur."
+    },
+    {
+     "en": "In co-op, a fallen player who comes back at the next round keeps all their weapons, ammo and scrap.",
+     "fr": "En coop, un joueur mort qui revient à la manche suivante retrouve toutes ses armes, ses munitions et sa ferraille."
+    },
+    {
+     "en": "Drink machines, wall weapons, floor power-ups, the weapon upgrade machine and the wonder weapons are gone: the game is making room for its own systems.",
+     "fr": "Les machines à boissons, les armes au mur, les bonus au sol, la machine d'amélioration et les armes merveilles disparaissent : le jeu fait place à ses propres systèmes."
+    },
+    {
+     "en": "The mystery box becomes a random crate: for some scrap it gives something to throw, a grenade or a decoy teddy that draws the zombies in.",
+     "fr": "La boîte mystère devient une caisse au hasard : contre de la ferraille, elle donne un objet à lancer, une grenade ou une peluche leurre qui attire les zombies."
+    },
+    {
+     "en": "Repairing barricades no longer pays: scrap only comes from zombies you take down.",
+     "fr": "Réparer les barricades ne rapporte plus rien : la ferraille ne vient que des zombies abattus."
+    },
+    {
+     "en": "You now carry 3 weapons in hand and a 4-slot bag. Press I (D-pad up on a controller) to open your inventory and swap weapons at any time.",
+     "fr": "Vous portez désormais 3 armes en main et un sac de 4 places. La touche I (croix haut à la manette) ouvre l'inventaire pour échanger vos armes à tout moment."
+    },
+    {
+     "en": "Weapons now have a level, a rarity and a score: each level adds 10% damage. A weapon above your level can be kept but not used. The scoreboard shows each player's level and power.",
+     "fr": "Les armes ont maintenant un niveau, une rareté et un score : chaque niveau ajoute 10 % de dégâts. Une arme d'un niveau supérieur au vôtre se garde mais ne s'utilise pas. Le tableau des scores affiche le niveau et la puissance de chaque joueur."
+    },
+    {
+     "en": "\"Next weapon\" moves to Q (A on AZERTY keyboards); keys 1, 2 and 3 pick a weapon directly.",
+     "fr": "« Arme suivante » passe sur Q (A en AZERTY) ; les touches 1, 2 et 3 choisissent directement une arme."
+    }
+   ],
+   "title": {
+    "en": "Get out alive",
+    "fr": "Sortir vivant"
+   }
   }
  }
 }
