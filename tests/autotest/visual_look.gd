@@ -166,8 +166,10 @@ func _hud_pass() -> void:
 	await H.clear_zombies(self)
 	# Dégâts : voile rouge et sang aux bords.
 	game.combat.debug_invulnerable = false
-	game.combat.damage_player(1, 190, p.global_position + Vector3(2, 1, 0))
+	# Plus d'atout de santé (lot suppressions) : 100 PV, on blesse sans mettre à terre.
+	game.combat.damage_player(1, 70, p.global_position + Vector3(2, 1, 0))
 	await seconds(0.12)
+	at.check(pd.life == PlayerData.Life.ALIVE, "dégâts : toujours debout (%d PV)" % pd.health)
 	await at.screenshot("hud_degats")
 	# À terre (auto-réanimation de test) : vision floue.
 	game.downed.solo_self_revive = true
@@ -178,7 +180,8 @@ func _hud_pass() -> void:
 	await until(func(): return pd.life == PlayerData.Life.ALIVE, DownedSystem.SOLO_SELF_REVIVE + 3.0, "réanimation")
 	await until(func(): return hud._downed.amount() < 0.05 and not hud._downed.blur.visible, 3.0, "vision nette")
 	at.check(hud._downed.amount() < 0.05 and not hud._downed.blur.visible, "réanimé : vision nette")
-	# Fin de partie.
+	# Fin de partie : sans auto-réanimation, tomber à terre en solo la termine.
+	game.downed.solo_self_revive = false
 	game.combat.damage_player(1, 400, p.global_position)
 	await until(func(): return GameState.state == GameState.State.GAME_OVER, 3.0, "GAME OVER")
 	await until(func(): return hud._center_msg.text == "GAME OVER" and hud._center_sub.text != "", 4.0, "écran de fin de partie")
