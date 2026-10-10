@@ -39,7 +39,7 @@ func run() -> void:
 	at.check(String(pd.bag[0].uid) == uid, "exemplaire de l'arsenal dans l'inventaire")
 	# Amélioration en partie, puis toute l'équipe meurt.
 	pd.bag[0].level = 5
-	pd.bag.append(GameWeapon.make("m14", 6, OwnedWeapon.Rarity.EPIC))
+	pd.bag.append(GameWeapon.make("m14", 6, OwnedWeapon.Rarity.EPIC, [], "loot:6"))
 	game.session.sync_inventory(1)
 	await frames(2)
 	game.srv_end_match(false)

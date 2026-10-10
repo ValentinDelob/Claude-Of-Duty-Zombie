@@ -177,33 +177,31 @@ func test_evacuation_met_a_jour_la_version() -> void:
 	# Exemplaire construit puis amélioré en partie : niveau et pièce.
 	var up := GameWeapon.from_owned(built)
 	up.level = 4
-	up.parts = [{"id": "canon", "uid": "", "level": 4, "mods": {"damage": 0.2}}]
+	up.parts = [{"id": "canon", "uid": "lootp:1", "level": 4, "mods": {"damage": 0.2}}]
 	var same := GameWeapon.from_owned(other)
-	var loot := _w("m14", 7, OwnedWeapon.Rarity.EPIC)
+	var found := _w("m14", 7, OwnedWeapon.Rarity.EPIC, [], "loot:1")
 	var base_plain := _w(PISTOL, 1, 0, [], BaseWeapons.UID_PREFIX + PISTOL)
 	var base_up := _w(PISTOL, 2, 0, [], BaseWeapons.UID_PREFIX + PISTOL)
 	var loaned := _w(PISTOL)
 	loaned["loaned"] = true
-	var rep := ProfileLoot.apply_to(pr, [up, same, loot, base_plain, base_up, loaned, {}, {"id": "inconnue"}])
-	assert_eq(rep.updated, [uid], "version construite et améliorée mise à jour")
-	assert_eq((rep.added as Array).size(), 2, "arme ramassée et arme de base améliorée ajoutées : %s" % str(rep.added))
+	var out := ProfileLoot.apply_to(pr, {"weapons": [up, same, found, base_plain, base_up, loaned, {}, {"id": "inconnue"}]})
+	assert_eq(out.updated, 1, "version construite et améliorée mise à jour, exemplaire intact : rien")
+	assert_eq(out.weapons, 2, "arme ramassée et arme de base améliorée ajoutées")
 	var v := pr.get_weapon(uid)
-	assert_true(v.level == 4 and v.parts.size() == 1 and v.parts[0].part_id == "canon", "même version, améliorée")
-	assert_true(v.parts[0].uid != "", "pièce nouvelle : identifiant donné")
+	assert_true(v.level == 4 and v.parts.size() == 1 and v.parts[0].part_id == "canon", "même version, améliorée (niveau et pièce)")
+	assert_true(v.parts[0].uid.begins_with("p"), "pièce : identifiant du profil")
 	assert_eq(pr.get_weapon(uid2).level, 5, "exemplaire inchangé : version inchangée")
 	assert_eq(pr.weapons.size(), 4, "2 versions + 2 armes ajoutées")
-	var added: OwnedWeapon = pr.get_weapon(rep.added[0])
-	assert_true(added.weapon_id == "m14" and added.level == 7 and added.rarity == OwnedWeapon.Rarity.EPIC, "arme ramassée")
-	var nb: OwnedWeapon = pr.get_weapon(rep.added[1])
-	assert_true(nb.weapon_id == PISTOL and nb.level == 2 and not nb.uid.begins_with(BaseWeapons.UID_PREFIX), "arme de base améliorée : nouvelle version")
+	assert_true(pr.weapons.any(func(o): return o.weapon_id == "m14" and o.level == 7), "arme ramassée")
+	assert_true(pr.weapons.any(func(o): return o.weapon_id == PISTOL and o.level == 2 and not o.uid.begins_with(BaseWeapons.UID_PREFIX)), "arme de base améliorée : nouvelle version")
 	# Deux exemplaires d'une même version : le second, différent, devient une nouvelle version.
-	var c2 := GameWeapon.from_owned(pr.get_weapon(uid2))
-	c2.level = 8
 	var c1 := GameWeapon.from_owned(pr.get_weapon(uid2))
 	c1.level = 6
-	rep = ProfileLoot.apply_to(pr, [c1, c2])
-	assert_eq(rep.updated, [uid2])
-	assert_eq((rep.added as Array).size(), 1, "rien n'est remplacé en silence")
+	var c2 := GameWeapon.from_owned(pr.get_weapon(uid2))
+	c2.level = 8
+	out = ProfileLoot.apply_to(pr, {"weapons": [c1, c2]})
+	assert_eq(out.updated, 1)
+	assert_eq(out.weapons, 1, "rien n'est remplacé en silence")
 	assert_eq(pr.get_weapon(uid2).level, 6)
 
 
@@ -214,13 +212,14 @@ func test_evacuation_enregistre() -> void:
 	var uid := pr.add_weapon(OwnedWeapon.create("mp40", 2))
 	ProfileStore.save_profile(pr, path)
 	var w := GameWeapon.from_owned(pr.get_weapon(uid))
-	var rep := ProfileLoot.apply_evacuation([w], path)
-	assert_true(rep.updated.is_empty() and rep.added.is_empty(), "rien de changé")
+	var out := ProfileLoot.apply_evacuation({"weapons": [w]}, path)
+	assert_eq(out.updated + out.weapons, 0, "rien de changé")
 	w.rarity = OwnedWeapon.Rarity.EPIC
-	rep = ProfileLoot.apply_evacuation([w], path)
-	assert_eq(rep.updated, [uid])
+	out = ProfileLoot.apply_evacuation({"weapons": [w]}, path)
+	assert_eq(out.updated, 1)
 	assert_eq(ProfileStore.load_profile(path).get_weapon(uid).rarity, OwnedWeapon.Rarity.EPIC, "profil enregistré")
 	ProfileStore.reset(path)
+
 
 
 # --------------------------------------------------------------------------

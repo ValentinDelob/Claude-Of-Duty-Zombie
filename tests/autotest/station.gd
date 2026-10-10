@@ -173,7 +173,7 @@ func run() -> void:
 		if String(pd.bag[i].get("uid", "")) == uid:
 			i_built = i
 	pd.bag[i_built].level = 4
-	pd.bag[0] = GameWeapon.make("m14", 7, OwnedWeapon.Rarity.EPIC)
+	pd.bag[0] = GameWeapon.make("m14", 7, OwnedWeapon.Rarity.EPIC, [], "loot:7")
 	game.session.sync_inventory(1)
 	await frames(2)
 	game.srv_end_match(true)
@@ -184,6 +184,5 @@ func run() -> void:
 	var v := after.get_weapon(uid)
 	at.check(v != null and v.level == 4 and v.rarity == OwnedWeapon.Rarity.RARE and v.parts.size() == 1, "version de l'arsenal mise à jour (niveau 4)")
 	at.check(after.weapons.any(func(o): return o.weapon_id == "m14" and o.level == 7), "arme ramassée ajoutée à l'arsenal")
-	var rep: Dictionary = game.last_result.loot.get("arsenal", {})
-	at.check((rep.get("updated", []) as Array).has(uid), "rapport : version mise à jour (%s)" % str(rep))
+	at.check(after.versions_of("mp40").size() == 1, "même version, pas de doublon")
 	ProfileStore.reset()

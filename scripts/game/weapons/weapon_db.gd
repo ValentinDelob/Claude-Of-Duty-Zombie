@@ -17,6 +17,9 @@ extends RefCounted
 ##   projectile_speed  projectile visible, explosion à l'arrivée (m/s)
 ##   burn_dps / burn_time  balles incendiaires (dégâts par seconde, durée)
 ##   move_mult   vitesse de déplacement          reload_kind mag|shells|break|bolt|cylinder|belt|rocket
+##   base_level  niveau de base (GAME_CONCEPT §4.7, §4.9) : niveau minimum
+##               auquel l'arme se trouve en butin (LootRules) ; 1 par défaut,
+##               aujourd'hui pour toutes les armes (catalogue à venir)
 ##
 ## Sensation de tir (lue par WeaponController / ViewModel, côté client) :
 ##   spread_hip  dispersion à la hanche à l'arrêt (°, demi-angle du cône)
@@ -224,6 +227,13 @@ static func stats(id: String, pap := false) -> Dictionary:
 	if main:
 		_cache[key] = s
 	return s
+
+
+## Niveau de base de l'arme (clé facultative « base_level », 1 par défaut),
+## borné de 1 au niveau maximum.
+static func base_level(id: String) -> int:
+	var v: Variant = WEAPONS.get(id, {}).get("base_level", 1)
+	return clampi(int(v), 1, PlayerProfile.MAX_LEVEL) if v is int else 1
 
 
 static func display_name(id: String, pap := false) -> String:

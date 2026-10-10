@@ -535,7 +535,12 @@ corriger.
 | Recharge des munitions (station) | 30 % du prix de construction de l'arme en main, arrondi à 10 (pistolet de base : 150) | `BuildRules.refill_price` |
 | Recyclage en partie | 50 % du prix de construction, arrondi à 10 ; arme de base (donnée à tous) : 0 ; arme prêtée à terre : impossible ; depuis l'inventaire ou la station, deux appuis | `BuildRules.recycle_value` |
 | Station de construction | [F] : interface (la partie continue) ou récupération de l'arme prête ; armes de mêlée non listées (le couteau reste l'attaque séparée) | `BuildStation`, `StationPanel` |
-| Évacuation et arsenal | armes en main et inventaire : exemplaire de l'arsenal amélioré → cette version mise à jour ; arme ramassée ou arme de base améliorée → nouvelle version ; arme de base intacte → rien | `ProfileLoot` |
+| Armes de butin possibles | toutes les armes à feu de `WeaponDB` **sauf les armes de base** (pistolet de départ), tirage uniforme ; niveau de base de chaque arme = 1 (`WeaponDB.base_level`) | `LootRules` |
+| Pose du butin d'arme | à 1,5 m devant chaque joueur à la fin de la vague (2 armes : écartées), visible de tous, ramassable par son seul propriétaire | `LootSystem` |
+| Modificateurs d'une pièce trouvée | un premier modificateur toujours en bonus ; 35 % de chances d'un second (autre statistique), malus une fois sur deux ; valeurs de 5 à 25 % par pas de 1 % ; identifiant `part_<1er modificateur>` | `LootRules.roll_part` |
+| Pièces et échantillons | rangés directement dans l'onglet de partie (pas d'objet au sol) ; compteur discret à droite du HUD | `LootSystem` |
+| Échantillons des chiens | `dog_fang` (croc), `dog_fur` (touffe de poils), `dog_collar` (collier) | `LootRules.SAMPLES` |
+| Butin rapporté | armes en main et inventaire, sauf armes de base intactes et pistolet prêté ; exemplaire construit depuis l'arsenal (même `uid`) et amélioré en partie : cette version mise à jour (niveau, rareté, pièces), intact : rien, second exemplaire différent : nouvelle version ; pièces non montées ; échantillons | `ProfileLoot` |
 
 ## 7. Questions ouvertes
 

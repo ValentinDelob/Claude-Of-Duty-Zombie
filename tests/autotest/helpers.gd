@@ -61,3 +61,34 @@ static func emerged(sc: AutotestScenario, zs: Array) -> bool:
 		return true, Zombie.EMERGE_TIME + 3.0, "zombie(s) sorti(s) de terre")
 	await sc.seconds(0.3)
 	return ok
+
+
+## Tue (par le serveur) tous les chiens vivants ; rend leur nombre.
+static func kill_dogs() -> int:
+	var game := Game.instance
+	var n := 0
+	for z: Zombie in game.zombies.alive.duplicate():
+		if z is Hellhound and z.is_alive():
+			game.combat.damage_zombie(z.id, 999999, 1, false, Vector3.FORWARD, Combat.HitKind.BULLET)
+			n += 1
+	return n
+
+
+## Vague de chiens forcée à la manche `n` : un chien au moins apparu et tué
+## (butin de vague : LootSystem), puis le reste déclaré apparu et tué. Rend
+## vrai quand la vague est vaincue et que l'arme de butin est posée.
+## L'appelant ferme ensuite la fenêtre d'évacuation (evac.time_left) ou s'évacue.
+static func clear_dog_wave(sc: AutotestScenario, n: int) -> bool:
+	var game := Game.instance
+	var dogs := game.rounds.dogs
+	dogs.debug_force_next(n)
+	game.rounds.debug_jump_to(n)
+	if not await sc.until(func(): return dogs.active and game.rounds.round_n == n, 3.0, "vague de chiens %d" % n):
+		return false
+	if not await sc.until(func(): return dogs.alive_dogs() > 0, 20.0, "un chien apparu"):
+		return false
+	while kill_dogs() == 0:
+		await sc.frames(1)
+	dogs.spawned = dogs.total
+	kill_dogs()
+	return await sc.until(func(): return not game.loot.drops.is_empty(), 5.0, "arme posée après la vague")

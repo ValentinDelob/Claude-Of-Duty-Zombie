@@ -52,9 +52,9 @@ static func two_rooms(evac_at := Vector2.INF) -> EditorMap:
 	doc.ouvertures.append({"id": "o3", "type": "fenetre", "altitude": 0, "position": [19.25, 0.0]})
 	_obj(doc, {"type": "depart", "position": [7.0, 6.0]})
 	_obj(doc, {"type": "boite", "position": [19.0, 10.0], "mur": "s", "depart": true})
-	# Format 19 : station de construction contre le mur sud de A, à l'écart
-	# du mur nord où les tests posent leurs objets.
-	_obj(doc, {"type": "station", "position": [11.0, 10.0], "mur": "s"})
+	# Format 19 : station de construction au fond de B (mur nord), à l'écart
+	# de la salle A où les tests posent et collent leurs objets.
+	_obj(doc, {"type": "station", "position": [22.5, 0.0], "mur": "n"})
 	if evac_at.is_finite():
 		return MapTestKit.add_evac_at(doc, evac_at)
 	return MapTestKit.add_evac(doc)
