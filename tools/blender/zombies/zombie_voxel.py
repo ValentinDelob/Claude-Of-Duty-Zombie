@@ -493,6 +493,23 @@ BONES = [
 ]
 
 
+# Bas de la jupe lié aux CUISSES (moitié gauche -> thigh_l, droite -> thigh_r)
+# sous cette rangée : en marche et en course, chaque pan suit sa jambe au
+# lieu d'être traversé par elle (fente au milieu, devant et derrière, comme
+# une blouse d'hôpital). Le haut de la jupe reste sur le bassin. Liaison
+# seule : forme et couleurs inchangées (le cache garde le bassin).
+SKIRT_SPLIT_Z = 26
+
+
+def split_skirt(m):
+    n = 0
+    for (x, y, z), v in m.vox.items():
+        if v.part == "skirt" and z < SKIRT_SPLIT_Z:
+            v.bone = "thigh_l" if x >= 0 else "thigh_r"
+            n += 1
+    return n
+
+
 def build(use_cache=False):
     ref = None if use_cache else _ref_path()
     info = {}
@@ -506,6 +523,7 @@ def build(use_cache=False):
     else:
         m = vx.load_cache(CACHE)
         info["from_cache"] = True
+    info["skirt_on_thighs"] = split_skirt(m)
     ob, mi = vx.build_mesh(m, "zombie_voxel")
     info.update(mi)
     rig = vx.build_armature("zombie_voxel_rig", BONES, CUBE)

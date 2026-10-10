@@ -75,7 +75,14 @@ static var _claimed := {}
 static var _task := -1
 
 
+## Matériau des zombies vivants (et des morceaux arrachés) : variante
+## cubique (couleur de face telle quelle, dissolution par cube) si le modèle
+## cubique est en usage.
 static func material() -> ShaderMaterial:
+	if has_model():
+		if _voxel_material == null:
+			_voxel_material = _voxel_mat(false)
+		return _voxel_material
 	if _material == null:
 		_material = ShaderMaterial.new()
 		_material.shader = preload("res://assets/shaders/zombie.gdshader")
@@ -89,6 +96,10 @@ static func material() -> ShaderMaterial:
 ## `discard`, pour que les zombies vivants gardent la pré-passe de profondeur
 ## et les passes d'ombre simples.
 static func dissolve_material() -> ShaderMaterial:
+	if has_model():
+		if _voxel_dissolve == null:
+			_voxel_dissolve = _voxel_mat(true)
+		return _voxel_dissolve
 	if _dissolve_material == null:
 		_dissolve_material = ShaderMaterial.new()
 		_dissolve_material.shader = preload("res://assets/shaders/zombie_dissolve.gdshader")
@@ -126,15 +137,71 @@ static func variant_of(arch: int, n := 0) -> int:
 	return 0
 
 
-## Zombies modélisés dans Blender (en cours, voir ZombieGlb) : activés par
-## l'argument `--zombie-model` (après `--`), sinon zombies procéduraux.
-const MODEL_PATH := "res://assets/models/zombies/zombie_base.glb"
-static var use_model := "--zombie-model" in OS.get_cmdline_user_args()
+## Zombie CUBIQUE (GAME_CONCEPT.md § 4.19 : cubes de 2,5 cm), modélisé dans
+## Blender (tools/blender/zombies/zombie_voxel.py, chargé par ZombieGlb) :
+## modèle de tous les zombies. Repli sur les zombies procéduraux ci-dessous
+## si le .glb manque, ou avec l'argument `--procedural-zombies` (après `--`).
+const MODEL_PATH := "res://assets/models/zombies/zombie_voxel.glb"
+## Côté d'un cube du modèle (m) : dissolution cube par cube (zombie.gdshader).
+const MODEL_CUBE := 0.025
+static var use_model := not ("--procedural-zombies" in OS.get_cmdline_user_args())
 static var _model_skin: Skin
+static var _voxel_material: ShaderMaterial
+static var _voxel_dissolve: ShaderMaterial
+static var _model_limbs := {}
+static var _model_shapes := {}
+
+## Teintes de variante du modèle cubique (multiplicateurs, linéaire) :
+## [blouse rgb, peau]. Légères : la palette validée reste celle du modèle (la
+## variante 0 n'est pas teintée) ; elles évitent une horde de clones.
+const MODEL_TINTS := [
+	[Color(1.0, 1.0, 1.0), 1.0],
+	[Color(0.86, 0.92, 0.95), 0.94],
+	[Color(1.0, 0.95, 0.82), 1.04],
+	[Color(0.84, 0.86, 0.84), 0.9],
+	[Color(0.9, 0.97, 0.9), 1.08],
+	[Color(0.96, 0.9, 0.86), 0.97],
+]
 
 
-static func _build_model() -> Skeleton3D:
-	var m := ZombieGlb.load_model(MODEL_PATH)
+## Modèle .glb chargé ({mesh, overrides}), ou {} (procédural).
+static func model() -> Dictionary:
+	if not use_model:
+		return {}
+	return ZombieGlb.load_model(MODEL_PATH)
+
+
+static func has_model() -> bool:
+	return not model().is_empty()
+
+
+## Repos des os surchargés du modèle en usage (vide : ossature par défaut).
+static func rest_overrides() -> Dictionary:
+	var m := model()
+	return m.overrides if not m.is_empty() else {}
+
+
+## Tableaux de surface du mesh skinné du zombie `variant` (mesures, tests).
+static func mesh_arrays(variant: int) -> Array:
+	var m := model()
+	if not m.is_empty():
+		return (m.mesh as ArrayMesh).surface_get_arrays(0)
+	var d := parts_for(variant)
+	return RigBuilder.build_arrays(d[0], d[1], d[2])
+
+
+static func _voxel_mat(dissolve: bool) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://assets/shaders/zombie_dissolve.gdshader") if dissolve else preload("res://assets/shaders/zombie.gdshader")
+	mat.set_shader_parameter("emission_color", EYE_EMISSION)
+	mat.set_shader_parameter("emission_energy", 6.5)
+	mat.set_shader_parameter("noise_lattice", NoiseLattice.tex3d())
+	mat.set_shader_parameter("voxel_cell", MODEL_CUBE)
+	return mat
+
+
+static func _build_model(variant: int) -> Skeleton3D:
+	var m := model()
 	if m.is_empty():
 		return null
 	if _model_skin == null:
@@ -142,13 +209,17 @@ static func _build_model() -> Skeleton3D:
 		_model_skin = tmp.create_skin_from_rest_transforms()
 		tmp.free()
 	var skel := RigBuilder.instantiate(m.mesh, material(), m.overrides, _model_skin)
-	(skel.get_node("Mesh") as MeshInstance3D).layers = RENDER_LAYERS
+	var mi := skel.get_node("Mesh") as MeshInstance3D
+	mi.layers = RENDER_LAYERS
+	var tint: Array = MODEL_TINTS[posmod(variant, MODEL_TINTS.size())]
+	var c: Color = tint[0]
+	mi.set_instance_shader_parameter("look_tint", Color(c.r, c.g, c.b, tint[1]))
 	return skel
 
 
 static func build(variant: int) -> Skeleton3D:
 	if use_model:
-		var ms := _build_model()
+		var ms := _build_model(variant)
 		if ms:
 			return ms
 	var key := look_key(variant)
@@ -213,6 +284,9 @@ static func wait_prewarm() -> void:
 
 ## Nombre de sommets du mesh d'un look (mesures).
 static func vertex_count(variant: int) -> int:
+	var m := model()
+	if not m.is_empty():
+		return (m.mesh as ArrayMesh).surface_get_array_len(0)
 	return _mesh(look_key(variant)).surface_get_array_len(0)
 
 
@@ -220,6 +294,8 @@ static func vertex_count(variant: int) -> int:
 ## os `limb_bones`, dans le repère de repos du premier os. Mêmes couleurs que
 ## le zombie `variant` (déterministe, mis en cache).
 static func limb_mesh(variant: int, limb_bones: Array) -> ArrayMesh:
+	if has_model():
+		return _model_limb(limb_bones)
 	var key := "%d:%s" % [look_key(variant), ",".join(limb_bones)]
 	if not _limbs.has(key):
 		var d := parts_for(look_key(variant))
@@ -234,6 +310,119 @@ static func clear_cache() -> void:
 	_limbs.clear()
 	_ready_arrays.clear()
 	_claimed.clear()
+	_model_limbs.clear()
+
+
+## Morceau arraché du modèle cubique : triangles des os `limb_bones` (liaison
+## rigide : un os par sommet), dans le repère de repos du premier os.
+static func _model_limb(limb_bones: Array) -> ArrayMesh:
+	var key := ",".join(limb_bones)
+	if _model_limbs.has(key):
+		return _model_limbs[key]
+	var m := model()
+	var a := (m.mesh as ArrayMesh).surface_get_arrays(0)
+	var ids := {}
+	for i in RigBuilder.BONES.size():
+		if RigBuilder.BONES[i][0] in limb_bones:
+			ids[i] = true
+	var origin: Vector3 = (RigBuilder._rest_globals(m.overrides)[limb_bones[0]] as Transform3D).origin
+	var pos: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var nrm: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+	var col: PackedColorArray = a[Mesh.ARRAY_COLOR]
+	var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+	var uv2: PackedVector2Array = a[Mesh.ARRAY_TEX_UV2]
+	var cus: PackedByteArray = a[Mesh.ARRAY_CUSTOM0] if a[Mesh.ARRAY_CUSTOM0] != null else PackedByteArray()
+	var bones: PackedInt32Array = a[Mesh.ARRAY_BONES]
+	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+	var remap := {}
+	var o_pos := PackedVector3Array()
+	var o_nrm := PackedVector3Array()
+	var o_col := PackedColorArray()
+	var o_uv := PackedVector2Array()
+	var o_uv2 := PackedVector2Array()
+	var o_cus := PackedByteArray()
+	var o_idx := PackedInt32Array()
+	for t in range(0, idx.size(), 3):
+		if not (ids.has(bones[idx[t] * 4]) and ids.has(bones[idx[t + 1] * 4]) and ids.has(bones[idx[t + 2] * 4])):
+			continue
+		for k in 3:
+			var v := idx[t + k]
+			if not remap.has(v):
+				remap[v] = o_pos.size()
+				o_pos.append(pos[v] - origin)
+				o_nrm.append(nrm[v])
+				o_col.append(col[v])
+				o_uv.append(uv[v])
+				o_uv2.append(uv2[v])
+				if not cus.is_empty():
+					o_cus.append_array(cus.slice(v * 4, v * 4 + 4))
+			o_idx.append(remap[v])
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
+	out[Mesh.ARRAY_VERTEX] = o_pos
+	out[Mesh.ARRAY_NORMAL] = o_nrm
+	out[Mesh.ARRAY_COLOR] = o_col
+	out[Mesh.ARRAY_TEX_UV] = o_uv
+	out[Mesh.ARRAY_TEX_UV2] = o_uv2
+	out[Mesh.ARRAY_INDEX] = o_idx
+	var flags := 0
+	if not o_cus.is_empty():
+		out[Mesh.ARRAY_CUSTOM0] = o_cus
+		flags = Mesh.ARRAY_CUSTOM_RGBA8_UNORM << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+	var am := ArrayMesh.new()
+	if not o_idx.is_empty():
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out, [], {}, flags)
+	_model_limbs[key] = am
+	return am
+
+
+## Boîte englobante au repos (repère du modèle) des sommets de chaque os du
+## modèle cubique : {os: AABB} ; {} sans modèle. Sert à tailler les zones de
+## touche (Zombie) et les corps du ragdoll (ZombieRagdoll).
+static func bone_bounds() -> Dictionary:
+	var m := model()
+	if m.is_empty():
+		return {}
+	if _model_shapes.has(MODEL_PATH):
+		return _model_shapes[MODEL_PATH]
+	var a := (m.mesh as ArrayMesh).surface_get_arrays(0)
+	var pos: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = a[Mesh.ARRAY_BONES]
+	var out := {}
+	for v in pos.size():
+		var b: String = RigBuilder.BONES[bones[v * 4]][0]
+		if out.has(b):
+			out[b] = (out[b] as AABB).expand(pos[v])
+		else:
+			out[b] = AABB(pos[v], Vector3.ZERO)
+	_model_shapes[MODEL_PATH] = out
+	return out
+
+
+## Zones de touche du modèle en usage, dans le repère de l'os qui les porte :
+## {"head": [centre, rayon], "forearm": [centre, rayon, hauteur],
+##  "arm": [centre, rayon, hauteur]} (bras gauche ; le droit en miroir).
+static func hit_shapes() -> Dictionary:
+	var bb := bone_bounds()
+	if bb.is_empty():
+		# Zombies procéduraux : tête ronde, bras minces (le haut du bras est
+		# dans la capsule du corps).
+		return {"head": [Vector3(0, 0.13, 0.01), 0.16], "forearm": [Vector3(0, -0.2, 0), 0.075, 0.42],
+				"arm": [Vector3(0, -0.15, 0), 0.06, 0.3]}
+	var rest := RigBuilder._rest_globals(rest_overrides())
+	# Tête : sphère sur la tête et la mâchoire (rayon moyen des demi-côtés).
+	var hb := (bb.head as AABB).merge(bb.jaw)
+	var head_o: Vector3 = (rest.head as Transform3D).origin
+	var he := hb.size * 0.5
+	var out := {"head": [hb.get_center() - head_o, (he.x + he.y + he.z) / 3.0]}
+	for part in ["forearm", "arm"]:
+		var b: AABB = bb[part + "_l"]
+		var o: Vector3 = (rest[part + "_l"] as Transform3D).origin
+		var c := b.get_center() - o
+		c.x = 0.0
+		var r := maxf(b.size.x, b.size.z) * 0.5
+		out[part] = [c, r, maxf(b.size.y, r * 2.0 + 0.01)]
+	return out
 
 
 # --------------------------------------------------------------------------

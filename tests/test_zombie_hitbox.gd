@@ -10,6 +10,8 @@ const ARM_BONES := ["arm_l", "forearm_l", "arm_r", "forearm_r"]
 const LEG_BONES := ["thigh_l", "shin_l", "thigh_r", "shin_r"]
 ## Phases de démarche échantillonnées par pose (un cycle complet).
 const PHASES := 8
+## Zombie cubique : demi-largeur du torse au-delà de la capsule tolérée (m).
+const RADIUS_SLACK := 0.11
 
 
 ## Mesure du modèle d'un zombie déjà posé : pour chaque partie (« corps » :
@@ -18,7 +20,7 @@ const PHASES := 8
 ## l'axe de la capsule, dans le repère du zombie (le modèle regarde vers +Z).
 ## `step` : un sommet sur `step` (mesure plus rapide).
 static func measure(z: Zombie, arr: Array, step := 1) -> Dictionary:
-	var rest: Dictionary = RigBuilder._rest_globals({})
+	var rest: Dictionary = RigBuilder._rest_globals(ZombieModel.rest_overrides())
 	var mats := []
 	for b in RigBuilder.BONES:
 		var bi: int = z.bones[b[0]]
@@ -73,9 +75,9 @@ static func measure(z: Zombie, arr: Array, step := 1) -> Dictionary:
 ## vitesse `classes`, sur un cycle de marche complet.
 static func worst(host_node: Node, classes: Array, looks := ZombieModel.LOOK_COUNT, step := 3) -> Dictionary:
 	var res := {}
-	for key in looks:
-		var d := ZombieModel.parts_for(key)
-		var arr := RigBuilder.build_arrays(d[0], d[1], d[2])
+	# Modèle cubique : un seul mesh pour tous les zombies.
+	for key in (1 if ZombieModel.has_model() else looks):
+		var arr := ZombieModel.mesh_arrays(key)
 		for cls: int in classes:
 			var z := Zombie.new()
 			z.setup(90000 + key, key, cls, false)
@@ -119,8 +121,17 @@ func test_movement_capsule_is_the_torso_without_arms() -> void:
 	var w := worst(host, [0, 2, 3], ZombieModel.LOOK_COUNT, 6)
 	var torso := maxf(w["corps@2"].x, w["corps@3"].x)
 	print("[hitbox] demi-largeur : tronc %.2f m, épaules %.2f m, bras %.2f m (avant %.2f m) ; capsule %.2f m" % [torso, w["corps@4"].x, w.bras.x, w.bras.front, Zombie.RADIUS])
-	assert_true(torso <= Zombie.RADIUS, "tronc (%.2f m) dans la capsule (%.2f m)" % [torso, Zombie.RADIUS])
-	assert_true(Zombie.RADIUS - torso < 0.05, "capsule au plus près du tronc (%.2f m de marge)" % (Zombie.RADIUS - torso))
+	if ZombieModel.has_model():
+		# Zombie cubique : torse et blouse larges (0,25 m de demi-largeur, 0,32 m
+		# aux coins quand le buste vrille) ; la capsule garde le rayon réglé
+		# pour la navigation et la horde (couloirs, goulets, places aux
+		# fenêtres) : deux voisins se frôlent du tissu, au plus RADIUS_SLACK de
+		# chaque côté.
+		assert_true(torso <= Zombie.RADIUS + RADIUS_SLACK, "tronc cubique (%.2f m) à moins de %.2f m de la capsule (%.2f m)" % [torso, RADIUS_SLACK, Zombie.RADIUS])
+		assert_true(torso >= Zombie.RADIUS, "capsule dans le tronc (%.2f m)" % torso)
+	else:
+		assert_true(torso <= Zombie.RADIUS, "tronc (%.2f m) dans la capsule (%.2f m)" % [torso, Zombie.RADIUS])
+		assert_true(Zombie.RADIUS - torso < 0.05, "capsule au plus près du tronc (%.2f m de marge)" % (Zombie.RADIUS - torso))
 	assert_true(w["corps@4"].x > Zombie.RADIUS + 0.05, "épaules hors de la capsule (%.2f m)" % w["corps@4"].x)
 	assert_true(w.bras.r > Zombie.RADIUS + 0.3, "bras tendus bien hors de la capsule (%.2f m de l'axe)" % w.bras.r)
 
@@ -128,14 +139,22 @@ func test_movement_capsule_is_the_torso_without_arms() -> void:
 func test_shoulder_radius_matches_the_model() -> void:
 	# Demi-largeur aux épaules au repos, look par look (moyenne).
 	var sum := 0.0
-	for key in ZombieModel.LOOK_COUNT:
+	var looks := 1 if ZombieModel.has_model() else ZombieModel.LOOK_COUNT
+	for key in looks:
 		var z := _standing(key)
-		var d := ZombieModel.parts_for(key)
-		var m := measure(z, RigBuilder.build_arrays(d[0], d[1], d[2]), 2)
+		var m := measure(z, ZombieModel.mesh_arrays(key), 2)
 		sum += maxf(m.get("corps@4", {}).get("x", 0.0), m.get("bras@4", {}).get("x", 0.0))
 		z.free()
-	var mean := sum / ZombieModel.LOOK_COUNT
-	assert_true(absf(mean - Zombie.SHOULDER_RADIUS) < 0.04, "épaules du modèle %.2f m ~ SHOULDER_RADIUS %.2f m" % [mean, Zombie.SHOULDER_RADIUS])
+	var mean := sum / looks
+	if ZombieModel.has_model():
+		# Zombie cubique : bras pendants écartés du torse (0,375 m de l'axe,
+		# manches à 0,45 m). SHOULDER_RADIUS reste la place réservée par la
+		# navigation et les fenêtres (règle de jeu) : plus étroite que le
+		# modèle, jamais plus large que son torse.
+		print("[hitbox] épaules du modèle cubique %.2f m, SHOULDER_RADIUS %.2f m" % [mean, Zombie.SHOULDER_RADIUS])
+		assert_true(mean > Zombie.SHOULDER_RADIUS, "épaules du modèle %.2f m au-delà de SHOULDER_RADIUS %.2f m" % [mean, Zombie.SHOULDER_RADIUS])
+	else:
+		assert_true(absf(mean - Zombie.SHOULDER_RADIUS) < 0.04, "épaules du modèle %.2f m ~ SHOULDER_RADIUS %.2f m" % [mean, Zombie.SHOULDER_RADIUS])
 	assert_true(Zombie.SHOULDER_RADIUS > Zombie.RADIUS, "épaules plus larges que le tronc")
 	# Navmesh : aucun chemin par une fente plus étroite que les épaules.
 	assert_true(StairGen.AGENT_RADIUS >= Zombie.SHOULDER_RADIUS, "couloirs d'escalier aux épaules")
@@ -159,14 +178,15 @@ func test_shot_zones_are_not_movement_shapes() -> void:
 	assert_near(cap.radius, Zombie.RADIUS, 0.0001, "capsule au rayon du tronc")
 	assert_near(cap.height, Zombie.HEIGHT, 0.0001)
 	assert_eq(z.collision_mask & Zombie.HITBOX_LAYER, 0, "le déplacement ignore les zones de touche")
-	# Touche : tête, corps, deux avant-bras (BO1 : un tir au bras compte).
+	# Touche : tête, corps, avant-bras et hauts de bras (BO1 : un tir au bras
+	# compte ; les épaules du zombie cubique dépassent de la capsule).
 	var zones := {}
-	for a: Area3D in [z.hit_body, z.hit_head] + z.hit_arms:
+	for a: Area3D in [z.hit_body, z.hit_head] + z.hit_arms + z.hit_upper_arms:
 		assert_eq(a.collision_layer, Zombie.HITBOX_LAYER, "%s : couche des tirs" % a.name)
 		assert_eq(a.collision_mask, 0, "%s : ne heurte rien" % a.name)
 		assert_false(a.monitoring or a.monitorable, "%s : pas de détection de contact" % a.name)
 		zones[int(a.get_meta("zone"))] = zones.get(int(a.get_meta("zone")), 0) + 1
-	assert_eq(zones, {0: 1, 1: 1, 2: 2}, "corps, tête, deux bras")
+	assert_eq(zones, {0: 1, 1: 1, 2: 4}, "corps, tête, deux avant-bras, deux hauts de bras")
 	z.free()
 
 

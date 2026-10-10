@@ -71,6 +71,9 @@ func _process(delta: float) -> void:
 		var k := ease(clampf(_land_t / SETTLE_TIME, 0.0, 1.0), 0.5)
 		skel.basis = Basis(_land_basis.get_rotation_quaternion().slerp(_lie_basis.get_rotation_quaternion(), k))
 		skel.position = Vector3(0, -0.06 * k, 0)
+		# Zombie cubique : couché sur son point le plus bas, pas dans le sol.
+		if _z.anim:
+			_z.anim.ground(false)
 
 
 func _fly(dt: float) -> void:
