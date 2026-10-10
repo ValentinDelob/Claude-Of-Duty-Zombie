@@ -1,5 +1,5 @@
 extends TestCase
-## Zombie « patient » cubique (tools/blender/zombies/zombie_voxel.py, pas
+## Zombie « patient » cubique, cubes de 2,5 cm (tools/blender/zombies/zombie_voxel.py, pas
 ## encore branché dans le jeu) : chargé par ZombieGlb (ossature du jeu,
 ## matières, couleurs par face de cube, yeux émissifs), instanciable par
 ## RigBuilder, et conforme au style cubique (VoxelCheck, mode animé).
@@ -19,15 +19,22 @@ func test_loaded_by_zombie_glb() -> void:
 	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
 	@warning_ignore("integer_division")
 	var tris := idx.size() / 3
-	assert_true(tris > 500 and tris < 8000, "budget : %d triangles (< 8000)" % tris)
-	# Taille : 36 cubes de haut (1,80 m), pieds au sol.
+	assert_true(tris > 2000 and tris < 15000, "budget : %d triangles (< 15 000)" % tris)
+	# Taille : 72 cubes de 2,5 cm (1,80 m), pieds au sol.
 	var lo := Vector3(INF, INF, INF)
 	var hi := -lo
 	for p in pos:
 		lo = lo.min(p)
 		hi = hi.max(p)
 	assert_near(lo.y, 0.0, 0.001, "pieds au sol")
-	assert_near(hi.y, 1.8, 0.001, "36 cubes de haut")
+	assert_near(hi.y, 1.8, 0.001, "72 cubes de haut")
+	# Tous les sommets sur la grille des personnages (2,5 cm).
+	var on_grid := true
+	for p in pos:
+		for i in 3:
+			if not VoxelCheck.on_grid(p[i], VoxelCheck.CUBE_CHAR):
+				on_grid = false
+	assert_true(on_grid, "sommets sur la grille de 2,5 cm")
 	# Ossature : tous les os du jeu, repos en position (membres pendants).
 	for b in RigBuilder.BONES:
 		assert_true(m.overrides.has(b[0]), "os %s" % b[0])
@@ -89,4 +96,6 @@ func test_instantiated_by_rig_builder() -> void:
 func test_voxel_style() -> void:
 	var rep := VoxelCheck.check_file(PATH, 1)
 	assert_true(rep.get("ok", false), String(rep.get("fr", "")))
+	assert_near(float(rep.cube), VoxelCheck.CUBE_CHAR, 0.0001, "mode animé : grille des personnages")
+	assert_false(VoxelCheck.check_file(PATH, 1, 1.0, VoxelCheck.CUBE).ok, "pas un modèle de décor (5 cm)")
 	assert_true(int(rep.get("parts", 0)) >= 13, "chaque os vérifié dans son repère")

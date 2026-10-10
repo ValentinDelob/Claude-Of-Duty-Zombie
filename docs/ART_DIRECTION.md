@@ -12,12 +12,16 @@ dépôt.
 
 ## Règles du style cubique
 
-- **1 cube = 5 cm** (20 cubes par mètre) pour TOUT : personnages, zombies,
-  armes, objets, décors. Un personnage mesure environ 36 cubes (1,80 m), une
-  porte 40, un mur de 3 m 60.
+- Deux échelles seulement, l'une sous-multiple de l'autre :
+  - **personnages et mobs : 1 cube = 2,5 cm** (40 par mètre) : un personnage
+    de 1,80 m mesure 72 cubes. Mesuré sur la planche du zombie (un pixel de la
+    planche ≈ 2 cm, une dent = 1 pixel) ;
+  - **décor et objets de la carte : 1 cube = 5 cm** (20 par mètre) : une porte
+    fait 40 cubes, un mur de 3 m en fait 60. 2 cubes de personnage = 1 cube de
+    décor.
 - **Règle absolue** : rien qui ne soit pas cubique ou pas à l'échelle. Pas de
   courbe, de biseau, de lissage, ni de détail plus fin qu'un cube.
-- Arêtes sur la grille de 5 cm, normales alignées sur les axes, ombrage plat ;
+- Arêtes sur la grille de l'échelle, normales alignées sur les axes, ombrage plat ;
   les objets posés sur une carte tournent par quarts de tour ; les pentes
   deviennent des marches.
 - Personnages et zombies : cubes **articulés**, chaque cube rigidement lié à
@@ -32,36 +36,45 @@ dépôt.
 - Interface : pas forcément cubique, mais en harmonie avec le style.
 - Vérification automatique : `VoxelCheck` (`scripts/game/map/voxel_check.gd`),
   outil `tools/voxel_check.gd` (`--anime` pour un personnage : chaque partie
-  dans le repère de son os ; `--statique` pour un objet). L'éditeur de cartes
-  et l'import de modèles refusent un modèle non conforme.
+  dans le repère de son os, grille de 2,5 cm ; `--statique` pour un objet,
+  grille de 5 cm ; `--pas=<cm>` force le pas). L'éditeur de cartes et
+  l'import de modèles refusent un modèle non conforme.
+- **Contour noir** autour des pièces et ombrage simple, comme la planche de
+  référence : rendu des planches de validation par coque inversée ; en jeu,
+  voir « Contour noir en jeu » plus bas (proposition, pas encore branché).
 - ❓ Lumières, post-traitement et ciel restent à décider (§ 4.19) ; l'étalonnage
   ci-dessous est celui du code actuel.
 
 ## Chaîne de production cubique (tools/blender/voxel/voxel_lib.py)
 
 Bibliothèque Python pour Blender (5.2, toujours sans fenêtre :
-`sh tools/blender.sh <script>.py`). Un script de modèle décrit des **cellules
-de 5 cm** en unités de cube (repère Blender : Z en haut, avant vers -Y, gauche
-d'un personnage vers +X), puis la bibliothèque construit, vérifie et exporte.
+`sh tools/blender.sh <script>.py`). Un script de modèle décrit des **cellules**
+en unités de cube (repère Blender : Z en haut, avant vers -Y, gauche d'un
+personnage vers +X), au pas `CUBE_CHAR` (2,5 cm, personnages et mobs) ou
+`CUBE_DECOR` (5 cm, décor et objets), puis la bibliothèque construit, vérifie
+et exporte.
 
 | Fonction | Rôle |
 |---|---|
-| `Model()` | grille de voxels : cellule (x, y, z) -> matière, os, partie, couleur |
+| `Model(cube)` | grille de voxels au pas `cube` (m) : cellule (x, y, z) -> matière, os, partie, couleur |
 | `m.box(x0, x1, y0, y1, z0, z1, mat, bone, part, color)` | pavé de cellules (bornes hautes exclues), écrase |
 | `m.set(...)`, `m.clear(...)` | une cellule ; vider un pavé (bouche, narines...) |
 | `m.layers(rows, origin, legend, bone, part)` | grilles colorées par couche (une chaîne par rangée, un caractère par cube) |
+| `m.fill_gaps(parts)` | bouche les fentes d'un cube laissées par une sculpture |
 | `m.face_color[(x, y, z, dir)]`, `m.face_mat[...]` | couleur / matière d'UNE face de cube (`dir` : `+x -x +y -y +z -z`) |
-| `View(...)`, `register(model, view, mask)` | vue orthographique d'une planche, recalée sur la silhouette (IoU) |
-| `paint_from_views(model, views, accept)` | chaque face tournée vers une vue et non cachée prend la couleur dominante de sa case de 5 cm projetée |
-| `fill_unpainted(model, painted)` | faces cachées / dessus / dessous : face peinte la plus proche de la même partie ; intérieur (jupe creuse) assombri |
+| `View(...)`, `view.frac(masque, cellule)`, `register`, `iou` | vue orthographique d'une planche : part d'un masque de pixels dans la case d'une cellule (sculpture par silhouettes), recalage et recouvrement |
+| `paint_from_views(model, views, accept)` | chaque face tournée vers une vue et non cachée prend la couleur dominante de sa case projetée |
+| `fill_unpainted(model, painted, interior_parts=...)` | faces cachées / dessus / dessous : face peinte la plus proche de la même partie ; intérieur (jupe creuse) assombri |
 | `shade(model)` | ombrage peint par direction de face (`SHADE`) |
 | `quantize(model, {mat: k})` | palette réduite par matière (k-moyennes) : plus de faces fusionnées |
+| `save_cache(model, json)`, `load_cache(json)` | cellules et couleurs de faces en JSON (suivi par git) : reconstruire sans la planche |
 | `build_mesh(model, name)` | maillage : faces visibles + faces entre deux os, fusion des faces coplanaires de même couleur/matière/os, couleurs « Col » par coin (sRGB), aucun sommet partagé entre rectangles, matériaux nommés comme `ZombieGlb.MATS` |
-| `build_armature(name, bones)`, `bind(ob, rig)` | squelette (os droits, `RigBuilder.BONES` pour un personnage), pondération rigide |
-| `self_check(ob)` | avant écriture : sommets sur la grille, normales sur les axes, poids rigides |
-| `export_glb(path, objs)` | .glb (Y en haut, peau, COLOR_0) après `self_check` |
-| `godot_check(path, animated)` | lance `tools/voxel_check.gd` sur le fichier écrit |
-| `setup_render`, `render_view`, `sheet`, `load_png`, `save_png` | rendus orthographiques et planches de validation |
+| `build_armature(name, bones, cube)`, `bind(ob, rig)` | squelette (os droits, `RigBuilder.BONES` pour un personnage), pondération rigide |
+| `self_check(ob, cube)` | avant écriture : sommets sur la grille, normales sur les axes, poids rigides |
+| `export_glb(path, objs, cube)` | .glb (Y en haut, peau, COLOR_0) après `self_check` |
+| `godot_check(path, animated, cube=None)` | lance `tools/voxel_check.gd` sur le fichier écrit |
+| `add_outline(model, name, rig)` | contour noir des rendus : coque inversée sur la grille, suit la pose (jamais exportée) |
+| `setup_render`, `render_view(path, azimut, cible, hauteur_m)`, `sheet`, `load_png`, `save_png` | rendus orthographiques (hauteur visible en mètres : même échelle que la planche) et planches de validation |
 
 - Matières (`MATERIALS`) : `skin`, `eye` (émissif : alpha 0 dans le jeu),
   `cloth`, `leather`, `metal`, `wound`, `bone` — la matière du shader des
@@ -71,31 +84,66 @@ d'un personnage vers +X), puis la bibliothèque construit, vérifie et exporte.
   pendants sans rotation (le jeu ne lit que les positions), pas d'os de main
   ni de pied (mains sur `forearm`, pieds sur `shin`).
 - Objets statiques : aucun os ; `godot_check(path, False)`.
-- Budget : < 8 000 triangles pour un personnage ; la fusion des faces garde
-  un zombie complet vers 2 300.
+- Budget : < 15 000 triangles pour un personnage en cubes de 2,5 cm ; la
+  fusion des faces garde le zombie complet vers 8 200.
 - Après l'export, toujours : `godot --headless --path . --import` (fichier
   `.import`), `tools/voxel_check.gd -- <fichier> --anime|--statique`, et une
   planche de validation regardée à l'œil avant de brancher le modèle.
 
 ### Zombie « patient » (tools/blender/zombies/zombie_voxel.py)
 
-- `assets/models/zombies/zombie_voxel.glb`, **pas encore branché** dans le jeu
-  (en attente de validation ; `zombie_base.glb` reste le modèle de
-  `--zombie-model`). Test : `tests/test_zombie_voxel.gd`.
-- 36 × 18 × 9 cubes, ~2 330 cellules, ~2 260 triangles ; tête 8 × 8 × 8 (plus
-  une calotte 6 × 6), mâchoire 6 × 2 × 3 à bouche ouverte et quatre dents,
-  torse 10 cubes de large en escalier (bassin, torse, tête d'un cube plus en
-  avant à chaque étage), jupe creuse 12 × 7 aux genoux au bas déchiré
-  (colonnes de 6 à 8 cubes), manches courtes 4 × 5 au bas déchiré, bras de
-  3 × 3, mains à trois doigts crochus et un pouce, jambes 3 × 3, pieds nus.
-- Couleurs prélevées sur la planche `docs/reference/zombie_patient/turnaround.png`
-  (vues de face, de dos et de profil, 19 pixels par cube) ; retouches : yeux
-  jaunes émissifs 2 × 1, narines et bouche sombres, dents ; blouse : une case
-  reste crème si le crème y domine (les plis de la planche sont plus fins
-  qu'un cube).
-- Planche de validation : `--sheet tests/_out/voxel/zombie_voxel_sheet.png`
-  (référence en haut, rendu en bas : face, dos, profils, trois-quarts, pose
-  d'attaque).
+- `assets/models/zombies/zombie_voxel.glb`, cubes de **2,5 cm**, **pas encore
+  branché** dans le jeu (en attente de validation ; `zombie_base.glb` reste le
+  modèle de `--zombie-model`). Test : `tests/test_zombie_voxel.gd`.
+- Formes SCULPTÉES par la planche `docs/reference/zombie_patient/turnaround.png`
+  (9,5 pixels par cube) : chaque partie est un pavé de cellules dont une
+  cellule reste si sa case est pleine (ou de la bonne matière : peau, tissu)
+  dans la vue de face (ou de dos) ET de profil. Le dos voûté, la tête en
+  avant, les genoux, le bas déchiré, les manches évasées et le col en
+  escalier en sortent en marches de cubes. Puis : jupe creuse (parois d'un
+  cube) autour des jambes, bas déchiré mesuré paroi par paroi sur la vue qui
+  la montre ; yeux 3 × 2 émissifs au fond d'orbites, arcades en saillie, nez
+  creusé, bouche ouverte de deux cubes de profondeur et six dents d'un cube,
+  oreilles, encolure en V (couche de tissu ôtée, peau du cou derrière), trois
+  doigts séparés et recourbés, orteils marqués.
+- 72 × 38 × 20 cubes, ~16 600 cellules, ~8 200 triangles : tête 18 × 18 × 16
+  (oreilles comprises), mâchoire 14 × 5 × 6, torse 20 × 16 × 26, jupe 22 × 12
+  × 18, manches 8 × 13 × 16, bras et mains 8 × 8 × 35, jambes 7 × 12 × 30.
+- Couleurs prélevées une par face de cube (plis de la blouse, taches de sang,
+  bleus) ; cases prises sur un trait d'encrage recomblées par leurs voisines ;
+  palette réduite à ~90 teintes.
+- Cache : `tools/blender/zombies/zombie_voxel_cells.json` (suivi par git) ;
+  sans la planche (ou avec `--cache`), le modèle est reconstruit à l'identique.
+- Planche de validation : `--sheet tests/_out/voxel/zombie_voxel_sheet_25.png`
+  (rangée 1 : planche ; rangée 2 : rendu au même cadrage et à la même échelle,
+  contour noir compris ; rangée 3 : les deux à 50 % pour comparer pixel à
+  pixel ; vues : face, dos, profils, trois-quarts, pose d'attaque).
+
+### Contour noir en jeu (proposition, non branchée)
+
+La planche dessine un trait noir d'environ 1 cm autour des pièces. Options
+pour Godot 4.7 (cible GTX 1050) :
+
+1. **Contour en espace écran (recommandé)** : une passe plein écran (quad de
+   post-traitement, shader `spatial` qui lit `hint_depth_texture` et
+   `hint_normal_roughness_texture`) qui noircit les pixels où la profondeur
+   ou la normale saute (filtre de Sobel sur 4 à 8 échantillons). Trait d'un
+   pixel net à toute distance, aucun sommet en plus, s'applique aussi au
+   décor (cohérence du style). Coût estimé sur GTX 1050 en 1080p : 0,3 à
+   0,6 ms par image ; la lecture des normales impose le moteur Forward+.
+   Option « Contour » dans les réglages vidéo. Pour limiter le trait aux
+   personnages, un masque de pochoir (stencil, Godot 4.5 et plus) ou une
+   couche de rendu dédiée.
+2. **Coque inversée par sommet** (comme les planches de validation) : second
+   matériau sur le maillage du zombie, `render_mode cull_front, unshaded`,
+   sommets poussés vers l'extérieur dans le vertex shader. Les faces du modèle
+   ne partageant pas leurs sommets, il faut une normale « de coin » par sommet
+   (somme des normales des faces voisines, calculée par `ZombieGlb` ou
+   stockée en attribut). Coût : le maillage dessiné deux fois (≈ 8 000
+   triangles de plus par zombie : sensible avec 24 zombies à l'écran), trait
+   épaissi au loin, pas de trait sur le décor.
+3. **Coque dans le .glb** : refusée — ce serait un second maillage hors de
+   la grille, non conforme à VoxelCheck.
 
 ## Étalonnage et post-traitement (code actuel, à revoir pour le style cubique)
 

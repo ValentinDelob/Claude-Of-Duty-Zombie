@@ -1,21 +1,23 @@
 # Bibliothèque de la direction artistique CUBIQUE (GAME_CONCEPT.md § 4.19,
 # docs/ART_DIRECTION.md « Chaîne de production cubique ») : construit dans
-# Blender des modèles faits UNIQUEMENT de cubes de 5 cm, à partir d'une
-# description simple, et les exporte en .glb conformes à VoxelCheck.
+# Blender des modèles faits UNIQUEMENT de cubes, à partir d'une description
+# simple, et les exporte en .glb conformes à VoxelCheck. Deux pas de grille :
+#   - CUBE_CHAR = 2,5 cm : personnages et mobs (72 cubes pour 1,80 m) ;
+#   - CUBE_DECOR = 5 cm : décor et objets de la carte.
 #
 #   import sys, os; sys.path.insert(0, "<dépôt>/tools/blender/voxel")
 #   import voxel_lib as vx
-#   m = vx.Model()
+#   m = vx.Model(vx.CUBE_DECOR)
 #   m.box(-2, 2, -1, 1, 0, 8, "metal", color=(0.4, 0.4, 0.42))   # pavé, en cubes
 #   m.layers([["##", "##"], ["#.", ".."]], (0, 0, 8), {"#": ("cloth", (0.8, 0.8, 0.7))})
 #   m.face_color[(0, 0, 8, "+z")] = (0.9, 0.2, 0.1)              # une face de cube
 #   ob, info = vx.build_mesh(m, "caisse")                        # faces fusionnées
-#   vx.export_glb("assets/models/props/caisse.glb", [ob])        # vérifié avant écriture
+#   vx.export_glb("assets/models/props/caisse.glb", [ob], m.cube) # vérifié avant écriture
 #   vx.godot_check("assets/models/props/caisse.glb", animated=False)
 #
 # Unités : la description est en CUBES (entiers), repère Blender (Z en haut,
 # face avant vers -Y, gauche d'un personnage vers +X). Une cellule (x, y, z)
-# occupe [x, x+1] × [y, y+1] × [z, z+1] cubes, soit 5 cm de côté.
+# occupe [x, x+1] × [y, y+1] × [z, z+1] cubes, de `model.cube` mètres de côté.
 #
 # Maillage :
 #   - seules les faces visibles sont créées (voisin vide), plus les faces entre
@@ -31,13 +33,20 @@
 # cet os), squelette build_armature (os droits, alignés sur les axes).
 # Objets statiques : aucun os, aucun squelette.
 # Auto-vérification (self_check) avant toute écriture : chaque sommet sur la
-# grille de 5 cm, chaque normale alignée sur un axe ; godot_check lance
+# grille du cube, chaque normale alignée sur un axe ; godot_check lance
 # ensuite tools/voxel_check.gd sur le .glb écrit (vérificateur du jeu).
-import bpy, math, os, subprocess
+# Cache (save_cache / load_cache) : cellules et couleurs de faces en JSON, pour
+# reconstruire un modèle sans ses images de référence.
+# Rendus de validation : caméra orthographique, contour noir par coque
+# inversée (add_outline), planches comparées pixel à pixel à la référence.
+import bpy, json, math, os, subprocess
 import numpy as np
 from mathutils import Vector
 
-CUBE = 0.05
+CUBE_CHAR = 0.025
+CUBE_DECOR = 0.05
+# Compatibilité : pas par défaut (décor).
+CUBE = CUBE_DECOR
 MATERIALS = ("skin", "eye", "cloth", "leather", "metal", "wound", "bone")
 # Normales des six faces d'un cube.
 DIRS = {
@@ -59,9 +68,11 @@ class Voxel:
 
 class Model:
     """Grille de voxels : cellule (x, y, z) -> Voxel(matière, os, partie,
-    couleur sRGB). `part` : nom libre (zone de peinture et de comblement)."""
+    couleur sRGB). `part` : nom libre (zone de peinture et de comblement).
+    `cube` : côté d'un cube en mètres (CUBE_CHAR ou CUBE_DECOR)."""
 
-    def __init__(self):
+    def __init__(self, cube=CUBE_DECOR):
+        self.cube = cube
         self.vox = {}
         # Surcharges par face : (x, y, z, dir) -> couleur sRGB / matière.
         self.face_color = {}
@@ -98,6 +109,38 @@ class Model:
                         mat, col = legend[ch]
                         self.set(ox + i, oy + j, oz + k, mat, bone, part, col)
 
+    def fill_gaps(self, parts, passes=2):
+        """Bouche les fentes d'un cube (bruit de sculpture) : une cellule vide
+        entre deux cellules opposées de la même partie et du même os (sur un
+        axe) prend leur voxel. Renvoie le nombre de cellules ajoutées."""
+        added = 0
+        for _ in range(passes):
+            new = {}
+            cand = set()
+            for c, v in self.vox.items():
+                if v.part not in parts:
+                    continue
+                for n in DIRS.values():
+                    nb = (c[0] + n[0], c[1] + n[1], c[2] + n[2])
+                    if nb not in self.vox:
+                        cand.add(nb)
+            for c in cand:
+                for a in range(3):
+                    lo = list(c)
+                    hi = list(c)
+                    lo[a] -= 1
+                    hi[a] += 1
+                    va, vb = self.vox.get(tuple(lo)), self.vox.get(tuple(hi))
+                    if va is not None and vb is not None and va.part == vb.part and va.bone == vb.bone \
+                            and va.part in parts:
+                        new[c] = Voxel(va.mat, va.bone, va.part, va.color)
+                        break
+            if not new:
+                break
+            self.vox.update(new)
+            added += len(new)
+        return added
+
     def bounds(self):
         a = np.array(list(self.vox.keys()))
         return a.min(0), a.max(0) + 1
@@ -113,7 +156,7 @@ class Model:
                     out.append((c, d))
         return out
 
-    def blocker(self, c, d, reach=64):
+    def blocker(self, c, d, reach=128):
         """Premier voxel rencontré depuis la face (c, d) dans sa direction
         (ce qui la cache à une caméra placée de ce côté), ou None."""
         n = DIRS[d]
@@ -128,6 +171,78 @@ class Model:
 
     def mat_of(self, c, d):
         return self.face_mat.get((c[0], c[1], c[2], d), self.vox[c].mat)
+
+
+# ---------------------------------------------------------------------------
+# Cache JSON (cellules et couleurs de faces).
+# ---------------------------------------------------------------------------
+
+def save_cache(model, path):
+    """Écrit le modèle (cellules, matières, os, parties, couleurs et matières
+    de faces) en JSON compact : palette + une ligne par cellule."""
+    pal, pidx = [], {}
+
+    def ci(col):
+        k = tuple(round(float(x), 4) for x in col)
+        if k not in pidx:
+            pidx[k] = len(pal)
+            pal.append(list(k))
+        return pidx[k]
+
+    names = {"mat": [], "bone": [], "part": []}
+
+    def ni(kind, v):
+        lst = names[kind]
+        if v not in lst:
+            lst.append(v)
+        return lst.index(v)
+
+    cells = []
+    for c in sorted(model.vox):
+        v = model.vox[c]
+        faces = []
+        for d in DIRS:
+            key = (c[0], c[1], c[2], d)
+            if key in model.face_color or key in model.face_mat:
+                fm = model.face_mat.get(key)
+                faces.append("%s%d%s" % (d, ci(model.face_color.get(key, v.color)), ("@" + fm) if fm else ""))
+        cells.append("%d,%d,%d,%d,%d,%d,%d%s" % (c[0], c[1], c[2], ni("mat", v.mat), ni("bone", v.bone),
+                                               ni("part", v.part), ci(v.color),
+                                               (" " + " ".join(faces)) if faces else ""))
+    data = {"cube": model.cube, "palette": pal, "mats": names["mat"], "bones": names["bone"],
+            "parts": names["part"], "cells": cells}
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("{\n")
+        keys = list(data)
+        for i, k in enumerate(keys):
+            if k == "cells":
+                f.write('"cells": [\n' + ",\n".join(json.dumps(s) for s in data[k]) + "\n]")
+            else:
+                f.write("%s: %s" % (json.dumps(k), json.dumps(data[k])))
+            f.write(",\n" if i < len(keys) - 1 else "\n")
+        f.write("}\n")
+    return path
+
+
+def load_cache(path):
+    """Relit un modèle écrit par save_cache."""
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    m = Model(data["cube"])
+    pal = [tuple(c) for c in data["palette"]]
+    for line in data["cells"]:
+        head, *faces = line.split(" ")
+        x, y, z, mi, bi, pi, col = (int(t) for t in head.split(","))
+        c = (x, y, z)
+        m.vox[c] = Voxel(data["mats"][mi], data["bones"][bi], data["parts"][pi], pal[col])
+        for fc in faces:
+            d, rest = fc[:2], fc[2:]
+            idx, _, fm = rest.partition("@")
+            m.face_color[(x, y, z, d)] = pal[int(idx)]
+            if fm:
+                m.face_mat[(x, y, z, d)] = fm
+    return m
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +266,29 @@ class View:
     def proj(self, p):
         p = np.asarray(p, float)
         return self.u0 + self.s * float(p @ self.right), self.v0 - self.s * float(p[2])
+
+    def cell_rect(self, c, inset=0.25):
+        """Rectangle de pixels (u0, u1, v0, v1) de la cellule `c` vue de face
+        dans cette vue, resserré de `inset` de chaque côté."""
+        h_ax = int(np.argmax(np.abs(self.right)))
+        lo = np.array(c, float)
+        hi = lo + 1.0
+        a = lo.copy()
+        b = hi.copy()
+        a[h_ax], b[h_ax] = lo[h_ax] + inset, hi[h_ax] - inset
+        a[2], b[2] = lo[2] + inset, hi[2] - inset
+        (ua, va), (ub, vb) = self.proj(a), self.proj(b)
+        h, w = self.img.shape[:2]
+        u0, u1 = sorted((ua, ub))
+        v0, v1 = sorted((va, vb))
+        return (max(0, int(round(u0))), min(w, max(int(round(u0)) + 1, int(round(u1)))),
+                max(0, int(round(v0))), min(h, max(int(round(v0)) + 1, int(round(v1)))))
+
+    def frac(self, arr, c, inset=0.25):
+        """Part des pixels vrais de `arr` (H, W) dans la case de la cellule."""
+        u0, u1, v0, v1 = self.cell_rect(c, inset)
+        cell = arr[v0:v1, u0:u1]
+        return float(cell.mean()) if cell.size else 0.0
 
 
 def silhouette(model, view, shape):
@@ -184,6 +322,12 @@ def register(model, view, mask, du=40, dv=6):
     return best[0]
 
 
+def iou(model, view, mask):
+    """Recouvrement (IoU) de la silhouette du modèle et du masque de la vue."""
+    m = silhouette(model, view, mask.shape)
+    return float((m & mask).sum() / max(1, (m | mask).sum()))
+
+
 def _dominant(px):
     """Couleur dominante : teinte la plus fréquente (pas de 1/12), moyennée."""
     keys = np.round(px * 12).astype(np.int32)
@@ -193,10 +337,10 @@ def _dominant(px):
 
 def paint_from_views(model, views, accept=None, inset=0.2, min_ok=0.3):
     """Chaque face tournée vers une vue (même direction que sa caméra) et que
-    rien ne cache prend la couleur dominante de sa case de 5 cm projetée
-    (rétrécie de `inset` de chaque côté). `accept(view, cell, dir, pixels
-    (N, 3)) -> masque booléen (N)` filtre les pixels (matière...). Renvoie
-    l'ensemble des faces peintes."""
+    rien ne cache prend la couleur dominante de sa case projetée (rétrécie de
+    `inset` de chaque côté). `accept(view, cell, dir, pixels (N, 3)) ->
+    masque booléen (N)` filtre les pixels (matière...). Renvoie l'ensemble
+    des faces peintes."""
     by_dir = {v.cam_dir: v for v in views}
     painted = set()
     for c, d in model.exposed(between_bones=False):
@@ -230,11 +374,12 @@ def paint_from_views(model, views, accept=None, inset=0.2, min_ok=0.3):
     return painted
 
 
-def fill_unpainted(model, painted, interior=0.55, reach=3.0):
+def fill_unpainted(model, painted, interior=0.55, reach=3.0, interior_parts=None):
     """Faces non peintes (dessus, dessous, faces cachées) : couleur de la
     face peinte la plus proche de la même partie (même direction d'abord,
     jusqu'à `reach` cubes, puis n'importe laquelle) ; faces cachées par leur
-    propre partie (intérieur d'une jupe...) : teinte médiane assombrie."""
+    propre partie (intérieur d'une jupe...) : teinte médiane assombrie
+    (seulement pour les parties de `interior_parts`, toutes si None)."""
     from mathutils.kdtree import KDTree
     parts = {}
     for c, d in model.exposed():
@@ -263,7 +408,7 @@ def fill_unpainted(model, painted, interior=0.55, reach=3.0):
         for c, d in faces:
             if (c, d) in painted:
                 continue
-            b = model.blocker(c, d, reach=16)
+            b = model.blocker(c, d, reach=32) if interior_parts is None or part in interior_parts else None
             if b is not None and b.part == part and d[1] != "z":
                 model.face_color[(c[0], c[1], c[2], d)] = tuple(x * interior for x in med)
                 continue
@@ -396,7 +541,7 @@ def build_mesh(model, name, merge=True):
     used = [m for m in MATERIALS if any(r[3] == m for r in rects)]
     for d, quad, bone, mat, col in rects:
         polys.append(tuple(range(len(verts), len(verts) + 4)))
-        verts += [p * CUBE for p in quad]
+        verts += [p * model.cube for p in quad]
         mats.append(used.index(mat))
         bones.append(bone)
         cols.append(col)
@@ -422,14 +567,14 @@ def build_mesh(model, name, merge=True):
             if b not in vg:
                 vg[b] = ob.vertex_groups.new(name=b)
             vg[b].add(list(p.vertices), 1.0, "REPLACE")
-    info = {"cells": len(model.vox), "faces": len(model.exposed()), "rects": len(rects),
-            "tris": 2 * len(rects), "colors": len(set(cols)), "materials": used}
+    info = {"cube_m": model.cube, "cells": len(model.vox), "faces": len(model.exposed()),
+            "rects": len(rects), "tris": 2 * len(rects), "colors": len(set(cols)), "materials": used}
     return ob, info
 
 
-def build_armature(name, bones):
-    """Squelette : bones = [(nom, parent, tête, bout)] en cubes (os droits
-    conseillés : bout aligné sur un axe)."""
+def build_armature(name, bones, cube=CUBE_DECOR):
+    """Squelette : bones = [(nom, parent, tête, bout)] en cubes de `cube` m
+    (os droits conseillés : bout aligné sur un axe)."""
     arm = bpy.data.armatures.new(name)
     rig = bpy.data.objects.new(name, arm)
     bpy.context.scene.collection.objects.link(rig)
@@ -437,8 +582,8 @@ def build_armature(name, bones):
     bpy.ops.object.mode_set(mode="EDIT")
     for b, parent, head, tail in bones:
         eb = arm.edit_bones.new(b)
-        eb.head = Vector(head) * CUBE
-        eb.tail = Vector(tail) * CUBE
+        eb.head = Vector(head) * cube
+        eb.tail = Vector(tail) * cube
         eb.roll = 0.0
         if parent:
             eb.parent = arm.edit_bones[parent]
@@ -452,15 +597,15 @@ def bind(ob, rig):
     ob.modifiers.new("Armature", "ARMATURE").object = rig
 
 
-def self_check(ob, tol=1e-4):
-    """Vérification avant écriture : sommets sur la grille de 5 cm (repère de
+def self_check(ob, cube=CUBE_DECOR, tol=1e-4):
+    """Vérification avant écriture : sommets sur la grille du cube (repère de
     l'objet, au repos), normales de faces alignées sur un axe, poids rigides.
     Lève AssertionError avec le premier défaut."""
     me = ob.data
     for v in me.vertices:
         for x in v.co:
-            q = x / CUBE
-            assert abs(q - round(q)) * CUBE < tol, "sommet hors grille : %s" % tuple(v.co)
+            q = x / cube
+            assert abs(q - round(q)) * cube < tol, "sommet hors grille de %g m : %s" % (cube, tuple(v.co))
     for p in me.polygons:
         n = p.normal
         assert max(abs(n.x), abs(n.y), abs(n.z)) > 0.9999, "face oblique : %s" % tuple(n)
@@ -471,12 +616,12 @@ def self_check(ob, tol=1e-4):
     return True
 
 
-def export_glb(path, objects):
+def export_glb(path, objects, cube=CUBE_DECOR):
     """Exporte en .glb (Y en haut, peau si squelette, couleurs par sommet),
-    après self_check de chaque maillage."""
+    après self_check de chaque maillage sur la grille `cube`."""
     for o in objects:
         if o.type == "MESH":
-            self_check(o)
+            self_check(o, cube)
     bpy.ops.object.select_all(action="DESELECT")
     for o in objects:
         o.select_set(True)
@@ -493,14 +638,18 @@ def export_glb(path, objects):
     return path
 
 
-def godot_check(path, animated, godot=None, root=None):
+def godot_check(path, animated, cube=None, godot=None, root=None):
     """Lance tools/voxel_check.gd (Godot sans fenêtre) sur le .glb : True si
-    conforme. `godot` : exécutable (défaut : variable GODOT, sinon « godot »)."""
+    conforme. `cube` (m) : pas forcé (défaut : celui du mode, 2,5 cm animé,
+    5 cm statique). `godot` : exécutable (défaut : variable GODOT, sinon
+    « godot »)."""
     root = root or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
     exe = godot or os.environ.get("GODOT", "godot")
     rel = os.path.relpath(os.path.abspath(path), root).replace("\\", "/")
     cmd = [exe, "--headless", "--path", root, "-s", "res://tools/voxel_check.gd", "--",
            "res://" + rel, "--anime" if animated else "--statique"]
+    if cube:
+        cmd.append("--pas=%g" % (cube * 100.0))
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     out = "\n".join(l for l in r.stdout.splitlines() if "voxel_check" in l or l.startswith("  "))
     print(out)
@@ -511,14 +660,71 @@ def godot_check(path, animated, godot=None, root=None):
 # Rendus de contrôle (planches de validation).
 # ---------------------------------------------------------------------------
 
+def add_outline(model, name, rig=None, thickness=0.008, color=(0.02, 0.02, 0.02)):
+    """Contour noir des rendus de validation, par COQUE INVERSÉE construite
+    sur la grille du modèle : faces extérieures, sommets soudés par os, chaque
+    sommet poussé de `thickness` vers l'extérieur (somme des normales des
+    faces qui le touchent), faces retournées, matière noire à faces arrière
+    masquées ; liée au squelette `rig` (suit la pose). Objet de rendu
+    seulement : la coque n'entre jamais dans le .glb. Renvoie l'objet."""
+    vid, verts, push, vbone, polys = {}, [], [], [], []
+    for c, d in model.exposed(between_bones=False):
+        bone = model.vox[c].bone
+        n = DIRS[d]
+        k = [i for i in range(3) if n[i] != 0][0]
+        ax = [i for i in range(3) if n[i] == 0]
+        plane = c[k] + (1 if n[k] > 0 else 0)
+        quad = _quad(d, plane, c[ax[0]], c[ax[0]] + 1, c[ax[1]], c[ax[1]] + 1)
+        ids = []
+        for p in quad:
+            key = (int(round(p.x)), int(round(p.y)), int(round(p.z)), bone)
+            if key not in vid:
+                vid[key] = len(verts)
+                verts.append(p * model.cube)
+                push.append(Vector((0, 0, 0)))
+                vbone.append(bone)
+            push[vid[key]] += Vector(n)
+            ids.append(vid[key])
+        polys.append(tuple(reversed(ids)))
+    verts = [v + Vector([max(-1.0, min(1.0, a)) for a in pv]) * thickness for v, pv in zip(verts, push)]
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(verts, [], polys)
+    me.validate()
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    if rig is not None:
+        groups = {}
+        for i, b in enumerate(vbone):
+            if b not in groups:
+                groups[b] = ob.vertex_groups.new(name=b)
+            groups[b].add([i], 1.0, "REPLACE")
+        ob.parent = rig
+        ob.modifiers.new("Armature", "ARMATURE").object = rig
+    mat = bpy.data.materials.get("vx_outline")
+    if mat is None:
+        mat = bpy.data.materials.new("vx_outline")
+        mat.use_nodes = True
+        nt = mat.node_tree
+        for n in list(nt.nodes):
+            nt.nodes.remove(n)
+        out = nt.nodes.new("ShaderNodeOutputMaterial")
+        em = nt.nodes.new("ShaderNodeEmission")
+        em.inputs["Color"].default_value = (*color, 1.0)
+        nt.links.new(em.outputs["Emission"], out.inputs["Surface"])
+        mat.use_backface_culling = True
+    ob.data.materials.append(mat)
+    for p in me.polygons:
+        p.use_smooth = False
+    return ob
+
+
 def setup_render(size=(360, 640)):
-    """Scène de rendu neutre : EEVEE, fond gris, deux soleils, caméra
-    orthographique « VoxCam »."""
+    """Scène de rendu neutre : EEVEE, fond transparent (gris posé par
+    load_png), deux soleils attachés à la caméra, caméra orthographique
+    « VoxCam »."""
     sc = bpy.context.scene
     sc.render.engine = "BLENDER_EEVEE"
     sc.render.resolution_x, sc.render.resolution_y = size
-    # Fond posé après coup (load_png) : le monde éclaire peu, les côtés des
-    # cubes restent lisibles.
     sc.render.film_transparent = True
     sc.view_settings.view_transform = "Standard"
     if sc.world is None:
@@ -526,34 +732,36 @@ def setup_render(size=(360, 640)):
     sc.world.use_nodes = True
     bgn = sc.world.node_tree.nodes.get("Background")
     bgn.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
-    bgn.inputs["Strength"].default_value = 0.35
+    bgn.inputs["Strength"].default_value = 0.45
     cam = bpy.data.objects.get("VoxCam")
     if cam is None:
         cam = bpy.data.objects.new("VoxCam", bpy.data.cameras.new("VoxCam"))
         sc.collection.objects.link(cam)
     cam.data.type = "ORTHO"
-    for name, rot, energy in (("VoxKey", (45, 0, 30), 3.2), ("VoxFill", (75, 0, -140), 0.9)):
+    cam.data.sensor_fit = "VERTICAL"
+    for name, energy in (("VoxKey", 2.6), ("VoxFill", 0.7)):
         lt = bpy.data.objects.get(name)
         if lt is None:
             lt = bpy.data.objects.new(name, bpy.data.lights.new(name, "SUN"))
             sc.collection.objects.link(lt)
         lt.data.energy = energy
-        lt.rotation_euler = [math.radians(a) for a in rot]
     sc.camera = cam
     return sc, cam
 
 
-def render_view(path, azimuth, target, ortho, elev=0.0, dist=6.0):
+def render_view(path, azimuth, target, height_m, elev=0.0, dist=6.0):
     """Rendu orthographique : `azimuth` en degrés (0 = de face, caméra en -Y ;
-    90 = côté gauche du personnage, caméra en +X), `target` (m), `ortho`
-    (hauteur visible, m)."""
+    90 = côté gauche du personnage, caméra en +X), `target` (m, centre de
+    l'image), `height_m` (hauteur visible en mètres : résolution verticale /
+    pixels par mètre pour caler l'échelle sur une planche)."""
     sc, cam = bpy.context.scene, bpy.data.objects["VoxCam"]
     a, e = math.radians(azimuth), math.radians(elev)
     t = Vector(target)
     pos = t + Vector((math.sin(a) * math.cos(e), -math.cos(a) * math.cos(e), math.sin(e))) * dist
     cam.location = pos
     cam.rotation_euler = (t - pos).to_track_quat("-Z", "Y").to_euler()
-    cam.data.ortho_scale = ortho * max(1.0, sc.render.resolution_x / sc.render.resolution_y)
+    cam.data.sensor_fit = "VERTICAL"
+    cam.data.ortho_scale = height_m
     # Lumières attachées à la caméra (chaque vue éclairée comme une planche
     # dessinée : clé en haut à gauche de la caméra, débouchage à droite).
     for name, rx, dz in (("VoxKey", 45, 30), ("VoxFill", 75, -140)):
@@ -593,8 +801,10 @@ def save_png(a, path):
 
 def fit(a, w, h, bg=(0.56, 0.56, 0.56)):
     """Redimensionne (au plus proche) en gardant les proportions, centré
-    dans une case w × h."""
+    dans une case w × h (une image déjà à la taille est gardée telle quelle)."""
     ih, iw = a.shape[:2]
+    if (ih, iw) == (h, w):
+        return a
     s = min(w / iw, h / ih)
     nw, nh = max(1, int(iw * s)), max(1, int(ih * s))
     ys = np.minimum((np.arange(nh) / s).astype(int), ih - 1)
