@@ -65,7 +65,7 @@ func run() -> void:
 	at.check(game.hud._prompt.text.contains(MysteryBox.item_name(box.item)), "invite : %s" % game.hud._prompt.text)
 	await press()
 	at.check(box.state == MysteryBox.State.IDLE and pd.throwable == int(it.kind) and pd.grenades == ThrowableRules.SLOT_MAX,
-		"%s pris : emplacement de grenade rempli (%d)" % [box.item, pd.grenades])
+		"%s pris : emplacement de grenade rempli (%d)" % [it.id, pd.grenades])
 	at.check(pd.weapons == weapons0, "armes inchangées : rien n'entre dans l'arsenal")
 
 	# Peluche leurre forcée : remplace les grenades.
