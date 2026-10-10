@@ -50,7 +50,9 @@ static func two_rooms() -> EditorMap:
 	doc.ouvertures.append({"id": "o3", "type": "fenetre", "altitude": 0, "position": [19.25, 0.0]})
 	_obj(doc, {"type": "depart", "position": [7.0, 6.0]})
 	_obj(doc, {"type": "boite", "position": [19.0, 10.0], "mur": "s", "depart": true})
-	return MapTestKit.add_evac(doc)
+	# Porte d'évacuation contre le mur sud de A, loin des objets que les tests
+	# poussent contre les murs (sinon carte invalide, sans départ).
+	return MapTestKit.add_evac_at(doc, Vector2(10.5, 9.7))
 
 
 static func layout(doc: EditorMap) -> Dictionary:

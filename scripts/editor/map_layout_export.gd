@@ -1085,15 +1085,18 @@ func _markers() -> Dictionary:
 	for p in md.start_points:
 		m.player_spawns.append(_p(p[0], p[1], 0.05))
 		mean += p[1]
-	mean /= md.start_points.size()
 	var cz := Vector2.ZERO
 	var nz := 0
-	var f0 := md.floors[md.start_points[0][0]]
-	for y in f0.h:
-		for x in f0.w:
-			if f0.zone_of(Vector2i(x, y)) == "a" and f0.at(Vector2i(x, y)) == Kd.SOL:
-				cz += Vector2(x + 0.5, y + 0.5)
-				nz += 1
+	# Carte invalide sans départ (export d'une carte refusée par le
+	# validateur) : regard par défaut au lieu d'un index hors bornes.
+	if not md.start_points.is_empty():
+		mean /= md.start_points.size()
+		var f0 := md.floors[md.start_points[0][0]]
+		for y in f0.h:
+			for x in f0.w:
+				if f0.zone_of(Vector2i(x, y)) == "a" and f0.at(Vector2i(x, y)) == Kd.SOL:
+					cz += Vector2(x + 0.5, y + 0.5)
+					nz += 1
 	var look := cz / maxi(nz, 1) - mean
 	m["player_yaw"] = _r(atan2(-look.x, -look.y)) if look.length() > 2.0 else PI
 	# Fenêtres et apparitions derrière elles.

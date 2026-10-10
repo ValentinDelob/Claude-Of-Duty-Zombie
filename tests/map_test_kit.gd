@@ -40,20 +40,40 @@ static func add_evac(m: EditorMap) -> EditorMap:
 				var p := a.lerp(b, 0.5) + t * off
 				for side in [1.0, -1.0]:
 					var mouse: Vector2 = p + nrm * 0.3 * side
-					if not MapGeom.contains(poly, mouse):
-						continue
-					var tmpl := {"type": "evacuation"}
-					var res := MapRules.place_wall_item(m, k, tmpl, mouse)
-					if not bool(res.get("ok", false)):
-						continue
-					# « altitude » en dernier, comme après une conversion d'un format plus ancien.
-					var o := {"id": ID, "type": "evacuation", "position": res.position}
-					MapRules.apply_wall(o, res)
-					o["altitude"] = EditorMap.alt_of(room)
-					m.objets.append(o)
-					return m
+					if MapGeom.contains(poly, mouse) and _place(m, room, mouse):
+						return m
 	push_warning("[MapTestKit] aucune place pour la porte d'évacuation")
 	return m
+
+
+## Pose la porte d'évacuation contre le mur le plus proche de `mouse` (point
+## de l'éditeur dans la pièce du départ), comme un clic de l'éditeur : pour un
+## test qui pose ensuite d'autres objets contre les murs et doit garder la
+## porte à l'écart. Rien si la carte en a déjà une ; échec : carte inchangée.
+static func add_evac_at(m: EditorMap, mouse: Vector2) -> EditorMap:
+	if m.objets.any(func(o): return o is Dictionary and String(o.get("type", "")) == "evacuation"):
+		return m
+	for room in _candidate_rooms(m):
+		if MapGeom.contains(m.room_poly(room), mouse) and _place(m, room, mouse):
+			return m
+	push_warning("[MapTestKit] porte d'évacuation impossible en %s" % str(mouse))
+	return m
+
+
+## Essaie la règle de pose de l'éditeur au point `mouse` de la pièce `room`.
+static func _place(m: EditorMap, room: Dictionary, mouse: Vector2) -> bool:
+	var k := m.level_of(room)
+	if k < 0:
+		return false
+	var res := MapRules.place_wall_item(m, k, {"type": "evacuation"}, mouse)
+	if not bool(res.get("ok", false)):
+		return false
+	# « altitude » en dernier, comme après une conversion d'un format plus ancien.
+	var o := {"id": ID, "type": "evacuation", "position": res.position}
+	MapRules.apply_wall(o, res)
+	o["altitude"] = EditorMap.alt_of(room)
+	m.objets.append(o)
+	return true
 
 
 ## Pièces candidates : celle du départ des joueurs d'abord, puis celles de la
