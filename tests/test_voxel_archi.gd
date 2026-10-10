@@ -1,34 +1,137 @@
 extends TestCase
-## Architecture CUBIQUE (pilote, docs/VOXEL_ARCHITECTURE_PLAN.md) : textures
-## pixel art générées (un pixel = 5 cm, mêmes clés que WorldLook.SURFACES,
-## déterministes, palette du décor) et murs en biais rendus en escalier de
-## cubes de 5 cm (faces axiales, sommets sur la grille du monde, faces des
+## Architecture CUBIQUE (docs/VOXEL_ARCHITECTURE_PLAN.md) : textures pixel
+## art générées de TOUTES les surfaces (lot C : un pixel = 5 cm, mêmes clés
+## que WorldLook.SURFACES, déterministes, palette du décor égale à
+## voxel_lib.DECOR_PALETTE, textures importées réduites à 20 pixels par
+## mètre, planche, vignettes de l'éditeur) et murs en biais rendus en escalier
+## de cubes de 5 cm (faces axiales, sommets sur la grille du monde, faces des
 ## deux côtés au bon matériau), collision lisse inchangée.
 
 const Diag := preload("res://tests/test_map_editor_diagonal.gd")
 
 
-func test_pixel_surfaces_replace_pilot_keys() -> void:
-	for key: String in PixelSurfaces.DEFS:
-		assert_true(WorldLook.SURFACES.has(key), "clé existante (%s) : les cartes se chargent telles quelles" % key)
+func test_every_surface_key_is_pixel_art() -> void:
+	for key: String in WorldLook.SURFACES:
+		assert_true(PixelSurfaces.has(key), "clé existante (%s) : texture pixel art" % key)
 		var m := WorldLook.surface(key)
-		assert_eq(m.shader, PixelSurfaces.SHADER, "%s : surface pixel art" % key)
+		assert_eq(m.shader, PixelSurfaces.shader_for(key), "%s : surface pixel art" % key)
+		assert_true(m.shader.code.contains("filter_nearest_mipmap"), "%s : filtrage au plus proche" % key)
 		var img := PixelSurfaces.image(key)
-		var d: Dictionary = PixelSurfaces.DEFS[key]
-		assert_eq(img.get_size(), Vector2i(int(d.w), int(d.h)), "%s : taille de l'image" % key)
-		assert_true(int(d.wrap) >= 0 and int(d.wrap) < int(d.h), "%s : lignes répétées dans l'image" % key)
-	# Clé non convertie : surface procédurale d'avant (lots suivants).
-	assert_eq(WorldLook.surface("metal").shader, WorldLook.SURFACE, "tôle : pas encore convertie")
+		assert_eq(img.get_size(), Vector2i(PixelSurfaces.SIZE, PixelSurfaces.SIZE), "%s : 64 × 64 px (3,2 m)" % key)
+		var d := PixelSurfaces.def(key)
+		assert_true(int(d.wrap) >= 0 and int(d.wrap) < PixelSurfaces.SIZE, "%s : lignes répétées dans l'image" % key)
+		assert_eq(m.get_shader_parameter("size_px"), Vector2(PixelSurfaces.SIZE, PixelSurfaces.SIZE), "%s : 20 px par mètre" % key)
+	# Clés propres aux textures (hors éditeur) : la planche seulement.
+	for key: String in PixelSurfaces.DEFS:
+		assert_true(WorldLook.SURFACES.has(key) or key == "plank", "%s : clé du jeu" % key)
+	assert_eq(WorldLook.surface("inconnue"), WorldLook.surface("wall"), "clé inconnue : plâtre")
+	assert_eq(Barricade.plank_material(), PixelSurfaces.material("plank"), "bois des encadrements : planche pixel art")
+	assert_eq(MeshMapBuilder.material_for("plank"), PixelSurfaces.material("plank"), "clé spéciale « plank » : même planche")
 
 
 func test_pixel_surfaces_are_deterministic() -> void:
+	var total := 0.0
 	for key: String in PixelSurfaces.DEFS:
 		var a := PixelSurfaces.image(key).get_data()
 		PixelSurfaces._images.erase(key)
 		var t0 := Time.get_ticks_usec()
 		var b := PixelSurfaces.image(key).get_data()
-		print("[voxel_archi] texture %s : %.1f ms" % [key, (Time.get_ticks_usec() - t0) / 1000.0])
+		var ms := (Time.get_ticks_usec() - t0) / 1000.0
+		total += ms
+		print("[voxel_archi] texture %s : %.1f ms" % [key, ms])
 		assert_eq(a, b, "%s : même image à chaque génération" % key)
+	print("[voxel_archi] %d textures générées en %.0f ms" % [PixelSurfaces.DEFS.size(), total])
+
+
+## Teintes de PixelSurfaces.PAL = celles de voxel_lib.DECOR_PALETTE (relu
+## dans tools/blender/voxel/voxel_lib.py) : architecture et décor partagent
+## une palette.
+func test_palette_matches_voxel_lib() -> void:
+	var src := FileAccess.get_file_as_string("res://tools/blender/voxel/voxel_lib.py")
+	assert_true(src.contains("DECOR_PALETTE = {"), "voxel_lib.py lu")
+	var block := src.get_slice("DECOR_PALETTE = {", 1).get_slice("\n}", 0)
+	var re := RegEx.create_from_string("\"(\\w+)\"\\s*:\\s*\\(\\s*([0-9.]+)\\s*,\\s*([0-9.]+)\\s*,\\s*([0-9.]+)\\s*\\)")
+	var py := {}
+	for r in re.search_all(block):
+		py[r.get_string(1)] = Color(float(r.get_string(2)), float(r.get_string(3)), float(r.get_string(4)))
+	assert_true(py.size() >= 40, "teintes de DECOR_PALETTE (%d)" % py.size())
+	for name: String in PixelSurfaces.PAL:
+		assert_true(py.has(name), "%s : teinte de DECOR_PALETTE" % name)
+		if py.has(name):
+			assert_true((py[name] as Color).is_equal_approx(PixelSurfaces.PAL[name]), "%s : même valeur (%s / %s)" % [name, py[name], PixelSurfaces.PAL[name]])
+	# Chaque teinte citée par une clé existe dans la palette.
+	for key: String in PixelSurfaces.DEFS:
+		var d := PixelSurfaces.def(key)
+		for k in ["tone", "paint", "accent", "wood", "frieze_tone"]:
+			if d.has(k):
+				var names: Array = [d[k]] if d[k] is String else [d[k][0], d[k][1]]
+				for n in names:
+					assert_true(PixelSurfaces.PAL.has(n), "%s.%s : %s dans la palette" % [key, k, n])
+
+
+## Sombres mais lisibles (l'architecture est plus sombre que le décor),
+## jamais d'un seul aplat ; lueur seulement sur la pierre à veines.
+func test_pixel_surfaces_levels_and_glow() -> void:
+	for key: String in PixelSurfaces.DEFS:
+		var img := PixelSurfaces.image(key)
+		var sum := 0.0
+		var colors := {}
+		var glow := 0
+		for y in img.get_height():
+			for x in img.get_width():
+				var c := img.get_pixel(x, y)
+				sum += PixelSurfaces.lum(c)
+				colors[c.to_rgba32()] = true
+				if c.a < 0.99:
+					glow += 1
+		var mean := sum / (img.get_width() * img.get_height())
+		assert_true(mean > 0.04 and mean < 0.6, "%s : luminance moyenne %.3f" % [key, mean])
+		assert_true(colors.size() >= 4, "%s : plusieurs teintes (%d)" % [key, colors.size()])
+		if float(PixelSurfaces.def(key).glow) > 0.0:
+			assert_true(glow > 10, "%s : veines lumineuses (%d px)" % [key, glow])
+		else:
+			assert_eq(glow, 0, "%s : aucune lueur" % key)
+
+
+## Textures importées d'une carte : réduites à la volée à `taille` × 20 px de
+## large (moyenne de zone), agrandies au plus proche si l'image est petite.
+func test_imported_textures_are_pixelated() -> void:
+	var big := Image.create(256, 128, false, Image.FORMAT_RGB8)
+	for y in 128:
+		for x in 256:
+			big.set_pixel(x, y, Color.WHITE if (x + y) % 2 == 0 else Color.BLACK)
+	var p := MapTextureLib.pixelate(big, 2.0)
+	assert_eq(p.get_size(), Vector2i(40, 20), "2 m -> 40 × 20 px (proportions de l'image)")
+	var c := p.get_pixel(17, 9)
+	assert_true(absf(c.r - 0.5) < 0.12, "moyenne de zone (damier -> gris, %.2f)" % c.r)
+	var small := Image.create(4, 4, false, Image.FORMAT_RGB8)
+	small.fill(Color(0.2, 0.4, 0.6))
+	small.set_pixel(0, 0, Color.RED)
+	var q := MapTextureLib.pixelate(small, 1.0)
+	assert_eq(q.get_size(), Vector2i(20, 20), "1 m -> 20 × 20 px")
+	assert_true(q.get_pixel(0, 0).is_equal_approx(Color.RED) and q.get_pixel(4, 4).is_equal_approx(Color.RED) and q.get_pixel(5, 5).is_equal_approx(Color(0.2, 0.4, 0.6)), "agrandie au plus proche (un pixel de l'image = 5 × 5 pixels)")
+	assert_true(MapTextureLib.SHADER.code.contains("filter_nearest_mipmap"), "textures importées au plus proche")
+
+
+## Vignettes des surfaces dans l'éditeur : la texture pixel art elle-même.
+func test_editor_surface_icons() -> void:
+	for key: String in WorldLook.SURFACES:
+		var img := MapIcons.surface_icon_image(key)
+		assert_eq(img.get_size(), MapIcons.SURFACE_ICON, "%s : vignette 40 × 24" % key)
+		var colors := {}
+		for y in img.get_height():
+			for x in img.get_width():
+				colors[img.get_pixel(x, y).to_rgba32()] = true
+		assert_true(colors.size() >= 3, "%s : vignette du motif (%d teintes)" % [key, colors.size()])
+	# Mur : vu de face, le pied en bas : le liseré sombre du soubassement
+	# (ligne 25 de l'image, 1,25 m) tombe sur la ligne 33 - 25 = 8 de la vignette.
+	var wall := MapIcons.surface_icon_image("wall")
+	var row := func(y: int) -> float:
+		var s := 0.0
+		for x in wall.get_width():
+			s += PixelSurfaces.lum(wall.get_pixel(x, y))
+		return s
+	assert_true(row.call(8) < row.call(6) * 0.85 and row.call(8) < row.call(10) * 0.85, "mur : liseré du soubassement à sa place (pied en bas)")
 
 
 func test_painted_wall_band_and_grime() -> void:

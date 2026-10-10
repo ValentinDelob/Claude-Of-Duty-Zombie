@@ -1,7 +1,7 @@
 class_name NoiseLattice
 extends RefCounted
 ## Treillis de bruit de valeur précalculés (procéduraux, générés au premier
-## usage) pour les shaders de surface et de zombie.
+## usage) pour les shaders de la caisse au hasard et des zombies.
 ##
 ## Un bruit de valeur interpole les valeurs aléatoires des nœuds d'un
 ## treillis entier avec des poids lissés s(f) = f²(3 - 2f). Plutôt que de
@@ -9,7 +9,7 @@ extends RefCounted
 ## dont chaque texel est un nœud, avec le filtrage linéaire du GPU, à la
 ## coordonnée i + s(f) : UNE lecture filtrée donne exactement le mélange lissé
 ## des nœuds voisins (même allure que le bruit calculé, période SIZE_2D /
-## SIZE_3D nœuds). Voir noise2() dans surface.gdshader et vnoise() dans
+## SIZE_3D nœuds). Voir les shaders de box_model.gd et vnoise() dans
 ## zombie_body.gdshaderinc ; gain mesuré dans docs/ARCHITECTURE.md.
 
 const SIZE_2D := 64

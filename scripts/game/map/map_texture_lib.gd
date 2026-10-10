@@ -30,9 +30,11 @@ extends RefCounted
 ## vérifiée clé par clé (check_def), image vérifiée (signature PNG / JPEG,
 ## côtés lus dans l'en-tête et bornés AVANT tout décodage, puis vrai décodage
 ## par Image depuis les octets : jamais load(), jamais de ressource Godot).
-## En jeu : Image.load_png_from_buffer / load_jpg_from_buffer -> ImageTexture
-## (mipmaps) -> matériau (assets/shaders/map_texture.gdshader : image répétée
-## en coordonnées monde, même échelle sur le sol, les murs et le plafond).
+## En jeu : Image.load_png_from_buffer / load_jpg_from_buffer -> image réduite
+## à 20 pixels par mètre (pixelate : un pixel = un cube de 5 cm, le fichier
+## n'est pas touché) -> ImageTexture (mipmaps) -> matériau
+## (assets/shaders/map_texture.gdshader : image répétée en coordonnées monde,
+## au plus proche, même échelle sur le sol, les murs et le plafond).
 ## Texture absente ou illisible : surface par défaut (zone ou jeu), avec un
 ## avertissement du validateur (MapRaster).
 
@@ -311,8 +313,19 @@ static func average_color(img: Image) -> String:
 	return "#" + sum.to_html(false)
 
 
-## Aperçu (icône des listes) : l'image réduite en `w` × `h` px.
-static func thumbnail(img: Image, w := 40, h := 24) -> ImageTexture:
+## Aperçu (icône des listes) : l'image réduite en `w` × `h` px ; `size_m` >
+## 0 : comme en jeu (pixelate, un pixel = 5 cm), un morceau de `w` × `h`
+## pixels (2 m × 1,2 m) répété depuis le coin, comme les surfaces du jeu
+## (MapIcons.surface_texture).
+static func thumbnail(img: Image, w := 40, h := 24, size_m := 0.0) -> ImageTexture:
+	if size_m > 0.0:
+		var p := pixelate(img, size_m)
+		p.convert(Image.FORMAT_RGB8)
+		var out := Image.create(w, h, false, Image.FORMAT_RGB8)
+		for y in h:
+			for x in w:
+				out.set_pixel(x, y, p.get_pixel(x % p.get_width(), y % p.get_height()))
+		return ImageTexture.create_from_image(out)
 	var t := img.duplicate() as Image
 	t.convert(Image.FORMAT_RGB8)
 	t.resize(w, h, Image.INTERPOLATE_BILINEAR)
@@ -629,16 +642,34 @@ static func layout_entry(doc_textures: Dictionary, files: Dictionary, tid: Strin
 	return e
 
 
-## ImageTexture (mipmaps) des octets base64 d'une image ; null si illisible.
-static func _texture(b64: String, file: String) -> ImageTexture:
-	var key := "%s:%d:%d" % [file, b64.length(), b64.hash()]
+## Image en PIXEL ART « un pixel = un cube de 5 cm » (GAME_CONCEPT.md
+## § 4.19) : `img` ramenée à `size_m` × 20 pixels de large (hauteur selon ses
+## proportions), par moyenne de zone (mipmaps : réduction trilinéaire) si elle
+## est plus grande, au plus proche si elle est plus petite. Le fichier de la
+## carte n'est pas touché : seule l'image affichée change.
+static func pixelate(img: Image, size_m: float) -> Image:
+	var out := img.duplicate() as Image
+	if out.is_compressed():
+		out.decompress()
+	out.clear_mipmaps()
+	var tw := maxi(1, roundi(size_m * PixelSurfaces.PX_PER_M))
+	var th := maxi(1, roundi(tw * float(out.get_height()) / maxf(1.0, float(out.get_width()))))
+	if out.get_width() != tw or out.get_height() != th:
+		var shrink := out.get_width() > tw or out.get_height() > th
+		out.resize(tw, th, Image.INTERPOLATE_TRILINEAR if shrink else Image.INTERPOLATE_NEAREST)
+	return out
+
+
+## ImageTexture (mipmaps) des octets base64 d'une image, réduite à `size_m` ×
+## 20 pixels de large (pixelate) ; null si illisible.
+static func _texture(b64: String, file: String, size_m: float) -> ImageTexture:
+	var key := "%s:%d:%d:%.2f" % [file, b64.length(), b64.hash(), size_m]
 	if _tex_cache.has(key):
 		return _tex_cache[key]
 	var img := decode(Marshalls.base64_to_raw(b64), file)
 	var tex: ImageTexture = null
 	if img != null:
-		if img.is_compressed():
-			img.decompress()
+		img = pixelate(img, size_m)
 		img.generate_mipmaps()
 		tex = ImageTexture.create_from_image(img)
 	if _tex_cache.size() >= 64:
@@ -658,20 +689,20 @@ static func material_of(e: Variant) -> ShaderMaterial:
 	var d := sanitize(e.def)
 	if d.is_empty():
 		return null
-	var tex := _texture(String(e.image), String(e.file))
+	var tex := _texture(String(e.image), String(e.file), float(d.taille))
 	if tex == null:
 		push_warning("[MapTextureLib] image de texture illisible : surface par défaut")
 		return null
 	var m := ShaderMaterial.new()
 	m.shader = SHADER
 	m.set_shader_parameter("albedo_tex", tex)
-	var w := float(d.taille)
-	m.set_shader_parameter("tile", Vector2(w, w * float(tex.get_height()) / maxf(1.0, float(tex.get_width()))))
+	# Motif d'un nombre entier de pixels de 5 cm (côtés de l'image réduite).
+	m.set_shader_parameter("tile", Vector2(tex.get_width(), tex.get_height()) / float(PixelSurfaces.PX_PER_M))
 	m.set_shader_parameter("tint", Color.html(String(d.get("teinte", DEFAULTS.teinte))))
 	m.set_shader_parameter("roughness_base", float(d.get("rugosite", DEFAULTS.rugosite)))
 	m.set_shader_parameter("metallic_base", float(d.get("metal", DEFAULTS.metal)))
 	if e.get("normal") is String and String(e.get("normal_file", "")) in NORMAL_FILES:
-		var nt := _texture(String(e.normal), String(e.normal_file))
+		var nt := _texture(String(e.normal), String(e.normal_file), float(d.taille))
 		if nt != null:
 			m.set_shader_parameter("normal_tex", nt)
 			m.set_shader_parameter("use_normal", true)

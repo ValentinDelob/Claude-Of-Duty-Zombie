@@ -1,5 +1,5 @@
 shader_type spatial;
-// Surface « PIXEL ART » de l'architecture (PixelSurfaces, GAME_CONCEPT.md
+// Surface « PIXEL ART » (PixelSurfaces, GAME_CONCEPT.md
 // § 4.19) : un pixel de l'image = un cube de 5 cm, posé en coordonnées MONDE
 // (20 pixels par mètre) : les pixels tombent sur la grille de 5 cm, sans
 // étirement ni couture d'un morceau de géométrie à l'autre.
@@ -16,7 +16,9 @@ uniform vec2 size_px = vec2(64.0, 64.0);
 uniform float wrap_px = 0.0;
 uniform float roughness_base = 0.9;
 uniform float metallic_base = 0.0;
-// Mêmes paramètres d'instance que surface.gdshader (posés par MeshMapBuilder).
+uniform vec4 glow_color : source_color = vec4(0.8, 0.05, 0.02, 1.0);
+uniform float glow = 0.0;
+// Paramètres d'instance posés par MeshMapBuilder sur toute l'architecture.
 instance uniform float floor_y = 0.0;
 instance uniform float oblique = 0.0;
 
@@ -65,4 +67,10 @@ void fragment() {
 	ALBEDO = c.rgb + oblique * 0.0;
 	ROUGHNESS = roughness_base;
 	METALLIC = metallic_base;
+	// Lueur (veines de la pierre rituelle) : alpha de l'image = 1 - lueur ;
+	// pulsation lente, décalée par bandes de 40 cm.
+	if (glow > 0.0) {
+		float v = 1.0 - c.a;
+		EMISSION = glow_color.rgb * v * glow * (0.7 + 0.3 * sin(TIME * 1.5 + floor(px.x / 8.0) * 0.7));
+	}
 }

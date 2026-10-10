@@ -25,7 +25,6 @@ func create_nav() -> void:
 
 func build(world: Node3D) -> RefCounted:
 	var builder := MapBuilder.new(data, def)
-	builder.materials = WorldLook.map_materials()
 	builder.build(world)
 	var props := PropBuilder.new(data, def)
 	props.build(world)

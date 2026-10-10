@@ -208,13 +208,15 @@ func icon(key: String) -> Texture2D:
 	var def: Dictionary = ed.doc.textures.get(tid, {})
 	var f := MapTextureLib.image_file(ed.doc.texture_files, tid)
 	var b64 := String(ed.doc.texture_files.get(MapTextureLib.file_key(tid, f), "")) if f != "" else ""
-	var ck := "%s:%d:%d:%s" % [tid, b64.length(), b64.hash(), String(def.get("couleur", ""))]
+	var size_m := float(def.get("taille", MapTextureLib.DEFAULT_SIZE))
+	var ck := "%s:%d:%d:%s:%.2f" % [tid, b64.length(), b64.hash(), String(def.get("couleur", "")), size_m]
 	if _thumbs.has(ck):
 		return _thumbs[ck]
 	var tex: Texture2D = null
 	var img := MapTextureLib.decode(Marshalls.base64_to_raw(b64), f) if f != "" else null
 	if img != null:
-		tex = MapTextureLib.thumbnail(img)
+		# Comme en jeu : un pixel = 5 cm (MapTextureLib.pixelate).
+		tex = MapTextureLib.thumbnail(img, 40, 24, size_m)
 	else:
 		# Sans image (invité d'une session, image absente) : sa couleur moyenne.
 		var flat := Image.create(40, 24, false, Image.FORMAT_RGB8)

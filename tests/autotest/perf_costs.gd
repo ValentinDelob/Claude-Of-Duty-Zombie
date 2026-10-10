@@ -109,9 +109,9 @@ func _modes(zombies: bool) -> Array:
 		for d: Decal in tree().get_nodes_in_group(RenderQuality.DECAL_GROUP):
 			d.visible = on])
 	m.append(["vignette de blessure (HUD)", func(on: bool): game.hud._vignette.visible = on])
-	m.append(["surface.gdshader (vs couleur unie)", func(on: bool):
-		for key in WorldLook.SURFACES:
-			(WorldLook.surface(key) as ShaderMaterial).shader = WorldLook.surface_shader(key) if on else PLAIN_SURFACE])
+	m.append(["pixel_surface.gdshader (vs couleur unie)", func(on: bool):
+		for key: String in PixelSurfaces.loaded_keys():
+			(WorldLook.surface(key) as ShaderMaterial).shader = PixelSurfaces.shader_for(key) if on else PLAIN_SURFACE])
 	# Variantes (« off » = variante moins chère) : gain de chacune.
 	var q := RenderQuality.current()
 	m.append(["~ ombres omni cube -> paraboloïde", func(on: bool):
@@ -128,25 +128,20 @@ func _modes(zombies: bool) -> Array:
 	m.append(["~ brume : portée 32 -> 20 m", func(on: bool):
 		env.volumetric_fog_length = 32.0 if on else 20.0])
 	var lambert := Shader.new()
-	lambert.code = WorldLook.SURFACE.code.replace("render_mode cull_back;", "render_mode cull_back, diffuse_lambert;")
+	lambert.code = PixelSurfaces.SHADER.code.replace("render_mode cull_back;", "render_mode cull_back, diffuse_lambert;")
 	m.append(["~ surfaces : diffus Lambert", func(on: bool):
-		for key in WorldLook.SURFACES:
-			(WorldLook.surface(key) as ShaderMaterial).shader = WorldLook.surface_shader(key) if on else lambert])
-	var flat := Shader.new()
-	flat.code = WorldLook.SURFACE.code.replace("float noise2(vec2 p) {", "float noise2(vec2 p) {\n\treturn 0.5;")
-	m.append(["~ surfaces : bruit gratuit (borne)", func(on: bool):
-		for key in WorldLook.SURFACES:
-			(WorldLook.surface(key) as ShaderMaterial).shader = WorldLook.surface_shader(key) if on else flat])
+		for key: String in PixelSurfaces.loaded_keys():
+			(WorldLook.surface(key) as ShaderMaterial).shader = PixelSurfaces.shader_for(key) if on else lambert])
 	var nospec := Shader.new()
-	nospec.code = WorldLook.SURFACE.code.replace("render_mode cull_back;", "render_mode cull_back, specular_disabled;")
+	nospec.code = PixelSurfaces.SHADER.code.replace("render_mode cull_back;", "render_mode cull_back, specular_disabled;")
 	m.append(["~ surfaces sans spéculaire", func(on: bool):
-		for key in WorldLook.SURFACES:
-			(WorldLook.surface(key) as ShaderMaterial).shader = WorldLook.surface_shader(key) if on else nospec])
+		for key: String in PixelSurfaces.loaded_keys():
+			(WorldLook.surface(key) as ShaderMaterial).shader = PixelSurfaces.shader_for(key) if on else nospec])
 	var lnospec := Shader.new()
-	lnospec.code = WorldLook.SURFACE.code.replace("render_mode cull_back;", "render_mode cull_back, diffuse_lambert, specular_disabled;")
+	lnospec.code = PixelSurfaces.SHADER.code.replace("render_mode cull_back;", "render_mode cull_back, diffuse_lambert, specular_disabled;")
 	m.append(["~ surfaces : Lambert sans spéculaire", func(on: bool):
-		for key in WorldLook.SURFACES:
-			(WorldLook.surface(key) as ShaderMaterial).shader = WorldLook.surface_shader(key) if on else lnospec])
+		for key: String in PixelSurfaces.loaded_keys():
+			(WorldLook.surface(key) as ShaderMaterial).shader = PixelSurfaces.shader_for(key) if on else lnospec])
 	m.append(["~ lampes : spéculaire coupé", func(on: bool):
 		for l: OmniLight3D in tree().get_nodes_in_group(RenderQuality.LAMP_GROUP):
 			l.light_specular = 0.5 if on else 0.0])

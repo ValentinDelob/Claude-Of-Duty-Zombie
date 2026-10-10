@@ -1620,12 +1620,6 @@ static func zone_keys() -> Dictionary:
 
 # ------------------------------------------------------------------ surfaces (aperçu, noms)
 
-## Aperçu d'une surface : [couleur A, couleur B, motif] de WorldLook.SURFACES.
-static func surface_look(key: String) -> Array:
-	var s: Array = WorldLook.SURFACES.get(key, WorldLook.SURFACES.wall)
-	return [s[1], s[2], int(s[0])]
-
-
 ## Noms affichés des surfaces [FR, EN] (sinon la clé).
 const SURFACE_NAMES := {
 	"floor": ["Sol brut", "Rough floor"], "wall": ["Plâtre", "Plaster"], "ceiling": ["Plafond sombre", "Dark ceiling"],

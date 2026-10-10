@@ -4,51 +4,22 @@ extends RefCounted
 ## Centralisé ici pour pouvoir ajuster l'ambiance (et les réglages de qualité)
 ## sans toucher au gameplay.
 
-const SURFACE := preload("res://assets/shaders/surface.gdshader")
-
-## clé -> [motif, couleur A, couleur B, échelle, crasse, rugosité, métal]
+## Clés des surfaces du jeu (sols, murs, plafonds des cartes, décor), citées
+## par les cartes et l'éditeur (MapCatalog.materials) -> famille. Toutes sont
+## des textures PIXEL ART générées « un pixel = un cube de 5 cm »
+## (PixelSurfaces, docs/VOXEL_ARCHITECTURE_PLAN.md lot C).
 const SURFACES := {
-	"floor": [0, Color(0.24, 0.23, 0.21), Color(0.1, 0.1, 0.1), 0.8, 0.6, 0.95, 0.0],
-	"wall": [4, Color(0.36, 0.35, 0.32), Color(0.2, 0.25, 0.21), 1.0, 0.5, 0.9, 0.0],
-	"ceiling": [6, Color(0.12, 0.12, 0.12), Color(0.05, 0.05, 0.05), 1.0, 0.4, 1.0, 0.0],
-	"concrete": [0, Color(0.25, 0.24, 0.22), Color(0.1, 0.1, 0.1), 0.8, 0.65, 0.95, 0.0],
-	"concrete_dark": [0, Color(0.17, 0.17, 0.16), Color(0.08, 0.08, 0.08), 0.8, 0.7, 0.95, 0.0],
-	"tiles": [1, Color(0.5, 0.5, 0.46), Color(0.12, 0.11, 0.1), 1.0, 0.7, 0.5, 0.0],
-	"wood": [2, Color(0.24, 0.15, 0.09), Color(0.05, 0.03, 0.02), 1.0, 0.6, 0.85, 0.0],
-	"metal": [3, Color(0.2, 0.21, 0.22), Color(0.24, 0.15, 0.09), 1.0, 0.5, 0.6, 0.5],
-	"stone": [5, Color(0.12, 0.1, 0.1), Color(0.05, 0.04, 0.04), 1.0, 0.3, 0.9, 0.0],
-	"wall_green": [4, Color(0.38, 0.36, 0.31), Color(0.16, 0.24, 0.19), 1.0, 0.6, 0.9, 0.0],
-	"wall_cell": [4, Color(0.3, 0.3, 0.29), Color(0.13, 0.16, 0.2), 1.0, 0.75, 0.9, 0.0],
-	"wall_lab": [1, Color(0.52, 0.53, 0.5), Color(0.18, 0.18, 0.17), 1.0, 0.65, 0.45, 0.0],
-	"wall_rust": [3, Color(0.21, 0.21, 0.22), Color(0.27, 0.15, 0.08), 1.0, 0.55, 0.65, 0.5],
-	"wall_concrete": [0, Color(0.27, 0.26, 0.24), Color(0.1, 0.1, 0.1), 0.7, 0.6, 0.95, 0.0],
-	"wall_ritual": [5, Color(0.14, 0.11, 0.1), Color(0.05, 0.04, 0.04), 1.0, 0.3, 0.9, 0.0],
+	"floor": "sol", "wall": "mur", "ceiling": "plafond",
+	"concrete": "sol", "concrete_dark": "sol", "tiles": "sol", "wood": "sol", "metal": "sol", "stone": "mur",
+	"wall_green": "mur", "wall_cell": "mur", "wall_lab": "mur", "wall_rust": "mur", "wall_concrete": "mur",
+	"wall_ritual": "mur",
 	# Décor
-	"crate": [2, Color(0.3, 0.2, 0.11), Color(0.08, 0.05, 0.03), 1.3, 0.4, 0.9, 0.0],
-	"barrel": [3, Color(0.28, 0.08, 0.05), Color(0.3, 0.14, 0.06), 2.0, 0.4, 0.6, 0.4],
-	"steel": [3, Color(0.25, 0.26, 0.27), Color(0.28, 0.16, 0.09), 2.0, 0.3, 0.5, 0.6],
-	"fabric": [0, Color(0.36, 0.33, 0.27), Color(0.1, 0.1, 0.1), 3.0, 0.9, 1.0, 0.0],
-	"door": [3, Color(0.22, 0.23, 0.22), Color(0.3, 0.15, 0.07), 1.4, 0.5, 0.55, 0.6],
+	"crate": "decor", "barrel": "decor", "steel": "decor", "fabric": "decor", "door": "decor",
 	# Théâtre (KINO)
-	"carpet_red": [7, Color(0.3, 0.035, 0.04), Color(0.42, 0.28, 0.08), 1.0, 0.55, 1.0, 0.0],
-	"marble": [1, Color(0.46, 0.41, 0.34), Color(0.09, 0.07, 0.05), 0.55, 0.55, 0.4, 0.0],
-	"stage_wood": [2, Color(0.27, 0.16, 0.08), Color(0.04, 0.025, 0.015), 1.4, 0.35, 0.7, 0.0],
-	"parquet": [2, Color(0.25, 0.15, 0.08), Color(0.05, 0.03, 0.02), 2.0, 0.5, 0.6, 0.0],
-	"wall_theater": [8, Color(0.3, 0.05, 0.06), Color(0.2, 0.1, 0.05), 1.0, 0.45, 0.85, 0.0],
-	"wall_lobby": [8, Color(0.34, 0.25, 0.14), Color(0.19, 0.09, 0.04), 1.0, 0.45, 0.85, 0.0],
-	"wall_foyer": [8, Color(0.14, 0.19, 0.13), Color(0.2, 0.1, 0.05), 1.0, 0.5, 0.85, 0.0],
-	"wall_loges": [4, Color(0.42, 0.37, 0.3), Color(0.33, 0.2, 0.19), 1.0, 0.6, 0.9, 0.0],
-	"brick": [9, Color(0.3, 0.13, 0.08), Color(0.19, 0.18, 0.16), 1.0, 0.6, 0.9, 0.0],
-	"cobble": [11, Color(0.2, 0.2, 0.21), Color(0.07, 0.06, 0.05), 1.0, 0.55, 0.9, 0.0],
-	"velvet": [10, Color(0.46, 0.035, 0.045), Color(0.1, 0.01, 0.015), 1.0, 0.25, 0.8, 0.0],
-	"brass": [0, Color(0.5, 0.36, 0.13), Color(0.2, 0.14, 0.05), 2.0, 0.3, 0.35, 0.85],
-	# Salle de théâtre de KINO (BO1) : plâtre gris-vert sale, voûte grise,
-	# moquette gris-bleu.
-	"plaster_theater": [4, Color(0.33, 0.34, 0.3), Color(0.17, 0.2, 0.17), 1.0, 0.65, 0.9, 0.0],
-	"vault_theater": [6, Color(0.24, 0.25, 0.23), Color(0.08, 0.09, 0.085), 0.7, 0.55, 1.0, 0.0],
-	"carpet_theater": [7, Color(0.15, 0.16, 0.17), Color(0.24, 0.21, 0.15), 1.0, 0.7, 1.0, 0.0],
-	"ceiling_theater": [6, Color(0.16, 0.1, 0.07), Color(0.05, 0.03, 0.02), 0.7, 0.5, 1.0, 0.0],
-	"dark_wood": [2, Color(0.13, 0.07, 0.035), Color(0.03, 0.02, 0.01), 2.5, 0.3, 0.6, 0.0],
+	"carpet_red": "sol", "marble": "sol", "stage_wood": "sol", "parquet": "sol", "wall_theater": "mur",
+	"wall_lobby": "mur", "wall_foyer": "mur", "wall_loges": "mur", "brick": "mur", "cobble": "sol",
+	"velvet": "decor", "brass": "decor", "plaster_theater": "mur", "vault_theater": "plafond",
+	"carpet_theater": "sol", "ceiling_theater": "plafond", "dark_wood": "sol",
 }
 
 ## Environnement normal (voir aussi apply_dog_round_look).
@@ -83,62 +54,15 @@ const LUT_SIZE := 24
 const GLOW_LEVELS := [0.0, 0.2, 0.55, 0.75, 0.45, 0.2, 0.0]
 const LUMA := Vector3(0.2126, 0.7152, 0.0722)
 
-static var _cache: Dictionary = {}
 static var _luts: Dictionary = {}
 ## Images des tables de base (sans gamma), pour dériver vite les variantes.
 static var _lut_layers: Dictionary = {}
 
 
-## Murs mats (plâtre, pierre, brique, tissu) : variante sans reflet spéculaire,
-## invisible sur ces matières et moins chère (perf_costs « surfaces sans
-## spéculaire »). Sols et plafonds gardent le reflet rasant de la lumière
-## ambiante (sans lui, ils s'assombrissent nettement) ; métal, carrelage,
-## marbre, bois vernis et laiton gardent le reflet des lampes.
-const MATTE_SURFACES := ["wall", "wall_green", "wall_cell", "wall_concrete", "wall_ritual", "stone",
-	"wall_theater", "plaster_theater", "wall_lobby", "wall_foyer", "wall_loges", "brick", "fabric", "velvet"]
-static var _matte_shader: Shader
-
-
-static func surface_shader(key: String) -> Shader:
-	if not key in MATTE_SURFACES:
-		return SURFACE
-	if _matte_shader == null:
-		_matte_shader = Shader.new()
-		_matte_shader.code = SURFACE.code.replace("render_mode cull_back;", "render_mode cull_back, specular_disabled;")
-		assert(_matte_shader.code != SURFACE.code, "surface.gdshader : render_mode introuvable")
-	return _matte_shader
-
-
+## Matériau d'une surface du jeu (texture pixel art, mise en cache par
+## PixelSurfaces et partagée par toutes les cartes) ; clé inconnue : plâtre.
 static func surface(key: String) -> ShaderMaterial:
-	if _cache.has(key):
-		return _cache[key]
-	# Surfaces déjà converties en pixel art (docs/VOXEL_ARCHITECTURE_PLAN.md) :
-	# même clé, texture générée « un pixel = un cube de 5 cm ».
-	if PixelSurfaces.has(key):
-		_cache[key] = PixelSurfaces.material(key)
-		return _cache[key]
-	var s: Array = SURFACES.get(key, SURFACES.wall)
-	var m := ShaderMaterial.new()
-	m.shader = surface_shader(key)
-	m.set_shader_parameter("pattern", s[0])
-	m.set_shader_parameter("color_a", s[1])
-	m.set_shader_parameter("color_b", s[2])
-	m.set_shader_parameter("scale", s[3])
-	m.set_shader_parameter("grime", s[4])
-	m.set_shader_parameter("roughness_base", s[5])
-	m.set_shader_parameter("metallic_base", s[6])
-	m.set_shader_parameter("noise_lattice", NoiseLattice.tex2d())
-	if key == "stone" or key == "wall_ritual":
-		m.set_shader_parameter("glow", 1.6)
-	_cache[key] = m
-	return m
-
-
-static func map_materials() -> Dictionary:
-	var d := {}
-	for key in SURFACES:
-		d[key] = surface(key)
-	return d
+	return PixelSurfaces.material(key if PixelSurfaces.has(key) else "wall")
 
 
 ## `look` : surcharges propres à la carte (MapDef.look) ; `with_outline` :

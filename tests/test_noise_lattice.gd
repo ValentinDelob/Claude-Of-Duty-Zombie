@@ -1,5 +1,5 @@
 extends TestCase
-## Treillis de bruit précalculés (NoiseLattice) lus par surface.gdshader et
+## Treillis de bruit précalculés (NoiseLattice) lus par les shaders de la caisse et
 ## zombie_body.gdshaderinc.
 
 
