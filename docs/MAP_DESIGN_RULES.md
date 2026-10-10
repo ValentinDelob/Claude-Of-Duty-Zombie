@@ -307,17 +307,19 @@ pour monter dessus et échapper aux zombies : c'est de l'anti-jeu.
   chaque objet bloquant est entièrement couvert, puis essayer de monter
   dessus en partie test.
 
-### 6.6 Style cubique : 1 cube = 5 cm [OBLIGATOIRE]
+### 6.6 Style cubique : 1 cube = 5 cm (décor), 2,5 cm (personnages) [OBLIGATOIRE]
 
 Le jeu est **entièrement en cubes** (GAME_CONCEPT.md § 4.19) : aucun élément
 qui n'est pas cubique ou qui ne respecte pas l'échelle des cubes n'entre
 dans le jeu.
 
-- **Modèles** (prefab importé, décor, arme, personnage) : faits de cubes de
-  **5 cm** (20 par mètre). Chaque face est **alignée sur un axe** (ni pente,
-  ni biseau, ni courbe), chaque sommet est sur la **grille de 5 cm** (à
-  2 mm près, grille partant du coin de la boîte englobante du modèle), pas
-  d'ombrage lissé. Vérifié automatiquement (`VoxelCheck`) :
+- **Modèles** de la carte (prefab importé, décor, objet) : faits de cubes de
+  **5 cm** (20 par mètre) ; **personnages et mobs** : cubes de **2,5 cm**
+  (2 cubes de personnage = 1 cube de décor). Chaque face est **alignée sur
+  un axe** (ni pente, ni biseau, ni courbe), chaque sommet est sur la
+  **grille** du modèle (5 ou 2,5 cm, à 2 mm près, grille partant du coin de
+  la boîte englobante), pas d'ombrage lissé. Vérifié automatiquement
+  (`VoxelCheck`) :
   - l'**import** d'un modèle dans l'éditeur (bouton « Importer… » et outil
     MCP `editor_prefab_import_model`) **refuse** un modèle non cubique, avec
     la raison (nombre de faces fautives, premier exemple) ;
@@ -325,10 +327,11 @@ dans le jeu.
     modèle de la grille (×1,5 sur un modèle de 10 cm : oui ; ×1,2 : non) ;
   - outil sans fenêtre :
     `godot --headless --path . -s res://tools/voxel_check.gd -- <fichier.glb>`
-    (`--anime` / `--statique`, `--echelle=N`, `--en` ; code de sortie 0 =
-    conforme, 1 = non conforme, 2 = illisible).
-- **Personnages et zombies** articulés : chaque membre est cubique dans le
-  repère de **repos de son os** (ou du modèle au repos) ; animés, les
+    (`--anime` / `--statique`, `--echelle=N`, `--pas=<cm>`, `--en` ; code
+    de sortie 0 = conforme, 1 = non conforme, 2 = illisible).
+- **Personnages et zombies** articulés (grille de 2,5 cm) : chaque membre
+  est cubique dans le repère de **repos de son os** (ou du modèle au
+  repos) ; animés, les
   membres tournent à n'importe quel angle. Le mode est deviné (squelette
   présent) ou forcé par `--anime`.
 - **Objets posés** : ils tournent par **quarts de tour** (0, 90, 180,

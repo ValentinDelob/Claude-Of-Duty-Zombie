@@ -193,6 +193,28 @@ func test_animated_mesh_checked_in_bone_space() -> void:
 	nodes.free()
 
 
+func test_character_grid_is_2_5_cm() -> void:
+	# Pavé de 7,5 cm : 3 cubes de personnage (2,5 cm), pas un multiple du
+	# cube de décor (5 cm).
+	var root := _box_scene(Vector3(0.075, 0.1, 0.025))
+	var stat := VoxelCheck.check_scene(root, false)
+	assert_false(stat.ok, "statique : grille de 5 cm, refusé")
+	assert_near(float(stat.cube), 0.05, 0.0001, "pas statique")
+	assert_true(String(stat.fr).contains("5 cm"), stat.fr)
+	var anim := VoxelCheck.check_scene(root, true)
+	assert_true(anim.ok, "animé : grille de 2,5 cm : %s" % anim.fr)
+	assert_true(String(anim.fr).contains("2,5 cm") and String(anim.en).contains("2.5 cm"), anim.en)
+	# Pas forcé.
+	assert_true(VoxelCheck.check_scene(root, false, 1.0, VoxelCheck.CUBE_CHAR).ok, "statique forcé à 2,5 cm : accepté")
+	assert_false(VoxelCheck.check_scene(root, true, 1.0, VoxelCheck.CUBE).ok, "animé forcé à 5 cm : refusé")
+	root.free()
+	# Sommet à 1,25 cm de la grille : hors de la grille de 2,5 cm aussi.
+	var half := _box_scene(Vector3(0.0625, 0.1, 0.1))
+	assert_false(VoxelCheck.check_scene(half, true).ok, "6,25 cm : refusé en animé")
+	half.free()
+	assert_true(VoxelCheck.on_grid(0.075, VoxelCheck.CUBE_CHAR) and not VoxelCheck.on_grid(0.075))
+
+
 func test_glb_and_import_report() -> void:
 	var good := Prefabs.box_glb(Vector3(1, 2, 3))
 	var r := VoxelCheck.check_glb_bytes(good)

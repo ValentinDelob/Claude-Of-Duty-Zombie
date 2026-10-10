@@ -1,10 +1,11 @@
 extends SceneTree
 ## Vérification du STYLE CUBIQUE d'un modèle (GAME_CONCEPT.md § 4.19,
 ## VoxelCheck, docs/MAP_DESIGN_RULES.md « Style cubique »), sans fenêtre :
-##   godot --headless --path . -s res://tools/voxel_check.gd -- <fichier.glb> [--anime | --statique] [--echelle=1.0] [--en]
+##   godot --headless --path . -s res://tools/voxel_check.gd -- <fichier.glb> [--anime | --statique] [--echelle=1.0] [--pas=<cm>] [--en]
 ##   godot --headless --path . -s res://tools/voxel_check.gd -- --carte=<dossier de carte>
 ## Modèle : statique ou animé deviné (squelette présent : chaque partie dans
-## le repère de repos de son os). Carte (dossier de user://maps/<id> ou chemin
+## le repère de repos de son os). Grille : 5 cm en statique (décor, objets),
+## 2,5 cm en animé (personnages, mobs) ; --pas=<cm> la force. Carte (dossier de user://maps/<id> ou chemin
 ## absolu) : objets posés hors quarts de tour, inclinés, et modèles importés
 ## non cubiques (avertissements : la carte se charge quand même).
 ## Code de sortie : 0 conforme, 1 non conforme, 2 erreur (fichier illisible).
@@ -14,6 +15,7 @@ func _init() -> void:
 	var files: Array = []
 	var animated := -1
 	var scale := 1.0
+	var cube := 0.0
 	var map_dir := ""
 	var en := false
 	for a in OS.get_cmdline_user_args():
@@ -21,6 +23,8 @@ func _init() -> void:
 			animated = 1
 		elif a == "--statique":
 			animated = 0
+		elif a.begins_with("--pas="):
+			cube = a.substr(6).replace(",", ".").to_float() / 100.0
 		elif a.begins_with("--echelle="):
 			scale = a.substr(10).to_float()
 		elif a.begins_with("--carte="):
@@ -30,24 +34,24 @@ func _init() -> void:
 		elif not a.begins_with("--"):
 			files.append(a)
 	if files.is_empty() and map_dir == "":
-		print("usage : godot --headless --path . -s res://tools/voxel_check.gd -- <fichier.glb> [--anime|--statique] [--echelle=N] [--en] | --carte=<dossier>")
+		print("usage : godot --headless --path . -s res://tools/voxel_check.gd -- <fichier.glb> [--anime|--statique] [--echelle=N] [--pas=<cm>] [--en] | --carte=<dossier>")
 		quit(2)
 		return
 	var code := 0
 	for f in files:
-		code = maxi(code, _model(String(f), animated, scale, en))
+		code = maxi(code, _model(String(f), animated, scale, cube, en))
 	if map_dir != "":
 		code = maxi(code, _map(map_dir, en))
 	quit(code)
 
 
-func _model(path: String, animated: int, scale: float, en: bool) -> int:
+func _model(path: String, animated: int, scale: float, cube: float, en: bool) -> int:
 	var p := path.replace("\\", "/")
 	if not FileAccess.file_exists(p):
 		print("[voxel_check] %s : %s" % [p, "missing file" if en else "fichier absent"])
 		return 2
 	var t0 := Time.get_ticks_msec()
-	var rep := VoxelCheck.check_file(p, animated, scale)
+	var rep := VoxelCheck.check_file(p, animated, scale, cube)
 	if rep.has("error"):
 		print("[voxel_check] %s : %s" % [p, rep.error[1] if en else rep.error[0]])
 		return 2
