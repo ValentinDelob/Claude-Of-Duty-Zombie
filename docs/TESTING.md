@@ -196,6 +196,8 @@ sh tools/check.sh
 | `MP="lobby" sh tools/check.sh` | ces tests multijoueur seulement (ni scénario ni test réseau), sans cache |
 | `SCENARIOS="boot" MP="lobby" sh tools/check.sh` | les deux listes ensemble |
 | `sh tools/perf.sh [scénarios]` | mesures de performance fiables, un jeu à la fois |
+| `QUALITY=medium OUTLINE=off sh tools/perf.sh zombie_stress map_tour` | préréglage imposé, contour noir coupé (mesure avant / après) |
+| `PERF_ARGS="--only=contour" sh tools/perf.sh perf_costs` | coût A/B de quelques postes seulement (noms contenant ces mots) |
 | `godot --headless --fixed-fps 60 --path . -- --autotest=perf_cpu` | coût CPU d'une fin de partie sans rendu (DRAFT ARENA, 24 zombies + 4 chiens, tir, grenades) et micro-mesures des fonctions chaudes (lignes « ancien code » : l'ancienne version, même processus) |
 | `bash tools/profile.sh [scénario]` | même scénario dans une COPIE instrumentée du projet : ms par image et µs par appel de chaque `_process` / `_physics_process` et de quelques fonctions chaudes (sources jamais modifiées) |
 

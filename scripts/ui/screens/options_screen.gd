@@ -318,6 +318,11 @@ func _page_graphics() -> void:
 	_add("film_grain", MenuOptionRow.make_range(Lang.t("GRAIN DE FILM", "FILM GRAIN"), Settings.film_grain, 0.0, 1.0, 0.1,
 			func(v): return Lang.t("DÉSACTIVÉ", "OFF") if v < 0.05 else "%d %%" % int(round(v * 100.0))),
 			Lang.t("Grain de pellicule en jeu, comme dans Black Ops (0 : image nette).", "In-game film grain, as in Black Ops (0: clean picture)."))
+	_add("outline", MenuOptionRow.make_toggle(Lang.t("CONTOUR", "OUTLINE"), Settings.outline),
+			Lang.t("Trait noir autour des personnages et des marches de cubes." if ScreenOutline.supported()
+				else "Indisponible avec ce moteur de rendu (Forward+ nécessaire).",
+				"Black line around characters and cube steps." if ScreenOutline.supported()
+				else "Unavailable with this renderer (Forward+ required)."))
 
 
 func _page_audio() -> void:
@@ -382,7 +387,7 @@ func character_hint(choice: String) -> String:
 
 func _on_changed(key: String, v: float) -> void:
 	match key:
-		"invert_y", "fullscreen", "vsync":
+		"invert_y", "fullscreen", "vsync", "outline":
 			Settings.set(key, v > 0.5)
 		"quality":
 			Settings.quality = int(v) as Settings.Quality

@@ -9,7 +9,7 @@ extends TestCase
 const TMP := "user://settings_unittest.cfg"
 const SAVED_KEYS := ["bindings", "pad_bindings", "pad_look_sensitivity", "using_pad", "pad_device",
 	"render_scale", "max_fps", "brightness", "ads_sensitivity",
-	"mouse_sensitivity", "invert_y", "language", "fov", "film_grain", "quality", "editor_ui_scale", "character"]
+	"mouse_sensitivity", "invert_y", "language", "fov", "film_grain", "outline", "quality", "editor_ui_scale", "character"]
 
 var _saved := {}
 
@@ -1096,6 +1096,27 @@ func test_character_jojo_saved_and_reloaded() -> void:
 	Settings.character = CharacterDB.AUTO
 	assert_true(Settings.load_from(TMP), "fichier relu")
 	assert_eq(Settings.character, "jojo", "septième personnage relu")
+
+
+## Contour noir (OPTIONS > VIDÉO > CONTOUR) : activé par défaut, enregistré
+## (video/outline), relu ; une valeur invalide est ignorée.
+func test_outline_saved_and_reloaded() -> void:
+	var fresh: Node = (Settings.get_script() as Script).new()
+	assert_true(fresh.outline, "activé par défaut")
+	fresh.free()
+	Settings.outline = false
+	Settings.save_to(TMP)
+	var cfg := ConfigFile.new()
+	assert_eq(cfg.load(TMP), OK)
+	assert_eq(cfg.get_value("video", "outline", true), false, "clé video/outline écrite")
+	Settings.outline = true
+	assert_true(Settings.load_from(TMP), "fichier relu")
+	assert_false(Settings.outline, "désactivé relu")
+	cfg.set_value("video", "outline", "non")
+	cfg.save(TMP)
+	Settings.outline = true
+	assert_true(Settings.load_from(TMP))
+	assert_true(Settings.outline, "valeur invalide ignorée")
 
 
 # ------------------------------------------------------------------ fenêtre

@@ -41,7 +41,8 @@ dépôt.
   l'import de modèles refusent un modèle non conforme.
 - **Contour noir** autour des pièces et ombrage simple, comme la planche de
   référence : rendu des planches de validation par coque inversée ; en jeu,
-  voir « Contour noir en jeu » plus bas (proposition, pas encore branché).
+  passe en espace écran `ScreenOutline` (voir « Contour noir en jeu » plus
+  bas ; option OPTIONS > VIDÉO > CONTOUR, activée par défaut).
 - ❓ Lumières, post-traitement et ciel restent à décider (§ 4.19) ; l'étalonnage
   ci-dessous est celui du code actuel.
 
@@ -119,22 +120,52 @@ et exporte.
   contour noir compris ; rangée 3 : les deux à 50 % pour comparer pixel à
   pixel ; vues : face, dos, profils, trois-quarts, pose d'attaque).
 
-### Contour noir en jeu (proposition, non branchée)
+### Contour noir en jeu (scripts/game/screen_outline.gd)
 
-La planche dessine un trait noir d'environ 1 cm autour des pièces. Options
-pour Godot 4.7 (cible GTX 1050) :
+La planche dessine un trait noir d'environ 1 cm autour des pièces. Choix
+retenu : **contour en espace écran** (`ScreenOutline`, shader
+`assets/shaders/screen_outline.gdshader`), créé par
+`WorldLook.setup_environment` pour la partie (pas pour l'aperçu de
+l'éditeur de cartes : ses poignées prendraient un trait).
 
-1. **Contour en espace écran (recommandé)** : une passe plein écran (quad de
-   post-traitement, shader `spatial` qui lit `hint_depth_texture` et
-   `hint_normal_roughness_texture`) qui noircit les pixels où la profondeur
-   ou la normale saute (filtre de Sobel sur 4 à 8 échantillons). Trait d'un
-   pixel net à toute distance, aucun sommet en plus, s'applique aussi au
-   décor (cohérence du style). Coût estimé sur GTX 1050 en 1080p : 0,3 à
-   0,6 ms par image ; la lecture des normales impose le moteur Forward+.
-   Option « Contour » dans les réglages vidéo. Pour limiter le trait aux
-   personnages, un masque de pochoir (stencil, Godot 4.5 et plus) ou une
-   couche de rendu dédiée.
-2. **Coque inversée par sommet** (comme les planches de validation) : second
+- Quad plein écran dessiné en tête de la passe transparente
+  (`render_priority` minimale) : lit la profondeur de la pré-passe opaque
+  (`hint_depth_texture`, 5 lectures par pixel) et écrit un noir teinté
+  (linéaire 0,03 / 0,035 / 0,04, opacité 0,95) AVANT le tonemap et
+  l'étalonnage, qui lui donnent le relèvement bleu-vert des noirs.
+- Détection par la **profondeur seule** : la profondeur brute inversée est
+  affine en 1/z, donc affine à l'écran sur tout plan ; sa dérivée seconde
+  est nulle sur un plan même rasant (aucun trait parasite sur les grands
+  sols et murs) et marque : le côté PROCHE d'un saut (silhouettes, marches
+  vues de dessus : trait d'un pixel), les arêtes saillantes et les coins
+  rentrants des cubes (pli de 90° >= 2 angles de pixel à toute distance).
+  Seuils (`ScreenOutline`) : pli 1,0 angle de pixel, coin rentrant si les
+  deux voisins sont plus proches dans un rapport >= 0,2, seuil relevé de
+  20 % de la pente sur les surfaces rasantes.
+- Le tampon des normales (`hint_normal_roughness_texture`, première version)
+  a été écarté : +0,28 ms GPU (pré-passe avec un second tampon) pour un trait
+  équivalent sur des formes faites de plans.
+- Trait d'1 px jusqu'à 1080p (2 px en 2160p, écart des voisins arrondi à
+  la hauteur / 1080) ; fondu de 10 à 24 m (au-delà, une marche de 2,5 cm
+  fait moins de 2 px et le trait deviendrait du bruit).
+- Sans trait : HUD et écran de lunette (CanvasLayer), **arme et mains en vue
+  FPS** (profondeur écrasée vers le plan proche par `weapon.gdshader`,
+  > 0,9 : exclues, car le trait dessinerait les facettes de leurs formes
+  arrondies et la frontière arme / décor n'a pas de sens), ciel (profondeur
+  0), brume et particules transparentes (hors profondeur, dessinées
+  par-dessus le trait).
+- Option **OPTIONS > VIDÉO > CONTOUR** (`Settings.outline`, `video/outline`,
+  activée par défaut, dans les trois préréglages) ; désactivée d'office hors
+  Forward+ (`ScreenOutline.supported` : la profondeur inversée 0..1 de
+  Vulkan est supposée ; Mobile et Compatibility non vérifiés). `--outline=off`
+  la coupe en ligne de commande (mesures).
+- Captures : scénario `outline_look` (BUNKER K-7, zombies du jeu et
+  zombies « patient » 2,5 cm, avec et sans contour, gros plans x2,
+  sol plan sans trait parasite). Coût : docs/ARCHITECTURE.md.
+
+Options écartées :
+
+1. **Coque inversée par sommet** (comme les planches de validation) : second
    matériau sur le maillage du zombie, `render_mode cull_front, unshaded`,
    sommets poussés vers l'extérieur dans le vertex shader. Les faces du modèle
    ne partageant pas leurs sommets, il faut une normale « de coin » par sommet
@@ -142,7 +173,7 @@ pour Godot 4.7 (cible GTX 1050) :
    stockée en attribut). Coût : le maillage dessiné deux fois (≈ 8 000
    triangles de plus par zombie : sensible avec 24 zombies à l'écran), trait
    épaissi au loin, pas de trait sur le décor.
-3. **Coque dans le .glb** : refusée — ce serait un second maillage hors de
+2. **Coque dans le .glb** : refusée — ce serait un second maillage hors de
    la grille, non conforme à VoxelCheck.
 
 ## Étalonnage et post-traitement (code actuel, à revoir pour le style cubique)

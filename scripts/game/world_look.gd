@@ -136,8 +136,9 @@ static func map_materials() -> Dictionary:
 	return d
 
 
-## `look` : surcharges propres à la carte (MapDef.look).
-static func setup_environment(parent: Node3D, look := {}) -> void:
+## `look` : surcharges propres à la carte (MapDef.look) ; `with_outline` :
+## contour noir en jeu (ScreenOutline ; faux pour l'aperçu de l'éditeur).
+static func setup_environment(parent: Node3D, look := {}, with_outline := true) -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.0, 0.0, 0.0)
@@ -201,6 +202,11 @@ static func setup_environment(parent: Node3D, look := {}) -> void:
 	var post := FilmPost.new()
 	post.name = "FilmPost"
 	parent.add_child(post)
+	# Contour noir en jeu (pièces et marches de cubes), sous les transparents.
+	if with_outline:
+		var outline := ScreenOutline.new()
+		outline.name = "ScreenOutline"
+		parent.add_child(outline)
 	# Préréglages de qualité : appliqués maintenant puis à chaque changement
 	# d'options (glow, SSAO, brume, ombres des lampes, résolution 3D...).
 	var rq := RenderQuality.new()

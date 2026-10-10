@@ -70,6 +70,36 @@ func test_presets_post_keys() -> void:
 	assert_false(low.post_screen, "LOW : aucune lecture d'écran")
 
 
+## Contour noir : créé avec l'environnement de la partie (pas pour l'aperçu
+## de l'éditeur), quad plein écran en tête des transparents, affiché selon
+## l'option et le moteur de rendu.
+func test_outline_pass() -> void:
+	var keep := Settings.outline
+	var root := Node3D.new()
+	host.add_child(root)
+	WorldLook.setup_environment(root, {})
+	var o := root.get_node_or_null("ScreenOutline") as ScreenOutline
+	assert_true(o != null, "passe de contour créée")
+	if o:
+		assert_eq(o.material.shader, ScreenOutline.SHADER)
+		assert_eq(o.material.render_priority, Material.RENDER_PRIORITY_MIN, "avant particules et brume")
+		assert_eq(o.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+		Settings.outline = true
+		Settings.changed.emit()
+		assert_eq(o.visible, ScreenOutline.supported(), "option activée : visible si Forward+")
+		Settings.outline = false
+		Settings.changed.emit()
+		assert_false(o.visible, "option désactivée : masquée")
+	root.free()
+	var editor_root := Node3D.new()
+	host.add_child(editor_root)
+	WorldLook.setup_environment(editor_root, {}, false)
+	assert_true(editor_root.get_node_or_null("ScreenOutline") == null, "aperçu de l'éditeur : pas de contour")
+	editor_root.free()
+	Settings.outline = keep
+	Settings.changed.emit()
+
+
 func test_grain_setting() -> void:
 	var keep := Settings.film_grain
 	Settings.film_grain = 0.0

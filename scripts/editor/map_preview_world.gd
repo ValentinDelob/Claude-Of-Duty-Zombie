@@ -144,7 +144,7 @@ func _ready() -> void:
 	viewport.add_child(root3d)
 	# Éclairage de la partie : environnement BO1, grain, préréglage de qualité
 	# (RenderQuality règle ombres, glow, brume et résolution 3D du SubViewport).
-	WorldLook.setup_environment(root3d, {})
+	WorldLook.setup_environment(root3d, {}, false)
 	var we := root3d.get_node("WorldEnvironment") as WorldEnvironment
 	env = we.environment
 	_base_env = {"ambient_color": env.ambient_light_color, "ambient_energy": env.ambient_light_energy,

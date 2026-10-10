@@ -396,6 +396,30 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DogLightning`
 | Décalques / particules | 50 % / 50 % | 100 % | 100 % |
 | Brume volumétrique | non | 48x48x32 | 64x64x48 |
 | Post-traitement (`FilmPost`) | multiplicatif (grain, vignette) | lecture d'écran + aberration | idem |
+| Contour noir (`ScreenOutline`, option CONTOUR) | oui | oui | oui |
+
+- **Contour noir** (`ScreenOutline`, voir docs/ART_DIRECTION.md « Contour noir
+  en jeu ») : quad plein écran en tête des transparents, profondeur seule.
+  Coût GPU mesuré (`PERF_ARGS="--only=contour" sh tools/perf.sh perf_costs`,
+  labo + 24 zombies, 1080p, RTX A2000 portable, 10/10/2026) : LOW +0,15 ms,
+  MEDIUM +0,20 ms (dont 0,13 ms de passe et de copie de la profondeur,
+  0,07 ms de calcul), HIGH +0,33 ms (MSAA). Première version avec le tampon
+  des normales : +0,47 ms en MEDIUM, écartée. Avant / après
+  (`OUTLINE=off|on sh tools/perf.sh zombie_stress map_tour`, temps GPU moyen) :
+
+| Préréglage | Vue | Sans contour | Avec contour | fps (sans -> avec) |
+|---|---|---|---|---|
+| LOW | 24 zombies poursuite / contact | 1,59 / 1,53 ms | 1,77 / 1,70 ms | 467 -> 427-430 |
+| LOW | pire vue de map_tour (couloir) | 1,60 ms | 1,76 ms | 470 -> 441 |
+| MEDIUM | 24 zombies poursuite / contact | 3,21 / 3,19 ms | 3,38 / 3,35 ms | 266-267 -> 249-251 |
+| MEDIUM | pire vue de map_tour (dortoir / couloir) | 2,88 ms | 3,05 ms | 288-290 -> 268-270 |
+| HIGH | 24 zombies poursuite / contact | 5,45 / 5,25 ms | 5,67 / 5,36 ms | 167-171 -> 159-168 |
+| HIGH | pire vue de map_tour (dortoir) | 4,94 ms | 5,23 ms | 180 -> 170 |
+
+  Sur cette carte (~4,4x une GTX 1050), la cible « 60 fps sur GTX 1050 » vaut
+  ~3,4 ms de GPU : MEDIUM y reste avec le contour (3,05 ms dans la pire vue,
+  3,35-3,38 ms dans la mêlée de 24 zombies, à la limite) ; estimation
+  GTX 1050 : +0,7 à +0,9 ms par image en MEDIUM (~ -4 fps à 60 fps).
 
 - **Direction artistique BO1** (voir `docs/ART_DIRECTION.md`) : étalonnage par table
   3D procédurale (`WorldLook.grade_lut`, surchargée par carte via `look.grade`),
