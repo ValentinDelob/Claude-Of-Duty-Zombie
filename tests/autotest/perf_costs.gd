@@ -66,7 +66,21 @@ func _bunker_pass() -> void:
 	H.aim_at(p, c + Vector3(0, 1.0, 0))
 	await seconds(1.0)
 	await at.screenshot("horde")
-	await _ab("labo+24", _modes(true))
+	await _ab("labo+24", _only(_modes(true)))
+
+
+## `-- --only=contour,glow` : seulement les postes dont le nom contient un de
+## ces mots (mesure ciblée, plus courte).
+func _only(modes: Array) -> Array:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--only="):
+			var keys := a.substr(7).split(",", false)
+			return modes.filter(func(m):
+				for k in keys:
+					if String(m[0]).contains(k):
+						return true
+				return false)
+	return modes
 
 
 ## [nom, fonction(on: bool)] : on = false coupe le poste.
@@ -74,6 +88,13 @@ func _modes(zombies: bool) -> Array:
 	var m := []
 	m.append(["brume volumétrique", func(on: bool): env.volumetric_fog_enabled = on and RenderQuality.current().volumetric_fog])
 	m.append(["post-traitement", func(on: bool): post.visible = on])
+	var outline := game.world.get_node_or_null("ScreenOutline") as ScreenOutline
+	if outline and ScreenOutline.wanted():
+		m.append(["contour (ScreenOutline)", func(on: bool): outline.visible = on])
+		var probe := Shader.new()
+		probe.code = ScreenOutline.SHADER.code.replace("\tif (dc <= 0.0 || dc > weapon_depth) {", "\tif (dc >= 0.0) {")
+		m.append(["~ contour : une lecture puis discard", func(on: bool):
+			outline.material.shader = ScreenOutline.SHADER if on else probe])
 	m.append(["glow", func(on: bool): env.glow_enabled = on and RenderQuality.current().glow])
 	m.append(["étalonnage (LUT)", func(on: bool): env.adjustment_enabled = on])
 	m.append(["ombres des lampes", func(on: bool):

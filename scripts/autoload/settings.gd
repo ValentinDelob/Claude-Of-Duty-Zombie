@@ -36,6 +36,10 @@ var vsync := true
 var quality: Quality = Quality.MEDIUM
 ## Intensité du grain de film en jeu (0 = désactivé, 1 = maximum).
 var film_grain := 0.5
+## Contour noir en jeu (ScreenOutline : trait d'un pixel autour des pièces et
+## des marches de cubes, comme la planche de référence). Sans effet si le
+## moteur de rendu ne fournit pas les normales (ScreenOutline.supported).
+var outline := true
 ## Échelle de la résolution 3D (1 = 100 %), multipliée par celle du préréglage
 ## de qualité (RenderQuality : 85 % en BASSE). L'interface reste nette.
 var render_scale := 1.0
@@ -259,9 +263,12 @@ func start_quality_probe() -> QualityProbe:
 	return _probe
 
 
-## `--quality=low|medium|high` impose la qualité graphique (tests de perf).
+## `--quality=low|medium|high` impose la qualité graphique (tests de perf) ;
+## `--outline=on|off` impose le contour (mesures avant / après).
 func _apply_cmdline_quality() -> void:
 	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--outline="):
+			outline = a.substr(10).to_lower() in ["on", "1", "true"]
 		if a.begins_with("--quality="):
 			var q := Quality.keys().find(a.substr(10).to_upper())
 			if q >= 0:
@@ -778,6 +785,7 @@ func load_from(file: String) -> bool:
 	quality_auto = SafeConfig.get_string(cfg, "video", "quality_auto", quality_auto, 32)
 	_needs_probe = not cfg.has_section_key("video", "quality")
 	film_grain = SafeConfig.get_float(cfg, "video", "film_grain", film_grain, 0.0, 1.0)
+	outline = SafeConfig.get_bool(cfg, "video", "outline", outline)
 	render_scale = SafeConfig.get_float(cfg, "video", "render_scale", render_scale,
 			RENDER_SCALE_RANGE.x, RENDER_SCALE_RANGE.y)
 	max_fps = SafeConfig.get_int(cfg, "video", "max_fps", max_fps)
@@ -827,6 +835,7 @@ func save_to(file: String) -> void:
 	if quality_auto != "":
 		cfg.set_value("video", "quality_auto", quality_auto)
 	cfg.set_value("video", "film_grain", film_grain)
+	cfg.set_value("video", "outline", outline)
 	cfg.set_value("video", "render_scale", render_scale)
 	cfg.set_value("video", "max_fps", max_fps)
 	cfg.set_value("video", "brightness", brightness)

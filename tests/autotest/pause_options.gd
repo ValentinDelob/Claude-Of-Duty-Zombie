@@ -169,7 +169,7 @@ func run() -> void:
 	opt.switch_tab(1)
 	await frames(2)
 	at.check(opt.tab == "graphics", "onglet GRAPHISMES")
-	for k in ["quality", "fov", "fullscreen", "vsync", "film_grain", "render_scale", "max_fps", "brightness"]:
+	for k in ["quality", "fov", "fullscreen", "vsync", "film_grain", "outline", "render_scale", "max_fps", "brightness"]:
 		at.check(opt.rows.has(k), "option %s" % k)
 	var rs: MenuOptionRow = opt.rows.render_scale
 	rs.grab_focus()
