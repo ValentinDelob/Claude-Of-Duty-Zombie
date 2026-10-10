@@ -1,12 +1,12 @@
 class_name EditorPrefabs
 extends RefCounted
 ## Objets du décor et luminaires des cartes de l'éditeur construits par le jeu
-## (formes simples, sans modèle) : sacs de sable, table et chaise renversées,
+## (formes simples, sans modèle) : table et chaise renversées,
 ## chariot, épave de voiture, et (format 11) les décors des effets : bûches,
-## foyer de pierres, planches calcinées, électrodes, bobine Tesla, flaques,
+## planches calcinées, électrodes, bobine Tesla, flaques,
 ## torche murale, tuyaux, boîtier électrique, câble suspendu ; ampoule,
 ## suspension, néon, lampe de bureau, projecteur de chantier, bougies,
-## brasero. Les autres (gravats, caisses,
+## brasero. Les autres (gravats, caisses, sacs de sable, foyer de pierres,
 ## fauteuils, applique, lustre...) sont des modèles de assets/models/props/
 ## (MapCatalog.PREFABS et LIGHTS).
 ##
@@ -107,14 +107,6 @@ static func build(kind: String) -> Node3D:
 	_kind = "block"
 	var n := _root(kind)
 	match kind:
-		"sacs_sable":
-			# Trois rangs de sacs décalés, légèrement tournés.
-			for row in 3:
-				var count := 4 if row < 2 else 3
-				for i in count:
-					var x := -0.75 + i * 0.5 + (0.25 if row == 1 else 0.0) + (0.25 if row == 2 else 0.0)
-					var yaw := sin(i * 3.1 + row * 1.7) * 0.12
-					_box(n, "fabric", Vector3(0.5, 0.28, 0.7), Vector3(x, 0.14 + row * 0.29, sin(i * 1.3 + row) * 0.04), Vector3(0, yaw, 0))
 		"table_renversee":
 			# Plateau dressé comme un bouclier, pieds vers l'arrière.
 			_box(n, "wood", Vector3(1.6, 0.85, 0.06), Vector3(0, 0.43, 0.27), Vector3(0.06, 0, 0))
@@ -159,7 +151,7 @@ static func build(kind: String) -> Node3D:
 
 
 ## Format 11 : décors qui accompagnent les effets (ils étaient construits avec
-## l'effet, MapEffects, avant le format 11) : bûches, foyer de pierres,
+## l'effet, MapEffects, avant le format 11) : bûches,
 ## planches calcinées, électrodes, bobine Tesla, flaques (origine au sol) ;
 ## torche murale, tuyaux, boîtier électrique (origine sur la face du mur, +z
 ## vers la pièce) ; câble suspendu (origine au plafond). Les effets se posent
@@ -168,13 +160,6 @@ static func _effect_decor(n: Node3D, kind: String) -> bool:
 	match kind:
 		"buches":
 			_logs(n, 0.26)
-		"foyer_pierres":
-			_logs(n, 0.45)
-			for i in 10:
-				var a := i * TAU / 10.0
-				var s := 0.45 * (0.16 + fposmod(i * 0.37, 0.08))
-				var st := _part(n, "stone", _sphere_mesh(snappedf(s, 0.001)), Vector3(cos(a) * 0.52, s * 0.5, sin(a) * 0.52))
-				st.scale = Vector3(1.2, 0.7, 1.0)
 		"planches_brulees":
 			# Planches calcinées (braises dans le bois) sous un incendie.
 			for i in 5:

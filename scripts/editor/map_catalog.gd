@@ -67,7 +67,11 @@ const DOOR_PRICES := [750, 1000, 1250]
 ##            (on marche dessus : aucune collision)
 ##   model    modèle assets/models/props/<model>.glb (sinon `build` : objet
 ##            construit par le jeu, EditorPrefabs) ; scale, remap (matériaux
-##            remplacés), copies [[x, z, lacet]] (le modèle répété)
+##            remplacés), copies [[x, z, lacet]] (le modèle répété). Décor
+##            CUBIQUE (cubes de 5 cm, docs/VOXEL_DECOR_PLAN.md) : « voxel/<id> »
+##            (assets/models/props/voxel/<id>.glb, tools/blender/voxel_props/),
+##            sans scale ni remap ; les entrées pas encore converties sont
+##            listées dans tests/test_voxel_decor.gd (TODO_*)
 ##   boxes    pavés de collision {center, size, yaw} en coordonnées de
 ##            l'objet (sinon <model>.collision.json) : TOUJOURS des
 ##            CollisionBox, jamais une collision de modèle Blender
@@ -96,11 +100,11 @@ const PREFABS := {
 	"lustre_tombe": {"fr": "Lustre tombé", "en": "Fallen chandelier", "fp": [7, 6], "h": 1.5, "bloque": "barriere",
 		"model": "chandelier_fallen", "color": Color(0.85, 0.7, 0.35)},
 	"caisses": {"fr": "Pile de caisses", "en": "Stacked crates", "fp": [5, 4], "h": 1.5, "bloque": "solide",
-		"model": "stage_crates", "color": Color(0.4, 0.45, 0.4)},
+		"model": "voxel/caisses", "color": Color(0.4, 0.45, 0.4)},
 	"tonneaux": {"fr": "Tonneaux", "en": "Drums", "fp": [4, 4], "h": 1.8, "bloque": "barriere",
 		"model": "blue_barrel_group", "color": Color(0.2, 0.3, 0.6)},
 	"sacs_sable": {"fr": "Sacs de sable", "en": "Sandbags", "fp": [4, 2], "h": 0.9, "bloque": "solide",
-		"build": "sacs_sable", "surface": "fabric", "boxes": [{"center": [0, 0.45, 0], "size": [2.0, 0.9, 0.8]}], "support": 0.9, "color": Color(0.6, 0.55, 0.4)},
+		"model": "voxel/sacs_sable", "surface": "fabric", "boxes": [{"center": [0, 0.45, 0], "size": [2.0, 0.9, 0.8]}], "support": 0.9, "color": Color(0.6, 0.55, 0.4)},
 	"table_renversee": {"fr": "Table renversée", "en": "Overturned table", "fp": [4, 2], "h": 0.9, "bloque": "solide",
 		"build": "table_renversee", "surface": "wood", "boxes": [{"center": [0, 0.42, 0.25], "size": [1.6, 0.85, 0.12]}, {"center": [0, 0.3, -0.1], "size": [1.5, 0.6, 0.6]}],
 		"color": Color(0.45, 0.28, 0.15)},
@@ -127,7 +131,7 @@ const PREFABS := {
 	# Format 11 : décors des effets (feu, électricité, eau), construits par le jeu.
 	"buches": {"fr": "Bûches (feu de bois)", "en": "Logs (wood fire)", "fp": [1, 1], "h": 0.15, "bloque": "non", "build": "buches", "surface": "wood",
 		"color": Color(0.4, 0.2, 0.1)},
-	"foyer_pierres": {"fr": "Foyer de pierres", "en": "Stone fire pit", "fp": [3, 3], "h": 0.3, "bloque": "barriere", "build": "foyer_pierres", "surface": "stone",
+	"foyer_pierres": {"fr": "Foyer de pierres", "en": "Stone fire pit", "fp": [3, 3], "h": 0.3, "bloque": "barriere", "model": "voxel/foyer_pierres", "surface": "stone",
 		"boxes": [{"center": [0, 0.5, 0], "size": [1.3, 1.0, 1.3]}], "color": Color(0.45, 0.42, 0.4)},
 	"planches_brulees": {"fr": "Planches calcinées", "en": "Charred planks", "fp": [5, 2], "h": 0.1, "bloque": "non", "build": "planches_brulees",
 		"surface": "wood", "color": Color(0.2, 0.15, 0.12)},

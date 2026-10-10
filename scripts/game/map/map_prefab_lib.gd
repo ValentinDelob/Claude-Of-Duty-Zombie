@@ -282,6 +282,7 @@ static func catalog_boxes(id: String) -> Array:
 	if d.has("boxes"):
 		return d.boxes
 	if d.has("model"):
+		# « voxel/<id> » : décor cubique, collisions à côté de son .glb.
 		var path := "res://assets/models/props/%s.collision.json" % String(d.model)
 		if FileAccess.file_exists(path):
 			var j: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))

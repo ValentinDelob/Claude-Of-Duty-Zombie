@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bvqk002og6uya"
-path="res://.godot/imported/stage_crates.glb-98eada7fd5e30599414b05a61e79a9c4.scn"
+uid="uid://c8fdekrvbhnt7"
+path="res://.godot/imported/sacs_sable.glb-1f820b98bbd712fa84166278a909226b.scn"
 
 [deps]
 
-source_file="res://assets/models/props/stage_crates.glb"
-dest_files=["res://.godot/imported/stage_crates.glb-98eada7fd5e30599414b05a61e79a9c4.scn"]
+source_file="res://assets/models/props/voxel/sacs_sable.glb"
+dest_files=["res://.godot/imported/sacs_sable.glb-1f820b98bbd712fa84166278a909226b.scn"]
 
 [params]
 

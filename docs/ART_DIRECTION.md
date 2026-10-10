@@ -91,6 +91,22 @@ et exporte.
   `.import`), `tools/voxel_check.gd -- <fichier> --anime|--statique`, et une
   planche de validation regardée à l'œil avant de brancher le modèle.
 
+### Décors de l'éditeur de cartes (tools/blender/voxel_props/)
+
+- Inventaire, lots de conversion et marche à suivre :
+  **docs/VOXEL_DECOR_PLAN.md**. Un script par famille (`mobilier.py`,
+  `effets.py`...) sur `voxel_props/common.py` ; modèles
+  `assets/models/props/voxel/<id>.glb` (cubes de 5 cm, un objet
+  `voxel__<id>__<type>`), cités `"model": "voxel/<id>"` par le catalogue,
+  collisions inchangées (catalogue ou `<id>.collision.json`).
+- Matières du décor dans `voxel_lib` (`DECOR_MATERIALS`, palette
+  `DECOR_PALETTE`, `noise` / `tone` pour la texture par cube) ; faces
+  `glow` émissives (alpha 0). En jeu : matériau unique `voxel`
+  (`assets/shaders/voxel_prop.gdshader`, couleur de face telle quelle).
+- Convertis : `caisses`, `sacs_sable`, `foyer_pierres` ; le reste est listé
+  « à faire » par `tests/test_voxel_decor.gd` (qui passe VoxelCheck sur
+  chaque modèle converti du catalogue).
+
 ### Zombie « patient » (tools/blender/zombies/zombie_voxel.py)
 
 - `assets/models/zombies/zombie_voxel.glb`, cubes de **2,5 cm**, validé et
@@ -530,7 +546,8 @@ décrit existe encore tant que les versions cubiques ne l'ont pas remplacé.
   relief, se répète bout à bout), `wall_frieze` (frise 6 x 1,6 m, losanges
   en pointe de diamant entre moulures crème, corniche à denticules de
   0,5 m de saillie), `blue_barrel_group` (7 bidons, 2 barrières),
-  `stage_crates` (5 caisses de transport à cornières), `scaffold_stairs`
+  `stage_crates` (5 caisses de transport à cornières ; remplacé par le décor
+  cubique `voxel/caisses`), `scaffold_stairs`
   (tour de 5 m, plancher à 4 m, escalier raide accolé ; seuls les montants
   et le bas de l'escalier arrêtent), `cable_run_a/b` (câbles en S au sol,
   ~8 m, raccord d'acier au bout +X), `cable_drop` (descente du bord de
