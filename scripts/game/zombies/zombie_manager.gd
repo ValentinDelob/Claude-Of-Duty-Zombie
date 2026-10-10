@@ -260,7 +260,7 @@ func _cl_spawn(zid: int, pos: Vector3, yaw: float, variant: int, speed_class: in
 		_net_fresh[zid] = NetCodec.FRESH_FULL
 	zombie_spawned.emit(z)
 	if kind == KIND_DOG:
-		return  # Apparition par la foudre (Hellhound).
+		return  # Chien tapi puis jaillissant (Hellhound).
 	# Les zombies des fenêtres (BarricadeSystem) ne sortent pas du sol.
 	if z.state == Zombie.State.EMERGE:
 		if game:

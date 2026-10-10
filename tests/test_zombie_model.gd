@@ -88,7 +88,8 @@ func test_mesh_valid() -> void:
 
 
 func test_player_and_dog_rigs_unchanged() -> void:
-	# Les boîtes historiques (joueurs, chiens) restent des boîtes rigides.
+	# Les boîtes historiques (joueurs) restent des boîtes rigides ; le chien
+	# cubique garde l'ossature du jeu (tests/test_dog_voxel.gd).
 	var parts := [["chest", Vector3(0.4, 0.3, 0.2), Vector3.ZERO, Color.RED, 0.0]]
 	var arr := RigBuilder.build_arrays(parts)
 	assert_eq((arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size(), 24)

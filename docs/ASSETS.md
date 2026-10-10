@@ -275,8 +275,8 @@ Musiques et ambiances, `round_start`/`round_end`,
 `dog_round_start`/`dog_round_end`/`dog_round_music`,
 caisse au hasard (`box_open`, `box_music`), téléporteur, courant (`power_on`, `lever`,
 `lamp_on`), `heartbeat`,
-`revive`, `hitmarker`, `zap` (piège électrique), `dog_bolt`/`dog_spawn`/
-`dog_prespawn` (foudre d'apparition), `zombie_fling`, interface. Candidats à
+`revive`, `hitmarker`, `zap` (piège électrique),
+`zombie_fling`, interface. Candidats à
 un remplacement futur : `door_open`, `purchase`, `denied`, `zombie_fling`.
 
 ## Mixage
@@ -307,8 +307,10 @@ un remplacement futur : `door_open`, `purchase`, `denied`, `zombie_fling`.
   béton). Douilles : `shell.wav` au premier rebond.
 - Santé basse : battement de cœur et respiration haletante
   (`player_breath_1..2`, un souffle tous les trois battements).
-- Chiens de l'enfer : aboiement au bond puis morsure (`dog_bite_1..2`)
-  0,22 s plus tard.
+- Chiens (vague « meute ») : aboiements et grognements lointains à l'annonce
+  (`DogRound.HOWL_*`), grognement depuis la cachette puis aboiement quand le
+  chien jaillit, aboiement au bond puis morsure (`dog_bite_1..2`) 0,22 s plus
+  tard ; mort : `dog_whine` et un impact de chair (`flesh_hit_*`).
 - Voix des zombies (groupe `zombie`) plafonnées à 7 simultanées, pas traînants
   (groupe `zombie_step`) à 4 et seulement à moins de 14 m ; au-delà, la voix
   la plus lointaine est remplacée par une plus proche (`Audio._group_voice`).
@@ -418,7 +420,6 @@ un remplacement futur : `door_open`, `purchase`, `denied`, `zombie_fling`.
 | `dog_bite_1.wav` | [Dog Teeth Clattering Clicking](https://freesound.org/s/841350/) par qubodup [0.50-0.98 s]<br>[Flesh Stabs and Slashes 2](https://freesound.org/s/635049/) par sillygrizzlies [3.70-4.00 s]<br>[Dog Growling Snarling Grumbling](https://freesound.org/s/122183/) par qubodup [4.39-4.85 s] | mono 44,1 kHz 16 bits, hauteur x0.85, hauteur x0.80, 3 couches mixées, égalisation, compression, saturation x1.2, réverbération d'intérieur 0.35 s, intensité -14 LUFS (chien) |
 | `dog_bite_2.wav` | [Dog Teeth Clattering Clicking](https://freesound.org/s/841350/) par qubodup [1.72-2.10 s]<br>[VisceralBulletImpacts.wav](https://freesound.org/s/423301/) par u1769092 [0.31-0.60 s]<br>[Dog Growling Snarling Grumbling](https://freesound.org/s/122183/) par qubodup [5.40-5.84 s] | mono 44,1 kHz 16 bits, hauteur x0.85, hauteur x0.80, 3 couches mixées, égalisation, compression, saturation x1.2, réverbération d'intérieur 0.35 s, intensité -14 LUFS (chien) |
 | `dog_whine.wav` | [Dog death cry - video game quality / bad-ish quality](https://freesound.org/s/724927/) par greyfeather | mono 44,1 kHz 16 bits, hauteur x0.82, égalisation, compression, saturation x1.5, réverbération d'intérieur 0.35 s, intensité -14 LUFS (chien) |
-| `dog_explode.wav` | [Fireball Explosion.wav](https://freesound.org/s/431174/) par Blankened<br>[fire-whoosh.wav](https://freesound.org/s/244926/) par hnhnh [0.00-1.80 s] | mono 44,1 kHz 16 bits, 2 couches mixées, égalisation, compression, saturation x1.4, réverbération d'intérieur 1.20 s, intensité -10 LUFS (explosion) |
 | `footstep_1.wav` | [Footsteps boots.wav](https://freesound.org/s/392483/) par gpag1 [0.00-0.25 s] | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -24 LUFS (joueur) |
 | `footstep_2.wav` | [Footsteps boots.wav](https://freesound.org/s/392483/) par gpag1 [0.25-0.52 s] | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -24 LUFS (joueur) |
 | `footstep_3.wav` | [Footsteps boots.wav](https://freesound.org/s/392483/) par gpag1 [1.04-1.29 s] | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -24 LUFS (joueur) |

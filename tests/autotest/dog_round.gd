@@ -1,10 +1,12 @@
 extends AutotestScenario
-## Manche de chiens de l'enfer (BO1) dans le vrai jeu : modèle et explosion de
-## flammes (brûlure des joueurs proches), manche forcée : annonce, brouillard,
-## musique, compteur qui clignote, apparition par la foudre près du joueur,
-## 2 chiens vivants au plus, poursuite et morsure, kills au fusil (points
-## comme les zombies), puis retour à une
-## manche de zombies normale.
+## Vague spéciale « meute » (chiens errants contaminés) dans le vrai jeu :
+## modèle cubique, chien tapi (invisible, intouchable) puis qui jaillit,
+## mort sur le flanc et giclée de sang contaminé (brûlure des joueurs
+## proches) ; manche forcée : bandeau « LA MEUTE APPROCHE », aboiements
+## lointains, musique, compteur qui clignote (ni éclair ni brouillard),
+## apparitions près du joueur (hors de sa vue si possible), 2 chiens vivants
+## au plus, poursuite et morsure, kills au fusil (points comme les zombies),
+## puis retour à une manche de zombies normale.
 
 var H := AutotestHelpers
 var game: Game
@@ -59,27 +61,26 @@ func run() -> void:
 	p.teleport_to(origin, -PI * 0.5)  # face à l'est (+X)
 	await seconds(0.3)
 
-	# ------------------------------------------------ modèle et explosion
+	# ------------------------------------------------ modèle, irruption, mort
 	var spot := origin + Vector3(4.0, -0.05, 0.0)
 	var zid := game.zombies.spawn(spot, 3, 400, ZombieManager.KIND_DOG)
 	var dummy := game.zombies.get_zombie(zid) as Hellhound
 	at.check(dummy != null, "type d'entité chien sur le canal des zombies")
-	H.aim_at(p, spot + Vector3.UP * 1.3)
-	await seconds(0.5)  # en pleine foudre (état vérifié pendant la fenêtre)
-	at.check(not dummy.skel.visible and dummy.hit_body.collision_layer == 0, "invisible et intouchable pendant la foudre")
-	await seconds(0.35)  # capture
-	await at.screenshot("lightning")
-	await until(func(): return not is_instance_valid(dummy._lightning) or dummy._lightning._struck, 1.0, "éclair")
-	await frames(2)
-	await at.screenshot("bolt")
-	await until(func(): return dummy._revealed, 3.0, "chien révélé")
-	# Figé pour la photo et l'explosion (plus de simulation serveur).
+	at.check(dummy.mesh.mesh == HellhoundModel.model().mesh, "modèle cubique du chien")
+	H.aim_at(p, spot + Vector3.UP * 0.6)
+	await seconds(0.5)  # tapi (état vérifié pendant la fenêtre)
+	at.check(not dummy.skel.visible and dummy.hit_body.collision_layer == 0, "invisible et intouchable tant qu'il est tapi")
+	await until(func(): return dummy._revealed, 3.0, "chien qui jaillit")
+	at.check(dummy._appear_t >= 0.0, "animation d'irruption (accroupi)")
+	await frames(3)
+	await at.screenshot("appear")
+	# Figé pour la photo et la mort (plus de simulation serveur).
 	dummy.set_physics_process(false)
 	dummy.velocity = Vector3.ZERO
 	dummy.yaw = 0.5
 	dummy.rotation.y = dummy.yaw
 	dummy.global_position = origin + Vector3(1.5, -0.05, 0.2)
-	H.aim_at(p, dummy.global_position + Vector3(0, 0.5, 0))
+	H.aim_at(p, dummy.global_position + Vector3(0, 0.4, 0))
 	await seconds(0.6)  # capture
 	await at.screenshot("model")
 	var hp := pd.health
@@ -87,11 +88,12 @@ func run() -> void:
 	game.combat.damage_zombie(zid, 1000, 1, false, Vector3.RIGHT, Combat.HitKind.BULLET)
 	await until(func(): return not dummy.is_alive() and pd.health < hp and pd.points > pts, 2.0, "chien tué, brûlure et points")
 	at.check(not dummy.is_alive(), "chien tué")
-	at.check(hp - pd.health == DogRules.EXPLODE_DAMAGE, "explosion de flammes : brûlure de %d PV (%d -> %d)" % [DogRules.EXPLODE_DAMAGE, hp, pd.health])
+	at.check(hp - pd.health == DogRules.EXPLODE_DAMAGE, "giclée de sang contaminé : brûlure de %d PV (%d -> %d)" % [DogRules.EXPLODE_DAMAGE, hp, pd.health])
 	at.check(pd.points - pts == PointsRules.KILL, "kill de chien : +%d comme un zombie" % (pd.points - pts))
-	await seconds(0.15)  # capture
-	await at.screenshot("explode")
-	await seconds(2.0)  # fin des flammes avant la manche forcée
+	await seconds(1.0)  # couché sur le flanc
+	at.check(absf(dummy.skel.rotation.z) > 1.2, "mort : couché sur le flanc (roulis %.2f)" % dummy.skel.rotation.z)
+	await at.screenshot("death")
+	await until(func(): return not is_instance_valid(dummy) or not dummy.skel.visible, 4.0, "corps dissous")
 
 	# ------------------------------------------------ manche de chiens forcée
 	game.combat.debug_invulnerable = false
@@ -111,24 +113,30 @@ func run() -> void:
 	at.check(game.rounds.to_spawn == 0 and game.zombies.alive_count() == 0, "aucun zombie")
 	at.check(dogs.cl_active and game.hud.round_counter().special, "annonce reçue, compteur qui clignote")
 	var env := (game.world.get_node("WorldEnvironment") as WorldEnvironment).environment
-	# Montée du brouillard (fondu de 3 s) et musique.
-	await until(func(): return dogs.fog_amount() > 0.95 and env.fog_density > WorldLook.BASE_FOG_DENSITY * 1.5 and Audio._music_name == "dog_round_music", 6.0, "brouillard de manche de chiens")
-	at.check(dogs.fog_amount() > 0.95, "brouillard de manche de chiens (%.2f)" % dogs.fog_amount())
-	at.check(env.fog_density > WorldLook.BASE_FOG_DENSITY * 1.5, "brouillard plus dense (%.3f)" % env.fog_density)
+	var fog0 := env.fog_density
+	# Bandeau (FR / EN selon la langue), musique, puis aboiements lointains
+	# pendant l'attente du premier chien ; l'ambiance de la carte ne change pas.
+	at.check(game.hud._center_msg.text == Lang.t("LA MEUTE APPROCHE", "THE PACK IS COMING"), "bandeau « %s »" % game.hud._center_msg.text)
+	await until(func(): return Audio._music_name == "dog_round_music", 3.0, "musique")
 	at.check(Audio._music_name == "dog_round_music", "musique de manche de chiens")
-	await at.screenshot("fog")
+	await seconds(0.8)
+	await at.screenshot("announce")
+	await until(func(): return dogs.cl_howls >= DogRound.HOWL_TIMES.size(), DogRules.START_DELAY, "aboiements lointains")
+	at.check(dogs.cl_howls == DogRound.HOWL_TIMES.size(), "%d aboiements lointains avant le premier chien" % dogs.cl_howls)
+	at.check(spawned_ids.is_empty(), "aboiements avant le premier chien")
+	at.check(absf(env.fog_density - fog0) < 0.0001, "pas de brouillard de manche de chiens")
 
-	# Apparition par la foudre (après l'annonce).
+	# Arrivée de la meute (après l'annonce) : tapi, puis jaillit.
 	var ok: bool = await until(func(): _track(); return not spawned_ids.is_empty(), DogRules.START_DELAY + 3.0, "premier chien")
 	if not ok:
 		return
 	var first: Hellhound = game.zombies.get_zombie(spawned_ids.keys()[0])
 	at.check(first.health == 400 and first.max_health == 400, "1re manche de chiens : 400 PV")
-	H.aim_at(p, first.global_position + Vector3.UP * 1.4)
-	await seconds(0.75)  # capture
+	ok = await until(func(): _track(); return first._revealed, 2.5, "chien tapi puis qui jaillit")
+	at.check(ok and first.state != Zombie.State.EMERGE, "le chien jaillit après son temps tapi")
+	H.aim_at(p, first.global_position + Vector3.UP * 0.6)
+	await seconds(0.25)  # capture
 	await at.screenshot("round_spawn")
-	ok = await until(func(): _track(); return first._revealed, 2.5, "foudre puis chien")
-	at.check(ok and first.state != Zombie.State.EMERGE, "le chien apparaît après l'éclair")
 
 	# Poursuite et morsure (le joueur ne bouge pas).
 	var d0 := first.global_position.distance_to(p.global_position)
@@ -164,7 +172,8 @@ func run() -> void:
 	p.input.fire = false
 	at.check(dogs.killed == 6 and spawned_ids.size() == 6, "6 chiens apparus et tués (%d / %d)" % [dogs.killed, spawned_ids.size()])
 	at.check(max_alive_seen <= 2, "2 chiens vivants au plus (max %d)" % max_alive_seen)
-	at.check(spawn_invisible_ok, "chiens invisibles pendant la foudre")
+	at.check(spawn_invisible_ok, "chiens invisibles tant qu'ils sont tapis")
+	print("[dog_round] apparitions hors de la vue du joueur : %d / %d" % [dogs.spawned_hidden, spawned_ids.size()])
 	at.check(min_spawn_dist >= 4.0, "apparitions près du joueur (%.1f à %.1f m)" % [min_spawn_dist, max_spawn_dist])
 	at.check(pd.kills - kills0 == 6, "kills comptés (%d)" % (pd.kills - kills0))
 	# Ferraille : 6 kills à montant fixe, plus 10 par touche de balle (au plus
@@ -180,10 +189,11 @@ func run() -> void:
 	at.check(game.rounds.phase == RoundManager.Phase.INTERMISSION, "fin de la manche de chiens")
 	at.check(dogs.next_dog_round == 10, "prochaine manche de chiens : %d" % dogs.next_dog_round)
 	at.check(game.evac != null and game.evac.is_open, "vague spéciale vaincue : porte d'évacuation ouverte")
-	# Fin de l'ambiance : délai puis fondu de 4 s du brouillard.
-	await until(func(): return not dogs.cl_active and not game.hud.round_counter().special and dogs.fog_amount() < 0.05 and absf(env.fog_density - WorldLook.BASE_FOG_DENSITY) < 0.002, DogRules.FOG_CLEAR_DELAY + 8.0, "fin de l'ambiance de manche de chiens")
+	# Fin de l'ambiance : délai, puis musique et compteur normaux.
+	await until(func(): return not dogs.cl_active and not game.hud.round_counter().special, DogRules.END_DELAY + 3.0, "fin de l'ambiance de manche de chiens")
 	at.check(not dogs.cl_active and not game.hud.round_counter().special, "fin de l'ambiance de manche de chiens")
-	at.check(dogs.fog_amount() < 0.05 and absf(env.fog_density - WorldLook.BASE_FOG_DENSITY) < 0.002, "brouillard normal")
+	at.check(Audio._music_name != "dog_round_music", "musique de la carte rétablie")
+	at.check(absf(env.fog_density - fog0) < 0.0001, "ambiance de la carte inchangée")
 
 	# Manche suivante : zombies, progression normale. La fenêtre d'évacuation
 	# (scénario evacuation) se ferme sans évacuation : fin du temps accélérée.

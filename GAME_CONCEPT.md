@@ -500,7 +500,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | Mécanique | Statut | Devenir |
 |---|---|---|
 | Manches et vagues, nombre de zombies selon les joueurs, PV selon la manche | 🧪 | **Garder** (cœur du jeu) |
-| Vagues de chiens (`scripts/game/dogs`) | 🧪 | **Adapter** en première vague spéciale ; refaire la mise en scène (pas d'éclair ni de brouillard façon BO1) |
+| Vagues de chiens (`scripts/game/dogs`) | ✔️ | **Adaptées** en première vague spéciale, la « meute » : chiens errants contaminés en cubes de 2,5 cm (`dog_voxel.py`) ; mise en scène propre au jeu : bandeau « LA MEUTE APPROCHE », aboiements lointains, chiens tapis hors de vue qui jaillissent, mort sur le flanc (ni éclair ni brouillard façon BO1) |
 | Points par élimination | 🧪 | **Adapter** en ferraille personnelle (§4.8) |
 | Portes payantes | 🧪 | **Garder**, payées en ferraille |
 | Achats muraux | ✔️ | **Supprimés** (remplacés par la station de construction) |

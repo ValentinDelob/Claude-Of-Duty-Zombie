@@ -123,7 +123,7 @@ et exporte.
 - `assets/models/zombies/zombie_voxel.glb`, cubes de **2,5 cm**, validé et
   **modèle de tous les zombies** (`ZombieModel.MODEL_PATH` ; repli sur les
   zombies procéduraux si le .glb manque, ou avec `-- --procedural-zombies`).
-  Les chiens gardent leur modèle. Tests : `tests/test_zombie_voxel.gd`,
+  Les chiens ont leur propre modèle cubique (section suivante). Tests : `tests/test_zombie_voxel.gd`,
   `tests/test_zombie_voxel_anim.gd`.
 - Bas de la blouse (sous la rangée `SKIRT_SPLIT_Z` = 26, 0,65 m) lié aux
   **cuisses**, moitié gauche / droite : chaque pan suit sa jambe (fente devant
@@ -171,6 +171,54 @@ et exporte.
   (rangée 1 : planche ; rangée 2 : rendu au même cadrage et à la même échelle,
   contour noir compris ; rangée 3 : les deux à 50 % pour comparer pixel à
   pixel ; vues : face, dos, profils, trois-quarts, pose d'attaque).
+
+### Chien errant contaminé (tools/blender/dogs/dog_voxel.py)
+
+- `assets/models/dogs/dog_voxel.glb`, cubes de **2,5 cm**, modèle de tous les
+  chiens de la vague « meute » (`HellhoundModel`, chargé par `ZombieGlb`).
+  Pas de planche de référence : les formes sont **décrites** dans le script,
+  tranche par tranche (profils du dos, du ventre et de la largeur du tronc ;
+  cou qui monte à 45° ; crâne, museau, mâchoire), en escaliers de cubes.
+- Univers : chien errant échappé d'un laboratoire d'hôpital, cohérent avec
+  ses échantillons (croc, touffe de poils, collier) : pelage galeux
+  gris-brun (selle sombre, ventre clair, mèches grises, variation par blocs
+  de 2 cubes), plaques de gale rose (deux échelles de bruit), flanc gauche
+  ouvert sur trois côtes (une cassée) au bord de croûtes, morsure à la
+  cuisse droite, épaule droite rasée et recousue (incision de laboratoire),
+  bague d'identification jaune à l'oreille gauche dressée, oreille droite
+  déchirée et retombée, collier de cuir rouge usé à deux clous et médaille,
+  babines retroussées (gencive, rangée de dents, crocs qui dépassent),
+  langue, truffe, arcades sombres et **yeux ambre émissifs**.
+- Proportions d'un gros chien : **0,75 m au garrot** (30 cubes), tronc de
+  34 cubes, poitrail profond (16 cubes) sur des pattes de 14, ventre
+  levretté, tête portée bas et en avant ; 12 × 63 × 46 cubes (queue et
+  oreilles comprises), ~7 000 cellules, **7 708 triangles** (budget 8 000 ;
+  couleurs par blocs et palette réduite à 18 teintes de poil pour fusionner
+  les faces).
+- Ossature : `RigBuilder.BONES` replacée en quadrupède (bassin à l'arrière,
+  échine, poitrail, cou, tête, mâchoire ; `arm_*` / `forearm_*` = pattes
+  avant, `thigh_*` / `shin_*` = pattes arrière ; queue sur le bassin) ; la
+  plaque d'épaule est sur l'os du bras (elle glisse sur le flanc), le jambon
+  de la cuisse sur l'os de la cuisse.
+- En jeu : un mesh partagé (un draw call par chien), shaders des zombies
+  cubiques (`zombie_voxel*.gdshader`) avec matériaux propres (lueur ambre),
+  six teintes de variante légères (`HellhoundModel.TINTS` : une meute de
+  bâtards, pas des clones), dissolution cube par cube à la mort. Zones de
+  touche mesurées sur le modèle (`HellhoundModel.hit_shapes` : capsule du
+  tronc, sphère de la tête sur l'os `head`).
+- Animations procédurales (`DogAnim`, fonctions pures) : galop rotatif
+  (extension / regroupement, carpe et jarret repliés au retour, dos voûté,
+  suspension), trot, halètement à l'arrêt, **apparition** (jaillit
+  accroupi), **bond et morsure** (appel, cabré pattes tendues, gueule
+  ouverte, claquement puis secousse de la tête), **mort** (les pattes
+  lâchent, il bascule sur le flanc, soubresauts). Contrôles :
+  `tests/test_dog_voxel.gd` (cubes qui se traversent avec
+  `tests/voxel_pose_check.gd`, pire pose : 7 cubes ; rien sous le sol) ;
+  planches `sh tools/scenario.sh dog_voxel_anims`.
+- Cache : `tools/blender/dogs/dog_voxel_cells.json` (suivi par git) ;
+  `--cache` reconstruit le même modèle sans relancer la description.
+  Planche de validation : `--sheet <fichier>.png` (face, profils,
+  trois-quarts avant et arrière, galop, bond, gros plan de la tête).
 
 ### Contour noir en jeu (scripts/game/screen_outline.gd)
 
@@ -261,7 +309,7 @@ Options écartées :
   `MapDef.look["grade"]`.
 - Bloom : glow en mode « écran », seuil HDR 1,0, niveaux larges (3 à 5).
 - Brume volumétrique fine (anisotropie 0,7 : halos vers les lampes) en MEDIUM
-  et HIGH ; triplée pendant les manches de chiens (`apply_dog_round_look`).
+  et HIGH (les vagues de chiens ne la changent plus : GAME_CONCEPT.md § 5).
 - `FilmPost` (CanvasLayer 5, sous le HUD) : grain animé à 24 images/s,
   vignettage ovale, aberration chromatique radiale (MEDIUM/HIGH) ; variante LOW
   multiplicative sans lecture de l'écran. Option **OPTIONS > VIDÉO > GRAIN DE

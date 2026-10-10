@@ -4,7 +4,7 @@ extends AutotestScenario
 ## Direction artistique BO1 (docs/ART_DIRECTION.md) : étalonnage (table 3D),
 ## brume volumétrique, grain / vignettage / aberration (FilmPost) selon la
 ## qualité et l'option GRAIN DE FILM ; captures de chaque zone des deux cartes
-## (courant coupé puis rétabli, manche de chiens) avec mesure de la
+## (courant coupé puis rétabli) avec mesure de la
 ## luminance moyenne (« sombre mais lisible ») et des performances.
 
 var H := AutotestHelpers
@@ -90,13 +90,6 @@ func _map_pass(map_id: String) -> void:
 	at.check(dark <= 1, "courant rétabli : %d vue(s) sous la luminance %.2f (%s)" % [dark, MIN_LUM_POWERED, lums])
 	await _cost_ab(env, post, views[3])
 
-	# Manche de chiens : brouillard épais, brume volumétrique x3.
-	var base_vd := env.volumetric_fog_density
-	game.rounds.dogs._set_fog(1.0)
-	at.check(env.volumetric_fog_density > base_vd * 2.5, "manche de chiens : brume volumétrique épaissie (%.3f -> %.3f)" % [base_vd, env.volumetric_fog_density])
-	await _view(views[0], "chiens")
-	game.rounds.dogs._set_fog(0.0)
-	at.check(is_equal_approx(env.volumetric_fog_density, base_vd), "fin de la manche de chiens : brume normale")
 	at.check_perf(worst_fps, 150.0, "pire vue %s (MEDIUM, post-traitement BO1)" % map_id)
 	if parts() == 1:
 		await _hud_pass()

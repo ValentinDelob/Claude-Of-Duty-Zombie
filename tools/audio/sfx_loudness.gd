@@ -28,7 +28,7 @@ const CATEGORIES := [
 	{"id": "tir", "match": ["*_fire"], "target": -11.0, "tol": 1.5, "mode": "max"},
 	# Couche électrique des armes Pack-a-Punchées, jouée par-dessus le tir.
 	{"id": "arme_zap", "match": ["pap_zap_*"], "target": -19.0, "tol": 2.0, "mode": "max"},
-	{"id": "explosion", "match": ["explosion", "frag_explode", "dog_explode"],
+	{"id": "explosion", "match": ["explosion", "frag_explode"],
 		"target": -10.0, "tol": 2.0, "mode": "max"},
 	{"id": "impact", "match": ["impact_*", "flesh_hit_*", "headshot", "knife_hit", "knife_flesh", "body_fall",
 		"grenade_bounce", "monkey_bounce"], "target": -16.0, "tol": 2.5, "mode": "max"},

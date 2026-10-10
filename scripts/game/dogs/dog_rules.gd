@@ -1,7 +1,8 @@
 class_name DogRules
 extends RefCounted
-## Règles des manches de chiens de l'enfer (fonctions pures, testées
-## unitairement). Reprise de Black Ops 1 (_zombiemode_dogs.gsc).
+## Règles des vagues de chiens errants contaminés (« meute », fonctions pures,
+## testées unitairement). Chiffres repris des manches de chiens de Black Ops 1
+## (_zombiemode_dogs.gsc) ; la mise en scène, elle, est propre au jeu.
 
 ## Rythme des manches de chiens : vagues spéciales du schéma de la carte
 ## (WaveRules, GAME_CONCEPT.md §4.4) ; le tirage de BO1 (5 à 7, puis +4 ou
@@ -16,9 +17,10 @@ const MAX_TOTAL := 32
 const ALIVE_PER_PLAYER := 2
 ## PV selon le numéro de la manche de chiens (dog_health_increase).
 const HEALTH := [400, 900, 1300, 1600]
-## Annonce : wait(1) + voix + wait(6) avant le premier chien.
+## Annonce (bandeau, aboiements lointains) avant le premier chien.
 const START_DELAY := 7.0
-## Boule de foudre : le chien apparaît 1,5 s après l'arrivée de l'éclair.
+## Chien tapi (invisible, intouchable) 1,5 s à son point d'apparition, trahi
+## par un grognement, avant de jaillir.
 const SPAWN_TIME := 1.5
 ## Distance au joueur visé (400 à 1000 unités de BO1 ≈ 10 à 25 m).
 const SPAWN_MIN_DIST := 10.0
@@ -26,11 +28,11 @@ const SPAWN_MAX_DIST := 25.0
 ## Déplacement et morsure.
 const RUN_SPEED := 6.3
 const BITE_DAMAGE := 50
-## Explosion de flammes à la mort : petite brûlure autour du chien.
+## Giclée de sang contaminé à la mort : petite brûlure autour du chien.
 const EXPLODE_RADIUS := 1.8
 const EXPLODE_DAMAGE := 15
-## Délai après le dernier chien avant le retour du brouillard normal (wait 2).
-const FOG_CLEAR_DELAY := 2.0
+## Délai après le dernier chien avant la fin de l'ambiance (musique, compteur).
+const END_DELAY := 2.0
 
 
 ## Nombre total de chiens. `dog_round_index` : 1 pour la première manche de chiens.

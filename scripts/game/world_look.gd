@@ -22,7 +22,7 @@ const SURFACES := {
 	"carpet_theater": "sol", "ceiling_theater": "plafond", "dark_wood": "sol",
 }
 
-## Environnement normal (voir aussi apply_dog_round_look).
+## Environnement normal.
 const BASE_FOG_COLOR := Color(0.085, 0.09, 0.105)
 const BASE_FOG_DENSITY := 0.016
 const BASE_AMBIENT_ENERGY := 0.5
@@ -119,10 +119,6 @@ static func setup_environment(parent: Node3D, look := {}, with_outline := true) 
 	# (RenderQuality la refait quand Settings.brightness change).
 	env.set_meta("grade", look.get("grade", {}))
 	env.adjustment_color_correction = map_lut(look.get("grade", {}))
-	# Valeurs « normales » de la carte, reprises après une manche de chiens.
-	env.set_meta("base_look", {"fog_color": env.fog_light_color, "fog_density": env.fog_density,
-			"ambient_energy": env.ambient_light_energy, "saturation": env.adjustment_saturation,
-			"volumetric_density": env.volumetric_fog_density})
 	var we := WorldEnvironment.new()
 	we.name = "WorldEnvironment"
 	we.environment = env
@@ -313,25 +309,3 @@ static func map_lut(grade_over: Dictionary) -> ImageTexture3D:
 	var o := grade_over.duplicate()
 	o["gamma"] = Settings.brightness
 	return grade_lut(o)
-
-
-## Ambiance d'une manche de chiens (k = 0 : normale, 1 : pleine) : brouillard
-## plus épais et plus sombre, lumière ambiante baissée, couleurs délavées,
-## brume volumétrique épaisse (les halos des lampes se noient dans la brume).
-const DOG_FOG_COLOR := Color(0.07, 0.035, 0.03)
-const DOG_FOG_DENSITY := 0.05
-const DOG_AMBIENT_ENERGY := 0.3
-const DOG_SATURATION := 0.62
-const DOG_VOLUMETRIC_MULT := 3.0
-
-
-static func apply_dog_round_look(env: Environment, k: float) -> void:
-	k = clampf(k, 0.0, 1.0)
-	# Point de départ : l'ambiance propre à la carte (MapDef.look), sinon la base.
-	var base: Dictionary = env.get_meta("base_look", {})
-	env.fog_light_color = (base.get("fog_color", BASE_FOG_COLOR) as Color).lerp(DOG_FOG_COLOR, k)
-	env.fog_density = lerpf(base.get("fog_density", BASE_FOG_DENSITY), DOG_FOG_DENSITY, k)
-	env.ambient_light_energy = lerpf(base.get("ambient_energy", BASE_AMBIENT_ENERGY), DOG_AMBIENT_ENERGY, k)
-	env.adjustment_saturation = lerpf(base.get("saturation", BASE_SATURATION), DOG_SATURATION, k)
-	var vd: float = base.get("volumetric_density", BASE_VOLUMETRIC_DENSITY)
-	env.volumetric_fog_density = lerpf(vd, vd * DOG_VOLUMETRIC_MULT, k)

@@ -1,7 +1,8 @@
 extends AutotestScenario
-## [MP] Client : reçoit l'ambiance de la manche de chiens (brouillard, compteur
-## qui clignote), voit les chiens (même canal réseau que les zombies) apparaître
-## par la foudre, se déplacer (instantanés interpolés) et les abat.
+## [MP] Client : reçoit l'annonce de la vague « meute » (compteur qui clignote,
+## aboiements lointains, sans brouillard), voit les chiens (même canal réseau
+## que les zombies) tapis puis jaillir, se déplacer (instantanés interpolés) et
+## les abat.
 
 const PORT := 17871
 
@@ -23,9 +24,9 @@ func run() -> void:
 	if not ok:
 		return
 	at.check(game.hud.round_counter().special, "client : compteur de manche qui clignote")
-	# Le brouillard monte en ≈ 3 s.
-	await until(func(): return dogs.fog_amount() > 0.9, 5.0, "brouillard")
-	at.check(dogs.fog_amount() > 0.9, "client : brouillard de manche de chiens (%.2f)" % dogs.fog_amount())
+	# Aboiements lointains de l'annonce, joués sur chaque machine.
+	await until(func(): return dogs.cl_howls > 0, DogRound.HOWL_TIMES[0] + 2.0, "aboiements lointains")
+	at.check(dogs.cl_howls > 0, "client : aboiements lointains de l'annonce (%d)" % dogs.cl_howls)
 	var seen := {}
 	var moved := {}
 	var first_pos := {}
@@ -47,7 +48,7 @@ func run() -> void:
 				first_pos[d.id] = d.global_position
 			elif d.global_position.distance_to(first_pos[d.id]) > 2.0:
 				moved[d.id] = true
-			# Visible avant la fin de la foudre = défaut (après, le client révèle le
+			# Visible pendant qu'il est tapi = défaut (après, le client révèle le
 			# chien de lui-même si l'état du serveur arrive en retard).
 			if d.state == Zombie.State.EMERGE and d.skel.visible and d._life_t < DogRules.SPAWN_TIME:
 				hidden_ok = false
@@ -72,7 +73,7 @@ func run() -> void:
 	p.input.fire = false
 	at.check(seen.size() == 12, "client : 12 chiens reçus (%d)" % seen.size())
 	at.check(moved.size() >= 6, "client : chiens en mouvement (%d)" % moved.size())
-	at.check(hidden_ok, "client : invisibles pendant la foudre")
+	at.check(hidden_ok, "client : invisibles tant qu'ils sont tapis")
 	at.check(pd.kills >= 2, "client : chiens abattus (%d)" % pd.kills)
 	ok = await until(func(): return not dogs.cl_active, 8.0, "fin de l'ambiance")
 	at.check(ok and not game.hud.round_counter().special, "client : ambiance terminée")

@@ -32,8 +32,9 @@ var near := PackedInt32Array()
 var _rest := {}
 
 
-func _init(overrides: Dictionary) -> void:
-	var f := FileAccess.open(CELLS, FileAccess.READ)
+## `cells`, `links` : autre modèle cubique (chien : tests/test_dog_voxel.gd).
+func _init(overrides: Dictionary, cells := CELLS, links: Array = LINKS) -> void:
+	var f := FileAccess.open(cells, FileAccess.READ)
 	var data: Dictionary = JSON.parse_string(f.get_as_text())
 	cube = data.cube
 	var names: Array = []
@@ -55,7 +56,7 @@ func _init(overrides: Dictionary) -> void:
 	for i in centers.size():
 		var mask := 0
 		var b: String = names[bone_of[i]]
-		for l in LINKS:
+		for l in links:
 			if l[0] != b and l[1] != b:
 				continue
 			var other: String = l[1] if l[0] == b else l[0]
