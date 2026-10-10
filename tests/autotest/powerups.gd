@@ -142,7 +142,7 @@ func run() -> void:
 		z = await H.dummy_zombie(self, ahead(5.0), 50000)
 		H.aim_at(p, z.global_position + Vector3.UP * 0.9)
 		await H.shoot(self, p, 0.3)
-		at.check(pd.points - before == 20, "points doubles : touche à +20 (%d)" % (pd.points - before))
+		at.check(pd.points - before == 0, "points doubles : une touche ne rapporte rien (%d)" % (pd.points - before))
 		await H.clear_zombies(self)
 		# Ramasser à nouveau remet le minuteur à 30 s ; clignotement à la fin.
 		pw.timers[PowerupRules.DOUBLE_POINTS] = 4.0

@@ -24,8 +24,8 @@ func run() -> void:
 	game.session.add_points(1, 4000)
 	await seconds(1.0)  # le courant s'établit (levier) avant d'utiliser le téléporteur
 	p.input.interact_pressed = true
-	await until(func(): return tp.state == Teleporter.State.CHARGING and pd.points == 3000, 2.0, "charge du téléporteur")
-	at.check(tp.state == Teleporter.State.CHARGING and pd.points == 3000, "activation : charge en cours (points %d)" % pd.points)
+	await until(func(): return tp.state == Teleporter.State.CHARGING and pd.points == 4000 - Teleporter.COST, 2.0, "charge du téléporteur")
+	at.check(tp.state == Teleporter.State.CHARGING and pd.points == 4000 - Teleporter.COST, "activation : charge en cours (points %d)" % pd.points)
 	await seconds(1.5)  # capture : charge en cours
 	await at.screenshot("charging")
 	await until(func(): return tp.state == Teleporter.State.ACTIVE, 3.0, "départ")
@@ -41,4 +41,4 @@ func run() -> void:
 	at.check(back < 2.5, "retour sur la plateforme (%.1f m)" % back)
 	p.input.interact_pressed = true
 	await seconds(0.3)  # fenêtre fixe : aucune activation ne doit partir
-	at.check(tp.state == Teleporter.State.COOLDOWN and pd.points == 3000, "pas d'activation pendant la recharge")
+	at.check(tp.state == Teleporter.State.COOLDOWN and pd.points == 4000 - Teleporter.COST, "pas d'activation pendant la recharge")
