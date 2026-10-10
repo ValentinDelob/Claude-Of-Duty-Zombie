@@ -2590,6 +2590,29 @@
     "en": "Every shot counts",
     "fr": "Chaque balle compte"
    }
+  },
+  "v0.2.1-snapshot.545": {
+   "channel": "snapshot",
+   "date": "2026-10-10",
+   "images": [],
+   "items": [
+    {
+     "en": "Zombies get a brand-new cubic look: hospital patients in torn gowns, built from small cubes, with glowing yellow eyes.",
+     "fr": "Les zombies changent de look : des patients d'hôpital en blouse déchirée, faits de petits cubes, aux yeux jaunes lumineux."
+    },
+    {
+     "en": "New zombie animations: shambling walk, running and sprinting arms out, climbing out of the ground, tearing planks off barricades and climbing through windows.",
+     "fr": "Nouvelles animations des zombies : marche traînante, course et sprint bras tendus, sortie du sol, arrachage des planches et passage par les fenêtres."
+    },
+    {
+     "en": "A thin black outline now draws the edges of zombies and scenery. It can be turned off in Options > Graphics (OUTLINE).",
+     "fr": "Un fin contour noir souligne désormais les bords des zombies et du décor. Il se désactive dans Options > Graphismes (CONTOUR)."
+    }
+   ],
+   "title": {
+    "en": "A whole new look",
+    "fr": "Un tout nouveau look"
+   }
   }
  }
 }
