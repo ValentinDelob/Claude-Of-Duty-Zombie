@@ -72,7 +72,9 @@ func apply_local_effects(p: Player) -> void:
 	if pd == null:
 		return
 	p.speed_multiplier = PerkDB.speed_mult(pd)
-	p.sprint_duration_bonus = PerkDB.sprint_bonus(pd)
+	# STRIDE SODA : ses secondes de sprint en plus deviennent de l'énergie max
+	# (une seconde de course = PlayerEnergy.SPRINT_COST).
+	p.energy.set_bonus_max(PerkDB.sprint_bonus(pd) * PlayerEnergy.SPRINT_COST)
 
 
 # ---- NOVA FLOP : plongeon explosif (serveur), effets (tous)

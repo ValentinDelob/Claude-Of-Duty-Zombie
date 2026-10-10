@@ -41,7 +41,7 @@ Lus dans le code (à revérifier s'ils changent) :
 | Donnée | Valeur | Source |
 |---|---|---|
 | Marche du joueur | 4,4 m/s | `player.gd` `WALK_SPEED` |
-| Sprint | 6,8 m/s pendant 4 s (≈ 27 m) | `SPRINT_SPEED`, `SPRINT_DURATION` |
+| Sprint | 6,8 m/s pendant 4 s (≈ 27 m) | `SPRINT_SPEED`, `PlayerEnergy.SPRINT_COST` (100 / 25 par s) |
 | Visée / accroupi | 2,9 / 2,3 m/s | `ADS_SPEED`, `CROUCH_SPEED` |
 | Hauteur des yeux debout / accroupi | 1,62 / 1,05 m | `EYE_HEIGHT`, `CROUCH_EYE_HEIGHT` |
 | Rayon du joueur | 0,35 m | `RADIUS` |

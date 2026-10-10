@@ -9,10 +9,11 @@ extends RefCounted
 ## * Fente : si un zombie est visé à portée de fente (~3 m devant), le joueur se
 ##   projette vers lui en LUNGE_TIME avant de frapper, comme dans BO1.
 
+## `energy` : énergie dépensée par coup (PlayerEnergy, GAME_CONCEPT §4.14).
 const DEFAULT := "knife"
 const KNIVES := {
-	"knife": {"name": "COUTEAU", "damage": 150, "model": "knife"},
-	"bowie": {"name": "COUTEAU DE CHASSE", "damage": 1300, "model": "bowie", "wall_cost": 3000},
+	"knife": {"name": "COUTEAU", "damage": 150, "model": "knife", "energy": 8.0},
+	"bowie": {"name": "COUTEAU DE CHASSE", "damage": 1300, "model": "bowie", "wall_cost": 3000, "energy": 10.0},
 }
 
 ## Portée d'un coup sans fente (m, horizontale, depuis le joueur).
@@ -53,6 +54,11 @@ static func model(id: String) -> String:
 
 static func wall_cost(id: String) -> int:
 	return int(info(id).get("wall_cost", 0))
+
+
+## Énergie dépensée par un coup de ce couteau (PlayerEnergy).
+static func energy_cost(id: String) -> float:
+	return float(info(id).get("energy", 0.0))
 
 
 ## Choisit la cible d'un coup de couteau parmi `positions` (pieds des zombies).

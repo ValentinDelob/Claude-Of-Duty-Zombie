@@ -117,6 +117,7 @@ var _switch_cb: Callable
 var _switch_mid_done := false
 var _melee_t := -1.0
 var _melee_lunge := false
+var _melee_time_mult := 1.0
 var _dive := 0.0
 var _pickup_t := -1.0
 var _pickup_dur := 2.0
@@ -444,9 +445,11 @@ func start_switch(duration: float, on_mid: Callable) -> void:
 
 
 ## Coup de couteau (bras gauche). `lunge` : fente (l'arme s'abaisse davantage).
-func start_melee(lunge := false) -> void:
+## `time_mult` : durée de l'animation (joueur épuisé : coup plus lent, PlayerEnergy).
+func start_melee(lunge := false, time_mult := 1.0) -> void:
 	_melee_t = 0.0
 	_melee_lunge = lunge
+	_melee_time_mult = maxf(time_mult, 0.01)
 
 
 ## Couteau tenu dans la main gauche (KnifeDB) : reconstruit le modèle.
@@ -612,7 +615,7 @@ func update(delta: float, p: Player) -> void:
 	# arme le couteau puis tranche de gauche à droite.
 	arms.visible = false
 	if _melee_t >= 0.0:
-		_melee_t += delta / MELEE_ANIM
+		_melee_t += delta / (MELEE_ANIM * _melee_time_mult)
 		var melee_k := sin(clampf(_melee_t, 0.0, 1.0) * PI)
 		var drop := 1.4 if _melee_lunge else 1.0
 		pos += Vector3(0.12, -0.16, 0.04) * melee_k * drop
