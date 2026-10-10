@@ -34,8 +34,9 @@ func phase(label: String, turn: bool) -> void:
 	p.input.sprint = false
 	p.teleport_to(Vector3(3.0, 0.05, 3.4), -PI * 0.5)
 	p.pitch = 0.0
-	p.stamina = Player.SPRINT_DURATION + p.sprint_duration_bonus
-	await seconds(0.5)  # posé, endurance pleine
+	p.energy.value = p.energy.max_value
+	p.energy.exhausted = false
+	await seconds(0.5)  # posé, énergie pleine
 	_rows.clear()
 	_t = 0.0
 	_turn = turn
@@ -72,7 +73,7 @@ func _record() -> void:
 	_rows.append({
 		"t": _t,
 		"sprint": p.sprinting,
-		"stamina": p.stamina,
+		"energy": p.energy.value,
 		"speed": Vector2(p.velocity.x, p.velocity.z).length(),
 		"floor": p.is_on_floor(),
 		"head": p.head.position,
@@ -87,10 +88,10 @@ func _dump(label: String) -> void:
 	var f := FileAccess.open("res://tests/_out/sprint_smooth_%s.csv" % label, FileAccess.WRITE)
 	if f == null:
 		return
-	f.store_line("t;sprint;stamina;speed;floor;head_x;head_y;fov;vm_x;vm_y;vm_z;vm_rx;vm_ry;vm_rz")
+	f.store_line("t;sprint;energy;speed;floor;head_x;head_y;fov;vm_x;vm_y;vm_z;vm_rx;vm_ry;vm_rz")
 	for r in _rows:
 		f.store_line("%.4f;%d;%.4f;%.4f;%d;%.5f;%.5f;%.4f;%.5f;%.5f;%.5f;%.5f;%.5f;%.5f" % [
-			r.t, int(r.sprint), r.stamina, r.speed, int(r.floor), r.head.x, r.head.y, r.fov,
+			r.t, int(r.sprint), r.energy, r.speed, int(r.floor), r.head.x, r.head.y, r.fov,
 			r.vm_pos.x, r.vm_pos.y, r.vm_pos.z, r.vm_rot.x, r.vm_rot.y, r.vm_rot.z])
 
 

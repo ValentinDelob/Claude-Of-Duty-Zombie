@@ -221,7 +221,8 @@ func _run(map_id: String, b: Barricade, face: float, inn: Vector3, dir: Vector3,
 	var look := -dir if backwards else dir
 	var start := b.global_position + inn * (face + Player.RADIUS + GAP) - dir * back + Vector3.UP * 0.05
 	p.teleport_to(start, atan2(-look.x, -look.z))
-	p.stamina = Player.SPRINT_DURATION
+	p.energy.value = p.energy.max_value
+	p.energy.exhausted = false
 	var basis := Basis(Vector3.UP, p.yaw)
 	p.input.move = Vector2(wish.dot(basis.x), wish.dot(-basis.z))
 	p.input.sprint = mode[2]

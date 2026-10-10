@@ -34,10 +34,6 @@ const CROUCH_HEIGHT := 1.2
 ## Capsule à terre : un homme assis (tête vers 0,8 m).
 const DOWNED_HEIGHT := 1.0
 const RADIUS := 0.35
-const SPRINT_DURATION := 4.0
-const SPRINT_RECOVERY := 1.6  # secondes de sprint regagnées par seconde de repos... (x/s)
-## Endurance minimale (s) pour (re)lancer un sprint : pas de sprint d'une image.
-const SPRINT_RESTART_MIN := 0.5
 ## Passage marche <-> sprint du balancement de la caméra (1/s : ~0,2 s).
 const SPRINT_BLEND_RATE := 5.0
 const PITCH_LIMIT := deg_to_rad(88.0)
@@ -82,13 +78,18 @@ var crouching := false
 var sprinting := false
 var aiming := false
 var downed := false
-var stamina := SPRINT_DURATION
+## Énergie (GAME_CONCEPT §4.14) : vidée par la course, le saut et le
+## couteau ; lue par le retour sonore (essoufflement). Joueur local seulement.
+## Même objet toute la partie (le retour sonore garde la référence).
+var energy := PlayerEnergy.new()
+## Essoufflement audible du joueur local (null pour les autres joueurs).
+var _breath: BreathFeedback = null
 ## Demande de course perdue : plus de sprint tant que la touche n'est pas
-## relâchée puis réappuyée (BO1). Posé quand l'endurance s'épuise en plein
-## sprint (sans quoi l'endurance regagnée à chaque image relançait le sprint
+## relâchée puis réappuyée (BO1). Posé quand l'énergie s'épuise en plein
+## sprint (sans quoi l'énergie regagnée à chaque image relançait le sprint
 ## aussitôt : tremblement sprint/marche), quand la course est impossible au
-## moment où on la demande (visée, accroupi, allongé, à terre, souffle
-## insuffisant) et quand la lecture des commandes s'interrompt (pause, menu,
+## moment où on la demande (visée, accroupi, allongé, à terre, énergie
+## insuffisante ou épuisé) et quand la lecture des commandes s'interrompt (pause, menu,
 ## perte de focus, contrôle coupé) : sinon la touche gardée relançait la
 ## course toute seule une fois l'obstacle levé.
 var _sprint_spent := false
@@ -97,7 +98,6 @@ var _sprint_spent := false
 var _input_live := true
 ## Part du sprint dans le balancement de la caméra (0 marche, 1 sprint).
 var _sprint_k := 0.0
-var sprint_duration_bonus := 0.0
 var speed_multiplier := 1.0
 ## Ignoré par les zombies (téléportation, cinématique...).
 var untargetable := false
@@ -189,6 +189,11 @@ func _ready() -> void:
 		visual.visible = false
 		name_tag.visible = false
 		footstep.connect(func(): Audio.play_2d("footstep_%d" % (1 + randi() % 4), -14.0, 0.1))
+		# Essoufflement audible (énergie basse), joueur local seulement.
+		_breath = BreathFeedback.new()
+		_breath.name = "Breath"
+		add_child(_breath)
+		_breath.setup(energy)
 	else:
 		camera.current = false
 
@@ -233,8 +238,21 @@ func _physics_process(delta: float) -> void:
 # Joueur local
 # --------------------------------------------------------------------------
 
+## La respiration de santé basse (hud.gd) passe avant l'essoufflement ; rien
+## non plus quand le joueur est à terre ou mort.
+func _update_breath_priority() -> void:
+	if _breath == null:
+		return
+	var pd: PlayerData = null
+	if Game.instance and Game.instance.session:
+		pd = Game.instance.session.local_data()
+	_breath.suppressed = pd == null or pd.life != PlayerData.Life.ALIVE \
+			or BreathFeedback.health_breath_active(pd.health, pd.max_health, true)
+
+
 func _local_physics(delta: float) -> void:
 	_input_live = true
+	_update_breath_priority()
 	if not input_enabled:
 		input = PlayerInput.new()
 		_forget_sprint()
@@ -320,21 +338,21 @@ func _update_stance(delta: float) -> void:
 		elif blocked:
 			_sprint_spent = true
 		var want_sprint := input.sprint and moving_forward and not blocked and not _sprint_spent
-		if want_sprint and not sprinting and stamina < SPRINT_RESTART_MIN:
-			# Pas assez de souffle pour partir : appui perdu (sinon la course
-			# partait d'elle-même une fois l'endurance remontée).
+		if want_sprint and not sprinting and not energy.can_start_sprint():
+			# Pas assez d'énergie (ou épuisé) pour partir : appui perdu (sinon
+			# la course partait d'elle-même une fois l'énergie remontée).
 			_sprint_spent = true
 			want_sprint = false
 		if want_sprint:
 			sprinting = true
-			stamina = maxf(stamina - delta, 0.0)
-			if stamina <= 0.0:
+			energy.tick(delta, true)
+			if energy.exhausted:
 				# À bout de souffle : fin du sprint franche, retour à la marche.
 				sprinting = false
 				_sprint_spent = true
 		else:
 			sprinting = false
-			stamina = minf(stamina + SPRINT_RECOVERY * delta, SPRINT_DURATION + sprint_duration_bonus)
+			energy.tick(delta, false)
 	if not sprinting:
 		# Le verrou de L3 ne tient que pendant la course : arrêtée pour
 		# n'importe quelle raison, il faut recliquer.
@@ -456,7 +474,9 @@ func _move(delta: float) -> void:
 	if not on_floor:
 		velocity.y -= GRAVITY * delta
 	elif input.jump and not crouching and not downed and not prone and not diving:
-		velocity.y = JUMP_VELOCITY
+		# Épuisé : saut plus petit ; le saut se fait même sans énergie.
+		velocity.y = JUMP_VELOCITY * energy.jump_velocity_mult()
+		energy.spend(PlayerEnergy.JUMP_COST)
 
 	if diving:
 		# Plongeon : trajectoire balistique, aucun contrôle en l'air.
