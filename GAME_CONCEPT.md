@@ -18,6 +18,7 @@ Il sera complété et modifié au fil des décisions. Chaque règle porte un sta
 | 💡 Piste | Idée retenue, pas encore décidée |
 | ❓ Ouvert | Question à trancher |
 | ❌ Écarté | Abandonné (gardé pour mémoire) |
+| ✔️ Fait | Décision appliquée dans le code (§5) |
 
 ---
 
@@ -466,19 +467,19 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | Vagues de chiens (`scripts/game/dogs`) | 🧪 | **Adapter** en première vague spéciale ; refaire la mise en scène (pas d'éclair ni de brouillard façon BO1) |
 | Points par élimination | 🧪 | **Adapter** en ferraille personnelle (§4.8) |
 | Portes payantes | 🧪 | **Garder**, payées en ferraille |
-| Achats muraux | 🧪 | **Supprimer** (remplacés par la station de construction) |
-| Atouts (machines à boissons) | 🧪 | **Supprimer** |
+| Achats muraux | ✔️ | **Supprimés** (remplacés par la station de construction) |
+| Atouts (machines à boissons) | ✔️ | **Supprimés** |
 | Fenêtres barricadées, reconstruction | 🧪 | **Garder** |
 | Pièges à levier | 🧪 | **Garder** |
 | État « à terre », réanimation, spectateur | 🧪 | **Garder** tels quels (§4.6) |
 | Coop réseau (hôte / client par IP) | 🧪 | **Garder** |
 | Couteau | 🧪 | **Garder** comme attaque rapide séparée, en plus de la batte |
-| Grenades, singe-tambour | 🧪 | **Adapter** en objets de la caisse au hasard, sur l'emplacement de grenade (§4.12 bis) |
-| Bonus au sol (munitions max, mort instantanée, points doubles…) | 🧪 | **Supprimer** |
-| Boîte mystère | 🧪 | **Adapter** en caisse au hasard payée en ferraille (§4.12 bis) |
-| Machine d'amélioration (Pack-a-Punch) | 🧪 | **Supprimer** (les pièces s'installent depuis l'inventaire) |
+| Grenades, singe-tambour | ✔️ | **Adaptés** en objets de la caisse au hasard, sur l'emplacement de grenade (§4.12 bis) |
+| Bonus au sol (munitions max, mort instantanée, points doubles…) | ✔️ | **Supprimés** |
+| Boîte mystère | ✔️ | **Adaptée** en caisse au hasard payée en ferraille (§4.12 bis) |
+| Machine d'amélioration (Pack-a-Punch) | ✔️ | **Supprimée** (les pièces s'installent depuis l'inventaire) |
 | Téléporteur, courant | 🧪 | ❓ Selon les cartes |
-| Armes merveilles (Claude-Ray, Tonnerre-7) | 🧪 | **Supprimer** ou recréer de façon originale |
+| Armes merveilles (Claude-Ray, Tonnerre-7) | ✔️ | **Supprimées** (à recréer de façon originale plus tard, si besoin) |
 | Sept personnages et leurs voix FR / EN | 🧪 | **Remplacer** par le joueur de baseball unique |
 | Dossier de combat (`CareerStats`) | 🧪 | **Adapter** au profil du joueur (XP, niveau, arsenal) |
 | Éditeur de cartes, bouton TESTER | 🧪 | **Garder** ; ajouter la **porte d'évacuation** obligatoire et le **schéma des vagues spéciales et de boss** |

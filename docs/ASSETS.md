@@ -3,18 +3,16 @@
 Les graphismes du jeu sont procéduraux, sauf neuf textures de particules CC0
 des effets de carte (§ « Textures des effets de carte » ci-dessous ; les modèles 3D de
 `assets/models/` sont produits par nos scripts Blender, voir
-`tools/blender/`, aucun modèle téléchargé ; le lettrage des machines
-d'atouts utilise la police intégrée de Blender, licence libre ; les décors du catalogue
-de l'éditeur et la machine d'amélioration (`assets/models/props/`) sont
-générés par `tools/blender/props/catalog_props.py`, emblèmes et enseignes originaux ; la boîte mystère,
+`tools/blender/`, aucun modèle téléchargé ; les décors du catalogue
+de l'éditeur (`assets/models/props/`) sont
+générés par `tools/blender/props/catalog_props.py`, emblèmes et enseignes originaux ; la caisse au hasard,
 `assets/models/props/mystery_box.glb`, par `tools/blender/props/mystery_box.py`, points d'interrogation
 au pochoir dessinés pour ce jeu, matières procédurales). La plupart des bruitages
 proviennent d'enregistrements **libres de droits** retravaillés pour le jeu ;
 l'identité sonore originale reste synthétisée par `tools/gen_audio.gd` et
-`tools/gen_audio_menu.gd` : musiques et ambiances, ritournelles des atouts,
-début et fin de manche, annonces des bonus, boîte mystère, Pack-a-Punch,
-téléporteur, arme à rayons (CLAUDE-RAY, volontairement synthétique),
-interface. L'air du singe-tambour est lui aussi original (procédural,
+`tools/gen_audio_menu.gd` : musiques et ambiances, début et fin de manche,
+caisse au hasard, téléporteur, interface. L'air de la peluche leurre (ancien
+singe-tambour, fichiers `monkey_*`) est lui aussi original (procédural,
 `tools/audio/synth_stems.gd`) ; seules ses cymbales sont enregistrées.
 
 ## Textures des effets de carte (`assets/textures/fx/`)
@@ -222,7 +220,7 @@ godot --headless --path . -s res://tools/audio/sfx_import.gd -- --loudness   # r
   (biquads), compresse, sature légèrement (tirs), ajoute une réverbération
   d'intérieur courte, écrit un WAV 16 bits mono ;
 - couches : plusieurs enregistrements mélangés, répétés sur une grille de
-  temps (`times`, ex. les cymbales sur les temps de l'air du singe) ou une
+  temps (`times`, ex. les cymbales sur les temps de l'air de la peluche leurre) ou une
   piste procédurale originale (`stem`, `SynthStems`) ;
 - les recettes sont dans `tools/audio/sfx_recipes.gd` (préréglages `gun`,
   `gun_heavy`, `explosion`, `mech`, `zombie`, `foley`, `impact`, `dog`,
@@ -246,25 +244,22 @@ donc plus 6 à 10 dB sous un tir long (FN FAL) : tous les tirs sont à
 | Catégorie | Sons | Cible | Tolérance |
 |---|---|---|---|
 | `tir` | tous les `*_fire` | -11 LUFS-M | ±1,5 LU (écart max 3 LU entre armes) |
-| `arme_merveille` | `ray_fire`, `thunder_fire` | -10 | ±2 |
-| `arme_zap` | `pap_zap_*` (couche Pack-a-Punch) | -19 | ±2 |
-| `explosion` | explosions, grenade, nuke, NOVA, chien qui explose | -10 | ±2 |
+| `arme_zap` | `pap_zap_*` (couche des armes améliorées, drapeau `pap` en sommeil) | -19 | ±2 |
+| `explosion` | explosions, grenade, chien qui explose | -10 | ±2 |
 | `rechargement` | chargeurs, culasses, pompe, canons basculants, goupille, lancer, couteau | -19 | ±2,5 |
 | `impact` | impacts de balles (béton, métal, bois), chair, tête, chute | -16 | ±2,5 |
 | `zombie` | râles, cris, attaques, morts | -14 | ±2 |
 | `zombie_bruitage` | pas traînants, sortie du sol, planches | -18 | ±2,5 |
 | `chien` | grognements, aboiements, morsures, mort | -14 | ±2 |
 | `joueur` | pas, respiration, douleur, à terre, plongeon | -18 | ±3 |
-| `annonce` | annonces des bonus | -12 | ±2 |
-| `ritournelle` | ritournelles des atouts, manches, boîte, Pack-a-Punch, singe | -14 | ±2,5 |
-| `musique` | menu, manche des chiens, soldes, bonus (intégré) | -20 LUFS-I | ±2 |
+| `ritournelle` | manches, caisse au hasard, courant, menu, peluche leurre | -14 | ±2,5 |
+| `musique` | menu, manche des chiens (intégré) | -20 LUFS-I | ±2 |
 | `ambiance` | ambiances des cartes (intégré) | -24 LUFS-I | ±2 |
 | `interface` | menus, marqueur de touche | -18 | ±3 |
 | `decor` | le reste (portes, levier, téléporteur...) | -15 | ±3,5 |
 
 Écarts voulus et documentés : clé `loud` d'une recette (pas du joueur -6,
-pas des zombies -5, FAUCHEUSE -5 car 20 coups/s se chevauchent, respiration
--3, remontage du singe -2,5) et `SfxRecipes.LEVEL_OFFSETS` pour les sons
+pas des zombies -5, respiration -3, remontage de la peluche leurre -2,5) et `SfxRecipes.LEVEL_OFFSETS` pour les sons
 procéduraux (tics d'interface, lampes en cascade). `sfx_import.gd --level`
 (et `gen_audio*.gd` à chaque génération) ne retouche un son procédural que
 s'il sort de la moitié de sa tolérance, pour garder son identité.
@@ -273,10 +268,10 @@ s'il sort de la moitié de sa tolérance, pour garder son identité.
 
 ## Encore procéduraux (identité originale)
 
-Musiques et ambiances, `round_start`/`round_end`, ritournelles des atouts,
-`dog_round_start`/`dog_round_end`/`dog_round_music`, annonces des bonus,
-boîte mystère, Pack-a-Punch, téléporteur, courant (`power_on`, `lever`,
-`lamp_on`), `ray_fire` (caractère « rayon » synthétique), `heartbeat`,
+Musiques et ambiances, `round_start`/`round_end`,
+`dog_round_start`/`dog_round_end`/`dog_round_music`,
+caisse au hasard (`box_open`, `box_music`), téléporteur, courant (`power_on`, `lever`,
+`lamp_on`), `heartbeat`,
 `revive`, `hitmarker`, `zap` (piège électrique), `dog_bolt`/`dog_spawn`/
 `dog_prespawn` (foudre d'apparition), `zombie_fling`, interface. Candidats à
 un remplacement futur : `door_open`, `purchase`, `denied`, `zombie_fling`.
@@ -299,10 +294,9 @@ un remplacement futur : `door_open`, `purchase`, `denied`, `zombie_fling`.
 - Tirs du joueur local en 2D à -1 dB, tirs des autres joueurs et zombies en
   3D (`unit_size` 6 m, audibles jusqu'à 45 m, filtre passe-bas avec la
   distance).
-- Armes Pack-a-Punchées (`WeaponAudio`) : même détonation à peine plus grave
-  (x0,95) doublée d'un arc électrique `pap_zap_1..3` à chaque tir, comme
-  dans BO1 (plus de simple ralenti à x0,8) ; pas de zap ajouté aux armes
-  merveilles.
+- Armes améliorées (`WeaponAudio`, drapeau `pap` en sommeil depuis la
+  suppression du Pack-a-Punch) : même détonation à peine plus grave (x0,95)
+  doublée d'un arc électrique `pap_zap_1..3` à chaque tir.
 - Impacts de balles : une seule détection de matière (`Fx.surface_of` /
   `Fx.surface_kind`, méta `surface` des collisions = clé de matériau du décor,
   sinon type d'objet) partagée par l'effet visuel et le son ;
@@ -364,7 +358,6 @@ un remplacement futur : `door_open`, `purchase`, `denied`, `zombie_fling`.
 | `knife_swing.wav` | [Small Knife Whoosh.wav](https://freesound.org/s/389690/) par Shamewap | mono 44,1 kHz 16 bits, coupé à 0.50 s, égalisation, compression, réverbération d'intérieur 0.15 s, intensité -19 LUFS (rechargement) |
 | `knife_hit.wav` | [body_hit.wav](https://freesound.org/s/276600/) par insanity54 | mono 44,1 kHz 16 bits, coupé à 0.50 s, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -16 LUFS (impact) |
 | `knife_flesh.wav` | [Flesh Stabs and Slashes 2](https://freesound.org/s/635049/) par sillygrizzlies [3.70-4.32 s] | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -16 LUFS (impact) |
-| `bowie_draw.wav` | [UnsheathingSmallKnife.wav](https://freesound.org/s/466216/) par Harrisando | mono 44,1 kHz 16 bits, coupé à 1.00 s, égalisation, compression, réverbération d'intérieur 0.25 s, intensité -19 LUFS (rechargement) |
 | `flesh_hit_1.wav` | [VisceralBulletImpacts.wav](https://freesound.org/s/423301/) par u1769092 [0.00-0.30 s] | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -16 LUFS (impact) |
 | `flesh_hit_2.wav` | [VisceralBulletImpacts.wav](https://freesound.org/s/423301/) par u1769092 [0.31-0.65 s] | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -16 LUFS (impact) |
 | `flesh_hit_3.wav` | [VisceralBulletImpacts.wav](https://freesound.org/s/423301/) par u1769092 [1.39-1.72 s] | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -16 LUFS (impact) |
@@ -433,10 +426,6 @@ un remplacement futur : `door_open`, `purchase`, `denied`, `zombie_fling`.
 | `player_hurt_2.wav` | [Male Grunting In Pain](https://freesound.org/s/464486/) par elynch0901 | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.25 s, intensité -18 LUFS (joueur) |
 | `player_down.wav` | [Grunt2 - Death Pain.wav](https://freesound.org/s/416838/) par tonsil5<br>[Body fall.wav](https://freesound.org/s/417994/) par DylanTheFish | mono 44,1 kHz 16 bits, 2 couches mixées, égalisation, compression, réverbération d'intérieur 0.80 s, intensité -18 LUFS (joueur) |
 | `dive_land.wav` | [Body fall.wav](https://freesound.org/s/417994/) par DylanTheFish<br>[Body Fall Over.wav](https://freesound.org/s/82027/) par raubana | mono 44,1 kHz 16 bits, coupé à 1.00 s, 2 couches mixées, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -18 LUFS (joueur) |
-| `minigun_fire.wav` | [Minigun Fire](https://freesound.org/s/500304/) par Bratish [0.00-0.16 s]<br>[M4A1 Rifle Shot 4](https://freesound.org/s/854179/) par qubodup | mono 44,1 kHz 16 bits, coupé à 0.10 s, 2 couches mixées, égalisation, compression, saturation x1.6, réverbération d'intérieur 0.25 s, intensité -16 LUFS (tir) |
-| `thunder_fire.wav` | [Air Canister Short Blasts .wav](https://freesound.org/s/245974/) par Paul368 [0.00-0.90 s]<br>[Explosion From Another Dimension](https://freesound.org/s/814046/) par qubodup<br>[Thunder Clap](https://freesound.org/s/436790/) par roboroo | mono 44,1 kHz 16 bits, coupé à 1.60 s, coupé à 2.60 s, 3 couches mixées, égalisation, compression, saturation x1.4, réverbération d'intérieur 1.20 s, intensité -10 LUFS (arme_merveille) |
-| `thunder_charge.wav` | [air_hiss_pressure_loop.wav](https://freesound.org/s/521509/) par typeoo<br>[Assault Rifle Reload](https://freesound.org/s/815879/) par qubodup [1.30-1.87 s] | mono 44,1 kHz 16 bits, coupé à 0.80 s, 2 couches mixées, égalisation, compression, réverbération d'intérieur 0.25 s, intensité -19 LUFS (rechargement) |
-| `nova_blast.wav` | [Explosion From Another Dimension](https://freesound.org/s/814046/) par qubodup<br>[Spark Electric SFX 200927_0054.wav](https://freesound.org/s/536793/) par szegvari [0.00-1.30 s] | mono 44,1 kHz 16 bits, coupé à 2.20 s, 2 couches mixées, égalisation, compression, saturation x1.4, réverbération d'intérieur 1.20 s, intensité -10 LUFS (explosion) |
 | `pap_zap_1.wav` | [Electric zap.wav](https://freesound.org/s/512471/) par michael_grinnell | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.25 s, intensité -19 LUFS (arme_zap) |
 | `pap_zap_2.wav` | [zap.mp3](https://freesound.org/s/143565/) par YvesSch | mono 44,1 kHz 16 bits, coupé à 0.30 s, égalisation, compression, réverbération d'intérieur 0.25 s, intensité -19 LUFS (arme_zap) |
 | `pap_zap_3.wav` | [ELECTRIC_ZAP_001.wav](https://freesound.org/s/136542/) par JoelAudio | mono 44,1 kHz 16 bits, coupé à 0.28 s, égalisation, compression, réverbération d'intérieur 0.25 s, intensité -19 LUFS (arme_zap) |

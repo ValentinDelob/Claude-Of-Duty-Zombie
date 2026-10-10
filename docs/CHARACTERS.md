@@ -24,21 +24,17 @@ chaque langue (pas de traduction mot à mot).
   **l'aethérium** (*aetherium*), un minerai bleu luminescent tombé avec une
   météorite, qui ranime les morts et plie l'espace.
 - Le théâtre abandonné (Kino der Toten, notre carte KINO) servait de façade à un
-  laboratoire de l'Institut : la cabine de projection cache la machine
-  d'amélioration (Pack-a-Punch), la tour de la scène est le **téléporteur** de
-  Weissmann, le « poste central » du hall en est l'autre bout.
+  laboratoire de l'Institut : la tour de la scène est le **téléporteur** de
+  Weissmann, qui mène à la cabine de projection ; le « poste central » du hall
+  en est l'autre bout.
 - Les sept se retrouvent enfermés là par l'Institut, qui s'est servi des quatre
   soldats comme cobayes, y a jeté Berg pour la faire taire et Jojo parce qu'il
   avait voulu lui revendre sa propre ferraille ; Weissmann, lui, sait beaucoup
   plus qu'il ne le dit, et Berg en sait plus que lui.
-- Noms en jeu à citer tels quels : armes spéciales CLAUDE-RAY (en anglais
-  Claude-Ray), TONNERRE-7 (Thunder-7), SINGE-TAMBOUR (Drum Monkey) ; atouts TITAN
-  BREW (santé), RAPID FIZZ (rechargement), TWIN SHOT (cadence), LAZARUS TONIC
-  (réanimation), STRIDE SODA (sprint), NOVA FLOP (plongeon explosif), DEADEYE DRAM
-  (visée) ; bonus MUNITIONS MAX (Max Ammo), MORT INSTANTANÉE (Insta-Kill), POINTS
-  DOUBLES (Double Points), BOMBE NUCLÉAIRE (Nuke), CHARPENTIER (Carpenter),
-  LIQUIDATION (Fire Sale), FAUCHEUSE (Death Machine) ; la boîte mystère ; la
-  machine d'amélioration (Pack-a-Punch).
+- Noms en jeu à citer tels quels : la PELUCHE LEURRE (en anglais Decoy Teddy)
+  et la caisse au hasard (Random crate). Atouts, bonus au sol, armes spéciales
+  et machine d'amélioration n'existent plus dans le jeu : aucune réplique ne
+  doit les citer.
 
 ## Les sept
 
@@ -103,7 +99,7 @@ chaque langue (pas de traduction mot à mot).
   livré à l'Institut.
 - Caractère : vieux sous-officier froid, cynique et grognon, humour sec, phrases
   courtes et aboyées ; obsédé par les points, l'argent, les stocks et les prix
-  (« tout se paie »), il marchande avec la boîte mystère, râle à chaque achat et
+  (« tout se paie »), il marchande avec la caisse au hasard, râle à chaque achat et
   note chaque point dans son carnet ; dur avec les autres mais les relève
   toujours (« Debout, soldat »). Jamais fanfaron : c'est l'inverse de Callahan,
   qu'il appelle encore « deuxième classe » (*Private*) ; Callahan l'appelle
@@ -136,7 +132,7 @@ chaque langue (pas de traduction mot à mot).
   flirteuse, mais toujours élégante, jamais vulgaire. Elle sourit dans la voix :
   litote malicieuse, piques gentilles contre la manière « gros bras » des
   hommes (« Essayez de suivre, les garçons »). Elle ne marchande pas avec la
-  boîte mystère, elle lui fait du charme, et dépense sans compter.
+  caisse au hasard, elle lui fait du charme, et dépense sans compter.
 - Relations : Callahan (« cow-boy », *cowboy*) la drague maladroitement et elle
   le mène par le bout du nez ; Mercer (« le Comptable », *the Bookkeeper*) râle
   à chacune de ses dépenses, ce qu'elle trouve « presque romantique » ; avec
@@ -151,8 +147,8 @@ chaque langue (pas de traduction mot à mot).
   "Hey doh") ; métaphores de science et d'énigme (équation, formule, hypothèse,
   réaction en chaîne) ; « mon chou », « mes chéris », « les garçons »
   (*sweetie*, *darlings*, *boys*) ; jure moins que Mercer, mais lâche de vrais
-  coups de gueule quand ça tourne mal (touchée, à terre, à sec, fauchée, boîte
-  ou ours), souvent suivis d'un trait d'esprit (« Putain ! À terre ! Et
+  coups de gueule quand ça tourne mal (touchée, à terre, à sec, fauchée, caisse
+  au hasard), souvent suivis d'un trait d'esprit (« Putain ! À terre ! Et
   j'adorais ce pantalon. ») : « Putain ! », « Fais pas chier ! », « Et
   merde ! », « Bordel ! », en suédois « Fane ! », « Yèvlar ! » ; EN "Fuck!",
   "Shit!", "Dammit!", "Fahn!", "Yevlar!". Aucune référence à un régime ou à une
@@ -177,7 +173,7 @@ chaque langue (pas de traduction mot à mot).
 - Physique : une brute énorme d'une centaine de kilos, poitrine en tonneau,
   gros ventre, cou de taureau ; il prend toute la place et le fait savoir.
 - Caractère : grossier, bruyant, agressif et très drôle, menteur de profession.
-  Il triche avec la boîte mystère (il la « secoue », il l'a « graissée »),
+  Il triche avec la caisse au hasard (il la « secoue », il l'a « graissée »),
   « emprunte » les points des autres et ne rend jamais, s'attribue leurs
   éliminations, fait les poches des cadavres, promet de couvrir puis se planque
   (« Je te couvre ! De loin. »), et jure sur la vie de sa mère que c'était pas
@@ -224,7 +220,7 @@ chaque langue (pas de traduction mot à mot).
   visant un groupe réel ; aucune apologie d'un régime réel.
 - Jurons permis, et même voulus, dans les répliques de colère, de frustration
   ou de douleur (à court de munitions, touché, à terre, fauché, mauvais tirage
-  de la boîte, ours, piège ou courant en panne…) : de vrais coups de gueule,
+  de la caisse au hasard, piège ou courant en panne…) : de vrais coups de gueule,
   pas seulement des mots polis (« Putain ! », « Fais pas chier ! », « Putain de
   merde ! », « Bordel de merde ! », « Ta gueule ! » lancé aux zombies ; EN
   "Fuck!", "Shit!", "Goddammit!", "Son of a bitch!"), dans une partie des
@@ -262,14 +258,11 @@ personnage (chaque variante en `fr` et en `en`).
 |---|---|---|
 | `kill_headshot` | zombie tué d'une balle dans la tête | 6 |
 | `kill_melee` | zombie tué au couteau | 5 |
-| `kill_bowie` | zombie tué au couteau de chasse | 2 |
 | `kill_explosive` | plusieurs zombies tués par une explosion | 3 |
 | `kill_streak` | cinq zombies tués en quelques secondes | 5 |
 | `kill_close` | zombie tué à bout portant | 3 |
 | `crawler_made` | jambes arrachées : le zombie rampe | 3 |
 | `kill_dog` | chien de l'enfer tué | 3 |
-| `kill_ray` | zombie tué au CLAUDE-RAY | 3 |
-| `kill_thunder` | zombies balayés au TONNERRE-7 | 3 |
 | `kill_trap` | zombies grillés par un piège qu'il a activé | 2 |
 | `kill_generic` | élimination ordinaire (rarement) | 6 |
 
@@ -278,35 +271,9 @@ personnage (chaque variante en `fr` et en `en`).
 |---|---|---|
 | `ammo_low` | chargeur presque vide, peu de réserve | 4 |
 | `ammo_out` | plus aucune munition pour l'arme en main | 4 |
-| `buy_wall` | achat d'une arme au mur | 3 |
-| `buy_bowie` | achat du couteau de chasse | 2 |
-| `box_good` | la boîte donne un bon fusil ou un pistolet-mitrailleur | 4 |
-| `box_bad` | la boîte donne une arme décevante (pistolet, revolver) | 4 |
-| `box_shotgun` | la boîte donne un fusil à pompe | 2 |
-| `box_sniper` | la boîte donne un fusil de précision | 2 |
-| `box_lmg` | la boîte donne une mitrailleuse | 2 |
-| `box_launcher` | la boîte donne un lance-grenades ou un lance-roquettes | 2 |
-| `box_ray` | la boîte donne le CLAUDE-RAY | 2 |
-| `box_thunder` | la boîte donne le TONNERRE-7 | 2 |
-| `box_monkey` | la boîte donne des SINGES-TAMBOURS | 2 |
-| `box_teddy` | l'ours sort : la boîte s'en va | 4 |
-| `box_firesale` | LIQUIDATION : boîtes à 10 points | 2 |
-| `pap_upgrade` | arme déposée dans la machine d'amélioration | 3 |
-| `pap_wait` | attend devant la machine d'amélioration qui travaille | 2 |
-| `pap_take` | arme améliorée récupérée | 3 |
 | `no_money` | achat refusé, pas assez de points | 2 |
 | `no_power` | essaie une machine sans courant | 2 |
-| `buy_ammo` | rachète des munitions au mur | 2 |
 | `reload` | recharge (annonce à l'équipe, rarement) | 4 |
-
-### Atouts (2 variantes chacun)
-`perk_titan`, `perk_rapid`, `perk_twin`, `perk_lazarus`, `perk_stride`,
-`perk_nova`, `perk_deadeye` : après avoir bu l'atout (le goût, l'effet, une
-blague sur le nom).
-
-### Bonus (2 variantes chacun)
-`pw_max_ammo`, `pw_insta_kill`, `pw_double_points`, `pw_nuke`, `pw_carpenter`,
-`pw_fire_sale`, `pw_death_machine` : juste après l'annonce du bonus ramassé.
 
 ### À terre et réanimation
 | Clé | Déclencheur | Variantes |
@@ -343,14 +310,11 @@ blague sur le nom).
 | `oh_shit` | un zombie surgit juste derrière lui | 3 |
 | `crawler_near` | un rampant tout près, au ras du sol | 2 |
 | `throw_grenade` | lance une grenade | 3 |
-| `throw_monkey` | lance un SINGE-TAMBOUR | 2 |
 
 ### Calme et taquineries
 | Clé | Déclencheur | Variantes |
 |---|---|---|
 | `idle` | moment de calme (aucun zombie proche depuis un moment) | 10 |
-| `resp_box_bad` | un coéquipier tire une arme décevante de la boîte : moquerie | 2 |
-| `resp_wonder` | un coéquipier tire une arme spéciale de la boîte : envie | 2 |
 | `tease_callahan`, `tease_orlov`, `tease_arakawa`, `tease_weissmann`, `tease_mercer`, `tease_berg`, `tease_jojo` | réflexion sur ce coéquipier, en début de manche s'il est dans la partie (pas de clé pour soi-même) | 2 chacune |
 
 Les taquineries visant les derniers venus ne sont écrites que par ceux qui
@@ -359,9 +323,9 @@ sont arrivés après eux (`VoxSystem` ignore une catégorie absente) :
 `tease_berg` pour Jojo seulement, et `tease_jojo` pour personne encore : Jojo
 taquine les six autres, mais personne ne le taquine.
 
-Total : 229 répliques par personnage et par langue pour les quatre premiers,
-231 pour Mercer, 233 pour Berg, 235 pour Jojo (3 230 fichiers en tout une fois
-les voix de Berg et de Jojo générées ; 2 294 sans elles).
+Total : 144 répliques par personnage et par langue pour les quatre premiers,
+146 pour Mercer, 148 pour Berg, 150 pour Jojo (2 040 fichiers en tout une fois
+les voix de Berg et de Jojo générées ; 1 444 sans elles).
 
 Les cris (`hurt`, `exert_melee`, une partie de `death`) restent des mots ou des
 exclamations lisibles par la synthèse (« Argh ! », « Aïe, bon sang ! »), propres
