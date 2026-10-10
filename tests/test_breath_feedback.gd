@@ -3,7 +3,7 @@ extends TestCase
 ## halètement à l'épuisement, retour progressif au calme, priorité à la
 ## respiration de santé basse, niveaux plafonnés à ceux de hud.gd.
 
-const B := BreathFeedback
+const B := preload("res://scripts/game/player/breath_feedback.gd")
 const DT := 1.0 / 60.0
 
 
