@@ -10,8 +10,9 @@ extends HubPanel
 ##     CONTRATS ACTIFS (progression par échantillon, PRÊT, date de fin) ;
 ##   - RÉSERVE D'ÉCHANTILLONS (sortes connues, quantités, ennemi source ;
 ##     sortes jamais obtenues en « ??? »).
-## Lecture seule du profil. Contrats : HubContractsView (lot A pas encore en
-## place : un emplacement l'annonce).
+## Lecture seule du profil. Contrats : HubContractsView (contrats actifs réels,
+## PRÊT, nouvelles propositions, contrats expirés signalés une fois via
+## HubScreen.expired_notice, contrats remplis).
 
 ## Colonnes et hauteurs de la maquette (px à 100 %), pour les proportions.
 const COL_W := [420.0, 400.0, 396.0]
@@ -122,7 +123,7 @@ func _scientist(pr: PlayerProfile) -> HubBox:
 	bm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bm.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	top.add_child(bm)
-	line_text = scientist_line(pr)
+	line_text = scientist_line(pr, _expired())
 	speech = bubble.text_label
 	bubble.set_line(line_text)
 	# Contrats prêts, ou état des contrats.
@@ -145,7 +146,10 @@ func _scientist(pr: PlayerProfile) -> HubBox:
 
 
 ## Réplique du scientifique selon la situation (texte BBCode : [b] en rouge).
-static func scientist_line(pr: PlayerProfile) -> String:
+static func scientist_line(pr: PlayerProfile, expired := PackedStringArray()) -> String:
+	if not expired.is_empty():
+		return Lang.t("Trop tard pour « %s » : le contrat a [b]expiré[/b]. La science n'attend pas, elle pourrit." % expired[0],
+				"Too late for \"%s\": the contract has [b]expired[/b]. Science doesn't wait, it rots." % expired[0])
 	if HubContractsView.ready_count(pr) > 0:
 		return Lang.t("Un contrat est prêt, je le [b]sens[/b] d'ici. Posez vos échantillons sur la paillasse… doucement.",
 				"A contract is ready, I can [b]smell[/b] it from here. Put your samples on the bench… gently.")
@@ -169,16 +173,32 @@ func _status_lines(pr: PlayerProfile) -> Array:
 		out.append(_status(HubTag.make(Lang.t("BIENTÔT", "SOON")), Lang.t("Contrats du scientifique", "The scientist's contracts"),
 				Lang.t("onglet CONTRATS", "CONTRACTS tab")))
 		return out
+	# Contrats actifs expirés depuis la dernière visite (signalés une fois,
+	# HubScreen.expired_notice), contrats prêts, nouvelles propositions.
+	for t in _expired():
+		if out.size() < 1:
+			out.append(_status(HubTag.make(Lang.t("EXPIRÉ", "EXPIRED"), HubTag.DATE), t, Lang.t("contrat supprimé", "contract removed")))
 	var act := HubContractsView.active(pr)
 	var ready := 0
 	for c in act:
 		if c.ready and ready < 2:
 			ready += 1
 			out.append(_status(HubTag.make(Lang.t("PRÊT", "READY"), HubTag.READY), String(c.title), Lang.t("à remettre", "to hand in")))
-	if ready == 0:
+	var fresh := HubContractsView.new_offer_count(pr)
+	if fresh > 0:
+		out.append(_status(HubTag.make(str(fresh)), Lang.t("nouvelle proposition" if fresh <= 1 else "nouvelles propositions",
+				"new offer" if fresh == 1 else "new offers"), Lang.t("depuis la dernière partie", "since the last match")))
+	if ready == 0 and out.size() < 3:
 		out.append(_status(HubTag.make(str(act.size())), Lang.t("contrat actif" if act.size() <= 1 else "contrats actifs",
 				"active contract" if act.size() == 1 else "active contracts"), Lang.t("aucun prêt", "none ready")))
-	return out
+	return out.slice(0, 3)
+
+
+## Contrats actifs expirés à signaler (titres), lus sur l'hôte.
+func _expired() -> PackedStringArray:
+	if hub and "expired_notice" in hub:
+		return hub.expired_notice
+	return PackedStringArray()
 
 
 func _status(tag: HubTag, t: String, right: String) -> HBoxContainer:
@@ -364,7 +384,7 @@ func _contracts(pr: PlayerProfile) -> HubBox:
 	var available := HubContractsView.available(pr)
 	var act := HubContractsView.active(pr)
 	contracts_box = _sized(HubBox.new(Lang.t("CONTRATS ACTIFS", "ACTIVE CONTRACTS"),
-			"%d / 3" % act.size() if available else ""), CONTRACTS_H)
+			"%d / %d" % [act.size(), int(HubContractsView.data().rules.active_max)] if available else ""), CONTRACTS_H)
 	var v := contracts_box.content
 	if not available or act.is_empty():
 		var m := HubBox.vbox(8)
@@ -397,11 +417,11 @@ func _contracts(pr: PlayerProfile) -> HubBox:
 		for k in samples:
 			need_total += int(samples[k])
 			have_total += mini(pr.sample_count(k), int(samples[k]))
-		var days := HubContractsView.days_left(String(c.ends))
+		var days := int(c.days)
 		if c.ready:
 			head.add_child(HubTag.make(Lang.t("PRÊT", "READY"), HubTag.READY))
 		elif days >= 0:
-			head.add_child(HubTag.make(Lang.t("ENCORE %d J", "%d DAYS LEFT") % days, HubTag.DATE))
+			head.add_child(HubTag.make(HubContractsPanel.days_text(days), HubTag.DATE))
 		else:
 			head.add_child(HubStyle.label("%d / %d" % [have_total, need_total], 13, HubStyle.DIM))
 		row.box.add_child(head)

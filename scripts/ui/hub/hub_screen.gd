@@ -37,6 +37,8 @@ const TAB_NAMES := {
 ## (contracts, exchanges) et E (play) ajoutent leur ligne ici.
 const PANELS := {
 	"lab": "res://scripts/ui/hub/lab_panel.gd",
+	"contracts": "res://scripts/ui/hub/contracts_panel.gd",
+	"exchanges": "res://scripts/ui/hub/exchanges_panel.gd",
 	# Provisoire jusqu'au lot E : SOLO / COOP par les écrans actuels.
 	"play": "res://scripts/ui/hub/hub_play_stub_panel.gd",
 }
@@ -52,6 +54,13 @@ static var last_tab := "lab"
 ## calme son post-traitement sous cet écran plein cadre (MainMenu).
 var full_frame := true
 var profile: PlayerProfile
+## Fichier du profil ("" : celui du joueur) ; `_no_disk` : profil fourni par
+## un test sans fichier, jamais écrit (le vrai profil n'est pas touché).
+var profile_path := ""
+var _no_disk := false
+## Contrats actifs expirés depuis la dernière visite (titres), signalés une
+## fois au LABO (HUB_PLAN §5.2 ; ContractState.take_expired à l'ouverture).
+var expired_notice := PackedStringArray()
 var tab := ""
 var panels: Dictionary = {}  # identifiant -> HubPanel
 var backdrop: Control
@@ -95,7 +104,15 @@ static func tab_label(id: String) -> String:
 func enter(args := {}) -> void:
 	HubContractsView.clear_cache()
 	# `args.profile` : profil fourni (tests), sinon celui du joueur.
-	profile = args.profile if args.get("profile") is PlayerProfile else ProfileStore.load_profile()
+	profile_path = String(args.get("profile_path", ""))
+	_no_disk = args.get("profile") is PlayerProfile and profile_path == ""
+	profile = args.profile if args.get("profile") is PlayerProfile else ProfileStore.load_profile(profile_path)
+	# Contrats : purge (expirés, inconnus), premier remplissage du tableau,
+	# expirés à signaler ; une seule écriture si quelque chose a changé.
+	var opened := HubContractsView.open_hub(profile)
+	expired_notice = opened.expired
+	if opened.changed and not _no_disk:
+		ProfileStore.save_profile(profile, profile_path)
 	var start: String = args.get("tab", last_tab)
 	_build()
 	Settings.menu_ui_scale_changed.connect(_on_scale_changed)
@@ -241,14 +258,15 @@ func show_hint(t: String) -> void:
 
 ## Relit le profil du disque et rafraîchit tout.
 func reload_profile() -> void:
-	profile = ProfileStore.load_profile()
+	if not _no_disk:
+		profile = ProfileStore.load_profile(profile_path)
 	_profile_updated()
 
 
 ## Enregistre le profil (une écriture par action, HUB_PLAN §5.2) et
 ## rafraîchit tout.
 func save_profile() -> Error:
-	var err := ProfileStore.save_profile(profile)
+	var err := OK if _no_disk else ProfileStore.save_profile(profile, profile_path)
 	_profile_updated()
 	return err
 

@@ -638,6 +638,37 @@ Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
   bouton grisé et raisons, progression partagée, expiration signalée,
   échange en deux appuis, filtre « échangeables »).
 - Fini quand : écrans 4 et 5 de la maquette reproduits, FR et EN.
+- **Fait** (branche `hub-d` : écrans 5, 6, 7, 11 et l'encart contrats du 1).
+  Choix pris pendant le lot (provisoires) :
+  - ouverture du hub : purge et premier remplissage
+    (`HubContractsView.open_hub`), contrats actifs expirés lus une fois
+    (`take_expired`) et signalés au LABO (ligne EXPIRÉ et réplique du
+    scientifique) pendant la visite ; une écriture du profil seulement si
+    quelque chose a changé ;
+  - « nouvelle proposition » = arrivée au dernier remplissage du tableau
+    (`since == rotation`) : pastille NOUVEAU sur la carte (absente de la
+    maquette) et ligne du LABO ; la pastille de l'onglet CONTRATS reste le
+    nombre de contrats prêts (maquette), ÉCHANGES n'en a pas ;
+  - jours restants : jours pleins après aujourd'hui (« ENCORE 12 J » le 18
+    pour le 30), « DERNIER JOUR » le dernier ;
+  - « Partagé avec : … » seulement sur un contrat PRÊT (là où remettre peut
+    faire reculer l'autre, comme la maquette) ; la RÉSERVE dit la
+    conséquence (« il en restera 3, assez pour … », en rouge un contrat à qui
+    la remise ou l'échange **crée** un manque) ;
+  - REMETTRE grisé dit ce qui manque (« IL MANQUE 1 TOUFFE » ; plusieurs
+    sortes : « IL MANQUE 5 ÉCHANTILLONS ») ; ACCEPTER grisé : raison en tête
+    de l'aide, la demande du scientifique ensuite ; les textes des boutons
+    rétrécissent pour tenir dans la carte (`HubFitButton`) ;
+  - demande du scientifique : texte complet des données, 3 lignes au plus
+    (2 si trois sortes), « … » ensuite ; italique synthétique ;
+  - échange : même fenêtre que la remise (« ÉCHANGE CONCLU », sans XP), nom
+    de l'objet = titre de l'échange ; une pièce de contrat est nommée
+    d'après son premier modificateur (Renfort, Mire, Amortisseur, Guide de
+    la maquette ; Culasse allégée, Chargeur long, Cartouchière ajoutés) —
+    à harmoniser avec les noms du lot C ;
+  - aide de la fenêtre : « L'objet est rangé avec la pastille NOUVEAU. »
+    (la maquette y mettait une note de conception) ; une case active vide
+    affiche « LIBRE ».
 
 ### Lot E — PARTIE et intégration au flux du jeu (dépend de B ; de A pour la rotation)
 

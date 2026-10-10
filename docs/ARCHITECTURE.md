@@ -259,6 +259,20 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   au changement (`HubScreen.rebuild`) ; contenus des panneaux dans des
   `ScrollContainer`. Tests : `tests/test_hub_screen.gd`, scénario `hub_nav`
   (captures de développement ; `HUB_SHOT_RES=1920x1080` pour la taille).
+  **CONTRATS / ÉCHANGES** (lot D) : `HubContractsPanel`
+  (`contracts_panel.gd`, cartes `HubContractCard`, boutons qui se plient
+  `HubFitButton`), `HubExchangesPanel` (`exchanges_panel.gd`), colonne
+  RÉSERVE `HubSamplesColumn` (mots des échantillons accordés), fenêtre
+  « contrat remis » / « échange conclu » `HubRewardPopup` (posée sur
+  l'hôte). Lecture des contrats : `HubContractsView` (`HubData`, jour UTC
+  remplaçable par `day_override` pour les tests). À l'ouverture du hub
+  (`HubScreen.enter`) : `HubContractsView.open_hub` (purge, premier
+  remplissage, `take_expired` → `HubScreen.expired_notice`, signalé une fois
+  au LABO), une écriture si quelque chose change. Chaque action (accepter,
+  abandonner en deux appuis, remettre, échanger en deux appuis) = règles du
+  lot A puis une seule `hub.save_profile()`. `HubScreen.enter({profile_path})`
+  choisit le fichier ; un profil fourni sans fichier (tests) n'est jamais
+  écrit. Tests : `tests/test_hub_contracts.gd`.
 - **Hôtes d'écrans** : `MenuHost` (`scripts/ui/menu_host.gd`) est l'interface
   que voient les écrans `MenuScreen` (`show_screen`, `go_back`, `set_hint`,
   `current`). Deux hôtes : `MainMenu` (menu principal, fond 3D, transitions) et
