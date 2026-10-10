@@ -58,6 +58,18 @@ func run() -> void:
 	# Seconde construction : refusée par l'hôte.
 	st.request_build(panel.entries[0])
 	await seconds(0.6)
+	# Dernière arme : l'arme en construction ne compte pas, l'unique arme du
+	# client reste non recyclable (bouton grisé ; demande forcée refusée par
+	# l'hôte, message reçu).
+	var last_text := BuildRules.recycle_refusal_text(BuildRules.LAST_WEAPON)
+	at.check(BuildRules.weapon_count(pd) == 1, "client : une seule arme (%d)" % BuildRules.weapon_count(pd))
+	panel.refresh()
+	var k := panel.recycle_slots.find([0, 0])
+	at.check(k >= 0 and panel.recycle_buttons[k].disabled, "client : dernière arme grisée à la station")
+	game.hud._flash.text = ""
+	game.combat.srv_recycle.rpc_id(1, 0, 0)
+	ok = await until(func(): return game.hud._flash.text == last_text, 5.0, "refus de l'hôte reçu")
+	at.check(ok and pd.weapons.size() == 1, "client : refus de l'hôte « %s »" % game.hud._flash.text)
 	MpHelpers.signal_peer("seconde")
 	panel.close()
 

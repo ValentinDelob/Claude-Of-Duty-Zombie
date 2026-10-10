@@ -235,10 +235,17 @@ func selected_slot() -> Array:
 
 ## Recycle l'arme de la case choisie (Combat.srv_recycle, le serveur décide) :
 ## premier appui, confirmation demandée ; second appui : demande envoyée.
+## Dernière arme du joueur : refus immédiat (message), rien n'est envoyé.
 func recycle_selected() -> void:
 	var s := selected_slot()
 	var pd := game.session.local_data()
 	if s.is_empty() or pd == null or BuildRules.weapon_at(pd, s[0], s[1]).is_empty():
+		return
+	if BuildRules.recycle_refusal(pd, s[0], s[1]) == BuildRules.LAST_WEAPON:
+		_recycle_armed = false
+		if game.hud:
+			game.hud.flash_message(BuildRules.recycle_refusal_text(BuildRules.LAST_WEAPON))
+		refresh()
 		return
 	if not _recycle_armed:
 		_recycle_armed = true
@@ -289,10 +296,14 @@ func refresh() -> void:
 		return
 	var s := selected_slot()
 	var sw: Dictionary = BuildRules.weapon_at(pd, s[0], s[1]) if not s.is_empty() else {}
-	recycle_button.disabled = sw.is_empty() or bool(sw.get("loaned", false))
+	var last := not sw.is_empty() and BuildRules.recycle_refusal(pd, s[0], s[1]) == BuildRules.LAST_WEAPON
+	recycle_button.disabled = sw.is_empty() or bool(sw.get("loaned", false)) or last
 	if sw.is_empty():
 		_recycle_armed = false
 		recycle_button.text = Lang.t("RECYCLER : choisissez une seule arme", "RECYCLE: pick a single weapon")
+	elif last:
+		_recycle_armed = false
+		recycle_button.text = BuildRules.recycle_refusal_text(BuildRules.LAST_WEAPON).to_upper()
 	elif _recycle_armed:
 		recycle_button.text = Lang.t("CONFIRMER LE RECYCLAGE DE %s : +%d FERRAILLE", "CONFIRM RECYCLING %s: +%d SCRAP") % [BuildStation.weapon_name(sw), BuildRules.recycle_value(sw)]
 	else:

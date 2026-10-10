@@ -164,7 +164,48 @@ func run() -> void:
 	panel.press_recycle(k)
 	await until(func(): return pd.weapons.size() == hand_n - 1, 2.0, "arme en main recyclée")
 	at.check(pd.points == before, "arme de base : ne rapporte rien")
+
+	# 8 bis. Jamais la dernière arme : bouton grisé (station et inventaire),
+	# refus immédiat côté interface et refus du serveur (message).
+	var keep_hands := pd.weapons.duplicate()
+	var keep_bag := pd.bag.duplicate()
+	pd.weapons = [(pd.weapons if not pd.weapons.is_empty() else pd.bag)[0]]
+	pd.slot = 0
+	pd.bag = []
+	game.session.sync_inventory(1)
+	await frames(2)
+	panel.refresh()
+	k = panel.recycle_slots.find([0, 0])
+	var last_text := BuildRules.recycle_refusal_text(BuildRules.LAST_WEAPON)
+	at.check(panel.recycle_buttons[k].disabled and panel._hint.text.contains(last_text), "station : dernière arme grisée (%s)" % panel.recycle_buttons[k].text)
+	game.hud._flash.text = ""
+	panel.press_recycle(k)
+	panel.press_recycle(k)
+	await frames(3)
+	at.check(pd.weapons.size() == 1 and game.hud._flash.text == last_text, "station : refus immédiat (%s)" % game.hud._flash.text)
+	game.hud._flash.text = ""
+	game.combat.srv_recycle.rpc_id(1, 0, 0)
+	await frames(2)
+	at.check(pd.weapons.size() == 1 and game.hud._flash.text == last_text, "serveur : dernière arme refusée (%s)" % game.hud._flash.text)
 	panel.close()
+	# Mains vides, une seule arme dans l'inventaire.
+	pd.bag = [pd.weapons[0]]
+	pd.weapons = []
+	game.session.sync_inventory(1)
+	await frames(2)
+	var inv2 := game.hud.inventory
+	inv2.open()
+	inv2.press(1, 0)
+	at.check(inv2.recycle_button.disabled and inv2.recycle_button.text == last_text.to_upper(), "inventaire : %s" % inv2.recycle_button.text)
+	inv2.recycle_selected()
+	inv2.recycle_selected()
+	await frames(3)
+	at.check(pd.bag.size() == 1, "inventaire : seule arme du sac gardée")
+	inv2.close()
+	pd.weapons = keep_hands
+	pd.bag = keep_bag
+	game.session.sync_inventory(1)
+	await frames(2)
 
 	# 9. Évacuation : la version améliorée en partie met à jour l'arsenal,
 	# l'arme ramassée y entre.

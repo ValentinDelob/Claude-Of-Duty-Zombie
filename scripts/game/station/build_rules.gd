@@ -19,7 +19,8 @@ extends RefCounted
 ##   * recyclage : 50 % du prix de construction, arrondi à 10 ; une arme de
 ##     base (exemplaire « base:<id> », donné à tous dès le départ) ne rapporte
 ##     rien (sinon de la ferraille gratuite à chaque départ) ; une arme prêtée
-##     à terre ne se recycle pas.
+##     à terre ne se recycle pas ; la DERNIÈRE arme du joueur non plus
+##     (weapon_count).
 
 const BASE_PRICE := 500
 ## Hausse du prix par niveau au-dessus de 1 (fraction du prix de base).
@@ -41,6 +42,8 @@ const INVALID := "invalid"
 const LEVEL := "level"
 const BUSY := "busy"
 const NOT_ALIVE := "not_alive"
+## Refus d'un recyclage : ce serait la dernière arme du joueur.
+const LAST_WEAPON := "last_weapon"
 
 
 # --------------------------------------------------------------------------
@@ -169,7 +172,25 @@ static func weapon_at(pd: PlayerData, row: int, i: int) -> Dictionary:
 	return list[i] if row in [0, 1] and i >= 0 and i < list.size() else {}
 
 
-## Raison du refus d'un recyclage ("" : permis).
+## Armes du joueur au sens du recyclage : armes en main et inventaire de
+## partie, hors arme prêtée à terre (reprise ensuite, MatchRules). Le couteau
+## (attaque séparée) et l'emplacement de grenade ne sont pas des armes ; une
+## arme en construction à la station ne compte pas tant qu'elle n'est pas
+## récupérée (elle peut ne jamais l'être : place manquante, mort...).
+static func weapon_count(pd: PlayerData) -> int:
+	if pd == null:
+		return 0
+	var n := 0
+	for list: Array in [pd.weapons, pd.bag]:
+		for w: Variant in list:
+			if w is Dictionary and not (w as Dictionary).is_empty() and not bool((w as Dictionary).get("loaned", false)):
+				n += 1
+	return n
+
+
+## Raison du refus d'un recyclage ("" : permis). On ne recycle jamais sa
+## dernière arme, en main ou dans l'inventaire (LAST_WEAPON, seul refus
+## montré au joueur : recycle_refusal_text).
 static func recycle_refusal(pd: PlayerData, row: int, i: int) -> String:
 	if pd == null:
 		return "joueur inconnu"
@@ -180,6 +201,15 @@ static func recycle_refusal(pd: PlayerData, row: int, i: int) -> String:
 		return "place vide"
 	if bool(w.get("loaned", false)):
 		return "arme prêtée"
+	if weapon_count(pd) <= 1:
+		return LAST_WEAPON
+	return ""
+
+
+## Texte pour le joueur d'un refus de recyclage ("" : rien à montrer).
+static func recycle_refusal_text(code: String) -> String:
+	if code == LAST_WEAPON:
+		return Lang.t("Impossible de recycler votre dernière arme", "You can't recycle your last weapon")
 	return ""
 
 

@@ -54,6 +54,7 @@ func run() -> void:
 		return
 	await seconds(0.5)
 	at.check(cpd.points == 3000 - price and String(st.builds[cid].w.uid) == "w1", "hôte : seconde construction refusée")
+	at.check(BuildRules.weapon_count(cpd) == 1, "hôte : dernière arme du client gardée (recyclage refusé)")
 
 	# 3. Fin de la manche : prête.
 	game.rounds.debug_jump_to(n)
