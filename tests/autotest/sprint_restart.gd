@@ -2,7 +2,7 @@ extends AutotestScenario
 ## Course (BO1) : jamais de sprint qui repart tout seul. On ne court que
 ## touche de course ENFONCÉE (clavier) ou sprint verrouillé au clic de L3 ET
 ## en avançant ; le verrou tombe à l'arrêt, en reculant, en visant ; une
-## course rendue impossible (visée, accroupi, à terre, souffle insuffisant,
+## course rendue impossible (visée, accroupi, à terre, énergie insuffisante,
 ## épuisement) ou interrompue (pause, menu, perte de focus, contrôle coupé)
 ## demande un NOUVEL appui : la touche gardée ou le verrou ne la relancent
 ## pas d'eux-mêmes une fois l'obstacle levé.
@@ -57,7 +57,7 @@ func _ticks(n: int) -> void:
 		await tree().physics_frame
 
 
-## Départ : posé au bout de la bande de course, endurance pleine, rien d'appuyé.
+## Départ : posé au bout de la bande de course, énergie pleine, rien d'appuyé.
 func _reset(pad: bool) -> void:
 	_pad = pad
 	_click = false
@@ -66,7 +66,8 @@ func _reset(pad: bool) -> void:
 	p.input = PlayerInput.new()
 	p.teleport_to(Vector3(3.0, 0.05, 3.4), -PI * 0.5)
 	p.pitch = 0.0
-	p.stamina = Player.SPRINT_DURATION + p.sprint_duration_bonus
+	p.energy.value = p.energy.max_value
+	p.energy.exhausted = false
 	await seconds(0.3)
 
 
@@ -144,9 +145,9 @@ func _keyboard_cases() -> void:
 	await _no_restart("clavier, appui très bref", 0.6)
 
 	# Souffle insuffisant au moment d'appuyer : la touche gardée ne lance
-	# pas la course quand l'endurance remonte.
+	# pas la course quand l'énergie remonte.
 	await _reset(false)
-	p.stamina = 0.2
+	p.energy.value = 5.0
 	p.input.move = Vector2(0, 1)
 	p.input.sprint = true
 	await _no_restart("clavier, Maj gardée sans souffle", 1.2)
@@ -185,12 +186,15 @@ func _keyboard_cases() -> void:
 	await _repress("clavier, réanimé")
 
 	# Épuisement : Maj gardée, retour à la marche ; il faut relâcher puis
-	# réappuyer (comportement voulu, inchangé).
+	# réappuyer (comportement voulu, inchangé), une fois l'épuisement fini
+	# (énergie remontée à PlayerEnergy.RECOVER_AT).
 	await _reset(false)
-	p.stamina = 0.6
+	p.energy.value = 15.0
 	await _start_sprint("clavier, épuisement")
 	await seconds(0.4)
 	await _no_restart("clavier, épuisé, Maj gardée", 1.0)
+	await until(func(): return not p.energy.exhausted, 4.0, "clavier : fin de l'épuisement")
+	await _no_restart("clavier, reposé, Maj gardée", 0.3)
 	await _repress("clavier, après l'épuisement")
 
 
@@ -246,9 +250,9 @@ func _pad_cases() -> void:
 	await _no_restart("manette, fin de visée")
 	await _repress("manette, après la visée")
 
-	# Clic sans souffle : rien, et pas de départ quand l'endurance remonte.
+	# Clic sans souffle : rien, et pas de départ quand l'énergie remonte.
 	await _reset(true)
-	p.stamina = 0.2
+	p.energy.value = 5.0
 	p.input.move = Vector2(0, 1)
 	await seconds(0.1)
 	_click = true
@@ -275,10 +279,12 @@ func _pad_cases() -> void:
 
 	# Épuisement : le verrou se relâche, marche jusqu'au prochain clic.
 	await _reset(true)
-	p.stamina = 0.6
+	p.energy.value = 15.0
 	await _start_sprint("manette, épuisement")
 	await seconds(0.4)
 	await _no_restart("manette, épuisé", 1.0)
+	await until(func(): return not p.energy.exhausted, 4.0, "manette : fin de l'épuisement")
+	await _no_restart("manette, reposé", 0.3)
 	await _repress("manette, après l'épuisement")
 
 

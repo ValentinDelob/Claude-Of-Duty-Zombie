@@ -40,6 +40,9 @@ var _reload_serial := 0
 var _switch_end := -1.0
 var _switch_req_end := -1.0
 var _melee_ready := 0.0
+## Fin de la partie « occupée » du coup de couteau (70 % de sa durée) : pas de
+## changement d'arme ni de grenade avant.
+var _melee_busy_end := 0.0
 var _trigger_released := true
 var _drink_end := -1.0
 ## Couteau de mêlée tenu (KnifeDB) et fin de l'animation de récupération.
@@ -174,7 +177,7 @@ func update_reload(t: float) -> void:
 ## récupération du couteau ou une grenade, si.
 func can_switch(t: float) -> bool:
 	return t >= _switch_end and t >= _switch_req_end and t >= _drink_end \
-		and t >= _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3 and t >= _pickup_end \
+		and t >= _melee_busy_end and t >= _pickup_end \
 		and not (throws != null and throws.busy())
 
 
@@ -548,13 +551,21 @@ static func reload_sounds(s: Dictionary, w: Dictionary) -> Array:
 ## Coup de couteau. Si un zombie visé est à portée de fente (KnifeDB), le
 ## joueur se projette d'abord vers lui (LUNGE_TIME), puis frappe : le serveur
 ## valide le coup depuis la position d'arrivée.
+## Énergie (PlayerEnergy) : le coup dépense la statistique « energy » du
+## couteau ; épuisé, il dure deux fois plus longtemps (cadence et animation).
+## L'état est lu avant la dépense : le coup qui vide l'énergie reste normal.
 func _melee() -> void:
-	_melee_ready = GameClock.now() + WeaponDB.MELEE_COOLDOWN
+	var time_mult := player.energy.melee_time_mult()
+	var cooldown := WeaponDB.MELEE_COOLDOWN * time_mult
+	var now := GameClock.now()
+	_melee_ready = now + cooldown
+	_melee_busy_end = now + cooldown * 0.7
+	player.energy.spend(KnifeDB.energy_cost(knife_id))
 	abort_reload()
 	# À terre : pas de fente (le joueur rampe), coup au contact seulement.
 	var target := _lunge_target() if not player.downed else null
 	var lunge := target != null
-	view.start_melee(lunge)
+	view.start_melee(lunge, time_mult)
 	Audio.play_2d("knife_swing", -4.0, 0.1)
 	if not lunge:
 		_strike()
@@ -620,7 +631,7 @@ func is_picking_up_knife() -> bool:
 ## de grenade pendant ce temps (ThrowController).
 func is_knifing() -> bool:
 	var t := GameClock.now()
-	return t < _melee_ready - WeaponDB.MELEE_COOLDOWN * 0.3 or t < _pickup_end
+	return t < _melee_busy_end or t < _pickup_end
 
 
 ## Lancer de grenade : le rechargement en cours est abandonné (comme BO1 ;
