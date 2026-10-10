@@ -82,6 +82,8 @@ var downed := false
 ## couteau ; lue par le retour sonore (essoufflement). Joueur local seulement.
 ## Même objet toute la partie (le retour sonore garde la référence).
 var energy := PlayerEnergy.new()
+## Essoufflement audible du joueur local (null pour les autres joueurs).
+var _breath: BreathFeedback = null
 ## Demande de course perdue : plus de sprint tant que la touche n'est pas
 ## relâchée puis réappuyée (BO1). Posé quand l'énergie s'épuise en plein
 ## sprint (sans quoi l'énergie regagnée à chaque image relançait le sprint
@@ -187,6 +189,11 @@ func _ready() -> void:
 		visual.visible = false
 		name_tag.visible = false
 		footstep.connect(func(): Audio.play_2d("footstep_%d" % (1 + randi() % 4), -14.0, 0.1))
+		# Essoufflement audible (énergie basse), joueur local seulement.
+		_breath = BreathFeedback.new()
+		_breath.name = "Breath"
+		add_child(_breath)
+		_breath.setup(energy)
 	else:
 		camera.current = false
 
@@ -231,8 +238,21 @@ func _physics_process(delta: float) -> void:
 # Joueur local
 # --------------------------------------------------------------------------
 
+## La respiration de santé basse (hud.gd) passe avant l'essoufflement ; rien
+## non plus quand le joueur est à terre ou mort.
+func _update_breath_priority() -> void:
+	if _breath == null:
+		return
+	var pd: PlayerData = null
+	if Game.instance and Game.instance.session:
+		pd = Game.instance.session.local_data()
+	_breath.suppressed = pd == null or pd.life != PlayerData.Life.ALIVE \
+			or BreathFeedback.health_breath_active(pd.health, pd.max_health, true)
+
+
 func _local_physics(delta: float) -> void:
 	_input_live = true
+	_update_breath_priority()
 	if not input_enabled:
 		input = PlayerInput.new()
 		_forget_sprint()
