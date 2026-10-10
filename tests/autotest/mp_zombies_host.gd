@@ -22,6 +22,17 @@ func run() -> void:
 	var ok: bool = await until(func(): return client.global_position.distance_to(MapData.cell_to_world(Vector2i(3, 7))) < 1.0, 15.0, "client en position")
 	if not ok:
 		return
+	# Ferraille attendue (§4.8) : +10 par touche de balle du client, +50 par
+	# élimination ; comptée ici à partir des dégâts validés.
+	var paid := {"pts": cpd.points, "hits": 0}
+	game.combat.zombie_damaged.connect(func(pid: int, _zid: int, _d: int, killed: bool, _h: bool, kind: Combat.HitKind) -> void:
+		if pid != client_id:
+			return
+		if killed:
+			paid.pts += PointsRules.KILL
+		elif PointsRules.pays_hit(kind):
+			paid.pts += PointsRules.HIT
+			paid.hits += 1)
 	var zs := []
 	for k in 3:
 		var zid := game.zombies.spawn(MapData.cell_to_world(Vector2i(9, 6 + k)), 0, 150)
@@ -35,6 +46,7 @@ func run() -> void:
 		return true, 40.0, "zombies tués par le client")
 	at.check(ok, "les 3 zombies ont été tués par les tirs du client (validés par l'hôte)")
 	at.check(cpd.kills == 3 and cpd.points >= 3 * PointsRules.KILL, "le serveur crédite le client : %d tués, %d points" % [cpd.kills, cpd.points])
+	at.check(cpd.points == int(paid.pts), "ferraille du client : 3 éliminations + %d touches (%d / %d)" % [paid.hits, cpd.points, paid.pts])
 	# Un zombie va attaquer le client (une fois ses points vérifiés chez lui).
 	if not await MpHelpers.wait_peer(self, "points_vus", 15.0):
 		return

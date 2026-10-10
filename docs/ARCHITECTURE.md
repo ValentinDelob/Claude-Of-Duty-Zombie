@@ -779,11 +779,24 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   `ScrapTitle` du `ScorePanel`, colonne du tableau des scores, refus
   `InteractionSystem.deny_text`, prix de l'éditeur).
 - Chaque joueur part de 0 (`PlayerData.STARTING_POINTS`). Seul le joueur qui
-  tue est crédité, d'un montant fixe `PointsRules.KILL` (50) quel que soit le
-  coup (balle, tête, couteau, explosion) et la manche ; rien pour les touches
-  ni les réanimations (la perte à terre n'est plus rendue au sauveteur) ; un
-  piège ne rapporte rien ; reposer une planche non plus (la réparation reste
-  possible, sans gain).
+  porte le coup est crédité (`Points`, sur `Combat.zombie_damaged`, barème
+  `PointsRules.for_damage`) :
+  - **élimination** : montant fixe `PointsRules.KILL` (50) quel que soit le
+    coup (balle, tête, couteau, explosion) et la manche ; le coup qui tue ne
+    paie pas la touche en plus ;
+  - **touche** (coup qui ne tue pas) : `PointsRules.HIT` (10) pour une balle
+    (`HitKind.BULLET`, plombs d'un tir de fusil à pompe cumulés : une touche
+    par zombie et par tir) ou un coup de couteau (`MELEE`) ; rien pour une
+    explosion (`SPLASH` : grenade, arme à zone, sinon une horde entière
+    paierait à chaque tir), une brûlure ou un effet spécial (`SPECIAL`), un
+    piège (`TRAP`) ; au plus `PointsRules.HIT_CAP` (10) touches payées par
+    zombie, tous joueurs confondus (compteur serveur `Zombie.paid_hits`) : un
+    zombie à 100 000 PV rapporte au plus 10 × 10 + 50 ;
+  - un zombie mort ne prend plus de coups (`Combat.damage_zombie`) ; un
+    zombie qui sort de terre est déjà touchable et paie comme les autres ;
+  - rien pour les assistances ni les réanimations (la perte à terre n'est
+    plus rendue au sauveteur) ; un piège ne rapporte rien, même en tuant ;
+    reposer une planche non plus (la réparation reste possible, sans gain).
 - Les portes payantes et la caisse au hasard se paient en ferraille par
   `Session.try_spend`.
 
@@ -1058,8 +1071,13 @@ GAME_CONCEPT §4.8, §4.11, §4.12 ; objet de carte : docs/MAP_OBJECTS.md § 17.
   cours + durée − 1 (lancée entre deux manches : la suivante compte comme
   en cours) ; recharge `refill_price` = 30 % du prix ; recyclage
   `recycle_value` = 50 % du prix, 0 pour un exemplaire d'arme de base
-  (`base:<id>`), refusé pour une arme prêtée. Valeurs provisoires
-  (GAME_CONCEPT §6 bis).
+  (`base:<id>`), refusé pour une arme prêtée et pour la **dernière arme**
+  du joueur (`recycle_refusal` → `LAST_WEAPON`, texte
+  `recycle_refusal_text`) : `weapon_count` compte les armes en main et
+  l'inventaire de partie, hors arme prêtée ; le couteau (attaque séparée),
+  l'emplacement de grenade et une arme en construction à la station (pas
+  encore récupérée) ne comptent pas. Valeurs provisoires (GAME_CONCEPT
+  §6 bis).
 - **Station** (`scripts/game/interact/build_station.gd`, une par carte,
   `Game.station`, nœud `World/BuildStation`) : le serveur garde
   `builds` (pid -> {w, price, round, ready}) ; [F] (`srv_use`) récupère
@@ -1068,7 +1086,8 @@ GAME_CONCEPT §4.8, §4.11, §4.12 ; objet de carte : docs/MAP_OBJECTS.md § 17.
   l'interface du joueur (`_cl_open`, au seul joueur). Requêtes : RPC
   `srv_build(arme)` et `srv_refill()` sur la station (prologue
   `NetGuard.alive_sender` + limiteur, joueur à portée de la station),
-  `Combat.srv_recycle(rangée, place)` (panneau d'inventaire ou station).
+  `Combat.srv_recycle(rangée, place)` (panneau d'inventaire ou station ;
+  dernière arme : refus, message `_cl_recycle_refused` au seul joueur).
   Le serveur ne connaît pas l'arsenal du client : le client envoie
   l'exemplaire voulu, relu par `BuildRules.clean_weapon` (arme à feu connue,
   niveau, rareté, pièces bornées, munitions pleines) ; niveau du joueur
@@ -1084,9 +1103,13 @@ GAME_CONCEPT §4.8, §4.11, §4.12 ; objet de carte : docs/MAP_OBJECTS.md § 17.
   armes de l'arsenal à feu ; une arme de mêlée ne se construit pas), nom,
   niveau, rareté, score, prix et durée, « NIVEAU n REQUIS » (ligne grisée) ;
   état de la construction ; recharge de l'arme en main ; recyclage des
-  armes portées (deux appuis). La partie continue ; `Game.menu_open()` coupe
+  armes portées (deux appuis ; dernière arme : bouton grisé « Dernière
+  arme », raison dans l'aide). La partie continue ; `Game.menu_open()` coupe
   les entrées du joueur ; Échap / B / [I] ferment. Panneau d'inventaire :
-  bouton RECYCLER sur une case choisie seule (deux appuis).
+  bouton RECYCLER sur une case choisie seule (deux appuis ; dernière arme :
+  bouton grisé « IMPOSSIBLE DE RECYCLER VOTRE DERNIÈRE ARME »). Un appui
+  forcé sur la dernière arme est refusé tout de suite (message), sans
+  requête.
 - **Fin de partie** (`ProfileLoot.apply_evacuation`, voir « Butin des
   vagues spéciales ») : un exemplaire construit depuis l'arsenal (même
   `uid`) et amélioré en partie met à jour CETTE version (niveau, rareté,
