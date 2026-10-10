@@ -312,6 +312,10 @@ func check_invariants() -> void:
 		_round_t0 = _t
 	if game.rounds.dogs.active:
 		_dog_seen = true
+	# Vague spéciale vaincue : la fenêtre d'évacuation (2 min, la manche
+	# suivante attend) se ferme sans évacuation, comme dans dog_round.
+	if game.evac and game.evac.is_open and game.evac.time_left > 0.1:
+		game.evac.time_left = 0.1
 	if game.rounds.phase == RoundManager.Phase.ACTIVE and _t - _round_t0 > 240.0:
 		var desc := PackedStringArray()
 		for z: Zombie in game.zombies.alive.slice(0, 6):
