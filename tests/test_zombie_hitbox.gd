@@ -187,6 +187,13 @@ func test_shot_zones_are_not_movement_shapes() -> void:
 		assert_false(a.monitoring or a.monitorable, "%s : pas de détection de contact" % a.name)
 		zones[int(a.get_meta("zone"))] = zones.get(int(a.get_meta("zone")), 0) + 1
 	assert_eq(zones, {0: 1, 1: 1, 2: 4}, "corps, tête, deux avant-bras, deux hauts de bras")
+	# Le corps s'arrête au haut du torse : il ne mord pas dans le bas de la
+	# tête (tir au menton ou sur une tête rejetée en arrière = tir à la tête).
+	var bb := ZombieModel.bone_bounds()
+	if not bb.is_empty():
+		var hc := z.hit_body.get_child(0).shape as CapsuleShape3D
+		var top := z.hit_body.position.y + hc.height * 0.5
+		assert_true(top <= (bb.chest as AABB).end.y + 0.001, "corps sous la tête (haut %.2f m, torse %.2f m)" % [top, (bb.chest as AABB).end.y])
 	z.free()
 
 

@@ -271,17 +271,18 @@ func _ready() -> void:
 	_phase = rng.randf() * TAU
 	anim = ZombieAnim.new(self)
 
+	# Zones taillées sur le modèle (ZombieModel.hit_shapes : grosse tête,
+	# longs bras et corps arrêté sous la tête du zombie cubique).
+	var shapes := ZombieModel.hit_shapes()
+	var body_zone: Array = shapes.body
 	hit_body = _make_hitbox(0, CapsuleShape3D.new())
-	(hit_body.get_child(0).shape as CapsuleShape3D).radius = 0.28
-	(hit_body.get_child(0).shape as CapsuleShape3D).height = 1.35
-	hit_body.position.y = 0.8
+	(hit_body.get_child(0).shape as CapsuleShape3D).radius = body_zone[1]
+	(hit_body.get_child(0).shape as CapsuleShape3D).height = body_zone[2]
+	hit_body.position.y = body_zone[0]
 	add_child(hit_body)
 	var att := BoneAttachment3D.new()
 	att.bone_name = "head"
 	skel.add_child(att)
-	# Zones taillées sur le modèle (ZombieModel.hit_shapes : grosse tête et
-	# longs bras du zombie cubique).
-	var shapes := ZombieModel.hit_shapes()
 	var sph := SphereShape3D.new()
 	sph.radius = shapes.head[1]
 	hit_head = _make_hitbox(1, sph)

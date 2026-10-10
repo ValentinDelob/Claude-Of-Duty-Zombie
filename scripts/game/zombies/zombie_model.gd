@@ -404,22 +404,35 @@ static func bone_bounds() -> Dictionary:
 	return out
 
 
+## Zone du corps des zombies procéduraux (capsule debout sur la racine) :
+## [hauteur du centre, rayon, hauteur totale].
+const BODY_ZONE := [0.8, 0.28, 1.35]
+
+
 ## Zones de touche du modèle en usage, dans le repère de l'os qui les porte :
 ## {"head": [centre, rayon], "forearm": [centre, rayon, hauteur],
-##  "arm": [centre, rayon, hauteur]} (bras gauche ; le droit en miroir).
+##  "arm": [centre, rayon, hauteur]} (bras gauche ; le droit en miroir) ;
+## "body" : [hauteur du centre, rayon, hauteur] dans le repère du zombie.
 static func hit_shapes() -> Dictionary:
 	var bb := bone_bounds()
 	if bb.is_empty():
 		# Zombies procéduraux : tête ronde, bras minces (le haut du bras est
 		# dans la capsule du corps).
 		return {"head": [Vector3(0, 0.13, 0.01), 0.16], "forearm": [Vector3(0, -0.2, 0), 0.075, 0.42],
-				"arm": [Vector3(0, -0.15, 0), 0.06, 0.3]}
+				"arm": [Vector3(0, -0.15, 0), 0.06, 0.3], "body": BODY_ZONE}
 	var rest := RigBuilder._rest_globals(rest_overrides())
 	# Tête : sphère sur la tête et la mâchoire (rayon moyen des demi-côtés).
 	var hb := (bb.head as AABB).merge(bb.jaw)
 	var head_o: Vector3 = (rest.head as Transform3D).origin
 	var he := hb.size * 0.5
 	var out := {"head": [hb.get_center() - head_o, (he.x + he.y + he.z) / 3.0]}
+	# Corps : capsule qui s'arrête au haut du torse (la grosse tête cubique
+	# commence au ras des épaules ; la capsule des zombies procéduraux, haute
+	# de 1,475 m, mordait 7 cm dans le bas de la tête : un tir au menton ou
+	# sur une tête rejetée en arrière comptait au corps).
+	var top := minf((bb.chest as AABB).end.y, BODY_ZONE[0] + BODY_ZONE[2] * 0.5)
+	var bottom := BODY_ZONE[0] - BODY_ZONE[2] * 0.5
+	out["body"] = [(top + bottom) * 0.5, BODY_ZONE[1], top - bottom]
 	for part in ["forearm", "arm"]:
 		var b: AABB = bb[part + "_l"]
 		var o: Vector3 = (rest[part + "_l"] as Transform3D).origin
