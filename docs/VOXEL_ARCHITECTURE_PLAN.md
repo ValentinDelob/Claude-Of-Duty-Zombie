@@ -13,6 +13,8 @@ en 5 lots (§ 3). **Lot C fait** (§ 5) : toutes les surfaces en pixel art.
 **Lot A fait** : grille de 5 cm,
 format 20, copie de sauvegarde, erreurs nouvelles signalées, références
 régénérées (détail : docs/MAP_AUTHORING.md § 4, « Passage aux cubes de 5 cm »).
+**Lot B fait** (§ 6) : murs en biais, raccords, murs courbes, piliers tournés,
+cours tournées et cadres des ouvertures en biais en une seule union de cubes.
 
 ## 1. Inventaire
 
@@ -304,3 +306,64 @@ Fait sur la branche `voxel-archi` :
   de la salle rituelle trop nombreuses, dalles de plafond tombées trop
   fréquentes, joints du carrelage trop contrastés ; (2) corrigés, sang des
   carreaux en trait rouge vif répété ; (3) sang en tache brun-rouge sombre.
+
+## 6. Lot B (fait) : murs, piliers, courbes, ouvertures en biais
+
+- **Une seule union de cubes** (`MeshMapGeometry`, bloc « murs en escalier ») :
+  tous les murs `obliques` (murs en biais, pans des pièces libres, murs
+  libres, raccords d'angle, piliers tournés, segments des murs courbes) et
+  les tronçons non axiaux des `walls` (cours des fenêtres posées sur un mur
+  en biais) sont rastérisés ENSEMBLE puis leurs faces visibles créées d'un
+  bloc (`_emit_cols`). Cellule pleine si son centre est dans le pavé du
+  morceau (marche de 10 cm, `step_grain`) ; mur axial hors de la grille de
+  0,5 m : cellules d'un cube (ses faces restent exactement sur la grille de
+  5 cm). Grille au sol de 5 cm, rangée -> étendues `[i0, i1, hauteurs]` : le
+  coût suit le nombre d'étendues, pas de cellules.
+- **Faces** : dessus et dessous fusionnés en rectangles, côtés en bandes le
+  long de leur plan (même hauteur, même groupe, même normale d'éclairage) ;
+  aucune face entre deux cellules pleines (raccord dans un mur, deux murs qui
+  se croisent, mur et cour) ; tout dessous passe par `_down_face`.
+- **Mur courbe** : un seul contour en escalier (les segments et leurs
+  raccords se fondent) ; l'export marque ses segments et les raccords entre
+  eux (`arc` : centre de l'arc, `MapRaster._obstacle_record`,
+  `MapLayoutExport._obliques`, arrondi et contrôlé par `snap_layout` /
+  `off_grid`) ; l'éclairage suit la normale du vrai arc au milieu de chaque
+  marche (`_cell_u`). Collision : les segments, comme avant.
+- **Raccords** (`joint`) : leurs cellules communes avec un mur prennent
+  l'éclairage et la texture du mur.
+- **Cadres des ouvertures en biais** (`_raster_jamb`) : les cellules à cheval
+  sur le plan vrai du jambage, côté ouverture et dans l'épaisseur du mur,
+  sont pleines sur toute la hauteur : plus de jour entre la porte, la
+  fenêtre ou la barricade tournées et les marches (déborde d'au plus une
+  marche dans l'ouverture). Linteau et allège sont sur la grille (hauteurs
+  sur 5 cm), sans jour.
+- **Sols et plafonds** : inchangés (bords des morceaux `biais_*` jusqu'à
+  l'axe du mur, sommets sur 5 cm par `snap_layout`, faces horizontales),
+  cachés sous les marches.
+- **Collisions et navigation inchangées** : un `CollisionBox` tourné par
+  morceau de mur en biais, pavés `BoxShape3D` des cours tournées (empreinte
+  des formes de collision identique avant / après sur les 5 cartes
+  mesurées).
+- **Triangles** (murs en biais + murs en chemin ; pilote -> lot B) : carte des
+  murs en biais 4 652 + 72 -> 4 150 + 1 460 (les cours tournées passent en
+  cubes) ; salle ronde (32 pans, mur courbe de 8 segments, pilier tourné)
+  7 668 + 72 -> 5 330 + 740 ; murs libres 1 192 -> 1 128 ; pente 880 -> 624 ;
+  DRAFT ARENA 1 918 -> 1 918 (aucun mur en biais) ; BUNKER K-7 (grille,
+  `MapBuilder`) et test_levels (.glb) : non construits par ce bloc,
+  inchangés. Construction : 47 ms (21 au pilote) pour la carte des murs en
+  biais, 77 ms (31) pour la salle ronde.
+- Contrôles : `tests/test_voxel_archi.gd` (faces axiales et sommets sur 5 cm
+  dans `*__wall`, `*__biais`, `*__block` de 4 cartes, collisions comptées,
+  arc marqué et éclairé selon son rayon, cadre qui couvre le jambage) ;
+  scénario `voxel_archi_look` (captures : murs en biais, porte et fenêtre en
+  biais, salle ronde, mur courbe, pilier tourné, murs libres, DRAFT ARENA).
+- Passes de captures : (1) arcs réguliers, porte et fenêtres sans jour,
+  pilier tourné net ; rayures sombres sur les murs en biais vus de près sous
+  une lampe proche ; (2) `step_shade` 4 essayé : rayures inchangées, ce sont
+  les ombres portées des marches les unes sur les autres (lumières à
+  ombres), pas l'éclairage des faces : réglage gardé à 2, point laissé au
+  lot E (biais d'ombre des lampes, ou marches sans ombre propre).
+- Pour le lot E : `LayoutCheck` peut s'appuyer sur `off_grid` (`arc`
+  compris) ; une ouverture dans un mur AXIAL hors de la grille n'a pas de
+  cadre (faces sur 5 cm, pas de jour) ; le dessus des marches au plafond
+  reste une face vers le haut (invisible d'en dessous).

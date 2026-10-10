@@ -224,76 +224,397 @@ static var step_grain := 2
 static var step_shade := 2.0
 
 
+## Murs en escalier de cubes (lot B, docs/VOXEL_ARCHITECTURE_PLAN.md § 2.2) :
+## murs en biais, raccords d'angle, piliers tournés, murs courbes, cours
+## tournées et cadres des ouvertures en biais sont rastérisés ENSEMBLE (union
+## des cellules) puis leurs faces visibles créées d'un bloc (_emit_cols) : un
+## mur courbe est UN contour en escalier régulier (pas un escalier par
+## segment), un raccord ne double aucune face, deux murs qui se croisent n'ont
+## pas de face cachée. Grille au sol de 5 cm (cellule (i, j) : coin en
+## (i, j) × CUBE dans le monde), rangée j (le long de x) -> étendues triées
+## et disjointes [i0, i1, [[y0, y1, propriétaire], ...]] (cellules i0 à i1
+## comprises, pleines sur les mêmes hauteurs) : le coût suit le nombre
+## d'étendues, pas de cellules.
+var _rows: Dictionary = {}
+## Propriétaires des cellules : {gn, gm (groupes des faces tournées vers +u et
+## -u), u (normale du mur, Vector2 en x, z), arc (centre d'un mur courbe, ou
+## null), pri (0 mur, 1 raccord : le mur l'emporte sur une cellule commune),
+## gni (indice de gn), sides (côtés ±x, ±z d'un mur droit : _side_of)}.
+var _owners: Array = []
+## Groupes des faces en escalier (indices des clés de fusion des faces).
+var _gids: Array = []
+## Côtés d'une colonne : +x, -x, +z, -z.
+const DIRS := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+
+
+func _owner(gn: Dictionary, gm: Dictionary, u: Vector2, arc: Variant = null, pri := 0) -> int:
+	var ow := {"gn": gn, "gm": gm, "u": u, "arc": arc, "pri": pri, "gni": _gid(gn), "sides": []}
+	for dv: Vector2i in DIRS:
+		ow.sides.append(_side_of(ow, Vector3(dv.x, 0, dv.y), u))
+	_owners.append(ow)
+	return _owners.size() - 1
+
+
+## Côté `n` d'une colonne de normale de mur `u` : [groupe, indice du groupe,
+## normale d'éclairage, clé de la normale].
+func _side_of(ow: Dictionary, n: Vector3, u: Vector2) -> Array:
+	var u3 := Vector3(u.x, 0, u.y)
+	var g: Dictionary = ow.gm if n.dot(u3) < -1e-4 else ow.gn
+	var sn := _shade_n(n, u3)
+	return [g, _gid(g), sn, Vector3i(roundi(sn.x * 1e4), roundi(sn.y * 1e4), roundi(sn.z * 1e4))]
+
+
+func _gid(g: Dictionary) -> int:
+	for i in _gids.size():
+		if is_same(_gids[i], g):
+			return i
+	_gids.append(g)
+	return _gids.size() - 1
+
+
 ## Morceau de mur en biais [s0, s1] (le long de `d` depuis `a`) × [y0, y1],
 ## épaisseur `t`, rendu en ESCALIER de cubes alignés sur la grille du monde :
 ## une cellule de step_grain × 5 cm de côté au sol est pleine si son centre
-## tombe dans le pavé. Les cellules d'une rangée (convexe : un seul intervalle) forment
-## une colonne pleine ; seules les faces visibles sont créées (dessus,
-## dessous, bouts de rangée, parties des flancs que la rangée voisine ne
-## couvre pas). Rangées prises sur l'axe le moins étendu (moins de rangées).
-## Face tournée vers la normale du mur (+u) : `gn`, vers -u : `gm`.
-## -> nombre de rangées (mesure).
+## tombe dans le pavé ; seules les faces visibles sont créées (dessus,
+## dessous, côtés que la colonne voisine ne couvre pas), fusionnées en
+## rectangles. Face tournée vers la normale du mur (+u) : `gn`, vers -u : `gm`.
+## Morceau seul (tests, mesures) : _build rastérise tous les murs ensemble.
+## -> nombre de rangées de marches (mesure).
 func _stepped_piece(gn: Dictionary, gm: Dictionary, a: Vector3, d: Vector3, s0: float, s1: float, t: float, y0: float, y1: float) -> int:
-	var u := Vector3(-d.z, 0, d.x)
-	var c := CUBE * step_grain
+	var rows := _raster_piece(_owner(gn, gm, Vector2(-d.z, d.x)), Vector2(a.x, a.z), Vector2(d.x, d.z), s0, s1, t, y0, y1)
+	_emit_cols()
+	return rows
+
+
+## Mur axial (le long de x ou de z) : marche d'un cube (ses faces tombent sur
+## la grille de 5 cm, rien à mettre en escalier).
+static func _axial(d: Vector2) -> bool:
+	return absf(d.x) < 1e-6 or absf(d.y) < 1e-6
+
+
+## Cellules du pavé [s0, s1] × [-t/2, t/2] (repère du mur : `a`, direction
+## `d`, normale u = (-d.y, d.x)) de y0 à y1, au propriétaire `o` : cellules
+## de step_grain cubes (un cube pour un mur axial) dont le centre est dans le
+## pavé, par rangées le long de z (pavé convexe : un intervalle par rangée).
+## -> nombre de rangées de marches.
+func _raster_piece(o: int, a: Vector2, d: Vector2, s0: float, s1: float, t: float, y0: float, y1: float) -> int:
+	var u := Vector2(-d.y, d.x)
+	var g := 1 if _axial(d) else step_grain
+	var c := CUBE * g
 	var lo := Vector2(INF, INF)
 	var hi := Vector2(-INF, -INF)
 	for s in [s0, s1]:
 		for k in [-t / 2.0, t / 2.0]:
-			var p: Vector3 = a + d * float(s) + u * float(k)
-			lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.z))
-			hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.z))
-	# rows_z : rangées le long de z (r = z), cellules le long de x (q = x).
-	var rows_z := (hi.y - lo.y) <= (hi.x - lo.x)
-	var rlo := lo.y if rows_z else lo.x
-	var rhi := hi.y if rows_z else hi.x
-	var dq := d.x if rows_z else d.z
-	var dr := d.z if rows_z else d.x
-	var uq := u.x if rows_z else u.z
-	var ur := u.z if rows_z else u.x
-	var aq := a.x if rows_z else a.z
-	var ar := a.z if rows_z else a.x
-	var runs := {}
-	for j in range(floori(rlo / c), ceili(rhi / c) + 1):
+			var p: Vector2 = a + d * float(s) + u * float(k)
+			lo = lo.min(p)
+			hi = hi.max(p)
+	var rows := 0
+	var iv := [y0, y1, o]
+	for j in range(floori(lo.y / c), ceili(hi.y / c) + 1):
 		var r := (j + 0.5) * c
-		var iv := Vector2(-INF, INF)
-		iv = _clip_1d(iv, dq, dr * (r - ar) - dq * aq, s0, s1)
-		iv = _clip_1d(iv, uq, ur * (r - ar) - uq * aq, -t / 2.0, t / 2.0)
-		if iv.x > iv.y:
+		var q := Vector2(-INF, INF)
+		q = _clip_1d(q, d.x, d.y * (r - a.y) - d.x * a.x, s0, s1)
+		q = _clip_1d(q, u.x, u.y * (r - a.y) - u.x * a.x, -t / 2.0, t / 2.0)
+		if q.x > q.y:
 			continue
-		var i0 := ceili(iv.x / c - 0.5 - 1e-6)
-		var i1 := floori(iv.y / c - 0.5 + 1e-6)
-		if i0 <= i1:
-			runs[j] = Vector2i(i0, i1)
-	var pt := func(q: float, r: float, y: float) -> Vector3:
-		return Vector3(q, y, r) if rows_z else Vector3(r, y, q)
-	var nq := Vector3(1, 0, 0) if rows_z else Vector3(0, 0, 1)
-	var nr := Vector3(0, 0, 1) if rows_z else Vector3(1, 0, 0)
-	for j: int in runs:
-		var run: Vector2i = runs[j]
-		var q0 := run.x * c
-		var q1 := (run.y + 1) * c
-		var r0 := j * c
-		var r1 := (j + 1) * c
-		# Dessus et dessous.
-		_quad(gn, [pt.call(q0, r0, y1), pt.call(q1, r0, y1), pt.call(q1, r1, y1), pt.call(q0, r1, y1)], Vector3.UP)
-		# Dessous : sans les parties où un plafond est dans son plan (format 20).
-		_down_face(gn, [pt.call(q0, r0, y0), pt.call(q1, r0, y0), pt.call(q1, r1, y0), pt.call(q0, r1, y0)])
-		# Bouts de la rangée (faces ±q).
-		for e in [[q0, -1.0], [q1, 1.0]]:
-			var q: float = e[0]
-			var n: Vector3 = nq * float(e[1])
-			_quad(gm if n.dot(u) < -1e-4 else gn, [pt.call(q, r0, y0), pt.call(q, r1, y0), pt.call(q, r1, y1), pt.call(q, r0, y1)], n, true, false, _shade_n(n, u))
-		# Flancs (faces ±r) : partie non couverte par la rangée voisine.
-		for e in [[j + 1, r1, 1.0], [j - 1, r0, -1.0]]:
-			var r: float = e[1]
-			var n: Vector3 = nr * float(e[2])
-			var g := gm if n.dot(u) < -1e-4 else gn
-			for seg: Vector2i in _uncovered(run, runs.get(int(e[0]), Vector2i(1, 0))):
-				var sa := seg.x * c
-				var sb := (seg.y + 1) * c
-				_quad(g, [pt.call(sa, r, y0), pt.call(sb, r, y0), pt.call(sb, r, y1), pt.call(sa, r, y1)], n, true, false, _shade_n(n, u))
-	return runs.size()
+		var i0 := ceili(q.x / c - 0.5 - 1e-6)
+		var i1 := floori(q.y / c - 0.5 + 1e-6)
+		if i0 > i1:
+			continue
+		rows += 1
+		_add_run(j, i0, i1, g, iv)
+	return rows
+
+
+## Cellules (i0..i1, j) de `g` cubes de côté pleines selon `iv` [y0, y1, propriétaire].
+func _add_run(j: int, i0: int, i1: int, g: int, iv: Array) -> void:
+	for dj in g:
+		var jj := j * g + dj
+		_rows[jj] = _insert(_rows.get(jj, []), i0 * g, i1 * g + g - 1, iv)
+
+
+## Étendues d'une rangée avec les cellules [i0, i1] pleines selon `iv` en plus.
+static func _insert(spans: Array, i0: int, i1: int, iv: Array) -> Array:
+	var out := []
+	var cur := i0
+	for sp: Array in spans:
+		var a: int = sp[0]
+		var b: int = sp[1]
+		if b < cur or a > i1:
+			if a > i1 and cur <= i1:
+				out.append([cur, i1, [iv]])
+				cur = i1 + 1
+			out.append(sp)
+			continue
+		if a > cur:
+			out.append([cur, a - 1, [iv]])
+		if a < cur:
+			out.append([a, cur - 1, sp[2]])
+		var hi := mini(b, i1)
+		out.append([maxi(a, cur), hi, (sp[2] as Array) + [iv]])
+		if b > i1:
+			out.append([i1 + 1, b, sp[2]])
+		cur = hi + 1
+	if cur <= i1:
+		out.append([cur, i1, [iv]])
+	return out
+
+
+## Cadre cubique d'une ouverture dans un mur en biais (porte, fenêtre, porte à
+## zombies, passage) : le jambage `sj` (le long du mur) est un plan en biais,
+## l'escalier du mur rentre par endroits jusqu'à 7 cm derrière lui et laisse
+## un jour entre l'objet tourné (porte, barricade) et les marches. Les
+## cellules à cheval sur ce plan, côté ouverture (`side` : +1 si l'ouverture
+## est vers les s croissants), dans l'épaisseur du mur, sont pleines sur toute
+## la hauteur du mur : le jambage en cubes couvre toujours le plan vrai
+## (il déborde d'au plus une marche dans l'ouverture).
+func _raster_jamb(o: int, a: Vector2, d: Vector2, sj: float, side: float, t: float, y0: float, y1: float) -> void:
+	var u := Vector2(-d.y, d.x)
+	var c := CUBE * step_grain
+	# Demi-étendue d'une cellule le long du mur.
+	var half := (absf(d.x) + absf(d.y)) * c * 0.5
+	var p0 := a + d * sj - u * (t / 2.0)
+	var p1 := a + d * sj + u * (t / 2.0)
+	var lo := p0.min(p1) - Vector2(c, c)
+	var hi := p0.max(p1) + Vector2(c, c)
+	var iv := [y0, y1, o]
+	for j in range(floori(lo.y / c), ceili(hi.y / c) + 1):
+		for i in range(floori(lo.x / c), ceili(hi.x / c) + 1):
+			var p := Vector2((i + 0.5) * c, (j + 0.5) * c) - a
+			var ds := p.dot(d) - sj
+			if absf(p.dot(u)) > t / 2.0 + 1e-6 or ds * side <= 1e-6 or absf(ds) >= half - 1e-6:
+				continue
+			_add_run(j, i, i, step_grain, iv)
+
+
+## Faces visibles de toutes les étendues, fusionnées : dessus et dessous en
+## rectangles (même hauteur, même groupe), côtés en bandes le long de leur
+## plan (même hauteur, même groupe, même normale d'éclairage). Vide les
+## rangées et les propriétaires.
+func _emit_cols() -> void:
+	for j: int in _rows:
+		# Intervalles fusionnés ; étendues voisines devenues pareilles réunies.
+		var merged := []
+		for sp: Array in _rows[j]:
+			if (sp[2] as Array).size() > 1:
+				sp[2] = _merge_iv(sp[2])
+			if not merged.is_empty() and int(merged[-1][1]) == int(sp[0]) - 1 and merged[-1][2] == sp[2]:
+				merged[-1][1] = sp[1]
+			else:
+				merged.append(sp)
+		_rows[j] = merged
+	var tops := {}    # Vector2i(hauteur en mm, groupe) -> [bandes codées (_KEY)]
+	var bots := {}
+	var sides := {}   # [côté, plan, bas, haut (mm), groupe, normale] -> {n, plane, ya, yb, g, sn, along: [Vector2i]}
+	for j: int in _rows:
+		var spans: Array = _rows[j]
+		var up: Array = _rows.get(j + 1, [])
+		var dn: Array = _rows.get(j - 1, [])
+		for k in spans.size():
+			var sp: Array = spans[k]
+			var i0: int = sp[0]
+			var i1: int = sp[1]
+			var list: Array = sp[2]
+			var band := _band_key(j, i0, i1)
+			for iv: Array in list:
+				var gi: int = _owners[iv[2]].gni
+				(tops.get_or_add(Vector2i(roundi(float(iv[1]) * 1000.0), gi), []) as Array).append(band)
+				(bots.get_or_add(Vector2i(roundi(float(iv[0]) * 1000.0), gi), []) as Array).append(band)
+			# ±x : les cellules voisines au bout de l'étendue (même rangée).
+			var left: Array = spans[k - 1][2] if k > 0 and int(spans[k - 1][1]) == i0 - 1 else []
+			var right: Array = spans[k + 1][2] if k + 1 < spans.size() and int(spans[k + 1][0]) == i1 + 1 else []
+			_faces(sides, list, left, 1, i0, i0, i0, j)
+			_faces(sides, list, right, 0, i1 + 1, i1, i1, j)
+			# ±z : morceaux de [i0, i1] face aux étendues des rangées voisines.
+			for e in [[up, 2, j + 1], [dn, 3, j]]:
+				var cur := i0
+				for nb: Array in e[0]:
+					var a: int = nb[0]
+					var b: int = nb[1]
+					if b < cur:
+						continue
+					if a > i1:
+						break
+					if a > cur:
+						_faces(sides, list, [], e[1], e[2], cur, a - 1, j)
+					var hi := mini(b, i1)
+					_faces(sides, list, nb[2], e[1], e[2], maxi(a, cur), hi, j)
+					cur = hi + 1
+				if cur <= i1:
+					_faces(sides, list, [], e[1], e[2], cur, i1, j)
+	for k: Vector2i in tops:
+		var g: Dictionary = _gids[k.y]
+		for r: Rect2i in _rects(tops[k]):
+			_quad(g, _rect_pts(r, k.x / 1000.0), Vector3.UP)
+	for k: Vector2i in bots:
+		var g: Dictionary = _gids[k.y]
+		for r: Rect2i in _rects(bots[k]):
+			# Dessous : sans les parties où un plafond est dans son plan (format 20).
+			_down_face(g, _rect_pts(r, k.x / 1000.0))
+	for e: Dictionary in sides.values():
+		var n: Vector3 = e.n
+		var p := float(e.plane) * CUBE
+		var ya := float(e.ya)
+		var yb := float(e.yb)
+		for run: Vector2i in _merge_runs(e.along):
+			var q0 := run.x * CUBE
+			var q1 := (run.y + 1) * CUBE
+			var pts := [Vector3(p, ya, q0), Vector3(p, ya, q1), Vector3(p, yb, q1), Vector3(p, yb, q0)] if n.x != 0.0 \
+				else [Vector3(q0, ya, p), Vector3(q1, ya, p), Vector3(q1, yb, p), Vector3(q0, yb, p)]
+			_quad(e.g, pts, n, true, false, e.sn)
+	_rows = {}
+	_owners = []
+
+
+## Faces du côté `di` (DIRS) des cellules x0..x1 de la rangée j (côtés ±x :
+## une seule cellule, x0 = x1) pleines selon `list`, là où les cellules
+## voisines (`nb`, leurs intervalles) ne les couvrent pas ; `plane` : plan de
+## la face (en cubes). Mur courbe : une normale d'éclairage par marche.
+func _faces(sides: Dictionary, list: Array, nb: Array, di: int, plane: int, x0: int, x1: int, j: int) -> void:
+	for iv: Array in list:
+		var y0 := float(iv[0])
+		var y1 := float(iv[1])
+		var segs: Array
+		if nb.is_empty():
+			segs = [Vector2(y0, y1)]
+		elif nb.size() == 1 and float(nb[0][0]) <= y0 + 1e-4 and float(nb[0][1]) >= y1 - 1e-4:
+			continue   # couvert par la cellule voisine (cas courant)
+		else:
+			segs = _iv_minus(y0, y1, nb)
+			if segs.is_empty():
+				continue
+		var ow: Dictionary = _owners[iv[2]]
+		var parts := [[x0, x1, ow.sides[di]]]
+		if ow.arc != null:
+			parts = []
+			var dv: Vector2i = DIRS[di]
+			for m in range(floori(float(x0) / step_grain), floori(float(x1) / step_grain) + 1):
+				var a := maxi(x0, m * step_grain)
+				parts.append([a, mini(x1, m * step_grain + step_grain - 1), _side_of(ow, Vector3(dv.x, 0, dv.y), _cell_u(ow, Vector2i(a, j)))])
+		for pt: Array in parts:
+			var sd: Array = pt[2]
+			var along := Vector2i(j, j) if di < 2 else Vector2i(pt[0], pt[1])
+			for sg: Vector2 in segs:
+				var sk := [di, plane, roundi(sg.x * 1000.0), roundi(sg.y * 1000.0), sd[1], sd[3]]
+				var e: Variant = sides.get(sk)
+				if e == null:
+					var dv: Vector2i = DIRS[di]
+					e = {"n": Vector3(dv.x, 0, dv.y), "plane": plane, "ya": sg.x, "yb": sg.y, "g": sd[0], "sn": sd[2], "along": []}
+					sides[sk] = e
+				(e.along as Array).append(along)
+
+
+## Normale du mur pour une cellule (5 cm) d'un mur courbe : la normale du vrai
+## arc au milieu de la marche (éclairage régulier le long de la courbe), du
+## même côté que celle du segment.
+func _cell_u(ow: Dictionary, key: Vector2i) -> Vector2:
+	var c := CUBE * step_grain
+	var p := Vector2((floori(float(key.x) / step_grain) + 0.5) * c, (floori(float(key.y) / step_grain) + 0.5) * c)
+	var r: Vector2 = p - (ow.arc as Vector2)
+	if r.length() < 1e-6:
+		return ow.u
+	r = r.normalized()
+	return r if r.dot(ow.u) >= 0.0 else -r
+
+
+## Intervalles [y0, y1, propriétaire] triés et fusionnés (ceux qui se touchent
+## ou se chevauchent) ; le mur l'emporte sur un raccord (pri).
+func _merge_iv(list: Array) -> Array:
+	var sorted := list.duplicate()
+	sorted.sort_custom(func(p, q): return float(p[0]) < float(q[0]))
+	var out := []
+	for iv: Array in sorted:
+		if not out.is_empty() and float(iv[0]) <= float(out[-1][1]) + 1e-4:
+			out[-1][1] = maxf(float(out[-1][1]), float(iv[1]))
+			if int(_owners[iv[2]].pri) < int(_owners[out[-1][2]].pri):
+				out[-1][2] = iv[2]
+		else:
+			out.append(iv.duplicate())
+	return out
+
+
+## Parties de [y0, y1] hors des intervalles `cover` (triés, disjoints) : [Vector2].
+static func _iv_minus(y0: float, y1: float, cover: Array) -> Array:
+	var out := []
+	var y := y0
+	for c: Array in cover:
+		if float(c[1]) <= y + 1e-4:
+			continue
+		if float(c[0]) >= y1 - 1e-4:
+			break
+		if float(c[0]) > y + 1e-4:
+			out.append(Vector2(y, float(c[0])))
+		y = maxf(y, float(c[1]))
+		if y >= y1 - 1e-4:
+			return out
+	if y1 > y + 1e-4:
+		out.append(Vector2(y, y1))
+	return out
+
+
+## Codage d'une bande (rangée j, cellules i0 à i1) en un entier (tri rapide) :
+## champs de 20 bits, cellules à ±2^19 (± 26 km).
+const _KEY_OFF := 1 << 19
+const _KEY_BITS := 1 << 20
+
+
+static func _band_key(j: int, i0: int, i1: int) -> int:
+	return ((j + _KEY_OFF) * _KEY_BITS + (i0 + _KEY_OFF)) * _KEY_BITS + (i1 + _KEY_OFF)
+
+
+## Bandes (_band_key) -> rectangles (Rect2i, en cellules) : bandes
+## identiques de rangées voisines réunies.
+@warning_ignore("integer_division")
+static func _rects(bands: Array) -> Array:
+	var keys := PackedInt64Array(bands)
+	keys.sort()
+	# Bandes voisines d'une même rangée réunies : [j, i0, i1].
+	var runs := []
+	for key in keys:
+		var i1 := key % _KEY_BITS - _KEY_OFF
+		var i0 := (key / _KEY_BITS) % _KEY_BITS - _KEY_OFF
+		var j := key / (_KEY_BITS * _KEY_BITS) - _KEY_OFF
+		if not runs.is_empty() and runs[-1][0] == j and runs[-1][2] == i0 - 1:
+			runs[-1][2] = i1
+		else:
+			runs.append([j, i0, i1])
+	var out := []
+	var open := {}   # Vector2i(i0, i1) -> Rect2i en cours
+	for rw: Array in runs:
+		var j: int = rw[0]
+		var i0: int = rw[1]
+		var i1: int = rw[2]
+		var rn := Vector2i(i0, i1)
+		var r: Variant = open.get(rn)
+		if r != null and (r as Rect2i).end.y == j:
+			open[rn] = (r as Rect2i).grow_side(SIDE_BOTTOM, 1)
+		else:
+			if r != null:
+				out.append(r)
+			open[rn] = Rect2i(i0, j, i1 - i0 + 1, 1)
+	out.append_array(open.values())
+	return out
+
+
+## Coins d'un rectangle de cellules (Rect2i) à la hauteur y, dans l'ordre du contour.
+static func _rect_pts(r: Rect2i, y: float) -> Array:
+	var x0 := r.position.x * CUBE
+	var x1 := r.end.x * CUBE
+	var z0 := r.position.y * CUBE
+	var z1 := r.end.y * CUBE
+	return [Vector3(x0, y, z0), Vector3(x1, y, z0), Vector3(x1, y, z1), Vector3(x0, y, z1)]
+
+
+## Morceaux [Vector2i(début, fin)] -> suites consécutives réunies.
+static func _merge_runs(list: Array) -> Array:
+	list.sort()
+	var out := []
+	for v: Vector2i in list:
+		if not out.is_empty() and (out[-1] as Vector2i).y >= v.x - 1:
+			out[-1] = Vector2i((out[-1] as Vector2i).x, maxi((out[-1] as Vector2i).y, v.y))
+		else:
+			out.append(v)
+	return out
 
 
 ## Normale d'éclairage d'une face verticale en escalier : la face penchée
@@ -313,18 +634,6 @@ static func _clip_1d(iv: Vector2, k: float, c: float, lo: float, hi: float) -> V
 	var q1 := (hi - c) / k
 	return Vector2(maxf(iv.x, minf(q0, q1)), minf(iv.y, maxf(q0, q1)))
 
-
-## Morceaux de `run` (cellules [x, y] incluses) hors de `other` (vide si
-## other.x > other.y).
-static func _uncovered(run: Vector2i, other: Vector2i) -> Array:
-	if other.x > other.y or other.y < run.x or other.x > run.y:
-		return [run]
-	var out := []
-	if other.x > run.x:
-		out.append(Vector2i(run.x, other.x - 1))
-	if other.y < run.y:
-		out.append(Vector2i(other.y + 1, run.y))
-	return out
 
 
 ## Face plane d'un contour [[x, z]...] à la hauteur height_fn(x, z).
@@ -442,11 +751,18 @@ func _build(L: Dictionary) -> Node3D:
 			var d := (bb - a) / length
 			var yaw := atan2(-d.z, d.x)
 			var cuts: Array = w.get("openings", []).filter(func(o): return int(o.seg) == si)
+			# Tronçon tourné (cour d'une fenêtre sur un mur en biais) : visuel en
+			# escalier de cubes avec les murs en biais (_emit_cols), collision :
+			# le pavé tourné lisse (inchangée).
+			var d2 := Vector2(d.x, d.z)
+			var ow := -1 if _axial(d2) else _owner(g, g, Vector2(-d.z, d.x))
 			for pc in wall_pieces(-t / 2.0, length + t / 2.0, y0, y1, cuts):
 				if pc[1] - pc[0] < 0.001 or pc[3] - pc[2] < 0.001:
 					continue
 				var c: Vector3 = a + d * ((pc[0] + pc[1]) * 0.5) + Vector3.UP * ((pc[2] + pc[3]) * 0.5)
-				_box(g, c, Vector3(pc[1] - pc[0], pc[3] - pc[2], t), yaw)
+				_box(g, c, Vector3(pc[1] - pc[0], pc[3] - pc[2], t), yaw, ow < 0)
+				if ow >= 0:
+					_raster_piece(ow, Vector2(a.x, a.z), d2, pc[0], pc[1], t, pc[2], pc[3])
 	# Murs en biais (cartes de l'éditeur) : vrais murs droits obliques, une
 	# texture par face (celle de la pièce de chaque côté), collisions en
 	# pavés CollisionBox tournés comme le mur (balles, grenades, joueurs et
@@ -467,18 +783,33 @@ func _build(L: Dictionary) -> Node3D:
 		var mat_n := String(w.get("mat_n", "wall"))
 		var gn := _group(mat_n, String(w.get("room", "x")))
 		var gm := _group(String(w.get("mat_m", mat_n)), String(w.get("room", "x")))
+		var a2 := Vector2(a.x, a.z)
+		var d2 := Vector2(d.x, d.z)
+		# Mur courbe (« arc » : centre de l'arc) : normale d'éclairage du vrai
+		# arc ; raccord d'angle : cède ses cellules communes au mur.
+		var arc: Variant = Vector2(float(w.arc[0]), float(w.arc[1])) if w.get("arc") is Array else null
+		var ow := _owner(gn, gm, Vector2(-d.z, d.x), arc, 1 if w.get("joint", false) else 0)
 		for pc in wall_pieces(0.0, length, y0, y1, w.get("openings", [])):
 			if pc[1] - pc[0] < 0.001 or pc[3] - pc[2] < 0.001:
 				continue
 			var c: Vector3 = a + d * ((pc[0] + pc[1]) * 0.5) + Vector3.UP * ((pc[2] + pc[3]) * 0.5)
 			var size := Vector3(pc[1] - pc[0], pc[3] - pc[2], t)
-			# Visuel en escalier de cubes (marches de step_grain cubes) ;
-			# collision : le pavé tourné lisse (écart ≤ une demi-diagonale de
-			# marche, 7 cm ; docs/VOXEL_ARCHITECTURE_PLAN.md § 2.2).
-			_stepped_piece(gn, gm, a, d, pc[0], pc[1], t, pc[2], pc[3])
+			# Visuel en escalier de cubes (marches de step_grain cubes, tous les
+			# murs ensemble : _emit_cols) ; collision : le pavé tourné lisse
+			# (écart ≤ une demi-diagonale de marche, 7 cm ;
+			# docs/VOXEL_ARCHITECTURE_PLAN.md § 2.2).
+			_raster_piece(ow, a2, d2, pc[0], pc[1], t, pc[2], pc[3])
 			var cb := CollisionBox.make(c, size, yaw, false, mat_n)
 			cb.name = "Biais_%d" % _col_boxes.size()
 			_col_boxes.append(cb)
+		# Cadres cubiques des ouvertures (jambages à l'intérieur du mur).
+		if not _axial(d2):
+			for o in w.get("openings", []):
+				for e in [[float(o.t) - float(o.w) / 2.0, 1.0], [float(o.t) + float(o.w) / 2.0, -1.0]]:
+					if e[0] > 0.001 and e[0] < length - 0.001:
+						_raster_jamb(ow, a2, d2, e[0], e[1], t, y0, y1)
+	# Faces de tous les murs en escalier (murs en biais, cours tournées).
+	_emit_cols()
 	# Dalles (balcons, mezzanines).
 	_kind = "slab"
 	for sl in L.get("slabs", []):
