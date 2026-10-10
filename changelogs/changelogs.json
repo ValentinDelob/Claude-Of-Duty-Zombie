@@ -2419,6 +2419,41 @@
     "en": "Mind your breath",
     "fr": "Gare au coup de pompe"
    }
+  },
+  "v0.2.1-snapshot.489": {
+   "channel": "snapshot",
+   "date": "2026-10-10",
+   "images": [],
+   "items": [
+    {
+     "en": "Points are replaced by scrap. You start the game with nothing, and every zombie you take down earns you some: only the player who finishes the zombie off gets the scrap. Hitting zombies or reviving a teammate no longer pays.",
+     "fr": "Les points laissent place à la ferraille. Vous commencez la partie à zéro et chaque zombie que vous abattez vous en rapporte : seul celui qui achève le zombie empoche la ferraille. Toucher un zombie ou réanimer un coéquipier ne rapporte plus rien."
+    },
+    {
+     "en": "Doors are now opened with scrap.",
+     "fr": "Les portes s'ouvrent désormais avec de la ferraille."
+    },
+    {
+     "en": "Zombies get tougher at a steady pace every round: no more sudden jumps, they just take a bit more punishment each time.",
+     "fr": "Les zombies deviennent plus coriaces de façon régulière à chaque manche : fini les sauts brutaux, ils encaissent un peu plus à chaque fois."
+    },
+    {
+     "en": "The game is heading in a new direction: the KINO map has been removed and BUNKER K-7 is now the game's map.",
+     "fr": "Le jeu prend une nouvelle direction : la carte KINO est retirée et BUNKER K-7 devient la carte du jeu."
+    },
+    {
+     "en": "Every finished game now earns experience for your profile. You can't see it yet, but it's being saved for you.",
+     "fr": "Chaque fin de partie vous fait gagner de l'expérience pour votre profil. Vous ne la voyez pas encore, mais elle est bien gardée de côté."
+    },
+    {
+     "en": "Map editor: only imported models made of cubes, in the game's style, are accepted.",
+     "fr": "Éditeur de cartes : seuls les modèles importés faits de cubes, dans le style du jeu, sont acceptés."
+    }
+   ],
+   "title": {
+    "en": "Scrap has to be earned",
+    "fr": "La ferraille, ça se mérite"
+   }
   }
  }
 }
