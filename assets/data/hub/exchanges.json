@@ -1,0 +1,61 @@
+{
+	"format": "hub_exchanges",
+	"version": 1,
+	"exchanges": [
+		{
+			"id": "fang_trim",
+			"title": {"fr": "Garniture à crocs", "en": "Fang Trim"},
+			"text": {
+				"fr": "Des crocs sertis sur votre arme. Ça mord plus fort.",
+				"en": "Fangs set into your weapon. It bites harder."
+			},
+			"samples": {"dog_fang": 5, "dog_fur": 3},
+			"reward": {"kind": "part", "mods": {"damage": 0.15}},
+			"min_level": 1
+		},
+		{
+			"id": "fur_padding",
+			"title": {"fr": "Bourre de poils", "en": "Fur Padding"},
+			"text": {
+				"fr": "Un rembourrage dense qui absorbe le recul. L'odeur, par contre…",
+				"en": "Dense padding that soaks up recoil. The smell, however…"
+			},
+			"samples": {"dog_fur": 6},
+			"reward": {"kind": "part", "mods": {"recoil": 0.2}},
+			"min_level": 1
+		},
+		{
+			"id": "collar_strap",
+			"title": {"fr": "Bride de collier", "en": "Collar Strap"},
+			"text": {
+				"fr": "Le cuir des colliers tient un chargeur plus long en place.",
+				"en": "Collar leather holds a longer magazine in place."
+			},
+			"samples": {"dog_collar": 4, "dog_fur": 2},
+			"reward": {"kind": "part", "mods": {"mag": 0.2}},
+			"min_level": 2
+		},
+		{
+			"id": "sharpened_fangs",
+			"title": {"fr": "Crocs affûtés", "en": "Sharpened Fangs"},
+			"text": {
+				"fr": "Crocs taillés et montés sur une culasse allégée. Plus de dégâts, plus vite.",
+				"en": "Filed fangs on a lightened bolt. More damage, faster."
+			},
+			"samples": {"dog_fang": 8, "dog_collar": 4},
+			"reward": {"kind": "part", "mods": {"damage": 0.12, "fire_rate": 0.1}},
+			"min_level": 5
+		},
+		{
+			"id": "pack_weapon",
+			"title": {"fr": "Arme de la meute", "en": "Pack Weapon"},
+			"text": {
+				"fr": "Un pistolet-mitrailleur que j'ai remis en état avec ce que vous m'avez rapporté. Épique, et à votre niveau.",
+				"en": "A submachine gun I restored with what you brought back. Epic, and at your level."
+			},
+			"samples": {"dog_fang": 10, "dog_fur": 10, "dog_collar": 10},
+			"reward": {"kind": "weapon", "weapon": "mp5k", "rarity": "epic"},
+			"min_level": 8
+		}
+	]
+}

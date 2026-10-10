@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hub du scientifique</title>
+<style>
+/* Maquette à taille réelle (1280 × 720 logiques) du hub entre deux parties :
+   plan complet dans docs/HUB_PLAN.md. Aucune dépendance externe : polices
+   système des menus du jeu (UiStyle), icônes en pixel art dessinées par le
+   script en bas de page. Palette : DECOR_PALETTE (tools/blender/voxel/voxel_lib.py). */
+:root{
+  color-scheme: dark;
+  --page:#101112; --page-text:#D6D2C4; --page-dim:#8E8A7E; --rule:#2C2D31;
+  --black:#000; --case:#212124; --metal:#3D4042; --grey:#474C4F; --ash:#5C5957; --steel:#8C9196;
+  --paper:#DBD6C2; --plaster:#CCCCC2; --dim:#8E8A7E; --dim2:#66635B;
+  --yellow:#E0B31F; --yellow-hi:#F2CC45; --red:#B81A1A; --red-hi:#E0341F;
+  --green:#8FAD9E; --enamel:#457366; --rust:#734024; --brass:#A88038;
+  --ok:#86C96F; --bad:#E0503A;
+  --r0:#D1D1C7; --r1:#599EFF; --r2:#B866FF; --r3:#FF9E26; --r4:#F2404D;
+  --ui:"Bahnschrift","Segoe UI",Arial,sans-serif;
+  --impact:Impact,"Bahnschrift","Arial Black",sans-serif;
+  --stencil:Stencil,Impact,"Arial Black",sans-serif;
+  --mono:Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--page-text);font-family:var(--ui);font-size:15px;line-height:1.5}
+.wrap{max-width:1312px;margin:0 auto;padding-inline:16px;padding-block:28px 56px}
+.intro{max-width:80ch}
+.intro h1{font-size:30px;font-weight:600;margin:0 0 6px;color:var(--paper)}
+.intro p{margin:0 0 8px}
+.intro .meta{color:var(--page-dim);font-size:13px}
+.toc{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0 0;padding:0;list-style:none;font-size:14px}
+.toc a{color:var(--yellow)}
+section.shot{margin-top:44px}
+section.shot h2{font-size:19px;font-weight:600;margin:0 0 4px;color:var(--yellow)}
+section.shot .lede{margin:0 0 12px;max-width:90ch}
+.scroll{overflow-x:auto;border:1px solid var(--rule);background:#000}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:8px 28px;margin:14px 0 0;padding:0;list-style:none;counter-reset:n}
+.notes li{position:relative;padding-left:30px;font-size:14px;min-width:0}
+.notes li::before{counter-increment:n;content:counter(n);position:absolute;left:0;top:1px;width:20px;height:20px;background:var(--yellow);color:#1a1405;font-weight:700;font-size:12px;display:grid;place-items:center;border:2px solid #000}
+.callout{position:absolute;width:22px;height:22px;background:var(--yellow);color:#1a1405;font-weight:700;font-size:12px;display:grid;place-items:center;border:2px solid #000;z-index:60;pointer-events:none;font-family:var(--ui)}
+
+/* ------------------------------------------------------------------ */
+/* Cadre du jeu                                                        */
+/* ------------------------------------------------------------------ */
+.frame{position:relative;width:1280px;height:720px;overflow:hidden;font-family:var(--ui);font-size:15px;color:var(--paper);user-select:none;
+  background-color:#15171a;
+  background-image:
+    radial-gradient(ellipse at 50% 40%, rgba(69,115,102,.18), rgba(0,0,0,.55) 75%),
+    linear-gradient(rgba(143,173,158,.045) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(143,173,158,.045) 2px, transparent 2px);
+  background-size:100% 100%, 40px 40px, 40px 40px;}
+.frame *{line-height:1.25}
+.t{text-shadow:2px 2px 0 #000}
+/* barre du haut */
+.top{position:absolute;left:0;top:0;width:1280px;height:52px;display:flex;align-items:center;gap:14px;padding:0 16px;background:#0d0e0f;border-bottom:2px solid #000;box-shadow:0 2px 0 #2a2c2e}
+.lvl{width:38px;height:38px;background:var(--yellow);border:2px solid #000;box-shadow:inset -3px -3px 0 #a8840f, inset 3px 3px 0 var(--yellow-hi), 3px 3px 0 #000;display:grid;place-items:center;font-family:var(--impact);font-size:22px;color:#1a1405}
+.who{display:flex;flex-direction:column;gap:3px}
+.who .name{font-family:var(--impact);font-size:17px;letter-spacing:.04em}
+.who .name small{font-family:var(--ui);font-size:13px;color:var(--dim);letter-spacing:0;margin-left:8px}
+.xpbar{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--plaster);font-variant-numeric:tabular-nums}
+.top .right{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:14px;color:var(--plaster)}
+.brand{font-family:var(--stencil);font-size:20px;color:var(--red-hi);letter-spacing:.06em;text-shadow:2px 2px 0 #000;margin-left:18px}
+/* onglets */
+.tabs{position:absolute;left:0;top:54px;width:1280px;height:46px;display:flex;align-items:flex-end;gap:4px;padding:0 16px;background:rgba(0,0,0,.35);border-bottom:2px solid #000}
+.tab{position:relative;padding:7px 15px 6px;background:#2a2c2e;border:2px solid #000;border-bottom:none;color:var(--dim);font-family:var(--impact);font-size:18px;letter-spacing:.05em;box-shadow:inset 2px 2px 0 #3d4042}
+.tab.on{background:var(--yellow);color:#1a1405;box-shadow:inset 2px 2px 0 var(--yellow-hi), inset -2px 0 0 #a8840f;padding-bottom:8px}
+.tab .badge{position:absolute;right:-6px;top:-8px;min-width:20px;height:20px;padding:0 4px;background:var(--red);color:#fff;border:2px solid #000;font-family:var(--ui);font-size:12px;font-weight:700;display:grid;place-items:center;letter-spacing:0}
+.tabs .navk{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:13px;padding-bottom:10px}
+.tabs .navk.l{margin-right:6px}
+.tabs .navk.r{margin-left:6px}
+/* invites */
+.prompts{position:absolute;left:0;top:684px;width:1280px;height:36px;display:flex;align-items:center;gap:18px;padding:0 16px;background:#0d0e0f;border-top:2px solid #000;font-size:14px;color:var(--plaster)}
+.prompts .hint{margin-left:auto;color:var(--dim);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px}
+.pr{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.key{display:inline-grid;place-items:center;min-width:24px;height:22px;padding:0 5px;background:#2a2c2e;border:2px solid #000;box-shadow:inset 1px 1px 0 #5c5957, 2px 2px 0 #000;font-family:var(--ui);font-size:12px;font-weight:700;color:var(--paper)}
+.pad{display:inline-grid;place-items:center;width:22px;height:22px;border:2px solid #000;font-size:12px;font-weight:700;color:#0d0e0f;box-shadow:2px 2px 0 #000}
+.pad.a{background:#6FBF4A}.pad.b{background:#E0503A}.pad.x{background:#4F8FE0}.pad.y{background:var(--yellow)}
+.pad.sh{width:auto;padding:0 5px;background:#8C9196}
+/* panneaux */
+.pnl{position:absolute;background:rgba(29,30,32,.95);border:2px solid #000;box-shadow:inset 2px 2px 0 #3d4042, inset -2px -2px 0 #111213, 4px 4px 0 #000}
+.ph{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;background:#2a2c2e;border-bottom:2px solid #000;font-family:var(--impact);font-size:15px;letter-spacing:.06em;color:var(--plaster)}
+.ph .r{margin-left:auto;font-family:var(--ui);font-size:13px;letter-spacing:0;color:var(--dim)}
+.ph.red{background:#3a1512;color:#f0c8c0}
+.pb{padding:10px 12px}
+.big-title{font-family:var(--stencil);font-size:30px;color:var(--red-hi);letter-spacing:.05em;text-shadow:3px 3px 0 #000}
+.dim{color:var(--dim)} .ok{color:var(--ok)} .bad{color:var(--bad)} .yel{color:var(--yellow)} .gr{color:var(--green)}
+.num{font-variant-numeric:tabular-nums;font-family:var(--ui)}
+.small{font-size:13px}
+.r0{color:var(--r0)}.r1{color:var(--r1)}.r2{color:var(--r2)}.r3{color:var(--r3)}.r4{color:var(--r4)}
+/* barres en cubes */
+.bar{position:relative;height:12px;background:#0f1011;border:2px solid #000;box-shadow:2px 2px 0 #000}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(90deg,var(--c,var(--yellow)) 0 8px,rgba(0,0,0,.55) 8px 10px)}
+.bar.thin{height:10px}
+/* boutons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:34px;padding:0 14px;background:var(--metal);border:2px solid #000;box-shadow:inset 2px 2px 0 #5c5957, inset -2px -2px 0 #26282a, 3px 3px 0 #000;font-family:var(--impact);font-size:15px;letter-spacing:.05em;color:var(--paper);white-space:nowrap}
+.btn.pri{background:var(--yellow);color:#1a1405;box-shadow:inset 2px 2px 0 var(--yellow-hi), inset -2px -2px 0 #a8840f, 3px 3px 0 #000}
+.btn.danger{background:#7a1a14;color:#ffe2da;box-shadow:inset 2px 2px 0 #a8342a, inset -2px -2px 0 #4a0d0a, 3px 3px 0 #000}
+.btn.off{background:#2a2c2e;color:#5f5c55;box-shadow:inset 2px 2px 0 #333538, 3px 3px 0 #000}
+.btn.big{height:46px;font-size:20px;padding:0 22px}
+.focus{outline:3px solid var(--yellow);outline-offset:2px}
+.focus-ring{box-shadow:0 0 0 3px var(--yellow), 4px 4px 0 3px #000 !important}
+/* lignes de liste */
+.row{display:flex;align-items:center;gap:10px;height:40px;padding:0 10px;border-bottom:2px solid #000;background:#232427}
+.row:nth-child(even){background:#26282b}
+.row.sel{background:#3b3420;box-shadow:inset 4px 0 0 var(--yellow)}
+.row.lock{color:#6d6a63}
+.row .sp{margin-left:auto}
+.grp{height:26px;display:flex;align-items:center;padding:0 10px;background:#17181a;border-bottom:2px solid #000;font-family:var(--impact);font-size:13px;letter-spacing:.08em;color:var(--dim)}
+.tag{display:inline-block;padding:1px 6px;border:2px solid #000;font-size:11px;font-weight:700;letter-spacing:.04em;background:#3d4042;color:var(--paper)}
+.tag.new{background:var(--red);color:#fff}
+.tag.base{background:var(--enamel);color:#e6f2ec}
+.tag.ready{background:#3d7a2a;color:#eaffde}
+.tag.date{background:var(--rust);color:#ffe7d4}
+.tag.lockt{background:#2a2c2e;color:#8e8a7e}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:3px 9px;border:2px solid #000;background:#2a2c2e;font-size:13px;color:var(--dim);font-weight:600}
+.chip.on{background:#4a4126;color:var(--yellow-hi);box-shadow:inset 0 -3px 0 var(--yellow)}
+/* pixel art */
+.px{display:inline-block;vertical-align:middle;line-height:0}
+.px svg{display:block;image-rendering:pixelated;shape-rendering:crispEdges;filter:drop-shadow(2px 0 0 #000) drop-shadow(-2px 0 0 #000) drop-shadow(0 2px 0 #000) drop-shadow(0 -2px 0 #000)}
+/* bulles du scientifique */
+.speech{position:relative;background:var(--paper);color:#1d1b16;border:2px solid #000;box-shadow:4px 4px 0 #000;padding:10px 12px;font-size:15px}
+.speech::before{content:"";position:absolute;left:-12px;top:18px;width:10px;height:10px;background:var(--paper);border:2px solid #000;border-right:none;border-top:none;box-shadow:-2px 2px 0 #000}
+.speech b{color:#8a1410}
+/* échantillons */
+.smp{display:flex;align-items:center;gap:10px;height:44px;padding:0 10px;border-bottom:2px solid #000}
+.smp .q{margin-left:auto;font-family:var(--impact);font-size:22px;color:var(--paper);text-shadow:2px 2px 0 #000}
+.smp .src{font-size:12px;color:var(--dim)}
+.need{display:inline-flex;align-items:center;gap:5px;padding:2px 7px 2px 3px;background:#17181a;border:2px solid #000;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+/* statistiques */
+.stat{display:grid;grid-template-columns:120px 1fr 92px;align-items:center;gap:10px;height:24px;font-size:14px}
+.stat .v{text-align:right;font-variant-numeric:tabular-nums}
+.sbar{position:relative;height:10px;background:#0f1011;border:2px solid #000}
+.sbar i{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(90deg,var(--plaster) 0 6px,rgba(0,0,0,.6) 6px 8px)}
+.sbar b{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(90deg,var(--ok) 0 6px,rgba(0,0,0,.6) 6px 8px)}
+.sbar s{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(90deg,var(--bad) 0 6px,rgba(0,0,0,.6) 6px 8px)}
+/* emplacements de pièces */
+.slot{position:relative;height:76px;background:#17181a;border:2px solid #000;box-shadow:inset 2px 2px 0 #2a2c2e;padding:8px 10px;display:flex;gap:10px;align-items:center}
+.slot.empty{border-style:dashed;border-color:#5c5957;background:#141516;color:var(--dim);justify-content:center;font-family:var(--impact);letter-spacing:.06em}
+.mod{font-size:13px;font-weight:600}
+/* contrats */
+.card{position:absolute;background:#1f2022;border:2px solid #000;box-shadow:inset 2px 2px 0 #3d4042, 4px 4px 0 #000;display:flex;flex-direction:column}
+.card .ch{display:flex;align-items:center;gap:8px;padding:8px 10px 6px;border-bottom:2px solid #000;background:#2a2c2e}
+.card .ch .ttl{font-family:var(--impact);font-size:18px;letter-spacing:.03em}
+.card .cb{padding:8px 10px;display:flex;flex-direction:column;gap:7px;flex:1}
+.card .quote{font-size:13px;color:var(--plaster);font-style:italic}
+.card .cf{display:flex;gap:8px;padding:8px 10px;border-top:2px solid #000;background:#232427}
+.prog{display:grid;grid-template-columns:22px 1fr 54px;align-items:center;gap:8px;font-size:13px}
+.prog .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.reward{display:flex;align-items:center;gap:8px;padding:5px 8px;background:#17181a;border:2px solid #000;font-size:13px}
+.reward .xp{font-family:var(--impact);font-size:16px;color:#9fd0ff;letter-spacing:.03em}
+.emptycard{position:absolute;border:2px dashed #4a4844;background:rgba(20,21,22,.6);display:grid;place-items:center;text-align:center;color:var(--dim2);font-size:13px;padding:10px}
+/* fenêtre modale */
+.veil{position:absolute;inset:0;background:rgba(0,0,0,.62)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro">
+    <h1>Hub du scientifique : maquettes</h1>
+    <p>Écrans du hub entre deux parties, à taille réelle (1280 × 720 logiques, la taille de référence du jeu). Plan, règles et modèle de données : <code>docs/HUB_PLAN.md</code>. Une fois validée, l'intégration suit cette maquette exactement.</p>
+    <p>Style : interface pas cubique mais en harmonie avec le jeu (contour noir, coins nets, ombres pleines, barres en cubes, icônes en pixel art). Palette du décor <code>DECOR_PALETTE</code> ; couleurs de rareté du jeu.</p>
+    <p class="meta">Données d'exemple : profil niveau 7, échantillons des chiens seulement. Noms d'armes fictifs de maquette (les armes réelles du jeu actuel doivent être renommées, GAME_CONCEPT §4.9). Date fictive de la maquette : 18 novembre 2026.</p>
+    <ul class="toc">
+      <li><a href="#s1">1. LABO</a></li><li><a href="#s2">2. ARSENAL</a></li><li><a href="#s3">3. Installer une pièce</a></li>
+      <li><a href="#s4">4. PIÈCES</a></li><li><a href="#s5">5. CONTRATS</a></li><li><a href="#s6">6. Contrat remis</a></li>
+      <li><a href="#s7">7. ÉCHANGES</a></li><li><a href="#s8">8. DÉPART</a></li><li><a href="#s9">9. PARTIE (solo)</a></li>
+      <li><a href="#s10">10. PARTIE (coop, salon)</a></li><li><a href="#s11">11. CONTRACTS (EN, manette)</a></li>
+    </ul>
+  </div>
+
+<!-- =================================================================== -->
+<section class="shot" id="s1">
+  <h2>1. LABO : écran d'accueil du hub</h2>
+  <p class="lede">Premier écran après JOUER et au retour d'une partie. Le scientifique parle, le profil et les contrats actifs sont lisibles d'un coup d'œil.</p>
+  <div class="scroll"><div class="frame" data-tab="0" data-lang="fr" data-badges="3:1">
+    <!-- scientifique -->
+    <div class="pnl" style="left:16px;top:112px;width:420px;height:344px">
+      <div class="ph red">LE SCIENTIFIQUE</div>
+      <div class="pb" style="display:flex;gap:18px;align-items:flex-start">
+        <span class="px" data-art="doc" data-s="9"></span>
+        <div class="speech" style="margin-top:8px;margin-left:6px">Un contrat est prêt, je le <b>sens</b> d'ici. Posez vos échantillons sur la paillasse… doucement.</div>
+      </div>
+      <div style="margin:4px 12px 0;display:flex;flex-direction:column;gap:6px;font-size:14px">
+        <div style="display:flex;align-items:center;gap:8px"><span class="tag ready">PRÊT</span> Dents de lait <span class="dim small" style="margin-left:auto">à remettre</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><span class="tag">1</span> nouvelle proposition <span class="dim small" style="margin-left:auto">depuis la dernière partie</span></div>
+      </div>
+      <div style="position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:8px">
+        <span class="btn pri focus" style="flex:1">VOIR LES CONTRATS</span>
+        <span class="btn" style="flex:1">LANCER UNE PARTIE</span>
+      </div>
+    </div>
+    <!-- dernière partie -->
+    <div class="pnl" style="left:16px;top:472px;width:420px;height:196px">
+      <div class="ph">DERNIÈRE PARTIE <span class="r">BUNKER K7 · SOLO</span></div>
+      <div class="pb" style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:baseline;gap:10px"><span class="ok t" style="font-family:var(--impact);font-size:20px">ÉVACUATION RÉUSSIE</span><span class="dim small">manche 10 · 171 zombies</span></div>
+        <div style="display:flex;gap:16px;font-size:14px">
+          <span><span class="yel t" style="font-family:var(--impact);font-size:18px">+2 312</span> XP</span>
+          <span>2 armes</span><span>1 pièce</span><span>6 échantillons</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;font-size:13px">
+          <span class="tag new">NOUVEAU</span><span class="r2">FRELON</span><span class="dim">niv. 7 · épique</span>
+          <span style="margin-left:auto"><span class="tag new">NOUVEAU</span> <span class="r0">VIEILLE GARDE</span></span>
+        </div>
+        <div style="margin-top:2px"><span class="btn">VOIR L'ARSENAL</span></div>
+      </div>
+    </div>
+    <!-- profil -->
+    <div class="pnl" style="left:452px;top:112px;width:400px;height:188px">
+      <div class="ph">PROFIL</div>
+      <div class="pb">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="lvl" style="width:56px;height:56px;font-size:32px">7</div>
+          <div style="flex:1">
+            <div class="t" style="font-family:var(--impact);font-size:22px">NIVEAU 7</div>
+            <div class="bar" style="margin-top:6px"><i style="width:64%"></i></div>
+            <div class="small dim num" style="margin-top:4px">2 140 / 3 320 XP · encore 1 180 XP pour le niveau 8</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;margin-top:14px;font-size:14px">
+          <div>Meilleur score <span class="yel" style="float:right;font-weight:700">18</span></div>
+          <div>Armes de l'arsenal <span style="float:right;font-weight:700">6</span></div>
+          <div>Pièces en stock <span style="float:right;font-weight:700">5</span></div>
+          <div>Contrats remplis <span style="float:right;font-weight:700">4</span></div>
+        </div>
+      </div>
+    </div>
+    <!-- contrats actifs -->
+    <div class="pnl" style="left:452px;top:316px;width:400px;height:352px">
+      <div class="ph">CONTRATS ACTIFS <span class="r">3 / 3</span></div>
+      <div>
+        <div class="row" style="height:96px;flex-direction:column;align-items:stretch;justify-content:center;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px"><b style="font-family:var(--impact);font-size:17px;font-weight:400">DENTS DE LAIT</b><span class="tag ready" style="margin-left:auto">PRÊT</span></div>
+          <div class="prog"><span class="px" data-art="fang" data-s="2"></span><div class="bar thin" style="--c:var(--ok)"><i style="width:100%;--c:var(--ok)"></i></div><span class="v ok">4 / 4</span></div>
+        </div>
+        <div class="row" style="height:118px;flex-direction:column;align-items:stretch;justify-content:center;gap:5px">
+          <div style="display:flex;align-items:center;gap:8px"><b style="font-family:var(--impact);font-size:17px;font-weight:400">ANALYSE COMPLÈTE</b><span class="dim small" style="margin-left:auto">8 / 9</span></div>
+          <div class="prog"><span class="px" data-art="fang" data-s="2"></span><div class="bar thin"><i style="width:100%;--c:var(--ok)"></i></div><span class="v ok">3 / 3</span></div>
+          <div class="prog"><span class="px" data-art="fur" data-s="2"></span><div class="bar thin"><i style="width:66%"></i></div><span class="v">2 / 3</span></div>
+          <div class="prog"><span class="px" data-art="collar" data-s="2"></span><div class="bar thin"><i style="width:100%;--c:var(--ok)"></i></div><span class="v ok">3 / 3</span></div>
+        </div>
+        <div class="row" style="height:96px;flex-direction:column;align-items:stretch;justify-content:center;gap:6px;border-bottom:none">
+          <div style="display:flex;align-items:center;gap:8px"><b style="font-family:var(--impact);font-size:17px;font-weight:400">URGENCE AU LABO</b><span class="tag date" style="margin-left:auto">ENCORE 12 J</span></div>
+          <div class="prog"><span class="px" data-art="collar" data-s="2"></span><div class="bar thin"><i style="width:62%"></i></div><span class="v">5 / 8</span></div>
+        </div>
+      </div>
+    </div>
+    <!-- réserve -->
+    <div class="pnl" style="left:868px;top:112px;width:396px;height:556px">
+      <div class="ph">RÉSERVE D'ÉCHANTILLONS</div>
+      <div class="grp">MEUTE ERRANTE (CHIENS)</div>
+      <div class="smp"><span class="px" data-art="fang" data-s="4"></span><div><div>Croc</div><div class="src">20 % par chien tué</div></div><span class="q">7</span></div>
+      <div class="smp"><span class="px" data-art="fur" data-s="4"></span><div><div>Touffe de poils</div><div class="src">20 % par chien tué</div></div><span class="q">2</span></div>
+      <div class="smp"><span class="px" data-art="collar" data-s="4"></span><div><div>Collier</div><div class="src">20 % par chien tué</div></div><span class="q">5</span></div>
+      <div class="grp">??? (JAMAIS RENCONTRÉ)</div>
+      <div class="smp" style="color:var(--dim2)"><span class="px" data-art="unk" data-s="4"></span><div><div>???</div><div class="src">Survivez plus longtemps…</div></div><span class="q" style="color:var(--dim2)">–</span></div>
+      <div class="smp" style="color:var(--dim2)"><span class="px" data-art="unk" data-s="4"></span><div><div>???</div><div class="src">Survivez plus longtemps…</div></div><span class="q" style="color:var(--dim2)">–</span></div>
+      <div style="padding:12px;font-size:13px;color:var(--dim)">Les échantillons s'accumulent d'une partie à l'autre. Remettre un contrat ne consomme que la quantité demandée.</div>
+    </div>
+    <div class="prompts">
+      <span class="pr"><span class="key">Entrée</span> Choisir</span>
+      <span class="pr"><span class="key">Q</span><span class="key">E</span> Onglets</span>
+      <span class="pr"><span class="key">Échap</span> Menu du hub</span>
+      <span class="hint">Remettre vos contrats prêts au scientifique.</span>
+    </div>
+    <span class="callout" style="left:200px;top:72px">1</span>
+    <span class="callout" style="left:24px;top:120px">2</span>
+    <span class="callout" style="left:840px;top:120px">3</span>
+    <span class="callout" style="left:822px;top:326px">4</span>
+    <span class="callout" style="left:1236px;top:120px">5</span>
+    <span class="callout" style="left:24px;top:482px">6</span>
+    <span class="callout" style="left:1060px;top:20px">7</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>Onglets</b> à plat (LB / RB, Q / E, Page préc. / suiv., clic). Pastille rouge : nombre de contrats prêts à remettre.</li>
+    <li>Portrait cubique du scientifique (provisoire, nom ❓) et sa réplique du moment, FR / EN (accueil, contrat prêt, contrat expiré…). Focus initial : le bouton le plus utile.</li>
+    <li>Profil : niveau, barre d'XP en cubes, meilleur score de l'arsenal. <b>Pas de puissance</b> au hub (§4.13).</li>
+    <li>Contrats actifs (3 au plus) : progression par échantillon, PRÊT, date de fin des contrats datés.</li>
+    <li>Réserve d'échantillons : quantités, ennemi source ; sortes jamais obtenues en « ??? ».</li>
+    <li>Résumé de la dernière partie et objets NOUVEAU (le rapport détaillé reste l'écran de fin actuel).</li>
+    <li>Barre du haut commune : niveau et XP. Échap / Start : menu du hub (REPRENDRE, OPTIONS, DOSSIER DE COMBAT, ÉCRAN TITRE, QUITTER LE JEU).</li>
+  </ol>
+</section>
+
+<!-- =================================================================== -->
+<section class="shot" id="s2">
+  <h2>2. ARSENAL : liste des armes et fiche d'arme</h2>
+  <p class="lede">Liste groupée par arme puis par version ; fiche détaillée à droite. Ici le joueur retire une pièce : deuxième appui demandé, la pièce sera détruite.</p>
+  <div class="scroll"><div class="frame" data-tab="1" data-lang="fr" data-badges="3:1">
+    <div class="pnl" style="left:16px;top:112px;width:500px;height:556px">
+      <div class="ph">ARMES <span class="r">8 armes · 6 dans l'arsenal</span></div>
+      <div style="padding:8px 10px;border-bottom:2px solid #000;display:flex;gap:10px;align-items:center">
+        <div class="chips"><span class="chip on">TOUTES</span><span class="chip">À FEU</span><span class="chip">CORPS À CORPS</span><span class="chip">UTILISABLES</span></div>
+        <span class="small dim" style="margin-left:auto">Tri : <b class="yel">SCORE</b></span>
+      </div>
+      <div class="grp">ARMES DE BASE</div>
+      <div class="row"><span class="px" data-art="pistol" data-s="2"></span><span>PISTOLET DE DÉPART</span><span class="tag base">BASE</span><span class="sp small dim">niv. 1</span><span class="r0 small" style="width:72px">COMMUNE</span><span class="num" style="width:28px;text-align:right">1</span></div>
+      <div class="row"><span class="px" data-art="bat" data-s="2"></span><span>BATTE DE BASEBALL</span><span class="tag base">BASE</span><span class="sp small dim">niv. 1</span><span class="r0 small" style="width:72px">COMMUNE</span><span class="num" style="width:28px;text-align:right">1</span></div>
+      <div class="grp">ARSENAL</div>
+      <div class="row sel"><span class="px" data-art="smg" data-s="2"></span><span class="r2">FRELON</span><span class="tag new">NOUVEAU</span><span class="sp small dim">niv. 7</span><span class="r2 small" style="width:72px">ÉPIQUE</span><span class="num yel" style="width:28px;text-align:right;font-weight:700">18</span></div>
+      <div class="row" style="padding-left:34px"><span class="dim small">└ version 2</span><span class="r1 small">FRELON</span><span class="sp small dim">niv. 5</span><span class="r1 small" style="width:72px">RARE</span><span class="num" style="width:28px;text-align:right">5</span></div>
+      <div class="row"><span class="px" data-art="rifle" data-s="2"></span><span class="r1">SIROCCO</span><span class="sp small dim">niv. 6</span><span class="r1 small" style="width:72px">RARE</span><span class="num" style="width:28px;text-align:right">10</span></div>
+      <div class="row lock"><span class="px" data-art="revolver" data-s="2" style="opacity:.5"></span><span class="r3" style="opacity:.6">MAMBA</span><span class="tag lockt">NIV. 9 REQUIS</span><span class="sp small">niv. 9</span><span class="small" style="width:72px;color:#8a6a3a">LÉGENDAIRE</span><span class="num" style="width:28px;text-align:right">9</span></div>
+      <div class="row"><span class="px" data-art="shotgun" data-s="2"></span><span class="r0">CARNAGE</span><span class="sp small dim">niv. 3</span><span class="r0 small" style="width:72px">COMMUNE</span><span class="num" style="width:28px;text-align:right">6</span></div>
+      <div class="row"><span class="px" data-art="rifle" data-s="2"></span><span class="r0">VIEILLE GARDE</span><span class="tag new">NOUVEAU</span><span class="sp small dim">niv. 4</span><span class="r0 small" style="width:72px">COMMUNE</span><span class="num" style="width:28px;text-align:right">4</span></div>
+    </div>
+    <!-- fiche -->
+    <div class="pnl" style="left:532px;top:112px;width:732px;height:556px">
+      <div style="display:flex;gap:18px;padding:14px 16px 10px;border-bottom:2px solid #000;background:linear-gradient(90deg,rgba(184,102,255,.14),transparent 60%)">
+        <div style="width:250px;height:92px;display:grid;place-items:center;background:#141516;border:2px solid #000;box-shadow:inset 2px 2px 0 #2a2c2e"><span class="px" data-art="smg" data-s="8"></span></div>
+        <div style="flex:1">
+          <div class="t r2" style="font-family:var(--impact);font-size:30px;letter-spacing:.04em">FRELON</div>
+          <div class="small dim">Pistolet-mitrailleur · version 1 de 2</div>
+          <div style="display:flex;gap:16px;margin-top:8px;align-items:center">
+            <span>Niveau <b style="font-size:18px">7</b></span>
+            <span class="r2" style="font-weight:700">ÉPIQUE</span>
+            <span>3 emplacements</span>
+            <span style="margin-left:auto;text-align:right"><span class="small dim">SCORE</span><br><b class="yel t" style="font-family:var(--impact);font-size:30px;font-weight:400">18</b></span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex">
+        <div style="width:380px;padding:12px 16px;border-right:2px solid #000">
+          <div class="small dim" style="margin-bottom:6px;font-family:var(--impact);letter-spacing:.06em">STATISTIQUES</div>
+          <div class="stat"><span>Dégâts</span><div class="sbar"><i style="width:58%"></i><b style="left:58%;width:9%"></b></div><span class="v">184 <span class="ok small">+24</span></span></div>
+          <div class="stat"><span>Cadence</span><div class="sbar"><i style="width:62%"></i><b style="left:62%;width:6%"></b></div><span class="v">825 /min</span></div>
+          <div class="stat"><span>Rechargement</span><div class="sbar"><i style="width:55%"></i></div><span class="v">2,6 s</span></div>
+          <div class="stat"><span>Recul</span><div class="sbar"><i style="width:40%"></i></div><span class="v">moyen</span></div>
+          <div class="stat"><span>Précision</span><div class="sbar"><i style="width:47%"></i><s style="left:47%;width:3%"></s></div><span class="v">47 <span class="bad small">−3</span></span></div>
+          <div class="stat"><span>Chargeur</span><div class="sbar"><i style="width:40%"></i></div><span class="v">30</span></div>
+          <div class="stat"><span>Réserve</span><div class="sbar"><i style="width:50%"></i></div><span class="v">240</span></div>
+          <div class="small dim" style="margin-top:10px">Prix à la station : <b style="color:var(--paper)">2 090</b> ferraille · 2 manches</div>
+        </div>
+        <div style="flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+          <div class="small dim" style="font-family:var(--impact);letter-spacing:.06em">PIÈCES INSTALLÉES <span style="float:right;font-family:var(--ui)">2 / 3</span></div>
+          <div class="slot"><span class="px" data-art="part" data-s="4"></span><div><div style="font-weight:700">Garniture à crocs <span class="dim small">niv. 6</span></div><div class="mod ok">dégâts +15 %</div></div></div>
+          <div class="slot focus-ring" style="border-color:#000"><span class="px" data-art="part" data-s="4"></span><div><div style="font-weight:700">Ressort <span class="dim small">niv. 5</span></div><div class="mod"><span class="ok">cadence +10 %</span> · <span class="bad">précision −6 %</span></div></div></div>
+          <div class="slot empty">+ EMPLACEMENT LIBRE</div>
+        </div>
+      </div>
+      <div style="position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:10px;align-items:center">
+        <span class="btn">INSTALLER UNE PIÈCE</span>
+        <span class="btn danger focus">CONFIRMER : LA PIÈCE SERA DÉTRUITE</span>
+        <span class="btn" style="margin-left:auto">RECYCLER L'ARME</span>
+      </div>
+    </div>
+    <div class="prompts">
+      <span class="pr"><span class="key">Entrée</span> Confirmer</span>
+      <span class="pr"><span class="key">Échap</span> Annuler</span>
+      <span class="pr"><span class="key">Tab</span> Filtre</span>
+      <span class="pr"><span class="key">R</span> Tri</span>
+      <span class="hint">Une pièce retirée est détruite : elle ne revient pas dans l'onglet PIÈCES.</span>
+    </div>
+    <span class="callout" style="left:24px;top:150px">1</span>
+    <span class="callout" style="left:24px;top:192px">2</span>
+    <span class="callout" style="left:24px;top:310px">3</span>
+    <span class="callout" style="left:24px;top:438px">4</span>
+    <span class="callout" style="left:1236px;top:122px">5</span>
+    <span class="callout" style="left:540px;top:236px">6</span>
+    <span class="callout" style="left:920px;top:236px">7</span>
+    <span class="callout" style="left:544px;top:612px">8</span>
+  </div></div>
+  <ol class="notes">
+    <li>Filtres (Tab / Y) et tri (R / X : score, niveau, rareté, nom).</li>
+    <li>Armes de base en tête, marque BASE : ni recyclables ni modifiables (§4.10).</li>
+    <li>Une ligne par version ; les versions d'une même arme se suivent (« └ version 2 »). Rareté en couleur, score à droite.</li>
+    <li>Arme de niveau trop haut : gardée, grisée, « NIV. 9 REQUIS ».</li>
+    <li>En-tête de la fiche : pixel art de l'arme, niveau, rareté, emplacements, score = niveau + niveaux des pièces.</li>
+    <li>Statistiques effectives (<code>GameWeapon.stats</code>) ; la part des pièces en vert (bonus) ou rouge (malus). Prix et durée à la station.</li>
+    <li>Emplacements (1 à 4 selon la rareté) : pièces installées puis emplacements libres. Choisir un emplacement libre ouvre l'écran 3.</li>
+    <li>Retirer et recycler : deux appuis ; le second bouton dit la conséquence. Recycler ne rapporte rien (§4.11).</li>
+  </ol>
+</section>
+
+<!-- =================================================================== -->
+<section class="shot" id="s3">
+  <h2>3. ARSENAL : installer une pièce</h2>
+  <p class="lede">Fenêtre ouverte depuis un emplacement libre : seules les pièces montables sont choisissables ; les autres disent pourquoi. Aperçu avant / après.</p>
+  <div class="scroll"><div class="frame" data-tab="1" data-lang="fr" data-badges="3:1">
+    <div class="pnl" style="left:16px;top:112px;width:500px;height:556px;opacity:.5"><div class="ph">ARMES</div></div>
+    <div class="pnl" style="left:532px;top:112px;width:732px;height:556px;opacity:.5"><div class="ph">FRELON</div></div>
+    <div class="veil"></div>
+    <div class="pnl" style="left:200px;top:132px;width:880px;height:520px">
+      <div class="ph red">INSTALLER SUR : FRELON (NIV. 7, ÉPIQUE) · EMPLACEMENT 3 <span class="r" style="color:#f0c8c0">5 pièces en stock</span></div>
+      <div style="display:flex;height:486px">
+        <div style="width:520px;border-right:2px solid #000">
+          <div class="row sel"><span class="px" data-art="part" data-s="3"></span><span style="font-weight:700">Bride de collier</span><span class="small dim">niv. 7</span><span class="sp mod ok">chargeur +20 %</span></div>
+          <div class="row"><span class="px" data-art="part" data-s="3"></span><span style="font-weight:700">Mire</span><span class="small dim">niv. 6</span><span class="sp mod"><span class="ok">précision +12 %</span> · <span class="bad">rech. −8 %</span></span></div>
+          <div class="row"><span class="px" data-art="part" data-s="3"></span><span style="font-weight:700">Amortisseur</span><span class="small dim">niv. 4</span><span class="sp mod ok">recul +18 %</span></div>
+          <div class="row"><span class="px" data-art="part" data-s="3"></span><span style="font-weight:700">Guide</span><span class="small dim">niv. 2</span><span class="sp mod ok">rechargement +7 %</span></div>
+          <div class="row lock" style="height:56px;flex-wrap:wrap;align-content:center;row-gap:0"><span class="px" data-art="part" data-s="3" style="opacity:.45"></span><span style="font-weight:700">Renfort</span><span class="small">niv. 9</span><span class="sp mod" style="color:#6d7a62">dégâts +22 %</span><div style="width:100%;padding-left:34px;font-size:12px;color:#b0705f">NIVEAU 9 : AU-DESSUS DE L'ARME (7) ET DU VÔTRE (7)</div></div>
+        </div>
+        <div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+          <div class="small dim" style="font-family:var(--impact);letter-spacing:.06em">APERÇU</div>
+          <div style="display:grid;grid-template-columns:1fr 60px 20px 60px;gap:6px;font-size:14px;align-items:center">
+            <span>Chargeur</span><span class="num" style="text-align:right">30</span><span class="dim">→</span><b class="ok num">36</b>
+            <span>Score</span><span class="num" style="text-align:right">18</span><span class="dim">→</span><b class="yel num">25</b>
+            <span>Prix à la station</span><span class="num" style="text-align:right">2 090</span><span class="dim">→</span><span class="num">2 090</span>
+          </div>
+          <div class="small dim" style="margin-top:6px">Règle : niveau de la pièce ≤ niveau de l'arme et ≤ votre niveau. Une pièce installée peut être retirée plus tard, mais elle sera détruite.</div>
+          <div style="margin-top:auto;display:flex;gap:10px">
+            <span class="btn pri focus" style="flex:1">INSTALLER</span>
+            <span class="btn">ANNULER</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="prompts">
+      <span class="pr"><span class="key">Entrée</span> Installer</span>
+      <span class="pr"><span class="key">Échap</span> Annuler</span>
+      <span class="hint">Les pièces ne comptent pas dans le prix de construction (provisoire).</span>
+    </div>
+    <span class="callout" style="left:208px;top:176px">1</span>
+    <span class="callout" style="left:208px;top:384px">2</span>
+    <span class="callout" style="left:740px;top:176px">3</span>
+  </div></div>
+  <ol class="notes">
+    <li>Pièces montables, triées par niveau décroissant ; la plus haute choisie d'abord.</li>
+    <li>Pièce non montable : grisée, raison écrite (<code>OwnedWeapon.can_mount</code>).</li>
+    <li>Aperçu des statistiques et du score avant / après ; INSTALLER en un appui (rien n'est détruit).</li>
+  </ol>
+</section>
+
+<!-- =================================================================== -->
+<section class="shot" id="s4">
+  <h2>4. PIÈCES : onglet des pièces</h2>
+  <p class="lede">Toutes les pièces non installées, et pour chacune les armes qui peuvent la recevoir.</p>
+  <div class="scroll"><div class="frame" data-tab="2" data-lang="fr" data-badges="3:1">
+    <div class="pnl" style="left:16px;top:112px;width:560px;height:556px">
+      <div class="ph">PIÈCES EN STOCK <span class="r">5 · illimité</span></div>
+      <div style="padding:8px 10px;border-bottom:2px solid #000;display:flex;gap:10px;align-items:center">
+        <div class="chips"><span class="chip on">TOUTES</span><span class="chip">MONTABLES</span></div>
+        <span class="small dim" style="margin-left:auto">Tri : <b class="yel">NIVEAU</b></span>
+      </div>
+      <div class="row"><span class="px" data-art="part" data-s="3"></span><span style="font-weight:700">Renfort</span><span class="tag new">NOUVEAU</span><span class="small dim">niv. 9</span><span class="sp mod ok">dégâts +22 %</span></div>
+      <div class="row"><span class="px" data-art="part" data-s="3"></span><span style="font-weight:700">Bride de collier</span><span class="small dim">niv. 7</span><span class="sp mod ok">chargeur +20 %</span></div>
+      <div class="row"><span class="px" data-art="part" data-s="3"></span><span style="font-weight:700">Mire</span><span class="small dim">niv. 6</span><span class="sp mod"><span class="ok">précision +12 %</span> · <span class="bad">rech. −8 %</span></span></div>
+      <div class="row sel"><span class="px" data-art="part" data-s="3"></span><span style="font-weight:700">Amortisseur</span><span class="small dim">niv. 4</span><span class="sp mod ok">recul +18 %</span></div>
+      <div class="row"><span class="px" data-art="part" data-s="3"></span><span style="font-weight:700">Guide</span><span class="small dim">niv. 2</span><span class="sp mod ok">rechargement +7 %</span></div>
+    </div>
+    <div class="pnl" style="left:592px;top:112px;width:672px;height:556px">
+      <div style="display:flex;gap:16px;padding:14px 16px;border-bottom:2px solid #000;align-items:center">
+        <div style="width:84px;height:84px;display:grid;place-items:center;background:#141516;border:2px solid #000"><span class="px" data-art="part" data-s="8"></span></div>
+        <div>
+          <div class="t" style="font-family:var(--impact);font-size:28px">AMORTISSEUR</div>
+          <div class="small dim">Pièce niveau 4 · se monte sur une arme de niveau 4 ou plus</div>
+          <div class="mod ok" style="font-size:16px;margin-top:4px">recul +18 % (moins de recul)</div>
+        </div>
+      </div>
+      <div class="grp">ARMES COMPATIBLES (EMPLACEMENT LIBRE)</div>
+      <div class="row sel"><span class="px" data-art="smg" data-s="2"></span><span class="r2">FRELON</span><span class="small dim">niv. 7 · 1 libre</span><span class="sp small">Recul : moyen → <b class="ok">faible</b></span></div>
+      <div class="row"><span class="px" data-art="smg" data-s="2"></span><span class="r1">FRELON</span><span class="small dim">version 2 · niv. 5 · 2 libres</span><span class="sp small">moyen → <b class="ok">faible</b></span></div>
+      <div class="row"><span class="px" data-art="rifle" data-s="2"></span><span class="r1">SIROCCO</span><span class="small dim">niv. 6 · 1 libre</span><span class="sp small">fort → <b class="ok">moyen</b></span></div>
+      <div class="row"><span class="px" data-art="revolver" data-s="2"></span><span class="r3">MAMBA</span><span class="small dim">niv. 9 · 4 libres</span><span class="sp small">fort → <b class="ok">moyen</b></span></div>
+      <div class="row"><span class="px" data-art="rifle" data-s="2"></span><span class="r0">VIEILLE GARDE</span><span class="small dim">niv. 4 · 1 libre</span><span class="sp small">fort → <b class="ok">moyen</b></span></div>
+      <div class="grp">NON COMPATIBLES</div>
+      <div class="row lock"><span class="px" data-art="shotgun" data-s="2" style="opacity:.5"></span><span>CARNAGE</span><span class="sp small">aucun emplacement libre</span></div>
+      <div class="row lock"><span class="px" data-art="pistol" data-s="2" style="opacity:.5"></span><span>PISTOLET DE DÉPART</span><span class="sp small">arme de base</span></div>
+      <div style="position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:10px">
+        <span class="btn pri focus">INSTALLER SUR FRELON</span>
+      </div>
+    </div>
+    <div class="prompts">
+      <span class="pr"><span class="key">Entrée</span> Installer</span>
+      <span class="pr"><span class="key">Tab</span> Filtre</span>
+      <span class="pr"><span class="key">R</span> Tri</span>
+      <span class="pr"><span class="key">Échap</span> Retour</span>
+      <span class="hint">Pièces trouvées en partie : 5 % par zombie de vague spéciale.</span>
+    </div>
+    <span class="callout" style="left:24px;top:150px">1</span>
+    <span class="callout" style="left:600px;top:122px">2</span>
+    <span class="callout" style="left:600px;top:250px">3</span>
+    <span class="callout" style="left:600px;top:540px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li>Liste illimitée ; filtre MONTABLES (sur au moins une arme), tri niveau ou modificateur. Nom provisoire d'après le premier modificateur.</li>
+    <li>Fiche de la pièce : niveau, modificateurs en clair.</li>
+    <li>Armes compatibles avec l'effet sur la statistique concernée ; INSTALLER SUR ouvre l'écran 3 avec la pièce choisie.</li>
+    <li>Les armes incompatibles restent visibles avec la raison.</li>
+  </ol>
+</section>
+
+<!-- =================================================================== -->
+<section class="shot" id="s5">
+  <h2>5. CONTRATS : contrats actifs et propositions du scientifique</h2>
+  <p class="lede">En haut les 3 contrats actifs, en bas les 5 propositions en rotation (une case vide se remplit après la prochaine partie). Colonne de droite : la réserve.</p>
+  <div class="scroll"><div class="frame" data-tab="3" data-lang="fr" data-badges="3:1">
+    <div class="t" style="position:absolute;left:18px;top:110px;font-family:var(--impact);font-size:16px;letter-spacing:.08em;color:var(--plaster)">ACTIFS <span class="dim" style="font-family:var(--ui)">3 / 3</span></div>
+    <!-- actif 1 -->
+    <div class="card focus-ring" style="left:16px;top:136px;width:300px;height:300px">
+      <div class="ch"><span class="ttl">DENTS DE LAIT</span><span class="tag ready" style="margin-left:auto">PRÊT</span></div>
+      <div class="cb">
+        <div class="quote">« Il me faut d'autres crocs. L'émail de ces bestioles réagit au virus d'une façon… fascinante. »</div>
+        <div class="prog"><span class="px" data-art="fang" data-s="2"></span><div class="bar thin"><i style="width:100%;--c:var(--ok)"></i></div><span class="v ok">4 / 4</span></div>
+        <div class="small dim">Partagé avec : Analyse complète</div>
+        <div class="reward" style="margin-top:auto"><span class="xp">+1 340 XP</span><span class="px" data-art="part" data-s="2"></span><span>Pièce <b>soignée</b>, niv. 7</span></div>
+      </div>
+      <div class="cf"><span class="btn pri focus" style="flex:1">REMETTRE</span><span class="btn">ABANDONNER</span></div>
+    </div>
+    <!-- actif 2 -->
+    <div class="card" style="left:332px;top:136px;width:300px;height:300px">
+      <div class="ch"><span class="ttl">ANALYSE COMPLÈTE</span><span class="dim small" style="margin-left:auto">8 / 9</span></div>
+      <div class="cb">
+        <div class="quote">« Un peu de tout, s'il vous plaît : crocs, poils, colliers. »</div>
+        <div class="prog"><span class="px" data-art="fang" data-s="2"></span><div class="bar thin"><i style="width:100%;--c:var(--ok)"></i></div><span class="v ok">3 / 3</span></div>
+        <div class="prog"><span class="px" data-art="fur" data-s="2"></span><div class="bar thin"><i style="width:66%"></i></div><span class="v">2 / 3</span></div>
+        <div class="prog"><span class="px" data-art="collar" data-s="2"></span><div class="bar thin"><i style="width:100%;--c:var(--ok)"></i></div><span class="v ok">3 / 3</span></div>
+        <div class="reward" style="margin-top:auto"><span class="xp">+1 400 XP</span><span class="px" data-art="smg" data-s="1"></span><span>Arme <b class="r1">rare</b>, niv. 7</span></div>
+      </div>
+      <div class="cf"><span class="btn off" style="flex:1">IL MANQUE 1 TOUFFE</span><span class="btn">ABANDONNER</span></div>
+    </div>
+    <!-- actif 3 -->
+    <div class="card" style="left:648px;top:136px;width:300px;height:300px">
+      <div class="ch"><span class="ttl">URGENCE AU LABO</span><span class="tag date" style="margin-left:auto">ENCORE 12 J</span></div>
+      <div class="cb">
+        <div class="quote">« Mon réfrigérateur a lâché, j'ai perdu tous mes colliers. Ne riez pas. »</div>
+        <div class="prog"><span class="px" data-art="collar" data-s="2"></span><div class="bar thin"><i style="width:62%"></i></div><span class="v">5 / 8</span></div>
+        <div class="small dim">Se termine le 30 novembre (supprimé ensuite)</div>
+        <div class="reward" style="margin-top:auto"><span class="xp">+3 020 XP</span><span class="px" data-art="part" data-s="2"></span><span>Pièce <b class="yel">d'exception</b>, niv. 7</span></div>
+      </div>
+      <div class="cf"><span class="btn off" style="flex:1">IL MANQUE 3 COLLIERS</span><span class="btn">ABANDONNER</span></div>
+    </div>
+    <!-- propositions -->
+    <div class="t" style="position:absolute;left:18px;top:452px;font-family:var(--impact);font-size:16px;letter-spacing:.08em;color:var(--plaster)">PROPOSITIONS DU SCIENTIFIQUE <span class="dim" style="font-family:var(--ui)">3 / 5 · 3 CONTRATS ACTIFS AU MAXIMUM</span></div>
+    <div class="card" style="left:16px;top:478px;width:180px;height:190px">
+      <div class="ch" style="padding:6px 8px"><span class="ttl" style="font-size:15px">ÉCHANTILLONS DE PELAGE</span></div>
+      <div class="cb" style="gap:5px;padding:6px 8px">
+        <span class="need"><span class="px" data-art="fur" data-s="2"></span><span class="bad">2</span>/6</span>
+        <div class="small"><span class="xp" style="color:#9fd0ff;font-weight:700">+1 850 XP</span><br>Arme <b class="r1">rare</b></div>
+      </div>
+      <div class="cf" style="padding:6px 8px"><span class="btn off" style="flex:1;height:28px;font-size:13px">ACCEPTER</span></div>
+    </div>
+    <div class="card" style="left:206px;top:478px;width:180px;height:190px">
+      <div class="ch" style="padding:6px 8px"><span class="ttl" style="font-size:15px">COLLIERS DE LA MEUTE</span></div>
+      <div class="cb" style="gap:5px;padding:6px 8px">
+        <span class="need"><span class="px" data-art="collar" data-s="2"></span><span class="ok">5</span>/5</span>
+        <div class="small"><span style="color:#9fd0ff;font-weight:700">+1 620 XP</span><br>Pièce <b>soignée</b></div>
+      </div>
+      <div class="cf" style="padding:6px 8px"><span class="btn off" style="flex:1;height:28px;font-size:13px">ACCEPTER</span></div>
+    </div>
+    <div class="card" style="left:396px;top:478px;width:180px;height:190px">
+      <div class="ch" style="padding:6px 8px"><span class="ttl" style="font-size:15px">MÂCHOIRES EN SÉRIE</span></div>
+      <div class="cb" style="gap:5px;padding:6px 8px">
+        <span class="need"><span class="px" data-art="fang" data-s="2"></span><span class="bad">7</span>/10</span>
+        <div class="small"><span style="color:#9fd0ff;font-weight:700">+2 580 XP</span><br>Arme <b class="r2">épique</b></div>
+      </div>
+      <div class="cf" style="padding:6px 8px"><span class="btn off" style="flex:1;height:28px;font-size:13px">ACCEPTER</span></div>
+    </div>
+    <div class="emptycard" style="left:586px;top:478px;width:180px;height:190px">Nouvelle proposition après votre prochaine partie</div>
+    <div class="emptycard" style="left:776px;top:478px;width:172px;height:190px">Nouvelle proposition après votre prochaine partie</div>
+    <!-- réserve -->
+    <div class="pnl" style="left:964px;top:112px;width:300px;height:556px">
+      <div class="ph">RÉSERVE</div>
+      <div class="smp"><span class="px" data-art="fang" data-s="4"></span><div>Croc</div><span class="q">7</span></div>
+      <div class="smp"><span class="px" data-art="fur" data-s="4"></span><div>Touffe de poils</div><span class="q">2</span></div>
+      <div class="smp"><span class="px" data-art="collar" data-s="4"></span><div>Collier</div><span class="q">5</span></div>
+      <div style="padding:12px;font-size:13px;color:var(--dim);display:flex;flex-direction:column;gap:8px">
+        <div>Remettre <b style="color:var(--paper)">Dents de lait</b> consommera 4 crocs : il en restera 3, assez pour <b style="color:var(--paper)">Analyse complète</b>.</div>
+        <div>Un contrat ne se remet qu'au hub. En partie, un message vous prévient quand l'objectif est atteint : évacuez pour garder vos échantillons.</div>
+      </div>
+    </div>
+    <div class="prompts">
+      <span class="pr"><span class="key">Entrée</span> Remettre</span>
+      <span class="pr"><span class="key">Suppr</span> Abandonner</span>
+      <span class="pr"><span class="key">Q</span><span class="key">E</span> Onglets</span>
+      <span class="pr"><span class="key">Échap</span> Menu du hub</span>
+      <span class="hint">Récompense au niveau du joueur au moment de la remise.</span>
+    </div>
+    <span class="callout" style="left:300px;top:112px">1</span>
+    <span class="callout" style="left:24px;top:296px">2</span>
+    <span class="callout" style="left:24px;top:388px">3</span>
+    <span class="callout" style="left:340px;top:404px">4</span>
+    <span class="callout" style="left:932px;top:146px">5</span>
+    <span class="callout" style="left:24px;top:640px">6</span>
+    <span class="callout" style="left:594px;top:486px">7</span>
+    <span class="callout" style="left:972px;top:300px">8</span>
+  </div></div>
+  <ol class="notes">
+    <li>3 contrats actifs au maximum ; focus initial sur le premier contrat PRÊT.</li>
+    <li>Échantillons demandés partagés entre contrats : signalé (remettre l'un peut faire reculer l'autre).</li>
+    <li>Récompense : XP calculée au niveau actuel (XP de base × (1 + 0,02 × (niveau − 1))), arme ou pièce « niv. 7 » = niveau du joueur ; rareté ou qualité.</li>
+    <li>REMETTRE grisé : le bouton dit ce qui manque. ABANDONNER : deux appuis, rien n'est consommé.</li>
+    <li>Contrat daté : date de fin, supprimé après (même actif).</li>
+    <li>Propositions : ACCEPTER grisé tant que 3 contrats sont actifs ; la quantité possédée est en couleur.</li>
+    <li>Case vide : une proposition acceptée laisse sa case vide jusqu'à la prochaine partie (rotation par partie, pas par l'heure).</li>
+    <li>Réserve et rappel des règles de consommation.</li>
+  </ol>
+</section>
+
+<!-- =================================================================== -->
+<section class="shot" id="s6">
+  <h2>6. CONTRATS : contrat remis</h2>
+  <p class="lede">Fenêtre de récompense après REMETTRE : XP, niveau, objet obtenu, échantillons consommés, remerciement du scientifique.</p>
+  <div class="scroll"><div class="frame" data-tab="3" data-lang="fr">
+    <div class="card" style="left:16px;top:136px;width:300px;height:300px;opacity:.4"></div>
+    <div class="card" style="left:332px;top:136px;width:300px;height:300px;opacity:.4"></div>
+    <div class="card" style="left:648px;top:136px;width:300px;height:300px;opacity:.4"></div>
+    <div class="pnl" style="left:964px;top:112px;width:300px;height:556px;opacity:.4"></div>
+    <div class="veil"></div>
+    <div class="pnl" style="left:290px;top:140px;width:700px;height:470px">
+      <div style="padding:14px 18px 8px;text-align:center;border-bottom:2px solid #000;background:linear-gradient(180deg,rgba(224,179,31,.18),transparent)">
+        <div class="small dim" style="letter-spacing:.1em">CONTRAT REMIS</div>
+        <div class="big-title">DENTS DE LAIT</div>
+      </div>
+      <div style="display:flex;gap:18px;padding:16px 18px">
+        <span class="px" data-art="doc" data-s="5"></span>
+        <div class="speech" style="flex:1;align-self:center">Parfait, parfait. J'ai bricolé ceci pendant votre absence.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:0 18px">
+        <div style="background:#17181a;border:2px solid #000;padding:10px 12px">
+          <div class="small dim">XP GAGNÉE</div>
+          <div class="t" style="font-family:var(--impact);font-size:30px;color:#9fd0ff">+1 340</div>
+          <div class="small" style="margin:4px 0 6px">NIVEAU 7 → <b class="yel">NIVEAU 8 ! NIVEAU SUPÉRIEUR</b></div>
+          <div class="bar"><i style="width:4%"></i></div>
+          <div class="small dim num" style="margin-top:4px">160 / 4 222 XP</div>
+        </div>
+        <div style="background:#17181a;border:2px solid #000;padding:10px 12px;display:flex;gap:12px;align-items:center">
+          <span class="px" data-art="part" data-s="6"></span>
+          <div>
+            <div class="small dim">PIÈCE SOIGNÉE · NIVEAU 7</div>
+            <div class="t" style="font-family:var(--impact);font-size:22px">RENFORT</div>
+            <div class="mod"><span class="ok">dégâts +18 %</span> · <span class="ok">cadence +12 %</span></div>
+            <span class="tag new" style="margin-top:4px">NOUVEAU</span>
+          </div>
+        </div>
+      </div>
+      <div style="padding:12px 18px;font-size:14px;display:flex;align-items:center;gap:10px">
+        <span class="dim">Consommé :</span><span class="need"><span class="px" data-art="fang" data-s="2"></span>4</span><span class="dim">· il reste 3 crocs</span>
+      </div>
+      <div style="position:absolute;left:18px;right:18px;bottom:16px;display:flex;gap:10px">
+        <span class="btn pri focus" style="flex:1">VOIR DANS LES PIÈCES</span>
+        <span class="btn" style="flex:1">FERMER</span>
+      </div>
+    </div>
+    <div class="prompts">
+      <span class="pr"><span class="key">Entrée</span> Voir dans les pièces</span>
+      <span class="pr"><span class="key">Échap</span> Fermer</span>
+      <span class="hint">Le profil est enregistré une seule fois, après la remise.</span>
+    </div>
+    <span class="callout" style="left:298px;top:150px">1</span>
+    <span class="callout" style="left:306px;top:380px">2</span>
+    <span class="callout" style="left:650px;top:380px">3</span>
+    <span class="callout" style="left:306px;top:540px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li>Titre du contrat et réplique de remerciement (champ <code>thanks</code>, sinon réplique générique).</li>
+    <li>XP gagnée, passage de niveau annoncé comme à l'écran de fin.</li>
+    <li>Objet créé au niveau du joueur au moment de la remise, rangé avec la pastille NOUVEAU.</li>
+    <li>Seule la quantité demandée est consommée (§4.2).</li>
+  </ol>
+</section>
+
+<!-- =================================================================== -->
+<section class="shot" id="s7">
+  <h2>7. ÉCHANGES : catalogue permanent du scientifique</h2>
+  <p class="lede">Échantillons contre une récompense précise, connue d'avance, quand le joueur le veut. Pas d'XP, illimité.</p>
+  <div class="scroll"><div class="frame" data-tab="4" data-lang="fr" data-badges="3:1">
+    <div class="pnl" style="left:16px;top:112px;width:932px;height:556px">
+      <div class="ph">CATALOGUE D'ÉCHANGES <span class="r">objets au niveau du joueur (7)</span></div>
+      <div style="padding:8px 10px;border-bottom:2px solid #000"><div class="chips"><span class="chip on">TOUS</span><span class="chip">ÉCHANGEABLES MAINTENANT</span></div></div>
+      <div class="row" style="height:72px">
+        <span class="px" data-art="part" data-s="4"></span>
+        <div style="width:250px"><div style="font-weight:700;font-size:16px">Garniture à crocs</div><div class="mod ok">Pièce · dégâts +15 %</div></div>
+        <div style="display:flex;gap:6px"><span class="need"><span class="px" data-art="fang" data-s="2"></span><span class="ok">7</span>/5</span><span class="need"><span class="px" data-art="fur" data-s="2"></span><span class="bad">2</span>/3</span></div>
+        <span class="btn off sp">IL MANQUE 1 TOUFFE</span>
+      </div>
+      <div class="row" style="height:72px">
+        <span class="px" data-art="part" data-s="4"></span>
+        <div style="width:250px"><div style="font-weight:700;font-size:16px">Bourre de poils</div><div class="mod ok">Pièce · recul +20 %</div></div>
+        <div style="display:flex;gap:6px"><span class="need"><span class="px" data-art="fur" data-s="2"></span><span class="bad">2</span>/6</span></div>
+        <span class="btn off sp">IL MANQUE 4 TOUFFES</span>
+      </div>
+      <div class="row sel" style="height:72px">
+        <span class="px" data-art="part" data-s="4"></span>
+        <div style="width:250px"><div style="font-weight:700;font-size:16px">Bride de collier</div><div class="mod ok">Pièce · chargeur +20 %</div></div>
+        <div style="display:flex;gap:6px"><span class="need"><span class="px" data-art="collar" data-s="2"></span><span class="ok">5</span>/4</span><span class="need"><span class="px" data-art="fur" data-s="2"></span><span class="ok">2</span>/2</span></div>
+        <span class="btn danger focus sp">CONFIRMER : 4 COLLIERS + 2 TOUFFES</span>
+      </div>
+      <div class="row" style="height:72px">
+        <span class="px" data-art="part" data-s="4"></span>
+        <div style="width:250px"><div style="font-weight:700;font-size:16px">Crocs affûtés</div><div class="mod ok">Pièce · dégâts +12 %, cadence +10 %</div></div>
+        <div style="display:flex;gap:6px"><span class="need"><span class="px" data-art="fang" data-s="2"></span><span class="bad">7</span>/8</span><span class="need"><span class="px" data-art="collar" data-s="2"></span><span class="ok">5</span>/4</span></div>
+        <span class="btn off sp">IL MANQUE 1 CROC</span>
+      </div>
+      <div class="row lock" style="height:72px">
+        <span class="px" data-art="smg" data-s="2" style="opacity:.5"></span>
+        <div style="width:250px"><div style="font-weight:700;font-size:16px">Arme de la meute</div><div class="small">Arme épique précise : FRELON</div></div>
+        <div style="display:flex;gap:6px;opacity:.6"><span class="need"><span class="px" data-art="fang" data-s="2"></span>7/10</span><span class="need"><span class="px" data-art="fur" data-s="2"></span>2/10</span><span class="need"><span class="px" data-art="collar" data-s="2"></span>5/10</span></div>
+        <span class="tag lockt sp">NIV. 8 REQUIS</span>
+      </div>
+    </div>
+    <div class="pnl" style="left:964px;top:112px;width:300px;height:556px">
+      <div class="ph">RÉSERVE</div>
+      <div class="smp"><span class="px" data-art="fang" data-s="4"></span><div>Croc</div><span class="q">7</span></div>
+      <div class="smp"><span class="px" data-art="fur" data-s="4"></span><div>Touffe de poils</div><span class="q">2</span></div>
+      <div class="smp"><span class="px" data-art="collar" data-s="4"></span><div>Collier</div><span class="q">5</span></div>
+      <div style="padding:12px;font-size:13px;color:var(--dim)">Après cet échange : 1 collier, 0 touffe. <span class="bad">Analyse complète</span> (contrat actif) aura besoin de 3 touffes et 3 colliers.</div>
+    </div>
+    <div class="prompts">
+      <span class="pr"><span class="key">Entrée</span> Confirmer l'échange</span>
+      <span class="pr"><span class="key">Échap</span> Annuler</span>
+      <span class="pr"><span class="key">Tab</span> Filtre</span>
+      <span class="hint">Un échange ne rapporte pas d'XP : il garantit l'objet.</span>
+    </div>
+    <span class="callout" style="left:24px;top:150px">1</span>
+    <span class="callout" style="left:340px;top:200px">2</span>
+    <span class="callout" style="left:900px;top:350px">3</span>
+    <span class="callout" style="left:24px;top:540px">4</span>
+    <span class="callout" style="left:972px;top:300px">5</span>
+  </div></div>
+  <ol class="notes">
+    <li>Filtre ÉCHANGEABLES MAINTENANT.</li>
+    <li>Coût : possédés / demandés, vert si assez, rouge sinon.</li>
+    <li>Deux appuis : le second bouton récapitule ce qui sera consommé.</li>
+    <li>Échange d'un niveau supérieur : visible, grisé, « NIV. 8 REQUIS » (objectif).</li>
+    <li>Conséquence sur les contrats actifs signalée avant de confirmer.</li>
+  </ol>
+</section>
+
+<!-- =================================================================== -->
+<section class="shot" id="s8">
+  <h2>8. DÉPART : armes de départ</h2>
+  <p class="lede">1 à 3 armes de base ; les armes de l'arsenal se construisent pendant la partie, à la station.</p>
+  <div class="scroll"><div class="frame" data-tab="5" data-lang="fr" data-badges="3:1">
+    <div class="pnl" style="left:16px;top:112px;width:620px;height:556px">
+      <div class="ph">ARMES DE DÉPART <span class="r">au moins 1, au plus 3</span></div>
+      <div style="display:flex;gap:12px;padding:16px">
+        <div class="slot" style="flex:1;height:120px;flex-direction:column;justify-content:center"><span class="small dim">1</span><span class="px" data-art="pistol" data-s="4"></span><b>PISTOLET DE DÉPART</b></div>
+        <div class="slot focus-ring" style="flex:1;height:120px;flex-direction:column;justify-content:center"><span class="small dim">2</span><span class="px" data-art="bat" data-s="3"></span><b>BATTE DE BASEBALL</b></div>
+        <div class="slot empty" style="flex:1;height:120px;flex-direction:column">3<br><span style="font-size:13px">VIDE AU DÉPART</span></div>
+      </div>
+      <div class="grp">ARMES DE BASE (NIVEAU 1, COMMUNES, DONNÉES À TOUS)</div>
+      <div class="row"><span class="px" data-art="pistol" data-s="2"></span><span>PISTOLET DE DÉPART</span><span class="small dim">peu efficace, munitions rechargeables à la station</span><span class="tag ready sp">CHOISIE</span></div>
+      <div class="row sel"><span class="px" data-art="bat" data-s="2"></span><span>BATTE DE BASEBALL</span><span class="small dim">corps à corps, consomme de l'énergie</span><span class="tag ready sp">CHOISIE</span></div>
+      <div class="row"><span class="px" data-art="knife" data-s="2"></span><span>COUTEAU</span><span class="small dim">reste l'attaque rapide séparée</span><span class="sp small dim">toujours équipé</span></div>
+      <div style="position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:10px">
+        <span class="btn">RETIRER DE L'EMPLACEMENT 2</span>
+      </div>
+    </div>
+    <div class="pnl" style="left:652px;top:112px;width:612px;height:556px">
+      <div class="ph">CONSTRUCTIBLES À LA STATION <span class="r">contre de la ferraille, en partie</span></div>
+      <div class="row"><span class="px" data-art="smg" data-s="2"></span><span class="r2">FRELON</span><span class="small dim">niv. 7</span><span class="sp num">2 090</span><span class="small dim" style="width:76px">2 manches</span></div>
+      <div class="row"><span class="px" data-art="rifle" data-s="2"></span><span class="r1">SIROCCO</span><span class="small dim">niv. 6</span><span class="sp num">1 310</span><span class="small dim" style="width:76px">1 manche</span></div>
+      <div class="row"><span class="px" data-art="smg" data-s="2"></span><span class="r1">FRELON</span><span class="small dim">v2 · niv. 5</span><span class="sp num">1 200</span><span class="small dim" style="width:76px">1 manche</span></div>
+      <div class="row"><span class="px" data-art="rifle" data-s="2"></span><span class="r0">VIEILLE GARDE</span><span class="small dim">niv. 4</span><span class="sp num">730</span><span class="small dim" style="width:76px">1 manche</span></div>
+      <div class="row"><span class="px" data-art="shotgun" data-s="2"></span><span class="r0">CARNAGE</span><span class="small dim">niv. 3</span><span class="sp num">650</span><span class="small dim" style="width:76px">1 manche</span></div>
+      <div class="row lock"><span class="px" data-art="revolver" data-s="2" style="opacity:.5"></span><span>MAMBA</span><span class="sp tag lockt">NIV. 9 REQUIS</span></div>
+      <div style="padding:12px;font-size:13px;color:var(--dim)">Chaque partie commence à 0 ferraille. Une arme construite reste toujours dans l'arsenal, même si la partie est perdue.</div>
+    </div>
+    <div class="prompts">
+      <span class="pr"><span class="key">Entrée</span> Choisir / retirer</span>
+      <span class="pr"><span class="key">Q</span><span class="key">E</span> Onglets</span>
+      <span class="pr"><span class="key">Échap</span> Menu du hub</span>
+      <span class="hint">Impossible de retirer la dernière arme de départ.</span>
+    </div>
+    <span class="callout" style="left:24px;top:150px">1</span>
+    <span class="callout" style="left:24px;top:300px">2</span>
+    <span class="callout" style="left:660px;top:150px">3</span>
+  </div></div>
+  <ol class="notes">
+    <li>Trois emplacements ; un emplacement non choisi reste vide au départ (§4.10). La dernière arme ne peut pas être retirée (au moins 1).</li>
+    <li>Armes de base disponibles (aujourd'hui pistolet et couteau ; la batte est prévue, GAME_CONCEPT §5).</li>
+    <li>Rappel : armes de l'arsenal utilisables à ce niveau, prix (<code>BuildRules.price</code>) et durée à la station.</li>
+  </ol>
+</section>
+
+<!-- =================================================================== -->
+<section class="shot" id="s9">
+  <h2>9. PARTIE : lancer une partie en solo</h2>
+  <p class="lede">Choix du mode puis de la carte (reprend l'écran de sélection actuel). Rappel des armes de départ et des contrats actifs.</p>
+  <div class="scroll"><div class="frame" data-tab="6" data-lang="fr" data-badges="3:1">
+    <div class="pnl" style="left:16px;top:112px;width:420px;height:556px">
+      <div style="display:flex;gap:0;padding:12px;border-bottom:2px solid #000">
+        <span class="btn pri" style="flex:1">SOLO</span><span class="btn" style="flex:1">COOP</span>
+      </div>
+      <div class="grp">CARTES DU JEU</div>
+      <div class="row sel"><span class="px" data-art="mapico" data-s="2"></span><span style="font-weight:700">BUNKER K7</span><span class="sp small dim">chiens</span></div>
+      <div class="grp">CARTES PERSO</div>
+      <div class="row"><span class="px" data-art="mapico" data-s="2"></span><span>Mon hôpital</span><span class="sp small dim">chiens</span></div>
+      <div class="row"><span class="px" data-art="mapico" data-s="2"></span><span>Arène d'essai</span><span class="sp small dim">sans vague spéciale</span></div>
+    </div>
+    <div class="pnl" style="left:452px;top:112px;width:812px;height:556px">
+      <div style="display:flex;gap:16px;padding:14px">
+        <div style="width:300px;height:220px;background:#0f1011;border:2px solid #000;display:grid;place-items:center"><span class="px" data-art="map" data-s="10"></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+          <div class="big-title">BUNKER K7</div>
+          <div class="small">Vagues spéciales : <b>meute de chiens</b>, toutes les 5 manches</div>
+          <div class="small">Vagues de boss : aucune</div>
+          <div class="small">Porte d'évacuation : oui, accessible dès le départ</div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:4px"><span class="small dim">Échantillons :</span>
+            <span class="need"><span class="px" data-art="fang" data-s="2"></span>croc</span>
+            <span class="need"><span class="px" data-art="fur" data-s="2"></span>touffe</span>
+            <span class="need"><span class="px" data-art="collar" data-s="2"></span>collier</span></div>
+        </div>
+      </div>
+      <div class="grp">VOUS PARTEZ AVEC</div>
+      <div class="row"><span class="px" data-art="pistol" data-s="2"></span><span>Pistolet de départ</span><span class="px" data-art="bat" data-s="2" style="margin-left:14px"></span><span>Batte de baseball</span><span class="sp btn" style="height:28px;font-size:13px">MODIFIER</span></div>
+      <div class="grp">CONTRATS ACTIFS</div>
+      <div class="row"><span>Analyse complète</span><span class="small dim">encore 1 touffe</span><span class="sp small yel">sur cette carte</span></div>
+      <div class="row"><span>Urgence au labo</span><span class="small dim">encore 3 colliers · 12 j</span><span class="sp small yel">sur cette carte</span></div>
+      <div class="row"><span>Dents de lait</span><span class="tag ready">PRÊT</span><span class="sp small dim">à remettre au labo</span></div>
+      <div style="position:absolute;right:14px;bottom:14px"><span class="btn pri big focus">LANCER LA PARTIE</span></div>
+    </div>
+    <div class="prompts">
+      <span class="pr"><span class="key">Entrée</span> Lancer</span>
+      <span class="pr"><span class="key">Q</span><span class="key">E</span> Onglets</span>
+      <span class="pr"><span class="key">Échap</span> Menu du hub</span>
+      <span class="hint">La partie ne se termine jamais d'elle-même : évacuez après une vague spéciale.</span>
+    </div>
+    <span class="callout" style="left:24px;top:120px">1</span>
+    <span class="callout" style="left:24px;top:200px">2</span>
+    <span class="callout" style="left:770px;top:120px">3</span>
+    <span class="callout" style="left:460px;top:380px">4</span>
+    <span class="callout" style="left:1236px;top:600px">5</span>
+  </div></div>
+  <ol class="notes">
+    <li>SOLO / COOP : le mode se choisit ici (le menu titre n'a plus que JOUER).</li>
+    <li>Cartes du jeu puis cartes perso (comme <code>map_screen.gd</code>).</li>
+    <li>Aperçu : vagues spéciales et de boss, porte d'évacuation, échantillons qu'on y trouve.</li>
+    <li>Rappel des armes de départ (MODIFIER ouvre DÉPART) et des contrats actifs, avec « sur cette carte » quand la carte donne les échantillons visés.</li>
+    <li>LANCER : même chemin que l'écran de sélection actuel.</li>
+  </ol>
+</section>
+
+<!-- =================================================================== -->
+<section class="shot" id="s10">
+  <h2>10. PARTIE : coop, salon dans le hub</h2>
+  <p class="lede">Après HÉBERGER ou REJOINDRE, le salon remplace le contenu de l'onglet PARTIE. Le groupe reste connecté pendant que chacun gère son profil dans les autres onglets.</p>
+  <div class="scroll"><div class="frame" data-tab="6" data-lang="fr" data-badges="3:1">
+    <div class="pnl" style="left:16px;top:112px;width:620px;height:556px">
+      <div class="ph">SALON <span class="r">vous êtes l'hôte · 192.168.1.20</span></div>
+      <div class="row" style="height:56px"><span style="width:16px;height:28px;background:#EDEDE6;border:2px solid #000"></span><span style="font-weight:700;font-size:17px">VALENTIN</span><span class="tag">HÔTE</span><span class="sp">NIV. <b>7</b></span><span class="tag ready" style="width:86px;text-align:center">AU SALON</span></div>
+      <div class="row" style="height:56px"><span style="width:16px;height:28px;background:#5C99FF;border:2px solid #000"></span><span style="font-weight:700;font-size:17px">JOJO_42</span><span class="sp">NIV. <b>12</b></span><span class="tag ready" style="width:86px;text-align:center">AU SALON</span></div>
+      <div class="row" style="height:56px"><span style="width:16px;height:28px;background:#FFD640;border:2px solid #000"></span><span style="font-weight:700;font-size:17px">MARIE</span><span class="sp">NIV. <b>3</b></span><span class="tag date" style="width:86px;text-align:center">EN RETOUR…</span></div>
+      <div class="row" style="height:56px;color:var(--dim2)"><span style="width:16px;height:28px;border:2px dashed #4a4844"></span><span>Place libre</span><span class="sp small">de 2 à 4 joueurs</span></div>
+      <div style="padding:14px;font-size:13px;color:var(--dim)">Dernière partie : manche 14, 402 zombies abattus.<br>Chacun garde son profil, ses contrats et son butin : rien n'est partagé.</div>
+      <div style="position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:10px">
+        <span class="btn off" style="flex:1">DÉMARRER · RETOUR AU SALON DE : MARIE</span>
+        <span class="btn">QUITTER LE SALON</span>
+      </div>
+    </div>
+    <div class="pnl" style="left:652px;top:112px;width:612px;height:556px">
+      <div class="ph">CARTE <span class="r">choisie par l'hôte</span></div>
+      <div style="display:flex;gap:14px;padding:14px">
+        <div style="width:220px;height:160px;background:#0f1011;border:2px solid #000;display:grid;place-items:center"><span class="px" data-art="map" data-s="7"></span></div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="t" style="font-family:var(--impact);font-size:24px">BUNKER K7</div>
+          <div class="small">Meute de chiens toutes les 5 manches</div>
+          <div class="small">Plus de chiens à plusieurs ; chacun tire ses propres échantillons</div>
+          <span class="btn focus" style="margin-top:6px;width:max-content">CHANGER DE CARTE</span>
+        </div>
+      </div>
+      <div class="grp">VOUS PARTEZ AVEC</div>
+      <div class="row"><span class="px" data-art="pistol" data-s="2"></span><span>Pistolet de départ</span><span class="px" data-art="bat" data-s="2" style="margin-left:14px"></span><span>Batte de baseball</span><span class="sp btn" style="height:28px;font-size:13px">MODIFIER</span></div>
+      <div class="grp">VOS CONTRATS ACTIFS</div>
+      <div class="row"><span>Analyse complète</span><span class="small dim">encore 1 touffe</span></div>
+      <div class="row"><span>Urgence au labo</span><span class="small dim">encore 3 colliers</span></div>
+    </div>
+    <div class="prompts">
+      <span class="pr"><span class="key">Entrée</span> Choisir</span>
+      <span class="pr"><span class="key">Q</span><span class="key">E</span> Onglets (le salon reste ouvert)</span>
+      <span class="pr"><span class="key">Échap</span> Menu du hub</span>
+      <span class="hint">Un invité voit la carte sans pouvoir la changer.</span>
+    </div>
+    <span class="callout" style="left:24px;top:146px">1</span>
+    <span class="callout" style="left:1100px;top:340px">2</span>
+    <span class="callout" style="left:24px;top:612px">3</span>
+    <span class="callout" style="left:660px;top:146px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li>Joueurs du salon : couleur, nom, niveau, état (AU SALON / EN RETOUR… pendant <code>LobbyReturn</code>).</li>
+    <li>Changer d'onglet ne quitte pas le salon : la pastille de l'onglet PARTIE signale un changement (joueur arrivé, carte changée).</li>
+    <li>DÉMARRER (hôte) grisé tant que le groupe n'est pas revenu, avec la raison actuelle. QUITTER LE SALON : confirmation.</li>
+    <li>Carte choisie par l'hôte ; armes de départ et contrats restent ceux du profil local.</li>
+  </ol>
+</section>
+
+<!-- =================================================================== -->
+<section class="shot" id="s11">
+  <h2>11. CONTRACTS : exemple en anglais, invites de la manette</h2>
+  <p class="lede">Même écran que le 5, langue anglaise et manette utilisée en dernier : les invites passent aux boutons (Xbox ici, PlayStation selon la manette branchée).</p>
+  <div class="scroll"><div class="frame" data-tab="3" data-lang="en" data-badges="3:1">
+    <div class="t" style="position:absolute;left:18px;top:110px;font-family:var(--impact);font-size:16px;letter-spacing:.08em;color:var(--plaster)">ACTIVE <span class="dim" style="font-family:var(--ui)">3 / 3</span></div>
+    <div class="card focus-ring" style="left:16px;top:136px;width:300px;height:300px">
+      <div class="ch"><span class="ttl">MILK TEETH</span><span class="tag ready" style="margin-left:auto">READY</span></div>
+      <div class="cb">
+        <div class="quote">"I need more fangs. The enamel on those beasts reacts to the virus in a… fascinating way."</div>
+        <div class="prog"><span class="px" data-art="fang" data-s="2"></span><div class="bar thin"><i style="width:100%;--c:var(--ok)"></i></div><span class="v ok">4 / 4</span></div>
+        <div class="small dim">Shared with: Full Analysis</div>
+        <div class="reward" style="margin-top:auto"><span class="xp">+1,340 XP</span><span class="px" data-art="part" data-s="2"></span><span><b>Fine</b> part, lvl 7</span></div>
+      </div>
+      <div class="cf"><span class="btn pri focus" style="flex:1">HAND IN</span><span class="btn">ABANDON</span></div>
+    </div>
+    <div class="card" style="left:332px;top:136px;width:300px;height:300px">
+      <div class="ch"><span class="ttl">FULL ANALYSIS</span><span class="dim small" style="margin-left:auto">8 / 9</span></div>
+      <div class="cb">
+        <div class="quote">"A bit of everything, please: fangs, fur, collars."</div>
+        <div class="prog"><span class="px" data-art="fang" data-s="2"></span><div class="bar thin"><i style="width:100%;--c:var(--ok)"></i></div><span class="v ok">3 / 3</span></div>
+        <div class="prog"><span class="px" data-art="fur" data-s="2"></span><div class="bar thin"><i style="width:66%"></i></div><span class="v">2 / 3</span></div>
+        <div class="prog"><span class="px" data-art="collar" data-s="2"></span><div class="bar thin"><i style="width:100%;--c:var(--ok)"></i></div><span class="v ok">3 / 3</span></div>
+        <div class="reward" style="margin-top:auto"><span class="xp">+1,400 XP</span><span class="px" data-art="smg" data-s="1"></span><span><b class="r1">Rare</b> weapon, lvl 7</span></div>
+      </div>
+      <div class="cf"><span class="btn off" style="flex:1">1 TUFT OF FUR MISSING</span><span class="btn">ABANDON</span></div>
+    </div>
+    <div class="card" style="left:648px;top:136px;width:300px;height:300px">
+      <div class="ch"><span class="ttl">LAB EMERGENCY</span><span class="tag date" style="margin-left:auto">12 DAYS LEFT</span></div>
+      <div class="cb">
+        <div class="quote">"My fridge died and I lost all my collars. Don't laugh."</div>
+        <div class="prog"><span class="px" data-art="collar" data-s="2"></span><div class="bar thin"><i style="width:62%"></i></div><span class="v">5 / 8</span></div>
+        <div class="small dim">Ends on November 30 (removed afterwards)</div>
+        <div class="reward" style="margin-top:auto"><span class="xp">+3,020 XP</span><span class="px" data-art="part" data-s="2"></span><span><b class="yel">Superior</b> part, lvl 7</span></div>
+      </div>
+      <div class="cf"><span class="btn off" style="flex:1">3 COLLARS MISSING</span><span class="btn">ABANDON</span></div>
+    </div>
+    <div class="t" style="position:absolute;left:18px;top:452px;font-family:var(--impact);font-size:16px;letter-spacing:.08em;color:var(--plaster)">THE SCIENTIST'S OFFERS <span class="dim" style="font-family:var(--ui)">3 / 5 · 3 ACTIVE CONTRACTS MAXIMUM</span></div>
+    <div class="card" style="left:16px;top:478px;width:180px;height:190px">
+      <div class="ch" style="padding:6px 8px"><span class="ttl" style="font-size:15px">COAT SAMPLES</span></div>
+      <div class="cb" style="gap:5px;padding:6px 8px"><span class="need"><span class="px" data-art="fur" data-s="2"></span><span class="bad">2</span>/6</span><div class="small"><span style="color:#9fd0ff;font-weight:700">+1,850 XP</span><br><b class="r1">Rare</b> weapon</div></div>
+      <div class="cf" style="padding:6px 8px"><span class="btn off" style="flex:1;height:28px;font-size:13px">ACCEPT</span></div>
+    </div>
+    <div class="card" style="left:206px;top:478px;width:180px;height:190px">
+      <div class="ch" style="padding:6px 8px"><span class="ttl" style="font-size:15px">PACK COLLARS</span></div>
+      <div class="cb" style="gap:5px;padding:6px 8px"><span class="need"><span class="px" data-art="collar" data-s="2"></span><span class="ok">5</span>/5</span><div class="small"><span style="color:#9fd0ff;font-weight:700">+1,620 XP</span><br><b>Fine</b> part</div></div>
+      <div class="cf" style="padding:6px 8px"><span class="btn off" style="flex:1;height:28px;font-size:13px">ACCEPT</span></div>
+    </div>
+    <div class="card" style="left:396px;top:478px;width:180px;height:190px">
+      <div class="ch" style="padding:6px 8px"><span class="ttl" style="font-size:15px">JAW SERIES</span></div>
+      <div class="cb" style="gap:5px;padding:6px 8px"><span class="need"><span class="px" data-art="fang" data-s="2"></span><span class="bad">7</span>/10</span><div class="small"><span style="color:#9fd0ff;font-weight:700">+2,580 XP</span><br><b class="r2">Epic</b> weapon</div></div>
+      <div class="cf" style="padding:6px 8px"><span class="btn off" style="flex:1;height:28px;font-size:13px">ACCEPT</span></div>
+    </div>
+    <div class="emptycard" style="left:586px;top:478px;width:180px;height:190px">New offer after your next match</div>
+    <div class="emptycard" style="left:776px;top:478px;width:172px;height:190px">New offer after your next match</div>
+    <div class="pnl" style="left:964px;top:112px;width:300px;height:556px">
+      <div class="ph">SAMPLES</div>
+      <div class="smp"><span class="px" data-art="fang" data-s="4"></span><div>Fang</div><span class="q">7</span></div>
+      <div class="smp"><span class="px" data-art="fur" data-s="4"></span><div>Tuft of fur</div><span class="q">2</span></div>
+      <div class="smp"><span class="px" data-art="collar" data-s="4"></span><div>Collar</div><span class="q">5</span></div>
+      <div style="padding:12px;font-size:13px;color:var(--dim);display:flex;flex-direction:column;gap:8px">
+        <div>Handing in <b style="color:var(--paper)">Milk Teeth</b> will use 4 fangs: 3 will be left, enough for <b style="color:var(--paper)">Full Analysis</b>.</div>
+        <div>Contracts are only handed in at the hub. In a match, a message tells you when the goal is met: extract to keep your samples.</div>
+      </div>
+    </div>
+    <div class="prompts">
+      <span class="pr"><span class="pad a">A</span> Hand in</span>
+      <span class="pr"><span class="pad x">X</span> Abandon</span>
+      <span class="pr"><span class="pad sh">LB</span><span class="pad sh">RB</span> Tabs</span>
+      <span class="pr"><span class="pad sh">START</span> Hub menu</span>
+      <span class="hint">Rewards match your level when you hand in.</span>
+    </div>
+    <span class="callout" style="left:24px;top:690px">1</span>
+    <span class="callout" style="left:1100px;top:20px">2</span>
+  </div></div>
+  <ol class="notes">
+    <li>Invites recalculées au changement de périphérique (<code>Settings.input_device_changed</code>, noms <code>PadNames</code>).</li>
+    <li>Tous les textes viennent de <code>Lang.t</code> ou des champs <code>{fr, en}</code> des fichiers de données ; nombres au format de la langue (« 1,340 » / « 1 340 »).</li>
+  </ol>
+</section>
+
+</div>
+
+<script>
+/* Pixel art : un caractère = un pixel (un cube). '.' = vide. */
+const PAL = {
+  k:'#000000', w:'#E8E6DC', W:'#BDB9AC', s:'#C99B78', S:'#A87A5A', g:'#C9C9C2', G:'#7C7B76', b:'#8FB8C8',
+  r:'#B81A1A', y:'#E0B31F', m:'#3D4042', M:'#8C9196', n:'#5C6064', d:'#54381F', o:'#855C38', O:'#A8784A',
+  c:'#734024', C:'#8F5530', l:'#A88038', f:'#8A7A62', F:'#5E5240', t:'#EDE6CF', T:'#BFB49A', e:'#457366',
+  E:'#8FAD9E', p:'#DBD6C2', x:'#2A2C2E', h:'#E0503A', u:'#365E94', z:'#66786B'
+};
+const ART = {
+  doc:[
+    "....gggggggg....",
+    "..gggggggggggg..",
+    ".ggggGGggGGgggg.",
+    ".ggsssssssssssg.",
+    ".gsssssssssssssg",
+    "..skkkkssskkkks.",
+    "..skbbkSSkbbks..",
+    "..skkkksskkkks..",
+    "..sssssSSsssss..",
+    "..sssktttttkss..",
+    "...sssskkksss...",
+    "....ssssssss....",
+    "..wwwwSssSwwww..",
+    ".wwwwwwrrwwwwww.",
+    "wwwwwwwrrwwwwwww",
+    "wwwWwwwrrwwwlwww"],
+  fang:[
+    "...tt...",
+    "...ttt..",
+    "...tTt..",
+    "..ttTt..",
+    "..tTT...",
+    ".ttT....",
+    ".tT.....",
+    ".T......"],
+  fur:[
+    "..f..f..",
+    ".ff.ff.f",
+    ".fFffFf.",
+    "fFffFfF.",
+    ".fFfFff.",
+    "..fFFf..",
+    "...ff...",
+    "........"],
+  collar:[
+    "..cccc..",
+    ".cC..Cc.",
+    "cC....Cc",
+    "c......c",
+    ".c....c.",
+    "..cllc..",
+    "...ll...",
+    "...yy..."],
+  unk:[
+    "..GGGG..",
+    ".GG..GG.",
+    ".....GG.",
+    "....GG..",
+    "...GG...",
+    "...GG...",
+    "........",
+    "...GG..."],
+  part:[
+    "...MM...",
+    ".M.MM.M.",
+    "..MMMM..",
+    "MMMnnMMM",
+    "MMMnnMMM",
+    "..MMMM..",
+    ".M.MM.M.",
+    "...MM..."],
+  pistol:[
+    ".mmmmmmmmmmmmmm.",
+    ".mMMMMMMMMMMMMm.",
+    ".mmmmmmmmmmmmmm.",
+    ".dddd.km........",
+    ".dddd.kk........",
+    ".dddd...........",
+    ".dddd..........."],
+  revolver:[
+    "....mmmmmmmmmmmmmm",
+    ".mmmmMMMMMMMMMMMMm",
+    ".mmMMmmmmmmmmmmmm.",
+    ".oooo.kmm.........",
+    ".oooo.kk..........",
+    ".oooo.............",
+    ".oooo............."],
+  smg:[
+    "......mmmmmmmmmmmm......",
+    "mmmmmmMMMMMMMMMMMMmmmmmm",
+    "mmm...mmmmmmmmmmmm......",
+    "mmm...mm.mmm..mm........",
+    "......mm.mmm............",
+    ".........mmm............",
+    ".........mmm............"],
+  rifle:[
+    "...........mmmm.............",
+    "oooo.mmmmmmmmmmmmmmmmmmmmmmm",
+    "oooommMMMMMMMMMMMMMMMMMmmmmm",
+    "oooommmmmmmmmmmmmmmmmm......",
+    "ooo....mm..mmm..............",
+    ".......mm..mmm..............",
+    "...........mm..............."],
+  shotgun:[
+    "oooo..mmmmmmmmmmmmmmmmmmmm",
+    "oooOmmmMMMMMMMMMMMMMMMMMMm",
+    "oooommmmmmmmmmmmmmmmmmmmm.",
+    "ooo....mm..oooooooo.......",
+    ".......mm................."],
+  bat:[
+    "..............oooooooooo",
+    "kkkkooooooooooOOOOOOOOOo",
+    "kkkkoooooooooooooooooooo",
+    "..............oooooooooo"],
+  knife:[
+    ".........MMMM.",
+    "ddddddkMMMMMMM",
+    "ddddddkMMMMMM.",
+    ".............."],
+  mapico:[
+    "zzzzzzzz",
+    "zppzppMz",
+    "zppzppMz",
+    "zzMzzMzz",
+    "zppMppez",
+    "zppzppez",
+    "zzzzzzzz"],
+  map:[
+    "mmmmmmmmmmmmmmmmmmmmmmmm",
+    "mppppppmEEEEEEEEmppppppm",
+    "mppppppmEEEEEEEEmppppppm",
+    "mpppppp.EEEEEEEE.ppppppm",
+    "mppppppmEEEyEEEEmppppppm",
+    "mmmm.mmmmmmm.mmmmmmm.mmm",
+    "mzzzzzzzzzm.....mpppppPm",
+    "mzzzzzzzzzm.....mpppppPm",
+    "mzzzzzzzzz......mppppprm",
+    "mzzzzzzzzzm.....mpppppPm",
+    "mmmmmmmmmmmmmmmmmmmmmmmm"]
+};
+PAL.P = '#B9B4A2';
+function svgFor(name, s){
+  const rows = ART[name]; if(!rows) return '';
+  const w = Math.max(...rows.map(r=>r.length)), h = rows.length;
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${w*s}" height="${h*s}" viewBox="0 0 ${w} ${h}">`;
+  rows.forEach((r,y)=>{ [...r].forEach((ch,x)=>{ if(ch!=='.' && PAL[ch]) out += `<rect x="${x}" y="${y}" width="1" height="1" fill="${PAL[ch]}"/>`; }); });
+  return out + '</svg>';
+}
+/* ?frame=N (1 à 11) : un seul écran, sans marge (captures PNG). */
+const only = +new URLSearchParams(location.search).get('frame');
+if(only){
+  document.querySelectorAll('section.shot').forEach((s,i)=>{ if(i+1!==only) s.remove(); });
+  document.querySelector('.intro').remove();
+  document.body.style.background = '#000';
+  const w = document.querySelector('.wrap'); w.style.padding = '0'; w.style.margin = '0';
+  document.querySelectorAll('section.shot > :not(.scroll), .callout').forEach(e=>e.remove());
+  const sh = document.querySelector('section.shot'); if(sh) sh.style.margin = '0';
+  const sc = document.querySelector('.scroll'); if(sc) sc.style.border = 'none';
+}
+document.querySelectorAll('.px').forEach(el=>{ el.innerHTML = svgFor(el.dataset.art, +(el.dataset.s||2)); });
+
+/* Cadre commun : barre du haut et onglets. */
+const TABS = {
+  fr:["LABO","ARSENAL","PIÈCES","CONTRATS","ÉCHANGES","DÉPART","PARTIE"],
+  en:["LAB","ARSENAL","PARTS","CONTRACTS","EXCHANGES","LOADOUT","PLAY"]
+};
+document.querySelectorAll('.frame').forEach(f=>{
+  const lang = f.dataset.lang || 'fr', on = +f.dataset.tab;
+  const badges = {}; (f.dataset.badges||'').split(',').filter(Boolean).forEach(b=>{ const [i,n]=b.split(':'); badges[+i]=n; });
+  const fr = lang === 'fr';
+  const top = document.createElement('div'); top.className = 'top';
+  top.innerHTML = `<div class="lvl">7</div>
+    <div class="who"><div class="name t">VALENTIN<small>${fr?'NIVEAU 7':'LEVEL 7'}</small></div>
+      <div class="xpbar"><div class="bar" style="width:240px"><i style="width:64%"></i></div>${fr?'2 140 / 3 320 XP':'2,140 / 3,320 XP'}</div></div>
+    <div class="brand">${fr?'LABORATOIRE':'LABORATORY'}</div>
+    <div class="right">${lang==='en'
+      ? '<span class="pad sh">START</span> Menu'
+      : '<span class="key">Échap</span> Menu'}</div>`;
+  const tabs = document.createElement('div'); tabs.className = 'tabs';
+  const l = lang==='en' ? '<span class="pad sh">LB</span>' : '<span class="key">Q</span>';
+  const r = lang==='en' ? '<span class="pad sh">RB</span>' : '<span class="key">E</span>';
+  tabs.innerHTML = `<span class="navk l">${l}</span>` + TABS[lang].map((t,i)=>
+    `<span class="tab${i===on?' on':''}">${t}${badges[i]?`<span class="badge">${badges[i]}</span>`:''}</span>`).join('') + `<span class="navk r">${r}</span>`;
+  f.prepend(tabs); f.prepend(top);
+});
+</script>
+</body>
+</html>

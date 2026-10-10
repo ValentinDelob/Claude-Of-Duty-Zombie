@@ -58,7 +58,7 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
 | Vague spéciale vaincue | **60** × bonus de manche (manche 5 : 96, 10 : 141) | chaque joueur non mort |
 | Vague de boss vaincue | **240** × bonus de manche | chaque joueur non mort |
 | Évacuation réussie | **+25 %** de l'XP de la partie du joueur | chaque joueur (l'équipe part ensemble) |
-| Contrat rempli (§4.2, à venir) | à définir avec les contrats, ajoutée au hub | le joueur |
+| Contrat rempli (§4.2, à venir) | XP de base du contrat × (1 + 0,02 × (niveau − 1)), ajoutée au hub à la remise (proposition provisoire, `docs/HUB_PLAN.md` §5 et §7) | le joueur |
 
 Une défaite garde toute l'XP déjà gagnée, sans le bonus d'évacuation ; la
 manche en cours à la mort de l'équipe n'est pas comptée (elle n'est pas

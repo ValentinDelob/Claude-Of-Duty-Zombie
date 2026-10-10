@@ -227,6 +227,9 @@ avec une garde : `Player`, `Fx`, `VoxSystem`, `DogLightning`
 
 ## Menus, options et touches
 
+- **Hub à venir** : écran à onglets entre deux parties qui remplacera SOLO,
+  MULTIJOUEUR et le salon séparé (JOUER → hub ; salon dans l'onglet PARTIE) :
+  plan **docs/HUB_PLAN.md**, maquettes `docs/hub_mockup/`.
 - **Hôtes d'écrans** : `MenuHost` (`scripts/ui/menu_host.gd`) est l'interface
   que voient les écrans `MenuScreen` (`show_screen`, `go_back`, `set_hint`,
   `current`). Deux hôtes : `MainMenu` (menu principal, fond 3D, transitions) et
@@ -1314,6 +1317,13 @@ Deux familles de formes, jamais mêlées (`tests/test_zombie_hitbox.gd`) :
 Données permanentes du joueur (GAME_CONCEPT §4.2, §4.7, §4.9 à §4.12, §4.15),
 sans interface pour l'instant (hub, station de construction et butin viendront
 s'y brancher). Purement local : chaque joueur a son profil.
+
+**Hub, contrats et catalogue d'échanges** (conçus, pas encore codés) :
+**docs/HUB_PLAN.md** (écrans, navigation, modèle de données, rotation des
+contrats, sauvegarde dans le profil en version 2, lots d'implémentation),
+maquettes `docs/hub_mockup/index.html`, données d'exemple
+`assets/data/hub/contracts.json` et `exchanges.json` (pas encore lues par le
+jeu ; chargement prévu par `HubData`, lot A).
 
 - `PlayerProfile` : XP totale (le niveau en découle : `100 × niveau^1,8` par
   niveau, maximum 50, l'XP continue au-delà), arsenal illimité
