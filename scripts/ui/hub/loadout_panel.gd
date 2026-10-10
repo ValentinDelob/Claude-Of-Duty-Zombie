@@ -86,7 +86,7 @@ func _fill() -> void:
 			nl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			s.box.add_child(nl)
 			s.hint = _last_hint() if sel.size() <= BaseWeapons.MIN_START \
-					else Lang.t("Entrée : retirer cette arme du départ.", "Enter: remove this weapon from the loadout.")
+					else Lang.t("Retirer cette arme du départ.", "Remove this weapon from the loadout.")
 		else:
 			s.empty = true
 			var n := HubStyle.label(str(i + 1), 15, HubStyle.DIM, "impact", false, 0.06)
@@ -95,7 +95,7 @@ func _fill() -> void:
 			var e := HubStyle.label(Lang.t("VIDE AU DÉPART", "EMPTY AT START"), 13, HubStyle.DIM, "impact", false, 0.06)
 			e.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			s.box.add_child(e)
-			s.hint = Lang.t("Entrée : choisir une arme de base pour cet emplacement.", "Enter: pick a base weapon for this slot.")
+			s.hint = Lang.t("Choisir une arme de base pour cet emplacement.", "Pick a base weapon for this slot.")
 		s.chosen.connect(_on_chosen.bind("slot:%d" % i, s))
 		s.activated.connect(_slot_pressed.bind(i))
 		sl.add_child(s)
@@ -117,9 +117,9 @@ func _fill() -> void:
 		row.box.add_child(d)
 		if id in sel:
 			row.box.add_child(HubTag.make(Lang.t("CHOISIE", "PICKED"), HubTag.READY))
-		row.hint = (_last_hint() if sel.size() <= BaseWeapons.MIN_START else Lang.t("Entrée : retirer du départ.", "Enter: remove from the loadout.")) \
+		row.hint = (_last_hint() if sel.size() <= BaseWeapons.MIN_START else Lang.t("Retirer du départ.", "Remove from the loadout.")) \
 				if id in sel else (Lang.t("Les trois emplacements sont pris : retirez d'abord une arme.", "All three slots are taken: remove a weapon first.")
-				if sel.size() >= BaseWeapons.MAX_START else Lang.t("Entrée : ajouter au départ.", "Enter: add to the loadout."))
+				if sel.size() >= BaseWeapons.MAX_START else Lang.t("Ajouter au départ.", "Add to the loadout."))
 		row.chosen.connect(_on_chosen.bind("base:" + id, row))
 		row.activated.connect(toggle.bind(id))
 		v.add_child(row)
@@ -252,6 +252,17 @@ func _slot_pressed(i: int) -> void:
 
 func _on_chosen(key: String, c: Control) -> void:
 	current = key
+	# Ligne de l'arme de base correspondante gardée en surbrillance (maquette :
+	# emplacement 2 choisi, ligne BATTE sélectionnée).
+	var sel := profile().starting_weapons
+	var id := ""
+	if key.begins_with("slot:"):
+		var i := key.substr(5).to_int()
+		id = sel[i] if i < sel.size() else ""
+	else:
+		id = key.substr(5)
+	for r in base_rows:
+		(r as HubPickRow).sticky = (r as HubPickRow).key == id
 	_update_action()
 	hub.set_hint(String(c.get("hint")))
 

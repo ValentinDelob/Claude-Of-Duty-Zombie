@@ -125,7 +125,7 @@ func _add_row(p: WeaponPart, i: int) -> void:
 		b.add_child(HubTag.make(Lang.t("NOUVEAU", "NEW"), HubTag.NEW))
 	b.add_child(HubStyle.label(HubGear.level_text(p.level), 13, HubStyle.DIM))
 	b.add_child(HubBox.spring(false))
-	b.add_child(HubWeaponSheet.mods_row(p.mods, 13, p.mods.size() > 1))
+	b.add_child(HubWeaponSheet.mods_row(HubGear.ordered_mods(p), 13, p.mods.size() > 1))
 	row.chosen.connect(func():
 		_choose(row, false)
 		hub.set_hint(row.hint))
@@ -202,8 +202,9 @@ func _show_part(p: WeaponPart) -> void:
 	col.add_child(HubStyle.label(Lang.t("Pièce niveau %d · se monte sur une arme de niveau %d ou plus",
 			"Level %d part · fits a weapon of level %d or more") % [p.level, p.level], 13, HubStyle.DIM))
 	col.add_child(HubBox.gap(0, 4))
-	for k in p.mods:
-		var val := float(p.mods[k])
+	var om := HubGear.ordered_mods(p)
+	for k in om:
+		var val := float(om[k])
 		col.add_child(HubStyle.label(HubGear.mod_long(String(k), val), 16, HubStyle.OK if val >= 0.0 else HubStyle.BAD, "semi"))
 	v.add_child(head)
 	# Armes compatibles, puis les autres avec la raison.
@@ -274,7 +275,7 @@ func _weapon_row(v: VBoxContainer, p: WeaponPart, w: OwnedWeapon, i: int) -> voi
 		var t := ("%s : " % l.label if i == 0 else "") if not Lang.is_en() else ("%s: " % l.label if i == 0 else "")
 		b.add_child(HubStyle.label("%s%s → " % [t, l.before], 13, HubStyle.PAPER))
 		b.add_child(HubStyle.label(String(l.after), 13, HubStyle.OK if l.good else HubStyle.BAD, "bold"))
-	row.hint = Lang.t("Entrée : installer sur cette arme (onglet ARSENAL).", "Enter: install on this weapon (ARSENAL tab).")
+	row.hint = Lang.t("Installer sur cette arme (onglet ARSENAL).", "Install on this weapon (ARSENAL tab).")
 	row.chosen.connect(func():
 		_choose_weapon(w.uid)
 		hub.set_hint(row.hint))

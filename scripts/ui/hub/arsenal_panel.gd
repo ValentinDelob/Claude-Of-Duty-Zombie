@@ -144,10 +144,7 @@ func _add_row(w: OwnedWeapon, version_row: bool) -> void:
 		if locked:
 			ic.dim = 0.5
 		b.add_child(ic)
-		var nl := HubStyle.label(HubGear.weapon_name(w.weapon_id), 15, Color(rc, 0.6) if locked else (HubStyle.PAPER if is_base else rc))
-		nl.clip_text = true
-		nl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		b.add_child(nl)
+		b.add_child(HubStyle.label(HubGear.weapon_name(w.weapon_id), 15, Color(rc, 0.6) if locked else (HubStyle.PAPER if is_base else rc)))
 	if is_base:
 		b.add_child(HubTag.make("BASE", HubTag.BASE))
 	if not is_base and (pr.is_new_weapon(w.uid) or _seen_now.has(w.uid)):
@@ -158,7 +155,6 @@ func _add_row(w: OwnedWeapon, version_row: bool) -> void:
 	b.add_child(HubStyle.label(HubGear.level_text(w.level), 13, LOCK_TEXT if locked else HubStyle.DIM))
 	var rl := HubStyle.label(GameWeapon.rarity_name(w.rarity), 13, LOCK_RARITY if locked else rc)
 	rl.custom_minimum_size.x = HubStyle.px(72)
-	rl.clip_text = true
 	b.add_child(rl)
 	var sc := HubStyle.label(str(w.score()), 15, LOCK_TEXT if locked else HubStyle.PAPER)
 	sc.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -182,7 +178,7 @@ func _row_hint(w: OwnedWeapon, locked: bool) -> String:
 				"Level %d required to equip or build it: kept for later.") % w.level
 	if w.uid.begins_with(BaseWeapons.UID_PREFIX):
 		return Lang.t("Arme de base : donnée à tous, ni modifiable ni recyclable.", "Base weapon: given to everyone, can't be modified or recycled.")
-	return Lang.t("Entrée : aller à la fiche (pièces, recyclage).", "Enter: go to the sheet (parts, recycling).")
+	return Lang.t("Ouvrir la fiche : pièces, recyclage.", "Open the sheet: parts, recycling.")
 
 
 func _row_of(uid: String) -> HubPickRow:

@@ -272,6 +272,12 @@ func test_mount_refused_then_accepted() -> void:
 	await wait_frames(1)
 	var pk := ars.picker
 	assert_true(pk != null and pk.is_inside_tree(), "fenêtre des pièces ouverte")
+	await wait_frames(2)
+	var rect := pk.panel.get_global_rect()
+	assert_near(rect.position.x - hub.global_position.x, 200.0, 1.0, "fenêtre à sa place (maquette : 200, 132)")
+	assert_near(rect.position.y - hub.global_position.y, 132.0, 1.0)
+	assert_near(rect.size.x, 880.0, 1.0, "880 × 520")
+	assert_near(rect.size.y, 520.0, 1.0)
 	assert_eq(hub.prompts.describe()[0], "Entrée Installer")
 	assert_eq(pk.parts.size(), 5)
 	assert_eq(pk.parts[0].level, 7, "montables d'abord, plus haut niveau choisi")

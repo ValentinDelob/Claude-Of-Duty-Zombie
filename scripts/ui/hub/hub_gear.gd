@@ -193,11 +193,41 @@ static func version_of(pr: PlayerProfile, w: OwnedWeapon) -> Vector2i:
 # Pièces
 # --------------------------------------------------------------------------
 
-## Premier modificateur d'une pièce (ordre du fichier), "" sans modificateur.
+## Modificateur principal d'une pièce : celui de son identifiant
+## (« part_<premier modificateur> », LootRules.roll_part, HubRewards), sinon
+## le plus grand bonus ; "" sans modificateur. (L'ordre des clés ne compte
+## pas : le profil les enregistre triées.)
 static func first_mod(p: WeaponPart) -> String:
+	var from_id := GameWeapon.MOD_ALIASES.get(p.part_id.trim_prefix("part_"), p.part_id.trim_prefix("part_")) as String
 	for k in p.mods:
-		return GameWeapon.MOD_ALIASES.get(String(k), String(k))
-	return ""
+		if GameWeapon.MOD_ALIASES.get(String(k), String(k)) == from_id:
+			return from_id
+	var best := ""
+	var best_v := -INF
+	for k in p.mods:
+		var key: String = GameWeapon.MOD_ALIASES.get(String(k), String(k))
+		var v := float(p.mods[k])
+		if v > best_v or (v == best_v and LootRules.PART_MODS.find(key) < LootRules.PART_MODS.find(best)):
+			best = key
+			best_v = v
+	return best
+
+
+## Modificateurs dans l'ordre d'affichage : le principal d'abord, puis l'ordre
+## de LootRules.PART_MODS.
+static func ordered_mods(p: WeaponPart) -> Dictionary:
+	var main := first_mod(p)
+	var keys := p.mods.keys()
+	keys.sort_custom(func(a, b):
+		var ka: String = GameWeapon.MOD_ALIASES.get(String(a), String(a))
+		var kb: String = GameWeapon.MOD_ALIASES.get(String(b), String(b))
+		if (ka == main) != (kb == main):
+			return ka == main
+		return LootRules.PART_MODS.find(ka) < LootRules.PART_MODS.find(kb))
+	var out := {}
+	for k in keys:
+		out[k] = p.mods[k]
+	return out
 
 
 static func part_name(p: WeaponPart) -> String:
@@ -415,7 +445,13 @@ static func part_preview(w: OwnedWeapon, p: WeaponPart) -> Array:
 		for st in FIRE_STATS:
 			if st[0] == key:
 				label = Lang.t(st[1], st[2])
-		out.append({"label": label, "before": stat_text(key, before_s), "after": stat_text(key, after_s),
+		var b := stat_text(key, before_s)
+		var a := stat_text(key, after_s)
+		if a == b and key in ["recoil", "reload"]:
+			# Même mot (« faible → faible ») : la valeur précise montre l'effet.
+			b = "%s%s" % [decimal(float(before_s.get(key, 0.0))), "°" if key == "recoil" else " s"]
+			a = "%s%s" % [decimal(float(after_s.get(key, 0.0))), "°" if key == "recoil" else " s"]
+		out.append({"label": label, "before": b, "after": a,
 			"good": stat_ratio(key, after_s) >= stat_ratio(key, before_s)})
 	return out
 

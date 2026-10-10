@@ -91,7 +91,7 @@ func _head(pr: PlayerProfile, w: OwnedWeapon) -> Control:
 	var head := SheetHead.new()
 	head.tint = HubStyle.rarity_color(w.rarity)
 	var row := HubBox.hbox(18)
-	head.add_child(HubBox.pad(row, 16, 14, 16, 12))
+	head.add_child(HubBox.pad(row, 16, 14, 16, 10))
 	var art := IconWell.new()
 	art.custom_minimum_size = HubStyle.pxv(250, 92)
 	art.add_child(HubIcon.make(HubGear.weapon_art(w.weapon_id), 8))
@@ -114,11 +114,15 @@ func _head(pr: PlayerProfile, w: OwnedWeapon) -> Control:
 	# Ligne niveau / rareté / emplacements, 8 px sous le sous-titre ; elle
 	# passe à la ligne si la taille des menus l'exige (130 %).
 	col.add_child(HubBox.gap(0, 8))
+	var bottom := HubBox.hbox(16)
+	col.add_child(bottom)
 	var line := HFlowContainer.new()
 	line.add_theme_constant_override("h_separation", int(HubStyle.px(16)))
 	line.add_theme_constant_override("v_separation", int(HubStyle.px(2)))
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	col.add_child(line)
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bottom.add_child(line)
 	var lv := HubBox.hbox(4)
 	var lvt := HubStyle.label(Lang.t("Niveau", "Level"), 15, HubStyle.PAPER)
 	lvt.size_flags_vertical = Control.SIZE_SHRINK_END
@@ -139,16 +143,15 @@ func _head(pr: PlayerProfile, w: OwnedWeapon) -> Control:
 		var lock := HubTag.make(Lang.t("NIVEAU %d REQUIS", "LEVEL %d REQUIRED") % w.level, HubTag.LOCK)
 		lock.size_flags_vertical = Control.SIZE_SHRINK_END
 		line.add_child(lock)
-	# SCORE à droite, aligné sur le bas de la ligne.
+	# SCORE à droite de la ligne (centrée sur sa hauteur, comme la maquette).
 	var sc := HubBox.vbox(0)
-	sc.size_flags_vertical = Control.SIZE_SHRINK_END
 	var st := HubStyle.label("SCORE", 13, HubStyle.DIM)
 	st.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	sc.add_child(st)
 	score_label = HubStyle.label(str(w.score()), 30, HubStyle.YELLOW, "impact", true)
 	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	sc.add_child(score_label)
-	row.add_child(sc)
+	bottom.add_child(sc)
 	return head
 
 
@@ -235,9 +238,9 @@ func _parts(w: OwnedWeapon) -> Control:
 			lv.clip_text = true
 			nl.add_child(lv)
 			col.add_child(nl)
-			col.add_child(mods_rich(p.mods, 13))
+			col.add_child(mods_rich(HubGear.ordered_mods(p), 13))
 			s.box.add_child(col)
-			s.hint = Lang.t("Entrée : retirer cette pièce (elle sera détruite).", "Enter: remove this part (it will be destroyed).")
+			s.hint = Lang.t("Retirer cette pièce : deux appuis, elle sera détruite.", "Remove this part: two presses, it will be destroyed.")
 			s.chosen.connect(func():
 				target_slot = s.index
 				_hint(s.hint))

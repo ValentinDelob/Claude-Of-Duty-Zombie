@@ -45,7 +45,7 @@ func open(hub: Node, pr: PlayerProfile, w: OwnedWeapon, slot_index: int, pre := 
 	slot = slot_index
 	name = "PartPicker"
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	offset_bottom = -HubStyle.px(HubPrompts.HEIGHT)
 	_build()
 	var i := 0
@@ -74,8 +74,12 @@ func _build() -> void:
 	panel = HubBox.new(title, stock, true, false)
 	panel.right_label.add_theme_color_override("font_color", HubStyle.HEADER_RED_TEXT)
 	add_child(panel)
-	_place()
 	resized.connect(_place)
+	# Un texte à la ligne n'a sa vraie hauteur qu'une fois sa largeur connue :
+	# la taille du panneau est reprise quand son minimum change.
+	panel.minimum_size_changed.connect(func(): _place.call_deferred())
+	# Après la mise en page du hub (taille de la fenêtre connue).
+	_place.call_deferred()
 	var body := HubWeaponSheet.SheetBody.new()
 	body.add_theme_constant_override("separation", 0)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -110,8 +114,9 @@ func _build() -> void:
 		row.alt = i % 2 == 1
 		row.locked = why != ""
 		row.key = p.uid
-		row.hint = why if why != "" else Lang.t("Entrée : installer cette pièce.", "Enter: install this part.")
+		row.hint = why if why != "" else Lang.t("Installer cette pièce : rien n'est détruit.", "Install this part: nothing is destroyed.")
 		var line := HubBox.hbox(10)
+		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(_icon(p, why != ""))
 		var nl := HubStyle.label(HubGear.part_name(p), 15, Color("6D6A63") if why != "" else HubStyle.PAPER, "bold")
 		line.add_child(nl)
@@ -119,9 +124,9 @@ func _build() -> void:
 		line.add_child(lv)
 		line.add_child(HubBox.spring(false))
 		if why != "":
-			line.add_child(HubStyle.label(HubGear.mods_plain(p.mods, p.mods.size() > 1), 13, Color("6D7A62"), "semi"))
+			line.add_child(HubStyle.label(HubGear.mods_plain(HubGear.ordered_mods(p), p.mods.size() > 1), 13, Color("6D7A62"), "semi"))
 		else:
-			line.add_child(HubWeaponSheet.mods_row(p.mods, 13, p.mods.size() > 1))
+			line.add_child(HubWeaponSheet.mods_row(HubGear.ordered_mods(p), 13, p.mods.size() > 1))
 		row.box.add_child(line)
 		if why != "":
 			var reason := HubStyle.label(why, 12, Color("B0705F"))
@@ -142,6 +147,9 @@ func _build() -> void:
 		list.add_child(HubBox.pad(none, 12, 12, 12, 12))
 	# Aperçu.
 	var right := HubBox.vbox(10)
+	# Largeur de la maquette (880 − 520 − marges) : le texte de la règle se
+	# coupe à cette largeur, pas mot par mot (hauteur minimale raisonnable).
+	right.custom_minimum_size.x = HubStyle.px(324)
 	var rm := HubBox.pad(right, 16, 14, 16, 12)
 	rm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(rm)
