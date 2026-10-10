@@ -3717,6 +3717,15 @@ func offer_recovery() -> ConfirmationDialog:
 	d.custom_action.connect(func(action: StringName):
 		if action == &"ignore":
 			finish.call(false))
+	# Un message déjà ouvert (objets retirés d'une ancienne carte au
+	# chargement…) : une seule fenêtre exclusive à la fois, la récupération
+	# s'ouvre quand il se ferme.
+	if _dialog != null and _dialog.visible:
+		_dialog.visibility_changed.connect(func():
+			if is_instance_valid(d) and not state.done:
+				d.popup_centered()
+				d.get_ok_button().grab_focus.call_deferred(), CONNECT_ONE_SHOT)
+		return d
 	d.popup_centered()
 	d.get_ok_button().grab_focus.call_deferred()
 	return d
