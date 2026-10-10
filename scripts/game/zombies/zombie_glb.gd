@@ -5,7 +5,10 @@ extends RefCounted
 ## convertit au format des zombies procéduraux, pour garder le même shader
 ## (zombie.gdshader) et le même code d'animation :
 ##   - un seul mesh, un seul draw call ;
-##   - couleur par sommet (sRGB -> linéaire), alpha 0 = émissif (yeux) ;
+##   - couleur par sommet (sRGB -> linéaire), alpha 0 = émissif (yeux) :
+##     celle du .glb s'il en a (COLOR_0, déjà linéaire : modèles cubiques de
+##     tools/blender/voxel/voxel_lib.py, une couleur par face de cube), sinon
+##     celle de la matière (MATS) ;
 ##   - position de repos en UV.xy / UV2.x, identifiant de matière en UV2.y ;
 ##   - os remappés sur les indices de RigBuilder.BONES.
 ## Le repos des os (positions seules, sans rotation) vient du squelette du
@@ -116,13 +119,20 @@ static func _convert(root: Node) -> Dictionary:
 		var sn: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
 		var sb: PackedInt32Array = arr[Mesh.ARRAY_BONES]
 		var sw: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+		var sc: PackedColorArray = arr[Mesh.ARRAY_COLOR] if arr[Mesh.ARRAY_COLOR] != null else PackedColorArray()
+		var own_cols := sc.size() == sv.size()
 		@warning_ignore("integer_division")
 		var per := sb.size() / maxi(1, sv.size())
 		for v in sv.size():
 			var p := to_mesh * sv[v]
 			verts.append(p)
 			norms.append((to_mesh.basis * sn[v]).normalized())
-			cols.append(c)
+			if own_cols:
+				var vc := sc[v]
+				vc.a = c.a
+				cols.append(vc)
+			else:
+				cols.append(c)
 			uv.append(Vector2(p.x, p.y))
 			uv2.append(Vector2(p.z, float(info[0])))
 			# 4 influences, remappées sur l'ossature du jeu.

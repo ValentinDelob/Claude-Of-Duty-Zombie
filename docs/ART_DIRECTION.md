@@ -1,13 +1,152 @@
-# Direction artistique — référence Black Ops 1 Zombies
+# Direction artistique — style cubique
 
-Notes d'observation (captures, vidéos de parties et descriptions de Kino der
-Toten, Five, Nacht der Untoten, Ascension) servant de cible à la refonte R4.
-On s'inspire, on ne copie pas : aucune image ni aucun asset d'Activision n'est
-intégré au dépôt (les éventuelles captures de travail vont dans
-`docs/reference/`, ignoré par git). Chaque section est tenue par le lot qui la
-concerne.
+Le jeu a quitté le rendu réaliste de Black Ops 1 pour une identité propre :
+un style **entièrement cubique (voxel)**, dans l'esprit de Trove
+(GAME_CONCEPT.md § 4.19). Ce fichier décrit la direction en vigueur, la chaîne
+de production des modèles cubiques et l'état de chaque famille d'objets. Les
+anciennes notes d'observation de BO1 (zombies, armes, machines, salle de
+KINO) sont gardées plus bas, sous **Historique**, pour mémoire : elles ne
+sont plus une cible. Les images de référence vont dans `docs/reference/`
+(ignoré par git) ; aucune image ni aucun asset d'Activision n'est intégré au
+dépôt.
 
-## Étalonnage et post-traitement
+## Règles du style cubique
+
+- Deux échelles seulement, l'une sous-multiple de l'autre :
+  - **personnages et mobs : 1 cube = 2,5 cm** (40 par mètre) : un personnage
+    de 1,80 m mesure 72 cubes. Mesuré sur la planche du zombie (un pixel de la
+    planche ≈ 2 cm, une dent = 1 pixel) ;
+  - **décor et objets de la carte : 1 cube = 5 cm** (20 par mètre) : une porte
+    fait 40 cubes, un mur de 3 m en fait 60. 2 cubes de personnage = 1 cube de
+    décor.
+- **Règle absolue** : rien qui ne soit pas cubique ou pas à l'échelle. Pas de
+  courbe, de biseau, de lissage, ni de détail plus fin qu'un cube.
+- Arêtes sur la grille de l'échelle, normales alignées sur les axes, ombrage plat ;
+  les objets posés sur une carte tournent par quarts de tour ; les pentes
+  deviennent des marches.
+- Personnages et zombies : cubes **articulés**, chaque cube rigidement lié à
+  un os ; les membres tournent à n'importe quel angle quand ils sont animés,
+  mais chaque membre reste fait de cubes. Le dos voûté, une épaule tombante...
+  s'obtiennent par la **pose des os** ou par un **escalier de cubes**, jamais
+  par un cisaillement.
+- Textures : **un pixel = un cube**, une couleur unie par face de cube ; un
+  léger **ombrage peint** (dessus clair, côtés un peu plus sombres, dessous
+  dans l'ombre) aide la lecture, comme sur les planches de référence.
+- Effets (sang, étincelles, flammes, fumée, éclats) : particules cubiques.
+- Interface : pas forcément cubique, mais en harmonie avec le style.
+- Vérification automatique : `VoxelCheck` (`scripts/game/map/voxel_check.gd`),
+  outil `tools/voxel_check.gd` (`--anime` pour un personnage : chaque partie
+  dans le repère de son os, grille de 2,5 cm ; `--statique` pour un objet,
+  grille de 5 cm ; `--pas=<cm>` force le pas). L'éditeur de cartes et
+  l'import de modèles refusent un modèle non conforme.
+- **Contour noir** autour des pièces et ombrage simple, comme la planche de
+  référence : rendu des planches de validation par coque inversée ; en jeu,
+  voir « Contour noir en jeu » plus bas (proposition, pas encore branché).
+- ❓ Lumières, post-traitement et ciel restent à décider (§ 4.19) ; l'étalonnage
+  ci-dessous est celui du code actuel.
+
+## Chaîne de production cubique (tools/blender/voxel/voxel_lib.py)
+
+Bibliothèque Python pour Blender (5.2, toujours sans fenêtre :
+`sh tools/blender.sh <script>.py`). Un script de modèle décrit des **cellules**
+en unités de cube (repère Blender : Z en haut, avant vers -Y, gauche d'un
+personnage vers +X), au pas `CUBE_CHAR` (2,5 cm, personnages et mobs) ou
+`CUBE_DECOR` (5 cm, décor et objets), puis la bibliothèque construit, vérifie
+et exporte.
+
+| Fonction | Rôle |
+|---|---|
+| `Model(cube)` | grille de voxels au pas `cube` (m) : cellule (x, y, z) -> matière, os, partie, couleur |
+| `m.box(x0, x1, y0, y1, z0, z1, mat, bone, part, color)` | pavé de cellules (bornes hautes exclues), écrase |
+| `m.set(...)`, `m.clear(...)` | une cellule ; vider un pavé (bouche, narines...) |
+| `m.layers(rows, origin, legend, bone, part)` | grilles colorées par couche (une chaîne par rangée, un caractère par cube) |
+| `m.fill_gaps(parts)` | bouche les fentes d'un cube laissées par une sculpture |
+| `m.face_color[(x, y, z, dir)]`, `m.face_mat[...]` | couleur / matière d'UNE face de cube (`dir` : `+x -x +y -y +z -z`) |
+| `View(...)`, `view.frac(masque, cellule)`, `register`, `iou` | vue orthographique d'une planche : part d'un masque de pixels dans la case d'une cellule (sculpture par silhouettes), recalage et recouvrement |
+| `paint_from_views(model, views, accept)` | chaque face tournée vers une vue et non cachée prend la couleur dominante de sa case projetée |
+| `fill_unpainted(model, painted, interior_parts=...)` | faces cachées / dessus / dessous : face peinte la plus proche de la même partie ; intérieur (jupe creuse) assombri |
+| `shade(model)` | ombrage peint par direction de face (`SHADE`) |
+| `quantize(model, {mat: k})` | palette réduite par matière (k-moyennes) : plus de faces fusionnées |
+| `save_cache(model, json)`, `load_cache(json)` | cellules et couleurs de faces en JSON (suivi par git) : reconstruire sans la planche |
+| `build_mesh(model, name)` | maillage : faces visibles + faces entre deux os, fusion des faces coplanaires de même couleur/matière/os, couleurs « Col » par coin (sRGB), aucun sommet partagé entre rectangles, matériaux nommés comme `ZombieGlb.MATS` |
+| `build_armature(name, bones, cube)`, `bind(ob, rig)` | squelette (os droits, `RigBuilder.BONES` pour un personnage), pondération rigide |
+| `self_check(ob, cube)` | avant écriture : sommets sur la grille, normales sur les axes, poids rigides |
+| `export_glb(path, objs, cube)` | .glb (Y en haut, peau, COLOR_0) après `self_check` |
+| `godot_check(path, animated, cube=None)` | lance `tools/voxel_check.gd` sur le fichier écrit |
+| `add_outline(model, name, rig)` | contour noir des rendus : coque inversée sur la grille, suit la pose (jamais exportée) |
+| `setup_render`, `render_view(path, azimut, cible, hauteur_m)`, `sheet`, `load_png`, `save_png` | rendus orthographiques (hauteur visible en mètres : même échelle que la planche) et planches de validation |
+
+- Matières (`MATERIALS`) : `skin`, `eye` (émissif : alpha 0 dans le jeu),
+  `cloth`, `leather`, `metal`, `wound`, `bone` — la matière du shader des
+  zombies (`zombie.gdshader`) ; la couleur vient de la face (COLOR_0, lue par
+  `ZombieGlb`, déjà linéaire dans Godot).
+- Personnages : ossature `RigBuilder.BONES` (noms, parents), repos membres
+  pendants sans rotation (le jeu ne lit que les positions), pas d'os de main
+  ni de pied (mains sur `forearm`, pieds sur `shin`).
+- Objets statiques : aucun os ; `godot_check(path, False)`.
+- Budget : < 15 000 triangles pour un personnage en cubes de 2,5 cm ; la
+  fusion des faces garde le zombie complet vers 8 200.
+- Après l'export, toujours : `godot --headless --path . --import` (fichier
+  `.import`), `tools/voxel_check.gd -- <fichier> --anime|--statique`, et une
+  planche de validation regardée à l'œil avant de brancher le modèle.
+
+### Zombie « patient » (tools/blender/zombies/zombie_voxel.py)
+
+- `assets/models/zombies/zombie_voxel.glb`, cubes de **2,5 cm**, **pas encore
+  branché** dans le jeu (en attente de validation ; `zombie_base.glb` reste le
+  modèle de `--zombie-model`). Test : `tests/test_zombie_voxel.gd`.
+- Formes SCULPTÉES par la planche `docs/reference/zombie_patient/turnaround.png`
+  (9,5 pixels par cube) : chaque partie est un pavé de cellules dont une
+  cellule reste si sa case est pleine (ou de la bonne matière : peau, tissu)
+  dans la vue de face (ou de dos) ET de profil. Le dos voûté, la tête en
+  avant, les genoux, le bas déchiré, les manches évasées et le col en
+  escalier en sortent en marches de cubes. Puis : jupe creuse (parois d'un
+  cube) autour des jambes, bas déchiré mesuré paroi par paroi sur la vue qui
+  la montre ; yeux 3 × 2 émissifs au fond d'orbites, arcades en saillie, nez
+  creusé, bouche ouverte de deux cubes de profondeur et six dents d'un cube,
+  oreilles, encolure en V (couche de tissu ôtée, peau du cou derrière), trois
+  doigts séparés et recourbés, orteils marqués.
+- 72 × 38 × 20 cubes, ~16 600 cellules, ~8 200 triangles : tête 18 × 18 × 16
+  (oreilles comprises), mâchoire 14 × 5 × 6, torse 20 × 16 × 26, jupe 22 × 12
+  × 18, manches 8 × 13 × 16, bras et mains 8 × 8 × 35, jambes 7 × 12 × 30.
+- Couleurs prélevées une par face de cube (plis de la blouse, taches de sang,
+  bleus) ; cases prises sur un trait d'encrage recomblées par leurs voisines ;
+  palette réduite à ~90 teintes.
+- Cache : `tools/blender/zombies/zombie_voxel_cells.json` (suivi par git) ;
+  sans la planche (ou avec `--cache`), le modèle est reconstruit à l'identique.
+- Planche de validation : `--sheet tests/_out/voxel/zombie_voxel_sheet_25.png`
+  (rangée 1 : planche ; rangée 2 : rendu au même cadrage et à la même échelle,
+  contour noir compris ; rangée 3 : les deux à 50 % pour comparer pixel à
+  pixel ; vues : face, dos, profils, trois-quarts, pose d'attaque).
+
+### Contour noir en jeu (proposition, non branchée)
+
+La planche dessine un trait noir d'environ 1 cm autour des pièces. Options
+pour Godot 4.7 (cible GTX 1050) :
+
+1. **Contour en espace écran (recommandé)** : une passe plein écran (quad de
+   post-traitement, shader `spatial` qui lit `hint_depth_texture` et
+   `hint_normal_roughness_texture`) qui noircit les pixels où la profondeur
+   ou la normale saute (filtre de Sobel sur 4 à 8 échantillons). Trait d'un
+   pixel net à toute distance, aucun sommet en plus, s'applique aussi au
+   décor (cohérence du style). Coût estimé sur GTX 1050 en 1080p : 0,3 à
+   0,6 ms par image ; la lecture des normales impose le moteur Forward+.
+   Option « Contour » dans les réglages vidéo. Pour limiter le trait aux
+   personnages, un masque de pochoir (stencil, Godot 4.5 et plus) ou une
+   couche de rendu dédiée.
+2. **Coque inversée par sommet** (comme les planches de validation) : second
+   matériau sur le maillage du zombie, `render_mode cull_front, unshaded`,
+   sommets poussés vers l'extérieur dans le vertex shader. Les faces du modèle
+   ne partageant pas leurs sommets, il faut une normale « de coin » par sommet
+   (somme des normales des faces voisines, calculée par `ZombieGlb` ou
+   stockée en attribut). Coût : le maillage dessiné deux fois (≈ 8 000
+   triangles de plus par zombie : sensible avec 24 zombies à l'écran), trait
+   épaissi au loin, pas de trait sur le décor.
+3. **Coque dans le .glb** : refusée — ce serait un second maillage hors de
+   la grille, non conforme à VoxelCheck.
+
+## Étalonnage et post-traitement (code actuel, à revoir pour le style cubique)
+
 
 ### Ce qui caractérise l'image de BO1 Zombies
 - **Image désaturée, jamais grise** : les couleurs vives (velours de Kino,
@@ -56,7 +195,7 @@ concerne.
   BO1 hors visée).
 - Bloom : un écran de machine d'atout vu à bout portant sature en blanc.
 
-## HUD
+## HUD (code actuel ; l'interface reste libre mais en harmonie avec le style cubique)
 
 ### Ce qui caractérise le HUD de BO1 Zombies
 - **Compteur de manche** en bas à gauche, gros, rouge sang « peint à la
@@ -110,9 +249,16 @@ concerne.
 ### Écarts restants
 - Pas d'icônes de réanimation au-dessus des coéquipiers à terre dans le
   monde (hors périmètre du HUD 2D).
-## Zombies
+## Historique : rendu réaliste BO1
 
-### Référence (Kino der Toten, Five, Ascension)
+Notes d'observation et mise en œuvre de la première direction (refonte R4,
+clone de Black Ops 1 Zombies). **Historique** : ces modèles procéduraux et
+Blender réalistes sont à refaire en cubes (GAME_CONCEPT.md § 5) ; le code
+décrit existe encore tant que les versions cubiques ne l'ont pas remplacé.
+
+### Zombies
+
+#### Référence (Kino der Toten, Five, Ascension)
 - **Silhouette** : humains maigres, décharnés, épaules tombantes, buste voûté
   vers l'avant, tête projetée en avant ; bras longs et osseux, mains crochues.
   La lecture à 10 m se fait par la silhouette sombre et les deux yeux.
@@ -145,7 +291,7 @@ concerne.
   - morts : chute molle (ragdoll), effondrements variés, tête qui éclate au
     tir à la tête mortel.
 
-### Mise en œuvre (scripts/game/zombies/zombie_model.gd, zombie_anim.gd)
+#### Mise en œuvre (scripts/game/zombies/zombie_model.gd, zombie_anim.gd)
 - Maillage procédural à **normales lissées** (RigBuilder : ellipsoïdes et tubes
   de sections elliptiques « loft »), toujours **skinné sur le squelette
   commun** (13 os + mâchoire) et **un seul draw call** ; articulations
@@ -169,16 +315,16 @@ concerne.
   construction d'un zombie < 0,1 ms. A/B dans zombie_look : rendu de 24
   zombies de près à ~96 % des images/s de l'ancien modèle en boîtes.
 
-### Écarts restants avec BO1
+#### Écarts restants avec BO1
 - Pas de vrai ragdoll physique (morts procédurales variées).
 - Pas de traînée lumineuse des yeux en mouvement ni d'yeux rouges vus « à
   terre » (effet d'écran).
 - Détail limité par le low-poly procédural (pas de textures peintes, visages
   simplifiés).
 
-## Armes à la première personne et mains
+### Armes à la première personne et mains
 
-### Ce qui caractérise BO1
+#### Ce qui caractérise BO1
 - **Champ de vision de l'arme** : BO1 dessine l'arme avec le `cg_fov` par
   défaut de 65° (horizontal en 4:3, soit ~51° verticalement). L'arme reste
   « loin » de l'œil et peu déformée : pas d'effet grand-angle sur la crosse,
@@ -216,7 +362,7 @@ concerne.
   ouverte chargeur vide (pistolets) ; sprint : arme basse, tournée et
   inclinée, grand balancement en huit.
 
-### Mise en œuvre (Claude of Duty Zombie)
+#### Mise en œuvre (Claude of Duty Zombie)
 - `WeaponMesh` : primitives arrondies (profil extrudé chanfreiné, révolution,
   capsule), fusionnées en un maillage par matériau et par pièce mobile,
   construites une fois et mises en cache. Couleur de sommet = donnée
@@ -235,7 +381,7 @@ concerne.
 - `weapon.gdshader` : usure des arêtes, veinage et vernis du bois, trame des
   manches, liseré de contre-jour et lumière d'appoint de la vue FPS.
 
-### Écarts restants avec BO1
+#### Écarts restants avec BO1
 - Pas de textures peintes (gravures, marquages, quadrillage des plaquettes) :
   le détail vient de la géométrie et du bruit procédural.
 - Mains stylisées (doigts en capsules), sans rides ni ongles.
@@ -243,9 +389,9 @@ concerne.
   léger dépassement ou d'hésitation humaine, et une seule chorégraphie
   « chargeur » partagée par les armes à chargeur.
 
-## Machines d'atouts
+### Machines d'atouts
 
-### Référence (Kino der Toten, Five, Ascension)
+#### Référence (Kino der Toten, Five, Ascension)
 - Distributeurs de soda américains des années 50, environ 2,1 à 2,3 m
   ornement compris, un peu moins d'un mètre de large, collés au mur ; chaque
   atout a **sa propre silhouette** reconnaissable de loin : grand
@@ -259,7 +405,7 @@ concerne.
   pièces, levier, trappe de distribution, garnitures chromées ; peinture
   écaillée, rouille et crasse au pied ; ritournelle de temps en temps.
 
-### Mise en œuvre (tools/blender/props/perk_machines.py, PerkMachine)
+#### Mise en œuvre (tools/blender/props/perk_machines.py, PerkMachine)
 - Modèles Blender scriptés, un par atout, noms et emblèmes ORIGINAUX en
   relief (police intégrée de Blender) : TITAN BREW (enclume), RAPID FIZZ
   (éclair), TWIN SHOT (deux balles dans une capsule), LAZARUS TONIC (cœur),
@@ -270,14 +416,14 @@ concerne.
   allumé : panneau lumineux (bloom modéré, lettrage lisible) et lampe
   colorée devant la machine, à hauteur de hanche.
 
-### Écarts restants
+#### Écarts restants
 - Pas de textures peintes (réclames « glacé », prix, éraflures fines) : le
   détail vient de la géométrie et du bruit procédural.
 - Lettrage en capitales italiques et non en écriture cursive peinte.
 
-## Salle de théâtre de KINO : objets
+### Salle de théâtre de KINO : objets
 
-### Référence (Kino der Toten, BO1)
+#### Référence (Kino der Toten, BO1)
 - Salle en fer à cheval sous une coupole ovale à nervures, trouée par
   endroits ; un grand lustre à pampilles suspendu et un second écrasé sur
   les sièges ; fauteuils à haut dossier de bois sombre au sommet chantourné,
@@ -305,7 +451,7 @@ concerne.
   en haut des murs sous une corniche épaisse ; grand bloc de coulisses en
   planches qui porte l'écran, perche de projecteurs en haut.
 
-### Mise en œuvre (tools/blender/props/catalog_props.py, assets/models/props/)
+#### Mise en œuvre (tools/blender/props/catalog_props.py, assets/models/props/)
 - Carte KINO retirée (GAME_CONCEPT.md §6) : seuls les décors repris par le
   catalogue de l'éditeur et la machine d'amélioration restent.
 - Modèles low poly scriptés (un .glb par objet, un maillage par matériau
@@ -344,7 +490,7 @@ concerne.
   sur les bannières, le pupitre et l'estrade ; éclair dans un anneau sur le
   téléporteur ; pistolet et étincelle sur la machine d'amélioration).
 
-### Écarts restants
+#### Écarts restants
 - Seules la salle de théâtre, la scène, les coulisses et la salle de
   projection sont habillées : hall, salles basse et haute, ruelle,
   arrière-salle, Foyer et loges restent en maquette grise (murs et sols

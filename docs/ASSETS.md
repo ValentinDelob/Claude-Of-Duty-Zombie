@@ -7,7 +7,10 @@ des effets de carte (§ « Textures des effets de carte » ci-dessous ; les mod�
 de l'éditeur (`assets/models/props/`) sont
 générés par `tools/blender/props/catalog_props.py`, emblèmes et enseignes originaux ; la caisse au hasard,
 `assets/models/props/mystery_box.glb`, par `tools/blender/props/mystery_box.py`, points d'interrogation
-au pochoir dessinés pour ce jeu, matières procédurales). La plupart des bruitages
+au pochoir dessinés pour ce jeu, matières procédurales ; les modèles du style
+cubique, comme `assets/models/zombies/zombie_voxel.glb`, par
+`tools/blender/voxel/voxel_lib.py`, couleurs prélevées sur nos propres planches
+de référence, voir docs/ART_DIRECTION.md). La plupart des bruitages
 proviennent d'enregistrements **libres de droits** retravaillés pour le jeu ;
 l'identité sonore originale reste synthétisée par `tools/gen_audio.gd` et
 `tools/gen_audio_menu.gd` : musiques et ambiances, début et fin de manche,
