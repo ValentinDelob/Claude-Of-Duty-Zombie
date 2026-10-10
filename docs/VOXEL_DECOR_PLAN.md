@@ -129,8 +129,8 @@ d'interaction, durées et animations inchangés) :
   (`MeshMapGeometry.decor_model`, à la taille du bloc, dont la collision
   reste celle du bloc).
 
-Architecture (hors des 4 lots, **décision à prendre** : la changer modifie
-les collisions et le jeu) : escaliers (`StairGen`, marches ≈ 18 cm, rampe en
+Architecture (hors des 4 lots ; décidée depuis : tout cubique, plan et lots
+dans docs/VOXEL_ARCHITECTURE_PLAN.md) : escaliers (`StairGen`, marches ≈ 18 cm, rampe en
 pente, colimaçon à secteurs), garde-corps (lacet libre, 8 cm), murs et
 piliers tournés ou courbes, ouvertures (seuils 0,95 / 2,35 m). Les murs et
 sols sur la grille de 0,25 m sont déjà sur celle de 5 cm.
