@@ -234,7 +234,9 @@ func test_game_builds_each_variant() -> void:
 		looks[String(d.look())] = true
 		d.queue_free()
 	assert_eq(looks, {"bois": true, "gravats": true}, "le jeu construit la porte en bois et l'éboulement")
-	# Chaque aspect : son propre modèle, sous le même battant « Slab ».
+	# Chaque aspect : son propre modèle CUBIQUE (cubes de 5 cm, VoxelBuild),
+	# sous le même battant « Slab ». Empreinte : nombre de sommets et teintes
+	# (bois, rouille des fers, béton) du maillage.
 	var shapes := {}
 	for spec in [["", false], ["blindee", false], ["bois", false], ["grille", false], ["inconnu", false], ["", true], ["gravats", true]]:
 		var d := Door.new()
@@ -242,20 +244,30 @@ func test_game_builds_each_variant() -> void:
 		host.add_child(d)
 		var slab := d.get_node("Slab")
 		var meshes := slab.find_children("*", "MeshInstance3D", true, false)
-		var cyl := meshes.filter(func(n): return n.mesh is CylinderMesh).size()
-		var wood := meshes.filter(func(n): return n.material_override == WorldLook.surface("wood") or n.material_override == WorldLook.surface("dark_wood")).size()
-		var concrete := meshes.filter(func(n): return n.material_override == WorldLook.surface("concrete_dark")).size()
-		shapes["%s|%s" % spec] = [d.look(), meshes.size(), cyl, wood, concrete]
+		assert_eq(meshes.size(), 1, "un modèle cubique (%s)" % spec[0])
+		var r := VoxelCheck.check_scene(slab)
+		assert_true(r.ok, "cubique (%s) : %s" % [spec[0], r.fr])
+		var cols: PackedColorArray = (meshes[0] as MeshInstance3D).mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+		var tint := {"wood": 0, "rust": 0, "concrete": 0}
+		for c in cols:
+			var s := c.linear_to_srgb()
+			if s.r > s.g * 1.6 and s.r > s.b * 2.5:
+				tint.rust += 1
+			elif s.r > s.b * 1.6 and s.g > s.b * 1.15:
+				tint.wood += 1
+			elif absf(s.r - s.b) < 0.05 and s.r > 0.25:
+				tint.concrete += 1
+		shapes["%s|%s" % spec] = [d.look(), cols.size(), tint.wood > 0, tint.rust > 0, tint.concrete > 0]
 		assert_true(d.get_children().any(func(n): return n is StaticBody3D), "collision de la porte (%s)" % spec[0])
 		d.queue_free()
 	assert_eq(shapes["|false"][0], "blindee", "sans variante : porte blindée")
 	assert_eq(shapes["|false"], shapes["blindee|false"], "clé absente = porte blindée à l'identique")
 	assert_eq(shapes["inconnu|false"], shapes["|false"], "variante inconnue : porte blindée")
-	assert_true(shapes["bois|false"][3] >= 7 and shapes["bois|false"][2] == 0, "porte en bois : planches, traverses (%s)" % str(shapes["bois|false"]))
-	assert_true(shapes["grille|false"][2] >= 8, "grille : barreaux (%s)" % str(shapes["grille|false"]))
+	assert_true(shapes["bois|false"][2] and shapes["bois|false"][1] != shapes["|false"][1], "porte en bois : planches (%s)" % str(shapes["bois|false"]))
+	assert_true(shapes["grille|false"][3], "grille : fer rouillé (%s)" % str(shapes["grille|false"]))
 	assert_eq(shapes["|true"][0], "planches", "débris par défaut : planches")
-	assert_true(shapes["gravats|true"][4] >= 2 and shapes["gravats|true"][2] >= 3, "éboulement : béton et fers (%s)" % str(shapes["gravats|true"]))
-	assert_true(shapes["|true"][2] == 0, "débris par défaut sans fers à béton")
+	assert_true(shapes["|true"][2], "débris : planches de bois (%s)" % str(shapes["|true"]))
+	assert_true(shapes["gravats|true"][4] and shapes["gravats|true"][3], "éboulement : béton et fers (%s)" % str(shapes["gravats|true"]))
 	await wait_frames(1)
 
 

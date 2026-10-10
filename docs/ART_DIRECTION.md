@@ -106,6 +106,14 @@ et exporte.
 - Convertis : `caisses`, `sacs_sable`, `foyer_pierres` ; le reste est listé
   « à faire » par `tests/test_voxel_decor.gd` (qui passe VoxelCheck sur
   chaque modèle converti du catalogue).
+- Objets de carte (lot 4, tous cubiques, `tests/test_voxel_objects.gd`) :
+  ceux de taille fixe sous Blender (`voxel_props/objets.py` ->
+  `assets/models/props/voxel/objets/<objet>.glb`, une pièce par nœud :
+  pièces mobiles et voyants séparés) ; ceux dont la taille vient de la carte
+  (portes, débris, planches et portes à zombies, caisse et baril de
+  l'éditeur) construits par le jeu, `scripts/game/map/voxel_build.gd`
+  (`VoxelBuild` : mêmes règles que `voxel_lib`, repère Godot, prix peints
+  en chiffres de 3 × 5 cubes).
 
 ### Zombie « patient » (tools/blender/zombies/zombie_voxel.py)
 

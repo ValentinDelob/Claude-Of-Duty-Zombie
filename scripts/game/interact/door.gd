@@ -5,6 +5,10 @@ extends Interactable
 ##
 ## Serveur : l'achat débite les points, débloque la navigation et active les
 ## zones d'apparition de l'autre côté. Toutes les machines animent l'ouverture.
+##
+## Visuel CUBIQUE (cubes de 5 cm, GAME_CONCEPT.md § 4.19 ; VoxelBuild, à la
+## largeur de l'ouverture) sous le battant « Slab » ; la collision (pavé
+## largeur × hauteur × 0,9 m) et l'ouverture ne changent pas.
 
 const SLAB_THICKNESS := 0.22
 const OPEN_TIME := 1.6
@@ -36,7 +40,6 @@ var zones: Array = []
 var _slab: Node3D
 var _body: StaticBody3D
 var _size := Vector3.ONE
-var _signs: Array[Label3D] = []
 
 
 func setup(id: String, door_cells: Array, door_cost: int, data: MapData) -> void:
@@ -96,200 +99,313 @@ func _ready() -> void:
 				srv_open())
 
 
-## Porte blindée (aspect par défaut ; porte du courant et rideau : sans décor).
+@warning_ignore_start("integer_division")
+## Visuel CUBIQUE (cubes de 5 cm, VoxelBuild ; GAME_CONCEPT.md § 4.19) :
+## un modèle « Model » sous le battant « Slab », largeur et hauteur de
+## l'ouverture arrondies au cube, 20 cm d'épaisseur (collision inchangée :
+## _build_body). Aspect déterministe (identifiant de la porte) : la même porte
+## sur toutes les machines.
+const T := 2  # demi-épaisseur du battant (cubes)
+
+
+## Modèle `vb` posé sous le battant, centré sur la largeur de l'ouverture.
+func _add_model(vb: VoxelBuild, nw: int) -> MeshInstance3D:
+	var mi := vb.node("Model", Vector3(-nw * VoxelBuild.CUBE * 0.5, 0.0, 0.0))
+	_slab.add_child(mi)
+	return mi
+
+
+## Largeur et hauteur de l'ouverture en cubes.
+func _cells() -> Vector2i:
+	return Vector2i(VoxelBuild.cubes(_size.x, 6), VoxelBuild.cubes(_size.y, 6))
+
+
+## Porte blindée (aspect par défaut) : tôle, cadre riveté en saillie, bande de
+## danger, volant de verrouillage et prix au pochoir des deux côtés. Porte du
+## courant : tôle et cadre, éclair peint (s'ouvre au courant). Rideau de
+## scène : velours plissé.
 func _build_steel() -> void:
-	var slab := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = _size
-	slab.mesh = bm
-	slab.material_override = WorldLook.surface("velvet" if curtain else "door")
-	slab.position.y = _size.y * 0.5
-	_slab.add_child(slab)
-	if not power_door:
-		_decorate()
+	var n := _cells()
+	var vb := VoxelBuild.new()
+	if curtain:
+		_curtain(vb, n.x, n.y)
+	else:
+		_steel_plate(vb, n.x, n.y)
+		if power_door:
+			_bolt(vb, n.x, n.y)
+		else:
+			_decorate(vb, n.x, n.y)
+	_add_model(vb, n.x)
 
 
-## Pavé du visuel (enfant du battant) : `size`, centre `at`, matériau `mat`.
-func _part(size: Vector3, at: Vector3, mat: String, rot := Vector3.ZERO) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = size
-	mi.mesh = bm
-	mi.material_override = WorldLook.surface(mat)
-	mi.position = at
-	mi.rotation = rot
-	_slab.add_child(mi)
-	return mi
+## Tôle et cadre de 2 cubes, un cube en saillie de chaque côté, rivets peints.
+static func _steel_plate(vb: VoxelBuild, nw: int, nh: int) -> void:
+	vb.fill(0, nw, 0, nh, -T, T, VoxelBuild.col("door_steel"), 3, 0.045, 2)
+	var edge := VoxelBuild.col("door_edge")
+	for x in nw:
+		for y in nh:
+			if x >= 2 and x < nw - 2 and y >= 2 and y < nh - 2:
+				continue
+			for z in range(-T - 1, T + 1):
+				vb.put(x, y, z, VoxelBuild.grain(x, y, z, edge, 4, 0.06, 2))
+	# Rivets clairs tous les 4 cubes sur le milieu du cadre.
+	var rivet := VoxelBuild.col("steel", 0.85)
+	for x in range(1, nw - 1, 4):
+		for y in [1, nh - 2]:
+			vb.paint(x, y, T, VoxelBuild.PZ, rivet)
+			vb.paint(x, y, -T - 1, VoxelBuild.NZ, rivet)
+	for y in range(1, nh - 1, 4):
+		for x in [1, nw - 2]:
+			vb.paint(x, y, T, VoxelBuild.PZ, rivet)
+			vb.paint(x, y, -T - 1, VoxelBuild.NZ, rivet)
 
 
-## Barreau (cylindre fin) du visuel : fers d'une grille, fers à béton.
-func _rod(length: float, radius: float, at: Vector3, mat: String, rot := Vector3.ZERO) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var cm := CylinderMesh.new()
-	cm.top_radius = radius
-	cm.bottom_radius = radius
-	cm.height = length
-	cm.radial_segments = 6
-	mi.mesh = cm
-	mi.material_override = WorldLook.surface(mat)
-	mi.position = at
-	mi.rotation = rot
-	_slab.add_child(mi)
-	return mi
+## Bande de danger jaune et noire en saillie (1 m du sol), volant de
+## verrouillage des deux côtés (1,45 m), prix au pochoir en haut.
+func _decorate(vb: VoxelBuild, nw: int, nh: int) -> void:
+	var yb := mini(17, nh - 10)
+	for x in range(2, nw - 2):
+		for y in range(yb, yb + 6):
+			var stripe := posmod(x + y, 6) < 3
+			for z in range(-T - 1, T + 1):
+				vb.put(x, y, z, VoxelBuild.col("hazard_yellow" if stripe else "rubber", 0.95 + 0.1 * VoxelBuild.noise(x, y, z, 6)))
+	# Volant : carré de 7 ou 8 cubes, rayons en croix, moyeu ; un cube devant
+	# et un derrière la tôle.
+	var s := 7 if nw % 2 == 1 else 8
+	var x0 := (nw - s) / 2
+	var yc := mini(29, nh - 12)
+	var y0 := yc - s / 2
+	var mid := [s / 2] if s % 2 == 1 else [s / 2 - 1, s / 2]
+	var steel := VoxelBuild.col("steel")
+	for i in s:
+		for j in s:
+			var ring := i == 0 or j == 0 or i == s - 1 or j == s - 1
+			if not (ring or i in mid or j in mid):
+				continue
+			var c := VoxelBuild.tone(steel, 1.12 if ring else 0.9)
+			vb.put(x0 + i, y0 + j, T, c)
+			vb.put(x0 + i, y0 + j, -T - 1, c)
+	_paint_price(vb, nw, mini(42, nh - 8), -T - 1, T + 1)
 
 
-## Porte en bois (variante « bois ») : planches verticales jointives,
-## traverses et écharpe en Z des deux côtés, pentures en fer, prix peint.
+## Éclair jaune peint des deux côtés (porte ouverte par le courant).
+static func _bolt(vb: VoxelBuild, nw: int, nh: int) -> void:
+	var shape := ["...##", "..##.", ".##..", "#####", "..##.", ".##..", "##...", "#...."]
+	var cx := nw / 2 - 2
+	var top := mini(nh - 6, 36)
+	for row in shape.size():
+		for k in 5:
+			if shape[row][k] != "#":
+				continue
+			vb.paint_front(cx + k, top - row, -T - 1, T + 1, VoxelBuild.PZ, VoxelBuild.col("hazard_yellow"))
+			vb.paint_front(cx + 4 - k, top - row, -T - 1, T + 1, VoxelBuild.NZ, VoxelBuild.col("hazard_yellow"))
+
+
+## Rideau de velours : plis verticaux (colonnes de 3 cubes en avancée ou en
+## retrait), frange dorée en bas.
+static func _curtain(vb: VoxelBuild, nw: int, nh: int) -> void:
+	for x in nw:
+		var fold := 1 if posmod(x, 6) < 3 else 0
+		for y in nh:
+			for z in range(-T + fold, T - 1 + fold):
+				var c := VoxelBuild.grain(x, y, z, VoxelBuild.col("velvet", 1.0 if fold == 1 else 0.78), 9, 0.05, 2)
+				if y < 2:
+					c = VoxelBuild.grain(x, y, z, VoxelBuild.col("gold"), 9, 0.06, 2)
+				vb.put(x, y, z, c)
+
+
+## Prix peint au pochoir sur les deux faces, bas des chiffres en `y0`.
+func _paint_price(vb: VoxelBuild, nw: int, y0: int, z0: int, z1: int) -> void:
+	var txt := str(cost)
+	var c := VoxelBuild.col("price")
+	vb.paint_number(txt, nw / 2, y0, z0, z1, VoxelBuild.PZ, c)
+	vb.paint_number(txt, nw / 2, y0, z0, z1, VoxelBuild.NZ, c)
+
+
+## Porte en bois (variante « bois ») : planches verticales jointives un peu
+## inégales en haut, traverses et écharpe en escalier des deux côtés,
+## pentures peintes en fer, prix peint.
 func _build_wood() -> void:
-	var w := _size.x
-	var h := _size.y
-	var t := SLAB_THICKNESS
-	var n := maxi(3, roundi(w / 0.28))
-	var pw := w / n
-	for i in n:
+	var n := _cells()
+	var nw := n.x
+	var nh := n.y
+	var vb := VoxelBuild.new()
+	var boards := maxi(3, roundi(_size.x / 0.28))
+	var seam := VoxelBuild.col("wood_dark", 0.7)
+	for i in boards:
+		var bx0 := i * nw / boards
+		var bx1 := (i + 1) * nw / boards
 		# Planches un peu inégales en haut (même porte sur toutes les machines).
-		var dh := 0.04 * float((i * 7 + door_id.length()) % 3)
-		_part(Vector3(pw - 0.015, h - dh, t), Vector3(-w * 0.5 + pw * (i + 0.5), (h - dh) * 0.5, 0.0), "wood" if i % 2 == 0 else "dark_wood")
-	var ang := atan2(h - 1.0, w - 0.2)
-	for side in [-1.0, 1.0]:
-		var z: float = side * (t * 0.5 + 0.025)
-		for y in [0.45, h - 0.45]:
-			_part(Vector3(w - 0.08, 0.16, 0.05), Vector3(0, y, z), "dark_wood")
-			# Penture (bande de fer) au bout de la traverse.
-			_part(Vector3(0.42, 0.07, 0.02), Vector3(-w * 0.5 + 0.25, y, side * (t * 0.5 + 0.06)), "steel")
-		# Écharpe en travers, d'une traverse à l'autre.
-		_part(Vector3(sqrt(pow(w - 0.2, 2.0) + pow(h - 1.0, 2.0)), 0.14, 0.05), Vector3(0, h * 0.5, z), "dark_wood", Vector3(0, 0, ang))
-	_price_signs(h - 0.25, t * 0.5 + 0.055)
+		var dh := (i * 7 + door_id.length()) % 3
+		var base := VoxelBuild.col("wood" if i % 2 == 0 else "wood_dark", 1.05)
+		for x in range(bx0, bx1):
+			for y in nh - dh:
+				for z in range(-T, T):
+					# Veines verticales : teinte par colonne, grain léger par cube.
+					vb.put(x, y, z, VoxelBuild.grain(x, y / 4, z, base, 11 + i, 0.06, 3))
+		for y in nh - dh:
+			vb.paint(bx0, y, T - 1, VoxelBuild.PZ, seam)
+			vb.paint(bx0, y, -T, VoxelBuild.NZ, seam)
+	# Traverses (3 cubes) des deux côtés, écharpe en escalier de l'une à l'autre.
+	var dark := VoxelBuild.col("wood_dark")
+	var lo := mini(8, nh / 4)
+	var hi := maxi(lo + 6, nh - 11)
+	for z in [T, -T - 1]:
+		for x in range(1, nw - 1):
+			for y in [lo, lo + 1, lo + 2, hi, hi + 1, hi + 2]:
+				vb.put(x, y, z, VoxelBuild.grain(x, y, z, dark, 12, 0.06, 2))
+			var k := float(x - 1) / maxf(1.0, nw - 3.0)
+			var yb := lo + 3 + roundi(k * (hi - lo - 6))
+			for y in range(yb, mini(yb + 3, hi)):
+				vb.put(x, y, z, VoxelBuild.grain(x, y, z, dark, 13, 0.06, 2))
+		# Pentures (fer) au bout des traverses, côté gonds, et clous.
+		var face := VoxelBuild.PZ if z == T else VoxelBuild.NZ
+		for y in [lo + 1, hi + 1]:
+			for x in range(1, mini(9, nw - 1)):
+				vb.paint(x, y, z, face, VoxelBuild.col("metal_dark", 1.2))
+			vb.paint(nw - 3, y, z, face, VoxelBuild.col("metal_dark"))
+	_paint_price(vb, nw, nh - 8, -T - 1, T + 1)
+	_add_model(vb, nw)
 
 
-## Grille en fer (variante « grille ») : cadre, barreaux, traverse et plaque du
-## prix. Même collision qu'une porte pleine (on ne tire pas au travers).
+## Grille en fer (variante « grille ») : montants et traverses rouillés,
+## barreaux d'un cube, plaque du prix. Même collision qu'une porte pleine.
 func _build_gate() -> void:
-	var w := _size.x
-	var h := _size.y
-	for x in [-w * 0.5 + 0.05, w * 0.5 - 0.05]:
-		_part(Vector3(0.1, h, 0.1), Vector3(x, h * 0.5, 0), "wall_rust")
-	for y in [0.06, h * 0.55, h - 0.06]:
-		_part(Vector3(w, 0.08, 0.08), Vector3(0, y, 0), "wall_rust")
-	var n := maxi(4, roundi((w - 0.1) / 0.14))
-	for i in range(1, n):
-		_rod(h - 0.1, 0.018, Vector3(-w * 0.5 + 0.05 + (w - 0.1) * float(i) / n, h * 0.5, 0), "steel")
-	# Plaque du prix accrochée à la traverse, lisible des deux côtés.
-	_part(Vector3(0.62, 0.3, 0.03), Vector3(0, h * 0.55 + 0.21, 0), "door")
-	_price_signs(h * 0.55 + 0.21, 0.02, 64)
+	var n := _cells()
+	var nw := n.x
+	var nh := n.y
+	var vb := VoxelBuild.new()
+	var rust := VoxelBuild.col("rust")
+	for x in nw:
+		for y in nh:
+			var post := x < 2 or x >= nw - 2
+			var mid := roundi(nh * 0.55)
+			var bar := y < 2 or y >= nh - 2 or (y >= mid - 1 and y < mid + 1)
+			if post or bar:
+				for z in range(-1, 1):
+					vb.put(x, y, z, VoxelBuild.grain(x, y, z, rust, 21, 0.08, 3))
+	# Barreaux d'un cube tous les 3 cubes (15 cm, l'écart d'avant), centrés.
+	var inner := nw - 4
+	var rods := maxi(1, (inner - 1) / 3)
+	var start := 2 + (inner - (rods * 3 - 2)) / 2
+	for i in rods:
+		var x := start + i * 3
+		for y in range(2, nh - 2):
+			vb.put(x, y, -1, VoxelBuild.grain(x, y, 0, VoxelBuild.col("steel", 0.8), 22, 0.07, 3))
+	# Plaque du prix accrochée à la traverse du milieu, lisible des deux côtés.
+	var yc := roundi(nh * 0.55) + 4
+	var pw := maxi(12, str(cost).length() * 4 + 3)
+	var px := (nw - pw) / 2
+	vb.fill(px, px + pw, yc - 3, yc + 4, -1, 1, VoxelBuild.col("door_steel"), 23, 0.04, 2)
+	_paint_price(vb, nw, yc - 2, -1, 1)
+	_add_model(vb, nw)
 
 
-## Prix peint au pochoir, des deux côtés, à la hauteur `y` et à `z` du milieu.
-func _price_signs(y: float, z: float, font_size := 96) -> void:
-	for side in [-1.0, 1.0]:
-		var sign_label := Label3D.new()
-		sign_label.text = str(cost)
-		sign_label.font = UiStyle.font("stencil")
-		sign_label.font_size = font_size
-		sign_label.pixel_size = 0.004
-		sign_label.modulate = Color(0.75, 0.62, 0.35, 0.9)
-		sign_label.outline_size = 0
-		sign_label.position = Vector3(0, y, side * z)
-		sign_label.rotation.y = 0.0 if side > 0 else PI
-		sign_label.shaded = true
-		_slab.add_child(sign_label)
-		_signs.append(sign_label)
+## Tas qui bouche l'ouverture (débris) : profil plus haut au milieu, bombé en
+## profondeur (`depth` cubes de part et d'autre du plan de la porte), en blocs
+## de matière : `block.call(bloc, cellule) -> Color` (bloc : rang de 3 cubes,
+## tronçon de 7 cubes décalé d'un rang à l'autre, tranche de 5 cubes).
+static func _heap(vb: VoxelBuild, nw: int, nh: int, depth: int, s: int, block: Callable) -> void:
+	var mid := (nw - 1) * 0.5
+	for x in nw:
+		var t := nh * (0.95 - 1.3 * absf(x - mid) / nw) + (VoxelBuild.noise(x / 3, 0, 0, s) - 0.5) * 5.0
+		for z in range(-depth, depth):
+			var edge := absf(z + 0.5) / depth
+			var top := clampi(roundi(t - edge * edge * 8.0 + (VoxelBuild.noise(x, 1, z, s) - 0.5) * 2.0), 1, nh)
+			for y in top:
+				var row := y / 3
+				var k := Vector3i((x + row * 4) / 7, row, (z + 64) / 5)
+				vb.put(x, y, z, block.call(k, Vector3i(x, y, z)))
 
 
-## Éboulement de béton (variante « gravats » des débris) : blocs de béton,
-## dalle brisée en travers, fers à béton tordus ; aspect déterministe.
-func _build_rubble() -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("rubble_" + door_id)
-	var w := _size.x
-	var h := _size.y
-	for i in 12:
-		var s := rng.randf_range(0.35, 0.8)
-		var x := rng.randf_range(-0.5, 0.5) * (w - 0.3)
-		var top := h * (0.9 - absf(x) / w)
-		_part(Vector3(s, s * rng.randf_range(0.5, 0.8), s * rng.randf_range(0.7, 1.1)),
-			Vector3(x, rng.randf_range(0.2, maxf(top, 0.35)), rng.randf_range(-0.3, 0.3)),
-			"concrete" if i % 3 != 0 else "concrete_dark",
-			Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(-0.7, 0.7), rng.randf_range(-0.4, 0.4)))
-	# Dalle brisée appuyée en travers de l'ouverture.
-	_part(Vector3(w * 0.85, 0.18, 0.9), Vector3(-w * 0.05, h * 0.45, 0.0), "concrete_dark", Vector3(0, 0.1, 0.5))
-	for i in 5:
-		_rod(rng.randf_range(0.6, 1.3), 0.012, Vector3(rng.randf_range(-0.45, 0.45) * w, rng.randf_range(0.5, h * 0.8), rng.randf_range(-0.25, 0.25)),
-			"wall_rust", Vector3(rng.randf_range(-0.8, 0.8), 0, rng.randf_range(-1.2, 1.2)))
+## Planche qui dépasse du tas (le long de x, 1 cube d'épais, 4 de large),
+## d'une face à l'autre de la porte : plus longue que le tas est profond.
+static func _plank(vb: VoxelBuild, nw: int, x0: int, ln: int, y: int, z0: int, base: Color, s: int) -> void:
+	for x in range(maxi(0, x0), mini(nw, x0 + ln)):
+		for z in range(z0, z0 + 4):
+			vb.put(x, y, z, VoxelBuild.grain(x, y, z, base, s, 0.07, 3))
 
 
-## Bandes d'avertissement, volants et prix peints (portes payantes).
-func _decorate() -> void:
-	# Bandes d'avertissement jaunes et noires.
-	var stripe_mat := StandardMaterial3D.new()
-	stripe_mat.albedo_texture = _stripes_texture()
-	stripe_mat.roughness = 0.8
-	stripe_mat.uv1_scale = Vector3(_size.x * 1.5, 1, 1)
-	var stripe := MeshInstance3D.new()
-	var sm := BoxMesh.new()
-	sm.size = Vector3(_size.x - 0.05, 0.28, _size.z + 0.02)
-	stripe.mesh = sm
-	stripe.material_override = stripe_mat
-	stripe.position.y = 1.0
-	_slab.add_child(stripe)
-	for side in [-1.0, 1.0]:
-		# Volant de verrouillage.
-		var wheel := MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.18
-		cm.bottom_radius = 0.18
-		cm.height = 0.05
-		cm.radial_segments = 10
-		wheel.mesh = cm
-		wheel.material_override = WorldLook.surface("steel")
-		wheel.rotation.x = PI * 0.5
-		wheel.position = Vector3(0, 1.45, side * (_size.z * 0.5 + 0.03))
-		_slab.add_child(wheel)
-		# Prix peint au pochoir, des deux côtés.
-		var sign_label := Label3D.new()
-		sign_label.text = str(cost)
-		sign_label.font = UiStyle.font("stencil")
-		sign_label.font_size = 96
-		sign_label.pixel_size = 0.004
-		sign_label.modulate = Color(0.75, 0.62, 0.35, 0.9)
-		sign_label.outline_size = 0
-		sign_label.position = Vector3(0, 2.25, side * (_size.z * 0.5 + 0.015))
-		sign_label.rotation.y = 0.0 if side > 0 else PI
-		sign_label.shaded = true
-		_slab.add_child(sign_label)
-		_signs.append(sign_label)
-
-
-## Tas de débris (planches, gravats, poutre) qui bouche le passage, de
-## l'aspect déterministe (même tas sur toutes les machines).
+## Tas de débris (planches, blocs de béton, poutre) qui bouche le passage,
+## plus haut au milieu ; aspect déterministe (même tas sur toutes les machines).
 func _build_debris() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("debris_" + door_id)
-	var w := _size.x
-	var h := _size.y
-	for i in 14:
-		var mi := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		var plank := i % 3 != 0
-		var s := rng.randf_range(0.35, 0.75)
-		bm.size = Vector3(rng.randf_range(0.9, w * 0.8), 0.07, 0.22) if plank else Vector3(s, s * 0.7, s)
-		mi.mesh = bm
-		mi.material_override = WorldLook.surface("wood" if plank else "concrete")
-		# Tas plus haut au milieu, plus bas sur les bords.
-		var x := rng.randf_range(-0.5, 0.5) * (w - 0.4)
-		var top := h * (0.95 - absf(x) / w)
-		mi.position = Vector3(x, rng.randf_range(0.15, maxf(top, 0.3)), rng.randf_range(-0.3, 0.3))
-		mi.rotation = Vector3(rng.randf_range(-0.5, 0.5), rng.randf_range(-0.6, 0.6), rng.randf_range(-0.9, 0.9) if plank else rng.randf_range(-0.3, 0.3))
-		_slab.add_child(mi)
-	# Poutre en travers, du sol au haut de l'ouverture.
-	var beam := MeshInstance3D.new()
-	var bb := BoxMesh.new()
-	bb.size = Vector3(0.2, h * 1.05, 0.2)
-	beam.mesh = bb
-	beam.material_override = WorldLook.surface("wood")
-	beam.position = Vector3(w * 0.15, h * 0.48, 0.05)
-	beam.rotation.z = 0.55
-	_slab.add_child(beam)
+	var n := _cells()
+	var nw := n.x
+	var nh := n.y
+	var vb := VoxelBuild.new()
+	var s := int(rng.randi() % 1000)
+	# Cœur du tas : rangs de planches (tons de bois par tronçon), blocs de béton.
+	_heap(vb, nw, nh, 6, s, func(k: Vector3i, c: Vector3i) -> Color:
+		var r := VoxelBuild.noise(k.x, k.y, k.z, s + 1)
+		if r < 0.3:
+			return VoxelBuild.grain(c.x, c.y, c.z, VoxelBuild.col("concrete", 0.8 + 0.4 * r), s + 2, 0.08, 3)
+		var wood := VoxelBuild.col("wood" if r < 0.7 else "wood_dark", 0.8 + 0.3 * VoxelBuild.noise(k.x, k.y, k.z, s + 3))
+		# Joint sombre sous chaque rang de planches.
+		return VoxelBuild.tone(wood, 0.62) if c.y % 3 == 0 else VoxelBuild.grain(c.x / 3, c.y, c.z, wood, s + 4, 0.06, 2))
+	# Planches en travers qui dépassent devant et derrière.
+	for i in 7:
+		var ln := VoxelBuild.cubes(rng.randf_range(0.9, maxf(1.0, _size.x * 0.8)))
+		var x0 := roundi(rng.randf_range(0.0, 1.0) * (nw - ln))
+		var y := roundi(rng.randf_range(0.1, 0.75) * nh)
+		var z0 := -9 if i % 2 == 0 else 5
+		_plank(vb, nw, x0, ln, y, z0, VoxelBuild.col("wood" if i % 3 else "wood_dark", rng.randf_range(0.8, 1.1)), s + 10 + i)
+	# Poutre en travers, du sol au haut de l'ouverture : escalier de cubes
+	# (3 × 3), devant le tas.
+	var wood := VoxelBuild.col("wood", 0.75)
+	var x_lo := roundi(nw * 0.2)
+	var x_hi := roundi(nw * 0.8)
+	for y in range(0, nh - 2):
+		var x := x_hi - roundi(float(x_hi - x_lo) * y / (nh - 3))
+		for dx in 3:
+			for z in range(4, 7):
+				vb.put(x + dx, y, z, VoxelBuild.grain(x + dx, y / 2, z, wood, 31, 0.06, 2))
+	_add_model(vb, nw)
+
+
+## Éboulement de béton (variante « gravats » des débris) : blocs de béton
+## fissurés, dalle brisée en escalier devant, fers à béton rouillés ; aspect
+## déterministe.
+func _build_rubble() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("rubble_" + door_id)
+	var n := _cells()
+	var nw := n.x
+	var nh := n.y
+	var vb := VoxelBuild.new()
+	var s := int(rng.randi() % 1000)
+	_heap(vb, nw, nh, 7, s, func(k: Vector3i, c: Vector3i) -> Color:
+		var base := VoxelBuild.col("concrete", 0.55 + 0.45 * VoxelBuild.noise(k.x, k.y, k.z, s + 1))
+		# Fissures : joints des blocs plus sombres.
+		var crack := c.y % 3 == 0 and VoxelBuild.noise(c.x, c.y, c.z, s + 5) < 0.25
+		return VoxelBuild.tone(base, 0.6) if crack else VoxelBuild.grain(c.x / 2, c.y, c.z / 2, base, s + 2, 0.05, 2))
+	# Dalle brisée appuyée devant le tas : escalier de 3 cubes d'épaisseur.
+	var dark := VoxelBuild.col("concrete", 0.42)
+	var x0 := roundi(nw * 0.1)
+	var x1 := roundi(nw * 0.75)
+	for x in range(x0, x1):
+		var y_top := roundi(float(x - x0) / (x1 - x0) * nh * 0.6) + 3
+		for y in range(maxi(0, y_top - 4), y_top):
+			for z in range(7, 10):
+				vb.put(x, y, z, VoxelBuild.grain(x, y, z, dark, 70, 0.06, 3))
+	# Fers à béton : tiges rouillées d'un cube, droites, qui dépassent du tas.
+	var rust := VoxelBuild.col("rust")
+	for i in 6:
+		var x := roundi(rng.randf_range(0.15, 0.85) * (nw - 1))
+		var z := roundi(rng.randf_range(-5.0, 5.0))
+		var top := 0
+		while top < nh and vb.has(x, top, z):
+			top += 1
+		var ln := VoxelBuild.cubes(rng.randf_range(0.3, 0.6))
+		for k in range(-3, ln):
+			var p := Vector3i(x, top + k, z) if i % 2 == 0 else Vector3i(x + k + 3, top - 2, z)
+			if p.x >= 0 and p.x < nw and p.y >= 0 and p.y < nh:
+				vb.put(p.x, p.y, p.z, VoxelBuild.tone(rust, 0.9 + 0.2 * VoxelBuild.noise(p.x, p.y, p.z, 71)))
+	_add_model(vb, nw)
+
+
+@warning_ignore_restore("integer_division")
 
 
 func _build_body() -> void:
@@ -382,20 +498,3 @@ func set_open(open: bool, animate := true) -> void:
 		_slab.visible = not open
 
 
-static var _stripes: Texture2D
-
-
-static func _stripes_texture() -> Texture2D:
-	if _stripes:
-		return _stripes
-	var n := 64
-	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 3
-	for y in n:
-		for x in n:
-			var s := fmod(float(x + y), 32.0) < 16.0
-			var c := Color(0.75, 0.6, 0.08) if s else Color(0.05, 0.05, 0.04)
-			img.set_pixel(x, y, c * (0.8 + 0.2 * rng.randf()))
-	_stripes = ImageTexture.create_from_image(img)
-	return _stripes

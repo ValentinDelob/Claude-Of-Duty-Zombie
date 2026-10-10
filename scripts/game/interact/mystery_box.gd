@@ -113,10 +113,8 @@ func _ready() -> void:
 	_lid.name = "Lid"
 	_lid.position = LID_HINGE
 	_root.add_child(_lid)
-	# Coffre de bois cerclé de fer (BoxModel) ; repli en boîtes sans modèle.
+	# Caisse de matériel cubique cerclée d'acier (BoxModel).
 	_open_meshes = BoxModel.build(_root, _lid)
-	if _open_meshes.is_empty():
-		_build_boxes()
 	# Colonne de lumière douce qui signale la caisse de loin.
 	_beam = BoxModel.build_beam()
 	_root.add_child(_beam)
@@ -139,34 +137,6 @@ func _ready() -> void:
 	_body = _collider(BODY_SIZE)
 	_root.add_child(_body)
 	_place()
-
-
-## Repli sans modèle (.glb absent) : caisse en boîtes et « ? » en texte.
-func _build_boxes() -> void:
-	var crate := WorldLook.surface("crate")
-	_part(_root, Vector3(1.8, 0.75, 0.85), Vector3(0, 0.375, 0), crate)
-	for x in [-0.86, 0.86]:
-		_part(_root, Vector3(0.08, 0.8, 0.9), Vector3(x, 0.4, 0), WorldLook.surface("steel"))
-	_part(_lid, Vector3(1.82, 0.1, 0.88), Vector3(0, 0.05, 0.42), crate)
-	for side in [-1.0, 1.0]:
-		var q := Label3D.new()
-		q.text = "?"
-		q.font = UiStyle.font("title")
-		q.font_size = 160
-		q.pixel_size = 0.003
-		q.modulate = Color(0.86, 0.8, 0.6)
-		q.position = Vector3(side * 0.45, 0.4, 0.43)
-		_root.add_child(q)
-
-
-func _part(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> void:
-	var mi := MeshInstance3D.new()
-	var b := BoxMesh.new()
-	b.size = size
-	mi.mesh = b
-	mi.position = pos
-	mi.material_override = mat
-	parent.add_child(mi)
 
 
 func _collider(size: Vector3) -> StaticBody3D:

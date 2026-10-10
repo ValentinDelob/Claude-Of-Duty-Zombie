@@ -5,9 +5,9 @@ des effets de carte (§ « Textures des effets de carte » ci-dessous ; les mod�
 `assets/models/` sont produits par nos scripts Blender, voir
 `tools/blender/`, aucun modèle téléchargé ; les décors du catalogue
 de l'éditeur (`assets/models/props/`) sont
-générés par `tools/blender/props/catalog_props.py`, emblèmes et enseignes originaux ; la caisse au hasard,
-`assets/models/props/mystery_box.glb`, par `tools/blender/props/mystery_box.py`, points d'interrogation
-au pochoir dessinés pour ce jeu, matières procédurales ; les modèles du style
+générés par `tools/blender/props/catalog_props.py`, emblèmes et enseignes originaux ; les objets de
+carte cubiques (caisse au hasard, levier du courant, téléporteur...), `assets/models/props/voxel/objets/`,
+par `tools/blender/voxel_props/objets.py`, dessins (dé, éclair, flèche) originaux ; les modèles du style
 cubique, comme `assets/models/zombies/zombie_voxel.glb`, par
 `tools/blender/voxel/voxel_lib.py`, couleurs prélevées sur nos propres planches
 de référence, voir docs/ART_DIRECTION.md). La plupart des bruitages

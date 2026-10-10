@@ -1,5 +1,5 @@
 extends TestCase
-## Apparence de la caisse au hasard (BoxModel) : le modèle Blender garde
+## Apparence de la caisse au hasard (BoxModel) : le modèle cubique garde
 ## l'empreinte et le point d'interaction de la boîte, le couvercle pivote sur
 ## sa charnière, la colonne de lumière et la lampe restent discrètes.
 
@@ -48,7 +48,7 @@ func test_modele_dans_l_empreinte() -> void:
 	var box := await _box()
 	assert_true(ResourceLoader.exists(BoxModel.MODEL_PATH), "modèle .glb présent")
 	assert_true(box._open_meshes.size() >= 2, "fond lumineux et intérieur du modèle")
-	assert_true(box._root.get_node_or_null("Model") != null, "modèle Blender chargé (pas le repli en boîtes)")
+	assert_true(box._root.get_node_or_null("Model") != null, "modèle cubique chargé")
 	var inv := box._root.global_transform.affine_inverse()
 	var aabb := AABB()
 	var first := true
@@ -61,7 +61,7 @@ func test_modele_dans_l_empreinte() -> void:
 		var b := (inv * mi.global_transform) * mi.get_aabb()
 		aabb = b if first else aabb.merge(b)
 		first = false
-	assert_true(lid_meshes >= 2, "bois et ferrures du couvercle sous le pivot (%d)" % lid_meshes)
+	assert_true(lid_meshes >= 1, "couvercle cubique sous le pivot (%d)" % lid_meshes)
 	# Petits détails (poignées, charnières, moraillon) : 5 cm au plus hors collision.
 	var lo := aabb.position
 	var hi := aabb.end

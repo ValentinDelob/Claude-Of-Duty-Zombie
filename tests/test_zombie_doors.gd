@@ -337,7 +337,7 @@ func test_built_door_is_at_most_10_cm_thick() -> void:
 		var mmi := b.get_node("Planks") as MultiMeshInstance3D
 		var mm := mmi.multimesh
 		assert_eq(mm.instance_count, BarricadeRules.planks_for(b.kind))
-		var hs: Vector3 = (mm.mesh as BoxMesh).size * 0.5
+		var hs: Vector3 = mm.mesh.get_aabb().size * 0.5
 		for i in mm.instance_count:
 			var xf: Transform3D = b._rest[i]  # planche au repos (le MultiMesh ne garde rien sans rendu)
 			for sx in [-1, 1]:
@@ -427,7 +427,7 @@ func test_window_unchanged() -> void:
 	assert_eq(b.queue_max(), BarricadeRules.WINDOW_QUEUE_MAX)
 	assert_true(b.get_node_or_null("DoorAssembly") == null, "pas de porte")
 	var mm := (b.get_node("Planks") as MultiMeshInstance3D).multimesh
-	assert_eq((mm.mesh as BoxMesh).size, Barricade.PLANK_SIZE)
+	assert_true(mm.mesh.get_aabb().size.is_equal_approx(Barricade.PLANK_SIZE), "planche cubique de la fenêtre")
 	assert_near((b._rest[0] as Transform3D).origin.z, Barricade.PLANK_Z + float(Barricade.LAYOUT[0][2]), 0.001, "plan des planches d'avant")
 	var shape := (b.get_node("Barrier").get_child(0) as CollisionShape3D).shape as BoxShape3D
 	# Barrière : l'épaisseur du mur de 0,5 m (avant : 1 m, 25 cm de saillie

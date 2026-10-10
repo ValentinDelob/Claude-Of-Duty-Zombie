@@ -3,276 +3,146 @@ extends RefCounted
 ## Modèle d'une porte à zombies (format 8 des cartes ; docs/MAP_OBJECTS.md
 ## § 9) : bâti (montants, traverse, chambranle, seuil) et battant(s) cassé(s)
 ## à mi-hauteur — seule la moitié basse reste sur ses gonds, planches aux
-## bouts éclatés, le haut vide : les zombies l'enjambent comme l'allège d'une
-## fenêtre — dans le plan de la face INTÉRIEURE du mur. Les planches de la barricade
-## (Barricade, animées) sont clouées devant, dans la même tranche.
+## bouts éclatés en dents de cubes, le haut vide : les zombies l'enjambent
+## comme l'allège d'une fenêtre — dans le plan de la face INTÉRIEURE du mur.
+## Les planches de la barricade (Barricade, animées) sont clouées devant,
+## dans la même tranche.
 ##
 ## Règle « vraie porte » : tout l'assemblage (bâti, battants, planches) tient
 ## dans une tranche de 10 cm (ENVELOPE) ; le reste de l'épaisseur du mur est
 ## l'embrasure, côté dehors (la cour des zombies). Vue de la salle, la porte
 ## est presque à fleur du mur, pas au fond d'un trou.
 ##
+## CUBIQUE (cubes de 5 cm, VoxelBuild ; GAME_CONCEPT.md § 4.19) : la tranche
+## fait deux couches de cubes. Couche de derrière : bâti et battants ; couche
+## de devant : chambranle (autour de l'ouverture) et planches de la
+## barricade (dans l'ouverture, Barricade.DOOR_PLANK_Z). Barres et pentures
+## du battant peintes sur ses faces ; penture du haut arrachée en cubes.
+##
 ## Repère local de la Barricade : +Z vers l'intérieur, X le long du mur, Y en
 ## haut, origine au sol au milieu du mur. Construit par le jeu (aucun fichier
-## importé, aucun élément graphique d'Activision), surfaces WorldLook ;
-## aspect déterministe (graine de la fenêtre) sur toutes les machines.
+## importé) ; aspect déterministe (graine de la fenêtre) sur toutes les
+## machines.
 
 ## Tranche de l'assemblage (z local) : de l'arrière du bâti au chambranle.
 const Z_BACK := 0.16
 const Z_FRONT := 0.26
 const ENVELOPE := Z_FRONT - Z_BACK
-## Montants et traverse du bâti (largeur vue de face, profondeur).
-const FRAME_W := 0.07
-const FRAME_Z := Vector2(0.16, 0.24)
-## Chambranle (moulure sur la face du mur, autour de l'ouverture).
-const CASING_W := 0.075
-const CASING_Z := Vector2(0.245, 0.26)
-## Battant : planches verticales et traverses (barres), côté dehors.
-const LEAF_Z := Vector2(0.18, 0.205)
-const LEDGE_Z := Vector2(0.162, 0.18)
-const STRAP_Z := Vector2(0.205, 0.209)
-## Planches de la barricade (Barricade : plan des planches d'une porte).
-const BOARD_Z := Vector2(0.21, 0.252)
-## Haut moyen des battants cassés à mi-hauteur (bouts éclatés à ±10 cm) :
+## Planches de la barricade : couche de cubes de devant.
+const BOARD_Z := Vector2(0.21, 0.26)
+## Haut moyen des battants cassés à mi-hauteur (bouts éclatés à ±5 cm) :
 ## hauteur de l'allège d'une fenêtre, que les zombies enjambent pareil.
 const LEAF_TOP := 0.95
+## Montants du bâti et chambranle (cubes).
+const POST := 2
+const CASING := 2
 
+@warning_ignore_start("integer_division")
 
 ## Assemblage complet (nœud « DoorAssembly ») d'une porte de type `kind`
 ## (BarricadeRules.DOOR / DOUBLE_DOOR), de largeur `width` (m) et de hauteur
-## `height` (haut de l'ouverture), graine `seed_v`.
+## `height` (haut de l'ouverture), graine `seed_v`. Un maillage cubique par
+## partie : « Door_frame », « Door_casing », « Door_leaf_a », « Door_leaf_b »
+## (planches paires et impaires du battant), « Door_metal » (penture).
 static func build(kind: String, width: float, height: float, seed_v: int) -> Node3D:
 	var root := Node3D.new()
 	root.name = "DoorAssembly"
-	var parts := {}  # matériau -> SurfaceTool
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_v + 101
-	var hw := width * 0.5
-	# --- Bâti : montants, traverse, seuil, chambranle -----------------------
-	var fz := (FRAME_Z.x + FRAME_Z.y) * 0.5
-	var fd := FRAME_Z.y - FRAME_Z.x
-	for sx in [-1.0, 1.0]:
-		_box(parts, "frame", Vector3(FRAME_W, height, fd), Vector3(sx * (hw - FRAME_W * 0.5), height * 0.5, fz))
-	_box(parts, "frame", Vector3(width, FRAME_W, fd), Vector3(0, height - FRAME_W * 0.5, fz))
-	_box(parts, "frame", Vector3(width, 0.025, ENVELOPE), Vector3(0, 0.0125, (Z_BACK + Z_FRONT) * 0.5))
-	var cz := (CASING_Z.x + CASING_Z.y) * 0.5
-	var cd := CASING_Z.y - CASING_Z.x
-	for sx in [-1.0, 1.0]:
-		_box(parts, "casing", Vector3(CASING_W, height + CASING_W, cd), Vector3(sx * (hw + CASING_W * 0.5), (height + CASING_W) * 0.5, cz))
-		# Socle du chambranle (plinthe), un peu plus épais.
-		_box(parts, "frame", Vector3(CASING_W + 0.01, 0.16, cd), Vector3(sx * (hw + CASING_W * 0.5), 0.08, cz))
-	_box(parts, "casing", Vector3(width + CASING_W * 2.0 + 0.04, CASING_W, cd), Vector3(0, height + CASING_W * 0.5, cz))
-	# --- Battant(s) : cassés à mi-hauteur, le haut vide (on enjambe) --------
-	var clear := width - FRAME_W * 2.0
-	var top_hinge := height - FRAME_W - 0.3
+	var nw := VoxelBuild.cubes(width, 2 * POST + 4)
+	var nh := VoxelBuild.cubes(height, 24)
+	var parts := {}
+	for key in ["frame", "casing", "leaf_a", "leaf_b", "metal"]:
+		parts[key] = VoxelBuild.new()
+	var frame: VoxelBuild = parts.frame
+	var casing: VoxelBuild = parts.casing
+	var wood_frame := VoxelBuild.col("door_frame")
+	# --- Bâti (couche de derrière) : montants, traverse ; seuil sur les deux couches.
+	for x in nw:
+		for y in nh:
+			if x < POST or x >= nw - POST or y >= nh - POST:
+				frame.put(x, y, 0, VoxelBuild.grain(x, y, 0, wood_frame, 41, 0.07, 3))
+	for x in range(POST, nw - POST):
+		for z in 2:
+			frame.put(x, 0, z, VoxelBuild.grain(x, 0, z, wood_frame, 42, 0.07, 3))
+	# --- Chambranle (couche de devant, autour de l'ouverture) et plinthes.
+	var moulding := VoxelBuild.col("door_frame", 1.3)
+	for x in range(-CASING, nw + CASING):
+		for y in nh + CASING:
+			if x >= 0 and x < nw and y < nh:
+				continue
+			var c := VoxelBuild.grain(x, y, 1, moulding, 43, 0.06, 3)
+			if y < 3:
+				c = VoxelBuild.grain(x, y, 1, wood_frame, 44, 0.05, 2)
+			casing.put(x, y, 1, c)
+	# Corniche un cube plus large en haut.
+	for x in [-CASING - 1, nw + CASING]:
+		for y in range(nh, nh + CASING):
+			casing.put(x, y, 1, VoxelBuild.grain(x, y, 1, moulding, 43, 0.06, 3))
+	# --- Battant(s) cassé(s) à mi-hauteur (couche de derrière).
+	var top_hinge := nh - POST - 6
 	if kind == BarricadeRules.DOUBLE_DOOR:
-		var lw := clear * 0.5 - 0.01
-		_half_leaf(parts, rng, Vector2(-clear * 0.5, 0.03), lw, 1.0)
-		_half_leaf(parts, rng, Vector2(clear * 0.5, 0.03), lw, -1.0)
-		_torn_strap(parts, rng, Vector2(-clear * 0.5, top_hinge), 1.0)
-		_torn_strap(parts, rng, Vector2(clear * 0.5, top_hinge), -1.0)
+		var half := nw / 2
+		_half_leaf(parts, rng, POST, half, 1)
+		_half_leaf(parts, rng, nw - POST - 1, half, -1)
+		_torn_strap(parts.metal, POST, top_hinge, 1)
+		_torn_strap(parts.metal, nw - POST - 1, top_hinge, -1)
 	else:
-		_half_leaf(parts, rng, Vector2(-clear * 0.5, 0.03), clear - 0.02, 1.0)
-		_torn_strap(parts, rng, Vector2(-clear * 0.5, top_hinge), 1.0)
+		_half_leaf(parts, rng, POST, nw - POST, 1)
+		_torn_strap(parts.metal, POST, top_hinge, 1)
+	var offset := Vector3(-nw * VoxelBuild.CUBE * 0.5, 0.0, Z_BACK)
 	for key in parts:
-		var st: SurfaceTool = parts[key]
-		var mi := MeshInstance3D.new()
-		mi.name = "Door_" + String(key)
-		mi.mesh = st.commit()
-		mi.material_override = material(String(key))
-		# Comme les planches : pas d'ombre portée (cubemaps des lampes).
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var vb: VoxelBuild = parts[key]
+		if vb.cells.is_empty():
+			continue
+		var mi := vb.node("Door_" + key, offset, false)
 		mi.visibility_range_end = 40.0
 		root.add_child(mi)
 	return root
 
 
-## Teintes des bois de la porte : battant (deux tons de planches peintes,
-## peinture vert-de-gris écaillée sur bois brun), bâti et chambranle (brun
-## sombre), distinctes du gris délavé des planches de la barricade.
-const TINTS := {
-	"leaf_a": Color(0.4, 0.29, 0.19),
-	"leaf_b": Color(0.31, 0.22, 0.14),
-	"frame": Color(0.22, 0.15, 0.1),
-	"casing": Color(0.3, 0.22, 0.15),
-}
-static var _mats: Dictionary = {}
-static var _grain: ImageTexture
-
-
-## Matériau d'une partie : bois veiné procédural (projection triplanaire, sans
-## UV), ou une surface du jeu (WorldLook.SURFACES : « metal » des pentures).
-static func material(key: String) -> Material:
-	if not TINTS.has(key):
-		return WorldLook.surface(key)
-	if _mats.has(key):
-		return _mats[key]
-	if _grain == null:
-		var w := 64
-		var h := 256
-		var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-		var noise := FastNoiseLite.new()
-		noise.seed = 23
-		noise.frequency = 0.06
-		for y in h:
-			for x in w:
-				# Veines verticales (les planches du battant sont debout).
-				var grain := sin(x * 0.55 + noise.get_noise_2d(x * 3.0, y * 0.35) * 5.0) * 0.5 + 0.5
-				var n := noise.get_noise_2d(x * 1.7, y * 1.7) * 0.5 + 0.5
-				var k := 0.62 + grain * 0.22 + n * 0.16
-				var c := Color(k, k * 0.97, k * 0.93)
-				# Restes de peinture vert-de-gris, écaillée par plaques.
-				var paint := noise.get_noise_2d(x * 0.9 + 400.0, y * 0.5)
-				if paint > 0.3:
-					c = c.lerp(Color(0.5, 0.56, 0.5), clampf((paint - 0.3) * 3.0, 0.0, 0.35))
-				c.a = 1.0
-				img.set_pixel(x, y, c)
-		img.generate_mipmaps()
-		_grain = ImageTexture.create_from_image(img)
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = _grain
-	m.albedo_color = TINTS[key]
-	m.uv1_triplanar = true
-	m.uv1_scale = Vector3(1.6, 0.8, 1.6)
-	m.roughness = 0.88
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	_mats[key] = m
-	return m
-
-
-## Moitié basse d'un battant cassé à mi-hauteur : planches debout du seuil à
-## LEAF_TOP environ, bouts du haut éclatés en dents de scie (hauteurs
-## différentes, une planche plus courte), barres du bas et du haut, gonds en
-## fer. `corner` : coin bas côté gonds ; `side` = +1 : gonds à gauche (le
-## battant s'étend vers +X), -1 : gonds à droite. Rien au-dessus.
-static func _half_leaf(parts: Dictionary, rng: RandomNumberGenerator, corner: Vector2, lw: float, side: float) -> void:
-	var tilt := rng.randf_range(-0.012, 0.012)
-	var xf := func(p: Vector2) -> Vector2:
-		return corner + Vector2(p.x * side, p.y).rotated(tilt)
-	var n := maxi(4, roundi(lw / 0.17))
-	var bw := lw / n
-	var short := rng.randi() % n
-	for i in n:
-		var x0 := bw * i + 0.004
-		var x1 := bw * (i + 1) - 0.004
+## Moitié basse d'un battant cassé à mi-hauteur : planches debout de 3 cubes
+## du seuil à LEAF_TOP environ, bouts du haut éclatés en dents (hauteur par
+## colonne de cubes), une planche plus courte ; barres (côté dehors) et
+## pentures (côté salle) peintes. `hinge` : colonne côté gonds ; `side` = +1 :
+## le battant s'étend vers +X jusqu'à `end` (exclu), -1 : vers -X.
+static func _half_leaf(parts: Dictionary, rng: RandomNumberGenerator, hinge: int, end: int, side: int) -> void:
+	var span := absi(end - hinge) if side > 0 else absi(hinge - end) + 1
+	var boards := maxi(3, span / 3)
+	var short := rng.randi() % boards
+	var top0 := roundi(LEAF_TOP / VoxelBuild.CUBE)
+	var bar := top0 - 6
+	for i in boards:
+		var key := "leaf_a" if i % 2 == 0 else "leaf_b"
+		var vb: VoxelBuild = parts[key]
+		var base := VoxelBuild.col("leaf_green" if i % 2 == 0 else "wood", 0.95 + 0.1 * rng.randf())
+		var u0 := i * span / boards
+		var u1 := (i + 1) * span / boards
 		# Cassée un peu plus bas côté libre (là où les coups ont porté).
-		var top := LEAF_TOP + rng.randf_range(-0.04, 0.06) - float(i) / n * 0.1
+		var top := top0 + rng.randi_range(-1, 1) - i * 2 / boards
 		if i == short:
-			top -= rng.randf_range(0.12, 0.2)
-		var outline := _jagged_board(rng, x0, x1, 0.0, top, false, true)
-		_slab(parts, "leaf_a" if i % 2 == 0 else "leaf_b", PackedVector2Array(Array(outline).map(xf)), LEAF_Z.x, LEAF_Z.y)
-	# Barres (côté dehors) : celle du bas entière, celle du haut cassée au bout.
-	_slab_rect(parts, "leaf_b", xf, Vector2(0.02, 0.16), Vector2(lw - 0.02, 0.3), LEDGE_Z)
-	var bar := LEAF_TOP - 0.3
-	_slab(parts, "leaf_b", PackedVector2Array(Array(_jagged_board(rng, 0.02, lw * rng.randf_range(0.7, 0.9), bar - 0.07, bar + 0.07, false, false, true)).map(xf)), LEDGE_Z.x, LEDGE_Z.y)
-	# Gonds (bandes de fer), côté salle.
-	_slab_rect(parts, "metal", xf, Vector2(-0.02, 0.2), Vector2(0.34, 0.25), STRAP_Z)
-	_slab_rect(parts, "metal", xf, Vector2(-0.02, bar - 0.03), Vector2(0.3, bar + 0.02), STRAP_Z)
+			top -= rng.randi_range(2, 4)
+		for u in range(u0, u1):
+			var x := hinge + u * side
+			# Dents : chaque colonne de cubes cassée à sa hauteur.
+			var t := top + (rng.randi_range(-1, 1) if u != u0 else 0)
+			for y in range(1, mini(t, top0 + 2)):
+				var c := VoxelBuild.grain(x, y, 0, base, 45 + i, 0.08, 3)
+				# Peinture écaillée : bois nu par endroits.
+				if VoxelBuild.noise(x, y, 0, 46) > 0.82:
+					c = VoxelBuild.col("wood", 0.9)
+				vb.put(x, y, 0, c)
+				# Barres du battant (dehors, -z) : celle du bas entière, celle du haut cassée.
+				if (y >= 3 and y < 6) or (y >= bar and y < bar + 3 and u < span * 4 / 5):
+					vb.paint(x, y, 0, VoxelBuild.NZ, VoxelBuild.col("wood_dark", 0.9))
+				# Pentures en fer (côté salle, +z) près des gonds.
+				if u < 7 and (y == 4 or y == bar + 1):
+					vb.paint(x, y, 0, VoxelBuild.PZ, VoxelBuild.col("metal_dark", 1.3))
 
 
-## Penture du haut restée sur le bâti, tordue, sans son battant (`side` comme
-## _half_leaf).
-static func _torn_strap(parts: Dictionary, rng: RandomNumberGenerator, hinge: Vector2, side: float) -> void:
-	var bend := -side * rng.randf_range(0.25, 0.45)
-	var xf := func(p: Vector2) -> Vector2:
-		return hinge + Vector2(p.x * side, p.y).rotated(bend)
-	_slab_rect(parts, "metal", xf, Vector2(-0.02, -0.05), Vector2(0.2, 0.0), STRAP_Z)
-
-
-## Contour (sens trigonométrique) d'une planche de x0 à x1 et de y0 à y1, aux
-## bouts éclatés en dents de scie (`jag_bottom`, `jag_top`) ; `jag_right` :
-## barre horizontale cassée à son bout droit.
-static func _jagged_board(rng: RandomNumberGenerator, x0: float, x1: float, y0: float, y1: float, jag_bottom: bool, jag_top: bool, jag_right := false) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	var teeth := 3
-	if jag_bottom:
-		for k in teeth + 1:
-			var x := lerpf(x0, x1, float(k) / teeth)
-			out.append(Vector2(x, y0 + (rng.randf_range(-0.09, 0.0) if k % 2 == 1 else rng.randf_range(0.0, 0.05))))
-	else:
-		out.append(Vector2(x0, y0))
-		out.append(Vector2(x1, y0))
-	if jag_right:
-		out.append(Vector2(x1 + rng.randf_range(0.03, 0.08), lerpf(y0, y1, 0.4)))
-	if jag_top:
-		for k in range(teeth, -1, -1):
-			var x := lerpf(x0, x1, float(k) / teeth)
-			out.append(Vector2(x, y1 + (rng.randf_range(0.0, 0.1) if k % 2 == 1 else rng.randf_range(-0.05, 0.0))))
-	else:
-		out.append(Vector2(x1, y1))
-		out.append(Vector2(x0, y1))
-	return out
-
-
-static func _slab_rect(parts: Dictionary, key: String, xf: Callable, p0: Vector2, p1: Vector2, z: Vector2) -> void:
-	var o := PackedVector2Array([p0, Vector2(p1.x, p0.y), p1, Vector2(p0.x, p1.y)])
-	_slab(parts, key, PackedVector2Array(Array(o).map(xf)), z.x, z.y)
-
-
-static func _st(parts: Dictionary, key: String) -> SurfaceTool:
-	if not parts.has(key):
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		parts[key] = st
-	return parts[key]
-
-
-## Pavé (taille, centre) dans le repère local.
-static func _box(parts: Dictionary, key: String, size: Vector3, c: Vector3) -> void:
-	var h := size * 0.5
-	var r := PackedVector2Array([Vector2(c.x - h.x, c.y - h.y), Vector2(c.x + h.x, c.y - h.y), Vector2(c.x + h.x, c.y + h.y), Vector2(c.x - h.x, c.y + h.y)])
-	_slab(parts, key, r, c.z - h.z, c.z + h.z)
-
-
-## Prisme : contour `poly` (plan XY, un sens quelconque) extrudé de z0 à z1.
-static func _slab(parts: Dictionary, key: String, poly: Variant, z0: float, z1: float) -> void:
-	var p := PackedVector2Array(poly)
-	if p.size() < 3:
-		return
-	# Sens trigonométrique (vu de +Z).
-	var area := 0.0
-	for i in p.size():
-		var a := p[i]
-		var b := p[(i + 1) % p.size()]
-		area += a.x * b.y - b.x * a.y
-	if area < 0.0:
-		p.reverse()
-	var tris := Geometry2D.triangulate_polygon(p)
-	if tris.is_empty():
-		return
-	var st := _st(parts, key)
-	# Face avant (+Z) et arrière (-Z).
-	for i in range(0, tris.size(), 3):
-		var a := p[tris[i]]
-		var b := p[tris[i + 1]]
-		var c := p[tris[i + 2]]
-		_tri(st, Vector3(a.x, a.y, z1), Vector3(b.x, b.y, z1), Vector3(c.x, c.y, z1), Vector3.BACK)
-		_tri(st, Vector3(a.x, a.y, z0), Vector3(b.x, b.y, z0), Vector3(c.x, c.y, z0), Vector3.FORWARD)
-	# Côtés (contour dans le sens trigonométrique : normale vers l'extérieur).
-	for i in p.size():
-		var a := p[i]
-		var b := p[(i + 1) % p.size()]
-		var e := b - a
-		if e.length_squared() < 1e-10:
-			continue
-		var nrm := Vector3(e.y, -e.x, 0).normalized()
-		var v0 := Vector3(a.x, a.y, z0)
-		var v1 := Vector3(b.x, b.y, z0)
-		var v2 := Vector3(b.x, b.y, z1)
-		var v3 := Vector3(a.x, a.y, z1)
-		_tri(st, v0, v1, v2, nrm)
-		_tri(st, v0, v2, v3, nrm)
-
-
-## Triangle tourné vers `nrm` (Godot : face avant dans le sens horaire vue de
-## devant), normale plate.
-static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, nrm: Vector3) -> void:
-	st.set_normal(nrm)
-	if (b - a).cross(c - a).dot(nrm) > 0.0:
-		st.add_vertex(a)
-		st.add_vertex(c)
-		st.add_vertex(b)
-	else:
-		st.add_vertex(a)
-		st.add_vertex(b)
-		st.add_vertex(c)
+## Penture du haut restée sur le bâti sans son battant, arrachée : quatre
+## cubes de fer en escalier qui pendent du montant (`side` comme _half_leaf).
+static func _torn_strap(vb: VoxelBuild, x0: int, y: int, side: int) -> void:
+	var c := VoxelBuild.col("metal_dark", 1.25)
+	for k in 4:
+		vb.put(x0 + k * side, y - k / 2, 0, VoxelBuild.tone(c, 1.0 - 0.05 * k))
