@@ -1290,6 +1290,20 @@ Deux familles de formes, jamais mêlées (`tests/test_zombie_hitbox.gd`) :
   (`prewarm_async`, lancé au premier zombie construit, typiquement au
   préchauffage) : un zombie coûte < 0,1 ms à construire. Couche de rendu 2 (hors
   des décalques de sang).
+- **Modèle en usage : le zombie cubique** `assets/models/zombies/zombie_voxel.glb`
+  (`ZombieModel.MODEL_PATH`, converti par `ZombieGlb` : un mesh partagé,
+  couleur par face, normale de repos en CUSTOM0 ; shaders `zombie_voxel.gdshader`
+  et `zombie_voxel_dissolve.gdshader`, `#define VOXEL` du même corps). Le
+  procédural ci-dessus reste le repli (.glb absent, `-- --procedural-zombies`).
+  `ZombieModel.bone_bounds()` (boîtes de repos par os, mesurées sur le mesh)
+  taille les zones de touche (`hit_shapes` : sphère de tête, capsules des
+  avant-bras ET des hauts de bras, `Zombie.hit_upper_arms`, les épaules
+  dépassant de la capsule du corps), les corps du ragdoll, `ZombieGibs.limb_at`
+  et la pose au sol des corps (`ZombieAnim.ground`) ; `limb_mesh` découpe les
+  morceaux arrachés dans le mesh. Jambes arrachées sous le genou (la blouse,
+  liée aux cuisses, reste). Capsule de déplacement inchangée (RADIUS 0,22 m,
+  HEIGHT 1,75 m pour un modèle de 1,80 m) : le torse cubique (0,25 m) en
+  dépasse un peu, la navigation garde ses réglages.
 - `ZombieAnim` (un par zombie, cosmétique, toutes les machines) : marche
   traînante, trot/course, sprint, attaque à deux bras, émergence, arrachage de
   planches (geste réglé sur `BarricadeRules.TEAR_PULL`, puis pause « de

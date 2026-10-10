@@ -1,4 +1,5 @@
-// Corps commun des shaders de zombie (zombie.gdshader, zombie_dissolve.gdshader).
+// Corps commun des shaders de zombie (zombie.gdshader, zombie_dissolve.gdshader,
+// zombie_voxel.gdshader, zombie_voxel_dissolve.gdshader).
 // Couleur par sommet, matière par pièce (UV2.y : 0 tissu, 1 peau, 2 cuir,
 // 3 métal, 4 plaie/sang, 5 os/dents), bruit calculé sur la position de REPOS
 // (UV.xy, UV2.x : les taches ne glissent pas pendant l'animation), yeux
@@ -15,9 +16,23 @@ uniform float stain_amount = 0.75;
 instance uniform float hit_flash = 0.0;
 instance uniform float dissolve = 0.0;
 instance uniform float eye_glow = 1.0;
+// VOXEL (zombie_voxel*.gdshader : modèle CUBIQUE de ZombieModel) : la
+// couleur de la face (COLOR_0, palette validée) est gardée
+// telle quelle, sans crasse ni marbrures ; seule la dissolution lit un
+// tirage, un par CUBE (normale de repos en CUSTOM0, ZombieGlb) : le corps
+// disparaît cube par cube. `voxel_cell` : côté d'un cube (ZombieModel.MODEL_CUBE).
+#ifdef VOXEL
+uniform float voxel_cell = 0.025;
+// Teinte de variante (modèle cubique, ZombieModel.MODEL_TINTS) : blouse
+// (rgb) et peau (a).
+instance uniform vec4 look_tint = vec4(1.0);
+#endif
 
 varying vec3 rest_pos;
 varying float mat_id;
+#ifdef VOXEL
+varying vec3 rest_n;
+#endif
 
 // Treillis de valeurs aléatoires (NoiseLattice.tex3d, 32³, un texel par
 // nœud) : le filtrage trilinéaire lu en i + s(f) donne le bruit de valeur
@@ -37,10 +52,41 @@ float vnoise(vec3 p) {
 void vertex() {
 	rest_pos = vec3(UV.x, UV.y, UV2.x);
 	mat_id = UV2.y;
+#ifdef VOXEL
+	rest_n = CUSTOM0.rgb * 2.0 - 1.0;
+#endif
 }
 
 void fragment() {
 	vec3 p = rest_pos;
+#ifdef VOXEL
+#ifdef DISSOLVE
+	// Cube du fragment : un demi-cube sous la face, vers l'intérieur.
+	vec3 cell = floor(p / voxel_cell - rest_n * 0.5);
+	float h = fract(sin(dot(cell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+	if (h < dissolve) {
+		discard;
+	}
+#endif
+	float vm = floor(mat_id + 0.5);
+	vec3 vcol = COLOR.rgb;
+	if (vm < 0.5) {
+		vcol *= look_tint.rgb;
+	} else if (vm < 1.5) {
+		vcol *= look_tint.a;
+	}
+	bool wet = vm > 3.5 && vm < 4.5;
+	ALBEDO = mix(vcol, vec3(1.0, 0.2, 0.15), hit_flash * 0.6);
+	ROUGHNESS = wet ? 0.3 : 0.85;
+	SPECULAR = wet ? 0.6 : 0.3;
+	METALLIC = 0.0;
+	EMISSION = emission_color.rgb * emission_energy * (1.0 - COLOR.a) * eye_glow + vec3(0.6, 0.05, 0.02) * hit_flash;
+#ifdef DISSOLVE
+	// Cubes au bord de la dissolution : braise.
+	EMISSION += vec3(1.0, 0.3, 0.05) * step(h, dissolve + 0.08) * 3.0;
+#endif
+#else
+	// Zombies procéduraux (repli) : crasse, marbrures, sang peint.
 	float n = vnoise(p * 14.0) * 0.6 + vnoise(p * 41.0) * 0.4;
 #ifdef DISSOLVE
 	if (n < dissolve) {
@@ -119,5 +165,6 @@ void fragment() {
 	// Bord brûlant de la dissolution.
 	float edge = smoothstep(dissolve + 0.06, dissolve, n);
 	EMISSION += vec3(1.0, 0.3, 0.05) * edge * 3.0;
+#endif
 #endif
 }

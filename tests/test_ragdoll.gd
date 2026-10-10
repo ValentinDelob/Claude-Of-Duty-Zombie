@@ -182,7 +182,12 @@ func test_headshot_and_gibs() -> void:
 	assert_true(z.ragdolled)
 	var bodies := z.ragdoll.bodies
 	assert_true(bodies.has("neck") and bodies.has("spine") and bodies.has("arm_r"), "buste, cou, bras restant")
-	for bone in ["thigh_l", "shin_l", "thigh_r", "shin_r", "forearm_l"]:
+	# Zombie cubique : les jambes partent sous le genou, les cuisses (et la
+	# blouse) restent (ZombieGibs.apply).
+	var cut := ["shin_l", "shin_r", "forearm_l"]
+	if not ZombieModel.has_model():
+		cut += ["thigh_l", "thigh_r"]
+	for bone in cut:
 		assert_false(bodies.has(bone), "membre arraché sans corps (%s)" % bone)
 	await wait_frames(10)
 	assert_true(z.skel.get_bone_pose_scale(z.bones.head).x < 0.01, "tête éclatée le reste")

@@ -115,23 +115,49 @@ static func _tip(xf: Transform3D, length: float) -> Vector3:
 	return xf.origin - xf.basis.y.normalized() * length
 
 
+## Épaisseurs (demi-largeurs) et longueurs des membres pour limb_at : celles
+## du modèle cubique (ZombieModel.bone_bounds), sinon du modèle procédural.
+## [tronc, bras, longueur avant-bras + main, cuisse, longueur du tibia, tibia].
+static var _dims := PackedFloat32Array()
+
+
+static func _limb_dims() -> PackedFloat32Array:
+	if not _dims.is_empty():
+		return _dims
+	var bb := ZombieModel.bone_bounds()
+	if bb.is_empty():
+		_dims = PackedFloat32Array([0.12, 0.08, 0.36, 0.08, 0.47, 0.08])
+	else:
+		var torso := (bb.spine as AABB).merge(bb.chest)
+		var fore: AABB = bb.forearm_l
+		var thigh: AABB = bb.thigh_l
+		var shin: AABB = bb.shin_l
+		# Cuisse : avec les pans de la blouse qui la suivent.
+		_dims = PackedFloat32Array([torso.size.x * 0.4, fore.size.x * 0.5, fore.size.y,
+				(thigh.size.x + thigh.size.z) * 0.25, shin.end.y, shin.size.x * 0.5])
+	return _dims
+
+
 ## Membre le plus proche du point d'impact `p` (repère monde) : ARM_L, ARM_R,
-## LEGS ou TORSO (distance aux segments des os moins leur épaisseur).
+## LEGS ou TORSO (distance aux segments des os moins leur épaisseur). Le
+## tronc va de la colonne (haut du bassin) au cou : sous la ceinture, ce sont
+## les jambes.
 static func limb_at(z: Zombie, p: Vector3) -> int:
 	if z.skel == null or z.bones.is_empty():
 		return TORSO
+	var dm := _limb_dims()
 	var best := TORSO
-	var best_d := _seg_dist(p, _bone_xf(z, "hips").origin, _bone_xf(z, "neck").origin) - 0.12
+	var best_d := _seg_dist(p, _bone_xf(z, "spine").origin, _bone_xf(z, "neck").origin) - dm[0]
 	for side in ["l", "r"]:
 		var arm := _bone_xf(z, "arm_" + side)
 		var fore := _bone_xf(z, "forearm_" + side)
-		var d := minf(_seg_dist(p, arm.origin, fore.origin), _seg_dist(p, fore.origin, _tip(fore, 0.36))) - 0.08
+		var d := minf(_seg_dist(p, arm.origin, fore.origin), _seg_dist(p, fore.origin, _tip(fore, dm[2]))) - dm[1]
 		if d < best_d:
 			best_d = d
 			best = ARM_L if side == "l" else ARM_R
 		var thigh := _bone_xf(z, "thigh_" + side)
 		var shin := _bone_xf(z, "shin_" + side)
-		var dl := minf(_seg_dist(p, thigh.origin, shin.origin), _seg_dist(p, shin.origin, _tip(shin, 0.47))) - 0.08
+		var dl := minf(_seg_dist(p, thigh.origin, shin.origin) - dm[3], _seg_dist(p, shin.origin, _tip(shin, dm[4])) - dm[5])
 		if dl < best_d:
 			best_d = dl
 			best = LEGS
@@ -161,7 +187,13 @@ static func apply(z: Zombie, bits: int, dir: Vector3, lethal: bool) -> void:
 			z.hit_arms[i].collision_layer = 0
 			z.hit_arms[i].get_child(0).set_deferred("disabled", true)
 	if bits & LEGS:
+		var cubic := ZombieModel.has_model()
 		for side in ["l", "r"]:
+			if cubic:
+				# Zombie cubique : les cuisses (et les pans de la blouse liés à
+				# elles) restent ; les jambes partent sous le genou.
+				_tear(z, fx, "shin_" + side, ["shin_" + side], push, 0.001)
+				continue
 			# Moignon : le haut de la cuisse reste ; le reste de la jambe tombe.
 			_tear(z, fx, "thigh_" + side, ["thigh_" + side, "shin_" + side], push, 0.3)
 			z.skel.set_bone_pose_scale(z.bones["shin_" + side], Vector3.ONE * 0.001)
@@ -231,19 +263,27 @@ static func crawl_pose(z: Zombie, delta: float) -> void:
 	var k := ease(clampf(z.crawl_t / CRAWL_FALL_TIME, 0.0, 1.0), 0.5)
 	var move_k := clampf(spd / 0.5, 0.0, 1.0)
 	skel.position.y = 0.0
-	var rest_y := skel.get_bone_rest(b.hips).origin.y
-	var hips_y := lerpf(rest_y, CRAWL_HIPS_Y + absf(s) * 0.03 * move_k, k)
-	skel.set_bone_pose_position(b.hips, Vector3(s * 0.03 * move_k, hips_y, lerpf(0.0, -0.3, k)))
+	skel.rotation = Vector3.ZERO
+	var rest := skel.get_bone_rest(b.hips).origin
+	var hips_y := lerpf(rest.y, CRAWL_HIPS_Y + absf(s) * 0.03 * move_k, k)
+	skel.set_bone_pose_position(b.hips, Vector3(s * 0.03 * move_k, hips_y, rest.z + lerpf(0.0, -0.3, k)))
 	skel.set_bone_pose_rotation(b.hips, _q(CRAWL_PITCH * k, 0.0, s * 0.08 * move_k))
 	skel.set_bone_pose_rotation(b.spine, _q(0.04, s * 0.12 * move_k, 0.0))
 	skel.set_bone_pose_rotation(b.chest, _q(-0.06, -s * 0.12 * move_k, c * 0.05))
-	# Tête relevée vers l'avant (le buste est couché).
-	skel.set_bone_pose_rotation(b.head, _q(-1.15 * k - 0.2 + sin(z.gait_phase * 0.7) * 0.06, 0.0, z.head_tilt))
+	skel.set_bone_pose_rotation(b.neck, Quaternion.IDENTITY)
+	# Tête relevée vers l'avant (le buste est couché) : elle pivote sur
+	# l'arrière de sa base (ZombieAnim.set_head), sans rentrer dans le dos.
+	var hx := -0.95 * k - 0.15 + sin(z.gait_phase * 0.7) * 0.06
 	# Mâchoire pendante, grande ouverte pendant la griffe.
 	var jaw := (z.anim.jaw_open if z.anim else 0.3) + sin(z.gait_phase * 1.3) * 0.08
 	if z.attack_t >= 0.0:
 		jaw = 0.6
-	skel.set_bone_pose_rotation(b.jaw, _q(jaw))
+	if z.anim:
+		z.anim.set_head(hx, z.head_tilt * 0.5)
+		z.anim.set_jaw(jaw)
+	else:
+		skel.set_bone_pose_rotation(b.head, _q(hx, 0.0, z.head_tilt))
+		skel.set_bone_pose_rotation(b.jaw, _q(jaw))
 	# Bras : traction alternée (tendu devant, puis ramené sous le buste).
 	var arm_l := lerpf(-1.3, -2.45 - 0.55 * s * move_k, k)
 	var arm_r := lerpf(-1.2, -2.45 + 0.55 * s * move_k, k)
@@ -258,10 +298,14 @@ static func crawl_pose(z: Zombie, delta: float) -> void:
 		fore_r = lerpf(fore_r, -0.1, ak)
 		if z.attack_t >= 1.0:
 			z.attack_t = -1.0
-	skel.set_bone_pose_rotation(b.arm_l, _q(arm_l, 0.0, -0.3 * k - 0.15))
-	skel.set_bone_pose_rotation(b.arm_r, _q(arm_r, 0.0, 0.3 * k + 0.15))
+	# Bras écartés vers l'extérieur : la grosse tête passe entre eux.
+	skel.set_bone_pose_rotation(b.arm_l, _q(arm_l, 0.0, 0.06 + 0.06 * k))
+	skel.set_bone_pose_rotation(b.arm_r, _q(arm_r, 0.0, -0.06 - 0.06 * k))
 	skel.set_bone_pose_rotation(b.forearm_l, _q(fore_l))
 	skel.set_bone_pose_rotation(b.forearm_r, _q(fore_r))
 	# Moignons qui traînent derrière.
 	skel.set_bone_pose_rotation(b.thigh_l, _q(-0.15 * k + s * 0.12 * move_k, 0.0, 0.12))
 	skel.set_bone_pose_rotation(b.thigh_r, _q(-0.15 * k - s * 0.12 * move_k, 0.0, -0.12))
+	# Zombie cubique : le corps couché repose sur son point le plus bas.
+	if z.anim:
+		z.anim.ground(false)

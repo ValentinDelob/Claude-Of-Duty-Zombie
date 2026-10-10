@@ -198,6 +198,22 @@ func _build() -> void:
 	var torso_len: float = maxf(0.3, rest.call("chest").y + rest.call("neck").y)
 	var head_len: float = rest.call("head").y + 0.27
 	var hip_w: float = absf(rest.call("thigh_l").x - rest.call("thigh_r").x)
+	var fore_len: float = arm_len * 1.25
+	# Rayons des capsules : procéduraux (maigres), ou mesurés sur le modèle
+	# cubique (ZombieModel.bone_bounds : torse large, grosse tête, manches).
+	var rad := {"hips": 0.13, "spine": 0.15, "neck": 0.11, "arm": 0.06, "forearm": 0.05, "thigh": 0.085, "shin": 0.065}
+	var bb := ZombieModel.bone_bounds()
+	if not bb.is_empty():
+		var half := func(bone: String) -> float:
+			var s: Vector3 = (bb[bone] as AABB).size
+			return minf(s.x, s.z) * 0.5
+		var torso := (bb.spine as AABB).merge(bb.chest)
+		rad = {"hips": 0.15, "spine": minf(torso.size.x, torso.size.z) * 0.5, "neck": half.call("head") * 0.9,
+				"arm": half.call("arm_l") * 0.8, "forearm": half.call("forearm_l") * 0.8,
+				"thigh": half.call("shin_l") * 1.1, "shin": half.call("shin_l") * 0.9}
+		hip_w = maxf(hip_w, 0.2)
+		head_len = (bb.head as AABB).end.y - (skel.get_bone_global_rest(b.neck).origin.y)
+		fore_len = (bb.forearm_l as AABB).size.y
 	for part in PARTS:
 		var bone: String = part[0]
 		if not b.has(bone) or _cut(bone):
@@ -220,28 +236,28 @@ func _build() -> void:
 		var length := 0.0
 		match bone:
 			"hips":
-				radius = 0.13
+				radius = rad.hips
 				height = hip_w + 0.26
 				cs.rotation.z = PI * 0.5
 				pb.body_offset = Transform3D(Basis.IDENTITY, Vector3(0, -0.04, 0))
 			"spine":
 				length = torso_len
-				radius = 0.15
+				radius = rad.spine
 			"neck":
 				length = head_len
-				radius = 0.11
+				radius = rad.neck
 			"arm_l", "arm_r":
 				length = -arm_len
-				radius = 0.06
+				radius = rad.arm
 			"forearm_l", "forearm_r":
-				length = -arm_len * 1.25
-				radius = 0.05
+				length = -fore_len
+				radius = rad.forearm
 			"thigh_l", "thigh_r":
 				length = -thigh_len
-				radius = 0.085
+				radius = rad.thigh
 			"shin_l", "shin_r":
 				length = -shin_len
-				radius = 0.065
+				radius = rad.shin
 		if bone != "hips":
 			height = maxf(absf(length), radius * 2.0 + 0.01)
 			# Corps au milieu du segment, jointure (repère identité du corps) à

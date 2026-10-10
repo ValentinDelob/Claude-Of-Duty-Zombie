@@ -9,7 +9,8 @@ extends RefCounted
 ##     celle du .glb s'il en a (COLOR_0, déjà linéaire : modèles cubiques de
 ##     tools/blender/voxel/voxel_lib.py, une couleur par face de cube), sinon
 ##     celle de la matière (MATS) ;
-##   - position de repos en UV.xy / UV2.x, identifiant de matière en UV2.y ;
+##   - position de repos en UV.xy / UV2.x, identifiant de matière en UV2.y,
+##     normale de repos en CUSTOM0 (cube de chaque fragment) ;
 ##   - os remappés sur les indices de RigBuilder.BONES.
 ## Le repos des os (positions seules, sans rotation) vient du squelette du
 ## .glb et est passé en `bone_overrides` à RigBuilder.
@@ -102,6 +103,9 @@ static func _convert(root: Node) -> Dictionary:
 	var cols := PackedColorArray()
 	var uv := PackedVector2Array()
 	var uv2 := PackedVector2Array()
+	# Normale de repos (RGBA8 : n * 0,5 + 0,5) : cube de chaque fragment
+	# (dissolution cube par cube, zombie.gdshader).
+	var rest_n := PackedByteArray()
 	var bones := PackedInt32Array()
 	var weights := PackedFloat32Array()
 	var idx := PackedInt32Array()
@@ -126,7 +130,9 @@ static func _convert(root: Node) -> Dictionary:
 		for v in sv.size():
 			var p := to_mesh * sv[v]
 			verts.append(p)
-			norms.append((to_mesh.basis * sn[v]).normalized())
+			var nv := (to_mesh.basis * sn[v]).normalized()
+			norms.append(nv)
+			rest_n.append_array(PackedByteArray([roundi(nv.x * 127.5 + 127.5), roundi(nv.y * 127.5 + 127.5), roundi(nv.z * 127.5 + 127.5), 255]))
 			if own_cols:
 				var vc := sc[v]
 				vc.a = c.a
@@ -160,6 +166,7 @@ static func _convert(root: Node) -> Dictionary:
 	out_arr[Mesh.ARRAY_BONES] = bones
 	out_arr[Mesh.ARRAY_WEIGHTS] = weights
 	out_arr[Mesh.ARRAY_INDEX] = idx
+	out_arr[Mesh.ARRAY_CUSTOM0] = rest_n
 	var am := ArrayMesh.new()
-	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out_arr)
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out_arr, [], {}, Mesh.ARRAY_CUSTOM_RGBA8_UNORM << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
 	return {"mesh": am, "overrides": overrides}

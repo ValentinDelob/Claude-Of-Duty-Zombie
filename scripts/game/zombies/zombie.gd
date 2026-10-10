@@ -174,6 +174,10 @@ var hit_head: Area3D
 ## capsule du corps ; ces hitboxes suivent les os pour qu'un tir au bras
 ## touche vraiment le bras (et l'arrache, comme BO1).
 var hit_arms: Array[Area3D] = []
+## Hauts des bras (zone 2) : les épaules du zombie cubique dépassent de la
+## capsule du corps (bras à 0,375 m de l'axe). Restent après l'arrachage de
+## l'avant-bras.
+var hit_upper_arms: Array[Area3D] = []
 var _body_shape: CollisionShape3D
 var _mgr: ZombieManager
 ## Partie de ce zombie : celle de son ZombieManager (lue dans _ready), null
@@ -275,24 +279,36 @@ func _ready() -> void:
 	var att := BoneAttachment3D.new()
 	att.bone_name = "head"
 	skel.add_child(att)
+	# Zones taillées sur le modèle (ZombieModel.hit_shapes : grosse tête et
+	# longs bras du zombie cubique).
+	var shapes := ZombieModel.hit_shapes()
 	var sph := SphereShape3D.new()
-	sph.radius = 0.16
+	sph.radius = shapes.head[1]
 	hit_head = _make_hitbox(1, sph)
-	hit_head.position = Vector3(0, 0.13, 0.01)
+	hit_head.position = shapes.head[0]
 	att.add_child(hit_head)
 	for side in ["l", "r"]:
-		var arm_att := BoneAttachment3D.new()
-		arm_att.bone_name = "forearm_" + side
-		skel.add_child(arm_att)
-		var arm_cap := CapsuleShape3D.new()
-		arm_cap.radius = 0.075
-		arm_cap.height = 0.42
-		var ha := _make_hitbox(2, arm_cap)
-		ha.name = "HitArm_" + side
-		# L'avant-bras s'étend selon -Y de l'os : la capsule couvre avant-bras et main.
-		ha.position = Vector3(0, -0.2, 0)
-		arm_att.add_child(ha)
-		hit_arms.append(ha)
+		var sgn := 1.0 if side == "l" else -1.0
+		for part in ["forearm", "arm"]:
+			var info: Array = shapes[part]
+			var arm_att := BoneAttachment3D.new()
+			arm_att.bone_name = part + "_" + side
+			skel.add_child(arm_att)
+			var arm_cap := CapsuleShape3D.new()
+			arm_cap.radius = info[1]
+			arm_cap.height = info[2]
+			var ha := _make_hitbox(2, arm_cap)
+			# Le membre s'étend selon -Y de l'os : la capsule couvre avant-bras
+			# et main (forearm), ou le haut du bras et la manche (arm).
+			var c: Vector3 = info[0]
+			ha.position = Vector3(c.x * sgn, c.y, c.z)
+			arm_att.add_child(ha)
+			if part == "forearm":
+				ha.name = "HitArm_" + side
+				hit_arms.append(ha)
+			else:
+				ha.name = "HitUpperArm_" + side
+				hit_upper_arms.append(ha)
 
 	if not server_side:
 		# Marionnette : pas de simulation physique locale.
@@ -1002,7 +1018,7 @@ func die(dir: Vector3, headshot: bool) -> void:
 	# Corps : plus aucune forme dans l'espace physique (hitboxes, capsule).
 	hit_body.get_child(0).set_deferred("disabled", true)
 	hit_head.get_child(0).set_deferred("disabled", true)
-	for ha in hit_arms:
+	for ha in hit_arms + hit_upper_arms:
 		ha.collision_layer = 0
 		ha.get_child(0).set_deferred("disabled", true)
 	if _body_shape:

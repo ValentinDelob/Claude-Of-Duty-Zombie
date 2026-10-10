@@ -47,9 +47,11 @@ func _ready() -> void:
 		add_child(mi)
 		_nodes.append(mi)
 		_age[i] = -1.0
-	# Éclats de crâne / chair (tête qui éclate).
-	for c in [[ZombieModel.BONE, RigBuilder.MAT_BONE], [ZombieModel.FLESH, RigBuilder.MAT_WOUND], [ZombieModel.BLOOD_DARK, RigBuilder.MAT_WOUND]]:
-		var parts := [{"shape": "ell", "bone": "head", "size": Vector3(0.075, 0.045, 0.06), "color": c[0], "mat": c[1], "rings": 3, "sides": 6}]
+	# Éclats de crâne / chair (tête qui éclate) : pavés de cubes de 2,5 cm
+	# (style cubique), os, chair, sang et peau verdâtre du zombie.
+	for c in [[ZombieModel.BONE, RigBuilder.MAT_BONE, Vector3(0.075, 0.05, 0.05)], [ZombieModel.FLESH, RigBuilder.MAT_WOUND, Vector3(0.05, 0.05, 0.075)],
+			[ZombieModel.BLOOD_DARK, RigBuilder.MAT_WOUND, Vector3(0.05, 0.025, 0.05)], [Color(0.42, 0.5, 0.38), RigBuilder.MAT_SKIN, Vector3(0.075, 0.025, 0.05)]]:
+		var parts := [{"shape": "box", "bone": "head", "size": c[2], "color": c[0], "mat": c[1]}]
 		_chunk_meshes.append(RigBuilder.build_static(parts, ["head"]))
 
 
