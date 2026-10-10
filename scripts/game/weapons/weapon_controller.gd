@@ -44,18 +44,14 @@ var _melee_ready := 0.0
 ## changement d'arme ni de grenade avant.
 var _melee_busy_end := 0.0
 var _trigger_released := true
-var _drink_end := -1.0
-## Couteau de mêlée tenu (KnifeDB) et fin de l'animation de récupération.
+## Couteau de mêlée tenu (KnifeDB).
 var knife_id := ""
-var _pickup_end := -1.0
 ## Vrai entre le début d'une fente et le coup de couteau qui la termine.
 var lunging := false
 ## Coups restant à tirer dans la rafale en cours (M16, G11...).
 var _burst_left := 0
-## Grenades et SINGE-TAMBOUR (dégoupillage, cuisson, lancer).
+## Objet de l'emplacement de grenade (dégoupillage, cuisson, lancer).
 var throws: ThrowController
-## DEADEYE DRAM : aimantation de la visée vers la tête.
-var deadeye := DeadeyeAim.new()
 ## Dispersion (degrés) du dernier tir (tests).
 var last_spread_deg := 0.0
 ## Dispersion dynamique, recul progressif, balancement de la lunette.
@@ -76,8 +72,6 @@ const RELOAD_SOUNDS := {
 	"bolt": [[0.08, "bolt"], [0.3, "mag_out"], [0.6, "mag_in"], [0.86, "bolt"]],
 	"cylinder": [[0.05, "break_open"], [0.2, "shell"], [0.55, "shell_in"], [0.85, "break_close"]],
 	"rocket": [[0.1, "mag_out"], [0.55, "mag_in"], [0.85, "break_close"]],
-	# TONNERRE-7 : réservoirs vidés, nouveaux réservoirs, tambour qui se recharge en pression.
-	"thunder": [[0.05, "break_open"], [0.25, "mag_out"], [0.5, "mag_in"], [0.62, "thunder_charge"], [0.9, "break_close"]],
 }
 
 
@@ -108,14 +102,10 @@ func _on_inventory_changed(pid: int) -> void:
 	var old_pap: bool = current().get("pap", false)
 	weapons = pd.weapons.duplicate(true)
 	slot = pd.slot
-	if not pd.powerup_weapon.is_empty() and pd.life == PlayerData.Life.ALIVE:
-		# Arme de bonus seule en main (pas de changement d'arme) ; `slot` reste
-		# celui du serveur pour la validation des tirs.
-		weapons = [pd.powerup_weapon.duplicate()]
 	if pd.knife != knife_id:
 		_on_knife_changed(pd.knife)
 	var w := current()
-	# Mains vides (arme déposée dans le Pack-a-Punch...).
+	# Mains vides (aucune arme dans l'inventaire).
 	view.visible = not w.is_empty()
 	if w.is_empty():
 		ammo_changed.emit()
@@ -173,11 +163,9 @@ func update_reload(t: float) -> void:
 
 
 ## Rien n'empêche de changer d'arme : un rechargement en cours n'en empêche
-## pas (il est annulé), un changement, une boisson, un coup de couteau, la
-## récupération du couteau ou une grenade, si.
+## pas (il est annulé), un changement, un coup de couteau ou une grenade, si.
 func can_switch(t: float) -> bool:
-	return t >= _switch_end and t >= _switch_req_end and t >= _drink_end \
-		and t >= _melee_busy_end and t >= _pickup_end \
+	return t >= _switch_end and t >= _switch_req_end and t >= _melee_busy_end \
 		and not (throws != null and throws.busy())
 
 
@@ -303,7 +291,7 @@ func tick(delta: float) -> void:
 			request_switch((slot + 1) % weapons.size())
 		elif inp.reload and not busy and not use_takes_press(inp.interact_pressed, _use_focused()):
 			_try_reload(w, s)
-		elif inp.melee and t >= _melee_ready and t >= _pickup_end and not throws.busy():
+		elif inp.melee and t >= _melee_ready and not throws.busy():
 			_melee()
 		elif inp.fire and not busy and not player.sprinting:
 			var want: bool = s.auto or _trigger_released
@@ -330,18 +318,7 @@ func tick(delta: float) -> void:
 		Audio.play_2d("slide", -12.0, 0.03, "SFX", 1.35)
 	view.apply_scope(scoped)
 	# Dispersion, recul progressif et retour, balancement dans la lunette.
-	feel.update(delta, player, s, view.ads, scoped and WeaponDB.scope_kind(s) == "sniper", inp.sprint, hip_spread_mult(), t)
-	deadeye.tick(self, delta)
-
-
-## Multiplicateur de dispersion à la hanche (atouts : DEADEYE DRAM).
-func hip_spread_mult() -> float:
-	return PerkDB.hip_spread_mult(session.get_data(player.peer_id))
-
-
-## Multiplicateur de recul (atouts : DEADEYE DRAM).
-func recoil_mult() -> float:
-	return PerkDB.recoil_mult(session.get_data(player.peer_id))
+	feel.update(delta, player, s, view.ads, scoped and WeaponDB.scope_kind(s) == "sniper", inp.sprint, 1.0, t)
 
 
 ## Dispersion courante (°) : celle du prochain tir, dessinée par le réticule.
@@ -379,7 +356,7 @@ func ads_look_mult() -> float:
 
 func _fire(w: Dictionary, s: Dictionary) -> void:
 	var t := GameClock.now()
-	var interval := WeaponDB.fire_interval(w.id, w.pap) / combat.game_rate_mult(player.peer_id)
+	var interval := WeaponDB.fire_interval(w.id, w.pap)
 	_next_fire = t + interval
 	_trigger_released = false
 	w.mag -= 1
@@ -407,9 +384,7 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 	var impacts := PackedVector3Array()
 	var hits: Array = []
 	last_impacts = []
-	var blast: bool = s.has("blast_range")
-	# Onde de choc (TONNERRE-7) : pas de balle, le serveur calcule le cône.
-	for i in (0 if blast else int(s.pellets)):
+	for i in int(s.pellets):
 		var dir := _spread_dir(fwd, spread)
 		last_impacts.append(_trace(origin, dir, int(s.penetration), impacts, hits))
 
@@ -417,25 +392,16 @@ func _fire(w: Dictionary, s: Dictionary) -> void:
 	var muzzle: Vector3 = view.muzzle_global()
 	WeaponAudio.play_2d(s, w.pap)
 	view.fire(s, fx, player, cycle == "")
-	feel.on_shot(s, view.ads, recoil_mult(), t)
-	if blast:
-		ThunderBlast.play_fx(fx, muzzle, fwd, w.pap, s.blast_range)
-		combat.srv_fire.rpc_id(1, slot, origin, fwd, impacts, hits)
-		fired.emit()
-		ammo_changed.emit()
-		return
+	feel.on_shot(s, view.ads, 1.0, t)
 	var ray_end: Vector3 = last_impacts[0][0]
-	var kind: String = s.get("tracer", "")
 	if s.has("projectile_speed"):
 		# Grenade / roquette : projectile visible, l'explosion vient du serveur.
 		ProjectileFx.launch(fx, muzzle, ray_end, s.projectile_speed, s.get("tracer", "grenade"), w.pap)
 	else:
-		if kind == "ray":
-			fx.tracer(muzzle, ray_end, Fx.TRACER_RAY, 0.12)
 		for i in last_impacts.size():
 			var e: Array = last_impacts[i]
 			# Traçante de la bouche au point touché (3 plombs au plus).
-			if kind != "ray" and i < 3:
+			if i < 3:
 				fx.tracer(muzzle, e[0])
 			if e[2] < 0 and e[1] != Vector3.ZERO:
 				fx.impact(e[0], e[1], i == 0, e[3])
@@ -610,43 +576,19 @@ func _lunge_target() -> Zombie:
 	return z
 
 
-## Nouveau couteau (achat du COUTEAU DE CHASSE) : animation de récupération.
+## Couteau tenu (KnifeDB) : modèle de la main gauche.
 func _on_knife_changed(id: String) -> void:
-	var first := knife_id == ""
 	knife_id = id
 	view.set_knife(id)
-	if first:
-		return
-	_pickup_end = GameClock.now() + KnifeDB.PICKUP_TIME
-	_stop_reload()
-	view.start_knife_pickup(KnifeDB.PICKUP_TIME)
-	Audio.play_2d("bowie_draw", -3.0)
 
 
-func is_picking_up_knife() -> bool:
-	return GameClock.now() < _pickup_end
-
-
-## Coup de couteau, fente ou récupération du couteau en cours : pas de lancer
-## de grenade pendant ce temps (ThrowController).
+## Coup de couteau ou fente en cours : pas de lancer de grenade pendant ce
+## temps (ThrowController).
 func is_knifing() -> bool:
-	var t := GameClock.now()
-	return t < _melee_busy_end or t < _pickup_end
+	return GameClock.now() < _melee_busy_end
 
 
 ## Lancer de grenade : le rechargement en cours est abandonné (comme BO1 ;
 ## le serveur l'annule aussi, voir ThrowableSystem.srv_cook).
 func cancel_reload_local() -> void:
 	abort_reload()
-
-
-## Boisson d'un atout : l'arme est baissée, une bouteille apparaît. Le
-## rechargement en cours est abandonné (BO1) avec la règle des interruptions
-## (cartouches déjà poussées gardées) ; le serveur fait le même calcul
-## (Combat.srv_hands_busy) et renvoie l'inventaire qui fait foi : il faudra
-## recharger de nouveau après la boisson.
-func drink(color: Color, duration: float) -> void:
-	_drink_end = GameClock.now() + duration
-	abort_reload()
-	if view:  # null : contrôleur seul des tests unitaires
-		view.start_drink(color, duration)

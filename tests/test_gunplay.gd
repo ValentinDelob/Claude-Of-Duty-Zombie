@@ -73,7 +73,7 @@ func test_scopes() -> void:
 	assert_true(float(WeaponDB.stats("l96a1").scope_fov) < float(WeaponDB.stats("dragunov").scope_fov), "L96A1 plus puissante que la Dragunov")
 	for id in ["aug", "g11"]:
 		assert_eq(WeaponDB.scope_kind(WeaponDB.stats(id)), "optic", "%s : lunette courte" % id)
-	for id in ["m1911", "m16", "mp40", "olympia", "ray"]:
+	for id in ["m1911", "m16", "mp40", "olympia"]:
 		assert_eq(WeaponDB.scope_kind(WeaponDB.stats(id)), "", "%s : visée mécanique" % id)
 
 

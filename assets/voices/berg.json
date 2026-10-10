@@ -16,10 +16,6 @@
       {"fr": "Oups. Ça, c'était pas très distingué.", "en": "Oops. That wasn't very ladylike."},
       {"fr": "Tu m'as marché sur le pied, toi.", "en": "You stepped on my foot, mister."}
     ],
-    "kill_bowie": [
-      {"fr": "Une belle lame. Ça tranche net, comme un bon argument.", "en": "Lovely blade. Cuts clean, like a good argument."},
-      {"fr": "Précis comme un scalpel. J'adore.", "en": "Sharp as a scalpel. I love it."}
-    ],
     "kill_explosive": [
       {"fr": "Belle réaction en chaîne ! J'adore la chimie.", "en": "Lovely chain reaction! I do love chemistry."},
       {"fr": "Boum ! Tout le monde dehors, ensemble. Très efficace.", "en": "Boom! Everyone out at once. Very efficient."},
@@ -47,16 +43,6 @@
       {"fr": "Méchant chien. Très méchant.", "en": "Bad dog. Very bad dog."},
       {"fr": "Assis. Couché. Mort. Bon chien.", "en": "Sit. Down. Dead. Good boy."}
     ],
-    "kill_ray": [
-      {"fr": "Le rayon le plus élégant que j'aie jamais vu.", "en": "The most elegant beam I've ever seen."},
-      {"fr": "De l'aethérium pur. Otto y serait jamais arrivé tout seul.", "en": "Pure aetherium. Otto never could've done it alone."},
-      {"fr": "Zap ! Pardon, c'est trop drôle.", "en": "Zap! Sorry, it's just too much fun."}
-    ],
-    "kill_thunder": [
-      {"fr": "Un coup de vent, et plus personne. Ya !", "en": "One gust, and they're gone. Yah!"},
-      {"fr": "Effacés comme de la craie sur un tableau.", "en": "Wiped off like chalk on a blackboard."},
-      {"fr": "Hèrrégud ! Ça décoiffe !", "en": "Herregood! That'll mess up your hair!"}
-    ],
     "kill_trap": [
       {"fr": "Le piège a tout fait. Moi, j'ai juste réfléchi.", "en": "The trap did the work. I just did the thinking."},
       {"fr": "Cuits à point. Je cuisine très bien, en fait.", "en": "Cooked to perfection. I'm a great cook, actually."}
@@ -81,79 +67,6 @@
       {"fr": "Clic, clic. Oh non.", "en": "Click, click. Oh no."},
       {"fr": "À sec. Il me reste mon charme, et c'est tout.", "en": "Dry. All I've got left is my charm."}
     ],
-    "buy_wall": [
-      {"fr": "Je la prends. Un caprice, c'est permis.", "en": "I'll take it. A girl's allowed a whim."},
-      {"fr": "Oh, elle est jolie. Emballez-la-moi.", "en": "Ooh, she's pretty. Wrap her up for me."},
-      {"fr": "Chut. Personne le dit au Comptable.", "en": "Shh. Nobody tell the Bookkeeper."}
-    ],
-    "buy_bowie": [
-      {"fr": "Une belle lame. Elle va bien avec mes yeux.", "en": "Lovely blade. Matches my eyes."},
-      {"fr": "Un couteau de chasse. Je me sens dangereuse.", "en": "A hunting knife. I feel dangerous."}
-    ],
-    "box_good": [
-      {"fr": "Merci, ma belle. Je savais que tu m'aimais bien.", "en": "Thank you, gorgeous. I knew you liked me."},
-      {"fr": "La boîte et moi, on se comprend.", "en": "The box and I understand each other."},
-      {"fr": "Un petit sourire, et voilà. Simple.", "en": "One little smile, and there you go. Simple."},
-      {"fr": "Tak, la boîte ! Tu me gâtes.", "en": "Tack, box! You spoil me."}
-    ],
-    "box_bad": [
-      {"fr": "Oh. Tu boudes, c'est ça ?", "en": "Oh. Sulking, are we?"},
-      {"fr": "Putain, sérieusement ? Je croyais qu'on était copines.", "en": "Seriously? Fuck, I thought we were friends."},
-      {"fr": "Ça ? Bordel, même mon grand-père en voudrait pas.", "en": "This? Shit, even my grandpa wouldn't want it."},
-      {"fr": "Bon. On va dire que c'est un brouillon.", "en": "Fine. Let's call it a rough draft."}
-    ],
-    "box_shotgun": [
-      {"fr": "Un fusil à pompe. Pas très subtil, mais ça marche.", "en": "A shotgun. Not subtle, but it works."},
-      {"fr": "Un fusil à pompe. Le genre de Callahan, ça.", "en": "A shotgun. That's Callahan's kind of gun."}
-    ],
-    "box_sniper": [
-      {"fr": "Une lunette. Enfin une arme pour les gens patients.", "en": "A scope. Finally, a gun for patient people."},
-      {"fr": "Je vise, je calcule, je tire. C'est tout moi.", "en": "Aim, calculate, fire. That's so me."}
-    ],
-    "box_lmg": [
-      {"fr": "Une mitrailleuse ? Elle est plus lourde que moi !", "en": "A machine gun? It weighs more than I do!"},
-      {"fr": "Bon. Pour une fois, je fais comme les garçons.", "en": "Fine. Just this once, I'll do it the boys' way."}
-    ],
-    "box_launcher": [
-      {"fr": "Un lance-roquettes. Écartez-vous, les garçons.", "en": "A launcher. Stand back, boys."},
-      {"fr": "De l'explosif ! Enfin de la vraie chimie.", "en": "Explosives! Finally, some real chemistry."}
-    ],
-    "box_ray": [
-      {"fr": "Le Claude-Ray ! Viens là, mon trésor.", "en": "The Claude-Ray! Come here, my treasure."},
-      {"fr": "Le Claude-Ray. Je connais ses équations par cœur.", "en": "The Claude-Ray. I know its equations by heart."}
-    ],
-    "box_thunder": [
-      {"fr": "Le Tonnerre-Sept ! Petite femme, grosse tempête.", "en": "The Thunder-Seven! Small girl, big storm."},
-      {"fr": "Le Tonnerre-Sept. Oh, ça va être amusant.", "en": "The Thunder-Seven. Oh, this'll be fun."}
-    ],
-    "box_monkey": [
-      {"fr": "Des singes-tambours ! Adorables. Et explosifs.", "en": "Drum monkeys! Adorable. And explosive."},
-      {"fr": "Des singes. Elle a de l'humour, cette boîte.", "en": "Monkeys. The box has a sense of humor."}
-    ],
-    "box_teddy": [
-      {"fr": "Tu me quittes ? Comme ça, sans un mot ?", "en": "You're leaving me? Just like that?"},
-      {"fr": "L'ours. Bon, j'ai connu des ruptures pires.", "en": "The bear. Well, I've had worse breakups."},
-      {"fr": "Reviens vite, ma belle. Je t'attendrai.", "en": "Come back soon, gorgeous. I'll wait."},
-      {"fr": "Fais pas chier ! Sale petit ours !", "en": "Oh, fuck off, you rotten little bear!"}
-    ],
-    "box_firesale": [
-      {"fr": "Des soldes ! Ça, c'est mon moment.", "en": "A sale! This is my moment."},
-      {"fr": "Les soldes ? Je fais du shopping, les garçons.", "en": "A sale? I'm going shopping, boys."}
-    ],
-    "pap_upgrade": [
-      {"fr": "Fais-la belle. Et méchante.", "en": "Make her pretty. And mean."},
-      {"fr": "Doucement, c'est ma préférée.", "en": "Gently. She's my favorite."},
-      {"fr": "Voyons ce que ta formule donne, Otto.", "en": "Let's see what your formula does, Otto."}
-    ],
-    "pap_wait": [
-      {"fr": "Ça siffle, ça grince... Moi, je l'aurais faite plus silencieuse.", "en": "Hissing, clanking... I'd have built it quieter."},
-      {"fr": "Allez, allez. Y a une dame qui attend.", "en": "Come on, come on. A lady's waiting."}
-    ],
-    "pap_take": [
-      {"fr": "Oh, elle brille. Je l'adore.", "en": "Ooh, she glows. I love her."},
-      {"fr": "Plus jolie, plus méchante. Comme moi.", "en": "Prettier, meaner. Just like me."},
-      {"fr": "Résultat parfait. J'en étais sûre.", "en": "Perfect result. Knew it."}
-    ],
     "no_money": [
       {"fr": "Pff... plus un rond. Quelqu'un veut bien jouer les gentlemen ?", "en": "Ugh... totally broke. Any gentlemen wanna help a girl out?"},
       {"fr": "Fauchée ! Fais pas chier... Bon, faut en tuer plus.", "en": "Broke! Shit... Guess I'd better kill a few more."}
@@ -162,71 +75,11 @@
       {"fr": "Pas de courant. Même moi, je peux rien y faire.", "en": "No power. Even I can't fix that."},
       {"fr": "Éteinte. Et merde. Quelqu'un va trouver l'interrupteur ?", "en": "It's dead. Hell. Can someone go find the switch?"}
     ],
-    "buy_ammo": [
-      {"fr": "Le plein, s'il vous plaît.", "en": "Fill her up, please."},
-      {"fr": "Des balles toutes neuves. Ça me met de bonne humeur.", "en": "Fresh bullets. Puts me in a good mood."}
-    ],
     "reload": [
       {"fr": "Je recharge. Soyez mignons, couvrez-moi.", "en": "Reloading. Be sweet and cover me."},
       {"fr": "Une seconde, je recharge !", "en": "One sec, reloading!"},
       {"fr": "Chargeur ! Tenez-les loin de ma coiffure !", "en": "Reloading! Keep 'em away from my hair!"},
       {"fr": "Je recharge. Pas de panique, les garçons.", "en": "Reloading. Don't panic, boys."}
-    ],
-    "perk_titan": [
-      {"fr": "Titan Brew. Beurk. Mais je me sens costaud.", "en": "Titan Brew. Yuck. But I feel tough."},
-      {"fr": "Plus solide. Vous pouvez arrêter de vous inquiéter pour moi.", "en": "Sturdier. You can stop worrying about me now."}
-    ],
-    "perk_rapid": [
-      {"fr": "Rapid Fizz. Ça pique la langue.", "en": "Rapid Fizz. Tickles my tongue."},
-      {"fr": "Des doigts plus rapides. J'étais déjà très douée.", "en": "Faster fingers. I was already pretty good."}
-    ],
-    "perk_twin": [
-      {"fr": "Twin Shot. Deux fois plus de plaisir.", "en": "Twin Shot. Twice the fun."},
-      {"fr": "Skol ! Ça pétille comme du champagne pas cher.", "en": "Skoal! Fizzy like cheap champagne."}
-    ],
-    "perk_lazarus": [
-      {"fr": "Lazarus Tonic. Je vous relève plus vite, mes chéris.", "en": "Lazarus Tonic. I'll pick you up faster, darlings."},
-      {"fr": "Ça a un goût de sirop pour la toux. Charmant.", "en": "Tastes like cough syrup. Charming."}
-    ],
-    "perk_stride": [
-      {"fr": "Stride Soda. Essayez un peu de me rattraper.", "en": "Stride Soda. Try and catch me now."},
-      {"fr": "Légère comme une plume. Parfait pour vous semer.", "en": "Light as a feather. Perfect for losing you boys."}
-    ],
-    "perk_nova": [
-      {"fr": "Nova Flop. Un plongeon, et boum. Très chic.", "en": "Nova Flop. A dive, and boom. Very chic."},
-      {"fr": "Plonger dans une explosion ? Callahan va être jaloux.", "en": "Diving into explosions? Callahan's gonna be jealous."}
-    ],
-    "perk_deadeye": [
-      {"fr": "Deadeye Dram. Tout est net, d'un coup.", "en": "Deadeye Dram. Everything's sharp all of a sudden."},
-      {"fr": "Mieux viser ? J'en avais pas besoin, mais merci.", "en": "Better aim? Didn't need it, but thanks."}
-    ],
-    "pw_max_ammo": [
-      {"fr": "Munitions max ! Tout le monde est servi.", "en": "Max Ammo! Everybody gets seconds."},
-      {"fr": "Des balles neuves pour tout le monde. C'est Noël !", "en": "Fresh bullets for all. It's Christmas!"}
-    ],
-    "pw_insta_kill": [
-      {"fr": "Mort instantanée ! Une pichenette suffit.", "en": "Insta-Kill! One little tap will do."},
-      {"fr": "Mort instantanée. Même avec mon petit doigt.", "en": "Insta-Kill. Even with my pinky."}
-    ],
-    "pw_double_points": [
-      {"fr": "Points doubles ! Le shopping m'attend.", "en": "Double Points! Shopping awaits."},
-      {"fr": "Points doubles. Mercer va peut-être enfin sourire.", "en": "Double Points. Mercer might finally smile."}
-    ],
-    "pw_nuke": [
-      {"fr": "Bombe nucléaire ! Quelle jolie lumière.", "en": "Nuke! What a lovely glow."},
-      {"fr": "Tout est rasé. Calme, propre. J'adore.", "en": "All flattened. Quiet, tidy. Love it."}
-    ],
-    "pw_carpenter": [
-      {"fr": "Charpentier ! Les planches sont revenues toutes seules.", "en": "Carpenter! The boards put themselves back."},
-      {"fr": "Tout est réparé. Enfin un homme bricoleur.", "en": "All fixed. Finally, a handy man."}
-    ],
-    "pw_fire_sale": [
-      {"fr": "Liquidation ! Je cours, je cours !", "en": "Fire Sale! I'm running, I'm running!"},
-      {"fr": "Liquidation. Mon bonus préféré, et de loin.", "en": "Fire Sale. My favorite bonus, by far."}
-    ],
-    "pw_death_machine": [
-      {"fr": "La Faucheuse ! Elle est énorme. Je l'adore.", "en": "Death Machine! It's huge. I love it."},
-      {"fr": "La Faucheuse. Pas très féminin, mais tellement drôle.", "en": "Death Machine. Not very ladylike, but so much fun."}
     ],
     "downed": [
       {"fr": "Putain ! À terre ! Et j'adorais ce pantalon.", "en": "Shit! I'm down! And I loved these trousers."},
@@ -352,10 +205,6 @@
       {"fr": "Un petit cadeau. Avec le ruban.", "en": "A little gift. Bow included."},
       {"fr": "Attention, ça va faire boum !", "en": "Heads up, it's gonna go boom!"}
     ],
-    "throw_monkey": [
-      {"fr": "Vas-y, mon petit singe. Fais-leur ton numéro.", "en": "Go on, little monkey. Do your number."},
-      {"fr": "Et maintenant, un peu de musique !", "en": "And now, a little music!"}
-    ],
     "idle": [
       {"fr": "Quand on sort, je vous offre une fika. Café et brioches.", "en": "When we get out, feeka's on me. Coffee and buns."},
       {"fr": "L'aethérium ? Je le comprends mieux que je le dis.", "en": "Aetherium? I understand it better than I let on."},
@@ -367,14 +216,6 @@
       {"fr": "Mon rouge à lèvres a survécu à tout ça. Ça, c'est de la chimie.", "en": "My lipstick survived all this. Now that's chemistry."},
       {"fr": "Ma mère voulait que je sois pianiste. Raté.", "en": "My mother wanted me to be a pianist. Whoops."},
       {"fr": "Tout ça, c'est une énigme. Et moi, j'adore les énigmes.", "en": "This whole thing's a puzzle. And I just love puzzles."}
-    ],
-    "resp_box_bad": [
-      {"fr": "Oh, mon pauvre. Elle t'aime pas, hein ?", "en": "Oh, you poor thing. She doesn't like you, huh?"},
-      {"fr": "Faut lui parler gentiment, à la boîte.", "en": "You gotta sweet-talk the box."}
-    ],
-    "resp_wonder": [
-      {"fr": "Oh, elle est magnifique. Tu me la prêtes ?", "en": "Ooh, gorgeous. Lend it to me?"},
-      {"fr": "Pour celle-là, je pourrais te faire les yeux doux.", "en": "Hmm, I might bat my eyelashes for that one."}
     ],
     "tease_callahan": [
       {"fr": "Hé, cow-boy ! Ton numéro de charme, il marche sur les zombies ?", "en": "Hey, cowboy! Does that charm routine work on zombies?"},

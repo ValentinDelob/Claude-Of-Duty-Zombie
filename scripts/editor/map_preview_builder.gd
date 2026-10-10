@@ -114,7 +114,7 @@ static func lamps_hash(layout_data: Dictionary) -> int:
 	return hash(layout_data.get("markers", {}).get("lamps", []))
 
 
-## Objets de jeu (portes, fenêtres, atouts, armes, boîte...) : tous les
+## Objets de jeu (portes, fenêtres, caisse au hasard...) : tous les
 ## marqueurs sauf les lampes, avec les réglages de la carte.
 static func markers_hash(layout_data: Dictionary) -> int:
 	var m: Dictionary = layout_data.get("markers", {}).duplicate()

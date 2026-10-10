@@ -103,7 +103,6 @@
   "id": "escalier_haut",
   "map_def": {
    "box_start": 0,
-   "box_starts": [],
    "description": "",
    "display_name": "ESCALIER",
    "doors": {},
@@ -117,7 +116,6 @@
   "markers": {
    "box": [],
    "doors": [],
-   "grenade_buys": [],
    "lamps": [
     {
      "energy": 2.2,
@@ -174,7 +172,6 @@
      "range": 8.8
     }
    ],
-   "perks": [],
    "player_spawns": [
     [
      10.25,
@@ -184,7 +181,6 @@
    ],
    "player_yaw": 3.14159265358979,
    "traps": [],
-   "wall_buys": [],
    "windows": [],
    "zombie_spawns": []
   },

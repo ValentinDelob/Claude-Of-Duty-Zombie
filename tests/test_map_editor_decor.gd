@@ -45,8 +45,8 @@ static func _light(id: String, x: float, y: float) -> Dictionary:
 	return o
 
 
-## Carte jouable : deux salles (A : départ, B), une porte, fenêtres, boîte,
-## arme, atout, décor, luminaires et textures.
+## Carte jouable : deux salles (A : départ, B), une porte, fenêtres, caisse
+## au hasard, décor, luminaires et textures.
 static func _decorated() -> EditorMap:
 	var doc := EditorMap.blank("decor", "DÉCOR", "DECOR")
 	var a := _room(doc, 0, 0, 14, 10)
@@ -61,8 +61,6 @@ static func _decorated() -> EditorMap:
 	doc.ouvertures.append({"id": "o3", "type": "fenetre", "altitude": 0, "position": [19.25, 0.0]})
 	_obj(doc, {"type": "depart", "position": [9.0, 7.0]})
 	_obj(doc, {"type": "boite", "position": [6.75, 10.0], "mur": "s", "depart": false})
-	_obj(doc, {"type": "arme", "arme": "m14", "position": [11.25, 10.0], "mur": "s"})
-	_obj(doc, {"type": "atout", "atout": "titan", "position": [24.0, 5.0], "mur": "e"})
 	_obj(doc, _prefab("gravats", 19.25, 6.25))
 	_obj(doc, _prefab("bureau", 4.5, 4.25))
 	_obj(doc, _prefab("sacs_sable", 10.25, 3.25, 90))

@@ -1009,68 +1009,6 @@ def m_sconce():
 
 
 # ------------------------------------------------------------------ cabine de projection
-def m_pap_machine():
-    # Machine d'amélioration de la cabine de projection (silhouette du
-    # « poêle » de BO1) : coffre sarcelle 1,7 x 0,9 x 1,0 sur quatre pieds
-    # chromés évasés, trois rouleaux blancs, enseigne ORIGINALE.
-    z0, z1 = 0.3, 1.3
-    prof = [(-0.72, z0), (0.72, z0), (0.85, z0 + 0.18), (0.85, z1 - 0.2), (0.8, z1 - 0.06), (0.0, z1), (-0.8, z1 - 0.06),
-            (-0.85, z1 - 0.2), (-0.85, z0 + 0.18)]
-    prism("paint_teal", prof, "xz", -0.42, 0.42)
-    loop = [Vector((x, 0, z)) for x, z in prof]
-    for y in (-0.44, 0.44):
-        tube("steel", [p + Vector((0, y, 0)) for p in loop], 0.03, 4, closed=True)
-    for x, z in prof:
-        rod("steel", (x, -0.44, z), (x, 0.44, z), 0.022, 4)
-    # Bouche : ouverture sombre, trois rouleaux blancs, dents d'acier.
-    box("rubber", -0.7, 0.7, -0.44, -0.41, 0.8, 1.2)
-    tube("steel", [(-0.72, -0.445, 0.78), (0.72, -0.445, 0.78), (0.72, -0.445, 1.22), (-0.72, -0.445, 1.22)], 0.025, 4, closed=True)
-    for x in (-0.44, 0.0, 0.44):
-        cyl("chalk", (x, -0.43, 1.0), 0.16, 0.36, "X", 12)
-        box("steel", x + 0.2, x + 0.24, -0.44, -0.36, 0.8, 1.2)
-    with ns():
-        for i in range(12):
-            x = -0.66 + i * 0.12
-            prism("steel", [(x - 0.04, 1.2), (x + 0.04, 1.2), (x, 1.12)], "xz", -0.46, -0.43)
-            prism("steel", [(x - 0.04, 0.8), (x + 0.04, 0.8), (x, 0.86)], "xz", -0.46, -0.43)
-        box("paper", 0.46, 0.64, -0.425, -0.42, 0.44, 0.62)
-        flat("paint_red", circle(0.08, 16), 0.55, 0.53, -0.426, 1.0, 0.003)
-        flat("paper", circle(0.062, 16), 0.55, 0.53, -0.429, 1.0, 0.003)
-        flat("rubber", [(-0.012, -0.04), (0.012, -0.04), (0.012, 0.04), (-0.012, 0.04)], 0.55, 0.53, -0.432, 1.0, 0.003)
-        text("chalk", "punch-o-matic", -0.35, 0.55, -0.42, 0.06, 0.5, shear=0.3)
-    # Pieds évasés et patins.
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            tube("steel", bezier((sx * 0.62, sy * 0.3, 0.34), (sx * 0.68, sy * 0.34, 0.18), (sx * 0.78, sy * 0.42, 0.08),
-                                 (sx * 0.86, sy * 0.46, 0.03), 6), 0.03, 6)
-            with xf(T(sx * 0.88, sy * 0.47, 0.012) @ S(1.6, 1.0, 1.0)):
-                torus("steel", (0, 0, 0), 0.05, 0.012, 10, 3)
-    # Enseigne sur son pied.
-    lathe("paint_teal", [(0.0, 1.29), (0.28, 1.29), (0.1, 1.45), (0.07, 1.75), (0.18, 1.86), (0.0, 1.86)], 12)
-    with xf(T(0, 0.1, 1.6) @ S(1.0, 1.0, 0.55)):
-        cyl("steel", (0, -0.12, 0), 0.24, 0.05, "Y", 20)
-    with ns():
-        with xf(T(0, -0.05, 1.6) @ S(1.0, 1.0, 0.55)):
-            cyl("paper", (0, 0, 0), 0.215, 0.012, "Y", 20)
-        # Pictogramme original : pistolet et étincelle (arme améliorée).
-        flat("rubber", [(-0.15, 0.0), (0.05, 0.0), (0.05, 0.04), (-0.15, 0.04)], -0.03, 1.6, -0.058, 1.0, 0.004)
-        flat("rubber", [(-0.14, 0.005), (-0.08, 0.005), (-0.1, -0.075), (-0.16, -0.075)], -0.03, 1.6, -0.058, 1.0, 0.004)
-        flat("paint_red", em_star(6, 0.07, 0.03), 0.1, 1.62, -0.058, 1.0, 0.004)
-    sw, sh, sz0 = 1.36, 0.52, 1.86
-    rt_sq = rounded_poly([(-0.7, sz0 + sh), (0.7, sz0 + sh), (0.6, sz0), (-0.6, sz0)], 0.1, 4)
-    prism("paint_teal", rt_sq, "xz", 0.04, 0.12)
-    inner = [(x * 0.92, sz0 + sh / 2 + (z - sz0 - sh / 2) * 0.84) for x, z in rt_sq]
-    with ns():
-        prism("paper", inner, "xz", 0.03, 0.04)
-        cols = ["paint_red", "paint_teal", "brass", "glow_blue", "paint_red", "paint_teal", "brass"]
-        for i, m in enumerate(cols):
-            x = -0.48 + i * 0.16
-            flat(m, [(0, 0.17), (0.075, 0), (0, -0.17), (-0.075, 0)], x, sz0 + sh / 2 + 0.03, 0.028, 1.0, 0.003)
-        text("rubber", "PUNCH-O-MATIC", 0, sz0 + 0.32, 0.024, 0.16, 1.08, shear=0.1, bold=0.01)
-        text("rubber", "Augmentez votre puissance de feu !", 0, sz0 + 0.12, 0.024, 0.06, 1.0)
-    colbox_mm(-0.9, 0.9, -0.48, 0.48, 0.0, 1.3)
-
-
 def m_projector():
     # Grand projecteur de cinéma sur piédestal conique : 1,9 m, 1,4 m de long,
     # objectif vers -Y.
@@ -1324,7 +1262,6 @@ BUILDERS = {
     "chandelier": m_chandelier,
     "chandelier_fallen": m_chandelier_fallen,
     "sconce": m_sconce,
-    "pap_machine": m_pap_machine,
     "projector": m_projector,
     "reel_shelf": m_reel_shelf,
     "desk": m_desk,
@@ -1447,8 +1384,6 @@ def preview(name, obs):
     views.append(("", c, c + d * dist, 50))
     if name == "chandelier":
         views.append(("_below", Vector((0, 0, -4.0)), Vector((-3, -5, -7.5)), 35))
-    elif name == "pap_machine":
-        views.append(("_front", Vector((0, 0, 1.3)), Vector((0, -4.2, 1.4)), 50))
     for suffix, tgt, loc, lens in views:
         target.location = tgt
         cam.location = loc

@@ -79,7 +79,6 @@
   "id": "smallest_double_door",
   "map_def": {
    "box_start": 0,
-   "box_starts": [],
    "description": "",
    "display_name": "SMALLEST DOUBLE PORTE",
    "doors": {},
@@ -106,7 +105,6 @@
     }
    ],
    "doors": [],
-   "grenade_buys": [],
    "lamps": [
     {
      "color": "ffc88a",
@@ -126,76 +124,6 @@
      "power": true,
      "range": 10.0,
      "yaw": 0.0
-    }
-   ],
-   "pap": {
-    "p": [
-     26.25,
-     0.0,
-     23.5
-    ],
-    "wall": [
-     0,
-     0,
-     1
-    ]
-   },
-   "perks": [
-    {
-     "id": "titan",
-     "p": [
-      25.25,
-      0.0,
-      19.5
-     ],
-     "perk": "titan",
-     "wall": [
-      0,
-      0,
-      -1
-     ]
-    },
-    {
-     "id": "twin",
-     "p": [
-      27.25,
-      0.0,
-      19.5
-     ],
-     "perk": "twin",
-     "wall": [
-      0,
-      0,
-      -1
-     ]
-    },
-    {
-     "id": "rapid",
-     "p": [
-      21.5,
-      0.0,
-      21.75
-     ],
-     "perk": "rapid",
-     "wall": [
-      -1,
-      0,
-      0
-     ]
-    },
-    {
-     "id": "lazarus",
-     "p": [
-      27.75,
-      0.0,
-      23.5
-     ],
-     "perk": "lazarus",
-     "wall": [
-      0,
-      0,
-      1
-     ]
     }
    ],
    "player_spawns": [
@@ -220,7 +148,7 @@
      22.85
     ]
    ],
-   "player_yaw": -1.303,
+   "player_yaw": -1.316,
    "power": {
     "p": [
      22.25,
@@ -234,23 +162,6 @@
     ]
    },
    "traps": [],
-   "wall_buys": [
-    {
-     "id": "m14",
-     "p": [
-      24.0,
-      0.0,
-      23.5
-     ],
-     "variant": "planche",
-     "wall": [
-      0,
-      0,
-      1
-     ],
-     "weapon": "m14"
-    }
-   ],
    "windows": [
     {
      "h": 2.1,

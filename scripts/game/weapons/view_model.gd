@@ -119,8 +119,6 @@ var _melee_t := -1.0
 var _melee_lunge := false
 var _melee_time_mult := 1.0
 var _dive := 0.0
-var _pickup_t := -1.0
-var _pickup_dur := 2.0
 var knife_id := KnifeDB.DEFAULT
 ## Durée de l'animation d'un coup de couteau (s) : armé, tranche, retrait.
 const MELEE_ANIM := 0.5
@@ -133,9 +131,6 @@ const MELEE_KEYS := [
 	[0.52, Vector3(0.18, -0.21, -0.91), Vector3(-0.08, 0.35, -0.2)],
 	[1.0, Vector3(0.32, -0.6, -0.56), Vector3(-0.2, 0.5, -0.3)],
 ]
-var _drink_t := -1.0
-var _drink_dur := 2.0
-var _bottle: MeshInstance3D
 ## Cartouche tenue par la main gauche (rechargement coup par coup).
 var _shell: Node3D
 ## Flamme de bouche : cœur face caméra + deux pointes croisées le long du canon.
@@ -464,16 +459,8 @@ func set_knife(id: String) -> void:
 	_fill_knife_rig(arms, KnifeDB.model(id))
 
 
-## Récupération du couteau de chasse : l'arme descend, le couteau est sorti,
-## retourné et observé, puis rangé (~2 s, comme BO1).
-func start_knife_pickup(duration: float) -> void:
-	_pickup_t = 0.0
-	_pickup_dur = duration
-	_melee_t = -1.0
-
-
 func is_knife_busy() -> bool:
-	return _melee_t >= 0.0 or _pickup_t >= 0.0
+	return _melee_t >= 0.0
 
 
 static func _ss(a: float, b: float, t: float) -> float:
@@ -598,19 +585,6 @@ func update(delta: float, p: Player) -> void:
 		rot += (Vector3(-0.7, 0.2, 0.5) if coming else Vector3(-0.8, -0.1, 0.25)) * k2
 		if _switch_t >= 1.0:
 			_switch_t = -1.0
-	# Boisson : l'arme descend hors champ, la bouteille monte à la bouche.
-	if _drink_t >= 0.0:
-		_drink_t += delta / _drink_dur
-		var kd := sin(clampf(_drink_t, 0.0, 1.0) * PI)
-		pos += Vector3(0.0, -0.5, 0.1) * minf(kd * 2.0, 1.0)
-		rot += Vector3(-0.8, 0.0, 0.0) * minf(kd * 2.0, 1.0)
-		_bottle.visible = _drink_t > 0.1 and _drink_t < 0.9
-		var lift := sin(clampf((_drink_t - 0.1) / 0.8, 0.0, 1.0) * PI)
-		_bottle.position = Vector3(0.02, -0.28 + lift * 0.17, (-0.3 + lift * 0.06) * 1.75)
-		_bottle.rotation = Vector3(0.5 + lift * 1.1, 0.0, 0.1)
-		if _drink_t >= 1.0:
-			_drink_t = -1.0
-			_bottle.visible = false
 	# Coup de couteau : l'arme s'écarte vers le bas à droite, le bras gauche
 	# arme le couteau puis tranche de gauche à droite.
 	arms.visible = false
@@ -628,19 +602,6 @@ func update(delta: float, p: Player) -> void:
 		left = Transform3D(Basis.IDENTITY, Vector3(-0.1, -0.35, 0.1) * minf(melee_k * 2.0, 1.0))
 		if _melee_t >= 1.0:
 			_melee_t = -1.0
-	# Récupération du couteau de chasse.
-	if _pickup_t >= 0.0:
-		_pickup_t += delta / _pickup_dur
-		var t := clampf(_pickup_t, 0.0, 1.0)
-		var down := smoothstep(0.0, 0.12, t) * (1.0 - smoothstep(0.88, 1.0, t))
-		pos += Vector3(0.0, -0.5, 0.1) * down
-		rot += Vector3(-0.8, 0.0, 0.0) * down
-		var pose := pickup_pose(t)
-		arms.visible = t > 0.08 and t < 0.92
-		arms.position = pose[0]
-		arms.rotation = pose[1]
-		if _pickup_t >= 1.0:
-			_pickup_t = -1.0
 
 	# Lancer de grenade : l'arme descend sous l'écran.
 	_lower = move_toward(_lower, lowered, delta * 6.0)
@@ -867,18 +828,6 @@ static func melee_pose(t: float) -> Array:
 	return [last[1], last[2]]
 
 
-## Pose de la récupération : le couteau monte au centre, pointe vers le haut,
-## pivote pour montrer la lame, puis redescend.
-static func pickup_pose(t: float) -> Array:
-	var rise := smoothstep(0.08, 0.3, t) * (1.0 - smoothstep(0.78, 0.92, t))
-	var low := Vector3(-0.12, -0.62, -0.74)
-	var high := Vector3(-0.03, -0.14, -0.84)
-	var turn := smoothstep(0.3, 0.72, t)
-	var rot := Vector3(1.15, 0.55 - 1.1 * turn, 0.1 - sin(turn * PI) * 0.3)
-	rot.x -= sin(turn * PI) * 0.2
-	return [low.lerp(high, rise), rot]
-
-
 static var _flash_tex: Texture2D
 static var _prong_tex: Texture2D
 static var _prong_mesh: ArrayMesh
@@ -983,34 +932,6 @@ static func _make_flash(seed_v: int) -> Texture2D:
 			var hot := clampf(1.0 - r * 1.8, 0.0, 1.0)
 			img.set_pixel(x, y, Color(1.0, lerpf(0.55, 0.95, hot), lerpf(0.2, 0.8, hot), a))
 	return ImageTexture.create_from_image(img)
-
-
-func start_drink(color: Color, duration: float) -> void:
-	if _bottle == null:
-		_bottle = MeshInstance3D.new()
-		var cm := CylinderMesh.new()
-		cm.top_radius = 0.018
-		cm.bottom_radius = 0.035
-		cm.height = 0.2
-		cm.radial_segments = 12
-		_bottle.mesh = cm
-		_bottle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(_bottle)
-	var m := ShaderMaterial.new()
-	m.shader = preload("res://assets/shaders/weapon.gdshader")
-	m.set_shader_parameter("albedo", color)
-	m.set_shader_parameter("emission", color)
-	m.set_shader_parameter("emission_energy", 1.5)
-	m.set_shader_parameter("viewmodel", 1.0)
-	m.set_shader_parameter("roughness", 0.2)
-	_bottle.material_override = m
-	_bottle.visible = false
-	_drink_t = 0.0
-	_drink_dur = duration
-
-
-func is_drinking() -> bool:
-	return _drink_t >= 0.0
 
 
 ## Champ de vision (vertical) courant de l'arme : de la hanche à la visée.

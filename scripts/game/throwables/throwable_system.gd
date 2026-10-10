@@ -1,20 +1,20 @@
 class_name ThrowableSystem
 extends Node
-## Grenades et SINGE-TAMBOUR (chemin réseau : /root/Game/Throwables).
+## Objets de l'emplacement de grenade : grenades et PELUCHES LEURRES (chemin
+## réseau : /root/Game/Throwables).
 ##
 ## Serveur autoritaire :
 ## * le client annonce le dégoupillage (srv_cook) puis le lancer (srv_throw) ;
-##   le serveur décompte la réserve, simule la trajectoire, la mèche, le singe,
-##   et applique les dégâts (Combat.explosion) ;
+##   le serveur décompte la réserve, simule la trajectoire, la mèche, le
+##   leurre, et applique les dégâts (Combat.explosion) ;
 ## * les clients simulent la même trajectoire (diffusée par _cl_spawn) ; le
 ##   lanceur l'affiche sans attendre (prédiction) puis la rattache à l'objet
 ##   du serveur ;
 ## * grenade gardée en main au-delà de la mèche : elle explose dans la main.
-## Réserve : PlayerData.grenades / monkeys (répliquées avec les stats).
+## Réserve : PlayerData.throwable (sorte) et PlayerData.grenades (quantité),
+## répliquées avec les stats.
 
 const K := ThrowableRules.Kind
-## Marqueur de carte de l'achat mural de grenades.
-const GRENADE_BUY_MARKER := "*"
 const MAX_ORIGIN_ERROR := 4.0
 const SHAKE_RANGE := 16.0
 const MAX_SCORCH := 10
@@ -28,7 +28,7 @@ var items: Dictionary = {}
 var _next_id := 1
 ## Serveur : pid -> [kind, instant du dégoupillage].
 var _cooking: Dictionary = {}
-## Serveur : singes dont la musique joue (leurres).
+## Serveur : peluches leurres dont la musique joue.
 var _lures: Array[Throwable] = []
 ## Client : objets prédits en attente du serveur (numéro de lancer -> objet).
 var _predicted: Dictionary = {}
@@ -49,7 +49,6 @@ var _cancel_limit := NetGuard.Limiter.new(8.0, 8.0)
 func _ready() -> void:
 	game = get_parent()
 	game.rounds.round_started.connect(_on_round_started)
-	_build_buys()
 	_flash = OmniLight3D.new()
 	_flash.light_color = Color(1.0, 0.6, 0.28)
 	_flash.omni_range = 9.0
@@ -69,50 +68,36 @@ func _ready() -> void:
 		_scorch.append(d)
 
 
-## Achats muraux de grenades (marqueur « * »), comme sur Kino der Toten.
-func _build_buys() -> void:
-	for m in game.layout.grenade_buys():
-		var b := GrenadeBuy.new()
-		b.setup_marker(m)
-		game.world.add_child(b)
-		game.interact.register(b)
-
-
 # --------------------------------------------------------------------------
 # Serveur : réserve
 # --------------------------------------------------------------------------
 
-## +2 grenades au début de chaque manche (maximum 4). La première manche
+## Dotation PROVISOIRE : +2 grenades au début de chaque manche (maximum 4),
+## si l'emplacement contient des grenades ou est vide. La première manche
 ## commence avec la dotation de départ (PlayerData.grenades).
 func _on_round_started(n: int) -> void:
 	if not multiplayer.is_server() or n <= 1:
 		return
 	for pid in game.session.data:
 		var pd: PlayerData = game.session.data[pid]
+		if not ThrowableRules.gets_free_frags(pd.throwable, pd.grenades):
+			continue
 		var g := ThrowableRules.frags_after_round(pd.grenades)
-		if g != pd.grenades:
+		if g != pd.grenades or pd.throwable != K.FRAG:
+			pd.throwable = K.FRAG
 			pd.grenades = g
 			game.session.sync_stats(pid)
 
 
-## Serveur : singes de la boîte mystère.
-func srv_give_monkeys(pid: int) -> void:
+## Serveur : objet pris à la caisse au hasard (sorte `kind`) : l'emplacement
+## de grenade en est rempli jusqu'au maximum, ce qu'il contenait est remplacé.
+func srv_fill_slot(pid: int, kind: int) -> void:
 	var pd := game.session.get_data(pid)
-	if pd == null:
+	if pd == null or not ThrowableRules.NAMES.has(kind):
 		return
-	pd.has_monkeys = true
-	pd.monkeys = ThrowableRules.MONKEY_MAX
+	pd.throwable = kind
+	pd.grenades = ThrowableRules.SLOT_MAX
 	game.session.sync_stats(pid)
-
-
-## Serveur : bonus MUNITIONS MAX (grenades à 4, singes à 3 s'ils en ont).
-func srv_refill_all() -> void:
-	for pid in game.session.data:
-		var pd: PlayerData = game.session.data[pid]
-		pd.grenades = ThrowableRules.FRAG_MAX
-		if pd.has_monkeys:
-			pd.monkeys = ThrowableRules.MONKEY_MAX
-		game.session.sync_stats(pid)
 
 
 # --------------------------------------------------------------------------
@@ -127,17 +112,13 @@ func srv_cook(kind: int) -> void:
 	if pid == NetGuard.NO_SENDER or _cooking.has(pid):
 		return
 	var pd := game.session.get_data(pid)
-	match kind:
-		K.FRAG:
-			if pd.grenades <= 0:
-				return
-			pd.grenades -= 1
-		K.MONKEY:
-			if not pd.has_monkeys or pd.monkeys <= 0:
-				return
-			pd.monkeys -= 1
-		_:
-			return
+	# Seul l'objet que contient l'emplacement se lance.
+	if kind != pd.throwable or pd.grenades <= 0:
+		return
+	pd.grenades -= 1
+	if pd.grenades <= 0:
+		# Emplacement vide : il redevient « grenades » (dotation de la manche).
+		pd.throwable = K.FRAG
 	_cooking[pid] = [kind, GameClock.now()]
 	# Cartouches déjà poussées gardées, comme ThrowController côté client.
 	game.combat.cancel_reload(pid, true)
@@ -176,8 +157,9 @@ func srv_throw(origin: Vector3, dir: Vector3, seq: int) -> void:
 	if not NetGuard.valid_dir(dir) or dir.length_squared() < 0.01:
 		dir = -p.global_transform.basis.z
 	var kind: int = c[0]
-	var monkey := kind == ThrowableRules.Kind.MONKEY
-	VoxSystem.say(pid, "throw_monkey" if monkey else "throw_grenade", 0.9 if monkey else 0.5)
+	# Pas encore de réplique pour la peluche leurre (voix du joueur à refaire).
+	if kind == K.FRAG:
+		VoxSystem.say(pid, "throw_grenade", 0.5)
 	var fuse := ThrowableRules.fuse_left(c[1], GameClock.now()) if kind == K.FRAG else 0.0
 	_spawn(pid, kind, origin, ThrowableRules.throw_velocity(kind, dir), fuse, seq)
 
@@ -224,7 +206,7 @@ func _process(delta: float) -> void:
 			_spawn(pid, c[0], p.global_position + Vector3.UP * 0.6, Vector3.ZERO, fuse, 0)
 
 
-## Serveur : fin de la mèche (grenade) ou de la musique (singe).
+## Serveur : fin de la mèche (grenade) ou de la musique (peluche leurre).
 func srv_detonate(t: Throwable) -> void:
 	if not items.has(t.tid) or items[t.tid] != t:
 		return
@@ -232,11 +214,11 @@ func srv_detonate(t: Throwable) -> void:
 	_explode(t.tid, t.owner_pid, t.kind, t.position)
 
 
-## Serveur : le singe s'est posé ; sa musique attire les zombies.
-func srv_monkey_landed(t: Throwable) -> void:
-	t.start_lure(t.position, ThrowableRules.MONKEY_TIME)
+## Serveur : la peluche leurre s'est posée ; sa musique attire les zombies.
+func srv_decoy_landed(t: Throwable) -> void:
+	t.start_lure(t.position, ThrowableRules.DECOY_TIME)
 	_lures.append(t)
-	print("[Throwables] singe posé en %s : les zombies convergent" % t.position)
+	print("[Throwables] peluche leurre posée en %s : les zombies convergent" % t.position)
 	_cl_lure.rpc(t.tid, t.position)
 
 
@@ -245,7 +227,7 @@ func _explode(tid: int, pid: int, kind: int, pos: Vector3) -> void:
 	if kind == K.FRAG:
 		game.combat.explosion(pid, pos, ThrowableRules.FRAG_RADIUS, ThrowableRules.FRAG_DAMAGE, ThrowableRules.FRAG_SELF_DAMAGE)
 	else:
-		game.combat.explosion(pid, pos, ThrowableRules.MONKEY_RADIUS, ThrowableRules.MONKEY_DAMAGE, ThrowableRules.MONKEY_SELF_DAMAGE)
+		game.combat.explosion(pid, pos, ThrowableRules.DECOY_RADIUS, ThrowableRules.DECOY_DAMAGE, ThrowableRules.DECOY_SELF_DAMAGE)
 	_cl_explode.rpc(tid, pid, kind, pos)
 
 
@@ -333,7 +315,7 @@ func _cl_lure(id: int, pos: Vector3) -> void:
 		return
 	var t: Throwable = items.get(id)
 	if t:
-		t.start_lure(pos, ThrowableRules.MONKEY_TIME)
+		t.start_lure(pos, ThrowableRules.DECOY_TIME)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -350,7 +332,7 @@ func _cl_explode(id: int, pid: int, kind: int, pos: Vector3) -> void:
 ## sol, son et secousse de la caméra du joueur local.
 func explosion_fx(pos: Vector3, kind: int) -> void:
 	var fx: Fx = game.fx_root
-	var big := kind == K.MONKEY
+	var big := kind == K.DECOY
 	var up := pos + Vector3.UP * 0.3
 	fx.sparks.burst(up, Vector3.UP, 36, 9.0, 1.1, 0.7, Color(1.0, 0.55, 0.15, 0.95), 1.8)
 	fx.sparks.burst(up, Vector3.UP, 14, 4.0, 1.0, 0.35, Color(1.0, 0.85, 0.5, 1.0), 3.5)

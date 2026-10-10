@@ -2,16 +2,14 @@ class_name BarricadeRules
 extends RefCounted
 ## Règles des fenêtres barricadées (fonctions pures, testées unitairement).
 ##
-## Comme dans Black Ops 1 : 6 planches par fenêtre, +10 points par planche
-## reposée (multiplicateur « double points » compris), 500 points de
-## réparation au plus par joueur et par manche. Portes à zombies (format 8) :
-## KINDS (planches, zombies qui arrachent à la fois, places d'attente).
+## 6 planches par fenêtre, comme dans Black Ops 1. Reposer une planche ne
+## rapporte rien : la ferraille ne vient que des éliminations (GAME_CONCEPT
+## §4.8). Portes à zombies (format 8) : KINDS (planches, zombies qui arrachent
+## à la fois, places d'attente).
 
 const PLANKS := 6
 const FULL_MASK := (1 << PLANKS) - 1
-const POINTS_PER_PLANK := 10
-const ROUND_CAP := 500
-## Secondes de maintien de [F] par planche reposée (RAPID FIZZ : 2x plus vite).
+## Secondes de maintien de [F] par planche reposée.
 const REPAIR_TIME := 0.75
 ## Arrachage, par zombie (règle demandée par le joueur : une planche toutes les
 ## 2,5 s en moyenne, pause « de folie » entre deux planches). Un cycle =
@@ -133,15 +131,8 @@ static func can_reach_through(mask: int, n: int, n_lanes: int, lane: int) -> boo
 	return lane_total - count_lane(mask, n, n_lanes, lane) >= REACH_MIN_TORN
 
 
-## Points gagnés pour une planche reposée, compte tenu de ce que le joueur a
-## déjà gagné en réparations pendant la manche.
-static func repair_points(earned_this_round: int, multiplier := 1) -> int:
-	var pts := POINTS_PER_PLANK * maxi(multiplier, 1)
-	return clampi(ROUND_CAP - earned_this_round, 0, pts)
-
-
-static func repair_interval(reload_mult := 1.0) -> float:
-	return REPAIR_TIME * reload_mult
+static func repair_interval() -> float:
+	return REPAIR_TIME
 
 
 ## Cadence moyenne d'arrachage (s par planche), quelle que soit la vitesse.

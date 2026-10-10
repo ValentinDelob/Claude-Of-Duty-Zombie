@@ -11,8 +11,8 @@ extends Node
 ## la géométrie -> MapLayoutExport, les mêmes que pour une partie), puis les
 ## morceaux qui ont changé (architecture, décor, lampes, objets de jeu) sont
 ## reconstruits, UN PAR IMAGE, l'ancien morceau restant affiché jusqu'au
-## remplacement. Objets de jeu (portes, fenêtres barricadées, atouts, armes,
-## boîte, Pack-a-Punch, courant, téléporteur, pièges, grenades) : les
+## remplacement. Objets de jeu (portes, fenêtres barricadées, caisse au
+## hasard, courant, téléporteur, pièges) : les
 ## fonctions de construction de Game (_build_doors...) appelées sur un « jeu »
 ## hors de l'arbre, sans réseau ni joueurs, figés (aucun _process : ni son ni
 ## animation).
@@ -117,7 +117,7 @@ var _framed_doc := 0
 ## « Fils de travail ») : `map` (copie profonde, faite sur le fil principal),
 ## `lang_en` (langue des textes), le catalogue (MapCatalog, construit puis mis
 ## en lecture seule sur le fil principal) et des constantes. Les caches du
-## fil principal (MapRules, WeaponDB...) refusent tout accès depuis le fil.
+## fil principal (MapRules, MapCatalog...) refusent tout accès depuis le fil.
 class Job extends RefCounted:
 	var map: EditorMap
 	var lang_en := false
@@ -376,8 +376,7 @@ static func _def_of(d: Dictionary, m: EditorMap) -> EditorMapDef:
 	ed.zone_names = md.get("zone_names", {})
 	ed.doors = md.get("doors", {})
 	ed.open_links = md.get("open_links", {})
-	ed.box_start = int(md.get("box_start", 0))
-	ed.box_starts = md.get("box_starts", [])
+	# Caisse au hasard : une seule (index 0, valeur par défaut de MapDef).
 	if bool(md.get("teleporter_link", false)):
 		ed.teleporter_link = true
 		ed.teleporter_cost = 0
@@ -454,15 +453,11 @@ func _build_stuff(holder: Node3D) -> void:
 		builders["lamps"] = lamps
 	_game.props = lamps
 	_game._build_doors()
-	_game._build_wall_buys()
 	_game._build_power()
-	_game._build_perk_machines()
 	_game._build_mystery_box()
-	_game._build_pack_a_punch()
 	_game._build_teleporter()
 	_game._build_traps()
-	# Fenêtres barricadées (comme BarricadeSystem.setup) et grenades
-	# (ThrowableSystem._build_buys).
+	# Fenêtres barricadées (comme BarricadeSystem.setup).
 	var wroot := Node3D.new()
 	wroot.name = "Barricades"
 	holder.add_child(wroot)
@@ -471,10 +466,6 @@ func _build_stuff(holder: Node3D) -> void:
 		b.setup(w)
 		_interact.register(b)
 		wroot.add_child(b)
-	var ts := ThrowableSystem.new()
-	ts.game = _game
-	ts._build_buys()
-	ts.free()
 	# Figés : aucune animation, aucun son, aucun calcul par image.
 	for n in holder.find_children("*", "", true, false):
 		n.set_process(false)

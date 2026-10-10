@@ -53,7 +53,8 @@ func _until(cond: Callable, limit: float) -> bool:
 	return true
 
 
-## Deux salles collées, une porte, deux fenêtres, départ, boîte, arme, atout.
+## Deux salles collées, une porte, deux fenêtres, départ, caisse au hasard,
+## interrupteur du courant.
 static func _base() -> EditorMap:
 	var doc := EditorMap.blank("apercu_test", "APERCU", "PREVIEW")
 	for r in [[0, 0, 14, 10], [14, 0, 24, 10]]:
@@ -67,7 +68,7 @@ static func _base() -> EditorMap:
 		o["altitude"] = 0.0
 		doc.ouvertures.append(o)
 	for o in [{"type": "depart", "position": [9.0, 7.0]}, {"type": "boite", "position": [6.75, 10.0], "mur": "s", "depart": false},
-			{"type": "arme", "arme": "m14", "position": [11.25, 10.0], "mur": "s"}, {"type": "atout", "atout": "titan", "position": [24.0, 5.0], "mur": "e"}]:
+			{"type": "courant", "position": [24.0, 5.0], "mur": "e"}]:
 		o["id"] = doc.new_id("x")
 		o["altitude"] = 0.0
 		doc.objets.append(o)
@@ -117,13 +118,11 @@ func test_same_geometry_as_the_game_on_draft_arena() -> void:
 		var b := lamps_prev[i] as OmniLight3D
 		assert_true(a.position.is_equal_approx(b.position) and is_equal_approx(a.omni_range, b.omni_range) and a.shadow_enabled == b.shadow_enabled,
 			"lampe %d identique" % i)
-	# Objets de jeu : portes, fenêtres barricadées, atouts, armes, boîte, courant.
+	# Objets de jeu : portes, fenêtres barricadées, caisse au hasard, courant.
 	var stuff: Node = w.groups.stuff
 	assert_eq(stuff.find_children("*", "Door", true, false).size(), layout.doors().size(), "portes")
 	assert_eq(stuff.find_children("*", "Barricade", true, false).size(), 7, "7 fenêtres barricadées")
-	assert_eq(stuff.find_children("*", "PerkMachine", true, false).size(), layout.perks().size(), "atouts")
-	assert_eq(stuff.find_children("*", "WallBuy", true, false).size(), layout.wall_buys().size(), "armes murales")
-	assert_eq(stuff.find_children("*", "MysteryBox", true, false).size(), 1, "boîte")
+	assert_eq(stuff.find_children("*", "MysteryBox", true, false).size(), 1, "caisse au hasard")
 	assert_eq(stuff.find_children("*", "PowerSwitch", true, false).size(), 1, "interrupteur du courant")
 	# Figés : aucun calcul par image dans l'éditeur.
 	for n in stuff.find_children("*", "Interactable", true, false):
@@ -313,10 +312,10 @@ func test_pick_and_highlight() -> void:
 	w.set_options({"ceil": false})
 	assert_eq(w.pick(center), String(doc.pieces[1].id), "plafond de la salle B")
 	# Surlignage de l'élément choisi.
-	w.selected_id = String(doc.objets[3].id)
+	w.selected_id = String(doc.objets[2].id)
 	w.update_overlay()
 	var im := (w.get_node("PreviewViewport/PreviewWorld/Highlight") as MeshInstance3D).mesh as ImmediateMesh
-	assert_true(im.get_surface_count() == 2, "atout surligné (traits et faces)")
+	assert_true(im.get_surface_count() == 2, "interrupteur surligné (traits et faces)")
 	w.selected_id = ""
 	w.update_overlay()
 	assert_eq(im.get_surface_count(), 0, "rien de surligné")

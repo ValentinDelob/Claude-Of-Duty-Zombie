@@ -1,8 +1,7 @@
 extends AutotestScenario
 ## [MP] Client : reçoit l'ambiance de la manche de chiens (brouillard, compteur
 ## qui clignote), voit les chiens (même canal réseau que les zombies) apparaître
-## par la foudre, se déplacer (instantanés interpolés) et les abat ; voit les
-## munitions max du dernier chien.
+## par la foudre, se déplacer (instantanés interpolés) et les abat.
 
 const PORT := 17871
 
@@ -32,16 +31,10 @@ func run() -> void:
 	var first_pos := {}
 	var hidden_ok := true
 	var shot_done := false
-	# Capté à l'ajout du nœud : l'hôte peut ramasser les munitions max dans
-	# la même image que leur apparition (le nœud ne serait jamais vu).
-	var drop_seen := [false]
-	game.powerups.child_entered_tree.connect(func(n: Node):
-		if n is PowerupDrop and n.type == PowerupRules.MAX_AMMO:
-			drop_seen[0] = true)
 	var t := 0.0
 	while t < 110.0:
 		if not is_instance_valid(game):
-			at.fail("client : partie fermée avant la fin de la manche de chiens (%d chiens vus, munitions max %s)" % [seen.size(), drop_seen[0]])
+			at.fail("client : partie fermée avant la fin de la manche de chiens (%d chiens vus)" % seen.size())
 			return
 		var target: Hellhound = null
 		for z: Zombie in game.zombies.alive:
@@ -72,7 +65,7 @@ func run() -> void:
 			p.input.reload = true
 		if p.global_position.distance_to(home) > 3.0:
 			p.teleport_to(home)
-		if drop_seen[0] and seen.size() >= 12:
+		if seen.size() >= 12 and game.zombies.alive_count() == 0:
 			break
 		await frames(1)
 		t += at.get_process_delta_time()
@@ -81,15 +74,6 @@ func run() -> void:
 	at.check(moved.size() >= 6, "client : chiens en mouvement (%d)" % moved.size())
 	at.check(hidden_ok, "client : invisibles pendant la foudre")
 	at.check(pd.kills >= 2, "client : chiens abattus (%d)" % pd.kills)
-	var drop_node: PowerupDrop = null
-	for n: PowerupDrop in game.powerups.nodes.values():
-		if n.type == PowerupRules.MAX_AMMO:
-			drop_node = n
-	at.check(drop_seen[0], "client : munitions max du dernier chien")
-	if drop_node:
-		H.aim_at(p, drop_node.global_position + Vector3.UP * 0.6)
-		await seconds(0.4)
-		await at.screenshot("max_ammo")
 	ok = await until(func(): return not dogs.cl_active, 8.0, "fin de l'ambiance")
 	at.check(ok and not game.hud.round_counter().special, "client : ambiance terminée")
 	await MpHelpers.finish(self)

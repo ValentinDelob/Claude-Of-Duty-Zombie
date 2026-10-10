@@ -4,7 +4,7 @@ extends AutotestScenario
 ## (×1,50 uniforme, coin nord-ouest fixe, aimanté au pas de 0,25 en grille
 ## 1 m), face est (X seul, côté ouest fixe), valeur tapée (« 2 » + Entrée) ;
 ## en vue Avant, losange du haut (Z seul, base au sol) ; prefab qui contient
-## un Pack-a-Punch : cadenas aux coins, refus nommé ; Échap annule ; un geste
+## un téléporteur : cadenas aux coins, refus nommé ; Échap annule ; un geste
 ## = une annulation.
 
 const Free := preload("res://tests/test_map_decor_free.gd")
@@ -23,9 +23,9 @@ func run() -> void:
 	await frames(3)
 	ed.new_map(true)
 	var doc := Free.two_rooms()
-	doc.prefabs["coin_pap"] = Scale.PAP_DEF.duplicate(true)
+	doc.prefabs["coin_tp"] = Scale.GAME_DEF.duplicate(true)
 	doc.objets.append({"id": "c1", "type": "prefab", "prefab": "caisses", "altitude": 0, "position": [4.0, 4.0]})
-	doc.objets.append({"id": "k1", "type": "prefab", "prefab": "map:coin_pap", "altitude": 0, "position": [19.0, 4.0]})
+	doc.objets.append({"id": "k1", "type": "prefab", "prefab": "map:coin_tp", "altitude": 0, "position": [19.0, 4.0]})
 	for o in doc.objets:
 		if String(o.type) == "depart":
 			o["position"] = [11.0, 8.0]
@@ -36,7 +36,7 @@ func run() -> void:
 	cv.origin = Vector2(60, 60)
 	cv.set_snap_mode("grille")
 	await frames(3)
-	# Prefab avec un Pack-a-Punch d'abord (sa définition, qui ne passerait pas
+	# Prefab avec un téléporteur d'abord (sa définition, qui ne passerait pas
 	# le contrôle de prefab.json, ne survit pas à une carte remise : doc.restore).
 	ed.select("k1")
 	await frames(2)
@@ -48,7 +48,7 @@ func run() -> void:
 		_mouse(cv, lp, 1)
 		_mouse(cv, lp, 0)
 		await frames(1)
-		at.check(ed.status.text == "Échelle impossible : « Coin Pack-a-Punch » contient un Pack-a-Punch (objet de jeu à taille fixe)", "barre d'état : %s" % ed.status.text)
+		at.check(ed.status.text == "Échelle impossible : « Coin téléporteur » contient un téléporteur (objet de jeu à taille fixe)", "barre d'état : %s" % ed.status.text)
 		at.check(cv.cursor_at(cv.to_px(lp)) == Control.CURSOR_FORBIDDEN, "curseur interdit sur un cadenas")
 	at.check(not ed.doc.find("k1").has("echelle"), "prefab bloqué : pas d'échelle")
 

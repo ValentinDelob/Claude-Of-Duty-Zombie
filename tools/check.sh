@@ -27,7 +27,7 @@
 # Usage : sh tools/check.sh [--full] [--fast] [--cartes] [--no-retry]
 #   --full     tout relancer (obligatoire avant une release : tools/ship.sh)
 #   --fast     sans réseau ni multijoueur
-#   SCENARIOS="boot perks" sh tools/check.sh   uniquement ces scénarios (sans cache, pas de mp)
+#   SCENARIOS="boot grenades" sh tools/check.sh   uniquement ces scénarios (sans cache, pas de mp)
 #   MP="lobby zombies" sh tools/check.sh       uniquement ces tests multijoueur (sans cache)
 #   SCENARIOS="boot" MP="lobby" sh tools/check.sh   les deux listes ensemble
 #   JOBS=6 sh tools/check.sh                   nombre de tâches simultanées (déf. 3)

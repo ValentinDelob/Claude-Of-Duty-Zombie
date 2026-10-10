@@ -1,11 +1,11 @@
 class_name BoxModel
 extends RefCounted
-## Apparence de la boîte mystère : coffre de bois usé cerclé de fer modélisé
+## Apparence de la caisse au hasard (ancienne boîte mystère) : coffre de bois usé cerclé de fer modélisé
 ## sous Blender (tools/blender/props/mystery_box.py ->
 ## assets/models/props/mystery_box.glb), points d'interrogation au pochoir
 ## originaux, matières procédurales (assets/shaders/mystery_box.gdshader) ;
 ## colonne de lumière douce (assets/shaders/box_beam.gdshader). Partagé par
-## la vraie boîte, les boîtes de LIQUIDATION et l'aperçu de l'éditeur (même
+## la caisse du jeu et l'aperçu de l'éditeur (même
 ## MysteryBox). La collision reste celle de MysteryBox.
 
 const MODEL_PATH := "res://assets/models/props/mystery_box.glb"

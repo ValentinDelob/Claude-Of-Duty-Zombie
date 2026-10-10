@@ -12,9 +12,7 @@ scripts/game/fx 98
 scripts/game/hud 95
 scripts/game/interact 83
 scripts/game/map 88
-scripts/game/perks 46
 scripts/game/player 91
-scripts/game/powerups 95
 scripts/game/rounds 93
 scripts/game/throwables 92
 scripts/game/vox 92

@@ -16,10 +16,6 @@
       {"fr": "Mon sabre aurait fait mieux, mais il se repose.", "en": "My sword would have done better. It is resting."},
       {"fr": "Un pas, un geste, un souffle. La leçon est terminée.", "en": "One step, one motion, one breath. The lesson is over."}
     ],
-    "kill_bowie": [
-      {"fr": "Le fil est excellent. Vous en êtes témoin.", "en": "The edge is keen. You can attest to that."},
-      {"fr": "Lame de chasseur, gibier égaré. Chaque chose à sa place.", "en": "A hunter's blade, a lost creature. Everything in its place."}
-    ],
     "kill_explosive": [
       {"fr": "Dispersés comme des feuilles dans le vent d'automne.", "en": "Scattered like leaves in an autumn wind."},
       {"fr": "Une seule étincelle, et toute la colline s'embrase.", "en": "One spark, and the whole hillside burns."},
@@ -47,16 +43,6 @@
       {"fr": "Même le loup de la montagne a plus de dignité.", "en": "Even the mountain wolf carries more dignity."},
       {"fr": "Retournez à la flamme qui vous a fait naître.", "en": "Return to the fire that gave birth to you."}
     ],
-    "kill_ray": [
-      {"fr": "Le CLAUDE-RAY. Une lumière qui ne pardonne pas.", "en": "The Claude-Ray. A light that does not forgive."},
-      {"fr": "Arme étrange, mais elle frappe juste, comme la foudre d'été.", "en": "A strange weapon, but true. Like summer lightning."},
-      {"fr": "Ils s'éteignent comme des lucioles à l'aube.", "en": "They go out like fireflies at dawn."}
-    ],
-    "kill_thunder": [
-      {"fr": "Le TONNERRE-7. Je tiens un typhon entre mes mains.", "en": "The Thunder-7. I hold a typhoon in my hands."},
-      {"fr": "Balayés comme la poussière sur le seuil du temple.", "en": "Swept away like dust from a temple step."},
-      {"fr": "Le vent de la montagne a parlé. Ils n'ont rien répondu.", "en": "The mountain wind has spoken. They had no reply."}
-    ],
     "kill_trap": [
       {"fr": "Le piège attend, patient comme le héron.", "en": "The trap waits, patient as the heron."},
       {"fr": "Ils se sont jetés dans la foudre. Je n'ai rien eu à faire.", "en": "They threw themselves into the lightning. I had nothing to do."}
@@ -81,79 +67,6 @@
       {"fr": "Cette arme s'est tue. Il m'en faut une autre.", "en": "This weapon has fallen silent. I need another."},
       {"fr": "Le chargeur claque à vide. Un son bien triste.", "en": "The magazine clicks on nothing. A mournful sound."}
     ],
-    "buy_wall": [
-      {"fr": "Une arme accrochée au mur, comme un sabre dans son alcôve.", "en": "A weapon on the wall, like a sword in its alcove."},
-      {"fr": "Acquise. Qu'elle me serve fidèlement.", "en": "Acquired. May it serve me faithfully."},
-      {"fr": "Le guerrier choisit ses outils avec soin. Celui-ci fera l'affaire.", "en": "A warrior chooses his tools with care. This one will do."}
-    ],
-    "buy_bowie": [
-      {"fr": "Une vraie lame, enfin. Ma main la reconnaît déjà.", "en": "A true blade at last. My hand knows it already."},
-      {"fr": "Ce n'est pas un sabre, mais l'équilibre est juste. Cela suffira.", "en": "Not a sword, but the balance is true. It will suffice."}
-    ],
-    "box_good": [
-      {"fr": "La boîte se montre généreuse. Je lui en sais gré.", "en": "The box is generous today. I am grateful."},
-      {"fr": "Belle arme. Le printemps arrive parfois en plein hiver.", "en": "A fine weapon. Sometimes spring comes in the middle of winter."},
-      {"fr": "Sou ka. La chance sourit à ceux qui savent attendre.", "en": "So ka. Fortune smiles on those who know how to wait."},
-      {"fr": "Voilà qui change la bataille. Merci, étrange boîte.", "en": "This changes the battle. Thank you, strange box."}
-    ],
-    "box_bad": [
-      {"fr": "Ceci ? La boîte a un sens de l'humour très particulier.", "en": "This? The box has a very particular sense of humor."},
-      {"fr": "Une arme modeste. Même le bambou le plus mince sait résister.", "en": "A modest weapon. Even the thinnest bamboo can hold firm."},
-      {"fr": "Shikata ga naï. On fait avec ce que la boîte donne.", "en": "Shikata ga nai. One works with what the box provides."},
-      {"fr": "J'ai payé pour cela. Je le regrette déjà, en silence.", "en": "I paid for this. I regret it already, quietly."}
-    ],
-    "box_shotgun": [
-      {"fr": "Un fusil à pompe. Aucune finesse, mais une grande conviction.", "en": "A shotgun. No finesse, but a great deal of conviction."},
-      {"fr": "Pour les rencontres rapprochées. Elles ne manquent pas, ici.", "en": "For close encounters. They are plentiful in here."}
-    ],
-    "box_sniper": [
-      {"fr": "Un fusil de précision. Enfin une arme qui aime la patience.", "en": "A sniper rifle. At last, a weapon that loves patience."},
-      {"fr": "Une arme de faucon, dans un théâtre étroit. La boîte manque de sens pratique.", "en": "A falcon's weapon, in a cramped theater. The box lacks practical sense."}
-    ],
-    "box_lmg": [
-      {"fr": "Une mitrailleuse. De quoi tenir un couloir entier à moi seul.", "en": "A machine gun. Enough to hold an entire corridor alone."},
-      {"fr": "Lourde comme une cloche de temple. Elle sonnera fort.", "en": "Heavy as a temple bell. It will ring loudly."}
-    ],
-    "box_launcher": [
-      {"fr": "Un lance-grenades. Je devrai garder mes distances avec mes propres cibles.", "en": "A grenade launcher. I shall have to keep my distance from my own targets."},
-      {"fr": "Une arme explosive, dans un lieu clos. Quelle idée audacieuse.", "en": "An explosive weapon, indoors. What a daring notion."}
-    ],
-    "box_ray": [
-      {"fr": "Le CLAUDE-RAY. Je tiens un éclat de lune dans la main.", "en": "The Claude-Ray. Moonlight, held in one hand."},
-      {"fr": "Une invention de Weissmann ou non, je la garde.", "en": "Weissmann's creation or not, I am keeping it."}
-    ],
-    "box_thunder": [
-      {"fr": "Le TONNERRE-7. Que le ciel gronde pour moi.", "en": "The Thunder-7. Let the sky roar on my behalf."},
-      {"fr": "Une tempête en bandoulière. Ils vont apprendre ce qu'est le vent.", "en": "A storm at my shoulder. They are about to meet the wind."}
-    ],
-    "box_monkey": [
-      {"fr": "Des SINGES-TAMBOURS. Weissmann a décidément un esprit bien étrange.", "en": "Drum Monkeys. The doctor's mind is a strange place indeed."},
-      {"fr": "Un jouet qui explose. L'enfant en moi est perplexe.", "en": "A toy that explodes. The child in me is puzzled."}
-    ],
-    "box_teddy": [
-      {"fr": "L'ours. La boîte s'envole comme la grue vers le nord.", "en": "The bear. The box flies off like a crane heading north."},
-      {"fr": "Cet ours se moque de moi. Je m'en souviendrai.", "en": "That bear mocks me. I will remember this."},
-      {"fr": "La chance est une rivière. Elle change de lit sans prévenir.", "en": "Luck is a river. It changes course without warning."},
-      {"fr": "Même la boîte fuit ce théâtre. Je ne peux pas l'en blâmer.", "en": "Even the box flees this theater. I cannot blame it."}
-    ],
-    "box_firesale": [
-      {"fr": "Liquidation. Même un moine pauvre peut tenter sa chance.", "en": "A Fire Sale. Even a poor monk may try his luck."},
-      {"fr": "Dix points la boîte. Un tel marché ne se refuse pas.", "en": "Ten points a box. Such a bargain cannot be refused."}
-    ],
-    "pap_upgrade": [
-      {"fr": "Forge-la bien, machine. J'ai confiance en toi, pas en ton créateur.", "en": "Forge it well, machine. I trust you, not your maker."},
-      {"fr": "Une lame se trempe dans le feu. Voyons ce que deviendra celle-ci.", "en": "A blade is tempered in fire. Let us see what this one becomes."},
-      {"fr": "Je vous confie mon arme. Rendez-la plus digne.", "en": "I entrust my weapon to you. Make it worthier."}
-    ],
-    "pap_wait": [
-      {"fr": "Elle ronronne comme un chat au soleil. Patience.", "en": "It purrs like a cat in the sun. Patience."},
-      {"fr": "J'attends, docteur. Si elle me rend une théière, nous aurons une discussion.", "en": "I am waiting, Doctor. If it returns a teapot, we shall have words."}
-    ],
-    "pap_take": [
-      {"fr": "Elle vibre dans mes mains. Elle a trouvé son âme.", "en": "It hums in my hands. It has found its soul."},
-      {"fr": "Plus lourde, plus sûre. Le forgeron invisible a bien travaillé.", "en": "Heavier. Surer. The unseen smith has done good work."},
-      {"fr": "Haï. Désormais, cette arme et moi parlons la même langue.", "en": "Hai. Now this weapon and I speak the same language."}
-    ],
     "no_money": [
       {"fr": "Mes poches sont aussi vides qu'un bol de moine.", "en": "My pockets are as empty as a monk's bowl."},
       {"fr": "Je ne peux pas me l'offrir. La patience, encore une fois.", "en": "I cannot afford it. Patience, once again."}
@@ -162,71 +75,11 @@
       {"fr": "Rien. Sans courant, cette machine n'est qu'une armoire.", "en": "Nothing. Without power, this machine is only a cupboard."},
       {"fr": "Il faut d'abord rétablir le courant. Même le moulin attend le vent.", "en": "We must restore the power first. Even the mill waits for the wind."}
     ],
-    "buy_ammo": [
-      {"fr": "Des munitions fraîches. Le carquois est de nouveau plein.", "en": "Fresh ammunition. The quiver is full once more."},
-      {"fr": "Je refais mes réserves. Le soldat prévoyant ne manque de rien.", "en": "Restocking. The prudent soldier lacks for nothing."}
-    ],
     "reload": [
       {"fr": "Je recharge. Couvrez-moi.", "en": "Reloading. Cover me."},
       {"fr": "Un instant, je recharge.", "en": "One moment. Reloading."},
       {"fr": "Chargeur vide, je recharge ! Tenez la ligne.", "en": "Empty magazine, reloading! Hold the line."},
       {"fr": "Je recharge. Qu'ils patientent un peu.", "en": "Reloading. They can wait a moment."}
-    ],
-    "perk_titan": [
-      {"fr": "TITAN BREW. Je me sens enraciné comme un vieux cèdre.", "en": "Titan Brew. I feel rooted like an ancient cedar."},
-      {"fr": "Un goût de fer et de terre. La montagne coule dans mes veines.", "en": "It tastes of iron and earth. The mountain is in my blood."}
-    ],
-    "perk_rapid": [
-      {"fr": "RAPID FIZZ. Mes mains vont plus vite que ma pensée.", "en": "Rapid Fizz. My hands now move faster than my thoughts."},
-      {"fr": "Itadakimassou. Cela pétille comme un ruisseau au printemps.", "en": "Itadakimasu. It sparkles like a stream in spring."}
-    ],
-    "perk_twin": [
-      {"fr": "TWIN SHOT. Deux fois plus de balles, deux fois moins de patience.", "en": "Twin Shot. Twice the bullets, half the patience."},
-      {"fr": "Le martin-pêcheur frappe vite. Moi aussi, désormais.", "en": "The kingfisher strikes fast. Now, so do I."}
-    ],
-    "perk_lazarus": [
-      {"fr": "LAZARUS TONIC. Pour relever mes compagnons, même quand ils ne le méritent pas.", "en": "Lazarus Tonic. To lift my comrades, even when they do not deserve it."},
-      {"fr": "Un goût d'herbes amères, comme les remèdes de ma grand-mère.", "en": "Bitter herbs. Just like my grandmother's remedies."}
-    ],
-    "perk_stride": [
-      {"fr": "STRIDE SODA. Je cours comme le cerf dans la forêt.", "en": "Stride Soda. I run like a deer through the forest."},
-      {"fr": "Des jambes de lièvre. Espérons que je garde la tête du renard.", "en": "The legs of a hare. Let us hope I keep the fox's cunning."}
-    ],
-    "perk_nova": [
-      {"fr": "NOVA FLOP. Plonger au sol pour tout faire sauter. Quelle étrange discipline.", "en": "Nova Flop. Diving to the ground to make it explode. A strange discipline."},
-      {"fr": "Cela a un goût de feu d'artifice. Les fêtes d'été me manquent.", "en": "It tastes like fireworks. I miss the summer festivals."}
-    ],
-    "perk_deadeye": [
-      {"fr": "DEADEYE DRAM. Mon regard est clair comme l'eau d'un lac.", "en": "Deadeye Dram. My sight is as clear as still water."},
-      {"fr": "Mes lunettes n'ont jamais été aussi inutiles.", "en": "My spectacles have never been so useless."}
-    ],
-    "pw_max_ammo": [
-      {"fr": "Munitions pleines. Le grenier est rempli avant l'hiver.", "en": "Full ammunition. The granary is filled before winter."},
-      {"fr": "Toutes les armes sont rechargées. Je ne gaspillerai rien.", "en": "Every weapon restocked. I will waste nothing."}
-    ],
-    "pw_insta_kill": [
-      {"fr": "Mort instantanée. Chaque coup devient le dernier.", "en": "Insta-Kill. Every strike becomes the final one."},
-      {"fr": "Un seul coup suffit. Ainsi devrait être tout combat.", "en": "One blow is enough. As every fight should be."}
-    ],
-    "pw_double_points": [
-      {"fr": "Points doubles. Le marchand en moi se réjouit discrètement.", "en": "Double Points. The merchant in me rejoices, quietly."},
-      {"fr": "Le riz pousse deux fois plus vite. Récoltons.", "en": "The rice grows twice as fast. Let us harvest."}
-    ],
-    "pw_nuke": [
-      {"fr": "Un grand silence, d'un seul coup. Presque paisible.", "en": "A great silence, all at once. Almost peaceful."},
-      {"fr": "La bombe. Le jardin est désherbé en un instant.", "en": "The bomb. The garden is weeded in an instant."}
-    ],
-    "pw_carpenter": [
-      {"fr": "Les barricades se relèvent. Le charpentier connaît son métier.", "en": "The barricades rise again. The carpenter knows his craft."},
-      {"fr": "Des planches neuves. Une maison solide, pour un moment.", "en": "Fresh boards. A sturdy house, for a little while."}
-    ],
-    "pw_fire_sale": [
-      {"fr": "Liquidation. Même la boîte a besoin de clients.", "en": "Fire Sale. Even the box needs customers."},
-      {"fr": "Tout est à vendre. Ne perdons pas un instant.", "en": "Everything is for sale. Let us not waste a moment."}
-    ],
-    "pw_death_machine": [
-      {"fr": "La Faucheuse. Aucune grâce, mais quelle éloquence.", "en": "The Death Machine. No grace whatsoever, but such eloquence."},
-      {"fr": "Une pluie d'acier. Qu'ils cherchent un abri.", "en": "A rain of steel. Let them look for shelter."}
     ],
     "downed": [
       {"fr": "Je suis tombé. Le roseau plie, mais il ne rompt pas.", "en": "I have fallen. The reed bends, but it does not break."},
@@ -352,10 +205,6 @@
       {"fr": "Un présent pour vous. Inutile de me remercier.", "en": "A gift for you. No need to thank me."},
       {"fr": "Attention, grenade ! Protégez-vous !", "en": "Grenade out! Take cover!"}
     ],
-    "throw_monkey": [
-      {"fr": "Va, petit singe. Joue-leur ta dernière musique.", "en": "Go, little monkey. Play them your final song."},
-      {"fr": "Singe-tambour ! Suivez la musique, mes pauvres amis.", "en": "Drum Monkey! Follow the music, you poor souls."}
-    ],
     "idle": [
       {"fr": "Le calme avant l'orage. Profitons-en pour respirer.", "en": "The calm before the storm. Let us breathe while we can."},
       {"fr": "Chez moi, les cerisiers doivent être en fleurs.", "en": "At home, the cherry trees must be in bloom by now."},
@@ -367,14 +216,6 @@
       {"fr": "Quelque part, une rivière coule encore sans savoir que le monde est mort.", "en": "Somewhere a river still flows, unaware that the world has died."},
       {"fr": "J'ai composé un haïku ce matin. Il parlait de silence. Quelle ironie.", "en": "I composed a haiku this morning. It was about silence. How ironic."},
       {"fr": "Ces murs chuchotent. Ou bien Weissmann parle encore à ses machines.", "en": "These walls whisper. Or Weissmann is talking to his machines again."}
-    ],
-    "resp_box_bad": [
-      {"fr": "Un pistolet ? La boîte vous a jugé, mon ami.", "en": "A pistol? The box has passed judgment on you, my friend."},
-      {"fr": "Pas de chance. Gardez-le, il fera un joli presse-papier.", "en": "Unlucky. Keep it. It will make a fine paperweight."}
-    ],
-    "resp_wonder": [
-      {"fr": "Une arme merveilleuse, et pas dans mes mains. J'accepte. Difficilement.", "en": "A wondrous weapon, and not in my hands. I accept this. With difficulty."},
-      {"fr": "Que la boîte se souvienne de moi la prochaine fois. Bien joué.", "en": "May the box remember me next time. Well played."}
     ],
     "tease_callahan": [
       {"fr": "Sergent Callahan, votre voix porte plus loin que vos balles.", "en": "Sergeant Callahan, your voice carries farther than your bullets."},

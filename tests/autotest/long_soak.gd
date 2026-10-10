@@ -4,17 +4,16 @@ extends AutotestScenario
 ## une carte (BUNKER K-7 ici ; long_soak_draft pour l'autre) en abattant
 ## lui-même les zombies et en utilisant tout ce que la
 ## carte propose PAR LE VRAI CHEMIN D'INTERACTION (visée, [F], validation du
-## serveur) : portes et débris, courant, armes murales, atouts, boîte mystère,
-## Pack-a-Punch, grenades et singes, téléporteur, pièges, chaque bonus
-## ramassé en marchant dessus, mise à terre par les zombies puis
-## auto-réanimation LAZARUS (solo), manche de chiens.
+## serveur) : portes et débris, courant, caisse au hasard, grenades et
+## peluches leurres, téléporteur, pièges, mise à terre par les zombies puis
+## auto-réanimation (solo, activée par le soak), manche de chiens.
 ##   godot --headless --fixed-fps 60 --path . -- --autotest=long_soak
 ##
 ## Invariants vérifiés en continu (échec au premier écart, avec le détail) :
 ## positions finies (joueur, zombies), aucun zombie immobile en poursuite
 ## plus de 20 s, points jamais négatifs, munitions jamais au-dessus du
-## maximum, grenades / singes dans leurs bornes, manche qui finit, aucune
-## invite sur un objet épuisé (porte ouverte, atout déjà bu, arme pleine),
+## maximum, emplacement de grenade dans ses bornes, manche qui finit, aucune
+## invite sur un objet épuisé (porte ouverte),
 ## pas d'état « à terre » bloqué, et AUCUN message d'erreur ni avertissement
 ## du moteur pendant la partie (journal capturé par un Logger).
 
@@ -138,13 +137,12 @@ func run() -> void:
 ## Actions refaites en boucle une fois la liste faite.
 func repeat_list() -> Array:
 	return [
-		["boîte mystère", func(): await use_box(2)],
+		["caisse", func(): await use_box(2)],
 		["pièges", use_traps],
 		["grenades", throw_grenades],
-		["bonus", grab_all_powerups],
 		["téléporteur", use_teleporter],
-		["singe", throw_monkey],
-		["à terre puis LAZARUS", downed_and_self_revive],
+		["peluche leurre", throw_decoy],
+		["à terre puis réanimation", downed_and_self_revive],
 	]
 
 
@@ -153,18 +151,14 @@ func errand_list() -> Array:
 	return [
 		["portes", open_doors],
 		["courant", power_on],
-		["armes murales", buy_wall_weapons],
-		["atouts", buy_perks],
-		["boîte mystère", func(): await use_box(3)],
-		["Pack-a-Punch", pack_a_punch],
+		["arme", equip_weapon],
+		["caisse", func(): await use_box(3)],
 		["grenades", throw_grenades],
-		["achat de grenades", buy_grenades],
-		["bonus", grab_all_powerups],
-		["à terre puis LAZARUS", downed_and_self_revive],
+		["à terre puis réanimation", downed_and_self_revive],
 		["téléporteur", use_teleporter],
 		["pièges", use_traps],
-		["singe", throw_monkey],
-		["boîte mystère (2)", func(): await use_box(3)],
+		["peluche leurre", throw_decoy],
+		["caisse (2)", func(): await use_box(3)],
 	]
 
 
@@ -205,7 +199,7 @@ func fight_tick() -> void:
 		if game.rounds.phase == RoundManager.Phase.ACTIVE and game.zombies.alive_count() > 0 and fmod(_t, 12.0) < 0.1:
 			seek_horde()
 	var w := pd.current_weapon()
-	if not w.is_empty() and w.reserve < 60 and pd.powerup_weapon.is_empty():
+	if not w.is_empty() and w.reserve < 60:
 		WeaponDB.refill(pd, pd.slot)
 		game.session.sync_inventory(1)
 	await step()
@@ -276,8 +270,8 @@ func check_invariants() -> void:
 		var s := WeaponDB.stats(w.id, w.pap)
 		if int(w.mag) > int(s.mag) or int(w.reserve) > int(s.reserve) or int(w.mag) < 0 or int(w.reserve) < 0:
 			report("munitions", "munitions hors bornes %s%s : %d/%d (max %d/%d)" % [w.id, "+" if w.pap else "", w.mag, w.reserve, s.mag, s.reserve])
-	if pd.grenades < 0 or pd.grenades > ThrowableRules.FRAG_MAX or pd.monkeys < 0 or pd.monkeys > ThrowableRules.MONKEY_MAX:
-		report("lancers", "grenades / singes hors bornes : %d / %d" % [pd.grenades, pd.monkeys])
+	if pd.grenades < 0 or pd.grenades > ThrowableRules.SLOT_MAX or not ThrowableRules.NAMES.has(pd.throwable):
+		report("lancers", "emplacement de grenade hors bornes : %d (sorte %d)" % [pd.grenades, pd.throwable])
 	if pd.health < 0 or pd.health > pd.max_health:
 		report("sante", "santé hors bornes : %d / %d" % [pd.health, pd.max_health])
 	# Invites : jamais sur un objet épuisé.
@@ -289,11 +283,6 @@ func check_invariants() -> void:
 		var sold := false
 		if o is Door:
 			sold = (o as Door).is_open
-		elif o is PerkMachine:
-			sold = pd.has_perk((o as PerkMachine).perk_id)
-		elif o is WallBuy and not (o as WallBuy).is_knife:
-			var slot := pd.has_weapon((o as WallBuy).weapon_id)
-			sold = slot >= 0 and WeaponDB.is_full(pd.weapons[slot])
 		if sold and o.prompt(1) != "":
 			report("invite_epuise", "invite sur un objet épuisé %s : « %s »" % [id, o.prompt(1)])
 	# À terre : jamais bloqué.
@@ -491,128 +480,51 @@ func power_on() -> void:
 	at.check(game.power_on, "courant rétabli par le levier")
 
 
-func buy_wall_weapons() -> void:
-	for id: String in game.interact.objects.keys():
-		var wb := game.interact.get_obj(id) as WallBuy
-		if wb == null:
-			continue
-		afford(wb.cost)
-		var before := pd.points
-		if wb.is_knife:
-			await press(wb, func(): return pd.knife == wb.weapon_id, "armes murales")
-		else:
-			await press(wb, func(): return pd.has_weapon(wb.weapon_id) >= 0, "armes murales")
-			# Munitions : on vide un peu, puis on rachète.
-			var slot := pd.has_weapon(wb.weapon_id)
-			if slot >= 0:
-				pd.weapons[slot].reserve = 0
-				game.session.sync_inventory(1)
-				await step(0.2)
-				afford(WeaponDB.ammo_cost(wb.weapon_id, pd.weapons[slot].pap))
-				await press(wb, func(): return pd.has_weapon(wb.weapon_id) >= 0 and WeaponDB.is_full(pd.weapons[pd.has_weapon(wb.weapon_id)]), "munitions murales")
-		if pd.points > before:
-			at.fail("achat mural %s : points augmentés (%d -> %d)" % [id, before, pd.points])
-	# Arme puissante en main pour la suite.
+## Arme puissante en main pour la suite (plus d'achats muraux : donnée).
+func equip_weapon() -> void:
 	WeaponDB.give(pd, "hk21")
 	game.session.sync_inventory(1)
+	await step(0.5)
 
 
-func buy_perks() -> void:
-	# LAZARUS d'abord (auto-réanimation solo), puis les autres.
-	var ids: Array = game.interact.objects.keys().filter(func(i: String): return game.interact.get_obj(i) is PerkMachine)
-	ids.sort_custom(func(a: String, b: String): return (game.interact.get_obj(a) as PerkMachine).perk_id == "lazarus" and (game.interact.get_obj(b) as PerkMachine).perk_id != "lazarus")
-	for id: String in ids:
-		var m: PerkMachine = game.interact.get_obj(id)
-		if pd.has_perk(m.perk_id) or m.sold_out():
-			continue
-		afford(5000)
-		await press(m, func(): return pd.has_perk(m.perk_id), "atouts")
-		at.check(pd.has_perk(m.perk_id), "atout %s bu" % m.perk_id)
-		# Fin de la boisson avant de reprendre le combat.
-		var t := 0.0
-		while t < 4.0 and (GameClock.now() < p.weapons._drink_end or p.weapons.view.is_drinking()):
-			await step()
-			t += 0.1
-
-
+## Caisse au hasard : tirages par le vrai chemin ([F]), objet pris sur
+## l'emplacement de grenade.
 func use_box(spins: int) -> void:
 	var box: MysteryBox = game.interact.get_obj("box")
 	if box == null:
 		return
 	for i in spins:
-		# Boîte en déménagement : on attend qu'elle réapparaisse.
 		var t := 0.0
-		while box.state != MysteryBox.State.IDLE and t < MysteryBox.MOVE_TIME + MysteryBox.READY_TIME + 6.0:
+		while box.state != MysteryBox.State.IDLE and t < MysteryBox.READY_TIME + 6.0:
 			await fight_tick()
 			t += 0.1
 		afford(MysteryBox.COST)
 		var before := pd.points
-		if not await press(box, func(): return box.state != MysteryBox.State.IDLE, "boîte mystère"):
+		if not await press(box, func(): return box.state != MysteryBox.State.IDLE, "caisse"):
 			continue
-		# Jamais plus que le prix (un bonus NUKE ramassé en se plaçant peut
-		# ajouter des points pendant l'achat).
-		at.check(before - pd.points <= maxi(box.cost(), MysteryBox.COST), "boîte : %d débités (prix %d)" % [before - pd.points, box.cost()])
+		# Jamais plus que le prix (un kill encore en vol peut ajouter de la
+		# ferraille pendant l'achat).
+		at.check(before - pd.points <= MysteryBox.COST, "caisse : %d débités (prix %d)" % [before - pd.points, MysteryBox.COST])
 		t = 0.0
 		while box.state == MysteryBox.State.ROLLING and t < MysteryBox.ROLL_TIME + 2.0:
 			await step()
 			t += 0.1
-		if box.state == MysteryBox.State.READY and not box.skull:
-			var got := box.weapon
-			await press(box, func(): return box.state != MysteryBox.State.READY, "boîte : arme prise")
-			var ok := (pd.has_monkeys and pd.monkeys > 0) if got == ThrowableRules.MONKEY_ID else pd.has_weapon(got) >= 0
-			at.check(ok, "boîte : %s pris" % got)
-		elif box.skull or box.state == MysteryBox.State.MOVING:
-			count("crânes")
-			# Au moins remboursé (un kill au singe ou à la grenade encore en
-			# vol peut ajouter des points pendant le défilement).
-			at.check(pd.points >= before, "crâne : boîte remboursée (%d -> %d)" % [before, pd.points])
+		if box.state == MysteryBox.State.READY:
+			var it := ThrowableRules.crate_item(box.item)
+			await press(box, func(): return box.state != MysteryBox.State.READY, "caisse : objet pris")
+			at.check(not it.is_empty() and pd.throwable == int(it.kind) and pd.grenades == ThrowableRules.SLOT_MAX, "caisse : %s pris (%d)" % [box.item, pd.grenades])
+			count("objets de la caisse")
 
 
-func pack_a_punch() -> void:
-	var pap: PackAPunch = game.interact.get_obj("pap")
-	if pap == null:
-		return
-	await upgrade_at(pap)
-
-
-func upgrade_at(pap: PackAPunch) -> void:
-	# FAUCHEUSE en main : pas de Pack-a-Punch (BO1), on attend qu'elle finisse.
-	var t0 := 0.0
-	while not pd.powerup_weapon.is_empty() and t0 < 20.0:
-		await fight_tick()
-		t0 += 0.1
-	if not pd.powerup_weapon.is_empty():
-		count("Pack-a-Punch sauté (FAUCHEUSE en main)")
-		return
-	WeaponDB.give(pd, "hk21")
-	game.session.sync_inventory(1)
-	await step(0.5)
-	afford(PackAPunch.COST)
-	var id := pd.current_weapon().id as String
-	if not await press(pap, func(): return pap.state == PackAPunch.State.WORKING, "Pack-a-Punch"):
-		return
-	var t := 0.0
-	while pap.state == PackAPunch.State.WORKING and t < 8.0:
-		await step()
-		t += 0.1
-	await press(pap, func(): return pd.has_weapon(id) >= 0 and pd.weapons[pd.has_weapon(id)].pap, "Pack-a-Punch : arme reprise")
-	var slot := pd.has_weapon(id)
-	at.check(slot >= 0 and pd.weapons[slot].pap, "%s améliorée au Pack-a-Punch" % id)
-
-
-func throw_at_horde(tactical: bool) -> bool:
+func throw_at_horde() -> bool:
 	var sys := game.throwables
 	var before := sys.items.size()
 	var z := nearest_visible()
 	if z:
 		H.aim_at(p, z.global_position + Vector3.UP * 2.0)
-	if tactical:
-		p.input.tactical = true
-	else:
-		p.input.grenade = true
+	p.input.grenade = true
 	await step(0.4)
 	p.input.grenade = false
-	p.input.tactical = false
 	var t := 0.0
 	while t < 1.5:
 		await step()
@@ -628,41 +540,30 @@ func throw_grenades() -> void:
 		if pd.grenades <= 0:
 			break
 		var n := pd.grenades
-		if await throw_at_horde(false):
-			count("grenades")
-		at.check(pd.grenades == n - 1, "grenade lancée (réserve %d -> %d)" % [n, pd.grenades])
-		await step(4.5)
+		var kind := pd.throwable
+		if await throw_at_horde():
+			count("grenades" if kind == ThrowableRules.Kind.FRAG else "peluches leurres")
+		at.check(pd.grenades == n - 1, "objet lancé (réserve %d -> %d)" % [n, pd.grenades])
+		await step(4.5 if kind == ThrowableRules.Kind.FRAG else 9.0)
 
 
-func buy_grenades() -> void:
-	for id: String in game.interact.objects.keys():
-		var gb := game.interact.get_obj(id) as GrenadeBuy
-		if gb == null:
-			continue
-		pd.grenades = 0
-		game.session.sync_stats(1)
-		await step(0.2)
-		afford(500)
-		await press(gb, func(): return pd.grenades > 0, "achat de grenades")
-		at.check(pd.grenades > 0, "grenades rachetées au mur (%d)" % pd.grenades)
-		return
-
-
-func throw_monkey() -> void:
-	if not pd.has_monkeys or pd.monkeys <= 0:
-		# Tirage forcé dans la boîte (le singe est dans le sac de BO1).
+## Peluche leurre : tirage forcé à la caisse, puis lancée sur la horde.
+func throw_decoy() -> void:
+	if pd.throwable != ThrowableRules.Kind.DECOY or pd.grenades <= 0:
 		var box: MysteryBox = game.interact.get_obj("box")
+		if box == null:
+			return
 		var t := 0.0
 		while box.state != MysteryBox.State.IDLE and t < 30.0:
 			await fight_tick()
 			t += 0.1
-		box.force_result = ThrowableRules.MONKEY_ID
+		box.force_result = "decoy"
 		await use_box(1)
 	await wait_for_horde()
-	var n := pd.monkeys
-	if n > 0 and await throw_at_horde(true):
-		count("singes")
-		at.check(pd.monkeys == n - 1, "singe lancé (réserve %d -> %d)" % [n, pd.monkeys])
+	var n := pd.grenades
+	if pd.throwable == ThrowableRules.Kind.DECOY and n > 0 and await throw_at_horde():
+		count("peluches leurres")
+		at.check(pd.grenades == n - 1, "peluche lancée (réserve %d -> %d)" % [n, pd.grenades])
 		await step(9.0)
 
 
@@ -674,53 +575,11 @@ func wait_for_horde() -> void:
 		t += 0.1
 
 
-func grab_all_powerups() -> void:
-	var pw := game.powerups
-	for type: String in PowerupRules.ALL:
-		# Les bonus liés à la boîte attendent qu'elle soit à sa place.
-		var id := pw.debug_drop(type, ground_ahead(2.5))
-		if id <= 0:
-			print("[soak] bonus %s refusé ici (%d)" % [type, id])
-			continue
-		await step(0.3)
-		p.teleport_to(pw._drops[id].pos + Vector3.UP * 0.05)
-		var t := 0.0
-		while pw._drops.has(id) and t < 3.0:
-			await step()
-			t += 0.1
-		at.check(not pw._drops.has(id), "bonus %s ramassé" % type)
-		count("bonus")
-		# Effets qui durent : on se bat avec (FAUCHEUSE, mort instantanée...).
-		for k in 20:
-			await fight_tick()
-
-
-func ground_ahead(d: float) -> Vector3:
-	var fwd := -p.global_transform.basis.z
-	fwd.y = 0.0
-	var space := p.get_world_3d().direct_space_state
-	for k in 8:
-		var dir := fwd.rotated(Vector3.UP, k * TAU / 8.0).normalized()
-		var to := p.global_position + dir * d
-		var ray := PhysicsRayQueryParameters3D.create(p.global_position + Vector3.UP * 1.0, to + Vector3.UP * 1.0, 1)
-		if not space.intersect_ray(ray).is_empty():
-			continue
-		return Vector3(to.x, p.global_position.y, to.z)
-	return p.global_position
-
-
 ## Mis à terre par les zombies (plus d'invulnérabilité, on ne tire plus),
-## puis auto-réanimation LAZARUS en solo.
+## puis auto-réanimation en solo (DownedSystem.solo_self_revive, activée par
+## le soak : plus d'atout LAZARUS).
 func downed_and_self_revive() -> void:
-	if not pd.has_perk("lazarus"):
-		var m: PerkMachine = null
-		for o in game.interact.objects.values():
-			if o is PerkMachine and (o as PerkMachine).perk_id == "lazarus":
-				m = o
-		if m == null or m.sold_out():
-			return
-		afford(1500)
-		await press(m, func(): return pd.has_perk("lazarus"), "atouts")
+	game.downed.solo_self_revive = true
 	await wait_for_horde()
 	var weapons_before := pd.weapons.size()
 	game.combat.debug_invulnerable = false
@@ -744,7 +603,7 @@ func downed_and_self_revive() -> void:
 		await fight_tick()
 		t += 0.1
 	game.combat.debug_invulnerable = true
-	at.check(pd.life == PlayerData.Life.ALIVE and GameState.state != GameState.State.PLAYER_DOWN, "auto-réanimation LAZARUS (%.1f s)" % t)
+	at.check(pd.life == PlayerData.Life.ALIVE and GameState.state != GameState.State.PLAYER_DOWN, "auto-réanimation (%.1f s)" % t)
 	at.check(pd.weapons.size() == weapons_before, "armes rendues après la réanimation (%d / %d)" % [pd.weapons.size(), weapons_before])
 
 

@@ -6,8 +6,8 @@ extends AutotestScenario
 ## biais de l'octogone (mur mitoyen unique), un mur libre en biais au milieu
 ## de l'octogone, un mur à angle libre (Alt) refusé puis annulé ; une porte
 ## refusée sur un mur extérieur en biais puis posée sur le bord commun en
-## biais, deux fenêtres en biais, une arme et un atout contre des murs en
-## biais, la boîte ; vérification sans erreur, Ctrl+S (format 3, clé angle),
+## biais, deux fenêtres en biais, l'interrupteur du courant contre un mur
+## en biais, la caisse au hasard ; vérification sans erreur, Ctrl+S (format 3, clé angle),
 ## rechargement identique. Puis TESTER : murs obliques construits (pavés
 ## CollisionBox tournés), un rayon ne traverse pas le mur en biais, le joueur
 ## non plus ; des zombies entrent par la fenêtre en biais et rejoignent le
@@ -94,22 +94,18 @@ func run() -> void:
 		await click(p)
 	at.check(ed.doc.ouvertures.filter(func(o): return o.type == "fenetre").size() == 2, "2 fenêtres en biais")
 
-	# Départ (8), boîte (7) contre un mur droit, M14 (9) contre un mur en biais.
+	# Départ (8), caisse au hasard (7) contre un mur droit.
 	await key(KEY_8)
 	await click(Vector2(14.5, 12))
 	await key(KEY_7)
 	await click(Vector2(10, 2.6))
-	await key(KEY_9)
-	await click(Vector2(15.6, 4.3))
-	var arm: Array = ed.doc.objets.filter(func(o): return o.type == "arme")
-	at.check(arm.size() == 1 and MapGeom.item_oblique(arm[0]), "M14 contre un mur en biais (angle %s)" % str(arm[0].get("angle", "?") if not arm.is_empty() else "?"))
-	# Atout pris dans l'inventaire, contre un côté en biais du losange.
+	# Interrupteur du courant pris dans l'inventaire, contre un côté en biais du losange.
 	await key(KEY_E)
-	ed.inventory.show_category("atouts")
-	_pick("atout:titan")
+	ed.inventory.show_category("machines")
+	_pick("courant")
 	await click(Vector2(20.3, 16.4))
-	var perk: Array = ed.doc.objets.filter(func(o): return o.type == "atout")
-	at.check(perk.size() == 1 and MapGeom.item_oblique(perk[0]) and absf(float(perk[0].angle) - 45.0) < 0.01, "atout contre un mur en biais, face vers l'intérieur (%s)" % str(perk))
+	var sw: Array = ed.doc.objets.filter(func(o): return o.type == "courant")
+	at.check(sw.size() == 1 and MapGeom.item_oblique(sw[0]) and absf(float(sw[0].angle) - 45.0) < 0.01, "interrupteur contre un mur en biais, face vers l'intérieur (%s)" % str(sw))
 
 	# Vérification, capture de l'éditeur.
 	# Porte d'évacuation obligatoire (format 18) : posée par la règle de l'éditeur.

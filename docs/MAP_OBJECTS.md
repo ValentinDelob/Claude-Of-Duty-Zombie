@@ -5,16 +5,16 @@ partage réseau) pour les ajouts des **formats 5 à 11** des cartes
 (format 7 : décor posé librement, § 8 ; format 8 : portes à zombies, § 9 ;
 format 9 : barrière invisible en polygone, § 2, et chevauchements du décor,
 § 10 ; format 10 : prefabs de la carte, § 11, et effets, § 12 ; format 11 :
-effets purs et zones, § 12 ; format 15 : boîte mystère posée au sol, § 15) :
+effets purs et zones, § 12 ; format 15 : caisse au hasard posée au sol, § 15) :
 
 1. les **variantes d'aspect** d'un type d'objet (plusieurs modèles de porte,
-   de débris, d'arme murale) ;
+   de débris) ;
 2. la **barrière invisible** (« clip » de BO1) : un volume tracé en polygone
    qui arrête joueurs et zombies sans se voir en jeu ;
 3. (format 6) les **types d'escaliers** et leurs **ancres** pour les zombies
    (§ 4).
 
-![Portes blindée, en bois, grille ; débris en planches et en béton ; M14 à la craie et sur une planche](map_objects/variantes_3d.jpg)
+![Portes blindée, en bois, grille ; débris en planches et en béton (l'arme murale de l'image est retirée du jeu)](map_objects/variantes_3d.jpg)
 ![Dans l'éditeur : porte en bois (nom sous le prix), éboulement de béton, barrière invisible hachurée](map_objects/editeur.png)
 
 ---
@@ -27,7 +27,6 @@ effets purs et zones, § 12 ; format 15 : boîte mystère posée au sol, § 15) 
 |---|---|---|
 | `porte` (porte payante) | `blindee` Porte blindée / Armoured door · `bois` Porte en bois / Wooden door · `grille` Grille en fer / Iron gate | `blindee` |
 | `debris` (débris à dégager) | `planches` Planches et gravats / Planks and rubble · `gravats` Éboulement de béton / Concrete cave-in | `planches` |
-| `arme` (arme murale) | `craie` Craie sur le mur / Chalk on the wall · `planche` Craie sur une planche / Chalk on a board | `craie` |
 
 La variante ne change **que le visuel** : même prix, même largeur, même
 collision, même ouverture (la porte monte dans le linteau, les débris
@@ -36,15 +35,14 @@ porte pleine (choix de jeu : pas de tir à travers une porte fermée).
 
 Les modèles sont construits par le jeu, sans fichier importé
 (`scripts/game/interact/door.gd` : `_build_steel`, `_build_wood`,
-`_build_gate`, `_build_debris`, `_build_rubble` ;
-`scripts/game/interact/wall_buy.gd` : `_build_board`), avec les surfaces du jeu
+`_build_gate`, `_build_debris`, `_build_rubble`), avec les surfaces du jeu
 (`WorldLook.SURFACES` : bois, bois sombre, acier, tôle rouillée, béton) —
 aucun élément graphique d'Activision.
 
 Les fenêtres ont, depuis le format 8, trois **types** (fenêtre, porte à
 zombies simple, porte double : § 9) choisis comme une variante (V, liste
-**Type (V)**). Pas de variante pour les portes du courant, les passages, les atouts (chaque machine a déjà son
-modèle), le décor et les luminaires (chaque modèle est déjà un objet du
+**Type (V)**). Pas de variante pour les portes du courant, les passages, la caisse au
+hasard, le décor et les luminaires (chaque modèle est déjà un objet du
 catalogue : `MapCatalog.PREFABS`, `MapCatalog.LIGHTS`).
 
 ### Dans l'éditeur
@@ -52,12 +50,11 @@ catalogue : `MapCatalog.PREFABS`, `MapCatalog.LIGHTS`).
 - **Objet choisi** (outil Sélection) : onglet Propriétés, liste
   **Aspect (V)**, ou touche **V** (aspect suivant, en boucle ; Ctrl+Z
   annule) ; aussi menu Édition > Aspect suivant.
-- **Objet tenu** (porte, débris ou arme dans la barre rapide) : **V** avant
+- **Objet tenu** (porte ou débris dans la barre rapide) : **V** avant
   de poser choisit l'aspect des prochains objets posés (comme R pour la
   rotation) ; changer de case revient à l'aspect par défaut.
 - **Plan** : sous le prix d'une porte ou de débris, le nom de l'aspect quand
-  ce n'est pas celui par défaut (zoom suffisant) ; une arme sur une planche a
-  un fond bois.
+  ce n'est pas celui par défaut (zoom suffisant).
 - Changer le **type** d'une ouverture (porte → débris) remet l'aspect par
   défaut (les variantes sont propres à un type).
 - **Aperçu 3D** et **partie** : le bon modèle (mêmes fonctions de
@@ -65,13 +62,14 @@ catalogue : `MapCatalog.PREFABS`, `MapCatalog.LIGHTS`).
 
 ### Format
 
-Clé facultative `"variante"` dans `ouvertures.json` (portes, débris) et
-`objets.json` (armes murales) :
+Clé facultative `"variante"` dans `ouvertures.json` (portes, débris) :
 
 ```json
 {"id":"o1","type":"porte","altitude":0,"position":[14,5.25],"largeur":2,"prix":750,"variante":"bois"}
-{"id":"w1","type":"arme","arme":"m14","altitude":0,"position":[11.25,10],"mur":"s","variante":"planche"}
 ```
+
+Une arme murale (`type` `arme`) d'une carte d'avant est ignorée au
+chargement, avec un avertissement (armes murales retirées du jeu).
 
 - **Absente** : l'aspect par défaut, c'est-à-dire exactement l'aspect d'avant
   les variantes. L'éditeur **n'écrit jamais** la variante par défaut (choisir
@@ -81,8 +79,8 @@ Clé facultative `"variante"` dans `ouvertures.json` (portes, débris) et
   type est retirée (`EditorMap._normalize`), l'objet garde l'aspect par défaut.
 - Chaîne : `MapRaster` (table `MapValidator.variants` : id -> variante, sans
   les aspects par défaut) → `MapLayoutExport` (clé `variant` des marqueurs
-  `doors` et `wall_buys`, seulement si elle n'est pas celle par défaut) →
-  `MeshMapLayout` (`data.variant`) → `Door.variant` / `WallBuy.variant`. Côté
+  `doors`, seulement si elle n'est pas celle par défaut) →
+  `MeshMapLayout` (`data.variant`) → `Door.variant`. Côté
   jeu, une valeur inconnue construit l'aspect par défaut (`Door.look()`).
 
 ## 2. Barrière invisible
@@ -99,7 +97,7 @@ endroit sans ajouter de mur visible, canaliser la horde.
 | Zombies | arrêtés, et leurs **trajets la contournent** (navmesh cuit avec la couche BARRIER) |
 | Balles | passent (les tirs ne visent que la couche 1) |
 | Fente au couteau (attaque de loin) | pas de fente à travers (même contrôle que pour une barricade) |
-| Grenades, singe | passent (`Throwable.FLIGHT_MASK` = couche 1 et zombies) |
+| Grenades, peluche leurre | passent (`Throwable.FLIGHT_MASK` = couche 1 et zombies) |
 | Ligne de vue des zombies (`MeshNav.world_line_clear`) | coupée, comme par un décor « barrière » |
 | Chiens de l'enfer | trajets autour d'elle (même navmesh) ; leur corps n'a pas la couche BARRIER dans son masque, comme pour les fauteuils et les autres décors « barrière » |
 
@@ -180,9 +178,8 @@ escalier dont un bout est sous une barrière reste construit, avec un
 avertissement ; les lampes automatiques ignorent les barrières (elles sont
 au plafond). Exception : un objet **indispensable** que la barrière enferme
 (les joueurs ne peuvent plus l'atteindre) est une **erreur** — interrupteur
-du courant, boîte de départ, départ des joueurs, ou toutes les boîtes
-mystère à la fois ; le Pack-a-Punch et les autres objets (non exigés par
-la carte) restent un avertissement.
+du courant, caisse au hasard, départ des joueurs ; les autres objets (non
+exigés par la carte) restent un avertissement.
 
 ### Format
 
@@ -507,7 +504,7 @@ n'a été déplacé. BUNKER K-7 (grille, un seul niveau) n'a pas d'escalier.
 ## 5. Versions du format
 
 `EditorMap.FORMAT` = **15** (format 13 : volume des effets, § 12 ; format 14 :
-`echelle` et `incl` du décor, § 14 ; format 15 : boîte mystère au sol, § 15 ;
+`echelle` et `incl` du décor, § 14 ; format 15 : caisse au hasard au sol, § 15 ;
 format 16 : textures de la carte, docs/MAP_AUTHORING.md § 4).
 Toutes les nouvelles clés sont
 facultatives : une carte au format 1 à 15 se lit telle quelle (`EditorMap._migrate` ; un
@@ -530,8 +527,8 @@ contrôle refuserait les clés qu'il ne connaît pas).
   et au plafond) et zone des effets (clé `zone`, § 12).
 - Format 12 : hauteurs de pose (`z`, `hauteur` au sol, `descente`, § 13).
 - Format 14 : échelle et inclinaison du décor (§ 14).
-- Format 15 : boîte mystère posée au sol (`boite` sans `mur`, avec `rot`,
-  § 15) ; une boîte sans `mur` d'une carte plus ancienne reçoit `mur` : `n`.
+- Format 15 : caisse au hasard posée au sol (`boite` sans `mur`, avec `rot`,
+  § 15) ; une caisse sans `mur` d'une carte plus ancienne reçoit `mur` : `n`.
 - Format 16 : textures de la carte (dossier `textures/<id>/`, surfaces
   « map:<id> », docs/MAP_AUTHORING.md § 4).
 - Format 17 : niveaux libres (docs/MAP_AUTHORING.md § 4).
@@ -543,7 +540,7 @@ contrôle refuserait les clés qu'il ne connaît pas).
 1. `MapCatalog.VARIANTS` : `[identifiant, nom FR, nom EN]`, la première
    ligne étant l'aspect d'avant (par défaut). Le contrôle des cartes, la liste
    « Aspect (V) », la touche V et la lecture suivent tout seuls.
-2. Construire le modèle dans la classe du jeu (`Door`, `WallBuy`…) en lisant
+2. Construire le modèle dans la classe du jeu (`Door`…) en lisant
    `m.data.variant` ; une valeur inconnue doit donner l'aspect par défaut.
 3. Pour un nouveau type : transmettre la variante dans `MapLayoutExport`
    (`md.variants[eid]`, seulement si elle existe) et dans `MeshMapLayout`.
@@ -562,7 +559,7 @@ contrôle refuserait les clés qu'il ne connaît pas).
 - validateur : cases de la barrière pleines, 0,5 m = une rangée, règles de
   pose ;
 - jeu : chaque variante construit son propre modèle (et la porte blindée à
-  l'identique sans la clé), arme sur une planche ; barrière = une
+  l'identique sans la clé) ; barrière = une
   `CollisionBox` sur la couche BARRIER sans maillage, rayon de balle et de
   grenade qui passe, rayon et corps de joueur arrêtés, pavé visible dans
   l'aperçu seulement ; navmesh cuit : le chemin d'un zombie contourne la
@@ -571,7 +568,7 @@ contrôle refuserait les clés qu'il ne connaît pas).
   Ctrl+Z) et sur l'objet tenu (aperçu de pose), barrière de 0,5 m tracée.
 
 `tests/test_map_clip_polygon.gd` (unitaire, format 9) : barrière acceptée
-partout (en L, dehors, à cheval sur un mur, sur la boîte et l'atout, 0,2 m
+partout (en L, dehors, à cheval sur un mur, sur la caisse au hasard, 0,2 m
 d'épaisseur) et contours refusés (2 sommets, côtés croisés, x négatif,
 minuscule, côté de 1 cm, plat, 65 sommets) ; objets sous elle toujours
 valides ; rectangle d'avant relu en polygone (coins, surface, mêmes cases,
@@ -590,7 +587,7 @@ rouverte, joueur arrêté et zombie qui la contourne en partie.
 
 ### Ce qui change
 
-Le **décor** (`MapCatalog.DECOR_TYPES` : caisse, baril, prefabs de la
+Le **décor** (`MapCatalog.DECOR_TYPES` : caisse en bois, baril, prefabs de la
 catégorie « Décor et obstacles », lampe, luminaires) se pose **où l'on
 veut** :
 
@@ -609,8 +606,8 @@ baril n'ont pas de rotation. Aimantation : touche **G** (grille 1 m, grille
 fine, libre au centimètre) ; **Maj** maintenu inverse le mode le temps d'un
 geste (pose fine sans changer de réglage).
 
-Les **objets de jeu** (portes, débris, fenêtres, passages, armes murales,
-atouts, boîte, Pack-a-Punch, interrupteur, leviers, pièges, départs,
+Les **objets de jeu** (portes, débris, fenêtres, passages, caisse au
+hasard, interrupteur, leviers, pièges, départs,
 apparitions, téléporteur) gardent leurs règles de pose (un objet de jeu
 doit rester accessible, comme dans BO1).
 
@@ -667,8 +664,8 @@ Clé facultative `"hauteur"` d'un luminaire **mural** (`objets.json`) :
 
 - `tests/test_map_decor_free.gd` (unitaire) : textures de tous les murs
   relevées (sondes 5 cm derrière chaque face) identiques avec 11 décors
-  poussés contre les murs (le test échouait avant la correction), arme
-  murale, atout, porte et débris aux bouts des murs ; règles de pose (décor
+  poussés contre les murs (le test échouait avant la correction), porte et
+  débris aux bouts des murs ; règles de pose (décor
   dans les murs, au centimètre, tourné ; objets de jeu refusés) ; applique
   partout le long d'un mur, au centimètre ou au quart de mètre, calcul de
   `wall_decor_along` ; hauteur (construite, bornée sous le plafond,
@@ -676,7 +673,7 @@ Clé facultative `"hauteur"` d'un luminaire **mural** (`objets.json`) :
   les murs (murs entiers, bloc à sa place et en retrait, bloc sur la grille
   identique à avant) ; avertissements du validateur.
 - Scénario `map_decor_free` (vrai éditeur, sans fenêtre) : bureau, caisse,
-  baril, arme murale et porte glissés à la souris contre les murs, textures
+  baril et porte glissés à la souris contre les murs, textures
   inchangées dans les données de l'aperçu 3D (`MapPreviewWorld.compute`) et
   du jeu ; baril, caisse, étagère tournée de 37° et applique posés au
   centimètre, hauteur réglée dans les propriétés ; enregistrée, rouverte,
@@ -704,9 +701,8 @@ sont celles des fenêtres de BO1 : réparation en maintenant [F] depuis
 l'intérieur, collé aux planches et tourné vers elles (portée
 `Barricade.REPAIR_REACH` = 0,8 m du centre du joueur à la face intérieure
 de la barrière, sur toute la largeur de l'ouverture plus 0,35 m de chaque
-côté, même niveau ; vérifiée aussi par l'hôte en multijoueur)
-(+10 points par planche, plafond de 500 par manche, bonus
-CHARPENTIER), coup à travers quand il reste 3 planches au plus, joueurs
+côté, même niveau ; vérifiée aussi par l'hôte en multijoueur ; sans gain de
+ferraille), coup à travers quand il reste 3 planches au plus, joueurs
 arrêtés par l'ouverture même sans planches (la cour reste hors jeu, comme
 derrière les fenêtres de BO1).
 
@@ -877,11 +873,11 @@ Coché, les objets de `MapCatalog.OVERLAP_TYPES` peuvent se recouvrir
 Les **objets de jeu** gardent toutes leurs règles, dans les deux sens : un
 décor ne se pose jamais sur eux et ils ne se posent jamais sur un décor
 (`MapRules._blocking_overlaps`) : portes, débris, portes du courant,
-passages, fenêtres et portes à zombies, armes murales, grenades, atouts,
-boîte mystère, Pack-a-Punch, interrupteur du courant, poste central,
-leviers, pièges électriques, départs des joueurs, apparitions, téléporteurs
-et arrivées, escaliers. Ainsi la carte reste jouable (un atout ou une arme
-toujours accessibles, des escaliers et des pièges dégagés). Les murs libres
+passages, fenêtres et portes à zombies, caisse au hasard, interrupteur du
+courant, poste central, leviers, pièges électriques, départs des joueurs,
+apparitions, téléporteurs et arrivées, escaliers. Ainsi la carte reste
+jouable (une caisse toujours accessible, des escaliers et des pièges
+dégagés). Les murs libres
 gardent leurs règles. La **barrière invisible** (§ 2) se pose toujours
 n'importe où, avec ou sans ce réglage.
 
@@ -1355,7 +1351,7 @@ tournée, effet mural, clic sur la zone, rotation) et réglages remis en
 ordre (`taille` convertie, zone bornée, arrondie, par défaut retirée) ;
 décors des effets (onglet, construction, pose murale, hauteur, export,
 collision, prefabs groupes) ; conversion d'une carte au format 10 (un décor
-par objet, à sa place, idempotente, jouable) ; pose par-dessus la boîte, le
+par objet, à sa place, idempotente, jouable) ; pose par-dessus la caisse au hasard, le
 départ, un décor et sous un objet de jeu ; nombre d'effets plafonné ;
 aller-retour, export (zone, hauteur, teinte, plafond, rotation) et
 construction par le jeu ; contrôle des cartes reçues (zone hors bornes,
@@ -1420,13 +1416,12 @@ tranchées le 03/10/2026) ; maquette : `docs/editor_scale_rotate_mockup/`.
   (cadenas), de ×0,25 à ×4 ; dimension finale de 5 cm à 30 m, emprise de 20 m
   au plus par côté. Une partie, une copie ou un pavé tourné en biais dans le
   décor impose l'échelle uniforme.
-- **Jamais** : objets de jeu (atouts, armes murales, boîte, Pack-a-Punch,
-  courant, leviers, téléporteurs, départs, apparitions), ouvertures,
+- **Jamais** : objets de jeu (caisse au hasard, courant, leviers, téléporteurs, départs, apparitions), ouvertures,
   construction, luminaires (Q1 : pas dans cette version), effets (ils ont leur
-  zone), caisse et baril historiques. Un **prefab de la carte qui contient un
+  zone), caisse en bois et baril historiques. Un **prefab de la carte qui contient un
   objet de jeu** est bloqué : cadenas gris, et le message **nomme l'objet**
-  (« Échelle impossible : « Coin Pack-a-Punch » contient un Pack-a-Punch
-  (objet de jeu à taille fixe) »). Sélection mixte : bloquée de même (Q2).
+  (« Échelle impossible : « Coin courant » contient un interrupteur du
+  courant (objet de jeu à taille fixe) »). Sélection mixte : bloquée de même (Q2).
 - **Inclinaison** (rotation autour des axes X et Y) : seulement le décor posé
   au sol qui change d'échelle. Orientation = Rz(rot) · Ry(incl Y) · Rx(incl
   X), sens positif horaire dans la vue qui regarde l'axe de bout (Dessus pour
@@ -1457,24 +1452,28 @@ objet de jeu refusée.
 
 ### Preuves automatiques
 
-`tests/test_map_scale.gd` (tableau type par type, prefab avec un Pack-a-Punch,
-bornes, aller-retour, carte 13 inchangée, carte reçue hors bornes, boîte
+`tests/test_map_scale.gd` (tableau type par type, prefab avec un objet de jeu,
+bornes, aller-retour, carte 13 inchangée, carte reçue hors bornes, caisse
 orientée, sens des axes, description en jeu identique, poignées, anneaux) ;
 scénarios `map_decor_scale` (partie : collisions d'un décor agrandi et d'un
 décor incliné, zombie qui contourne), `map_scale_panel`, `map_scale_handles`,
 `map_rotate_rings`, `map_rotate_3d` ; captures de développement
 `map_scale_look` (hors check).
 
-## 15. Boîte mystère posée au sol (format 15)
+## 15. Caisse au hasard posée au sol (format 15)
 
-Dans BO1, la boîte est un coffre posé par terre, souvent contre un mur mais
-pas toujours. Depuis le format 15, l'emplacement d'une boîte (`boite`, avec
-ou sans `depart`) se pose **au sol, n'importe où dans une pièce**, tourné
-librement, ou **contre un mur** comme avant.
+La caisse au hasard (GAME_CONCEPT.md §4.12 bis) remplace la boîte mystère.
+Nom interne gardé : type `boite` des fichiers, classe `MysteryBox`, marqueur
+`X` des cartes ASCII ; l'éditeur l'appelle « Caisse au hasard » / « Random
+crate » (le décor « caisse » s'appelle « Caisse en bois » / « Wooden
+crate »). **Une seule par carte, fixe** : elle ne déménage jamais. Si une
+carte en déclare plusieurs, seule la première (ou celle marquée `depart`)
+est utilisée. Depuis le format 15, la caisse se pose **au sol, n'importe où
+dans une pièce**, tournée librement, ou **contre un mur** comme avant.
 
 ### Dans l'éditeur
 
-- **Outil Boîte** (inventaire : Boîte mystère) : la boîte suit le curseur,
+- **Outil Caisse au hasard** (inventaire) : la caisse suit le curseur,
   posée au sol, au centimètre (à la grille : son emprise de 2 × 1 m calée sur
   les cases pour un quart de tour). **R** la pivote de 90° en main.
 - **Aimant de mur** : curseur à moins de **1,3 m** du trait d'un mur (côté de
@@ -1482,108 +1481,111 @@ librement, ou **contre un mur** comme avant.
   **face à la pièce**, comme un objet mural (mêmes règles : mur plein
   derrière, place devant). **Alt** maintenu : sans aimant. Si ce mur la
   refuse (fenêtre ou porte derrière, mur trop court), elle reste au sol.
-- **Glisser** une boîte posée : près d'un mur elle s'y colle, loin d'un mur
-  elle se pose au sol ; une boîte murale décollée garde son orientation
+- **Glisser** la caisse posée : près d'un mur elle s'y colle, loin d'un mur
+  elle se pose au sol ; une caisse murale décollée garde son orientation
   (avant vers la pièce).
-- **Orientation** d'une boîte au sol : anneau Z de la vue Dessus (pas de
+- **Orientation** d'une caisse au sol : anneau Z de la vue Dessus (pas de
   15°, Maj ou Alt : au degré près, valeur tapée puis Entrée), champ
-  **Angle** des propriétés, R (90°). Une boîte murale suit son mur (pas
+  **Angle** des propriétés, R (90°). Une caisse murale suit son mur (pas
   d'anneau).
 - **Dessin** (vue Dessus) : son emprise tournée, l'icône, et l'**avant** de
-  la boîte (côté où s'ouvre le couvercle, où l'arme apparaît face au
+  la caisse (côté où s'ouvre le couvercle, où l'objet tiré apparaît face au
   joueur) en trait épais avec une flèche. Élévations et aperçu 3D : son
-  emprise tournée, à 1 m de haut ; l'aperçu 3D construit la vraie boîte (les
+  emprise tournée, à 1 m de haut ; l'aperçu 3D construit la vraie caisse (les
   fonctions de construction du jeu).
 - **Règles de pose** : dans une seule pièce, emprise de 2 × 1 m tournée,
   **à 0,1 m au moins de la face des murs** (le couvercle ouvert bascule
-  derrière la boîte) et de tout mur libre, sans chevaucher un autre objet ;
+  derrière la caisse) et de tout mur libre, sans chevaucher un autre objet ;
   refusée dans un mur, à cheval sur deux pièces ou dehors ; refusée aussi
   quand elle est serrée entre deux murs sur deux côtés opposés, à moins de
   **1,5 m** de chacun (elle boucherait un couloir : MAP_DESIGN_RULES §3.2 et
   §6.3). Taille fixe (objet de jeu : jamais d'échelle).
-- **Vérification** : comme les autres emplacements (au moins 3, un seul
-  départ) ; ses cases sont **pleines** pour le parcours (on l'atteint, on ne
-  la traverse pas) : une boîte qui sépare le sol de part et d'autre est une
-  erreur (« elle bouche le passage »), de même qu'une boîte à moins de 1 m
-  des apparitions du départ ; un avant tourné vers un mur ou un obstacle est
-  signalé (« attention »).
+- **Vérification** : ses cases sont **pleines** pour le parcours (on
+  l'atteint, on ne la traverse pas) : une caisse qui sépare le sol de part et
+  d'autre est une erreur (« elle bouche le passage »), de même qu'une caisse
+  à moins de 1 m des apparitions du départ ; un avant tourné vers un mur ou
+  un obstacle est signalé (« attention »).
 
 ### En jeu
 
-- La boîte est posée **sur son centre**, tournée comme dans l'éditeur ; même
-  modèle, même collision (1,8 × 0,85 × 0,85 m), même colonne de lumière et
-  même lampe (au-dessus de l'avant), couvercle qui s'ouvre vers l'arrière.
+- La caisse est posée **sur son centre**, tournée comme dans l'éditeur ;
+  même modèle, même collision (1,8 × 0,85 × 0,85 m), même colonne de lumière
+  et même lampe (au-dessus de l'avant), couvercle qui s'ouvre vers
+  l'arrière.
+- **Tirage** : payé en ferraille (950, provisoire), animé (≈ 4 s) ; l'objet
+  tiré (grenade ou peluche leurre aujourd'hui) flotte au-dessus de la caisse
+  et seul l'acheteur peut le prendre pendant 12 s ([F]). Il remplit
+  l'emplacement de grenade (4 au plus) et remplace ce qu'il contenait.
 - **Achat de tous les côtés**, comme le déclencheur de BO1 tout autour du
   coffre : le point visé est le milieu du coffre (au lieu de 0,7 m devant
-  pour une boîte murale) ; l'arme tourne au-dessus du coffre, visible de
-  partout. **Jamais à travers un mur** : il faut une ligne de vue de l'œil du
-  joueur au-dessus du couvercle (murs, portes fermées, machines ; ni joueurs
-  ni zombies). Ce contrôle vaut pour toutes les boîtes (une boîte murale ne
-  s'achète plus depuis l'autre côté d'un mur mince) et il est refait par le
-  serveur à la position de référence du joueur (client modifié).
-- **Jamais depuis un autre niveau** (toutes les boîtes et tous les objets
-  utilisables : atouts, armes murales, grenades, Pack-a-Punch, courant,
-  portes, barricades, pièges et leviers, téléporteur, poste central,
-  réanimation) : les pieds du joueur doivent être à 1,2 m au plus du sol de
-  l'objet (`InteractionSystem.LEVEL_HEIGHT`, `Interactable.level_y` ; un
-  objet mural compte son sol, pas sa hauteur d'accroche). Une marche
-  d'escalier ou un saut passent ; depuis un escalier raide, l'écart permis
-  croît avec la distance à plat (pente de 40° et 0,25 m, `level_gap`, borné à
-  1,9 m, sous toute hauteur de niveau) avec une ligne de vue sans dalle
-  (`stair_sight_ok`) : portes de KINO en haut des marches, coéquipier à terre
-  sur l'escalier ; le niveau du dessous ou du dessus, non. Le
-  client n'affiche pas l'invite et le serveur refuse la demande (portée
-  mesurée en 3D jusque-là, sans limite de hauteur : un joueur sous la
-  passerelle pouvait acheter la boîte posée dessus).
-- **Déplacement** (ours en peluche, LIQUIDATION) : inchangé, entre tous les
-  emplacements, au sol ou au mur ; un emplacement vide garde son tas de
-  planches (au sol : même obstacle bas que la boîte pour la ligne droite des
-  zombies, `MeshNav.LOW_LAYER`).
-- **Zombies** : l'emprise de chaque emplacement au sol est retirée du navmesh
-  (`nav_blocks`), qu'il porte la boîte ou le tas de planches : ils la
-  contournent.
+  pour une caisse murale) ; l'objet tiré flotte au-dessus du coffre, visible
+  de partout. **Jamais à travers un mur** : il faut une ligne de vue de l'œil
+  du joueur au-dessus du couvercle (murs, portes fermées, machines ; ni
+  joueurs ni zombies). Ce contrôle vaut aussi pour une caisse murale (elle
+  ne s'achète pas depuis l'autre côté d'un mur mince) et il est refait par
+  le serveur à la position de référence du joueur (client modifié).
+- **Jamais depuis un autre niveau** (la caisse et tous les objets
+  utilisables : courant, portes, barricades, pièges et leviers, téléporteur,
+  poste central, réanimation) : les pieds du joueur doivent être à 1,2 m au
+  plus du sol de l'objet (`InteractionSystem.LEVEL_HEIGHT`,
+  `Interactable.level_y` ; un objet mural compte son sol, pas sa hauteur
+  d'accroche). Une marche d'escalier ou un saut passent ; depuis un escalier
+  raide, l'écart permis croît avec la distance à plat (pente de 40° et
+  0,25 m, `level_gap`, borné à 1,9 m, sous toute hauteur de niveau) avec une
+  ligne de vue sans dalle (`stair_sight_ok`) : portes de KINO en haut des
+  marches, coéquipier à terre sur l'escalier ; le niveau du dessous ou du
+  dessus, non. Le client n'affiche pas l'invite et le serveur refuse la
+  demande (portée mesurée en 3D jusque-là, sans limite de hauteur : un
+  joueur sous la passerelle pouvait acheter la caisse posée dessus).
+- **Zombies** : l'emprise d'une caisse au sol est retirée du navmesh
+  (`nav_blocks`) : ils la contournent.
 
 ### Format
 
 `objets.json`, type `boite` :
 
-- **au sol** : `position` = centre de la boîte, `rot` = orientation (degrés
+- **au sol** : `position` = centre de la caisse, `rot` = orientation (degrés
   entiers 0 à 359, sens horaire vu de dessus ; à 0 l'avant est au **sud**,
   comme un décor), **sans** `mur` ni `angle` :
   `{"id":"b4","type":"boite","altitude":0,"position":[7,28],"rot":45,"depart":false}` ;
 - **contre un mur** (inchangé) : `position` sur le trait du mur, `mur` (et
   `angle` contre un mur en biais), **sans** `rot`.
 
-C'est l'absence de `mur` qui fait une boîte au sol (`MapCatalog.floor_box`) :
+C'est l'absence de `mur` qui fait une caisse au sol (`MapCatalog.floor_box`) :
 aucune nouvelle clé hors `rot`. Conversion : une carte d'un format plus
-ancien dont une boîte n'a pas de `mur` (fichier écrit à la main ; le jeu la
+ancien dont une caisse n'a pas de `mur` (fichier écrit à la main ; le jeu la
 mettait contre le mur nord) reçoit `mur` : `n` au chargement ; une carte
-écrite à la main **sans** clé `format` aussi, si la boîte n'a ni `mur` ni
-`rot` (avec `rot`, c'est une boîte au sol) — toutes les
-autres boîtes sont lues telles quelles et la description en jeu des cartes
+écrite à la main **sans** clé `format` aussi, si la caisse n'a ni `mur` ni
+`rot` (avec `rot`, c'est une caisse au sol) — toutes les
+autres caisses sont lues telles quelles et la description en jeu des cartes
 existantes est identique. Contrôle des cartes reçues : `rot` entier de 0 à
 359, jamais avec `mur` ou `angle`, aucune `echelle`.
 
-Description en jeu : la boîte au sol rejoint les autres emplacements
+Description en jeu : la caisse au sol rejoint les emplacements
 (`markers.box`) avec un **mur fictif** derrière elle (`wall` = son arrière,
 `p` à `MysteryBox.SPOT_WALL_GAP` derrière son centre) et `"floor": true`
-(achat de tous les côtés) ; son emprise s'ajoute à `nav_blocks`.
+(achat de tous les côtés) ; son emprise s'ajoute à `nav_blocks`. Le jeu ne
+garde que la première caisse (ou celle marquée départ).
+
+Une carte enregistrée avec des atouts, des armes murales, des grenades
+murales ou un Pack-a-Punch (objets retirés du jeu) se charge encore : ces
+objets sont ignorés, avec un avertissement, dans l'éditeur et dans le jeu.
 
 ### Preuves automatiques
 
 `tests/test_map_box_rules.gd` (couloir bouché, départ, grande salle,
 objets indispensables enfermés, carte sans `format`) ;
 `tests/test_mystery_box_floor.gd` (pose au sol, aimant de mur et mur libre,
-refus dans un mur ou dehors, rotation à l'anneau et valeur tapée, boîte
+refus dans un mur ou dehors, rotation à l'anneau et valeur tapée, caisse
 murale décollée, aller-retour du fichier et conversion des cartes d'avant,
 contrôle des cartes reçues, validateur et description en jeu, avant face à
-un mur signalé, invite de tous les côtés et jamais à travers un mur, boîte
-murale non plus) ; `tests/test_map_scale.gd` (description en jeu des boîtes
+un mur signalé, invite de tous les côtés et jamais à travers un mur, caisse
+murale non plus) ; `tests/test_map_scale.gd` (description en jeu des caisses
 murales identique) ; scénario `map_box_floor_play` (sans rendu : outil
-Boîte, aimant, TESTER, ours en peluche vers l'emplacement au sol, achat par
-l'avant, couvercle, arme obtenue, invite derrière et sur le côté, collision,
-zombie qui contourne) ; `mp_editorplay` (l'invité achète à la boîte posée au
-sol) ; captures de développement `map_box_floor_look` (hors check).
+Caisse au hasard, aimant, TESTER, achat par l'avant, couvercle, objet
+obtenu, invite derrière et sur le côté, collision, zombie qui contourne) ;
+`mp_editorplay` (l'invité achète à la caisse posée au sol) ; captures de
+développement `map_box_floor_look` (hors check).
 
 ## 16. Porte d'évacuation et schéma des vagues (format 18)
 

@@ -1,7 +1,9 @@
 extends AutotestScenario
-## Boîte mystère : achat, défilement, arme tirée par le serveur (jamais une
-## arme déjà possédée), prise par l'acheteur, CLAUDE-RAY (dégâts de zone),
-## crâne : remboursement et déménagement.
+## Caisse au hasard (GAME_CONCEPT §4.12 bis) sur BUNKER K-7 : une seule
+## caisse, fixe, sur le quai ; achat en ferraille, défilement, objet tiré par
+## le serveur (jamais une arme), pris par l'acheteur seulement : il remplit
+## l'emplacement de grenade (4) sans toucher aux armes ; objet non pris
+## repris par la caisse au bout de 12 s.
 
 var H := AutotestHelpers
 var game: Game
@@ -10,13 +12,13 @@ var box: MysteryBox
 
 
 func face_box() -> void:
-	var n: Vector3 = box.spots[box.location].normal
+	var n: Vector3 = box.spot.normal
 	p.teleport_to(box.global_position - n * 1.6 + Vector3(0, 0.05, 0))
 	H.aim_at(p, box.global_position + Vector3.UP * 0.8)
-	await until(func(): return game.interact.focused == box and game.hud._prompt.text == box.prompt(p.peer_id), 2.0, "boîte visée")
+	await until(func(): return game.interact.focused == box and game.hud._prompt.text == box.prompt(p.peer_id), 2.0, "caisse visée")
 
 
-## Appuie sur [F] et attend que la boîte change d'état. `refused` : achat
+## Appuie sur [F] et attend que la caisse change d'état. `refused` : achat
 ## censé être refusé (rien à attendre, attente fixe).
 func press(refused := false) -> void:
 	var s0 := box.state
@@ -24,11 +26,11 @@ func press(refused := false) -> void:
 	if refused:
 		await seconds(0.3)  # on vérifie ensuite que rien ne s'est passé
 	else:
-		await until(func(): return box.state != s0, 2.0, "boîte utilisée")
+		await until(func(): return box.state != s0, 2.0, "caisse utilisée")
 
 
 func run() -> void:
-	timeout_sec = 150
+	timeout_sec = 120
 	p = await H.start_solo_game(self, "bunker_k7")
 	if p == null:
 		return
@@ -39,85 +41,48 @@ func run() -> void:
 	for id in game.doors:
 		game.doors[id].srv_open()
 	box = game.interact.get_obj("box")
-	at.check(box != null and box.location == 1, "boîte au quai au départ (emplacement 1)")
-	pd.points = 500  # on part de 0 ferraille : trop pauvre pour la boîte
+	at.check(box != null and game.layout.zone_at(box.global_position) == "f", "une caisse, sur le quai")
+	var boxes := game.interact.objects.values().filter(func(o): return o is MysteryBox)
+	at.check(boxes.size() == 1, "une seule caisse sur la carte (%d)" % boxes.size())
+	pd.points = 500  # trop pauvre pour la caisse
 	await face_box()
-	at.check(game.hud._prompt.text.contains("950"), "invite : %s" % game.hud._prompt.text)
+	at.check(game.hud._prompt.text == Lang.t("[F] Caisse [950]", "[F] Crate [950]"), "invite : %s" % game.hud._prompt.text)
 	await press(true)
-	at.check(box.state == MysteryBox.State.IDLE and pd.points == 500, "refus sans 950 points")
+	at.check(box.state == MysteryBox.State.IDLE and pd.points == 500, "refus sans 950 de ferraille")
 
 	game.session.add_points(1, 20000)
-	await until(func(): return pd.points == 20500, 2.0, "points crédités")
+	await until(func(): return pd.points == 20500, 2.0, "ferraille créditée")
+	var weapons0 := pd.weapons.duplicate(true)
 	await press()
-	at.check(box.state == MysteryBox.State.ROLLING and pd.points == 20500 - 950, "achat : défilement en cours")
+	at.check(box.state == MysteryBox.State.ROLLING and pd.points == 20500 - MysteryBox.COST, "achat : défilement en cours")
 	await seconds(2.0)  # capture : au milieu du défilement
 	await at.screenshot("rolling")
-	await until(func(): return box.state == MysteryBox.State.READY, 4.0, "arme prête")
-	var monkey := box.weapon == ThrowableRules.MONKEY_ID
-	at.check(monkey or (WeaponDB.exists(box.weapon) and box.weapon != "m1911" and WeaponDB.box_pool().has(box.weapon)), "arme tirée : %s" % box.weapon)
-	await seconds(0.4)  # capture : arme sortie de la boîte
+	await until(func(): return box.state == MysteryBox.State.READY, 4.0, "objet prêt")
+	var it := ThrowableRules.crate_item(box.item)
+	at.check(not it.is_empty(), "objet tiré dans la liste de la caisse : %s" % box.item)
+	await seconds(0.4)  # capture : objet sorti de la caisse
 	await at.screenshot("ready")
-	var got := box.weapon
+	at.check(game.hud._prompt.text.contains(MysteryBox.item_name(box.item)), "invite : %s" % game.hud._prompt.text)
 	await press()
-	var taken := (pd.has_monkeys and pd.monkeys == ThrowableRules.MONKEY_MAX) if monkey else pd.has_weapon(got) >= 0
-	at.check(taken and box.state == MysteryBox.State.IDLE, "%s pris par l'acheteur" % got)
+	at.check(box.state == MysteryBox.State.IDLE and pd.throwable == int(it.kind) and pd.grenades == ThrowableRules.SLOT_MAX,
+		"%s pris : emplacement de grenade rempli (%d)" % [it.id, pd.grenades])
+	at.check(pd.weapons == weapons0, "armes inchangées : rien n'entre dans l'arsenal")
 
-	# Jamais une arme déjà possédée.
-	var dup := 0
-	for i in 60:
-		box._roll(pd)
-		if pd.has_weapon(box.weapon) >= 0:
-			dup += 1
-	box.weapon = ""
-	at.check(dup == 0, "le tirage exclut les armes possédées")
+	# Peluche leurre forcée : remplace les grenades.
+	box.force_result = "decoy"
+	await press()
+	await until(func(): return box.state == MysteryBox.State.READY, MysteryBox.ROLL_TIME + 2.0, "peluche prête")
+	await seconds(0.4)  # capture : peluche sortie de la caisse
+	await at.screenshot("decoy")
+	at.check(game.hud._prompt.text.contains(ThrowableRules.kind_name(ThrowableRules.Kind.DECOY)), "invite : %s" % game.hud._prompt.text)
+	await press()
+	at.check(pd.throwable == ThrowableRules.Kind.DECOY and pd.grenades == ThrowableRules.SLOT_MAX, "4 peluches leurres")
 
-	# CLAUDE-RAY forcé : dégâts de zone.
-	box.force_result = "ray"
+	# Objet laissé : la caisse le reprend, toujours au même endroit.
+	var pos := box.global_position
+	box.force_result = "frag"
 	await press()
-	await until(func(): return box.state == MysteryBox.State.READY, 6.0, "rayon prêt")
-	await press()
-	at.check(pd.current_weapon().id == "ray", "CLAUDE-RAY en main")
-	await until(func(): return p.weapons.current().get("id", "") == "ray" and GameClock.now() >= p.weapons._switch_end, 3.0, "CLAUDE-RAY sorti")
-	p.yaw += PI
-	await seconds(0.2)  # vue posée
-	var center := p.global_position + (-p.global_transform.basis.z) * 6.0
-	var zs := []
-	for k in 3:
-		var z := await H.dummy_zombie(self, center + Vector3(k - 1, 0, 0) * 0.8, 500)
-		zs.append(z)
-	H.aim_at(p, zs[1].global_position + Vector3.UP * 0.9)
-	await H.shoot(self, p, 0.4)
-	var dead := 0
-	for z: Zombie in zs:
-		if not z.is_alive():
-			dead += 1
-	at.check(dead == 3, "tir de CLAUDE-RAY : %d/3 zombies tués par l'explosion" % dead)
-	await at.screenshot("ray")
-	await H.clear_zombies(self)
-
-	# SINGE-TAMBOUR forcé : 3 singes (arme tactique), armes inchangées.
-	await face_box()
-	pd.has_monkeys = false
-	pd.monkeys = 0
-	box.force_result = ThrowableRules.MONKEY_ID
-	await press()
-	await until(func(): return box.state == MysteryBox.State.READY, 6.0, "singe prêt")
-	await seconds(0.4)  # capture : singe sorti de la boîte
-	await at.screenshot("monkey")
-	at.check(game.hud._prompt.text.contains(ThrowableRules.monkey_name()), "invite : %s" % game.hud._prompt.text)
-	await press()
-	at.check(pd.has_monkeys and pd.monkeys == ThrowableRules.MONKEY_MAX and pd.current_weapon().id == "ray",
-		"3 singes pris (%d), arme en main inchangée" % pd.monkeys)
-
-	# Crâne : remboursement et déménagement.
-	await face_box()
-	var before := pd.points
-	var old_loc := box.location
-	box.force_result = "skull"
-	await press()
-	await until(func(): return box.state == MysteryBox.State.MOVING, 6.0, "crâne")
-	at.check(pd.points == before, "crâne : 950 points remboursés (%d)" % pd.points)
-	await seconds(1.0)  # capture : crâne et départ de la boîte
-	await at.screenshot("skull")
-	await until(func(): return box.state == MysteryBox.State.IDLE, MysteryBox.MOVE_TIME + 2.0, "réapparition")
-	at.check(box.location != old_loc, "la boîte a déménagé (%d -> %d)" % [old_loc, box.location])
+	await until(func(): return box.state == MysteryBox.State.READY, MysteryBox.ROLL_TIME + 2.0, "grenades prêtes")
+	await until(func(): return box.state == MysteryBox.State.IDLE, MysteryBox.READY_TIME + 2.0, "objet repris")
+	at.check(pd.throwable == ThrowableRules.Kind.DECOY, "objet non pris : emplacement inchangé")
+	at.check(box.global_position.is_equal_approx(pos), "caisse fixe")

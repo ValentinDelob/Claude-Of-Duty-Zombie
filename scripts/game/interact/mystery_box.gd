@@ -1,45 +1,44 @@
 class_name MysteryBox
 extends Interactable
-## Boîte mystère. Le serveur tire l'arme (ou le crâne) dès l'achat ; les
-## clients jouent l'animation de défilement puis affichent le résultat.
+## CAISSE AU HASARD (GAME_CONCEPT §4.12 bis ; nom interne hérité de la boîte
+## mystère de BO1). Payée en ferraille, elle ne donne QUE des objets à lancer
+## ou à poser (ThrowableRules.CRATE_ITEMS : grenade, peluche leurre…), rangés
+## sur l'emplacement de grenade : jamais une arme, rien n'entre dans l'arsenal.
+##
+## Une seule caisse FIXE par carte (Game._build_mystery_box) : plus de
+## déménagement ni d'ours en peluche, plus de liquidation, plus de tableaux à
+## la craie. Le serveur tire l'objet dès l'achat ; les clients jouent
+## l'animation de défilement puis affichent le résultat.
 ##
 ## États : IDLE (achetable) -> ROLLING -> READY (seul l'acheteur peut prendre
-## l'arme) -> IDLE. Le crâne remplace parfois l'arme : points remboursés, la
-## boîte s'envole et réapparaît ailleurs.
+## l'objet) -> IDLE.
 
-enum State { IDLE, ROLLING, READY, MOVING }
+enum State { IDLE, ROLLING, READY }
 
+## Prix PROVISOIRE (ancien prix de la boîte mystère), en ferraille.
 const COST := 950
 const ROLL_TIME := 4.2
-## Arme offerte : reprise possible 12 s (treasure_chest_timeout de BO1).
+## Objet offert : reprise possible 12 s (treasure_chest_timeout de BO1).
 const READY_TIME := 12.0
-const MOVE_TIME := 9.0
-## Ours en peluche (départ de la boîte), règles de BO1 (_zombiemode_weapons) :
-## rien avant le 4e tirage, 15 % du 4e au 7e ; si la boîte n'a encore jamais
-## bougé, départ forcé au 8e ; ensuite 30 % du 8e au 12e, 50 % à partir du 13e.
-## Jamais d'ours sur une carte à un seul emplacement (la boîte n'a nulle part où aller).
-const MIN_USES_BEFORE_SKULL := 4
-const SKULL_CHANCE := 0.15
-## Liste et poids des armes : WeaponDB.box_pool() (CLAUDE-RAY plus rare).
 
 ## Apparence (BoxModel). Couvercle : charnière sur l'arête arrière haute,
 ## ouvert presque à la verticale (au-delà, il entrerait dans le mur).
 const LID_HINGE := Vector3(0, 0.75, -0.42)
 const LID_OPEN_ANGLE := -1.5
 ## Ouvert, le couvercle (11,5 cm d'épaisseur au-dessus de la charnière)
-## bascule derrière l'arrière du coffre : le centre de la boîte est posé à
+## bascule derrière l'arrière du coffre : le centre de la caisse est posé à
 ## SPOT_WALL_GAP du mur pour qu'il ne s'y enfonce pas.
 const SPOT_WALL_GAP := 0.57
-## Collision du coffre (longueur, hauteur, profondeur), centrée sur la boîte
+## Collision du coffre (longueur, hauteur, profondeur), centrée sur la caisse
 ## et posée au sol ; l'éditeur retire aussi cette emprise du navmesh pour une
-## boîte posée au sol (MapLayoutExport, « nav_blocks »).
+## caisse posée au sol (MapLayoutExport, « nav_blocks »).
 const BODY_SIZE := Vector3(1.8, 0.85, 0.85)
 ## Point visé au-dessus du milieu du coffre (juste au-dessus du couvercle
-## fermé) : invite et achat d'une boîte posée au sol, et la ligne de vue de
-## toutes les boîtes (jamais à travers un mur, sight_ok).
+## fermé) : invite et achat d'une caisse posée au sol, et la ligne de vue de
+## toutes les caisses (jamais à travers un mur, sight_ok).
 const SIGHT_HEIGHT := 0.95
-## Colonne de lumière (BO1) : pâle, bleutée, douce ; posée sur le couvercle,
-## elle s'éteint en montant (sommet à 3,2 m, sous les plafonds).
+## Colonne de lumière : pâle, bleutée, douce ; posée sur le couvercle, elle
+## s'éteint en montant (sommet à 3,2 m, sous les plafonds).
 const BEAM_COLOR := Color(0.62, 0.76, 1.0)
 const BEAM_INTENSITY := 0.06
 const BEAM_RADIUS := 0.3
@@ -47,7 +46,7 @@ const BEAM_BOTTOM := 0.9
 const BEAM_HEIGHT := 2.3
 ## Lumière : faible et froide fermée (lisible dans le noir sans tache sur
 ## les murs), chaude et dorée quand le fond s'allume. Au-dessus de l'avant
-## du coffre, à l'écart de l'arme et de l'ours.
+## du coffre, à l'écart de l'objet affiché.
 const LIGHT_POS := Vector3(0, 1.5, 0.5)
 const LIGHT_RANGE := 3.0
 const LIGHT_IDLE_ENERGY := 0.3
@@ -58,35 +57,19 @@ const GLOW_COLOR := Color(1.0, 0.86, 0.62)
 ## Halo doré qui monte du coffre ouvert (pendant le tirage).
 const HAZE_INTENSITY := 0.16
 const HAZE_HEIGHT := 0.9
-## Nounours (TeddyModel, 0,5 m) agrandi : bien lisible au-dessus du coffre.
-const TEDDY_SCALE := 1.3
+## Objet affiché au-dessus du coffre, agrandi pour être lisible.
+const DISPLAY_SCALE := 2.6
 
 var state: State = State.IDLE
-var location := 0
-var weapon := ""
+## Objet tiré (identifiant de ThrowableRules.CRATE_ITEMS), "" sinon.
+var item := ""
 var owner_pid := 0
-var skull := false
 var uses := 0
-## Bonus LIQUIDATION en cours (toutes les machines) : la boîte coûte 10.
-var fire_sale := false
-## Serveur : nombre de déménagements (la liquidation n'apparaît qu'après le premier).
-var moves := 0
-## Serveur : prix payé par l'acheteur courant (remboursé par le crâne).
-var _paid := COST
-## Tests : force le prochain tirage.
+## Tests : force le prochain tirage (identifiant d'objet).
 var force_result := ""
-## LIQUIDATION (BO1) : pendant le bonus, une boîte temporaire apparaît à chaque
-## autre emplacement de la carte, toutes à 10 points ; à la fin, elles
-## disparaissent (celle qu'on utilise finit d'abord son tirage). Créées et
-## retirées sur toutes les machines (set_fire_sale, appelé par PowerupSystem).
-var temporary := false
-## Vraie boîte : boîtes temporaires en place. Temporaire : sa vraie boîte.
-var fire_sale_boxes: Array = []
-var _source: MysteryBox
-var _expiring := false
-var _fs_music: AudioStreamPlayer3D
 
-var spots: Array = []   # [{pos, basis}]
+## Emplacement : {pos, normal, floor}.
+var spot: Dictionary = {}
 var _root: Node3D
 ## Collision du coffre (couche du monde ; au sol, aussi MeshNav.LOW_LAYER).
 var _body: StaticBody3D
@@ -104,32 +87,22 @@ var _display_model: Node3D
 var _timer := 0.0
 var _cycle_t := 0.0
 var _rng := RandomNumberGenerator.new()
-var _markers: Array[Node3D] = []
-## Collisions de la boîte et de ses tas de planches (créées une fois, _collider) :
-## exclues du rayon de sight_ok, sans parcourir l'arbre à chaque image de visée.
+## Collisions de la caisse (créées une fois, _collider) : exclues du rayon de
+## sight_ok, sans parcourir l'arbre à chaque image de visée.
 var _own_rids: Array[RID] = []
-## État affiché (apply_state) : sur le serveur, `state` et `location` sont
-## déjà modifiés quand l'état diffusé revient (call_local).
+## État affiché (apply_state) : sur le serveur, `state` est déjà modifié quand
+## l'état diffusé revient (call_local).
 var _shown_state: State = State.IDLE
-var _fly_tween: Tween
 
 
-func setup(cells: Array, start: int, data: MapData) -> void:
-	var markers: Array[MapMarker] = []
-	for i in cells.size():
-		markers.append(GridMapLayout.cell_marker("box_%d" % i, cells[i], data))
-	setup_spots(markers, start)
-
-
-func setup_spots(markers: Array[MapMarker], start: int) -> void:
+## Emplacement de la caisse : `m.wall` pointe vers le mur, dont m.pos est à
+## m.wall_gap. Caisse posée au sol (éditeur, format 15) : mur fictif derrière
+## elle, « floor ».
+func setup_spot(m: MapMarker) -> void:
 	interact_id = "box"
 	name = "MysteryBox"
 	interact_range = 2.0
-	for m in markers:
-		# `wall` pointe vers le mur, dont m.pos est à m.wall_gap. Boîte posée
-		# au sol (éditeur, format 15) : mur fictif derrière elle, « floor ».
-		spots.append({"pos": m.pos + m.wall * (m.wall_gap - SPOT_WALL_GAP), "normal": m.wall, "floor": bool(m.data.get("floor", false))})
-	location = clampi(start, 0, spots.size() - 1)
+	spot = {"pos": m.pos + m.wall * (m.wall_gap - SPOT_WALL_GAP), "normal": m.wall, "floor": bool(m.data.get("floor", false))}
 	_rng.randomize()
 
 
@@ -144,7 +117,7 @@ func _ready() -> void:
 	_open_meshes = BoxModel.build(_root, _lid)
 	if _open_meshes.is_empty():
 		_build_boxes()
-	# Colonne de lumière douce qui signale la boîte de loin (BO1).
+	# Colonne de lumière douce qui signale la caisse de loin.
 	_beam = BoxModel.build_beam()
 	_root.add_child(_beam)
 	_haze = BoxModel.build_haze()
@@ -165,43 +138,7 @@ func _ready() -> void:
 	_root.add_child(_display)
 	_body = _collider(BODY_SIZE)
 	_root.add_child(_body)
-	if temporary:
-		_place(self, location)
-		# Arrivée : la boîte se déploie, avec la ritournelle de la liquidation.
-		_root.scale = Vector3.ONE * 0.05
-		create_tween().tween_property(_root, "scale", Vector3.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		Audio.play_3d("powerup_spawn", global_position + Vector3.UP, -4.0, 0.05)
-		var stream := Audio.get_stream("fire_sale_loop")
-		if stream:
-			_fs_music = AudioStreamPlayer3D.new()
-			_fs_music.bus = "Music"
-			_fs_music.stream = stream
-			_fs_music.unit_size = 6.0
-			_fs_music.max_distance = 40.0
-			_fs_music.volume_db = -4.0
-			_fs_music.position = Vector3.UP * 1.2
-			add_child(_fs_music)
-			_fs_music.play()
-		return
-	# Emplacements vides : un simple tas de planches.
-	var crate := WorldLook.surface("crate")
-	for i in spots.size():
-		var m := Node3D.new()
-		_part(m, Vector3(1.5, 0.12, 0.7), Vector3(0, 0.06, 0), crate)
-		_part(m, Vector3(0.9, 0.1, 0.5), Vector3(0.2, 0.17, 0.05), crate)
-		m.add_child(_collider(Vector3(1.5, 0.3, 0.7)))
-		if bool(spots[i].get("floor", false)):
-			# Emplacement au sol : même obstacle bas que la boîte (rayon genou de
-			# MeshNav, couche LOW_LAYER seule, volume de la boîte) ; le navmesh
-			# contourne déjà son emprise : le zombie ne fonce plus dedans en
-			# ligne droite ni ne monte sur les planches.
-			var low := _collider(BODY_SIZE)
-			low.collision_layer = MeshNav.LOW_LAYER
-			m.add_child(low)
-		get_parent().add_child.call_deferred(m)
-		_markers.append(m)
-		_place(m, i)
-	_move_to(location)
+	_place()
 
 
 ## Repli sans modèle (.glb absent) : caisse en boîtes et « ? » en texte.
@@ -247,105 +184,20 @@ func _collider(size: Vector3) -> StaticBody3D:
 	return body
 
 
-## Serveur, avant le début de la partie : emplacement de départ tiré au sort
-## parmi `choices` (index des X), comme à Kino der Toten.
-func srv_random_start(choices: Array) -> void:
-	var valid := choices.filter(func(i): return i >= 0 and i < spots.size())
-	if valid.is_empty():
-		return
-	_move_to(valid[_rng.randi() % valid.size()])
-	print("[Box] départ : emplacement %d" % location)
-	broadcast_state()
-
-
-## Toutes les machines (vraie boîte) : début ou fin de la LIQUIDATION.
-func set_fire_sale(on: bool) -> void:
-	fire_sale = on
-	if not on:
-		for b: MysteryBox in fire_sale_boxes.duplicate():
-			b.expire()
-		return
-	for i in spots.size():
-		if i == location:
-			continue
-		var existing: MysteryBox = null
-		for b: MysteryBox in fire_sale_boxes:
-			if b.location == i:
-				existing = b
-		if existing:
-			# Nouvelle liquidation avant la fin du tirage : la boîte reste.
-			existing._expiring = false
-			existing.fire_sale = true
-			continue
-		var fs := MysteryBox.new()
-		fs.setup_temporary(self, i)
-		system.register(fs)
-		get_parent().add_child(fs)
-		fire_sale_boxes.append(fs)
-		if i < _markers.size():
-			_markers[i].visible = false
-	print("[Box] liquidation : %d boîtes temporaires" % fire_sale_boxes.size())
-
-
-## Boîte temporaire de liquidation à l'emplacement `i` de `src`.
-func setup_temporary(src: MysteryBox, i: int) -> void:
-	temporary = true
-	_source = src
-	spots = src.spots
-	location = i
-	fire_sale = true
-	interact_id = "box_fs_%d" % i
-	name = "FireSaleBox%d" % i
-	interact_range = src.interact_range
-	_rng.randomize()
-
-
-## Fin de la liquidation : retirée tout de suite si libre, sinon à la fin du
-## tirage en cours (apply_state IDLE).
-func expire() -> void:
-	_expiring = true
-	fire_sale = false
-	if state == State.IDLE:
-		_remove()
-
-
-func _remove() -> void:
-	if _source and is_instance_valid(_source):
-		_source.fire_sale_boxes.erase(self)
-		if location < _source._markers.size():
-			_source._markers[location].visible = location != _source.location
-	if system:
-		system.unregister(self)
-	Audio.play_3d("box_fly", global_position + Vector3.UP, -8.0, 0.05)
-	queue_free()
-
-
-## Prix courant (bonus LIQUIDATION : 10 points).
-func cost() -> int:
-	return PowerupRules.FIRE_SALE_COST if fire_sale else COST
-
-
-## Cellules occupées par un emplacement (la boîte fait 2 cases de long).
+## Cellules occupées par un emplacement de carte ASCII (la caisse fait 3 cases
+## de long).
 static func spot_cells(c: Vector2i, data: MapData) -> Array:
 	var n := MapDef.wall_normal(data, c)
 	var along := Vector2i(1, 0) if absf(n.z) > 0.5 else Vector2i(0, 1)
 	return [c - along, c, c + along]
 
 
-func _place(node: Node3D, i: int) -> void:
-	var s: Dictionary = spots[i]
-	node.position = s.pos
-	node.basis = Basis.looking_at(-s.normal, Vector3.UP).rotated(Vector3.UP, PI)
-	if node == self and _body != null:
+func _place() -> void:
+	position = spot.pos
+	basis = Basis.looking_at(-spot.normal, Vector3.UP).rotated(Vector3.UP, PI)
+	if _body != null:
 		# Posée au sol : obstacle bas que les zombies contournent (MeshNav.LOW_LAYER).
-		_body.collision_layer = 1 | (MeshNav.LOW_LAYER if bool(s.get("floor", false)) else 0)
-
-
-func _move_to(i: int) -> void:
-	location = i
-	_place(self, i)
-	for k in _markers.size():
-		_markers[k].visible = k != i
+		_body.collision_layer = 1 | (MeshNav.LOW_LAYER if bool(spot.get("floor", false)) else 0)
 
 
 # --------------------------------------------------------------------------
@@ -353,30 +205,24 @@ func _move_to(i: int) -> void:
 # --------------------------------------------------------------------------
 
 func interact_point() -> Vector3:
-	if bool(spots[location].get("floor", false)):
-		# Boîte posée au sol (format 15) : on l'achète de tous les côtés, comme
-		# dans BO1 (déclencheur autour du coffre) : le point visé est son milieu.
+	if bool(spot.get("floor", false)):
+		# Caisse posée au sol (format 15) : on l'utilise de tous les côtés
+		# (déclencheur autour du coffre) : le point visé est son milieu.
 		return global_position + Vector3.UP * SIGHT_HEIGHT
-	return global_position - (spots[location].normal as Vector3) * 0.7 + Vector3.UP * 0.9
+	return global_position - (spot.normal as Vector3) * 0.7 + Vector3.UP * 0.9
 
 
 ## Ligne de vue de l'œil `eye` jusqu'au-dessus du coffre (couche du monde :
-## murs, portes fermées, machines ; ni joueurs ni zombies ; la boîte et ses
-## emplacements vides ne comptent pas) : jamais d'achat à travers un mur.
+## murs, portes fermées, machines ; ni joueurs ni zombies ; la caisse ne
+## compte pas) : jamais d'achat à travers un mur.
 func sight_ok(eye: Vector3) -> bool:
 	if not is_inside_tree():
 		return true
 	var space := get_world_3d().direct_space_state
 	if space == null:
 		return true
-	var q := PhysicsRayQueryParameters3D.create(eye, global_position + Vector3.UP * SIGHT_HEIGHT, 1, _own_bodies())
+	var q := PhysicsRayQueryParameters3D.create(eye, global_position + Vector3.UP * SIGHT_HEIGHT, 1, _own_rids)
 	return space.intersect_ray(q).is_empty()
-
-
-## Collisions de la boîte et des tas de planches de ses emplacements (liste
-## gardée : _own_rids).
-func _own_bodies() -> Array[RID]:
-	return _own_rids
 
 
 func own_rids() -> Array[RID]:
@@ -386,11 +232,17 @@ func own_rids() -> Array[RID]:
 func prompt(pid: int) -> String:
 	match state:
 		State.IDLE:
-			return Lang.t("[F] Boîte mystère %s", "[F] Mystery Box %s") % Interactable.cost_text(cost())
+			return Lang.t("[F] Caisse %s", "[F] Crate %s") % Interactable.cost_text(COST)
 		State.READY:
-			if pid == owner_pid and not skull:
-				return Lang.t("[F] Prendre %s", "[F] Take %s") % (ThrowableRules.monkey_name() if weapon == ThrowableRules.MONKEY_ID else WeaponDB.display_name(weapon))
+			if pid == owner_pid:
+				return Lang.t("[F] Prendre %s", "[F] Take %s") % item_name(item)
 	return ""
+
+
+## Nom affiché d'un objet de la caisse.
+static func item_name(id: String) -> String:
+	var it := ThrowableRules.crate_item(id)
+	return ThrowableRules.kind_name(int(it.kind)) if not it.is_empty() else ""
 
 
 func srv_use(pid: int) -> void:
@@ -400,104 +252,38 @@ func srv_use(pid: int) -> void:
 		return
 	match state:
 		State.IDLE:
-			var price := cost()
-			if not game.session.try_spend(pid, price):
+			if not game.session.try_spend(pid, COST):
 				system.deny(pid, InteractionSystem.NO_POINTS)
 				return
-			_paid = price
 			owner_pid = pid
 			uses += 1
-			_roll(pd)
+			_roll()
 			state = State.ROLLING
 			_timer = ROLL_TIME
 			broadcast_state()
 		State.READY:
-			if pid != owner_pid or skull:
+			if pid != owner_pid:
 				return
-			if weapon == ThrowableRules.MONKEY_ID:
-				# SINGE-TAMBOUR : arme tactique (touche dédiée), pas un emplacement.
-				game.throwables.srv_give_monkeys(pid)
-			else:
-				WeaponDB.give(pd, weapon)
-				game.combat.cancel_reload(pid)
-				game.session.sync_inventory(pid)
+			var it := ThrowableRules.crate_item(item)
+			if not it.is_empty():
+				# Emplacement de grenade rempli avec cet objet (jamais l'arsenal).
+				game.throwables.srv_fill_slot(pid, int(it.kind))
 			_close()
 
 
-## Serveur : tirage de l'arme (jamais une arme déjà possédée).
-func _roll(pd: PlayerData) -> void:
-	skull = false
-	# Pas de crâne pendant une liquidation (la boîte ne déménage pas).
-	if force_result == "skull" or (force_result == "" and not fire_sale and not temporary and _rng.randf() < skull_chance(uses, moves, spots.size())):
-		skull = true
-		weapon = ""
-		force_result = ""
-		return
-	if force_result != "":
-		weapon = force_result
-		force_result = ""
-		return
-	weapon = pick_weapon(pd, _rng, wonders_taken(system.game))
-
-
-## Serveur : armes merveilles uniques (WeaponDB.is_unique) déjà présentes dans
-## la partie : en main d'un joueur ou en cours d'amélioration au Pack-a-Punch.
-static func wonders_taken(game: Game) -> Dictionary:
-	if game == null:
-		return {}
-	var out := wonders_held(game.session.data.values())
-	for obj in game.interact.objects.values():
-		if obj is PackAPunch and WeaponDB.is_unique(obj.weapon_id):
-			out[obj.weapon_id] = true
-	return out
-
-
-## Armes merveilles uniques détenues par ces joueurs, y compris celles mises
-## de côté pendant qu'ils sont à terre (rendues à la réanimation).
-static func wonders_held(datas: Array) -> Dictionary:
-	var out := {}
-	for pd: PlayerData in datas:
-		for w in pd.weapons + pd.saved_weapons:
-			if WeaponDB.is_unique(w.id):
-				out[w.id] = true
-	return out
-
-
-## Tirage pondéré dans la liste de la boîte (WeaponDB.box_pool), sans jamais
-## proposer une arme que le joueur possède déjà (comme BO1), ni une arme
-## merveille unique déjà présente dans la partie (`taken`).
-static func pick_weapon(pd: PlayerData, rng: RandomNumberGenerator, taken := {}) -> String:
-	var pool := []
-	var weights := []
-	var box := WeaponDB.box_pool()
-	for id in box:
-		if pd != null and pd.has_weapon(id) >= 0:
-			continue
-		if taken.has(id):
-			continue
-		pool.append(id)
-		weights.append(box[id])
-	# SINGE-TAMBOUR (jamais si le joueur en a déjà).
-	if pd == null or not pd.has_monkeys:
-		pool.append(ThrowableRules.MONKEY_ID)
-		weights.append(ThrowableRules.MONKEY_BOX_WEIGHT)
-	if pool.is_empty():
-		return ""
-	var total := 0.0
-	for w in weights:
-		total += w
-	var r := rng.randf() * total
-	for i in pool.size():
-		r -= weights[i]
-		if r <= 0.0:
-			return pool[i]
-	return pool[pool.size() - 1]
+## Serveur : tirage de l'objet (ThrowableRules.CRATE_ITEMS, pondéré).
+func _roll() -> void:
+	if force_result != "" and not ThrowableRules.crate_item(force_result).is_empty():
+		item = force_result
+	else:
+		item = ThrowableRules.pick_crate_item(_rng)
+	force_result = ""
 
 
 func _close() -> void:
 	state = State.IDLE
 	owner_pid = 0
-	weapon = ""
+	item = ""
 	broadcast_state()
 
 
@@ -510,27 +296,10 @@ func _process(delta: float) -> void:
 		return
 	match state:
 		State.ROLLING:
-			if skull:
-				# Remboursement et départ de la boîte.
-				system.game.session.add_points(owner_pid, _paid)
-				VoxSystem.say_later(0.8, owner_pid, "box_teddy")
-				state = State.MOVING
-				_timer = MOVE_TIME
-				uses = 0
-			else:
-				state = State.READY
-				_timer = READY_TIME
-				VoxSystem.box_result(owner_pid, weapon)
+			state = State.READY
+			_timer = READY_TIME
 			broadcast_state()
 		State.READY:
-			_close()
-		State.MOVING:
-			var next := location
-			if spots.size() > 1:
-				while next == location:
-					next = _rng.randi() % spots.size()
-			location = next
-			moves += 1
 			_close()
 
 
@@ -539,16 +308,15 @@ func _process(delta: float) -> void:
 # --------------------------------------------------------------------------
 
 func get_state() -> Dictionary:
-	return {"state": state, "location": location, "weapon": weapon, "owner": owner_pid, "skull": skull}
+	return {"state": state, "item": item, "owner": owner_pid}
 
 
 func apply_state(s: Dictionary, animate: bool) -> void:
 	var prev := _shown_state
 	state = s.get("state", State.IDLE)
-	weapon = s.get("weapon", "")
+	_shown_state = state
+	item = s.get("item", "")
 	owner_pid = s.get("owner", 0)
-	skull = s.get("skull", false)
-	var loc: int = s.get("location", location)
 	match state:
 		State.ROLLING:
 			_cycle_t = 0.0
@@ -557,38 +325,11 @@ func apply_state(s: Dictionary, animate: bool) -> void:
 				Audio.play_3d("box_open", global_position + Vector3.UP, 0.0, 0.03)
 				Audio.play_3d("box_music", global_position + Vector3.UP, -2.0, 0.0)
 		State.READY:
-			_show_model(weapon)
-		State.MOVING:
-			_show_model("")
-			_show_teddy()
-			if animate:
-				Audio.play_3d("box_skull", global_position + Vector3.UP * 1.5, 2.0, 0.0)
-				if _fly_tween:
-					_fly_tween.kill()
-				var tw := create_tween()
-				_fly_tween = tw
-				tw.tween_interval(1.6)
-				tw.tween_property(_root, "position:y", 6.0, 1.8).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-				tw.tween_callback(func(): _root.visible = false)
-				tw.tween_callback(func(): Audio.play_3d("box_fly", global_position + Vector3.UP * 2.0, 0.0, 0.0))
+			_show_model(item)
 		State.IDLE:
 			_show_model("")
-			if prev == State.MOVING or loc != location or not _root.visible:
-				if _fly_tween:
-					_fly_tween.kill()
-					_fly_tween = null
-				_root.position.y = 0.0
-				_root.visible = true
-				_move_to(loc)
-			if prev != State.IDLE and animate:
+			if animate and prev != State.IDLE:
 				Audio.play_3d("box_open", global_position + Vector3.UP, -6.0, 0.1)
-			if _expiring:
-				_shown_state = state
-				_remove()
-				return
-	_shown_state = state
-	if loc != location and state != State.MOVING:
-		_move_to(loc)
 
 
 func _animate(delta: float) -> void:
@@ -608,17 +349,16 @@ func _animate(delta: float) -> void:
 			mi.set_instance_shader_parameter("open", _open_amount)
 		_haze.set_instance_shader_parameter("fade", _open_amount)
 		_haze.visible = _open_amount > 0.0
-	_beam.visible = state != State.MOVING
 	if state == State.ROLLING:
-		# Défilement des armes : de plus en plus lent, monte hors de la boîte.
+		# Défilement des objets : de plus en plus lent, monte hors de la caisse.
 		_cycle_t -= delta
 		_timer -= delta if not multiplayer.is_server() else 0.0
 		var progress := 1.0 - clampf(_timer / ROLL_TIME, 0.0, 1.0)
 		_display.position.y = 0.4 + progress * 0.75
 		if _cycle_t <= 0.0:
 			_cycle_t = lerpf(0.07, 0.35, progress * progress)
-			var ids := WeaponDB.box_pool().keys() + [ThrowableRules.MONKEY_ID]
-			_show_model(ids[randi() % ids.size()])
+			var items: Array = ThrowableRules.CRATE_ITEMS
+			_show_model(String(items[randi() % items.size()].id))
 	if _display_model:
 		_display.rotation.y += delta * (1.5 if state == State.READY else 0.0)
 
@@ -627,42 +367,10 @@ func _show_model(id: String) -> void:
 	if _display_model:
 		_display_model.queue_free()
 		_display_model = null
-	if id == ThrowableRules.MONKEY_ID:
-		_display_model = Throwable.build_model(ThrowableRules.Kind.MONKEY, false)
-		_display_model.scale = Vector3.ONE * 2.6
-		_display_model.position.y = -0.25
-		_display.add_child(_display_model)
+	var it := ThrowableRules.crate_item(id)
+	if it.is_empty():
 		return
-	if id == "" or not WeaponDB.exists(id):
-		return
-	_display_model = WeaponModels.build(WeaponDB.stats(id).model, false)
-	_display_model.rotation.y = PI * 0.5
-	_display_model.scale = Vector3.ONE * 1.6
-	# Centré au-dessus de la boîte (de la bouche du canon à la crosse).
-	_display_model.position.x = -WeaponModels.center_z(WeaponDB.stats(id).model) * 1.6
+	_display_model = Throwable.build_model(int(it.kind), false)
+	_display_model.scale = Vector3.ONE * DISPLAY_SCALE
+	_display_model.position.y = -0.25
 	_display.add_child(_display_model)
-
-
-func _show_teddy() -> void:
-	# Nounours assis au-dessus de la boîte ouverte, face au joueur (le
-	# défilement a pu laisser l'affichage tourné).
-	_display_model = TeddyModel.build()
-	_display_model.scale = Vector3.ONE * TEDDY_SCALE
-	_display.position.y = 0.8
-	_display.rotation.y = 0.0
-	_display.add_child(_display_model)
-
-
-## Probabilité de l'ours au tirage n° `use` (compté depuis le dernier
-## déplacement, 1 = premier), `moved` = déplacements déjà faits,
-## `spot_count` = emplacements de la carte (un seul : jamais d'ours).
-static func skull_chance(use: int, moved: int, spot_count := 2) -> float:
-	if spot_count < 2 or use < MIN_USES_BEFORE_SKULL:
-		return 0.0
-	if use < 8:
-		return SKULL_CHANCE
-	if moved == 0:
-		return 1.0
-	if use < 13:
-		return 0.3
-	return 0.5

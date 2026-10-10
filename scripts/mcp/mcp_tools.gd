@@ -480,7 +480,7 @@ func _builtin() -> Array:
 				+ "au-dessus le coupe, traverse (pièce haute : niveaux traversés), mezzanine_sur, bbox [x0,y0,x1,y1] en m, "
 				+ "surface m², contour si non rectangulaire, voisines par mur commun avec le bord partagé, pièces proches "
 				+ "non collées avec les points les plus proches), ouvertures (type, position, largeur, prix, pièces reliées), "
-				+ "objets regroupés par type (id, position ou rect, sommets d'une barrière invisible, atout/arme/prefab, mur), "
+				+ "objets regroupés par type (id, position ou rect, sommets d'une barrière invisible, prefab, mur), "
 				+ "escaliers (altitude, altitude_haut, montee, sortie, pièce du pied « de » et d'arrivée « vers », niveaux "
 				+ "sautés « traverse »), orphelins (éléments à une altitude sans pièce), zones et zone de départ, ciel, totaux. "
 				+ "format \"full\" : la carte complète {carte, pieces, ouvertures, objets, zones, depart} (format : editor_guide, "
@@ -591,7 +591,7 @@ func _builtin() -> Array:
 		{
 			"name": "editor_catalog",
 			"description": "Catalogue de l'éditeur : types d'objets et d'ouvertures admis avec leurs clés (MapCatalog), décors "
-				+ "(prefabs), luminaires, armes, atouts, textures ; « echelle »: false sur ce qui ne change jamais d'échelle "
+				+ "(prefabs), luminaires, effets, textures ; « echelle »: false sur ce qui ne change jamais d'échelle "
 				+ "(format 14). À lire avant de créer un type d'objet inconnu.",
 			"inputSchema": _no_args(),
 			"cmd": "catalog",

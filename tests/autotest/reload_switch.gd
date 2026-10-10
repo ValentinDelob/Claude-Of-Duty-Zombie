@@ -3,8 +3,7 @@ extends AutotestScenario
 ## suite, le rechargement est annulé (chargeur ni rempli, réserve intacte,
 ## côté client ET serveur), aucun remplissage différé ne tombe sur l'une ou
 ## l'autre arme ; au retour il faut recharger. Fusil à pompe : les cartouches
-## déjà poussées restent. Même règle quand on boit un atout (BO1) : boisson
-## pendant le rechargement = rechargement annulé des deux côtés, à refaire.
+## déjà poussées restent.
 
 var game: Game
 var p: Player
@@ -83,41 +82,3 @@ func run() -> void:
 	var kept := srv_ammo(0)
 	at.check(kept[0] > 1 and kept[0] < 6 and kept[0] + kept[1] == 31, "cartouches poussées gardées, rien de perdu : %s" % [kept])
 	at.check(ammo(0) == kept, "client = serveur : %s / %s" % [ammo(0), kept])
-
-	# 4. Boisson d'un atout pendant le rechargement (BO1) : annulé côté client
-	# ET serveur, rien de rempli à l'échéance, pas de rechargement pendant la
-	# boisson ; après, il faut recharger de nouveau.
-	await equip(["m1911", "mp40"], 5, 80)
-	p.input.reload = true
-	await seconds(dur * 0.4)
-	at.check(wc.is_reloading() and game.combat.is_reloading(1), "boisson : rechargement en cours avant")
-	game.perks.srv_grant(1, "titan")
-	await frames(2)
-	at.check(wc.view.is_drinking(), "boisson : animation")
-	at.check(not wc.is_reloading(), "boisson : rechargement client annulé")
-	at.check(not game.combat.is_reloading(1), "boisson : rechargement serveur annulé")
-	# Demande partie avant que le client n'apprenne la boisson : refusée.
-	game.combat.srv_reload.rpc_id(1, pd.slot)
-	p.input.reload = true  # touche pendant la boisson : ignorée
-	await frames(3)
-	at.check(not game.combat.is_reloading(1) and not wc.is_reloading(), "pas de rechargement pendant la boisson")
-	await seconds(dur + 0.3)
-	at.check(ammo(0) == [5, 80], "boisson : M1911 inchangé côté client : %s" % [ammo(0)])
-	at.check(srv_ammo(0) == [5, 80], "boisson : M1911 inchangé côté serveur : %s" % [srv_ammo(0)])
-	await until(func(): return GameClock.now() >= wc._drink_end and not wc.view.is_drinking(), 4.0, "fin de la boisson")
-	p.input.reload = true
-	await seconds(dur + 0.3)
-	at.check(ammo(0) == [8, 77] and srv_ammo(0) == [8, 77], "rechargement refait après la boisson : %s / %s" % [ammo(0), srv_ammo(0)])
-
-	# 5. Fusil à pompe : cartouches déjà poussées gardées, même compte des deux côtés.
-	await equip(["stakeout", "m1911"], 1, 30)
-	p.input.reload = true
-	await seconds(sdur * (0.12 + 0.65 * 0.55))
-	at.check(wc.is_reloading() and game.combat.is_reloading(1), "fusil à pompe : rechargement en cours avant la boisson")
-	game.perks.srv_grant(1, "twin")
-	await frames(2)
-	at.check(not wc.is_reloading() and not game.combat.is_reloading(1), "fusil à pompe : rechargement annulé par la boisson")
-	await seconds(sdur + 0.3)
-	kept = srv_ammo(0)
-	at.check(kept[0] > 1 and kept[0] < 6 and kept[0] + kept[1] == 31, "boisson : cartouches poussées gardées, rien de perdu : %s" % [kept])
-	at.check(ammo(0) == kept, "boisson : client = serveur : %s / %s" % [ammo(0), kept])

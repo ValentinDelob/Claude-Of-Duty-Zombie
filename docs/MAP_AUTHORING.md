@@ -3,7 +3,7 @@
 But : concevoir une carte **simplement, sans bug et amusante**, puis la jouer
 aussitôt. L'**éditeur de cartes** est une scène du jeu (menu principal >
 ÉDITEUR DE CARTES) : on y dessine les pièces vues de dessus, on pose portes,
-fenêtres, atouts, armes, boîte… depuis un inventaire façon Minecraft, un
+fenêtres, pièges, caisse au hasard… depuis un inventaire façon Minecraft, un
 validateur vérifie la carte avec des règles « façon BO1 », et le bouton
 **TESTER** lance une partie solo dessus (sans l'enregistrer). La carte est
 enregistrée (seulement par Fichier > Enregistrer, Ctrl+S) en cinq
@@ -221,7 +221,7 @@ Les mêmes actions sont dans le menu **Édition**.
 - **Mur mitoyen** : deux pièces qui partagent un côté en biais n'ont qu'un
   mur, qui montre de chaque côté la texture de sa pièce.
 - **Ouvertures** (porte, débris, porte du courant, passage, fenêtre) et
-  **objets muraux** (atouts, armes, boîte, machines, levier, applique) se
+  **objets muraux** (caisse au hasard, machines, levier, applique) se
   posent aussi sur un mur en biais, orientés selon le mur, avec les mêmes
   règles (porte seulement sur le bord commun de deux pièces collées, fenêtre
   sur un mur extérieur avec 2,5 × 3 m de vide dehors, 0,5 m de mur plein aux
@@ -326,7 +326,7 @@ position en mètres ; triés par identifiant (ordre naturel : `p2` avant `p10`).
 Bouton **APERÇU 3D** (barre du haut) ou touche **P** : un panneau flottant
 au-dessus de la vue 2D montre la carte **telle qu'elle sera en jeu** (mêmes
 murs, sols, plafonds et textures, portes et débris, fenêtres barricadées,
-décor, luminaires, atouts, armes, boîte, courant, niveaux, ciel de la carte
+décor, luminaires, caisse au hasard, courant, niveaux, ciel de la carte
 au-dessus des pièces sans plafond), construite par le
 **même code que la partie** (`MapLayoutExport`, `MeshMapGeometry`,
 `MeshMapBuilder`, `MapProps.add_lamp`, et les fonctions de construction de
@@ -404,23 +404,28 @@ au-dessus des pièces sans plafond), construite par le
 
 ## 3. Ce que l'on pose (inventaire)
 
-Les catégories et leurs objets viennent des **bases de données du jeu**
-(`MapCatalog` lit `PerkDB`, `WeaponDB`, `KnifeDB`, `MysteryBox.COST`,
-`PackAPunch.COST`, `ElectricTrap.COST`…) : un atout ou une arme murale ajouté
-au jeu apparaît tout seul dans l'inventaire, avec son prix. Icônes dessinées
-par code (`MapIcons`).
+Les catégories et leurs objets sont décrits par `MapCatalog` ; les prix
+viennent du jeu (`MysteryBox.COST`, `Teleporter.COST`, `ElectricTrap.COST`…).
+Icônes dessinées par code (`MapIcons`).
+
+**Objets retirés du jeu.** Les atouts, armes murales (couteaux compris),
+achats muraux de grenades et le Pack-a-Punch n'existent plus
+(`MapCatalog.REMOVED_TYPES` : types `atout`, `arme`, `grenades`, `pap`). Une
+carte d'avant qui en contient se charge encore : le contrôle des cartes
+reçues accepte ces types, mais l'éditeur les **retire à l'ouverture**
+(`EditorMap.strip_removed` : avertissement `push_warning` et note à
+l'ouverture « N objet(s) qui n'existent plus ignorés »), l'export pour le jeu
+les ignore, et `editor_apply` (Claude, collaboration) refuse d'en poser.
 
 | Catégorie | Objets | Pose |
 |---|---|---|
 | Construction | Gomme, Pièce rectangle, Pièce polygone, Mur, Cercle / polygone régulier, Ellipse, Pièce triangle, Pièce en L, Mur courbe, Pilier / obstacle, Escalier qui monte (↑), Escalier qui descend (↓), Barrière invisible | glisser ou clic-clic (rectangle, formes, mur, mur courbe, pilier, escalier), clics successifs (polygone, barrière invisible : n'importe où) ; saisie au clavier |
 | Ouvertures | Porte payante, Débris à dégager, Porte ouverte par le courant, Passage libre, Fenêtre à zombies | sur un mur (voir les règles) |
-| Atouts | un distributeur par atout du jeu | contre un mur |
-| Armes murales | chaque arme à prix mural, couteau de chasse, grenades | contre un mur |
-| Boîte mystère | emplacement, emplacement de départ | format 15 : au sol n'importe où dans une pièce, tournée librement (R, anneau, Angle ; flèche = avant) ; près d'un mur (1,3 m), elle s'y colle face à la pièce (Alt : sans aimant) |
-| Machines | Pack-a-Punch, interrupteur du courant, téléporteur, arrivée du téléporteur, poste central | contre un mur, ou au sol (téléporteur, arrivée) |
+| Caisse au hasard | la caisse (une seule par carte, fixe ; type `boite`) : contre de la ferraille, elle tire une grenade ou une peluche leurre | format 15 : au sol n'importe où dans une pièce, tournée librement (R, anneau, Angle ; flèche = avant) ; près d'un mur (1,3 m), elle s'y colle face à la pièce (Alt : sans aimant) |
+| Machines | interrupteur du courant, téléporteur, arrivée du téléporteur, poste central | contre un mur, ou au sol (téléporteur, arrivée) |
 | Pièges | zone de piège électrique, levier | zone : glisser au sol ; levier : contre un mur, à moins de 10 m |
 | Joueurs et apparitions | départ des joueurs, zombie qui sort du sol | au sol |
-| Décor et obstacles | caisse, baril, tas de gravats, gros éboulement, mur effondré, débris épars, planches au sol, poutre tombée, lustre tombé, pile de caisses, tonneaux, sacs de sable, table et chaise renversées, chaise pliante, bureau, étagère, rangée de fauteuils de cinéma, fauteuil arraché, pupitre, projecteur de cinéma, chariot, épave de voiture ; format 11, objets des effets : bûches, foyer de pierres, planches calcinées, électrodes, bobine Tesla, flaque d'eau, petite flaque, torche murale, tuyau à vapeur, boîtier électrique ouvert, tuyau qui fuit, câble suspendu | au sol, pivote avec R (90°) ou au degré près (poignée, Angle) ; torche, tuyaux et boîtier contre un mur (hauteur réglable, comme une applique) ; câble au plafond |
+| Décor et obstacles | caisse en bois, baril, tas de gravats, gros éboulement, mur effondré, débris épars, planches au sol, poutre tombée, lustre tombé, pile de caisses, tonneaux, sacs de sable, table et chaise renversées, chaise pliante, bureau, étagère, rangée de fauteuils de cinéma, fauteuil arraché, pupitre, projecteur de cinéma, chariot, épave de voiture ; format 11, objets des effets : bûches, foyer de pierres, planches calcinées, électrodes, bobine Tesla, flaque d'eau, petite flaque, torche murale, tuyau à vapeur, boîtier électrique ouvert, tuyau qui fuit, câble suspendu | au sol, pivote avec R (90°) ou au degré près (poignée, Angle) ; torche, tuyaux et boîtier contre un mur (hauteur réglable, comme une applique) ; câble au plafond |
 | Prefabs de la carte (format 10) | « + Créer… » (grouper du décor posé), « Importer… » (modèle .glb / .gltf), puis les prefabs de la carte ouverte (⚙ régler, ✕ supprimer) | comme le décor ; rangés dans le dossier de la carte (`docs/MAP_OBJECTS.md` § 11) |
 | Luminaires | lampe (historique), ampoule nue, suspension, néon, lustre, applique murale, lampe de bureau, projecteur de chantier, bougies, brasero | plafond, mur (applique) ou sol ; pivote avec R |
 | Effets (format 10, sous-onglets ; effets purs et zones : format 11) | **Flammes** : petit feu, grand feu, flammes de baril, flamme de torche, incendie ; **Fumées** : fumée légère, fumée noire épaisse, jet de vapeur, brouillard au sol ; **Étincelles** : pluie d'étincelles, gerbe de soudure, court-circuit ; **Électricité** : arc électrique, arcs en boule, étincelles de câble ; **Eau** : goutte-à-goutte, filet d'eau, ronds dans l'eau ; **Ambiance** : poussière, braises, cendres, feux follets (115) | au sol, au mur ou au plafond, par-dessus n'importe quoi ; zone agrandie aux poignées ; aucun objet, aucune collision |
@@ -553,8 +558,8 @@ de décor du catalogue) : **seulement du décor du catalogue posé au sol**. Son
 exclus, et listés avec leur raison dans la boîte : les **pièces** (une prefab
 se pose dans une pièce : ni sol, ni murs, ni zone), les **portes, fenêtres et
 passages** (ils relient des pièces ou donnent dehors), les **murs, piliers et
-barrières invisibles** (construction), les **objets de jeu** (armes, atouts,
-boîte, pièges, escaliers… : le jeu gère chacun), les **effets** et les
+barrières invisibles** (construction), les **objets de jeu** (caisse au
+hasard, pièges, escaliers… : le jeu gère chacun), les **effets** et les
 **luminaires** (ils ont leur propre zone ou leur lumière), le **décor mural
 ou au plafond** et les **autres prefabs de la carte**. Le point d'ancrage est
 le **centre de l'emprise** : la prefab se pose, s'aimante et pivote autour de
@@ -625,11 +630,11 @@ raison à côté du curseur (`MapRules`) :
   extérieur** d'une pièce (pas un mur commun, pas le bord d'une mezzanine), avec
   2,5 × 3 m de vide dehors : le jeu y construit la cour où les zombies
   apparaissent, derrière la fenêtre.
-- **Objets muraux** (atouts, armes, grenades, boîte, Pack-a-Punch, courant,
-  poste central, levier, applique) : dans une pièce, accrochés au mur le plus
+- **Objets muraux** (caisse au hasard, courant, poste central, levier,
+  applique) : dans une pièce, accrochés au mur le plus
   proche, **face vers l'intérieur** ; il faut du mur plein derrière (pas une
-  ouverture) et la place devant (boîte : 2 × 1 m ; atout, Pack-a-Punch :
-  1,5 × 1 m ; arme : 1 × 0,5 m), sans chevaucher un autre objet. Ils se posent
+  ouverture) et la place devant (caisse : 2 × 1 m ; poste central : 1 × 1 m ;
+  interrupteur, levier : 0,5 × 0,5 m), sans chevaucher un autre objet. Ils se posent
   aussi sur un **mur libre** (outil Mur, droit, en biais ou épais, et mur
   courbe), **des deux côtés** : face tournée vers le côté du curseur, sans
   dépasser les bouts du mur, à 0,25 m au moins de la face des murs de la pièce
@@ -637,13 +642,16 @@ raison à côté du curseur (`MapRules`) :
   un autre mur libre (ni, dans le creux d'un mur courbe, ses segments voisins).
   Ils suivent leur mur libre quand on le déplace ou le tourne (et partent avec
   lui s'il est supprimé).
-- **Boîte mystère** (format 15, docs/MAP_OBJECTS.md § 15) : au sol, n'importe
+- **Caisse au hasard** (type `boite`, format 15, docs/MAP_OBJECTS.md § 15) :
+  **une seule par carte**, fixe (au-delà : avertissement, seule la boîte
+  marquée `depart` d'une carte d'avant, sinon la première, est construite en
+  jeu). Au sol, n'importe
   où dans une pièce et tournée librement (emprise de 2 × 1 m tournée, à
   0,1 m au moins de la face des murs, sans chevauchement), ou contre un mur
   comme un objet mural : l'outil (et le glisser) la colle au mur quand le
   curseur en est à moins de 1,3 m, face à la pièce (Alt : sans aimant) ; si
-  ce mur la refuse, elle reste au sol. En jeu, une boîte au sol s'achète de
-  tous les côtés ; aucune boîte ne s'achète à travers un mur.
+  ce mur la refuse, elle reste au sol. En jeu, une caisse au sol s'achète de
+  tous les côtés ; aucune caisse ne s'achète à travers un mur.
 - **Objets au sol, pilier, escalier, zone de piège** : à l'intérieur d'une
   pièce, sans toucher ses murs, sans chevauchement (les lampes, au plafond,
   peuvent surplomber un objet ; un élément tourné compte par son rectangle
@@ -1052,8 +1060,7 @@ Erreurs (la carte est refusée) :
 - départ hors de la zone de départ, collé à un mur, ou à moins de 7 m de toutes
   les fenêtres de la zone de départ (le jeu n'y ferait apparaître aucun zombie) ;
 - objet mural qui ne touche pas de mur, sans la place devant, sans mur derrière ;
-- aucune boîte, deux « boîte (départ) », deux interrupteurs, deux distributeurs
-  du même atout, téléporteur sans arrivée, levier sans piège à moins de 10 m,
+- deux interrupteurs, téléporteur sans arrivée, levier sans piège à moins de 10 m,
   piège sans levier ;
 - passage de 0,5 m (trop étroit pour les zombies et les joueurs) ;
 - escalier dont le départ ou l'arrivée tombe dans un mur, le vide, une
@@ -1072,10 +1079,8 @@ Avertissements et indicateurs d'amusement (BO1, jamais bloquants) : boucles
 entre zones et coût pour les ouvrir, blocs autour desquels on tourne
 (« training », 25 à 40 m de tour), impasses (le départ doit avoir 2 sorties),
 passages obligés, courbe d'ouverture (la porte la moins chère d'abord ;
-première porte à 750-1000), emplacements de boîte (3 au moins, dans plusieurs
-zones), atouts et coût pour les atteindre, coin TITAN BREW (rôle du
-Juggernog : jamais dans la salle de départ), arme bon marché et LAZARUS au
-départ, distance à pied au plus loin d'une fenêtre (25-30 m au plus).
+première porte à 750-1000), zone de la caisse au hasard (facultative ; plus
+d'une : avertissement, seule la première sert), distance à pied au plus loin d'une fenêtre (25-30 m au plus).
 
 ## 6. Enregistrer, reprendre, partager
 
@@ -1265,7 +1270,7 @@ multijoueur ».
   **Liste blanche** des clés et des valeurs, tirée du catalogue de l'éditeur
   (`MapCatalog`) et donc des bases du jeu : types d'objets et d'ouvertures
   (champ `make` des objets du catalogue), clés de géométrie de chaque outil de
-  pose, atouts (`PerkDB`), armes (`WeaponDB`, `KnifeDB`), surfaces
+  pose, surfaces
   (`WorldLook.SURFACES`), musiques (`assets/audio/ambience_*`), directions ; une
   clé ou une valeur inconnue est refusée. Tout passe par **une seule fonction
   adaptatrice**, `CustomMapGuard.catalog_source()` : dès qu'elles existent,
@@ -1475,10 +1480,7 @@ une erreur).
   {"id":"x2","type":"escalier","altitude":0,"altitude_haut":3.5,"rect":[2.5,9.5,5,16],"monte":"n"},
   {"id":"m1","type":"mur","altitude":0,"a":[4,4],"b":[4,9],"epaisseur":0.5},
   {"id":"s1","type":"depart","altitude":0,"position":[12,26]},
-  {"id":"a2","type":"atout","atout":"titan","altitude":0,"position":[17,14],"mur":"e"},
-  {"id":"w1","type":"arme","arme":"m14","altitude":0,"position":[13.25,33],"mur":"s"},
-  {"id":"w2","type":"arme","arme":"mp5k","altitude":0,"position":[16,4],"mur":"n","angle":45},
-  {"id":"b2","type":"boite","altitude":0,"position":[20.5,29.25],"mur":"e","depart":true},
+  {"id":"b3","type":"boite","altitude":3.5,"position":[3.75,4.5],"mur":"n"},
   {"id":"t1","type":"piege","altitude":0,"rect":[5,5,7,9]},
   {"id":"c1","type":"courant","altitude":3.5,"position":[2.5,7.5],"mur":"o"},
   {"id":"e1","type":"evacuation","altitude":0,"position":[2.5,24],"mur":"o"},
@@ -1519,15 +1521,18 @@ une erreur).
   horaire depuis le nord), `ouverture` (5 à 360°, dans le sens horaire),
   `segments` (1 à 64), `epaisseur` :
   `{"id":"m1","type":"mur_courbe","altitude":0,"centre":[16,16],"rayon":7,"debut":290,"ouverture":100,"segments":8,"epaisseur":0.5}`.
-- Objets muraux (`atout` + `atout`, `arme` + `arme`, `grenades`, `boite` +
-  `depart`, `pap`, `courant`, `poste_central`, `levier`) : `position` = milieu
+- Objets muraux (`boite`, `courant`, `poste_central`, `levier`) : `position` = milieu
   de l'objet **sur le trait du mur**, `mur` = direction du mur vu depuis
   l'objet (`n` : le mur est au nord). Contre un mur en biais (format 3) :
   `angle` = direction exacte du mur vue depuis l'objet, en degrés dans le
   sens horaire depuis le nord (`n` = 0, `e` = 90, `s` = 180, `o` = 270 ; 45 :
   mur au nord-est), nombre fini de 0 à 360 ; `mur` garde la direction
-  cardinale la plus proche. Sans `angle`, l'objet suit `mur` comme avant. Identifiants d'atouts et d'armes : ceux
-  de `PerkDB` / `WeaponDB` / `KnifeDB` (`titan`, `lazarus`, `m14`, `bowie`…).
+  cardinale la plus proche. Sans `angle`, l'objet suit `mur` comme avant.
+  Types d'avant `atout`, `arme`, `grenades`, `pap` : encore lus, ignorés à
+  l'ouverture avec un avertissement (§ 3, `MapCatalog.REMOVED_TYPES`).
+- `boite` (caisse au hasard) : une seule par carte. `depart` (booléen) n'est
+  plus écrit par l'éditeur ; dans une carte d'avant à plusieurs boîtes, celle
+  marquée `depart` (sinon la première) est la seule construite en jeu.
 - Objets au sol (`depart`, `apparition`, `teleporteur`, `arrivee`, `lampe`,
   `caisse`, `baril`) : `position` = centre. Un seul départ : les 4 joueurs se
   placent autour ; 2 à 4 départs : un joueur sur chacun.
@@ -1535,7 +1540,7 @@ une erreur).
   à 359 (sens horaire vu de dessus ; à 0, l'avant, où s'ouvre le couvercle,
   est au sud), **sans** `mur` ni `angle` (c'est l'absence de `mur` qui la met
   au sol) ; contre un mur : comme les objets muraux ci-dessus, sans `rot` :
-  `{"id":"b4","type":"boite","altitude":0,"position":[7,28],"rot":45,"depart":false}`
+  `{"id":"b4","type":"boite","altitude":0,"position":[7,28],"rot":45}`
   (docs/MAP_OBJECTS.md § 15).
 - `prefab` (format 2) : `prefab` = une clé de `MapCatalog.PREFABS`
   (`gravats`, `gros_gravats`, `eboulis`, `debris_epars`, `planches`, `poutre`,
@@ -1558,7 +1563,7 @@ le catalogue.
   `objets.json`, `{"file", "required": [clés obligatoires], "keys": {clé:
   spec}}` ; spec = `{"t": "id"}` (identifiant a-z, 0-9, _), `{"t": "int" |
   "number", "min", "max"}`, `{"t": "bool"}`, `{"t": "enum", "values": [...]}`
-  (atouts, armes, prefabs, luminaires, directions, rotations…), `{"t":
+  (prefabs, luminaires, directions, rotations…), `{"t":
   "point"}` ([x, y] en m, nombres finis, négatifs compris, sans borne : format 17), `{"t": "rect"}`,
   `{"t": "color"}` (« #rrggbb »). Tout type ou toute clé absent est à refuser.
   Format 3 : `angle` des objets muraux et des luminaires = `{"t": "number",
@@ -1689,17 +1694,17 @@ et `_init_editor("res://assets/maps/<id>/", "<id>")`), une ligne dans
 ## 8. DRAFT ARENA
 
 Carte d'essai de 18 × 28,5 m sur 2 niveaux, 0 et 3,5 m (`assets/maps/draft_arena/`, format 17) :
-salle des machines (départ, M14, LAZARUS), couloir de service (MP5K, boîte de
-départ), entrepôt haut (plafond de 6,8 m) avec son pilier (TITAN BREW, boîte,
-escalier), atelier (ouvert sur l'entrepôt par un passage), passerelle au
-niveau 3,5 m, mezzanine de l'entrepôt (boîte, courant) ; portes 750 et 1000, débris 1250 ; 7 fenêtres.
+salle des machines (départ), couloir de service, entrepôt haut (plafond de
+6,8 m) avec son pilier et l'escalier, atelier (ouvert sur l'entrepôt par un
+passage), passerelle au niveau 3,5 m, mezzanine de l'entrepôt (caisse au
+hasard, courant) ; portes 750 et 1000, débris 1250 ; 7 fenêtres.
 Recréée dans ce format à partir de l'ancien dessin : même grille case par
 case, donc la même carte en jeu (mêmes salles, murs, escaliers, fenêtres,
-portes, zones et objets ; seules les deux armes murales se décalent de
-0,25 m). Rapport du validateur : 0 erreur, 0 avertissement ; boucle
-Couloir → Salle des machines → Atelier → Entrepôt (3000 points de portes),
-grande boucle de training de 63 m, passerelle en impasse (poste de camping),
-TITAN BREW à 1250 points de portes.
+portes, zones et objets). Ses atouts, armes murales et boîtes en trop ont
+été retirés (une seule caisse au hasard, sur la passerelle). Rapport du
+validateur : 0 erreur, 0 avertissement ; boucle Couloir → Salle des machines
+→ Atelier → Entrepôt (3000 points de portes), grande boucle de training de
+63 m, passerelle en impasse (poste de camping).
 
 Preuves automatiques :
 - `tests/test_map_editor.gd` : règles de pose (porte refusée sans deux pièces
@@ -1749,7 +1754,7 @@ Preuves automatiques :
   ARENA sans rien d'oblique.
 - `tests/autotest/map_editor_diagonal.gd` (captures) : octogone au polygone,
   losange à la Pièce rectangle + R, mur libre en biais, angle libre (Alt),
-  porte refusée puis posée en biais, fenêtres, arme et atout en biais,
+  porte refusée puis posée en biais, fenêtres, interrupteur en biais,
   vérification, format 3 ; puis TESTER : rayon et joueur arrêtés par le mur,
   zombies qui entrent par la fenêtre en biais et rejoignent le joueur en
   contournant le mur en biais sans le traverser, un rampant aussi.
@@ -1776,8 +1781,8 @@ Preuves automatiques :
   joueur sans traverser le pilier ni le mur courbe.
 - `tests/test_map_preview.gd` : l'aperçu 3D construit la même description et
   les mêmes nœuds que le jeu sur DRAFT ARENA (maillages, collisions,
-  `CollisionBox`, lampes identiques, portes, 7 fenêtres barricadées, atouts,
-  armes, boîte, courant, objets figés), carte inachevée affichée, mise à jour
+  `CollisionBox`, lampes identiques, portes, 7 fenêtres barricadées, caisse
+  au hasard, courant, objets figés), carte inachevée affichée, mise à jour
   toute seule après un ajout, une suppression et une annulation (seules les
   lampes refaites pour un luminaire), options (plafonds, courant, niveaux,
   éclairage plein), sélection par un rayon et surlignage, vue joueur arrêtée
@@ -1823,20 +1828,18 @@ hauteur, obstacles, barrières invisibles, décor, circulation, fenêtres,
 [`MAP_DESIGN_RULES.md`](MAP_DESIGN_RULES.md) ; elles priment sur ce résumé.
 
 - **Départ** : 150 à 250 m², 2 à 4 fenêtres à plus de 6 m du départ, deux
-  sorties (Kino : hall avec deux portes à 750), une arme à 500 au mur (M14 ou
-  Olympia), LAZARUS (Quick Revive).
+  sorties (Kino : hall avec deux portes à 750).
 - **Rythme des portes** : 750 pour la première, puis 1000, 1250 (Kino : 750,
   750, 1000, 1000, 1250 × 4) ; 5 à 10 portes ; ce qu'il y a derrière chaque
-  porte doit valoir le prix (une arme, un atout, un emplacement de boîte, le
-  courant, un raccourci qui ferme une boucle).
+  porte doit valoir le prix (la caisse au hasard, le courant, un piège, un
+  raccourci qui ferme une boucle).
 - **Boucles** : au moins une grande boucle de salles (Kino : deux) et un
   espace dégagé pour tourner autour d'un obstacle (25 à 40 m de tour) ;
   couloirs de 2 à 4 m, jamais moins de 1,5 m sur un trajet de training.
 - **Fenêtres** : environ une pour 50 à 80 m² de zone ; à moins de 25 m à pied
-  de tout point ; jamais dans le dos immédiat d'une arme au mur.
-- **Boîte** : un emplacement par grande salle (Kino : 9), départ souvent une
-  porte plus loin que le départ ; **courant** au bout d'un chemin qui coûte ;
-  **TITAN BREW** (Juggernog) derrière 1 à 3 portes, dans un coin défendable.
+  de tout point.
+- **Caisse au hasard** : une seule, fixe, souvent une porte plus loin que le
+  départ ; **courant** au bout d'un chemin qui coûte.
 - **Niveaux** : une passerelle ou un balcon donne un poste de tir et une impasse
   ; escaliers de 2 m ou plus de large pour que la horde passe.
 

@@ -16,10 +16,6 @@
       {"fr": "Doucement. De toute façon, tu ne sens plus rien.", "en": "Easy now. You feel nothing anyway."},
       {"fr": "Pas besoin de fusil pour dire au revoir.", "en": "No rifle needed to say goodbye."}
     ],
-    "kill_bowie": [
-      {"fr": "Une belle lame. Elle mérite mieux que toi.", "en": "A fine blade. It deserves better than you."},
-      {"fr": "Proprement. Ma mère détestait le gâchis.", "en": "Clean cut. My mother hated waste."}
-    ],
     "kill_explosive": [
       {"fr": "Boum. Et maintenant, il neige des morceaux.", "en": "Boom. Now it is snowing pieces."},
       {"fr": "Toute une rangée d'un coup. Économique.", "en": "A whole row at once. Economical."},
@@ -47,16 +43,6 @@
       {"fr": "Couché ! Pour toujours.", "en": "Down, boy. Forever."},
       {"fr": "Pauvre bête. Quelqu'un t'a fait ça, ce n'est pas ta faute.", "en": "Poor beast. Someone did this to you. Not your fault."}
     ],
-    "kill_ray": [
-      {"fr": "Le Claude-Ray. Il ne reste même pas de quoi enterrer.", "en": "The Claude-Ray. Not even enough left to bury."},
-      {"fr": "Un éclair, et plus personne. Science de fou.", "en": "One flash, and nobody left. Madman's science."},
-      {"fr": "Ce pistolet est un miracle. Je me méfie des miracles.", "en": "This gun is a miracle. I distrust miracles."}
-    ],
-    "kill_thunder": [
-      {"fr": "Le vent de la steppe, mis en bouteille !", "en": "The steppe wind, in a bottle!"},
-      {"fr": "Envolés, comme les feuilles en octobre.", "en": "Blown away like leaves in October."},
-      {"fr": "Le Tonnerre-Sept a parlé. Plus personne ne discute.", "en": "Thunder-Seven has spoken. Nobody argues now."}
-    ],
     "kill_trap": [
       {"fr": "Ça sent le poêle de ma grand-mère. En pire.", "en": "Smells like grandmother's stove. But worse."},
       {"fr": "Le piège a fait mon travail. Je le laisse faire.", "en": "The trap did my work. I let it."}
@@ -81,79 +67,6 @@
       {"fr": "Clic. Le son le plus triste du monde.", "en": "Click. Saddest sound in the world."},
       {"fr": "Plus de balles. Je vais leur jeter mes bottes.", "en": "No bullets. I will throw my boots at them."}
     ],
-    "buy_wall": [
-      {"fr": "Une arme accrochée au mur, comme une icône.", "en": "A gun hanging on the wall, like an icon."},
-      {"fr": "Des points contre un fusil. Drôle de marché.", "en": "Points for a rifle. Strange market."},
-      {"fr": "Je la prends. Elle a l'air plus fiable que moi.", "en": "I take it. It looks more reliable than me."}
-    ],
-    "buy_bowie": [
-      {"fr": "Un vrai couteau. Enfin une chose honnête, ici.", "en": "A real knife. Finally, something honest here."},
-      {"fr": "Si j'avais du pain, je le couperais avec.", "en": "If I had bread, I would slice it with this."}
-    ],
-    "box_good": [
-      {"fr": "Ah ! Pour une fois, la boîte a pitié de moi.", "en": "Ah! For once, the box takes pity on me."},
-      {"fr": "Une belle arme. Le destin se trompe parfois dans le bon sens.", "en": "A fine gun. Fate makes happy mistakes too."},
-      {"fr": "Avec ça, je tiens jusqu'au printemps.", "en": "With this, I last until spring."},
-      {"fr": "Voilà une arme de vrai soldat.", "en": "Now this is a soldier's weapon."}
-    ],
-    "box_bad": [
-      {"fr": "Ça ? Même un épouvantail n'en voudrait pas.", "en": "This? Even a scarecrow would refuse it."},
-      {"fr": "La boîte se moque de moi. Comme tout le monde.", "en": "The box mocks me. Like everyone does."},
-      {"fr": "Nou ladno. On fera avec, comme toujours.", "en": "Nu ladno. We make do, as always."},
-      {"fr": "J'ai demandé un fusil, j'ai reçu une plaisanterie.", "en": "I asked for a rifle. I got a joke."}
-    ],
-    "box_shotgun": [
-      {"fr": "Un fusil à pompe. Pour les conversations de près, et très fortes.", "en": "A shotgun. For close, very loud conversations."},
-      {"fr": "Mon oncle chassait le sanglier avec un comme ça. Ceux-là sont plus laids.", "en": "My uncle hunted wild boar with one like this. These are uglier."}
-    ],
-    "box_sniper": [
-      {"fr": "Un fusil à lunette. Ici, tout est bien trop près pour ça.", "en": "A scoped rifle. Everything here is far too close for that."},
-      {"fr": "Une lunette. Je pourrai les voir mourir de loin. Quel luxe.", "en": "A scope. Now I can watch them die from far away. Such luxury."}
-    ],
-    "box_lmg": [
-      {"fr": "Une mitrailleuse ! Elle pèse autant qu'un veau. Je l'aime déjà.", "en": "A machine gun! Heavy as a calf. I love it already."},
-      {"fr": "Enfin une arme à ma taille. Davaï, qu'ils viennent tous.", "en": "Finally, a gun my size. Davai, let them all come."}
-    ],
-    "box_launcher": [
-      {"fr": "Un lance-grenades. Je vais labourer ce théâtre comme un champ.", "en": "A grenade launcher. I will plough this theater like a field."},
-      {"fr": "Des explosions à volonté. Restez loin de moi, mes amis.", "en": "Explosions on demand. Stay well away from me, friends."}
-    ],
-    "box_ray": [
-      {"fr": "Le Claude-Ray ! Enfin un peu de chance dans cette vie.", "en": "The Claude-Ray! Finally, some luck in this life."},
-      {"fr": "Ce pistolet brille comme la lune sur la neige.", "en": "This pistol shines like moonlight on snow."}
-    ],
-    "box_thunder": [
-      {"fr": "Le Tonnerre-Sept. Je tiens l'orage dans mes mains.", "en": "Thunder-Seven. I hold the storm in my hands."},
-      {"fr": "Avec ça, je balaie la cour comme une babouchka.", "en": "With this, I sweep the yard like a babushka."}
-    ],
-    "box_monkey": [
-      {"fr": "Des singes à tambour. Le monde est vraiment devenu fou.", "en": "Drum monkeys. The world has truly gone mad."},
-      {"fr": "Petit singe, tu mourras en héros. Comme nous tous.", "en": "Little monkey, you will die a hero. Like all of us."}
-    ],
-    "box_teddy": [
-      {"fr": "L'ours rit de moi. Même les jouets me méprisent.", "en": "The bear laughs at me. Even toys despise me."},
-      {"fr": "Chez nous, les ours vivent dans la forêt, pas dans les boîtes.", "en": "Where I come from, bears live in forests, not boxes."},
-      {"fr": "Elle s'en va. Tout finit par s'en aller.", "en": "It leaves. Everything leaves in the end."},
-      {"fr": "Adieu, boîte. Tu étais la seule à me faire des cadeaux.", "en": "Goodbye, box. You were the only one who gave me presents."}
-    ],
-    "box_firesale": [
-      {"fr": "Liquidation ! Des armes au prix du pain rassis.", "en": "Fire Sale! Guns for the price of stale bread."},
-      {"fr": "Dix points la boîte ? Même moi, je peux payer ça.", "en": "Ten points a box? Even I can afford that."}
-    ],
-    "pap_upgrade": [
-      {"fr": "Mange, machine. Et rends-moi quelque chose de méchant.", "en": "Eat, machine. Give me back something mean."},
-      {"fr": "Mon arme dans la gueule du diable. Bonne chance, petite.", "en": "My gun in the devil's mouth. Good luck, little one."},
-      {"fr": "Cette machine fait plus de bruit qu'un char.", "en": "This machine is louder than a tank."}
-    ],
-    "pap_wait": [
-      {"fr": "Elle grogne, elle mâche... Pire qu'un moulin à grain.", "en": "It growls, it chews... Worse than a grain mill."},
-      {"fr": "Dépêche-toi, machine. Dehors, les morts ne sont pas patients.", "en": "Hurry up, machine. Out there, the dead are not patient."}
-    ],
-    "pap_take": [
-      {"fr": "Elle revient changée. Comme moi après la guerre.", "en": "It came back changed. Like me after the war."},
-      {"fr": "Ah, elle chante maintenant. Une chanson lourde et triste.", "en": "Ah, it sings now. A heavy, sad song."},
-      {"fr": "Plus lourde, plus méchante. Parfaite.", "en": "Heavier, meaner. Perfect."}
-    ],
     "no_money": [
       {"fr": "Pas assez de points. Même ici, je suis pauvre.", "en": "Not enough points. Even here, I am poor."},
       {"fr": "Toute ma vie, les poches vides.", "en": "My whole life, empty pockets."}
@@ -162,71 +75,11 @@
       {"fr": "Morte, cette machine. Il faut d'abord rallumer le courant.", "en": "This machine is dead. First we need the power back."},
       {"fr": "Pas de lumière, pas de miracle. Quelqu'un doit tirer le levier.", "en": "No light, no miracle. Somebody has to pull the lever."}
     ],
-    "buy_ammo": [
-      {"fr": "Des balles neuves. Ma mère achetait la farine comme ça, au sac.", "en": "Fresh bullets. Mother bought flour like this, by the sack."},
-      {"fr": "Plein de balles. Cette nuit, je dormirai presque tranquille.", "en": "Full of bullets again. Tonight, I will almost sleep well."}
-    ],
     "reload": [
       {"fr": "Je recharge ! Couvrez le vieux Micha.", "en": "Reloading! Cover old Misha."},
       {"fr": "Je change de chargeur ! Tenez-les une seconde.", "en": "Swapping magazines! Hold them one second."},
       {"fr": "Je recharge ! Ne me regardez pas, regardez-les.", "en": "Reloading! Do not watch me, watch them."},
       {"fr": "Attendez, je remplis ! Nou ladno, ça vient.", "en": "Wait, filling up! Nu ladno, almost there."}
-    ],
-    "perk_titan": [
-      {"fr": "Titan Brew. Ça brûle comme le vent de janvier.", "en": "Titan Brew. Burns like the January wind."},
-      {"fr": "Je me sens comme un mur. Un grand mur triste.", "en": "I feel like a wall. A big, sad wall."}
-    ],
-    "perk_rapid": [
-      {"fr": "Rapid Fizz. Ça pique, comme un thé servi trop chaud.", "en": "Rapid Fizz. Stings like tea poured too hot."},
-      {"fr": "Mes mains vont vite. Ma tête, toujours lente.", "en": "My hands are fast now. My head, still slow."}
-    ],
-    "perk_twin": [
-      {"fr": "Twin Shot. Tout en double, même le chagrin.", "en": "Twin Shot. Everything doubled, even sorrow."},
-      {"fr": "Un goût de cerise pourrie. Délicieux.", "en": "Tastes like rotten cherries. Delicious."}
-    ],
-    "perk_lazarus": [
-      {"fr": "Lazarus Tonic. Si je tombe, relevez-moi comme un sac de patates.", "en": "Lazarus Tonic. If I fall, lift me like a sack of potatoes."},
-      {"fr": "Ça a le goût de l'église et de la vieille cire.", "en": "Tastes like church and old candle wax."}
-    ],
-    "perk_stride": [
-      {"fr": "Stride Soda. Maintenant, je cours comme un lièvre des neiges.", "en": "Stride Soda. Now I run like a snow hare."},
-      {"fr": "Courir plus vite ? J'ai déjà fui assez de choses dans ma vie.", "en": "Run faster? I have fled enough things in my life."}
-    ],
-    "perk_nova": [
-      {"fr": "Nova Flop. Je vais plonger comme un ours dans la rivière.", "en": "Nova Flop. I will dive like a bear into the river."},
-      {"fr": "Je tombe, et tout explose. Enfin un talent utile.", "en": "I fall and everything explodes. Finally, a useful talent."}
-    ],
-    "perk_deadeye": [
-      {"fr": "Deadeye Dram. Maintenant, je vois chaque flocon.", "en": "Deadeye Dram. Now I can see every snowflake."},
-      {"fr": "Mon œil est clair. Mon cœur, toujours pas.", "en": "My eye is clear. My heart, still not."}
-    ],
-    "pw_max_ammo": [
-      {"fr": "Munitions max ! Mieux qu'un colis de ma mère.", "en": "Max Ammo! Better than a parcel from my mother."},
-      {"fr": "Les chargeurs sont pleins. On mourra plus tard.", "en": "Magazines full. We can die later."}
-    ],
-    "pw_insta_kill": [
-      {"fr": "Mort instantanée ! Un souffle, et ils tombent.", "en": "Insta-Kill! One breath and they drop."},
-      {"fr": "Chaque coup est le dernier. Pour eux, cette fois.", "en": "Every blow is the last. For them, this time."}
-    ],
-    "pw_double_points": [
-      {"fr": "Points doubles. Enfin, la guerre paie un peu.", "en": "Double Points. At last, war pays something."},
-      {"fr": "Le double ? Davaï, chaque mort compte deux fois !", "en": "Double? Davai, every corpse counts twice!"}
-    ],
-    "pw_nuke": [
-      {"fr": "Bombe nucléaire ! Le silence, comme après la tempête de neige.", "en": "Nuke! Silence, like after a blizzard."},
-      {"fr": "Tout le monde à terre. Sauf nous, heureusement.", "en": "Everyone down. Except us, luckily."}
-    ],
-    "pw_carpenter": [
-      {"fr": "Charpentier ! Mon père aurait aimé celui-là.", "en": "Carpenter! My father would have liked that one."},
-      {"fr": "Les planches reviennent. Si seulement mon village revenait aussi.", "en": "The boards come back. If only my village did too."}
-    ],
-    "pw_fire_sale": [
-      {"fr": "Liquidation ! Même le destin fait des soldes.", "en": "Fire Sale! Even fate gives a discount."},
-      {"fr": "Toutes les boîtes ouvertes. Vite, avant qu'elles changent d'avis.", "en": "Every box open. Quick, before they change their minds."}
-    ],
-    "pw_death_machine": [
-      {"fr": "La Faucheuse ! Je deviens l'hiver en personne.", "en": "Death Machine! I become winter itself."},
-      {"fr": "Qu'elle chante, la Faucheuse. Je fais la moisson.", "en": "Let the Death Machine sing. I bring in the harvest."}
     ],
     "downed": [
       {"fr": "Je tombe... Comme la neige. Doucement.", "en": "I fall... like snow. Softly."},
@@ -352,10 +205,6 @@
       {"fr": "Attrape ! Et ne la rends pas.", "en": "Catch! And do not give it back."},
       {"fr": "Une pomme de fer pour vous. Bon appétit.", "en": "An iron apple for you. Enjoy your meal."}
     ],
-    "throw_monkey": [
-      {"fr": "Va, petit singe. Joue-leur ta dernière chanson.", "en": "Go, little monkey. Play them your last song."},
-      {"fr": "Singe-Tambour ! Suivez la musique, pauvres idiots.", "en": "Drum Monkey! Follow the music, poor fools."}
-    ],
     "idle": [
       {"fr": "Ce silence... À Stalingrad, ça voulait dire qu'on rechargeait en face.", "en": "This silence... In Stalingrad, it meant the other side was reloading."},
       {"fr": "Du thé noir et un morceau de pain. Je ne demande rien d'autre.", "en": "Black tea and a crust of bread. I ask for nothing more."},
@@ -367,14 +216,6 @@
       {"fr": "Ma mère disait que j'avais des mains de musicien. Elle était gentille.", "en": "Mother said I had a musician's hands. She was being kind."},
       {"fr": "Après tout ça, je veux un jardin de choux. Et pas de visiteurs.", "en": "After all this, I want a cabbage garden. And no visitors."},
       {"fr": "On dit que les morts n'ont pas froid. Moi, j'ai froid pour eux.", "en": "They say the dead feel no cold. I feel cold for them."}
-    ],
-    "resp_box_bad": [
-      {"fr": "Ce pistolet te va bien. Petit, et un peu ridicule.", "en": "That pistol suits you. Small, and a bit ridiculous."},
-      {"fr": "Avec ça, tu pourras chatouiller les morts. Bon courage, frère.", "en": "With that, you can tickle the dead. Good luck, brother."}
-    ],
-    "resp_wonder": [
-      {"fr": "Une arme pareille, et c'est toi qui l'as ? Le monde est injuste.", "en": "A weapon like that, and you got it? The world is unfair."},
-      {"fr": "Garde-la bien. Et si tu tombes, c'est moi qui la ramasse.", "en": "Keep it safe. And if you fall, I am the one picking it up."}
     ],
     "tease_callahan": [
       {"fr": "Callahan crie si fort que même les morts se bouchent les oreilles.", "en": "Callahan shouts so loud, even the dead cover their ears."},

@@ -13,7 +13,7 @@ extends AutotestScenario
 
 var PORT := 17995 + MpHelpers.port_offset()
 var ed: MapEditor
-## Boîte mystère posée au sol (format 15) : centre dans la salle des machines.
+## Caisse au hasard posée au sol (format 15) : centre dans la salle des machines.
 const BOX_AT := [7.0, 28.0]
 
 
@@ -75,8 +75,10 @@ func run() -> void:
 	# profondeur), vu par l'invité en jeu ; une seule action.
 	var avant_cid := String(ed.collab.submit_ops([{"op": "put", "coll": "objets", "el": {"id": "avant_test", "type": "caisse", "altitude": 0, "position": [12.0, 10.0]}},
 		{"op": "put", "coll": "objets", "el": {"id": "echelle_test", "type": "prefab", "prefab": "flaque_eau", "altitude": 0, "position": [12.0, 8.0], "echelle": [2, 2, 1]}},
-		# Format 15 : boîte posée au sol, tournée de 45°, dans la salle des machines.
-		{"op": "put", "coll": "objets", "el": {"id": "boite_sol", "type": "boite", "altitude": 0, "position": BOX_AT, "rot": 45, "depart": false}}], "caisse").cid)
+		# Format 15 : caisse posée au sol, tournée de 45°, dans la salle des
+		# machines ; elle remplace celle de la passerelle (une seule par carte).
+		{"op": "del", "coll": "objets", "id": "b3"},
+		{"op": "put", "coll": "objets", "el": {"id": "boite_sol", "type": "boite", "altitude": 0, "position": BOX_AT, "rot": 45, "depart": true}}], "caisse").cid)
 
 	# ---------------------------------------------------------------- 1er test : fin de partie
 	at.check(ed.test_map(), "TESTER lancé (session avec un invité)")
@@ -95,47 +97,23 @@ func run() -> void:
 	var pt := CollabPlaytest.current
 	at.check(pt != null and pt.collab != null and pt.collab.get_parent() == pt, "session d'édition tenue hors de la scène pendant la partie")
 	at.check(pt.collab.role == MapCollab.Role.HOST and pt.collab.human_guests().size() == 1, "session toujours ouverte, invité toujours là")
-	# Format 15 : l'invité achète à la boîte posée au sol (amenée à son
-	# emplacement, arme imposée par le serveur).
+	# Format 15 : l'invité achète à la caisse posée au sol (objet imposé par
+	# le serveur).
 	var box: MysteryBox = game.interact.get_obj("box")
-	var fi := -1
-	for i in box.spots.size():
-		if bool(box.spots[i].get("floor", false)):
-			fi = i
-	at.check(fi >= 0, "emplacement de boîte au sol en jeu")
+	at.check(box != null and bool(box.spot.get("floor", false)), "caisse au sol en jeu")
 	var guest := 0
 	for pid in game.players:
 		if int(pid) != 1:
 			guest = int(pid)
-	if fi >= 0 and guest != 0:
-		box._move_to(fi)
-		box.broadcast_state()
-		var want := "galil" if WeaponDB.exists("galil") else String(WeaponDB.box_pool().keys()[0])
-		box.force_result = want
+	if box != null and guest != 0:
+		box.force_result = "frag"
 		game.session.add_points(guest, 5000)
-		var wf := FileAccess.open(MpHelpers.sync_dir().path_join("arme.txt"), FileAccess.WRITE)
-		wf.store_string(want)
-		wf.close()
+		var gpd := game.session.get_data(guest)
+		var pts := gpd.points if gpd != null else 0
 		MpHelpers.signal_peer("boite_prete")
 		if not await MpHelpers.wait_peer(self, "boite_achetee", 40.0):
 			return
-		var gpd := game.session.get_data(guest)
-		at.check(box.state == MysteryBox.State.IDLE and gpd != null and gpd.has_weapon(want) >= 0, "serveur : l'invité a acheté à la boîte au sol (%s)" % want)
-		# Boîte sur la passerelle (étage 1) : l'invité, dessous à l'étage 0,
-		# envoie quand même la demande d'achat -> refusée par l'hôte.
-		var up := -1
-		for i in box.spots.size():
-			if (box.spots[i].pos as Vector3).y > 2.0:
-				up = i
-		if up >= 0 and gpd != null:
-			box._move_to(up)
-			box.broadcast_state()
-			var pts := gpd.points
-			MpHelpers.signal_peer("boite_haut")
-			if not await MpHelpers.wait_peer(self, "tente_dessous", 30.0):
-				return
-			await seconds(0.5)
-			at.check(box.state == MysteryBox.State.IDLE and gpd.points == pts, "hôte : achat de l'invité sous la boîte refusé")
+		at.check(box.state == MysteryBox.State.IDLE and gpd != null and gpd.points == pts - MysteryBox.COST, "serveur : l'invité a acheté à la caisse au sol")
 	MpHelpers.signal_peer("en_jeu")
 	# Changement de l'invité en pleine partie : la session marche toujours.
 	if not await until(func(): return not pt.collab.doc.find("pendant_test").is_empty(), 20.0, "changement de l'invité reçu pendant la partie"):

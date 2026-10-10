@@ -9,12 +9,12 @@ carte DRAFT ARENA, même style que `docs/editor_views_mockup/`). Elle montre
    suit, panneau Propriétés (Échelle, Rotation) ;
 2. inclinaison d'une poutre à +30° par le gizmo à 3 anneaux de la vue 3D,
    avec la vue Avant (anneau Y) et la vue Dessus ;
-3. prefab contenant un Pack-a-Punch : poignées d'échelle bloquées et
+3. prefab contenant un téléporteur : poignées d'échelle bloquées et
    avertissement.
 
 Demande : changer l'échelle des objets décoratifs et des prefabs, et les
 faire pivoter comme dans Fusion 360 ou SolidWorks. Un objet comme le
-Pack-a-Punch ne change jamais d'échelle ; un prefab qui en contient un non
+téléporteur ne change jamais d'échelle ; un prefab qui en contient un non
 plus, et l'éditeur le dit.
 
 S'appuie sur `docs/EDITOR_VIEWS.md` (vues, ViewCube, axes X rouge #E5484D /
@@ -26,7 +26,7 @@ les conventions sans les changer.
 | # | Décision |
 |---|---|
 | E1 | Seul le **décor de type `prefab`** change d'échelle : décor du catalogue (« Décor et obstacles », au sol, mural ou au plafond) et **prefabs de la carte** (groupe ou modèle importé). Tout le reste garde sa taille ou ses propres poignées (§ 1). |
-| E2 | Un **prefab de la carte** qui contient un objet non redimensionnable (objet de jeu) est **bloqué** : pas de poignées d'échelle, champs grisés, message qui **nomme l'objet** (« contient un Pack-a-Punch »). Calculé d'après sa définition, jamais écrit dans le fichier. |
+| E2 | Un **prefab de la carte** qui contient un objet non redimensionnable (objet de jeu) est **bloqué** : pas de poignées d'échelle, champs grisés, message qui **nomme l'objet** (« contient un téléporteur »). Calculé d'après sa définition, jamais écrit dans le fichier. |
 | E3 | Échelle **par axe** (largeur X, profondeur Y, hauteur Z, dans le repère de l'objet) et **uniforme** (cadenas du panneau, poignées de coin). Bornes **0,25× à 4×** par axe ; dimension finale de 0,05 à 30 m, emprise au sol de 20 m au plus. |
 | E4 | Pas de l'échelle selon l'aimantation : **grille 1 m → 0,25**, **grille fine → 0,05**, **libre → 0,01** avec aimants (×1, ×0,5, ×2, taille d'un décor voisin). Maj inverse, comme partout. |
 | E5 | **Rotation à 3 axes** façon Fusion 360 : anneaux par axe (gizmo), crans de **15°**, **Maj (ou Alt, comme la poignée ronde d'avant) = libre** au degré près, angle affiché pendant le geste, valeur tapée au clavier, champs **Rotation X / Y / Z** dans Propriétés. Anneaux alignés sur les **axes du monde**. |
@@ -54,7 +54,7 @@ Relevé dans `MapCatalog` (`_build`, `PREFABS`, `LIGHTS`, `EFFECTS`,
 | Caisse, baril (types historiques du format 1) | non (bloc sur la grille, pas de rotation) : utiliser « Pile de caisses » ou « Tonneaux » | non | non |
 | Luminaires, lampe | non dans cette version (Q1) | oui / non (existe) | non |
 | Effets (flammes, fumées…) | non : leur **zone** a déjà ses poignées (format 11) | oui au sol et au plafond (existe) | non |
-| **Objets de jeu** : atouts, armes murales et couteau, grenades, boîte mystère (et boîte de départ), **Pack-a-Punch**, interrupteur du courant, poste central, levier de piège, téléporteur, arrivée du téléporteur, départ des joueurs, zombie qui sort du sol | **jamais** : taille fixe (lisibilité BO1, zones d'achat et d'interaction, tableaux de prix) | comme aujourd'hui (objets muraux : suivent leur mur) | **jamais** |
+| **Objets de jeu** : caisse au hasard, interrupteur du courant, poste central, levier de piège, téléporteur, arrivée du téléporteur, départ des joueurs, zombie qui sort du sol | **jamais** : taille fixe (lisibilité, zones d'achat et d'interaction) | comme aujourd'hui (objets muraux : suivent leur mur) | **jamais** |
 | **Ouvertures** : porte payante, débris à dégager, porte du courant, passage, fenêtre à zombies (fenêtre, porte simple ou double : barricades) | **jamais** (seule la `largeur` des portes et passages, existante) | suivent leur mur | **jamais** |
 | **Construction** : pièces, murs, murs courbes, piliers, escaliers, pièges électriques, barrière invisible, zones | **jamais** : elles ont leurs propres dimensions et poignées (rectangle, sommets, plafond, hauteur) | comme aujourd'hui (poignée ronde) | **jamais** |
 
@@ -77,19 +77,19 @@ création de prefab) peut y mettre des objets de jeu ; la règle est donc
 - Prefab bloqué :
   - **vues** : pas de poignées d'échelle ; aux coins, des **cadenas gris**
     (#55555C) ; survol d'un cadenas : curseur interdit et bulle « Échelle
-    bloquée par : Pack-a-Punch » ;
+    bloquée par : téléporteur » ;
   - **panneau Propriétés** : champs d'échelle grisés et cadenas, encadré
     d'avertissement : « Ce prefab ne peut pas changer d'échelle : il contient
-    un Pack-a-Punch. Les objets de jeu (atouts, armes murales, boîte,
-    Pack-a-Punch, portes, fenêtres…) gardent leur taille. » ;
+    un téléporteur. Les objets de jeu (caisse au hasard, téléporteur,
+    portes, fenêtres…) gardent leur taille. » ;
   - **inclinaison** grisée de même (« objet de jeu : reste droit ») ; la
     rotation Z reste permise ;
   - **barre d'état** au moindre essai (raccourci, champ, MCP) : « Échelle
-    impossible : « Coin Pack-a-Punch » contient un Pack-a-Punch (objet de jeu
+    impossible : « Coin téléporteur » contient un téléporteur (objet de jeu
     à taille fixe) » ;
-  - **inventaire** : la bulle du prefab ajoute « échelle fixe (Pack-a-Punch) ».
+  - **inventaire** : la bulle du prefab ajoute « échelle fixe (téléporteur) ».
 - Nommage : le nom de l'objet dans la langue du jeu ; 2 noms au plus puis
-  « et 3 autres » (« contient un Pack-a-Punch, l'atout Juggernog et 2 autres »).
+  « et 3 autres » (« contient un téléporteur, une caisse au hasard et 2 autres »).
 - Si la définition d'un prefab change (travail en cours) et devient bloquée
   alors que des copies posées ont une échelle ≠ 1 : le changement est
   **refusé** (« 3 copies posées sont redimensionnées : remettez-les à ×1 ») ;
@@ -107,8 +107,8 @@ création de prefab) peut y mettre des objets de jeu ; la règle est donc
 - **Échelle d'un groupe** : seulement si **tous** les éléments sont
   redimensionnables (Q2). Positions et échelles multipliées depuis le centre
   (ou le coin opposé). Sinon : cadenas gris et message qui nomme le premier
-  élément bloquant (« Échelle impossible : la sélection contient l'atout
-  Juggernog »).
+  élément bloquant (« Échelle impossible : la sélection contient une caisse
+  au hasard »).
 
 ## 2. Échelle
 
@@ -356,7 +356,7 @@ Après la ligne Position (X, Y, Z) existante, deux sections :
   direct, en contour pulsé comme aujourd'hui.
 - **MCP** (`map_agent_link.gd`, serveur MCP du jeu `scripts/mcp/`, docs/MCP.md) :
   - `editor_apply` : `put` avec `echelle` / `incl` ; un refus rend la raison
-    qui nomme l'objet (« échelle impossible : contient un Pack-a-Punch ») ;
+    qui nomme l'objet (« échelle impossible : contient un téléporteur ») ;
   - `editor_get_element` ajoute `dimensions` [l, p, h] finales,
     `echelle_possible`, `inclinaison_possible` et `raison` ;
   - `editor_catalog` marque `echelle: false` sur les objets non
@@ -374,7 +374,7 @@ droit et la création de prefab (mêmes fichiers).
 
 | Étape | Contenu | Fichiers | Tests |
 |---|---|---|---|
-| **1. Modèle et règles** | `MapScale` (nouveau, logique pure) : `scalable`, `tiltable`, raisons nommées, `dims`, boîte orientée, emprise, pavés transformés, `unscalable_parts` ; format 14 (lecture, tidy, schéma, contrôle) ; règles de pose et `MapVertical` avec la boîte orientée | nouveau `scripts/editor/map_scale.gd` ; `map_catalog.gd`, `editor_map.gd`, `map_rules.gd`, `map_vertical.gd`, `map_raster.gd`, `map_validator.gd`, `map_prefab_lib.gd`, `custom_map_guard.gd` | `tests/test_map_scale.gd` : tableau du § 1.1 type par type, prefab avec Pack-a-Punch bloqué et message, bornes, aller-retour format 14, carte 13 inchangée, carte reçue hors bornes refusée, boîte orientée (rot 37°, incl 30°) |
+| **1. Modèle et règles** | `MapScale` (nouveau, logique pure) : `scalable`, `tiltable`, raisons nommées, `dims`, boîte orientée, emprise, pavés transformés, `unscalable_parts` ; format 14 (lecture, tidy, schéma, contrôle) ; règles de pose et `MapVertical` avec la boîte orientée | nouveau `scripts/editor/map_scale.gd` ; `map_catalog.gd`, `editor_map.gd`, `map_rules.gd`, `map_vertical.gd`, `map_raster.gd`, `map_validator.gd`, `map_prefab_lib.gd`, `custom_map_guard.gd` | `tests/test_map_scale.gd` : tableau du § 1.1 type par type, prefab avec téléporteur bloqué et message, bornes, aller-retour format 14, carte 13 inchangée, carte reçue hors bornes refusée, boîte orientée (rot 37°, incl 30°) |
 | **2. Jeu** | Export `basis`, `CollisionBox` orienté, cases des trajets, aperçu 3D | `map_layout_export.gd`, `mesh_map_builder.gd`, `collision_box.gd`, `map_preview_world.gd` | unitaires : layout identique sans les clés, pavés à l'échelle ; scénario de partie `map_decor_scale` : pile de caisses ×1,5 et poutre inclinée de 30° (rayon arrêté sur la pente, joueur arrêté, zombie qui contourne) |
 | **3. Panneau** | Sections Échelle et Rotation, cadenas, ↺, Rester posé, messages | `map_panels.gd` | scénario `map_scale_panel` : champs, une annulation par champ, prefab bloqué grisé |
 | **4. Poignées d'échelle** | Dessus et élévations, aimantation, Alt, cotes, valeur tapée, cadenas gris | `map_canvas.gd`, `views/map_elevation_tools.gd`, `map_editor.gd` | unitaires de géométrie des poignées ; scénario `map_scale_handles` (coin ×1,5, face X, losange Z, prefab bloqué) |
@@ -412,7 +412,7 @@ Les trois questions ouvertes ont été tranchées par l'utilisateur
 2. **Q2. Sélection mixte** (décor + objet de jeu) : l'échelle du groupe est
    **bloquée**, même règle que pour un prefab : cadenas gris et message qui
    nomme le premier élément bloquant (« Échelle impossible : la sélection
-   contient l'atout Juggernog », `MapScale.group_refusal`).
+   contient une caisse au hasard », `MapScale.group_refusal`).
 3. **Q3. Axes des anneaux** : **axes du monde seulement** ; le repère local
    (bascule « Local » de Fusion 360) pourra venir plus tard par une touche.
 

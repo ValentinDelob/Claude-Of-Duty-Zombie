@@ -120,7 +120,6 @@ const RECIPES := {
 	"knife_swing": {"preset": "foley", "layers": [{"src": "389690", "len": 0.5, "fade_out": 0.15}], "room": [0.2, 0.05, 0.15, 0.5]},
 	"knife_hit": {"preset": "foley", "layers": [{"src": "276600", "len": 0.5, "fade_out": 0.2}]},
 	"knife_flesh": {"preset": "foley", "layers": [{"src": "635049", "start": 3.7, "end": 4.32, "fade_out": 0.06}]},
-	"bowie_draw": {"preset": "mech", "layers": [{"src": "466216", "len": 1.0, "fade_out": 0.4}]},
 	# ------------------------------------------------------------ impacts sur les zombies
 	"flesh_hit_1": {"preset": "foley", "layers": [{"src": "423301", "start": 0.0, "end": 0.3, "fade_out": 0.06}]},
 	"flesh_hit_2": {"preset": "foley", "layers": [{"src": "423301", "start": 0.31, "end": 0.65, "fade_out": 0.06}]},
@@ -233,18 +232,6 @@ const RECIPES := {
 	"dive_land": {"preset": "foley", "layers": [{"src": "417994", "len": 1.0, "fade_out": 0.4},
 		{"src": "82027", "gain": -4.0, "fade_out": 0.1}]},
 	# ------------------------------------------------------------ armes spéciales
-	# FAUCHEUSE (20 coups/s) : un coup très court, les suivants se chevauchent.
-	"minigun_fire": {"preset": "gun", "layers": [{"src": "500304", "start": 0.0, "end": 0.16, "fade_out": 0.07},
-		{"src": "854179", "gain": -5.0, "len": 0.1, "fade_out": 0.06}], "room": [0.4, 0.1, 0.25, 0.45], "loud": -5.0},
-	# TONNERRE-7 : détonation d'air comprimé, boum grave, tonnerre qui roule.
-	"thunder_fire": {"preset": "explosion", "layers": [{"src": "245974", "start": 0.0, "end": 0.9, "fade_out": 0.3},
-		{"src": "814046", "gain": -3.0, "len": 1.6, "fade_out": 0.8},
-		{"src": "436790", "gain": -4.0, "at": 0.05, "len": 2.6, "fade_out": 1.2}], "max_len": 4.0},
-	"thunder_charge": {"preset": "mech", "layers": [{"src": "521509", "len": 0.8, "fade_in": 0.15, "fade_out": 0.1},
-		{"src": "815879", "start": 1.3, "end": 1.87, "gain": -2.0, "at": 0.55, "fade_out": 0.05}], "max_len": 2.0},
-	# NOVA (PhD) : explosion « d'un autre monde » et crépitement électrique violet.
-	"nova_blast": {"preset": "explosion", "layers": [{"src": "814046", "len": 2.2, "fade_out": 1.0},
-		{"src": "536793", "start": 0.0, "end": 1.3, "gain": -7.0, "hp": 800.0, "fade_out": 0.5}]},
 	# Couche électrique des tirs Pack-a-Punchés (BO1).
 	"pap_zap_1": {"preset": "zap", "layers": [{"src": "512471", "fade_out": 0.06}]},
 	"pap_zap_2": {"preset": "zap", "layers": [{"src": "143565", "len": 0.3, "fade_out": 0.12}]},
@@ -331,8 +318,6 @@ const SOURCES := {
 		"url": "https://cdn.freesound.org/previews/276/276600_464940-hq.ogg"},
 	"635049": {"author": "sillygrizzlies", "title": "Flesh Stabs and Slashes 2",
 		"url": "https://cdn.freesound.org/previews/635/635049_5756735-hq.ogg"},
-	"466216": {"author": "Harrisando", "title": "UnsheathingSmallKnife.wav",
-		"url": "https://cdn.freesound.org/previews/466/466216_9855691-hq.ogg"},
 	"423301": {"author": "u1769092", "title": "VisceralBulletImpacts.wav",
 		"url": "https://cdn.freesound.org/previews/423/423301_8202639-hq.ogg"},
 	"511194": {"author": "Pablobd", "title": "Headshot.wav",
@@ -455,18 +440,6 @@ const SOURCES := {
 	"82027": {"author": "raubana", "title": "Body Fall Over.wav",
 		"url": "https://cdn.freesound.org/previews/82/82027_1178110-hq.ogg"},
 	# -- armes spéciales, électricité
-	"500304": {"author": "Bratish", "title": "Minigun Fire",
-		"url": "https://cdn.freesound.org/previews/500/500304_9995328-hq.ogg"},
-	"245974": {"author": "Paul368", "title": "Air Canister Short Blasts .wav",
-		"url": "https://cdn.freesound.org/previews/245/245974_2971294-hq.ogg"},
-	"814046": {"author": "qubodup", "title": "Explosion From Another Dimension",
-		"url": "https://cdn.freesound.org/previews/814/814046_71257-hq.ogg"},
-	"436790": {"author": "roboroo", "title": "Thunder Clap",
-		"url": "https://cdn.freesound.org/previews/436/436790_3206727-hq.ogg"},
-	"521509": {"author": "typeoo", "title": "air_hiss_pressure_loop.wav",
-		"url": "https://cdn.freesound.org/previews/521/521509_11540209-hq.ogg"},
-	"536793": {"author": "szegvari", "title": "Spark Electric SFX 200927_0054.wav",
-		"url": "https://cdn.freesound.org/previews/536/536793_2282212-hq.ogg"},
 	"512471": {"author": "michael_grinnell", "title": "Electric zap.wav",
 		"url": "https://cdn.freesound.org/previews/512/512471_7372230-hq.ogg"},
 	"143565": {"author": "YvesSch", "title": "zap.mp3",

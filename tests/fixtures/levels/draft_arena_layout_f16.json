@@ -954,8 +954,7 @@
   ],
   "id": "draft_arena",
   "map_def": {
-   "box_start": 1,
-   "box_starts": [],
+   "box_start": 0,
    "description": "Carte d'essai de l'éditeur : salle des machines, couloir de service, entrepôt à double hauteur et sa passerelle.",
    "display_name": "DRAFT ARENA",
    "doors": {
@@ -997,18 +996,6 @@
    "box": [
     {
      "p": [
-      11.0,
-      0.0,
-      21.0
-     ],
-     "wall": [
-      0,
-      0,
-      1
-     ]
-    },
-    {
-     "p": [
       24.5,
       0.0,
       33.5
@@ -1017,18 +1004,6 @@
       1,
       0,
       0
-     ]
-    },
-    {
-     "p": [
-      8.0,
-      3.5,
-      9.0
-     ],
-     "wall": [
-      0,
-      0,
-      -1
      ]
     }
    ],
@@ -1086,7 +1061,6 @@
      ]
     }
    ],
-   "grenade_buys": [],
    "lamps": [
     {
      "energy": 2.2,
@@ -1233,36 +1207,6 @@
      "range": 9.28
     }
    ],
-   "perks": [
-    {
-     "id": "titan",
-     "p": [
-      21.0,
-      0.0,
-      18.25
-     ],
-     "perk": "titan",
-     "wall": [
-      1,
-      0,
-      0
-     ]
-    },
-    {
-     "id": "lazarus",
-     "p": [
-      18.25,
-      0.0,
-      26.0
-     ],
-     "perk": "lazarus",
-     "wall": [
-      0,
-      0,
-      -1
-     ]
-    }
-   ],
    "player_spawns": [
     [
      15.65,
@@ -1285,7 +1229,7 @@
      30.85
     ]
    ],
-   "player_yaw": 2.075,
+   "player_yaw": 2.078,
    "power": {
     "p": [
      7.0,
@@ -1299,36 +1243,6 @@
     ]
    },
    "traps": [],
-   "wall_buys": [
-    {
-     "id": "mp5k",
-     "p": [
-      24.5,
-      0.0,
-      16.5
-     ],
-     "wall": [
-      1,
-      0,
-      0
-     ],
-     "weapon": "mp5k"
-    },
-    {
-     "id": "m14",
-     "p": [
-      17.5,
-      0.0,
-      37.0
-     ],
-     "wall": [
-      0,
-      0,
-      1
-     ],
-     "weapon": "m14"
-    }
-   ],
    "windows": [
     {
      "h": 2.35,

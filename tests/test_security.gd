@@ -121,11 +121,10 @@ func _fire_refusals(rate: float, n: int, stall: float, client_rate := -1.0) -> i
 	return refused
 
 
-## FAUCHEUSE (20 coups/s) : un à-coup de 0,3 s regroupait 6 tirs, au-delà de
-## la rafale fixe de 4 jetons (tir d'un client honnête refusé, mp_powerups).
+## Arme très rapide (20 coups/s, ancienne FAUCHEUSE) : un à-coup de 0,3 s regroupait 6 tirs, au-delà de
+## la rafale fixe de 4 jetons (tir d'un client honnête refusé).
 func test_fast_weapon_tolerates_jitter_but_not_cheating() -> void:
-	var dm := 1.0 / WeaponDB.fire_interval("death_machine")
-	assert_near(dm, 20.0, 0.01, "FAUCHEUSE : 1200 coups/min")
+	var dm := 20.0
 	assert_eq(_fire_refusals(dm, 40, 0.3), 0, "à-coup de 0,3 s : aucun tir refusé")
 	assert_true(_fire_refusals(dm, 200, 0.0, dm * 1.5) > 10, "cadence 1,5x tenue : refusée")
 	var pistol := 1.0 / WeaponDB.fire_interval("m1911")
@@ -222,12 +221,6 @@ func test_repair_revive_pickup_use_last_accepted_state() -> void:
 	assert_true(DownedSystem.in_revive_range(ref, downed), "réanimation honnête sous le lag")
 	assert_true(DownedSystem.in_revive_range(ref, Player.origin_reference(false, Vector3.INF, downed)), "joueur à terre sans état accepté : position du nœud")
 	assert_false(DownedSystem.in_revive_range(ref, ref + Vector3(DownedSystem.REVIVE_RANGE + 1.0, 0, 0)), "trop loin : refusée")
-	# Bonus au sol sous le joueur réel.
-	var drop := accepted + Vector3(0.8, 0.1, 0)
-	assert_false(PowerupRules.within_pickup(shown, drop), "l'ancienne référence (en retard) ne ramassait pas")
-	assert_true(PowerupRules.within_pickup(ref, drop), "ramassage honnête sous le lag")
-	assert_false(PowerupRules.within_pickup(ref, ref + Vector3(PowerupRules.PICKUP_RADIUS + 0.3, 0, 0)), "trop loin à plat : non")
-	assert_false(PowerupRules.within_pickup(ref, ref + Vector3(0, 2.5, 0)), "trop haut : non")
 
 
 ## La marionnette d'un client suit, pour la référence du serveur, le dernier

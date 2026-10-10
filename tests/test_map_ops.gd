@@ -11,7 +11,7 @@ func _map() -> EditorMap:
 	]
 	m.zones = [{"id": "z1", "nom": {"fr": "Hall", "en": "Hall"}}, {"id": "z2", "nom": {"fr": "Salle", "en": "Room"}}]
 	m.ouvertures = [{"id": "o1", "type": "porte", "altitude": 0, "position": [10, 5], "largeur": 2.0, "prix": 750}]
-	m.objets = [{"id": "w1", "type": "arme", "altitude": 0, "arme": "m14", "position": [2.25, 5.0], "mur": "o"}]
+	m.objets = [{"id": "w1", "type": "courant", "altitude": 0, "position": [2.25, 5.0], "mur": "o"}]
 	m.depart = "z1"
 	return m
 

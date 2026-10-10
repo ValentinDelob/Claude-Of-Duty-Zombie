@@ -3,7 +3,7 @@ extends Node
 ## si un test échoue.
 ##   godot --headless --path . res://tests/test_runner.tscn
 ##   godot --headless --path . res://tests/test_runner.tscn -- --filter=net
-##   godot --headless --path . res://tests/test_runner.tscn -- --files=test_net.gd,test_perks.gd
+##   godot --headless --path . res://tests/test_runner.tscn -- --files=test_net.gd,test_throwables.gd
 ## --files : uniquement ces fichiers (tools/check.sh : tests impactés).
 ## Chaque ligne [OK]/[FAIL] donne la durée du test ; les plus lents sont
 ## rappelés à la fin (repérer ce qui ralentit le niveau unitaire).

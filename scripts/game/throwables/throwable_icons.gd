@@ -1,21 +1,21 @@
 class_name ThrowableIcons
 extends Control
-## HUD : petites icônes des grenades et des singes à gauche du compteur de
-## munitions (comme BO1). Lit la réserve répliquée du joueur local.
+## HUD : petites icônes de l'emplacement de grenade à gauche du compteur de
+## munitions : grenades ou peluches leurres (une sorte à la fois). Lit la
+## réserve répliquée du joueur local.
 
 const SLOT := 22.0
 const ICON_SCALE := 1.35
 
 var game: Game
-var _frags := -1
-var _monkeys := -1
-var _has_monkeys := false
+var _count := -1
+var _kind := -1
 
 
 func _init(g: Game = null) -> void:
 	game = g
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	custom_minimum_size = Vector2(SLOT * 4 + 12, 46)
+	custom_minimum_size = Vector2(SLOT * ThrowableRules.SLOT_MAX + 12, 46)
 	size_flags_vertical = Control.SIZE_SHRINK_END
 
 
@@ -25,24 +25,21 @@ func _process(_delta: float) -> void:
 	var pd := game.session.local_data()
 	if pd == null:
 		return
-	if pd.grenades != _frags or pd.monkeys != _monkeys or pd.has_monkeys != _has_monkeys:
-		_frags = pd.grenades
-		_monkeys = pd.monkeys
-		_has_monkeys = pd.has_monkeys
-		custom_minimum_size.x = SLOT * (4 + (3 if _has_monkeys else 0)) + (22 if _has_monkeys else 12)
+	if pd.grenades != _count or pd.throwable != _kind:
+		_count = pd.grenades
+		_kind = pd.throwable
 		queue_redraw()
 
 
 func _draw() -> void:
 	var y := size.y - 16.0
 	var x := size.x - 16.0
-	# De droite à gauche : grenades (près des munitions), puis singes.
-	for i in maxi(_frags, 0):
-		_draw_frag(Vector2(x - i * SLOT, y))
-	if _has_monkeys:
-		var mx := x - ThrowableRules.FRAG_MAX * SLOT - 14.0
-		for i in ThrowableRules.MONKEY_MAX:
-			_draw_monkey(Vector2(mx - i * SLOT, y), i < _monkeys)
+	# De droite à gauche, en partant des munitions.
+	for i in maxi(_count, 0):
+		if _kind == ThrowableRules.Kind.DECOY:
+			_draw_decoy(Vector2(x - i * SLOT, y))
+		else:
+			_draw_frag(Vector2(x - i * SLOT, y))
 
 
 func _draw_frag(at_pos: Vector2) -> void:
@@ -58,14 +55,16 @@ func _draw_frag(at_pos: Vector2) -> void:
 	draw_arc(c + Vector2(-4.5, -6.5), 2.4, 0.0, TAU, 10, Color(0.8, 0.8, 0.75, 0.9), 1.2)
 
 
-func _draw_monkey(at_pos: Vector2, full: bool) -> void:
+## Tête d'ours en peluche : oreilles, museau clair, nœud rouge.
+func _draw_decoy(at_pos: Vector2) -> void:
 	draw_set_transform(at_pos, 0.0, Vector2.ONE * ICON_SCALE)
 	var c := Vector2.ZERO
-	var a := 0.95 if full else 0.22
-	var fur := Color(0.55, 0.34, 0.16, a)
-	draw_circle(c + Vector2(0, 1), 6.0, Color(0.05, 0.04, 0.03, a * 0.9))
-	draw_circle(c + Vector2(0, 1), 5.0, fur)
-	draw_circle(c + Vector2(0, 3), 2.6, Color(0.85, 0.7, 0.5, a))
-	draw_rect(Rect2(c + Vector2(-3, -8), Vector2(6, 4)), Color(0.8, 0.1, 0.06, a))
+	var fur := Color(0.55, 0.34, 0.16, 0.95)
+	var dark := Color(0.05, 0.04, 0.03, 0.9)
 	for s in [-1.0, 1.0]:
-		draw_circle(c + Vector2(s * 7.5, 2), 2.8, Color(0.95, 0.75, 0.25, a))
+		draw_circle(c + Vector2(s * 4.6, -4.2), 2.9, dark)
+		draw_circle(c + Vector2(s * 4.6, -4.2), 2.2, fur)
+	draw_circle(c + Vector2(0, 1), 6.0, dark)
+	draw_circle(c + Vector2(0, 1), 5.0, fur)
+	draw_circle(c + Vector2(0, 3), 2.4, Color(0.85, 0.7, 0.5, 0.95))
+	draw_rect(Rect2(c + Vector2(-3.5, 6.2), Vector2(7, 2)), Color(0.8, 0.1, 0.06, 0.95))

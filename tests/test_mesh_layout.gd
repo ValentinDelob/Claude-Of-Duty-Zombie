@@ -19,17 +19,29 @@ func test_markers() -> void:
 	assert_eq(doors[0].block, "door_1")
 	assert_eq(int(doors[0].data.cost), 500)
 	assert_eq(doors[0].data.zones, ["a", "c"])
-	var wb := l.wall_buys()[0]
-	assert_eq(wb.id, "R")
-	assert_near(wb.pos.x, 10.65, 0.001, "posé 0,5 m devant la face du mur")
-	assert_near(wb.on_wall(0.02, 1.45).x, 10.17, 0.001, "plaqué contre le mur")
-	assert_eq(wb.zone, "a")
-	assert_eq(l.perks()[0].zone, "c", "atout dans la salle est")
 	var boxes := l.box_spots()
-	assert_eq(boxes.size(), 2)
-	assert_eq(l.zone_at(boxes[1].pos), "b", "deuxième boîte sur la mezzanine")
-	assert_true(l.power_switch() != null)
+	assert_eq(boxes.size(), 1, "une seule caisse au hasard")
+	assert_near(boxes[0].pos.z, 10.65, 0.001, "posée 0,5 m devant la face du mur")
+	assert_eq(boxes[0].zone, "a")
+	var pw := l.power_switch()
+	assert_true(pw != null)
+	assert_near(pw.on_wall(0.02, 1.45).x, 29.98, 0.001, "interrupteur plaqué contre le mur")
 	assert_true(l.teleporter().is_empty(), "pas de téléporteur")
+
+
+## Ancienne description avec des objets supprimés (lot C) : elle se charge,
+## ces marqueurs sont ignorés (avertissement), le reste est lu.
+func test_removed_markers_ignored() -> void:
+	var def: MapDef = load(Game.MAP_SCRIPTS["test_levels"]).new()
+	var markers := {"power": {"p": [1, 0, 1], "wall": [1, 0, 0]},
+		"wall_buys": [{"id": "R", "p": [0, 0, 0], "wall": [-1, 0, 0], "weapon": "m14"}],
+		"perks": [{"id": "J", "p": [0, 0, 0], "wall": [0, 0, -1], "perk": "titan"}],
+		"grenade_buys": [{"id": "g", "p": [0, 0, 0], "wall": [0, 0, -1]}],
+		"pap": {"p": [0, 0, 0], "wall": [0, 0, -1]}, "box_boards": [{"p": [0, 0, 0], "wall": [0, 0, -1]}]}
+	var l := MeshMapLayout.new(def, {"markers": markers}, "")
+	assert_true(l.power_switch() != null, "le reste de la description est lu")
+	assert_eq(MeshMapLayout.REMOVED_KEYS.size(), 5)
+	assert_false(l.has_method("wall_buys") or l.has_method("perks") or l.has_method("pack_a_punch"), "plus de lecteurs d'objets supprimés")
 
 
 func test_zones_by_height() -> void:

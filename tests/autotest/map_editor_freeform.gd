@@ -6,10 +6,10 @@ extends AutotestScenario
 ## (aimant aux sommets, « 8 Tab 0 Entrée » pour un côté), une porte sur le
 ## bord commun, deux fenêtres (celle de la salle ronde glissée à la souris sur
 ## le côté voisin du cercle puis ramenée, sans grille), un mur libre tracé sans
-## grille avec une arme contre sa face nord, un mur courbe (rayon et ouverture au clavier),
+## grille avec l'interrupteur du courant contre sa face nord, un mur courbe (rayon et ouverture au clavier),
 ## un pilier tourné à 30° avec la poignée de rotation, le départ et la boîte ;
 ## vérification sans erreur, Ctrl+S (format courant), rechargement identique. Puis
-## TESTER : l'arme du mur libre s'achète depuis son côté ; murs obliques de la
+## TESTER : l'interrupteur du mur libre s'actionne depuis son côté ; murs obliques de la
 ## salle ronde (CollisionBox tournées), un rayon
 ## arrêté par le mur rond, le mur courbe et le pilier ; des zombies entrent
 ## par la fenêtre de la salle ronde et rejoignent le joueur en contournant le
@@ -100,7 +100,7 @@ func run() -> void:
 	# Toujours sans grille : la fenêtre de la salle ronde glissée à la souris sur
 	# le côté voisin du cercle, puis ramenée.
 	await _move_window_free(cpoly)
-	# Mur libre tracé sans grille dans la salle ronde, arme posée contre sa face nord.
+	# Mur libre tracé sans grille dans la salle ronde, interrupteur posé contre sa face nord.
 	await key(KEY_4)
 	await key(KEY_E)
 	ed.inventory.show_category("construction")
@@ -110,12 +110,15 @@ func run() -> void:
 	at.check(fwall.size() == 1 and absf(float(fwall[0].a[1]) - float(fwall[0].b[1])) < 0.001, "mur libre tracé sans grille (%s)" % str(fwall))
 	if not fwall.is_empty():
 		free_wall_y = float(fwall[0].a[1])
-	await key(KEY_9)
+	await key(KEY_4)
+	await key(KEY_E)
+	ed.inventory.show_category("machines")
+	_pick("courant")
 	await click(Vector2(22.6, 24.4))
-	var guns: Array = ed.doc.objets.filter(func(o): return o.type == "arme")
+	var guns: Array = ed.doc.objets.filter(func(o): return o.type == "courant")
 	var on_wall := guns.size() == 1 and fwall.size() == 1 and String(guns[0].mur) == "s" \
 		and absf(float(guns[0].position[1]) - float(fwall[0].a[1])) < 0.001
-	at.check(on_wall, "arme posée contre le mur libre, face au nord (%s %s)" % [str(guns), cv.refusal])
+	at.check(on_wall, "interrupteur posé contre le mur libre, face au nord (%s %s)" % [str(guns), cv.refusal])
 	# Mur courbe : un clic au centre, le curseur vers le début, « 7 Tab 100 Entrée ».
 	await key(KEY_4)   # case 4 (Mur) : reçoit l'objet pris dans l'inventaire
 	await key(KEY_E)
@@ -292,27 +295,26 @@ func _move_window_free(cpoly: PackedVector2Array) -> void:
 	at.check(p2.distance_to(p0) < 0.05, "fenêtre ramenée à sa place (%s)" % p2)
 
 
-## Arme posée contre le mur libre : construite contre sa face nord, tournée
-## vers le nord, achetée depuis ce côté.
+## Interrupteur posé contre le mur libre : construit contre sa face nord,
+## actionné depuis ce côté.
 func _buy_on_free_wall(game: Game, p: Player) -> void:
-	var wb: WallBuy = game.interact.get_obj("wallbuy_m14")
-	at.check(wb != null, "arme du mur libre construite en jeu")
-	if wb == null:
+	var found := (game.world as Node).find_children("*", "PowerSwitch", true, false)
+	at.check(found.size() == 1, "interrupteur du mur libre construit en jeu")
+	if found.size() != 1:
 		return
+	var sw: Interactable = found[0]
 	var wy := free_wall_y
-	var front := wb.interact_point()
-	at.check(absf(wb.global_position.z - (off + wy - MapGeom.WALL_HALF)) < 0.08 and front.z < wb.global_position.z,
-		"contre la face nord du mur libre, achat du côté nord (arme z %.2f, devant z %.2f, mur y %.2f)" % [wb.global_position.z - off, front.z - off, wy])
-	var pd := game.session.local_data()
-	game.session.add_points(1, maxi(0, 500 - pd.points))
-	p.teleport_to(front + Vector3(0, -1.0, 0) + (front - wb.global_position).normalized() * 0.6)
-	AutotestHelpers.aim_at(p, wb.global_position)
+	var front := sw.interact_point()
+	at.check(absf(sw.global_position.z - (off + wy)) < 0.6 and front.z < off + wy,
+		"contre la face nord du mur libre, actionné du côté nord (interrupteur z %.2f, devant z %.2f, mur y %.2f)" % [sw.global_position.z - off, front.z - off, wy])
+	p.teleport_to(Vector3(front.x, 0.05, front.z) + Vector3(0, 0, -0.6))
+	AutotestHelpers.aim_at(p, front)
 	await seconds(0.3)
-	at.check(game.interact.focused == wb, "l'arme du mur libre est visée depuis le côté nord")
+	at.check(game.interact.focused == sw, "l'interrupteur du mur libre est visé depuis le côté nord")
 	p.input.interact_pressed = true
 	await seconds(0.5)
-	at.check(pd.current_weapon().id == "m14", "M14 achetée sur le mur libre (%s, %d points)" % [pd.current_weapon().id, pd.points])
-	await at.screenshot("arme_mur_libre")
+	at.check(game.power_on, "courant rétabli depuis le mur libre")
+	await at.screenshot("interrupteur_mur_libre")
 
 
 ## Côté est du cercle (à plat, vertical) : [sommet haut, sommet bas].

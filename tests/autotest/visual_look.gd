@@ -119,15 +119,11 @@ func _hud_pass() -> void:
 	await until(func(): return rc.mode == RoundCounter.Mode.IDLE, 6.0, "fin de la transition")
 	await H.clear_zombies(self)
 	at.check(is_zero_approx(rc.whiteness), "manche 3 : rouge sang")
-	# Atouts, grenades, singes.
-	for perk in ["titan", "rapid", "twin", "lazarus"]:
-		game.perks.srv_grant(1, perk)
-	pd.has_monkeys = true
-	pd.monkeys = 3
-	await until(func(): return hud._perk_icons.perks.size() == 4, 3.0, "icônes d'atouts")
-	await seconds(0.5)  # apparition des icônes (capture)
-	at.check(hud._perk_icons.perks.size() == 4, "4 icônes d'atouts")
-	await at.screenshot("hud_manche3_atouts")
+	# Emplacement de grenade : peluches leurres.
+	game.throwables.srv_fill_slot(1, ThrowableRules.Kind.DECOY)
+	await seconds(0.5)  # icônes (capture)
+	at.check(pd.throwable == ThrowableRules.Kind.DECOY and pd.grenades == ThrowableRules.SLOT_MAX, "4 peluches leurres au HUD")
+	await at.screenshot("hud_manche3_peluches")
 	# Points qui s'envolent (+10 à chaque balle, -dépense).
 	for i in 5:
 		game.session.add_points(1, 10)
@@ -136,13 +132,15 @@ func _hud_pass() -> void:
 	game.session.add_points(1, -500)
 	await seconds(0.2)
 	await at.screenshot("hud_points")
-	# Invite d'achat face à la M14 du hall.
-	var m14: WallBuy = game.interact.get_obj("wallbuy_R")
-	p.teleport_to(m14.interact_point() + Vector3(0, -1.0, 0) - (m14.global_position - m14.interact_point()).normalized() * 1.2)
-	H.aim_at(p, m14.global_position)
-	await until(func(): return hud._prompt_view.text.begins_with("Appuyer sur F pour acheter"), 2.0, "invite d'achat")
-	at.check(hud._prompt_view.text.begins_with("Appuyer sur F pour acheter") and hud._prompt_view.text.contains("[Coût : 500]"),
-			"invite BO1 : « %s »" % hud._prompt_view.text)
+	# Invite face à la caisse au hasard du quai.
+	for id in game.doors:
+		game.doors[id].srv_open()
+	var box: MysteryBox = game.interact.get_obj("box")
+	p.teleport_to(box.global_position - (box.spot.normal as Vector3) * 1.6 + Vector3(0, 0.05, 0))
+	H.aim_at(p, box.global_position + Vector3.UP * 0.8)
+	await until(func(): return hud._prompt_view.text.begins_with("Appuyer sur F pour ouvrir la caisse"), 2.0, "invite de la caisse")
+	at.check(hud._prompt_view.text == "Appuyer sur F pour ouvrir la caisse [Coût : 950]",
+			"invite : « %s »" % hud._prompt_view.text)
 	await at.screenshot("hud_invite")
 	# Tableau des scores [Tab].
 	Input.action_press("scoreboard")
@@ -171,7 +169,8 @@ func _hud_pass() -> void:
 	game.combat.damage_player(1, 190, p.global_position + Vector3(2, 1, 0))
 	await seconds(0.12)
 	await at.screenshot("hud_degats")
-	# À terre (LAZARUS) : vision floue.
+	# À terre (auto-réanimation de test) : vision floue.
+	game.downed.solo_self_revive = true
 	game.combat.damage_player(1, 400, p.global_position + Vector3(2, 1, 0))
 	await until(func(): return pd.life == PlayerData.Life.DOWNED and hud._downed.amount() > 0.9, 3.0, "vision floue")
 	at.check(pd.life == PlayerData.Life.DOWNED and hud._downed.amount() > 0.9, "à terre : vision floue (%.2f)" % hud._downed.amount())

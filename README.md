@@ -11,29 +11,30 @@ ambiances, annonces et interface restent synthétisées par du code.
 Cartes (SOLO ouvre l'écran de sélection ; en multijoueur, l'hôte choisit dans
 le salon ; le dernier choix est mémorisé) :
 
-**BUNKER K-7** — salle de garde, couloir des cellules (piège électrique),
-laboratoire, dortoir, générateur, quai du téléporteur et salle du rituel
-(Pack-a-Punch). Manches, ferraille, portes payantes, courant, achats muraux,
-7 atouts, boîte mystère, Pack-a-Punch, téléporteur, pièges, état « à terre »
-et réanimation. Atouts de Five / Ascension (BUNKER K-7 seulement) : NOVA FLOP
-(2000 : aucun dégât de ses propres explosions, le plongeon en sprint explose
-à l'atterrissage) et DEADEYE DRAM (1500 : la visée s'aimante vers la tête,
-dispersion en hanche et recul réduits). Fenêtres barricadées (15) : les zombies arrachent les
-6 planches puis enjambent ; maintenir [F] pour reconstruire (+10 ferraille par
-planche, 500 au plus par manche). Couteau à la BO1 (150 dégâts, fente vers le
-zombie visé) et COUTEAU DE CHASSE au mur du quai (3000 : un coup jusqu'à la
-manche 12). Grenades à fragmentation ([G] : 2 au départ, +2 par manche, 4 au
-plus, achat mural à 250) et SINGE-TAMBOUR ([Q], boîte mystère) qui attire
-tous les zombies avant d'exploser. Arme merveille TONNERRE-7 (boîte mystère, rare, une seule dans la partie) : onde de choc qui projette et tue tous les zombies devant soi.
+**BUNKER K-7** (carte de test) — salle de garde, couloir des cellules (piège
+électrique), laboratoire, dortoir, générateur, quai du téléporteur et salle
+d'arrivée. Manches, ferraille, portes payantes, courant, caisse au hasard,
+téléporteur, pièges, état « à terre » et réanimation. Fenêtres barricadées
+(15) : les zombies arrachent les 6 planches puis enjambent ; maintenir [F]
+pour reconstruire (sans gain). Couteau à la BO1 (150 dégâts, fente vers le
+zombie visé). Emplacement de grenade ([G], maintenir pour cuire la grenade) :
+2 grenades au départ, +2 par manche, 4 au plus.
+
+**Caisse au hasard** (GAME_CONCEPT.md §4.12 bis ; une seule par carte, fixe) :
+950 ferraille le tirage. Elle ne donne que des objets à lancer ou à poser, qui
+vont sur l'emplacement de grenade : grenade ou PELUCHE LEURRE (posée, sa
+musique attire les zombies, puis elle explose). Seul l'acheteur peut prendre
+l'objet ([F], 12 s) : il remplit l'emplacement (4 au plus) et remplace ce
+qu'il contenait.
 
 **Ferraille** (monnaie de partie, GAME_CONCEPT.md §4.8) : chaque joueur part
 de 0 et gagne 50 ferraille par zombie qu'il tue lui-même, quel que soit le
-coup (rien pour les touches ni les réanimations) ; elle paie les portes et le
-reste des achats. PV des zombies linéaires : 150 + 100 par manche.
+coup (rien pour les touches, les réanimations ni les planches) ; elle paie
+les portes et la caisse. PV des zombies linéaires : 150 + 100 par manche.
 
 **CARTES PERSO** — faites avec l'**ÉDITEUR DE CARTES** du menu principal
-(pièces vues de dessus, portes entre pièces collées, fenêtres, atouts, armes,
-boîte... posés depuis un inventaire façon Minecraft, vérification façon BO1,
+(pièces vues de dessus, portes entre pièces collées, fenêtres, courant,
+pièges, caisse... posés depuis un inventaire façon Minecraft, vérification façon BO1,
 bouton TESTER) ; les cartes jouables apparaissent dans l'écran SOLO et dans
 le salon multijoueur de l'hôte : les invités la téléchargent automatiquement
 (vérifiée chez chacun), la partie démarre quand tout le monde l'a. Voir
@@ -106,8 +107,7 @@ standard), branchées à chaud.
 | Retenir sa respiration (lunette du L96A1, de la Dragunov) | Maj (maintenu, 4 s au plus) | LS (maintenu) | L3 (maintenu) |
 | Recharger | R | RB | R1 |
 | Couteau (fente si un zombie visé est à ~3 m) | V | RS | R3 |
-| Grenade (maintenir = cuire, relâcher = lancer) | G (touche physique) | LB | L1 |
-| SINGE-TAMBOUR | Q (touche physique) | flèche droite | flèche droite |
+| Grenade ou peluche leurre (grenade : maintenir = cuire, relâcher = lancer) | G (touche physique) | LB | L1 |
 | Changer d'arme | 1, molette (haut / bas) | Y | Triangle |
 | Interagir (acheter, réanimer : maintenir) | F | X | Carré |
 | Tableau des scores | Tab (maintenu) | Back (maintenu) | Share / Create (maintenu) |
@@ -143,7 +143,7 @@ appui les déclenche toutes. La case l'indique en petit, en or (« AUSSI :
 COUTEAU »), et la barre d'aide nomme les autres actions quand la case est
 choisie ; pour ne la garder que sur une action, effacez-la sur l'autre ligne.
 Avec la même touche pour RECHARGER et INTERAGIR, devant un objet utilisable
-(arme au mur, porte, atout…) l'appui sert à l'objet et ne recharge pas, comme
+(porte, caisse, courant…) l'appui sert à l'objet et ne recharge pas, comme
 X / Carré dans BO1 sur console ; ailleurs il recharge. Mise dans l'autre case
 de la même action, une commande change de case. « Rétablir les commandes par
 défaut » remet les deux colonnes (aucune commande partagée).
@@ -203,7 +203,7 @@ Chaque réglage s'applique tout de suite et est enregistré.
   fenêtre, réduite puis hors des écrans (jamais visible). Un échec est rejoué
   une fois (signalé INSTABLE s'il passe). Rapport JUnit `tests/_out/junit.xml`.
   Réglages : `JOBS=3`, `GUI_JOBS=1` (peu de jeux ouverts, machine silencieuse),
-  `SCENARIOS="perks scope"` / `MP="lobby"`, `--fast`, `--cartes`, `--no-retry`.
+  `SCENARIOS="grenades melee"` / `MP="lobby"`, `--fast`, `--cartes`, `--no-retry`.
   Stratégie, niveaux et écriture des tests : **docs/TESTING.md**.
 - `sh tools/commit.sh message.txt` : lance check.sh (tâches impactées) et ne
   committe que s'il réussit (`CHECK_ARGS=--full` pour tout vérifier).
@@ -229,10 +229,11 @@ Chaque réglage s'applique tout de suite et est enregistré.
 ## État d'avancement
 
 Clone de Black Ops 1 Zombies en cours ; chaque fonctionnalité est publiée en
-release GitHub (.exe). Livré : règles BO1 (manches, ferraille, atouts), une
-carte (BUNKER K-7), fenêtres barricadées, arsenal BO1 et Pack-a-Punch,
-armes merveilles, grenades et singe, bonus (dont FAUCHEUSE et Liquidation),
-chiens de l'enfer, rampants et démembrement, 7 atouts, sons CC0, refonte
-visuelle BO1 (étalonnage, HUD, zombies, armes et mains), réseau optimisé.
+release GitHub (.exe). Livré : règles BO1 (manches, ferraille), une carte de
+test (BUNKER K-7), fenêtres barricadées, arsenal BO1, caisse au hasard
+(grenades, peluches leurres), chiens de l'enfer, rampants et démembrement,
+sons CC0, refonte visuelle BO1 (étalonnage, HUD, zombies, armes et mains),
+réseau optimisé. Atouts, armes murales, bonus au sol, Pack-a-Punch et armes
+merveilles ont été retirés (nouvelle direction, GAME_CONCEPT.md).
 Liste de tâches vivante et reste à faire : [docs/PLAN.md](docs/PLAN.md) ;
 reprise sur une autre machine : [docs/HANDOFF.md](docs/HANDOFF.md).

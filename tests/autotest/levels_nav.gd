@@ -83,18 +83,18 @@ func run() -> void:
 	at.check(game.spawner.active_zones.has("c"), "salle est active après l'ouverture")
 	await reach_test(Vector3(26, 0, 16), Vector3(12, 0, 18), 20.0, "zombie passe la porte ouverte")
 
-	# Distributeur d'atout plein : le joueur bute dessus au lieu de le traverser.
+	# Caisse au hasard pleine : le joueur bute dessus au lieu de la traverser.
 	await clear_zombies()
-	p.teleport_to(Vector3(26, 0.05, 13.5), 0.0)
+	p.teleport_to(Vector3(16, 0.05, 13.5), 0.0)
 	await seconds(0.2)
 	p.input.move = Vector2(0, 1)
-	await seconds(1.5)  # on marche contre le distributeur pendant une durée fixe
+	await seconds(1.5)  # on marche contre la caisse pendant une durée fixe
 	p.input.move = Vector2.ZERO
-	at.check(p.global_position.z > 11.2, "le joueur ne traverse pas le distributeur (z = %.2f, face avant à 10,98)" % p.global_position.z)
+	at.check(p.global_position.z > 11.2, "le joueur ne traverse pas la caisse (z = %.2f, face avant à 11,15)" % p.global_position.z)
 
 	# Objets muraux à leur place et fenêtre barricadée.
-	var wb: WallBuy = game.interact.get_obj("wallbuy_R")
-	at.check(wb != null and absf(wb.global_position.x - 10.17) < 0.05 and absf(wb.global_position.y - 1.45) < 0.05, "achat mural plaqué au mur ouest")
+	var sw: Interactable = game.interact.get_obj("power")
+	at.check(sw != null and absf(sw.global_position.x - 30.0) < 0.6, "interrupteur du courant contre le mur est")
 	at.check(game.barricades.windows.size() == 1, "une fenêtre barricadée")
 	var w: Barricade = game.barricades.windows[0]
 	at.check(w.zone == "c" and w.opening_height > 2.3, "fenêtre de la salle est (hauteur %.1f m)" % w.opening_height)

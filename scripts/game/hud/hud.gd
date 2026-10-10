@@ -35,12 +35,9 @@ var _weapon_name_t := 0.0
 const WEAPON_NAME_TIME := 3.0
 var _flash_t := 0.0
 var _round: RoundCounter
-var _perk_icons: PerkIcons
 var _downed: DownedOverlay
 var scoreboard: Scoreboard
 var pause_menu: PauseMenu
-## Icônes et annonces des bonus.
-var powerup_hud: PowerupHud
 ## Dernières valeurs écrites (_process n'écrit que ce qui change).
 ## AMMO_UNSET : rien d'écrit encore ; AMMO_HIDDEN : compteur masqué.
 const AMMO_UNSET := -2
@@ -91,7 +88,7 @@ func _ready() -> void:
 	_debug.position = Vector2(8, 6)
 	add_child(_debug)
 
-	# BO1 : compteur de manche en bas à gauche, atouts juste au-dessus.
+	# Compteur de manche en bas à gauche.
 	_round = RoundCounter.new()
 	_round.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	# Bas collé à 14 px du bord : la taille minimale grandit vers le haut.
@@ -100,11 +97,6 @@ func _ready() -> void:
 	_round.offset_top = -14
 	_round.offset_bottom = -14
 	add_child(_round)
-
-	_perk_icons = PerkIcons.new()
-	_perk_icons.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_perk_icons.position = Vector2(38, -204)
-	add_child(_perk_icons)
 
 	_scores = ScorePanel.new()
 	_scores.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -134,7 +126,7 @@ func _ready() -> void:
 	row.add_theme_constant_override("separation", 4)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ammo_box.add_child(row)
-	# Grenades et singes, à gauche des munitions (BO1).
+	# Emplacement de grenade (grenades ou peluches leurres), à gauche des munitions.
 	row.add_child(ThrowableIcons.new(game))
 	_ammo = HudStyle.label("0", 52, HudStyle.TEXT, "condensed", 5)
 	row.add_child(_ammo)
@@ -167,10 +159,6 @@ func _ready() -> void:
 	_flash.position = Vector2(-400, 170)
 	_flash.size = Vector2(800, 40)
 	add_child(_flash)
-
-	powerup_hud = PowerupHud.new()
-	powerup_hud.setup(game)
-	add_child(powerup_hud)
 
 	_downed = DownedOverlay.new()
 	# Ancrages posés AVANT l'ajout : sous un CanvasLayer, les poser après
@@ -209,16 +197,6 @@ func _ready() -> void:
 func bind_player(p: Player) -> void:
 	player = p
 	_scores.bind(game.session)
-	game.session.stats_changed.connect(_on_stats_changed)
-
-
-func _on_stats_changed(pid: int) -> void:
-	if player == null or pid != player.peer_id:
-		return
-	var pd := game.session.get_data(pid)
-	if pd:
-		_perk_icons.set_perks(pd.perks)
-		game.perks.apply_local_effects(player)
 
 
 ## Marqueur de touche : blanc = touché (prédit localement), rouge = tué (serveur).
@@ -290,7 +268,7 @@ func _process(delta: float) -> void:
 	var wcx := player.weapons
 	_crosshair.spread = maxf(WeaponDB.spread_to_px(wcx.spread_deg(), player.camera.fov, _crosshair.size.y), 3.0) if wcx else 10.0
 	# En visée, les organes de visée remplacent le réticule (sauf arme sans
-	# organes de visée : minigun de la FAUCHEUSE).
+	# organes de visée, info « no_sights »).
 	var sights: bool = wcx == null or wcx.view == null or wcx.view.model_id == "" or not WeaponModels.info(wcx.view.model_id, "no_sights", false)
 	_crosshair.visible = not player.sprinting and not (player.aiming and sights) and (pd == null or pd.life != PlayerData.Life.DEAD)
 	scope.refresh(player, delta)
@@ -329,7 +307,7 @@ func _process(delta: float) -> void:
 			var mag: int = w.mag
 			var reserve: int = w.reserve
 			if infinite:
-				# Arme de bonus (FAUCHEUSE) : munitions illimitées, pas de compteur.
+				# Arme à munitions illimitées (`infinite`) : pas de compteur.
 				low = false
 				if _shown_mag != AMMO_HIDDEN:
 					_shown_mag = AMMO_HIDDEN
@@ -483,10 +461,8 @@ func show_banner(text: String, duration := 3.5) -> void:
 ## `key` : nom de la touche INTERAGIR (réaffectable dans les options).
 ## Pure : testée dans tests/test_hud.gd.
 const PROMPT_NOUNS := {
-	"Boîte mystère": "ouvrir la boîte mystère",
-	"Munitions": "acheter des munitions :",
-	"Mystery Box": "use the Mystery Box",
-	"Ammo": "buy ammo:",
+	"Caisse": "ouvrir la caisse",
+	"Crate": "open the crate",
 }
 ## Préfixes « maintenir » des deux langues (« Maintenir [F] ... », « [F] Hold ... »).
 const HOLD_WORDS := ["Maintenir", "Hold"]

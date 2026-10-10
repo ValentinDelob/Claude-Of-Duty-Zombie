@@ -1,7 +1,7 @@
 class_name Interactable
 extends Node3D
-## Base de tout objet avec lequel on interagit ([F]) : portes, achats muraux,
-## atouts, boîte mystère, Pack-a-Punch, pièges, courant, téléporteur...
+## Base de tout objet avec lequel on interagit ([F]) : portes, caisse au
+## hasard, pièges, courant, téléporteur, barricades...
 ##
 ## * Côté client : prompt(), can_interact() pour l'affichage.
 ## * Côté serveur : srv_use() valide et applique (points, état).
@@ -14,7 +14,7 @@ var interact_range := 2.2
 var hold_time := 0.0
 var system: InteractionSystem
 ## Hauteur (m) du nœud au-dessus du sol de son niveau : 0 pour un objet posé au
-## sol (porte, boîte, machines) ; un achat mural est accroché plus haut.
+## sol (porte, caisse, machines) ; un objet mural est accroché plus haut.
 var mount_height := 0.0
 ## Collisions propres (own_rids), gardées.
 var _own_rid_cache: Array[RID] = []

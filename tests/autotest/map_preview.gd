@@ -46,7 +46,7 @@ func run() -> void:
 	var stuff: Node = w.groups.stuff
 	at.check(stuff.find_children("*", "Barricade", true, false).size() == 7, "7 fenêtres barricadées")
 	at.check(stuff.find_children("*", "Door", true, false).size() == 3, "3 portes (dont les débris)")
-	at.check(stuff.find_children("*", "PerkMachine", true, false).size() == 2, "2 atouts")
+	at.check(stuff.find_children("*", "MysteryBox", true, false).size() == 1, "1 caisse au hasard")
 	print("[apercu] DRAFT ARENA : conversion %.0f ms (fil de travail), construction %.0f ms (plus longue étape %.0f ms)" % [
 		w.last_times.thread, w.last_times.apply, w.last_times.step_max])
 	# Orbite : clic droit glissé, molette.
@@ -69,11 +69,11 @@ func run() -> void:
 	cv.frame_all()
 	cv.origin.x -= 150.0
 	cv.queue_redraw()
-	# TITAN BREW choisi : surligné dans la 2D et dans l'aperçu.
-	ed.select("a2")
+	# Caisse au hasard choisie : surlignée dans la 2D et dans l'aperçu.
+	ed.select("b3")
 	await seconds(0.8)
 	at.check(pv.renders > 0, "aperçu rendu (%d images)" % pv.renders)
-	at.check(w.selected_id == "a2", "élément choisi surligné dans l'aperçu")
+	at.check(w.selected_id == "b3", "élément choisi surligné dans l'aperçu")
 	await at.screenshot("apercu_3d")
 	ed.select("")
 	pv.set_option("ceil", false)
@@ -140,7 +140,7 @@ func run() -> void:
 	at.check(w.rig.mode == MapPreviewCamera.Mode.WALK, "vue joueur")
 	cv.frame_all()
 	await frames(2)
-	# (y = 12 : entre la porte à 1000 et TITAN BREW, mur plein à l'est.)
+	# (y = 12 : près de la porte à 1000, mur plein à l'est.)
 	var n_rooms := ed.doc.pieces.size()
 	var n_objs := ed.doc.objets.size()
 	_ctrl_double_click(Vector2(13.0, 12.0))

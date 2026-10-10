@@ -14,7 +14,7 @@ const BLUR := preload("res://assets/shaders/downed_blur.gdshader")
 
 var game: Game
 var _title: Label
-## Ma réanimation (par un coéquipier, ou LAZARUS en solo).
+## Ma réanimation (par un coéquipier, ou auto-réanimation).
 var _revive: ReviveBar
 ## Flou plein écran : ajouté par le HUD tout en dessous des autres éléments.
 var blur: ColorRect
@@ -91,7 +91,7 @@ func _process(delta: float) -> void:
 	elif d.is_downed(me):
 		target = 1.0
 		_title.text = Lang.t("À TERRE", "DOWNED")
-		# Solo avec LAZARUS TONIC : la barre se remplit pendant qu'on se relève
+		# Auto-réanimation : la barre se remplit pendant qu'on se relève
 		# seul (BO1) ; sinon pendant qu'un coéquipier nous réanime.
 		var sp := d.self_revive_progress(me)
 		var rp := sp if sp > 0.0 else d.revive_progress(me)

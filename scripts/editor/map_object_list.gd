@@ -28,7 +28,7 @@ const FILTERS := [
 	["effets", "Effets", "Effects"],
 ]
 ## Catégorie du catalogue -> filtre.
-const CAT_FILTER := {"construction": "construction", "ouvertures": "ouvertures", "atouts": "jeu", "armes": "jeu", "boite": "jeu",
+const CAT_FILTER := {"construction": "construction", "ouvertures": "ouvertures", "boite": "jeu",
 	"machines": "jeu", "pieges": "jeu", "joueurs": "jeu", "prefabs": "prefabs", "lumieres": "lumieres", "effets": "effets"}
 
 var ed: MapEditor

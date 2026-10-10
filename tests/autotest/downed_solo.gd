@@ -1,6 +1,7 @@
 extends AutotestScenario
-## À terre en solo : avec LAZARUS, auto-réanimation (armes rendues, atout
-## perdu) ; à terre on rampe et on tire au pistolet.
+## À terre en solo : avec l'auto-réanimation (ancien LAZARUS, activée par le
+## test : DownedSystem.solo_self_revive), armes rendues ; à terre on rampe et
+## on tire au pistolet ; sans elle, GAME OVER.
 
 var H := AutotestHelpers
 
@@ -13,18 +14,16 @@ func run() -> void:
 	var game := Game.instance
 	game.rounds.paused = true
 	var pd := game.session.local_data()
-	# Équipement : carabine + LAZARUS.
+	# Équipement : carabine ; auto-réanimation en solo.
 	WeaponDB.give(pd, "m14")
 	game.session.sync_inventory(1)
-	game.perks.srv_grant(1, "lazarus")
-	await seconds(2.6)  # fin de la boisson de l'atout (réplique incluse)
+	game.downed.solo_self_revive = true
 	p.teleport_to(MapData.cell_to_world(Vector2i(3, 7), 0.05), -PI * 0.5)
 	game.combat.damage_player(1, 200, p.global_position + Vector3(1, 1, 0))
 	await until(func(): return pd.life == PlayerData.Life.DOWNED and GameState.state == GameState.State.PLAYER_DOWN and game.hud._downed._title.text == Lang.t("À TERRE", "DOWNED"), 2.0, "joueur à terre")
 	at.check(pd.life == PlayerData.Life.DOWNED, "à terre à 0 PV")
 	at.check(GameState.state == GameState.State.PLAYER_DOWN, "état PLAYER_DOWN")
 	at.check(pd.weapons.size() == 1 and pd.current_weapon().id == "m1911", "dernier recours : pistolet seul")
-	at.check(not pd.has_perk("lazarus"), "atouts perdus")
 	at.check(game.hud._downed._title.text == Lang.t("À TERRE", "DOWNED"), "HUD : À TERRE")
 	await seconds(0.3)  # capture
 	await at.screenshot("downed")
@@ -53,12 +52,13 @@ func run() -> void:
 	# au noir et blanc (on se relève en 10 s, on ne va pas mourir).
 	var ov := game.hud._downed
 	at.check(ov._revive.visible and ov._revive.progress > 0.0 and ov.grayness() == 0.0,
-		"HUD : barre d'auto-réanimation (%.2f, gris %.2f)" % [ov._revive.progress, ov.grayness()])	# Auto-réanimation LAZARUS (10 s, comme BO1).
+		"HUD : barre d'auto-réanimation (%.2f, gris %.2f)" % [ov._revive.progress, ov.grayness()])	# Auto-réanimation (10 s, comme BO1).
 	await until(func(): return pd.life == PlayerData.Life.ALIVE, DownedSystem.SOLO_SELF_REVIVE + 3.0, "réanimation")
-	at.check(pd.life == PlayerData.Life.ALIVE and pd.health == 100, "réanimé par LAZARUS (%d PV)" % pd.health)
+	at.check(pd.life == PlayerData.Life.ALIVE and pd.health == 100, "réanimé seul (%d PV)" % pd.health)
 	at.check(pd.has_weapon("m14") >= 0 and pd.weapons.size() == 2, "armes rendues")
 	at.check(GameState.state == GameState.State.PLAYING, "retour à PLAYING")
-	# Sans LAZARUS : fin de partie.
+	# Sans auto-réanimation : fin de partie.
+	game.downed.solo_self_revive = false
 	game.combat.damage_player(1, 200, p.global_position)
 	await until(func(): return GameState.state == GameState.State.GAME_OVER, 3.0, "GAME OVER")
-	at.check(GameState.state == GameState.State.GAME_OVER, "à terre sans LAZARUS en solo : GAME OVER")
+	at.check(GameState.state == GameState.State.GAME_OVER, "à terre en solo : GAME OVER")

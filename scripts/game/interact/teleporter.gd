@@ -1,7 +1,7 @@
 class_name Teleporter
 extends Interactable
-## Téléporteur (BUNKER K-7 : du quai vers la salle du rituel et son
-## Pack-a-Punch ; cartes de l'éditeur : vers la sortie posée).
+## Téléporteur (BUNKER K-7 : du quai vers la salle du rituel ; cartes de
+## l'éditeur : vers la sortie posée).
 ##
 ## Serveur : IDLE -> CHARGING (3 s) -> ACTIVE (joueurs dans la salle, 25 s)
 ## -> COOLDOWN (60 s) -> IDLE. Tous les joueurs présents sur la plateforme au

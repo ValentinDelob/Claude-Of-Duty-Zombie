@@ -1,7 +1,7 @@
 extends TestCase
 ## Décor posé librement dans l'éditeur de cartes (docs/MAP_OBJECTS.md § 8) :
 ## l'aspect des murs (texture de chaque face) ne dépend que des pièces, jamais
-## d'un objet posé contre eux (décor, caisse, baril, arme murale, porte,
+## d'un objet posé contre eux (décor, caisse, baril, interrupteur, porte,
 ## débris) ; décor contre un mur, à moitié dedans, au centimètre, tourné ;
 ## appliques à toute hauteur et partout le long d'un mur ; caisse et baril
 ## construits et heurtés à leur vraie place ; format 7 (hauteur d'une
@@ -149,14 +149,14 @@ func test_wall_texture_ignores_objects_pushed_against_walls() -> void:
 		assert_eq(d, "", "%s : texture des murs inchangée" % c[0])
 
 
-## Arme murale, porte et débris déplacés jusqu'à toucher un mur : seule leur
-## propre ouverture change, jamais la texture des autres murs.
-func test_wall_texture_ignores_wall_buys_and_doors_near_corners() -> void:
+## Objets muraux, porte et débris déplacés jusqu'à toucher un mur : seule
+## leur propre ouverture change, jamais la texture des autres murs.
+func test_wall_texture_ignores_wall_items_and_doors_near_corners() -> void:
 	var ref := probes(layout(two_rooms()))
 	var doc := two_rooms()
-	_obj(doc, {"type": "arme", "arme": "m14", "position": [0.75, 10.0], "mur": "s"})   # dans l'angle sud-ouest
-	_obj(doc, {"type": "atout", "atout": "titan", "position": [24.0, 1.25], "mur": "e"})
-	assert_eq(diff(ref, probes(layout(doc))), "", "arme murale et atout dans un angle : murs inchangés")
+	_obj(doc, {"type": "courant", "position": [0.75, 10.0], "mur": "s"})   # dans l'angle sud-ouest
+	_obj(doc, {"type": "poste_central", "position": [24.0, 1.25], "mur": "e"})
+	assert_eq(diff(ref, probes(layout(doc))), "", "interrupteur et poste central dans un angle : murs inchangés")
 	for t in ["porte", "debris"]:
 		var d2 := two_rooms()
 		# Ouverture poussée au bout du mur mitoyen (contre le mur nord).
@@ -248,7 +248,7 @@ func test_wall_decor_anywhere_along_a_wall() -> void:
 	assert_false(MapRules.place_wall_item(doc, 0, sconce, Vector2(7.0, 5.0)).ok, "au milieu de la pièce : refusé")
 	assert_false(MapRules.place_wall_item(doc, 0, sconce, Vector2(-2.0, 5.0)).ok, "dehors : refusé")
 	# Objet de jeu mural : règles d'avant (pas au-dessus d'une porte).
-	assert_false(MapRules.place_wall_item(doc, 0, {"type": "arme", "arme": "m14"}, Vector2(13.6, 5.25)).ok, "arme murale devant la porte : refusée")
+	assert_false(MapRules.place_wall_item(doc, 0, {"type": "courant"}, Vector2(13.6, 5.25)).ok, "interrupteur devant la porte : refusé")
 	# Posée, elle reste valide (check_existing), même au raccord de deux murs.
 	var o := sconce.duplicate(true)
 	o.merge({"position": [0.0, 0.3], "mur": "o"}, true)

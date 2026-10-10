@@ -75,16 +75,16 @@ func _play_and_lose(n: int, cid: int, first_sha: String) -> bool:
 	# État de départ : neuf à chaque partie.
 	at.check(hpd.points == PlayerData.STARTING_POINTS and cpd.points == PlayerData.STARTING_POINTS and hpd.kills == 0,
 		"partie %d : points de départ (%d / %d)" % [n, hpd.points, cpd.points])
-	at.check(hpd.perks.is_empty() and hpd.weapons.size() == 1 and hpd.life == PlayerData.Life.ALIVE, "partie %d : ni atout, une arme, vivant" % n)
+	at.check(hpd.grenades == ThrowableRules.FRAG_START and hpd.weapons.size() == 1 and hpd.life == PlayerData.Life.ALIVE, "partie %d : grenades de départ, une arme, vivant" % n)
 	at.check(game.rounds.round_n <= 1 and game.zombies.alive.is_empty() and not game.power_on, "partie %d : manche %d, aucun zombie, courant coupé" % [n, game.rounds.round_n])
 	at.check(game.map_def.id == first_sha, "partie %d sur la carte perso partagée (%s)" % [n, game.map_def.id.substr(0, 20)])
 	at.check(Net.cast.get(cid, -1) == CharacterDB.IDS.find("orlov"), "partie %d : personnage choisi par l'invité gardé (%s)" % [n, str(Net.cast.get(cid))])
 	MpHelpers.signal_peer("en_jeu%d" % n)
 	if not await MpHelpers.wait_peer(self, "en_jeu%d" % n, 30.0):
 		return false
-	# De quoi salir l'état de la partie : points, manche, atouts.
+	# De quoi salir l'état de la partie : points, manche, emplacement de grenade.
 	hpd.points = 9000 + n
-	hpd.perks.append("juggernog")
+	hpd.throwable = ThrowableRules.Kind.DECOY
 	game.rounds.debug_jump_to(4)
 	await seconds(0.5)
 	var old: WeakRef = weakref(game)
