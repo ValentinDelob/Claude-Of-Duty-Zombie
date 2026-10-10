@@ -18,8 +18,11 @@ func test_health_formula() -> void:
 	assert_eq(RoundRules.zombie_health(1), 150)
 	assert_eq(RoundRules.zombie_health(2), 250)
 	assert_eq(RoundRules.zombie_health(9), 950)
-	assert_eq(RoundRules.zombie_health(10), 1045)
-	assert_true(RoundRules.zombie_health(20) > 2500)
+	# PV linéaires (GAME_CONCEPT §4.3) : plus de +10 % après la manche 9.
+	assert_eq(RoundRules.zombie_health(10), 1050)
+	assert_eq(RoundRules.zombie_health(20), 2050)
+	# 150 + 100 × 49 = 5 050 (GAME_CONCEPT cite 4 950 : coquille, la formule fait foi).
+	assert_eq(RoundRules.zombie_health(50), 5050)
 
 
 func test_limits() -> void:
