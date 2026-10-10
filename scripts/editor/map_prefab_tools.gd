@@ -456,6 +456,13 @@ func import_glb(glb: PackedByteArray, name: String, scale := 1.0, block := "soli
 	if res.has("error"):
 		_refuse(Lang.t(res.error[0], res.error[1]), dialog)
 		return ""
+	# Style cubique (GAME_CONCEPT.md § 4.19) : refusé s'il n'est pas fait de
+	# cubes de 5 cm sur la grille, à son échelle (VoxelCheck).
+	var vox := MapPrefabLib.voxel_report(glb, float(res.def.modele.echelle))
+	if not bool(vox.get("ok", false)):
+		var why := VoxelCheck.refusal(vox)
+		_refuse(Lang.t(why[0], why[1]), dialog)
+		return ""
 	var pid := MapPrefabLib.new_pid(nm, ed.doc.prefabs)
 	if not ed.doc.set_prefab(pid, res.def, glb):
 		_refuse(Lang.t("Prefab refusé", "Prefab refused"), dialog)
@@ -521,6 +528,17 @@ func edit_dialog(pid: String) -> void:
 		if MapPrefabLib.is_model(def) else (Lang.t("Groupe de %d décors · %d objet(s) posé(s)", "Group of %d props · %d placed object(s)") % [(def.parties as Array).size(), ed.doc.prefab_users(pid).size()])
 	n.add_theme_color_override("font_color", UiStyle.DIM)
 	box.add_child(n)
+	# Modèle importé avant la règle du style cubique : avertissement seulement
+	# (la carte se charge et se joue comme avant).
+	if MapPrefabLib.is_model(def) and ed.doc.models.has(pid):
+		var vox := MapPrefabLib.voxel_report(ed.doc.model_bytes(pid), float(def.modele.echelle))
+		if not bool(vox.get("ok", false)):
+			var w := Label.new()
+			w.text = Lang.t("⚠ Pas dans le style cubique : un nouvel import serait refusé. ", "⚠ Not in the cubic style: a new import would be refused. ") + Lang.t(String(vox.fr), String(vox.en))
+			w.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			w.custom_minimum_size = Vector2(360, 0)
+			w.add_theme_color_override("font_color", UiStyle.GOLD)
+			box.add_child(w)
 	d.ok_button_text = Lang.t("Appliquer", "Apply")
 	d.cancel_button_text = Lang.t("Annuler", "Cancel")
 	ed.add_child(d)
@@ -543,7 +561,17 @@ func update_prefab(pid: String, name: String, scale := -1.0, block := "") -> boo
 		def["nom"] = {"fr": nm, "en": nm}
 	if MapPrefabLib.is_model(def):
 		if scale > 0.0:
+			var old := float(def.modele.echelle)
 			def.modele["echelle"] = clampf(snappedf(scale, 0.001), MapPrefabLib.SCALE[0], MapPrefabLib.SCALE[1])
+			# Style cubique : une échelle qui sort le modèle de la grille de
+			# 5 cm est refusée (un ancien modèle déjà non cubique reste libre).
+			var glb := ed.doc.model_bytes(pid)
+			if not is_equal_approx(old, float(def.modele.echelle)) and not glb.is_empty() \
+					and not bool(MapPrefabLib.voxel_report(glb, float(def.modele.echelle)).get("ok", false)) \
+					and bool(MapPrefabLib.voxel_report(glb, old).get("ok", false)):
+				_fail(Lang.t("Échelle ×%s refusée : le modèle sortirait de la grille des cubes de 5 cm (style cubique)",
+					"Scale ×%s refused: the model would leave the 5 cm cube grid (cubic style)") % str(def.modele.echelle))
+				return false
 		if block in MapPrefabLib.BLOCKS:
 			def["bloque"] = block
 		MapPrefabLib.refit(def)

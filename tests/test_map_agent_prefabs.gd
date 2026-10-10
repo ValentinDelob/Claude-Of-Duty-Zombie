@@ -175,9 +175,14 @@ func test_import_model_commands_without_quota() -> void:
 	_refused(_cmd("prefab_import_model", {"chemin": src, "echelle": 500}), "échelle hors limites")
 	_refused(_cmd("prefab_import_model", {"chemin": src, "bloque": "mur"}), "collision inconnue")
 	_refused(_cmd("prefab_import_model", {"chemin": src, "data_base64": "AAAA"}), "chemin et data_base64")
+	# Style cubique (GAME_CONCEPT.md § 4.19) : 52 cm n'est pas un multiple de 5 cm.
+	var nc := _cmd("prefab_import_model", {"data_base64": Marshalls.raw_to_base64(P.box_glb(Vector3(0.52, 1.0, 0.5))), "nom": "Hors grille"})
+	_refused(nc, "modèle hors de la grille de 5 cm")
+	assert_true(String(nc.get("error", "")).contains("cubique") or String(nc.get("error", "")).contains("cubic"), "raison : style cubique (%s)" % str(nc.get("error", "")))
+	_refused(_cmd("prefab_update", {"pid": String(r.pid), "echelle": 1.01}), "échelle qui sort le modèle de la grille")
 	# Aucun quota : jusqu'au 20e modèle (anciennes limites : 8 modèles, 32 prefabs).
 	for i in 19:
-		var b := P.box_glb(Vector3(0.5 + 0.01 * i, 1.0, 0.5))
+		var b := P.box_glb(Vector3(0.5 + 0.05 * i, 1.0, 0.5))
 		var ri := _cmd("prefab_import_model", {"data_base64": Marshalls.raw_to_base64(b), "nom": "Modèle %d" % (i + 2)})
 		if not _ok(ri, "modèle n° %d accepté" % (i + 2)):
 			return

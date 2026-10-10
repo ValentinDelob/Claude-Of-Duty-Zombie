@@ -404,6 +404,20 @@ static func from_model(name_fr: String, name_en: String, glb: PackedByteArray, s
 	return {"def": s}
 
 
+## Style cubique d'un modèle importé (GAME_CONCEPT.md § 4.19, VoxelCheck,
+## mode statique : décor posé) à l'échelle `scale` : rapport de VoxelCheck
+## ({ok, fr, en...} ; illisible : ok false). Seulement à l'IMPORT et quand
+## l'échelle change (MapPrefabTools) : une carte qui contient déjà un modèle
+## non cubique se charge comme avant.
+static func voxel_report(glb: PackedByteArray, scale := 1.0) -> Dictionary:
+	var scene := instantiate(glb)
+	if scene == null:
+		return {"ok": false, "fr": "modèle illisible", "en": "unreadable model"}
+	var rep := VoxelCheck.check_scene(scene, false, scale)
+	scene.free()
+	return rep
+
+
 ## Boîte englobante du modèle brut (aabb), mise à l'échelle.
 static func model_box(d: Dictionary) -> AABB:
 	var a: Array = d.modele.aabb
