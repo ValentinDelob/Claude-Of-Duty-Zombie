@@ -1,6 +1,6 @@
 extends TestCase
-## Zombie « patient » cubique, cubes de 2,5 cm (tools/blender/zombies/zombie_voxel.py, pas
-## encore branché dans le jeu) : chargé par ZombieGlb (ossature du jeu,
+## Zombie « patient » cubique, cubes de 2,5 cm (tools/blender/zombies/zombie_voxel.py,
+## modèle de tous les zombies, ZombieModel) : chargé par ZombieGlb (ossature du jeu,
 ## matières, couleurs par face de cube, yeux émissifs), instanciable par
 ## RigBuilder, et conforme au style cubique (VoxelCheck, mode animé).
 
