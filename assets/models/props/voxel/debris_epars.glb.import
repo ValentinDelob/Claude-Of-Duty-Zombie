@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://crc7yefclpv5g"
-path="res://.godot/imported/debris_planks.glb-b71ab00651971541fe4ed8f75aaa0fcd.scn"
+uid="uid://d32rp34esat6l"
+path="res://.godot/imported/debris_epars.glb-a1eae90a7b4c5608d24a5077b57b51e7.scn"
 
 [deps]
 
-source_file="res://assets/models/props/debris_planks.glb"
-dest_files=["res://.godot/imported/debris_planks.glb-b71ab00651971541fe4ed8f75aaa0fcd.scn"]
+source_file="res://assets/models/props/voxel/debris_epars.glb"
+dest_files=["res://.godot/imported/debris_epars.glb-a1eae90a7b4c5608d24a5077b57b51e7.scn"]
 
 [params]
 

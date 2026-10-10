@@ -535,10 +535,13 @@ décrit existe encore tant que les versions cubiques ne l'ont pas remplacé.
   `balcony_back` (4 rangs), `column_balcony`, `wall_arch_panel`, `sconce`,
   `banner`, `proscenium`, `curtain_drape`, `valance`, `screen_frame`,
   `lectern`, `folding_chair`, `turret_podium`, `mdt_tower`, `chandelier`,
-  `chandelier_fallen`, `dome`.
-- Gravats : `rubble_heap_a/b/c` (tas), `rubble_field_a/b` (tapis bas),
-  `rubble_mound_big` (grand champ du parterre), `debris_beam`,
-  `debris_planks`, `debris_scatter`.
+  `dome` (`chandelier_fallen` : remplacé par le décor cubique
+  `voxel/lustre_tombe`).
+- Gravats : `rubble_field_a/b` (tapis bas), `rubble_mound_big` (grand champ
+  du parterre) ; `rubble_heap_a/b/c`, `debris_beam`, `debris_planks`,
+  `debris_scatter` remplacés par les décors cubiques du lot 1
+  (`tools/blender/voxel_props/ruines.py` : `voxel/gravats`,
+  `gros_gravats`, `eboulis`, `poutre`, `planches`, `debris_epars`).
 - Salle de projection : `pap_machine` (enseigne ORIGINALE « PUNCH-O-MATIC,
   Augmentez votre puissance de feu ! », police intégrée de Blender),
   `projector`, `reel_shelf`, `desk`, `wall_clock`, `film_reel`.

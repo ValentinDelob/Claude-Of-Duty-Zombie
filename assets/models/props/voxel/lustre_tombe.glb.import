@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dg5vcobn0ppdx"
-path="res://.godot/imported/debris_beam.glb-e32427dccc78efa8040e59908f02b308.scn"
+uid="uid://bvune8vngaiv3"
+path="res://.godot/imported/lustre_tombe.glb-6c4624f70e4ec84daedf4a59268fa8b2.scn"
 
 [deps]
 
-source_file="res://assets/models/props/debris_beam.glb"
-dest_files=["res://.godot/imported/debris_beam.glb-e32427dccc78efa8040e59908f02b308.scn"]
+source_file="res://assets/models/props/voxel/lustre_tombe.glb"
+dest_files=["res://.godot/imported/lustre_tombe.glb-6c4624f70e4ec84daedf4a59268fa8b2.scn"]
 
 [params]
 

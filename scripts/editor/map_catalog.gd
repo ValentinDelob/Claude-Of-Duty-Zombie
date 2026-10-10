@@ -83,22 +83,21 @@ const DOOR_PRICES := [750, 1000, 1250]
 ##            (accroché sous le plafond ; origine au plafond) ; absent : au sol
 ## Format 11 : décors qui accompagnent les effets (ils étaient construits avec
 ## l'effet avant, ils sont maintenant posés à part, MapCatalog.EFFECTS.decor).
-const RUBBLE_REMAP := {"wall_theater": "concrete", "velvet": "fabric", "ceiling_theater": "concrete_dark"}
 const PREFABS := {
 	"gravats": {"fr": "Tas de gravats", "en": "Rubble heap", "fp": [6, 6], "h": 1.5, "bloque": "solide",
-		"model": "rubble_heap_b", "remap": RUBBLE_REMAP, "color": Color(0.55, 0.52, 0.48)},
+		"model": "voxel/gravats", "color": Color(0.55, 0.52, 0.48)},
 	"gros_gravats": {"fr": "Gros éboulement", "en": "Big rubble pile", "fp": [10, 8], "h": 2.3, "bloque": "solide",
-		"model": "rubble_heap_a", "remap": RUBBLE_REMAP, "color": Color(0.5, 0.47, 0.44)},
+		"model": "voxel/gros_gravats", "color": Color(0.5, 0.47, 0.44)},
 	"eboulis": {"fr": "Mur effondré", "en": "Collapsed wall", "fp": [12, 6], "h": 2.9, "bloque": "solide",
-		"model": "rubble_heap_c", "remap": RUBBLE_REMAP, "color": Color(0.45, 0.42, 0.4)},
+		"model": "voxel/eboulis", "color": Color(0.45, 0.42, 0.4)},
 	"debris_epars": {"fr": "Débris épars (au sol)", "en": "Scattered debris (floor)", "fp": [6, 6], "h": 0.25, "bloque": "non",
-		"model": "debris_scatter", "remap": RUBBLE_REMAP, "color": Color(0.6, 0.58, 0.5)},
+		"model": "voxel/debris_epars", "color": Color(0.6, 0.58, 0.5)},
 	"planches": {"fr": "Planches au sol", "en": "Planks on the floor", "fp": [4, 3], "h": 0.4, "bloque": "non",
-		"model": "debris_planks", "color": Color(0.55, 0.38, 0.2)},
+		"model": "voxel/planches", "color": Color(0.55, 0.38, 0.2)},
 	"poutre": {"fr": "Poutre tombée", "en": "Fallen beam", "fp": [14, 4], "h": 1.8, "bloque": "solide",
-		"model": "debris_beam", "remap": RUBBLE_REMAP, "color": Color(0.42, 0.4, 0.42)},
+		"model": "voxel/poutre", "color": Color(0.42, 0.4, 0.42)},
 	"lustre_tombe": {"fr": "Lustre tombé", "en": "Fallen chandelier", "fp": [7, 6], "h": 1.5, "bloque": "barriere",
-		"model": "chandelier_fallen", "color": Color(0.85, 0.7, 0.35)},
+		"model": "voxel/lustre_tombe", "color": Color(0.85, 0.7, 0.35)},
 	"caisses": {"fr": "Pile de caisses", "en": "Stacked crates", "fp": [5, 4], "h": 1.5, "bloque": "solide",
 		"model": "voxel/caisses", "color": Color(0.4, 0.45, 0.4)},
 	"tonneaux": {"fr": "Tonneaux", "en": "Drums", "fp": [4, 4], "h": 1.8, "bloque": "barriere",

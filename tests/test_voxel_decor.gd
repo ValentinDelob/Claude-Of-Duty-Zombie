@@ -16,8 +16,6 @@ extends TestCase
 
 ## Lot 1 : gravats et ruines.
 const TODO_LOT1 := [
-	"prefab:gravats", "prefab:gros_gravats", "prefab:eboulis", "prefab:debris_epars",
-	"prefab:planches", "prefab:poutre", "prefab:lustre_tombe",
 ]
 
 ## Lot 2 : mobilier et stockage.
@@ -59,6 +57,14 @@ const FROZEN := {
 		"boxes": [{"center": [0, 0.45, 0], "size": [2.0, 0.9, 0.8]}]},
 	"prefab:foyer_pierres": {"fp": [3, 3], "h": 0.3, "bloque": "barriere", "surface": "stone",
 		"boxes": [{"center": [0, 0.5, 0], "size": [1.3, 1.0, 1.3]}]},
+	# Lot 1 (gravats et ruines : anciens rubble_heap_a/b/c, debris_scatter, debris_planks, debris_beam, chandelier_fallen).
+	"prefab:gravats": {"fp": [6, 6], "h": 1.5, "bloque": "solide", "collision": [{"center": [0.0, 0.1373, 0.0], "size": [2.4, 0.2747, 2.4], "yaw": 0.0, "barrier": false}, {"center": [0.0, 0.3071, 0.0], "size": [1.4, 0.6141, 1.4], "yaw": 0.0, "barrier": false}]},
+	"prefab:gros_gravats": {"fp": [10, 8], "h": 2.3, "bloque": "solide", "collision": [{"center": [0.0, 0.3023, 0.0], "size": [4.2, 0.6045, 3.0], "yaw": 0.0, "barrier": false}, {"center": [0.0, 0.5575, -0.05], "size": [2.6, 1.115, 2.1], "yaw": 0.0, "barrier": false}, {"center": [-0.2, 0.7623, -0.15], "size": [1.4, 1.5245, 1.3], "yaw": 0.0, "barrier": false}]},
+	"prefab:eboulis": {"fp": [12, 6], "h": 2.9, "bloque": "solide", "collision": [{"center": [0.0, 0.3463, 0.0], "size": [5.2, 0.6926, 2.2], "yaw": 0.0, "barrier": false}, {"center": [-1.0, 0.7647, -0.05], "size": [1.8, 1.5293, 1.5], "yaw": 0.0, "barrier": false}, {"center": [1.3, 0.6011, 0.15], "size": [1.4, 1.2022, 1.1], "yaw": 0.0, "barrier": false}, {"center": [-1.0, 1.1701, -0.05], "size": [0.8, 2.3401, 0.9], "yaw": 0.0, "barrier": false}]},
+	"prefab:debris_epars": {"fp": [6, 6], "h": 0.25, "bloque": "non"},
+	"prefab:planches": {"fp": [4, 3], "h": 0.4, "bloque": "non", "collision": [{"center": [0.0, 0.15, 0.0], "size": [1.9, 0.3, 1.4], "yaw": 0.0, "barrier": true}]},
+	"prefab:poutre": {"fp": [14, 4], "h": 1.8, "bloque": "solide", "collision": [{"center": [-2.257, 0.45, 0.0], "size": [1.9596, 0.9, 0.44], "yaw": 0.0, "barrier": false}, {"center": [-0.2974, 0.85, 0.0], "size": [1.9596, 0.9, 0.44], "yaw": 0.0, "barrier": false}, {"center": [1.6622, 1.25, 0.0], "size": [1.9596, 0.9, 0.44], "yaw": 0.0, "barrier": false}, {"center": [2.292, 0.55, 0.0], "size": [1.4, 1.1, 1.2], "yaw": 0.0, "barrier": false}]},
+	"prefab:lustre_tombe": {"fp": [7, 6], "h": 1.5, "bloque": "barriere", "collision": [{"center": [0.0, 0.5, 0.0], "size": [3.2, 1.0, 2.6], "yaw": 0.0, "barrier": true}]},
 }
 
 const PROPS_DIR := "res://assets/models/props/"

@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://d3l6vvha3igm4"
-path="res://.godot/imported/rubble_heap_c.glb-59f0e2566e4744c42dbabfc7fb635009.scn"
+uid="uid://cadnxs3r6u37o"
+path="res://.godot/imported/eboulis.glb-ecb50287b1a2c4403dead518578f5b78.scn"
 
 [deps]
 
-source_file="res://assets/models/props/rubble_heap_c.glb"
-dest_files=["res://.godot/imported/rubble_heap_c.glb-59f0e2566e4744c42dbabfc7fb635009.scn"]
+source_file="res://assets/models/props/voxel/eboulis.glb"
+dest_files=["res://.godot/imported/eboulis.glb-ecb50287b1a2c4403dead518578f5b78.scn"]
 
 [params]
 
