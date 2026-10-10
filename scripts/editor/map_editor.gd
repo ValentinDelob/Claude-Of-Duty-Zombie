@@ -3241,7 +3241,7 @@ func open_dir(dir: String, is_example := false) -> void:
 	if refuse_guest():
 		return
 	var d := EditorMap.load_dir(dir)
-	if not d.load_errors.is_empty() or not d.load_notes.is_empty():
+	if not d.load_errors.is_empty():
 		_info(Lang.t("Ouverture", "Open"), "\n".join((d.load_errors + d.load_notes).map(func(e): return Lang.t(e[0], e[1]))))
 	map_dir = "" if is_example else dir
 	example = is_example
@@ -3249,6 +3249,10 @@ func open_dir(dir: String, is_example := false) -> void:
 	if not is_example:
 		_add_recent(dir)
 	set_status(Lang.t("Carte « %s » ouverte", "Map \"%s\" opened") % doc.display_name())
+	# Notes seules (objets retirés du jeu…) : dans la barre d'état, sans
+	# fenêtre qui bloquerait l'éditeur ou une autre fenêtre déjà ouverte.
+	if d.load_errors.is_empty() and not d.load_notes.is_empty():
+		set_status(" ".join(d.load_notes.map(func(e): return Lang.t(e[0], e[1]))), true)
 
 
 func open_example(ex_id: String) -> void:
