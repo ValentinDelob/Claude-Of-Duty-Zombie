@@ -36,8 +36,12 @@ func run() -> void:
 	p.input.interact_pressed = true
 	ok = await until(func(): return int(door.votes.get(p.peer_id, 0)) == EvacRules.Vote.LEAVE, 5.0, "vote reçu en retour")
 	at.check(ok, "client : vote « partir » enregistré")
-	await until(func(): return game.hud.evac_status().contains("1/2"), 2.0, "bandeau : 1/2")
-	at.check(game.hud.evac_status().contains("1/2"), "client : votes au HUD « %s »" % game.hud.evac_status())
+	# Bandeau à jour dès l'état reçu (avant : « À la porte 1/2 » suffisait au
+	# test alors que le bandeau affichait encore « Partir 0/2 »).
+	var leave_txt := Lang.t("Partir 1/2", "Leave 1/2")
+	var mine_txt := Lang.t("vous : PARTIR", "you: LEAVE")
+	at.check(game.hud.evac_status().contains(leave_txt) and game.hud.evac_status().contains(mine_txt),
+			"client : votes au HUD « %s »" % game.hud.evac_status())
 	ok = await until(func(): return GameState.state == GameState.State.GAME_OVER and game.last_result != null, 30.0, "fin de partie")
 	at.check(ok and game.last_result.evacuated, "client : évacuation réussie")
 	if ok:

@@ -43,6 +43,8 @@ var players: Dictionary = {}
 var match_started := false
 
 var _connect_timer: Timer
+## Début de la tentative de connexion (Time.get_ticks_msec), voir _on_connect_timeout.
+var _connect_t0_ms := 0
 var _handshake_done := false
 ## Envoi des cartes perso de l'hôte aux invités (chemin réseau /root/Net/MapShare).
 var map_share: MapShare
@@ -140,6 +142,7 @@ func join(address: String, join_port: int, nickname: String) -> Error:
 	_handshake_done = false
 	lobby_map = ""
 	_pending_name = _clean_name(nickname)
+	_connect_t0_ms = Time.get_ticks_msec()
 	_connect_timer.start(CONNECT_TIMEOUT_SEC)
 	print("[Net] connexion à %s:%d..." % [address, join_port])
 	return OK
@@ -587,10 +590,22 @@ func _on_peer_connected(id: int) -> void:
 	print("[Net] transport : peer %d connecté" % id)
 	# Serveur : un pair muet ne garde pas une place ENet.
 	if multiplayer.is_server() and mode == Mode.HOST:
-		get_tree().create_timer(hello_timeout_sec).timeout.connect(func():
-			if mode == Mode.HOST and not players.has(id) and multiplayer.multiplayer_peer is ENetMultiplayerPeer and id in multiplayer.get_peers():
-				print("[Net] peer %d coupé : pas de présentation en %d s" % [id, int(hello_timeout_sec)])
-				(multiplayer.multiplayer_peer as ENetMultiplayerPeer).disconnect_peer(id))
+		_cut_if_silent(id, hello_timeout_sec, Time.get_ticks_msec())
+
+
+## Serveur : coupe le pair `id` s'il ne s'est toujours pas présenté quand
+## `sec` secondes de jeu ET de temps réel se sont écoulées depuis `t0_ms`
+## (un invité figé un instant, ou ce jeu-ci accéléré, n'est pas coupé à tort).
+func _cut_if_silent(id: int, sec: float, t0_ms: int) -> void:
+	get_tree().create_timer(sec).timeout.connect(func():
+		if not (mode == Mode.HOST and not players.has(id) and multiplayer.multiplayer_peer is ENetMultiplayerPeer and id in multiplayer.get_peers()):
+			return
+		var left := hello_timeout_sec - (Time.get_ticks_msec() - t0_ms) / 1000.0
+		if left > 0.05:
+			_cut_if_silent(id, left, t0_ms)
+			return
+		print("[Net] peer %d coupé : pas de présentation en %d s" % [id, int(hello_timeout_sec)])
+		(multiplayer.multiplayer_peer as ENetMultiplayerPeer).disconnect_peer(id))
 
 
 func _on_peer_disconnected(id: int) -> void:
@@ -620,6 +635,15 @@ func _on_connection_failed() -> void:
 
 func _on_connect_timeout() -> void:
 	if mode != Mode.CLIENT or _handshake_done:
+		return
+	# Délai écoulé en temps de JEU mais pas en temps réel (jeu accéléré :
+	# --fixed-fps des tests, hôte figé un instant pendant que ce jeu-ci
+	# tourne) : on attend le reste. ENet renvoie sa demande de connexion de
+	# plus en plus espacée (0,5 s, 1 s, 2 s…) : un hôte occupé une seconde
+	# répond parfois 3 s plus tard, sans que rien ne soit perdu.
+	var left := CONNECT_TIMEOUT_SEC - (Time.get_ticks_msec() - _connect_t0_ms) / 1000.0
+	if left > 0.05:
+		_connect_timer.start(left)
 		return
 	_reset_peer()
 	connection_error.emit(Lang.t("Délai dépassé", "Timed out"),

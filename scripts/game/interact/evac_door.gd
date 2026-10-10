@@ -34,6 +34,8 @@ var votes: Dictionary = {}
 var _wall := Vector3(0, 0, -1)
 var _resync := 0.0
 var _decided := false
+## Serveur : manche de la dernière ouverture (une seule par vague vaincue).
+var _opened_round := -1
 var _panel: MeshInstance3D
 var _lamp: MeshInstance3D
 var _light: OmniLight3D
@@ -145,8 +147,14 @@ func prompt(pid: int) -> String:
 ## Ouvre la fenêtre d'évacuation (vague spéciale ou de boss vaincue). Les
 ## morts réapparaissent : la vague est terminée (§4.6).
 func srv_open() -> void:
-	if not multiplayer.is_server() or is_open:
+	# Une seule ouverture par manche (vague vaincue signalée deux fois, ou
+	# pendant une autre transition) ; jamais après la fin de la partie.
+	if not multiplayer.is_server() or is_open or GameState.state == GameState.State.GAME_OVER:
 		return
+	var n := game.rounds.round_n if game.rounds else 0
+	if n > 0 and n == _opened_round:
+		return
+	_opened_round = n
 	game.respawn_dead_players()
 	is_open = true
 	time_left = EvacRules.DURATION
@@ -182,6 +190,12 @@ func _srv_decide() -> void:
 	if _decided:
 		return
 	var st := _srv_status()
+	# Joueur parti pendant la fenêtre : son vote disparaît (le quorum se
+	# recalcule sans lui, personne n'attend un absent).
+	var kept := EvacRules.prune_votes(votes, st[0])
+	if kept.size() != votes.size():
+		votes = kept
+		broadcast_state()
 	match EvacRules.decide(votes, st[0], st[1], time_left):
 		EvacRules.EVACUATE:
 			_decided = true
@@ -215,17 +229,18 @@ func apply_state(state: Dictionary, _animate: bool) -> void:
 	votes = v.duplicate() if v is Dictionary else {}
 	_show_open(is_open)
 	# Affichage suivi à part : sur le serveur, is_open a déjà changé (srv_open).
-	if game == null or game.hud == null or _ui_open == is_open:
-		return
-	_ui_open = is_open
-	if is_open:
-		Audio.play_2d("round_end", 0.0, 0.0)
-		game.hud.show_banner(Lang.t("LA PORTE D'ÉVACUATION EST OUVERTE", "THE EVACUATION DOOR IS OPEN"), 4.0)
-	else:
-		_hud_text = ""
-		game.hud.set_evac_status("")
-		if GameState.state != GameState.State.GAME_OVER:
-			game.hud.show_banner(Lang.t("LA PARTIE CONTINUE", "THE GAME GOES ON"), 2.5)
+	if game != null and game.hud != null and _ui_open != is_open:
+		_ui_open = is_open
+		if is_open:
+			Audio.play_2d("round_end", 0.0, 0.0)
+			game.hud.show_banner(Lang.t("LA PORTE D'ÉVACUATION EST OUVERTE", "THE EVACUATION DOOR IS OPEN"), 4.0)
+		else:
+			_hud_text = ""
+			game.hud.set_evac_status("")
+			if GameState.state != GameState.State.GAME_OVER:
+				game.hud.show_banner(Lang.t("LA PARTIE CONTINUE", "THE GAME GOES ON"), 2.5)
+	# Votes et temps restant de l'hôte affichés tout de suite.
+	_refresh_hud()
 
 
 func _process(delta: float) -> void:
@@ -238,9 +253,15 @@ func _process(delta: float) -> void:
 			_resync = 0.0
 			broadcast_state()
 		_srv_decide()
+	_refresh_hud()
+
+
+## Bandeau : compte à rebours et état des votes (présence vue d'ici). Aussi à
+## chaque état reçu (apply_state) : le bandeau suit l'hôte sans attendre
+## l'image suivante.
+func _refresh_hud() -> void:
 	if game == null or game.hud == null or not is_open:
 		return
-	# Bandeau : compte à rebours et état des votes (présence vue d'ici).
 	var life := {}
 	var zone := {}
 	for pid in game.session.data:

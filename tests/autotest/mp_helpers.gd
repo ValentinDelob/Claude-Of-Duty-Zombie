@@ -12,6 +12,10 @@ extends RefCounted
 ## « <test>_<décalage> », vidé par l'hôte au démarrage).
 
 
+## Tentatives de connexion du client (join_game) avant d'abandonner.
+const JOIN_TRIES := 4
+
+
 static func port_offset() -> int:
 	return OS.get_environment("AUTOTEST_PORT_OFFSET").to_int()
 
@@ -79,7 +83,7 @@ static func host_game(sc: AutotestScenario, port: int, map_id := "test_arena") -
 		return false
 	GameState.set_state(GameState.State.LOBBY)
 	signal_peer("ecoute")
-	if not await sc.until(func(): return Net.players.size() >= 2, 40.0, "client connecté"):
+	if not await sc.until(func(): return Net.players.size() >= 2, 60.0, "client connecté"):
 		return false
 	# Le client a reçu la liste des joueurs (salon prêt) avant le lancement.
 	if not await wait_peer(sc, "salon", 20.0):
@@ -96,7 +100,19 @@ static func join_game(sc: AutotestScenario, port: int) -> bool:
 		return false
 	GameState.set_state(GameState.State.CONNECTING)
 	Net.join("127.0.0.1", port + port_offset(), "Client")
-	if not await sc.until(func(): return Net.players.size() >= 2 and GameState.state == GameState.State.LOBBY, 30.0, "salon rejoint"):
+	# Tentative abandonnée (délai dépassé : machine très chargée, hôte figé
+	# plusieurs secondes) : on recommence, comme un joueur qui réessaie.
+	var tries := [1]
+	var joined := func() -> bool:
+		if Net.players.size() >= 2 and GameState.state == GameState.State.LOBBY:
+			return true
+		if Net.mode == Net.Mode.NONE and tries[0] < JOIN_TRIES:
+			tries[0] += 1
+			print("[autotest] connexion abandonnée, nouvelle tentative (%d/%d)" % [tries[0], JOIN_TRIES])
+			GameState.set_state(GameState.State.CONNECTING)
+			Net.join("127.0.0.1", port + port_offset(), "Client")
+		return false
+	if not await sc.until(joined, 45.0, "salon rejoint"):
 		return false
 	signal_peer("salon")
 	return await sc.until(func(): return Game.instance != null and Game.instance.players.size() >= 2 and Game.instance.local_player != null, 45.0, "partie rejointe")

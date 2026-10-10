@@ -12,6 +12,13 @@ func run() -> void:
 	Net.host(PORT, 2, "Hote")
 	GameState.set_state(GameState.State.LOBBY)
 	MpHelpers.signal_peer("ecoute")
+	# Hôte figé (chargement, machine chargée) pendant que le client se
+	# connecte : 3 s de temps réel sans traiter le réseau. Le client, accéléré
+	# (--fixed-fps), ne doit pas abandonner au bout de 8 s de temps de JEU
+	# (≈ 2,7 s réelles) : c'était l'échec intermittent de mp:evac sous charge.
+	if not await MpHelpers.wait_peer(self, "bon_port", 60.0):
+		return
+	OS.delay_msec(3000)
 	var ok: bool = await until(func(): return Net.players.size() == 2, 45.0, "client connecté")
 	if not ok:
 		return

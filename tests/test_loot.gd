@@ -250,6 +250,27 @@ func test_carried_keeps_found_weapons_only() -> void:
 	assert_false(ProfileLoot.carried(null, [], {}).weapons.size() > 0)
 
 
+## Joueur mort (spectateur) ou à terre quand l'équipe s'évacue : ses armes
+## sont mises de côté (saved_weapons), il ne tient que le pistolet de dernier
+## recours ; son butin compte les armes mises de côté, et le client les
+## reçoit avec son inventaire.
+func test_carried_counts_weapons_set_aside_when_down_or_dead() -> void:
+	var pd := _pd()
+	pd.saved_weapons = pd.weapons.duplicate(true)
+	pd.weapons = [DownedSystem.last_stand_weapon(pd.saved_weapons)]
+	pd.life = PlayerData.Life.DEAD
+	var loot := ProfileLoot.carried(pd, [], {})
+	var ids: Array = loot.weapons.map(func(w): return w.id)
+	assert_eq(ids, ["mp40", "m14"], "armes mises de côté rapportées : %s" % str(ids))
+	var copy := PlayerData.new(1)
+	copy.apply_inventory(pd.inventory_dict())
+	assert_eq(copy.saved_weapons.size(), pd.saved_weapons.size(), "armes mises de côté transmises au client")
+	assert_eq((ProfileLoot.carried(copy, [], {}).weapons as Array).size(), 2, "même butin chez le client")
+	var junk := PlayerData.new(1)
+	junk.apply_inventory({"weapons": [], "saved": "x"})
+	assert_eq(junk.saved_weapons, [], "valeur illisible : rien de côté")
+
+
 func test_apply_evacuation_enriches_profile() -> void:
 	var pr := PlayerProfile.new()
 	pr.add_samples("dog_fang", 1)

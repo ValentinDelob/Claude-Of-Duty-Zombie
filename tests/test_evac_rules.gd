@@ -39,6 +39,46 @@ func test_fin_du_temps() -> void:
 	assert_eq(EvacRules.DURATION, 120.0, "fenêtre de 2 minutes")
 
 
+func test_joueur_parti_pendant_la_fenetre() -> void:
+	var votes := {1: LEAVE, 2: READY, 3: LEAVE}
+	# Le joueur 2 s'est déconnecté : il n'est plus dans `life`.
+	var life := {1: A, 3: A}
+	assert_eq(EvacRules.prune_votes(votes, life), {1: LEAVE, 3: LEAVE}, "vote de l'absent oublié")
+	assert_eq(EvacRules.decide(votes, life, {1: true, 3: true}, 60.0), EvacRules.EVACUATE, "on n'attend jamais un absent")
+	assert_eq(EvacRules.tally(votes, life, {1: true, 3: true}), {"voters": 2, "leave": 2, "ready": 0, "in_zone": 2})
+	# Hôte seul restant.
+	assert_eq(EvacRules.decide({1: LEAVE, 2: LEAVE}, {1: A}, {1: true}, 60.0), EvacRules.EVACUATE, "hôte seul : il part")
+	assert_eq(EvacRules.decide({2: READY}, {1: A}, {1: true}, 60.0), EvacRules.NONE, "seul le vote de l'absent : on attend l'hôte")
+
+
+func test_a_terre_mort_reanime() -> void:
+	var votes := {1: LEAVE, 2: LEAVE}
+	var zone := {1: true, 2: true}
+	assert_eq(EvacRules.decide(votes, {1: A, 2: D}, zone, 60.0), EvacRules.NONE, "à terre dans la zone : on attend")
+	assert_eq(EvacRules.decide(votes, {1: A, 2: A}, zone, 60.0), EvacRules.EVACUATE, "réanimé : l'équipe part")
+	assert_eq(EvacRules.decide(votes, {1: A, 2: X}, {1: true}, 60.0), EvacRules.EVACUATE, "mort (spectateur) : l'équipe part avec lui")
+	assert_eq(EvacRules.decide({1: READY, 2: LEAVE}, {1: A, 2: X}, {}, 60.0), EvacRules.RESUME, "vote d'un mort ignoré")
+	assert_eq(EvacRules.decide({}, {1: X, 2: X}, {}, 60.0), EvacRules.NONE, "aucun votant : rien")
+	assert_eq(EvacRules.voters({1: A, 2: D, 3: X}), [1, 2], "votants : debout et à terre")
+
+
+func test_votes_qui_changent_et_sortie_de_zone() -> void:
+	var life := {1: A, 2: A}
+	assert_eq(EvacRules.decide({1: LEAVE, 2: LEAVE}, life, {1: true, 2: false}, 60.0), EvacRules.NONE, "sorti de la zone après avoir voté : on attend")
+	assert_eq(EvacRules.decide({1: READY, 2: LEAVE}, life, {1: true, 2: true}, 60.0), EvacRules.NONE, "vote changé en « prêt » : ni départ ni reprise")
+	var v := EvacRules.Vote.NONE
+	for i in 5:
+		v = EvacRules.next_vote(v)
+	assert_eq(v, LEAVE, "appuis répétés : alternance stable (5 appuis : partir)")
+
+
+func test_fin_du_temps_au_moment_du_vote() -> void:
+	var life := {1: A, 2: A}
+	assert_eq(EvacRules.decide({1: LEAVE, 2: LEAVE}, life, {1: true, 2: true}, 0.0), EvacRules.EVACUATE, "temps écoulé, équipe prête : évacuation d'abord")
+	assert_eq(EvacRules.decide({1: LEAVE, 2: LEAVE}, {1: A, 2: D}, {1: true, 2: true}, 0.0), EvacRules.RESUME, "temps écoulé, un joueur à terre : la partie continue")
+	assert_eq(EvacRules.decide({1: READY, 2: READY}, life, {}, -0.5), EvacRules.RESUME, "temps négatif : reprise")
+
+
 func test_zone_de_la_porte() -> void:
 	assert_true(EvacRules.in_zone_local(Vector3(0, 0, 1.0)), "devant la porte")
 	assert_true(EvacRules.in_zone_local(Vector3(1.9, 0.1, 3.4)), "coin de la zone")

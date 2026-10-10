@@ -27,7 +27,18 @@ extends RefCounted
 static func carried(pd: PlayerData, parts: Array, samples: Dictionary) -> Dictionary:
 	var ws := []
 	if pd != null:
-		for w in pd.weapons + pd.bag:
+		# Joueur à terre ou mort (spectateur, l'équipe part avec lui) : ses
+		# armes sont mises de côté (saved_weapons), il ne tient que le
+		# pistolet de dernier recours. On compte les armes qu'il retrouverait.
+		var held := pd.weapons
+		if not pd.saved_weapons.is_empty():
+			var back := PlayerData.new()
+			back.weapons = pd.weapons.duplicate(true)
+			back.saved_weapons = pd.saved_weapons.duplicate(true)
+			back.bag = pd.bag
+			MatchRules.restore_saved_weapons(back)
+			held = back.weapons
+		for w in held + pd.bag:
 			if w is Dictionary and keeps_weapon(w):
 				ws.append((w as Dictionary).duplicate(true))
 	var ss := {}
