@@ -39,8 +39,10 @@ static func _obj(doc: EditorMap, o: Dictionary) -> Dictionary:
 
 
 ## Deux salles collées : A (0..14 × 0..10, briques), B (14..24 × 0..10, vert),
-## porte entre elles, fenêtres, départ ; rien contre les murs.
-static func two_rooms() -> EditorMap:
+## porte entre elles, fenêtres, départ ; rien contre les murs. Porte
+## d'évacuation : première place libre (MapTestKit.add_evac), ou contre le mur
+## le plus proche de `evac_at`.
+static func two_rooms(evac_at := Vector2.INF) -> EditorMap:
 	var doc := EditorMap.blank("decor_libre", "DÉCOR LIBRE", "FREE DECOR")
 	_room(doc, 0, 0, 14, 10, "brick")
 	_room(doc, 14, 0, 24, 10, "wall_green")
@@ -50,9 +52,9 @@ static func two_rooms() -> EditorMap:
 	doc.ouvertures.append({"id": "o3", "type": "fenetre", "altitude": 0, "position": [19.25, 0.0]})
 	_obj(doc, {"type": "depart", "position": [7.0, 6.0]})
 	_obj(doc, {"type": "boite", "position": [19.0, 10.0], "mur": "s", "depart": true})
-	# Porte d'évacuation contre le mur sud de A, loin des objets que les tests
-	# poussent contre les murs (sinon carte invalide, sans départ).
-	return MapTestKit.add_evac_at(doc, Vector2(10.5, 9.7))
+	if evac_at.is_finite():
+		return MapTestKit.add_evac_at(doc, evac_at)
+	return MapTestKit.add_evac(doc)
 
 
 static func layout(doc: EditorMap) -> Dictionary:
@@ -122,7 +124,11 @@ func test_reference_probes_follow_rooms() -> void:
 ## Le bug signalé : un décor poussé contre un mur changeait la texture de ce
 ## mur (la face prenait celle de la pièce d'à côté, ou la texture par défaut).
 func test_wall_texture_ignores_objects_pushed_against_walls() -> void:
-	var ref := probes(layout(two_rooms()))
+	# Porte d'évacuation contre le mur sud de A, loin des objets poussés
+	# contre les murs (au milieu du mur nord, les sacs de sable la touchent :
+	# carte invalide, sans départ).
+	var evac := Vector2(10.5, 9.7)
+	var ref := probes(layout(two_rooms(evac)))
 	var cases := [
 		["bureau contre le mur ouest", _prefab_at("bureau", 1.0, 5.0, 0)],
 		["bureau contre le mur mitoyen (côté A)", _prefab_at("bureau", 13.0, 2.5, 0)],
@@ -137,7 +143,7 @@ func test_wall_texture_ignores_objects_pushed_against_walls() -> void:
 		["brasero au pied du mur", _light_at("feu", 23.25, 1.25)],
 	]
 	for c in cases:
-		var doc := two_rooms()
+		var doc := two_rooms(evac)
 		_obj(doc, (c[1] as Dictionary).duplicate(true))
 		var d := diff(ref, probes(layout(doc)))
 		assert_eq(d, "", "%s : texture des murs inchangée" % c[0])
