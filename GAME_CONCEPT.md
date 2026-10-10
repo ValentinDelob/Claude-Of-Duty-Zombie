@@ -129,6 +129,18 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
   niveau du joueur.
 - ❓ Contenu précis des contrats et rythme de la rotation : définis plus tard par
   l'auteur du jeu.
+- 💡 **Proposition provisoire** (plan complet, écrans et lots :
+  `docs/HUB_PLAN.md` ; maquettes : `docs/hub_mockup/`) :
+  - contrats écrits dans un **fichier de données** (`assets/data/hub/contracts.json`,
+    titres et textes FR / EN) remplissable sans coder ;
+  - **rotation par partie jouée** (pas par l'heure) : après chaque partie d'au
+    moins une manche, la plus ancienne proposition est remplacée et les cases
+    vides sont remplies ; tirage pondéré, sans doublon, selon le niveau ;
+  - un contrat daté expiré disparaît aussi des contrats actifs (rien n'est
+    consommé avant la remise) ; abandonner un contrat ne coûte rien ;
+  - le contrat ne se remet **qu'au hub** ; en partie, un message prévient que
+    l'objectif est atteint (« évacuez pour garder vos échantillons ») ;
+  - contrats **locaux** à chaque joueur, même en coop.
 
 ### 4.2 ter Catalogue d'échanges du scientifique ✅
 - En plus des contrats, le scientifique propose un **catalogue d'échanges
@@ -139,6 +151,12 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
 - Le farm devient ciblé : le joueur sait quels échantillons il lui faut pour la
   récompense qu'il vise.
 - ❓ Contenu du catalogue et niveau des récompenses.
+- 💡 **Proposition provisoire** (`docs/HUB_PLAN.md` §6 et §7) : catalogue dans
+  `assets/data/hub/exchanges.json` ; récompense précise (pièce aux
+  modificateurs exacts ou arme précise de rareté fixée) **au niveau du
+  joueur** ; **pas d'XP**, échanges **illimités**, plus chers qu'un contrat
+  équivalent (prix de la certitude) ; un échange d'un niveau trop haut reste
+  visible, grisé.
 
 ### 4.3 Partie sans fin et vagues ✅
 - **Une partie ne se termine jamais** d'elle-même : seule l'évacuation ou la
@@ -580,12 +598,26 @@ corriger.
 | Pièces et échantillons | rangés directement dans l'onglet de partie (pas d'objet au sol) ; compteur discret à droite du HUD | `LootSystem` |
 | Échantillons des chiens | `dog_fang` (croc), `dog_fur` (touffe de poils), `dog_collar` (collier) | `LootRules.SAMPLES` |
 | Butin rapporté | armes en main et inventaire, sauf armes de base intactes et pistolet prêté ; exemplaire construit depuis l'arsenal (même `uid`) et amélioré en partie : cette version mise à jour (niveau, rareté, pièces), intact : rien, second exemplaire différent : nouvelle version ; pièces non montées ; échantillons | `ProfileLoot` |
+| Hub (conception, pas encore codé) | **écrans 2D à onglets** (LABO, ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, PARTIE) ; hub 3D (laboratoire) plus tard, qui ouvrira les mêmes panneaux ; menu titre réduit à JOUER, ÉDITEUR, OPTIONS, CRÉDITS, QUITTER ; solo / coop choisis dans PARTIE ; en coop, le salon est l'onglet PARTIE (le groupe reste connecté) ; puissance non affichée (§4.13), meilleur score de l'arsenal à la place ; retirer une pièce et recycler : deux appuis | `docs/HUB_PLAN.md` |
+| Contrats : tableau | **5 propositions, 3 actifs** ; rotation **par partie** (≥ 1 manche survécue) : 1 proposition (la plus ancienne) remplacée, cases vides remplies ; une proposition acceptée laisse sa case vide jusqu'à la partie suivante ; tirage pondéré sans doublon, graine du profil | `docs/HUB_PLAN.md` §5 |
+| Contrats : récompense | XP = XP de base × (1 + 0,02 × (niveau − 1)), arrondie à 10 ; arme ou pièce au niveau du joueur à la remise ; rareté de l'arme selon les parties nécessaires (< 1,5 commune, 1,5 à 3 rare, 3 à 5 épique, > 5 légendaire ; unique : contrats datés exceptionnels seulement) ; qualité d'une pièce : ordinaire (tirage du butin), soignée (2 bonus de 10 à 25 %), d'exception (2 bonus de 18 à 25 %) ; XP ≈ 25 % de l'XP des parties nécessaires, +25 % si daté | `docs/HUB_PLAN.md` §5, §7 |
+| Contrats et échanges d'exemple | 8 contrats et 5 échanges sur les échantillons des chiens (fichiers `assets/data/hub/`) | `docs/HUB_PLAN.md` §7 |
+| Échanges | pas d'XP, illimités, objet précis au niveau du joueur | `docs/HUB_PLAN.md` §6 |
+| Taille des menus | nouveau réglage 80 à 130 % (défaut 100 %) pour le hub et les menus, même technique que la taille de l'éditeur | `docs/HUB_PLAN.md` §4.2 |
 
 ## 7. Questions ouvertes
 
 - Nom définitif du jeu.
 - Identité du scientifique, origine de l'épidémie, fin.
-- Gains des contrats, déblocage, nombre de contrats actifs.
+- Gains des contrats, déblocage, nombre de contrats actifs (proposition
+  provisoire : `docs/HUB_PLAN.md`, à valider avec ses maquettes).
+- Échantillons en coop : chaque joueur tire les échantillons de chaque chien,
+  et il y a plus de chiens ; à 4 joueurs, un joueur en reçoit ≈ 4 fois plus
+  qu'en solo et remplit ses contrats ≈ 4 fois plus vite. Réduire la chance par
+  joueur en coop, ou garder ce bonus de la coop ?
+- Effet des contrats sur la progression : ≈ +20 à 25 % d'XP, niveau 50 vers
+  100 h au lieu de 123 h (cible 120 h) : à re-mesurer.
+- Nom et personnalité du scientifique (le hub en a besoin pour ses répliques).
 - Liste des armes, leurs niveaux de base et leurs statistiques.
 - Durées et prix exacts de construction et de recharge des munitions.
 - Contenu du défi hebdomadaire.

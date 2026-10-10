@@ -1,0 +1,130 @@
+{
+	"format": "hub_contracts",
+	"version": 1,
+	"rules": {
+		"offers": 5,
+		"active_max": 3,
+		"replace_per_match": 1,
+		"min_rounds_for_rotation": 1,
+		"xp_level_factor": 0.02
+	},
+	"contracts": [
+		{
+			"id": "first_sample",
+			"title": {"fr": "Premier prélèvement", "en": "First Sample"},
+			"text": {
+				"fr": "Vous êtes revenu ! Et en un seul morceau, c'est rare. Rapportez-moi un croc de ces chiens et je vous prouverai que la science vaut mieux qu'une batte.",
+				"en": "You came back! In one piece, too, which is rare. Bring me a fang from those dogs and I'll prove science beats a baseball bat."
+			},
+			"thanks": {
+				"fr": "Magnifique. Répugnant, mais magnifique. Gardez ça, vous en aurez besoin.",
+				"en": "Magnificent. Disgusting, but magnificent. Keep this, you'll need it."
+			},
+			"samples": {"dog_fang": 1},
+			"xp": 150,
+			"reward": {"kind": "weapon", "weapon": "any", "rarity": "common"},
+			"min_level": 1,
+			"repeatable": false,
+			"weight": 0,
+			"tutorial": true
+		},
+		{
+			"id": "dog_fangs_small",
+			"title": {"fr": "Dents de lait", "en": "Milk Teeth"},
+			"text": {
+				"fr": "Il me faut d'autres crocs. L'émail de ces bestioles réagit au virus d'une façon… fascinante. Ne me regardez pas comme ça.",
+				"en": "I need more fangs. The enamel on those beasts reacts to the virus in a… fascinating way. Don't look at me like that."
+			},
+			"thanks": {
+				"fr": "Parfait, parfait. J'ai bricolé ceci pendant votre absence.",
+				"en": "Perfect, perfect. I tinkered with this while you were out."
+			},
+			"samples": {"dog_fang": 4},
+			"xp": 1200,
+			"reward": {"kind": "part", "quality": "fine"},
+			"min_level": 1
+		},
+		{
+			"id": "dog_fur_coat",
+			"title": {"fr": "Échantillons de pelage", "en": "Coat Samples"},
+			"text": {
+				"fr": "Leurs poils retiennent les spores. Rapportez-m'en, et lavez-vous les mains après. Deux fois.",
+				"en": "Their fur traps the spores. Bring me some, and wash your hands afterwards. Twice."
+			},
+			"samples": {"dog_fur": 6},
+			"xp": 1650,
+			"reward": {"kind": "weapon", "weapon": "any", "rarity": "rare"},
+			"min_level": 2
+		},
+		{
+			"id": "dog_collars",
+			"title": {"fr": "Colliers de la meute", "en": "Pack Collars"},
+			"text": {
+				"fr": "Ces chiens avaient des maîtres. Les colliers me diront d'où ils viennent… et d'où vient l'épidémie.",
+				"en": "Those dogs had owners. The collars will tell me where they came from… and where the outbreak started."
+			},
+			"samples": {"dog_collar": 5},
+			"xp": 1450,
+			"reward": {"kind": "part", "quality": "fine"},
+			"min_level": 2
+		},
+		{
+			"id": "pack_analysis",
+			"title": {"fr": "Analyse complète", "en": "Full Analysis"},
+			"text": {
+				"fr": "Un peu de tout, s'il vous plaît : crocs, poils, colliers. Une analyse sérieuse demande un échantillon sérieux.",
+				"en": "A bit of everything, please: fangs, fur, collars. Serious analysis needs a serious sample."
+			},
+			"samples": {"dog_fang": 3, "dog_fur": 3, "dog_collar": 3},
+			"xp": 1250,
+			"reward": {"kind": "weapon", "weapon": "any", "rarity": "rare"},
+			"min_level": 3,
+			"after": ["first_sample"]
+		},
+		{
+			"id": "jaw_series",
+			"title": {"fr": "Mâchoires en série", "en": "Jaw Series"},
+			"text": {
+				"fr": "Mon premier sérum a fondu au contact d'un croc. Il m'en faut beaucoup plus pour comprendre pourquoi. Beaucoup.",
+				"en": "My first serum melted on contact with a fang. I need a lot more to understand why. A lot."
+			},
+			"samples": {"dog_fang": 10},
+			"xp": 2300,
+			"reward": {"kind": "weapon", "weapon": "any", "rarity": "epic"},
+			"min_level": 5
+		},
+		{
+			"id": "great_harvest",
+			"title": {"fr": "La grande collecte", "en": "The Great Harvest"},
+			"text": {
+				"fr": "Je suis à deux doigts du vaccin. Enfin, à quelques dizaines d'échantillons. Ramenez-moi la meute entière, en pièces détachées.",
+				"en": "I'm this close to a vaccine. Well, a few dozen samples close. Bring me the whole pack, in spare parts."
+			},
+			"thanks": {
+				"fr": "Vous êtes complètement fou. J'adore ça. Tenez, c'est ce que j'ai de mieux.",
+				"en": "You're completely insane. I love it. Here, it's the best I've got."
+			},
+			"samples": {"dog_fang": 12, "dog_fur": 12, "dog_collar": 12},
+			"xp": 3300,
+			"reward": {"kind": "weapon", "weapon": "any", "rarity": "legendary"},
+			"min_level": 10,
+			"after": ["pack_analysis"]
+		},
+		{
+			"id": "lab_emergency",
+			"title": {"fr": "Urgence au labo", "en": "Lab Emergency"},
+			"text": {
+				"fr": "Mon réfrigérateur a lâché, j'ai perdu tous mes colliers. Ne riez pas. Il m'en faut d'autres avant la fin du mois.",
+				"en": "My fridge died and I lost all my collars. Don't laugh. I need new ones before the end of the month."
+			},
+			"samples": {"dog_collar": 8},
+			"xp": 2700,
+			"reward": {"kind": "part", "quality": "superior"},
+			"min_level": 3,
+			"starts": "2026-11-01",
+			"ends": "2026-11-30",
+			"repeatable": false,
+			"weight": 3
+		}
+	]
+}
