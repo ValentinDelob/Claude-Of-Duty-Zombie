@@ -72,7 +72,8 @@ vec3 day_sky(vec3 d) {
 	float h = d.y;
 	if (h < 0.0) {
 		// Sol lointain : deux paliers sombres.
-		return pow(h > -0.1 ? day_horizon * 0.55 : vec3(0.1), vec3(2.2));
+		vec3 ground = h > -0.1 ? day_horizon * 0.55 : vec3(0.1);
+		return pow(max(ground, 0.0), vec3(2.2));
 	}
 	vec3 col = banded(day_horizon, day_top, h * 1.6);
 	if (h > 0.035) {
@@ -97,7 +98,7 @@ vec3 day_sky(vec3 d) {
 		}
 	}
 	// Couleurs du jour données en sRGB (comme WorldLook.DAY_*) : en linéaire.
-	return pow(col, vec3(2.2));
+	return pow(max(col, 0.0), vec3(2.2));
 }
 
 // Coordonnées sur la face du cube que vise `d` : (face, uv dans [-1, 1]).
