@@ -2775,6 +2775,37 @@
     "en": "Batter up",
     "fr": "Au bâton"
    }
+  },
+  "v0.2.1-snapshot.640": {
+   "channel": "snapshot",
+   "date": "2026-10-11",
+   "images": [],
+   "items": [
+    {
+     "en": "New CODEX tab in the hub: every enemy you meet gets its own card, the others stay hidden behind \"???\".",
+     "fr": "Nouvel onglet CODEX au hub : chaque ennemi rencontré a sa fiche, les autres restent cachés derrière « ??? »."
+    },
+    {
+     "en": "Cards show your kills, the XP it gives and the samples it can drop.",
+     "fr": "Les fiches affichent tes victimes, l'XP rapportée et les échantillons qu'il peut laisser."
+    },
+    {
+     "en": "Weekly challenge: same map, same rules and same starting weapons for everyone, with new modifiers every week.",
+     "fr": "Défi de la semaine : même carte, mêmes règles et mêmes armes de départ pour tout le monde, avec de nouveaux modificateurs chaque semaine."
+    },
+    {
+     "en": "Evacuate late enough in the weekly challenge to earn a bonus of XP and samples, once per week.",
+     "fr": "Évacue assez tard pendant le défi pour gagner un bonus d'XP et d'échantillons, une fois par semaine."
+    },
+    {
+     "en": "Your best weekly result is saved; you can play the challenge solo or with friends.",
+     "fr": "Ton meilleur résultat de la semaine est gardé ; le défi se joue seul ou entre amis."
+    }
+   ],
+   "title": {
+    "en": "Know your enemy",
+    "fr": "Connais ton ennemi"
+   }
   }
  }
 }
