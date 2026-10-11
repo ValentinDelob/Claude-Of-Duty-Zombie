@@ -6,13 +6,20 @@ extends RefCounted
 ##
 ## Format (JSON, lisible ; JSON ne décode jamais d'objet ni de ressource,
 ## contrairement à ConfigFile, voir SafeConfig) :
-##   {"format": "profile", "version": 3, "saved_at": <unix>,
+##   {"format": "profile", "version": 4, "saved_at": <unix>,
 ##    "profile": {"xp", "level" (informatif), "next_uid", "starting_weapons",
 ##                "samples": {type: n}, "weapons": [...], "parts": [...],
 ##                "contracts": {...} (ContractState), "exchanges": {"done": {id: n}},
 ##                "seen": {"weapons": [uid...], "parts": [uid...]},
 ##                "codex": {"enemies": {type: n}, "seen": [type...]} (CodexState),
-##                "weekly": {"2026-W41": {"best", "evac", "runs", "rewarded"}}}}
+##                "weekly": {"2026-W41": {"best", "evac", "runs", "rewarded"}},
+##                "story": {"done": [étape...]} (StoryState)}}
+## Version 4 (contrats d'histoire, GAME_CONCEPT §4.2 quater) : section
+## « story » (étapes remises) ; un fichier version 1 à 3 se lit sans perte,
+## histoire au début (première étape), et est réécrit en version 4 au
+## prochain enregistrement. Un jeu plus ancien refuse un fichier version 4
+## (mis de côté, jamais écrasé) : la progression de l'histoire n'est jamais
+## effacée en silence par un retour à une ancienne version.
 ## Version 3 (défi hebdomadaire, GAME_CONCEPT §4.18) : section « weekly »
 ## (WeeklyRecord) ; un fichier version 1 ou 2 se lit sans perte, sans aucun
 ## défi joué, et est réécrit en version 3 au prochain enregistrement.
@@ -42,7 +49,7 @@ const TEST_PATH_PREFIX := "user://profile_autotest_"
 const FORMAT := "profile"
 ## Version du format. À augmenter (avec une migration dans _migrate) à chaque
 ## changement incompatible.
-const VERSION := 3
+const VERSION := 4
 ## Taille maximale lue (octets) : arsenal illimité, mais un fichier de cette
 ## taille n'est plus un profil normal.
 const MAX_BYTES := 16 << 20
@@ -193,6 +200,8 @@ static func reset(p := "") -> void:
 ## alors des contrats neufs, aucun échange, et marque l'existant comme vu.
 ## 2 -> 3 : la section « weekly » (défi hebdomadaire) n'existait pas ;
 ## ignorée de même (aucun défi joué).
+## 3 -> 4 : la section « story » (contrats d'histoire) n'existait pas ;
+## ignorée de même (histoire au début).
 static func _migrate(data: Dictionary, from_version: int) -> Dictionary:
 	if from_version < 2:
 		data = data.duplicate()
@@ -201,6 +210,9 @@ static func _migrate(data: Dictionary, from_version: int) -> Dictionary:
 	if from_version < 3:
 		data = data.duplicate()
 		data.erase("weekly")
+	if from_version < 4:
+		data = data.duplicate()
+		data.erase("story")
 	return data
 
 

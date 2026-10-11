@@ -51,6 +51,9 @@ var full_frame := true
 var backdrop_shade := true
 var profile: PlayerProfile
 var profile_path := ""
+## Contrats actifs expirés depuis la dernière visite, à signaler une fois au
+## LABO (HUB_PLAN §5.2 ; ContractState.take_expired à l'ouverture).
+var expired_notice := PackedStringArray()
 var _no_disk := false
 ## Écran affiché, et écran d'où l'on est venu sur JOUER (retour).
 var current_id := ""
@@ -98,6 +101,7 @@ func enter(args := {}) -> void:
 	_no_disk = args.get("profile") is PlayerProfile and profile_path == ""
 	profile = args.profile if args.get("profile") is PlayerProfile else ProfileStore.load_profile(profile_path)
 	var opened := HubContractsView.open_hub(profile)
+	expired_notice = opened.expired
 	if opened.changed and not _no_disk:
 		ProfileStore.save_profile(profile, profile_path)
 	_build()

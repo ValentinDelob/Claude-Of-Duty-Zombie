@@ -75,7 +75,7 @@ func test_fichiers_livres_sans_avertissement() -> void:
 	assert_eq(d.contracts.size(), 17, "17 contrats (§7.1 : 8 des chiens, 3 du Brancardier, 3 de l'Infirmière, 3 du Chirurgien)")
 	assert_eq(d.exchanges.size(), 11, "11 échanges (§7.2 : 5 des chiens, 2 du Brancardier, 2 de l'Infirmière, 2 du Chirurgien)")
 	assert_eq(d.rules, {"offers": 5, "active_max": 3, "replace_per_match": 1, "min_rounds_for_rotation": 1,
-		"xp_level_factor": 0.02})
+		"xp_level_factor": 0.02, "lifetime_days": 7})
 	var tuto := d.contract("first_sample")
 	assert_true(tuto.tutorial and not tuto.repeatable and tuto.weight == 0.0, "contrat tuto")
 	assert_eq(tuto.reward, {"kind": "weapon", "weapon": "any", "rarity": "common"})

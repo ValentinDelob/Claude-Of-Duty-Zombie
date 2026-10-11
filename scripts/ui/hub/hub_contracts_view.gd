@@ -46,26 +46,31 @@ static func active(pr: PlayerProfile, day := -1) -> Array:
 		var c := d.contract(id)
 		if c.is_empty():
 			continue
+		# Fin effective : date du catalogue ou durée de vie du contrat
+		# temporaire (ContractRules.deadline).
+		var eff := ContractRules.effective(c, pr.contracts.active_entry(id))
 		out.append({"id": id, "title": HubData.text_of(c.title), "text": HubData.text_of(c.text), "samples": c.samples,
-			"ends": int(c.ends), "days": days_after_today(c, today_),
-			"ready": pr.has_samples(c.samples) and not ContractRules.is_expired(c, today_), "contract": c})
+			"ends": int(eff.ends), "days": days_after_today(eff, today_),
+			"ready": pr.has_samples(c.samples) and not ContractRules.is_expired(eff, today_), "contract": c})
 	return out
 
 
 ## Propositions du scientifique, dans l'ordre d'arrivée : [{id, title,
-## contract, since, new}]. `new` : arrivée au dernier remplissage du tableau
-## (« nouvelle proposition depuis la dernière partie »).
-static func offers(pr: PlayerProfile) -> Array:
+## contract, since, new, days}]. `new` : arrivée au dernier remplissage du
+## tableau (« nouvelle proposition depuis la dernière partie ») ; `days` :
+## jours pleins restants après aujourd'hui (-1 : sans fin).
+static func offers(pr: PlayerProfile, day := -1) -> Array:
 	var out := []
 	if not available(pr):
 		return out
 	var d := data()
+	var today_ := day if day >= 0 else today()
 	for o in pr.contracts.offers:
 		var c := d.contract(String(o.id))
 		if c.is_empty():
 			continue
 		out.append({"id": String(o.id), "title": HubData.text_of(c.title), "contract": c, "since": int(o.since),
-			"new": is_new_offer(pr, o)})
+			"new": is_new_offer(pr, o), "days": days_after_today(ContractRules.effective(c, o), today_)})
 	return out
 
 

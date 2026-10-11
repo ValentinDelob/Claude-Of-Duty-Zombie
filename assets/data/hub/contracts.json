@@ -6,7 +6,8 @@
 		"active_max": 3,
 		"replace_per_match": 1,
 		"min_rounds_for_rotation": 1,
-		"xp_level_factor": 0.02
+		"xp_level_factor": 0.02,
+		"lifetime_days": 7
 	},
 	"contracts": [
 		{

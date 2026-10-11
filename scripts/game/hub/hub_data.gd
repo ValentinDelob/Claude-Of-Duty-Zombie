@@ -51,6 +51,10 @@ const DEFAULT_RULES := {
 	"replace_per_match": 1,
 	"min_rounds_for_rotation": 1,
 	"xp_level_factor": 0.02,
+	# Durée de vie (jours) d'une proposition du tableau, gardée quand elle
+	# est acceptée (contrats TEMPORAIRES, GAME_CONCEPT §4.2 quater) ; 0 : pas
+	# de limite propre (seulement la date `ends` du contrat).
+	"lifetime_days": 0,
 }
 ## Bornes des règles [min, max].
 const RULE_RANGES := {
@@ -59,6 +63,7 @@ const RULE_RANGES := {
 	"replace_per_match": [0, 20],
 	"min_rounds_for_rotation": [0, 1000],
 	"xp_level_factor": [0.0, 1.0],
+	"lifetime_days": [0, 365],
 }
 
 ## Règles du tableau des contrats (DEFAULT_RULES complétées par le fichier).

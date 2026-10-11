@@ -46,6 +46,9 @@ var codex := CodexState.new()
 ## Défi hebdomadaire : meilleur résultat et récompense de chaque semaine
 ## (version 3, WeeklyRecord, GAME_CONCEPT §4.18).
 var weekly := WeeklyRecord.new()
+## Histoire : étapes remises des contrats d'histoire (version 4, StoryState ;
+## règles : StoryRules, GAME_CONCEPT §4.2 quater).
+var story := StoryState.new()
 
 static var _thresholds: PackedInt64Array = []
 
@@ -378,6 +381,8 @@ func to_dict() -> Dictionary:
 		"codex": codex.to_dict(),
 		# Version 3 (défi hebdomadaire) :
 		"weekly": weekly.to_dict(),
+		# Version 4 (contrats d'histoire) :
+		"story": story.to_dict(),
 	}
 
 
@@ -460,6 +465,8 @@ static func from_dict(d: Dictionary, dropped := [0]) -> PlayerProfile:
 	pr.codex = CodexState.from_dict(d.get("codex"), dropped)
 	# Version 3 : section absente (profil v1 ou v2) : aucun défi joué.
 	pr.weekly = WeeklyRecord.from_dict(d.get("weekly"), dropped)
+	# Version 4 : section absente (profil v1 à v3) : histoire au début.
+	pr.story = StoryState.from_dict(d.get("story"), dropped)
 	return pr
 
 
