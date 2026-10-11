@@ -72,9 +72,11 @@ func run() -> void:
 		if zid == b.id:
 			head_hits[0 if headshot else 1] = maxi(head_hits[0 if headshot else 1], dmg)
 	game.combat.zombie_damaged.connect(on_dmg)
-	H.aim_at(p, b.head_position())
 	p.input.fire = true
-	await seconds(0.6)
+	# Visée recalée à chaque image (le recul fait monter l'arme).
+	await until(func():
+		H.aim_at(p, b.head_position())
+		return head_hits[0] > 0, 3.0, "touche à la tête")
 	p.input.fire = false
 	game.combat.zombie_damaged.disconnect(on_dmg)
 	at.check(head_hits[0] > 0 and head_hits[0] >= roundi(WeaponDB.stats("commando").damage * 2.0),
