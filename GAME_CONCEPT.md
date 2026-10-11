@@ -82,6 +82,13 @@ ramasser son butin (à sa couleur), se replacer, recharger.
   pour les récupérer (contrats).
 - ✅ Tous les joueurs incarnent le **même personnage**, un **joueur de
   baseball**. En coop, quatre joueurs identiques (distingués par leur couleur).
+  ✔️ Modèle cubique fait (cubes de 2,5 cm, équipe fictive, numéro 27) :
+  casquette, sous-maillot, liserés, numéros et chaussettes à la couleur du
+  joueur (ambre, cyan, rose, vert anis) ; il remplace les sept personnages
+  vus par les autres (docs/ART_DIRECTION.md « Joueur de baseball »). ⏳ Ses
+  répliques restent à écrire et à valider : en attendant, les voix des sept
+  anciens personnages sont gardées (docs/CHARACTERS.md). ❓ Nom et caractère
+  du joueur de baseball.
 - 💡 Scène d'introduction à l'hôpital (réveil après un coma, rencontre avec le
   scientifique caché dans une armoire) : **reportée**, pourra revenir plus tard
   comme chapitre de lore.
@@ -547,7 +554,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | Machine d'amélioration (Pack-a-Punch) | ✔️ | **Supprimée** (les pièces s'installent depuis l'inventaire) |
 | Téléporteur, courant | 🧪 | ❓ Selon les cartes |
 | Armes merveilles (Claude-Ray, Tonnerre-7) | ✔️ | **Supprimées** (à recréer de façon originale plus tard, si besoin) |
-| Sept personnages et leurs voix FR / EN | 🧪 | **Remplacer** par le joueur de baseball unique |
+| Sept personnages et leurs voix FR / EN | ✔️ / 🧪 | **Remplacés** à l'écran par le joueur de baseball unique en cubes (`player_voxel.glb`, couleur du joueur ; sélecteur PERSONNAGE retiré des options) ; ⏳ leurs **voix** restent en attendant les répliques du joueur de baseball (à valider par l'utilisateur) |
 | Dossier de combat (`CareerStats`) | 🧪 | **Adapter** au profil du joueur (XP, niveau, arsenal) |
 | Éditeur de cartes, bouton TESTER | 🧪 | **Garder** ; ajouter la **porte d'évacuation** obligatoire et le **schéma des vagues spéciales et de boss** |
 | Modèles, textures et décors réalistes (zombies, armes, cartes, `docs/ART_DIRECTION.md`) | 🧪 | **Refaire** en style cubique (§4.19) |
@@ -566,7 +573,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | **Nom du jeu** « Claude of Duty Zombie » (titre de la fenêtre, logo, crédits, salon, lanceur, exécutable) | ⏳ attend le nom définitif (§7) ; à changer partout d'un coup |
 | **Carte KINO** (Kino der Toten à l'échelle 1) | ✔️ retirée du jeu (`Settings.RETIRED_MAPS`) ; les anciennes notes de version du lanceur la citent encore (📜) |
 | **Lore** Institut Aether, aethérium (calque de l'Élément 115) | ✔️ remplacé par le lore du scientifique (§3) ; « Feux follets (115) » de l'éditeur renommés « Feux follets » (lueurs toxiques) ; ⏳ encore dans des répliques des personnages (`assets/voices/arakawa.json`, `berg.json`, `weissmann.json` : « aethérium »), qui partiront avec les 7 personnages |
-| **Équipe de quatre archétypes** (Marine, Russe, Japonais, savant allemand), les 7 personnages et leurs voix | ⏳ refonte du personnage unique (joueur de baseball, §3) ; les crédits les citent encore |
+| **Équipe de quatre archétypes** (Marine, Russe, Japonais, savant allemand), les 7 personnages et leurs voix | ✔️ modèles et tenues vus par les autres remplacés par le joueur de baseball (§3), choix du personnage retiré des options ; ⏳ voix (répliques du joueur de baseball à écrire), tenues des mains FPS (refonte des armes et des mains) et crédits qui les citent encore |
 | **Annonceur** | ✔️ aucune voix d'annonceur dans le jeu (la voix démoniaque de l'annonce des chiens est retirée) |
 | **Pack-a-Punch**, **boîte mystère**, **machines d'atouts**, **bonus au sol** (Max Ammo, Insta-Kill, Nuke, Carpenter, Fire Sale, Death Machine), **armes murales et tableaux à la craie** | ✔️ supprimés ou adaptés (§5) ; noms internes `pap`, `MysteryBox`, `pap_zap_*` gardés (jamais affichés) ; note de l'éditeur sur les objets retirés : « machine d'amélioration » |
 | **Compteur de manche à la craie / rouge sang** (bâtons 1 à 5, chiffres peints, transitions blanc <-> rouge) | ✔️ remplacé par des chiffres en cubes menthe et des transitions propres (cubes qui tombent en place, veille, alerte orange des vagues spéciales) |

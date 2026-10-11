@@ -320,6 +320,14 @@ func reviver_of(pid: int) -> int:
 	return downed.get(pid, {}).get("reviver", 0)
 
 
+## `pid` réanime-t-il un coéquipier à terre (pose du modèle vu par les autres) ?
+func is_reviving(pid: int) -> bool:
+	for other in downed:
+		if downed[other].get("reviver", 0) == pid:
+			return true
+	return false
+
+
 ## Serveur : une auto-réanimation est-elle programmée ?
 func will_self_revive(pid: int) -> bool:
 	return downed.get(pid, {}).get("self_revive", 0.0) > 0.0

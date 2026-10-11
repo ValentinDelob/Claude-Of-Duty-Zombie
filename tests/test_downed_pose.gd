@@ -1,6 +1,6 @@
 extends TestCase
 ## Pose « à terre » des joueurs vus par les autres (PlayerModel, dernier
-## recours de BO1) pour les sept personnages : assis au sol (bassin posé,
+## recours de BO1) du joueur de baseball cubique : assis au sol (bassin posé,
 ## rien sous le sol), main gauche d'appui au sol, pistolet tendu devant, tête
 ## à la hauteur de la caméra du joueur à terre ; chute et relevé sans pieds
 ## dans le sol ; mort couché sur le dos. Mesuré sur les sommets skinnés.
@@ -8,9 +8,9 @@ extends TestCase
 const DT := 1.0 / 60.0
 
 
-func _model(character: int) -> PlayerModel:
+func _model(_character := 0) -> PlayerModel:
 	var m := PlayerModel.new()
-	m.build(Color.WHITE, character)
+	m.build(Color.WHITE)
 	host.add_child(m)
 	return m
 
@@ -76,25 +76,25 @@ func _settle(m: PlayerModel, downed: bool, dead := false, pitch := 0.0, frames :
 		m.animate(DT, 0.0, pitch, 0, downed, dead)
 
 
-## Yeux du modèle (repère du joueur) : lunettes d'Arakawa, au milieu du visage.
+## Yeux du modèle (repère du joueur) : PlayerModel.EYE_OFFSET.
 func _eyes(m: PlayerModel) -> Vector3:
 	var skel := m.skel
 	var head := skel.get_bone_global_pose(skel.find_bone("head"))
-	return skel.transform * (head * Vector3(0, 0.15, 0.11))
+	return skel.transform * (head * PlayerModel.EYE_OFFSET)
 
 
 func test_seated_on_the_ground_for_every_character() -> void:
-	for ch in CharacterDB.IDS.size():
+	for ch in 1:
 		var m := _model(ch)
 		_settle(m, true)
 		var sk := _skinned(m)
-		var id: String = CharacterDB.IDS[ch]
+		var id := "joueur %d" % ch
 		var low := _min_y_of(sk, BODY)
 		assert_true(low > -0.025 and low < 0.02, "%s : corps posé au sol, ni enfoncé ni en lévitation (point le plus bas %.3f m)" % [id, low])
 		var butt := _min_y(sk.hips)
 		assert_true(butt < 0.04, "%s : assis sur les fesses (bas du bassin à %.3f m)" % [id, butt])
 		var hips_y := m.skel.transform * m.skel.get_bone_global_pose(m.bones.hips).origin
-		assert_true(hips_y.y < 0.2 * m.body_scale, "%s : bassin au ras du sol (%.2f m), pas à mi-hauteur" % [id, hips_y.y])
+		assert_true(hips_y.y < 0.2, "%s : bassin au ras du sol (%.2f m), pas à mi-hauteur" % [id, hips_y.y])
 		# Main gauche d'appui à plat au sol.
 		var hand_l := _min_y(sk.forearm_l)
 		assert_true(hand_l > -0.03 and hand_l < 0.08, "%s : main d'appui au sol (%.3f m)" % [id, hand_l])
@@ -102,7 +102,7 @@ func test_seated_on_the_ground_for_every_character() -> void:
 		# derrière le bassin ni dans le buste.
 		for b in LEGS:
 			for p in sk[b]:
-				if p.z > hips_y.z + 0.16 * m.body_scale:
+				if p.z > hips_y.z + 0.16:
 					failures.append("%s : %s derrière le bassin (z %.2f > %.2f)" % [id, b, p.z, hips_y.z])
 					break
 		# Pistolet devant, à hauteur de poitrine, au-dessus des jambes.
@@ -139,7 +139,7 @@ func test_aim_follows_pitch_without_going_into_the_ground() -> void:
 
 
 func test_fall_and_get_up_keep_feet_above_the_ground() -> void:
-	for ch in [0, 5, 6]:
+	for ch in [0]:
 		var m := _model(ch)
 		_settle(m, false, false, 0.0, 10)
 		var worst := INF
@@ -154,7 +154,7 @@ func test_fall_and_get_up_keep_feet_above_the_ground() -> void:
 				if hips_prev != INF:
 					jump = maxf(jump, absf(hy - hips_prev))
 				hips_prev = hy
-		var id: String = CharacterDB.IDS[ch]
+		var id := "joueur %d" % ch
 		assert_true(worst > -0.04, "%s : chute et relevé sans traverser le sol (%.3f m)" % [id, worst])
 		assert_true(jump < 0.08, "%s : bassin sans à-coup (%.3f m par image)" % [id, jump])
 		var sk2 := _skinned(m)
@@ -164,24 +164,24 @@ func test_fall_and_get_up_keep_feet_above_the_ground() -> void:
 
 
 func test_dead_lies_on_the_back() -> void:
-	for ch in [0, 6]:
+	for ch in [0]:
 		var m := _model(ch)
 		_settle(m, true, true, 0.0, 150)
 		var sk := _skinned(m)
-		var id: String = CharacterDB.IDS[ch]
+		var id := "joueur %d" % ch
 		var low := _min_y_of(sk, BODY)
 		assert_true(low > -0.06 and low < 0.03, "%s : mort, posé au sol (%.3f m)" % [id, low])
 		var top := -INF
 		for b in ["hips", "spine", "chest", "head", "thigh_l", "thigh_r", "shin_l", "shin_r"]:
 			for p in sk[b]:
 				top = maxf(top, p.y)
-		assert_true(top < 0.5 * m.body_scale + 0.06, "%s : couché (plus haut %.2f m)" % [id, top])
+		assert_true(top < 0.5 + 0.06, "%s : couché (plus haut %.2f m)" % [id, top])
 		m.free()
 
 
 func test_camera_and_capsule_values() -> void:
 	assert_true(Player.DOWNED_HEIGHT >= Player.RADIUS * 2.0, "capsule valide")
-	assert_true(Player.DOWNED_HEIGHT > PlayerModel.DOWN_EYE_Y * PlayerModel.JOJO_SCALE, "la capsule couvre la tête assise")
+	assert_true(Player.DOWNED_HEIGHT > PlayerModel.DOWN_EYE_Y, "la capsule couvre la tête assise")
 	assert_true(Player.DOWNED_EYE_HEIGHT > 0.6 and Player.DOWNED_EYE_HEIGHT < 0.85, "yeux d'un homme assis")
 
 

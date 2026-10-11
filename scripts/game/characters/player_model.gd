@@ -1,19 +1,26 @@
 class_name PlayerModel
 extends Node3D
-## Soldat low-poly des joueurs vus par les autres (1 draw call + l'arme).
+## Joueur de baseball CUBIQUE vu par les autres (GAME_CONCEPT.md § 3 : tous
+## les joueurs incarnent le même personnage, distingués par leur couleur ;
+## § 4.19 : cubes de 2,5 cm). Modèle tools/blender/player/player_voxel.py
+## (assets/models/player/player_voxel.glb), chargé par ZombieGlb : un mesh
+## skinné partagé (un draw call + l'arme), couleur par face de cube ; la zone
+## d'équipe (casquette, sous-maillot, liserés, numéros, chaussettes) prend la
+## couleur du joueur (player_voxel.gdshader, `team_color` par instance).
 ## Animations procédurales pilotées par l'état réseau : marche, course,
-## accroupi, visée (le buste suit le regard), tir, joueur à terre.
+## accroupi, allongé, plongeon, visée (le buste suit le regard, arme épaulée
+## plus haut en visée), tir, réanimation d'un coéquipier (accroupi, bras
+## tendus vers le sol), à terre, mort.
 
-const SKIN := Color(0.52, 0.4, 0.32)
-## Peau claire (Berg, cohérente avec ses mains en vue FPS).
-const SKIN_FAIR := Color(0.62, 0.48, 0.41)
-const UNIFORM := Color(0.2, 0.22, 0.15)
-const PANTS := Color(0.16, 0.17, 0.12)
-const VEST := Color(0.12, 0.13, 0.1)
-const HELMET := Color(0.17, 0.19, 0.13)
-const BOOTS := Color(0.06, 0.05, 0.04)
+const MODEL_PATH := "res://assets/models/player/player_voxel.glb"
+## Yeux du modèle dans le repère de l'os de la tête (milieu des yeux, face
+## avant du visage) : rangées 64-65 et avant du visage du script Blender.
+const EYE_OFFSET := Vector3(0, 0.1, 0.15)
 
 static var _material: ShaderMaterial
+static var _skin: Skin
+## Dimensions mesurées sur le modèle (voir dims()).
+static var _dims := {}
 
 var skel: Skeleton3D
 var bones: Dictionary
@@ -24,8 +31,10 @@ var _phase := 0.0
 var _recoil := 0.0
 var _down_k := 0.0
 var _prone_k := 0.0
-## Échelle du personnage (Berg, Jojo) : les poses sont écrites pour 1.
-var body_scale := 1.0
+## Réanime un coéquipier (0..1) : accroupi, bras vers le blessé.
+var _revive_k := 0.0
+## Visée (0..1) : arme montée à l'œil.
+var _aim_k := 0.0
 ## Mort : couché sur le dos (0..1, après la pose à terre).
 var _dead_k := 0.0
 ## À terre devant un mur ou une marche : genoux repliés (0..1).
@@ -67,7 +76,7 @@ const DOWN_SHIN_L := -1.05
 ## Genou gauche relevé un peu écarté (rotation Z, vers l'extérieur).
 const DOWN_SPREAD_L := 0.22
 ## Bras gauche d'appui (absolu) : main au sol, en arrière et sur le côté.
-const DOWN_SUPPORT := 0.52
+const DOWN_SUPPORT := 0.75
 const DOWN_SUPPORT_OUT := 0.3
 ## Bras droit (absolu) à l'horizontale, pistolet vers le regard.
 const DOWN_AIM := -1.62
@@ -90,193 +99,100 @@ const DOWN_RATE := 1.8
 ## assis (caméra 1re personne, Player.downed_eye) ; le corps est avancé de
 ## DOWN_FWD pour que la tête soit au-dessus de la position du joueur (là où
 ## est sa caméra) : ce qu'il voit est ce que les autres voient.
-const DOWN_EYE_Y := 0.8
+const DOWN_EYE_Y := 0.7
 const DOWN_FWD := 0.33
 const TUCK_FWD := 0.12
 
 
+## Matériau partagé des joueurs (la couleur d'équipe est un paramètre
+## d'instance : un seul matériau pour tous).
 static func material() -> ShaderMaterial:
 	if _material == null:
 		_material = ShaderMaterial.new()
-		_material.shader = preload("res://assets/shaders/character.gdshader")
-		_material.set_shader_parameter("grime", 0.25)
-		_material.set_shader_parameter("stain_amount", 0.12)
-		_material.set_shader_parameter("emission_energy", 0.0)
+		_material.shader = preload("res://assets/shaders/player_voxel.gdshader")
 	return _material
 
 
-## Tenues des sept personnages (CharacterDB, docs/CHARACTERS.md), cohérentes
-## avec leurs mains en vue FPS (ViewHands.STYLES) :
-## [veste, pantalon, manches (avant-bras), mains, coiffe].
-const OUTFITS := [
-	# Callahan : chemise kaki aux manches retroussées, casque M1 cabossé.
-	[Color(0.42, 0.37, 0.25), Color(0.24, 0.25, 0.17), SKIN, SKIN, Color(0.2, 0.22, 0.15)],
-	# Orlov : veste matelassée grise, mitaines de laine, chapka.
-	[Color(0.27, 0.28, 0.27), Color(0.2, 0.2, 0.19), Color(0.27, 0.28, 0.27), Color(0.33, 0.3, 0.26), Color(0.3, 0.22, 0.14)],
-	# Arakawa : veste olive boutonnée, mains nues, casquette à couvre-nuque.
-	[Color(0.33, 0.32, 0.19), Color(0.3, 0.29, 0.18), Color(0.33, 0.32, 0.19), SKIN, Color(0.31, 0.3, 0.18)],
-	# Weissmann : combinaison de protection jaunâtre, gants de caoutchouc noirs.
-	[Color(0.55, 0.5, 0.32), Color(0.5, 0.46, 0.3), Color(0.55, 0.5, 0.32), Color(0.04, 0.04, 0.04), Color(0.55, 0.55, 0.55)],
-	# Mercer : treillis olive à chevrons, manches retroussées (avant-bras nus),
-	# casquette de treillis à huit pans.
-	[Color(0.27, 0.3, 0.19), Color(0.24, 0.27, 0.17), SKIN, SKIN, Color(0.25, 0.28, 0.17)],
-	# Berg : veste de terrain bleu canard sombre, pantalon taille haute,
-	# peau claire ; « coiffe » = cheveux blond platine relevés.
-	[Color(0.12, 0.3, 0.31), Color(0.25, 0.22, 0.18), Color(0.12, 0.3, 0.31), SKIN_FAIR, Color(0.94, 0.88, 0.7)],
-	# Jojo : maillot de corps gris-blanc taché, pantalon de laine brun,
-	# manches roulées (avant-bras nus), casquette plate en laine.
-	[Color(0.72, 0.68, 0.58), Color(0.22, 0.18, 0.14), SKIN, SKIN, Color(0.3, 0.27, 0.22)],
-]
-## Taille de Berg (petite et mince) par rapport aux autres.
-const BERG_SCALE := 0.92
-## Taille de Jojo (une grosse brute d'une centaine de kilos).
-const JOJO_SCALE := 1.1
+## Modèle chargé ({mesh, overrides}) ; {} si le .glb manque.
+static func model() -> Dictionary:
+	return ZombieGlb.load_model(MODEL_PATH)
 
 
-func build(slot_color: Color, character := 0) -> void:
-	var o: Array = OUTFITS[posmod(character, OUTFITS.size())]
-	var jacket: Color = o[0]
-	var pants: Color = o[1]
-	var sleeve: Color = o[2]
-	var hand: Color = o[3]
-	var hat: Color = o[4]
-	var fem := character == 5
-	var fat := character == 6
-	# Orlov : un gabarit au-dessus ; Mercer : trapu ; Berg : mince (et
-	# plus petite : BERG_SCALE), épaules étroites, taille marquée ; Jojo :
-	# énorme (et plus grand : JOJO_SCALE), gros ventre, cou de taureau.
-	var big := 1.12 if character == 1 else (1.06 if character == 4 else (0.86 if fem else (1.2 if fat else 1.0)))
-	var skin := SKIN_FAIR if fem else SKIN
-	var p: Array = []
-	p.append(["hips", Vector3(0.34 * (1.0 if fem else big), 0.2, 0.21), Vector3.ZERO, pants, 0.0])
-	p.append(["spine", Vector3((0.28 if fem else 0.33 * big), 0.27, 0.21 * big), Vector3(0, 0.12, 0), jacket, 0.0])
-	p.append(["chest", Vector3(0.42 * big, 0.3, 0.25 * big), Vector3(0, 0.1, 0), jacket, 0.0])
-	p.append(["neck", Vector3(0.1 * (0.85 if fem else 1.0), 0.1, 0.1 * (0.85 if fem else 1.0)), Vector3(0, 0.03, 0), skin, 0.0])
-	p.append(["head", Vector3(0.21 * (0.95 if fem else 1.0), 0.24, 0.22), Vector3(0, 0.13, 0), skin, 0.0])
-	p.append(["head", Vector3(0.16, 0.03, 0.02), Vector3(0, 0.15, 0.112), Color(0.05, 0.05, 0.05), 0.0])
-	match character:
-		0:  # Callahan : casque, bandoulière, cigare, barbe de trois jours
-			p.append(["head", Vector3(0.27, 0.13, 0.28), Vector3(0, 0.25, -0.01), hat, 0.0, Vector3(0, 0, 4)])
-			p.append(["head", Vector3(0.29, 0.03, 0.31), Vector3(0, 0.19, 0.0), hat.darkened(0.2), 0.0])
-			p.append(["chest", Vector3(0.07, 0.5, 0.03), Vector3(0, 0.08, 0.135), Color(0.3, 0.22, 0.12), 0.0, Vector3(0, 0, 38)])
-			p.append(["head", Vector3(0.012, 0.012, 0.07), Vector3(0.04, 0.06, 0.14), Color(0.25, 0.16, 0.09), 0.0, Vector3(0, 20, 0)])
-			p.append(["head", Vector3(0.18, 0.06, 0.02), Vector3(0, 0.05, 0.108), SKIN.darkened(0.25), 0.0])
-		1:  # Orlov : chapka à rabats, barbe épaisse, piqûres de la veste matelassée
-			p.append(["head", Vector3(0.28, 0.12, 0.27), Vector3(0, 0.27, -0.01), hat, 0.0])
-			for side in [-1.0, 1.0]:
-				p.append(["head", Vector3(0.04, 0.14, 0.13), Vector3(side * 0.125, 0.15, -0.01), hat, 0.0])
-			p.append(["head", Vector3(0.2, 0.1, 0.06), Vector3(0, 0.04, 0.1), Color(0.18, 0.12, 0.08), 0.0])
-			for y in [0.0, 0.1, 0.2]:
-				p.append(["chest", Vector3(0.43 * big, 0.012, 0.26 * big), Vector3(0, y, 0), jacket.darkened(0.3), 0.0])
-		2:  # Arakawa : casquette à couvre-nuque, lunettes rondes, sabre au côté
-			p.append(["head", Vector3(0.23, 0.08, 0.24), Vector3(0, 0.27, 0.0), hat, 0.0])
-			p.append(["head", Vector3(0.2, 0.02, 0.08), Vector3(0, 0.23, 0.14), hat.darkened(0.25), 0.0])
-			p.append(["head", Vector3(0.22, 0.12, 0.02), Vector3(0, 0.18, -0.12), hat.lightened(0.1), 0.0])
-			for side in [-1.0, 1.0]:
-				p.append(["head", Vector3(0.05, 0.04, 0.012), Vector3(side * 0.045, 0.15, 0.116), Color(0.08, 0.08, 0.08), 0.0])
-			p.append(["hips", Vector3(0.03, 0.8, 0.04), Vector3(0.2, -0.15, 0.05), Color(0.08, 0.07, 0.06), 0.0, Vector3(-55, 0, 8)])
-			for y in [0.02, 0.12, 0.22]:
-				p.append(["chest", Vector3(0.02, 0.02, 0.01), Vector3(0, y, 0.13), Color(0.6, 0.5, 0.25), 0.0])
-		3:  # Weissmann : lunettes de labo sur le front, cheveux gris, sacoche, brassard de l'Institut
-			p.append(["head", Vector3(0.23, 0.08, 0.23), Vector3(0, 0.26, -0.02), hat, 0.0])
-			p.append(["head", Vector3(0.2, 0.05, 0.03), Vector3(0, 0.22, 0.11), Color(0.1, 0.1, 0.1), 0.0])
-			for side in [-1.0, 1.0]:
-				p.append(["head", Vector3(0.06, 0.045, 0.02), Vector3(side * 0.05, 0.22, 0.125), Color(0.55, 0.42, 0.16), 0.3])
-			p.append(["hips", Vector3(0.16, 0.16, 0.08), Vector3(-0.2, -0.02, 0.06), Color(0.26, 0.17, 0.09), 0.0])
-			p.append(["arm_l", Vector3(0.125, 0.07, 0.125), Vector3(0, -0.2, 0), Color(0.75, 0.72, 0.62), 0.0])
-		4:  # Mercer : casquette à huit pans, tempes et barbe grises, plaques, poches de poitrine, manches roulées
-			var grey := Color(0.5, 0.49, 0.47)
-			p.append(["head", Vector3(0.235, 0.1, 0.24), Vector3(0, 0.27, 0.0), hat, 0.0])
-			p.append(["head", Vector3(0.25, 0.025, 0.25), Vector3(0, 0.325, 0.0), hat.darkened(0.1), 0.0])
-			p.append(["head", Vector3(0.2, 0.02, 0.07), Vector3(0, 0.23, 0.14), hat.darkened(0.25), 0.0])
-			for side in [-1.0, 1.0]:
-				p.append(["head", Vector3(0.014, 0.06, 0.05), Vector3(side * 0.106, 0.18, 0.02), grey, 0.0])
-				p.append(["chest", Vector3(0.1, 0.08, 0.015), Vector3(side * 0.1, 0.13, 0.13 * big), jacket.darkened(0.15), 0.0])
-			p.append(["head", Vector3(0.22, 0.05, 0.2), Vector3(0, 0.2, -0.03), grey, 0.0])
-			p.append(["head", Vector3(0.18, 0.06, 0.02), Vector3(0, 0.05, 0.108), grey.darkened(0.2), 0.0])
-			p.append(["chest", Vector3(0.03, 0.045, 0.01), Vector3(0, 0.2, 0.135 * big), Color(0.62, 0.62, 0.6), 0.3])
-			for side in ["l", "r"]:
-				p.append(["forearm_" + side, Vector3(0.1 * big, 0.05, 0.1 * big), Vector3(0, -0.01, 0), jacket.darkened(0.1), 0.0])
-		5:  # Berg : cheveux platine en « victory rolls », rouge à lèvres, chemisier crème, sacoche, crayon
-			var cream := Color(0.86, 0.82, 0.7)
-			# Chevelure : calotte, deux rouleaux sur le dessus, chignon relevé à l'arrière.
-			p.append(["head", Vector3(0.215, 0.07, 0.23), Vector3(0, 0.255, -0.01), hat, 0.0])
-			p.append(["head", Vector3(0.21, 0.13, 0.05), Vector3(0, 0.17, -0.105), hat, 0.0])
-			for side in [-1.0, 1.0]:
-				p.append(["head", Vector3(0.075, 0.07, 0.15), Vector3(side * 0.055, 0.29, 0.03), hat.lightened(0.08), 0.0, Vector3(0, 0, side * -18.0)])
-				p.append(["head", Vector3(0.02, 0.1, 0.12), Vector3(side * 0.104, 0.2, -0.03), hat, 0.0])
-				# Petites boucles d'oreilles rondes (dorées).
-				p.append(["head", Vector3(0.016, 0.016, 0.016), Vector3(side * 0.112, 0.085, 0.0), Color(0.8, 0.63, 0.25), 0.0])
-			p.append(["head", Vector3(0.12, 0.08, 0.06), Vector3(0, 0.25, -0.12), hat.darkened(0.06), 0.0])
-			# Racine des cheveux sur le front.
-			p.append(["head", Vector3(0.2, 0.035, 0.02), Vector3(0, 0.235, 0.105), hat, 0.0])
-			# Rouge à lèvres.
-			p.append(["head", Vector3(0.05, 0.014, 0.012), Vector3(0, 0.06, 0.11), Color(0.62, 0.06, 0.08), 0.0])
-			# Crayon derrière l'oreille droite.
-			p.append(["head", Vector3(0.012, 0.012, 0.09), Vector3(0.122, 0.15, -0.01), Color(0.85, 0.66, 0.15), 0.0, Vector3(25, 0, 0)])
-			# Chemisier crème dans l'encolure de la veste.
-			p.append(["chest", Vector3(0.11, 0.16, 0.012), Vector3(0, 0.14, 0.126 * big + 0.002), cream, 0.0])
-			# Taille haute : ceinture du pantalon au-dessus des hanches.
-			p.append(["spine", Vector3(0.29, 0.05, 0.22 * big), Vector3(0, 0.0, 0), pants, 0.0])
-			# Sacoche de cuir sur la hanche gauche, bandoulière en travers.
-			p.append(["hips", Vector3(0.05, 0.17, 0.2), Vector3(-0.2, -0.04, 0.02), Color(0.36, 0.22, 0.12), 0.0])
-			p.append(["chest", Vector3(0.04, 0.48, 0.02), Vector3(0, 0.05, 0.128 * big + 0.004), Color(0.3, 0.18, 0.1), 0.0, Vector3(0, 0, -38)])
-		6:  # Jojo : casquette plate, barbe de trois jours, nez cassé, dent en or,
-			# cou épais, gros ventre, bretelles, col ouvert, chaîne en or, valise.
-			var gold := Color(0.85, 0.65, 0.2)
-			var braces := Color(0.36, 0.13, 0.1)
-			var front := 0.125 * big
-			# Casquette plate : calotte aplatie qui avance sur le front, visière courte.
-			p.append(["head", Vector3(0.235, 0.06, 0.26), Vector3(0, 0.27, 0.015), hat, 0.0, Vector3(-6, 0, 0)])
-			p.append(["head", Vector3(0.2, 0.02, 0.07), Vector3(0, 0.245, 0.15), hat.darkened(0.2), 0.0, Vector3(-10, 0, 0)])
-			# Barbe de trois jours, nez cassé (de travers), bouche et dent en or.
-			p.append(["head", Vector3(0.2, 0.075, 0.025), Vector3(0, 0.05, 0.103), SKIN.darkened(0.35), 0.0])
-			p.append(["head", Vector3(0.035, 0.05, 0.035), Vector3(0.008, 0.115, 0.118), SKIN.darkened(0.08), 0.0, Vector3(0, 0, 12)])
-			p.append(["head", Vector3(0.07, 0.014, 0.012), Vector3(0, 0.068, 0.116), Color(0.12, 0.05, 0.05), 0.0])
-			p.append(["head", Vector3(0.014, 0.014, 0.012), Vector3(0.016, 0.069, 0.119), gold, 0.4])
-			# Cou de taureau.
-			p.append(["neck", Vector3(0.17, 0.1, 0.15), Vector3(0, 0.03, 0.0), SKIN, 0.0])
-			# Gros ventre sous le maillot, avec ses taches.
-			p.append(["spine", Vector3(0.38, 0.28, 0.22), Vector3(0, 0.07, 0.12), jacket, 0.0])
-			p.append(["hips", Vector3(0.36, 0.1, 0.17), Vector3(0, 0.08, 0.11), jacket, 0.0])
-			p.append(["spine", Vector3(0.07, 0.05, 0.01), Vector3(-0.06, 0.1, 0.232), jacket.darkened(0.3), 0.0])
-			p.append(["chest", Vector3(0.05, 0.04, 0.01), Vector3(0.08, 0.03, front + 0.002), jacket.darkened(0.25), 0.0])
-			# Col ouvert (peau) et chaîne en or avec sa médaille.
-			p.append(["chest", Vector3(0.12, 0.08, 0.012), Vector3(0, 0.19, front + 0.002), SKIN, 0.0])
-			p.append(["chest", Vector3(0.13, 0.012, 0.012), Vector3(0, 0.2, front + 0.008), gold, 0.4])
-			p.append(["chest", Vector3(0.022, 0.026, 0.01), Vector3(0, 0.18, front + 0.01), gold, 0.4])
-			# Bretelles : par-dessus les épaules, sur la poitrine puis sur le ventre.
-			for side in [-1.0, 1.0]:
-				p.append(["chest", Vector3(0.035, 0.32, 0.012), Vector3(side * 0.11, 0.06, front + 0.006), braces, 0.0])
-				p.append(["chest", Vector3(0.035, 0.012, 0.27 * big), Vector3(side * 0.11, 0.215, 0.0), braces, 0.0])
-				p.append(["spine", Vector3(0.035, 0.27, 0.012), Vector3(side * 0.11, 0.07, 0.233), braces, 0.0])
-				p.append(["chest", Vector3(0.035, 0.32, 0.012), Vector3(side * 0.08, 0.06, -front - 0.006), braces, 0.0])
-			# Valise de contrebande sanglée dans le dos.
-			p.append(["chest", Vector3(0.34, 0.26, 0.1), Vector3(0, 0.03, -front - 0.06), Color(0.33, 0.2, 0.11), 0.0])
-			p.append(["chest", Vector3(0.35, 0.02, 0.105), Vector3(0, 0.1, -front - 0.06), Color(0.2, 0.12, 0.07), 0.0])
-			p.append(["chest", Vector3(0.02, 0.02, 0.02), Vector3(0, 0.16, -front - 0.115), gold.darkened(0.3), 0.3])
-	for side in ["l", "r"]:
-		p.append(["arm_" + side, Vector3(0.11 * big, 0.3, 0.11 * big), Vector3(0, -0.14, 0), jacket, 0.0])
-		# Brassard à la couleur du joueur (repérage des coéquipiers).
-		p.append(["arm_" + side, Vector3(0.12 * big, 0.06, 0.12 * big), Vector3(0, -0.06, 0), slot_color, 0.0])
-		p.append(["forearm_" + side, Vector3(0.09 * big, 0.27, 0.09 * big), Vector3(0, -0.13, 0), sleeve, 0.0])
-		p.append(["forearm_" + side, Vector3(0.08, 0.1, 0.06), Vector3(0, -0.3, 0.01), hand, 0.0])
-		p.append(["thigh_" + side, Vector3(0.15 * big, 0.46, 0.16), Vector3(0, -0.22, 0), pants, 0.0])
-		p.append(["shin_" + side, Vector3(0.13, 0.44, 0.13), Vector3(0, -0.22, 0), pants, 0.0])
-		p.append(["shin_" + side, Vector3(0.13, 0.08, 0.25), Vector3(0, -0.45, 0.04), BOOTS, 0.0])
-	skel = RigBuilder.build(p, material())
+## Construit le joueur, zone d'équipe à la couleur `slot_color`
+## (HudStyle.PLAYER_COLORS).
+func build(slot_color: Color) -> void:
+	var m := model()
+	if m.is_empty():
+		push_error("PlayerModel : %s introuvable" % MODEL_PATH)
+		skel = RigBuilder.instantiate(ArrayMesh.new(), material())
+	else:
+		if _skin == null:
+			var tmp := RigBuilder.build_skeleton(m.overrides)
+			_skin = tmp.create_skin_from_rest_transforms()
+			tmp.free()
+		skel = RigBuilder.instantiate(m.mesh, material(), m.overrides, _skin)
+	var mi := skel.get_node("Mesh") as MeshInstance3D
+	mi.set_instance_shader_parameter("team_color", slot_color)
 	# Le modèle regarde vers +Z ; le joueur vers -Z.
 	skel.rotation.y = PI
-	if fem:
-		body_scale = BERG_SCALE
-	elif fat:
-		body_scale = JOJO_SCALE
-	skel.scale = Vector3.ONE * body_scale
 	add_child(skel)
 	bones = RigBuilder.bone_indices(skel)
 	weapon_attach = BoneAttachment3D.new()
 	weapon_attach.bone_name = "forearm_r"
 	skel.add_child(weapon_attach)
+
+
+## Couleur d'équipe affichée (tests, captures).
+func team_color() -> Color:
+	if skel == null:
+		return Color.WHITE
+	return (skel.get_node("Mesh") as MeshInstance3D).get_instance_shader_parameter("team_color")
+
+
+## Dimensions du corps mesurées sur le modèle, dans le repère de repos de
+## chaque os (y le long de l'os, z vers l'avant), pour poser le corps au sol
+## (_low_point) : boîtes [y0, y1, z0, z1] du bassin, de la cuisse, du tibia
+## (au-dessus de la cheville) et du pied (chaussure : moins de 10 cm du sol
+## au repos), hauteur de la hanche sous le bassin et longueur de la cuisse.
+## Repli : valeurs du soldat low-poly d'avant (modèle absent).
+static func dims() -> Dictionary:
+	if not _dims.is_empty():
+		return _dims
+	var d := {"hips": [-0.1, 0.1, -0.105, 0.105], "thigh": [-0.45, 0.01, -0.08, 0.08],
+		"leg": [-0.44, 0.0, -0.065, 0.065], "foot": [-0.49, -0.41, -0.085, 0.165], "hip": -0.02, "thigh_len": 0.45}
+	var m := model()
+	if m.is_empty():
+		_dims = d
+		return _dims
+	var rest := RigBuilder._rest_globals(m.overrides)
+	var a := (m.mesh as ArrayMesh).surface_get_arrays(0)
+	var pos: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var bi: PackedInt32Array = a[Mesh.ARRAY_BONES]
+	var box := {}
+	for v in pos.size():
+		var bname: String = RigBuilder.BONES[bi[v * 4]][0]
+		var key := ""
+		match bname:
+			"hips":
+				key = "hips"
+			"thigh_l":
+				key = "thigh"
+			"shin_l":
+				key = "foot" if pos[v].y < 0.1 else "leg"
+		if key == "":
+			continue
+		var bone := "shin_l" if key in ["leg", "foot"] else ("thigh_l" if key == "thigh" else "hips")
+		var p: Vector3 = pos[v] - (rest[bone] as Transform3D).origin
+		if box.has(key):
+			box[key] = [minf(box[key][0], p.y), maxf(box[key][1], p.y), minf(box[key][2], p.z), maxf(box[key][3], p.z)]
+		else:
+			box[key] = [p.y, p.y, p.z, p.z]
+	for k in box:
+		d[k] = box[k]
+	d.hip = (m.overrides.get("thigh_l", Vector3(0, -0.02, 0)) as Vector3).y
+	d.thigh_len = -(m.overrides.get("shin_l", Vector3(0, -0.45, 0)) as Vector3).y
+	_dims = d
+	return _dims
 
 
 ## Affiche l'arme tenue (id + amélioration). Ne reconstruit que si elle change.
@@ -305,8 +221,9 @@ func _q(x: float, y := 0.0, z := 0.0) -> Quaternion:
 	return Quaternion.from_euler(Vector3(x, y, z))
 
 
-## Anime le squelette. `speed` m/s, `pitch` regard (rad), `flags` = Player.FLAG_*.
-func animate(delta: float, speed: float, pitch: float, flags: int, downed: bool, dead: bool) -> void:
+## Anime le squelette. `speed` m/s, `pitch` regard (rad), `flags` =
+## Player.FLAG_* ; `reviving` : réanime un coéquipier à terre.
+func animate(delta: float, speed: float, pitch: float, flags: int, downed: bool, dead: bool, reviving := false) -> void:
 	if skel == null:
 		return
 	# Mort et déjà posé au même endroit : pose finale inchangée (elle ne
@@ -354,14 +271,39 @@ func animate(delta: float, speed: float, pitch: float, flags: int, downed: bool,
 	var head := lerpf(-pitch * 0.35, -1.15 - pitch * 0.3, pk)
 	# Bras : arme épaulée (tendue vers l'avant), balancée en sprint ; allongé,
 	# bras tendus dans l'axe du corps.
-	var aim_arm := -1.45 - pitch * 0.3 + _recoil * 0.25
+	# Visée : arme épaulée, bras tendus, tête penchée sur la crosse ; sinon
+	# arme tenue plus bas, coudes pliés, canon à l'horizontale (prête à
+	# tirer ; des bras tendus à l'arrêt rappelleraient un zombie).
+	_aim_k = move_toward(_aim_k, 1.0 if flags & Player.FLAG_AIM != 0 else 0.0, delta * 6.0)
+	var ak := _aim_k * (1.0 - pk)
+	var aim_arm := lerpf(-1.0, -1.5, _aim_k) - pitch * 0.3 + _recoil * 0.25
+	var bend := lerpf(-0.45, -0.05, _aim_k)
+	head += 0.12 * ak
 	if sprint:
 		aim_arm = -0.7 + s * 0.3
 	aim_arm = lerpf(aim_arm, -2.75 - pitch * 0.2 + _recoil * 0.2, pk)
+	bend = lerpf(bend, -0.1, pk)
 	var arm_r := Vector3(aim_arm, 0.0, 0.1)
-	var forearm_r := -0.1
+	var forearm_r := bend
 	var arm_l := Vector3(aim_arm + 0.1, 0.0, lerpf(-0.55, -0.35, pk))
-	var forearm_l := Vector3(-0.8, 0.0, 0.3)
+	var forearm_l := Vector3(-0.8 + bend * 0.6, 0.0, 0.3)
+	# Réanimation d'un coéquipier : accroupi, buste penché vers le blessé,
+	# bras tendus vers le sol devant soi (arme baissée).
+	_revive_k = move_toward(_revive_k, 1.0 if reviving and not (downed or dead) else 0.0, delta * 4.0)
+	var rk := smoothstep(0.0, 1.0, _revive_k) * (1.0 - pk)
+	if rk > 0.0:
+		hips_y = lerpf(hips_y, 0.95 - 0.38, rk)
+		thigh_l = lerpf(thigh_l, -1.2, rk)
+		thigh_r = lerpf(thigh_r, -0.25, rk)
+		shin_l = lerpf(shin_l, 1.2, rk)
+		shin_r = lerpf(shin_r, 1.75, rk)
+		spine = lerpf(spine, 0.45, rk)
+		chest = lerpf(chest, 0.2, rk)
+		head = lerpf(head, -0.2, rk)
+		arm_r = arm_r.lerp(Vector3(-0.55, 0.0, 0.15), rk)
+		arm_l = arm_l.lerp(Vector3(-0.6, 0.0, -0.2), rk)
+		forearm_r = lerpf(forearm_r, -0.3, rk)
+		forearm_l = forearm_l.lerp(Vector3(-0.3, 0.0, 0.0), rk)
 
 	var dk := _down_k
 	if dk > 0.0:
@@ -392,7 +334,7 @@ func animate(delta: float, speed: float, pitch: float, flags: int, downed: bool,
 		spread_l = DOWN_SPREAD_L * (1.0 - dd) * e
 		spread_r = -0.06 * e
 		# Tête dans l'axe du regard (mort : face au ciel).
-		var d_head := lerpf(clampf(-pitch * 0.85, -0.8, 0.9) - d_chest_abs, 0.2, dd)
+		var d_head := lerpf(clampf(-pitch * 0.85, -0.8, 0.9) - d_chest_abs, -0.1, dd)
 		head = lerpf(head, d_head, e)
 		# Bras droit tendu vers le regard (le pistolet relève au tir) ; mort :
 		# le long du corps.
@@ -432,12 +374,12 @@ func animate(delta: float, speed: float, pitch: float, flags: int, downed: bool,
 	# Allongé : pivot aux pieds, on recentre le corps sur la position du
 	# joueur. À terre : corps avancé, tête au-dessus de la position (et de la
 	# caméra) du joueur ; en pente, le corps épouse le sol.
-	var fwd := lerpf(DOWN_FWD, TUCK_FWD, _tuck) * smoothstep(0.0, 1.0, dk) * body_scale
+	var fwd := lerpf(DOWN_FWD, TUCK_FWD, _tuck) * smoothstep(0.0, 1.0, dk)
 	var pos := Vector3(0.0, 0.16 * pk, 0.85 * pk - fwd)
 	var tilt := Basis.IDENTITY
 	if dk > 0.0:
 		tilt = Basis(Quaternion(Vector3.UP, Vector3.UP.lerp(_floor_n, dk).normalized()))
-	skel.transform = Transform3D(tilt * Basis.from_euler(Vector3(_body_x, PI, 0.0)).scaled(Vector3.ONE * body_scale), tilt * pos)
+	skel.transform = Transform3D(tilt * Basis.from_euler(Vector3(_body_x, PI, 0.0)), tilt * pos)
 	# Mort, pose finale atteinte (chute finie, sol et jambes stabilisés) : les
 	# images suivantes n'ont plus rien à faire (voir le début d'animate).
 	if dead and _dead_k >= 1.0 and _down_k >= 1.0 and is_inside_tree() and is_settled(_floor_n, _floor_target, _tuck, _tuck_target, _body_x):
@@ -451,6 +393,8 @@ func reset_pose() -> void:
 	_down_k = 0.0
 	_dead_k = 0.0
 	_prone_k = 0.0
+	_revive_k = 0.0
+	_aim_k = 0.0
 	_body_x = 0.0
 	_recoil = 0.0
 	_tuck = 0.0
@@ -471,7 +415,7 @@ static func is_settled(floor_n: Vector3, floor_target: Vector3, tuck: float, tuc
 ## Hauteur des yeux du joueur à terre (m, repère du joueur) : celle de la
 ## tête du modèle assis.
 func downed_eye_height() -> float:
-	return DOWN_EYE_Y * body_scale
+	return DOWN_EYE_Y
 
 
 ## Chute à terre en deux temps : `a` (debout) -> `b` (accroupi) à mi-course,
@@ -490,23 +434,28 @@ static func _box_low(y0: float, y1: float, z0: float, z1: float, a: float) -> fl
 	return minf(minf(y0 * ca - z0 * sa, y0 * ca - z1 * sa), minf(y1 * ca - z0 * sa, y1 * ca - z1 * sa))
 
 
-## Point le plus bas du corps sous l'os du bassin (repère du squelette,
-## échelle 1) : bassin incliné de `p`, cuisses et tibias d'inclinaisons
-## absolues `tl`, `sl`, `tr`, `sr` (dimensions des pièces de build()).
+## Point le plus bas du corps sous l'os du bassin (repère du squelette) :
+## bassin incliné de `p`, cuisses et tibias d'inclinaisons absolues `tl`,
+## `sl`, `tr`, `sr` (boîtes mesurées sur le modèle : dims()).
 static func _low_point(p: float, tl: float, sl: float, tr: float, sr: float) -> float:
-	var low := _box_low(-0.1, 0.1, -0.105, 0.105, p)
-	var hip := -0.02 * cos(p)
+	var d := dims()
+	var hb: Array = d.hips
+	var low := _box_low(hb[0], hb[1], hb[2], hb[3], p)
+	var hip: float = d.hip * cos(p)
 	# Deux jambes, sans tableau temporaire (appelé à chaque image à terre).
-	return minf(low, minf(_leg_low(hip, tl, sl), _leg_low(hip, tr, sr)))
+	return minf(low, minf(_leg_low(d, hip, tl, sl), _leg_low(d, hip, tr, sr)))
 
 
 ## Point le plus bas d'une jambe (cuisse `t`, tibia et pied `sh`) sous la
 ## hanche à la hauteur `hip`.
-static func _leg_low(hip: float, t: float, sh: float) -> float:
-	var knee_y := hip - 0.45 * cos(t)
-	var low := hip + _box_low(-0.45, 0.01, -0.08, 0.08, t)
-	low = minf(low, knee_y + _box_low(-0.44, 0.0, -0.065, 0.065, sh))
-	return minf(low, knee_y + _box_low(-0.49, -0.41, -0.085, 0.165, sh))
+static func _leg_low(d: Dictionary, hip: float, t: float, sh: float) -> float:
+	var knee_y: float = hip - d.thigh_len * cos(t)
+	var th: Array = d.thigh
+	var lg: Array = d.leg
+	var ft: Array = d.foot
+	var low := hip + _box_low(th[0], th[1], th[2], th[3], t)
+	low = minf(low, knee_y + _box_low(lg[0], lg[1], lg[2], lg[3], sh))
+	return minf(low, knee_y + _box_low(ft[0], ft[1], ft[2], ft[3], sh))
 
 
 ## À terre : normale du sol sous le joueur (le corps assis épouse une pente)
@@ -555,7 +504,7 @@ func _measure_ground(space: PhysicsDirectSpaceState3D, xf: Transform3D) -> void:
 	var f := -xf.basis.z.normalized()
 	f = (f - n * f.dot(n)).normalized()
 	_front_q.from = o + n * 0.1
-	var reach := 1.45 * body_scale
+	var reach := 1.45
 	_front_q.to = _front_q.from + f * reach
 	var hit2 := space.intersect_ray(_front_q)
 	var d := reach if hit2.is_empty() else _front_q.from.distance_to(hit2.position)

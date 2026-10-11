@@ -26,6 +26,8 @@ const MATS := {
 	"metal": [RigBuilder.MAT_METAL, Color(0.27, 0.29, 0.25)],
 	"wound": [RigBuilder.MAT_WOUND, Color(0.55, 0.14, 0.12)],
 	"bone": [RigBuilder.MAT_BONE, Color(0.72, 0.66, 0.52)],
+	# Zone de couleur d'équipe (joueur de baseball, teintée en jeu).
+	"team": [RigBuilder.MAT_TEAM, Color(0.8, 0.8, 0.8)],
 }
 
 static var _cache := {}

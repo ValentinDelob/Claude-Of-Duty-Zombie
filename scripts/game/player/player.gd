@@ -27,7 +27,7 @@ const GRAVITY := 16.0
 const EYE_HEIGHT := 1.62
 const CROUCH_EYE_HEIGHT := 1.05
 ## À terre (assis au sol, buste renversé) : yeux à la hauteur de la tête du
-## modèle (PlayerModel.DOWN_EYE_Y, selon la taille du personnage).
+## modèle (PlayerModel.DOWN_EYE_Y).
 const DOWNED_EYE_HEIGHT := PlayerModel.DOWN_EYE_Y
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.2
@@ -170,7 +170,7 @@ func _ready() -> void:
 
 	visual = PlayerModel.new()
 	visual.name = "Visual"
-	visual.build(ScorePanel.slot_color(Net.player_slot(peer_id)), CharacterDB.index_of(peer_id))
+	visual.build(ScorePanel.slot_color(Net.player_slot(peer_id)))
 	add_child(visual)
 	name_tag = Label3D.new()
 	name_tag.text = Net.player_name(peer_id)
@@ -231,7 +231,8 @@ func _physics_process(delta: float) -> void:
 		_local_physics(delta)
 	else:
 		_remote_interpolate()
-		visual.animate(delta, _remote_speed, pitch, _net_flags, downed, dead)
+		var reviving := Game.instance != null and Game.instance.downed != null and Game.instance.downed.is_reviving(peer_id)
+		visual.animate(delta, _remote_speed, pitch, _net_flags, downed, dead, reviving)
 
 
 # --------------------------------------------------------------------------
