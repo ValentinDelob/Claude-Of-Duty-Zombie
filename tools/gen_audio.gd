@@ -947,3 +947,91 @@ func gen_monkey_music() -> void:
 			s.mix(b, s.lowpass(v, 3200.0), t + h * beat * 0.5 * slow, 0.16)
 		t += beat * slow
 	_save("monkey_music", s.finish(s.reverb(b, 0.6, 0.22, 0.6), 0.8))
+
+
+# ---------------------------------------------------------------- le Brancardier (vague spéciale)
+
+## Rugissements : voix énorme, très grave, râle saturé (1 : préparation de la
+## charge, long ; 2 : apparition et coup, court).
+func gen_brancard_roar() -> void:
+	for k in 2:
+		s = Synth.new(3100 + k)
+		var dur := 1.5 if k == 0 else 0.9
+		var b := _growl(dur, 62.0 + k * 8.0, 48.0, [380.0, 820.0], 1.3)
+		b = s.mix(b, _growl(dur * 0.8, 95.0, 70.0, [520.0, 1100.0], 1.0), 0.05, 0.6)
+		b = s.mix(b, s.env_adsr(s.lowpass(s.brown_noise(dur), 220.0), 0.05, 0.2, 0.9, 0.4), 0.0, 0.8)
+		b = s.drive(b, 3.5)
+		_save("brancard_roar_%d" % (k + 1), s.finish(s.reverb(b, 0.8, 0.3, 0.9), 0.95))
+
+
+## Grognements d'ambiance (souffle de bête lourde).
+func gen_brancard_groan() -> void:
+	for k in 2:
+		s = Synth.new(3110 + k)
+		var dur := s.rng.randf_range(1.1, 1.6)
+		var b := _growl(dur, 55.0 + k * 6.0, 46.0, [340.0 + k * 40.0, 760.0], 0.9)
+		b = s.drive(b, 2.2)
+		_save("brancard_groan_%d" % (k + 1), s.finish(s.reverb(b, 0.7, 0.25, 0.7), 0.85))
+
+
+## Départ de la charge : cri bref et souffle.
+func gen_brancard_charge() -> void:
+	var b := _growl(0.7, 110.0, 60.0, [600.0, 1200.0], 1.2)
+	b = s.mix(b, s.env_exp(s.lowpass(s.noise(0.6), 700.0), 0.02, 0.25), 0.0, 0.7)
+	b = s.drive(b, 3.0)
+	_save("brancard_charge", s.finish(s.reverb(b, 0.6, 0.2, 0.5), 0.95))
+
+
+## Pas lourds (sabot sur le sol) : choc grave et poussière.
+func gen_brancard_step() -> void:
+	for k in 2:
+		s = Synth.new(3120 + k)
+		var b := s.env_exp(s.sweep(0.35, 85.0 - k * 8.0, 38.0), 0.002, 0.11)
+		b = s.mix(b, s.env_exp(s.lowpass(s.noise(0.25), 450.0), 0.002, 0.05), 0.0, 0.7)
+		b = s.mix(b, s.env_exp(s.bandpass(s.noise(0.15), 1800.0, 2.0), 0.001, 0.015), 0.0, 0.25)
+		_save("brancard_step_%d" % (k + 1), s.finish(s.reverb(b, 0.4, 0.15, 0.3), 0.85))
+
+
+## Sabot qui gratte le sol (préparation de la charge).
+func gen_brancard_scrape() -> void:
+	var b := s.env_adsr(s.bandpass(s.noise(0.35), 1300.0, 1.5), 0.03, 0.08, 0.7, 0.15)
+	b = s.mix(b, s.env_exp(s.lowpass(s.noise(0.3), 300.0), 0.01, 0.1), 0.0, 0.6)
+	_save("brancard_scrape", s.finish(b, 0.8))
+
+
+## Choc contre un mur (et poings abattus) : impact énorme, cadre d'acier du
+## brancard qui claque, gravats.
+func gen_brancard_impact() -> void:
+	var b := s.env_exp(s.sweep(0.6, 70.0, 28.0), 0.001, 0.22)
+	b = s.mix(b, s.env_exp(s.lowpass(s.noise(0.7), 900.0), 0.001, 0.12), 0.0, 1.0)
+	b = s.mix(b, _clank(620.0, 0.35, 0.5), 0.01, 0.55)
+	b = s.mix(b, _clank(910.0, 0.25, 0.5), 0.04, 0.35)
+	for i in 6:
+		b = s.mix(b, s.env_exp(s.bandpass(s.noise(0.08), 2400.0 + i * 300.0, 3.0), 0.001, 0.02), 0.12 + i * 0.07, 0.3)
+	b = s.drive(b, 1.8)
+	_save("brancard_impact", s.finish(s.reverb(b, 0.75, 0.3, 0.8), 0.95))
+
+
+## Joueur percuté par la charge : coup sourd dans la poitrine.
+func gen_brancard_hit() -> void:
+	var b := s.env_exp(s.sweep(0.3, 140.0, 50.0), 0.001, 0.09)
+	b = s.mix(b, s.env_exp(s.lowpass(s.noise(0.25), 1200.0), 0.001, 0.04), 0.0, 0.9)
+	_save("brancard_hit", s.finish(s.reverb(b, 0.4, 0.15, 0.3), 0.9))
+
+
+## Mort : long râle qui s'effondre.
+func gen_brancard_death() -> void:
+	var b := _growl(1.6, 90.0, 32.0, [420.0, 880.0], 1.1)
+	b = s.mix(b, s.env_exp(s.bandpass(s.noise(1.2), 380.0, 2.0), 0.1, 0.5), 0.3, 0.5)
+	b = s.drive(b, 2.5)
+	_save("brancard_death", s.finish(s.reverb(b, 0.8, 0.3, 0.9), 0.9))
+
+
+## Grincement de roulettes lointain (annonce de la vague).
+func gen_brancard_wheels() -> void:
+	var b := s.buf(1.6)
+	for i in 5:
+		var squeak := s.env_adsr(s.sweep(0.22, 1700.0 + i * 90.0, 1450.0 + i * 60.0, "saw"), 0.02, 0.05, 0.6, 0.08)
+		b = s.mix(b, s.bandpass(squeak, 1600.0, 3.0), i * 0.3, 0.5)
+	b = s.mix(b, s.env_adsr(s.lowpass(s.brown_noise(1.6), 300.0), 0.2, 0.2, 0.7, 0.4), 0.0, 0.5)
+	_save("brancard_wheels", s.finish(s.reverb(b, 0.8, 0.35, 0.8), 0.8))

@@ -29,10 +29,17 @@ var _started := false
 var _recycle_accum := 0.0
 ## Serveur : type de vague de la manche en cours (WaveRules.SPECIAL, BOSS ou "").
 var wave := ""
+## Serveur : type de la vague spéciale en cours (WaveRules.MEUTE,
+## BRANCARDIER ou "") : sorte d'échantillons (LootSystem).
+var special_type := ""
 
 
-## Manches de chiens de l'enfer (chemin réseau : /root/Game/Rounds/Dogs).
+## Vagues spéciales : meute de chiens (chemin réseau : /root/Game/Rounds/Dogs)
+## et Brancardier (/root/Game/Rounds/Brancard). Le type de chaque vague
+## spéciale vient de la rotation de la carte (WaveRules.special_type_at) ;
+## chaque gestionnaire tient sa prochaine manche (next_dog_round, next_round).
 var dogs: DogRound
+var brancard: BrancardRound
 
 
 func _ready() -> void:
@@ -41,6 +48,9 @@ func _ready() -> void:
 	dogs = DogRound.new()
 	dogs.name = "Dogs"
 	add_child(dogs)
+	brancard = BrancardRound.new()
+	brancard.name = "Brancard"
+	add_child(brancard)
 
 
 ## Serveur : lance la première manche après un court délai.
@@ -49,13 +59,14 @@ func start_game() -> void:
 		return
 	_started = true
 	phase = Phase.WAITING
-	dogs.srv_plan()
 	# Défi hebdomadaire « en retard » (§4.18) : première manche plus haute ;
-	# les vagues spéciales gardent leur rythme (prochaine après le départ).
+	# les vagues spéciales gardent leur rythme et leur rotation (prochaine de
+	# chaque type après le départ).
 	var first := game.challenge.start_round() if game and game.challenge else 1
 	if first > 1:
 		round_n = first - 1
-		dogs.next_dog_round = WaveRules.next_after(_waves(), WaveRules.SPECIAL, round_n)
+	dogs.srv_plan(round_n)
+	brancard.srv_plan(round_n)
 	_timer = RoundRules.FIRST_ROUND_DELAY
 
 
@@ -64,7 +75,8 @@ func player_count() -> int:
 
 
 func remaining() -> int:
-	return to_spawn + game.zombies.alive_count() + (maxi(dogs.total - dogs.spawned, 0) if dogs.active else 0)
+	return to_spawn + game.zombies.alive_count() + (maxi(dogs.total - dogs.spawned, 0) if dogs.active else 0) \
+		+ (maxi(brancard.total - brancard.spawned, 0) if brancard.active else 0)
 
 
 func _process(delta: float) -> void:
@@ -89,12 +101,23 @@ func _process(delta: float) -> void:
 					_end_round()
 					_wave_cleared()
 				return
-			_spawn_tick(delta)
+			if brancard.active:
+				# Vague du Brancardier : ses Brancardiers, et l'escorte (zombies
+				# ordinaires, to_spawn) après l'annonce.
+				brancard.srv_tick(delta)
+				if brancard.escort_ready():
+					_spawn_tick(delta)
+			else:
+				_spawn_tick(delta)
 			_recycle_accum += delta
 			if _recycle_accum >= 1.0:
 				to_spawn += game.spawner.recycle(_recycle_accum)
 				_recycle_accum = 0.0
+			if brancard.active and not brancard.srv_finished():
+				return
 			if to_spawn <= 0 and game.zombies.alive_count() == 0:
+				if brancard.active:
+					brancard.srv_end(round_n)
 				_end_round()
 				# Vague de boss vaincue : la porte d'évacuation s'ouvre aussi (§4.5).
 				if wave != "":
@@ -126,7 +149,10 @@ func _begin_round(n: int) -> void:
 	game.respawn_dead_players()
 	if dogs.active:
 		dogs.srv_end(n - 1)
+	if brancard.active:
+		brancard.srv_end(n - 1)
 	wave = ""
+	special_type = ""
 	var boss_wave := WaveRules.wave_kind(_waves(), n, _has_boss()) == WaveRules.BOSS
 	if boss_wave:
 		# Vague de boss : aucun boss n'existe encore (MapDef.boss vide partout,
@@ -137,9 +163,18 @@ func _begin_round(n: int) -> void:
 		wave = WaveRules.BOSS
 	if not boss_wave and dogs.is_dog_round(n):
 		wave = WaveRules.SPECIAL
+		special_type = WaveRules.MEUTE
 		to_spawn = 0
 		dogs.srv_begin(n)
 		total = dogs.total
+	elif not boss_wave and brancard.is_brancard_round(n):
+		# Vague du Brancardier : Brancardiers (BrancardRound) et escorte de
+		# zombies ordinaires de la manche.
+		wave = WaveRules.SPECIAL
+		special_type = WaveRules.BRANCARDIER
+		to_spawn = BrancardRules.escorts(player_count())
+		brancard.srv_begin(n)
+		total = to_spawn + brancard.total
 	else:
 		print("[Rounds] manche %d : %d zombies, %d PV" % [n, total, RoundRules.zombie_health(n)])
 	_cl_round.rpc(n, Phase.ACTIVE)
@@ -195,13 +230,13 @@ func _cl_round(n: int, new_phase: int) -> void:
 		if GameState.state == GameState.State.ROUND_END:
 			GameState.set_state(GameState.State.PLAYING)
 		game.hud.round_changed(n, true)
-		if not dogs.cl_active:  # manche de chiens : son d'annonce propre
+		if not dogs.cl_active and not brancard.cl_active:  # vague spéciale : son d'annonce propre
 			Audio.play_2d("round_start", -2.0, 0.0)
 		round_started.emit(n)
 	else:
 		if GameState.state == GameState.State.PLAYING:
 			GameState.set_state(GameState.State.ROUND_END)
 		game.hud.round_changed(n, false)
-		if not dogs.cl_active:
+		if not dogs.cl_active and not brancard.cl_active:
 			Audio.play_2d("round_end", -2.0, 0.0)
 		round_ended.emit(n)

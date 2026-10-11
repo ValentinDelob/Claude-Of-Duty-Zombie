@@ -1154,8 +1154,19 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   par `ZombieManager.pose_step`, ombres limitées par `ZombieShadows` comme
   les zombies). Pas de ragdoll : chute procédurale, puis dissolution cube
   par cube (`HellhoundModel.set_dissolve`) avant le retrait.
+- **Plusieurs types de vagues spéciales** (format de carte 21) : le schéma
+  (`WaveRules`, `MapDef.waves`) porte la liste des types permis
+  (`types_speciaux` : `meute`, `brancardier` ; défaut : tous) ; la k-ième
+  vague spéciale prévue est du type `types[(k − 1) mod n]`
+  (`WaveRules.special_rank`, `special_type_at`, `next_special_of` ; manches
+  de boss exclues si la carte a un boss). Chaque gestionnaire tient sa
+  prochaine manche (`DogRound.next_dog_round`, `BrancardRound.next_round`,
+  `srv_plan(après)` au départ, défi « en retard » compris) ;
+  `RoundManager._begin_round` lance la meute, sinon le Brancardier, et retient
+  `special_type` (sorte d'échantillons, `LootSystem.special_kind`). Défaut :
+  meute 5, Brancardier 10, meute 15…
 - `DogRound` (`/root/Game/Rounds/Dogs`) : vagues spéciales du schéma de la
-  carte (`WaveRules`, `MapDef.waves` : par défaut toutes les 5 manches ;
+  carte de type « meute » (`WaveRules`, `MapDef.waves` : par défaut 5, 15, 25… ;
   coupée en autotest sauf `debug_force_next`), apparitions près du joueur le
   moins chassé (10 à 25 m, sur un point qui a un chemin jusqu'à lui : les
   îlots du navmesh des cartes en maillage sont écartés), **de préférence
@@ -1175,6 +1186,40 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   poussière, animation accroupie `DogAnim.APPEAR_TIME`). À sa mort, il
   s'effondre sur le flanc et son sang contaminé gicle (brûlure
   `DogRules.EXPLODE_*` des joueurs tout proches, inchangée).
+- **Le Brancardier** (`scripts/game/brancardier/`, mini-boss, GAME_CONCEPT.md
+  §4.4) : `Brancardier` (classe dérivée de `Zombie`, type d'entité
+  `ZombieManager.KIND_BRANCARDIER` : même canal réseau, mêmes dégâts,
+  ferraille et pièges ; ni démembrement, ni ragdoll, ni leurre, ni recyclage
+  du `Spawner`) ; modèle `BrancardierModel` (`brancardier_voxel.glb` par
+  `ZombieGlb`, zones de touche mesurées : tronc, tête sur l'os `head`, bras ;
+  centre des touches à 1,5 m, `hit_center_height`, pour le contrôle du
+  serveur) ; animation `BrancardierAnim` (fonctions pures : marche lourde,
+  préparation, charge, étourdi, coup des deux poings, mort à genoux puis face
+  contre terre) ; règles pures `BrancardRules`. **Charge** (serveur) :
+  `_try_charge` (portée, même niveau, ligne dégagée, largeur du corps) ->
+  phase `WINDUP` (immobile, suit sa proie puis verrouille la direction) ->
+  `CHARGE` (masque de collision réduit au décor : il traverse zombies et
+  joueurs, touches à la main `_charge_hits` : dégâts et
+  `Player.srv_knockback`) -> mur de face (`BrancardRules.hits_wall`, ou
+  bloqué) : `STUN`, sinon fin au bout de `CHARGE_TIME`. **Réseau** : phases
+  en RPC fiable `_cl_phase` (les instantanés non fiables peuvent sauter la
+  préparation ou le choc, et leurs sons) et dans le code d'animation (bits
+  3-4) ; la projection d'un joueur est appliquée par SA machine
+  (`Player._cl_knockback`, saut de position permis par `net_allow_warp`).
+  Toutes les machines : sons et effets par phase (`_on_phase` : rugissement,
+  sabot qui gratte, yeux qui flamboient `EYE_GLOW`, choc : poussière,
+  gravats, secousse de la vue, étoiles en cubes de 5 cm). `damage_player`
+  reçoit le Brancardier en `source` (rencontre du codex).
+- `BrancardRound` (`/root/Game/Rounds/Brancard`) : vagues de type
+  « brancardier » (défaut 10, 20…) ; `BrancardRules.count` Brancardiers (un
+  par joueur, `MAX_ALIVE` à la fois, `DogRound.pick_spawn_point` à 12-28 m,
+  hors de vue de préférence), **escorte** de `BrancardRules.escorts` zombies
+  ordinaires par `RoundManager.to_spawn` après l'annonce (`escort_ready`) ;
+  fin de manche : escorte et Brancardiers tués. PV :
+  `BrancardRules.health(manche, rang)`. Mise en scène : bandeau « UN
+  BRANCARDIER APPROCHE » / « A STRETCHER-BEARER IS COMING » (pluriel en
+  coop), alerte, musique et compteur des vagues spéciales, rugissement et
+  roulettes lointains. Coupé en autotest sauf `debug_force_next`.
 - Vagues de boss : même schéma (`WaveRules`, défaut toutes les 15 manches) ;
   sans boss défini (`MapDef.boss` vide, partout aujourd'hui) elles ne font
   rien (`RoundManager._begin_round`).
@@ -1510,12 +1555,14 @@ GAME_CONCEPT §4.7, §4.6, §4.16. Valeurs provisoires : GAME_CONCEPT §6 bis.
   manche + 2 (`weapon_pool(max_level)`). Pièces : 5 % par zombie de vague spéciale
   tué et par joueur, niveau [niveau du joueur − 10 (≥ 1), niveau du joueur],
   modificateurs de `GameWeapon.MODS`. Échantillons : `LootRules.SAMPLES`
-  (chiens : croc, touffe de poils, collier), 20 % par sorte, par zombie tué
+  (chiens : croc, touffe de poils, collier ; Brancardier : sangle de cuir,
+  bracelet d'identification), 20 % par sorte, par zombie tué
   et par joueur.
 - **Serveur** (`LootSystem`, `/root/Game/Loot`) : tire tout. Pièces et
   échantillons à chaque mort d'un zombie de vague spéciale
-  (`ZombieManager.zombie_killed`, chien pendant `RoundManager.wave ==
-  SPECIAL`), rangés directement dans l'onglet de partie du joueur et envoyés
+  (`ZombieManager.zombie_killed`, `special_kind` : chien pendant `RoundManager.wave ==
+  SPECIAL`, ou tout zombie — Brancardier et escorte — d'une vague du
+  Brancardier), rangés directement dans l'onglet de partie du joueur et envoyés
   à lui seul (`_cl_loot`). Armes à la fin de la vague
   (`RoundManager.wave_cleared`, émis après l'ouverture de la porte
   d'évacuation et la réapparition des morts) : `LootDrop` posé à 1,5 m

@@ -56,6 +56,28 @@
 			"samples": {"dog_fang": 10, "dog_fur": 10, "dog_collar": 10},
 			"reward": {"kind": "weapon", "weapon": "mp5k", "rarity": "epic"},
 			"min_level": 8
+		},
+		{
+			"id": "leather_sling",
+			"title": {"fr": "Bretelle de cuir", "en": "Leather Sling"},
+			"text": {
+				"fr": "Une sangle du Brancardier en bretelle : l'arme reste en place, le chargeur se change plus vite.",
+				"en": "A Stretcher-Bearer's strap as a sling: the weapon stays put, the magazine changes faster."
+			},
+			"samples": {"brancard_strap": 4},
+			"reward": {"kind": "part", "mods": {"reload": 0.2}},
+			"min_level": 5
+		},
+		{
+			"id": "tagged_sights",
+			"title": {"fr": "Mire étiquetée", "en": "Tagged Sights"},
+			"text": {
+				"fr": "Des étiquettes de bracelets découpées en repères de visée, tenues par une sangle. On vise mieux, on tape un peu plus fort.",
+				"en": "Bracelet tags cut into aiming marks, held by a strap. Better aim, slightly harder hits."
+			},
+			"samples": {"brancard_bracelet": 3, "brancard_strap": 2},
+			"reward": {"kind": "part", "mods": {"accuracy": 0.2, "damage": 0.05}},
+			"min_level": 6
 		}
 	]
 }

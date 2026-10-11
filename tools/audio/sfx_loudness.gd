@@ -36,6 +36,12 @@ const CATEGORIES := [
 		"target": -14.0, "tol": 2.0, "mode": "max"},
 	{"id": "zombie_bruitage", "match": ["zombie_step_*", "emerge", "barricade_*"], "target": -18.0, "tol": 2.5, "mode": "max"},
 	{"id": "chien", "match": ["dog_growl_*", "dog_bark_*", "dog_bite_*", "dog_whine"], "target": -14.0, "tol": 2.0, "mode": "max"},
+	# Brancardier (vague spéciale) : voix au niveau des chiens, chocs et bruitages.
+	{"id": "brancardier", "match": ["brancard_roar_*", "brancard_groan_*", "brancard_charge", "brancard_death"],
+		"target": -14.0, "tol": 2.0, "mode": "max"},
+	{"id": "brancardier_choc", "match": ["brancard_impact", "brancard_hit"], "target": -13.0, "tol": 2.5, "mode": "max"},
+	{"id": "brancardier_bruitage", "match": ["brancard_step_*", "brancard_scrape", "brancard_wheels"],
+		"target": -18.0, "tol": 3.0, "mode": "max"},
 	{"id": "joueur", "match": ["footstep_*", "dive_land", "player_hurt_*", "player_down", "player_breath_*", "heartbeat", "revive"],
 		"target": -18.0, "tol": 3.0, "mode": "max"},
 	# Ritournelles originales (manches, caisse...) : identité conservée,

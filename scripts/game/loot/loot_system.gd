@@ -64,10 +64,16 @@ func _ready() -> void:
 # Serveur : tirages
 # --------------------------------------------------------------------------
 
-## Type de vague spéciale d'un zombie tué ("dogs"), "" s'il n'en est pas un.
+## Sorte d'échantillons d'un zombie tué (clé de LootRules.SAMPLES : "dogs",
+## "brancardier"), "" s'il n'est pas un zombie de vague spéciale. Vague du
+## Brancardier : le Brancardier ET son escorte (zombies de la vague, §4.7).
 func special_kind(z: Zombie) -> String:
-	if z is Hellhound and game.rounds.wave == WaveRules.SPECIAL:
+	if game.rounds.wave != WaveRules.SPECIAL:
+		return ""
+	if z is Hellhound:
 		return "dogs"
+	if game.rounds.special_type == WaveRules.BRANCARDIER and not z is Hellhound:
+		return "brancardier"
 	return ""
 
 

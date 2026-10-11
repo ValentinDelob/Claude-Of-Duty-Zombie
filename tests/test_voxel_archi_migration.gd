@@ -99,7 +99,7 @@ func test_every_fixture_migrates_onto_the_grid() -> void:
 		assert_eq(MapCubeSnap.snap_map(doc), 0, "%s : idempotente" % name)
 		# Relue au format 20 : aucune conversion, mêmes fichiers.
 		var texts := doc.file_texts()
-		assert_true(String(texts["carte.json"]).contains("\"format\": 20"), "%s : écrite au format 20" % name)
+		assert_true(String(texts["carte.json"]).contains("\"format\": %d" % EditorMap.FORMAT), "%s : écrite au format courant" % name)
 		var again := EditorMap.from_texts(texts)
 		assert_eq(again.format_read, EditorMap.FORMAT)
 		assert_eq(again.cube_changes, 0, "%s : rien à arrondir au format 20" % name)

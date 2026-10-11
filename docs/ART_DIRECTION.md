@@ -223,6 +223,54 @@ et exporte.
   Planche de validation : `--sheet <fichier>.png` (face, profils,
   trois-quarts avant et arrière, galop, bond, gros plan de la tête).
 
+### Le Brancardier (tools/blender/brancardier/brancardier_voxel.py)
+
+- `assets/models/brancardier/brancardier_voxel.glb`, cubes de **2,5 cm**,
+  mini-boss de vague spéciale (`BrancardierModel`, chargé par `ZombieGlb`).
+  Pas de planche de référence : formes **décrites** par pavés de cubes aux
+  arêtes arrondies d'un cube (comme le chien et le joueur).
+- Univers : ancien brancardier de l'hôpital devenu une brute, cohérent avec
+  ses échantillons (sangle de cuir, bracelet d'identification) : tenue de
+  bloc bleu-vert déchirée et tachée, sabots blancs crottés, peau verdâtre des
+  zombies du jeu marbrée de veines violettes, crâne rasé à la cicatrice
+  recousue, arcades lourdes, **yeux émissifs** 3 × 2 enfoncés, mâchoire
+  prognathe aux dents qui dépassent, oreille droite arrachée, masque
+  chirurgical pendu au cou ; **brancard sanglé dans le dos** (cadre d'acier,
+  toile kaki tachée et déchirée, roulettes et poignées qui dépassent
+  au-dessus de la tête, pieds repliés), **bandoulière** de cuir à boucle en
+  travers de la poitrine, sangles de contention arrachées autour des
+  avant-bras (un bout pend au poignet droit), **bracelet d'identification**
+  blanc à étiquette bleue au poignet gauche ; poings énormes.
+- Proportions d'une brute : **2,25 m** au sommet du crâne (90 cubes ; 2,33 m
+  avec les poignées du brancard), épaules de 0,8 m, ventre en avant, bras de
+  gorille (poings sous les hanches) ; 54 × 28 × 93 cubes, ~37 800 cellules,
+  **8 670 triangles** (budget 12 000 ; texture par blocs de 2-3 cubes,
+  palette réduite à ~70 teintes).
+- Ossature `RigBuilder.BONES` (bassin 1,05 m, os droits, repos membres
+  pendants, pondération rigide) ; poings sur l'avant-bras, sabots sur le
+  tibia, **brancard et sangles du dos sur l'os `chest`** (ils suivent le
+  buste penché de la charge).
+- En jeu : un mesh partagé, shaders des zombies cubiques, yeux qui
+  **flamboient** à la préparation et pendant la charge (`eye_glow` × 3,5 et
+  × 2,4), ternes quand il est étourdi ; étoiles d'étourdissement : couronne
+  de 5 cubes jaunes de 5 cm (effets cubiques) ; dissolution cube par cube à
+  la mort. Zones de touche mesurées (tronc du bassin à la base du cou — le
+  brancard ne compte pas —, tête sur l'os `head`, bras).
+- Animations procédurales (`BrancardierAnim`) : marche lourde (bassin qui
+  tangue, bras ballants), préparation de la charge (ramassé, bras en
+  arrière, gueule ouverte, sabot droit qui gratte trois fois), charge
+  (penché en avant, poings devant), étourdi (tête qui dodeline, genoux
+  fléchis, oscille), coup des deux poings levés puis abattus, mort (à
+  genoux, la pointe des sabots au sol, puis face contre terre, brancard en
+  l'air). Contrôles : `tests/test_brancardier.gd` (cubes qui se traversent,
+  `voxel_pose_check.gd`, pire pose 136 cubes ; rien sous le sol).
+- Cache : `tools/blender/brancardier/brancardier_voxel_cells.json` (suivi
+  par git ; `--cache`). Planche `--sheet <fichier>.png` (face, dos, profils,
+  trois-quarts, gros plans de la tête et des poignets, préparation, charge,
+  étourdi, coup, vue de dessus). Deux passes à la création : trop de taches
+  de sang (camouflage), profil trop plat (poitrine et ventre épaissis), toile
+  du brancard du même vert que la peau (passée en kaki).
+
 ### Armes, mains et objets tenus (tools/blender/weapons/weapons_voxel.py)
 
 - Tous les objets tenus sont en cubes de **2,5 cm** (échelle des personnages,

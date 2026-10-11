@@ -19,6 +19,8 @@ const WORDS := {
 	"dog_fang": ["croc", "crocs", "fang", "fangs"],
 	"dog_fur": ["touffe", "touffes", "tuft of fur", "tufts of fur"],
 	"dog_collar": ["collier", "colliers", "collar", "collars"],
+	"brancard_strap": ["sangle", "sangles", "leather strap", "leather straps"],
+	"brancard_bracelet": ["bracelet", "bracelets", "ID bracelet", "ID bracelets"],
 }
 
 ## Sorte -> Label de la quantité (tests).

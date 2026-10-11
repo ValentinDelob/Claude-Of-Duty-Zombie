@@ -36,7 +36,8 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
 | Sprinteur | `sprinter` | commun | **4** | 9 | 15 | 20 |
 | Rampant | `crawler` | commun | **4** | 9 | 15 | 20 |
 | Chien (meute, vague spéciale) | `dog` | spécial | **12** | 28 | 46 | 60 |
-| Mini-boss (référence, aucun encore) | `miniboss` | mini-boss | **60** | 141 | 231 | 300 |
+| Brancardier (vague spéciale) | `brancardier` | mini-boss | **60** | 141 | 231 | 300 |
+| Mini-boss (référence d'un nouveau mini-boss) | `miniboss` | mini-boss | **60** | 141 | 231 | 300 |
 | Boss (référence, aucun encore) | `boss` | boss | **240** | 564 | 924 | 1 200 |
 
 - **Marcheur, coureur, sprinteur et rampant rapportent autant** : c'est le
@@ -46,9 +47,18 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
   démembré par le joueur : le payer moins pénaliserait le démembrement, le
   payer plus pousserait à garder des rampants en vie pour bloquer la manche.
   Les types restent comptés à part pour l'écran de fin.
-- Le type se lit sur l'entité au moment de la mort (`XpRules.enemy_type`) :
-  chien (`Hellhound`), rampant (`Zombie.is_crawler`), sinon classe de vitesse
-  (`RoundRules.WALK` / trot et `RUN` / `SPRINT`).
+- Le type se lit sur l'entité au moment de la mort (`XpSystem.enemy_type_of`,
+  `XpRules.enemy_type`) : Brancardier (`Brancardier`), chien (`Hellhound`),
+  rampant (`Zombie.is_crawler`), sinon classe de vitesse (`RoundRules.WALK` /
+  trot et `RUN` / `SPRINT`).
+- **Brancardier** (méthode du §6, provisoire) : 10 fois les PV d'un zombie
+  de sa manche (`BrancardRules.health`) → 10 × 4 = **40** ; **+50 %** de
+  dangerosité (charge télégraphiée qui projette et blesse, coup des deux
+  poings) → **60** ; rare (une vague sur deux en rotation par défaut, un par
+  joueur) mais déjà en haut de ce que rapporte une vague : pas de bonus de
+  rareté. Ses zombies d'escorte sont des zombies ordinaires (barème
+  commun) ; la vague vaincue rapporte l'XP de vague spéciale (60) comme la
+  meute.
 
 ### Autres sources
 
@@ -94,6 +104,9 @@ vérifiée à ±20 % par `test_calibrage`), à partir des vraies règles
 (`RoundRules.zombie_count`, `DogRules.dog_count`, schéma des vagues par
 défaut, `XpRules`) et d'un joueur type :
 
+- vagues spéciales en rotation (schéma par défaut : meute 5, Brancardier 10,
+  meute 15…) ; Brancardier : 25 s pour abattre le sien, plus l'annonce et
+  son escorte (5 zombies par joueur) ;
 - 3 s par zombie et par joueur, 4 s par chien ; 25 s de plus par manche
   (entracte de 10 s, trajet) ; 30 s d'évacuation ; 90 s par partie
   (chargement, écran de fin, hub) ;
@@ -105,16 +118,16 @@ Résultat :
 
 | Partie type (solo) | XP | Éliminations | Durée | XP / h |
 |---|---|---|---|---|
-| Évacuation manche 10 | 2 274 | 169 | 15,1 min | 9 066 |
-| Évacuation manche 15 | 5 191 | 327 | 25,3 min | 12 319 |
-| Évacuation manche 20 | 9 894 | 541 | 38,3 min | 15 493 |
-| Évacuation manche 25 | 17 100 | 825 | 54,9 min | 18 706 |
+| Évacuation manche 10 | 2 296 | 169 | 15,3 min | 9 004 |
+| Évacuation manche 15 | 5 121 | 325 | 25,4 min | 12 097 |
+| Évacuation manche 20 | 9 746 | 537 | 38,5 min | 15 169 |
+| Évacuation manche 25 | 16 953 | 821 | 55,1 min | 18 466 |
 
 | Niveau | Visé | Solo | 4 joueurs |
 |---|---|---|---|
 | 10 | 3 h | **2,5 h** | 2,7 h |
-| 25 | 25 h | **23,5 h** | 24,0 h |
-| 50 | 120 h | **123,3 h** | 120,3 h |
+| 25 | 25 h | **24,1 h** | 24,5 h |
+| 50 | 120 h | **126,0 h** | 122,5 h |
 
 Le niveau 10 arrive un peu avant 3 h (progression visible dès les premières
 parties, §2 du concept). En coop, chaque joueur tue moins de zombies (le

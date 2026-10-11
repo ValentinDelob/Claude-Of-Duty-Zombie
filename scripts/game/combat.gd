@@ -248,7 +248,7 @@ func _apply_hits(pid: int, w: Dictionary, origin: Vector3, dir: Vector3, hits: A
 		var z: Zombie = game.zombies.get_zombie(zid)
 		if z == null or not z.is_alive():
 			continue
-		var center := z.global_position + Vector3.UP * 0.95
+		var center := z.global_position + Vector3.UP * z.hit_center_height()
 		var to_c := center - origin
 		var along := to_c.dot(dir)
 		if along < 0.0 or along > MAX_RANGE:

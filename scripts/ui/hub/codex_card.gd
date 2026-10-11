@@ -56,7 +56,14 @@ func _build_known(e: Dictionary, pr: PlayerProfile, is_new: bool) -> void:
 	for s in samples:
 		var chip := HubBox.hbox(4)
 		chip.add_child(HubIcon.make(HubIcon.sample_art(s), 2))
-		chip.add_child(HubStyle.label(CodexData.sample_name(s), 11, HubStyle.GREEN, "semi"))
+		var nl := HubStyle.label(CodexData.sample_name(s), 11, HubStyle.GREEN, "semi")
+		# Nom long (« BRACELET D'IDENTIFICATION ») : coupé avec « … » plutôt
+		# que d'élargir la fiche ; le nom entier est dans l'aide (hint).
+		nl.clip_text = true
+		nl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		nl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		chip.add_child(nl)
+		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sm.add_child(chip)
 		names.append(CodexData.sample_name(s).to_lower())
 	box.add_child(sm)

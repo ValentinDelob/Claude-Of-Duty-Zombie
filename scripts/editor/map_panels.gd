@@ -487,7 +487,7 @@ func _sky_props(c: Dictionary, box: Container = null) -> void:
 func _waves_props(c: Dictionary, box: Container = null) -> void:
 	if box == null:
 		box = _props
-	var names := {WaveRules.SPECIAL: [Lang.t("Vague spéciale", "Special wave"), Lang.t("Mini-boss (aujourd'hui la meute de chiens) : 1re manche et écart (0 : jamais / une seule fois).", "Mini-boss (today the dog pack): first round and gap (0: never / only once).")],
+	var names := {WaveRules.SPECIAL: [Lang.t("Vague spéciale", "Special wave"), Lang.t("Mini-boss (meute de chiens, Brancardier : types cochés ci-dessous, à tour de rôle) : 1re manche et écart (0 : jamais / une seule fois).", "Mini-boss (dog pack, Stretcher-Bearer: types checked below, taking turns): first round and gap (0: never / only once).")],
 		WaveRules.BOSS: [Lang.t("Vague de boss", "Boss wave"), Lang.t("Boss (aucun encore : sans boss, la vague ne fait rien) : 1re manche et écart.", "Boss (none yet: without a boss, the wave does nothing): first round and gap.")]}
 	for kind in WaveRules.KINDS:
 		var e: Dictionary = EditorMap.waves_of(c)[kind]
@@ -497,6 +497,35 @@ func _waves_props(c: Dictionary, box: Container = null) -> void:
 		var gap := _spin(box, String(names[kind][0]) + Lang.t(" : toutes les", ": every"), float(e.intervalle), 0, WaveRules.ROUND_MAX, 1, func(v):
 			EditorMap.set_waves(c, kind, int(EditorMap.waves_of(c)[kind].premiere), int(v)), Lang.t(" manches", " rounds"))
 		gap.tooltip_text = String(names[kind][1])
+		if kind == WaveRules.SPECIAL:
+			_special_types_props(c, box)
+
+
+## Format 21 : types de vagues spéciales autorisés (« carte.vagues.types_speciaux »,
+## défaut : tous), qui tournent dans l'ordre de la liste (WaveRules) ; le
+## dernier type coché ne peut pas être décoché (une carte a au moins un type).
+func _special_types_props(c: Dictionary, box: Container) -> void:
+	var labels := {
+		WaveRules.MEUTE: Lang.t("Meute (chiens errants)", "Pack (stray dogs)"),
+		WaveRules.BRANCARDIER: Lang.t("Brancardier (gros zombie qui charge)", "Stretcher-Bearer (charging brute)"),
+	}
+	var tip := Lang.t("Types de vagues spéciales de la carte : les types cochés reviennent à tour de rôle (1re vague spéciale : le premier coché, 2e : le suivant…). Au moins un type.",
+		"Special wave types of the map: checked types take turns (1st special wave: the first checked, 2nd: the next…). At least one type.")
+	var checks := {}
+	for t in WaveRules.SPECIAL_TYPES:
+		var on := WaveRules.special_types(EditorMap.waves_of(c)).has(t)
+		var cb := _check(box, Lang.t("Vague spéciale : ", "Special wave: ") + String(labels.get(t, t)), on, func(checked):
+			var cur := WaveRules.special_types(EditorMap.waves_of(c)).duplicate()
+			if checked and not cur.has(t):
+				cur.append(t)
+			elif not checked and cur.size() > 1:
+				cur.erase(t)
+			EditorMap.set_special_types(c, cur)
+			# Le dernier type coché le reste (une liste vide voudrait dire « tous »).
+			for k in checks:
+				(checks[k] as CheckBox).set_pressed_no_signal(WaveRules.special_types(EditorMap.waves_of(c)).has(k)))
+		cb.tooltip_text = tip
+		checks[t] = cb
 
 
 func _room_props(r: Dictionary) -> void:
