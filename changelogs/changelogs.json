@@ -2717,6 +2717,33 @@
     "en": "The scientist's lab",
     "fr": "Le laboratoire du scientifique"
    }
+  },
+  "v0.2.1-snapshot.605": {
+   "channel": "snapshot",
+   "date": "2026-10-11",
+   "images": [],
+   "items": [
+    {
+     "en": "The PLAY tab of the hub launches every game: solo with map choice (plan, special waves, evacuation door, samples found there), or co-op with hosting, joining and a lobby built into the tab.",
+     "fr": "L'onglet PARTIE du hub lance toutes les parties : en solo avec le choix de la carte (plan, vagues spéciales, porte d'évacuation, échantillons qu'on y trouve), ou en coop avec héberger, rejoindre et un salon intégré à l'onglet."
+    },
+    {
+     "en": "The lobby shows each player's level and starting weapons, and the group stays connected while everyone manages their arsenal and contracts.",
+     "fr": "Le salon affiche le niveau et les armes de départ de chaque joueur, et le groupe reste connecté pendant que chacun gère son arsenal et ses contrats."
+    },
+    {
+     "en": "After a game you go back to the hub: to the lab in solo, to the lobby in co-op.",
+     "fr": "Après une partie, retour au hub : au labo en solo, au salon en coop."
+    },
+    {
+     "en": "In game, a message tells you when your samples complete a contract: evacuate to keep them.",
+     "fr": "En partie, un message vous prévient quand vos échantillons remplissent un contrat : évacuez pour les garder."
+    }
+   ],
+   "title": {
+    "en": "From the lab to the horde",
+    "fr": "Du labo à la horde"
+   }
   }
  }
 }
