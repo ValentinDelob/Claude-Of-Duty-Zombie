@@ -5,7 +5,7 @@ extends AutotestScenario
 ## immobile, tête renversée) qui étourdit le joueur en vue (vue qui tangue,
 ## image en cubes, déplacement ralenti, 10 dégâts) et AMEUTE les zombies
 ## proches (accélérés, yeux qui flamboient), cri ÉTRANGLÉ par une balle dans
-## la gorge pendant la préparation ; vague forcée (manche 15) : bandeau,
+## la gorge pendant la préparation ; vague forcée (manche 20) : bandeau,
 ## compteur qui clignote, musique, 1 Infirmière (PV de la formule) et son
 ## escorte, échantillons (cordes vocales, seringue, badge) sur chaque zombie
 ## de la vague, XP du mini-boss au tueur, mort sur le dos, arme de butin et
@@ -40,8 +40,8 @@ func run() -> void:
 	var nr := game.rounds.nurse
 	at.check(nr != null and nr.get_path() == ^"/root/Game/Rounds/Nurse", "gestionnaire de l'Infirmière présent")
 	at.check(not nr.enabled, "vagues de l'Infirmière coupées par défaut en autotest")
-	at.check(nr.next_round == 15 and game.rounds.brancard.next_round == 10 and game.rounds.dogs.next_dog_round == 5,
-		"rotation : meute 5, Brancardier 10, Infirmière 15 (%d)" % nr.next_round)
+	at.check(nr.next_round == 20 and game.rounds.brancard.next_round == 10 and game.rounds.dogs.next_dog_round == 5,
+		"rotation : meute 5, Brancardier 10, boss 15, Infirmière 20 (%d)" % nr.next_round)
 
 	# ------------------------------------------------ modèle, gorge point faible
 	p.teleport_to(cell(8, 3), -PI * 0.5)  # face à l'est (+X)
@@ -171,16 +171,16 @@ func run() -> void:
 	game.zombies.despawn(n.id)
 	await seconds(0.4)
 
-	# ------------------------------------------------ vague forcée (manche 15)
+	# ------------------------------------------------ vague forcée (manche 20)
 	var loot := game.loot
 	loot.debug_sample_chance = 1.0
 	loot.debug_part_chance = 0.0
-	nr.debug_force_next(15)
+	nr.debug_force_next(20)
 	game.rounds.paused = false
 	p.teleport_to(cell(12, 7), -PI * 0.5)
-	game.rounds.debug_jump_to(15)
+	game.rounds.debug_jump_to(20)
 	ok = await until(func(): return nr.active and nr.cl_active and game.hud.round_counter().special, 2.0, "annonce de la vague")
-	at.check(ok and game.rounds.special_type == WaveRules.INFIRMIERE and game.rounds.wave == WaveRules.SPECIAL, "manche 15 : vague de l'Infirmière")
+	at.check(ok and game.rounds.special_type == WaveRules.INFIRMIERE and game.rounds.wave == WaveRules.SPECIAL, "manche 20 : vague de l'Infirmière")
 	at.check(nr.total == 1 and game.rounds.to_spawn == NurseRules.escorts(1), "solo : 1 Infirmière, %d zombies d'escorte" % game.rounds.to_spawn)
 	at.check(game.hud._center_msg.text == NurseRound.banner_text(1), "bandeau « %s »" % game.hud._center_msg.text)
 	await until(func(): return Audio._music_name == "special_wave_music", 3.0, "musique")
@@ -190,7 +190,7 @@ func run() -> void:
 	at.check(game.zombies.alive_count() == 0, "rien n'apparaît pendant l'annonce")
 	ok = await until(func(): return first_nurse() != null, NurseRules.START_DELAY + 4.0, "Infirmière apparue")
 	var boss := first_nurse()
-	at.check(ok and boss.max_health == NurseRules.health(15, 1), "PV : %d (8 × %d)" % [boss.max_health if boss else 0, RoundRules.zombie_health(15)])
+	at.check(ok and boss.max_health == NurseRules.health(20, 1), "PV : %d (8 × %d)" % [boss.max_health if boss else 0, RoundRules.zombie_health(20)])
 	boss.scream_cooldown = 999.0
 	ok = await until(func(): return game.zombies.alive_count() >= 2, 10.0, "escorte")
 	var killed := 0
@@ -226,13 +226,13 @@ func run() -> void:
 	await at.screenshot("death")
 	at.check(absf(boss.skel.rotation.x - NurseAnim.DEATH_PITCH) < 0.1, "mort : sur le dos (%.2f)" % boss.skel.rotation.x)
 	ok = await until(func(): return int(game.xp.my_ledger.kills.get(XpRules.NURSE, 0)) == xp0 + 1, 2.0, "XP du mini-boss")
-	at.check(ok, "élimination de l'Infirmière comptée (XP %d)" % XpRules.kill_xp(XpRules.NURSE, 15))
+	at.check(ok, "élimination de l'Infirmière comptée (XP %d)" % XpRules.kill_xp(XpRules.NURSE, 20))
 	at.check(int(loot.my_samples.get("nurse_vocal_cords", 0)) == killed + 1, "l'Infirmière donne aussi ses échantillons")
 	ok = await until(func(): return game.rounds.phase == RoundManager.Phase.INTERMISSION, 3.0, "fin de vague")
 	at.check(ok, "fin de la vague de l'Infirmière")
 	ok = await until(func(): return not loot.drops.is_empty() and game.evac != null and game.evac.is_open, 3.0, "butin et évacuation")
 	at.check(ok, "vague vaincue : arme de butin posée, porte d'évacuation ouverte")
-	at.check(nr.next_round == 30 and nr.rank == 1, "prochaine vague de l'Infirmière : manche %d" % nr.next_round)
+	at.check(nr.next_round == 40 and nr.rank == 1, "prochaine vague de l'Infirmière : manche %d" % nr.next_round)
 	await until(func(): return not nr.cl_active and not game.hud.round_counter().special, NurseRules.END_DELAY + 3.0, "fin de l'ambiance")
 	at.check(not nr.cl_active and Audio._music_name != "special_wave_music", "fin de l'ambiance, musique de la carte")
 	game.rounds.paused = true

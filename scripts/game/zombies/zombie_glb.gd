@@ -18,9 +18,15 @@ extends RefCounted
 ## Matières Blender -> matière du shader et couleur (clé = nom du matériau,
 ## suffixe « .001 » ignoré).
 
+## Alpha des sommets du cœur mutant (« heart ») : ni 0 (yeux) ni 1 (corps).
+const HEART_ALPHA := 0.5
+
 const MATS := {
 	"skin": [RigBuilder.MAT_SKIN, Color(0.52, 0.53, 0.46)],
 	"eye": [RigBuilder.MAT_SKIN, Color(1.0, 0.86, 0.3), true],
+	# Cœur mutant du Chirurgien (point faible) : émissif à part (alpha
+	# HEART_ALPHA, lueur `heart_glow` de zombie_body.gdshaderinc).
+	"heart": [RigBuilder.MAT_WOUND, Color(0.95, 0.18, 0.22), HEART_ALPHA],
 	"cloth": [RigBuilder.MAT_CLOTH, Color(0.42, 0.43, 0.35)],
 	"leather": [RigBuilder.MAT_LEATHER, Color(0.075, 0.065, 0.055)],
 	"metal": [RigBuilder.MAT_METAL, Color(0.27, 0.29, 0.25)],
@@ -118,8 +124,9 @@ static func _convert(root: Node) -> Dictionary:
 		var key := (mat.resource_name if mat else "skin").get_slice(".", 0)
 		var info: Array = MATS.get(key, MATS.skin)
 		var c: Color = (info[1] as Color).srgb_to_linear()
-		if info.size() > 2 and info[2]:
-			c.a = 0.0
+		if info.size() > 2:
+			# true : yeux (alpha 0) ; nombre : alpha donné (cœur du Chirurgien).
+			c.a = 0.0 if info[2] is bool else float(info[2])
 		var base := verts.size()
 		var sv: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
 		var sn: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]

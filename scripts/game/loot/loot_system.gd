@@ -65,9 +65,13 @@ func _ready() -> void:
 # --------------------------------------------------------------------------
 
 ## Sorte d'échantillons d'un zombie tué (clé de LootRules.SAMPLES : "dogs",
-## "brancardier"), "" s'il n'est pas un zombie de vague spéciale. Vague du
-## Brancardier : le Brancardier ET son escorte (zombies de la vague, §4.7).
+## "brancardier", "surgeon"), "" s'il n'est pas un zombie de vague spéciale
+## ou de boss. Vague du Brancardier : le Brancardier ET son escorte (zombies
+## de la vague, §4.7) ; vague du Chirurgien : le Chirurgien, son escorte et
+## les patients relevés par ses opérations.
 func special_kind(z: Zombie) -> String:
+	if game.rounds.wave == WaveRules.BOSS:
+		return "surgeon" if game.rounds.boss_type == WaveRules.CHIRURGIEN else ""
 	if game.rounds.wave != WaveRules.SPECIAL:
 		return ""
 	if z is Hellhound:
@@ -87,9 +91,13 @@ func _on_killed(zid: int) -> void:
 	var kind := special_kind(z)
 	if kind == "":
 		return
+	# Le boss lui-même : chaque sorte à coup sûr (trophée, LootRules.BOSS_SAMPLE_CHANCE).
+	var chance := debug_sample_chance
+	if z is Surgeon and chance < 0.0:
+		chance = LootRules.BOSS_SAMPLE_CHANCE
 	for pid in game.session.data:
 		var pd: PlayerData = game.session.data[pid]
-		var got := LootRules.roll_samples(kind, _rng, debug_sample_chance)
+		var got := LootRules.roll_samples(kind, _rng, chance)
 		var changed := not got.is_empty()
 		if not got.is_empty():
 			var mine: Dictionary = samples.get(pid, {})
@@ -112,7 +120,7 @@ func _on_wave_cleared(wave: String, round_n: int) -> void:
 	var n := LootRules.weapons_for_wave(wave)
 	for pid in game.session.data:
 		for k in n:
-			var w := LootRules.roll_weapon(round_n, _rng, "loot:%d" % _take_id())
+			var w := LootRules.roll_weapon(round_n, _rng, "loot:%d" % _take_id(), wave)
 			if game.challenge:
 				w = game.challenge.loot_weapon(w)  # « fonds de tiroir » : commune
 			srv_drop(pid, w, k)

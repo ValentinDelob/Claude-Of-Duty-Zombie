@@ -63,10 +63,16 @@ func test_fiches_livrees_sans_avertissement() -> void:
 	assert_eq(int(d.entry("dog").round), 5)
 	assert_eq(Array(d.entry("dog").samples), ["dog_fang", "dog_fur", "dog_collar"], "mêmes sortes que le butin")
 	assert_eq(CodexData.xp(d.entry("walker")), XpRules.base_xp(XpRules.WALKER), "XP du barème, pas dupliquée")
-	assert_eq(CodexData.xp(d.entry("surgeon")), XpRules.base_xp(XpRules.BOSS_GENERIC), "ennemi prévu : XP de référence")
-	assert_true(d.entry("surgeon").planned)
+	assert_eq(CodexData.xp(d.entry("surgeon")), XpRules.base_xp(XpRules.SURGEON), "le Chirurgien : son propre barème")
+	assert_false(d.entry("surgeon").planned, "le Chirurgien est en jeu")
+	# Ennemi prévu (xp_ref) : XP de référence de sa catégorie.
+	var planned := CodexData.from_text(JSON.stringify({"format": "hub_codex", "version": 1, "enemies": [
+		{"id": "futur", "name": {"fr": "F", "en": "F"}, "text": {"fr": "f", "en": "f"}, "round": 40, "xp_ref": "boss", "planned": true}]}))
+	assert_eq(CodexData.xp(planned.entry("futur")), XpRules.base_xp(XpRules.BOSS_GENERIC), "ennemi prévu : XP de référence")
+	assert_true(planned.entry("futur").planned)
 	assert_eq(CodexData.sample_name("dog_fang"), "CROC")
-	assert_eq(CodexData.sample_name("surgeon_scalpel"), "???", "sorte pas encore au butin")
+	assert_eq(CodexData.sample_name("surgeon_scalpel"), Lang.t("SCALPEL", "SCALPEL"))
+	assert_eq(CodexData.sample_name("futur_sample"), "???", "sorte pas encore au butin")
 
 
 func test_fiches_invalides_ecartees() -> void:
@@ -228,7 +234,7 @@ func test_onglet_codex() -> void:
 	var s := cp.card_of("surgeon")
 	assert_true(not s.known and s.empty, "inconnu : fiche grisée")
 	assert_true(_has_text(s, "???"))
-	assert_true(_has_text(s, "Peut apparaître dès la manche 30"), "seulement l'indice de manche")
+	assert_true(_has_text(s, "Peut apparaître dès la manche 15"), "seulement l'indice de manche")
 	assert_false(_has_text(s, "CHIRURGIEN"), "nom caché")
 	# Affichage : focus sur la première fiche, flèches entre les fiches.
 	hub.select_tab("codex")

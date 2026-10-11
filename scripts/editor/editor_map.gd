@@ -172,7 +172,14 @@ extends RefCounted
 ##      Absente : tous les types (jamais écrite à sa valeur par défaut,
 ##      set_special_types). Aucune conversion : une carte au format 20 ou moins
 ##      se lit telle quelle (tous les types, en rotation).
-const FORMAT := 21
+##  22  types de BOSS (GAME_CONCEPT.md §4.4 : premier boss, le Chirurgien) :
+##      « carte.vagues.types_boss » = liste des boss autorisés
+##      (WaveRules.BOSS_TYPES : « chirurgien »), en rotation comme les vagues
+##      spéciales (WaveRules.boss_type_at). Absente : tous les boss (jamais
+##      écrite à sa valeur par défaut, set_boss_types) ; carte sans boss :
+##      « vagues.boss.premiere » 0. Aucune conversion : une carte au format 21
+##      ou moins se lit telle quelle (boss toutes les 15 manches par défaut).
+const FORMAT := 22
 const FILES := ["carte.json", "pieces.json", "ouvertures.json", "objets.json", "zones.json"]
 const DEFAULT_CEILING := 3.2
 ## Écart par défaut entre deux niveaux (m) : nouveau niveau, ancien étage sans « sol ».
@@ -358,6 +365,14 @@ static func set_special_types(c: Dictionary, types: Array) -> void:
 	_write_waves(c, s)
 
 
+## Format 22 : types de boss autorisés (WaveRules.BOSS_TYPES ; vide : tous),
+## en rotation (WaveRules.boss_type_at).
+static func set_boss_types(c: Dictionary, types: Array) -> void:
+	var s := waves_of(c)
+	s[WaveRules.BOSS_TYPES_KEY] = WaveRules.parse_boss_types(types)
+	_write_waves(c, s)
+
+
 ## Écrit le schéma `s` (forme lue par WaveRules.parse) : clé retirée au défaut,
 ## liste des types omise quand ce sont tous les types.
 static func _write_waves(c: Dictionary, s: Dictionary) -> void:
@@ -365,6 +380,8 @@ static func _write_waves(c: Dictionary, s: Dictionary) -> void:
 		c.erase("vagues")
 		return
 	var out := s.duplicate(true)
+	if out.get(WaveRules.BOSS_TYPES_KEY, []) == WaveRules.BOSS_TYPES:
+		out.erase(WaveRules.BOSS_TYPES_KEY)
 	if out.get(WaveRules.TYPES_KEY, []) == WaveRules.SPECIAL_TYPES:
 		out.erase(WaveRules.TYPES_KEY)
 	c["vagues"] = out
@@ -1135,6 +1152,7 @@ func _migrate(from: int) -> void:
 		cube_changes = snap_architecture()
 	# Format 20 -> 21 : rien à convertir (sans « types_speciaux » : tous les
 	# types de vagues spéciales, en rotation).
+	# Format 21 -> 22 : rien à convertir (sans « types_boss » : tous les boss).
 
 
 ## Format 20 : toute l'architecture arrondie au cube de 5 cm (MapCubeSnap,

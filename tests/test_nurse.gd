@@ -208,7 +208,7 @@ func test_samples_xp() -> void:
 	assert_false(bool(e.get("planned", false)), "codex : l'Infirmière n'est plus « prévue »")
 	assert_eq(Array(e.samples), ids)
 	assert_eq(CodexData.xp(e), XpRules.base_xp(XpRules.NURSE))
-	assert_eq(int(e.round), WaveRules.next_special_of(WaveRules.DEFAULT, WaveRules.INFIRMIERE, 0), "codex : manche de la première vague")
+	assert_eq(int(e.round), WaveRules.next_special_of(WaveRules.DEFAULT, WaveRules.INFIRMIERE, 0, WaveRules.has_boss(WaveRules.DEFAULT)), "codex : manche de la première vague (boss à la 15)")
 
 
 func test_rotation_three_types() -> void:

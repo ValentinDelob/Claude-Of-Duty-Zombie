@@ -1164,7 +1164,7 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   `srv_plan(après)` au départ, défi « en retard » compris) ;
   `RoundManager._begin_round` lance la meute, sinon le Brancardier, et retient
   `special_type` (sorte d'échantillons, `LootSystem.special_kind`). Défaut :
-  meute 5, Brancardier 10, meute 15…
+  meute 5, Brancardier 10 (boss à la 15), meute 20…
 - `DogRound` (`/root/Game/Rounds/Dogs`) : vagues spéciales du schéma de la
   carte de type « meute » (`WaveRules`, `MapDef.waves` : par défaut 5, 15, 25… ;
   coupée en autotest sauf `debug_force_next`), apparitions près du joueur le
@@ -1220,6 +1220,50 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   BRANCARDIER APPROCHE » / « A STRETCHER-BEARER IS COMING » (pluriel en
   coop), alerte, musique et compteur des vagues spéciales, rugissement et
   roulettes lointains. Coupé en autotest sauf `debug_force_next`.
+- **Vagues de boss** (format de carte 22) : même schéma (`WaveRules`, défaut
+  toutes les 15 manches) ; `WaveRules.has_boss` (1re manche > 0 : la carte a
+  un boss, ses manches sortent de la rotation des vagues spéciales) ; types
+  de boss permis (`types_boss`, `BOSS_TYPES` : `chirurgien`) en rotation
+  (`boss_rank`, `boss_type_at`, `next_boss_of`). `RoundManager._begin_round`
+  retient `wave = BOSS` et `boss_type` (sorte d'échantillons) et lance
+  `SurgeonRound` ; boss coupé (autotests) : manche normale comptée vague de
+  boss (l'évacuation s'ouvre quand même). `MapDef.boss` n'existe plus.
+- **Le Chirurgien** (`scripts/game/surgeon/`, premier boss, GAME_CONCEPT.md
+  §4.4) : `Surgeon` (classe dérivée de `Zombie`, type d'entité
+  `ZombieManager.KIND_SURGEON` : même canal réseau, mêmes dégâts, ferraille,
+  pièges, PV et vitesse du défi hebdomadaire par `ZombieManager.spawn` ; ni
+  démembrement, ni ragdoll, ni leurre, ni recyclage du `Spawner`) ; modèle
+  `SurgeonModel` (`surgeon_voxel.glb` par `ZombieGlb` ; zones de touche
+  mesurées : tronc, crâne compté corps, **cœur** mesuré sur les sommets de
+  la matière `heart` et porté par l'os `chest`, zone 1 : multiplicateur de
+  tête ; `head_position` rend le cœur pour la validation du serveur ;
+  centre des touches à 1,35 m) ; animation `SurgeonAnim` (fonctions pures) ;
+  règles pures `SurgeonRules`. **Actions** (serveur, `Surgeon.Action`) :
+  `SLASH_WINDUP` -> `SLASH` (combo, `_slash_damage` dans l'arc), 
+  `THROW_WINDUP` -> `THROW` (`SurgeonScalpels.srv_throw`), `SURGERY`
+  (seuils `SURGERY_AT`, `SurgeonRound.srv_summon` : zombies ordinaires qui
+  sortent de terre), `ROAR` (seuil `ENRAGE_AT` : `rage`, onde de choc
+  `_shock` : dégâts et `Player.srv_knockback`). **Réseau** : chaque action
+  en RPC fiable `_cl_action(action, rage)` (file jouée dans l'ordre) et dans
+  le code d'animation (bits 3-5, bit 6 enragé). Toutes les machines : sons
+  et effets par action (`_on_action`, `_action_fx`), battements du cœur
+  (`heart_glow`, instance uniform du shader des zombies cubiques).
+  `damage_player` reçoit le Chirurgien en `source` (rencontre du codex),
+  scalpels compris.
+- `SurgeonScalpels` (`/root/Game/Rounds/Surgeon/Scalpels`) : éventail
+  annoncé en RPC fiable (`_cl_throw` : départ, vitesses), vol simulé partout
+  (`SurgeonRules.scalpel_pos`), arrêt au décor par rayon (étincelles) ; le
+  serveur seul teste les joueurs (`scalpel_hits`) et retire le scalpel
+  partout (`_cl_hit`, fiable).
+- `SurgeonRound` (`/root/Game/Rounds/Surgeon`) : vagues de type
+  « chirurgien » (défaut 15, 30…) ; un boss (`SurgeonRules.health(manche,
+  rang, joueurs)`), apparition après l'annonce (`DogRound.pick_spawn_point`
+  à 14-30 m), **escorte** par `RoundManager.to_spawn` (`escort_ready`) ; boss
+  égaré : replacé près des joueurs avec ses PV ; PV diffusés (`_cl_hp`, non
+  fiable, 5 fois par seconde) à la jauge `BossBar` du HUD ; mise en scène :
+  bandeau, alerte, musique et compteur des vagues spéciales, bips de
+  moniteur et rire lointains ; bandeau de sa mort. Coupé en autotest sauf
+  `debug_force_next`.
 - **L'Infirmière hurlante** (`scripts/game/nurse/`, mini-boss, GAME_CONCEPT.md
   §4.4) : `Nurse` (dérivée de `Zombie`, `ZombieManager.KIND_NURSE`, même
   canal ; ni démembrement, ni leurre, ni recyclage du `Spawner`) ; modèle
@@ -1239,14 +1283,11 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   `Zombie.rally_left/_mult/_target` : le zombie ameuté garde sa proie et
   accélère dans `Zombie._chase`.
 - `NurseRound` (`/root/Game/Rounds/Nurse`) : vagues de type « infirmiere »
-  (défaut 15, 30…), même déroulé que `BrancardRound` (une par joueur,
+  (défaut 20, 40… : la 15 est une vague de boss), même déroulé que `BrancardRound` (une par joueur,
   `MAX_ALIVE`, escorte par `RoundManager.to_spawn`) ; `RoundManager._miniboss`
-  rend le gestionnaire actif (Brancardier ou Infirmière). Bandeau
+  rend le gestionnaire actif (Brancardier, Infirmière ou Chirurgien). Bandeau
   « L'INFIRMIÈRE FAIT SA RONDE » / « THE NURSE IS DOING HER ROUNDS »,
   hurlements lointains. Coupé en autotest sauf `debug_force_next`.
-- Vagues de boss : même schéma (`WaveRules`, défaut toutes les 15 manches) ;
-  sans boss défini (`MapDef.boss` vide, partout aujourd'hui) elles ne font
-  rien (`RoundManager._begin_round`).
 - Évacuation (GAME_CONCEPT.md §4.5) : `EvacDoor` (Interactable `evac`, sous
   `World`), ouverte par `RoundManager._wave_cleared` après une vague spéciale
   ou de boss vaincue ; la manche suivante attend (`Phase.INTERMISSION` figée).
@@ -1580,13 +1621,16 @@ GAME_CONCEPT §4.7, §4.6, §4.16. Valeurs provisoires : GAME_CONCEPT §6 bis.
   tué et par joueur, niveau [niveau du joueur − 10 (≥ 1), niveau du joueur],
   modificateurs de `GameWeapon.MODS`. Échantillons : `LootRules.SAMPLES`
   (chiens : croc, touffe de poils, collier ; Brancardier : sangle de cuir,
-  bracelet d'identification), 20 % par sorte, par zombie tué
-  et par joueur.
+  bracelet d'identification ; Chirurgien : scalpel, cœur mutant), 20 % par
+  sorte, par zombie tué et par joueur ; le boss lui-même : à coup sûr
+  (`BOSS_SAMPLE_CHANCE`). Raretés d'une vague de boss : `RARITY_WEIGHTS_BOSS`
+  (`roll_weapon(..., wave)`), 2 armes par joueur.
 - **Serveur** (`LootSystem`, `/root/Game/Loot`) : tire tout. Pièces et
   échantillons à chaque mort d'un zombie de vague spéciale
   (`ZombieManager.zombie_killed`, `special_kind` : chien pendant `RoundManager.wave ==
   SPECIAL`, ou tout zombie — Brancardier et escorte — d'une vague du
-  Brancardier), rangés directement dans l'onglet de partie du joueur et envoyés
+  Brancardier, ou tout zombie d'une vague de boss du Chirurgien : boss,
+  escorte, patients relevés, `RoundManager.boss_type`), rangés directement dans l'onglet de partie du joueur et envoyés
   à lui seul (`_cl_loot`). Armes à la fin de la vague
   (`RoundManager.wave_cleared`, émis après l'ouverture de la porte
   d'évacuation et la réapparition des morts) : `LootDrop` posé à 1,5 m

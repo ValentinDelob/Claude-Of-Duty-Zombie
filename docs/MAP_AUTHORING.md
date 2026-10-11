@@ -1466,15 +1466,15 @@ meute de chiens, Brancardier, Infirmière hurlante ; types : format 21) et des v
 0 à 999 ; `premiere` 0 : jamais ; `intervalle` 0 : une seule vague). Valeur
 par défaut : une vague spéciale toutes les 5 manches (5, 10, 15…), un boss
 toutes les 15. Une manche prévue pour les deux est une vague de boss si la
-carte a un boss, sinon une vague spéciale ; aucun boss n'existe encore, une
-vague de boss ne fait donc rien. Réglable dans le panneau de la carte (rien
+carte a un boss (vagues de boss prévues, `premiere` > 0 : par défaut le
+Chirurgien, format 22), sinon une vague spéciale. Réglable dans le panneau de la carte (rien
 de sélectionné) : « Vague spéciale / Vague de boss : 1re manche, toutes les
 N manches » (`WaveRules`, `EditorMap.set_waves`). Une carte d'un format plus
 ancien a le schéma par défaut. Format 19 : station de construction
 (`station`, obligatoire). Format 20 : **architecture en cubes de
 5 cm** (§ 4, « Passage aux cubes de 5 cm (format 20) ») : aucune clé
 nouvelle, toutes les coordonnées d'architecture sont des multiples de 5 cm.
-Format **21** (courant) : `vagues.types_speciaux` (facultatif, jamais écrit
+Format 21 : `vagues.types_speciaux` (facultatif, jamais écrit
 quand tous les types sont permis) = liste des **types de vagues spéciales**
 permis sur la carte, parmi `"meute"` (chiens errants), `"brancardier"` (le
 Brancardier, gros zombie qui charge) et `"infirmiere"` (l'Infirmière
@@ -1483,8 +1483,8 @@ format) ; absente, vide ou illisible : tous.
 **Rotation** : la k-ième vague spéciale prévue par le schéma (manches de boss
 exclues quand la carte a un boss) est du type n° (k − 1) modulo le nombre de
 types permis, dans l'ordre meute, Brancardier, Infirmière : par défaut meute
-à la manche 5, Brancardier à la 10, Infirmière à la 15, meute à la 20… ; une
-carte qui ne permet qu'un type n'a que lui (`WaveRules.special_type_at`) ;
+à la manche 5, Brancardier à la 10 (boss à la 15), Infirmière à la 20, meute
+à la 25… ; une carte qui ne permet qu'un type n'a que lui (`WaveRules.special_type_at`) ;
 une carte enregistrée avec `["meute", "brancardier"]` garde ces deux types
 (pas d'Infirmière : cocher sa case pour l'ajouter).
 Réglage dans le panneau de la carte (rien de sélectionné), sous « Vague
@@ -1501,7 +1501,21 @@ permet a besoin de salles ou de couloirs assez longs pour qu'elle recule
 mettre à couvert de son cri.
 Exemple : `"vagues": {"speciale": {"premiere": 4, "intervalle": 4},
 "types_speciaux": ["brancardier"]}` : un Brancardier toutes les 4 manches,
-jamais de meute.
+jamais de meute. Format **22** (courant) : `vagues.types_boss` (facultatif,
+jamais écrit quand tous les boss sont permis) = liste des **types de boss**
+permis, parmi `"chirurgien"` (le Chirurgien, premier boss) ; absente, vide
+ou illisible : tous ; même rotation que les vagues spéciales (la k-ième
+vague de boss est du type n° (k − 1) modulo le nombre de types,
+`WaveRules.boss_type_at`). Carte **sans boss** : `"boss": {"premiere": 0,
+"intervalle": 0}` (aucune manche de boss, toutes les vagues spéciales
+comptent dans leur rotation). Défaut (clé absente) : le Chirurgien toutes
+les 15 manches ; la rotation des vagues spéciales saute les manches de boss
+(meute 5, Brancardier 10, Chirurgien 15, Infirmière 20, meute 25…).
+Réglage dans le panneau de la carte, sous « Vague de boss » : une case par
+boss (« Boss : Le Chirurgien (scalpels, opérations) ») ; le dernier coché ne
+peut pas être décoché (`EditorMap.set_boss_types`). Aucune conversion : une
+carte au format 21 ou moins a le Chirurgien par défaut ; une carte reçue en
+réseau avec un boss inconnu est refusée (`CustomMapGuard`).
 
 **`pieces.json`** — les pièces :
 

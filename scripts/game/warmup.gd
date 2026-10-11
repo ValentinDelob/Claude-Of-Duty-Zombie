@@ -59,6 +59,14 @@ func _run(game: Game) -> void:
 	br_d.position = Vector3(1.6, -1.2, -2.4)
 	stage.add_child(br_d)
 	BrancardierModel.set_dissolve(br_d.get_node("Mesh") as MeshInstance3D, 0.3)
+	# Chirurgien cubique (boss : cœur émissif) et sa variante de dissolution.
+	var sg := SurgeonModel.build()
+	sg.position = Vector3(-2.2, -1.2, -2.0)
+	stage.add_child(sg)
+	var sg_d := SurgeonModel.build()
+	sg_d.position = Vector3(-2.6, -1.2, -2.4)
+	stage.add_child(sg_d)
+	SurgeonModel.set_dissolve(sg_d.get_node("Mesh") as MeshInstance3D, 0.3)
 	# Infirmière hurlante cubique (mini-boss), sa dissolution, l'onde du cri
 	# et l'effet d'écran de l'étourdissement.
 	var nu := NurseModel.build()

@@ -10,7 +10,8 @@ func test_bareme() -> void:
 	# une décision de calibrage (relancer test_calibrage).
 	var expected := {
 		XpRules.WALKER: 4, XpRules.RUNNER: 4, XpRules.SPRINTER: 4, XpRules.CRAWLER: 4,
-		XpRules.DOG: 12, XpRules.BRANCARDIER: 60, XpRules.NURSE: 60, XpRules.MINIBOSS_GENERIC: 60, XpRules.BOSS_GENERIC: 240,
+		XpRules.DOG: 12, XpRules.BRANCARDIER: 60, XpRules.NURSE: 60, XpRules.SURGEON: 240, XpRules.MINIBOSS_GENERIC: 60,
+		XpRules.BOSS_GENERIC: 240,
 	}
 	assert_eq(XpRules.ENEMIES.size(), expected.size(), "chaque type du barème a sa valeur attendue ici")
 	for t in expected:

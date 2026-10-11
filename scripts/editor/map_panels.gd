@@ -488,7 +488,7 @@ func _waves_props(c: Dictionary, box: Container = null) -> void:
 	if box == null:
 		box = _props
 	var names := {WaveRules.SPECIAL: [Lang.t("Vague spéciale", "Special wave"), Lang.t("Mini-boss (meute de chiens, Brancardier, Infirmière hurlante : types cochés ci-dessous, à tour de rôle) : 1re manche et écart (0 : jamais / une seule fois).", "Mini-boss (dog pack, Stretcher-Bearer, Screaming Nurse: types checked below, taking turns): first round and gap (0: never / only once).")],
-		WaveRules.BOSS: [Lang.t("Vague de boss", "Boss wave"), Lang.t("Boss (aucun encore : sans boss, la vague ne fait rien) : 1re manche et écart.", "Boss (none yet: without a boss, the wave does nothing): first round and gap.")]}
+		WaveRules.BOSS: [Lang.t("Vague de boss", "Boss wave"), Lang.t("Boss (le Chirurgien : types cochés ci-dessous, à tour de rôle) : 1re manche et écart (0 : aucun boss sur la carte / une seule fois).", "Boss (the Surgeon: types checked below, taking turns): first round and gap (0: no boss on the map / only once).")]}
 	for kind in WaveRules.KINDS:
 		var e: Dictionary = EditorMap.waves_of(c)[kind]
 		var first := _spin(box, String(names[kind][0]) + Lang.t(" : 1re manche", ": first round"), float(e.premiere), 0, WaveRules.ROUND_MAX, 1, func(v):
@@ -499,6 +499,33 @@ func _waves_props(c: Dictionary, box: Container = null) -> void:
 		gap.tooltip_text = String(names[kind][1])
 		if kind == WaveRules.SPECIAL:
 			_special_types_props(c, box)
+		else:
+			_boss_types_props(c, box)
+
+
+## Format 22 : types de boss autorisés (« carte.vagues.types_boss », défaut :
+## tous), en rotation ; le dernier coché ne peut pas être décoché (une carte
+## sans boss : 1re manche 0).
+func _boss_types_props(c: Dictionary, box: Container) -> void:
+	var labels := {
+		WaveRules.CHIRURGIEN: Lang.t("Le Chirurgien (scalpels, opérations)", "The Surgeon (scalpels, surgeries)"),
+	}
+	var tip := Lang.t("Boss de la carte : les types cochés reviennent à tour de rôle. Au moins un type ; pour une carte sans boss, mettez la 1re manche à 0.",
+		"Bosses of the map: checked types take turns. At least one type; for a map without a boss, set the first round to 0.")
+	var checks := {}
+	for t in WaveRules.BOSS_TYPES:
+		var on := WaveRules.boss_types(EditorMap.waves_of(c)).has(t)
+		var cb := _check(box, Lang.t("Boss : ", "Boss: ") + String(labels.get(t, t)), on, func(checked):
+			var cur := WaveRules.boss_types(EditorMap.waves_of(c)).duplicate()
+			if checked and not cur.has(t):
+				cur.append(t)
+			elif not checked and cur.size() > 1:
+				cur.erase(t)
+			EditorMap.set_boss_types(c, cur)
+			for k in checks:
+				(checks[k] as CheckBox).set_pressed_no_signal(WaveRules.boss_types(EditorMap.waves_of(c)).has(k)))
+		cb.tooltip_text = tip
+		checks[t] = cb
 
 
 ## Format 21 : types de vagues spéciales autorisés (« carte.vagues.types_speciaux »,

@@ -1037,6 +1037,123 @@ func gen_brancard_wheels() -> void:
 	_save("brancard_wheels", s.finish(s.reverb(b, 0.8, 0.35, 0.8), 0.8))
 
 
+# ---------------------------------------------------------------- le Chirurgien (boss)
+
+## Rire étouffé derrière le masque : « heh-heh-heh » grave, saccadé.
+func gen_surgeon_laugh() -> void:
+	var b := s.buf(1.4)
+	for i in 5:
+		var h := _growl(0.17, 150.0 - i * 9.0, 120.0 - i * 8.0, [520.0, 1150.0], 0.6)
+		h = s.env_adsr(h, 0.01, 0.05, 0.7, 0.06)
+		b = s.mix(b, h, 0.05 + i * 0.22, 0.9 - i * 0.08)
+	b = s.lowpass(b, 2600.0)
+	b = s.drive(b, 1.8)
+	_save("surgeon_laugh", s.finish(s.reverb(b, 0.7, 0.3, 0.8), 0.9))
+
+
+## Grognements d'ambiance, sifflants (souffle à travers le masque).
+func gen_surgeon_groan() -> void:
+	for k in 2:
+		s = Synth.new(3210 + k)
+		var dur := s.rng.randf_range(1.0, 1.4)
+		var b := _growl(dur, 88.0 + k * 10.0, 70.0, [450.0 + k * 50.0, 980.0], 0.8)
+		b = s.mix(b, s.env_adsr(s.bandpass(s.noise(dur), 2400.0, 1.5), 0.2, 0.2, 0.6, 0.3), 0.0, 0.35)
+		_save("surgeon_groan_%d" % (k + 1), s.finish(s.reverb(b, 0.6, 0.25, 0.6), 0.85))
+
+
+## Pas en surchaussures : choc mat et froissement de plastique.
+func gen_surgeon_step() -> void:
+	for k in 2:
+		s = Synth.new(3220 + k)
+		var b := s.env_exp(s.sweep(0.22, 110.0 - k * 10.0, 55.0), 0.002, 0.07)
+		b = s.mix(b, s.env_exp(s.bandpass(s.noise(0.18), 4200.0, 1.2), 0.004, 0.05), 0.01, 0.45)
+		_save("surgeon_step_%d" % (k + 1), s.finish(s.reverb(b, 0.35, 0.12, 0.25), 0.8))
+
+
+## Lame qui brille (télégraphe) : « chiing » métallique aigu qui sonne.
+func gen_surgeon_glint() -> void:
+	var b := s.env_exp(s.sweep(0.12, 2400.0, 5200.0), 0.002, 0.05)
+	for r in [1.0, 1.52, 2.31]:
+		b = s.mix(b, s.env_exp(s.tone(0.9, 3100.0 * r), 0.003, 0.35 / r), 0.03, 0.35 / r)
+	_save("surgeon_glint", s.finish(s.reverb(b, 0.7, 0.3, 0.7), 0.85))
+
+
+## Entaille : sifflement rapide de la lame.
+func gen_surgeon_slash() -> void:
+	var b := s.env_adsr(s.bandpass(s.noise(0.3), 1900.0, 1.4), 0.04, 0.1, 0.5, 0.12)
+	b = s.mix(b, s.env_exp(s.sweep(0.25, 3800.0, 1500.0), 0.02, 0.1), 0.02, 0.25)
+	_save("surgeon_slash", s.finish(s.reverb(b, 0.4, 0.15, 0.3), 0.85))
+
+
+## Lancer de l'éventail : souffle et cliquetis des lames.
+func gen_surgeon_throw() -> void:
+	var b := s.env_adsr(s.bandpass(s.noise(0.35), 1300.0, 1.2), 0.03, 0.12, 0.4, 0.15)
+	for i in 3:
+		b = s.mix(b, _clank(2600.0 + i * 340.0, 0.12, 0.3), 0.05 + i * 0.03, 0.3)
+	_save("surgeon_throw", s.finish(s.reverb(b, 0.45, 0.18, 0.4), 0.85))
+
+
+## Scalpel planté dans le décor : « tchink » vibrant.
+func gen_surgeon_scalpel_hit() -> void:
+	var b := _clank(2900.0, 0.4, 0.6)
+	b = s.mix(b, s.env_exp(s.highpass(s.noise(0.05), 3000.0), 0.0005, 0.01), 0.0, 0.6)
+	_save("surgeon_scalpel_hit", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.85))
+
+
+## Joueur coupé par un scalpel : entaille sèche.
+func gen_surgeon_cut() -> void:
+	var b := s.env_exp(s.bandpass(s.noise(0.2), 3200.0, 1.0), 0.001, 0.04)
+	b = s.mix(b, s.env_exp(s.lowpass(s.noise(0.25), 700.0), 0.002, 0.06), 0.01, 0.8)
+	_save("surgeon_cut", s.finish(s.reverb(b, 0.3, 0.12, 0.25), 0.85))
+
+
+## Opération : scie à os qui monte et bips de moniteur affolés.
+func gen_surgeon_surgery() -> void:
+	var b := s.env_adsr(s.bandpass(s.sweep(2.4, 160.0, 230.0, "saw"), 900.0, 1.0), 0.15, 0.2, 0.8, 0.4)
+	for i in 7:
+		b = s.mix(b, s.env_adsr(s.tone(0.07, 1450.0), 0.003, 0.01, 0.8, 0.02), 0.2 + i * 0.3, 0.3)
+	_save("surgeon_surgery", s.finish(s.reverb(b, 0.6, 0.25, 0.6), 0.85))
+
+
+## Changement de phase : cri de rage énorme.
+func gen_surgeon_roar() -> void:
+	var b := _growl(1.8, 120.0, 70.0, [620.0, 1300.0], 1.4)
+	b = s.mix(b, _growl(1.5, 180.0, 95.0, [800.0, 1700.0], 1.1), 0.1, 0.6)
+	b = s.mix(b, s.env_adsr(s.lowpass(s.brown_noise(1.8), 260.0), 0.05, 0.2, 0.9, 0.5), 0.0, 0.8)
+	b = s.drive(b, 3.5)
+	_save("surgeon_roar", s.finish(s.reverb(b, 0.85, 0.32, 0.9), 0.95))
+
+
+## Battement du cœur mutant (double coup sourd).
+func gen_surgeon_heartbeat() -> void:
+	var b := s.buf(0.5)
+	for i in 2:
+		b = s.mix(b, s.env_exp(s.sweep(0.18, 70.0 - i * 10.0, 40.0), 0.004, 0.06), i * 0.17, 1.0 - i * 0.3)
+	_save("surgeon_heartbeat", s.finish(s.lowpass(b, 400.0), 0.8))
+
+
+## Mort : râle qui s'effondre, puis le moniteur part en ligne plate.
+func gen_surgeon_death() -> void:
+	var b := _growl(1.4, 130.0, 40.0, [500.0, 950.0], 1.2)
+	b = s.drive(b, 2.2)
+	for i in 3:
+		b = s.mix(b, s.env_adsr(s.tone(0.08, 1000.0), 0.003, 0.01, 0.8, 0.02), 0.2 + i * 0.35, 0.25)
+	b = s.mix(b, s.env_adsr(s.tone(1.6, 1000.0), 0.01, 0.05, 0.8, 0.4), 1.35, 0.25)
+	_save("surgeon_death", s.finish(s.reverb(b, 0.7, 0.28, 0.8), 0.9))
+
+
+## Annonce : bips de moniteur cardiaque qui s'accélèrent.
+func gen_surgeon_monitor() -> void:
+	var b := s.buf(2.2)
+	var t := 0.0
+	var gap := 0.5
+	while t < 2.0:
+		b = s.mix(b, s.env_adsr(s.tone(0.09, 1180.0), 0.003, 0.01, 0.8, 0.03), t, 0.4)
+		t += gap
+		gap = maxf(gap * 0.8, 0.12)
+	_save("surgeon_monitor", s.finish(s.reverb(b, 0.75, 0.32, 0.8), 0.8))
+
+
 # ---------------------------------------------------------------- l'Infirmière hurlante (vague spéciale)
 
 ## Voix aiguë et cassée : dent de scie à `f0` -> `f1` Hz, vibrato (`vib` :

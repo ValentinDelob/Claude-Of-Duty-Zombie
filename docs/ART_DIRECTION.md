@@ -271,6 +271,54 @@ et exporte.
   de sang (camouflage), profil trop plat (poitrine et ventre épaissis), toile
   du brancard du même vert que la peau (passée en kaki).
 
+### Le Chirurgien (tools/blender/surgeon/surgeon_voxel.py)
+
+- `assets/models/surgeon/surgeon_voxel.glb`, cubes de **2,5 cm**, premier
+  boss (`SurgeonModel`, chargé par `ZombieGlb`). Formes **décrites** par
+  pavés de cubes (comme le Brancardier), pas de planche de référence.
+- Univers : ancien chef du bloc opératoire, cohérent avec ses échantillons
+  (scalpel, cœur mutant) : **blouse chirurgicale** vert d'eau longue
+  (fendue en deux pans sur les cuisses, ourlet déchiré, plis), tablier de
+  sang en V devant (pas de taches en camouflage), **coiffe** de bloc
+  sarcelle à motif, **masque** bleu pâle déchiré à droite (dents visibles,
+  sur la mâchoire), **loupes** chirurgicales sur le front, yeux émissifs
+  jaunes, peau verdâtre des zombies du jeu, **gants de latex** bleu-violet,
+  surchaussures bleues, ceinture et étui de scalpels de rechange à la
+  hanche gauche, pince dans la poche de poitrine.
+- **Scalpel géant** dans la main droite (os `forearm_r`) : lame d'acier de
+  0,55 m tenue à l'horizontale devant le poing, tranchant clair continu, dos
+  en escalier jusqu'à la pointe, manche strié : lisible de profil et de
+  trois-quarts.
+- **Point faible** : la blouse et les côtes ouvertes laissent voir le **cœur
+  mutant** (6 × 8 cubes, matière `heart`, os `chest`), en saillie de 2 cubes,
+  cerné de chair sombre et de côtes brisées ; en jeu il **brille et bat**
+  (faces d'alpha 0,5 : `ZombieGlb.HEART_ALPHA`, `heart_energy` et lueur par
+  instance `heart_glow` de `zombie_body.gdshaderinc` ; double battement,
+  plus rapide et plus fort une fois enragé ; il s'éteint à sa mort).
+- Silhouette d'un géant voûté et dégingandé (contraste avec la brute du
+  Brancardier) : **2,28 m** au sommet du crâne, 2,33 m avec la coiffe,
+  épaules étroites (0,75 m avec les manches), bras longs ; 30 × 36 × 93
+  cubes, ~20 000 cellules, **6 914 triangles** (budget 12 000), 76 teintes.
+  Ossature `RigBuilder.BONES` (os droits, membres pendants, pondération
+  rigide) ; gants et scalpel sur les avant-bras.
+- Animations procédurales (`SurgeonAnim`) : marche dégingandée (scalpel
+  tenu devant lui), préparation de l'entaille (scalpel levé haut, la lame
+  brille : étincelles en cubes), entailles en aller-retour à l'horizontale,
+  lancer (bras armé au-dessus de l'épaule, bras gauche qui vise), opération
+  (penché, mains qui s'affairent, sang et éclats), changement de phase
+  (ramassé, bras croisés sur le cœur, puis il s'ouvre d'un coup : anneau de
+  poussière et gravats en cubes, secousse de la vue ; tête rejetée,
+  rugissement tremblant), mort (main sur le cœur, il titube puis tombe en
+  arrière d'un bloc, bras en croix). Scalpels lancés : lame et manche en
+  cubes de 2,5 cm (`SurgeonScalpels`), étincelles au mur. Contrôles :
+  `tests/test_surgeon.gd` (cubes qui se traversent, pire pose 129 ; rien
+  sous le sol). Jauge de vie du HUD en cubes (`BossBar`, menthe puis orange
+  d'alarme une fois enragé).
+- Cache : `tools/blender/surgeon/surgeon_voxel_cells.json` (`--cache`).
+  Planche `--sheet <fichier>.png` (vues, gros plans tête, cœur, scalpel,
+  poses). Trois passes : lame en dents de scie (tranchant redressé), tablier
+  de sang trop large (resserré), dos pas assez voûté.
+
 ### L'Infirmière hurlante (tools/blender/nurse/nurse_voxel.py)
 
 - `assets/models/nurse/nurse_voxel.glb`, cubes de **2,5 cm** (échelle commune

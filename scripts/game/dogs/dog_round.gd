@@ -5,7 +5,7 @@ extends Node
 ##
 ## Serveur : manches de chiens = vagues spéciales du schéma de la carte de
 ## type « meute » (WaveRules.special_type_at, MapDef.waves : rotation des
-## types autorisés ; par défaut manches 5, 15, 25...), fait
+## types autorisés, vagues de boss exclues ; par défaut manches 5, 20, 35...), fait
 ## apparaître les chiens un par un près des joueurs (2 vivants par joueur),
 ## tapis hors de leur vue de préférence, leur attribue une proie, applique la
 ## giclée de sang contaminé à leur mort et retient la position du dernier
@@ -34,7 +34,7 @@ var rounds: RoundManager
 ## réactiver ou forcer la manche suivante (debug_force_next).
 var enabled := not Autotest.active
 ## Prochaine manche de chiens (schéma de la carte, srv_plan).
-var next_dog_round := WaveRules.next_special_of(WaveRules.DEFAULT, WaveRules.MEUTE, 0)
+var next_dog_round := WaveRules.next_special_of(WaveRules.DEFAULT, WaveRules.MEUTE, 0, WaveRules.has_boss(WaveRules.DEFAULT))
 ## Manches de chiens déjà terminées (level.dog_round_count - 1).
 var dog_rounds_done := 0
 ## Serveur : manche de chiens en cours.
@@ -92,7 +92,7 @@ func _waves() -> Dictionary:
 
 
 func _has_boss() -> bool:
-	return game != null and game.map_def != null and game.map_def.boss != ""
+	return WaveRules.has_boss(_waves())
 
 
 ## Serveur : première manche de chiens d'après le schéma de la carte

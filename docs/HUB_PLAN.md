@@ -572,6 +572,32 @@ s'évacue vers la manche 10, XP_RULES §4) :
 | `leather_sling` | Bretelle de cuir / Leather Sling | 4 sangles | ≈ 3,7 | pièce : rechargement +20 % | 5+ |
 | `tagged_sights` | Mire étiquetée / Tagged Sights | 3 bracelets + 2 sangles | ≈ 3,2 | pièce : précision +20 %, dégâts +5 % | 6+ |
 
+### 7.2 quater Le Chirurgien : contrats (3) et échanges (2)
+
+Échantillons du Chirurgien (premier boss, GAME_CONCEPT §4.4) : **scalpel**
+(`surgeon_scalpel`) et **cœur mutant** (`surgeon_heart`), 20 % chacun sur
+chaque zombie de sa vague (6 d'escorte par joueur, 2 patients par joueur à
+chacune de ses deux opérations) et **à coup sûr** sur le boss : seul, ≈ 3 de
+chaque par vague de boss. Icônes du hub : `scalpel` (lame et manche en
+diagonale), `heart` (cœur rouge) ; groupe « LE CHIRURGIEN (BOSS) » de la
+réserve. Fiche du codex jouable (manche 15, XP de son barème).
+
+Il arrive à la manche 15 (défaut), quand le joueur s'évacue vers la manche
+15, à partir du niveau 10 (XP_RULES §4) : niveau minimal 10 et plus. Partie
+de référence : évacuation à la manche 15 (6 621 XP) ; XP d'un contrat ≈ 25 %
+de l'XP des parties nécessaires (comme §7.1) :
+
+| Id | Titre FR / EN | Demande | Parties (solo) | XP de base | Récompense | Niveau | Autre |
+|---|---|---|---|---|---|---|---|
+| `surgical_instruments` | Instruments de chirurgie / Surgical Instruments | 6 scalpels | ≈ 2 | 3 300 | arme rare | 10+ | |
+| `mutant_hearts` | Cœurs mutants / Mutant Hearts | 10 cœurs | ≈ 3,3 | 5 500 | pièce d'exception | 10+ | |
+| `full_autopsy` | Autopsie complète / Full Autopsy | 12 scalpels, 12 cœurs | ≈ 4 | 6 600 | arme épique | 12+ | après `surgical_instruments` |
+
+| Id | Titre FR / EN | Coût | Parties (solo) | Objet (au niveau du joueur) | Niveau |
+|---|---|---|---|---|---|
+| `scalpel_edge` | Fil du scalpel / Scalpel Edge | 8 scalpels | ≈ 2,7 | pièce : dégâts +22 % | 10+ |
+| `pacemaker` | Stimulateur cardiaque / Pacemaker | 6 cœurs + 4 scalpels | ≈ 2 | pièce : cadence +20 %, rechargement +10 % | 11+ |
+
 ### 7.2 ter Infirmière hurlante : contrats (3) et échanges (2)
 
 Échantillons de l'Infirmière hurlante (GAME_CONCEPT §4.4) : **cordes
@@ -588,7 +614,12 @@ spéciale) ; la partie de référence des niveaux 10 à 24 (évacuation à la
 manche 15, XP_RULES §4) a **une** vague de l'Infirmière : ≈ 1,4 échantillon
 de chaque sorte par partie. Niveau minimal **10** et plus (un joueur plus
 bas s'évacue avant elle). Parties estimées (non simulées) ; XP ≈ 25 % de
-l'XP des parties nécessaires (≈ 5 200 XP par partie de référence, XP_RULES §4) :
+l'XP des parties nécessaires (≈ 5 200 XP par partie de référence, XP_RULES §4).
+⚠️ Depuis le Chirurgien (boss à la manche 15, §7.2 quater), la 15 est une
+vague de boss : l'Infirmière arrive à la **manche 20** (puis 40) ; la partie
+de référence des niveaux 10 à 24 (évacuation à la 15) ne la croise plus, ses
+contrats demandent donc des parties plus longues (évacuation à la 20) : à
+recalculer avec l'auteur (estimations ci-dessous d'avant le boss) :
 
 | Id | Titre FR / EN | Demande | Parties (solo) | XP de base | Récompense | Niveau | Autre |
 |---|---|---|---|---|---|---|---|

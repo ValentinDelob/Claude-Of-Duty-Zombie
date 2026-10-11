@@ -32,6 +32,9 @@ const KILL_PACE := 3.0
 const DOG_PACE := 4.0
 ## Brancardier : secondes pour abattre le sien (charges esquivées, étourdi).
 const BRANCARDIER_PACE := 25.0
+## Chirurgien : secondes pour abattre le boss (combo et scalpels esquivés,
+## opérations, changement de phase), en plus de son escorte.
+const SURGEON_PACE := 120.0
 ## Infirmière : secondes pour abattre la sienne (elle fuit, cris, étourdi).
 const NURSE_PACE := 30.0
 const ROUND_OVERHEAD := 25.0
@@ -57,14 +60,26 @@ static func evac_round(level: int) -> int:
 
 ## Une partie de `players` joueurs, évacuation à la manche `evac` (vague
 ## spéciale vaincue) : XP et éliminations d'UN joueur, durée en secondes.
-## Schéma des vagues par défaut (WaveRules.DEFAULT, pas de boss défini).
+## Schéma des vagues par défaut (WaveRules.DEFAULT, le Chirurgien compris).
 static func simulate_match(evac: int, players := 1) -> Dictionary:
 	var l := XpRules.new_ledger()
 	var sec := MATCH_OVERHEAD
 	var dog_rounds := 0
+	var has_boss := WaveRules.has_boss(WaveRules.DEFAULT)
 	for r in range(1, evac + 1):
-		var kind := WaveRules.wave_kind(WaveRules.DEFAULT, r, false)
-		if kind == WaveRules.SPECIAL and WaveRules.special_type_at(WaveRules.DEFAULT, r) == WaveRules.BRANCARDIER:
+		var kind := WaveRules.wave_kind(WaveRules.DEFAULT, r, has_boss)
+		if kind == WaveRules.BOSS:
+			# Vague du Chirurgien : un boss pour l'équipe (son élimination à un
+			# seul joueur : sa part), son escorte et les patients de ses deux
+			# opérations.
+			var adds := SurgeonRules.escorts(players) + SurgeonRules.summons(players) * SurgeonRules.SURGERY_AT.size()
+			for i in roundi(1.0 / players):
+				XpRules.add_kill(l, XpRules.SURGEON, r)
+			for i in roundi(float(adds) / players):
+				XpRules.add_kill(l, XpRules.WALKER, r)
+			sec += SurgeonRules.START_DELAY + SURGEON_PACE + float(adds) / players * KILL_PACE + ROUND_OVERHEAD
+			XpRules.add_wave(l, kind, r)
+		elif kind == WaveRules.SPECIAL and WaveRules.special_type_at(WaveRules.DEFAULT, r, has_boss) == WaveRules.BRANCARDIER:
 			# Vague du Brancardier (rotation par défaut) : chacun abat son
 			# Brancardier et sa part de l'escorte.
 			var escorts := BrancardRules.escorts(players)
@@ -74,7 +89,7 @@ static func simulate_match(evac: int, players := 1) -> Dictionary:
 				XpRules.add_kill(l, XpRules.WALKER, r)
 			sec += BrancardRules.START_DELAY + BRANCARDIER_PACE + float(escorts) / players * KILL_PACE + ROUND_OVERHEAD
 			XpRules.add_wave(l, kind, r)
-		elif kind == WaveRules.SPECIAL and WaveRules.special_type_at(WaveRules.DEFAULT, r) == WaveRules.INFIRMIERE:
+		elif kind == WaveRules.SPECIAL and WaveRules.special_type_at(WaveRules.DEFAULT, r, has_boss) == WaveRules.INFIRMIERE:
 			# Vague de l'Infirmière : chacun abat la sienne (elle fuit : plus
 			# longue à coincer) et sa part de l'escorte qu'elle ameute.
 			var n_esc := NurseRules.escorts(players)

@@ -235,7 +235,7 @@ func _explode(tid: int, pid: int, kind: int, pos: Vector3) -> void:
 ## Serveur (zombies) : point d'attraction prioritaire sur les joueurs, ou
 ## Vector3.INF. Les chiens de l'enfer n'y prêtent aucune attention (BO1).
 func lure_for(z: Zombie) -> Vector3:
-	if _lures.is_empty() or z is Hellhound or z is Brancardier or z is Nurse:
+	if _lures.is_empty() or z is Hellhound or z is Brancardier or z is Nurse or z is Surgeon:
 		return Vector3.INF
 	var best := Vector3.INF
 	var best_d := INF

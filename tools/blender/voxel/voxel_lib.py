@@ -29,6 +29,8 @@
 #     sont fusionnées en rectangles (balayage glouton) : moins de triangles ;
 #   - matériaux nommés comme ZombieGlb.MATS : skin, eye, cloth, leather, metal,
 #     wound, bone (la matière du shader des zombies) ; l'œil est émissif ;
+#     « heart » : cœur mutant du Chirurgien (boss), émissif à part dans le
+#     jeu (alpha 0,5 posé par ZombieGlb, lueur `heart_glow` : point faible) ;
 #     « team » : zone de COULEUR D'ÉQUIPE du joueur (faces peintes en gris,
 #     teintées en jeu par la couleur du joueur, player_voxel.gdshader) ;
 #   - matières du DÉCOR (DECOR_MATERIALS : wood, stone, concrete, fabric,
@@ -55,7 +57,7 @@ CUBE_DECOR = 0.05
 # Compatibilité : pas par défaut (décor).
 CUBE = CUBE_DECOR
 MATERIALS = ("skin", "eye", "cloth", "leather", "metal", "wound", "bone", "team",
-             "wood", "stone", "concrete", "fabric", "rubber", "glass", "glow")
+             "wood", "stone", "concrete", "fabric", "rubber", "glass", "glow", "heart")
 # Matières propres au décor (aperçus Blender ; « glow » : faces émissives).
 DECOR_MATERIALS = ("wood", "stone", "concrete", "fabric", "rubber", "glass", "glow")
 # Matières dont les faces portent un alpha 0 dans le .glb (émissives dans le
@@ -609,7 +611,7 @@ def _material(name):
     attr.layer_name = "Col"
     nt.links.new(attr.outputs["Color"], bsdf.inputs["Base Color"])
     bsdf.inputs["Roughness"].default_value = 1.0
-    if name == "eye" or name in EMISSIVE:
+    if name in ("eye", "heart") or name in EMISSIVE:
         nt.links.new(attr.outputs["Color"], bsdf.inputs["Emission Color"])
         bsdf.inputs["Emission Strength"].default_value = 3.0
     return m
