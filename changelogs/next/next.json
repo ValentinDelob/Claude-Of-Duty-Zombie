@@ -1,0 +1,12 @@
+{
+ "title": {
+  "en": "Cleaner corridor behind the menus",
+  "fr": "Un couloir plus net derrière les menus"
+ },
+ "items": [
+  {
+   "en": "Fixed the flickering textures around the corridor doorways in the main menu and hub background.",
+   "fr": "Correction des textures qui scintillaient autour des ouvertures du couloir, dans le fond du menu principal et du hub."
+  }
+ ]
+}
