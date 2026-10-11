@@ -100,7 +100,8 @@ func _head(pr: PlayerProfile, w: OwnedWeapon) -> Control:
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(col)
 	name_label = HubStyle.label(HubGear.weapon_name(w.weapon_id), 30, HubStyle.rarity_color(w.rarity), "impact", true, 0.04)
-	name_label.clip_text = true
+	# Sans clip_text : il couperait l'accent des capitales (MÉTRONOME).
+	name_label.clip_text = false
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	col.add_child(name_label)
 	var sub := HubGear.weapon_class(w.weapon_id)
@@ -188,8 +189,8 @@ func _stats(w: OwnedWeapon) -> Control:
 	price.add_theme_font_size_override("bold_font_size", HubStyle.fs(13))
 	price.add_theme_color_override("default_color", HubStyle.DIM)
 	if st == "":
-		price.text = Lang.t("Attaque de corps à corps séparée : elle ne se construit pas à la station.",
-				"Separate melee attack: it is not built at the station.")
+		price.text = Lang.t("Arme de corps à corps tenue en main : elle ne se construit pas à la station.",
+				"Held melee weapon: it is not built at the station.")
 	else:
 		var p := BuildRules.owned_price(w)
 		price.text = Lang.t("Prix à la station : [b][color=#DBD6C2]%s[/color][/b] ferraille · %s",

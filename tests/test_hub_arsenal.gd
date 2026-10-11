@@ -217,6 +217,7 @@ func test_weapon_names_families_icons() -> void:
 	assert_eq(HubPlayView.weapon_label("m1911"), "Pétoire")
 	var ml := HubGear.melee_lines("bat")
 	assert_eq(String(ml[0].text), "250", "batte : 250 dégâts")
+	assert_eq(String(ml[1].text), "1,25", "batte : 1,25 coup par seconde")
 	assert_eq(String(ml[2].text), "15,0", "batte : 15 d'énergie par coup")
 	assert_eq(HubGear.station_text(BaseWeapons.make("bat")), "", "la batte ne se construit pas")
 	# Récompenses : nom original, jamais l'identifiant.

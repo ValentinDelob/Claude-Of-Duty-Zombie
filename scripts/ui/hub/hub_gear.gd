@@ -378,9 +378,12 @@ static func recoil_word(r: float) -> String:
 	return Lang.t("fort", "high")
 
 
-## Nombre décimal à la langue : « 2,6 » / « 2.6 ».
-static func decimal(v: float) -> String:
+## Nombre décimal à la langue : « 2,6 » / « 2.6 » ; `max_digits` = 2 : un
+## deuxième chiffre seulement s'il compte (« 1,25 », mais « 1,4 »).
+static func decimal(v: float, max_digits := 1) -> String:
 	var t := "%.1f" % v
+	if max_digits >= 2 and absf(v * 10.0 - roundf(v * 10.0)) > 0.001:
+		t = "%.2f" % v
 	return t if Lang.is_en() else t.replace(".", ",")
 
 
@@ -437,7 +440,7 @@ static func melee_lines(id: String) -> Array:
 	return [
 		{"key": "damage", "label": Lang.t("Dégâts", "Damage"), "text": HubStyle.num(roundi(dmg)), "ratio": clampf(dmg / BAR_FULL.damage, 0.0, 1.0),
 			"base_ratio": clampf(dmg / BAR_FULL.damage, 0.0, 1.0), "delta": "", "good": true},
-		{"key": "hits", "label": Lang.t("Coups / s", "Hits / s"), "text": decimal(hits), "ratio": clampf(hits / 3.0, 0.0, 1.0),
+		{"key": "hits", "label": Lang.t("Coups / s", "Hits / s"), "text": decimal(hits, 2), "ratio": clampf(hits / 3.0, 0.0, 1.0),
 			"base_ratio": clampf(hits / 3.0, 0.0, 1.0), "delta": "", "good": true},
 		{"key": "energy", "label": Lang.t("Énergie / coup", "Energy / hit"), "text": decimal(energy),
 			"ratio": clampf(1.0 - energy / 30.0, 0.0, 1.0),
