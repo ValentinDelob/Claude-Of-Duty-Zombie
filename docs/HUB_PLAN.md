@@ -211,8 +211,8 @@ Tous les écrans partagent le **cadre du hub** (maquette, écran 1) :
   id = type d'ennemi de `XpRules`, nom, texte, manche, sortes d'échantillons
   (`LootRules.SAMPLES`), `xp_ref` (type de référence pour un ennemi prévu,
   pas encore au barème), `planned`. Fiches actuelles : marcheur, rampant,
-  coureur, sprinteur, meute errante, Brancardier ; prévues : Infirmière
-  hurlante, Le Chirurgien.
+  coureur, sprinteur, meute errante, Brancardier, Infirmière hurlante
+  (manche 15) ; prévue : Le Chirurgien.
 - **Rencontre** (locale, chacun la sienne en coop) : un coup porté à
   l'ennemi, un coup reçu de lui (`Combat.damage_player` avec `source`) ou
   son élimination. Le serveur la note dans le relevé d'XP du joueur
@@ -571,6 +571,35 @@ s'évacue vers la manche 10, XP_RULES §4) :
 |---|---|---|---|---|---|
 | `leather_sling` | Bretelle de cuir / Leather Sling | 4 sangles | ≈ 3,7 | pièce : rechargement +20 % | 5+ |
 | `tagged_sights` | Mire étiquetée / Tagged Sights | 3 bracelets + 2 sangles | ≈ 3,2 | pièce : précision +20 %, dégâts +5 % | 6+ |
+
+### 7.2 ter Infirmière hurlante : contrats (3) et échanges (2)
+
+Échantillons de l'Infirmière hurlante (GAME_CONCEPT §4.4) : **cordes
+vocales** (`nurse_vocal_cords`), **seringue cassée** (`nurse_syringe`) et
+**badge nominatif** (`nurse_badge`), 20 % chacun sur **chaque zombie de sa
+vague** (l'Infirmière et ses 6 zombies d'escorte par joueur) : à un joueur,
+7 tirages par vague, ≈ 1,4 de chaque sorte. Icônes du hub : `cords` (cordes
+vocales dans la gorge), `syringe` (seringue au liquide vert), `badge` (carte
+blanche à bande bleue et photo) ; groupe « INFIRMIÈRE HURLANTE » de la
+réserve.
+
+**Rotation** (trois types) : l'Infirmière arrive à la manche 15 (3e vague
+spéciale) ; la partie de référence des niveaux 10 à 24 (évacuation à la
+manche 15, XP_RULES §4) a **une** vague de l'Infirmière : ≈ 1,4 échantillon
+de chaque sorte par partie. Niveau minimal **10** et plus (un joueur plus
+bas s'évacue avant elle). Parties estimées (non simulées) ; XP ≈ 25 % de
+l'XP des parties nécessaires (≈ 5 200 XP par partie de référence, XP_RULES §4) :
+
+| Id | Titre FR / EN | Demande | Parties (solo) | XP de base | Récompense | Niveau | Autre |
+|---|---|---|---|---|---|---|---|
+| `night_shift` | Garde de nuit / Night Shift | 3 cordes vocales | ≈ 2,1 | 2 700 | arme rare | 10+ | |
+| `used_syringes` | Seringues usagées / Used Syringes | 3 seringues | ≈ 2,1 | 2 700 | pièce d'exception | 10+ | |
+| `staff_register` | Registre du personnel / Staff Register | 4 badges, 3 cordes vocales | ≈ 3,2 | 4 100 | arme épique | 11+ | après `night_shift` |
+
+| Id | Titre FR / EN | Coût | Parties (solo) | Objet (au niveau du joueur) | Niveau |
+|---|---|---|---|---|---|
+| `taut_cords` | Cordes tendues / Taut Cords | 4 cordes vocales | ≈ 2,9 | pièce : recul +20 % | 10+ |
+| `night_kit` | Trousse de garde / Night Kit | 4 seringues + 2 badges | ≈ 2,9 | pièce : rechargement +12 %, cadence +8 % | 11+ |
 
 ### 7.3 Coop
 

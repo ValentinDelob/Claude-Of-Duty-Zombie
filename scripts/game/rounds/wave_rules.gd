@@ -22,8 +22,10 @@ extends RefCounted
 ## prévue par le schéma (manches 1 à n, sans celles remplacées par une vague
 ## de boss quand la carte a un boss) est du type types[(k − 1) mod nombre de
 ## types], dans l'ordre de SPECIAL_TYPES. Défaut (tous) : meute à la 5,
-## Brancardier à la 10, meute à la 15... Une carte qui n'autorise qu'un type
-## n'a que lui (EditorMap.set_special_types).
+## Brancardier à la 10, Infirmière à la 15, meute à la 20... Une carte qui
+## n'autorise qu'un type n'a que lui (EditorMap.set_special_types). Un
+## nouveau type s'ajoute à la fin de SPECIAL_TYPES, sans changer de format :
+## une carte qui liste ses types garde exactement les siens.
 
 const SPECIAL := "speciale"
 const BOSS := "boss"
@@ -31,10 +33,12 @@ const KINDS := [SPECIAL, BOSS]
 ## Clé de la liste des types de vagues spéciales autorisés (format 21).
 const TYPES_KEY := "types_speciaux"
 ## Types de vagues spéciales (mini-boss), dans l'ordre de la rotation :
-## meute de chiens errants (DogRound), Brancardier (BrancardRound).
+## meute de chiens errants (DogRound), Brancardier (BrancardRound),
+## Infirmière hurlante (NurseRound).
 const MEUTE := "meute"
 const BRANCARDIER := "brancardier"
-const SPECIAL_TYPES := [MEUTE, BRANCARDIER]
+const INFIRMIERE := "infirmiere"
+const SPECIAL_TYPES := [MEUTE, BRANCARDIER, INFIRMIERE]
 const DEFAULT := {
 	SPECIAL: {"premiere": 5, "intervalle": 5},
 	BOSS: {"premiere": 15, "intervalle": 15},

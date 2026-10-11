@@ -1035,3 +1035,112 @@ func gen_brancard_wheels() -> void:
 		b = s.mix(b, s.bandpass(squeak, 1600.0, 3.0), i * 0.3, 0.5)
 	b = s.mix(b, s.env_adsr(s.lowpass(s.brown_noise(1.6), 300.0), 0.2, 0.2, 0.7, 0.4), 0.0, 0.5)
 	_save("brancard_wheels", s.finish(s.reverb(b, 0.8, 0.35, 0.8), 0.8))
+
+
+# ---------------------------------------------------------------- l'Infirmière hurlante (vague spéciale)
+
+## Voix aiguë et cassée : dent de scie à `f0` -> `f1` Hz, vibrato (`vib` :
+## profondeur relative), voyelle (formants), souffle, saturation.
+func _shriek(seconds: float, f0: float, f1: float, vowel: Array, vib: float, rough: float) -> PackedFloat32Array:
+	var n := int(seconds * Synth.RATE)
+	var src := PackedFloat32Array()
+	src.resize(n)
+	var phase := 0.0
+	for i in n:
+		var t := float(i) / n
+		var wob := 1.0 + sin(t * seconds * TAU * 7.5) * vib + s.rng.randf_range(-rough, rough) * 0.04
+		var f := lerpf(f0, f1, t) * wob
+		phase += f / Synth.RATE
+		var p := fmod(phase, 1.0)
+		src[i] = (2.0 * p - 1.0) + s.rng.randf_range(-1.0, 1.0) * rough * 0.35
+	var b := s.buf(seconds)
+	s.mix(b, s.bandpass(src.duplicate(), vowel[0], 3.0), 0.0, 1.0)
+	s.mix(b, s.bandpass(src.duplicate(), vowel[1], 4.0), 0.0, 0.8)
+	s.mix(b, s.bandpass(src.duplicate(), 3400.0, 5.0), 0.0, 0.35)
+	s.mix(b, s.bandpass(s.noise(seconds), 2600.0, 1.2), 0.0, 0.3 * rough)
+	return s.drive(b, 2.5)
+
+
+## Cri : long hurlement strident qui monte puis se brise.
+func gen_nurse_scream() -> void:
+	var b := _shriek(1.3, 820.0, 1180.0, [1100.0, 2300.0], 0.035, 0.9)
+	b = s.mix(b, _shriek(1.25, 1240.0, 1560.0, [1400.0, 2900.0], 0.05, 0.7), 0.03, 0.55)
+	b = s.env_adsr(b, 0.03, 0.15, 0.85, 0.45)
+	b = s.drive(b, 2.0)
+	_save("nurse_scream", s.finish(s.reverb(b, 0.85, 0.35, 1.0), 0.95))
+
+
+## Préparation du cri : longue inspiration sifflante qui monte.
+func gen_nurse_inhale() -> void:
+	var b := s.env_adsr(s.lowpass_sweep(s.noise(1.4), 900.0, 4200.0), 0.5, 0.2, 0.9, 0.12)
+	b = s.mix(b, s.env_adsr(s.sweep(1.4, 380.0, 900.0, "saw"), 0.6, 0.2, 0.5, 0.1), 0.0, 0.12)
+	b = s.mix(b, s.env_adsr(s.bandpass(s.noise(1.4), 5200.0, 4.0), 0.8, 0.1, 0.8, 0.1), 0.0, 0.4)
+	_save("nurse_inhale", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.85))
+
+
+## Gémissements d'ambiance : sanglot aigu et plaintif.
+func gen_nurse_moan() -> void:
+	for k in 2:
+		s = Synth.new(3300 + k)
+		var dur := 1.1 + 0.3 * k
+		var b := _shriek(dur, 420.0 + k * 60.0, 310.0, [700.0, 1500.0], 0.08, 0.5)
+		b = s.env_adsr(b, 0.12, 0.2, 0.7, dur * 0.4)
+		_save("nurse_moan_%d" % (k + 1), s.finish(s.reverb(b, 0.7, 0.3, 0.7), 0.8))
+
+
+## Cri étranglé : quintes de toux gargouillantes.
+func gen_nurse_choke() -> void:
+	var b := s.buf(1.6)
+	for i in 4:
+		var c := s.env_exp(s.bandpass(s.noise(0.25), 900.0 + i * 120.0, 1.5), 0.005, 0.08)
+		c = s.mix(c, s.env_exp(_shriek(0.2, 300.0, 220.0, [600.0, 1200.0], 0.1, 1.0), 0.005, 0.07), 0.0, 0.6)
+		b = s.mix(b, c, 0.1 + i * 0.33, 0.9 - i * 0.1)
+	b = s.mix(b, s.env_adsr(s.bandpass(s.brown_noise(1.6), 320.0, 2.0), 0.05, 0.2, 0.5, 0.4), 0.0, 0.5)
+	_save("nurse_choke", s.finish(s.reverb(b, 0.5, 0.2, 0.4), 0.85))
+
+
+## Touchée : glapissement bref.
+func gen_nurse_hit() -> void:
+	var b := s.env_exp(_shriek(0.35, 960.0, 700.0, [1200.0, 2500.0], 0.05, 0.8), 0.005, 0.18)
+	_save("nurse_hit", s.finish(s.reverb(b, 0.4, 0.15, 0.3), 0.85))
+
+
+## Coup de seringue : sifflement et piqûre de verre.
+func gen_nurse_stab() -> void:
+	var b := s.env_exp(s.bandpass(s.noise(0.3), 3000.0, 1.0), 0.04, 0.08)
+	b = s.mix(b, _clank(2600.0, 0.12, 0.3), 0.18, 0.5)
+	_save("nurse_stab", s.finish(s.reverb(b, 0.3, 0.1, 0.2), 0.8))
+
+
+## Pas légers (chaussures d'infirmière qui claquent).
+func gen_nurse_step() -> void:
+	for k in 2:
+		s = Synth.new(3320 + k)
+		var b := s.env_exp(s.bandpass(s.noise(0.12), 1900.0 - k * 200.0, 2.5), 0.001, 0.025)
+		b = s.mix(b, s.env_exp(s.sweep(0.1, 210.0, 120.0), 0.001, 0.03), 0.0, 0.5)
+		_save("nurse_step_%d" % (k + 1), s.finish(s.reverb(b, 0.35, 0.12, 0.25), 0.8))
+
+
+## Mort : cri qui s'étouffe et retombe en râle.
+func gen_nurse_death() -> void:
+	var b := _shriek(1.4, 1000.0, 260.0, [1000.0, 2100.0], 0.06, 1.0)
+	b = s.env_adsr(b, 0.02, 0.3, 0.6, 0.7)
+	b = s.mix(b, s.env_exp(s.bandpass(s.brown_noise(1.0), 350.0, 2.0), 0.1, 0.4), 0.6, 0.6)
+	_save("nurse_death", s.finish(s.reverb(b, 0.8, 0.3, 0.9), 0.9))
+
+
+## Oreilles qui sifflent (joueur étourdi, son 2D) : acouphène aigu qui
+## s'éteint. Aucun autre son n'est baissé (pas de « ducking »).
+func gen_nurse_ring() -> void:
+	var b := s.tone(2.6, 3150.0)
+	b = s.mix(b, s.tone(2.6, 3165.0), 0.0, 0.6)
+	b = s.env_adsr(b, 0.02, 0.4, 0.55, 1.6)
+	_save("nurse_ring", s.finish(b, 0.5))
+
+
+## Hurlement lointain (annonce de la vague) : écho long.
+func gen_nurse_far() -> void:
+	var b := _shriek(1.6, 700.0, 980.0, [1000.0, 2000.0], 0.05, 0.6)
+	b = s.env_adsr(b, 0.15, 0.2, 0.7, 0.8)
+	b = s.lowpass(b, 2600.0)
+	_save("nurse_far", s.finish(s.reverb(b, 0.95, 0.55, 1.4), 0.8))

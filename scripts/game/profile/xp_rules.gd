@@ -49,6 +49,11 @@ const DOG := "dog"
 ## d'un zombie de la manche -> 40 XP (méthode, docs/XP_RULES.md §6), +50 % de
 ## dangerosité (charge qui projette, coup des deux poings) -> 60.
 const BRANCARDIER := "brancardier"
+## Infirmière hurlante (mini-boss de vague spéciale, NurseRules) : 8 fois les
+## PV d'un zombie de la manche -> 32 XP, +50 % de dangerosité (cri qui
+## étourdit et ameute la horde) -> 48, +25 % de rareté (une vague spéciale
+## sur trois en rotation, elle fuit : longue à coincer) -> 60.
+const NURSE := "nurse"
 ## Valeurs de référence des catégories (point de départ d'un nouveau mob ;
 ## aucun boss n'existe encore) : un nouveau mini-boss ou boss aura son
 ## propre identifiant, avec cette valeur comme point de départ.
@@ -64,6 +69,7 @@ const ENEMIES := {
 	CRAWLER: {"category": COMMON, "xp": 4, "fr": "Rampants", "en": "Crawlers"},
 	DOG: {"category": SPECIAL, "xp": 12, "fr": "Chiens", "en": "Dogs"},
 	BRANCARDIER: {"category": MINIBOSS, "xp": 60, "fr": "Brancardiers", "en": "Stretcher-Bearers"},
+	NURSE: {"category": MINIBOSS, "xp": 60, "fr": "Infirmières hurlantes", "en": "Screaming Nurses"},
 	MINIBOSS_GENERIC: {"category": MINIBOSS, "xp": 60, "fr": "Mini-boss", "en": "Mini-bosses"},
 	BOSS_GENERIC: {"category": BOSS, "xp": 240, "fr": "Boss", "en": "Bosses"},
 }

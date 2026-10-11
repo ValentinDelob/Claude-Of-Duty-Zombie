@@ -37,6 +37,7 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
 | Rampant | `crawler` | commun | **4** | 9 | 15 | 20 |
 | Chien (meute, vague spéciale) | `dog` | spécial | **12** | 28 | 46 | 60 |
 | Brancardier (vague spéciale) | `brancardier` | mini-boss | **60** | 141 | 231 | 300 |
+| Infirmière hurlante (vague spéciale) | `nurse` | mini-boss | **60** | 141 | 231 | 300 |
 | Mini-boss (référence d'un nouveau mini-boss) | `miniboss` | mini-boss | **60** | 141 | 231 | 300 |
 | Boss (référence, aucun encore) | `boss` | boss | **240** | 564 | 924 | 1 200 |
 
@@ -48,7 +49,8 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
   payer plus pousserait à garder des rampants en vie pour bloquer la manche.
   Les types restent comptés à part pour l'écran de fin.
 - Le type se lit sur l'entité au moment de la mort (`XpSystem.enemy_type_of`,
-  `XpRules.enemy_type`) : Brancardier (`Brancardier`), chien (`Hellhound`),
+  `XpRules.enemy_type`) : Brancardier (`Brancardier`), Infirmière hurlante
+  (`Nurse`), chien (`Hellhound`),
   rampant (`Zombie.is_crawler`), sinon classe de vitesse (`RoundRules.WALK` /
   trot et `RUN` / `SPRINT`).
 - **Brancardier** (méthode du §6, provisoire) : 10 fois les PV d'un zombie
@@ -59,6 +61,13 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
   rareté. Ses zombies d'escorte sont des zombies ordinaires (barème
   commun) ; la vague vaincue rapporte l'XP de vague spéciale (60) comme la
   meute.
+- **Infirmière hurlante** (méthode du §6, provisoire) : 8 fois les PV d'un
+  zombie de sa manche (`NurseRules.health`) → 8 × 4 = **32** ; **+50 %** de
+  dangerosité (cri qui étourdit et ralentit, ameute la horde, coup de
+  seringue acculée) → 48 ; **+25 %** de rareté (une vague spéciale sur trois
+  en rotation, une par joueur, elle fuit : longue à coincer) → **60**, comme
+  le Brancardier. Ses zombies d'escorte sont des zombies ordinaires
+  (barème commun) ; la vague vaincue rapporte l'XP de vague spéciale (60).
 
 ### Autres sources
 
@@ -105,8 +114,10 @@ vérifiée à ±20 % par `test_calibrage`), à partir des vraies règles
 défaut, `XpRules`) et d'un joueur type :
 
 - vagues spéciales en rotation (schéma par défaut : meute 5, Brancardier 10,
-  meute 15…) ; Brancardier : 25 s pour abattre le sien, plus l'annonce et
-  son escorte (5 zombies par joueur) ;
+  Infirmière 15, meute 20…) ; Brancardier : 25 s pour abattre le sien, plus
+  l'annonce et son escorte (5 zombies par joueur) ; Infirmière : 30 s pour
+  abattre la sienne (elle fuit), plus l'annonce et son escorte (6 zombies
+  par joueur) ;
 - 3 s par zombie et par joueur, 4 s par chien ; 25 s de plus par manche
   (entracte de 10 s, trajet) ; 30 s d'évacuation ; 90 s par partie
   (chargement, écran de fin, hub) ;
@@ -119,15 +130,19 @@ Résultat :
 | Partie type (solo) | XP | Éliminations | Durée | XP / h |
 |---|---|---|---|---|
 | Évacuation manche 10 | 2 296 | 169 | 15,3 min | 9 004 |
-| Évacuation manche 15 | 5 121 | 325 | 25,4 min | 12 097 |
-| Évacuation manche 20 | 9 746 | 537 | 38,5 min | 15 169 |
-| Évacuation manche 25 | 16 953 | 821 | 55,1 min | 18 466 |
+| Évacuation manche 15 | 5 166 | 326 | 25,8 min | 12 022 |
+| Évacuation manche 20 | 9 754 | 538 | 38,7 min | 15 129 |
+| Évacuation manche 25 | 16 868 | 820 | 55,3 min | 18 291 |
 
 | Niveau | Visé | Solo | 4 joueurs |
 |---|---|---|---|
 | 10 | 3 h | **2,5 h** | 2,7 h |
-| 25 | 25 h | **24,1 h** | 24,5 h |
-| 50 | 120 h | **126,0 h** | 122,5 h |
+| 25 | 25 h | **24,0 h** | 24,6 h |
+| 50 | 120 h | **126,3 h** | 123,0 h |
+
+(Infirmière ajoutée à la rotation : l'évacuation de la manche 15 suit
+désormais sa vague au lieu de la 2e meute ; écart de moins de 1 % sur les
+trois cibles, aucune valeur du barème changée.)
 
 Le niveau 10 arrive un peu avant 3 h (progression visible dès les premières
 parties, §2 du concept). En coop, chaque joueur tue moins de zombies (le

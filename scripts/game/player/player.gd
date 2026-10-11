@@ -112,6 +112,14 @@ var _knock_left := 0.0
 var _knock_time := 0.0
 ## Projections reçues (tests).
 var knockbacks := 0
+## Étourdissement (cri de l'Infirmière) : temps restant, durée, force (0..1),
+## nombre reçu (tests) ; effet d'écran créé au premier.
+var _daze_left := 0.0
+var _daze_time := 0.0
+var _daze_k := 0.0
+var _daze_t := 0.0
+var dazes := 0
+var _daze_fx: NurseDazeFx
 ## Allongé / en plein plongeon.
 var prone := false
 var diving := false
@@ -474,7 +482,7 @@ func current_max_speed() -> float:
 	var weapon_mult := 1.0
 	if weapons and not downed:
 		weapon_mult = float(weapons.current_stats().get("move_mult", 1.0))
-	return s * speed_multiplier * weapon_mult
+	return s * speed_multiplier * weapon_mult * NurseRules.daze_speed_mult(daze_amount())
 
 
 func _move(delta: float) -> void:
@@ -554,7 +562,16 @@ func _update_camera_effects(delta: float) -> void:
 	head.position = Vector3(bob_offset.x, _eye_height + bob_offset.y, 0.0)
 	_flinch = _flinch.lerp(Vector2.ZERO, 1.0 - exp(-delta * 9.0))
 	var sway := weapons.aim_offset() if weapons else Vector2.ZERO
-	camera.rotation = Vector3(_flinch.y + sway.x, sway.y, _flinch.x)
+	# Étourdi (cri de l'Infirmière) : la vue tangue, l'image se brouille en cubes.
+	var dz := Vector2.ZERO
+	if _daze_left > 0.0:
+		_daze_left = maxf(_daze_left - delta, 0.0)
+		_daze_t += delta
+		var k := daze_amount()
+		dz = Vector2(sin(_daze_t * 5.3) * 0.03 * k, sin(_daze_t * 3.7) * 0.07 * k)
+		if _daze_fx:
+			_daze_fx.amount = k
+	camera.rotation = Vector3(_flinch.y + sway.x + dz.x, sway.y, _flinch.x + dz.y)
 	var base_fov := Settings.fov
 	var target_fov := base_fov
 	if aiming:
@@ -637,6 +654,48 @@ func knockback(vel: Vector3, time: float) -> void:
 	velocity.y = maxf(velocity.y, vel.y)
 	add_flinch(Vector2(randf_range(-0.06, 0.06), 0.12))
 	Audio.play_3d("brancard_hit", global_position + Vector3.UP * 1.0, 0.0, 0.08, 3)
+
+
+## Serveur : étourdit ce joueur (cri de l'Infirmière, NurseRules.daze_*)
+## pendant `time` s, force `k` (0..1). Appliqué par la machine du joueur
+## (vue, déplacement ralenti) ; message fiable.
+func srv_daze(time: float, k: float) -> void:
+	if is_local:
+		daze(time, k)
+	elif is_inside_tree() and multiplayer.has_multiplayer_peer():
+		_cl_daze.rpc_id(peer_id, time, k)
+
+
+## Serveur -> joueur concerné (expéditeur vérifié à la main, comme _cl_knockback).
+@rpc("any_peer", "call_remote", "reliable")
+func _cl_daze(time: float, k: float) -> void:
+	if multiplayer.get_remote_sender_id() != 1 or not is_local or not is_finite(time) or not is_finite(k):
+		return
+	daze(clampf(time, 0.0, 5.0), clampf(k, 0.0, 1.0))
+
+
+## Joueur local : étourdi (vue qui tangue, image en cubes, déplacement
+## ralenti, oreilles qui sifflent). Rien à terre. Un nouveau cri prolonge.
+func daze(time: float, k: float) -> void:
+	if downed or time <= 0.0:
+		return
+	dazes += 1
+	_daze_k = maxf(k, _daze_k) if _daze_left > 0.0 else k
+	_daze_time = maxf(time, _daze_left)
+	_daze_left = _daze_time
+	add_flinch(Vector2(randf_range(-0.05, 0.05), 0.08 * k))
+	if _daze_fx == null and is_inside_tree():
+		_daze_fx = NurseDazeFx.new()
+		_daze_fx.name = "DazeFx"
+		add_child(_daze_fx)
+	Audio.play_2d("nurse_ring", -4.0 + 4.0 * k, 0.02)
+
+
+## Force de l'étourdissement en cours (0..1), qui s'éteint avec le temps.
+func daze_amount() -> float:
+	if _daze_left <= 0.0:
+		return 0.0
+	return _daze_k * clampf(_daze_left / maxf(_daze_time, 0.01), 0.0, 1.0)
 
 
 func eye_position() -> Vector3:

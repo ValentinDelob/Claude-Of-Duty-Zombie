@@ -81,7 +81,7 @@ func test_niveau_requis() -> void:
 	assert_false(ExchangeRules.trade(pr, data, "collar_strap", day).ok)
 	assert_eq(pr.sample_count("dog_collar"), 10)
 	var all := ExchangeRules.listed(pr, data, day)
-	assert_eq(all.size(), 7, "niveau trop haut : visible (grisé)")
+	assert_eq(all.size(), 9, "niveau trop haut : visible (grisé)")
 	var now := ExchangeRules.listed(pr, data, day, true)
 	var ids := []
 	for x in now:

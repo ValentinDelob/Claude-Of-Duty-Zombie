@@ -65,6 +65,8 @@ static func enemy_type_of(z: Zombie) -> String:
 		return XpRules.WALKER
 	if z is Brancardier:
 		return XpRules.BRANCARDIER
+	if z is Nurse:
+		return XpRules.NURSE
 	return XpRules.enemy_type(z is Hellhound, z.is_crawler(), z.speed_class)
 
 
