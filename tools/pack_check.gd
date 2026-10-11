@@ -56,6 +56,8 @@ func _init() -> void:
 			continue  # icône de la fenêtre (application/config/icon)
 		if not vox and path in EMBEDDED_DOCS:
 			continue  # documents lus par le serveur MCP du jeu (McpDocs)
+		if not vox and path.begins_with("res://assets/fonts/") and path.get_file() == "OFL.txt":
+			continue  # licence OFL des polices : doit accompagner les polices distribuées
 		if ext in FORBIDDEN or not ext in ALLOWED:
 			bad.append("%s (type .%s non autorisé)" % [path, ext])
 		elif vox and not (path.begins_with("res://assets/audio/vox/") and ext == "import" or path.begins_with("res://.godot/imported/") and ext == "oggvorbisstr"):
