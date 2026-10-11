@@ -108,6 +108,8 @@ func run() -> void:
 	at.check(e0 - p.energy.value >= float(WeaponDB.stats("bat").energy) - 0.5, "énergie d'un coup de batte (%.1f)" % (e0 - p.energy.value))
 	await seconds(0.12)  # capture : élan
 	await at.screenshot("bat_windup")
+	await until(func(): return p.weapons.view._swing_t >= ViewModel.SWING_HIT or not p.weapons.view.is_swinging(), 1.0, "batte à l'impact")
+	await at.screenshot("bat_swing")
 	await until(func(): return z.health < 1000, 1.5, "coup de batte encaissé")
 	await at.screenshot("bat_hit")
 	at.check(z.health == 1000 - bat_dmg, "batte : %d dégâts (1000 -> %d)" % [bat_dmg, z.health])

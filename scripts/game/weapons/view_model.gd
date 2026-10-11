@@ -151,8 +151,8 @@ var _swing_end := -INF
 const SWING_KEYS := [
 	[0.0, Vector3.ZERO, Vector3.ZERO],
 	[0.22, Vector3(0.06, 0.05, 0.06), Vector3(0.3, -0.25, 0.1)],
-	[0.42, Vector3(-0.2, -0.04, -0.12), Vector3(-1.05, 0.9, 0.35)],
-	[0.62, Vector3(-0.42, -0.12, -0.02), Vector3(-1.2, 1.55, 0.5)],
+	[0.42, Vector3(-0.1, 0.12, -0.12), Vector3(-0.85, 0.6, 0.25)],
+	[0.62, Vector3(-0.3, 0.02, -0.02), Vector3(-1.0, 1.15, 0.4)],
 	[1.0, Vector3.ZERO, Vector3.ZERO],
 ]
 ## Avancement du coup où la batte touche.

@@ -89,13 +89,14 @@ PAL = {
     "lens": ("glass", (0.20, 0.40, 0.52)),
     "lens_dark": ("glass", (0.07, 0.11, 0.15)),
     "tube_glass": ("glass", (0.62, 0.78, 0.76)),
+    "liquid": ("glass", (0.36, 0.70, 0.30)),
     "dot_red": ("glow", (1.0, 0.22, 0.15)),
     "glow_green": ("glow", (0.45, 1.0, 0.55)),
     "glow_orange": ("glow", (1.0, 0.55, 0.15)),
     # Mains : gants de batteur, sous-maillot, manche du maillot (équipe fictive)
-    "glove": ("leather", (0.90, 0.89, 0.85)),
-    "glove_palm": ("leather", (0.70, 0.70, 0.67)),
-    "glove_knuckle": ("leather", (0.80, 0.79, 0.75)),
+    "glove": ("leather", (0.82, 0.81, 0.76)),
+    "glove_palm": ("leather", (0.62, 0.62, 0.59)),
+    "glove_knuckle": ("leather", (0.73, 0.72, 0.67)),
     "strap": ("leather", (0.70, 0.12, 0.11)),
     "undershirt": ("cloth", (0.13, 0.17, 0.34)),
     "jersey": ("cloth", (0.90, 0.87, 0.78)),
@@ -563,7 +564,7 @@ def b_mpl():
     handle(it, 1, 0, 4, "poly", mag="gun_black", mag_ext=2)
     it.box(-2, -1, 0, 1, -1, 8, "gun_black")
     charge(it, 2, 1, -4)
-    iron(it, 4, -7, 3, 3, front_key="steel")
+    iron(it, 5, -7, 3, 3, front_key="steel")
     return finish_long(it, rh=2, ez=-2, ads=0.22)
 
 
@@ -585,7 +586,7 @@ def b_spectre():
     it.box(2, 3, 0, 1, -2, 8, "gun_black")
     it.box(2, 3, -2, 1, 8, 9, "gun_black")
     charge(it, -2, 1, -1)
-    iron(it, 4, -10, 3, 3, front_key="glow_green")
+    iron(it, 5, -10, 3, 3, front_key="glow_green")
     return finish_long(it, rh=2, ez=-2, ads=0.22)
 
 
@@ -636,17 +637,25 @@ def b_m16():
     # tenus par une bride, garde-main carré ajouré, crosse droite.
     it = Item("m16", "rifle")
     receiver(it, -5, 6, "poly")
-    it.box(-1, 2, 0, 3, -13, -5, "poly_grey")
-    for k in range(-12, -5, 2):
+    # « III » blanc sur le flanc gauche du boîtier (rafale de trois).
+    for k in (-2, 0, 2):
+        it.paint(-1, 1, k, "-x", "white")
+        it.paint(-1, 2, k, "-x", "white")
+    it.box(-1, 2, 0, 3, -12, -5, "poly_grey")
+    for k in range(-11, -5, 2):
         it.paint(-1, 1, k, "-x", "gun_black")
         it.paint(1, 1, k, "+x", "gun_black")
-    for row in (0, 1, 2):
-        for k in range(-18, -13):
+    # Trois canons superposés qui dépassent du garde-main, deux brides,
+    # bagues de couleur à la bouche (rouge, jaune, bleu de bas en haut).
+    for row, key in ((0, "red"), (1, "yellow"), (2, "teal")):
+        for k in range(-21, -12):
             it.put(0, row, k, "gun_dark")
-        it.paint(0, row, -18, "-z", "bore")
-    it.box(-1, 2, 0, 3, -16, -15, "gun_black")
-    it.a("muzzle", 0, 1.5, -18)
-    cradle_support(it, -12, -6, 0)
+        it.put(0, row, -21, key)
+        it.paint(0, row, -21, "-z", "bore")
+    for k in (-14, -18):
+        it.box(-1, 2, 0, 3, k, k + 1, "gun_black")
+    it.a("muzzle", 0, 1.5, -21)
+    cradle_support(it, -11, -6, 0)
     box_mag(it, -4, 6, "gun_black")
     trigger(it, 1, 0)
     handle(it, 1, 0, 4, "poly")
@@ -654,7 +663,7 @@ def b_m16():
     it.box(-1, 2, -2, 3, 16, 17, "tape_black")
     it.clear(-1, 2, -2, 0, 6, 9)
     charge(it, -2, 2, 4)
-    iron(it, 4, -15, 3, 3)
+    iron(it, 5, -18, 3, 3)
     return finish_long(it, ez=-1, ads=0.18)
 
 
@@ -676,7 +685,7 @@ def b_fnfal():
     it.box(-1, 2, -2, 3, 17, 18, "poly")
     it.clear(-1, 2, -2, 0, 6, 8)
     charge(it, -2, 2, -2)
-    iron(it, 4, -16, 3, 2)
+    iron(it, 5, -16, 3, 2)
     return finish_long(it, ez=-1, ads=0.2)
 
 
@@ -727,7 +736,7 @@ def b_galil():
     it.box(0, 1, -2, -1, 6, 16, "gun_black")
     it.box(0, 1, -2, 3, 16, 17, "poly")
     charge(it, 2, 1, -2)
-    iron(it, 4, -18, 3, 2)
+    iron(it, 5, -18, 3, 2)
     return finish_long(it, ez=-1, ads=0.24)
 
 
@@ -739,15 +748,16 @@ def b_famas():
     for i in (-2, 2):
         it.box(i, i + 1, 0, 3, -8, 7, "tube_glass")
         it.box(i, i + 1, 1, 2, -8, 7, "olive")
-    it.box(-1, 2, 3, 4, -6, 4, "poly")
+    it.box(-1, 2, 3, 4, -6, 9, "poly")
     barrel(it, -15, -10, 1, "gun_dark", "cage")
     trigger(it, -4, -1)
     handle(it, -4, -1, 4, "poly")
     box_mag(it, 2, 6, "gun_black", top=-1)
     it.a("support", 0, -1, -9)
     charge(it, -2, 3, -4)
-    iron(it, 2, -9, 4, 3)
-    it.box(-1, 2, -3, 4, 9, 10, "poly")
+    # Œilleton tout au bout de la crête (rien entre l'œil et le cran).
+    iron(it, 8, -9, 4, 3)
+    it.box(-1, 2, -3, 1, 9, 10, "poly")
     return finish_long(it, ez=2, ads=0.16, hold=[0.0, 0.0, -0.14])
 
 
@@ -770,7 +780,7 @@ def b_commando():
     it.box(-1, 2, -2, 3, 11, 15, "tan")
     it.box(-1, 2, -2, 3, 15, 16, "poly")
     charge(it, -2, 2, 4)
-    iron(it, 4, -11, 3, 3)
+    iron(it, 5, -11, 3, 3)
     return finish_long(it, ez=-1, ads=0.2)
 
 
@@ -834,12 +844,20 @@ def b_hk21():
     barrel(it, -21, -14, 1, "gun_dark", "cage")
     cradle_support(it, -13, -6, 0)
     bipod(it, -20, 1, 6)
-    # Caisse à munitions (groupe « mag ») sous le boîtier, débordant à droite.
-    it.box(0, 4, -6, 0, -7, -2, "orange", g="mag")
-    for k in (-6, -4):
+    # Réservoir de bande (groupe « mag ») en cuve de bétonnière : cylindre
+    # couché (axe X) sous le boîtier, débordant à droite, orange à spirale
+    # jaune, bouche grise côté gauche.
+    yc, zc, r = -3.0, -4.5, 2.6
+    for i in range(-1, 4):
         for j in range(-6, 0):
-            it.paint(3, j, k, "+x", "yellow", g="mag")
-    it.box(1, 4, 0, 1, -7, -2, "gun_black", g="mag")
+            for k in range(-8, -1):
+                d = math.hypot(j + 0.5 - yc, k + 0.5 - zc)
+                rr = r - (0.8 if i in (-1, 3) else 0.0)
+                if d <= rr:
+                    key = "yellow" if (j + k + 2 * i) % 5 == 0 else "orange"
+                    if i == -1 and d < 1.2:
+                        key = "steel"
+                    it.put(i, j, k, key, g="mag")
     it.a("pivot_mag", 0, 0, -4.5)
     it.anchors["mag_dir"] = [0.0, -1.0, 0.0]
     it.info["mag_len"] = 0.15
@@ -849,7 +867,7 @@ def b_hk21():
     it.box(-1, 2, -2, 3, 17, 18, "tape_black")
     it.clear(-1, 2, -2, 0, 7, 9)
     charge(it, -2, 2, -5)
-    iron(it, 5, -20, 3, 2)
+    iron(it, 6, -20, 3, 2)
     return finish_long(it, ez=-2, ads=0.22)
 
 
@@ -1067,31 +1085,28 @@ def b_china_lake():
 
 
 def b_law():
-    # ÉPROUVETTE : lance-roquette en tube de verre de laboratoire gradué,
-    # bouchons de liège, bande orange de danger, visée relevable.
+    # ÉPROUVETTE : lance-roquette en grosse éprouvette de laboratoire (tube de
+    # verre de 5 cubes, coins abattus) à demi pleine d'un liquide vert,
+    # graduée de blanc, bouchons de liège, bande orange de danger, visée
+    # relevable, poignée de tir dessous.
     it = Item("law", "rocket")
-    plus = lambda i, j, k: not (abs(i) == 1 and (j == 0 or j == 2))
-    it.box(-1, 2, 0, 3, -24, 12, "tube_glass", keep=plus)
-    for k in range(-20, 8, 3):
-        it.paint(-1, 1, k, "-x", "white")
-        it.paint(0, 2, k, "+y", "white")
-    it.box(-1, 2, 0, 3, -25, -24, "cork", keep=plus)
-    it.box(-1, 2, 0, 3, 12, 13, "cork", keep=plus)
-    it.clear(0, 1, 1, 2, -25, -24)
-    it.box(-1, 2, 0, 3, -17, -16, "orange", keep=plus)
-    it.a("muzzle", 0, 1.5, -25)
-    for i in (-1, 1):
-        it.put(i, 3, 3, "gun_black")
-        it.put(i, 4, 3, "gun_black")
-    it.put(0, 3, 3, "gun_black")
-    it.a("sight", 0, 5, 3.5)
-    it.box(0, 1, 3, 5, -16, -15, "gun_black")
-    it.a("front", 0, 5, -15.5)
+    round5 = lambda i, j, k: not (abs(i) == 2 and (j == 0 or j == 4))
+    it.box(-2, 3, 0, 5, -24, 12, "tube_glass", keep=round5)
+    it.recolor("liquid", lambda i, j, k: j <= 1 and -23 <= k <= 6)
+    for k in range(-21, 9, 3):
+        it.paint(-2, 2, k, "-x", "white")
+        it.paint(2, 2, k, "+x", "white")
+    it.box(-2, 3, 0, 5, -25, -24, "cork", keep=round5)
+    it.box(-2, 3, 0, 5, 12, 13, "cork", keep=round5)
+    it.paint(0, 2, -25, "-z", "bore")
+    it.box(-2, 3, 0, 5, -18, -17, "orange", keep=round5)
+    it.a("muzzle", 0, 2.5, -25)
+    iron(it, 8, -12, 5, 5)
     it.box(0, 1, -1, 0, -2, 3, "gun_black")
     trigger(it, 0, -1)
     handle(it, 0, -1, 4, "poly")
     it.a("support", 0, 0, -10)
-    return finish_long(it, ez=0, ads=0.2)
+    return finish_long(it, rw=2, rh=5, ez=0, ads=0.2)
 
 
 # ---------------------------------------------------------------------------
@@ -1503,8 +1518,8 @@ def export_item(it):
 # Vues : profil gauche, trois-quarts avant gauche, vue du tireur (derrière,
 # un peu à gauche et au-dessus), dessus.
 VIEWS = (("profil", -90.0, 0.0), ("trois-quarts", -140.0, 22.0), ("tireur", -20.0, 20.0), ("dessus", -90.0, 88.0))
-# Planche d'ensemble : profil de chaque arme dans un cadre de 1,1 m.
-SAME_SCALE = 1.1
+# Planche d'ensemble : profil de chaque arme dans un cadre de 1,45 m.
+SAME_SCALE = 1.45
 
 
 def _frame(obs):

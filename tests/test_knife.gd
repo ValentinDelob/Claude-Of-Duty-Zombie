@@ -62,3 +62,39 @@ func test_models_defined() -> void:
 	for id in KnifeDB.KNIVES:
 		assert_true(WeaponModels.SPECS.has(KnifeDB.model(id)), "modèle %s" % id)
 		assert_false(WeaponModels.spec(KnifeDB.model(id)).parts.is_empty())
+
+
+## Batte de baseball : cibles d'un coup (Combat.swing_targets, pure) — la
+## plus proche visée, puis les voisines dans l'arc, `count` au plus.
+class _Pos:
+	extends RefCounted
+	var global_position := Vector3.ZERO
+
+	func _init(p: Vector3) -> void:
+		global_position = p
+
+
+func test_bat_swing_targets() -> void:
+	var o := Vector3.ZERO
+	var fwd := Vector3(0, 0, -1)
+	var a := _Pos.new(Vector3(0, 0, -1.5))
+	var b := _Pos.new(Vector3(0.6, 0, -1.6))
+	var behind := _Pos.new(Vector3(0, 0, 1.5))
+	var far := _Pos.new(Vector3(0, 0, -4.0))
+	var got := Combat.swing_targets(o, fwd, [far, b, behind, a], 2.2, 2)
+	assert_eq(got.size(), 2, "deux zombies dans l'arc")
+	assert_true(got.size() == 2 and got[0] == a and got[1] == b, "le plus proche d'abord, puis son voisin")
+	assert_eq(Combat.swing_targets(o, fwd, [far, b, behind, a], 2.2, 1).size(), 1, "un seul si `targets` = 1")
+	assert_true(Combat.swing_targets(o, fwd, [far, behind], 2.2, 2).is_empty(), "rien à portée devant")
+
+
+## Coup de batte : pose miroir pour le revers, retour au repos en fin de coup.
+func test_bat_swing_pose() -> void:
+	var fore: Array = ViewModel.swing_pose(ViewModel.SWING_HIT, 1.0)
+	var back: Array = ViewModel.swing_pose(ViewModel.SWING_HIT, -1.0)
+	assert_near((fore[0] as Vector3).x, -(back[0] as Vector3).x, 0.0001, "revers : décalage miroir")
+	assert_near((fore[1] as Vector3).y, -(back[1] as Vector3).y, 0.0001, "revers : lacet miroir")
+	assert_true((fore[1] as Vector3).y > 0.3, "coup droit : balayage vers la gauche")
+	var end: Array = ViewModel.swing_pose(1.0, 1.0)
+	assert_eq(end[0], Vector3.ZERO)
+	assert_eq(end[1], Vector3.ZERO)
