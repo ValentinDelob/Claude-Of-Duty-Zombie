@@ -20,6 +20,10 @@ extends RefCounted
 ##   rapporte pas la touche en plus ;
 ## * un zombie mort ne prend plus de coups (Combat.damage_zombie) : rien ; un
 ##   zombie qui sort du sol est déjà touchable, il rapporte comme les autres ;
+## * RECONSTRUCTION : REPAIR par planche reposée à une fenêtre ou une porte à
+##   zombies, au joueur qui la repose ; au plus REPAIR_CAP par joueur et par
+##   manche (anti-abus : laisser un zombie arracher puis reposer en boucle ne
+##   rapporte plus rien une fois le plafond atteint) ;
 ## * chaque joueur commence la partie à 0 (PlayerData.STARTING_POINTS).
 
 ## Ferraille d'une élimination : l'ancien montant d'un kill normal (BO1).
@@ -28,6 +32,13 @@ const KILL := 50
 const HIT := 10
 ## Touches payées au plus par zombie ; au-delà, seule l'élimination rapporte.
 const HIT_CAP := 10
+## Ferraille d'une planche reposée (provisoire, GAME_CONCEPT §6 bis) :
+## autant qu'une touche, cinq fois moins qu'une élimination.
+const REPAIR := 10
+## Ferraille de reconstruction gagnée au plus par joueur et par manche
+## (provisoire) : une fenêtre entière (6 planches), un peu plus qu'une
+## élimination. BO1 plafonnait aussi les points de réparation par manche.
+const REPAIR_CAP := 60
 ## Tuer avec un piège ne rapporte rien (le piège a déjà été payé).
 const TRAP_KILL := 0
 ## Bonus de fin de manche par joueur vivant (optionnel).
@@ -73,3 +84,19 @@ static func for_damage(killed: bool, _headshot: bool, kind: int, paid_hits := 0)
 	if pays_hit(kind) and paid_hits < HIT_CAP:
 		return HIT
 	return 0
+
+
+## Ferraille d'une planche reposée par un joueur qui a déjà gagné
+## `paid_this_round` de ferraille de reconstruction pendant la manche :
+## REPAIR, réduit pour ne jamais dépasser REPAIR_CAP, puis 0.
+static func for_repair(paid_this_round: int) -> int:
+	return clampi(REPAIR_CAP - paid_this_round, 0, REPAIR)
+
+
+## Ferraille totale de `planks` planches reposées pendant une manche, en
+## partant de `paid_this_round` déjà gagnés.
+static func repair_total(planks: int, paid_this_round := 0) -> int:
+	var total := 0
+	for i in planks:
+		total += for_repair(paid_this_round + total)
+	return total

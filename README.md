@@ -16,7 +16,7 @@ le salon ; le dernier choix est mémorisé) :
 d'arrivée. Manches, ferraille, portes payantes, courant, caisse au hasard,
 téléporteur, pièges, état « à terre » et réanimation. Fenêtres barricadées
 (15) : les zombies arrachent les 6 planches puis enjambent ; maintenir [F]
-pour reconstruire (sans gain). Couteau à la BO1 (150 dégâts, fente vers le
+pour reconstruire (10 de ferraille par planche, au plus 60 par manche). Couteau à la BO1 (150 dégâts, fente vers le
 zombie visé). Emplacement de grenade ([G], maintenir pour cuire la grenade) :
 2 grenades au départ, +2 par manche, 4 au plus.
 

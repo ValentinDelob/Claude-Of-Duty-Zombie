@@ -1,7 +1,8 @@
 extends TestCase
 ## Fenêtres barricadées : règles de réparation et disposition sur la carte.
-## Reposer une planche ne rapporte pas de ferraille (GAME_CONCEPT §4.8) :
-## vérifié par le scénario tests/autotest/barricades.gd.
+## Reposer une planche rapporte un peu de ferraille, plafonnée par joueur et
+## par manche (GAME_CONCEPT §4.8) : règle dans tests/test_points.gd, gain en
+## partie vérifié par le scénario tests/autotest/barricades.gd.
 
 
 ## BO1 : deux planches arrachées suffisent pour que le zombie passe le bras

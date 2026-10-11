@@ -55,7 +55,9 @@ func run() -> void:
 	ok = await until(func(): return w.planks() == 6, 12.0, "fenêtre reconstruite")
 	p.input.interact = false
 	at.check(ok, "maintenir [F] reconstruit la fenêtre côté client")
-	at.check(pd.points == pts0, "réparer ne rapporte pas de ferraille (+%d)" % (pd.points - pts0))
+	var want := PointsRules.repair_total(4)
+	await until(func(): return pd.points - pts0 >= want, 3.0, "ferraille de réparation reçue")
+	at.check(pd.points - pts0 == want, "4 planches reposées : +%d de ferraille reçue de l'hôte (attendu +%d)" % [pd.points - pts0, want])
 	p.teleport_to(w.global_position + w.inward * 2.4 + Vector3(0, 0.05, 0))
 	AutotestHelpers.aim_at(p, w.global_position + Vector3.UP * 1.3)
 	MpHelpers.signal_peer("recule")
