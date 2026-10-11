@@ -24,6 +24,9 @@ const ART := {
 	"collar": ["..cccc..", ".cC..Cc.", "cC....Cc", "c......c", ".c....c.", "..cllc..", "...ll...", "...yy..."],
 	"strap": ["......cc", ".....cCc", "....cCc.", "MMMcCc..", "M.McC...", "MMMc....", "cCc.....", "cc......"],
 	"bracelet": ["..wwww..", ".wW..Ww.", "wW....Ww", "w......w", "wW....Ww", ".wWuuWw.", "..wuuw..", "...uu..."],
+	"cords": ["..ssss..", ".srrrrs.", "srh..hrs", "sr.hh.rs", "sr.hh.rs", "srh..hrs", ".srrrrs.", "..ssss.."],
+	"syringe": ["w.......", ".w......", "..bb....", "..beb...", "...beb..", "....bbM.", "......M.", ".......M"],
+	"badge": ["...MM...", ".uuuuuu.", ".wwwwww.", ".wSSwgw.", ".wSSwgw.", ".wwwwww.", ".wgggww.", ".wwwwww."],
 	"unk": ["..GGGG..", ".GG..GG.", ".....GG.", "....GG..", "...GG...", "...GG...", "........", "...GG..."],
 	"part": ["...MM...", ".M.MM.M.", "..MMMM..", "MMMnnMMM", "MMMnnMMM", "..MMMM..", ".M.MM.M.", "...MM..."],
 	"pistol": [".mmmmmmmmmmmmmm.", ".mMMMMMMMMMMMMm.", ".mmmmmmmmmmmmmm.", ".dddd.km........", ".dddd.kk........",
@@ -56,7 +59,8 @@ const ART := {
 }
 ## Icône de chaque sorte d'échantillon (LootRules.SAMPLES) ; autre : « unk ».
 const SAMPLE_ART := {"dog_fang": "fang", "dog_fur": "fur", "dog_collar": "collar",
-	"brancard_strap": "strap", "brancard_bracelet": "bracelet"}
+	"brancard_strap": "strap", "brancard_bracelet": "bracelet",
+	"nurse_vocal_cords": "cords", "nurse_syringe": "syringe", "nurse_badge": "badge"}
 
 var art := "unk":
 	set(v):
