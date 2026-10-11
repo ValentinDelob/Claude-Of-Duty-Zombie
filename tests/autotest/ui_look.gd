@@ -28,6 +28,13 @@ func run() -> void:
 	await seconds(1.0)
 	await at.screenshot("main_zombie")
 	menu.backdrop.force_figure(false)
+	# Le zombie qui traverse le couloir transversal (pris au milieu).
+	if menu.backdrop.has_method("_start_walk"):
+		menu.backdrop.call("_start_walk")
+		menu.backdrop.set("_walk_x", 1.0)
+		await seconds(0.8)
+		at.check(menu.backdrop.figure_visible(), "zombie qui traverse")
+		await at.screenshot("main_walk")
 	menu.show_screen("credits")
 	await seconds(4.0)
 	await at.screenshot("credits")

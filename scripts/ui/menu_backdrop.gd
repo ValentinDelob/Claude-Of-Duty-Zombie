@@ -24,8 +24,8 @@ const HALF_W := 1.5  # demi-largeur du couloir
 const Z_NEAR := 3.0
 const Z_FAR := -16.0
 ## Couloir transversal (le zombie y passe) : z de CROSS_Z1 à CROSS_Z0.
-const CROSS_Z0 := -8.5
-const CROSS_Z1 := -10.5
+const CROSS_Z0 := -5.5
+const CROSS_Z1 := -7.5
 const CROSS_HALF := 6.5
 ## Porte du laboratoire (fond) : x de DOOR_X0 à DOOR_X1, hauteur DOOR_H.
 const DOOR_X0 := -0.8
@@ -232,19 +232,19 @@ func _build_props() -> void:
 	# lampe plus loin ; étagère et boîtier électrique à droite ; bobine du
 	# scientifique près de sa porte ; débris et flaque au sol.
 	_prop("chariot", Vector3(-w + 0.35, 0, -2.6), 1)
-	_prop("electrodes", Vector3(-w, 0.6, -6.0), 1)
-	_prop("chaise_renversee", Vector3(0.35, 0, -5.4), 1)
-	_prop("debris_epars", Vector3(0.0, 0, -7.0), 0)
-	_prop("etagere", Vector3(w - 0.2, 0, -6.6), 3)
+	_prop("electrodes", Vector3(-w, 0.6, -10.4), 1)
+	_prop("chaise_renversee", Vector3(0.35, 0, -4.4), 1)
+	_prop("debris_epars", Vector3(0.0, 0, -9.4), 0)
+	_prop("etagere", Vector3(w - 0.2, 0, -10.2), 3)
 	_prop("boitier_electrique", Vector3(w, 1.7, -1.6), 3)
 	_prop("flaque_eau", Vector3(0.45, 0, -11.4), 0)
 	_prop("bureau", Vector3(-w + 0.35, 0, -12.4), 1)
 	_prop("lampe_bureau", Vector3(-w + 0.3, 1.0, -12.0), 1)
 	_prop("bobine_tesla", Vector3(w - 0.35, 0, -14.9), 0)
-	_prop("gravats", Vector3(-4.6, 0, -9.5), 0)
-	_prop("caisses", Vector3(4.9, 0, -9.5), 1)
+	_prop("gravats", Vector3(-4.6, 0, -6.5), 0)
+	_prop("caisses", Vector3(4.9, 0, -6.5), 1)
 	# Néons au plafond (le long du couloir) : stable, grésillant, mort.
-	var spots := [[-0.6, 2], [-5.2, 1], [-9.5, 0], [-12.6, 2]]
+	var spots := [[-0.6, 2], [-3.4, 1], [-6.5, 0], [-9.8, 0], [-12.8, 2]]
 	for s in spots:
 		var z: float = s[0]
 		var n := _prop("neon", Vector3(0, H, z), 1)
@@ -533,7 +533,7 @@ func force_figure(shown: bool) -> void:
 	_standing = shown
 	if shown:
 		_walking = false
-		_zombie_root.position = Vector3(0.25, 0, -7.6)
+		_zombie_root.position = Vector3(0.25, 0, -9.0)
 		_zombie_root.rotation.y = 0.0
 		_pose_stand(_t)
 	_zombie_root.visible = shown
