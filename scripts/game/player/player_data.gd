@@ -37,6 +37,9 @@ var knife := KnifeDB.DEFAULT
 ## Armes mises de côté pendant que le joueur est à terre ou mort (serveur,
 ## copie chez les clients : inventory_dict).
 var saved_weapons: Array = []
+## Serveur : emplacement de l'arme en main au moment de tomber (-1 : aucun),
+## rendu avec les armes (MatchRules.restore_saved_weapons).
+var saved_slot := -1
 ## Emplacement de grenade (GAME_CONCEPT §4.12 bis) : UNE sorte d'objet à la
 ## fois (`throwable`, ThrowableRules.Kind) et sa quantité (`grenades`, au plus
 ## ThrowableRules.SLOT_MAX). Vide (0), l'emplacement redevient « grenades ».

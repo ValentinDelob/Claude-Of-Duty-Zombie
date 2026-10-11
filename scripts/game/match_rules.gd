@@ -63,6 +63,10 @@ static func restore_saved_weapons(pd: PlayerData) -> void:
 					pd.weapons[i] = used
 					break
 		pd.saved_weapons = []
+		# L'arme tenue avant de tomber revient en main (BO1 :
+		# lastActiveWeapon), pas celle du premier emplacement.
+		if pd.saved_slot >= 0:
+			pd.slot = pd.saved_slot
 	else:
 		# À terre les mains vides (armes rangées dans l'inventaire) : le
 		# pistolet prêté est repris.
@@ -71,6 +75,7 @@ static func restore_saved_weapons(pd: PlayerData) -> void:
 	# partie, lui, est toujours gardé tel quel).
 	if pd.weapons.is_empty() and pd.bag.is_empty():
 		pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON)]
+	pd.saved_slot = -1
 	pd.slot = clampi(pd.slot, 0, maxi(pd.weapons.size() - 1, 0))
 
 
