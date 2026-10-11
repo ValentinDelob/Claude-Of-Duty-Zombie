@@ -144,12 +144,11 @@ static func setup_environment(parent: Node3D, look := {}, with_outline := true) 
 # Ciel (format 17 des cartes de l'éditeur : pièces sans plafond)
 # --------------------------------------------------------------------------
 
-const NIGHT_SKY := preload("res://assets/shaders/night_sky.gdshader")
-## Ciel de jour : couvert, gris-bleu délavé (BO1), sans soleil (aucune
-## lumière directionnelle : l'éclairage de la carte ne change pas).
+const CUBE_SKY := preload("res://assets/shaders/cube_sky.gdshader")
+## Ciel de jour : couvert, gris-bleu délavé, sans soleil (aucune lumière
+## directionnelle : l'éclairage de la carte ne change pas).
 const DAY_TOP := Color(0.3, 0.38, 0.5)
 const DAY_HORIZON := Color(0.58, 0.6, 0.62)
-const DAY_GROUND := Color(0.1, 0.1, 0.1)
 ## Part de la brume de la carte posée sur le ciel (1 : ciel noyé dans la brume).
 const SKY_FOG := 0.2
 
@@ -158,8 +157,10 @@ const SKY_FOG := 0.2
 ## luminosite (facteur)} (EditorMap.sky_of). Noir (« sans fond ») : fond noir
 ## uni ; `open` (une pièce au moins sans plafond) : noir COMPLET (la brume ne
 ## l'éclaircit pas) ; sinon le fond d'avant (noir voilé par la brume, jamais
-## vu d'une carte fermée). Jour : ciel procédural ; nuit : étoiles générées
-## (night_sky.gdshader) ; la luminosité règle l'énergie du ciel. Lumière
+## vu d'une carte fermée). Jour et nuit : ciel cubique (cube_sky.gdshader,
+## `mode` 0 / 1) : dégradé en paliers, nuages en cubes le jour, étoiles en
+## pixels carrés et lune en pixel art la nuit ; la luminosité règle l'énergie
+## du ciel (`brightness`). Lumière
 ## ambiante (couleur de la carte) et reflets inchangés : le ciel ne se voit que
 ## là où il n'y a pas de plafond, il n'éclaire pas les pièces fermées.
 static func apply_sky(env: Environment, sky: Dictionary, open := true) -> void:
@@ -179,20 +180,13 @@ static func apply_sky(env: Environment, sky: Dictionary, open := true) -> void:
 		return
 	var s := Sky.new()
 	s.radiance_size = Sky.RADIANCE_SIZE_32
-	if t == "jour":
-		var m := ProceduralSkyMaterial.new()
-		m.sky_top_color = DAY_TOP
-		m.sky_horizon_color = DAY_HORIZON
-		m.ground_horizon_color = DAY_HORIZON.darkened(0.25)
-		m.ground_bottom_color = DAY_GROUND
-		m.sky_curve = 0.12
-		m.energy_multiplier = lum
-		s.sky_material = m
-	else:
-		var m := ShaderMaterial.new()
-		m.shader = NIGHT_SKY
-		m.set_shader_parameter("brightness", lum)
-		s.sky_material = m
+	var m := ShaderMaterial.new()
+	m.shader = CUBE_SKY
+	m.set_shader_parameter("mode", 0 if t == "jour" else 1)
+	m.set_shader_parameter("brightness", lum)
+	m.set_shader_parameter("day_top", Vector3(DAY_TOP.r, DAY_TOP.g, DAY_TOP.b))
+	m.set_shader_parameter("day_horizon", Vector3(DAY_HORIZON.r, DAY_HORIZON.g, DAY_HORIZON.b))
+	s.sky_material = m
 	env.sky = s
 	env.background_mode = Environment.BG_SKY
 	env.background_energy_multiplier = 1.0

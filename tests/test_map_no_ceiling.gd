@@ -238,12 +238,15 @@ func test_apply_sky_environment() -> void:
 	var amb := [env.ambient_light_source, env.ambient_light_color, env.ambient_light_energy]
 	WorldLook.apply_sky(env, {"type": "jour", "luminosite": 0.7})
 	assert_eq(env.background_mode, Environment.BG_SKY)
-	assert_true(env.sky.sky_material is ProceduralSkyMaterial, "ciel de jour procédural")
-	assert_near((env.sky.sky_material as ProceduralSkyMaterial).energy_multiplier, 0.7, 0.001, "luminosité")
+	var dm := env.sky.sky_material as ShaderMaterial
+	assert_true(dm != null and dm.shader == WorldLook.CUBE_SKY, "ciel de jour cubique : shader")
+	assert_eq(int(dm.get_shader_parameter("mode")), 0, "jour : mode 0")
+	assert_near(float(dm.get_shader_parameter("brightness")), 0.7, 0.001, "luminosité")
 	assert_eq([env.ambient_light_source, env.ambient_light_color, env.ambient_light_energy], amb, "lumière ambiante inchangée")
 	WorldLook.apply_sky(env, {"type": "nuit", "luminosite": 1.4})
 	var sm := env.sky.sky_material as ShaderMaterial
-	assert_true(sm != null and sm.shader == WorldLook.NIGHT_SKY, "nuit étoilée : shader")
+	assert_true(sm != null and sm.shader == WorldLook.CUBE_SKY, "nuit étoilée : shader cubique")
+	assert_eq(int(sm.get_shader_parameter("mode")), 1, "nuit : mode 1")
 	assert_near(float(sm.get_shader_parameter("brightness")), 1.4, 0.001)
 	WorldLook.apply_sky(env, {"type": "noir"})
 	assert_eq(env.background_mode, Environment.BG_COLOR, "retour au noir")
