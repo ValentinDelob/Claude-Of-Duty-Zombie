@@ -72,9 +72,9 @@ done
 
 # --- Import Godot : .import manquants, puis réglages des images d'interface.
 GODOT=${GODOT:-godot}
-if [ -z "$NOIMPORT" ] && command -v "$GODOT" > /dev/null 2>&1; then
+if [ -z "$NOIMPORT" ] && command -v "${GODOT}" > /dev/null 2>&1; then
   echo "== import Godot"
-  "$GODOT" --headless --path . --import > "$TMP/import.log" 2>&1
+  "$GODOT" --headless --log-file "$TMP/import_godot.log" --path . --import > "$TMP/import.log" 2>&1
   for F in "$OUT"/*/*.png.import; do
     sed -i -e 's/^compress\/mode=.*/compress\/mode=0/' \
       -e 's/^mipmaps\/generate=.*/mipmaps\/generate=true/' \
@@ -83,7 +83,7 @@ if [ -z "$NOIMPORT" ] && command -v "$GODOT" > /dev/null 2>&1; then
       -e 's/^process\/size_limit=.*/process\/size_limit=0/' \
       -e 's/^detect_3d\/compress_to=.*/detect_3d\/compress_to=0/' "$F"
   done
-  "$GODOT" --headless --path . --import >> "$TMP/import.log" 2>&1
+  "$GODOT" --headless --log-file "$TMP/import_godot2.log" --path . --import >> "$TMP/import.log" 2>&1
 fi
 
 echo "== tailles"
