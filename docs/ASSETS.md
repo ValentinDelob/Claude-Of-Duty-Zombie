@@ -10,7 +10,11 @@ carte cubiques (caisse au hasard, levier du courant, téléporteur...), `assets/
 par `tools/blender/voxel_props/objets.py`, dessins (dé, éclair, flèche) originaux ; les modèles du style
 cubique, comme `assets/models/zombies/zombie_voxel.glb`, par
 `tools/blender/voxel/voxel_lib.py`, couleurs prélevées sur nos propres planches
-de référence, voir docs/ART_DIRECTION.md). La plupart des bruitages
+de référence, voir docs/ART_DIRECTION.md ; les armes, la batte, le couteau, les
+mains FPS, la grenade, la peluche leurre et les cartouches tenues,
+`assets/models/weapons/voxel/`, par `tools/blender/weapons/weapons_voxel.py`,
+formes et couleurs décrites dans le script, silhouettes et noms originaux,
+aucune arme réelle copiée, aucun logo : docs/WEAPONS.md). La plupart des bruitages
 proviennent d'enregistrements **libres de droits** retravaillés pour le jeu ;
 l'identité sonore originale reste synthétisée par `tools/gen_audio.gd` et
 `tools/gen_audio_menu.gd` : musiques et ambiances, début et fin de manche,
@@ -256,7 +260,10 @@ Musiques et ambiances, `round_start`/`round_end`,
 caisse au hasard (`box_open`, `box_music`), téléporteur, courant (`power_on`, `lever`,
 `lamp_on`), `heartbeat`,
 `revive`, `hitmarker`, `zap` (piège électrique),
-`zombie_fling`, interface. Candidats à
+`zombie_fling`, interface, batte de baseball (`bat_swing` : souffle grave
+d'un objet lourd ; `bat_hit` : « toc » de bois creux à deux résonances, coup
+sourd et léger craquement ; `tools/gen_audio.gd`, catégories « rechargement »
+et « impact » de l'intensité perçue). Candidats à
 un remplacement futur : `door_open`, `purchase`, `denied`, `zombie_fling`.
 
 ## Mixage

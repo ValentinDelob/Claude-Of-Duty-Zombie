@@ -8,8 +8,8 @@ de BO1 n'est reprise ni traduite ; aucun insigne réel, aucun symbole politique.
 
 Une partie compte quatre joueurs au plus, comme dans BO1 ; chacun incarne l'un
 des sept personnages (`CharacterDB.IDS` : `callahan`, `orlov`, `arakawa`,
-`weissmann`, `mercer`, `berg`, `jojo`, index 0 à 6 ; tenues des mains dans
-`ViewHands.STYLES`). Le personnage ne dépend plus de l'emplacement : chaque
+`weissmann`, `mercer`, `berg`, `jojo`, index 0 à 6 ; les mains de la vue FPS
+sont celles du joueur de baseball pour tous, `ViewHands`). Le personnage ne dépend plus de l'emplacement : chaque
 joueur le choisit dans OPTIONS > JEU > PERSONNAGE, « auto » par défaut ou l'un
 des sept (deux joueurs peuvent prendre le même). En « auto », l'emplacement du
 joueur décalé d'une rotation tirée au sort par l'hôte (0 à 6) désigne le premier personnage encore

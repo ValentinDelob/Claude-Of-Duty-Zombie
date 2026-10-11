@@ -370,7 +370,8 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   l'écran d'options.
 - **Personnages** (`CharacterDB`, docs/CHARACTERS.md) : sept personnages,
   `IDS` = callahan, orlov, arakawa, weissmann, mercer, berg, jojo ; l'index (0 à 6) choisit
-  aussi la tenue FPS (`ViewHands.STYLES`) et l'apparence vue par les autres
+  l'apparence vue par les autres (les mains FPS sont celles du joueur de
+  baseball pour tous : `ViewHands.STYLES` n'a qu'une tenue)
   (`PlayerModel.OUTFITS`). Choix du joueur : `Settings.character` (section
   `[player]` de `settings.cfg`, « auto » par défaut, valeur inconnue -> « auto »),
   ligne PERSONNAGE de l'onglet JEU (noms courts `CharacterDB.short_name`, nom
@@ -1081,7 +1082,11 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   un guidon (`front`) à la même hauteur ; `ViewModel.ads_pose` pose cette ligne
   sur l'axe de la caméra (`ads`.z : distance de l'œil). Précision totale en
   visée (sauf fusils à pompe), champ `ads_zoom`, durée `ads_time`. Vérifié par
-  `tests/autotest/weapon_aim.gd` (±2 px, impact à ±3 cm à 20 m pour chaque arme).
+  `tests/autotest/weapon_aim.gd` (±1 px, impact à ±3 cm à 20 m pour chaque
+  arme ; la batte, sans organes de visée, est exclue). Modèles cubiques : le
+  guidon est un cube centré sur l'axe (colonne x = 0), le cran un vide d'un
+  cube entre deux oreilles, sommets à la même hauteur (`test_weapons`,
+  `test_sight_line`).
 - **Joue de visée** : en visée, ce qui passe plus près de l'œil que le cran
   moins 2 cm (arrière du boîtier, crosse, corps des bullpups, tube du LAW)
   est abaissé par le shader (`vm_bend`, `ViewModel.bend_params` / `bend`,
@@ -1106,9 +1111,10 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   manche hors de l'écran, mains posées sur l'arme, avant-bras hors de l'arme).
   Captures rendues (correctif en cours, hors check) :
   `tests/autotest/view_model_stock.gd`.
-- **Lunettes** : `scope` = `sniper` (L96A1, Dragunov : écran de lunette
-  `ScopeOverlay` + `scope.gdshader`, zoom `scope_fov`, balancement, [Maj]
-  pour retenir sa respiration) ou `optic` (AUG, G11 : lunette courte).
+- **Lunettes** : `scope` = `sniper` (LONGUE-VUE `l96a1`, HIBOU `dragunov` :
+  écran de lunette `ScopeOverlay` + `scope.gdshader`, zoom `scope_fov`,
+  balancement, [Maj] pour retenir sa respiration) ou `optic` (VIGIE `aug`,
+  STROBOSCOPE `g11` : lunette courte). Noms et identifiants : docs/WEAPONS.md.
 - **Sensation** (`ShotFeel`, client seul) : dispersion dynamique (déplacement,
   bloom ; le réticule du HUD dessine le vrai cône via `WeaponDB.spread_to_px`),
   recul appliqué progressivement (~0,1 s) avec retour partiel automatique
@@ -1171,13 +1177,23 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
   chiens) reste un panneau doux (`Fx.soft_dot_texture`) ; le décor du menu
   (`MenuBackdrop`) garde ses volutes et décalques réalistes (sa poussière
   est passée en cubes de 2,5 cm) ; la traçante reste un pavé lumineux étiré.
-- **Modèles et vue FPS** : `WeaponMesh` (primitives arrondies : profils
-  extrudés chanfreinés, révolutions, capsules) fusionnées en UN maillage par
-  matériau et par pièce mobile (`mag`, `slide`, `pump`, `barrels`, `cyl`,
-  `rear`) ; géométrie des armes et des mains (`ViewHands`, pièces partagées
-  placées par transformations) calculée en tâche de fond au chargement
-  (`WeaponModels.precompute_async`, appelée par `Warmup`), maillages créés au
-  premier affichage. L'arme est dessinée avec son propre champ de vision
+- **Modèles et vue FPS** : armes, couteau, mains, grenade, peluche leurre
+  et cartouches tenues sont des modèles CUBIQUES (cubes de 2,5 cm,
+  GAME_CONCEPT §4.19) construits sous Blender par
+  `tools/blender/weapons/weapons_voxel.py` : `assets/models/weapons/voxel/<id>.glb`
+  (un nœud par pièce mobile `wpn__<id>__<groupe>` : `body`, `mag`, `slide`,
+  `pump`, `barrels`, `cyl` ; mains : `hand__<pièce>`), couleur par face
+  (COLOR_0, alpha 0 = face lumineuse) et `weapons_voxel.json` (points
+  remarquables, `info`, pavés des pièces pour les contrôles de la vue FPS,
+  triangles). `WeaponModels.raw` lit les .glb (fil principal), `spec` le
+  .json ; la géométrie FPS (pièces autour de leur pivot, partie courbée par
+  la joue découpée en tranches) et les pièces des mains (`ViewHands`,
+  pièces rigides placées par transformations, avant-bras jamais étiré :
+  `arm_xf` pose son poignet sur la main) sont calculées en tâche de fond au
+  chargement (`WeaponModels.precompute_async`, appelée par `Warmup`),
+  maillages créés au premier affichage. Matériau : `weapon.gdshader` en
+  mode `voxel` (couleur de face telle quelle, rugosité / métal par matière
+  `WeaponModels.MATERIALS`). L'arme est dessinée avec son propre champ de vision
   (`ViewModel.VIEW_FOV`, 51,3° = cg_fov 65 de BO1 ; 72° en visée) : le shader
   multiplie x, y du clip par `vm_fov_scale` (global de shader) ; les effets
   partent du point apparent (`ViewModel.apparent`). L'axe optique ne bouge
@@ -1186,8 +1202,23 @@ Tout plantage laisse une trace, même une violation d'accès sans aucun message
 - **Amélioration** : la machine d'amélioration (Pack-a-Punch) est retirée.
   Le drapeau `pap` des instances d'armes et les valeurs « pap » de
   `WeaponDB` restent en sommeil (toujours faux). Plus d'armes murales
-  (`WeaponDB.wall_cost` / `ammo_cost` supprimés) ; le couteau de base reste
-  une attaque rapide.
+  (`WeaponDB.wall_cost` / `ammo_cost` supprimés) ; le couteau reste une
+  attaque rapide séparée (KnifeDB, touche de mêlée), pour tous les joueurs.
+- **Batte de baseball** (`WeaponDB` « bat », famille `melee`, arme de base) :
+  arme de corps à corps TENUE EN MAIN (elle prend un emplacement d'arme) ;
+  sans munitions (`infinite` : pas de compteur au HUD), ni rechargement, ni
+  visée (info `no_sights` : reste à l'épaule). Tir = coup (maintenu : coups
+  enchaînés, coup droit puis revers), `WeaponController._swing` : énergie
+  `energy` par coup (épuisé : coups 50 % plus lents), fente comme le couteau
+  (portée `reach`, fente `lunge_range`), animation `ViewModel.start_swing`
+  (`SWING_KEYS`, impact à `SWING_HIT`), son `bat_swing` ; à l'impact, le
+  client envoie `Combat.srv_swing(slot, origine, direction)` : le serveur
+  vérifie l'arme tenue, la cadence, l'origine, puis frappe jusqu'à `targets`
+  zombies dans l'arc (`Combat.swing_targets`) aux dégâts de l'arme de partie
+  (niveau, pièces ; coup `MELEE` : ferraille d'une touche), son `bat_hit`.
+  Mains : poings `bat_r` / `bat_l` sur le manche (info `support_fist`),
+  coudes posés dans le repère de la caméra (info `elbows_cam`). Tests :
+  `tests/test_weapons.gd`, scénario `melee`, `sh tools/mp_test.sh melee`.
 
 ## Équipement, inventaire de partie et armes à niveau (`GameWeapon`)
 
@@ -1216,8 +1247,9 @@ GAME_CONCEPT §4.9, §4.12, §4.13.
   niveau et les armes de départ de son profil (`Session.send_local_loadout`
   -> `srv_set_loadout`, même canal fiable) ; à l'apparition, le serveur
   fabrique lui-même les exemplaires d'armes de base (`Session.apply_loadout`,
-  `starting_hands` : armes à feu de base seulement, le couteau reste
-  l'attaque de mêlée). Rien d'annoncé : pistolet de départ, niveau 1.
+  `starting_hands` : armes de base tenues en main, pistolet de départ et
+  batte, dans l'ordre choisi ; le couteau reste l'attaque de mêlée séparée).
+  Rien d'annoncé : pistolet de départ, niveau 1.
 - **Échange** : `Combat.srv_swap(main, place)` (limiteur des actions) ->
   `GameWeapon.swap` : joueur debout, places valides, arme de l'inventaire
   de niveau ≤ joueur ; une place vide d'un côté déplace simplement l'arme.
@@ -1308,7 +1340,8 @@ GAME_CONCEPT §4.7, §4.6, §4.16. Valeurs provisoires : GAME_CONCEPT §6 bis.
   par vague spéciale, 2 par vague de boss (`weapons_for_wave`), niveau entre
   manche − 6 et manche + 2 borné à [max(1, `WeaponDB.base_level`), 50],
   rareté 60 / 20 / 12,5 / 5 / 2,5 %, arme tirée parmi les armes de
-  `WeaponDB` hors armes de base. Pièces : 5 % par zombie de vague spéciale
+  `WeaponDB` hors armes de base dont le niveau de base est au plus
+  manche + 2 (`weapon_pool(max_level)`). Pièces : 5 % par zombie de vague spéciale
   tué et par joueur, niveau [niveau du joueur − 10 (≥ 1), niveau du joueur],
   modificateurs de `GameWeapon.MODS`. Échantillons : `LootRules.SAMPLES`
   (chiens : croc, touffe de poils, collier), 20 % par sorte, par zombie tué
@@ -1519,7 +1552,9 @@ codées (lot A, sans interface, `scripts/game/hub/`) ; écrans à venir (lots B
   rareté → 1/2/3/4/4 emplacements, pièces installées), score = niveau +
   niveaux des pièces, montage si pièce ≤ arme et ≤ joueur.
 - `BaseWeapons` : armes de base niveau 1 communes, hors arsenal (non
-  recyclables) ; provisoirement le pistolet de départ et le couteau.
+  recyclables) : le pistolet de départ (PÉTOIRE) et la batte de baseball
+  (`WeaponDB.BASE_MELEE`) ; un ancien profil qui avait choisi le couteau
+  reçoit la batte (`BaseWeapons.RENAMED`).
 - `ProfileStore` : `user://profile.json` (un fichier par processus en
   autotest), JSON versionné, écriture via `.tmp`, copie de secours `.bak`,
   fichier illisible mis de côté (`.corrupt-<date>`), jamais écrasé.
