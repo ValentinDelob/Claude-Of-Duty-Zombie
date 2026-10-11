@@ -98,6 +98,9 @@ var contract_watch: ContractWatch
 var evac: EvacDoor
 ## Station de construction (null : carte sans station, rien à construire).
 var station: BuildStation
+## Défi hebdomadaire de la partie (null : partie normale ; GAME_CONCEPT
+## §4.18) : modificateurs, armes de base imposées, butin non gardé.
+var challenge: WeeklyChallenge
 signal power_changed(on: bool)
 ## Chargement local terminé (préchauffage fait), juste avant de l'annoncer au
 ## serveur. Jamais émis si la session s'est terminée pendant le chargement.
@@ -120,6 +123,10 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	if GameState.state == GameState.State.MAIN_MENU:
 		GameState.set_state(GameState.State.LOADING)
+	# Défi hebdomadaire (§4.18) : clé reçue avec l'ordre de chargement.
+	challenge = WeeklyChallenge.from_key(Net.current_challenge) if Net.current_challenge != "" else null
+	if challenge:
+		print("[Game] défi hebdomadaire %s : %s" % [challenge.key, ", ".join(challenge.modifiers.map(func(m): return String(m.id)))])
 	_load_map(Net.current_map if has_map(Net.current_map) else requested_map())
 	throwables = ThrowableSystem.new()
 	throwables.name = "Throwables"
@@ -134,9 +141,16 @@ func _ready() -> void:
 	xp.name = "Xp"
 	add_child(xp)
 	# Contrats actifs du joueur local : message « objectif atteint » (D13).
-	contract_watch = ContractWatch.new()
-	contract_watch.name = "ContractWatch"
-	add_child(contract_watch)
+	# Pas pendant le défi : son butin n'est pas gardé (message trompeur).
+	if challenge == null:
+		contract_watch = ContractWatch.new()
+		contract_watch.name = "ContractWatch"
+		add_child(contract_watch)
+	elif multiplayer.is_server():
+		# Mêmes tirages pour tout le monde cette semaine (graine du défi).
+		rounds._rng.seed = challenge.match_seed
+		loot._rng.seed = challenge.match_seed + 1
+		zombies._rng.seed = challenge.match_seed + 2
 	spectator = SpectatorCamera.new()
 	spectator.name = "Spectator"
 	spectator.setup(self)
@@ -424,6 +438,25 @@ func _record_xp(l: Dictionary) -> Dictionary:
 
 var _xp_recorded := false
 var _contracts_rotated := false
+var _weekly_recorded := false
+
+
+## Défi hebdomadaire : résultat de la partie au profil du joueur local (UNE
+## fois par partie) ; récompense de la semaine si l'objectif est atteint
+## (une fois par semaine, WeeklyChallenge.apply_to). Rapport dans
+## r.loot.challenge (écran de fin, MatchResult.loot_text).
+func _record_weekly(r: MatchResult) -> void:
+	if _weekly_recorded or challenge == null:
+		return
+	_weekly_recorded = true
+	var wk := challenge.apply_result(r.round_reached, r.evacuated)
+	r.loot["challenge"] = {"week": challenge.week, "goal": wk.goal, "goal_round": challenge.goal_round,
+		"rewarded": wk.rewarded, "xp": wk.xp, "samples": wk.samples, "new_best": wk.new_best}
+	if wk.rewarded:
+		r.profile_xp = int(wk.total_xp)
+		r.level_after = int(wk.level)
+	print("[Game] défi %s : manche %d, objectif %s%s" % [challenge.key, r.round_reached,
+			"atteint" if wk.goal else "manqué", " (récompense : +%d XP)" % wk.xp if wk.rewarded else ""])
 
 
 ## Rotation du tableau des contrats du joueur local, UNE fois par partie
@@ -447,6 +480,10 @@ func keep_match_xp() -> void:
 	if xp != null:
 		survived = maxi(survived, int(xp.my_ledger.get("rounds", 0)))
 	_rotate_contracts(survived)
+	# Défi : la tentative compte pour le meilleur résultat (sans évacuation).
+	if challenge and not _weekly_recorded and rounds:
+		_weekly_recorded = true
+		challenge.apply_result(rounds.round_n, false)
 	if _xp_recorded or xp == null or XpRules.total(xp.my_ledger) <= 0:
 		return
 	var l := xp.my_ledger.duplicate(true)
@@ -478,9 +515,12 @@ func _show_match_end(r: MatchResult) -> void:
 		# une évacuation (versions d'arsenal construites et améliorées mises à
 		# jour, §4.11) ; rapport gardé ou perdu dans le résultat.
 		var carried := ProfileLoot.carried(lpd, loot.my_parts, loot.my_samples)
-		if r.evacuated:
+		# Défi hebdomadaire (§4.18) : le butin de la partie n'est jamais gardé.
+		if r.evacuated and challenge == null:
 			ProfileLoot.apply_evacuation(carried)
-		r.loot = ProfileLoot.report(carried, r.evacuated)
+		r.loot = ProfileLoot.report(carried, r.evacuated and challenge == null)
+		if challenge:
+			_record_weekly(r)
 		# Contrats (§4.2) : le tableau tourne après une partie d'au moins une
 		# manche survécue, après l'XP (le niveau compte pour le tirage).
 		_rotate_contracts(MatchContracts.rounds_survived(r))
@@ -684,6 +724,9 @@ func _build_station() -> void:
 	var m := layout.build_station()
 	if m == null:
 		print("[Game] carte sans station de construction")
+		return
+	if challenge and not challenge.has_station():
+		print("[Game] défi : station de construction en panne")
 		return
 	station = BuildStation.new()
 	station.setup_marker(m)

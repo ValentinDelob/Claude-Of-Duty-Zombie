@@ -6,11 +6,15 @@ extends RefCounted
 ##
 ## Format (JSON, lisible ; JSON ne décode jamais d'objet ni de ressource,
 ## contrairement à ConfigFile, voir SafeConfig) :
-##   {"format": "profile", "version": 2, "saved_at": <unix>,
+##   {"format": "profile", "version": 3, "saved_at": <unix>,
 ##    "profile": {"xp", "level" (informatif), "next_uid", "starting_weapons",
 ##                "samples": {type: n}, "weapons": [...], "parts": [...],
 ##                "contracts": {...} (ContractState), "exchanges": {"done": {id: n}},
-##                "seen": {"weapons": [uid...], "parts": [uid...]}}}
+##                "seen": {"weapons": [uid...], "parts": [uid...]},
+##                "weekly": {"2026-W41": {"best", "evac", "runs", "rewarded"}}}}
+## Version 3 (défi hebdomadaire, GAME_CONCEPT §4.18) : section « weekly »
+## (WeeklyRecord) ; un fichier version 1 ou 2 se lit sans perte, sans aucun
+## défi joué, et est réécrit en version 3 au prochain enregistrement.
 ## Version 2 (hub, docs/HUB_PLAN.md §5.4) : sections « contracts »,
 ## « exchanges » et « seen ». Un fichier version 1 se lit sans perte
 ## (_migrate) : contrats neufs (graine tirée, tableau rempli à la première
@@ -35,7 +39,7 @@ const TEST_PATH_PREFIX := "user://profile_autotest_"
 const FORMAT := "profile"
 ## Version du format. À augmenter (avec une migration dans _migrate) à chaque
 ## changement incompatible.
-const VERSION := 2
+const VERSION := 3
 ## Taille maximale lue (octets) : arsenal illimité, mais un fichier de cette
 ## taille n'est plus un profil normal.
 const MAX_BYTES := 16 << 20
@@ -184,11 +188,16 @@ static func reset(p := "") -> void:
 ## 1 -> 2 : les sections du hub n'existaient pas ; toute clé de ce nom dans un
 ## fichier v1 (modifié à la main) est ignorée : PlayerProfile.from_dict crée
 ## alors des contrats neufs, aucun échange, et marque l'existant comme vu.
+## 2 -> 3 : la section « weekly » (défi hebdomadaire) n'existait pas ;
+## ignorée de même (aucun défi joué).
 static func _migrate(data: Dictionary, from_version: int) -> Dictionary:
 	if from_version < 2:
 		data = data.duplicate()
 		for k in ["contracts", "exchanges", "seen"]:
 			data.erase(k)
+	if from_version < 3:
+		data = data.duplicate()
+		data.erase("weekly")
 	return data
 
 

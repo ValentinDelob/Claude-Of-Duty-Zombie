@@ -498,7 +498,7 @@ func test_v2_aller_retour() -> void:
 	pr.mark_weapon_seen(pr.weapons[0].uid)
 	assert_eq(ProfileStore.save_profile(pr, file), OK)
 	var doc: Dictionary = JSON.parse_string(_read(file))
-	assert_eq(int(doc.version), 2, "enregistré en version 2")
+	assert_eq(int(doc.version), ProfileStore.VERSION, "enregistré dans la version actuelle")
 	assert_eq(doc.profile.contracts.seed, 918273.0)
 	assert_eq(doc.profile.exchanges, {"done": {"fang_trim": 3.0}})
 	assert_eq(doc.profile.seen.weapons, [pr.weapons[0].uid])

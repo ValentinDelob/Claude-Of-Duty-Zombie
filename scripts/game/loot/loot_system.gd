@@ -104,6 +104,8 @@ func _on_wave_cleared(wave: String, round_n: int) -> void:
 	for pid in game.session.data:
 		for k in n:
 			var w := LootRules.roll_weapon(round_n, _rng, "loot:%d" % _take_id())
+			if game.challenge:
+				w = game.challenge.loot_weapon(w)  # « fonds de tiroir » : commune
 			srv_drop(pid, w, k)
 
 

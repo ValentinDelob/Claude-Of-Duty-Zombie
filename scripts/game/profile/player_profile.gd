@@ -40,6 +40,9 @@ var exchanges_done: Dictionary = {}
 ## pastille NOUVEAU (§5.4).
 var seen_weapons: PackedStringArray = []
 var seen_parts: PackedStringArray = []
+## Défi hebdomadaire : meilleur résultat et récompense de chaque semaine
+## (version 3, WeeklyRecord, GAME_CONCEPT §4.18).
+var weekly := WeeklyRecord.new()
 
 static var _thresholds: PackedInt64Array = []
 
@@ -368,6 +371,8 @@ func to_dict() -> Dictionary:
 		"contracts": contracts.to_dict(),
 		"exchanges": {"done": exchanges_done.duplicate()},
 		"seen": {"weapons": Array(seen_weapons), "parts": Array(seen_parts)},
+		# Version 3 (défi hebdomadaire) :
+		"weekly": weekly.to_dict(),
 	}
 
 
@@ -446,6 +451,8 @@ static func from_dict(d: Dictionary, dropped := [0]) -> PlayerProfile:
 					pr.mark_part_seen(uid)
 	else:
 		dropped[0] += 1
+	# Version 3 : section absente (profil v1 ou v2) : aucun défi joué.
+	pr.weekly = WeeklyRecord.from_dict(d.get("weekly"), dropped)
 	return pr
 
 

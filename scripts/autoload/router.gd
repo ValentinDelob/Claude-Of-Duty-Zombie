@@ -26,9 +26,10 @@ func _ready() -> void:
 	get_tree().node_added.connect(Tag3D.on_node_added)
 
 
-func start_solo(map_id := "") -> void:
+## `challenge` : clé du défi hebdomadaire ("" : partie normale).
+func start_solo(map_id := "", challenge := "") -> void:
 	Net.start_solo(Settings.player_name)
-	Net.start_match(map_id if map_id != "" else Game.requested_map())
+	Net.start_match(map_id if map_id != "" else Game.requested_map(), challenge)
 
 
 ## Quitte la session en cours et revient au menu : au hub, onglet `tab`
