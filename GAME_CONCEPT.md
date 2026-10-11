@@ -488,6 +488,14 @@ de 2,5 cm** (§ 4.19).
   (par exemple 20, 30, 40).
 - Leur fiche reste grisée (« ??? ») au codex tant que le joueur ne les a pas
   rencontrés : la curiosité pousse à aller plus loin.
+- 🧪 **Implémenté** : onglet **CODEX** du hub, avant PARTIE (docs/HUB_PLAN.md
+  §3.10). « Rencontré » = coup porté, coup reçu ou élimination, compté pour
+  chaque joueur (coop comprise) et ajouté au profil à la fin de la partie
+  avec l'XP. Une fiche inconnue ne montre que la manche à partir de laquelle
+  l'ennemi peut apparaître ; une fiche connue montre nom, description,
+  éliminations, échantillons et XP. Fiches dans
+  `assets/data/hub/codex.json` (Infirmière hurlante et Chirurgien déjà
+  prévus, manches 20 et 30 provisoires).
 
 ### 4.18 Défi hebdomadaire ✅
 - Un défi identique pour tout le monde chaque semaine (même carte, mêmes

@@ -40,6 +40,9 @@ var exchanges_done: Dictionary = {}
 ## pastille NOUVEAU (§5.4).
 var seen_weapons: PackedStringArray = []
 var seen_parts: PackedStringArray = []
+## Codex (bestiaire, §4.17) : ennemis rencontrés, éliminations par type
+## (CodexState ; section facultative « codex », absente = codex vide).
+var codex := CodexState.new()
 
 static var _thresholds: PackedInt64Array = []
 
@@ -368,6 +371,8 @@ func to_dict() -> Dictionary:
 		"contracts": contracts.to_dict(),
 		"exchanges": {"done": exchanges_done.duplicate()},
 		"seen": {"weapons": Array(seen_weapons), "parts": Array(seen_parts)},
+		# Codex (section facultative, sans changement de version).
+		"codex": codex.to_dict(),
 	}
 
 
@@ -446,6 +451,8 @@ static func from_dict(d: Dictionary, dropped := [0]) -> PlayerProfile:
 					pr.mark_part_seen(uid)
 	else:
 		dropped[0] += 1
+	# Codex : section facultative (profil plus ancien : codex vide).
+	pr.codex = CodexState.from_dict(d.get("codex"), dropped)
 	return pr
 
 

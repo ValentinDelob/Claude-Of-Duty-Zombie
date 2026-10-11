@@ -178,6 +178,10 @@ corriger d'abord les hypothèses d'`XpCalibration`, puis le barème.
      l'entité (sa classe, comme `Hellhound`) et rendre son identifiant ;
    - un boss ou une nouvelle sorte de vague : sa valeur de vague dans
      `XpRules.WAVE_XP`.
+   - sa fiche au **codex** du hub (`assets/data/hub/codex.json`, même
+     identifiant, docs/HUB_PLAN.md §3.10 ; exigée par `tests/test_codex.gd`) ;
+     ses coups au joueur passent l'ennemi en `source` de
+     `Combat.damage_player` (rencontre du codex).
 4. **Mettre à jour les tests** :
    - `tests/test_xp_rules.gd` : `test_bareme` (valeur attendue du nouveau
      type), `test_type_d_ennemi` (reconnaissance de l'entité) ;

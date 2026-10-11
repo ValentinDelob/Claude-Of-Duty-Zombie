@@ -20,6 +20,8 @@ extends Node
 ## Sources d'un gain (affichage).
 const SRC_KILL := "kill"
 const SRC_ROUND := "round"
+## Rencontre d'un ennemi (codex) : relevé renvoyé sans gain.
+const SRC_MET := "met"
 ## Durée d'affichage du « +N XP » (s) : les gains rapprochés s'additionnent.
 const POP_TIME := 1.1
 
@@ -40,6 +42,8 @@ func _ready() -> void:
 	game = get_parent()
 	if multiplayer.is_server():
 		game.combat.zombie_damaged.connect(_on_zombie_damaged)
+		game.combat.zombie_damaged.connect(_on_enemy_hit)
+		game.combat.player_hurt_by.connect(_on_hurt_by)
 		game.rounds.round_ended.connect(_on_round_ended)
 		Net.player_left.connect(_on_player_left)
 
@@ -93,6 +97,32 @@ func _on_round_ended(n: int) -> void:
 
 func _on_player_left(pid: int) -> void:
 	ledgers.erase(pid)
+
+
+## Codex (§4.17) : un coup porté à un ennemi (ou son élimination) est une
+## rencontre pour ce joueur.
+func _on_enemy_hit(pid: int, zid: int, _dmg: int, _killed: bool, _headshot: bool, _kind: Combat.HitKind) -> void:
+	var z := game.zombies.get_zombie(zid)
+	if z != null:
+		_met(pid, enemy_type_of(z))
+
+
+## Codex : un coup reçu d'un ennemi est aussi une rencontre.
+func _on_hurt_by(pid: int, source: Node) -> void:
+	if source is Zombie:
+		_met(pid, enemy_type_of(source as Zombie))
+
+
+## Première rencontre du type `type` par le joueur `pid` dans la partie :
+## notée dans son relevé (XpRules.add_met), relevé renvoyé au joueur (sans
+## XP) pour que sa copie locale la garde même s'il quitte en cours de partie.
+func _met(pid: int, type: String) -> void:
+	if game.session.get_data(pid) == null or not XpRules.add_met(ledger(pid), type):
+		return
+	if pid == multiplayer.get_unique_id():
+		my_ledger = ledger(pid).duplicate(true)
+	elif multiplayer.has_multiplayer_peer():
+		_cl_xp.rpc_id(pid, ledger(pid), 0, SRC_MET)
 
 
 ## Serveur, fin de partie : clôt le relevé de chaque joueur (bonus

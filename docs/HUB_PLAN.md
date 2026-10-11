@@ -190,6 +190,33 @@ Tous les écrans partagent le **cadre du hub** (maquette, écran 1) :
 - Le fond du hub passe par un seul point (`HubScreen.backdrop`) : remplacer
   `MenuBackdrop` par la scène du labo ne touche pas aux panneaux.
 
+### 3.10 CODEX (bestiaire, GAME_CONCEPT §4.17) ✅
+
+- Huitième onglet, **avant PARTIE** (`HubCodexPanel`, `codex_panel.gd`) :
+  une fiche par type d'ennemi en grille de 4 colonnes (défile à 130 %).
+- Fiche **connue** : nom, famille et manche d'apparition, description drôle
+  (FR / EN, sans nombre exact), éliminations, XP de base (lue dans
+  `XpRules`, jamais recopiée), échantillons. Fiche **inconnue** : pointillés
+  gris, « ??? » et seulement « Peut apparaître dès la manche n ».
+- Données : `assets/data/hub/codex.json` (format « hub_codex », `CodexData`) :
+  id = type d'ennemi de `XpRules`, nom, texte, manche, sortes d'échantillons
+  (`LootRules.SAMPLES`), `xp_ref` (type de référence pour un ennemi prévu,
+  pas encore au barème), `planned`. Fiches actuelles : marcheur, rampant,
+  coureur, sprinteur, meute errante, Brancardier ; prévues : Infirmière
+  hurlante, Le Chirurgien.
+- **Rencontre** (locale, chacun la sienne en coop) : un coup porté à
+  l'ennemi, un coup reçu de lui (`Combat.damage_player` avec `source`) ou
+  son élimination. Le serveur la note dans le relevé d'XP du joueur
+  (`XpRules` « met », sans XP) ; le profil la reçoit **une fois par partie**
+  avec l'XP (`MatchXp.apply` → `CodexState.record_ledger`), comme les
+  éliminations par type.
+- Profil : section facultative `"codex": {"enemies": {type: éliminations},
+  "seen": [type…]}` (`CodexState`), sans changement de version : absente
+  (profil plus ancien) = codex vide.
+- Pastille NOUVEAU : fiche découverte depuis la dernière visite ; l'onglet
+  porte leur nombre ; vues à l'affichage de l'onglet, enregistrées en le
+  quittant.
+
 ## 4. Navigation, tailles, langues
 
 ### 4.1 Commandes

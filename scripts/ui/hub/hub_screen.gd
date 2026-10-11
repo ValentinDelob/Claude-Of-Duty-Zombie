@@ -1,8 +1,9 @@
 class_name HubScreen
 extends MenuScreen
 ## HUB du scientifique (docs/HUB_PLAN.md, maquette docs/hub_mockup/index.html,
-## écran 1) : écran de menu à sept onglets à plat entre deux parties — LABO,
-## ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, PARTIE. Ouvert par JOUER au
+## écran 1) : écran de menu à huit onglets à plat entre deux parties — LABO,
+## ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, CODEX (bestiaire, §3.10),
+## PARTIE. Ouvert par JOUER au
 ## menu titre (MainMenu.SCREENS.hub).
 ##
 ## Cadre commun : barre du haut (niveau, XP, touche du menu), barre des
@@ -26,11 +27,12 @@ extends MenuScreen
 ## HubStyle.px / fs ; un changement reconstruit l'écran (rebuild).
 
 ## Onglets, dans l'ordre (identifiants stables : profil, tests, lots C à E).
-const TABS := ["lab", "arsenal", "parts", "contracts", "exchanges", "loadout", "play"]
+const TABS := ["lab", "arsenal", "parts", "contracts", "exchanges", "loadout", "codex", "play"]
 const TAB_NAMES := {
 	"lab": ["LABO", "LAB"], "arsenal": ["ARSENAL", "ARSENAL"], "parts": ["PIÈCES", "PARTS"],
 	"contracts": ["CONTRATS", "CONTRACTS"], "exchanges": ["ÉCHANGES", "EXCHANGES"],
-	"loadout": ["DÉPART", "LOADOUT"], "play": ["PARTIE", "PLAY"],
+	"loadout": ["DÉPART", "LOADOUT"], "codex": ["CODEX", "CODEX"],
+	"play": ["PARTIE", "PLAY"],
 }
 ## Script du panneau de chaque onglet (HubPanel). Onglet absent : panneau
 ## provisoire « à venir ». Les lots C (arsenal, parts, loadout), D
@@ -42,6 +44,7 @@ const PANELS := {
 	"arsenal": "res://scripts/ui/hub/arsenal_panel.gd",
 	"parts": "res://scripts/ui/hub/parts_panel.gd",
 	"loadout": "res://scripts/ui/hub/loadout_panel.gd",
+	"codex": "res://scripts/ui/hub/codex_panel.gd",
 	"play": "res://scripts/ui/hub/play_panel.gd",
 }
 ## Hauteur de la zone centrale à 100 % (720 − 100 − 12 − 16 − 36).

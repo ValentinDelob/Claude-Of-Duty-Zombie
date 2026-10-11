@@ -171,18 +171,23 @@ func test_draw_time_on_a_big_map() -> void:
 	var t0 := Time.get_ticks_usec()
 	var n := av.projected().size()
 	var t_cache := (Time.get_ticks_usec() - t0) / 1000.0
-	var worst := 0
-	var total := 0
-	for i in 10:
+	var draws_us: Array[int] = []
+	for i in 11:
 		av._layer_key = ""
 		av.queue_redraw()
 		await wait_frames(1)
-		worst = maxi(worst, av.last_draw_us)
-		total += av.last_draw_us
-	print("    élévation, 50 pièces + 2000 objets : %d boîtes, projection %.1f ms, dessin %.2f ms en moyenne (pire %.2f ms)" % [n, t_cache, total / 10000.0, worst / 1000.0])
+		draws_us.append(av.last_draw_us)
+	draws_us.sort()
+	@warning_ignore("integer_division")
+	var median := draws_us[draws_us.size() / 2]
+	print("    élévation, 50 pièces + 2000 objets : %d boîtes, projection %.1f ms, dessin %.2f ms en médiane (meilleur %.2f ms, pire %.2f ms)" % [n, t_cache, median / 1000.0, draws_us[0] / 1000.0, draws_us[-1] / 1000.0])
 	assert_eq(n, 2050)
-	# Objectif : 4 ms (§ 9) ; marge pour une machine chargée (tests en parallèle).
-	assert_true(worst < 8000, "dessin d'une élévation : %.2f ms" % (worst / 1000.0))
+	# Objectif : 4 ms (§ 9) ; marge pour une machine chargée (tests en
+	# parallèle). Médiane de 11 dessins, pas le pire : un seul dessin
+	# interrompu par le système (autre processus) dépassait le seuil sans
+	# que le code soit plus lent ; un dessin réellement trop coûteux l'est à
+	# chaque fois et fait monter la médiane.
+	assert_true(median < 8000, "dessin d'une élévation : %.2f ms (médiane)" % (median / 1000.0))
 	# Mouvement de la souris : le contenu n'est pas redessiné.
 	var draws := av.content_draws
 	for i in 5:

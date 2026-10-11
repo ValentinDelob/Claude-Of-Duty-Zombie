@@ -235,8 +235,8 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   `HubScreen` (`MainMenu.SCREENS.hub`, `MenuScreen` plein cadre : le
   `MainMenu` masque alors son voile, sa surimpression de caméra et son
   post-traitement, `full_frame`, et lui passe `set_hint` → `show_hint`).
-  Cadre : `HubTopBar` (niveau, XP, touche du menu), `HubTabBar` (7 onglets
-  LABO, ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, PARTIE ; Q / E,
+  Cadre : `HubTopBar` (niveau, XP, touche du menu), `HubTabBar` (8 onglets
+  LABO, ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, CODEX, PARTIE ; Q / E,
   Page préc. / suiv., LB / RB, clic ; pastilles), `HubPrompts` (invites du
   dernier périphérique, `Settings.input_device_changed`, cliquables ; aide à
   droite), `HubMenu` (Échap / Start : REPRENDRE, OPTIONS, DOSSIER DE COMBAT,

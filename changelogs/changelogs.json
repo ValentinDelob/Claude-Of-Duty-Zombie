@@ -2744,6 +2744,37 @@
     "en": "From the lab to the horde",
     "fr": "Du labo à la horde"
    }
+  },
+  "v0.2.1-snapshot.626": {
+   "channel": "snapshot",
+   "date": "2026-10-11",
+   "images": [],
+   "items": [
+    {
+     "en": "You now play a baseball player: every player wears the same cubic outfit, with the cap, sleeves and socks in their own colour.",
+     "fr": "Vous incarnez désormais un joueur de baseball : tous les joueurs portent la même tenue en cubes, avec la casquette, les manches et les chaussettes à leur couleur."
+    },
+    {
+     "en": "New starting weapon: the baseball bat. It hits up to two zombies per swing but tires you faster than the knife, which stays as a quick attack.",
+     "fr": "Nouvelle arme de départ : la batte de baseball. Elle frappe jusqu'à deux zombies par coup mais fatigue plus vite que le couteau, qui reste l'attaque rapide."
+    },
+    {
+     "en": "All weapons are redrawn in cubes with original names (Peashooter, Gnat, Metronome, Broom, Cement Mixer…) and a base level from 1 to 50: the strongest only drop in later rounds.",
+     "fr": "Toutes les armes sont redessinées en cubes avec des noms originaux (Pétoire, Moucheron, Métronome, Balai, Bétonneuse…) et un niveau de base de 1 à 50 : les plus fortes ne tombent que dans les manches avancées."
+    },
+    {
+     "en": "First-person hands, grenades and the decoy teddy are cubic too.",
+     "fr": "Les mains en vue à la première personne, les grenades et la peluche leurre passent aussi en cubes."
+    },
+    {
+     "en": "New title screen: a cubic lab corridor at night, a cube-letter logo, menus in the game's own style and a new menu music. Open-air rooms get cubic day and night skies.",
+     "fr": "Nouvel écran titre : un couloir de laboratoire en cubes la nuit, un logo en lettres cubiques, des menus au style du jeu et une nouvelle musique de menu. Les salles à ciel ouvert reçoivent des ciels de jour et de nuit en cubes."
+    }
+   ],
+   "title": {
+    "en": "Batter up",
+    "fr": "Au bâton"
+   }
   }
  }
 }
