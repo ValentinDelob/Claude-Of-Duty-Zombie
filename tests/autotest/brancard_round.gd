@@ -66,12 +66,19 @@ func run() -> void:
 	p.input.fire = false
 	var body_dmg := hp_b - b.health
 	at.check(body_dmg > 0, "tirs au corps : %d dégâts" % body_dmg)
-	hp_b = b.health
+	# Tête (point faible) : multiplicateur de tête de l'arme, coup par coup.
+	var head_hits := [0, 0]  # [dégâts d'une touche à la tête, d'une au corps]
+	var on_dmg := func(_pid, zid, dmg, _killed, headshot, _kind):
+		if zid == b.id:
+			head_hits[0 if headshot else 1] = maxi(head_hits[0 if headshot else 1], dmg)
+	game.combat.zombie_damaged.connect(on_dmg)
 	H.aim_at(p, b.head_position())
 	p.input.fire = true
 	await seconds(0.6)
 	p.input.fire = false
-	at.check(hp_b - b.health > body_dmg, "tête (point faible) : %d dégâts (corps : %d)" % [hp_b - b.health, body_dmg])
+	game.combat.zombie_damaged.disconnect(on_dmg)
+	at.check(head_hits[0] > 0 and head_hits[0] >= roundi(WeaponDB.stats("commando").damage * 2.0),
+			"tête (point faible) : %d dégâts par touche (corps : %d au total)" % [head_hits[0], body_dmg])
 	game.zombies.despawn(b.id)
 	await seconds(0.3)
 
@@ -109,6 +116,7 @@ func run() -> void:
 	at.check(ok and pd.health == hp - BrancardRules.CHARGE_DAMAGE, "percuté : %d -> %d PV" % [hp, pd.health])
 	var x0 := p.global_position.x
 	await seconds(0.3)
+	at.check(Array(XpRules.met_types(game.xp.my_ledger)).has(XpRules.BRANCARDIER), "percuté : Brancardier rencontré (codex)")
 	at.check(p.knockbacks == knocks + 1, "joueur projeté (%d)" % (p.knockbacks - knocks))
 	at.check(absf(p.global_position.x - x0) > 0.8 or p.global_position.distance_to(cell(18, 3)) > 1.5, "poussé de %.1f m" % p.global_position.distance_to(cell(18, 3)))
 	ok = await until(func(): return stunned[0], 3.0, "choc contre le mur")

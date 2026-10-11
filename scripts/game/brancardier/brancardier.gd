@@ -273,7 +273,7 @@ func _charge_hits() -> void:
 			continue
 		_hit_this_charge[p.peer_id] = true
 		player_hits += 1
-		game.combat.damage_player(p.peer_id, BrancardRules.CHARGE_DAMAGE, global_position + Vector3.UP * 1.2)
+		game.combat.damage_player(p.peer_id, BrancardRules.CHARGE_DAMAGE, global_position + Vector3.UP * 1.2, self)
 		p.srv_knockback(BrancardRules.knock_velocity(rel, charge_dir), BrancardRules.KNOCK_TIME)
 		charge_hit_player.emit(p.peer_id)
 
@@ -340,7 +340,7 @@ func _attack(delta: float) -> void:
 			var dy := absf(d.y)
 			d.y = 0.0
 			if d.length() < BrancardRules.SMASH_REACH and dy < LEVEL_TOLERANCE:
-				game.combat.damage_player(target.peer_id, BrancardRules.SMASH_DAMAGE, global_position + Vector3.UP * 1.4)
+				game.combat.damage_player(target.peer_id, BrancardRules.SMASH_DAMAGE, global_position + Vector3.UP * 1.4, self)
 	if _state_time >= BrancardRules.SMASH_TIME:
 		_set_state(State.CHASE)
 
