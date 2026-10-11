@@ -361,3 +361,33 @@ func test_texts_fr_en() -> void:
 	for r in GameWeapon.RARITY_NAMES:
 		assert_eq(r.size(), 2, "rareté : nom FR et EN")
 	assert_eq(GameWeapon.RARITY_COLORS.size(), OwnedWeapon.RARITY_KEYS.size())
+
+
+## ÉQUIPER une arme de l'inventaire (choisie deux fois dans le panneau) :
+## première place libre en main, sinon celle de l'arme tenue ; niveau requis.
+func test_equip_target_and_refusal() -> void:
+	var pd := _pd(5)
+	pd.weapons = [GameWeapon.make("m1911"), GameWeapon.make("bat")]
+	pd.bag = [GameWeapon.make("mp40", 2), GameWeapon.make("m14", 9)]
+	assert_eq(InventoryPanel.equip_target(pd), 2, "place libre : la troisième")
+	assert_eq(InventoryPanel.equip_refusal(pd, 0), "", "MP40 niveau 2 : s'équipe")
+	assert_eq(InventoryPanel.equip_refusal(pd, 1), "level", "M14 niveau 9 : niveau requis")
+	assert_eq(InventoryPanel.equip_refusal(pd, 3), "none", "place vide")
+	assert_eq(GameWeapon.swap(pd, InventoryPanel.equip_target(pd), 0), "")
+	assert_eq(pd.weapons.size(), 3)
+	assert_eq(pd.weapons[2].id, "mp40", "MP40 en main")
+	pd.slot = 1
+	assert_eq(InventoryPanel.equip_target(pd), 1, "mains pleines : à la place de l'arme tenue")
+
+
+## Message de ramassage : la touche d'inventaire courante (réaffectable).
+func test_pickup_message_shows_inventory_key() -> void:
+	var was := Settings.language
+	Settings.language = "fr"
+	assert_eq(LootSystem.msg_text(LootSystem.MSG_PICKED, "MP40"), "MP40 rangée dans l'inventaire · %s : équiper" % Settings.action_label("inventory"))
+	Settings.bind("inventory", Settings.key_code(KEY_J))
+	assert_true(LootSystem.msg_text(LootSystem.MSG_PICKED, "MP40").ends_with("J : équiper"), "touche réaffectée")
+	Settings.language = "en"
+	assert_true(LootSystem.msg_text(LootSystem.MSG_PICKED, "MP40").ends_with("J: equip"))
+	Settings.reset_bindings()
+	Settings.language = was

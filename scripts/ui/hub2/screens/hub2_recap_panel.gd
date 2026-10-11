@@ -14,7 +14,7 @@ extends Hub2Panel
 ##   - butin gardé (armes : rendus, NEUF, rareté ; échantillons ×n ; contrat
 ##     prêt ; RIEN DE PERDU) ou perdu (§4.16 : ce qui est perdu) ; carte
 ##     perso : POUR LE FUN, aucune progression ;
-##   - pied : ↻ REJOUER L'ANIMATION, CONTINUER (A) -> LABO (salon coop
+##   - pied : CONTINUER (A) -> LABO (salon coop
 ##     ouvert : JOUER).
 ## A / Entrée pendant l'animation : la termine d'un coup ; ensuite :
 ## CONTINUER. Sons : tic de l'XP (ui_xp_tick), passage de niveau (level_up).
@@ -58,7 +58,6 @@ var flash: ColorRect
 var row_nodes: Array = []  # [Control, délai]
 var unlocked_box: Control
 var continue_button: Hub2Button
-var replay_button: Hub2Button
 var xp_section: Hub2Box
 
 
@@ -153,7 +152,7 @@ func set_model(m: Hub2RecapModel) -> void:
 		hub.focus_later(continue_button)
 
 
-## Rejoue l'animation depuis le début (↻ REJOUER L'ANIMATION).
+## Joue l'animation depuis le début (affichage du récapitulatif).
 func play() -> void:
 	t = 0.0
 	_last_tick = -1.0
@@ -684,7 +683,7 @@ func _note_box(label: String, text: String, label_col: Color, bg: Color, line: C
 	return b
 
 
-## Pied : ↻ REJOUER L'ANIMATION (gauche), CONTINUER A (droite).
+## Pied : CONTINUER A (à droite).
 func _build_footer() -> void:
 	var f := Hub2Ui.hbox(12)
 	f.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -694,11 +693,6 @@ func _build_footer() -> void:
 	f.offset_top = f.offset_bottom - Hub2Style.px(46)
 	f.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	add_child(f)
-	replay_button = Hub2Ui.outline_button(Lang.t("↻ REJOUER L’ANIMATION", "↻ REPLAY THE ANIMATION"), Hub2Style.text_a(0.75),
-			Hub2Style.text_a(0.3), Color(0, 0, 0, 0), 14, 12, 600, 0.14)
-	replay_button.hint = Lang.t("Revoir l’XP grimper.", "Watch the XP climb again.")
-	replay_button.pressed.connect(play)
-	f.add_child(replay_button)
 	f.add_child(Hub2Ui.spring())
 	continue_button = Hub2Button.new()
 	continue_button.box.flat(Hub2Style.YELLOW)
@@ -718,8 +712,6 @@ func _build_footer() -> void:
 	h.add_child(key)
 	continue_button.pressed.connect(go_on)
 	f.add_child(continue_button)
-	replay_button.focus_neighbor_right = replay_button.get_path_to(continue_button)
-	continue_button.focus_neighbor_left = continue_button.get_path_to(replay_button)
 
 
 # --------------------------------------------------------------------------

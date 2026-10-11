@@ -129,8 +129,7 @@ body{margin:0}
     </div>
   </main>
 
-  <footer style="position: absolute; left: 48px; right: 48px; bottom: 18px; display: flex; justify-content: space-between; align-items: center">
-    <button onClick="{{replay}}" style="height: 36px; padding: 0 14px; border: 1px solid rgba(242, 240, 234, 0.3); background: transparent; color: rgba(242, 240, 234, 0.75); font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; cursor: pointer">↻ REJOUER L’ANIMATION</button>
+  <footer style="position: absolute; left: 48px; right: 48px; bottom: 18px; display: flex; justify-content: flex-end; align-items: center">
     <a href="Main.dc.html" style="height: 46px; padding: 0 28px; display: flex; align-items: center; gap: 12px; text-decoration: none; background: #F5C542; color: #0B0B0C; font-family: 'Chakra Petch', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.14em; clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px))">CONTINUER <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; opacity: 0.7">A</span></a>
   </footer>
 </div>
@@ -190,8 +189,7 @@ class Component extends DCLogic {
       barStyle: 'height: 100%; width: ' + pct + '%; background: ' + (levelUp ? '#4FE3C1' : '#F5C542') + '; box-shadow: 0 0 14px ' + (levelUp ? 'rgba(79, 227, 193, 0.7)' : 'rgba(245, 197, 66, 0.6)'),
       badgeClass: levelUp ? 'lvl-pop' : '',
       badgeStyle: 'position: relative; width: 92px; height: 92px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px)); ' + (levelUp ? 'background: #F5C542; color: #0B0B0C' : 'background: rgba(245, 197, 66, 0.12); color: #F5C542; border: 2px solid #F5C542'),
-      lines, weapons, samples,
-      replay: () => this.play()
+      lines, weapons, samples
     };
   }
 }

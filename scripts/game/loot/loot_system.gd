@@ -294,7 +294,7 @@ func _cl_msg(code: String, arg: String) -> void:
 static func msg_text(code: String, arg: String) -> String:
 	match code:
 		MSG_PICKED:
-			return Lang.t("%s rangée dans l'inventaire", "%s stored in your backpack") % arg
+			return Lang.t("%s rangée dans l'inventaire · %s : équiper", "%s stored in your backpack · %s: equip") % [arg, Settings.action_label("inventory")]
 		MSG_BAG_FULL:
 			return Lang.t("Inventaire plein : libérez une place", "Backpack full: free a slot")
 		MSG_NOT_YOURS:

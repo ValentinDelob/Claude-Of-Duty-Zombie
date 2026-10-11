@@ -4,7 +4,7 @@ extends TestCase
 ## passages de niveau (un ou plusieurs, ordre et instants), courbes des
 ## @keyframes (pop, anneaux, éclair, « NIVEAU N ! », lignes), butin gardé /
 ## perdu (§4.16), carte perso (aucune progression), écran réel : A termine
-## l'animation puis CONTINUER, REJOUER, textes FR / EN.
+## l'animation puis CONTINUER, pied avec CONTINUER seul, textes FR / EN.
 
 var _saved := {}
 var _frame: Control
@@ -278,14 +278,16 @@ func test_panel_animation_skip_and_continue() -> void:
 	assert_eq(hub.current_id, "lab", "CONTINUER : LABO")
 
 
-func test_panel_replay_and_back() -> void:
+func test_panel_footer_and_back() -> void:
 	var hub := await _open_recap(mock_last(false))
 	var p: Hub2RecapPanel = hub.panels.recap
 	assert_eq(p.title_text.text, "LA HORDE L’EMPORTE")
+	# Pied : CONTINUER seul (plus de bouton pour rejouer l'animation).
+	var buttons := p.continue_button.get_parent().get_children().filter(func(c): return c is BaseButton)
+	assert_eq(buttons, [p.continue_button], "pied : CONTINUER seul")
+	assert_false(p.find_children("*", "", true, false).any(func(c): return c is Hub2Text and (c as Hub2Text).text.contains("REJOUER")),
+			"aucun « REJOUER L'ANIMATION »")
 	p.finish()
-	p.replay_button.pressed.emit()
-	assert_true(p.animating(), "REJOUER : animation relancée")
-	assert_eq(p.t, 0.0)
 	hub.back()
 	assert_eq(hub.current_id, "lab", "B / Échap : CONTINUER")
 
