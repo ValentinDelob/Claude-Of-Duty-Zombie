@@ -20,6 +20,31 @@ static func port_offset() -> int:
 	return OS.get_environment("AUTOTEST_PORT_OFFSET").to_int()
 
 
+## Salon affiché dans l'onglet PARTIE du hub (HubPlayLobby), null s'il n'est
+## pas à l'écran (le salon n'est plus un écran à part : HUB_PLAN lot E).
+static func lobby_of(sc: AutotestScenario) -> HubPlayLobby:
+	var s := sc.tree().current_scene as MainMenu
+	if s == null or s.current_name != "hub" or not (s.current is HubScreen):
+		return null
+	var p := (s.current as HubScreen).panels.get("play") as HubPlayPanel
+	return p.lobby if p != null and p.view == HubPlayPanel.LOBBY and is_instance_valid(p.lobby) else null
+
+
+## Hôte : HÉBERGER depuis l'onglet PARTIE du hub (vue COOP, port, nom), comme
+## au clavier ; rend le salon affiché (null en cas d'échec).
+static func host_from_hub(sc: AutotestScenario, port: int, nickname := "Hote") -> HubPlayLobby:
+	var menu := sc.tree().current_scene as MainMenu
+	menu.show_screen("hub", {"tab": "play"})
+	await sc.frames(3)
+	var pp := (menu.current as HubScreen).panels.play as HubPlayPanel
+	pp.coop_button.pressed.emit()
+	pp.host_port_edit.text = str(port)
+	pp.name_edit.text = nickname
+	pp.host_button.pressed.emit()
+	await sc.frames(3)
+	return lobby_of(sc)
+
+
 ## « host » ou « client » (d'après le nom du scénario : mp_<test>_host / _client).
 static func side() -> String:
 	return "host" if Autotest.scenario_name.ends_with("_host") else "client"

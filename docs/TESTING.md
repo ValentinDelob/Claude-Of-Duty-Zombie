@@ -133,6 +133,10 @@ par `tools/mp_test.sh <nom>` (sans délai entre les deux), à cadence fixe ×3.
 - Démarrage : `MpHelpers.host_game(self, PORT)` / `MpHelpers.join_game(self, PORT)`
   (le client attend que l'hôte écoute, l'hôte que le client soit au salon ;
   connexion abandonnée : le client réessaie, `MpHelpers.JOIN_TRIES`).
+- Salon : il est dans l'onglet PARTIE du hub (plus d'écran « lobby ») ;
+  `MpHelpers.host_from_hub(self, PORT)` héberge comme au clavier et rend le
+  salon (`HubPlayLobby`), `MpHelpers.lobby_of(self)` le salon affiché (null
+  sinon).
 - Port : unique parmi tous les tests multijoueur (17801 à 17999), toujours
   `+ MpHelpers.port_offset()` (check.sh décale de 1000 par place).
 - **Jamais de délai fixe pour attendre l'autre jeu** : rendez-vous par

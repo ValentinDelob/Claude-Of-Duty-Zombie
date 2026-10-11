@@ -162,10 +162,12 @@ déconnecte.
    et courant repartent de zéro au prochain chargement (les signaux branchés
    par la partie sur les autoloads partent avec ses nœuds).
 3. Le menu (`MainMenu._ready`, état `LOBBY` et session en ligne) ouvre
-   directement l'écran du salon (hôte ou invité), avec le résumé de la
-   partie. L'hôte réannonce la carte du salon : carte perso reprise du cache
-   de chaque invité (empreinte inchangée : aucun renvoi).
-4. L'écran du salon dit au serveur qu'il est revenu
+   directement le hub sur l'onglet PARTIE, qui affiche le salon
+   (`HubPlayLobby`, hôte ou invité) avec le résumé de la partie. La carte du
+   salon est gardée (`Net.lobby_map`) : rien n'est réannoncé ; une carte
+   perso choisie à nouveau est reprise du cache de chaque invité (empreinte
+   inchangée : aucun renvoi).
+4. Le salon dit au serveur qu'il est revenu
    (`report_in_lobby` -> `_srv_in_lobby`, ignoré hors retour ou d'un inconnu).
    Tant qu'un joueur n'est pas revenu, `Net.start_match` refuse et DÉMARRER est
    grisé (« Retour au salon de : … ») : un ordre de chargement ne croise jamais
@@ -248,9 +250,24 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   `select_tab`, `set_hint`, `menu`). LABO : `HubLabPanel` (lecture seule du
   profil ; contrats par `HubContractsView`, tolérant à l'absence du lot A ;
   dernière partie : `Router.last_match`, rempli par `Game._show_match_end`).
-  PARTIE provisoire (`HubPlayStubPanel`, jusqu'au lot E) : SOLO →
-  `map_select`, COOP → `multiplayer` (chemins actuels ; leur retour revient
-  au hub, même onglet : `HubScreen.last_tab`). Widgets : `HubStyle`
+  **PARTIE** (lot E) : `HubPlayPanel` (`play_panel.gd`) — vues SOLO
+  (cartes du jeu et perso, aperçu : `HubPlayView.map_facts` — vagues,
+  porte d'évacuation, échantillons —, armes de départ, contrats « sur cette
+  carte », LANCER : `MainMenu.launch` puis `Router.start_solo`), COOP
+  (héberger : `Net.host` ; rejoindre : `Net.join` ; erreurs sur place :
+  `HubScreen.show_net_error`) et SALON (`HubPlayLobby`, `play_lobby.gd` :
+  joueurs, niveau, armes de départ, état AU SALON / EN RETOUR… / carte,
+  DÉMARRER, CHANGER DE CARTE, QUITTER LE SALON en deux appuis). La vue suit
+  le réseau (`HubPlayPanel.sync` : session ouverte et état `LOBBY` → salon) ;
+  le panneau reste en vie d'un onglet à l'autre (le salon reste ouvert).
+  **Fiche de salon** : `Net.players[pid]` porte `lvl`, `start` (profil local
+  de chacun, `Net.set_lobby_card` / `_srv_set_lobby_card`, bornés par
+  `Net.clean_card`) et `away` (`LobbyReturn` → `Net.srv_mark_away`). Plus
+  d'écrans MULTIJOUEUR, HÉBERGER, REJOINDRE, CONNEXION, SALON ni de choix de
+  carte à part (`MainMenu.SCREENS`). **Retour au hub** : `Router.hub_tab`
+  (« lab » après une partie solo ou un départ en solo, « play » en
+  multijoueur ou après une session perdue), lu par `MainMenu._ready`.
+  Widgets : `HubStyle`
   (palette, polices, `px` / `fs`, dessin des boîtes et barres), `HubBox`,
   `HubButton`, `HubTag`, `HubBar`, `HubRow`, `HubKey`, `HubIcon` (pixel art
   de la maquette). **TAILLE DES MENUS** : `Settings.menu_ui_scale` (80 à
@@ -1549,6 +1566,13 @@ codées (lot A, sans interface, `scripts/game/hub/`) ; écrans à venir (lots B
   depuis `_show_match_end` et `keep_match_xp`) ; au moins
   `min_rounds_for_rotation` manche survécue (`rounds_survived` : relevé
   d'XP ou manche atteinte − 1), sinon purge seulement.
+- `ContractWatch` (`scripts/game/hub/contract_watch.gd`, enfant de `Game`,
+  local, aucun message réseau) : à chaque `LootSystem.loot_changed`,
+  `ContractRules.goals_met(profil, catalogue, échantillons de la partie)` ;
+  un contrat nouvellement couvert affiche une fois `goal_message` sous le
+  compteur d'échantillons du HUD (deux lignes, 7 s, file d'attente) ; un
+  contrat déjà couvert par le profil seul au départ n'est jamais annoncé.
+  Tests : `tests/test_hub_play.gd`, scénario `hub_play`.
 - Tests : `tests/test_hub_data.gd`, `test_contracts.gd`,
   `test_exchanges.gd`, `test_profile.gd` (v1 → v2), scénario `xp_match`
   (tableau tourné une fois).

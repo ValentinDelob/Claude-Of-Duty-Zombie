@@ -9,32 +9,23 @@ func run() -> void:
 	timeout_sec = 90
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu")
 	MpHelpers._clear_sync()
-	var menu: MainMenu = tree().current_scene
-	menu.show_screen("host")
-	await frames(3)
-	var host_screen := menu.current
-	host_screen._port.text = str(PORT)
-	host_screen._name.text = "Hote"
-	host_screen._create()
-	await frames(3)
+	var lobby := await MpHelpers.host_from_hub(self, PORT)
 	at.check(Net.mode == Net.Mode.HOST and GameState.state == GameState.State.LOBBY, "partie hébergée, état LOBBY")
-	at.check(menu.current_name == "lobby", "écran du salon")
+	at.check(lobby != null and lobby.is_host, "salon dans l'onglet PARTIE du hub")
+	if lobby == null:
+		return
 	MpHelpers.signal_peer("ecoute")
 	var ok: bool = await until(func(): return Net.players.size() == 2, 30.0, "arrivée du client")
 	if not ok:
 		return
-	var lobby := menu.current
-	var names := []
 	var read_names := func():
-		names.clear()
-		for l in lobby._list.get_children():
-			names.append(l.text)
-		return names.size() == Net.max_players and names[0].contains("Hote") and names[1].contains("Client")
-	await until(read_names, 3.0, "client dans la liste du salon")
-	at.check(read_names.call(), "liste du salon : %s" % ", ".join(names))
+		var n := lobby.player_lines
+		return n.size() == 2 and n[0].contains("Hote") and n[1].contains("Client") and n[1].contains("NIV.1")
+	await until(read_names, 5.0, "client dans la liste du salon (niveau reçu)")
+	at.check(read_names.call(), "liste du salon : %s" % ", ".join(lobby.player_lines))
 	# Carte de l'hôte : BUNKER K-7 (seule carte du jeu depuis le retrait de
 	# KINO), annoncée au client.
-	at.check(lobby.map_row != null and lobby.map_id == "bunker_k7", "carte par défaut : %s" % lobby.map_id)
+	at.check(lobby.change_button != null and lobby.map_id == "bunker_k7", "carte par défaut : %s" % lobby.map_id)
 	await until(func(): return Net.lobby_map == "bunker_k7", 3.0, "carte BUNKER K-7 annoncée")
 	at.check(Net.lobby_map == "bunker_k7", "carte BUNKER K-7 annoncée (%s)" % Net.lobby_map)
 	await at.screenshot("lobby")

@@ -6,7 +6,7 @@ extends Node
 ##      serveur renvoie TOUT le groupe au salon (`srv_return_all` ->
 ##      `_cl_return` -> Router.back_to_lobby) : la connexion ENet, la liste des
 ##      joueurs, leurs personnages, la carte et les réglages du salon restent ;
-##   2. chaque machine, une fois dans l'écran du salon, le dit au serveur
+##   2. chaque machine, une fois le salon affiché (onglet PARTIE du hub), le dit au serveur
 ##      (`report_in_lobby` -> `_srv_in_lobby`) ; tant qu'un joueur n'est pas
 ##      revenu, le serveur refuse de relancer (`can_start`, bouton DÉMARRER
 ##      grisé avec la raison) : un ordre de chargement ne croise jamais un
@@ -23,6 +23,12 @@ signal changed
 
 ## Serveur : joueurs pas encore revenus au salon (pid -> true).
 var away: Dictionary = {}
+
+
+func _ready() -> void:
+	# Serveur : l'état de chacun (AU SALON / EN RETOUR…) part avec le registre
+	# des joueurs, pour le salon de l'onglet PARTIE du hub de tout le groupe.
+	changed.connect(func(): Net.srv_mark_away(away))
 
 
 ## Oubli complet (fin de session : Net._reset_peer).
@@ -83,7 +89,7 @@ func _srv_in_lobby() -> void:
 
 # ------------------------------------------------------------------ toutes les machines
 
-## Écran du salon affiché : on le dit au serveur (sans effet hors retour).
+## Salon affiché (HubPlayLobby) : on le dit au serveur (sans effet hors retour).
 func report_in_lobby() -> void:
 	if Net.is_online():
 		_srv_in_lobby.rpc_id(1)

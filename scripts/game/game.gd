@@ -92,6 +92,8 @@ var vox: VoxSystem
 var loot: LootSystem
 ## XP de la partie, comptée par le serveur (chemin réseau : /root/Game/Xp).
 var xp: XpSystem
+## Surveillance locale des contrats actifs (aucun message réseau, D12).
+var contract_watch: ContractWatch
 ## Porte d'évacuation (null : carte sans porte, aucune évacuation possible).
 var evac: EvacDoor
 ## Station de construction (null : carte sans station, rien à construire).
@@ -131,6 +133,10 @@ func _ready() -> void:
 	xp = XpSystem.new()
 	xp.name = "Xp"
 	add_child(xp)
+	# Contrats actifs du joueur local : message « objectif atteint » (D13).
+	contract_watch = ContractWatch.new()
+	contract_watch.name = "ContractWatch"
+	add_child(contract_watch)
 	spectator = SpectatorCamera.new()
 	spectator.name = "Spectator"
 	spectator.setup(self)
@@ -268,7 +274,8 @@ func _on_session_ended(reason: String) -> void:
 	print("[Game] session terminée : " + reason)
 	# Hôte perdu en cours de partie : l'XP déjà gagnée est gardée (§4.15).
 	keep_match_xp()
-	Router.back_to_menu(reason)
+	# Retour au hub, onglet PARTIE (pour héberger ou rejoindre à nouveau).
+	Router.back_to_menu(reason, "play")
 
 
 # --------------------------------------------------------------------------
@@ -514,9 +521,13 @@ func _return_to_lobby() -> void:
 	Net.lobby_return.srv_return_all()
 
 
+## Solo : retour au hub, onglet LABO (« DERNIÈRE PARTIE » y résume la partie,
+## HUB_PLAN §2) ; partie lancée par TESTER : retour à l'éditeur, qui affiche
+## le résumé.
 func _leave_after_game_over(r: MatchResult) -> void:
-	Router.back_to_menu((Lang.t("Évacuation réussie — ", "Evacuated — ") if r.evacuated
-			else Lang.t("Partie terminée — ", "Game over — ")) + r.summary())
+	var summary := (Lang.t("Évacuation réussie — ", "Evacuated — ") if r.evacuated
+			else Lang.t("Partie terminée — ", "Game over — ")) + r.summary()
+	Router.back_to_menu(summary if Router.return_scene != "" else "", "lab")
 
 
 ## Serveur : les joueurs morts reviennent au début de chaque manche, avec

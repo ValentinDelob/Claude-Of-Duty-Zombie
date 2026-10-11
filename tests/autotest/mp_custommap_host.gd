@@ -55,21 +55,15 @@ func run() -> void:
 	share.test_chunk_size = 1024
 	share.test_chunks_per_sec = 1.2
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu")
-	var menu: MainMenu = tree().current_scene
-	menu.show_screen("host")
-	await frames(3)
-	menu.current._port.text = str(PORT)
-	menu.current._name.text = "Hote"
 	MpHelpers._clear_sync()
-	menu.current._create()
-	await frames(3)
-	var lobby = menu.current
-	at.check(menu.current_name == "lobby", "salon de l'hôte")
+	var lobby := await MpHelpers.host_from_hub(self, PORT)
+	at.check(lobby != null, "salon de l'hôte (onglet PARTIE du hub)")
+	if lobby == null:
+		return
 	var idx: int = lobby.map_ids.find("perso:arene_perso")
 	at.check(idx >= Game.MENU_MAPS.size(), "carte perso proposée dans le salon (%d)" % idx)
-	# ► jusqu'à la carte perso (comme au clavier).
-	while lobby.map_row.index() != idx:
-		lobby.map_row.nudge(1)
+	# CHANGER DE CARTE : la carte perso, comme au clavier.
+	at.check(lobby.choose_map("perso:arene_perso"), "carte perso choisie")
 	var sha: String = share.offer.get("sha", "")
 	at.check(Net.lobby_map == EditorMapDef.SHARED_PREFIX + sha and CustomMapGuard.is_cached(sha), "carte annoncée « partage:%s », dans le cache de l'hôte" % sha.substr(0, 12))
 	at.check(share.offer.chunks >= 3, "carte en %d morceaux" % share.offer.chunks)
@@ -80,7 +74,7 @@ func run() -> void:
 			"carte envoyée au format %d, sur la grille (plafond %s)" % [sent.format_read, EditorMap.room_ceiling(sent.find("p3"))])
 	# Le fichier du joueur n'est pas réécrit par le salon.
 	at.check(FileAccess.get_file_as_string(cpath).contains("\"format\": 19"), "carte du dossier non réécrite")
-	at.check(not lobby._start.disabled, "seul dans le salon : DÉMARRER possible")
+	at.check(not lobby.start_button.disabled, "seul dans le salon : DÉMARRER possible")
 	# Carte choisie : l'invité peut arriver.
 	MpHelpers.signal_peer("ecoute")
 	# L'invité arrive : il reçoit la carte.
@@ -89,15 +83,15 @@ func run() -> void:
 	if not await until(func(): return _client_state().get("etat") == "telechargement" and int(_client_state().get("pct", 0)) >= 40, 20.0, "téléchargement en cours"):
 		return
 	await frames(2)
-	at.check(lobby._start.disabled and lobby._status.text != "", "DÉMARRER grisé pendant le téléchargement : « %s »" % lobby._status.text)
+	at.check(lobby.start_button.disabled and lobby.status_text() != "", "DÉMARRER grisé pendant le téléchargement : « %s »" % lobby.status_text())
 	at.check(not Net.start_match(Net.lobby_map) and not Net.match_started, "lancement refusé tant que l'invité n'a pas la carte")
-	var line: String = lobby._list.get_child(1).text if lobby._list.get_child_count() > 1 else ""
+	var line: String = lobby.player_lines[1] if lobby.player_lines.size() > 1 else ""
 	at.check(line.contains("%"), "état de l'invité dans le salon : « %s »" % line)
 	await at.screenshot("salon")
 	if not await until(func(): return _client_state().get("etat") == "prete", 30.0, "invité prêt"):
 		return
 	await frames(2)
-	at.check(not lobby._start.disabled, "DÉMARRER possible quand tout le monde a la carte")
+	at.check(not lobby.start_button.disabled, "DÉMARRER possible quand tout le monde a la carte")
 	at.check(share.sent_chunks == share.offer.chunks, "envoyée une fois (%d morceaux)" % share.sent_chunks)
 	share.test_chunks_per_sec = 0.0
 	await seconds(1.0)
@@ -115,7 +109,7 @@ func run() -> void:
 	at.check(_client_state().get("raison") == "hash", "raison : empreinte SHA-256 (%s)" % _client_state().get("raison"))
 	at.check(not Net.start_match(Net.lobby_map) and not Net.match_started, "partie non démarrée (carte corrompue)")
 	await frames(2)
-	at.check(lobby._start.disabled, "DÉMARRER grisé : « %s »" % lobby._status.text)
+	at.check(lobby.start_button.disabled, "DÉMARRER grisé : « %s »" % lobby.status_text())
 
 	# 2. Empreinte juste mais contenu interdit (type d'objet inconnu, chemin).
 	var texts := m.file_texts()
@@ -132,7 +126,7 @@ func run() -> void:
 
 	# 3. Retour à la bonne carte : reprise du cache de l'invité, sans envoi.
 	var before := share.sent_chunks
-	at.check(lobby._apply_map("perso:arene_perso"), "carte perso annoncée à nouveau")
+	at.check(lobby.apply_map("perso:arene_perso"), "carte perso annoncée à nouveau")
 	at.check(share.offer.sha == sha, "même empreinte")
 	if not await until(func(): return _client_state().get("etat") == "prete", 20.0, "invité prêt (cache)"):
 		return

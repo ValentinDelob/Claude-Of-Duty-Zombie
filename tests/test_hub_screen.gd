@@ -106,7 +106,7 @@ func test_seven_tabs_in_order() -> void:
 	assert_eq(hub.panels.size(), 7, "un panneau par onglet")
 	assert_true(hub.panels.lab is HubLabPanel, "LABO : panneau du lot B")
 	assert_true(hub.panels.arsenal is HubArsenalPanel, "ARSENAL : panneau du lot C")
-	assert_true(hub.panels.play is HubPlayStubPanel, "PARTIE : solo / coop provisoires")
+	assert_true(hub.panels.play is HubPlayPanel, "PARTIE : panneau du lot E")
 	Settings.language = "en"
 	assert_eq(HubScreen.tab_label("loadout"), "LOADOUT")
 
@@ -135,7 +135,7 @@ func test_initial_focus_per_tab() -> void:
 	assert_eq(fo, hub.panels.lab.contracts_button, "LABO : focus sur VOIR LES CONTRATS")
 	hub.select_tab("play")
 	await wait_frames(2)
-	assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.panels.play.solo_button, "PARTIE : focus sur SOLO")
+	assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.panels.play.launch_button, "PARTIE : focus sur LANCER LA PARTIE")
 	# Onglets réels des lots C et D : leur premier élément utile, jamais rien.
 	for id in ["arsenal", "parts", "contracts", "exchanges", "loadout"]:
 		hub.select_tab(id)
@@ -145,10 +145,10 @@ func test_initial_focus_per_tab() -> void:
 		assert_eq(hub.get_viewport().gui_get_focus_owner(), want, "%s : premier élément utile" % id)
 	assert_eq(hub.panels.arsenal.first_focus(), hub.panels.arsenal.rows[0], "ARSENAL : première ligne de la liste")
 	assert_eq(hub.panels.parts.first_focus(), hub.panels.parts.rows[0], "PIÈCES : première pièce en stock")
-	# Onglet encore « à venir » (s'il en reste ; PARTIE provisoire exclu) :
+	# Onglet encore « à venir » (s'il en reste) :
 	# RETOUR AU LABO.
 	for id in HubScreen.TABS:
-		if hub.panels[id] is HubPlaceholderPanel and not hub.panels[id] is HubPlayStubPanel:
+		if hub.panels[id] is HubPlaceholderPanel:
 			hub.select_tab(id)
 			await wait_frames(2)
 			assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.panels[id].back_button, "onglet à venir : RETOUR AU LABO")
@@ -183,13 +183,6 @@ func test_hub_menu_screens() -> void:
 	hub.open_screen("career")
 	hub.to_title()
 	assert_eq(_host.shown, ["options", "career", "main"])
-
-
-func test_play_stub_uses_current_screens() -> void:
-	var hub := await _open("play")
-	hub.panels.play.solo_button.pressed.emit()
-	hub.panels.play.coop_button.pressed.emit()
-	assert_eq(_host.shown, ["map_select", "multiplayer"], "SOLO -> sélection de carte, COOP -> MULTIJOUEUR")
 
 
 func test_prompts_keyboard_and_pad() -> void:
@@ -252,10 +245,10 @@ func test_scale_change_rebuilds() -> void:
 
 
 func test_register_panel() -> void:
-	HubScreen.register_panel("parts", HubPlayStubPanel)
-	assert_eq(HubScreen.panel_script("parts"), HubPlayStubPanel)
+	HubScreen.register_panel("parts", HubLabPanel)
+	assert_eq(HubScreen.panel_script("parts"), HubLabPanel)
 	var hub := await _open("parts")
-	assert_true(hub.panels.parts is HubPlayStubPanel, "panneau enregistré utilisé")
+	assert_true(hub.panels.parts is HubLabPanel, "panneau enregistré utilisé")
 	assert_eq(hub.panels.parts.tab_id, "parts")
 	assert_true(hub.panels.parts.hub == hub)
 	HubScreen.register_panel("parts", null)

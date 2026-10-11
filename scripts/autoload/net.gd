@@ -39,7 +39,9 @@ var mode: Mode = Mode.NONE
 var max_players := DEFAULT_MAX_PLAYERS
 var port := DEFAULT_PORT
 var server_address := ""
-## peer_id -> { "name": String, "slot": int }
+## peer_id -> { "name": String, "slot": int, "lvl": int, "start": PackedStringArray,
+## "away": bool } (fiche de salon : niveau et armes de départ venus du profil
+## de chaque joueur ; « away » : pas encore revenu au salon, LobbyReturn).
 var players: Dictionary = {}
 ## Le serveur refuse les nouveaux arrivants une fois la partie lancée.
 var match_started := false
@@ -114,6 +116,7 @@ func host(host_port: int, wanted_max_players: int, nickname: String) -> Error:
 	port = host_port
 	max_players = clampi(wanted_max_players, 1, MAX_SUPPORTED_PLAYERS)
 	players = {1: {"name": _clean_name(nickname), "slot": 0}}
+	players[1].merge(_local_card(), true)
 	match_started = false
 	print("[Net] serveur hébergé sur le port %d (max %d joueurs)" % [port, max_players])
 	players_changed.emit()
@@ -529,6 +532,9 @@ func _cl_welcome(server_max_players: Variant) -> void:
 	_handshake_done = true
 	max_players = clampi(int(server_max_players), 1, MAX_SUPPORTED_PLAYERS) if server_max_players is int else DEFAULT_MAX_PLAYERS
 	print("[Net] accepté par le serveur")
+	# Fiche de salon (niveau, armes de départ) : message à part, après le
+	# bonjour (même canal fiable).
+	_publish_card()
 	joined_server.emit()
 
 
@@ -576,7 +582,78 @@ static func clean_players(v: Variant) -> Dictionary:
 		var n: Variant = p.get("name", "")
 		var s: Variant = p.get("slot", 0)
 		out[pid] = {"name": _clean_name(n if n is String else "", 24), "slot": clampi(int(s) if (s is int or s is float) else 0, 0, MAX_SUPPORTED_PLAYERS - 1)}
+		# Fiche de salon (facultative : un hôte d'avant ne l'envoie pas).
+		if p.has("lvl"):
+			out[pid].merge(clean_card(p.get("lvl"), p.get("start")), true)
+		if p.get("away") is bool:
+			out[pid]["away"] = p.away
 	return out
+
+
+# --------------------------------------------------------------------------
+# Fiche de salon : niveau et armes de départ de chaque joueur (onglet PARTIE
+# du hub, docs/HUB_PLAN.md §3.7). Venues du profil LOCAL de chacun (non
+# vérifiables par l'hôte : affichage seulement), bornées.
+# --------------------------------------------------------------------------
+
+## Fiche du joueur local {lvl, start} ({} : lue du profil au premier envoi).
+var local_card: Dictionary = {}
+var _card_limit := NetGuard.Limiter.new(2.0, 6.0)
+
+
+## Fiche bornée : niveau 1 à PlayerProfile.MAX_LEVEL, armes de base seulement.
+static func clean_card(lvl: Variant, ids: Variant) -> Dictionary:
+	if ids is Array or ids is PackedStringArray:
+		ids = ids.slice(0, 8)
+	return {"lvl": ProfileValues.to_int(lvl, 1, 1, PlayerProfile.MAX_LEVEL), "start": BaseWeapons.clean_selection(ids)}
+
+
+## Le profil local a changé (hub) : nouvelle fiche, envoyée au salon.
+func set_lobby_card(lvl: int, start: PackedStringArray) -> void:
+	local_card = clean_card(lvl, start)
+	_publish_card()
+
+
+func _local_card() -> Dictionary:
+	if local_card.is_empty():
+		var pr := ProfileStore.load_profile()
+		local_card = clean_card(pr.level(), pr.starting_weapons)
+	return local_card
+
+
+## Hôte : sa fiche dans le registre, diffusée ; invité accepté : envoyée à l'hôte.
+func _publish_card() -> void:
+	var c := _local_card()
+	match mode:
+		Mode.HOST:
+			if players.has(1):
+				players[1].merge(c, true)
+				_cl_players.rpc(players)
+		Mode.CLIENT:
+			if _handshake_done:
+				_srv_set_lobby_card.rpc_id(1, c.lvl, Array(c.start))
+
+
+## Serveur : fiche de salon d'un joueur accepté. Nom trié APRÈS les RPC
+## existants de Net (comme _srv_set_character) : les numéros des RPC d'avant
+## ne changent pas.
+@rpc("any_peer", "reliable")
+func _srv_set_lobby_card(lvl: Variant, ids: Variant) -> void:
+	var pid := NetGuard.server_sender(self, _card_limit)
+	if pid == NetGuard.NO_SENDER or not players.has(pid):
+		return
+	players[pid].merge(clean_card(lvl, ids), true)
+	_cl_players.rpc(players)
+
+
+## Serveur : marque les joueurs pas encore revenus au salon (LobbyReturn) et
+## diffuse le registre (état AU SALON / EN RETOUR… dans le salon de chacun).
+func srv_mark_away(away: Dictionary) -> void:
+	if mode != Mode.HOST or not multiplayer.is_server():
+		return
+	for pid in players:
+		players[pid]["away"] = away.has(pid)
+	_cl_players.rpc(players)
 
 
 # --------------------------------------------------------------------------

@@ -9,7 +9,9 @@ extends Control
 var hub: Node
 var buttons: Array[HubButton] = []
 var resume_button: HubButton
+var title_button: HubButton
 var panel: HubBox
+var _title_armed := false
 
 signal closed
 
@@ -37,7 +39,7 @@ func _ready() -> void:
 			Lang.t("Commandes, affichage, son, taille des menus.", "Controls, display, sound, menu size."))
 	_add(v, Lang.t("DOSSIER DE COMBAT", "COMBAT RECORD"), func(): hub.open_screen("career"), HubButton.NORMAL,
 			Lang.t("Vos statistiques de survie, partie après partie.", "Your survival stats, game after game."))
-	_add(v, Lang.t("ÉCRAN TITRE", "TITLE SCREEN"), func(): hub.to_title(), HubButton.NORMAL,
+	title_button = _add(v, Lang.t("ÉCRAN TITRE", "TITLE SCREEN"), _on_title, HubButton.NORMAL,
 			Lang.t("Revenir au menu titre.", "Back to the title menu."))
 	_add(v, Lang.t("QUITTER LE JEU", "QUIT GAME"), func(): hub.quit_game(), HubButton.DANGER,
 			Lang.t("Retour à la surface.", "Back to the surface."))
@@ -61,7 +63,28 @@ func _add(v: VBoxContainer, t: String, cb: Callable, kind: String, hint: String)
 	return b
 
 
+## ÉCRAN TITRE : en coop (salon ouvert), deux appuis — le premier demande
+## confirmation (la session sera quittée, HUB_PLAN §2).
+func _on_title() -> void:
+	if Net.is_online() and not _title_armed:
+		_title_armed = true
+		title_button.label = Lang.t("CONFIRMER : QUITTER LE SALON", "CONFIRM: LEAVE THE LOBBY")
+		title_button.kind = HubButton.DANGER
+		hub.set_hint(Lang.t("Le groupe continue sans vous ; appuyez encore pour revenir au menu titre.",
+				"The group goes on without you; press again to go back to the title menu."))
+		return
+	hub.to_title()
+
+
+func _disarm_title() -> void:
+	_title_armed = false
+	if title_button:
+		title_button.label = Lang.t("ÉCRAN TITRE", "TITLE SCREEN")
+		title_button.kind = HubButton.NORMAL
+
+
 func open() -> void:
+	_disarm_title()
 	visible = true
 	resume_button.grab_focus.call_deferred()
 
@@ -70,6 +93,7 @@ func close() -> void:
 	if not visible:
 		return
 	visible = false
+	_disarm_title()
 	closed.emit()
 
 
