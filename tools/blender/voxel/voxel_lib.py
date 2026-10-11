@@ -29,6 +29,8 @@
 #     sont fusionnées en rectangles (balayage glouton) : moins de triangles ;
 #   - matériaux nommés comme ZombieGlb.MATS : skin, eye, cloth, leather, metal,
 #     wound, bone (la matière du shader des zombies) ; l'œil est émissif ;
+#     « team » : zone de COULEUR D'ÉQUIPE du joueur (faces peintes en gris,
+#     teintées en jeu par la couleur du joueur, player_voxel.gdshader) ;
 #   - matières du DÉCOR (DECOR_MATERIALS : wood, stone, concrete, fabric,
 #     rubber, glass, glow) : dans le jeu, un décor cubique n'a qu'un matériau
 #     (« voxel », couleur de face telle quelle, MeshMapBuilder) ; la matière ne
@@ -52,7 +54,7 @@ CUBE_CHAR = 0.025
 CUBE_DECOR = 0.05
 # Compatibilité : pas par défaut (décor).
 CUBE = CUBE_DECOR
-MATERIALS = ("skin", "eye", "cloth", "leather", "metal", "wound", "bone",
+MATERIALS = ("skin", "eye", "cloth", "leather", "metal", "wound", "bone", "team",
              "wood", "stone", "concrete", "fabric", "rubber", "glass", "glow")
 # Matières propres au décor (aperçus Blender ; « glow » : faces émissives).
 DECOR_MATERIALS = ("wood", "stone", "concrete", "fabric", "rubber", "glass", "glow")
