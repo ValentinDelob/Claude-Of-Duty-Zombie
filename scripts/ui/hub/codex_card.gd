@@ -14,18 +14,20 @@ var id := ""
 var known := false
 
 
-static func make(e: Dictionary, pr: PlayerProfile, is_new: bool) -> HubCodexCard:
-	var c := HubCodexCard.new(CARD_H, true, 6.0)
-	c.id = String(e.id)
-	c.known = pr != null and pr.codex.is_known(c.id)
-	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	c.click_activates = false
-	c.box.alignment = BoxContainer.ALIGNMENT_BEGIN
-	if c.known:
-		c._build_known(e, pr, is_new)
+## Remplit une fiche neuve (HubCodexCard.new(HubCodexCard.CARD_H, true, 6.0)).
+## Pas de fabrique statique : une méthode statique qui nomme sa propre classe
+## garde tout le graphe de scripts chargé à la sortie (fuite vue par le check).
+func fill(e: Dictionary, pr: PlayerProfile, is_new: bool) -> void:
+	id = String(e.id)
+	known = pr != null and pr.codex.is_known(id)
+	size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	click_activates = false
+	box.alignment = BoxContainer.ALIGNMENT_BEGIN
+	if known:
+		_build_known(e, pr, is_new)
 	else:
-		c._build_unknown(e)
-	return c
+		_build_unknown(e)
+
 
 
 func _build_known(e: Dictionary, pr: PlayerProfile, is_new: bool) -> void:

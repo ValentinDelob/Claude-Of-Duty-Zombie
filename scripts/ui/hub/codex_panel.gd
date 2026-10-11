@@ -64,7 +64,8 @@ func _fill() -> void:
 		var is_known := pr != null and pr.codex.is_known(id)
 		if is_known:
 			known += 1
-		var card := HubCodexCard.make(e, pr, _seen_now.has(id) or (pr != null and pr.codex.is_new(id)))
+		var card := HubCodexCard.new(HubCodexCard.CARD_H, true, 6.0)
+		card.fill(e, pr, _seen_now.has(id) or (pr != null and pr.codex.is_new(id)))
 		card.chosen.connect(_on_card_chosen.bind(card))
 		_grid.add_child(card)
 		cards.append(card)
