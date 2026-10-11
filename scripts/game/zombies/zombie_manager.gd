@@ -14,6 +14,7 @@ const SNAPSHOT_RATE := 15.0
 const KIND_ZOMBIE := 0
 const KIND_DOG := 1
 const KIND_BRANCARDIER := 2
+const KIND_SURGEON := 3
 
 signal zombie_spawned(z: Zombie)
 signal zombie_removed(zid: int)
@@ -184,7 +185,7 @@ func kill_flung(zid: int, vel: Vector3) -> void:
 ## fiable part avant _cl_die (ordre garanti). `hit_at` : point d'impact
 ## (Vector3.INF si inconnu), `weapon_id` : arme du tir ("" sinon).
 func srv_gib(z: Zombie, dmg: int, killed: bool, headshot: bool, kind: int, hit_at: Vector3, weapon_id: String, dir: Vector3) -> void:
-	if not multiplayer.is_server() or z == null or z is Hellhound or z is Brancardier:
+	if not multiplayer.is_server() or z == null or z is Hellhound or z is Brancardier or z is Surgeon:
 		return
 	var limb := ZombieGibs.limb_at(z, hit_at) if hit_at != Vector3.INF else ZombieGibs.TORSO
 	var wclass: String = WeaponDB.stats(weapon_id).get("class", "") if weapon_id != "" else ""
@@ -253,7 +254,7 @@ func build_snapshot() -> PackedByteArray:
 func _cl_spawn(zid: int, pos: Vector3, yaw: float, variant: int, speed_class: int, kind: int) -> void:
 	if zombies.has(zid):
 		return
-	var z: Zombie = Hellhound.new() if kind == KIND_DOG else (Brancardier.new() if kind == KIND_BRANCARDIER else Zombie.new())
+	var z: Zombie = Hellhound.new() if kind == KIND_DOG else (Brancardier.new() if kind == KIND_BRANCARDIER else (Surgeon.new() if kind == KIND_SURGEON else Zombie.new()))
 	z.setup(zid, variant, speed_class, multiplayer.is_server())
 	z.yaw = yaw
 	add_child(z)
@@ -267,7 +268,7 @@ func _cl_spawn(zid: int, pos: Vector3, yaw: float, variant: int, speed_class: in
 		_net_fresh[zid] = NetCodec.FRESH_FULL
 	zombie_spawned.emit(z)
 	if kind != KIND_ZOMBIE:
-		return  # Chien tapi puis jaillissant (Hellhound), Brancardier qui arrive à pied.
+		return  # Chien tapi puis jaillissant (Hellhound), Brancardier et Chirurgien qui arrivent à pied.
 	# Les zombies des fenêtres (BarricadeSystem) ne sortent pas du sol.
 	if z.state == Zombie.State.EMERGE:
 		if game:

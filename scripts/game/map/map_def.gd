@@ -62,11 +62,11 @@ var teleporter_kill_radius := 0.0
 ## (ambient_color, ambient_energy, fog_color, fog_density, saturation...).
 var look: Dictionary = {}
 ## Schéma des vagues spéciales et de boss (WaveRules ; défaut : spéciale
-## toutes les 5 manches, boss toutes les 15). Cartes de l'éditeur : clé
-## « vagues » de carte.json (format 18).
+## toutes les 5 manches, boss toutes les 15 : le Chirurgien). Cartes de
+## l'éditeur : clé « vagues » de carte.json (format 18 ; types de boss :
+## format 22). Carte sans boss : « premiere » 0 dans « boss »
+## (WaveRules.has_boss).
 var waves: Dictionary = WaveRules.default_schedule()
-## Boss de la carte ("" : aucun ; une vague de boss ne fait alors rien).
-var boss := ""
 
 
 func player_spawn_marker() -> String:

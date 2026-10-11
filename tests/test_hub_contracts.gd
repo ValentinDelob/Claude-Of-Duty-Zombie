@@ -384,7 +384,7 @@ func test_exchange_rows_like_mockup() -> void:
 	var p: HubExchangesPanel = hub.panels.exchanges
 	assert_true(p is HubExchangesPanel)
 	assert_eq(Array(p.order), ["fang_trim", "fur_padding", "collar_strap", "sharpened_fangs", "pack_weapon",
-		"leather_sling", "tagged_sights"])
+		"leather_sling", "tagged_sights", "scalpel_edge", "pacemaker"])
 	assert_eq(p.rows.fang_trim.button.label, "IL MANQUE 1 TOUFFE")
 	assert_eq(p.rows.fur_padding.button.label, "IL MANQUE 4 TOUFFES")
 	assert_eq(p.rows.collar_strap.button.label, "ÉCHANGER")
@@ -436,7 +436,7 @@ func test_exchange_cancel_and_filter() -> void:
 	assert_true(p.chip_tradable.on and not p.chip_all.on)
 	p.toggle_filter()
 	await wait_frames(2)
-	assert_eq(p.order.size(), 7)
+	assert_eq(p.order.size(), 9)
 
 
 # --------------------------------------------------------------------------

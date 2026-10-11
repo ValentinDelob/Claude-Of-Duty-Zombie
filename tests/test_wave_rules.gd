@@ -84,7 +84,8 @@ func test_carte_integree_par_defaut() -> void:
 	for id in ["bunker_k7", "test_arena", "test_levels", "draft_arena"]:
 		var d := Game.make_map_def(id)
 		assert_true(WaveRules.is_default(d.waves), "%s : schéma par défaut" % id)
-		assert_eq(d.boss, "", "%s : aucun boss" % id)
+		assert_true(WaveRules.has_boss(d.waves), "%s : le Chirurgien toutes les 15 manches" % id)
+		assert_eq(WaveRules.boss_type_at(d.waves, 15), WaveRules.CHIRURGIEN)
 
 
 ## Format 21 : plusieurs types de vagues spéciales, en rotation.

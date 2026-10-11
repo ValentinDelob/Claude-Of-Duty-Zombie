@@ -32,6 +32,10 @@ const LEVEL_BELOW := 6
 const LEVEL_ABOVE := 2
 ## Probabilités des raretés (%), dans l'ordre de OwnedWeapon.Rarity.
 const RARITY_WEIGHTS := [60.0, 20.0, 12.5, 5.0, 2.5]
+## Vague de boss (provisoire, GAME_CONCEPT §6 bis) : butin plus rare que
+## celui d'un mini-boss (commune 40 %, rare 27 %, épique 20 %, légendaire
+## 9 %, unique 4 %).
+const RARITY_WEIGHTS_BOSS := [40.0, 27.0, 20.0, 9.0, 4.0]
 
 const PART_CHANCE := 0.05
 const PART_LEVEL_BELOW := 10
@@ -50,7 +54,11 @@ const SAMPLES := {
 		["dog_collar", "COLLIER", "COLLAR"]],
 	"brancardier": [["brancard_strap", "SANGLE DE CUIR", "LEATHER STRAP"],
 		["brancard_bracelet", "BRACELET D'IDENTIFICATION", "ID BRACELET"]],
+	"surgeon": [["surgeon_scalpel", "SCALPEL", "SCALPEL"], ["surgeon_heart", "CŒUR MUTANT", "MUTANT HEART"]],
 }
+## Le boss lui-même (le Chirurgien, pas son escorte) : chance de chaque sorte
+## pour chaque joueur (provisoire : à coup sûr, son trophée).
+const BOSS_SAMPLE_CHANCE := 1.0
 ## Noms des modificateurs affichés [FR, EN].
 const MOD_NAMES := {
 	"damage": ["dégâts", "damage"], "fire_rate": ["cadence", "fire rate"],
@@ -99,30 +107,38 @@ static func roll_weapon_level(round_n: int, base: int, rng: RandomNumberGenerato
 	return clampi(raw, r.x, r.y)
 
 
-## Rareté pour un tirage `x` dans [0, 100[ (pure).
-static func rarity_for(x: float) -> int:
+## Rareté pour un tirage `x` dans [0, 100[ (pure), selon `weights`
+## (RARITY_WEIGHTS ; vague de boss : RARITY_WEIGHTS_BOSS).
+static func rarity_for(x: float, weights: Array = RARITY_WEIGHTS) -> int:
 	var acc := 0.0
-	for i in RARITY_WEIGHTS.size():
-		acc += RARITY_WEIGHTS[i]
+	for i in weights.size():
+		acc += float(weights[i])
 		if x < acc:
 			return i
-	return RARITY_WEIGHTS.size() - 1
+	return weights.size() - 1
 
 
-static func roll_rarity(rng: RandomNumberGenerator) -> int:
-	return rarity_for(rng.randf() * 100.0)
+## Probabilités des raretés d'une vague du type `wave` (WaveRules.BOSS :
+## plus rares).
+static func rarity_weights(wave := "") -> Array:
+	return RARITY_WEIGHTS_BOSS if wave == WaveRules.BOSS else RARITY_WEIGHTS
 
 
-## Arme de partie trouvée à la manche `round_n` (identifiant d'exemplaire `uid`).
+static func roll_rarity(rng: RandomNumberGenerator, wave := "") -> int:
+	return rarity_for(rng.randf() * 100.0, rarity_weights(wave))
+
+
+## Arme de partie trouvée à la manche `round_n` (identifiant d'exemplaire `uid`)
+## sur une vague du type `wave` (vague de boss : raretés plus hautes).
 ## Seules les armes dont le niveau de base est atteignable à cette manche
 ## (manche + 2) sont tirées : une arme de niveau de base 40 ne tombe pas à
 ## la manche 5.
-static func roll_weapon(round_n: int, rng: RandomNumberGenerator, uid := "") -> Dictionary:
+static func roll_weapon(round_n: int, rng: RandomNumberGenerator, uid := "", wave := "") -> Dictionary:
 	var pool := weapon_pool(weapon_level_range(round_n).y)
 	if pool.is_empty():
 		pool = weapon_pool()
 	var id := pool[rng.randi_range(0, pool.size() - 1)]
-	return GameWeapon.make(id, roll_weapon_level(round_n, WeaponDB.base_level(id), rng), roll_rarity(rng), [], uid)
+	return GameWeapon.make(id, roll_weapon_level(round_n, WeaponDB.base_level(id), rng), roll_rarity(rng, wave), [], uid)
 
 
 ## Bornes du niveau d'une pièce trouvée par un joueur de niveau `player_level`.

@@ -49,9 +49,15 @@ const DOG := "dog"
 ## d'un zombie de la manche -> 40 XP (méthode, docs/XP_RULES.md §6), +50 % de
 ## dangerosité (charge qui projette, coup des deux poings) -> 60.
 const BRANCARDIER := "brancardier"
-## Valeurs de référence des catégories (point de départ d'un nouveau mob ;
-## aucun boss n'existe encore) : un nouveau mini-boss ou boss aura son
-## propre identifiant, avec cette valeur comme point de départ.
+## Le Chirurgien (boss, SurgeonRules ; identifiant du codex « surgeon ») :
+## 30 fois les PV d'un zombie de la manche -> 120 XP (méthode,
+## docs/XP_RULES.md §6), +50 % de dangerosité (combo au scalpel, scalpels
+## lancés, onde de choc, patients relevés) -> 180, +1/3 de rareté (un seul,
+## une vague sur trois en rotation, toutes les 15 manches) -> 240.
+const SURGEON := "surgeon"
+## Valeurs de référence des catégories (point de départ d'un nouveau mob) :
+## un nouveau mini-boss ou boss aura son propre identifiant, avec cette
+## valeur comme point de départ.
 const MINIBOSS_GENERIC := "miniboss"
 const BOSS_GENERIC := "boss"
 
@@ -64,6 +70,7 @@ const ENEMIES := {
 	CRAWLER: {"category": COMMON, "xp": 4, "fr": "Rampants", "en": "Crawlers"},
 	DOG: {"category": SPECIAL, "xp": 12, "fr": "Chiens", "en": "Dogs"},
 	BRANCARDIER: {"category": MINIBOSS, "xp": 60, "fr": "Brancardiers", "en": "Stretcher-Bearers"},
+	SURGEON: {"category": BOSS, "xp": 240, "fr": "Chirurgiens", "en": "Surgeons"},
 	MINIBOSS_GENERIC: {"category": MINIBOSS, "xp": 60, "fr": "Mini-boss", "en": "Mini-bosses"},
 	BOSS_GENERIC: {"category": BOSS, "xp": 240, "fr": "Boss", "en": "Bosses"},
 }

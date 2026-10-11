@@ -80,13 +80,11 @@
 			"id": "surgeon",
 			"name": {"fr": "Le Chirurgien", "en": "The Surgeon"},
 			"text": {
-				"fr": "Le chef du bloc n'a jamais perdu un patient sur la table. Il ne compte pas commencer avec vous.",
-				"en": "The head of surgery never lost a patient on the table. He doesn't intend to start with you."
+				"fr": "Le chef du bloc n'a jamais perdu un patient sur la table. Il ne compte pas commencer avec vous. Visez le cœur qui bat dans sa poitrine, et ne restez pas à portée de scalpel.",
+				"en": "The head of surgery never lost a patient on the table. He doesn't intend to start with you. Aim for the heart beating in his chest, and stay out of scalpel range."
 			},
-			"round": 30,
-			"samples": ["surgeon_scalpel", "surgeon_heart"],
-			"xp_ref": "boss",
-			"planned": true
+			"round": 15,
+			"samples": ["surgeon_scalpel", "surgeon_heart"]
 		}
 	]
 }

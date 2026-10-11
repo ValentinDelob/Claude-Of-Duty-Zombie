@@ -39,9 +39,9 @@ func run() -> void:
 	var outside := door.global_position + door.global_basis.x * 2.4 + door.global_basis.z * 1.0 + Vector3.UP * 0.05
 
 	# ------------------------------------------------ vague de boss
-	# Carte avec un boss (aucun n'existe encore : la vague reste une manche de
-	# zombies), vague de boss en manche 2, aucune vague spéciale.
-	game.map_def.boss = "test_boss"
+	# Vague de boss en manche 2, aucune vague spéciale ; le Chirurgien est
+	# coupé en autotest (SurgeonRound.enabled) : la vague reste une manche de
+	# zombies, comptée vague de boss.
 	game.map_def.waves = WaveRules.parse({"speciale": {"premiere": 0, "intervalle": 0}, "boss": {"premiere": 2, "intervalle": 0}})
 	game.rounds.dogs.next_dog_round = 0
 	game.rounds.paused = false

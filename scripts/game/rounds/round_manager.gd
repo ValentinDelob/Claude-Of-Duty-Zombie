@@ -32,6 +32,9 @@ var wave := ""
 ## Serveur : type de la vague spéciale en cours (WaveRules.MEUTE,
 ## BRANCARDIER ou "") : sorte d'échantillons (LootSystem).
 var special_type := ""
+## Serveur : type du boss de la vague de boss en cours (WaveRules.CHIRURGIEN
+## ou "") : sorte d'échantillons (LootSystem).
+var boss_type := ""
 
 
 ## Vagues spéciales : meute de chiens (chemin réseau : /root/Game/Rounds/Dogs)
@@ -40,6 +43,9 @@ var special_type := ""
 ## chaque gestionnaire tient sa prochaine manche (next_dog_round, next_round).
 var dogs: DogRound
 var brancard: BrancardRound
+## Vagues de boss : le Chirurgien (/root/Game/Rounds/Surgeon ; rotation des
+## types de boss, WaveRules.boss_type_at).
+var surgeon: SurgeonRound
 
 
 func _ready() -> void:
@@ -51,6 +57,9 @@ func _ready() -> void:
 	brancard = BrancardRound.new()
 	brancard.name = "Brancard"
 	add_child(brancard)
+	surgeon = SurgeonRound.new()
+	surgeon.name = "Surgeon"
+	add_child(surgeon)
 
 
 ## Serveur : lance la première manche après un court délai.
@@ -67,6 +76,7 @@ func start_game() -> void:
 		round_n = first - 1
 	dogs.srv_plan(round_n)
 	brancard.srv_plan(round_n)
+	surgeon.srv_plan(round_n)
 	_timer = RoundRules.FIRST_ROUND_DELAY
 
 
@@ -76,7 +86,8 @@ func player_count() -> int:
 
 func remaining() -> int:
 	return to_spawn + game.zombies.alive_count() + (maxi(dogs.total - dogs.spawned, 0) if dogs.active else 0) \
-		+ (maxi(brancard.total - brancard.spawned, 0) if brancard.active else 0)
+		+ (maxi(brancard.total - brancard.spawned, 0) if brancard.active else 0) \
+		+ (maxi(surgeon.total - surgeon.spawned, 0) if surgeon.active else 0)
 
 
 func _process(delta: float) -> void:
@@ -107,6 +118,12 @@ func _process(delta: float) -> void:
 				brancard.srv_tick(delta)
 				if brancard.escort_ready():
 					_spawn_tick(delta)
+			elif surgeon.active:
+				# Vague du Chirurgien : le boss, et l'escorte après l'annonce
+				# (les patients de ses opérations apparaissent seuls).
+				surgeon.srv_tick(delta)
+				if surgeon.escort_ready():
+					_spawn_tick(delta)
 			else:
 				_spawn_tick(delta)
 			_recycle_accum += delta
@@ -115,9 +132,13 @@ func _process(delta: float) -> void:
 				_recycle_accum = 0.0
 			if brancard.active and not brancard.srv_finished():
 				return
+			if surgeon.active and not surgeon.srv_finished():
+				return
 			if to_spawn <= 0 and game.zombies.alive_count() == 0:
 				if brancard.active:
 					brancard.srv_end(round_n)
+				if surgeon.active:
+					surgeon.srv_end(round_n)
 				_end_round()
 				# Vague de boss vaincue : la porte d'évacuation s'ouvre aussi (§4.5).
 				if wave != "":
@@ -151,16 +172,28 @@ func _begin_round(n: int) -> void:
 		dogs.srv_end(n - 1)
 	if brancard.active:
 		brancard.srv_end(n - 1)
+	if surgeon.active:
+		surgeon.srv_end(n - 1)
 	wave = ""
 	special_type = ""
-	var boss_wave := WaveRules.wave_kind(_waves(), n, _has_boss()) == WaveRules.BOSS
+	boss_type = ""
+	# Vague de boss du schéma, ou manche du Chirurgien forcée (tests).
+	var boss_wave := WaveRules.wave_kind(_waves(), n, _has_boss()) == WaveRules.BOSS or surgeon.is_surgeon_round(n)
 	if boss_wave:
-		# Vague de boss : aucun boss n'existe encore (MapDef.boss vide partout,
-		# une vague de boss sans boss ne fait rien) ; branche prête pour les
-		# lots suivants, d'ici là manche normale.
-		push_warning("[Rounds] vague de boss « %s » : boss pas encore implémenté" % game.map_def.boss)
-		# Vague de boss quand même : vaincue, elle ouvre la porte d'évacuation.
+		# Vague de boss (vaincue, elle ouvre la porte d'évacuation, §4.5).
 		wave = WaveRules.BOSS
+		boss_type = WaveRules.CHIRURGIEN if surgeon.is_surgeon_round(n) else WaveRules.boss_type_at(_waves(), n)
+	if surgeon.is_surgeon_round(n):
+		# Vague du Chirurgien : le boss (SurgeonRound) et son escorte de
+		# zombies ordinaires de la manche.
+		to_spawn = SurgeonRules.escorts(player_count())
+		surgeon.srv_begin(n)
+		total = to_spawn + surgeon.total
+	elif boss_wave:
+		# Boss coupé (autotests, sauf SurgeonRound.debug_force_next) : manche
+		# normale, comptée vague de boss.
+		print("[Rounds] manche %d : vague de boss « %s » sans boss (coupé), manche normale" % [n, boss_type])
+		boss_type = ""
 	if not boss_wave and dogs.is_dog_round(n):
 		wave = WaveRules.SPECIAL
 		special_type = WaveRules.MEUTE
@@ -192,8 +225,9 @@ func _waves() -> Dictionary:
 	return game.map_def.waves if game.map_def else WaveRules.DEFAULT
 
 
+## La carte a-t-elle un boss (vagues de boss prévues, WaveRules.has_boss) ?
 func _has_boss() -> bool:
-	return game.map_def != null and game.map_def.boss != ""
+	return WaveRules.has_boss(_waves())
 
 
 ## Serveur : vague spéciale ou de boss vaincue : la porte d'évacuation s'ouvre
@@ -230,13 +264,13 @@ func _cl_round(n: int, new_phase: int) -> void:
 		if GameState.state == GameState.State.ROUND_END:
 			GameState.set_state(GameState.State.PLAYING)
 		game.hud.round_changed(n, true)
-		if not dogs.cl_active and not brancard.cl_active:  # vague spéciale : son d'annonce propre
+		if not dogs.cl_active and not brancard.cl_active and not surgeon.cl_active:  # vague spéciale ou de boss : son d'annonce propre
 			Audio.play_2d("round_start", -2.0, 0.0)
 		round_started.emit(n)
 	else:
 		if GameState.state == GameState.State.PLAYING:
 			GameState.set_state(GameState.State.ROUND_END)
 		game.hud.round_changed(n, false)
-		if not dogs.cl_active and not brancard.cl_active:
+		if not dogs.cl_active and not brancard.cl_active and not surgeon.cl_active:
 			Audio.play_2d("round_end", -2.0, 0.0)
 		round_ended.emit(n)

@@ -4,7 +4,8 @@ extends Node
 ##
 ## Serveur : manches du Brancardier = vagues spéciales du schéma de la carte
 ## de type « brancardier » (WaveRules.special_type_at : rotation des types
-## autorisés ; par défaut manches 10, 20, 30...). Fait apparaître les
+## autorisés, vagues de boss exclues ; par défaut manches 10, 25, 40...).
+## Fait apparaître les
 ## Brancardiers un par un près des joueurs, hors de leur vue de préférence
 ## (DogRound.pick_spawn_point, distances BrancardRules), MAX_ALIVE à la fois ;
 ## l'escorte (zombies ordinaires) passe par le RoundManager (to_spawn).
@@ -77,7 +78,7 @@ func _waves() -> Dictionary:
 
 
 func _has_boss() -> bool:
-	return game != null and game.map_def != null and game.map_def.boss != ""
+	return WaveRules.has_boss(_waves())
 
 
 func srv_plan(after := 0) -> void:

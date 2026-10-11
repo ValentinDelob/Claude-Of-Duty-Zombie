@@ -23,6 +23,10 @@ instance uniform float eye_glow = 1.0;
 // disparaît cube par cube. `voxel_cell` : côté d'un cube (ZombieModel.MODEL_CUBE).
 #ifdef VOXEL
 uniform float voxel_cell = 0.025;
+// Cœur mutant du Chirurgien (faces d'alpha 0,5) : énergie (0 : aucun cœur
+// lumineux, tous les autres modèles) et lueur par instance (battements).
+uniform float heart_energy = 0.0;
+instance uniform float heart_glow = 1.0;
 // Teinte de variante (modèle cubique, ZombieModel.MODEL_TINTS) : blouse
 // (rgb) et peau (a).
 instance uniform vec4 look_tint = vec4(1.0);
@@ -80,7 +84,13 @@ void fragment() {
 	ROUGHNESS = wet ? 0.3 : 0.85;
 	SPECULAR = wet ? 0.6 : 0.3;
 	METALLIC = 0.0;
-	EMISSION = emission_color.rgb * emission_energy * (1.0 - COLOR.a) * eye_glow + vec3(0.6, 0.05, 0.02) * hit_flash;
+	// Alpha 0 : yeux (emission_color) ; alpha 0,5 : cœur mutant du
+	// Chirurgien (ZombieGlb.HEART_ALPHA : sa propre couleur, heart_energy,
+	// lueur par instance heart_glow ; 0 pour tous les autres modèles).
+	float eye_k = step(COLOR.a, 0.25);
+	float heart_k = step(0.25, COLOR.a) * step(COLOR.a, 0.75);
+	EMISSION = emission_color.rgb * emission_energy * eye_k * eye_glow
+		+ COLOR.rgb * heart_energy * heart_k * heart_glow + vec3(0.6, 0.05, 0.02) * hit_flash;
 #ifdef DISSOLVE
 	// Cubes au bord de la dissolution : braise.
 	EMISSION += vec3(1.0, 0.3, 0.05) * step(h, dissolve + 0.08) * 3.0;

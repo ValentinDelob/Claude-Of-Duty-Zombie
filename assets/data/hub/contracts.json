@@ -166,6 +166,47 @@
 			"reward": {"kind": "weapon", "weapon": "any", "rarity": "epic"},
 			"min_level": 6,
 			"after": ["orderly_straps"]
+		},
+		{
+			"id": "surgical_instruments",
+			"title": {"fr": "Instruments de chirurgie", "en": "Surgical Instruments"},
+			"text": {
+				"fr": "Le Chirurgien lance ses scalpels comme des fléchettes. Ramassez-les. Après lui, de préférence, et pas avec les dents.",
+				"en": "The Surgeon throws his scalpels like darts. Pick them up. After him, preferably, and not with your teeth."
+			},
+			"thanks": {
+				"fr": "Toujours aiguisés. Je ne vous demande pas comment vous le savez.",
+				"en": "Still razor sharp. I won't ask how you know."
+			},
+			"samples": {"surgeon_scalpel": 6},
+			"xp": 3300,
+			"reward": {"kind": "weapon", "weapon": "any", "rarity": "rare"},
+			"min_level": 10
+		},
+		{
+			"id": "mutant_hearts",
+			"title": {"fr": "Cœurs mutants", "en": "Mutant Hearts"},
+			"text": {
+				"fr": "Son cœur bat à l'air libre et brille dans le noir. Ce n'est pas normal, même pour un chirurgien. J'en veux plusieurs pour comparer les battements.",
+				"en": "His heart beats out in the open and glows in the dark. That's not normal, even for a surgeon. I want several to compare the beats."
+			},
+			"samples": {"surgeon_heart": 10},
+			"xp": 5500,
+			"reward": {"kind": "part", "quality": "superior"},
+			"min_level": 10
+		},
+		{
+			"id": "full_autopsy",
+			"title": {"fr": "Autopsie complète", "en": "Full Autopsy"},
+			"text": {
+				"fr": "Pour comprendre comment il opère encore, il me faut ses outils et son moteur. Beaucoup des deux. L'antidote est peut-être dans ce cœur.",
+				"en": "To understand how he still operates, I need his tools and his engine. Lots of both. The antidote might be inside that heart."
+			},
+			"samples": {"surgeon_scalpel": 12, "surgeon_heart": 12},
+			"xp": 6600,
+			"reward": {"kind": "weapon", "weapon": "any", "rarity": "epic"},
+			"min_level": 12,
+			"after": ["surgical_instruments"]
 		}
 	]
 }

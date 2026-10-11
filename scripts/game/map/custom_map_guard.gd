@@ -1150,18 +1150,21 @@ static func _check_waves(c: Check, v: Variant, what: String) -> void:
 		kinds[k] = 1
 	# Format 21 : types de vagues spéciales autorisés (liste d'identifiants connus).
 	kinds[WaveRules.TYPES_KEY] = 1
+	# Format 22 : types de boss autorisés.
+	kinds[WaveRules.BOSS_TYPES_KEY] = 1
 	if not _keys(c, v, kinds, what):
 		return
 	for k in v:
 		var e: Variant = v[k]
-		if k == WaveRules.TYPES_KEY:
-			var ok: bool = e is Array and (e as Array).size() <= WaveRules.SPECIAL_TYPES.size()
+		if k == WaveRules.TYPES_KEY or k == WaveRules.BOSS_TYPES_KEY:
+			var known: Array = WaveRules.SPECIAL_TYPES if k == WaveRules.TYPES_KEY else WaveRules.BOSS_TYPES
+			var ok: bool = e is Array and (e as Array).size() <= known.size()
 			if ok:
 				for t in e:
-					ok = ok and t is String and WaveRules.SPECIAL_TYPES.has(t)
+					ok = ok and t is String and known.has(t)
 			if not ok:
-				c.bad("%s : %s : liste de types connus attendue (%s)" % [what, k, ", ".join(WaveRules.SPECIAL_TYPES)],
-					"%s: %s: list of known types expected (%s)" % [what, k, ", ".join(WaveRules.SPECIAL_TYPES)])
+				c.bad("%s : %s : liste de types connus attendue (%s)" % [what, k, ", ".join(known)],
+					"%s: %s: list of known types expected (%s)" % [what, k, ", ".join(known)])
 			continue
 		if not e is Dictionary:
 			c.bad("%s : %s : objet {premiere, intervalle} attendu" % [what, k], "%s: %s: object {premiere, intervalle} expected" % [what, k])

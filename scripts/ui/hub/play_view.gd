@@ -68,12 +68,12 @@ static func map_name(def: MapDef) -> String:
 
 
 ## Faits d'une carte pour l'aperçu (calculés une fois par carte) :
-## {special: {premiere, intervalle}, boss: nom ("" : aucun), boss_waves,
+## {special: {premiere, intervalle}, boss: types de boss ([] : aucun), boss_waves,
 ## evac: "start" (accessible dès le départ) / "door" (derrière une porte) /
 ## "none", samples: sortes d'échantillons qu'on y trouve}.
 static func map_facts(id: String, def: MapDef) -> Dictionary:
 	if def == null:
-		return {"special": {"premiere": 0, "intervalle": 0}, "boss": "", "boss_waves": {}, "evac": "none", "samples": []}
+		return {"special": {"premiere": 0, "intervalle": 0}, "boss": [], "boss_waves": {}, "evac": "none", "samples": []}
 	var key := "%s|%s|%d" % [id, def.display_name, def.get_instance_id()]
 	if _facts.has(key):
 		return _facts[key]
@@ -84,6 +84,14 @@ static func map_facts(id: String, def: MapDef) -> Dictionary:
 		# Seule vague spéciale du jeu aujourd'hui : la meute de chiens.
 		for s in LootRules.SAMPLES.get("dogs", []):
 			samples.append(String(s[0]))
+	# Boss de la carte (format 22 : types en rotation) et ses échantillons.
+	var boss_names := []
+	if WaveRules.has_boss(sched):
+		for t in WaveRules.boss_types(sched):
+			boss_names.append(String(t))
+			if t == WaveRules.CHIRURGIEN:
+				for s in LootRules.SAMPLES.get("surgeon", []):
+					samples.append(String(s[0]))
 	var evac := "none"
 	var layout := def.create_layout()
 	if layout != null:
@@ -93,7 +101,7 @@ static func map_facts(id: String, def: MapDef) -> Dictionary:
 			var spawns := layout.player_spawns()
 			if not spawns.is_empty() and door.zone != "" and door.zone != layout.zone_at(spawns[0]):
 				evac = "door"
-	var f := {"special": sp, "boss": def.boss, "boss_waves": sched[WaveRules.BOSS], "evac": evac, "samples": samples}
+	var f := {"special": sp, "boss": boss_names, "boss_waves": sched[WaveRules.BOSS], "evac": evac, "samples": samples}
 	_facts[key] = f
 	return f
 
@@ -120,11 +128,23 @@ static func special_line(f: Dictionary) -> String:
 	return Lang.t("Vagues spéciales : [b]meute de chiens[/b], %s", "Special waves: [b]dog pack[/b], %s") % r
 
 
+## Nom affiché d'un type de boss (WaveRules.BOSS_TYPES).
+static func boss_name(t: String) -> String:
+	match t:
+		WaveRules.CHIRURGIEN:
+			return Lang.t("le Chirurgien", "the Surgeon")
+	return t
+
+
 static func boss_line(f: Dictionary) -> String:
 	var r := rhythm_text(f.boss_waves)
-	if String(f.boss) == "" or r == "":
+	var types: Array = f.boss if f.get("boss") is Array else []
+	if types.is_empty() or r == "":
 		return Lang.t("Vagues de boss : [b]aucune[/b]", "Boss waves: [b]none[/b]")
-	return Lang.t("Vagues de boss : [b]%s[/b], %s", "Boss waves: [b]%s[/b], %s") % [HubSamplesColumn.esc(String(f.boss)), r]
+	var names := PackedStringArray()
+	for t in types:
+		names.append(boss_name(String(t)))
+	return Lang.t("Vagues de boss : [b]%s[/b], %s", "Boss waves: [b]%s[/b], %s") % [HubSamplesColumn.esc(", ".join(names)), r]
 
 
 static func evac_line(f: Dictionary) -> String:

@@ -59,6 +59,14 @@ func _run(game: Game) -> void:
 	br_d.position = Vector3(1.6, -1.2, -2.4)
 	stage.add_child(br_d)
 	BrancardierModel.set_dissolve(br_d.get_node("Mesh") as MeshInstance3D, 0.3)
+	# Chirurgien cubique (boss : cœur émissif) et sa variante de dissolution.
+	var sg := SurgeonModel.build()
+	sg.position = Vector3(-1.2, -1.2, -2.0)
+	stage.add_child(sg)
+	var sg_d := SurgeonModel.build()
+	sg_d.position = Vector3(-1.6, -1.2, -2.4)
+	stage.add_child(sg_d)
+	SurgeonModel.set_dissolve(sg_d.get_node("Mesh") as MeshInstance3D, 0.3)
 	# Armes (vue FPS et monde, normales et améliorées).
 	# Un petit cube par matériau et variante suffit (même shader pour toutes
 	# les armes) : inutile de construire les ~30 modèles de l'arsenal.

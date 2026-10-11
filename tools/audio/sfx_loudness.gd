@@ -42,6 +42,15 @@ const CATEGORIES := [
 	{"id": "brancardier_choc", "match": ["brancard_impact", "brancard_hit"], "target": -13.0, "tol": 2.5, "mode": "max"},
 	{"id": "brancardier_bruitage", "match": ["brancard_step_*", "brancard_scrape", "brancard_wheels"],
 		"target": -18.0, "tol": 3.0, "mode": "max"},
+	# Le Chirurgien (boss) : voix et rage au niveau des mini-boss, télégraphes
+	# (lame qui brille) bien audibles, chocs, bruitages.
+	{"id": "chirurgien", "match": ["surgeon_laugh", "surgeon_groan_*", "surgeon_roar", "surgeon_death"],
+		"target": -14.0, "tol": 2.0, "mode": "max"},
+	{"id": "chirurgien_telegraphe", "match": ["surgeon_glint", "surgeon_slash", "surgeon_throw"],
+		"target": -14.0, "tol": 2.5, "mode": "max"},
+	{"id": "chirurgien_choc", "match": ["surgeon_scalpel_hit", "surgeon_cut"], "target": -14.0, "tol": 2.5, "mode": "max"},
+	{"id": "chirurgien_bruitage", "match": ["surgeon_step_*", "surgeon_heartbeat", "surgeon_surgery", "surgeon_monitor"],
+		"target": -18.0, "tol": 3.0, "mode": "max"},
 	{"id": "joueur", "match": ["footstep_*", "dive_land", "player_hurt_*", "player_down", "player_breath_*", "heartbeat", "revive"],
 		"target": -18.0, "tol": 3.0, "mode": "max"},
 	# Ritournelles originales (manches, caisse...) : identité conservée,
