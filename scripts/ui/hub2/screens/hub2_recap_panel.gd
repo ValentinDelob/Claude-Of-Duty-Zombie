@@ -832,15 +832,14 @@ func _draw_rings() -> void:
 	var c := rings.size * 0.5
 	var w := Hub2Style.px(2)
 	for i in 2:
-		var d := _ring_dt - (RING_B_DELAY if i == 1 else 0.0)
-		if d < 0.0 or d > RING_TIME:
-			continue
-		var e := Hub2Style.ease_out(d / RING_TIME)
-		var sc := lerpf(1.0, 3.2, e)
-		var a := lerpf(1.0, 0.0, e)
+		var st := ring_state(i, _ring_dt)
+		var sc: float = st[0]
+		var a: float = st[1]
 		if a <= 0.001:
 			continue
 		var col := Color(Hub2Style.TEAL if i == 1 else Hub2Style.YELLOW, a)
+		# transform: scale autour du centre du pavé (transform-origin: 50 % 50 %),
+		# liseré compris, comme le CSS.
 		rings.draw_set_transform(c, 0.0, Vector2(sc, sc))
 		var r := Rect2(-c, rings.size)
 		rings.draw_rect(Rect2(r.position, Vector2(r.size.x, w)), col)
@@ -863,6 +862,27 @@ static func pop_scale(dt: float) -> float:
 	if p < 0.35:
 		return lerpf(1.0, 1.45, Hub2Style.cubic_bezier(p / 0.35, 0.2, 1.6, 0.4, 1.0))
 	return lerpf(1.45, 1.0, Hub2Style.cubic_bezier((p - 0.35) / 0.65, 0.2, 1.6, 0.4, 1.0))
+
+
+## lvlRing (1,1 s, ease-out, forwards ; anneau b : 0,18 s plus tard) :
+## [échelle 1 -> 3,2, opacité 1 -> 0] de l'anneau `i` (0 jaune, 1 turquoise)
+## ; [1, 0] hors de son animation.
+static func ring_state(i: int, dt: float) -> Array:
+	var d := dt - (RING_B_DELAY if i == 1 else 0.0)
+	if dt < 0.0 or d < 0.0 or d > RING_TIME:
+		return [1.0, 0.0]
+	var e := Hub2Style.ease_out(d / RING_TIME)
+	return [lerpf(1.0, 3.2, e), lerpf(1.0, 0.0, e)]
+
+
+## Rectangle de l'anneau `i` dans le repère du panneau (tests : centré sur
+## le pavé du niveau).
+func ring_rect(i: int) -> Rect2:
+	var st := ring_state(i, _ring_dt)
+	var g := rings.get_global_rect()
+	var s: Vector2 = g.size * float(st[0])
+	var xf := get_global_transform().affine_inverse()
+	return Rect2(xf * (g.get_center() - s * 0.5), s)
 
 
 ## lvlFlash (0,9 s, ease-out) : opacité 0,55 -> 0.

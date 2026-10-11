@@ -14,6 +14,10 @@ extends Control
 const FIT_CONTAIN := "contain"
 const FIT_COVER := "cover"
 const FIT_BOTTOM := "bottom"
+const FIT_INTEGER := "integer"
+## Agrandissement entier maximal (FIT_INTEGER) : un petit plan reste un
+## petit plan net au centre, jamais d'énormes pixels.
+const INTEGER_MAX := 4.0
 
 const SHADOW_SHADER := preload("res://assets/shaders/hub2_drop_shadow.gdshader")
 
@@ -70,6 +74,13 @@ func image_rect() -> Rect2:
 			k = maxf(size.x / ts.x, size.y / ts.y)
 		FIT_BOTTOM:
 			k = size.y / ts.y
+		FIT_INTEGER:
+			# Pixel art : agrandi d'un nombre entier de fois (pixels nets et
+			# réguliers), centré, proportions gardées ; plus grand que la place :
+			# réduit comme contain.
+			k = minf(size.x / ts.x, size.y / ts.y)
+			if k >= 1.0:
+				k = minf(floorf(k), INTEGER_MAX)
 		_:
 			k = minf(size.x / ts.x, size.y / ts.y)
 	var d := ts * k

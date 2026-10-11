@@ -251,6 +251,19 @@ func test_panel_animation_skip_and_continue() -> void:
 	assert_true(p.level_text.visible and p.level_text.text == "NIVEAU 24 !", p.level_text.text)
 	assert_true(p.flash.visible, "éclair doré")
 	assert_true(p.level_badge.scale.x > 1.0, "pavé qui saute")
+	# Anneaux : centrés sur le pavé (92 × 92), grandissent de 1 à 3,2 depuis
+	# son centre ; le turquoise part 0,18 s après le jaune.
+	var xf := p.get_global_transform().affine_inverse()
+	var bc: Vector2 = xf * p.badge_wrap.get_global_rect().get_center()
+	for dt in [0.0, 0.2, 0.5, 0.9]:
+		p.apply_time(tu + dt)
+		for i in 2:
+			var rr := p.ring_rect(i)
+			var st := Hub2RecapPanel.ring_state(i, dt)
+			assert_true(rr.get_center().distance_to(bc) < 0.5, "anneau %d à %.1f s centré sur le pavé (%s / %s)" % [i, dt, rr.get_center(), bc])
+			assert_near(rr.size.x, 92.0 * float(st[0]), 0.5, "anneau %d à %.1f s : 92 × %.2f" % [i, dt, float(st[0])])
+	assert_near(float(Hub2RecapPanel.ring_state(0, 1.1)[0]), 3.2, 0.001, "jaune : 3,2 à la fin")
+	assert_eq(float(Hub2RecapPanel.ring_state(1, 0.1)[1]), 0.0, "turquoise : pas encore parti à 0,1 s")
 	p.frozen = false
 	# A : fin immédiate de l'animation (consommé), puis CONTINUER.
 	assert_true(_accept(hub), "A pendant l'animation : consommé")

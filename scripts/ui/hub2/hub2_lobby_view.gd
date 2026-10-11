@@ -84,7 +84,12 @@ func _signals() -> Array:
 	return [[Net.players_changed, _refresh], [Net.player_left, _on_left], [Net.lobby_map_changed, _on_lobby_map],
 		[Net.lobby_challenge_changed, _on_lobby_map], [Net.map_share.states_changed, _refresh],
 		[Net.map_share.offer_changed, _refresh_map], [Net.map_share.local_failed, _on_local_failed],
-		[Net.lobby_return.changed, _refresh]]
+		[Net.lobby_return.changed, _refresh], [panel.shots.ready_shot, _on_shot]]
+
+
+## Vue en jeu d'une carte perso prête (Hub2MapShot) : vignette relue.
+func _on_shot(_id: String, _tex: Texture2D) -> void:
+	_refresh_map()
 
 
 func _exit_tree() -> void:
@@ -522,10 +527,16 @@ func _refresh_map() -> void:
 	var note := ""
 	var tex: Texture2D = null
 	var cover := false
+	# Carte perso (vérifiée chez soi) : vue en jeu rendue la première fois
+	# (Hub2MapShot), le plan net en attendant.
+	var shot_id := ""
 	if not is_host and custom:
 		match share.local_state:
 			"prete":
-				tex = MapPreview.texture(Net.lobby_map)
+				var pp := panel.picture_for(Net.lobby_map)
+				tex = pp[0]
+				cover = pp[1]
+				shot_id = Net.lobby_map
 				note = Lang.t("Carte perso vérifiée : pour le fun, aucune progression.", "Custom map checked: just for fun, no progression.")
 			"refusee":
 				note = Lang.t("Carte refusée : elle ne sera pas chargée.", "Map refused: it will not be loaded.")
@@ -533,16 +544,18 @@ func _refresh_map() -> void:
 				var st := share.state_text(Net.local_id()) if share.states.has(Net.local_id()) else Lang.t("téléchargement…", "downloading…")
 				note = st.left(1).to_upper() + st.substr(1)
 	elif id != "":
-		var pic := Hub2PlayPanel.map_picture(id)
+		var pic := panel.picture_for(id)
 		tex = pic[0]
 		cover = pic[1]
+		if ProgressGate.is_custom_map(id):
+			shot_id = id
 		if custom or ProgressGate.is_custom_map(id):
 			note = Lang.t("Carte perso : pour le fun, aucune progression.", "Custom map: just for fun, no progression.")
 	if ch:
 		note = ch.goal_text() + Lang.t(" ; armes de base pour tous, butin non gardé.", "; base weapons for everyone, loot not kept.")
-	map_thumb.texture = tex
-	map_thumb.fit = Hub2Render.FIT_COVER if cover else Hub2Render.FIT_CONTAIN
-	map_thumb.texture_filter = HubRenders.FILTER if cover else CanvasItem.TEXTURE_FILTER_NEAREST
+	Hub2PlayPanel.apply_picture(map_thumb, [tex, cover])
+	if shot_id != "" and not cover and panel.shots:
+		panel.shots.request(shot_id)
 	map_note.text = note
 	map_note.visible = note != ""
 	_refresh_start()

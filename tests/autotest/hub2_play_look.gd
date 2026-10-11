@@ -55,10 +55,22 @@ func run() -> void:
 	await seconds(0.2)
 	await shot("play_solo")
 	# Carte perso choisie : plan, POUR LE FUN.
+	_rm(Hub2MapShot.cache_dir())
 	p.select_map(EditorMapDef.CUSTOM_PREFIX + "quai_13")
-	await seconds(0.3)
+	await frames(2)
 	at.check(p.preview_fun.visible, "carte perso : POUR LE FUN")
+	at.check(p.preview_loading.visible and p.preview.fit == Hub2Render.FIT_INTEGER,
+			"carte perso : plan net (échelle entière) et APERÇU EN PRÉPARATION")
+	await shot("play_custom_loading")
+	var rendered := await until(func(): return p.preview.fit == Hub2Render.FIT_COVER and not p.preview_loading.visible, 15.0, "vue en jeu de la carte perso")
+	at.check(rendered and FileAccess.file_exists(Hub2MapShot.cache_path(EditorMapDef.CUSTOM_PREFIX + "quai_13")),
+			"vue en jeu rendue et gardée (%s)" % Hub2MapShot.cache_path(EditorMapDef.CUSTOM_PREFIX + "quai_13"))
+	await seconds(0.5)
 	await shot("play_custom")
+	# Deuxième choix : relue du cache, tout de suite.
+	p.select_map("bunker_k7")
+	p.select_map(EditorMapDef.CUSTOM_PREFIX + "quai_13")
+	at.check(p.preview.fit == Hub2Render.FIT_COVER and not p.preview_loading.visible, "carte perso : vue relue du cache")
 	# Défi de la semaine.
 	p.select_map(Hub2PlayPanel.WEEKLY)
 	await seconds(0.3)
@@ -248,7 +260,7 @@ func _recap_shots() -> void:
 	r.set_process(false)
 	var up: float = r._ups[0][1] if not r._ups.is_empty() else 3.0
 	at.check(not r._ups.is_empty(), "passage au niveau 24 prévu (%.2f s)" % up)
-	for s in [["recap_t0", 0.3], ["recap_rows", 1.0], ["recap_climb", up - 0.4], ["recap_levelup", up + 0.12],
+	for s in [["recap_t0", 0.3], ["recap_rows", 1.0], ["recap_climb", up - 0.4], ["recap_levelup", up + 0.12], ["recap_levelup_030", up + 0.3], ["recap_levelup_045", up + 0.45],
 			["recap_levelup_text", up + 0.6], ["recap_levelup_late", up + 1.3]]:
 		r.apply_time(float(s[1]))
 		await frames(3)

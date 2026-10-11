@@ -46,6 +46,10 @@ var preview: Hub2Render
 var preview_title: Hub2Text
 var preview_waves: HFlowContainer
 var preview_fun: Control
+## « APERÇU EN PRÉPARATION » et rendu des vues en jeu des cartes perso.
+var preview_loading: Control
+var preview_bg: ColorRect
+var shots: Hub2MapShot
 var equipment_box: VBoxContainer
 var equipment_right: Hub2Text
 ## COOP : champs, boutons, état.
@@ -65,6 +69,10 @@ var _leaving := false
 
 
 func build() -> void:
+	shots = Hub2MapShot.new()
+	shots.name = "MapShots"
+	add_child(shots)
+	shots.ready_shot.connect(_on_shot)
 	Net.players_changed.connect(_on_net_changed)
 	Net.joined_server.connect(sync)
 	_publish_card()
@@ -488,6 +496,11 @@ func _preview_box() -> Control:
 	box.pad(1)
 	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.clip_contents = true
+	preview_bg = ColorRect.new()
+	preview_bg.color = Hub2Style.shade(0.88)
+	preview_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	preview_bg.visible = false
+	box.add_child(preview_bg)
 	preview = Hub2Render.new()
 	preview.fit = Hub2Render.FIT_COVER
 	box.add_child(preview)
@@ -495,6 +508,17 @@ func _preview_box() -> Control:
 	# padding 18 20 à l'intérieur.
 	var col := Hub2Ui.vbox(0)
 	box.add_child(col)
+	# « APERÇU EN PRÉPARATION » (carte perso rendue hors écran), en haut à
+	# gauche, qui pulse doucement.
+	var lm := MarginContainer.new()
+	lm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for s in [["left", 20], ["top", 18]]:
+		lm.add_theme_constant_override("margin_" + s[0], int(Hub2Style.px(s[1])))
+	col.add_child(lm)
+	preview_loading = Hub2Ui.tag(Lang.t("APERÇU EN PRÉPARATION…", "PREPARING PREVIEW…"), Hub2Style.text_a(0.75),
+			Hub2Style.white_a(0.18), Hub2Style.GLASS_STRONG, 11, 0.16, 4, 10)
+	preview_loading.visible = false
+	lm.add_child(preview_loading)
 	var spacer := Control.new()
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -626,11 +650,14 @@ func select_map(id: String) -> void:
 		_fill_weekly(weekly_button)
 	var map_id := weekly.map_id if id == WEEKLY else id
 	var def := HubPlayView.def_of(map_id)
-	var pic := map_picture(map_id)
-	preview.texture = pic[0]
-	preview.fit = Hub2Render.FIT_COVER if pic[1] else Hub2Render.FIT_CONTAIN
-	# Plan (MapPreview) : pixels nets, comme l'ancien aperçu.
-	preview.texture_filter = HubRenders.FILTER if pic[1] else CanvasItem.TEXTURE_FILTER_NEAREST
+	var pic := picture_for(map_id)
+	apply_picture(preview, pic)
+	# Plan : sur un fond sombre (proportions réelles, centré).
+	preview_bg.visible = not pic[1]
+	preview.modulate.a = 1.0
+	# Carte perso sans vue en jeu : rendue hors écran la première fois (plan
+	# net en attendant, « APERÇU EN PRÉPARATION »).
+	preview_loading.visible = ProgressGate.is_custom_map(map_id) and not pic[1] and shots != null and shots.request(map_id)
 	preview_title.text = Hub2PlayData.map_title(def)
 	Hub2Ui.fill_waves(preview_waves, def)
 	preview_fun.visible = ProgressGate.is_custom_map(map_id)
@@ -653,6 +680,38 @@ static func map_picture(map_id: String) -> Array:
 	if not ProgressGate.is_custom_map(map_id) and ResourceLoader.exists(shot):
 		return [load(shot) as Texture2D, true]
 	return [MapPreview.texture(map_id), false]
+
+
+## Comme map_picture, avec la vue en jeu d'une carte perso si elle est déjà
+## rendue (Hub2MapShot).
+func picture_for(map_id: String) -> Array:
+	if ProgressGate.is_custom_map(map_id) and shots:
+		var t := shots.cached(map_id)
+		if t:
+			return [t, true]
+	return map_picture(map_id)
+
+
+## Pose l'image `pic` ([texture, vue en jeu]) : vue en jeu en cover ; plan
+## agrandi d'un nombre entier de fois, centré sur le fond sombre, pixels nets.
+static func apply_picture(r: Hub2Render, pic: Array) -> void:
+	r.texture = pic[0]
+	r.fit = Hub2Render.FIT_COVER if pic[1] else Hub2Render.FIT_INTEGER
+	r.texture_filter = HubRenders.FILTER if pic[1] else CanvasItem.TEXTURE_FILTER_NEAREST
+
+
+## Vue en jeu d'une carte perso prête : montrée en fondu si elle est choisie.
+func _on_shot(map_id: String, tex: Texture2D) -> void:
+	if view != SOLO or preview == null:
+		return
+	var cur := weekly.map_id if selected == WEEKLY and weekly else selected
+	if cur != map_id:
+		return
+	preview_loading.visible = false
+	apply_picture(preview, [tex, true])
+	preview_bg.visible = false
+	preview.modulate.a = 0.0
+	create_tween().tween_property(preview, "modulate:a", 1.0, 0.35)
 
 
 func _row_pressed(id: String) -> void:
@@ -887,6 +946,10 @@ static func local_ip() -> String:
 
 
 func _process(delta: float) -> void:
+	# « APERÇU EN PRÉPARATION » qui pulse doucement (1,6 s).
+	if view == SOLO and is_instance_valid(preview_loading) and preview_loading.visible:
+		_dots_t += delta
+		preview_loading.modulate.a = 0.725 + 0.275 * cos(_dots_t * TAU / 1.6)
 	if view == COOP and connecting():
 		_dots_t += delta
 		_refresh_coop_state()

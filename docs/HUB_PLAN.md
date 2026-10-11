@@ -1150,8 +1150,15 @@ portée, couche teintée) `hub2_render.gd`, petits éléments `hub2_ui.gd`.
 - Aperçu d'une carte du jeu : vue en jeu pré-rendue
   `assets/ui/hub/maps/<carte>.png` (1280 × 720, départ du joueur tourné vers
   la porte la plus proche, interface et mains masquées), régénérée par
-  `sh tools/map_shots.sh` (scénario `map_shots`, hors check) ; carte perso :
-  son plan (`MapPreview`, pixels nets).
+  `sh tools/map_shots.sh` (scénario `map_shots`, hors check). Carte perso
+  (`hub2_map_shot.gd`) : vue en jeu rendue hors écran la première fois
+  qu'elle est choisie (SubViewport à monde 3D propre : carte, éclairage,
+  étalonnage, portes ; yeux du joueur au départ, direction la plus dégagée,
+  lumière d'appoint douce), gardée dans `user://map_previews/<empreinte des
+  fichiers>.png` (40 au plus ; fichiers de la carte seulement lus), montrée
+  en fondu ; en attendant (et sans rendu, --headless) : son plan net
+  agrandi d'un nombre entier de fois (×4 au plus), centré sur un fond sombre,
+  et « APERÇU EN PRÉPARATION… » qui pulse. Même image dans le salon.
 - Noms des cartes du jeu en casse de titre (« BUNKER K-7 » -> « Bunker K-7 »,
   `Hub2PlayData.map_title`) ; sous-titre « 1 à 4 joueurs » ; carte perso
   « par <nom du joueur> » (faite sur ce PC) ; record = meilleure manche sur
