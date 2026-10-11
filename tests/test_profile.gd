@@ -240,9 +240,20 @@ func test_echantillons() -> void:
 
 func test_armes_de_base() -> void:
 	var ids := BaseWeapons.ids()
-	assert_eq(ids.size(), 2, "pistolet et couteau (provisoire)")
+	assert_eq(ids.size(), 2, "pistolet de départ et batte")
 	assert_true(WeaponDB.exists(ids[0]), "pistolet de départ du jeu")
-	assert_true(KnifeDB.KNIVES.has(ids[1]), "couteau en attendant la batte")
+	assert_true(WeaponDB.is_melee(ids[1]) and ids[1] == "bat", "batte de baseball, tenue en main")
+	# Ancien profil : le couteau de base est remplacé par la batte.
+	assert_eq(BaseWeapons.clean_selection(["m1911", "knife"]), PackedStringArray(["m1911", "bat"]))
+	# Profil enregistré qui partait avec le couteau : batte, sans perte comptée.
+	for old in [["m1911", "knife"], ["knife"], ["knife", "m1911"]]:
+		var dropped := [0]
+		var mp := PlayerProfile.from_dict({"xp": 0, "starting_weapons": old}, dropped)
+		assert_eq(mp.starting_weapons, PackedStringArray(BaseWeapons.migrate(old)), "couteau -> batte %s" % [old])
+		assert_true("bat" in mp.starting_weapons and not "knife" in mp.starting_weapons)
+		assert_eq(dropped[0], 0, "migration, pas une donnée abîmée %s" % [old])
+	var me := PlayerProfile.new()
+	assert_false(me.set_starting_weapons(["knife"]), "le couteau n'est plus une arme de base choisissable")
 	for w in BaseWeapons.all():
 		assert_eq(w.level, 1)
 		assert_eq(w.rarity, OwnedWeapon.Rarity.COMMON)

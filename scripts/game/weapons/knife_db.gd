@@ -1,7 +1,9 @@
 class_name KnifeDB
 extends RefCounted
-## Couteaux de mêlée (BO1 Zombies). Données et règles pures, partagées par le
-## client (prédiction : fente, animation) et le serveur (validation, dégâts).
+## Couteau de mêlée : attaque rapide SÉPARÉE de tous les joueurs (touche de
+## mêlée), en plus des armes tenues (la batte de baseball est, elle, une arme
+## de WeaponDB). Données et règles pures, partagées par le client (prédiction :
+## fente, animation) et le serveur (validation, dégâts).
 ##
 ## * Couteau de départ : 150 dégâts (tue en un coup à la manche 1, deux à la 2...).
 ## * Fente : si un zombie est visé à portée de fente (~3 m devant), le joueur se

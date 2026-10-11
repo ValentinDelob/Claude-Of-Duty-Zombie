@@ -11,10 +11,11 @@ var H := AutotestHelpers
 
 func run() -> void:
 	timeout_sec = 90
-	# Profil : niveau 5, armes de départ pistolet + couteau.
+	# Profil : niveau 5, départ au pistolet seul (le couteau reste l'attaque
+	# séparée ; la batte, autre arme de base, n'est pas choisie).
 	var pr := PlayerProfile.new()
 	pr.add_xp(PlayerProfile.xp_for_level(5))
-	pr.set_starting_weapons([WeaponDB.STARTING_WEAPON, KnifeDB.DEFAULT])
+	pr.set_starting_weapons([WeaponDB.STARTING_WEAPON])
 	ProfileStore.save_profile(pr)
 	var p: Player = await H.start_solo_game(self)
 	if p == null:

@@ -36,6 +36,8 @@ func run() -> void:
 	# Profil : niveau 5 ; arsenal : MP40 niveau 3 rare avec une pièce, M14 niveau 9.
 	var pr := PlayerProfile.new()
 	pr.add_xp(PlayerProfile.xp_for_level(5))
+	# Départ au pistolet seul (la batte, autre arme de base, reste listée à la station).
+	pr.set_starting_weapons([WeaponDB.STARTING_WEAPON])
 	var mp40 := OwnedWeapon.create("mp40", 3, OwnedWeapon.Rarity.RARE)
 	mp40.parts.append(WeaponPart.create("chargeur", 2, {"reserve": 0.5}))
 	var uid := pr.add_weapon(mp40)
@@ -63,17 +65,17 @@ func run() -> void:
 	await until(func(): return panel.visible, 2.0, "interface ouverte")
 	at.check(panel.visible and game.menu_open(), "interface ouverte : entrées du joueur ignorées")
 	at.check(not tree().paused, "la partie continue")
-	at.check(panel.entries.size() == 3, "pistolet de base + 2 armes de l'arsenal (%d)" % panel.entries.size())
-	at.check(panel.entries[1].uid == uid, "MP40 de l'arsenal listé")
-	var info: Label = panel.rows[2].get_child(0).get_child(0).get_child(1)
-	at.check(info.text.contains(Lang.t("NIVEAU 9 REQUIS", "LEVEL 9 REQUIRED")) and panel.rows[2].disabled, "M14 niveau 9 : niveau requis, non constructible (%s)" % info.text)
+	at.check(panel.entries.size() == 4, "armes de base (pistolet, batte) + 2 armes de l'arsenal (%d)" % panel.entries.size())
+	at.check(panel.entries[2].uid == uid, "MP40 de l'arsenal listé")
+	var info: Label = panel.rows[3].get_child(0).get_child(0).get_child(1)
+	at.check(info.text.contains(Lang.t("NIVEAU 9 REQUIS", "LEVEL 9 REQUIRED")) and panel.rows[3].disabled, "M14 niveau 9 : niveau requis, non constructible (%s)" % info.text)
 	var price := BuildRules.owned_price(mp40)
-	var price_l: Label = panel.rows[1].get_child(0).get_child(1)
+	var price_l: Label = panel.rows[2].get_child(0).get_child(1)
 	at.check(price_l.text.contains(str(price)), "prix du MP40 affiché : %s" % price_l.text)
 	await at.screenshot("panel")
 
 	# 2. Sans ferraille : refusé. Au-dessus du niveau : refusé par le serveur.
-	panel.press_build(1)
+	panel.press_build(2)
 	await frames(5)
 	at.check(st.builds.is_empty() and pd.points == 0, "pas assez de ferraille : rien de lancé")
 	game.session.add_points(1, 5000)
@@ -84,7 +86,7 @@ func run() -> void:
 	# 3. Construction : ferraille dépensée au lancement, une seule à la fois.
 	var r0 := game.rounds.round_n
 	var expect_round := BuildRules.ready_round(r0, game.rounds.phase == RoundManager.Phase.ACTIVE, price)
-	panel.press_build(1)
+	panel.press_build(2)
 	await until(func(): return st.builds.has(1), 2.0, "construction lancée")
 	at.check(pd.points == 5000 - price, "ferraille dépensée au lancement (%d)" % pd.points)
 	at.check(int(st.builds[1]["round"]) == expect_round and not bool(st.builds[1].ready), "prête à la fin de la manche %d" % expect_round)

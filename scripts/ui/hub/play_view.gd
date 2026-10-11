@@ -163,16 +163,14 @@ static func lobby_waves_line(f: Dictionary) -> String:
 # Lignes communes
 # --------------------------------------------------------------------------
 
-## Icône en pixel art d'une arme (couteau : « knife », sinon la famille).
+## Icône en pixel art d'une arme de départ (famille, batte : HubGear).
 static func weapon_art(id: String) -> String:
-	if not WeaponDB.exists(id):
-		return "knife" if id == KnifeDB.DEFAULT or id.contains("knife") else "pistol"
-	return HubContractCard.weapon_art(id)
+	return HubGear.weapon_art(id)
 
 
-## Nom d'une arme de départ en casse de phrase (« M1911 », « Couteau »).
+## Nom d'une arme de départ en casse de phrase (« Pétoire », « Batte »).
 static func weapon_label(id: String) -> String:
-	var n := WeaponDB.display_name(id) if WeaponDB.exists(id) else KnifeDB.display_name(id)
+	var n := HubGear.weapon_name(id)
 	if n.to_upper() == n and n.length() > 1 and not n.left(1).is_valid_int():
 		var has_digit := false
 		for ch in n:

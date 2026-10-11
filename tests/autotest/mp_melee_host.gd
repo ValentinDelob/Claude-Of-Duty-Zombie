@@ -45,6 +45,22 @@ func run() -> void:
 	z = _spawn(game, client.global_position + Vector3(2.5, 0, 0), 150)
 	ok = await until(func(): return not z.is_alive(), 20.0, "second zombie tué au couteau")
 	at.check(ok, "seconde fente du client validée")
+
+	# 3. Batte de baseball (arme de base de corps à corps tenue en main) : le
+	# coup du client est validé par le serveur (Combat.srv_swing), aux dégâts
+	# de la batte.
+	if not await MpHelpers.wait_peer(self, "pret_batte", 20.0):
+		return
+	if not await until(func(): return client.global_position.distance_to(spot) < 0.5, 5.0, "client revenu en position (batte)"):
+		return
+	cpd.weapons = [WeaponDB.new_instance("bat")]
+	cpd.slot = 0
+	game.session.sync_inventory(client_id)
+	z = _spawn(game, client.global_position + Vector3(1.5, 0, 0), 1000)
+	MpHelpers.signal_peer("batte")
+	ok = await until(func(): return z.health < 1000, 20.0, "coup de batte du client")
+	var bat_dmg := int(WeaponDB.stats("bat").damage)
+	at.check(ok and z.health == 1000 - bat_dmg, "coup de batte du client validé par le serveur (1000 -> %d)" % z.health)
 	await MpHelpers.finish(self)
 
 

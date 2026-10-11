@@ -208,6 +208,12 @@ func _tour(sfx: String) -> void:
 	at.check(_focused() == ars.rows[0], "focus sur la première ligne")
 	# Descendre jusqu'à FRELON (2 armes de base puis l'arsenal).
 	await press("ui_down")
+	# Batte de baseball : arme de base de corps à corps (dégâts, coups / s,
+	# énergie, pas de prix à la station).
+	at.check(ars.sheet.weapon != null and ars.sheet.weapon.weapon_id == "bat", "flèche bas : la BATTE, arme de base")
+	at.check(ars.sheet.stat_rows.size() == 3, "batte : trois lignes de corps à corps")
+	await seconds(0.3)
+	await shot("arsenal_bat" + sfx)
 	await press("ui_down")
 	at.check(ars.sheet.weapon != null and ars.sheet.weapon.weapon_id == "mp5k" and ars.sheet.weapon.level == 7, "flèche bas : FRELON choisi")
 	# A : vers la fiche, sur la pièce 2, premier appui de RETIRER.

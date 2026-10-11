@@ -16,6 +16,8 @@ const RAY_LENGTH := 150.0
 const HITBOX_LAYER := 1 << 3
 
 signal fired
+## Coup de l'arme de corps à corps tenue (batte) lancé.
+signal swung
 signal ammo_changed
 
 var player: Player
@@ -307,6 +309,11 @@ func tick(delta: float) -> void:
 			_try_reload(w, s)
 		elif inp.melee and t >= _melee_ready and not throws.busy():
 			_melee()
+		elif WeaponDB.is_melee(String(w.id)):
+			# Arme de corps à corps tenue (batte) : tir = coup, maintenu = coups
+			# enchaînés ; ni munitions ni rechargement.
+			if inp.fire and not busy and not player.sprinting and t >= _next_fire and not throws.busy():
+				_swing(s)
 		elif inp.fire and not busy and not player.sprinting:
 			var want: bool = s.auto or _trigger_released
 			if want and t >= _next_fire:
@@ -567,21 +574,62 @@ func _strike() -> void:
 	combat.srv_melee.rpc_id(1, player.camera.global_position, player.aim_direction())
 
 
-## Zombie visé à portée de fente (au-delà de la portée au contact), visible.
-func _lunge_target() -> Zombie:
+## Coup de l'arme de corps à corps tenue (batte, GAME_CONCEPT §4.8 bis,
+## §4.14) : même fente que le couteau (portée de l'arme : `reach`,
+## `lunge_range`), énergie `energy` par coup ; épuisé, les coups sont 50 %
+## plus lents (cadence et animation). Le coup touche à SWING_HIT de
+## l'animation (ViewModel) : le serveur l'applique alors (Combat.srv_swing).
+func _swing(s: Dictionary) -> void:
+	var time_mult := player.energy.melee_time_mult()
+	var interval := 60.0 / maxf(float(s.rpm), 1.0) * time_mult
+	var now := GameClock.now()
+	_next_fire = now + interval
+	_melee_busy_end = now + interval * 0.7
+	player.energy.spend(float(s.get("energy", 0.0)))
+	abort_reload()
+	var target := _lunge_target(float(s.get("reach", KnifeDB.RANGE)), float(s.get("lunge_range", KnifeDB.LUNGE_RANGE))) if not player.downed else null
+	var lunge := target != null
+	var dur := minf(interval * 0.9, SWING_ANIM * time_mult)
+	view.start_swing(dur, lunge)
+	Audio.play_2d("bat_swing", -3.0, 0.1)
+	var slot_now := slot
+	var hit_at := dur * ViewModel.SWING_HIT
+	if lunge:
+		var to := target.global_position - player.global_position
+		to.y = 0.0
+		lunging = true
+		player.start_lunge(to.normalized(), maxf(to.length() - KnifeDB.LUNGE_STOP, 0.0), KnifeDB.LUNGE_TIME)
+		hit_at = maxf(hit_at, KnifeDB.LUNGE_TIME)
+	get_tree().create_timer(hit_at).timeout.connect(func():
+		lunging = false
+		var pd := session.get_data(player.peer_id)
+		if pd == null or pd.life == PlayerData.Life.DEAD or slot != slot_now:
+			return
+		combat.srv_swing.rpc_id(1, slot_now, player.camera.global_position, player.aim_direction()))
+	swung.emit()
+
+
+## Durée d'un coup de batte (s, joueur reposé ; jamais plus que l'intervalle
+## entre deux coups).
+const SWING_ANIM := 0.6
+
+
+## Zombie visé à portée de fente (au-delà de la portée au contact `reach`,
+## jusqu'à `lunge_reach`), visible.
+func _lunge_target(reach := KnifeDB.RANGE, lunge_reach := KnifeDB.LUNGE_RANGE) -> Zombie:
 	if game == null or game.zombies == null:
 		return null
 	var alive: Array[Zombie] = game.zombies.alive
 	var positions := []
 	for z in alive:
 		positions.append(z.global_position)
-	var i := KnifeDB.pick_target(player.global_position, player.aim_direction(), positions)
+	var i := KnifeDB.pick_target(player.global_position, player.aim_direction(), positions, reach, lunge_reach)
 	if i < 0:
 		return null
 	var z: Zombie = alive[i]
 	var flat := z.global_position - player.global_position
 	flat.y = 0.0
-	if not KnifeDB.needs_lunge(flat.length()):
+	if flat.length() <= reach * 0.75:
 		return null
 	# Pas de fente à travers un mur ou une barricade.
 	var q := PhysicsRayQueryParameters3D.create(player.eye_position(), z.global_position + Vector3.UP * 1.0, 1 | Barricade.BARRIER_LAYER, [player.get_rid()])

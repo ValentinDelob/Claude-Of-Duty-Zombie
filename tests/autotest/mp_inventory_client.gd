@@ -25,7 +25,7 @@ func run() -> void:
 	await until(func(): return pd.level == 8, 5.0, "niveau reçu de l'hôte")
 	at.check(pd.level == 8, "niveau du profil répliqué (%d)" % pd.level)
 	var hpd := game.session.get_data(1)
-	at.check(hpd != null and hpd.level == 2 and hpd.power() == 1, "niveau et puissance de l'hôte visibles (%d, %d)" % [hpd.level if hpd else -1, hpd.power() if hpd else -1])
+	at.check(hpd != null and hpd.level == 2 and hpd.power() == BaseWeapons.default_selection().size(), "niveau et puissance de l'hôte visibles (pistolet et batte : 1 + 1) (%d, %d)" % [hpd.level if hpd else -1, hpd.power() if hpd else -1])
 
 	# 1. Armes rangées par l'hôte : répliquées.
 	if not await MpHelpers.wait_peer(self, "rangees", 30.0):

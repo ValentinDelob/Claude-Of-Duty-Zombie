@@ -10,9 +10,11 @@ extends RefCounted
 ##   niveau de base de l'arme (WeaponDB.base_level), au plus 50. Le niveau
 ##   dépend de la manche, pas du joueur.
 ##   Rareté : commune 60 %, rare 20 %, épique 12,5 %, légendaire 5 %, unique 2,5 %.
-##   Arme tirée uniformément parmi les armes à feu de WeaponDB, HORS armes de
-##   base (BaseWeapons : le pistolet de départ, toujours disponible au hub,
-##   n'est pas un butin intéressant). Choix provisoire.
+##   Arme tirée uniformément parmi les armes de WeaponDB HORS armes de base
+##   (BaseWeapons : pistolet de départ et batte, toujours disponibles au hub,
+##   ne sont pas un butin intéressant) dont le niveau de base est au plus
+##   manche + 2 (le niveau de base est le niveau minimum auquel l'arme se
+##   trouve, §4.7). Choix provisoire.
 ## * Pièces : PART_CHANCE (5 %) par zombie de vague spéciale ou de boss tué,
 ##   pour chaque joueur ; niveau entre niveau du joueur − 10 (au moins 1) et
 ##   niveau du joueur. Modificateurs PROVISOIRES : un premier modificateur
@@ -66,11 +68,13 @@ static func weapons_for_wave(wave: String) -> int:
 	return 0
 
 
-## Armes qui peuvent tomber (triées : tirage reproductible avec une graine).
-static func weapon_pool() -> PackedStringArray:
+## Armes qui peuvent tomber (triées : tirage reproductible avec une graine) :
+## hors armes de base, et dont le niveau de base ne dépasse pas `max_level`
+## (le niveau le plus haut que la manche peut donner).
+static func weapon_pool(max_level := PlayerProfile.MAX_LEVEL) -> PackedStringArray:
 	var out := PackedStringArray()
 	for id in WeaponDB.WEAPONS:
-		if not BaseWeapons.is_base(id):
+		if not BaseWeapons.is_base(id) and WeaponDB.base_level(id) <= max_level:
 			out.append(id)
 	out.sort()
 	return out
@@ -108,8 +112,13 @@ static func roll_rarity(rng: RandomNumberGenerator) -> int:
 
 
 ## Arme de partie trouvée à la manche `round_n` (identifiant d'exemplaire `uid`).
+## Seules les armes dont le niveau de base est atteignable à cette manche
+## (manche + 2) sont tirées : une arme de niveau de base 40 ne tombe pas à
+## la manche 5.
 static func roll_weapon(round_n: int, rng: RandomNumberGenerator, uid := "") -> Dictionary:
-	var pool := weapon_pool()
+	var pool := weapon_pool(weapon_level_range(round_n).y)
+	if pool.is_empty():
+		pool = weapon_pool()
 	var id := pool[rng.randi_range(0, pool.size() - 1)]
 	return GameWeapon.make(id, roll_weapon_level(round_n, WeaponDB.base_level(id), rng), roll_rarity(rng), [], uid)
 

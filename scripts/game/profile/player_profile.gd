@@ -381,7 +381,8 @@ static func from_dict(d: Dictionary, dropped := [0]) -> PlayerProfile:
 		pr.xp = 0
 		dropped[0] += 1
 	pr.next_uid = ProfileValues.to_int(d.get("next_uid"), 1, 1, VALUE_CAP)
-	var sel: Variant = d.get("starting_weapons")
+	# Ancienne arme de base (couteau) -> la batte qui la remplace.
+	var sel: Variant = BaseWeapons.migrate(d.get("starting_weapons"))
 	if BaseWeapons.selection_ok(sel):
 		pr.starting_weapons = BaseWeapons.clean_selection(sel)
 	elif sel != null:

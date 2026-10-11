@@ -17,7 +17,8 @@ const RIGHT_W := 612.0
 ## Description courte de chaque arme de base [FR, EN] (autre : la famille).
 const BASE_TEXT := {
 	"m1911": ["peu efficace, munitions rechargeables à la station", "weak, ammo refilled at the station"],
-	"knife": ["corps à corps, attaque rapide séparée, consomme de l'énergie", "melee, separate quick attack, uses energy"],
+	"bat": ["corps à corps, deux zombies par coup, coûte de l'énergie",
+		"melee, two zombies per swing, costs energy"],
 }
 
 var slots: Array = []  # HubSlot ×3
@@ -82,7 +83,8 @@ func _fill() -> void:
 			s.box.add_child(ic)
 			var nl := HubStyle.label(HubGear.weapon_name(id), 15, HubStyle.PAPER, "bold")
 			nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			nl.clip_text = true
+			# Sans clip_text : il couperait l'accent des capitales (PÉTOIRE) ; la
+			# coupure « … » suffit en largeur.
 			nl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			s.box.add_child(nl)
 			s.hint = _last_hint() if sel.size() <= BaseWeapons.MIN_START \

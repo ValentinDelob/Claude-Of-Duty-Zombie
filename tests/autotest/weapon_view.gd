@@ -111,6 +111,8 @@ func run() -> void:
 				await tree().process_frame
 			at.check(pump_peak > 0.04, "%s : coup de pompe après le tir (%.3f m)" % [id, pump_peak])
 		await seconds(WeaponDB.fire_interval(id) + 0.1)
+		# Rafale en cours (TRIPLETTE) : la touche de rechargement attend sa fin.
+		await until(func(): return p.weapons._burst_left == 0 and GameClock.now() >= p.weapons._next_fire, 2.0, "fin de la rafale")
 		# Rechargement : captures à 3 instants, pièces mobiles et main gauche.
 		if p.weapons.current().mag >= int(s.mag):
 			continue

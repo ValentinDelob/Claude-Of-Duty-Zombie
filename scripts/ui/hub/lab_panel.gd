@@ -280,7 +280,7 @@ func _last_match() -> HubBox:
 					l3.add_child(HubBox.spring(false))
 				l3.add_child(HubTag.make(Lang.t("NOUVEAU", "NEW"), HubTag.NEW))
 				var rr := clampi(int(w[2]), 0, 4)
-				var nl := HubStyle.label(WeaponDB.display_name(String(w[0])).to_upper(), 13, HubStyle.rarity_color(rr))
+				var nl := HubStyle.label(HubGear.weapon_name(String(w[0])).to_upper(), 13, HubStyle.rarity_color(rr))
 				l3.add_child(nl)
 				if i == 0:
 					l3.add_child(HubStyle.label(Lang.t("niv. %d · %s", "lvl %d · %s") % [int(w[1]), GameWeapon.rarity_name(rr).to_lower()], 13, HubStyle.DIM))

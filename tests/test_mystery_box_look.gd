@@ -147,11 +147,19 @@ func test_ouverture_allume_le_fond() -> void:
 	assert_near(box._light.light_energy, MysteryBox.LIGHT_IDLE_ENERGY, 0.0001, "lampe au repos")
 
 
-## Peluche leurre : ours en peluche modélisé (TeddyModel, pas un cube).
+## Peluche leurre : ours en peluche modélisé en cubes de 2,5 cm (TeddyModel),
+## à sa taille finale (jamais mis à l'échelle), tête à part.
 func test_peluche_leurre_modelisee() -> void:
 	var m := Throwable.build_model(ThrowableRules.Kind.DECOY, false)
 	var teddy := m.get_node_or_null("Teddy")
 	assert_true(teddy != null and teddy.get_node_or_null("Head") != null, "tête du nounours")
-	assert_true(teddy.find_children("*", "MeshInstance3D", true, false).size() >= 20, "modèle détaillé, pas un cube")
-	assert_near(teddy.scale.x, Throwable.DECOY_SCALE, 0.0001, "réduit à ~21 cm")
+	var box := AABB()
+	var first := true
+	for mi: MeshInstance3D in teddy.find_children("*", "MeshInstance3D", true, false):
+		var b := mi.mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	assert_false(first, "maillages de la peluche")
+	assert_near(box.size.y, TeddyModel.HEIGHT, 0.002, "hauteur de la peluche (cubes de 2,5 cm)")
+	assert_eq(teddy.scale, Vector3.ONE, "jamais mise à l'échelle")
 	m.free()

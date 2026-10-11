@@ -234,10 +234,10 @@ static func take(pd: PlayerData, row: int, i: int) -> Dictionary:
 # Liste de la station
 # --------------------------------------------------------------------------
 
-## Armes constructibles affichées par la station : armes de base puis arsenal
-## du profil, dans l'ordre. Seules les armes à feu (WeaponDB) : une arme de
-## mêlée (le couteau de base) reste l'attaque séparée, elle ne se tient pas
-## en main et ne se construit donc pas.
+## Armes constructibles affichées par la station : armes de base (pistolet de
+## départ, batte) puis arsenal du profil, dans l'ordre. Seules les armes
+## tenues en main (WeaponDB, batte comprise) : le couteau reste l'attaque
+## séparée de tous les joueurs, il ne se construit pas.
 static func catalog(profile: PlayerProfile) -> Array[OwnedWeapon]:
 	var out: Array[OwnedWeapon] = []
 	for o in BaseWeapons.all():

@@ -136,7 +136,7 @@ func _row(x: Dictionary, pr: PlayerProfile, i: int) -> HubRow:
 	var sub := ""
 	if is_weapon:
 		var rr := maxi(OwnedWeapon.rarity_from_key(reward.get("rarity", "common")), 0)
-		var wn := WeaponDB.display_name(String(reward.weapon)) if WeaponDB.exists(String(reward.weapon)) else "?"
+		var wn := HubGear.weapon_name(String(reward.weapon))
 		sub = Lang.t("Arme %s précise : %s", "Exact %s weapon: %s") % [GameWeapon.rarity_name(rr).to_lower(), wn]
 	elif not locked:
 		sub = Lang.t("Pièce", "Part") + " · " + HubContractCard.mods_bb(reward.get("mods", {}))

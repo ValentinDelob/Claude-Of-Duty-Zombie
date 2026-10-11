@@ -101,7 +101,7 @@ func _coop_and_lobby(lang: String) -> void:
 	at.check(Net.mode == Net.Mode.HOST and pp.view == HubPlayPanel.LOBBY, "HÉBERGER : salon dans l'onglet")
 	# Joueurs de démonstration (maquette écran 10) : registre de l'hôte.
 	Net.players[2] = {"name": "Jojo_42", "slot": 1, "lvl": 12, "start": PackedStringArray(["m1911"])}
-	Net.players[3] = {"name": "Marie", "slot": 2, "lvl": 3, "start": PackedStringArray(["m1911", "knife"]), "away": true}
+	Net.players[3] = {"name": "Marie", "slot": 2, "lvl": 3, "start": PackedStringArray(["m1911", "bat"]), "away": true}
 	Net.lobby_return.away = {3: true}
 	Router.lobby_message = Lang.t("Dernière partie : manche 14, 402 zombies abattus", "Last game: round 14, 402 zombies killed")
 	menu.show_screen("hub", {"tab": "play"})

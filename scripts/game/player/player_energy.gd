@@ -6,7 +6,8 @@ extends RefCounted
 ## physique et la dépense au saut et au coup de couteau.
 ##
 ## * Vidée par la course (SPRINT_COST par seconde), le saut (JUMP_COST) et les
-##   coups de corps à corps (statistique « energy » de l'arme, KnifeDB).
+##   coups de corps à corps (statistique « energy » de l'arme : couteau KnifeDB,
+##   batte de baseball WeaponDB).
 ## * Rechargée hors course après REGEN_DELAY sans dépense.
 ## * Épuisé : commence quand l'énergie touche 0, finit quand elle remonte à
 ##   RECOVER_AT (sinon les pénalités disparaîtraient dès la première image de

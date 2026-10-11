@@ -50,7 +50,7 @@
 			"id": "pack_weapon",
 			"title": {"fr": "Arme de la meute", "en": "Pack Weapon"},
 			"text": {
-				"fr": "Un pistolet-mitrailleur que j'ai remis en état avec ce que vous m'avez rapporté. Épique, et à votre niveau.",
+				"fr": "Une mitraillette que j'ai remise en état avec ce que vous m'avez rapporté. Épique, et à votre niveau.",
 				"en": "A submachine gun I restored with what you brought back. Epic, and at your level."
 			},
 			"samples": {"dog_fang": 10, "dog_fur": 10, "dog_collar": 10},

@@ -68,6 +68,7 @@ var _fire_limit := NetGuard.Limiter.new(0.0, FIRE_BURST_TOKENS)
 var _reload_end: Dictionary = {}    # pid -> [slot, end_time, start_time, durée]
 var _last_hurt: Dictionary = {}     # pid -> sec
 var _melee_ready: Dictionary = {}   # pid -> sec
+var _swing_ready: Dictionary = {}   # pid -> sec (arme de corps à corps tenue)
 ## Resynchronisations après un tir refusé (4 par seconde au plus et par joueur).
 var _resync_limit := NetGuard.Limiter.new(4.0, 4.0)
 ## Requêtes de rechargement / changement d'arme (bien au-delà d'un humain).
@@ -506,6 +507,98 @@ func srv_melee(origin: Vector3, dir: Vector3) -> void:
 	_cl_melee_fx.rpc(best.global_position + Vector3.UP * 1.2)
 
 
+## Coup de l'arme de corps à corps tenue en main (batte) : le client
+## l'envoie au moment où la batte touche (WeaponController._swing). Le serveur
+## vérifie l'arme tenue (emplacement `slot`, arme de corps à corps), la
+## cadence (GameWeapon.fire_interval, joueur épuisé compris), l'origine, puis
+## frappe jusqu'à `targets` zombies dans l'arc devant le joueur (portée
+## `reach`, après une éventuelle fente bornée par `lunge_range`), aux dégâts
+## de l'arme de partie (niveau, pièces).
+@rpc("any_peer", "call_local", "reliable")
+func srv_swing(slot: Variant, origin: Vector3, dir: Vector3) -> void:
+	var pid := NetGuard.known_sender(self, game)
+	if pid == NetGuard.NO_SENDER or not slot is int:
+		return
+	var pd := session.get_data(pid)
+	if pd == null or pd.life == PlayerData.Life.DEAD or slot != pd.slot:
+		return
+	var w: Dictionary = pd.current_weapon()
+	if w.is_empty() or not WeaponDB.is_melee(String(w.get("id", ""))):
+		return
+	var t := GameClock.now()
+	var p: Player = game.players.get(pid)
+	# Cadence : l'intervalle de l'arme (moitié moins vite épuisé), avec la
+	# même tolérance que les tirs (gigue réseau).
+	var interval := GameWeapon.fire_interval(w)
+	if p != null and p.energy != null:
+		interval *= p.energy.melee_time_mult()
+	if t < float(_swing_ready.get(pid, 0.0)):
+		return
+	_swing_ready[pid] = t + interval * 0.8
+	if p == null or not NetGuard.finite_vec(origin) or not NetGuard.valid_dir(dir):
+		return
+	var ref := p.srv_origin()
+	if not origin_ok(ref, origin, MAX_ORIGIN_ERROR + 1.7):
+		return
+	var s := GameWeapon.stats(w)
+	var reach := float(s.get("reach", KnifeDB.RANGE))
+	var lunge := float(s.get("lunge_range", KnifeDB.LUNGE_RANGE))
+	cancel_reload(pid, true)
+	VoxSystem.say(pid, "exert_melee", 0.3)
+	dir = Vector3(dir.x, 0.0, dir.z).normalized()
+	var feet := Vector3(origin.x, ref.y, origin.z)
+	var targets := swing_targets(feet, dir, game.zombies.alive, reach + MELEE_SLACK, int(s.get("targets", 1)))
+	var hit_any := Vector3.INF
+	for z: Zombie in targets:
+		var flat := z.global_position - ref
+		flat.y = 0.0
+		if flat.length() > lunge + reach + MELEE_SLACK:
+			continue
+		damage_zombie(z.id, int(s.damage), pid, false, dir, HitKind.MELEE)
+		if hit_any == Vector3.INF:
+			hit_any = z.global_position + Vector3.UP * 1.2
+	if hit_any != Vector3.INF:
+		_cl_bat_fx.rpc(hit_any)
+
+
+## Zombies frappés par un coup d'arme de corps à corps tenue : le plus
+## proche choisi comme le couteau (KnifeDB.pick_target, sans fente), puis les
+## autres zombies dans le même arc (cône du coup au contact) et à portée,
+## du plus proche au plus loin, `count` au plus. Pure (positions lues).
+static func swing_targets(feet: Vector3, dir: Vector3, alive: Array, reach: float, count: int) -> Array:
+	var positions := []
+	for z in alive:
+		positions.append(z.global_position)
+	var first := KnifeDB.pick_target(feet, dir, positions, reach, 0.0)
+	if first < 0:
+		return []
+	var out: Array = [alive[first]]
+	var rest := []
+	for i in alive.size():
+		if i == first:
+			continue
+		var p: Vector3 = positions[i]
+		if absf(p.y - feet.y) > 1.6:
+			continue
+		var to := Vector3(p.x - feet.x, 0.0, p.z - feet.z)
+		var d := to.length()
+		if d < reach and (d < 0.6 or to.normalized().dot(dir) > KnifeDB.MELEE_CONE):
+			rest.append([d, alive[i]])
+	rest.sort_custom(func(a, b): return a[0] < b[0])
+	for r in rest:
+		if out.size() >= count:
+			break
+		out.append(r[1])
+	return out
+
+
+@rpc("authority", "call_local", "reliable")
+func _cl_bat_fx(pos: Vector3) -> void:
+	Audio.play_3d("bat_hit", pos, 0.0, 0.08)
+	Audio.play_3d("knife_flesh", pos, -4.0, 0.1)
+	game.fx_root.blood_hit(pos, Vector3.DOWN, 1.4)
+
+
 ## Marge du couteau côté serveur (interpolation des zombies chez le client).
 const MELEE_SLACK := 0.5
 ## Intervalle minimal entre deux fins de plongeon d'un joueur (s) : un vrai
@@ -801,6 +894,7 @@ func forget_player(pid: int) -> void:
 	_reload_end.erase(pid)
 	_last_hurt.erase(pid)
 	_melee_ready.erase(pid)
+	_swing_ready.erase(pid)
 	_dive_last.erase(pid)
 	_resync_limit.forget(pid)
 	_action_limit.forget(pid)

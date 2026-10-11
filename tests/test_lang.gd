@@ -156,10 +156,10 @@ func test_texts_follow_language_setting() -> void:
 		Interactable.need_power_text(), Scoreboard.columns()[0], Game.make_map_def("bunker_k7").zone_display_name("a")]
 	Settings.language = saved
 	assert_eq(fr, ["Appuyer sur F pour acheter M14 · 500 ferraille", "Appuyer sur F pour ouvrir la caisse · 950 ferraille",
-		"PELUCHE LEURRE", "M14 VIEILLE GARDE",
+		"PELUCHE LEURRE", "MÉTRONOME",
 		"Pas assez de ferraille", "LA HORDE L'EMPORTE", "Le courant doit être rétabli", "JOUEUR", "Salle de garde"])
 	assert_eq(en, ["Press F to buy M14 · 500 scrap", "Press F to open the crate · 950 scrap",
-		"DECOY TEDDY", "M14 OLD GUARD",
+		"DECOY TEDDY", "METRONOME",
 		"Not enough scrap", "THE HORDE WINS", "Power must be activated first", "PLAYER", "Guard Room"])
 
 

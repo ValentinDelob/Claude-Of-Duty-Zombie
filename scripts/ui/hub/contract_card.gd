@@ -210,12 +210,12 @@ static func reward_art(reward: Dictionary) -> String:
 	return ""
 
 
-## Icône en pixel art d'une arme (famille de WeaponDB ; « any » : smg).
+## Icône en pixel art d'une arme (famille, HubGear.weapon_art ; « any » ou
+## arme inconnue : smg).
 static func weapon_art(id: String) -> String:
 	if id == "any" or not WeaponDB.exists(id):
 		return "smg"
-	var cls := String(WeaponDB.WEAPONS[id].get("class", ""))
-	return cls if HubIcon.ART.has(cls) else "rifle"
+	return HubGear.weapon_art(id)
 
 
 ## Nom d'une qualité de pièce en minuscules (FR) ou capitalisé (EN), et sa
@@ -254,7 +254,7 @@ static func reward_text(reward: Dictionary, lvl := -1) -> String:
 			var named := id != "any" and WeaponDB.exists(id)
 			if named and lvl > 0:
 				at = Lang.t(", niv. %d", ", lvl %d") % maxi(lvl, WeaponDB.base_level(id))
-			var what := (" " + WeaponDB.display_name(id)) if named else ""
+			var what := (" " + HubGear.weapon_name(id)) if named else ""
 			return Lang.t("Arme %s%s%s" % [rarity_bb(r), what, at], "%s%s weapon%s" % [rarity_bb(r), what, at])
 	return Lang.t("XP seulement", "XP only")
 

@@ -119,8 +119,8 @@ func _focus(hub: HubScreen) -> Control:
 func test_filters() -> void:
 	var pr := demo_profile()
 	var base := BaseWeapons.all()
-	var knife: OwnedWeapon = base[1]
-	assert_true(HubGear.passes(knife, "melee", 7) and not HubGear.passes(knife, "firearm", 7), "couteau : corps à corps")
+	var bat: OwnedWeapon = base[1]
+	assert_true(HubGear.passes(bat, "melee", 7) and not HubGear.passes(bat, "firearm", 7), "batte : corps à corps")
 	var mamba := pr.weapons[3]
 	assert_false(HubGear.passes(mamba, "usable", pr.level()), "niveau 9 > 7 : pas utilisable")
 	assert_true(HubGear.passes(mamba, "firearm", pr.level()))
@@ -190,6 +190,45 @@ func test_part_texts() -> void:
 	assert_eq(HubGear.mods_plain(p.mods), "fire rate +10% · accuracy −6%")
 
 
+## Noms, familles et icônes des armes au hub : noms originaux (jamais
+## l'identifiant interne), familles de WeaponDB.FAMILIES, une icône par
+## famille, la batte arme de corps à corps de base.
+func test_weapon_names_families_icons() -> void:
+	for lang in ["fr", "en"]:
+		Settings.language = lang
+		for id in WeaponDB.WEAPONS:
+			var n := HubGear.weapon_name(id)
+			assert_eq(n, WeaponDB.display_name(id), "%s : nom du jeu" % id)
+			assert_true(n.to_lower() != String(id).to_lower() or id == "bat", "%s : jamais l'identifiant interne" % id)
+			assert_true(HubIcon.ART.has(HubGear.weapon_art(id)), "%s : icône %s" % [id, HubGear.weapon_art(id)])
+			var cls := String(WeaponDB.stats(id).get("class", ""))
+			assert_eq(HubGear.weapon_class(id).to_upper(), WeaponDB.family_name(id).to_upper(), "%s : famille %s" % [id, cls])
+	Settings.language = "fr"
+	for cls in WeaponDB.CLASSES:
+		assert_true(HubGear.CLASS_NAMES.has(cls) and HubGear.CLASS_ART.has(cls), "famille %s nommée et dessinée" % cls)
+		assert_true(HubIcon.ART.has(HubGear.CLASS_ART[cls]), "icône de %s" % cls)
+	assert_eq(HubGear.weapon_name("bat"), "BATTE")
+	assert_eq(HubGear.weapon_art("bat"), "bat")
+	assert_eq(HubGear.weapon_class("bat"), "Corps à corps")
+	assert_true(HubGear.is_melee("bat") and not HubGear.is_melee(WeaponDB.STARTING_WEAPON))
+	assert_eq(HubGear.weapon_art("knife"), "knife", "couteau : son icône (fiches de salon anciennes)")
+	assert_eq(HubContractCard.weapon_art("any"), "smg")
+	assert_eq(HubPlayView.weapon_label("bat"), "Batte")
+	assert_eq(HubPlayView.weapon_label("m1911"), "Pétoire")
+	var ml := HubGear.melee_lines("bat")
+	assert_eq(String(ml[0].text), "250", "batte : 250 dégâts")
+	assert_eq(String(ml[1].text), "1,25", "batte : 1,25 coup par seconde")
+	assert_eq(String(ml[2].text), "15,0", "batte : 15 d'énergie par coup")
+	assert_eq(HubGear.station_text(BaseWeapons.make("bat")), "", "la batte ne se construit pas")
+	# Récompenses : nom original, jamais l'identifiant.
+	var rw := {"kind": "weapon", "weapon": "mp5k", "rarity": "epic"}
+	assert_true(HubContractCard.reward_text(rw, 8).contains("MOUCHERON"), HubContractCard.reward_text(rw, 8))
+	assert_true(HubRewards.describe(rw, 8).begins_with("MOUCHERON"), HubRewards.describe(rw, 8))
+	Settings.language = "en"
+	assert_true(HubRewards.describe(rw, 8).contains("GNAT"), HubRewards.describe(rw, 8))
+	assert_false(HubContractCard.reward_text(rw, 8).contains("MP5"), "aucun nom réel")
+
+
 func test_effective_stats_with_parts() -> void:
 	var w := OwnedWeapon.create("mp5k", 1, OwnedWeapon.Rarity.EPIC)
 	var plain := HubGear.stat_lines(w)
@@ -229,7 +268,7 @@ func test_arsenal_list_and_sheet() -> void:
 	assert_true(ars.sheet.slots[2].empty, "emplacement libre")
 	# Filtres (Tab) et tri (R).
 	ars.set_filter("melee")
-	assert_eq(ars.rows.size(), 1, "CORPS À CORPS : le couteau")
+	assert_eq(ars.rows.size(), 1, "CORPS À CORPS : la batte")
 	ars.set_filter("usable")
 	assert_eq(ars.rows.size(), 7, "UTILISABLES : sans MAMBA")
 	ars.cycle_filter()
@@ -443,6 +482,11 @@ func test_loadout_one_to_three() -> void:
 	assert_true(lo is HubLoadoutPanel, "DÉPART : panneau du lot C")
 	var n := pr.starting_weapons.size()
 	assert_eq(lo.slots.size(), 3, "trois emplacements")
+	var bases := []
+	for r in lo.base_rows:
+		bases.append((r as HubPickRow).key)
+	assert_eq(bases, ["m1911", "bat"], "armes de base choisissables : pistolet et batte, plus le couteau")
+	assert_false(lo.toggle("knife"), "le couteau ne se choisit pas")
 	assert_eq((lo.slots[2] as HubSlot).empty, n < 3, "emplacement non choisi : vide")
 	# Retirer jusqu'à une seule arme ; la dernière ne se retire pas.
 	var first := pr.starting_weapons[0]

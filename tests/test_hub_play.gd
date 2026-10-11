@@ -114,7 +114,7 @@ func test_solo_view_maps_and_preview() -> void:
 	assert_true(t.contains("Vagues de boss : aucune"), "pas de boss")
 	assert_true(t.contains("Porte d'évacuation : oui"), "porte d'évacuation")
 	assert_true(t.contains("croc") and t.contains("touffe") and t.contains("collier"), "échantillons de la carte")
-	assert_true(t.contains("VOUS PARTEZ AVEC") and t.contains("M1911"), "armes de départ")
+	assert_true(t.contains("VOUS PARTEZ AVEC") and t.contains("Pétoire") and t.contains("Batte"), "armes de départ")
 	assert_true(t.contains("encore 1 touffe") and t.contains("sur cette carte"), "contrat : il manque 1 touffe, sur cette carte")
 	assert_true(t.contains("encore 3 colliers · 12 j"), "contrat daté : 12 j")
 	assert_true(t.contains("PRÊT") and t.contains("à remettre au labo"), "contrat prêt")
@@ -207,7 +207,7 @@ func test_title_screen_needs_confirmation_online() -> void:
 func test_lobby_card_bounds() -> void:
 	var c := Net.clean_card(999, ["m1911", "m1911", "evil", "knife", 4])
 	assert_eq(int(c.lvl), PlayerProfile.MAX_LEVEL, "niveau borné")
-	assert_eq(Array(c.start), ["m1911", "knife"], "armes de base seulement, sans doublon")
+	assert_eq(Array(c.start), ["m1911", "bat"], "armes de base seulement, sans doublon ; ancien couteau -> batte")
 	var players := Net.clean_players({2: {"name": "Jojo", "slot": 1, "lvl": "x", "start": "y", "away": true}, 3: {"name": "Old", "slot": 2}})
 	assert_eq(int(players[2].lvl), 1, "niveau illisible : 1")
 	assert_true(players[2].away, "état EN RETOUR gardé")
