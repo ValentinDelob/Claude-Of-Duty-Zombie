@@ -26,6 +26,7 @@ const GROUPS := {
 	"dogs": ["MEUTE ERRANTE (CHIENS)", "STRAY PACK (DOGS)", "par chien tué", "per dog killed"],
 	"brancardier": ["BRANCARDIER", "STRETCHER-BEARER", "par zombie de sa vague", "per zombie of its wave"],
 	"surgeon": ["LE CHIRURGIEN (BOSS)", "THE SURGEON (BOSS)", "par zombie de sa vague, à coup sûr sur lui", "per zombie of its wave, guaranteed on him"],
+	"nurse": ["INFIRMIÈRE HURLANTE", "SCREAMING NURSE", "par zombie de sa vague", "per zombie of its wave"],
 }
 ## Sortes à découvrir montrées en « ??? » (ennemis à venir, GAME_CONCEPT §4.17).
 const UNKNOWN_TEASERS := 2

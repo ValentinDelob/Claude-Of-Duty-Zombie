@@ -168,6 +168,47 @@
 			"after": ["orderly_straps"]
 		},
 		{
+			"id": "night_shift",
+			"title": {"fr": "Garde de nuit", "en": "Night Shift"},
+			"text": {
+				"fr": "L'infirmière de nuit hurle encore dans les couloirs. Ses cordes vocales tiennent une note que je n'arrive pas à reproduire au labo. Rapportez-en… et bouchez-vous les oreilles.",
+				"en": "The night nurse is still screaming down the halls. Her vocal cords hold a note I can't reproduce in the lab. Bring me some… and plug your ears."
+			},
+			"thanks": {
+				"fr": "Pardon ? Parlez plus fort, vous avez encore les oreilles qui sifflent. Moi aussi, d'ailleurs.",
+				"en": "Sorry? Speak up, your ears are still ringing. So are mine, actually."
+			},
+			"samples": {"nurse_vocal_cords": 3},
+			"xp": 2700,
+			"reward": {"kind": "weapon", "weapon": "any", "rarity": "rare"},
+			"min_level": 10
+		},
+		{
+			"id": "used_syringes",
+			"title": {"fr": "Seringues usagées", "en": "Used Syringes"},
+			"text": {
+				"fr": "Le liquide vert au fond de ses seringues, c'est ce qu'elle injectait aux patients. Je veux savoir ce que c'est. Non, ne le testez pas sur vous.",
+				"en": "The green stuff at the bottom of her syringes is what she was injecting into patients. I want to know what it is. No, don't test it on yourself."
+			},
+			"samples": {"nurse_syringe": 3},
+			"xp": 2700,
+			"reward": {"kind": "part", "quality": "superior"},
+			"min_level": 10
+		},
+		{
+			"id": "staff_register",
+			"title": {"fr": "Registre du personnel", "en": "Staff Register"},
+			"text": {
+				"fr": "Avec leurs badges, je saurai qui était de garde la nuit où tout a commencé. Et leurs cordes vocales me diront qui a crié en premier.",
+				"en": "With their badges, I'll know who was on duty the night it all started. And their vocal cords will tell me who screamed first."
+			},
+			"samples": {"nurse_badge": 4, "nurse_vocal_cords": 3},
+			"xp": 4100,
+			"reward": {"kind": "weapon", "weapon": "any", "rarity": "epic"},
+			"min_level": 11,
+			"after": ["night_shift"]
+		},
+		{
 			"id": "surgical_instruments",
 			"title": {"fr": "Instruments de chirurgie", "en": "Surgical Instruments"},
 			"text": {

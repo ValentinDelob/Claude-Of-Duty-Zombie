@@ -78,6 +78,9 @@ func special_kind(z: Zombie) -> String:
 		return "dogs"
 	if game.rounds.special_type == WaveRules.BRANCARDIER and not z is Hellhound:
 		return "brancardier"
+	# Vague de l'Infirmière : elle ET son escorte.
+	if game.rounds.special_type == WaveRules.INFIRMIERE and not z is Hellhound:
+		return "nurse"
 	return ""
 
 

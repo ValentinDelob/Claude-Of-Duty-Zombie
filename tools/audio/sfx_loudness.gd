@@ -51,6 +51,14 @@ const CATEGORIES := [
 	{"id": "chirurgien_choc", "match": ["surgeon_scalpel_hit", "surgeon_cut"], "target": -14.0, "tol": 2.5, "mode": "max"},
 	{"id": "chirurgien_bruitage", "match": ["surgeon_step_*", "surgeon_heartbeat", "surgeon_surgery", "surgeon_monitor"],
 		"target": -18.0, "tol": 3.0, "mode": "max"},
+	# Infirmière hurlante (vague spéciale) : son cri est LE signal de la vague
+	# (plus fort que les voix des chiens et du Brancardier, sans rien baisser
+	# d'autre) ; voix, bruitages ; acouphène du joueur étourdi discret.
+	{"id": "infirmiere_cri", "match": ["nurse_scream", "nurse_far"], "target": -12.0, "tol": 2.0, "mode": "max"},
+	{"id": "infirmiere", "match": ["nurse_inhale", "nurse_moan_*", "nurse_choke", "nurse_hit", "nurse_death"],
+		"target": -14.0, "tol": 2.0, "mode": "max"},
+	{"id": "infirmiere_bruitage", "match": ["nurse_step_*", "nurse_stab"], "target": -18.0, "tol": 3.0, "mode": "max"},
+	{"id": "infirmiere_acouphene", "match": ["nurse_ring"], "target": -22.0, "tol": 2.5, "mode": "max"},
 	{"id": "joueur", "match": ["footstep_*", "dive_land", "player_hurt_*", "player_down", "player_breath_*", "heartbeat", "revive"],
 		"target": -18.0, "tol": 3.0, "mode": "max"},
 	# Ritournelles originales (manches, caisse...) : identité conservée,

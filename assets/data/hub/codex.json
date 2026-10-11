@@ -68,13 +68,12 @@
 			"id": "nurse",
 			"name": {"fr": "Infirmière hurlante", "en": "Screaming Nurse"},
 			"text": {
-				"fr": "Elle fait toujours sa ronde de nuit, en hurlant. Son cri ameute tout l'étage et vous laisse les oreilles en vrac.",
-				"en": "Still doing her night rounds, screaming. Her shriek calls the whole floor over and leaves your ears ringing."
+				"fr": "Elle fait toujours sa ronde de nuit, en hurlant. Son cri ameute tout l'étage et vous laisse les oreilles en vrac. Quand elle prend sa grande inspiration, visez la gorge.",
+				"en": "Still doing her night rounds, screaming. Her shriek calls the whole floor over and leaves your ears ringing. When she takes that deep breath, aim for the throat."
 			},
 			"round": 20,
 			"samples": ["nurse_vocal_cords", "nurse_syringe", "nurse_badge"],
-			"xp_ref": "miniboss",
-			"planned": true
+			"xp_ref": "miniboss"
 		},
 		{
 			"id": "surgeon",

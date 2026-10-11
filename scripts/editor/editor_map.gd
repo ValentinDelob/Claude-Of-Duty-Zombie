@@ -167,7 +167,8 @@ extends RefCounted
 ##  21  plusieurs types de vagues spéciales (GAME_CONCEPT.md §4.4 : plusieurs
 ##      mini-boss par carte, pour varier) : « carte.vagues.types_speciaux » =
 ##      liste des types autorisés (WaveRules.SPECIAL_TYPES : « meute »,
-##      « brancardier »), qui tournent dans cet ordre (WaveRules.special_type_at).
+##      « brancardier », puis « infirmiere », ajoutée sans changer de format),
+##      qui tournent dans cet ordre (WaveRules.special_type_at).
 ##      Absente : tous les types (jamais écrite à sa valeur par défaut,
 ##      set_special_types). Aucune conversion : une carte au format 20 ou moins
 ##      se lit telle quelle (tous les types, en rotation).

@@ -23,6 +23,9 @@ const WORDS := {
 	"brancard_bracelet": ["bracelet", "bracelets", "ID bracelet", "ID bracelets"],
 	"surgeon_scalpel": ["scalpel", "scalpels", "scalpel", "scalpels"],
 	"surgeon_heart": ["cœur mutant", "cœurs mutants", "mutant heart", "mutant hearts"],
+	"nurse_vocal_cords": ["corde vocale", "cordes vocales", "vocal cord", "vocal cords"],
+	"nurse_syringe": ["seringue", "seringues", "broken syringe", "broken syringes"],
+	"nurse_badge": ["badge", "badges", "name badge", "name badges"],
 }
 
 ## Sorte -> Label de la quantité (tests).

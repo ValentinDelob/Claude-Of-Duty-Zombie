@@ -202,7 +202,8 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
   ils reviennent **à tour de rôle** : la k-ième vague spéciale du schéma est
   du type n° (k − 1) modulo le nombre de types (manches de boss exclues).
   Par défaut : meute à la manche 5, Brancardier à la 10, **boss à la 15**,
-  meute à la 20, Brancardier à la 25, boss à la 30…
+  Infirmière hurlante à la 20, meute à la 25, boss à la 30, Brancardier à la
+  35…
 - ✔️ **Vagues de boss** (format de carte 22) : schéma configurable par carte
   dans l'éditeur comme les vagues spéciales (défaut 💡 : toutes les 15
   manches ; 1re manche 0 : carte sans boss) ; types de boss permis
@@ -236,6 +237,25 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
   apparition dans la partie) ; échantillons **sangle de cuir** et **bracelet
   d'identification**, 20 % chacun sur chaque zombie de la vague (escorte
   comprise) ; bandeau « UN BRANCARDIER APPROCHE ».
+- ✔️ **L'Infirmière hurlante** (provisoire, §6 bis ; « The Screaming
+  Nurse ») : infirmière de nuit de l'hôpital, grande et décharnée, en cubes
+  de 2,5 cm (blouse blanche tachée, coiffe, cheveux noirs filasse, bouche
+  béante, gorge déchirée où luisent ses cordes vocales, badge sur la
+  poitrine, seringue cassée à la main) ; **une par joueur**, avec une
+  **escorte** de 6 zombies par joueur ; elle **garde ses distances** : elle
+  fuit quand on s'approche, revient quand on s'éloigne, et ne se bat (coup
+  de seringue) qu'acculée ; **cri télégraphié** (elle s'arrête, renverse la
+  tête, écarte les bras, sa gorge flamboie, sifflement qui monte) qui
+  **étourdit** les joueurs en vue (vue qui tangue, image en cubes,
+  déplacement ralenti, légers dégâts ; derrière un mur : rien) et
+  **ameute** les zombies proches (ils foncent sur sa proie, les yeux
+  allumés) ; point faible : la **gorge** (et la tête) ; une balle dans la
+  gorge pendant la préparation **étrangle** le cri ; PV d'un mini-boss
+  (8 fois un zombie de la manche, +20 % à chaque nouvelle apparition) ;
+  échantillons **cordes vocales**, **seringue cassée** et **badge**, 20 %
+  chacun sur chaque zombie de la vague ; bandeau « L'INFIRMIÈRE FAIT SA
+  RONDE ». Aucun son du jeu n'est baissé pendant le cri (pas de
+  « ducking ») : le joueur étourdi entend un acouphène en plus.
 
 ### 4.5 Évacuation ✅
 - L'évacuation devient possible **après avoir vaincu une vague spéciale ou une
@@ -513,7 +533,8 @@ de 2,5 cm** (§ 4.19).
     fin, quelle que soit l'issue (ou si le joueur quitte) ; l'écran de fin
     montre le détail, le niveau avant / après et la progression ;
   - simulation de calibrage : niveau 10 en ≈ 2,5 h, 25 en ≈ 20 h, 50 en
-    ≈ 116 h (vagues spéciales en rotation, Brancardier et Chirurgien compris) ;
+    ≈ 116 h (vagues spéciales en rotation, Brancardier, Infirmière et
+    Chirurgien compris) ;
   - les contrats (§4.2) ajouteront leur XP au hub ; le niveau du joueur y
     servira pour l'arme ou la pièce offerte.
 
@@ -534,8 +555,9 @@ de 2,5 cm** (§ 4.19).
   avec l'XP. Une fiche inconnue ne montre que la manche à partir de laquelle
   l'ennemi peut apparaître ; une fiche connue montre nom, description,
   éliminations, échantillons et XP. Fiches dans
-  `assets/data/hub/codex.json` (Infirmière hurlante prévue, manche 20
-  provisoire ; le Chirurgien est en jeu : manche 15, son propre barème).
+  `assets/data/hub/codex.json` (Infirmière hurlante active depuis sa vague
+  spéciale, manche 20 depuis le boss de la 15 ; le Chirurgien est en jeu :
+  manche 15, son propre barème).
 
 ### 4.18 Défi hebdomadaire ✅
 - Un défi identique pour tout le monde chaque semaine (même carte, mêmes
@@ -643,6 +665,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | Vagues de chiens (`scripts/game/dogs`) | ✔️ | **Adaptées** en première vague spéciale, la « meute » : chiens errants contaminés en cubes de 2,5 cm (`dog_voxel.py`) ; mise en scène propre au jeu : bandeau « LA MEUTE APPROCHE », alerte de confinement (sirène, Geiger), compteur en alerte orange, aboiements lointains, chiens tapis hors de vue qui jaillissent, mort sur le flanc (ni éclair ni brouillard façon BO1) |
 | Vague spéciale du Brancardier (`scripts/game/brancardier`) | ✔️ | **Nouveau** mini-boss original (§4.4), en rotation avec la meute ; modèle en cubes de 2,5 cm (`brancardier_voxel.py`), charge télégraphiée, projection, étourdi contre un mur, escorte, sons procéduraux, coop (hôte autoritaire) |
 | Vague de boss du Chirurgien (`scripts/game/surgeon`) | ✔️ | **Nouveau** premier boss original (§4.4), toutes les 15 manches par défaut ; modèle en cubes de 2,5 cm (`surgeon_voxel.py`), cœur mutant lumineux (point faible), combo au scalpel, scalpels lancés, opérations qui relèvent des zombies, phase 2 avec onde de choc, jauge de vie, escorte, sons procéduraux, coop (hôte autoritaire) |
+| Vague spéciale de l'Infirmière hurlante (`scripts/game/nurse`) | ✔️ | **Nouveau** mini-boss original (§4.4), 3e type de la rotation ; modèle en cubes de 2,5 cm (`nurse_voxel.py`), garde ses distances et fuit, cri télégraphié qui étourdit (effet d'écran en cubes, ralenti) et ameute les zombies, gorge point faible (cri étranglé), escorte, sons procéduraux, coop (hôte autoritaire) |
 | Points par élimination | 🧪 | **Adapter** en ferraille personnelle (§4.8) |
 | Portes payantes | 🧪 | **Garder**, payées en ferraille |
 | Achats muraux | ✔️ | **Supprimés** (remplacés par la station de construction) |
@@ -724,7 +747,7 @@ corriger.
 | Ferraille par touche | **10** par touche de balle ou de couteau qui ne tue pas (tir de fusil à pompe : une touche par zombie) ; 0 pour une explosion, une brûlure, un piège ou le téléporteur ; au plus **10 touches payées par zombie**, tous joueurs confondus | `PointsRules.HIT`, `HIT_CAP` |
 | Énergie | 0 à 100 ; course 25/s ; saut 10 ; couteau 8, couteau de chasse 10, batte 15 ; recharge 40/s après 0,4 s ; **épuisé** de 0 jusqu'à 50 | `docs/ENERGY_PLAN.md` |
 | Essoufflement | silencieux au-dessus de 35 % ; halètement tant que le joueur est épuisé ; la respiration de santé basse passe avant | `BreathFeedback` |
-| XP par élimination | selon le type, à la manche 1 : marcheur, coureur, sprinteur, rampant **4** ; chien **12** ; Brancardier **60** (mini-boss) ; Chirurgien **240** (boss) ; mini-boss (référence) **60** ; boss (référence) **240** ; × bonus de manche **1 + 0,15 × (manche − 1)**, plafonné à **×5** ; au seul tueur (piège : celui qui l'a activé) | `XpRules`, `docs/XP_RULES.md` |
+| XP par élimination | selon le type, à la manche 1 : marcheur, coureur, sprinteur, rampant **4** ; chien **12** ; Brancardier **60** (mini-boss) ; Infirmière hurlante **60** (mini-boss) ; Chirurgien **240** (boss) ; mini-boss (référence) **60** ; boss (référence) **240** ; × bonus de manche **1 + 0,15 × (manche − 1)**, plafonné à **×5** ; au seul tueur (piège : celui qui l'a activé) | `XpRules`, `docs/XP_RULES.md` |
 | XP hors élimination | manche survécue **3 × manche** ; vague spéciale vaincue **60**, vague de boss **240** (× bonus de manche) ; à chaque joueur non mort à la fin de la manche ; évacuation **+25 %** de l'XP de la partie | `XpRules` |
 | XP gardée | comptée par l'hôte pendant la partie, ajoutée une fois au profil à la fin (évacuation ou défaite) ou au départ d'un joueur en cours de partie (sans bonus) ; le niveau ne change pas pendant la partie | `XpSystem`, `MatchXp` |
 | Armes de base | pistolet de départ (PÉTOIRE) et batte de baseball (BATTE, arme de corps à corps tenue en main) ; sélection par défaut : les deux ; un ancien profil qui avait choisi le couteau reçoit la batte | `BaseWeapons` |
@@ -750,7 +773,7 @@ corriger.
 | Modificateurs d'une pièce trouvée | un premier modificateur toujours en bonus ; 35 % de chances d'un second (autre statistique), malus une fois sur deux ; valeurs de 5 à 25 % par pas de 1 % ; identifiant `part_<1er modificateur>` | `LootRules.roll_part` |
 | Pièces et échantillons | rangés directement dans l'onglet de partie (pas d'objet au sol) ; compteur discret à droite du HUD | `LootSystem` |
 | Échantillons des chiens | `dog_fang` (croc), `dog_fur` (touffe de poils), `dog_collar` (collier) | `LootRules.SAMPLES` |
-| Rotation des vagues spéciales | types permis par la carte (défaut : meute et Brancardier) à tour de rôle dans l'ordre meute, Brancardier : la k-ième vague spéciale du schéma est du type n° (k − 1) mod n (manches de boss exclues) ; avec le boss par défaut (15, 30…) : meute 5, 20, 35…, Brancardier 10, 25, 40… ; conséquence : sur une carte aux deux types, chaque type revient deux fois moins souvent (contrats des chiens ≈ 2 fois plus longs à remplir) | `WaveRules.special_type_at`, format de carte 21 |
+| Rotation des vagues spéciales | types permis par la carte (défaut : meute, Brancardier et Infirmière hurlante) à tour de rôle dans l'ordre meute, Brancardier, Infirmière : la k-ième vague spéciale du schéma est du type n° (k − 1) mod n (manches de boss exclues) ; sans boss : meute 5, 20, 35…, Brancardier 10, 25, 40…, Infirmière 15, 30, 45… ; avec le boss par défaut (15, 30, 45…) : meute 5, 25, 50…, Brancardier 10, 35, 55…, Infirmière 20, 40, 65… ; conséquence : sur une carte aux trois types, chaque type revient trois fois moins souvent (contrats des chiens ≈ 3 fois plus longs à remplir) ; une carte qui listait « meute » et « brancardier » garde ces deux types (pas d'Infirmière) ; pas de changement de format | `WaveRules.special_type_at`, format de carte 21 |
 | Brancardier : composition | **1 par joueur** (au plus 6, 4 vivants à la fois), apparition à 12–28 m, hors de vue de préférence, 4 s entre deux ; **escorte** de **5 zombies ordinaires par joueur** (au plus 20) après l'annonce de 6 s ; la vague finit quand Brancardiers et escorte sont tués | `BrancardRules` |
 | Brancardier : PV | **10 × PV d'un zombie de la manche × (1 + 0,2 × (rang − 1))**, rang = n° de sa vague dans la partie : manche 10 (1re) 10 500, manche 20 (2e) 24 600, manche 30 (3e) 42 700 ; modificateur « zombies coriaces » du défi appliqué | `BrancardRules.health` |
 | Brancardier : charge | portée 4 à 15 m, en vue, même niveau, corps qui passe ; 5 s entre deux ; préparation **1,3 s** (immobile, sabot qui gratte 3 fois, rugissement, yeux qui flamboient) ; charge **8,5 m/s**, 2,2 s au plus, traverse zombies et joueurs ; joueur sur sa route (1,15 m) : **45 dégâts** et projection (7 m/s devant, 4,5 m/s de côté, 3,5 m/s en l'air, 0,35 s), une fois par charge ; mur de face : **étourdi 3 s** (immobile, recule d'un pas) | `BrancardRules` |
@@ -763,17 +786,24 @@ corriger.
 | 💡 Chirurgien : attaques | marche 1,9 m/s (enragé 2,7) ; **combo** au contact (< 2,3 m) : préparation **0,65 s** (0,42 enragé, lame qui brille), **2 entailles** (3 enragé) de 0,42 s avec une fente, **35 dégâts** chacune dans un arc de ±66° à 2,7 m, 1,4 s avant le suivant ; **scalpels** à 5–20 m en vue : préparation **0,85 s** (0,6), éventail de **3** (5) scalpels à 15 m/s, **22 dégâts** chacun, un toutes les 6,5 s (4) ; **opérations** à **75 %** et **25 %** des PV : 3,2 s immobile, **2 patients par joueur** (au plus 8), zombies ordinaires de la manche ; **phase 2** à **50 %** : rugissement 2,2 s, **onde de choc** à 4,5 m (**20 dégâts**, projection) ; point faible : le **cœur** (multiplicateur de tête de l'arme), la tête compte comme le corps ; ni démembrement, ni leurre | `SurgeonRules`, `Surgeon` |
 | 💡 Chirurgien : butin | échantillons `surgeon_scalpel` (scalpel), `surgeon_heart` (cœur mutant), **20 %** chacun sur chaque zombie de sa vague (escorte, patients) et **à coup sûr** sur lui, pour chaque joueur (seul : ≈ 3 de chaque par vague) ; **2 armes par joueur**, raretés de boss : commune 40 %, rare 27 %, épique 20 %, légendaire 9 %, unique 4 % | `LootRules.SAMPLES`, `BOSS_SAMPLE_CHANCE`, `RARITY_WEIGHTS_BOSS` |
 | 💡 Chirurgien : textes | « The Surgeon » ; bandeaux « LE CHIRURGIEN ENTRE AU BLOC » / « THE SURGEON IS SCRUBBING IN », « IL OPÈRE : LES PATIENTS SE RELÈVENT », « LE CHIRURGIEN PERD PATIENCE », « LE CHIRURGIEN RACCROCHE SA BLOUSE » ; jauge « LE CHIRURGIEN » en haut de l'écran | `SurgeonRound`, `BossBar` |
+| Infirmière hurlante : composition | **1 par joueur** (au plus 4, 3 vivantes à la fois), apparition à 12–26 m, hors de vue de préférence, 4 s entre deux ; **escorte** de **6 zombies ordinaires par joueur** (au plus 24) après l'annonce de 6 s ; la vague finit quand Infirmières et escorte sont tuées | `NurseRules` |
+| Infirmière hurlante : PV | **8 × PV d'un zombie de la manche × (1 + 0,2 × (rang − 1))** : manche 20 (1re, la 15 étant de boss) 16 400, manche 40 (2e) 38 880 ; plus fragile que le Brancardier (elle fuit) ; modificateurs du défi appliqués | `NurseRules.health` |
+| Infirmière hurlante : distances | marche 1,9 m/s ; **fuit** (3,4 m/s) quand un joueur est à moins de **6 m**, vers un point dégagé à 4–12 m d'elle, loin des joueurs (jamais en passant devant eux) ; **approche** au-delà de **12 m** ou hors de vue ; entre les deux, elle guette ; acculée (pas de point, bloquée 1,2 s) : se défend **3 s** ; coup de seringue à 1,3 m, **35 dégâts** à 0,42 s ; ignore la peluche leurre, aucun démembrement | `NurseRules`, `Nurse` |
+| Infirmière hurlante : cri | portée **14 m**, en vue, même niveau ; premier cri 2,5 s après l'apparition, puis **8 s** entre deux ; préparation **1,4 s** (immobile, tête renversée, bras écartés, gorge et yeux qui flamboient, inspiration sifflante, cubes roses aspirés) ; cri **1,2 s** ; joueurs **en vue** à moins de **11 m** : **étourdis** 3 s (de près) à 1,2 s (au bord), force 1 à 0,45, déplacement jusqu'à **−50 %**, vue qui tangue, image « en cubes » et dédoublée, acouphène (aucun son baissé), **10 dégâts** ; zombies à moins de **22 m** **ameutés 5 s** : **+45 %** de vitesse vers sa proie, yeux qui flamboient ; onde du cri : anneaux de cubes roses jusqu'à 11 m | `NurseRules` |
+| Infirmière hurlante : point faible | la **gorge** (zone de tête sur l'os du cou) et la tête : multiplicateur de tête de l'arme ; une touche à la tête ou à la gorge pendant la préparation **étrangle** le cri : il avorte, elle tousse **2 s**, immobile, prochain cri 4 s plus tard | `Nurse.srv_on_damaged` |
+| Échantillons de l'Infirmière | `nurse_vocal_cords` (cordes vocales), `nurse_syringe` (seringue cassée), `nurse_badge` (badge nominatif), 20 % chacun sur **chaque zombie de la vague** (escorte comprise : à un joueur, 7 tirages par vague) | `LootRules.SAMPLES`, `LootSystem.special_kind` |
+| Infirmière hurlante : nom anglais | « Screaming Nurse » ; bandeau « L'INFIRMIÈRE FAIT SA RONDE » / « THE NURSE IS DOING HER ROUNDS » (coop : « LES INFIRMIÈRES FONT LEUR RONDE » / « THE NURSES ARE DOING THEIR ROUNDS ») | `NurseRound` |
 | Butin rapporté | armes en main et inventaire, sauf armes de base intactes et pistolet prêté ; exemplaire construit depuis l'arsenal (même `uid`) et amélioré en partie : cette version mise à jour (niveau, rareté, pièces), intact : rien, second exemplaire différent : nouvelle version ; pièces non montées ; échantillons | `ProfileLoot` |
 | Hub (2D, lots A, B, D et E codés) | **écrans 2D à onglets** (LABO, ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, PARTIE) ; hub 3D (laboratoire) plus tard, qui ouvrira les mêmes panneaux ; menu titre réduit à JOUER, ÉDITEUR, OPTIONS, CRÉDITS, QUITTER ; solo / coop choisis dans PARTIE ; en coop, le salon est l'onglet PARTIE (le groupe reste connecté) ; puissance non affichée (§4.13), meilleur score de l'arsenal à la place ; retirer une pièce et recycler : deux appuis | `docs/HUB_PLAN.md` |
 | Contrats : tableau | **5 propositions, 3 actifs** ; rotation **par partie** (≥ 1 manche survécue) : 1 proposition (la plus ancienne) remplacée, cases vides remplies ; une proposition acceptée laisse sa case vide jusqu'à la partie suivante ; tirage pondéré sans doublon, graine du profil ; manches survécues = max(relevé d'XP, manche atteinte − 1) ; une partie quittée après une manche compte aussi ; récompense au niveau du joueur avant l'XP du contrat | `ContractRules`, `MatchContracts`, `docs/HUB_PLAN.md` §5 et lot A |
 | Contrats : récompense | XP = XP de base × (1 + 0,02 × (niveau − 1)), arrondie à 10 ; arme ou pièce au niveau du joueur à la remise ; rareté de l'arme selon les parties nécessaires (< 1,5 commune, 1,5 à 3 rare, 3 à 5 épique, > 5 légendaire ; unique : contrats datés exceptionnels seulement) ; qualité d'une pièce : ordinaire (tirage du butin), soignée (2 bonus de 10 à 25 %), d'exception (2 bonus de 18 à 25 %) ; XP ≈ 25 % de l'XP des parties nécessaires, +25 % si daté | `docs/HUB_PLAN.md` §5, §7 |
-| Contrats et échanges d'exemple | 14 contrats et 9 échanges : 8 et 5 sur les échantillons des chiens, 3 et 2 sur ceux du Brancardier, 3 et 2 sur ceux du Chirurgien (fichiers `assets/data/hub/`) | `docs/HUB_PLAN.md` §7 |
+| Contrats et échanges d'exemple | 17 contrats et 11 échanges : 8 et 5 sur les échantillons des chiens, 3 et 2 sur ceux du Brancardier, 3 et 2 sur ceux de l'Infirmière hurlante, 3 et 2 sur ceux du Chirurgien (niveau 10 et plus) (fichiers `assets/data/hub/`) | `docs/HUB_PLAN.md` §7 |
 | Échanges | pas d'XP, illimités, objet précis au niveau du joueur | `docs/HUB_PLAN.md` §6 |
 | Taille des menus | nouveau réglage 80 à 130 % (défaut 100 %) pour le hub et les menus, même technique que la taille de l'éditeur | `docs/HUB_PLAN.md` §4.2 |
 | Hub : onglet PARTIE et retour | fin d'une partie solo (ou départ en solo) : hub, onglet LABO (« dernière partie ») ; coop : hub, onglet PARTIE (salon) ; session perdue : hub, onglet PARTIE, message sur place ; salon : niveau et armes de départ de chacun affichés (non vérifiés par l'hôte) ; pas de bouton PRÊT (l'état AU SALON en tient lieu) ; QUITTER LE SALON et ÉCRAN TITRE en coop : deux appuis | `HubPlayPanel`, `docs/HUB_PLAN.md` lot E |
 | Message « objectif atteint » | une fois par contrat et par partie, quand profil + échantillons de la partie couvrent un contrat actif ; jamais pour un contrat déjà prêt au départ ; sous le compteur d'échantillons, 7 s | `ContractWatch` |
 | Défi hebdomadaire : tirage | semaine ISO (lundi 0 h UTC) ; graine = FNV-1a de la clé « 2026-W41 » puis xorshift32 (indépendant du générateur de Godot) ; 1 carte parmi `maps` de la réserve qui ont porte d'évacuation et station (aujourd'hui BUNKER K-7 seule) ; **1 à 2 modificateurs** tirés selon leur poids, sans doublon ; graine de partie appliquée aux tirages du serveur (manches, butin, zombies) | `WeeklyChallenge`, `assets/data/hub/weekly.json` |
-| Défi hebdomadaire : modificateurs | Horde pressée **+15 %** de vitesse (zombies et chiens) ; Peau de cuir **+25 %** de PV ; En retard : **départ à la manche 6** (vagues spéciales à leur rythme, première meute manche 10) ; Fonds de tiroir : armes trouvées **communes** ; Station en panne : **pas de station** | `WeeklyChallenge.MODS`, `weekly.json` |
+| Défi hebdomadaire : modificateurs | Horde pressée **+15 %** de vitesse (zombies et chiens) ; Peau de cuir **+25 %** de PV ; En retard : **départ à la manche 6** (vagues spéciales à leur rythme et leur rotation : Brancardier manche 10, Infirmière 15, meute 20) ; Fonds de tiroir : armes trouvées **communes** ; Station en panne : **pas de station** | `WeeklyChallenge.MODS`, `weekly.json` |
 | Défi hebdomadaire : conditions | armes de départ = **toutes les armes de base** pour tous ; station : armes de base seulement (l'arsenal n'est pas listé, l'hôte refuse le reste) ; **butin de la partie jamais gardé**, même évacué ; XP de la partie gardée ; pas de message « objectif atteint » des contrats ; la rotation des contrats compte la partie | `Game`, `Session`, `BuildStation` |
 | Défi hebdomadaire : objectif et récompense | **évacuation à la manche 10 ou plus** ; **une fois par semaine** : **400 XP** × (1 + 0,02 × (niveau − 1)), arrondie à 10, et **4 crocs, 3 touffes, 2 colliers** ; donnée à la fin de la partie (rapport « DÉFI S41 RÉUSSI ») ; meilleur résultat (manche atteinte, manche d'évacuation, parties) gardé pour les **12 dernières semaines** ; une partie quittée compte pour le meilleur résultat | `WeeklyChallenge.apply_to`, `WeeklyRecord` (profil v3) |
 | Défi hebdomadaire : coop | l'hôte choisit DÉFI DE LA SEMAINE dans CHANGER DE CARTE ; la clé de semaine part avec l'ordre de chargement, chaque machine recalcule le même défi ; chacun sa récompense dans son profil ; au retour au salon, le défi gardé passe à la semaine en cours | `Net.lobby_challenge`, `HubPlayLobby` |
@@ -797,17 +827,23 @@ corriger.
 - Contenu du défi hebdomadaire (proposition provisoire appliquée : §4.18,
   §6 bis ; à valider : modificateurs, objectif, récompense, butin non gardé).
 - Liste des cartes et de leurs vagues spéciales et boss.
-- Rotation des vagues spéciales (§4.4, appliquée) : avec deux types, chaque
-  mini-boss revient deux fois moins souvent (contrats d'un type plus longs à
-  remplir). Garder la rotation stricte, ou tirer le type au hasard, ou
-  rapprocher les vagues spéciales (toutes les 4 manches) ?
 - Chirurgien : valeurs provisoires (§6 bis) à régler en jeu (PV et part des
   joueurs, durée des préparations, dégâts, nombre de patients, échantillons
   à coup sûr sur le boss, raretés du butin de boss) ; boss toutes les 15
-  manches : la rotation des vagues spéciales décale meute et Brancardier
-  (5, 10, puis 20, 25…).
+  manches : la rotation des vagues spéciales saute les manches de boss
+  (meute 5, Brancardier 10, Infirmière 20, meute 25…) ; l'Infirmière arrive
+  donc à la 20 et ses contrats (calculés pour la 15) sont à revoir.
+- Rotation des vagues spéciales (§4.4, appliquée) : avec trois types, chaque
+  mini-boss revient trois fois moins souvent (contrats d'un type plus longs à
+  remplir ; avec le boss, la première meute après la manche 5 arrive à la
+  25). Garder la rotation stricte, ou tirer le type au hasard, ou rapprocher
+  les vagues spéciales (toutes les 4 manches) ?
 - Brancardier : valeurs provisoires (§6 bis) à régler en jeu (PV, durée de
   la préparation, dégâts et projection de la charge, taille de l'escorte).
+- Infirmière hurlante : valeurs provisoires (§6 bis) à régler en jeu
+  (portée et durée de l'étourdissement, force de l'effet d'écran, vitesse des
+  zombies ameutés, distance de fuite, PV). Le cri étourdit tout joueur en
+  vue : en coop, faut-il le limiter à sa proie ?
 
 ## 8. Idées écartées
 

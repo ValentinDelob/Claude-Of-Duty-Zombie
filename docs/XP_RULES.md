@@ -37,6 +37,7 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
 | Rampant | `crawler` | commun | **4** | 9 | 15 | 20 |
 | Chien (meute, vague spéciale) | `dog` | spécial | **12** | 28 | 46 | 60 |
 | Brancardier (vague spéciale) | `brancardier` | mini-boss | **60** | 141 | 231 | 300 |
+| Infirmière hurlante (vague spéciale) | `nurse` | mini-boss | **60** | 141 | 231 | 300 |
 | Mini-boss (référence d'un nouveau mini-boss) | `miniboss` | mini-boss | **60** | 141 | 231 | 300 |
 | Le Chirurgien (vague de boss) | `surgeon` | boss | **240** | 564 | 924 | 1 200 |
 | Boss (référence d'un nouveau boss) | `boss` | boss | **240** | 564 | 924 | 1 200 |
@@ -49,7 +50,8 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
   payer plus pousserait à garder des rampants en vie pour bloquer la manche.
   Les types restent comptés à part pour l'écran de fin.
 - Le type se lit sur l'entité au moment de la mort (`XpSystem.enemy_type_of`,
-  `XpRules.enemy_type`) : Chirurgien (`Surgeon`), Brancardier (`Brancardier`), chien (`Hellhound`),
+  `XpRules.enemy_type`) : Chirurgien (`Surgeon`), Brancardier
+  (`Brancardier`), Infirmière hurlante (`Nurse`), chien (`Hellhound`),
   rampant (`Zombie.is_crawler`), sinon classe de vitesse (`RoundRules.WALK` /
   trot et `RUN` / `SPRINT`).
 - **Brancardier** (méthode du §6, provisoire) : 10 fois les PV d'un zombie
@@ -70,6 +72,13 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
   fourchette. Son élimination va au seul tueur ; la **vague de boss**
   vaincue rapporte **240** × bonus de manche à chaque joueur vivant. Son
   escorte et les patients de ses opérations sont des zombies ordinaires.
+- **Infirmière hurlante** (méthode du §6, provisoire) : 8 fois les PV d'un
+  zombie de sa manche (`NurseRules.health`) → 8 × 4 = **32** ; **+50 %** de
+  dangerosité (cri qui étourdit et ralentit, ameute la horde, coup de
+  seringue acculée) → 48 ; **+25 %** de rareté (une vague spéciale sur trois
+  en rotation, une par joueur, elle fuit : longue à coincer) → **60**, comme
+  le Brancardier. Ses zombies d'escorte sont des zombies ordinaires
+  (barème commun) ; la vague vaincue rapporte l'XP de vague spéciale (60).
 
 ### Autres sources
 
@@ -116,11 +125,13 @@ vérifiée à ±20 % par `test_calibrage`), à partir des vraies règles
 défaut, `XpRules`) et d'un joueur type :
 
 - vagues spéciales en rotation et boss (schéma par défaut : meute 5,
-  Brancardier 10, Chirurgien 15, meute 20…) ; Brancardier : 25 s pour
-  abattre le sien, plus l'annonce et son escorte (5 zombies par joueur) ;
-  Chirurgien : 120 s pour abattre le boss, plus l'annonce, son escorte
-  (6 par joueur) et les patients de ses deux opérations (2 par joueur
-  chacune) ; seul le tueur compte son élimination ;
+  Brancardier 10, Chirurgien 15, Infirmière 20, meute 25…) ; Brancardier :
+  25 s pour abattre le sien, plus l'annonce et son escorte (5 zombies par
+  joueur) ; Infirmière : 30 s pour abattre la sienne (elle fuit), plus
+  l'annonce et son escorte (6 zombies par joueur) ; Chirurgien : 120 s pour
+  abattre le boss, plus l'annonce, son escorte (6 par joueur) et les
+  patients de ses deux opérations (2 par joueur chacune) ; seul le tueur
+  compte son élimination ;
 - 3 s par zombie et par joueur, 4 s par chien ; 25 s de plus par manche
   (entracte de 10 s, trajet) ; 30 s d'évacuation ; 90 s par partie
   (chargement, écran de fin, hub) ;
@@ -134,14 +145,18 @@ Résultat :
 |---|---|---|---|---|
 | Évacuation manche 10 | 2 296 | 169 | 15,3 min | 9 004 |
 | Évacuation manche 15 (après le Chirurgien) | 6 621 | 330 | 27,5 min | 14 446 |
-| Évacuation manche 20 | 11 209 | 542 | 40,4 min | 16 647 |
-| Évacuation manche 25 | 18 323 | 824 | 57,0 min | 19 270 |
+| Évacuation manche 20 (après l'Infirmière) | 11 265 | 543 | 40,8 min | 16 573 |
+| Évacuation manche 25 | 18 334 | 825 | 57,2 min | 19 237 |
 
 | Niveau | Visé | Solo | 4 joueurs |
 |---|---|---|---|
 | 10 | 3 h | **2,5 h** | 2,7 h |
 | 25 | 25 h | **20,4 h** | 23,7 h |
-| 50 | 120 h | **116,0 h** | 122,5 h |
+| 50 | 120 h | **115,9 h** | 122,3 h |
+
+(Infirmière ajoutée à la rotation, puis le Chirurgien à la 15 : la
+rotation saute les manches de boss, l'Infirmière arrive à la 20 ; aucune
+valeur du barème changée.)
 
 Le niveau 10 arrive un peu avant 3 h (progression visible dès les premières
 parties, §2 du concept). Le Chirurgien (manche 15) accélère le milieu de la

@@ -187,7 +187,7 @@ func run() -> void:
 	await until(func(): return game.rounds.phase == RoundManager.Phase.INTERMISSION, 2.0, "entracte")
 	at.check(dogs.last_dog_pos != Vector3.INF, "position du dernier chien retenue")
 	at.check(game.rounds.phase == RoundManager.Phase.INTERMISSION, "fin de la manche de chiens")
-	at.check(dogs.next_dog_round == 20, "prochaine manche de chiens : %d (rotation : Brancardier à la 10, boss à la 15)" % dogs.next_dog_round)
+	at.check(dogs.next_dog_round == 25, "prochaine manche de chiens : %d (rotation : Brancardier à la 10, boss à la 15, Infirmière à la 20)" % dogs.next_dog_round)
 	at.check(game.evac != null and game.evac.is_open, "vague spéciale vaincue : porte d'évacuation ouverte")
 	# Fin de l'ambiance : délai, puis musique et compteur normaux.
 	await until(func(): return not dogs.cl_active and not game.hud.round_counter().special, DogRules.END_DELAY + 3.0, "fin de l'ambiance de manche de chiens")

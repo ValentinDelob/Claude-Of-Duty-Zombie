@@ -319,6 +319,55 @@ et exporte.
   poses). Trois passes : lame en dents de scie (tranchant redressé), tablier
   de sang trop large (resserré), dos pas assez voûté.
 
+### L'Infirmière hurlante (tools/blender/nurse/nurse_voxel.py)
+
+- `assets/models/nurse/nurse_voxel.glb`, cubes de **2,5 cm** (échelle commune
+  des personnages), mini-boss de vague spéciale (`NurseModel`, chargé par
+  `ZombieGlb`). Formes **décrites** par pavés de cubes, comme le Brancardier.
+- Univers : infirmière de nuit de l'hôpital, cohérente avec ses échantillons
+  (cordes vocales, seringue cassée, badge) : blouse-robe **blanche** tachée
+  de crasse (traînée dans le dos) et de coulures de sang depuis la bouche,
+  col pointu et ceinture **bleu pâle**, bas blancs filés (échelles de peau
+  grise), chaussures blanches, peau grise-verte des zombies du jeu plus
+  pâle, cheveux noirs filasse (frange en mèches, mèches sur les côtés et la
+  nuque), **coiffe** blanche à bande bleue (pas de croix : emblème
+  protégé), **bouche béante** (mâchoire décrochée, cavité de 3 cubes, dents
+  qui pendent, sang sur le menton), **gorge déchirée** où luisent les
+  **cordes vocales** (émissives, point faible lisible), yeux émissifs 2 × 2
+  dans de grands cernes noirs, **badge** à la taille (carte blanche, bande
+  bleue, photo, pince), **seringue cassée** dans la main droite (verre,
+  liquide vert, collerette, piston, aiguille tordue, goutte verte), ongles
+  noirs.
+- Silhouette lisible de loin : grande et maigre (**1,82 m** au sommet des
+  cheveux, 1,92 m avec la coiffe), blanche dans des couloirs sombres, coiffe
+  et cheveux noirs, seringue tenue devant ; 26 × 19 × 77 cubes, ~7 300
+  cellules, **4 200 triangles**. Lueur **rose** (yeux et gorge, différente
+  du jaune des zombies) qui flamboie à la préparation du cri.
+- Ossature `RigBuilder.BONES` (bassin 0,93 m) ; la **jupe** est en deux
+  moitiés portées par les cuisses (elle s'ouvre comme une fente en marchant,
+  aucun cube ne la traverse), le haut de la jupe sur le bassin ; seringue
+  sur l'avant-bras droit ; coiffe et cheveux sur la tête ; mâchoire sur
+  l'os `jaw`.
+- Animations procédurales (`NurseAnim`) : marche glissée (tête penchée qui
+  tressaille par à-coups), course de fuite penchée, préparation du cri
+  (cambrée, tête renversée, bras écartés, mâchoire qui tremble), cri (buste
+  projeté, gueule grande ouverte, vibration), étranglée (pliée en deux,
+  mains à la gorge, toux), coup de seringue, touchée (recul bref), mort
+  (mains à la gorge puis chute raide sur le dos, bras en croix). Contrôles :
+  `tests/test_nurse.gd` (cubes qui se traversent, rien sous le sol).
+- Effets cubiques : onde du cri (`NurseScreamFx` : deux anneaux de cubes
+  roses de 5 cm, au sol et à hauteur de tête, jusqu'au rayon
+  d'étourdissement), souffle aspiré (petits cubes roses vers la bouche),
+  effet d'écran du joueur étourdi (`nurse_daze.gdshader` : l'image se
+  « cubifie » en gros pixels carrés, se dédouble et ondule, bords roses ;
+  sous le HUD), yeux des zombies ameutés qui flamboient.
+- Cache : `tools/blender/nurse/nurse_voxel_cells.json` (suivi par git ;
+  `--cache`). Planche `--sheet <fichier>.png` (face, dos, profils,
+  trois-quarts, gros plans tête / visage / badge / seringue, préparation,
+  cri, seringue levée, étranglée, vue de dessus). Deux passes à la
+  création : trop de sang sur la robe (camouflage), bouche pas assez
+  béante et badge en escalier (posé à plat sur la taille).
+
 ### Armes, mains et objets tenus (tools/blender/weapons/weapons_voxel.py)
 
 - Tous les objets tenus sont en cubes de **2,5 cm** (échelle des personnages,

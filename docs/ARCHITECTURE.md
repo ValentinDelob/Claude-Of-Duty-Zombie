@@ -1264,6 +1264,30 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   bandeau, alerte, musique et compteur des vagues spéciales, bips de
   moniteur et rire lointains ; bandeau de sa mort. Coupé en autotest sauf
   `debug_force_next`.
+- **L'Infirmière hurlante** (`scripts/game/nurse/`, mini-boss, GAME_CONCEPT.md
+  §4.4) : `Nurse` (dérivée de `Zombie`, `ZombieManager.KIND_NURSE`, même
+  canal ; ni démembrement, ni leurre, ni recyclage du `Spawner`) ; modèle
+  `NurseModel` (zones de touche : tronc, tête, **gorge** sur l'os `neck`
+  comptée « tête ») ; animation `NurseAnim` ; règles pures `NurseRules`.
+  Serveur : `_chase` garde les distances (`NurseRules.move_mode` : fuite vers
+  le meilleur point de `MapLayout.open_floor_points` selon
+  `NurseRules.flee_score`, chemin A*, acculée -> elle se défend), `_try_scream`
+  -> `WINDUP` -> `SCREAM` (`_do_scream` : `Player.srv_daze` des joueurs en vue
+  dans le rayon, `Combat.damage_player` avec la source, `Zombie.rally_*` des
+  zombies proches) ; touche à la tête ou à la gorge pendant `WINDUP`
+  (`NurseRound` écoute `Combat.zombie_damaged`) -> `CHOKE`. Réseau : phases
+  en RPC fiable `_cl_phase`, zombies ameutés en RPC fiable `_cl_rally` (yeux
+  qui flamboient chez tous), étourdissement appliqué par la machine du
+  joueur (`Player._cl_daze` : ralenti `NurseRules.daze_speed_mult`, vue qui
+  tangue, `NurseDazeFx` sous le HUD, acouphène 2D sans baisser d'autre son).
+  `Zombie.rally_left/_mult/_target` : le zombie ameuté garde sa proie et
+  accélère dans `Zombie._chase`.
+- `NurseRound` (`/root/Game/Rounds/Nurse`) : vagues de type « infirmiere »
+  (défaut 20, 40… : la 15 est une vague de boss), même déroulé que `BrancardRound` (une par joueur,
+  `MAX_ALIVE`, escorte par `RoundManager.to_spawn`) ; `RoundManager._miniboss`
+  rend le gestionnaire actif (Brancardier, Infirmière ou Chirurgien). Bandeau
+  « L'INFIRMIÈRE FAIT SA RONDE » / « THE NURSE IS DOING HER ROUNDS »,
+  hurlements lointains. Coupé en autotest sauf `debug_force_next`.
 - Évacuation (GAME_CONCEPT.md §4.5) : `EvacDoor` (Interactable `evac`, sous
   `World`), ouverte par `RoundManager._wave_cleared` après une vague spéciale
   ou de boss vaincue ; la manche suivante attend (`Phase.INTERMISSION` figée).

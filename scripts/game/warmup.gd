@@ -61,12 +61,28 @@ func _run(game: Game) -> void:
 	BrancardierModel.set_dissolve(br_d.get_node("Mesh") as MeshInstance3D, 0.3)
 	# Chirurgien cubique (boss : cœur émissif) et sa variante de dissolution.
 	var sg := SurgeonModel.build()
-	sg.position = Vector3(-1.2, -1.2, -2.0)
+	sg.position = Vector3(-2.2, -1.2, -2.0)
 	stage.add_child(sg)
 	var sg_d := SurgeonModel.build()
-	sg_d.position = Vector3(-1.6, -1.2, -2.4)
+	sg_d.position = Vector3(-2.6, -1.2, -2.4)
 	stage.add_child(sg_d)
 	SurgeonModel.set_dissolve(sg_d.get_node("Mesh") as MeshInstance3D, 0.3)
+	# Infirmière hurlante cubique (mini-boss), sa dissolution, l'onde du cri
+	# et l'effet d'écran de l'étourdissement.
+	var nu := NurseModel.build()
+	nu.position = Vector3(-1.2, -1.2, -2.0)
+	stage.add_child(nu)
+	var nu_d := NurseModel.build()
+	nu_d.position = Vector3(-1.6, -1.2, -2.4)
+	stage.add_child(nu_d)
+	NurseModel.set_dissolve(nu_d.get_node("Mesh") as MeshInstance3D, 0.3)
+	var ring := NurseScreamFx.new()
+	stage.add_child(ring)
+	ring.start(stage.to_global(Vector3(0.0, -1.2, -2.0)), 1.5)
+	# Effet d'écran presque nul (invisible) : seul le shader est compilé.
+	var daze := NurseDazeFx.new()
+	stage.add_child(daze)
+	daze.amount = 0.01
 	# Armes (vue FPS et monde, normales et améliorées).
 	# Un petit cube par matériau et variante suffit (même shader pour toutes
 	# les armes) : inutile de construire les ~30 modèles de l'arsenal.

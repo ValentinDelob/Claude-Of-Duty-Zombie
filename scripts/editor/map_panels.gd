@@ -487,7 +487,7 @@ func _sky_props(c: Dictionary, box: Container = null) -> void:
 func _waves_props(c: Dictionary, box: Container = null) -> void:
 	if box == null:
 		box = _props
-	var names := {WaveRules.SPECIAL: [Lang.t("Vague spéciale", "Special wave"), Lang.t("Mini-boss (meute de chiens, Brancardier : types cochés ci-dessous, à tour de rôle) : 1re manche et écart (0 : jamais / une seule fois).", "Mini-boss (dog pack, Stretcher-Bearer: types checked below, taking turns): first round and gap (0: never / only once).")],
+	var names := {WaveRules.SPECIAL: [Lang.t("Vague spéciale", "Special wave"), Lang.t("Mini-boss (meute de chiens, Brancardier, Infirmière hurlante : types cochés ci-dessous, à tour de rôle) : 1re manche et écart (0 : jamais / une seule fois).", "Mini-boss (dog pack, Stretcher-Bearer, Screaming Nurse: types checked below, taking turns): first round and gap (0: never / only once).")],
 		WaveRules.BOSS: [Lang.t("Vague de boss", "Boss wave"), Lang.t("Boss (le Chirurgien : types cochés ci-dessous, à tour de rôle) : 1re manche et écart (0 : aucun boss sur la carte / une seule fois).", "Boss (the Surgeon: types checked below, taking turns): first round and gap (0: no boss on the map / only once).")]}
 	for kind in WaveRules.KINDS:
 		var e: Dictionary = EditorMap.waves_of(c)[kind]
@@ -535,6 +535,7 @@ func _special_types_props(c: Dictionary, box: Container) -> void:
 	var labels := {
 		WaveRules.MEUTE: Lang.t("Meute (chiens errants)", "Pack (stray dogs)"),
 		WaveRules.BRANCARDIER: Lang.t("Brancardier (gros zombie qui charge)", "Stretcher-Bearer (charging brute)"),
+		WaveRules.INFIRMIERE: Lang.t("Infirmière hurlante (cri qui étourdit et ameute)", "Screaming Nurse (stunning, rallying shriek)"),
 	}
 	var tip := Lang.t("Types de vagues spéciales de la carte : les types cochés reviennent à tour de rôle (1re vague spéciale : le premier coché, 2e : le suivant…). Au moins un type.",
 		"Special wave types of the map: checked types take turns (1st special wave: the first checked, 2nd: the next…). At least one type.")

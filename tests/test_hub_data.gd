@@ -72,8 +72,8 @@ func _refused_exchange(bad: Dictionary, why: String) -> void:
 func test_fichiers_livres_sans_avertissement() -> void:
 	var d := HubData.load_files(HubData.CONTRACTS_PATH, HubData.EXCHANGES_PATH)
 	assert_eq(d.warnings.size(), 0, "aucun avertissement : %s" % d.warnings)
-	assert_eq(d.contracts.size(), 14, "14 contrats (§7.1 : 8 des chiens, 3 du Brancardier, 3 du Chirurgien)")
-	assert_eq(d.exchanges.size(), 9, "9 échanges (§7.2 : 5 des chiens, 2 du Brancardier, 2 du Chirurgien)")
+	assert_eq(d.contracts.size(), 17, "17 contrats (§7.1 : 8 des chiens, 3 du Brancardier, 3 de l'Infirmière, 3 du Chirurgien)")
+	assert_eq(d.exchanges.size(), 11, "11 échanges (§7.2 : 5 des chiens, 2 du Brancardier, 2 de l'Infirmière, 2 du Chirurgien)")
 	assert_eq(d.rules, {"offers": 5, "active_max": 3, "replace_per_match": 1, "min_rounds_for_rotation": 1,
 		"xp_level_factor": 0.02})
 	var tuto := d.contract("first_sample")

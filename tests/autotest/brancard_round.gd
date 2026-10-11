@@ -208,7 +208,7 @@ func run() -> void:
 	at.check(ok, "fin de la vague du Brancardier")
 	ok = await until(func(): return not loot.drops.is_empty() and game.evac != null and game.evac.is_open, 3.0, "butin et évacuation")
 	at.check(ok, "vague vaincue : arme de butin posée, porte d'évacuation ouverte")
-	at.check(br.next_round == 25 and br.rank == 1, "prochaine vague du Brancardier : manche %d (boss à la 15, meute à la 20)" % br.next_round)
+	at.check(br.next_round == 35 and br.rank == 1, "prochaine vague du Brancardier : manche %d (boss à la 15, Infirmière à la 20, meute à la 25, boss à la 30)" % br.next_round)
 	at.check(game.rounds.dogs.next_dog_round == 5, "chiens : non forcés, toujours prévus en 5")
 	await until(func(): return not br.cl_active and not game.hud.round_counter().special, BrancardRules.END_DELAY + 3.0, "fin de l'ambiance")
 	at.check(not br.cl_active and Audio._music_name != "special_wave_music", "fin de l'ambiance, musique de la carte")

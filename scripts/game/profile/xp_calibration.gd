@@ -14,8 +14,9 @@ extends RefCounted
 ## * cadence d'élimination : KILL_PACE s par zombie et par joueur (approche,
 ##   tir, rechargement, déplacement ; les PV montent avec la manche mais les
 ##   armes du joueur aussi) ; chiens : DOG_PACE s chacun, plus l'annonce ;
-##   Brancardier : BRANCARDIER_PACE s, plus l'annonce et l'escorte ; vagues
-##   spéciales en rotation (WaveRules : meute, Brancardier, meute...) ;
+##   Brancardier : BRANCARDIER_PACE s, Infirmière : NURSE_PACE s, plus l'annonce
+##   et l'escorte ; vagues
+##   spéciales en rotation (WaveRules : meute, Brancardier, Infirmière...) ;
 ## * chaque manche coûte en plus ROUND_OVERHEAD s (entracte de 10 s, trajet
 ##   jusqu'aux premiers zombies) ; l'évacuation EVAC_TIME s ; chaque partie
 ##   MATCH_OVERHEAD s (chargement, écran de fin, hub) ;
@@ -34,6 +35,8 @@ const BRANCARDIER_PACE := 25.0
 ## Chirurgien : secondes pour abattre le boss (combo et scalpels esquivés,
 ## opérations, changement de phase), en plus de son escorte.
 const SURGEON_PACE := 120.0
+## Infirmière : secondes pour abattre la sienne (elle fuit, cris, étourdi).
+const NURSE_PACE := 30.0
 const ROUND_OVERHEAD := 25.0
 const EVAC_TIME := 30.0
 const MATCH_OVERHEAD := 90.0
@@ -57,7 +60,7 @@ static func evac_round(level: int) -> int:
 
 ## Une partie de `players` joueurs, évacuation à la manche `evac` (vague
 ## spéciale vaincue) : XP et éliminations d'UN joueur, durée en secondes.
-## Schéma des vagues par défaut (WaveRules.DEFAULT, pas de boss défini).
+## Schéma des vagues par défaut (WaveRules.DEFAULT, le Chirurgien compris).
 static func simulate_match(evac: int, players := 1) -> Dictionary:
 	var l := XpRules.new_ledger()
 	var sec := MATCH_OVERHEAD
@@ -85,6 +88,16 @@ static func simulate_match(evac: int, players := 1) -> Dictionary:
 			for i in roundi(float(escorts) / players):
 				XpRules.add_kill(l, XpRules.WALKER, r)
 			sec += BrancardRules.START_DELAY + BRANCARDIER_PACE + float(escorts) / players * KILL_PACE + ROUND_OVERHEAD
+			XpRules.add_wave(l, kind, r)
+		elif kind == WaveRules.SPECIAL and WaveRules.special_type_at(WaveRules.DEFAULT, r, has_boss) == WaveRules.INFIRMIERE:
+			# Vague de l'Infirmière : chacun abat la sienne (elle fuit : plus
+			# longue à coincer) et sa part de l'escorte qu'elle ameute.
+			var n_esc := NurseRules.escorts(players)
+			for i in roundi(float(NurseRules.count(players)) / players):
+				XpRules.add_kill(l, XpRules.NURSE, r)
+			for i in roundi(float(n_esc) / players):
+				XpRules.add_kill(l, XpRules.WALKER, r)
+			sec += NurseRules.START_DELAY + NURSE_PACE + float(n_esc) / players * KILL_PACE + ROUND_OVERHEAD
 			XpRules.add_wave(l, kind, r)
 		elif kind == WaveRules.SPECIAL:
 			dog_rounds += 1

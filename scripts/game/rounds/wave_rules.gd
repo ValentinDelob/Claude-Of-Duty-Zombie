@@ -22,9 +22,11 @@ extends RefCounted
 ## prévue par le schéma (manches 1 à n, sans celles remplacées par une vague
 ## de boss quand la carte a un boss) est du type types[(k − 1) mod nombre de
 ## types], dans l'ordre de SPECIAL_TYPES. Défaut (tous, boss à la 15) : meute
-## à la 5, Brancardier à la 10, boss à la 15, meute à la 20, Brancardier à la
-## 25... Une carte qui n'autorise qu'un type n'a que lui
-## (EditorMap.set_special_types).
+## à la 5, Brancardier à la 10, boss à la 15, Infirmière à la 20, meute à la
+## 25, boss à la 30, Brancardier à la 35... Une carte qui n'autorise qu'un
+## type n'a que lui (EditorMap.set_special_types). Un nouveau type s'ajoute à
+## la fin de SPECIAL_TYPES, sans changer de format : une carte qui liste ses
+## types garde exactement les siens.
 ##
 ## Format 22 : TYPES de boss autorisés (« types_boss » : liste d'identifiants
 ## de BOSS_TYPES ; absente, vide ou illisible : tous), même rotation : la
@@ -38,10 +40,12 @@ const KINDS := [SPECIAL, BOSS]
 ## Clé de la liste des types de vagues spéciales autorisés (format 21).
 const TYPES_KEY := "types_speciaux"
 ## Types de vagues spéciales (mini-boss), dans l'ordre de la rotation :
-## meute de chiens errants (DogRound), Brancardier (BrancardRound).
+## meute de chiens errants (DogRound), Brancardier (BrancardRound),
+## Infirmière hurlante (NurseRound).
 const MEUTE := "meute"
 const BRANCARDIER := "brancardier"
-const SPECIAL_TYPES := [MEUTE, BRANCARDIER]
+const INFIRMIERE := "infirmiere"
+const SPECIAL_TYPES := [MEUTE, BRANCARDIER, INFIRMIERE]
 ## Clé de la liste des types de boss autorisés (format 22).
 const BOSS_TYPES_KEY := "types_boss"
 ## Types de boss, dans l'ordre de la rotation : le Chirurgien (SurgeonRound).

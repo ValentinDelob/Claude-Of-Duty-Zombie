@@ -203,7 +203,7 @@ func test_boss_schedule() -> void:
 	var seq := []
 	for n in [5, 10, 15, 20, 25, 30, 35]:
 		seq.append(WaveRules.special_type_at(s, n, true))
-	assert_eq(seq, ["meute", "brancardier", "", "meute", "brancardier", "", "meute"], "boss exclus de la rotation")
+	assert_eq(seq, ["meute", "brancardier", "", "infirmiere", "meute", "", "brancardier"], "boss exclus de la rotation")
 	# Carte sans boss : rien.
 	var none := WaveRules.parse({"boss": {"premiere": 0, "intervalle": 0}})
 	assert_false(WaveRules.has_boss(none))

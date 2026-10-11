@@ -193,8 +193,9 @@ func recycle(delta: float) -> int:
 	prune_far_time(_failsafe, game.zombies.alive)
 	var now := GameClock.now()
 	for z: Zombie in game.zombies.alive.duplicate():
-		# Le Brancardier et le Chirurgien ont leur propre recyclage (BrancardRound, SurgeonRound).
-		if z.state == Zombie.State.EMERGE or z is Brancardier or z is Surgeon:
+		# Brancardier, Infirmière et Chirurgien ont leur propre recyclage
+		# (BrancardRound, NurseRound, SurgeonRound).
+		if z.state == Zombie.State.EMERGE or z is Brancardier or z is Nurse or z is Surgeon:
 			continue
 		# Filet de BO1 (round_spawn_failsafe) : un zombie qui n'a pas bougé
 		# de 60 cm en 30 s (40 s pour un rampant) est retiré et remis dans le

@@ -67,6 +67,11 @@ var max_health := 150
 var paid_hits := 0
 var speed_mult := 1.0
 var target: Player
+## Serveur : AMEUTÉ par le cri de l'Infirmière (Nurse._do_scream) : pendant
+## rally_left s, il fonce (× rally_mult) sur rally_target sans changer de proie.
+var rally_left := 0.0
+var rally_mult := 1.0
+var rally_target: Player
 ## Serveur : attiré par un PELUCHE LEURRE (ThrowableSystem.lure_for).
 var lured := false
 ## Fenêtre à franchir avant d'entrer dans la zone (null : déjà dedans).
@@ -399,7 +404,15 @@ func _chase(delta: float) -> void:
 	if lured:
 		_chase_lure(lure, delta)
 		return
-	if _repath_t <= 0.0 or target == null or not is_instance_valid(target) or not _is_target_valid(target):
+	var rally := 1.0
+	if rally_left > 0.0:
+		rally_left -= delta
+		if rally_target and is_instance_valid(rally_target) and _is_target_valid(rally_target):
+			target = rally_target
+			rally = rally_mult
+		else:
+			rally_left = 0.0
+	if rally == 1.0 and (_repath_t <= 0.0 or target == null or not is_instance_valid(target) or not _is_target_valid(target)):
 		target = _nearest_player()
 	var desired := Vector3.ZERO
 	if target:
@@ -449,7 +462,7 @@ func _chase(delta: float) -> void:
 					dir = give_way(dir, give)
 		if _repath_t <= 0.0:
 			_repath_t = randf_range(0.35, 0.7)
-		desired = (dir + _wall_safe(_separation()) * sep_k).normalized() * move_speed() * speed_mult * _lane_speed
+		desired = (dir + _wall_safe(_separation()) * sep_k).normalized() * move_speed() * speed_mult * _lane_speed * rally
 		_check_stuck(delta)
 	# Sur un escalier, virage net aux paliers (pas d'élan qui porte au bord).
 	var horiz := Vector3(velocity.x, 0.0, velocity.z).move_toward(desired, (LANE_TURN if _on_lane() else 12.0) * delta)
