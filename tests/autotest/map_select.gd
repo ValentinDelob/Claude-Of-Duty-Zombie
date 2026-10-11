@@ -25,7 +25,7 @@ func run() -> void:
 	at.check(pp.view == HubPlayPanel.SOLO, "vue SOLO")
 	var game_maps := []
 	for id in pp.map_rows:
-		if not String(id).begins_with(EditorMapDef.CUSTOM_PREFIX):
+		if not String(id).begins_with(EditorMapDef.CUSTOM_PREFIX) and id != HubPlayWeekly.ROW_ID:  # défi : pas une carte
 			game_maps.append(id)
 	at.check(game_maps == ["bunker_k7"], "cartes du jeu proposées : %s" % ", ".join(game_maps))
 	at.check(pp.selected == "bunker_k7" and pp.map_rows.bunker_k7.selected, "ancien choix KINO : BUNKER K-7 choisie")
