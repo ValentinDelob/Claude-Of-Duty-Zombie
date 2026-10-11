@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Hub · Labo · Contrats</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+@keyframes hubPulse { 0% { transform: scale(1); opacity: 0.9 } 100% { transform: scale(1.1, 1.5); opacity: 0 } }
+.hub-ring { position: absolute; inset: 0; border: 2px solid #F5C542; pointer-events: none; animation: hubPulse 1.8s ease-out infinite }
+.hub-ring.r2 { animation-delay: 0.6s }
+.hub-ring.r3 { animation-delay: 1.2s }
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #101317; font-family: 'Barlow', sans-serif; color: #F2F0EA">
+  <img src="/_blob/6081e013ae646f268abd800eabf60108" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(8, 9, 11, 0.45)"></div>
+  <div style="position: absolute; left: 0; top: 0"><dc-import name="TopBar" active="labo" hint-size="1280px,72px"></dc-import></div>
+
+  <main style="position: absolute; left: 28px; right: 28px; top: 92px; bottom: 60px; display: flex; flex-direction: column; gap: 14px">
+    <nav aria-label="Fil d’Ariane" style="display: flex; align-items: center; gap: 10px; font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.12em">
+      <a href="Main.dc.html" style="color: rgba(242, 240, 234, 0.6); text-decoration: none">‹ LABO</a>
+      <span style="color: rgba(242, 240, 234, 0.3)">/</span>
+      <span>CONTRATS</span>
+    </nav>
+
+    <div style="flex: 1; min-height: 0; display: flex; gap: 20px">
+
+      <!-- HISTOIRE -->
+      <section aria-label="Contrat de l’histoire" style="width: 520px; flex-shrink: 0; display: flex; flex-direction: column; background: rgba(6, 22, 19, 0.72); backdrop-filter: blur(12px); border: 1px solid rgba(79, 227, 193, 0.45)">
+        <div style="padding: 16px 22px 14px; border-bottom: 1px solid rgba(79, 227, 193, 0.2)">
+          <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.24em; color: #4FE3C1">HISTOIRE · CHAPITRE 2</span>
+          <h2 style="margin: 4px 0 12px; font-family: 'Chakra Petch', sans-serif; font-size: 26px; font-weight: 700">Le service de nuit</h2>
+          <ol aria-label="Étapes du chapitre" style="margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+            <sc-for list="{{steps}}" as="s" hint-placeholder-count="5">
+              <li style="display: flex; flex-direction: column; gap: 6px">
+                <span style="{{s.bar}}"></span>
+                <span style="{{s.labelStyle}}">{{s.label}}</span>
+              </li>
+            </sc-for>
+          </ol>
+        </div>
+
+        <div style="flex: 1; padding: 18px 22px; display: flex; flex-direction: column; gap: 14px">
+          <div style="display: flex; justify-content: space-between; align-items: center">
+            <span style="font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.16em; color: rgba(242, 240, 234, 0.7)">ÉTAPE 3 SUR 5</span>
+            <span style="padding: 3px 10px; background: #F5C542; color: #0B0B0C; font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.14em">TERMINÉ</span>
+          </div>
+          <h3 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 30px; font-weight: 700; line-height: 1.05">Sangles en série</h3>
+          <p style="margin: 0; font-size: 16px; line-height: 1.5; color: rgba(242, 240, 234, 0.82)">« Le colosse qui pousse les brancards… Il attache encore ses patients. Rapportez-moi ses sangles : je veux savoir ce qu’il transporte, et pour qui. »</p>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; justify-content: space-between; font-size: 15px"><span>Sangle de cuir</span><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #4FE3C1">3 / 3</span></div>
+            <span style="height: 3px; display: flex; background: rgba(255, 255, 255, 0.1)"><span style="width: 100%; background: #4FE3C1"></span></span>
+          </div>
+          <div style="margin-top: auto; display: flex; align-items: center; gap: 16px">
+            <span style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+              <span style="font-size: 13px; color: rgba(242, 240, 234, 0.6)">Récompense</span>
+              <span style="display: flex; gap: 8px">
+                <sc-for list="{{storyRewards}}" as="r" hint-placeholder-count="2">
+                  <span onMouseEnter="{{r.enter}}" onMouseLeave="{{r.leave}}" tabindex="0" aria-label="{{r.alt}}" style="{{r.tile}}">
+                    <sc-if value="{{r.hasImg}}" hint-placeholder-val="{{true}}">
+                      <img src="{{r.img}}" alt="" style="width: 58px; height: 40px; object-fit: contain">
+                    </sc-if>
+                    <sc-if value="{{r.noImg}}" hint-placeholder-val="{{false}}">
+                      <span style="{{r.bigStyle}}">{{r.big}}</span>
+                    </sc-if>
+                    <span style="{{r.capStyle}}">{{r.cap}}</span>
+                    <sc-if value="{{r.open}}" hint-placeholder-val="{{false}}">
+                      <span role="tooltip" style="position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 5; width: 260px; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; text-align: left; background: rgba(8, 9, 11, 0.94); border: 1px solid {{r.color}}; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6)">
+                        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; color: {{r.color}}">{{r.kind}}</span>
+                        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 20px; font-weight: 700; color: #F2F0EA">{{r.name}}</span>
+                        <span style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px">
+                          <sc-for list="{{r.stats}}" as="s" hint-placeholder-count="4">
+                            <span style="display: flex; justify-content: space-between; font-size: 13px; color: rgba(242, 240, 234, 0.7)">{{s.l}}<span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #F2F0EA">{{s.v}}</span></span>
+                          </sc-for>
+                        </span>
+                        <span style="font-size: 12px; color: rgba(242, 240, 234, 0.55)">{{r.note}}</span>
+                      </span>
+                    </sc-if>
+                  </span>
+                </sc-for>
+              </span>
+              <span style="font-size: 13px; color: #4FE3C1">Débloque l’étape 4 : « Fiches patients »</span>
+            </span>
+            <span style="position: relative">
+              <span class="hub-ring" aria-hidden="true"></span>
+              <span class="hub-ring r2" aria-hidden="true"></span>
+              <span class="hub-ring r3" aria-hidden="true"></span>
+              <button style="position: relative; height: 52px; padding: 0 26px; border: none; cursor: pointer; background: #F5C542; color: #0B0B0C; font-family: 'Chakra Petch', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.14em">REMETTRE</button>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- TEMPORAIRES -->
+      <section aria-label="Contrats temporaires" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: baseline; gap: 14px">
+          <h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 0.08em">CONTRATS TEMPORAIRES</h2>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(242, 240, 234, 0.55)">2 / 3 en cours</span>
+        </div>
+        <span style="font-size: 14px; color: rgba(242, 240, 234, 0.6); margin-top: -6px">Des demandes ponctuelles du labo, renouvelées après chaque partie. Elles expirent.</span>
+        <sc-for list="{{temps}}" as="t" hint-placeholder-count="2">
+          <article style="{{t.style}}">
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+              <span style="display: flex; gap: 10px; align-items: baseline">
+                <span style="font-family: 'Chakra Petch', sans-serif; font-size: 18px; font-weight: 700">{{t.title}}</span>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #FF9A1F">{{t.time}}</span>
+              </span>
+              <span style="display: flex; gap: 14px; font-size: 14px; color: rgba(242, 240, 234, 0.8)">
+                <sc-for list="{{t.needs}}" as="n" hint-placeholder-count="1">
+                  <span>{{n.name}} <span style="{{n.countStyle}}">{{n.have}}/{{n.need}}</span></span>
+                </sc-for>
+              </span>
+            </div>
+            <span style="display: flex; gap: 8px">
+              <sc-for list="{{t.rewards}}" as="r" hint-placeholder-count="2">
+                <span onMouseEnter="{{r.enter}}" onMouseLeave="{{r.leave}}" tabindex="0" aria-label="{{r.alt}}" style="{{r.tile}}">
+                  <sc-if value="{{r.hasImg}}" hint-placeholder-val="{{true}}">
+                    <img src="{{r.img}}" alt="" style="width: 58px; height: 40px; object-fit: contain">
+                  </sc-if>
+                  <sc-if value="{{r.noImg}}" hint-placeholder-val="{{false}}">
+                    <span style="{{r.bigStyle}}">{{r.big}}</span>
+                  </sc-if>
+                  <span style="{{r.capStyle}}">{{r.cap}}</span>
+                  <sc-if value="{{r.open}}" hint-placeholder-val="{{false}}">
+                    <span role="tooltip" style="position: absolute; right: 0; bottom: calc(100% + 10px); z-index: 5; width: 260px; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; text-align: left; background: rgba(8, 9, 11, 0.94); border: 1px solid {{r.color}}; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6)">
+                      <span style="font-family: 'Chakra Petch', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; color: {{r.color}}">{{r.kind}}</span>
+                      <span style="font-family: 'Chakra Petch', sans-serif; font-size: 20px; font-weight: 700; color: #F2F0EA">{{r.name}}</span>
+                      <span style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px">
+                        <sc-for list="{{r.stats}}" as="s" hint-placeholder-count="4">
+                          <span style="display: flex; justify-content: space-between; font-size: 13px; color: rgba(242, 240, 234, 0.7)">{{s.l}}<span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #F2F0EA">{{s.v}}</span></span>
+                        </sc-for>
+                      </span>
+                      <span style="font-size: 12px; color: rgba(242, 240, 234, 0.55)">{{r.note}}</span>
+                    </span>
+                  </sc-if>
+                </span>
+              </sc-for>
+            </span>
+          </article>
+        </sc-for>
+
+        <h3 style="margin: 6px 0 0; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">PROPOSITIONS</h3>
+        <div style="display: flex; flex-direction: column; background: rgba(10, 11, 13, 0.62); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+          <sc-for list="{{offers}}" as="o" hint-placeholder-count="3">
+            <div style="{{o.style}}">
+              <span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+                <span style="font-family: 'Chakra Petch', sans-serif; font-size: 15px; font-weight: 600">{{o.title}}</span>
+                <span style="font-size: 13px; color: rgba(242, 240, 234, 0.6)">{{o.ask}}</span>
+              </span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(242, 240, 234, 0.5)">{{o.time}}</span>
+              <button style="height: 32px; padding: 0 14px; border: 1px solid rgba(242, 240, 234, 0.4); background: transparent; color: #F2F0EA; font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; cursor: pointer">ACCEPTER</button>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="Prompts" help="L’histoire avance d’un contrat à la fois ; les contrats temporaires donnent un bonus en attendant." items="{{prompts}}" hint-size="1280px,48px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const steps = [['Patient zéro', 'done'], ['Le chariot', 'done'], ['Sangles', 'ready'], ['Fiches', 'locked'], ['Nuit blanche', 'locked']].map(([label, st]) => ({
+      label: st === 'locked' ? '???' : label,
+      bar: 'display: block; height: 4px; background: ' + (st === 'done' ? '#4FE3C1' : st === 'ready' ? '#F5C542' : 'rgba(255, 255, 255, 0.14)'),
+      labelStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: ' + (st === 'done' ? 'rgba(79, 227, 193, 0.85)' : st === 'ready' ? '#F5C542' : 'rgba(242, 240, 234, 0.35)')
+    }));
+    const need = (name, have, n) => ({ name, have: Math.min(have, n), need: n, countStyle: 'font-family: "JetBrains Mono", monospace; font-weight: 700; color: ' + (have >= n ? '#4FE3C1' : '#F2F0EA') });
+    const temps = [
+      ['Crocs de collection', 'encore 2 j', [need('Crocs', 4, 6)], 'Pièce soignée', '900'],
+      ['Garde de nuit', 'encore 5 j', [need('Cordes vocales', 1, 2), need('Badge', 0, 1)], 'Arme épique · niv. 23', '1 900']
+    ].map(([title, time, needs, reward, xp]) => ({
+      title, time, needs, reward, xp,
+      style: 'display: flex; align-items: center; gap: 16px; padding: 14px 18px; background: rgba(10, 11, 13, 0.62); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)'
+    }));
+    const offers = [
+      ['Laisse et collier', '3 colliers · 4 touffes · arme rare', '4 j'],
+      ['Seringues usagées', '3 seringues · pièce soignée', '3 j'],
+      ['Registre du personnel', '2 badges · 2 bracelets · arme légendaire', '7 j']
+    ].map(([title, ask, time], i) => ({
+      title, ask, time,
+      style: 'display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-top: ' + (i ? '1px solid rgba(255, 255, 255, 0.06)' : 'none')
+    }));
+    const hover = this.state ? this.state.hover : null;
+    const tileOf = (id, r) => ({
+      ...r, open: hover === id, hasImg: !!r.img, noImg: !r.img,
+      enter: () => this.setState({ hover: id }), leave: () => this.setState({ hover: null }),
+      tile: 'position: relative; width: 72px; height: 72px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: help; background: rgba(255, 255, 255, 0.05); border: 2px solid ' + r.color + '; box-shadow: inset 0 -18px 24px -18px ' + r.color,
+      capStyle: 'font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 700; color: ' + r.capColor,
+      bigStyle: 'font-family: "Chakra Petch", sans-serif; font-weight: 700; line-height: 1; font-size: ' + (r.big === 'XP' ? '24px' : '15px') + '; color: ' + r.color
+    });
+    const xpTile = (id, xp) => tileOf(id, { img: '', big: 'XP', color: '#F5C542', cap: '+' + xp, capColor: '#F5C542', alt: xp + ' points d’expérience', kind: 'EXPÉRIENCE', name: '+' + xp + ' XP', stats: [{ l: 'Niveau', v: '23' }], note: 'XP calculée à ton niveau actuel' });
+    const partTile = (id, q, color) => tileOf(id, { img: '', big: 'PIÈCE', color, cap: 'NIV. 23', capColor: '#F2F0EA', alt: 'Pièce ' + q, kind: 'PIÈCE ' + q.toUpperCase(), name: 'Pièce ' + q + ' au hasard', stats: [{ l: 'Niveau', v: '23' }, { l: 'Effets', v: q === 'soignée' ? '2' : '1' }], note: 'Se monte sur une arme de niveau 23 ou plus' });
+    temps[0].rewards = [partTile('t0p', 'soignée', '#4D9BFF'), xpTile('t0x', '900')];
+    temps[1].rewards = [tileOf('t1w', { img: '/_blob/a038df1bbc5fc8e11bb800c3e9e54fcc', color: '#B56CFF', cap: 'NIV. 23', capColor: '#F2F0EA', alt: 'Arme épique niveau 23 : Feu follet', kind: 'ARME ÉPIQUE · MITRAILLETTE · NIV. 23', name: 'FEU FOLLET', stats: [{ l: 'Dégâts', v: '288' }, { l: 'Cadence', v: '780/min' }, { l: 'Précision', v: '61 %' }, { l: 'Portée', v: '22 m' }, { l: 'Chargeur', v: '32' }, { l: 'Recharge', v: '2,1 s' }], note: '3 emplacements de pièce · score 301' }), xpTile('t1x', '1 900')];
+    const storyRewards = [
+      tileOf('w', { img: '/_blob/31416266c1027096880ffa6893eaaca5', color: '#4D9BFF', cap: 'NIV. 23', capColor: '#F2F0EA', alt: 'Arme rare niveau 23 : Guêpe', kind: 'ARME RARE · PISTOLET · NIV. 23', name: 'GUÊPE',
+        stats: [{ l: 'Dégâts', v: '352' }, { l: 'Cadence', v: '520/min' }, { l: 'Précision', v: '74 %' }, { l: 'Portée', v: '28 m' }, { l: 'Chargeur', v: '15' }, { l: 'Recharge', v: '1,7 s' }],
+        note: '2 emplacements de pièce · score 196' }),
+      tileOf('xp', { img: '', big: 'XP', color: '#F5C542', cap: '+1 650', capColor: '#F5C542', alt: '1 650 points d’expérience', kind: 'EXPÉRIENCE', name: '+1 650 XP',
+        stats: [{ l: 'Niveau', v: '23 → 23' }, { l: 'Progression', v: '64 → 77 %' }], note: 'XP calculée à ton niveau actuel' })
+    ];
+    return { steps, temps, offers, storyRewards, prompts: [{ k: 'A', l: 'REMETTRE' }, { k: 'X', l: 'ABANDONNER' }, { k: 'B', l: 'LABO' }] };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Hub · Échanges</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #101317; font-family: 'Barlow', sans-serif; color: #F2F0EA">
+  <img src="/_blob/6081e013ae646f268abd800eabf60108" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(8, 9, 11, 0.35)"></div>
+  <div style="position: absolute; left: 0; top: 0"><dc-import name="TopBar" active="labo" hint-size="1280px,72px"></dc-import></div>
+
+  <main style="position: absolute; left: 28px; right: 28px; top: 92px; bottom: 60px; display: flex; flex-direction: column; gap: 14px">
+    <nav aria-label="Fil d’Ariane" style="display: flex; align-items: center; gap: 10px; font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.12em"><a href="Main.dc.html" style="color: rgba(242, 240, 234, 0.6); text-decoration: none">‹ LABO</a><span style="color: rgba(242, 240, 234, 0.3)">/</span><span>ÉCHANGES</span></nav>
+    <div style="display: flex; align-items: center; gap: 16px; height: 34px">
+      <h1 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 0.06em">CATALOGUE DU LABO</h1>
+      <span style="font-size: 14px; color: rgba(242, 240, 234, 0.55)">Un objet précis contre des échantillons. Toujours disponible.</span>
+      <span style="flex: 1"></span>
+      <button style="height: 30px; padding: 0 12px; border: 1px solid #F2F0EA; background: #F2F0EA; color: #0B0B0C; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.1em">POSSIBLES MAINTENANT</button>
+      <button style="height: 30px; padding: 0 12px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(10, 11, 13, 0.5); color: rgba(242, 240, 234, 0.75); font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.1em">TOUS</button>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+      <sc-for list="{{items}}" as="e" hint-placeholder-count="6">
+        <article style="{{e.style}}">
+          <span style="{{e.rarLine}}"></span>
+          <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0">
+            <span style="{{e.kindStyle}}">{{e.kind}}</span>
+            <span style="font-family: 'Chakra Petch', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 0.02em">{{e.name}}</span>
+            <span style="font-size: 14px; color: #4FE3C1">{{e.effect}}</span>
+            <div style="display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px">
+              <sc-for list="{{e.cost}}" as="c" hint-placeholder-count="2">
+                <span style="display: flex; align-items: center; gap: 7px; font-size: 14px">
+                  <span style="width: 11px; height: 11px; background: {{c.color}}"></span>
+                  {{c.name}}
+                  <span style="{{c.countStyle}}">{{c.have}}/{{c.need}}</span>
+                </span>
+              </sc-for>
+            </div>
+          </div>
+          <sc-if value="{{e.locked}}" hint-placeholder-val="{{false}}">
+            <span style="align-self: center; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; color: #FF7A5C">NIV. {{e.lvl}} REQUIS</span>
+          </sc-if>
+          <sc-if value="{{e.open}}" hint-placeholder-val="{{true}}">
+            <button style="{{e.btnStyle}}">ÉCHANGER</button>
+          </sc-if>
+        </article>
+      </sc-for>
+    </div>
+  </main>
+
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="Prompts" help="L’objet obtenu est à ton niveau actuel (niv. 23)." items="{{prompts}}" hint-size="1280px,48px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const C = { croc: ['Crocs', '#E8E0C8', 12], touffe: ['Touffes', '#7A6A55', 7], collier: ['Colliers', '#A88038', 3], sangle: ['Sangles', '#8A5A2B', 4], bracelet: ['Bracelets', '#C9C2A8', 2], cordes: ['Cordes vocales', '#C25A7A', 1], seringue: ['Seringues', '#9FD0FF', 0] };
+    const RAR = { c: '#C9C7BE', r: '#4D9BFF', e: '#B56CFF', l: '#FF9A1F' };
+    const mk = (kind, name, effect, rar, cost, lvl, focus) => {
+      const locked = lvl > 23;
+      const costs = cost.map(([k, n]) => ({ name: C[k][0], color: C[k][1], have: C[k][2], need: n, ok: C[k][2] >= n }));
+      const can = !locked && costs.every((c) => c.ok);
+      return {
+        kind, name, effect, lvl, locked, open: !locked,
+        cost: costs.map((c) => ({ ...c, countStyle: 'font-family: "JetBrains Mono", monospace; font-weight: 700; color: ' + (c.ok ? '#4FE3C1' : '#FF7A5C') })),
+        kindStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; color: ' + RAR[rar],
+        rarLine: 'position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: ' + RAR[rar],
+        btnStyle: 'align-self: center; height: 40px; padding: 0 18px; border: none; cursor: pointer; font-family: "Chakra Petch", sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.14em; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); background: ' + (can ? '#F5C542' : 'rgba(255, 255, 255, 0.08)') + '; color: ' + (can ? '#0B0B0C' : 'rgba(242, 240, 234, 0.4)'),
+        style: 'position: relative; display: flex; gap: 16px; padding: 16px 18px 16px 21px; background: ' + (focus ? 'rgba(245, 197, 66, 0.1)' : 'rgba(10, 11, 13, 0.62)') + '; backdrop-filter: blur(12px); border: 1px solid ' + (focus ? '#F5C542' : 'rgba(255, 255, 255, 0.08)') + '; opacity: ' + (locked ? '0.55' : '1')
+      };
+    };
+    const items = [
+      mk('PIÈCE SOIGNÉE', 'Bandoulière en cuir', '+20 % vitesse de rechargement', 'r', [['sangle', 4]], 5, true),
+      mk('ARME RARE', 'Croc-en-jambe', 'Fusil à pompe · niv. 23', 'r', [['croc', 5], ['touffe', 3]], 3, false),
+      mk('PIÈCE SOIGNÉE', 'Mire étiquetée', '+20 % précision · +5 % dégâts', 'r', [['bracelet', 3], ['sangle', 2]], 6, false),
+      mk('ARME ÉPIQUE', 'Collier étrangleur', 'Mitraillette · niv. 23', 'e', [['collier', 4], ['croc', 6]], 12, false),
+      mk('PIÈCE D’EXCEPTION', 'Cordes tendues', '+15 % cadence · +10 % chargeur', 'e', [['cordes', 3], ['seringue', 1]], 11, false),
+      mk('ARME LÉGENDAIRE', 'Bistouri géant', 'Arme de mêlée · niv. 23', 'l', [['cordes', 2], ['sangle', 4]], 25, false)
+    ];
+    return { items, prompts: [{ k: 'A', l: 'ÉCHANGER' }, { k: 'Y', l: 'FILTRER' }, { k: 'B', l: 'RETOUR' }] };
+  }
+}
+</script>
+</body>
+</html>

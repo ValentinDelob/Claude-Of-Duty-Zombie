@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Hub · Arsenal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #101317; font-family: 'Barlow', sans-serif; color: #F2F0EA">
+  <img src="/_blob/6081e013ae646f268abd800eabf60108" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(8, 9, 11, 0.35)"></div>
+  <div style="position: absolute; left: 0; top: 0"><dc-import name="TopBar" active="arsenal" hint-size="1280px,72px"></dc-import></div>
+
+  <main style="position: absolute; left: 28px; right: 28px; top: 96px; bottom: 60px; display: flex; gap: 20px">
+
+    <section style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; align-items: center; gap: 28px; height: 34px">
+        <div role="tablist" style="display: flex; gap: 22px">
+          <button role="tab" aria-selected="true" style="padding: 0 0 6px; border: none; border-bottom: 2px solid #F5C542; background: none; color: #F2F0EA; font-family: 'Chakra Petch', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer">ARMES <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(242, 240, 234, 0.55)">14</span></button>
+          <button role="tab" aria-selected="false" style="padding: 0 0 6px; border: none; border-bottom: 2px solid transparent; background: none; color: rgba(242, 240, 234, 0.5); font-family: 'Chakra Petch', sans-serif; font-size: 22px; font-weight: 600; letter-spacing: 0.06em; cursor: pointer">PIÈCES <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px">9</span></button>
+        </div>
+        <span style="flex: 1"></span>
+        <div style="display: flex; gap: 6px">
+          <sc-for list="{{filters}}" as="f" hint-placeholder-count="4">
+            <button style="{{f.style}}">{{f.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; background: rgba(10, 11, 13, 0.62); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+        <div style="display: flex; align-items: stretch; flex: 1; min-height: 0">
+          <button aria-label="Niveaux précédents" onClick="{{prev}}" style="{{prevStyle}}">‹</button>
+          <div style="flex: 1; min-width: 0; position: relative">
+            <div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 56px; height: 1px; background: rgba(255, 255, 255, 0.16)"></div>
+            <div style="position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; padding: 0 6px">
+              <sc-for list="{{columns}}" as="col" hint-placeholder-count="5">
+                <div style="display: flex; flex-direction: column; min-width: 0">
+                  <div style="height: 48px; display: flex; align-items: flex-end; justify-content: center; gap: 6px; padding-bottom: 2px">
+                    <span style="{{col.labelStyle}}">NIV. {{col.lvl}}</span>
+                    <sc-if value="{{col.many}}" hint-placeholder-val="{{false}}">
+                      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(242, 240, 234, 0.55)">×{{col.count}}</span>
+                    </sc-if>
+                  </div>
+                  <div style="height: 14px; display: flex; justify-content: center; align-items: center"><span style="{{col.nodeStyle}}"></span></div>
+                  <div style="height: 14px"></div>
+                  <div style="display: flex; flex-direction: column; gap: 10px">
+                    <sc-for list="{{col.cards}}" as="w" hint-placeholder-count="2">
+                      <button onClick="{{w.pick}}" style="{{w.cardStyle}}">
+                        <span style="{{w.rarLine}}"></span>
+                        <div style="position: relative; height: 50px; margin: -2px -4px 0 -2px">
+                          <img src="{{w.img}}" alt="{{w.name}}" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5))">
+                          <sc-if value="{{w.isNew}}" hint-placeholder-val="{{false}}">
+                            <span style="position: absolute; top: 2px; right: 2px; padding: 1px 5px; background: #F5C542; color: #0B0B0C; font-family: 'Chakra Petch', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.12em">NEUF</span>
+                          </sc-if>
+                          <sc-if value="{{w.base}}" hint-placeholder-val="{{false}}">
+                            <span style="position: absolute; top: 2px; right: 2px; font-family: 'Chakra Petch', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: rgba(242, 240, 234, 0.55)">BASE</span>
+                          </sc-if>
+                        </div>
+                        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 17px; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left">{{w.name}}</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center">
+                          <span style="{{w.rarStyle}}">{{w.rarName}}</span>
+                          <sc-if value="{{w.locked}}" hint-placeholder-val="{{false}}">
+                            <span style="font-family: 'Chakra Petch', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #FF7A5C">NIV. {{w.lvl}} REQUIS</span>
+                          </sc-if>
+                          <sc-if value="{{w.unlocked}}" hint-placeholder-val="{{true}}">
+                            <span style="display: flex; align-items: center; gap: 8px">
+                              <span style="display: flex; gap: 3px">
+                                <sc-for list="{{w.slots}}" as="s" hint-placeholder-count="2"><span style="{{s}}"></span></sc-for>
+                              </span>
+                              <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700">{{w.score}}</span>
+                            </span>
+                          </sc-if>
+                        </div>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <button aria-label="Niveaux suivants" onClick="{{next}}" style="{{nextStyle}}">›</button>
+        </div>
+
+        <div style="height: 58px; box-sizing: border-box; display: flex; align-items: center; gap: 20px; padding: 0 18px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+          <div style="display: flex; gap: 16px; flex-shrink: 0; font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; color: rgba(242, 240, 234, 0.6)">
+            <span style="display: flex; align-items: center; gap: 6px"><kbd style="height: 20px; padding: 0 5px; display: inline-flex; align-items: center; background: rgba(242, 240, 234, 0.92); color: #0B0B0C; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700">◄ ►</kbd>NIVEAU</span>
+            <span style="display: flex; align-items: center; gap: 6px"><kbd style="height: 20px; padding: 0 5px; display: inline-flex; align-items: center; background: rgba(242, 240, 234, 0.92); color: #0B0B0C; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700">▲ ▼</kbd>MÊME NIVEAU</span>
+          </div>
+          <div style="flex: 1; position: relative; height: 36px; display: flex; align-items: center">
+            <div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 11px; height: 1px; background: rgba(255, 255, 255, 0.16)"></div>
+            <div style="position: relative; flex: 1; display: flex; justify-content: space-between">
+              <sc-for list="{{overview}}" as="o" hint-placeholder-count="9">
+                <button onClick="{{o.jump}}" aria-label="Aller au niveau {{o.lvl}}" style="{{o.style}}">
+                  <span style="{{o.dot}}"></span>
+                  <span style="{{o.text}}">{{o.lvl}}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside style="width: 384px; flex-shrink: 0; display: flex; flex-direction: column; background: rgba(10, 11, 13, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+      <div style="{{sel.headStyle}}">
+        <span style="{{sel.rarStyle}}">{{sel.rarName}} · {{sel.className}}</span>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px">
+          <h1 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 36px; font-weight: 700; letter-spacing: 0.03em; line-height: 1">{{sel.name}}</h1>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: rgba(242, 240, 234, 0.7)">NIV. {{sel.lvl}}</span>
+        </div>
+      </div>
+      <div style="position: relative; height: 118px; margin: 0 20px; display: flex; align-items: center; justify-content: center">
+        <img src="{{sel.img}}" alt="{{sel.name}}" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.6))">
+        <span style="position: absolute; right: 0; bottom: 4px; display: flex; flex-direction: column; align-items: flex-end">
+          <span style="font-family: 'Chakra Petch', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">SCORE</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700; line-height: 1">{{sel.score}}</span>
+        </span>
+      </div>
+      <div style="padding: 12px 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+        <sc-for list="{{sel.stats}}" as="st" hint-placeholder-count="6">
+          <div title="{{st.label}}" style="display: flex; align-items: center; gap: 10px; min-width: 0">
+            <span style="width: 30px; height: 30px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.06); color: #F2F0EA">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" role="img" aria-label="{{st.label}}"><path d="{{st.d}}"></path></svg>
+            </span>
+            <span style="display: flex; flex-direction: column; min-width: 0">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.14em; color: rgba(242, 240, 234, 0.5)">{{st.label}}</span>
+              <span style="display: flex; align-items: baseline; gap: 6px; white-space: nowrap">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">{{st.value}}</span>
+                <span style="{{st.modStyle}}">{{st.mod}}</span>
+              </span>
+            </span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding: 14px 20px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">PIÈCES · {{sel.partsLine}}</span>
+        <sc-for list="{{sel.parts}}" as="p" hint-placeholder-count="3">
+          <div style="{{p.style}}">
+            <span style="font-family: 'Chakra Petch', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.04em; color: {{p.color}}">{{p.name}}</span>
+            <span style="font-size: 13px; color: {{p.modColor}}">{{p.mods}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </aside>
+  </main>
+
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="Prompts" help="◄ ► change de niveau · ▲ ▼ parcourt les armes d’un même niveau" items="{{prompts}}" hint-size="1280px,48px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 'couperet_l', start: 4 };
+  }
+  renderVals() {
+    const PLAYER = 23, VISIBLE = 5;
+    const RAR = [['COMMUNE', '#C9C7BE'], ['RARE', '#4D9BFF'], ['ÉPIQUE', '#B56CFF'], ['LÉGENDAIRE', '#FF9A1F'], ['UNIQUE', '#FF4D5E']];
+    const SLOTS = [1, 2, 3, 3, 4];
+    const CLS = { pistol: 'PISTOLET', revolver: 'REVOLVER', smg: 'MITRAILLETTE', rifle: 'FUSIL', shotgun: 'FUSIL À POMPE', lmg: 'MITRAILLEUSE', melee: 'CORPS À CORPS' };
+const IMG = { m1911: '/_blob/ed8a57fdd004b309f0c5567595ee180e', mp40: '/_blob/9d38742d8c0caee5a322e5a96cf99ef5', bat: '/_blob/fc3abecb0f90953ee10501ac089e2f57', olympia: '/_blob/1872714484066f6416ad7bb97500f690', m14: '/_blob/831a546a3d13826bc14139ab5573dbab', cz75: '/_blob/31416266c1027096880ffa6893eaaca5', m16: '/_blob/1b9c912fbd8393fa67af3c56d6269910', stakeout: '/_blob/8b19808681271fea88592c2d0e4b691a', python: '/_blob/3d106fb115dca8c8713b595b21d2f34e', spectre: '/_blob/a038df1bbc5fc8e11bb800c3e9e54fcc', galil: '/_blob/246c2d17c27cbe7b3a43427543dbb2c3' };    const MODEL = { petoire: 'm1911', crecelle: 'mp40', batte: 'bat', garde: 'olympia', metronome: 'm14', guepe: 'cz75', triplette: 'm16', concasseur: 'm14', balai: 'stakeout', couperet_l: 'python', couperet_r: 'python', feufollet: 'spectre', bourrasque: 'galil', metronome2: 'm14' };
+    const W = [
+      ['petoire', 'PÉTOIRE', 'pistol', 1, 0, 1, 0, true, false],
+      ['crecelle', 'CRÉCELLE', 'smg', 1, 0, 1, 0, true, false],
+      ['batte', 'BATTE', 'melee', 1, 0, 1, 0, true, false],
+      ['garde', 'GARDE-CHASSE', 'shotgun', 3, 1, 48, 1, false, false],
+      ['metronome', 'MÉTRONOME', 'rifle', 5, 0, 62, 0, false, false],
+      ['guepe', 'GUÊPE', 'pistol', 8, 1, 104, 2, false, false],
+      ['triplette', 'TRIPLETTE', 'rifle', 12, 2, 196, 2, false, false],
+      ['concasseur', 'MÉTRONOME', 'rifle', 14, 1, 188, 1, false, false],
+      ['balai', 'BALAI', 'shotgun', 18, 1, 230, 0, false, true],
+      ['couperet_l', 'COUPERET', 'revolver', 20, 3, 412, 2, false, false],
+      ['couperet_r', 'COUPERET', 'revolver', 20, 1, 268, 1, false, false],
+      ['feufollet', 'FEU FOLLET', 'smg', 20, 2, 301, 0, false, true],
+      ['bourrasque', 'BOURRASQUE', 'rifle', 24, 4, 0, 0, false, true],
+      ['metronome2', 'MÉTRONOME', 'rifle', 24, 2, 0, 0, false, false]
+    ].map(([id, name, cls, lvl, rar, score, parts, base, isNew]) => ({ id, name, cls, lvl, rar, score, parts, base, isNew }));
+
+    const levels = [...new Set(W.map((w) => w.lvl))].sort((a, b) => a - b);
+    const maxStart = Math.max(0, levels.length - VISIBLE);
+    const start = Math.min(Math.max(0, this.state.start), maxStart);
+    const sel = W.find((w) => w.id === this.state.sel) || W[0];
+
+    const cardOf = (w) => {
+      const on = w.id === sel.id, locked = w.lvl > PLAYER;
+      return {
+        name: w.name, lvl: w.lvl, isNew: w.isNew, base: w.base, locked, unlocked: !locked,
+        score: w.score, rarName: RAR[w.rar][0], img: IMG[MODEL[w.id]],
+        rarLine: 'position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: ' + RAR[w.rar][1],
+        rarStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: ' + RAR[w.rar][1],
+        slots: Array.from({ length: SLOTS[w.rar] }, (_, i) => 'width: 6px; height: 6px; background: ' + (i < w.parts ? '#4FE3C1' : 'rgba(255, 255, 255, 0.18)')),
+        cardStyle: 'position: relative; display: flex; flex-direction: column; gap: 5px; width: 100%; box-sizing: border-box; padding: 10px 12px 10px 15px; text-align: left; cursor: pointer; color: #F2F0EA; font-family: inherit; ' +
+          'background: ' + (on ? 'rgba(245, 197, 66, 0.12)' : 'rgba(255, 255, 255, 0.04)') + '; border: 1px solid ' + (on ? '#F5C542' : 'rgba(255, 255, 255, 0.07)') + '; opacity: ' + (locked ? '0.5' : '1'),
+        pick: () => this.setState({ sel: w.id })
+      };
+    };
+    const columns = levels.slice(start, start + VISIBLE).map((lvl) => {
+      const ws = W.filter((w) => w.lvl === lvl).sort((a, b) => b.rar - a.rar || b.score - a.score);
+      const on = lvl === sel.lvl;
+      return {
+        lvl, count: ws.length, many: ws.length > 1, cards: ws.map(cardOf),
+        labelStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.06em; color: ' + (on ? '#F5C542' : (lvl > PLAYER ? 'rgba(242, 240, 234, 0.35)' : '#F2F0EA')),
+        nodeStyle: 'width: 9px; height: 9px; transform: rotate(45deg); background: ' + (on ? '#F5C542' : 'rgba(242, 240, 234, 0.4)')
+      };
+    });
+    const overview = levels.map((lvl, i) => {
+      const vis = i >= start && i < start + VISIBLE, on = lvl === sel.lvl;
+      return {
+        lvl,
+        jump: () => this.setState({ start: Math.min(Math.max(0, i - 2), maxStart) }),
+        style: 'display: flex; flex-direction: column; align-items: center; gap: 5px; width: 34px; padding: 3px 0; background: ' + (vis ? 'rgba(255, 255, 255, 0.07)' : 'transparent') + '; border: none; cursor: pointer',
+        dot: 'width: 7px; height: 7px; transform: rotate(45deg); background: ' + (on ? '#F5C542' : (vis ? 'rgba(242, 240, 234, 0.8)' : 'rgba(242, 240, 234, 0.3)')),
+        text: 'font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 700; color: ' + (on ? '#F5C542' : (vis ? '#F2F0EA' : 'rgba(242, 240, 234, 0.5)'))
+      };
+    });
+    const arrow = (enabled) => 'width: 36px; flex-shrink: 0; border: none; background: transparent; color: ' + (enabled ? '#F5C542' : 'rgba(242, 240, 234, 0.15)') + '; font-family: "Chakra Petch", sans-serif; font-size: 30px; cursor: pointer';
+
+    const CS = { pistol: [110, 400, 70, 25, 8, 1.6], revolver: [420, 180, 82, 35, 6, 2.8], smg: [90, 750, 58, 20, 32, 2.2], rifle: [160, 600, 78, 45, 30, 2.5], shotgun: [600, 90, 35, 12, 6, 3.4], lmg: [140, 650, 55, 40, 100, 5.5], melee: [500, 70, 100, 2, 0, 0] }[sel.cls];
+    const ICONS = [
+      'M12 2l2.4 6.9L21 9l-5.2 4.3L17.6 21 12 17l-5.6 4 1.8-7.7L3 9l6.6-.1z',
+      'M13 2L4 14h7l-1 8 9-12h-7z',
+      'M12 2v5M12 17v5M2 12h5M17 12h5M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6',
+      'M2 12h19M15 6l6 6-6 6M2 7v10',
+      'M5 21V9l2-5 2 5v12zM10 21V9l2-5 2 5v12zM15 21V9l2-5 2 5v12z',
+      'M20 12a8 8 0 1 1-2.3-5.7M20 3v5h-5'
+    ];
+    const LABELS = ['DÉGÂTS', 'CADENCE', 'PRÉCISION', 'PORTÉE', 'CHARGEUR', 'RECHARGE'];
+    const UNITS = ['', '/min', ' %', ' m', '', ' s'];
+    const fmtMod = (n, i) => (i === 5 ? n.toFixed(1).replace('.', ',') : Math.round(n).toLocaleString('fr-FR')) ;
+    const fmt = (n, i) => (i === 5 ? n.toFixed(1).replace('.', ',') : Math.round(n).toLocaleString('fr-FR')) + UNITS[i];
+    const lvlDmg = CS[0] * (1 + 0.1 * (sel.lvl - 1));
+    const baseVals = [lvlDmg, CS[1], CS[2], CS[3], CS[4], CS[5]];
+    // Pièces : 1re = +8 % dégâts ; 2e = +6 % cadence mais rechargement plus lent (+0,3 s).
+    const delta = [sel.parts > 0 ? lvlDmg * 0.08 : 0, sel.parts > 1 ? CS[1] * 0.06 : 0, 0, 0, 0, sel.parts > 1 ? 0.3 : 0];
+    const stats = LABELS.map((label, i) => {
+      const none = sel.cls === 'melee' && (i === 4 || i === 5);
+      const d = delta[i];
+      const good = i === 5 ? d < 0 : d > 0;
+      return {
+        label, d: ICONS[i],
+        value: none ? '—' : fmt(baseVals[i], i),
+        mod: d === 0 || none ? '' : (d > 0 ? '+ ' : '− ') + fmtMod(Math.abs(d), i),
+        modStyle: 'font-family: "JetBrains Mono", monospace; font-size: 13px; font-weight: 700; color: ' + (good ? '#4FE3C1' : '#FF6B57')
+      };
+    });
+    const PARTS = [['Canon rayé', '+8 % dégâts'], ['Ressort vif', '+6 % cadence · +0,3 s de rechargement']];
+    const nSlots = SLOTS[sel.rar];
+    const parts = Array.from({ length: nSlots }, (_, i) => i < sel.parts
+      ? { name: PARTS[i % 2][0] + ' · niv. ' + Math.max(1, sel.lvl - 2), mods: PARTS[i % 2][1], color: '#F2F0EA', modColor: '#4FE3C1', style: 'display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; background: rgba(255, 255, 255, 0.05)' }
+      : { name: 'Emplacement libre', mods: 'A : installer une pièce', color: 'rgba(242, 240, 234, 0.55)', modColor: 'rgba(242, 240, 234, 0.45)', style: 'display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border: 1px dashed rgba(255, 255, 255, 0.18)' });
+
+    return {
+      filters: ['TOUTES', 'À FEU', 'MÊLÉE', 'UTILISABLES'].map((label, i) => ({
+        label,
+        style: 'height: 30px; padding: 0 12px; cursor: pointer; font-family: "Chakra Petch", sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.1em; border: 1px solid ' + (i === 0 ? '#F2F0EA' : 'rgba(255, 255, 255, 0.14)') + '; background: ' + (i === 0 ? '#F2F0EA' : 'rgba(10, 11, 13, 0.5)') + '; color: ' + (i === 0 ? '#0B0B0C' : 'rgba(242, 240, 234, 0.75)')
+      })),
+      columns, overview,
+      prev: () => this.setState({ start: Math.max(0, start - 1) }),
+      next: () => this.setState({ start: Math.min(maxStart, start + 1) }),
+      prevStyle: arrow(start > 0), nextStyle: arrow(start < maxStart),
+      sel: {
+        name: sel.name, lvl: sel.lvl, score: sel.score || '—', rarName: RAR[sel.rar][0], className: CLS[sel.cls],
+        rarStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.14em; color: ' + RAR[sel.rar][1],
+        headStyle: 'padding: 20px 20px 16px; border-top: 3px solid ' + RAR[sel.rar][1],
+        img: IMG[MODEL[sel.id]], stats, parts, partsLine: sel.parts + ' / ' + nSlots
+      },
+      prompts: [{ k: 'A', l: 'INSTALLER' }, { k: 'X', l: 'RECYCLER' }, { k: 'Y', l: 'FILTRER' }, { k: 'B', l: 'RETOUR' }]
+    };
+  }
+}
+</script>
+</body>
+</html>
