@@ -311,7 +311,7 @@ func test_profile_migration_v2_to_v3() -> void:
 	pr.weekly.mark_rewarded("2026-W41")
 	ProfileStore.save_profile(pr, file)
 	var doc: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(file))
-	assert_eq(int(doc.version), 3)
+	assert_eq(int(doc.version), ProfileStore.VERSION, "réécrit dans la version courante")
 	assert_eq(doc.profile.weekly, {"2026-W41": {"best": 11.0, "evac": 11.0, "runs": 1.0, "rewarded": true}})
 	var back := ProfileStore.load_profile(file)
 	assert_eq(back.to_dict(), pr.to_dict(), "v3 identique après rechargement")

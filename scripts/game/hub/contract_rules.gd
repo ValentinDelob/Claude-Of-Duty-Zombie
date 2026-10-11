@@ -50,6 +50,28 @@ static func days_left(c: Dictionary, day: int) -> int:
 	return maxi(int(c.ends) - day + 1, 0)
 
 
+## Dernier jour d'un contrat du tableau : le plus tôt de sa date `ends` (du
+## catalogue) et de la limite propre de son entrée (`until`, durée de vie
+## d'une proposition) ; -1 : sans fin.
+static func deadline(c: Dictionary, entry: Dictionary) -> int:
+	var e := int(c.get("ends", -1))
+	var u := ContractState.until_of(entry)
+	if e < 0:
+		return u
+	return e if u < 0 else mini(e, u)
+
+
+## Contrat `c` (catalogue) de l'entrée `entry` (proposition ou actif) avec
+## sa fin effective : is_expired / days_left valent pour CE contrat.
+static func effective(c: Dictionary, entry: Dictionary) -> Dictionary:
+	var d := deadline(c, entry)
+	if d == int(c.get("ends", -1)):
+		return c
+	var out := c.duplicate()
+	out.ends = d
+	return out
+
+
 ## Peut-il être tiré au sort (hors absence de doublon) ? Niveau dans
 ## [min_level, max_level], dans ses dates, contrats `after` remplis, pas un
 ## contrat non répétable déjà rempli.
@@ -83,7 +105,7 @@ static func purge(st: ContractState, data: HubData, day: int) -> Dictionary:
 				push_warning("[Contracts] contrat « %s » absent du catalogue : retiré du profil" % id)
 				out.unknown.append(id)
 				list.remove_at(i)
-			elif is_expired(c, day):
+			elif is_expired(effective(c, list[i]), day):
 				out.expired.append(id)
 				if is_active and not id in st.expired_unseen:
 					st.expired_unseen.append(id)
@@ -127,18 +149,20 @@ static func rotate(st: ContractState, data: HubData, lvl: int, day: int, after_m
 	rng.seed = st.draw_seed + st.rotation
 	var want := int(data.rules.offers)
 	# Contrat tutoriel d'abord (jamais tiré au sort ensuite).
+	var life := int(data.rules.get("lifetime_days", 0))
+	var until := day + life - 1 if life > 0 else -1
 	for c in data.contracts:
 		if st.offers.size() >= want:
 			break
 		if c.tutorial and st.done_count(c.id) == 0 and _free(c.id, st, out.removed) and is_eligible(c, st, lvl, day):
-			_offer(st, c.id, out)
+			_offer(st, c.id, out, until)
 	var pool: Array[Dictionary] = []
 	for c in data.contracts:
 		if not c.tutorial and float(c.weight) > 0.0 and _free(c.id, st, out.removed) and is_eligible(c, st, lvl, day):
 			pool.append(c)
 	while st.offers.size() < want and not pool.is_empty():
 		var i := pick_weighted(pool, rng)
-		_offer(st, pool[i].id, out)
+		_offer(st, pool[i].id, out, until)
 		pool.remove_at(i)
 	return out
 
@@ -160,8 +184,13 @@ static func _free(id: String, st: ContractState, removed: Array) -> bool:
 	return not st.is_offered(id) and not st.is_active(id) and not id in removed
 
 
-static func _offer(st: ContractState, id: String, out: Dictionary) -> void:
-	st.offers.append({"id": id, "since": st.rotation})
+## Nouvelle proposition ; `until` : son dernier jour (-1 : sans limite
+## propre, règle lifetime_days à 0).
+static func _offer(st: ContractState, id: String, out: Dictionary, until := -1) -> void:
+	var e := {"id": id, "since": st.rotation}
+	if until >= 0:
+		e.until = until
+	st.offers.append(e)
 	out.added.append(id)
 
 
@@ -176,7 +205,7 @@ static func accept_refusal(st: ContractState, data: HubData, id: String, day: in
 		return UNKNOWN
 	if not st.is_offered(id):
 		return NOT_OFFERED
-	if is_expired(c, day):
+	if is_expired(effective(c, st.offer_entry(id)), day):
 		return EXPIRED
 	if st.active.size() >= int(data.rules.active_max):
 		return ACTIVE_FULL
@@ -188,8 +217,12 @@ static func accept_refusal(st: ContractState, data: HubData, id: String, day: in
 static func accept(st: ContractState, data: HubData, id: String, day: int) -> String:
 	var why := accept_refusal(st, data, id, day)
 	if why == "":
+		var until := ContractState.until_of(st.offer_entry(id))
 		st.remove_offer(id)
-		st.active.append({"id": id, "accepted": st.rotation})
+		var e := {"id": id, "accepted": st.rotation}
+		if until >= 0:
+			e.until = until
+		st.active.append(e)
 	return why
 
 
@@ -226,7 +259,7 @@ static func deliver_refusal(pr: PlayerProfile, data: HubData, id: String, day: i
 		return UNKNOWN
 	if not pr.contracts.is_active(id):
 		return NOT_ACTIVE
-	if is_expired(c, day):
+	if is_expired(effective(c, pr.contracts.active_entry(id)), day):
 		return EXPIRED
 	if not pr.has_samples(c.samples):
 		return MISSING_SAMPLES
@@ -249,8 +282,7 @@ static func deliver(pr: PlayerProfile, data: HubData, id: String, day: int,
 	var c := data.contract(id)
 	var st := pr.contracts
 	if rng == null:
-		rng = RandomNumberGenerator.new()
-		rng.seed = hash([st.draw_seed, id, st.done_total(), pr.next_uid])
+		rng = reward_rng(pr, id)
 	var lvl := pr.level()
 	pr.consume_samples(c.samples)
 	var item := HubRewards.make_item(c.reward, lvl, rng)
@@ -266,6 +298,23 @@ static func deliver(pr: PlayerProfile, data: HubData, id: String, day: int,
 	st.remove_active(id)
 	out.ok = true
 	return out
+
+
+## Générateur de la récompense du contrat `id` (graine du profil : même
+## tirage pour l'aperçu du hub, preview_item, et pour la remise, tant que le
+## profil ne change pas).
+static func reward_rng(pr: PlayerProfile, id: String) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([pr.contracts.draw_seed, id, pr.contracts.done_total(), pr.next_uid])
+	return rng
+
+
+## Objet que le contrat `c` donnerait s'il était remis maintenant
+## (OwnedWeapon, WeaponPart ou null), sans rien changer au profil.
+static func preview_item(pr: PlayerProfile, c: Dictionary) -> RefCounted:
+	if c.is_empty():
+		return null
+	return HubRewards.make_item(c.reward, pr.level(), reward_rng(pr, c.id))
 
 
 ## XP qu'un contrat rapporterait au niveau `lvl`.
@@ -314,7 +363,8 @@ static func goals_met(pr: PlayerProfile, data: HubData, match_samples: Dictionar
 	var out := PackedStringArray()
 	for id in pr.contracts.active_ids():
 		var c := data.contract(id)
-		if not c.is_empty() and not is_expired(c, day) and goal_met(c, pr.samples, match_samples):
+		if not c.is_empty() and not is_expired(effective(c, pr.contracts.active_entry(id)), day) \
+				and goal_met(c, pr.samples, match_samples):
 			out.append(id)
 	return out
 

@@ -13,11 +13,16 @@ extends RefCounted
 ##    "done": {"first_sample": 1, "dog_fangs_small": 2},
 ##    "expired_unseen": ["lab_emergency"]}
 ## `since` / `accepted` : rotation à laquelle la proposition est arrivée / le
-## contrat a été accepté. `expired_unseen` : contrats ACTIFS supprimés par leur
+## contrat a été accepté. `until` (facultatif) : dernier jour UTC de ce
+## contrat TEMPORAIRE (règle « lifetime_days » du tableau : durée de vie
+## d'une proposition, gardée quand elle est acceptée) ; absent : pas de
+## limite propre (seulement la date `ends` du catalogue). `expired_unseen` : contrats ACTIFS supprimés par leur
 ## date de fin, à signaler une fois au LABO (take_expired) puis oubliés.
 
 ## Plafond des listes lues depuis un fichier (garde-fou).
 const MAX_ENTRIES := 64
+## Dernier jour UTC lisible (« until ») : 31/12/9999.
+const MAX_DAY := 2932896
 
 ## Graine du tirage (tirée à la création du profil) : le tirage d'une rotation
 ## utilise `seed + rotation` (recharger le jeu ne change rien).
@@ -57,6 +62,17 @@ func offered_ids() -> PackedStringArray:
 
 func active_ids() -> PackedStringArray:
 	return _ids(active)
+
+
+## Entrée de la proposition / du contrat actif `id` ({} : absent).
+func offer_entry(id: String) -> Dictionary:
+	var i := _index(offers, id)
+	return offers[i] if i >= 0 else {}
+
+
+func active_entry(id: String) -> Dictionary:
+	var i := _index(active, id)
+	return active[i] if i >= 0 else {}
 
 
 func done_count(id: String) -> int:
@@ -100,10 +116,10 @@ func take_expired() -> PackedStringArray:
 func to_dict() -> Dictionary:
 	var os := []
 	for o in offers:
-		os.append({"id": o.id, "since": o.since})
+		os.append(_with_until({"id": o.id, "since": o.since}, o))
 	var acs := []
 	for a in active:
-		acs.append({"id": a.id, "accepted": a.accepted})
+		acs.append(_with_until({"id": a.id, "accepted": a.accepted}, a))
 	return {"seed": draw_seed, "rotation": rotation, "offers": os, "active": acs,
 		"done": done.duplicate(), "expired_unseen": Array(expired_unseen)}
 
@@ -166,7 +182,25 @@ static func _entries(v: Variant, key: String, max_rot: int, seen: Dictionary, dr
 			dropped[0] += 1
 			continue
 		seen[id] = true
-		out.append({"id": id, key: ProfileValues.to_int(e.get(key), max_rot, 0, max_rot)})
+		var entry := {"id": id, key: ProfileValues.to_int(e.get(key), max_rot, 0, max_rot)}
+		var until := ProfileValues.to_int(e.get("until"), -1, 0, MAX_DAY)
+		if until >= 0:
+			entry.until = until
+		elif e.get("until") != null:
+			dropped[0] += 1
+		out.append(entry)
+	return out
+
+
+## Dernier jour UTC propre de l'entrée `e` (proposition ou contrat actif) ;
+## -1 : sans limite propre.
+static func until_of(e: Dictionary) -> int:
+	return int(e.get("until", -1))
+
+
+static func _with_until(out: Dictionary, e: Dictionary) -> Dictionary:
+	if until_of(e) >= 0:
+		out.until = until_of(e)
 	return out
 
 

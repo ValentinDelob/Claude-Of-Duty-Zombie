@@ -446,6 +446,52 @@ avertissement**. Les fichiers sont ajoutés aux exports (`include_filter` :
   continue (§4.2).
 - 💡 Plus tard : voir au salon les échantillons que visent les coéquipiers.
 
+### 5.7 Contrats d'histoire et contrats temporaires (hub v2, 💡 provisoire)
+
+GAME_CONCEPT §4.2 quater ; écran LABO › CONTRATS (`docs/hub_v2/Contrats.dc.html`).
+
+**Histoire** — fichier `assets/data/hub/story.json` (`StoryData`, validé
+comme les contrats : chaque entrée invalide est écartée avec un
+avertissement ; `tests/test_story.gd` vérifie le fichier livré) :
+
+```json
+{"format": "hub_story", "version": 1, "rules": {"xp_level_factor": 0.02},
+ "chapters": [{"id": "ch2_night_shift", "title": {"fr": "Le service de nuit", "en": "The Night Shift"},
+   "steps": [{"id": "ch2_straps", "short": {"fr": "Sangles", "en": "Straps"},
+     "title": {"fr": "Sangles en série", "en": "Strapped In Series"},
+     "text": {…}, "lab": {…}, "ready": {…}, "thanks": {…},
+     "samples": {"brancard_strap": 3}, "xp": 1650,
+     "reward": {"kind": "weapon", "weapon": "any", "rarity": "rare"}, "min_level": 6}]}]}
+```
+
+| Champ d'une étape | Obligatoire | Sens |
+|---|---|---|
+| `id` | oui | unique dans tout le fichier, jamais changé une fois publié |
+| `short` | oui | libellé de la frise du chapitre (14 caractères au plus) |
+| `title`, `text` | oui | titre et demande de Dr Brown `{fr, en}` |
+| `lab`, `ready`, `thanks` | non | répliques de Dr Brown : au LABO pendant l'étape, au LABO quand elle est prête, à la remise |
+| `samples`, `xp`, `reward` | oui | comme un contrat (§5.1) ; récompense au niveau du joueur |
+| `min_level` | non | niveau du joueur pour la remettre (défaut 1) |
+
+Chapitre : `id`, `title`, `steps` (1 à 8 étapes). Règles (`StoryRules`) :
+l'étape en cours est la **première du fichier non remise** (le profil ne
+garde que les étapes remises : `"story": {"done": [...]}`, `StoryState`,
+**profil version 4** ; un profil v1 à v3 se lit sans perte, histoire au
+début) ; remise = niveau atteint et échantillons en réserve -> consommation
+exacte, objet (créé AVANT l'XP), XP, étape notée, étape suivante débloquée ;
+pas d'acceptation, pas d'abandon, pas d'expiration. L'objet est tiré avec
+une graine du profil : l'**aperçu** montré dans la tuile (arme exacte,
+statistiques) est l'objet remis (`StoryRules.preview_item`,
+`ContractRules.preview_item` pour les contrats temporaires).
+
+**Contrats temporaires** — le tableau §5.3 ; règle `lifetime_days` de
+`contracts.json` (livrée : 7 ; défaut 0 = sans limite propre) : une
+proposition reçoit à son arrivée un dernier jour `until` (aujourd'hui +
+lifetime_days − 1), gardé quand elle est acceptée ; la fin effective est la
+plus proche de `until` et de `ends` (`ContractRules.deadline`) ; passée,
+la purge la retire (un contrat actif est signalé au LABO). Entrées sans
+`until` (profils plus anciens) : pas de limite propre.
+
 ## 6. Modèle de données du catalogue d'échanges
 
 Fichier `assets/data/hub/exchanges.json` :
@@ -1031,3 +1077,57 @@ fiche de l'écran, sinon sous-écran -> parent, onglet -> LABO, JOUER ->
 - **Focus** : les maquettes ne le dessinent pas ; `Hub2Button` montre un
   cadre jaune de 2 px (manette, clavier), jamais à la souris.
 - **JOUER au clavier** : P (la maquette ne montre que START).
+
+### 9.4 LABO, CONTRATS, ÉCHANGES (écrans faits)
+
+Fichiers : `screens/hub2_lab_panel.gd`, `hub2_contracts_panel.gd`,
+`hub2_exchanges_panel.gd`, plus `hub2_lab_kit.gd` (`Hub2LabKit` : mots et
+couleurs des échantillons, fiches des tuiles, délais, réplique de Dr Brown
+selon la situation, contrats prêts histoire + temporaires),
+`hub2_reward_tile.gd` / `hub2_reward_tooltip.gd` (tuile 72 × 72 et son
+infobulle, survol ou focus), `hub2_reward_popup.gd` (fenêtre de remise).
+Règles : `StoryRules` / `StoryData` (§5.7), `ContractRules`,
+`ExchangeRules`, `HubRewards`. Tests : `tests/test_story.gd`,
+`tests/test_hub2_labo.gd` ; captures pendant le développement :
+`tests/autotest/hub2_labo_look.gd` (`*_mockup` : contenu des maquettes,
+puis données réelles, anglais, 130 %).
+
+Commandes : CONTRATS — A / Entrée / clic : REMETTRE l'étape (anneaux
+quand elle est prête), remettre un contrat temporaire prêt (l'article a le
+focus), ACCEPTER une proposition ; X / Suppr / R / clic sur l'invite :
+ABANDONNER le contrat temporaire choisi en deux appuis (l'article passe en
+rouge, « ABANDONNER ? »), B : annuler ; tuiles focusables (infobulle).
+ÉCHANGES — A : ÉCHANGER en deux appuis (« CONFIRMER », coût dans l'aide),
+Y / Tab / clic : POSSIBLES MAINTENANT ↔ TOUS. Fenêtre de remise : VOIR DANS
+L'ARSENAL (ouvre l'ARSENAL et appelle `show_item(uid)` si l'écran l'a), FERMER
+(B, clic à côté) ; les onglets et JOUER sont bloqués derrière elle.
+
+Écarts avec les maquettes :
+- **Fenêtre de remise** : pas de maquette ; composée avec les jetons v2
+  (verre, Dr Brown en buste `scientist_bust`, tuiles, XP, étape débloquée).
+- **CONTRATS sans contrat prêt** : la maquette ne montre que l'état prêt ;
+  sans contrat prêt, pas d'anneaux ni de « TERMINÉ », le nombre de contrats
+  en cours à la place (JetBrains Mono 14, jaune) ; le bouton reste jaune.
+- **Étape non prête** : REMETTRE grisé (fond blanc 8 %, texte 40 %, comme
+  ÉCHANGER impossible), étiquette EN COURS (turquoise) ou NIV. n REQUIS
+  (rouge) à la place de TERMINÉ ; frise : étape en cours non prête en blanc.
+  Histoire finie : « HISTOIRE TERMINÉE ».
+- **Contrat temporaire prêt** (absent de la maquette) : liseré jaune 60 % et
+  étiquette TERMINÉ en tête des échantillons.
+- **Filtre des échanges** : la maquette allume POSSIBLES MAINTENANT en
+  montrant aussi des échanges impossibles ; ici le filtre allumé est celui
+  appliqué (TOUS par défaut).
+- **Fiche d'échange** : toute la fiche est le bouton (focus, clic) ; elle
+  s'allume (jaune) au focus et au survol. Qualité affichée d'une pièce
+  exacte (provisoire) : deux bonus d'au moins 10 % = D'EXCEPTION, un = SOIGNÉE.
+- **Infobulle de l'XP** : « Niveau a → b » et « Progression » pour
+  l'histoire, le niveau seul pour les contrats temporaires (comme la
+  maquette).
+- **Aperçu d'arme** : statistiques réelles de l'arme qui sera remise (pas
+  celles de la maquette) ; score = `OwnedWeapon.score()`.
+- **Ombre portée de Dr Brown** : mipmap floue du rendu (pas un vrai flou
+  gaussien de 30 px).
+- **130 %** : rien ne sort de l'écran : colonne du LABO relevée sous la
+  barre du haut, Dr Brown borné en hauteur, histoire limitée à 47 % de la
+  largeur, contenu des colonnes défilant (molette, focus suivi, sans barre
+  visible).

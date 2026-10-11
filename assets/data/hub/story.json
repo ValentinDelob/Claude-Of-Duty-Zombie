@@ -1,0 +1,377 @@
+{
+	"format": "hub_story",
+	"version": 1,
+	"rules": {
+		"xp_level_factor": 0.02
+	},
+	"chapters": [
+		{
+			"id": "ch1_pack",
+			"title": {"fr": "La meute", "en": "The Pack"},
+			"steps": [
+				{
+					"id": "ch1_fangs",
+					"short": {"fr": "Crocs", "en": "Fangs"},
+					"title": {"fr": "Premiers crocs", "en": "First Fangs"},
+					"text": {
+						"fr": "Ces chiens ne sont pas morts de faim. Ils sont morts d’autre chose, puis ils se sont relevés pour mordre. Rapportez-moi des crocs : je veux savoir ce qui coule dedans.",
+						"en": "These dogs didn't starve. They died of something else, then got back up to bite. Bring me some fangs: I want to know what's running through them."
+					},
+					"lab": {
+						"fr": "Les crocs d’abord. Le reste de la meute peut garder ses dents… pour l’instant.",
+						"en": "Fangs first. The rest of the pack can keep its teeth… for now."
+					},
+					"ready": {
+						"fr": "Vous avez les crocs ? Posez-les sur la paillasse, côté gauche. Le côté droit mord encore.",
+						"en": "Got the fangs? Put them on the bench, left side. The right side still bites."
+					},
+					"thanks": {
+						"fr": "De l’émail infecté, magnifique. Prenez ça : la science vous prête une arme, ne la rayez pas.",
+						"en": "Infected enamel, gorgeous. Take this: science is lending you a weapon, don't scratch it."
+					},
+					"samples": {"dog_fang": 2},
+					"xp": 300,
+					"reward": {"kind": "weapon", "weapon": "any", "rarity": "common"},
+					"min_level": 1
+				},
+				{
+					"id": "ch1_fur",
+					"short": {"fr": "Poils", "en": "Fur"},
+					"title": {"fr": "Poil à gratter", "en": "Itching Powder"},
+					"text": {
+						"fr": "Leurs poils retiennent les spores comme un filtre à café. Rapportez-moi des touffes. Et non, on ne caresse pas, même s’il remue encore la queue.",
+						"en": "Their fur holds spores like a coffee filter. Bring me tufts of it. And no petting, even if it's still wagging its tail."
+					},
+					"lab": {
+						"fr": "J’ai éternué sur la dernière touffe. Rien de grave. Probablement.",
+						"en": "I sneezed on the last tuft. Nothing serious. Probably."
+					},
+					"ready": {
+						"fr": "Je sens les touffes d’ici. Ce n’est pas un compliment, mais c’est une bonne nouvelle.",
+						"en": "I can smell the tufts from here. That's not a compliment, but it is good news."
+					},
+					"thanks": {
+						"fr": "Parfait. Je vais les mettre en culture. Vous, allez vous laver. Deux fois.",
+						"en": "Perfect. I'll culture them. You, go and wash. Twice."
+					},
+					"samples": {"dog_fur": 4},
+					"xp": 500,
+					"reward": {"kind": "part", "quality": "fine"},
+					"min_level": 1
+				},
+				{
+					"id": "ch1_collars",
+					"short": {"fr": "Bons chiens", "en": "Good Boys"},
+					"title": {"fr": "Qui est un bon chien ?", "en": "Who's a Good Boy?"},
+					"text": {
+						"fr": "Ces chiens avaient des maîtres, et les maîtres avaient des adresses. Les colliers me diront d’où vient la meute… et peut-être d’où vient tout le reste.",
+						"en": "These dogs had owners, and owners had addresses. The collars will tell me where the pack came from… and maybe where everything else came from."
+					},
+					"lab": {
+						"fr": "Un collier porte une médaille « Biscotte ». Je refuse d’en parler.",
+						"en": "One collar has a tag that says “Biscuit”. I refuse to talk about it."
+					},
+					"ready": {
+						"fr": "Les colliers sont là ? Bien. On va enfin savoir qui promenait ces horreurs.",
+						"en": "The collars are here? Good. We'll finally find out who was walking these horrors."
+					},
+					"thanks": {
+						"fr": "Ils venaient tous du chenil de l’hôpital. Évidemment. Tenez, vous l’avez méritée.",
+						"en": "They all came from the hospital kennel. Of course they did. Here, you've earned it."
+					},
+					"samples": {"dog_collar": 3},
+					"xp": 800,
+					"reward": {"kind": "weapon", "weapon": "any", "rarity": "rare"},
+					"min_level": 2
+				},
+				{
+					"id": "ch1_pack_leader",
+					"short": {"fr": "Chef de meute", "en": "Pack Leader"},
+					"title": {"fr": "Chef de meute", "en": "Pack Leader"},
+					"text": {
+						"fr": "La meute a un chef, et le chef a les meilleurs échantillons. Ramenez-moi un peu de tout : crocs, poils, colliers. On termine ce chapitre proprement. Enfin, salement.",
+						"en": "The pack has a leader, and the leader has the best samples. Bring me a bit of everything: fangs, fur, collars. Let's close this chapter cleanly. Well, messily."
+					},
+					"lab": {
+						"fr": "Encore un effort sur la meute, et je pourrai passer aux gros patients.",
+						"en": "One more push on the pack, and I can move on to the big patients."
+					},
+					"ready": {
+						"fr": "Tout le chien en pièces détachées ? Vous êtes un monstre. Venez, j’ai de quoi vous remercier.",
+						"en": "The whole dog in spare parts? You're a monster. Come on, I have something to thank you with."
+					},
+					"thanks": {
+						"fr": "La meute ne cache plus rien. Le virus vient de plus haut : de l’hôpital lui-même. Préparez-vous, on monte d’un étage.",
+						"en": "The pack has no secrets left. The virus comes from higher up: the hospital itself. Get ready, we're going up a floor."
+					},
+					"samples": {"dog_fang": 5, "dog_fur": 3, "dog_collar": 2},
+					"xp": 1200,
+					"reward": {"kind": "weapon", "weapon": "any", "rarity": "rare"},
+					"min_level": 3
+				}
+			]
+		},
+		{
+			"id": "ch2_night_shift",
+			"title": {"fr": "Le service de nuit", "en": "The Night Shift"},
+			"steps": [
+				{
+					"id": "ch2_patient_zero",
+					"short": {"fr": "Patient zéro", "en": "Patient Zero"},
+					"title": {"fr": "Patient zéro", "en": "Patient Zero"},
+					"text": {
+						"fr": "Le colosse au brancard porte encore des bracelets de patients. L’un d’eux a forcément été le premier. Rapportez-moi un bracelet : je veux un nom.",
+						"en": "The giant with the stretcher still wears patient bracelets. One of them must have been the first. Bring me a bracelet: I want a name."
+					},
+					"lab": {
+						"fr": "Patient zéro… Si je trouve son dossier, je trouve le début de tout ça.",
+						"en": "Patient zero… If I find his file, I find where all this began."
+					},
+					"ready": {
+						"fr": "Un bracelet ! Lisez-moi le numéro. Non, attendez, pas à voix haute, ça porte malheur.",
+						"en": "A bracelet! Read me the number. No, wait, not out loud, it's bad luck."
+					},
+					"thanks": {
+						"fr": "Chambre 12, admis un mardi. Personne n’est jamais sorti de la chambre 12. Charmant.",
+						"en": "Room 12, admitted on a Tuesday. Nobody ever left room 12. Lovely."
+					},
+					"samples": {"brancard_bracelet": 1},
+					"xp": 1400,
+					"reward": {"kind": "part", "quality": "fine"},
+					"min_level": 5
+				},
+				{
+					"id": "ch2_trolley",
+					"short": {"fr": "Le chariot", "en": "The Trolley"},
+					"title": {"fr": "Le chariot", "en": "The Trolley"},
+					"text": {
+						"fr": "Le Brancardier transporte quelqu’un, j’en suis sûr. Ramenez-moi de quoi examiner son chariot : une sangle, des bracelets. Et ne montez pas dessus.",
+						"en": "The Stretcher-Bearer is carrying someone, I'm sure of it. Bring me what I need to examine his trolley: a strap, some bracelets. And don't ride on it."
+					},
+					"lab": {
+						"fr": "Il pousse ce brancard depuis des semaines. Même mort, il fait des heures sup.",
+						"en": "He's been pushing that stretcher for weeks. Even dead, he's working overtime."
+					},
+					"ready": {
+						"fr": "Le chariot n’a plus de secrets ? Montrez-moi ça avant qu’il revienne le chercher.",
+						"en": "No more secrets on that trolley? Show me before he comes back for it."
+					},
+					"thanks": {
+						"fr": "Des traces de sérum sur les roues. Quelqu’un soignait les patients… avec quelque chose de vert.",
+						"en": "Serum traces on the wheels. Someone was treating the patients… with something green."
+					},
+					"samples": {"brancard_strap": 1, "brancard_bracelet": 2},
+					"xp": 1500,
+					"reward": {"kind": "weapon", "weapon": "any", "rarity": "rare"},
+					"min_level": 5
+				},
+				{
+					"id": "ch2_straps",
+					"short": {"fr": "Sangles", "en": "Straps"},
+					"title": {"fr": "Sangles en série", "en": "Strapped In Series"},
+					"text": {
+						"fr": "Le colosse qui pousse les brancards… Il attache encore ses patients. Rapportez-moi ses sangles : je veux savoir ce qu’il transporte, et pour qui.",
+						"en": "The giant who pushes the stretchers… He still straps his patients down. Bring me his straps: I want to know what he's carrying, and for whom."
+					},
+					"lab": {
+						"fr": "Ses sangles ont trempé dans tout ce qui coulait au service. Tout. Ne léchez rien.",
+						"en": "His straps soaked up everything that leaked on the ward. Everything. Don't lick anything."
+					},
+					"ready": {
+						"fr": "Vous avez rapporté les sangles ? Parfait. Passez au bureau des contrats, j’ai de quoi vous remercier.",
+						"en": "You brought the straps back? Perfect. Come by the contracts desk, I have something to thank you with."
+					},
+					"thanks": {
+						"fr": "Le cuir a absorbé le sérum. Je peux l’extraire ! Enfin, je crois. Tenez, prenez ça pendant que j’essore.",
+						"en": "The leather soaked up the serum. I can extract it! Well, I think so. Here, take this while I wring it out."
+					},
+					"samples": {"brancard_strap": 3},
+					"xp": 1650,
+					"reward": {"kind": "weapon", "weapon": "any", "rarity": "rare"},
+					"min_level": 6
+				},
+				{
+					"id": "ch2_charts",
+					"short": {"fr": "Fiches", "en": "Charts"},
+					"title": {"fr": "Fiches patients", "en": "Patient Charts"},
+					"text": {
+						"fr": "L’infirmière de nuit tenait les fiches. Avec les badges du personnel et les bracelets des patients, je peux reconstituer qui a reçu quoi, et quand.",
+						"en": "The night nurse kept the charts. With the staff badges and the patients' bracelets, I can piece together who got what, and when."
+					},
+					"lab": {
+						"fr": "Elle hurle encore dans les couloirs. Prenez des bouchons d’oreilles. Prenez-en deux paires.",
+						"en": "She's still screaming in the halls. Take earplugs. Take two pairs."
+					},
+					"ready": {
+						"fr": "Badges et bracelets, tout y est ? Je sors le tableau en liège et la ficelle rouge.",
+						"en": "Badges and bracelets, all there? I'm getting out the corkboard and the red string."
+					},
+					"thanks": {
+						"fr": "Toutes les injections ont eu lieu la même nuit. La nuit où le Chirurgien était de garde.",
+						"en": "Every injection happened on the same night. The night the Surgeon was on call."
+					},
+					"samples": {"nurse_badge": 2, "brancard_bracelet": 2},
+					"xp": 2200,
+					"reward": {"kind": "part", "quality": "superior"},
+					"min_level": 7
+				},
+				{
+					"id": "ch2_sleepless",
+					"short": {"fr": "Nuit blanche", "en": "Sleepless"},
+					"title": {"fr": "Nuit blanche", "en": "Sleepless Night"},
+					"text": {
+						"fr": "Ses seringues contiennent le sérum d’origine, et ses cordes vocales en gardent la mémoire. Oui, c’est de la science. Non, je n’ai pas dormi depuis trois jours.",
+						"en": "Her syringes hold the original serum, and her vocal cords remember it. Yes, it's science. No, I haven't slept in three days."
+					},
+					"lab": {
+						"fr": "Si j’entends encore un cri cette nuit, je hurle aussi. On verra qui tient la note.",
+						"en": "If I hear one more scream tonight, I'm screaming too. We'll see who holds the note."
+					},
+					"ready": {
+						"fr": "Seringues et cordes vocales ? Posez ça doucement. Les cordes, surtout : elles vibrent encore.",
+						"en": "Syringes and vocal cords? Put them down gently. Especially the cords: they're still humming."
+					},
+					"thanks": {
+						"fr": "Le sérum vient du bloc opératoire. Le Chirurgien opère encore, là-haut. On a rendez-vous.",
+						"en": "The serum comes from the operating theatre. The Surgeon is still operating up there. We have an appointment."
+					},
+					"samples": {"nurse_vocal_cords": 2, "nurse_syringe": 2},
+					"xp": 2800,
+					"reward": {"kind": "weapon", "weapon": "any", "rarity": "epic"},
+					"min_level": 8
+				}
+			]
+		},
+		{
+			"id": "ch3_theatre",
+			"title": {"fr": "Le bloc opératoire", "en": "The Operating Theatre"},
+			"steps": [
+				{
+					"id": "ch3_scalpel",
+					"short": {"fr": "Bistouri", "en": "Scalpel"},
+					"title": {"fr": "Bistouri, s’il vous plaît", "en": "Scalpel, Please"},
+					"text": {
+						"fr": "Le Chirurgien lance ses scalpels comme d’autres distribuent des ordonnances. Ramassez-en quelques-uns, de préférence pas avec le front.",
+						"en": "The Surgeon throws scalpels the way other doctors hand out prescriptions. Pick a few up, preferably not with your forehead."
+					},
+					"lab": {
+						"fr": "On dit qu’il ne rate jamais une incision. Évitez d’en être une.",
+						"en": "They say he never misses an incision. Try not to be one."
+					},
+					"ready": {
+						"fr": "Des scalpels, et vous avez encore tous vos doigts ? Je compte quand même.",
+						"en": "Scalpels, and you still have all your fingers? I'm counting anyway."
+					},
+					"thanks": {
+						"fr": "La lame est enduite de sérum. Il ne tue pas ses patients, il les… traite. C’est pire.",
+						"en": "The blade is coated in serum. He doesn't kill his patients, he… treats them. That's worse."
+					},
+					"samples": {"surgeon_scalpel": 2},
+					"xp": 3200,
+					"reward": {"kind": "part", "quality": "fine"},
+					"min_level": 10
+				},
+				{
+					"id": "ch3_prescription",
+					"short": {"fr": "Ordonnance", "en": "Prescription"},
+					"title": {"fr": "Ordonnance illisible", "en": "Illegible Prescription"},
+					"text": {
+						"fr": "J’ai trouvé son ordonnance. Illisible, évidemment : c’est un chirurgien. Il me faut ses seringues et ses lames pour deviner la dose.",
+						"en": "I found his prescription. Illegible, obviously: he's a surgeon. I need his syringes and his blades to guess the dose."
+					},
+					"lab": {
+						"fr": "« Deux fois par jour, à jeun »… ou « deux fois par jour, à genoux ». Je ne sais pas lire ça.",
+						"en": "“Twice a day, on an empty stomach”… or “twice a day, on your knees”. I can't read this."
+					},
+					"ready": {
+						"fr": "Vous avez tout ? On va enfin déchiffrer ce gribouillis.",
+						"en": "Got everything? We'll finally decipher this scrawl."
+					},
+					"thanks": {
+						"fr": "La dose est énorme. Le virus ne guérit pas les patients, il les garde en vie. À sa façon.",
+						"en": "The dose is huge. The virus doesn't cure the patients, it keeps them alive. In its own way."
+					},
+					"samples": {"nurse_syringe": 3, "surgeon_scalpel": 3},
+					"xp": 3600,
+					"reward": {"kind": "weapon", "weapon": "any", "rarity": "epic"},
+					"min_level": 11
+				},
+				{
+					"id": "ch3_still_beating",
+					"short": {"fr": "Le cœur", "en": "The Heart"},
+					"title": {"fr": "Ça bat encore", "en": "Still Beating"},
+					"text": {
+						"fr": "Son cœur bat à l’air libre et il brille dans le noir. Ce n’est pas normal, même pour un chirurgien. Il m’en faut un. Ne me demandez pas comment le prendre.",
+						"en": "His heart beats in the open and glows in the dark. That's not normal, even for a surgeon. I need one. Don't ask me how to get it."
+					},
+					"lab": {
+						"fr": "Visez la lumière qui bat dans sa poitrine. C’est un conseil médical.",
+						"en": "Aim for the light beating in his chest. That's medical advice."
+					},
+					"ready": {
+						"fr": "Il bat encore ? Mettez-le dans le bocal. Non, pas celui-là, celui qui ne bouge pas.",
+						"en": "Is it still beating? Put it in the jar. No, not that one, the one that doesn't move."
+					},
+					"thanks": {
+						"fr": "Il pompe le sérum dans tout le corps. C’est le moteur de l’épidémie. Et j’en tiens un.",
+						"en": "It pumps the serum through the whole body. It's the engine of the outbreak. And I've got one."
+					},
+					"samples": {"surgeon_heart": 1},
+					"xp": 4200,
+					"reward": {"kind": "part", "quality": "superior"},
+					"min_level": 12
+				},
+				{
+					"id": "ch3_second_opinion",
+					"short": {"fr": "Second avis", "en": "2nd Opinion"},
+					"title": {"fr": "Second avis", "en": "Second Opinion"},
+					"text": {
+						"fr": "Un seul cœur, c’est une anecdote. Trois, c’est une étude. Rapportez-m’en d’autres, avec ses outils : je veux comparer les battements.",
+						"en": "One heart is an anecdote. Three is a study. Bring me more, with his tools: I want to compare the beats."
+					},
+					"lab": {
+						"fr": "Les cœurs battent tous au même rythme. Le même. Ça ne me plaît pas du tout.",
+						"en": "The hearts all beat to the same rhythm. The same one. I don't like that at all."
+					},
+					"ready": {
+						"fr": "Une étude complète ! Le comité d’éthique serait horrifié. Heureusement, il a été mangé.",
+						"en": "A complete study! The ethics committee would be horrified. Luckily, it got eaten."
+					},
+					"thanks": {
+						"fr": "J’ai isolé la souche. Il ne me manque plus qu’un mélange de tout ce que vous m’avez rapporté.",
+						"en": "I've isolated the strain. All I need now is a blend of everything you've brought me."
+					},
+					"samples": {"surgeon_heart": 3, "surgeon_scalpel": 4},
+					"xp": 5000,
+					"reward": {"kind": "weapon", "weapon": "any", "rarity": "epic"},
+					"min_level": 13
+				},
+				{
+					"id": "ch3_formula",
+					"short": {"fr": "La formule", "en": "The Formula"},
+					"title": {"fr": "La formule", "en": "The Formula"},
+					"text": {
+						"fr": "La formule de l’antidote tient sur une serviette en papier. Il me faut un peu de chaque monstre de cet hôpital. Après ça, on saura si j’ai raison. Ou si on explose.",
+						"en": "The antidote formula fits on a paper napkin. I need a bit of every monster in this hospital. After that, we'll know if I'm right. Or if we blow up."
+					},
+					"lab": {
+						"fr": "L’antidote est à portée de main. Ne me portez pas la poisse.",
+						"en": "The antidote is within reach. Don't jinx it."
+					},
+					"ready": {
+						"fr": "Tout est là. Mettez vos lunettes de protection. Les miennes ont fondu.",
+						"en": "It's all here. Put your goggles on. Mine melted."
+					},
+					"thanks": {
+						"fr": "Ça marche ! Sur les rats, en tout cas. Les rats vont très bien. Un peu trop bien. La suite au prochain chapitre.",
+						"en": "It works! On the rats, at least. The rats are doing great. A little too great. To be continued."
+					},
+					"samples": {"dog_fang": 6, "brancard_strap": 3, "nurse_vocal_cords": 3, "surgeon_heart": 3},
+					"xp": 7000,
+					"reward": {"kind": "weapon", "weapon": "any", "rarity": "legendary"},
+					"min_level": 14
+				}
+			]
+		}
+	]
+}

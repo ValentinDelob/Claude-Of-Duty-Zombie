@@ -167,6 +167,43 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
   équivalent (prix de la certitude) ; un échange d'un niveau trop haut reste
   visible, grisé.
 
+### 4.2 quater Contrats d'histoire 💡
+- 💡 **Proposition provisoire** (hub v2, maquette `docs/hub_v2/Contrats.dc.html` ;
+  données et règles : `docs/HUB_PLAN.md` §5.7) : les contrats sont séparés en
+  deux familles, à gauche et à droite de l'écran LABO › CONTRATS :
+  - **contrats d'HISTOIRE** : une ligne **séquentielle** de **chapitres** faits
+    d'**étapes** ; **une seule étape active à la fois**, toujours active (rien
+    à accepter ni à abandonner, jamais d'expiration) ; remettre une étape
+    **débloque la suivante**. Une étape demande des échantillons et peut
+    demander un **niveau du joueur** (elle reste visible, « NIV. n REQUIS »).
+    Récompense comme un contrat : arme ou pièce au niveau du joueur et XP
+    (calculée au niveau actuel). L'histoire **pilote la progression** : elle
+    suit les ennemis rencontrés au fil des manches et des niveaux ;
+  - **contrats TEMPORAIRES** : le tableau qui tourne après chaque partie
+    (§4.2) ; ils **expirent** : chaque proposition vit **7 jours** (règle
+    `lifetime_days`, gardée quand elle est acceptée), en plus d'une éventuelle
+    date de fin du catalogue ; ils donnent un bonus en attendant.
+- Les échantillons sont **en commun** entre les deux familles.
+- Données : `assets/data/hub/story.json` (titres, libellés de frise, demandes et
+  répliques de Dr Brown FR / EN, échantillons, XP, récompense, niveau requis) ;
+  progression du profil : étapes remises (`story`, profil version 4).
+- 💡 **Première histoire** (provisoire, ton drôle et sombre, suit le lore §3) :
+  1. **La meute** (niveaux 1 à 3, chiens) : *Premiers crocs*, *Poil à gratter*,
+     *Qui est un bon chien ?* (les colliers mènent au chenil de l'hôpital),
+     *Chef de meute* (un peu de tout : « le virus vient de l'hôpital lui-même ») ;
+  2. **Le service de nuit** (niveaux 5 à 8, Brancardier puis Infirmière
+     hurlante) : *Patient zéro* (un bracelet : chambre 12), *Le chariot*
+     (traces de sérum vert), *Sangles en série*, *Fiches patients* (toutes les
+     injections la nuit où le Chirurgien était de garde), *Nuit blanche*
+     (seringues et cordes vocales : le sérum vient du bloc) ;
+  3. **Le bloc opératoire** (niveaux 10 à 14, le Chirurgien) : *Bistouri, s'il
+     vous plaît*, *Ordonnance illisible*, *Ça bat encore* (le cœur mutant,
+     moteur de l'épidémie), *Second avis*, *La formule* (un peu de chaque
+     monstre : l'antidote marche… sur les rats ; « la suite au prochain
+     chapitre »).
+- ❓ Suite de l'histoire, fin envisagée, rythme (niveaux requis), place du
+  tutoriel (le contrat tuto du tableau reste pour l'instant).
+
 ### 4.3 Partie sans fin et vagues ✅
 - **Une partie ne se termine jamais** d'elle-même : seule l'évacuation ou la
   mort de toute l'équipe y met fin.
