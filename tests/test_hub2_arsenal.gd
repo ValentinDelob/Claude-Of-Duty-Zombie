@@ -256,6 +256,55 @@ func test_part_effects_and_quality() -> void:
 	assert_eq(Hub2ArsenalView.effect("damage", 0.08)[0], "+8% damage")
 
 
+## Largeur d'une colonne du rail à la taille des menus courante (comme
+## Hub2ArsenalPanel._fit_columns : 135 px à 100 %).
+func _col_width() -> float:
+	var section := 1280.0 - Hub2Style.px(28) * 2.0 - Hub2Style.px(20) - Hub2Style.px(384) - Hub2Style.px(1) * 2.0
+	var rail_w := section - Hub2Style.px(1) * 2.0 - Hub2Style.px(36) * 2.0 - Hub2Style.px(6) * 2.0
+	var n := Hub2ArsenalRail.fit_visible(rail_w, Hub2Style.px(135), Hub2Style.px(14))
+	return floorf((rail_w - (n - 1) * Hub2Style.px(14)) / n)
+
+
+func test_rail_cards_never_truncate_names_or_rarity() -> void:
+	var checked := 0
+	for lang in ["fr", "en"]:
+		Settings.language = lang
+		for factor in [1.0, 1.3]:
+			Settings.menu_ui_scale = factor
+			var cw := _col_width()
+			for id in WeaponDB.WEAPONS.keys():
+				for r in 5:
+					for locked in [false, true]:
+						var card := Hub2ArsenalCard.new()
+						card.size = Vector2(cw, 100)
+						var slots := OwnedWeapon.slots_for(r)
+						card.setup({"name": HubGear.weapon_name(id), "color": Hub2Style.rarity_color(r),
+							"kind_name": GameWeapon.rarity_name(r), "img": null, "is_new": true, "base": false,
+							"locked": locked, "required": Hub2ArsenalView.required_text(50), "score": "250",
+							"slots": slots, "filled": slots})
+						var texts := card.shown_texts()
+						var joined := " | ".join(texts)
+						assert_false(joined.contains("…"), "%s %s %d %.1f : pas de « … » (%s)" % [lang, id, r, factor, joined])
+						assert_true(card.texts_fit(), "%s %s %d %.1f verrouillée %s : tout tient dans %.0f px (%s)" % [
+							lang, id, r, factor, locked, cw, joined])
+						var lay := card.layout(Hub2ArsenalCard.inner_width(cw))
+						assert_true(float(lay.name.size) >= Hub2ArsenalCard.NAME_MIN, "nom lisible (%s)" % id)
+						card.free()
+						checked += 1
+			# Cartes de pièce : nom, qualité et effets.
+			for k in LootRules.PART_MODS:
+				for q in 3:
+					var p := WeaponPart.create("part_" + k, 10, {k: 0.25, "reload": -0.25})
+					var card2 := Hub2ArsenalCard.new()
+					card2.size = Vector2(cw, 100)
+					card2.setup({"name": HubGear.part_name(p).to_upper(), "color": Hub2ArsenalView.quality_color(q),
+						"kind_name": Hub2ArsenalView.quality_name(q), "part_art": true, "is_new": true, "score": "",
+						"slots": 0, "filled": 0, "effects": Hub2ArsenalView.effects(p)})
+					assert_true(card2.texts_fit(), "%s pièce %s %.1f : tout tient" % [lang, k, factor])
+					card2.free()
+	assert_true(checked > 300, "toutes les armes, raretés, langues, tailles (%d)" % checked)
+
+
 func test_svg_icons_render() -> void:
 	for k in Hub2ArsenalView.STATS:
 		var tex := Hub2ArsenalDraw.svg_icon(Hub2ArsenalView.ICONS[k], 18.0, Hub2Style.TEXT)

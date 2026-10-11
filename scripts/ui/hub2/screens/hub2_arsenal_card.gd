@@ -8,12 +8,18 @@ extends Hub2Button
 ##   ligne de rareté de 3 px à gauche ; rendu de l'arme (50 px de haut,
 ##   margin -2 -4 0 -2, contain, drop-shadow 0 4 6 rgba(0,0,0,.5)) avec
 ##   l'étiquette NEUF (fond jaune) ou BASE en haut à droite ; nom Chakra Petch
-##   17 px 700 0,04em (coupé « … ») ; rareté Chakra Petch 12 px 700 0,1em à
-##   gauche, à droite les emplacements (carrés 6 px, écart 3 : turquoise =
-##   pièce installée) puis le score JetBrains Mono 13 px 700 (écart 8), ou
+##   17 px 700 0,04em ; rareté Chakra Petch 12 px 700 0,1em à gauche, à
+##   droite les emplacements (carrés 6 px, écart 3 : turquoise = pièce
+##   installée) puis le score JetBrains Mono 13 px 700 (écart 8), ou
 ##   « NIV. N REQUIS » (Chakra Petch 11 px 700 0,08em #FF7A5C).
+## AUCUN TEXTE COUPÉ (pas de « … ») : un nom trop long rapetisse (17 px ->
+## 13 px au plus petit) puis passe sur deux lignes ; si la rareté et les
+## emplacements + score ne tiennent pas sur une ligne, les emplacements et
+## le score passent sur la ligne suivante, à droite ; « NIV. N REQUIS » passe
+## à la ligne aux espaces (comme le flex de la maquette), ou sous la rareté.
+## La carte grandit d'autant (hauteur selon la largeur).
 ## Pièce : pixel art de la pièce à la place du rendu, qualité à la place de
-## la rareté, une ligne de plus avec les effets (vert / rouge).
+## la rareté, puis ses effets (vert / rouge), un par ligne.
 ## La carte ne dessine pas de cadre de focus : la sélection (jaune) suit le
 ## focus dans le rail.
 ## ◄ ► ▲ ▼ sont rendus au panneau (`nav`), qui gère le rail par niveau.
@@ -23,6 +29,9 @@ signal nav(dir: Vector2i)
 const PAD := Vector4(15, 10, 12, 10)  # gauche, haut, droite, bas
 const IMG_H := 50.0
 const GAP := 5.0
+## Nom : taille de la maquette, puis plus petit au besoin (px à 100 %).
+const NAME_SIZE := 17.0
+const NAME_MIN := 13.0
 
 ## Données affichées : {name, color, kind_name, img: Texture2D, part_art: bool,
 ## is_new, base, locked, required, slots, filled, score, effects: [[texte, bon]]}.
@@ -61,59 +70,135 @@ func _ready() -> void:
 	resized.connect(_update_height)
 
 
-## Hauteur selon la largeur (« NIV. N REQUIS » sur deux lignes si besoin).
+## Largeur intérieure (sans liseré ni padding) d'une carte de largeur `w`.
+static func inner_width(w: float) -> float:
+	return w - Hub2Style.px(1) * 2.0 - Hub2Style.px(PAD.x) - Hub2Style.px(PAD.z)
+
+
+## Hauteur selon la largeur (nom, rangée de la rareté).
 func _update_height() -> void:
-	var extra: float = 0.0
-	if data.get("locked", false) and size.x > 0.0:
-		var inner := size.x - Hub2Style.px(1) * 2.0 - Hub2Style.px(PAD.x) - Hub2Style.px(PAD.z)
-		extra = maxf(float(_req_layout(inner).h) - _row_h(), 0.0)
-	var h := roundf(card_height(data.get("effects", []).size() > 0 or data.get("part_art", false)) + extra)
+	var w := size.x if size.x > 0.0 else Hub2Style.px(135)
+	var h := roundf(layout(inner_width(w)).height)
 	if not is_equal_approx(custom_minimum_size.y, h):
 		custom_minimum_size = Vector2(0, h)
 	face.queue_redraw()
 
 
-static func _row_h() -> float:
-	return maxf(Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 700, 12), Hub2ArsenalDraw.line_h(Hub2Style.MONO, 700, 13))
+static func _f(weight := 700) -> Font:
+	return Hub2Style.font(Hub2Style.CHAKRA, weight)
 
 
-## Lignes de « NIV. N REQUIS » dans la place laissée par la rareté (largeur
-## intérieure `inner`) : {lines, w (plus longue ligne), h (hauteur de la rangée)}.
-func _req_layout(inner: float) -> Dictionary:
-	var f := Hub2Style.font(Hub2Style.CHAKRA, 700)
-	var s11 := Hub2Style.fs(11)
-	var tr11 := Hub2Style.tracking_px(0.08, s11)
-	var s12 := Hub2Style.fs(12)
-	var kind_w := Hub2Style.text_width(String(data.get("kind_name", "")), f, s12, Hub2Style.tracking_px(0.1, s12))
-	var room := inner - kind_w
-	var words := String(data.get("required", "")).split(" ", false)
+static func _w(t: String, size_css: float, track_em: float, family := Hub2Style.CHAKRA, weight := 700) -> float:
+	var s := Hub2Style.fs(size_css)
+	return Hub2Style.text_width(t, Hub2Style.font(family, weight), s, Hub2Style.tracking_px(track_em, s))
+
+
+## Lignes de `t` en coupant aux espaces pour tenir dans `room` (un mot seul
+## trop long reste entier).
+static func wrap_words(t: String, size_css: float, track_em: float, room: float, family := Hub2Style.CHAKRA,
+		weight := 700) -> Array[String]:
 	var lines: Array[String] = []
 	var cur := ""
-	for wd in words:
+	for wd in t.split(" ", false):
 		var cand := wd if cur == "" else cur + " " + wd
-		if cur != "" and Hub2Style.text_width(cand, f, s11, tr11) > room:
+		if cur != "" and _w(cand, size_css, track_em, family, weight) > room:
 			lines.append(cur)
 			cur = wd
 		else:
 			cur = cand
 	if cur != "":
 		lines.append(cur)
-	var w := 0.0
-	for ln in lines:
-		w = maxf(w, Hub2Style.text_width(ln, f, s11, tr11))
-	var h := maxf(_row_h(), Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 700, 11) * lines.size())
-	return {"lines": lines, "w": w, "h": h}
+	return lines
 
 
-## Hauteur d'une carte (px à l'échelle) ; `extra_line` : ligne des effets
-## (carte de pièce). Hauteurs de ligne du navigateur (non arrondies).
-static func card_height(extra_line := false) -> float:
-	var name_h := Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 700, 17)
-	var h := Hub2Style.px(1) + Hub2Style.px(PAD.y) - Hub2Style.px(2) + Hub2Style.px(IMG_H) + Hub2Style.px(GAP) + name_h \
-			+ Hub2Style.px(GAP) + _row_h() + Hub2Style.px(PAD.w) + Hub2Style.px(1)
-	if extra_line:
-		h += Hub2Style.px(GAP) + Hub2ArsenalDraw.line_h(Hub2Style.BARLOW, 400, 13)
-	return h
+## Nom : {size (px de la maquette), lines} — une ligne à la plus grande
+## taille qui tient (17 -> 13), sinon deux lignes (ou plus) aux espaces.
+static func fit_name(t: String, room: float) -> Dictionary:
+	var s := NAME_SIZE
+	while s >= NAME_MIN:
+		if _w(t, s, 0.04) <= room:
+			return {"size": s, "lines": [t]}
+		s -= 0.5
+	s = NAME_SIZE
+	while s >= NAME_MIN:
+		var lines := wrap_words(t, s, 0.04, room)
+		var ok := true
+		for ln in lines:
+			ok = ok and _w(ln, s, 0.04) <= room
+		if ok:
+			return {"size": s, "lines": lines}
+		s -= 0.5
+	# Un mot plus large que la carte même à 13 px (REINFORCEMENT) : coupé
+	# avec un trait d'union, jamais avec « … ».
+	var out: Array[String] = []
+	for ln in wrap_words(t, NAME_MIN, 0.04, room):
+		var rest := ln
+		while _w(rest, NAME_MIN, 0.04) > room and rest.length() > 2:
+			var k := rest.length() - 1
+			while k > 1 and _w(rest.left(k) + "-", NAME_MIN, 0.04) > room:
+				k -= 1
+			out.append(rest.left(k) + "-")
+			rest = rest.substr(k)
+		out.append(rest)
+	return {"size": NAME_MIN, "lines": out}
+
+
+static func _row_h() -> float:
+	return maxf(Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 700, 12), Hub2ArsenalDraw.line_h(Hub2Style.MONO, 700, 13))
+
+
+## Largeur des emplacements + score (écart 8).
+func _right_w() -> float:
+	var n := int(data.get("slots", 0))
+	var w := _w(String(data.get("score", "")), 13, 0.0, Hub2Style.MONO, 700)
+	if n > 0:
+		w += Hub2Style.px(8) + n * Hub2Style.px(6) + (n - 1) * Hub2Style.px(3)
+	return w
+
+
+## Mise en page pour une largeur intérieure `inner` :
+## {name: fit_name, row_split (emplacements / score sous la rareté),
+##  req_lines, req_below (« NIV. N REQUIS » sous la rareté), req_w,
+##  row_h, effects_h, height}.
+func layout(inner: float) -> Dictionary:
+	var nm := fit_name(String(data.get("name", "")), inner)
+	var name_h := Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 700, float(nm.size)) * (nm.lines as Array).size()
+	var kind_w := _w(String(data.get("kind_name", "")), 12, 0.1)
+	var rh := _row_h()
+	var out := {"name": nm, "row_split": false, "req_lines": [], "req_below": false, "req_w": 0.0}
+	var row_total := rh
+	if data.get("locked", false):
+		var lh11 := Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 700, 11)
+		var req := String(data.get("required", ""))
+		var room := inner - kind_w
+		var lines := wrap_words(req, 11, 0.08, room)
+		var widest := 0.0
+		for ln in lines:
+			widest = maxf(widest, _w(ln, 11, 0.08))
+		if widest > room + 0.5:
+			# Pas la place à côté de la rareté : en dessous, à droite.
+			lines = wrap_words(req, 11, 0.08, inner)
+			widest = 0.0
+			for ln in lines:
+				widest = maxf(widest, _w(ln, 11, 0.08))
+			out.req_below = true
+			row_total = rh + lh11 * lines.size()
+		else:
+			row_total = maxf(rh, lh11 * lines.size())
+		out.req_lines = lines
+		out.req_w = widest
+	elif kind_w + _right_w() > inner + 0.5 and _right_w() > 0.0:
+		out.row_split = true
+		row_total = rh * 2.0
+	out.row_h = row_total
+	var eff_h := 0.0
+	var eff: Array = data.get("effects", [])
+	if not eff.is_empty():
+		eff_h = Hub2Style.px(GAP) + Hub2ArsenalDraw.line_h(Hub2Style.BARLOW, 400, 13) * _effect_lines(inner).size()
+	out.effects_h = eff_h
+	out.height = Hub2Style.px(1) + Hub2Style.px(PAD.y) - Hub2Style.px(2) + Hub2Style.px(IMG_H) + Hub2Style.px(GAP) + name_h \
+			+ Hub2Style.px(GAP) + row_total + eff_h + Hub2Style.px(PAD.w) + Hub2Style.px(1)
+	return out
 
 
 func _style() -> void:
@@ -149,6 +234,7 @@ func _draw_face() -> void:
 	ci.draw_rect(Rect2(b, b, Hub2Style.px(3), ci.size.y - b * 2.0), col)
 	var left := b + Hub2Style.px(PAD.x)
 	var right := w - b - Hub2Style.px(PAD.z)
+	var lay := layout(right - left)
 	# Image : margin -2 -4 0 -2.
 	var img := Rect2(left - Hub2Style.px(2), b + Hub2Style.px(PAD.y) - Hub2Style.px(2),
 			right + Hub2Style.px(4) - (left - Hub2Style.px(2)), Hub2Style.px(IMG_H))
@@ -160,57 +246,101 @@ func _draw_face() -> void:
 		_tag_new(ci, img)
 	elif data.get("base", false):
 		var lh := Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 700, 10)
-		var tw := Hub2Style.text_width("BASE", Hub2Style.font(Hub2Style.CHAKRA, 700), Hub2Style.fs(10),
-				Hub2Style.tracking_px(0.14, Hub2Style.fs(10)))
+		var tw := _w("BASE", 10, 0.14)
 		Hub2ArsenalDraw.text(ci, "BASE", Hub2Style.CHAKRA, 700, 10, Hub2Style.text_a(0.55), 0.14,
-				img.end.x - Hub2Style.px(2) - tw, Hub2ArsenalDraw.baseline(Hub2Style.CHAKRA, 700, 10, img.position.y + Hub2Style.px(2), lh))
-	# Nom.
+				img.end.x - Hub2Style.px(2) - tw, roundf(Hub2ArsenalDraw.baseline(Hub2Style.CHAKRA, 700, 10, img.position.y + Hub2Style.px(2), lh)))
+	# Nom (une ou deux lignes, taille ajustée).
 	var y := img.end.y + Hub2Style.px(GAP)
-	var name_h := Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 700, 17)
-	Hub2ArsenalDraw.text(ci, String(data.get("name", "")), Hub2Style.CHAKRA, 700, 17, Hub2Style.TEXT, 0.04, left,
-			Hub2ArsenalDraw.baseline(Hub2Style.CHAKRA, 700, 17, y, name_h), right - left)
-	y += name_h + Hub2Style.px(GAP)
+	var ns: float = lay.name.size
+	var name_h := Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 700, ns)
+	for ln: String in lay.name.lines:
+		Hub2ArsenalDraw.text(ci, ln, Hub2Style.CHAKRA, 700, ns, Hub2Style.TEXT, 0.04, left,
+				roundf(Hub2ArsenalDraw.baseline(Hub2Style.CHAKRA, 700, ns, y, name_h)))
+		y += name_h
+	y += Hub2Style.px(GAP)
 	# Rareté (ou qualité) et emplacements / score, ou NIV. N REQUIS.
-	var row_h := maxf(Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 700, 12), Hub2ArsenalDraw.line_h(Hub2Style.MONO, 700, 13))
-	var rx := right
+	var rh := _row_h()
+	var row_h: float = lay.row_h
+	var kind_y := y + ((row_h - rh) * 0.5 if not (lay.row_split or lay.req_below) else 0.0)
+	Hub2ArsenalDraw.text(ci, String(data.get("kind_name", "")), Hub2Style.CHAKRA, 700, 12, col, 0.1, left,
+			roundf(Hub2ArsenalDraw.baseline(Hub2Style.CHAKRA, 700, 12, kind_y, rh)))
 	if data.get("locked", false):
-		# « NIV. N REQUIS » : la rareté garde toute sa largeur, le texte prend
-		# le reste et passe à la ligne aux espaces (flex de la maquette).
-		var lay := _req_layout(right - left)
-		row_h = lay.h
 		var lh11 := Hub2ArsenalDraw.line_h(Hub2Style.CHAKRA, 700, 11)
-		var ty := y + (row_h - lh11 * (lay.lines as Array).size()) * 0.5
-		rx = right - float(lay.w)
-		for ln: String in lay.lines:
+		var lines: Array = lay.req_lines
+		var ty := y + rh if lay.req_below else y + (row_h - lh11 * lines.size()) * 0.5
+		var rx := right - float(lay.req_w)
+		for ln: String in lines:
 			Hub2ArsenalDraw.text(ci, ln, Hub2Style.CHAKRA, 700, 11, Hub2Style.BAD, 0.08, rx,
 					roundf(Hub2ArsenalDraw.baseline(Hub2Style.CHAKRA, 700, 11, ty, lh11)))
 			ty += lh11
 	else:
+		var ry := y + rh if lay.row_split else y
 		var score := String(data.get("score", ""))
-		var sw := Hub2Style.text_width(score, Hub2Style.font(Hub2Style.MONO, 700), Hub2Style.fs(13))
-		rx = right - sw
+		var sw := _w(score, 13, 0.0, Hub2Style.MONO, 700)
+		var rx := right - sw
 		Hub2ArsenalDraw.text(ci, score, Hub2Style.MONO, 700, 13, Hub2Style.TEXT, 0.0, rx,
-				Hub2ArsenalDraw.baseline(Hub2Style.MONO, 700, 13, y, row_h))
+				roundf(Hub2ArsenalDraw.baseline(Hub2Style.MONO, 700, 13, ry, rh)))
 		var n := int(data.get("slots", 0))
 		if n > 0:
 			var s := Hub2Style.px(6)
 			var g := Hub2Style.px(3)
-			var dots_w := n * s + (n - 1) * g
-			var x0 := rx - Hub2Style.px(8) - dots_w
-			var dy := y + roundf((row_h - s) * 0.5)
+			var x0 := rx - Hub2Style.px(8) - (n * s + (n - 1) * g)
+			var dy := ry + roundf((rh - s) * 0.5)
 			for i in n:
 				ci.draw_rect(Rect2(x0 + i * (s + g), dy, s, s),
 						Hub2Style.TEAL if i < int(data.get("filled", 0)) else Hub2Style.white_a(0.18))
-			rx = x0
-	Hub2ArsenalDraw.text(ci, String(data.get("kind_name", "")), Hub2Style.CHAKRA, 700, 12, col, 0.1, left,
-			roundf(Hub2ArsenalDraw.baseline(Hub2Style.CHAKRA, 700, 12, y, row_h)), maxf(rx - left, 0.0))
-	# Effets d'une pièce.
+	# Effets d'une pièce, un par ligne.
 	var eff: Array = data.get("effects", [])
 	if not eff.is_empty():
 		y += row_h + Hub2Style.px(GAP)
 		var lh2 := Hub2ArsenalDraw.line_h(Hub2Style.BARLOW, 400, 13)
-		Hub2ArsenalModLine.draw_effects(ci, eff, left, Hub2ArsenalDraw.baseline(Hub2Style.BARLOW, 400, 13, y, lh2),
-				right - left, 13)
+		for it: Array in _effect_lines(right - left):
+			Hub2ArsenalDraw.text(ci, String(it[0]), Hub2Style.BARLOW, 400, 13, it[1], 0.0, left,
+					roundf(Hub2ArsenalDraw.baseline(Hub2Style.BARLOW, 400, 13, y, lh2)))
+			y += lh2
+
+
+## Effets d'une pièce, un par ligne, passés à la ligne aux espaces :
+## [[texte, couleur], …].
+func _effect_lines(inner: float) -> Array:
+	var out := []
+	for it: Array in data.get("effects", []):
+		var col: Color = Hub2ArsenalView.GOOD if it[1] else Hub2ArsenalView.HARMFUL
+		for ln in wrap_words(String(it[0]), 13, 0.0, inner, Hub2Style.BARLOW, 400):
+			out.append([ln, col])
+	return out
+
+
+## Textes affichés par la carte (tests : jamais de « … »).
+func shown_texts() -> Array[String]:
+	var out: Array[String] = []
+	var lay := layout(inner_width(size.x if size.x > 0.0 else Hub2Style.px(135)))
+	for ln: String in lay.name.lines:
+		out.append(ln)
+	out.append(String(data.get("kind_name", "")))
+	for ln: String in lay.req_lines:
+		out.append(ln)
+	return out
+
+
+## Les textes tiennent-ils dans la carte (largeur intérieure) ?
+func texts_fit() -> bool:
+	var inner := inner_width(size.x if size.x > 0.0 else Hub2Style.px(135))
+	var lay := layout(inner)
+	for ln: String in lay.name.lines:
+		if _w(ln, float(lay.name.size), 0.04) > inner + 0.5:
+			return false
+	var kind_w := _w(String(data.get("kind_name", "")), 12, 0.1)
+	if kind_w > inner + 0.5:
+		return false
+	if not data.get("locked", false) and not lay.row_split and kind_w + _right_w() > inner + 0.5:
+		return false
+	if lay.row_split and _right_w() > inner + 0.5:
+		return false
+	for it: Array in _effect_lines(inner):
+		if _w(String(it[0]), 13, 0.0, Hub2Style.BARLOW, 400) > inner + 0.5:
+			return false
+	return float(lay.req_w) <= inner + 0.5
 
 
 ## Étiquette NEUF : top 2, right 2 de l'image ; padding 1 5, fond jaune,

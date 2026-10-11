@@ -3,7 +3,7 @@ extends RefCounted
 ## Dessin de l'ARSENAL du hub v2 (docs/hub_v2/Arsenal.dc.html) : rendu d'arme
 ## en object-fit: contain avec filter: drop-shadow (ombre floue approchée par
 ## des copies noires décalées), losange (transform: rotate(45deg)), texte d'une
-## ligne coupé avec « … » (text-overflow: ellipsis), pièce en pixel art (un
+## ligne (jamais coupé), pièce en pixel art (un
 ## pixel = un cube), icônes des statistiques : les <path> SVG de la maquette
 ## rendus par le moteur SVG de Godot (trait carré, angles vifs) à la taille
 ## finale × suréchantillonnage, en cache.
@@ -55,28 +55,14 @@ static func draw_diamond(ci: CanvasItem, c: Vector2, side: float, col: Color) ->
 	ci.draw_polyline(pts, col, 1.0, true)
 
 
-## `text` coupé avec « … » pour tenir dans `max_w` px.
-static func ellipsize(text: String, f: Font, size: int, tracking: float, max_w: float) -> String:
-	if Hub2Style.text_width(text, f, size, tracking) <= max_w:
-		return text
-	var t := text
-	while t.length() > 0:
-		t = t.left(t.length() - 1)
-		var cand := t.strip_edges() + "…"
-		if Hub2Style.text_width(cand, f, size, tracking) <= max_w:
-			return cand
-	return "…"
-
-
 ## Texte d'une ligne à la ligne de base `y`, aligné dans [x, x + w]
-## (`align` : HORIZONTAL_ALIGNMENT_*), coupé avec « … » ; rend la largeur.
+## (`align` : HORIZONTAL_ALIGNMENT_*) ; jamais coupé (l'appelant adapte la
+## taille ou passe à la ligne) ; rend la largeur.
 static func text(ci: CanvasItem, t: String, family: String, weight: int, size_css: float, col: Color, tracking_em: float,
 		x: float, y: float, w := -1.0, align := HORIZONTAL_ALIGNMENT_LEFT) -> float:
 	var f := Hub2Style.font(family, weight)
 	var s := Hub2Style.fs(size_css)
 	var tr := Hub2Style.tracking_px(tracking_em, s)
-	if w >= 0.0:
-		t = ellipsize(t, f, s, tr, w)
 	var tw := Hub2Style.text_width(t, f, s, tr)
 	var px := x
 	if w >= 0.0:

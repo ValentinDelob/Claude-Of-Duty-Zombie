@@ -1727,8 +1727,20 @@ class HeadLine extends Control:
 		var ms := Hub2Style.fs(14)
 		var lw := Hub2Style.text_width(level, mf, ms)
 		Hub2Style.draw_text(self, mf, Vector2(roundf(size.x - lw), roundf(base)), level, ms, Hub2Style.text_a(0.7))
-		Hub2ArsenalDraw.text(self, title, Hub2Style.CHAKRA, 700, 36, Hub2Style.TEXT, 0.03, 0.0, base,
-				size.x - lw - Hub2Style.px(10))
+		# Jamais coupé : un nom trop long rapetisse (36 -> 20 px), même ligne
+		# de base.
+		Hub2ArsenalDraw.text(self, title, Hub2Style.CHAKRA, 700, title_size(size.x - lw - Hub2Style.px(10)), Hub2Style.TEXT, 0.03,
+				0.0, base)
+
+	## Taille (px de la maquette) à laquelle le nom tient dans `room`.
+	func title_size(room: float) -> float:
+		var sz := 36.0
+		while sz > 20.0:
+			var s := Hub2Style.fs(sz)
+			if Hub2Style.text_width(title, Hub2Style.font(Hub2Style.CHAKRA, 700), s, Hub2Style.tracking_px(0.03, s)) <= room:
+				break
+			sz -= 1.0
+		return sz
 
 
 ## « RARETÉ · CLASSE » (Chakra Petch 13 px 700 0,14em) : <span> dans un
