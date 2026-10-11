@@ -1,7 +1,8 @@
 extends AutotestScenario
 ## [MP] Hôte : arrache 4 planches d'une fenêtre (diffusion fiable), vérifie
 ## que la réparation du CLIENT est validée ici (refusée à 1,5 m de la
-## barrière, acceptée collé à elle, +10 par planche), puis fait
+## barrière, acceptée collé à elle, +10 de ferraille par planche au client
+## seul, payés par l'hôte), puis fait
 ## apparaître un zombie derrière la fenêtre.
 
 const PORT := 17820
@@ -34,6 +35,8 @@ func run() -> void:
 		await seconds(0.3)  # cadence d'arrachage d'un zombie
 	at.check(w.planks() == 2, "4 planches arrachées côté serveur")
 	var pts0 := cpd.points
+	var hpd := game.session.get_data(1)
+	var hpts0 := hpd.points
 	var client: Player = game.players[client_id]
 	# Portée vérifiée par l'hôte : le client, à 1,5 m de la barrière, force
 	# une demande de réparation (son invite n'apparaît pas) ; refusée ici.
@@ -55,7 +58,10 @@ func run() -> void:
 		return
 	var ok: bool = await until(func(): return w.planks() == 6, 30.0, "réparation par le client")
 	at.check(ok, "le client a reconstruit la fenêtre (validé par le serveur)")
-	at.check(cpd.points == pts0, "réparer ne rapporte pas de ferraille au client (+%d)" % (cpd.points - pts0))
+	var want := PointsRules.repair_total(4)
+	at.check(cpd.points - pts0 == want, "4 planches reposées : +%d de ferraille au client, payés par l'hôte (attendu +%d)" % [cpd.points - pts0, want])
+	at.check(hpd.points == hpts0, "chacun ses réparations : rien pour l'hôte (%+d)" % (hpd.points - hpts0))
+	at.check(game.points.repair_paid(client_id) == want and game.points.repair_paid(1) == 0, "plafond de la manche compté par joueur")
 	# Le client s'est reculé pour regarder la fenêtre.
 	if not await MpHelpers.wait_peer(self, "recule", 20.0):
 		return

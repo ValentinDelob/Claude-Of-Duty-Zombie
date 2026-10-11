@@ -2,9 +2,9 @@ class_name BarricadeRules
 extends RefCounted
 ## Règles des fenêtres barricadées (fonctions pures, testées unitairement).
 ##
-## 6 planches par fenêtre, comme dans Black Ops 1. Reposer une planche ne
-## rapporte rien : la ferraille ne vient que des éliminations (GAME_CONCEPT
-## §4.8). Portes à zombies (format 8) : KINDS (planches, zombies qui arrachent
+## 6 planches par fenêtre, comme dans Black Ops 1. Reposer une planche
+## rapporte un peu de ferraille, plafonnée par joueur et par manche
+## (PointsRules.REPAIR, REPAIR_CAP ; GAME_CONCEPT §4.8). Portes à zombies (format 8) : KINDS (planches, zombies qui arrachent
 ## à la fois, places d'attente).
 
 const PLANKS := 6

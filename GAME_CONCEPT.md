@@ -380,6 +380,13 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
   la touche en plus), quelle que soit l'arme, sauf un piège (rien).
 - Le montant par élimination est **fixe** : il n'augmente pas avec la manche,
   car le nombre de zombies augmente déjà.
+- 💡 **Reconstruction** (proposition provisoire, valeurs : §6 bis) : reposer
+  une planche d'une fenêtre ou d'une porte à zombies rapporte **un peu de
+  ferraille** au joueur qui la repose (chacun ses réparations, en coop
+  aussi). Le gain est **plafonné par joueur et par manche**, pour qu'on ne
+  puisse pas laisser un zombie arracher les planches et les reposer en boucle
+  pour gagner sans fin. Le gain s'affiche comme les autres (« +10 » près du
+  score).
 - Elle sert à **construire les armes** de l'arsenal (§4.11), à **recharger les
   munitions** à la station et à **ouvrir les portes payantes**.
 - Elle est remise à zéro à la fin de la partie : ce n'est pas une monnaie
@@ -817,6 +824,7 @@ corriger.
 |---|---|---|
 | Ferraille par élimination | **50**, quel que soit le coup (tête, couteau, explosion) ; 0 pour un piège ; le coup qui tue ne paie pas la touche en plus | `PointsRules.KILL` |
 | Ferraille par touche | **10** par touche de balle ou de couteau qui ne tue pas (tir de fusil à pompe : une touche par zombie) ; 0 pour une explosion, une brûlure, un piège ou le téléporteur ; au plus **10 touches payées par zombie**, tous joueurs confondus | `PointsRules.HIT`, `HIT_CAP` |
+| 💡 Ferraille de reconstruction | **10** par planche reposée (autant qu'une touche) au joueur qui la repose ; au plus **60 par joueur et par manche** (une fenêtre entière, un peu plus qu'une élimination ; BO1 plafonnait aussi la réparation par manche) : au-delà, la réparation reste possible mais ne rapporte plus rien | `PointsRules.REPAIR`, `REPAIR_CAP`, `Points.srv_repair` |
 | Énergie | 0 à 100 ; course 25/s ; saut 10 ; couteau 8, couteau de chasse 10, batte 15 ; recharge 40/s après 0,4 s ; **épuisé** de 0 jusqu'à 50 | `docs/ENERGY_PLAN.md` |
 | Essoufflement | silencieux au-dessus de 35 % ; halètement tant que le joueur est épuisé ; la respiration de santé basse passe avant | `BreathFeedback` |
 | XP par élimination | selon le type, à la manche 1 : marcheur, coureur, sprinteur, rampant **4** ; chien **12** ; Brancardier **60** (mini-boss) ; Infirmière hurlante **60** (mini-boss) ; Chirurgien **240** (boss) ; mini-boss (référence) **60** ; boss (référence) **240** ; × bonus de manche **1 + 0,15 × (manche − 1)**, plafonné à **×5** ; au seul tueur (piège : celui qui l'a activé) | `XpRules`, `docs/XP_RULES.md` |

@@ -656,14 +656,17 @@ func is_repairing(pid: int) -> bool:
 	return _repairers.has(pid)
 
 
-## Serveur : repose une planche ; `pid` > 0 : réparation d'un joueur (aucun
-## gain de ferraille, GAME_CONCEPT §4.8).
-func srv_add_plank(_pid := 0) -> bool:
+## Serveur : repose une planche ; `pid` > 0 : réparation d'un joueur, payée
+## en ferraille (Points.srv_repair : PointsRules.REPAIR par planche, plafonné
+## par joueur et par manche, GAME_CONCEPT §4.8).
+func srv_add_plank(pid := 0) -> bool:
 	var i := BarricadeRules.plank_to_repair(mask, plank_count)
 	if i < 0:
 		return false
 	set_mask(mask | (1 << i))
 	broadcast_state()
+	if pid > 0 and system and system.game and system.game.points:
+		system.game.points.srv_repair(pid)
 	return true
 
 
