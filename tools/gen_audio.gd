@@ -4,6 +4,10 @@ extends SceneTree
 ## Sans argument : régénère tout. Déterministe (graines fixes).
 
 const OUT := "res://assets/audio/"
+## Tempo de la berceuse de la peluche leurre : celui de son sautillement en
+## jeu (ThrowableRules.DECOY_MUSIC_BPM, égalité vérifiée par tests/test_audio.gd ;
+## ThrowableRules n'est pas lisible ici, hors du jeu).
+const DECOY_BPM := 160.0
 
 var s := Synth.new()
 
@@ -885,13 +889,6 @@ func gen_grenade_bounce() -> void:
 	_save("grenade_bounce", s.finish(s.reverb(b, 0.35, 0.12, 0.25), 0.65))
 
 
-func gen_monkey_bounce() -> void:
-	# Jouet de fer-blanc qui cogne le sol (les cymbales tintent).
-	var b := s.env_exp(s.lowpass(s.noise(0.1), 1500.0), 0.0005, 0.02)
-	s.mix(b, _cymbal(0.25, 0.4), 0.0, 0.5)
-	_save("monkey_bounce", s.finish(s.reverb(b, 0.3, 0.1, 0.2), 0.6))
-
-
 func gen_frag_explode() -> void:
 	# Grenade : détonation sèche et violente, souffle, éclats qui retombent.
 	var b := s.env_exp(s.highpass(s.noise(0.02), 1800.0), 0.0003, 0.006)
@@ -904,49 +901,96 @@ func gen_frag_explode() -> void:
 	_save("frag_explode", s.finish(s.reverb(b, 0.95, 0.32, 1.4), 0.98))
 
 
-func gen_monkey_wind() -> void:
-	# Remontage du ressort du singe (cliquetis de la clé).
-	var b := s.buf(0.5)
-	for k in 6:
-		s.mix(b, _clank(3000.0 + (k % 2) * 500.0, 0.02, 0.3), k * 0.07, 0.6)
-	_save("monkey_wind", s.finish(b, 0.5))
-
-
-## Cymbale de laiton : bruit aigu et partiels métalliques inharmoniques.
-func _cymbal(seconds: float, decay: float) -> PackedFloat32Array:
-	var b := s.env_exp(s.highpass(s.noise(seconds), 4500.0), 0.0005, decay)
-	for pr in [1.0, 1.47, 2.09, 2.56, 3.71]:
-		s.mix(b, s.env_exp(s.tone(seconds, 1180.0 * pr, "square"), 0.0005, decay * 0.5), 0.0, 0.05)
-	return s.bandpass(b, 6500.0, 0.5)
-
-
-func gen_monkey_music() -> void:
-	# SINGE-TAMBOUR : air de fête foraine à 135 bpm (orgue de barbarie
-	# désaccordé, basse « oum-pa ») et un coup de cymbales à chaque temps,
-	# pendant 8 s ; la dernière mesure ralentit comme un ressort qui se détend.
-	var beat := 60.0 / 135.0
-	var b := s.buf(8.0 + 0.6)
-	var melody := [7, 9, 11, 12, 11, 9, 7, 4, 5, 7, 9, 7, 5, 4, 2, 0,
-		7, 9, 11, 12, 14, 12, 11, 9, 7, 11, 14, 12, 11, 9, 7, 0]
-	var n := int(8.0 / beat)
+## PELUCHE LEURRE : berceuse de la boîte à musique cachée dans l'ours en
+## peluche (jouet du service de pédiatrie de l'hôpital, remonté par le
+## joueur), mignonne et inquiétante. Valse à 3 temps en la mineur
+## harmonique (sol dièse, ré dièse de passage : le triton qui grince), à
+## DECOY_BPM ; lames d'acier pincées un peu
+## désaccordées et chevrotantes (ressort fatigué), basse « oum-pa-pa » sur les
+## lames graves, tic-tac du mécanisme sur chaque temps, bip lointain de
+## moniteur cardiaque une mesure sur deux. La dernière mesure ralentit et
+## baisse (le ressort est à bout), une note tenue puis une dernière dent
+## fausse du cylindre, juste avant l'explosion (ThrowableRules.DECOY_TIME).
+## Composition originale (aucun air existant).
+func gen_decoy_music() -> void:
+	var beat := 60.0 / DECOY_BPM
+	# Mélodie par mesure : [temps, note (demi-tons depuis la5 = 880 Hz), durée (temps)].
+	var melody := [
+		[[0.0, 0, 1.0], [1.0, 3, 1.0], [2.0, 7, 1.0]],
+		[[0.0, 8, 1.5], [1.5, 7, 0.5], [2.0, 3, 1.0]],
+		[[0.0, 2, 1.0], [1.0, 3, 0.5], [1.5, 6, 0.5], [2.0, 7, 1.0]],
+		[[0.0, -1, 2.0], [2.0, -5, 1.0]],
+		[[0.0, 12, 1.0], [1.0, 11, 1.0], [2.0, 8, 1.0]],
+		[[0.0, 7, 0.5], [0.5, 6, 0.5], [1.0, 3, 1.0], [2.0, -1, 1.0]],
+		[[0.0, 0, 3.0]],
+	]
+	# Accords : [fondamentale, notes des 2e et 3e temps] (demi-tons depuis la4).
+	var chords := [[-12, [0, 3, 7]], [-16, [-4, 0, 3]], [-17, [-1, 2, 5]], [-17, [-1, 2, 7]],
+		[-16, [-4, 0, 3]], [-17, [-1, 2, 5]], [-12, [0, 3, 7]]]
+	var bars := melody.size()
+	# Instants des temps : les trois derniers de l'avant-dernière mesure et la
+	# dernière mesure s'espacent (ressort qui se détend).
+	var beats := PackedFloat32Array()
 	var t := 0.0
+	for i in bars * 3 + 1:
+		beats.append(t)
+		t += beat * (1.0 + maxf(0.0, float(i - (bars - 2) * 3 - 1)) * 0.11)
+	var at := func(pos: float) -> float:
+		var i := mini(int(pos), beats.size() - 2)
+		return lerpf(beats[i], beats[i + 1], pos - i)
+	var b := s.buf(beats[beats.size() - 1] + 2.0)
+	for bar in bars:
+		var last := bar == bars - 1
+		# Hauteur qui baisse à la fin (ressort à bout).
+		var sag := 1.0 - (0.012 if bar == bars - 2 else 0.0) - (0.03 if last else 0.0)
+		var wow := 0.012 if last else 0.004
+		for n in melody[bar]:
+			var pos: float = bar * 3 + float(n[0])
+			var f := 880.0 * pow(2.0, float(n[1]) / 12.0) * sag * (1.0 + s.rng.randf_range(-0.004, 0.004))
+			var ring := 1.6 if last else clampf(float(n[2]) * beat * 2.2, 0.5, 1.3)
+			s.mix(b, _tine(f, ring, wow), at.call(pos), 0.55)
+			s.mix(b, s.env_exp(s.bandpass(s.noise(0.02), 6200.0, 2.0), 0.0003, 0.004), at.call(pos), 0.12)
+		# Basse : fondamentale au premier temps, accord aux deux suivants.
+		var ch: Array = chords[bar]
+		s.mix(b, _tine(440.0 * pow(2.0, float(ch[0]) / 12.0) * sag, 1.4, wow), at.call(bar * 3.0), 0.42)
+		if not last:
+			for k in [1, 2]:
+				for note in ch[1]:
+					s.mix(b, _tine(440.0 * pow(2.0, float(note) / 12.0) * sag, 0.45, wow), at.call(bar * 3.0 + k), 0.1)
+		# Tic-tac du mécanisme (un « toc » plus grave au premier temps).
+		for k in 3:
+			var tick := s.env_exp(s.bandpass(s.noise(0.015), 2600.0 if k == 0 else 3800.0, 4.0), 0.0003, 0.003)
+			s.mix(b, tick, at.call(bar * 3.0 + k) + 0.004, 0.16 if k == 0 else 0.1)
+		# Bip lointain de moniteur cardiaque (mi6), une mesure sur deux.
+		if bar % 2 == 1 and not last:
+			var bip := s.lowpass(s.env_adsr(s.tone(0.09, 1318.5), 0.005, 0.02, 0.7, 0.04), 2500.0)
+			s.mix(b, bip, at.call(bar * 3.0 + 1.5), 0.07)
+	# Dernière dent du cylindre, fausse (ré dièse), quand tout s'arrête.
+	var end_t: float = at.call(bars * 3.0 - 1.4)
+	s.mix(b, _tine(880.0 * pow(2.0, 6.0 / 12.0) * 0.955, 0.9, 0.02), end_t, 0.3)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.04), 1800.0, 2.0), 0.001, 0.01), end_t + 0.05, 0.15)
+	_save("decoy_music", s.finish(s.reverb(b, 0.5, 0.22, 0.8), 0.8))
+
+
+## Lame d'acier pincée d'une boîte à musique : fondamentale qui tinte
+## longtemps, octave faible, partiel métallique bref (rapport ~5,9 d'une lame
+## encastrée) ; `wow` : chevrotement de la hauteur (5,3 Hz).
+func _tine(f: float, ring: float, wow: float) -> PackedFloat32Array:
+	var b := s.buf(ring)
+	var ratios := [1.0, 2.0, 5.93]
+	var amps := [1.0, 0.16, 0.22]
+	var decays := [ring * 0.38, ring * 0.18, 0.05]
+	var ph := PackedFloat64Array([0.0, 0.0, 0.0])
+	var n := b.size()
 	for i in n:
-		var slow := 1.0 + maxf(0.0, float(i - (n - 4))) * 0.12
-		# Cymbales.
-		s.mix(b, _cymbal(0.4, 0.14), t, 0.55)
-		# Basse oum-pa.
-		@warning_ignore("integer_division")
-		var bass: float = 98.0 if (i / 2) % 2 == 0 else 73.4
-		s.mix(b, s.env_exp(s.tone(beat, bass if i % 2 == 0 else bass * 1.5, "tri"), 0.004, 0.12), t, 0.35)
-		# Mélodie (croches).
-		for h in 2:
-			var note: int = melody[(i * 2 + h) % melody.size()]
-			var f: float = 523.25 * pow(2.0, note / 12.0) * (1.0 - 0.02 * float(i) / n)
-			var v := s.env_exp(s.tone(beat * 0.6, f, "square"), 0.003, 0.09)
-			s.mix(v, s.env_exp(s.tone(beat * 0.6, f * 1.006, "saw"), 0.003, 0.07), 0.0, 0.5)
-			s.mix(b, s.lowpass(v, 3200.0), t + h * beat * 0.5 * slow, 0.16)
-		t += beat * slow
-	_save("monkey_music", s.finish(s.reverb(b, 0.6, 0.22, 0.6), 0.8))
+		var tt := float(i) / Synth.RATE
+		var w := 1.0 + wow * sin(TAU * 5.3 * tt)
+		var v := 0.0
+		for k in 3:
+			ph[k] += f * ratios[k] * w / Synth.RATE
+			v += sin(TAU * ph[k]) * amps[k] * exp(-tt / decays[k])
+		b[i] = v * minf(1.0, tt / 0.002) * minf(1.0, float(n - i) / 400.0)
+	return b
 
 
 # ---------------------------------------------------------------- le Brancardier (vague spéciale)

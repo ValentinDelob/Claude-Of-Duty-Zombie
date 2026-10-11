@@ -47,6 +47,9 @@ const FRAG_SELF_DAMAGE := 80
 # ---------------------------------------------------------------- peluche leurre
 ## Durée de la musique : tous les zombies convergent vers la peluche.
 const DECOY_TIME := 8.0
+## Tempo de sa berceuse (`decoy_music`, valse à 3 temps de tools/gen_audio.gd) :
+## la peluche sautille sur chaque temps (Throwable).
+const DECOY_MUSIC_BPM := 160.0
 ## Explosion finale : tue tout ce qui l'entoure, quelle que soit la manche.
 const DECOY_RADIUS := 4.5
 const DECOY_DAMAGE := 100000

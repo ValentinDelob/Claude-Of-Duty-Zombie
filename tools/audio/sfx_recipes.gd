@@ -192,13 +192,11 @@ const RECIPES := {
 	# Rebond : boîte métallique lourde sur le béton, tintement.
 	"grenade_bounce": {"preset": "foley", "layers": [{"src": "650573", "start": 0.43, "end": 0.8, "pitch": 1.25, "fade_out": 0.1},
 		{"src": "682154", "gain": -10.0, "len": 0.35, "fade_out": 0.2}]},
-	# ------------------------------------------------------------ singe-tambour
-	"monkey_wind": {"preset": "mech", "layers": [{"src": "445966", "fade_out": 0.05}], "loud": -2.5},
-	"monkey_bounce": {"preset": "foley", "layers": [{"src": "92622", "start": 0.5, "end": 0.95, "pitch": 1.15, "fade_out": 0.1}]},
-	# L'air original (procédural) et un vrai coup de cymbales à chaque temps.
-	"monkey_music": {"preset": "", "layers": [{"stem": "monkey_tune", "trim": false},
-		{"src": "452400", "hp": 1800.0, "len": 0.38, "fade_out": 0.25, "gain": -2.0, "times": "monkey_beats", "alt_pitch": 1.06}],
-		"eq": [["hp", 60.0, 0.7, 0.0]], "comp": [-12.0, 2.0, 0.003, 0.1], "max_len": 9.5},
+	# ------------------------------------------------------------ peluche leurre
+	# Remontage de la boîte à musique cachée dans la peluche, rebond. Sa
+	# berceuse (`decoy_music`) est procédurale (tools/gen_audio.gd).
+	"decoy_wind": {"preset": "mech", "layers": [{"src": "445966", "fade_out": 0.05}], "loud": -2.5},
+	"decoy_bounce": {"preset": "foley", "layers": [{"src": "92622", "start": 0.5, "end": 0.95, "pitch": 1.15, "fade_out": 0.1}]},
 	# ------------------------------------------------------------ chiens de l'enfer
 	"dog_growl_1": {"preset": "dog", "layers": [{"src": "404920", "start": 31.7, "end": 33.0, "pitch": 0.9, "fade_in": 0.05, "fade_out": 0.25}]},
 	"dog_growl_2": {"preset": "dog", "layers": [{"src": "404920", "start": 19.8, "end": 21.6, "pitch": 0.88, "fade_in": 0.05, "fade_out": 0.3}]},
@@ -403,8 +401,6 @@ const SOURCES := {
 		"url": "https://cdn.freesound.org/previews/445/445966_9159316-hq.ogg"},
 	"92622": {"author": "nigelcoop", "title": "CanBounce 2.wav",
 		"url": "https://cdn.freesound.org/previews/92/92622_1088850-hq.ogg"},
-	"452400": {"author": "kyles", "title": "cymbal splash hit nearby chinese opera in park.flac",
-		"url": "https://cdn.freesound.org/previews/452/452400_612689-hq.ogg"},
 	# -- chiens
 	"404920": {"author": "coldvet", "title": "Dog Growl - Beast / Creature",
 		"url": "https://cdn.freesound.org/previews/404/404920_5965692-hq.ogg"},

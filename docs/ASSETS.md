@@ -18,9 +18,9 @@ aucune arme réelle copiée, aucun logo : docs/WEAPONS.md). La plupart des bruit
 proviennent d'enregistrements **libres de droits** retravaillés pour le jeu ;
 l'identité sonore originale reste synthétisée par `tools/gen_audio.gd` et
 `tools/gen_audio_menu.gd` : musiques et ambiances, début et fin de manche,
-caisse au hasard, téléporteur, interface. L'air de la peluche leurre (ancien
-singe-tambour, fichiers `monkey_*`) est lui aussi original (procédural,
-`tools/audio/synth_stems.gd`) ; seules ses cymbales sont enregistrées.
+caisse au hasard, téléporteur, interface, berceuse de la peluche leurre
+(`decoy_music`, composition originale ; remplace l'air du singe-tambour
+`monkey_*`, retiré).
 
 ## Effets visuels, ciel, polices
 
@@ -214,9 +214,8 @@ godot --headless --path . -s res://tools/audio/sfx_import.gd -- --loudness   # r
   découpe (`start`/`end`), coupe les silences, change la hauteur, égalise
   (biquads), compresse, sature légèrement (tirs), ajoute une réverbération
   d'intérieur courte, écrit un WAV 16 bits mono ;
-- couches : plusieurs enregistrements mélangés, répétés sur une grille de
-  temps (`times`, ex. les cymbales sur les temps de l'air de la peluche leurre) ou une
-  piste procédurale originale (`stem`, `SynthStems`) ;
+- couches : plusieurs enregistrements mélangés, éventuellement répétés à
+  des instants donnés (`times`, une frappe sur deux désaccordée : `alt_pitch`) ;
 - les recettes sont dans `tools/audio/sfx_recipes.gd` (préréglages `gun`,
   `gun_heavy`, `explosion`, `mech`, `zombie`, `foley`, `impact`, `dog`,
   `voice`, `zap`), le traitement dans `tools/audio/sfx_dsp.gd` ;
@@ -267,7 +266,8 @@ Musiques et ambiances, `round_start`/`round_end`,
 `special_wave_start`/`special_wave_end`/`special_wave_music`,
 caisse au hasard (`box_open`, `box_music`), téléporteur, courant (`power_on`, `lever`,
 `lamp_on`), `heartbeat`,
-`revive`, `hitmarker`, `zap` (piège électrique),
+`revive`, `hitmarker`, `zap` (piège électrique), berceuse de la peluche
+leurre (`decoy_music`, voir plus bas),
 `zombie_fling`, interface, batte de baseball (`bat_swing` : souffle grave
 d'un objet lourd ; `bat_hit` : « toc » de bois creux à deux résonances, coup
 sourd et léger craquement ; `tools/gen_audio.gd`, catégories « rechargement »
@@ -305,10 +305,20 @@ même intensité de catégorie, aucune baisse des autres sons) :
 | `menu_theme` | bourdon, nappe mineure, **chœur** lointain, **boîte à musique** désaccordée, **glas**, battements de cœur | boucle de 40 s à 96 bpm : bourdonnement des néons et ventilation, nappes de synthé suspendues (la sus2 puis fa add9), motif de synthé pincé en 7 croches, bips de moniteur, pulsation grave, compteur Geiger, sirène à deux tons très lointaine |
 | `menu_start` | porte blindée, **chœur qui hurle**, grondement | verrou du sas et souffle pneumatique, montée de synthé, trois bips d'alarme qui montent, grondement qui retombe |
 
-Encore à revoir (hors de ce lot) : `monkey_music` (air d'orgue de barbarie et cymbales du
-singe-tambour, encore joué par la peluche leurre : à recomposer avec un
-objet leurre propre au jeu ; les cymbales sont un enregistrement CC0 dont la
-source n'est pas en cache, `tools/audio/sfx_import.gd`).
+Peluche leurre (11/10/2026) : l'air du **singe-tambour** (orgue de barbarie et
+cymbales à 135 bpm, calque du singe de BO1) est remplacé par une musique
+propre à l'objet leurre du jeu, l'ours en peluche du service de pédiatrie :
+
+| Son | Avant (retiré) | Maintenant |
+|---|---|---|
+| `monkey_music` → **`decoy_music`** | orgue de barbarie désaccordé, basse « oum-pa » et coup de cymbales (enregistrement CC0) à chaque temps | berceuse de **boîte à musique** cachée dans la peluche, mignonne et inquiétante (`tools/gen_audio.gd`, `gen_decoy_music`, ~8 s = `ThrowableRules.DECOY_TIME`) : valse à 3 temps à 160 bpm (`DECOY_MUSIC_BPM`, le tempo des sauts de la peluche) en la mineur harmonique (sol dièse, ré dièse de passage), lames d'acier pincées un peu désaccordées qui chevrotent, basse « oum-pa-pa » sur les lames graves, tic-tac du mécanisme, bip lointain de moniteur cardiaque une mesure sur deux ; le ressort se détend (dernière mesure ralentie et plus basse), une note tenue puis une dernière dent fausse avant l'explosion. Catégorie `ritournelle` (-14 LUFS-M) |
+| `monkey_wind`, `monkey_bounce` → **`decoy_wind`**, **`decoy_bounce`** | — | mêmes enregistrements CC0 (remontage de la boîte à musique, rebond), renommés |
+
+Plus de piste procédurale mêlée aux imports (`SynthStems` supprimé) ;
+l'enregistrement des cymbales (freesound 452400) n'est plus utilisé. Aucune
+donnée sauvegardée ne cite ces noms (sons joués par identifiant, rien n'est
+écrit dans le profil ni les réglages). Mixage inchangé : aucune baisse des
+autres sons pendant la berceuse.
 
 ## Mixage
 
@@ -469,9 +479,8 @@ source n'est pas en cache, `tools/audio/sfx_import.gd`).
 | `grenade_pin.wav` | [small moving metallic part](https://freesound.org/s/725813/) par F3ather [6.55-6.90 s]<br>[Metallic Clink 3.wav](https://freesound.org/s/682154/) par HenKonen | mono 44,1 kHz 16 bits, coupé à 0.45 s, 2 couches mixées, égalisation, compression, réverbération d'intérieur 0.25 s, intensité -19 LUFS (rechargement) |
 | `grenade_throw.wav` | [Throwing / Whip Effect](https://freesound.org/s/346373/) par denao270 | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.25 s, intensité -19 LUFS (rechargement) |
 | `grenade_bounce.wav` | [Metal Canister Impact Hard](https://freesound.org/s/650573/) par h2p34 [0.43-0.80 s]<br>[Metallic Clink 3.wav](https://freesound.org/s/682154/) par HenKonen | mono 44,1 kHz 16 bits, hauteur x1.25, coupé à 0.35 s, 2 couches mixées, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -16 LUFS (impact) |
-| `monkey_wind.wav` | [Wind-up sound](https://freesound.org/s/445966/) par Breviceps | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.25 s, intensité -22 LUFS (rechargement) |
-| `monkey_bounce.wav` | [CanBounce 2.wav](https://freesound.org/s/92622/) par nigelcoop [0.50-0.95 s] | mono 44,1 kHz 16 bits, hauteur x1.15, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -16 LUFS (impact) |
-| `monkey_music.wav` | air original procédural (`SynthStems.monkey_tune`)<br>[cymbal splash hit nearby chinese opera in park.flac](https://freesound.org/s/452400/) par kyles | mono 44,1 kHz 16 bits, coupé à 0.38 s, 2 couches mixées, égalisation, compression, intensité -14 LUFS (ritournelle) |
+| `decoy_wind.wav` | [Wind-up sound](https://freesound.org/s/445966/) par Breviceps | mono 44,1 kHz 16 bits, égalisation, compression, réverbération d'intérieur 0.25 s, intensité -22 LUFS (rechargement) |
+| `decoy_bounce.wav` | [CanBounce 2.wav](https://freesound.org/s/92622/) par nigelcoop [0.50-0.95 s] | mono 44,1 kHz 16 bits, hauteur x1.15, égalisation, compression, réverbération d'intérieur 0.30 s, intensité -16 LUFS (impact) |
 | `dog_growl_1.wav` | [Dog Growl - Beast / Creature](https://freesound.org/s/404920/) par coldvet [31.70-33.00 s] | mono 44,1 kHz 16 bits, hauteur x0.90, égalisation, compression, saturation x1.5, réverbération d'intérieur 0.35 s, intensité -14 LUFS (chien) |
 | `dog_growl_2.wav` | [Dog Growl - Beast / Creature](https://freesound.org/s/404920/) par coldvet [19.80-21.60 s] | mono 44,1 kHz 16 bits, hauteur x0.88, égalisation, compression, saturation x1.5, réverbération d'intérieur 0.35 s, intensité -14 LUFS (chien) |
 | `dog_growl_3.wav` | [Dog Growling Snarling Grumbling](https://freesound.org/s/122183/) par qubodup [23.95-25.20 s] | mono 44,1 kHz 16 bits, hauteur x0.80, égalisation, compression, saturation x1.5, réverbération d'intérieur 0.35 s, intensité -14 LUFS (chien) |

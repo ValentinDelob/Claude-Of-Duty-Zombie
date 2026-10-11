@@ -92,7 +92,7 @@ func run() -> void:
 	var t0 := GameClock.msec()
 	for n in names:
 		if n.begins_with("zombie_") or n.begins_with("flesh") or n.begins_with("barricade") or n.begins_with("impact_") \
-				or n.begins_with("dog_") or n in ["headshot", "body_fall", "emerge", "explosion", "frag_explode", "grenade_bounce", "monkey_bounce"]:
+				or n.begins_with("dog_") or n in ["headshot", "body_fall", "emerge", "explosion", "frag_explode", "grenade_bounce", "decoy_bounce"]:
 			Audio.play_3d(n, p.global_position + fwd * 4.0 + Vector3.UP, 0.0, 0.0, 99)
 		else:
 			Audio.play_2d(n, -6.0, 0.0)
