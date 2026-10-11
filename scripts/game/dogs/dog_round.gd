@@ -34,7 +34,7 @@ var rounds: RoundManager
 ## réactiver ou forcer la manche suivante (debug_force_next).
 var enabled := not Autotest.active
 ## Prochaine manche de chiens (schéma de la carte, srv_plan).
-var next_dog_round := WaveRules.next_special_of(WaveRules.DEFAULT, WaveRules.MEUTE, 0)
+var next_dog_round := WaveRules.next_special_of(WaveRules.DEFAULT, WaveRules.MEUTE, 0, WaveRules.has_boss(WaveRules.DEFAULT))
 ## Manches de chiens déjà terminées (level.dog_round_count - 1).
 var dog_rounds_done := 0
 ## Serveur : manche de chiens en cours.

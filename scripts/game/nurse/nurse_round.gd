@@ -5,7 +5,8 @@ extends Node
 ##
 ## Serveur : manches de l'Infirmière = vagues spéciales du schéma de la carte
 ## de type « infirmiere » (WaveRules.special_type_at : rotation des types
-## autorisés ; par défaut manches 15, 30, 45...). Fait apparaître les
+## autorisés, vagues de boss exclues ; par défaut manches 20, 40, 65...).
+## Fait apparaître les
 ## Infirmières une par une loin des joueurs, hors de leur vue de préférence
 ## (DogRound.pick_spawn_point, distances NurseRules), MAX_ALIVE à la fois ;
 ## l'escorte (zombies ordinaires, que son cri ameute) passe par le
@@ -29,7 +30,7 @@ var rounds: RoundManager
 ## Serveur : coupé pendant les autotests (manches déterministes), comme la meute.
 var enabled := not Autotest.active
 ## Prochaine manche de l'Infirmière (schéma de la carte, srv_plan).
-var next_round := WaveRules.next_special_of(WaveRules.DEFAULT, WaveRules.INFIRMIERE, 0)
+var next_round := WaveRules.next_special_of(WaveRules.DEFAULT, WaveRules.INFIRMIERE, 0, WaveRules.has_boss(WaveRules.DEFAULT))
 ## Vagues de l'Infirmière déjà terminées dans la partie (rang - 1).
 var rounds_done := 0
 var active := false
@@ -83,7 +84,7 @@ func _waves() -> Dictionary:
 
 
 func _has_boss() -> bool:
-	return game != null and game.map_def != null and game.map_def.boss != ""
+	return WaveRules.has_boss(_waves())
 
 
 func srv_plan(after := 0) -> void:

@@ -27,7 +27,7 @@ var rounds: RoundManager
 ## Serveur : coupé pendant les autotests (manches déterministes), comme la meute.
 var enabled := not Autotest.active
 ## Prochaine manche du Brancardier (schéma de la carte, srv_plan).
-var next_round := WaveRules.next_special_of(WaveRules.DEFAULT, WaveRules.BRANCARDIER, 0)
+var next_round := WaveRules.next_special_of(WaveRules.DEFAULT, WaveRules.BRANCARDIER, 0, WaveRules.has_boss(WaveRules.DEFAULT))
 ## Vagues du Brancardier déjà terminées dans la partie (rang - 1).
 var rounds_done := 0
 var active := false
