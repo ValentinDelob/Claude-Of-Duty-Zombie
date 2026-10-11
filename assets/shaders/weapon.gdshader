@@ -27,6 +27,13 @@ uniform float pap = 0.0;
 // lumineuse (emission_energy).
 uniform float voxel = 0.0;
 uniform vec4 pap_color : source_color = vec4(0.55, 0.1, 0.9, 1.0);
+// ZONE D'ÉQUIPE des mains FPS (matière « team » de WeaponModels, faces
+// peintes en gris : 0,8 = teinte pleine) : elle prend la couleur du joueur
+// `team_color` (sRGB, HudStyle.PLAYER_COLORS), même calcul que
+// player_voxel.gdshader : couleur = team_color × gris / 0,8, en sRGB.
+uniform float team = 0.0;
+uniform vec4 team_color = vec4(1.0, 0.78, 0.28, 1.0);
+const float TEAM_GREY = 0.8;
 // Rapport tan(fov caméra / 2) / tan(fov arme / 2) (ViewModel).
 global uniform float vm_fov_scale;
 // Joue de visée (ViewModel.bend_params) : début, fin (profondeurs, m), abaissement (m).
@@ -35,6 +42,14 @@ global uniform vec3 vm_bend;
 varying vec3 obj_pos;
 varying vec2 vdata;
 varying vec4 vcol;
+
+vec3 to_srgb(vec3 c) {
+	return mix(c * 12.92, 1.055 * pow(max(c, 0.0), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
+}
+
+vec3 to_linear(vec3 c) {
+	return mix(c / 12.92, pow(max((c + 0.055) / 1.055, 0.0), vec3(2.4)), step(vec3(0.04045), c));
+}
 
 float hash3(vec3 p) {
 	return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
@@ -74,6 +89,10 @@ void fragment() {
 		// Cubes : couleur de face, ombrage simple ; la lumière d'appoint de la
 		// vue FPS garde les faces lisibles dos aux lampes.
 		vec3 vc = vcol.rgb * albedo.rgb;
+		if (team > 0.5) {
+			float grey = to_srgb(vc).g / TEAM_GREY;
+			vc = to_linear(clamp(team_color.rgb * grey, 0.0, 1.0));
+		}
 		vec3 ve = vcol.a < 0.5 ? vc * emission_energy : vec3(0.0);
 		if (viewmodel > 0.5) {
 			float facing = clamp(NORMAL.z, 0.0, 1.0);

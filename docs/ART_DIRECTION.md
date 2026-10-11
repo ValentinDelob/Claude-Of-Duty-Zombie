@@ -393,12 +393,20 @@ et exporte.
   se voir (le chargeur remplit la colonne avant de la poignée d'un pistolet :
   retiré, il laisse le puits vide). Points remarquables, données et pavés
   dans `assets/models/weapons/voxel/weapons_voxel.json`.
-- **Mains** : gants de batteur blanc cassé (paume plus sombre, phalanges
-  marquées par rangée), sangle rouge au poignet, sous-maillot bleu marine,
-  manche crème du maillot à liseré rouge (équipe fictive, aucun logo) ;
-  poings, berceau, mains du lancer et de la batte. Chaque pièce est rigide :
-  les avant-bras ne sont jamais étirés (le poignet est posé sur la main,
-  le coude suit la direction).
+- **Mains** : celles du **joueur de baseball** (personnage unique, même
+  palette que son modèle vu par les autres, « Joueur de baseball »
+  ci-dessous) : gants de frappe sombres à paume de cuir (phalanges marquées
+  par rangée), bracelet du gant, poignet nu (3 cubes de peau), sous-maillot
+  à manches longues, manche courte crème du maillot à liseré (équipe
+  fictive, aucun logo) derrière le coude, bandage taché de sang à plat sur
+  l'avant-bras gauche (pièce `forearm_l` : main d'appui, couteau, goupille).
+  Bracelets, sous-maillot et liseré forment la **zone d'équipe** (matière
+  `team`, peinte en gris) : `weapon.gdshader` la teinte à la couleur du
+  joueur (`WeaponModels.team_material`, même calcul que
+  `player_voxel.gdshader`), comme le joueur vu par les autres ; plus de
+  tenue par personnage. Poings, berceau, mains du lancer et de la batte.
+  Chaque pièce est rigide : les avant-bras ne sont jamais étirés (le
+  poignet est posé sur la main, le coude suit la direction).
 - En jeu : `WeaponModels` / `ViewHands` lisent les .glb, `weapon.gdshader`
   en mode `voxel` (couleur de face, faces « glow » lumineuses, lumière
   d'appoint de la vue FPS, joue de visée et champ de vision de l'arme

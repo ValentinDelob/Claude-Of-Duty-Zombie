@@ -14,9 +14,9 @@ extends RefCounted
 ## d'une rotation tirée par l'hôte (comme le tirage des personnages de BO1).
 ## La distribution est envoyée à tous avec l'ordre de chargement (`Net.cast`).
 ##
-## L'index d'un personnage (0 à 6) choisit encore la tenue des mains en vue
-## FPS (`ViewHands.STYLES`, refaite à part) ; l'apparence vue par les autres
-## est la même pour tous (`PlayerModel`, couleur du joueur).
+## L'apparence est la même pour tous, vue par les autres (`PlayerModel`) comme
+## en vue FPS (`ViewHands`) : celle du joueur de baseball, à la couleur du
+## joueur ; l'index d'un personnage ne choisit plus que ses répliques.
 
 const IDS := ["callahan", "orlov", "arakawa", "weissmann", "mercer", "berg", "jojo"]
 ## Choix « automatique » (Settings.character) : personnage libre tiré par l'hôte.

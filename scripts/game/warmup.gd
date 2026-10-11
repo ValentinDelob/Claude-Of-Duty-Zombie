@@ -25,7 +25,7 @@ static func run(game: Game, at: Vector3) -> void:
 func _run(game: Game) -> void:
 	# Géométrie des armes et des mains calculée en tâche de fond (sans
 	# rallonger le chargement) : pas de saccade au premier changement d'arme.
-	WeaponModels.precompute_async(Net.player_slot(multiplayer.get_unique_id()))
+	WeaponModels.precompute_async()
 	_cam = Camera3D.new()
 	_cam.position = Vector3(0, 1.6, 0)
 	_cam.far = 60.0

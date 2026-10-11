@@ -99,8 +99,7 @@ func _load(id: String, cache: String, fetch: bool) -> PackedFloat32Array:
 
 ## Couche : {src, start, end, pitch, gain, at, hp, lp, eq:[[type,f,q,dB]...], fade_in, fade_out, trim}
 func _layer(l: Dictionary, cache: String, fetch: bool) -> PackedFloat32Array:
-	# Piste procédurale originale (SynthStems) mélangée aux enregistrements.
-	var raw := SynthStems.build(String(l.stem)) if l.has("stem") else _load(String(l.src), cache, fetch)
+	var raw := _load(String(l.src), cache, fetch)
 	if raw.is_empty():
 		return raw
 	var b := SfxDsp.slice(raw, float(l.get("start", 0.0)), float(l.get("end", 0.0)))
@@ -139,11 +138,8 @@ func _build(n: String, r: Dictionary, cache: String, fetch: bool) -> PackedFloat
 		if lb.is_empty():
 			push_error("couche vide pour " + n)
 			return lb
-		# `times` : la couche est répétée à ces instants (liste, ou nom d'une
-		# grille de temps de SynthStems, ex. "monkey_beats").
-		var times: Variant = l.get("times", [0.0])
-		if times is String:
-			times = SynthStems.grid(times)
+		# `times` : la couche est répétée à ces instants (liste, en s).
+		var times: Array = l.get("times", [0.0])
 		var k := 0
 		for t in times:
 			# `alt_pitch` : une frappe sur deux légèrement désaccordée.
@@ -268,9 +264,6 @@ func _doc() -> void:
 		var srcs := []
 		var mods := ["mono 44,1 kHz 16 bits"]
 		for l in r.layers:
-			if l.has("stem"):
-				srcs.append("air original procédural (`SynthStems.%s`)" % l.stem)
-				continue
 			var s: Dictionary = SfxRecipes.SOURCES[l.src]
 			var cut := ""
 			if l.has("start") or l.has("end"):

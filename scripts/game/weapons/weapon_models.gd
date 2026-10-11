@@ -43,6 +43,9 @@ const MATERIALS := {
 	"cloth": [0.95, 0.0],
 	"leather": [0.78, 0.0],
 	"skin": [0.7, 0.0],
+	# Zone d'équipe des mains FPS (gris teinté par la couleur du joueur :
+	# team_material).
+	"team": [0.95, 0.0],
 }
 
 ## Vue FPS : épaisseur (m, selon Z) des tranches de la partie courbée par la
@@ -94,6 +97,22 @@ static func material(key: String, viewmodel: bool, pap := false) -> ShaderMateri
 	m.set_shader_parameter("emission_energy", 2.5 if key == "glow" else 0.0)
 	m.set_shader_parameter("viewmodel", 1.0 if viewmodel else 0.0)
 	m.set_shader_parameter("pap", 0.0)
+	m.set_shader_parameter("team", 0.0)
+	_mat_cache[cache_key] = m
+	return m
+
+
+## Matériau de la ZONE D'ÉQUIPE des mains (matière « team », peinte en gris
+## dans hands.glb) à la couleur du joueur `col` (sRGB, HudStyle.PLAYER_COLORS) :
+## weapon.gdshader la teinte comme player_voxel.gdshader le joueur vu par les
+## autres (couleur × gris / 0,8). Un matériau par couleur (cache).
+static func team_material(col: Color, viewmodel: bool) -> ShaderMaterial:
+	var cache_key := "team_%s_%s" % [col.to_html(false), viewmodel]
+	if _mat_cache.has(cache_key):
+		return _mat_cache[cache_key]
+	var m := material("team", viewmodel).duplicate() as ShaderMaterial
+	m.set_shader_parameter("team", 1.0)
+	m.set_shader_parameter("team_color", col)
 	_mat_cache[cache_key] = m
 	return m
 
@@ -291,7 +310,7 @@ static func take_arrays(key: String) -> Variant:
 	return a
 
 
-static func precompute_async(hand_style := 0) -> void:
+static func precompute_async() -> void:
 	if _task >= 0:
 		return
 	# Lecture des .glb et des données ici (fil principal) : la tâche ne fait
@@ -301,8 +320,7 @@ static func precompute_async(hand_style := 0) -> void:
 		raw(id)
 	raw(HANDS)
 	spec(HANDS)
-	var style := posmod(hand_style, ViewHands.STYLES.size())
-	_task = WorkerThreadPool.add_task(_precompute_all.bind(style), false, "Modèles des armes")
+	_task = WorkerThreadPool.add_task(_precompute_all, false, "Modèles des armes")
 
 
 ## Attend la fin du préchargement (sortie du jeu, tests).
@@ -312,17 +330,17 @@ static func wait_precompute() -> void:
 		_task = -2
 
 
-static func _precompute_all(style: int) -> void:
+static func _precompute_all() -> void:
 	var jobs := []
 	for piece in ViewHands.PIECES:
-		jobs.append(["hand|%d|%s" % [style, piece], piece])
+		jobs.append(["hand|" + piece, piece])
 	for vm in [true, false]:
 		for id in SPECS:
 			jobs.append(["%s|%s" % [id, vm], id, vm])
 	for j in jobs:
 		var arr: Dictionary
 		if j.size() == 2:
-			arr = ViewHands.piece_arrays(style, j[1])
+			arr = ViewHands.piece_arrays(j[1])
 		else:
 			arr = geometry_arrays(j[1], j[2])
 		_mutex.lock()

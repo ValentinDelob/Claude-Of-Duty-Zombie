@@ -98,7 +98,7 @@ func _begin(k: int) -> void:
 	_release = false
 	wc.cancel_reload_local()
 	view.begin(k)
-	Audio.play_2d("grenade_pin" if k == ThrowableRules.Kind.FRAG else "monkey_wind", -3.0, 0.05)
+	Audio.play_2d("grenade_pin" if k == ThrowableRules.Kind.FRAG else "decoy_wind", -3.0, 0.05)
 	system.srv_cook.rpc_id(1, k)
 
 

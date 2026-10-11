@@ -17,15 +17,16 @@ var _pin: Node3D
 var _kind := 0
 var _pos := HIDDEN
 var _rot := Vector3.ZERO
-## Tenue des mains construites (ViewHands.STYLES).
-var _style := 0
+## Couleur d'équipe des mains construites (ViewModel.team_color).
+var _team: Color = HudStyle.player_color(0)
 
 
 func _ready() -> void:
+	_team = ViewModel.team_color
 	_hand = Node3D.new()
 	add_child(_hand)
 	# Avant-bras vers le bas-droite de l'écran, main refermée sur l'objet.
-	_hand.add_child(ViewHands.throw_hand(maxi(ViewModel.style, 0), false))
+	_hand.add_child(ViewHands.throw_hand(ViewModel.team_color, false))
 	for k in [ThrowableRules.Kind.FRAG, ThrowableRules.Kind.DECOY]:
 		var o := Throwable.build_model(k, true)
 		# Cubes de 2,5 cm : jamais mis à l'échelle (la peluche, plus grande,
@@ -39,7 +40,7 @@ func _ready() -> void:
 	# Main gauche (arrache la goupille / serre la peluche).
 	_left = Node3D.new()
 	add_child(_left)
-	_left.add_child(ViewHands.throw_hand(maxi(ViewModel.style, 0), true))
+	_left.add_child(ViewHands.throw_hand(ViewModel.team_color, true))
 	_left.visible = false
 	visible = false
 
@@ -58,10 +59,10 @@ func _limb(parent: Node3D, a: Vector3, b: Vector3, thickness: float, m: Material
 
 ## Nouveau lancer : objet dans la main, goupille en place.
 func begin(kind: int) -> void:
-	# Mains à la tenue du joueur (connue après la première image).
-	var st := maxi(ViewModel.style, 0)
-	if st != _style:
-		_style = st
+	# Mains à la couleur du joueur (connue après la première image).
+	var st := ViewModel.team_color
+	if st != _team:
+		_team = st
 		for pair in [[_hand, false], [_left, true]]:
 			var old: Node = pair[0].get_node_or_null("ThrowHand")
 			if old:

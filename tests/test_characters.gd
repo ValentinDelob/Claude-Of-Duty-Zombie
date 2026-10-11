@@ -143,24 +143,62 @@ func test_missing_lines_file_is_silent() -> void:
 
 
 ## Mains FPS : celles du joueur de baseball (personnage unique, GAME_CONCEPT
-## §3), en cubes de 2,5 cm, quelle que soit la place du joueur.
+## §3), en cubes de 2,5 cm, palette de son modèle vu par les autres, zone
+## d'équipe à la couleur du joueur.
 func test_baseball_view_hands() -> void:
-	assert_eq(ViewHands.STYLES.size(), 1, "une seule tenue : le joueur de baseball")
 	for piece_name in ViewHands.PIECES:
-		var arr := ViewHands.piece_arrays(0, piece_name)
+		var arr := ViewHands.piece_arrays(piece_name)
 		assert_false(arr.is_empty(), "%s : pièce du modèle des mains" % piece_name)
-	# Gants (cuir) sur les poings, manche (tissu) sur l'avant-bras.
-	assert_true(ViewHands.piece_arrays(0, "grip").has("leather"), "gant de batteur")
-	var fore := ViewHands.piece_arrays(0, "forearm")
-	assert_true(fore.has("cloth") and fore.has("leather"), "avant-bras : manche et manchette du gant")
-	# Même tenue pour toutes les places (index de tenue accepté, ramené à 0).
-	assert_eq(ViewHands.piece(5, "grip").keys(), ViewHands.piece(0, "grip").keys())
+	# Gants de frappe SOMBRES (comme PlayerModel), paume de cuir plus claire,
+	# bracelet dans la zone d'équipe.
+	var grip := ViewHands.piece_arrays("grip")
+	assert_true(grip.has("leather") and grip.has("team"), "gant de frappe et bracelet d'équipe")
+	var dark := 0
+	var cols: PackedColorArray = grip.leather[2]
+	for c in cols:
+		if c.get_luminance() < 0.08:
+			dark += 1
+	assert_true(dark > cols.size() / 2, "gants sombres (%d / %d sommets)" % [dark, cols.size()])
+	# Avant-bras : poignet nu (peau), sous-maillot d'équipe, manche crème.
+	var fore := ViewHands.piece_arrays("forearm")
+	for mk in ["skin", "team", "cloth"]:
+		assert_true(fore.has(mk), "avant-bras : matière %s" % mk)
+	# Avant-bras gauche : bandage (tissu de plus) par-dessus le sous-maillot.
+	var fore_l := ViewHands.piece_arrays("forearm_l")
+	assert_true((fore_l.cloth[0] as PackedVector3Array).size() > (fore.cloth[0] as PackedVector3Array).size(),
+		"bandage à l'avant-bras gauche")
 	# Avant-bras de 3 × 3 cubes (7,5 cm) au poignet.
 	var lo := INF
 	var hi := -INF
-	for v in fore.cloth[0] as PackedVector3Array:
-		if v.z < -0.2:
-			lo = minf(lo, v.x)
-			hi = maxf(hi, v.x)
+	for mk in ["skin", "team"]:
+		for v in fore[mk][0] as PackedVector3Array:
+			if v.z < -0.2:
+				lo = minf(lo, v.x)
+				hi = maxf(hi, v.x)
 	assert_near(hi - lo, 0.075, 0.002, "avant-bras de 3 cubes de large")
+
+
+## La zone d'équipe des mains prend la couleur du joueur (matériau par
+## couleur, comme le joueur vu par les autres) ; plus de tenue par personnage.
+func test_view_hands_team_color() -> void:
+	var col: Color = HudStyle.player_color(2)
+	var h := ViewHands.new()
+	host.add_child(h)
+	h.setup(WeaponDB.STARTING_WEAPON, col)
+	assert_eq(h.team_color, col)
+	var teams := 0
+	for mi: MeshInstance3D in h.find_children("team", "MeshInstance3D", true, false):
+		var m := mi.material_override as ShaderMaterial
+		assert_eq(m.get_shader_parameter("team"), 1.0, "matériau d'équipe")
+		assert_eq(m.get_shader_parameter("team_color"), col, "couleur du joueur")
+		teams += 1
+	assert_true(teams >= 3, "bracelets et sous-maillots teintés (%d)" % teams)
+	for mi: MeshInstance3D in h.find_children("leather", "MeshInstance3D", true, false):
+		assert_eq((mi.material_override as ShaderMaterial).get_shader_parameter("team"), 0.0, "gants non teintés")
+	assert_true(WeaponModels.team_material(col, true) == WeaponModels.team_material(col, true), "un matériau par couleur")
+	assert_false(WeaponModels.team_material(col, true) == WeaponModels.team_material(HudStyle.player_color(0), true))
+	var knife := ViewHands.knife_hand(col)
+	assert_true(knife.find_child("forearm_l", true, false) != null, "main du couteau : avant-bras gauche bandé")
+	knife.free()
+	h.queue_free()
 

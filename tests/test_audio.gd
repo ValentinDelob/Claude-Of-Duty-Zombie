@@ -7,7 +7,7 @@ extends TestCase
 ## Sons qui étaient encore procéduraux et doivent être des enregistrements CC0.
 const MUST_BE_CC0 := ["break_open", "break_close", "impact_concrete_1", "impact_concrete_2", "impact_metal_1",
 	"impact_metal_2", "impact_wood_1", "impact_wood_2", "grenade_pin", "grenade_throw", "grenade_bounce",
-	"monkey_wind", "monkey_bounce", "monkey_music", "dog_growl_1", "dog_growl_2", "dog_growl_3", "dog_bark_1",
+	"decoy_wind", "decoy_bounce", "dog_growl_1", "dog_growl_2", "dog_growl_3", "dog_bark_1",
 	"dog_bark_2", "dog_bite_1", "dog_bite_2", "dog_whine", "footstep_1", "footstep_2",
 	"footstep_3", "footstep_4", "player_breath_1", "player_breath_2", "player_hurt_1", "player_hurt_2",
 	"player_down", "dive_land",
@@ -22,9 +22,6 @@ func test_recipes_have_sources() -> void:
 		assert_true(r.get("preset", "") == "" or SfxRecipes.PRESETS.has(r.preset), "%s : préréglage" % n)
 		var recorded := false
 		for l in r.layers:
-			if l.has("stem"):
-				assert_true(l.stem in ["monkey_tune"], "%s : piste procédurale connue" % n)
-				continue
 			recorded = true
 			used[l.src] = true
 			assert_true(SfxRecipes.SOURCES.has(l.src), "%s : source %s documentée" % [n, l.src])
@@ -62,7 +59,8 @@ func test_generator_skips_replaced() -> void:
 	var gen: GDScript = load("res://tools/gen_audio.gd")
 	assert_true(gen.replaced("zombie_groan_1"), "râle importé exclu")
 	assert_true(gen.replaced("m1911_fire"), "tir importé exclu")
-	assert_true(gen.replaced("monkey_music"), "singe importé exclu")
+	assert_true(gen.replaced("decoy_wind"), "remontage de la peluche importé exclu")
+	assert_false(gen.replaced("decoy_music"), "berceuse de la peluche procédurale")
 	assert_true(gen.replaced("dog_growl_2"), "chien importé exclu")
 	assert_false(gen.replaced("power_on"), "son procédural conservé")
 	assert_false(gen.replaced("special_wave_start"), "annonce procédurale conservée")
@@ -195,14 +193,28 @@ func test_loudness_of_every_sound() -> void:
 	assert_true(fire[-1] - fire[0] <= 3.0, "tirs cohérents : écart %.1f LU (%.1f..%.1f)" % [fire[-1] - fire[0], fire[0], fire[-1]])
 
 
-func test_monkey_beats_grid() -> void:
-	var beats := SynthStems.monkey_beats()
-	assert_eq(beats.size(), 18, "18 temps en 8 s à 135 bpm")
-	for i in range(1, beats.size()):
-		assert_true(beats[i] > beats[i - 1], "temps croissants")
-	# Le ressort se détend : les derniers temps s'espacent.
-	assert_true(beats[17] - beats[16] > beats[1] - beats[0] + 0.05, "ralenti final")
-	assert_true(beats[17] < SynthStems.MONKEY_SECONDS, "dans la durée")
+## Peluche leurre : berceuse ORIGINALE procédurale (tools/gen_audio.gd), plus
+## aucun son ni identifiant du singe-tambour (imitation de BO1, GAME_CONCEPT
+## § 6) ; même tempo que le sautillement de la peluche ; catégorie
+## « ritournelle » de l'intensité perçue (aucune baisse des autres sons).
+func test_decoy_music() -> void:
+	assert_true(ResourceLoader.exists("res://assets/audio/decoy_music.wav"), "berceuse présente")
+	assert_false(SfxRecipes.RECIPES.has("decoy_music"), "aucun enregistrement : composition procédurale")
+	var gen: GDScript = load("res://tools/gen_audio.gd")
+	assert_true(FileAccess.get_file_as_string("res://tools/gen_audio.gd").contains("func gen_decoy_music()"), "générée par gen_audio.gd")
+	assert_eq(gen.get_script_constant_map().get("DECOY_BPM"), ThrowableRules.DECOY_MUSIC_BPM, "tempo de la peluche")
+	assert_eq(SfxLoudness.category("decoy_music").id, "ritournelle")
+	assert_eq(SfxLoudness.category("decoy_wind").id, "rechargement")
+	assert_eq(SfxLoudness.category("decoy_bounce").id, "impact")
+	var st: AudioStreamWAV = load("res://assets/audio/decoy_music.wav")
+	var secs := st.get_length()
+	assert_true(secs > ThrowableRules.DECOY_TIME - 1.5 and secs < ThrowableRules.DECOY_TIME + 1.5,
+		"dure le temps du leurre (%.2f s)" % secs)
+	for f in DirAccess.get_files_at("res://assets/audio/"):
+		assert_false(f.begins_with("monkey"), "plus de son du singe : " + f)
+	for path in ["res://scripts/game/throwables/throwable.gd", "res://scripts/game/throwables/throw_controller.gd",
+			"res://tools/audio/sfx_recipes.gd", "res://tools/audio/sfx_loudness.gd", "res://tools/gen_audio.gd"]:
+		assert_false(FileAccess.get_file_as_string(path).contains("monkey"), "plus d'identifiant « monkey » : " + path)
 
 
 # ---------------------------------------------------------------- armes

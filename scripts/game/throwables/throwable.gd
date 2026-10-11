@@ -111,7 +111,7 @@ func _step(delta: float) -> void:
 			if impact > 1.2:
 				bounces += 1
 				_spin *= 0.6
-				Audio.play_3d("grenade_bounce" if kind == ThrowableRules.Kind.FRAG else "monkey_bounce",
+				Audio.play_3d("grenade_bounce" if kind == ThrowableRules.Kind.FRAG else "decoy_bounce",
 					position, clampf(-14.0 + impact * 1.6, -14.0, 0.0), 0.12, 6)
 			if n.y > 0.7 and absf(vel.y) < 1.4:
 				on_ground = true
@@ -151,15 +151,15 @@ func start_lure(pos: Vector3, duration: float) -> void:
 		_music.bus = "SFX"
 		_music.unit_size = 9.0
 		_music.max_distance = 60.0
-		_music.stream = Audio.get_stream("monkey_music")
+		_music.stream = Audio.get_stream("decoy_music")
 		add_child(_music)
 	_music.play()
 
 
-## Peluche qui sautille et se dandine au tempo de la musique, lueur rouge.
+## Peluche qui sautille et se dandine au tempo de sa berceuse, lueur rouge.
 func _animate_decoy() -> void:
 	var t := GameClock.now() - (lure_end - ThrowableRules.DECOY_TIME)
-	var beat := t * 2.0 * 2.25  # 135 battements/min, un saut par battement
+	var beat := t * 2.0 * ThrowableRules.DECOY_MUSIC_BPM / 60.0  # un saut par temps
 	var hop := absf(sin(beat * PI * 0.5))
 	_model.position.y = hop * 0.02
 	_model.rotation.z = sin(beat * PI * 0.25) * 0.18

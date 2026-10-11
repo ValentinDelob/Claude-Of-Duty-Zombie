@@ -5,8 +5,10 @@
 #   - les 27 armes à feu de WeaponDB, la batte de baseball et le couteau,
 #     chacune avec une silhouette ORIGINALE inspirée de sa famille (aucune
 #     copie d'une arme réelle reconnaissable) ;
-#   - les mains et avant-bras de la vue FPS (gants de batteur, sous-maillot
-#     et manche du maillot d'une équipe fictive, sans logo) ;
+#   - les mains et avant-bras de la vue FPS, ceux du joueur de baseball
+#     (même palette que tools/blender/player/player_voxel.py : gants de
+#     frappe, poignet nu, sous-maillot et liseré dans la zone d'équipe
+#     « team », manche du maillot crème, bandage à l'avant-bras gauche) ;
 #   - la grenade, la peluche leurre, la cartouche et la grenade de 40 mm
 #     tenues pendant les rechargements coup par coup.
 #
@@ -93,14 +95,23 @@ PAL = {
     "dot_red": ("glow", (1.0, 0.22, 0.15)),
     "glow_green": ("glow", (0.45, 1.0, 0.55)),
     "glow_orange": ("glow", (1.0, 0.55, 0.15)),
-    # Mains : gants de batteur, sous-maillot, manche du maillot (équipe fictive)
-    "glove": ("leather", (0.82, 0.81, 0.76)),
-    "glove_palm": ("leather", (0.62, 0.62, 0.59)),
-    "glove_knuckle": ("leather", (0.73, 0.72, 0.67)),
-    "strap": ("leather", (0.70, 0.12, 0.11)),
-    "undershirt": ("cloth", (0.13, 0.17, 0.34)),
-    "jersey": ("cloth", (0.90, 0.87, 0.78)),
-    "piping": ("cloth", (0.70, 0.12, 0.11)),
+    # Mains : celles du joueur de baseball (tools/blender/player/player_voxel.py,
+    # même palette) : gants de frappe sombres à paume de cuir, poignet nu,
+    # sous-maillot et liseré de la manche crème dans la ZONE D'ÉQUIPE (matière
+    # « team », peinte en gris : 0,8 = teinte pleine ; en jeu weapon.gdshader
+    # la multiplie par la couleur du joueur, comme player_voxel.gdshader),
+    # bandage ensanglanté à l'avant-bras gauche.
+    "glove": ("leather", (0.17, 0.17, 0.19)),
+    "glove_palm": ("leather", (0.56, 0.47, 0.34)),
+    "glove_knuckle": ("leather", (0.25, 0.25, 0.27)),
+    "strap": ("team", (0.56, 0.56, 0.56)),
+    "skin": ("skin", (0.80, 0.58, 0.44)),
+    "undershirt": ("team", (0.80, 0.80, 0.80)),
+    "jersey": ("cloth", (0.88, 0.85, 0.76)),
+    "piping": ("team", (0.80, 0.80, 0.80)),
+    "bandage": ("cloth", (0.76, 0.72, 0.62)),
+    "bandage_tape": ("cloth", (0.78, 0.70, 0.56)),
+    "blood_dry": ("cloth", (0.30, 0.10, 0.07)),
     # Peluche
     "fur": ("cloth", (0.45, 0.28, 0.14)),
     "fur_light": ("cloth", (0.75, 0.58, 0.39)),
@@ -1273,17 +1284,36 @@ def b_hands():
     it.put(-1, -1, -1, "glove", g=g)
     it.put(1, -1, 0, "glove", g=g)
     it.put(1, -4, 0, "strap", g=g)
-    # Avant-bras : du coude (z = 0) au poignet (z = -12 cubes = 0,3 m), manche
-    # du maillot derrière le coude ; section de 3 × 3 centrée sur l'axe.
-    g = "forearm"
-    it.piece(g, (-0.5, -0.5, 0.0))
-    for k in range(-12, 1):
-        key = "glove" if k == -12 else ("strap" if k == -11 else "undershirt")
-        it.box(-1, 2, -1, 2, k, k + 1, key, g=g)
-    for k in range(1, 12):
-        key = "piping" if k in (3, 4) else "jersey"
-        it.box(-2, 3, -2, 3, k, k + 1, key, g=g)
-    it.box(-1, 2, -1, 2, 0, 1, "undershirt", g=g)
+    # Avant-bras : du coude (z = 0) au poignet (z = -12 cubes = 0,3 m), comme
+    # le joueur vu par les autres : poignet nu (3 cubes de peau) au-dessus du
+    # bracelet d'équipe du gant, sous-maillot d'équipe à manches longues,
+    # puis, derrière le coude, la manche courte crème du maillot (plus large,
+    # liseré d'équipe à l'ourlet). Section de 3 × 3 centrée sur l'axe.
+    # « forearm_l » : le même, bandage taché de sang à mi-avant-bras (comme
+    # le modèle vu par les autres, sans surépaisseur).
+    for g in ("forearm", "forearm_l"):
+        it.piece(g, (-0.5, -0.5, 0.0))
+        for k in range(-12, 3):
+            key = "skin" if k <= -10 else "undershirt"
+            it.box(-1, 2, -1, 2, k, k + 1, key, g=g)
+        for k in range(3, 12):
+            key = "piping" if k == 3 else "jersey"
+            # Manche presque toujours hors champ : teinte unie (faces fusionnées,
+            # budget de triangles des mains).
+            it.box(-2, 3, -2, 3, k, k + 1, key, g=g, amp=0.0)
+    # Bandage de l'avant-bras gauche : à plat sur le sous-maillot (même
+    # section : il ne grossit pas le bras, qui passe sous l'arme), deux tours
+    # de gaze sale, taches de sang séché sur le dessus et le flanc.
+    g = "forearm_l"
+    for k in (-7, -6):
+        for i in (-1, 0, 1):
+            for j in (-1, 0, 1):
+                key = "bandage"
+                if (i, j, k) in ((1, 1, -7), (0, 1, -6), (1, 0, -6)):
+                    key = "blood_dry"
+                elif k == -6 and (i + j) % 2 == 0:
+                    key = "bandage_tape"
+                it.put(i, j, k, key, g=g)
     # Poignets (repère de chaque pièce, cubes) : lus par ViewHands.
     it.a("wrist_grip", 1.0, -5.0, 1.5)
     it.a("wrist_foregrip", -1.0, -5.0, 1.5)
@@ -1390,7 +1420,15 @@ BUILDERS = {
 # ---------------------------------------------------------------------------
 
 def save_cache(items, path):
-    pal, pidx = [], {}
+    # Palette commune : celle du cache existant d'abord (les objets qui ne
+    # sont pas réexportés gardent des index valides), couleurs nouvelles à la
+    # suite.
+    old = {}
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            old = json.load(f)
+    pal = [list(c) for c in old.get("palette", [])]
+    pidx = {tuple(c): i for i, c in enumerate(pal)}
 
     def ci(c):
         k = tuple(round(float(x), 4) for x in c)
@@ -1407,10 +1445,6 @@ def save_cache(items, path):
             faces = ["%d,%d,%d,%s,%d" % (f[0], f[1], f[2], f[3], ci(v)) for f, v in sorted(p.faces.items())]
             pieces[g] = {"offset": list(p.offset), "cells": cells, "faces": faces}
         data[it.id] = {"family": it.family, "prefix": it.prefix, "anchors": it.anchors, "info": it.info, "pieces": pieces}
-    old = {}
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as f:
-            old = json.load(f)
     merged = old.get("items", {})
     merged.update(data)
     with open(path, "w", encoding="utf-8") as f:
