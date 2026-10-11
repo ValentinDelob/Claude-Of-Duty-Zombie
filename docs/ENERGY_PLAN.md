@@ -18,7 +18,7 @@ de BO1) par l'**énergie** décrite dans `GAME_CONCEPT.md` §4.14 :
 | Course | **25 / s** (4 s de course pleine, comme aujourd'hui) | Garde la sensation actuelle |
 | Recharge | **40 / s** hors course après **0,4 s** sans dépense (2,5 s pour tout remplir, comme aujourd'hui) | Idem |
 | Saut | **10** par saut | Environ 10 sauts d'affilée |
-| Coup de corps à corps | statistique `energy` de l'arme : couteau **8**, couteau de chasse **10** (batte à venir : 15) | Statistique demandée par le concept |
+| Coup de corps à corps | statistique `energy` de l'arme : couteau **8**, couteau de chasse **10**, batte de baseball **15** (faite : docs/WEAPONS.md) | Statistique demandée par le concept |
 | « Énergie nulle » | État **épuisé** : commence quand l'énergie atteint 0, finit quand elle remonte à **50** | Sinon les pénalités disparaîtraient à la première image de recharge |
 | Épuisé : coups | cadence de frappe divisée par 2 (durée ×2) | « 50 % plus lents » |
 | Épuisé : saut | vitesse de saut ×0,75 (environ 56 % de la hauteur) | « Sauts plus petits » |
@@ -67,6 +67,6 @@ de BO1) par l'**énergie** décrite dans `GAME_CONCEPT.md` §4.14 :
 3. Notes de version FR / EN, fusion dans `main`, release par un agent dédié.
 
 ## Hors périmètre
-- Batte de baseball (arme à créer avec le système d'armes).
+- Batte de baseball : faite depuis (arme de base tenue en main, docs/WEAPONS.md).
 - Respiration entendue par les coéquipiers en coop.
 - Retrait de l'atout STRIDE SODA (avec la suppression des atouts).

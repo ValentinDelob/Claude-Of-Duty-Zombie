@@ -6,21 +6,23 @@ extends RefCounted
 ## une arme de base améliorée en partie et ramenée devient un nouvel
 ## exemplaire de l'arsenal (PlayerProfile.add_weapon).
 ##
-## Choix PROVISOIRE, en attendant la batte de baseball et le futur catalogue
-## d'armes : le pistolet de départ actuel (WeaponDB.STARTING_WEAPON) et le
-## couteau de mêlée actuel (KnifeDB.DEFAULT). Remplacer le couteau par la
-## batte dès qu'elle existe (le couteau restera une attaque rapide séparée,
-## GAME_CONCEPT §5).
+## Armes de base : le pistolet de départ (WeaponDB.STARTING_WEAPON, la
+## PÉTOIRE) et la BATTE de baseball (WeaponDB.BASE_MELEE), arme de corps à
+## corps qui prend un emplacement en main. Le couteau n'est plus une arme de
+## base : il reste l'attaque rapide séparée de tous les joueurs (KnifeDB).
 
 ## Armes de départ choisies : au moins 1, au plus 3 (§4.10).
 const MIN_START := 1
 const MAX_START := 3
 ## Préfixe des identifiants d'exemplaire des armes de base.
 const UID_PREFIX := "base:"
+## Anciennes armes de base d'un profil enregistré -> arme qui les remplace
+## (le couteau de mêlée, arme de base provisoire avant la batte).
+const RENAMED := {"knife": "bat"}
 
 ## Identifiants des armes de base, dans l'ordre d'affichage.
 static func ids() -> PackedStringArray:
-	return PackedStringArray([WeaponDB.STARTING_WEAPON, KnifeDB.DEFAULT])
+	return PackedStringArray([WeaponDB.STARTING_WEAPON, WeaponDB.BASE_MELEE])
 
 
 static func is_base(id: String) -> bool:
@@ -50,14 +52,18 @@ static func all() -> Array[OwnedWeapon]:
 	return out
 
 
-## Sélection nettoyée : armes de base seulement, sans doublon, au plus 3 ;
-## la sélection par défaut si rien de valide ne reste.
+## Sélection nettoyée : armes de base seulement (une ancienne arme de base
+## est remplacée par la nouvelle, RENAMED), sans doublon, au plus 3 ; la
+## sélection par défaut si rien de valide ne reste.
 static func clean_selection(sel: Variant) -> PackedStringArray:
 	var out := PackedStringArray()
 	if sel is Array or sel is PackedStringArray:
 		for v in sel:
-			if (v is String or v is StringName) and is_base(String(v)) and not String(v) in out:
-				out.append(String(v))
+			if not (v is String or v is StringName):
+				continue
+			var id: String = RENAMED.get(String(v), String(v))
+			if is_base(id) and not id in out:
+				out.append(id)
 				if out.size() >= MAX_START:
 					break
 	return out if out.size() >= MIN_START else default_selection()

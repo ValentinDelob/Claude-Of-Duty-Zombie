@@ -344,6 +344,15 @@ fiches d'armes, ni son style visuel. Les armes réelles du jeu actuel (AK-74u,
 FAMAS, Galil, HK21, AUG…) doivent être renommées et leurs silhouettes
 retravaillées.
 
+✔️ **Liste provisoire appliquée** (`docs/WEAPONS.md`, à valider) : les 27 armes
+à feu ont un **nom original** FR / EN (PÉTOIRE, CRÉCELLE, BRISE-OS,
+TRIPLETTE, BÉTONNEUSE, LONGUE-VUE, TROMBONE, ÉPROUVETTE…, aucun nom de
+fabricant ni de modèle réel ; les identifiants internes restent ceux de
+l'ancien arsenal), une **famille** et un **niveau de base** réparti de 1 à
+50 selon la puissance (le butin ne tire que les armes de niveau de base
+≤ manche + 2) ; statistiques inchangées ; **silhouettes originales en cubes
+de 2,5 cm** (§ 4.19).
+
 ### 4.10 Armes de départ ✅
 - Au hub, chaque joueur choisit **jusqu'à 3 armes de départ** (au moins 1).
 - Ce choix se fait uniquement parmi les **armes de base** : **niveau 1,
@@ -352,6 +361,12 @@ retravaillées.
 - Un emplacement non choisi reste vide au départ.
 - Une arme de base améliorée en partie et ramenée devient une **nouvelle
   version** dans l'arsenal ; l'arme de base reste toujours disponible.
+- ✔️ **Armes de base appliquées** : la **PÉTOIRE** (pistolet de départ) et la
+  **BATTE** de baseball, arme de corps à corps tenue en main (elle prend un
+  emplacement d'arme ; le couteau reste l'attaque rapide séparée) : 250
+  dégâts, 1,25 coup par seconde, 15 d'énergie par coup (couteau : 8), fente
+  comme le couteau, jusqu'à 2 zombies par coup (`docs/WEAPONS.md`, valeurs
+  provisoires). Sélection par défaut : les deux.
 
 ### 4.11 Arsenal et station de construction ✅
 - Au hub, l'**arsenal** contient des **armes physiques**, chacune avec ses
@@ -518,6 +533,12 @@ retravaillées.
   colimaçon, garde-corps et pentes (terrasses) ; toutes les cartes du jeu
   (BUNKER K-7, DRAFT ARENA, test_levels) et celles de l'éditeur, vérifiées
   automatiquement (`LayoutCheck`).
+- ✅ **Objets tenus en cubes de 2,5 cm** (fait, `docs/WEAPONS.md`,
+  docs/ART_DIRECTION.md « Armes, mains et objets tenus ») : toutes les armes,
+  la batte, le couteau, les mains et avant-bras de la vue FPS (gants de
+  batteur, maillot d'une équipe fictive sans logo), la grenade, la peluche
+  leurre et les cartouches tenues ; vus de la même façon par les autres
+  joueurs ; vérifiés par `voxel_check`.
 - ✅ **Textures de toutes les surfaces en pixel art**, un pixel = un cube de
   5 cm, dans l'univers hôpital / laboratoire / bunker (textures importées
   d'une carte réduites au même grain).
@@ -539,7 +560,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | Pièges à levier | 🧪 | **Garder** |
 | État « à terre », réanimation, spectateur | 🧪 | **Garder** tels quels (§4.6) |
 | Coop réseau (hôte / client par IP) | 🧪 | **Garder** |
-| Couteau | 🧪 | **Garder** comme attaque rapide séparée, en plus de la batte |
+| Couteau | ✔️ | **Gardé** comme attaque rapide séparée, en plus de la batte de baseball (arme de base tenue en main) |
 | Deux emplacements d'armes (BO1) | ✔️ | **Adaptés** : 3 armes en main + inventaire de 4 places, armes à niveau, rareté et pièces, puissance au tableau des scores (§4.9, §4.12, §4.13) |
 | Grenades, singe-tambour | ✔️ | **Adaptés** en objets de la caisse au hasard, sur l'emplacement de grenade (§4.12 bis) |
 | Bonus au sol (munitions max, mort instantanée, points doubles…) | ✔️ | **Supprimés** |
@@ -577,7 +598,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | **Menu titre « style BO1 »** (logo au pochoir, rouge sang, chœur) et **options** (« comme BO1 », « comme dans Black Ops ») | ⏳ `scripts/ui/` est refait par un autre lot : textes et style à reprendre (liste ci-dessous) |
 | **Crédits** (« chiens de l'enfer / hellhounds », « annonces / announcer », personnages Callahan..., « aucune image externe », « polices système ») | ⏳ `scripts/ui/screens/credits_screen.gd`, à réécrire avec le nom du jeu et le personnage |
 | **Éditeur de cartes** : avertissements « BO1 : ... », « INDICATEURS (BO1) », « BO1 Kino : deux grandes boucles », info-bulles | ✔️ « conseillé : ... », sans référence à BO1 |
-| **Armes réelles** sous leurs noms de fabricants | ⏳ refonte des armes |
+| **Armes réelles** sous leurs noms de fabricants | ✔️ renommées (noms originaux FR / EN, identifiants internes gardés, jamais affichés) et silhouettes refaites en cubes : `docs/WEAPONS.md` |
 | **Direction artistique** « fidèle à BO1 » (`docs/ART_DIRECTION.md`) | ✔️ style cubique (§4.19) ; les sections BO1 restantes sont marquées « Historique » (📜) |
 | Notes de version du lanceur (`changelogs/changelogs.json` : KINO, Pack-a-Punch, Juggernog...) | 📜 historique des versions déjà publiées ; ⏳ à remettre à zéro avec le nouveau nom avant la sortie ; les prochaines notes ne citent plus BO1 |
 | Documents de développement (README, docs/) | 📜 références techniques à BO1 (règles de vagues, mesures) gardées, internes |
@@ -615,12 +636,12 @@ corriger.
 |---|---|---|
 | Ferraille par élimination | **50**, quel que soit le coup (tête, couteau, explosion) ; 0 pour un piège ; le coup qui tue ne paie pas la touche en plus | `PointsRules.KILL` |
 | Ferraille par touche | **10** par touche de balle ou de couteau qui ne tue pas (tir de fusil à pompe : une touche par zombie) ; 0 pour une explosion, une brûlure, un piège ou le téléporteur ; au plus **10 touches payées par zombie**, tous joueurs confondus | `PointsRules.HIT`, `HIT_CAP` |
-| Énergie | 0 à 100 ; course 25/s ; saut 10 ; couteau 8, couteau de chasse 10 ; recharge 40/s après 0,4 s ; **épuisé** de 0 jusqu'à 50 | `docs/ENERGY_PLAN.md` |
+| Énergie | 0 à 100 ; course 25/s ; saut 10 ; couteau 8, couteau de chasse 10, batte 15 ; recharge 40/s après 0,4 s ; **épuisé** de 0 jusqu'à 50 | `docs/ENERGY_PLAN.md` |
 | Essoufflement | silencieux au-dessus de 35 % ; halètement tant que le joueur est épuisé ; la respiration de santé basse passe avant | `BreathFeedback` |
 | XP par élimination | selon le type, à la manche 1 : marcheur, coureur, sprinteur, rampant **4** ; chien **12** ; mini-boss (référence) **60** ; boss (référence) **240** ; × bonus de manche **1 + 0,15 × (manche − 1)**, plafonné à **×5** ; au seul tueur (piège : celui qui l'a activé) | `XpRules`, `docs/XP_RULES.md` |
 | XP hors élimination | manche survécue **3 × manche** ; vague spéciale vaincue **60**, vague de boss **240** (× bonus de manche) ; à chaque joueur non mort à la fin de la manche ; évacuation **+25 %** de l'XP de la partie | `XpRules` |
 | XP gardée | comptée par l'hôte pendant la partie, ajoutée une fois au profil à la fin (évacuation ou défaite) ou au départ d'un joueur en cours de partie (sans bonus) ; le niveau ne change pas pendant la partie | `XpSystem`, `MatchXp` |
-| Armes de base | pistolet de départ et couteau (en attendant la batte) | `BaseWeapons` |
+| Armes de base | pistolet de départ (PÉTOIRE) et batte de baseball (BATTE, arme de corps à corps tenue en main) ; sélection par défaut : les deux ; un ancien profil qui avait choisi le couteau reçoit la batte | `BaseWeapons` |
 | Évacuation : vote | touche d'interaction près de la porte ; 1er appui « partir », puis alterne « prêt » / « partir » | `EvacRules` |
 | Évacuation : départ | tous les joueurs non morts ont voté « partir » et sont debout dans la zone (4 m × 3,5 m devant la porte) | `EvacRules` |
 | Évacuation : reprise | tous « prêt », ou fin des 2 min : manche suivante 3 s plus tard | `EvacRules` |
@@ -629,15 +650,16 @@ corriger.
 | Panneau d'inventaire | la partie continue (même en solo), le joueur ne bouge plus et ne tire plus tant qu'il est ouvert ; une case en main puis une case d'inventaire : échange ; une case vide d'un côté : l'arme passe simplement | `InventoryPanel`, `GameWeapon.swap` |
 | Modificateurs des pièces | fractions additionnées par statistique, **positif = bonus** : dégâts, cadence, chargeur, réserve × (1 + m) ; rechargement, recul, précision (dispersion) ÷ (1 + m) ; facteur jamais sous 0,1 ; noms `damage`, `fire_rate`, `reload`, `recoil`, `accuracy`, `mag`, `reserve` | `GameWeapon.MODS` |
 | Niveau d'une arme | dégâts × (1 + 0,1 × (niveau − 1)), explosions et brûlure comprises ; multiplié ensuite par les pièces | `GameWeapon.apply` |
-| Couteau choisi comme arme de départ | il reste l'attaque de mêlée séparée et ne prend pas d'emplacement en main (en attendant la batte, qui se tiendra en main) | `Session.starting_hands` |
-| Mains vides | permis (tout rangé, ou départ au couteau seul) : couteau et grenade restent ; à la réapparition, pistolet de départ seulement si ni main ni inventaire | `MatchRules` |
+| Batte de baseball | 250 dégâts, 1,25 coup/s, 15 d'énergie par coup, portée 2,2 m, fente 3 m, jusqu'à 2 zombies par coup ; prend un emplacement en main ; tir = coup (maintenu : coup droit puis revers) ; ni munitions ni visée ; le couteau reste l'attaque de mêlée séparée | `WeaponDB` « bat », `Combat.srv_swing`, `docs/WEAPONS.md` |
+| Noms et niveaux des armes | noms originaux FR / EN, familles, niveaux de base de 1 à 50 selon la puissance (statistiques inchangées) | `WeaponDB`, `docs/WEAPONS.md` |
+| Mains vides | permis (tout rangé) : couteau et grenade restent ; à la réapparition, pistolet de départ seulement si ni main ni inventaire | `MatchRules` |
 | Effet légendaire / unique | aucun pour l'instant ; point d'accroche `GameWeapon.visual_effect` | `GameWeapon` |
 | Prix de construction | 500 × (1 + 0,15 × (niveau − 1)) × rareté (commune 1, rare 1,5, épique 2,2, légendaire 3,2, unique 4), arrondi à 10 : arme de base 500, niveau 10 rare 1 760, niveau 50 unique 16 700 ; pièces non comptées | `BuildRules.price` |
 | Durée de construction | prix < 1 500 : 1 manche, < 4 000 : 2, sinon 3 ; prête à la fin de la manche en cours + durée − 1 (lancée entre deux manches : la suivante compte) | `BuildRules.rounds`, `ready_round` |
 | Recharge des munitions (station) | 30 % du prix de construction de l'arme en main, arrondi à 10 (pistolet de base : 150) | `BuildRules.refill_price` |
 | Recyclage en partie | 50 % du prix de construction, arrondi à 10 ; arme de base (donnée à tous) : 0 ; arme prêtée à terre : impossible ; dernière arme (main + inventaire, hors arme prêtée, couteau, grenades et arme en construction) : impossible, bouton grisé et refus de l'hôte ; depuis l'inventaire ou la station, deux appuis | `BuildRules.recycle_value`, `recycle_refusal` |
-| Station de construction | [F] : interface (la partie continue) ou récupération de l'arme prête ; armes de mêlée non listées (le couteau reste l'attaque séparée) | `BuildStation`, `StationPanel` |
-| Armes de butin possibles | toutes les armes à feu de `WeaponDB` **sauf les armes de base** (pistolet de départ), tirage uniforme ; niveau de base de chaque arme = 1 (`WeaponDB.base_level`) | `LootRules` |
+| Station de construction | [F] : interface (la partie continue) ou récupération de l'arme prête ; la batte (tenue en main) est listée et construite comme une arme à feu, sans recharge de munitions ; le couteau reste l'attaque séparée, non listé | `BuildStation`, `StationPanel` |
+| Armes de butin possibles | toutes les armes de `WeaponDB` **sauf les armes de base** (pistolet de départ, batte) dont le niveau de base est ≤ manche + 2, tirage uniforme ; niveaux de base de 1 à 50 (`WeaponDB.base_level`, `docs/WEAPONS.md`) | `LootRules` |
 | Pose du butin d'arme | à 1,5 m devant chaque joueur à la fin de la vague (2 armes : écartées), visible de tous, ramassable par son seul propriétaire | `LootSystem` |
 | Modificateurs d'une pièce trouvée | un premier modificateur toujours en bonus ; 35 % de chances d'un second (autre statistique), malus une fois sur deux ; valeurs de 5 à 25 % par pas de 1 % ; identifiant `part_<1er modificateur>` | `LootRules.roll_part` |
 | Pièces et échantillons | rangés directement dans l'onglet de partie (pas d'objet au sol) ; compteur discret à droite du HUD | `LootSystem` |
@@ -665,7 +687,8 @@ corriger.
 - Effet des contrats sur la progression : ≈ +20 à 25 % d'XP, niveau 50 vers
   100 h au lieu de 123 h (cible 120 h) : à re-mesurer.
 - Nom et personnalité du scientifique (le hub en a besoin pour ses répliques).
-- Liste des armes, leurs niveaux de base et leurs statistiques.
+- Liste des armes, leurs niveaux de base et leurs statistiques (liste provisoire
+  appliquée : `docs/WEAPONS.md`, à valider).
 - Durées et prix exacts de construction et de recharge des munitions.
 - Contenu du défi hebdomadaire.
 - Liste des cartes et de leurs vagues spéciales et boss.

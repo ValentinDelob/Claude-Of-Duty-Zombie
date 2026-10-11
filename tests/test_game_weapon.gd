@@ -266,6 +266,11 @@ func test_starting_hands_from_profile_selection() -> void:
 	assert_eq(hands[0].rarity, OwnedWeapon.Rarity.COMMON)
 	assert_eq(hands[0].uid, BaseWeapons.UID_PREFIX + WeaponDB.STARTING_WEAPON)
 	assert_true(Session.starting_hands(PackedStringArray([KnifeDB.DEFAULT])).is_empty(), "emplacements non choisis : vides")
+	# La batte (arme de base de corps à corps) prend un emplacement en main.
+	var both := Session.starting_hands(BaseWeapons.default_selection())
+	assert_eq(both.size(), 2, "pistolet et batte en main")
+	assert_eq(both[1].id, WeaponDB.BASE_MELEE)
+	assert_eq(both[1].uid, BaseWeapons.UID_PREFIX + WeaponDB.BASE_MELEE)
 	assert_true(Session.starting_hands(PackedStringArray(["mp40"])).is_empty(), "armes de base seulement")
 
 

@@ -54,6 +54,10 @@ const SCOPE_ADS := 0.92
 const NO_SIGHTS_ADS := Vector3(-0.06, 0.035, 0.05)
 const SPRINT_POS := Vector3(0.15, -0.3, -0.85)
 const SPRINT_ROT := Vector3(-0.3, 0.9, 0.3)
+## Sprint d'une arme portée sur l'épaule (info « elbows_cam » : batte) :
+## décalage ajouté à sa tenue et rotation ajoutée.
+const SPRINT_SHOULDER_POS := Vector3(0.03, -0.06, 0.04)
+const SPRINT_SHOULDER_ROT := Vector3(0.1, 0.1, -0.05)
 
 ## Flamme de bouche par famille (WeaponDB "flash") : [taille du cœur (m),
 ## longueur des pointes (m), largeur des pointes (m), énergie de la lumière].
@@ -131,6 +135,31 @@ const MELEE_KEYS := [
 	[0.52, Vector3(0.18, -0.21, -0.91), Vector3(-0.08, 0.35, -0.2)],
 	[1.0, Vector3(0.32, -0.6, -0.56), Vector3(-0.2, 0.5, -0.3)],
 ]
+## Coup d'arme de corps à corps tenue (batte) : avancement (0..1, < 0 :
+## aucun), durée (s), sens (1 : coup droit de droite à gauche, -1 : revers),
+## fente, fin du dernier coup (horloge de jeu : enchaînement).
+var _swing_t := -1.0
+var _swing_dur := 0.6
+var _swing_side := -1.0
+var _swing_lunge := false
+var _swing_end := -INF
+## Poses clés d'un coup de batte (coup droit) AJOUTÉES à la tenue de repos
+## (repère de la caméra) : [t, décalage, rotation (Euler, rad)]. Armé en
+## arrière, balayage vers la gauche, batte à l'horizontale à l'impact
+## (SWING_HIT), accompagnement, retour. Le revers est le miroir (x, lacet,
+## roulis inversés).
+const SWING_KEYS := [
+	[0.0, Vector3.ZERO, Vector3.ZERO],
+	[0.22, Vector3(0.06, 0.05, 0.06), Vector3(0.3, -0.25, 0.1)],
+	[0.42, Vector3(-0.1, 0.12, -0.12), Vector3(-0.85, 0.6, 0.25)],
+	[0.62, Vector3(-0.3, 0.02, -0.02), Vector3(-1.0, 1.15, 0.4)],
+	[1.0, Vector3.ZERO, Vector3.ZERO],
+]
+## Avancement du coup où la batte touche.
+const SWING_HIT := 0.42
+## Un coup lancé moins de SWING_CHAIN s après la fin du précédent l'enchaîne
+## (sens alterné : coup droit, revers, coup droit...).
+const SWING_CHAIN := 0.35
 ## Cartouche tenue par la main gauche (rechargement coup par coup).
 var _shell: Node3D
 ## Flamme de bouche : cœur face caméra + deux pointes croisées le long du canon.
@@ -230,6 +259,7 @@ func set_weapon(id: String, is_pap: bool, weapon_stats: Dictionary = {}) -> void
 	bend_drop(mid)  # calcul (une fois par modèle) hors de la mise en joue
 	_slide_kick = 0.0
 	_cycle_t = -1.0
+	_swing_t = -1.0
 
 
 ## Point apparent (repère de la caméra = repère de ce nœud) d'un point dessiné
@@ -439,6 +469,41 @@ func start_melee(lunge := false, time_mult := 1.0) -> void:
 	_melee_time_mult = maxf(time_mult, 0.01)
 
 
+## Coup de l'arme de corps à corps tenue (batte) : `dur` durée (s, joueur
+## épuisé compris), sens alterné à chaque coup (coup droit, revers), `lunge`
+## fente (le coup part plus bas et plus loin).
+func start_swing(dur: float, lunge := false) -> void:
+	var chained := _swing_t >= 0.0 or GameClock.now() - _swing_end < SWING_CHAIN
+	_swing_side = -_swing_side if chained else 1.0
+	_swing_t = 0.0
+	_swing_dur = maxf(dur, 0.05)
+	_swing_lunge = lunge
+
+
+func is_swinging() -> bool:
+	return _swing_t >= 0.0
+
+
+## Pose [décalage, rotation] ajoutée à la tenue au moment `t` (0..1) d'un
+## coup de sens `side` (1 coup droit, -1 revers).
+static func swing_pose(t: float, side: float) -> Array:
+	var pos := Vector3.ZERO
+	var rot := Vector3.ZERO
+	for i in SWING_KEYS.size() - 1:
+		var a: Array = SWING_KEYS[i]
+		var b: Array = SWING_KEYS[i + 1]
+		if t <= b[0]:
+			var k := smoothstep(a[0], b[0], t)
+			pos = (a[1] as Vector3).lerp(b[1], k)
+			rot = (a[2] as Vector3).lerp(b[2], k)
+			break
+	if side < 0.0:
+		pos.x = -pos.x
+		rot.y = -rot.y
+		rot.z = -rot.z
+	return [pos, rot]
+
+
 ## Couteau tenu dans la main gauche (KnifeDB) : reconstruit le modèle.
 func set_knife(id: String) -> void:
 	if id == knife_id and arms != null and arms.get_child_count() > 0:
@@ -512,13 +577,17 @@ func update(delta: float, p: Player) -> void:
 	var ak := ads * ads * (3.0 - 2.0 * ads)
 	var base := rest_pose(model_id, ak)
 	var pos: Vector3 = base[0]
-	pos = pos.lerp(SPRINT_POS, _sprint)
+	# Arme tenue de biais sans organes de visée (batte sur l'épaule) : en
+	# sprint, elle garde sa tenue, un peu plus basse (les bras ne passent
+	# pas devant l'écran).
+	var shoulder: bool = WeaponModels.info(model_id, "elbows_cam", false)
+	pos = pos.lerp(pos + SPRINT_SHOULDER_POS if shoulder else SPRINT_POS, _sprint)
 	pos += Vector3(sin(_bob) * bob_amp, -absf(cos(_bob)) * bob_amp, 0.0)
 	pos += Vector3(_sway.x, _sway.y, 0.0) * (1.0 - ak * 0.7)
 	pos.z += _kick * _kick_back * (1.0 - ak * 0.4)
 	var rot := Vector3(float(base[1]) + _kick_rot * _kick_climb * (1.0 - ak * 0.55), 0.0, _kick_roll * (1.0 - ak * 0.5))
-	rot += (HIP_ROT + WeaponModels.anchor(model_id, "hold_rot")) * hip_rot_k(model_id, ak) * (1.0 - _sprint)
-	rot += SPRINT_ROT * _sprint
+	rot += (HIP_ROT + WeaponModels.anchor(model_id, "hold_rot")) * hip_rot_k(model_id, ak) * (1.0 if shoulder else 1.0 - _sprint)
+	rot += (SPRINT_SHOULDER_ROT if shoulder else SPRINT_ROT) * _sprint
 	rot += Vector3(sin(_bob * 2.0) * 0.03, cos(_bob) * 0.05, sin(_bob) * 0.06) * _sprint
 	rot.z += -_sway.x * 1.5 * (1.0 - ak)
 	# Plongeon : l'arme bascule sur le côté pendant le vol.
@@ -595,6 +664,16 @@ func update(delta: float, p: Player) -> void:
 		if _melee_t >= 1.0:
 			_melee_t = -1.0
 
+	# Coup de batte : la pose du coup s'ajoute à la tenue (SWING_KEYS).
+	if _swing_t >= 0.0:
+		_swing_t += delta / _swing_dur
+		var sw := swing_pose(clampf(_swing_t, 0.0, 1.0), _swing_side)
+		pos += (sw[0] as Vector3) * (1.25 if _swing_lunge else 1.0)
+		rot += sw[1]
+		if _swing_t >= 1.0:
+			_swing_t = -1.0
+			_swing_end = GameClock.now()
+
 	# Lancer de grenade : l'arme descend sous l'écran.
 	_lower = move_toward(_lower, lowered, delta * 6.0)
 	if _lower > 0.0:
@@ -637,26 +716,11 @@ func update(delta: float, p: Player) -> void:
 var _shell_visible := false
 
 
-## Cartouche de chasse (culot en laiton, étui rouge) ou grenade de 40 mm.
+## Cartouche de chasse (culot en laiton, étui rouge) ou grenade de 40 mm, en
+## cubes de 2,5 cm (modèles « round_shell » / « round_40mm »).
 static func _make_round(grenade: bool) -> Node3D:
-	var root := Node3D.new()
+	var root := WeaponModels.build("round_40mm" if grenade else "round_shell", true)
 	root.name = "Round"
-	var r := 0.02 if grenade else 0.0105
-	var l := 0.1 if grenade else 0.068
-	var base := WeaponMesh.Acc.new()
-	WeaponMesh.lathe(base, [Vector2(l * 0.5 - 0.012, r), Vector2(l * 0.5 - 0.002, r * 1.08), Vector2(l * 0.5, r * 1.08)], 12)
-	var hull := WeaponMesh.Acc.new()
-	if grenade:
-		WeaponMesh.lathe(hull, [Vector2(-l * 0.5, 0.0), Vector2(-l * 0.5 + 0.01, r * 0.7), Vector2(-l * 0.5 + 0.03, r), Vector2(l * 0.5 - 0.012, r)], 12)
-	else:
-		WeaponMesh.lathe(hull, [Vector2(-l * 0.5, r * 0.85), Vector2(-l * 0.5 + 0.003, r), Vector2(l * 0.5 - 0.012, r)], 12)
-	for pair in [[base, "brass"], [hull, "olive" if grenade else "hull"]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = pair[0].commit()
-		mi.material_override = WeaponModels.material(pair[1], true, false)
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mi.extra_cull_margin = 1.0
-		root.add_child(mi)
 	root.visible = false
 	return root
 

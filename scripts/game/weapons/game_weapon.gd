@@ -213,7 +213,10 @@ static func apply(base: Dictionary, lvl: int, totals: Dictionary) -> Dictionary:
 				s[k] = float(s[k]) * f if spec[1] == "mul" else float(s[k]) / f
 	for k in INT_STATS:
 		if s.has(k):
-			s[k] = maxi(roundi(float(s[k])), 1 if k == "mag" or k == "rpm" else 0)
+			# Chargeur d'au moins un coup, sauf arme sans munitions (corps à
+			# corps : chargeur 0).
+			var floor_v := 1 if k == "rpm" or (k == "mag" and int(base.get("mag", 1)) > 0) else 0
+			s[k] = maxi(roundi(float(s[k])), floor_v)
 	return s
 
 

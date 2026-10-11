@@ -28,8 +28,9 @@ func _ready() -> void:
 	_hand.add_child(ViewHands.throw_hand(maxi(ViewModel.style, 0), false))
 	for k in [ThrowableRules.Kind.FRAG, ThrowableRules.Kind.DECOY]:
 		var o := Throwable.build_model(k, true)
-		o.position = Vector3(0.0, 0.0, 0.0) if k == ThrowableRules.Kind.FRAG else Vector3(0.0, -0.06, 0.0)
-		o.scale = Vector3.ONE * (1.0 if k == ThrowableRules.Kind.FRAG else 0.7)
+		# Cubes de 2,5 cm : jamais mis à l'échelle (la peluche, plus grande,
+		# est tenue par le bas).
+		o.position = Vector3(0.0, 0.0, 0.0) if k == ThrowableRules.Kind.FRAG else Vector3(0.0, -0.1, 0.0)
 		if k == ThrowableRules.Kind.DECOY:
 			o.rotation.y = PI * 0.75  # vu de trois quarts dos
 		o.visible = false

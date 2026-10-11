@@ -22,6 +22,10 @@ uniform float tone_var = 0.0;
 uniform float fabric = 0.0;
 // Effet Pack-a-Punch (camouflage animé).
 uniform float pap = 0.0;
+// Modèle CUBIQUE (WeaponModels, cubes de 2,5 cm) : couleur de la face telle
+// quelle (COLOR.rgb, linéaire), sans bruit ni usure ; COLOR.a = 0 : face
+// lumineuse (emission_energy).
+uniform float voxel = 0.0;
 uniform vec4 pap_color : source_color = vec4(0.55, 0.1, 0.9, 1.0);
 // Rapport tan(fov caméra / 2) / tan(fov arme / 2) (ViewModel).
 global uniform float vm_fov_scale;
@@ -30,6 +34,7 @@ global uniform vec3 vm_bend;
 
 varying vec3 obj_pos;
 varying vec2 vdata;
+varying vec4 vcol;
 
 float hash3(vec3 p) {
 	return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
@@ -46,6 +51,7 @@ float vnoise(vec3 p) {
 void vertex() {
 	obj_pos = VERTEX;
 	vdata = COLOR.rg;
+	vcol = COLOR;
 	// POSITION doit être écrit dans TOUS les cas : dès qu'un shader l'écrit,
 	// Godot n'applique plus la projection par défaut.
 	POSITION = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
@@ -64,6 +70,21 @@ void vertex() {
 }
 
 void fragment() {
+	if (voxel > 0.5) {
+		// Cubes : couleur de face, ombrage simple ; la lumière d'appoint de la
+		// vue FPS garde les faces lisibles dos aux lampes.
+		vec3 vc = vcol.rgb * albedo.rgb;
+		vec3 ve = vcol.a < 0.5 ? vc * emission_energy : vec3(0.0);
+		if (viewmodel > 0.5) {
+			float facing = clamp(NORMAL.z, 0.0, 1.0);
+			float top = clamp(NORMAL.y, 0.0, 1.0);
+			ve += (vc * 0.3 + vec3(0.012, 0.012, 0.011)) * (0.22 + 0.5 * facing + 0.22 * top);
+		}
+		ALBEDO = vc;
+		ROUGHNESS = roughness;
+		METALLIC = metallic;
+		EMISSION = ve;
+	} else {
 	float n = hash3(floor(obj_pos * 90.0));
 	float n2 = hash3(floor(obj_pos * 23.0) + 3.1);
 	float smear = vnoise(obj_pos * vec3(40.0, 40.0, 14.0));
@@ -120,4 +141,5 @@ void fragment() {
 	ROUGHNESS = rough;
 	METALLIC = metal;
 	EMISSION = emi;
+	}
 }

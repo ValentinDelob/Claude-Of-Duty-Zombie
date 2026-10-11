@@ -220,6 +220,50 @@ et exporte.
   `--cache` reconstruit le même modèle sans relancer la description.
   Planche de validation : `--sheet <fichier>.png` (face, profils,
   trois-quarts avant et arrière, galop, bond, gros plan de la tête).
+
+### Armes, mains et objets tenus (tools/blender/weapons/weapons_voxel.py)
+
+- Tous les objets tenus sont en cubes de **2,5 cm** (échelle des personnages,
+  § 4.19) : les 27 armes à feu, la **batte de baseball**, le couteau, les
+  **mains et avant-bras** de la vue FPS, la grenade, la peluche leurre, la
+  cartouche et la grenade de 40 mm tenues au rechargement. Liste, noms
+  originaux, niveaux, triangles : **docs/WEAPONS.md**.
+- Formes **décrites** dans le script, en cellules dans le repère Godot de
+  l'arme (pointe vers -Z, origine à la détente, colonne x = 0 centrée sur
+  l'axe du canon par un décalage d'un demi-cube) : éléments communs
+  (poignée de 1 × 2 cubes, pontet, canon, freins et cache-flammes en croix,
+  chargeurs droits, incurvés en escalier, tambours en disque, lunettes en
+  tube de 3 × 3 sans les coins, hausse à deux oreilles et guidon d'un cube),
+  puis un détail propre à chaque arme pour une silhouette originale (pas de
+  poignée de transport ni de guidon triangulaire, pas de crosse squelette à
+  trou de pouce, pas de lunette intégrée de fusil compact vert…).
+- Couleurs : palette `PAL` (acier bronzé, acier usé, laiton, bois, polymère,
+  peintures et rubans de couleur, verre, voyants lumineux « glow »), deux
+  paliers de teinte par cube (texture « un pixel = un cube »), ombrage peint
+  doux par direction (`SHADE_G`), bandes et marquages peints par face.
+- Un nœud du .glb par **pièce mobile** (`wpn__<arme>__<pièce>`) : `body`,
+  `mag`, `slide`, `pump`, `barrels`, `cyl` ; les pièces se recouvrent sans
+  se voir (le chargeur remplit la colonne avant de la poignée d'un pistolet :
+  retiré, il laisse le puits vide). Points remarquables, données et pavés
+  dans `assets/models/weapons/voxel/weapons_voxel.json`.
+- **Mains** : gants de batteur blanc cassé (paume plus sombre, phalanges
+  marquées par rangée), sangle rouge au poignet, sous-maillot bleu marine,
+  manche crème du maillot à liseré rouge (équipe fictive, aucun logo) ;
+  poings, berceau, mains du lancer et de la batte. Chaque pièce est rigide :
+  les avant-bras ne sont jamais étirés (le poignet est posé sur la main,
+  le coude suit la direction).
+- En jeu : `WeaponModels` / `ViewHands` lisent les .glb, `weapon.gdshader`
+  en mode `voxel` (couleur de face, faces « glow » lumineuses, lumière
+  d'appoint de la vue FPS, joue de visée et champ de vision de l'arme
+  inchangés).
+- Contrôles : `voxel_check` à chaque export (armes d'un bloc, objets à
+  pièces indépendantes pièce par pièce), `tests/test_weapons.gd`,
+  `tests/test_view_model_fit.gd` (mains posées sur l'arme à une diagonale
+  de cube près), `weapon_aim` (ligne de mire à ±1 px), planches
+  `--sheet` et captures `weapon_view`, `melee`, `scope`.
+- Cache : `tools/blender/weapons/weapons_voxel_cells.json` (suivi par git) ;
+  `--cache` reconstruit à l'identique.
+
 ### Architecture et textures des cartes (fait, docs/VOXEL_ARCHITECTURE_PLAN.md)
 
 - **Toute l'architecture est en cubes de 5 cm** sur la grille du monde,
@@ -569,7 +613,12 @@ décrit existe encore tant que les versions cubiques ne l'ont pas remplacé.
   ouverte chargeur vide (pistolets) ; sprint : arme basse, tournée et
   inclinée, grand balancement en huit.
 
-#### Mise en œuvre (Claude of Duty Zombie)
+#### Mise en œuvre (ancienne, remplacée)
+Remplacée en octobre 2026 par les modèles cubiques (« Armes, mains et objets
+tenus » plus haut, docs/WEAPONS.md) : armes, mains et objets tenus en cubes
+de 2,5 cm, noms et silhouettes originaux. Le champ de vision de l'arme, la
+joue de visée et les animations de `ViewModel` sont gardés. Ancienne version,
+pour mémoire :
 - `WeaponMesh` : primitives arrondies (profil extrudé chanfreiné, révolution,
   capsule), fusionnées en un maillage par matériau et par pièce mobile,
   construites une fois et mises en cache. Couleur de sommet = donnée

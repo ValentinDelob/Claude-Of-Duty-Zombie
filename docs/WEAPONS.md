@@ -1,0 +1,204 @@
+# Armes — liste originale provisoire
+
+Liste des armes du jeu (GAME_CONCEPT.md § 4.9, § 4.10, § 6), avec leurs
+**noms originaux** français et anglais, leur famille, leur **niveau de base**
+et leurs statistiques. Tout est **provisoire** : choisi en l'absence de
+l'auteur, à valider ou corriger (voir « Choix à valider » en bas).
+
+- Aucun nom de fabricant ni de modèle réel (AK-74u, FAMAS, Galil, HK21, AUG,
+  M14, MP40, MP5K, Olympia, SPAS-12, Python, Dragunov, L96A1, M16, Commando,
+  CZ75, MPL, PM63, Spectre, G11, RPK, China Lake, FN FAL, M1911…) : les noms
+  sont des mots courants, souvent liés à l'univers (hôpital, laboratoire,
+  bricolage, bêtes). Vérifié mot à mot par `tests/test_weapons.gd`
+  (`test_original_names`, liste de noms réels interdits).
+- Les **identifiants internes** (clés de `WeaponDB.WEAPONS`, noms des sons
+  `*_fire.wav`, arsenals des profils enregistrés, tests) restent ceux de
+  l'ancien arsenal : les renommer casserait les profils et les sons pour
+  rien, ils ne sont jamais affichés. Seuls les noms affichés changent.
+- Les **silhouettes** sont refaites en cubes de 2,5 cm (§ 4.19), inspirées de
+  chaque famille sans copier une arme réelle reconnaissable (voir
+  « Modèles »).
+- Les **statistiques** de l'ancien arsenal sont gardées telles quelles.
+- **Niveau de base** (§ 4.7, § 4.9) : niveau minimum auquel l'arme se trouve
+  (butin des vagues : seules les armes de niveau de base ≤ manche + 2 sont
+  tirées, `LootRules.weapon_pool`) et peut être offerte (contrats, échanges :
+  ≤ niveau du joueur, `HubRewards`). Répartis de 1 à 50 selon la puissance
+  (dégâts par seconde, zone, mécanisme) : la moitié la plus puissante a un
+  niveau moyen plus haut que l'autre (`test_base_levels`). Les dégâts d'un
+  exemplaire augmentent ensuite de 10 % par niveau (§ 4.9).
+
+## Table des armes
+
+Cadence en coups par minute (corps à corps : coups par seconde) ; dégâts par
+balle (fusils à pompe : × 8 plombs) ; rechargement en secondes.
+
+| Id interne | Nom (FR) | Nom (EN) | Famille | Niv. de base | Dégâts | Cadence | Chargeur / réserve | Recharg. | Particularités |
+|---|---|---|---|---|---|---|---|---|---|
+| `m1911` | PÉTOIRE | PEASHOOTER | pistolet | 1 | 25 | 400 | 8 / 80 | 1,6 | **arme de base** (pistolet de départ, peu efficace) |
+| `bat` | BATTE | BAT | corps à corps | 1 | 250 | 1,25 coup/s | — | — | **arme de base** ; énergie 15 par coup ; portée 2,2 m, fente 3 m ; 2 zombies par coup |
+| `mp40` | CRÉCELLE | RATTLE | mitraillette | 1 | 90 | 550 | 32 / 192 | 2,3 | |
+| `olympia` | GARDE-CHASSE | GAMEKEEPER | fusil à pompe | 3 | 60 × 8 | 200 | 2 / 38 | 2,8 | deux canons basculants |
+| `stakeout` | BALAI | BROOM | fusil à pompe | 4 | 70 × 8 | 70 | 6 / 54 | 3,0 | pompe, cartouche par cartouche |
+| `m14` | MÉTRONOME | METRONOME | fusil d'assaut | 5 | 105 | 380 | 8 / 96 | 1,9 | semi-automatique |
+| `mp5k` | MOUCHERON | GNAT | mitraillette | 7 | 70 | 800 | 30 / 120 | 2,1 | poignée avant |
+| `cz75` | GUÊPE | WASP | pistolet | 8 | 120 | 500 | 15 / 105 | 1,6 | |
+| `pm63` | PUCE | FLEA | mitraillette | 9 | 70 | 1 000 | 20 / 100 | 1,9 | culasse apparente |
+| `mpl` | AGRAFEUSE | STAPLER | mitraillette | 11 | 75 | 900 | 24 / 192 | 2,0 | |
+| `m16` | TRIPLETTE | TRIPLET | fusil d'assaut | 12 | 110 | 900 | 30 / 120 | 2,2 | rafale de 3 |
+| `spas12` | CONCASSEUR | CRUSHER | fusil à pompe | 14 | 70 × 8 | 90 | 8 / 32 | 3,0 | pompe |
+| `fnfal` | MASSE | MAUL | fusil d'assaut | 15 | 150 | 400 | 20 / 120 | 2,6 | semi-automatique, pénétration 3 |
+| `spectre` | FEU FOLLET | WILL-O'-WISP | mitraillette | 16 | 80 | 950 | 30 / 120 | 2,2 | |
+| `ak74u` | BRISE-OS | BONEBREAKER | mitraillette | 19 | 100 | 780 | 20 / 160 | 2,2 | pénétration 2 |
+| `python` | COUPERET | CLEAVER | revolver | 20 | 400 | 180 | 6 / 60 | 3,0 | barillet |
+| `g11` | STROBOSCOPE | STROBE | fusil d'assaut | 22 | 110 | 1 800 | 48 / 192 | 2,6 | rafale de 3, lunette courte |
+| `galil` | BOURRASQUE | GALE | fusil d'assaut | 24 | 110 | 750 | 35 / 315 | 2,8 | |
+| `famas` | CIGALE | CICADA | fusil d'assaut | 26 | 100 | 900 | 30 / 150 | 2,6 | compact (chargeur derrière la poignée) |
+| `l96a1` | LONGUE-VUE | SPYGLASS | précision | 27 | 1 000 | 45 | 5 / 50 | 3,6 | verrou, lunette, pénétration 6 |
+| `hs10` | TOURNIQUET | TOURNIQUET | fusil à pompe | 28 | 60 × 8 | 240 | 6 / 36 | 2,8 | semi-automatique |
+| `commando` | ÉPERVIER | SPARROWHAWK | fusil d'assaut | 30 | 120 | 800 | 30 / 270 | 2,4 | |
+| `aug` | VIGIE | LOOKOUT | fusil d'assaut | 33 | 130 | 700 | 30 / 270 | 2,8 | lunette courte |
+| `rpk` | TAMBOUR | DRUMMER | mitrailleuse | 36 | 120 | 700 | 100 / 400 | 4,0 | |
+| `china_lake` | TROMBONE | TROMBONE | lance-grenades | 38 | 150 + zone 1 000 (3 m) | 60 | 2 / 20 | 3,2 | pompe, projectile |
+| `dragunov` | HIBOU | NIGHT OWL | précision | 40 | 800 | 200 | 10 / 40 | 3,2 | semi-automatique, lunette |
+| `hk21` | BÉTONNEUSE | CEMENT MIXER | mitrailleuse | 44 | 130 | 750 | 125 / 500 | 4,5 | |
+| `law` | ÉPROUVETTE | TEST TUBE | lance-roquettes | 50 | 800 + zone 1 500 (3,5 m) | 60 | 1 / 20 | 2,8 | projectile |
+
+Hors table (pas une arme tenue) : le **COUTEAU** / KNIFE (`KnifeDB`), attaque
+rapide séparée de tous les joueurs (touche de mêlée) : 150 dégâts, un coup
+toutes les 0,7 s, 8 d'énergie, portée 1,9 m, fente jusqu'à 3,2 m.
+
+Familles affichées (`WeaponDB.FAMILIES`, FR / EN) : pistolet / pistol,
+revolver, mitraillette / SMG, fusil d'assaut / assault rifle, mitrailleuse /
+machine gun, fusil à pompe / shotgun, fusil de précision / sniper rifle,
+lance-grenades / grenade launcher, lance-roquettes / rocket launcher, corps à
+corps / melee.
+
+## Batte de baseball (arme de base)
+
+Arme de départ du personnage (joueur de baseball, § 3, § 4.10) : niveau 1,
+commune, donnée à tous (`BaseWeapons`, avec le pistolet de départ ;
+sélection par défaut au hub : les deux). Un ancien profil qui avait choisi
+le couteau (arme de base provisoire) reçoit la batte.
+
+- **Prend un emplacement d'arme** (§ 4.12) : on la tient, la range, l'échange
+  et la construit à la station comme une arme à feu ; le couteau reste
+  l'attaque rapide séparée (touche de mêlée), même batte en main.
+- **Statistiques** (§ 4.9, corps à corps) : 250 dégâts (couteau : 150 ;
+  un coup tue un zombie des manches 1 et 2), **1,25 coup par seconde**
+  (`rpm` 75), **15 d'énergie par coup** (couteau : 8 ; § 4.8 bis, § 4.14 :
+  plus coûteuse), portée 2,2 m, fente jusqu'à 3 m vers un zombie visé
+  (comme le couteau), jusqu'à **2 zombies** frappés dans l'arc du coup. Les
+  dégâts suivent le niveau (+10 % par niveau) et les pièces (dégâts,
+  cadence) ; épuisé (énergie nulle), les coups sont 50 % plus lents.
+- **Coup** : tir (maintenu : coups enchaînés, coup droit puis revers) ;
+  armé en arrière, balayage de droite à gauche, impact aux 42 % du coup,
+  accompagnement, retour (`ViewModel.SWING_KEYS`). Pas de munitions (pas de
+  compteur), ni rechargement, ni visée (reste sur l'épaule ; en sprint, elle
+  garde sa tenue).
+- **Sons** procéduraux (`tools/gen_audio.gd`) : `bat_swing` (souffle grave)
+  et `bat_hit` (« toc » de bois creux et coup sourd).
+- **Serveur** : `Combat.srv_swing` (arme tenue, cadence, origine, cibles,
+  dégâts de l'arme de partie) ; coup `MELEE` (ferraille d'une touche ou d'un
+  kill).
+- **Modèle** : frêne clair, manche entouré de ruban bleu marine et blanc,
+  pommeau, tête qui s'élargit en escalier (section en croix puis pleine),
+  quelques taches de sang de zombie ; ni barbelé (Lucille), ni marque.
+
+## Modèles cubiques
+
+Script : `tools/blender/weapons/weapons_voxel.py` (voxel_lib, Blender sans
+fenêtre) ; cellules et couleurs gardées dans
+`tools/blender/weapons/weapons_voxel_cells.json` (suivi par git, `--cache`
+pour reconstruire à l'identique) ; sorties dans `assets/models/weapons/voxel/`.
+
+```
+sh tools/blender.sh tools/blender/weapons/weapons_voxel.py [ids...] [--cache] [--sheet DOSSIER] [--no-check]
+```
+
+(Variable `GODOT` : chemin d'un vrai `godot.exe` pour la vérification
+`tools/voxel_check.gd` lancée à la fin.)
+
+- **Cubes de 2,5 cm** pour tous les objets tenus (§ 4.19) : armes, batte,
+  couteau, mains et avant-bras, grenade, peluche leurre, cartouche et
+  grenade de 40 mm tenues au rechargement. Vérifiés par `voxel_check`
+  (armes : d'un bloc, en statique, pièces mobiles comprises sur la même
+  grille ; objets à pièces indépendantes : pièce par pièce) et par
+  `tests/test_weapons.gd` (`test_held_models_are_cubic`).
+- **Repère** : l'arme pointe vers -Z, origine à la détente ; la colonne de
+  cubes x = 0 est centrée sur l'axe du canon (décalage d'un demi-cube), pour
+  que guidon et cran soient centrés.
+- **Organes de visée** : guidon = un cube centré, cran = vide d'un cube entre
+  deux oreilles posées sur les coins du boîtier, sommets à la même hauteur
+  (ligne de mire un cube au-dessus du boîtier) ; lunettes en tube de 3 × 3
+  sans les coins (axe au centre). Alignement en visée vérifié à **±1 px**
+  (`tests/autotest/weapon_aim.gd` : 0,00 px pour chaque arme).
+- **Bouche du canon** (`muzzle`) au centre de la face avant du dernier cube
+  du canon (frein, cache-flamme) : la flamme de bouche en part.
+- **Pièces mobiles** séparées, chacune un nœud du .glb autour de son pivot :
+  chargeur `mag` (colonne avant de la poignée des pistolets, chargeur droit,
+  incurvé en escalier, tambour, cuve de la BÉTONNEUSE), glissière / culasse /
+  levier d'armement / verrou `slide`, pompe `pump`, canons basculants
+  `barrels` (GARDE-CHASSE), barillet `cyl` (COUPERET). Les rechargements
+  existants (`ViewModel._reload_anim`) les animent sans changement.
+- **Mains et bras FPS** (`hands.glb`) : gants de batteur blanc cassé à sangle
+  rouge, sous-maillot bleu marine, manche crème du maillot à liseré rouge
+  (équipe fictive, sans logo ni numéro) ; poings autour d'un manche d'un ou
+  deux cubes, berceau sous un garde-main, main d'appui du pistolet, poings
+  de la batte, mains du lancer ; avant-bras rigide de 12 cubes (jamais
+  étiré : posé du poignet vers le coude).
+- **Budget** : < 1 500 triangles par arme (contrôlé par `test_weapons`), < 2 000
+  pour l'ensemble des mains ; la vue FPS ajoute la découpe en tranches de
+  5 mm de la partie courbée par la joue de visée.
+
+| Modèle | Triangles | Silhouette (originale) |
+|---|---|---|
+| `m1911` PÉTOIRE | 252 | glissière d'acier usé tachée de rouille, plaquettes de bois scotchées |
+| `cz75` GUÊPE | 260 | glissière noire longue, carcasse rayée jaune et noir, chargeur allongé, guidon jaune |
+| `python` COUPERET | 336 | carénage de canon plat et haut comme une lame de hachoir, gros barillet cubique |
+| `mp40` CRÉCELLE | 436 | tube fin, bas en bakélite, manchon ajouré, crosse en fil repliée à gauche |
+| `mp5k` MOUCHERON | 486 | bloc carré sans crosse, poignée avant à ruban sarcelle, chargeur en escalier |
+| `pm63` PUCE | 266 | minuscule, culasse claire apparente, crosse orange repliée à droite |
+| `mpl` AGRAFEUSE | 472 | agrafeuse géante : bras supérieur sarcelle à charnière arrière |
+| `spectre` FEU FOLLET | 476 | manchon ajouré dont le cœur luit en vert |
+| `ak74u` BRISE-OS | 588 | garde-main en bois clair, frein carré, chargeur rouillé, ruban blanc « os » |
+| `m14` MÉTRONOME | 650 | bois sur toute la longueur, bagues et plaque de couche en laiton |
+| `m16` TRIPLETTE | 750 | trois canons superposés à bagues rouge, jaune, bleue, « III » blanc |
+| `fnfal` MASSE | 728 | garde-main olive épais, frein massif d'acier, crosse fauve |
+| `g11` STROBOSCOPE | 518 | brique gris clair, viseur intégré, bande jaune, gyrophare orange |
+| `galil` BOURRASQUE | 748 | ailettes crénelées sur le garde-main en bois clair, crosse en fil, bipied |
+| `famas` CIGALE | 726 | « ailes » vertes translucides sur les flancs, crête de visée |
+| `commando` ÉPERVIER | 632 | fauve et brun, frein en bec qui pique, crosse sur tube |
+| `aug` VIGIE | 782 | viseur perché sur une tour, garde-main olive, crosse fauve |
+| `rpk` TAMBOUR | 916 | gros tambour peint en caisse claire (rouge, peaux blanches), bois |
+| `hk21` BÉTONNEUSE | 1 064 | cuve de bétonnière orange à spirale jaune sous le boîtier, manchon ajouré |
+| `olympia` GARDE-CHASSE | 634 | deux canons superposés, longuesse et crosse anglaise en bois |
+| `stakeout` BALAI | 372 | court, sans crosse, pompe en bois clair cerclée de ruban paille |
+| `spas12` CONCASSEUR | 604 | pare-chaleur ajouré, pompe orange carrée, crosse squelette |
+| `hs10` TOURNIQUET | 468 | compact blanc, sangle noire à boucle rouge |
+| `l96a1` LONGUE-VUE | 1 232 | lunette en longue-vue de laiton à bagues de cuir, bois sombre, bipied |
+| `dragunov` HIBOU | 1 072 | lunette au gros objectif « œil de hibou », crosse pleine brune |
+| `china_lake` TROMBONE | 902 | tout en laiton, coulisse de pompe et pavillon de trombone |
+| `law` ÉPROUVETTE | 994 | grosse éprouvette de verre graduée, liquide vert, bouchons de liège |
+| `bat` BATTE | 476 | voir plus haut |
+| `knife` COUTEAU | 110 | lame d'acier à fil clair, garde en croix, manche noir |
+| mains (`hands`) | 1 680 | 10 pièces |
+| grenade (`frag`) | 118 | corps olive 3 × 3 × 3, bande sombre, goupille jaune à part |
+| peluche (`teddy`) | 464 | ours assis de 27 cm, tête à part, nœud rouge, pièce rapiécée |
+
+Planches de validation : `--sheet <dossier>` (profil gauche, trois-quarts,
+vue du tireur, dessus, contour noir ; `_toutes.png` : toutes les armes de
+profil à la même échelle).
+
+## Choix à valider (provisoires)
+
+- Les noms (FR / EN) et leur ton (objets du quotidien, laboratoire, bêtes,
+  un peu d'humour : AGRAFEUSE, BÉTONNEUSE, ÉPROUVETTE, TROMBONE).
+- Les niveaux de base (1 à 50) ; une seule arme de butin au niveau 1
+  (CRÉCELLE) ; le lance-roquettes au niveau 50.
+- Le butin ne tire que des armes de niveau de base ≤ manche + 2.
+- La batte : 250 dégâts, 1,25 coup/s, 15 d'énergie, 2 zombies par coup,
+  portée 2,2 m, fente 3 m ; tir pour frapper, coups enchaînés en maintenant.
+- La sélection de départ par défaut : pistolet + batte (2 emplacements pris).
+- Les couleurs du maillot de l'équipe fictive (crème, bleu marine, rouge) et
+  des gants de batteur.
+- Les silhouettes et le budget de 1 500 triangles par arme.

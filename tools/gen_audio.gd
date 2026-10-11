@@ -313,6 +313,26 @@ func gen_knife_hit() -> void:
 	_save("knife_hit", s.finish(b, 0.85))
 
 
+## Batte de baseball fendant l'air : souffle plus grave et plus long que le
+## couteau (objet lourd), qui monte puis retombe.
+func gen_bat_swing() -> void:
+	var b := s.env_adsr(s.bandpass(s.noise(0.38), 900.0, 0.9), 0.12, 0.06, 0.55, 0.16)
+	b = s.lowpass_sweep(b, 700.0, 2600.0)
+	s.mix(b, s.env_adsr(s.bandpass(s.noise(0.3), 2200.0, 1.5), 0.1, 0.05, 0.3, 0.12), 0.04, 0.35)
+	_save("bat_swing", s.finish(b, 0.65))
+
+
+## Coup de batte sur un zombie : « toc » de bois creux (deux résonances du
+## fût), coup sourd de la chair, léger craquement.
+func gen_bat_hit() -> void:
+	var b := s.env_exp(s.bandpass(s.noise(0.25), 760.0, 6.0), 0.001, 0.06)
+	s.mix(b, s.env_exp(s.bandpass(s.noise(0.25), 1480.0, 7.0), 0.001, 0.04), 0.0, 0.6)
+	s.mix(b, s.env_exp(s.sweep(0.2, 150.0, 60.0), 0.001, 0.07), 0.0, 1.1)
+	s.mix(b, s.env_exp(s.lowpass(s.noise(0.2), 900.0), 0.001, 0.05), 0.005, 0.7)
+	s.mix(b, s.env_exp(s.highpass(s.noise(0.05), 3500.0), 0.0005, 0.01), 0.012, 0.25)
+	_save("bat_hit", s.finish(s.reverb(b, 0.35, 0.12, 0.3), 0.9))
+
+
 ## Atterrissage d'un plongeon : corps lourd sur le béton, équipement qui
 ## s'entrechoque, frottement du treillis.
 func gen_dive_land() -> void:

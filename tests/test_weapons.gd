@@ -1,7 +1,17 @@
 extends TestCase
-## Table d'armes (arsenal BO1) : champs requis, valeurs « pap » en sommeil,
-## modèles procéduraux. Plus d'achats muraux, de boîte ni d'armes merveilles
-## (lot C).
+## Table d'armes (docs/WEAPONS.md) : champs requis, noms originaux FR / EN
+## (aucun nom de fabricant ni de modèle réel), niveaux de base répartis de
+## 1 à 50 selon la puissance, batte de baseball (arme de base de corps à
+## corps), valeurs « pap » en sommeil, modèles cubiques (cubes de 2,5 cm).
+
+## Mots interdits dans un nom d'arme : fabricants et modèles réels
+## (GAME_CONCEPT §4.9, §6).
+const REAL_NAMES := ["M1911", "1911", "CZ75", "CZ", "PYTHON", "COLT", "MP40", "MP5K", "MP5", "PM63", "MPL", "SPECTRE",
+	"AK74U", "AK74u", "AK", "AK-74", "M14", "M16", "COMMANDO", "FN", "FAL", "G11", "GALIL", "FAMAS", "AUG", "RPK",
+	"HK21", "HK", "OLYMPIA", "STAKEOUT", "SPAS-12", "SPAS", "HS10", "DRAGUNOV", "L96A1", "L96", "CHINA", "LAKE",
+	"LAW", "M72", "BERETTA", "GLOCK", "REMINGTON", "WINCHESTER", "BROWNING", "WALTHER", "KALASHNIKOV", "HECKLER",
+	"KOCH", "STEYR", "BARRETT", "MOSSBERG", "BENELLI", "SIG", "UZI", "THOMPSON", "RUGER", "TAURUS", "SMITH",
+	"WESSON", "LUGER", "MAUSER", "ENFIELD", "SKS", "SVD", "MAC-10", "TEC-9"]
 
 
 func test_every_weapon_has_required_fields() -> void:
@@ -10,23 +20,28 @@ func test_every_weapon_has_required_fields() -> void:
 			var s := WeaponDB.stats(id, pap)
 			for k in WeaponDB.REQUIRED:
 				assert_true(s.has(k), "%s (pap %s) : champ %s" % [id, pap, k])
-			assert_true(int(s.mag) > 0 and int(s.reserve) >= int(s.mag), "%s : chargeur/réserve" % id)
+			if WeaponDB.is_melee(id):
+				assert_eq(int(s.mag), 0, "%s : corps à corps sans munitions" % id)
+				assert_true(s.get("infinite", false), "%s : pas de compteur de munitions" % id)
+			else:
+				assert_true(int(s.mag) > 0 and int(s.reserve) >= int(s.mag), "%s : chargeur/réserve" % id)
 			assert_true(int(s.damage) > 0 and int(s.rpm) > 0 and float(s.reload) > 0.0, "%s : dégâts/cadence" % id)
 			assert_true(WeaponDB.CLASSES.has(s["class"]), "%s : famille connue" % id)
 			assert_true(ResourceLoader.exists("res://assets/audio/%s.wav" % s.sound), "%s : son %s" % [id, s.sound])
 			if s.has("cycle"):
 				assert_true(ResourceLoader.exists("res://assets/audio/%s.wav" % s.cycle), "%s : son du mécanisme" % id)
-		assert_true(WeaponDB.WEAPONS[id].has("pap"), "%s : valeurs Pack-a-Punch" % id)
+		if not WeaponDB.is_melee(id):
+			assert_true(WeaponDB.WEAPONS[id].has("pap"), "%s : valeurs Pack-a-Punch (en sommeil)" % id)
 
 
-func test_starting_weapon_bo1() -> void:
+func test_starting_weapon() -> void:
 	var s := WeaponDB.stats(WeaponDB.STARTING_WEAPON)
 	assert_eq(WeaponDB.STARTING_WEAPON, "m1911")
 	assert_eq(int(s.mag), 8)
 	assert_eq(int(s.reserve), 80)
-	# Manche 1 (150 PV) : environ un chargeur au corps, un coup de couteau.
+	# Pistolet de départ peu efficace (manche 1, 150 PV) : 5 à 8 balles.
 	var shots := ceili(150.0 / float(s.damage))
-	assert_true(shots >= 5 and shots <= 8, "M1911 : %d balles au corps en manche 1" % shots)
+	assert_true(shots >= 5 and shots <= 8, "pistolet de départ : %d balles au corps en manche 1" % shots)
 	assert_true(WeaponDB.MELEE_DAMAGE >= 150, "couteau : un coup en manche 1")
 
 
@@ -38,30 +53,82 @@ func test_removed_weapons() -> void:
 		assert_false(WeaponDB.WEAPONS[id].has("wall_cost") or WeaponDB.WEAPONS[id].has("box"), "%s : ni mur ni boîte" % id)
 
 
-func test_pap_upgrades() -> void:
-	var names := {}
+## Noms originaux : uniques, en français et en anglais, sans aucun nom de
+## fabricant ni de modèle réel (mot à mot).
+func test_original_names() -> void:
+	var seen_fr := {}
+	var seen_en := {}
 	for id in WeaponDB.WEAPONS:
-		var b := WeaponDB.stats(id)
-		var u := WeaponDB.stats(id, true)
-		assert_true(u.name != b.name, "%s : nom amélioré" % id)
-		assert_false(names.has(u.name), "%s : nom amélioré unique" % id)
-		names[u.name] = true
-		var better: bool = int(u.damage) >= int(b.damage) * 2 or float(u.get("splash_damage", 0)) >= float(b.get("splash_damage", 0)) * 1.5
-		assert_true(better, "%s : dégâts améliorés (%d -> %d)" % [id, b.damage, u.damage])
-		# Exception BO1 : le M1911 amélioré tire 6 balles explosives (6 / 50).
-		if id != "m1911":
-			assert_true(int(u.mag) >= int(b.mag) and int(u.reserve) >= int(b.reserve), "%s : munitions améliorées" % id)
-	# M1911 amélioré : balles explosives, 6 coups.
-	var mp := WeaponDB.stats("m1911", true)
-	assert_eq(int(mp.mag), 6)
-	assert_true(mp.has("splash_radius") and mp.has("projectile_speed") and mp.has("self_damage"), "M1911 amélioré explosif")
-	assert_true(WeaponDB.stats("olympia", true).has("burn_dps"), "Olympia améliorée incendiaire")
-	assert_false(WeaponDB.stats("m1911").has("splash_radius"), "M1911 de base : balles normales")
+		var fr: String = WeaponDB.stats(id).name
+		assert_true(WeaponDB.EN_NAMES.has(fr), "%s : nom anglais de « %s »" % [id, fr])
+		var en: String = WeaponDB.EN_NAMES.get(fr, "")
+		assert_false(seen_fr.has(fr), "%s : nom unique (%s)" % [id, fr])
+		assert_false(seen_en.has(en), "%s : nom anglais unique (%s)" % [id, en])
+		seen_fr[fr] = true
+		seen_en[en] = true
+		assert_eq(String(WeaponDB.stats(id, true).name), fr, "%s : pas d'autre nom (amélioration en sommeil)" % id)
+		for n in [fr, en]:
+			for word in n.replace("-", " ").replace("'", " ").split(" ", false):
+				assert_false(word.to_upper() in REAL_NAMES, "%s : « %s » contient un nom d'arme réelle (%s)" % [id, n, word])
+		assert_false(WeaponDB.family_name(id).is_empty(), "%s : famille affichable" % id)
+
+
+## Niveaux de base (§4.9) : armes de base au niveau 1, toutes de 1 à 50,
+## au moins une arme de butin trouvable au niveau 1, et plus une arme est
+## puissante (dégâts par seconde), plus son niveau de base est haut en
+## moyenne : la moitié forte a un niveau moyen plus haut que la moitié faible.
+func test_base_levels() -> void:
+	var rows := []
+	var lvl50 := false
+	for id in WeaponDB.WEAPONS:
+		var lvl := WeaponDB.base_level(id)
+		assert_true(lvl >= 1 and lvl <= 50, "%s : niveau de base %d" % [id, lvl])
+		if BaseWeapons.is_base(id):
+			assert_eq(lvl, 1, "%s : arme de base au niveau 1" % id)
+			continue
+		lvl50 = lvl50 or lvl >= 45
+		var s := WeaponDB.stats(id)
+		var dps := float(s.damage) * float(s.pellets) * float(s.rpm) / 60.0 + float(s.get("splash_damage", 0.0)) * float(s.rpm) / 60.0
+		rows.append([dps, lvl])
+	assert_true(lvl50, "une arme de haut niveau (45 à 50)")
+	assert_false(LootRules.weapon_pool(1).is_empty(), "une arme de butin dès le niveau 1")
+	rows.sort()
+	@warning_ignore("integer_division")
+	var half := rows.size() / 2
+	var weak := 0.0
+	var strong := 0.0
+	for i in rows.size():
+		if i < half:
+			weak += float(rows[i][1])
+		else:
+			strong += float(rows[i][1])
+	assert_true(strong / float(rows.size() - half) > weak / float(half), "armes puissantes plus haut (%.1f / %.1f)" % [strong / float(rows.size() - half), weak / float(half)])
+
+
+## Batte de baseball (§4.3, §4.8 bis, §4.10, §4.14) : arme de base de corps à
+## corps tenue en main, plus coûteuse en énergie que le couteau, au moins
+## aussi forte, portée et fente au moins celles du couteau.
+func test_bat() -> void:
+	assert_true(WeaponDB.exists("bat") and WeaponDB.is_melee("bat"))
+	assert_eq(WeaponDB.BASE_MELEE, "bat")
+	assert_true(BaseWeapons.is_base("bat"), "arme de base")
+	assert_false(BaseWeapons.is_base("knife"), "le couteau n'est plus une arme de base")
+	var s := WeaponDB.stats("bat")
+	assert_true(float(s.energy) > KnifeDB.energy_cost(KnifeDB.DEFAULT), "plus d'énergie par coup que le couteau")
+	assert_true(int(s.damage) >= KnifeDB.damage(KnifeDB.DEFAULT), "au moins les dégâts du couteau")
+	assert_true(float(s.reach) >= KnifeDB.RANGE and float(s.lunge_range) >= KnifeDB.LUNGE_RANGE - 0.5, "portée et fente")
+	assert_near(float(s.rpm) / 60.0, 1.25, 0.001, "1,25 coup par seconde")
+	assert_eq(WeaponDB.display_name("bat"), "BATTE" if not Lang.is_en() else "BAT")
+	# Arme de partie : niveau et pièces, sans munitions.
+	var w := GameWeapon.make("bat", 11)
+	assert_eq(int(w.mag), 0, "niveau 11 : toujours sans chargeur")
+	assert_eq(int(GameWeapon.stats(w).damage), 500, "niveau 11 : dégâts doublés")
+	assert_true(BuildRules.ammo_full(w), "pas de recharge de munitions à la station")
 
 
 func test_special_mechanics() -> void:
-	assert_eq(int(WeaponDB.stats("m16").get("burst", 0)), 3, "M16 : rafale de 3")
-	assert_eq(int(WeaponDB.stats("g11").get("burst", 0)), 3, "G11 : rafale de 3")
+	assert_eq(int(WeaponDB.stats("m16").get("burst", 0)), 3, "TRIPLETTE : rafale de 3")
+	assert_eq(int(WeaponDB.stats("g11").get("burst", 0)), 3, "STROBOSCOPE : rafale de 3")
 	for id in ["china_lake", "law"]:
 		var s := WeaponDB.stats(id)
 		assert_true(s.has("splash_radius") and s.has("projectile_speed") and s.has("self_damage"), "%s : projectile explosif" % id)
@@ -80,29 +147,67 @@ func test_special_mechanics() -> void:
 	assert_eq(steps.size(), 4, "3 cartouches + pompe")
 
 
+## Budget de triangles d'un modèle d'arme cubique (docs/WEAPONS.md).
+const TRI_BUDGET := 1500
+
+
 func test_models_and_anchors() -> void:
 	for id in WeaponDB.WEAPONS:
 		var mid: String = WeaponDB.stats(id).model
 		assert_true(WeaponModels.SPECS.has(mid), "%s : modèle défini" % id)
+		assert_true(ResourceLoader.exists(WeaponModels.DIR + mid + ".glb"), "%s : modèle cubique" % id)
 		var sp := WeaponModels.spec(mid)
-		assert_true(sp.parts.size() >= 5, "%s : au moins 5 pièces" % id)
+		assert_true(sp.parts.size() >= 5, "%s : au moins 5 pavés" % id)
 		for a in ["muzzle", "sight", "grip", "support"]:
 			assert_true(sp.anchors.has(a), "%s : point %s" % [id, a])
 		assert_true(sp.anchors.muzzle.z < -0.15, "%s : bouche du canon devant" % id)
-		# Pièces fusionnées : un maillage par matériau (quelques appels de dessin).
+		var tris := WeaponModels.triangles(mid)
+		assert_true(tris > 0 and tris <= TRI_BUDGET, "%s : %d triangles (budget %d)" % [id, tris, TRI_BUDGET])
+		# Un maillage par matière (quelques appels de dessin).
 		var mats := {}
-		for part in sp.parts:
-			mats[part[3]] = true
+		for g in WeaponModels.raw(mid):
+			for mk in WeaponModels.raw(mid)[g]:
+				mats[mk] = true
 		var m := WeaponModels.build(mid, false)
 		assert_eq(m.get_child_count(), mats.size(), "%s : un maillage par matériau" % id)
 		m.free()
-		# Vue FPS : un nœud par groupe mobile, chargeur amovible s'il existe.
+		# Vue FPS : un nœud par pièce mobile, chargeur amovible s'il existe.
 		var vm := WeaponModels.build(mid, true)
 		assert_true(vm.get_node_or_null("body") != null, "%s : carcasse FPS" % id)
 		for part in sp.parts:
-			if part.size() > 5 and part[5] != "":
-				assert_true(vm.get_node_or_null(String(part[5])) != null, "%s : groupe %s" % [id, part[5]])
+			assert_true(vm.get_node_or_null(String(part[5])) != null, "%s : groupe %s" % [id, part[5]])
+		for g in sp.groups:
+			if g != "body":
+				assert_true(sp.anchors.has("pivot_" + g), "%s : pivot de la pièce mobile %s" % [id, g])
 		vm.free()
 	# Silhouettes distinctes : les armes longues sont plus longues que les pistolets.
 	assert_true(WeaponModels.anchor("m1911", "muzzle").z > WeaponModels.anchor("m14", "muzzle").z)
 	assert_true(WeaponModels.anchor("mp5k", "muzzle").z > WeaponModels.anchor("l96a1", "muzzle").z)
+
+
+## Organes de visée : cran et guidon sur la même ligne, centrés (x = 0),
+## guidon devant ; bouche du canon sous la ligne de mire (armes à visée).
+func test_sight_line() -> void:
+	for id in WeaponDB.WEAPONS:
+		var mid: String = WeaponDB.stats(id).model
+		if WeaponModels.info(mid, "no_sights", false):
+			continue
+		var rear := WeaponModels.anchor(mid, "sight")
+		var front := WeaponModels.anchor(mid, "front")
+		assert_near(rear.y, front.y, 0.0001, "%s : cran et guidon à la même hauteur" % id)
+		assert_near(rear.x, 0.0, 0.0001, "%s : cran centré" % id)
+		assert_near(front.x, 0.0, 0.0001, "%s : guidon centré" % id)
+		assert_true(front.z < rear.z, "%s : guidon devant le cran" % id)
+		assert_true(WeaponModels.anchor(mid, "muzzle").y < rear.y, "%s : bouche sous la ligne de mire" % id)
+
+
+## Tous les objets tenus sont cubiques (cubes de 2,5 cm, VoxelCheck) : armes
+## d'un bloc, objets à pièces indépendantes (mains, grenade, peluche,
+## cartouches) pièce par pièce.
+func test_held_models_are_cubic() -> void:
+	var ids: Array = WeaponModels.SPECS.keys()
+	ids.append_array([WeaponModels.HANDS, WeaponModels.FRAG, WeaponModels.TEDDY])
+	for mid in ids:
+		var articulated: bool = mid in [WeaponModels.HANDS, WeaponModels.FRAG, WeaponModels.TEDDY] or WeaponModels.SPECS.get(mid, "") == "round"
+		var rep := VoxelCheck.check_file(ProjectSettings.globalize_path(WeaponModels.DIR + mid + ".glb"), 1 if articulated else 0, 1.0, WeaponModels.CUBE)
+		assert_true(bool(rep.get("ok", false)), "%s : modèle cubique (%s)" % [mid, rep.get("fr", rep.get("error", ""))])

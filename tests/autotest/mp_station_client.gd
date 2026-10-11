@@ -13,6 +13,7 @@ func run() -> void:
 	timeout_sec = 150
 	var pr := PlayerProfile.new()
 	pr.add_xp(PlayerProfile.xp_for_level(6))
+	pr.set_starting_weapons([WeaponDB.STARTING_WEAPON])
 	var mp40 := OwnedWeapon.create("mp40", 4, OwnedWeapon.Rarity.RARE)
 	mp40.uid = "w1"
 	pr.add_weapon(mp40)
@@ -41,14 +42,14 @@ func run() -> void:
 	await until(func(): return game.interact.focused == st, 3.0, "station visée")
 	p.input.interact_pressed = true
 	var ok: bool = await until(func(): return panel.visible, 5.0, "interface ouverte")
-	at.check(ok and panel.entries.size() == 3, "client : interface ouverte, 3 armes (%d)" % panel.entries.size())
+	at.check(ok and panel.entries.size() == 4, "client : interface ouverte, 4 armes (%d)" % panel.entries.size())
 	if not ok:
 		return
 	# M14 niveau 9 : refusée par l'hôte même demandée directement.
-	st.request_build(panel.entries[2])
+	st.request_build(panel.entries[3])
 	await seconds(0.6)
 	at.check(st.builds.is_empty() and pd.points == 3000, "client : arme trop haute refusée")
-	panel.press_build(1)
+	panel.press_build(2)
 	MpHelpers.signal_peer("lance")
 	ok = await until(func(): return not st.local_build().is_empty(), 5.0, "état de construction reçu")
 	at.check(ok and not bool(st.local_build().ready), "client : en construction")

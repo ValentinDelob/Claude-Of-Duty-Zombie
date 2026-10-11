@@ -141,67 +141,27 @@ func test_missing_lines_file_is_silent() -> void:
 	assert_eq(CharacterDB.text("fr", "personne_inconnu", "round_start", 0), "")
 
 
-func test_mercer_view_hands_style() -> void:
-	assert_eq(ViewHands.STYLES.size(), CharacterDB.IDS.size(), "une tenue FPS par personnage")
-	var s: Dictionary = ViewHands.STYLES[4]
-	assert_true(s.get("rolled", false) and s.get("skin", false), "Mercer : manches retroussées, avant-bras nus")
-	assert_true(s.sleeve.g > s.sleeve.r and s.sleeve.g > s.sleeve.b, "manche olive")
-	assert_true(s.sleeve != ViewHands.STYLES[0].sleeve and s.sleeve != ViewHands.STYLES[2].sleeve, "distincte de Callahan et d'Arakawa")
-	var mats := ViewHands.style_materials(4)
-	assert_true(mats.has("sleeve") and mats.has("hand"))
-	var arr := ViewHands.piece_arrays(4, "forearm")
-	assert_true(arr.has("sleeve") and arr.has("tip"), "avant-bras : manche et peau")
-
-
-func test_berg_view_hands_style() -> void:
-	var s: Dictionary = ViewHands.STYLES[5]
-	assert_true(s.get("skin", false) and not s.get("rolled", true), "mains nues, manches non retroussées")
-	assert_true(s.get("slim", 1.0) < 1.0, "mains fines")
-	assert_true(s.hand.get_luminance() > ViewHands.STYLES[4].hand.get_luminance() + 0.1, "peau claire")
-	assert_true(s.sleeve.g > s.sleeve.r * 2.0 and s.sleeve.b > s.sleeve.r * 2.0, "manche bleu canard")
-	var nail: Color = s.get("nail", Color.BLACK)
-	assert_true(nail.r > 0.5 and nail.g < 0.2 and nail.b < 0.2, "ongles rouges")
-	var mats := ViewHands.style_materials(5)
-	assert_true(mats.has("nail"), "matériau des ongles")
-	for piece_name in ["grip", "cradle", "pistol_support"]:
-		assert_true(ViewHands.piece_arrays(5, piece_name).has("nail"), "%s : ongles" % piece_name)
-	assert_false(ViewHands.piece_arrays(0, "grip").has("nail"), "pas d'ongles chez Callahan")
-	var fore := ViewHands.piece_arrays(5, "forearm")
-	assert_true(fore.has("sleeve") and fore.has("tip"), "avant-bras : manche et peau")
-	# Plus fine que la même tenue sans "slim" : comparer l'étendue de l'avant-bras.
-	var w5 := _extent_x(fore.tip)
-	var w2 := _extent_x(ViewHands.piece_arrays(2, "forearm").tip)
-	assert_true(w5 < w2 * 0.95, "avant-bras plus fin qu'Arakawa (%.3f / %.3f)" % [w5, w2])
-
-
-func _extent_x(arrays: Array) -> float:
+## Mains FPS : celles du joueur de baseball (personnage unique, GAME_CONCEPT
+## §3), en cubes de 2,5 cm, quelle que soit la place du joueur.
+func test_baseball_view_hands() -> void:
+	assert_eq(ViewHands.STYLES.size(), 1, "une seule tenue : le joueur de baseball")
+	for piece_name in ViewHands.PIECES:
+		var arr := ViewHands.piece_arrays(0, piece_name)
+		assert_false(arr.is_empty(), "%s : pièce du modèle des mains" % piece_name)
+	# Gants (cuir) sur les poings, manche (tissu) sur l'avant-bras.
+	assert_true(ViewHands.piece_arrays(0, "grip").has("leather"), "gant de batteur")
+	var fore := ViewHands.piece_arrays(0, "forearm")
+	assert_true(fore.has("cloth") and fore.has("leather"), "avant-bras : manche et manchette du gant")
+	# Même tenue pour toutes les places (index de tenue accepté, ramené à 0).
+	assert_eq(ViewHands.piece(5, "grip").keys(), ViewHands.piece(0, "grip").keys())
+	# Avant-bras de 3 × 3 cubes (7,5 cm) au poignet.
 	var lo := INF
 	var hi := -INF
-	for v in arrays[0] as PackedVector3Array:
-		lo = minf(lo, v.x)
-		hi = maxf(hi, v.x)
-	return hi - lo
-
-
-func test_jojo_view_hands_style() -> void:
-	var s: Dictionary = ViewHands.STYLES[6]
-	assert_true(s.get("skin", false) and s.get("rolled", false), "Jojo : manches roulées, avant-bras nus")
-	assert_true(s.get("slim", 1.0) > 1.1, "grosses mains épaisses")
-	assert_true(s.sleeve.get_luminance() > 0.55 and absf(s.sleeve.r - s.sleeve.b) < 0.15, "maillot gris-blanc")
-	var ring: Color = s.get("ring", Color.BLACK)
-	assert_true(ring.r > 0.7 and ring.g > 0.5 and ring.b < 0.35, "chevalière en or")
-	var mats := ViewHands.style_materials(6)
-	assert_true(mats.has("hair") and mats.has("ring"), "matériaux des poils et de la chevalière")
-	var fore := ViewHands.piece_arrays(6, "forearm")
-	assert_true(fore.has("sleeve") and fore.has("tip") and fore.has("hair"), "avant-bras : manche, peau, poils")
-	assert_false(ViewHands.piece_arrays(4, "forearm").has("hair"), "pas de poils chez Mercer")
-	assert_true(ViewHands.piece_arrays(6, "grip").has("ring"), "chevalière sur la main droite")
-	assert_false(ViewHands.piece_arrays(6, "cradle").has("ring"), "pas sur la main d'appui")
-	assert_false(ViewHands.piece_arrays(5, "grip").has("ring"), "pas de chevalière chez Berg")
-	# Plus épais que la même tenue sans "slim" : comparer l'étendue de l'avant-bras.
-	var w6 := _extent_x(fore.tip)
-	var w4 := _extent_x(ViewHands.piece_arrays(4, "forearm").tip)
-	assert_true(w6 > w4 * 1.1, "avant-bras plus épais que Mercer (%.3f / %.3f)" % [w6, w4])
+	for v in fore.cloth[0] as PackedVector3Array:
+		if v.z < -0.2:
+			lo = minf(lo, v.x)
+			hi = maxf(hi, v.x)
+	assert_near(hi - lo, 0.075, 0.002, "avant-bras de 3 cubes de large")
 
 
 func test_jojo_player_model_is_bigger() -> void:

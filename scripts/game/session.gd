@@ -70,11 +70,10 @@ func srv_set_loadout(lvl: Variant, ids: Variant) -> void:
 		"ids": BaseWeapons.clean_selection(ids)}
 
 
-## Armes en main au départ pour une sélection d'armes de base : une arme à
-## feu par emplacement choisi, dans l'ordre ; un emplacement non choisi reste
-## vide. Une arme de corps à corps de base (aujourd'hui le couteau, en
-## attendant la batte) reste l'attaque séparée de mêlée : elle ne prend pas
-## d'emplacement en main (choix provisoire, voir GAME_CONCEPT §6 bis). Pure.
+## Armes en main au départ pour une sélection d'armes de base : une arme
+## tenue (pistolet de départ, batte de baseball) par emplacement choisi, dans
+## l'ordre ; un emplacement non choisi reste vide. Le couteau, attaque de
+## mêlée séparée de tous les joueurs, ne prend jamais d'emplacement. Pure.
 static func starting_hands(ids: PackedStringArray) -> Array:
 	var out := []
 	for id in ids:
