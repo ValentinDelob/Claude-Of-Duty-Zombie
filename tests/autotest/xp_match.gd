@@ -83,12 +83,15 @@ func run() -> void:
 	var saved := ProfileStore.load_profile().xp
 	at.check(saved == pr.xp + want and r.profile_xp == saved, "profil : %d XP (avant %d)" % [saved, pr.xp])
 	at.check(r.level_before == 1 and r.level_after == 2, "niveau 1 -> 2 (%d -> %d)" % [r.level_before, r.level_after])
-	var shown := game.hud.xp_report_text()
-	at.check(shown.contains(r.xp_title()) and shown.contains(r.xp_level_text()) and shown.contains(r.xp_progress_text()),
-			"rapport d'XP à l'écran : %s" % shown)
-	at.check(shown.contains(Lang.t("Sprinteurs", "Sprinters")) and shown.contains(Lang.t("Rampants", "Crawlers"))
-			and shown.contains(Lang.t("Chiens", "Dogs")), "détail par type à l'écran")
-	at.check(game.hud._xp_bar.visible and game.hud._xp_bar.value == r.xp_progress().x, "barre vers le niveau 3")
+	# Récapitulatif du hub (retour au labo) : XP gagnée, niveau 1 -> 2,
+	# détail dont la somme fait l'XP de la partie.
+	var rc: Hub2RecapModel = H.recap()
+	var sum := 0
+	for row in rc.rows:
+		sum += int(row.xp)
+	at.check(rc.gained == r.xp and rc.level_before == 1 and rc.level_after == 2 and rc.level_ups().size() == 1,
+			"récapitulatif : +%d XP, niveau %d -> %d" % [rc.gained, rc.level_before, rc.level_after])
+	at.check(not rc.rows.is_empty() and rc.rows[0].key == "kills" and sum == r.xp, "détail du récapitulatif : %s" % [rc.rows])
 	at.check(xp.counter_shown() == "" and xp.pop_shown() == "", "compteur de partie masqué à la fin")
 	# Une seule application : un départ ou une seconde fin ne rajoute rien.
 	game.keep_match_xp()

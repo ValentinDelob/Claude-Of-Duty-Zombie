@@ -199,9 +199,9 @@ func test_samples_xp() -> void:
 	var r: Array = XpRules.CATEGORY_RANGE[XpRules.MINIBOSS]
 	assert_true(XpRules.base_xp(XpRules.NURSE) >= r[0] and XpRules.base_xp(XpRules.NURSE) <= r[1], "dans la fourchette")
 	assert_eq(XpRules.kill_xp(XpRules.NURSE, 15), roundi(60 * XpRules.round_factor(15)))
-	assert_eq(HubIcon.sample_art("nurse_vocal_cords"), "cords", "icône du hub")
-	assert_eq(HubIcon.sample_art("nurse_syringe"), "syringe")
-	assert_eq(HubIcon.sample_art("nurse_badge"), "badge")
+	assert_true(HubRenders.has(HubRenders.sample_path("nurse_vocal_cords")), "rendu du hub : nurse_vocal_cords")
+	assert_true(HubRenders.has(HubRenders.sample_path("nurse_syringe")), "rendu du hub : nurse_syringe")
+	assert_true(HubRenders.has(HubRenders.sample_path("nurse_badge")), "rendu du hub : nurse_badge")
 	# Codex : fiche active (plus « prévue »), mêmes sortes que le butin.
 	CodexData.clear_cache()
 	var e: Dictionary = CodexData.default().entry("nurse")

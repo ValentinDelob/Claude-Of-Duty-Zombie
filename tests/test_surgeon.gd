@@ -252,8 +252,8 @@ func test_samples_xp_loot() -> void:
 	assert_eq(XpRules.category_of(XpRules.SURGEON), XpRules.BOSS, "catégorie boss")
 	var r: Array = XpRules.CATEGORY_RANGE[XpRules.BOSS]
 	assert_true(XpRules.base_xp(XpRules.SURGEON) >= r[0] and XpRules.base_xp(XpRules.SURGEON) <= r[1], "dans la fourchette")
-	assert_eq(HubIcon.sample_art("surgeon_scalpel"), "scalpel", "icône du hub")
-	assert_eq(HubIcon.sample_art("surgeon_heart"), "heart")
+	assert_true(HubRenders.has(HubRenders.sample_path("surgeon_scalpel")), "rendu du hub : surgeon_scalpel")
+	assert_true(HubRenders.has(HubRenders.sample_path("surgeon_heart")), "rendu du hub : surgeon_heart")
 	# Butin d'une vague de boss : 2 armes par joueur, raretés plus hautes.
 	assert_eq(LootRules.weapons_for_wave(WaveRules.BOSS), 2)
 	var sum := 0.0

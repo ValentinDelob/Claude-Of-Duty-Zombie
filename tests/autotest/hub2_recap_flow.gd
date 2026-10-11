@@ -1,6 +1,5 @@
 extends AutotestScenario
-## Fin de partie -> récapitulatif du hub v2 (Recap.dc.html), en vrai, hub v2
-## activé (réglage caché) :
+## Fin de partie -> récapitulatif du hub (Recap.dc.html), en vrai :
 ## 1. carte du jeu (arène de test) : XP gagnée (éliminations, manches),
 ##    échantillons, évacuation -> écran de fin SANS le rapport d'XP et de
 ##    butin (il passe au hub), retour au menu sur le RÉCAPITULATIF : XP
@@ -22,7 +21,6 @@ var SW := preload("res://tests/autotest/smallest_window.gd")
 func run() -> void:
 	timeout_sec = 120
 	ProfileStore.reset()
-	Settings.hub_v2 = true
 	Router.last_match = {}
 	# 1. Carte du jeu.
 	var before := ProfileStore.load_profile()
@@ -46,7 +44,6 @@ func run() -> void:
 	at.check(pr2.sample_count("dog_fang") == 2, "carte perso : échantillons non gardés (%d)" % pr2.sample_count("dog_fang"))
 	at.check(pr2.codex.kills("walker") == 4, "carte perso : codex inchangé (%d)" % pr2.codex.kills("walker"))
 	at.check(pr2.contracts.rotation == rot1, "carte perso : contrats inchangés (%d)" % pr2.contracts.rotation)
-	Settings.hub_v2 = false
 	Router.last_match = {}
 	ProfileStore.reset()
 	SW.remove_dir(EditorMap.maps_root())
@@ -77,7 +74,6 @@ func _play(map_id: String, progress: bool) -> bool:
 	game.srv_end_match(true)
 	await until(func(): return game.last_result != null, 3.0, "fin de partie")
 	var r := game.last_result
-	at.check(game.hud.xp_report_text() == "" and game.hud.loot_report() == "", "hub v2 : pas de rapport d'XP ni de butin à l'écran de fin")
 	at.check(Router.last_match.get("progress", true) == progress, "Router.last_match : progression %s" % progress)
 	if not await until(_in_hub2, 30.0, "retour au hub v2"):
 		return false

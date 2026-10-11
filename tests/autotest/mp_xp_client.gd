@@ -34,6 +34,7 @@ func run() -> void:
 		var r := game.last_result
 		at.check(r.xp == want and int(r.xp_ledger.rounds) == 1, "XP de la partie calculée par l'hôte : %d" % r.xp)
 		at.check(ProfileStore.load_profile().xp == want, "ajoutée à mon profil : %d" % ProfileStore.load_profile().xp)
-		at.check(game.hud.xp_report_text().contains(r.xp_title()), "rapport à l'écran de fin")
+		var rc: Hub2RecapModel = H.recap()
+		at.check(rc.gained == want, "récapitulatif du hub : +%d XP" % rc.gained)
 	await MpHelpers.finish(self)
 	ProfileStore.reset()

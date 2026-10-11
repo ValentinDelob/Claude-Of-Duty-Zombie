@@ -99,7 +99,7 @@ func _open(screen: String, pr: PlayerProfile) -> Hub2Screen:
 	hub.size = Vector2(1280, 720)
 	h.add_child(hub)
 	h.current = hub
-	h.current_name = "hub2"
+	h.current_name = "hub"
 	hub.enter({"screen": screen, "profile": pr})
 	await wait_frames(3)
 	return hub

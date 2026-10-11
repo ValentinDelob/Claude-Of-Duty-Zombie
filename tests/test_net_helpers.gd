@@ -271,3 +271,14 @@ func test_connect_timeout() -> void:
 	n._handshake_done = false
 	assert_eq(_errors_of(n, n._on_connect_timeout), ["Délai dépassé"], "délai dépassé signalé")
 	assert_eq(n.mode, Net.Mode.NONE, "session remise à zéro")
+
+
+## Fiche de salon d'un joueur (niveau, armes de départ) bornée et nettoyée.
+func test_lobby_card_bounds() -> void:
+	var c := Net.clean_card(999, ["m1911", "m1911", "evil", "knife", 4])
+	assert_eq(int(c.lvl), PlayerProfile.MAX_LEVEL, "niveau borné")
+	assert_eq(Array(c.start), ["m1911", "bat"], "armes de base seulement, sans doublon ; ancien couteau -> batte")
+	var players := Net.clean_players({2: {"name": "Jojo", "slot": 1, "lvl": "x", "start": "y", "away": true}, 3: {"name": "Old", "slot": 2}})
+	assert_eq(int(players[2].lvl), 1, "niveau illisible : 1")
+	assert_true(players[2].away, "état EN RETOUR gardé")
+	assert_false(players[3].has("lvl"), "hôte d'avant : pas de fiche")

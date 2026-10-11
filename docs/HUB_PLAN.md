@@ -2,9 +2,17 @@
 
 Plan de conception du **hub** (écrans entre deux parties, chez le
 scientifique), des **contrats** et du **catalogue d'échanges**
-(GAME_CONCEPT §2 boucle méta, §4.2, §4.2 ter, §4.9 à §4.16). Rien n'est encore
-intégré au jeu : ce document fixe les écrans, le modèle de données, le contenu
-d'exemple et les lots d'implémentation.
+(GAME_CONCEPT §2 boucle méta, §4.2, §4.2 ter, §4.9 à §4.16).
+
+> **État (2026-10-11) : le hub du jeu est le hub v2 (§9)**, laboratoire de
+> Dr Brown (`scripts/ui/hub2/`, `MainMenu.SCREENS.hub`) : LABO (› CONTRATS,
+> › ÉCHANGES), ARSENAL, INVENTAIRE, CODEX, JOUER (solo, coop, salon) et
+> récapitulatif d'après partie. Le **premier hub à huit onglets** (LABO,
+> ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, CODEX, PARTIE ;
+> `scripts/ui/hub/`) a été **retiré** à la bascule (§9.6). Les sections
+> §1 à §4 et les lots B à E du §8 le décrivent : **historique**, gardé pour
+> les décisions (D1 à D15) qui valent toujours. Les modèles de données (§5,
+> §6) et le contenu (§7) sont ceux du jeu.
 
 - Maquettes : **`docs/hub_mockup/index.html`** (ouvrir dans un navigateur,
   aucune dépendance externe ; 1280 × 720, taille réelle du jeu). Une fois
@@ -36,6 +44,8 @@ d'exemple et les lots d'implémentation.
 
 ## 2. Place du hub dans le flux du jeu
 
+> Historique (premier hub) ; flux actuel : §9.6.
+
 ```
 Lancement ─► Menu titre ─► JOUER ─► (1er démarrage : carte tuto obligatoire, §4.1)
                                 └─► HUB (onglet LABO)
@@ -57,6 +67,8 @@ HUB ─ Échap / Start ─► menu du hub : REPRENDRE, OPTIONS, DOSSIER DE COMBA
   tant que la carte tuto n'est pas faite ; le contrat tuto (§7) est déjà prévu.
 
 ## 3. Écrans
+
+> Historique : écrans du premier hub (retiré, §9.6). Écrans du jeu : §9.
 
 Tous les écrans partagent le **cadre du hub** (maquette, écran 1) :
 
@@ -231,6 +243,9 @@ Tous les écrans partagent le **cadre du hub** (maquette, écran 1) :
   quittant.
 
 ## 4. Navigation, tailles, langues
+
+> Historique (premier hub) pour les commandes ; navigation actuelle : §9.1.
+> TAILLE DES MENUS (§4.2) et langues (§4.3) valent toujours.
 
 ### 4.1 Commandes
 
@@ -693,6 +708,13 @@ coop. Rien n'est changé au butin dans ce plan.
 
 ## 8. Lots d'implémentation
 
+> Historique : les lots B à E ont construit le premier hub, retiré à la
+> bascule (§9.6) avec leurs fichiers et leurs tests (`scripts/ui/hub/`,
+> `tests/test_hub_screen.gd`, `test_hub_arsenal.gd`, `test_hub_contracts.gd`,
+> `test_hub_play.gd`, scénarios `hub_nav`, `hub_gear`, `hub_play`) ; ce qui
+> en reste (règles, comportements) est testé ailleurs (§9.6). Le lot A
+> (données et règles) est toujours celui du jeu.
+
 Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
 **E**. F est pour plus tard.
 
@@ -971,16 +993,13 @@ Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
 Maquettes **à suivre à 100 %** : `docs/hub_v2/` (README.md + un `*.dc.html`
 par écran, 1280 × 720 ; tailles, couleurs, polices, espacements et textes
 sont dans les styles en ligne). Le scientifique s'appelle **Dr Brown**. Le hub
-v2 vit dans `scripts/ui/hub2/` à côté de l'ancien hub (`scripts/ui/hub/`,
-toujours celui du jeu) jusqu'à la bascule.
+v2 vit dans `scripts/ui/hub2/` ; c'est **le hub du jeu** depuis la bascule
+(§9.6) : `MainMenu.SCREENS.hub`, plus de réglage ni d'argument pour le
+choisir.
 
-**Ouvrir le hub v2 (provisoire)** : réglage caché `hub_v2=true` dans la
-section `[interface]` de `settings.cfg` (`Settings.hub_v2`), ou argument
-`--hub2` ; JOUER au menu titre ouvre alors `MainMenu.SCREENS.hub2`.
-Captures de comparaison avec les maquettes :
-`sh tools/scenario.sh hub2_look` (fenêtre hors écran ;
-`HUB_SHOT_RES=1920x1080` pour du 1080p) -> `tests/_out/shots/hub2_look_*.png`
-(`lab_mockup` : même contenu que `Main.dc.html`).
+Captures (revue humaine, non bloquantes) : `sh tools/scenario.sh hub_look`
+(fenêtre hors écran ; `HUB_SHOT_RES=1920x1080` pour du 1080p) ->
+`tests/_out/shots/hub_look_*.png`.
 
 ### 9.1 Architecture
 
@@ -999,7 +1018,12 @@ Captures de comparaison avec les maquettes :
 | `Hub2Breadcrumb` | `hub2_breadcrumb.gd` | Fil d'Ariane « ‹ LABO / CONTRATS » |
 | `Hub2Veil` | `hub2_veil.gd` | Voile sur le fond 3D (plein ou dégradé) |
 | `Hub2Input` | `hub2_input.gd` | Invites standard -> touches / boutons, noms selon le périphérique, reconnaissance des événements |
-| écrans | `screens/hub2_*_panel.gd` | LABO, CONTRATS, ÉCHANGES, ARSENAL, INVENTAIRE, CODEX, JOUER, récapitulatif (provisoires) |
+| `Hub2Menu` | `hub2_menu.gd` | Menu du hub : REPRENDRE, OPTIONS, DOSSIER DE COMBAT, ÉCRAN TITRE (deux appuis en coop), QUITTER LE JEU |
+| `HubGear` | `hub_gear.gd` | Règles et textes des armes et pièces (nom, famille, filtre, refus de montage, tri des pièces, statistiques effectives) |
+| `HubMaps` | `hub_maps.gd` | Cartes jouables (jeu puis perso), définitions en cache, nom affiché, ligne du défi |
+| `HubRenders` | `hub_renders.gd` | Rendus Blender des armes, ennemis, échantillons, personnages |
+| `HubContractsView` | `scripts/game/hub/hub_contracts_view.gd` | Catalogue et jour du hub (surchargeables par les tests), contrats en cours / proposés, ouverture du hub (expirés, premier tableau) |
+| écrans | `screens/hub2_*_panel.gd` | LABO, CONTRATS, ÉCHANGES, ARSENAL, INVENTAIRE, CODEX, JOUER, récapitulatif |
 
 Shaders : `assets/shaders/hub2_box.gdshader` (plat),
 `hub2_glass.gdshader` (verre : mipmaps de l'écran + 16 échantillons
@@ -1059,8 +1083,9 @@ fiche de l'écran, sinon sous-écran -> parent, onglet -> LABO, JOUER ->
    graisse s'affiche en JetBrains Mono 500, comme dans le navigateur.
 4. Toute chaîne visible : `Lang.t(fr, en)` (FR et EN).
 5. Tests : `tests/test_hub2.gd` (cadre) ; les écrans ajoutent leurs tests
-   unitaires et, pendant leur développement, des captures dans
-   `tests/autotest/hub2_look.gd` (ou leur propre scénario `@rendu`).
+   unitaires et, pendant leur développement seulement, des captures dans
+   leur propre scénario `@rendu` (retiré une fois l'écran livré ; seul
+   `hub_look` garde quelques captures informatives du hub).
    Pas de fonction statique qui crée sa propre classe dans un script de
    Control (ressources encore utilisées à la sortie).
 
@@ -1076,8 +1101,9 @@ fiche de l'écran, sinon sous-écran -> parent, onglet -> LABO, JOUER ->
   lui (`Hub2Style.blur_barrier()` au besoin).
 - **Mesures de texte** : avances des glyphes de Godot (onglets à ±1,3 px des
   positions mesurées dans Chrome sur la maquette).
-- **Menu du hub** (REPRENDRE, OPTIONS…) : pas de maquette v2, celui de
-  l'ancien hub (`HubMenu`) est réutilisé tel quel.
+- **Menu du hub** (REPRENDRE, OPTIONS…) : pas de maquette v2 ; `Hub2Menu`
+  reprend celui de l'ancien hub (mêmes boutons, mêmes règles) avec les
+  jetons v2 (voile, verre, boutons des maquettes).
 - **Focus** : les maquettes ne le dessinent pas ; `Hub2Button` montre un
   cadre jaune de 2 px (manette, clavier), jamais à la souris.
 - **JOUER au clavier** : P (la maquette ne montre que START).
@@ -1092,9 +1118,7 @@ selon la situation, contrats prêts histoire + temporaires),
 infobulle, survol ou focus), `hub2_reward_popup.gd` (fenêtre de remise).
 Règles : `StoryRules` / `StoryData` (§5.7), `ContractRules`,
 `ExchangeRules`, `HubRewards`. Tests : `tests/test_story.gd`,
-`tests/test_hub2_labo.gd` ; captures pendant le développement :
-`tests/autotest/hub2_labo_look.gd` (`*_mockup` : contenu des maquettes,
-puis données réelles, anglais, 130 %).
+`tests/test_hub2_labo.gd` (dont les liens entre écrans).
 
 Commandes : CONTRATS — A / Entrée / clic : REMETTRE l'étape (anneaux
 quand elle est prête), remettre un contrat temporaire prêt (l'article a le
@@ -1103,8 +1127,10 @@ ABANDONNER le contrat temporaire choisi en deux appuis (l'article passe en
 rouge, « ABANDONNER ? »), B : annuler ; tuiles focusables (infobulle).
 ÉCHANGES — A : ÉCHANGER en deux appuis (« CONFIRMER », coût dans l'aide),
 Y / Tab / clic : POSSIBLES MAINTENANT ↔ TOUS. Fenêtre de remise : VOIR DANS
-L'ARSENAL (ouvre l'ARSENAL et appelle `show_item(uid)` si l'écran l'a), FERMER
-(B, clic à côté) ; les onglets et JOUER sont bloqués derrière elle.
+L'ARSENAL (ouvre l'ARSENAL sur l'objet reçu : `Hub2ArsenalPanel.show_item(uid)`
+choisit le sous-onglet ARMES ou PIÈCES, remet le filtre à TOUTES s'il le
+cachait, centre le rail et donne le focus à sa carte), FERMER (B, clic à
+côté) ; les onglets et JOUER sont bloqués derrière elle.
 
 Écarts avec les maquettes :
 - **Fenêtre de remise** : pas de maquette ; composée avec les jetons v2
@@ -1186,7 +1212,8 @@ portée, couche teintée) `hub2_render.gd`, petits éléments `hub2_ui.gd`.
 (`Router.last_match` pas encore vu : clé `recap_seen`), en solo comme en coop
 (CONTINUER : LABO, ou JOUER si le salon est encore ouvert ; « je suis revenu
 au salon » part dès le récapitulatif). L'écran de fin en partie ne montre
-plus le rapport d'XP ni le butin quand le hub v2 est actif.
+plus le rapport d'XP ni le butin (issue, manche, tableau des scores) : ils
+sont au récapitulatif.
 
 - Animation (temps `t` depuis l'affichage, `apply_time(t)` pose tout,
   testable) : XP 0,7 s + 3,8 s ease-out cubique ; à chaque passage de
@@ -1225,6 +1252,58 @@ plus le rapport d'XP ni le butin quand le hub v2 est actif.
 - TAILLE DES MENUS 130 % : la colonne XP du récapitulatif prend au plus 48 %
   de la largeur, les textes trop longs sont coupés ; les cartes perso
   défilent dans leur liste.
-- Captures de développement : `sh tools/scenario.sh hub2_play_look`
-  (`tests/_out/shots/hub2_play_look_*.png`) ; parcours complet :
-  `hub2_recap_flow` (partie -> récapitulatif, carte perso sans progression).
+- Parcours complet : `hub2_recap_flow` (partie -> récapitulatif, carte perso
+  sans progression) ; salon : `mp_hub2_lobby_*`.
+
+### 9.6 Bascule : le hub v2 devient le hub (2026-10-11) ✅
+
+Flux (tout passe par `MainMenu.SCREENS.hub` = `Hub2Screen`) :
+
+```
+Menu titre ─► JOUER ─► HUB, LABO
+HUB ─ JOUER (START / P) ─ SOLO : carte ─► LANCER ─► partie ─► écran de fin
+     │                                 ─► RÉCAPITULATIF ─► CONTINUER ─► LABO
+     └ COOP : HÉBERGER / REJOINDRE ─► salon (JOUER)
+                ─► partie ─► écran de fin ─► RÉCAPITULATIF (groupe connecté,
+                   LobbyReturn) ─► CONTINUER ─► JOUER (salon)
+Partie interrompue (session perdue) ─► message ─► HUB (LABO / JOUER) ;
+   sans écran demandé (Router.hub_tab vide) ─► message ─► menu titre
+Erreur réseau / déconnexion ─► sur place dans JOUER (vue COOP) si le hub
+   est affiché, sinon message ─► HUB, JOUER (COOP)
+Invité accepté par l'hôte ─► HUB, JOUER (salon)
+LABO ─ B / Échap / START ─► menu du hub (Hub2Menu) : REPRENDRE, OPTIONS,
+   DOSSIER DE COMBAT (retour : écran d'avant), ÉCRAN TITRE, QUITTER LE JEU
+```
+
+Liens entre écrans : LABO -> CONTRATS / ÉCHANGES ; fenêtre de remise
+(CONTRATS, ÉCHANGES) -> VOIR DANS L'ARSENAL (`show_item(uid)`) ; INVENTAIRE,
+A sur un échantillon -> le contrat en cours qui le demande
+(`Hub2ContractsPanel.select_item(id)`), sinon l'échange
+(`Hub2ExchangesPanel.select_item(id)`, filtre TOUS s'il était caché), sinon
+CONTRATS ; récapitulatif -> LABO ou JOUER (salon).
+
+Retiré : l'ancien hub (`scripts/ui/hub/`, 36 scripts supprimés : `HubScreen` et ses
+huit onglets, `HubStyle`, `HubBox`, `HubButton`, `HubIcon`…), le réglage
+caché `hub_v2` et l'argument `--hub2` (une ancienne clé `hub_v2` dans
+settings.cfg est ignorée puis effacée), le rapport d'XP et de butin de
+l'écran de fin (`Hud._show_xp_report`, `_show_loot_report` : remplacés par
+le récapitulatif), les scénarios de captures du développement
+(`hub2_look` devenu `hub_look`, `hub2_labo_look`, `hub2_arsenal_look`,
+`hub2_items_look`, `hub2_play_look`).
+
+Gardé et déplacé : `HubContractsView` (`scripts/game/hub/`), `HubGear`
+(`scripts/ui/hub2/`, réduit aux règles utilisées), cartes jouables de
+l'ancien `HubPlayView` -> `HubMaps`, aide du défi -> `Hub2PlayData.weekly_hint`,
+menu du hub -> `Hub2Menu`, pixel art de la pièce -> `Hub2ArsenalDraw.PART_ART`.
+
+Tests repris : règles d'armes et de pièces (`tests/test_hub_gear.gd`),
+annonce « objectif atteint » une fois par contrat (`test_contracts.gd`),
+jours restants (`test_hub_data.gd`), TAILLE DES MENUS (`test_settings.gd`),
+fiche de salon (`test_net_helpers.gd`), menu du hub et ÉCRAN TITRE en coop
+(`test_hub2.gd`), VOIR DANS L'ARSENAL et liens de l'INVENTAIRE
+(`test_hub2_labo.gd`, `test_hub2_arsenal.gd`), rendus des échantillons
+(`test_brancardier.gd`, `test_nurse.gd`, `test_surgeon.gd`) ; rapport de fin
+-> récapitulatif (`evacuation`, `loot_evac`, `loot_defeat`, `xp_match`,
+`weekly_challenge`, `mp_xp`) ; menus et salon (`menu_navigation`,
+`map_select`, `mp_lobby`, `mp_join`, `mp_custommap`, `mp_rematch` :
+`MpHelpers.host_from_hub`, `lobby_of`, `through_recap`).

@@ -13,9 +13,8 @@ func run() -> void:
 	timeout_sec = 120
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu")
 	MpHelpers._clear_sync()
-	Settings.hub_v2 = true
 	var menu: MainMenu = tree().current_scene
-	menu.show_screen("hub2", {"screen": "play"})
+	menu.show_screen("hub", {"screen": "play"})
 	await frames(3)
 	var hub: Hub2Screen = menu.current
 	var pp: Hub2PlayPanel = hub.panels.play
@@ -62,7 +61,6 @@ func run() -> void:
 		return
 	at.check(pp.lobby.launch_sub.text == "2 joueurs prêts sur 2", "après la partie : %s" % pp.lobby.launch_sub.text)
 	MpHelpers.signal_peer("retour_vu")
-	Settings.hub_v2 = false
 	await MpHelpers.finish(self)
 
 

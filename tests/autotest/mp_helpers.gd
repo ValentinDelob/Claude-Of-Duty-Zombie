@@ -20,29 +20,64 @@ static func port_offset() -> int:
 	return OS.get_environment("AUTOTEST_PORT_OFFSET").to_int()
 
 
-## Salon affiché dans l'onglet PARTIE du hub (HubPlayLobby), null s'il n'est
-## pas à l'écran (le salon n'est plus un écran à part : HUB_PLAN lot E).
-static func lobby_of(sc: AutotestScenario) -> HubPlayLobby:
+## Salon affiché dans l'écran JOUER du hub (Hub2LobbyView), null s'il n'est
+## pas à l'écran (le salon n'est pas un écran à part : HUB_PLAN §9).
+static func lobby_of(sc: AutotestScenario) -> Hub2LobbyView:
 	var s := sc.tree().current_scene as MainMenu
-	if s == null or s.current_name != "hub" or not (s.current is HubScreen):
+	if s == null or s.current_name != "hub" or not (s.current is Hub2Screen):
 		return null
-	var p := (s.current as HubScreen).panels.get("play") as HubPlayPanel
-	return p.lobby if p != null and p.view == HubPlayPanel.LOBBY and is_instance_valid(p.lobby) else null
+	var hub := s.current as Hub2Screen
+	if hub.current_id != "play":
+		return null
+	var p := hub.panels.get("play") as Hub2PlayPanel
+	return p.lobby if p != null and p.view == Hub2PlayPanel.LOBBY and is_instance_valid(p.lobby) else null
 
 
-## Hôte : HÉBERGER depuis l'onglet PARTIE du hub (vue COOP, port, nom), comme
+## Hôte : HÉBERGER depuis l'écran JOUER du hub (vue COOP, port, nom), comme
 ## au clavier ; rend le salon affiché (null en cas d'échec).
-static func host_from_hub(sc: AutotestScenario, port: int, nickname := "Hote") -> HubPlayLobby:
+static func host_from_hub(sc: AutotestScenario, port: int, nickname := "Hote") -> Hub2LobbyView:
 	var menu := sc.tree().current_scene as MainMenu
-	menu.show_screen("hub", {"tab": "play"})
+	menu.show_screen("hub", {"screen": "play"})
 	await sc.frames(3)
-	var pp := (menu.current as HubScreen).panels.play as HubPlayPanel
-	pp.coop_button.pressed.emit()
-	pp.host_port_edit.text = str(port)
+	var pp := (menu.current as Hub2Screen).panels.play as Hub2PlayPanel
+	pp.coop_tab.pressed.emit()
+	pp.port_edit.text = str(port)
 	pp.name_edit.text = nickname
 	pp.host_button.pressed.emit()
 	await sc.frames(3)
 	return lobby_of(sc)
+
+
+## Écran du hub affiché ("" : pas au hub).
+static func hub_screen(sc: AutotestScenario) -> String:
+	var s := sc.tree().current_scene as MainMenu
+	if s == null or not (s.current is Hub2Screen):
+		return ""
+	return (s.current as Hub2Screen).current_id
+
+
+## Retour d'une partie multijoueur : le groupe revient sur le
+## RÉCAPITULATIF ; CONTINUER (animation terminée d'abord) mène au salon
+## (JOUER). Rend le récapitulatif vu (null : pas de récapitulatif ou pas de
+## salon ensuite, l'échec est noté).
+static func through_recap(sc: AutotestScenario, timeout := 40.0) -> Hub2RecapPanel:
+	if not await sc.until(func(): return hub_screen(sc) == "recap", timeout, "récapitulatif au retour au salon"):
+		return null
+	var hub := (sc.tree().current_scene as MainMenu).current as Hub2Screen
+	var rp := hub.panels.get("recap") as Hub2RecapPanel
+	rp.finish()
+	rp.continue_button.pressed.emit()
+	if not await sc.until(func(): return lobby_of(sc) != null, 10.0, "CONTINUER : salon (JOUER)"):
+		return null
+	return rp
+
+
+## Joueurs du salon en lignes « Nom NIV.n » (cartes de Hub2LobbyView).
+static func player_lines(lobby: Hub2LobbyView) -> PackedStringArray:
+	var out := PackedStringArray()
+	for c in lobby.cards:
+		out.append("%s NIV.%d" % [String(c.name), int(c.lvl)])
+	return out
 
 
 ## « host » ou « client » (d'après le nom du scénario : mp_<test>_host / _client).

@@ -398,6 +398,43 @@ func set_tab(id: String) -> void:
 			c.grab_focus()
 
 
+## Objet `uid` (arme ou pièce du profil) choisi et montré : sous-onglet qui
+## le contient, filtre remis à TOUT s'il le cachait, fenêtre centrée dessus,
+## focus sur sa carte (VOIR DANS L'ARSENAL d'une récompense). Faux si
+## l'objet n'est pas dans l'arsenal.
+func show_item(uid: String) -> bool:
+	var pr := profile()
+	if pr == null or uid == "" or main_row == null:
+		return false
+	var want := ""
+	if pr.get_weapon(uid) != null:
+		want = WEAPONS
+	elif pr.get_part(uid) != null:
+		want = PARTS
+	if want == "":
+		return false
+	close_picker()
+	_disarm()
+	tab = want
+	if want == PARTS:
+		selected_part_uid = uid
+		if not Hub2ArsenalView.parts(pr, part_filter).any(func(p): return String(p.uid) == uid):
+			part_filter = "all"
+	else:
+		selected_uid = uid
+		if not Hub2ArsenalView.weapons(pr, filter).any(func(w): return String(w.uid) == uid):
+			filter = "all"
+	_reload(true)
+	var found := String(rail.selected().uid) == uid if rail.selected() != null else false
+	_apply_selection(true)
+	hub.call("refresh_prompts")
+	# Après le focus par défaut de l'ouverture (Hub2Screen.open, différé).
+	var c := selected_card()
+	if c and hub:
+		hub.focus_later(c)
+	return found
+
+
 func set_filter(f: String) -> void:
 	var list: Array = Hub2ArsenalView.PART_FILTERS if tab == PARTS else Hub2ArsenalView.FILTERS
 	if not f in list:

@@ -2,7 +2,7 @@ class_name UiStyle
 extends RefCounted
 ## Polices et couleurs de l'interface (menus, éditeur), propres au jeu :
 ## palette du « laboratoire en alerte » commune au HUD (HudStyle) et au hub
-## (HubStyle) : blanc os, jaune des bandes de danger, menthe des moniteurs,
+## (Hub2Style) : blanc os, jaune des bandes de danger, menthe des moniteurs,
 ## orange et rouge des alarmes. Polices système (non redistribuées) avec
 ## repli : Bahnschrift (condensée), Impact, puis sans-serif ; les grands
 ## titres et le logo sont en police en cubes (CubeFont, MenuStyle.title).
@@ -11,13 +11,13 @@ const BONE := Color(0.86, 0.84, 0.76)
 const DIM := Color(0.56, 0.55, 0.5)
 ## Valeurs mises en avant (niveau, statistiques) : laiton.
 const GOLD := Color(0.95, 0.78, 0.35)
-## Jaune des bandes de danger (sélection, jauges) : HubStyle.YELLOW.
+## Jaune des bandes de danger (sélection, jauges), proche de Hub2Style.YELLOW.
 const ACCENT := Color("E0B31F")
 const ACCENT_HI := Color("F2CC45")
 const ACCENT_LO := Color("A8840F")
 ## Menthe des moniteurs du laboratoire (intitulés de section) : HudStyle.ROUND.
 const MINT := Color(0.45, 0.95, 0.78)
-## Rouge-orange d'alarme (logo, avertissements) : HubStyle.RED_HI.
+## Rouge-orange d'alarme (logo, avertissements).
 const ALERT := Color("E0341F")
 
 static var _fonts: Dictionary = {}

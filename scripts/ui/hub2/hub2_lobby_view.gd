@@ -1,7 +1,7 @@
 class_name Hub2LobbyView
 extends VBoxContainer
 ## Salon coop du hub v2 (docs/hub_v2/PartieCoop.dc.html ; logique de l'ancien
-## salon HubPlayLobby : carte de l'hôte, carte perso envoyée et vérifiée,
+## salon de l'onglet PARTIE : carte de l'hôte, carte perso envoyée et vérifiée,
 ## défi de la semaine, retour du groupe après une partie).
 ##
 ##   - en-tête : SOLO / COOP (260 px), « Salon de <hôte> », « Tu héberges ·
@@ -59,7 +59,7 @@ func _ready() -> void:
 	_build_bottom()
 	if is_host:
 		map_ids = []
-		for m in HubPlayView.playable_maps():
+		for m in HubMaps.playable_maps():
 			map_ids.append(m.id)
 		map_id = Settings.last_map if Settings.last_map in map_ids else Game.MENU_MAPS[0]
 		if Net.lobby_map == "":
@@ -67,7 +67,7 @@ func _ready() -> void:
 		else:
 			map_id = Net.lobby_map if Net.lobby_map in map_ids else map_id
 		if Net.lobby_challenge != "":
-			var ch := HubPlayWeekly.current()
+			var ch := WeeklyChallenge.current()
 			if ch == null:
 				Net.set_lobby_challenge("")
 			elif ch.key != Net.lobby_challenge:
@@ -83,6 +83,9 @@ func _ready() -> void:
 func _signals() -> Array:
 	return [[Net.players_changed, _refresh], [Net.player_left, _on_left], [Net.lobby_map_changed, _on_lobby_map],
 		[Net.lobby_challenge_changed, _on_lobby_map], [Net.map_share.states_changed, _refresh],
+		# Carte perso de l'invité : téléchargée, vérifiée ou refusée (état
+		# local) -> aperçu et note de la carte.
+		[Net.map_share.states_changed, _refresh_map],
 		[Net.map_share.offer_changed, _refresh_map], [Net.map_share.local_failed, _on_local_failed],
 		[Net.lobby_return.changed, _refresh], [panel.shots.ready_shot, _on_shot]]
 
@@ -474,7 +477,7 @@ func map_name(id: String) -> String:
 		return CustomMapGuard.clean_display(Lang.t(String(nom.get("fr", "?")), String(nom.get("en", nom.get("fr", "?")))))
 	if id == "":
 		return "..."
-	var def := HubPlayView.def_of(id)
+	var def := HubMaps.def_of(id)
 	return Hub2PlayData.map_title(def) if def else "..."
 
 
@@ -505,7 +508,7 @@ func choose_map(id: String) -> bool:
 
 ## Hôte : défi de la semaine pour tout le groupe.
 func choose_weekly() -> bool:
-	var ch := HubPlayWeekly.current()
+	var ch := WeeklyChallenge.current()
 	if ch == null or not is_host or not apply_map(ch.map_id):
 		return false
 	Net.set_lobby_challenge(ch.key)
@@ -522,7 +525,7 @@ func _refresh_map() -> void:
 	var ch := WeeklyChallenge.from_key(Net.lobby_challenge) if Net.lobby_challenge != "" else null
 	map_label.text = Lang.t("CARTE · DÉFI DE LA SEMAINE", "MAP · WEEKLY CHALLENGE") if ch \
 			else Lang.t("CARTE · CHOISIE PAR L’HÔTE", "MAP · PICKED BY THE HOST")
-	var def: MapDef = HubPlayView.def_of(id) if id != "" and (not custom or is_host or share.local_state == "prete") else null
+	var def: MapDef = HubMaps.def_of(id) if id != "" and (not custom or is_host or share.local_state == "prete") else null
 	Hub2Ui.fill_waves(map_waves, def, 12, 3, 8, 6)
 	var note := ""
 	var tex: Texture2D = null
@@ -574,12 +577,12 @@ func open_picker() -> void:
 	m.closed.connect(panel._on_modal_closed)
 	panel.add_child(m)
 	var first: Control = null
-	var ch := HubPlayWeekly.current()
+	var ch := WeeklyChallenge.current()
 	if ch:
 		m.body.add_child(Hub2Ui.section(Lang.t("DÉFI DE LA SEMAINE", "WEEKLY CHALLENGE")))
 		var d := Hub2PlayData.weekly_card(ch, panel.profile())
 		var wr := m.add_row(String(d.title), String(d.line), String(d.left), Net.lobby_challenge != "")
-		wr.pressed.connect(_pick.bind(HubPlayWeekly.ROW_ID))
+		wr.pressed.connect(_pick.bind(HubMaps.WEEKLY_ROW))
 		first = wr
 	var lists := Hub2PlayData.map_lists()
 	for g in [[Lang.t("CARTES DU JEU", "GAME MAPS"), lists.game], [Lang.t("CARTES PERSONNALISÉES · POUR LE FUN", "CUSTOM MAPS · JUST FOR FUN"), lists.custom]]:
@@ -598,7 +601,7 @@ func open_picker() -> void:
 
 
 func _pick(id: String) -> void:
-	if id == HubPlayWeekly.ROW_ID:
+	if id == HubMaps.WEEKLY_ROW:
 		choose_weekly()
 	else:
 		if Net.lobby_challenge != "":

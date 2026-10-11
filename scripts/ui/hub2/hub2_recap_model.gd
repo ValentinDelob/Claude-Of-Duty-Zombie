@@ -52,7 +52,7 @@ func read(last: Dictionary, pr: PlayerProfile) -> Hub2RecapModel:
 	var m := self
 	var r: MatchResult = last.get("result") if last.get("result") is MatchResult else MatchResult.new()
 	m.map_id = String(last.get("map_id", ""))
-	var def := HubPlayView.def_of(m.map_id) if m.map_id != "" else null
+	var def := HubMaps.def_of(m.map_id) if m.map_id != "" else null
 	m.map_name = Hub2PlayData.map_title(def) if def else String(last.get("map", ""))
 	m.evacuated = r.evacuated
 	m.round_reached = r.round_reached

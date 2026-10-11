@@ -106,11 +106,17 @@ static func css_metrics(family: String, weight: int) -> Vector2:
 	return m
 
 
-## Pièce en pixel art (HubIcon « part », un pixel = un cube, contour noir),
-## centrée dans `box`, cellule de `cell` px ; `alpha` : opacité.
+## Pièce en pixel art (8 × 8, un pixel = un cube ; « M » acier clair, « n »
+## acier sombre, « . » vide).
+const PART_ART := ["...MM...", ".M.MM.M.", "..MMMM..", "MMMnnMMM", "MMMnnMMM", "..MMMM..", ".M.MM.M.", "...MM..."]
+const PART_PAL := {"M": "8C9196", "n": "5C6064"}
+
+
+## Pièce en pixel art (PART_ART, un pixel = un cube, contour noir), centrée
+## dans `box`, cellule de `cell` px ; `alpha` : opacité.
 static func draw_part_art(ci: CanvasItem, box: Rect2, cell: float, alpha := 1.0) -> void:
-	var rows: Array = HubIcon.ART.get("part", [])
-	var g := HubIcon.grid_size("part")
+	var rows: Array = PART_ART
+	var g := Vector2i(String(PART_ART[0]).length(), PART_ART.size())
 	var off := (box.position + (box.size - Vector2(g) * cell) * 0.5).floor()
 	var o := maxf(roundf(cell * 0.35), 1.0)
 	for pass_i in 2:
@@ -118,13 +124,13 @@ static func draw_part_art(ci: CanvasItem, box: Rect2, cell: float, alpha := 1.0)
 			var row := String(rows[y])
 			for x in row.length():
 				var ch := row[x]
-				if ch == "." or not HubIcon.PAL.has(ch):
+				if ch == "." or not PART_PAL.has(ch):
 					continue
 				if pass_i == 0:
 					ci.draw_rect(Rect2(off + Vector2(x * cell - o, y * cell - o), Vector2(cell + o * 2.0, cell + o * 2.0)),
 							Color(0, 0, 0, 0.85 * alpha))
 				else:
-					var col := Color(HubIcon.PAL[ch])
+					var col := Color(PART_PAL[ch])
 					col.a = alpha
 					ci.draw_rect(Rect2(off + Vector2(x * cell, y * cell), Vector2(cell, cell)), col)
 

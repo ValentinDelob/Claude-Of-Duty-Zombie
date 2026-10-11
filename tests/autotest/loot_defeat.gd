@@ -51,5 +51,7 @@ func run() -> void:
 	var pr := ProfileStore.load_profile()
 	at.check(pr.weapons.is_empty() and pr.parts.is_empty() and pr.samples.is_empty(), "rien ajouté au profil (armes, pièces, échantillons)")
 	at.check(pr.xp == r.xp and r.xp > 0, "XP gardée (%d)" % pr.xp)
-	at.check(game.hud.loot_report().begins_with(Lang.t("BUTIN PERDU", "LOOT LOST")), "rapport : « %s »" % game.hud.loot_report())
+	var rc: Hub2RecapModel = H.recap()
+	at.check(rc.loot_title() == Lang.t("BUTIN PERDU", "LOOT LOST") and rc.lost_text() != "",
+			"récapitulatif : « %s », perdu : %s" % [rc.loot_title(), rc.lost_text()])
 	ProfileStore.reset()

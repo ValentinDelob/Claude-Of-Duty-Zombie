@@ -7,11 +7,50 @@ extends TestCase
 ## /min, %, m, s, corps à corps « — »), effets et qualité des pièces, et le
 ## panneau dans le hub : cartes, navigation clavier / manette, fiche,
 ## installer (aperçu), retirer et recycler en deux appuis, armes de base,
-## sous-onglet PIÈCES, NEUF, anglais, 130 %.
-
-const DEMO := preload("res://tests/autotest/hub2_arsenal_look.gd")
+## sous-onglet PIÈCES, NEUF, anglais, 130 % ; VOIR DANS L'ARSENAL
+## (show_item : sous-onglet, filtre, sélection).
 
 var _saved := {}
+
+
+## Profil de la maquette : niveau 23 ; armes de la maquette (modèles réels
+## du jeu) rangées par niveau, pièces en stock de plusieurs niveaux.
+static func demo_profile() -> PlayerProfile:
+	var pr := PlayerProfile.new()
+	pr.xp = PlayerProfile.xp_for_level(23) + int(PlayerProfile.xp_to_next(23) * 0.643)
+	var R := OwnedWeapon.Rarity
+	var specs := [
+		["mp40", 1, R.COMMON, [], false],
+		["olympia", 3, R.RARE, [[3, {"damage": 0.06}]], false],
+		["m14", 5, R.COMMON, [], false],
+		["cz75", 8, R.RARE, [[6, {"fire_rate": 0.1}], [8, {"mag": 0.2}]], false],
+		["m16", 12, R.EPIC, [[10, {"accuracy": 0.15}], [11, {"damage": 0.1}]], false],
+		["m14", 14, R.RARE, [[12, {"reload": 0.12}]], false],
+		["stakeout", 18, R.RARE, [], true],
+		["python", 20, R.LEGENDARY, [[18, {"damage": 0.08}], [18, {"fire_rate": 0.06, "reload": -0.12}]], false],
+		["python", 20, R.RARE, [[15, {"damage": 0.05}]], false],
+		["spectre", 20, R.EPIC, [], true],
+		["galil", 24, R.UNIQUE, [], true],
+		["m14", 24, R.EPIC, [], false],
+	]
+	for s in specs:
+		var w := OwnedWeapon.create(s[0], s[1], s[2])
+		for pp in s[3]:
+			var mods: Dictionary = pp[1]
+			w.parts.append(WeaponPart.create("part_" + String(mods.keys()[0]), int(pp[0]), mods))
+		pr.add_weapon(w)
+		if not s[4]:
+			pr.mark_weapon_seen(w.uid)
+		for p in w.parts:
+			pr.mark_part_seen(p.uid)
+	for pp in [[3, {"damage": 0.12}], [7, {"fire_rate": 0.08, "accuracy": -0.05}], [7, {"mag": 0.25}],
+			[12, {"reload": 0.2}], [18, {"accuracy": 0.18, "damage": 0.05}], [22, {"damage": 0.22}]]:
+		var mods2: Dictionary = pp[1]
+		var p2 := WeaponPart.create("part_" + String(mods2.keys()[0]), int(pp[0]), mods2)
+		pr.add_part(p2)
+		if int(pp[0]) != 22:
+			pr.mark_part_seen(p2.uid)
+	return pr
 var _frame: Control
 
 
@@ -58,7 +97,7 @@ func _open(pr: PlayerProfile) -> CountingHub:
 	hub.size = Vector2(1280, 720)
 	mh.add_child(hub)
 	mh.current = hub
-	mh.current_name = "hub2"
+	mh.current_name = "hub"
 	hub.enter({"screen": "arsenal", "profile": pr})
 	await wait_frames(3)
 	return hub
@@ -321,7 +360,7 @@ func test_svg_icons_render() -> void:
 # --- Panneau dans le hub ---------------------------------------------------------
 
 func test_panel_rail_cards_and_sheet() -> void:
-	var pr: PlayerProfile = DEMO.demo_profile()
+	var pr: PlayerProfile = demo_profile()
 	var hub := await _open(pr)
 	var p: Hub2ArsenalPanel = hub.panels.arsenal
 	assert_true(p is Hub2ArsenalPanel and p.visible)
@@ -380,7 +419,7 @@ func test_panel_rail_cards_and_sheet() -> void:
 
 
 func test_install_remove_recycle() -> void:
-	var pr: PlayerProfile = DEMO.demo_profile()
+	var pr: PlayerProfile = demo_profile()
 	var hub := await _open(pr)
 	var p: Hub2ArsenalPanel = hub.panels.arsenal
 	# Arme avec un emplacement libre : le MÉTRONOME commun niveau 5 (1 place).
@@ -454,7 +493,7 @@ func test_install_remove_recycle() -> void:
 
 
 func test_parts_tab() -> void:
-	var pr: PlayerProfile = DEMO.demo_profile()
+	var pr: PlayerProfile = demo_profile()
 	var hub := await _open(pr)
 	var p: Hub2ArsenalPanel = hub.panels.arsenal
 	p.set_tab(Hub2ArsenalPanel.PARTS)
@@ -481,8 +520,30 @@ func test_parts_tab() -> void:
 	assert_eq(p.selected_weapon().uid, wuid)
 
 
+## VOIR DANS L'ARSENAL (show_item) : la pièce ou l'arme montrée, sous-onglet
+## changé, filtre remis à TOUTES s'il la cachait ; objet inconnu : rien.
+func test_show_item() -> void:
+	var pr: PlayerProfile = demo_profile()
+	var hub := await _open(pr)
+	var p: Hub2ArsenalPanel = hub.panels.arsenal
+	var part: WeaponPart = pr.parts[-1]
+	assert_true(p.show_item(part.uid), "pièce trouvée")
+	assert_eq(p.tab, Hub2ArsenalPanel.PARTS, "sous-onglet PIÈCES")
+	assert_eq(p.selected_part().uid, part.uid, "pièce choisie")
+	var w: OwnedWeapon = pr.weapons[0]
+	p.set_tab(Hub2ArsenalPanel.WEAPONS)
+	p.set_filter("melee")
+	assert_true(p.show_item(w.uid), "arme trouvée")
+	assert_eq(p.tab, Hub2ArsenalPanel.WEAPONS)
+	assert_eq(p.filter, "all", "filtre qui la cachait remis à TOUTES")
+	assert_eq(p.selected_weapon().uid, w.uid, "arme choisie")
+	assert_eq(p.rail.selected_level(), w.level, "fenêtre sur son niveau")
+	assert_false(p.show_item("w_inconnue"), "objet inconnu")
+	assert_eq(p.selected_weapon().uid, w.uid, "sélection gardée")
+
+
 func test_new_tag_and_english_and_130() -> void:
-	var pr: PlayerProfile = DEMO.demo_profile()
+	var pr: PlayerProfile = demo_profile()
 	var hub := await _open(pr)
 	var p: Hub2ArsenalPanel = hub.panels.arsenal
 	var news := 0

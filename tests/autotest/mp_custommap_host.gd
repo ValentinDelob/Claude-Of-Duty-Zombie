@@ -57,7 +57,7 @@ func run() -> void:
 	await until(func(): return tree().current_scene != null and tree().current_scene.name == "MainMenu", 5.0, "menu")
 	MpHelpers._clear_sync()
 	var lobby := await MpHelpers.host_from_hub(self, PORT)
-	at.check(lobby != null, "salon de l'hôte (onglet PARTIE du hub)")
+	at.check(lobby != null, "salon de l'hôte (écran JOUER du hub)")
 	if lobby == null:
 		return
 	var idx: int = lobby.map_ids.find("perso:arene_perso")
@@ -74,7 +74,7 @@ func run() -> void:
 			"carte envoyée au format %d, sur la grille (plafond %s)" % [sent.format_read, EditorMap.room_ceiling(sent.find("p3"))])
 	# Le fichier du joueur n'est pas réécrit par le salon.
 	at.check(FileAccess.get_file_as_string(cpath).contains("\"format\": 19"), "carte du dossier non réécrite")
-	at.check(not lobby.start_button.disabled, "seul dans le salon : DÉMARRER possible")
+	at.check(not lobby.launch_button.disabled, "seul dans le salon : LANCER possible")
 	# Carte choisie : l'invité peut arriver.
 	MpHelpers.signal_peer("ecoute")
 	# L'invité arrive : il reçoit la carte.
@@ -83,15 +83,15 @@ func run() -> void:
 	if not await until(func(): return _client_state().get("etat") == "telechargement" and int(_client_state().get("pct", 0)) >= 40, 20.0, "téléchargement en cours"):
 		return
 	await frames(2)
-	at.check(lobby.start_button.disabled and lobby.status_text() != "", "DÉMARRER grisé pendant le téléchargement : « %s »" % lobby.status_text())
+	at.check(lobby.launch_button.disabled and lobby.start_reason != "", "LANCER grisé pendant le téléchargement : « %s »" % lobby.start_reason)
 	at.check(not Net.start_match(Net.lobby_map) and not Net.match_started, "lancement refusé tant que l'invité n'a pas la carte")
-	var line: String = lobby.player_lines[1] if lobby.player_lines.size() > 1 else ""
-	at.check(line.contains("%"), "état de l'invité dans le salon : « %s »" % line)
+	at.check(lobby.cards.size() == 2 and not lobby.cards[1].ready, "invité pas encore prêt dans le salon (%s)" % str(lobby.cards))
+	at.check(lobby.launch_sub.text == "1 joueur prêt sur 2", "LANCER : « %s »" % lobby.launch_sub.text)
 	await at.screenshot("salon")
 	if not await until(func(): return _client_state().get("etat") == "prete", 30.0, "invité prêt"):
 		return
 	await frames(2)
-	at.check(not lobby.start_button.disabled, "DÉMARRER possible quand tout le monde a la carte")
+	at.check(not lobby.launch_button.disabled, "LANCER possible quand tout le monde a la carte")
 	at.check(share.sent_chunks == share.offer.chunks, "envoyée une fois (%d morceaux)" % share.sent_chunks)
 	share.test_chunks_per_sec = 0.0
 	await seconds(1.0)
@@ -109,7 +109,7 @@ func run() -> void:
 	at.check(_client_state().get("raison") == "hash", "raison : empreinte SHA-256 (%s)" % _client_state().get("raison"))
 	at.check(not Net.start_match(Net.lobby_map) and not Net.match_started, "partie non démarrée (carte corrompue)")
 	await frames(2)
-	at.check(lobby.start_button.disabled, "DÉMARRER grisé : « %s »" % lobby.status_text())
+	at.check(lobby.launch_button.disabled, "LANCER grisé : « %s »" % lobby.start_reason)
 
 	# 2. Empreinte juste mais contenu interdit (type d'objet inconnu, chemin).
 	var texts := m.file_texts()

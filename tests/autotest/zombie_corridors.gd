@@ -185,6 +185,10 @@ func start() -> bool:
 	# Carte refusée (une autre est chargée à sa place) : rien à mesurer.
 	var ok := nav != null and nav.is_walkable(w3(5.0, 22.0)) and absf(_clear_width(0) - 1.5) < 0.1
 	at.check(ok, "carte d'essai « couloirs » chargée (goulet de 1,5 m en place)")
+	# Hordes rejouables : graine du scénario reposée une fois la carte prête,
+	# indépendante des tirages faits pendant le chargement par d'autres
+	# systèmes (profil neuf, contrats… : une carte perso n'en crée pas).
+	seed(Autotest.rng_seed)
 	return ok
 
 

@@ -70,7 +70,7 @@ func _open(pr: PlayerProfile = null) -> Hub2Screen:
 	hub.size = Vector2(1280, 720)
 	_host.add_child(hub)
 	_host.current = hub
-	_host.current_name = "hub2"
+	_host.current_name = "hub"
 	hub.enter({"screen": "play", "profile": pr if pr else demo_profile()})
 	await wait_frames(3)
 	return hub
@@ -297,7 +297,7 @@ func test_host_lobby() -> void:
 	# CHANGER DE CARTE : défi de la semaine pour le groupe.
 	lobby.open_picker()
 	assert_true(p.modal != null)
-	lobby._pick(HubPlayWeekly.ROW_ID)
+	lobby._pick(HubMaps.WEEKLY_ROW)
 	assert_eq(Net.lobby_challenge, "2026-W47", "défi annoncé")
 	assert_eq(lobby.map_label.text, "CARTE · DÉFI DE LA SEMAINE")
 	lobby.open_picker()

@@ -181,8 +181,8 @@ func test_samples_xp() -> void:
 	var r: Array = XpRules.CATEGORY_RANGE[XpRules.MINIBOSS]
 	assert_true(XpRules.base_xp(XpRules.BRANCARDIER) >= r[0] and XpRules.base_xp(XpRules.BRANCARDIER) <= r[1], "dans la fourchette")
 	assert_eq(XpRules.kill_xp(XpRules.BRANCARDIER, 10), roundi(60 * XpRules.round_factor(10)))
-	assert_eq(HubIcon.sample_art("brancard_strap"), "strap", "icône du hub")
-	assert_eq(HubIcon.sample_art("brancard_bracelet"), "bracelet")
+	assert_true(HubRenders.has(HubRenders.sample_path("brancard_strap")), "rendu du hub : brancard_strap")
+	assert_true(HubRenders.has(HubRenders.sample_path("brancard_bracelet")), "rendu du hub : brancard_bracelet")
 
 
 func test_rotation_default() -> void:

@@ -89,7 +89,7 @@ func _srv_in_lobby() -> void:
 
 # ------------------------------------------------------------------ toutes les machines
 
-## Salon affiché (HubPlayLobby) : on le dit au serveur (sans effet hors retour).
+## Salon affiché (Hub2LobbyView) : on le dit au serveur (sans effet hors retour).
 func report_in_lobby() -> void:
 	if Net.is_online():
 		_srv_in_lobby.rpc_id(1)
