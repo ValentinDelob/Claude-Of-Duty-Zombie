@@ -38,7 +38,8 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
 | Chien (meute, vague spéciale) | `dog` | spécial | **12** | 28 | 46 | 60 |
 | Brancardier (vague spéciale) | `brancardier` | mini-boss | **60** | 141 | 231 | 300 |
 | Mini-boss (référence d'un nouveau mini-boss) | `miniboss` | mini-boss | **60** | 141 | 231 | 300 |
-| Boss (référence, aucun encore) | `boss` | boss | **240** | 564 | 924 | 1 200 |
+| Le Chirurgien (vague de boss) | `surgeon` | boss | **240** | 564 | 924 | 1 200 |
+| Boss (référence d'un nouveau boss) | `boss` | boss | **240** | 564 | 924 | 1 200 |
 
 - **Marcheur, coureur, sprinteur et rampant rapportent autant** : c'est le
   même zombie. Sa vitesse est tirée au hasard (le joueur ne la choisit pas) et
@@ -48,7 +49,7 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
   payer plus pousserait à garder des rampants en vie pour bloquer la manche.
   Les types restent comptés à part pour l'écran de fin.
 - Le type se lit sur l'entité au moment de la mort (`XpSystem.enemy_type_of`,
-  `XpRules.enemy_type`) : Brancardier (`Brancardier`), chien (`Hellhound`),
+  `XpRules.enemy_type`) : Chirurgien (`Surgeon`), Brancardier (`Brancardier`), chien (`Hellhound`),
   rampant (`Zombie.is_crawler`), sinon classe de vitesse (`RoundRules.WALK` /
   trot et `RUN` / `SPRINT`).
 - **Brancardier** (méthode du §6, provisoire) : 10 fois les PV d'un zombie
@@ -59,6 +60,16 @@ Code : `scripts/game/profile/xp_rules.gd` (`XpRules`, règles pures),
   rareté. Ses zombies d'escorte sont des zombies ordinaires (barème
   commun) ; la vague vaincue rapporte l'XP de vague spéciale (60) comme la
   meute.
+- **Le Chirurgien** (méthode du §6, provisoire) : 30 fois les PV d'un
+  zombie de sa manche seul (`SurgeonRules.health` ; la part des joueurs en
+  coop ne compte pas : l'XP ne grandit pas avec l'équipe, §5) → 30 × 4 =
+  **120** ; **+50 %** de dangerosité (combo au scalpel, scalpels lancés,
+  onde de choc qui projette, patients relevés) → **180** ; **+1/3** de
+  rareté (un seul pour toute l'équipe, une vague sur trois toutes les 15
+  manches) → **240**, la valeur de référence des boss, au milieu de la
+  fourchette. Son élimination va au seul tueur ; la **vague de boss**
+  vaincue rapporte **240** × bonus de manche à chaque joueur vivant. Son
+  escorte et les patients de ses opérations sont des zombies ordinaires.
 
 ### Autres sources
 
@@ -104,9 +115,12 @@ vérifiée à ±20 % par `test_calibrage`), à partir des vraies règles
 (`RoundRules.zombie_count`, `DogRules.dog_count`, schéma des vagues par
 défaut, `XpRules`) et d'un joueur type :
 
-- vagues spéciales en rotation (schéma par défaut : meute 5, Brancardier 10,
-  meute 15…) ; Brancardier : 25 s pour abattre le sien, plus l'annonce et
-  son escorte (5 zombies par joueur) ;
+- vagues spéciales en rotation et boss (schéma par défaut : meute 5,
+  Brancardier 10, Chirurgien 15, meute 20…) ; Brancardier : 25 s pour
+  abattre le sien, plus l'annonce et son escorte (5 zombies par joueur) ;
+  Chirurgien : 120 s pour abattre le boss, plus l'annonce, son escorte
+  (6 par joueur) et les patients de ses deux opérations (2 par joueur
+  chacune) ; seul le tueur compte son élimination ;
 - 3 s par zombie et par joueur, 4 s par chien ; 25 s de plus par manche
   (entracte de 10 s, trajet) ; 30 s d'évacuation ; 90 s par partie
   (chargement, écran de fin, hub) ;
@@ -119,18 +133,21 @@ Résultat :
 | Partie type (solo) | XP | Éliminations | Durée | XP / h |
 |---|---|---|---|---|
 | Évacuation manche 10 | 2 296 | 169 | 15,3 min | 9 004 |
-| Évacuation manche 15 | 5 121 | 325 | 25,4 min | 12 097 |
-| Évacuation manche 20 | 9 746 | 537 | 38,5 min | 15 169 |
-| Évacuation manche 25 | 16 953 | 821 | 55,1 min | 18 466 |
+| Évacuation manche 15 (après le Chirurgien) | 6 621 | 330 | 27,5 min | 14 446 |
+| Évacuation manche 20 | 11 209 | 542 | 40,4 min | 16 647 |
+| Évacuation manche 25 | 18 323 | 824 | 57,0 min | 19 270 |
 
 | Niveau | Visé | Solo | 4 joueurs |
 |---|---|---|---|
 | 10 | 3 h | **2,5 h** | 2,7 h |
-| 25 | 25 h | **24,1 h** | 24,5 h |
-| 50 | 120 h | **126,0 h** | 122,5 h |
+| 25 | 25 h | **20,4 h** | 23,7 h |
+| 50 | 120 h | **116,0 h** | 122,5 h |
 
 Le niveau 10 arrive un peu avant 3 h (progression visible dès les premières
-parties, §2 du concept). En coop, chaque joueur tue moins de zombies (le
+parties, §2 du concept). Le Chirurgien (manche 15) accélère le milieu de la
+progression : le niveau 25 arrive vers 20 h en solo (−18 %, dans la
+tolérance de ±20 % ; avant le boss : 24 h) ; à re-mesurer en jeu (durée
+réelle du combat de boss, `SURGEON_PACE`) avant de toucher au barème. En coop, chaque joueur tue moins de zombies (le
 nombre de zombies ne croît pas linéairement avec les joueurs), mais les
 manches et vagues partagées compensent : le rythme reste proche du solo.
 

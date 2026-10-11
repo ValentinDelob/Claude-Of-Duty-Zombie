@@ -201,7 +201,30 @@ Dead* ; aucun élément du lore Aether / Élément 115 de Call of Duty.
   docs/MAP_AUTHORING.md) : l'éditeur coche les types permis (défaut : tous) ;
   ils reviennent **à tour de rôle** : la k-ième vague spéciale du schéma est
   du type n° (k − 1) modulo le nombre de types (manches de boss exclues).
-  Par défaut : meute à la manche 5, Brancardier à la 10, meute à la 15…
+  Par défaut : meute à la manche 5, Brancardier à la 10, **boss à la 15**,
+  meute à la 20, Brancardier à la 25, boss à la 30…
+- ✔️ **Vagues de boss** (format de carte 22) : schéma configurable par carte
+  dans l'éditeur comme les vagues spéciales (défaut 💡 : toutes les 15
+  manches ; 1re manche 0 : carte sans boss) ; types de boss permis
+  (`types_boss`, défaut : tous) en rotation ; une manche prévue pour les
+  deux est une vague de boss. L'évacuation s'ouvre après une vague de boss
+  vaincue comme après une vague spéciale.
+- ✔️ **Le Chirurgien**, premier boss (provisoire, §6 bis) : ancien chef du
+  bloc opératoire, géant voûté de 2,3 m en cubes de 2,5 cm, blouse verte
+  ensanglantée, coiffe, masque déchiré, loupes, gants de latex et un
+  **scalpel géant** ; **un seul** par vague, PV selon le nombre de joueurs,
+  plus fort à chaque apparition ; **escorte** de 6 zombies par joueur ;
+  attaques **télégraphiées** : combo au scalpel au contact (la lame brille,
+  « chiing », puis 2 entailles, 3 enragé), **éventail de scalpels** lancés à
+  distance (projectiles visibles qu'on esquive), **opération** à 75 % et
+  25 % des PV (il se penche sur un patient invisible et relève des zombies
+  autour de lui), **phase 2** sous 50 % (il rugit, onde de choc qui
+  projette, puis enragé : plus rapide, plus de coups) ; **point faible** :
+  son **cœur mutant** qui bat et brille à vif dans sa poitrine ; jauge de
+  vie en haut de l'écran ; mort : main sur le cœur, il tombe en arrière
+  d'un bloc ; échantillons **scalpel** et **cœur mutant** (20 % sur chaque
+  zombie de sa vague, à coup sûr sur lui) ; 2 armes par joueur, plus rares
+  que celles d'un mini-boss ; bandeau « LE CHIRURGIEN ENTRE AU BLOC ».
 - ✔️ **Le Brancardier** (provisoire, §6 bis) : ancien brancardier de
   l'hôpital devenu une brute de 2,25 m en cubes de 2,5 cm, son brancard
   sanglé dans le dos ; **un par joueur**, avec une **escorte** de 5 zombies
@@ -489,8 +512,8 @@ de 2,5 cm** (§ 4.19).
     (« +N XP », compteur de partie), puis ajoutée **une fois** au profil à la
     fin, quelle que soit l'issue (ou si le joueur quitte) ; l'écran de fin
     montre le détail, le niveau avant / après et la progression ;
-  - simulation de calibrage : niveau 10 en ≈ 2,5 h, 25 en ≈ 24 h, 50 en
-    ≈ 126 h (vagues spéciales en rotation, Brancardier compris) ;
+  - simulation de calibrage : niveau 10 en ≈ 2,5 h, 25 en ≈ 20 h, 50 en
+    ≈ 116 h (vagues spéciales en rotation, Brancardier et Chirurgien compris) ;
   - les contrats (§4.2) ajouteront leur XP au hub ; le niveau du joueur y
     servira pour l'arme ou la pièce offerte.
 
@@ -511,8 +534,8 @@ de 2,5 cm** (§ 4.19).
   avec l'XP. Une fiche inconnue ne montre que la manche à partir de laquelle
   l'ennemi peut apparaître ; une fiche connue montre nom, description,
   éliminations, échantillons et XP. Fiches dans
-  `assets/data/hub/codex.json` (Infirmière hurlante et Chirurgien déjà
-  prévus, manches 20 et 30 provisoires).
+  `assets/data/hub/codex.json` (Infirmière hurlante prévue, manche 20
+  provisoire ; le Chirurgien est en jeu : manche 15, son propre barème).
 
 ### 4.18 Défi hebdomadaire ✅
 - Un défi identique pour tout le monde chaque semaine (même carte, mêmes
@@ -619,6 +642,7 @@ Ce qui existe déjà, hérité du clone de Black Ops 1 Zombies, et ce qu'on en f
 | Manches et vagues, nombre de zombies selon les joueurs, PV selon la manche | 🧪 | **Garder** (cœur du jeu) |
 | Vagues de chiens (`scripts/game/dogs`) | ✔️ | **Adaptées** en première vague spéciale, la « meute » : chiens errants contaminés en cubes de 2,5 cm (`dog_voxel.py`) ; mise en scène propre au jeu : bandeau « LA MEUTE APPROCHE », alerte de confinement (sirène, Geiger), compteur en alerte orange, aboiements lointains, chiens tapis hors de vue qui jaillissent, mort sur le flanc (ni éclair ni brouillard façon BO1) |
 | Vague spéciale du Brancardier (`scripts/game/brancardier`) | ✔️ | **Nouveau** mini-boss original (§4.4), en rotation avec la meute ; modèle en cubes de 2,5 cm (`brancardier_voxel.py`), charge télégraphiée, projection, étourdi contre un mur, escorte, sons procéduraux, coop (hôte autoritaire) |
+| Vague de boss du Chirurgien (`scripts/game/surgeon`) | ✔️ | **Nouveau** premier boss original (§4.4), toutes les 15 manches par défaut ; modèle en cubes de 2,5 cm (`surgeon_voxel.py`), cœur mutant lumineux (point faible), combo au scalpel, scalpels lancés, opérations qui relèvent des zombies, phase 2 avec onde de choc, jauge de vie, escorte, sons procéduraux, coop (hôte autoritaire) |
 | Points par élimination | 🧪 | **Adapter** en ferraille personnelle (§4.8) |
 | Portes payantes | 🧪 | **Garder**, payées en ferraille |
 | Achats muraux | ✔️ | **Supprimés** (remplacés par la station de construction) |
@@ -700,14 +724,14 @@ corriger.
 | Ferraille par touche | **10** par touche de balle ou de couteau qui ne tue pas (tir de fusil à pompe : une touche par zombie) ; 0 pour une explosion, une brûlure, un piège ou le téléporteur ; au plus **10 touches payées par zombie**, tous joueurs confondus | `PointsRules.HIT`, `HIT_CAP` |
 | Énergie | 0 à 100 ; course 25/s ; saut 10 ; couteau 8, couteau de chasse 10, batte 15 ; recharge 40/s après 0,4 s ; **épuisé** de 0 jusqu'à 50 | `docs/ENERGY_PLAN.md` |
 | Essoufflement | silencieux au-dessus de 35 % ; halètement tant que le joueur est épuisé ; la respiration de santé basse passe avant | `BreathFeedback` |
-| XP par élimination | selon le type, à la manche 1 : marcheur, coureur, sprinteur, rampant **4** ; chien **12** ; Brancardier **60** (mini-boss) ; mini-boss (référence) **60** ; boss (référence) **240** ; × bonus de manche **1 + 0,15 × (manche − 1)**, plafonné à **×5** ; au seul tueur (piège : celui qui l'a activé) | `XpRules`, `docs/XP_RULES.md` |
+| XP par élimination | selon le type, à la manche 1 : marcheur, coureur, sprinteur, rampant **4** ; chien **12** ; Brancardier **60** (mini-boss) ; Chirurgien **240** (boss) ; mini-boss (référence) **60** ; boss (référence) **240** ; × bonus de manche **1 + 0,15 × (manche − 1)**, plafonné à **×5** ; au seul tueur (piège : celui qui l'a activé) | `XpRules`, `docs/XP_RULES.md` |
 | XP hors élimination | manche survécue **3 × manche** ; vague spéciale vaincue **60**, vague de boss **240** (× bonus de manche) ; à chaque joueur non mort à la fin de la manche ; évacuation **+25 %** de l'XP de la partie | `XpRules` |
 | XP gardée | comptée par l'hôte pendant la partie, ajoutée une fois au profil à la fin (évacuation ou défaite) ou au départ d'un joueur en cours de partie (sans bonus) ; le niveau ne change pas pendant la partie | `XpSystem`, `MatchXp` |
 | Armes de base | pistolet de départ (PÉTOIRE) et batte de baseball (BATTE, arme de corps à corps tenue en main) ; sélection par défaut : les deux ; un ancien profil qui avait choisi le couteau reçoit la batte | `BaseWeapons` |
 | Évacuation : vote | touche d'interaction près de la porte ; 1er appui « partir », puis alterne « prêt » / « partir » | `EvacRules` |
 | Évacuation : départ | tous les joueurs non morts ont voté « partir » et sont debout dans la zone (4 m × 3,5 m devant la porte) | `EvacRules` |
 | Évacuation : reprise | tous « prêt », ou fin des 2 min : manche suivante 3 s plus tard | `EvacRules` |
-| Vague spéciale et boss la même manche | vague de boss si la carte a un boss, sinon vague spéciale | `WaveRules` |
+| Vague spéciale et boss la même manche | vague de boss si la carte a un boss (vagues de boss prévues : 1re manche > 0 ; par défaut oui, le Chirurgien), sinon vague spéciale | `WaveRules.has_boss` |
 | Commandes de l'équipement | 1 / 2 / 3 : arme en main ; Q (A en AZERTY) et molette : arme suivante ; I : panneau d'inventaire (Échap ferme). Manette : Y arme suivante, croix gauche / bas / droite armes 1 à 3, croix haut inventaire (B ferme) | `Settings` |
 | Panneau d'inventaire | la partie continue (même en solo), le joueur ne bouge plus et ne tire plus tant qu'il est ouvert ; une case en main puis une case d'inventaire : échange ; une case vide d'un côté : l'arme passe simplement | `InventoryPanel`, `GameWeapon.swap` |
 | Modificateurs des pièces | fractions additionnées par statistique, **positif = bonus** : dégâts, cadence, chargeur, réserve × (1 + m) ; rechargement, recul, précision (dispersion) ÷ (1 + m) ; facteur jamais sous 0,1 ; noms `damage`, `fire_rate`, `reload`, `recoil`, `accuracy`, `mag`, `reserve` | `GameWeapon.MODS` |
@@ -726,18 +750,24 @@ corriger.
 | Modificateurs d'une pièce trouvée | un premier modificateur toujours en bonus ; 35 % de chances d'un second (autre statistique), malus une fois sur deux ; valeurs de 5 à 25 % par pas de 1 % ; identifiant `part_<1er modificateur>` | `LootRules.roll_part` |
 | Pièces et échantillons | rangés directement dans l'onglet de partie (pas d'objet au sol) ; compteur discret à droite du HUD | `LootSystem` |
 | Échantillons des chiens | `dog_fang` (croc), `dog_fur` (touffe de poils), `dog_collar` (collier) | `LootRules.SAMPLES` |
-| Rotation des vagues spéciales | types permis par la carte (défaut : meute et Brancardier) à tour de rôle dans l'ordre meute, Brancardier : la k-ième vague spéciale du schéma est du type n° (k − 1) mod n (manches de boss exclues) ; meute 5, 15, 25…, Brancardier 10, 20, 30… ; conséquence : sur une carte aux deux types, chaque type revient deux fois moins souvent (contrats des chiens ≈ 2 fois plus longs à remplir) | `WaveRules.special_type_at`, format de carte 21 |
+| Rotation des vagues spéciales | types permis par la carte (défaut : meute et Brancardier) à tour de rôle dans l'ordre meute, Brancardier : la k-ième vague spéciale du schéma est du type n° (k − 1) mod n (manches de boss exclues) ; avec le boss par défaut (15, 30…) : meute 5, 20, 35…, Brancardier 10, 25, 40… ; conséquence : sur une carte aux deux types, chaque type revient deux fois moins souvent (contrats des chiens ≈ 2 fois plus longs à remplir) | `WaveRules.special_type_at`, format de carte 21 |
 | Brancardier : composition | **1 par joueur** (au plus 6, 4 vivants à la fois), apparition à 12–28 m, hors de vue de préférence, 4 s entre deux ; **escorte** de **5 zombies ordinaires par joueur** (au plus 20) après l'annonce de 6 s ; la vague finit quand Brancardiers et escorte sont tués | `BrancardRules` |
 | Brancardier : PV | **10 × PV d'un zombie de la manche × (1 + 0,2 × (rang − 1))**, rang = n° de sa vague dans la partie : manche 10 (1re) 10 500, manche 20 (2e) 24 600, manche 30 (3e) 42 700 ; modificateur « zombies coriaces » du défi appliqué | `BrancardRules.health` |
 | Brancardier : charge | portée 4 à 15 m, en vue, même niveau, corps qui passe ; 5 s entre deux ; préparation **1,3 s** (immobile, sabot qui gratte 3 fois, rugissement, yeux qui flamboient) ; charge **8,5 m/s**, 2,2 s au plus, traverse zombies et joueurs ; joueur sur sa route (1,15 m) : **45 dégâts** et projection (7 m/s devant, 4,5 m/s de côté, 3,5 m/s en l'air, 0,35 s), une fois par charge ; mur de face : **étourdi 3 s** (immobile, recule d'un pas) | `BrancardRules` |
 | Brancardier : contact et déplacement | marche lourde 1,7 m/s ; coup des deux poings à 1,6 m, **60 dégâts** à 0,6 s (portée 2 m) ; aucun démembrement, ignore la peluche leurre ; point faible : la tête (multiplicateur de tête de l'arme, aucune résistance) | `Brancardier` |
 | Échantillons du Brancardier | `brancard_strap` (sangle de cuir), `brancard_bracelet` (bracelet d'identification), 20 % chacun sur **chaque zombie de la vague** (escorte comprise : à un joueur, 6 tirages par vague, comme la première meute) | `LootRules.SAMPLES`, `LootSystem.special_kind` |
 | Brancardier : nom anglais | « Stretcher-Bearer » ; bandeau « UN BRANCARDIER APPROCHE » / « A STRETCHER-BEARER IS COMING » (coop : « DES BRANCARDIERS APPROCHENT ») | `BrancardRound` |
+| 💡 Vagues de boss : schéma | défaut **toutes les 15 manches** (15, 30, 45…), réglable par carte dans l'éditeur (1re manche, écart ; 0 : aucun boss) ; types de boss permis (`types_boss`, défaut : tous, aujourd'hui le Chirurgien seul) en rotation ; carte d'un format ≤ 21 : défaut | `WaveRules`, format de carte 22 |
+| 💡 Chirurgien : composition | **un seul** par vague de boss, apparition à 14–30 m d'un joueur, hors de vue de préférence, après l'annonce de **7 s** ; **escorte** de **6 zombies ordinaires par joueur** (au plus 24) ; la vague finit quand le boss, l'escorte et ses patients sont tués ; égaré loin des joueurs : replacé près d'eux avec ses PV | `SurgeonRules`, `SurgeonRound` |
+| 💡 Chirurgien : PV | **30 × PV d'un zombie de la manche × (1 + 0,75 × (joueurs − 1)) × (1 + 0,25 × (rang − 1))** : manche 15 seul 46 500, à 4 151 125 ; manche 30 (2e) seul 114 375 ; modificateur « Peau de cuir » du défi appliqué (comme sa vitesse « Horde pressée ») | `SurgeonRules.health` |
+| 💡 Chirurgien : attaques | marche 1,9 m/s (enragé 2,7) ; **combo** au contact (< 2,3 m) : préparation **0,65 s** (0,42 enragé, lame qui brille), **2 entailles** (3 enragé) de 0,42 s avec une fente, **35 dégâts** chacune dans un arc de ±66° à 2,7 m, 1,4 s avant le suivant ; **scalpels** à 5–20 m en vue : préparation **0,85 s** (0,6), éventail de **3** (5) scalpels à 15 m/s, **22 dégâts** chacun, un toutes les 6,5 s (4) ; **opérations** à **75 %** et **25 %** des PV : 3,2 s immobile, **2 patients par joueur** (au plus 8), zombies ordinaires de la manche ; **phase 2** à **50 %** : rugissement 2,2 s, **onde de choc** à 4,5 m (**20 dégâts**, projection) ; point faible : le **cœur** (multiplicateur de tête de l'arme), la tête compte comme le corps ; ni démembrement, ni leurre | `SurgeonRules`, `Surgeon` |
+| 💡 Chirurgien : butin | échantillons `surgeon_scalpel` (scalpel), `surgeon_heart` (cœur mutant), **20 %** chacun sur chaque zombie de sa vague (escorte, patients) et **à coup sûr** sur lui, pour chaque joueur (seul : ≈ 3 de chaque par vague) ; **2 armes par joueur**, raretés de boss : commune 40 %, rare 27 %, épique 20 %, légendaire 9 %, unique 4 % | `LootRules.SAMPLES`, `BOSS_SAMPLE_CHANCE`, `RARITY_WEIGHTS_BOSS` |
+| 💡 Chirurgien : textes | « The Surgeon » ; bandeaux « LE CHIRURGIEN ENTRE AU BLOC » / « THE SURGEON IS SCRUBBING IN », « IL OPÈRE : LES PATIENTS SE RELÈVENT », « LE CHIRURGIEN PERD PATIENCE », « LE CHIRURGIEN RACCROCHE SA BLOUSE » ; jauge « LE CHIRURGIEN » en haut de l'écran | `SurgeonRound`, `BossBar` |
 | Butin rapporté | armes en main et inventaire, sauf armes de base intactes et pistolet prêté ; exemplaire construit depuis l'arsenal (même `uid`) et amélioré en partie : cette version mise à jour (niveau, rareté, pièces), intact : rien, second exemplaire différent : nouvelle version ; pièces non montées ; échantillons | `ProfileLoot` |
 | Hub (2D, lots A, B, D et E codés) | **écrans 2D à onglets** (LABO, ARSENAL, PIÈCES, CONTRATS, ÉCHANGES, DÉPART, PARTIE) ; hub 3D (laboratoire) plus tard, qui ouvrira les mêmes panneaux ; menu titre réduit à JOUER, ÉDITEUR, OPTIONS, CRÉDITS, QUITTER ; solo / coop choisis dans PARTIE ; en coop, le salon est l'onglet PARTIE (le groupe reste connecté) ; puissance non affichée (§4.13), meilleur score de l'arsenal à la place ; retirer une pièce et recycler : deux appuis | `docs/HUB_PLAN.md` |
 | Contrats : tableau | **5 propositions, 3 actifs** ; rotation **par partie** (≥ 1 manche survécue) : 1 proposition (la plus ancienne) remplacée, cases vides remplies ; une proposition acceptée laisse sa case vide jusqu'à la partie suivante ; tirage pondéré sans doublon, graine du profil ; manches survécues = max(relevé d'XP, manche atteinte − 1) ; une partie quittée après une manche compte aussi ; récompense au niveau du joueur avant l'XP du contrat | `ContractRules`, `MatchContracts`, `docs/HUB_PLAN.md` §5 et lot A |
 | Contrats : récompense | XP = XP de base × (1 + 0,02 × (niveau − 1)), arrondie à 10 ; arme ou pièce au niveau du joueur à la remise ; rareté de l'arme selon les parties nécessaires (< 1,5 commune, 1,5 à 3 rare, 3 à 5 épique, > 5 légendaire ; unique : contrats datés exceptionnels seulement) ; qualité d'une pièce : ordinaire (tirage du butin), soignée (2 bonus de 10 à 25 %), d'exception (2 bonus de 18 à 25 %) ; XP ≈ 25 % de l'XP des parties nécessaires, +25 % si daté | `docs/HUB_PLAN.md` §5, §7 |
-| Contrats et échanges d'exemple | 11 contrats et 7 échanges : 8 et 5 sur les échantillons des chiens, 3 et 2 sur ceux du Brancardier (fichiers `assets/data/hub/`) | `docs/HUB_PLAN.md` §7 |
+| Contrats et échanges d'exemple | 14 contrats et 9 échanges : 8 et 5 sur les échantillons des chiens, 3 et 2 sur ceux du Brancardier, 3 et 2 sur ceux du Chirurgien (fichiers `assets/data/hub/`) | `docs/HUB_PLAN.md` §7 |
 | Échanges | pas d'XP, illimités, objet précis au niveau du joueur | `docs/HUB_PLAN.md` §6 |
 | Taille des menus | nouveau réglage 80 à 130 % (défaut 100 %) pour le hub et les menus, même technique que la taille de l'éditeur | `docs/HUB_PLAN.md` §4.2 |
 | Hub : onglet PARTIE et retour | fin d'une partie solo (ou départ en solo) : hub, onglet LABO (« dernière partie ») ; coop : hub, onglet PARTIE (salon) ; session perdue : hub, onglet PARTIE, message sur place ; salon : niveau et armes de départ de chacun affichés (non vérifiés par l'hôte) ; pas de bouton PRÊT (l'état AU SALON en tient lieu) ; QUITTER LE SALON et ÉCRAN TITRE en coop : deux appuis | `HubPlayPanel`, `docs/HUB_PLAN.md` lot E |
@@ -771,6 +801,11 @@ corriger.
   mini-boss revient deux fois moins souvent (contrats d'un type plus longs à
   remplir). Garder la rotation stricte, ou tirer le type au hasard, ou
   rapprocher les vagues spéciales (toutes les 4 manches) ?
+- Chirurgien : valeurs provisoires (§6 bis) à régler en jeu (PV et part des
+  joueurs, durée des préparations, dégâts, nombre de patients, échantillons
+  à coup sûr sur le boss, raretés du butin de boss) ; boss toutes les 15
+  manches : la rotation des vagues spéciales décale meute et Brancardier
+  (5, 10, puis 20, 25…).
 - Brancardier : valeurs provisoires (§6 bis) à régler en jeu (PV, durée de
   la préparation, dégâts et projection de la charge, taille de l'escorte).
 

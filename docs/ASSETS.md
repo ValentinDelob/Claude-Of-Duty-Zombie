@@ -351,6 +351,17 @@ source n'est pas en cache, `tools/audio/sfx_import.gd`).
   contre un mur et poings abattus (`brancard_impact` : impact grave, cadre
   d'acier qui claque, gravats), joueur percuté (`brancard_hit`), mort
   (`brancard_death`).
+- Le Chirurgien (sons **procéduraux**, `tools/gen_audio.gd`, catégories
+  `chirurgien*` de `SfxLoudness`, sans baisser les autres sons) : bips de
+  moniteur qui s'accélèrent et rire étouffé à l'annonce (`surgeon_monitor`,
+  `surgeon_laugh`), grognements sifflants (`surgeon_groan_1..2`), pas en
+  surchaussures (`surgeon_step_1..2`), lame qui brille avant chaque attaque
+  (`surgeon_glint`), entaille (`surgeon_slash`), lancer de l'éventail
+  (`surgeon_throw`), scalpel planté dans le décor (`surgeon_scalpel_hit`),
+  joueur coupé (`surgeon_cut`), opération : scie à os et bips affolés
+  (`surgeon_surgery`), cri de rage du changement de phase (`surgeon_roar`),
+  battements du cœur mutant de près (`surgeon_heartbeat`), mort : râle puis
+  moniteur en ligne plate (`surgeon_death`).
 - Voix des zombies (groupe `zombie`) plafonnées à 7 simultanées, pas traînants
   (groupe `zombie_step`) à 4 et seulement à moins de 14 m ; au-delà, la voix
   la plus lointaine est remplacée par une plus proche (`Audio._group_voice`).
