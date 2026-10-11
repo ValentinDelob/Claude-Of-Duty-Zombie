@@ -2864,6 +2864,25 @@
     "en": "The Surgeon will see you now",
     "fr": "Le Chirurgien va vous recevoir"
    }
+  },
+  "v0.2.1-snapshot.668": {
+   "channel": "snapshot",
+   "date": "2026-10-11",
+   "images": [],
+   "items": [
+    {
+     "en": "Your first-person hands now wear the baseball player's batting gloves, in your team colour.",
+     "fr": "Tes mains en vue subjective portent maintenant les gants de batteur du joueur de baseball, à ta couleur d'équipe."
+    },
+    {
+     "en": "The decoy plush plays a brand new creepy little music box waltz, and hops to its beat.",
+     "fr": "La peluche leurre joue une toute nouvelle valse de boîte à musique, un peu inquiétante, et sautille en rythme."
+    }
+   ],
+   "title": {
+    "en": "Gloves on",
+    "fr": "Gants enfilés"
+   }
   }
  }
 }
