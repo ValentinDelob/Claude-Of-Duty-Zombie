@@ -23,16 +23,13 @@ func run() -> void:
 	p.teleport_to(home, PI * 0.5)
 	# ------------------------------------------------ charge
 	var phases := {}
-	var t := 0.0
 	var k0 := p.knockbacks
-	while t < 40.0:
+	await until(func():
 		for z: Zombie in game.zombies.alive:
 			if z is Brancardier:
 				phases[(z as Brancardier).charge_phase] = true
-		if phases.has(Brancardier.Phase.STUN):
-			break
-		await frames(1)
-		t += at.get_process_delta_time()
+		return phases.has(Brancardier.Phase.STUN), 40.0, "charge du Brancardier")
+	var t := 0.0
 	at.check(phases.has(Brancardier.Phase.WINDUP) and phases.has(Brancardier.Phase.CHARGE) and phases.has(Brancardier.Phase.STUN),
 			"client : préparation, charge et étourdissement reçus (%s)" % str(phases.keys()))
 	at.check(p.knockbacks == k0 + 1, "client : projeté par la charge (%d)" % (p.knockbacks - k0))
