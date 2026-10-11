@@ -78,6 +78,29 @@ static func sample_name(id: String) -> String:
 	return LootRules.sample_name(id) if HubData.known_sample(id) else "???"
 
 
+## « ZOMBIE · DÈS LA MANCHE 4 » : famille (catégorie de XpRules) et manche
+## d'apparition (langue du jeu).
+static func family_line(e: Dictionary) -> String:
+	var id := String(e.get("id", ""))
+	var cat := XpRules.category_of(id) if XpRules.is_enemy(id) else XpRules.category_of(String(e.get("xp_ref", "")))
+	var fam := "ZOMBIE"
+	match cat:
+		XpRules.SPECIAL:
+			fam = Lang.t("VAGUE SPÉCIALE", "SPECIAL WAVE")
+		XpRules.MINIBOSS:
+			fam = "MINI-BOSS"
+		XpRules.BOSS:
+			fam = "BOSS"
+	return fam + " · " + Lang.t("DÈS LA MANCHE %d", "FROM ROUND %d") % int(e.get("round", 1))
+
+
+## Indice d'une fiche inconnue : « Peut apparaître dès la manche 20 ».
+static func round_hint(round_n: int) -> String:
+	if round_n <= 1:
+		return Lang.t("Rôde dès la première manche", "Lurks from the very first round")
+	return Lang.t("Peut apparaître dès la manche %d", "May appear from round %d") % round_n
+
+
 # --------------------------------------------------------------------------
 
 static func _read(path: String) -> String:

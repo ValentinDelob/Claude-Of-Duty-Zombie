@@ -245,7 +245,7 @@ func test_onglet_codex() -> void:
 	assert_false(_has_tag(cp.card_of("dog")), "visite suivante : plus de NOUVEAU")
 	Settings.language = "en"
 	assert_eq(HubScreen.tab_label("codex"), "CODEX")
-	assert_eq(HubCodexPanel.round_hint(20), "May appear from round 20")
+	assert_eq(CodexData.round_hint(20), "May appear from round 20")
 
 
 func test_codex_taille_des_menus() -> void:
@@ -261,7 +261,7 @@ func test_codex_taille_des_menus() -> void:
 		var r := Rect2(Vector2.ZERO, Vector2(1280, 720)).grow(1.0)
 		assert_true(r.encloses(cp.box.get_global_rect()), "%d %% : le bestiaire reste à l'écran" % roundi(f * 100))
 		for c in cp.cards:
-			assert_true(c.size.x > 0.0 and c.size.y >= HubStyle.px(HubCodexPanel.CARD_H) - 1.0, "fiche dimensionnée")
+			assert_true(c.size.x > 0.0 and c.size.y >= HubStyle.px(HubCodexCard.CARD_H) - 1.0, "fiche dimensionnée")
 		_frame.queue_free()
 		await wait_frames(1)
 
