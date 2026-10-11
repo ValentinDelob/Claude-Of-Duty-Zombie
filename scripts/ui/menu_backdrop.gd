@@ -43,6 +43,8 @@ const WALK_TO := -5.8
 const PROPS := "res://assets/models/props/voxel/%s.glb"
 
 var camera: Camera3D
+## Boîtes de l'architecture posées par _span : [clé de surface, AABB].
+var spans: Array = []
 var _batches := {}
 var _t := 0.0
 var _rng := RandomNumberGenerator.new()
@@ -117,9 +119,13 @@ func _box(key: String, size: Vector3, pos: Vector3) -> void:
 
 
 ## Boîte donnée par ses deux coins (plus lisible pour l'architecture).
+## Les boîtes de l'architecture ne doivent jamais se chevaucher (faces
+## coplanaires : z-fighting) ; elles sont gardées dans `spans`
+## (tests/test_menu_backdrop.gd).
 func _span(key: String, a: Vector3, b: Vector3) -> void:
 	var lo := Vector3(minf(a.x, b.x), minf(a.y, b.y), minf(a.z, b.z))
 	var hi := Vector3(maxf(a.x, b.x), maxf(a.y, b.y), maxf(a.z, b.z))
+	spans.append([key, AABB(lo, hi - lo)])
 	_box(key, hi - lo, (lo + hi) * 0.5)
 
 
@@ -176,11 +182,16 @@ func _build_corridor() -> void:
 	# Couloir transversal : sol, plafond, murs, fonds sombres.
 	_span("tiles", Vector3(-CROSS_HALF, -0.2, CROSS_Z0), Vector3(-w, 0, CROSS_Z1))
 	_span("tiles", Vector3(w, -0.2, CROSS_Z0), Vector3(CROSS_HALF, 0, CROSS_Z1))
-	_span("ceiling", Vector3(-CROSS_HALF, 2.4, CROSS_Z0), Vector3(-w, 2.6, CROSS_Z1))
-	_span("ceiling", Vector3(w, 2.4, CROSS_Z0), Vector3(CROSS_HALF, 2.6, CROSS_Z1))
+	# Plafond et murs du transversal : à partir de la face EXTÉRIEURE des murs
+	# du couloir (w + 0,2). Partir de w les faisait chevaucher l'épaisseur de
+	# ces murs : faces coplanaires de textures différentes (dessous du linteau
+	# des ouvertures, chants des montants), qui scintillaient (z-fighting).
+	var wo := w + 0.2
+	_span("ceiling", Vector3(-CROSS_HALF, 2.4, CROSS_Z0), Vector3(-wo, 2.6, CROSS_Z1))
+	_span("ceiling", Vector3(wo, 2.4, CROSS_Z0), Vector3(CROSS_HALF, 2.6, CROSS_Z1))
 	for s: float in [-1.0, 1.0]:
-		_span("wall", Vector3(s * w, 0, CROSS_Z1), Vector3(s * CROSS_HALF, 2.4, CROSS_Z1 - 0.2))
-		_span("wall", Vector3(s * w, 0, CROSS_Z0), Vector3(s * CROSS_HALF, 2.4, CROSS_Z0 + 0.2))
+		_span("wall", Vector3(s * wo, 0, CROSS_Z1), Vector3(s * CROSS_HALF, 2.4, CROSS_Z1 - 0.2))
+		_span("wall", Vector3(s * wo, 0, CROSS_Z0), Vector3(s * CROSS_HALF, 2.4, CROSS_Z0 + 0.2))
 		_span("wall_concrete", Vector3(s * CROSS_HALF, 0, CROSS_Z0), Vector3(s * (CROSS_HALF + 0.2), 2.4, CROSS_Z1))
 	# Mur du fond et porte du laboratoire (deux battants d'acier, hublots).
 	var zf := Z_FAR

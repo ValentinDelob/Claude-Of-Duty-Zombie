@@ -7,6 +7,10 @@
   {
    "en": "Rebuilding a window or a zombie door now earns a little scrap: +10 for each board you put back, up to 60 per player each round. Everyone gets paid for their own repairs.",
    "fr": "Reconstruire une fenêtre ou une porte à zombies rapporte un peu de ferraille : +10 par planche reposée, jusqu'à 60 par joueur et par manche. Chacun est payé pour ses propres réparations."
+  },
+  {
+   "en": "Fixed the flickering textures around the corridor doorways in the main menu and hub background.",
+   "fr": "Correction des textures qui scintillaient autour des ouvertures du couloir, dans le fond du menu principal et du hub."
   }
  ]
 }
