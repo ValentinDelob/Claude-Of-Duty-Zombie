@@ -2945,6 +2945,33 @@
     "en": "Dr Brown has moved in: welcome to the new lab",
     "fr": "Dr Brown emménage : bienvenue au nouveau labo"
    }
+  },
+  "v0.2.1-snapshot.703": {
+   "channel": "snapshot",
+   "date": "2026-10-11",
+   "images": [],
+   "items": [
+    {
+     "en": "Rebuilding a window or a zombie door now earns a little scrap: +10 for each board you put back, up to 60 per player each round. Everyone gets paid for their own repairs.",
+     "fr": "Reconstruire une fenêtre ou une porte à zombies rapporte un peu de ferraille : +10 par planche reposée, jusqu'à 60 par joueur et par manche. Chacun est payé pour ses propres réparations."
+    },
+    {
+     "en": "Fixed the flickering textures around the corridor doorways in the main menu and hub background.",
+     "fr": "Correction des textures qui scintillaient autour des ouvertures du couloir, dans le fond du menu principal et du hub."
+    },
+    {
+     "en": "Picked up a shiny gun? The message now tells you which key opens your inventory, and choosing a backpack weapon twice puts it straight in your hands. The D-pad no longer gets lost in the inventory buttons either.",
+     "fr": "Vous avez ramassé une belle arme ? Le message indique maintenant la touche de l'inventaire, et choisir deux fois une arme de l'inventaire la met direct en main. La croix de la manette ne se perd plus dans les boutons de l'inventaire."
+    },
+    {
+     "en": "The match recap lost its \"replay the animation\" button. Nobody will miss it, not even the XP bar.",
+     "fr": "Le récapitulatif de partie perd son bouton « rejouer l'animation ». Personne ne le regrettera, pas même la barre d'XP."
+    }
+   ],
+   "title": {
+    "en": "Boards pay again",
+    "fr": "Les planches rapportent à nouveau"
+   }
   }
  }
 }
