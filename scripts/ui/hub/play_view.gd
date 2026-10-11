@@ -254,7 +254,7 @@ static func contract_rows(pr: PlayerProfile, facts: Dictionary) -> Array:
 		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		r.box.add_child(l)
 		r.box.add_child(HubBox.spring(false))
-		var s := HubStyle.label(Lang.t("le scientifique en propose dans CONTRATS", "the scientist offers some in CONTRACTS"), 13, HubStyle.DIM)
+		var s := HubStyle.label(Lang.t("Dr Brown en propose dans CONTRATS", "Dr Brown offers some in CONTRACTS"), 13, HubStyle.DIM)
 		s.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		r.box.add_child(s)
 		out.append(r)

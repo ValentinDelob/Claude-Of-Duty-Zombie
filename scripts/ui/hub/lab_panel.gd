@@ -111,7 +111,7 @@ func prompts() -> Array:
 # --------------------------------------------------------------------------
 
 func _scientist(pr: PlayerProfile) -> HubBox:
-	var box := _sized(HubBox.new(Lang.t("LE SCIENTIFIQUE", "THE SCIENTIST"), "", true), SCIENTIST_H)
+	var box := _sized(HubBox.new(Lang.t("DR BROWN", "DR BROWN"), "", true), SCIENTIST_H)
 	var v := box.content
 	var top := HubBox.hbox(18)
 	top.alignment = BoxContainer.ALIGNMENT_BEGIN
@@ -138,7 +138,7 @@ func _scientist(pr: PlayerProfile) -> HubBox:
 	var btns := HubBox.hbox(8)
 	v.add_child(HubBox.pad(btns, 12, 8, 12, 12))
 	contracts_button = hub_button(Lang.t("VOIR LES CONTRATS", "SEE CONTRACTS"), func(): hub.select_tab("contracts"),
-			HubButton.PRIMARY, Lang.t("Remettre vos contrats prêts au scientifique.", "Hand your ready contracts in to the scientist."))
+			HubButton.PRIMARY, Lang.t("Remettre vos contrats prêts à Dr Brown.", "Hand your ready contracts in to Dr Brown."))
 	contracts_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btns.add_child(contracts_button)
 	play_button = hub_button(Lang.t("LANCER UNE PARTIE", "START A MATCH"), func(): hub.select_tab("play"),
@@ -173,7 +173,7 @@ static func scientist_line(pr: PlayerProfile, expired := PackedStringArray()) ->
 func _status_lines(pr: PlayerProfile) -> Array:
 	var out := []
 	if not HubContractsView.available(pr):
-		out.append(_status(HubTag.make(Lang.t("BIENTÔT", "SOON")), Lang.t("Contrats du scientifique", "The scientist's contracts"),
+		out.append(_status(HubTag.make(Lang.t("BIENTÔT", "SOON")), Lang.t("Contrats de Dr Brown", "Dr Brown's contracts"),
 				Lang.t("onglet CONTRATS", "CONTRACTS tab")))
 		return out
 	# Contrats actifs expirés depuis la dernière visite (signalés une fois,
@@ -393,11 +393,11 @@ func _contracts(pr: PlayerProfile) -> HubBox:
 		var m := HubBox.vbox(8)
 		v.add_child(HubBox.pad(m, 12, 12, 12, 12))
 		var t := HubStyle.label(Lang.t("Aucun contrat actif.", "No active contract.") if available
-				else Lang.t("Les contrats du scientifique arrivent bientôt.", "The scientist's contracts are coming soon."), 15, HubStyle.PLASTER)
+				else Lang.t("Les contrats de Dr Brown arrivent bientôt.", "Dr Brown's contracts are coming soon."), 15, HubStyle.PLASTER)
 		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		m.add_child(t)
-		var d := HubStyle.label(Lang.t("Le scientifique propose des contrats dans l'onglet CONTRATS : rapportez-lui des échantillons contre de l'XP et un objet.",
-				"The scientist offers contracts in the CONTRACTS tab: bring him samples for XP and an item."), 13, HubStyle.DIM)
+		var d := HubStyle.label(Lang.t("Dr Brown propose des contrats dans l'onglet CONTRATS : rapportez-lui des échantillons contre de l'XP et un objet.",
+				"Dr Brown offers contracts in the CONTRACTS tab: bring him samples for XP and an item."), 13, HubStyle.DIM)
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		m.add_child(d)
 		return contracts_box

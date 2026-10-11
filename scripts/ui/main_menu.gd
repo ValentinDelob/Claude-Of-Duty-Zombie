@@ -16,6 +16,8 @@ const SCREENS := {
 	"credits": "res://scripts/ui/screens/credits_screen.gd",
 	"career": "res://scripts/ui/screens/career_screen.gd",
 	"hub": "res://scripts/ui/hub/hub_screen.gd",
+	# Hub v2 (provisoire : Settings.use_hub_v2, docs/HUB_PLAN.md §9).
+	"hub2": "res://scripts/ui/hub2/hub2_screen.gd",
 }
 ## Durées des transitions (fondu au noir puis retour).
 const FADE_IN := 0.22
@@ -221,6 +223,10 @@ func show_screen(screen_name: String, args := {}, remember := true) -> void:
 	current = s
 	current_name = screen_name
 	_set_chrome(s.get("full_frame") != true)
+	# Hub v2 : le voile de gauche du menu titre fait partie de l'image de fond
+	# de ses maquettes (docs/hub_v2/img/menu_backdrop.png) ; il reste.
+	if s.get("backdrop_shade") == true and _shade:
+		_shade.visible = true
 	s.modulate.a = 0.0
 	s.enter(args)
 	# Transition : court passage au noir bruité, puis l'écran émerge.

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Hub · Retour de partie</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+@keyframes lvlPop { 0% { transform: scale(1) } 35% { transform: scale(1.45) } 100% { transform: scale(1) } }
+@keyframes lvlRing { 0% { transform: scale(1); opacity: 1 } 100% { transform: scale(3.2); opacity: 0 } }
+@keyframes lvlText { 0% { opacity: 0; transform: translateY(14px) scale(0.9); letter-spacing: 0.6em } 25% { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 0.22em } 80% { opacity: 1 } 100% { opacity: 0 } }
+@keyframes lvlFlash { 0% { opacity: 0.55 } 100% { opacity: 0 } }
+@keyframes rowIn { 0% { opacity: 0; transform: translateX(-12px) } 100% { opacity: 1; transform: none } }
+.lvl-pop { animation: lvlPop 0.7s cubic-bezier(.2,1.6,.4,1) }
+.lvl-ring { position: absolute; inset: 0; border: 2px solid #F5C542; animation: lvlRing 1.1s ease-out forwards; pointer-events: none }
+.lvl-ring.b { animation-delay: 0.18s; border-color: #4FE3C1 }
+.lvl-text { animation: lvlText 2.2s ease-out forwards }
+.lvl-flash { animation: lvlFlash 0.9s ease-out forwards }
+.row-in { opacity: 0; animation: rowIn 0.4s ease-out forwards }
+</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #101317; font-family: 'Barlow', sans-serif; color: #F2F0EA">
+  <img src="/_blob/6081e013ae646f268abd800eabf60108" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(8, 9, 11, 0.62)"></div>
+  <sc-if value="{{levelUp}}" hint-placeholder-val="{{false}}">
+    <div class="lvl-flash" aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(circle at 30% 42%, rgba(245, 197, 66, 0.55), rgba(245, 197, 66, 0) 60%)"></div>
+  </sc-if>
+
+  <main style="position: absolute; left: 48px; right: 48px; top: 40px; bottom: 64px; display: flex; flex-direction: column; gap: 22px">
+    <header style="display: flex; align-items: flex-end; gap: 24px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.24em; color: rgba(242, 240, 234, 0.6)">RETOUR AU LABO · BUNKER K-7</span>
+        <h1 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 64px; font-weight: 700; letter-spacing: 0.04em; line-height: 1; color: #4FE3C1">ÉVACUÉ</h1>
+      </div>
+      <div style="display: flex; gap: 28px; padding-bottom: 8px">
+        <span style="display: flex; flex-direction: column"><span style="font-size: 12px; color: rgba(242, 240, 234, 0.55)">Manche atteinte</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700">17</span></span>
+        <span style="display: flex; flex-direction: column"><span style="font-size: 12px; color: rgba(242, 240, 234, 0.55)">Zombies éliminés</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700">284</span></span>
+        <span style="display: flex; flex-direction: column"><span style="font-size: 12px; color: rgba(242, 240, 234, 0.55)">Durée</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700">42:18</span></span>
+      </div>
+    </header>
+
+    <div style="flex: 1; min-height: 0; display: flex; gap: 22px">
+      <!-- XP -->
+      <section aria-label="Expérience gagnée" style="position: relative; width: 560px; flex-shrink: 0; display: flex; flex-direction: column; gap: 18px; padding: 24px 26px; background: rgba(10, 11, 13, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+        <div style="display: flex; align-items: center; gap: 22px">
+          <div style="position: relative; width: 92px; height: 92px; flex-shrink: 0">
+            <sc-if value="{{levelUp}}" hint-placeholder-val="{{false}}">
+              <span class="lvl-ring" aria-hidden="true"></span>
+              <span class="lvl-ring b" aria-hidden="true"></span>
+            </sc-if>
+            <div class="{{badgeClass}}" style="{{badgeStyle}}">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.16em">NIV.</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 38px; font-weight: 700; line-height: 1">{{level}}</span>
+            </div>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px">
+            <div style="display: flex; justify-content: space-between; align-items: baseline">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.6)">EXPÉRIENCE</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(242, 240, 234, 0.75)">{{xpLine}}</span>
+            </div>
+            <div style="position: relative; height: 14px; background: rgba(255, 255, 255, 0.1); overflow: hidden">
+              <div style="{{barStyle}}"></div>
+            </div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 700; color: #F5C542">+{{gained}} XP</span>
+          </div>
+        </div>
+
+        <sc-if value="{{levelUp}}" hint-placeholder-val="{{false}}">
+          <div class="lvl-text" style="position: absolute; left: 26px; right: 26px; top: 128px; text-align: center; font-family: 'Chakra Petch', sans-serif; font-size: 30px; font-weight: 700; color: #F5C542; text-shadow: 0 0 24px rgba(245, 197, 66, 0.7)">NIVEAU {{level}} !</div>
+        </sc-if>
+
+        <div style="display: flex; flex-direction: column; gap: 2px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 12px">
+          <sc-for list="{{lines}}" as="l" hint-placeholder-count="5">
+            <div class="row-in" style="{{l.style}}">
+              <span style="font-size: 15px; color: rgba(242, 240, 234, 0.8)">{{l.label}}</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: #F5C542">+{{l.xp}}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{unlocked}}" hint-placeholder-val="{{false}}">
+          <div class="row-in" style="margin-top: auto; display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: rgba(79, 227, 193, 0.1); border: 1px solid rgba(79, 227, 193, 0.4)">
+            <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.16em; color: #4FE3C1">DÉBLOQUÉ</span>
+            <span style="font-size: 14px">Armes de niveau 24 au butin · 2 nouveaux échanges au labo</span>
+          </div>
+        </sc-if>
+      </section>
+
+      <!-- Butin gardé -->
+      <section aria-label="Butin gardé" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+        <h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 0.08em">BUTIN GARDÉ</h2>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+          <sc-for list="{{weapons}}" as="w" hint-placeholder-count="3">
+            <div class="row-in" style="{{w.style}}">
+              <span style="position: absolute; top: 6px; right: 8px; padding: 1px 6px; background: #F5C542; color: #0B0B0C; font-family: 'Chakra Petch', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.12em">NEUF</span>
+              <img src="{{w.img}}" alt="" style="width: 100%; height: 62px; object-fit: contain; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.6))">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 16px; font-weight: 700">{{w.name}}</span>
+              <span style="{{w.rarStyle}}">{{w.rar}} · NIV. {{w.lvl}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; background: rgba(10, 11, 13, 0.62); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+          <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">ÉCHANTILLONS · 9</span>
+          <div style="display: flex; gap: 14px; flex-wrap: wrap">
+            <sc-for list="{{samples}}" as="s" hint-placeholder-count="5">
+              <span class="row-in" style="{{s.style}}">
+                <img src="{{s.img}}" alt="{{s.name}}" style="width: 52px; height: 52px; object-fit: contain">
+                <span style="position: absolute; right: -4px; bottom: -4px; min-width: 22px; padding: 1px 5px; box-sizing: border-box; background: #F2F0EA; color: #0B0B0C; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; text-align: center">×{{s.qty}}</span>
+              </span>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px">
+          <div style="flex: 1; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: rgba(245, 197, 66, 0.1); border: 1px solid #F5C542">
+            <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: #F5C542">CONTRAT</span>
+            <span style="font-size: 14px">Sangles en série : prêt à remettre</span>
+          </div>
+          <div style="flex: 1; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: rgba(10, 11, 13, 0.62); border: 1px solid rgba(255, 255, 255, 0.08)">
+            <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: #4FE3C1">RIEN DE PERDU</span>
+            <span style="font-size: 14px; color: rgba(242, 240, 234, 0.75)">Évacuation réussie</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer style="position: absolute; left: 48px; right: 48px; bottom: 18px; display: flex; justify-content: space-between; align-items: center">
+    <button onClick="{{replay}}" style="height: 36px; padding: 0 14px; border: 1px solid rgba(242, 240, 234, 0.3); background: transparent; color: rgba(242, 240, 234, 0.75); font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; cursor: pointer">↻ REJOUER L’ANIMATION</button>
+    <a href="Main.dc.html" style="height: 46px; padding: 0 28px; display: flex; align-items: center; gap: 12px; text-decoration: none; background: #F5C542; color: #0B0B0C; font-family: 'Chakra Petch', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.14em; clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px))">CONTINUER <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; opacity: 0.7">A</span></a>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { t: 0, run: 0 };
+  }
+  componentDidMount() { this.play(); }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); }
+  play() {
+    cancelAnimationFrame(this.raf);
+    const t0 = performance.now() + 700;
+    const DUR = 3800;
+    const step = (now) => {
+      const t = Math.max(0, Math.min(1, (now - t0) / DUR));
+      this.setState({ t });
+      if (t < 1) this.raf = requestAnimationFrame(step);
+    };
+    this.setState({ t: 0, run: this.state.run + 1 });
+    this.raf = requestAnimationFrame(step);
+  }
+  renderVals() {
+    const START = 8420, NEED23 = 13100, NEED24 = 14200, GAIN = 6240;
+    const ease = (x) => 1 - Math.pow(1 - x, 3);
+    const gained = Math.round(GAIN * ease(this.state.t));
+    let xp = START + gained, level = 23, need = NEED23;
+    if (xp >= NEED23) { xp -= NEED23; level = 24; need = NEED24; }
+    const levelUp = level === 24;
+    const pct = Math.min(100, xp / need * 100);
+    const fmt = (n) => n.toLocaleString('fr-FR');
+    const lines = [['Zombies éliminés', '2 840'], ['Vagues spéciales et boss', '1 320'], ['Manches survécues', '1 480'], ['Évacuation réussie', '600']].map(([label, x], i) => ({
+      label, xp: x,
+      style: 'display: flex; justify-content: space-between; padding: 7px 0; animation-delay: ' + (0.15 * i) + 's'
+    }));
+    const RAR = { r: ['RARE', '#4D9BFF'], e: ['ÉPIQUE', '#B56CFF'], l: ['LÉGENDAIRE', '#FF9A1F'] };
+    const weapons = [
+      ['COUPERET', '/_blob/3d106fb115dca8c8713b595b21d2f34e', 'l', 20], ['FEU FOLLET', '/_blob/a038df1bbc5fc8e11bb800c3e9e54fcc', 'e', 18], ['BALAI', '/_blob/8b19808681271fea88592c2d0e4b691a', 'r', 17]
+    ].map(([name, img, r, lvl], i) => ({
+      name, img, lvl, rar: RAR[r][0],
+      rarStyle: 'font-family: "Chakra Petch", sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: ' + RAR[r][1],
+      style: 'position: relative; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; background: rgba(10, 11, 13, 0.62); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); border-top: 3px solid ' + RAR[r][1] + '; animation-delay: ' + (0.3 + 0.15 * i) + 's'
+    }));
+    const samples = [
+      ['Croc', '/_blob/5ac1171c8cb205d05475869cc9358d7f', 3], ['Touffe de poils', '/_blob/7541a18d3e89835544629d6617de6912', 2], ['Sangle de cuir', '/_blob/ab3222ad5bf7029146f53c7f07cc1c92', 2],
+      ['Bracelet d’identité', '/_blob/013d704a1375e7c2ac7604ae1e5213eb', 1], ['Scalpel', '/_blob/044f9f9cb450adf1ca3964ef64e00482', 1]
+    ].map(([name, img, qty], i) => ({
+      name, img, qty,
+      style: 'position: relative; display: inline-flex; padding: 4px; background: rgba(255, 255, 255, 0.05); animation-delay: ' + (0.8 + 0.1 * i) + 's'
+    }));
+    return {
+      level, levelUp, unlocked: levelUp && this.state.t > 0.75,
+      gained: fmt(gained),
+      xpLine: fmt(xp) + ' / ' + fmt(need),
+      barStyle: 'height: 100%; width: ' + pct + '%; background: ' + (levelUp ? '#4FE3C1' : '#F5C542') + '; box-shadow: 0 0 14px ' + (levelUp ? 'rgba(79, 227, 193, 0.7)' : 'rgba(245, 197, 66, 0.6)'),
+      badgeClass: levelUp ? 'lvl-pop' : '',
+      badgeStyle: 'position: relative; width: 92px; height: 92px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px)); ' + (levelUp ? 'background: #F5C542; color: #0B0B0C' : 'background: rgba(245, 197, 66, 0.12); color: #F5C542; border: 2px solid #F5C542'),
+      lines, weapons, samples,
+      replay: () => this.play()
+    };
+  }
+}
+</script>
+</body>
+</html>

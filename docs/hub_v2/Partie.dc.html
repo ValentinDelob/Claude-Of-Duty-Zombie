@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Hub · Jouer</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #101317; font-family: 'Barlow', sans-serif; color: #F2F0EA">
+  <img src="/_blob/6081e013ae646f268abd800eabf60108" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(8, 9, 11, 0.35)"></div>
+  <div style="position: absolute; left: 0; top: 0"><dc-import name="TopBar" active="partie" hint-size="1280px,72px"></dc-import></div>
+
+  <main style="position: absolute; left: 28px; right: 28px; top: 96px; bottom: 60px; display: flex; gap: 20px">
+    <!-- Choix -->
+    <section style="width: 380px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px">
+      <div role="tablist" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: rgba(10, 11, 13, 0.62); border: 1px solid rgba(255, 255, 255, 0.08)">
+        <button role="tab" aria-selected="true" style="height: 40px; border: none; background: #F2F0EA; color: #0B0B0C; font-family: 'Chakra Petch', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.14em">SOLO</button>
+        <a href="PartieCoop.dc.html" role="tab" aria-selected="false" style="height: 40px; display: flex; align-items: center; justify-content: center; text-decoration: none; color: rgba(242, 240, 234, 0.6); font-family: 'Chakra Petch', sans-serif; font-size: 15px; font-weight: 600; letter-spacing: 0.14em">COOP</a>
+      </div>
+
+      <button style="position: relative; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; text-align: left; cursor: pointer; color: #F2F0EA; font-family: inherit; background: rgba(79, 227, 193, 0.08); backdrop-filter: blur(12px); border: 1px solid rgba(79, 227, 193, 0.45); clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%)">
+        <span style="display: flex; justify-content: space-between; width: 100%"><span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.18em; color: #4FE3C1">DÉFI DE LA SEMAINE · S41</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(242, 240, 234, 0.6)">3 j 14 h</span></span>
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 19px; font-weight: 700">Bunker K-7 · Horde pressée</span>
+        <span style="font-size: 13px; color: rgba(242, 240, 234, 0.65)">Évacue à la manche 10 ou plus : +400 XP et des échantillons</span>
+      </button>
+
+      <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55); margin-top: 4px">CARTES DU JEU</span>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <sc-for list="{{maps}}" as="m" hint-placeholder-count="1">
+          <button style="{{m.style}}">
+            <span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.03em">{{m.name}}</span>
+              <span style="font-size: 12px; color: rgba(242, 240, 234, 0.55)">{{m.sub}}</span>
+            </span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(242, 240, 234, 0.55)">{{m.best}}</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.12)">
+        <span style="display: flex; justify-content: space-between; align-items: center">
+          <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">CARTES PERSONNALISÉES</span>
+          <span style="padding: 2px 8px; border: 1px solid #B56CFF; color: #D7B3FF; font-family: 'Chakra Petch', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.14em">POUR LE FUN</span>
+        </span>
+        <span style="font-size: 13px; line-height: 1.35; color: rgba(242, 240, 234, 0.6)">Créées avec l’éditeur. Aucune progression : ni XP, ni butin, ni contrat.</span>
+        <sc-for list="{{customMaps}}" as="m" hint-placeholder-count="3">
+          <button style="{{m.style}}">
+            <span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.03em">{{m.name}}</span>
+              <span style="font-size: 12px; color: rgba(242, 240, 234, 0.55)">{{m.sub}}</span>
+            </span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(242, 240, 234, 0.55)">{{m.best}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- Aperçu -->
+    <section style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+      <div style="position: relative; flex: 1; min-height: 0; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: center">
+        <img src="/_blob/92057f91395d6002cbc09d7b4e5f0160" alt="Aperçu de Bunker K-7" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+        <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 20px; background: linear-gradient(to top, rgba(8, 9, 11, 0.9), rgba(8, 9, 11, 0)); display: flex; flex-direction: column; gap: 10px">
+          <h1 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 40px; font-weight: 700; letter-spacing: 0.02em; line-height: 1">Bunker K-7</h1>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap">
+            <sc-for list="{{waves}}" as="w" hint-placeholder-count="4">
+              <span style="{{w.style}}"><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700">{{w.round}}</span>{{w.name}}</span>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 14px; align-items: stretch">
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; background: rgba(10, 11, 13, 0.62); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+          <span style="display: flex; justify-content: space-between"><span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">ÉQUIPEMENT</span><span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: #F5C542">X · MODIFIER</span></span>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+            <span style="display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 8px 8px; background: rgba(255, 255, 255, 0.05); border-top: 2px solid #C9C7BE">
+              <img src="/_blob/ed8a57fdd004b309f0c5567595ee180e" alt="" style="width: 100%; height: 52px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5))">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: 700">PÉTOIRE</span>
+            </span>
+            <span style="display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 8px 8px; background: rgba(255, 255, 255, 0.05); border-top: 2px solid #C9C7BE">
+              <img src="/_blob/fc3abecb0f90953ee10501ac089e2f57" alt="" style="width: 100%; height: 52px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5))">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: 700">BATTE</span>
+            </span>
+            <span style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 8px 8px; border: 1px dashed rgba(255, 255, 255, 0.18)">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 26px; font-weight: 500; color: rgba(242, 240, 234, 0.35); line-height: 1">+</span>
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 600; color: rgba(242, 240, 234, 0.45)">Emplacement libre</span>
+            </span>
+          </div>
+        </div>
+        <button style="width: 220px; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; padding: 0 22px; border: none; cursor: pointer; background: #F5C542; color: #0B0B0C; clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px))">
+          <span style="font-family: 'Chakra Petch', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: 0.12em">LANCER</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="Prompts" help="Les armes de ton arsenal se construisent en partie, à la station, contre de la ferraille." items="{{prompts}}" hint-size="1280px,48px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const row = ([name, sub, best, on]) => ({
+      name, sub, best,
+      style: 'display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; text-align: left; cursor: pointer; font-family: inherit; color: #F2F0EA; background: ' + (on ? 'rgba(245, 197, 66, 0.1)' : 'rgba(10, 11, 13, 0.62)') + '; backdrop-filter: blur(12px); border: 1px solid ' + (on ? '#F5C542' : 'rgba(255, 255, 255, 0.08)')
+    });
+    const maps = [['Bunker K-7', '1 à 4 joueurs', 'record 23', true]].map(row);
+    const customMaps = [['Verrückt', 'par Valentin', 'record 14', false], ['Quai 13', 'par Valentin', '—', false], ['Nouvelle carte 3', 'par Valentin', '—', false]].map(row);
+    const waves = [['5', 'Meute', '#4FE3C1'], ['10', 'Brancardier', '#4D9BFF'], ['15', 'Chirurgien', '#FF9A1F'], ['20', 'Infirmière', '#B56CFF']].map(([round, name, c]) => ({
+      round, name,
+      style: 'display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 13px; background: rgba(10, 11, 13, 0.7); border: 1px solid ' + c + '; color: #F2F0EA'
+    }));
+    return { maps, customMaps, waves, prompts: [{ k: 'A', l: 'LANCER' }, { k: 'X', l: 'ARMES DE DÉPART' }, { k: 'B', l: 'RETOUR' }] };
+  }
+}
+</script>
+</body>
+</html>

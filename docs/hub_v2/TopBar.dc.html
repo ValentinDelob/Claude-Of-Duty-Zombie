@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Barre du haut du hub</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<header style="width: 1280px; height: 72px; box-sizing: border-box; display: flex; align-items: center; gap: 24px; padding: 0 28px; background: rgba(8, 9, 11, 0.72); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-family: 'Chakra Petch', sans-serif; color: #F2F0EA">
+  <div style="display: flex; align-items: center; gap: 12px; width: 230px; flex-shrink: 0">
+    <div style="width: 40px; height: 40px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: rgba(245, 197, 66, 0.12); border: 1px solid #F5C542; clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 700; color: #F5C542">23</div>
+    <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0">
+      <div style="display: flex; justify-content: space-between; align-items: baseline">
+        <span style="font-size: 16px; font-weight: 600; letter-spacing: 0.04em">Valentin</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(242, 240, 234, 0.6)">8 420 / 13 100</span>
+      </div>
+      <div style="height: 3px; background: rgba(255, 255, 255, 0.12)"><div style="width: 64%; height: 100%; background: #F5C542"></div></div>
+    </div>
+  </div>
+
+  <nav aria-label="Onglets du hub" style="flex: 1; display: flex; align-items: stretch; justify-content: center; gap: 4px; height: 72px">
+    <span style="display: flex; align-items: center; padding-right: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: rgba(242, 240, 234, 0.45)">LB</span>
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="6">
+      <button style="{{t.style}}">
+        <span>{{t.label}}</span>
+        <sc-if value="{{t.hasBadge}}" hint-placeholder-val="{{false}}">
+          <span style="width: 6px; height: 6px; background: #F5C542; transform: translateY(-7px)"></span>
+        </sc-if>
+        <span style="{{t.bar}}"></span>
+      </button>
+    </sc-for>
+    <span style="display: flex; align-items: center; padding-left: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: rgba(242, 240, 234, 0.45)">RB</span>
+  </nav>
+
+  <button style="{{playStyle}}">
+    <span>JOUER</span>
+  </button>
+</header>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["labo","contrats","echanges","arsenal","inventaire","codex","partie"],"default":"labo"},"$preview":{"width":1280,"height":72}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const active = this.props.active ?? 'labo';
+    const defs = [['labo', 'Labo', true], ['arsenal', 'Arsenal', true], ['inventaire', 'Inventaire', false], ['codex', 'Codex', true]];
+    const tabs = defs.map(([id, label, badge]) => {
+      const on = id === active;
+      return {
+        label, hasBadge: badge,
+        style: 'position: relative; display: flex; align-items: center; gap: 6px; padding: 0 16px; border: none; background: transparent; cursor: pointer; font-family: "Chakra Petch", sans-serif; font-size: 16px; font-weight: ' + (on ? '700' : '500') + '; letter-spacing: 0.08em; text-transform: uppercase; color: ' + (on ? '#F2F0EA' : 'rgba(242, 240, 234, 0.58)'),
+        bar: 'position: absolute; left: 16px; right: 16px; bottom: 0; height: 2px; background: ' + (on ? '#F5C542' : 'transparent')
+      };
+    });
+    const onPlay = active === 'partie';
+    return {
+      tabs,
+      playStyle: 'width: 168px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0 18px; border: none; cursor: pointer; clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); font-family: "Chakra Petch", sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.14em; background: ' + (onPlay ? '#F2F0EA' : '#F5C542') + '; color: #0B0B0C'
+    };
+  }
+}
+</script>
+</body>
+</html>

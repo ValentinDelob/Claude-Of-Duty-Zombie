@@ -82,6 +82,12 @@ var menu_ui_scale := MENU_UI_SCALE_DEFAULT:
 		if not is_equal_approx(c, menu_ui_scale):
 			menu_ui_scale = c
 			menu_ui_scale_changed.emit(c)
+## Hub v2 (PROVISOIRE, docs/HUB_PLAN.md §9) : JOUER au menu titre ouvre le
+## nouveau hub (Hub2Screen) au lieu de l'ancien. Réglage caché, absent des
+## OPTIONS : « hub_v2=true » dans la section [interface] de settings.cfg, ou
+## argument « --hub2 » (use_hub_v2). Retiré quand le hub v2 remplacera
+## l'ancien.
+var hub_v2 := false
 ## Langue de l'interface (écran d'options, menu pause), des voix des
 ## personnages et de leurs répliques (« fr » ou « en », voir Lang.t).
 ## Sans fichier de réglages : celle du système si c'est le français, sinon l'anglais.
@@ -820,6 +826,7 @@ func load_from(file: String) -> bool:
 			EDITOR_UI_SCALE_RANGE.x, EDITOR_UI_SCALE_RANGE.y)
 	menu_ui_scale = SafeConfig.get_float(cfg, "interface", "menu_ui_scale", menu_ui_scale,
 			MENU_UI_SCALE_RANGE.x, MENU_UI_SCALE_RANGE.y)
+	hub_v2 = SafeConfig.get_bool(cfg, "interface", "hub_v2", hub_v2)
 	language = SafeConfig.get_string(cfg, "game", "language", "fr" if OS.get_locale_language() == "fr" else "en", 8)
 	if not language in LANGUAGES:
 		language = "fr"
@@ -866,6 +873,8 @@ func save_to(file: String) -> void:
 	cfg.set_value("video", "brightness", brightness)
 	cfg.set_value("interface", "editor_ui_scale", editor_ui_scale)
 	cfg.set_value("interface", "menu_ui_scale", menu_ui_scale)
+	if hub_v2:
+		cfg.set_value("interface", "hub_v2", true)
 	cfg.set_value("audio", "master", master_volume)
 	cfg.set_value("audio", "music", music_volume)
 	cfg.set_value("audio", "sfx", sfx_volume)
@@ -918,6 +927,11 @@ func _set_bus_volume(bus: String, linear: float) -> void:
 	var idx := AudioServer.get_bus_index(bus)
 	if idx >= 0:
 		AudioServer.set_bus_volume_db(idx, linear_to_db(maxf(linear, 0.0001)))
+
+
+## Le hub v2 est-il celui de JOUER (réglage caché ou --hub2) ?
+func use_hub_v2() -> bool:
+	return hub_v2 or _cmdline_has("--hub2")
 
 
 static func _cmdline_has(flag: String) -> bool:

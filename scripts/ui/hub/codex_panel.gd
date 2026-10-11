@@ -31,7 +31,7 @@ var _pending_seen := false
 func build() -> void:
 	if data == null:
 		data = CodexData.default()
-	box = HubBox.new(Lang.t("BESTIAIRE DU SCIENTIFIQUE", "THE SCIENTIST'S BESTIARY"), "")
+	box = HubBox.new(Lang.t("BESTIAIRE DE DR BROWN", "DR BROWN'S BESTIARY"), "")
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(box)
 	_grid = GridContainer.new()

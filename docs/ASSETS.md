@@ -28,6 +28,22 @@ Polices : la police en cubes des titres, du logo et des étiquettes 3D
 (`CubeFont`) est dessinée par le code ; les textes courants utilisent les
 polices système de l'ordinateur du joueur (Bahnschrift, Impact, Consolas ou
 leurs remplaçantes), non fournies avec le jeu. Plus aucune police pochoir.
+
+Polices du hub v2 (maquettes `docs/hub_v2/`, `Hub2Style`), **fournies avec le
+jeu** dans `assets/fonts/`, toutes sous **SIL Open Font License 1.1** (texte de
+la licence dans chaque dossier, `OFL.txt`, exporté avec le jeu), téléchargées
+le 2026-10-11 depuis le dépôt officiel Google Fonts
+(github.com/google/fonts, dossiers `ofl/…`) :
+
+| Police | Fichiers | Auteurs | Usage |
+|---|---|---|---|
+| Chakra Petch | `chakra_petch/ChakraPetch-{Medium,SemiBold,Bold}.ttf` (500, 600, 700) | Cadson Demak (The Chakra Petch Project Authors) | titres, libellés, boutons |
+| Barlow | `barlow/Barlow-{Regular,Medium,SemiBold}.ttf` (400, 500, 600) | Jeremy Tribby (The Barlow Project Authors) | texte courant |
+| JetBrains Mono | `jetbrains_mono/JetBrainsMono-Variable.ttf` (variable, axe wght : 500 et 700 utilisés) | JetBrains (The JetBrains Mono Project Authors) | nombres, touches |
+
+Import : sans hinting (formes et avances comme le navigateur des maquettes),
+rendu à la taille finale (mode d'étirement canvas_items et
+suréchantillonnage ; jamais une image agrandie).
 Ciel des cartes : `assets/shaders/cube_sky.gdshader` (procédural). Fond du
 menu titre : décor cubique du catalogue (`assets/models/props/voxel/`) et
 zombie cubique, aucun fichier propre.

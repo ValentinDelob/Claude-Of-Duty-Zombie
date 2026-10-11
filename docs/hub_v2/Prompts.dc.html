@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Barre d'invites du hub</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<footer style="width: 1280px; height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 28px; background: linear-gradient(to top, rgba(8, 9, 11, 0.8), rgba(8, 9, 11, 0)); font-family: 'Barlow', sans-serif; color: rgba(242, 240, 234, 0.72)">
+  <span style="font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{help}}</span>
+  <div style="display: flex; align-items: center; gap: 24px; flex-shrink: 0">
+    <sc-for list="{{items}}" as="it" hint-placeholder-count="3">
+      <span style="display: flex; align-items: center; gap: 8px">
+        <kbd style="min-width: 24px; height: 24px; box-sizing: border-box; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; background: rgba(242, 240, 234, 0.92); color: #0B0B0C; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700">{{it.k}}</kbd>
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.1em; color: #F2F0EA">{{it.l}}</span>
+      </span>
+    </sc-for>
+  </div>
+</footer>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"help":{"editor":null},"items":{"editor":null},"$preview":{"width":1280,"height":48}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      help: this.props.help ?? 'Texte d’aide de l’élément choisi.',
+      items: this.props.items ?? [{ k: 'A', l: 'CHOISIR' }, { k: 'B', l: 'RETOUR' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

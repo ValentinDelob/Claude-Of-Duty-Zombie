@@ -111,7 +111,7 @@ func _fill() -> void:
 	var right := "%d / %d" % [offs.size(), omax]
 	if full:
 		right += " · " + Lang.t("%d CONTRATS ACTIFS AU MAXIMUM", "%d ACTIVE CONTRACTS MAXIMUM") % amax
-	var h2 := _section(Lang.t("PROPOSITIONS DU SCIENTIFIQUE", "THE SCIENTIST'S OFFERS"), right)
+	var h2 := _section(Lang.t("PROPOSITIONS DE DR BROWN", "DR BROWN'S OFFERS"), right)
 	offers_count_label = h2[1]
 	_left.add_child(h2[0])
 	var orow := HubBox.hbox(10)
@@ -261,7 +261,7 @@ func _free_card() -> HubContractCard:
 	var t := HubStyle.label(Lang.t("LIBRE", "FREE"), 18, HubStyle.DIM, "impact", false, 0.06)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
-	var s := HubStyle.label(Lang.t("Acceptez une proposition du scientifique.", "Accept one of the scientist's offers."), 13, HubStyle.DIM2)
+	var s := HubStyle.label(Lang.t("Acceptez une proposition de Dr Brown.", "Accept one of Dr Brown's offers."), 13, HubStyle.DIM2)
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	s.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(s)

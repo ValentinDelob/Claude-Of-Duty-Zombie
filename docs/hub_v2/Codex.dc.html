@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Hub · Codex</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #101317; font-family: 'Barlow', sans-serif; color: #F2F0EA">
+  <img src="/_blob/6081e013ae646f268abd800eabf60108" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(8, 9, 11, 0.35)"></div>
+  <div style="position: absolute; left: 0; top: 0"><dc-import name="TopBar" active="codex" hint-size="1280px,72px"></dc-import></div>
+
+  <main style="position: absolute; left: 28px; right: 28px; top: 96px; bottom: 60px; display: flex; gap: 20px">
+    <section style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; align-items: baseline; gap: 16px; height: 34px">
+        <h1 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 0.06em">BESTIAIRE</h1>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(242, 240, 234, 0.55)">5 / 6 rencontrés</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+        <sc-for list="{{cards}}" as="c" hint-placeholder-count="6">
+          <button onClick="{{c.pick}}" style="{{c.style}}">
+            <span style="position: relative; height: 150px; display: flex; align-items: flex-end; justify-content: center; overflow: hidden">
+              <img src="{{c.img}}" alt="{{c.alt}}" style="{{c.imgStyle}}">
+              <sc-if value="{{c.unknown}}" hint-placeholder-val="{{false}}">
+                <span style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Chakra Petch', sans-serif; font-size: 40px; font-weight: 700; color: rgba(242, 240, 234, 0.35)">?</span>
+              </sc-if>
+            </span>
+            <span style="display: flex; justify-content: space-between; align-items: baseline">
+              <span style="{{c.famStyle}}">{{c.family}}</span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(242, 240, 234, 0.5)">{{c.round}}</span>
+            </span>
+            <span style="font-family: 'Chakra Petch', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; text-align: left">{{c.name}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <aside style="width: 392px; flex-shrink: 0; display: flex; flex-direction: column; background: rgba(10, 11, 13, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+      <div style="{{sel.headStyle}}">
+        <img src="{{sel.img}}" alt="{{sel.name}}" style="height: 100%; width: auto; filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.6))">
+      </div>
+      <div style="padding: 14px 20px 12px; display: flex; flex-direction: column; gap: 6px">
+        <span style="{{sel.famStyle}}">{{sel.family}} · {{sel.round}}</span>
+        <h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 30px; font-weight: 700; line-height: 1">{{sel.name}}</h2>
+        <p style="margin: 4px 0 0; font-size: 15px; line-height: 1.4; color: rgba(242, 240, 234, 0.78)">{{sel.text}}</p>
+      </div>
+      <div style="padding: 10px 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+        <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: rgba(242, 240, 234, 0.55)">Éliminés</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700">{{sel.kills}}</span></span>
+        <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: rgba(242, 240, 234, 0.55)">XP par élimination</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: #F5C542">{{sel.xp}}</span></span>
+      </div>
+      <div style="padding: 10px 20px 14px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">ÉCHANTILLONS · TAUX DE BUTIN</span>
+        <sc-if value="{{sel.noLoot}}" hint-placeholder-val="{{false}}">
+          <span style="font-size: 14px; color: rgba(242, 240, 234, 0.55)">Aucun échantillon : il ne donne que de la ferraille.</span>
+        </sc-if>
+        <sc-for list="{{sel.loot}}" as="l" hint-placeholder-count="2">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 6px 10px; background: rgba(255, 255, 255, 0.04)">
+            <img src="{{l.img}}" alt="" style="width: 34px; height: 34px; object-fit: contain">
+            <span style="flex: 1; font-size: 15px">{{l.name}}</span>
+            <span style="display: flex; flex-direction: column; align-items: flex-end">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: #4FE3C1">{{l.rate}}</span>
+              <span style="font-size: 11px; color: rgba(242, 240, 234, 0.5)">{{l.note}}</span>
+            </span>
+          </div>
+        </sc-for>
+      </div>
+    </aside>
+  </main>
+
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="Prompts" help="Les fiches sombres attendent ta première rencontre." items="{{prompts}}" hint-size="1280px,48px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 'brancardier' };
+  }
+  renderVals() {
+    const IMG = {
+      walker: '/_blob/0e6a75160bd65016d6409296a9fe1d9a', dog: '/_blob/3b3679ea74fef2eddafe309e56f0c908',
+      brancardier: '/_blob/3d39587280b2eeefed09e106a3157733', nurse: '/_blob/769c7414b88de8c30e62c200fba69dec',
+      surgeon: '/_blob/a9b9e14de6fa9f843806a66820ec7e7f'
+    };
+    const SAMPLE_IMG = { croc: '/_blob/5ac1171c8cb205d05475869cc9358d7f', touffe: '/_blob/7541a18d3e89835544629d6617de6912', collier: '/_blob/f93e9aecad531b09e66d6aa4ccbf4328', sangle: '/_blob/ab3222ad5bf7029146f53c7f07cc1c92', bracelet: '/_blob/013d704a1375e7c2ac7604ae1e5213eb', cordes: '/_blob/f460b73a6a94748bf84eb1e5695a72a6', seringue: '/_blob/58b8fe9a2d9f1d71a563b53b9c1641bf', badge: '/_blob/dc44df741b3889e2fa657246e0cf867b', scalpel: '/_blob/044f9f9cb450adf1ca3964ef64e00482', coeur: '/_blob/2b5aeca6d61eca6c669a9f0fc63340f2' };
+    const FAM = { z: ['ZOMBIE', '#C9C7BE'], s: ['VAGUE SPÉCIALE', '#4FE3C1'], m: ['MINI-BOSS', '#4D9BFF'], b: ['BOSS', '#FF9A1F'] };
+    const wave = '20 % par zombie tué pendant sa vague';
+    const E = [
+      { id: 'walker', name: 'Les zombies', f: 'z', round: 1, kills: '2 136', xp: '1 à 3', unknown: false, loot: [],
+        text: 'Marcheurs, rampants, coureurs : le tout-venant de la quarantaine. Plus nombreux et plus solides à chaque manche.' },
+      { id: 'dog', name: 'Meute errante', f: 's', round: 5, kills: '54', xp: '6', unknown: false,
+        loot: [['croc', 'Croc', '20 %', wave], ['touffe', 'Touffe de poils', '20 %', wave], ['collier', 'Collier', '20 %', wave]],
+        text: 'Des chiens contaminés qui chassent en groupe. Ils arrivent vite et de partout : dos au mur.' },
+      { id: 'brancardier', name: 'Le Brancardier', f: 'm', round: 10, kills: '7', xp: '60', unknown: false,
+        loot: [['sangle', 'Sangle de cuir', '20 %', wave], ['bracelet', 'Bracelet d’identité', '20 %', wave]],
+        text: 'Il gratte le sol, rugit, puis charge tout droit. S’il embrasse un mur, c’est le moment de viser la tête.' },
+      { id: 'surgeon', name: 'Le Chirurgien', f: 'b', round: 15, kills: '1', xp: '240', unknown: false,
+        loot: [['scalpel', 'Scalpel', '100 %', 'sur le boss · 20 % sur son escorte'], ['coeur', 'Cœur mutant', '100 %', 'sur le boss · 20 % sur son escorte']],
+        text: 'Taillades, éventails de scalpels, patients relevés en pleine opération. À mi-vie, il perd patience. Vise le cœur.' },
+      { id: 'nurse', name: 'L’Infirmière hurlante', f: 'm', round: 20, kills: '0', xp: '60', unknown: true,
+        loot: [['cordes', 'Cordes vocales', '20 %', wave], ['seringue', 'Seringue cassée', '20 %', wave], ['badge', 'Badge nominatif', '20 %', wave]],
+        text: '' }
+    ];
+    const sel = E.find((e) => e.id === this.state.sel) || E[0];
+    const famStyle = (e) => 'font-family: "Chakra Petch", sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.16em; color: ' + (e.unknown ? 'rgba(242, 240, 234, 0.35)' : FAM[e.f][1]);
+    const cards = E.map((e) => ({
+      name: e.unknown ? '???' : e.name, alt: e.unknown ? 'Ennemi inconnu' : e.name, unknown: e.unknown,
+      img: IMG[e.id], family: e.unknown ? 'INCONNU' : FAM[e.f][0], round: 'MANCHE ' + e.round, famStyle: famStyle(e),
+      imgStyle: 'height: 140px; width: auto; ' + (e.unknown ? 'filter: brightness(0) opacity(0.55)' : 'filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.6))'),
+      pick: () => this.setState({ sel: e.id }),
+      style: 'display: flex; flex-direction: column; gap: 4px; padding: 10px 14px 14px; text-align: left; cursor: pointer; font-family: inherit; color: ' + (e.unknown ? 'rgba(242, 240, 234, 0.5)' : '#F2F0EA') + '; background: ' + (e.id === sel.id ? 'rgba(245, 197, 66, 0.1)' : 'rgba(10, 11, 13, 0.62)') + '; backdrop-filter: blur(12px); border: 1px ' + (e.unknown ? 'dashed rgba(255, 255, 255, 0.16)' : 'solid ' + (e.id === sel.id ? '#F5C542' : 'rgba(255, 255, 255, 0.08)'))
+    }));
+    return {
+      cards,
+      sel: {
+        name: sel.unknown ? '???' : sel.name, img: IMG[sel.id], family: sel.unknown ? 'INCONNU' : FAM[sel.f][0], round: 'DÈS LA MANCHE ' + sel.round,
+        famStyle: famStyle(sel), kills: sel.kills, xp: sel.unknown ? '?' : sel.xp,
+        text: sel.unknown ? 'Pas encore rencontré. Il peut apparaître dès la manche ' + sel.round + '.' : sel.text,
+        noLoot: sel.loot.length === 0,
+        loot: sel.loot.map(([id, name, rate, note]) => ({ img: SAMPLE_IMG[id] || '', name: sel.unknown ? '???' : name, rate: sel.unknown ? '?' : rate, note: sel.unknown ? '' : note })),
+        headStyle: 'height: 190px; padding-top: 12px; display: flex; justify-content: center; align-items: flex-end; border-top: 3px solid ' + (sel.unknown ? 'rgba(255, 255, 255, 0.2)' : FAM[sel.f][1]) + (sel.unknown ? '; filter: brightness(0) opacity(0.55)' : '')
+      },
+      prompts: [{ k: 'A', l: 'DÉTAILS' }, { k: 'B', l: 'RETOUR' }]
+    };
+  }
+}
+</script>
+</body>
+</html>

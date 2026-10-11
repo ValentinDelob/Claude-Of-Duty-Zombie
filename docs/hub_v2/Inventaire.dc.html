@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Hub · Inventaire</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #101317; font-family: 'Barlow', sans-serif; color: #F2F0EA">
+  <img src="/_blob/6081e013ae646f268abd800eabf60108" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(8, 9, 11, 0.35)"></div>
+  <div style="position: absolute; left: 0; top: 0"><dc-import name="TopBar" active="inventaire" hint-size="1280px,72px"></dc-import></div>
+
+  <main style="position: absolute; left: 28px; right: 28px; top: 96px; bottom: 60px; display: flex; gap: 20px">
+    <section style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; align-items: baseline; gap: 16px; height: 34px">
+        <h1 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 0.06em">ÉCHANTILLONS</h1>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(242, 240, 234, 0.55)">29 en réserve · 8 sortes connues sur 10</span>
+      </div>
+      <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 18px">
+        <sc-for list="{{groups}}" as="g" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span style="width: 7px; height: 7px; transform: rotate(45deg); background: {{g.color}}"></span>
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.7)">{{g.enemy}}</span>
+              <span style="flex: 1; height: 1px; background: rgba(255, 255, 255, 0.08)"></span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
+              <sc-for list="{{g.items}}" as="s" hint-placeholder-count="3">
+                <button style="{{s.style}}">
+                  <img src="{{s.img}}" alt="" style="{{s.imgStyle}}">
+                  <span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; flex: 1">
+                    <span style="font-family: 'Chakra Petch', sans-serif; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%">{{s.name}}</span>
+                    <span style="font-size: 12px; color: rgba(242, 240, 234, 0.55)">{{s.use}}</span>
+                  </span>
+                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700">{{s.qty}}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <aside style="width: 384px; flex-shrink: 0; display: flex; flex-direction: column; background: rgba(10, 11, 13, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+      <div style="padding: 20px; display: flex; gap: 16px; align-items: center; border-top: 3px solid #8A5A2B">
+        <img src="/_blob/ab3222ad5bf7029146f53c7f07cc1c92" alt="Sangle de cuir" style="width: 96px; height: 96px; flex-shrink: 0; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.6))">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">BRANCARDIER</span>
+          <h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-size: 28px; font-weight: 700; line-height: 1">Sangle de cuir</h2>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px">4 en réserve</span>
+        </div>
+      </div>
+      <p style="margin: 0; padding: 0 20px 16px; font-size: 15px; line-height: 1.45; color: rgba(242, 240, 234, 0.78)">Arrachée au brancard d’un colosse qui ne lâchait jamais son patient. Elle sent encore le désinfectant.</p>
+      <div style="padding: 14px 20px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">OÙ LA TROUVER</span>
+        <span style="font-size: 15px">Vague du Brancardier, dès la manche 10 : 20 % sur chaque zombie de la vague.</span>
+      </div>
+      <div style="padding: 14px 20px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">DEMANDÉE PAR</span>
+        <sc-for list="{{uses}}" as="u" hint-placeholder-count="3">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255, 255, 255, 0.04)">
+            <span style="display: flex; flex-direction: column; gap: 1px">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.16em; color: {{u.kindColor}}">{{u.kind}}</span>
+              <span style="font-size: 15px; font-weight: 500">{{u.name}}</span>
+            </span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: {{u.countColor}}">{{u.count}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </aside>
+  </main>
+
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="Prompts" help="Les échantillons se gagnent en partie et se gardent en évacuant." items="{{prompts}}" hint-size="1280px,48px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const SEL = 'sangle';
+const IMG = { croc: '/_blob/5ac1171c8cb205d05475869cc9358d7f', touffe: '/_blob/7541a18d3e89835544629d6617de6912', collier: '/_blob/f93e9aecad531b09e66d6aa4ccbf4328', sangle: '/_blob/ab3222ad5bf7029146f53c7f07cc1c92', bracelet: '/_blob/013d704a1375e7c2ac7604ae1e5213eb', cordes: '/_blob/f460b73a6a94748bf84eb1e5695a72a6', seringue: '/_blob/58b8fe9a2d9f1d71a563b53b9c1641bf', badge: '/_blob/dc44df741b3889e2fa657246e0cf867b', scalpel: '/_blob/044f9f9cb450adf1ca3964ef64e00482', coeur: '/_blob/2b5aeca6d61eca6c669a9f0fc63340f2' };
+    const card = (id, name, color, qty, use) => {
+      const unknown = qty === null, on = id === SEL;
+      return {
+        name: unknown ? '???' : name, qty: unknown ? '–' : qty, use: unknown ? 'jamais obtenu' : use,
+        img: IMG[id], imgStyle: 'width: 52px; height: 52px; flex-shrink: 0; object-fit: contain; ' + (unknown ? 'filter: brightness(0) opacity(0.5)' : 'filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5))'),
+        style: 'display: flex; align-items: center; gap: 12px; padding: 8px 12px; text-align: left; cursor: pointer; font-family: inherit; color: ' + (unknown || qty === 0 ? 'rgba(242, 240, 234, 0.45)' : '#F2F0EA') + '; background: ' + (on ? 'rgba(245, 197, 66, 0.12)' : 'rgba(10, 11, 13, 0.62)') + '; backdrop-filter: blur(12px); border: 1px solid ' + (on ? '#F5C542' : 'rgba(255, 255, 255, 0.08)')
+      };
+    };
+    const groups = [
+      { enemy: 'MEUTE ERRANTE', color: '#C9C7BE', items: [card('croc', 'Croc', '#E8E0C8', 12, '2 contrats'), card('touffe', 'Touffe de poils', '#7A6A55', 7, '1 contrat · 1 échange'), card('collier', 'Collier', '#A88038', 3, '1 contrat')] },
+      { enemy: 'BRANCARDIER', color: '#4D9BFF', items: [card('sangle', 'Sangle de cuir', '#8A5A2B', 4, '2 contrats · 2 échanges'), card('bracelet', 'Bracelet d’identité', '#C9C2A8', 2, '2 contrats')] },
+      { enemy: 'INFIRMIÈRE HURLANTE', color: '#B56CFF', items: [card('cordes', 'Cordes vocales', '#C25A7A', 1, '1 contrat'), card('seringue', 'Seringue cassée', '#9FD0FF', 0, '1 contrat'), card('badge', 'Badge nominatif', '#5A8FC2', 0, '2 contrats')] },
+      { enemy: 'LE CHIRURGIEN', color: '#FF9A1F', items: [card('scalpel', 'Scalpel', '#C0C4C8', null, ''), card('coeur', 'Cœur mutant', '#B0203A', null, '')] }
+    ];
+    const uses = [
+      ['CONTRAT', 'Sangles en série', '3 / 3', true],
+      ['CONTRAT', 'Brancard de campagne', '3 / 3', true],
+      ['ÉCHANGE', 'Bandoulière en cuir', '4 / 4', true],
+      ['ÉCHANGE', 'Mire étiquetée', '2 / 2', true]
+    ].map(([kind, name, count, ok]) => ({ kind, name, count, kindColor: kind === 'CONTRAT' ? '#F5C542' : '#4FE3C1', countColor: ok ? '#4FE3C1' : '#F2F0EA' }));
+    return { groups, uses, prompts: [{ k: 'A', l: 'VOIR LE CONTRAT' }, { k: 'B', l: 'RETOUR' }] };
+  }
+}
+</script>
+</body>
+</html>

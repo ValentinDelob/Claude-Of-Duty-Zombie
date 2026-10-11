@@ -915,3 +915,119 @@ Ordre proposé : **A et B en parallèle**, puis **C et D en parallèle**, puis
 
 - Laboratoire cubique (échelle du décor, 5 cm), scientifique cubique,
   objets interactifs qui ouvrent les panneaux de B à D (§3.9).
+
+## 9. Hub v2 (refonte validée le 2026-10-11) — cadre et règles pour les écrans
+
+Maquettes **à suivre à 100 %** : `docs/hub_v2/` (README.md + un `*.dc.html`
+par écran, 1280 × 720 ; tailles, couleurs, polices, espacements et textes
+sont dans les styles en ligne). Le scientifique s'appelle **Dr Brown**. Le hub
+v2 vit dans `scripts/ui/hub2/` à côté de l'ancien hub (`scripts/ui/hub/`,
+toujours celui du jeu) jusqu'à la bascule.
+
+**Ouvrir le hub v2 (provisoire)** : réglage caché `hub_v2=true` dans la
+section `[interface]` de `settings.cfg` (`Settings.hub_v2`), ou argument
+`--hub2` ; JOUER au menu titre ouvre alors `MainMenu.SCREENS.hub2`.
+Captures de comparaison avec les maquettes :
+`sh tools/scenario.sh hub2_look` (fenêtre hors écran ;
+`HUB_SHOT_RES=1920x1080` pour du 1080p) -> `tests/_out/shots/hub2_look_*.png`
+(`lab_mockup` : même contenu que `Main.dc.html`).
+
+### 9.1 Architecture
+
+| Classe | Fichier | Rôle |
+|---|---|---|
+| `Hub2Screen` | `hub2_screen.gd` | Écran de menu (MenuScreen) : cadre, navigation, profil, menu du hub |
+| `Hub2Panel` | `hub2_panel.gd` | Base d'un écran (une maquette) : API ci-dessous |
+| `Hub2Style` | `hub2_style.gd` | Jetons des maquettes : couleurs, polices, letter-spacing, px / fs, nombres, ease-out |
+| `Hub2Text` | `hub2_text.gd` | Texte d'une ligne à letter-spacing exact (sous-pixel) |
+| `Hub2Box` | `hub2_box.gd` | Panneau : fond rgba, liseré par côté, biseaux (clip-path), verre flouté (backdrop-filter) ; MarginContainer (padding) |
+| `Hub2Button` | `hub2_button.gd` | BaseButton à contenu libre (un `box` Hub2Box), cadre de focus jaune à la manette / au clavier, `hint` |
+| `Hub2Keycap` | `hub2_keycap.gd` | Touche `<kbd>` (texte ou symbole PlayStation) |
+| `Hub2PulseRings` | `hub2_pulse_rings.gd` | Anneaux jaunes pulsés (@keyframes hubPulse) |
+| `Hub2TopBar` | `hub2_top_bar.gd` | Barre du haut (TopBar.dc.html) |
+| `Hub2Prompts` | `hub2_prompts.gd` | Barre d'invites (Prompts.dc.html) |
+| `Hub2Breadcrumb` | `hub2_breadcrumb.gd` | Fil d'Ariane « ‹ LABO / CONTRATS » |
+| `Hub2Veil` | `hub2_veil.gd` | Voile sur le fond 3D (plein ou dégradé) |
+| `Hub2Input` | `hub2_input.gd` | Invites standard -> touches / boutons, noms selon le périphérique, reconnaissance des événements |
+| écrans | `screens/hub2_*_panel.gd` | LABO, CONTRATS, ÉCHANGES, ARSENAL, INVENTAIRE, CODEX, JOUER, récapitulatif (provisoires) |
+
+Shaders : `assets/shaders/hub2_box.gdshader` (plat),
+`hub2_glass.gdshader` (verre : mipmaps de l'écran + 16 échantillons
+gaussiens, écart type du CSS converti en pixels de l'écran),
+`hub2_backdrop.gdshader` (étalonnage du fond 3D sous l'interface).
+
+Empilement de `Hub2Screen` (de bas en haut) : fond 3D en direct
+(`MenuBackdrop` du MainMenu, voile de gauche du menu titre gardé :
+`backdrop_shade`) -> `grade` (étalonnage de menu_post sous l'interface :
+l'image de fond des maquettes est le menu titre post-traité) -> `veil` (voile
+de l'écran) -> copie de l'écran (BackBufferCopy : le verre floute le fond
+tel qu'affiché) -> `pages` (écrans) -> `crumb` -> `top_bar` -> `prompts` ->
+`hub_menu`.
+
+Navigation (HUB_PLAN §4.1) : onglets LABO · ARSENAL · INVENTAIRE · CODEX
+en boucle (LB / RB, Page préc. / suiv., Q / E, clic) ; JOUER : START, P ou
+clic (de nouveau : retour à l'écran d'avant) ; B / Échap / clic droit :
+fiche de l'écran, sinon sous-écran -> parent, onglet -> LABO, JOUER ->
+écran d'avant, LABO -> menu du hub ; « ‹ LABO » se clique.
+
+### 9.2 Ajouter (remplir) un écran
+
+1. Écrire le contenu dans le fichier de l'écran
+   (`scripts/ui/hub2/screens/hub2_<écran>_panel.gd`, `extends Hub2Panel`),
+   retirer `add_placeholder(...)`. Un nouvel écran : une ligne dans
+   `Hub2Screen.SCREENS` (script, onglet allumé, `parent` pour un sous-écran,
+   titre FR / EN).
+2. API du panneau (toutes facultatives) :
+   - `build()` : construire (une fois ; tout le hub est reconstruit si la
+     TAILLE DES MENUS change) ; `refresh()` : profil changé ;
+     `shown()` / `hidden()` ;
+   - `first_focus()` ; `prompts()` : `[[Hub2Input.ACCEPT, texte], …]` ou
+     `[[id, texte, touches, boutons]]` pour une action propre (clic ->
+     `on_prompt(id)`) ; `help()` : aide à gauche des invites ;
+   - `back()` : vrai si consommé (fiche ouverte…) ; sinon le hub remonte ;
+     `handle_input(event)` : reçu AVANT la navigation du hub ;
+   - `badge()` : pastille jaune de l'onglet ; `veil()` : voile du fond
+     (`{"color": Hub2Style.shade(0.35)}` ou `{"stops": [[0.35, c0], [0.7, c1]]}`) ;
+     `shows_top_bar()` / `shows_prompts()` ;
+   - placement : `content_rect()` / `content_margins()` / `add_main(c)` =
+     le `<main>` de la maquette (28, 96 ou sous le fil d'Ariane, bas 60) ;
+   - côté hub : `hub.open(id)`, `hub.back()`, `hub.profile`,
+     `hub.save_profile()`, `hub.reload_profile()`, `hub.set_hint(t)`,
+     `hub.refresh_prompts()`, `hub.refresh_badges()`, `hub.menu`.
+3. Traduire le CSS : toute valeur passe par `Hub2Style.px()` / `fs()` ;
+   couleurs par les jetons (`TEXT`, `text_a(α)`, `YELLOW`, `TEAL`, `BAD`,
+   `GLASS`, `LINE`, `white_a(α)`, `shade(α)`, `rarity_color(r)`) ;
+   un libellé en capitales espacées = `Hub2Text.setup(texte, CHAKRA, 700, 16,
+   couleur, 0.08)` (taille et letter-spacing de la maquette, texte déjà en
+   majuscules) ; un paragraphe = `Hub2Style.label(...)` ; un panneau
+   `rgba(10,11,13,.62) + blur(12px) + 1px rgba(255,255,255,.08)` =
+   `Hub2Box.glass()` ; un `clip-path` biseauté = `Hub2Box.chamfer(n)` ;
+   un bouton = `Hub2Button` (fond = `button.box`) ; `.hub-ring` =
+   `Hub2PulseRings` enfant du bouton (`scale_to` de la maquette).
+   Graisses : celles chargées par les maquettes (Chakra Petch 500 / 600 /
+   700, Barlow 400 / 500 / 600, JetBrains Mono 500 / 700) ; un nombre sans
+   graisse s'affiche en JetBrains Mono 500, comme dans le navigateur.
+4. Toute chaîne visible : `Lang.t(fr, en)` (FR et EN).
+5. Tests : `tests/test_hub2.gd` (cadre) ; les écrans ajoutent leurs tests
+   unitaires et, pendant leur développement, des captures dans
+   `tests/autotest/hub2_look.gd` (ou leur propre scénario `@rendu`).
+   Pas de fonction statique qui crée sa propre classe dans un script de
+   Control (ressources encore utilisées à la sortie).
+
+### 9.3 Écarts connus avec les maquettes (cadre)
+
+- **Fond** : scène 3D en direct (zombie qui marche, caméra qui dérive), pas
+  l'image figée ; l'image des maquettes est le menu titre post-traité : même
+  étalonnage, grain et vignette reproduits sous l'interface, sans la
+  surimpression « caméra » (CAM-07, REC, coins) ni le texte d'aide capturés
+  dans l'image.
+- **Verre** : la copie de l'écran est faite une fois, après le voile : un
+  verre ne floute pas un autre verre ni le contenu des écrans dessiné avant
+  lui (`Hub2Style.blur_barrier()` au besoin).
+- **Mesures de texte** : avances des glyphes de Godot (onglets à ±1,3 px des
+  positions mesurées dans Chrome sur la maquette).
+- **Menu du hub** (REPRENDRE, OPTIONS…) : pas de maquette v2, celui de
+  l'ancien hub (`HubMenu`) est réutilisé tel quel.
+- **Focus** : les maquettes ne le dessinent pas ; `Hub2Button` montre un
+  cadre jaune de 2 px (manette, clavier), jamais à la souris.
+- **JOUER au clavier** : P (la maquette ne montre que START).

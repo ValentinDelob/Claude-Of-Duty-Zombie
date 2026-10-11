@@ -47,6 +47,8 @@ const LINES := [
 	["role", "POLICES", "FONTS"],
 	["p", "Police en cubes dessinée par le code du jeu. Textes courants dans les polices système de l'ordinateur du joueur (Bahnschrift, Impact, Consolas ou leurs remplaçantes), non fournies avec le jeu.",
 		"Cube font drawn by the game's code. Body text in the system fonts of the player's computer (Bahnschrift, Impact, Consolas or their substitutes), not shipped with the game."],
+	["p", "Laboratoire : Chakra Petch (Cadson Demak), Barlow (Jeremy Tribby) et JetBrains Mono (JetBrains), sous licence SIL Open Font License 1.1.",
+		"Lab: Chakra Petch (Cadson Demak), Barlow (Jeremy Tribby) and JetBrains Mono (JetBrains), under the SIL Open Font License 1.1."],
 	["gap"],
 	["role", "REMERCIEMENTS", "THANKS"],
 	["name", "Valentin"],

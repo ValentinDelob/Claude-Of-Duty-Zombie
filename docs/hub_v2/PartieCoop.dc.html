@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Hub · Jouer · Coop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=Barlow:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position: relative; width: 1280px; height: 720px; overflow: hidden; background: #101317; font-family: 'Barlow', sans-serif; color: #F2F0EA">
+  <img src="/_blob/6081e013ae646f268abd800eabf60108" alt="" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(8, 9, 11, 0.45)"></div>
+  <div style="position: absolute; left: 0; top: 0"><dc-import name="TopBar" active="partie" hint-size="1280px,72px"></dc-import></div>
+
+  <main style="position: absolute; left: 28px; right: 28px; top: 92px; bottom: 60px; display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: center; gap: 20px">
+      <div role="tablist" style="width: 260px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: rgba(10, 11, 13, 0.62); border: 1px solid rgba(255, 255, 255, 0.08)">
+        <a href="Partie.dc.html" role="tab" aria-selected="false" style="height: 40px; display: flex; align-items: center; justify-content: center; text-decoration: none; color: rgba(242, 240, 234, 0.6); font-family: 'Chakra Petch', sans-serif; font-size: 15px; font-weight: 600; letter-spacing: 0.14em">SOLO</a>
+        <span role="tab" aria-selected="true" style="height: 40px; display: flex; align-items: center; justify-content: center; background: #F2F0EA; color: #0B0B0C; font-family: 'Chakra Petch', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.14em">COOP</span>
+      </div>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 0.04em">Salon de Valentin</span>
+        <span style="font-size: 13px; color: rgba(242, 240, 234, 0.6)">Tu héberges · adresse <span style="font-family: 'JetBrains Mono', monospace; color: #F2F0EA">192.168.1.24:7777</span></span>
+      </div>
+      <span style="flex: 1"></span>
+      <button style="height: 36px; padding: 0 16px; border: 1px solid rgba(242, 240, 234, 0.4); background: rgba(10, 11, 13, 0.5); color: #F2F0EA; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.12em; cursor: pointer">COPIER L’ADRESSE</button>
+      <button style="height: 36px; padding: 0 16px; border: 1px solid rgba(255, 107, 87, 0.6); background: rgba(10, 11, 13, 0.5); color: #FF8A78; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.12em; cursor: pointer">QUITTER LE SALON</button>
+    </div>
+
+    <!-- Les joueurs -->
+    <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px">
+      <sc-for list="{{players}}" as="p" hint-placeholder-count="4">
+        <article style="{{p.card}}">
+          <sc-if value="{{p.present}}" hint-placeholder-val="{{true}}">
+            <div style="position: relative; height: 230px; display: flex; align-items: flex-end; justify-content: center">
+              <span aria-hidden="true" style="{{p.glow}}"></span>
+              <img src="/_blob/20876798ce4900f9ed3a5f946a1f1baf" alt="Le joueur de baseball de {{p.name}}" style="position: relative; height: 220px; width: auto; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.6))">
+              <sc-if value="{{p.host}}" hint-placeholder-val="{{false}}">
+                <span style="position: absolute; top: 8px; left: 10px; padding: 2px 8px; background: rgba(245, 197, 66, 0.15); border: 1px solid #F5C542; color: #F5C542; font-family: 'Chakra Petch', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.14em">HÔTE</span>
+              </sc-if>
+            </div>
+            <div style="padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 8px; border-top: 3px solid {{p.color}}">
+              <div style="display: flex; align-items: center; gap: 10px">
+                <span style="width: 34px; height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #F5C542; color: #F5C542; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">{{p.lvl}}</span>
+                <span style="display: flex; flex-direction: column; min-width: 0">
+                  <span style="font-family: 'Chakra Petch', sans-serif; font-size: 18px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.name}}</span>
+                  <span style="font-size: 12px; color: rgba(242, 240, 234, 0.55)">Niveau {{p.lvl}} · {{p.ping}}</span>
+                </span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px">
+                <sc-for list="{{p.gear}}" as="g" hint-placeholder-count="3">
+                  <span style="{{g.style}}"><sc-if value="{{g.has}}" hint-placeholder-val="{{true}}"><img src="{{g.img}}" alt="{{g.name}}" style="width: 100%; height: 26px; object-fit: contain"></sc-if></span>
+                </sc-for>
+              </div>
+              <span style="{{p.statusStyle}}">{{p.status}}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{p.empty}}" hint-placeholder-val="{{false}}">
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: rgba(242, 240, 234, 0.5)">
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 44px; font-weight: 500; line-height: 1">+</span>
+              <span style="font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.16em">PLACE LIBRE</span>
+              <span style="font-size: 13px; text-align: center; padding: 0 20px">Donne ton adresse à un ami pour qu’il rejoigne le salon.</span>
+            </div>
+          </sc-if>
+        </article>
+      </sc-for>
+    </div>
+
+    <!-- Carte et lancement -->
+    <div style="display: flex; gap: 14px; align-items: stretch">
+      <div style="flex: 1; display: flex; align-items: center; gap: 18px; padding: 10px 18px 10px 10px; background: rgba(10, 11, 13, 0.62); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)">
+        <img src="/_blob/92057f91395d6002cbc09d7b4e5f0160" alt="Aperçu de Bunker K-7" style="width: 150px; height: 84px; object-fit: cover; border: 1px solid rgba(255, 255, 255, 0.15)">
+        <span style="display: flex; flex-direction: column; gap: 2px">
+          <span style="font-family: 'Chakra Petch', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: rgba(242, 240, 234, 0.55)">CARTE · CHOISIE PAR L’HÔTE</span>
+          <span style="font-family: 'Chakra Petch', sans-serif; font-size: 22px; font-weight: 700">Bunker K-7</span>
+        </span>
+        <span style="display: flex; gap: 6px; flex-wrap: wrap">
+          <sc-for list="{{waves}}" as="w" hint-placeholder-count="4">
+            <span style="{{w.style}}"><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700">{{w.round}}</span>{{w.name}}</span>
+          </sc-for>
+        </span>
+        <span style="flex: 1"></span>
+        <button style="height: 36px; padding: 0 14px; border: 1px solid rgba(242, 240, 234, 0.4); background: transparent; color: #F2F0EA; font-family: 'Chakra Petch', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.12em; cursor: pointer">CHANGER DE CARTE</button>
+      </div>
+      <button style="width: 240px; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; padding: 0 22px; border: none; cursor: pointer; background: #F5C542; color: #0B0B0C; clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px))">
+        <span style="font-family: 'Chakra Petch', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: 0.12em">LANCER</span>
+        <span style="font-size: 13px; font-weight: 600">3 joueurs prêts sur 3</span>
+      </button>
+    </div>
+  </main>
+
+  <div style="position: absolute; left: 0; bottom: 0"><dc-import name="Prompts" help="Chacun garde sa progression : XP, butin et contrats vont dans son propre profil." items="{{prompts}}" hint-size="1280px,48px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const W = { m1911: ['PÉTOIRE', '/_blob/ed8a57fdd004b309f0c5567595ee180e', '#C9C7BE'], bat: ['BATTE', '/_blob/fc3abecb0f90953ee10501ac089e2f57', '#C9C7BE'], mp40: ['CRÉCELLE', '/_blob/9d38742d8c0caee5a322e5a96cf99ef5', '#C9C7BE'], olympia: ['GARDE-CHASSE', '/_blob/1872714484066f6416ad7bb97500f690', '#C9C7BE'] };
+    const P = [
+      { name: 'Valentin', lvl: 23, color: '#E8C547', host: true, ping: '—', ready: true, gear: ['m1911', 'bat'] },
+      { name: 'Mehdi', lvl: 31, color: '#4D9BFF', host: false, ping: '24 ms', ready: true, gear: ['mp40', 'bat', 'm1911'] },
+      { name: 'Sarah_K', lvl: 8, color: '#FF6B8A', host: false, ping: '41 ms', ready: true, gear: ['olympia', 'm1911'] },
+      null
+    ];
+    const players = P.map((p) => {
+      if (!p) return { present: false, empty: true, card: 'display: flex; flex-direction: column; border: 1px dashed rgba(255, 255, 255, 0.2); background: rgba(10, 11, 13, 0.35)' };
+      const gear = [0, 1, 2].map((i) => {
+        const id = p.gear[i];
+        return id
+          ? { has: true, img: W[id][1], name: W[id][0], style: 'display: flex; align-items: center; height: 32px; box-sizing: border-box; padding: 3px; background: rgba(255, 255, 255, 0.05); border-top: 2px solid ' + W[id][2] }
+          : { has: false, img: '', name: 'Emplacement libre', style: 'display: flex; align-items: center; height: 32px; box-sizing: border-box; padding: 3px; border: 1px dashed rgba(255, 255, 255, 0.15)' };
+      });
+      return {
+        ...p, present: true, empty: false, gear,
+        status: p.ready ? 'PRÊT' : 'EN ATTENTE',
+        statusStyle: 'align-self: flex-start; padding: 3px 10px; font-family: "Chakra Petch", sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.16em; background: ' + (p.ready ? '#4FE3C1' : 'rgba(255, 255, 255, 0.08)') + '; color: ' + (p.ready ? '#062019' : 'rgba(242, 240, 234, 0.7)'),
+        glow: 'position: absolute; bottom: 4px; width: 150px; height: 26px; border-radius: 50%; background: ' + p.color + '; opacity: 0.35; filter: blur(10px)',
+        card: 'display: flex; flex-direction: column; background: rgba(10, 11, 13, 0.62); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08)'
+      };
+    });
+    const waves = [['5', 'Meute', '#4FE3C1'], ['10', 'Brancardier', '#4D9BFF'], ['15', 'Chirurgien', '#FF9A1F'], ['20', 'Infirmière', '#B56CFF']].map(([round, name, c]) => ({
+      round, name,
+      style: 'display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; font-size: 12px; background: rgba(10, 11, 13, 0.7); border: 1px solid ' + c
+    }));
+    return { players, waves, prompts: [{ k: 'A', l: 'LANCER' }, { k: 'Y', l: 'CHANGER DE CARTE' }, { k: 'B', l: 'QUITTER LE SALON' }] };
+  }
+}
+</script>
+</body>
+</html>
