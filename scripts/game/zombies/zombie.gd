@@ -756,7 +756,7 @@ func _attack(delta: float) -> void:
 			# À travers une fenêtre, le bras passe au-dessus de l'allège.
 			if dy < LEVEL_TOLERANCE and d.length() < ATTACK_RANGE + (0.65 if barricade else 0.45):
 				# `game` non nul : _is_target_valid l'exige.
-				game.combat.damage_player(target.peer_id, Combat.ZOMBIE_DAMAGE, global_position + Vector3.UP * 1.2)
+				game.combat.damage_player(target.peer_id, Combat.ZOMBIE_DAMAGE, global_position + Vector3.UP * 1.2, self)
 	if _state_time >= ATTACK_TIME:
 		_set_state(State.BARRIER if barricade else State.CHASE)
 

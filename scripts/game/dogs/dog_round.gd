@@ -306,7 +306,7 @@ func _on_killed(zid: int) -> void:
 	if dog._revealed:
 		for p: Player in game.players.values():
 			if p.global_position.distance_to(pos + Vector3.UP * 0.4) <= DogRules.EXPLODE_RADIUS:
-				game.combat.damage_player(p.peer_id, DogRules.EXPLODE_DAMAGE, pos + Vector3.UP * 0.5)
+				game.combat.damage_player(p.peer_id, DogRules.EXPLODE_DAMAGE, pos + Vector3.UP * 0.5, dog)
 	if not _alive.has(zid):
 		return
 	_alive.erase(zid)

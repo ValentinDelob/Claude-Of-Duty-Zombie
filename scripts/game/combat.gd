@@ -47,6 +47,9 @@ signal shot_validated(pid: int)
 signal shot_rejected(pid: int, reason: String)
 ## Serveur : un zombie a été touché. `killed` indique s'il en est mort.
 signal zombie_damaged(pid: int, zid: int, damage: int, killed: bool, headshot: bool, kind: HitKind)
+## Serveur : un ennemi `source` (Zombie, chien...) a blessé le joueur `pid`
+## (damage_player avec une source ; rencontre du codex, XpSystem).
+signal player_hurt_by(pid: int, source: Node)
 ## Serveur : un joueur a atteint 0 PV.
 signal player_fell(pid: int)
 ## Toutes les machines : un autre joueur a tiré (effets reçus du serveur).
@@ -841,8 +844,9 @@ func is_reloading(pid: int) -> bool:
 # --------------------------------------------------------------------------
 
 ## Inflige des dégâts à un joueur. `from` : position de la source (direction
-## de l'indicateur de dégâts).
-func damage_player(pid: int, amount: int, from: Vector3) -> void:
+## de l'indicateur de dégâts). `source` : ennemi qui frappe (null : piège,
+## explosion du joueur...) ; signal player_hurt_by.
+func damage_player(pid: int, amount: int, from: Vector3, source: Node = null) -> void:
 	if not multiplayer.is_server():
 		return
 	if debug_invulnerable:
@@ -854,6 +858,8 @@ func damage_player(pid: int, amount: int, from: Vector3) -> void:
 	_last_hurt[pid] = GameClock.now()
 	session.sync_stats(pid)
 	_cl_player_hurt.rpc(pid, from)
+	if source != null:
+		player_hurt_by.emit(pid, source)
 	if pd.health > 0 and pd.health < pd.max_health * 0.35:
 		VoxSystem.say(pid, "low_health", 0.7)
 	if pd.health > 0:

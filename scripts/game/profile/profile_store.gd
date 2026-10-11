@@ -10,12 +10,15 @@ extends RefCounted
 ##    "profile": {"xp", "level" (informatif), "next_uid", "starting_weapons",
 ##                "samples": {type: n}, "weapons": [...], "parts": [...],
 ##                "contracts": {...} (ContractState), "exchanges": {"done": {id: n}},
-##                "seen": {"weapons": [uid...], "parts": [uid...]}}}
+##                "seen": {"weapons": [uid...], "parts": [uid...]},
+##                "codex": {"enemies": {type: n}, "seen": [type...]} (CodexState)}}
 ## Version 2 (hub, docs/HUB_PLAN.md §5.4) : sections « contracts »,
 ## « exchanges » et « seen ». Un fichier version 1 se lit sans perte
 ## (_migrate) : contrats neufs (graine tirée, tableau rempli à la première
 ## rotation), aucun échange, tout l'arsenal existant marqué vu ; il est
 ## réécrit en version 2 au prochain enregistrement.
+## Section « codex » (bestiaire, §4.17) : facultative, ajoutée sans changer
+## de version ; absente (fichier plus ancien) = codex vide.
 ## Arme : {"uid", "id", "level", "rarity": "common"|"rare"|"epic"|"legendary"|"unique",
 ##         "parts": [pièce...]} ; pièce : {"uid", "id", "level", "mods": {stat: valeur}}.
 ##
@@ -187,7 +190,7 @@ static func reset(p := "") -> void:
 static func _migrate(data: Dictionary, from_version: int) -> Dictionary:
 	if from_version < 2:
 		data = data.duplicate()
-		for k in ["contracts", "exchanges", "seen"]:
+		for k in ["contracts", "exchanges", "seen", "codex"]:
 			data.erase(k)
 	return data
 
