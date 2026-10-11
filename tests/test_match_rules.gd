@@ -101,6 +101,22 @@ func test_respawn_keeps_everything() -> void:
 	assert_eq(pd.kills, 7)
 
 
+func test_revive_gives_back_the_weapon_held_before_going_down() -> void:
+	# À terre (DownedSystem.srv_down) : pistolet en main à l'emplacement 0 ;
+	# relevé, on retrouve l'arme qu'on tenait, pas le pistolet de départ.
+	var pd := _pd(1, PlayerData.Life.DOWNED)
+	pd.weapons = [WeaponDB.new_instance(WeaponDB.STARTING_WEAPON), WeaponDB.new_instance("hk21")]
+	pd.slot = 1
+	pd.saved_weapons = pd.weapons.duplicate(true)
+	pd.saved_slot = pd.slot
+	pd.weapons = [DownedSystem.last_stand_weapon(pd.saved_weapons)]
+	pd.slot = 0
+	MatchRules.restore_saved_weapons(pd)
+	assert_eq(pd.slot, 1, "arme d'avant en main")
+	assert_eq(pd.current_weapon().id, "hk21")
+	assert_eq(pd.saved_slot, -1, "emplacement mis de côté oublié")
+
+
 func test_respawn_without_saved_weapons_keeps_inventory() -> void:
 	# Mort sans passer à terre : l'inventaire actuel reste ; vide : pistolet.
 	var pd := _pd(1, PlayerData.Life.DEAD)

@@ -13,8 +13,12 @@ extends Node
 ## « [autotest] résultat « nom » : SUCCES|ECHEC » (lue par tools/check.sh) ;
 ## un scénario bloqué arrête la série (les suivants ne sont pas lancés).
 
-## Filet global, en secondes réelles (au-delà du plus long timeout_sec).
+## Filet global, en secondes réelles. Un scénario au timeout_sec plus long
+## (soak avec rendu, captures lentes...) le repousse : le filet ne coupe
+## jamais un scénario avant son propre chien de garde (_guard_deadline).
 const GLOBAL_GUARD_SEC := 450
+## Marge du filet global après le timeout_sec du scénario en cours (s).
+const GLOBAL_GUARD_MARGIN_SEC := 30
 
 ## Vrai une fois _ready passé si des scénarios sont demandés
 ## (= AutotestMode.is_running(), qui répond aussi avant _ready).
@@ -32,6 +36,10 @@ var _frame_ms_max := 0.0
 var _sampling := false
 var _failed := false
 var _t_pre := 0
+## Scénario en cours (ou le dernier joué) et son départ (ms) : le filet
+## global suit son timeout_sec. Gardé après sa fin : la sortie (finish) suit.
+var _current: AutotestScenario = null
+var _current_t0 := 0
 ## Graine de l'aléatoire du scénario en cours (voir _seed_scenario).
 var rng_seed := 0
 ## Générateurs déjà graines, par « script:variable » (compteur d'instances).
@@ -69,7 +77,7 @@ func _ready() -> void:
 	guard.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(guard)
 	guard.timeout.connect(func():
-		if Time.get_ticks_msec() - t_boot > (GLOBAL_GUARD_SEC + 120 * (batch.size() - 1)) * 1000:
+		if not _finishing and Time.get_ticks_msec() > _guard_deadline(t_boot):
 			guard.stop()
 			fail("chien de garde global")
 			finish())
@@ -124,10 +132,23 @@ func _run_one() -> void:
 			fail("timeout du scénario (%ds)" % sc.timeout_sec)
 			finish())
 	watchdog.start()
+	_current = sc
+	_current_t0 = t0
 	@warning_ignore("redundant_await")
 	await sc.run()
 	watchdog.stop()
 	watchdog.queue_free()
+
+
+## Échéance du filet global (ms, horloge réelle) : la plus tardive de la
+## limite de la série et de la fin du timeout_sec du scénario en cours ou du
+## dernier joué (plus une marge), pour que son propre chien de garde, qui
+## donne la cause, passe toujours le premier.
+func _guard_deadline(t_boot: int) -> int:
+	var limit := t_boot + (GLOBAL_GUARD_SEC + 120 * (batch.size() - 1)) * 1000
+	if _current != null:
+		limit = maxi(limit, _current_t0 + (_current.timeout_sec + GLOBAL_GUARD_MARGIN_SEC) * 1000)
+	return limit
 
 
 ## Graine fixe par scénario (hash de son nom) : un échec se rejoue à

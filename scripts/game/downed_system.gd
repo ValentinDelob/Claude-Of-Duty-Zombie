@@ -56,6 +56,7 @@ func srv_down(pid: int) -> void:
 	game.session.add_points(pid, -lost)
 	# Dernier recours : on garde le pistolet (ou on en reçoit un).
 	pd.saved_weapons = pd.weapons.duplicate(true)
+	pd.saved_slot = pd.slot
 	pd.weapons = [last_stand_weapon(pd.saved_weapons)]
 	pd.slot = 0
 	# Répliques : celui qui tombe, un coéquipier qui le voit, le dernier debout.
