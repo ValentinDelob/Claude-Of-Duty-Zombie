@@ -2806,6 +2806,33 @@
     "en": "Know your enemy",
     "fr": "Connais ton ennemi"
    }
+  },
+  "v0.2.1-snapshot.658": {
+   "channel": "snapshot",
+   "date": "2026-10-11",
+   "images": [],
+   "items": [
+    {
+     "en": "New mini-boss: the Screaming Nurse. She keeps her distance, then screams to daze you and send every nearby zombie running at you.",
+     "fr": "Nouveau mini-boss : l'Infirmière hurlante. Elle garde ses distances, puis hurle pour t'étourdir et lancer tous les zombies du coin sur toi."
+    },
+    {
+     "en": "Watch for her warning: hit her throat while she takes a breath and she chokes on her own scream.",
+     "fr": "Guette son signal : touche-la à la gorge pendant qu'elle prend son souffle et elle s'étrangle avec son propre cri."
+    },
+    {
+     "en": "Special waves now rotate between the dog pack, the Stretcher-Bearer and the Nurse.",
+     "fr": "Les vagues spéciales tournent maintenant entre la meute, le Brancardier et l'Infirmière."
+    },
+    {
+     "en": "Three new samples (vocal cords, broken syringe, name badge) with new contracts and exchanges at the lab.",
+     "fr": "Trois nouveaux échantillons (cordes vocales, seringue cassée, badge nominatif) avec de nouveaux contrats et échanges au labo."
+    }
+   ],
+   "title": {
+    "en": "Visiting hours are over",
+    "fr": "Fin des visites"
+   }
   }
  }
 }
