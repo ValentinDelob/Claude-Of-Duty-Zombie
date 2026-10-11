@@ -49,7 +49,6 @@ func _ready() -> void:
 	build_model(self, "poste_central_mur", _tube_mat, _lamp_mat)
 	var label := Label3D.new()
 	label.text = Lang.t("POSTE CENTRAL", "MAINFRAME")
-	label.font = UiStyle.font("stencil")
 	label.font_size = 44
 	label.pixel_size = 0.004
 	label.modulate = Color(0.85, 0.7, 0.35)

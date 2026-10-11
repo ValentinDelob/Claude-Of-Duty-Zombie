@@ -3221,7 +3221,7 @@ func _resume_playtest(back: Dictionary) -> void:
 	var text := String(back.get("message", ""))
 	var err := bool(back.get("error", false))
 	if Router.pending_message != "":
-		# Fin de la partie (« Partie terminée — ... ») ; sauf si l'hôte est
+		# Fin de la partie (« La horde l'emporte — ... ») ; sauf si l'hôte est
 		# parti en pleine partie ou la session perdue (message plus précis).
 		if text == "":
 			text = Router.pending_message

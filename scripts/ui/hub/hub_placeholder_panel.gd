@@ -36,7 +36,7 @@ func build() -> void:
 	row.add_child(box)
 	var v := HubBox.vbox(10)
 	box.content.add_child(HubBox.pad(v, 16, 16, 16, 16))
-	v.add_child(HubStyle.label(Lang.t("À VENIR", "COMING SOON"), 30, HubStyle.RED_HI, "stencil", true, 0.05))
+	v.add_child(HubStyle.label(Lang.t("À VENIR", "COMING SOON"), 30, HubStyle.RED_HI, "title", true, 0.05))
 	var desc := HubStyle.label(_content(), 16, HubStyle.PLASTER)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(desc)

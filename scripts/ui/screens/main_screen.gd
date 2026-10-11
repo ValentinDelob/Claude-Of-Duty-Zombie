@@ -12,7 +12,7 @@ func enter(_args := {}) -> void:
 	_col = vbox(2)
 	_col.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 	_col.offset_left = 84
-	_col.offset_top = -342
+	_col.offset_top = -318
 	add_child(_col)
 	logo = MenuLogo.new()
 	_col.add_child(logo)

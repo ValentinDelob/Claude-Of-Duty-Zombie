@@ -1,27 +1,37 @@
 class_name UiStyle
 extends RefCounted
-## Polices et couleurs de l'interface. Polices système (non redistribuées) avec
-## repli : Bahnschrift (condensée, militaire), Impact, Stencil, puis sans-serif.
+## Polices et couleurs de l'interface (menus, éditeur), propres au jeu :
+## palette du « laboratoire en alerte » commune au HUD (HudStyle) et au hub
+## (HubStyle) : blanc os, jaune des bandes de danger, menthe des moniteurs,
+## orange et rouge des alarmes. Polices système (non redistribuées) avec
+## repli : Bahnschrift (condensée), Impact, puis sans-serif ; les grands
+## titres et le logo sont en police en cubes (CubeFont, MenuStyle.title).
 
-const BLOOD := Color(0.62, 0.05, 0.04)
-const BLOOD_BRIGHT := Color(0.85, 0.1, 0.06)
-const BONE := Color(0.86, 0.82, 0.72)
-const DIM := Color(0.55, 0.52, 0.46)
+const BONE := Color(0.86, 0.84, 0.76)
+const DIM := Color(0.56, 0.55, 0.5)
+## Valeurs mises en avant (niveau, statistiques) : laiton.
 const GOLD := Color(0.95, 0.78, 0.35)
+## Jaune des bandes de danger (sélection, jauges) : HubStyle.YELLOW.
+const ACCENT := Color("E0B31F")
+const ACCENT_HI := Color("F2CC45")
+const ACCENT_LO := Color("A8840F")
+## Menthe des moniteurs du laboratoire (intitulés de section) : HudStyle.ROUND.
+const MINT := Color(0.45, 0.95, 0.78)
+## Rouge-orange d'alarme (logo, avertissements) : HubStyle.RED_HI.
+const ALERT := Color("E0341F")
 
 static var _fonts: Dictionary = {}
 
 
+## Police `kind` : « body » (texte courant), « impact » (boutons, noms),
+## « title » (titres en police système : grasse et condensée), « mono »
+## (valeurs, saisie). Plus de police pochoir dans le jeu.
 static func font(kind := "body") -> Font:
 	if _fonts.has(kind):
 		return _fonts[kind]
 	var f := SystemFont.new()
 	match kind:
-		"title":
-			f.font_names = PackedStringArray(["Stencil", "Impact", "Bahnschrift", "Arial Black", "sans-serif"])
-		"stencil":
-			f.font_names = PackedStringArray(["Stencil", "Impact", "sans-serif"])
-		"impact":
+		"title", "impact":
 			f.font_names = PackedStringArray(["Impact", "Bahnschrift", "Arial Black", "sans-serif"])
 		"mono":
 			f.font_names = PackedStringArray(["Consolas", "Courier New", "monospace"])

@@ -70,7 +70,6 @@ func _ready() -> void:
 	build_panel(self, _lamp_mat)
 	var label := Label3D.new()
 	label.text = "DANGER\n%d" % COST
-	label.font = UiStyle.font("stencil")
 	label.font_size = 40
 	label.pixel_size = 0.004
 	label.modulate = Color(0.85, 0.7, 0.2)

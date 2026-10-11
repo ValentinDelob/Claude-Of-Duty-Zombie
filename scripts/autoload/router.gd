@@ -21,6 +21,11 @@ var lobby_message := ""
 var last_match := {}
 
 
+func _ready() -> void:
+	# Étiquettes 3D du jeu : police en cubes partout (Tag3D).
+	get_tree().node_added.connect(Tag3D.on_node_added)
+
+
 func start_solo(map_id := "") -> void:
 	Net.start_solo(Settings.player_name)
 	Net.start_match(map_id if map_id != "" else Game.requested_map())

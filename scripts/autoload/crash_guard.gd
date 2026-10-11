@@ -30,7 +30,7 @@ func _ready() -> void:
 	if not active:
 		return
 	root = OS.get_user_data_dir()
-	reports = CrashLog.begin_session(root, CrashLog.log_path(), {"programme": "Claude of Duty Zombie",
+	reports = CrashLog.begin_session(root, CrashLog.log_path(), {"programme": GameName.NAME,
 		"version": str(ProjectSettings.get_setting("application/config/version", "?")), "ecran": "démarrage"})
 	for r in reports:
 		print("[Session] la session précédente a planté : rapport ", r)

@@ -128,7 +128,7 @@ func run() -> void:
 	at.check(ed.collab.role == MapCollab.Role.HOST and ed.collab.get_parent() == ed and ed.collab.human_guests().size() == 1, "même session, invité toujours là")
 	at.check(ed.example and ed.map_dir == "" and ed.doc.pieces.size() == 5, "même carte, jamais enregistrée par TESTER (%s)" % ed.map_dir)
 	at.check(not ed.doc.find("pendant_test").is_empty(), "changement fait pendant la partie gardé")
-	at.check(ed.status.text.contains("Partie terminée") or ed.status.text.contains("Game over"), "barre d'état : « %s »" % ed.status.text)
+	at.check(ed.status.text.contains("La horde l'emporte") or ed.status.text.contains("The horde wins"), "barre d'état : « %s »" % ed.status.text)
 	at.check(Net.mode == Net.Mode.NONE and CollabPlaytest.current == null and Router.return_scene == "", "partie de test refermée proprement")
 	at.check(ed.collab.history.undo_count("1") == 1 and not ed.collab.history.entry(avant_cid).is_empty(), "historique gardé (Ctrl+Z de l'hôte : %d)" % ed.collab.history.undo_count("1"))
 	if not await MpHelpers.wait_peer(self, "retour", 30.0):

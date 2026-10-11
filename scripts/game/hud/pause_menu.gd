@@ -1,7 +1,7 @@
 class_name PauseMenu
 extends MenuHost
 ## Menu pause ([Échap]) : REPRENDRE, OPTIONS, QUITTER LA PARTIE, QUITTER LE JEU.
-## En solo la partie est suspendue (comme BO1) ; en multijoueur elle continue
+## En solo la partie est suspendue ; en multijoueur elle continue
 ## (les zombies ne vous attendent pas) mais le joueur local ne bouge plus et
 ## ne tire plus tant que le menu est ouvert (Player : entrées ignorées,
 ## souris libérée).
@@ -55,7 +55,7 @@ func _build_root() -> void:
 	_sub = UiStyle.label(Lang.t("La partie continue pour vos coéquipiers.", "The game goes on for your teammates.") if Net.is_online()
 			else Lang.t("Partie suspendue.", "Game paused."), 18, UiStyle.DIM)
 	col.add_child(_sub)
-	# Carte et manche en cours (comme l'en-tête du menu pause de BO1).
+	# En-tête : carte et manche en cours.
 	_where = HudStyle.label("", 20, HudStyle.TEXT, "condensed", 3)
 	col.add_child(_where)
 	col.add_child(UiStyle.label("", 10))

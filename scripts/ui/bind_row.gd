@@ -255,27 +255,27 @@ func _draw() -> void:
 		# Une seule grande case clignotante : « APPUYEZ SUR UNE TOUCHE… ».
 		var r := slot_rect(SLOT_KEY).merge(slot_rect(SLOT_PAD2))
 		var pulse := 0.5 + 0.5 * cos(_blink * 7.0)
-		draw_rect(r, Color(0.12, 0.02, 0.02, 0.9))
-		draw_rect(r, MenuStyle.HOVER.lerp(Color(1, 0.6, 0.5), pulse), false, 2.0)
+		draw_rect(r, Color(0.07, 0.065, 0.05, 0.92))
+		draw_rect(r, MenuStyle.HOVER.lerp(UiStyle.ACCENT_HI, pulse), false, 2.0)
 		var t := Lang.t("APPUYEZ SUR UN BOUTON DE LA MANETTE…", "PRESS A CONTROLLER BUTTON…") if is_pad_slot(capturing) \
 				else Lang.t("APPUYEZ SUR UNE TOUCHE…", "PRESS A KEY…")
 		draw_string(font, Vector2(r.position.x, base_y), t, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 20,
-				UiStyle.BONE.lerp(Color(1, 0.8, 0.7), pulse))
+				UiStyle.BONE.lerp(MenuStyle.FLASH, pulse))
 		return
 	var style := Settings.pad_style()
 	var mono := UiStyle.font("mono")
 	for i in SLOTS:
 		var r := slot_rect(i)
 		var sel := f > 0.5 and i == slot
-		var bg := Color(0.04, 0.03, 0.03, 0.8) if not sel else Color(0.14, 0.03, 0.02, 0.9)
+		var bg := MenuStyle.FIELD_BG if not sel else Color(0.09, 0.08, 0.05, 0.92)
 		draw_rect(r, bg)
-		var border := Color(0.3, 0.07, 0.05, 0.9).lerp(MenuStyle.HOVER, 1.0 if sel else 0.0)
+		var border := MenuStyle.FIELD_BORDER.lerp(MenuStyle.HOVER, 1.0 if sel else 0.0)
 		draw_rect(r, border, false, 2.0 if sel else 1.0)
 		var c := code(i)
 		@warning_ignore("static_called_on_instance")
 		var t := Settings.code_label(c, style) if c != "" else "—"
 		var tc := UiStyle.BONE if c != "" else MenuStyle.DIM_TEXT
-		tc = tc.lerp(Color(1, 0.55, 0.45), _flash)
+		tc = tc.lerp(MenuStyle.FLASH, _flash)
 		var others := shared(i)
 		if others.is_empty():
 			# Nom long (« MOLETTE DROITE ») : police réduite pour tenir dans la case.
@@ -294,7 +294,7 @@ func _draw() -> void:
 		var ns := fit_size(font, note, r.size.x - 8, 11, 9)
 		note = fit_text(font, note, r.size.x - 8, ns)
 		draw_string(font, Vector2(r.position.x + 4, r.end.y - 3), note, HORIZONTAL_ALIGNMENT_CENTER,
-				r.size.x - 8, ns, UiStyle.GOLD.lerp(Color(1, 0.55, 0.45), _flash))
+				r.size.x - 8, ns, UiStyle.GOLD.lerp(MenuStyle.FLASH, _flash))
 
 
 func _on_device_changed(_pad: bool) -> void:

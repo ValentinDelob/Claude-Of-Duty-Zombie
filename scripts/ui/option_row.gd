@@ -164,7 +164,7 @@ func value_text() -> String:
 func _draw() -> void:
 	var h := size.y
 	var f := _focus_t
-	# Bandeau de surbrillance : trait de sang qui s'étire depuis la gauche.
+	# Bandeau de surbrillance : barre en paliers qui s'étire depuis la gauche.
 	if f > 0.001:
 		MenuStyle.draw_highlight(self, Rect2(0, 2, size.x * (0.35 + 0.65 * f), h - 4), f)
 	var font := UiStyle.font("impact")
@@ -178,7 +178,7 @@ func _draw() -> void:
 	var ax := VALUE_X + ARROW_W * 0.5 + minf(_nudge, 0.0) * 5.0
 	_arrow(Vector2(ax, h * 0.5), -1.0, arrow_col if _nudge >= 0.0 else MenuStyle.HOVER)
 	var gx := VALUE_X + ARROW_W
-	var vcol := UiStyle.BONE.lerp(Color(1, 0.55, 0.45), _flash)
+	var vcol := UiStyle.BONE.lerp(MenuStyle.FLASH, _flash)
 	if kind == Kind.RANGE:
 		# Jauge segmentée.
 		var t := inverse_lerp(min_value, max_value, value)
@@ -188,9 +188,9 @@ func _draw() -> void:
 			var r := Rect2(gx + i * seg_w + 1, h * 0.5 - 7, seg_w - 3, 14)
 			if i < lit:
 				var c := MenuStyle.GAUGE_ON.lerp(MenuStyle.HOVER, f * 0.5 + _flash * 0.5)
-				draw_rect(r, c)
+				CubeFont.draw_cube(self, r, c)
 			else:
-				draw_rect(r, Color(0.2, 0.18, 0.16, 0.6))
+				draw_rect(r, Color(0.16, 0.17, 0.18, 0.6))
 		var vt := value_text()
 		draw_string(UiStyle.font("mono"), Vector2(gx + GAUGE_W + 12, base_y - 2), vt, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, vcol)
 		var rx := gx + GAUGE_W + 88.0 + maxf(_nudge, 0.0) * 5.0
@@ -206,12 +206,19 @@ func _draw() -> void:
 		var start := gx + w * 0.5 - n * (pip + 4.0) * 0.5
 		for i in n:
 			var r := Rect2(start + i * (pip + 4.0), h - 7, pip, 3)
-			draw_rect(r, MenuStyle.HOVER if i == index() else Color(0.3, 0.28, 0.25, 0.7))
+			draw_rect(r, MenuStyle.HOVER if i == index() else Color(0.28, 0.29, 0.3, 0.7))
 		var rx := gx + w + ARROW_W * 0.5 + maxf(_nudge, 0.0) * 5.0
 		_arrow(Vector2(rx, h * 0.5), 1.0, arrow_col if _nudge <= 0.0 else MenuStyle.HOVER)
 
 
+## Flèche en marches de pixels (colonnes de 3, 2 et 1 blocs de 4 px).
 func _arrow(c: Vector2, dir: float, col: Color) -> void:
-	var s := 7.0
-	draw_colored_polygon(PackedVector2Array([
-		c + Vector2(s * dir, 0), c + Vector2(-s * dir, -s), c + Vector2(-s * dir, s)]), col)
+	_pixel_arrow(self, c, dir, col)
+
+
+static func _pixel_arrow(ci: CanvasItem, c: Vector2, dir: float, col: Color) -> void:
+	var p := 4.0
+	for i in 3:
+		var hh := (5 - 2 * i) * p
+		var x := c.x + (i - 1) * p * dir - p * 0.5
+		ci.draw_rect(Rect2(x, c.y - hh * 0.5, p, hh), col)

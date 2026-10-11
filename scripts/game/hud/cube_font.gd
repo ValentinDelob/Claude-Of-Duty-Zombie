@@ -83,6 +83,8 @@ const GLYPHS := {
 	"«": [".....", "..#.#", ".#.#.", "#.#..", ".#.#.", "..#.#", "....."],
 	"»": [".....", "#.#..", ".#.#.", "..#.#", ".#.#.", "#.#..", "....."],
 	"·": [".", ".", ".", "#", ".", ".", "."],
+	# Croix médicale (« ✚ À TERRE » au-dessus d'un coéquipier, Tag3D).
+	"✚": ["..###..", "..###..", "#######", "#######", "#######", "..###..", "..###.."],
 }
 ## Signes diacritiques (2 rangées au-dessus de la lettre, largeur 5 ; centrés
 ## sur les lettres plus étroites).

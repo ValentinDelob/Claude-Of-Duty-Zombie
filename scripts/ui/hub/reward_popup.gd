@@ -108,7 +108,7 @@ func _build(head: String, title: String, line: String, res: Dictionary, pr: Play
 	var small := HubStyle.label(head, 13, HubStyle.DIM, "ui", false, 0.1)
 	small.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hv.add_child(small)
-	var big := HubStyle.label(title.to_upper(), 30, HubStyle.RED_HI, "stencil", false, 0.05)
+	var big := HubStyle.label(title.to_upper(), 30, HubStyle.RED_HI, "title", false, 0.05)
 	big.add_theme_color_override("font_shadow_color", HubStyle.BLACK)
 	big.add_theme_constant_override("shadow_offset_x", int(HubStyle.px(3)))
 	big.add_theme_constant_override("shadow_offset_y", int(HubStyle.px(3)))

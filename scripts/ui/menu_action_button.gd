@@ -1,13 +1,14 @@
 class_name MenuActionButton
 extends Button
-## Bouton de menu dessiné en code : texte au pochoir, trait de sang qui
-## s'étire au survol / focus, chevron, léger décalage et éclat à la validation.
+## Bouton de menu dessiné en code : texte seul, barre de sélection en paliers
+## qui s'étire au survol / focus (MenuStyle.draw_highlight), petit cube à la
+## place du chevron, léger décalage et éclat à la validation.
 ## Garde l'API de Button (pressed, disabled, grab_focus...).
 
 var label := ""
 var hint := ""
 var font_size := MenuStyle.BUTTON_SIZE
-## Onglet actif (écran d'options) : texte clair et trait rouge sous le texte.
+## Onglet actif (écran d'options) : texte clair et trait jaune sous le texte.
 var selected := false:
 	set(v):
 		selected = v
@@ -68,11 +69,9 @@ func _draw() -> void:
 		draw_rect(Rect2(x, base_y + 5.0, w, 3.0), MenuStyle.HOVER)
 	if disabled:
 		col = MenuStyle.DISABLED
-	col = col.lerp(Color(1, 0.75, 0.6), _flash)
-	# Chevron.
+	col = col.lerp(MenuStyle.FLASH, _flash)
+	# Cube de sélection (à la place d'un chevron).
 	if ease_f > 0.01:
-		var c := Vector2(10.0 + 6.0 * ease_f, h * 0.5)
-		var s := 6.0 * ease_f
-		draw_colored_polygon(PackedVector2Array([c + Vector2(s, 0), c + Vector2(-s * 0.6, -s), c + Vector2(-s * 0.6, s)]), Color(MenuStyle.HOVER, ease_f))
+		MenuStyle.draw_marker(self, Vector2(14.0 + 2.0 * ease_f, h * 0.5), 9.0 * ease_f, Color(MenuStyle.HOVER, ease_f))
 	draw_string_outline(font, Vector2(x, base_y), label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 6, Color(0, 0, 0, 0.9))
 	draw_string(font, Vector2(x, base_y), label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, col)

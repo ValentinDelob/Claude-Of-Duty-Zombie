@@ -526,7 +526,7 @@ func _return_to_lobby() -> void:
 ## le résumé.
 func _leave_after_game_over(r: MatchResult) -> void:
 	var summary := (Lang.t("Évacuation réussie — ", "Evacuated — ") if r.evacuated
-			else Lang.t("Partie terminée — ", "Game over — ")) + r.summary()
+			else Lang.t("La horde l'emporte — ", "The horde wins — ")) + r.summary()
 	Router.back_to_menu(summary if Router.return_scene != "" else "", "lab")
 
 

@@ -1,5 +1,5 @@
 extends MenuScreen
-## Options, en onglets (comme les sous-menus d'options de BO1) : JEU (joueur et
+## Options, en onglets : JEU (joueur et
 ## personnage, langue, taille des menus et de l'interface de l'éditeur de cartes), COMMANDES
 ## (sensibilité, touches), GRAPHISMES, SON. Chaque changement est
 ## appliqué et enregistré immédiatement (Settings.apply() +
@@ -118,12 +118,12 @@ func _tab_hint() -> String:
 
 func _style_scrollbar(bar: VScrollBar) -> void:
 	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.08, 0.03, 0.03, 0.6)
+	bg.bg_color = Color(0.06, 0.065, 0.07, 0.6)
 	bg.content_margin_left = 4
 	bg.content_margin_right = 4
 	bar.add_theme_stylebox_override("scroll", bg)
 	var grab := StyleBoxFlat.new()
-	grab.bg_color = Color(0.5, 0.08, 0.06)
+	grab.bg_color = MenuStyle.GAUGE_ON
 	bar.add_theme_stylebox_override("grabber", grab)
 	var hi := grab.duplicate()
 	hi.bg_color = MenuStyle.HOVER
@@ -266,8 +266,8 @@ func _page_controls() -> void:
 			Lang.t("Vitesse de rotation de la vue au stick droit de la manette.", "How fast the view turns with the controller's right stick."))
 	_add("ads_sensitivity", MenuOptionRow.make_range(Lang.t("SENSIBILITÉ EN VISÉE", "AIM SENSITIVITY"),
 			Settings.ads_sensitivity, Settings.ADS_SENSITIVITY_RANGE.x, Settings.ADS_SENSITIVITY_RANGE.y, 0.05, pct),
-			Lang.t("Vitesse de la vue en visée, par rapport à celle de l'arme (100 % : comme BO1). Souris et manette.",
-				"View speed while aiming, relative to the weapon's own (100%: like BO1). Mouse and controller."))
+			Lang.t("Vitesse de la vue en visée, par rapport à celle de l'arme (100 % : vitesse propre à l'arme). Souris et manette.",
+				"View speed while aiming, relative to the weapon's own (100%: the weapon's own speed). Mouse and controller."))
 	_add("invert_y", MenuOptionRow.make_toggle(Lang.t("INVERSER L'AXE VERTICAL", "INVERT VERTICAL AXIS"), Settings.invert_y),
 			Lang.t("Pousser la souris ou le stick droit vers l'avant fait baisser la vue.",
 				"Pushing the mouse or the right stick forward looks down."))
@@ -320,11 +320,11 @@ func _page_graphics() -> void:
 			func(v): return "%d°" % int(v)), Lang.t("Angle de vue horizontal en jeu.", "Horizontal view angle in game."))
 	_add("brightness", MenuOptionRow.make_range(Lang.t("LUMINOSITÉ", "BRIGHTNESS"), Settings.brightness,
 			Settings.BRIGHTNESS_RANGE.x, Settings.BRIGHTNESS_RANGE.y, 0.05, pct),
-			Lang.t("Gamma de l'image en jeu, comme dans Black Ops (100 % : réglage d'origine).",
-				"In-game picture gamma, as in Black Ops (100%: original setting)."))
+			Lang.t("Gamma de l'image en jeu (100 % : réglage d'origine).",
+				"In-game picture gamma (100%: original setting)."))
 	_add("film_grain", MenuOptionRow.make_range(Lang.t("GRAIN DE FILM", "FILM GRAIN"), Settings.film_grain, 0.0, 1.0, 0.1,
 			func(v): return Lang.t("DÉSACTIVÉ", "OFF") if v < 0.05 else "%d %%" % int(round(v * 100.0))),
-			Lang.t("Grain de pellicule en jeu, comme dans Black Ops (0 : image nette).", "In-game film grain, as in Black Ops (0: clean picture)."))
+			Lang.t("Grain de pellicule en jeu (0 : image nette).", "In-game film grain (0: clean picture)."))
 	_add("outline", MenuOptionRow.make_toggle(Lang.t("CONTOUR", "OUTLINE"), Settings.outline),
 			Lang.t("Trait noir autour des personnages et des marches de cubes." if ScreenOutline.supported()
 				else "Indisponible avec ce moteur de rendu (Forward+ nécessaire).",
