@@ -100,10 +100,11 @@ func _pad(hub: HubScreen, button: JoyButton) -> void:
 	hub._unhandled_input(ev)
 
 
-func test_seven_tabs_in_order() -> void:
+func test_eight_tabs_in_order() -> void:
 	var hub := await _open()
-	assert_eq(Array(hub.tab_bar.labels), ["LABO", "ARSENAL", "PIÈCES", "CONTRATS", "ÉCHANGES", "DÉPART", "PARTIE"])
-	assert_eq(hub.panels.size(), 7, "un panneau par onglet")
+	assert_eq(Array(hub.tab_bar.labels), ["LABO", "ARSENAL", "PIÈCES", "CONTRATS", "ÉCHANGES", "DÉPART", "CODEX", "PARTIE"])
+	assert_eq(hub.panels.size(), 8, "un panneau par onglet")
+	assert_true(hub.panels.codex is HubCodexPanel, "CODEX : bestiaire, avant PARTIE")
 	assert_true(hub.panels.lab is HubLabPanel, "LABO : panneau du lot B")
 	assert_true(hub.panels.arsenal is HubArsenalPanel, "ARSENAL : panneau du lot C")
 	assert_true(hub.panels.play is HubPlayPanel, "PARTIE : panneau du lot E")
@@ -137,7 +138,7 @@ func test_initial_focus_per_tab() -> void:
 	await wait_frames(2)
 	assert_eq(hub.get_viewport().gui_get_focus_owner(), hub.panels.play.launch_button, "PARTIE : focus sur LANCER LA PARTIE")
 	# Onglets réels des lots C et D : leur premier élément utile, jamais rien.
-	for id in ["arsenal", "parts", "contracts", "exchanges", "loadout"]:
+	for id in ["arsenal", "parts", "contracts", "exchanges", "loadout", "codex"]:
 		hub.select_tab(id)
 		await wait_frames(2)
 		var want: Control = hub.panels[id].first_focus()
