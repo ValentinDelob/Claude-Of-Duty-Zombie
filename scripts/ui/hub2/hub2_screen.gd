@@ -296,6 +296,15 @@ func refresh_badges() -> void:
 		var tab := String(SCREENS[id].tab)
 		if tab != "" and (panels[id] as Hub2Panel).badge():
 			on[tab] = true
+	# Onglet dont l'écran n'est pas encore construit : fonction statique
+	# facultative `tab_badge(profile)` de son script.
+	for id in TABS:
+		if not panels.has(id) and not on.get(id, false):
+			var s := panel_script(id)
+			for m in s.get_script_method_list():
+				if m.name == "tab_badge":
+					on[id] = bool(s.call("tab_badge", profile))
+					break
 	for id in TABS:
 		top_bar.set_badge(id, on.get(id, false))
 

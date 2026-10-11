@@ -1,7 +1,7 @@
 {
 	"format": "hub_codex",
 	"version": 1,
-	"_doc": "Codex du hub (GAME_CONCEPT 4.17, docs/HUB_PLAN.md 3.10). Une fiche par type d'ennemi, dans l'ordre d'affichage. id = type d'ennemi de XpRules (l'XP affichée vient de XpRules, jamais d'ici) ; xp_ref : type de référence de XpRules tant que l'ennemi n'a pas son propre barème (ennemis prévus). round : manche à partir de laquelle il peut apparaître (indice montré sur la fiche inconnue). samples : sortes d'échantillons (LootRules.SAMPLES). planned : ennemi prévu, pas encore dans le jeu.",
+	"_doc": "Codex du hub (GAME_CONCEPT 4.17, docs/HUB_PLAN.md 3.10). Une fiche par type d'ennemi, dans l'ordre d'affichage. id = type d'ennemi de XpRules (l'XP affichée vient de XpRules, jamais d'ici) ; xp_ref : type de référence de XpRules tant que l'ennemi n'a pas son propre barème (ennemis prévus). round : manche à partir de laquelle il peut apparaître (indice montré sur la fiche inconnue). samples : sortes d'échantillons (LootRules.SAMPLES). planned : ennemi prévu, pas encore dans le jeu. groups : fiches réunies en UNE carte au bestiaire du hub v2 (id, name, text, members).",
 	"enemies": [
 		{
 			"id": "walker",
@@ -84,6 +84,17 @@
 			},
 			"round": 15,
 			"samples": ["surgeon_scalpel", "surgeon_heart"]
+		}
+	],
+	"groups": [
+		{
+			"id": "zombies",
+			"name": {"fr": "Les zombies", "en": "The zombies"},
+			"text": {
+				"fr": "Marcheurs, rampants, coureurs : le tout-venant de la quarantaine. Plus nombreux et plus solides à chaque manche.",
+				"en": "Walkers, crawlers, runners: the everyday riff-raff of the quarantine. More of them, and tougher, every round."
+			},
+			"members": ["walker", "crawler", "runner", "sprinter"]
 		}
 	]
 }
