@@ -245,6 +245,16 @@ func test_cube_changes_only_its_own_view() -> void:
 	await wait_frames(1)
 
 
+## Attend la fin de la construction de l'aperçu 3D (au plus 30 s réelles).
+func _built(w: MapPreviewWorld) -> bool:
+	var t0 := Time.get_ticks_msec()
+	while not (w.builds > 0 and w.idle() and not w.is_stale()):
+		if Time.get_ticks_msec() - t0 > 30000:
+			return false
+		await wait_frames(1)
+	return true
+
+
 ## Fin de la transition du ViewCube (glissement de la caméra).
 func _end_glide(rig: MapPreviewCamera) -> void:
 	rig.end_glide()
@@ -288,6 +298,12 @@ func test_cube_keeps_the_camera_mode() -> void:
 			pn3 = lay._pane_3d()
 			assert_true(pn3 != null and pv.pane_host == pn3.view, "fenêtre 3D de la disposition")
 		await wait_frames(2)
+		# Carte construite dans l'aperçu avant de choisir le mode : la vue
+		# joueur a besoin du sol, et la fin de la PREMIÈRE construction (fil de
+		# calcul, plus ou moins long selon la charge) recadre toute la carte,
+		# ce qui ramène la vue joueur en orbite (MapPreviewWorld._finish).
+		var w := pv.world
+		assert_true(await _built(w), "%s : aperçu construit" % host_id)
 		for m in [MapPreviewCamera.Mode.ORBIT, MapPreviewCamera.Mode.FLY, MapPreviewCamera.Mode.WALK]:
 			pv.world.frame_map()
 			pv.set_camera_mode(m)
