@@ -54,6 +54,24 @@ func run() -> void:
 	H.aim_at(p, b.global_position + Vector3.UP * 1.3)
 	await seconds(1.0)
 	await at.screenshot("model")
+	# Vrais tirs (touches validées par le serveur) : corps puis tête.
+	pd.weapons = [WeaponDB.new_instance("commando")]
+	pd.slot = 0
+	game.session.sync_inventory(1)
+	await seconds(0.3)
+	var hp_b := b.health
+	H.aim_at(p, b.global_position + Vector3.UP * 1.2)
+	p.input.fire = true
+	await seconds(0.6)
+	p.input.fire = false
+	var body_dmg := hp_b - b.health
+	at.check(body_dmg > 0, "tirs au corps : %d dégâts" % body_dmg)
+	hp_b = b.health
+	H.aim_at(p, b.head_position())
+	p.input.fire = true
+	await seconds(0.6)
+	p.input.fire = false
+	at.check(hp_b - b.health > body_dmg, "tête (point faible) : %d dégâts (corps : %d)" % [hp_b - b.health, body_dmg])
 	game.zombies.despawn(b.id)
 	await seconds(0.3)
 

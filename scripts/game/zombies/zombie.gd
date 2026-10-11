@@ -997,6 +997,12 @@ func head_position() -> Vector3:
 	return hit_head.global_position
 
 
+## Hauteur (m) du centre du corps pour le contrôle des touches par le serveur
+## (Combat._apply_hits : distance au rayon du tir ≤ HIT_TOLERANCE).
+func hit_center_height() -> float:
+	return 0.95
+
+
 ## Mort (toutes les machines). `dir` : direction du coup fatal ; sa longueur
 ## est la force du coup (ZombieRagdoll.kill_impulse, m/s).
 func die(dir: Vector3, headshot: bool) -> void:

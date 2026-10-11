@@ -47,6 +47,8 @@ var _life_t := 0.0
 var _scrapes := 0
 var _stars_t := 0.0
 var _stars: Node3D
+## Client : phases de la charge reçues (_cl_phase), à jouer.
+var _net_phases: Array[int] = []
 var _gait := 0.0
 var _last_step := 0
 
@@ -126,6 +128,12 @@ func head_position() -> Vector3:
 	return hit_head.global_position
 
 
+## Centre du corps pour le contrôle des touches (colosse de 2,25 m : sa tête
+## est à plus de HIT_TOLERANCE du centre d'un zombie ordinaire).
+func hit_center_height() -> float:
+	return 1.5
+
+
 func move_speed() -> float:
 	return BrancardRules.WALK_SPEED
 
@@ -145,6 +153,17 @@ func _leg_radius() -> float:
 ## Code d'animation : état (3 bits) | phase de la charge (2 bits).
 func anim_code() -> int:
 	return int(state) | (charge_phase << 3)
+
+
+## Serveur -> clients : changement de phase de la charge, en message FIABLE
+## (rare : quatre par charge). Les instantanés non fiables peuvent se perdre
+## par rafales ; la préparation, le choc et leurs sons ne doivent jamais
+## manquer. Mis en file, joué par _process dans l'ordre reçu.
+@rpc("authority", "call_remote", "reliable")
+func _cl_phase(p: int) -> void:
+	if server_side or p < Phase.NONE or p > Phase.STUN:
+		return
+	_net_phases.append(p)
 
 
 # --------------------------------------------------------------------------
@@ -279,6 +298,8 @@ func _set_phase(p: int) -> void:
 	charge_phase = p
 	phase_time = 0.0
 	_on_phase(p)
+	if Net.is_online() and multiplayer.has_multiplayer_peer() and not multiplayer.get_peers().is_empty():
+		_cl_phase.rpc(p)
 
 
 ## Coup des deux poings (au contact, après la poursuite de Zombie._chase).
@@ -352,8 +373,10 @@ func _process(delta: float) -> void:
 		_interpolate()
 		_state_time += delta
 		phase_time += delta
-		if speed_class != charge_phase:
-			charge_phase = speed_class
+		# Phases reçues (_cl_phase, fiable) dans l'ordre : aucune
+		# n'est sautée (une par image : chaque phase est vue et entendue).
+		if not _net_phases.is_empty():
+			charge_phase = _net_phases.pop_front()
 			phase_time = 0.0
 			_on_phase(charge_phase)
 	_groan(delta)
@@ -371,6 +394,8 @@ func _process(delta: float) -> void:
 ## Début d'une phase de la charge : sons et effets (toutes les machines).
 func _on_phase(p: int) -> void:
 	_scrapes = 0
+	if p != Phase.NONE:
+		print("[Brancardier] %d : %s (%s)" % [id, ["poursuite", "préparation", "charge", "étourdi"][p], "serveur" if server_side else "client"])
 	var head := global_position + Vector3.UP * 2.0
 	# Yeux : flamboient à la préparation et pendant la charge (lisible de
 	# loin, même à contre-jour), ternes quand il est étourdi.
