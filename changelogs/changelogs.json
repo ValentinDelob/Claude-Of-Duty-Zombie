@@ -2833,6 +2833,37 @@
     "en": "Visiting hours are over",
     "fr": "Fin des visites"
    }
+  },
+  "v0.2.1-snapshot.664": {
+   "channel": "snapshot",
+   "date": "2026-10-11",
+   "images": [],
+   "items": [
+    {
+     "en": "First boss: the Surgeon, a giant with a huge scalpel and a glowing mutant heart. Aim for the heart!",
+     "fr": "Premier boss : le Chirurgien, un géant au scalpel énorme et au cœur mutant lumineux. Vise le cœur !"
+    },
+    {
+     "en": "He slashes, throws fans of scalpels, raises zombies mid-surgery and goes into a rage at half health.",
+     "fr": "Il taillade, lance des éventails de scalpels, relève des zombies en pleine opération et entre en rage à mi-vie."
+    },
+    {
+     "en": "Boss waves every 15 rounds, with a health bar, rarer loot for everyone and the evacuation door opening.",
+     "fr": "Une vague de boss toutes les 15 manches, avec barre de vie, butin plus rare pour tous et porte d'évacuation ouverte."
+    },
+    {
+     "en": "Two new samples (scalpel, mutant heart) with new contracts and exchanges at the lab.",
+     "fr": "Deux nouveaux échantillons (scalpel, cœur mutant) avec de nouveaux contrats et échanges au labo."
+    },
+    {
+     "en": "Map editor: choose the boss of each map, or no boss at all.",
+     "fr": "Éditeur de cartes : choisis le boss de chaque carte, ou aucun boss."
+    }
+   ],
+   "title": {
+    "en": "The Surgeon will see you now",
+    "fr": "Le Chirurgien va vous recevoir"
+   }
   }
  }
 }
