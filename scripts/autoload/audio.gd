@@ -24,6 +24,13 @@ var _fades: Dictionary = {}
 ## Limite le nombre de lectures simultanées d'un même son (ex. 20 zombies qui grognent).
 var _recent: Dictionary = {}
 var _shutdown := false
+## Variation de hauteur des sons : générateur PROPRE à l'audio. Le limiteur
+## ci-dessus (horloge réelle) et la polyphonie (lecteurs encore en cours, en
+## temps réel) décident si un son part : tirée dans le générateur global, la
+## variation changeait le nombre de tirages selon la charge de la machine et
+## décalait l'aléatoire du jeu (chemins des zombies) d'une exécution à
+## l'autre, même à graine fixe (scénario zombie_corridors instable).
+var _pitch_rng := RandomNumberGenerator.new()
 ## Groupes de voix 3D à polyphonie limitée (vocalises et pas des zombies) :
 ## au-delà, la voix la plus lointaine est remplacée si le nouveau son est
 ## plus proche de l'auditeur, sinon le nouveau son est ignoré.
@@ -153,7 +160,7 @@ func play_3d(sound: String, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.06
 	p.stream = st
 	p.global_position = pos
 	p.volume_db = volume_db
-	p.pitch_scale = pitch * (1.0 + randf_range(-pitch_jitter, pitch_jitter))
+	p.pitch_scale = pitch * (1.0 + _pitch_rng.randf_range(-pitch_jitter, pitch_jitter))
 	p.play()
 	played[sound] = int(played.get(sound, 0)) + 1
 
@@ -212,7 +219,7 @@ func play_2d(sound: String, volume_db := 0.0, pitch_jitter := 0.04, bus := "SFX"
 	p.stream = st
 	p.bus = bus
 	p.volume_db = volume_db
-	p.pitch_scale = pitch * (1.0 + randf_range(-pitch_jitter, pitch_jitter))
+	p.pitch_scale = pitch * (1.0 + _pitch_rng.randf_range(-pitch_jitter, pitch_jitter))
 	p.play()
 
 
