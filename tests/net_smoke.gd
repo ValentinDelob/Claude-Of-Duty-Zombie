@@ -1,13 +1,18 @@
 extends Node
 ## Test réseau multi-processus (lancé par tools/net_smoke.sh).
 ##   --role=host   --port=N --max=M   : héberge, attend M-1 clients, vérifie, quitte
-##   --role=client --port=N --expect=ok|full : se connecte et vérifie le résultat
+##   --role=client --port=N --expect=ok|full|version : se connecte et vérifie le résultat
+##   --release=res://… (client « ok ») : reste connecté jusqu'à ce que ce
+##     fichier existe (le script le crée quand les clients refusés ont fini)
 
 var role := ""
 var port := 17801
 var max_players := 2
 var expect := "ok"
-var _deadline := 60.0
+var release_file := ""
+## Garde-fou seulement (blocage) : sous charge, le démarrage des deux clients
+## refusés peut prendre bien plus de 20 s.
+var _deadline := 150.0
 
 
 func _ready() -> void:
@@ -20,6 +25,7 @@ func _ready() -> void:
 			"port": port = kv[1].to_int()
 			"max": max_players = kv[1].to_int()
 			"expect": expect = kv[1]
+			"release": release_file = kv[1]
 	if role == "host":
 		Net.host(port, max_players, "Hote")
 		print("[smoke] host en écoute")
@@ -36,7 +42,9 @@ func _host_check() -> void:
 		_was_full = true
 		print("[smoke] host: %d joueurs : %s" % [Net.players.size(), Net.players])
 	elif _was_full and Net.players.size() == 1:
-		_result(_rejections >= 1, "plein atteint, %d refus, client parti proprement" % _rejections)
+		# Le client accepté ne part qu'après les deux clients refusés (plein,
+		# autre release) : les deux refus ont eu lieu.
+		_result(_rejections >= 2, "plein atteint, %d refus, client parti proprement" % _rejections)
 
 
 var _was_full := false
@@ -60,7 +68,11 @@ func _on_joined() -> void:
 		_result(false, "accepté alors que le serveur devait être plein")
 		return
 	print("[smoke] client accepté")
-	# Reste connecté pendant que le 3e joueur tente sa chance (il démarre
-	# seulement maintenant : laisser le temps au moteur de se lancer).
-	await get_tree().create_timer(24.0).timeout
+	# Reste connecté pendant que les clients refusés tentent leur chance : ils
+	# démarrent seulement maintenant, l'un après l'autre, et le démarrage du
+	# moteur varie beaucoup avec la charge. Jamais un délai fixe (24 s
+	# autrefois : sous charge, l'hôte quittait avant le 3e client) : le
+	# script signale leur fin par un fichier.
+	while release_file != "" and not FileAccess.file_exists(release_file):
+		await get_tree().create_timer(0.1).timeout
 	_result(Net.players.size() == 2 and Net.mode == Net.Mode.CLIENT, "accepté, %d joueurs vus" % Net.players.size())
