@@ -77,7 +77,9 @@ ramasser son butin (à sa couleur), se replacer, recharger.
 
 ## 3. Lore
 
-- ✅ Un **scientifique** cherche à mettre au point un **vaccin et un antidote**.
+- ✅ Un **scientifique**, le **Dr Brown** (virologue, nom validé avec les
+  maquettes du hub v2 le 2026-10-11, `docs/hub_v2/`), cherche à mettre au
+  point un **vaccin et un antidote**.
   Il a besoin d'**échantillons** prélevés sur les zombies et engage les joueurs
   pour les récupérer (contrats).
 - ✅ Tous les joueurs incarnent le **même personnage**, un **joueur de
@@ -94,7 +96,7 @@ ramasser son butin (à sa couleur), se replacer, recharger.
   comme chapitre de lore.
 - 💡 Le joueur serait **immunisé** (mordu sans se transformer), ce qui explique
   pourquoi le scientifique a besoin de lui.
-- ❓ Nom, personnalité et motivation du scientifique ; origine de l'épidémie ;
+- ❓ Personnalité et motivation du Dr Brown ; origine de l'épidémie ;
   fin envisagée.
 
 Règles de droits pour le lore : aucune ligue, équipe ou marque réelle de
@@ -630,7 +632,12 @@ de 2,5 cm** (§ 4.19).
   - les modèles libres de droits téléchargés doivent être convertis au style
     cubique avant d'entrer dans le jeu.
 - L'**interface** (HUD, menus) n'a pas besoin d'être cubique, mais elle doit
-  rester **en harmonie** avec le style du jeu.
+  rester **en harmonie** avec le style du jeu. Hub v2 (maquettes validées
+  `docs/hub_v2/`, cadre `scripts/ui/hub2/`, docs/HUB_PLAN.md §9) : panneaux
+  de verre sombres floutés sur la scène 3D du menu, accent jaune `#F5C542`,
+  turquoise `#4FE3C1`, polices libres (OFL) fournies avec le jeu : Chakra
+  Petch, Barlow, JetBrains Mono ; armes, ennemis, échantillons, joueur et
+  scientifique y sont des rendus de leurs modèles en cubes.
 - ✅ **Architecture des cartes en cubes de 5 cm** (docs/VOXEL_ARCHITECTURE_PLAN.md,
   fait) : sols, plafonds, murs droits, en biais et courbes (escaliers de
   marches de 10 cm), piliers, escaliers (marches de 15 ou 20 cm), rampes,
@@ -811,7 +818,7 @@ corriger.
 ## 7. Questions ouvertes
 
 - Nom définitif du jeu.
-- Identité du scientifique, origine de l'épidémie, fin.
+- Passé du Dr Brown, origine de l'épidémie, fin.
 - Gains des contrats, déblocage, nombre de contrats actifs (proposition
   provisoire : `docs/HUB_PLAN.md`, à valider avec ses maquettes).
 - Échantillons en coop : chaque joueur tire les échantillons de chaque chien,
@@ -820,7 +827,8 @@ corriger.
   joueur en coop, ou garder ce bonus de la coop ?
 - Effet des contrats sur la progression : ≈ +20 à 25 % d'XP, niveau 50 vers
   100 h au lieu de 123 h (cible 120 h) : à re-mesurer.
-- Nom et personnalité du scientifique (le hub en a besoin pour ses répliques).
+- Personnalité du Dr Brown (le hub en a besoin pour ses répliques ; le nom
+  est fixé).
 - Liste des armes, leurs niveaux de base et leurs statistiques (liste provisoire
   appliquée : `docs/WEAPONS.md`, à valider).
 - Durées et prix exacts de construction et de recharge des munitions.

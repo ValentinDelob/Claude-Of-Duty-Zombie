@@ -104,7 +104,7 @@ func _fill() -> void:
 	if list.is_empty():
 		var t := HubStyle.label(Lang.t("Rien d'échangeable pour l'instant : rapportez d'autres échantillons.",
 				"Nothing to trade yet: bring back more samples.") if only_tradable
-				else Lang.t("Le scientifique n'a rien à échanger.", "The scientist has nothing to trade."), 15, HubStyle.PLASTER)
+				else Lang.t("Dr Brown n'a rien à échanger.", "Dr Brown has nothing to trade."), 15, HubStyle.PLASTER)
 		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_list.add_child(HubBox.pad(t, 12, 14, 12, 14))
 	column.show_samples(pr, wanted)

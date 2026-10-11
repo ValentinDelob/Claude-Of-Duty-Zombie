@@ -17,8 +17,8 @@ func enter(_args := {}) -> void:
 	logo = MenuLogo.new()
 	_col.add_child(logo)
 	_col.add_child(text("", 4))
-	_first = button(Lang.t("JOUER", "PLAY"), _play, Lang.t("Le laboratoire du scientifique : préparez-vous, puis partez en solo ou en coop.",
-			"The scientist's lab: get ready, then head out solo or co-op."))
+	_first = button(Lang.t("JOUER", "PLAY"), _play, Lang.t("Le laboratoire de Dr Brown : préparez-vous, puis partez en solo ou en coop.",
+			"Dr Brown's lab: get ready, then head out solo or co-op."))
 	_col.add_child(_first)
 	_col.add_child(button(Lang.t("ÉDITEUR DE CARTES", "MAP EDITOR"), _editor, Lang.t("Dessinez vos propres cartes et jouez-les aussitôt.", "Draw your own maps and play them right away.")))
 	_col.add_child(button("OPTIONS", func(): menu.show_screen("options"), Lang.t("Commandes, affichage, son.", "Controls, display, sound.")))
@@ -32,7 +32,11 @@ func enter(_args := {}) -> void:
 ## rejoindre, salon).
 func _play() -> void:
 	if not _leaving:
-		menu.show_screen("hub", {"tab": "lab"})
+		if Settings.use_hub_v2():
+			# Hub v2 (provisoire, docs/HUB_PLAN.md §9).
+			menu.show_screen("hub2", {"screen": "lab"})
+		else:
+			menu.show_screen("hub", {"tab": "lab"})
 
 
 ## ÉDITEUR DE CARTES : scène de l'éditeur (docs/MAP_AUTHORING.md).
