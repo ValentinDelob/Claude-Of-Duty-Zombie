@@ -11,6 +11,12 @@ extends RefCounted
 ## (type de XpRules dont l'XP sert de référence tant que `id` n'a pas son
 ## propre barème ; "" : aucun), planned (ennemi prévu, pas encore en jeu)}.
 ## L'XP n'est JAMAIS écrite dans le fichier : elle se lit dans XpRules (xp()).
+##
+## Groupes facultatifs (« groups », hub v2, docs/hub_v2/Codex.dc.html) :
+## plusieurs fiches montrées comme UNE carte au bestiaire (« Les zombies » :
+## marcheur, rampant, coureur, sprinteur) : {id, name {fr, en}, text {fr, en},
+## members [id de fiche...]}. Les fiches gardent leurs données (éliminations,
+## rencontres et pastille NOUVEAU par type) ; cards() rend les cartes.
 
 const PATH := "res://assets/data/hub/codex.json"
 const FORMAT := "hub_codex"
@@ -18,11 +24,15 @@ const VERSION := 1
 const MAX_BYTES := 1 << 20
 const ROUND_MAX := 999
 const SAMPLES_MAX := 6
+const MEMBERS_MAX := 16
 
 static var _default: CodexData
 
 ## Fiches, dans l'ordre d'affichage.
 var entries: Array[Dictionary] = []
+## Groupes de fiches (une carte du bestiaire chacun) : {id, name, text,
+## members}.
+var groups: Array[Dictionary] = []
 var warnings: PackedStringArray = []
 var _by_id := {}
 
@@ -94,6 +104,67 @@ static func family_line(e: Dictionary) -> String:
 	return fam + " · " + Lang.t("DÈS LA MANCHE %d", "FROM ROUND %d") % int(e.get("round", 1))
 
 
+## Cartes du bestiaire (hub v2) : un groupe = une carte (à la place de la
+## première de ses fiches), toute autre fiche = sa propre carte ; triées par
+## manche d'apparition (ordre du fichier à égalité). Carte : {id, members
+## [ids], name, text, round (la plus petite), samples (réunis), category
+## (XpRules, celle de la première fiche), xp_min, xp_max (XpRules)}.
+func cards() -> Array[Dictionary]:
+	var in_group := {}
+	for g in groups:
+		for m in g.members:
+			in_group[m] = g
+	var out: Array[Dictionary] = []
+	var done := {}
+	for e in entries:
+		var g: Dictionary = in_group.get(e.id, {})
+		if g.is_empty():
+			out.append(_card(e.id, [e], e.name, e.text))
+		elif not done.has(g.id):
+			done[g.id] = true
+			var list: Array = []
+			for m in g.members:
+				list.append(_by_id[m])
+			out.append(_card(g.id, list, g.name, g.text))
+	for i in out.size():
+		out[i]["order"] = i
+	out.sort_custom(func(a, b): return a.round < b.round or (a.round == b.round and a.order < b.order))
+	return out
+
+
+func _card(id: String, list: Array, name: Dictionary, text: Dictionary) -> Dictionary:
+	var members := PackedStringArray()
+	var samples := PackedStringArray()
+	var r := ROUND_MAX
+	var xmin := -1
+	var xmax := 0
+	for e in list:
+		members.append(String(e.id))
+		r = mini(r, int(e.round))
+		for s in e.samples:
+			if not s in samples:
+				samples.append(s)
+		var x := xp(e)
+		xmin = x if xmin < 0 else mini(xmin, x)
+		xmax = maxi(xmax, x)
+	return {"id": id, "members": members, "name": name, "text": text, "round": r, "samples": samples,
+		"category": category(list[0]), "xp_min": maxi(xmin, 0), "xp_max": xmax}
+
+
+## Catégorie de XpRules d'une fiche (celle de `xp_ref` pour un ennemi prévu).
+static func category(e: Dictionary) -> String:
+	var id := String(e.get("id", ""))
+	return XpRules.category_of(id) if XpRules.is_enemy(id) else XpRules.category_of(String(e.get("xp_ref", "")))
+
+
+## Fiche qui porte la sorte d'échantillon `sample` (vide : aucune).
+func entry_of_sample(sample: String) -> Dictionary:
+	for e in entries:
+		if sample in e.samples:
+			return e
+	return {}
+
+
 ## Indice d'une fiche inconnue : « Peut apparaître dès la manche 20 ».
 static func round_hint(round_n: int) -> String:
 	if round_n <= 1:
@@ -149,6 +220,55 @@ func _parse(text: String, name: String) -> void:
 		if not out.is_empty():
 			entries.append(out)
 			_by_id[out.id] = out
+	var gl: Variant = doc.get("groups", [])
+	if not gl is Array:
+		_warn("%s : « groups » doit être une liste" % name)
+		return
+	var used := {}
+	for i in (gl as Array).size():
+		var g: Variant = gl[i]
+		var where := "%s, groupe %d" % [name, i + 1]
+		if not g is Dictionary:
+			_warn(where + " : pas un objet")
+			continue
+		var out := _group(g, where, used)
+		if not out.is_empty():
+			groups.append(out)
+			for m in out.members:
+				used[m] = true
+			used["#" + out.id] = true
+
+
+## Groupe de fiches validé ({} et avertissement sinon) : identifiant propre
+## (ni fiche ni autre groupe), noms et textes FR / EN, au moins deux fiches
+## existantes, chacune dans un seul groupe.
+func _group(g: Dictionary, where: String, used: Dictionary) -> Dictionary:
+	var id := ProfileValues.clean_id(g.get("id"))
+	if id == "" or _by_id.has(id) or used.has("#" + id):
+		_warn(where + " : identifiant manquant, invalide ou déjà pris")
+		return {}
+	where += " (« %s »)" % id
+	var out := {"id": id}
+	for key in ["name", "text"]:
+		var t: Variant = g.get(key)
+		if not t is Dictionary or not t.get("fr") is String or not t.get("en") is String \
+				or String(t.fr).strip_edges() == "" or String(t.en).strip_edges() == "":
+			_warn(where + " : « %s » doit avoir un texte fr et en" % key)
+			return {}
+		out[key] = {"fr": String(t.fr), "en": String(t.en)}
+	var ms: Variant = g.get("members")
+	if not ms is Array or (ms as Array).size() < 2 or (ms as Array).size() > MEMBERS_MAX:
+		_warn(where + " : « members » doit lister de 2 à %d fiches" % MEMBERS_MAX)
+		return {}
+	var members := PackedStringArray()
+	for m in ms:
+		var mid := ProfileValues.clean_id(m)
+		if mid == "" or not _by_id.has(mid) or mid in members or used.has(mid):
+			_warn(where + " : fiche inconnue, en double ou déjà groupée (%s)" % str(m))
+			return {}
+		members.append(mid)
+	out.members = members
+	return out
 
 
 func _entry(e: Dictionary, where: String) -> Dictionary:

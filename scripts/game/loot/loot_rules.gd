@@ -53,7 +53,7 @@ const SAMPLES := {
 	"dogs": [["dog_fang", "CROC", "FANG"], ["dog_fur", "TOUFFE DE POILS", "TUFT OF FUR"],
 		["dog_collar", "COLLIER", "COLLAR"]],
 	"brancardier": [["brancard_strap", "SANGLE DE CUIR", "LEATHER STRAP"],
-		["brancard_bracelet", "BRACELET D'IDENTIFICATION", "ID BRACELET"]],
+		["brancard_bracelet", "BRACELET D’IDENTITÉ", "ID BRACELET"]],
 	"nurse": [["nurse_vocal_cords", "CORDES VOCALES", "VOCAL CORDS"], ["nurse_syringe", "SERINGUE CASSÉE", "BROKEN SYRINGE"],
 		["nurse_badge", "BADGE NOMINATIF", "NAME BADGE"]],
 	"surgeon": [["surgeon_scalpel", "SCALPEL", "SCALPEL"], ["surgeon_heart", "CŒUR MUTANT", "MUTANT HEART"]],
