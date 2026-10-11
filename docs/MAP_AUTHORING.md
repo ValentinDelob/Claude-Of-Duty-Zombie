@@ -840,7 +840,9 @@ garde la valeur) ; une altitude peut être négative (sous-sol).
 - **Ciel de la carte** (`carte.ciel`), vu au-dessus des pièces sans plafond,
   en jeu et dans l'aperçu 3D : **Sans fond (noir)** (défaut), **Ciel** (jour)
   ou **Nuit étoilée**, avec une **Luminosité** de 10 à 200 % (100 % par
-  défaut). Il n'éclaire pas les pièces. Réglé dans les propriétés de la carte
+  défaut). Il n'éclaire pas les pièces. Il suit le style cubique du jeu :
+  dégradé en bandes, nuages en cubes le jour, étoiles en pixels carrés et
+  lune en pixel art la nuit (`cube_sky.gdshader`). Réglé dans les propriétés de la carte
   (rien de sélectionné, onglet Propriétés) ou dans l'onglet Niveaux.
 
 ### Coordonnées négatives, aucune limite

@@ -18,7 +18,15 @@ caisse au hasard, téléporteur, interface. L'air de la peluche leurre (ancien
 singe-tambour, fichiers `monkey_*`) est lui aussi original (procédural,
 `tools/audio/synth_stems.gd`) ; seules ses cymbales sont enregistrées.
 
-## Effets visuels
+## Effets visuels, ciel, polices
+
+Polices : la police en cubes des titres, du logo et des étiquettes 3D
+(`CubeFont`) est dessinée par le code ; les textes courants utilisent les
+polices système de l'ordinateur du joueur (Bahnschrift, Impact, Consolas ou
+leurs remplaçantes), non fournies avec le jeu. Plus aucune police pochoir.
+Ciel des cartes : `assets/shaders/cube_sky.gdshader` (procédural). Fond du
+menu titre : décor cubique du catalogue (`assets/models/props/voxel/`) et
+zombie cubique, aucun fichier propre.
 
 Aucun fichier : les particules sont des cubes de couleur unie (`VoxelFx`,
 `assets/shaders/voxel_particle.gdshader`) et les décalques (trous de balle,
@@ -282,9 +290,15 @@ toutes les vagues spéciales à venir (meute, brancardier, infirmière...).
 Mixage inchangé : mêmes catégories d'intensité (`ritournelle`, `musique`),
 aucune baisse des autres sons pendant les voix.
 
-Encore à revoir (hors de ce lot) : `menu_theme` et `menu_start` (chœur,
-boîte à musique désaccordée : à recomposer avec la refonte du menu titre,
-`scripts/ui/`), `monkey_music` (air d'orgue de barbarie et cymbales du
+Sons du menu titre, recomposés avec le nouveau menu (`tools/gen_audio_menu.gd`,
+même intensité de catégorie, aucune baisse des autres sons) :
+
+| Son | Avant (retiré) | Maintenant |
+|---|---|---|
+| `menu_theme` | bourdon, nappe mineure, **chœur** lointain, **boîte à musique** désaccordée, **glas**, battements de cœur | boucle de 40 s à 96 bpm : bourdonnement des néons et ventilation, nappes de synthé suspendues (la sus2 puis fa add9), motif de synthé pincé en 7 croches, bips de moniteur, pulsation grave, compteur Geiger, sirène à deux tons très lointaine |
+| `menu_start` | porte blindée, **chœur qui hurle**, grondement | verrou du sas et souffle pneumatique, montée de synthé, trois bips d'alarme qui montent, grondement qui retombe |
+
+Encore à revoir (hors de ce lot) : `monkey_music` (air d'orgue de barbarie et cymbales du
 singe-tambour, encore joué par la peluche leurre : à recomposer avec un
 objet leurre propre au jeu ; les cymbales sont un enregistrement CC0 dont la
 source n'est pas en cache, `tools/audio/sfx_import.gd`).
