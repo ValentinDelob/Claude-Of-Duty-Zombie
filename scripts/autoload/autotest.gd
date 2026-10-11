@@ -36,7 +36,8 @@ var _frame_ms_max := 0.0
 var _sampling := false
 var _failed := false
 var _t_pre := 0
-## Scénario en cours et son départ (ms) : le filet global suit son timeout_sec.
+## Scénario en cours (ou le dernier joué) et son départ (ms) : le filet
+## global suit son timeout_sec. Gardé après sa fin : la sortie (finish) suit.
 var _current: AutotestScenario = null
 var _current_t0 := 0
 ## Graine de l'aléatoire du scénario en cours (voir _seed_scenario).
@@ -76,7 +77,7 @@ func _ready() -> void:
 	guard.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(guard)
 	guard.timeout.connect(func():
-		if Time.get_ticks_msec() > _guard_deadline(t_boot):
+		if not _finishing and Time.get_ticks_msec() > _guard_deadline(t_boot):
 			guard.stop()
 			fail("chien de garde global")
 			finish())
@@ -135,15 +136,14 @@ func _run_one() -> void:
 	_current_t0 = t0
 	@warning_ignore("redundant_await")
 	await sc.run()
-	_current = null
 	watchdog.stop()
 	watchdog.queue_free()
 
 
 ## Échéance du filet global (ms, horloge réelle) : la plus tardive de la
-## limite de la série et de la fin du timeout_sec du scénario en cours (plus
-## une marge), pour que son propre chien de garde, qui donne la cause, passe
-## toujours le premier.
+## limite de la série et de la fin du timeout_sec du scénario en cours ou du
+## dernier joué (plus une marge), pour que son propre chien de garde, qui
+## donne la cause, passe toujours le premier.
 func _guard_deadline(t_boot: int) -> int:
 	var limit := t_boot + (GLOBAL_GUARD_SEC + 120 * (batch.size() - 1)) * 1000
 	if _current != null:
