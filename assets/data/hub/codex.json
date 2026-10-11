@@ -1,0 +1,92 @@
+{
+	"format": "hub_codex",
+	"version": 1,
+	"_doc": "Codex du hub (GAME_CONCEPT 4.17, docs/HUB_PLAN.md 3.10). Une fiche par type d'ennemi, dans l'ordre d'affichage. id = type d'ennemi de XpRules (l'XP affichée vient de XpRules, jamais d'ici) ; xp_ref : type de référence de XpRules tant que l'ennemi n'a pas son propre barème (ennemis prévus). round : manche à partir de laquelle il peut apparaître (indice montré sur la fiche inconnue). samples : sortes d'échantillons (LootRules.SAMPLES). planned : ennemi prévu, pas encore dans le jeu.",
+	"enemies": [
+		{
+			"id": "walker",
+			"name": {"fr": "Marcheur", "en": "Walker"},
+			"text": {
+				"fr": "Ancien patient de l'hôpital qui n'a pas compris que l'heure des visites était passée. Lent, têtu, toujours affamé.",
+				"en": "A former patient who missed the memo that visiting hours are over. Slow, stubborn, always hungry."
+			},
+			"round": 1,
+			"samples": []
+		},
+		{
+			"id": "crawler",
+			"name": {"fr": "Rampant", "en": "Crawler"},
+			"text": {
+				"fr": "Quelqu'un lui a pris les jambes, il n'a rien lâché d'autre. Surveillez vos chevilles.",
+				"en": "Someone took his legs; he didn't let go of anything else. Mind your ankles."
+			},
+			"round": 1,
+			"samples": []
+		},
+		{
+			"id": "runner",
+			"name": {"fr": "Coureur", "en": "Runner"},
+			"text": {
+				"fr": "Il a retrouvé l'usage de ses jambes, pas celui de la politesse. Arrive toujours plus tôt que prévu.",
+				"en": "Got the use of his legs back, not his manners. Always shows up earlier than planned."
+			},
+			"round": 4,
+			"samples": []
+		},
+		{
+			"id": "sprinter",
+			"name": {"fr": "Sprinteur", "en": "Sprinter"},
+			"text": {
+				"fr": "Le cardio d'un athlète, le cerveau d'une serpillière. Inutile de vous retourner pour vérifier : il est là.",
+				"en": "An athlete's cardio, a mop's brain. No need to turn around and check: it's right there."
+			},
+			"round": 5,
+			"samples": []
+		},
+		{
+			"id": "dog",
+			"name": {"fr": "Meute errante", "en": "Stray Pack"},
+			"text": {
+				"fr": "Les chiens du quartier ont fouillé la mauvaise poubelle du labo. Ils chassent en groupe et ne rapportent jamais la balle.",
+				"en": "The neighbourhood dogs raided the wrong lab bin. They hunt in packs and never bring the ball back."
+			},
+			"round": 5,
+			"samples": ["dog_fang", "dog_fur", "dog_collar"]
+		},
+		{
+			"id": "brancardier",
+			"name": {"fr": "Brancardier", "en": "Stretcher-Bearer"},
+			"text": {
+				"fr": "Avant, il transportait les patients. Maintenant, il les percute. Quand il gratte le sol du pied, quittez le couloir.",
+				"en": "He used to carry patients. Now he rams them. When he scrapes the floor with his foot, get out of the corridor."
+			},
+			"round": 10,
+			"samples": ["brancard_strap", "brancard_bracelet"],
+			"xp_ref": "miniboss"
+		},
+		{
+			"id": "nurse",
+			"name": {"fr": "Infirmière hurlante", "en": "Screaming Nurse"},
+			"text": {
+				"fr": "Elle fait toujours sa ronde de nuit, en hurlant. Son cri ameute tout l'étage et vous laisse les oreilles en vrac.",
+				"en": "Still doing her night rounds, screaming. Her shriek calls the whole floor over and leaves your ears ringing."
+			},
+			"round": 20,
+			"samples": ["nurse_vocal_cords", "nurse_syringe", "nurse_badge"],
+			"xp_ref": "miniboss",
+			"planned": true
+		},
+		{
+			"id": "surgeon",
+			"name": {"fr": "Le Chirurgien", "en": "The Surgeon"},
+			"text": {
+				"fr": "Le chef du bloc n'a jamais perdu un patient sur la table. Il ne compte pas commencer avec vous.",
+				"en": "The head of surgery never lost a patient on the table. He doesn't intend to start with you."
+			},
+			"round": 30,
+			"samples": ["surgeon_scalpel", "surgeon_heart"],
+			"xp_ref": "boss",
+			"planned": true
+		}
+	]
+}

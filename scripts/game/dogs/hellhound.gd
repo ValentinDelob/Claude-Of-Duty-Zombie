@@ -173,7 +173,7 @@ func _attack(delta: float) -> void:
 			var dy := absf(d.y)
 			d.y = 0.0
 			if d.length() < BITE_REACH and dy < LEVEL_TOLERANCE:
-				game.combat.damage_player(target.peer_id, DogRules.BITE_DAMAGE, global_position + Vector3.UP * 0.6)
+				game.combat.damage_player(target.peer_id, DogRules.BITE_DAMAGE, global_position + Vector3.UP * 0.6, self)
 	if _state_time >= DOG_ATTACK_TIME:
 		_lunge_dir = Vector3.ZERO
 		_set_state(State.CHASE)

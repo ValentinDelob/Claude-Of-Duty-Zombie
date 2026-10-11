@@ -139,11 +139,14 @@ static func enemy_type(is_dog: bool, is_crawler: bool, speed_class: int) -> Stri
 # Relevé d'XP d'un joueur pour une partie (Dictionary sérialisable)
 # --------------------------------------------------------------------------
 # {"kills": {type: nombre}, "kill_xp": {type: XP}, "rounds": n, "round_xp": XP,
-#  "waves": {kind: nombre}, "wave_xp": XP, "evac_bonus": XP, "closed": bool}
+#  "waves": {kind: nombre}, "wave_xp": XP, "evac_bonus": XP, "closed": bool,
+#  "met": {type: 1}}
+# « met » : types d'ennemis RENCONTRÉS par le joueur pendant la partie (coup
+# porté ou reçu, élimination) : codex du hub (CodexState, §4.17), sans XP.
 
 static func new_ledger() -> Dictionary:
 	return {"kills": {}, "kill_xp": {}, "rounds": 0, "round_xp": 0, "waves": {}, "wave_xp": 0,
-		"evac_bonus": 0, "closed": false}
+		"evac_bonus": 0, "closed": false, "met": {}}
 
 
 ## Compte une élimination ; rend l'XP gagnée (0 : type inconnu ou relevé clos).
@@ -154,6 +157,36 @@ static func add_kill(l: Dictionary, type: String, round_n: int) -> int:
 	l.kills[type] = int(l.kills.get(type, 0)) + 1
 	l.kill_xp[type] = int(l.kill_xp.get(type, 0)) + xp
 	return xp
+
+
+## Note la rencontre d'un ennemi `type` (codex) ; vrai si c'est la première
+## de la partie (type connu, relevé ouvert).
+static func add_met(l: Dictionary, type: String) -> bool:
+	if l.get("closed", false) or not is_enemy(type):
+		return false
+	if not l.get("met") is Dictionary:
+		l.met = {}
+	if l.met.has(type):
+		return false
+	l.met[type] = 1
+	return true
+
+
+## Types d'ennemis rencontrés pendant la partie : ceux de « met » et ceux
+## éliminés (une élimination est une rencontre).
+static func met_types(l: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	var met: Variant = l.get("met", {})
+	if met is Dictionary:
+		for t in met:
+			if is_enemy(String(t)) and not String(t) in out:
+				out.append(String(t))
+	var kills: Variant = l.get("kills", {})
+	if kills is Dictionary:
+		for t in kills:
+			if is_enemy(String(t)) and int(kills[t]) > 0 and not String(t) in out:
+				out.append(String(t))
+	return out
 
 
 ## Compte une manche survécue ; rend l'XP gagnée.
@@ -230,6 +263,11 @@ static func clean_ledger(v: Variant) -> Dictionary:
 		for k in w:
 			if (k is String or k is StringName) and WAVE_XP.has(String(k)):
 				l.waves[String(k)] = _int(w[k])
+	var m: Variant = d.get("met")
+	if m is Dictionary:
+		for t in m:
+			if (t is String or t is StringName) and is_enemy(String(t)):
+				l.met[String(t)] = 1
 	for key in ["rounds", "round_xp", "wave_xp", "evac_bonus"]:
 		l[key] = _int(d.get(key, 0))
 	var c: Variant = d.get("closed", false)

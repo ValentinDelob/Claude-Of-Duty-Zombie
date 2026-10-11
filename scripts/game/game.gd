@@ -447,7 +447,8 @@ func keep_match_xp() -> void:
 	if xp != null:
 		survived = maxi(survived, int(xp.my_ledger.get("rounds", 0)))
 	_rotate_contracts(survived)
-	if _xp_recorded or xp == null or XpRules.total(xp.my_ledger) <= 0:
+	# Rien à garder : ni XP ni ennemi rencontré (codex).
+	if _xp_recorded or xp == null or (XpRules.total(xp.my_ledger) <= 0 and XpRules.met_types(xp.my_ledger).is_empty()):
 		return
 	var l := xp.my_ledger.duplicate(true)
 	XpRules.close(l, false)

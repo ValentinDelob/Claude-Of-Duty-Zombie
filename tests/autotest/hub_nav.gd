@@ -2,7 +2,7 @@ extends AutotestScenario
 ## @rendu : hub du scientifique (docs/HUB_PLAN.md, lot B) parcouru au clavier
 ## et à la manette (événements d'entrée réels) : menu titre réduit (JOUER,
 ## ÉDITEUR DE CARTES, OPTIONS, CRÉDITS, QUITTER) -> JOUER -> LABO (profil de
-## démonstration proche de la maquette, écran 1) -> les 7 onglets (E, Page
+## démonstration proche de la maquette, écran 1) -> les 8 onglets (E, Page
 ## suiv., Q, clic) -> menu du hub (Échap) -> invites à la manette (LB / RB) ->
 ## TAILLE DES MENUS 80 et 130 % (rien ne sort de l'écran) -> anglais ->
 ## PARTIE (vue SOLO, COOP sur place, lot E).
@@ -102,18 +102,16 @@ func run() -> void:
 	at.check(hub.tab == "arsenal", "Q : ARSENAL (%s)" % hub.tab)
 	await seconds(0.3)
 	await shot("arsenal_placeholder")
-	for i in 5:
+	for i in 6:
 		await key(KEY_E)
-	at.check(hub.tab == "play", "E x5 : PARTIE (%s)" % hub.tab)
+	at.check(hub.tab == "play", "E x6 : PARTIE (%s)" % hub.tab)
 	at.check(_focused() == hub.panels.play.launch_button, "PARTIE : focus sur LANCER LA PARTIE")
 	await seconds(0.3)
 	await shot("play")
 	await click(hub.tab_bar.get_global_transform() * hub.tab_bar.tab_rect(3).get_center())
 	at.check(hub.tab == "contracts", "clic : CONTRATS (%s)" % hub.tab)
-	await key(KEY_E)
-	await key(KEY_E)
-	await key(KEY_E)
-	await key(KEY_E)
+	for i in 5:
+		await key(KEY_E)
 	at.check(hub.tab == "lab", "E en boucle : retour au LABO (%s)" % hub.tab)
 	# Menu du hub (Échap), puis fermeture (Échap).
 	await press("ui_cancel")
@@ -161,7 +159,7 @@ func run() -> void:
 	menu.show_screen("hub")
 	await until(_settled, 3.0, "hub réaffiché en anglais")
 	hub = menu.current
-	at.check(hub.tab_bar.labels[0] == "LAB" and hub.tab_bar.labels[6] == "PLAY", "onglets en anglais : %s" % ", ".join(hub.tab_bar.labels))
+	at.check(hub.tab_bar.labels[0] == "LAB" and hub.tab_bar.labels[7] == "PLAY", "onglets en anglais : %s" % ", ".join(hub.tab_bar.labels))
 	await seconds(0.3)
 	await shot("lab_en")
 	await pad(JOY_BUTTON_Y, false)
