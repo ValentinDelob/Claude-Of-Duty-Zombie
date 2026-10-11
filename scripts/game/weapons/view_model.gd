@@ -72,8 +72,9 @@ const FLASH := {
 
 ## Rapport tan(fov caméra / 2) / tan(VIEW_FOV / 2) courant (ThrowView s'en sert).
 static var fov_k := 1.0
-## Tenue des mains du joueur local (ThrowView s'en sert).
-static var style := -1
+## Couleur du joueur local portée par la zone d'équipe de ses mains
+## (HudStyle.PLAYER_COLORS ; ThrowView s'en sert).
+static var team_color: Color = HudStyle.player_color(0)
 
 var model_id := ""
 var pap := false
@@ -85,8 +86,8 @@ var ads := 0.0
 var ads_time := 0.2
 ## Écran de lunette affiché (WeaponController) : le modèle est masqué.
 var scoped := false
-## Tenue des mains (emplacement du joueur : ViewHands.STYLES).
-var hand_style := -1
+## Couleur d'équipe des mains construites (couleur du joueur).
+var hand_color: Color = HudStyle.player_color(0)
 var _stats: Dictionary = {}
 ## Pièces mobiles du modèle (nœuds de groupe) et leur position de repos.
 var _groups: Dictionary = {}
@@ -248,7 +249,7 @@ func set_weapon(id: String, is_pap: bool, weapon_stats: Dictionary = {}) -> void
 	hands = ViewHands.new()
 	hands.name = "Hands"
 	model.add_child(hands)
-	hands.setup(mid, maxi(hand_style, 0))
+	hands.setup(mid, hand_color)
 	add_child(model)
 	# Cartouche (ou grenade de 40 mm) tenue pour le chargement coup par coup.
 	_shell = null
@@ -537,11 +538,12 @@ func update(delta: float, p: Player) -> void:
 		_set_fov_scale(fov_k)
 	if model == null:
 		return
-	var slot := CharacterDB.index_of(p.peer_id)  # tenue du personnage du joueur
-	if slot != hand_style and slot >= 0:
-		hand_style = slot
-		style = slot
-		hands.setup(model_id, slot)
+	# Zone d'équipe des mains à la couleur du joueur (connue avec sa place).
+	var col := HudStyle.player_color(Net.player_slot(p.peer_id))
+	team_color = col
+	if col != hand_color:
+		hand_color = col
+		hands.setup(model_id, col)
 		for c in arms.get_children():
 			c.queue_free()
 		_fill_knife_rig(arms, KnifeDB.model(knife_id))
@@ -861,7 +863,7 @@ func _build_knife() -> Node3D:
 
 ## Main gauche gantée, avant-bras (manche) et couteau tenu lame en avant.
 func _fill_knife_rig(rig: Node3D, mid: String) -> void:
-	var hand := ViewHands.knife_hand(maxi(hand_style, 0))
+	var hand := ViewHands.knife_hand(hand_color)
 	rig.add_child(hand)
 	# Lame couchée : le tranchant regarde vers la droite (coup de gauche à droite).
 	var knife := WeaponModels.build(mid, true)

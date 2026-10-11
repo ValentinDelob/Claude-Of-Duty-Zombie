@@ -16,8 +16,8 @@
   joueur l'un des sept **jeux de répliques** (distribution de l'hôte,
   `Settings.character` relu d'un ancien `settings.cfg`), si bien qu'un même
   joueur de baseball peut parler avec la voix de Callahan ou de Berg. Les
-  tenues des mains en vue FPS (`ViewHands.STYLES`) dépendent encore de cet
-  index, en attendant leur refonte.
+  mains en vue FPS ne dépendent plus de cet index : ce sont celles du joueur
+  de baseball pour tous, zone d'équipe à la couleur du joueur (`ViewHands`).
 - ⏳ **À faire** : écrire les répliques du joueur de baseball (FR / EN,
   mêmes catégories que ci-dessous, règles d'écriture inchangées : répliques
   génériques, drôles, jurons occasionnels permis), les faire **valider par

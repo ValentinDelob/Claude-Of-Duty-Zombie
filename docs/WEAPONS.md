@@ -140,12 +140,16 @@ sh tools/blender.sh tools/blender/weapons/weapons_voxel.py [ids...] [--cache] [-
   levier d'armement / verrou `slide`, pompe `pump`, canons basculants
   `barrels` (GARDE-CHASSE), barillet `cyl` (COUPERET). Les rechargements
   existants (`ViewModel._reload_anim`) les animent sans changement.
-- **Mains et bras FPS** (`hands.glb`) : gants de batteur blanc cassé à sangle
-  rouge, sous-maillot bleu marine, manche crème du maillot à liseré rouge
-  (équipe fictive, sans logo ni numéro) ; poings autour d'un manche d'un ou
-  deux cubes, berceau sous un garde-main, main d'appui du pistolet, poings
-  de la batte, mains du lancer ; avant-bras rigide de 12 cubes (jamais
-  étiré : posé du poignet vers le coude).
+- **Mains et bras FPS** (`hands.glb`) : ceux du joueur de baseball, palette
+  de son modèle vu par les autres : gants de frappe sombres à paume de cuir,
+  poignet nu, sous-maillot à manches longues, manche courte crème du maillot
+  (équipe fictive, sans logo ni numéro), bandage à l'avant-bras gauche
+  (`forearm_l`) ; bracelets, sous-maillot et liseré dans la zone d'équipe
+  (matière `team`), teintée à la couleur du joueur
+  (`WeaponModels.team_material`) ; poings autour d'un manche d'un ou deux
+  cubes, berceau sous un garde-main, main d'appui du pistolet, poings de la
+  batte, mains du lancer ; avant-bras rigide de 12 cubes (jamais étiré :
+  posé du poignet vers le coude).
 - **Budget** : < 1 500 triangles par arme (contrôlé par `test_weapons`), < 2 000
   pour l'ensemble des mains ; la vue FPS ajoute la découpe en tranches de
   5 mm de la partie courbée par la joue de visée.
@@ -199,6 +203,6 @@ profil à la même échelle).
 - La batte : 250 dégâts, 1,25 coup/s, 15 d'énergie, 2 zombies par coup,
   portée 2,2 m, fente 3 m ; tir pour frapper, coups enchaînés en maintenant.
 - La sélection de départ par défaut : pistolet + batte (2 emplacements pris).
-- Les couleurs du maillot de l'équipe fictive (crème, bleu marine, rouge) et
-  des gants de batteur.
+- Les couleurs des mains FPS : celles du joueur de baseball vu par les
+  autres (gants sombres, maillot crème, zone d'équipe à la couleur du joueur).
 - Les silhouettes et le budget de 1 500 triangles par arme.

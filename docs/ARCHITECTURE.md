@@ -400,10 +400,9 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   touches ; le reste du jeu est en français. Changer la langue reconstruit
   l'écran d'options.
 - **Personnages** (`CharacterDB`, docs/CHARACTERS.md) : sept personnages,
-  `IDS` = callahan, orlov, arakawa, weissmann, mercer, berg, jojo ; l'index (0 à 6) choisit
-  l'apparence vue par les autres (les mains FPS sont celles du joueur de
-  baseball pour tous : `ViewHands.STYLES` n'a qu'une tenue)
-  (`PlayerModel.OUTFITS`). Choix du joueur : `Settings.character` (section
+  `IDS` = callahan, orlov, arakawa, weissmann, mercer, berg, jojo ; l'index (0 à 6)
+  ne choisit plus que les répliques (apparence unique du joueur de baseball,
+  vue par les autres comme en vue FPS : `PlayerModel`, `ViewHands`). Choix du joueur : `Settings.character` (section
   `[player]` de `settings.cfg`, « auto » par défaut, valeur inconnue -> « auto »),
   ligne PERSONNAGE de l'onglet JEU (noms courts `CharacterDB.short_name`, nom
   complet dans l'aide). Réseau : le client envoie son choix juste après le
@@ -437,8 +436,9 @@ avec une garde : `Player`, `Fx`, `VoxSystem`,
   anciens personnages (`IDS` = callahan, orlov, arakawa, weissmann, mercer,
   berg, jojo) ne servent plus qu'à choisir les **voix** de chaque joueur, en
   attendant les répliques du joueur de baseball (à écrire, à valider par
-  l'utilisateur) ; l'index (0 à 6) choisit encore la tenue des mains FPS
-  (`ViewHands.STYLES`, refaite à part). Plus de ligne PERSONNAGE dans les
+  l'utilisateur) ; les mains FPS ne dépendent plus de l'index : ce sont
+  celles du joueur de baseball, zone d'équipe à la couleur du joueur
+  (`ViewHands`, `WeaponModels.team_material`). Plus de ligne PERSONNAGE dans les
   options ; `Settings.character` (section `[player]` de `settings.cfg`,
   « auto » par défaut, valeur inconnue -> « auto ») reste relu et envoyé.
   Réseau : le client envoie son choix juste après le
@@ -1458,7 +1458,10 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
   chargement (`WeaponModels.precompute_async`, appelée par `Warmup`),
   maillages créés au premier affichage. Matériau : `weapon.gdshader` en
   mode `voxel` (couleur de face telle quelle, rugosité / métal par matière
-  `WeaponModels.MATERIALS`). L'arme est dessinée avec son propre champ de vision
+  `WeaponModels.MATERIALS`) ; zone d'équipe des mains (matière `team`,
+  grise) teintée à la couleur du joueur par `WeaponModels.team_material`
+  (un matériau par couleur, `team_color` = `HudStyle.player_color` de sa
+  place, suivi par `ViewModel.update`). L'arme est dessinée avec son propre champ de vision
   chiens) reste un panneau doux (`Fx.soft_dot_texture`) ; la traçante reste
   un pavé lumineux étiré. Le décor du menu (`MenuBackdrop`) est devenu
   entièrement cubique (couloir du laboratoire, poussière en cubes de
