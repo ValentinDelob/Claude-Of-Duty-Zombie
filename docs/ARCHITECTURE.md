@@ -1046,7 +1046,13 @@ Le HUD n'imite plus celui de Black Ops 1 (GAME_CONCEPT.md § 6) :
     zombie qui sort de terre est déjà touchable et paie comme les autres ;
   - rien pour les assistances ni les réanimations (la perte à terre n'est
     plus rendue au sauveteur) ; un piège ne rapporte rien, même en tuant ;
-    reposer une planche non plus (la réparation reste possible, sans gain).
+  - reposer une planche (fenêtre, porte à zombies) rapporte
+    `PointsRules.REPAIR` (10) au joueur qui la repose, au plus
+    `PointsRules.REPAIR_CAP` (60) par joueur et par manche (anti-abus :
+    arrachage puis réparation en boucle) ; payé par le serveur
+    (`Barricade.srv_add_plank` -> `Points.srv_repair`, compteur par joueur
+    remis à zéro quand `RoundManager.round_n` change), affiché comme les
+    autres gains (« +10 » du `ScorePanel`).
 - Les portes payantes et la caisse au hasard se paient en ferraille par
   `Session.try_spend`.
 

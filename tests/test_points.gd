@@ -64,3 +64,22 @@ func test_down_and_bleed_out_penalties() -> void:
 	assert_eq(PointsRules.downed_loss(5), 0, "5 % de 5 = 0")
 	assert_eq(PointsRules.downed_loss(30), 10, "jamais plus que ce qu'on a (int(1.5) = 1 -> 10)")
 	assert_eq(PointsRules.no_revive_loss(2345), 240, "10 % de 2345 = 234 -> 240")
+
+
+## Reconstruction (GAME_CONCEPT §4.8, valeurs provisoires §6 bis) : 10 par
+## planche reposée, au plus 60 par joueur et par manche (anti-abus).
+func test_repair_values_and_cap() -> void:
+	assert_eq(PointsRules.REPAIR, 10)
+	assert_eq(PointsRules.REPAIR_CAP, 60)
+	assert_eq(PointsRules.for_repair(0), 10, "première planche de la manche")
+	assert_eq(PointsRules.for_repair(50), 10, "dernière planche payée")
+	assert_eq(PointsRules.for_repair(60), 0, "plafond atteint")
+	assert_eq(PointsRules.for_repair(999), 0, "au-delà du plafond : rien")
+	assert_eq(PointsRules.for_repair(55), 5, "jamais au-delà du plafond")
+	assert_eq(PointsRules.repair_total(6), 60, "une fenêtre entière : 60")
+	assert_eq(PointsRules.repair_total(10), 60, "porte double (10 planches) : plafonnée à 60")
+	assert_eq(PointsRules.repair_total(3), 30)
+	assert_eq(PointsRules.repair_total(6, 30), 30, "reste du plafond seulement")
+	assert_eq(PointsRules.repair_total(100), PointsRules.REPAIR_CAP, "boucle arrachage / réparation : plafonnée")
+	assert_eq(PointsRules.repair_total(0), 0)
+	assert_true(PointsRules.REPAIR_CAP <= 2 * PointsRules.KILL, "un peu de ferraille : moins que deux éliminations par manche")

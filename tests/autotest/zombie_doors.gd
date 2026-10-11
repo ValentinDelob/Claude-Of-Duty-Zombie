@@ -10,7 +10,7 @@ extends AutotestScenario
 ##    (un par battant), plus vite ; personne n'entre tant qu'il reste une
 ##    planche ; après la dernière, chacun enjambe le battant cassé et entre ;
 ## 3. le joueur ne passe pas par la porte ouverte ; il la reconstruit en
-##    maintenant [F] (+10 par planche).
+##    maintenant [F] (+10 de ferraille par planche, au plus 60 par manche).
 
 const SW := preload("res://tests/autotest/smallest_window.gd")
 const MAPS := ["smallest_door", "smallest_double_door"]
@@ -179,7 +179,7 @@ func _map(map_id: String) -> void:
 	await seconds(1.2)  # durée mesurée : le joueur pousse contre la porte
 	p.input.move = Vector2.ZERO
 	at.check(w.is_inside(p.global_position), "porte ouverte : le joueur ne peut pas sortir")
-	# Réparation : maintien de [F], +10 par planche.
+	# Réparation : maintien de [F], +10 par planche (au plus 60 par manche).
 	var pd := game.session.local_data()
 	var pts0 := pd.points
 	p.teleport_to(w.repair_spot() + Vector3(0, 0.05, 0))
@@ -190,6 +190,7 @@ func _map(map_id: String) -> void:
 	ok = await until(func(): return w.planks() == BarricadeRules.planks_for(kind), 12.0, "porte reconstruite")
 	p.input.interact = false
 	at.check(ok, "maintenir [F] reconstruit la porte planche par planche (%d)" % w.planks())
-	at.check(pd.points == pts0, "réparer ne rapporte pas de ferraille (+%d)" % (pd.points - pts0))
+	var gain := PointsRules.repair_total(BarricadeRules.planks_for(kind))
+	at.check(pd.points - pts0 == gain, "porte reconstruite : +%d de ferraille (attendu +%d, plafond de la manche)" % [pd.points - pts0, gain])
 	tree().physics_frame.disconnect(_sample)
 	game.rounds.paused = false

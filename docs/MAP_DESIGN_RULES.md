@@ -49,7 +49,7 @@ Lus dans le code (à revérifier s'ils changent) :
 | Portée d'attaque d'un zombie | 1,25 m | `ATTACK_RANGE` |
 | Chiens | 6,3 m/s | `dog_rules.gd` |
 | Ferraille de départ / par élimination | 0 / 50 | `player_data.gd`, `points_rules.gd` |
-| Planche réparée | 0 (réparation sans gain) | `barricade_rules.gd` |
+| Planche réparée | 10, au plus 60 par joueur et par manche | `points_rules.gd` |
 | Caisse au hasard / piège / téléporteur | 950 / 1000 / 1500 | `COST` de chaque script |
 
 Conséquences pour le dessin :

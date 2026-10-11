@@ -732,8 +732,8 @@ sont celles des fenêtres de BO1 : réparation en maintenant [F] depuis
 l'intérieur, collé aux planches et tourné vers elles (portée
 `Barricade.REPAIR_REACH` = 0,8 m du centre du joueur à la face intérieure
 de la barrière, sur toute la largeur de l'ouverture plus 0,35 m de chaque
-côté, même niveau ; vérifiée aussi par l'hôte en multijoueur ; sans gain de
-ferraille), coup à travers quand il reste 3 planches au plus, joueurs
+côté, même niveau ; vérifiée aussi par l'hôte en multijoueur ; 10 de
+ferraille par planche, au plus 60 par joueur et par manche), coup à travers quand il reste 3 planches au plus, joueurs
 arrêtés par l'ouverture même sans planches (la cour reste hors jeu, comme
 derrière les fenêtres de BO1).
 

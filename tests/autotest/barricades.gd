@@ -1,7 +1,8 @@
 extends AutotestScenario
 ## Fenêtres barricadées (BUNKER K-7, salle de garde) : un zombie apparu dehors
 ## arrache les 6 planches une par une puis enjambe la fenêtre ; le joueur
-## répare en maintenant [F] (sans gain de ferraille, GAME_CONCEPT §4.8) ;
+## répare en maintenant [F] (+10 de ferraille par planche, au plus 60 par
+## manche, GAME_CONCEPT §4.8) ;
 ## coup à travers la fenêtre ; captures intacte / à moitié / détruite,
 ## vues de l'intérieur et de l'extérieur.
 
@@ -109,7 +110,7 @@ func run() -> void:
 	game.zombies.kill(zid, false, Vector3.FORWARD)
 	await seconds(0.3)
 
-	# 3. Réparation (maintien de [F]), sans gain de ferraille.
+	# 3. Réparation (maintien de [F]) : +10 par planche, plafonnée par manche.
 	await _view(true)
 	await at.screenshot("broken_inside")
 	await _view(false, 1.6)
@@ -130,12 +131,15 @@ func run() -> void:
 	await at.screenshot("repairing")
 	ok = await until(func(): return w.planks() == 6, 5.0, "fenêtre reconstruite")
 	at.check(ok, "maintenir [F] reconstruit la fenêtre planche par planche")
-	await seconds(0.3)  # fenêtre fixe : aucun gain ne doit arriver
-	at.check(pd.points == pts0, "réparer ne rapporte pas de ferraille (%+d)" % (pd.points - pts0))
+	await seconds(0.3)  # fenêtre fixe : plus aucun gain ne doit arriver
+	var want := PointsRules.repair_total(6)
+	at.check(pd.points - pts0 == want, "6 planches reposées : +%d de ferraille (attendu +%d)" % [pd.points - pts0, want])
 	await _release()
 	await at.screenshot("repaired_inside")
 
-	# Relâcher [F] arrête la réparation.
+	# Relâcher [F] arrête la réparation ; plafond de la manche déjà atteint
+	# (anti-abus) : ces planches-là ne rapportent plus rien.
+	var pts1 := pd.points
 	w.srv_set_mask(0)
 	await _hold_repair()
 	await seconds(0.9)  # touche tenue
@@ -143,6 +147,14 @@ func run() -> void:
 	var after_release := w.planks()
 	await seconds(1.2)  # fenêtre fixe : plus aucune planche ne doit être reposée
 	at.check(after_release >= 1 and w.planks() == after_release, "relâcher [F] arrête la réparation (%d planche(s))" % w.planks())
+	at.check(pd.points == pts1, "plafond de la manche atteint : plus de ferraille (%+d)" % (pd.points - pts1))
+	# Nouvelle manche : le plafond repart de zéro.
+	game.rounds.round_n += 1
+	var pts2 := pd.points
+	w.srv_set_mask(0)
+	w.srv_add_plank(1)
+	at.check(pd.points - pts2 == PointsRules.REPAIR, "manche suivante : la planche rapporte à nouveau (+%d)" % (pd.points - pts2))
+	game.rounds.round_n -= 1
 
 	# 4. Coup à travers la fenêtre (planches presque toutes arrachées).
 	w.srv_set_mask(0b000011)
