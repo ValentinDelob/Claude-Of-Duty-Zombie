@@ -147,6 +147,12 @@ func spawn(pos: Vector3, speed_class: int, health: int, kind := KIND_ZOMBIE) -> 
 	_cl_spawn.rpc(zid, pos, yaw, variant, speed_class, kind)
 	var z: Zombie = zombies.get(zid)
 	if z:
+		# Défi hebdomadaire (§4.18) : PV et vitesse modifiés (serveur, qui
+		# décide des PV et des déplacements).
+		var ch: WeeklyChallenge = game.challenge if game else null
+		if ch:
+			health = ch.zombie_health(health)
+			z.speed_mult *= ch.zombie_speed_mult()
 		z.health = health
 		z.max_health = health
 	return zid

@@ -11,6 +11,9 @@ extends HBoxContainer
 ##     CARTE (hôte : liste des cartes du jeu et perso ; une carte perso est
 ##     contrôlée puis envoyée aux invités, MapShare), état de la carte perso
 ##     chez l'invité ; VOUS PARTEZ AVEC et VOS CONTRATS ACTIFS (profil local).
+##     DÉFI DE LA SEMAINE (§4.18) en tête de CHANGER DE CARTE : sa carte et
+##     sa clé (Net.lobby_challenge) valent pour tout le groupe, rappelées en
+##     tête de la carte du salon et envoyées avec l'ordre de chargement.
 ## Le groupe reste connecté quand on change d'onglet (le panneau reste en
 ## vie) ; à l'affichage, « je suis revenu au salon » part vers l'hôte
 ## (LobbyReturn.report_in_lobby).
@@ -63,6 +66,14 @@ func _ready() -> void:
 		# Carte annoncée une fois par session (un retour au salon la garde).
 		if Net.lobby_map == "":
 			apply_map(map_id)
+		# Défi gardé d'une partie à l'autre : celui de la semaine en cours.
+		if Net.lobby_challenge != "":
+			var ch := HubPlayWeekly.current()
+			if ch == null:
+				Net.set_lobby_challenge("")
+			elif ch.key != Net.lobby_challenge:
+				choose_weekly()
+	Net.lobby_challenge_changed.connect(_on_lobby_map)
 	Net.players_changed.connect(_refresh)
 	Net.player_left.connect(_on_left)
 	Net.lobby_map_changed.connect(_on_lobby_map)
@@ -80,7 +91,8 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	for pair in [[Net.players_changed, _refresh], [Net.player_left, _on_left], [Net.lobby_map_changed, _on_lobby_map],
 			[Net.map_share.states_changed, _refresh], [Net.map_share.offer_changed, _refresh_map],
-			[Net.map_share.local_failed, _on_local_failed], [Net.lobby_return.changed, _refresh_start]]:
+			[Net.map_share.local_failed, _on_local_failed], [Net.lobby_return.changed, _refresh_start],
+			[Net.lobby_challenge_changed, _on_lobby_map]]:
 		var s: Signal = pair[0]
 		if s.is_connected(pair[1]):
 			s.disconnect(pair[1])
@@ -354,7 +366,8 @@ func _on_start() -> void:
 	if not is_host or Net.players.is_empty() or _launching:
 		return
 	var target := Net.lobby_map if map_id.begins_with(EditorMapDef.CUSTOM_PREFIX) else map_id
-	if not Net.start_match(target):
+	# Défi de la semaine choisi : il s'applique à tout le groupe (§4.18).
+	if not Net.start_match(target, Net.lobby_challenge):
 		_refresh_start()
 		return
 	Router.lobby_message = ""
@@ -474,6 +487,11 @@ func _refresh_map() -> void:
 	var custom := not share.offer.is_empty() and (Net.lobby_map.begins_with(EditorMapDef.SHARED_PREFIX) or id.begins_with(EditorMapDef.CUSTOM_PREFIX))
 	map_title.text = map_name(id).to_upper()
 	var lines := []
+	# Défi de la semaine de l'hôte : rappel en tête (§4.18).
+	var ch := WeeklyChallenge.from_key(Net.lobby_challenge) if Net.lobby_challenge != "" else null
+	if ch:
+		map_title.text = "%s · %s" % [Lang.t("DÉFI", "CHALLENGE"), map_title.text]
+		lines.append_array(HubPlayWeekly.lobby_lines(ch))
 	var def: MapDef = HubPlayView.def_of(id) if id != "" and (not custom or is_host or share.local_state == "prete") else null
 	if def:
 		lines.append(HubPlayView.lobby_waves_line(HubPlayView.map_facts(id, def)))
@@ -548,13 +566,24 @@ func open_picker() -> void:
 	var maps := HubPlayView.playable_maps()
 	var groups := [[Lang.t("CARTES DU JEU", "GAME MAPS"), maps.filter(func(m): return not m.custom)],
 		[Lang.t("CARTES PERSO", "CUSTOM MAPS"), maps.filter(func(m): return m.custom)]]
+	var ch := HubPlayWeekly.current()
 	# Hauteur : toute la liste, défilante au-delà de 440 px.
-	var h := 30.0 + 4.0 + maps.size() * 40.0
+	var h := 30.0 + 4.0 + maps.size() * 40.0 + (66.0 if ch else 0.0)
 	for g in groups:
 		if not (g[1] as Array).is_empty():
 			h += 26.0
 	box.custom_minimum_size = HubStyle.pxv(420, minf(h, 440.0))
 	var first: Control = null
+	# Défi de la semaine (§4.18) en tête : sa carte et ses conditions pour
+	# tout le groupe.
+	if ch:
+		box.content.add_child(HubRow.group(Lang.t("DÉFI DE LA SEMAINE", "WEEKLY CHALLENGE")))
+		var wr := HubPlayView.MapRow.new(HubPlayWeekly.ROW_ID, HubPlayWeekly.row_title(ch),
+				HubPlayWeekly.row_note(ch, panel.profile()), HubPlayWeekly.hint(ch))
+		wr.selected = Net.lobby_challenge != ""
+		_picker_row(wr)
+		box.content.add_child(wr)
+		first = wr
 	for g in groups:
 		if (g[1] as Array).is_empty():
 			continue
@@ -565,27 +594,47 @@ func open_picker() -> void:
 			var row := HubPlayView.MapRow.new(m.id, HubPlayView.map_name(m.def), HubPlayView.list_note(f),
 					Lang.t("Entrée : jouer cette carte.", "Enter: play this map."))
 			row.alt = i % 2 == 1
-			row.selected = m.id == map_id
-			row.chosen.connect(func(_id):
-				for k in picker_rows:
-					(picker_rows[k] as HubPlayView.MapRow).selected = k == _id)
-			row.activated.connect(_pick)
-			row.focus_entered.connect(func():
-				if panel.hub:
-					panel.hub.set_hint(row.hint))
+			row.selected = m.id == map_id and Net.lobby_challenge == ""
+			_picker_row(row)
 			box.content.add_child(row)
-			picker_rows[m.id] = row
 			if first == null:
 				first = row
 			i += 1
-	var fr: Control = picker_rows.get(map_id, first)
+	var fr: Control = picker_rows.get(HubPlayWeekly.ROW_ID if Net.lobby_challenge != "" else map_id, first)
 	if fr and panel.hub:
 		panel.hub.focus_later(fr)
 
 
+## Ligne de la liste des cartes : choix au focus, validation, aide.
+func _picker_row(row: HubPlayView.MapRow) -> void:
+	row.chosen.connect(func(_id):
+		for k in picker_rows:
+			(picker_rows[k] as HubPlayView.MapRow).selected = k == _id)
+	row.activated.connect(_pick)
+	row.focus_entered.connect(func():
+		if panel.hub:
+			panel.hub.set_hint(row.hint))
+	picker_rows[row.map_id] = row
+
+
 func _pick(id: String) -> void:
-	choose_map(id)
+	if id == HubPlayWeekly.ROW_ID:
+		choose_weekly()
+	else:
+		if Net.lobby_challenge != "":
+			Net.set_lobby_challenge("")
+		choose_map(id)
 	close_picker()
+
+
+## Hôte : choisit le défi de la semaine (sa carte, puis sa clé annoncée au
+## groupe) ; faux s'il n'y en a pas ou si sa carte est refusée.
+func choose_weekly() -> bool:
+	var ch := HubPlayWeekly.current()
+	if ch == null or not is_host or not apply_map(ch.map_id):
+		return false
+	Net.set_lobby_challenge(ch.key)
+	return true
 
 
 func close_picker() -> void:

@@ -91,10 +91,13 @@ func apply_loadout(pid: int) -> void:
 		return
 	var lo: Dictionary = loadouts[pid]
 	pd.level = int(lo.level)
-	pd.weapons = starting_hands(lo.ids)
+	# Défi hebdomadaire (§4.18) : mêmes armes de base pour tout le monde.
+	var g := get_parent() as Game
+	var ids: PackedStringArray = WeeklyChallenge.starting_ids() if g and g.challenge else lo.ids
+	pd.weapons = starting_hands(ids)
 	pd.slot = 0
 	pd.bag = []
-	for id in lo.ids:
+	for id in ids:
 		if KnifeDB.exists(id):
 			pd.knife = id
 			break

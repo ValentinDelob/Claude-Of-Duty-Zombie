@@ -110,11 +110,40 @@ func loot_text() -> String:
 			if n > 0:
 				items.append("%d %s" % [n, LootRules.sample_name(String(k)).to_lower()])
 	var xp_t := Lang.t("+%d XP", "+%d XP") % xp
+	if loot.get("challenge") is Dictionary:
+		return challenge_text(loot.challenge, items, xp_t)
 	if items.is_empty():
 		return Lang.t("Aucun butin rapporté · %s", "No loot brought back · %s") % xp_t
 	if kept:
 		return Lang.t("BUTIN GARDÉ : %s · %s", "LOOT KEPT: %s · %s") % [", ".join(items), xp_t]
 	return Lang.t("BUTIN PERDU : %s · seule l'XP est gardée (%s)", "LOOT LOST: %s · only XP is kept (%s)") % [", ".join(items), xp_t]
+
+
+## Rapport d'une partie du défi hebdomadaire (§4.18) : objectif, récompense
+## de la semaine, butin jamais gardé. `c` : Game._record_weekly.
+static func challenge_text(c: Dictionary, items: PackedStringArray, xp_t: String) -> String:
+	var parts := PackedStringArray()
+	var week := _int(c.get("week", 0), 0, 53)
+	if c.get("rewarded", false) == true:
+		var got := PackedStringArray([Lang.t("+%d XP", "+%d XP") % _int(c.get("xp", 0), 0, 1 << 30)])
+		var ss: Variant = c.get("samples", {})
+		if ss is Dictionary:
+			var keys: Array = ss.keys()
+			keys.sort()
+			for k in keys:
+				got.append("%d %s" % [_int(ss[k], 0, 1 << 30), LootRules.sample_name(String(k)).to_lower()])
+		parts.append(Lang.t("DÉFI S%d RÉUSSI : %s", "W%d CHALLENGE COMPLETE: %s") % [week, ", ".join(got)])
+	elif c.get("goal", false) == true:
+		parts.append(Lang.t("DÉFI S%d RÉUSSI (récompense déjà reçue cette semaine)", "W%d CHALLENGE COMPLETE (reward already claimed this week)") % week)
+	else:
+		parts.append(Lang.t("DÉFI S%d : objectif manqué (évacuez à la manche %d ou plus)", "W%d CHALLENGE: goal missed (evacuate at round %d or later)")
+				% [week, _int(c.get("goal_round", 0), 0, 1000000)])
+	if c.get("new_best", false) == true:
+		parts.append(Lang.t("nouveau record", "new best"))
+	if not items.is_empty():
+		parts.append(Lang.t("butin du défi non gardé", "challenge loot not kept"))
+	parts.append(xp_t)
+	return " · ".join(parts)
 
 
 ## Rapport d'XP du joueur local (§4.15, §4.16), toujours gardée : titre.

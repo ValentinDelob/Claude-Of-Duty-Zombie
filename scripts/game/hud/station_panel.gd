@@ -132,7 +132,8 @@ func open(st: BuildStation) -> void:
 		if station:
 			station.builds_changed.connect(refresh)
 	_confirm = []
-	entries = BuildRules.catalog(ProfileStore.load_profile())
+	# Défi hebdomadaire (§4.18) : armes de base seulement (pas d'arsenal).
+	entries = BuildRules.catalog(null if game.challenge else ProfileStore.load_profile())
 	_build_rows()
 	visible = true
 	refresh()

@@ -254,3 +254,76 @@ func test_contract_watch_ignores_expired() -> void:
 	var after := HubData.parse_day("2026-12-05")
 	var got := ContractWatch.new_goals(pr, d, {"dog_collar": 3}, after, {})
 	assert_false("lab_emergency" in got, "contrat expiré : pas de message")
+
+
+## Défi de la semaine (GAME_CONCEPT §4.18) : ligne au-dessus des cartes,
+## aperçu (carte, modificateurs, objectif, meilleur résultat, temps restant,
+## récompense, armes imposées, règles), LANCER LE DÉFI ; retour à une carte.
+func test_weekly_row_preview_and_launch() -> void:
+	WeeklyChallenge.now_override = HubData.parse_day("2026-11-18") * 86400.0 + 43200.0
+	var hub := await _open()
+	var p: HubPlayPanel = hub.panels.play
+	assert_true(p.map_rows.has(HubPlayWeekly.ROW_ID), "ligne du défi")
+	assert_true(p.weekly != null and p.weekly.key == "2026-W47", "défi de la semaine imposée")
+	assert_eq(p.selected, "bunker_k7", "la carte mémorisée reste choisie")
+	p.select_map(HubPlayWeekly.ROW_ID)
+	var t := " | ".join(_texts(p, PackedStringArray()))
+	for want in ["DÉFI DE LA SEMAINE", "S47 · BUNKER K-7", "Modificateurs :", "Objectif : évacuez à la manche 10 ou plus",
+			"meilleur résultat : pas encore tenté", "fin dans", "Récompense (une fois)", "RÈGLES DU DÉFI",
+			"imposées : les mêmes pour tous", "Pétoire", "Batte"]:
+		assert_true(t.contains(want), "« %s » dans : %s" % [want, t])
+	assert_false(t.contains("CONTRATS ACTIFS"), "les contrats laissent la place aux règles")
+	assert_eq(p.launch_button.label, "LANCER LE DÉFI")
+	assert_eq(p.modify_button, null, "armes imposées : pas de MODIFIER")
+	# Retour à une carte : aperçu normal.
+	p.select_map("bunker_k7")
+	t = " | ".join(_texts(p, PackedStringArray()))
+	assert_true(t.contains("CONTRATS ACTIFS") and not t.contains("RÈGLES DU DÉFI"), t)
+	assert_eq(p.launch_button.label, "LANCER LA PARTIE")
+	assert_true(p.modify_button != null)
+	p.select_map(HubPlayWeekly.ROW_ID)
+	Settings.last_map = "bunker_k7"
+	p.launch_button.pressed.emit()
+	assert_eq(_host.launched, 1, "fondu de lancement du menu")
+	assert_eq(Settings.last_map, "bunker_k7", "carte mémorisée inchangée")
+	WeeklyChallenge.now_override = -1.0
+
+
+## Défi réussi cette semaine : « réussi » sur la ligne, récompense REÇUE,
+## meilleur résultat affiché.
+func test_weekly_row_after_success() -> void:
+	WeeklyChallenge.now_override = HubData.parse_day("2026-11-18") * 86400.0
+	var pr := demo_profile()
+	pr.weekly.record("2026-W47", 12, true)
+	pr.weekly.mark_rewarded("2026-W47")
+	var hub := await _open("play", pr)
+	var p: HubPlayPanel = hub.panels.play
+	p.select_map(HubPlayWeekly.ROW_ID)
+	var t := " | ".join(_texts(p, PackedStringArray()))
+	assert_true(t.contains("réussi") and t.contains("REÇUE") and t.contains("manche 12, évacuation à la manche 12"), t)
+	WeeklyChallenge.now_override = -1.0
+
+
+## Coop : l'hôte choisit le défi dans CHANGER DE CARTE ; sa clé est annoncée
+## au groupe et partira avec l'ordre de chargement ; une autre carte l'annule.
+func test_lobby_weekly_challenge() -> void:
+	WeeklyChallenge.now_override = HubData.parse_day("2026-11-18") * 86400.0
+	var hub := await _open()
+	var p: HubPlayPanel = hub.panels.play
+	p.coop_button.pressed.emit()
+	p.host_port_edit.text = str(PORT + 2)
+	p.host_button.pressed.emit()
+	await wait_frames(2)
+	var lobby := p.lobby
+	lobby.open_picker()
+	assert_true(lobby.picker_rows.has(HubPlayWeekly.ROW_ID), "défi dans la liste des cartes")
+	lobby._pick(HubPlayWeekly.ROW_ID)
+	assert_eq(Net.lobby_challenge, "2026-W47", "défi annoncé au groupe")
+	assert_eq(Net.lobby_map, WeeklyChallenge.from_key("2026-W47").map_id, "carte du défi")
+	assert_true(lobby.map_title.text.begins_with("DÉFI · "), lobby.map_title.text)
+	assert_true(lobby.map_info.text.contains("Défi de la semaine 47"), lobby.map_info.text)
+	lobby.open_picker()
+	lobby._pick("bunker_k7")
+	assert_eq(Net.lobby_challenge, "", "autre carte : plus de défi")
+	assert_false(lobby.map_title.text.begins_with("DÉFI"))
+	WeeklyChallenge.now_override = -1.0
