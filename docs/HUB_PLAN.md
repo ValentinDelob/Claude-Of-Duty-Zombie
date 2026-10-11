@@ -1224,7 +1224,8 @@ sont au récapitulatif.
   normal), barre turquoise repartie de 0 ; lignes (rowIn 0,4 s, décalées de
   0,15 s ; armes 0,3 + 0,15 s ; échantillons 0,8 + 0,1 s) ; DÉBLOQUÉ quand
   le passage est fait et l'XP à 75 %. A / Entrée pendant l'animation : fin
-  immédiate ; ensuite CONTINUER. ↻ REJOUER L'ANIMATION.
+  immédiate ; ensuite CONTINUER (seul bouton du pied : l'ancien « ↻ REJOUER
+  L'ANIMATION » a été retiré, il ne servait à rien).
 - Détail de l'XP (relevé `XpRules`) : Zombies éliminés (ennemis communs),
   Vagues spéciales et boss (ennemis des vagues + vagues vaincues), Manches
   survécues, Évacuation réussie, Défi de la semaine (récompense) ; lignes à

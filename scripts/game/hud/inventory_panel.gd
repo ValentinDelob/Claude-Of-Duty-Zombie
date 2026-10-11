@@ -208,6 +208,11 @@ func press(row: int, i: int) -> void:
 		_clear_selection()
 		refresh()
 		return
+	# Arme de l'inventaire choisie seule, choisie à nouveau : elle s'équipe
+	# (place libre en main, sinon à la place de l'arme tenue).
+	if row == ROW_BAG and selected_bag == i and selected_hand < 0:
+		equip_selected()
+		return
 	if row == 0:
 		selected_hand = -1 if selected_hand == i else i
 	else:
@@ -231,6 +236,48 @@ func selected_slot() -> Array:
 	if selected_bag >= 0 and selected_hand < 0:
 		return [1, selected_bag]
 	return []
+
+
+## Emplacement en main où ÉQUIPER met une arme de l'inventaire : la première
+## place libre, sinon celui de l'arme tenue (échange). Pure (tests).
+static func equip_target(pd: PlayerData) -> int:
+	if pd.weapons.size() < GameWeapon.HANDS:
+		return pd.weapons.size()
+	return clampi(pd.slot, 0, GameWeapon.HANDS - 1)
+
+
+## Pourquoi l'arme de l'inventaire choisie seule ne s'équipe pas ("" : elle
+## s'équipe ; aucune arme de l'inventaire choisie : « none »). Pure (tests).
+static func equip_refusal(pd: PlayerData, bag: int) -> String:
+	if pd == null or bag < 0 or bag >= pd.bag.size():
+		return "none"
+	if not GameWeapon.can_equip(pd.bag[bag], pd.level):
+		return "level"
+	return GameWeapon.swap_refusal(pd, equip_target(pd), bag)
+
+
+## ÉQUIPER : l'arme de l'inventaire choisie seule passe en main (place libre,
+## sinon échangée avec l'arme tenue ; Combat.srv_swap, le serveur décide) et
+## devient l'arme tenue.
+func equip_selected() -> void:
+	var pd := game.session.local_data()
+	var s := selected_slot()
+	if pd == null or s.is_empty() or s[0] != ROW_BAG:
+		return
+	var why := equip_refusal(pd, s[1])
+	if why == "level":
+		if game.hud:
+			game.hud.flash_message(Lang.t("Niveau %d requis pour cette arme", "Level %d required for this weapon") % GameWeapon.level_of(pd.bag[s[1]]))
+		return
+	if why != "":
+		return
+	var target := equip_target(pd)
+	_clear_selection()
+	_recycle_armed = false
+	request_swap(target, s[1])
+	if target != pd.slot and game.local_player and game.local_player.weapons:
+		game.local_player.weapons.request_switch(target)
+	refresh()
 
 
 ## Recycle l'arme de la case choisie (Combat.srv_recycle, le serveur décide) :
@@ -282,8 +329,8 @@ func refresh() -> void:
 	_title.text = Lang.t("INVENTAIRE", "INVENTORY")
 	_title_hand.text = Lang.t("EN MAIN", "EQUIPPED")
 	_title_bag.text = Lang.t("INVENTAIRE (%d PLACES)", "BACKPACK (%d SLOTS)") % GameWeapon.BAG
-	_hint.text = Lang.t("Choisissez une arme en main puis une place de l'inventaire pour les échanger, ou une seule arme pour la recycler. %s : fermer.",
-			"Pick an equipped weapon, then a backpack slot, to swap them, or a single weapon to recycle it. %s: close.") % Settings.action_label("inventory")
+	_hint.text = Lang.t("Choisissez une arme en main puis une place de l'inventaire pour les échanger (une arme de l'inventaire choisie deux fois s'équipe), ou une seule arme pour la recycler. %s : fermer.",
+			"Pick an equipped weapon, then a backpack slot, to swap them (pick a backpack weapon twice to equip it), or a single weapon to recycle it. %s: close.") % Settings.action_label("inventory")
 	var my_parts: Array = game.loot.my_parts if game.loot else []
 	_title_parts.text = Lang.t("PIÈCES (%d)", "PARTS (%d)") % my_parts.size()
 	if selected_part >= 0:

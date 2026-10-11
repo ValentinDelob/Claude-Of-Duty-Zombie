@@ -554,6 +554,9 @@ func hide_loading() -> void:
 		return
 	var l := _loading
 	_loading = null
+	# Pendant le fondu, l'écran ne doit plus arrêter les clics (panneau
+	# d'inventaire ouvert dès le début de la partie).
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var tw := create_tween()
 	tw.tween_property(l, "modulate:a", 0.0, 1.2)
 	tw.tween_callback(l.queue_free)
@@ -580,21 +583,37 @@ static func weapon_info_text(w: Dictionary) -> String:
 		GameWeapon.rarity_name(GameWeapon.rarity_of(w)), GameWeapon.score(w)]
 
 
+## Touche d'inventaire ([I], croix haut) lue AVANT l'interface : une case du
+## panneau (ou de la station) qui a le focus ne doit pas l'avaler. La croix
+## haut est aussi « ui_up » : sans cela, la navigation du focus de Godot la
+## consommait (focus sur une case de l'inventaire : le panneau ne se fermait
+## plus, le focus remontait d'une rangée).
+func _input(event: InputEvent) -> void:
+	if not event.is_action_pressed("inventory") or not GameState.is_in_game():
+		return
+	if pause_menu == null or pause_menu.visible:
+		return
+	# Station de construction ouverte : [I] la ferme.
+	if station_panel and station_panel.visible:
+		station_panel.close()
+		get_viewport().set_input_as_handled()
+		return
+	if inventory and GameState.state != GameState.State.GAME_OVER:
+		inventory.toggle()
+		get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	# Station de construction ouverte : Échap, B ou [I] la ferment (avant le
-	# menu pause et l'inventaire).
+	# Station de construction ouverte : Échap ou B la ferment (avant le menu
+	# pause ; [I] : _input).
 	if station_panel and station_panel.visible and GameState.is_in_game():
-		if event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel") or event.is_action_pressed("inventory"):
+		if event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel"):
 			station_panel.close()
 			get_viewport().set_input_as_handled()
 			return
-	# Panneau d'inventaire : [I] l'ouvre et le ferme ; ouvert, Échap ou B le
-	# ferment (avant le menu pause).
+	# Panneau d'inventaire ouvert ([I] l'ouvre et le ferme : _input) : Échap
+	# ou B le ferment (avant le menu pause).
 	if inventory and GameState.is_in_game() and pause_menu and not pause_menu.visible:
-		if event.is_action_pressed("inventory") and GameState.state != GameState.State.GAME_OVER:
-			inventory.toggle()
-			get_viewport().set_input_as_handled()
-			return
 		if inventory.visible and (event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel")):
 			inventory.close()
 			get_viewport().set_input_as_handled()
